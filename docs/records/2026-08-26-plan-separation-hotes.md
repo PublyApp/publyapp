@@ -85,7 +85,7 @@ Documentation jumelle : section « Frontière shared-cs » dans `AGENTS.md` (tab
 
 ### 3.4 Inventaire EXHAUSTIF des réflexions sur assembly de l'API (CRITIQUE 2 R2 — aucune omise)
 
-Toute reflection-over-assembly liée à l'assembly d'un hôte casse silencieusement après la scission : `packages/shared-cs` (Core) et `apps/worker` deviennent des assemblys séparés de `apps/api`, et `typeof(Program).Assembly` / `typeof(AppDbContext).Assembly` ne contiennent plus ce qui en a été extrait. Voici **chaque** site trouvable par `git grep -n 'typeof(' … | grep -i Assembly` dans `apps/api/**/*.cs` (13 sites, citation C32), avec son devenir après scission et la tâche qui le traite :
+Toute reflection-over-assembly liée à l'assembly d'un hôte casse silencieusement après la scission : `packages/shared-cs` (Core) et `apps/worker` deviennent des assemblys séparés de `apps/api`, et `typeof(Program).Assembly` / `typeof(AppDbContext).Assembly` ne contiennent plus ce qui en a été extrait. Voici **chaque** site trouvable par `git grep -n 'typeof(' … | grep -i Assembly` dans `apps/api/**/*.cs` : **13 sites de réflexion distincts** (14 appels réels `typeof(X).Assembly` + 1 commentaire explicatif en `EntityConfigurationConvention.Spec.cs:71` = 15 lignes grep, citation C32), avec son devenir après scission et la tâche qui le traite :
 
 | # | Site (chemin : ligne) | Ce qu'il fait | Devenir après scission | Tâche |
 |---|---|---|---|---|
@@ -171,6 +171,6 @@ Au moment du cutover (phase C, PR dédiée) :
 
 ## 8. Preuve et traçabilité
 
-- Registre : `.dump/citations-r2.md` (RÉGÉNÉRÉ round 2, **35 citations C1-C35, 0 FAIL**, exécuté réellement contre le tip `ebdf2b6b6517e84b8f052b26cf93568e4c5dc949` (`ebdf2b6b6`) — le même tip que celui cité ici). C1-C31 = état des lieux (mêmes assertions que le r1, désormais PASS toutes, sans ligne FAIL périmée) ; C32-C35 = inventaires R2 (réflexion sur assembly, `[Service]` 43, `IEntityTypeConfiguration<T>` 27, précédents Roslyn). L'ancien `.dump/citations-r1.md` est obsolète (tip `6d716e3e6`, 4 lignes FAIL) et ne doit plus être cité.
+- Registre : `.dump/citations-r2.md` (RÉGÉNÉRÉ round 2, **35 citations C1-C35, 0 FAIL**, exécuté réellement contre le tip `ebdf2b6b6517e84b8f052b26cf93568e4c5dc949` (`ebdf2b6b6`) — le même tip que celui cité ici). C1-C31 = état des lieux (mêmes assertions que le r1, désormais PASS toutes, sans ligne FAIL périmée) ; C32-C35 = inventaires R2 (réflexion sur assembly : 13 sites distincts / 15 lignes grep, `[Service]` 43, `IEntityTypeConfiguration<T>` 27, précédents Roslyn). L'ancien `.dump/citations-r1.md` est obsolète (tip `6d716e3e6`, 4 lignes FAIL) et ne doit plus être cité.
 - Règle tenue : aucun commit tant qu'une ligne du registre est FAIL (aucune ici).
 - Section « non vérifié » du corps de PR : énumérée honnêtement (cf. `.dump/pr-body.md`).
