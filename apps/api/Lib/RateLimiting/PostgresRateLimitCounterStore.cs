@@ -3,7 +3,6 @@ using System.Security.Cryptography;
 using System.Text;
 
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Storage;
 
 using Npgsql;
 
@@ -109,52 +108,37 @@ internal sealed partial class PostgresRateLimitCounterStore
 			await using var scope = _scopeFactory.CreateAsyncScope();
 			var dbContext = scope.ServiceProvider
 				.GetRequiredService<AppDbContext>();
-			var database = dbContext.Database;
-			IDbContextTransaction? ownedTransaction = null;
-			if (database.CurrentTransaction is null) {
-				ownedTransaction = await database
-					.BeginTransactionAsync();
+			// Borrow only the scoped context's connection (test hosts override its
+			// provider); every command auto-commits so the accounting UPSERT persists
+			// immediately — a wrapping transaction would let a later rollback undo
+			// permits other replicas already observed.
+			var connection =
+				(NpgsqlConnection)dbContext.Database.GetDbConnection();
+			if (connection.State != ConnectionState.Open) {
+				await connection.OpenAsync();
 			}
 
-			try {
-				var connection =
-					(NpgsqlConnection)database.GetDbConnection();
-				if (connection.State != ConnectionState.Open) {
-					await connection.OpenAsync();
-				}
+			var newPermitCount = await UpsertCounterAsync(
+				connection,
+				policyName,
+				partitionKey,
+				windowStartedAt,
+				permitCount,
+				permitLimit
+			);
 
-				var newPermitCount = await UpsertCounterAsync(
-					connection,
-					policyName,
-					partitionKey,
-					windowStartedAt,
-					permitCount,
-					permitLimit
-				);
+			await DeleteSupersededWindowsAsync(
+				connection,
+				policyName,
+				partitionKey,
+				windowStartedAt
+			);
+			await MaybeSweepExpiredAsync(connection, utcNow);
 
-				await DeleteSupersededWindowsAsync(
-					connection,
-					policyName,
-					partitionKey,
-					windowStartedAt
-				);
-				await MaybeSweepExpiredAsync(
-					connection,
-					utcNow
-				);
-
-				RecordSuccess();
-				return newPermitCount is not null
-					? CounterLeaseResult.Granted(
-						newPermitCount.Value
-					)
-					: CounterLeaseResult.Rejected();
-			} finally {
-				if (ownedTransaction is not null) {
-					await ownedTransaction.RollbackAsync();
-					await ownedTransaction.DisposeAsync();
-				}
-			}
+			RecordSuccess();
+			return newPermitCount is not null
+				? CounterLeaseResult.Granted(newPermitCount.Value)
+				: CounterLeaseResult.Rejected();
 		} catch (Exception exception) when (
 			exception is NpgsqlException
 				or DbUpdateException
