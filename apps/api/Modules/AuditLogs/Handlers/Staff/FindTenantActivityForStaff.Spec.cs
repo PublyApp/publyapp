@@ -181,8 +181,19 @@ public sealed class FindTenantActivityForStaffSpec
 		var memberA = await SeedTenantMemberAsync(tenantA);
 		var memberB = await SeedTenantMemberAsync(tenantB);
 
+		var staffUserId =
+			await AuditLogTestHelper.GetUserIdByEmailAsync(
+				_fixture.Factory,
+				TestConstants.StaffAdminEmail
+			);
+
 		var alphaEntry = await SeedEntryAsync(
 			memberA, AuditActions.PostCreated
+		);
+		// A tenant-B entry a forged `target_id=tenantB` could try to pull in.
+		// It must NEVER surface on tenant A's feed, forged scope or not.
+		var tenantBTargetedEntry = await SeedEntryAsync(
+			staffUserId, AuditActions.TenantUpdated, tenantB
 		);
 		await SeedEntryAsync(memberB, AuditActions.PostCreated);
 
@@ -199,6 +210,13 @@ public sealed class FindTenantActivityForStaffSpec
 		var ids = result.Data.Select(e => e.Id).ToList();
 		ids.Should().HaveCount(1);
 		ids.Should().Contain(alphaEntry);
+		// Hardened beyond a count check: if a future handler ever honored a
+		// forged scope filter, tenant B's entry would leak in and this would
+		// fail (proven red in .dump/proof-r2-cloisonnement.md).
+		ids.Should().NotContain(
+			tenantBTargetedEntry,
+			"a forged scope filter must not widen the feed to tenant B"
+		);
 	}
 
 	[Fact]
@@ -409,12 +427,13 @@ public sealed class FindTenantActivityForStaffSpec
 			staffUserId, AuditActions.TenantReactivated, tenantId
 		);
 
-		// The surface is READ only by construction: only GET is mapped,
-		// so every mutating verb reaches either a 405 (no such verb on
-		// the matched route) or the app-wide 404 fallback — but never a
-		// mutating handler. The genuine security guarantee is that the
-		// audit feed is byte-for-byte unchanged by any mutating attempt:
-		// no entry is created, edited, or deleted from this tab.
+		// The surface is READ only by construction: only GET is mapped on
+		// this path, so every mutating verb is unmatched by the framework's
+		// endpoint routing and returns 404 — never a 405, never the app-wide
+		// fallback, and never a mutating handler. The genuine security
+		// guarantee is that the audit feed is byte-for-byte unchanged by any
+		// mutating attempt: no entry is created, edited, or deleted from this
+		// tab.
 		var url = GetUrl(tenantId.ToString());
 		var baseline = await GetActivityAsync(url, token);
 
