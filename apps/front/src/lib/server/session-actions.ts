@@ -62,7 +62,7 @@ const resolveRedirectSessionCookieValue = (
 };
 
 const LoginInputSchema = z.object({
-	email: z.string().min(1).email().max(120),
+	email: z.email().min(1).max(120),
 	password: z.string().min(1),
 });
 

@@ -1,5 +1,3 @@
-import { ZodIssueCode } from 'zod';
-
 import { MAX_PROFILES_PER_ACCOUNT } from '../lib/constants';
 import type InterZod from '../lib/zod/InterZod';
 import { getEmailFieldSchema } from './auth.validations';
@@ -8,7 +6,7 @@ export const getCreateInvitationSchema = (z: InterZod) => {
 	return z.object({
 		email: getEmailFieldSchema(z),
 		profileIds: z
-			.array(z.string().uuid(z.t('invalid-item', { item: z.t('profile') })))
+			.array(z.uuid(z.t('invalid-item', { item: z.t('profile') })))
 			.min(1)
 			.max(MAX_PROFILES_PER_ACCOUNT),
 	});
@@ -23,9 +21,7 @@ export const getBulkCreateInvitationsSchema = (z: InterZod) => {
 						// Trim whitespace from email to normalize before validation
 						email: getEmailFieldSchema(z).trim(),
 						profileIds: z
-							.array(
-								z.string().uuid(z.t('invalid-item', { item: z.t('profile') })),
-							)
+							.array(z.uuid(z.t('invalid-item', { item: z.t('profile') })))
 							.min(1, z.t('at-least-one-profile-required'))
 							.max(MAX_PROFILES_PER_ACCOUNT),
 					}),
@@ -56,7 +52,7 @@ export const getBulkCreateInvitationsSchema = (z: InterZod) => {
 			const uniqueDuplicates = [...new Set(duplicateIndices)];
 			for (const index of uniqueDuplicates) {
 				ctx.addIssue({
-					code: ZodIssueCode.custom,
+					code: 'custom',
 					message: z.t('duplicate-email'),
 					path: ['invitations', index, 'email'],
 				});
@@ -68,7 +64,7 @@ export const getBulkCreateInvitationsSchema = (z: InterZod) => {
 				const uniqueIds = new Set(profileIds);
 				if (uniqueIds.size !== profileIds.length) {
 					ctx.addIssue({
-						code: ZodIssueCode.custom,
+						code: 'custom',
 						message: z.t('duplicate-profile', {
 							defaultValue: 'Duplicate profile selected',
 						}),

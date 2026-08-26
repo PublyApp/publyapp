@@ -61,7 +61,5 @@ export const getProfileFormValues = (): ProfileFormValues => {
 	};
 };
 
-export const profileFormResolver = (
-	t: (key: string) => string,
-): ReturnType<typeof zodResolver<ProfileFormValues>> =>
+export const profileFormResolver = (t: (key: string) => string) =>
 	zodResolver(buildProfileFormSchema(t));

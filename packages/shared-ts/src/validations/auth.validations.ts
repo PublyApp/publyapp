@@ -4,7 +4,7 @@ import type { AppLocale } from '../lib/i18n/resources';
 import type InterZod from '../lib/zod/InterZod';
 
 export const getEmailFieldSchema = (z: InterZod) => {
-	return z.string().min(1).email().max(120);
+	return z.email().min(1).max(120);
 };
 
 const SPECIAL_CHAR_REGEX = /[`!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?~]/;

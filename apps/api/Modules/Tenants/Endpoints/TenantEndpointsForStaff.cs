@@ -2,6 +2,7 @@ using PublyApp.Api.Lib;
 using PublyApp.Api.Lib.Filters;
 using PublyApp.Api.Lib.RateLimiting;
 using PublyApp.Api.Lib.Routes;
+using PublyApp.Api.Modules.AuditLogs.Handlers.Staff;
 using PublyApp.Api.Modules.Tenants.Handlers.Staff;
 
 namespace PublyApp.Api.Modules.Tenants.Endpoints;
@@ -61,6 +62,36 @@ public static class TenantEndpointsForStaff {
 			.WithSummary("Find tenants with pagination")
 			.WithReqQueryValidation<FindTenantsAsStaffQuery>()
 			.WithPermission([AppPermissions.Staff.Tenants.LIST]);
+
+		// The activity feed is registered on the tenant group (prefix
+		// /staff/tenants) with a method-constrained MapMethods so the
+		// read-only contract holds: its template /{tenantId}/activity
+		// is distinct from the catch-all /{tenantId} routes below, and
+		// because only GET is mapped, every mutating verb returns 405
+		// — so audit entries can never be created, edited, or deleted
+		// from this surface (the 405 test anchors exactly that).
+		group.MapMethods(
+				Routes.Tenants.ForStaff.Activity,
+				[HttpMethods.Get],
+				FindTenantActivityForStaff.Handle
+			)
+			.WithName("FindTenantActivityForStaff")
+			.RequireRateLimiting(
+				ApiRateLimitPolicies.HeavySearchList
+			)
+			.WithSummary(
+				"List a tenant's activity feed"
+				+ " (derived from audit logs)"
+			)
+			.WithReqQueryValidation<
+				FindTenantActivityForStaffQuery>()
+			.WithPermission([
+				AppPermissions.Staff.Tenants.GET
+			])
+			.WithTags("Tenants")
+			.RequireRateLimiting(
+				ApiRateLimitPolicies.AuthenticatedDefault
+			);
 
 		group.MapPatch(
 			Routes.Tenants.ForStaff.Update,

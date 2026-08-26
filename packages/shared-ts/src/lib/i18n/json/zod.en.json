@@ -1,85 +1,144 @@
 {
 	"errors": {
-		"invalid_type": "Expected {{expected}}, received {{received}}",
-		"invalid_type_received_undefined": "Required",
-		"invalid_type_received_null": "Required",
-		"invalid_literal": "Invalid literal value, expected {{expected}}",
-		"unrecognized_keys": "Unrecognized key(s) in object: {{- keys}}",
+		"invalid_type": "Invalid input: expected {{expected}}, received {{received}}",
+		"invalid_literal": "Invalid input: expected {{value}}",
+		"unrecognized_keys": "Unrecognized key: {{keys}}",
 		"invalid_union": "Invalid input",
-		"invalid_union_discriminator": "Invalid discriminator value. Expected {{- options}}",
-		"invalid_enum_value": "Invalid enum value. Expected {{- options}}, received '{{received}}'",
-		"invalid_arguments": "Invalid function arguments",
-		"invalid_return_type": "Invalid function return type",
-		"invalid_date": "Invalid date",
+		"invalid_union_discriminator": "Invalid option: expected one of {{options}}",
+		"invalid_enum_value": "Invalid option: expected one of {{options}}",
+		"not_multiple_of": "Invalid number: must be a multiple of {{multipleOf}}",
+		"invalid_date": "Invalid input",
 		"custom": "Invalid input",
-		"invalid_intersection_types": "Intersection results could not be merged",
-		"not_multiple_of": "Number must be a multiple of {{multipleOf}}",
-		"not_finite": "Number must be finite",
-		"invalid_string": {
-			"email": "Invalid {{validation}}",
-			"url": "Invalid {{validation}}",
-			"uuid": "Invalid {{validation}}",
-			"cuid": "Invalid {{validation}}",
-			"regex": "Invalid",
-			"datetime": "Invalid {{validation}}",
-			"startsWith": "Invalid input: must start with \"{{startsWith}}\"",
-			"endsWith": "Invalid input: must end with \"{{endsWith}}\""
+		"not_finite": "Invalid input",
+		"invalid_format": {
+			"email": "Invalid email address",
+			"url": "Invalid URL",
+			"uuid": "Invalid UUID",
+			"cuid": "Invalid cuid",
+			"datetime": "Invalid ISO datetime",
+			"regex": "Invalid string: must match pattern {{pattern}}",
+			"startsWith": "Invalid string: must start with {{prefix}}",
+			"endsWith": "Invalid string: must end with {{suffix}}",
+			"includes": "Invalid string: must include {{includes}}"
 		},
 		"too_small": {
-			"array": {
-				"exact": "Array must contain exactly {{minimum}} element(s)",
-				"inclusive": "Array must contain at least {{minimum}} element(s)",
-				"not_inclusive": "Array must contain more than {{minimum}} element(s)"
-			},
 			"string": {
-				"exact": "String must contain exactly {{minimum}} character(s)",
-				"inclusive": "String must contain at least {{minimum}} character(s)",
-				"not_inclusive": "String must contain over {{minimum}} character(s)"
+				"exact": "Too small: expected string to have >={{minimum}} characters",
+				"inclusive": "Too small: expected string to have >={{minimum}} characters",
+				"not_inclusive": "Too small: expected string to have >{{minimum}} characters"
 			},
 			"number": {
-				"exact": "Number must be exactly {{minimum}}",
-				"inclusive": "Number must be greater than or equal to {{minimum}}",
-				"not_inclusive": "Number must be greater than {{minimum}}"
+				"exact": "Too small: expected number to be >={{minimum}}",
+				"inclusive": "Too small: expected number to be >={{minimum}}",
+				"not_inclusive": "Too small: expected number to be >{{minimum}}"
 			},
-			"set": {
-				"exact": "Invalid input",
-				"inclusive": "Invalid input",
-				"not_inclusive": "Invalid input"
+			"int": {
+				"exact": "Too small: expected int to be >={{minimum}}",
+				"inclusive": "Too small: expected int to be >={{minimum}}",
+				"not_inclusive": "Too small: expected int to be >{{minimum}}"
+			},
+			"bigint": {
+				"exact": "Too small: expected bigint to be >={{minimum}}",
+				"inclusive": "Too small: expected bigint to be >={{minimum}}",
+				"not_inclusive": "Too small: expected bigint to be >{{minimum}}"
 			},
 			"date": {
-				"exact": "Date must be exactly {{- minimum, datetime}}",
-				"inclusive": "Date must be greater than or equal to {{- minimum, datetime}}",
-				"not_inclusive": "Date must be greater than {{- minimum, datetime}}"
+				"exact": "Too small: expected date to be >={{minimum}}",
+				"inclusive": "Too small: expected date to be >={{minimum}}",
+				"not_inclusive": "Too small: expected date to be >{{minimum}}"
+			},
+			"array": {
+				"exact": "Too small: expected array to have >={{minimum}} items",
+				"inclusive": "Too small: expected array to have >={{minimum}} items",
+				"not_inclusive": "Too small: expected array to have >{{minimum}} items"
+			},
+			"set": {
+				"exact": "Too small: expected set to have >={{minimum}} items",
+				"inclusive": "Too small: expected set to have >={{minimum}} items",
+				"not_inclusive": "Too small: expected set to have >{{minimum}} items"
+			},
+			"file": {
+				"exact": "Too small: expected file to have >={{minimum}} bytes",
+				"inclusive": "Too small: expected file to have >={{minimum}} bytes",
+				"not_inclusive": "Too small: expected file to have >{{minimum}} bytes"
+			},
+			"map": {
+				"exact": "Too small: expected map to have >={{minimum}} entries",
+				"inclusive": "Too small: expected map to have >={{minimum}} entries",
+				"not_inclusive": "Too small: expected map to have >{{minimum}} entries"
 			}
 		},
 		"too_big": {
-			"array": {
-				"exact": "Array must contain exactly {{maximum}} element(s)",
-				"inclusive": "Array must contain at most {{maximum}} element(s)",
-				"not_inclusive": "Array must contain less than {{maximum}} element(s)"
-			},
 			"string": {
-				"exact": "String must contain exactly {{maximum}} character(s)",
-				"inclusive": "String must contain at most {{maximum}} character(s)",
-				"not_inclusive": "String must contain under {{maximum}} character(s)"
+				"exact": "Too big: expected string to have <={{maximum}} characters",
+				"inclusive": "Too big: expected string to have <={{maximum}} characters",
+				"not_inclusive": "Too big: expected string to have <{{maximum}} characters"
 			},
 			"number": {
-				"exact": "Number must be exactly {{maximum}}",
-				"inclusive": "Number must be less than or equal to {{maximum}}",
-				"not_inclusive": "Number must be less than {{maximum}}"
+				"exact": "Too big: expected number to be <={{maximum}}",
+				"inclusive": "Too big: expected number to be <={{maximum}}",
+				"not_inclusive": "Too big: expected number to be <{{maximum}}"
 			},
-			"set": {
-				"exact": "Invalid input",
-				"inclusive": "Invalid input",
-				"not_inclusive": "Invalid input"
+			"int": {
+				"exact": "Too big: expected int to be <={{maximum}}",
+				"inclusive": "Too big: expected int to be <={{maximum}}",
+				"not_inclusive": "Too big: expected int to be <{{maximum}}"
+			},
+			"bigint": {
+				"exact": "Too big: expected bigint to be <={{maximum}}",
+				"inclusive": "Too big: expected bigint to be <={{maximum}}",
+				"not_inclusive": "Too big: expected bigint to be <{{maximum}}"
 			},
 			"date": {
-				"exact": "Date must be exactly {{- maximum, datetime}}",
-				"inclusive": "Date must be smaller than or equal to {{- maximum, datetime}}",
-				"not_inclusive": "Date must be smaller than {{- maximum, datetime}}"
+				"exact": "Too big: expected date to be <={{maximum}}",
+				"inclusive": "Too big: expected date to be <={{maximum}}",
+				"not_inclusive": "Too big: expected date to be <{{maximum}}"
+			},
+			"array": {
+				"exact": "Too big: expected array to have <={{maximum}} items",
+				"inclusive": "Too big: expected array to have <={{maximum}} items",
+				"not_inclusive": "Too big: expected array to have <{{maximum}} items"
+			},
+			"set": {
+				"exact": "Too big: expected set to have <={{maximum}} items",
+				"inclusive": "Too big: expected set to have <={{maximum}} items",
+				"not_inclusive": "Too big: expected set to have <{{maximum}} items"
+			},
+			"file": {
+				"exact": "Too big: expected file to have <={{maximum}} bytes",
+				"inclusive": "Too big: expected file to have <={{maximum}} bytes",
+				"not_inclusive": "Too big: expected file to have <{{maximum}} bytes"
+			},
+			"map": {
+				"exact": "Too big: expected map to have <={{maximum}} entries",
+				"inclusive": "Too big: expected map to have <={{maximum}} entries",
+				"not_inclusive": "Too big: expected map to have <{{maximum}} entries"
 			}
-		},
-		"invalid_type_with_path": "{{path}} is expected {{expected}}, received {{received}}"
+		}
+	},
+	"types": {
+		"string": "string",
+		"number": "number",
+		"int": "int",
+		"boolean": "boolean",
+		"bigint": "bigint",
+		"symbol": "symbol",
+		"undefined": "undefined",
+		"null": "null",
+		"never": "never",
+		"void": "void",
+		"date": "date",
+		"array": "array",
+		"object": "object",
+		"tuple": "tuple",
+		"record": "record",
+		"map": "map",
+		"set": "set",
+		"file": "file",
+		"nonoptional": "nonoptional",
+		"nan": "NaN",
+		"function": "function",
+		"promise": "promise"
 	},
 	"validations": {
 		"email": "email",
@@ -88,27 +147,5 @@
 		"cuid": "cuid",
 		"regex": "regex",
 		"datetime": "datetime"
-	},
-	"types": {
-		"function": "function",
-		"number": "number",
-		"string": "string",
-		"nan": "nan",
-		"integer": "integer",
-		"float": "float",
-		"boolean": "boolean",
-		"date": "date",
-		"bigint": "bigint",
-		"undefined": "undefined",
-		"symbol": "symbol",
-		"null": "null",
-		"array": "array",
-		"object": "object",
-		"unknown": "unknown",
-		"promise": "promise",
-		"void": "void",
-		"never": "never",
-		"map": "map",
-		"set": "set"
 	}
 }

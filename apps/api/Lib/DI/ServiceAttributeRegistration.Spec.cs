@@ -43,6 +43,7 @@ public sealed class ServiceAttributeRegistrationSpec
 		(typeof(IAccountService), typeof(AccountService)),
 		(typeof(IAuditLogQueryService), typeof(AuditLogQueryService)),
 		(typeof(IAuditLogService), typeof(AuditLogService)),
+		(typeof(ITenantActivityQueryService), typeof(TenantActivityQueryService)),
 		(typeof(IAuthService), typeof(AuthService)),
 		(typeof(IEmailLogWriter), typeof(EmailLogWriter)),
 		(typeof(IJobDeadLetterService), typeof(JobDeadLetterService)),
