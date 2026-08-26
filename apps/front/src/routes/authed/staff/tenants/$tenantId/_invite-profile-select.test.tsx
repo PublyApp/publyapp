@@ -8,11 +8,13 @@ import {
 	screen,
 	waitFor,
 } from '@testing-library/react';
+import { createElement } from 'react';
 import { FormProvider, useForm } from 'react-hook-form';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
 	useStaffTenantProfilesQuery: vi.fn(),
+	shouldLogoutForFailure: vi.fn(() => false),
 }));
 
 vi.mock('react-i18next', () => ({
@@ -34,10 +36,23 @@ vi.mock('react-i18next', () => ({
 	}),
 }));
 
+vi.mock('~/components/error-views/LogoutRedirect', () => ({
+	LogoutRedirect: () =>
+		createElement(
+			'div',
+			{ 'data-testid': 'invite-profile-logout-redirect' },
+			'logout',
+		),
+}));
+
 vi.mock('~/lib/query/staff-tenant-profiles', () => ({
 	useStaffTenantProfilesQuery: mocks.useStaffTenantProfilesQuery,
 	toStaffTenantProfileRows: (items: unknown[]) =>
 		Array.isArray(items) ? items : [],
+}));
+
+vi.mock('~/lib/should-logout-for-failure', () => ({
+	shouldLogoutForFailure: mocks.shouldLogoutForFailure,
 }));
 
 import { InviteProfileSelect } from './_invite-profile-select';
@@ -48,6 +63,17 @@ const pageOf = (rows: unknown[], nextCursor?: string) => ({
 	isError: false,
 });
 
+const errorPage = (error: {
+	status: number;
+	title: string;
+	detail: string;
+}) => ({
+	data: undefined,
+	error: { ...error, responseStatusCode: error.status },
+	isPending: false,
+	isError: true,
+});
+
 const TestForm = () => {
 	const methods = useForm({ defaultValues: { profileIds: [] as string[] } });
 	return (
@@ -56,7 +82,6 @@ const TestForm = () => {
 				tenantId="tenant-1"
 				name="profileIds"
 				label="Profiles"
-				onSessionExpired={vi.fn()}
 			/>
 			<output data-testid="selected-profile-ids">
 				{methods.watch('profileIds').join(',')}
@@ -180,5 +205,40 @@ describe('InviteProfileSelect', () => {
 
 		const chipText = document.querySelector('.publy-detail-chip')?.textContent;
 		expect(chipText).toBe('Kept Profile');
+	});
+
+	// Fatal-error render gate (tenants.tsx pattern): a session-killing failure
+	// short-circuits to the logout redirect. Two tests pin the gate so neither
+	// side of it can silently regress:
+	//   - positive: 401 + shouldLogoutForFailure=true -> LogoutRedirect rendered
+	//   - negative: non-fatal error (403) -> dropdown still rendered, no redirect
+	// Removing the gate breaks the positive test; an "always redirect" mutation
+	// breaks the negative one. Both must stay green for the gate to be correct.
+	test('renders LogoutRedirect when the profile query fails fatally (401)', () => {
+		mocks.useStaffTenantProfilesQuery.mockReturnValue(
+			errorPage({
+				status: 401,
+				title: 'Unauthorized',
+				detail: 'Session expired',
+			}),
+		);
+		mocks.shouldLogoutForFailure.mockReturnValue(true);
+
+		render(<TestForm />);
+
+		expect(screen.getByTestId('invite-profile-logout-redirect')).toBeTruthy();
+		expect(screen.queryByRole('button', { name: 'Profiles' })).toBeNull();
+	});
+
+	test('still renders the dropdown when the query errors non-fatally (403)', () => {
+		mocks.useStaffTenantProfilesQuery.mockReturnValue(
+			errorPage({ status: 403, title: 'Forbidden', detail: 'Forbidden' }),
+		);
+		mocks.shouldLogoutForFailure.mockReturnValue(false);
+
+		render(<TestForm />);
+
+		expect(screen.queryByTestId('invite-profile-logout-redirect')).toBeNull();
+		expect(screen.getByRole('button', { name: 'Profiles' })).toBeTruthy();
 	});
 });

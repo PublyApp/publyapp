@@ -7,6 +7,7 @@ import {
 import { useDeferredValue, useEffect, useId, useState } from 'react';
 import { Controller, useFormContext } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
+import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
 import { renderFieldHelper } from '~/components/field/field-helper-text';
 import { useCursorPagination } from '~/components/table/use-cursor-pagination';
 import { Badge } from '~/components/ui/badge';
@@ -74,13 +75,11 @@ export const InviteProfileSelect = ({
 	name,
 	label,
 	isDisabled = false,
-	onSessionExpired,
 }: {
 	tenantId: string;
 	name: string;
 	label: string;
 	isDisabled?: boolean;
-	onSessionExpired: () => void;
 }) => {
 	const { control } = useFormContext();
 	const { t } = useTranslation('common');
@@ -122,11 +121,13 @@ export const InviteProfileSelect = ({
 		});
 	}, [profiles]);
 
-	useEffect(() => {
-		if (profilesIsError && shouldLogoutForFailure(profilesError)) {
-			onSessionExpired();
-		}
-	}, [onSessionExpired, profilesError, profilesIsError]);
+	// Fatal-error render gate (tenants.tsx pattern): a session-killing failure
+	// short-circuits to <LogoutRedirect /> here, so the user is bounced
+	// through the central 401 redirect rather than seeing a stale profile
+	// dropdown.
+	if (profilesIsError && shouldLogoutForFailure(profilesError)) {
+		return <LogoutRedirect />;
+	}
 
 	return (
 		<Controller
