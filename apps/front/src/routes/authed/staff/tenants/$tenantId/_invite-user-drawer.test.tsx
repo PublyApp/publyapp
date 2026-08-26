@@ -442,6 +442,8 @@ describe('InviteTenantUserDrawer', () => {
 			/>,
 		);
 
+		expect(onDirtyChange).toHaveBeenCalledWith(false);
+
 		fireEvent.change(screen.getByLabelText('Email'), {
 			target: { value: 'someone@acme.com' },
 		});
