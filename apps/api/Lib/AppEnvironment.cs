@@ -110,6 +110,11 @@ public class AppEnvironment {
 	public int SOCIAL_CONNECT_RATE_LIMIT_PERMIT_LIMIT { get; }
 	public int SOCIAL_CONNECT_RATE_LIMIT_WINDOW_SECONDS { get; }
 
+	// Distributed rate limiting (#953): which store backs the shared fixed-window
+	// counters. 'postgres' (default) makes N replicas share one budget per
+	// partition; 'memory' restores per-process counting for incident triage.
+	public string RATE_LIMIT_COUNTER_STORE { get; }
+
 	// ========== Hosting role + worker tuning (design §3.1) ==========
 	// APP_ROLE picks the composition root. It is optional ONLY in the Development and
 	// Testing host environments, where it defaults to AppRole.All (both HTTP surface and
@@ -370,6 +375,8 @@ public class AppEnvironment {
 		int uploadRateLimitWindowSeconds,
 		int socialConnectRateLimitPermitLimit,
 		int socialConnectRateLimitWindowSeconds,
+		// Optional app setting (defaults to "postgres") — see RATE_LIMIT_COUNTER_STORE.
+		string rateLimitCounterStore,
 		AppRole role,
 		int jobQueueBatchSize,
 		int jobQueuePollSeconds,
@@ -460,6 +467,7 @@ public class AppEnvironment {
 			socialConnectRateLimitPermitLimit;
 		SOCIAL_CONNECT_RATE_LIMIT_WINDOW_SECONDS =
 			socialConnectRateLimitWindowSeconds;
+		RATE_LIMIT_COUNTER_STORE = rateLimitCounterStore;
 		Role = role;
 		JOB_QUEUE_BATCH_SIZE = jobQueueBatchSize;
 		JOB_QUEUE_POLL_SECONDS = jobQueuePollSeconds;
@@ -670,6 +678,13 @@ public class AppEnvironment {
 				socialConnectRateLimitWindowSeconds: GetOptionalInt(
 					nameof(SOCIAL_CONNECT_RATE_LIMIT_WINDOW_SECONDS),
 					3600
+				),
+				// Optional (#953): defaults to postgres so scaling to a second replica
+				// still yields one fleet-wide budget per partition; 'memory' is the
+				// explicit operator escape hatch.
+				rateLimitCounterStore: GetOptionalString(
+					nameof(RATE_LIMIT_COUNTER_STORE),
+					"postgres"
 				),
 				// Fail-fast here (same InvalidOperationException path the other vars use),
 				// before the validator runs — neither an unparseable role nor an absent one
