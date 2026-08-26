@@ -669,3 +669,52 @@ test('GITHUB_OUTPUT BLOCKER: a gh failure (rate limit / auth / network) exits no
 		rmSync(fakeGhDir, { recursive: true, force: true });
 	}
 });
+
+// ---------------------------------------------------------------------------
+// #1462: the new api-tests.yml gate runs the FULL API test suite behind this
+// classifier. Nothing pinned that the workflow's own file (or an API source
+// change) selects the gate, so a silent narrowing of the REAL pattern would
+// stop running the suite without anyone noticing — the exact #1275/#1279
+// blindness, applied to backend CI. The pattern is extracted from the
+// workflow YAML itself, not restated here, so narrowing it is caught.
+// Paired proof: both cases are RED against a pattern narrowed to drop the
+// `.github/workflows/api-tests.yml` / `apps/api/` groups and GREEN against
+// the shipped one.
+// ---------------------------------------------------------------------------
+
+const apiTestsClassifierPattern = readFileSync(
+	new URL('../../../.github/workflows/api-tests.yml', import.meta.url),
+	'utf8',
+).match(/node "\$CLASSIFIER" '([^']*)'/)?.[1];
+
+test('#1462: api-tests classifier selects .github/workflows/api-tests.yml as relevant', () => {
+	assert.ok(
+		apiTestsClassifierPattern,
+		'classifier invocation found in api-tests.yml',
+	);
+
+	const result = classifyRelevance({
+		eventName: 'pull_request',
+		files: ['.github/workflows/api-tests.yml'],
+		changedFilesTotal: 1,
+		pattern: apiTestsClassifierPattern,
+	});
+
+	assert.equal(result.relevant, true);
+});
+
+test('#1462: api-tests classifier selects apps/api/Modules/Auth/Services/foo.cs as relevant', () => {
+	assert.ok(
+		apiTestsClassifierPattern,
+		'classifier invocation found in api-tests.yml',
+	);
+
+	const result = classifyRelevance({
+		eventName: 'pull_request',
+		files: ['apps/api/Modules/Auth/Services/FooService.cs'],
+		changedFilesTotal: 1,
+		pattern: apiTestsClassifierPattern,
+	});
+
+	assert.equal(result.relevant, true);
+});
