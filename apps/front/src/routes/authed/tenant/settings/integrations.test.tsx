@@ -1,8 +1,16 @@
 /**
  * @vitest-environment jsdom
  */
-import { cleanup, render, screen, within } from '@testing-library/react';
-import type { ComponentType } from 'react';
+import {
+	cleanup,
+	fireEvent,
+	render,
+	screen,
+	waitFor,
+	within,
+} from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { createElement, type ComponentType } from 'react';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import type { TestLabelMap } from '~/lib/testing/test-label-map';
 
@@ -52,6 +60,31 @@ vi.mock('~/lib/permissions/use-has-tenant-permission', () => ({
 	useCanViewIntegrations: () =>
 		permissionKeys.includes('*') ||
 		permissionKeys.includes('tenant.socialaccounts.view'),
+}));
+
+// Wiring tests stop at this seam: the drawer/dialog own their behaviour in
+// dedicated suites (they need a QueryClient for their mutations).
+vi.mock('./_bluesky-connect-drawer', () => ({
+	BlueskyConnectDrawer: ({ mode, open }: { mode: string; open: boolean }) =>
+		open
+			? createElement('div', { 'data-testid': `bluesky-${mode}-drawer` })
+			: null,
+}));
+vi.mock('./_disconnect-dialog', () => ({
+	DisconnectDialog: ({
+		isOpen,
+		account,
+	}: {
+		isOpen: boolean;
+		account: { displayHandle: string };
+	}) =>
+		isOpen
+			? createElement(
+					'div',
+					{ role: 'alertdialog', 'data-testid': 'disconnect-dialog-stub' },
+					account.displayHandle,
+				)
+			: null,
 }));
 
 const EN_LABELS: TestLabelMap = {
@@ -203,5 +236,44 @@ describe('TenantSettingsIntegrationsPage', () => {
 		cleanup();
 		render(<TenantSettingsIntegrationsPage />);
 		expect(screen.getAllByTestId(/^social-account-actions-/).length).toBe(1);
+	});
+
+	// Wiring proof: the Connect trigger opens the drawer in connect mode.
+	test('ItShouldOpenTheConnectDrawerFromTheConnectTrigger', async () => {
+		const user = userEvent.setup();
+		socialAccountsWire = [];
+		render(<TenantSettingsIntegrationsPage />);
+
+		await user.click(screen.getByRole('button', { name: /connect bluesky/i }));
+
+		expect(screen.getByTestId('bluesky-connect-drawer')).toBeTruthy();
+	});
+
+	// Wiring proof: row actions open the RECONNECT drawer (mode flows through;
+	// the locked-handle behaviour belongs to the drawer's own suite).
+	test('ItShouldOpenTheReconnectDrawerWithLockedHandleFromRowActions', async () => {
+		socialAccountsWire = [needsReconnectAccount];
+		render(<TenantSettingsIntegrationsPage />);
+
+		fireEvent.click(screen.getByTestId('social-account-actions-a2'));
+		const item = await screen.findByRole('menuitem', { name: /reconnect/i });
+		fireEvent.click(item);
+
+		await waitFor(() =>
+			expect(screen.getByTestId('bluesky-reconnect-drawer')).toBeTruthy(),
+		);
+	});
+
+	// Wiring proof: row actions pass the RIGHT ACCOUNT to the confirmation.
+	test('ItShouldOpenTheDisconnectConfirmationFromRowActions', async () => {
+		socialAccountsWire = [needsReconnectAccount];
+		render(<TenantSettingsIntegrationsPage />);
+
+		fireEvent.click(screen.getByTestId('social-account-actions-a2'));
+		const item = await screen.findByRole('menuitem', { name: /disconnect/i });
+		fireEvent.click(item);
+
+		const dialog = screen.getByRole('alertdialog');
+		expect(dialog.textContent).toContain('@old.bsky.social');
 	});
 });

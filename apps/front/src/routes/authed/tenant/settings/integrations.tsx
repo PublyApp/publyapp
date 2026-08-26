@@ -1,11 +1,16 @@
-import { IconPlugConnected } from '@tabler/icons-react';
+import {
+	IconPlugConnected,
+	IconPlugOff,
+	IconRefresh,
+} from '@tabler/icons-react';
 import { createFileRoute } from '@tanstack/react-router';
 import type { ColumnDef } from '@tanstack/react-table';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { DataTable } from '~/components/table/data-table';
 import { DataTableRowActions } from '~/components/table/row-actions';
 import { Button } from '~/components/ui/button';
+import { DropdownMenuItem } from '~/components/ui/dropdown-menu';
 import { StateSurface } from '~/components/ui/state-surface';
 import { formatDateTime } from '~/lib/format-date-time';
 import { useCanManageSocialAccounts } from '~/lib/permissions/use-has-tenant-permission';
@@ -21,6 +26,8 @@ import {
 import { useResolvedWorkspaceTenantId } from '~/lib/query/tenants-for-picker';
 
 import { WorkspacePageHeader } from '../_workspace-page-parts';
+import { BlueskyConnectDrawer } from './_bluesky-connect-drawer';
+import { DisconnectDialog } from './_disconnect-dialog';
 import { IntegrationsStatusPill } from './_integrations-status-pill';
 import { IntegrationsVisibleIn } from './_integrations-visible-in';
 
@@ -35,12 +42,14 @@ type IntegrationsColumnContext = {
 	locale: string;
 	canManage: boolean;
 	projects: Array<{ id: string; label: string }>;
+	onReconnect: (account: SocialAccountRow) => void;
+	onDisconnect: (account: SocialAccountRow) => void;
 };
 
 const buildColumns = (
 	context: IntegrationsColumnContext,
 ): ColumnDef<SocialAccountRow>[] => {
-	const { t, locale, canManage, projects } = context;
+	const { t, locale, canManage, projects, onReconnect, onDisconnect } = context;
 
 	const columns: ColumnDef<SocialAccountRow>[] = [
 		{
@@ -115,16 +124,49 @@ const buildColumns = (
 					})}
 					testId={`social-account-actions-${row.original.id}`}
 				>
-					{/* Task 5 adds the Reconnect item here; Task 6 adds Disconnect.
-					    A JSX comment compiles away, so the required children prop
-					    is satisfied explicitly until then. */}
-					{null}
+					<DropdownMenuItem onClick={() => onReconnect(row.original)}>
+						<IconRefresh />
+						{t('reconnect')}
+					</DropdownMenuItem>
+					<DropdownMenuItem
+						variant="destructive"
+						onClick={() => onDisconnect(row.original)}
+					>
+						<IconPlugOff />
+						{t('disconnect')}
+					</DropdownMenuItem>
 				</DataTableRowActions>
 			),
 		});
 	}
 
 	return columns;
+};
+
+type DrawerUiState = {
+	connectOpen: boolean;
+	/** Non-null while the reconnect drawer targets a specific row. */
+	reconnectAccount: SocialAccountRow | null;
+	disconnectAccount: SocialAccountRow | null;
+};
+
+const IDLE_DRAWER_UI: DrawerUiState = {
+	connectOpen: false,
+	reconnectAccount: null,
+	disconnectAccount: null,
+};
+
+/** ConfirmDialog requires a non-null account even when closed; this inert
+ * placeholder is only mounted while `isOpen` is false. */
+const PLACEHOLDER_ACCOUNT: SocialAccountRow = {
+	id: '',
+	provider: 'bluesky',
+	displayHandle: '',
+	statusWire: 'active',
+	tone: 'success',
+	statusLabelKey: 'settings:status-active',
+	lastSuccessAt: null,
+	projectIds: [],
 };
 
 const TenantSettingsIntegrationsPage = () => {
@@ -148,6 +190,18 @@ const TenantSettingsIntegrationsPage = () => {
 				locale: i18n.resolvedLanguage ?? 'en',
 				canManage,
 				projects,
+				onReconnect: (account) =>
+					setDrawerUi({
+						connectOpen: false,
+						reconnectAccount: account,
+						disconnectAccount: null,
+					}),
+				onDisconnect: (account) =>
+					setDrawerUi({
+						connectOpen: false,
+						reconnectAccount: null,
+						disconnectAccount: account,
+					}),
 			}),
 		[t, i18n.resolvedLanguage, canManage, projects],
 	);
@@ -155,15 +209,26 @@ const TenantSettingsIntegrationsPage = () => {
 	const isListLoadedAndEmpty =
 		socialAccountsQuery.data !== undefined && rows.length === 0;
 
+	const [drawerUi, setDrawerUi] = useState<DrawerUiState>(IDLE_DRAWER_UI);
+	const closeDrawerUi = () => setDrawerUi(IDLE_DRAWER_UI);
+
 	return (
 		<div className="space-y-5" data-testid="tenant-settings-integrations-page">
 			<WorkspacePageHeader titleKey="integrations" />
 
 			{canManage ? (
 				<div className="flex justify-end">
-					{/* Task 5 mounts BlueskyConnectDrawer on this trigger; the
-					    permission gate is already observable here. */}
-					<Button type="button" disabled={tenantId === null}>
+					<Button
+						type="button"
+						disabled={tenantId === null}
+						onClick={() =>
+							setDrawerUi({
+								connectOpen: true,
+								reconnectAccount: null,
+								disconnectAccount: null,
+							})
+						}
+					>
 						<IconPlugConnected aria-hidden="true" className="size-4" />
 						{t('connect-bluesky')}
 					</Button>
@@ -202,6 +267,32 @@ const TenantSettingsIntegrationsPage = () => {
 					onSizeChange={() => {}}
 					errorTitle={t('integrations-load-failed')}
 				/>
+			)}
+
+			{tenantId === null ? null : (
+				<>
+					<BlueskyConnectDrawer
+						mode={drawerUi.reconnectAccount ? 'reconnect' : 'connect'}
+						open={drawerUi.connectOpen || drawerUi.reconnectAccount !== null}
+						onOpenChange={(open) => {
+							if (!open) {
+								closeDrawerUi();
+							}
+						}}
+						tenantId={tenantId}
+						account={drawerUi.reconnectAccount ?? undefined}
+					/>
+					<DisconnectDialog
+						account={drawerUi.disconnectAccount ?? PLACEHOLDER_ACCOUNT}
+						isOpen={drawerUi.disconnectAccount !== null}
+						onOpenChange={(open) => {
+							if (!open) {
+								closeDrawerUi();
+							}
+						}}
+						tenantId={tenantId}
+					/>
+				</>
 			)}
 		</div>
 	);
