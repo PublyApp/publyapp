@@ -291,7 +291,46 @@ export const savePost = async (
 	return details;
 };
 
+// ── Invalidation ───────────────────────────────────────────────────
+
+/**
+ * Post-mutation cache refresh for BOTH post surfaces (#359 rule: line +
+ * list). The flat key families place the details branch (`'detail'`) BEFORE
+ * the tenant id, so a tenant-suffixed list prefix covers the filtered/cursored
+ * list pages but NOT the saved/deleted post's own detail entry — the exact
+ * silent staleness "Mutation Invalidation Coherence" (conventions.md) exists
+ * to prevent. Invalidate the list page family and the details family of this
+ * tenant explicitly.
+ */
+export const invalidateTenantPosts = async (
+	qc: QueryClient,
+	tenantId: string,
+): Promise<void> => {
+	await qc.invalidateQueries({
+		queryKey: [...scopedKey('tenant', TENANT_POSTS_QUERY_KEY), tenantId],
+	});
+	await qc.invalidateQueries({
+		queryKey: [...scopedKey('tenant', TENANT_POST_DETAILS_QUERY_KEY), tenantId],
+	});
+};
+
 // ── Mutations ──────────────────────────────────────────────────────
+
+export const useSavePostMutation = () => {
+	const queryClient = useQueryClient();
+
+	return useMutation({
+		mutationKey: [...TENANT_POSTS_QUERY_KEY, 'save'],
+		mutationFn: savePost,
+		onSuccess: (_data, variables) => {
+			void invalidateTenantPosts(queryClient, variables.tenantId);
+		},
+		meta: {
+			successMessage: 'post-saved-success',
+			validationHandledByForm: true,
+		},
+	});
+};
 
 export const useDeleteTenantPostMutation = () => {
 	const queryClient = useQueryClient();
@@ -309,23 +348,14 @@ export const useDeleteTenantPostMutation = () => {
 			await client.posts.byPostId(postId).delete();
 		},
 		onSuccess: (_data, variables) => {
-			void queryClient.invalidateQueries({
-				queryKey: [
-					...scopedKey('tenant', TENANT_POSTS_QUERY_KEY),
-					variables.tenantId,
-				],
-			});
+			void invalidateTenantPosts(queryClient, variables.tenantId);
 		},
 		meta: { successMessage: 'post-deleted-success' },
 	});
 };
 
 // ── Invalidation ───────────────────────────────────────────────────
-
-export const invalidateTenantPosts = (qc: QueryClient, tenantId: string) =>
-	qc.invalidateQueries({
-		queryKey: [...scopedKey('tenant', TENANT_POSTS_QUERY_KEY), tenantId],
-	});
+// (invalidateTenantPosts lives above, before the mutations that call it.)
 
 // ── Breadcrumb helpers ─────────────────────────────────────────────
 
