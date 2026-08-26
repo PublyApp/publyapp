@@ -199,23 +199,51 @@ const buildRouter = (queryClient: QueryClient) => {
 		layoutRoute.addChildren([indexRoute]),
 	]);
 
-	return createRouter(
+	const router = createRouter(
 		widenOptions<Parameters<typeof createRouter>[0]>({
 			routeTree,
 			history: createMemoryHistory({ initialEntries: [DETAILS_URL] }),
 			context: { queryClient },
 		}),
 	);
+
+	// Exposed so the blocking contract can read the live match `status` off
+	// the production route's own match — the honest witness of whether the
+	// loader's `await` has resolved (see the blocking-paint test).
+	(
+		router as unknown as { __profileDetailsRouteId?: string }
+	).__profileDetailsRouteId = indexRoute.id;
+
+	return router;
 };
 
-const renderRouteAtDetailsUrl = async (): Promise<QueryClient> => {
+/** Finds the production profile-details route's own match in the live router
+ * state. A match's `status` is `'pending'` while its loader is still awaited
+ * and flips to `'success'` only once the loader resolves — exactly what the
+ * awaited loader buys (and what a fire-and-forget loader defeats). */
+const findProfileDetailsMatch = (
+	router: ReturnType<typeof buildRouter>,
+): { status?: string } | undefined => {
+	const routeId = (router as unknown as { __profileDetailsRouteId?: string })
+		.__profileDetailsRouteId;
+
+	return router.state.matches.find((match) => match.routeId === routeId) as
+		| { status?: string }
+		| undefined;
+};
+
+const renderRouteAtDetailsUrl = async (): Promise<{
+	queryClient: QueryClient;
+	router: ReturnType<typeof buildRouter>;
+}> => {
 	const queryClient = new QueryClient({
 		defaultOptions: { queries: { retry: false } },
 	});
+	const router = buildRouter(queryClient);
 
 	render(
 		<QueryClientProvider client={queryClient}>
-			<RouterProvider router={buildRouter(queryClient)} />
+			<RouterProvider router={router} />
 		</QueryClientProvider>,
 	);
 
@@ -223,16 +251,12 @@ const renderRouteAtDetailsUrl = async (): Promise<QueryClient> => {
 		expect(queryClient.isFetching()).toBe(0);
 	});
 
-	return queryClient;
+	return { queryClient, router };
 };
 
 describe('breadcrumb-loader (#851 round 2)', () => {
-	const queryClientRef = { current: undefined as QueryClient | undefined };
-
 	afterEach(() => {
 		cleanup();
-		queryClientRef.current?.clear();
-		queryClientRef.current = undefined;
 		vi.restoreAllMocks();
 		mocks.respond.mockReset();
 		mocks.logout.mockClear();
@@ -241,12 +265,17 @@ describe('breadcrumb-loader (#851 round 2)', () => {
 	/**
 	 * The blocking contract, discriminated from fire-and-forget: the mocked
 	 * profile fetcher resolves ONLY when this test releases it by hand. Under
-	 * the awaited loader, `ensureQueryData` keeps the router in its pending
-	 * state — the shell paints (trail skeleton visible) but the route body
-	 * never mounts before release; a fire-and-forget loader returns
-	 * synchronously and the body mounts while the fetch is still pending.
-	 * After release, the body's first settled frame finds both entity names
-	 * already in TanStack Query's cache.
+	 * the awaited loader, `ensureQueryData` keeps the route's own match in its
+	 * loader `status: 'pending'` — the shell paints (trail skeleton visible)
+	 * but the route body never mounts while the fetch is still held. A
+	 * fire-and-forget loader returns synchronously, so the match's loader
+	 * settles to `status: 'success'` immediately and the body mounts while the
+	 * fetch is still pending.
+	 *
+	 * We witness the loader's `await` directly off the live match `status`
+	 * (the honest, render-frame-independent signal) rather than a soft
+	 * `waitFor` over the DOM — reading the body's absence on the wrong frame
+	 * is exactly what let this test pass under the mutation before.
 	 */
 	test('a held profile fetch blocks the page body until release, then paints with both names cached', async () => {
 		let releaseProfileFetch: (() => void) | undefined;
@@ -266,29 +295,27 @@ describe('breadcrumb-loader (#851 round 2)', () => {
 			return {};
 		});
 
+		const queryClient = new QueryClient({
+			defaultOptions: { queries: { retry: false } },
+		});
+		const router = buildRouter(queryClient);
+
 		render(
-			<QueryClientProvider
-				client={
-					(queryClientRef.current ??= new QueryClient({
-						defaultOptions: { queries: { retry: false } },
-					}))
-				}
-			>
-				<RouterProvider
-					router={buildRouter(queryClientRef.current as QueryClient)}
-				/>
+			<QueryClientProvider client={queryClient}>
+				<RouterProvider router={router} />
 			</QueryClientProvider>,
 		);
 
-		// While the loader's awaited fetch is still pending the shell is live
-		// (trail painted, the held profile crumb still a skeleton) but the
-		// route body must NOT be mounted — the router sits on its pending
-		// surface instead.
+		// While the loader's awaited fetch is still pending the route's own
+		// match stays in loader `status: 'pending'` — the shell is live (trail
+		// painted, the held profile crumb still a skeleton) but the route body
+		// must NOT be mounted.
 		await waitFor(() => {
-			expect(
-				screen.getAllByTestId('app-shell-breadcrumb-entity-skeleton').length,
-			).toBeGreaterThan(0);
+			expect(findProfileDetailsMatch(router)?.status).toBe('pending');
 		});
+		expect(
+			screen.getAllByTestId('app-shell-breadcrumb-entity-skeleton').length,
+		).toBeGreaterThan(0);
 		expect(
 			screen.queryByTestId('staff-tenant-profile-details-page'),
 		).toBeNull();
@@ -296,13 +323,17 @@ describe('breadcrumb-loader (#851 round 2)', () => {
 		releaseProfileFetch?.();
 
 		await waitFor(() => {
+			expect(findProfileDetailsMatch(router)?.status).toBe('success');
+		});
+		await waitFor(() => {
 			expect(
 				screen.getByTestId('staff-tenant-profile-details-page'),
 			).toBeTruthy();
 		});
 
-		// At the moment the body first appears, both entity names are already
-		// in the cache the loader warmed, so no entity skeleton ever rendered.
+		// The body's first settled frame finds both entity names already in
+		// TanStack Query's cache the loader warmed, so no entity skeleton ever
+		// rendered.
 		const nav = screen.getByRole('navigation', { name: 'nav-breadcrumb' });
 
 		expect(nav.textContent).toContain('Acme Corporation');
