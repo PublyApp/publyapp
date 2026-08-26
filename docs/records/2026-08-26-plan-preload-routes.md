@@ -30,6 +30,28 @@ Chaque affirmation est prouvée dans `.dump/citations-r1.md` (PASS/FAIL par lign
    `staffTenantProfileCrumbQuery`). Un préchargement qui pointe vers ces mêmes factories est
    dedupliqué par TanStack Query par clé : il ne peut pas devenir un second chemin de fetch.
 
+## 0b. Écart assumé vis-à-vis de #487 (déviation silencieuse corrigée)
+
+Sur les 12 critères d'acceptation de l'issue #487, quatre sont **modifiés ou abandonnés**
+dans ce plan. Ils ne l'étaient pas dans la r1 ; la relecture r2 (verdict `CHANGES_REQUIRED`)
+a tranché : une déviation de périmètre non nommée est un défaut. Chacun est ici assumé,
+justifié, et suivi par une issue de suivi `follow-up lv1` citée. Le corps de PR reprend ce
+résumé (voir `.dump/pr-body.md`). Le plan reste fidèle à l'arbitrage propriétaire du
+2026-08-26, qui prime sur la forme initiale de l'issue.
+
+| # | Critère #487 abandonné/modifié | Forme retenue ici | Pourquoi (tranché) | Suivi |
+|---|---|---|---|---|
+| 1 | Helper impératif `routeQueries(...)` + `criticalRouteQuery`/`secondaryRouteQuery`/`interactionRouteQuery`/`blockingRouteQuery` (Slice 1) | Déclaratif `staticData.preload` co-localisé avec `staticData.crumbs` (§1) | L'arbitrage impose `staticData.preload` par route comme surface unique ; un helper impératif est une seconde API et un second registre. La forme déclarative réutilise le mécanisme `crumbs` et les factories partagées (règle « pas de second chemin de fetch » de #1527). | #1588 |
+| 2 | Règle Oxlint `publy/route-query-preload` testée, commentaires d'échappement, démarrée en warning (Slice 5) | **Absente** du plan ; remplacée par la garde contractuelle vitest §4 sur le VRAI artefact | La garde §4 confronte les clés préchargées aux clés réellement consommées par la page (impossible à faire par une règle de forme sur le source seul). La règle Oxlint reste utile comme garde *bon marché* préalable ; elle est suivie séparément. | #1589 |
+| 3 | Pilote sur la mise en page authentifiée `authed/_layout/authed-layout.tsx` (Slice 3) | Pilotes `authed/staff/tenants/$tenantId.tsx` (T2) + `authed/staff/profiles.tsx` (T4) | Le hook unique `usePreloadIntentQueries()` (§1.1) couvre DÉJÀ l'intent-preload du layout auth globalement ; un pilote de layout dupliquerait le mécanisme. Les deux pilotes retenus exercent les cas durs (paramètre dérivé `$tenantId`, variables URL par défaut) et deviennent les premières routes couvertes par la garde (§10). | #1590 |
+| 4 | Doc dédiée `docs/guides/frontend-route-query-preloading.md` (Slice 2) | Repliée dans la sous-section « Route query preloading (#487) » de `docs/guides/front/conventions.md` (T5) | `conventions.md` est la source de vérité enforceée des standards front (gardes design-system/lint) ; y tenir le contrat évite un doc qui dérive. Un guide narratif compagnon pourra être ajouté ultérieurement. | #1591 |
+
+Aucun des quatre n'est une régression de l'arbitrage propriétaire : tous les points
+obligatoires (preload par route, échec silencieux, garde sur artefact réel, articulation
+`staleTime`/loaders, mesure chiffrée) sont intégralement livrés. Les criteres 1, 2, 3, 4 de
+l'issue sont soit reformulés (1, 3, 4), soit déplacés en suivi (2) ; le reste des 12 criteres
+est inchangé.
+
 ## 1. Forme retenue : `staticData.preload` déclaré par route
 
 ```ts
@@ -57,13 +79,20 @@ champ au moment du preload d'intention. Deux candidats ont été tranchés :
 
 * **Retenu — hook de branchement unique** : `usePreloadIntentQueries()` dans
   `apps/front/src/lib/query/preload-intent.ts`. Monté UNE fois dans le shell authentifié
-  (`apps/front/src/components/app-shell/app-shell.tsx`, l'emplacement qui héberge déjà les effets
-  globaux du shell). Il s'abonne au routeur via `router.subscribe('onBeforeLoad', …)` et appelle
-  `queryClient.ensureQueryData(...)` pour chaque entrée `staticData.preload` des matchs de la
-  destination (`event.toLocation` → `router.matchRoute` / arbre des matches résolus). Fondement
-  vérifié dans les paquets résolus par le lockfile (`@tanstack/router-core@1.171.26/dist/esm/router.d.ts` :
-  `RouterEvents` expose `onBeforeLoad` (l.430) et `SubscribeFn` retourne une fonction de
-  désabonnement (l.454)).
+  CSR (`apps/front/src/components/app-shell/app-shell.tsx`, l'emplacement qui héberge déjà les effets
+  globaux du shell). **Montage CSR uniquement** : le shell authentifié est `ssr: false`
+  (`docs/guides/front/conventions.md`, l.281 — « Authenticated application surfaces are CSR with
+  `ssr: false` ») ; le hook doit de plus être protégé par un garde `isServer` explicite
+  (`if (isServer) return;`) pour qu'un montage accidentel dans un shell universel ne branche
+  jamais d'effet côté serveur. Il s'abonne au routeur via `router.subscribe('onBeforeLoad', …)`
+  et, pour chaque entrée `staticData.preload` de la destination, résout d'abord les matches lui-même
+  : l'événement `NavigationEventInfo` **ne porte pas** de `matches` (forme vérifiée dans le
+  lockfile, `@tanstack/router-core@1.171.26/dist/esm/router.d.ts` l.419-426 :
+  `{ fromLocation?, toLocation, pathChanged, hrefChanged, hashChanged }`). Le hook appelle donc
+  `router.matchRoute(event.toLocation)` puis parcourt les matches résolus pour lire chaque
+  `staticData.preload`. Fondement vérifié dans le même fichier : `RouterEvents` expose `onBeforeLoad`
+  (l.430) et `SubscribeFn` retourne une fonction de désabonnement (l.452), et `Router` expose
+  `matchRoute: MatchRouteFn` (l.750).
   Pourquoi ici et pas ailleurs : c'est le seul point où l'on capte TOUT preload d'intention
   (survol ET viewport ET navigation) sans modifier chaque route ni dépendre d'une option
   inexistante dans cette version du routeur.
@@ -203,6 +232,17 @@ au lieu d'un contenu est un faux négatif installé ; celui-ci vérifie un conte
    préchargée consommée uniquement par un enfant direct monté systématiquement par cette page
    (onglet index, drawer racine) compte comme consommée — la liste des enfants acceptés est
    déclarée dans le test, pas devinée.
+5. **Limite connue (mutation adverse — « mauvaise factory, bonne clé »)** : le garde ne confronte
+   QUE la clé concrète `options.queryKey(variables)` ; il n'identifie PAS la factory par son
+   identité de module. Une entrée `preload` pourrait pointer vers une factory *différente* qui,
+   par hasard, calcule la *même* clé avec un `fetcher` différent — le garde la laisserait passer
+   (faux négatif de factory, pas de clé). Mitigations (plan-level, à traiter dans T1/T3 de
+   l'implémentation, pas bloquant pour CE plan) : (a) resserrer le type §1.2 pour exiger que la
+   factory provienne de `lib/query/*` via un type nominal « branded » ; (b) faire lire au garde le
+   chemin du module de la factory préchargée et exiger qu'il soit le MÊME module que celui que la
+   page importe. Le test unitaire T1 ne court-circuite pas cette mutation (il moque le routeur, pas
+   l'unicité de la factory) ; un cas de test dédié « factory différente, clé identique → garde
+   ROUGE (ou toléré par marqueur d'échappement documenté) » doit l'accompagner.
 
 **Portée d'exécution** : suite vitest front existante (`pnpm --filter front test`), aucun nouvel
 outil. Le garde est rouge-par-défaut pour toute NOUVELLE entrée `preload` incorrecte dès la tâche
@@ -307,8 +347,16 @@ ses portes nommées avant la suivante.
 * Ordre : T1 → T2 → T3 → T4 → T5 → T6. T3 peut être écrite dès T1 mais doit être verte sur les
   pilotes T2/T4 avant tout commit final.
 * Conflit assumé : T5 touche `docs/guides/front/conventions.md` aussi modifié par #1527 (sa
-  sous-section « Client route loaders »). Résolution additive (les deux sections coexistent,
-  renvois croisés) — fichier dans la liste additive du repo.
+  sous-section « Client route loaders (#851) » dans §Rendering Strategy). Résolution additive : les
+  deux sections coexistent, renvois croisés. **Ancrage et ordre concrets** : T5 insère la nouvelle
+  sous-section « Route query preloading (#487) » dans §Rendering Strategy **immédiatement après**
+  la sous-section « Client route loaders (#851) » de #1527 (et non avant), car le préchargement
+  spéculatif (#487) est la contrepartie non bloquante du loader bloquant (#851) ; le texte de #487
+  doit contenir un renvoi explicite « voir Client route loaders (#851) » et inversement la section
+  #851 un renvoi « voir Route query preloading (#487) ». Si #1527 n'est pas encore fusionnée à
+  l'exécution de T5, la sous-section #487 est insérée à la fin de §Rendering Strategy avec une note
+  « à replacer après Client route loaders (#851) à la fusion de #1527 ». Fichier dans la liste
+  additive du repo.
 * STOP-and-report si : `onBeforeLoad` ne se déclenche pas lors d'un preload d'intention dans
   l'environnement de test réel (l'hypothèse §1.1 serait fausse, basculer sur l'événement suivant
   viable exige une re-décision) ; si un match de destination n'expose pas ses `staticData` au
@@ -348,8 +396,12 @@ réseau émises pour cette ressource (doit rester 1, preuve anti-double-fetch).
   qui tranche ; l'échec déclenche le STOP-and-report §8.
 * Le garde T3 suppose que chaque page pilote monte ses hooks de requête dans un rendu de test
   isolé sans stack serveur ; vrai pour les deux pilotes choisis, non généralisé à toutes les 60
-  routes authed (63 ids dans `routeTree.gen.ts` moins les 3 nœuds de layout ; les routes non
-  couvertes par le rendu de test restent hors assujettissement du garde jusqu'à leur migration,
-  ce qui est explicite plutôt que silencieux).
+  routes authed (63 ids dans `routeTree.gen.ts` moins les 3 nœuds de layout). **Couverture réelle
+  du garde : seules les routes dont la page se rend sous vitest sans la pile serveur sont
+  assujetties — aujourd'hui les deux pilotes, et toute route future ajoutant une entrée
+  `preload` est aussitôt attrapée en rouge ; les ~58 routes restantes (page non rendable en test
+  isolé) sont hors assujettissement jusqu'à leur migration par le même pattern pilote, suivie par
+  #1592. Ce n'est pas une couverture « silencieuse » de toutes les 60 routes — c'est une
+  couverture explicite des seules routes rendables, le reste étant un plan de migration nommé.**
 * Les chiffres de mesure §9 sont des seuils ATTENDUS (mock 500 ms), pas des mesures relevées :
   ils le seront dans T6 et collés dans la PR.
