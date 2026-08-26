@@ -133,6 +133,16 @@ public class SystemJobDefinitionSeeder : IEntitySeeder {
 					"Delete job_dead_letter rows older than JOB_DEAD_LETTER_RETENTION_DAYS.",
 			},
 			new SystemJobDefinition {
+				JobKey = PublyApp.Api.Modules.Publishing.Jobs
+					.DispatchDuePostsJob.JobKey,
+				// Every minute (Epic D3): schedule latency budget. The due scan
+				// claims past-due Scheduled publications onto the publish queue.
+				CronExpression = "0 * * * * ?",
+				Description =
+					"Claim past-due Scheduled publications and enqueue their "
+					+ "publish-publication jobs (SKIP LOCKED, keyed).",
+			},
+			new SystemJobDefinition {
 				JobKey = SystemJobOccurrenceRetentionHandler.JobKey,
 				IsEnabled = true,
 				// Daily at 04:15, staggered after the dead-letter sweep.
