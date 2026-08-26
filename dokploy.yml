@@ -62,6 +62,9 @@ services:
       - TENANT_EXPORT_RATE_LIMIT_WINDOW_SECONDS=${TENANT_EXPORT_RATE_LIMIT_WINDOW_SECONDS}
       - UPLOAD_RATE_LIMIT_PERMIT_LIMIT=${UPLOAD_RATE_LIMIT_PERMIT_LIMIT}
       - UPLOAD_RATE_LIMIT_WINDOW_SECONDS=${UPLOAD_RATE_LIMIT_WINDOW_SECONDS}
+      # Distributed counter budget (#953): default postgres keeps N replicas on one
+      # fleet-wide budget per partition; memory is the single-replica incident lever.
+      - RATE_LIMIT_COUNTER_STORE=${RATE_LIMIT_COUNTER_STORE:-postgres}
       - DI_MANIFEST_ENABLED=${DI_MANIFEST_ENABLED}
       - AUDIT_LOG_EXPORT_MAX_ROWS=${AUDIT_LOG_EXPORT_MAX_ROWS}
       - MAX_PROFILES_PER_USER=${MAX_PROFILES_PER_USER}
