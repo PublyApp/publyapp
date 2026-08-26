@@ -1,4 +1,5 @@
 import type { QueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { getClientManager } from '~/lib/api-client/client-manager';
 
 import type { ApiClient } from '@org/client-ts/apiClient';
@@ -195,6 +196,16 @@ export const tenantPublicationsQueryOptions = buildTenantQueryOptions<
 	},
 	{ clientAccessor: getClientManager() },
 );
+
+// ── Hook ───────────────────────────────────────────────────────────
+
+export const useTenantPublicationsQuery = (
+	variables: TenantPublicationsQueryVariables & { tenantId: string },
+) =>
+	useQuery({
+		queryKey: tenantPublicationsQueryOptions.queryKey(variables),
+		queryFn: () => tenantPublicationsQueryOptions.fetcher(variables),
+	});
 
 // ── Invalidation ───────────────────────────────────────────────────
 

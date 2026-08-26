@@ -284,9 +284,9 @@ export const hasTenantPermission = (
 
 **Files:** rewrite `history.tsx`; update `history.test.tsx`.
 
-- [ ] **Step 1 (RED):** Tests (pattern: C2's `integrations.test.tsx` mocking style, `origin/lane/wt-641`): published row shows link (`data-testid="tenant-posts-history-link"`, href = `ExternalUrl`) opening in new tab; failed row shows one-sentence cause `tenant-posts-history-cause` + disabled Retry stub (`title` explains D4); in-progress row shows `tenant-posts-publish-in-progress`; while any row is `in_progress`, query invalidates every 5 s (fake timers assert ≥2 refetches) and stops when none remain; fatal error → `LogoutRedirect` only on 401 (repo logout semantics).
-- [ ] **Step 2 (GREEN):** Implement with the existing shells (`WorkspacePageHeader`, `Card`, table primitives as drafts.tsx uses); drop `ReadOnlyBadge`; keep `tenant-posts-history-page` testid (e2e anchor from B2).
-- [ ] **Step 3:** Vitest green; `pnpm --filter front typecheck`; `just react-doctor`; commit `feat(front): history page wired to real publications with live refresh`; push.
+[x] **Step 1 (RED):** Tests (pattern: C2's `integrations.test.tsx` mocking style, `origin/lane/wt-641`): published row shows link (`data-testid="tenant-posts-history-link"`, href = `ExternalUrl`) opening in new tab; failed row shows one-sentence cause `tenant-posts-history-cause` + disabled Retry stub (`title` explains D4); in-progress row shows `tenant-posts-publish-in-progress`; while any row is `in_progress`, query invalidates every 5 s (fake timers assert ≥2 refetches) and stops when none remain; fatal error → `LogoutRedirect` only on 401 (repo logout semantics).
+[x] **Step 2 (GREEN):** Implement with the existing shells (`WorkspacePageHeader`, `Card`, table primitives as drafts.tsx uses); drop `ReadOnlyBadge`; keep `tenant-posts-history-page` testid (e2e anchor from B2).
+[x] **Step 3:** Vitest green; `pnpm --filter front typecheck`; `just react-doctor`; commit `feat(front): history page wired to real publications with live refresh`; push.
 
 ## Task 10: D2 adversarial mutation — remove the deterministic key
 
