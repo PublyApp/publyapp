@@ -393,6 +393,50 @@ mechanism (`components/table/table-body-state.ts` + the `no-match` state `QueryD
 they are intentionally excluded — PR 3 of #1250 folds that mechanism into `QueryDisplay` and lets
 `DataTable` delegate.
 
+## Mutation Invalidation Coherence (#359)
+
+Normative. A mutation that changes an entity's **status**, changes something a
+list is **filtered or sorted on**, or changes **membership in a list**
+(create/delete/revoke/assign/unassign) must invalidate, on its success path:
+
+1. **The line** — the mutated entity's detail query.
+2. **The list containing it** — the canonical list query key for that
+   resource, whatever filter/sort/cursor variables it carries.
+3. **That list's counters** — any parent/aggregate query displaying a count
+   derived from the list (e.g. a tenant detail's `usersCount`,
+   `pendingInvitationsCount`).
+4. **Filtered sibling lists** — other active views of the same resource under
+   a different filter (e.g. the pending-invitations table after a revoke).
+
+Rows that no longer match the active filter may disappear after refetch; that
+is correct behavior, not a bug to paper over. Never keep a stale row visible
+by locally patching it.
+
+This is not left to memory at each call site — it is structural:
+
+- Each `lib/query/*.ts` module owns a hierarchical key family: a list root
+  (`STAFF_USERS_QUERY_KEY`) with details/children nested underneath it. One
+  prefix invalidation therefore covers the line, the list, and nested
+  resources at once — that is how requirements 1–2–4 are met cheaply.
+- Each module exports an invalidation helper
+  (`invalidateStaffUsers`, `invalidateStaffTenants`, …) built with
+  `scopedKey(scope, KEY)`. Call sites use the helper; they never
+  hand-assemble a prefixed array, which can silently desync into a no-op.
+- When a counter lives across scopes (a tenant detail's counts after a
+  child-user/profile/invitation mutation), invalidate the parent scope too —
+  `invalidateAllStaffTenantScopes` exists for exactly this pairing.
+- Every success path invalidates, including bulk partial success, and does so
+  before or alongside user feedback bookkeeping. Selection is cleared after
+  bulk actions so pruned rows cannot linger as stale targets.
+- Tenant-scoped modules whose mutations are self-contained may invalidate
+  inside `onSuccess`, reusing the factory's own `queryKey(...)` builder
+  (`invalidateSocialAccounts`) rather than re-deriving key shapes.
+
+The failure mode this prevents is silent: a table showing yesterday's status.
+Nobody catches it in review, which is why the standing test
+`apps/front/src/lib/query/mutation-invalidation.guard.test.ts` fails when a
+mutation module invalidates no list key at all.
+
 ## Product UI Design Preferences (owner-ratified)
 
 These are standing design decisions Radan has ratified across the front parity review
