@@ -13,9 +13,11 @@ import type { JSX } from 'react';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import type { TestLabelMap } from '~/lib/testing/test-label-map';
 
+// `edit` is the only search param this suite's blocker args ever carry;
+// keeping it named preserves known-value evidence under no-known-value-widening.
 type BlockerLocationSnapshot = {
 	pathname: string;
-	search: Record<string, unknown>;
+	search: { edit?: number };
 };
 type BlockerArgs = {
 	current: BlockerLocationSnapshot;

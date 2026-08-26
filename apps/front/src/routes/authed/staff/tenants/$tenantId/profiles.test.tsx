@@ -26,7 +26,7 @@ const LIST_PATHNAME =
 
 /** A transition that leaves this list route (a browser Back, a sibling
  * route) — what the unsaved-draft guard exists to intercept. */
-const leavingListTransition = (): BlockerTransition => ({
+const leavingListTransition = () => ({
 	current: { pathname: LIST_PATHNAME },
 	next: { pathname: '/staff/tenants', search: {} },
 });

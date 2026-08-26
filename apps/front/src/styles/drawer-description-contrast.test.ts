@@ -585,14 +585,6 @@ type StateAttributeResolution =
  * `<X … />`. Both expose the tag node and the attribute nodes. */
 type JsxElementLike = JsxOpeningElement | JsxSelfClosingElement;
 
-/** The attribute model of one element: the literal className (null when
- * absent — a non-literal or unverifiable one throws in the walk), plus every
- * written `data-*`/`aria-*` name with its value resolution. */
-type ElementAttributeModel = {
-	className: string | null;
-	stateAttributes: Record<string, StateAttributeResolution>;
-};
-
 /** Every attribute of the element, walked as a REAL AST node. The node kinds
  * are enumerated exhaustively — `JsxAttribute` with an identifier name,
  * `JsxAttribute` with a namespaced name, `JsxSpreadAttribute` — each is
@@ -606,7 +598,7 @@ const walkElementAttributes = (
 	element: JsxElementLike,
 	file: string,
 	line: number,
-): ElementAttributeModel => {
+) => {
 	let className: string | null = null;
 	const stateAttributes: Record<string, StateAttributeResolution> = {};
 

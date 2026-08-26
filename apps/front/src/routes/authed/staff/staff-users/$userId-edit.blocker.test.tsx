@@ -175,17 +175,7 @@ vi.mock('./_change-email-dialog', () => ({
 
 import { Route as StaffUserEditRoute } from './$userId-edit';
 
-type QueryState = {
-	data?: unknown;
-	error?: unknown;
-	isPending: boolean;
-	isError: boolean;
-	isFetching: boolean;
-	isSuccess: boolean;
-	refetch: () => Promise<void>;
-};
-
-const settledQuery = (data: unknown): QueryState => ({
+const settledQuery = (data: unknown) => ({
 	data,
 	error: null,
 	isPending: false,

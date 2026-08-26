@@ -162,17 +162,7 @@ vi.mock('react-i18next', () => ({
 import { chooseBulkAction } from '~/test-helpers/choose-bulk-action';
 
 import { Route as InvitationsListRoute } from './index';
-type QueryState = {
-	data?: unknown;
-	error?: unknown;
-	isPending: boolean;
-	isError: boolean;
-	isFetching: boolean;
-	isSuccess: boolean;
-	refetch: () => Promise<void>;
-};
-
-const settledQuery = (data: unknown): QueryState => ({
+const settledQuery = (data: unknown) => ({
 	data,
 	error: null,
 	isPending: false,
