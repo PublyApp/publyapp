@@ -110,7 +110,7 @@ public class StaffUserQueryService : IStaffUserQueryService {
 						&& !ua.IsDeleted
 						&& !ua.User.IsDeleted),
 				keySelector: ua => ua.User.CreatedAt,
-				idSelector: ua => ua.Id ?? Guid.Empty,
+				idSelector: ua => ua.UserId,
 				cancellationToken
 			),
 			["updated_at"] = CursorSortFieldHandlerFactory.Create<UserAccount, DateTime, Guid>(
@@ -120,7 +120,7 @@ public class StaffUserQueryService : IStaffUserQueryService {
 						&& !ua.IsDeleted
 						&& !ua.User.IsDeleted),
 				keySelector: ua => ua.User.UpdatedAt,
-				idSelector: ua => ua.Id ?? Guid.Empty,
+				idSelector: ua => ua.UserId,
 				cancellationToken
 			),
 			["email"] = CursorSortFieldHandlerFactory.Create<UserAccount, string, Guid>(
@@ -130,7 +130,7 @@ public class StaffUserQueryService : IStaffUserQueryService {
 						&& !ua.IsDeleted
 						&& !ua.User.IsDeleted),
 				keySelector: ua => ua.User.Email,
-				idSelector: ua => ua.Id ?? Guid.Empty,
+				idSelector: ua => ua.UserId,
 				cancellationToken
 			),
 			["first_name"] = CursorSortFieldHandlerFactory.Create<UserAccount, string, Guid>(
@@ -140,7 +140,7 @@ public class StaffUserQueryService : IStaffUserQueryService {
 						&& !ua.IsDeleted
 						&& !ua.User.IsDeleted),
 				keySelector: ua => ua.User.FirstName ?? string.Empty,
-				idSelector: ua => ua.Id ?? Guid.Empty,
+				idSelector: ua => ua.UserId,
 				cancellationToken
 			),
 			["last_name"] = CursorSortFieldHandlerFactory.Create<UserAccount, string, Guid>(
@@ -150,7 +150,7 @@ public class StaffUserQueryService : IStaffUserQueryService {
 						&& !ua.IsDeleted
 						&& !ua.User.IsDeleted),
 				keySelector: ua => ua.User.LastName ?? string.Empty,
-				idSelector: ua => ua.Id ?? Guid.Empty,
+				idSelector: ua => ua.UserId,
 				cancellationToken
 			),
 			["status"] = CursorSortFieldHandlerFactory.Create<UserAccount, UserStatus, Guid>(
@@ -160,7 +160,7 @@ public class StaffUserQueryService : IStaffUserQueryService {
 						&& !ua.IsDeleted
 						&& !ua.User.IsDeleted),
 				keySelector: ua => ua.User.Status,
-				idSelector: ua => ua.Id ?? Guid.Empty,
+				idSelector: ua => ua.UserId,
 				cancellationToken
 			),
 			["level"] = CursorSortFieldHandlerFactory.Create<UserAccount, AccountLevel, Guid>(
@@ -170,7 +170,7 @@ public class StaffUserQueryService : IStaffUserQueryService {
 						&& !ua.IsDeleted
 						&& !ua.User.IsDeleted),
 				keySelector: ua => ua.Level,
-				idSelector: ua => ua.Id ?? Guid.Empty,
+				idSelector: ua => ua.UserId,
 				cancellationToken
 			),
 		};

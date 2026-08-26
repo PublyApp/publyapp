@@ -115,8 +115,8 @@ public class TenantUserQueryService : ITenantUserQueryService {
 					.AsNoTracking()
 					.Where(x => x.TenantId == tenantId
 						&& x.Scope == AccountScope.Tenant),
-				keySelector: x => x.Id ?? Guid.Empty,
-				idSelector: x => x.Id ?? Guid.Empty,
+				keySelector: x => x.UserId,
+				idSelector: x => x.UserId,
 				cancellationToken
 			),
 			["email"] = CursorSortFieldHandlerFactory.Create<UserAccount, string, Guid>(
@@ -125,7 +125,7 @@ public class TenantUserQueryService : ITenantUserQueryService {
 					.Where(x => x.TenantId == tenantId
 						&& x.Scope == AccountScope.Tenant),
 				keySelector: x => x.User.Email,
-				idSelector: x => x.Id ?? Guid.Empty,
+				idSelector: x => x.UserId,
 				cancellationToken
 			),
 			["status"] = CursorSortFieldHandlerFactory.Create<UserAccount, int, Guid>(
@@ -134,7 +134,7 @@ public class TenantUserQueryService : ITenantUserQueryService {
 					.Where(x => x.TenantId == tenantId
 						&& x.Scope == AccountScope.Tenant),
 				keySelector: x => x.User.Status == UserStatus.Suspended ? 2 : x.Status == AccountStatus.Suspended ? 1 : 0,
-				idSelector: x => x.Id ?? Guid.Empty,
+				idSelector: x => x.UserId,
 				cancellationToken
 			),
 			["level"] = CursorSortFieldHandlerFactory.Create<UserAccount, AccountLevel, Guid>(
@@ -143,7 +143,7 @@ public class TenantUserQueryService : ITenantUserQueryService {
 					.Where(x => x.TenantId == tenantId
 						&& x.Scope == AccountScope.Tenant),
 				keySelector: x => x.Level,
-				idSelector: x => x.Id ?? Guid.Empty,
+				idSelector: x => x.UserId,
 				cancellationToken
 			),
 			["created_at"] = CursorSortFieldHandlerFactory.Create<UserAccount, DateTime, Guid>(
@@ -152,7 +152,7 @@ public class TenantUserQueryService : ITenantUserQueryService {
 					.Where(x => x.TenantId == tenantId
 						&& x.Scope == AccountScope.Tenant),
 				keySelector: x => x.User.CreatedAt,
-				idSelector: x => x.Id ?? Guid.Empty,
+				idSelector: x => x.UserId,
 				cancellationToken
 			),
 		};
