@@ -58,7 +58,6 @@ import {
 	shouldRenderAuthenticatedChrome,
 } from '~/lib/session-scope';
 import { SessionSurfaceValidationProvider } from '~/lib/session-surface-recovery-context';
-import { withSessionValidationTimeout } from '~/lib/session-validation';
 import {
 	COLOR_SCHEME_STORAGE_KEY,
 	SIDEBAR_OPEN_STORAGE_KEY,
@@ -70,6 +69,7 @@ import { loadI18nForRequest } from '~/server/i18n-locale';
 import { toApiFailure } from '@org/shared-ts/lib/api-failure/to-api-failure';
 import { LOCALE_COOKIE_KEY, REDIRECT_CODE } from '@org/shared-ts/lib/constants';
 import { buildLoginRedirectSearch } from '@org/shared-ts/lib/login-redirect-search';
+import { withSessionValidationTimeout } from '@org/shared-ts/lib/session-validation';
 
 import { AppErrorView } from '../components/error-views/AppErrorView';
 import { LogoutRedirect } from '../components/error-views/LogoutRedirect';
