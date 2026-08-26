@@ -536,6 +536,19 @@ public sealed class GetUserTenantsForPickerSpec
 			await SeedUserWithSuspendedTenantsAsync(staffToken, 1);
 
 		try {
+			// Delete the seeded tenant so the user has exactly one LIVE
+			// membership (on Acme below) and one membership whose tenant is
+			// soft-deleted. Suspending only would leave the tenant in the
+			// picker's base count (`!t.IsDeleted` does not exclude suspended
+			// tenants), defeating the purpose of this arm.
+			foreach (var tenantId in tenantIds) {
+				using var delete =
+					await TenantTestHelper.DeleteTenantAsync(
+						_http, staffToken, tenantId
+					);
+				delete.StatusCode.Should().Be(HttpStatusCode.OK);
+			}
+
 			// Second, LIVE membership on a seeded shared tenant.
 			await using var scope =
 				_fixture.Factory.Services.CreateAsyncScope();
@@ -612,10 +625,12 @@ public sealed class GetUserTenantsForPickerSpec
 		await dbContext.UserAccount
 			.Where(ua => ua.UserId == seededUser.Id)
 			.ExecuteDeleteAsync();
-		var removedTenants = await dbContext.Tenant
+		// The never-invited arm (#258 round 2) seeds a user with no tenants, so
+		// this bulk delete may legitimately remove zero rows. Only the
+		// all-tenants-deleted and mixed arms seed "All Deleted Picker" tenants.
+		await dbContext.Tenant
 			.Where(t => t.Name.StartsWith("All Deleted Picker "))
 			.ExecuteDeleteAsync();
-		removedTenants.Should().BeGreaterThan(0);
 		await dbContext.User.Where(u => u.Email == email)
 			.ExecuteDeleteAsync();
 	}
