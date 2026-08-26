@@ -65,6 +65,16 @@ public static partial class ResponseKeys {
 	public static readonly TranslationKey DeadLetterNotUnclassified = new("dead-letter-not-unclassified");
 
 	/// <summary>
+	/// Dead-letter job has already been requeued
+	/// </summary>
+	public static readonly TranslationKey DeadLetterRequeueConflict = new("dead-letter-requeue-conflict");
+
+	/// <summary>
+	/// Dead-letter job requeued
+	/// </summary>
+	public static readonly TranslationKey DeadLetterRequeueSuccess = new("dead-letter-requeue-success");
+
+	/// <summary>
 	/// Dead-letter triage resolved
 	/// </summary>
 	public static readonly TranslationKey DeadLetterResolvedSuccess = new("dead-letter-resolved-success");
@@ -188,6 +198,11 @@ public static partial class ResponseKeys {
 	/// This invitation has been revoked
 	/// </summary>
 	public static readonly TranslationKey InvitationTokenRevoked = new("invitation-token-revoked");
+
+	/// <summary>
+	/// Job queue item not found
+	/// </summary>
+	public static readonly TranslationKey JobQueueItemNotFound = new("job-queue-item-not-found");
 
 	/// <summary>
 	/// Malformed ID
@@ -428,6 +443,36 @@ public static partial class ResponseKeys {
 	/// Staff user updated successfully
 	/// </summary>
 	public static readonly TranslationKey StaffUserUpdatedSuccessfully = new("staff-user-updated-successfully");
+
+	/// <summary>
+	/// Cron expression is invalid
+	/// </summary>
+	public static readonly TranslationKey SystemJobCronInvalid = new("system-job-cron-invalid");
+
+	/// <summary>
+	/// System job definition not found
+	/// </summary>
+	public static readonly TranslationKey SystemJobDefinitionNotFound = new("system-job-definition-not-found");
+
+	/// <summary>
+	/// System job definition updated
+	/// </summary>
+	public static readonly TranslationKey SystemJobDefinitionUpdateSuccess = new("system-job-definition-update-success");
+
+	/// <summary>
+	/// This system job cannot be disabled because its retention cadence is a privacy control
+	/// </summary>
+	public static readonly TranslationKey SystemJobDisableProtected = new("system-job-disable-protected");
+
+	/// <summary>
+	/// System job is disabled and was not enqueued
+	/// </summary>
+	public static readonly TranslationKey SystemJobTriggerNoop = new("system-job-trigger-noop");
+
+	/// <summary>
+	/// System job enqueued
+	/// </summary>
+	public static readonly TranslationKey SystemJobTriggerSuccess = new("system-job-trigger-success");
 
 	/// <summary>
 	/// System notice created successfully
