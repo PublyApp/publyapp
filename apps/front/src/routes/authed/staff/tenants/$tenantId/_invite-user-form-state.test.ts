@@ -249,9 +249,20 @@ describe('buildImportedInvites', () => {
 					email: 'a@example.com',
 					accountLevel: 'Admin',
 					profileNames: ['Alpha'],
+					invalidLevel: null,
 				},
-				{ email: 'A@Example.com', accountLevel: 'User', profileNames: [] },
-				{ email: 'b@example.com', accountLevel: 'User', profileNames: [] },
+				{
+					email: 'A@Example.com',
+					accountLevel: 'User',
+					profileNames: [],
+					invalidLevel: null,
+				},
+				{
+					email: 'b@example.com',
+					accountLevel: 'User',
+					profileNames: [],
+					invalidLevel: null,
+				},
 			],
 			existingEmails: ['b@example.com'],
 			source: 'file',
@@ -278,6 +289,7 @@ describe('clearFileRows', () => {
 				accountLevel: 'User',
 				profileIds: [],
 				profileNames: [],
+				invalidLevel: null,
 				source: 'file',
 			},
 		];
@@ -299,6 +311,7 @@ describe('applyProfileResolutions', () => {
 		profileIds: [],
 		profileNames: ['alpha', 'ghost'],
 		source: 'file',
+		invalidLevel: null,
 		...overrides,
 	});
 
@@ -329,6 +342,7 @@ describe('canSendInvitations', () => {
 		accountLevel: 'User',
 		profileIds: [],
 		profileNames: [],
+		invalidLevel: null,
 		source: 'manual',
 	};
 
@@ -406,6 +420,7 @@ describe('buildSubmitInvitations', () => {
 				accountLevel: 'Admin',
 				profileIds: ['p-9'],
 				profileNames: ['x'],
+				invalidLevel: null,
 				source: 'file',
 			},
 			{
@@ -414,6 +429,7 @@ describe('buildSubmitInvitations', () => {
 				accountLevel: 'User',
 				profileIds: ['p-1', 'p-1', 'p-2'],
 				profileNames: [],
+				invalidLevel: null,
 				source: 'manual',
 			},
 		];

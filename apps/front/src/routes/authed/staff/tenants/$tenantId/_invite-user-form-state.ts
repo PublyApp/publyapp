@@ -1,4 +1,7 @@
 import { strFromU8, unzipSync } from 'fflate';
+import { useForm, type UseFormReturn } from 'react-hook-form';
+import { z } from 'zod';
+import { useLanguageKeyedZodResolver } from '~/lib/hooks/use-language-keyed-zod-resolver';
 
 /**
  * Invite-drawer row state: one invited person, whether they came from the
@@ -545,3 +548,47 @@ export const buildSubmitInvitations = (
 /** Downloadable template — matches the parser's documented columns. */
 export const buildInviteTemplateCsv = (): string =>
 	'email,level,profiles\nuser@example.com,user,Alpha; Beta\nadmin@example.com,admin,\n';
+
+/** Shape of the invite drawer's react-hook-form state. Mouthful but it is the
+ * one contract the drawer's form, the host navigation blocker, and the submit
+ * handler all share. */
+export type InviteFormValues = {
+	pasteEmails: string;
+	sharedAccountLevel: 'Admin' | 'User';
+	sharedProfileIds: string[];
+	rows: InviteRow[];
+};
+
+export const DEFAULT_VALUES: InviteFormValues = {
+	pasteEmails: '',
+	sharedAccountLevel: 'User',
+	sharedProfileIds: [],
+	rows: [makeManualRow()],
+};
+
+/** Owns the invite form instance. Language-keyed resolver so validation
+ * messages stay localized; the host calls this so it can read
+ * `methods.formState.isDirty` for the unsaved-changes navigation blocker. */
+export const useInviteForm = (): UseFormReturn<InviteFormValues> => {
+	const resolver = useLanguageKeyedZodResolver<InviteFormValues>(() =>
+		z.object({
+			pasteEmails: z.string().optional(),
+			sharedAccountLevel: z.enum(['Admin', 'User']),
+			sharedProfileIds: z.array(z.string()),
+			rows: z.array(
+				z.object({
+					email: z.string(),
+					accountLevel: z.enum(['Admin', 'User']),
+					profileIds: z.array(z.string()),
+					profileNames: z.array(z.string()),
+					source: z.enum(['file', 'manual']),
+					key: z.string(),
+				}),
+			),
+		}),
+	);
+	return useForm<InviteFormValues>({
+		resolver,
+		defaultValues: DEFAULT_VALUES,
+	});
+};

@@ -5,12 +5,11 @@ import {
 	IconUpload,
 	IconX,
 } from '@tabler/icons-react';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQueryClient, type QueryClient } from '@tanstack/react-query';
 import type { ChangeEvent, DragEvent } from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useFieldArray, useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
-import { z } from 'zod';
 import { Field } from '~/components/field';
 import { Button } from '~/components/ui/button';
 import { ConfirmDialog } from '~/components/ui/confirm-dialog';
@@ -25,7 +24,6 @@ import {
 	DrawerTitle,
 } from '~/components/ui/drawer';
 import { downloadFile } from '~/lib/download-file';
-import { useLanguageKeyedZodResolver } from '~/lib/hooks/use-language-keyed-zod-resolver';
 import {
 	displayLocalMutationFailure,
 	toastLocalMutationResult,
@@ -60,26 +58,17 @@ import {
 	parseInviteCsv,
 	parseInviteWorkbook,
 	parseInviteeEmails,
+	type InviteFormValues,
 	type InviteRow,
+	useInviteForm,
 } from './_invite-user-form-state';
 
 const MAX_IMPORT_FILE_BYTES = 2_000_000;
 const CSV_EXTENSION_PATTERN = /\.csv$/i;
 const EXCEL_EXTENSION_PATTERN = /\.xlsx?$/i;
 
-type InviteFormValues = {
-	pasteEmails: string;
-	sharedAccountLevel: 'Admin' | 'User';
-	sharedProfileIds: string[];
-	rows: InviteRow[];
-};
-
-const DEFAULT_VALUES: InviteFormValues = {
-	pasteEmails: '',
-	sharedAccountLevel: 'User',
-	sharedProfileIds: [],
-	rows: [makeManualRow()],
-};
+// InviteFormValues, DEFAULT_VALUES, and useInviteForm are exported from
+// _invite-user-form-state (react-doctor forbids non-component exports in .tsx).
 
 type Translate = (key: string, options?: Record<string, unknown>) => string;
 
@@ -334,6 +323,8 @@ const unresolvedFlagCount = (
 
 	return total;
 };
+
+type UnresolvedEntry = { name: string; reason: string };
 
 type RowInvalidLevelNoteProps = {
 	invalidLevel: string | null;
@@ -697,216 +688,30 @@ const useInviteFileImport = ({
 	return { fileBar, importError, duplicateNote, handleFiles, clearFile };
 };
 
-const InviteTenantUserDrawerInner = ({
+const useInviteSubmit = ({
 	tenantId,
-	isOpen,
-	onOpenChange,
-	onInvited,
+	methods,
+	queryClient,
+	bulkInvite,
 	onSessionExpired,
-	onDirtyChange,
-}: InviteTenantUserDrawerProps) => {
-	const { t, i18n } = useTranslation('common');
-	const queryClient = useQueryClient();
-	const bulkInvite = useBulkInviteTenantUsersMutation();
-	const resolveNames = useResolveTenantProfileNamesMutation();
-	const [rootValidationError, setRootValidationError] = useState('');
-	const [batchSummary, setBatchSummary] =
-		useState<StaffTenantInvitationBulkCreateSummary | null>(null);
-	const [unresolvedByRowKey, setUnresolvedByRowKey] = useState<
-		Record<string, UnresolvedEntry[]>
-	>({});
+	onInvited,
+	setRootValidationError,
+	setBatchSummary,
+}: {
+	tenantId: string;
+	methods: ReturnType<typeof useForm<InviteFormValues>>;
+	queryClient: QueryClient;
+	bulkInvite: ReturnType<typeof useBulkInviteTenantUsersMutation>;
+	onSessionExpired: () => void;
+	onInvited: () => void;
+	setRootValidationError: (value: string) => void;
+	setBatchSummary: (
+		value: StaffTenantInvitationBulkCreateSummary | null,
+	) => void;
+}) => {
+	const { t } = useTranslation('common');
 
-	// Language-keyed resolver: rebuilds when translations change so error
-	// messages stay localized; see use-language-keyed-zod-resolver.
-	const resolver = useLanguageKeyedZodResolver<InviteFormValues>(() =>
-		z.object({
-			pasteEmails: z.string().optional(),
-			sharedAccountLevel: z.enum(['Admin', 'User']),
-			sharedProfileIds: z.array(z.string()),
-			rows: z.array(
-				z.object({
-					email: z.string(),
-					accountLevel: z.enum(['Admin', 'User']),
-					profileIds: z.array(z.string()),
-					profileNames: z.array(z.string()),
-					source: z.enum(['file', 'manual']),
-					key: z.string(),
-				}),
-			),
-		}),
-	);
-	const methods = useForm<InviteFormValues>({
-		resolver,
-		defaultValues: DEFAULT_VALUES,
-	});
-	const {
-		control,
-		reset,
-		formState: { isSubmitting },
-	} = methods;
-	const { fileBar, importError, duplicateNote, handleFiles, clearFile } =
-		useInviteFileImport({ methods, t });
-	const { fields, append, remove, replace } = useFieldArray({
-		control,
-		name: 'rows',
-	});
-	const rows = methods.watch('rows');
-	const [isDiscardConfirmOpen, setIsDiscardConfirmOpen] = useState(false);
-
-	// Dirty-flag uplink, event-driven: RHF's change stream fires synchronously
-	// on the form mutation that owns each change. Dirtiness comes from
-	// react-hook-form's own synchronous dirty computation against the
-	// pristine defaults this session mounted with.
-	const lastReportedDirtyRef = useRef<boolean | null>(null);
-	useEffect(() => {
-		const report = (nextDirty: boolean) => {
-			if (lastReportedDirtyRef.current !== nextDirty) {
-				lastReportedDirtyRef.current = nextDirty;
-				onDirtyChange?.(nextDirty);
-			}
-		};
-		const computeNextDirty = () => methods.control._getDirty();
-		lastReportedDirtyRef.current = null;
-		report(computeNextDirty());
-		const subscription = methods.watch(() => {
-			report(computeNextDirty());
-		});
-		return () => {
-			subscription.unsubscribe();
-		};
-	}, [methods, onDirtyChange]);
-
-	const isResolvingProfiles = resolveNames.isPending;
-
-	// Server-side profile-name resolution (#979): whenever the set of names on
-	// file rows changes, resolve once and stamp ids back onto the rows.
-	const namesSignature = useMemo(
-		() => profileNamesNeedingResolution(rows ?? []).join('\u0000'),
-		[rows],
-	);
-	const lastResolvedSignatureRef = useRef<string>('');
-	const { mutateAsync: resolveNamesAsync } = resolveNames;
-	useEffect(() => {
-		if (!isOpen || namesSignature.length === 0) {
-			return;
-		}
-
-		if (lastResolvedSignatureRef.current === namesSignature) {
-			return;
-		}
-
-		lastResolvedSignatureRef.current = namesSignature;
-
-		resolveNamesAsync({
-			tenantId,
-			names: namesSignature.split('\u0000'),
-		})
-			.then((result) => {
-				// Stale-response discard instead of cleanup-cancellation: a
-				// cancelled-and-guarded pattern here loses the resolution forever
-				// (cleanup marks the promise dead while the same-signature guard
-				// blocks a retry). Superseded signatures simply drop their result.
-				if (lastResolvedSignatureRef.current !== namesSignature) {
-					return;
-				}
-
-				const resolutions = toResolveTenantProfileNameResolutions(result);
-				const currentRows = methods.getValues('rows');
-				const outcome = applyProfileResolutions(currentRows, resolutions);
-				methods.setValue('rows', outcome.rows, { shouldDirty: true });
-				setUnresolvedByRowKey(outcome.unresolvedByRowKey);
-			})
-			.catch((error) => {
-				if (lastResolvedSignatureRef.current !== namesSignature) {
-					return;
-				}
-
-				if (shouldLogoutForFailure(error)) {
-					onSessionExpired();
-					return;
-				}
-
-				// Allow a retry on the next signature change.
-				lastResolvedSignatureRef.current = '';
-				void displayLocalMutationFailure(error, t('unable-to-load-profiles'));
-			});
-	}, [
-		isOpen,
-		namesSignature,
-		tenantId,
-		methods,
-		resolveNamesAsync,
-		onSessionExpired,
-		t,
-	]);
-
-	const isFormLockedFinal =
-		bulkInvite.isPending || isSubmitting || resolveNames.isPending;
-
-	const addPastedEmails = () => {
-		setRootValidationError('');
-		setBatchSummary(null);
-		const emails = parseInviteeEmails(methods.getValues('pasteEmails') ?? '');
-		if (emails.length === 0) {
-			setRootValidationError(t('no-invitee-emails-to-add'));
-			return;
-		}
-
-		const sharedAccountLevel = methods.getValues('sharedAccountLevel');
-		const sharedProfileIds = methods.getValues('sharedProfileIds');
-		const currentRows = methods.getValues('rows');
-		const outcome = buildImportedInvites({
-			parsedRows: emails.map((email) => ({
-				email,
-				accountLevel: sharedAccountLevel,
-				profileNames: [],
-			})),
-			existingEmails: currentRows.map((row) => row.email),
-			source: 'manual',
-		});
-		const stampedRows = outcome.rows.map((row) => ({
-			...row,
-			profileIds: [...sharedProfileIds],
-		}));
-		const hasOnlyBlankInitialRow =
-			currentRows.length === 1 &&
-			currentRows[0]?.email.trim().length === 0 &&
-			currentRows[0]?.source === 'manual';
-
-		if (hasOnlyBlankInitialRow) {
-			replace([...stampedRows]);
-		} else {
-			for (const row of stampedRows) {
-				append(row);
-			}
-		}
-		methods.setValue('pasteEmails', '', { shouldDirty: true });
-	};
-
-	const isFormDirty = () => methods.control._getDirty();
-	const requestClose = () => {
-		// formState.isDirty is a render-subscribed proxy and nobody renders it
-		// here; read the freshly computed value instead or dirty forms close
-		// without their discard confirmation.
-		if (isFormDirty()) {
-			setIsDiscardConfirmOpen(true);
-			return;
-		}
-
-		onOpenChange(false);
-	};
-
-	const canSend = canSendInvitations({
-		rows: rows ?? [],
-		isResolvingProfiles,
-		unresolvedCount: unresolvedFlagCount(unresolvedByRowKey),
-		invalidLevelCount: (rows ?? []).filter((row) => row.invalidLevel !== null)
-			.length,
-	});
-	const isSendDisabled = isFormLockedFinal || !canSend;
-	const peopleCount = rows?.length ?? 0;
-
-	const onSubmit = methods.handleSubmit(async (values) => {
+	return methods.handleSubmit(async (values) => {
 		setRootValidationError('');
 		setBatchSummary(null);
 
@@ -987,7 +792,7 @@ const InviteTenantUserDrawerInner = ({
 			}
 
 			if (failedRows.length > 0) {
-				reset(
+				methods.reset(
 					{
 						...values,
 						rows: failedRows,
@@ -1003,8 +808,227 @@ const InviteTenantUserDrawerInner = ({
 				count: summary.succeededCount,
 			}),
 		);
-		onDirtyChange?.(false);
 		onInvited();
+	});
+};
+
+/** Event-driven dirty-flag uplink: react-hook-form's change stream fires
+ * synchronously on the form mutation that owns each change. Dirtiness comes
+ * from its own synchronous dirty computation against the pristine defaults
+ * this session mounted with. The parent setter is called from the change
+ * callback, not an effect, which no-pass-data-to-parent permits. */
+const useInviteDirtyUplink = ({
+	methods,
+	onDirtyChange,
+}: {
+	methods: ReturnType<typeof useForm<InviteFormValues>>;
+	onDirtyChange?: (isDirty: boolean) => void;
+}) => {
+	const lastReportedDirtyRef = useRef<boolean | null>(null);
+	useEffect(() => {
+		const report = (nextDirty: boolean) => {
+			if (lastReportedDirtyRef.current !== nextDirty) {
+				lastReportedDirtyRef.current = nextDirty;
+				onDirtyChange?.(nextDirty);
+			}
+		};
+		const computeNextDirty = () => methods.control._getDirty();
+		lastReportedDirtyRef.current = null;
+		report(computeNextDirty());
+		const subscription = methods.watch(() => {
+			report(computeNextDirty());
+		});
+		return () => {
+			subscription.unsubscribe();
+		};
+	}, [methods, onDirtyChange]);
+};
+
+const InviteTenantUserDrawerInner = ({
+	tenantId,
+	isOpen,
+	onOpenChange,
+	onInvited,
+	onSessionExpired,
+	onDirtyChange,
+}: InviteTenantUserDrawerProps) => {
+	const { t, i18n } = useTranslation('common');
+	const queryClient = useQueryClient();
+	const bulkInvite = useBulkInviteTenantUsersMutation();
+	const resolveNames = useResolveTenantProfileNamesMutation();
+	const [rootValidationError, setRootValidationError] = useState('');
+	const [batchSummary, setBatchSummary] =
+		useState<StaffTenantInvitationBulkCreateSummary | null>(null);
+	const [unresolvedByRowKey, setUnresolvedByRowKey] = useState<
+		Record<string, UnresolvedEntry[]>
+	>({});
+
+	const methods = useInviteForm();
+	const {
+		control,
+		formState: { isSubmitting },
+	} = methods;
+
+	// Event-driven dirty-flag uplink: react-hook-form's change stream fires
+	// synchronously on the form mutation that owns each change. Dirtiness comes
+	// from its own synchronous dirty computation against the pristine defaults
+	// this session mounted with. The setter is a parent prop, but it is invoked
+	// from the change callback (not an effect), which no-pass-data-to-parent
+	// permits; it mirrors how onSessionExpired is called from event handlers.
+	useInviteDirtyUplink({ methods, onDirtyChange });
+
+	const { fileBar, importError, duplicateNote, handleFiles, clearFile } =
+		useInviteFileImport({ methods, t });
+	const { fields, append, remove, replace } = useFieldArray({
+		control,
+		name: 'rows',
+	});
+	const rows = methods.watch('rows');
+	const [isDiscardConfirmOpen, setIsDiscardConfirmOpen] = useState(false);
+
+	// Server-side profile-name resolution (#979): whenever the set of names on
+	// file/manual rows changes, resolve once and stamp ids back onto the rows.
+	// Kept inline (not in a child hook fed via props) because it mutates the
+	// form and a parent setter from an effect — react-doctor's
+	// no-pass-data-to-parent rule rejects parent-promoted values used in effects.
+	const namesSignature = useMemo(
+		() => profileNamesNeedingResolution(rows ?? []).join('\u0000'),
+		[rows],
+	);
+	const lastResolvedSignatureRef = useRef<string>('');
+	const { mutateAsync: resolveNamesAsync } = resolveNames;
+	useEffect(() => {
+		if (!isOpen || namesSignature.length === 0) {
+			return;
+		}
+
+		if (lastResolvedSignatureRef.current === namesSignature) {
+			return;
+		}
+
+		lastResolvedSignatureRef.current = namesSignature;
+
+		resolveNamesAsync({
+			tenantId,
+			names: namesSignature.split('\u0000'),
+		})
+			.then((result) => {
+				// Stale-response discard instead of cleanup-cancellation: a
+				// cancelled-and-guarded pattern here loses the resolution forever
+				// (cleanup marks the promise dead while the same-signature guard
+				// blocks a retry). Superseded signatures simply drop their result.
+				if (lastResolvedSignatureRef.current !== namesSignature) {
+					return;
+				}
+
+				const resolutions = toResolveTenantProfileNameResolutions(result);
+				const currentRows = methods.getValues('rows');
+				const outcome = applyProfileResolutions(currentRows, resolutions);
+				methods.setValue('rows', outcome.rows, { shouldDirty: true });
+				setUnresolvedByRowKey(outcome.unresolvedByRowKey);
+			})
+			.catch((error) => {
+				if (lastResolvedSignatureRef.current !== namesSignature) {
+					return;
+				}
+
+				if (shouldLogoutForFailure(error)) {
+					onSessionExpired();
+					return;
+				}
+
+				// Allow a retry on the next signature change.
+				lastResolvedSignatureRef.current = '';
+				void displayLocalMutationFailure(error, t('unable-to-load-profiles'));
+			});
+	}, [
+		isOpen,
+		namesSignature,
+		tenantId,
+		methods,
+		resolveNamesAsync,
+		onSessionExpired,
+		t,
+	]);
+
+	const isResolvingProfiles = resolveNames.isPending;
+
+	const isFormLockedFinal =
+		bulkInvite.isPending || isSubmitting || resolveNames.isPending;
+
+	const addPastedEmails = () => {
+		setRootValidationError('');
+		setBatchSummary(null);
+		const emails = parseInviteeEmails(methods.getValues('pasteEmails') ?? '');
+		if (emails.length === 0) {
+			setRootValidationError(t('no-invitee-emails-to-add'));
+			return;
+		}
+
+		const sharedAccountLevel = methods.getValues('sharedAccountLevel');
+		const sharedProfileIds = methods.getValues('sharedProfileIds');
+		const currentRows = methods.getValues('rows');
+		const outcome = buildImportedInvites({
+			parsedRows: emails.map((email) => ({
+				email,
+				accountLevel: sharedAccountLevel,
+				profileNames: [] as string[],
+				invalidLevel: null,
+			})),
+			existingEmails: currentRows.map((row) => row.email),
+			source: 'manual',
+		});
+		const stampedRows = outcome.rows.map((row) => ({
+			...row,
+			profileIds: [...sharedProfileIds],
+		}));
+		const hasOnlyBlankInitialRow =
+			currentRows.length === 1 &&
+			currentRows[0]?.email.trim().length === 0 &&
+			currentRows[0]?.source === 'manual';
+
+		if (hasOnlyBlankInitialRow) {
+			replace([...stampedRows]);
+		} else {
+			for (const row of stampedRows) {
+				append(row);
+			}
+		}
+		methods.setValue('pasteEmails', '', { shouldDirty: true });
+	};
+
+	const isFormDirty = () => methods.control._getDirty();
+	const requestClose = () => {
+		// formState.isDirty is a render-subscribed proxy and nobody renders it
+		// here; read the freshly computed value instead or dirty forms close
+		// without their discard confirmation.
+		if (isFormDirty()) {
+			setIsDiscardConfirmOpen(true);
+			return;
+		}
+
+		onOpenChange(false);
+	};
+
+	const canSend = canSendInvitations({
+		rows: rows ?? [],
+		isResolvingProfiles,
+		unresolvedCount: unresolvedFlagCount(unresolvedByRowKey),
+		invalidLevelCount: (rows ?? []).filter((row) => row.invalidLevel !== null)
+			.length,
+	});
+	const isSendDisabled = isFormLockedFinal || !canSend;
+	const peopleCount = rows?.length ?? 0;
+
+	const onSubmit = useInviteSubmit({
+		tenantId,
+		methods,
+		queryClient,
+		bulkInvite,
+		onSessionExpired,
+		onInvited,
+		setRootValidationError,
+		setBatchSummary,
 	});
 
 	return (
@@ -1101,7 +1125,6 @@ const InviteTenantUserDrawerInner = ({
 				onOpenChange={setIsDiscardConfirmOpen}
 				onConfirm={() => {
 					setIsDiscardConfirmOpen(false);
-					onDirtyChange?.(false);
 					onOpenChange(false);
 				}}
 			/>

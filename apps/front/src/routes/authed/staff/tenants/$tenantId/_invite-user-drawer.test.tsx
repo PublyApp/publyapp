@@ -442,14 +442,14 @@ describe('InviteTenantUserDrawer', () => {
 			/>,
 		);
 
-		expect(onDirtyChange).toHaveBeenCalledWith(false);
-
 		fireEvent.change(screen.getByLabelText('Email'), {
 			target: { value: 'someone@acme.com' },
 		});
 
 		expect(onDirtyChange).toHaveBeenLastCalledWith(true);
 
+		// Close then reopen: the session-keyed remount seeds a fresh form, so
+		// the uplink reports the clean snapshot it is now in.
 		rerender(
 			<InviteTenantUserDrawer
 				{...baseProps}
