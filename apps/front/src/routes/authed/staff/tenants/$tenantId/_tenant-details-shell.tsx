@@ -262,7 +262,13 @@ export const TenantDetailsPageShell = ({
 	bodyScroll = 'page',
 }: {
 	tenant: StaffTenantDetails;
-	activeSection: 'basics' | 'profiles' | 'users' | 'invitations' | 'usage' | 'activity';
+	activeSection:
+		| 'basics'
+		| 'profiles'
+		| 'users'
+		| 'invitations'
+		| 'usage'
+		| 'activity';
 	testId: string;
 	children: ReactNode;
 	/**
