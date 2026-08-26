@@ -99,7 +99,10 @@ vi.mock('~/components/ui/drawer', () => ({
 	}) => createElement('div', props, children),
 }));
 
-import { useUiStore } from '~/lib/store/ui-store';
+import {
+	SIDEBAR_OPEN_STORAGE_KEY,
+	useUiStore,
+} from '~/lib/store/ui-store';
 
 import { AppShell } from './app-shell';
 
@@ -274,6 +277,22 @@ describe('AppShell secondary-panel toggle', () => {
 		const panel = screen.getByTestId('app-shell-secondary-panel');
 		expect(panel.hasAttribute('inert')).toBe(true);
 		expect(panel.getAttribute('aria-hidden')).toBe('true');
+	});
+
+	test('a persisted closed preference holds on the FIRST render, before any hydration effect (#936)', async () => {
+		// The regression this pins: the store used to initialize to the open
+		// default and only read localStorage inside ThemeHydrationListener's
+		// post-commit effect, so the real shell rendered OPEN for one window
+		// and then flipped — the rotating shell.spec.ts e2e flake class. The
+		// store must instead seed itself from localStorage at module load, so
+		// re-importing the module with the preference present must produce a
+		// store whose INITIAL state is already collapsed.
+		window.localStorage.setItem(SIDEBAR_OPEN_STORAGE_KEY, 'false');
+
+		vi.resetModules();
+		const { useUiStore: freshStore } = await import('~/lib/store/ui-store');
+
+		expect(freshStore.getState().sidebarOpen).toBe(false);
 	});
 
 	test('below desktop width: toggle is hidden on both list and rail-only routes', () => {

@@ -224,6 +224,20 @@ const readPersistedUiState = (): Pick<
 	};
 };
 
+/**
+ * The client's INITIAL store state reads localStorage at module load, not in
+ * a post-commit effect (#936): a persisted preference must hold from the very
+ * first client render. The blocking head script already applies the theme to
+ * `<html>` before first paint, but the store used to wake up on hardcoded
+ * defaults and correct itself inside `ThemeHydrationListener`'s effect — so
+ * the real shell rendered the default panel state for one window and then
+ * flipped to the persisted value (the rotating shell.spec.ts flake class:
+ * collapse clicks landing on default-state markup, open/collapsed misreads
+ * across navigations). On the server this initializer never runs and the
+ * defaults hold, matching the neutral SSR geometry.
+ */
+const INITIAL_UI_STATE: UiState = readPersistedUiState();
+
 type UiStore = UiState & {
 	setColorScheme: (colorScheme: ColorScheme) => void;
 	toggleColorScheme: () => void;
@@ -234,7 +248,7 @@ type UiStore = UiState & {
 };
 
 export const useUiStore = create<UiStore>((set, get) => ({
-	...DEFAULT_UI_STATE,
+	...INITIAL_UI_STATE,
 	hydrateFromStorage: () => {
 		const { colorScheme, sidebarOpen } = readPersistedUiState();
 		applyThemeToDocument(colorScheme);
