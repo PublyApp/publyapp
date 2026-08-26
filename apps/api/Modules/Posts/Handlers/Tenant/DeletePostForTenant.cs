@@ -65,13 +65,13 @@ public sealed class DeletePostForTenant {
 			);
 		}
 
-		// Cascade phase 2 (#807 F5), owned by this handler: release the purged
-		// images' blob references only AFTER the deletion is durable; physical
-		// deletion stays exclusively sweeper's.
+		// Cascade phase 2 (#807 F5), owned by this handler (inlined since #1461:
+		// the handler orchestrates the reference calls): release the purged images'
+		// blob references only AFTER the deletion is durable; physical deletion
+		// stays exclusively sweeper's.
 		foreach (var stagedPath in stagedPaths) {
 			await uploadReferences.TryReleaseReferenceAsync(
-				stagedPath,
-				cancellationToken
+				stagedPath, cancellationToken
 			);
 		}
 

@@ -8,8 +8,8 @@ using PublyApp.Api.Localization;
 using PublyApp.Api.Modules.AuditLogs.Entities;
 using PublyApp.Api.Modules.AuditLogs.Services;
 using PublyApp.Api.Modules.Posts.Services;
-using PublyApp.Api.Modules.Uploads.Entities;
 using PublyApp.Api.Modules.Uploads.Services;
+using PublyApp.Api.Modules.Uploads.Entities;
 
 namespace PublyApp.Api.Modules.Posts.Handlers.Tenant;
 
@@ -35,8 +35,8 @@ public sealed class AttachPostImageForTenant {
 		[FromRoute] string postId,
 		[FromServices] IRequestAuthContext authContext,
 		[FromServices] IPostMediaAssetService assetService,
-		[FromServices] IUploadAdmissionService uploadAdmissionService,
 		[FromServices] IUploadAssetReferenceService uploadReferences,
+		[FromServices] IUploadAdmissionService uploadAdmissionService,
 		[FromServices] IFileStorage fileStorage,
 		[FromServices] IAuditLogService auditLogService,
 		[FromServices] ILogger<AttachPostImageForTenant> logger,
@@ -206,19 +206,18 @@ public sealed class AttachPostImageForTenant {
 		// Reserved → Stored: flips the asset state and commits the budget move.
 		await admissionScope.CommitAsync(cancellationToken);
 
-		// #807 F5 discipline, owned by this handler: capture the REPLACED
-		// image's path before the attach purges its row, acquire the new blob's
-		// reference BEFORE the entity write so the URL can never commit while
-		// its asset still reads zero references, then release the old reference
-		// AFTER the service's commit below. Physical deletion stays exclusively
-		// sweeper's.
-		var replacedAsset = await assetService.FindByPostAsync(
+		// #1461: the HANDLER owns the reference discipline (#807 F5), same
+		// ordering as before the move: capture the REPLACED image's path before
+		// the attach purges its row, acquire the new blob's reference BEFORE the
+		// entity write so the URL can never commit while its asset still reads
+		// zero references, then release the old reference AFTER the service's
+		// commit below. Physical deletion stays exclusively sweeper's.
+		var replacedImage = await assetService.FindByPostAsync(
 			tenantId, postIdGuid, cancellationToken
 		);
-		var replacedPath = replacedAsset?.RelativePath;
+		var replacedPath = replacedImage?.RelativePath;
 		await uploadReferences.TryAddReferenceAsync(
-			relativePath,
-			cancellationToken
+			relativePath, cancellationToken
 		);
 
 		// Persist the post-owned asset row; the service commits the insert and
@@ -239,8 +238,7 @@ public sealed class AttachPostImageForTenant {
 
 		if (replacedPath is not null) {
 			await uploadReferences.TryReleaseReferenceAsync(
-				replacedPath,
-				cancellationToken
+				replacedPath, cancellationToken
 			);
 		}
 

@@ -57,13 +57,14 @@ public sealed class RemovePostImageForTenant {
 			);
 		}
 
-		// #807 F5 discipline, owned by this handler: the service commits the
-		// row's hard delete; THIS handler releases the blob's reference only
-		// AFTER that commit. Physical deletion stays exclusively sweeper's.
-		var releasedPath = await assetService.RemoveAsync(
+		// #1461: the HANDLER owns the #807 F5 reference discipline — the service
+		// commits the row's hard delete and hands back the blob path; THIS handler
+		// releases the blob's reference only AFTER that commit. Physical deletion
+		// stays exclusively sweeper's.
+		var removedPath = await assetService.RemoveAsync(
 			tenantId, postIdGuid, cancellationToken
 		);
-		if (releasedPath is null) {
+		if (removedPath is null) {
 			return TypedProblems.NotFound(
 				"No image is attached to this post",
 				ResponseKeys.PostImageMissing
@@ -71,8 +72,7 @@ public sealed class RemovePostImageForTenant {
 		}
 
 		await uploadReferences.TryReleaseReferenceAsync(
-			releasedPath,
-			cancellationToken
+			removedPath, cancellationToken
 		);
 
 		await auditLogService.LogAsync(
