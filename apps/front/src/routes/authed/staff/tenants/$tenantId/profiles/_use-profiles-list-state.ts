@@ -14,8 +14,9 @@ import {
 	invalidateAllStaffTenantScopes,
 	useStaffTenantDetailsQuery,
 } from '~/lib/query/staff-tenants';
-import { shouldLogoutForFailure } from '~/lib/should-logout-for-failure';
 import type { TableSearchParams } from '~/lib/url-state/table-search-params';
+
+import { shouldLogoutForFailure } from '@org/shared-ts/lib/should-logout-for-failure';
 
 import { makeTenantProfileColumns } from './_profile-columns';
 import {

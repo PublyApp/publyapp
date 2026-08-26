@@ -70,7 +70,7 @@ vi.mock('./_create-post-drawer', () => ({
 	CreatePostDrawer: () => null,
 }));
 
-vi.mock('~/lib/should-logout-for-failure', () => ({
+vi.mock('@org/shared-ts/lib/should-logout-for-failure', () => ({
 	shouldLogoutForFailure: () => false,
 }));
 

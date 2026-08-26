@@ -16,7 +16,8 @@ import {
 	type TenantsForPickerData,
 	type TenantForPickerRow,
 } from '~/lib/query/tenants-for-picker';
-import { shouldLogoutForFailure } from '~/lib/should-logout-for-failure';
+
+import { shouldLogoutForFailure } from '@org/shared-ts/lib/should-logout-for-failure';
 
 import {
 	TenantPortalEmptyState,

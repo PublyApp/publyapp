@@ -266,7 +266,7 @@ vi.mock('~/lib/query/staff-tenants', () => ({
 	invalidateAllStaffTenantScopes: mocks.invalidateAllStaffTenantScopes,
 }));
 
-vi.mock('~/lib/should-logout-for-failure', () => ({
+vi.mock('@org/shared-ts/lib/should-logout-for-failure', () => ({
 	shouldLogoutForFailure: mocks.shouldLogoutForFailure,
 }));
 

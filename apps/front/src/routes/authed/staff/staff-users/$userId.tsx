@@ -20,9 +20,9 @@ import {
 	useStaffUserProfilesQuery,
 	useSuspendStaffUserMutation,
 } from '~/lib/query/staff-users';
-import { shouldLogoutForFailure } from '~/lib/should-logout-for-failure';
 
 import { logger } from '@org/shared-ts/lib/logger/iso-logger';
+import { shouldLogoutForFailure } from '@org/shared-ts/lib/should-logout-for-failure';
 
 import {
 	DeleteConfirmField,
