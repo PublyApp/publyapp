@@ -280,7 +280,6 @@ class InterZod {
 		return z.enum(values, params);
 	}
 
-	// oxlint-disable-next-line anti-slop/no-shape-in-symbol-names -- $ZodLooseShape is zod core's own exported type name, not our vocabulary
 	// `FieldsIn` aliases zod core's own shape type so this wrapper stays
 	// generic over arbitrary field maps without naming that type here.
 	object<FieldsIn extends Record<string, z.core.$ZodType>>(
