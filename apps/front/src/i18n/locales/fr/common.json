@@ -1,5 +1,9 @@
 {
 	"hello": "Bonjour",
+	"overview-empty-invitations": "Aucune invitation en attente pour le moment.",
+	"overview-empty-staff": "Aucun membre du personnel pour le moment.",
+	"overview-empty-tenants": "Aucun locataire pour le moment.",
+	"overview-error-title": "Impossible de charger ce résumé",
 	"user-has-no-email": "L'utilisateur n'a pas d'email",
 	"authentication": "Authentification",
 	"content": "Contenu",

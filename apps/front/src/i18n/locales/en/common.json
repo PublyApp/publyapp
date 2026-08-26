@@ -1,5 +1,9 @@
 {
 	"hello": "Hello",
+	"overview-empty-invitations": "No pending invitations right now.",
+	"overview-empty-staff": "No staff members yet.",
+	"overview-empty-tenants": "No tenants yet.",
+	"overview-error-title": "Couldn't load this summary",
 	"user-has-no-email": "User has no email",
 	"authentication": "Authentication",
 	"content": "Content",
