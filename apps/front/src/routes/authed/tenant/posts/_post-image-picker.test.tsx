@@ -29,7 +29,7 @@ vi.mock('~/lib/query/tenant-post-images', () => ({
 	useInvalidatePostImageCaches: () => mocks.invalidateFn,
 }));
 
-const EN_LABELS: Record<string, string> = {
+const EN_LABELS: TestLabelMap = {
 	'posts:image-label': 'Image',
 	'posts:image-help': 'PNG, JPEG, WebP or GIF up to 2 MB.',
 	'posts:image-alt-label': 'Alt text',
@@ -43,6 +43,8 @@ vi.mock('react-i18next', () => ({
 		i18n: { resolvedLanguage: 'en', language: 'en' },
 	}),
 }));
+
+import type { TestLabelMap } from '~/lib/testing/test-label-map';
 
 // eslint-disable-next-line import/first -- must follow the vi.mock calls above
 import type { DeferredImageSelection } from './_post-image-picker';
