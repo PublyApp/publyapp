@@ -412,6 +412,13 @@ Rows that no longer match the active filter may disappear after refetch; that
 is correct behavior, not a bug to paper over. Never keep a stale row visible
 by locally patching it.
 
+This is the front-specific mechanical detail of the canonical rule. Its normative home is
+[`docs/guides/list-pages-search-filter-cursor-pagination.md` §7.0](../../list-pages-search-filter-cursor-pagination.md#70-table-query-consistency-after-mutation-canonical-rule),
+which `AGENTS.md` treats as the standing rule for every list page (selection reconciliation,
+`selectedRows`-derived bulk targets, bulk toast copy, and the invalidation requirement above).
+When the two drift, the list-pages guide is authoritative for behavior; this section is
+authoritative for the `lib/query/*.ts` key-family mechanics.
+
 This is not left to memory at each call site — it is structural:
 
 - Each `lib/query/*.ts` module owns a hierarchical key family: a list root

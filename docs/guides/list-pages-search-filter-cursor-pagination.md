@@ -234,6 +234,56 @@ shared `BULK_ACTION_MAX_COUNT` cap, split try/catch, partial-success contract), 
 
 If bulk operations become common/heavy, consider adding a batch API later (explicit product/engineering decision).
 
+## 7.0) Table Query Consistency After Mutation (Canonical Rule)
+
+Normative. Referenced by `AGENTS.md`; this is the standing rule for every list page. Also
+codified in `docs/guides/front/conventions.md` (`Mutation Invalidation Coherence (#359)`), which
+adds the per-module key-family mechanical detail; the two must stay in agreement.
+
+After any row mutation that can affect the active table query, the table must show the current
+server-side result for the active query, not a locally patched snapshot:
+
+- If a status change makes a row fail the active `status` filter, it **disappears** after
+  mutation/refetch. That is correct, not a bug.
+- If a status change affects the active sort order, the row may move or disappear from the current
+  cursor page after refetch.
+- If a row is deleted/removed/revoked and no longer belongs in the list, it disappears after
+  refetch.
+- The UI must not keep locally patched rows visible merely to preserve visual continuity.
+- Cursor pagination must prefer invalidation/refetch over manually repositioning rows across
+  cursor pages.
+
+Required behavior at each list table:
+
+1. **Selection reconciliation.** For selectable server-side list tables where rows can disappear
+   after mutation/refetch, use
+   `useTableRowSelection({ rows, reconcileVisibleRows: true })`. If reconciliation must wait until
+   a fetch settles, use `reconcileVisibleRowsEnabled: !query.isFetching`. Every table that can
+   lose/move rows after mutation either uses `reconcileVisibleRows: true` or carries a documented
+   reason not to.
+2. **No stale bulk targets.** Derive bulk mutation target IDs from reconciled visible selected
+   rows (`const selectedIds = selectedRows.map((row) => row.id)`), not from raw selection state
+   (`Object.keys(rowSelection)`), unless there is a specific reason and reconciliation is
+   guaranteed.
+3. **Correct invalidation.** Every row-level and bulk lifecycle/status/removal mutation must
+   invalidate the canonical list query key for that table on its success path (e.g.
+   `useFindStaffUser.getKey()`), not only a detail key. Required targets, in order of the rule:
+   the mutated entity's detail line, the containing list, that list's counters, and filtered
+   sibling lists. The `Mutation Invalidation Coherence` section in `conventions.md` maps these to
+   the `lib/query/*.ts` key families and the standing guard
+   `apps/front/src/lib/query/mutation-invalidation.guard.test.ts`.
+4. **Bulk feedback.** For bulk lifecycle/status actions on filtered/sorted tables, the success
+   toast must make clear that rows may leave the current filtered view, e.g.
+   `Suspended {{count}} user(s). Some rows may no longer match the current filters.` Keep it
+   concise; do not over-explain the table mechanics in the UI.
+
+> Scope note: criteria 1, 2, and 4 above depend on the `useTableRowSelection({ ...reconcileVisibleRows })`
+> selection primitive and a `selectedRows`-derived bulk-target contract. At the time this section
+> was written, no list page in `apps/front` implements that primitive (the canonical
+> invalidation requirement, point 3, is the part covered by the standing guard). The
+> reconciliation/bulk-target/toast criteria remain an open product follow-up tracked against
+> issue #359.
+
 ## 7.1) Export/Preview UI State (Frontend)
 
 Export dialogs and preview drawers are UI-only overlays. Their `open`/`close` state and local UI state
