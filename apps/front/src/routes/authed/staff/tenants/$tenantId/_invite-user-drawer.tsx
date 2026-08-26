@@ -108,13 +108,11 @@ const PasteInviteesSection = ({
 	tenantId,
 	isFormLocked,
 	onAddPastedEmails,
-	onSessionExpired,
 	t,
 }: {
 	tenantId: string;
 	isFormLocked: boolean;
 	onAddPastedEmails: () => void;
-	onSessionExpired: () => void;
 	t: Translate;
 }) => (
 	<section className="space-y-3 rounded-[var(--publy-radius-card)] p-3 shadow-[var(--publy-shadow-ring)]">
@@ -148,7 +146,6 @@ const PasteInviteesSection = ({
 				name="sharedProfileIds"
 				label={t('shared-profiles')}
 				isDisabled={isFormLocked}
-				onSessionExpired={onSessionExpired}
 			/>
 		</div>
 		<Button
@@ -351,12 +348,15 @@ const RowUnresolvedNotes = ({
 		return null;
 	}
 
-	const notFound = unresolved
-		.filter((entry) => entry.reason === 'not-found')
-		.map((entry) => entry.name);
-	const ambiguous = unresolved
-		.filter((entry) => entry.reason === 'ambiguous')
-		.map((entry) => entry.name);
+	const notFound: string[] = [];
+	const ambiguous: string[] = [];
+	for (const entry of unresolved) {
+		if (entry.reason === 'not-found') {
+			notFound.push(entry.name);
+		} else if (entry.reason === 'ambiguous') {
+			ambiguous.push(entry.name);
+		}
+	}
 
 	return (
 		<div role="alert" className="space-y-0.5">
@@ -386,7 +386,6 @@ type InviteRowsListProps = {
 	isFormLocked: boolean;
 	onRemoveRow: (index: number) => void;
 	onAddRow: () => void;
-	onSessionExpired: () => void;
 	t: Translate;
 };
 
@@ -398,7 +397,6 @@ const InviteRowsList = ({
 	isFormLocked,
 	onRemoveRow,
 	onAddRow,
-	onSessionExpired,
 	t,
 }: InviteRowsListProps) => {
 	const renderInviteRow = (field: { id: string }, index: number) => {
@@ -418,7 +416,6 @@ const InviteRowsList = ({
 						name={`rows.${index}.profileIds`}
 						label={t('profiles')}
 						isDisabled={isFormLocked}
-						onSessionExpired={onSessionExpired}
 					/>
 				);
 			}
@@ -561,6 +558,110 @@ type InviteTenantUserDrawerProps = {
 	onDirtyChange?: (isDirty: boolean) => void;
 };
 
+type InviteFileImportState = {
+	fileBar: { fileName: string; rowCount: number } | null;
+	importError: string;
+	duplicateNote: string;
+	handleFiles: (fileList: FileList | null) => Promise<void>;
+	clearFile: () => void;
+};
+
+/** File-drop / file-input state and the two transitions that own it.
+ * Pulled out of InviteTenantUserDrawerInner so the host component stays under
+ * the giant-component threshold. Owns: the file-bar pill (file name + parsed
+ * row count), the inline import error, and the duplicate-skipped note. */
+const useInviteFileImport = ({
+	methods,
+	t,
+}: {
+	methods: ReturnType<typeof useForm<InviteFormValues>>;
+	t: Translate;
+}): InviteFileImportState => {
+	const [fileBar, setFileBar] = useState<{
+		fileName: string;
+		rowCount: number;
+	} | null>(null);
+	const [importError, setImportError] = useState('');
+	const [duplicateNote, setDuplicateNote] = useState('');
+
+	const handleFiles = async (fileList: FileList | null) => {
+		const file = fileList?.[0];
+		if (!file) {
+			return;
+		}
+
+		setImportError('');
+		setDuplicateNote('');
+
+		const isCsv = CSV_EXTENSION_PATTERN.test(file.name);
+		if (!isCsv && !EXCEL_EXTENSION_PATTERN.test(file.name)) {
+			setImportError(t('invite-import-invalid-type'));
+			return;
+		}
+
+		if (file.size > MAX_IMPORT_FILE_BYTES) {
+			setImportError(t('invite-import-too-large'));
+			return;
+		}
+
+		try {
+			let parsedRows;
+			if (isCsv) {
+				parsedRows = parseInviteCsv(await file.text());
+			} else {
+				parsedRows = parseInviteWorkbook(
+					new Uint8Array(await file.arrayBuffer()),
+				);
+			}
+
+			const existingEmails = methods.getValues('rows').map((row) => row.email);
+			const outcome = buildImportedInvites({
+				parsedRows,
+				existingEmails,
+				source: 'file',
+			});
+			const currentRows = methods.getValues('rows');
+			// The untouched blank starter row is a placeholder, not content;
+			// keeping it would block Send forever (its email is empty).
+			const hasOnlyBlankInitialRow =
+				currentRows.length === 1 &&
+				currentRows[0]?.email.trim().length === 0 &&
+				currentRows[0]?.source === 'manual';
+			methods.setValue(
+				'rows',
+				hasOnlyBlankInitialRow
+					? outcome.rows
+					: [...outcome.rows, ...currentRows],
+				{ shouldDirty: true },
+			);
+			setFileBar({ fileName: file.name, rowCount: outcome.rows.length });
+			if (outcome.duplicateCount > 0) {
+				setDuplicateNote(
+					t('invite-file-duplicates-skipped', {
+						count: outcome.duplicateCount,
+					}),
+				);
+			}
+		} catch {
+			setImportError(t('invite-import-parse-failed'));
+		}
+	};
+
+	const clearFile = useCallback(() => {
+		setFileBar(null);
+		setDuplicateNote('');
+		const currentRows = methods.getValues('rows');
+		const keptRows = clearFileRows(currentRows);
+		methods.setValue(
+			'rows',
+			keptRows.length > 0 ? keptRows : [makeManualRow()],
+			{ shouldDirty: true },
+		);
+	}, [methods]);
+
+	return { fileBar, importError, duplicateNote, handleFiles, clearFile };
+};
+
 const InviteTenantUserDrawerInner = ({
 	tenantId,
 	isOpen,
@@ -579,12 +680,6 @@ const InviteTenantUserDrawerInner = ({
 	const [unresolvedByRowKey, setUnresolvedByRowKey] = useState<
 		Record<string, UnresolvedEntry[]>
 	>({});
-	const [fileBar, setFileBar] = useState<{
-		fileName: string;
-		rowCount: number;
-	} | null>(null);
-	const [importError, setImportError] = useState('');
-	const [duplicateNote, setDuplicateNote] = useState('');
 
 	// Language-keyed resolver: rebuilds when translations change so error
 	// messages stay localized; see use-language-keyed-zod-resolver.
@@ -614,6 +709,8 @@ const InviteTenantUserDrawerInner = ({
 		reset,
 		formState: { isSubmitting },
 	} = methods;
+	const { fileBar, importError, duplicateNote, handleFiles, clearFile } =
+		useInviteFileImport({ methods, t });
 	const { fields, append, remove, replace } = useFieldArray({
 		control,
 		name: 'rows',
@@ -710,81 +807,6 @@ const InviteTenantUserDrawerInner = ({
 
 	const isFormLockedFinal =
 		bulkInvite.isPending || isSubmitting || resolveNames.isPending;
-
-	const handleFiles = async (fileList: FileList | null) => {
-		const file = fileList?.[0];
-		if (!file) {
-			return;
-		}
-
-		setImportError('');
-		setDuplicateNote('');
-
-		const isCsv = CSV_EXTENSION_PATTERN.test(file.name);
-		if (!isCsv && !EXCEL_EXTENSION_PATTERN.test(file.name)) {
-			setImportError(t('invite-import-invalid-type'));
-			return;
-		}
-
-		if (file.size > MAX_IMPORT_FILE_BYTES) {
-			setImportError(t('invite-import-too-large'));
-			return;
-		}
-
-		try {
-			let parsedRows;
-			if (isCsv) {
-				parsedRows = parseInviteCsv(await file.text());
-			} else {
-				parsedRows = parseInviteWorkbook(
-					new Uint8Array(await file.arrayBuffer()),
-				);
-			}
-
-			const existingEmails = methods.getValues('rows').map((row) => row.email);
-			const outcome = buildImportedInvites({
-				parsedRows,
-				existingEmails,
-				source: 'file',
-			});
-			const currentRows = methods.getValues('rows');
-			// The untouched blank starter row is a placeholder, not content;
-			// keeping it would block Send forever (its email is empty).
-			const hasOnlyBlankInitialRow =
-				currentRows.length === 1 &&
-				currentRows[0]?.email.trim().length === 0 &&
-				currentRows[0]?.source === 'manual';
-			methods.setValue(
-				'rows',
-				hasOnlyBlankInitialRow
-					? outcome.rows
-					: [...outcome.rows, ...currentRows],
-				{ shouldDirty: true },
-			);
-			setFileBar({ fileName: file.name, rowCount: outcome.rows.length });
-			if (outcome.duplicateCount > 0) {
-				setDuplicateNote(
-					t('invite-file-duplicates-skipped', {
-						count: outcome.duplicateCount,
-					}),
-				);
-			}
-		} catch {
-			setImportError(t('invite-import-parse-failed'));
-		}
-	};
-
-	const clearFile = useCallback(() => {
-		setFileBar(null);
-		setDuplicateNote('');
-		const currentRows = methods.getValues('rows');
-		const keptRows = clearFileRows(currentRows);
-		methods.setValue(
-			'rows',
-			keptRows.length > 0 ? keptRows : [makeManualRow()],
-			{ shouldDirty: true },
-		);
-	}, [methods]);
 
 	const addPastedEmails = () => {
 		setRootValidationError('');
@@ -989,7 +1011,6 @@ const InviteTenantUserDrawerInner = ({
 							tenantId={tenantId}
 							isFormLocked={isFormLockedFinal || isResolvingProfiles}
 							onAddPastedEmails={addPastedEmails}
-							onSessionExpired={onSessionExpired}
 							t={t}
 						/>
 						<InviteRowsList
@@ -1000,7 +1021,6 @@ const InviteTenantUserDrawerInner = ({
 							isFormLocked={isFormLockedFinal || isResolvingProfiles}
 							onRemoveRow={remove}
 							onAddRow={() => append(makeManualRow())}
-							onSessionExpired={onSessionExpired}
 							t={t}
 						/>
 						{batchSummary ? (
