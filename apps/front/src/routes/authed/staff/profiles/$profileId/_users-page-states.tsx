@@ -3,6 +3,7 @@ import { Link } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
 import { AppErrorView } from '~/components/error-views/AppErrorView';
 import { View403 } from '~/components/error-views/View403';
+import { Button } from '~/components/ui/button';
 import { buttonVariants } from '~/components/ui/button.variants';
 import { LoadingSpinner } from '~/components/ui/loading-spinner';
 

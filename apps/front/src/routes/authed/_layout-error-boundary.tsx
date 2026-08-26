@@ -8,8 +8,6 @@ import { View404 } from '~/components/error-views/View404';
 import { Button } from '~/components/ui/button';
 import { buttonVariants } from '~/components/ui/button.variants';
 
-import { toApiFailure } from '@org/shared-ts/lib/api-failure/to-api-failure';
-
 import { getFailureStatus } from './_api-problem-status';
 
 export const AuthedLayoutErrorBoundary = ({

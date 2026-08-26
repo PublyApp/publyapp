@@ -65,8 +65,8 @@
  * Paired proof (2026-08-23, both flips observed locally against this exact
  * file, then reverted):
  * - Removing the `components={{ strong: … }}` map from BOTH `<Trans>` sites
- *   in `apps/front/src/routes/reset-password.tsx` turns this guard red: all
- *   four reset-password call-site tests fail on the className pin
+ *   in `apps/front/src/routes/_reset-password-forms.tsx` turns this guard
+ *   red: all four reset-password call-site tests fail on the className pin
  *   (`text-foreground` vs the class-less `<strong>` the resource markup
  *   produces) while every other route's assertions stay green. The two
  *   mismatch `<Trans>`s moved into `routes/_accept-invitation-views.tsx` in
@@ -288,7 +288,7 @@ type CallSiteSpec = {
 	site: string;
 	/** The file discovery reports this site in; must match its real location. */
 	file:
-		| 'routes/reset-password.tsx'
+		| 'routes/_reset-password-forms.tsx'
 		| 'routes/_accept-invitation-views.tsx'
 		| 'routes/verify-email.tsx';
 	route: 'reset-password' | 'accept-invitation' | 'verify-email';
@@ -308,8 +308,8 @@ type CallSiteSpec = {
 
 const CALL_SITES: CallSiteSpec[] = [
 	{
-		site: 'routes/reset-password.tsx (request form -> sent confirmation)',
-		file: 'routes/reset-password.tsx',
+		site: 'routes/_reset-password-forms.tsx (request form -> sent confirmation)',
+		file: 'routes/_reset-password-forms.tsx',
 		route: 'reset-password',
 		loaderData: { view: 'request' },
 		flow: 'submit-reset-request',
@@ -321,8 +321,8 @@ const CALL_SITES: CallSiteSpec[] = [
 		fr: 'Si ada@example.com est valide, vous recevrez un email avec un lien pour réinitialiser votre mot de passe.',
 	},
 	{
-		site: 'routes/reset-password.tsx (set-new-password form)',
-		file: 'routes/reset-password.tsx',
+		site: 'routes/_reset-password-forms.tsx (set-new-password form)',
+		file: 'routes/_reset-password-forms.tsx',
 		route: 'reset-password',
 		loaderData: {
 			view: 'set-new',
