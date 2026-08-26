@@ -288,97 +288,37 @@ public class TenantAsStaffService : ITenantAsStaffService {
 		var sortFieldHandlers = new Dictionary<string, CursorSortFieldHandler<Tenant>>(
 			StringComparer.OrdinalIgnoreCase
 		) {
-			["created_at"] = new CursorSortFieldHandler<Tenant>(
-				getCursorValue: async (guid) => {
-					var tenant = await _dbContext.Tenant
-						.AsNoTracking()
-						.Where(t => t.Id == guid && !t.IsDeleted)
-						.Select(t => new { t.CreatedAt, t.Id })
-						.FirstOrDefaultAsync(cancellationToken);
-					return tenant is not null ? (tenant.CreatedAt, tenant.Id) : null;
-				},
-				applyFilter: (q, cursorValue, isAsc) => {
-					if (cursorValue is null) {
-						return q;
-					}
-
-					var (cursorCreatedAt, cursorId) = ((DateTime, Guid?))cursorValue;
-					return isAsc
-						? q.Where(t => t.CreatedAt > cursorCreatedAt || (t.CreatedAt == cursorCreatedAt && t.Id > cursorId))
-						: q.Where(t => t.CreatedAt < cursorCreatedAt || (t.CreatedAt == cursorCreatedAt && t.Id < cursorId));
-				},
-				applyOrdering: (q, isAsc) => isAsc
-					? q.OrderBy(t => t.CreatedAt).ThenBy(t => t.Id)
-					: q.OrderByDescending(t => t.CreatedAt).ThenByDescending(t => t.Id)
+			["created_at"] = CursorSortFieldHandlerFactory.Create<Tenant, DateTime, Guid?>(
+				cursorLookupQuery: () => _dbContext.Tenant
+					.AsNoTracking()
+					.Where(t => !t.IsDeleted),
+				keySelector: t => t.CreatedAt,
+				idSelector: t => t.Id,
+				cancellationToken
 			),
-			["updated_at"] = new CursorSortFieldHandler<Tenant>(
-				getCursorValue: async (guid) => {
-					var tenant = await _dbContext.Tenant
-						.AsNoTracking()
-						.Where(t => t.Id == guid && !t.IsDeleted)
-						.Select(t => new { t.UpdatedAt, t.Id })
-						.FirstOrDefaultAsync(cancellationToken);
-					return tenant is not null ? (tenant.UpdatedAt, tenant.Id) : null;
-				},
-				applyFilter: (q, cursorValue, isAsc) => {
-					if (cursorValue is null) {
-						return q;
-					}
-
-					var (cursorUpdatedAt, cursorId) = ((DateTime, Guid?))cursorValue;
-					return isAsc
-						? q.Where(t => t.UpdatedAt > cursorUpdatedAt || (t.UpdatedAt == cursorUpdatedAt && t.Id > cursorId))
-						: q.Where(t => t.UpdatedAt < cursorUpdatedAt || (t.UpdatedAt == cursorUpdatedAt && t.Id < cursorId));
-				},
-				applyOrdering: (q, isAsc) => isAsc
-					? q.OrderBy(t => t.UpdatedAt).ThenBy(t => t.Id)
-					: q.OrderByDescending(t => t.UpdatedAt).ThenByDescending(t => t.Id)
+			["updated_at"] = CursorSortFieldHandlerFactory.Create<Tenant, DateTime, Guid?>(
+				cursorLookupQuery: () => _dbContext.Tenant
+					.AsNoTracking()
+					.Where(t => !t.IsDeleted),
+				keySelector: t => t.UpdatedAt,
+				idSelector: t => t.Id,
+				cancellationToken
 			),
-			["name"] = new CursorSortFieldHandler<Tenant>(
-				getCursorValue: async (guid) => {
-					var tenant = await _dbContext.Tenant
-						.AsNoTracking()
-						.Where(t => t.Id == guid && !t.IsDeleted)
-						.Select(t => new { t.Name, t.Id })
-						.FirstOrDefaultAsync(cancellationToken);
-					return tenant is not null ? (tenant.Name, tenant.Id) : null;
-				},
-				applyFilter: (q, cursorValue, isAsc) => {
-					if (cursorValue is null) {
-						return q;
-					}
-
-					var (cursorName, cursorId) = ((string, Guid?))cursorValue;
-					return isAsc
-						? q.Where(t => t.Name.CompareTo(cursorName) > 0 || (t.Name == cursorName && t.Id > cursorId))
-						: q.Where(t => t.Name.CompareTo(cursorName) < 0 || (t.Name == cursorName && t.Id < cursorId));
-				},
-				applyOrdering: (q, isAsc) => isAsc
-					? q.OrderBy(t => t.Name).ThenBy(t => t.Id)
-					: q.OrderByDescending(t => t.Name).ThenByDescending(t => t.Id)
+			["name"] = CursorSortFieldHandlerFactory.Create<Tenant, string, Guid?>(
+				cursorLookupQuery: () => _dbContext.Tenant
+					.AsNoTracking()
+					.Where(t => !t.IsDeleted),
+				keySelector: t => t.Name,
+				idSelector: t => t.Id,
+				cancellationToken
 			),
-			["status"] = new CursorSortFieldHandler<Tenant>(
-				getCursorValue: async (guid) => {
-					var tenant = await _dbContext.Tenant
-						.AsNoTracking()
-						.Where(t => t.Id == guid && !t.IsDeleted)
-						.Select(t => new { t.Status, t.Id })
-						.FirstOrDefaultAsync(cancellationToken);
-					return tenant is not null ? (tenant.Status, tenant.Id) : null;
-				},
-				applyFilter: (q, cursorValue, isAsc) => {
-					if (cursorValue is null) {
-						return q;
-					}
-
-					var (cursorStatus, cursorId) = ((TenantStatus, Guid?))cursorValue;
-					return isAsc
-						? q.Where(t => t.Status > cursorStatus || (t.Status == cursorStatus && t.Id > cursorId))
-						: q.Where(t => t.Status < cursorStatus || (t.Status == cursorStatus && t.Id < cursorId));
-				},
-				applyOrdering: (q, isAsc) => isAsc
-					? q.OrderBy(t => t.Status).ThenBy(t => t.Id)
-					: q.OrderByDescending(t => t.Status).ThenByDescending(t => t.Id)
+			["status"] = CursorSortFieldHandlerFactory.Create<Tenant, TenantStatus, Guid?>(
+				cursorLookupQuery: () => _dbContext.Tenant
+					.AsNoTracking()
+					.Where(t => !t.IsDeleted),
+				keySelector: t => t.Status,
+				idSelector: t => t.Id,
+				cancellationToken
 			),
 		};
 
