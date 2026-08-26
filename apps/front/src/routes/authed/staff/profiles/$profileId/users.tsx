@@ -24,6 +24,7 @@ import {
 	toStaffProfileDetails,
 	useStaffProfileDetailsQuery,
 } from '~/lib/query/staff-profiles';
+import { shouldLogoutForFailure } from '~/lib/should-logout-for-failure';
 import {
 	parseTableSearchParams,
 	serializeTableSearchParams,
@@ -35,7 +36,6 @@ import type {
 } from '~/lib/url-state/table-search-params';
 
 import { toApiFailure } from '@org/shared-ts/lib/api-failure/to-api-failure';
-import { shouldLogoutForFailure } from '@org/shared-ts/lib/should-logout-for-failure';
 
 import { ProfileUsersListBulkActions } from './_users-bulk-actions';
 import { buildColumns } from './_users-columns';

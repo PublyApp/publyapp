@@ -19,13 +19,13 @@ import {
 	useGlobalTenantUserDetailsQuery,
 	useUpdateGlobalTenantUserIdentityMutation,
 } from '~/lib/query/staff-global-tenant-users';
+import { shouldLogoutForFailure } from '~/lib/should-logout-for-failure';
 
 import {
 	getFailureMessage,
 	toApiFailure,
 } from '@org/shared-ts/lib/api-failure/to-api-failure';
 import { logger } from '@org/shared-ts/lib/logger/iso-logger';
-import { shouldLogoutForFailure } from '@org/shared-ts/lib/should-logout-for-failure';
 
 import { tenantUserDetailsCrumbs } from './_crumbs';
 import { TenantUserDetailsShell } from './_details-shell';

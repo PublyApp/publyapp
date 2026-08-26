@@ -21,9 +21,9 @@ import {
 	useBulkUnassignStaffProfileUsersMutation,
 } from '~/lib/query/staff-profile-users';
 import { invalidateStaffProfiles } from '~/lib/query/staff-profiles';
+import { shouldLogoutForFailure } from '~/lib/should-logout-for-failure';
 
 import { BULK_ACTION_MAX_COUNT } from '@org/shared-ts/lib/constants';
-import { shouldLogoutForFailure } from '@org/shared-ts/lib/should-logout-for-failure';
 
 /** Route-local bulk management action for the staff profile "users" tab
  * (#1388): selection mode existed nowhere on this surface even though the API

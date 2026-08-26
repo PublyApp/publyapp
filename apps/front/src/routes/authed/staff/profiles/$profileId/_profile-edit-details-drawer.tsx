@@ -29,8 +29,7 @@ import {
 	invalidateStaffProfiles,
 	useUpdateStaffProfileMutation,
 } from '~/lib/query/staff-profiles';
-
-import { shouldLogoutForFailure } from '@org/shared-ts/lib/should-logout-for-failure';
+import { shouldLogoutForFailure } from '~/lib/should-logout-for-failure';
 
 // The scope-neutral picker labels live in the `staff-tenant-profiles`
 // catalogue (#980); the rest of the strings come from `common`.

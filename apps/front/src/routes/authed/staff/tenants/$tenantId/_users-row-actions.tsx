@@ -22,8 +22,7 @@ import {
 	type StaffTenantUserRow,
 } from '~/lib/query/staff-tenant-users';
 import { invalidateAllStaffTenantScopes } from '~/lib/query/staff-tenants';
-
-import { shouldLogoutForFailure } from '@org/shared-ts/lib/should-logout-for-failure';
+import { shouldLogoutForFailure } from '~/lib/should-logout-for-failure';
 
 type TenantUserPendingAction = 'suspend' | 'reactivate' | 'remove' | null;
 

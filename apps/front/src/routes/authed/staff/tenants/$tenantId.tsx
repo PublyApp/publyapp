@@ -24,8 +24,7 @@ import {
 	useStaffTenantDetailsQuery,
 	useSuspendStaffTenantMutation,
 } from '~/lib/query/staff-tenants';
-
-import { shouldLogoutForFailure } from '@org/shared-ts/lib/should-logout-for-failure';
+import { shouldLogoutForFailure } from '~/lib/should-logout-for-failure';
 
 import { TenantDangerZone } from './$tenantId/_tenant-danger-zone';
 import {

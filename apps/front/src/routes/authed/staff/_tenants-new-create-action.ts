@@ -4,12 +4,12 @@ import {
 	invalidateStaffTenants,
 	type CreateStaffTenantInput,
 } from '~/lib/query/staff-tenants';
+import { shouldLogoutForFailure } from '~/lib/should-logout-for-failure';
 
 import {
 	getFailureMessage,
 	toApiFailure,
 } from '@org/shared-ts/lib/api-failure/to-api-failure';
-import { shouldLogoutForFailure } from '@org/shared-ts/lib/should-logout-for-failure';
 
 import { type TranslateFn } from './_tenant-form-shared';
 import {

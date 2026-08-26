@@ -21,12 +21,12 @@ import {
 	invalidateStaffUsers,
 	useUpdateStaffUserEmailMutation,
 } from '~/lib/query/staff-users';
+import { shouldLogoutForFailure } from '~/lib/should-logout-for-failure';
 
 import {
 	getFailureMessage,
 	toApiFailure,
 } from '@org/shared-ts/lib/api-failure/to-api-failure';
-import { shouldLogoutForFailure } from '@org/shared-ts/lib/should-logout-for-failure';
 
 const buildChangeEmailSchema = (t: (key: string) => string) =>
 	z.object({

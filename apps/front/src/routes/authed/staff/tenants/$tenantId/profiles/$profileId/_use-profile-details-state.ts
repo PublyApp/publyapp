@@ -18,8 +18,7 @@ import {
 	toStaffTenantDetails,
 	useStaffTenantDetailsQuery,
 } from '~/lib/query/staff-tenants';
-
-import { shouldLogoutForFailure } from '@org/shared-ts/lib/should-logout-for-failure';
+import { shouldLogoutForFailure } from '~/lib/should-logout-for-failure';
 
 import type { ProfileDetailsSearchParams } from '../_profile-details-search';
 import {

@@ -26,6 +26,7 @@ import {
 	type StaffUserRow,
 	useStaffUsersQuery,
 } from '~/lib/query/staff-users';
+import { shouldLogoutForFailure } from '~/lib/should-logout-for-failure';
 import {
 	parseTableSearchParams,
 	serializeTableSearchParams,
@@ -40,8 +41,6 @@ import {
 	formatAccountLevelLabel,
 	formatStaffStatusLabel,
 } from '~/routes/authed/staff/staff-users/status-labels';
-
-import { shouldLogoutForFailure } from '@org/shared-ts/lib/should-logout-for-failure';
 
 import { StaffUserNameCell } from './_staff-user-name-cell';
 import { StaffUsersListBulkActions } from './staff-users/_list-bulk-actions';

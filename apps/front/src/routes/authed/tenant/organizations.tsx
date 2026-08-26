@@ -12,8 +12,7 @@ import {
 	type TenantsForPickerData,
 } from '~/lib/query/tenants-for-picker';
 import { readSelectedTenantId } from '~/lib/selected-tenant-storage';
-
-import { shouldLogoutForFailure } from '@org/shared-ts/lib/should-logout-for-failure';
+import { shouldLogoutForFailure } from '~/lib/should-logout-for-failure';
 
 import {
 	TenantReadOnlyCardErrorInCard,
