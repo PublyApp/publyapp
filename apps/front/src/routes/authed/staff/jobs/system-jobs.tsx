@@ -1,5 +1,4 @@
 import { IconActivity } from '@tabler/icons-react';
-import { useMutation } from '@tanstack/react-query';
 import { createFileRoute } from '@tanstack/react-router';
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -12,9 +11,9 @@ import { Label } from '~/components/ui/label';
 import { PageHeader } from '~/components/ui/product-page';
 import {
 	toStaffSystemJobDefinitionRows,
-	triggerSystemJobMutationOptions,
-	updateSystemJobEnabledMutationOptions,
-	updateSystemJobCronMutationOptions,
+	useStaffTriggerSystemJobMutation,
+	useStaffUpdateSystemJobEnabledMutation,
+	useStaffUpdateSystemJobCronMutation,
 	useStaffSystemJobDefinitionsQuery,
 	type StaffSystemJobDefinitionRow,
 } from '~/lib/query/staff-jobs';
@@ -81,9 +80,9 @@ const StaffJobsSystemJobsPage = () => {
 	});
 	const rows = toStaffSystemJobDefinitionRows(query.data?.data);
 
-	const enabledMutation = useMutation(updateSystemJobEnabledMutationOptions);
-	const cronMutation = useMutation(updateSystemJobCronMutationOptions);
-	const triggerMutation = useMutation(triggerSystemJobMutationOptions);
+	const enabledMutation = useStaffUpdateSystemJobEnabledMutation();
+	const cronMutation = useStaffUpdateSystemJobCronMutation();
+	const triggerMutation = useStaffTriggerSystemJobMutation();
 
 	const guardSession = (error: unknown): boolean => {
 		if (shouldLogoutForFailure(error)) {

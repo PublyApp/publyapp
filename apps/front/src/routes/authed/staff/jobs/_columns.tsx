@@ -18,7 +18,7 @@ export const makeQueueColumns = (
 ): ColumnDef<StaffJobQueueRow>[] => [
 	{
 		id: 'job_type',
-		header: t('column-job-type'),
+		header: t('common:column-job-type'),
 		enableSorting: false,
 		meta: { headerIcon: <IconActivity />, width: '240px' },
 		cell: ({ row }) => (
@@ -52,7 +52,7 @@ export const makeQueueColumns = (
 	},
 	{
 		id: 'attempts',
-		header: t('column-attempts'),
+		header: t('common:column-attempts'),
 		enableSorting: false,
 		meta: { width: '100px', hideBelow: 768 },
 		cell: ({ row }) => (
@@ -96,7 +96,7 @@ export const makeQueueColumns = (
 			<DataTableRowActions ariaLabel={row.original.jobType ?? ''}>
 				<DropdownMenuItem onSelect={() => onInspect(row.original)}>
 					<IconEye aria-hidden="true" className="size-4" />
-					{t('action-inspect')}
+					{t('common:action-inspect')}
 				</DropdownMenuItem>
 			</DataTableRowActions>
 		),

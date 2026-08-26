@@ -1057,6 +1057,8 @@
 	"tenant-update-failed": "Impossible de mettre à jour ce client.",
 	"profile-save-failed": "Impossible d’enregistrer ce profil.",
 	"revoke-invitation-success": "Invitation révoquée.",
+	"dead-letter-requeue-success": "Tâche remise en file.",
+	"system-job-trigger-success": "Tâche déclenchée.",
 	"back-to-staff-profiles": "Retour aux profils du personnel",
 	"unable-to-load-staff-permissions": "Impossible de charger les autorisations du personnel.",
 	"invitation-not-found": "Invitation introuvable",
@@ -1353,5 +1355,6 @@
 	"tenant-invitations-batch-summary": "{{succeeded}} réussie(s) · {{failed}} échouée(s)",
 	"post-saved-success": "Publication enregistrée avec succès",
 	"post-deleted-success": "Publication supprimée avec succès",
-	"unknown-invitee": "Personne invitée inconnue"
+	"unknown-invitee": "Personne invitée inconnue",
+	"nav-staff-jobs": "Tâches"
 }

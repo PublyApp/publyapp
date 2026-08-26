@@ -24,7 +24,7 @@ export const makeDeadLetterColumns = (
 ): ColumnDef<StaffDeadLetterRow>[] => [
 	{
 		id: 'job_type',
-		header: t('column-job-type'),
+		header: t('common:column-job-type'),
 		enableSorting: false,
 		meta: { headerIcon: <IconActivity />, width: '220px' },
 		cell: ({ row }) => (
@@ -33,7 +33,7 @@ export const makeDeadLetterColumns = (
 					className="block truncate font-mono text-[13px] font-medium"
 					title={row.original.jobType ?? undefined}
 				>
-					{row.original.jobType || t('no-value')}
+					{row.original.jobType || t('common:no-value')}
 				</span>
 				<span
 					className="block truncate font-mono text-xs text-muted-foreground"
@@ -46,7 +46,7 @@ export const makeDeadLetterColumns = (
 	},
 	{
 		id: 'external_state_status',
-		header: t('column-state'),
+		header: t('common:column-state'),
 		enableSorting: false,
 		meta: { width: '160px' },
 		cell: ({ row }) => (
@@ -59,7 +59,7 @@ export const makeDeadLetterColumns = (
 	},
 	{
 		id: 'attempts',
-		header: t('column-attempts'),
+		header: t('common:column-attempts'),
 		enableSorting: false,
 		meta: { width: '90px', hideBelow: 768 },
 		cell: ({ row }) => (
@@ -68,7 +68,7 @@ export const makeDeadLetterColumns = (
 	},
 	{
 		id: 'failed_at',
-		header: t('column-failed-at'),
+		header: t('common:column-failed-at'),
 		enableSorting: false,
 		meta: { width: '180px', hideBelow: 1024 },
 		cell: ({ row }) => (
@@ -79,7 +79,7 @@ export const makeDeadLetterColumns = (
 	},
 	{
 		id: 'requeued_at',
-		header: t('column-requeued-at'),
+		header: t('common:column-requeued-at'),
 		enableSorting: false,
 		meta: { width: '180px', hideBelow: 1024 },
 		cell: ({ row }) =>
@@ -100,7 +100,7 @@ export const makeDeadLetterColumns = (
 			<DataTableRowActions ariaLabel={row.original.jobType ?? ''}>
 				<DropdownMenuItem onSelect={() => onInspect(row.original)}>
 					<IconActivity aria-hidden="true" className="size-4" />
-					{t('action-inspect')}
+					{t('common:action-inspect')}
 				</DropdownMenuItem>
 				<DropdownMenuItem
 					data-testid={`dead-letter-requeue-${row.original.id}`}
@@ -108,7 +108,7 @@ export const makeDeadLetterColumns = (
 					onSelect={() => onRequeue(row.original)}
 				>
 					<IconRotateClockwise aria-hidden="true" className="size-4" />
-					{t('action-requeue')}
+					{t('common:action-requeue')}
 				</DropdownMenuItem>
 			</DataTableRowActions>
 		),

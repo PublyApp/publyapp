@@ -27,7 +27,7 @@ export const makeSystemJobColumns = (
 ): ColumnDef<StaffSystemJobDefinitionRow>[] => [
 	{
 		id: 'job_key',
-		header: t('column-job-key'),
+		header: t('common:column-job-key'),
 		enableSorting: false,
 		meta: { headerIcon: <IconRefresh />, width: '280px' },
 		cell: ({ row }) => (
@@ -36,26 +36,26 @@ export const makeSystemJobColumns = (
 					className="block truncate font-mono text-[13px] font-medium"
 					title={row.original.jobKey ?? undefined}
 				>
-					{row.original.jobKey || t('no-value')}
+					{row.original.jobKey || t('common:no-value')}
 				</span>
 				<span
 					className="block truncate font-mono text-xs text-muted-foreground"
 					title={row.original.cronExpression ?? undefined}
 				>
-					{row.original.cronExpression || t('no-value')}
+					{row.original.cronExpression || t('common:no-value')}
 				</span>
 			</div>
 		),
 	},
 	{
 		id: 'is_enabled',
-		header: t('column-enabled'),
+		header: t('common:column-enabled'),
 		enableSorting: false,
 		meta: { width: '110px' },
 		cell: ({ row }) => (
 			<Switch
 				size="sm"
-				aria-label={`${t('action-toggle-enabled')} ${row.original.jobKey ?? ''}`}
+				aria-label={`${t('common:action-toggle-enabled')} ${row.original.jobKey ?? ''}`}
 				data-testid={`system-job-toggle-${row.original.id}`}
 				checked={row.original.isEnabled === true}
 				disabled={actions.isTogglePending}

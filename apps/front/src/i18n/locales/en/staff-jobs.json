@@ -5,68 +5,33 @@
 	"tab-queue": "Queue",
 	"tab-dead-letter": "Dead letter",
 	"tab-system-jobs": "System jobs",
-
 	"queue-page-title": "Job queue",
 	"queue-page-description": "Pending and processing background jobs.",
 	"dl-page-title": "Dead-letter jobs",
 	"dl-page-description": "Jobs that exhausted their attempts and need review.",
 	"system-page-title": "System job definitions",
 	"system-page-description": "Recurring platform jobs and their schedules.",
-
-	"column-job-type": "Job type",
 	"column-status": "Status",
-	"column-state": "State",
-	"column-attempts": "Attempts",
 	"column-tenant": "Tenant",
 	"column-next-attempt": "Next attempt",
-	"column-failed-at": "Failed at",
-	"column-requeued-at": "Requeued at",
-	"column-job-key": "Definition",
-	"column-enabled": "Enabled",
 	"column-last-enqueued": "Last enqueued",
 	"column-updated-at": "Updated at",
-
-	"action-inspect": "Inspect",
-	"action-requeue": "Requeue",
 	"action-edit-cron": "Schedule",
 	"action-trigger-now": "Trigger now",
 	"action-save-cron": "Save schedule",
-	"no-value": "—",
-
 	"queue-drawer-title": "Queued job",
 	"dl-drawer-title": "Dead-letter job",
 	"detail-last-error": "Last error",
 	"detail-created-at": "Created at",
 	"redaction-banner": "This payload contains sensitive values and was redacted before storage.",
-
 	"requeue-confirm-title": "Requeue this job?",
 	"requeue-confirm-description": "The failed run of “{{jobType}}” will be enqueued again with its original payload.",
 	"requeue-confirm-description-generic": "The failed run will be enqueued again with its original payload.",
 	"requeue-note-label": "Note (optional)",
-
 	"cron-dialog-title": "Edit schedule",
 	"cron-dialog-description": "Cron expression for “{{jobKey}}”.",
 	"cron-expression-label": "Cron expression",
-
-	"dead-letter-requeue-success": "Job requeued.",
 	"system-job-definition-update-success": "Schedule updated.",
-	"system-job-trigger-success": "Job triggered.",
-	"system-job-trigger-noop": "The job is already queued or running.",
-
 	"no-rows-match-title": "No matching jobs",
-	"no-rows-match-description": "Try adjusting or clearing the filters.",
-
-	"queue-status-pending": "Pending",
-	"queue-status-processing": "Processing",
-	"queue-status-completed": "Completed",
-	"queue-status-failed": "Failed",
-
-	"dl-state-none": "No external state",
-	"dl-state-present": "External state present",
-	"dl-state-expired": "External state expired",
-	"dl-state-never-prepared": "Never prepared",
-	"dl-state-missing": "External state missing",
-	"dl-state-transferred": "Transferred",
-	"dl-state-unclassified": "Unclassified failure",
-	"dl-state-unknown": "Unknown state"
+	"no-rows-match-description": "Try adjusting or clearing the filters."
 }

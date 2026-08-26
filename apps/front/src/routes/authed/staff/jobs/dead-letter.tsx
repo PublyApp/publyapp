@@ -1,5 +1,5 @@
 import { IconActivity } from '@tabler/icons-react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { createFileRoute } from '@tanstack/react-router';
 import { useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
@@ -22,12 +22,12 @@ import { DetailRow, PageHeader } from '~/components/ui/product-page';
 import { formatDateTime } from '~/lib/format-date-time';
 import {
 	invalidateStaffJobsQueries,
-	requeueDeadLetterMutationOptions,
 	staffDeadLetterDetailsQueryOptions,
 	toStaffDeadLetterRows,
 	useStaffDeadLettersQuery,
 	type StaffDeadLetterRow,
 } from '~/lib/query/staff-jobs';
+import { useStaffRequeueDeadLetterMutation } from '~/lib/query/staff-jobs';
 import { shouldLogoutForFailure } from '~/lib/should-logout-for-failure';
 
 import {
@@ -95,7 +95,7 @@ const StaffJobsDeadLetterPage = () => {
 
 	const detailQuery = useStaffDeadLetterDetailQuery(inspected?.id);
 
-	const requeueMutation = useMutation(requeueDeadLetterMutationOptions);
+	const requeueMutation = useStaffRequeueDeadLetterMutation();
 
 	const closeRequeueDialog = (): void => {
 		setRequeueTarget(null);
@@ -219,7 +219,7 @@ const StaffJobsDeadLetterPage = () => {
 							})
 						: t('requeue-confirm-description-generic')
 				}
-				confirmLabel={t('action-requeue')}
+				confirmLabel={t('common:action-requeue')}
 				isPending={requeueMutation.isPending}
 				tone="primary"
 				onConfirm={() => void confirmRequeue()}
@@ -263,17 +263,19 @@ const StaffJobsDeadLetterPage = () => {
 							<>
 								{renderPayloadSection()}
 								<DetailRow
-									label={t('column-attempts')}
+									label={t('common:column-attempts')}
 									value={detail?.attempts ?? inspected.attempts}
 								/>
 								<DetailRow
 									label={t('detail-last-error')}
 									value={
-										detail?.lastError ?? inspected.lastError ?? t('no-value')
+										detail?.lastError ??
+										inspected.lastError ??
+										t('common:no-value')
 									}
 								/>
 								<DetailRow
-									label={t('column-failed-at')}
+									label={t('common:column-failed-at')}
 									value={formatDateTime(
 										detail?.failedAt ?? inspected.failedAt,
 										locale,
