@@ -367,7 +367,7 @@ D2's `PublicationListItem` (`origin/lane/wt-645b:18-28`) carries NO `ScheduledAt
 
 - [ ] `pnpm --filter front typecheck/test/check:design-system`; `just react-doctor`; focused API suites (Publishing/Posts/SocialAccounts) under `heavy.sh`; `heavy.sh just build-api && just generate-client`; `just ci-migration-expand-contract`; `just ci-quality-dotnet`; `just ci-front`.
 - [ ] Verify `just ci-drift` stays green (no workflow drift).
-- [ ] PR body refreshed with: D4 plain-words summary, task list, reconciliation decisions 1-10, proofs (D4.1 retry reuses the key; D4.2 resume respects "date passed" — see Task 5 RED transcripts; D4.3 architecture ratchet extends the single-writer guarantee; D4.4 every Queue/Calendar/History failure shows the cause in plain words; D4.5 no new migrations; D4.6 401-only logout), `Part of #647`, `Closes #1453` (the plan issue, per the brief), `Model: MiniMax M3 (GMI Cloud via OpenRouter, jcode) — plan only`, `Unverified until CI:` list (the e2e specs require the compose stack; sandbox cannot boot it).
+- [ ] PR body refreshed with: D4 plain-words summary, task list, reconciliation decisions 1-10, proofs (D4.1 retry reuses the key; D4.2 resume respects "date passed" — see Task 5 RED transcripts; D4.3 architecture ratchet extends the single-writer guarantee; D4.4 every Queue/Calendar/History failure shows the cause in plain words; D4.5 no new migrations; D4.6 401-only logout), `Part of #647`, `Closes #1453` (the plan issue, per the brief), `Model: MiniMax M3 (\`or:minimax/minimax-m3:free\` via OpenRouter, jcode) — plan only`, `Unverified until CI:` list (the e2e specs require the compose stack; sandbox cannot boot it).
 - [ ] `.dump/DONE.md` with tip SHA, PR URL, evidence paths; print `DONE`.
 
 ---
@@ -430,7 +430,7 @@ A traceability table linking each reconciliation decision to the spec line that 
 - Regenerated `openapi.json` carrying the retry route with expected 200/400/404/409 problem responses.
 - The `DispatchDuePostsConcurrency.Spec`-style concurrent retry proof (Task 4 Step 3) only exists as a RED transcript in the sandbox; the spec file itself is added in CI.
 
-Model: MiniMax M3 (GMI Cloud via OpenRouter, jcode) — plan only
+Model: MiniMax M3 (`or:minimax/minimax-m3:free` via OpenRouter, jcode) — plan only
 
 Closes #1453
 Part of #647
