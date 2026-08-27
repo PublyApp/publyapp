@@ -40,10 +40,14 @@
  *   - `export type { a } from '...'` (type-only named re-export);
  *   - `import ... from '...'` / `import type ... from '...'` / `import('...')` ;
  *
- * Only statements whose module specifier matches `@org/shared-ts/(lib|utils|validations|types)/**`
- * are flagged, and only when the statement is an EXPORT from a front-side file
- * or an EXPORT from a shared-ts-internal file. A bare `import` of a shared-ts
- * module is the *wanted* path and is never flagged.
+ * Only statements whose module specifier matches `@org/shared-ts/<segment>/**`
+ * — where `<segment>` is derived from the top-level directories of
+ * `packages/shared-ts/src/` at module load — are flagged, and only when the
+ * statement is an EXPORT from a front-side file or an EXPORT from a shared-ts-internal
+ * file. A bare `import` of a shared-ts module is the *wanted* path and is never flagged.
+ * An export whose specifier targets `@org/shared-ts/` but uses a first segment not
+ * present in `packages/shared-ts/src/` is flagged as `UNKNOWN_SEGMENT` so the guard
+ * fails loudly rather than silently passing (see #1678).
  *
  * Scope. The guard scans TWO trees, because a second resolvable path can be
  * created on either side of the package boundary:
@@ -87,14 +91,63 @@ const frontSrc = path.resolve(scriptDir, '../../src');
 const sharedTsSrc = path.resolve(scriptDir, '../../../../packages/shared-ts/src');
 
 /**
- * Matches a `@org/shared-ts/...` specifier that creates a second published path.
- * Only module specifiers matching this pattern are flagged — relative paths
- * (`./x`) and bare front specifiers (`~/lib/...`) are never the second path
- * the guard rejects. The specifier is captured without surrounding quotes so
- * `Finding.text` carries the bare module path.
+ * Derive the set of first-segment names that the `@org/shared-ts` package
+ * actually exposes under its `./*` export pattern.
+ *
+ * The package.json declares `"exports": { "./*": { "types": ["./src/*.ts"], "default": ["./src/*.ts"] } }`,
+ * so any top-level directory (or file) under `packages/shared-ts/src/` is a
+ * valid import sub-path of `@org/shared-ts/<segment>`. The previous hardcoded
+ * regex `(lib|utils|validations|types)` missed `@types` and `scripts`, allowing
+ * re-exports of those modules to slip through undetected (#1678).
+ *
+ * Instead of maintaining a manual list, we read the directory entries once at
+ * module load. Each entry becomes an alternation in the regex. Directory names
+ * starting with `@` (e.g. `@types`) are matched literally — the regex uses
+ * `escapeRegExp` so the `@` is treated as a normal character, not a regex
+ * metacharacter.
  */
-const SHARED_TS_MODULE_PATTERN =
-	/^@org\/shared-ts\/(lib|utils|validations|types)(?:\/.*)?$/;
+const escapeRegExp = (s: string): string => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+const deriveSharedTsSegments = (dir: string): string[] => {
+	let entries: string[];
+	try {
+		entries = readdirSync(dir);
+	} catch (err: unknown) {
+		throw new Error(
+			`check-shared-ts-import-paths: could not enumerate ${dir}: ${err instanceof Error ? err.message : String(err)}`,
+		);
+	}
+	return entries.filter((e) => !e.startsWith('.'));
+};
+
+const SHARED_TS_SEGMENTS = deriveSharedTsSegments(sharedTsSrc);
+
+/**
+ * Matches a `@org/shared-ts/<segment>...` specifier where `<segment>` is any
+ * top-level directory actually present in `packages/shared-ts/src/`. Any other
+ * first segment is treated as unknown and causes the guard to fail loudly (see
+ * `UNKNOWN_SEGMENT_PATTERN` below).
+ */
+const SHARED_TS_MODULE_PATTERN = new RegExp(
+	`^@org/shared-ts/(${SHARED_TS_SEGMENTS.map(escapeRegExp).join('|')})(?:/.*)?$`,
+);
+
+/**
+ * Prefix that identifies any specifier targeting the `@org/shared-ts` package,
+ * used to detect re-exports whose first segment is NOT one of the segments the
+ * package actually exposes. Failing loudly on such specifiers is preferred over
+ * a false negative (#1678).
+ */
+const SHARED_TS_PREFIX = '@org/shared-ts/';
+
+/**
+ * Returns `true` when `specifier` targets the shared-ts package but uses a
+ * first segment that is not among the segments the package actually exposes.
+ * This catches typos, stale specifiers, and newly-added directory segments
+ * the guard has not been rebuilt to recognise.
+ */
+const isUnknownSharedTsSpecifier = (specifier: string): boolean =>
+	specifier.startsWith(SHARED_TS_PREFIX) && !SHARED_TS_MODULE_PATTERN.test(specifier);
 
 interface Finding {
 	file: string;
@@ -176,8 +229,12 @@ const moduleSpecifierText = (
 
 /**
  * Scans a single file's source text for shared-ts re-exports / imports using
- * AST analysis. Returns findings for every export/import declaration whose
- * module specifier matches `SHARED_TS_MODULE_PATTERN`.
+ * AST analysis. Returns findings for every export declaration whose module
+ * specifier targets `@org/shared-ts/`:
+ *   - if the first segment is one of the segments the package actually exposes,
+ *     the re-export is flagged as a dual-path violation;
+ *   - if the first segment is NOT recognised, the export is flagged as
+ *     `UNKNOWN_SEGMENT` so the guard fails loudly (#1678).
  *
  * The `isExport` parameter controls whether EXPORT statements are flagged:
  *   - `true`  -> flag export declarations (re-exports and `export ... from`).
@@ -206,12 +263,23 @@ const scanSourceFile = (
 	const visit = (node: ts.Node): void => {
 		if (ts.isExportDeclaration(node)) {
 			const specifier = moduleSpecifierText(node);
-			if (specifier !== null && SHARED_TS_MODULE_PATTERN.test(specifier)) {
-				findings.push({
-					file: relativePath,
-					line: lineOf(sourceFile, node),
-					text: node.getText(sourceFile).trim().replace(/\s+/g, ' '),
-				});
+			if (specifier !== null && specifier.startsWith(SHARED_TS_PREFIX)) {
+				if (SHARED_TS_MODULE_PATTERN.test(specifier)) {
+					findings.push({
+						file: relativePath,
+						line: lineOf(sourceFile, node),
+						text: node.getText(sourceFile).trim().replace(/\s+/g, ' '),
+					});
+				} else {
+					// #1678: fail loudly — the specifier targets the shared-ts
+					// package but uses a first segment the guard does not
+					// recognise. A silent pass here is a false negative.
+					findings.push({
+						file: relativePath,
+						line: lineOf(sourceFile, node),
+						text: `UNKNOWN_SEGMENT: re-export of ${specifier}, which is not an recognised first segment of @org/shared-ts (#1678)`,
+					});
+				}
 			}
 		}
 		// ImportDeclaration and CallExpression (dynamic `import(...)`) are

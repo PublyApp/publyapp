@@ -368,3 +368,58 @@ test('RED: re-export of @org/shared-ts/scripts/* is detected (#1678)', () => {
 		`finding text should name the scripts module: ${hit.text}`,
 	);
 });
+
+// ---- #1678 paired proof: legitimate non-shared-ts re-exports stay GREEN ----
+
+test('GREEN: re-export of a non-shared-ts package is NOT flagged (#1678 paired proof)', () => {
+	const root = makeSandbox();
+	writeFileSync(
+		path.join(root, 'front-src/lib/external-shim.ts'),
+		`export { foo } from 'some-other-pkg/lib';\n`,
+	);
+
+	const findings = scanFrontSrcForSharedTsReExports(path.join(root, 'front-src'));
+	assert.ok(
+		!findings.some((f) => f.file === 'apps/front/src/lib/external-shim.ts'),
+		`non-shared-ts re-export must not be flagged, got ${JSON.stringify(findings)}`,
+	);
+});
+
+test('GREEN: re-export from another front-local file is NOT flagged (#1678 paired proof)', () => {
+	const root = makeSandbox();
+	writeFileSync(
+		path.join(root, 'front-src/lib/local-re-export.ts'),
+		`export { foo } from './other';\n`,
+	);
+
+	const findings = scanFrontSrcForSharedTsReExports(path.join(root, 'front-src'));
+	assert.ok(
+		!findings.some((f) => f.file === 'apps/front/src/lib/local-re-export.ts'),
+		`front-local re-export must not be flagged, got ${JSON.stringify(findings)}`,
+	);
+});
+
+// ---- #1678 fail-loudly: unknown first segment must not pass silently ----
+
+test('RED: re-export of @org/shared-ts/<unknown-segment> fails loudly with UNKNOWN_SEGMENT (#1678)', () => {
+	const root = makeSandbox();
+	writeFileSync(
+		path.join(root, 'front-src/lib/unknown-shim.ts'),
+		`export * from '@org/shared-ts/nonexistent/foo';\n`,
+	);
+
+	const findings = scanFrontSrcForSharedTsReExports(path.join(root, 'front-src'));
+	const hit = findings.find((f) => f.file === 'apps/front/src/lib/unknown-shim.ts');
+	assert.ok(
+		hit,
+		`re-export of an unknown shared-ts segment must be flagged, got ${JSON.stringify(findings)}`,
+	);
+	assert.ok(
+		hit.text.startsWith('UNKNOWN_SEGMENT:'),
+		`finding text should carry UNKNOWN_SEGMENT cause, got: ${hit.text}`,
+	);
+	assert.ok(
+		hit.text.includes('@org/shared-ts/nonexistent'),
+		`finding text should name the unknown specifier, got: ${hit.text}`,
+	);
+});
