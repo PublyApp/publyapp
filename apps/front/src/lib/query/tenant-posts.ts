@@ -191,7 +191,7 @@ export const useTenantPostsQuery = (
 		queryFn: () => tenantPostsQueryOptions.fetcher(variables),
 	});
 
-const tenantPostDetailsQueryOptions = buildTenantQueryOptions<
+export const tenantPostDetailsQueryOptions = buildTenantQueryOptions<
 	ApiClient,
 	PostDetail,
 	{ postId: string }

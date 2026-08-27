@@ -187,7 +187,7 @@ const staffInvitationsQueryOptions = buildStaffQueryOptions<
 	{ clientAccessor: getClientManager() },
 );
 
-const staffInvitationDetailsQueryOptions = buildStaffQueryOptions<
+export const staffInvitationDetailsQueryOptions = buildStaffQueryOptions<
 	ApiClient,
 	StaffInvitationDetails,
 	StaffInvitationDetailsVariables

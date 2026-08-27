@@ -360,7 +360,7 @@ const staffUsersQueryOptions = buildStaffQueryOptions<
 	{ clientAccessor: getClientManager() },
 );
 
-const staffUserDetailsQueryOptions = buildStaffQueryOptions<
+export const staffUserDetailsQueryOptions = buildStaffQueryOptions<
 	ApiClient,
 	GetStaffUserByIdResult,
 	StaffUserDetailsQueryVariables

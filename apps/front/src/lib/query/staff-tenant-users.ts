@@ -516,7 +516,7 @@ export const bulkCreateStaffTenantInvitationsMutationOptions =
 		{ clientAccessor: getClientManager() },
 	);
 
-const staffTenantUserDetailsQueryOptions = buildStaffQueryOptions<
+export const staffTenantUserDetailsQueryOptions = buildStaffQueryOptions<
 	ApiClient,
 	TenantUserDetailsResult,
 	StaffTenantUserDetailsQueryVariables
