@@ -4,6 +4,7 @@ using System.Net.Http.Json;
 
 using FluentAssertions;
 
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
 using PublyApp.Api.Data.DbContext;
@@ -759,16 +760,19 @@ public sealed class FindTenantsAsStaffSpec
 		var token =
 			await _authClient.LoginAsStaffAdminAsync();
 
-		// 3 tenants with distinct CreatedAt; the walk must visit each once in
-		// ascending CreatedAt order, with no gap or duplicate.
+		// 3 tenants with distinct, deliberately NOT insertion-ordered CreatedAt
+		// (anti-correlated). The walk must visit each once in ascending
+		// CreatedAt order, not insertion order, so a keySelector swap to
+		// another same-type field turns this assertion RED.
 		var baseDate = new DateTime(
 			2026, 1, 1, 0, 0, 0, DateTimeKind.Utc
 		);
 		var seededIds = new List<Guid>();
+		var seededOrder = new List<DateTime>();
 		for (var i = 0; i < 3; i++) {
-			seededIds.Add(await SeedTenantAtAsync(
-				baseDate.AddDays(i)
-			));
+			var createdAt = baseDate.AddDays((3 - i) % 3);
+			seededIds.Add(await SeedTenantAtAsync(createdAt));
+			seededOrder.Add(createdAt);
 		}
 
 		var visitedIds = new List<Guid>();
@@ -811,7 +815,30 @@ public sealed class FindTenantsAsStaffSpec
 		var visitedOrder = visitedIds
 			.Where(seededIds.Contains)
 			.ToList();
-		visitedOrder.Should().Equal(seededIds);
+		var createdAtById = seededIds
+			.Zip(seededOrder, (id, c) => (id, c))
+			.ToDictionary(x => x.id, x => x.c);
+		visitedOrder.Should().Equal(
+			seededIds.OrderBy(id => createdAtById[id]).ToList()
+		);
+
+		// Assert the OBSERVED sort order against the real Tenant.CreatedAt
+		// values from the DB, in walk order. The item does not expose
+		// CreatedAt, so resolve it by Id on Tenant.
+		List<DateTime> observedOrder;
+		{
+			await using var scope =
+				_fixture.Factory.Services.CreateAsyncScope();
+			var dbContext = scope.ServiceProvider
+				.GetRequiredService<AppDbContext>();
+			observedOrder = await dbContext.Tenant
+				.Where(t => visitedOrder.Contains((Guid)t.Id!))
+				.OrderBy(t => visitedOrder.IndexOf((Guid)t.Id!))
+				.Select(t => t.CreatedAt)
+				.ToListAsync();
+		}
+		observedOrder.Should().Equal(seededOrder.OrderBy(x => x).ToList());
+		observedOrder.Should().NotEqual(seededOrder);
 	}
 
 	private async Task<Guid> SeedTenantAtAsync(
@@ -828,11 +855,19 @@ public sealed class FindTenantsAsStaffSpec
 			Status = TenantStatus.Active,
 			MaxUsers = 10,
 		};
-		tenant.CreatedAt = createdAt;
+		// Two-phase: insert stamps CreatedAt/UpdatedAt = now; re-save Modified
+		// only updates UpdatedAt, so the seeded CreatedAt sticks.
 		await dbContext.Tenant.AddAsync(tenant);
 		await dbContext.SaveChangesAsync();
+		var id = tenant.GetRequiredId();
 
-		return tenant.GetRequiredId();
+		var tracked = await dbContext.Tenant
+			.Where(t => t.Id == id)
+			.FirstAsync();
+		tracked.CreatedAt = createdAt;
+		await dbContext.SaveChangesAsync();
+
+		return id;
 	}
 
 	private record StaffProfileCreatedResponse {
