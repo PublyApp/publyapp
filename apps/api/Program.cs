@@ -270,8 +270,13 @@ public class Program {
 		// mount needs the directory present, so create it deterministically.
 		var uploadsRoot = Path.Combine(fileStorage.RootPath, "uploads");
 		Directory.CreateDirectory(uploadsRoot);
+		// Wrap PhysicalFileProvider to reject symbolic links / reparse points
+		// (issue #1654): a symlink inside uploads/ pointing outside the served
+		// tree would otherwise be followed and its target served anonymously.
 		app.UseStaticFiles(new StaticFileOptions {
-			FileProvider = new PhysicalFileProvider(uploadsRoot),
+			FileProvider = new ReparsePointExclusionFileProvider(
+				new PhysicalFileProvider(uploadsRoot)
+			),
 			RequestPath = "/files/uploads",
 			ServeUnknownFileTypes = false,
 			// Safe precisely because paths are server-generated UUID v7 file names
