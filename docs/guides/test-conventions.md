@@ -188,6 +188,56 @@ in addition to the red and green outputs, name:
 A trace that does not name the kept red test is incomplete: a pasted output without a path
 cannot be replayed, which is exactly the failure mode #1659 names.
 
+### Mutation adverse — the trace must survive an alternate fix
+
+The paired red proof distinguishes a real test from a decorative one, but only if the
+red test is **sensitive to the defect it claims to catch** — not to a coincidence
+of the author's chosen mutation. A test that asserts on a symptom a mutation happens
+to touch is not actually guarding the defect; a different mutation that does not
+touch that symptom will keep the suite green, and the bug survives undetected.
+
+This was demonstrated concretely on PR #1683: three alternate mutations
+(`UNKNOWN_SEGMENT`→`DUAL_PATH`, `PARSE_ERROR`→`DUAL_PATH`, and replacing all
+values) each kept the full 24-test suite green, because the tests asserted on the
+error message text rather than the classification field, and production code never
+read that field. **The convention as previously written would have accepted that
+flawed PR as a valid proof.**
+
+The trace MUST therefore include, alongside the primary mutation:
+
+1. **A mutation adverse search** — an attempt to find a change that restores the
+   defect (re-introduces the bug) while keeping the red test green. The goal is to
+   break the proof's grip on the author's specific mutation: if the test only goes
+   red because of the exact line the author changed, it is not actually testing the
+   behavior it claims to test.
+
+2. **A second mechanism** — the adverse mutation must attack a different axis than
+   the primary mutation. If the primary mutation changes a default value, the
+   adverse attempt must change what is asserted (e.g. message text instead of a
+   classification field). If the primary mutation changes a condition, the adverse
+   attempt must change a value the assertion ignores. Do not hunt for a variant of
+   the same mutation.
+
+3. **A declaration of the search result** — if a surviving mutation is found (one
+   that restores the defect while keeping the red test green), the proof is
+   **invalid**: the test does not actually guard the defect, and the trace must
+   say so. If no surviving mutation is found, the trace MUST record the at least
+   three adverse mutations attempted and why each failed to keep the red test
+   green ("I tried X, Y, Z; X was caught because the test asserts on field F which
+   X modifies, Y was caught because the test exercises path P which Y alters, Z was
+   caught because the test checks message M which Z changes").
+
+4. **Named red tests, not a count** — the trace must name the exact test(s) that
+   go red under each adverse mutation, never a bare "3 tests fail." A proof that
+   says "3 tests fail" without naming them cannot be acted on; the reviewer cannot
+   verify the claim against specific assertions.
+
+For proof-of-limitation cases (§"Proof-of-limitation cases"), the adverse search
+applies equally: attempt to construct a production-code change that satisfies the
+ideal the test asserts, and declare the result. If the ideal is genuinely
+unattainable (as by design), the trace must name the three attempted changes and
+explain why each still falls short.
+
 ### Proof-of-limitation cases (no mutation)
 
 Some paired proofs are **proofs of limitation**, not proofs of a bug. The red test asserts an

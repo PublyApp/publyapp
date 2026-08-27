@@ -413,8 +413,24 @@ ci-front:
   # front test` AND an explicit front-ci.yml::supply-chain step.
   pnpm --filter front check:react-compiler
   pnpm --filter front test
+  just test-preuves
+  # end of front front-ci.yml::supply-chain parallel block (Test front step)
   @echo "=== [gate] production dependency audit (mirrors front-ci.yml::supply-chain) ==="
   pnpm audit --prod --audit-level=high
+
+# Run paired preuve red tests via vitest.preuves.config.ts.
+#
+# These tests are EXPECTED TO FAIL — each proves a bug is present by failing
+# against the corrected code. This recipe runs them and asserts the suite is
+# red. If a proof test becomes green, the bug it documented has changed form
+# and the proof must be rebuilt — that is an error condition, not a success.
+#
+# `.dump/preuves/` is git-ignored and absent in CI checkouts; the recipe
+# handles that case gracefully (no files = no-op, exit 0) so it runs cleanly
+# both locally and in CI.
+test-preuves:
+  @echo "=== [gate] paired red proofs (expected to fail) ==="
+  pnpm --filter front test:preuves
 
 # Quality gate (issue #803): repo-wide oxlint + oxfmt check + .NET warnings-as-errors + analyzer tests.
 # Mirrors .github/workflows/quality-gate.yml::quality — fails PRs on any oxlint diagnostic

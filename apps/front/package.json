@@ -25,6 +25,7 @@
 		"test:design-system-guard": "node --test scripts/guards/check-design-system.test.mts",
 		"test:drawer-contrast": "vitest run --config vitest.drawer.config.ts",
 		"test:zindex-guard": "node --test scripts/guards/check-zindex-guard.test.mts",
+		"test:preuves": "node scripts/ci/run-preuves.mts",
 		"test:react-compiler-guard": "node --test scripts/guards/check-react-compiler.test.mts",
 		"test:shared-ts-import-paths": "node --test scripts/guards/check-shared-ts-import-paths.test.mts",
 		"smoke:start": "node scripts/ci/smoke-start-server.mts",

@@ -45,7 +45,13 @@ const config: KnipConfig = {
 				// Used via CLI `--config` argument, not imported: replay config
 				// for kept red tests under .dump/preuves/ (see
 				// apps/front/.dump/preuve-1613-convention.md). Knip cannot
-				// trace CLI-argument usage.
+				// trace CLI-argument usage. Now wired: `just test-preuves` (recipe
+				// in justfile) and the `Verify paired red proofs` step in
+				// front-ci.yml::supply-chain both invoke it through
+				// `pnpm --filter front test:preuves` → scripts/ci/run-preuves.mts.
+				// In CI this no-ops (exit 0) when .dump/preuves/ is absent
+				// (git-ignored); locally it runs the red tests and inverts their
+				// pass/fail semantics.
 				'vitest.preuves.config.ts',
 			],
 			// System binary invoked via execFileSync by the request-counter sidecar
