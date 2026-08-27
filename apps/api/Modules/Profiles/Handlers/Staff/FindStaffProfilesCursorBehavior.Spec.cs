@@ -42,13 +42,22 @@ public sealed class FindStaffProfilesCursorBehaviorSpec
 	public async Task ItShouldWalkEveryPageOnANameSortWithoutOverlapOrGap() {
 		var token = await _authClient.LoginAsStaffAdminAsync();
 
+		// Deterministic, anti-correlated names: insertion order is c,b,a while
+		// the lexical (sort) order is a,b,c. The walk must return them in
+		// lexical order, so a keySelector swap to the id (insertion) order
+		// turns this assertion RED.
 		const int total = 3;
 		var seededIds = new List<Guid>();
+		var seededNames = new List<string>();
 		for (var i = 0; i < total; i++) {
-			seededIds.Add(await SeedStaffProfileAsync($"Walk Page {Guid.NewGuid():N}"));
+			var name = $"Walk Page {(char)('a' + (2 - i))} {Guid.NewGuid():N}";
+			seededIds.Add(await SeedStaffProfileAsync(name));
+			seededNames.Add(name);
 		}
+		seededNames.Sort(StringComparer.OrdinalIgnoreCase);
 
 		var visitedIds = new List<Guid>();
+		var visitedNamesById = new Dictionary<Guid, string>();
 		string? cursor = null;
 		var pages = 0;
 		do {
@@ -69,7 +78,10 @@ public sealed class FindStaffProfilesCursorBehaviorSpec
 			page.Should().NotBeNull();
 			Assert.NotNull(page);
 			pages++;
-			visitedIds.AddRange(page.Data.Select(p => p.Id));
+			foreach (var item in page.Data) {
+				visitedIds.Add(item.Id);
+				visitedNamesById[item.Id] = item.Name;
+			}
 			cursor = page.NextCursor;
 
 			// Guard against an infinite loop if the tie-breaker/cursor filter regresses.
@@ -80,6 +92,14 @@ public sealed class FindStaffProfilesCursorBehaviorSpec
 		// included): no row may repeat and ours must all be visited.
 		visitedIds.Should().OnlyHaveUniqueItems();
 		visitedIds.Should().Contain(seededIds);
+
+		// Assert the OBSERVED Name order from the wire item matches the lexical
+		// sort, not the insertion order.
+		var visitedNames = visitedIds
+			.Where(seededIds.Contains)
+			.Select(id => visitedNamesById[id])
+			.ToList();
+		visitedNames.Should().Equal(seededNames);
 	}
 
 	[Fact]
