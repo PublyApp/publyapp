@@ -44,15 +44,15 @@ public sealed class FindTenantUserCompaniesForStaffSpec
 			SeedConstants.Tenants.AcmeName
 		);
 
-		// A user with three tenant memberships of distinct account CreatedAt;
-		// the walk must visit each once in ascending CreatedAt order.
+		// A user with three tenant memberships of distinct account CreatedAt,
+		// deliberately NOT in insertion order (anti-correlated). The walk must
+		// visit each once in ascending CreatedAt order, so a keySelector swap
+		// to another same-type field turns this assertion RED.
 		var baseDate = new DateTime(
 			2026, 1, 1, 0, 0, 0, DateTimeKind.Utc
 		);
-		var (userId, seededTenantIds) = await SeedUserWithCompaniesAsync(
-			acmeTenantId,
-			baseDate
-		);
+		var (userId, seededTenantIds, seededOrder) =
+			await SeedUserWithCompaniesAsync(acmeTenantId, baseDate);
 
 		var visitedTenantIds = new List<Guid>();
 		string? cursor = null;
@@ -86,14 +86,40 @@ public sealed class FindTenantUserCompaniesForStaffSpec
 			pages.Should().BeLessOrEqualTo(100);
 		} while (cursor is not null);
 
-		// The walk covers exactly our memberships, each once, in order.
+		// The walk covers exactly our memberships, each once, in CreatedAt
+		// ascending order (NOT insertion order).
 		visitedTenantIds.Should().OnlyHaveUniqueItems();
 		visitedTenantIds.Should().Contain(seededTenantIds);
 
 		var visitedOrder = visitedTenantIds
 			.Where(seededTenantIds.Contains)
 			.ToList();
-		visitedOrder.Should().Equal(seededTenantIds);
+		var createdAtByTenantId = seededTenantIds
+			.Zip(seededOrder, (id, c) => (id, c))
+			.ToDictionary(x => x.id, x => x.c);
+		visitedOrder.Should().Equal(
+			seededTenantIds.OrderBy(id => createdAtByTenantId[id]).ToList()
+		);
+
+		// Assert the OBSERVED sort order against the real account CreatedAt
+		// values from the DB, in walk order. The item exposes only TenantId,
+		// so resolve CreatedAt by (TenantId, UserId) on UserAccount.
+		List<DateTime> observedOrder;
+		{
+			await using var scope =
+				_fixture.Factory.Services.CreateAsyncScope();
+			var dbContext = scope.ServiceProvider
+				.GetRequiredService<AppDbContext>();
+			var userIdGuid = Guid.Parse(userId);
+			observedOrder = await dbContext.UserAccount
+				.Where(a => a.UserId == userIdGuid
+					&& visitedOrder.Contains((Guid)a.TenantId!))
+				.OrderBy(a => visitedOrder.IndexOf((Guid)a.TenantId!))
+				.Select(a => a.CreatedAt)
+				.ToListAsync();
+		}
+		observedOrder.Should().Equal(seededOrder.OrderBy(x => x).ToList());
+		observedOrder.Should().NotEqual(seededOrder);
 	}
 
 	[Fact]
@@ -593,7 +619,7 @@ public sealed class FindTenantUserCompaniesForStaffSpec
 		public string? NextCursor { get; init; }
 	}
 
-	private async Task<(string UserId, List<Guid> TenantIds)>
+	private async Task<(string userId, List<Guid> tenantIds, List<DateTime> order)>
 	SeedUserWithCompaniesAsync(
 		Guid acmeTenantId,
 		DateTime baseDate
@@ -630,18 +656,31 @@ public sealed class FindTenantUserCompaniesForStaffSpec
 			tenantIds.Add(tenant.GetRequiredId());
 		}
 
-		// Distinct CreatedAt per membership, in the order we expect the walk.
+		// Distinct CreatedAt per membership, deliberately anti-correlated with
+		// insertion: index 0 -> +2d, 1 -> +0d, 2 -> +1d. Two-phase: insert
+		// (interceptor stamps CreatedAt/UpdatedAt = now), then re-save the
+		// tracked row as Modified (interceptor only updates UpdatedAt) so the
+		// pinned CreatedAt sticks.
+		var order = new List<DateTime>();
 		for (var i = 0; i < tenantIds.Count; i++) {
 			var account = UserAccount.CreateTenantAccount(
 				userId,
 				tenantIds[i]
 			);
-			account.CreatedAt = baseDate.AddDays(i);
+			var createdAt = baseDate.AddDays((tenantIds.Count - i) % tenantIds.Count);
+			order.Add(createdAt);
 			await dbContext.UserAccount.AddAsync(account);
+			await dbContext.SaveChangesAsync();
+			var accountId = account.GetRequiredId();
+
+			var tracked = await dbContext.UserAccount
+				.Where(a => a.Id == accountId)
+				.FirstAsync();
+			tracked.CreatedAt = createdAt;
 			await dbContext.SaveChangesAsync();
 		}
 
-		return (userId.ToString(), tenantIds);
+		return (userId.ToString(), tenantIds, order);
 	}
 
 	private sealed record TenantUserCompanyResponse {
