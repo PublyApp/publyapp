@@ -26,13 +26,13 @@ namespace PublyApp.Api.Lib.Diagnostics;
 /// show up in the collection. Restoring the gate returns it to GREEN.
 /// </summary>
 public sealed class OpenTelemetryActivationGateSpec {
-	// The single activation switch the Aspire AppHost injects. Presence — not value —
-	// is the gate (see OpenTelemetryConfigExtensions remarks).
+	// The single activation switch the Aspire AppHost injects. A non-empty, non-whitespace
+	// value is the gate (see OpenTelemetryConfigExtensions remarks).
 	private const string OtlpEndpointVariableName = "OTEL_EXPORTER_OTLP_ENDPOINT";
 
 	[Fact]
 	public void ItShouldRegisterNoOpenTelemetryComponentsWhenTheOtlpEndpointVariableIsAbsent() {
-		// The gate keys on the variable's PRESENCE. Pin it absent so the measurement is
+		// The gate keys on a non-empty, non-whitespace value. Pin it absent so the measurement is
 		// deterministic regardless of the surrounding shell/CI environment, then restore it.
 		var previous = Environment.GetEnvironmentVariable(OtlpEndpointVariableName);
 		Environment.SetEnvironmentVariable(OtlpEndpointVariableName, null);
@@ -99,6 +99,44 @@ public sealed class OpenTelemetryActivationGateSpec {
 				"attach the SDK, so the post-configuration service collection carries OpenTelemetry " +
 				"components. An empty collection here means the gate is broken in the other " +
 				"direction — the early return fires even when the variable is set.");
+		} finally {
+			Environment.SetEnvironmentVariable(OtlpEndpointVariableName, previous);
+		}
+	}
+
+	[Fact]
+	public void ItShouldRegisterNoOpenTelemetryComponentsWhenTheOtlpEndpointVariableIsBlank() {
+		// The gate keys on a non-empty, non-whitespace value. Pin it blank (spaces) so the
+		// measurement is deterministic; in .NET, an empty string "" is removed by
+		// SetEnvironmentVariable, so the whitespace case is what distinguishes "blank" from "absent".
+		var previous = Environment.GetEnvironmentVariable(OtlpEndpointVariableName);
+		Environment.SetEnvironmentVariable(OtlpEndpointVariableName, "   ");
+		try {
+			// A bare host builder — no logger, no web server — so the only
+			// OpenTelemetry.* descriptors in the collection can originate from the
+			// extension under test, never from surrounding composition.
+			var builder = Host.CreateApplicationBuilder();
+			builder.ConfigureOpenTelemetry();
+
+			// Measure the ACTUAL artifact, not a proxy: the post-configuration service
+			// collection. Either the ServiceType or the ImplementationType carrying an
+			// OpenTelemetry.* namespace is sufficient evidence that the SDK was attached.
+			var registeredOtelComponents = builder.Services
+				.Where(descriptor =>
+					(descriptor.ServiceType?.FullName?
+						.StartsWith("OpenTelemetry.", StringComparison.Ordinal) ?? false)
+					|| (descriptor.ImplementationType?.FullName?
+						.StartsWith("OpenTelemetry.", StringComparison.Ordinal) ?? false))
+				.ToList();
+
+			registeredOtelComponents.Should().BeEmpty(
+				because: "with OTEL_EXPORTER_OTLP_ENDPOINT set to a blank value (whitespace), " +
+				"ConfigureOpenTelemetry() must attach nothing, so the post-configuration service " +
+				"collection carries no OpenTelemetry components. Unexpected descriptors: " +
+				string.Join(", ", registeredOtelComponents.Select(descriptor =>
+					descriptor.ImplementationType?.FullName
+					?? descriptor.ServiceType?.FullName
+					?? "<unknown>")));
 		} finally {
 			Environment.SetEnvironmentVariable(OtlpEndpointVariableName, previous);
 		}
