@@ -41,20 +41,26 @@ public sealed class FindPostsCursorBehaviorSpec : IClassFixture<ApiFixture> {
 		var (tenantId, token) = await LoginAsAcmeAdminAsync();
 		var userId = await GetAcmeAdminUserIdAsync();
 
-		// 3 posts with distinct CreatedAt; the walk must visit each once in
-		// ascending CreatedAt order with no gap or duplicate.
+		// 3 posts with distinct, deliberately NOT insertion-ordered CreatedAt
+		// (anti-correlated with insertion). The walk must visit each once in
+		// ascending CreatedAt order, not in insertion order, so a keySelector
+		// swap to UpdatedAt (stamped at insertion) turns this assertion RED.
 		var baseDate = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
 		var seededIds = new List<Guid>();
+		var seededOrder = new List<DateTime>();
 		for (var i = 0; i < 3; i++) {
-			seededIds.Add(await SeedPostAtAsync(
+			var id = await SeedPostAtAsync(
 				tenantId,
 				userId,
 				$"post-walk-{i}-{Guid.NewGuid():N}",
-				baseDate.AddDays(i)
-			));
+				baseDate.AddDays((3 - i) % 3)
+			);
+			seededIds.Add(id);
+			seededOrder.Add(baseDate.AddDays((3 - i) % 3));
 		}
 
 		var visitedIds = new List<Guid>();
+		var visitedCreatedAtOrder = new List<DateTime>();
 		string? cursor = null;
 		var pages = 0;
 		do {
@@ -79,6 +85,7 @@ public sealed class FindPostsCursorBehaviorSpec : IClassFixture<ApiFixture> {
 			Assert.NotNull(page);
 			pages++;
 			visitedIds.AddRange(page.Data.Select(post => post.Id));
+			visitedCreatedAtOrder.AddRange(page.Data.Select(post => post.CreatedAt));
 			cursor = page.NextCursor;
 
 			// Guard against an infinite loop if the tie-breaker/cursor filter regresses.
@@ -93,7 +100,20 @@ public sealed class FindPostsCursorBehaviorSpec : IClassFixture<ApiFixture> {
 		var visitedSeededOrder = visitedIds
 			.Where(seededIds.Contains)
 			.ToList();
-		visitedSeededOrder.Should().Equal(seededIds);
+		var createdAtById = seededIds
+			.Zip(seededOrder, (id, c) => (id, c))
+			.ToDictionary(x => x.id, x => x.c);
+		visitedSeededOrder.Should().Equal(
+			seededIds.OrderBy(id => createdAtById[id]).ToList()
+		);
+
+		// Assert the OBSERVED CreatedAt order: ascending and equal to the
+		// seeded-but-sorted order, NOT the insertion order.
+		var visitedSeededCreatedAt = visitedSeededOrder
+			.Select(id => visitedCreatedAtOrder[visitedIds.IndexOf(id)])
+			.ToList();
+		visitedSeededCreatedAt.Should().Equal(seededOrder.OrderBy(x => x).ToList());
+		visitedSeededCreatedAt.Should().NotEqual(seededOrder);
 	}
 
 	[Fact]
@@ -212,12 +232,20 @@ public sealed class FindPostsCursorBehaviorSpec : IClassFixture<ApiFixture> {
 			Status = PostStatus.Draft,
 			CreatedByUserId = userId,
 		};
-		post.CreatedAt = createdAt;
-
+		// Insert first (interceptor stamps CreatedAt/UpdatedAt = now), then
+		// re-fetch and overwrite CreatedAt as a Modified row. On Modified the
+		// interceptor only touches UpdatedAt, so the seeded CreatedAt sticks.
 		await dbContext.Post.AddAsync(post);
 		await dbContext.SaveChangesAsync();
+		var id = post.GetRequiredId();
 
-		return post.GetRequiredId();
+		var tracked = await dbContext.Post
+			.Where(p => p.Id == id)
+			.FirstAsync();
+		tracked.CreatedAt = createdAt;
+		await dbContext.SaveChangesAsync();
+
+		return id;
 	}
 
 	private sealed record FindPostsResponse {
