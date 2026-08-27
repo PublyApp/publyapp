@@ -112,6 +112,7 @@
 	"post-image-unsupported-type": "L'image doit être un PNG, JPEG, WEBP ou GIF",
 	"post-image-dimensions-invalid": "Les dimensions de l'image sont invalides",
 	"post-image-missing": "Aucune image n'est attachée à cet article",
+	"post-image-conflict": "Une autre requête d'image pour cet article a déjà gagné ; relancez pour la remplacer",
 	"post-image-attached-success": "Image de l'article ajoutée avec succès",
 	"post-image-removed-success": "Image de l'article retirée avec succès",
 	"social-account-not-found": "Compte social introuvable",
