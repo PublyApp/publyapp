@@ -294,7 +294,7 @@ public static partial class MeasureStatusGuardOverhead {
 			"  ROBUSTNESS: The decision to KEEP the guard stands even if measurements"
 		);
 		Console.WriteLine(
-			"  are wrong by 10x. 10x overhead (~1.08–5.18 µs total, ~0.11–0.52 µs detection) remains"
+			"  are wrong by 10x. 10x overhead (~5–20 µs total, ~1–6 µs detection) remains"
 		);
 		Console.WriteLine(
 			"  well under 2% of a 1 ms query, so the 1% robustness threshold survives."
@@ -310,10 +310,10 @@ public static partial class MeasureStatusGuardOverhead {
 			"  Measurement dispersion: these numbers are measured on a shared 12-core host."
 		);
 		Console.WriteLine(
-			"  Observed range across runs on this machine: GUARDED PATH TOTAL ~0.5–1.6 µs,"
+			"  Observed range across runs on this machine: GUARDED PATH TOTAL ~0.5–2.0 µs,"
 		);
 		Console.WriteLine(
-			"  INCREMENTAL detection ~0.1–0.5 µs. The widening reflects load variance,"
+			"  INCREMENTAL detection ~0.1–0.6 µs. The widening reflects load variance,"
 		);
 		Console.WriteLine(
 			"  not measurement instability."

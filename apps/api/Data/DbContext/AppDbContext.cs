@@ -183,22 +183,22 @@ public class AppDbContext : Microsoft.EntityFrameworkCore.DbContext, IDataProtec
 		//
 		// 1. GUARDED PATH TOTAL: the full regex chain for a publication-table
 		//    read query, string-splitting + comment stripping + regex matching.
-		//    Observed ~0.5–1.6 µs (median varies by run) on Intel i5-12500T,
+		//    Observed ~0.5–2.0 µs (median varies by run) on Intel i5-12500T,
 		//    100k iterations, A/B alternating within the same loop.
 		//
 		// 2. INCREMENTAL DETECTION OVERHEAD: the UpdateStatementShape
 		//    + StatusColumnWord detection the guard adds above the baseline.
-		//    Observed ~0.1–0.5 µs (median varies by run) on the same machine.
+		//    Observed ~0.1–0.6 µs (median varies by run) on the same machine.
 		//
 		// ROBUSTNESS: The decision to keep the guard stands even if measurements
-		// are wrong by 10x. 10× overhead (~5–16 µs total, ~1–5 µs detection) remains
+		// are wrong by 10x. 10× overhead (~5–20 µs total, ~1–6 µs detection) remains
 		// well under 2% of a 1 ms query, so the 1% robustness threshold survives.
 		//    The guard is kept because the total path cost is negligible, not because
 		//    of any specific number.
 		//
 		// Note on measurement dispersion: these bounds are measured on a shared
-		// 12-core host under variable load. The widened ranges (~0.5–1.6 /
-		// ~0.1–0.5 µs) honestly bracket the observed dispersion across runs; the
+		// 12-core host under variable load. The widened ranges (~0.5–2.0 /
+		// ~0.1–0.6 µs) honestly bracket the observed dispersion across runs; the
 		// round-3 reviewer value of ~1.87 µs and the round-6 first-run value of
 		// ~0.52 µs both fall within this interval. The cause of the spread is
 		// machine-load variance, not measurement instability. The decision to keep
