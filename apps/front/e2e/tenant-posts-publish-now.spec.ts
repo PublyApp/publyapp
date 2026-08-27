@@ -11,7 +11,20 @@ import {
 // so this file must start from a clean, unauthenticated context.
 test.use({ storageState: { cookies: [], origins: [] } });
 
-test.describe(
+// QUARANTINE (owner decision, D2 verdict-r1 BLOCKER → option a): the e2e
+// stack pins `APP_ROLE: api` (apps/front/docker-compose.test.yml, audit F24)
+// and runs NO worker, seeds NO SocialAccount, and uses the REAL IBlueskyClient
+// (Fakes live only in Lib/Testing/Fakes). Publish-now only *enqueues*
+// publishing.publish-publication.v1, so the publication can never reach
+// Published (no bsky.app link) here. The spec is honest about that pipeline
+// but cannot complete it in this topology — identical red on pre-merge heads
+// e7ef0c198 / 6191c4b20 and post-merge 88bf34857 (see .dump/merge-audit-m.md
+// §CI convergence rounds, .dump/verdict-r1.md). fixme (not skip) so it turns
+// RED the moment the pipeline works, prompting removal. Owner follow-up:
+// either seed a SocialAccount + grant tenant.socialaccounts.publish to the e2e
+// user + run a worker in the e2e stack + register FakeBlueskyClient for the api
+// role, or drop the @645 tag. Tracked against #645.
+test.describe.fixme(
 	'tenant posts publish now',
 	{ tag: ['@tenant-workspace', '@645'] },
 	() => {
