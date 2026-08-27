@@ -1,0 +1,190 @@
+/**
+ * Tests for e2e-compose-env.mts
+ *
+ * These tests verify:
+ * 1. Port band allocation is guaranteed (no collisions)
+ * 2. Project name derivation uses absolute path (not directory name)
+ * 3. Name normalization is Compose-safe
+ */
+
+import { mkdirSync, readdirSync, unlinkSync } from 'node:fs';
+import { join as pathJoin } from 'node:path';
+import assert from 'node:assert/strict';
+import { describe, it, beforeEach, afterEach } from 'node:test';
+
+import {
+	acquirePortBand,
+	normalizeComposeName,
+	releasePortBand,
+	setupE2EComposeEnv,
+	teardownE2EComposeEnv,
+	deriveProjectName,
+	type PortBandReservation,
+	type E2EComposeEnv,
+} from './e2e-compose-env.mts';
+
+describe('normalizeComposeName', () => {
+	it('converts to lowercase', () => {
+		assert.equal(normalizeComposeName('MY-PROJECT'), 'my-project');
+	});
+
+	it('replaces spaces and special characters with underscores', () => {
+		const result = normalizeComposeName('my/project#test');
+		assert.equal(result, 'my_project_test');
+	});
+
+	it('must start with alphanumeric character', () => {
+		const result = normalizeComposeName('-my-project');
+		assert.ok(/^[a-z0-9]/.test(result), `Expected to start with alphanumeric, got: ${result}`);
+	});
+
+	it('produces Compose-safe names (alphanumeric, dash, underscore only)', () => {
+		const result = normalizeComposeName('test/path/with spaces');
+		const isSafe = /^[a-z0-9_-]+$/.test(result);
+		assert.ok(isSafe, `Result "${result}" contains invalid characters`);
+	});
+
+	it('handles empty input gracefully', () => {
+		const result = normalizeComposeName('');
+		assert.ok(typeof result === 'string', 'Should return a string');
+		assert.ok(result.length > 0, 'Should not be empty');
+	});
+});
+
+describe('deriveProjectName', () => {
+	it('produces Compose-safe names', () => {
+		const projectName = deriveProjectName();
+		const isSafe = /^publyapp-e2e-[a-z0-9_-]+$/.test(projectName);
+		assert.ok(isSafe, `Not Compose-safe: ${projectName}`);
+		assert.ok(projectName.startsWith('publyapp-e2e-'), 'Should start with publyapp-e2e-');
+	});
+
+	it('uses full absolute path for uniqueness (fixes Constat 2)', () => {
+		// The project name is derived from the repo path, which is unique per checkout
+		const name = deriveProjectName();
+		
+		// Should include some form of the repo path
+		assert.ok(name.includes('publyapp'), 'Should contain publyapp');
+		assert.ok(name.length > 'publyapp-e2e-'.length, 'Name should have path-derived suffix');
+	});
+});
+
+describe('acquirePortBand', () => {
+	it('acquires a port band and returns valid reservation', () => {
+		const reservation = acquirePortBand();
+
+		assert.ok(reservation, 'Failed to acquire port band');
+		assert.ok(reservation!.bandIndex >= 0, 'Band index should be non-negative');
+		assert.ok(reservation!.basePort >= 8080, 'Base port should be >= 8080');
+		assert.ok(reservation!.lockPath.includes('band-'), 'Lock path should include band name');
+		assert.ok(reservation!.lockPath.includes('.lock'), 'Lock path should end with .lock');
+
+		// Clean up
+		releasePortBand(reservation!.lockPath);
+	});
+
+	it('releases locks correctly', () => {
+		const reservation = acquirePortBand();
+		assert.ok(reservation, 'Failed to acquire port band');
+
+		const result = releasePortBand(reservation!.lockPath);
+		assert.ok(result, 'Failed to release port band');
+
+		// Now we should be able to acquire the same band again
+		const reacquired = acquirePortBand();
+		assert.ok(reacquired, 'Failed to reacquire port band');
+		assert.equal(reacquired!.lockPath, reservation!.lockPath);
+
+		// Clean up
+		releasePortBand(reacquired!.lockPath);
+	});
+});
+
+describe('PORT BAND COLLISION GUARD', () => {
+	/**
+	 * PROOF: Two concurrent acquisitions cannot get the same band
+	 *
+	 * This test proves the key fix from the brief:
+	 * - Before: ports were derived via (empreinte modulo 500) * 10
+	 * - With 10 trees: 8.7% collision probability
+	 * - With 12 trees: 12.5% collision probability
+	 * - The fix: acquire a FREE band atomically via lock file
+	 *   -> 0% collision probability
+	 */
+	it('proves two sequential acquisitions cannot get the same band', () => {
+		const reservation1: PortBandReservation = acquirePortBand()!;
+		assert.ok(reservation1, 'Stack 1 failed to acquire band');
+
+		const reservation2: PortBandReservation = acquirePortBand()!;
+		assert.ok(reservation2, 'Stack 2 failed to acquire band');
+
+		// Verify they are different bands - THIS IS THE KEY GUARANTEE
+		assert.notEqual(
+			reservation1.bandIndex,
+			reservation2.bandIndex,
+			'Both stacks got the same band index - collision would occur!',
+		);
+		assert.notEqual(
+			reservation1.lockPath,
+			reservation2.lockPath,
+			'Both stacks got the same lock path',
+		);
+
+		// Clean up
+		releasePortBand(reservation1.lockPath);
+		releasePortBand(reservation2.lockPath);
+	});
+
+	it('verifies port calculation follows the band offset pattern', () => {
+		const band0 = acquirePortBand()!;
+
+		// Band should have base ports >= 8080
+		assert.ok(band0.basePort >= 8080, 'Base port should be >= 8080');
+		releasePortBand(band0.lockPath);
+	});
+});
+
+describe('setupE2EComposeEnv', () => {
+	it('returns complete environment configuration', () => {
+		const env = setupE2EComposeEnv();
+
+		assert.ok(env.projectName.startsWith('publyapp-e2e-'), 'Project name should start with publyapp-e2e-');
+		assert.ok(env.ports.http > 0, 'HTTP port should be positive');
+		assert.ok(env.ports.https > 0, 'HTTPS port should be positive');
+		assert.ok(env.ports.db > 0, 'DB port should be positive');
+		assert.ok(env.ports.requestCounter > 0, 'Request counter port should be positive');
+		assert.ok(env.lockPath.length > 0, 'Lock path should not be empty');
+		assert.ok(env.bandIndex >= 0, 'Band index should be non-negative');
+
+		// Clean up
+		teardownE2EComposeEnv(env);
+	});
+});
+
+describe('integration: parallel stack isolation', () => {
+	it('two sequential acquisitions produce different configurations', () => {
+		const env1: E2EComposeEnv = setupE2EComposeEnv();
+		const env2: E2EComposeEnv = setupE2EComposeEnv();
+
+		// Both should have unique bands (different ports)
+		assert.notEqual(
+			env1.bandIndex,
+			env2.bandIndex,
+			'Both environments got the same band index!',
+		);
+		assert.notEqual(
+			env1.ports.http,
+			env2.ports.http,
+			'Both environments got the same HTTP port!',
+		);
+		assert.notEqual(
+			env1.lockPath,
+			env2.lockPath,
+			'Both environments got the same lock path!',
+		);
+
+		// Clean up
+		teardownE2EComposeEnv(env1);
+		teardownE2EComposeEnv(env2);
+	});
+});

@@ -1,5 +1,5 @@
 # No top-level `name:` — the project name comes from COMPOSE_PROJECT_NAME,
-# derived per-worktree by apps/front/scripts/e2e-compose-env.ts (#1642).
+# derived per-worktree by apps/front/scripts/e2e-compose-env.mts (#1642).
 # This lets multiple worktrees on one machine run independent e2e stacks
 # without colliding on container names, network names, or published ports.
 
