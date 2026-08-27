@@ -757,9 +757,9 @@
 			"reason": "ci-shared-ts runs the identical pnpm --filter @org/shared-ts typecheck (tsc --noEmit) that this step runs."
 		},
 		"quality-gate.yml::quality::Verify complexity bounds are not drifting (#1661)": {
-			"hash": "1699784920342212",
-			"mirror": "node packages/scripts-ts/src/check-cyclomatic-bound.mjs",
-			"reason": "The check-cyclomatic-bound.mjs guard verifies that complexity ceilings in .oxlintrc.json are not drifting. It reads the TRUE values from .oxlintrc.json and ensures they match the expected configuration (apps/front/src/**: 60, test files: 90, default: 125). CI runs this guard to provide actual protection against bound drift."
+			"hash": "141f697f555addee",
+			"mirror": "node packages/scripts-ts/src/check-cyclomatic-bound.ts",
+			"reason": "The check-cyclomatic-bound guard verifies that complexity ceilings in .oxlintrc.json are not drifting. It reads the TRUE values from .oxlintrc.json and ensures they match the committed expected configuration in .cyclomatic-bound-ref.json (apps/front/src/**: 60, test files: 90, default: 125). CI runs this guard to provide actual protection against bound drift."
 		},
 		"react-doctor.yml::changes::Check whether react-doctor paths changed": {
 			"hash": "85b8ebcec99c9f7d",
