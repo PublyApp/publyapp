@@ -20,17 +20,19 @@ import type { ESTree } from '@oxlint/plugins';
  *   (identifier name `useOffsetPageClamp`, or a member expression whose property
  *   is `useOffsetPageClamp`).
  * - Case 1 — DIRECT commitment: the call's parent is a `CallExpression` whose
- *   callee is a setter (identifier starting with `set`). E.g.
- *   `setPageIndex(useOffsetPageClamp({...}))`. Not reported.
+ *   callee is a bare Identifier setter (startsWith "set") and the hook call IS
+ *   that setter's first argument. E.g. `setPageIndex(useOffsetPageClamp({...}))`.
+ *   Not reported. This rejects false negatives like `setTimeout(() => {}, clamped)`
+ *   (the callback, not the clamped value, is the first argument) and
+ *   `obj.set(clamped)` (callee is a member expression, not a bare identifier).
  * - Case 2 — VARIABLE commitment: the call's parent is a `VariableDeclarator`
- *   with a plain identifier id. Track the variable name, then scan the enclosing
- *   function body for any CallExpression that passes that variable as an
- *   argument to a setter. If found, not reported; otherwise reported.
+ *   with a plain identifier id. Resolve the variable via the scope manager, then
+ *   check whether any reference is passed as the FIRST argument to a bare-
+ *   Identifier setter call. If found, not reported; otherwise reported. Same
+ *   first-argument + bare-identifier safeguards apply here.
  * - Case 3 — BARE statement: the call is in an `ExpressionStatement` (the
  *   return is discarded). Reported.
- * - The enclosing function is found by walking the `parent` chain (oxlint
- *   ESTree nodes carry a `parent` link). We scan the function's BlockStatement
- *   body for setter calls referencing the variable.
+ * - Case 4 — Any other parent shape: conservatively reported.
  *
  * Scope: test/spec files are excluded — the negligent caller in
  * `offset-pagination.test.ts` is an intentional fixture, not a real caller.
@@ -38,8 +40,19 @@ import type { ESTree } from '@oxlint/plugins';
 
 const HOOK_NAME = 'useOffsetPageClamp';
 
-/** True when the identifier name looks like a React state setter (startsWith "set"). */
-const isSetterName = (name: string): boolean => name.startsWith('set');
+/**
+ * True when the callee is a bare `Identifier` whose name looks like a React state
+ * setter (startsWith "set"). Member expressions (`obj.set(...)`) are rejected — a React
+ * state setter returned by `useState` is always a bare identifier, never a member
+ * expression. This excludes false negatives like `obj.set(clamped)` or `setCookie(clamped)`
+ * invoked as a method on an arbitrary object.
+ */
+const isSetterCallee = (callee: ESTree.Expression): boolean => {
+	if (callee.type !== 'Identifier') {
+		return false;
+	}
+	return callee.name.startsWith('set');
+};
 
 /** True when the filename is a test/spec file (excluded from checking). */
 const isTestFile = (filename: string): boolean =>
@@ -72,90 +85,47 @@ const getCalleeName = (callee: ESTree.Expression): string | null => {
 	return null;
 };
 
-interface SetterArgMatch {
-	node: ESTree.CallExpression;
-	varName: string;
-}
-
 /**
- * Scans a subtree for CallExpressions that pass `varName` as an argument to a
- * setter. Returns the first match found (or null). Uses a WeakSet to avoid
- * re-visiting nodes (handles shared subtrees).
+ * Uses the oxlint scope manager to walk variable references within the
+ * enclosing scope. For each reference to `varName`, checks whether it appears
+ * as the FIRST argument of a setter CallExpression.
+ *
+ * This avoids the type-assertion / Reflect.get patterns that anti-slop rules
+ * forbid in linted code — scope references are properly typed by the
+ * @oxlint/plugins typings.
  */
-const findSetterCallWithVar = (
-	node: ESTree.Node | null | undefined,
+const isVariableCommittedViaScope = (
+	context: Context,
+	node: ESTree.Node,
 	varName: string,
-	visited: WeakSet<ESTree.Node>,
-): SetterArgMatch | null => {
-	if (!node || visited.has(node)) {
-		return null;
+): boolean => {
+	const sourceCode = context.sourceCode;
+	// Walk up the scope chain to find the variable declaration. The hook call
+	// may be inside a nested block, so the variable might live in a parent
+	// scope.
+	let scope = sourceCode.getScope(node);
+	let variable = scope.set.get(varName);
+	while (!variable && scope.upper) {
+		scope = scope.upper;
+		variable = scope.set.get(varName);
 	}
-	visited.add(node);
+	if (!variable) return false;
 
-	if (node.type === 'CallExpression') {
-		const calleeName = getCalleeName(node.callee);
-		if (calleeName !== null && isSetterName(calleeName)) {
-			for (const arg of node.arguments) {
-				if (arg.type === 'Identifier' && arg.name === varName) {
-					return { node, varName };
-				}
-			}
-		}
-	}
-
-	for (const key of Object.keys(node)) {
-		if (key === 'parent') continue;
-		const value: unknown = (node as Record<string, unknown>)[key];
-		if (Array.isArray(value)) {
-			for (const child of value) {
-				if (child && typeof child === 'object' && 'type' in child) {
-					const found = findSetterCallWithVar(
-						child as ESTree.Node,
-						varName,
-						visited,
-					);
-					if (found) return found;
-				}
-			}
-		} else if (value && typeof value === 'object' && 'type' in value) {
-			const found = findSetterCallWithVar(
-				value as ESTree.Node,
-				varName,
-				visited,
-			);
-			if (found) return found;
-		}
-	}
-
-	return null;
-};
-
-/**
- * Walks the `parent` chain to find the enclosing function body node.
- * Returns null if the call is not inside a function (module scope, etc.).
- */
-const findEnclosingFunctionBody = (
-	startNode: ESTree.Node,
-): ESTree.BlockStatement | null => {
-	let current: ESTree.Node | null = startNode.parent ?? null;
-	while (current) {
+	for (const reference of variable.references) {
+		const refNode = reference.identifier;
+		const parent = refNode.parent;
+		if (!parent || parent.type !== 'CallExpression') continue;
+		if (!isSetterCallee(parent.callee)) continue;
+		const firstArg = parent.arguments[0];
 		if (
-			current.type === 'FunctionDeclaration' ||
-			current.type === 'FunctionExpression' ||
-			current.type === 'ArrowFunctionExpression'
+			firstArg &&
+			firstArg.type === 'Identifier' &&
+			firstArg.name === varName
 		) {
-			const body = current.body;
-			if (body && body.type === 'BlockStatement') {
-				return body;
-			}
-			// Arrow with expression body — there is no BlockStatement, so there
-			// is no place a setter call could commit the variable. Treat as
-			// un-trackable (report).
-			return null;
+			return true;
 		}
-		current = current.parent ?? null;
 	}
-	return null;
+	return false;
 };
 
 export const noRequireCommitOfUseOffsetPageClamp = {
@@ -186,12 +156,18 @@ export const noRequireCommitOfUseOffsetPageClamp = {
 
 				const parent = node.parent;
 
-				// Case 1: DIRECT commitment — the call is an argument to a setter.
+				// Case 1: DIRECT commitment — the hook call IS the first argument to
+				// a setter whose callee is a bare Identifier (not a member
+				// expression like `obj.set`).
 				//   setPageIndex(useOffsetPageClamp({...}))
+				//   NOT: setTimeout(() => {}, clamped) — callback is first arg
+				//   NOT: obj.set(clamped) — member expression, not a setter
 				if (parent && parent.type === 'CallExpression') {
-					const parentCalleeName = getCalleeName(parent.callee);
-					if (parentCalleeName !== null && isSetterName(parentCalleeName)) {
-						return; // committed directly — OK
+					if (isSetterCallee(parent.callee)) {
+						const firstArg = parent.arguments[0];
+						if (firstArg === node) {
+							return; // committed directly — OK
+						}
 					}
 				}
 
@@ -210,17 +186,11 @@ export const noRequireCommitOfUseOffsetPageClamp = {
 				) {
 					const varName = parent.id.name;
 
-					const funcBody = findEnclosingFunctionBody(node);
-					if (!funcBody) {
-						// Can't find enclosing function — can't prove commitment.
-						context.report({ node, messageId: 'notCommitted' });
-						return;
-					}
+					// Use the scope manager to check whether the variable is
+					// committed as the first arg of a setter call.
+					const committed = isVariableCommittedViaScope(context, node, varName);
 
-					const visited = new WeakSet<ESTree.Node>();
-					const match = findSetterCallWithVar(funcBody, varName, visited);
-
-					if (!match) {
+					if (!committed) {
 						context.report({
 							node: parent,
 							messageId: 'notCommitted',
@@ -229,8 +199,8 @@ export const noRequireCommitOfUseOffsetPageClamp = {
 					return;
 				}
 
-				// Any other parent shape — we can't confirm commitment. Report
-				// conservatively (the call result is not provably committed).
+				// Case 4: Any other parent shape — we can't confirm commitment.
+				// Report conservatively (the call result is not provably committed).
 				context.report({ node, messageId: 'notCommitted' });
 			},
 		};

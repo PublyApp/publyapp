@@ -8,17 +8,24 @@
  * - Plugin wiring: `index.ts` exposes
  *   `rules['require-commit-of-use-offset-page-clamp']` pointing at the same
  *   rule object exported from the rule module.
- * - valid (the three real callers' pattern):
+ * - valid (the real callers' pattern):
  *   1. `if (clamped !== pageIndex) setPageIndex(clamped)` — the adjust-
  *      state-while-rendering commit pattern (#1660 contract).
  *   2. Direct setter-arg call: `setPageIndex(useOffsetPageClamp({...}))`.
  *   3. Destructured assignment + setter usage in the same scope.
- * - invalid (a fabricated negligent caller):
+ *   4. Member-expression hook call + setter commit.
+ *   5. Committed via `setMembersPageIndex` (different setter name).
+ *   6. A legit `set*` that receives the clamped value as its FIRST argument.
+ * - invalid (fabricated negligent callers):
  *   1. `const clamped = useOffsetPageClamp({...});` — assignment with no
  *      setter usage anywhere in the function body (the exact foot-gun).
  *   2. `useOffsetPageClamp({...});` — bare statement, return discarded.
  *   3. `const clamped = useOffsetPageClamp({...});` with the variable never
  *      reaching a setter (e.g. passed to a non-setter function).
+ *   4. `setTimeout(() => {}, clamped)` — clamped is the second argument (a
+ *      delay), not a setter commit. After the fix this is caught.
+ *   5. `obj.set(clamped)` — member-expression callee, not a bare Identifier
+ *      setter. After the fix this is caught.
  * - valid: calls to other hooks (`useOtherHook`) are not affected.
  */
 import assert from 'node:assert/strict';
@@ -213,6 +220,52 @@ const runCases = (rule, label) => {
 						'  return null;',
 						'}',
 						'function logPage(n: number) { console.log(n); }',
+					].join('\n'),
+					filename: 'apps/front/src/routes/some-page.tsx',
+					errors: [{ messageId: 'notCommitted' }],
+				},
+
+				// --- After-fix proof cases (false negatives the old heuristic missed) ---
+
+				// 1. setTimeout(() => {}, clamped) — clamped is the SECOND argument
+				// (a delay). The old heuristic accepted this silently because
+				// `setTimeout` starts with "set" and `clamped` appears somewhere
+				// in the args. After the fix, it must be reported.
+				{
+					code: [
+						HOOK_IMPORT,
+						'function Comp({ pageIndex }) {',
+						'  const clamped = useOffsetPageClamp({',
+						'    pageIndex,',
+						'    size: 20,',
+						'    count: 100,',
+						'    resetKeys: ["a"],',
+						'  });',
+						'  setTimeout(() => {}, clamped);',
+						'  return null;',
+						'}',
+					].join('\n'),
+					filename: 'apps/front/src/routes/some-page.tsx',
+					errors: [{ messageId: 'notCommitted' }],
+				},
+
+				// 2. obj.set(clamped) — member-expression callee. The old heuristic
+				// accepted this because `getCalleeName` extracts "set" from
+				// `obj.set` and `clamped` is the first (and only) argument. After
+				// the fix, only bare Identifiers are treated as setters.
+				{
+					code: [
+						HOOK_IMPORT,
+						'function Comp({ pageIndex }) {',
+						'  const clamped = useOffsetPageClamp({',
+						'    pageIndex,',
+						'    size: 20,',
+						'    count: 100,',
+						'    resetKeys: ["a"],',
+						'  });',
+						'  obj.set(clamped);',
+						'  return null;',
+						'}',
 					].join('\n'),
 					filename: 'apps/front/src/routes/some-page.tsx',
 					errors: [{ messageId: 'notCommitted' }],
