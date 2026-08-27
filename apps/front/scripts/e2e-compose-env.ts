@@ -54,6 +54,10 @@ const PORT_BAND = 10;
 // Max offset to stay within ephemeral port range (60100+).
 const MAX_OFFSETS = 500;
 
+// Docker Compose limits project names to 64 characters. Trim and suffix with
+// a short hash to stay within bounds while keeping uniqueness.
+const MAX_PROJECT_NAME_LENGTH = 64;
+
 function deriveWorktreeName(): string {
 	const cwd = process.cwd();
 
@@ -88,9 +92,21 @@ function hashToIndex(seed: string): number {
 export function computeEnv(): Record<string, string> {
 	const worktreeName = deriveWorktreeName();
 	const offset = hashToIndex(worktreeName);
+	const projectNameBase = `publyapp-e2e-${worktreeName}`;
+	// Ensure project name fits within Docker Compose's 64-char limit.
+	// If the derived name is too long, truncate and append a short hash
+	// suffix to preserve uniqueness.
+	const shortHash = createHash('sha256')
+		.update(worktreeName)
+		.digest('hex')
+		.slice(0, 4);
+	const composeProjectName =
+		projectNameBase.length <= MAX_PROJECT_NAME_LENGTH
+			? projectNameBase
+			: `${projectNameBase.slice(0, MAX_PROJECT_NAME_LENGTH - 5)}-${shortHash}`;
 
 	return {
-		COMPOSE_PROJECT_NAME: `publyapp-e2e-${worktreeName}`,
+		COMPOSE_PROJECT_NAME: composeProjectName,
 		E2E_PORT_TRAEFIK_WEB: String(BASE_PORTS.traefik_web + offset),
 		E2E_PORT_TRAEFIK_WEBSECURE: String(BASE_PORTS.traefik_websecure + offset),
 		E2E_PORT_REQUEST_COUNTER: String(BASE_PORTS.request_counter + offset),
