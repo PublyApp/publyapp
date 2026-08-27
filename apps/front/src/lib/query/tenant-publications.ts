@@ -215,7 +215,7 @@ export const useTenantPublicationsQuery = (
 /** Wire body for `POST /posts/{postId}/publish-now`. The Kiota builder types
  * `accountIds` as an open `UntypedNode | null`, so the selected ids ride in a
  * Kiota untyped array; omitting the field entirely means "nothing checked". */
-export const buildPublishNowBody = (accountIds: string[]): PublishNowBody => {
+const buildPublishNowBody = (accountIds: string[]): PublishNowBody => {
 	if (accountIds.length === 0) {
 		return {};
 	}
