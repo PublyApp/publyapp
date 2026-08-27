@@ -2,6 +2,8 @@ import { expect, test } from '@playwright/test';
 
 import { LOCALE_COOKIE_KEY } from '@org/shared-ts/lib/constants';
 
+import { FRONT_URL } from './helpers/compose-env';
+
 const cookie = (locale: 'en' | 'fr') => `${LOCALE_COOKIE_KEY}=${locale}`;
 
 declare global {
@@ -50,7 +52,7 @@ test.describe('i18n namespaces', { tag: ['@i18n', '@909'] }, () => {
 			{
 				name: LOCALE_COOKIE_KEY,
 				value: 'fr',
-				url: 'https://front.localhost:8443',
+				url: FRONT_URL,
 			},
 		]);
 		const englishFlash: string[] = [];

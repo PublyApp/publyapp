@@ -1,4 +1,7 @@
-name: publyapp-front2-real-test
+# No top-level `name:` — the project name comes from COMPOSE_PROJECT_NAME,
+# derived per-worktree by apps/front/scripts/e2e-compose-env.ts (#1642).
+# This lets multiple worktrees on one machine run independent e2e stacks
+# without colliding on container names, network names, or published ports.
 
 x-api-test-environment: &api-test-environment
   # These services run under the Testing environment (set per-service below) so the
@@ -10,7 +13,7 @@ x-api-test-environment: &api-test-environment
   # which is gitignored and absent in CI / fresh checkouts.
   APP_ROLE: api
   POSTGRES_CONNECTION_STRING: Host=postgres;Port=5432;Database=publyapp_db;Username=postgres;Password=password;
-  FRONT_URL: https://front.localhost:8443
+  FRONT_URL: https://front.localhost:${E2E_PORT_TRAEFIK_WEBSECURE:-8443}
   RESEND_API_KEY: e2e-disabled
   # Required by AppEnvironment.Initialize() since #1239 (ParseMasterKey:
   # base64, exactly 32 bytes). Since #1294 the witness refuses the committed
@@ -145,7 +148,7 @@ services:
       api:
         condition: service_healthy
     ports:
-      - "127.0.0.1:8474:8474"
+      - "127.0.0.1:${E2E_PORT_TOXIPROXY:-8474}:8474"
     volumes:
       - ./deploy/toxiproxy/toxiproxy.json:/config/toxiproxy.json:ro
     networks:
@@ -178,7 +181,7 @@ services:
       retries: 10
       start_period: 5s
     ports:
-      - "127.0.0.1:8800:8800"
+      - "127.0.0.1:${E2E_PORT_REQUEST_COUNTER:-8800}:8800"
     networks:
       - publyapp-network
 
@@ -200,8 +203,8 @@ services:
       retries: 10
       start_period: 5s
     ports:
-      - "127.0.0.1:8080:80"
-      - "127.0.0.1:8443:443"
+      - "127.0.0.1:${E2E_PORT_TRAEFIK_WEB:-8080}:80"
+      - "127.0.0.1:${E2E_PORT_TRAEFIK_WEBSECURE:-8443}:443"
     volumes:
       - ./traefik-dynamic.test.yml:/etc/traefik/dynamic.yml:ro
     networks:
@@ -225,7 +228,7 @@ services:
       NODE_ENV: production
       PORT: 3000
       SERVER_API_BASE_URL: http://request-counter:8800
-      PUBLIC_API_BASE_URL: https://api.front.localhost:8443
+      PUBLIC_API_BASE_URL: https://api.front.localhost:${E2E_PORT_TRAEFIK_WEBSECURE:-8443}
     depends_on:
       request-counter:
         condition: service_healthy

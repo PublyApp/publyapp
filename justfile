@@ -443,12 +443,20 @@ ci-spec-drift:
 # first failing line, so a Playwright failure would skip the teardown. Resetting
 # first makes the recipe idempotent regardless of how the last run ended, and
 # leaving a failed stack up is what you want locally anyway: you can inspect it.
+#
+# Per-worktree isolation (#1642): docker compose indexes on the project name,
+# not the file path. Without a per-worktree name, `down -v` from one tree
+# destroys another tree's stack. The e2e-compose-env script derives a stable,
+# worktree-specific project name and port offsets so multiple trees can run
+# independent stacks simultaneously. CI sets COMPOSE_PROJECT_NAME explicitly
+# (via E2E_IMAGE_TAG, which is unique per run) so CI stacks never collide either.
 ci-e2e-front:
   @echo "=== [gate] front e2e (docker + playwright) ==="
+  @eval "$(node apps/front/scripts/e2e-compose-env.ts)" || { echo "Failed to derive e2e compose environment"; exit 1; }
   docker compose -f apps/front/docker-compose.test.yml down -v --remove-orphans
   docker compose -f apps/front/docker-compose.test.yml up -d --build --wait --wait-timeout 180
   pnpm --filter front exec playwright install chromium
-  pnpm --filter front exec playwright test
+  E2E_BASE_URL="$E2E_BASE_URL" E2E_API_BASE_URL="$E2E_API_BASE_URL" pnpm --filter front exec playwright test
   # Round 19 I3: the drawer-description contrast source guard launches
   # Chromium itself, so it runs in this browser-provisioned lane exactly as CI
   # runs it (front-e2e.yml shard 4) — through the same package script.

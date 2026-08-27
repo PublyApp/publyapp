@@ -2,6 +2,8 @@ import { expect, test, type Request } from '@playwright/test';
 
 import { loginAsStaffAdmin } from './helpers/login';
 
+import { FRONT_URL } from './helpers/compose-env';
+
 const EMPTY_STORAGE_STATE = {
 	cookies: [],
 	origins: [],
@@ -170,7 +172,7 @@ test.describe('SSR auth shell', { tag: ['@security', '@997'] }, () => {
 				await context.addCookies([
 					{
 						name: 'publyapp-session_token',
-						url: 'https://front.localhost:8443',
+						url: FRONT_URL,
 						value: matrixCase.cookie,
 					},
 				]);
@@ -278,7 +280,7 @@ test.describe('SSR auth shell', { tag: ['@security', '@997'] }, () => {
 			{
 				name: 'publyapp-session_token',
 				value: 's:forged',
-				url: 'https://front.localhost:8443',
+				url: FRONT_URL,
 			},
 		]);
 		await page.addInitScript(() => {
