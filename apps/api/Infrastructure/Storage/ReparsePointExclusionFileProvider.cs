@@ -5,7 +5,7 @@ namespace PublyApp.Api.Infrastructure.Storage;
 /// <summary>
 /// Wraps a <see cref="PhysicalFileProvider"/> and hides any file system entry
 /// whose attributes contain <see cref="FileAttributes.ReparsePoint"/>
-/// (i.e. symbolic links, mount points, and junction points).
+/// (i.e. symbolic links).
 ///
 /// Why wrap rather than use a custom IFileProvider: PhysicalFileProvider already
 /// implements correct path canonicalisation, traversal rejection (".."), and
@@ -29,11 +29,12 @@ namespace PublyApp.Api.Infrastructure.Storage;
 /// a symlink pointing outside the served tree — a file-level check on the leaf
 /// alone would miss that, because the leaf file itself is not a reparse point.
 ///
-/// Platform scope: this guard is verified on Linux, where
-/// <see cref="FileAttributes.ReparsePoint"/> corresponds to symbolic links and
-/// bind mounts and <see cref="File.GetAttributes(string)"/> resolves through
-/// <c>lstat</c> (no symlink following). On Windows the same attribute marks
-/// NTFS junctions and network mounts, but the behaviour there is NOT tested —
+/// Platform scope: on Linux, <see cref="File.GetAttributes(string)"/> uses
+/// <c>lstat</c> (no symlink following) and sets <see cref="FileAttributes.ReparsePoint"/>
+/// ONLY for symbolic links — NOT for bind mounts or mount points. A bind mount
+/// inside the served tree is NOT detected by this guard and is therefore NOT
+/// masked; the guard covers symlinks exclusively. On Windows the same attribute
+/// marks NTFS junctions and network mounts, but the behaviour there is NOT tested —
 /// the test suite runs on Linux only. If this guard is ever deployed on a
 /// non-Linux host, that gap must be closed before relying on it.
 ///
@@ -49,15 +50,17 @@ namespace PublyApp.Api.Infrastructure.Storage;
 /// blocks the common case — a symlink already present when the request arrives.
 ///
 /// Root coupling: the served root MUST remain an ordinary subtree of the
-/// mount, never the mount point itself. <see cref="HasReparsePointInPath"/>
+/// filesystem, never a mount point itself. <see cref="HasReparsePointInPath"/>
 /// derives the root by length-subtraction
 /// (<c>physicalPath.Length - subpath.Length</c>), which relies on
 /// PhysicalFileProvider returning a physical path that ends with the requested
-/// subpath. If the served root ever becomes the mount point (e.g. a per-tenant
-/// volume mounted directly at <c>uploads/</c>), the root itself carries
-/// ReparsePoint and every entry beneath it is masked — all files 404 in
-/// silence. The server-side log (see <see cref="GetFileInfo"/>) is the only
-/// signal that this has happened.
+/// subpath. If the served root ever becomes a mount point (e.g. a per-tenant
+/// volume mounted directly at <c>uploads/</c>), note that bind mounts do NOT
+/// carry <see cref="FileAttributes.ReparsePoint"/> on Linux, so the root itself
+/// is NOT masked by this guard — but the length-subtraction that derives it
+/// may still produce an incorrect root path, causing the walk to miss reparse
+/// points in the components above the true root. The server-side log (see
+/// <see cref="GetFileInfo"/>) is the only signal that this has happened.
 /// </summary>
 public sealed class ReparsePointExclusionFileProvider : IFileProvider {
 	private readonly PhysicalFileProvider _inner;
@@ -91,10 +94,10 @@ public sealed class ReparsePointExclusionFileProvider : IFileProvider {
 		}
 
 		// Walk every directory component of the subpath from the served root
-		// downward. If ANY component is a reparse point (symlink, mount,
-		// junction), reject the entry. This covers both leaf symlinks (the
-		// final path component is a reparse point) and intermediate-directory
-		// symlinks (an ancestor directory in the path is a reparse point).
+		// downward. If ANY component is a reparse point (symlink), reject
+		// the entry. This covers both leaf symlinks (the final path
+		// component is a reparse point) and intermediate-directory symlinks
+		// (an ancestor directory in the path is a reparse point).
 		if (HasReparsePointInPath(physicalPath, subpath, out var offendingComponent)) {
 			_logger.LogWarning(
 				"Reparse-point guard masked entry: subpath {Subpath}, component {Component}",

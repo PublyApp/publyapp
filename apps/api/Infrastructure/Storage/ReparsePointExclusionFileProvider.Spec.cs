@@ -39,14 +39,15 @@ public sealed class CapturingLogger : ILogger<ReparsePointExclusionFileProvider>
 
 public sealed class ReparsePointExclusionFileProviderSpec {
 	/// <summary>
-	/// #1669 — a mount point inside the served tree is masked.
+	/// #1669 — a symbolic link inside the served tree is masked.
 	///
-	/// Practical note: creating a true mount requires privileges we do not have
-	/// in the test sandbox. Under Linux a bind mount AND a symbolic link both
-	/// carry <see cref="FileAttributes.ReparsePoint"/>; the guard keys on the
-	/// attribute, so a symlink exercises the same decision path. We therefore
-	/// use a symlink here and say so plainly — this verifies the mechanism
-	/// (the attribute), not the topology (the mount).
+	/// Practical note: a bind mount does NOT carry
+	/// <see cref="FileAttributes.ReparsePoint"/> on Linux — only symbolic links
+	/// do. The guard keys on the attribute, which is set exclusively for
+	/// symlinks. Bind mounts inside the served tree are NOT detected by this
+	/// guard and are therefore NOT masked — see the type-level XML doc for the
+	/// platform-scope caveat. This test uses a symlink to exercise the decision
+	/// path that the attribute-based guard implements.
 	/// </summary>
 	[Fact]
 	public void ItShouldMaskALinkInsideTheServedTree() {
