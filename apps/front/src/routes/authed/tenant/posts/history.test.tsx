@@ -45,7 +45,7 @@ vi.mock('~/lib/query/tenants-for-picker', () => ({
 	useResolvedWorkspaceTenantId: () => '11111111-1111-1111-1111-111111111111',
 }));
 
-vi.mock('~/lib/should-logout-for-failure', () => ({
+vi.mock('@org/shared-ts/lib/should-logout-for-failure', () => ({
 	shouldLogoutForFailure: () => mocks.shouldLogout,
 }));
 
