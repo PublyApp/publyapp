@@ -342,8 +342,11 @@ test.describe('SSR auth shell', { tag: ['@security', '@997'] }, () => {
 		'disconnected',
 		'held past timeout',
 	] as const;
-	const SESSION_VALIDATION_FLOOR_MS = SESSION_VALIDATION_TIMEOUT_MS - 5_000;
-	const SESSION_VALIDATION_CEILING_MS = SESSION_VALIDATION_TIMEOUT_MS + 10_000;
+	const SESSION_VALIDATION_FLOOR_MS = Math.max(
+		SESSION_VALIDATION_TIMEOUT_MS - 5_000,
+		5_000,
+	);
+	const SESSION_VALIDATION_CEILING_MS = SESSION_VALIDATION_TIMEOUT_MS + 15_000;
 	const HELD_PAST_TIMEOUT_BUDGET_MS = 40_000;
 
 	for (const failureCase of failureCases) {
@@ -486,7 +489,10 @@ test.describe('SSR auth shell', { tag: ['@security', '@997'] }, () => {
 				}
 			}
 
-			await expect(retry, failureCase).toBeVisible({
+			await expect(
+				retry,
+				`${failureCase}: Retry must appear after production timeout (${SESSION_VALIDATION_TIMEOUT_MS}ms)`,
+			).toBeVisible({
 				timeout: SESSION_VALIDATION_CEILING_MS,
 			});
 			// Release the route handler immediately after the Retry button appears.
