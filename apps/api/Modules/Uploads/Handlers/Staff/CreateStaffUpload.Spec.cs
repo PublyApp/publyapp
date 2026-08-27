@@ -186,11 +186,14 @@ public sealed partial class CreateStaffUploadSpec : IClassFixture<ApiFixture> {
 	public async Task ItShouldRejectPathTraversalToARealFileOutsideTheServedRoot() {
 		var fileStorage = _fixture.Factory.Services.GetRequiredService<IFileStorage>();
 		var rootPath = fileStorage.RootPath;
-		Directory.CreateDirectory(rootPath);
+		var uploadsDir = Path.Combine(rootPath, "uploads");
+		Directory.CreateDirectory(uploadsDir);
 
+		// The serving control must live under the rescoped mount (`uploads/`,
+		// issue #1602) so it is still anonymously retrievable via `/files/uploads/...`.
 		var controlFileName = $"traversal-control-{Guid.NewGuid():N}.txt";
 		var controlContent = $"control-{Guid.NewGuid():N}";
-		var controlPath = Path.Combine(rootPath, controlFileName);
+		var controlPath = Path.Combine(uploadsDir, controlFileName);
 
 		var sentinelFileName = $"traversal-sentinel-{Guid.NewGuid():N}.txt";
 		var sentinelContent = $"sentinel-{Guid.NewGuid():N}";
@@ -200,7 +203,7 @@ public sealed partial class CreateStaffUploadSpec : IClassFixture<ApiFixture> {
 		await File.WriteAllTextAsync(sentinelPath, sentinelContent);
 
 		try {
-			using var controlResponse = await _http.GetAsync($"/files/{controlFileName}");
+			using var controlResponse = await _http.GetAsync($"/files/uploads/{controlFileName}");
 			controlResponse.StatusCode.Should().Be(HttpStatusCode.OK);
 			(await controlResponse.Content.ReadAsStringAsync()).Should().Be(controlContent);
 
