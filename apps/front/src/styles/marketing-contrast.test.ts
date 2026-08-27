@@ -174,6 +174,7 @@ const renderMarketingShell = () =>
 		// variadic children.
 		createElement(MarketingShell, {
 			pathname: '/',
+			// react-doctor-disable-next-line react-doctor/no-children-prop -- children is a required prop of MarketingShell; passing positionally fails createElement's overload check.
 			children: createElement('p', null, 'page body'),
 		}),
 	);
