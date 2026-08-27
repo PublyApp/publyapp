@@ -281,7 +281,10 @@ jobs:
       # `docker ps --filter name=...` diagnostic and teardown never touch
       # another run's stack (each shard runs on a fresh runner, but this keeps
       # the diagnostic filter correct and consistent with local justfile usage).
-      COMPOSE_PROJECT_NAME: publyapp-e2e-${{ github.run_id }}-${{ matrix.shard }}
+      # Include github.run_attempt so a partial re-run (same run_id, attempt 2)
+      # gets a distinct project name and cannot recover a previous attempt's
+      # volumes as initial state (#1642 Constat 5).
+      COMPOSE_PROJECT_NAME: publyapp-e2e-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.shard }}
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
