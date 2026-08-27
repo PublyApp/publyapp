@@ -4,7 +4,6 @@ import { expect, test, type Locator, type Page } from '@playwright/test';
 import { LOCALE_COOKIE_KEY } from '@org/shared-ts/lib/constants';
 
 import { COLOR_SCHEME_STORAGE_KEY } from '../src/lib/store/ui-store';
-
 import { FRONT_URL } from './helpers/compose-env';
 
 const DEFAULT_BASE_URL = FRONT_URL;

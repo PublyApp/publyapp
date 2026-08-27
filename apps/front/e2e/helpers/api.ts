@@ -13,8 +13,7 @@ import { API_URL } from './compose-env';
  * (review-r1-tests.md F29). `E2E_API_BASE_URL` lets a private docker-compose
  * instance (remapped host ports) retarget every spec's mock matcher at once;
  * the default is the shared-stack URL. */
-export const API_BASE_URL =
-	process.env.E2E_API_BASE_URL ?? API_URL;
+export const API_BASE_URL = process.env.E2E_API_BASE_URL ?? API_URL;
 
 /**
  * The session token to put in `X-Session-Token` when a spec calls the API

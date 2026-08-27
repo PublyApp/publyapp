@@ -131,7 +131,16 @@ const findFirstLeakLine = (text: string, needles: string[]): string => {
 const readDockerLogs = (service: LogServiceName): string => {
 	return execFileSync(
 		'docker',
-		['compose', '-f', COMPOSE_FILE, '--project-name', COMPOSE_PROJECT_NAME, 'logs', '--no-color', service],
+		[
+			'compose',
+			'-f',
+			COMPOSE_FILE,
+			'--project-name',
+			COMPOSE_PROJECT_NAME,
+			'logs',
+			'--no-color',
+			service,
+		],
 		{
 			cwd: REPO_ROOT,
 			encoding: 'utf8',

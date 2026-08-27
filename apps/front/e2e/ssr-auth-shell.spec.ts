@@ -1,8 +1,7 @@
 import { expect, test, type Request } from '@playwright/test';
 
-import { loginAsStaffAdmin } from './helpers/login';
-
 import { FRONT_URL } from './helpers/compose-env';
+import { loginAsStaffAdmin } from './helpers/login';
 
 const EMPTY_STORAGE_STATE = {
 	cookies: [],
