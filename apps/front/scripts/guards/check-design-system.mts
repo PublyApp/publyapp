@@ -392,15 +392,6 @@ const KNOWN_HANDOFF_GUARD_DEBT: GuardDebtEntry[] = [
 	},
 	{
 		ruleId: ROUNDED_RULE_ID,
-		file: 'src/routes/authed/staff/staff-users/$userId/_detail-views.tsx',
-		sourceIncludes: 'h-2 w-2 rounded-full bg-primary',
-		reason: 'Legacy status dot; Staff module pass owns this.',
-		// F824 ui F1/tests F2: hard budget = measured current standalone occurrences.
-
-		maxOccurrences: 1,
-	},
-	{
-		ruleId: ROUNDED_RULE_ID,
 		file: 'src/components/ui/loading-spinner.tsx',
 		sourceIncludes: 'size-4 animate-spin rounded-full',
 		reason:

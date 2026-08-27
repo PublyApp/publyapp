@@ -256,7 +256,7 @@ test.describe(
 			await invitationEmailInput(page).fill('invalid-email');
 			await invitationSubmitButton(page).click();
 
-			await expect(page.getByText('Invalid email')).toBeVisible();
+			await expect(page.getByText('Invalid email address')).toBeVisible();
 		});
 
 		test('invite form shows French invalid email validation', async ({
@@ -269,7 +269,7 @@ test.describe(
 			await invitationEmailInput(page).fill('invalid-email');
 			await invitationSubmitButton(page).click();
 
-			await expect(page.getByText('e-mail non valide')).toBeVisible();
+			await expect(page.getByText('adresse e-mail invalide')).toBeVisible();
 		});
 
 		test('invite form requires a profile and submits with intercepted bulk create', async ({

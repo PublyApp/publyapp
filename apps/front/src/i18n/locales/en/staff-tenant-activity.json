@@ -1,0 +1,6 @@
+{
+	"tenant-activity-page-title": "Tenant activity",
+	"tenant-activity-page-description": "Every recorded action across this tenant, newest first. This feed is read-only.",
+	"tenant-activity-empty-title": "No activity yet",
+	"tenant-activity-empty-description": "Nothing has happened in this tenant yet. Actions by its users will appear here as they occur."
+}

@@ -11,7 +11,7 @@ export type FocusedCell = { row: number; cell: number };
 
 /** Per-row selection wiring for the leading checkbox cell. Omitted entirely
  * when the table has no selection. */
-export type RowSelectionState<TData> = {
+type RowSelectionState<TData> = {
 	selectedRowIds: Record<string, boolean>;
 	onToggleRowSelection: (rowId: string) => void;
 	getRowLabel: (row: TData) => string;

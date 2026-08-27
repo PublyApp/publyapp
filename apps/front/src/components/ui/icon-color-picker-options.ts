@@ -74,6 +74,3 @@ export const getIconColorPickerOption = (
 	icon?: string,
 ): IconColorPickerOption | undefined =>
 	ICON_COLOR_PICKER_OPTIONS.find((option) => option.name === icon);
-
-export const getIconColorPickerIcon = (icon?: string): Icon | undefined =>
-	getIconColorPickerOption(icon)?.Icon;

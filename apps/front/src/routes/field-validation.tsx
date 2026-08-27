@@ -43,7 +43,7 @@ const FieldValidationRoute = () => {
 	const isHydrated = useHydrated();
 	const resolver = zodResolver(
 		z.object({
-			email: z.string().email(),
+			email: z.email(),
 			statusEnabled: z.boolean(),
 		}),
 	);

@@ -6,9 +6,6 @@ const ALLOWED_AVATAR_URL_PROTOCOLS = ['http:', 'https:'];
 
 export { ACCOUNT_LEVEL_OPTIONS, STATUS_OPTIONS };
 
-export type AccountLevelOption = (typeof ACCOUNT_LEVEL_OPTIONS)[number];
-export type StatusOption = (typeof STATUS_OPTIONS)[number];
-
 export const getStaffUserEditSchema = (t: (key: string) => string) =>
 	z.object({
 		firstName: z.string().trim().max(128).optional(),
@@ -28,7 +25,7 @@ export const getStaffUserEditSchema = (t: (key: string) => string) =>
 					return false;
 				}
 			}, t('staff-users:invalid-url')),
-		email: z.string().trim().email().or(z.literal('')),
+		email: z.string().trim().pipe(z.email()).or(z.literal('')),
 		accountLevel: z.enum(ACCOUNT_LEVEL_OPTIONS),
 		status: z.enum(STATUS_OPTIONS),
 		profileIds: z.array(z.string()),

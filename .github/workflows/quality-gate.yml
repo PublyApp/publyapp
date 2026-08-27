@@ -24,6 +24,7 @@ on:
       - '.oxlintrc.json'
       - '.oxfmtrc.json'
       - 'package.json'
+      - 'knip.ts'
       - 'pnpm-lock.yaml'
       - 'pnpm-workspace.yaml'
       - 'turbo.json'
@@ -127,7 +128,7 @@ jobs:
           CLASSIFIER=base-ref/packages/scripts-ts/src/ci-changed-paths.ts
 
           if [ -f "$CLASSIFIER" ]; then
-            node "$CLASSIFIER" '^(\.github/workflows/quality-gate\.yml$|\.oxlintrc\.json$|\.oxfmtrc\.json$|package\.json$|pnpm-lock\.yaml$|pnpm-workspace\.yaml$|turbo\.json$|\.npmrc$|Directory\.Build\.props$|Directory\.Build\.targets$|Directory\.Packages\.props$|global\.json$|PublyApp\.slnx$|apps/|packages/|docs/guides/dependency-health\.md$)'
+            node "$CLASSIFIER" '^(\.github/workflows/quality-gate\.yml$|\.oxlintrc\.json$|\.oxfmtrc\.json$|package\.json$|knip\.ts$|pnpm-lock\.yaml$|pnpm-workspace\.yaml$|turbo\.json$|\.npmrc$|Directory\.Build\.props$|Directory\.Build\.targets$|Directory\.Packages\.props$|global\.json$|PublyApp\.slnx$|apps/|packages/|docs/guides/dependency-health\.md$)'
           else
             echo "::warning::[MISSING BASE CLASSIFIER] $CLASSIFIER does not exist at the base commit. This is expected exactly once: for the pull request that introduces this classifier, or a branch cut before it existed on the base branch. Relevance cannot be determined from a classifier that is not there, so this fails closed: treating the workflow as relevant and running everything. If this keeps happening on ordinary pull requests well after the classifier has been on the base branch, something is wrong — investigate, do not silence it."
             echo "relevant=true" >> "$GITHUB_OUTPUT"
@@ -187,6 +188,11 @@ jobs:
       - name: Lint plugin unit tests (lint-ts)
         run: pnpm --filter @org/lint-ts test
 
+      # #455: fail on unused files/deps/exports/types and duplicate exports.
+      # Mirrored locally by `just ci-knip` (same command, same knip.ts).
+      - name: Knip (unused exports & dependencies)
+        run: pnpm exec knip
+
       # @org/shared-ts ships the repo-wide logger, i18n, query-factory and
       # ApiFailure contracts every front surface imports, but nothing standing
       # verified it after its i18next range moved two majors (#1262). Both
@@ -223,6 +229,19 @@ jobs:
           APP_ROLE: api
           TRUSTED_PROXY_CIDRS: "127.0.0.1/32"
         run: node packages/scripts-ts/src/nuget-audit.ts
+
+      # #1631: the production-only `pnpm audit --prod --audit-level=high`
+      # (front-ci.yml::supply-chain) never inspects the development dependency
+      # graph, so a vulnerable dev-only transitive (e.g. nanoid via the dev
+      # dependency postcss) resolves green while the repo stays exposed behind a
+      # hand-written pnpm.overrides. This scans the dev-only graph repo-wide (no
+      # --filter, so every package.json's dev deps count) at `moderate` — stricter
+      # than production's `high`, because a moderate dev-graph advisory must turn
+      # the gate red rather than be silently skipped. The graph is currently clean
+      # at every threshold (0 advisories at critical/high/moderate/low — see
+      # .dump/preuve-1631.md), so no named exception list is needed yet.
+      - name: Audit development dependencies (moderate and above)
+        run: pnpm audit --dev --audit-level=moderate
 
       - name: Run NuGet audit fixture tests
         env:

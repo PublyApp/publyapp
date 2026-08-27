@@ -49,5 +49,3 @@ export const EmailSentConfirmation = ({
 		</div>
 	);
 };
-
-export default EmailSentConfirmation;

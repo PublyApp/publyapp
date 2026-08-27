@@ -99,7 +99,7 @@ export type StaffProfilePermissionKeysQueryVariables = {
 	profileId: string;
 };
 
-export type StaffAssignedPermission = {
+type StaffAssignedPermission = {
 	key: string;
 	label: string;
 	description: string | null;
@@ -620,7 +620,7 @@ const buildBulkDeleteStaffProfilesBody = (
 	),
 });
 
-export const bulkDeleteStaffProfilesMutationOptions = buildStaffMutationOptions<
+const bulkDeleteStaffProfilesMutationOptions = buildStaffMutationOptions<
 	ApiClient,
 	BulkProfileActionResult | undefined,
 	BulkStaffProfileActionInput

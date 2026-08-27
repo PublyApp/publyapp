@@ -222,106 +222,39 @@ public sealed class InvitationQueryService : IInvitationQueryService {
 		var sortFieldHandlers = new Dictionary<string, CursorSortFieldHandler<Invitation>>(
 			StringComparer.OrdinalIgnoreCase
 		) {
-			["created_at"] = new CursorSortFieldHandler<Invitation>(
-				getCursorValue: async (guid) => {
-					var invitation = await _dbContext.Invitation
-						.AsNoTracking()
-						.Where(inv => inv.Id == guid && inv.Scope == InvitationScope.Staff)
-						.Select(inv => new { inv.CreatedAt, inv.Id })
-						.FirstOrDefaultAsync(cancellationToken);
-					return invitation is not null ? (invitation.CreatedAt, invitation.Id) : null;
-				},
-				applyFilter: (q, cursorValue, isAsc) => {
-					if (cursorValue is null) {
-						return q;
-					}
-
-					var (cursorCreatedAt, cursorId) = ((DateTime, Guid?))cursorValue;
-					return isAsc
-						? q.Where(inv => inv.CreatedAt > cursorCreatedAt || (inv.CreatedAt == cursorCreatedAt && inv.Id > cursorId))
-						: q.Where(inv => inv.CreatedAt < cursorCreatedAt || (inv.CreatedAt == cursorCreatedAt && inv.Id < cursorId));
-				},
-				applyOrdering: (q, isAsc) => isAsc
-					? q.OrderBy(inv => inv.CreatedAt).ThenBy(inv => inv.Id)
-					: q.OrderByDescending(inv => inv.CreatedAt).ThenByDescending(inv => inv.Id)
+			["created_at"] = CursorSortFieldHandlerFactory.Create<Invitation, DateTime, Guid?>(
+				cursorLookupQuery: () => _dbContext.Invitation
+					.AsNoTracking()
+					.Where(inv => inv.Scope == InvitationScope.Staff),
+				keySelector: inv => inv.CreatedAt,
+				idSelector: inv => inv.Id,
+				cancellationToken
 			),
-			["expires_at"] = new CursorSortFieldHandler<Invitation>(
-				getCursorValue: async (guid) => {
-					var invitation = await _dbContext.Invitation
-						.AsNoTracking()
-						.Where(inv => inv.Id == guid && inv.Scope == InvitationScope.Staff)
-						.Select(inv => new { inv.ExpiresAt, inv.Id })
-						.FirstOrDefaultAsync(cancellationToken);
-					return invitation is not null ? (invitation.ExpiresAt, invitation.Id) : null;
-				},
-				applyFilter: (q, cursorValue, isAsc) => {
-					if (cursorValue is null) {
-						return q;
-					}
-
-					var (cursorExpiresAt, cursorId) = ((DateTime, Guid?))cursorValue;
-					return isAsc
-						? q.Where(inv => inv.ExpiresAt > cursorExpiresAt || (inv.ExpiresAt == cursorExpiresAt && inv.Id > cursorId))
-						: q.Where(inv => inv.ExpiresAt < cursorExpiresAt || (inv.ExpiresAt == cursorExpiresAt && inv.Id < cursorId));
-				},
-				applyOrdering: (q, isAsc) => isAsc
-					? q.OrderBy(inv => inv.ExpiresAt).ThenBy(inv => inv.Id)
-					: q.OrderByDescending(inv => inv.ExpiresAt).ThenByDescending(inv => inv.Id)
+			["expires_at"] = CursorSortFieldHandlerFactory.Create<Invitation, DateTime, Guid?>(
+				cursorLookupQuery: () => _dbContext.Invitation
+					.AsNoTracking()
+					.Where(inv => inv.Scope == InvitationScope.Staff),
+				keySelector: inv => inv.ExpiresAt,
+				idSelector: inv => inv.Id,
+				cancellationToken
 			),
-			["email"] = new CursorSortFieldHandler<Invitation>(
-				getCursorValue: async (guid) => {
-					var invitation = await _dbContext.Invitation
-						.AsNoTracking()
-						.Where(inv => inv.Id == guid && inv.Scope == InvitationScope.Staff)
-						.Select(inv => new { inv.Email, inv.Id })
-						.FirstOrDefaultAsync(cancellationToken);
-					return invitation is not null ? (invitation.Email, invitation.Id) : null;
-				},
-				applyFilter: (q, cursorValue, isAsc) => {
-					if (cursorValue is null) {
-						return q;
-					}
-
-					var (cursorEmail, cursorId) = ((string, Guid?))cursorValue;
-					return isAsc
-						? q.Where(inv => inv.Email.CompareTo(cursorEmail) > 0 || (inv.Email == cursorEmail && inv.Id > cursorId))
-						: q.Where(inv => inv.Email.CompareTo(cursorEmail) < 0 || (inv.Email == cursorEmail && inv.Id < cursorId));
-				},
-				applyOrdering: (q, isAsc) => isAsc
-					? q.OrderBy(inv => inv.Email).ThenBy(inv => inv.Id)
-					: q.OrderByDescending(inv => inv.Email).ThenByDescending(inv => inv.Id)
+			["email"] = CursorSortFieldHandlerFactory.Create<Invitation, string, Guid?>(
+				cursorLookupQuery: () => _dbContext.Invitation
+					.AsNoTracking()
+					.Where(inv => inv.Scope == InvitationScope.Staff),
+				keySelector: inv => inv.Email,
+				idSelector: inv => inv.Id,
+				cancellationToken
 			),
-			["accepted_at"] = new CursorSortFieldHandler<Invitation>(
-				getCursorValue: async (guid) => {
-					var invitation = await _dbContext.Invitation
-						.AsNoTracking()
-						.Where(inv => inv.Id == guid && inv.Scope == InvitationScope.Staff)
-						.Select(inv => new {
-							// Treat null AcceptedAt as min value to keep ordering stable.
-							AcceptedAt = inv.AcceptedAt ?? DateTime.MinValue,
-							inv.Id
-						})
-						.FirstOrDefaultAsync(cancellationToken);
-					return invitation is not null ? (invitation.AcceptedAt, invitation.Id) : null;
-				},
-				applyFilter: (q, cursorValue, isAsc) => {
-					if (cursorValue is null) {
-						return q;
-					}
-
-					var (cursorAcceptedAt, cursorId) = ((DateTime, Guid?))cursorValue;
-					return isAsc
-						? q.Where(inv =>
-							(inv.AcceptedAt ?? DateTime.MinValue) > cursorAcceptedAt
-							|| ((inv.AcceptedAt ?? DateTime.MinValue) == cursorAcceptedAt && inv.Id > cursorId))
-						: q.Where(inv =>
-							(inv.AcceptedAt ?? DateTime.MinValue) < cursorAcceptedAt
-							|| ((inv.AcceptedAt ?? DateTime.MinValue) == cursorAcceptedAt && inv.Id < cursorId));
-				},
-				applyOrdering: (q, isAsc) => isAsc
-					? q.OrderBy(inv => inv.AcceptedAt ?? DateTime.MinValue).ThenBy(inv => inv.Id)
-					: q.OrderByDescending(inv => inv.AcceptedAt ?? DateTime.MinValue).ThenByDescending(inv => inv.Id)
-			)
+			["accepted_at"] = CursorSortFieldHandlerFactory.Create<Invitation, DateTime, Guid?>(
+				cursorLookupQuery: () => _dbContext.Invitation
+					.AsNoTracking()
+					.Where(inv => inv.Scope == InvitationScope.Staff),
+				// Treat null AcceptedAt as min value to keep ordering stable.
+				keySelector: inv => inv.AcceptedAt ?? DateTime.MinValue,
+				idSelector: inv => inv.Id,
+				cancellationToken
+			),
 		};
 
 		if (
@@ -452,105 +385,39 @@ public sealed class InvitationQueryService : IInvitationQueryService {
 		var sortFieldHandlers = new Dictionary<string, CursorSortFieldHandler<Invitation>>(
 			StringComparer.OrdinalIgnoreCase
 		) {
-			["created_at"] = new CursorSortFieldHandler<Invitation>(
-				getCursorValue: async (guid) => {
-					var invitation = await _dbContext.Invitation
-						.AsNoTracking()
-						.Where(inv => inv.Id == guid && inv.Scope == InvitationScope.Tenant && inv.TenantId == tenantId)
-						.Select(inv => new { inv.CreatedAt, inv.Id })
-						.FirstOrDefaultAsync(cancellationToken);
-					return invitation is not null ? (invitation.CreatedAt, invitation.Id) : null;
-				},
-				applyFilter: (q, cursorValue, isAsc) => {
-					if (cursorValue is null) {
-						return q;
-					}
-
-					var (cursorCreatedAt, cursorId) = ((DateTime, Guid?))cursorValue;
-					return isAsc
-						? q.Where(inv => inv.CreatedAt > cursorCreatedAt || (inv.CreatedAt == cursorCreatedAt && inv.Id > cursorId))
-						: q.Where(inv => inv.CreatedAt < cursorCreatedAt || (inv.CreatedAt == cursorCreatedAt && inv.Id < cursorId));
-				},
-				applyOrdering: (q, isAsc) => isAsc
-					? q.OrderBy(inv => inv.CreatedAt).ThenBy(inv => inv.Id)
-					: q.OrderByDescending(inv => inv.CreatedAt).ThenByDescending(inv => inv.Id)
+			["created_at"] = CursorSortFieldHandlerFactory.Create<Invitation, DateTime, Guid?>(
+				cursorLookupQuery: () => _dbContext.Invitation
+					.AsNoTracking()
+					.Where(inv => inv.Scope == InvitationScope.Tenant && inv.TenantId == tenantId),
+				keySelector: inv => inv.CreatedAt,
+				idSelector: inv => inv.Id,
+				cancellationToken
 			),
-			["expires_at"] = new CursorSortFieldHandler<Invitation>(
-				getCursorValue: async (guid) => {
-					var invitation = await _dbContext.Invitation
-						.AsNoTracking()
-						.Where(inv => inv.Id == guid && inv.Scope == InvitationScope.Tenant && inv.TenantId == tenantId)
-						.Select(inv => new { inv.ExpiresAt, inv.Id })
-						.FirstOrDefaultAsync(cancellationToken);
-					return invitation is not null ? (invitation.ExpiresAt, invitation.Id) : null;
-				},
-				applyFilter: (q, cursorValue, isAsc) => {
-					if (cursorValue is null) {
-						return q;
-					}
-
-					var (cursorExpiresAt, cursorId) = ((DateTime, Guid?))cursorValue;
-					return isAsc
-						? q.Where(inv => inv.ExpiresAt > cursorExpiresAt || (inv.ExpiresAt == cursorExpiresAt && inv.Id > cursorId))
-						: q.Where(inv => inv.ExpiresAt < cursorExpiresAt || (inv.ExpiresAt == cursorExpiresAt && inv.Id < cursorId));
-				},
-				applyOrdering: (q, isAsc) => isAsc
-					? q.OrderBy(inv => inv.ExpiresAt).ThenBy(inv => inv.Id)
-					: q.OrderByDescending(inv => inv.ExpiresAt).ThenByDescending(inv => inv.Id)
+			["expires_at"] = CursorSortFieldHandlerFactory.Create<Invitation, DateTime, Guid?>(
+				cursorLookupQuery: () => _dbContext.Invitation
+					.AsNoTracking()
+					.Where(inv => inv.Scope == InvitationScope.Tenant && inv.TenantId == tenantId),
+				keySelector: inv => inv.ExpiresAt,
+				idSelector: inv => inv.Id,
+				cancellationToken
 			),
-			["email"] = new CursorSortFieldHandler<Invitation>(
-				getCursorValue: async (guid) => {
-					var invitation = await _dbContext.Invitation
-						.AsNoTracking()
-						.Where(inv => inv.Id == guid && inv.Scope == InvitationScope.Tenant && inv.TenantId == tenantId)
-						.Select(inv => new { inv.Email, inv.Id })
-						.FirstOrDefaultAsync(cancellationToken);
-					return invitation is not null ? (invitation.Email, invitation.Id) : null;
-				},
-				applyFilter: (q, cursorValue, isAsc) => {
-					if (cursorValue is null) {
-						return q;
-					}
-
-					var (cursorEmail, cursorId) = ((string, Guid?))cursorValue;
-					return isAsc
-						? q.Where(inv => inv.Email.CompareTo(cursorEmail) > 0 || (inv.Email == cursorEmail && inv.Id > cursorId))
-						: q.Where(inv => inv.Email.CompareTo(cursorEmail) < 0 || (inv.Email == cursorEmail && inv.Id < cursorId));
-				},
-				applyOrdering: (q, isAsc) => isAsc
-					? q.OrderBy(inv => inv.Email).ThenBy(inv => inv.Id)
-					: q.OrderByDescending(inv => inv.Email).ThenByDescending(inv => inv.Id)
+			["email"] = CursorSortFieldHandlerFactory.Create<Invitation, string, Guid?>(
+				cursorLookupQuery: () => _dbContext.Invitation
+					.AsNoTracking()
+					.Where(inv => inv.Scope == InvitationScope.Tenant && inv.TenantId == tenantId),
+				keySelector: inv => inv.Email,
+				idSelector: inv => inv.Id,
+				cancellationToken
 			),
-			["accepted_at"] = new CursorSortFieldHandler<Invitation>(
-				getCursorValue: async (guid) => {
-					var invitation = await _dbContext.Invitation
-						.AsNoTracking()
-						.Where(inv => inv.Id == guid && inv.Scope == InvitationScope.Tenant && inv.TenantId == tenantId)
-						.Select(inv => new {
-							AcceptedAt = inv.AcceptedAt ?? DateTime.MinValue,
-							inv.Id
-						})
-						.FirstOrDefaultAsync(cancellationToken);
-					return invitation is not null ? (invitation.AcceptedAt, invitation.Id) : null;
-				},
-				applyFilter: (q, cursorValue, isAsc) => {
-					if (cursorValue is null) {
-						return q;
-					}
-
-					var (cursorAcceptedAt, cursorId) = ((DateTime, Guid?))cursorValue;
-					return isAsc
-						? q.Where(inv =>
-							(inv.AcceptedAt ?? DateTime.MinValue) > cursorAcceptedAt
-							|| ((inv.AcceptedAt ?? DateTime.MinValue) == cursorAcceptedAt && inv.Id > cursorId))
-						: q.Where(inv =>
-							(inv.AcceptedAt ?? DateTime.MinValue) < cursorAcceptedAt
-							|| ((inv.AcceptedAt ?? DateTime.MinValue) == cursorAcceptedAt && inv.Id < cursorId));
-				},
-				applyOrdering: (q, isAsc) => isAsc
-					? q.OrderBy(inv => inv.AcceptedAt ?? DateTime.MinValue).ThenBy(inv => inv.Id)
-					: q.OrderByDescending(inv => inv.AcceptedAt ?? DateTime.MinValue).ThenByDescending(inv => inv.Id)
-			)
+			["accepted_at"] = CursorSortFieldHandlerFactory.Create<Invitation, DateTime, Guid?>(
+				cursorLookupQuery: () => _dbContext.Invitation
+					.AsNoTracking()
+					.Where(inv => inv.Scope == InvitationScope.Tenant && inv.TenantId == tenantId),
+				// Treat null AcceptedAt as min value to keep ordering stable.
+				keySelector: inv => inv.AcceptedAt ?? DateTime.MinValue,
+				idSelector: inv => inv.Id,
+				cancellationToken
+			),
 		};
 
 		if (

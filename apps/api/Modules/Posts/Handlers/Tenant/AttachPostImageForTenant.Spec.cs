@@ -583,6 +583,219 @@ public sealed class AttachPostImageForTenantSpec : IClassFixture<ApiFixture> {
 		}
 	}
 
+
+	[Fact]
+	public async Task
+	ItShouldNotLeakBlobReferencesUnderConcurrentAttachToSamePost() {
+		// #1617 proof: N concurrent image attaches to the SAME post must leave
+		// exactly one live asset row and must release every other blob's
+		// reference. The buggy handler captures the replaced path via
+		// FindByPostAsync BEFORE AttachAsync, so a racer that purges a
+		// predecessor's row leaves that predecessor's blob reference stuck at 1
+		// forever (silent, cumulative leak). Firing in parallel also forces the
+		// loser path: the partial unique index admits exactly one insert, so the
+		// N-1 losers must each release the reference they acquired (#1616) — if
+		// any does not, the leak shows here too.
+		var (tenantId, token) = await LoginAsAcmeAdminAsync();
+		var postId = await CreatePostAsync(tenantId, token);
+		var postIdGuid = Guid.Parse(postId);
+
+		// Baseline the blobs already carrying a reference in this SHARED db, so
+		// the leak assertion scopes to blobs THIS storm creates (not leftovers
+		// from sibling tests in the same class).
+		List<string> baselineReferencedPaths;
+		await using (var baselineScope =
+			_fixture.Factory.Services.CreateAsyncScope()) {
+			var db =
+				baselineScope.ServiceProvider
+					.GetRequiredService<AppDbContext>();
+				baselineReferencedPaths = await (
+				from u in db.UploadAsset.AsNoTracking()
+				where !u.IsDeleted && u.ReferenceCount > 0
+				select u.RelativePath
+			).ToListAsync();
+		}
+
+		const int concurrency = 8;
+		var requests = new List<HttpRequestMessage>(concurrency);
+		var tasks = new List<Task<HttpResponseMessage>>(concurrency);
+		for (var i = 0; i < concurrency; i++) {
+			var request = new HttpRequestMessage(
+				HttpMethod.Post,
+				AttachImageUrl(postId)
+			)
+				.WithSessionToken(token)
+				.WithTenantId(tenantId);
+			request.Content =
+				BuildFileContent(PngBytes(width: 8 + i, height: 8));
+			requests.Add(request);
+			tasks.Add(_http.SendAsync(request));
+		}
+
+		var responses = await Task.WhenAll(tasks);
+		foreach (var request in requests) {
+			request.Dispose();
+		}
+
+		// At least one concurrent attach must actually succeed, otherwise the
+		// storm proved nothing about the replace path.
+		responses
+			.Count(r => r.StatusCode == HttpStatusCode.Created)
+			.Should()
+			.BeGreaterThanOrEqualTo(
+				1,
+				"at least one concurrent attach must win the post"
+			);
+
+		await using (var scope =
+			_fixture.Factory.Services.CreateAsyncScope()) {
+			var db = scope.ServiceProvider
+				.GetRequiredService<AppDbContext>();
+
+			// (a) exactly one live asset row remains for the post.
+			var livePaths = await (
+				from a in db.PostMediaAsset.AsNoTracking()
+				where a.PostId == postIdGuid && !a.IsDeleted
+				select a.RelativePath
+			).ToListAsync();
+			livePaths.Should().ContainSingle(
+				"concurrent attaches to one post must leave exactly one live image"
+			);
+
+			var winnerPath = livePaths[0];
+
+			// (b) every blob that is NOT the live image and was created by this
+			// storm must have its reference released back to zero. Any entry here
+			// is the #1617 (or #1616) leak.
+			var leaked = await (
+				from u in db.UploadAsset.AsNoTracking()
+				where !u.IsDeleted
+					&& u.ReferenceCount > 0
+					&& u.RelativePath != winnerPath
+					&& !baselineReferencedPaths.Contains(u.RelativePath)
+				select u.RelativePath
+			).ToListAsync();
+			leaked.Should().BeEmpty(
+				"every blob that is not the live image must have its reference "
+				+ "released — a stuck reference is the #1617 reference leak"
+			);
+		}
+	}
+
+	[Fact]
+	public async Task ItShouldNotLeakReferenceUnderConcurrentPostImageAttach() {
+		// Proof that N concurrent image attaches to the SAME post never leave a
+		// stuck blob reference — covering BOTH the #1617 replace-race and the
+		// #1616 loser-release. N=8 (matching the storm proof) makes the
+		// transactions genuinely overlap so the partial unique index
+		// (ux_post_media_assets_live_post_id) actually arbitrates between them.
+		//
+		// The hard guarantee asserted below is invariant: exactly one live asset
+		// survives and every other storm blob's reference drops to zero. On the
+		// FIXED code this is deterministic (green). On the FAULTY code the loser
+		// acquires the new blob's reference, its insert is rejected by the unique
+		// index, and nothing releases that reference — so its blob stays stuck at
+		// reference_count = 1 and the leak assertion reddens.
+		//
+		// The 409 + post-image-conflict key is the OBSERVABLE contract of the
+		// #1616 loser branch, but whether a unique-violation loser occurs is
+		// timing-dependent (the requests may serialise into sequential replaces).
+		// We therefore verify the key BEST-EFFORT: if any response is a 409, it
+		// must carry the post-image-conflict key. We never assert a 409 MUST
+		// occur, because that would make a proof test flake on correct code.
+		var (tenantId, token) = await LoginAsAcmeAdminAsync();
+		var postId = await CreatePostAsync(tenantId, token);
+		var postIdGuid = Guid.Parse(postId);
+
+		// Baseline referenced blobs so the leak assertion scopes to THIS storm.
+		List<string> baselineReferencedPaths;
+		await using (var baselineScope =
+			_fixture.Factory.Services.CreateAsyncScope()) {
+			var db = baselineScope.ServiceProvider
+				.GetRequiredService<AppDbContext>();
+			baselineReferencedPaths = await (
+				from u in db.UploadAsset.AsNoTracking()
+				where !u.IsDeleted && u.ReferenceCount > 0
+				select u.RelativePath
+			).ToListAsync();
+		}
+
+		const int concurrency = 8;
+		var requests = new List<HttpRequestMessage>(concurrency);
+		var tasks = new List<Task<HttpResponseMessage>>(concurrency);
+		for (var i = 0; i < concurrency; i++) {
+			var request = new HttpRequestMessage(
+				HttpMethod.Post,
+				AttachImageUrl(postId)
+			)
+				.WithSessionToken(token)
+				.WithTenantId(tenantId);
+			request.Content =
+				BuildFileContent(PngBytes(width: 8 + i, height: 8));
+			requests.Add(request);
+			tasks.Add(_http.SendAsync(request));
+		}
+
+		var responses = await Task.WhenAll(tasks);
+		foreach (var request in requests) {
+			request.Dispose();
+		}
+
+		// At least one attach must succeed: the post starts with no image, so the
+		// unique index admits the first writer (201) and never rejects all of them.
+		responses
+			.Count(r => r.StatusCode == HttpStatusCode.Created)
+			.Should()
+			.BeGreaterThanOrEqualTo(
+				1,
+				"at least one concurrent attach must win the post"
+			);
+
+		// Best-effort: if the unique index produced a loser, the handler MUST
+		// release the loser's blob and return 409 with the post-image-conflict key
+		// (the #1616 contract). We do not require a loser to occur.
+		var loser = responses.FirstOrDefault(r =>
+			r.StatusCode == HttpStatusCode.Conflict);
+		if (loser is not null) {
+			var loserProblem = await loser.Content
+				.ReadFromJsonAsync<AppProblemDetails>();
+			Assert.NotNull(loserProblem);
+			loserProblem.TranslationKey.Should().Be("post-image-conflict");
+		}
+
+		await using (var scope =
+			_fixture.Factory.Services.CreateAsyncScope()) {
+			var db = scope.ServiceProvider
+				.GetRequiredService<AppDbContext>();
+
+			// (a) exactly one survivor asset row.
+			var livePaths = await (
+				from a in db.PostMediaAsset.AsNoTracking()
+				where a.PostId == postIdGuid && !a.IsDeleted
+				select a.RelativePath
+			).ToListAsync();
+			livePaths.Should().ContainSingle(
+				"concurrent attaches must leave exactly one live image"
+			);
+
+			// (b) no storm blob other than the survivor may be left stuck at
+			// reference_count > 0 — a stuck reference is the #1617/#1616 leak.
+			var leaked = await (
+				from u in db.UploadAsset.AsNoTracking()
+				where !u.IsDeleted
+					&& u.ReferenceCount > 0
+					&& u.RelativePath != livePaths[0]
+					&& !baselineReferencedPaths.Contains(u.RelativePath)
+				select u.RelativePath
+			).ToListAsync();
+			leaked.Should().BeEmpty(
+				"every blob that is not the live image must have its reference "
+				+ "released — a stuck reference is the reference leak"
+			);
+		}
+	}
+
+
 	[Fact]
 	public async Task ItShouldPurgeAssetWhenPostDeleted() {
 		var (tenantId, token) = await LoginAsAcmeAdminAsync();

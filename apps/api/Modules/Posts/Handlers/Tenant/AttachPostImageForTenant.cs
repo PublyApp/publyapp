@@ -1,5 +1,8 @@
-using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
+
+using Microsoft.EntityFrameworkCore;
+
+using Npgsql;
 
 using PublyApp.Api.Infrastructure.Storage;
 using PublyApp.Api.Lib;
@@ -24,14 +27,7 @@ namespace PublyApp.Api.Modules.Posts.Handlers.Tenant;
 /// work — no orphans. A post owns at most one live image (partial unique index).
 /// </summary>
 public sealed class AttachPostImageForTenant {
-	public static async Task<Results<
-		Created<PostImageAttached>,
-		AppBadRequestHttpResult,
-		AppValidationProblemHttpResult,
-		AppNotFoundHttpResult,
-		AppPayloadTooLargeHttpResult,
-		AppTooManyRequestsHttpResult
-	>> Handle(
+	public static async Task<IResult> Handle(
 		[FromRoute] string postId,
 		[FromServices] IRequestAuthContext authContext,
 		[FromServices] IPostMediaAssetService assetService,
@@ -206,31 +202,32 @@ public sealed class AttachPostImageForTenant {
 		// Reserved → Stored: flips the asset state and commits the budget move.
 		await admissionScope.CommitAsync(cancellationToken);
 
-		// #1461 + #1616: the HANDLER owns the reference discipline (#807 F5).
-		// Acquire the new blob's reference BEFORE the entity write so the URL can
-		// never commit while its asset still reads zero references. The REPLACED
-		// path is captured ATOMICALLY with the row purge INSIDE the service's
-		// AttachAsync (returned below), so no concurrent attach can hard-delete a
-		// row whose path we never observed. If the entity write LOSES the race
-		// (a parallel attach commits first and ux_post_media_assets_live_post_id
-		// rejects this insert), AttachAsync throws and the new blob never becomes
-		// the post's live image — its reference must then be released, or it
-		// leaks (#1616). Releasing exactly the paths the service actually removed
-		// after its commit leaves no leaked reference for the winning caller.
+		// #807 F5 reference discipline, owned by this HANDLER (#1461): acquire the
+		// NEW blob's reference BEFORE the entity write so the URL can never commit
+		// while its asset still reads zero references. The REPLACED image's path is
+		// captured INSIDE AttachAsync, atomically with the row purge it hard-deletes
+		// — capturing it here first would race concurrent purges and leak the
+		// predecessor's blob reference (#1617, closed by #1653). The handler releases
+		// the returned displaced paths AFTER AttachAsync commits. Physical deletion
+		// stays exclusively sweeper's.
+		//
+		// The partial unique index (ux_post_media_assets_live_post_id) admits exactly
+		// one live image per post, so concurrent attaches race the insert: the winner
+		// commits, the losers hit a unique violation. The loser has ALREADY acquired
+		// the new blob's reference above, so BOTH compensation paths below must
+		// release it, or its blob leaks forever (#1616, this branch).
 		await uploadReferences.TryAddReferenceAsync(
 			relativePath, cancellationToken
 		);
 
 		// The try covers ONLY the entity write, on purpose: its failure is the one
-		// event that means "this blob never became the live image". Widening it to
-		// the release loop below would force a committed/not-committed flag, and a
-		// flag can only ever be this handler's ASSUMPTION about what the database
-		// did — the guard inside the compensation asks the database instead.
-		IReadOnlyList<string> replacedPaths;
+		// event that means "this blob never became the live image". The inner catch
+		// handles the known 409 loser race deterministically; the outer catch covers
+		// any other AttachAsync failure (connection loss, cancellation observed after
+		// the command was sent, constraint the unique-index filter did not match) via
+		// a database re-check rather than an assumption about what committed.
 		try {
-			// Persist the post-owned asset row; the service selects and purges the
-			// replaced row(s) in one unit of work and returns the paths it removed.
-			replacedPaths = await assetService.AttachAsync(
+			var displacedPaths = await assetService.AttachAsync(
 				new AttachPostMediaArgs(
 					TenantId: tenantId,
 					PostId: postIdGuid,
@@ -243,7 +240,37 @@ public sealed class AttachPostImageForTenant {
 				),
 				cancellationToken
 			);
+
+			// Reached ONLY when AttachAsync returned: the row is committed and this
+			// blob IS the post's live image, so its own reference stays acquired and
+			// only the paths this commit actually removed are released.
+			foreach (var displacedPath in displacedPaths) {
+				await uploadReferences.TryReleaseReferenceAsync(
+					displacedPath,
+					cancellationToken
+				);
+			}
+		} catch (DbUpdateException ex) when (IsPostImageUniqueViolation(ex)) {
+			// Loser of the concurrent-attach race (#1653 contract): another attach
+			// for this post just won. Release the reference we acquired so its blob is
+			// not left stuck at reference_count = 1 (#1616), and tell the client to
+			// retry against the winner's image instead of silently dropping its bytes.
+			await uploadReferences.TryReleaseReferenceAsync(
+				relativePath,
+				cancellationToken
+			);
+			return TypedProblems.Conflict(
+				"Another image attach for this post just won the one-image slot; "
+				+ "no row was written for this request. Re-fetch the post to see "
+				+ "the winning image, then retry if you mean to replace it.",
+				ResponseKeys.PostImageConflict
+			);
 		} catch {
+			// Any other failure of the entity write: this blob never became the
+			// post's live image, so its acquired reference must be released or it
+			// leaks (#1616). The compensation asks the database whether our blob is
+			// now the live image (rather than assuming the write landed or not), so
+			// it never double-releases a row a later attach will release for us.
 			await ReleaseUnattachedReferenceAsync(
 				assetService,
 				uploadReferences,
@@ -253,15 +280,6 @@ public sealed class AttachPostImageForTenant {
 				relativePath
 			);
 			throw;
-		}
-
-		// Reached ONLY when AttachAsync returned: the row is committed and this
-		// blob IS the post's live image, so its own reference stays acquired and
-		// only the paths this commit actually removed are released.
-		foreach (var replacedPath in replacedPaths) {
-			await uploadReferences.TryReleaseReferenceAsync(
-				replacedPath, cancellationToken
-			);
 		}
 
 		return TypedResults.Created(
@@ -363,6 +381,24 @@ public sealed class AttachPostImageForTenant {
 				{ "file", [message] }
 			}
 		);
+	}
+
+	/// <summary>
+	/// True when the failure is a unique-constraint violation on the
+	/// post_media_assets one-live-image index. Concurrent attaches to the same
+	/// post insert simultaneously and the loser(s) hit this — they must release
+	/// the blob reference they already acquired instead of leaking it (#1616).
+	/// </summary>
+	private static bool IsPostImageUniqueViolation(DbUpdateException ex) {
+		if (ex.InnerException is not PostgresException pgEx) {
+			return false;
+		}
+		return pgEx.SqlState == PostgresErrorCodes.UniqueViolation
+			&& pgEx.TableName is not null
+			&& pgEx.TableName.Equals(
+				"post_media_assets",
+				StringComparison.OrdinalIgnoreCase
+			);
 	}
 }
 

@@ -245,6 +245,11 @@ public static partial class ResponseKeys {
 	public static readonly TranslationKey PostImageAttachedSuccess = new("post-image-attached-success");
 
 	/// <summary>
+	/// Another image attach for this post just won; retry to replace it
+	/// </summary>
+	public static readonly TranslationKey PostImageConflict = new("post-image-conflict");
+
+	/// <summary>
 	/// Image dimensions are invalid
 	/// </summary>
 	public static readonly TranslationKey PostImageDimensionsInvalid = new("post-image-dimensions-invalid");

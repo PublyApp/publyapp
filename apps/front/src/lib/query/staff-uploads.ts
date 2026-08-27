@@ -24,7 +24,7 @@ const buildUploadImageBody = async (file: File): Promise<MultipartBody> => {
 	return body;
 };
 
-export const uploadStaffImageMutationOptions = buildStaffMutationOptions<
+const uploadStaffImageMutationOptions = buildStaffMutationOptions<
 	ApiClient,
 	StaffUploadCreated | undefined,
 	UploadStaffImageInput

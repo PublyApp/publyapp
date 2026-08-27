@@ -23,19 +23,12 @@
 	"devDependencies": {
 		"@types/node": "^20.19.7",
 		"chokidar": "^5.0.0",
-		"dotenv": "^17.4.2",
 		"husky": "^9.0.11",
-		"json": "^11.0.0",
 		"knip": "6.32.2",
 		"lint-staged": "^17.3.0",
-		"lodash": "^4.17.21",
-		"markdownlint-cli": "^0.49.1",
-		"@oxlint/plugins": "1.79.0",
 		"oxfmt": "0.64.0",
 		"oxlint": "1.79.0",
 		"oxlint-tsgolint": "7.0.2001",
-		"tsconfig": "workspace:*",
-		"turbo": "^2.10.11",
 		"typescript": "^7.0.2",
 		"yaml": "^2.8.3"
 	},
@@ -70,19 +63,20 @@
 			"launch-editor": "^2.14.1",
 			"markdown-it": "^14.2.0",
 			"js-yaml@>=4.0.0 <4.3.1": "^4.3.1",
-			"nanoid@>=4.0.0 <5.0.9": "^5.1.16",
 			"esbuild@>=0.27.3 <0.28.1": "^0.28.1",
 			"valibot@<1.4.2": "^1.4.2",
 			"@babel/core": "^7.29.6",
 			"ip-address@<=10.3.0": "^10.3.1",
 			"undici@>=7.0.0 <7.29.0": "^7.29.0",
-			"nanoid@<3.3.18": "^3.3.18",
-			"hono@>=3.8.0 <4.12.34": "^4.12.34"
+			"hono@>=3.8.0 <4.12.34": "^4.12.34",
+			"nanoid@<3.3.18": "^3.3.18"
 		},
 		"packageExtensions": {
-			"@hookform/resolvers@4.1.3": {
-				"peerDependencies": {
-					"zod": "^3.24.4"
+			"@hookform/resolvers@5.9.1": {
+				"peerDependenciesMeta": {
+					"@standard-schema/spec": {
+						"optional": true
+					}
 				}
 			}
 		}
@@ -97,9 +91,6 @@
 		]
 	},
 	"dependencies": {
-		"cookie": "^1.0.2",
-		"isbot": "^5.2.1",
-		"nprogress": "^0.2.0",
-		"serialize-error": "^12.0.0"
+		"cookie": "^1.0.2"
 	}
 }

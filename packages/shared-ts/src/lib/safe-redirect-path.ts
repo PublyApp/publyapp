@@ -9,7 +9,7 @@ import { queryParamKey } from '@org/shared-ts/lib/constants';
 // eslint-disable-next-line no-control-regex -- deliberately rejecting control characters
 const CONTROL_CHARACTER_PATTERN = /[\x00-\x1f]/;
 
-export const isSafeRelativePath = (path: string): boolean =>
+const isSafeRelativePath = (path: string): boolean =>
 	/^\/[^/\\][^\\]*$/.test(path) && !CONTROL_CHARACTER_PATTERN.test(path);
 
 /**

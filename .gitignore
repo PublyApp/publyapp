@@ -45,6 +45,13 @@ logs
 apps/*/dist
 packages/*/dist
 
+# Kiota client lock file is generated from apps/api/openapi.json by `just generate-client`
+# (reproducible: SHA-512 hash of the spec + fixed generation options). It is not read by any
+# import or runtime; only `kiota update`/`info` touch it, and `kiota generate` recreates it.
+# Stop versioning it so develop rebases stop producing empty merge conflicts on it. The
+# openapi-spec-drift.yml gate still regenerates and verifies packages/client-ts on every PR.
+packages/client-ts/src/kiota-lock.json
+
 # .env.preprod
 # .env.production
 

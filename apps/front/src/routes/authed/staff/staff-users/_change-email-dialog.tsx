@@ -31,9 +31,9 @@ import { shouldLogoutForFailure } from '@org/shared-ts/lib/should-logout-for-fai
 const buildChangeEmailSchema = (t: (key: string) => string) =>
 	z.object({
 		email: z
-			.string({ required_error: t('common:email-required') })
+			.string({ error: t('common:email-required') })
 			.trim()
-			.email(t('common:invalid-email-address')),
+			.pipe(z.email(t('common:invalid-email-address'))),
 	});
 
 type ChangeEmailFormValues = z.infer<ReturnType<typeof buildChangeEmailSchema>>;
@@ -231,5 +231,3 @@ export const ChangeStaffUserEmailDialog = (
 
 	return <ChangeStaffUserEmailDialogInner {...dialogProps} key={sessionKey} />;
 };
-
-export default ChangeStaffUserEmailDialog;

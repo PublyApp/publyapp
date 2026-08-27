@@ -36,18 +36,17 @@ public interface IPostMediaAssetService {
 		CancellationToken cancellationToken = default
 	);
 
-	/// Persists the new asset row, replacing any previous one in the SAME unit
-	/// of work: the SELECT that finds the stale live row(s) a replacement purges
-	/// runs INSIDE this call, so the paths it hard-deletes are captured atomically
-	/// with the purge (the #807 F5 race window lives here, not in the caller;
-	/// see #1616). The method returns the relative paths it actually replaced so
-	/// the CALLING HANDLER can release their blob references AFTER the commit.
-	/// The handler still owns the reference discipline (#1461 moved the
-	/// acquire/release coordination into the calling handlers): acquire the new
-	/// blob's reference BEFORE calling (so the URL can never commit at zero
-	/// references), then release the returned replaced reference(s) AFTER this
-	/// method returns. Physical deletion stays exclusively the sweeper's.
-	/// </summary>
+	/// <summary>
+	/// Persists the new asset row in ONE unit of work: hard-deletes the stale
+	/// live row(s) a replacement purges, inserts the new row, and saves. Returns
+	/// the blob paths it DISPLACED (inside this same transaction, the moment the
+	/// replacement's row is hard-deleted) so the CALLING HANDLER can release those
+	/// asset references AFTER this method's commit. The handler MUST acquire the
+	/// NEW blob's reference before calling (so the URL can never commit at zero
+	/// references) and release the RETURNED displaced paths after. Capturing the
+	/// replaced path in the handler before this call races the purge and leaks the
+	/// predecessor's blob reference (#1617) — that responsibility lives here, not
+	/// in the handler. Physical deletion stays exclusively the sweeper's.	/// </summary>
 	Task<IReadOnlyList<string>> AttachAsync(
 		AttachPostMediaArgs args,
 		CancellationToken cancellationToken = default
@@ -134,6 +133,14 @@ public sealed class PostMediaAssetService(AppDbContext dbContext)
 			.Select(static a => a.RelativePath)
 			.ToList();
 
+		// Capture the displaced blob paths NOW, inside this tracked query's scope,
+		// so the handler releases exactly the rows this commit is about to purge.
+		// Doing this in the handler before the call races concurrent purges and
+		// leaks the predecessor's reference (#1617).
+		var displacedPaths = replacedAssets
+			.Select(a => a.RelativePath)
+			.ToList();
+
 		var asset = new PostMediaAsset {
 			TenantId = args.TenantId,
 			PostId = args.PostId,
@@ -154,12 +161,11 @@ public sealed class PostMediaAssetService(AppDbContext dbContext)
 		// One commit: the insert and the replacement's purge land atomically
 		// (EF Core issues same-table deletes before inserts in the batch).
 		await dbContext.SaveChangesAsync(cancellationToken);
-		// The CALLING HANDLER owns the #807 F5 reference discipline: it acquired
-		// the new blob's reference before this call and releases the replaced
-		// paths (returned here, captured atomically with the purge) after this
-		// commit. Physical deletion stays exclusively sweeper's.
-		return replacedPaths;
-	}
+
+		// The CALLING HANDLER acquired the new blob's reference before this call
+		// and now releases the displaced paths returned here after the commit
+		// (#807 F5); physical deletion stays exclusively sweeper's.
+		return displacedPaths;	}
 
 	public async Task<string?> RemoveAsync(
 		Guid tenantId,

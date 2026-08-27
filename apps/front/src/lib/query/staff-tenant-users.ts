@@ -127,7 +127,7 @@ export type StaffTenantUserBulkRemoveInput = {
 	userIds: string[];
 };
 
-export type StaffTenantUserBulkActionFailedItem = {
+type StaffTenantUserBulkActionFailedItem = {
 	userId: string | null;
 	error: string | null;
 };
@@ -163,7 +163,7 @@ export type StaffTenantUserDetails = {
 /** @internal Unscoped — `scopedKey('staff', …)` is the only way to build an
  * invalidation key from this; use `invalidateStaffTenantUsers`. */
 export const STAFF_TENANT_USERS_QUERY_KEY = ['staff-tenants', 'users'] as const;
-export const STAFF_TENANT_USER_DETAILS_QUERY_KEY = [
+const STAFF_TENANT_USER_DETAILS_QUERY_KEY = [
 	...STAFF_TENANT_USERS_QUERY_KEY,
 	'detail',
 ] as const;
@@ -708,9 +708,6 @@ export const selectStaffTenantUserCrumbName = (
 ): string | undefined =>
 	toStaffTenantUserDetails(data as TenantUserDetailsResult | null | undefined)
 		?.displayName;
-
-export const useInviteTenantUserMutation = () =>
-	useMutation(createStaffTenantUserInvitationMutationOptions);
 
 export const useBulkInviteTenantUsersMutation = () =>
 	useMutation(bulkCreateStaffTenantInvitationsMutationOptions);

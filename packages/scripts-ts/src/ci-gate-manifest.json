@@ -582,9 +582,9 @@
 			"reason": "GitHub-only: clones the repo onto the runner. Locally the working tree already is the code under test."
 		},
 		"quality-gate.yml::changes::Check whether quality-gate paths changed": {
-			"hash": "176f4619091ee768",
+			"hash": "28223842b81810e0",
 			"mirror": "pnpm --filter scripts-ts exec vitest run src/ci-gate-bootstrap.test.ts",
-			"reason": "The step inlines the fallback directly (same pattern as the other four gate workflows): if base-ref/packages/scripts-ts/src/ci-changed-paths.ts exists, run it and pass its output/exit code straight through; otherwise print a loud [MISSING BASE CLASSIFIER] warning and resolve relevant=true, on a code path that never invokes the classifier. packages/scripts-ts/src/ci-gate-bootstrap.test.ts parses this exact `run:` block from the real workflow file (not a restatement) and executes it directly against both cases for all gate workflows. The classifier's own decision logic remains covered by ci-changed-paths.test.ts (#1334 fix round 1: the inline regex gained a docs/guides/dependency-health.md alternative so doc-only PRs wake this gate for the pin-location contract; that behavior is pinned by two new #1334 cases in ci-changed-paths.test.ts)."
+			"reason": "The step inlines the fallback directly (same pattern as the other four gate workflows): if base-ref/packages/scripts-ts/src/ci-changed-paths.ts exists, run it and pass its output/exit code straight through; otherwise print a loud [MISSING BASE CLASSIFIER] warning and resolve relevant=true, on a code path that never invokes the classifier. packages/scripts-ts/src/ci-gate-bootstrap.test.ts parses this exact `run:` block from the real workflow file (not a restatement) and executes it directly against both cases for all gate workflows. The classifier's own decision logic remains covered by ci-changed-paths.test.ts (#1334 fix round 1: the inline regex gained a docs/guides/dependency-health.md alternative so doc-only PRs wake this gate for the pin-location contract; that behavior is pinned by two new #1334 cases in ci-changed-paths.test.ts). The classifier regex (and the push paths list) also wake the gate on root knip.ts changes since #455, matching the Knip step's inputs."
 		},
 		"quality-gate.yml::changes::Checkout classifier from the base commit (not the PR's own copy)": {
 			"hash": "99333e5810d54009",
@@ -620,6 +620,11 @@
 			"hash": "331d4084c84af668",
 			"mirror": "just nuget-audit",
 			"reason": "just nuget-audit calls `node packages/scripts-ts/src/nuget-audit.ts`, which is the same script invoked by the CI step. Both parse the machine-readable `--format json` output from `dotnet list package --vulnerable` and fail when any vulnerabilities array is non-empty. Issue #1187 rung 3."
+		},
+		"quality-gate.yml::quality::Audit development dependencies (moderate and above)": {
+			"hash": "60fbf11c313950ad",
+			"mirror": "pnpm audit --dev --audit-level=moderate",
+			"reason": "#1631 closes the dev-graph blind spot the prod-only `pnpm audit --prod --audit-level=high` left open: this scans the development-only dependency graph repo-wide (every package.json's dev deps, no --filter) at moderate so a moderate dev advisory (the nanoid-via-postcss class) turns the gate red instead of passing silently. Locally the identical `pnpm audit --dev --audit-level=moderate` reproduces it without Docker or CI; the graph is clean today at every threshold, so no exception list is carried."
 		},
 		"quality-gate.yml::quality::Run NuGet audit fixture tests": {
 			"hash": "2aa0c12768b54e3a",
@@ -660,6 +665,11 @@
 			"hash": "a716b2b18311dc2a",
 			"mirror": "just ci-lint",
 			"reason": "ci-lint runs pnpm --filter @org/lint-ts test, the same vitest suite for the custom publy/* oxlint plugin rules that CI now runs after the lint step."
+		},
+		"quality-gate.yml::quality::Knip (unused exports & dependencies)": {
+			"hash": "f95d137295c78706",
+			"mirror": "just ci-knip",
+			"reason": "ci-knip runs the identical pnpm exec knip over the same knip.ts workspace config, so the unused-exports/dependencies gate is exercised locally on every push."
 		},
 		"quality-gate.yml::quality::Typecheck shared-ts": {
 			"hash": "332e3d0e05aa9d9b",

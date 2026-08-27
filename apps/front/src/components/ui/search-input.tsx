@@ -90,4 +90,3 @@ const SearchInput = ({
 };
 
 export { SearchInput };
-export type { SearchInputProps, SearchInputSize };

@@ -15,7 +15,7 @@ const PROFILE_CARD_ICON_NAMES = [
 ] as const;
 const PROFILE_CARD_TONE_COUNT = 8;
 
-export type ProfileCardStyle = {
+type ProfileCardStyle = {
 	Icon: (typeof DEFAULT_ICON_COLOR_PICKER_OPTION)['Icon'];
 	icon: string;
 	tone: string;

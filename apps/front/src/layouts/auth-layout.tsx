@@ -87,5 +87,3 @@ export const AuthLayout = ({ children, brand }: AuthLayoutProps) => {
 		</div>
 	);
 };
-
-export default AuthLayout;

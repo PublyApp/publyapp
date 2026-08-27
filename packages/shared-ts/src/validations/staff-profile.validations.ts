@@ -18,7 +18,12 @@ export const getNewStaffProfileSchema = (z: InterZod) => {
 			.min(1, z.t('at-least-one-permission-required'))
 			.default([]),
 		emails: z
-			.array(z.string().trim().email(z.t('invalid-email-address')))
+			.array(
+				z
+					.string()
+					.trim()
+					.pipe(z.email(z.t('invalid-email-address'))),
+			)
 			.default([]),
 		// #980: same style contract as tenant profiles — the picker always
 		// submits catalogue-valid values; empty strings mean "not chosen".

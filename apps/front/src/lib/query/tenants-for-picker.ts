@@ -28,7 +28,7 @@ export type TenantsForPickerData = {
 /** @internal Unscoped — build an invalidation/removal key from this via
  * `scopedKey()` rather than hand-assembling a prefixed array at a call
  * site. */
-export const TENANTS_FOR_PICKER_QUERY_KEY = ['tenants-for-picker'] as const;
+const TENANTS_FOR_PICKER_QUERY_KEY = ['tenants-for-picker'] as const;
 
 export const isActiveTenantForPicker = (
 	tenant: Pick<TenantForPickerRow, 'status'>,

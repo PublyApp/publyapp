@@ -9,7 +9,7 @@ import { deriveTenantProfileCardStyle } from './_profile-card-style';
  * for its `useForm` call. Keeping them out of the drawer lets the owner own
  * the form state while the drawer stays presentation-only.
  */
-export const buildProfileFormSchema = (t: (key: string) => string) =>
+const buildProfileFormSchema = (t: (key: string) => string) =>
 	z.object({
 		name: z
 			.string()
@@ -61,7 +61,5 @@ export const getProfileFormValues = (): ProfileFormValues => {
 	};
 };
 
-export const profileFormResolver = (
-	t: (key: string) => string,
-): ReturnType<typeof zodResolver<ProfileFormValues>> =>
+export const profileFormResolver = (t: (key: string) => string) =>
 	zodResolver(buildProfileFormSchema(t));

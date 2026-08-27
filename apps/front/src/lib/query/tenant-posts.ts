@@ -19,10 +19,7 @@ import {
 } from '@org/shared-ts/lib/query/create-hooks';
 
 export const TENANT_POSTS_QUERY_KEY = ['tenant-posts'] as const;
-export const TENANT_POST_DETAILS_QUERY_KEY = [
-	'tenant-posts',
-	'detail',
-] as const;
+const TENANT_POST_DETAILS_QUERY_KEY = ['tenant-posts', 'detail'] as const;
 
 export type TenantPostsQueryVariables = {
 	q?: string;
@@ -164,7 +161,7 @@ export const toTenantPostDetails = (
 
 // ── Query options ──────────────────────────────────────────────────
 
-export const tenantPostsQueryOptions = buildTenantQueryOptions<
+const tenantPostsQueryOptions = buildTenantQueryOptions<
 	ApiClient,
 	FindPostsForTenantResponse,
 	TenantPostsQueryVariables

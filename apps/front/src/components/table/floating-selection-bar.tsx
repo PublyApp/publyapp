@@ -9,8 +9,7 @@ const EXIT_ANIMATION_MS = 220;
 
 export const FLOATING_SELECTION_BAR_ACTION_BUTTON_CLASS_NAME =
 	'h-8 rounded-[10px] px-2.5 text-[13px]';
-export const FLOATING_SELECTION_BAR_ICON_BUTTON_CLASS_NAME =
-	'size-8 rounded-[10px]';
+const FLOATING_SELECTION_BAR_ICON_BUTTON_CLASS_NAME = 'size-8 rounded-[10px]';
 
 export type FloatingSelectionBarProps = {
 	selectedCount: number;
@@ -77,6 +76,18 @@ export const FloatingSelectionBar = ({
 
 	const showSelectAllVisible =
 		selectedCount > 0 && selectedCount < visibleCount && !allVisibleSelected;
+
+	// React-doctor/no-unguarded-browser-global-in-render-or-hook-init: the
+	// portal target (`document.body`) is a browser global. `FloatingSelectionBar`
+	// is only ever mounted under authenticated surfaces that are CSR-only
+	// (`apps/front/src/routes/authed/**` is registered with `ssr: false` via
+	// the authed route group), so `document` is always defined when this
+	// component renders in the browser. Guard the access explicitly so a
+	// future call site that mounts it under an SSR surface does not
+	// crash on the server, and so the rule's detector sees the guard.
+	if (typeof document === 'undefined') {
+		return null;
+	}
 
 	return createPortal(
 		<div

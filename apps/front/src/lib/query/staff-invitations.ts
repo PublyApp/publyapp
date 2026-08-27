@@ -96,7 +96,7 @@ export const buildFindStaffInvitationsQueryParameters = (
 	};
 };
 
-export const buildBulkCreateStaffInvitationsBody = (
+const buildBulkCreateStaffInvitationsBody = (
 	input: BulkCreateStaffInvitationsInput,
 ): BulkCreateStaffInvitationsBody => ({
 	invitations: createUntypedArray(

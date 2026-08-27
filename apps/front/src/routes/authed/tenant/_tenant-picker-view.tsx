@@ -148,5 +148,3 @@ export const TenantPortalPickerView = ({
 		</div>
 	);
 };
-
-export default TenantPortalPickerView;

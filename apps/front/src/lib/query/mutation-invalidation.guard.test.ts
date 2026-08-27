@@ -7,7 +7,7 @@ import { QueryClient } from '@tanstack/react-query';
 import { describe, expect, test, vi } from 'vitest';
 
 /**
- * Mutation-invalidation coherence guard (#359).
+ * Mutation-invalidation coherence guard (#359, hardened by #1610).
  *
  * Rule (docs/guides/front/conventions.md, "Mutation Invalidation Coherence"):
  * a module whose mutations change status / filter-relevant fields / list
@@ -28,43 +28,58 @@ import { describe, expect, test, vi } from 'vitest';
  * No source-text scanning, no shape checks, and no conforming default when a
  * module cannot be analyzed: an unreadable module fails loudly below.
  *
- * ## Detail-line (LINE) coverage proof — current reach
+ * ## Detail-LINE coverage is now ASSERTED, not assumed (#1610, part 1)
  *
  * `expectLineCovered` is the second half of the rule (the mutated entity's own
- * detail entry). It is currently applied ONLY where the detail key is a SIBLING
- * of the list family and therefore NOT reached by the list prefix — the
- * `tenant-posts.ts` case (`['tenant','tenant-posts','detail',tenantId,{postId}]`
- * sits beside, not under, `['tenant','tenant-posts',tenantId,query]`).
+ * detail entry). It is asserted for EVERY list-family module that owns a
+ * distinct detail query factory, by importing that factory and feeding its
+ * REAL `queryKey()` output to the prefix-coverage check. The guard no longer
+ * trusts that the detail key is nested under the list prefix — it proves the
+ * invalidation reaches the exact array the app caches for the detail.
  *
- * For the OTHER list-family modules the row/line is NESTED UNDER the list root
- * prefix: e.g. `staff-users` detail `['staff','staff-users',{userId}]` is a child
- * of the invalidated root `['staff','staff-users']`, so proving the list family
- * is covered already proves the line. `staff-profile-users` is the same shape —
- * the unassigned user is a ROW in the `['staff','staff-profiles','users',…]`
- * list, with NO separate sibling detail key (no per-user detail query factory
- * exists in this module), so the list-family assertion above IS the line proof.
+ * Three list-family modules (`staff-tenant-invitations`, `social-accounts`,
+ * `staff-profile-users`) own NO distinct detail factory: the entity's detail
+ * view IS the list row itself (the unassigned user is a ROW of the cursor
+ * list; social accounts have no per-account detail). For them the list-family
+ * assertion above already proves the line, so no separate `expectLineCovered`
+ * is added — this is documented per entry, not silently assumed.
  *
- * UNVERIFIED ASSUMPTION (documented, not asserted): the guard does NOT import
- * each module's detail query factory to PROVE the detail is actually nested
- * under the list prefix rather than a sibling. The `tenant-posts` sibling bug is
- * the shape this assumption can break; it is why `tenant-posts` carries an
- * explicit `expectLineCovered`. Hardening the other modules to import their
- * detail factories and assert reach is an open follow-up (see issue tracker,
- * lv1, opened against #359 in round 3 of PR #1554). The registry entry below
- * records, per module, whether a distinct detail key exists.
+ * The original blind spot: `tenant-posts` was the ONLY module whose detail key
+ * is a SIBLING of the list family (so the list prefix does NOT reach it), and
+ * it alone carried an explicit `expectLineCovered`. Every other module was
+ * trusted to nest its detail under the list prefix. Because the assertion was
+ * derived from the prefix rather than read off the real factory, a module
+ * whose detail key drifted to a sibling would have gone invisible — the exact
+ * shape of the original defect. Now every module with a detail factory is
+ * asserted against its real factory key, so a sibling regression reddens the
+ * guard instead of hiding.
  *
- * ## `no-list` classification is MANUAL (documented limitation)
+ * ## `no-list` classification is now PROVEN, not trusted (#1610, part 2)
  *
- * The `no-list` entries are hand-asserted: the guard trusts that such a module
- * owns no list query of its own. A `no-list` module that GAINS a list query
- * WITHOUT also gaining a `useMutation` would be invisible to the drift detector
- * (discovery keys off `useMutation`, and re-classification only happens on
- * `useMutation` presence). Conversely, a `no-list` module that later grows a
- * `useMutation` that DOES own a list query is caught because the drift
- * detector forces a REGISTRY match and the per-module audit would then require
- * a list-family assertion. The single residual blind spot — a `no-list` module
- * acquiring a list query with no new mutation — is accepted and tracked as debt,
- * not silently guarded. Keep this note when editing the classifier.
+ * The `no-list` entries used to be a hand-asserted list: the guard trusted
+ * that such a module owns no list query of its own. A `no-list` module that
+ * gained a list query WITHOUT a new `useMutation` would have escaped the drift
+ * detector (discovery keys off `useMutation`), so the classification could
+ * silently drift.
+ *
+ * That classification is now CHECKED from the source: a `no-list` module must
+ * not own a list query (a cursor/keyset-paginated `build*QueryOptions`
+ * factory). The detector reddens the moment one does, naming the module, so
+ * the regression is caught.
+ *
+ * Why a detector rather than deriving the classification purely from code (the
+ * first option the brief offered): "does this module's mutation change a list?"
+ * is a SEMANTIC property, not a syntactic one. `staff-audit-logs` proves it —
+ * it owns a read-only audit-logs list query, yet its only mutation is a
+ * file-download side-effect that never mutates that list, so it is correctly
+ * `no-list`. No token-level heuristic distinguishes a mutation-irrelevant
+ * read-only list from a list a mutation must invalidate. We therefore keep an
+ * explicit `no-list` classification but PROVE it: a `no-list` module that
+ * legitimately owns a read-only list records it via `knownListQuery`, and the
+ * detector (a) asserts that recorded factory is still present (so the "known"
+ * claim is verified, not blindly trusted) and (b) reddens if the module owns
+ * ANY other list query. Every other `no-list` module must own zero list
+ * queries.
  *
  * ## Module discovery (BLOQUANT 1 fix, verdict-r1)
  *
@@ -157,7 +172,9 @@ const expectLineCovered = (
 			invalidated,
 		)}, which under TanStack prefix matching covers NONE of ${moduleName}'s detail queries (${lineTargets
 			.map(([name, key]) => `${name} = ${JSON.stringify(key)}`)
-			.join('; ')}). A mutation left its own row's detail view stale.`,
+			.join(
+				'; ',
+			)}). The detail key is a SIBLING of the list family, so the list prefix does not reach it — a mutation left its own row's detail view stale.`,
 	).toBeDefined();
 };
 
@@ -182,9 +199,8 @@ const discoveredMutationModules = readdirSync(dir)
 // Every mutation module discovered on disk MUST appear here. `list-family`
 // entries own a list query and must invalidate it (the guard proves it).
 // `no-list` entries own no list query of their own — they are documented so
-// the decision is explicit and reviewable, and a future list-query addition
-// to one of them is caught by re-classifying it (and would otherwise be an
-// unaccounted mutation module the drift detector already reddens).
+// the decision is explicit and reviewable, and (since #1610) PROVEN: a
+// `no-list` module that owns a list query reddens the detector (see part 2).
 
 type ListFamilyEntry = {
 	kind: 'list-family';
@@ -196,6 +212,13 @@ type NoListEntry = {
 	kind: 'no-list';
 	reason: string;
 	load: () => Promise<Record<string, unknown>>;
+	/**
+	 * For a `no-list` module that legitimately owns a READ-ONLY list query
+	 * (whose mutation never mutates it), record the one factory name here. The
+	 * part-2 detector asserts this factory is present AND that no OTHER list
+	 * query is owned. Omit for modules that own no list query at all.
+	 */
+	knownListQuery?: string;
 };
 
 type RegistryEntry = ListFamilyEntry | NoListEntry;
@@ -209,6 +232,7 @@ const REGISTRY = {
 		helperName: 'invalidateStaffUsers',
 		run: async () => {
 			const mod = await import('./staff-users');
+			const { staffUserDetailsQueryOptions } = await import('./staff-users');
 			const { scopedKey } = await loadScopedKey();
 			const invalidated = await capturedInvalidationKeys((client) =>
 				mod.invalidateStaffUsers(client),
@@ -219,14 +243,24 @@ const REGISTRY = {
 					scopedKey('staff', [...mod.STAFF_USERS_QUERY_KEY]),
 				],
 			]);
+			// LINE: asserted from the REAL detail factory, not assumed nested.
+			expectLineCovered('staff-users', 'invalidateStaffUsers', invalidated, [
+				[
+					'user detail (the line)',
+					staffUserDetailsQueryOptions.queryKey({ userId: 'u1' }),
+				],
+			]);
 		},
 	},
 	'staff-tenants.ts': {
 		kind: 'list-family',
 		helperName: 'invalidateAllStaffTenantScopes',
 		run: async () => {
-			const { invalidateAllStaffTenantScopes, STAFF_TENANTS_QUERY_KEY } =
-				await import('./staff-tenants');
+			const {
+				invalidateAllStaffTenantScopes,
+				STAFF_TENANTS_QUERY_KEY,
+				staffTenantDetailsQueryOptions,
+			} = await import('./staff-tenants');
 			const { scopedKey } = await loadScopedKey();
 			const invalidated = await capturedInvalidationKeys((client) =>
 				invalidateAllStaffTenantScopes(client),
@@ -242,14 +276,30 @@ const REGISTRY = {
 					],
 				],
 			);
+			// LINE: asserted from the REAL detail factory (nests under the list
+			// root, so the list prefix reaches it — proven, not assumed).
+			expectLineCovered(
+				'staff-tenants',
+				'invalidateAllStaffTenantScopes',
+				invalidated,
+				[
+					[
+						'tenant detail (the line)',
+						staffTenantDetailsQueryOptions.queryKey({ tenantId: TENANT_ID }),
+					],
+				],
+			);
 		},
 	},
 	'staff-tenant-users.ts': {
 		kind: 'list-family',
 		helperName: 'invalidateStaffTenantUsers',
 		run: async () => {
-			const { invalidateStaffTenantUsers, STAFF_TENANT_USERS_QUERY_KEY } =
-				await import('./staff-tenant-users');
+			const {
+				invalidateStaffTenantUsers,
+				STAFF_TENANT_USERS_QUERY_KEY,
+				staffTenantUserDetailsQueryOptions,
+			} = await import('./staff-tenant-users');
 			const { scopedKey } = await loadScopedKey();
 			const invalidated = await capturedInvalidationKeys((client) =>
 				invalidateStaffTenantUsers(client),
@@ -265,14 +315,33 @@ const REGISTRY = {
 					],
 				],
 			);
+			// LINE: asserted from the REAL detail factory (nests under the list
+			// root: ['staff','staff-tenants','users','detail',…]).
+			expectLineCovered(
+				'staff-tenant-users',
+				'invalidateStaffTenantUsers',
+				invalidated,
+				[
+					[
+						'tenant-user detail (the line)',
+						staffTenantUserDetailsQueryOptions.queryKey({
+							tenantId: TENANT_ID,
+							userId: 'u1',
+						}),
+					],
+				],
+			);
 		},
 	},
 	'staff-invitations.ts': {
 		kind: 'list-family',
 		helperName: 'invalidateStaffInvitations',
 		run: async () => {
-			const { invalidateStaffInvitations, STAFF_INVITATIONS_QUERY_KEY } =
-				await import('./staff-invitations');
+			const {
+				invalidateStaffInvitations,
+				STAFF_INVITATIONS_QUERY_KEY,
+				staffInvitationDetailsQueryOptions,
+			} = await import('./staff-invitations');
 			const { scopedKey } = await loadScopedKey();
 			const invalidated = await capturedInvalidationKeys((client) =>
 				invalidateStaffInvitations(client),
@@ -285,6 +354,18 @@ const REGISTRY = {
 					[
 						'list family root',
 						scopedKey('staff', [...STAFF_INVITATIONS_QUERY_KEY]),
+					],
+				],
+			);
+			// LINE: asserted from the REAL detail factory.
+			expectLineCovered(
+				'staff-invitations',
+				'invalidateStaffInvitations',
+				invalidated,
+				[
+					[
+						'invitation detail (the line)',
+						staffInvitationDetailsQueryOptions.queryKey({ invitationId: 'i1' }),
 					],
 				],
 			);
@@ -313,14 +394,21 @@ const REGISTRY = {
 					],
 				],
 			);
+			// No distinct detail factory: an invitation has no per-row detail
+			// query in this module, so the list family IS the line. (Contrast
+			// tenant-posts, where the detail is a SIBLING key requiring
+			// expectLineCovered.) Hence no separate expectLineCovered here.
 		},
 	},
 	'staff-profiles.ts': {
 		kind: 'list-family',
 		helperName: 'invalidateStaffProfiles',
 		run: async () => {
-			const { invalidateStaffProfiles, STAFF_PROFILES_QUERY_KEY } =
-				await import('./staff-profiles');
+			const {
+				invalidateStaffProfiles,
+				STAFF_PROFILES_QUERY_KEY,
+				staffProfileDetailsQueryOptions,
+			} = await import('./staff-profiles');
 			const { scopedKey } = await loadScopedKey();
 			const invalidated = await capturedInvalidationKeys((client) =>
 				invalidateStaffProfiles(client),
@@ -336,14 +424,29 @@ const REGISTRY = {
 					],
 				],
 			);
+			// LINE: asserted from the REAL detail factory.
+			expectLineCovered(
+				'staff-profiles',
+				'invalidateStaffProfiles',
+				invalidated,
+				[
+					[
+						'profile detail (the line)',
+						staffProfileDetailsQueryOptions.queryKey({ profileId: 'p1' }),
+					],
+				],
+			);
 		},
 	},
 	'staff-tenant-profiles.ts': {
 		kind: 'list-family',
 		helperName: 'invalidateStaffTenantProfiles',
 		run: async () => {
-			const { invalidateStaffTenantProfiles, STAFF_TENANT_PROFILES_QUERY_KEY } =
-				await import('./staff-tenant-profiles');
+			const {
+				invalidateStaffTenantProfiles,
+				STAFF_TENANT_PROFILES_QUERY_KEY,
+				staffTenantProfileDetailsQueryOptions,
+			} = await import('./staff-tenant-profiles');
 			const { scopedKey } = await loadScopedKey();
 			const invalidated = await capturedInvalidationKeys((client) =>
 				invalidateStaffTenantProfiles(client),
@@ -359,14 +462,32 @@ const REGISTRY = {
 					],
 				],
 			);
+			// LINE: asserted from the REAL detail factory.
+			expectLineCovered(
+				'staff-tenant-profiles',
+				'invalidateStaffTenantProfiles',
+				invalidated,
+				[
+					[
+						'tenant-profile detail (the line)',
+						staffTenantProfileDetailsQueryOptions.queryKey({
+							tenantId: TENANT_ID,
+							profileId: 'p1',
+						}),
+					],
+				],
+			);
 		},
 	},
 	'staff-global-tenant-users.ts': {
 		kind: 'list-family',
 		helperName: 'invalidateGlobalTenantUsers',
 		run: async () => {
-			const { invalidateGlobalTenantUsers, GLOBAL_TENANT_USERS_QUERY_KEY } =
-				await import('./staff-global-tenant-users');
+			const {
+				invalidateGlobalTenantUsers,
+				GLOBAL_TENANT_USERS_QUERY_KEY,
+				globalTenantUserDetailsQueryOptions,
+			} = await import('./staff-global-tenant-users');
 			const { scopedKey } = await loadScopedKey();
 			const invalidated = await capturedInvalidationKeys((client) =>
 				invalidateGlobalTenantUsers(client),
@@ -379,6 +500,18 @@ const REGISTRY = {
 					[
 						'family root',
 						scopedKey('staff', [...GLOBAL_TENANT_USERS_QUERY_KEY]),
+					],
+				],
+			);
+			// LINE: asserted from the REAL detail factory.
+			expectLineCovered(
+				'staff-global-tenant-users',
+				'invalidateGlobalTenantUsers',
+				invalidated,
+				[
+					[
+						'global tenant-user detail (the line)',
+						globalTenantUserDetailsQueryOptions.queryKey({ userId: 'u1' }),
 					],
 				],
 			);
@@ -403,14 +536,19 @@ const REGISTRY = {
 					],
 				],
 			);
+			// No distinct detail factory: social accounts have no per-account
+			// detail query in this module, so the list family IS the line.
 		},
 	},
 	'tenant-posts.ts': {
 		kind: 'list-family',
 		helperName: 'invalidateTenantPosts',
 		run: async () => {
-			const { TENANT_POSTS_QUERY_KEY, invalidateTenantPosts } =
-				await import('./tenant-posts');
+			const {
+				TENANT_POSTS_QUERY_KEY,
+				invalidateTenantPosts,
+				tenantPostDetailsQueryOptions,
+			} = await import('./tenant-posts');
 			const invalidated = await capturedInvalidationKeys((client) =>
 				invalidateTenantPosts(client, TENANT_ID),
 			);
@@ -425,18 +563,17 @@ const REGISTRY = {
 					],
 				],
 			]);
-			// The LINE, required separately: the detail query of the row that was
-			// just saved/deleted. Factory shape: ['tenant', …key, 'detail', tenantId, {postId}].
+			// The LINE, asserted from the REAL detail factory: the detail query
+			// of the row that was just saved/deleted. Factory shape:
+			// ['tenant', 'tenant-posts', 'detail', tenantId, {postId}] — a
+			// SIBLING of the list family, so the list prefix does NOT reach it.
 			expectLineCovered('tenant-posts', 'invalidateTenantPosts', invalidated, [
 				[
 					'post detail (the line)',
-					[
-						'tenant',
-						...TENANT_POSTS_QUERY_KEY,
-						'detail',
-						TENANT_ID,
-						{ postId: 'p1' },
-					],
+					tenantPostDetailsQueryOptions.queryKey({
+						postId: 'p1',
+						tenantId: TENANT_ID,
+					}),
 				],
 			]);
 		},
@@ -452,7 +589,7 @@ const REGISTRY = {
 			//
 			// LINE note: there is NO separate sibling detail key for a profile user
 			// in this module — the unassigned user is a ROW of the cursor list
-			// ['staff','staff-profiles','users',{profileId,query}], so the
+			// ['staff','staff-profiles','users',{profileId}], so the
 			// list-family prefix above already reaches the line. (Contrast
 			// tenant-posts, where the detail is a SIBLING key requiring
 			// expectLineCovered.) Hence no distinct expectLineCovered here.
@@ -475,43 +612,47 @@ const REGISTRY = {
 			);
 		},
 	},
-	// ── no-list mutation modules (documented, not an unguarded hole) ──
+	// ── no-list mutation modules (documented AND proven, not an unguarded hole) ──
 	//
-	// MANUAL CLASSIFICATION (see guard header): these modules are asserted to
-	// own no list query of their own. This classification is trusted, not
-	// proven — a `no-list` module that later gains a list query WITHOUT a new
-	// `useMutation` would not be re-flagged by the drift detector. The decision
-	// is recorded per entry below so the review is explicit; the residual blind
-	// spot is tracked as debt.
+	// Since #1610 the `no-list` classification is CHECKED from source (see the
+	// part-2 detector below): a `no-list` module that owns a list query reddens
+	// the guard. A module that legitimately owns a read-only list records it via
+	// `knownListQuery` and the detector verifies it is still present and that no
+	// OTHER list query is owned.
 	'staff-uploads.ts': {
 		kind: 'no-list',
 		reason:
 			'uploads a staff image to a one-shot presigned URL; this module owns no list query to invalidate (the created upload is a side-effect, not a cached list row).',
 		load: () => import('./staff-uploads'),
+		knownListQuery: undefined,
 	},
 	'staff-audit-logs.ts': {
 		kind: 'no-list',
 		reason:
-			'exports only useExportStaffAuditLogsMutation (a file download side-effect); the audit-logs list is read-only, so no mutation in this module changes list membership/status.',
+			'exports only useExportStaffAuditLogsMutation (a file download side-effect); the audit-logs list is read-only, so no mutation in this module changes list membership/status. The read-only list query it owns is recorded in knownListQuery.',
 		load: () => import('./staff-audit-logs'),
+		knownListQuery: 'staffAuditLogsQueryOptions',
 	},
 	'tenant-post-images.ts': {
 		kind: 'no-list',
 		reason:
 			'attaches/detaches/alts post images via picker helpers; the only query it touches is the post image cache (consumed at the picker), and post-image mutations carry no list query of their own in this module.',
 		load: () => import('./tenant-post-images'),
+		knownListQuery: undefined,
 	},
 	'tenant-account-profile.ts': {
 		kind: 'no-list',
 		reason:
 			'updates the tenant account-profile detail entity; there is no derived list/counter projection of it, so the rule requires no list invalidation.',
 		load: () => import('./tenant-account-profile'),
+		knownListQuery: undefined,
 	},
 	'tenant-settings-general.ts': {
 		kind: 'no-list',
 		reason:
 			'updates the tenant settings-general detail entity; there is no derived list/counter projection of it, so the rule requires no list invalidation.',
 		load: () => import('./tenant-settings-general'),
+		knownListQuery: undefined,
 	},
 } satisfies Record<string, RegistryEntry>;
 
@@ -555,7 +696,7 @@ describe('mutation modules invalidate their list query family (#359)', () => {
 		}
 
 		if (entry.kind === 'list-family') {
-			test(`${file} (${entry.kind}) — ${entry.helperName} covers its list family`, async () => {
+			test(`${file} (${entry.kind}) — ${entry.helperName} covers its list family and detail line`, async () => {
 				await entry.run();
 			});
 		} else {
@@ -566,5 +707,107 @@ describe('mutation modules invalidate their list query family (#359)', () => {
 				expect(mod).toBeTypeOf('object');
 			});
 		}
+	}
+});
+
+// ── Part 2 (#1610): `no-list` classification is PROVEN from source ──
+//
+// A `no-list` module must not own a list query (a cursor/keyset-paginated
+// `build*QueryOptions` factory). If it does, the coherence rule requires its
+// mutation to invalidate that family, so the module belongs in `list-family`.
+// We count the pagination-backed `build*QueryOptions` factories in the source
+// and compare to what the entry declares (zero, or exactly one `knownListQuery`
+// read-only list). A drift to a sibling-style invisible list query reddens
+// here, naming the module — closing the manual-classification blind spot.
+
+const LIST_QUERY_FACTORY_RE =
+	/build(Staff|Tenant|StaffSuspense|TenantSuspense)QueryOptions\s*</;
+
+const countListQueryFactories = (source: string): number => {
+	if (!LIST_QUERY_FACTORY_RE.test(source)) {
+		return 0;
+	}
+	// A list factory has the shape build*QueryOptions<Client, Response, Vars>:
+	// the THIRD generic argument is the *QueryVariables type that declares the
+	// pagination fields (cursor/sortId/size/…). A detail factory's third arg is
+	// an id-only type, so a list is "owned" iff that type declares pagination.
+	const factoryRe =
+		/build(Staff|Tenant|StaffSuspense|TenantSuspense)QueryOptions<([\s\S]*?)>\s*\(/g;
+	// The third generic of a build*QueryOptions factory is, by construction, a
+	// query-variables type. The codebase names every one of them *QueryVariables
+	// (Staff*, Tenant*, GlobalTenant*, Find*, etc.), so we match ANY *QueryVariables
+	// type rather than a fixed prefix allowlist — the allowlist omitted Tenant* and
+	// silently let a no-list module own a Tenant-prefixed paginated list.
+	const typeNameRe = /[\w]*QueryVariables\b/;
+	const paginationVarRe =
+		/\b(cursor|sortId|sortOrder|size|page|limit|q)\s*\??:/;
+	const splitTopLevel = (inner: string): string[] => {
+		const parts: string[] = [];
+		let depth = 0;
+		let current = '';
+		for (const ch of inner) {
+			if (ch === '<' || ch === '(') {
+				depth += 1;
+				current += ch;
+			} else if (ch === '>' || ch === ')') {
+				depth = Math.max(0, depth - 1);
+				current += ch;
+			} else if (ch === ',' && depth === 0) {
+				parts.push(current);
+				current = '';
+			} else {
+				current += ch;
+			}
+		}
+		if (current.trim().length > 0) {
+			parts.push(current);
+		}
+		return parts;
+	};
+	let count = 0;
+	let match: RegExpExecArray | null;
+	while ((match = factoryRe.exec(source)) !== null) {
+		const args = splitTopLevel(match[2] ?? '');
+		const variablesRaw = (args[2] ?? '').trim().replace(/<.*$/, '').trim();
+		if (!typeNameRe.test(variablesRaw)) {
+			continue;
+		}
+		const typeBlock = source.match(
+			new RegExp(
+				`export (?:type|interface) ${variablesRaw.replace(
+					/[.*+?^${}()|[\]\\]/g,
+					'\\$&',
+				)}\\s*[=:]\\s*\\{([\\s\\S]*?)\\n\\};?`,
+			),
+		)?.[1];
+		if (typeBlock && paginationVarRe.test(typeBlock)) {
+			count += 1;
+		}
+	}
+	return count;
+};
+
+describe('no-list classification is proven (no owned list query) (#1610, part 2)', () => {
+	for (const [file, entry] of Object.entries(REGISTRY)) {
+		if (entry.kind !== 'no-list') {
+			continue;
+		}
+
+		test(`${file} — no-list classification is proven (owns no list query)`, () => {
+			const source = readFileSync(join(dir, file), 'utf8');
+			const owned = countListQueryFactories(source);
+			const expected = entry.knownListQuery ? 1 : 0;
+			expect(
+				owned,
+				`${file} is classified 'no-list' but owns ${owned} list query/queries (cursor/keyset-paginated build*QueryOptions factory). The coherence rule then requires its mutation to invalidate that family, so this module belongs in 'list-family', not 'no-list'. If a read-only list is intentional, record it via knownListQuery and re-review.`,
+			).toBe(expected);
+
+			if (entry.knownListQuery) {
+				expect(
+					source.includes(entry.knownListQuery),
+					`${file} declares knownListQuery '${entry.knownListQuery}' but that factory is not present in the source — the recorded claim is stale and must be reconciled.`,
+				).toBe(true);
+			}
+		});
 	}
 });
