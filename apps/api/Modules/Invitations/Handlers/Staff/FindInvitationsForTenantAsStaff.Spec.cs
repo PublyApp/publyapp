@@ -2077,17 +2077,19 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 					2026, 1, 1, 0, 0, 0, DateTimeKind.Utc
 				);
 				var seededIds = new List<Guid>();
+				// Anti-correlated with insertion: i=0 -> +2d, i=1 -> +0d, i=2 -> +1d,
+				// so the AcceptedAt sorted order is NOT the insertion order.
+				var seededAcceptedAt = new List<DateTime>();
 				for (var i = 0; i < 3; i++) {
 					var id = await CreateTenantInvitationAsync(
 						staffToken,
 						acmeTenantId,
 						$"tenant-inv-walk-{i}-{Guid.NewGuid():N}@example.com"
 					);
-					await SetAcceptedAtAsync(
-						id,
-						baseDate.AddDays(i)
-					);
+					var acceptedAt = baseDate.AddDays((3 - i) % 3);
+					await SetAcceptedAtAsync(id, acceptedAt);
 					seededIds.Add(id);
+					seededAcceptedAt.Add(acceptedAt);
 				}
 
 				var visitedIds = new List<Guid>();
@@ -2132,7 +2134,12 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 				var visitedOrder = visitedIds
 					.Where(seededIds.Contains)
 					.ToList();
-				visitedOrder.Should().Equal(seededIds);
+				var acceptedAtById = seededIds
+					.Zip(seededAcceptedAt, (id, c) => (id, c))
+					.ToDictionary(x => x.id, x => x.c);
+				visitedOrder.Should().Equal(
+					seededIds.OrderBy(id => acceptedAtById[id]).ToList()
+				);
 			}
 
 			#endregion
