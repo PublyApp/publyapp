@@ -63,7 +63,7 @@ type RouteId =
  *   `requiredPermissions`. Hiding is UI-convenience ONLY; the server
  *   independently enforces each gate behind those keys (#142).
  */
-export type RailVisibility = 'public' | 'permission-gated';
+type RailVisibility = 'public' | 'permission-gated';
 
 export type AppRouteMetadata = {
 	id: RouteId;
