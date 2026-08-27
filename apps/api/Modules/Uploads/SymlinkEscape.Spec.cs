@@ -1,4 +1,3 @@
-
 using System.Net;
 
 using FluentAssertions;
@@ -41,16 +40,22 @@ public sealed class SymlinkEscapeSpec : IClassFixture<ApiFixture> {
 	}
 
 	/// <summary>
-	/// A symlink inside `uploads/` pointing to a real file outside the storage
-	/// root must NOT be served: it must return 404. Against the current
-	/// (unpatched) PhysicalFileProvider this returns 200 with the file's content
-	/// — that RED run is the proof the defect exists. After the fix (a wrapper
-	/// IFileProvider that rejects <see cref="FileAttributes.ReparsePoint"/>)
-	/// this returns 404.
+	/// Paired proof for #1654 (both assertions in the same test): a symlink
+	/// inside `uploads/` pointing to a real file outside the storage root must
+	/// return 404, while a genuine file inside `uploads/` must still return 200
+	/// with its content.
+	///
+	/// Against the unpatched PhysicalFileProvider the symlink assertion fails
+	/// first (200 + body) — that RED run is the proof the defect exists. After
+	/// the fix (a wrapper IFileProvider that rejects
+	/// <see cref="FileAttributes.ReparsePoint"/>) the symlink returns 404 and the
+	/// genuine file still returns 200.
 	/// </summary>
 	[Fact]
-	public async Task ItShouldNotFollowSymlinksPointingOutsideTheStorageRoot() {
+	public async Task ItShouldNotFollowSymlinksPointingOutsideTheStorageRootAndStillServeGenuineFiles() {
 		var uploadsDir = GetUploadsDir();
+
+		// --- Symlink escape case: must be 404 after the fix ---
 
 		// A real file placed OUTSIDE the storage root — the symlink target.
 		var sentinelContent = $"sentinel-{Guid.NewGuid():N}";
@@ -59,53 +64,39 @@ public sealed class SymlinkEscapeSpec : IClassFixture<ApiFixture> {
 			$"sentinel-{Guid.NewGuid():N}.txt"
 		);
 		await File.WriteAllTextAsync(sentinelPath, sentinelContent);
+
+		var linkName = $"escape-link-{Guid.NewGuid():N}.txt";
+		var linkPath = Path.Combine(uploadsDir, linkName);
+
 		try {
 			// The symlink sits INSIDE the served tree (uploads/), but resolves
 			// OUTSIDE it (to <storage-root>/..). A naive PhysicalFileProvider
 			// follows it; the patched provider must not.
-			var linkName = $"escape-link-{Guid.NewGuid():N}.txt";
-			var linkPath = Path.Combine(uploadsDir, linkName);
 			File.CreateSymbolicLink(linkPath, sentinelPath);
-			try {
-				using var response = await _http.GetAsync(
-					$"/files/uploads/{linkName}"
-				);
 
-				response.StatusCode.Should().Be(HttpStatusCode.NotFound);
-			} finally {
-				// Clean up the symlink (not the target). File.Delete works on
-				// symlinks regardless of whether the link target exists.
-				if (File.Exists(linkPath)) {
-					File.Delete(linkPath);
-				}
-			}
+			using var symlinkResponse = await _http.GetAsync($"/files/uploads/{linkName}");
+			symlinkResponse.StatusCode.Should().Be(HttpStatusCode.NotFound,
+				"the symlink must be masked as 404, not followed to its out-of-tree target");
 		} finally {
+			if (File.Exists(linkPath)) {
+				File.Delete(linkPath); // deletes the symlink, not the target
+			}
 			if (File.Exists(sentinelPath)) {
 				File.Delete(sentinelPath);
 			}
 		}
-	}
 
-	/// <summary>
-	/// A genuine file inside `uploads/` must still be served with 200 after the
-	/// symlink patch. The fix must not break normal static-file serving by
-	/// rejecting regular files (reparse-point filtering is exact, not broad).
-	/// </summary>
-	[Fact]
-	public async Task ItShouldStillServeGenuineFilesInsideUploadsAfterSymlinkPatch() {
-		var uploadsDir = GetUploadsDir();
+		// --- Genuine file case: must still be 200 (no regression) ---
 
-		var existingFileName = $"genuine-file-{Guid.NewGuid():N}.txt";
-		var existingContent = $"genuine-{Guid.NewGuid():N}";
+		var genuineFileName = $"genuine-file-{Guid.NewGuid():N}.txt";
+		var genuineContent = $"genuine-{Guid.NewGuid():N}";
 		await File.WriteAllTextAsync(
-			Path.Combine(uploadsDir, existingFileName), existingContent
+			Path.Combine(uploadsDir, genuineFileName), genuineContent
 		);
 
-		using var response = await _http.GetAsync(
-			$"/files/uploads/{existingFileName}"
-		);
-
-		response.StatusCode.Should().Be(HttpStatusCode.OK);
-		(await response.Content.ReadAsStringAsync()).Should().Be(existingContent);
+		using var genuineResponse = await _http.GetAsync($"/files/uploads/{genuineFileName}");
+		genuineResponse.StatusCode.Should().Be(HttpStatusCode.OK,
+			"a real file inside uploads/ must still be served after the symlink patch");
+		(await genuineResponse.Content.ReadAsStringAsync()).Should().Be(genuineContent);
 	}
 }
