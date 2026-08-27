@@ -1168,6 +1168,149 @@ public sealed class FindTenantUsersAsStaffSpec
 		await dbContext.SaveChangesAsync();
 	}
 
+	[Fact]
+	public async Task
+	ItShouldWalkEveryCreatedAtPageWithoutOverlapOrGap() {
+		var staffToken =
+			await _authClient.LoginAsStaffAdminAsync();
+		var tenantId =
+			await TenantTestHelper
+				.GetTenantIdByNameAsync(
+					_http,
+					staffToken,
+					SeedConstants.Tenants.AcmeName
+				);
+
+		// 3 users with distinct account CreatedAt; the walk must visit each
+		// once in ascending CreatedAt order, with no gap or duplicate.
+		var baseDate = new DateTime(
+			2026, 1, 1, 0, 0, 0, DateTimeKind.Utc
+		);
+		// The sort key for created_at is User.CreatedAt (see
+		// TenantUserQueryService). Seed it deliberately NOT insertion-ordered
+		// (anti-correlated) so the walk order pins User.CreatedAt and not the
+		// insert-order of the account/user rows.
+		var seededIds = new List<string>();
+		var seededUserIds = new List<Guid>();
+		var seededOrder = new List<DateTime>();
+		for (var i = 0; i < 3; i++) {
+			var userId = await SeedTenantUserAtAsync(
+				tenantId,
+				baseDate.AddDays((3 - i) % 3)
+			);
+			seededIds.Add(userId);
+			seededUserIds.Add(Guid.Parse(userId));
+			seededOrder.Add(baseDate.AddDays((3 - i) % 3));
+		}
+
+		var visitedIds = new List<string>();
+		string? cursor = null;
+		var pages = 0;
+		do {
+			var url = GetFindUrl(
+				tenantId,
+				cursor: cursor,
+				limit: 1,
+				sortId: "created_at",
+				sortOrder: "asc"
+			);
+			var request = new HttpRequestMessage(
+				HttpMethod.Get, url
+			).WithSessionToken(staffToken);
+
+			using var response =
+				await _http.SendAsync(request);
+			response.StatusCode.Should()
+				.Be(HttpStatusCode.OK);
+
+			var page =
+				await response.Content
+					.ReadFromJsonAsync<FindResponse>();
+			page.Should().NotBeNull();
+			Assert.NotNull(page);
+			pages++;
+			visitedIds.AddRange(
+				page.Data.Select(u => u.Id)
+			);
+			cursor = page.NextCursor;
+
+			// Guard against an infinite loop if the cursor filter regresses.
+			pages.Should().BeLessOrEqualTo(100);
+		} while (cursor is not null);
+
+		// The walk covers exactly our rows, each once, in order.
+		visitedIds.Should().OnlyHaveUniqueItems();
+		visitedIds.Should().Contain(seededIds);
+
+		var visitedOrder = visitedIds
+			.Where(seededIds.Contains)
+			.ToList();
+		var createdAtById = seededIds
+			.Zip(seededOrder, (id, c) => (id, c))
+			.ToDictionary(x => x.id, x => x.c);
+		visitedOrder.Should().Equal(
+			seededIds.OrderBy(id => createdAtById[id]).ToList()
+		);
+
+		// Assert the OBSERVED sort order against the real User.CreatedAt values
+		// from the DB, in walk order. This pins the sort to User.CreatedAt and
+		// catches a keySelector swap to another same-type field.
+		var visitedSeededUserIds = visitedOrder
+			.Select(Guid.Parse)
+			.ToList();
+		List<DateTime> observedOrder;
+		{
+			await using var scope =
+				_fixture.Factory.Services.CreateAsyncScope();
+			var dbContext = scope.ServiceProvider
+				.GetRequiredService<AppDbContext>();
+			observedOrder = await dbContext.User
+				.Where(u => visitedSeededUserIds.Contains((Guid)u.Id!))
+				.OrderBy(u => visitedSeededUserIds.IndexOf((Guid)u.Id!))
+				.Select(u => u.CreatedAt)
+				.ToListAsync();
+		}
+		observedOrder.Should().Equal(seededOrder.OrderBy(x => x).ToList());
+		observedOrder.Should().NotEqual(seededOrder);
+	}
+
+	private async Task<string> SeedTenantUserAtAsync(
+		Guid tenantId,
+		DateTime createdAt
+	) {
+		await using var scope =
+			_fixture.Factory.Services.CreateAsyncScope();
+		var dbContext = scope.ServiceProvider
+			.GetRequiredService<AppDbContext>();
+
+		var user = new User {
+			Email = $"tenant-user-walk-{Guid.NewGuid():N}@example.com",
+			Password = "unused",
+			FirstName = "Walk",
+			LastName = "Fixture",
+			Status = UserStatus.Active,
+			IsVerified = true,
+		};
+		// Sort key is User.CreatedAt: pin it on the User via two-phase save
+		// (insert stamps now; re-save Modified only updates UpdatedAt).
+		await dbContext.User.AddAsync(user);
+		await dbContext.SaveChangesAsync();
+		var userId = user.GetRequiredId();
+
+		var trackedUser = await dbContext.User
+			.Where(u => u.Id == userId)
+			.FirstAsync();
+		trackedUser.CreatedAt = createdAt;
+		await dbContext.SaveChangesAsync();
+
+		var account =
+			UserAccount.CreateTenantAccount(userId, tenantId);
+		await dbContext.UserAccount.AddAsync(account);
+		await dbContext.SaveChangesAsync();
+
+		return userId.ToString();
+	}
+
 	// -- Response DTOs --
 
 	private record FindResponse {

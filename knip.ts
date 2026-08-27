@@ -11,35 +11,13 @@ const config: KnipConfig = {
 			// locally), not an npm package: quality-gate.yml's
 			// `pnpm exec just test-analyzers` legitimately resolves it from PATH.
 			ignoreBinaries: ['just'],
-			// The root manifest's pnpm.packageExtensions patch declares a zod
-			// peer for @hookform/resolvers; knip reads that block and reports
-			// zod as an unlisted dependency of the ROOT workspace. No repo
-			// source imports zod outside apps/front and packages/shared-ts,
-			// which both declare it themselves.
-			//
 			// `winston-transport-browserconsole` is declared in
 			// packages/shared-ts/package.json but never imported directly:
 			// winston resolves it at runtime as an optional browser transport,
 			// so knip cannot trace the import. It matches develop's declared
 			// dependency set (kept deliberately), so it is ignored here rather
 			// than removed from the manifest.
-			//
-			// `isbot`, `nprogress`, and `serialize-error` are ROOT workspace
-			// dependencies declared in the repo-root package.json. They are not
-			// imported by any root-source entry (the root workspace only scans
-			// packages/scripts-ts/src), but develop carries them as top-level
-			// deps for tooling/CLI use — develop's own knip config never flagged
-			// them because it did not scan apps/front or packages/shared-ts.
-			// This lane's broader knip coverage (the point of #1472) surfaces
-			// them; they mirror develop's declared dependency set, so they are
-			// ignored here rather than removed from the manifest.
-			ignoreDependencies: [
-				'zod',
-				'winston-transport-browserconsole',
-				'isbot',
-				'nprogress',
-				'serialize-error',
-			],
+			ignoreDependencies: ['winston-transport-browserconsole'],
 		},
 		'apps/api': {
 			entry: 'run-dev.mjs',
@@ -99,13 +77,19 @@ const config: KnipConfig = {
 					'exports',
 				],
 				// staff-tenant-activity.ts — #1570 (tenant activity tab) introduced
-				// this file with exports (STAFF_TENANT_ACTIVITY_QUERY_KEY,
+				// this file. Its exports (STAFF_TENANT_ACTIVITY_QUERY_KEY,
 				// buildTenantActivityQueryParameters, tenantActivityQueryOptions)
-				// that are currently unreferenced anywhere in the tree. Surfaced on
-				// this lane because #1570 landed on develop after this PR was cut and
-				// the merged-tree knip now evaluates them. Scoped to the exact file +
-				// the exports issue type so any newly-added export gap in this file
-				// still fails knip loudly. Reported identically on origin/develop.
+				// are NOT dead code: they are self-consumed internally within the
+				// same file — tenantActivityQueryOptions builds its queryKeyFn from
+				// STAFF_TENANT_ACTIVITY_QUERY_KEY and feeds buildTenantActivityQueryParameters
+				// into queryParameters, and useTenantActivityQuery wraps
+				// tenantActivityQueryOptions (see the internal .queryKey/.fetcher
+				// calls). knip reports these as unused exports because it does not
+				// trace the chain across the buildStaffQueryOptions()/useQuery() generic
+				// boundary, so this is a self-consumption false positive, not a
+				// delete-when-cleanup tolerance. Scoped to the exact file + the exports
+				// issue type so any newly-added export gap in this file still fails
+				// knip loudly. Reported identically on origin/develop.
 				'src/lib/query/staff-tenant-activity.ts': ['exports'],
 			},
 		},

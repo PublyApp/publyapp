@@ -476,6 +476,74 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
 	}
 
+	[Fact]
+	public async Task ItShouldWalkEveryEmailPageWithoutOverlapOrGap() {
+		var token = await _authClient.LoginAsStaffAdminAsync();
+
+		// Deterministic, anti-correlated emails: insertion order is c,b,a while
+		// the lexical (sort) order is a,b,c. The walk must return them in
+		// lexical order, so a keySelector swap to the id (insertion) order
+		// turns this assertion RED.
+		const int total = 3;
+		var emails = new List<string>();
+		for (var i = 0; i < total; i++) {
+			emails.Add($"email-walk-{(char)('a' + (2 - i))}-{Guid.NewGuid():N}@example.com");
+			_ = await CreateStaffUserAsync(token, emails[^1]);
+		}
+		emails.Sort(StringComparer.OrdinalIgnoreCase);
+
+		var visitedEmails = new List<string>();
+		string? cursor = null;
+		var pages = 0;
+		do {
+			var url = GetFindUrl(
+				cursor: cursor,
+				limit: 1,
+				sortId: "email",
+				sortOrder: "asc"
+			);
+
+			using var request = new HttpRequestMessage(
+				HttpMethod.Get, url
+			).WithSessionToken(token);
+
+			using var response = await _http.SendAsync(request);
+			response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+			var page = await response.Content.ReadFromJsonAsync<FindResponse>();
+			page.Should().NotBeNull();
+			Assert.NotNull(page);
+			pages++;
+			visitedEmails.AddRange(page.Data.Select(user => user.Email));
+			cursor = page.NextCursor;
+
+			// Guard against an infinite loop if the tie-breaker/cursor filter regresses.
+			pages.Should().BeLessOrEqualTo(100);
+		} while (cursor is not null);
+
+		// The walk covers the whole list (seeded template users included):
+		// no row may repeat, and our three rows must come out once each,
+		// in keyset order relative to each other.
+		visitedEmails.Should().OnlyHaveUniqueItems();
+		visitedEmails.Where(emails.Contains).Should().Equal(emails);
+	}
+
+	[Fact]
+	public async Task ItShouldAcceptAnUppercaseSortId() {
+		var token = await _authClient.LoginAsStaffAdminAsync();
+
+		var request = new HttpRequestMessage(
+			HttpMethod.Get,
+			GetFindUrl(limit: 5, sortId: "CREATED_AT")
+		).WithSessionToken(token);
+
+		using var response = await _http.SendAsync(request);
+
+		// The handler dictionary resolves keys case-insensitively; an
+		// ordinal-sensitive lookup would turn this into a 400.
+		response.StatusCode.Should().Be(HttpStatusCode.OK);
+	}
+
 	private static string GetFindUrl(
 		string? cursor = null,
 		int? limit = null,

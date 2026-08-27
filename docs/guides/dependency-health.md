@@ -100,12 +100,36 @@ above; #880's closure adds the proof, not a new pin.
   fails when the doc names the wrong one. Guarded at runtime by
   `apps/front/src/lib/api-client/client-manager.redirect-scrub.test.ts`, which drives the real
   generated client through a cross-origin 302 and fails on any version in the vulnerable range.
-- **`nanoid` (GHSA-mwcw-c2x4-8c55)** — closed by the root `pnpm.overrides` caps:
-  `nanoid@<3.3.18 → ^3.3.18` rewrites the vulnerable 3.x consumer, and
-  `nanoid@>=4.0.0 <5.0.9 → ^5.1.16` lifts every 4.x/early-5.x resolution past the fixed
-  `5.0.9`; the only direct declaration, `packages/shared-ts` `^5.1.16`, already satisfies the
-  range. No workspace source imports `nanoid`. Remove both overrides once upstream consumers
-  resolve fixed versions without them.
+- **`nanoid` (GHSA-mwcw-c2x4-8c55)** — two root `pnpm.overrides` caps existed:
+
+  - **`nanoid@<3.3.18 → ^3.3.18` STAYS** (restored in commit for #1625 round 2; it
+    was removed in `ec7089c99` but that removal was a security regression,
+    flagged in review). The sole remaining consumer is transitive:
+    `postcss@8.5.25` declares `nanoid: ^3.3.16` (a range that **includes**
+    `3.3.16`/`3.3.17`, which are vulnerable; the fix is `3.3.18`). Today the lock
+    resolves `3.3.18` only because of this cap — without it a lockfile
+    regeneration could drop back to `3.3.16`. The cap is the **only** protection
+    for this range: the validation audit is `pnpm audit --prod --audit-level=high`,
+    and `postcss` is a **devDependency** of `apps/front`, so `--prod` does not
+    inspect that graph at all. A vulnerable resolution would pass CI unseen. **Two
+    reasons it stays:** (1) `postcss`'s declared range can still resolve a
+    vulnerable version, and (2) the CI audit does not cover the dev graph. Either
+    reason alone is sufficient; both are true today.
+  - **`nanoid@>=4.0.0 <5.0.9 → ^5.1.16` REMOVED** (commit `ec7089c99`, issue
+    #1623). The only direct declaration, `packages/shared-ts` `^5.1.16`, was also
+    removed and no workspace source ever imported `nanoid`. After that removal,
+    **no** consumer declares a range that can resolve `>=4.0.0 <5.0.9`: the only
+    remaining `nanoid` in the tree is the transitive `3.3.18` under `postcss`, so
+    the 4.x/5.x cap had nothing left to lift and was correctly dropped.
+
+  **Verifiable removal condition for the `<3.3.18` cap** (judged on the *declared*
+  range, not the resolved version): remove it only when **every** consumer that
+  can reach `nanoid@3.x` declares a range whose lower bound is `>=3.3.18` (i.e. no
+  declared range can resolve `3.3.16`/`3.3.17`) **and** the CI audit covers the
+  graph that consumer lives in. `postcss` still declares `^3.3.16`, and `postcss`
+  is dev-scoped, so neither condition holds — the cap stays. Judging on the
+  resolved version (`3.3.18` today) instead of the declared range is what caused
+  the round-1 regression; do not repeat that mistake.
 
 CI's audit step (`pnpm audit --prod --audit-level=high`) stays the standing tripwire; run the
 full-graph `pnpm audit --audit-level=moderate` when triaging Dependabot alerts.

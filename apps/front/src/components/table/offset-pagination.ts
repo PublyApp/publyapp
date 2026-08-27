@@ -86,6 +86,19 @@ const resetKeysSignature = (resetKeys: readonly unknown[]): string =>
  * ever observe the reset on a later paint than the clamp (see the
  * `useOffsetPageClamp` tests, which assert the FIRST render after a
  * `resetKeys` change returns 0).
+ *
+ * CONTRACT — you MUST COMMIT the returned value. The hook only RETURNS the
+ * page to display; it never writes into the caller's state. The "return to
+ * page 0 after a `resetKeys` change" takes effect ONLY if the caller commits
+ * the value on the same render, e.g.
+ * `if (clampedPageIndex !== pageIndex) setPageIndex(clampedPageIndex)`. If a
+ * caller ignores the return and keeps passing its own stale `pageIndex`, the
+ * reset is silently lost: on the reset render the hook returns 0 and updates
+ * its own `resetKeys` signature, so on the next render `resetKeys` is
+ * unchanged and the hook re-clamps from the still-stale `pageIndex` — stranding
+ * the reader on a non-zero page instead of page 0. The three real callers all
+ * commit (adjust-state-while-rendering); see `offset-pagination.test.ts`
+ * for the negligent-caller test that pins this exact loss.
  */
 export const useOffsetPageClamp = ({
 	pageIndex,

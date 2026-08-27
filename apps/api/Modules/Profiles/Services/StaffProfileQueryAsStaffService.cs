@@ -123,176 +123,45 @@ public sealed class StaffProfileQueryAsStaffService : IStaffProfileQueryAsStaffS
 		var sortFieldHandlers = new Dictionary<string, CursorSortFieldHandler<Profile>>(
 			StringComparer.OrdinalIgnoreCase
 		) {
-			// ═══════════════════════════════════════════════════════════════════════
-			// HANDLER 1: Sort by Id
-			// ═══════════════════════════════════════════════════════════════════════
-			// Simplest case - cursor is the Id itself, so we just compare Id > cursor
-			["id"] = new CursorSortFieldHandler<Profile>(
-					// GetCursorValue: Just fetch the Id value
-					getCursorValue: async (guid) => {
-						var profileId = await _dbContext.Profile
-							.AsNoTracking()
-							.Where(p => p.Id == guid
-								&& p.Scope == ProfileScope.Staff
-								&& !p.IsDeleted)
-							.Select(p => p.Id)
-							.FirstOrDefaultAsync(cancellationToken);
-						return profileId;
-					},
-					// ApplyFilter: Simple comparison - WHERE Id > cursor (or < for descending)
-					applyFilter: (q, cursorValue, isAsc) => {
-						var cursorGuid = (Guid?)cursorValue;
-						if (cursorGuid is null) {
-							return q;
-						}
-
-						return isAsc
-							? q.Where(p => p.Id > cursorGuid)  // Ascending: get Ids AFTER cursor
-							: q.Where(p => p.Id < cursorGuid); // Descending: get Ids BEFORE cursor
-					},
-					// ApplyOrdering: ORDER BY Id [ASC|DESC]
-					applyOrdering: (q, isAsc) => isAsc
-						? q.OrderBy(p => p.Id)
-						: q.OrderByDescending(p => p.Id)
-				),
-
-			// ═══════════════════════════════════════════════════════════════════════
-			// HANDLER 2: Sort by Name
-			// ═══════════════════════════════════════════════════════════════════════
-			// Complex case - need Name AND Id for keyset pagination
-			// Why? Multiple profiles can have the same name, so we need Id as tie-breaker
-			["name"] = new CursorSortFieldHandler<Profile>(
-					// GetCursorValue: Fetch BOTH Name and Id of the cursor record
-					// We need both values to construct the keyset filter correctly
-					getCursorValue: async (guid) => {
-						var profile = await _dbContext.Profile
-							.AsNoTracking()
-							.Where(p => p.Id == guid
-								&& p.Scope == ProfileScope.Staff
-								&& !p.IsDeleted)
-							.Select(p => new { p.Name, p.Id })
-							.FirstOrDefaultAsync(cancellationToken);
-						// Return as tuple: (Name, Id)
-						return profile is not null ? (profile.Name, profile.Id) : null;
-					},
-					// ApplyFilter: Keyset filter with tie-breaker
-					// ASC:  WHERE (Name > 'cursorName') OR (Name = 'cursorName' AND Id > cursorId)
-					// DESC: WHERE (Name < 'cursorName') OR (Name = 'cursorName' AND Id < cursorId)
-					// This handles duplicate names correctly with consistent direction
-					applyFilter: (q, cursorValue, isAsc) => {
-						if (cursorValue is null) {
-							return q;
-						}
-
-						var (cursorName, cursorId) = ((string, Guid?))cursorValue;
-						return isAsc
-							? q.Where(
-								p =>
-									p.Name.CompareTo(cursorName) > 0
-									|| (p.Name == cursorName && p.Id > cursorId)
-							)
-							: q.Where(
-								p =>
-									p.Name.CompareTo(cursorName) < 0
-									|| (p.Name == cursorName && p.Id < cursorId)
-							);
-					},
-					// ApplyOrdering: ORDER BY Name, Id (both same direction)
-					// Id tie-breaker MUST match primary sort direction for keyset pagination to work correctly
-					applyOrdering: (q, isAsc) => isAsc
-						? q.OrderBy(p => p.Name).ThenBy(p => p.Id)
-						: q.OrderByDescending(p => p.Name).ThenByDescending(p => p.Id)
-				),
-
-			// ═══════════════════════════════════════════════════════════════════════
-			// HANDLER 3: Sort by CreatedAt
-			// ═══════════════════════════════════════════════════════════════════════
-			// Similar to Name - need CreatedAt AND Id for keyset pagination
-			// Multiple profiles can be created at the same timestamp
-			["created_at"] = new CursorSortFieldHandler<Profile>(
-					// GetCursorValue: Fetch BOTH CreatedAt and Id
-					getCursorValue: async (guid) => {
-						var profile = await _dbContext.Profile
-							.AsNoTracking()
-							.Where(p => p.Id == guid
-								&& p.Scope == ProfileScope.Staff
-								&& !p.IsDeleted)
-							.Select(p => new { p.CreatedAt, p.Id })
-							.FirstOrDefaultAsync(cancellationToken);
-						return profile is not null ? (profile.CreatedAt, profile.Id) : null;
-					},
-					// ApplyFilter: Keyset filter with tie-breaker in same direction
-					// ASC:  WHERE (CreatedAt > cursor) OR (CreatedAt = cursor AND Id > cursorId)
-					// DESC: WHERE (CreatedAt < cursor) OR (CreatedAt = cursor AND Id < cursorId)
-					applyFilter: (q, cursorValue, isAsc) => {
-						if (cursorValue is null) {
-							return q;
-						}
-
-						var (cursorCreatedAt, cursorId) = ((DateTime, Guid?))cursorValue;
-						return isAsc
-							? q.Where(
-								p =>
-									p.CreatedAt > cursorCreatedAt
-									|| (p.CreatedAt == cursorCreatedAt && p.Id > cursorId)
-							)
-							: q.Where(
-								p =>
-									p.CreatedAt < cursorCreatedAt
-									|| (p.CreatedAt == cursorCreatedAt && p.Id < cursorId)
-							);
-					},
-					// ApplyOrdering: ORDER BY CreatedAt, Id (both same direction)
-					applyOrdering: (q, isAsc) => isAsc
-						? q.OrderBy(p => p.CreatedAt).ThenBy(p => p.Id)
-						: q.OrderByDescending(p => p.CreatedAt).ThenByDescending(p => p.Id)
-				),
-
-			// ═══════════════════════════════════════════════════════════════════════
-			// HANDLER 4: Sort by UserAccountCount
-			// ═══════════════════════════════════════════════════════════════════════
-			// Computed field - count of related UserAccountProfiles
-			// Many profiles can have the same count, so Id tie-breaker is essential
-			["user_account_count"] = new CursorSortFieldHandler<Profile>(
-					// GetCursorValue: Calculate the count for the cursor record
-					getCursorValue: async (guid) => {
-						var profile = await _dbContext.Profile
-							.AsNoTracking()
-							.Where(p => p.Id == guid
-								&& p.Scope == ProfileScope.Staff
-								&& !p.IsDeleted)
-							.Select(p => new { Count = p.UserAccountProfiles.Count, p.Id })
-							.FirstOrDefaultAsync(cancellationToken);
-						return profile is not null ? (profile.Count, profile.Id) : null;
-					},
-					// ApplyFilter: Keyset filter with tie-breaker in same direction
-					// ASC:  WHERE (Count > cursor) OR (Count = cursor AND Id > cursorId)
-					// DESC: WHERE (Count < cursor) OR (Count = cursor AND Id < cursorId)
-					applyFilter: (q, cursorValue, isAsc) => {
-						if (cursorValue is null) {
-							return q;
-						}
-
-						var (cursorCount, cursorId) = ((int, Guid?))cursorValue;
-						return isAsc
-							? q.Where(
-								p =>
-									p.UserAccountProfiles.Count > cursorCount
-									|| (p.UserAccountProfiles.Count == cursorCount
-										&& p.Id > cursorId)
-							)
-							: q.Where(
-								p =>
-									p.UserAccountProfiles.Count < cursorCount
-									|| (p.UserAccountProfiles.Count == cursorCount
-										&& p.Id < cursorId)
-							);
-					},
-					// ApplyOrdering: ORDER BY UserAccountProfiles.Count, Id (both same direction)
-					applyOrdering: (q, isAsc) => isAsc
-						? q.OrderBy(p => p.UserAccountProfiles.Count).ThenBy(p => p.Id)
-						: q.OrderByDescending(p => p.UserAccountProfiles.Count).ThenByDescending(p => p.Id)
-				)
+			["id"] = CursorSortFieldHandlerFactory.Create<Profile, Guid, Guid?>(
+				cursorLookupQuery: () => _dbContext.Profile
+					.AsNoTracking()
+					.Where(p => p.Scope == ProfileScope.Staff
+						&& !p.IsDeleted),
+				keySelector: p => p.Id ?? Guid.Empty,
+				idSelector: p => p.Id,
+				cancellationToken
+			),
+			["name"] = CursorSortFieldHandlerFactory.Create<Profile, string, Guid?>(
+				cursorLookupQuery: () => _dbContext.Profile
+					.AsNoTracking()
+					.Where(p => p.Id != null
+						&& p.Scope == ProfileScope.Staff
+						&& !p.IsDeleted),
+				keySelector: p => p.Name,
+				idSelector: p => p.Id,
+				cancellationToken
+			),
+			["created_at"] = CursorSortFieldHandlerFactory.Create<Profile, DateTime, Guid?>(
+				cursorLookupQuery: () => _dbContext.Profile
+					.AsNoTracking()
+					.Where(p => p.Id != null
+						&& p.Scope == ProfileScope.Staff
+						&& !p.IsDeleted),
+				keySelector: p => p.CreatedAt,
+				idSelector: p => p.Id,
+				cancellationToken
+			),
+			["user_account_count"] = CursorSortFieldHandlerFactory.Create<Profile, int, Guid?>(
+				cursorLookupQuery: () => _dbContext.Profile
+					.AsNoTracking()
+					.Where(p => p.Id != null
+						&& p.Scope == ProfileScope.Staff
+						&& !p.IsDeleted),
+				keySelector: p => p.UserAccountProfiles.Count,
+				idSelector: p => p.Id,
+				cancellationToken
+			),
 		};
 
 		// ───────────────────────────────────────────────────────────────────────

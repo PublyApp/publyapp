@@ -256,10 +256,23 @@ public class Program {
 		// included, since that middleware hooks HttpResponse.OnStarting.
 		// The root is owned by the resolved IFileStorage (it already created the
 		// directory in its constructor), not recomputed here.
+		// Scope the anonymous mount to the `uploads/` sub-tree (issue #1602),
+		// NOT the storage root as a whole. ASP.NET Core strips the RequestPath
+		// prefix BEFORE resolving against the FileProvider, so a file at
+		// `<root>/uploads/X` is still reached via `/files/uploads/X` and the URLs
+		// CreateStaffUpload already returns (`/files/{path}`, `{path}` starting at
+		// `uploads/`) keep working. A file written elsewhere under the root stays
+		// unreachable through `/files/...` — which is exactly what #286's
+		// user-data exports must rely on.
 		var fileStorage = app.Services.GetRequiredService<IFileStorage>();
+		// The storage root exists (LocalDiskFileStorage creates it), but the
+		// `uploads/` sub-tree is only materialized on the first save. The static
+		// mount needs the directory present, so create it deterministically.
+		var uploadsRoot = Path.Combine(fileStorage.RootPath, "uploads");
+		Directory.CreateDirectory(uploadsRoot);
 		app.UseStaticFiles(new StaticFileOptions {
-			FileProvider = new PhysicalFileProvider(fileStorage.RootPath),
-			RequestPath = "/files",
+			FileProvider = new PhysicalFileProvider(uploadsRoot),
+			RequestPath = "/files/uploads",
 			ServeUnknownFileTypes = false,
 			// Safe precisely because paths are server-generated UUID v7 file names
 			// (see LocalDiskFileStorage.SaveAsync): a replaced logo gets a new UUID,
