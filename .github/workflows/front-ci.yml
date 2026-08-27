@@ -293,6 +293,8 @@ jobs:
           pnpm --filter scripts-ts exec vitest run src/check-actions-pins.test.ts
           node ./packages/scripts-ts/src/check-actions-pins.ts
           pnpm --filter scripts-ts exec vitest run src/ci-referenced-paths.test.ts
+          pnpm --filter scripts-ts exec vitest run src/check-cyclomatic-bound.test.ts
+          node ./packages/scripts-ts/src/check-cyclomatic-bound.ts
 
       # This must run in a required-check dependency, not only locally: the
       # projection protects closure evidence and Trello delivery-card updates.
