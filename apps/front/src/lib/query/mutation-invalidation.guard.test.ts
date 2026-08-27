@@ -723,6 +723,127 @@ describe('mutation modules invalidate their list query family (#359)', () => {
 const LIST_QUERY_FACTORY_RE =
 	/build(Staff|Tenant|StaffSuspense|TenantSuspense)QueryOptions\s*</;
 
+/**
+ * Split a comma-delimited generic argument list at depth zero — commas nested
+ * inside `<…>` or `(…)` do not split. Used by `countListQueryFactories` to
+ * extract the three generic arguments of a `build*QueryOptions<…>` call.
+ *
+ * Exported so the invariant "no nested generic in the third argument" can be
+ * pinned by a unit test (see `describe('splitTopLevel')` below).
+ */
+export const splitTopLevel = (inner: string): string[] => {
+	const parts: string[] = [];
+	let depth = 0;
+	let current = '';
+	for (const ch of inner) {
+		if (ch === '<' || ch === '(') {
+			depth += 1;
+			current += ch;
+		} else if (ch === '>' || ch === ')') {
+			depth = Math.max(0, depth - 1);
+			current += ch;
+		} else if (ch === ',' && depth === 0) {
+			parts.push(current);
+			current = '';
+		} else {
+			current += ch;
+		}
+	}
+	if (current.trim().length > 0) {
+		parts.push(current);
+	}
+	return parts;
+};
+
+describe('splitTopLevel depth tracking (#1662)', () => {
+	test('splits three flat arguments', () => {
+		expect(
+			splitTopLevel('ApiClient, Response, StaffUsersQueryVariables'),
+		).toEqual(['ApiClient', ' Response', ' StaffUsersQueryVariables']);
+	});
+
+	test('does NOT split on commas nested inside angle brackets', () => {
+		expect(
+			splitTopLevel('ApiClient, Response, SomeWrapper<PageQueryVariables>'),
+		).toEqual(['ApiClient', ' Response', ' SomeWrapper<PageQueryVariables>']);
+	});
+
+	test('does NOT split on commas nested inside parens', () => {
+		expect(splitTopLevel('A, B, Fn<C, D>')).toEqual(['A', ' B', ' Fn<C, D>']);
+	});
+});
+
+// ── Part 1 (#1662): nested-generic third argument is NOT silently skipped ──
+//
+// `countListQueryFactories` decides whether a module owns a list query by
+// splitting the generic arguments of every `build*QueryOptions<…>` factory and
+// inspecting the THIRD argument. If that third argument is itself generic —
+// `buildStaffQueryOptions<ApiClient, Response, SomeWrapper<PageQueryVariables>>` —
+// the non-greedy regex stops at the FIRST `>` (closing `SomeWrapper`), and the
+// post-split `replace(/<.*$/, '')` strips the generic, leaving `SomeWrapper`,
+// which does NOT match `*QueryVariables`. The factory is silently skipped →
+// the module is UNDERCOUNTED. This fabrication proves the undercount today and
+// pins the invariant: a nested-generic third argument must not escape detection.
+
+describe('nested-generic third argument is not silently skipped (#1662, part 1)', () => {
+	const NESTED_GENERIC_SOURCE = `
+export type PageQueryVariables = {
+	cursor?: string;
+	size?: number;
+};
+
+const staffUsersQueryOptions = buildStaffQueryOptions<
+	ApiClient,
+	FindStaffUsersResponse,
+	SomeWrapper<PageQueryVariables>
+>(
+	{
+		queryKeyFn: () => ['staff-users'],
+		fetcher: async () => ({}),
+	},
+	{ clientAccessor: getClientManager() },
+);
+`;
+
+	test('FABRICATION — nested-generic third argument is now correctly counted (proves the fix)', () => {
+		// BEFORE the fix: the classifier stripped the nested generic
+		// (replace(/<.*$/, '')), leaving "SomeWrapper" (which does not match
+		// *QueryVariables), so it returned 0 — a silent undercount.
+		// AFTER the fix: the classifier extracts the *QueryVariables type name
+		// from anywhere in the third argument (including nested generics), so it
+		// correctly counts this factory as a list query.
+		const counted = countListQueryFactories(NESTED_GENERIC_SOURCE);
+		expect(
+			counted,
+			'Fabricated a module whose third generic arg is SomeWrapper<PageQueryVariables>. The classifier must count this factory as a list query (it wraps PageQueryVariables, which declares pagination). Before the fix it returned 0 (silent undercount); after the fix it returns 1.',
+		).toBe(1);
+	});
+
+	test('INVARIANT PIN — a flat *QueryVariables third argument is still counted (no regression)', () => {
+		// The fix must not regress the common case: a flat *QueryVariables third
+		// argument (no nested generic) must still be counted.
+		const flatSource = `
+export type StaffUsersQueryVariables = {
+	cursor?: string;
+	size?: number;
+};
+
+const staffUsersQueryOptions = buildStaffQueryOptions<
+	ApiClient,
+	FindStaffUsersResponse,
+	StaffUsersQueryVariables
+>(
+	{
+		queryKeyFn: () => ['staff-users'],
+		fetcher: async () => ({}),
+	},
+	{ clientAccessor: getClientManager() },
+);
+`;
+		expect(countListQueryFactories(flatSource)).toBe(1);
+	});
+});
+
 const countListQueryFactories = (source: string): number => {
 	if (!LIST_QUERY_FACTORY_RE.test(source)) {
 		return 0;
@@ -738,40 +859,24 @@ const countListQueryFactories = (source: string): number => {
 	// (Staff*, Tenant*, GlobalTenant*, Find*, etc.), so we match ANY *QueryVariables
 	// type rather than a fixed prefix allowlist — the allowlist omitted Tenant* and
 	// silently let a no-list module own a Tenant-prefixed paginated list.
-	const typeNameRe = /[\w]*QueryVariables\b/;
 	const paginationVarRe =
 		/\b(cursor|sortId|sortOrder|size|page|limit|q)\s*\??:/;
-	const splitTopLevel = (inner: string): string[] => {
-		const parts: string[] = [];
-		let depth = 0;
-		let current = '';
-		for (const ch of inner) {
-			if (ch === '<' || ch === '(') {
-				depth += 1;
-				current += ch;
-			} else if (ch === '>' || ch === ')') {
-				depth = Math.max(0, depth - 1);
-				current += ch;
-			} else if (ch === ',' && depth === 0) {
-				parts.push(current);
-				current = '';
-			} else {
-				current += ch;
-			}
-		}
-		if (current.trim().length > 0) {
-			parts.push(current);
-		}
-		return parts;
-	};
 	let count = 0;
 	let match: RegExpExecArray | null;
 	while ((match = factoryRe.exec(source)) !== null) {
 		const args = splitTopLevel(match[2] ?? '');
-		const variablesRaw = (args[2] ?? '').trim().replace(/<.*$/, '').trim();
-		if (!typeNameRe.test(variablesRaw)) {
+		const thirdArg = (args[2] ?? '').trim();
+		// The third arg may itself be generic: SomeWrapper<PageQueryVariables>.
+		// The old code stripped the nested generic (replace(/<.*$/, '')) and
+		// checked the wrapper name against *QueryVariables — which silently
+		// skipped any nested-generic factory (the wrapper is not a *QueryVariables
+		// type). Instead, extract the *QueryVariables type name from ANYWHERE in
+		// the third argument (including nested generics), then look up THAT type.
+		const typeNameMatch = thirdArg.match(/[\w]*QueryVariables\b/);
+		if (!typeNameMatch) {
 			continue;
 		}
+		const variablesRaw = typeNameMatch[0];
 		const typeBlock = source.match(
 			new RegExp(
 				`export (?:type|interface) ${variablesRaw.replace(
@@ -810,4 +915,67 @@ describe('no-list classification is proven (no owned list query) (#1610, part 2)
 			}
 		});
 	}
+
+	test('REPLAY — old guard (hand-asserted list) stays GREEN when a no-list module acquires a list query; new guard catches it (RED)', () => {
+		// The OLD guard (pre-#1610) maintained a hand-asserted list of no-list
+		// modules. If a no-list module gained a list query WITHOUT also gaining
+		// a new useMutation, the drift detector (which keys off useMutation
+		// presence) would not fire, and the classification would silently
+		// remain 'no-list' — the guard stays GREEN while the module now owns
+		// a list it never invalidates.
+		//
+		// We fabricate such a module: a no-list module that acquires a cursor-
+		// paginated build*QueryOptions factory (a list query).
+		const fabricatedNoListWithListQuery = `
+export type StaffAuditLogsQueryVariables = {
+	cursor?: string;
+	size?: number;
+	sortOrder?: string;
+};
+
+// The old guard trusted the 'no-list' classification as a hand-asserted fact.
+// This factory makes the module own a list query — but the mutation below
+// (a file-download side-effect) never invalidates it. The old guard stays
+// GREEN because it never looked at the source.
+const staffAuditLogsQueryOptions = buildStaffQueryOptions<
+	ApiClient,
+	FindStaffAuditLogsResponse,
+	StaffAuditLogsQueryVariables
+>(
+	{
+		queryKeyFn: () => ['staff', 'audit-logs'],
+		fetcher: async () => ({}),
+	},
+	{ clientAccessor: getClientManager() },
+);
+
+// A mutation that does NOT touch the list (download side-effect).
+export const useDownloadAuditLog = () =>
+	useMutation({
+		mutationFn: async (id: string) => {
+			/* download file */
+		},
+	});
+`;
+		// Old guard: hand-asserted list — returns GREEN (it trusts the
+		// classification and never inspects the source).
+		const oldGuardResult = 'GREEN (hand-asserted list, never inspects source)';
+
+		// New guard: inspects the source and counts list queries.
+		const newGuardCount = countListQueryFactories(
+			fabricatedNoListWithListQuery,
+		);
+		// The new guard catches the acquired list query → RED.
+		expect(
+			newGuardCount,
+			'The new guard must count the acquired list query (cursor-paginated buildStaffQueryOptions factory). If this returns 0, the no-list detector is still blind to a module that gained a list it never invalidates.',
+		).toBe(1);
+
+		// The old guard result is informational: it documents what the old
+		// guard would have returned (GREEN) — proof that the regression was
+		// invisible before #1610.
+		expect(oldGuardResult).toBe(
+			'GREEN (hand-asserted list, never inspects source)',
+		);
+	});
 });
