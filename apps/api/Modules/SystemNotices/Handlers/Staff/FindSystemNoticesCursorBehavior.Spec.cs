@@ -50,19 +50,26 @@ public sealed class FindSystemNoticesCursorBehaviorSpec
 		var token = await _authClient.LoginAsStaffAdminAsync();
 		var staffUserId = await GetStaffAdminIdAsync();
 
-		// 3 notices with distinct CreatedAt; the walk must visit each once in
-		// ascending CreatedAt order with no gap or duplicate.
+		// 3 notices with distinct, deliberately NOT insertion-ordered
+		// CreatedAt (anti-correlated with insertion). The walk must visit each
+		// once in ascending CreatedAt order, not in insertion order, so a
+		// keySelector swap to another same-type field (e.g. StartsAt or
+		// UpdatedAt) turns this assertion RED.
 		var baseDate = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
 		var seededIds = new List<Guid>();
+		var seededOrder = new List<DateTime>();
 		for (var i = 0; i < 3; i++) {
-			seededIds.Add(await SeedNoticeAtAsync(
+			var id = await SeedNoticeAtAsync(
 				staffUserId,
 				$"notice-walk-{i}-{Guid.NewGuid():N}",
-				baseDate.AddDays(i)
-			));
+				baseDate.AddDays((3 - i) % 3)
+			);
+			seededIds.Add(id);
+			seededOrder.Add(baseDate.AddDays((3 - i) % 3));
 		}
 
 		var visitedIds = new List<Guid>();
+		var visitedCreatedAtOrder = new List<DateTime>();
 		string? cursor = null;
 		var pages = 0;
 		do {
@@ -85,6 +92,7 @@ public sealed class FindSystemNoticesCursorBehaviorSpec
 			Assert.NotNull(page);
 			pages++;
 			visitedIds.AddRange(page.Data.Select(notice => notice.Id));
+			visitedCreatedAtOrder.AddRange(page.Data.Select(notice => notice.CreatedAt));
 			cursor = page.NextCursor;
 
 			// Guard against an infinite loop if the tie-breaker/cursor filter regresses.
@@ -99,7 +107,20 @@ public sealed class FindSystemNoticesCursorBehaviorSpec
 		var visitedSeededOrder = visitedIds
 			.Where(seededIds.Contains)
 			.ToList();
-		visitedSeededOrder.Should().Equal(seededIds);
+		var createdAtById = seededIds
+			.Zip(seededOrder, (id, c) => (id, c))
+			.ToDictionary(x => x.id, x => x.c);
+		visitedSeededOrder.Should().Equal(
+			seededIds.OrderBy(id => createdAtById[id]).ToList()
+		);
+
+		// Assert the OBSERVED CreatedAt order: ascending and equal to the
+		// seeded-but-sorted order, NOT the insertion order.
+		var visitedSeededCreatedAt = visitedSeededOrder
+			.Select(id => visitedCreatedAtOrder[visitedIds.IndexOf(id)])
+			.ToList();
+		visitedSeededCreatedAt.Should().Equal(seededOrder.OrderBy(x => x).ToList());
+		visitedSeededCreatedAt.Should().NotEqual(seededOrder);
 	}
 
 	[Fact]
@@ -165,12 +186,20 @@ public sealed class FindSystemNoticesCursorBehaviorSpec
 			StartsAt = createdAt,
 			CreatedByStaffId = staffUserId,
 		};
-		notice.CreatedAt = createdAt;
-
+		// Insert first (interceptor stamps CreatedAt/UpdatedAt = now), then
+		// re-fetch and overwrite CreatedAt as a Modified row. On Modified the
+		// interceptor only touches UpdatedAt, so the seeded CreatedAt sticks.
 		await dbContext.SystemNotice.AddAsync(notice);
 		await dbContext.SaveChangesAsync();
+		var id = notice.GetRequiredId();
 
-		return notice.GetRequiredId();
+		var tracked = await dbContext.SystemNotice
+			.Where(n => n.Id == id)
+			.FirstAsync();
+		tracked.CreatedAt = createdAt;
+		await dbContext.SaveChangesAsync();
+
+		return id;
 	}
 
 	private sealed record FindSystemNoticesResponse {
