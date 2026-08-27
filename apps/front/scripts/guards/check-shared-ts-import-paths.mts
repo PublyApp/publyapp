@@ -123,7 +123,7 @@ const deriveSharedTsSegments = (dir: string): string[] => {
 };
 
 const SHARED_TS_SEGMENTS = deriveSharedTsSegments(sharedTsSrc);
-export { SHARED_TS_SEGMENTS };
+export { SHARED_TS_SEGMENTS, deriveSharedTsSegments };
 
 /**
  * Matches a `@org/shared-ts/<segment>...` specifier where `<segment>` is any

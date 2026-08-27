@@ -32,6 +32,8 @@ import {
 	scanFrontSrcForSharedTsReExports,
 	scanSharedTsSrcForSharedTsReExports,
 	scanTreeForSharedTsReExports,
+	SHARED_TS_SEGMENTS,
+	deriveSharedTsSegments,
 } from './check-shared-ts-import-paths.mts';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -331,7 +333,7 @@ test('scanTreeForSharedTsReExports labels findings with the tree label', () => {
 const TYPES_SPECIFIER = '@org/shared-ts/@types/foo';
 const SCRIPTS_SPECIFIER = '@org/shared-ts/scripts/generate-zod-i18n-map.mjs';
 
-test('RED: re-export of @org/shared-ts/@types/* is detected (#1678)', () => {
+test('RED: re-export of @org/shared-ts/@types/* is detected as DUAL_PATH (#1678)', () => {
 	const root = makeSandbox();
 	writeFileSync(
 		path.join(root, 'front-src/lib/types-shim.ts'),
@@ -344,13 +346,18 @@ test('RED: re-export of @org/shared-ts/@types/* is detected (#1678)', () => {
 		hit,
 		`re-export of @org/shared-ts/@types/* must be detected, got ${JSON.stringify(findings)}`,
 	);
+	assert.equal(
+		hit.type,
+		'DUAL_PATH',
+		`@types re-export must be DUAL_PATH, not UNKNOWN_SEGMENT — this is the assertion that breaks when the bug fix is reverted (#1678)`,
+	);
 	assert.ok(
 		hit.text.includes(TYPES_SPECIFIER),
 		`finding text should name the @types module: ${hit.text}`,
 	);
 });
 
-test('RED: re-export of @org/shared-ts/scripts/* is detected (#1678)', () => {
+test('RED: re-export of @org/shared-ts/scripts/* is detected as DUAL_PATH (#1678)', () => {
 	const root = makeSandbox();
 	writeFileSync(
 		path.join(root, 'front-src/lib/scripts-shim.ts'),
@@ -362,6 +369,11 @@ test('RED: re-export of @org/shared-ts/scripts/* is detected (#1678)', () => {
 	assert.ok(
 		hit,
 		`re-export of @org/shared-ts/scripts/* must be detected, got ${JSON.stringify(findings)}`,
+	);
+	assert.equal(
+		hit.type,
+		'DUAL_PATH',
+		`scripts re-export must be DUAL_PATH, not UNKNOWN_SEGMENT — this is the assertion that breaks when the bug fix is reverted (#1678)`,
 	);
 	assert.ok(
 		hit.text.includes(SCRIPTS_SPECIFIER),
@@ -443,5 +455,30 @@ test('RED: a source file with a syntax error produces a PARSE_ERROR finding (#16
 	assert.ok(
 		hit.text.startsWith('PARSE_ERROR:'),
 		`finding text should carry PARSE_ERROR cause, got: ${hit.text}`,
+	);
+});
+
+
+// ---- #1678 R4: assertion on the derivation of SHARED_TS_SEGMENTS itself -----
+
+test('SHARED_TS_SEGMENTS is derived from packages/shared-ts/src and contains @types and scripts (#1678)', () => {
+	// The old hardcoded regex (lib|utils|validations|types) missed @types and scripts.
+	// This assertion ensures the derivation picks them up — a regression to the
+	// hardcoded list or an empty segment set would break this.
+	assert.ok(
+		SHARED_TS_SEGMENTS.includes('@types'),
+		`SHARED_TS_SEGMENTS must contain @types, got ${JSON.stringify(SHARED_TS_SEGMENTS)}`,
+	);
+	assert.ok(
+		SHARED_TS_SEGMENTS.includes('scripts'),
+		`SHARED_TS_SEGMENTS must contain scripts, got ${JSON.stringify(SHARED_TS_SEGMENTS)}`,
+	);
+});
+
+test('SHARED_TS_SEGMENTS fails loudly when packages/shared-ts/src is unreadable (#1678)', () => {
+	// deriveSharedTsSegments must throw on a missing directory — never exit 0 silently.
+	assert.throws(
+		() => deriveSharedTsSegments(path.join(path.dirname(realSharedTsSrc), 'does-not-exist')),
+		/could not enumerate/,
 	);
 });
