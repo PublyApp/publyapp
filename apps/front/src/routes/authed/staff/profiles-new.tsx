@@ -4,7 +4,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { createFileRoute, Link, useBlocker } from '@tanstack/react-router';
 import type { i18n as I18nInstance } from 'i18next';
 import { useMemo, useState } from 'react';
-import { useWatch, useForm } from 'react-hook-form';
+import { useWatch, useForm, type Resolver } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
@@ -20,12 +20,12 @@ import {
 	useCreateStaffProfileMutation,
 	useStaffPermissionCatalogQuery,
 } from '~/lib/query/staff-profiles';
-import { shouldLogoutForFailure } from '~/lib/should-logout-for-failure';
 
 import {
 	getFailureMessage,
 	toApiFailure,
 } from '@org/shared-ts/lib/api-failure/to-api-failure';
+import { shouldLogoutForFailure } from '@org/shared-ts/lib/should-logout-for-failure';
 import InterZod from '@org/shared-ts/lib/zod/InterZod';
 import { getNewStaffProfileSchema } from '@org/shared-ts/validations/staff-profile.validations';
 
@@ -187,10 +187,15 @@ const NewStaffProfileRoute = () => {
 	const { t, i18n } = useTranslation('common');
 	const [shouldLogout, setShouldLogout] = useState(false);
 
-	const resolver = useMemo(
-		() => zodResolver(getNewStaffProfileSchema(getInterZodForI18n(i18n))),
-		[i18n, i18n.language],
-	);
+	// zodResolver keys its overload on the schema's concrete input type, which
+	// the era-ed schema signature cannot carry; assert across the boundary in
+	// two steps (one assertion per statement) instead of a chained cast.
+	const resolver = useMemo(() => {
+		const rawResolver: unknown = zodResolver(
+			getNewStaffProfileSchema(getInterZodForI18n(i18n)),
+		);
+		return rawResolver as Resolver<NewStaffProfileValues>;
+	}, [i18n, i18n.language]);
 
 	const methods = useForm<NewStaffProfileValues>({
 		resolver,

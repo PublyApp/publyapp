@@ -9,10 +9,7 @@ export type ServerFailurePayload = {
 	translationKey?: string;
 };
 
-export const toServerFailurePayload = (
-	error: unknown,
-	fallbackMessage: string,
-): ServerFailurePayload => {
+const toServerFailurePayload = (error: unknown, fallbackMessage: string) => {
 	const failure = toApiFailure(error);
 
 	if (failure.kind === 'validation') {

@@ -18,13 +18,17 @@ export type TenantsForPickerData = {
 	tenants: TenantForPickerRow[];
 	activeCount: number;
 	totalCount: number;
+	/** #258: every membership was removed because its tenant was soft-deleted
+	 * — distinct situation from "never invited anywhere", surfaced verbatim in
+	 * the portal empty state. */
+	hasDeletedTenants: boolean;
 	hasSuspendedTenants: boolean;
 };
 
 /** @internal Unscoped — build an invalidation/removal key from this via
  * `scopedKey()` rather than hand-assembling a prefixed array at a call
  * site. */
-export const TENANTS_FOR_PICKER_QUERY_KEY = ['tenants-for-picker'] as const;
+const TENANTS_FOR_PICKER_QUERY_KEY = ['tenants-for-picker'] as const;
 
 export const isActiveTenantForPicker = (
 	tenant: Pick<TenantForPickerRow, 'status'>,
@@ -126,6 +130,7 @@ export const toTenantsForPickerData = (
 		tenants: rows,
 		activeCount: result?.activeCount ?? 0,
 		totalCount: result?.totalCount ?? 0,
+		hasDeletedTenants: result?.hasDeletedTenants ?? false,
 		hasSuspendedTenants: result?.hasSuspendedTenants ?? false,
 	};
 };

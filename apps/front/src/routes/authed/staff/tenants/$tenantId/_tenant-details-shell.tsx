@@ -32,7 +32,6 @@ export {
 	formatMonthYear,
 	getRelativeTimeParts,
 } from './_tenant-display';
-export type { RelativeTimeParts } from './_tenant-display';
 
 import {
 	MALFORMED_ID_TRANSLATION_KEY,
@@ -85,7 +84,9 @@ type TenantSectionTo =
 	| '/staff/tenants/$tenantId'
 	| '/staff/tenants/$tenantId/users'
 	| '/staff/tenants/$tenantId/profiles'
-	| '/staff/tenants/$tenantId/invitations';
+	| '/staff/tenants/$tenantId/invitations'
+	| '/staff/tenants/$tenantId/usage'
+	| '/staff/tenants/$tenantId/activity';
 
 const SectionNavLink = ({
 	label,
@@ -260,7 +261,13 @@ export const TenantDetailsPageShell = ({
 	bodyScroll = 'page',
 }: {
 	tenant: StaffTenantDetails;
-	activeSection: 'basics' | 'profiles' | 'users' | 'invitations';
+	activeSection:
+		| 'basics'
+		| 'profiles'
+		| 'users'
+		| 'invitations'
+		| 'usage'
+		| 'activity';
 	testId: string;
 	children: ReactNode;
 	/**
@@ -376,10 +383,22 @@ export const TenantDetailsPageShell = ({
 					isActive={activeSection === 'invitations'}
 				/>
 				<SectionNavLink
+					label={t('activity')}
+					to="/staff/tenants/$tenantId/activity"
+					tenantId={tenant.id}
+					isActive={activeSection === 'activity'}
+				/>
+				<SectionNavLink
 					label={t('users')}
 					to="/staff/tenants/$tenantId/users"
 					tenantId={tenant.id}
 					isActive={activeSection === 'users'}
+				/>
+				<SectionNavLink
+					label={t('usage')}
+					to="/staff/tenants/$tenantId/usage"
+					tenantId={tenant.id}
+					isActive={activeSection === 'usage'}
 				/>
 			</nav>
 

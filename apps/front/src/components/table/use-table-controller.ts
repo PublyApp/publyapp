@@ -49,7 +49,7 @@ export const buildSearchCommitSearch = (
 	};
 };
 
-export type ApiVariables = {
+type ApiVariables = {
 	q?: string;
 	sortId: string;
 	sortOrder: SortState['order'];
@@ -122,7 +122,10 @@ export const useTableController = (
 		scopeKey: cursorResetKey,
 	});
 
-	const [draft, setDraft] = useState(committedQ);
+	const [draftEdit, setDraftEdit] = useState<{
+		seed: string;
+		value: string;
+	} | null>(null);
 	const debouncerRef = useRef<Debouncer | null>(null);
 	if (debouncerRef.current === null) {
 		debouncerRef.current = createDebouncer(searchDebounceMs);
@@ -138,12 +141,21 @@ export const useTableController = (
 		searchRef.current = search;
 	}, [search]);
 
-	// Keeps the draft aligned when the committed value changes from outside
-	// this hook's own commits (browser back/forward, a cleared URL, etc).
-	useEffect(() => {
-		setDraft(committedQ);
-	}, [committedQ]);
+	// The draft is DERIVED from the committed value, not a mirrored copy of
+	// it: with no edit open, `draft` renders straight from `committedQ`. An
+	// open edit is stored as {seed, value} — the committed value it grew out
+	// of plus what the user typed. When the seed drifts from `committedQ`
+	// (browser back/forward, a cleared or externally rewritten URL), the edit
+	// is dropped DURING RENDER — React's documented adjust-state-while-rendering
+	// reset, the same pattern `useCursorPagination` uses for generation
+	// changes. That replaces the previous useEffect(setDraft(committedQ))
+	// repair effect, which synced one frame late and flashed the stale draft
+	// after paint (react-doctor no-derived-state).
+	if (draftEdit !== null && draftEdit.seed !== committedQ) {
+		setDraftEdit(null);
+	}
 
+	const draft = draftEdit === null ? committedQ : draftEdit.value;
 	useEffect(() => {
 		const debouncer = debouncerRef.current;
 		return () => debouncer?.cancel();
@@ -151,11 +163,11 @@ export const useTableController = (
 
 	const resetDraftToCommitted = (): void => {
 		debouncerRef.current?.cancel();
-		setDraft(committedQ);
+		setDraftEdit(null);
 	};
 
 	const onSearchDraftChange = (value: string): void => {
-		setDraft(value);
+		setDraftEdit({ seed: committedQ, value });
 		debouncerRef.current?.schedule(() => {
 			cursorPagination.reset();
 			onSearchChange(buildSearchCommitSearch(searchRef.current, value));

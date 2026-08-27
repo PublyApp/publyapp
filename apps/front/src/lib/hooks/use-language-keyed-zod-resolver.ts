@@ -31,15 +31,19 @@ type Translate = (key: string) => string;
  * component using it.
  */
 export const useLanguageKeyedZodResolver = <TFieldValues extends FieldValues>(
-	buildSchema: (t: Translate) => z.ZodTypeAny,
+	buildSchema: (t: Translate) => z.ZodType,
 	namespace?: Namespace,
 ): Resolver<TFieldValues> => {
 	const { t } = useTranslation(namespace);
 
 	return useMemo(
-		// zodResolver's declared return type overstates its variance for RHF's
-		// generic Resolver; one explicit cast at this single seam.
-		() => zodResolver(buildSchema(t)) as Resolver<TFieldValues>,
+		// zodResolver v5 keys its overloads on the schema's concrete input
+		// type, which this hook's `Translate`-erased signature cannot carry.
+		// One explicit cast at this single seam (pre-existing pattern).
+		() =>
+			zodResolver(
+				buildSchema(t) as Parameters<typeof zodResolver>[0],
+			) as Resolver<TFieldValues>,
 		[buildSchema, t],
 	);
 };

@@ -17,6 +17,11 @@ public static partial class Routes {
 				return $"/{tenantId}";
 			}
 
+			public const string Activity = "/{tenantId}/activity";
+			public static string ActivityFn(string tenantId) {
+				return $"/{tenantId}/activity";
+			}
+
 			public const string Suspend = "/{tenantId}/suspend";
 			public static string SuspendFn(string tenantId) {
 				return $"/{tenantId}/suspend";
@@ -40,6 +45,12 @@ public static partial class Routes {
 			public const string BulkSuspend = "/bulk-suspend";
 			public const string BulkReactivate = "/bulk-reactivate";
 			public const string BulkDelete = "/bulk-delete";
+
+			// Per-tenant usage metrics read by staff (#168).
+			public const string Usage = "/{tenantId}/usage";
+			public static string UsageFn(string tenantId) {
+				return $"/{tenantId}/usage";
+			}
 		}
 	}
 }

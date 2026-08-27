@@ -12,7 +12,7 @@ import {
 } from '@org/shared-ts/lib/session/parse';
 
 import { createClient } from '../api-client/client-manager';
-import { determineServerSessionAction } from '../session-scope';
+import { determineServerSessionAction } from '../session/session-scope';
 import { ServerFailure, throwServerFailure } from './server-failure';
 import {
 	buildTenantSessionCookie,
@@ -62,7 +62,7 @@ const resolveRedirectSessionCookieValue = (
 };
 
 const LoginInputSchema = z.object({
-	email: z.string().min(1).email().max(120),
+	email: z.email().min(1).max(120),
 	password: z.string().min(1),
 });
 

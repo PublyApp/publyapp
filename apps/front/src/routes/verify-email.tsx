@@ -19,7 +19,6 @@ import { PrecheckUnavailableView } from '~/components/auth/precheck-unavailable-
 import { Button } from '~/components/ui/button';
 import { Input } from '~/components/ui/input';
 import { redirectAuthenticatedUserAwayFromAuthPage } from '~/lib/auth-route-guard';
-import { buildSafeResetPasswordHref } from '~/lib/build-safe-reset-password-href';
 import { useHydrated } from '~/lib/hooks/use-hydrated';
 import {
 	checkEmailVerificationToken,
@@ -30,6 +29,7 @@ import {
 	getFailureMessage,
 	toApiFailure,
 } from '@org/shared-ts/lib/api-failure/to-api-failure';
+import { buildSafeResetPasswordHref } from '@org/shared-ts/lib/build-safe-reset-password-href';
 import { queryParamKey } from '@org/shared-ts/lib/constants';
 
 type VerifyEmailLoaderData =
@@ -78,7 +78,10 @@ type Translate = (key: string) => string;
 
 const getVerifyEmailFormSchema = (t: Translate) =>
 	z.object({
-		email: z.string().max(120).email(t('enter-valid-email-address')),
+		email: z
+			.string()
+			.max(120)
+			.pipe(z.email(t('enter-valid-email-address'))),
 	});
 
 const VerifyEmailRoute = () => {

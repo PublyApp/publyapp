@@ -19,7 +19,7 @@ const mocks = vi.hoisted(() => ({
 	useStaffProfileUsersQuery: vi.fn(),
 	shouldLogoutForFailure: vi.fn((..._args: unknown[]) => false),
 	navigate: vi.fn(),
-	search: {} as Record<string, unknown>,
+	search: {},
 	blockerResolver: {
 		status: 'idle' as 'idle' | 'blocked',
 		proceed: undefined as (() => void) | undefined,
@@ -109,7 +109,7 @@ vi.mock('~/lib/query/staff-profile-users', () => ({
 	useStaffProfileUsersQuery: mocks.useStaffProfileUsersQuery,
 }));
 
-vi.mock('~/lib/should-logout-for-failure', () => ({
+vi.mock('@org/shared-ts/lib/should-logout-for-failure', () => ({
 	shouldLogoutForFailure: mocks.shouldLogoutForFailure,
 }));
 

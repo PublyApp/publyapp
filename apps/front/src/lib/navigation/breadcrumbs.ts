@@ -16,7 +16,7 @@ import type {
  * the DTO produced by one domain's `*CrumbQuery` fetcher (`staff-*.ts`);
  * adding a new entity crumb means adding its DTO here, on purpose.
  */
-export type EntityCrumbPayload =
+type EntityCrumbPayload =
 	| AuditLogDetail
 	| GetStaffProfileByIdResult
 	| GetStaffUserByIdResult
@@ -67,7 +67,7 @@ export type CrumbSpec =
  * flat (see docs/guides/front/conventions.md), so the deepest match declares
  * its ENTIRE trail tail, not just its own segment.
  */
-export type RouteCrumbs =
+type RouteCrumbs =
 	| 'shell'
 	| ((params: Record<string, string>) => readonly CrumbSpec[]);
 
@@ -77,7 +77,7 @@ declare module '@tanstack/react-router' {
 	}
 }
 
-export type BreadcrumbRootItem = {
+type BreadcrumbRootItem = {
 	labelKey: string;
 	path: AppRoutePath;
 };
@@ -96,18 +96,6 @@ const rootCrumbForScope = (pathname: string): BreadcrumbRootItem => {
 		: { labelKey: 'nav-root-staff', path: '/staff' };
 };
 
-export type BreadcrumbTrail = {
-	root: BreadcrumbRootItem;
-	tail: readonly CrumbSpec[];
-	/**
-	 * The params of the match whose `crumbs` function produced `tail` — an
-	 * `entity` spec's own `query` needs the same params again at render time
-	 * (it resolves lazily, once per crumb, so the query only fires for the
-	 * crumb actually on screen).
-	 */
-	params: Record<string, string>;
-};
-
 /**
  * Walks from the deepest match upward for the first route that declares a
  * real tail (skipping `'shell'` escapes — pathless layouts, redirect-only
@@ -116,7 +104,7 @@ export type BreadcrumbTrail = {
  */
 export const deriveBreadcrumbTrail = (
 	matches: readonly MatchForBreadcrumbs[],
-): BreadcrumbTrail => {
+) => {
 	const deepestPathname = matches[matches.length - 1]?.pathname ?? '/';
 	const root = rootCrumbForScope(deepestPathname);
 

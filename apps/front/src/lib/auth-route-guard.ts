@@ -21,7 +21,7 @@ export const hasBrowserSessionCookie = (): boolean => {
  * scope, or the API being unreachable) so callers can treat "no target" as
  * "let the page render" without inspecting the error themselves.
  */
-export const resolveAuthenticatedWorkspacePath = async (): Promise<
+const resolveAuthenticatedWorkspacePath = async (): Promise<
 	string | undefined
 > => {
 	try {

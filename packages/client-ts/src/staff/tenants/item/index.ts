@@ -4,6 +4,8 @@
 // @ts-ignore
 import { createApiResponseFromDiscriminatorValue, createAppProblemDetailsFromDiscriminatorValue, createGetTenantAsStaffResultFromDiscriminatorValue, createValidationProblemDetailsFromDiscriminatorValue, serializeGetTenantAsStaffResult, serializeUpdateTenantAsStaffBody, type ApiResponse, type AppProblemDetails, type GetTenantAsStaffResult, type UpdateTenantAsStaffBody, type ValidationProblemDetails } from '../../../models/index.js';
 // @ts-ignore
+import { ActivityRequestBuilderRequestsMetadata, type ActivityRequestBuilder } from './activity/index.js';
+// @ts-ignore
 import { InvitationsRequestBuilderNavigationMetadata, InvitationsRequestBuilderRequestsMetadata, type InvitationsRequestBuilder } from './invitations/index.js';
 // @ts-ignore
 import { ProfilesRequestBuilderNavigationMetadata, ProfilesRequestBuilderRequestsMetadata, type ProfilesRequestBuilder } from './profiles/index.js';
@@ -11,6 +13,8 @@ import { ProfilesRequestBuilderNavigationMetadata, ProfilesRequestBuilderRequest
 import { ReactivateRequestBuilderRequestsMetadata, type ReactivateRequestBuilder } from './reactivate/index.js';
 // @ts-ignore
 import { SuspendRequestBuilderRequestsMetadata, type SuspendRequestBuilder } from './suspend/index.js';
+// @ts-ignore
+import { type UsageRequestBuilder, UsageRequestBuilderRequestsMetadata } from './usage/index.js';
 // @ts-ignore
 import { type UsersRequestBuilder, UsersRequestBuilderNavigationMetadata, UsersRequestBuilderRequestsMetadata } from './users/index.js';
 // @ts-ignore
@@ -20,6 +24,10 @@ import { type BaseRequestBuilder, type KeysToExcludeForNavigationMetadata, type 
  * Builds and executes requests for operations under /staff/tenants/{tenantId}
  */
 export interface WithTenantItemRequestBuilder extends BaseRequestBuilder<WithTenantItemRequestBuilder> {
+    /**
+     * The activity property
+     */
+    get activity(): ActivityRequestBuilder;
     /**
      * The invitations property
      */
@@ -36,6 +44,10 @@ export interface WithTenantItemRequestBuilder extends BaseRequestBuilder<WithTen
      * The suspend property
      */
     get suspend(): SuspendRequestBuilder;
+    /**
+     * The usage property
+     */
+    get usage(): UsageRequestBuilder;
     /**
      * The users property
      */
@@ -106,6 +118,9 @@ export const WithTenantItemRequestBuilderUriTemplate = "{+baseurl}/staff/tenants
  * Metadata for all the navigation properties in the request builder.
  */
 export const WithTenantItemRequestBuilderNavigationMetadata: Record<Exclude<keyof WithTenantItemRequestBuilder, KeysToExcludeForNavigationMetadata>, NavigationMetadata> = {
+    activity: {
+        requestsMetadata: ActivityRequestBuilderRequestsMetadata,
+    },
     invitations: {
         requestsMetadata: InvitationsRequestBuilderRequestsMetadata,
         navigationMetadata: InvitationsRequestBuilderNavigationMetadata,
@@ -119,6 +134,9 @@ export const WithTenantItemRequestBuilderNavigationMetadata: Record<Exclude<keyo
     },
     suspend: {
         requestsMetadata: SuspendRequestBuilderRequestsMetadata,
+    },
+    usage: {
+        requestsMetadata: UsageRequestBuilderRequestsMetadata,
     },
     users: {
         requestsMetadata: UsersRequestBuilderRequestsMetadata,

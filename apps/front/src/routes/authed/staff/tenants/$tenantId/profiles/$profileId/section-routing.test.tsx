@@ -124,6 +124,18 @@ vi.mock('~/lib/query/staff-tenants', async (importOriginal) => {
 		...actual,
 		useStaffTenantDetailsQuery: () => settledQuery(mocks.tenantDetails),
 		invalidateAllStaffTenantScopes: () => Promise.resolve(),
+		// #851: the awaited route loader resolves through this factory; stub
+		// it so the loader never reaches the real network-backed fetcher.
+		staffTenantDetailsQueryOptions: {
+			queryKey: (variables: { tenantId: string }) => [
+				'staff',
+				'staff-tenants',
+				'details',
+				variables.tenantId,
+			],
+			fetcher: async (variables: { tenantId: string }) =>
+				variables.tenantId === 't1' ? mocks.tenantDetails : null,
+		},
 	};
 });
 
@@ -134,6 +146,19 @@ vi.mock('~/lib/query/staff-tenant-profiles', async (importOriginal) => {
 	return {
 		...actual,
 		useStaffTenantProfileDetailsQuery: () => settledQuery(mocks.profileDetails),
+		// #851: same as above — keep the awaited route loader off the network.
+		staffTenantProfileDetailsQueryOptions: {
+			queryKey: (variables: { tenantId: string; profileId: string }) => [
+				'staff',
+				'staff-tenants',
+				'profiles',
+				'detail',
+				variables.tenantId,
+				variables.profileId,
+			],
+			fetcher: async (variables: { tenantId: string; profileId: string }) =>
+				variables.profileId === 'p1' ? { profile: mocks.profileDetails } : null,
+		},
 		useStaffTenantProfilePermissionKeysQuery: () =>
 			settledQuery({ permissionKeys: mocks.permissionKeys }),
 		useStaffTenantPermissionCatalogQuery: () =>

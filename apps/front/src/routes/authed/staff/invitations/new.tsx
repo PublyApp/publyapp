@@ -27,12 +27,12 @@ import {
 	type StaffInvitationInput,
 } from '~/lib/query/staff-invitations';
 import { useStaffProfilesQuery } from '~/lib/query/staff-profiles';
-import { shouldLogoutForFailure } from '~/lib/should-logout-for-failure';
 
 import {
 	getFailureMessage,
 	toApiFailure,
 } from '@org/shared-ts/lib/api-failure/to-api-failure';
+import { shouldLogoutForFailure } from '@org/shared-ts/lib/should-logout-for-failure';
 import InterZod from '@org/shared-ts/lib/zod/InterZod';
 import { getBulkCreateInvitationsSchema } from '@org/shared-ts/validations/invitation.validations';
 
@@ -58,7 +58,7 @@ const DEFAULT_VALUES: InvitationFormValues = {
 	],
 };
 
-export const STAFF_INVITATIONS_INDEX_PATH = '/staff/invitations';
+const STAFF_INVITATIONS_INDEX_PATH = '/staff/invitations';
 
 // Success-toast dwell time before redirecting to the invitations index.
 const REDIRECT_DELAY_MS = 600;

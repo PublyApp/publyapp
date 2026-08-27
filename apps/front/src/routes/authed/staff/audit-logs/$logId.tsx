@@ -17,9 +17,9 @@ import {
 	staffAuditLogCrumbQuery,
 	useStaffAuditLogDetailsQuery,
 } from '~/lib/query/staff-audit-logs';
-import { shouldLogoutForFailure } from '~/lib/should-logout-for-failure';
 
 import { toApiFailure } from '@org/shared-ts/lib/api-failure/to-api-failure';
+import { shouldLogoutForFailure } from '@org/shared-ts/lib/should-logout-for-failure';
 
 import {
 	AuditLogActor,
@@ -51,6 +51,7 @@ const isProblemStatus = (
 	);
 };
 
+// react-doctor-disable-next-line react-doctor/no-multi-component-file -- pre-existing develop multi-component route file; surfaced by the #1554 merge only because it mechanically updated this file's imports. Not introduced by this lane. Follow-up: split into single-component route files.
 const AuditLogDetailsLoading = () => (
 	<div className="space-y-4" data-testid="staff-audit-log-details-loading">
 		<Skeleton className="h-6 w-40" />
@@ -65,6 +66,7 @@ const AuditLogDetailsLoading = () => (
 	</div>
 );
 
+// react-doctor-disable-next-line react-doctor/no-multi-component-file -- pre-existing develop multi-component route file; surfaced by the #1554 merge only because it mechanically updated this file's imports. Not introduced by this lane. Follow-up: split into single-component route files.
 const AuditLogDetailsEmpty = () => {
 	const { t } = useTranslation(['staff-audit-logs', 'common']);
 
@@ -87,6 +89,7 @@ const AuditLogDetailsEmpty = () => {
 	);
 };
 
+// react-doctor-disable-next-line react-doctor/no-multi-component-file -- pre-existing develop multi-component route file; surfaced by the #1554 merge only because it mechanically updated this file's imports. Not introduced by this lane. Follow-up: split into single-component route files.
 const AuditLogDetailsError = ({
 	error,
 	onRetry,
@@ -131,6 +134,7 @@ const AuditLogDetailsError = ({
 	);
 };
 
+// react-doctor-disable-next-line react-doctor/no-multi-component-file -- pre-existing develop multi-component route file; surfaced by the #1554 merge only because it mechanically updated this file's imports. Not introduced by this lane. Follow-up: split into single-component route files.
 const StaffAuditLogDetailsRoute = () => {
 	const { logId } = Route.useParams();
 
@@ -158,7 +162,8 @@ export const Route = createFileRoute('/_authed-layout/staff/audit-logs/$logId')(
 	},
 );
 
-export const StaffAuditLogDetailsPage = ({ logId }: { logId: string }) => {
+// react-doctor-disable-next-line react-doctor/no-multi-component-file -- pre-existing develop multi-component route file; surfaced by the #1554 merge only because it mechanically updated this file's imports. Not introduced by this lane. Follow-up: split into single-component route files.
+const StaffAuditLogDetailsPage = ({ logId }: { logId: string }) => {
 	const { t, i18n } = useTranslation(['staff-audit-logs', 'common']);
 	const locale = i18n?.language ?? 'en';
 	const detailQuery = useStaffAuditLogDetailsQuery(

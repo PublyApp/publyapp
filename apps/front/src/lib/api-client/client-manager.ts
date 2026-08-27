@@ -104,17 +104,6 @@ const defaultSessionTokenProvider: SessionTokenProvider = (scope) => {
 
 let sessionTokenProvider: SessionTokenProvider = defaultSessionTokenProvider;
 
-export const setSessionTokenProvider = (
-	provider: SessionTokenProvider | undefined,
-): void => {
-	sessionTokenProvider = provider ?? defaultSessionTokenProvider;
-	resetClientManager();
-};
-
-const resolveSessionToken = (
-	scope: SessionScope = 'tenant',
-): string | undefined => sessionTokenProvider(scope);
-
 // No `document` means this is running server-side (SSR / a server function
 // handler), which is a separate network namespace from the browser: in
 // Docker/Compose the browser-reachable PUBLIC_API_BASE_URL (Traefik host) is
@@ -437,17 +426,10 @@ const getClientManager = (): ClientManager => {
 	return clientManager;
 };
 
-const resetClientManager = (): void => {
-	clientManager?.clearClients();
-	clientManager = undefined;
-};
-
 export {
 	getSessionTokensFromBrowser,
 	resolveApiBaseUrl,
-	resolveSessionToken,
 	buildClient as createClient,
 	buildCustomFetch,
 	getClientManager,
-	resetClientManager,
 };

@@ -365,7 +365,7 @@ vi.mock('~/lib/query/staff-tenants', () => ({
 	useUpdateStaffTenantMutation: mocks.useUpdateStaffTenantMutation,
 }));
 
-vi.mock('~/lib/should-logout-for-failure', () => ({
+vi.mock('@org/shared-ts/lib/should-logout-for-failure', () => ({
 	shouldLogoutForFailure: mocks.shouldLogoutForFailure,
 }));
 

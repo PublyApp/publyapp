@@ -40,7 +40,7 @@ import {
 	DropdownMenuSeparator,
 	DropdownMenuTrigger,
 } from '~/components/ui/dropdown-menu';
-import { EntityAvatar } from '~/components/ui/person-avatar';
+import { PersonAvatar } from '~/components/ui/person-avatar';
 import { PageHeader, StatusPill } from '~/components/ui/product-page';
 import { statusPillTone } from '~/components/ui/status-tone';
 import {
@@ -59,10 +59,10 @@ import {
 	useStaffTenantsQuery,
 	useSuspendStaffTenantMutation,
 } from '~/lib/query/staff-tenants';
-import { shouldLogoutForFailure } from '~/lib/should-logout-for-failure';
 import type { TableSearchParams } from '~/lib/url-state/table-search-params';
 
 import { BULK_ACTION_MAX_COUNT } from '@org/shared-ts/lib/constants';
+import { shouldLogoutForFailure } from '@org/shared-ts/lib/should-logout-for-failure';
 
 import {
 	parseTenantListSearchParams,
@@ -97,6 +97,7 @@ const formatTenantStatusFilterLabel = (
 		.join(', ');
 };
 
+// react-doctor-disable-next-line react-doctor/no-multi-component-file -- pre-existing develop multi-component route file; surfaced by the #1554 merge only because it mechanically updated this file's imports. Not introduced by this lane. Follow-up: split into single-component route files.
 const TenantStatusFilterMenu = ({
 	value,
 	onChange,
@@ -182,7 +183,7 @@ const buildTenantColumns = (
 				params={{ tenantId: row.original.id }}
 				className="flex min-w-0 items-center gap-2.5 no-underline"
 			>
-				<EntityAvatar
+				<PersonAvatar
 					name={row.original.name}
 					avatarUrl={row.original.logoUrl}
 				/>
@@ -222,6 +223,14 @@ const buildTenantColumns = (
 		cell: ({ getValue }) => String(getValue<number>()),
 	},
 	{
+		id: 'projects_count',
+		header: t('projects'),
+		accessorKey: 'projectsCount',
+		enableSorting: false,
+		meta: { width: '92px', hideBelow: 1024 },
+		cell: ({ getValue }) => String(getValue<number>()),
+	},
+	{
 		id: 'max_users',
 		header: t('max-users-column'),
 		accessorKey: 'maxUsers',
@@ -245,6 +254,7 @@ const buildTenantColumns = (
 	},
 ];
 
+// react-doctor-disable-next-line react-doctor/no-multi-component-file -- pre-existing develop multi-component route file; surfaced by the #1554 merge only because it mechanically updated this file's imports. Not introduced by this lane. Follow-up: split into single-component route files.
 const StaffTenantsPage = () => {
 	const [shouldLogout, setShouldLogout] = useState(false);
 	const navigate = Route.useNavigate();
@@ -484,7 +494,8 @@ const TENANT_BULK_PARTIAL_SUCCESS_KEYS = {
 	delete: 'tenant-bulk-delete-partial-success',
 } satisfies Record<TenantBulkActionKey, string>;
 
-export const TenantBulkActions = ({
+// react-doctor-disable-next-line react-doctor/no-multi-component-file -- pre-existing develop multi-component route file; surfaced by the #1554 merge only because it mechanically updated this file's imports. Not introduced by this lane. Follow-up: split into single-component route files.
+const TenantBulkActions = ({
 	rows,
 	selection,
 	onSessionExpired,
@@ -668,6 +679,7 @@ export const TenantBulkActions = ({
 	);
 };
 
+// react-doctor-disable-next-line react-doctor/no-multi-component-file -- pre-existing develop multi-component route file; surfaced by the #1554 merge only because it mechanically updated this file's imports. Not introduced by this lane. Follow-up: split into single-component route files.
 const TenantLifecycleActionsCell = ({
 	tenant,
 	onSessionExpired,

@@ -79,7 +79,7 @@ vi.mock('~/lib/query/staff-users', () => ({
 	useBulkDeleteStaffUsersMutation: mocks.useBulkDeleteMutation,
 }));
 
-vi.mock('~/lib/should-logout-for-failure', () => ({
+vi.mock('@org/shared-ts/lib/should-logout-for-failure', () => ({
 	shouldLogoutForFailure: () => false,
 }));
 
@@ -144,17 +144,7 @@ import { chooseBulkAction } from '~/test-helpers/choose-bulk-action';
 
 import { Route as StaffUsersListRoute } from '../staff-users';
 
-type QueryState = {
-	data?: unknown;
-	error?: unknown;
-	isPending: boolean;
-	isError: boolean;
-	isFetching: boolean;
-	isSuccess: boolean;
-	refetch: () => Promise<void>;
-};
-
-const settledQuery = (data: unknown): QueryState => ({
+const settledQuery = (data: unknown) => ({
 	data,
 	error: null,
 	isPending: false,

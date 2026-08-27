@@ -88,7 +88,7 @@ type QueryState = {
 	refetch: ReturnType<typeof vi.fn>;
 };
 
-const buildQueryResult = (overrides: Partial<QueryState> = {}): QueryState => ({
+const buildQueryResult = (overrides: Partial<QueryState> = {}) => ({
 	data: undefined,
 	error: null,
 	isPending: false,
@@ -388,7 +388,7 @@ vi.mock('~/lib/query/staff-profiles', () => ({
 	useStaffProfilesQuery: mocks.useStaffProfilesQuery,
 }));
 
-vi.mock('~/lib/should-logout-for-failure', () => ({
+vi.mock('@org/shared-ts/lib/should-logout-for-failure', () => ({
 	shouldLogoutForFailure: mocks.shouldLogoutForFailure,
 }));
 

@@ -188,17 +188,7 @@ import { chooseBulkAction } from '~/test-helpers/choose-bulk-action';
 
 import { Route as ProfileUsersRoute } from './users';
 
-type QueryState = {
-	data?: unknown;
-	error?: unknown;
-	isPending: boolean;
-	isError: boolean;
-	isError_: boolean;
-	isFetching: boolean;
-	refetch: () => Promise<void>;
-};
-
-const settledQuery = (data: unknown): QueryState => ({
+const settledQuery = (data: unknown) => ({
 	data,
 	error: null,
 	isPending: false,

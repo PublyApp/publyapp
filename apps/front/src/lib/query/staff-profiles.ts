@@ -6,7 +6,7 @@ import type { QueryClient } from '@tanstack/react-query';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { getClientManager } from '~/lib/api-client/client-manager';
 import type { EntityCrumbQuery } from '~/lib/navigation/breadcrumbs';
-import { deriveProfileCardStyle } from '~/lib/profile-card-style';
+import { deriveProfileCardStyle } from '~/lib/profiles/profile-card-style';
 import type { SortOrder } from '~/lib/url-state/table-search-params';
 
 import type { ApiClient } from '@org/client-ts/apiClient';
@@ -99,7 +99,7 @@ export type StaffProfilePermissionKeysQueryVariables = {
 	profileId: string;
 };
 
-export type StaffAssignedPermission = {
+type StaffAssignedPermission = {
 	key: string;
 	label: string;
 	description: string | null;
@@ -454,7 +454,7 @@ const createStaffProfileMutationOptions = buildStaffMutationOptions<
 	{ clientAccessor: getClientManager() },
 );
 
-export const staffProfileDetailsQueryOptions = buildStaffQueryOptions<
+const staffProfileDetailsQueryOptions = buildStaffQueryOptions<
 	ApiClient,
 	GetStaffProfileByIdResult,
 	StaffProfileDetailsQueryVariables
@@ -620,7 +620,7 @@ const buildBulkDeleteStaffProfilesBody = (
 	),
 });
 
-export const bulkDeleteStaffProfilesMutationOptions = buildStaffMutationOptions<
+const bulkDeleteStaffProfilesMutationOptions = buildStaffMutationOptions<
 	ApiClient,
 	BulkProfileActionResult | undefined,
 	BulkStaffProfileActionInput

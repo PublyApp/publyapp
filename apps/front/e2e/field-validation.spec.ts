@@ -136,14 +136,14 @@ test.describe('field validation', { tag: ['@design', '@721'] }, () => {
 		await page.getByRole('textbox', { name: 'Email' }).fill('invalid-email');
 		await page.getByTestId('field-validation-submit').click();
 
-		await expect(page.getByText('e-mail non valide')).toBeVisible();
+		await expect(page.getByText('adresse e-mail invalide')).toBeVisible();
 
 		await page
 			.getByRole('textbox', { name: 'Email' })
 			.fill('valid@example.com');
 		await page.getByTestId('field-validation-submit').click();
 
-		await expect(page.getByText('e-mail non valide')).toBeHidden();
+		await expect(page.getByText('adresse e-mail invalide')).toBeHidden();
 
 		await runAxe(page);
 	});
@@ -158,14 +158,14 @@ test.describe('field validation', { tag: ['@design', '@721'] }, () => {
 		await page.getByRole('textbox', { name: 'Email' }).fill('invalid-email');
 		await page.getByTestId('field-validation-submit').click();
 
-		await expect(page.getByText('Invalid email')).toBeVisible();
+		await expect(page.getByText('Invalid email address')).toBeVisible();
 
 		await page
 			.getByRole('textbox', { name: 'Email' })
 			.fill('valid@example.com');
 		await page.getByTestId('field-validation-submit').click();
 
-		await expect(page.getByText('Invalid email')).toBeHidden();
+		await expect(page.getByText('Invalid email address')).toBeHidden();
 	});
 
 	test('shared controls match the Gray UI outline treatment in light and dark themes', async ({

@@ -11,9 +11,9 @@ import {
 	useUnassignStaffTenantProfilePermissionMutation,
 } from '~/lib/query/staff-tenant-profiles';
 import { invalidateAllStaffTenantScopes } from '~/lib/query/staff-tenants';
-import { shouldLogoutForFailure } from '~/lib/should-logout-for-failure';
 
 import { toApiFailure } from '@org/shared-ts/lib/api-failure/to-api-failure';
+import { shouldLogoutForFailure } from '@org/shared-ts/lib/should-logout-for-failure';
 
 // Assign/unassign fire per key with local feedback: the batch save owns the
 // toast (silent success) and its own error surfacing (skip global handler),

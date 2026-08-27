@@ -2,11 +2,13 @@ import { createUntypedString } from '@microsoft/kiota-abstractions';
 import { createServerFn } from '@tanstack/react-start';
 import { z } from 'zod';
 
-import InterZod from '@org/shared-ts/lib/zod/InterZod';
+import { PASSWORD_MIN_LENGTH } from '@org/shared-ts/lib/auth-password-policy';
+import InterZod, {
+	type InterZodTranslator,
+} from '@org/shared-ts/lib/zod/InterZod';
 import { getRegisterSchema } from '@org/shared-ts/validations/auth.validations';
 
 import { createClient } from '../api-client/client-manager';
-import { PASSWORD_MIN_LENGTH } from '../auth-password-policy';
 import { classifyPrecheckFailure } from './precheck-outcome';
 import { throwServerFailure } from './server-failure';
 
@@ -30,20 +32,10 @@ type RegisterResult = {
  * sync with the shared `getRegisterSchema` contract instead of drifting via
  * a second hand-maintained copy.
  */
-type IdentityTranslate = (
-	key: string,
-	options?: { defaultValue: string },
-) => string;
+const identityTranslate: InterZodTranslator = (key) => key;
 
-/**
- * Named contract instead of an evidence-discarding cast: i18next's real
- * `t` accepts these calls, so the identity stand-in declares exactly that
- * shape. Only `getFixedT` is supplied because this validator runs
- * server-side (InterZod resolves its translator through `getFixedT` there)
- * and never renders messages anyway — a thrown ZodError is caught and
- * replaced with a translated fallback in `signup.tsx`.
- */
-const identityTranslate: IdentityTranslate = (key) => key;
+// Only `getFixedT` is supplied because this validator runs server-side
+// (InterZod resolves its translator through `getFixedT` there).
 const structuralZod = new InterZod({
 	i18n: { getFixedT: () => identityTranslate },
 });
@@ -52,7 +44,7 @@ const structuralZod = new InterZod({
  * `password` deliberately does NOT reuse `getRegisterSchema`'s rule (min 8 +
  * special-char) — front enforces a longer, simpler `PASSWORD_MIN_LENGTH`
  * (12 chars, no special-char requirement) as its own product policy; see
- * `../auth-password-policy.ts`.
+ * `@org/shared-ts/lib/auth-password-policy`.
  */
 export const RegisterInputSchema = getRegisterSchema(structuralZod)
 	.omit({ password: true })
@@ -85,7 +77,7 @@ type EmailInput = {
 };
 
 const EmailInputSchema = z.object({
-	email: z.string().min(1).email().max(120),
+	email: z.email().min(1).max(120),
 });
 
 /**

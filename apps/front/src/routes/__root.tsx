@@ -43,23 +43,21 @@ import {
 	isSupportedLanguage,
 	type SupportedLanguage,
 } from '~/lib/i18n.shared';
-import { buildLoginRedirectSearch } from '~/lib/login-redirect-search';
 import { registerMutationToastI18n } from '~/lib/mutation-toast';
 import {
 	hasExactAuthedRouteMatch,
 	isTenantPortalPath,
-} from '~/lib/route-shell';
+} from '~/lib/navigation/route-shell';
 import { ServerFailure } from '~/lib/server/server-failure';
 import { getServerSessionAction } from '~/lib/server/session-actions';
 import { subscribeToSessionInvalidated } from '~/lib/session-invalidation-channel';
+import { SessionSurfaceValidationProvider } from '~/lib/session-surface-recovery-context';
 import {
 	determineSessionToken,
 	getSessionSurface,
 	getSurfaceRedirectCodeQueryKey,
 	shouldRenderAuthenticatedChrome,
-} from '~/lib/session-scope';
-import { SessionSurfaceValidationProvider } from '~/lib/session-surface-recovery-context';
-import { withSessionValidationTimeout } from '~/lib/session-validation';
+} from '~/lib/session/session-scope';
 import {
 	COLOR_SCHEME_STORAGE_KEY,
 	SIDEBAR_OPEN_STORAGE_KEY,
@@ -70,6 +68,8 @@ import { loadI18nForRequest } from '~/server/i18n-locale';
 
 import { toApiFailure } from '@org/shared-ts/lib/api-failure/to-api-failure';
 import { LOCALE_COOKIE_KEY, REDIRECT_CODE } from '@org/shared-ts/lib/constants';
+import { buildLoginRedirectSearch } from '@org/shared-ts/lib/login-redirect-search';
+import { withSessionValidationTimeout } from '@org/shared-ts/lib/session-validation';
 
 import { AppErrorView } from '../components/error-views/AppErrorView';
 import { LogoutRedirect } from '../components/error-views/LogoutRedirect';
@@ -315,7 +315,7 @@ export const RootErrorBoundary = ({
 	reset: () => void;
 }) => <RootErrorBoundaryContent error={error} reset={reset} />;
 
-export const RootNotFound = () => <View404 embedded={false} />;
+const RootNotFound = () => <View404 embedded={false} />;
 
 const initI18nOnClient = createClientOnlyFn(async (instance: I18nInstance) => {
 	const mod = await import('~/lib/i18n.client');
@@ -340,8 +340,7 @@ export const isAuthedSurface = (pathname: string): boolean => {
  *
  * An exact match, not a prefix: `/` as a prefix matches every path there is.
  */
-export const isSelfShelledPath = (pathname: string): boolean =>
-	pathname === '/';
+const isSelfShelledPath = (pathname: string): boolean => pathname === '/';
 
 export const resolveRouteSurface = (pathname: string): RouteSurface => {
 	if (isAuthPath(pathname)) {

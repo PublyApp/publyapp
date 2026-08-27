@@ -1,5 +1,6 @@
 import { z } from 'zod';
-import { PASSWORD_MIN_LENGTH } from '~/lib/auth-password-policy';
+
+import { PASSWORD_MIN_LENGTH } from '@org/shared-ts/lib/auth-password-policy';
 
 export type Translate = (
 	key: string,
@@ -19,7 +20,10 @@ export type SetNewPasswordFormValues = {
 // `useTranslation('auth')` t in, which resolves qualified keys fine.
 export const getRequestFormSchema = (t: Translate) =>
 	z.object({
-		email: z.string().max(120).email(t('auth:enter-valid-email-address')),
+		email: z
+			.string()
+			.max(120)
+			.pipe(z.email(t('auth:enter-valid-email-address'))),
 	});
 
 export const getSetNewPasswordFormSchema = (t: Translate) =>

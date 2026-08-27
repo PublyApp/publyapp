@@ -22,9 +22,9 @@ import {
 	useBulkReactivateStaffUsersMutation,
 	useBulkSuspendStaffUsersMutation,
 } from '~/lib/query/staff-users';
-import { shouldLogoutForFailure } from '~/lib/should-logout-for-failure';
 
 import { BULK_ACTION_MAX_COUNT } from '@org/shared-ts/lib/constants';
+import { shouldLogoutForFailure } from '@org/shared-ts/lib/should-logout-for-failure';
 
 /** Route-local bulk management actions for the shared staff-users list
  * (#820): the selection toolbar used to offer only Export even though the API

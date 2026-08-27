@@ -29,10 +29,14 @@ const VALID_LOADER_DATA: InvitationLoaderData = {
 	profileName: 'Editor',
 	userExists: false,
 };
+/** Problem payload shape the suite feeds `currentUserQuery.error`; the
+ * route pipes it through `toApiFailure`. */
+type CurrentUserLookupProblem = { status: number; detail?: string };
+
 type CurrentUserQueryState = {
 	isSuccess: boolean;
 	isError: boolean;
-	error?: unknown;
+	error?: CurrentUserLookupProblem;
 	data?: { email?: string };
 	isFetching?: boolean;
 	refetch?: ReturnType<typeof vi.fn>;
@@ -52,7 +56,6 @@ const mocks = vi.hoisted(() => ({
 	currentUserQuery: {
 		isSuccess: false,
 		isError: false,
-		error: undefined as unknown,
 		data: undefined as { email?: string } | undefined,
 	} as CurrentUserQueryState,
 	logout: vi.fn(),

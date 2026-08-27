@@ -1,0 +1,6 @@
+{
+	"tenant-activity-page-title": "Activité du tenant",
+	"tenant-activity-page-description": "Chaque action enregistrée pour ce tenant, de la plus récente à la plus ancienne. Ce journal est en lecture seule.",
+	"tenant-activity-empty-title": "Aucune activité pour l’instant",
+	"tenant-activity-empty-description": "Rien ne s’est encore passé dans ce tenant. Les actions de ses utilisateurs apparaîtront ici au fur et à mesure."
+}

@@ -5,7 +5,7 @@ export const GLOBAL_I18N_NAMESPACES = [
 	'zod',
 	'response-message',
 ] as const;
-export const FEATURE_I18N_NAMESPACES = [
+const FEATURE_I18N_NAMESPACES = [
 	'auth',
 	'account',
 	'settings',
@@ -17,6 +17,7 @@ export const FEATURE_I18N_NAMESPACES = [
 	'staff-users',
 	'staff-invitations',
 	'staff-audit-logs',
+	'staff-tenant-activity',
 	// The landing page at `/`. Its own namespace rather than keys in `common`:
 	// it is the largest single body of copy in the app and the only surface a
 	// signed-out visitor loads, so it stays separately loadable.

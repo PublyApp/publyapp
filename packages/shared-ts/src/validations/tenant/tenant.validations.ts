@@ -14,7 +14,7 @@ export const getNewTenantSchemaServerSide = (
 		initialUsers: z
 			.array(
 				z.object({
-					email: z.string().email(),
+					email: z.email(),
 					accountLevel: z.enum(['Admin', 'User']),
 				}),
 			)

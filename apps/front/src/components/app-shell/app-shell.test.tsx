@@ -14,7 +14,6 @@ import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
 	isDesktop: true,
-	linkPrevSearch: {} as Record<string, unknown>,
 	workspaceTenantId: null as string | null,
 	// Captures the `enabled` flag the shell passes to the picker hook — the
 	// staff-surface regression guard below asserts it stays false there.
@@ -26,6 +25,10 @@ const mocks = vi.hoisted(() => ({
 	useRealWorkspaceHook: false,
 	// Number of times the faked tenant-scope client served a picker GET.
 	pickerGetCallCount: 0,
+	// #142 facade hook return value; `undefined` = loading/unresolved → the
+	// full rail renders (the shell must not filter on an absent payload).
+	tenantPermissions: undefined as string[] | undefined,
+	linkPrevSearch: {},
 	// Not exercising breadcrumb behavior in this file (this app-shell unit
 	// suite mocks the router wholesale — the AUTHORITATIVE breadcrumb tests
 	// use a real router + real routeTree, see breadcrumb-contract.test.tsx).
@@ -34,7 +37,7 @@ const mocks = vi.hoisted(() => ({
 	matches: [
 		{
 			pathname: '/staff/staff-users',
-			params: {} as Record<string, string>,
+			params: {},
 			staticData: { crumbs: 'shell' as const },
 		},
 	],
@@ -139,6 +142,14 @@ vi.mock('./_needs-reconnect-banner', () => ({
 			{ 'data-testid': 'needs-reconnect-banner-stub' },
 			'stub',
 		),
+}));
+
+// #142 rail filtering lives behind this facade hook; mocked wholesale here so
+// the shell suites exercise layout/breadcrumb/banner behaviour without a
+// query layer. The AUTHORITATIVE permission-filter tests live in
+// route-metadata.test.tsx (pure) and the e2e/integration surface.
+vi.mock('~/lib/query/scope-auth-data', () => ({
+	useTenantSurfacePermissions: () => mocks.tenantPermissions,
 }));
 
 vi.mock('~/components/ui/drawer', () => ({

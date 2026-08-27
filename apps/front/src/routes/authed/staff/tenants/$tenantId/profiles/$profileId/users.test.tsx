@@ -8,7 +8,7 @@ import type { TestLabelMap } from '~/lib/testing/test-label-map';
 
 const mocks = vi.hoisted(() => ({
 	navigate: vi.fn(),
-	search: {} as Record<string, unknown>,
+	search: {},
 	useStaffTenantDetailsQuery: vi.fn(),
 	toStaffTenantDetails: vi.fn(),
 	useStaffTenantProfileDetailsQuery: vi.fn(),
@@ -145,7 +145,7 @@ vi.mock('~/lib/query/staff-tenant-profiles', () => ({
 	toStaffTenantProfileMemberRows: mocks.toStaffTenantProfileMemberRows,
 }));
 
-vi.mock('~/lib/should-logout-for-failure', () => ({
+vi.mock('@org/shared-ts/lib/should-logout-for-failure', () => ({
 	shouldLogoutForFailure: mocks.shouldLogoutForFailure,
 }));
 

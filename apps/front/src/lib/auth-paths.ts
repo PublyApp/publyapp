@@ -4,7 +4,7 @@
  * `__root.tsx`'s surface/error classification and `tab-sync-listener.tsx`'s
  * cross-tab login broadcast handling, so the two can never drift out of sync.
  */
-export const AUTH_PATHS = [
+const AUTH_PATHS = [
 	'/login',
 	'/signup',
 	'/verify-email',
@@ -12,10 +12,7 @@ export const AUTH_PATHS = [
 	'/accept-invitation',
 ] as const;
 
-export const isPathForSurface = (
-	pathname: string,
-	surfacePath: string,
-): boolean =>
+const isPathForSurface = (pathname: string, surfacePath: string): boolean =>
 	pathname === surfacePath || pathname.startsWith(`${surfacePath}/`);
 
 export const isAuthPath = (pathname: string): boolean =>

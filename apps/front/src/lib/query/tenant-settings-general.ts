@@ -40,9 +40,7 @@ export type TenantSettingsGeneralUpdateInput = {
 };
 
 /** @internal Unscoped — the tenant id is appended by the hooks below. */
-export const TENANT_SETTINGS_GENERAL_QUERY_KEY = [
-	'tenant-settings-general',
-] as const;
+const TENANT_SETTINGS_GENERAL_QUERY_KEY = ['tenant-settings-general'] as const;
 
 const normalizeString = (value: string | null | undefined): string | null => {
 	if (typeof value !== 'string') {

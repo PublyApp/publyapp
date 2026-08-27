@@ -30,7 +30,7 @@ export type AccountProfileUpdateInput = {
 };
 
 /** @internal Unscoped — the tenant id is appended by the hooks below. */
-export const ACCOUNT_PROFILE_QUERY_KEY = ['account-profile'] as const;
+const ACCOUNT_PROFILE_QUERY_KEY = ['account-profile'] as const;
 
 const normalizeString = (value: string | null | undefined): string | null => {
 	if (typeof value !== 'string') {

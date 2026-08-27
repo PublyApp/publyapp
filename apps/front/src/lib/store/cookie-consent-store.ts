@@ -33,8 +33,7 @@ export const OPTIONAL_COOKIE_CATEGORIES = [
 	'marketing',
 ] as const;
 
-export type OptionalCookieCategory =
-	(typeof OPTIONAL_COOKIE_CATEGORIES)[number];
+type OptionalCookieCategory = (typeof OPTIONAL_COOKIE_CATEGORIES)[number];
 
 export type CookieConsent = Record<OptionalCookieCategory, boolean>;
 
@@ -44,7 +43,7 @@ export const REJECT_ALL_CONSENT = {
 	marketing: false,
 } satisfies CookieConsent;
 
-export const ACCEPT_ALL_CONSENT = {
+const ACCEPT_ALL_CONSENT = {
 	functional: true,
 	analytics: true,
 	marketing: true,
@@ -138,7 +137,7 @@ type CookieConsentStore = CookieConsentState & {
 	savePreferences: (consent: CookieConsent) => void;
 };
 
-const DEFAULT_STATE: CookieConsentState = {
+const DEFAULT_STATE = {
 	isHydrated: false,
 	hasDecision: false,
 	consent: REJECT_ALL_CONSENT,

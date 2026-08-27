@@ -4,7 +4,7 @@ import type { AppLocale } from '../lib/i18n/resources';
 import type InterZod from '../lib/zod/InterZod';
 
 export const getEmailFieldSchema = (z: InterZod) => {
-	return z.string().min(1).email().max(120);
+	return z.email().min(1).max(120);
 };
 
 const SPECIAL_CHAR_REGEX = /[`!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?~]/;
@@ -73,16 +73,15 @@ export const getRequestEmailVerificationSchema = (z: InterZod) => {
 	return getEmailFormSchema(z);
 };
 
-// use server-side only
-export const getCheckEmailVerificationTokenSchema = (z: InterZod) => {
+// use server-side only. One schema serves both the email-verification and
+// reset-password token checks (same `{ id, token }` wire contract); knip
+// flags same-shape aliases as duplicate exports, so this is a single export.
+export const getCheckTokenSchema = (z: InterZod) => {
 	return z.object({
 		token: z.string().min(1),
 		id: z.string().min(1),
 	});
 };
-
-export const getCheckResetPasswordTokenSchema =
-	getCheckEmailVerificationTokenSchema;
 
 export type LoginInput = z.infer<ReturnType<typeof getLoginSchema>>;
 export type SignupInput = z.infer<ReturnType<typeof getRegisterSchema>>;

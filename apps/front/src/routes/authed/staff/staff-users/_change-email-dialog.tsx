@@ -21,19 +21,19 @@ import {
 	invalidateStaffUsers,
 	useUpdateStaffUserEmailMutation,
 } from '~/lib/query/staff-users';
-import { shouldLogoutForFailure } from '~/lib/should-logout-for-failure';
 
 import {
 	getFailureMessage,
 	toApiFailure,
 } from '@org/shared-ts/lib/api-failure/to-api-failure';
+import { shouldLogoutForFailure } from '@org/shared-ts/lib/should-logout-for-failure';
 
 const buildChangeEmailSchema = (t: (key: string) => string) =>
 	z.object({
 		email: z
-			.string({ required_error: t('common:email-required') })
+			.string({ error: t('common:email-required') })
 			.trim()
-			.email(t('common:invalid-email-address')),
+			.pipe(z.email(t('common:invalid-email-address'))),
 	});
 
 type ChangeEmailFormValues = z.infer<ReturnType<typeof buildChangeEmailSchema>>;
@@ -231,5 +231,3 @@ export const ChangeStaffUserEmailDialog = (
 
 	return <ChangeStaffUserEmailDialogInner {...dialogProps} key={sessionKey} />;
 };
-
-export default ChangeStaffUserEmailDialog;

@@ -33,21 +33,43 @@ namespace PublyApp.Api.Lib.Architecture;
 /// entries fail, so the baseline ratchets down). An unresolved write target is
 /// treated as guilty until explained, so a degraded scan fails closed. Fail-loud
 /// guarantees: the guard goes RED if the transition service file is missing, if
-/// fewer than its five sanctioned writes are seen (collapsed semantic walk), or if
+/// fewer than its six sanctioned writes are seen (collapsed semantic walk), or if
 /// a baselined file no longer writes status. Proven RED by planting rogue writers
 /// in Modules and Infrastructure (see .dump/guard-r2-red-*.log and
-/// .dump/mutation-rogue-writer.md). Documented residual gap: a reflection writer
-/// (<c>GetProperty("Status").SetValue</c>) or SQL assembled dynamically from pieces
-/// evades any lexical/symbolic scan — same stance as CanaryProbeContainmentSpec.
+/// .dump/mutation-rogue-writer.md). Former residual gap CLOSED by #1446 and
+/// hardened in round 2 of its own review: a reflection writer
+/// (<c>GetProperty("Status").SetValue</c>) or SQL assembled from pieces can no
+/// longer slip past this scan unseen, because the runtime containment
+/// (Modules/Publishing/Lib/PublicationStatusWriteGuard — SaveChanges and command
+/// interceptors wired in AppDbContext.OnConfiguring, stamped only by
+/// PublicationStatusTransitionService) refuses any unstamped Status write at
+/// execution time. Round 2 closed the last runtime holes the round-1 review
+/// proved open: the raw-SQL matcher is no longer anchored at start-of-text
+/// (a leading WITH CTE or block comment defeated it), runs to semicolon or
+/// end-of-text when no clause terminator exists, strips comments before
+/// matching (a comment QUOTING an update is not an update), and intercepts
+/// raw commands at Execution time — NOT at creation — on both synchronous and
+/// asynchronous paths: ExecuteSqlRawAsync / FromSqlAsync drive
+/// NonQueryExecutingAsync / ReaderExecutingAsync (via IDbCommandInterceptor),
+/// so the async hole round 1 left open is now covered. The round-2 claim of a
+/// "CommandCreatedAsync" hook was wrong — that member does not exist on the
+/// EF Core 10 interceptor interface (strings grep of
+/// Microsoft.EntityFrameworkCore.Relational.dll lists CommandNonQueryExecutingAsync
+/// / ReaderExecutingAsync / ScalarExecutingAsync but no CommandCreatedAsync), so
+/// a method by that name is unreachable dead code. PublicationStatusWriteGuardSpec
+/// pins all of this against real Postgres, including a FromSqlAsync variant.
+/// What remains genuinely out of reach, named rather than denied: commands
+/// this DbContext never creates — a psql session, another process, another
+/// context type.
 /// </summary>
 public sealed partial class PublicationArchitectureSpec {
 	// The single legal writer, relative to apps/api/ with forward slashes.
 	private const string TransitionServiceRelativePath =
 		"Modules/Publishing/Services/PublicationStatusTransitionService.cs";
 
-	// One status write per Mark*/Reschedule* method (five today). Seeing fewer means
+	// One status write per Mark*/Reschedule* method (six today). Seeing fewer means
 	// the semantic walk collapsed and failed open — never trust an empty scan.
-	private const int MinimumSanctionedWrites = 5;
+	private const int MinimumSanctionedWrites = 6;
 
 	// Test fixtures that CONSTRUCT publication rows with an initial status (seeding,
 	// not lifecycle mutation). Explicit paths, never a glob: planting a fourth file
@@ -60,6 +82,13 @@ public sealed partial class PublicationArchitectureSpec {
 		"Modules/Publishing/Jobs/PublishPublicationJobHandler.Spec.cs",
 		"Modules/Publishing/Lib/PostStatusDerivation.Spec.cs",
 		"Modules/SocialAccounts/Handlers/Tenant/SocialAccountPublicationLifecycle.Spec.cs",
+		// #168 (develop): usage metrics seed publication rows for tenant usage.
+		"Modules/Tenants/Services/TenantUsageService.Spec.cs",
+
+		// #1446: this spec seeds rows AND deliberately commits the crimes (a
+		// reflection write and a direct write) to prove the runtime containment
+		// fires; its writes are arrange-time seeds and guarded-refusal setups.
+		"Modules/Publishing/Lib/PublicationStatusWriteGuard.Spec.cs",
 	};
 
 	private const string PublicationFullNamespace =
@@ -346,7 +375,7 @@ public sealed partial class PublicationArchitectureSpec {
 		_ = scan.SanctionedWrites.Should().BeGreaterThanOrEqualTo(
 			MinimumSanctionedWrites,
 			"the transition service owns one status write per Mark*/Reschedule* "
-				+ $"method (five today); a smaller count means the semantic walk "
+				+ $"method (six today); a smaller count means the semantic walk "
 				+ "collapsed (missing references or usings) and failed open — "
 				+ "reconcile the scan harness instead of trusting an empty result"
 		);

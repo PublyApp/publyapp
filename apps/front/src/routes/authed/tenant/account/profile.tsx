@@ -30,12 +30,12 @@ import {
 	type AccountProfileUpdateInput,
 } from '~/lib/query/tenant-account-profile';
 import { useResolvedWorkspaceTenantId } from '~/lib/query/tenants-for-picker';
-import { shouldLogoutForFailure } from '~/lib/should-logout-for-failure';
 
 import {
 	getFailureMessage,
 	toApiFailure,
 } from '@org/shared-ts/lib/api-failure/to-api-failure';
+import { shouldLogoutForFailure } from '@org/shared-ts/lib/should-logout-for-failure';
 
 import {
 	WorkspacePageHeader,
@@ -346,7 +346,7 @@ const getAccountProfileSchema = (t: (key: string) => string) =>
 				}
 			}, t('invalid-avatar-url')),
 		// Read-only display field; never submitted to the PATCH endpoint.
-		email: z.string().trim().email().or(z.literal('')),
+		email: z.string().trim().pipe(z.email()).or(z.literal('')),
 	});
 
 type AccountProfileValues = z.infer<ReturnType<typeof getAccountProfileSchema>>;

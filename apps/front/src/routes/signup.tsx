@@ -11,7 +11,6 @@ import { AuthFormHeader } from '~/components/auth/auth-form-header';
 import { PasswordField } from '~/components/auth/password-field';
 import { Button } from '~/components/ui/button';
 import { Input } from '~/components/ui/input';
-import { PASSWORD_MIN_LENGTH } from '~/lib/auth-password-policy';
 import { redirectAuthenticatedUserAwayFromAuthPage } from '~/lib/auth-route-guard';
 import { FEATURES } from '~/lib/flags';
 import { useHydrated } from '~/lib/hooks/use-hydrated';
@@ -21,6 +20,7 @@ import {
 	getFailureMessage,
 	toApiFailure,
 } from '@org/shared-ts/lib/api-failure/to-api-failure';
+import { PASSWORD_MIN_LENGTH } from '@org/shared-ts/lib/auth-password-policy';
 
 type SignUpFormValues = {
 	firstName: string;
@@ -35,7 +35,10 @@ const getSignUpFormSchema = (t: Translate) =>
 	z.object({
 		firstName: z.string().trim().min(1, t('first-name-required')),
 		lastName: z.string().trim().min(1, t('last-name-required')),
-		email: z.string().max(120).email(t('enter-valid-email-address')),
+		email: z
+			.string()
+			.max(120)
+			.pipe(z.email(t('enter-valid-email-address'))),
 		password: z
 			.string()
 			.min(

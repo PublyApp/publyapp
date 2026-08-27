@@ -37,6 +37,7 @@ import type {
 	AppRouteMetadata,
 	SecondaryPanelItem,
 } from '../../lib/navigation/route-metadata';
+import { useTenantSurfacePermissions } from '../../lib/query/scope-auth-data';
 import { useUiStore } from '../../lib/store/ui-store';
 import { NeedsReconnectBanner } from './_needs-reconnect-banner';
 import { ThemeToggle } from './theme/theme-toggle';
@@ -170,17 +171,23 @@ const AuthedWorkspaceShell = ({
 	const toggleSidebarOpen = useUiStore((state) => state.toggleSidebarOpen);
 	const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
 	const [isPanelMotionReady, setIsPanelMotionReady] = useState(false);
-	// The picker query is tenant-scope-only: it authenticates with the
-	// tenant session token, so letting it run on staff surfaces would fire an
-	// unauthenticated 401 whose central backstop logs the user out (the
-	// mass e2e failure this lane shipped with). Staff shells must not even
-	// fetch it — hence `enabled`, not a render-time guard.
 	const isTenantSurface = getShellScope(pathname) === 'tenant';
 	const workspaceTenantId = useResolvedWorkspaceTenantId({
 		enabled: isTenantSurface,
 	});
 	const activeRoute = getActiveRailItem(pathname);
-	const railItems = getRailItemsForPath(pathname);
+	// #142 — the tenant rail narrows to what the signed-in member may use.
+	// Permissions come from /auth/scope-auth-data per resolved workspace
+	// tenant; while that payload is in flight (or no workspace resolves) it
+	// is absent and the FULL rail renders — hiding an entry must never be a
+	// lie of a loading state, and every gate stays independently enforced
+	// server-side anyway. The facade re-reads the same picker resolver under
+	// the identical `enabled` contract (shared query cache).
+	const tenantPermissions = useTenantSurfacePermissions(isTenantSurface);
+	const railItems = getRailItemsForPath(pathname, {
+		allowedPermissions:
+			tenantPermissions !== undefined ? new Set(tenantPermissions) : undefined,
+	});
 	const secondaryItems = getSecondaryPanelItems(pathname);
 	// The logo is the scope home: a tenant user must never land on a staff
 	// destination (review #1131 round 2 — MAJOR). `/tenant` re-resolves the

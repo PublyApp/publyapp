@@ -25,17 +25,39 @@
     <PackageVersion Include="Microsoft.EntityFrameworkCore.Relational" Version="10.0.11" />
     <PackageVersion Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.3" />
     <PackageVersion Include="Microsoft.AspNetCore.DataProtection.EntityFrameworkCore" Version="10.0.11" />
-    <PackageVersion Include="Quartz" Version="3.18.2" />
+    <PackageVersion Include="Quartz" Version="3.19.1" />
     <PackageVersion Include="Resend" Version="0.1.6" />
     <PackageVersion Include="Scalar.AspNetCore" Version="2.6.9" />
     <PackageVersion Include="Polly" Version="8.7.0" />
     <!-- Logging packages -->
     <PackageVersion Include="Serilog.AspNetCore" Version="9.0.0" />
-    <PackageVersion Include="Serilog.Enrichers.Environment" Version="2.3.0" />
+    <PackageVersion Include="Serilog.Enrichers.Environment" Version="3.0.1" />
     <PackageVersion Include="Serilog.Enrichers.Thread" Version="3.1.0" />
     <PackageVersion Include="Serilog.Sinks.Async" Version="2.0.0" />
     <PackageVersion Include="Serilog.Sinks.Console" Version="6.0.0" />
     <PackageVersion Include="Serilog.Sinks.File" Version="7.0.0" />
+
+    <!-- OpenTelemetry (issue #255): TRACES AND METRICS ONLY.
+         Deliberately pinned as one lockstep family: mixed OTel component versions
+         are a known source of runtime InvalidOperationException in the .NET SDK.
+         NOTE FOR REVIEWERS: there is intentionally NO logging exporter here and NO
+         Serilog.Sinks.OpenTelemetry — every log sink must stay behind the sanitizer
+         wrapper (apps/api/Lib/Extensions/LoggerConfigExtensions.cs structural
+         invariant). OpenTelemetryConfigExtensions.cs + its guard spec pin this;
+         adding either package means redesigning that decision, not bumping a
+         version. -->
+    <PackageVersion Include="OpenTelemetry.Extensions.Hosting" Version="1.18.0" />
+    <PackageVersion Include="OpenTelemetry.Instrumentation.AspNetCore" Version="1.18.0" />
+    <PackageVersion Include="OpenTelemetry.Instrumentation.Http" Version="1.18.0" />
+    <PackageVersion Include="OpenTelemetry.Instrumentation.Runtime" Version="1.18.0" />
+    <PackageVersion Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" Version="1.18.0" />
+
+    <!-- Aspire AppHost (issue #255): LOCAL DEV ORCHESTRATION ONLY — production stays
+         on dokploy.yml and e2e on docker-compose.test.yml, both unchanged. Never
+         reference these packages from apps/api. -->
+    <PackageVersion Include="Aspire.Hosting.AppHost" Version="13.5.3" />
+    <PackageVersion Include="Aspire.Hosting.PostgreSQL" Version="13.5.3" />
+    <PackageVersion Include="Aspire.Hosting.JavaScript" Version="13.5.3" />
     <!-- Security packages -->
     <PackageVersion Include="NetEscapades.AspNetCore.SecurityHeaders" Version="1.3.1" />
 

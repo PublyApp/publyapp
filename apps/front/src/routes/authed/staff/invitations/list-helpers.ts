@@ -18,7 +18,7 @@ export type InvitationDisplayStatus = KnownInvitationStatus | 'unknown';
 
 const KNOWN_INVITATION_STATUS_SET = new Set<string>(KNOWN_INVITATION_STATUSES);
 
-export const KNOWN_INVITATION_ACCOUNT_LEVELS = ['admin', 'user'] as const;
+const KNOWN_INVITATION_ACCOUNT_LEVELS = ['admin', 'user'] as const;
 
 export type KnownInvitationAccountLevel =
 	(typeof KNOWN_INVITATION_ACCOUNT_LEVELS)[number];
@@ -152,16 +152,6 @@ export const serializeInvitationListSearchParams = (
 	);
 
 	return { ...next, status: status || undefined };
-};
-
-export const formatInvitationStatusLabel = (
-	status: InvitationDisplayStatus,
-): string => {
-	if (status === 'unknown') {
-		return 'Unknown';
-	}
-
-	return `${status.slice(0, 1).toUpperCase()}${status.slice(1)}`;
 };
 
 const INVITATION_STATUS_LABEL_KEYS = {

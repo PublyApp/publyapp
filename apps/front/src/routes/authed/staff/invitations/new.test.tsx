@@ -197,7 +197,7 @@ vi.mock('~/lib/query/staff-profiles', () => ({
 	useStaffProfilesQuery: mocks.useStaffProfilesQuery,
 }));
 
-vi.mock('~/lib/should-logout-for-failure', () => ({
+vi.mock('@org/shared-ts/lib/should-logout-for-failure', () => ({
 	shouldLogoutForFailure: mocks.shouldLogoutForFailure,
 }));
 
@@ -208,7 +208,7 @@ vi.mock('~/lib/mutation-toast', () => ({
 import { buildStaffProfileOptions } from '../_staff-profile-options';
 import { Route } from './new';
 
-const ADMIN_PROFILE_ID = '11111111-1111-1111-1111-111111111111';
+const ADMIN_PROFILE_ID = '11111111-1111-1111-8111-111111111111';
 
 const buildProfilesQuery = (overrides: Record<string, unknown> = {}) => ({
 	data: {

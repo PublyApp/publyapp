@@ -27,7 +27,8 @@ import {
 	useExportStaffAuditLogsMutation,
 	type StaffAuditLogExportFormat,
 } from '~/lib/query/staff-audit-logs';
-import { shouldLogoutForFailure } from '~/lib/should-logout-for-failure';
+
+import { shouldLogoutForFailure } from '@org/shared-ts/lib/should-logout-for-failure';
 
 export type AuditLogExportFilters = {
 	actions?: string[];
