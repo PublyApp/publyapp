@@ -124,6 +124,195 @@ public sealed class FindTenantUserCompaniesForStaffSpec
 
 	[Fact]
 	public async Task
+	ItShouldWalkEveryTenantNamePageWithoutOverlapOrGap() {
+		var staffToken = await _authClient.LoginAsStaffAdminAsync();
+		var acmeTenantId = await TenantTestHelper.GetTenantIdByNameAsync(
+			_http,
+			staffToken,
+			SeedConstants.Tenants.AcmeName
+		);
+
+		// A user with three tenant memberships of distinct tenant names,
+		// deliberately NOT in insertion order (anti-correlated). The walk must
+		// visit each once in ascending tenant name order, so a keySelector swap
+		// to another same-type field (e.g. account CreatedAt) turns this assertion RED.
+		var baseDate = new DateTime(
+			2026, 1, 1, 0, 0, 0, DateTimeKind.Utc
+		);
+		var (userId, seededTenantIds, seededOrder) =
+			await SeedUserWithCompaniesAsync(acmeTenantId, baseDate);
+
+		var visitedTenantIds = new List<Guid>();
+		string? cursor = null;
+		var pages = 0;
+		do {
+			using var request = new HttpRequestMessage(
+				HttpMethod.Get,
+				GetUrl(
+					userId,
+					cursor: cursor,
+					limit: 1,
+					sortId: "tenant_name",
+					sortOrder: "asc"
+				)
+			).WithSessionToken(staffToken);
+
+			using var response = await _http.SendAsync(request);
+			response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+			var page = await response.Content
+				.ReadFromJsonAsync<FindCompaniesResponse>();
+			page.Should().NotBeNull();
+			Assert.NotNull(page);
+			pages++;
+			visitedTenantIds.AddRange(
+				page.Data.Select(c => c.TenantId)
+			);
+			cursor = page.NextCursor;
+
+			pages.Should().BeLessOrEqualTo(100);
+		} while (cursor is not null);
+
+		visitedTenantIds.Should().OnlyHaveUniqueItems();
+		visitedTenantIds.Should().Contain(seededTenantIds);
+
+		var visitedOrder = visitedTenantIds
+			.Where(seededTenantIds.Contains)
+			.ToList();
+		var expectedOrder = seededTenantIds
+			.OrderBy(id => seededOrder[seededTenantIds.IndexOf(id)])
+			.ToList();
+		visitedOrder.Should().Equal(expectedOrder);
+	}
+
+	[Fact]
+	public async Task
+	ItShouldWalkEveryStatusPageWithoutOverlapOrGap() {
+		var staffToken = await _authClient.LoginAsStaffAdminAsync();
+		var acmeTenantId = await TenantTestHelper.GetTenantIdByNameAsync(
+			_http,
+			staffToken,
+			SeedConstants.Tenants.AcmeName
+		);
+
+		// A user with three tenant memberships of distinct account Status,
+		// deliberately NOT in insertion order (anti-correlated). The walk must
+		// visit each once in ascending status order, so a keySelector swap
+		// to another same-type field (e.g. account CreatedAt) turns this assertion RED.
+		var baseDate = new DateTime(
+			2026, 1, 1, 0, 0, 0, DateTimeKind.Utc
+		);
+		var (userId, seededTenantIds, seededOrder) =
+			await SeedUserWithCompaniesAsync(acmeTenantId, baseDate);
+
+		var visitedTenantIds = new List<Guid>();
+		string? cursor = null;
+		var pages = 0;
+		do {
+			using var request = new HttpRequestMessage(
+				HttpMethod.Get,
+				GetUrl(
+					userId,
+					cursor: cursor,
+					limit: 1,
+					sortId: "status",
+					sortOrder: "asc"
+				)
+			).WithSessionToken(staffToken);
+
+			using var response = await _http.SendAsync(request);
+			response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+			var page = await response.Content
+				.ReadFromJsonAsync<FindCompaniesResponse>();
+			page.Should().NotBeNull();
+			Assert.NotNull(page);
+			pages++;
+			visitedTenantIds.AddRange(
+				page.Data.Select(c => c.TenantId)
+			);
+			cursor = page.NextCursor;
+
+			pages.Should().BeLessOrEqualTo(100);
+		} while (cursor is not null);
+
+		visitedTenantIds.Should().OnlyHaveUniqueItems();
+		visitedTenantIds.Should().Contain(seededTenantIds);
+
+		var visitedOrder = visitedTenantIds
+			.Where(seededTenantIds.Contains)
+			.ToList();
+		var expectedOrder = seededTenantIds
+			.OrderBy(id => seededOrder[seededTenantIds.IndexOf(id)])
+			.ToList();
+		visitedOrder.Should().Equal(expectedOrder);
+	}
+
+	[Fact]
+	public async Task
+	ItShouldWalkEveryLevelPageWithoutOverlapOrGap() {
+		var staffToken = await _authClient.LoginAsStaffAdminAsync();
+		var acmeTenantId = await TenantTestHelper.GetTenantIdByNameAsync(
+			_http,
+			staffToken,
+			SeedConstants.Tenants.AcmeName
+		);
+
+		// A user with three tenant memberships of distinct account Level,
+		// deliberately NOT in insertion order (anti-correlated). The walk must
+		// visit each once in ascending level order, so a keySelector swap
+		// to another same-type field (e.g. account CreatedAt) turns this assertion RED.
+		var baseDate = new DateTime(
+			2026, 1, 1, 0, 0, 0, DateTimeKind.Utc
+		);
+		var (userId, seededTenantIds, seededOrder) =
+			await SeedUserWithCompaniesAsync(acmeTenantId, baseDate);
+
+		var visitedTenantIds = new List<Guid>();
+		string? cursor = null;
+		var pages = 0;
+		do {
+			using var request = new HttpRequestMessage(
+				HttpMethod.Get,
+				GetUrl(
+					userId,
+					cursor: cursor,
+					limit: 1,
+					sortId: "level",
+					sortOrder: "asc"
+				)
+			).WithSessionToken(staffToken);
+
+			using var response = await _http.SendAsync(request);
+			response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+			var page = await response.Content
+				.ReadFromJsonAsync<FindCompaniesResponse>();
+			page.Should().NotBeNull();
+			Assert.NotNull(page);
+			pages++;
+			visitedTenantIds.AddRange(
+				page.Data.Select(c => c.TenantId)
+			);
+			cursor = page.NextCursor;
+
+			pages.Should().BeLessOrEqualTo(100);
+		} while (cursor is not null);
+
+		visitedTenantIds.Should().OnlyHaveUniqueItems();
+		visitedTenantIds.Should().Contain(seededTenantIds);
+
+		var visitedOrder = visitedTenantIds
+			.Where(seededTenantIds.Contains)
+			.ToList();
+		var expectedOrder = seededTenantIds
+			.OrderBy(id => seededOrder[seededTenantIds.IndexOf(id)])
+			.ToList();
+		visitedOrder.Should().Equal(expectedOrder);
+	}
+
+	[Fact]
+	public async Task
 	ItShouldReturnCursorPaginatedCompaniesWhenTenantUserExists() {
 		var staffToken = await _authClient.LoginAsStaffAdminAsync();
 		var acmeTenantId = await TenantTestHelper.GetTenantIdByNameAsync(
