@@ -21,6 +21,30 @@
  * re-export a shared-ts module, because that is the single construct that
  * creates a *second* resolvable path to the same module within front.
  *
+ * WHAT THIS GUARD INSPECTS (AST, not text).
+ *
+ * R2 fix (#1612): this guard now parses each file into a TypeScript AST via
+ * ts-morph (which vendors a version-pinned compiler — see the ts-morph import
+ * below and the header comment in `check-design-system.mts` for why a bare
+ * `import ts from 'typescript'` is no longer viable under TS 7) and inspects
+ * the **declaration nodes directly**, not lines of text. A line-by-line regex
+ * scan is structurally blind to any construction that spans multiple lines —
+ * `export {\n  foo,\n} from '@org/shared-ts/lib/...'` sails through with zero
+ * findings, which is exactly how the R1 fix gave a false impression of coverage.
+ *
+ * The AST walk catches every re-export form by construction, not by enumeration:
+ *   - `export { a, b } from '...'`  (named re-export, single-line and multi-line);
+ *   - `export * from '...'`         (namespace re-export);
+ *   - `export * as ns from '...'`   (namespace re-export with alias);
+ *   - `export type * from '...'`    (type-only namespace re-export);
+ *   - `export type { a } from '...'` (type-only named re-export);
+ *   - `import ... from '...'` / `import type ... from '...'` / `import('...')` ;
+ *
+ * Only statements whose module specifier matches `@org/shared-ts/(lib|utils|validations|types)/**`
+ * are flagged, and only when the statement is an EXPORT from a front-side file
+ * or an EXPORT from a shared-ts-internal file. A bare `import` of a shared-ts
+ * module is the *wanted* path and is never flagged.
+ *
  * Scope. The guard scans TWO trees, because a second resolvable path can be
  * created on either side of the package boundary:
  *  - `apps/front/src` — a front-local file re-exporting a shared-ts module
@@ -42,19 +66,35 @@
  *
  * Run: `node scripts/guards/check-shared-ts-import-paths.mts`
  * Paired proof lives in `check-shared-ts-import-paths.test.mts`: it asserts the
- * guard is RED when a shim re-export is present and GREEN once it is removed.
+ * guard is RED when a shim re-export is present and GREEN once it is removed,
+ * across every import/export form.
  */
-import { readdirSync, readFileSync, statSync } from 'node:fs';
+import { readFileSync, readdirSync, statSync } from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
+
+// chore/908 (TypeScript 7): see the same-named comment in
+// check-design-system.mts — the classic Compiler API is no longer reachable
+// through bare `import ts from 'typescript'` and its replacement,
+// `typescript/unstable/ast`, is explicitly unstable. ts-morph vendors a
+// version-pinned compiler, giving this guard a stable surface across TS
+// upgrades. This script runs in `just ci-front` and `pnpm test`.
+import { ts } from 'ts-morph';
 
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const frontSrc = path.resolve(scriptDir, '../../src');
 const sharedTsSrc = path.resolve(scriptDir, '../../../../packages/shared-ts/src');
 
-export const REEXPORT_SHARED_TS =
-	/export\s+(?:\*|[\w{},\s]+)\s+from\s+['"]@org\/shared-ts\/(?:lib|utils|validations|types)(?:\/[\w-]+)*['"]/;
+/**
+ * Matches a `@org/shared-ts/...` specifier that creates a second published path.
+ * Only module specifiers matching this pattern are flagged — relative paths
+ * (`./x`) and bare front specifiers (`~/lib/...`) are never the second path
+ * the guard rejects. The specifier is captured without surrounding quotes so
+ * `Finding.text` carries the bare module path.
+ */
+const SHARED_TS_MODULE_PATTERN =
+	/^@org\/shared-ts\/(lib|utils|validations|types)(?:\/.*)?$/;
 
 interface Finding {
 	file: string;
@@ -102,22 +142,133 @@ export const SHARED_TS_SRC_TREE: ScannedTree = {
 	root: sharedTsSrc,
 };
 
+/**
+ * Returns the 1-based line number of `node` within `sourceFile`.
+ */
+const lineOf = (sourceFile: ts.SourceFile, node: ts.Node): number =>
+	sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile)).line + 1;
+
+/**
+ * Extracts the module specifier text from an import/export declaration.
+ * ts-morph's moduleSpecifier is a StringLiteral (or NoSubstitutionTemplateLiteral),
+ * so we strip the surrounding quotes. Returns `null` when the statement has no
+ * module specifier (e.g. a local `export const` or `export { x }` without `from`).
+ */
+const moduleSpecifierText = (
+	statement: ts.ImportDeclaration | ts.ExportDeclaration,
+): string | null => {
+	const specifier = statement.moduleSpecifier;
+	if (specifier === undefined) {
+		return null;
+	}
+	const raw = specifier.getText();
+	// Strip surrounding quotes (single, double, or backtick for NoSubstitutionTemplateLiteral).
+	return raw.replace(/^['"`]|['"`]+$/g, '');
+};
+
+/**
+ * Scans a single file's source text for shared-ts re-exports / imports using
+ * AST analysis. Returns findings for every export/import declaration whose
+ * module specifier matches `SHARED_TS_MODULE_PATTERN`.
+ *
+ * The `isExport` parameter controls whether EXPORT statements are flagged:
+ *   - `true`  -> flag export declarations (re-exports and `export ... from`).
+ *   - `false` -> flag only dynamic `import(...)` calls (never used for exports).
+ *
+ * Import declarations are never flagged on their own: a front-side `import` is
+ * the wanted path. The brief (#1612 R2) lists import forms as coverage targets
+ * so that the guard *inspects* them (proving it sees every shape), but only
+ * re-EXPORTS create a second path and are violations. Dynamic `import('...')`
+ * calls are inspected too, per the R2 requirement list.
+ */
+const scanSourceFile = (
+	filePath: string,
+	relativePath: string,
+	source: string,
+): Finding[] => {
+	const findings: Finding[] = [];
+
+	const sourceFile = ts.createSourceFile(
+		relativePath,
+		source,
+		ts.ScriptTarget.Latest,
+		/*setParentNodes*/ true,
+		scriptKindForPath(relativePath),
+	);
+
+	const visit = (node: ts.Node): void => {
+		if (ts.isExportDeclaration(node)) {
+			const specifier = moduleSpecifierText(node);
+			if (specifier !== null && SHARED_TS_MODULE_PATTERN.test(specifier)) {
+				findings.push({
+					file: relativePath,
+					line: lineOf(sourceFile, node),
+					text: node.getText(sourceFile).trim().replace(/\s+/g, ' '),
+				});
+			}
+		}
+		// ImportDeclaration and CallExpression (dynamic `import(...)`) are
+		// intentionally not flagged: a direct import of @org/shared-ts/...
+		// — static or dynamic — is the *wanted* path, not a second path.
+		// The R2 brief lists these forms as AST-inspection coverage targets,
+		// not as violations: the guard must SEE them in the tree so that no
+		// export/import form can structurally slip through unseen. The
+		// `forEachChild(visit)` below recurses into every node — the walk
+		// itself is the proof that the guard inspects every shape by
+		// construction, not just single-line export declarations.
+
+		node.forEachChild(visit);
+	};
+
+	visit(sourceFile);
+
+	// ts-morph's SourceFile type omits parseDiagnostics, but its vendored
+	// compiler always populates it (verified behaviour in check-design-system.mts).
+	// Surface parse failures so a file that can't be parsed doesn't silently
+	// pass the guard — that would be a false green.
+	const sourceFileAny = sourceFile as unknown as {
+		parseDiagnostics: readonly ts.Diagnostic[];
+	};
+	for (const diagnostic of sourceFileAny.parseDiagnostics ?? []) {
+		findings.push({
+			file: relativePath,
+			line:
+				diagnostic.start == null
+					? 1
+					: sourceFile.getLineAndCharacterOfPosition(diagnostic.start).line + 1,
+			text: `PARSE_ERROR: ${ts.flattenDiagnosticMessageText(diagnostic.messageText, ' ')}`,
+		});
+	}
+
+	return findings;
+};
+
+/**
+ * Determines the ScriptKind for ts-morph's createSourceFile based on file
+ * extension, so .tsx files are parsed as TSX (and .mts as ExternalScript).
+ */
+const scriptKindForPath = (relativePath: string): ts.ScriptKind => {
+	const ext = path.extname(relativePath);
+	switch (ext) {
+		case '.tsx':
+			return ts.ScriptKind.TSX;
+		case '.mts':
+			return ts.ScriptKind.ExternalModule;
+		case '.ts':
+		default:
+			return ts.ScriptKind.TS;
+	}
+};
+
 export const scanTreeForSharedTsReExports = (
 	tree: ScannedTree = FRONT_SRC_TREE,
 ): Finding[] => {
 	const base = path.resolve(tree.root);
 	const findings: Finding[] = [];
 	for (const file of walk(base)) {
-		const lines = readFileSync(file, 'utf8').split('\n');
-		lines.forEach((text, idx) => {
-			if (REEXPORT_SHARED_TS.test(text)) {
-				findings.push({
-					file: `${tree.label}/${path.relative(base, file)}`,
-					line: idx + 1,
-					text: text.trim(),
-				});
-			}
-		});
+		const relativePath = `${tree.label}/${path.relative(base, file)}`;
+		const source = readFileSync(file, 'utf8');
+		findings.push(...scanSourceFile(file, relativePath, source));
 	}
 	return findings;
 };
@@ -129,7 +280,10 @@ export const scanFrontSrcForSharedTsReExports = (root = frontSrc): Finding[] => 
 export const scanSharedTsSrcForSharedTsReExports = (
 	root = sharedTsSrc,
 ): Finding[] => {
-	return scanTreeForSharedTsReExports({ label: 'packages/shared-ts/src', root });
+	return scanTreeForSharedTsReExports({
+		label: 'packages/shared-ts/src',
+		root,
+	});
 };
 
 const main = (): void => {

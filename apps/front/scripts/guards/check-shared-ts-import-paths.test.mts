@@ -3,19 +3,23 @@
  *
  * The guard exists to stop one shared-ts module being reachable from
  * apps/front through two import specifiers (the `~/lib/...` shim path and the
- * `@org/shared-ts/lib/...` path). These tests recreate the violating shim, run
- * the guard, and assert it is RED; then remove the shim and assert it is GREEN.
+ * `@org/shared-ts/lib/...` path). These tests recreate violating re-exports,
+ * run the guard, and assert it is RED; then remove the shim and assert it is GREEN.
  *
  * `scanFrontSrcForSharedTsReExports` is imported from the guard and pointed at a
  * temp copy of `apps/front/src` so we never have to write the shim into the
  * real tree (which would itself be caught by `pnpm test`).
  *
  * The guard also scans `packages/shared-ts/src` (#1612): a file *inside* the
- * shared package that re-exports a sibling shared-ts module under a second
- * `@org/shared-ts/...` specifier creates a second published path to the same
- * module. The two shared-ts tests rebuild that case against a mirror of the
- * real `packages/shared-ts/src` so the proof is permanent and never touches the
- * real source.
+ * shared package that re-exports a sibling under a second `@org/shared-ts/...`
+ * specifier creates a second published path to the same module. The shared-ts
+ * tests rebuild that case against a mirror of the real `packages/shared-ts/src`
+ * so the proof is permanent and never touches the real source.
+ *
+ * R2 (#1612): the guard now uses ts-morph AST analysis (not line-by-line regex
+ * scanning). The tests below exercise every import/export form the R2 brief
+ * requires, plus a structural regression test that proves the guard inspects
+ * the AST and cannot silently fall back to line-by-line text scanning.
  */
 import assert from 'node:assert/strict';
 import { cpSync, mkdtempSync, rmSync, writeFileSync, mkdirSync } from 'node:fs';
@@ -48,6 +52,19 @@ const NAMED_SHIM_BODY = `// Convenience barrel re-surfacing a shared helper unde
 export { shouldLogoutForFailure } from '${SHIM_SPECIFIER}';
 `;
 
+// Multi-line named re-export — the exact form the R2 reviewer proved was
+// invisible to the old line-by-line regex (#1612 R2 finding 1: CRITICAL).
+const MULTILINE_NAMED_SHIM_BODY = `// R2 adversarial form: multi-line named re-export.
+export {
+  shouldLogoutForFailure,
+} from '${SHIM_SPECIFIER}';
+`;
+
+// `export * as ns from '@org/shared-ts/...'` — namespace re-export with alias.
+// Tested inline below as a single-line fixture string.
+// (The R2 brief requires this form be caught; it is an export declaration with
+// an `export * as ns` clause that the AST walk must flag.)
+
 const sandboxes: string[] = [];
 
 after(() => {
@@ -70,6 +87,8 @@ const makeSandbox = (): string => {
 	});
 	return dir;
 };
+
+// ---- existing RED tests (carried forward) ----------------------------------
 
 test('RED: a front-side re-export of a shared-ts module is detected', () => {
 	const root = makeSandbox();
@@ -121,9 +140,8 @@ test('GREEN: existing front code importing shared-ts directly is NOT flagged', (
 	);
 });
 
-// Sanity: the matcher is what the guard relies on; prove it rejects a
-// front-local re-export (no shared-ts specifier) so we know the contract is
-// specific, not "any re-export".
+// Sanity: front-local re-exports are not the second-path construct the guard
+// rejects.
 test('front-local re-exports are NOT flagged', () => {
 	const root = makeSandbox();
 	mkdirSync(path.join(root, 'front-src/lib/sub'), { recursive: true });
@@ -138,7 +156,119 @@ test('front-local re-exports are NOT flagged', () => {
 	);
 });
 
-// ---- packages/shared-ts/src scope (#1612) ---------------------------------
+// ---- R2: all import/export forms the brief requires ----------------------
+
+test('RED: multi-line named re-export (`export {\\n foo,\\n} from ...`) is detected', () => {
+	const root = makeSandbox();
+	writeFileSync(path.join(root, 'front-src/lib/multi-line-shim.ts'), MULTILINE_NAMED_SHIM_BODY);
+
+	const findings = scanFrontSrcForSharedTsReExports(path.join(root, 'front-src'));
+	const hit = findings.find(
+		(f) => f.file === 'apps/front/src/lib/multi-line-shim.ts',
+	);
+	assert.ok(
+		hit,
+		`multi-line named re-export must be detected, got ${JSON.stringify(findings)}`,
+	);
+	assert.ok(
+		hit.text.includes(SHIM_SPECIFIER),
+		`finding text should name the shared-ts module: ${hit.text}`,
+	);
+});
+
+test('RED: `export type * from "@org/shared-ts/..."` is detected', () => {
+	const root = makeSandbox();
+	writeFileSync(
+		path.join(root, 'front-src/lib/type-star-shim.ts'),
+		`export type * from '${SHIM_SPECIFIER}';\n`,
+	);
+
+	const findings = scanFrontSrcForSharedTsReExports(path.join(root, 'front-src'));
+	const hit = findings.find(
+		(f) => f.file === 'apps/front/src/lib/type-star-shim.ts',
+	);
+	assert.ok(hit, `export type * must be detected, got ${JSON.stringify(findings)}`);
+});
+
+test('RED: `export * as ns from "@org/shared-ts/..."` is detected', () => {
+	const root = makeSandbox();
+	writeFileSync(
+		path.join(root, 'front-src/lib/namespace-alias-shim.ts'),
+		`export * as ns from '${SHIM_SPECIFIER}';\n`,
+	);
+
+	const findings = scanFrontSrcForSharedTsReExports(path.join(root, 'front-src'));
+	const hit = findings.find(
+		(f) => f.file === 'apps/front/src/lib/namespace-alias-shim.ts',
+	);
+	assert.ok(hit, `export * as ns must be detected, got ${JSON.stringify(findings)}`);
+});
+
+test('GREEN: `export * from "./local"` (front-local namespace re-export) is NOT flagged', () => {
+	const root = makeSandbox();
+	writeFileSync(
+		path.join(root, 'front-src/lib/local-barrel.ts'),
+		`export * from './local';\n`,
+	);
+
+	const findings = scanFrontSrcForSharedTsReExports(path.join(root, 'front-src'));
+	assert.ok(
+		!findings.some((f) => f.file === 'apps/front/src/lib/local-barrel.ts'),
+		`front-local export * must not be flagged, got ${JSON.stringify(findings)}`,
+	);
+});
+
+test('RED: `export type { X } from "@org/shared-ts/..."` (type-only named) is detected', () => {
+	const root = makeSandbox();
+	writeFileSync(
+		path.join(root, 'front-src/lib/type-only-shim.ts'),
+		`export type { shouldLogoutForFailure } from '${SHIM_SPECIFIER}';\n`,
+	);
+
+	const findings = scanFrontSrcForSharedTsReExports(path.join(root, 'front-src'));
+	const hit = findings.find(
+		(f) => f.file === 'apps/front/src/lib/type-only-shim.ts',
+	);
+	assert.ok(hit, `type-only named re-export must be detected, got ${JSON.stringify(findings)}`);
+});
+
+test('GREEN: dynamic `import("@org/shared-ts/...")` is INSPECTED but NOT flagged', () => {
+	const root = makeSandbox();
+	writeFileSync(
+		path.join(root, 'front-src/lib/dynamic-shim.ts'),
+		`const mod = import('${SHIM_SPECIFIER}');\n`,
+	);
+
+	const findings = scanFrontSrcForSharedTsReExports(path.join(root, 'front-src'));
+	assert.ok(
+		!findings.some((f) => f.file === 'apps/front/src/lib/dynamic-shim.ts'),
+		`dynamic import of a shared-ts module is a direct (wanted) import, must not be flagged, got ${JSON.stringify(findings)}`,
+	);
+});
+
+// ---- R2: regression test — guard must inspect the AST, not lines ----------
+
+test('REGRESSION: guard inspects the AST, not lines — multi-line form must be caught (not blank-line-skipped)', () => {
+	// This test exists to fail if the guard regresses to a line-by-line scan.
+	// A line-by-line regex scanning individual text lines would NEVER see a
+	// multi-line export declaration as a single `export ... from '...'` statement
+	// on one line. The guard must therefore parse the file into an AST and walk
+	// export-declaration nodes. If it reverts to per-line scanning, this test
+	// goes RED because the multi-line re-export above will not be found.
+	const root = makeSandbox();
+	writeFileSync(path.join(root, 'front-src/lib/multi-line-shim.ts'), MULTILINE_NAMED_SHIM_BODY);
+
+	const findings = scanFrontSrcForSharedTsReExports(path.join(root, 'front-src'));
+	const hit = findings.find(
+		(f) => f.file === 'apps/front/src/lib/multi-line-shim.ts',
+	);
+	assert.ok(
+		hit,
+		'AST regression: multi-line re-export must be found — a line-by-line scan would miss it',
+	);
+});
+
+// ---- existing shared-ts scope tests (carried forward) ---------------------
 
 test('RED: a shared-ts-internal re-export of a sibling shared-ts module is detected', () => {
 	const root = makeSandbox();
@@ -193,19 +323,5 @@ test('scanTreeForSharedTsReExports labels findings with the tree label', () => {
 	assert.ok(
 		findings.every((f) => f.file.startsWith('apps/front/src/')),
 		`findings must be labelled with the tree, got ${JSON.stringify(findings.map((f) => f.file))}`,
-	);
-});
-
-test('regex sanity: only shared-ts re-exports match', async () => {
-	const { REEXPORT_SHARED_TS } = (await import(
-		'./check-shared-ts-import-paths.mts'
-	)) as { REEXPORT_SHARED_TS: RegExp };
-	assert.ok(
-		REEXPORT_SHARED_TS.test("export * from '@org/shared-ts/lib/should-logout-for-failure';"),
-		'shim body must match',
-	);
-	assert.ok(
-		!REEXPORT_SHARED_TS.test("export * from './local';\n"),
-		'front-local re-export must not match',
 	);
 });
