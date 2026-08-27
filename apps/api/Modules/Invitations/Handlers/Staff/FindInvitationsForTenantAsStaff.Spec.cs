@@ -2142,6 +2142,286 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 				);
 			}
 
+			[Fact]
+			public async Task
+			ItShouldWalkEveryCreatedAtPageWithoutOverlapOrGap() {
+				var staffToken =
+					await _authClient.LoginAsStaffAdminAsync();
+				var acmeTenantId =
+					await TenantTestHelper
+						.GetTenantIdByNameAsync(
+							_http,
+							staffToken,
+							SeedConstants.Tenants.AcmeName
+						);
+
+				// 3 invites with distinct CreatedAt; the walk must visit each once
+				// in ascending CreatedAt order with no gap.
+				var baseDate = new DateTime(
+					2026, 1, 1, 0, 0, 0, DateTimeKind.Utc
+				);
+				var seededIds = new List<Guid>();
+				// Anti-correlated with insertion: i=0 -> +2d, i=1 -> +0d, i=2 -> +1d,
+				// so the CreatedAt sorted order is NOT the insertion order.
+				var seededCreatedAt = new List<DateTime>();
+				for (var i = 0; i < 3; i++) {
+					var id = await CreateTenantInvitationAsync(
+						staffToken,
+						acmeTenantId,
+						$"tenant-inv-created-{i}-{Guid.NewGuid():N}@example.com"
+					);
+					var createdAt = baseDate.AddDays((3 - i) % 3);
+					await SetCreatedAtAsync(id, createdAt);
+					seededIds.Add(id);
+					seededCreatedAt.Add(createdAt);
+				}
+
+				var visitedIds = new List<Guid>();
+				string? cursor = null;
+				var pages = 0;
+				do {
+					var url = GetFindUrl(
+						acmeTenantId,
+						cursor: cursor,
+						limit: 1,
+						sortId: "created_at",
+						sortOrder: "asc"
+					);
+					HttpRequestMessage request =
+						new HttpRequestMessage(
+							HttpMethod.Get, url
+						).WithSessionToken(staffToken);
+
+					using HttpResponseMessage response =
+						await _http.SendAsync(request);
+					_ = response.StatusCode.Should()
+						.Be(HttpStatusCode.OK);
+
+					var page = await response.Content
+						.ReadFromJsonAsync<FindPageResponse>();
+					page.Should().NotBeNull();
+					Assert.NotNull(page);
+					pages++;
+					visitedIds.AddRange(
+						page.Data.Select(i => i.Id)
+					);
+					cursor = page.NextCursor;
+
+					pages.Should().BeLessOrEqualTo(100);
+				} while (cursor is not null);
+
+				visitedIds.Should().OnlyHaveUniqueItems();
+				visitedIds.Should().Contain(seededIds);
+
+				var visitedOrder = visitedIds
+					.Where(seededIds.Contains)
+					.ToList();
+				var createdAtById = seededIds
+					.Zip(seededCreatedAt, (id, c) => (id, c))
+					.ToDictionary(x => x.id, x => x.c);
+				visitedOrder.Should().Equal(
+					seededIds.OrderBy(id => createdAtById[id]).ToList()
+				);
+			}
+
+			[Fact]
+			public async Task
+			ItShouldWalkEveryExpiresAtPageWithoutOverlapOrGap() {
+				var staffToken =
+					await _authClient.LoginAsStaffAdminAsync();
+				var acmeTenantId =
+					await TenantTestHelper
+						.GetTenantIdByNameAsync(
+							_http,
+							staffToken,
+							SeedConstants.Tenants.AcmeName
+						);
+
+				// 3 invites with distinct ExpiresAt; the walk must visit each once
+				// in ascending ExpiresAt order with no gap.
+				var baseDate = new DateTime(
+					2026, 1, 1, 0, 0, 0, DateTimeKind.Utc
+				);
+				var seededIds = new List<Guid>();
+				// Anti-correlated with insertion: i=0 -> +2d, i=1 -> +0d, i=2 -> +1d,
+				// so the ExpiresAt sorted order is NOT the insertion order.
+				var seededExpiresAt = new List<DateTime>();
+				for (var i = 0; i < 3; i++) {
+					var id = await CreateTenantInvitationAsync(
+						staffToken,
+						acmeTenantId,
+						$"tenant-inv-expires-{i}-{Guid.NewGuid():N}@example.com"
+					);
+					var expiresAt = baseDate.AddDays((3 - i) % 3);
+					await SetExpiresAtAsync(id, expiresAt);
+					seededIds.Add(id);
+					seededExpiresAt.Add(expiresAt);
+				}
+
+				var visitedIds = new List<Guid>();
+				string? cursor = null;
+				var pages = 0;
+				do {
+					var url = GetFindUrl(
+						acmeTenantId,
+						cursor: cursor,
+						limit: 1,
+						sortId: "expires_at",
+						sortOrder: "asc"
+					);
+					HttpRequestMessage request =
+						new HttpRequestMessage(
+							HttpMethod.Get, url
+						).WithSessionToken(staffToken);
+
+					using HttpResponseMessage response =
+						await _http.SendAsync(request);
+					_ = response.StatusCode.Should()
+						.Be(HttpStatusCode.OK);
+
+					var page = await response.Content
+						.ReadFromJsonAsync<FindPageResponse>();
+					page.Should().NotBeNull();
+					Assert.NotNull(page);
+					pages++;
+					visitedIds.AddRange(
+						page.Data.Select(i => i.Id)
+					);
+					cursor = page.NextCursor;
+
+					pages.Should().BeLessOrEqualTo(100);
+				} while (cursor is not null);
+
+				visitedIds.Should().OnlyHaveUniqueItems();
+				visitedIds.Should().Contain(seededIds);
+
+				var visitedOrder = visitedIds
+					.Where(seededIds.Contains)
+					.ToList();
+				var expiresAtById = seededIds
+					.Zip(seededExpiresAt, (id, e) => (id, e))
+					.ToDictionary(x => x.id, x => x.e);
+				visitedOrder.Should().Equal(
+					seededIds.OrderBy(id => expiresAtById[id]).ToList()
+				);
+			}
+
+			[Fact]
+			public async Task
+			ItShouldWalkEveryEmailPageWithoutOverlapOrGap() {
+				var staffToken =
+					await _authClient.LoginAsStaffAdminAsync();
+				var acmeTenantId =
+					await TenantTestHelper
+						.GetTenantIdByNameAsync(
+							_http,
+							staffToken,
+							SeedConstants.Tenants.AcmeName
+						);
+
+				// 3 invites with distinct Email values, deliberately NOT in
+				// insertion order (anti-correlated). The walk must visit each once
+				// in ascending email order, so a keySelector swap to another
+				// same-type field (e.g. CreatedAt) turns this assertion RED.
+				var seededIds = new List<Guid>();
+				var seededEmails = new List<string>();
+				var emails = new[] {
+					$"tenant-inv-email-c-{Guid.NewGuid():N}@example.com",
+					$"tenant-inv-email-a-{Guid.NewGuid():N}@example.com",
+					$"tenant-inv-email-b-{Guid.NewGuid():N}@example.com",
+				};
+				foreach (var email in emails) {
+					var id = await CreateTenantInvitationAsync(
+						staffToken,
+						acmeTenantId,
+						email
+					);
+					seededIds.Add(id);
+					seededEmails.Add(email);
+				}
+
+				var visitedIds = new List<Guid>();
+				var visitedEmails = new List<string>();
+				string? cursor = null;
+				var pages = 0;
+				do {
+					var url = GetFindUrl(
+						acmeTenantId,
+						cursor: cursor,
+						limit: 1,
+						sortId: "email",
+						sortOrder: "asc"
+					);
+					HttpRequestMessage request =
+						new HttpRequestMessage(
+							HttpMethod.Get, url
+						).WithSessionToken(staffToken);
+
+					using HttpResponseMessage response =
+						await _http.SendAsync(request);
+					_ = response.StatusCode.Should()
+						.Be(HttpStatusCode.OK);
+
+					var page = await response.Content
+						.ReadFromJsonAsync<FindResponse>();
+					page.Should().NotBeNull();
+					Assert.NotNull(page);
+					pages++;
+					visitedIds.AddRange(
+						page.Data.Select(i => i.Id)
+					);
+					visitedEmails.AddRange(
+						page.Data.Select(i => i.Email)
+					);
+					cursor = page.NextCursor;
+
+					pages.Should().BeLessOrEqualTo(100);
+				} while (cursor is not null);
+
+				visitedIds.Should().OnlyHaveUniqueItems();
+				visitedIds.Should().Contain(seededIds);
+
+				var visitedOrder = visitedEmails
+					.Where(e => seededEmails.Contains(e, StringComparer.OrdinalIgnoreCase))
+					.ToList();
+				var expectedOrder = seededEmails
+					.OrderBy(e => e, StringComparer.OrdinalIgnoreCase)
+					.ToList();
+				visitedOrder.Should().Equal(expectedOrder);
+			}
+
+			private async Task SetCreatedAtAsync(
+				Guid invitationId,
+				DateTime createdAt
+			) {
+				using IServiceScope scope =
+					_fixture.Factory.Services.CreateScope();
+				AppDbContext dbContext = scope.ServiceProvider
+					.GetRequiredService<AppDbContext>();
+
+				var invitation = await dbContext.Invitation
+					.Where(i => i.Id == invitationId)
+					.FirstAsync();
+				invitation.CreatedAt = createdAt;
+				await dbContext.SaveChangesAsync();
+			}
+
+			private async Task SetExpiresAtAsync(
+				Guid invitationId,
+				DateTime expiresAt
+			) {
+				using IServiceScope scope =
+					_fixture.Factory.Services.CreateScope();
+				AppDbContext dbContext = scope.ServiceProvider
+					.GetRequiredService<AppDbContext>();
+
+				var invitation = await dbContext.Invitation
+					.Where(i => i.Id == invitationId)
+					.FirstAsync();
+				invitation.ExpiresAt = expiresAt;
+				await dbContext.SaveChangesAsync();
+			}
+
 			#endregion
 
 			#region Helper Methods
