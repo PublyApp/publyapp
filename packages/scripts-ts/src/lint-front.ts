@@ -460,11 +460,14 @@ const main = () => {
 		typeAware: true,
 	});
 
-	return typeScriptStatus === 0 &&
+	if (
+		typeScriptStatus === 0 &&
 		javaScriptStatus === 0 &&
 		typeAwareJavaScriptStatus === 0
-		? 0
-		: 1;
+	) {
+		return 0;
+	}
+	return 1;
 };
 
 const isDirectRun =

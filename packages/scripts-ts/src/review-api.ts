@@ -307,7 +307,10 @@ export const extractEnvValue = (content, key) => {
 
 	const raw = match[1].trim();
 	const unquoted = raw.replace(/^"(.*)"$/, '$1').replace(/^'(.*)'$/, '$1');
-	return unquoted.length > 0 ? unquoted : undefined;
+	if (unquoted.length > 0) {
+		return unquoted;
+	}
+	return undefined;
 };
 
 // Resolves the TRUSTED_PROXY_CIDRS value a worktree's own .env.development carries,

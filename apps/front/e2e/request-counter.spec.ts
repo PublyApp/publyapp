@@ -48,7 +48,10 @@ const getCounter = async (
 	const body = (await response.json()) as {
 		count?: unknown;
 	};
-	return typeof body.count === 'number' ? body.count : -1;
+	if (typeof body.count === 'number') {
+		return body.count;
+	}
+	return -1;
 };
 
 /**

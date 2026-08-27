@@ -131,7 +131,10 @@ export const disambiguateWorktreesByCwd = (matches, preferPath) => {
 		(candidate) => realpathIfExists(candidate.path) === cwd,
 	);
 
-	return here ? [here] : matches;
+	if (here) {
+		return [here];
+	}
+	return matches;
 };
 
 // @ts-expect-error rung-0: add proper type in later rung
@@ -391,7 +394,10 @@ export const resolveInteractivePicker = async (
 				return left.number - right.number;
 			}
 
-			return left.hasPath ? -1 : 1;
+			if (left.hasPath) {
+				return -1;
+			}
+			return 1;
 		});
 
 	const lines = rows.map(

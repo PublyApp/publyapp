@@ -68,7 +68,10 @@ export const matchRunnerHandshake = (
 	const rootMatch = output.match(
 		new RegExp(`^RUNNER_OWNED_ROOT=${escaped}:(\\S+)$`, 'm'),
 	);
-	return rootMatch ? { pid: Number(pidMatch[1]), root: rootMatch[1] } : null;
+	if (rootMatch) {
+		return { pid: Number(pidMatch[1]), root: rootMatch[1] };
+	}
+	return null;
 };
 
 // #1352: the runner-interruption probe chain is BOUNDED. Its normal runtime

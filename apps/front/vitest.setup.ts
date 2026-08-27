@@ -32,7 +32,10 @@ configure({ asyncUtilTimeout: 25000 });
 if (typeof window !== 'undefined' && typeof window.matchMedia !== 'function') {
 	const parseMinWidth = (query: string): number => {
 		const match = /min-width:\s*(\d+)px/.exec(query);
-		return match ? Number(match[1]) : 0;
+		if (match) {
+			return Number(match[1]);
+		}
+		return 0;
 	};
 
 	const computeMatches = (query: string): boolean =>

@@ -727,9 +727,10 @@ export const classifyZUtility = (
 	if (!isZIndexUtility(utility)) {
 		return null;
 	}
-	return isAllowedZIndexUtility(utility, canonicalScaleTokens)
-		? 'allowed'
-		: 'raw';
+	if (isAllowedZIndexUtility(utility, canonicalScaleTokens)) {
+		return 'allowed';
+	}
+	return 'raw';
 };
 
 // ---------------------------------------------------------------------------
@@ -1684,9 +1685,10 @@ export const scanZIndexFile = ({
 			// a cycle — and the caller must fail loud by name instead of
 			// assuming compliant.
 			const fixpoint = resolveModuleConstFixpoint(expression);
-			return fixpoint != null && ts.isObjectLiteralExpression(fixpoint)
-				? fixpoint
-				: null;
+			if (fixpoint != null && ts.isObjectLiteralExpression(fixpoint)) {
+				return fixpoint;
+				}
+				return null;
 		};
 		const staticObjectMemberNode = (
 			object: ts.ObjectLiteralExpression,
@@ -3572,7 +3574,10 @@ export const scanZIndexFile = ({
 			) {
 				return explicit.text;
 			}
-			return ts.isIdentifier(element.name) ? element.name.text : null;
+			if (ts.isIdentifier(element.name)) {
+		return element.name.text;
+	}
+	return null;
 		};
 		// The named type references of a parameter/const annotation, unwrapped
 		// through nullable unions: `HTMLElement`, `HTMLElement | null`, and
@@ -3717,7 +3722,10 @@ export const scanZIndexFile = ({
 			const identity = receiverIdentityFromTypeNames(
 				typeAnnotationNames(owner),
 			);
-			return identity == null ? 'unresolved' : 'style-decl';
+			if (identity == null) {
+		return 'unresolved';
+	}
+	return 'style-decl';
 		};
 		// Shared member-name decision for both spellings of a `.style`
 		// member read: a resolved member that is not `style` is provably not
@@ -3930,10 +3938,11 @@ export const scanZIndexFile = ({
 							callee.expression,
 							visited,
 						);
-						return receiverKind === 'style-decl' ||
-							receiverKind === 'unresolved'
-							? 'overflow'
-							: 'other';
+						if (receiverKind === 'style-decl' ||
+							receiverKind === 'unresolved') {
+							return 'overflow';
+						}
+						return 'other';
 					},
 					() => 'other',
 				);
@@ -4949,7 +4958,10 @@ const cssImportSpecifier = (params: string) => {
 		return quoted[1] ?? quoted[2];
 	}
 	const url = trimmed.match(/^url\(\s*(?:"([^"]+)"|'([^']+)'|([^\s)]+))\s*\)/i);
-	return url == null ? null : (url[1] ?? url[2] ?? url[3]);
+	if (url == null) {
+		return null;
+	}
+	return url[1] ?? url[2] ?? url[3];
 };
 
 const collectReachableAuthoredCssPaths = async (

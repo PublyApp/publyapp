@@ -75,7 +75,10 @@ export const redactSecrets = (text, secrets = []) => {
 // to remember.
 export const ambientCredentialSecrets = () => {
 	const password = process.env.PGPASSWORD;
-	return typeof password === 'string' && password.length > 0 ? [password] : [];
+	if (typeof password === 'string' && password.length > 0) {
+		return [password];
+	}
+	return [];
 };
 
 // Every secret a rendered command error must respect: the caller-declared list plus the

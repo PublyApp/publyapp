@@ -243,7 +243,10 @@ const isRegisteredWorktree = (context) => {
 	// @ts-expect-error rung-0: add proper type in later rung
 	const normalizePath = (candidate) => {
 		const resolved = path.resolve(candidate);
-		return process.platform === 'win32' ? resolved.toLowerCase() : resolved;
+		if (process.platform === 'win32') {
+			return resolved.toLowerCase();
+		}
+		return resolved;
 	};
 	const normalizedContext = normalizePath(context);
 	return worktreeList

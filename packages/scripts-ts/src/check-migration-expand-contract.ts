@@ -203,7 +203,10 @@ const getBooleanArg = (callText, argName) => {
 		callText,
 	);
 
-	return match === null ? null : match[1].toLowerCase() === 'true';
+	if (match === null) {
+		return null;
+	}
+	return match[1].toLowerCase() === 'true';
 };
 
 // @ts-expect-error rung-0: add proper type in later rung
@@ -211,7 +214,10 @@ const getStringArg = (callText, argName) => {
 	const match = new RegExp(`\\b${argName}\\s*:\\s*"([^"]+)"`, 'i').exec(
 		callText,
 	);
-	return match === null ? null : match[1];
+	if (match === null) {
+		return null;
+	}
+	return match[1];
 };
 
 // @ts-expect-error rung-0: add proper type in later rung
@@ -220,13 +226,19 @@ const getRawArg = (callText, argName) => {
 		`\\b${argName}\\s*:\\s*(?<value>[^,\\)]+)`,
 		'i',
 	).exec(callText);
-	return match === null ? null : (match.groups?.value?.trim() ?? null);
+	if (match === null) {
+		return null;
+	}
+	return match.groups?.value?.trim() ?? null;
 };
 
 // @ts-expect-error rung-0: add proper type in later rung
 const getOldClrType = (callText) => {
 	const match = /\boldClrType\s*:\s*typeof\(\s*([^)]+?)\s*\)/i.exec(callText);
-	return match === null ? null : match[1].trim();
+	if (match === null) {
+		return null;
+	}
+	return match[1].trim();
 };
 
 // @ts-expect-error rung-0: add proper type in later rung
@@ -235,7 +247,10 @@ const getGenericType = (callText, operation) => {
 		`migrationBuilder\\.${operation}<\\s*([^>\\s]+)\\s*>`,
 		'i',
 	).exec(callText);
-	return match === null ? null : match[1];
+	if (match === null) {
+		return null;
+	}
+	return match[1];
 };
 
 // @ts-expect-error rung-0: add proper type in later rung
