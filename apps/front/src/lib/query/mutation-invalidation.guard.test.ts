@@ -226,7 +226,7 @@ type RegistryEntry = ListFamilyEntry | NoListEntry;
 const loadScopedKey = async () =>
 	await import('@org/shared-ts/lib/query/create-hooks');
 
-const REGISTRY: Record<string, RegistryEntry> = {
+const REGISTRY = {
 	'staff-users.ts': {
 		kind: 'list-family',
 		helperName: 'invalidateStaffUsers',
@@ -624,6 +624,7 @@ const REGISTRY: Record<string, RegistryEntry> = {
 		reason:
 			'uploads a staff image to a one-shot presigned URL; this module owns no list query to invalidate (the created upload is a side-effect, not a cached list row).',
 		load: () => import('./staff-uploads'),
+		knownListQuery: undefined,
 	},
 	'staff-audit-logs.ts': {
 		kind: 'no-list',
@@ -637,18 +638,21 @@ const REGISTRY: Record<string, RegistryEntry> = {
 		reason:
 			'attaches/detaches/alts post images via picker helpers; the only query it touches is the post image cache (consumed at the picker), and post-image mutations carry no list query of their own in this module.',
 		load: () => import('./tenant-post-images'),
+		knownListQuery: undefined,
 	},
 	'tenant-account-profile.ts': {
 		kind: 'no-list',
 		reason:
 			'updates the tenant account-profile detail entity; there is no derived list/counter projection of it, so the rule requires no list invalidation.',
 		load: () => import('./tenant-account-profile'),
+		knownListQuery: undefined,
 	},
 	'tenant-settings-general.ts': {
 		kind: 'no-list',
 		reason:
 			'updates the tenant settings-general detail entity; there is no derived list/counter projection of it, so the rule requires no list invalidation.',
 		load: () => import('./tenant-settings-general'),
+		knownListQuery: undefined,
 	},
 } satisfies Record<string, RegistryEntry>;
 
