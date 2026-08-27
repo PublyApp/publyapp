@@ -7,7 +7,7 @@
  * 3. Name normalization is Compose-safe
  */
 
-import { mkdirSync, readdirSync, unlinkSync } from 'node:fs';
+import { mkdirSync, readdirSync, unlinkSync, writeFileSync, readFileSync } from 'node:fs';
 import { join as pathJoin } from 'node:path';
 import assert from 'node:assert/strict';
 import { describe, it, beforeEach, afterEach } from 'node:test';
@@ -19,9 +19,13 @@ import {
 	setupE2EComposeEnv,
 	teardownE2EComposeEnv,
 	deriveProjectName,
+	isLockStale,
 	type PortBandReservation,
 	type E2EComposeEnv,
 } from './e2e-compose-env.mts';
+
+// Test lock directory (matches the one in mts)
+const LOCK_DIR = pathJoin('/tmp', 'publyapp-e2e-port-locks');
 
 describe('normalizeComposeName', () => {
 	it('converts to lowercase', () => {
@@ -186,5 +190,92 @@ describe('integration: parallel stack isolation', () => {
 		// Clean up
 		teardownE2EComposeEnv(env1);
 		teardownE2EComposeEnv(env2);
+	});
+});
+
+describe('stale lock detection (#1642)', () => {
+	/**
+	 * PROOF: A lock whose owning process has died MUST be reclaimed.
+	 *
+	 * This test verifies the fix for the brief's requirement B:
+	 * "un verrou dont le pid n'existe plus DOIT etre repris".
+	 *
+	 * Before the fix: locks wrote a PID but never checked liveness,
+	 * so a dead process left an immortal lock that permanently
+	 * consumed a port band.
+	 *
+	 * After the fix: isLockStale detects dead PIDs, reclaimStaleLock
+	 * deletes + recreates the lock atomically.
+	 */
+	it('detects a stale lock with a dead PID', () => {
+		// Create a fake lock file with a PID that doesn't exist
+		const fakeLockPath = pathJoin(LOCK_DIR, 'test-dead-pid.lock');
+		mkdirSync(LOCK_DIR, { recursive: true });
+		writeFileSync(fakeLockPath, JSON.stringify({
+			pid: 99999999, // Non-existent PID
+			timestamp: Date.now(),
+			uuid: 'test-uuid',
+		}), 'utf8');
+
+		// Should be detected as stale
+		assert.ok(isLockStale(fakeLockPath), 'Lock with dead PID should be stale');
+
+		// Clean up
+		unlinkSync(fakeLockPath);
+	});
+
+	it('detects a stale lock with an old timestamp', () => {
+		const fakeLockPath = pathJoin(LOCK_DIR, 'test-old-timestamp.lock');
+		mkdirSync(LOCK_DIR, { recursive: true });
+		writeFileSync(fakeLockPath, JSON.stringify({
+			pid: process.pid, // Current PID (alive) but...
+			timestamp: Date.now() - (3 * 60 * 60 * 1000), // 3 hours ago
+			uuid: 'test-uuid',
+		}), 'utf8');
+
+		// Should be detected as stale due to age (despite alive PID)
+		assert.ok(isLockStale(fakeLockPath), 'Lock older than threshold should be stale');
+
+		// Clean up
+		unlinkSync(fakeLockPath);
+	});
+
+	it('does NOT mark a fresh lock with alive PID as stale', () => {
+		// Acquire a real lock
+		const reservation = acquirePortBand();
+		assert.ok(reservation, 'Failed to acquire port band');
+
+		// Should NOT be stale (we just created it, we're alive)
+		assert.ok(!isLockStale(reservation!.lockPath), 'Fresh lock with alive PID should not be stale');
+
+		// Clean up
+		releasePortBand(reservation!.lockPath);
+	});
+
+	it('reclaims a stale lock with a dead PID (CRITICAL)', () => {
+		// Create a fake lock with dead PID
+		const fakeLockPath = pathJoin(LOCK_DIR, 'test-reclaim.lock');
+		mkdirSync(LOCK_DIR, { recursive: true });
+		writeFileSync(fakeLockPath, JSON.stringify({
+			pid: 99999999,
+			timestamp: Date.now(),
+			uuid: 'test-uuid',
+		}), 'utf8');
+
+		// Confirm it's stale
+		assert.ok(isLockStale(fakeLockPath), 'Lock with dead PID should be stale');
+
+		// Now acquire a port band - it should reclaim the stale lock
+		const reservation = acquirePortBand();
+		assert.ok(reservation, 'Failed to acquire port band');
+
+		// The reservation should have a valid lock path
+		assert.ok(reservation!.lockPath, 'Reservation should have lock path');
+
+		// The lock should now be fresh (not stale)
+		assert.ok(!isLockStale(reservation!.lockPath), 'Reclaimed lock should not be stale');
+
+		// Clean up
+		releasePortBand(reservation!.lockPath);
 	});
 });

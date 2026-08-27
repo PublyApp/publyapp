@@ -11,8 +11,12 @@
  *
  * Solution (voie A — isolation garantie): uses file-based locks to ensure
  * that no two stacks can obtain the same port band, even when launched
- * simultaneously. A lock file is created atomically using O_EXCL, and
- * persists until explicitly released.
+ * simultaneously. A lock file is created atomically using O_EXCL.
+ *
+ * Stale lock recovery: a lock whose owning process has died (crash, kill,
+ * host reboot) is detected via PID liveness check and age threshold, then
+ * reclaimed atomically — the reclaimer deletes the stale lock and recreates
+ * it with O_EXCL, so two simultaneous reclaimers cannot both succeed.
  *
  * This script emits shell `export` lines that can be `eval`'d, or sets
  * environment variables when invoked with `--set`.
@@ -58,6 +62,15 @@ const MAX_BANDS = 500;
 
 // Lock directory for port band reservations
 const LOCK_DIR = pathJoin('/tmp', 'publyapp-e2e-port-locks');
+
+// Stale lock detection: a lock older than this is considered stale regardless of PID
+const STALE_LOCK_THRESHOLD_MS = 2 * 60 * 60 * 1000; // 2 hours
+
+type LockContent = {
+	pid?: number;
+	timestamp?: number;
+	uuid?: string;
+};
 
 /**
  * Normalizes a string to be Compose-safe:
@@ -110,6 +123,97 @@ function getLockFilePath(bandIndex: number): string {
 }
 
 /**
+ * Check if a PID is still alive.
+ * Uses process.kill(pid, 0) which checks existence without sending a signal.
+ */
+function isPidAlive(pid: number): boolean {
+	try {
+		process.kill(pid, 0);
+		return true;
+	} catch (e) {
+		// ESRCH = no such process (dead)
+		// EPERM = exists but no permission (alive)
+		const code = (e as NodeJS.ErrnoException).code;
+		return code === 'EPERM';
+	}
+}
+
+/**
+ * Parse lock file content.
+ */
+function readLockContent(lockPath: string): LockContent | null {
+	try {
+		const content = readFileSync(lockPath, 'utf8');
+		return JSON.parse(content) as LockContent;
+	} catch {
+		return null;
+	}
+}
+
+/**
+ * Check if a lock is stale (owner dead or too old).
+ * Exported for testing.
+ */
+export function isLockStale(lockPath: string): boolean {
+	const data = readLockContent(lockPath);
+	if (!data) {
+		// Can't read lock content - consider it stale
+		return true;
+	}
+
+	// Check age first - if too old, definitely stale (handles PID reuse)
+	if (data.timestamp) {
+		const age = Date.now() - data.timestamp;
+		if (age > STALE_LOCK_THRESHOLD_MS) {
+			return true;
+		}
+	}
+
+	// Check PID liveness
+	if (data.pid && isPidAlive(data.pid)) {
+		return false; // Owner is alive
+	}
+
+	// PID is dead or missing
+	return true;
+}
+
+/**
+ * Reclaim a stale lock atomically.
+ *
+ * Strategy: delete the stale lock, then immediately recreate it with O_EXCL.
+ * If another process also reclaims the same lock, only one O_EXCL succeeds;
+ * the other gets EEXIST and must move on.
+ *
+ * Returns true if the lock was successfully reclaimed.
+ */
+function reclaimStaleLock(lockPath: string): boolean {
+	try {
+		// Delete the stale lock
+		unlinkSync(lockPath);
+	} catch {
+		// Already deleted by another process
+		return false;
+	}
+
+	try {
+		// Immediately recreate atomically
+		const fd = openSync(lockPath, 'wx');
+		const lockContent = JSON.stringify({
+			pid: process.pid,
+			timestamp: Date.now(),
+			uuid: crypto.randomUUID(),
+		});
+		writeFileSync(lockPath, lockContent, 'utf8');
+		closeSync(fd);
+		return true;
+	} catch {
+		// Another process created the file first
+		return false;
+	}
+}
+
+/**
  * Ensure lock directory exists
  */
 function ensureLockDirExists(): void {
@@ -147,7 +251,13 @@ function acquirePortBandInternal(): { bandIndex: number; basePort: number; lockP
 			const basePort = BASE_PORTS.traefik_web + (bandIndex * PORT_BAND);
 			return { bandIndex, basePort, lockPath };
 		} catch {
-			// Lock file exists or couldn't be created, try next band
+			// Lock file exists - check if it's stale and can be reclaimed
+			if (isLockStale(lockPath) && reclaimStaleLock(lockPath)) {
+				// Successfully reclaimed the stale lock
+				const basePort = BASE_PORTS.traefik_web + (bandIndex * PORT_BAND);
+				return { bandIndex, basePort, lockPath };
+			}
+			// Lock exists and couldn't be reclaimed, try next band
 			continue;
 		}
 	}
