@@ -352,6 +352,101 @@ public sealed class AttachPostImageForTenantSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task
+	ItShouldReleaseTheNewBlobReferenceWhenTheAttachWriteIsRejected() {
+		// Deterministic counterpart to the parallel storm above, and the proof
+		// that actually pins the #1616 loser-release fix.
+		//
+		// The storm only reaches this window when the requests genuinely collide,
+		// which depends on thread-pool timing: measured against a mutation that
+		// deletes the compensating release, it failed 5/5 runs alone but 0/4 runs
+		// inside this class, where the shared fixture shifts the timing. A race
+		// the proof detects only sometimes cannot guard a regression, so this test
+		// removes the timing entirely.
+		//
+		// It recreates the loser's exact DATABASE situation: a live asset row that
+		// the handler's purge cannot see, yet the unique index still enforces.
+		// ux_post_media_assets_live_post_id keys on post_id ALONE, while
+		// AttachAsync's purge query is scoped to tenant AND post — so a live row
+		// carrying this post_id under a DIFFERENT tenant is invisible to the purge
+		// and still occupies the post's one live slot. The insert is therefore
+		// rejected exactly as the losing racer's is (whose purge ran before the
+		// winner's row existed), AttachAsync throws, and the blob whose reference
+		// the handler already acquired never becomes the live image. Without the
+		// compensating release that reference stays at 1 forever.
+		var (tenantId, token) = await LoginAsAcmeAdminAsync();
+		var foreignTenantId = await GetTechStartTenantIdAsync();
+		var postId = await CreatePostAsync(tenantId, token);
+		var postIdGuid = Guid.Parse(postId);
+
+		var blockingPath = $"uploads/blocking/{Guid.NewGuid():N}.png";
+		await using (var seedScope =
+			_fixture.Factory.Services.CreateAsyncScope()) {
+			var seedDb = seedScope.ServiceProvider
+				.GetRequiredService<AppDbContext>();
+			seedDb.PostMediaAsset.Add(new Entities.PostMediaAsset {
+				TenantId = foreignTenantId,
+				PostId = postIdGuid,
+				RelativePath = blockingPath,
+				ContentType = "image/png",
+				AltText = null,
+				WidthPx = 8,
+				HeightPx = 8,
+				SizeBytes = 64,
+				UploadedByUserId = await ResolveAcmeAdminUserIdAsync(seedDb),
+			});
+			await seedDb.SaveChangesAsync();
+		}
+
+		using var request = new HttpRequestMessage(
+			HttpMethod.Post,
+			AttachImageUrl(postId)
+		)
+			.WithSessionToken(token)
+			.WithTenantId(tenantId);
+		request.Content = BuildFileContent(PngBytes(width: 32, height: 32));
+
+		// The attach must NOT succeed: the post's live slot is already taken by a
+		// row this tenant's purge cannot remove.
+		using var response = await _http.SendAsync(request);
+		response.IsSuccessStatusCode.Should().BeFalse(
+			"the live-image slot is held by a row the purge cannot see, so this "
+			+ "insert must lose the unique index"
+		);
+
+		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+		// The blocking row still owns the slot — the failed attach changed nothing.
+		var livePaths = await (
+			from a in db.PostMediaAsset.AsNoTracking()
+			where a.PostId == postIdGuid && !a.IsDeleted
+			select a.RelativePath
+		).ToListAsync();
+		livePaths.Should().BeEquivalentTo([blockingPath]);
+
+		// The rejected attach's own blob must hold NO reference: it never became
+		// the live image, so the reference acquired for it had to be released.
+		// A blob referenced by no live asset row IS the #1616 leak.
+		var livePathsAllPosts = await (
+			from a in db.PostMediaAsset.AsNoTracking()
+			where !a.IsDeleted
+			select a.RelativePath
+		).ToListAsync();
+		var leaked = await (
+			from u in db.UploadAsset.AsNoTracking()
+			where !u.IsDeleted
+				&& u.ReferenceCount > 0
+				&& !livePathsAllPosts.Contains(u.RelativePath)
+			select u.RelativePath
+		).ToListAsync();
+		leaked.Should().BeEmpty(
+			"a rejected attach must release the reference it acquired for its "
+			+ "own blob — a blob referenced by no live asset row is the #1616 leak"
+		);
+	}
+
+	[Fact]
+	public async Task
 	ItShouldNotOrphanBlobReferencesUnderConcurrentAttachToSamePost() {
 		// Race proof for the #807 F5 reference discipline on
 		// AttachPostImageForTenant. N image attaches fire at the SAME post truly
@@ -391,8 +486,25 @@ public sealed class AttachPostImageForTenantSpec : IClassFixture<ApiFixture> {
 		}
 
 		const int Attempts = 12;
+		// A release barrier, not just Task.Run: thread-pool scheduling staggers
+		// bare Task.Run starts enough that the attaches often SERIALISE, each
+		// cleanly replacing the previous one, so no racer ever loses the unique
+		// index and the loser-release window is never entered. Every task builds
+		// its request first, reports ready, then blocks on one gate that opens
+		// only once all of them are ready — that is what makes the collision the
+		// test claims to exercise actually happen.
+		var gate = new TaskCompletionSource(
+			TaskCreationOptions.RunContinuationsAsynchronously
+		);
+		var ready = new TaskCompletionSource[Attempts];
+		for (var index = 0; index < Attempts; index++) {
+			ready[index] = new TaskCompletionSource(
+				TaskCreationOptions.RunContinuationsAsynchronously
+			);
+		}
+
 		var attachTasks = Enumerable.Range(0, Attempts)
-			.Select(_ => Task.Run(async () => {
+			.Select(index => Task.Run(async () => {
 				using var request = new HttpRequestMessage(
 					HttpMethod.Post, attachUrl
 				)
@@ -400,6 +512,8 @@ public sealed class AttachPostImageForTenantSpec : IClassFixture<ApiFixture> {
 					.WithTenantId(tenantId);
 				request.Content =
 					BuildFileContent(PngBytes(width: 32, height: 32));
+				ready[index].SetResult();
+				await gate.Task;
 				using var response = await _http.SendAsync(request);
 				if (!response.IsSuccessStatusCode) {
 					return (Succeeded: false, Path: null);
@@ -409,6 +523,9 @@ public sealed class AttachPostImageForTenantSpec : IClassFixture<ApiFixture> {
 				return (Succeeded: true, Path: payload?.Path);
 			}))
 			.ToArray();
+
+		await Task.WhenAll(ready.Select(static r => r.Task));
+		gate.SetResult();
 
 		var results = await Task.WhenAll(attachTasks);
 		var succeededPaths = results
@@ -553,6 +670,20 @@ public sealed class AttachPostImageForTenantSpec : IClassFixture<ApiFixture> {
 			staffToken,
 			SeedConstants.Tenants.AcmeName
 		);
+	}
+
+	private static async Task<Guid> ResolveAcmeAdminUserIdAsync(AppDbContext db) {
+		var user = await (
+			from u in db.User.AsNoTracking()
+			where u.Email == TestConstants.AcmeAdminEmail
+			select u
+		).FirstOrDefaultAsync();
+		if (user is null) {
+			throw new InvalidOperationException(
+				$"Seeded user {TestConstants.AcmeAdminEmail} not found"
+			);
+		}
+		return user.GetRequiredId();
 	}
 
 	private async Task<Guid> GetTechStartTenantIdAsync() {
