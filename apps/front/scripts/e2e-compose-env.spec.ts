@@ -7,10 +7,10 @@
  * 3. Name normalization is Compose-safe
  */
 
-import { mkdirSync, readdirSync, unlinkSync, writeFileSync, readFileSync } from 'node:fs';
-import { join as pathJoin } from 'node:path';
 import assert from 'node:assert/strict';
-import { describe, it, beforeEach, afterEach } from 'node:test';
+import { mkdirSync, unlinkSync, writeFileSync } from 'node:fs';
+import { join as pathJoin } from 'node:path';
+import { describe, it } from 'node:test';
 
 import {
 	acquirePortBand,
@@ -39,7 +39,10 @@ describe('normalizeComposeName', () => {
 
 	it('must start with alphanumeric character', () => {
 		const result = normalizeComposeName('-my-project');
-		assert.ok(/^[a-z0-9]/.test(result), `Expected to start with alphanumeric, got: ${result}`);
+		assert.ok(
+			/^[a-z0-9]/.test(result),
+			`Expected to start with alphanumeric, got: ${result}`,
+		);
 	});
 
 	it('produces Compose-safe names (alphanumeric, dash, underscore only)', () => {
@@ -60,16 +63,22 @@ describe('deriveProjectName', () => {
 		const projectName = deriveProjectName();
 		const isSafe = /^publyapp-e2e-[a-z0-9_-]+$/.test(projectName);
 		assert.ok(isSafe, `Not Compose-safe: ${projectName}`);
-		assert.ok(projectName.startsWith('publyapp-e2e-'), 'Should start with publyapp-e2e-');
+		assert.ok(
+			projectName.startsWith('publyapp-e2e-'),
+			'Should start with publyapp-e2e-',
+		);
 	});
 
 	it('uses full absolute path for uniqueness (fixes Constat 2)', () => {
 		// The project name is derived from the repo path, which is unique per checkout
 		const name = deriveProjectName();
-		
+
 		// Should include some form of the repo path
 		assert.ok(name.includes('publyapp'), 'Should contain publyapp');
-		assert.ok(name.length > 'publyapp-e2e-'.length, 'Name should have path-derived suffix');
+		assert.ok(
+			name.length > 'publyapp-e2e-'.length,
+			'Name should have path-derived suffix',
+		);
 	});
 });
 
@@ -80,8 +89,14 @@ describe('acquirePortBand', () => {
 		assert.ok(reservation, 'Failed to acquire port band');
 		assert.ok(reservation!.bandIndex >= 0, 'Band index should be non-negative');
 		assert.ok(reservation!.basePort >= 8080, 'Base port should be >= 8080');
-		assert.ok(reservation!.lockPath.includes('band-'), 'Lock path should include band name');
-		assert.ok(reservation!.lockPath.includes('.lock'), 'Lock path should end with .lock');
+		assert.ok(
+			reservation!.lockPath.includes('band-'),
+			'Lock path should include band name',
+		);
+		assert.ok(
+			reservation!.lockPath.includes('.lock'),
+			'Lock path should end with .lock',
+		);
 
 		// Clean up
 		releasePortBand(reservation!.lockPath);
@@ -152,11 +167,17 @@ describe('setupE2EComposeEnv', () => {
 	it('returns complete environment configuration', () => {
 		const env = setupE2EComposeEnv();
 
-		assert.ok(env.projectName.startsWith('publyapp-e2e-'), 'Project name should start with publyapp-e2e-');
+		assert.ok(
+			env.projectName.startsWith('publyapp-e2e-'),
+			'Project name should start with publyapp-e2e-',
+		);
 		assert.ok(env.ports.http > 0, 'HTTP port should be positive');
 		assert.ok(env.ports.https > 0, 'HTTPS port should be positive');
 		assert.ok(env.ports.db > 0, 'DB port should be positive');
-		assert.ok(env.ports.requestCounter > 0, 'Request counter port should be positive');
+		assert.ok(
+			env.ports.requestCounter > 0,
+			'Request counter port should be positive',
+		);
 		assert.ok(env.lockPath.length > 0, 'Lock path should not be empty');
 		assert.ok(env.bandIndex >= 0, 'Band index should be non-negative');
 
@@ -211,11 +232,15 @@ describe('stale lock detection (#1642)', () => {
 		// Create a fake lock file with a PID that doesn't exist
 		const fakeLockPath = pathJoin(LOCK_DIR, 'test-dead-pid.lock');
 		mkdirSync(LOCK_DIR, { recursive: true });
-		writeFileSync(fakeLockPath, JSON.stringify({
-			pid: 99999999, // Non-existent PID
-			timestamp: Date.now(),
-			uuid: 'test-uuid',
-		}), 'utf8');
+		writeFileSync(
+			fakeLockPath,
+			JSON.stringify({
+				pid: 99999999, // Non-existent PID
+				timestamp: Date.now(),
+				uuid: 'test-uuid',
+			}),
+			'utf8',
+		);
 
 		// Should be detected as stale
 		assert.ok(isLockStale(fakeLockPath), 'Lock with dead PID should be stale');
@@ -227,14 +252,21 @@ describe('stale lock detection (#1642)', () => {
 	it('detects a stale lock with an old timestamp', () => {
 		const fakeLockPath = pathJoin(LOCK_DIR, 'test-old-timestamp.lock');
 		mkdirSync(LOCK_DIR, { recursive: true });
-		writeFileSync(fakeLockPath, JSON.stringify({
-			pid: process.pid, // Current PID (alive) but...
-			timestamp: Date.now() - (3 * 60 * 60 * 1000), // 3 hours ago
-			uuid: 'test-uuid',
-		}), 'utf8');
+		writeFileSync(
+			fakeLockPath,
+			JSON.stringify({
+				pid: process.pid, // Current PID (alive) but...
+				timestamp: Date.now() - 3 * 60 * 60 * 1000, // 3 hours ago
+				uuid: 'test-uuid',
+			}),
+			'utf8',
+		);
 
 		// Should be detected as stale due to age (despite alive PID)
-		assert.ok(isLockStale(fakeLockPath), 'Lock older than threshold should be stale');
+		assert.ok(
+			isLockStale(fakeLockPath),
+			'Lock older than threshold should be stale',
+		);
 
 		// Clean up
 		unlinkSync(fakeLockPath);
@@ -246,7 +278,10 @@ describe('stale lock detection (#1642)', () => {
 		assert.ok(reservation, 'Failed to acquire port band');
 
 		// Should NOT be stale (we just created it, we're alive)
-		assert.ok(!isLockStale(reservation!.lockPath), 'Fresh lock with alive PID should not be stale');
+		assert.ok(
+			!isLockStale(reservation!.lockPath),
+			'Fresh lock with alive PID should not be stale',
+		);
 
 		// Clean up
 		releasePortBand(reservation!.lockPath);
@@ -256,11 +291,15 @@ describe('stale lock detection (#1642)', () => {
 		// Create a fake lock with dead PID
 		const fakeLockPath = pathJoin(LOCK_DIR, 'test-reclaim.lock');
 		mkdirSync(LOCK_DIR, { recursive: true });
-		writeFileSync(fakeLockPath, JSON.stringify({
-			pid: 99999999,
-			timestamp: Date.now(),
-			uuid: 'test-uuid',
-		}), 'utf8');
+		writeFileSync(
+			fakeLockPath,
+			JSON.stringify({
+				pid: 99999999,
+				timestamp: Date.now(),
+				uuid: 'test-uuid',
+			}),
+			'utf8',
+		);
 
 		// Confirm it's stale
 		assert.ok(isLockStale(fakeLockPath), 'Lock with dead PID should be stale');
@@ -273,7 +312,10 @@ describe('stale lock detection (#1642)', () => {
 		assert.ok(reservation!.lockPath, 'Reservation should have lock path');
 
 		// The lock should now be fresh (not stale)
-		assert.ok(!isLockStale(reservation!.lockPath), 'Reclaimed lock should not be stale');
+		assert.ok(
+			!isLockStale(reservation!.lockPath),
+			'Reclaimed lock should not be stale',
+		);
 
 		// Clean up
 		releasePortBand(reservation!.lockPath);
