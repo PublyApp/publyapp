@@ -377,6 +377,7 @@ ci-format: format
 ci-lint:
   @echo "=== [gate] lint ==="
   node packages/scripts-ts/src/lint-front.ts --quiet
+  node packages/scripts-ts/src/check-no-floating-promises.ts
   pnpm lint:disables
   pnpm check:frontend-barrels
   pnpm --filter @org/lint-ts test
