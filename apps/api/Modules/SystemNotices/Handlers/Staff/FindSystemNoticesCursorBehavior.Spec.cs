@@ -379,8 +379,8 @@ public sealed class FindSystemNoticesCursorBehaviorSpec
 			.GetRequiredService<AppDbContext>();
 
 		return await dbContext.SystemNotice
-			.Where(n => ids.Contains(n.Id))
-			.ToDictionaryAsync(n => n.Id, n => n.Severity);
+			.Where(n => ids.Contains(n.Id!.Value))
+			.ToDictionaryAsync(n => n.Id!.Value, n => n.Severity);
 	}
 
 
@@ -392,5 +392,6 @@ public sealed class FindSystemNoticesCursorBehaviorSpec
 	private sealed record SystemNoticeItem {
 		public Guid Id { get; init; }
 		public DateTime CreatedAt { get; init; }
+		public DateTime StartsAt { get; init; }
 	}
 }
