@@ -19,7 +19,7 @@
  * the failure mode issue #1659 warns about ("a pasted output is not replayable").
  */
 import { execFileSync } from 'node:child_process';
-import { readdirSync, statSync } from 'node:fs';
+import { readdirSync } from 'node:fs';
 import { join } from 'node:path';
 
 const PREUVES_DIR = join(process.cwd(), '.dump', 'preuves');
