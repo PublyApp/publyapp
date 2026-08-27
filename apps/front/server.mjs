@@ -17,6 +17,7 @@ const staticFileHandler = createStaticMiddleware({
 const server = serve({
 	port,
 	hostname: process.env.HOST ?? '0.0.0.0',
+	trustProxy: true,
 	middleware: [staticFileHandler],
 	fetch: (request) => handler.fetch(request),
 });
