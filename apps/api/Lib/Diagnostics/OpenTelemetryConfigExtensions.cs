@@ -31,7 +31,7 @@ namespace PublyApp.Api.Lib.Diagnostics;
 /// </remarks>
 public static class OpenTelemetryConfigExtensions {
 	// The environment variable the Aspire AppHost injects (OTel semantic convention).
-	// Presence — not its value — is the activation gate.
+	// A non-empty, non-whitespace value is the activation gate (IsNullOrWhiteSpace check).
 	private const string OtlpEndpointVariableName = "OTEL_EXPORTER_OTLP_ENDPOINT";
 
 	// Future-proofing: custom sources should follow the PublyApp.* namespace so this
