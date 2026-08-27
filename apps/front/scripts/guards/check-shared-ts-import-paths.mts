@@ -125,29 +125,20 @@ const SHARED_TS_SEGMENTS = deriveSharedTsSegments(sharedTsSrc);
 /**
  * Matches a `@org/shared-ts/<segment>...` specifier where `<segment>` is any
  * top-level directory actually present in `packages/shared-ts/src/`. Any other
- * first segment is treated as unknown and causes the guard to fail loudly (see
- * `UNKNOWN_SEGMENT_PATTERN` below).
+ * first segment is treated as unknown — see `SHARED_TS_PREFIX` and the
+ * fail-loudly check in `scanSourceFile` (#1678).
  */
 const SHARED_TS_MODULE_PATTERN = new RegExp(
 	`^@org/shared-ts/(${SHARED_TS_SEGMENTS.map(escapeRegExp).join('|')})(?:/.*)?$`,
 );
 
 /**
- * Prefix that identifies any specifier targeting the `@org/shared-ts` package,
- * used to detect re-exports whose first segment is NOT one of the segments the
- * package actually exposes. Failing loudly on such specifiers is preferred over
- * a false negative (#1678).
+ * Prefix that identifies any specifier targeting the `@org/shared-ts` package.
+ * Re-exports through `@org/shared-ts/` with a first segment NOT in
+ * `SHARED_TS_SEGMENTS` are flagged as `UNKNOWN_SEGMENT` so the guard fails loudly
+ * rather than silently passing (#1678).
  */
 const SHARED_TS_PREFIX = '@org/shared-ts/';
-
-/**
- * Returns `true` when `specifier` targets the shared-ts package but uses a
- * first segment that is not among the segments the package actually exposes.
- * This catches typos, stale specifiers, and newly-added directory segments
- * the guard has not been rebuilt to recognise.
- */
-const isUnknownSharedTsSpecifier = (specifier: string): boolean =>
-	specifier.startsWith(SHARED_TS_PREFIX) && !SHARED_TS_MODULE_PATTERN.test(specifier);
 
 interface Finding {
 	file: string;
