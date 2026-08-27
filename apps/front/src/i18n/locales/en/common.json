@@ -1318,6 +1318,8 @@
 	"column-updated-at": "Updated at",
 	"action-edit-cron": "Schedule",
 	"action-trigger-now": "Trigger now",
+	"action-permission-checking": "Checking your permissions…",
+	"action-permission-denied": "You don’t have permission for this action.",
 	"queue-status-pending": "Pending",
 	"queue-status-processing": "Processing",
 	"queue-status-completed": "Completed",

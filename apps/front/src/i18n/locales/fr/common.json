@@ -1318,6 +1318,8 @@
 	"column-updated-at": "Mise à jour le",
 	"action-edit-cron": "Planifier",
 	"action-trigger-now": "Déclencher",
+	"action-permission-checking": "Vérification de vos droits…",
+	"action-permission-denied": "Vous n’avez pas le droit d’effectuer cette action.",
 	"queue-status-pending": "En attente",
 	"queue-status-processing": "En traitement",
 	"queue-status-completed": "Terminée",
