@@ -226,7 +226,7 @@ type RegistryEntry = ListFamilyEntry | NoListEntry;
 const loadScopedKey = async () =>
 	await import('@org/shared-ts/lib/query/create-hooks');
 
-const REGISTRY = {
+const REGISTRY: Record<string, RegistryEntry> = {
 	'staff-users.ts': {
 		kind: 'list-family',
 		helperName: 'invalidateStaffUsers',
