@@ -1,6 +1,7 @@
 import { expect, test, type Request } from '@playwright/test';
 
 import { FRONT_URL } from './helpers/compose-env';
+import { SESSION_VALIDATION_TIMEOUT_MS } from '@org/shared-ts/lib/session-validation';
 import { loginAsStaffAdmin } from './helpers/login';
 
 const EMPTY_STORAGE_STATE = {
@@ -327,14 +328,13 @@ test.describe('SSR auth shell', { tag: ['@security', '@997'] }, () => {
 	// `test.setTimeout(90_000)` is removed: once split, each case keeps the
 	// default 30s envelope for a single recovery flow.
 	//
-	// #1641 r3: the `held past timeout` case verifies the production timeout
-	// actually fired by waiting for the Retry button (visible after ~24s of
-	// production timeout + overhead) BEFORE releasing the route handler.
-	// This proves the abort came from the 20s SESSION_VALIDATION_TIMEOUT_MS,
-	// not from the test manually releasing control.
-	// `packages/shared-ts/src/lib/session-validation.ts` →
-	// `SESSION_VALIDATION_TIMEOUT_MS = 20_000`. Floor is 20s + ~4s overhead.
-	// 40s budget: 1.55× measured (25.8s), under 2× ceiling.
+	// #1641 r4: the `held past timeout` case uses a double bound to prove the
+	// Retry button appeared because the production timeout fired, not because of
+	// an immediate rejection. The floor (`SESSION_VALIDATION_FLOOR_MS` = 15s) is
+	// well below the production timeout (`SESSION_VALIDATION_TIMEOUT_MS` = 20s,
+	// imported from `@org/shared-ts/lib/session-validation`) but well above any
+	// immediate rejection (<1s). The ceiling (`SESSION_VALIDATION_CEILING_MS` = 30s)
+	// handles load variance while still distinguishing 20s from 1s.
 	const failureCases = [
 		'aborted',
 		'server 500',
@@ -342,7 +342,8 @@ test.describe('SSR auth shell', { tag: ['@security', '@997'] }, () => {
 		'disconnected',
 		'held past timeout',
 	] as const;
-	const SESSION_VALIDATION_TIMEOUT_MS = 20_000;
+	const SESSION_VALIDATION_FLOOR_MS = SESSION_VALIDATION_TIMEOUT_MS - 5_000;
+	const SESSION_VALIDATION_CEILING_MS = SESSION_VALIDATION_TIMEOUT_MS + 10_000;
 	const HELD_PAST_TIMEOUT_BUDGET_MS = 40_000;
 
 	for (const failureCase of failureCases) {
@@ -464,11 +465,32 @@ test.describe('SSR auth shell', { tag: ['@security', '@997'] }, () => {
 				.toBe(1);
 
 			const retry = casePage.getByRole('button', { name: 'Retry' });
+
+			// #1641 r4: double bound for `held past timeout`. The Retry button
+			// must NOT appear before the floor, proving it appeared because the
+			// production timeout fired (20s), not because of an immediate
+			// rejection (aborted, 500, etc. would appear in <1s). The floor is
+			// well below the 20s timeout but well above any immediate rejection,
+			// so those would violate it. The ceiling must hold under load while
+			// still distinguishing 20s from 1s. For the other four cases, the
+			// button appears immediately (no timeout involved), so only the
+			// ceiling applies.
+			if (failureCase === 'held past timeout') {
+				const floorStart = Date.now();
+				while (Date.now() - floorStart < SESSION_VALIDATION_FLOOR_MS) {
+					await expect(
+						retry,
+						`${failureCase}: Retry must not appear before floor`,
+					).not.toBeVisible();
+					await casePage.waitForTimeout(200);
+				}
+			}
+
 			await expect(retry, failureCase).toBeVisible({
-				timeout: SESSION_VALIDATION_TIMEOUT_MS + 4000, // 20s + ~4s overhead
+				timeout: SESSION_VALIDATION_CEILING_MS,
 			});
 			// Release the route handler immediately after the Retry button appears.
-			// This proves the 20s production timeout fired (button appears at ~24s),
+			// This proves the 20s production timeout fired (button appears at ~21s),
 			// not that the test manually released control early.
 			if (releaseFirstRequest) {
 				releaseFirstRequest();
