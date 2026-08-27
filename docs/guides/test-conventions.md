@@ -188,6 +188,28 @@ in addition to the red and green outputs, name:
 A trace that does not name the kept red test is incomplete: a pasted output without a path
 cannot be replayed, which is exactly the failure mode #1659 names.
 
+### Proof-of-limitation cases (no mutation)
+
+Some paired proofs are **proofs of limitation**, not proofs of a bug. The red test asserts an
+*ideal* behavior the correct code deliberately does not satisfy (a known trade-off, not a defect),
+so the red is produced by the **correct code as committed** — there is no mutation to apply.
+The worked example for #1613/#1651 in this section is one: the hook is a pure derivation and
+cannot force a caller to commit its return, so a negligent-caller test that asserts the ideal
+("the reset sticks even without a commit") fails against the correct code.
+
+For these cases, the trace MUST still name the kept red test and the green summary, and MUST
+replace the mutation with:
+
+- the **ideal behavior** the test asserts,
+- the **reason the correct code does not satisfy it** (the trade-off that makes the ideal
+  unattainable), and
+- the **expected failure message**, so a reviewer who cannot reach `.dump/` can reconstruct
+  the red by writing a test that asserts the ideal against the current code.
+
+The convention's goal is unchanged: a reviewer must be able to obtain the red in one named
+manipulation. For bug-fix proofs, that manipulation is "apply the mutation, run the kept test,
+revert." For proof-of-limitation proofs, it is "run the kept test against the current code."
+
 ### Replaying the proof from a detached worktree
 
 A reviewer working in a detached worktree does **not** see `.dump/` — it is git-ignored and
@@ -197,12 +219,14 @@ never pushed. The convention is:
    worktree of the lane that produced the proof. The `.dump/` files of that branch are present
    in that worktree because they live in the branch's working tree, not in its tree-ish.
 2. If the reviewer cannot or will not check out the lane (they only have `develop`), the trace
-   MUST be self-sufficient: it must name the kept red test's path, the mutation to apply, and
-   the expected failure message, so the reviewer can reproduce the red by hand against the
-   current code.
+   MUST be self-sufficient: it must name the kept red test's path, the mutation to apply (or,
+   for proof-of-limitation cases, the ideal behavior and the reason the correct code does not
+   satisfy it), and the expected failure message, so a reviewer can reproduce the red by hand
+   against the current code.
 
 The second path is the failure mode the issue warns about. The convention prevents it by
-**requiring** the trace to carry the mutation — not by versioning `.dump/`.
+**requiring** the trace to carry the mutation (or the ideal/trade-off for proof-of-limitation
+cases) — not by versioning `.dump/`.
 
 ### When this convention does not apply
 
