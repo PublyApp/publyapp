@@ -147,8 +147,8 @@ This repo uses **form (3)**. Rationale:
 
   ```
   # from the branch that produced the proof, in the worktree that has .dump/
-  pnpm --filter front exec vitest run .dump/preuves/<issue>/<name>.test.ts \
-      --root apps/front
+  pnpm --filter front exec vitest run --config vitest.preuves.config.ts \
+      .dump/preuves/<issue>/<name>.test.ts
   ```
 
   The test runs the same source that produced the original red; the failure message is the
@@ -157,8 +157,8 @@ This repo uses **form (3)**. Rationale:
 ### Where the test lives
 
 ```
-.dump/preuves/<issue-number>/<descriptive-name>.test.ts        # front
-.dump/preuves/<issue-number>/<descriptive-name>.Spec.cs        # api
+apps/front/.dump/preuves/<issue-number>/<descriptive-name>.test.ts   # front
+.dump/preuves/<issue-number>/<descriptive-name>.Spec.cs              # api
 ```
 
 - The path under `.dump/` is **git-ignored** (see `.gitignore`), so the test does not pollute
@@ -167,6 +167,11 @@ This repo uses **form (3)**. Rationale:
 - The file is **executable as-is**: real `import` statements, real assertions, no placeholder
   boilerplate. A reviewer who runs it must obtain the same red output the author did, on the
   same code state.
+- Front preuves MUST live under `apps/front/.dump/preuves/`, not the repo-root `.dump/`. The
+  front vitest config's `include` pattern (`src/**`) and module resolution require the test to
+  be inside the vitest root (`apps/front/`) for vite to resolve `react` and the production
+  imports. The default `vitest.config.ts` excludes `.dump/`; the companion
+  `vitest.preuves.config.ts` adds it back so the red test can be replayed on demand.
 
 ### What the trace must contain
 
@@ -234,13 +239,14 @@ kept red test, the right response is a review comment naming this section, not a
 ### Worked example: #1613 / #1651 (negligent caller of `useOffsetPageClamp`)
 
 The red test that PR #1651 deleted is kept at
-`.dump/preuves/1613/red-1613-negligent-caller-no-reset.test.ts` in this branch, with the
-mutation and the red/green transcripts in `.dump/preuve-1613-convention.md`. A reviewer
-replays the red by checking out this branch and running:
+`apps/front/.dump/preuves/1613/red-1613-negligent-caller-no-reset.test.ts` in this branch,
+with the mutation and the red/green transcripts in
+`apps/front/.dump/preuve-1613-convention.md`. A reviewer replays the red by checking out
+this branch and running:
 
 ```
-pnpm --filter front exec vitest run .dump/preuves/1613/red-1613-negligent-caller-no-reset.test.ts \
-    --root apps/front
+pnpm --filter front exec vitest run --config vitest.preuves.config.ts \
+    .dump/preuves/1613/red-1613-negligent-caller-no-reset.test.ts
 ```
 
 This is the first application of the convention; it is the only case the present branch
