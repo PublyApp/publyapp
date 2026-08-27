@@ -869,6 +869,23 @@ public sealed class AttachPostImageForTenantSpec : IClassFixture<ApiFixture> {
 
 		// --- Fire two concurrent replaces ---------------------------------
 		// Distinct dimensions so each contender uploads a distinct blob.
+		// Capture a baseline of existing live blob paths NOW — before any
+		// contender uploads — so the loser blob can be identified by PATH
+		// identity rather than by elimination. The class shares one database
+		// across 14 tests; without a baseline the query would scan blobs left
+		// live by sibling tests and non-deterministically pick a wrong row.
+		List<string> baselinePaths;
+		await using (var baselineScope =
+			_fixture.Factory.Services.CreateAsyncScope()) {
+			var baselineDb = baselineScope.ServiceProvider
+				.GetRequiredService<AppDbContext>();
+			baselinePaths = await (
+				from u in baselineDb.UploadAsset.AsNoTracking()
+				where !u.IsDeleted
+				select u.RelativePath
+			).ToListAsync();
+		}
+
 		const int contenderCount = 2;
 		var contenderTasks = new List<Task<HttpResponseMessage>>(contenderCount);
 		var contenderRequests = new List<HttpRequestMessage>(contenderCount);
@@ -958,16 +975,37 @@ public sealed class AttachPostImageForTenantSpec : IClassFixture<ApiFixture> {
 		seedRefCount.Should().Be(0,
 			"the replaced seed blob's reference must be released");
 
-		// The loser's blob (not the winner, not the seed) must also be at 0.
-		// We find it as the only other unreferenced blob on disk that is
-		// not the seed or the winner.
-		var loserRefCount = await (
+		// The loser's blob must have been released back to zero by the
+		// handler's catch block (#1616). We identify it by PATH IDENTITY — not
+		// by elimination — by intersecting this test's new blobs (those not in
+		// the baseline captured before the race, and not the seed) with the
+		// complement of the winner's path. The baseline gates out every blob
+		// left live by the 13 sibling tests in this class.
+		//
+		// The resulting set MUST be a singleton: exactly two contender blobs
+		// were uploaded, the winner's path is known, the seed is known, so the
+		// sole remaining new blob is the loser. We prove that with SingleAsync
+		// rather than FirstOrDefaultAsync — which would silently pick any
+		// arbitrary row the scheduler handed back.
+		var loserPaths = await (
 			from u in db.UploadAsset.AsNoTracking()
 			where !u.IsDeleted
-				&& u.RelativePath != winnerPath
+				&& !baselinePaths.Contains(u.RelativePath)
 				&& u.RelativePath != seedPath
+				&& u.RelativePath != winnerPath
+			select u.RelativePath
+		).ToListAsync();
+		loserPaths.Should().ContainSingle(
+			"exactly one contender blob was rejected by the unique index "
+			+ "— the set of new non-winner blobs must be a singleton"
+		);
+		var loserPath = loserPaths[0];
+
+		var loserRefCount = await (
+			from u in db.UploadAsset.AsNoTracking()
+			where u.RelativePath == loserPath && !u.IsDeleted
 			select (int?)u.ReferenceCount
-		).FirstOrDefaultAsync();
+		).SingleAsync();
 		loserRefCount.Should().Be(0,
 			"the loser must have released its blob reference (#1616)");
 	}
