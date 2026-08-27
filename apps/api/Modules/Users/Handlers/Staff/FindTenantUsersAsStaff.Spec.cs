@@ -1274,6 +1274,365 @@ public sealed class FindTenantUsersAsStaffSpec
 		observedOrder.Should().NotEqual(seededOrder);
 	}
 
+	[Fact]
+	public async Task
+	ItShouldWalkEveryIdPageWithoutOverlapOrGap() {
+		var staffToken =
+			await _authClient.LoginAsStaffAdminAsync();
+		var tenantId =
+			await TenantTestHelper
+				.GetTenantIdByNameAsync(
+					_http,
+					staffToken,
+					SeedConstants.Tenants.AcmeName
+				);
+
+		// 3 users with distinct UserId; the walk must visit each once in
+		// ascending UserId order. A keySelector swap to another same-type field
+		// (e.g. User.Email) turns this assertion RED.
+		var seededIds = new List<string>();
+		for (var i = 0; i < 3; i++) {
+			var userId = await SeedTenantUserAtAsync(
+				tenantId,
+				new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc).AddDays(i)
+			);
+			seededIds.Add(userId);
+		}
+
+		var visitedIds = new List<string>();
+		string? cursor = null;
+		var pages = 0;
+		do {
+			var url = GetFindUrl(
+				tenantId,
+				cursor: cursor,
+				limit: 1,
+				sortId: "id",
+				sortOrder: "asc"
+			);
+			var request = new HttpRequestMessage(
+				HttpMethod.Get, url
+			).WithSessionToken(staffToken);
+
+			using var response =
+				await _http.SendAsync(request);
+			response.StatusCode.Should()
+				.Be(HttpStatusCode.OK);
+
+			var page =
+				await response.Content
+					.ReadFromJsonAsync<FindResponse>();
+			page.Should().NotBeNull();
+			Assert.NotNull(page);
+			pages++;
+			visitedIds.AddRange(
+				page.Data.Select(u => u.Id)
+			);
+			cursor = page.NextCursor;
+
+			pages.Should().BeLessOrEqualTo(100);
+		} while (cursor is not null);
+
+		visitedIds.Should().OnlyHaveUniqueItems();
+		visitedIds.Should().Contain(seededIds);
+
+		var visitedOrder = visitedIds
+			.Where(seededIds.Contains)
+			.ToList();
+		var expectedOrder = seededIds
+			.OrderBy(id => Guid.Parse(id))
+			.ToList();
+		visitedOrder.Should().Equal(expectedOrder);
+	}
+
+	[Fact]
+	public async Task
+	ItShouldWalkEveryEmailPageWithoutOverlapOrGap() {
+		var staffToken =
+			await _authClient.LoginAsStaffAdminAsync();
+		var tenantId =
+			await TenantTestHelper
+				.GetTenantIdByNameAsync(
+					_http,
+					staffToken,
+					SeedConstants.Tenants.AcmeName
+				);
+
+		// Deterministic, anti-correlated emails: insertion order is c,b,a while
+		// the lexical (sort) order is a,b,c. The walk must return them in
+		// lexical order, so a keySelector swap to the id (insertion) order
+		// turns this assertion RED.
+		var seededIds = new List<string>();
+		var seededEmails = new List<string>();
+		var emails = new[] { "charlie", "alpha", "bravo" };
+		for (var i = 0; i < 3; i++) {
+			var email = $"{emails[i]}-walk-{Guid.NewGuid():N}@example.com";
+			var userId = await SeedTenantUserWithEmailAsync(tenantId, email);
+			seededIds.Add(userId);
+			seededEmails.Add(email);
+		}
+		var expectedOrder = seededIds
+			.Zip(seededEmails, (id, e) => (id, e))
+			.OrderBy(x => x.e, StringComparer.OrdinalIgnoreCase)
+			.Select(x => x.id)
+			.ToList();
+
+		var visitedIds = new List<string>();
+		string? cursor = null;
+		var pages = 0;
+		do {
+			var url = GetFindUrl(
+				tenantId,
+				cursor: cursor,
+				limit: 1,
+				sortId: "email",
+				sortOrder: "asc"
+			);
+			var request = new HttpRequestMessage(
+				HttpMethod.Get, url
+			).WithSessionToken(staffToken);
+
+			using var response =
+				await _http.SendAsync(request);
+			response.StatusCode.Should()
+				.Be(HttpStatusCode.OK);
+
+			var page =
+				await response.Content
+					.ReadFromJsonAsync<FindResponse>();
+			page.Should().NotBeNull();
+			Assert.NotNull(page);
+			pages++;
+			visitedIds.AddRange(
+				page.Data.Select(u => u.Id)
+			);
+			cursor = page.NextCursor;
+
+			pages.Should().BeLessOrEqualTo(100);
+		} while (cursor is not null);
+
+		visitedIds.Should().OnlyHaveUniqueItems();
+		visitedIds.Should().Contain(seededIds);
+
+		var visitedOrder = visitedIds
+			.Where(seededIds.Contains)
+			.ToList();
+		visitedOrder.Should().Equal(expectedOrder);
+	}
+
+	[Fact]
+	public async Task
+	ItShouldWalkEveryStatusPageWithoutOverlapOrGap() {
+		var staffToken =
+			await _authClient.LoginAsStaffAdminAsync();
+		var tenantId =
+			await TenantTestHelper
+				.GetTenantIdByNameAsync(
+					_http,
+					staffToken,
+					SeedConstants.Tenants.AcmeName
+				);
+
+		// 3 users with distinct, deliberately NOT insertion-ordered Status
+		// (anti-correlated with insertion). The walk must visit each once in
+		// ascending Status order. A keySelector swap to another same-type field
+		// (e.g. Level) turns this assertion RED.
+		// UserStatus: Suspended = 30, Active = 40.
+		var statuses = new[] { UserStatus.Suspended, UserStatus.Active, UserStatus.Suspended };
+		var seededIds = new List<string>();
+		for (var i = 0; i < 3; i++) {
+			var userId = await SeedTenantUserAtAsync(
+				tenantId,
+				new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc).AddDays(i)
+			);
+			await SetTenantUserStatusAsync(Guid.Parse(userId), statuses[i]);
+			seededIds.Add(userId);
+		}
+
+		var visitedIds = new List<string>();
+		string? cursor = null;
+		var pages = 0;
+		do {
+			var url = GetFindUrl(
+				tenantId,
+				cursor: cursor,
+				limit: 1,
+				sortId: "status",
+				sortOrder: "asc"
+			);
+			var request = new HttpRequestMessage(
+				HttpMethod.Get, url
+			).WithSessionToken(staffToken);
+
+			using var response =
+				await _http.SendAsync(request);
+			response.StatusCode.Should()
+				.Be(HttpStatusCode.OK);
+
+			var page =
+				await response.Content
+					.ReadFromJsonAsync<FindResponse>();
+			page.Should().NotBeNull();
+			Assert.NotNull(page);
+			pages++;
+			visitedIds.AddRange(
+				page.Data.Select(u => u.Id)
+			);
+			cursor = page.NextCursor;
+
+			pages.Should().BeLessOrEqualTo(100);
+		} while (cursor is not null);
+
+		visitedIds.Should().OnlyHaveUniqueItems();
+		visitedIds.Should().Contain(seededIds);
+
+		var visitedOrder = visitedIds
+			.Where(seededIds.Contains)
+			.ToList();
+		var expectedOrder = seededIds
+			.Zip(statuses, (id, s) => (id, s))
+			.OrderBy(x => x.s)
+			.ThenBy(x => Guid.Parse(x.id))
+			.Select(x => x.id)
+			.ToList();
+		visitedOrder.Should().Equal(expectedOrder);
+	}
+
+	[Fact]
+	public async Task
+	ItShouldWalkEveryLevelPageWithoutOverlapOrGap() {
+		var staffToken =
+			await _authClient.LoginAsStaffAdminAsync();
+		var tenantId =
+			await TenantTestHelper
+				.GetTenantIdByNameAsync(
+					_http,
+					staffToken,
+					SeedConstants.Tenants.AcmeName
+				);
+
+		// 3 users with distinct, deliberately NOT insertion-ordered Level
+		// (anti-correlated with insertion). The walk must visit each once in
+		// ascending Level order. A keySelector swap to another same-type field
+		// (e.g. Status) turns this assertion RED.
+		// AccountLevel: User = 10, Admin = 50.
+		var levels = new[] { AccountLevel.Admin, AccountLevel.User, AccountLevel.Admin };
+		var seededIds = new List<string>();
+		for (var i = 0; i < 3; i++) {
+			var userId = await SeedTenantUserAtAsync(
+				tenantId,
+				new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc).AddDays(i)
+			);
+			await SetTenantUserLevelAsync(Guid.Parse(userId), levels[i]);
+			seededIds.Add(userId);
+		}
+
+		var visitedIds = new List<string>();
+		string? cursor = null;
+		var pages = 0;
+		do {
+			var url = GetFindUrl(
+				tenantId,
+				cursor: cursor,
+				limit: 1,
+				sortId: "level",
+				sortOrder: "asc"
+			);
+			var request = new HttpRequestMessage(
+				HttpMethod.Get, url
+			).WithSessionToken(staffToken);
+
+			using var response =
+				await _http.SendAsync(request);
+			response.StatusCode.Should()
+				.Be(HttpStatusCode.OK);
+
+			var page =
+				await response.Content
+					.ReadFromJsonAsync<FindResponse>();
+			page.Should().NotBeNull();
+			Assert.NotNull(page);
+			pages++;
+			visitedIds.AddRange(
+				page.Data.Select(u => u.Id)
+			);
+			cursor = page.NextCursor;
+
+			pages.Should().BeLessOrEqualTo(100);
+		} while (cursor is not null);
+
+		visitedIds.Should().OnlyHaveUniqueItems();
+		visitedIds.Should().Contain(seededIds);
+
+		var visitedOrder = visitedIds
+			.Where(seededIds.Contains)
+			.ToList();
+		var expectedOrder = seededIds
+			.Zip(levels, (id, l) => (id, l))
+			.OrderBy(x => x.l)
+			.ThenBy(x => Guid.Parse(x.id))
+			.Select(x => x.id)
+			.ToList();
+		visitedOrder.Should().Equal(expectedOrder);
+	}
+
+	private async Task<string> SeedTenantUserWithEmailAsync(
+		Guid tenantId,
+		string email
+	) {
+		await using var scope =
+			_fixture.Factory.Services.CreateAsyncScope();
+		var dbContext = scope.ServiceProvider
+			.GetRequiredService<AppDbContext>();
+
+		var user = new User {
+			Email = email,
+			Password = "unused",
+			FirstName = "Walk",
+			LastName = "Fixture",
+			Status = UserStatus.Active,
+			IsVerified = true,
+		};
+		await dbContext.User.AddAsync(user);
+		await dbContext.SaveChangesAsync();
+		var userId = user.GetRequiredId();
+
+		var account =
+			UserAccount.CreateTenantAccount(userId, tenantId);
+		await dbContext.UserAccount.AddAsync(account);
+		await dbContext.SaveChangesAsync();
+
+		return userId.ToString();
+	}
+
+	private async Task SetTenantUserStatusAsync(Guid userId, UserStatus status) {
+		await using var scope =
+			_fixture.Factory.Services.CreateAsyncScope();
+		var dbContext = scope.ServiceProvider
+			.GetRequiredService<AppDbContext>();
+
+		var user = await dbContext.User
+			.FirstAsync(u => u.Id == userId);
+		user.Status = status;
+
+		await dbContext.SaveChangesAsync();
+	}
+
+	private async Task SetTenantUserLevelAsync(Guid userId, AccountLevel level) {
+		await using var scope =
+			_fixture.Factory.Services.CreateAsyncScope();
+		var dbContext = scope.ServiceProvider
+			.GetRequiredService<AppDbContext>();
+
+		var account = await dbContext.UserAccount
+			.FirstAsync(ua =>
+				ua.UserId == userId && ua.Scope == AccountScope.Tenant
+			);
+		account.Level = level;
+
+		await dbContext.SaveChangesAsync();
+	}
+
 	private async Task<string> SeedTenantUserAtAsync(
 		Guid tenantId,
 		DateTime createdAt
