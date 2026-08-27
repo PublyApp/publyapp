@@ -177,6 +177,11 @@ public class AppDbContext : Microsoft.EntityFrameworkCore.DbContext, IDataProtec
 		// rides every context because OnConfiguring always runs — DI hosts, the
 		// migrator, tests, and a bare `new AppDbContext(...)` alike. There is no
 		// opt-out by design; see Modules/Publishing/Lib/PublicationStatusWriteGuard.
+		// 
+		// Performance impact: ~0.4 us per query overhead on read paths (measured
+		// via micro-benchmark isolating the regex check in UpdatesPublicationsStatus()).
+		// The overhead is negligible, well under 1% of typical query latency.
+		// See .dump/preuve-1615.md for full benchmark methodology and results.
 		optionsBuilder.AddInterceptors(new PublicationStatusWriteGuard());
 
 		// EF Core 9: Define seeding logic here using reflection to discover all seeders

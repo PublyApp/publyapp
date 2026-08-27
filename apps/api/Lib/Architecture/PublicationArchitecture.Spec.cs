@@ -124,9 +124,6 @@ public sealed partial class PublicationArchitectureSpec {
 	// Framework + package references harvested from the loaded test domain; the API
 	// assemblies are EXCLUDED so application types bind to the parsed SOURCE trees
 	// (the scan sees exactly what is on disk, never a stale compiled artifact).
-	// Framework + package references harvested from the loaded test domain; the API
-	// assemblies are EXCLUDED so application types bind to the parsed SOURCE trees
-	// (the scan sees exactly what is on disk, never a stale compiled artifact).
 	// Duplicate simple names occur in test hosts (same assembly loaded twice), so
 	// resolution is a deterministic first-wins dictionary keyed by simple name.
 	private static readonly Lazy<IReadOnlyList<PortableExecutableReference>>
