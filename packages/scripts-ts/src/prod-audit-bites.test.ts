@@ -157,39 +157,43 @@ test('front-ci.yml: the production-dependency audit command is `pnpm audit --pro
 // been seen to refuse a real advisory. Here it is.
 // ---------------------------------------------------------------------------
 
-test(`BITE PROOF — \`pnpm audit --prod --audit-level=moderate\` exits 1 on a prod graph containing ${ADVISORY_PACKAGE} (advisory ${ADVISORY_ID})`, () => {
-	const cwd = buildProdGraphFixture();
-	try {
-		const { status, stdout, stderr } = runPnpm(
-			['audit', '--prod', '--audit-level=moderate'],
-			cwd,
-		);
-		assert.equal(
-			status,
-			1,
-			`#1674: the production-audit gate must refuse a moderate advisory. ` +
-				`If this assertion fails, the gate is no longer biting — ` +
-				`either the threshold was raised (back to \`high\`), \`--prod\` was dropped, or pnpm no longer surfaces ${ADVISORY_ID}.\n` +
-				`stdout: ${stdout}\nstderr: ${stderr}`,
-		);
-		// The output must surface the advisory by ID (not silently pass
-		// because of some pnpm-internal heuristic that swallowed the
-		// finding). This is also what an operator running the gate by
-		// hand will see and act on.
-		assert.match(
-			stdout,
-			new RegExp(ADVISORY_ID),
-			`stdout must name the advisory (${ADVISORY_ID}) so the failure is actionable, not a bare exit code.\nstdout: ${stdout}`,
-		);
-		assert.match(
-			stdout,
-			new RegExp(ADVISORY_TITLE_FRAGMENT),
-			`stdout must include the advisory title so the failure carries human-readable cause (DESIGN.md + AGENTS.md "transparent failure causes" rule).\nstdout: ${stdout}`,
-		);
-	} finally {
-		rmSync(cwd, { recursive: true, force: true });
-	}
-});
+test(
+	`BITE PROOF — \`pnpm audit --prod --audit-level=moderate\` exits 1 on a prod graph containing ${ADVISORY_PACKAGE} (advisory ${ADVISORY_ID})`,
+	{ timeout: 60_000 },
+	() => {
+		const cwd = buildProdGraphFixture();
+		try {
+			const { status, stdout, stderr } = runPnpm(
+				['audit', '--prod', '--audit-level=moderate'],
+				cwd,
+			);
+			assert.equal(
+				status,
+				1,
+				`#1674: the production-audit gate must refuse a moderate advisory. ` +
+					`If this assertion fails, the gate is no longer biting — ` +
+					`either the threshold was raised (back to \`high\`), \`--prod\` was dropped, or pnpm no longer surfaces ${ADVISORY_ID}.\n` +
+					`stdout: ${stdout}\nstderr: ${stderr}`,
+			);
+			// The output must surface the advisory by ID (not silently pass
+			// because of some pnpm-internal heuristic that swallowed the
+			// finding). This is also what an operator running the gate by
+			// hand will see and act on.
+			assert.match(
+				stdout,
+				new RegExp(ADVISORY_ID),
+				`stdout must name the advisory (${ADVISORY_ID}) so the failure is actionable, not a bare exit code.\nstdout: ${stdout}`,
+			);
+			assert.match(
+				stdout,
+				new RegExp(ADVISORY_TITLE_FRAGMENT),
+				`stdout must include the advisory title so the failure carries human-readable cause (DESIGN.md + AGENTS.md "transparent failure causes" rule).\nstdout: ${stdout}`,
+			);
+		} finally {
+			rmSync(cwd, { recursive: true, force: true });
+		}
+	},
+);
 
 // ---------------------------------------------------------------------------
 // Mutation coverage: the same fixture, audited with the *previous*
@@ -204,83 +208,91 @@ test(`BITE PROOF — \`pnpm audit --prod --audit-level=moderate\` exits 1 on a p
 // command-pinning test above.
 // ---------------------------------------------------------------------------
 
-test(`ADVERSE MUTATION #1 — \`pnpm audit --prod --audit-level=high\` (pre-#1644 threshold) does NOT bite on ${ADVISORY_ID} — proves the bite test above is real, not a tautology`, () => {
-	const cwd = buildProdGraphFixture();
-	try {
-		const { status, stdout, stderr } = runPnpm(
-			['audit', '--prod', '--audit-level=high'],
-			cwd,
-		);
-		// pnpm audit at a higher threshold than the advisory's severity
-		// exits 0: this is the behavior the pre-#1644 gate relied on, and
-		// the reason a moderate advisory slipped through. Documenting
-		// this here makes the bite proof non-tautological: if `high`
-		// also failed, the bite test would be meaningless (any level
-		// would do).
-		assert.equal(
-			status,
-			0,
-			`This test pins that \`--audit-level=high\` does NOT bite on a moderate advisory, ` +
-				`which is exactly the #1644 blind spot. If this assertion fails, pnpm's ` +
-				`threshold semantics changed and the bite proof above is no longer a ` +
-				`useful witness of the #1644 fix.\nstdout: ${stdout}\nstderr: ${stderr}`,
-		);
-		// Sanity: the advisory is still surfaced in the output, just not
-		// failing. pnpm suppresses the per-advisory table at `high` (the
-		// detail rows are only printed at `moderate` and below) — so the
-		// most we can demand is the headline "1 vulnerabilities found" with
-		// a `moderate` severity tag, which proves the finding was
-		// considered and dismissed by the threshold rather than hidden.
-		// A future pnpm that hides below-threshold findings entirely
-		// would invalidate the bite proof's signal; this assertion catches
-		// that regression.
-		assert.match(
-			stdout,
-			/1[\s\S]*?vulnerabilit/i,
-			`\`--audit-level=high\` must still report the finding count, ` +
-				`even though it does not fail on it — otherwise the bite proof is no ` +
-				`longer a meaningful comparison (the gate could be hiding findings).\n` +
-				`stdout: ${stdout}`,
-		);
-		assert.match(
-			stdout,
-			/moderate/i,
-			`\`--audit-level=high\` must still surface the advisory's severity tag ` +
-				`(moderate) when reporting the finding count — so an operator can tell ` +
-				`the gate ignored a moderate advisory rather than a critical one.\n` +
-				`stdout: ${stdout}`,
-		);
-	} finally {
-		rmSync(cwd, { recursive: true, force: true });
-	}
-});
+test(
+	`ADVERSE MUTATION #1 — \`pnpm audit --prod --audit-level=high\` (pre-#1644 threshold) does NOT bite on ${ADVISORY_ID} — proves the bite test above is real, not a tautology`,
+	{ timeout: 60_000 },
+	() => {
+		const cwd = buildProdGraphFixture();
+		try {
+			const { status, stdout, stderr } = runPnpm(
+				['audit', '--prod', '--audit-level=high'],
+				cwd,
+			);
+			// pnpm audit at a higher threshold than the advisory's severity
+			// exits 0: this is the behavior the pre-#1644 gate relied on, and
+			// the reason a moderate advisory slipped through. Documenting
+			// this here makes the bite proof non-tautological: if `high`
+			// also failed, the bite test would be meaningless (any level
+			// would do).
+			assert.equal(
+				status,
+				0,
+				`This test pins that \`--audit-level=high\` does NOT bite on a moderate advisory, ` +
+					`which is exactly the #1644 blind spot. If this assertion fails, pnpm's ` +
+					`threshold semantics changed and the bite proof above is no longer a ` +
+					`useful witness of the #1644 fix.\nstdout: ${stdout}\nstderr: ${stderr}`,
+			);
+			// Sanity: the advisory is still surfaced in the output, just not
+			// failing. pnpm suppresses the per-advisory table at `high` (the
+			// detail rows are only printed at `moderate` and below) — so the
+			// most we can demand is the headline "1 vulnerabilities found" with
+			// a `moderate` severity tag, which proves the finding was
+			// considered and dismissed by the threshold rather than hidden.
+			// A future pnpm that hides below-threshold findings entirely
+			// would invalidate the bite proof's signal; this assertion catches
+			// that regression.
+			assert.match(
+				stdout,
+				/1[\s\S]*?vulnerabilit/i,
+				`\`--audit-level=high\` must still report the finding count, ` +
+					`even though it does not fail on it — otherwise the bite proof is no ` +
+					`longer a meaningful comparison (the gate could be hiding findings).\n` +
+					`stdout: ${stdout}`,
+			);
+			assert.match(
+				stdout,
+				/moderate/i,
+				`\`--audit-level=high\` must still surface the advisory's severity tag ` +
+					`(moderate) when reporting the finding count — so an operator can tell ` +
+					`the gate ignored a moderate advisory rather than a critical one.\n` +
+					`stdout: ${stdout}`,
+			);
+		} finally {
+			rmSync(cwd, { recursive: true, force: true });
+		}
+	},
+);
 
-test(`ADVERSE MUTATION #2 — \`pnpm audit --dev --audit-level=moderate\` (the dev-graph gate) does NOT bite on ${ADVISORY_ID} because ejs is a prod dep — proves --prod is what makes the bite happen`, () => {
-	const cwd = buildProdGraphFixture();
-	try {
-		const { status, stdout, stderr } = runPnpm(
-			['audit', '--dev', '--audit-level=moderate'],
-			cwd,
-		);
-		// ejs is in `dependencies`, not `devDependencies`, so the
-		// dev-graph audit does not see it. The prod-graph bite above
-		// is therefore specifically about --prod, not about audit
-		// "in general" — a future edit that drops `--prod` from the
-		// production gate would make THIS test pass on the same fixture
-		// (the bite would silently migrate to the dev gate, which is
-		// not what the workflow asks for).
-		assert.equal(
-			status,
-			0,
-			`--dev on a graph where the only vulnerable dep is in \`dependencies\` ` +
-				`must exit 0 — that is the whole point of \`--prod\` in the production ` +
-				`gate. If this assertion fails, either ejs landed in devDependencies by ` +
-				`accident (revert) or pnpm's --dev semantics changed.\nstdout: ${stdout}\nstderr: ${stderr}`,
-		);
-	} finally {
-		rmSync(cwd, { recursive: true, force: true });
-	}
-});
+test(
+	`ADVERSE MUTATION #2 — \`pnpm audit --dev --audit-level=moderate\` (the dev-graph gate) does NOT bite on ${ADVISORY_ID} because ejs is a prod dep — proves --prod is what makes the bite happen`,
+	{ timeout: 60_000 },
+	() => {
+		const cwd = buildProdGraphFixture();
+		try {
+			const { status, stdout, stderr } = runPnpm(
+				['audit', '--dev', '--audit-level=moderate'],
+				cwd,
+			);
+			// ejs is in `dependencies`, not `devDependencies`, so the
+			// dev-graph audit does not see it. The prod-graph bite above
+			// is therefore specifically about --prod, not about audit
+			// "in general" — a future edit that drops `--prod` from the
+			// production gate would make THIS test pass on the same fixture
+			// (the bite would silently migrate to the dev gate, which is
+			// not what the workflow asks for).
+			assert.equal(
+				status,
+				0,
+				`--dev on a graph where the only vulnerable dep is in \`dependencies\` ` +
+					`must exit 0 — that is the whole point of \`--prod\` in the production ` +
+					`gate. If this assertion fails, either ejs landed in devDependencies by ` +
+					`accident (revert) or pnpm's --dev semantics changed.\nstdout: ${stdout}\nstderr: ${stderr}`,
+			);
+		} finally {
+			rmSync(cwd, { recursive: true, force: true });
+		}
+	},
+);
 
 // ---------------------------------------------------------------------------
 // Entry-readability: a gate that silently passes "no lockfile" as
@@ -291,40 +303,44 @@ test(`ADVERSE MUTATION #2 — \`pnpm audit --dev --audit-level=moderate\` (the d
 // is caught by the suite.
 // ---------------------------------------------------------------------------
 
-test('ENTRY-READABILITY — `pnpm audit` with no lockfile fails with a named error, not a silent green', () => {
-	const cwd = buildProdGraphFixture();
-	try {
-		const lockfile = path.join(cwd, 'pnpm-lock.yaml');
-		// Move (not rm) so we can put it back if the assertion path
-		// needs more diagnosis, and so a future maintainer can see the
-		// fixture in its post-condition shape on failure.
-		const backup = path.join(cwd, 'pnpm-lock.yaml.bak-1674');
-		renameSync(lockfile, backup);
+test(
+	'ENTRY-READABILITY — `pnpm audit` with no lockfile fails with a named error, not a silent green',
+	{ timeout: 60_000 },
+	() => {
+		const cwd = buildProdGraphFixture();
+		try {
+			const lockfile = path.join(cwd, 'pnpm-lock.yaml');
+			// Move (not rm) so we can put it back if the assertion path
+			// needs more diagnosis, and so a future maintainer can see the
+			// fixture in its post-condition shape on failure.
+			const backup = path.join(cwd, 'pnpm-lock.yaml.bak-1674');
+			renameSync(lockfile, backup);
 
-		const { status, stdout, stderr } = runPnpm(
-			['audit', '--prod', '--audit-level=moderate'],
-			cwd,
-		);
-		// Both streams can carry the error; pnpm has moved it between
-		// them across versions.
-		const combined = stdout + stderr;
-		assert.notEqual(
-			status,
-			0,
-			`pnpm audit with no lockfile must fail (status != 0), not silently treat ` +
-				`the missing lockfile as "no findings". A gate that "no lockfile" → ` +
-				`green is the failure mode this assertion exists to prevent.\n` +
-				`stdout: ${stdout}\nstderr: ${stderr}`,
-		);
-		assert.match(
-			combined,
-			/ERR_PNPM_AUDIT_NO_LOCKFILE|No pnpm-lock\.yaml found/i,
-			`The error must be named (a stable error code or an explicit message ` +
-				`naming the cause), not a bare "exit 1" — see AGENTS.md "transparent ` +
-				`failure causes" rule and the brief's entry-readability requirement.\n` +
-				`stdout: ${stdout}\nstderr: ${stderr}`,
-		);
-	} finally {
-		rmSync(cwd, { recursive: true, force: true });
-	}
-});
+			const { status, stdout, stderr } = runPnpm(
+				['audit', '--prod', '--audit-level=moderate'],
+				cwd,
+			);
+			// Both streams can carry the error; pnpm has moved it between
+			// them across versions.
+			const combined = stdout + stderr;
+			assert.notEqual(
+				status,
+				0,
+				`pnpm audit with no lockfile must fail (status != 0), not silently treat ` +
+					`the missing lockfile as "no findings". A gate that "no lockfile" → ` +
+					`green is the failure mode this assertion exists to prevent.\n` +
+					`stdout: ${stdout}\nstderr: ${stderr}`,
+			);
+			assert.match(
+				combined,
+				/ERR_PNPM_AUDIT_NO_LOCKFILE|No pnpm-lock\.yaml found/i,
+				`The error must be named (a stable error code or an explicit message ` +
+					`naming the cause), not a bare "exit 1" — see AGENTS.md "transparent ` +
+					`failure causes" rule and the brief's entry-readability requirement.\n` +
+					`stdout: ${stdout}\nstderr: ${stderr}`,
+			);
+		} finally {
+			rmSync(cwd, { recursive: true, force: true });
+		}
+	},
+);
