@@ -529,6 +529,85 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 	}
 
 	[Fact]
+	public async Task ItShouldWalkEveryCreatedAtPageWithoutOverlapOrGap() {
+		var token = await _authClient.LoginAsStaffAdminAsync();
+
+		// 3 staff users with distinct, deliberately NOT insertion-ordered
+		// CreatedAt (anti-correlated). The walk must visit each once in
+		// ascending CreatedAt order, not insertion order, so a
+		// keySelector swap to another same-type field (e.g. UpdatedAt)
+		// turns this assertion RED.
+		var baseDate = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+		var seededIds = new List<Guid>();
+		var seededOrder = new List<DateTime>();
+		for (var i = 0; i < 3; i++) {
+			var createdAt = baseDate.AddDays((3 - i) % 3);
+			var userId = await CreateStaffUserAsync(token, $"created-at-walk-{i}-{Guid.NewGuid():N}@example.com");
+			await SeedStaffUserCreatedAtAsync(userId, createdAt);
+			seededIds.Add(userId);
+			seededOrder.Add(createdAt);
+		}
+
+		var visitedIds = new List<Guid>();
+		string? cursor = null;
+		var pages = 0;
+		do {
+			var url = GetFindUrl(
+				cursor: cursor,
+				limit: 1,
+				sortId: "created_at",
+				sortOrder: "asc"
+			);
+			using var request = new HttpRequestMessage(
+				HttpMethod.Get, url
+			).WithSessionToken(token);
+
+			using var response = await _http.SendAsync(request);
+			response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+			var page = await response.Content.ReadFromJsonAsync<FindResponse>();
+			page.Should().NotBeNull();
+			Assert.NotNull(page);
+			pages++;
+			visitedIds.AddRange(page.Data.Select(u => u.Id));
+			cursor = page.NextCursor;
+
+			// Guard against an infinite loop if the cursor filter regresses.
+			pages.Should().BeLessOrEqualTo(100);
+		} while (cursor is not null);
+
+		// The walk covers exactly our rows, each once, in CreatedAt order.
+		visitedIds.Should().OnlyHaveUniqueItems();
+		visitedIds.Should().Contain(seededIds);
+
+		var visitedOrder = visitedIds
+			.Where(seededIds.Contains)
+			.ToList();
+		var createdAtById = seededIds
+			.Zip(seededOrder, (id, c) => (id, c))
+			.ToDictionary(x => x.id, x => x.c);
+		visitedOrder.Should().Equal(
+			seededIds.OrderBy(id => createdAtById[id]).ToList()
+		);
+
+		// Assert the OBSERVED CreatedAt order from the DB, in walk order,
+		// pins the sort to User.CreatedAt (not UpdatedAt/insertion order).
+		var visitedSeededUserIds = visitedOrder.ToList();
+		List<DateTime> observedOrder;
+		{
+			await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+			var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+			observedOrder = await dbContext.User
+				.Where(u => visitedSeededUserIds.Contains(u.Id!.Value))
+				.OrderBy(u => visitedSeededUserIds.IndexOf(u.Id!.Value))
+				.Select(u => u.CreatedAt)
+				.ToListAsync();
+		}
+		observedOrder.Should().Equal(seededOrder.OrderBy(x => x).ToList());
+		observedOrder.Should().NotEqual(seededOrder);
+	}
+
+	[Fact]
 	public async Task ItShouldAcceptAnUppercaseSortId() {
 		var token = await _authClient.LoginAsStaffAdminAsync();
 
@@ -601,6 +680,16 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 
 		var user = await dbContext.User.FirstAsync(u => u.Id == userId);
 		user.Status = status;
+
+		await dbContext.SaveChangesAsync();
+	}
+
+	private async Task SeedStaffUserCreatedAtAsync(Guid userId, DateTime createdAt) {
+		using var scope = _fixture.Factory.Services.CreateScope();
+		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+		var user = await dbContext.User.FirstAsync(u => u.Id == userId);
+		user.CreatedAt = createdAt;
 
 		await dbContext.SaveChangesAsync();
 	}

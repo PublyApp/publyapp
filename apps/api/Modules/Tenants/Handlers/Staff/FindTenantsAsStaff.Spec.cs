@@ -841,6 +841,256 @@ public sealed class FindTenantsAsStaffSpec
 		observedOrder.Should().NotEqual(seededOrder);
 	}
 
+	[Fact]
+	public async Task
+	ItShouldWalkEveryUpdatedAtPageWithoutOverlapOrGap() {
+		var token =
+			await _authClient.LoginAsStaffAdminAsync();
+
+		// The audit interceptor stamps UpdatedAt = now on every Modified save, so the
+		// only way to control it is a direct UPDATE that bypasses the interceptor.
+		// 3 tenants with UpdatedAt deliberately NOT insertion-ordered (anti-correlated).
+		// The walk must visit each once in ascending UpdatedAt order; a keySelector swap
+		// to CreatedAt (stamped at insertion) turns this assertion RED.
+		var baseDate = new DateTime(
+			2026, 1, 1, 0, 0, 0, DateTimeKind.Utc
+		);
+		var seededIds = new List<Guid>();
+		var seededOrder = new List<DateTime>();
+		for (var i = 0; i < 3; i++) {
+			var updatedAt = baseDate.AddDays((3 - i) % 3);
+			var id = await SeedTenantAtAsync(baseDate); // CreatedAt irrelevant for this test
+			await SetTenantUpdatedAtAsync(id, updatedAt);
+			seededIds.Add(id);
+			seededOrder.Add(updatedAt);
+		}
+
+		var visitedIds = new List<Guid>();
+		string? cursor = null;
+		var pages = 0;
+		do {
+			var url = TenantTestHelper.GetFindUrl(
+				cursor: cursor,
+				limit: 1,
+				sortId: "updated_at",
+				sortOrder: "asc"
+			);
+			var request = new HttpRequestMessage(
+				HttpMethod.Get, url
+			).WithSessionToken(token);
+
+			using var response =
+				await _http.SendAsync(request);
+			response.StatusCode.Should()
+				.Be(HttpStatusCode.OK);
+
+			var page = await response.Content
+				.ReadFromJsonAsync<FindResponse>();
+			page.Should().NotBeNull();
+			Assert.NotNull(page);
+			pages++;
+			visitedIds.AddRange(
+				page.Data.Select(t => t.Id)
+			);
+			cursor = page.NextCursor;
+
+			// Guard against an infinite loop if the cursor filter regresses.
+			pages.Should().BeLessOrEqualTo(100);
+		} while (cursor is not null);
+
+		// The walk covers exactly our rows, each once, in order.
+		visitedIds.Should().OnlyHaveUniqueItems();
+		visitedIds.Should().Contain(seededIds);
+
+		var visitedOrder = visitedIds
+			.Where(seededIds.Contains)
+			.ToList();
+		var updatedAtById = seededIds
+			.Zip(seededOrder, (id, c) => (id, c))
+			.ToDictionary(x => x.id, x => x.c);
+		visitedOrder.Should().Equal(
+			seededIds.OrderBy(id => updatedAtById[id]).ToList()
+		);
+
+		// Assert the OBSERVED sort order against the real Tenant.UpdatedAt values
+		// from the DB, in walk order. The response does not expose UpdatedAt,
+		// so resolve it by Id on Tenant.
+		List<DateTime> observedOrder;
+		{
+			await using var scope =
+				_fixture.Factory.Services.CreateAsyncScope();
+			var dbContext = scope.ServiceProvider
+				.GetRequiredService<AppDbContext>();
+			observedOrder = await dbContext.Tenant
+				.Where(t => visitedOrder.Contains((Guid)t.Id!))
+				.OrderBy(t => visitedOrder.IndexOf((Guid)t.Id!))
+				.Select(t => t.UpdatedAt)
+				.ToListAsync();
+		}
+		observedOrder.Should().Equal(seededOrder.OrderBy(x => x).ToList());
+		observedOrder.Should().NotEqual(seededOrder);
+	}
+
+	[Fact]
+	public async Task
+	ItShouldWalkEveryNamePageWithoutOverlapOrGap() {
+		var token =
+			await _authClient.LoginAsStaffAdminAsync();
+
+		// 3 tenants with distinct, deliberately NOT insertion-ordered Names
+		// (anti-correlated with insertion). The walk must visit each once in
+		// ascending Name order, not insertion order, so a keySelector swap to
+		// Code (a sibling string column with a deliberately inverse ordering)
+		// turns this assertion RED.
+		var seededNames = new List<string>();
+		var seededIds = new List<Guid>();
+		var seededCodes = new List<string>();
+		var letters = new[] { 'z', 'a', 'm' };
+		// Codes are deliberately ordered so their ASC order is the REVERSE of
+		// the names' ASC order (z-first name -> a-first code), guaranteeing the
+		// visited-sequence differs from the Name sequence under mutation.
+		var codePrefixes = new[] { "acode", "zcode", "mcode" };
+		for (var i = 0; i < 3; i++) {
+			var name = $"Walk Name {letters[i]}-{Guid.NewGuid():N}";
+			var code = $"{codePrefixes[i]}-{Guid.NewGuid():N}"[..10];
+			seededNames.Add(name);
+			seededCodes.Add(code);
+			var id = await SeedTenantWithCodeAsync(name, code);
+			seededIds.Add(id);
+		}
+		var expectedOrder = seededIds
+			.Zip(seededNames, (id, n) => (id, n))
+			.OrderBy(x => x.n)
+			.Select(x => x.id)
+			.ToList();
+
+		var visitedIds = new List<Guid>();
+		string? cursor = null;
+		var pages = 0;
+		do {
+			var url = TenantTestHelper.GetFindUrl(
+				cursor: cursor,
+				limit: 1,
+				sortId: "name",
+				sortOrder: "asc"
+			);
+			var request = new HttpRequestMessage(
+				HttpMethod.Get, url
+			).WithSessionToken(token);
+
+			using var response =
+				await _http.SendAsync(request);
+			response.StatusCode.Should()
+				.Be(HttpStatusCode.OK);
+
+			var page = await response.Content
+				.ReadFromJsonAsync<FindResponse>();
+			page.Should().NotBeNull();
+			Assert.NotNull(page);
+			pages++;
+			visitedIds.AddRange(
+				page.Data.Select(t => t.Id)
+			);
+			cursor = page.NextCursor;
+
+			// Guard against an infinite loop if the cursor filter regresses.
+			pages.Should().BeLessOrEqualTo(100);
+		} while (cursor is not null);
+
+		// The walk covers exactly our rows, each once.
+		visitedIds.Should().OnlyHaveUniqueItems();
+		visitedIds.Should().Contain(seededIds);
+
+		var visitedOrder = visitedIds
+			.Where(seededIds.Contains)
+			.ToList();
+		visitedOrder.Should().Equal(expectedOrder);
+	}
+
+	[Fact]
+	public async Task
+	ItShouldWalkEveryStatusPageWithoutOverlapOrGap() {
+		var token =
+			await _authClient.LoginAsStaffAdminAsync();
+
+		// 3 tenants with distinct, deliberately NOT insertion-ordered Status
+		// (anti-correlated with insertion). The walk must visit each once in
+		// ascending Status order. A keySelector swap to Name (string, different
+		// distribution) turns this assertion RED.
+		var statuses = new[]
+		{
+			TenantStatus.Suspended,
+			TenantStatus.Active,
+			TenantStatus.Pending,
+		};
+		var seededIds = new List<Guid>();
+		for (var i = 0; i < 3; i++) {
+			var id = await SeedTenantWithStatusAsync(statuses[i]);
+			seededIds.Add(id);
+		}
+
+		var visitedIds = new List<Guid>();
+		string? cursor = null;
+		var pages = 0;
+		do {
+			var url = TenantTestHelper.GetFindUrl(
+				cursor: cursor,
+				limit: 1,
+				sortId: "status",
+				sortOrder: "asc"
+			);
+			var request = new HttpRequestMessage(
+				HttpMethod.Get, url
+			).WithSessionToken(token);
+
+			using var response =
+				await _http.SendAsync(request);
+			response.StatusCode.Should()
+				.Be(HttpStatusCode.OK);
+
+			var page = await response.Content
+				.ReadFromJsonAsync<FindResponse>();
+			page.Should().NotBeNull();
+			Assert.NotNull(page);
+			pages++;
+			visitedIds.AddRange(
+				page.Data.Select(t => t.Id)
+			);
+			cursor = page.NextCursor;
+
+			// Guard against an infinite loop if the cursor filter regresses.
+			pages.Should().BeLessOrEqualTo(100);
+		} while (cursor is not null);
+
+		// The walk covers exactly our rows, each once.
+		visitedIds.Should().OnlyHaveUniqueItems();
+		visitedIds.Should().Contain(seededIds);
+
+		var visitedOrder = visitedIds
+			.Where(seededIds.Contains)
+			.ToList();
+		var expectedOrder = seededIds
+			.Zip(statuses, (id, s) => (id, s))
+			.OrderBy(x => x.s)
+			.Select(x => x.id)
+			.ToList();
+		visitedOrder.Should().Equal(expectedOrder);
+	}
+
+	private async Task SetTenantUpdatedAtAsync(Guid tenantId, DateTime updatedAt) {
+		await using var scope =
+			_fixture.Factory.Services.CreateAsyncScope();
+		var dbContext = scope.ServiceProvider
+			.GetRequiredService<AppDbContext>();
+
+		// Direct UPDATE bypasses the audit interceptor that would otherwise
+		// stamp UpdatedAt = now on every Modified save.
+		await dbContext.Database.ExecuteSqlRawAsync(
+			"UPDATE tenants SET updated_at = {0} WHERE id = {1}",
+			updatedAt, tenantId
+		);
+	}
+
 	private async Task<Guid> SeedTenantAtAsync(
 		DateTime createdAt
 	) {
@@ -868,6 +1118,45 @@ public sealed class FindTenantsAsStaffSpec
 		await dbContext.SaveChangesAsync();
 
 		return id;
+	}
+
+	private async Task<Guid> SeedTenantWithCodeAsync(
+		string name,
+		string code
+	) {
+		await using var scope =
+			_fixture.Factory.Services.CreateAsyncScope();
+		var dbContext = scope.ServiceProvider
+			.GetRequiredService<AppDbContext>();
+
+		var tenant = new Tenant {
+			Name = name,
+			Code = code,
+			Status = TenantStatus.Active,
+			MaxUsers = 10,
+		};
+		await dbContext.Tenant.AddAsync(tenant);
+		await dbContext.SaveChangesAsync();
+		return tenant.GetRequiredId();
+	}
+
+	private async Task<Guid> SeedTenantWithStatusAsync(
+		TenantStatus status
+	) {
+		await using var scope =
+			_fixture.Factory.Services.CreateAsyncScope();
+		var dbContext = scope.ServiceProvider
+			.GetRequiredService<AppDbContext>();
+
+		var tenant = new Tenant {
+			Name = $"Tenant Status Walk {Guid.NewGuid():N}",
+			Code = Guid.NewGuid().ToString("N")[..10],
+			Status = status,
+			MaxUsers = 10,
+		};
+		await dbContext.Tenant.AddAsync(tenant);
+		await dbContext.SaveChangesAsync();
+		return tenant.GetRequiredId();
 	}
 
 	private record StaffProfileCreatedResponse {

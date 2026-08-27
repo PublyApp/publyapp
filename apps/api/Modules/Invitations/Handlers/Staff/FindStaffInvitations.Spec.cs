@@ -578,6 +578,156 @@ public sealed class FindStaffInvitationsSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task
+	ItShouldWalkEveryCreatedAtPageWithoutOverlapOrGap() {
+		string staffToken = await _authClient.LoginAsStaffAdminAsync();
+		string tag = Guid.NewGuid().ToString("N")[..8];
+
+		// 3 invitations with distinct, deliberately NOT insertion-ordered
+		// CreatedAt (anti-correlated with insertion). The walk must return
+		// them in ascending CreatedAt order, so a keySelector swap to
+		// ExpiresAt (or another same-type field) turns this RED.
+		var baseDate = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+		List<Guid> seededIds = new();
+		List<DateTime> seededOrder = new();
+		for (int i = 0; i < 3; i++) {
+			DateTime createdAt = baseDate.AddDays((3 - i) % 3);
+			DateTime expiresAt = baseDate.AddDays(30);
+			Guid id = await SeedStaffInvitationAtAsync(
+				$"created-at-walk-{tag}-{i}-{Guid.NewGuid():N}@example.com",
+				createdAt, expiresAt);
+			seededIds.Add(id);
+			seededOrder.Add(createdAt);
+		}
+
+		List<Guid> visitedIds = new();
+		List<DateTime> visitedCreatedAt = new();
+		string? cursor = null;
+		int pages = 0;
+		do {
+			using HttpResponseMessage response = await _http.SendAsync(
+				CreateFindRequest(
+					staffToken,
+					limit: 1,
+					sortId: "created_at",
+					sortOrder: "asc",
+					cursor: cursor
+				)
+			);
+
+			_ = response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+			FindResponse? page = await response.Content
+				.ReadFromJsonAsync<FindResponse>();
+			_ = page.Should().NotBeNull();
+			Assert.NotNull(page);
+			pages++;
+			visitedIds.AddRange(page.Data.Select(item => item.Id));
+			visitedCreatedAt.AddRange(page.Data.Select(item => item.CreatedAt));
+			cursor = page.NextCursor;
+
+			_ = pages.Should().BeLessOrEqualTo(100);
+		} while (cursor is not null);
+
+		_ = visitedIds.Should().OnlyHaveUniqueItems();
+		_ = visitedIds.Should().Contain(seededIds);
+
+		var visitedOrder = visitedIds
+			.Where(seededIds.Contains)
+			.ToList();
+		var createdAtById = seededIds
+			.Zip(seededOrder, (id, c) => (id, c))
+			.ToDictionary(x => x.id, x => x.c);
+		_ = visitedOrder.Should().Equal(
+			seededIds.OrderBy(id => createdAtById[id]).ToList()
+		);
+
+		// Assert the OBSERVED CreatedAt order equals the sorted seeded order,
+		// NOT the insertion order. A keySelector swap breaks this.
+		var visitedSeededCreatedAt = visitedOrder
+			.Select(id => visitedCreatedAt[visitedIds.IndexOf(id)])
+			.ToList();
+		_ = visitedSeededCreatedAt.Should()
+			.Equal(seededOrder.OrderBy(x => x).ToList());
+		_ = visitedSeededCreatedAt.Should().NotEqual(seededOrder);
+	}
+
+	[Fact]
+	public async Task
+	ItShouldWalkEveryExpiresAtPageWithoutOverlapOrGap() {
+		string staffToken = await _authClient.LoginAsStaffAdminAsync();
+		string tag = Guid.NewGuid().ToString("N")[..8];
+
+		// 3 invitations with distinct, deliberately NOT insertion-ordered
+		// ExpiresAt (anti-correlated with insertion). The walk must return
+		// them in ascending ExpiresAt order, so a keySelector swap to
+		// CreatedAt (or another same-type field) turns this RED.
+		var baseDate = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+		List<Guid> seededIds = new();
+		List<DateTime> seededOrder = new();
+		for (int i = 0; i < 3; i++) {
+			DateTime createdAt = baseDate.AddDays(i);
+			DateTime expiresAt = baseDate.AddDays((3 - i) % 3);
+			Guid id = await SeedStaffInvitationAtAsync(
+				$"expires-at-walk-{tag}-{i}-{Guid.NewGuid():N}@example.com",
+				createdAt, expiresAt);
+			seededIds.Add(id);
+			seededOrder.Add(expiresAt);
+		}
+
+		List<Guid> visitedIds = new();
+		List<DateTime> visitedExpiresAt = new();
+		string? cursor = null;
+		int pages = 0;
+		do {
+			using HttpResponseMessage response = await _http.SendAsync(
+				CreateFindRequest(
+					staffToken,
+					limit: 1,
+					sortId: "expires_at",
+					sortOrder: "asc",
+					cursor: cursor
+				)
+			);
+
+			_ = response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+			FindResponse? page = await response.Content
+				.ReadFromJsonAsync<FindResponse>();
+			_ = page.Should().NotBeNull();
+			Assert.NotNull(page);
+			pages++;
+			visitedIds.AddRange(page.Data.Select(item => item.Id));
+			visitedExpiresAt.AddRange(page.Data.Select(item => item.ExpiresAt));
+			cursor = page.NextCursor;
+
+			_ = pages.Should().BeLessOrEqualTo(100);
+		} while (cursor is not null);
+
+		_ = visitedIds.Should().OnlyHaveUniqueItems();
+		_ = visitedIds.Should().Contain(seededIds);
+
+		var visitedOrder = visitedIds
+			.Where(seededIds.Contains)
+			.ToList();
+		var expiresAtById = seededIds
+			.Zip(seededOrder, (id, e) => (id, e))
+			.ToDictionary(x => x.id, x => x.e);
+		_ = visitedOrder.Should().Equal(
+			seededIds.OrderBy(id => expiresAtById[id]).ToList()
+		);
+
+		// Assert the OBSERVED ExpiresAt order equals the sorted seeded order,
+		// NOT the insertion order. A keySelector swap breaks this.
+		var visitedSeededExpiresAt = visitedOrder
+			.Select(id => visitedExpiresAt[visitedIds.IndexOf(id)])
+			.ToList();
+		_ = visitedSeededExpiresAt.Should()
+			.Equal(seededOrder.OrderBy(x => x).ToList());
+		_ = visitedSeededExpiresAt.Should().NotEqual(seededOrder);
+	}
+
+	[Fact]
+	public async Task
 	ItShouldAcceptAnUppercaseSortId() {
 		string staffToken = await _authClient.LoginAsStaffAdminAsync();
 
@@ -680,6 +830,51 @@ public sealed class FindStaffInvitationsSpec : IClassFixture<ApiFixture> {
 		_ = body.Should().NotBeNull();
 
 		return body?.InvitationId ?? Guid.Empty;
+	}
+
+	private async Task<Guid> SeedStaffInvitationAtAsync(
+		string email,
+		DateTime createdAt,
+		DateTime expiresAt
+	) {
+		using IServiceScope scope = _fixture.Factory.Services.CreateScope();
+		AppDbContext dbContext = scope.ServiceProvider
+			.GetRequiredService<AppDbContext>();
+
+		Profile staffProfile = await dbContext.Profile
+			.Where(profile =>
+				profile.Scope == ProfileScope.Staff
+				&& !profile.IsDeleted
+			)
+			.OrderBy(profile => profile.Name)
+			.FirstAsync();
+		User staffUser = await dbContext.User
+			.Where(user => user.Email == SeedConstants.Staff.AdminEmail)
+			.FirstAsync();
+
+		Invitation invitation = Invitation.CreateStaffInvitationWithProfiles(
+			email,
+			[staffProfile.GetRequiredId()],
+			staffUser.GetRequiredId(),
+			expiresAt,
+			Guid.NewGuid().ToString("N")[..32]
+		);
+
+		_ = await dbContext.Invitation.AddAsync(invitation);
+		_ = await dbContext.SaveChangesAsync();
+
+		var id = invitation.GetRequiredId();
+
+		// Re-fetch and overwrite CreatedAt/ExpiresAt so they stick
+		// (interceptor stamps CreatedAt/UpdatedAt = now on insert).
+		var tracked = await dbContext.Invitation
+			.Where(inv => inv.Id == id)
+			.FirstAsync();
+		tracked.CreatedAt = createdAt;
+		tracked.ExpiresAt = expiresAt;
+		_ = await dbContext.SaveChangesAsync();
+
+		return id;
 	}
 
 	private async Task RevokeStaffInvitationAsync(

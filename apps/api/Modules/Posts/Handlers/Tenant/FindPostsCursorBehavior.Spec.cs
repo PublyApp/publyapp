@@ -117,6 +117,94 @@ public sealed class FindPostsCursorBehaviorSpec : IClassFixture<ApiFixture> {
 	}
 
 	[Fact]
+	public async Task ItShouldWalkEveryUpdatedAtPageWithoutOverlapOrGap() {
+		var (tenantId, token) = await LoginAsAcmeAdminAsync();
+		var userId = await GetAcmeAdminUserIdAsync();
+
+		// The audit interceptor stamps UpdatedAt = now on every Modified save, so the
+		// only way to control it is a direct UPDATE that bypasses the interceptor.
+		// 3 posts with UpdatedAt deliberately NOT correlated with insertion order
+		// (anti-correlated with Id insertion). The walk must visit each once in
+		// ascending UpdatedAt order; a keySelector swap to CreatedAt (stamped at
+		// insertion) turns this assertion RED.
+		var baseDate = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+		var seededIds = new List<Guid>();
+		var seededOrder = new List<DateTime>();
+		for (var i = 0; i < 3; i++) {
+			var id = await SeedPostAtAsync(
+				tenantId,
+				userId,
+				$"post-walk-up-{i}-{Guid.NewGuid():N}",
+				baseDate.AddDays((3 - i) % 3)
+			);
+			seededIds.Add(id);
+			// UpdatedAt is set AFTER insertion via a direct SQL UPDATE to bypass the
+			// interceptor; the dates are deliberately anti-correlated with insertion
+			// order so .NotEqual(seededOrder) holds and a keySelector swap to CreatedAt
+			// (stamped at insertion, different order) turns this assertion RED.
+			var updatedAt = baseDate.AddDays((i + 1) % 3);
+			await OverrideUpdatedAtAsync(id, updatedAt);
+			seededOrder.Add(updatedAt);
+		}
+
+		var visitedIds = new List<Guid>();
+		var visitedUpdatedAtOrder = new List<DateTime>();
+		string? cursor = null;
+		var pages = 0;
+		do {
+			var url = PostsUrl
+					+ "?limit=1&sort_id=updated_at&sort_order=asc";
+			if (cursor is not null) {
+				url += $"&cursor={Uri.EscapeDataString(cursor)}";
+			}
+
+			using var request = new HttpRequestMessage(
+				HttpMethod.Get, url
+			)
+				.WithSessionToken(token)
+				.WithTenantId(tenantId);
+
+			using var response = await _http.SendAsync(request);
+			response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+			var page = await response.Content
+				.ReadFromJsonAsync<FindPostsResponse>();
+			page.Should().NotBeNull();
+			Assert.NotNull(page);
+			pages++;
+			visitedIds.AddRange(page.Data.Select(post => post.Id));
+			visitedUpdatedAtOrder.AddRange(page.Data.Select(post => post.UpdatedAt));
+			cursor = page.NextCursor;
+
+			// Guard against an infinite loop if the tie-breaker/cursor filter regresses.
+			pages.Should().BeLessOrEqualTo(100);
+		} while (cursor is not null);
+
+		// The walk covers the whole list: no row may repeat and ours must
+		// all be visited exactly once, in UpdatedAt ascending order.
+		visitedIds.Should().OnlyHaveUniqueItems();
+		visitedIds.Should().Contain(seededIds);
+
+		var visitedSeededOrder = visitedIds
+			.Where(seededIds.Contains)
+			.ToList();
+		var updatedAtById = seededIds
+			.Zip(seededOrder, (id, c) => (id, c))
+			.ToDictionary(x => x.id, x => x.c);
+		visitedSeededOrder.Should().Equal(
+			seededIds.OrderBy(id => updatedAtById[id]).ToList()
+		);
+
+		// Assert the OBSERVED UpdatedAt order: ascending and equal to the
+		// seeded-but-sorted order, NOT the insertion order.
+		var visitedSeededUpdatedAt = visitedSeededOrder
+			.Select(id => visitedUpdatedAtOrder[visitedIds.IndexOf(id)])
+			.ToList();
+		visitedSeededUpdatedAt.Should().Equal(seededOrder.OrderBy(x => x).ToList());
+		visitedSeededUpdatedAt.Should().NotEqual(seededOrder);
+	}
+
+	[Fact]
 	public async Task ItShouldReturnBadRequestWhenCursorRecordIsMissing() {
 		var (tenantId, token) = await LoginAsAcmeAdminAsync();
 
@@ -248,6 +336,19 @@ public sealed class FindPostsCursorBehaviorSpec : IClassFixture<ApiFixture> {
 		return id;
 	}
 
+	private async Task OverrideUpdatedAtAsync(Guid postId, DateTime updatedAt) {
+		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+		var dbContext = scope.ServiceProvider
+			.GetRequiredService<AppDbContext>();
+
+		// Direct UPDATE bypasses the audit interceptor that would otherwise
+		// stamp UpdatedAt = now on every Modified save.
+		await dbContext.Database.ExecuteSqlRawAsync(
+			"UPDATE posts SET updated_at = {0} WHERE id = {1}",
+			updatedAt, postId
+		);
+	}
+
 	private sealed record FindPostsResponse {
 		public List<PostItem> Data { get; init; } = [];
 		public string? NextCursor { get; init; }
@@ -256,5 +357,6 @@ public sealed class FindPostsCursorBehaviorSpec : IClassFixture<ApiFixture> {
 	private sealed record PostItem {
 		public Guid Id { get; init; }
 		public DateTime CreatedAt { get; init; }
+		public DateTime UpdatedAt { get; init; }
 	}
 }
