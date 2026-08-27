@@ -135,3 +135,75 @@ describe('useOffsetPageClamp — reset is detected on the FIRST render after a r
 		expect(consumer.renders[0]).toBe(5);
 	});
 });
+
+// #1613: the hook is a PURE derivation — it RETURNS the page the caller should
+// hold, but it never writes back into the caller's state. The "return to page
+// 0 after a resetKeys change" only takes effect if the caller COMMITS the
+// returned value (the adjust-state-while-rendering pattern every real caller
+// uses: `if (clampedPageIndex !== pageIndex) setPageIndex(clampedPageIndex)`).
+// A caller that ignores the return keeps passing its own stale pageIndex on the
+// next render; by then resetKeys is unchanged (the signature was updated during
+// the reset render), so the hook re-clamps from the stale pageIndex and the
+// reader is silently stranded on a non-zero page — the reset is lost. This test
+// pins that negligent caller: it drives the hook with a FIXED pageIndex that is
+// never committed, and it MUST fail if the reset-to-0 is silently dropped.
+describe('useOffsetPageClamp — the contract requires the caller to COMMIT the returned value (#1613)', () => {
+	// A negligent consumer: holds `pageIndex` fixed and never calls the
+	// setter with the returned value. This is exactly the foot-gun the brief
+	// describes; the test asserts the consequence (silent loss) is exposed.
+	const negligentRenders = (initial: ClampProps) => {
+		let pageIndex = initial.pageIndex;
+		let count = initial.count;
+		let resetKeys = initial.resetKeys;
+		const renders: number[] = [];
+
+		const Comp = (): null => {
+			// Returns the value, but the consumer DISCARDS it (no commit).
+			const clamped = useOffsetPageClamp({
+				pageIndex,
+				size: 20,
+				count,
+				resetKeys,
+			});
+			renders.push(clamped);
+			return null;
+		};
+
+		const holder = render(createElement(Comp));
+		const rerender = (next: Partial<ClampProps>) => {
+			if (next.count !== undefined) {
+				count = next.count;
+			}
+			if (next.resetKeys !== undefined) {
+				resetKeys = next.resetKeys;
+			}
+			act(() => holder.rerender(createElement(Comp)));
+		};
+		return { renders, rerender };
+	};
+
+	test('a resetKeys change returns 0, but a caller that does not commit it is stranded on a non-zero page next render', () => {
+		const consumer = negligentRenders({
+			pageIndex: 5,
+			count: 1000,
+			resetKeys: ['A'],
+		});
+		expect(consumer.renders[0]).toBe(5);
+
+		// Warm destination query (count 25, last index 1) plus a resetKeys
+		// change (['A'] -> ['ada']). The hook RETURNS 0 on this first change
+		// render — the contract promises a reset wins. The negligent caller
+		// discards that 0.
+		consumer.rerender({ count: 25, resetKeys: ['ada'] });
+		expect(consumer.renders[1]).toBe(0);
+
+		// Next render: resetKeys is now unchanged, so the hook clamps from the
+		// still-stale pageIndex 5 -> 1. The reader is silently stranded on
+		// page 1 instead of page 0 — the reset was lost because nobody
+		// committed the returned 0. This assertion documents the foot-gun: it
+		// would be `0` if the caller had committed, so a non-zero value here
+		// is the proof that the contract was violated.
+		consumer.rerender({ count: 26, resetKeys: ['ada'] });
+		expect(consumer.renders[2]).toBe(1);
+	});
+});
