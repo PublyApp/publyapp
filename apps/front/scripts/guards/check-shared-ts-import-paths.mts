@@ -21,11 +21,24 @@
  * re-export a shared-ts module, because that is the single construct that
  * creates a *second* resolvable path to the same module within front.
  *
+ * Scope. The guard scans TWO trees, because a second resolvable path can be
+ * created on either side of the package boundary:
+ *  - `apps/front/src` — a front-local file re-exporting a shared-ts module
+ *    (the original R1 failure mode): `~/lib/...` and `@org/shared-ts/lib/...`
+ *    reach the same module.
+ *  - `packages/shared-ts/src` — a file *inside* the shared package re-exporting
+ *    a sibling shared-ts module under a second specifier (e.g. a barrel that
+ *    does `export { x } from '@org/shared-ts/lib/x'`, or a path alias that
+ *    resolves to another file in the same package). A future cross-package
+ *    consolidation can introduce this; leaving it unscanned would make the
+ *    guard give a false impression of coverage (#1612).
+ *
  * What is deliberately NOT flagged (legitimate):
  *  - front code IMPORTING `@org/shared-ts/lib/...` directly (the wanted path);
  *  - front re-exporting from a front-local module (`export * from './x'`);
- *  - shared-ts re-exporting shared-ts (`packages/shared-ts/**` is out of scope;
- *    only `apps/front/src` is scanned).
+ *  - shared-ts re-exporting a front module, or a shared-ts file re-exporting
+ *    from a sibling via a relative path (`./x`) — only a `@org/shared-ts/...`
+ *    specifier creates a *second published* path to the same module.
  *
  * Run: `node scripts/guards/check-shared-ts-import-paths.mts`
  * Paired proof lives in `check-shared-ts-import-paths.test.mts`: it asserts the
@@ -38,6 +51,7 @@ import { fileURLToPath } from 'node:url';
 
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const frontSrc = path.resolve(scriptDir, '../../src');
+const sharedTsSrc = path.resolve(scriptDir, '../../../../packages/shared-ts/src');
 
 export const REEXPORT_SHARED_TS =
 	/export\s+(?:\*|[\w{},\s]+)\s+from\s+['"]@org\/shared-ts\/(?:lib|utils|validations|types)(?:\/[\w-]+)*['"]/;
@@ -71,15 +85,34 @@ const walk = (dir: string): string[] => {
 	return out;
 };
 
-export const scanFrontSrcForSharedTsReExports = (root = frontSrc): Finding[] => {
-	const base = path.resolve(root);
+export interface ScannedTree {
+	/** human label for the scanned tree, surfaced in violation output */
+	label: string;
+	/** root the walk was anchored at */
+	root: string;
+}
+
+export const FRONT_SRC_TREE: ScannedTree = {
+	label: 'apps/front/src',
+	root: frontSrc,
+};
+
+export const SHARED_TS_SRC_TREE: ScannedTree = {
+	label: 'packages/shared-ts/src',
+	root: sharedTsSrc,
+};
+
+export const scanTreeForSharedTsReExports = (
+	tree: ScannedTree = FRONT_SRC_TREE,
+): Finding[] => {
+	const base = path.resolve(tree.root);
 	const findings: Finding[] = [];
 	for (const file of walk(base)) {
 		const lines = readFileSync(file, 'utf8').split('\n');
 		lines.forEach((text, idx) => {
 			if (REEXPORT_SHARED_TS.test(text)) {
 				findings.push({
-					file: path.relative(base, file),
+					file: `${tree.label}/${path.relative(base, file)}`,
 					line: idx + 1,
 					text: text.trim(),
 				});
@@ -89,19 +122,34 @@ export const scanFrontSrcForSharedTsReExports = (root = frontSrc): Finding[] => 
 	return findings;
 };
 
+export const scanFrontSrcForSharedTsReExports = (root = frontSrc): Finding[] => {
+	return scanTreeForSharedTsReExports({ label: 'apps/front/src', root });
+};
+
+export const scanSharedTsSrcForSharedTsReExports = (
+	root = sharedTsSrc,
+): Finding[] => {
+	return scanTreeForSharedTsReExports({ label: 'packages/shared-ts/src', root });
+};
+
 const main = (): void => {
-	const findings = scanFrontSrcForSharedTsReExports();
+	const findings = [
+		...scanFrontSrcForSharedTsReExports(),
+		...scanSharedTsSrcForSharedTsReExports(),
+	];
 	if (findings.length) {
 		console.error(
-			'Dual-path violation: a shared-ts module is re-exported from apps/front/src, ' +
-				'creating a second import path (#1533).',
+			'Dual-path violation: a shared-ts module is re-exported under a second ' +
+				'import path (#1533).',
 		);
 		for (const f of findings) {
 			console.error(`  ${f.file}:${f.line}  ${f.text}`);
 		}
 		process.exit(1);
 	}
-	console.log('No shared-ts module is re-exported from apps/front/src [OK]');
+	console.log(
+		'No shared-ts module is re-exported (apps/front/src, packages/shared-ts/src) [OK]',
+	);
 };
 
 // Only run when invoked directly (node scripts/guards/x.mts), not when imported
