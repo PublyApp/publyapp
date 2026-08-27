@@ -733,8 +733,12 @@ const countListQueryFactories = (source: string): number => {
 	// an id-only type, so a list is "owned" iff that type declares pagination.
 	const factoryRe =
 		/build(Staff|Tenant|StaffSuspense|TenantSuspense)QueryOptions<([\s\S]*?)>\s*\(/g;
-	const typeNameRe =
-		/(Staff|GlobalTenant|Find|Cursor|Offset)[\w]*QueryVariables\b/;
+	// The third generic of a build*QueryOptions factory is, by construction, a
+	// query-variables type. The codebase names every one of them *QueryVariables
+	// (Staff*, Tenant*, GlobalTenant*, Find*, etc.), so we match ANY *QueryVariables
+	// type rather than a fixed prefix allowlist — the allowlist omitted Tenant* and
+	// silently let a no-list module own a Tenant-prefixed paginated list.
+	const typeNameRe = /[\w]*QueryVariables\b/;
 	const paginationVarRe =
 		/\b(cursor|sortId|sortOrder|size|page|limit|q)\s*\??:/;
 	const splitTopLevel = (inner: string): string[] => {
