@@ -97,7 +97,7 @@ const makeSandbox = (): string => {
 
 // ---- existing RED tests (carried forward) ----------------------------------
 
-test('RED: a front-side re-export of a shared-ts module is detected', () => {
+void test('RED: a front-side re-export of a shared-ts module is detected', () => {
 	const root = makeSandbox();
 	// Recreate the R1 shim exactly where it lived.
 	writeFileSync(
@@ -127,7 +127,7 @@ test('RED: a front-side re-export of a shared-ts module is detected', () => {
 	);
 });
 
-test('RED: a named (non-barrel) front-side re-export of a shared-ts module is detected', () => {
+void test('RED: a named (non-barrel) front-side re-export of a shared-ts module is detected', () => {
 	// Adversarial form: a single-symbol re-export in a helpers barrel, the thing
 	// a developer adds without realising it opens a second path.
 	const root = makeSandbox();
@@ -157,7 +157,7 @@ test('RED: a named (non-barrel) front-side re-export of a shared-ts module is de
 	);
 });
 
-test('GREEN: without the shim, no shared-ts re-export is found', () => {
+void test('GREEN: without the shim, no shared-ts re-export is found', () => {
 	const root = makeSandbox();
 	const findings = scanFrontSrcForSharedTsReExports(
 		path.join(root, 'front-src'),
@@ -169,7 +169,7 @@ test('GREEN: without the shim, no shared-ts re-export is found', () => {
 	);
 });
 
-test('GREEN: existing front code importing shared-ts directly is NOT flagged', () => {
+void test('GREEN: existing front code importing shared-ts directly is NOT flagged', () => {
 	const root = makeSandbox();
 	// Direct imports of shared-ts are the wanted path and must not trip the
 	// guard — verify by asserting the legitimate import sites are clean.
@@ -184,7 +184,7 @@ test('GREEN: existing front code importing shared-ts directly is NOT flagged', (
 
 // Sanity: front-local re-exports are not the second-path construct the guard
 // rejects.
-test('front-local re-exports are NOT flagged', () => {
+void test('front-local re-exports are NOT flagged', () => {
 	const root = makeSandbox();
 	mkdirSync(path.join(root, 'front-src/lib/sub'), { recursive: true });
 	writeFileSync(
@@ -202,7 +202,7 @@ test('front-local re-exports are NOT flagged', () => {
 
 // ---- R2: all import/export forms the brief requires ----------------------
 
-test('RED: multi-line named re-export (`export {\\n foo,\\n} from ...`) is detected', () => {
+void test('RED: multi-line named re-export (`export {\\n foo,\\n} from ...`) is detected', () => {
 	const root = makeSandbox();
 	writeFileSync(
 		path.join(root, 'front-src/lib/multi-line-shim.ts'),
@@ -230,7 +230,7 @@ test('RED: multi-line named re-export (`export {\\n foo,\\n} from ...`) is detec
 	);
 });
 
-test('RED: `export type * from "@org/shared-ts/..."` is detected', () => {
+void test('RED: `export type * from "@org/shared-ts/..."` is detected', () => {
 	const root = makeSandbox();
 	writeFileSync(
 		path.join(root, 'front-src/lib/type-star-shim.ts'),
@@ -254,7 +254,7 @@ test('RED: `export type * from "@org/shared-ts/..."` is detected', () => {
 	);
 });
 
-test('RED: `export * as ns from "@org/shared-ts/..."` is detected', () => {
+void test('RED: `export * as ns from "@org/shared-ts/..."` is detected', () => {
 	const root = makeSandbox();
 	writeFileSync(
 		path.join(root, 'front-src/lib/namespace-alias-shim.ts'),
@@ -278,7 +278,7 @@ test('RED: `export * as ns from "@org/shared-ts/..."` is detected', () => {
 	);
 });
 
-test('GREEN: `export * from "./local"` (front-local namespace re-export) is NOT flagged', () => {
+void test('GREEN: `export * from "./local"` (front-local namespace re-export) is NOT flagged', () => {
 	const root = makeSandbox();
 	writeFileSync(
 		path.join(root, 'front-src/lib/local-barrel.ts'),
@@ -294,7 +294,7 @@ test('GREEN: `export * from "./local"` (front-local namespace re-export) is NOT 
 	);
 });
 
-test('RED: `export type { X } from "@org/shared-ts/..."` (type-only named) is detected', () => {
+void test('RED: `export type { X } from "@org/shared-ts/..."` (type-only named) is detected', () => {
 	const root = makeSandbox();
 	writeFileSync(
 		path.join(root, 'front-src/lib/type-only-shim.ts'),
@@ -318,7 +318,7 @@ test('RED: `export type { X } from "@org/shared-ts/..."` (type-only named) is de
 	);
 });
 
-test('GREEN: dynamic `import("@org/shared-ts/...")` is INSPECTED but NOT flagged', () => {
+void test('GREEN: dynamic `import("@org/shared-ts/...")` is INSPECTED but NOT flagged', () => {
 	const root = makeSandbox();
 	writeFileSync(
 		path.join(root, 'front-src/lib/dynamic-shim.ts'),
@@ -336,7 +336,7 @@ test('GREEN: dynamic `import("@org/shared-ts/...")` is INSPECTED but NOT flagged
 
 // ---- R2: regression test — guard must inspect the AST, not lines ----------
 
-test('REGRESSION: guard inspects the AST, not lines — multi-line form must be caught (not blank-line-skipped)', () => {
+void test('REGRESSION: guard inspects the AST, not lines — multi-line form must be caught (not blank-line-skipped)', () => {
 	// This test exists to fail if the guard regresses to a line-by-line scan.
 	// A line-by-line regex scanning individual text lines would NEVER see a
 	// multi-line export declaration as a single `export ... from '...'` statement
@@ -363,7 +363,7 @@ test('REGRESSION: guard inspects the AST, not lines — multi-line form must be 
 
 // ---- existing shared-ts scope tests (carried forward) ---------------------
 
-test('RED: a shared-ts-internal re-export of a sibling shared-ts module is detected', () => {
+void test('RED: a shared-ts-internal re-export of a sibling shared-ts module is detected', () => {
 	const root = makeSandbox();
 	// A barrel inside the shared package that re-surfaces a sibling under a
 	// second @org/shared-ts specifier — the failure mode #1612 extends the
@@ -394,7 +394,7 @@ test('RED: a shared-ts-internal re-export of a sibling shared-ts module is detec
 	);
 });
 
-test('GREEN: shared-ts/src with no internal re-export is clean', () => {
+void test('GREEN: shared-ts/src with no internal re-export is clean', () => {
 	const root = makeSandbox();
 	const findings = scanSharedTsSrcForSharedTsReExports(
 		path.join(root, 'shared-ts-src'),
@@ -406,7 +406,7 @@ test('GREEN: shared-ts/src with no internal re-export is clean', () => {
 	);
 });
 
-test('GREEN: a shared-ts file re-exporting a sibling via a relative path is NOT flagged', () => {
+void test('GREEN: a shared-ts file re-exporting a sibling via a relative path is NOT flagged', () => {
 	// A relative re-export does NOT create a second *published* path, so it must
 	// stay green — proves the contract is "second @org/shared-ts specifier", not
 	// "any re-export inside shared-ts".
@@ -427,7 +427,7 @@ test('GREEN: a shared-ts file re-exporting a sibling via a relative path is NOT 
 	);
 });
 
-test('scanTreeForSharedTsReExports labels findings with the tree label', () => {
+void test('scanTreeForSharedTsReExports labels findings with the tree label', () => {
 	const root = makeSandbox();
 	writeFileSync(
 		path.join(root, 'front-src/lib/should-logout.ts'),
