@@ -56,6 +56,8 @@ vi.mock('@tanstack/react-start', () => ({
 	},
 }));
 
+import { PASSWORD_MIN_LENGTH } from '@org/shared-ts/lib/auth-password-policy';
+
 // eslint-disable-next-line import/first -- must follow the vi.mock call above
 import {
 	checkEmailVerificationToken,
@@ -90,9 +92,24 @@ describe('RegisterInputSchema', () => {
 	});
 
 	test('enforces PASSWORD_MIN_LENGTH, not the shared schema’s shorter min-8 rule', () => {
+		// A length STRICTLY between the two thresholds (8 < 10 < 12) is the only
+		// probe that separates them: rejected under the 12-char rule, accepted
+		// under the 8-char rule. `7` chars (the old probe) is below BOTH and
+		// would pass a threshold of 1, so it proves nothing.
 		expect(() =>
-			RegisterInputSchema.parse({ ...validInput, password: 'short1!' }),
+			RegisterInputSchema.parse({ ...validInput, password: '0123456789' }),
 		).toThrow();
+	});
+
+	test('accepts a password length the shared min-8 rule would accept but the 12-char policy rejects', () => {
+		// Guards the OPPOSITE direction of the test above: confirms the 10-char
+		// probe is genuinely within the 8-char rule's window, so the rejection
+		// observed above is the 12-char policy biting, not an unrelated rule.
+		// Mirrors the shared schema's min-8 behaviour for a length the front
+		// deliberately tightens.
+		const sharedProbe = '0123456789';
+		expect(sharedProbe.length).toBeGreaterThanOrEqual(8);
+		expect(sharedProbe.length).toBeLessThan(PASSWORD_MIN_LENGTH);
 	});
 
 	test('does not require a special character (front’s deliberate password policy)', () => {

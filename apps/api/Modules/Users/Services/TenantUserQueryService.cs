@@ -94,22 +94,6 @@ public class TenantUserQueryService : ITenantUserQueryService {
 		_dbContext = dbContext;
 	}
 
-	private static int GetTenantUserStatusRank(
-		bool isUserGloballySuspended,
-		bool isMembershipSuspended
-	) {
-		// Sort order mirrors the tenant-user effective status:
-		// Active = 0, Suspended = 1, GloballySuspended = 2.
-		if (isUserGloballySuspended) {
-			return 2;
-		}
-
-		if (isMembershipSuspended) {
-			return 1;
-		}
-
-		return 0;
-	}
 
 	public async Task<FindTenantUsersResult>
 	FindTenantUsersAsync(
@@ -122,268 +106,56 @@ public class TenantUserQueryService : ITenantUserQueryService {
 		var effectiveSortOrder = args.SortOrder ?? SortOrder.Desc;
 		var effectiveSortId = args.SortId ?? "id";
 
-		var sortFieldHandlers =
+				var sortFieldHandlers =
 			new Dictionary<string, CursorSortFieldHandler<UserAccount>>(
 				StringComparer.OrdinalIgnoreCase
 			) {
-				["id"] = new CursorSortFieldHandler<UserAccount>(
-					getCursorValue: async (guid) => {
-						var ua = await (
-							from x in _dbContext.UserAccount.AsNoTracking()
-							where x.UserId == guid
-								&& x.TenantId == tenantId
-								&& x.Scope
-									== AccountScope.Tenant
-							select (Guid?)x.UserId
-						).FirstOrDefaultAsync(
-							cancellationToken
-						);
-						return ua;
-					},
-					applyFilter: (q, val, isAsc) => {
-						var id = (Guid?)val;
-						if (id is null) {
-							return q;
-						}
-						return isAsc
-							? q.Where(x => x.UserId > id)
-							: q.Where(x => x.UserId < id);
-					},
-					applyOrdering: (q, isAsc) => isAsc
-						? q.OrderBy(x => x.UserId)
-						: q.OrderByDescending(
-							x => x.UserId
-						)
-				),
-
-				["email"] = new CursorSortFieldHandler<UserAccount>(
-					getCursorValue: async (guid) => {
-						var item = await (
-							from x in _dbContext.UserAccount.AsNoTracking()
-							where x.UserId == guid
-								&& x.TenantId == tenantId
-								&& x.Scope
-									== AccountScope.Tenant
-							select new {
-								x.User.Email,
-								x.UserId,
-							}
-						).FirstOrDefaultAsync(
-							cancellationToken
-						);
-						return item is not null
-							? (item.Email, item.UserId)
-							: null;
-					},
-					applyFilter: (q, val, isAsc) => {
-						if (val is null) {
-							return q;
-						}
-						var (email, id) =
-							((string, Guid))val;
-						return isAsc
-							? q.Where(x =>
-								x.User.Email
-									.CompareTo(
-										email
-									) > 0
-								|| (x.User.Email == email
-									&& x.UserId > id))
-							: q.Where(x =>
-								x.User.Email
-									.CompareTo(
-										email
-									) < 0
-								|| (x.User.Email == email
-									&& x.UserId < id));
-					},
-					applyOrdering: (q, isAsc) => isAsc
-						? q.OrderBy(x => x.User.Email)
-							.ThenBy(x => x.UserId)
-						: q.OrderByDescending(
-							x => x.User.Email
-						).ThenByDescending(
-							x => x.UserId
-						)
-				),
-
-				["status"] = new CursorSortFieldHandler<UserAccount>(
-					getCursorValue: async (guid) => {
-						var item = await (
-							from x in _dbContext.UserAccount.AsNoTracking()
-							where x.UserId == guid
-								&& x.TenantId == tenantId
-								&& x.Scope
-									== AccountScope.Tenant
-							select new {
-								IsUserGloballySuspended = x.User.Status == UserStatus.Suspended,
-								IsMembershipSuspended = x.Status == AccountStatus.Suspended,
-								x.UserId,
-							}
-						).FirstOrDefaultAsync(
-							cancellationToken
-						);
-						return item is not null
-							? (
-								GetTenantUserStatusRank(
-									item.IsUserGloballySuspended,
-									item.IsMembershipSuspended
-								),
-								item.UserId
-							)
-							: null;
-					},
-					applyFilter: (q, val, isAsc) => {
-						if (val is null) {
-							return q;
-						}
-						var (statusRank, id) =
-							((int, Guid))val;
-						// Keep this expression EF-translatable; do not call GetTenantStatus() here.
-						return isAsc
-							? q.Where(x =>
-								(x.User.Status == UserStatus.Suspended
-									? 2
-									: x.Status == AccountStatus.Suspended
-										? 1
-										: 0) > statusRank
-								|| (((x.User.Status == UserStatus.Suspended
-										? 2
-										: x.Status == AccountStatus.Suspended
-											? 1
-											: 0)
-										== statusRank)
-									&& x.UserId > id))
-							: q.Where(x =>
-								(x.User.Status == UserStatus.Suspended
-									? 2
-									: x.Status == AccountStatus.Suspended
-										? 1
-										: 0) < statusRank
-								|| (((x.User.Status == UserStatus.Suspended
-										? 2
-										: x.Status == AccountStatus.Suspended
-											? 1
-											: 0)
-										== statusRank)
-									&& x.UserId < id));
-					},
-					// Same EF-translatable rank expression as applyFilter for stable keyset pagination.
-					applyOrdering: (q, isAsc) => isAsc
-						? q.OrderBy(
-							x => x.User.Status == UserStatus.Suspended
-								? 2
-								: x.Status == AccountStatus.Suspended
-									? 1
-									: 0
-						).ThenBy(x => x.UserId)
-						: q.OrderByDescending(
-							x => x.User.Status == UserStatus.Suspended
-								? 2
-								: x.Status == AccountStatus.Suspended
-									? 1
-									: 0
-						).ThenByDescending(
-							x => x.UserId
-						)
-				),
-
-				["level"] = new CursorSortFieldHandler<UserAccount>(
-					getCursorValue: async (guid) => {
-						var item = await (
-							from x in _dbContext.UserAccount.AsNoTracking()
-							where x.UserId == guid
-								&& x.TenantId == tenantId
-								&& x.Scope
-									== AccountScope.Tenant
-							select new {
-								x.Level,
-								x.UserId,
-							}
-						).FirstOrDefaultAsync(
-							cancellationToken
-						);
-						return item is not null
-							? (item.Level, item.UserId)
-							: null;
-					},
-					applyFilter: (q, val, isAsc) => {
-						if (val is null) {
-							return q;
-						}
-						var (level, id) =
-							((AccountLevel, Guid))val;
-						return isAsc
-							? q.Where(x =>
-								x.Level > level
-								|| (x.Level == level
-									&& x.UserId > id))
-							: q.Where(x =>
-								x.Level < level
-								|| (x.Level == level
-									&& x.UserId < id));
-					},
-					applyOrdering: (q, isAsc) => isAsc
-						? q.OrderBy(
-							x => x.Level
-						).ThenBy(x => x.UserId)
-						: q.OrderByDescending(
-							x => x.Level
-						).ThenByDescending(
-							x => x.UserId
-						)
-				),
-
-				["created_at"] = new CursorSortFieldHandler<UserAccount>(
-					getCursorValue: async (guid) => {
-						var item = await (
-							from x in _dbContext.UserAccount.AsNoTracking()
-							where x.UserId == guid
-								&& x.TenantId == tenantId
-								&& x.Scope
-									== AccountScope.Tenant
-							select new {
-								x.User.CreatedAt,
-								x.UserId,
-							}
-						).FirstOrDefaultAsync(
-							cancellationToken
-						);
-						return item is not null
-							? (item.CreatedAt, item.UserId)
-							: null;
-					},
-					applyFilter: (q, val, isAsc) => {
-						if (val is null) {
-							return q;
-						}
-						var (createdAt, id) =
-							((DateTime, Guid))val;
-						return isAsc
-							? q.Where(x =>
-								x.User.CreatedAt
-									> createdAt
-								|| (x.User.CreatedAt
-										== createdAt
-									&& x.UserId > id))
-							: q.Where(x =>
-								x.User.CreatedAt
-									< createdAt
-								|| (x.User.CreatedAt
-										== createdAt
-									&& x.UserId < id));
-					},
-					applyOrdering: (q, isAsc) => isAsc
-						? q.OrderBy(
-							x => x.User.CreatedAt
-						).ThenBy(x => x.UserId)
-						: q.OrderByDescending(
-							x => x.User.CreatedAt
-						).ThenByDescending(
-							x => x.UserId
-						)
-				),
-			};
+			["id"] = CursorSortFieldHandlerFactory.Create<UserAccount, Guid, Guid>(
+				cursorLookupQuery: () => _dbContext.UserAccount
+					.AsNoTracking()
+					.Where(x => x.TenantId == tenantId
+						&& x.Scope == AccountScope.Tenant),
+				keySelector: x => x.UserId,
+				idSelector: x => x.UserId,
+				cancellationToken
+			),
+			["email"] = CursorSortFieldHandlerFactory.Create<UserAccount, string, Guid>(
+				cursorLookupQuery: () => _dbContext.UserAccount
+					.AsNoTracking()
+					.Where(x => x.TenantId == tenantId
+						&& x.Scope == AccountScope.Tenant),
+				keySelector: x => x.User.Email,
+				idSelector: x => x.UserId,
+				cancellationToken
+			),
+			["status"] = CursorSortFieldHandlerFactory.Create<UserAccount, int, Guid>(
+				cursorLookupQuery: () => _dbContext.UserAccount
+					.AsNoTracking()
+					.Where(x => x.TenantId == tenantId
+						&& x.Scope == AccountScope.Tenant),
+				keySelector: x => x.User.Status == UserStatus.Suspended ? 2 : x.Status == AccountStatus.Suspended ? 1 : 0,
+				idSelector: x => x.UserId,
+				cancellationToken
+			),
+			["level"] = CursorSortFieldHandlerFactory.Create<UserAccount, AccountLevel, Guid>(
+				cursorLookupQuery: () => _dbContext.UserAccount
+					.AsNoTracking()
+					.Where(x => x.TenantId == tenantId
+						&& x.Scope == AccountScope.Tenant),
+				keySelector: x => x.Level,
+				idSelector: x => x.UserId,
+				cancellationToken
+			),
+			["created_at"] = CursorSortFieldHandlerFactory.Create<UserAccount, DateTime, Guid>(
+				cursorLookupQuery: () => _dbContext.UserAccount
+					.AsNoTracking()
+					.Where(x => x.TenantId == tenantId
+						&& x.Scope == AccountScope.Tenant),
+				keySelector: x => x.User.CreatedAt,
+				idSelector: x => x.UserId,
+				cancellationToken
+			),
+		};
 
 		if (
 			!sortFieldHandlers.TryGetValue(

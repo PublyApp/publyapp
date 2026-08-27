@@ -32,12 +32,12 @@
 	{
 		"convention": "data-honesty-ignore",
 		"file": "src/routes/authed/staff/tenants/$tenantId/_tenant-activity-columns.tsx",
-		"reason": "a deleted user's identity is genuinely absent, so the no-value dash is not fabricated identity data"
+		"reason": "a hard-deleted user has no surviving row (orphaned FK), so the no-value dash is not fabricated identity data"
 	},
 	{
 		"convention": "data-honesty-ignore",
 		"file": "src/routes/authed/staff/tenants/$tenantId/_tenant-activity-columns.tsx",
-		"reason": "a deleted user's identity is genuinely absent, so the no-value dash is not fabricated identity data"
+		"reason": "a hard-deleted user has no surviving row (orphaned FK), so the no-value dash is not fabricated identity data"
 	},
 	{
 		"convention": "data-honesty-ignore",

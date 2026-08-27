@@ -126,53 +126,14 @@ public class AuditLogQueryService : IAuditLogQueryService {
 			new Dictionary<string, CursorSortFieldHandler<AuditLog>>(
 				StringComparer.OrdinalIgnoreCase
 			) {
-				["created_at"] = new CursorSortFieldHandler<AuditLog>(
-				getCursorValue: async (guid) => {
-					var log = await (
-						from auditLog in _dbContext.AuditLog
-							.AsNoTracking()
-						where auditLog.Id == guid
-							&& !auditLog.IsDeleted
-						select new {
-							auditLog.CreatedAt,
-							auditLog.Id
-						}
-					).FirstOrDefaultAsync(
-						cancellationToken
-					);
-					return log is not null
-						? (log.CreatedAt, log.Id)
-						: null;
-				},
-				applyFilter: (q, cursorValue, isAsc) => {
-					if (cursorValue is null) {
-						return q;
-					}
-					var (cursorCreatedAt, cursorId) =
-						((DateTime, Guid?))cursorValue;
-					return isAsc
-						? from auditLog in q
-							where auditLog.CreatedAt > cursorCreatedAt
-							|| (auditLog.CreatedAt
-								== cursorCreatedAt
-								&& auditLog.Id > cursorId)
-							select auditLog
-						: from auditLog in q
-							where auditLog.CreatedAt < cursorCreatedAt
-							|| (auditLog.CreatedAt
-								== cursorCreatedAt
-								&& auditLog.Id < cursorId)
-							select auditLog;
-				},
-				applyOrdering: (q, isAsc) => isAsc
-					? from auditLog in q
-						orderby auditLog.CreatedAt, auditLog.Id
-						select auditLog
-					: from auditLog in q
-						orderby auditLog.CreatedAt descending,
-							auditLog.Id descending
-						select auditLog
-			),
+				["created_at"] = CursorSortFieldHandlerFactory.Create<AuditLog, DateTime, Guid?>(
+					cursorLookupQuery: () => _dbContext.AuditLog
+						.AsNoTracking()
+						.Where(auditLog => !auditLog.IsDeleted),
+					keySelector: auditLog => auditLog.CreatedAt,
+					idSelector: auditLog => auditLog.Id,
+					cancellationToken
+				),
 			};
 
 		if (!sortFieldHandlers.TryGetValue(

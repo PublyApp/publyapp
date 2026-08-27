@@ -68,8 +68,24 @@ describe('getNewStaffUserSchema — email format and account-level constraints',
 		}
 	});
 
-	it('requires lastName (min(1) constraint)', () => {
+	it('rejects a missing lastName key (presence constraint)', () => {
 		const result = schema.safeParse({
+			email: 'jane@example.com',
+			accountLevel: 'User',
+		});
+		expect(result.success).toBe(false);
+		if (!result.success) {
+			const paths = result.error.issues.map((i) => i.path.join('.'));
+			expect(paths).toContain('lastName');
+		}
+	});
+
+	it('rejects a present-but-empty lastName (min(1) constraint)', () => {
+		// Distinct from the missing-key case above: here the key IS present,
+		// so presence passes and ONLY `min(1)` can bite. Sending `''` is exactly
+		// the user-input regression a relaxed `min(0)` would let through.
+		const result = schema.safeParse({
+			lastName: '',
 			email: 'jane@example.com',
 			accountLevel: 'User',
 		});
