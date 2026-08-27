@@ -20,11 +20,10 @@ const renderSortIcon = (
 		return <IconArrowsSort data-slot="table-sort-icon" />;
 	}
 
-	return tableSort.desc ? (
-		<IconArrowDown data-slot="table-sort-icon" />
-	) : (
-		<IconArrowUp data-slot="table-sort-icon" />
-	);
+	if (tableSort.desc) {
+		return <IconArrowDown data-slot="table-sort-icon" />;
+	}
+	return <IconArrowUp data-slot="table-sort-icon" />;
 };
 
 /** Select-all checkbox state for the header's leading selection cell. Omitted

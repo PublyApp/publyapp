@@ -111,7 +111,8 @@ export const normalizeOptionalUpdateString = (
 		return undefined;
 	}
 
-	return trimmed.length > 0 ? trimmed : null;
+	if (trimmed.length > 0) return trimmed;
+	return null;
 };
 
 /** Maps loaded tenant details onto the form's value shape. Every optional

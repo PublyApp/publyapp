@@ -15,6 +15,10 @@ const isIdentifier = (
 	node.type === 'Identifier' &&
 	node.name === name;
 
+const isBlockStatement = (
+	node: ESTree.Expression | ESTree.Statement,
+): node is ESTree.BlockStatement => node.type === 'BlockStatement';
+
 export const preferEarlyReturn = {
 	meta: {
 		type: 'problem' as const,
@@ -78,6 +82,9 @@ export const preferEarlyReturn = {
 			},
 			FunctionExpression(node) {
 				if (node.body) checkBodyStatements(node.body.body);
+			},
+			ArrowFunctionExpression(node) {
+				if (isBlockStatement(node.body)) checkBodyStatements(node.body.body);
 			},
 		};
 	},

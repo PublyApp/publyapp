@@ -140,7 +140,8 @@ export const mapImportedRoleToAccountLevel = (
 	rawRole: string | undefined | null,
 ): ImportedMemberRole => {
 	const normalized = (rawRole ?? '').trim().toLowerCase();
-	return normalized === 'admin' || normalized === 'owner' ? 'Admin' : 'User';
+	if (normalized === 'admin' || normalized === 'owner') return 'Admin';
+	return 'User';
 };
 
 /** Dedupes parsed rows against each other and against `existingEmails`

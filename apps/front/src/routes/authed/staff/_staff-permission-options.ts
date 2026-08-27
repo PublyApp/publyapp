@@ -15,7 +15,8 @@ const normalizeOptionalString = (value: unknown): string | undefined => {
 	}
 
 	const trimmed = value.trim();
-	return trimmed.length > 0 ? trimmed : undefined;
+	if (trimmed.length > 0) return trimmed;
+	return undefined;
 };
 
 const formatModuleLabel = (moduleKey: string): string =>
@@ -40,7 +41,8 @@ const buildPermissionDescription = (
 		segments.push(description);
 	}
 
-	return segments.length > 0 ? segments.join(' • ') : undefined;
+	if (segments.length > 0) return segments.join(' • ');
+	return undefined;
 };
 
 // Extracted from the create-form route so the route file stays

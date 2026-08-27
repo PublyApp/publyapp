@@ -79,7 +79,8 @@ export const classifyBadResponse = (status: number): BadResponseDisposition => {
 		return 'drop';
 	}
 
-	return status >= 500 ? 'error' : 'debug';
+	if (status >= 500) return 'error';
+	return 'debug';
 };
 
 let analyticsClient: IsoAnalytics | undefined;

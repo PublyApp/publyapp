@@ -6737,7 +6737,8 @@ const classifyObjectLiteralReference = (
 			}
 		}
 	}
-	return anyUnresolved ? 'unresolved' : 'does-not-reference';
+	if (anyUnresolved) return 'unresolved';
+	return 'does-not-reference';
 };
 
 /**
@@ -6765,7 +6766,8 @@ const classifyArrayLiteralReference = (
 			anyUnresolved = true;
 		}
 	}
-	return anyUnresolved ? 'unresolved' : 'does-not-reference';
+	if (anyUnresolved) return 'unresolved';
+	return 'does-not-reference';
 };
 
 /**
@@ -9671,7 +9673,8 @@ const stripTailwindVariants = (token: string): string => {
 			lastSeparator = index;
 		}
 	}
-	return lastSeparator === -1 ? token : token.slice(lastSeparator + 1);
+	if (lastSeparator === -1) return token;
+	return token.slice(lastSeparator + 1);
 };
 
 /**

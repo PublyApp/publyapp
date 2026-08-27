@@ -41,7 +41,8 @@ const normalizeString = (value: unknown): string | undefined => {
 	}
 
 	const trimmed = value.trim();
-	return trimmed.length > 0 ? trimmed : undefined;
+	if (trimmed.length > 0) return trimmed;
+	return undefined;
 };
 
 const toSnakeLower = (value: string): string => {
@@ -55,9 +56,10 @@ export const normalizeInvitationStatus = (
 	value: string | null | undefined,
 ): InvitationDisplayStatus => {
 	const normalized = value ? toSnakeLower(value) : undefined;
-	return normalized && KNOWN_INVITATION_STATUS_SET.has(normalized)
-		? (normalized as KnownInvitationStatus)
-		: 'unknown';
+	if (normalized && KNOWN_INVITATION_STATUS_SET.has(normalized)) {
+		return normalized as KnownInvitationStatus;
+	}
+	return 'unknown';
 };
 
 export const parseInvitationStatusFilter = (
@@ -92,7 +94,8 @@ export const parseInvitationStatusFilter = (
 export const serializeInvitationStatusFilter = (
 	statuses: KnownInvitationStatus[],
 ): string | undefined => {
-	return statuses.length > 0 ? statuses.join(',') : undefined;
+	if (statuses.length > 0) return statuses.join(',');
+	return undefined;
 };
 
 export const parseInvitationAccountLevelFilter = (

@@ -49,7 +49,8 @@ export const auditActionKindLabel = (
 	kind: string,
 ): string => {
 	const key = auditActionKindTranslationKey(kind);
-	return key === undefined ? kind : t(key);
+	if (key === undefined) return kind;
+	return t(key);
 };
 
 export const categorizeAuditAction = (

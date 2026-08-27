@@ -257,7 +257,8 @@ const normalizeString = (
 	}
 
 	const trimmed = value.trim();
-	return trimmed.length > 0 ? trimmed : undefined;
+	if (trimmed.length > 0) return trimmed;
+	return undefined;
 };
 
 const normalizeNullableString = (
@@ -278,7 +279,8 @@ const normalizeUnknownString = (value: unknown): string | undefined => {
 	}
 
 	const trimmed = value.trim();
-	return trimmed.length > 0 ? trimmed : undefined;
+	if (trimmed.length > 0) return trimmed;
+	return undefined;
 };
 
 const isRecord = (value: unknown): value is Record<string, unknown> => {
@@ -345,12 +347,14 @@ export const buildStaffTenantPermissionGroupColumns = (
 	);
 	const leftGroups = TENANT_PERMISSION_LEFT_COLUMN_FLOW.flatMap((moduleKey) => {
 		const group = groupByModuleKey.get(moduleKey);
-		return group ? [group] : [];
+		if (group) return [group];
+		return [];
 	});
 	const rightGroups = TENANT_PERMISSION_RIGHT_COLUMN_FLOW.flatMap(
 		(moduleKey) => {
 			const group = groupByModuleKey.get(moduleKey);
-			return group ? [group] : [];
+			if (group) return [group];
+			return [];
 		},
 	);
 

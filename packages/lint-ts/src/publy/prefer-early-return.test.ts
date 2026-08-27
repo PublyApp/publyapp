@@ -11,10 +11,11 @@
  *   at the same rule object exported from the rule module.
  * - `valid`: ternaries in argument/property position, ternaries assigned to
  *   a variable that is NOT immediately returned, ternaries in nested
- *   expressions — must NOT fire.
+ *   expressions, arrow function expression bodies — must NOT fire.
  * - `invalid`: `return a ? b : c;` (direct return),
- *   `const x = a ? b : c; return x;` (assigned then returned), and
- *   `() => (cond ? a : b)` (arrow with expression body) — each report with
+ *   `const x = a ? b : c; return x;` (assigned then returned),
+ *   `() => { return cond ? a : b; }` (arrow with block body returning ternary),
+ *   and `() => { const x = cond ? a : b; return x; }` (arrow with block body assigned then returned) — each report with
  *   `messageId: 'preferEarlyReturn'`.
  */
 import assert from 'node:assert/strict';
@@ -71,8 +72,6 @@ const runCases = (rule: typeof preferEarlyReturn, label: string) => {
 				v('function f() { return (cond ? a : b) + 1; }'),
 				// Arrow function with expression body — out of scope.
 				v('const f = () => (cond ? a : b);'),
-				// Arrow function with block body — out of scope.
-				v('const f = () => { return cond ? a : b; }'),
 				// Arrow function used as a callback — out of scope.
 				v('fn((x) => (x ? a : b));'),
 			],
@@ -89,6 +88,10 @@ const runCases = (rule: typeof preferEarlyReturn, label: string) => {
 				i('const f = function() { return cond ? a : b; }'),
 				// Anonymous function expression assigned then returned.
 				i('const f = function() { const x = cond ? a : b;\nreturn x; }'),
+				// Arrow function with block body returning a ternary.
+				i('const f = () => { return cond ? a : b; }'),
+				// Arrow function with block body assigned then returned.
+				i('const f = () => { const x = cond ? a : b;\nreturn x; }'),
 			],
 		});
 	});

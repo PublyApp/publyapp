@@ -157,7 +157,8 @@ const resolveBranchKind = (
 	}
 
 	if (authState.status === 'anonymous') {
-		return loaderData.userExists ? 'existing-signed-out' : 'new-user';
+		if (loaderData.userExists) return 'existing-signed-out';
+		return 'new-user';
 	}
 
 	if (authState.status === 'auth-lookup-error') {
@@ -168,7 +169,8 @@ const resolveBranchKind = (
 		authState.email.trim().toLowerCase() ===
 		loaderData.email.trim().toLowerCase();
 
-	return emailMatches ? 'existing-match' : 'mismatch';
+	if (emailMatches) return 'existing-match';
+	return 'mismatch';
 };
 
 export type AcceptPayload =

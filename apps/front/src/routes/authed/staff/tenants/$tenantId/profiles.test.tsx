@@ -256,7 +256,8 @@ vi.mock('./profiles/_profile-form-drawer', () => ({
 			mocks.resetPageForm = () => methods.reset();
 		}
 		mocks.capturedOnSaved = onSaved;
-		return isOpen ? <div data-testid="profile-create-drawer-open" /> : null;
+		if (isOpen) return <div data-testid="profile-create-drawer-open" />;
+		return null;
 	},
 }));
 

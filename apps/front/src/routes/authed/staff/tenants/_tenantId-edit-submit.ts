@@ -114,5 +114,6 @@ export const resolvePreviewMaxUsers = (
 	persistedMaxUsers: number,
 ): number => {
 	const parsed = Number(watchedMaxUsers);
-	return Number.isFinite(parsed) && parsed > 0 ? parsed : persistedMaxUsers;
+	if (Number.isFinite(parsed) && parsed > 0) return parsed;
+	return persistedMaxUsers;
 };

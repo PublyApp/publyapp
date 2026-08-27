@@ -15,9 +15,8 @@ import duration from '@org/shared-ts/utils/duration.utils';
 
 const resolveLocaleFromCookie = (): SupportedLanguage => {
 	const localeFromCookie = getCookie(LOCALE_COOKIE_KEY);
-	return isSupportedLanguage(localeFromCookie)
-		? localeFromCookie
-		: FALLBACK_LANGUAGE;
+	if (isSupportedLanguage(localeFromCookie)) return localeFromCookie;
+	return FALLBACK_LANGUAGE;
 };
 
 const LoadI18nInputSchema = z.object({

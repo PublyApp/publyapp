@@ -293,9 +293,8 @@ const parseOklchColor = (raw: string, name: string): Rgba => {
 	];
 	const toSrgb = (channel: number): number => {
 		const clamped = Math.max(0, Math.min(1, channel));
-		return clamped <= 0.0031308
-			? 12.92 * clamped
-			: 1.055 * clamped ** (1 / 2.4) - 0.055;
+		if (clamped <= 0.0031308) return 12.92 * clamped;
+		return 1.055 * clamped ** (1 / 2.4) - 0.055;
 	};
 
 	return {
@@ -438,7 +437,8 @@ const compositedDrawerBackground = (theme: 'light' | 'dark'): Rgba => {
 const relativeLuminance = ({ r, g, b }: Rgba): number => {
 	const linearize = (channel: number): number => {
 		const value = channel / 255;
-		return value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4;
+		if (value <= 0.04045) return value / 12.92;
+		return ((value + 0.055) / 1.055) ** 2.4;
 	};
 
 	return 0.2126 * linearize(r) + 0.7152 * linearize(g) + 0.0722 * linearize(b);
@@ -700,7 +700,8 @@ const classNameValueOf = (initializer: Node | undefined): string | null => {
 		return null;
 	}
 	const constants = evaluateConstantStrings(expression);
-	return constants !== null && constants.length === 1 ? constants[0] : null;
+	if (constants !== null && constants.length === 1) return constants[0];
+	return null;
 };
 
 /** An inline `style` that sets `color` is invisible to the source model and
@@ -1244,7 +1245,8 @@ const rootIdentifierOf = (expression: Expression): string | null => {
 	while (node.getKind() === SyntaxKind.PropertyAccessExpression) {
 		node = (node as PropertyAccessExpression).getExpression();
 	}
-	return node.getKind() === SyntaxKind.Identifier ? node.getText() : null;
+	if (node.getKind() === SyntaxKind.Identifier) return node.getText();
+	return null;
 };
 
 /** Every identifier a binding node introduces — a plain name, or every
@@ -1982,7 +1984,8 @@ const escapeSequenceLength = (text: string, backslashIndex: number): number => {
 		}
 		return cursor - backslashIndex;
 	}
-	return cursor < text.length ? 2 : 1;
+	if (cursor < text.length) return 2;
+	return 1;
 };
 
 /** Splits an individual (comma-free) selector into its compound runs, on
@@ -2164,9 +2167,8 @@ const flattenSelector = (
 	if (parentSelector === null) {
 		return selector;
 	}
-	return selector.includes('&')
-		? selector.replace(/&/g, parentSelector)
-		: `${parentSelector} ${selector}`;
+	if (selector.includes('&')) return selector.replace(/&/g, parentSelector);
+	return `${parentSelector} ${selector}`;
 };
 
 /** The SUBJECT compounds of a (flattened) selector — the compound(s) that
@@ -3230,7 +3232,8 @@ const buildFabricatedChildVariants = (
 	utilities: string[],
 ): string[][] => {
 	const fabricated = probeChildrenFor(recorded, utilities);
-	return fabricated.length === 0 ? [[]] : [[], fabricated];
+	if (fabricated.length === 0) return [[]];
+	return [[], fabricated];
 };
 
 const probeChildrenFor = (

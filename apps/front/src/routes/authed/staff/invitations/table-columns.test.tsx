@@ -21,8 +21,8 @@ const mocks = vi.hoisted(() => ({
 vi.mock('react-i18next', () => ({
 	useTranslation: () => ({
 		t: (key: string) => {
-			const normalized = key.includes(':') ? key.split(':').at(-1)! : key;
-			return normalized;
+			if (key.includes(':')) return key.split(':').at(-1)!;
+			return key;
 		},
 	}),
 }));

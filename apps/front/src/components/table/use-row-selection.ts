@@ -11,9 +11,8 @@ export const pruneSelection = (
 	const visible = new Set(visibleRowIds);
 	const entries = Object.entries(selection).filter(([id]) => visible.has(id));
 
-	return entries.length === Object.keys(selection).length
-		? selection
-		: Object.fromEntries(entries);
+	if (entries.length === Object.keys(selection).length) return selection;
+	return Object.fromEntries(entries);
 };
 
 export const countSelected = (selection: RowSelectionMap): number =>
