@@ -66,4 +66,41 @@ public sealed class OpenTelemetryActivationGateSpec {
 			Environment.SetEnvironmentVariable(OtlpEndpointVariableName, previous);
 		}
 	}
+
+	[Fact]
+	public void ItShouldRegisterOpenTelemetryComponentsWhenTheOtlpEndpointVariableIsPresent() {
+		// The symmetric half of the negative gate above. The negative guard proves
+		// "nothing registers when the variable is absent" — but it is satisfied by code that
+		// NEVER registers anything. This spec proves the other half: with the variable
+		// PRESENT, the real post-configuration service collection carries the OpenTelemetry
+		// descriptors the SDK attaches. Pin the variable present (presence, not value, is the
+		// gate) and restore it, so the measurement is deterministic regardless of the
+		// surrounding shell/CI environment.
+		var previous = Environment.GetEnvironmentVariable(OtlpEndpointVariableName);
+		Environment.SetEnvironmentVariable(OtlpEndpointVariableName, "http://localhost:4317");
+		try {
+			var builder = Host.CreateApplicationBuilder();
+			builder.ConfigureOpenTelemetry();
+
+			// Measure the ACTUAL artifact: the post-configuration service collection must
+			// carry OpenTelemetry.* descriptors. Either the ServiceType or the
+			// ImplementationType carrying an OpenTelemetry.* namespace is sufficient
+			// evidence that the SDK was attached.
+			var registeredOtelComponents = builder.Services
+				.Where(descriptor =>
+					(descriptor.ServiceType?.FullName?
+						.StartsWith("OpenTelemetry.", StringComparison.Ordinal) ?? false)
+					|| (descriptor.ImplementationType?.FullName?
+						.StartsWith("OpenTelemetry.", StringComparison.Ordinal) ?? false))
+				.ToList();
+
+			registeredOtelComponents.Should().NotBeEmpty(
+				because: "with OTEL_EXPORTER_OTLP_ENDPOINT present, ConfigureOpenTelemetry() must " +
+				"attach the SDK, so the post-configuration service collection carries OpenTelemetry " +
+				"components. An empty collection here means the gate is broken in the other " +
+				"direction — the early return fires even when the variable is set.");
+		} finally {
+			Environment.SetEnvironmentVariable(OtlpEndpointVariableName, previous);
+		}
+	}
 }
