@@ -452,7 +452,7 @@ ci-spec-drift:
 # (via E2E_IMAGE_TAG, which is unique per run) so CI stacks never collide either.
 ci-e2e-front:
   @echo "=== [gate] front e2e (docker + playwright) ==="
-  @eval "$(node apps/front/scripts/e2e-compose-env.ts)" || { echo "Failed to derive e2e compose environment"; exit 1; }
+  @eval "$(node apps/front/scripts/e2e-compose-env.mts)" || { echo "Failed to derive e2e compose environment"; exit 1; }
   docker compose -f apps/front/docker-compose.test.yml down -v --remove-orphans
   docker compose -f apps/front/docker-compose.test.yml up -d --build --wait --wait-timeout 180
   pnpm --filter front exec playwright install chromium
