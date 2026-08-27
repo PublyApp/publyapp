@@ -262,8 +262,11 @@ public sealed class ReparsePointExclusionFileProviderSpec {
 	}
 
 	/// <summary>
-	/// #1669 — directory enumeration masks symlinked directories so their
-	/// (possibly external) contents do not surface in listings.
+	/// #1671 — directory enumeration masks symlinked directories so their
+	/// (possibly external) contents do not surface in listings, AND logs the
+	/// masking so the enumeration path is as observable as the GetFileInfo path.
+	/// Guards against a mutation that removes logging from the enumeration path
+	/// entirely.
 	/// </summary>
 	[Fact]
 	public void ItShouldMaskSymlinkedDirectoriesInEnumeration() {
@@ -293,6 +296,19 @@ public sealed class ReparsePointExclusionFileProviderSpec {
 			var names = contents.Select(e => e.Name).ToList();
 			names.Should().Contain("real-dir", "the real directory is not a reparse point");
 			names.Should().NotContain("sym-dir", "a symlinked directory must be masked in listings");
+
+			// The enumeration path must log the masking just as the GetFileInfo
+			// path does — without this, removing logging from GetDirectoryContents
+			// entirely would go undetected.
+			capturingLogger.Records.Should()
+				.ContainSingle("masking a directory entry in enumeration should emit one log")
+				.Which.Level.Should().Be(LogLevel.Warning);
+
+			var record = capturingLogger.Records[0];
+			record.Structured.Should().ContainKey("Subpath");
+			record.Structured["Subpath"]!.Should().Be("");
+			record.Structured.Should().ContainKey("Entry");
+			record.Structured["Entry"]!.Should().Be("sym-dir");
 		} finally {
 			try { Directory.Delete(tempRoot, true); } catch { }
 		}
