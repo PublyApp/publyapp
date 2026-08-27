@@ -98,7 +98,7 @@ const resetKeysSignature = (resetKeys: readonly unknown[]): string =>
  * unchanged and the hook re-clamps from the still-stale `pageIndex` — stranding
  * the reader on a non-zero page instead of page 0. The three real callers all
  * commit (adjust-state-while-rendering); see `offset-pagination.test.ts`
- * (`#1613`) for the negligent-caller test that pins this exact loss.
+ * for the negligent-caller test that pins this exact loss.
  */
 export const useOffsetPageClamp = ({
 	pageIndex,
