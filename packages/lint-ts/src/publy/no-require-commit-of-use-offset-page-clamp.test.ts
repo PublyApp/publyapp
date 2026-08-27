@@ -277,3 +277,165 @@ const runCases = (rule, label) => {
 
 runCases(noRequireCommitOfUseOffsetPageClamp, 'via direct import');
 runCases(plugin.rules[RULE_NAME], 'via plugin index export');
+
+// -- Named proof tests (brief-r3: 5 flagged + 3 not flagged) -------------------
+// Uses RuleTester at the suite level (required by oxlint's harness). Each
+// case is a separate entry in the valid/invalid arrays, producing 8 named
+// tests (5 invalid + 3 valid) that the brief requires.
+describe('publy/require-commit-of-use-offset-page-clamp (named proof tests)', () => {
+	const tester = new RuleTester();
+
+	// 5 cases that MUST be flagged (false negatives the old heuristic missed)
+	const invalidCases = [
+		// #1: setTimeout(clamped, 100) — clamped is first arg to a global setter
+		{
+			code: [
+				HOOK_IMPORT,
+				'function Comp({ pageIndex }) {',
+				'  const clamped = useOffsetPageClamp({',
+				'    pageIndex,',
+				'    size: 20,',
+				'    count: 100,',
+				'    resetKeys: ["a"],',
+				'  });',
+				'  setTimeout(clamped, 100);',
+				'  return null;',
+				'}',
+			].join('\n'),
+			filename: 'apps/front/src/routes/some-page.tsx',
+			errors: [{ messageId: 'notCommitted' }],
+		},
+		// #2: setInterval(clamped, 100) — clamped is first arg to a global setter
+		{
+			code: [
+				HOOK_IMPORT,
+				'function Comp({ pageIndex }) {',
+				'  const clamped = useOffsetPageClamp({',
+				'    pageIndex,',
+				'    size: 20,',
+				'    count: 100,',
+				'    resetKeys: ["a"],',
+				'  });',
+				'  setInterval(clamped, 100);',
+				'  return null;',
+				'}',
+			].join('\n'),
+			filename: 'apps/front/src/routes/some-page.tsx',
+			errors: [{ messageId: 'notCommitted' }],
+		},
+		// #3: setCookie(clamped, value) — clamped is first arg to a global setter
+		{
+			code: [
+				HOOK_IMPORT,
+				'function Comp({ pageIndex }) {',
+				'  const clamped = useOffsetPageClamp({',
+				'    pageIndex,',
+				'    size: 20,',
+				'    count: 100,',
+				'    resetKeys: ["a"],',
+				'  });',
+				'  setCookie(clamped, "value");',
+				'  return null;',
+				'}',
+			].join('\n'),
+			filename: 'apps/front/src/routes/some-page.tsx',
+			errors: [{ messageId: 'notCommitted' }],
+		},
+		// #4: setDomainName(clamped) — clamped is first arg to a global setter
+		{
+			code: [
+				HOOK_IMPORT,
+				'function Comp({ pageIndex }) {',
+				'  const clamped = useOffsetPageClamp({',
+				'    pageIndex,',
+				'    size: 20,',
+				'    count: 100,',
+				'    resetKeys: ["a"],',
+				'  });',
+				'  setDomainName(clamped);',
+				'  return null;',
+				'}',
+			].join('\n'),
+			filename: 'apps/front/src/routes/some-page.tsx',
+			errors: [{ messageId: 'notCommitted' }],
+		},
+		// #5: setImmediate(clamped) — clamped is first arg to a global setter
+		{
+			code: [
+				HOOK_IMPORT,
+				'function Comp({ pageIndex }) {',
+				'  const clamped = useOffsetPageClamp({',
+				'    pageIndex,',
+				'    size: 20,',
+				'    count: 100,',
+				'    resetKeys: ["a"],',
+				'  });',
+				'  setImmediate(clamped);',
+				'  return null;',
+				'}',
+			].join('\n'),
+			filename: 'apps/front/src/routes/some-page.tsx',
+			errors: [{ messageId: 'notCommitted' }],
+		},
+	];
+
+	// 3 cases that MUST NOT be flagged (false positives the old rule raised)
+	const validCases = [
+		// #1: setPageIndex(prev => clamped) — functional update
+		{
+			code: [
+				HOOK_IMPORT,
+				'function Comp({ pageIndex, setPageIndex }) {',
+				'  const clamped = useOffsetPageClamp({',
+				'    pageIndex,',
+				'    size: 20,',
+				'    count: 100,',
+				'    resetKeys: ["a"],',
+				'  });',
+				'  setPageIndex(prev => clamped);',
+				'  return null;',
+				'}',
+			].join('\n'),
+			filename: 'apps/front/src/routes/some-page.tsx',
+		},
+		// #2: setPageIndex(clamped ?? 1) — nullish coalescing
+		{
+			code: [
+				HOOK_IMPORT,
+				'function Comp({ pageIndex, setPageIndex }) {',
+				'  const clamped = useOffsetPageClamp({',
+				'    pageIndex,',
+				'    size: 20,',
+				'    count: 100,',
+				'    resetKeys: ["a"],',
+				'  });',
+				'  setPageIndex(clamped ?? 1);',
+				'  return null;',
+				'}',
+			].join('\n'),
+			filename: 'apps/front/src/routes/some-page.tsx',
+		},
+		// #3: setPageIndex(Number(clamped)) — Number wrapper
+		{
+			code: [
+				HOOK_IMPORT,
+				'function Comp({ pageIndex, setPageIndex }) {',
+				'  const clamped = useOffsetPageClamp({',
+				'    pageIndex,',
+				'    size: 20,',
+				'    count: 100,',
+				'    resetKeys: ["a"],',
+				'  });',
+				'  setPageIndex(Number(clamped));',
+				'  return null;',
+				'}',
+			].join('\n'),
+			filename: 'apps/front/src/routes/some-page.tsx',
+		},
+	];
+
+	tester.run(RULE_NAME, noRequireCommitOfUseOffsetPageClamp, {
+		valid: validCases,
+		invalid: invalidCases,
+	});
+});
