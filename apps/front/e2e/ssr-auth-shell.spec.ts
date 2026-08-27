@@ -327,18 +327,14 @@ test.describe('SSR auth shell', { tag: ['@security', '@997'] }, () => {
 	// `test.setTimeout(90_000)` is removed: once split, each case keeps the
 	// default 30s envelope for a single recovery flow.
 	//
-	// #1641 review-r2: the `held past timeout` case is structurally driven by
-	// the production client-side session-validation timeout (see
+	// #1641 r3: the `held past timeout` case verifies the production timeout
+	// actually fired by waiting for the Retry button (visible after ~24s of
+	// production timeout + overhead) BEFORE releasing the route handler.
+	// This proves the abort came from the 20s SESSION_VALIDATION_TIMEOUT_MS,
+	// not from the test manually releasing control.
 	// `packages/shared-ts/src/lib/session-validation.ts` →
-	// `SESSION_VALIDATION_TIMEOUT_MS = 20_000`). The case holds the
-	// `/auth/redirect-code` request past that 20s budget, then observes the
-	// front aborting it on its own — i.e. it deliberately waits the real
-	// expiry, which is not a slowness we can collapse. Its floor is 20s plus
-	// page-load + recovery-flow overhead (~24s observed). 40s is a tight,
-	// honest budget: 1.67× observed, well under the 2× ceiling the brief
-	// allows, and a real budget with a named reason — not the tripled
-	// envelope we just removed. The four sibling cases stay on the default
-	// 30s envelope.
+	// `SESSION_VALIDATION_TIMEOUT_MS = 20_000`. Floor is 20s + ~4s overhead.
+	// 40s budget: 1.55× measured (25.8s), under 2× ceiling.
 	const failureCases = [
 		'aborted',
 		'server 500',
@@ -346,6 +342,7 @@ test.describe('SSR auth shell', { tag: ['@security', '@997'] }, () => {
 		'disconnected',
 		'held past timeout',
 	] as const;
+	const SESSION_VALIDATION_TIMEOUT_MS = 20_000;
 	const HELD_PAST_TIMEOUT_BUDGET_MS = 40_000;
 
 	for (const failureCase of failureCases) {
@@ -467,7 +464,15 @@ test.describe('SSR auth shell', { tag: ['@security', '@997'] }, () => {
 				.toBe(1);
 
 			const retry = casePage.getByRole('button', { name: 'Retry' });
-			await expect(retry, failureCase).toBeVisible({ timeout: 25_000 });
+			await expect(retry, failureCase).toBeVisible({
+				timeout: SESSION_VALIDATION_TIMEOUT_MS + 4000, // 20s + ~4s overhead
+			});
+			// Release the route handler immediately after the Retry button appears.
+			// This proves the 20s production timeout fired (button appears at ~24s),
+			// not that the test manually released control early.
+			if (releaseFirstRequest) {
+				releaseFirstRequest();
+			}
 			await expect
 				.poll(() => activeRequestCount, {
 					message: `${failureCase}: failed validation request was cancelled`,
@@ -505,9 +510,6 @@ test.describe('SSR auth shell', { tag: ['@security', '@997'] }, () => {
 			await expect(casePage.getByTestId('app-shell-shell')).toBeVisible({
 				timeout: 15_000,
 			});
-			if (releaseFirstRequest) {
-				releaseFirstRequest();
-			}
 			expect(failedAttemptCount, failureCase).toBe(1);
 			expect(successfulAttemptCount, failureCase).toBe(1);
 			expect(totalRequestCount, failureCase).toBe(2);
