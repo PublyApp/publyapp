@@ -666,6 +666,11 @@
 			"mirror": "just ci-lint",
 			"reason": "ci-lint runs pnpm --filter @org/lint-ts test, the same vitest suite for the custom publy/* oxlint plugin rules that CI now runs after the lint step."
 		},
+		"quality-gate.yml::quality::Typecheck lint-ts": {
+			"hash": "784fa13a651b3079",
+			"mirror": "just ci-lint-ts",
+			"reason": "ci-lint-ts runs the identical pnpm --filter @org/lint-ts typecheck (tsc --noEmit) that this step runs. The package ships the repo's custom publy/* oxlint rules that guard every front surface, but nothing verified its own types — only its vitest tests ran (the step above). See issue #1600."
+		},
 		"quality-gate.yml::quality::Knip (unused exports & dependencies)": {
 			"hash": "f95d137295c78706",
 			"mirror": "just ci-knip",

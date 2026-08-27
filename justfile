@@ -391,6 +391,14 @@ ci-shared-ts:
   pnpm --filter @org/shared-ts typecheck
   pnpm --filter @org/shared-ts test
 
+# @org/lint-ts: typecheck (issue #1600). The package ships the repo's custom
+# publy/* oxlint rules that guard every front surface, but nothing verified
+# its own types — only its vitest tests ran (via ci-lint). The typecheck script
+# now runs here and in quality-gate.yml::quality, exactly as CI runs it.
+ci-lint-ts:
+  @echo "=== [gate] @org/lint-ts typecheck ==="
+  pnpm --filter @org/lint-ts typecheck
+
 # front: build, bundle guards, smoke start, typecheck, design system, unit tests
 ci-front:
   @echo "=== [gate] front build + checks ==="
@@ -457,7 +465,7 @@ ci-e2e-front:
 
 
 # Everyday pre-push gate (no e2e). Fails on the first red sub-gate.
-ci: ci-drift ci-migration-expand-contract ci-review-worktree-resolution ci-doc-links ci-project-closure-adapter ci-install ci-format ci-lint ci-knip ci-shared-ts ci-quality ci-front ci-spec-drift nuget-audit test-api
+ci: ci-drift ci-migration-expand-contract ci-review-worktree-resolution ci-doc-links ci-project-closure-adapter ci-install ci-format ci-lint ci-lint-ts ci-knip ci-shared-ts ci-quality ci-front ci-spec-drift nuget-audit test-api
   @echo ""
   @echo "=== just ci: PASSED ==="
   @echo "Not covered here: the two e2e suites (run 'just ci-full')."
