@@ -8,6 +8,7 @@ import {
 	getSecondaryPanelItems,
 	isSecondaryPanelItemActive,
 	shouldShowSecondaryPanel,
+	type AppRouteMetadata,
 } from './route-metadata';
 
 describe('front route metadata', () => {
@@ -415,6 +416,47 @@ describe('front route metadata', () => {
 					allowedPermissions: allowed,
 				}).map((i) => i.id),
 			).toEqual(['account', 'settings']);
+		});
+	});
+
+	// Lane #1633 — the visibility filter must consult `visibility`, never the
+	// length of `requiredPermissions`. A coherent dataset (public ⇒ [],
+	// permission-gated ⇒ non-empty) cannot separate the two rules — both agree
+	// on it — which is exactly why the original 31 tests stayed green under the
+	// OLD rule. This guard feeds the ONE divergent entry the production type
+	// forbids but a runtime dataset can carry: a `public` entry that still lists
+	// a required permission. The OLD rule (`requiredPermissions.length === 0` ⇒
+	// visible) hides it; the CORRECT `visibility` rule keeps it visible. That is
+	// the missing separator. The dataset is smuggled past the discriminated union
+	// on purpose (an incoherent entry is inexpressible in production code), but
+	// it exercises the real `filterRailItemsByPermissions`.
+	describe('filter consults visibility, not requiredPermissions length (#1633)', () => {
+		const items = [
+			{ id: 'open', visibility: 'public', requiredPermissions: [] },
+			{
+				id: 'gated',
+				visibility: 'permission-gated',
+				requiredPermissions: ['tenant.posts.view'],
+			},
+			// Incoherent: declares public yet still carries a gate. The old
+			// length-based rule would treat the non-empty list as "gated" and hide
+			// it; the visibility rule keeps it visible. This is the divergence.
+			{
+				id: 'public-with-keys',
+				visibility: 'public',
+				requiredPermissions: ['tenant.posts.view'],
+			},
+		] as unknown as AppRouteMetadata[];
+
+		test('a public entry stays visible even when it still lists keys (rejects the length rule)', () => {
+			// No key in `items` is granted; only the visibility of each entry
+			// decides. Under the OLD rule the `public-with-keys` entry would be
+			// hidden (non-empty list) and the result would be ['open']; the
+			// visibility rule keeps it, yielding ['open', 'public-with-keys'].
+			const allowed = new Set<string>(['something.unrelated']);
+			expect(
+				filterRailItemsByPermissions(items, allowed).map((i) => i.id),
+			).toEqual(['open', 'public-with-keys']);
 		});
 	});
 
