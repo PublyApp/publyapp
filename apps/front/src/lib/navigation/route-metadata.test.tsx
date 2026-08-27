@@ -431,22 +431,30 @@ describe('front route metadata', () => {
 	// on purpose (an incoherent entry is inexpressible in production code), but
 	// it exercises the real `filterRailItemsByPermissions`.
 	describe('filter consults visibility, not requiredPermissions length (#1633)', () => {
-		const items = [
-			{ id: 'open', visibility: 'public', requiredPermissions: [] },
-			{
-				id: 'gated',
-				visibility: 'permission-gated',
-				requiredPermissions: ['tenant.posts.view'],
-			},
-			// Incoherent: declares public yet still carries a gate. The old
-			// length-based rule would treat the non-empty list as "gated" and hide
-			// it; the visibility rule keeps it visible. This is the divergence.
-			{
-				id: 'public-with-keys',
-				visibility: 'public',
-				requiredPermissions: ['tenant.posts.view'],
-			},
-		] as unknown as AppRouteMetadata[];
+		// The dataset is built as plain objects, then parsed at the boundary
+		// (JSON round-trip → unknown) so it can be asserted once into the
+		// production type. An incoherent entry (public + non-empty
+		// requiredPermissions) is inexpressible in normal code because of the
+		// discriminated union, so it can only enter through this parsed input —
+		// yet the test still exercises the real `filterRailItemsByPermissions`.
+		const items = JSON.parse(
+			JSON.stringify([
+				{ id: 'open', visibility: 'public', requiredPermissions: [] },
+				{
+					id: 'gated',
+					visibility: 'permission-gated',
+					requiredPermissions: ['tenant.posts.view'],
+				},
+				// Incoherent: declares public yet still carries a gate. The old
+				// length-based rule would treat the non-empty list as "gated" and hide
+				// it; the visibility rule keeps it visible. This is the divergence.
+				{
+					id: 'public-with-keys',
+					visibility: 'public',
+					requiredPermissions: ['tenant.posts.view'],
+				},
+			]),
+		) as AppRouteMetadata[];
 
 		test('a public entry stays visible even when it still lists keys (rejects the length rule)', () => {
 			// No key in `items` is granted; only the visibility of each entry
