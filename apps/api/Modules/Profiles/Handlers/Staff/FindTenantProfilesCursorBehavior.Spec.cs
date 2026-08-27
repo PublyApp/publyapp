@@ -105,6 +105,140 @@ public sealed class FindTenantProfilesCursorBehaviorSpec
 	}
 
 	[Fact]
+	public async Task ItShouldWalkEveryIdPageWithoutOverlapOrGap() {
+		var token = await _authClient.LoginAsStaffAdminAsync();
+		var tenantId = await GetTenantIdAsync();
+
+		// 3 profiles with distinct Id; the walk must visit each once in
+		// ascending Id order. A keySelector swap to another same-type field
+		// (e.g. Name) turns this assertion RED.
+		var seededIds = new List<Guid>();
+		for (var i = 0; i < 3; i++) {
+			var name = $"Id Walk {i} {Guid.NewGuid():N}";
+			seededIds.Add(await SeedTenantProfileWithNameAsync(tenantId, name));
+		}
+
+		var visitedIds = new List<Guid>();
+		string? cursor = null;
+		var pages = 0;
+		do {
+			var query = "limit=1&sort_id=id&sort_order=asc";
+			if (cursor is not null) {
+				query += $"&cursor={Uri.EscapeDataString(cursor)}";
+			}
+
+			using var request = new HttpRequestMessage(
+				HttpMethod.Get,
+				GetUrl(tenantId.ToString(), query)
+			).WithSessionToken(token);
+
+			using var response = await _http.SendAsync(request);
+			response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+			var page = await response.Content.ReadFromJsonAsync<FindTenantProfilesResponse>();
+			page.Should().NotBeNull();
+			Assert.NotNull(page);
+			pages++;
+			foreach (var item in page.Data) {
+				visitedIds.Add(item.Id);
+			}
+			cursor = page.NextCursor;
+
+			pages.Should().BeLessOrEqualTo(100);
+		} while (cursor is not null);
+
+		visitedIds.Should().OnlyHaveUniqueItems();
+		visitedIds.Should().Contain(seededIds);
+
+		var visitedOrder = visitedIds
+			.Where(seededIds.Contains)
+			.ToList();
+		var expectedOrder = seededIds.OrderBy(id => id).ToList();
+		visitedOrder.Should().Equal(expectedOrder);
+	}
+
+	[Fact]
+	public async Task ItShouldWalkEveryCreatedAtPageWithoutOverlapOrGap() {
+		var token = await _authClient.LoginAsStaffAdminAsync();
+		var tenantId = await GetTenantIdAsync();
+
+		// 3 profiles with distinct, deliberately NOT insertion-ordered
+		// CreatedAt (anti-correlated). The walk must visit each once in
+		// ascending CreatedAt order, not insertion order, so a
+		// keySelector swap to another same-type field (e.g. Name)
+		// turns this assertion RED.
+		var baseDate = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+		var seededIds = new List<Guid>();
+		var seededOrder = new List<DateTime>();
+		for (var i = 0; i < 3; i++) {
+			var createdAt = baseDate.AddDays((3 - i) % 3);
+			var id = await SeedTenantProfileAtAsync(tenantId, $"created-at-walk-{i}-{Guid.NewGuid():N}", createdAt);
+			seededIds.Add(id);
+			seededOrder.Add(createdAt);
+		}
+
+		var visitedIds = new List<Guid>();
+		string? cursor = null;
+		var pages = 0;
+		do {
+			var query = "limit=1&sort_id=created_at&sort_order=asc";
+			if (cursor is not null) {
+				query += $"&cursor={Uri.EscapeDataString(cursor)}";
+			}
+
+			using var request = new HttpRequestMessage(
+				HttpMethod.Get,
+				GetUrl(tenantId.ToString(), query)
+			).WithSessionToken(token);
+
+			using var response = await _http.SendAsync(request);
+			response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+			var page = await response.Content.ReadFromJsonAsync<FindTenantProfilesResponse>();
+			page.Should().NotBeNull();
+			Assert.NotNull(page);
+			pages++;
+			foreach (var item in page.Data) {
+				visitedIds.Add(item.Id);
+			}
+			cursor = page.NextCursor;
+
+			pages.Should().BeLessOrEqualTo(100);
+		} while (cursor is not null);
+
+		visitedIds.Should().OnlyHaveUniqueItems();
+		visitedIds.Should().Contain(seededIds);
+
+		var visitedOrder = visitedIds
+			.Where(seededIds.Contains)
+			.ToList();
+		var createdAtById = seededIds
+			.Zip(seededOrder, (id, c) => (id, c))
+			.ToDictionary(x => x.id, x => x.c);
+		visitedOrder.Should().Equal(
+			seededIds.OrderBy(id => createdAtById[id]).ToList()
+		);
+	}
+
+	private async Task<Guid> SeedTenantProfileAtAsync(Guid tenantId, string name, DateTime createdAt) {
+		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+		var profile = Profile.CreateTenantProfile(tenantId, name, isDefault: false);
+		await dbContext.Profile.AddAsync(profile);
+		await dbContext.SaveChangesAsync();
+
+		var id = profile.GetRequiredId();
+		var tracked = await dbContext.Profile
+			.Where(p => p.Id == id)
+			.FirstAsync();
+		tracked.CreatedAt = createdAt;
+		await dbContext.SaveChangesAsync();
+
+		return id;
+	}
+
+	[Fact]
 	public async Task ItShouldReturnBadRequestWhenCursorRecordIsMissing() {
 		var token = await _authClient.LoginAsStaffAdminAsync();
 		var tenantId = await GetTenantIdAsync();
