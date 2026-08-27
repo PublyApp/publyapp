@@ -325,3 +325,46 @@ test('scanTreeForSharedTsReExports labels findings with the tree label', () => {
 		`findings must be labelled with the tree, got ${JSON.stringify(findings.map((f) => f.file))}`,
 	);
 });
+
+// ---- #1678: every first segment that the package actually exposes must be recognised
+
+const TYPES_SPECIFIER = '@org/shared-ts/@types/foo';
+const SCRIPTS_SPECIFIER = '@org/shared-ts/scripts/generate-zod-i18n-map.mjs';
+
+test('RED: re-export of @org/shared-ts/@types/* is detected (#1678)', () => {
+	const root = makeSandbox();
+	writeFileSync(
+		path.join(root, 'front-src/lib/types-shim.ts'),
+		`export * from '${TYPES_SPECIFIER}';\n`,
+	);
+
+	const findings = scanFrontSrcForSharedTsReExports(path.join(root, 'front-src'));
+	const hit = findings.find((f) => f.file === 'apps/front/src/lib/types-shim.ts');
+	assert.ok(
+		hit,
+		`re-export of @org/shared-ts/@types/* must be detected, got ${JSON.stringify(findings)}`,
+	);
+	assert.ok(
+		hit.text.includes(TYPES_SPECIFIER),
+		`finding text should name the @types module: ${hit.text}`,
+	);
+});
+
+test('RED: re-export of @org/shared-ts/scripts/* is detected (#1678)', () => {
+	const root = makeSandbox();
+	writeFileSync(
+		path.join(root, 'front-src/lib/scripts-shim.ts'),
+		`export type { JsonElement } from '${SCRIPTS_SPECIFIER}';\n`,
+	);
+
+	const findings = scanFrontSrcForSharedTsReExports(path.join(root, 'front-src'));
+	const hit = findings.find((f) => f.file === 'apps/front/src/lib/scripts-shim.ts');
+	assert.ok(
+		hit,
+		`re-export of @org/shared-ts/scripts/* must be detected, got ${JSON.stringify(findings)}`,
+	);
+	assert.ok(
+		hit.text.includes(SCRIPTS_SPECIFIER),
+		`finding text should name the scripts module: ${hit.text}`,
+	);
+});
