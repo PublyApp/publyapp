@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using PublyApp.Api.Data.DbContext;
@@ -11,9 +12,11 @@ using PublyApp.Api.Data.DbContext;
 namespace PublyApp.Api.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260826123731_R2FailuresReleaseThePair")]
+    partial class R2FailuresReleaseThePair
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -1472,35 +1475,6 @@ namespace PublyApp.Api.Migrations
                     b.ToTable("publications", t =>
                         {
                             t.HasCheckConstraint("CK_Publication_Status", "status IN (10, 20, 30, 40, 50)");
-                        });
-                });
-
-            modelBuilder.Entity("PublyApp.Api.Modules.RateLimiting.Entities.RateLimitCounter", b =>
-                {
-                    b.Property<string>("PolicyName")
-                        .HasColumnType("text")
-                        .HasColumnName("policy_name");
-
-                    b.Property<string>("PartitionKeyHash")
-                        .HasColumnType("text")
-                        .HasColumnName("partition_key_hash");
-
-                    b.Property<DateTime>("WindowStartedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("window_started_at");
-
-                    b.Property<long>("PermitCount")
-                        .HasColumnType("bigint")
-                        .HasColumnName("permit_count");
-
-                    b.HasKey("PolicyName", "PartitionKeyHash", "WindowStartedAt");
-
-                    b.HasIndex("WindowStartedAt")
-                        .HasDatabaseName("ix_rate_limit_counters_window_started_at");
-
-                    b.ToTable("rate_limit_counters", t =>
-                        {
-                            t.HasCheckConstraint("CK_RateLimitCounters_PermitCount", "permit_count >= 0");
                         });
                 });
 

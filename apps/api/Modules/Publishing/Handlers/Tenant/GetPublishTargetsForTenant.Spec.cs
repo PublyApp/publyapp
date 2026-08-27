@@ -76,6 +76,59 @@ public sealed class GetPublishTargetsForTenantSpec : IClassFixture<ApiFixture> {
 		recent.Label.Should().Be(seeded.RecentHandle);
 	}
 
+	// Pins the composer contract the D2 front-e2e scenario depends on
+	// (tenant-posts-publish-now.spec.ts): the composer target list must contain
+	// an Active Acme Bluesky account. The e2e stack seeds that account through
+	// the (e2e-only, PUBLISHING_FAKE_PROVIDER-gated) SocialAccountSeeder; this
+	// spec owns its fixture so it does not depend on demo seeding running.
+	[Fact]
+	public async Task ItShouldListTheDemoSeededAcmeBlueskyAccountForATenantAdmin() {
+		var (_, token) = await LoginAsAcmeAdminAsync();
+		var acmeId = await GetAcmeIdAsync();
+		await SeedAcmeAccountAsync(acmeId);
+
+		using var response = await GetTargetsAsync(token, acmeId, null);
+
+		response.StatusCode.Should().Be(HttpStatusCode.OK);
+		var payload = await response.Content.ReadFromJsonAsync<TargetsPayload>();
+		Assert.NotNull(payload);
+		payload!.Items.Should()
+			.Contain(
+				target => target.Provider == "bluesky",
+				"the spec seeds one Active Acme Bluesky account so the composer's "
+					+ "publish-target list is never empty in test stacks"
+			);
+	}
+
+	// Pins the PERMISSION half of the D2 front-e2e contract: the scenario logs in
+	// as a NON-admin member and the composer's "Publish on" block renders only
+	// with tenant.socialaccounts.publish. The e2e stack grants that verb through
+	// the (e2e-only, PUBLISHING_FAKE_PROVIDER-gated) PublishingProfileSeeder and
+	// seeds the account through SocialAccountSeeder; this spec owns both fixtures
+	// (a member holding exactly the publish verb + one Active Acme account) so it
+	// does not depend on demo seeding running.
+	[Fact]
+	public async Task ItShouldListPublishTargetsForTheSeededNonAdminMember() {
+		var acmeId = await GetAcmeIdAsync();
+		await SeedAcmeAccountAsync(acmeId);
+		var (_, memberEmail) = await CreatePermittedUserAsync(
+			AppPermissions.Tenant.SocialAccounts.PUBLISH.Key
+		);
+		var token = await _authClient.LoginAsync(memberEmail, TestConstants.SeedPassword);
+
+		using var response = await GetTargetsAsync(token, acmeId, null);
+
+		response.StatusCode.Should().Be(
+			HttpStatusCode.OK,
+			"a member holding socialaccounts.publish may list publish targets"
+		);
+		var payload = await response.Content.ReadFromJsonAsync<TargetsPayload>();
+		Assert.NotNull(payload);
+		payload!.Items.Should().NotBeEmpty(
+			"the seeded Active account is a valid target for a permitted member"
+		);
+	}
+
 	[Fact]
 	public async Task ItShouldApplyTheVisibilityRuleWhenProjectIdIsProvided() {
 		var (tenantId, token) = await LoginAsAcmeAdminAsync();
@@ -281,6 +334,16 @@ public sealed class GetPublishTargetsForTenantSpec : IClassFixture<ApiFixture> {
 		Guid ForeignActiveId,
 		string RecentHandle
 	);
+
+	// Seeds one Active Acme Bluesky account (stands in for the e2e-only
+	// SocialAccountSeeder demo account, so this spec owns its fixture).
+	private async Task<Guid> SeedAcmeAccountAsync(Guid acmeId) {
+		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		return await SeedAccountAsync(
+			db, acmeId, "@publish-targets-demo.bsky.social", minutesAgo: 1
+		);
+	}
 
 	// Seeds three Active Acme accounts with pinned CreatedAt values (old, then
 	// everywhere-only, then recent), one NeedsReconnect Acme account, and one

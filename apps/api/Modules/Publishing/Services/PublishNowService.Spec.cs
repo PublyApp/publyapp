@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.Json;
 
 using FluentAssertions;
@@ -135,6 +136,187 @@ public sealed class PublishNowServiceSpec : IClassFixture<ApiFixture> {
 
 	private static async Task<int> TotalPublicationsAsync(AppDbContext db) {
 		return await db.Publication.CountAsync();
+	}
+
+	[Fact]
+	public async Task ItShouldTreatATerminalFailedRowAsNotLiveSoThePairIsReissuable() {
+		// Round-2 MEDIUM fix: a FAILED publication must not lock the (post, account)
+		// pair forever. The live check and the partial unique index both exclude
+		// terminal Failed rows, so re-issuing publish-now starts a FRESH attempt
+		// while the failed row stays as history.
+		using var db = await NewDbAsync();
+		var (tenantId, actorUserId) = await SeedTenantAsync(db);
+		var postId = await SeedPostAsync(db, tenantId, actorUserId);
+		var accountA = await SeedAccountAsync(db, tenantId);
+		var service = NewService(db, tenantId, actorUserId);
+
+		var first = await service.PublishNowAsync(
+			new PublishNowArgs(tenantId, postId, actorUserId, [accountA]),
+			CancellationToken.None
+		);
+		first.Should().BeOfType<PublishNowResult.Created>();
+
+		// Terminal failure through the ONLY legal status writer, mirroring the real
+		// delivery path: a row is InProgress while delivery runs, then Fails.
+		// MarkFailedAsync only accepts InProgress as a source, by design.
+		var publication = await db.Publication.SingleAsync(
+			p => p.PostId == postId && p.SocialAccountId == accountA
+		);
+		var transitions = new PublicationStatusTransitionService(db);
+		(await transitions.MarkInProgressAsync(
+			new MarkPublicationInProgressArgs(publication.GetRequiredId(), tenantId),
+			CancellationToken.None
+		)).Should().BeTrue();
+		(await transitions.MarkFailedAsync(
+			new MarkPublicationFailedArgs(
+				publication.GetRequiredId(),
+				tenantId,
+				"spec: provider returned 500"
+			),
+			CancellationToken.None
+		)).Should().BeTrue();
+
+		var second = await service.PublishNowAsync(
+			new PublishNowArgs(tenantId, postId, actorUserId, [accountA]),
+			CancellationToken.None
+		);
+		var created = second.Should().BeOfType<PublishNowResult.Created>().Subject;
+		created.PublicationIds.Should().HaveCount(1);
+
+		// The failed row remains as history; the fresh attempt adds exactly one new row.
+		var rows = await RowsForPostAsync(db, tenantId, postId);
+		rows.Should().HaveCount(2, "the failed row stays as history beside the new attempt");
+		rows.Count(p => p.Status == PublicationStatus.Failed).Should().Be(1);
+		rows.Count(p => p.Status == PublicationStatus.Scheduled).Should().Be(1);
+
+		var jobs = await JobRowsAsync(db, tenantId);
+		jobs.Should().HaveCount(2, "the fresh attempt enqueues its own delivery job");
+	}
+
+	[Fact]
+	public async Task ItShouldKeepAPublishedRowOccupyingThePairAgainstReissue() {
+		// Published rows keep occupying the pair: the remote record exists and a
+		// second delivery would double-post on the social network.
+		using var db = await NewDbAsync();
+		var (tenantId, actorUserId) = await SeedTenantAsync(db);
+		var postId = await SeedPostAsync(db, tenantId, actorUserId);
+		var accountA = await SeedAccountAsync(db, tenantId);
+		var service = NewService(db, tenantId, actorUserId);
+
+		var first = await service.PublishNowAsync(
+			new PublishNowArgs(tenantId, postId, actorUserId, [accountA]),
+			CancellationToken.None
+		);
+		first.Should().BeOfType<PublishNowResult.Created>();
+
+		var publication = await db.Publication.SingleAsync(
+			p => p.PostId == postId && p.SocialAccountId == accountA
+		);
+		var transitions = new PublicationStatusTransitionService(db);
+		(await transitions.MarkInProgressAsync(
+			new MarkPublicationInProgressArgs(publication.GetRequiredId(), tenantId),
+			CancellationToken.None
+		)).Should().BeTrue();
+		(await transitions.MarkPublishedAsync(
+			new MarkPublicationPublishedArgs(
+				publication.GetRequiredId(),
+				tenantId,
+				"at://spec/record",
+				"https://bsky.app/profile/spec/post/abc"
+			),
+			CancellationToken.None
+		)).Should().BeTrue();
+
+		var second = await service.PublishNowAsync(
+			new PublishNowArgs(tenantId, postId, actorUserId, [accountA]),
+			CancellationToken.None
+		);
+		second.Should().BeOfType<PublishNowResult.LivePublicationsExist>(
+			"a published row is live for the pair: the post is already out"
+		);
+	}
+
+	[Fact]
+	public async Task ItShouldTranslateALostUniqueIndexRaceIntoLivePublicationsExist() {
+		// Round-2 NOTE fix: the proactive check is query-then-act; two concurrent
+		// publish-now calls can both pass it. The partial unique index
+		// ux_publications_post_account is the authority - this spec pins that a lost
+		// race surfaces as the SAME structured outcome as the proactive check
+		// (LivePublicationsExist -> 422), never a raw DbUpdateException / 500.
+		using var db = await NewDbAsync();
+		var (tenantId, actorUserId) = await SeedTenantAsync(db);
+		var postId = await SeedPostAsync(db, tenantId, actorUserId);
+		var accountA = await SeedAccountAsync(db, tenantId);
+		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+		var connectionString = scope.ServiceProvider
+			.GetRequiredService<AppDbContext>()
+			.Database.GetConnectionString();
+
+		// Real two-connection race: the rival parks an UNCOMMITTED insert on the
+		// pair while the service passes its proactive check (the rival row is
+		// invisible under READ COMMITTED), then blocks on the unique index until
+		// the rival commits. The violation must surface structured.
+		await using var rivalConnection = new Npgsql.NpgsqlConnection(connectionString);
+		await rivalConnection.OpenAsync();
+		await using var rivalTx = await rivalConnection.BeginTransactionAsync();
+		var rivalOptions = new DbContextOptionsBuilder<AppDbContext>()
+			.UseNpgsql(rivalConnection)
+			.Options;
+		await using (var rivalContext = new AppDbContext(rivalOptions)) {
+			rivalContext.Database.UseTransaction(rivalTx);
+			rivalContext.Publication.Add(new Publication {
+				TenantId = tenantId,
+				PostId = postId,
+				SocialAccountId = accountA,
+				ScheduledAtUtc = DateTime.UtcNow,
+				ScheduledTimeZone = "Etc/UTC",
+				IdempotencyKey = $"race-{Guid.NewGuid():N}",
+			});
+			await rivalContext.SaveChangesAsync();
+		}
+
+		var service = NewService(db, tenantId, actorUserId);
+		var racedTask = service.PublishNowAsync(
+			new PublishNowArgs(tenantId, postId, actorUserId, [accountA]),
+			CancellationToken.None
+		);
+
+		// Wait until the service insert is genuinely parked on the rival
+		// transaction before committing, so the 23505 path is deterministic.
+		await using var watcherConnection = new Npgsql.NpgsqlConnection(connectionString);
+		await watcherConnection.OpenAsync();
+		var deadline = DateTime.UtcNow.AddSeconds(30);
+		var sawBlockedBackend = false;
+		while (DateTime.UtcNow < deadline) {
+			await using var watchCommand = watcherConnection.CreateCommand();
+			watchCommand.CommandText =
+				"SELECT COUNT(*) FROM pg_stat_activity "
+				+ "WHERE state = 'active' AND wait_event_type = 'Lock' "
+				// Contended publications inserts only: a plain insert on an empty
+				// table never parks, so parallel-suite cross-talk stays noise-free.
+				+ "AND query ILIKE '%INSERT INTO publications%';";
+			var parked = Convert.ToInt32(
+				await watchCommand.ExecuteScalarAsync(),
+				CultureInfo.InvariantCulture
+			);
+			if (parked > 0) {
+				sawBlockedBackend = true;
+				break;
+			}
+			await Task.Delay(100);
+		}
+		sawBlockedBackend.Should()
+			.BeTrue("the service insert must block on the rival before the commit");
+
+		await rivalTx.CommitAsync();
+		var raced = await racedTask;
+
+		raced.Should().BeOfType<PublishNowResult.LivePublicationsExist>(
+			"the index is the authority when the proactive check races and loses"
+		);
+		var refusedIds = raced.Should()
+			.BeOfType<PublishNowResult.LivePublicationsExist>().Subject;
+		refusedIds.AccountIds.Should().BeEquivalentTo([accountA]);
 	}
 
 	[Fact]

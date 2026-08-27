@@ -16,6 +16,7 @@ using PublyApp.Api.Modules.AuditLogs.Entities;
 using PublyApp.Api.Modules.Auth.Utils;
 using PublyApp.Api.Modules.Posts.Entities;
 using PublyApp.Api.Modules.Profiles.Entities;
+using PublyApp.Api.Modules.Publishing.Entities;
 using PublyApp.Api.Modules.Publishing.Jobs;
 using PublyApp.Api.Modules.SocialAccounts.Entities;
 using PublyApp.Api.Modules.Users.Entities;
@@ -203,6 +204,47 @@ public sealed class PublishNowForTenantSpec : IClassFixture<ApiFixture> {
 		response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
 	}
 
+	// Pins the API-level path behind the D2 front-e2e acceptance scenario: a
+	// NON-admin member holding the publish verbs fires publish-now against an
+	// Active Acme Bluesky account and succeeds with exactly one Scheduled
+	// publication. The e2e stack seeds that account + profile through the
+	// (e2e-only, PUBLISHING_FAKE_PROVIDER-gated) demo seeders; this spec owns
+	// its own fixtures so it does not depend on demo seeding running.
+	[Fact]
+	public async Task ItShouldPublishNowForASeededNonAdminMemberAgainstTheDemoAccount() {
+		var (acmeId, memberEmail) = await CreatePermittedUserAsync(
+			AppPermissions.Tenant.Posts.VIEW.Key,
+			AppPermissions.Tenant.Posts.PUBLISH.Key,
+			AppPermissions.Tenant.SocialAccounts.PUBLISH.Key
+		);
+		var token = await _authClient.LoginAsync(memberEmail, TestConstants.SeedPassword);
+		var postId = await SeedAcmePostAsync();
+		var accountId = await SeedAcmeAccountAsync(acmeId);
+
+		using var response = await PublishNowAsync(
+			token,
+			acmeId,
+			postId,
+			new { accountIds = new[] { accountId.ToString() } }
+		);
+
+		response.StatusCode.Should().Be(
+			HttpStatusCode.OK,
+			"the non-admin member holds both publish verbs and the spec provisions an Active target"
+		);
+
+		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		var publications = await db.Publication
+			.Where(p => p.PostId == Guid.Parse(postId))
+			.Where(p => p.SocialAccountId == accountId)
+			.ToListAsync();
+		publications.Should().ContainSingle(
+			"publish-now schedules exactly one publication for the chosen pair"
+		);
+		publications[0].Status.Should().Be(PublicationStatus.Scheduled);
+	}
+
 	// ── helpers ────────────────────────────────────────────────────────
 
 	private async Task<HttpResponseMessage> PublishNowAsync(
@@ -339,6 +381,14 @@ public sealed class PublishNowForTenantSpec : IClassFixture<ApiFixture> {
 		var accountA = await SeedAccountAsync(db, tenant.GetRequiredId());
 		var accountB = await SeedAccountAsync(db, tenant.GetRequiredId());
 		return (accountA, accountB);
+	}
+
+	// The Active Acme Bluesky row this spec provisions (stands in for the
+	// e2e-only SocialAccountSeeder demo account, so the test owns its fixture).
+	private async Task<Guid> SeedAcmeAccountAsync(Guid acmeId) {
+		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		return await SeedAccountAsync(db, acmeId);
 	}
 
 	private static async Task<Guid> SeedAccountAsync(

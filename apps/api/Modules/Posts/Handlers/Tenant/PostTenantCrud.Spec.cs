@@ -12,7 +12,9 @@ using PublyApp.Api.Lib.ProblemResults;
 using PublyApp.Api.Lib.Testing.Fixtures;
 using PublyApp.Api.Lib.Testing.Helpers;
 using PublyApp.Api.Lib.Utils;
+using PublyApp.Api.Modules.Auth.Utils;
 using PublyApp.Api.Modules.Posts.Validation;
+using PublyApp.Api.Modules.Users.Entities;
 
 using Xunit;
 
@@ -279,9 +281,11 @@ public sealed class PostTenantCrudSpec : IClassFixture<ApiFixture> {
 		var postId = await CreatePostAsAcmeAdminAsync(
 			"view-permission " + Guid.NewGuid().ToString("N")[..8]
 		);
-		var acmeId = await GetAcmeIdAsync();
+		// Round 2: the seeded Acme member now holds publishing permissions via the
+		// demo profile; this view-denial pin uses a dedicated profile-less member.
+		var (acmeId, bareEmail) = await CreateBareAcmeMemberAsync();
 		var userToken = await _authClient.LoginAsync(
-			TestConstants.AcmeUserEmail,
+			bareEmail,
 			TestConstants.SeedPassword
 		);
 
@@ -365,9 +369,10 @@ public sealed class PostTenantCrudSpec : IClassFixture<ApiFixture> {
 	[Fact]
 	public async Task
 	ItShouldReturn403WithoutViewPermissionOnFind() {
-		var acmeId = await GetAcmeIdAsync();
+		// Round 2: same adaptation as the get pin above — a dedicated bare member.
+		var (acmeId, bareEmail) = await CreateBareAcmeMemberAsync();
 		var userToken = await _authClient.LoginAsync(
-			TestConstants.AcmeUserEmail,
+			bareEmail,
 			TestConstants.SeedPassword
 		);
 
@@ -669,6 +674,36 @@ public sealed class PostTenantCrudSpec : IClassFixture<ApiFixture> {
 			staffToken,
 			SeedConstants.Tenants.AcmeName
 		);
+	}
+
+	// Creates a bare Acme tenant member with NO profiles at all. Round 2 granted
+	// the seeded AcmeUserEmail member publishing permissions through the
+	// demo-publishing-acme profile, so permission-denial pins must not lean on
+	// that member's (now non-empty) derived permission set.
+	private async Task<(Guid TenantId, string Email)> CreateBareAcmeMemberAsync() {
+		var acmeId = await GetAcmeIdAsync();
+		var email = $"posts-crud-{Guid.NewGuid():N}@example.com";
+
+		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+		var user = new User {
+			Email = email,
+			Password = PasswordUtils.HashPassword(TestConstants.SeedPassword),
+			IsVerified = true,
+			Status = UserStatus.Active,
+		};
+		db.User.Add(user);
+		await db.SaveChangesAsync();
+
+		var account = UserAccount.CreateTenantAccount(
+			user.GetRequiredId(), acmeId, AccountLevel.User
+		);
+		account.ValidateAccountType();
+		db.UserAccount.Add(account);
+		await db.SaveChangesAsync();
+
+		return (acmeId, email);
 	}
 
 	private async Task<Guid> GetTenantIdByNameAsync(string name) {

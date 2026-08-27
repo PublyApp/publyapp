@@ -115,6 +115,30 @@ describe('PublishOnBlock', () => {
 		expect(container.innerHTML).toBe('');
 	});
 
+	test('stays rendered with the empty state when the targets query fails', () => {
+		// Round-2 pairing with the front-e2e root cause (PR #1457 round 1): a
+		// refused publish-targets call must NOT collapse the whole "Publish on"
+		// surface. With the demo seeding + fake provider the query succeeds, but
+		// if it ever fails again the block keeps its heading and shows the
+		// explicit empty state so the failure stays observable in the composer.
+		allowPermission(true);
+		mocks.useTargetsQuery.mockReturnValue({
+			data: undefined,
+			isPending: false,
+			isError: true,
+			error: new Error('publish targets refused'),
+			refetch: vi.fn(),
+			isFetching: false,
+		});
+
+		renderBlock();
+
+		expect(screen.getByTestId('tenant-posts-publish-on-block')).toBeTruthy();
+		expect(
+			screen.getByText('No connected profile to publish to yet.'),
+		).toBeTruthy();
+	});
+
 	test('renders one checked box per visible target', () => {
 		allowPermission(true);
 		stubTargets();

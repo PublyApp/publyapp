@@ -13,6 +13,7 @@ using PublyApp.Api.Lib.ProblemResults;
 using PublyApp.Api.Lib.Testing.Fixtures;
 using PublyApp.Api.Lib.Testing.Helpers;
 using PublyApp.Api.Lib.Utils;
+using PublyApp.Api.Modules.Auth.Utils;
 using PublyApp.Api.Modules.Profiles.Entities;
 using PublyApp.Api.Modules.Users.Entities;
 
@@ -49,6 +50,40 @@ public sealed class TenantPermissionFilterSpec
 		_fixture = fixture;
 		_http = fixture.HttpClient;
 		_authClient = new TestAuthClient(_http);
+	}
+
+	// Creates a bare Acme tenant member with NO profiles at all (round 2: the
+	// seeded AcmeUserEmail member gained publishing permissions via
+	// demo-publishing-acme, so empty-derived-permission proofs need a fresh one).
+	private async Task<(Guid TenantId, string Email)> CreateBareAcmeMemberAsync() {
+		var staffToken = await _authClient.LoginAsStaffAdminAsync();
+		var acmeId = await TenantTestHelper.GetTenantIdByNameAsync(
+			_http,
+			staffToken,
+			SeedConstants.Tenants.AcmeName
+		);
+		var email = $"perm-filter-{Guid.NewGuid():N}@example.com";
+
+		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+		var user = new User {
+			Email = email,
+			Password = PasswordUtils.HashPassword(TestConstants.SeedPassword),
+			IsVerified = true,
+			Status = UserStatus.Active,
+		};
+		db.User.Add(user);
+		await db.SaveChangesAsync();
+
+		var account = UserAccount.CreateTenantAccount(
+			user.GetRequiredId(), acmeId, AccountLevel.User
+		);
+		account.ValidateAccountType();
+		db.UserAccount.Add(account);
+		await db.SaveChangesAsync();
+
+		return (acmeId, email);
 	}
 
 	[Fact]
@@ -88,19 +123,13 @@ public sealed class TenantPermissionFilterSpec
 	[Fact]
 	public async Task
 	ItShouldReturn403ForNonAdminTenantUserWithoutRequiredPermission() {
-		// Acme's seeded non-admin user has no profiles assigned by default, so the
-		// bypass must not apply to it and the per-permission check must deny it.
-		var staffToken =
-			await _authClient.LoginAsStaffAdminAsync();
-		var acmeId =
-			await TenantTestHelper.GetTenantIdByNameAsync(
-				_http,
-				staffToken,
-				SeedConstants.Tenants.AcmeName
-			);
+		// Round 2: the seeded Acme member now carries publishing permissions through
+		// the demo profile, so this denial pin uses a dedicated profile-less member
+		// whose derived permission set is provably empty.
+		var (bareTenantId, bareEmail) = await CreateBareAcmeMemberAsync();
 
 		var acmeUserToken = await _authClient.LoginAsync(
-			TestConstants.AcmeUserEmail,
+			bareEmail,
 			TestConstants.SeedPassword
 		);
 
@@ -109,7 +138,7 @@ public sealed class TenantPermissionFilterSpec
 			PostsEndpoint
 		)
 			.WithSessionToken(acmeUserToken)
-			.WithTenantId(acmeId);
+			.WithTenantId(bareTenantId);
 
 		using var response =
 			await _http.SendAsync(request);

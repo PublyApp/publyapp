@@ -23,6 +23,11 @@ x-api-test-environment: &api-test-environment
   # protects nothing, never a production secret; distinct from every build
   # surface so a placeholder regression cannot silently match here).
   SOCIAL_ACCOUNTS_MASTER_KEY: Knf1UC9xADnUkGzLVSUOdyM/5nhMVP9JLHqjUpiws5M=
+  # E2E publish-now seam (plan D2 reconciliation 4): the api container ALSO runs the
+  # worker engine in this stack, so with the flag on both delivery and session-open
+  # resolve to deterministic fakes — no PDS is ever contacted. Refused under
+  # Production by design; real deployments never set it.
+  PUBLISHING_FAKE_PROVIDER: "1"
   # Pinned like every other non-dev booting surface (quality-gate.yml, the
   # Dockerfile stages): loopback-only, matches AppEnvironment's default.
   TRUSTED_PROXY_CIDRS: "127.0.0.1/32,::1/128"

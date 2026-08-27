@@ -35,6 +35,12 @@ public static class PostEndpointsForTenant {
 			PublishNowForTenant.Handle
 		)
 			.WithName("PublishNowForTenant")
+			.RequireRateLimiting(ApiRateLimitPolicies.AuthenticatedDefault)
+			// Round-2 item 4: the publishing-endpoint guard walks every handler in
+			// the Publishing namespace, wherever its route is mapped — this mapping
+			// lives in Modules/Posts but IS a publishing surface. The explicit
+			// policy keeps the contract readable at the mapping site (same
+			// behaviour as before: this equals the group default).
 			.WithSummary("Publish a post now through the chosen connected accounts")
 			.WithReqBodyValidation<PublishNowBody>()
 			.WithTenantPermission([

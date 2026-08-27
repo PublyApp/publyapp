@@ -362,8 +362,8 @@ public sealed class UpdateTenantSettingsForTenantSpec
 	public async Task
 	ItShouldReturnForbiddenForANonAdminTenantUserWithoutSettingsEdit() {
 		var acmeId = await GetAcmeIdAsync();
-		// Acme's seeded non-admin user has no profiles assigned by default,
-		// so the per-permission check must deny it.
+		// Round 2: the seeded Acme member holds publishing permissions via the demo
+		// profile, but nothing grants settings.* here, so the check must still deny.
 		var acmeUserToken = await _authClient.LoginAsync(
 			TestConstants.AcmeUserEmail,
 			TestConstants.SeedPassword

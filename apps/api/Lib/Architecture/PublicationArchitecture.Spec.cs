@@ -304,11 +304,17 @@ public sealed partial class PublicationArchitectureSpec {
 		var unique = entity!.GetIndexes().SingleOrDefault(i =>
 			i.GetDatabaseName() == "ux_publications_post_account"
 		);
-		unique.Should().NotBeNull("one publication per (post, account)");
+		unique.Should().NotBeNull("one ACTIVE delivery per (post, account)");
 		unique!.IsUnique.Should().BeTrue();
+		// Round-2 widening: the partial filter must ALSO exclude terminal Failed
+		// rows so a failed publish-now is re-issuable (fresh attempt starts beside
+		// the failed history row), while Published rows keep occupying the pair.
+		// Proven discriminating by the .dump/guard-r2-filter-*.log mutation pair:
+		// reverting the model filter alone turns this RED.
 		unique.GetFilter().Should().Be(
-			"is_deleted = false",
-			"a cancelled-and-recreated pair must be free again"
+			"is_deleted = false AND status <> 40",
+			"a cancelled-and-recreated pair must be free again AND a terminal Failed "
+				+ "row must release the pair; Published rows stay live"
 		);
 
 		var dueScan = entity.GetIndexes().SingleOrDefault(i =>
@@ -865,6 +871,38 @@ public sealed partial class PublicationArchitectureSpec {
 			}
 		}
 
+		// Round-2 widening: publishing surfaces may be mapped OUTSIDE the Publishing
+		// module — POST /posts/{postId}/publish-now is handled by
+		// PublishNowForTenant but mapped under Modules/Posts/Endpoints, where the
+		// walk above never looked. Follow the HANDLER type: every *.cs outside the
+		// Publishing module that maps a handler from the Publishing namespace must
+		// carry the same on-chain rate-limit + tenant-permission metadata.
+		foreach (var (relative, startLine, segment) in
+			PublishingMappingsOutsideTheModule(apiRoot)) {
+			scannedAny = true;
+
+			if (!segment.Contains(
+					".RequireRateLimiting(",
+					StringComparison.Ordinal
+				)) {
+				offenders.Add(
+					$"{relative}:{startLine}: publishing mapping outside "
+						+ "Modules/Publishing without an explicit RequireRateLimiting "
+						+ "policy"
+				);
+			}
+
+			if (!segment.Contains(
+					".WithTenantPermission(",
+					StringComparison.Ordinal
+				)) {
+				offenders.Add(
+					$"{relative}:{startLine}: publishing mapping outside "
+						+ "Modules/Publishing without WithTenantPermission metadata"
+				);
+			}
+		}
+
 		_ = scannedAny.Should().BeTrue(
 			"an empty endpoint enumeration must never pass vacuously"
 		);
@@ -943,6 +981,38 @@ public sealed partial class PublicationArchitectureSpec {
 			"IJobEnqueuer",
 		], because: "the publish-now service depends on infrastructure only "
 			+ "(DbContext + job enqueuer), never another domain service");
+	}
+
+
+	// Enumerates endpoint mappings OUTSIDE Modules/Publishing whose handler type
+	// resolves to the Publishing.Handlers namespace. Lexical containment of the
+	// namespace-qualified handler reference inside one Map* segment keeps this
+	// dependency-free; the segment boundaries come from the same splitter the
+	// in-module walk uses.
+	private static IEnumerable<(string RelativePath, int StartLine, string Segment)>
+		PublishingMappingsOutsideTheModule(string apiRoot) {
+		var modulesRoot = Path.Combine(apiRoot, "Modules");
+		foreach (var file in EnumerateSourceFiles(modulesRoot)) {
+			var relative = Path.GetRelativePath(apiRoot, file).Replace('\\', '/');
+			if (relative.StartsWith("Modules/Publishing/", StringComparison.Ordinal)) {
+				continue;
+			}
+
+			if (!file.Replace(Path.DirectorySeparatorChar, '/')
+					.Contains("/Endpoints/", StringComparison.Ordinal)) {
+				continue;
+			}
+
+			var text = File.ReadAllText(file);
+			foreach (var (startLine, segment) in SplitIntoMappingSegments(text)) {
+				if (segment.Contains(
+						"PublyApp.Api.Modules.Publishing.Handlers",
+						StringComparison.Ordinal
+					)) {
+					yield return (relative, startLine, segment);
+				}
+			}
+		}
 	}
 
 	private static IEnumerable<string> EnumerateSourceFiles(string root) {

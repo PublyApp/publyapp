@@ -27,6 +27,9 @@ public abstract record PublishNowResult {
 	public sealed record Created(IReadOnlyList<Guid> PublicationIds) : PublishNowResult;
 
 	// Accounts already holding a live publication for this post (422 upstream).
+	// Produced BOTH by the proactive non-terminal live check AND by translating a
+	// lost unique-index race inside the transaction, so every caller sees one
+	// outcome shape.
 	public sealed record LivePublicationsExist(IReadOnlyList<Guid> AccountIds)
 		: PublishNowResult;
 
@@ -176,15 +179,42 @@ public sealed class PublishNowService : IPublishNowService {
 			return new PublishNowResult.Created(
 				keysByPublicationId.Select(entry => entry.PublicationId).ToList()
 			);
+		} catch (DbUpdateException ex) when (
+			ex.InnerException is Npgsql.PostgresException pgEx && pgEx.SqlState == "23505"
+		) {
+			await transaction.RollbackAsync(cancellationToken);
+			// Round-2 NOTE fix (query-then-act race): two concurrent publish-now calls
+			// for the same pair can both pass the proactive live check; the partial
+			// unique index ux_publications_post_account is the authority. Translate the
+			// violation into the SAME plain-words structured outcome the proactive
+			// check returns — never a raw 500. The tracker still holds the rolled-back
+			// Added rows; clear it so the follow-up audit write cannot re-insert them.
+			_db.ChangeTracker.Clear();
+			var candidateIds = candidates
+				.Select(account => account.GetRequiredId())
+				.ToList();
+			var occupiedIds = await _db.Publication
+				.Where(publication => !publication.IsDeleted)
+				.Where(publication => publication.PostId == postId)
+				.Where(publication => candidateIds.Contains(publication.SocialAccountId))
+				.Select(publication => publication.SocialAccountId)
+				.Distinct()
+				.ToListAsync(cancellationToken);
+			return new PublishNowResult.LivePublicationsExist(occupiedIds);
 		} catch {
 			await transaction.RollbackAsync(cancellationToken);
 			throw;
 		}
 	}
 
-	// Every non-deleted publication for the (post, account) pairs counts as live:
-	// the partial unique index ux_publications_post_account filters ONLY deleted
-	// rows, so republishing any still-occupying pair would violate it anyway.
+	// "Live" means NON-TERMINAL only (round-2 MEDIUM fix): Scheduled, InProgress,
+	// Paused — named explicitly from PublicationStatus. Terminal Failed rows RELEASE
+	// the pair (the partial unique index excludes them too), so re-issuing
+	// publish-now after a failure starts a fresh attempt instead of being refused
+	// as a duplicate while the failed row stays as history. Published rows KEEP the
+	// pair through the index: the remote record already exists and a second
+	// delivery would double-post; a caller racing past this check meets the index
+	// and gets the same outcome via the constraint translation below.
 	private async Task<List<Guid>> LivePairAccountIdsAsync(
 		Guid postId,
 		IReadOnlyList<Guid> accountIds,
@@ -192,6 +222,10 @@ public sealed class PublishNowService : IPublishNowService {
 	) {
 		return await _db.Publication
 			.Where(publication => !publication.IsDeleted)
+			.Where(publication =>
+				publication.Status == PublicationStatus.Scheduled
+				|| publication.Status == PublicationStatus.InProgress
+				|| publication.Status == PublicationStatus.Paused)
 			.Where(publication => publication.PostId == postId)
 			.Where(publication => accountIds.Contains(publication.SocialAccountId))
 			.Select(publication => publication.SocialAccountId)
