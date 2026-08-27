@@ -180,7 +180,7 @@ export const invalidateGlobalTenantUsers = (queryClient: QueryClient) =>
 		queryKey: scopedKey('staff', GLOBAL_TENANT_USERS_QUERY_KEY),
 	});
 
-const globalTenantUserDetailsQueryOptions = buildStaffQueryOptions<
+export const globalTenantUserDetailsQueryOptions = buildStaffQueryOptions<
 	ApiClient,
 	TenantUserDetailsForStaffResult,
 	GlobalTenantUserDetailsQueryVariables

@@ -454,7 +454,7 @@ const createStaffProfileMutationOptions = buildStaffMutationOptions<
 	{ clientAccessor: getClientManager() },
 );
 
-const staffProfileDetailsQueryOptions = buildStaffQueryOptions<
+export const staffProfileDetailsQueryOptions = buildStaffQueryOptions<
 	ApiClient,
 	GetStaffProfileByIdResult,
 	StaffProfileDetailsQueryVariables
