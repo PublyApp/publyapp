@@ -49,14 +49,14 @@ export const makeTenantActivityColumns = (
 					className="block truncate font-normal"
 					title={row.original.userName ?? undefined}
 				>
-					{/* data-honesty-ignore: a deleted user's identity is genuinely absent, so the no-value dash is not fabricated identity data */}
+					{/* data-honesty-ignore: a hard-deleted user has no surviving row (orphaned FK), so the no-value dash is not fabricated identity data */}
 					{row.original.userName || '-'}
 				</span>
 				<span
 					className="block truncate text-xs text-muted-foreground"
 					title={row.original.userEmail ?? undefined}
 				>
-					{/* data-honesty-ignore: a deleted user's identity is genuinely absent, so the no-value dash is not fabricated identity data */}
+					{/* data-honesty-ignore: a hard-deleted user has no surviving row (orphaned FK), so the no-value dash is not fabricated identity data */}
 					{row.original.userEmail || '-'}
 				</span>
 			</div>
