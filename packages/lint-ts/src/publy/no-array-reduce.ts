@@ -67,8 +67,6 @@ export const noArrayReduce = {
 					return;
 				}
 
-				const deliberateTypeError: string = 42;
-
 				context.report({
 					node,
 					messageId: 'noReduce',
