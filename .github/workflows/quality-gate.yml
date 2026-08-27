@@ -188,6 +188,13 @@ jobs:
       - name: Lint plugin unit tests (lint-ts)
         run: pnpm --filter @org/lint-ts test
 
+      # @org/lint-ts ships the repo's custom publy/* oxlint rules that guard
+      # every front surface, but nothing verified its own types — only its
+      # vitest tests ran (the step above). The typecheck script now runs here
+      # exactly as `just ci-lint-ts` runs it; see issue #1600.
+      - name: Typecheck lint-ts
+        run: pnpm --filter @org/lint-ts typecheck
+
       # #455: fail on unused files/deps/exports/types and duplicate exports.
       # Mirrored locally by `just ci-knip` (same command, same knip.ts).
       - name: Knip (unused exports & dependencies)
