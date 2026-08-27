@@ -68,7 +68,6 @@ type RouteId =
  * `RailVisibility` alias is intentionally dropped so an incoherent entry
  * cannot be described by a name that hides the coupling to `requiredPermissions`.
  */
-type RailVisibility = 'public' | 'permission-gated';
 
 type RailItemBase = {
 	id: RouteId;
