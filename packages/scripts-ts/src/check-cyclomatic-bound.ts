@@ -15,7 +15,10 @@ import { pathToFileURL } from 'node:url';
 // CRITICAL: This guard must be executed by CI — a guard that CI doesn't run
 // provides no protection against "cliquet drift".
 
-/** Expected reference values, loaded at module scope so tests can import them. */
+/**
+ * The repository root, resolved relative to this file's location.
+ * Used to default the .oxlintrc.json and .cyclomatic-bound-ref.json paths.
+ */
 const repoRoot = path.resolve(
 	path.dirname(new URL(import.meta.url).pathname),
 	'../../..',
