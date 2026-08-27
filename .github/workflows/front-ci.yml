@@ -151,8 +151,16 @@ jobs:
       - name: Run trusted first-party postinstall (@org/shared-ts)
         run: pnpm --filter @org/shared-ts run postinstall
 
-      - name: Audit production dependencies (high and above)
-        run: pnpm audit --prod --audit-level=high
+      # #1644: lower the production-graph audit threshold from `high` to
+      # `moderate`, aligning it with the dev-graph gate (#1631/quality-gate.yml).
+      # The previous shape let a moderate advisory in a production dep slip
+      # through both audits: --prod excludes the dev graph, and --audit-level=high
+      # excludes moderate. The production graph is clean at every threshold
+      # today (0 advisories at critical/high/moderate/low — reproduce with
+      # `pnpm audit --prod --audit-level=low`), so the cost is zero and the
+      # safety is immediate.
+      - name: Audit production dependencies (moderate and above)
+        run: pnpm audit --prod --audit-level=moderate
 
       - name: Check front formatting
         run: pnpm format

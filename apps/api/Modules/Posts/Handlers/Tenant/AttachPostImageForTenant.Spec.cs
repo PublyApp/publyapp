@@ -795,6 +795,182 @@ public sealed class AttachPostImageForTenantSpec : IClassFixture<ApiFixture> {
 		}
 	}
 
+	/// <summary>
+	/// Deterministic proof of the #1616 loser contract: the partial unique index
+	/// arbiter MUST be provoked, not hoped for. The existing storm test
+	/// (<see cref="ItShouldNotLeakReferenceUnderConcurrentPostImageAttach"/>) fires
+	/// N concurrent attaches to an empty post and only checks the
+	/// <c>post-image-conflict</c> key if a conflict happens to occur. This test
+	/// holds the contended row lock in a barrier transaction, waits until both
+	/// contenders are provably parked on it, then releases — so the unique index
+	/// is guaranteed to arbitrate and the 409+key is a REQUIRED assertion.
+	///
+	/// The barrier holds a <c>SELECT ... FOR UPDATE</c> on a pre-existing live asset row.
+	/// Each contender's <c>AttachAsync</c> hard-deletes that row
+	/// (via <c>ForceHardDelete</c>) inside its own <c>SaveChanges</c>, so both transactions
+	/// stall on the row lock. When the barrier commits, both proceed to INSERT their new row;
+	/// the partial unique index <c>ux_post_media_assets_live_post_id</c> admits exactly one
+	/// and rejects the other with a PostgreSQL <c>UniqueViolation</c> on
+	/// <c>post_media_assets</c>. The handler catches that, releases the loser's blob reference,
+	/// and returns 409 with the <c>post-image-conflict</c> translation key.
+	///
+	/// The conflict is produced by the database's own unique index — never stubbed, never
+	/// raised by the test. The barrier only controls scheduling, not the violation.
+	/// </summary>
+	[Fact]
+	public async Task ItShouldReturnPostImageConflictFromUniqueIndexWhenConcurrentReplaceRaces() {
+		var (tenantId, token) = await LoginAsAcmeAdminAsync();
+		var postId = await CreatePostAsync(tenantId, token);
+		var postIdGuid = Guid.Parse(postId);
+
+		// Pre-attach a first image so a live asset row exists for the
+		// contenders to race over. Without a pre-existing row there is nothing
+		// for the barrier to lock and nothing for the index to arbitrate.
+		string seedPath;
+		using (var seedRequest = new HttpRequestMessage(
+			HttpMethod.Post,
+			AttachImageUrl(postId)
+		)
+			.WithSessionToken(token)
+			.WithTenantId(tenantId)) {
+			seedRequest.Content =
+				BuildFileContent(PngBytes(width: 64, height: 32));
+			using var seedResponse = await _http.SendAsync(seedRequest);
+			seedResponse.EnsureSuccessStatusCode();
+			var seed = await seedResponse.Content
+				.ReadFromJsonAsync<PostImageAttached>();
+			Assert.NotNull(seed);
+			seedPath = seed.Path;
+		}
+
+		// --- Barrier setup -------------------------------------------------
+		// Hold a SELECT ... FOR UPDATE on the existing live asset row. This
+		// blocks both contenders' AttachAsync from hard-deleting it, parking
+		// them inside their SaveChanges DELETE step — the exact point where
+		// the unique-index INSERT race will fire once the lock releases.
+		await using var barrierScope =
+			_fixture.Factory.Services.CreateAsyncScope();
+		var barrierDb = barrierScope.ServiceProvider
+			.GetRequiredService<AppDbContext>();
+		await using var barrierTx = await barrierDb.Database
+			.BeginTransactionAsync();
+
+		_ = await barrierDb.Database.ExecuteSqlAsync(
+			$"""
+			SELECT 1 FROM post_media_assets
+			WHERE post_id = {postIdGuid}
+			  AND tenant_id = {tenantId}
+			  AND is_deleted = false
+			FOR UPDATE
+			"""
+		);
+		var barrierPid =
+			await PostgresLockBarrier.GetBackendPidAsync(barrierDb);
+
+		// --- Fire two concurrent replaces ---------------------------------
+		// Distinct dimensions so each contender uploads a distinct blob.
+		const int contenderCount = 2;
+		var contenderTasks = new List<Task<HttpResponseMessage>>(contenderCount);
+		var contenderRequests = new List<HttpRequestMessage>(contenderCount);
+		for (var i = 0; i < contenderCount; i++) {
+			var request = new HttpRequestMessage(
+				HttpMethod.Post,
+				AttachImageUrl(postId)
+			)
+				.WithSessionToken(token)
+				.WithTenantId(tenantId);
+			request.Content = BuildFileContent(
+				PngBytes(width: 96 + i, height: 48)
+			);
+			contenderRequests.Add(request);
+			contenderTasks.Add(_http.SendAsync(request));
+		}
+
+		// --- Wait until BOTH contenders are parked on the barrier's row lock
+		await PostgresLockBarrier.WaitUntilBlockedAsync(
+			_fixture.Factory.Services,
+			contenderCount,
+			barrierPid
+		);
+
+		// --- Release the barrier; both proceed to INSERT simultaneously ---
+		await barrierTx.CommitAsync();
+
+		var responses = await Task.WhenAll(contenderTasks);
+		foreach (var request in contenderRequests) {
+			request.Dispose();
+		}
+
+		// --- Assert the #1616 loser contract: exactly one winner, exactly one loser
+		responses.Count(r => r.StatusCode == HttpStatusCode.Created)
+			.Should().Be(1, "the unique index admits exactly one live image");
+		responses.Count(r => r.StatusCode == HttpStatusCode.Conflict)
+			.Should().Be(1, "the loser is rejected by the unique index and gets a 409");
+
+		// The 409 MUST surface the post-image-conflict key — that is the #1616
+		// observable contract. This is a REQUIRED assertion, not best-effort:
+		// the barrier guarantees the conflict occurs, so the key MUST be present.
+		var loser = responses.Single(r =>
+			r.StatusCode == HttpStatusCode.Conflict
+		);
+		var loserProblem = await loser.Content
+			.ReadFromJsonAsync<AppProblemDetails>();
+		Assert.NotNull(loserProblem);
+		loserProblem.TranslationKey.Should().Be(
+			"post-image-conflict",
+			"the 409 MUST surface the post-image-conflict key — "
+			+ "the unique index produces the loser and the handler must name it"
+		);
+
+		// Exactly one live asset row must survive — the winner's. The seed
+		// row was hard-deleted by the winner's AttachAsync, and the loser's
+		// insert was rejected by the unique index.
+		await using var scope =
+			_fixture.Factory.Services.CreateAsyncScope();
+		var db = scope.ServiceProvider
+			.GetRequiredService<AppDbContext>();
+		var livePaths = await (
+			from a in db.PostMediaAsset.AsNoTracking()
+			where a.PostId == postIdGuid && !a.IsDeleted
+			select a.RelativePath
+		).ToListAsync();
+		livePaths.Should().ContainSingle(
+			"concurrent replaces must leave exactly one live image");
+
+		// The winner's blob keeps its reference (>= 1); the loser's blob
+		// must have been released back to zero by the handler's catch block.
+		var winnerPath = livePaths[0];
+		var winnerRefCount = await (
+			from u in db.UploadAsset.AsNoTracking()
+			where u.RelativePath == winnerPath && !u.IsDeleted
+			select (int?)u.ReferenceCount
+		).SingleAsync();
+		winnerRefCount.Should().BeGreaterThanOrEqualTo(
+			1, "the winning blob must keep its reference"
+		);
+
+		// The seed blob (replaced by the winner) must have been released to 0.
+		var seedRefCount = await (
+			from u in db.UploadAsset.AsNoTracking()
+			where u.RelativePath == seedPath && !u.IsDeleted
+			select (int?)u.ReferenceCount
+		).SingleOrDefaultAsync();
+		seedRefCount.Should().Be(0,
+			"the replaced seed blob's reference must be released");
+
+		// The loser's blob (not the winner, not the seed) must also be at 0.
+		// We find it as the only other unreferenced blob on disk that is
+		// not the seed or the winner.
+		var loserRefCount = await (
+			from u in db.UploadAsset.AsNoTracking()
+			where !u.IsDeleted
+				&& u.RelativePath != winnerPath
+				&& u.RelativePath != seedPath
+			select (int?)u.ReferenceCount
+		).FirstOrDefaultAsync();
+		loserRefCount.Should().Be(0,
+			"the loser must have released its blob reference (#1616)");
+	}
 
 	[Fact]
 	public async Task ItShouldPurgeAssetWhenPostDeleted() {

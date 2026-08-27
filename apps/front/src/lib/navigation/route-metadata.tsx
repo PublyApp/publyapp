@@ -62,10 +62,14 @@ type RouteId =
  * - `'permission-gated'` — the entry requires every key in
  *   `requiredPermissions`. Hiding is UI-convenience ONLY; the server
  *   independently enforces each gate behind those keys (#142).
+ *
+ * The two values are expressed as literal discriminants on `AppRouteMetadata`
+ * (see the `visibility` field of each union variant); the standalone
+ * `RailVisibility` alias is intentionally dropped so an incoherent entry
+ * cannot be described by a name that hides the coupling to `requiredPermissions`.
  */
-type RailVisibility = 'public' | 'permission-gated';
 
-export type AppRouteMetadata = {
+type RailItemBase = {
 	id: RouteId;
 	labelKey: string;
 	scope: ShellScope;
@@ -73,17 +77,44 @@ export type AppRouteMetadata = {
 	Icon: TablerIcon;
 	matchPrefixes: string[];
 	secondaryItems: SecondaryPanelItem[];
-	/** Who may see this rail entry. Declaring it is mandatory (see RailVisibility). */
-	visibility: RailVisibility;
-	/**
-	 * Permission keys (from the scope-auth-data `permissions` list) the signed-in
-	 * user must hold for this entry to render. Only consulted when `visibility`
-	 * is `'permission-gated'`; MUST mirror a gate the API enforces server-side on
-	 * the underlying surface (#142). Hiding a menu entry is convenience, NOT
-	 * authorization.
-	 */
-	requiredPermissions: string[];
 };
+
+/**
+ * A rail entry is one of two mutually-exclusive shapes, discriminated by
+ * `visibility`. The union makes an INCOHERENT entry unexpressible (#1633):
+ *
+ * - `'public'` — open to every signed-in member of the scope. It carries NO
+ *   permission keys (`requiredPermissions` is the empty tuple `readonly []`),
+ *   so there is nothing to grant and the entry can never silently hide a gate
+ *   behind an ignored list.
+ * - `'permission-gated'` — requires every key in `requiredPermissions`, which
+ *   MUST be non-empty (`readonly [string, ...string[]]`). An empty list would
+ *   vacuously satisfy "all required keys are granted" and render as visible to
+ *   everyone while declaring itself barred, so the type forbids it outright.
+ *
+ * A `public` entry with keys, or a `permission-gated` entry with an empty
+ * list, cannot be written — the #1633 incoherence is closed at the type level,
+ * not by a test that might happen to share the same dataset. Declaring
+ * `visibility` stays MANDATORY; `requiredPermissions` stays present on both
+ * variants so the filter and the contract tests keep reading it uniformly.
+ */
+export type AppRouteMetadata =
+	| (RailItemBase & {
+			/** Open to every member of the scope; MUST NOT declare any permission. */
+			visibility: 'public';
+			requiredPermissions: readonly [];
+	  })
+	| (RailItemBase & {
+			/** Requires every key below; the list MUST be non-empty. */
+			visibility: 'permission-gated';
+			/**
+			 * Permission keys (from the scope-auth-data `permissions` list) the
+			 * signed-in user must hold for this entry to render. MUST mirror a gate
+			 * the API enforces server-side on the underlying surface (#142). Hiding a
+			 * menu entry is convenience, NOT authorization.
+			 */
+			requiredPermissions: readonly [string, ...string[]];
+	  });
 
 // -- Secondary panel rows
 // Every path below is registered in src/routes.ts — nothing here may point at
