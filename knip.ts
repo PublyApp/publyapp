@@ -42,6 +42,11 @@ const config: KnipConfig = {
 				// now flows through the source.
 				'tools/vite/check-context-chunk-isolation.mts',
 				'src/components/ui/drawer-guard-tmp-dir.cjs', // string-keyed require() from drawer-form.test.tsx / the drawer guard, invisible to import analysis
+				// Used via CLI `--config` argument, not imported: replay config
+				// for kept red tests under .dump/preuves/ (see
+				// apps/front/.dump/preuve-1613-convention.md). Knip cannot
+				// trace CLI-argument usage.
+				'vitest.preuves.config.ts',
 			],
 			// System binary invoked via execFileSync by the request-counter sidecar
 			// to mint its throwaway TLS cert; not an npm package.
