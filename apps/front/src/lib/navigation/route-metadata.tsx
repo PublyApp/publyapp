@@ -62,6 +62,11 @@ type RouteId =
  * - `'permission-gated'` — the entry requires every key in
  *   `requiredPermissions`. Hiding is UI-convenience ONLY; the server
  *   independently enforces each gate behind those keys (#142).
+ *
+ * The two values are expressed as literal discriminants on `AppRouteMetadata`
+ * (see the `visibility` field of each union variant); the standalone
+ * `RailVisibility` alias is intentionally dropped so an incoherent entry
+ * cannot be described by a name that hides the coupling to `requiredPermissions`.
  */
 type RailVisibility = 'public' | 'permission-gated';
 
