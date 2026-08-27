@@ -147,6 +147,18 @@ describe('useOffsetPageClamp — reset is detected on the FIRST render after a r
 // reader is silently stranded on a non-zero page — the reset is lost. This test
 // pins that negligent caller: it drives the hook with a FIXED pageIndex that is
 // never committed, and it MUST fail if the reset-to-0 is silently dropped.
+//
+// NOTE (#1660): a GREEN this test goes is not necessarily good news. This test
+// is green precisely because the negligent caller LOSES the reset — it asserts
+// `renders[2]` is `1` (the stranded page), not `0` (the correct page). If the
+// hook implementation broke the derivation, the test would turn RED because the
+// loss would no longer reproduce. The lint rule `publy/require-commit-of-
+// use-offset-page-clamp` (#1660) now provides the positive protection: it flags
+// any real caller that fails to commit the return value, so once every real
+// caller is guaranteed committed by construction, this test's RED (if it ever
+// turns) would signal a regression in the positive protection — not in the hook
+// itself. Do NOT invert its polarity in this issue (#1660): only add the note
+// that its red can be a good sign and what to verify before "correcting" it.
 describe('useOffsetPageClamp — the contract requires the caller to COMMIT the returned value (#1613)', () => {
 	// A negligent consumer: holds `pageIndex` fixed and never calls the
 	// setter with the returned value. This is exactly the foot-gun the brief

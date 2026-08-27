@@ -33,6 +33,7 @@
  *   - `publy/arrow-function-components` → "error" (enforced since #1210)
  *   - `publy/prefer-query-display` → "off" (dormant)
  *   - `publy/no-never-any-casts` → "error" (enforced since #1346)
+ *   - `publy/require-commit-of-use-offset-page-clamp` → "error" (enforced since #1660)
  */
 import { arrowFunctionComponents } from './publy/arrow-function-components.ts';
 import { noArrayReduce } from './publy/no-array-reduce.ts';
@@ -43,6 +44,7 @@ import { noManualResponseMessageTranslation } from './publy/no-manual-response-m
 import { noNeverAnyCasts } from './publy/no-never-any-casts.ts';
 import { noOp } from './publy/no-op.ts';
 import { noPackageSrcImport } from './publy/no-package-src-import.ts';
+import { noRequireCommitOfUseOffsetPageClamp } from './publy/no-require-commit-of-use-offset-page-clamp.ts';
 import { preferQueryDisplay } from './publy/prefer-query-display.ts';
 import { preferSpecificLodashImports } from './publy/prefer-specific-lodash-imports.ts';
 
@@ -64,6 +66,8 @@ const publyPlugin = {
 		'arrow-function-components': arrowFunctionComponents,
 		'prefer-query-display': preferQueryDisplay,
 		'no-never-any-casts': noNeverAnyCasts,
+		'require-commit-of-use-offset-page-clamp':
+			noRequireCommitOfUseOffsetPageClamp,
 	},
 };
 
