@@ -333,7 +333,7 @@ test.describe('SSR auth shell', { tag: ['@security', '@997'] }, () => {
 	// an immediate rejection. The floor (`SESSION_VALIDATION_FLOOR_MS` = 15s) is
 	// well below the production timeout (`SESSION_VALIDATION_TIMEOUT_MS` = 20s,
 	// imported from `@org/shared-ts/lib/session-validation`) but well above any
-	// immediate rejection (<1s). The ceiling (`SESSION_VALIDATION_CEILING_MS` = 30s)
+	// immediate rejection (<1s). The ceiling (`SESSION_VALIDATION_CEILING_MS` = 35s)
 	// handles load variance while still distinguishing 20s from 1s.
 	const failureCases = [
 		'aborted',
