@@ -621,6 +621,11 @@
 			"mirror": "just nuget-audit",
 			"reason": "just nuget-audit calls `node packages/scripts-ts/src/nuget-audit.ts`, which is the same script invoked by the CI step. Both parse the machine-readable `--format json` output from `dotnet list package --vulnerable` and fail when any vulnerabilities array is non-empty. Issue #1187 rung 3."
 		},
+		"quality-gate.yml::quality::Audit development dependencies (moderate and above)": {
+			"hash": "60fbf11c313950ad",
+			"mirror": "pnpm audit --dev --audit-level=moderate",
+			"reason": "#1631 closes the dev-graph blind spot the prod-only `pnpm audit --prod --audit-level=high` left open: this scans the development-only dependency graph repo-wide (every package.json's dev deps, no --filter) at moderate so a moderate dev advisory (the nanoid-via-postcss class) turns the gate red instead of passing silently. Locally the identical `pnpm audit --dev --audit-level=moderate` reproduces it without Docker or CI; the graph is clean today at every threshold, so no exception list is carried."
+		},
 		"quality-gate.yml::quality::Run NuGet audit fixture tests": {
 			"hash": "2aa0c12768b54e3a",
 			"mirror": "pnpm --filter scripts-ts exec vitest run src/nuget-audit.test.ts",
