@@ -88,8 +88,31 @@ avec un message d'assertion d'ordre explicite (`Expected ... differs at index N`
 source de production a ensuite été restaurée via `git checkout` des 11 fichiers de service ;
 vérification : les 16 `keySelector` d'origine sont rétablis, et la suite repasse 13/13 vert.
 
+## Reproduction de l'aveuglement d'origine (preuve rétroactive r3)
+
+Pour fermer la boucle sur la plainte r3, on a **restauré le spec aveugle d'origine**
+(`HEAD~14`, avant ce round) pour deux services représentatifs, appliqué le **même**
+échange `keySelector` (`CreatedAt` → `UpdatedAt`), et exécuté :
+
+- SocialAccount (spec aveugle `HEAD~14` + `SocialAccountService` `CreatedAt`→`UpdatedAt`)
+  → **GREEN 2/2**
+- AuditLog (spec aveugle `HEAD~14` + `AuditLogQueryService` `CreatedAt`→`UpdatedAt`)
+  → **GREEN 3/3**
+
+```
+Passed!  - Failed: 0, Passed: 2, Skipped: 0, Total: 2   (SocialAccount, spec aveugle)
+Passed!  - Failed: 0, Passed: 3, Skipped: 0, Total: 3   (AuditLog,    spec aveugle)
+```
+
+Les specs d'origine restent donc **VERTES** sous exactement le même échange que les specs
+améliorées attrapent en ROUGE (13/13). Cela démontre mécaniquement que l'aveuglement r3
+était réel, et qu'il est désormais corrigé. L'arbre de production a été restauré via
+`git checkout HEAD --` (tree propre confirmé après l'expérience).
+
 ## Conclusion
 
 Le critère de tri n'est plus aveugle : chaque test « walk » assert désormais la séquence
 observée du champ trié, et tout échange `keySelector` vers un champ frère de même type
-fait échouer le test. GREEN propre = 13/13 ; RED sous mutation = 13/13.
+fait échouer le test. GREEN propre = 13/13 ; RED sous mutation = 13/13 ; et la
+reproduction de l'aveuglement d'origine (spec `HEAD~14` + même swap) confirme que le
+défaut r3 était bien présent et est désormais clos.
