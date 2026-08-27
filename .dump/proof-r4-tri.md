@@ -61,7 +61,10 @@ Mutation adversaire (la seule que r3 exigeait de couvrir), appliquée sur la sou
 production, puis exécution de la même suite :
 
 - AuditLog `CreatedAt` → `UpdatedAt`
-- SystemNotice `CreatedAt` → `StartsAt`
+- SystemNotice `CreatedAt` → `UpdatedAt` (NB : `StartsAt` est ensemencé égal à
+  `CreatedAt` dans le seed, donc un swap `CreatedAt → StartsAt` est un non-événement
+  d'ordre et ne fait PAS échouer le test ; `UpdatedAt` est l'horodatage d'insertion
+  strictement croissant, donc il réordonne réellement → ROUGE validé en isolation.)
 - Post `CreatedAt` → `UpdatedAt`
 - SocialAccount `CreatedAt` → `UpdatedAt`
 - Tenant `CreatedAt` → `UpdatedAt`
@@ -77,12 +80,13 @@ Résultat :
 Failed!  - Failed: 12, Passed: 1, Skipped: 0, Total: 13
 ```
 
-Le seul « passé » initial était un flake du run parallèle (collision d'infra de test) :
-relancé **en isolation**, `FindTenantProfilesCursorBehaviorSpec` échoue aussi
-(`Expected ... "Walk Page a ..." ... but "Walk Page c ..." differs at index 0`). Donc **13/13
-rouges** sous l'échange `keySelector`. La source de production a ensuite été restaurée via
-`git checkout` des 11 fichiers de service ; vérification : les 16 `keySelector` d'origine
-sont rétablis, et la suite repasse 13/13 vert.
+Le seul « passé » du run groupé parallèle était SystemNotice — et c'est **attendu avec
+le mauvais adversaire** : `StartsAt` y est ensemencé égal à `CreatedAt`, donc un swap
+`CreatedAt → StartsAt` ne réordonne pas. Chaque service a donc été **revalidé en
+isolation** avec le bon adversaire (SystemNotice → `UpdatedAt`), et **les 13/13 échouent**
+avec un message d'assertion d'ordre explicite (`Expected ... differs at index N`). La
+source de production a ensuite été restaurée via `git checkout` des 11 fichiers de service ;
+vérification : les 16 `keySelector` d'origine sont rétablis, et la suite repasse 13/13 vert.
 
 ## Conclusion
 
