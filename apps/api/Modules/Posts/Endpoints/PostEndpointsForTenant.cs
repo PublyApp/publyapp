@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 
 using PublyApp.Api.Lib;
 using PublyApp.Api.Lib.Filters;
+using PublyApp.Api.Lib.ProblemResults;
 using PublyApp.Api.Lib.RateLimiting;
 using PublyApp.Api.Lib.Routes;
 using PublyApp.Api.Modules.Posts.Handlers.Tenant;
@@ -74,6 +75,16 @@ public static class PostEndpointsForTenant {
 				ApiRateLimitPolicies.Upload
 			)
 			.WithSummary("Attach one image to a post (multipart 'file' field)")
+			// The handler returns IResult because it has 7 distinct statuses
+			// (201/400/422/404/413/429/409), exceeding Results<>'s 6-member cap.
+			// Swashbuckle only infers the generic problem responses (400/401/403/
+			// 429/500) from IResult, so the post-owned statuses below are
+			// documented explicitly for the OpenAPI contract.
+			.Produces<PostImageAttached>(StatusCodes.Status201Created)
+			.Produces<AppProblemDetails>(StatusCodes.Status404NotFound)
+			.Produces<AppProblemDetails>(StatusCodes.Status413PayloadTooLarge)
+			.Produces<AppProblemDetails>(StatusCodes.Status422UnprocessableEntity)
+			.Produces<AppProblemDetails>(StatusCodes.Status409Conflict)
 			.DisableAntiforgery()
 			// Rejects oversize bodies at the transport level (413) before the
 			// multipart body is spooled, mirroring CreateStaffUpload: the
