@@ -186,8 +186,9 @@ export function isLockStale(lockPath: string): boolean {
  * the other gets EEXIST and must move on.
  *
  * Returns true if the lock was successfully reclaimed.
+ * Exported for testing.
  */
-function reclaimStaleLock(lockPath: string): boolean {
+export function reclaimStaleLock(lockPath: string): boolean {
 	try {
 		// Delete the stale lock
 		unlinkSync(lockPath);

@@ -20,6 +20,7 @@ import {
 	teardownE2EComposeEnv,
 	deriveProjectName,
 	isLockStale,
+	reclaimStaleLock,
 	type PortBandReservation,
 	type E2EComposeEnv,
 } from './e2e-compose-env.mts';
@@ -288,11 +289,11 @@ describe('stale lock detection (#1642)', () => {
 	});
 
 	it('reclaims a stale lock with a dead PID (CRITICAL)', () => {
-		// Create a fake lock with dead PID
-		const fakeLockPath = pathJoin(LOCK_DIR, 'test-reclaim.lock');
+		// Use a proper band lock path so acquirePortBand() actually encounters it
+		const bandLockPath = pathJoin(LOCK_DIR, 'band-8080.lock');
 		mkdirSync(LOCK_DIR, { recursive: true });
 		writeFileSync(
-			fakeLockPath,
+			bandLockPath,
 			JSON.stringify({
 				pid: 99999999,
 				timestamp: Date.now(),
@@ -302,14 +303,19 @@ describe('stale lock detection (#1642)', () => {
 		);
 
 		// Confirm it's stale
-		assert.ok(isLockStale(fakeLockPath), 'Lock with dead PID should be stale');
+		assert.ok(isLockStale(bandLockPath), 'Lock with dead PID should be stale');
 
-		// Now acquire a port band - it should reclaim the stale lock
+		// Now acquire a port band - it should reclaim the SAME stale lock
 		const reservation = acquirePortBand();
 		assert.ok(reservation, 'Failed to acquire port band');
 
-		// The reservation should have a valid lock path
-		assert.ok(reservation!.lockPath, 'Reservation should have lock path');
+		// The reservation should have reclaimed the SAME band (band-8080 = index 0)
+		assert.equal(
+			reservation!.lockPath,
+			bandLockPath,
+			'Should have reclaimed the same band lock',
+		);
+		assert.equal(reservation!.bandIndex, 0, 'Should be band index 0');
 
 		// The lock should now be fresh (not stale)
 		assert.ok(
@@ -319,5 +325,30 @@ describe('stale lock detection (#1642)', () => {
 
 		// Clean up
 		releasePortBand(reservation!.lockPath);
+	});
+
+	it('reclaimStaleLock returns true for stale lock, false after reclaimed', () => {
+		// Create a lock with a dead PID
+		const bandLockPath = pathJoin(LOCK_DIR, 'band-8080.lock');
+		mkdirSync(LOCK_DIR, { recursive: true });
+		writeFileSync(
+			bandLockPath,
+			JSON.stringify({
+				pid: 99999999,
+				timestamp: Date.now(),
+				uuid: 'test-uuid',
+			}),
+			'utf8',
+		);
+
+		// First reclaim succeeds
+		const reclaimed = reclaimStaleLock(bandLockPath);
+		assert.ok(reclaimed, 'First reclaim of stale lock should succeed');
+
+		// After reclaim, the lock is fresh (our PID, recent timestamp)
+		assert.ok(!isLockStale(bandLockPath), 'Reclaimed lock should not be stale');
+
+		// Clean up
+		unlinkSync(bandLockPath);
 	});
 });
