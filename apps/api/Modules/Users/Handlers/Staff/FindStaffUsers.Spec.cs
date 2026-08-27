@@ -480,12 +480,14 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 	public async Task ItShouldWalkEveryEmailPageWithoutOverlapOrGap() {
 		var token = await _authClient.LoginAsStaffAdminAsync();
 
-		// Distinct emails force the (email, id) keyset with its UserId
-		// tie-breaker; limit=1 walks one row per page.
+		// Deterministic, anti-correlated emails: insertion order is c,b,a while
+		// the lexical (sort) order is a,b,c. The walk must return them in
+		// lexical order, so a keySelector swap to the id (insertion) order
+		// turns this assertion RED.
 		const int total = 3;
 		var emails = new List<string>();
 		for (var i = 0; i < total; i++) {
-			emails.Add($"email-walk-{i}-{Guid.NewGuid():N}@example.com");
+			emails.Add($"email-walk-{(char)('a' + (2 - i))}-{Guid.NewGuid():N}@example.com");
 			_ = await CreateStaffUserAsync(token, emails[^1]);
 		}
 		emails.Sort(StringComparer.OrdinalIgnoreCase);
