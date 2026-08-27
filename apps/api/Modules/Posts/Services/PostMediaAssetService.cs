@@ -46,19 +46,18 @@ public interface IPostMediaAssetService {
 	/// references) and release the RETURNED displaced paths after. Capturing the
 	/// replaced path in the handler before this call races the purge and leaks the
 	/// predecessor's blob reference (#1617) — that responsibility lives here, not
-	/// in the handler. Physical deletion stays exclusively the sweeper's.
-	/// </summary>
+	/// in the handler. Physical deletion stays exclusively the sweeper's.	/// </summary>
 	Task<IReadOnlyList<string>> AttachAsync(
 		AttachPostMediaArgs args,
 		CancellationToken cancellationToken = default
 	);
 
-	/// <summary>
-	/// Removes a post's image: hard-deletes the asset row and saves (one unit
-	/// of work). Returns null when no live asset exists for the post; otherwise
-	/// returns the removed blob's relative path so the CALLING HANDLER can
-	/// release its asset reference AFTER the commit (#807 F5). Physical
-	/// deletion stays exclusively the sweeper's.
+	/// Removes a post's image: hard-deletes the asset row in its own unit of
+	/// work (one unit of work). Returns null when no live asset exists for the
+	/// post; otherwise returns the removed blob's relative path so the CALLING
+	/// HANDLER can release its asset reference AFTER the commit (#807 F5;
+	/// #1461 moved the release out of the service). Physical deletion stays
+	/// exclusively the sweeper's.
 	/// </summary>
 	Task<string?> RemoveAsync(
 		Guid tenantId,
@@ -67,8 +66,6 @@ public interface IPostMediaAssetService {
 	);
 
 	/// <summary>
-	/// Post-deletion cascade, phase 1: stages a hard delete of every live asset
-	/// row for the post in the caller's unit of work WITHOUT saving, and returns
 	/// the blob paths whose references must be released after the commit. Called
 	/// by DeletePostForTenant BEFORE deleting the post so the purge commits
 	/// atomically with the post deletion; the handler releases those references
@@ -118,7 +115,13 @@ public sealed class PostMediaAssetService(AppDbContext dbContext)
 	) {
 		// A post owns at most ONE live image (partial unique index): replacing
 		// means hard-deleting the stale live row(s) in THIS unit of work —
-		// otherwise the insert violates ix_post_media_assets_live_post_id.
+		// otherwise the insert violates ux_post_media_assets_live_post_id.
+		// The replaced paths are read from the SAME query that feeds the purge, so
+		// the capture and the hard-delete are one atomic step: a concurrent
+		// attach that commits first changes the rows this SELECT sees, and the
+		// returned paths always reflect exactly what THIS commit removed — no
+		// blob reference can be left acquired-and-unreleased under contention
+		// (#1616).
 		var replacedAssets = await (
 			from a in dbContext.PostMediaAsset
 			where a.TenantId == args.TenantId
@@ -126,6 +129,9 @@ public sealed class PostMediaAssetService(AppDbContext dbContext)
 				&& !a.IsDeleted
 			select a
 		).ToListAsync(cancellationToken);
+		var replacedPaths = replacedAssets
+			.Select(static a => a.RelativePath)
+			.ToList();
 
 		// Capture the displaced blob paths NOW, inside this tracked query's scope,
 		// so the handler releases exactly the rows this commit is about to purge.
@@ -159,8 +165,7 @@ public sealed class PostMediaAssetService(AppDbContext dbContext)
 		// The CALLING HANDLER acquired the new blob's reference before this call
 		// and now releases the displaced paths returned here after the commit
 		// (#807 F5); physical deletion stays exclusively sweeper's.
-		return displacedPaths;
-	}
+		return displacedPaths;	}
 
 	public async Task<string?> RemoveAsync(
 		Guid tenantId,
@@ -178,13 +183,11 @@ public sealed class PostMediaAssetService(AppDbContext dbContext)
 			return null;
 		}
 
-		var releasedPath = asset.RelativePath;
 		dbContext.ForceHardDelete(asset);
 		await dbContext.SaveChangesAsync(cancellationToken);
-
-		// The CALLING HANDLER releases releasedPath's asset reference after
-		// this commit (#807 F5); physical deletion stays exclusively sweeper's.
-		return releasedPath;
+		// The CALLING handler releases this reference after the commit above
+		// (#807 F5 / #1461).
+		return asset.RelativePath;
 	}
 
 	public async Task<IReadOnlyList<string>> StagePurgeOnPostDeleteAsync(

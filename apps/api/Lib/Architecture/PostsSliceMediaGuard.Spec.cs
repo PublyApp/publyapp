@@ -37,9 +37,10 @@ namespace PublyApp.Api.Lib.Architecture;
 ///   (<see cref="IPostMediaAssetService"/>), never the concrete class;
 /// - <see cref="PostMediaAssetService"/> depends on nothing but its
 ///   <see cref="AppDbContext"/> — handlers orchestrate, services implement;
-///   the #807 F5 asset-reference acquire/release coordination lives in the
-///   calling handlers, which inject <c>IUploadAssetReferenceService</c>
-///   themselves.
+///   since #1461 the #807 F5 asset-reference acquire/release coordination
+///   (the reference discipline lives in the calling handlers, which inject
+///   <c>IUploadAssetReferenceService</c> themselves) lives in the calling
+///   handlers, so the service holds no domain-service dependency at all.
 /// - the mutating media endpoints keep their route-level authorization
 ///   (<c>.WithTenantPermission</c> → <see cref="HasPermissionMetadata"/>) and
 ///   the multipart attach endpoint keeps the shared Upload rate-limit policy.
@@ -165,12 +166,13 @@ public sealed class PostsSliceMediaGuardSpec : IDisposable {
 				$"{service.Name}.ctor({parameter.Name}: {parameter.ParameterType.Name})")
 			.ToList();
 
-		_ = offenders.Should().BeEmpty(
+			_ = offenders.Should().BeEmpty(
 			"PostMediaAssetService may depend only on its DbContext (#1461 ratchet: "
-			+ "the uploads reference service moved to the calling handlers); "
-			+ "adding another domain-service dependency couples slices and belongs "
-			+ "behind a deliberate change to this pin"
-		);
+				+ "the #807 F5 reference discipline (acquire/release) moved to the "
+				+ "calling handlers; the uploads reference service moved to the calling "
+				+ "handlers); adding another domain-service dependency couples slices "
+				+ "and belongs behind a deliberate change to this pin"
+			);
 	}
 
 	// ── route-map facts ─────────────────────────────────────────────────
