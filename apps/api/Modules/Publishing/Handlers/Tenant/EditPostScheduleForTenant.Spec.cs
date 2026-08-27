@@ -198,14 +198,39 @@ public sealed class EditPostScheduleForTenantSpec : IClassFixture<ApiFixture> {
 	public async Task ItShouldRefuseTheWholeEditWhileAnyPublicationIsInProgress() {
 		var (tenantId, token, postId) = await SeedScheduledPostAsync();
 
+		// One row is mid-flight (InProgress): the handler's InProgress gate must
+		// refuse the edit. Seeded as a tracked insert (the #1446 guard permits
+		// Status on Added rows; only raw/unstamped Status UPDATEs are rejected).
 		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
 		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-		await db.Publication
+		var inProgress = await db.Publication
+			.AsNoTracking()
 			.Where(p => p.PostId == Guid.Parse(postId)
 				&& p.TenantId == tenantId)
-			.ExecuteUpdateAsync(
-				s => s.SetProperty(p => p.Status, PublicationStatus.InProgress)
-			);
+			.OrderBy(p => p.Id)
+			.FirstAsync();
+
+		// Distinct account so the InProgress row satisfies ux_publications_post_account.
+		var inFlightAccount = new SocialAccount {
+			TenantId = tenantId,
+			ExternalAccountId = "did:plc:" + Guid.NewGuid().ToString("N"),
+			DisplayHandle = "@edit.inflight." + Guid.NewGuid().ToString("N")[..5]
+				+ ".bsky.social",
+			ProtectedCredentials = "enc-spec-blob",
+		};
+		db.SocialAccount.Add(inFlightAccount);
+		await db.SaveChangesAsync();
+
+		db.Publication.Add(new Publication {
+			TenantId = tenantId,
+			PostId = inProgress.PostId,
+			SocialAccountId = inFlightAccount.GetRequiredId(),
+			Status = PublicationStatus.InProgress,
+			ScheduledAtUtc = inProgress.ScheduledAtUtc,
+			ScheduledTimeZone = inProgress.ScheduledTimeZone,
+			IdempotencyKey = "in-progress-seed",
+		});
+		await db.SaveChangesAsync();
 
 		using var request =
 			new HttpRequestMessage(HttpMethod.Patch, ScheduleUrl(postId))

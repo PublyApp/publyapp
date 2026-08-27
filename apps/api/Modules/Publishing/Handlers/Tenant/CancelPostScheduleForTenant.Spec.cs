@@ -122,16 +122,39 @@ public sealed class CancelPostScheduleForTenantSpec : IClassFixture<ApiFixture> 
 	public async Task ItShouldKeepNonScheduledRowsAndStateTheKeptCount() {
 		var (tenantId, token, postId) = await SeedScheduledPostAsync();
 
-		// One of the two rows is mid-flight: cancel keeps it.
+		// One row is mid-flight (InProgress): cancel keeps it and deletes the
+		// Scheduled siblings. Seeded as a tracked insert (the #1446 guard permits
+		// Status on Added rows; only raw/unstamped Status UPDATEs are rejected).
 		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
 		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-		await db.Publication
+		var sample = await db.Publication
+			.AsNoTracking()
 			.Where(p => p.PostId == Guid.Parse(postId)
 				&& p.TenantId == tenantId)
-			.Take(1)
-			.ExecuteUpdateAsync(
-				s => s.SetProperty(p => p.Status, PublicationStatus.InProgress)
-			);
+			.OrderBy(p => p.Id)
+			.FirstAsync();
+
+		// Distinct account so the InProgress row satisfies ux_publications_post_account.
+		var inFlightAccount = new SocialAccount {
+			TenantId = tenantId,
+			ExternalAccountId = "did:plc:" + Guid.NewGuid().ToString("N"),
+			DisplayHandle = "@cancel.inflight." + Guid.NewGuid().ToString("N")[..5]
+				+ ".bsky.social",
+			ProtectedCredentials = "enc-spec-blob",
+		};
+		db.SocialAccount.Add(inFlightAccount);
+		await db.SaveChangesAsync();
+
+		db.Publication.Add(new Publication {
+			TenantId = tenantId,
+			PostId = sample.PostId,
+			SocialAccountId = inFlightAccount.GetRequiredId(),
+			Status = PublicationStatus.InProgress,
+			ScheduledAtUtc = sample.ScheduledAtUtc,
+			ScheduledTimeZone = sample.ScheduledTimeZone,
+			IdempotencyKey = "in-progress-seed",
+		});
+		await db.SaveChangesAsync();
 
 		using var request =
 			new HttpRequestMessage(HttpMethod.Delete, ScheduleUrl(postId))

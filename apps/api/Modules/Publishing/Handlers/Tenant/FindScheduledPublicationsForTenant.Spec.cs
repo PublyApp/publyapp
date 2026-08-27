@@ -4,6 +4,7 @@ using System.Net.Http.Json;
 using System.Text.Json;
 
 using FluentAssertions;
+
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -75,7 +76,8 @@ public sealed class FindScheduledPublicationsForTenantSpec : IClassFixture<
 		Guid tenantId,
 		string body,
 		DateTime scheduledAtUtc,
-		string zone = ParisZone
+		string zone = ParisZone,
+		PublicationStatus seedStatus = PublicationStatus.Scheduled
 	) {
 		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
 		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
@@ -105,7 +107,7 @@ public sealed class FindScheduledPublicationsForTenantSpec : IClassFixture<
 			TenantId = tenantId,
 			PostId = post.GetRequiredId(),
 			SocialAccountId = account.GetRequiredId(),
-			Status = PublicationStatus.Scheduled,
+			Status = seedStatus,
 			ScheduledAtUtc = scheduledAtUtc,
 			ScheduledTimeZone = zone,
 			IdempotencyKey = "pending",
@@ -207,16 +209,20 @@ public sealed class FindScheduledPublicationsForTenantSpec : IClassFixture<
 		var failing = await CreateScheduledRowAsync(
 			tenantId,
 			"filter csv failed target",
-			new DateTime(2099, 6, 4, 8, 0, 0, DateTimeKind.Utc)
+			new DateTime(2099, 6, 4, 8, 0, 0, DateTimeKind.Utc),
+			seedStatus: PublicationStatus.Failed
 		);
 
-		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
-		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-		_ = await db.Publication
-			.Where(p => p.Id == failing.PublicationId)
-			.ExecuteUpdateAsync(setters => setters
-				.SetProperty(p => p.Status, PublicationStatus.Failed)
-				.SetProperty(p => p.LastError, "provider rejected the media"));
+		// LastError mirrors the failed-state cause the handler reports. Seeded via
+		// a tracked load + modify (a non-Status property), which the #1446 guard
+		// permits — only raw/unstamped Status writes are rejected.
+		await using var errScope = _fixture.Factory.Services.CreateAsyncScope();
+		var errDb = errScope.ServiceProvider.GetRequiredService<AppDbContext>();
+		var failedRow = await errDb.Publication.SingleAsync(
+			p => p.Id == failing.PublicationId
+		);
+		failedRow.LastError = "provider rejected the media";
+		await errDb.SaveChangesAsync();
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
