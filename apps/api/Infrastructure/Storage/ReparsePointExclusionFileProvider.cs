@@ -99,6 +99,10 @@ public sealed class ReparsePointExclusionFileProvider : IFileProvider {
 		// component is a reparse point) and intermediate-directory symlinks
 		// (an ancestor directory in the path is a reparse point).
 		if (HasReparsePointInPath(physicalPath, subpath, out var offendingComponent)) {
+				// The {Component} field logs the full filesystem path of the offending
+				// entry. This is NOT a secret — it is an operator-facing diagnostic that
+				// never carries sensitive values (session tokens, user data, etc.). Its
+				// purpose is to help operators locate and remove a stray symlink.
 			_logger.LogWarning(
 				"Reparse-point guard masked entry: subpath {Subpath}, component {Component}",
 				subpath,
