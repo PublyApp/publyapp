@@ -15,8 +15,8 @@ const maxWorkers = Math.max(2, Math.floor(cpus().length / 2));
 // `include` to also cover .dump/preuves/.
 //
 // Usage:
-//   pnpm --filter front exec vitest run --config vitest.preuves.config.ts \
-//     ../../.dump/preuves/<issue>/<name>.test.ts
+//   cd apps/front && pnpm exec vitest run --config vitest.preuves.config.ts \
+//     .dump/preuves/<issue>/<name>.test.ts
 export default defineConfig({
 	resolve: {
 		alias: {

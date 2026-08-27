@@ -147,7 +147,7 @@ This repo uses **form (3)**. Rationale:
 
   ```
   # from the branch that produced the proof, in the worktree that has .dump/
-  pnpm --filter front exec vitest run --config vitest.preuves.config.ts \
+  cd apps/front && pnpm exec vitest run --config vitest.preuves.config.ts \
       .dump/preuves/<issue>/<name>.test.ts
   ```
 
@@ -269,7 +269,7 @@ with the mutation and the red/green transcripts in
 this branch and running:
 
 ```
-pnpm --filter front exec vitest run --config vitest.preuves.config.ts \
+cd apps/front && pnpm exec vitest run --config vitest.preuves.config.ts \
     .dump/preuves/1613/red-1613-negligent-caller-no-reset.test.ts
 ```
 
