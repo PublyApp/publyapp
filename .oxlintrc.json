@@ -85,7 +85,8 @@
 		"anti-slop/no-unknown-type-aliases": "error",
 		"anti-slop/no-unsafe-dictionary-type": "off",
 		"anti-slop/no-widen-then-assert": "error",
-		"anti-slop/require-safety-comment-for-type-assertion": "off"
+		"anti-slop/require-safety-comment-for-type-assertion": "off",
+		"complexity": ["error", { "max": 125 }]
 	},
 	"overrides": [
 		{
@@ -94,6 +95,36 @@
 			],
 			"rules": {
 				"react/refs": "error"
+			}
+		},
+		{
+			"files": ["apps/front/src/**"],
+			"rules": {
+				"complexity": ["error", { "max": 60 }]
+			}
+		},
+		{
+			"files": [
+				"apps/front/scripts/**",
+				"apps/front/tools/**",
+				"packages/lint-ts/**",
+				"packages/scripts-ts/**",
+				"packages/shared-ts/**"
+			],
+			"rules": {
+				"complexity": ["error", { "max": 125 }]
+			}
+		},
+		{
+			"files": [
+				"**/*.test.ts",
+				"**/*.test.tsx",
+				"**/*.spec.ts",
+				"**/*.spec.tsx",
+				"apps/front/e2e/**"
+			],
+			"rules": {
+				"complexity": ["error", { "max": 90 }]
 			}
 		}
 	]

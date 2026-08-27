@@ -308,6 +308,8 @@ ci-drift:
   pnpm --filter scripts-ts exec vitest run src/check-actions-pins.test.ts
   node ./packages/scripts-ts/src/check-actions-pins.ts
   pnpm --filter scripts-ts exec vitest run src/ci-referenced-paths.test.ts
+  pnpm --filter scripts-ts exec vitest run src/check-cyclomatic-bound.test.ts
+  node ./packages/scripts-ts/src/check-cyclomatic-bound.ts
 
 # Bind every pinned action SHA to the version its "# vX.Y.Z" comment claims
 # (#1392): resolves each tag through `gh api` (annotated tags peeled to their

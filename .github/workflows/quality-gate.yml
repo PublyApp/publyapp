@@ -185,6 +185,9 @@ jobs:
       - name: Lint (oxlint repo-wide)
         run: pnpm lint
 
+      - name: Verify complexity bounds are not drifting (#1661)
+        run: node packages/scripts-ts/src/check-cyclomatic-bound.ts
+
       - name: Lint plugin unit tests (lint-ts)
         run: pnpm --filter @org/lint-ts test
 
