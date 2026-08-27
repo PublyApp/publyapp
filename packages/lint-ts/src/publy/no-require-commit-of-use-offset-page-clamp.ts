@@ -2,6 +2,14 @@ import type { Context, Visitor } from '@oxlint/plugins';
 import type { ESTree } from '@oxlint/plugins';
 
 /**
+ * oxlint re-exports the ESTree types from its internal types_d_exports module.
+ * There is no ESTree.Identifier — the spec splits into BindingIdentifier
+ * (declarations) and IdentifierReference (usages). For our purposes we mostly
+ * work with IdentifierReference (a variable usage like the callee of a call)
+ * and narrow ESTree.Expression via .type === 'Identifier'.
+ */
+
+/**
  * `publy/require-commit-of-use-offset-page-clamp` — require that the return value
  * of `useOffsetPageClamp` is committed to the caller's state.
  *
@@ -88,7 +96,7 @@ const getCalleeName = (callee: ESTree.Expression): string | null => {
  */
 const isReactStateSetter = (
 	context: Context,
-	callee: ESTree.Identifier,
+	callee: ESTree.IdentifierReference,
 ): boolean => {
 	const varName = callee.name;
 
@@ -129,10 +137,13 @@ const isReactStateSetter = (
  * - Any other expression that references the variable.
  */
 const firstArgContainsVar = (
-	firstArg: ESTree.Expression | null,
+	firstArg: ESTree.Expression | ESTree.SpreadElement | null,
 	varName: string,
 ): boolean => {
 	if (!firstArg) return false;
+	// SpreadElement is not a valid first arg for a setter call, but
+	// the AST type allows it — treat as not containing the variable.
+	if (firstArg.type === 'SpreadElement') return false;
 	let found = false;
 	const visited = new WeakSet<ESTree.Node>();
 	const walk = (node: ESTree.Node | null | undefined): void => {
@@ -204,17 +215,19 @@ const isVariableCommittedViaScope = (
 		// is the `CallExpression`. We need to walk up until we find a
 		// CallExpression whose callee is a setter Identifier, then check
 		// whether the reference was inside its first argument.
-		let current = refNode;
+		let current: ESTree.Node = refNode;
 		while (current.parent) {
-			const parent = current.parent;
+			const parent: ESTree.Node = current.parent;
 			if (
 				parent.type === 'CallExpression' &&
-				parent.callee.type === 'Identifier' &&
-				isReactStateSetter(context, parent.callee)
+				parent.callee.type === 'Identifier'
 			) {
-				const firstArg = parent.arguments[0];
-				if (firstArgContainsVar(firstArg, varName)) {
-					return true;
+				const callee = parent.callee as ESTree.IdentifierReference;
+				if (isReactStateSetter(context, callee)) {
+					const firstArg = parent.arguments[0];
+					if (firstArgContainsVar(firstArg, varName)) {
+						return true;
+					}
 				}
 				// If we reach a setter CallExpression and the variable isn't
 				// in the first arg, this isn't a commitment — but keep
