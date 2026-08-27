@@ -111,16 +111,19 @@ const escapeRegExp = (s: string): string => s.replace(/[.*+?^${}()|[\]\\]/g, '\\
 const deriveSharedTsSegments = (dir: string): string[] => {
 	let entries: string[];
 	try {
-		entries = readdirSync(dir);
+		entries = readdirSync(dir, { withFileTypes: true })
+			.filter((entry) => entry.isDirectory() && !entry.name.startsWith('.'))
+			.map((entry) => entry.name);
 	} catch (err: unknown) {
 		throw new Error(
 			`check-shared-ts-import-paths: could not enumerate ${dir}: ${err instanceof Error ? err.message : String(err)}`,
 		);
 	}
-	return entries.filter((e) => !e.startsWith('.'));
+	return entries;
 };
 
 const SHARED_TS_SEGMENTS = deriveSharedTsSegments(sharedTsSrc);
+export { SHARED_TS_SEGMENTS };
 
 /**
  * Matches a `@org/shared-ts/<segment>...` specifier where `<segment>` is any
@@ -140,9 +143,13 @@ const SHARED_TS_MODULE_PATTERN = new RegExp(
  */
 const SHARED_TS_PREFIX = '@org/shared-ts/';
 
+type FindingType = 'DUAL_PATH' | 'UNKNOWN_SEGMENT' | 'PARSE_ERROR';
+
 interface Finding {
 	file: string;
 	line: number;
+	/** distinguishes a real dual-path violation from a fail-loudly unknown-segment or parse error (#1678) */
+	type: FindingType;
 	text: string;
 }
 
@@ -255,22 +262,24 @@ const scanSourceFile = (
 		if (ts.isExportDeclaration(node)) {
 			const specifier = moduleSpecifierText(node);
 			if (specifier !== null && specifier.startsWith(SHARED_TS_PREFIX)) {
-				if (SHARED_TS_MODULE_PATTERN.test(specifier)) {
-					findings.push({
-						file: relativePath,
-						line: lineOf(sourceFile, node),
-						text: node.getText(sourceFile).trim().replace(/\s+/g, ' '),
-					});
-				} else {
-					// #1678: fail loudly — the specifier targets the shared-ts
-					// package but uses a first segment the guard does not
-					// recognise. A silent pass here is a false negative.
-					findings.push({
-						file: relativePath,
-						line: lineOf(sourceFile, node),
-						text: `UNKNOWN_SEGMENT: re-export of ${specifier}, which is not an recognised first segment of @org/shared-ts (#1678)`,
-					});
-				}
+					if (SHARED_TS_MODULE_PATTERN.test(specifier)) {
+						findings.push({
+							file: relativePath,
+							line: lineOf(sourceFile, node),
+							type: 'DUAL_PATH',
+							text: node.getText(sourceFile).trim().replace(/\s+/g, ' '),
+						});
+					} else {
+						// #1678: fail loudly — the specifier targets the shared-ts
+						// package but uses a first segment the guard does not
+						// recognise. A silent pass here is a false negative.
+						findings.push({
+							file: relativePath,
+							line: lineOf(sourceFile, node),
+							type: 'UNKNOWN_SEGMENT',
+							text: `UNKNOWN_SEGMENT: re-export of ${specifier}, which is not an recognised first segment of @org/shared-ts (#1678)`,
+						});
+					}
 			}
 		}
 		// ImportDeclaration and CallExpression (dynamic `import(...)`) are
@@ -299,6 +308,7 @@ const scanSourceFile = (
 				diagnostic.start == null
 					? 1
 					: sourceFile.getLineAndCharacterOfPosition(diagnostic.start).line + 1,
+			type: 'PARSE_ERROR',
 			text: `PARSE_ERROR: ${ts.flattenDiagnosticMessageText(diagnostic.messageText, ' ')}`,
 		});
 	}
