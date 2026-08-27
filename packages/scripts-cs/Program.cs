@@ -16,6 +16,10 @@ public static class Program {
 			return GenerateTranslationKeys.Run(commandArgs);
 		}
 
+		if (string.Equals(command, "measure-status-guard-overhead", StringComparison.Ordinal)) {
+			return MeasureStatusGuardOverhead.Run(commandArgs);
+		}
+
 		Console.Error.WriteLine($"Unknown command: {command}");
 		WriteUsage();
 		return 1;
