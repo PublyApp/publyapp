@@ -988,7 +988,7 @@ test.describe(
 			await expect(sendButton).toBeDisabled();
 
 			await drawer
-				.getByRole('textbox', { name: 'Email', exact: true })
+				.locator('input[name="rows.0.email"]')
 				.fill('new-user@example.com');
 			await expect(sendButton).toBeEnabled();
 
@@ -1080,7 +1080,7 @@ test.describe(
 			await expect(currentTenantSectionTab(page)).toHaveText('Invitations');
 
 			await drawer
-				.getByRole('textbox', { name: 'Email', exact: true })
+				.locator('input[name="rows.0.email"]')
 				.fill('new-user@example.com');
 			const inviteRequest = page.waitForRequest(
 				(request) =>
@@ -1140,7 +1140,7 @@ test.describe(
 			await expect(drawer).toBeVisible();
 
 			await drawer
-				.getByRole('textbox', { name: 'Email', exact: true })
+				.locator('input[name="rows.0.email"]')
 				.fill('new-user@example.com');
 			await drawer.getByRole('button', { name: 'Send 1 invitation' }).click();
 
@@ -1198,7 +1198,7 @@ test.describe(
 			await expect(drawer).toBeVisible();
 
 			await drawer
-				.getByRole('textbox', { name: 'Email', exact: true })
+				.locator('input[name="rows.0.email"]')
 				.fill('new-user@example.com');
 			const inviteRequest = page.waitForRequest(
 				(request) =>
