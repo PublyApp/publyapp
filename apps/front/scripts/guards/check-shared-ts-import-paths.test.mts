@@ -423,3 +423,25 @@ test('RED: re-export of @org/shared-ts/<unknown-segment> fails loudly with UNKNO
 		`finding text should name the unknown specifier, got: ${hit.text}`,
 	);
 });
+
+// ---- #1678: PARSE_ERROR on unparseable files still produces a finding (requirement #6)
+
+test('RED: a source file with a syntax error produces a PARSE_ERROR finding (#1678 requirement 6)', () => {
+	const root = makeSandbox();
+	writeFileSync(
+		path.join(root, 'front-src/lib/broken.ts'),
+		`import {
+`,
+	);
+
+	const findings = scanFrontSrcForSharedTsReExports(path.join(root, 'front-src'));
+	const hit = findings.find((f) => f.file === 'apps/front/src/lib/broken.ts');
+	assert.ok(
+		hit,
+		`broken syntax file must produce a finding, got ${JSON.stringify(findings)}`,
+	);
+	assert.ok(
+		hit.text.startsWith('PARSE_ERROR:'),
+		`finding text should carry PARSE_ERROR cause, got: ${hit.text}`,
+	);
+});
