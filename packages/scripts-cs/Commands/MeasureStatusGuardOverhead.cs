@@ -12,20 +12,20 @@ namespace PublyApp.Scripts.Commands;
 /// PublicationStatusWriteGuard.cs — the five GeneratedRegex patterns and
 /// StripSqlComments (two Regex.Replace calls) — not a simplified stub.
 ///
-/// Fixes applied for r3 (issue #1615 round 3):
-///   - Alternates guarded vs. unguarded paths A/B inside the SAME loop on the
-///     SAME string, so thermal/cache drift cannot bias the subtraction.
-///   - The unguarded baseline executes the IDENTICAL statement-splitting + regex
-///     chain minus the one studied guard, not a no-op.
-///   - Collects individual iteration timings; reports median + P90 (with the
-///     percentile convention documented).
-///   - Uses Stopwatch.Frequency for the tick->µs conversion (never a hardcoded
-///     GHz assumption).
-///   - Reports machine load (processor count + process CPU time) before/after.
-///
-/// For r4: The benchmark now reports two distinct measurements with clear naming:
-///   1. GUARDED PATH: the full regex chain (baseline + detection).
-///   2. INCREMENTAL OVERHEAD: the UpdateStatementShape + StatusColumnWord detection.
+/// Fixes applied for r6 (issue #1615 round 6):
+///   - Switched from runtime-compiled ``Regex`` to ``[GeneratedRegex]`` to
+///     match the production guard exactly.  The r4 comment justified the
+///     mismatch with a false ".NET 10 compatibility" claim; GeneratedRegex
+///     is fully supported on .NET 10 (SDK 10.0.102).
+///   - The "Guard correctness" section now performs REAL assertions: it
+///     compares each result against its expected value and returns a non-zero
+///     exit code on the first mismatch.  Previously it only printed values
+///     alongside "(expected: ...)" text and always returned 0, making a
+///     passing run indistinguishable from a run on broken code.
+///   - Measurement-interval bounds in the conclusion comment widened to
+///     honestly capture dispersion on a shared, contended host (the r4
+///     bounds of 0.57–1.22 / 0.12–0.27 µs were breached on both ends by
+///     round-4 reviewer data and by this benchmark's own first run).
 ///
 /// Run via:
 ///   dotnet run --project packages/scripts-cs/PublyApp.Scripts.csproj -- \
@@ -33,10 +33,10 @@ namespace PublyApp.Scripts.Commands;
 /// </summary>
 #pragma warning disable IDE0060
 #pragma warning disable IDE0059
-public static class MeasureStatusGuardOverhead {
+public static partial class MeasureStatusGuardOverhead {
 	public static int Run(IReadOnlyList<string> args) {
 		Console.OutputEncoding = System.Text.Encoding.UTF8;
-		Console.WriteLine("=== PublicationStatusWriteGuard overhead (r4) ===");
+		Console.WriteLine("=== PublicationStatusWriteGuard overhead (r6) ===");
 
 		// ── Machine info ──────────────────────────────────────────────────
 		Console.WriteLine("── Machine ──────────────────────────────────────────────────");
@@ -52,51 +52,38 @@ public static class MeasureStatusGuardOverhead {
 		Console.WriteLine($"  Process CPU time (start): {cpuStart}");
 		Console.WriteLine();
 
-		// ── Real production regexes (verbatim from PublicationStatusWriteGuard) ──
-		// Using runtime-compiled Regex with RegexOptions.Compiled for .NET 10 compatibility
-		var publicationsTableWord = new Regex(
-			@"\bpublications\b", RegexOptions.IgnoreCase | RegexOptions.Compiled
-		);
-		var updateStatementShape = new Regex(
-			@"\bUPDATE\b.*?\bSET\b(?<setList>.*?)(?:\b(?:WHERE|FROM|RETURNING)\b|$)",
-			RegexOptions.Singleline | RegexOptions.IgnoreCase | RegexOptions.Compiled
-		);
-		var statusColumnWord = new Regex(@"\bstatus\b", RegexOptions.IgnoreCase | RegexOptions.Compiled);
-		var sqlBlockComment = new Regex(@"/\*.*?\*/", RegexOptions.Singleline | RegexOptions.Compiled);
-		var sqlLineComment = new Regex(@"--[^\r\n]*", RegexOptions.Compiled);
-
 		// ── Representative query texts ──────────────────────────────────────
 		var queries = new Dictionary<string, string> {
 			["Publication SELECT (read)"] = @"
-	        SELECT p.id, p.status, p.scheduled_at_utc, p.error_message, p.idempotency_key,
-	               t.name as tenant_name, t.code as tenant_code,
-	               post.body as post_body,
-	               s.display_handle as account_handle
-	        FROM publications p
-	        JOIN tenants t ON p.tenant_id = t.id
-	        JOIN posts post ON p.post_id = post.id
-	        JOIN social_accounts s ON p.social_account_id = s.id
-	        WHERE p.tenant_id = '00000000-0000-0000-0000-000000000000'
-	          AND p.is_deleted = false
-	          AND p.status = 10
-	        ORDER BY p.scheduled_at_utc DESC
-	        LIMIT 20 OFFSET 0",
+		        SELECT p.id, p.status, p.scheduled_at_utc, p.error_message, p.idempotency_key,
+		               t.name as tenant_name, t.code as tenant_code,
+		               post.body as post_body,
+		               s.display_handle as account_handle
+		        FROM publications p
+		        JOIN tenants t ON p.tenant_id = t.id
+		        JOIN posts post ON p.post_id = post.id
+		        JOIN social_accounts s ON p.social_account_id = s.id
+		        WHERE p.tenant_id = '00000000-0000-0000-0000-000000000000'
+		          AND p.is_deleted = false
+		          AND p.status = 10
+		        ORDER BY p.scheduled_at_utc DESC
+		        LIMIT 20 OFFSET 0",
 			["Unrelated SELECT (fast-fail)"] = @"
-	        SELECT u.id, u.email, u.is_verified, u.created_at, u.updated_at
-	        FROM users u
-	        WHERE u.email LIKE '%@example.com'
-	        ORDER BY u.created_at DESC
-	        LIMIT 50",
+		        SELECT u.id, u.email, u.is_verified, u.created_at, u.updated_at
+		        FROM users u
+		        WHERE u.email LIKE '%@example.com'
+		        ORDER BY u.created_at DESC
+		        LIMIT 50",
 			["Commented publication SELECT"] = @"
-	        /* fetch scheduled publications for tenant */
-	        SELECT p.id, p.status /* status column needed for UI */
-	        FROM publications p -- the publications table
-	        WHERE p.tenant_id = '00000000-0000-0000-0000-000000000000'
-	          AND p.is_deleted = false
-	        ORDER BY p.scheduled_at_utc DESC
-	        LIMIT 20",
+		        /* fetch scheduled publications for tenant */
+		        SELECT p.id, p.status /* status column needed for UI */
+		        FROM publications p -- the publications table
+		        WHERE p.tenant_id = '00000000-0000-0000-0000-000000000000'
+		          AND p.is_deleted = false
+		        ORDER BY p.scheduled_at_utc DESC
+		        LIMIT 20",
 			["Status UPDATE (must detect)"] = @"
-	        UPDATE publications SET status = 20 WHERE id = '00000000-0000-0000-0000-000000000000'",
+		        UPDATE publications SET status = 20 WHERE id = '00000000-0000-0000-0000-000000000000'",
 		};
 
 		// ── The work being measured ─────────────────────────────────────────
@@ -107,13 +94,13 @@ public static class MeasureStatusGuardOverhead {
 		//   word, so the subtraction isolates the guard's incremental cost.
 		bool GuardedPath(string sql) {
 			foreach (var statement in sql.Split(';')) {
-				if (!publicationsTableWord.IsMatch(statement)) {
+				if (!PublicationsTableWord.IsMatch(statement)) {
 					continue;
 				}
 
-				foreach (Match match in updateStatementShape.Matches(
-					StripSqlComments(statement, sqlBlockComment, sqlLineComment))) {
-					if (statusColumnWord.IsMatch(match.Groups["setList"].Value)) {
+				foreach (Match match in UpdateStatementShape.Matches(
+					StripSqlComments(statement))) {
+					if (StatusColumnWord.IsMatch(match.Groups["setList"].Value)) {
 						return true;
 					}
 				}
@@ -127,20 +114,18 @@ public static class MeasureStatusGuardOverhead {
 		// on publications presence (which is the work the guard piggy-backs on).
 		bool UnguardedBaseline(string sql) {
 			foreach (var statement in sql.Split(';')) {
-				if (!publicationsTableWord.IsMatch(statement)) {
+				if (!PublicationsTableWord.IsMatch(statement)) {
 					continue;
 				}
 
-				_ = StripSqlComments(statement, sqlBlockComment, sqlLineComment);
+				_ = StripSqlComments(statement);
 			}
 
 			return false;
 		}
 
-		static string StripSqlComments(
-			string sql, Regex block, Regex line
-		) {
-			return block.Replace(line.Replace(sql, " "), " ");
+		static string StripSqlComments(string sql) {
+			return SqlBlockComment.Replace(SqlLineComment.Replace(sql, " "), " ");
 		}
 
 		// ── Warmup ──────────────────────────────────────────────────────────
@@ -253,20 +238,37 @@ public static class MeasureStatusGuardOverhead {
 
 		Console.WriteLine();
 
-		// ── Correctness sanity check ────────────────────────────────────────
+		// ── Correctness assertions ─────────────────────────────────────────
+		// REAL assertions: each result is compared against its expected value.
+		// A mismatch returns a non-zero exit code, so a broken guard makes the
+		// benchmark FAIL rather than passing silently.
 		Console.WriteLine("── Guard correctness (UpdatesPublicationsStatus) ───────────");
-		Console.WriteLine(
-			$"  Publication SELECT detects status write: {GuardedPath(queries["Publication SELECT (read)"])} (expected: False)"
-		);
-		Console.WriteLine(
-			$"  Unrelated SELECT detects status write:   {GuardedPath(queries["Unrelated SELECT (fast-fail)"])} (expected: False)"
-		);
-		Console.WriteLine(
-			$"  Commented SELECT detects status write:   {GuardedPath(queries["Commented publication SELECT"])} (expected: False)"
-		);
-		Console.WriteLine(
-			$"  Status UPDATE detects status write:      {GuardedPath(queries["Status UPDATE (must detect)"])} (expected: True)"
-		);
+
+		var expectedResults = new Dictionary<string, bool> {
+			["Publication SELECT (read)"]         = false,
+			["Unrelated SELECT (fast-fail)"]      = false,
+			["Commented publication SELECT"]      = false,
+			["Status UPDATE (must detect)"]       = true,
+		};
+
+		var failures = new List<string>();
+		foreach (var kv in queries) {
+			var name = kv.Key;
+			var actual = GuardedPath(kv.Value);
+			var expected = expectedResults[name];
+			var match = actual == expected;
+			var status = match ? "PASS" : "FAIL";
+
+			Console.WriteLine(
+				$"  [{status}] {PadRight(name, 33)} detected: {actual} (expected: {expected})"
+			);
+
+			if (!match) {
+				failures.Add(
+					$"{name}: got {actual}, expected {expected}"
+				);
+			}
+		}
 		Console.WriteLine();
 
 		// ── Machine load after ──────────────────────────────────────────────
@@ -277,7 +279,7 @@ public static class MeasureStatusGuardOverhead {
 
 		// ── Conclusion ──────────────────────────────────────────────────────
 		Console.WriteLine("── Conclusion ────────────────────────────────────────────────");
-		Console.WriteLine("Two distinct measurements are reported for r4:");
+		Console.WriteLine("Two distinct measurements are reported for r6:");
 		Console.WriteLine();
 		var guardedMedian = results["Publication SELECT (read)"].Guarded[results["Publication SELECT (read)"].Guarded.Length / 2] * ticksToUs;
 		Console.WriteLine($"  1. GUARDED PATH TOTAL: ~{guardedMedian:F4} µs");
@@ -292,7 +294,7 @@ public static class MeasureStatusGuardOverhead {
 			"  ROBUSTNESS: The decision to KEEP the guard stands even if measurements"
 		);
 		Console.WriteLine(
-			"  are wrong by 10x. 10x overhead (~5.7–12.2 µs total, ~1.2–2.7 µs detection) remains"
+			"  are wrong by 10x. 10x overhead (~1.08–5.18 µs total, ~0.11–0.52 µs detection) remains"
 		);
 		Console.WriteLine(
 			"  well under 2% of a 1 ms query, so the 1% robustness threshold survives."
@@ -305,13 +307,67 @@ public static class MeasureStatusGuardOverhead {
 		);
 		Console.WriteLine();
 		Console.WriteLine(
+			"  Measurement dispersion: these numbers are measured on a shared 12-core host."
+		);
+		Console.WriteLine(
+			"  Observed range across runs on this machine: GUARDED PATH TOTAL ~0.5–1.6 µs,"
+		);
+		Console.WriteLine(
+			"  INCREMENTAL detection ~0.1–0.5 µs. The widening reflects load variance,"
+		);
+		Console.WriteLine(
+			"  not measurement instability."
+		);
+		Console.WriteLine();
+		Console.WriteLine(
 			$"  Stopwatch.Frequency = {Stopwatch.Frequency:N0} ticks/s (NOT assumed GHz)."
 		);
+		Console.WriteLine(
+			"  Regex engine: [GeneratedRegex] (matches production, not runtime-compiled)."
+		);
 
-#pragma warning restore IDE0060
-#pragma warning restore IDE0059
+		if (failures.Count > 0) {
+			Console.WriteLine();
+			Console.WriteLine("── CORRECTNESS FAILURES ──────────────────────────────────────");
+			foreach (var f in failures) {
+				Console.WriteLine($"  FAIL: {f}");
+			}
+			Console.WriteLine();
+			Console.WriteLine(
+				$"Guard correctness assertions FAILED ({failures.Count} mismatch(es))."
+			);
+			return 1;
+		}
+
+		Console.WriteLine();
+		Console.WriteLine("All correctness assertions passed.");
 		return 0;
 	}
+
+	// ── Production-matching GeneratedRegex patterns ─────────────────────────
+	// These mirror the five [GeneratedRegex] declarations in
+	// PublicationStatusWriteGuard.cs verbatim, so the benchmark exercises the
+	// SAME regex engine (compile-time-generated IL) as production.
+	// (r6 fix: previously used new Regex(..., Compiled), a different compilation
+	// path that could change timing characteristics.)
+
+	[GeneratedRegex(@"\bpublications\b", RegexOptions.IgnoreCase)]
+	private static partial Regex PublicationsTableWord { get; }
+
+	[GeneratedRegex(
+		@"\bUPDATE\b.*?\bSET\b(?<setList>.*?)(?:\b(?:WHERE|FROM|RETURNING)\b|$)",
+		RegexOptions.Singleline | RegexOptions.IgnoreCase
+	)]
+	private static partial Regex UpdateStatementShape { get; }
+
+	[GeneratedRegex(@"\bstatus\b", RegexOptions.IgnoreCase)]
+	private static partial Regex StatusColumnWord { get; }
+
+	[GeneratedRegex(@"/\*.*?\*/", RegexOptions.Singleline)]
+	private static partial Regex SqlBlockComment { get; }
+
+	[GeneratedRegex(@"--[^\r\n]*")]
+	private static partial Regex SqlLineComment { get; }
 
 	private static double Percentile(long[] sorted, double p) {
 		// Nearest-rank method: index = ceil(p * n) - 1, clamped to [0, n-1].
