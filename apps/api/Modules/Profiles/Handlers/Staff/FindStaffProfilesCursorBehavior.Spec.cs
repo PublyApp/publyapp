@@ -13,6 +13,7 @@ using PublyApp.Api.Lib.Testing.Fixtures;
 using PublyApp.Api.Lib.Testing.Helpers;
 using PublyApp.Api.Lib.Utils;
 using PublyApp.Api.Modules.Profiles.Entities;
+using PublyApp.Api.Modules.Users.Entities;
 
 using Xunit;
 
@@ -100,6 +101,235 @@ public sealed class FindStaffProfilesCursorBehaviorSpec
 			.Select(id => visitedNamesById[id])
 			.ToList();
 		visitedNames.Should().Equal(seededNames);
+	}
+
+	[Fact]
+	public async Task ItShouldWalkEveryIdPageWithoutOverlapOrGap() {
+		var token = await _authClient.LoginAsStaffAdminAsync();
+
+		// 3 profiles with distinct Id; the walk must visit each once in
+		// ascending Id order. A keySelector swap to another same-type field
+		// (e.g. Name) turns this assertion RED.
+		var seededIds = new List<Guid>();
+		for (var i = 0; i < 3; i++) {
+			var name = $"Id Walk {i} {Guid.NewGuid():N}";
+			seededIds.Add(await SeedStaffProfileAsync(name));
+		}
+
+		var visitedIds = new List<Guid>();
+		string? cursor = null;
+		var pages = 0;
+		do {
+			var query = "limit=1&sort_id=id&sort_order=asc";
+			if (cursor is not null) {
+				query += $"&cursor={Uri.EscapeDataString(cursor)}";
+			}
+
+			using var request = new HttpRequestMessage(
+				HttpMethod.Get,
+				GetUrl(query)
+			).WithSessionToken(token);
+
+			using var response = await _http.SendAsync(request);
+			response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+			var page = await response.Content.ReadFromJsonAsync<FindStaffProfilesResponse>();
+			page.Should().NotBeNull();
+			Assert.NotNull(page);
+			pages++;
+			foreach (var item in page.Data) {
+				visitedIds.Add(item.Id);
+			}
+			cursor = page.NextCursor;
+
+			pages.Should().BeLessOrEqualTo(100);
+		} while (cursor is not null);
+
+		visitedIds.Should().OnlyHaveUniqueItems();
+		visitedIds.Should().Contain(seededIds);
+
+		var visitedOrder = visitedIds
+			.Where(seededIds.Contains)
+			.ToList();
+		var expectedOrder = seededIds.OrderBy(id => id).ToList();
+		visitedOrder.Should().Equal(expectedOrder);
+	}
+
+	[Fact]
+	public async Task ItShouldWalkEveryCreatedAtPageWithoutOverlapOrGap() {
+		var token = await _authClient.LoginAsStaffAdminAsync();
+
+		// 3 profiles with distinct, deliberately NOT insertion-ordered
+		// CreatedAt (anti-correlated). The walk must visit each once in
+		// ascending CreatedAt order, not insertion order, so a
+		// keySelector swap to another same-type field (e.g. Name)
+		// turns this assertion RED.
+		var baseDate = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+		var seededIds = new List<Guid>();
+		var seededOrder = new List<DateTime>();
+		for (var i = 0; i < 3; i++) {
+			var createdAt = baseDate.AddDays((3 - i) % 3);
+			var id = await SeedStaffProfileAtAsync($"created-at-walk-{i}-{Guid.NewGuid():N}", createdAt);
+			seededIds.Add(id);
+			seededOrder.Add(createdAt);
+		}
+
+		var visitedIds = new List<Guid>();
+		string? cursor = null;
+		var pages = 0;
+		do {
+			var query = "limit=1&sort_id=created_at&sort_order=asc";
+			if (cursor is not null) {
+				query += $"&cursor={Uri.EscapeDataString(cursor)}";
+			}
+
+			using var request = new HttpRequestMessage(
+				HttpMethod.Get,
+				GetUrl(query)
+			).WithSessionToken(token);
+
+			using var response = await _http.SendAsync(request);
+			response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+			var page = await response.Content.ReadFromJsonAsync<FindStaffProfilesResponse>();
+			page.Should().NotBeNull();
+			Assert.NotNull(page);
+			pages++;
+			foreach (var item in page.Data) {
+				visitedIds.Add(item.Id);
+			}
+			cursor = page.NextCursor;
+
+			pages.Should().BeLessOrEqualTo(100);
+		} while (cursor is not null);
+
+		visitedIds.Should().OnlyHaveUniqueItems();
+		visitedIds.Should().Contain(seededIds);
+
+		var visitedOrder = visitedIds
+			.Where(seededIds.Contains)
+			.ToList();
+		var createdAtById = seededIds
+			.Zip(seededOrder, (id, c) => (id, c))
+			.ToDictionary(x => x.id, x => x.c);
+		visitedOrder.Should().Equal(
+			seededIds.OrderBy(id => createdAtById[id]).ToList()
+		);
+	}
+
+	[Fact]
+	public async Task ItShouldWalkEveryUserAccountCountPageWithoutOverlapOrGap() {
+		var token = await _authClient.LoginAsStaffAdminAsync();
+
+		// 3 profiles with distinct, deliberately NOT insertion-ordered
+		// UserAccountCount (anti-correlated). The walk must visit each once in
+		// ascending UserAccountCount order, so a keySelector swap to another
+		// same-type field (e.g. Name) turns this assertion RED.
+		var seededIds = new List<Guid>();
+		var seededCounts = new List<int>();
+		var counts = new[] { 3, 1, 2 };
+		for (var i = 0; i < 3; i++) {
+			var id = await SeedStaffProfileWithUsersAsync($"uac-walk-{i}-{Guid.NewGuid():N}", counts[i]);
+			seededIds.Add(id);
+			seededCounts.Add(counts[i]);
+		}
+
+		var visitedIds = new List<Guid>();
+		string? cursor = null;
+		var pages = 0;
+		do {
+			var query = "limit=1&sort_id=user_account_count&sort_order=asc";
+			if (cursor is not null) {
+				query += $"&cursor={Uri.EscapeDataString(cursor)}";
+			}
+
+			using var request = new HttpRequestMessage(
+				HttpMethod.Get,
+				GetUrl(query)
+			).WithSessionToken(token);
+
+			using var response = await _http.SendAsync(request);
+			response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+			var page = await response.Content.ReadFromJsonAsync<FindStaffProfilesResponse>();
+			page.Should().NotBeNull();
+			Assert.NotNull(page);
+			pages++;
+			foreach (var item in page.Data) {
+				visitedIds.Add(item.Id);
+			}
+			cursor = page.NextCursor;
+
+			pages.Should().BeLessOrEqualTo(100);
+		} while (cursor is not null);
+
+		visitedIds.Should().OnlyHaveUniqueItems();
+		visitedIds.Should().Contain(seededIds);
+
+		var visitedOrder = visitedIds
+			.Where(seededIds.Contains)
+			.ToList();
+		var expectedOrder = seededIds
+			.Zip(seededCounts, (id, c) => (id, c))
+			.OrderBy(x => x.c)
+			.ThenBy(x => x.id)
+			.Select(x => x.id)
+			.ToList();
+		visitedOrder.Should().Equal(expectedOrder);
+	}
+
+	private async Task<Guid> SeedStaffProfileAtAsync(string name, DateTime createdAt) {
+		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+		var profile = Profile.CreateStaffProfile(name);
+		await dbContext.Profile.AddAsync(profile);
+		await dbContext.SaveChangesAsync();
+
+		var id = profile.GetRequiredId();
+		var tracked = await dbContext.Profile
+			.Where(p => p.Id == id)
+			.FirstAsync();
+		tracked.CreatedAt = createdAt;
+		await dbContext.SaveChangesAsync();
+
+		return id;
+	}
+
+	private async Task<Guid> SeedStaffProfileWithUsersAsync(string name, int userCount) {
+		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+		var profile = Profile.CreateStaffProfile(name);
+		await dbContext.Profile.AddAsync(profile);
+		await dbContext.SaveChangesAsync();
+
+		var id = profile.GetRequiredId();
+		for (var i = 0; i < userCount; i++) {
+			var user = new User {
+				Email = $"uac-user-{id:N}-{i}-{Guid.NewGuid():N}@example.com",
+				Password = "unused",
+				FirstName = "UAC",
+				LastName = "User",
+				Status = UserStatus.Active,
+				IsVerified = true,
+			};
+			await dbContext.User.AddAsync(user);
+			await dbContext.SaveChangesAsync();
+
+			var account = UserAccount.CreateStaffAccount(user.GetRequiredId());
+			await dbContext.UserAccount.AddAsync(account);
+			await dbContext.SaveChangesAsync();
+
+			var junction = new UserAccountProfile {
+				UserAccountId = account.GetRequiredId(),
+				ProfileId = id,
+			};
+			await dbContext.UserAccountProfile.AddAsync(junction);
+			await dbContext.SaveChangesAsync();
+		}
+
+		return id;
 	}
 
 	[Fact]
