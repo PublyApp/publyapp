@@ -102,6 +102,14 @@ interface Finding {
 	text: string;
 }
 
+// ts-morph's SourceFile type omits parseDiagnostics, but its vendored
+// compiler always populates it (verified behaviour in check-design-system.mts).
+// Widen once through the named view type instead of an `as unknown as` chain
+// that discards type evidence, so the precise SourceFile type is retained.
+interface SourceFileWithParseDiagnostics extends ts.SourceFile {
+	parseDiagnostics: readonly ts.Diagnostic[];
+}
+
 const walk = (dir: string): string[] => {
 	const out: string[] = [];
 	let entries: string[];
@@ -182,7 +190,6 @@ const moduleSpecifierText = (
  * calls are inspected too, per the R2 requirement list.
  */
 const scanSourceFile = (
-	filePath: string,
 	relativePath: string,
 	source: string,
 ): Finding[] => {
@@ -222,14 +229,11 @@ const scanSourceFile = (
 
 	visit(sourceFile);
 
-	// ts-morph's SourceFile type omits parseDiagnostics, but its vendored
-	// compiler always populates it (verified behaviour in check-design-system.mts).
-	// Surface parse failures so a file that can't be parsed doesn't silently
-	// pass the guard — that would be a false green.
-	const sourceFileAny = sourceFile as unknown as {
-		parseDiagnostics: readonly ts.Diagnostic[];
-	};
-	for (const diagnostic of sourceFileAny.parseDiagnostics ?? []) {
+	// ts-morph omits parseDiagnostics from its public type even though its
+	// vendored compiler always populates it; widen once through the named
+	// view type instead of an assertion chain that would discard evidence.
+	const { parseDiagnostics } = sourceFile as SourceFileWithParseDiagnostics;
+	for (const diagnostic of parseDiagnostics) {
 		findings.push({
 			file: relativePath,
 			line:
@@ -253,7 +257,7 @@ const scriptKindForPath = (relativePath: string): ts.ScriptKind => {
 		case '.tsx':
 			return ts.ScriptKind.TSX;
 		case '.mts':
-			return ts.ScriptKind.ExternalModule;
+			return ts.ScriptKind.External;
 		case '.ts':
 		default:
 			return ts.ScriptKind.TS;
@@ -268,7 +272,7 @@ export const scanTreeForSharedTsReExports = (
 	for (const file of walk(base)) {
 		const relativePath = `${tree.label}/${path.relative(base, file)}`;
 		const source = readFileSync(file, 'utf8');
-		findings.push(...scanSourceFile(file, relativePath, source));
+		findings.push(...scanSourceFile(relativePath, source));
 	}
 	return findings;
 };
