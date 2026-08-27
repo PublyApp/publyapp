@@ -9,7 +9,7 @@ const isConditionalExpression = (
 const isIdentifier = (
 	node: ESTree.Expression | null | undefined,
 	name: string,
-): node is ESTree.Identifier =>
+): node is ESTree.IdentifierReference =>
 	node !== null &&
 	node !== undefined &&
 	node.type === 'Identifier' &&
