@@ -47,19 +47,27 @@ public sealed class FindAuditLogsCursorBehaviorSpec
 			SeedConstants.Staff.AdminEmail
 		);
 
-		// 3 logs with distinct CreatedAt; the walk must visit each once in
-		// ascending CreatedAt order with no gap or duplicate.
+		// 3 logs with distinct, deliberately NOT insertion-ordered CreatedAt
+		// (anti-correlated with insertion). The walk must visit each once in
+		// ascending CreatedAt order, not in insertion order, so a keySelector
+		// swap to another same-type field (e.g. UpdatedAt, which is stamped
+		// at insertion time) turns this assertion RED.
 		var baseDate = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
 		var seededIds = new List<Guid>();
+		var seededOrder = new List<DateTime>();
 		for (var i = 0; i < 3; i++) {
-			seededIds.Add(await SeedAuditLogAtAsync(
+			var id = await SeedAuditLogAtAsync(
 				staffUserId,
 				$"audit-walk-{i}-{Guid.NewGuid():N}",
-				baseDate.AddDays(i)
-			));
+				// index 0 -> day 2, 1 -> day 0, 2 -> day 1 (anti-correlated)
+				baseDate.AddDays((3 - i) % 3)
+			);
+			seededIds.Add(id);
+			seededOrder.Add(baseDate.AddDays((3 - i) % 3));
 		}
 
 		var visitedIds = new List<Guid>();
+		var visitedCreatedAtOrder = new List<DateTime>();
 		string? cursor = null;
 		var pages = 0;
 		do {
@@ -82,6 +90,7 @@ public sealed class FindAuditLogsCursorBehaviorSpec
 			Assert.NotNull(page);
 			pages++;
 			visitedIds.AddRange(page.Data.Select(log => log.Id));
+			visitedCreatedAtOrder.AddRange(page.Data.Select(log => log.CreatedAt));
 			cursor = page.NextCursor;
 
 			// Guard against an infinite loop if the tie-breaker/cursor filter regresses.
@@ -93,10 +102,28 @@ public sealed class FindAuditLogsCursorBehaviorSpec
 		visitedIds.Should().OnlyHaveUniqueItems();
 		visitedIds.Should().Contain(seededIds);
 
+		// Assert the OBSERVED order of the sorted field: the walk must return
+		// our rows in ascending CreatedAt, which is NOT the insertion order.
 		var visitedSeededOrder = visitedIds
 			.Where(seededIds.Contains)
 			.ToList();
-		visitedSeededOrder.Should().Equal(seededIds);
+		var createdAtById = seededIds
+			.Zip(seededOrder, (id, c) => (id, c))
+			.ToDictionary(x => x.id, x => x.c);
+		visitedSeededOrder.Should().Equal(
+			seededIds.OrderBy(id => createdAtById[id]).ToList()
+		);
+
+		// Capture the CreatedAt the API actually returned, in visit order, and
+		// assert it is strictly ascending and equal to the seeded-but-sorted
+		// order — pinning the sort to CreatedAt (not UpdatedAt/in(insertion)).
+		var visitedSeededCreatedAt = visitedSeededOrder
+			.Select(id => visitedCreatedAtOrder[visitedIds.IndexOf(id)])
+			.ToList();
+		visitedSeededCreatedAt.Should().Equal(
+			seededOrder.OrderBy(x => x).ToList()
+		);
+		visitedSeededCreatedAt.Should().NotEqual(seededOrder);
 	}
 
 	[Fact]
@@ -157,12 +184,20 @@ public sealed class FindAuditLogsCursorBehaviorSpec
 			IpAddress = "127.0.0.1",
 			UserAgent = "test-agent",
 		};
-		log.CreatedAt = createdAt;
-
+		// Insert first (interceptor stamps CreatedAt/UpdatedAt = now), then
+		// re-fetch and overwrite CreatedAt as a Modified row. On Modified the
+		// interceptor only touches UpdatedAt, so the seeded CreatedAt sticks.
 		await dbContext.AuditLog.AddAsync(log);
 		await dbContext.SaveChangesAsync();
+		var id = log.GetRequiredId();
 
-		return log.GetRequiredId();
+		var tracked = await dbContext.AuditLog
+			.Where(a => a.Id == id)
+			.FirstAsync();
+		tracked.CreatedAt = createdAt;
+		await dbContext.SaveChangesAsync();
+
+		return id;
 	}
 
 	private sealed record FindAuditLogsResponse {
