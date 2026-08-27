@@ -178,14 +178,16 @@ public class AppDbContext : Microsoft.EntityFrameworkCore.DbContext, IDataProtec
 		// migrator, tests, and a bare `new AppDbContext(...)` alike. There is no
 		// opt-out by design; see Modules/Publishing/Lib/PublicationStatusWriteGuard.
 		//
-		// Performance impact: ~0.4 us per query overhead on read paths (measured
-		// via micro-benchmark isolating the regex check in UpdatesPublicationsStatus()).
-		// The overhead is negligible, well under 1% of typical query latency
-		// (a paginated read is 1-10 ms; the check is ~0.4 us of that).
-		// Method: 10 000 iterations, JIT/cache warmup discarded, median and 90th
-		// percentile reported, measured with and without the interceptor on the
-		// same context. Full figures in the pull request that introduced this
-		// comment (#1673, issue #1615).
+		// Performance impact: ~0.83 us (median) per publication-table read
+		// query overhead on read paths (measured via micro-benchmark of the
+		// REAL production code, including StripSqlComments — two Regex.Replace
+		// calls). The overhead is negligible, well under 1% of typical query
+		// latency (a paginated read is 1-10 ms; the check is ~0.83 us of that).
+		// Method: 20,000 iterations, JIT/cache warmup discarded, median and
+		// 90th percentile reported (P90 ~0.92 us), Stopwatch.Frequency used
+		// for time conversion (NOT assumed 3GHz), no-op baseline subtracted.
+		// Full figures in the pull request that introduced this comment
+		// (#1673, issue #1615).
 		optionsBuilder.AddInterceptors(new PublicationStatusWriteGuard());
 
 		// EF Core 9: Define seeding logic here using reflection to discover all seeders
