@@ -112,6 +112,7 @@
 	"post-image-unsupported-type": "Image must be a PNG, JPEG, WEBP, or GIF",
 	"post-image-dimensions-invalid": "Image dimensions are invalid",
 	"post-image-missing": "No image is attached to this post",
+	"post-image-conflict": "Another image attach for this post just won; retry to replace it",
 	"post-image-attached-success": "Post image attached successfully",
 	"post-image-removed-success": "Post image removed successfully",
 	"social-account-not-found": "Social account not found",

@@ -38,14 +38,17 @@ public interface IPostMediaAssetService {
 
 	/// <summary>
 	/// Persists the new asset row in ONE unit of work: hard-deletes the stale
-	/// live row(s) a replacement purges, inserts the new row, and saves. The
-	/// CALLING HANDLER owns the #807 F5 reference discipline around this call:
-	/// acquire the new blob's reference BEFORE calling (so the URL can never
-	/// commit at zero references), then release the replaced image's reference
-	/// AFTER this method returns (its SaveChanges has committed). Physical
-	/// deletion stays exclusively the sweeper's.
+	/// live row(s) a replacement purges, inserts the new row, and saves. Returns
+	/// the blob paths it DISPLACED (inside this same transaction, the moment the
+	/// replacement's row is hard-deleted) so the CALLING HANDLER can release those
+	/// asset references AFTER this method's commit. The handler MUST acquire the
+	/// NEW blob's reference before calling (so the URL can never commit at zero
+	/// references) and release the RETURNED displaced paths after. Capturing the
+	/// replaced path in the handler before this call races the purge and leaks the
+	/// predecessor's blob reference (#1617) — that responsibility lives here, not
+	/// in the handler. Physical deletion stays exclusively the sweeper's.
 	/// </summary>
-	Task AttachAsync(
+	Task<IReadOnlyList<string>> AttachAsync(
 		AttachPostMediaArgs args,
 		CancellationToken cancellationToken = default
 	);
@@ -109,7 +112,7 @@ public sealed class PostMediaAssetService(AppDbContext dbContext)
 		return await query.FirstOrDefaultAsync(cancellationToken);
 	}
 
-	public async Task AttachAsync(
+	public async Task<IReadOnlyList<string>> AttachAsync(
 		AttachPostMediaArgs args,
 		CancellationToken cancellationToken = default
 	) {
@@ -123,6 +126,14 @@ public sealed class PostMediaAssetService(AppDbContext dbContext)
 				&& !a.IsDeleted
 			select a
 		).ToListAsync(cancellationToken);
+
+		// Capture the displaced blob paths NOW, inside this tracked query's scope,
+		// so the handler releases exactly the rows this commit is about to purge.
+		// Doing this in the handler before the call races concurrent purges and
+		// leaks the predecessor's reference (#1617).
+		var displacedPaths = replacedAssets
+			.Select(a => a.RelativePath)
+			.ToList();
 
 		var asset = new PostMediaAsset {
 			TenantId = args.TenantId,
@@ -145,9 +156,10 @@ public sealed class PostMediaAssetService(AppDbContext dbContext)
 		// (EF Core issues same-table deletes before inserts in the batch).
 		await dbContext.SaveChangesAsync(cancellationToken);
 
-		// The CALLING HANDLER acquired the new blob's reference before this
-		// call and releases any replaced image's reference after this commit
+		// The CALLING HANDLER acquired the new blob's reference before this call
+		// and now releases the displaced paths returned here after the commit
 		// (#807 F5); physical deletion stays exclusively sweeper's.
+		return displacedPaths;
 	}
 
 	public async Task<string?> RemoveAsync(
