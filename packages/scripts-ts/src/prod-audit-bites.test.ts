@@ -115,10 +115,7 @@ const repoRoot = path.resolve(
 	path.dirname(new URL(import.meta.url).pathname),
 	'../../..',
 );
-const WORKFLOW_PATH = path.join(
-	repoRoot,
-	'.github/workflows/front-ci.yml',
-);
+const WORKFLOW_PATH = path.join(repoRoot, '.github/workflows/front-ci.yml');
 
 const extractProdAuditCommand = (): string => {
 	// Use a tiny regex instead of a YAML parser: the `run:` body for this
