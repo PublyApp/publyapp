@@ -34,8 +34,20 @@
  */
 
 import { mkdirSync } from 'node:fs';
-import { readFileSync, writeFileSync, unlinkSync, statSync, openSync, closeSync } from 'node:fs';
-import { dirname, join as pathJoin, dirname as pathDirname, resolve } from 'node:path';
+import {
+	readFileSync,
+	writeFileSync,
+	unlinkSync,
+	statSync,
+	openSync,
+	closeSync,
+} from 'node:fs';
+import {
+	dirname,
+	join as pathJoin,
+	dirname as pathDirname,
+	resolve,
+} from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -118,7 +130,7 @@ function findRepoRoot(): string {
  * Get the lock file path for a given port band
  */
 function getLockFilePath(bandIndex: number): string {
-	const basePort = BASE_PORTS.traefik_web + (bandIndex * PORT_BAND);
+	const basePort = BASE_PORTS.traefik_web + bandIndex * PORT_BAND;
 	return pathJoin(LOCK_DIR, `band-${basePort}.lock`);
 }
 
@@ -229,7 +241,11 @@ function ensureLockDirExists(): void {
  * Acquire a port band atomically using exclusive file creation
  * Returns lockPath as part of the result
  */
-function acquirePortBandInternal(): { bandIndex: number; basePort: number; lockPath: string } | null {
+function acquirePortBandInternal(): {
+	bandIndex: number;
+	basePort: number;
+	lockPath: string;
+} | null {
 	ensureLockDirExists();
 
 	for (let bandIndex = 0; bandIndex < MAX_BANDS; bandIndex++) {
@@ -238,24 +254,24 @@ function acquirePortBandInternal(): { bandIndex: number; basePort: number; lockP
 		try {
 			// Try to create the lock file exclusively (O_EXCL)
 			const fd = openSync(lockPath, 'wx');
-			
+
 			// Write a unique identifier to the lock
 			const lockContent = JSON.stringify({
 				pid: process.pid,
 				timestamp: Date.now(),
 				uuid: crypto.randomUUID(),
 			});
-			
+
 			writeFileSync(lockPath, lockContent, 'utf8');
 			closeSync(fd);
 
-			const basePort = BASE_PORTS.traefik_web + (bandIndex * PORT_BAND);
+			const basePort = BASE_PORTS.traefik_web + bandIndex * PORT_BAND;
 			return { bandIndex, basePort, lockPath };
 		} catch {
 			// Lock file exists - check if it's stale and can be reclaimed
 			if (isLockStale(lockPath) && reclaimStaleLock(lockPath)) {
 				// Successfully reclaimed the stale lock
-				const basePort = BASE_PORTS.traefik_web + (bandIndex * PORT_BAND);
+				const basePort = BASE_PORTS.traefik_web + bandIndex * PORT_BAND;
 				return { bandIndex, basePort, lockPath };
 			}
 			// Lock exists and couldn't be reclaimed, try next band
@@ -291,14 +307,28 @@ export function deriveProjectName(): string {
 /**
  * Compute environment variables for the e2e stack
  */
-export function computeEnv(): Record<string, string> {
+/** The exact set of environment variables the e2e stack needs. Closed on purpose:
+ * an open dictionary would let a typo introduce a variable nothing consumes. */
+export type E2eComposeEnv = {
+	COMPOSE_PROJECT_NAME: string;
+	E2E_PORT_TRAEFIK_WEB: string;
+	E2E_PORT_TRAEFIK_WEBSECURE: string;
+	E2E_PORT_REQUEST_COUNTER: string;
+	E2E_PORT_TOXIPROXY: string;
+	E2E_PORT_POSTGRES: string;
+	E2E_BASE_URL: string;
+	E2E_API_BASE_URL: string;
+	E2E_LOCK_PATH: string;
+};
+
+export function computeEnv(): E2eComposeEnv {
 	// Acquire a port band
 	const band = acquirePortBandInternal();
 
 	if (!band) {
 		throw new Error(
 			`Could not acquire port band. All ${MAX_BANDS} bands are in use. ` +
-			`Start another instance of the e2e stack? Or wait and retry.`
+				`Start another instance of the e2e stack? Or wait and retry.`,
 		);
 	}
 
@@ -355,30 +385,34 @@ export type E2EComposeEnv = {
  * Acquire a port band atomically using exclusive file creation
  * Exported for testing
  */
-export const acquirePortBand: () => PortBandReservation | null = acquirePortBandInternal;
+export const acquirePortBand: () => PortBandReservation | null =
+	acquirePortBandInternal;
 
 /**
  * Release port band
  * Exported for testing
  */
-export const releasePortBand: (lockPath: string) => boolean = releasePortBandInternal;
+export const releasePortBand: (lockPath: string) => boolean =
+	releasePortBandInternal;
 
 /**
  * Setup complete e2e environment (exported for testing)
  */
 export function setupE2EComposeEnv(): E2EComposeEnv {
 	const env = computeEnv();
-	
+
 	// Extract values from environment
-	const httpPort = parseInt(env.E2E_PORT_TRAEFIK_WEB, 10);
-	const httpsPort = parseInt(env.E2E_PORT_TRAEFIK_WEBSECURE, 10);
-	const dbPort = parseInt(env.E2E_PORT_POSTGRES, 10);
-	const requestCounterPort = parseInt(env.E2E_PORT_REQUEST_COUNTER, 10);
-	
+	const httpPort = Number.parseInt(env.E2E_PORT_TRAEFIK_WEB, 10);
+	const httpsPort = Number.parseInt(env.E2E_PORT_TRAEFIK_WEBSECURE, 10);
+	const dbPort = Number.parseInt(env.E2E_PORT_POSTGRES, 10);
+	const requestCounterPort = Number.parseInt(env.E2E_PORT_REQUEST_COUNTER, 10);
+
 	// Calculate band index from lock path
 	const lockPath = env.E2E_LOCK_PATH;
 	const match = lockPath.match(/band-(\d+)\.lock$/);
-	const bandIndex = match ? (parseInt(match[1], 10) - BASE_PORTS.traefik_web) / PORT_BAND : 0;
+	const bandIndex = match
+		? (Number.parseInt(match[1], 10) - BASE_PORTS.traefik_web) / PORT_BAND
+		: 0;
 
 	return {
 		projectName: env.COMPOSE_PROJECT_NAME,

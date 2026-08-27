@@ -17,7 +17,7 @@ const DEFAULT_COUNTER_PORT = 8800;
 const DEFAULT_TOXIPROXY_PORT = 8474;
 
 const port = (envVar: string, defaultPort: number): number =>
-	parseInt(process.env[envVar] ?? String(defaultPort), 10);
+	Number.parseInt(process.env[envVar] ?? String(defaultPort), 10);
 
 export const E2E_PORTS = {
 	web: port('E2E_PORT_TRAEFIK_WEB', DEFAULT_WEB_PORT),
