@@ -88,7 +88,10 @@ import { ts } from 'ts-morph';
 
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const frontSrc = path.resolve(scriptDir, '../../src');
-const sharedTsSrc = path.resolve(scriptDir, '../../../../packages/shared-ts/src');
+const sharedTsSrc = path.resolve(
+	scriptDir,
+	'../../../../packages/shared-ts/src',
+);
 
 /**
  * Derive the set of first-segment names that the `@org/shared-ts` package
@@ -106,7 +109,8 @@ const sharedTsSrc = path.resolve(scriptDir, '../../../../packages/shared-ts/src'
  * `escapeRegExp` so the `@` is treated as a normal character, not a regex
  * metacharacter.
  */
-const escapeRegExp = (s: string): string => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+const escapeRegExp = (s: string): string =>
+	s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 const deriveSharedTsSegments = (dir: string): string[] => {
 	let entries: string[];
@@ -244,10 +248,7 @@ const moduleSpecifierText = (
  * re-EXPORTS create a second path and are violations. Dynamic `import('...')`
  * calls are inspected too, per the R2 requirement list.
  */
-const scanSourceFile = (
-	relativePath: string,
-	source: string,
-): Finding[] => {
+const scanSourceFile = (relativePath: string, source: string): Finding[] => {
 	const findings: Finding[] = [];
 
 	const sourceFile = ts.createSourceFile(
@@ -262,24 +263,24 @@ const scanSourceFile = (
 		if (ts.isExportDeclaration(node)) {
 			const specifier = moduleSpecifierText(node);
 			if (specifier !== null && specifier.startsWith(SHARED_TS_PREFIX)) {
-					if (SHARED_TS_MODULE_PATTERN.test(specifier)) {
-						findings.push({
-							file: relativePath,
-							line: lineOf(sourceFile, node),
-							type: 'DUAL_PATH',
-							text: node.getText(sourceFile).trim().replace(/\s+/g, ' '),
-						});
-					} else {
-						// #1678: fail loudly — the specifier targets the shared-ts
-						// package but uses a first segment the guard does not
-						// recognise. A silent pass here is a false negative.
-						findings.push({
-							file: relativePath,
-							line: lineOf(sourceFile, node),
-							type: 'UNKNOWN_SEGMENT',
-							text: `UNKNOWN_SEGMENT: re-export of ${specifier}, which is not an recognised first segment of @org/shared-ts (#1678)`,
-						});
-					}
+				if (SHARED_TS_MODULE_PATTERN.test(specifier)) {
+					findings.push({
+						file: relativePath,
+						line: lineOf(sourceFile, node),
+						type: 'DUAL_PATH',
+						text: node.getText(sourceFile).trim().replace(/\s+/g, ' '),
+					});
+				} else {
+					// #1678: fail loudly — the specifier targets the shared-ts
+					// package but uses a first segment the guard does not
+					// recognise. A silent pass here is a false negative.
+					findings.push({
+						file: relativePath,
+						line: lineOf(sourceFile, node),
+						type: 'UNKNOWN_SEGMENT',
+						text: `UNKNOWN_SEGMENT: re-export of ${specifier}, which is not an recognised first segment of @org/shared-ts (#1678)`,
+					});
+				}
 			}
 		}
 		// ImportDeclaration and CallExpression (dynamic `import(...)`) are
@@ -346,7 +347,9 @@ export const scanTreeForSharedTsReExports = (
 	return findings;
 };
 
-export const scanFrontSrcForSharedTsReExports = (root = frontSrc): Finding[] => {
+export const scanFrontSrcForSharedTsReExports = (
+	root = frontSrc,
+): Finding[] => {
 	return scanTreeForSharedTsReExports({ label: 'apps/front/src', root });
 };
 
@@ -382,7 +385,8 @@ const main = (): void => {
 // Only run when invoked directly (node scripts/guards/x.mts), not when imported
 // by the test file.
 const invokedDirectly =
-	process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+	process.argv[1] &&
+	path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 if (invokedDirectly) {
 	main();
 }
