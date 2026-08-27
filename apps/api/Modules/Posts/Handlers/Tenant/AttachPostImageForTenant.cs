@@ -211,28 +211,53 @@ public sealed class AttachPostImageForTenant {
 		// never commit while its asset still reads zero references. The REPLACED
 		// path is captured ATOMICALLY with the row purge INSIDE the service's
 		// AttachAsync (returned below), so no concurrent attach can hard-delete a
-		// row whose path we never observed — releasing exactly the paths the
-		// service actually removed after its commit leaves no leaked reference.
+		// row whose path we never observed. If the entity write LOSES the race
+		// (a parallel attach commits first and ux_post_media_assets_live_post_id
+		// rejects this insert), AttachAsync throws and the new blob never becomes
+		// the post's live image — its reference must then be released, or it
+		// leaks (#1616). Releasing exactly the paths the service actually removed
+		// after its commit leaves no leaked reference for the winning caller.
 		await uploadReferences.TryAddReferenceAsync(
 			relativePath, cancellationToken
 		);
 
-		// Persist the post-owned asset row; the service selects and purges the
-		// replaced row(s) in one unit of work and returns the paths it removed.
-		var replacedPaths = await assetService.AttachAsync(
-			new AttachPostMediaArgs(
-				TenantId: tenantId,
-				PostId: postIdGuid,
-				RelativePath: relativePath,
-				ContentType: inspected.ContentType,
-				WidthPx: inspected.WidthPx,
-				HeightPx: inspected.HeightPx,
-				SizeBytes: file.Length,
-				UploadedByUserId: account.UserId
-			),
-			cancellationToken
-		);
+		// The try covers ONLY the entity write, on purpose: its failure is the one
+		// event that means "this blob never became the live image". Widening it to
+		// the release loop below would force a committed/not-committed flag, and a
+		// flag can only ever be this handler's ASSUMPTION about what the database
+		// did — the guard inside the compensation asks the database instead.
+		IReadOnlyList<string> replacedPaths;
+		try {
+			// Persist the post-owned asset row; the service selects and purges the
+			// replaced row(s) in one unit of work and returns the paths it removed.
+			replacedPaths = await assetService.AttachAsync(
+				new AttachPostMediaArgs(
+					TenantId: tenantId,
+					PostId: postIdGuid,
+					RelativePath: relativePath,
+					ContentType: inspected.ContentType,
+					WidthPx: inspected.WidthPx,
+					HeightPx: inspected.HeightPx,
+					SizeBytes: file.Length,
+					UploadedByUserId: account.UserId
+				),
+				cancellationToken
+			);
+		} catch {
+			await ReleaseUnattachedReferenceAsync(
+				assetService,
+				uploadReferences,
+				logger,
+				tenantId,
+				postIdGuid,
+				relativePath
+			);
+			throw;
+		}
 
+		// Reached ONLY when AttachAsync returned: the row is committed and this
+		// blob IS the post's live image, so its own reference stays acquired and
+		// only the paths this commit actually removed are released.
 		foreach (var replacedPath in replacedPaths) {
 			await uploadReferences.TryReleaseReferenceAsync(
 				replacedPath, cancellationToken
@@ -254,6 +279,64 @@ public sealed class AttachPostImageForTenant {
 
 	private static string? relativePathOrNull(string? candidate) {
 		return string.IsNullOrEmpty(candidate) ? null : candidate;
+	}
+
+	/// <summary>
+	/// Compensates a FAILED entity write by releasing the reference acquired for
+	/// <paramref name="relativePath"/> just before it. In a parallel attach storm
+	/// the loser's insert is rejected by <c>ux_post_media_assets_live_post_id</c>:
+	/// its blob never becomes the post's live image, so nothing else will ever
+	/// release the reference it took, and that reference is the #1616 leak.
+	/// Never throws — see the catch below for why.
+	/// </summary>
+	private static async Task ReleaseUnattachedReferenceAsync(
+		IPostMediaAssetService assetService,
+		IUploadAssetReferenceService uploadReferences,
+		ILogger logger,
+		Guid tenantId,
+		Guid postId,
+		string relativePath
+	) {
+		// CancellationToken.None throughout: compensation must still run when the
+		// caller's token is ALREADY cancelled, which is the most ordinary way to
+		// reach this path (client disconnect mid-attach). Reusing the cancelled
+		// token would abort the release and leak the reference all over again.
+		try {
+			// Ask the database instead of assuming the write did not land:
+			// SaveChangesAsync can commit server-side and STILL throw (connection
+			// loss, or a cancellation observed after the command was sent).
+			// Releasing on that ambiguity would strip the LIVE image's only
+			// reference and hand a displayed blob to the sweeper — the exact
+			// inverse bug. A live row holding OUR path therefore means "keep it";
+			// whenever a later attach replaces that row, THAT attach releases this
+			// reference from its own replacedPaths, so releasing here as well
+			// would double-release.
+			var liveAsset = await assetService.FindByPostAsync(
+				tenantId, postId, CancellationToken.None
+			);
+			if (liveAsset is not null && string.Equals(
+				liveAsset.RelativePath, relativePath, StringComparison.Ordinal
+			)) {
+				return;
+			}
+
+			await uploadReferences.TryReleaseReferenceAsync(
+				relativePath, CancellationToken.None
+			);
+		} catch (Exception releaseException) {
+			// Swallowed on purpose: letting this escape would replace the ORIGINAL
+			// attach failure with a compensation failure and erase the real cause
+			// from the logs. Transparent failure cause instead (owner product
+			// rule) — name the blob whose reference could not be released so the
+			// leak is visible and reconcilable rather than silent.
+			logger.LogWarning(
+				releaseException,
+				"Failed to release the upload reference for post image blob "
+				+ "{Path} after a failed attach; its reference may leak until "
+				+ "reconciled",
+				relativePath
+			);
+		}
 	}
 
 	private static string FormatBytes(long bytes) {

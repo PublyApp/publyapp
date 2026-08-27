@@ -355,17 +355,40 @@ public sealed class AttachPostImageForTenantSpec : IClassFixture<ApiFixture> {
 	ItShouldNotOrphanBlobReferencesUnderConcurrentAttachToSamePost() {
 		// Race proof for the #807 F5 reference discipline on
 		// AttachPostImageForTenant. N image attaches fire at the SAME post truly
-		// in parallel. The replaced image's blob reference must be released inside
-		// the SAME unit of work as the asset-row purge, so exactly one live asset
-		// row survives (pointing at a real uploaded blob) and every OTHER blob's
-		// reference count returns to zero. If the replaced path is captured in the
-		// handler BEFORE the service commits (the shape introduced by #1461), a
-		// racing attach can hard-delete a row whose path the first handler never
-		// captured — that blob's reference is then acquired but never released, a
-		// silent cumulative leak. This test exists to catch exactly that window.
+		// in parallel. Exactly one live asset row must survive (pointing at a real
+		// uploaded blob) and every OTHER blob this race uploaded must return to a
+		// zero reference count. Two distinct windows leak here, and this test
+		// covers both:
+		//   1. The replaced path captured in the HANDLER before the service
+		//      commits (the shape #1461 introduced): a racing attach can
+		//      hard-delete a row whose path the first handler never observed, so
+		//      that blob's reference is acquired and never released. Closed by
+		//      capturing the replaced paths atomically inside AttachAsync.
+		//   2. The LOSER of the race: ux_post_media_assets_live_post_id rejects
+		//      its insert, AttachAsync throws, its blob never becomes the live
+		//      image, and nothing releases the reference it already acquired
+		//      (#1616). Closed by the handler's compensating release. The loser
+		//      returns no path at all, which is why the leak query below is scoped
+		//      by a pre-race baseline rather than by the succeeded paths.
 		var (tenantId, token) = await LoginAsAcmeAdminAsync();
 		var postId = await CreatePostAsync(tenantId, token);
 		var attachUrl = AttachImageUrl(postId);
+
+		// Pre-race baseline: every blob already referenced by an EARLIER test in
+		// this class. The class shares one database, so those references are
+		// legitimate and must be excluded from the leak query below — without this
+		// the assertion reports another test's live image as this race's leak.
+		List<string> baselinePaths;
+		await using (var baselineScope =
+			_fixture.Factory.Services.CreateAsyncScope()) {
+			var baselineDb = baselineScope.ServiceProvider
+				.GetRequiredService<AppDbContext>();
+			baselinePaths = await (
+				from u in baselineDb.UploadAsset.AsNoTracking()
+				where !u.IsDeleted && u.ReferenceCount > 0
+				select u.RelativePath
+			).ToListAsync();
+		}
 
 		const int Attempts = 12;
 		var attachTasks = Enumerable.Range(0, Attempts)
@@ -417,12 +440,21 @@ public sealed class AttachPostImageForTenantSpec : IClassFixture<ApiFixture> {
 				+ "attached blobs"
 			);
 
-			// Every blob that lost the race must have its reference released back
-			// to zero — a non-zero count is the upload reference leaked by the
-			// replace race.
+			// Every blob THIS race uploaded and did not leave live must have its
+			// reference released back to zero — a non-zero count is the upload
+			// reference leaked by the replace race.
+			//
+			// Scoped by the pre-race baseline, NOT by succeededPaths: the whole
+			// class shares one database, so earlier tests' blobs are legitimately
+			// Referenced and an unscoped query reports them as this race's leak
+			// (a false red). Scoping to succeededPaths would be the opposite
+			// error — it would HIDE the real bug, because the racer whose insert
+			// the unique index rejects never returns a path to succeed with, and
+			// that loser's orphaned reference is exactly the #1616 leak.
 			var leaked = await (
 				from u in db.UploadAsset.AsNoTracking()
-				where u.RelativePath != survivorPath
+				where !baselinePaths.Contains(u.RelativePath)
+					&& u.RelativePath != survivorPath
 					&& !u.IsDeleted
 					&& u.ReferenceCount > 0
 				select u.RelativePath
