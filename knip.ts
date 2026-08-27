@@ -17,13 +17,6 @@ const config: KnipConfig = {
 			// so knip cannot trace the import. It matches develop's declared
 			// dependency set (kept deliberately), so it is ignored here rather
 			// than removed from the manifest.
-			//
-			// `winston-transport-browserconsole` is declared in
-			// packages/shared-ts/package.json but never imported directly:
-			// winston resolves it at runtime as an optional browser transport,
-			// so knip cannot trace the import. It matches develop's declared
-			// dependency set (kept deliberately), so it is ignored here rather
-			// than removed from the manifest.
 			ignoreDependencies: ['winston-transport-browserconsole'],
 		},
 		'apps/api': {
