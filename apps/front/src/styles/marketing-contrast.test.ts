@@ -79,7 +79,8 @@ const toRgb = (value: string): [number, number, number] => {
 
 const channel = (value: number): number => {
 	const c = value / 255;
-	return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+	if (c <= 0.03928) return c / 12.92;
+	return ((c + 0.055) / 1.055) ** 2.4;
 };
 
 const luminance = ([r, g, b]: [number, number, number]): number =>

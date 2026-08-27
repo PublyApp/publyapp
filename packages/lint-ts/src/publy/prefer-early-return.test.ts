@@ -69,18 +69,26 @@ const runCases = (rule: typeof preferEarlyReturn, label: string) => {
 				v('function f() { return `value: ${cond ? a : b}`; }'),
 				// Ternary in a nested expression (not directly returned).
 				v('function f() { return (cond ? a : b) + 1; }'),
+				// Arrow function with expression body — out of scope.
+				v('const f = () => (cond ? a : b);'),
+				// Arrow function with block body — out of scope.
+				v('const f = () => { return cond ? a : b; }'),
+				// Arrow function used as a callback — out of scope.
+				v('fn((x) => (x ? a : b));'),
 			],
 			invalid: [
 				// Direct return of a ternary.
 				i('function f() { return cond ? a : b; }'),
 				// Direct return with typed values.
 				i('function f(): string { return cond ? "yes" : "no"; }'),
-				// Arrow function with expression body returning a ternary.
-				i('const f = () => (cond ? a : b);'),
 				// Ternary assigned then immediately returned.
 				i('function f() { const x = cond ? a : b;\nreturn x; }'),
 				// Direct return of a ternary with function calls.
 				i('function f() { return isReady ? compute() : fallback(); }'),
+				// Function expression returning a ternary.
+				i('const f = function() { return cond ? a : b; }'),
+				// Anonymous function expression assigned then returned.
+				i('const f = function() { const x = cond ? a : b;\nreturn x; }'),
 			],
 		});
 	});

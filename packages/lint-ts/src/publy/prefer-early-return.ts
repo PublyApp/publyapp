@@ -20,7 +20,7 @@ export const preferEarlyReturn = {
 		type: 'problem' as const,
 		docs: {
 			description:
-				'Prefer an explicit `if` + early `return` over a ternary expression whose value is returned directly, or assigned to a variable that is immediately returned.',
+				'Prefer an explicit `if` + early `return` over a ternary expression whose value is returned directly via a `return` statement, or assigned to a variable that is immediately returned.',
 			recommended: false,
 		},
 		schema: [],
@@ -30,24 +30,26 @@ export const preferEarlyReturn = {
 		},
 	},
 	create(context: Context): Visitor {
-		const checkReturn = (
-			node: ESTree.ReturnStatement | null | undefined,
-		): void => {
-			if (node && isConditionalExpression(node.argument)) {
-				context.report({ node: node.argument, messageId: 'preferEarlyReturn' });
-			}
-		};
-
+		// oxlint ESTree: `VariableDeclaration` appears directly in
+		// `BlockStatement.body` — no `VariableStatement` wrapper.
 		const checkBodyStatements = (statements: ESTree.Statement[]): void => {
 			for (let index = 0; index < statements.length; index += 1) {
 				const stmt = statements[index];
-				checkReturn(stmt as ESTree.ReturnStatement);
 
-				// oxlint ESTree: `VariableDeclaration` appears directly in
-				// `BlockStatement.body` — no `VariableStatement` wrapper.
+				// Case 1: `return cond ? a : b;`
+				if (
+					stmt.type === 'ReturnStatement' &&
+					isConditionalExpression(stmt.argument)
+				) {
+					context.report({
+						node: stmt.argument,
+						messageId: 'preferEarlyReturn',
+					});
+				}
+
+				// Case 2: `const x = cond ? a : b; return x;`
 				if (stmt.type === 'VariableDeclaration') {
-					const declaration = (stmt as ESTree.VariableDeclaration)
-						.declarations[0];
+					const declaration = stmt.declarations[0];
 					if (
 						declaration &&
 						declaration.id.type === 'Identifier' &&
@@ -70,48 +72,12 @@ export const preferEarlyReturn = {
 			}
 		};
 
-		const walk = (node: ESTree.Node): void => {
-			if (node.type === 'FunctionDeclaration' && node.body) {
-				checkBodyStatements(node.body.body);
-			} else if (node.type === 'FunctionExpression' && node.body) {
-				checkBodyStatements(node.body.body);
-			} else if (node.type === 'ArrowFunctionExpression') {
-				if (node.body.type === 'BlockStatement') {
-					checkBodyStatements(node.body.body);
-				} else if (isConditionalExpression(node.body)) {
-					context.report({
-						node: node.body,
-						messageId: 'preferEarlyReturn',
-					});
-				}
-			}
-
-			for (const key of Object.keys(node)) {
-				if (
-					key === 'parent' ||
-					key === 'loc' ||
-					key === 'range' ||
-					key === 'start' ||
-					key === 'end'
-				) {
-					continue;
-				}
-				const value = (node as Record<string, unknown>)[key];
-				if (Array.isArray(value)) {
-					for (const child of value) {
-						if (child && typeof child === 'object' && 'type' in child) {
-							walk(child as ESTree.Node);
-						}
-					}
-				} else if (value && typeof value === 'object' && 'type' in value) {
-					walk(value as ESTree.Node);
-				}
-			}
-		};
-
 		return {
-			Program(node) {
-				walk(node);
+			FunctionDeclaration(node) {
+				if (node.body) checkBodyStatements(node.body.body);
+			},
+			FunctionExpression(node) {
+				if (node.body) checkBodyStatements(node.body.body);
 			},
 		};
 	},
