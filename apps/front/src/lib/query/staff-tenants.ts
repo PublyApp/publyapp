@@ -116,7 +116,7 @@ export type StaffTenantDetails = {
 	updatedAt: Date | null;
 };
 
-export type StaffTenantInitialUserInput = {
+type StaffTenantInitialUserInput = {
 	email: string;
 	accountLevel: string;
 };
@@ -605,7 +605,7 @@ export const toStaffTenantUsage = (
 	};
 };
 
-export const staffTenantUsageQueryOptions = buildStaffQueryOptions<
+const staffTenantUsageQueryOptions = buildStaffQueryOptions<
 	ApiClient,
 	GetTenantUsageAsStaffResult,
 	StaffTenantDetailsQueryVariables
@@ -724,7 +724,7 @@ const buildBulkTenantIdsBody = (tenantIds: string[]) => ({
 	tenantIds: createUntypedArray(tenantIds.map((id) => createUntypedString(id))),
 });
 
-export const bulkSuspendStaffTenantsMutationOptions = buildStaffMutationOptions<
+const bulkSuspendStaffTenantsMutationOptions = buildStaffMutationOptions<
 	ApiClient,
 	BulkSuspendTenantsResult | undefined,
 	BulkStaffTenantActionInput
@@ -740,24 +740,23 @@ export const bulkSuspendStaffTenantsMutationOptions = buildStaffMutationOptions<
 	{ clientAccessor: getClientManager() },
 );
 
-export const bulkReactivateStaffTenantsMutationOptions =
-	buildStaffMutationOptions<
-		ApiClient,
-		BulkReactivateTenantsResult | undefined,
-		BulkStaffTenantActionInput
-	>(
-		{
-			mutationKeyFn: () => [...STAFF_TENANTS_QUERY_KEY, 'bulk-reactivate'],
-			mutationFn: (client, variables) =>
-				client.staff.tenants.bulkReactivate.post(
-					buildBulkTenantIdsBody(variables.tenantIds),
-				),
-			meta: { silentSuccess: true, skipGlobalErrorHandler: true },
-		},
-		{ clientAccessor: getClientManager() },
-	);
+const bulkReactivateStaffTenantsMutationOptions = buildStaffMutationOptions<
+	ApiClient,
+	BulkReactivateTenantsResult | undefined,
+	BulkStaffTenantActionInput
+>(
+	{
+		mutationKeyFn: () => [...STAFF_TENANTS_QUERY_KEY, 'bulk-reactivate'],
+		mutationFn: (client, variables) =>
+			client.staff.tenants.bulkReactivate.post(
+				buildBulkTenantIdsBody(variables.tenantIds),
+			),
+		meta: { silentSuccess: true, skipGlobalErrorHandler: true },
+	},
+	{ clientAccessor: getClientManager() },
+);
 
-export const bulkDeleteStaffTenantsMutationOptions = buildStaffMutationOptions<
+const bulkDeleteStaffTenantsMutationOptions = buildStaffMutationOptions<
 	ApiClient,
 	BulkDeleteTenantsResult | undefined,
 	BulkStaffTenantActionInput

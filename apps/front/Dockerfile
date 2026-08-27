@@ -21,6 +21,20 @@ COPY --from=prune /workspace/out/json/ ./
 
 RUN pnpm install --frozen-lockfile --ignore-scripts
 
+# `turbo prune --docker` only copies workspace packages reachable through
+# declared `dependencies`. `packages/_tsconfig` has no such declared
+# dependents (apps/front, packages/shared-ts, and packages/client-ts each
+# reference it only via the `extends` chain of their tsconfig.json), so
+# turbo drops it from `out/full/packages/`. The @tanstack/router-plugin
+# still resolves `apps/front/tsconfig.json`'s `extends:
+# ../../packages/_tsconfig/tsconfig.base.json` at vite build time, and the
+# tsconfig path lands on a missing file inside the container, aborting
+# `pnpm --filter front build`. Pull the `_tsconfig` tree in explicitly so
+# every tsconfig `extends` chain resolves the same way it does at the repo
+# root. Local `pnpm install` already materializes any `.d.ts` paths
+# underneath it via workspaces; this is a pure file-system copy.
+COPY packages/_tsconfig ./packages/_tsconfig
+
 FROM node:24-alpine@sha256:156b55f92e98ccd5ef49578a8cea0df4679826564bad1c9d4ef04462b9f0ded6 AS build
 
 WORKDIR /workspace

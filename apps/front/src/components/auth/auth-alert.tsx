@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { cn } from '~/lib/utils';
 
-export type AuthAlertTone = 'danger' | 'amber' | 'blue' | 'success';
+type AuthAlertTone = 'danger' | 'amber' | 'blue' | 'success';
 
 type AuthAlertProps = {
 	tone: AuthAlertTone;
@@ -47,5 +47,3 @@ export const AuthAlert = ({
 		</div>
 	);
 };
-
-export default AuthAlert;

@@ -8,7 +8,7 @@ import {
 	type SupportedLanguage,
 } from './i18n.shared';
 
-export const normalizeLocale = (
+const normalizeLocale = (
 	value: string | null | undefined,
 ): SupportedLanguage => {
 	return isSupportedLanguage(value) ? value : FALLBACK_LANGUAGE;

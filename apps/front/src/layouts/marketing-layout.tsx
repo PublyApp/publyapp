@@ -21,5 +21,3 @@ export const MarketingLayout = ({
 }: MarketingLayoutProps) => {
 	return <MarketingShell pathname={pathname}>{children}</MarketingShell>;
 };
-
-export default MarketingLayout;

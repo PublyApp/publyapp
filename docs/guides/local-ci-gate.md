@@ -22,11 +22,19 @@ Local mirror (same property, same commands CI runs):
 ```bash
 pnpm format        # oxfmt --check over the repo globs in package.json
 pnpm lint          # repo-wide oxlint + disables/barrel guards
+just ci-knip       # knip: unused files/deps/exports/types + duplicate exports (#455)
 just ci-quality    # pnpm format + pnpm lint + dotnet restore+build (PublyApp.slnx, APP_ROLE=api) + just test-analyzers
 # or the two halves separately:
 just ci-quality-dotnet   # dotnet restore + build (warnings as errors)
 just test-analyzers      # Roslyn analyzer unit suite
 ```
+
+`quality-gate.yml::quality::Knip (unused exports & dependencies)` runs
+`pnpm exec knip` against the root `knip.ts`; `just ci-knip` is the identical
+invocation. Exit 0 is the contract on both sides: every knip exception must be
+a scoped entry with an inline reason in `knip.ts`, never a blanket ignore.
+Root `knip.ts` itself is in the workflow's push `paths:` list and in the PR
+classifier regex, so config edits always re-run the step.
 
 CI needs `APP_ROLE=api` + `TRUSTED_PROXY_CIDRS` for the build step (the build boots the
 app to emit `openapi.json`; without the pin it fails fast in Production). The recipes

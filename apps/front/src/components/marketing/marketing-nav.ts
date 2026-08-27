@@ -42,18 +42,18 @@ import {
  * page must spell its section ids from this object, and every anchor target
  * carries `.publy-marketing-anchor` so it clears the sticky header.
  */
-export const MARKETING_SECTION_IDS = {
+const MARKETING_SECTION_IDS = {
 	productTour: 'product-tour',
 	whoItIsFor: 'who-it-is-for',
 	pricing: 'pricing',
 	faq: 'faq',
 } as const;
 
-export type MarketingSectionId =
+type MarketingSectionId =
 	(typeof MARKETING_SECTION_IDS)[keyof typeof MARKETING_SECTION_IDS];
 
 /** Every routed path a marketing destination is currently allowed to target. */
-export type MarketingRoutePath = '/' | '/login' | '/signup';
+type MarketingRoutePath = '/' | '/login' | '/signup';
 
 export type MarketingDestination = {
 	/** Omitted while the destination has no route — the entry is not rendered. */
@@ -82,7 +82,7 @@ export type MarketingNavTrigger = MarketingDestination & {
 	columns: readonly MarketingNavColumn[];
 };
 
-export type MarketingFooterLink = MarketingDestination & {
+type MarketingFooterLink = MarketingDestination & {
 	id: string;
 	labelKey: string;
 };
@@ -94,7 +94,7 @@ export type MarketingFooterColumn = {
 };
 
 /** The same entry once it is known to point at a route that exists. */
-export type Routed<T extends MarketingDestination> = T & {
+type Routed<T extends MarketingDestination> = T & {
 	to: MarketingRoutePath;
 };
 
@@ -110,30 +110,39 @@ export type RoutedMarketingFooterColumn = Omit<
 };
 
 /** An entry is renderable only once it points at a route that exists. */
-export const isRoutedDestination = <T extends MarketingDestination>(
+const isRoutedDestination = <T extends MarketingDestination>(
 	entry: T,
 ): entry is Routed<T> => entry.to !== undefined;
 
-export const routedItems = (
+const routedItems = (
 	items: readonly MarketingNavItem[],
 ): Routed<MarketingNavItem>[] => items.filter(isRoutedDestination);
 
 export const routedColumns = (
 	columns: readonly MarketingNavColumn[],
-): RoutedMarketingNavColumn[] =>
-	columns
-		.map((column) => ({ ...column, items: routedItems(column.items) }))
-		.filter((column) => column.items.length > 0);
+): RoutedMarketingNavColumn[] => {
+	const result: RoutedMarketingNavColumn[] = [];
+	for (const column of columns) {
+		const items = routedItems(column.items);
+		if (items.length > 0) {
+			result.push({ ...column, items });
+		}
+	}
+	return result;
+};
 
 export const routedFooterColumns = (
 	columns: readonly MarketingFooterColumn[],
-): RoutedMarketingFooterColumn[] =>
-	columns
-		.map((column) => ({
-			...column,
-			links: column.links.filter(isRoutedDestination),
-		}))
-		.filter((column) => column.links.length > 0);
+): RoutedMarketingFooterColumn[] => {
+	const result: RoutedMarketingFooterColumn[] = [];
+	for (const column of columns) {
+		const links = column.links.filter(isRoutedDestination);
+		if (links.length > 0) {
+			result.push({ ...column, links });
+		}
+	}
+	return result;
+};
 
 const PLATFORM_COLUMN: MarketingNavColumn = {
 	id: 'platform',

@@ -33,7 +33,16 @@ export default defineConfig({
 		},
 	},
 	ssr: {
-		noExternal: ['@org/client-ts', '@org/shared-ts'],
+		// Keep in sync with ssr.noExternal in vite.config.ts (same bundling
+		// policy and rationale).
+		noExternal: [
+			'@org/client-ts',
+			'@org/shared-ts',
+			/@microsoft\/kiota-serialization-(json|form|multipart|text)/,
+			/^lodash\//,
+			'winston',
+			'winston-console-format',
+		],
 	},
 	test: {
 		environment: 'node',

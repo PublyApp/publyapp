@@ -318,4 +318,3 @@ const PermissionMatrix = ({
 };
 
 export { PermissionMatrix };
-export type { PermissionMatrixProps };

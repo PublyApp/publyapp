@@ -9,7 +9,7 @@ import { deriveTenantProfileCardStyle } from './_profile-card-style';
  * for its `useForm` call. Keeping them out of the drawer lets the owner own
  * the form state while the drawer stays presentation-only.
  */
-export const buildProfileFormSchema = (t: (key: string) => string) =>
+const buildProfileFormSchema = (t: (key: string) => string) =>
 	z.object({
 		name: z
 			.string()

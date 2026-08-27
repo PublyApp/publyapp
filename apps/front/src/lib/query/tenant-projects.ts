@@ -11,7 +11,7 @@ export type TenantProjectListItem = {
 };
 
 /** @internal Unscoped — use via `scopedKey('tenant', …)`. */
-export const TENANT_PROJECTS_QUERY_KEY = ['tenant-projects'] as const;
+const TENANT_PROJECTS_QUERY_KEY = ['tenant-projects'] as const;
 
 const normalizeString = (
 	value: string | null | undefined,
@@ -43,7 +43,7 @@ export const toTenantProjectItems = (
 	return items;
 };
 
-export const tenantProjectsQueryOptions = buildTenantQueryOptions<
+const tenantProjectsQueryOptions = buildTenantQueryOptions<
 	ApiClient,
 	FindProjectsForTenantResponse,
 	{ tenantId: string }

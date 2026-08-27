@@ -495,29 +495,33 @@ test.describe('SSR auth shell', { tag: ['@security', '@997'] }, () => {
 		}
 	});
 
-	test('neutral authenticated geometry matches the hydrated shell across responsive widths', async ({
-		context,
-		page,
-	}) => {
-		await loginAsStaffAdmin(page);
+	// #1639: each matrix case owns its own test so a future failure names the
+	// culprit, and no single 30s envelope stretches across all twelve page
+	// loads. The matrix itself is unchanged (3 widths × 2 paths × 2 sidebar
+	// states = 12 cases); only the loop that ran them inside one test has been
+	// lifted to generate one test() per case.
+	const geometryCases = [
+		{ pathname: '/staff/profiles', sidebarOpen: true, width: 390 },
+		{ pathname: '/staff/profiles', sidebarOpen: false, width: 390 },
+		{ pathname: '/staff/staff-users', sidebarOpen: true, width: 390 },
+		{ pathname: '/staff/staff-users', sidebarOpen: false, width: 390 },
+		{ pathname: '/staff/profiles', sidebarOpen: true, width: 800 },
+		{ pathname: '/staff/profiles', sidebarOpen: false, width: 800 },
+		{ pathname: '/staff/staff-users', sidebarOpen: true, width: 800 },
+		{ pathname: '/staff/staff-users', sidebarOpen: false, width: 800 },
+		{ pathname: '/staff/profiles', sidebarOpen: true, width: 1440 },
+		{ pathname: '/staff/profiles', sidebarOpen: false, width: 1440 },
+		{ pathname: '/staff/staff-users', sidebarOpen: true, width: 1440 },
+		{ pathname: '/staff/staff-users', sidebarOpen: false, width: 1440 },
+	] as const;
 
-		const cases = [
-			{ pathname: '/staff/profiles', sidebarOpen: true, width: 390 },
-			{ pathname: '/staff/profiles', sidebarOpen: false, width: 390 },
-			{ pathname: '/staff/staff-users', sidebarOpen: true, width: 390 },
-			{ pathname: '/staff/staff-users', sidebarOpen: false, width: 390 },
-			{ pathname: '/staff/profiles', sidebarOpen: true, width: 800 },
-			{ pathname: '/staff/profiles', sidebarOpen: false, width: 800 },
-			{ pathname: '/staff/staff-users', sidebarOpen: true, width: 800 },
-			{ pathname: '/staff/staff-users', sidebarOpen: false, width: 800 },
-			{ pathname: '/staff/profiles', sidebarOpen: true, width: 1440 },
-			{ pathname: '/staff/profiles', sidebarOpen: false, width: 1440 },
-			{ pathname: '/staff/staff-users', sidebarOpen: true, width: 1440 },
-			{ pathname: '/staff/staff-users', sidebarOpen: false, width: 1440 },
-		] as const;
-
-		for (const matrixCase of cases) {
-			const casePage = await context.newPage();
+	for (const matrixCase of geometryCases) {
+		const sidebarLabel = matrixCase.sidebarOpen ? 'open' : 'closed';
+		test(`neutral authenticated geometry matches the hydrated shell (${matrixCase.pathname}, ${matrixCase.width}px, sidebar ${sidebarLabel})`, async ({
+			page,
+		}) => {
+			await loginAsStaffAdmin(page);
+			const casePage = page;
 			await casePage.setViewportSize({
 				height: 900,
 				width: matrixCase.width,
@@ -576,12 +580,8 @@ test.describe('SSR auth shell', { tag: ['@security', '@997'] }, () => {
 
 			expect(
 				hydratedGeometry,
-				`${matrixCase.pathname} at ${matrixCase.width}px with sidebar ${
-					matrixCase.sidebarOpen ? 'open' : 'closed'
-				}`,
+				`${matrixCase.pathname} at ${matrixCase.width}px with sidebar ${sidebarLabel}`,
 			).toEqual(neutralGeometry);
-
-			await casePage.close();
-		}
-	});
+		});
+	}
 });

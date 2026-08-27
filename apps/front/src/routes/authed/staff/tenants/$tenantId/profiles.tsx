@@ -43,20 +43,10 @@ import {
 import { useStaffTenantProfilesList } from './profiles/_use-profiles-list-state';
 
 export { deriveTenantProfileCardStyle } from './profiles/_profile-card-style';
-export { makeTenantProfileColumns } from './profiles/_profile-columns';
 export { tenantProfileTypeChipClassName } from './profiles/_profile-type-chip';
 export {
-	parseStaffTenantProfileEditId,
 	parseStaffTenantProfilesSearchParams,
-	parseStaffTenantProfilesViewMode,
-	parseStaffTenantProfileTypeFilter,
-	resolveStaffTenantProfileDrawerFlags,
-	serializeStaffTenantProfilesSearchParams,
-	toStaffTenantProfileTypeFilterString,
 	type StaffTenantProfilesSearchParamInput,
-	type StaffTenantProfilesSearchParams,
-	type StaffTenantProfilesViewMode,
-	type StaffTenantProfileTypeFilter,
 } from './profiles/_profiles-search-params';
 
 // Re-exported so route-local specs can type the mocked drawer's `methods`

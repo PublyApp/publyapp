@@ -49,7 +49,7 @@ export const buildSearchCommitSearch = (
 	};
 };
 
-export type ApiVariables = {
+type ApiVariables = {
 	q?: string;
 	sortId: string;
 	sortOrder: SortState['order'];
@@ -156,7 +156,6 @@ export const useTableController = (
 	}
 
 	const draft = draftEdit === null ? committedQ : draftEdit.value;
-
 	useEffect(() => {
 		const debouncer = debouncerRef.current;
 		return () => debouncer?.cancel();

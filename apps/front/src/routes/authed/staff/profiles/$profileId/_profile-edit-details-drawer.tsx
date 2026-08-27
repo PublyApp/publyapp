@@ -366,4 +366,3 @@ const StaffProfileEditDetailsDrawer = ({
 };
 
 export { StaffProfileEditDetailsDrawer };
-export type { ProfileEditDetailsDrawerProfile };
