@@ -1,0 +1,27 @@
+{
+	"$comment": [
+		"Expected complexity ceilings for .oxlintrc.json overrides.",
+		"",
+		"This file is the SINGLE SOURCE OF TRUTH for the expected values. The guard",
+		"(check-cyclomatic-bound.ts) reads the ACTUAL values from .oxlintrc.json and",
+		"compares them against this reference file. To change a ceiling you must edit",
+		"this file, and the test file (check-cyclomatic-bound.test.ts) independently",
+		"asserts these exact values, so a ceiling change touches three files in review.",
+		"",
+		"The keys are the glob patterns that appear as `files` entries in .oxlintrc.json",
+		"overrides. The special key \"__default__\" maps to the root-level rules.complexity.",
+		""
+	],
+	"__default__": 125,
+	"apps/front/src/**": 60,
+	"apps/front/scripts/**": 125,
+	"apps/front/tools/**": 125,
+	"packages/lint-ts/**": 125,
+	"packages/scripts-ts/**": 125,
+	"packages/shared-ts/**": 125,
+	"**/*.test.ts": 90,
+	"**/*.test.tsx": 90,
+	"**/*.spec.ts": 90,
+	"**/*.spec.tsx": 90,
+	"apps/front/e2e/**": 90
+}
