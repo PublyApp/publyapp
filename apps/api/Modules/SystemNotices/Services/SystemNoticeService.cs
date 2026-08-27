@@ -148,108 +148,30 @@ public class SystemNoticeService : ISystemNoticeService {
 			new Dictionary<string, CursorSortFieldHandler<SystemNotice>>(
 				StringComparer.OrdinalIgnoreCase
 			) {
-				["created_at"] = new CursorSortFieldHandler<SystemNotice>(
-				getCursorValue: async (guid) => {
-					var notice = await _dbContext.SystemNotice
+				["created_at"] = CursorSortFieldHandlerFactory.Create<SystemNotice, DateTime, Guid?>(
+					cursorLookupQuery: () => _dbContext.SystemNotice
 						.AsNoTracking()
-						.Where(n => n.Id == guid
-							&& !n.IsDeleted)
-						.Select(n => new { n.CreatedAt, n.Id })
-						.FirstOrDefaultAsync(cancellationToken);
-					return notice is not null
-						? (notice.CreatedAt, notice.Id)
-						: null;
-				},
-				applyFilter: (q, cursorValue, isAsc) => {
-					if (cursorValue is null) {
-						return q;
-					}
-					var (cursorCreatedAt, cursorId) =
-						((DateTime, Guid?))cursorValue;
-					return isAsc
-						? q.Where(n =>
-							n.CreatedAt > cursorCreatedAt
-							|| (n.CreatedAt == cursorCreatedAt
-								&& n.Id > cursorId))
-						: q.Where(n =>
-							n.CreatedAt < cursorCreatedAt
-							|| (n.CreatedAt == cursorCreatedAt
-								&& n.Id < cursorId));
-				},
-				applyOrdering: (q, isAsc) => isAsc
-					? q.OrderBy(n => n.CreatedAt)
-						.ThenBy(n => n.Id)
-					: q.OrderByDescending(n => n.CreatedAt)
-						.ThenByDescending(n => n.Id)
-			),
-				["starts_at"] = new CursorSortFieldHandler<SystemNotice>(
-				getCursorValue: async (guid) => {
-					var notice = await _dbContext.SystemNotice
+						.Where(n => !n.IsDeleted),
+					keySelector: n => n.CreatedAt,
+					idSelector: n => n.Id,
+					cancellationToken
+				),
+				["starts_at"] = CursorSortFieldHandlerFactory.Create<SystemNotice, DateTime, Guid?>(
+					cursorLookupQuery: () => _dbContext.SystemNotice
 						.AsNoTracking()
-						.Where(n => n.Id == guid
-							&& !n.IsDeleted)
-						.Select(n => new { n.StartsAt, n.Id })
-						.FirstOrDefaultAsync(cancellationToken);
-					return notice is not null
-						? (notice.StartsAt, notice.Id)
-						: null;
-				},
-				applyFilter: (q, cursorValue, isAsc) => {
-					if (cursorValue is null) {
-						return q;
-					}
-					var (cursorStartsAt, cursorId) =
-						((DateTime, Guid?))cursorValue;
-					return isAsc
-						? q.Where(n =>
-							n.StartsAt > cursorStartsAt
-							|| (n.StartsAt == cursorStartsAt
-								&& n.Id > cursorId))
-						: q.Where(n =>
-							n.StartsAt < cursorStartsAt
-							|| (n.StartsAt == cursorStartsAt
-								&& n.Id < cursorId));
-				},
-				applyOrdering: (q, isAsc) => isAsc
-					? q.OrderBy(n => n.StartsAt)
-						.ThenBy(n => n.Id)
-					: q.OrderByDescending(n => n.StartsAt)
-						.ThenByDescending(n => n.Id)
-			),
-				["severity"] = new CursorSortFieldHandler<SystemNotice>(
-				getCursorValue: async (guid) => {
-					var notice = await _dbContext.SystemNotice
+						.Where(n => !n.IsDeleted),
+					keySelector: n => n.StartsAt,
+					idSelector: n => n.Id,
+					cancellationToken
+				),
+				["severity"] = CursorSortFieldHandlerFactory.Create<SystemNotice, NoticeSeverity, Guid?>(
+					cursorLookupQuery: () => _dbContext.SystemNotice
 						.AsNoTracking()
-						.Where(n => n.Id == guid
-							&& !n.IsDeleted)
-						.Select(n => new { n.Severity, n.Id })
-						.FirstOrDefaultAsync(cancellationToken);
-					return notice is not null
-						? ((int)notice.Severity, notice.Id)
-						: null;
-				},
-				applyFilter: (q, cursorValue, isAsc) => {
-					if (cursorValue is null) {
-						return q;
-					}
-					var (cursorSeverity, cursorId) =
-						((int, Guid?))cursorValue;
-					return isAsc
-						? q.Where(n =>
-							(int)n.Severity > cursorSeverity
-							|| ((int)n.Severity == cursorSeverity
-								&& n.Id > cursorId))
-						: q.Where(n =>
-							(int)n.Severity < cursorSeverity
-							|| ((int)n.Severity == cursorSeverity
-								&& n.Id < cursorId));
-				},
-				applyOrdering: (q, isAsc) => isAsc
-					? q.OrderBy(n => n.Severity)
-						.ThenBy(n => n.Id)
-					: q.OrderByDescending(n => n.Severity)
-						.ThenByDescending(n => n.Id)
-			),
+						.Where(n => !n.IsDeleted),
+					keySelector: n => n.Severity,
+					idSelector: n => n.Id,
+					cancellationToken
+				),
 			};
 
 		if (!sortFieldHandlers.TryGetValue(

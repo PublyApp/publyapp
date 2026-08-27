@@ -2054,11 +2054,124 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 				.Be(HttpStatusCode.BadRequest);
 		}
 
-		#endregion
+			#endregion
 
-		#region Helper Methods
+			#region Multi-Page Walk
 
-		private static string GetFindUrl(
+			[Fact]
+			public async Task
+			ItShouldWalkEveryAcceptedAtPageWithoutOverlapOrGap() {
+				var staffToken =
+					await _authClient.LoginAsStaffAdminAsync();
+				var acmeTenantId =
+					await TenantTestHelper
+						.GetTenantIdByNameAsync(
+							_http,
+							staffToken,
+							SeedConstants.Tenants.AcmeName
+						);
+
+				// 3 accepted invites with distinct AcceptedAt; the walk must
+				// visit each once in ascending AcceptedAt order with no gap.
+				var baseDate = new DateTime(
+					2026, 1, 1, 0, 0, 0, DateTimeKind.Utc
+				);
+				var seededIds = new List<Guid>();
+				// Anti-correlated with insertion: i=0 -> +2d, i=1 -> +0d, i=2 -> +1d,
+				// so the AcceptedAt sorted order is NOT the insertion order.
+				var seededAcceptedAt = new List<DateTime>();
+				for (var i = 0; i < 3; i++) {
+					var id = await CreateTenantInvitationAsync(
+						staffToken,
+						acmeTenantId,
+						$"tenant-inv-walk-{i}-{Guid.NewGuid():N}@example.com"
+					);
+					var acceptedAt = baseDate.AddDays((3 - i) % 3);
+					await SetAcceptedAtAsync(id, acceptedAt);
+					seededIds.Add(id);
+					seededAcceptedAt.Add(acceptedAt);
+				}
+
+				var visitedIds = new List<Guid>();
+				string? cursor = null;
+				var pages = 0;
+				do {
+					var url = GetFindUrl(
+						acmeTenantId,
+						cursor: cursor,
+						limit: 1,
+						sortId: "accepted_at",
+						sortOrder: "asc"
+					);
+					HttpRequestMessage request =
+						new HttpRequestMessage(
+							HttpMethod.Get, url
+						).WithSessionToken(staffToken);
+
+					using HttpResponseMessage response =
+						await _http.SendAsync(request);
+					_ = response.StatusCode.Should()
+						.Be(HttpStatusCode.OK);
+
+					var page = await response.Content
+						.ReadFromJsonAsync<FindPageResponse>();
+					page.Should().NotBeNull();
+					Assert.NotNull(page);
+					pages++;
+					visitedIds.AddRange(
+						page.Data.Select(i => i.Id)
+					);
+					cursor = page.NextCursor;
+
+					// Guard against an infinite loop if the cursor filter regresses.
+					pages.Should().BeLessOrEqualTo(100);
+				} while (cursor is not null);
+
+				// The walk covers exactly our rows, each once, in order.
+				visitedIds.Should().OnlyHaveUniqueItems();
+				visitedIds.Should().Contain(seededIds);
+
+				var visitedOrder = visitedIds
+					.Where(seededIds.Contains)
+					.ToList();
+				var acceptedAtById = seededIds
+					.Zip(seededAcceptedAt, (id, c) => (id, c))
+					.ToDictionary(x => x.id, x => x.c);
+				visitedOrder.Should().Equal(
+					seededIds.OrderBy(id => acceptedAtById[id]).ToList()
+				);
+			}
+
+			#endregion
+
+			#region Helper Methods
+
+			private async Task SetAcceptedAtAsync(
+				Guid invitationId,
+				DateTime acceptedAt
+			) {
+				using IServiceScope scope =
+					_fixture.Factory.Services.CreateScope();
+				AppDbContext dbContext = scope.ServiceProvider
+					.GetRequiredService<AppDbContext>();
+
+				var invitation = await dbContext.Invitation
+					.Where(i => i.Id == invitationId)
+					.FirstAsync();
+				invitation.AcceptedAt = acceptedAt;
+				await dbContext.SaveChangesAsync();
+			}
+
+			private sealed record FindPageResponse {
+				public List<InvitationItem> Data { get; init; } = [];
+				public string? NextCursor { get; init; }
+			}
+
+			private sealed record InvitationItem {
+				public Guid Id { get; init; }
+			}
+
+			private static string GetFindUrl(
 			Guid tenantId,
 			string? cursor = null,
 			int? limit = null,

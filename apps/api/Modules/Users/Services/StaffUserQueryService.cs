@@ -100,314 +100,78 @@ public class StaffUserQueryService : IStaffUserQueryService {
 		var effectiveSortOrder = args.SortOrder ?? SortOrder.Desc;
 		var isAsc = effectiveSortOrder == SortOrder.Asc;
 
-		var sortFieldHandlers = new Dictionary<string, CursorSortFieldHandler<UserAccount>>(
+				var sortFieldHandlers = new Dictionary<string, CursorSortFieldHandler<UserAccount>>(
 			StringComparer.OrdinalIgnoreCase
 		) {
-			["created_at"] = new CursorSortFieldHandler<UserAccount>(
-				getCursorValue: async guid => {
-					var item =
-						await (
-							from ua in _dbContext.UserAccount.AsNoTracking()
-							where ua.UserId == guid
-								&& ua.Scope == AccountScope.Staff
-								&& !ua.IsDeleted
-								&& !ua.User.IsDeleted
-							select new {
-								ua.User.CreatedAt,
-								ua.UserId,
-							}
-						).FirstOrDefaultAsync(cancellationToken);
-					return item is not null
-						? (item.CreatedAt, item.UserId)
-						: null;
-				},
-				applyFilter: (q, cursorValue, asc) => {
-					if (cursorValue is null) {
-						return q;
-					}
-
-					var (cursorCreatedAt, cursorId) = ((DateTime, Guid))cursorValue;
-					return asc
-						? from ua in q
-							where ua.User.CreatedAt > cursorCreatedAt
-								|| (ua.User.CreatedAt == cursorCreatedAt
-									&& ua.UserId > cursorId)
-							select ua
-						: from ua in q
-							where ua.User.CreatedAt < cursorCreatedAt
-								|| (ua.User.CreatedAt == cursorCreatedAt
-									&& ua.UserId < cursorId)
-							select ua;
-				},
-				applyOrdering: (q, asc) => asc
-					? from ua in q
-						orderby ua.User.CreatedAt, ua.UserId
-						select ua
-					: from ua in q
-						orderby ua.User.CreatedAt descending, ua.UserId descending
-						select ua
+			["created_at"] = CursorSortFieldHandlerFactory.Create<UserAccount, DateTime, Guid>(
+				cursorLookupQuery: () => _dbContext.UserAccount
+					.AsNoTracking()
+					.Where(ua => ua.Scope == AccountScope.Staff
+						&& !ua.IsDeleted
+						&& !ua.User.IsDeleted),
+				keySelector: ua => ua.User.CreatedAt,
+				idSelector: ua => ua.UserId,
+				cancellationToken
 			),
-			["updated_at"] = new CursorSortFieldHandler<UserAccount>(
-				getCursorValue: async guid => {
-					var item =
-						await (
-							from ua in _dbContext.UserAccount.AsNoTracking()
-							where ua.UserId == guid
-								&& ua.Scope == AccountScope.Staff
-								&& !ua.IsDeleted
-								&& !ua.User.IsDeleted
-							select new {
-								ua.User.UpdatedAt,
-								ua.UserId,
-							}
-						).FirstOrDefaultAsync(cancellationToken);
-					return item is not null
-						? (item.UpdatedAt, item.UserId)
-						: null;
-				},
-				applyFilter: (q, cursorValue, asc) => {
-					if (cursorValue is null) {
-						return q;
-					}
-
-					var (cursorUpdatedAt, cursorId) = ((DateTime, Guid))cursorValue;
-					return asc
-						? from ua in q
-							where ua.User.UpdatedAt > cursorUpdatedAt
-								|| (ua.User.UpdatedAt == cursorUpdatedAt
-									&& ua.UserId > cursorId)
-							select ua
-						: from ua in q
-							where ua.User.UpdatedAt < cursorUpdatedAt
-								|| (ua.User.UpdatedAt == cursorUpdatedAt
-									&& ua.UserId < cursorId)
-							select ua;
-				},
-				applyOrdering: (q, asc) => asc
-					? from ua in q
-						orderby ua.User.UpdatedAt, ua.UserId
-						select ua
-					: from ua in q
-						orderby ua.User.UpdatedAt descending, ua.UserId descending
-						select ua
+			["updated_at"] = CursorSortFieldHandlerFactory.Create<UserAccount, DateTime, Guid>(
+				cursorLookupQuery: () => _dbContext.UserAccount
+					.AsNoTracking()
+					.Where(ua => ua.Scope == AccountScope.Staff
+						&& !ua.IsDeleted
+						&& !ua.User.IsDeleted),
+				keySelector: ua => ua.User.UpdatedAt,
+				idSelector: ua => ua.UserId,
+				cancellationToken
 			),
-			["email"] = new CursorSortFieldHandler<UserAccount>(
-				getCursorValue: async guid => {
-					var item =
-						await (
-							from ua in _dbContext.UserAccount.AsNoTracking()
-							where ua.UserId == guid
-								&& ua.Scope == AccountScope.Staff
-								&& !ua.IsDeleted
-								&& !ua.User.IsDeleted
-							select new {
-								ua.User.Email,
-								ua.UserId,
-							}
-						).FirstOrDefaultAsync(cancellationToken);
-					return item is not null
-						? (item.Email, item.UserId)
-						: null;
-				},
-				applyFilter: (q, cursorValue, asc) => {
-					if (cursorValue is null) {
-						return q;
-					}
-
-					var (cursorEmail, cursorId) = ((string, Guid))cursorValue;
-					return asc
-						? from ua in q
-							where ua.User.Email.CompareTo(cursorEmail) > 0
-								|| (ua.User.Email == cursorEmail && ua.UserId > cursorId)
-							select ua
-						: from ua in q
-							where ua.User.Email.CompareTo(cursorEmail) < 0
-								|| (ua.User.Email == cursorEmail && ua.UserId < cursorId)
-							select ua;
-				},
-				applyOrdering: (q, asc) => asc
-					? from ua in q
-						orderby ua.User.Email, ua.UserId
-						select ua
-					: from ua in q
-						orderby ua.User.Email descending, ua.UserId descending
-						select ua
+			["email"] = CursorSortFieldHandlerFactory.Create<UserAccount, string, Guid>(
+				cursorLookupQuery: () => _dbContext.UserAccount
+					.AsNoTracking()
+					.Where(ua => ua.Scope == AccountScope.Staff
+						&& !ua.IsDeleted
+						&& !ua.User.IsDeleted),
+				keySelector: ua => ua.User.Email,
+				idSelector: ua => ua.UserId,
+				cancellationToken
 			),
-			["first_name"] = new CursorSortFieldHandler<UserAccount>(
-				getCursorValue: async guid => {
-					var item =
-						await (
-							from ua in _dbContext.UserAccount.AsNoTracking()
-							where ua.UserId == guid
-								&& ua.Scope == AccountScope.Staff
-								&& !ua.IsDeleted
-								&& !ua.User.IsDeleted
-							select new {
-								FirstName = ua.User.FirstName ?? string.Empty,
-								ua.UserId,
-							}
-						).FirstOrDefaultAsync(cancellationToken);
-					return item is not null
-						? (item.FirstName, item.UserId)
-						: null;
-				},
-				applyFilter: (q, cursorValue, asc) => {
-					if (cursorValue is null) {
-						return q;
-					}
-
-					var (cursorFirstName, cursorId) = ((string, Guid))cursorValue;
-					return asc
-						? from ua in q
-							let firstName = ua.User.FirstName ?? string.Empty
-							where firstName.CompareTo(cursorFirstName) > 0
-								|| (firstName == cursorFirstName && ua.UserId > cursorId)
-							select ua
-						: from ua in q
-							let firstName = ua.User.FirstName ?? string.Empty
-							where firstName.CompareTo(cursorFirstName) < 0
-								|| (firstName == cursorFirstName && ua.UserId < cursorId)
-							select ua;
-				},
-				applyOrdering: (q, asc) => asc
-					? from ua in q
-						let firstName = ua.User.FirstName ?? string.Empty
-						orderby firstName, ua.UserId
-						select ua
-					: from ua in q
-						let firstName = ua.User.FirstName ?? string.Empty
-						orderby firstName descending, ua.UserId descending
-						select ua
+			["first_name"] = CursorSortFieldHandlerFactory.Create<UserAccount, string, Guid>(
+				cursorLookupQuery: () => _dbContext.UserAccount
+					.AsNoTracking()
+					.Where(ua => ua.Scope == AccountScope.Staff
+						&& !ua.IsDeleted
+						&& !ua.User.IsDeleted),
+				keySelector: ua => ua.User.FirstName ?? string.Empty,
+				idSelector: ua => ua.UserId,
+				cancellationToken
 			),
-			["last_name"] = new CursorSortFieldHandler<UserAccount>(
-				getCursorValue: async guid => {
-					var item =
-						await (
-							from ua in _dbContext.UserAccount.AsNoTracking()
-							where ua.UserId == guid
-								&& ua.Scope == AccountScope.Staff
-								&& !ua.IsDeleted
-								&& !ua.User.IsDeleted
-							select new {
-								LastName = ua.User.LastName ?? string.Empty,
-								ua.UserId,
-							}
-						).FirstOrDefaultAsync(cancellationToken);
-					return item is not null
-						? (item.LastName, item.UserId)
-						: null;
-				},
-				applyFilter: (q, cursorValue, asc) => {
-					if (cursorValue is null) {
-						return q;
-					}
-
-					var (cursorLastName, cursorId) = ((string, Guid))cursorValue;
-					return asc
-						? from ua in q
-							let lastName = ua.User.LastName ?? string.Empty
-							where lastName.CompareTo(cursorLastName) > 0
-								|| (lastName == cursorLastName && ua.UserId > cursorId)
-							select ua
-						: from ua in q
-							let lastName = ua.User.LastName ?? string.Empty
-							where lastName.CompareTo(cursorLastName) < 0
-								|| (lastName == cursorLastName && ua.UserId < cursorId)
-							select ua;
-				},
-				applyOrdering: (q, asc) => asc
-					? from ua in q
-						let lastName = ua.User.LastName ?? string.Empty
-						orderby lastName, ua.UserId
-						select ua
-					: from ua in q
-						let lastName = ua.User.LastName ?? string.Empty
-						orderby lastName descending, ua.UserId descending
-						select ua
+			["last_name"] = CursorSortFieldHandlerFactory.Create<UserAccount, string, Guid>(
+				cursorLookupQuery: () => _dbContext.UserAccount
+					.AsNoTracking()
+					.Where(ua => ua.Scope == AccountScope.Staff
+						&& !ua.IsDeleted
+						&& !ua.User.IsDeleted),
+				keySelector: ua => ua.User.LastName ?? string.Empty,
+				idSelector: ua => ua.UserId,
+				cancellationToken
 			),
-			["status"] = new CursorSortFieldHandler<UserAccount>(
-				getCursorValue: async guid => {
-					var item =
-						await (
-							from ua in _dbContext.UserAccount.AsNoTracking()
-							where ua.UserId == guid
-								&& ua.Scope == AccountScope.Staff
-								&& !ua.IsDeleted
-								&& !ua.User.IsDeleted
-							select new {
-								ua.User.Status,
-								ua.UserId,
-							}
-						).FirstOrDefaultAsync(cancellationToken);
-					return item is not null
-						? (item.Status, item.UserId)
-						: null;
-				},
-				applyFilter: (q, cursorValue, asc) => {
-					if (cursorValue is null) {
-						return q;
-					}
-
-					var (cursorStatus, cursorId) = ((UserStatus, Guid))cursorValue;
-					return asc
-						? from ua in q
-							where ua.User.Status > cursorStatus
-								|| (ua.User.Status == cursorStatus && ua.UserId > cursorId)
-							select ua
-						: from ua in q
-							where ua.User.Status < cursorStatus
-								|| (ua.User.Status == cursorStatus && ua.UserId < cursorId)
-							select ua;
-				},
-				applyOrdering: (q, asc) => asc
-					? from ua in q
-						orderby ua.User.Status, ua.UserId
-						select ua
-					: from ua in q
-						orderby ua.User.Status descending, ua.UserId descending
-						select ua
+			["status"] = CursorSortFieldHandlerFactory.Create<UserAccount, UserStatus, Guid>(
+				cursorLookupQuery: () => _dbContext.UserAccount
+					.AsNoTracking()
+					.Where(ua => ua.Scope == AccountScope.Staff
+						&& !ua.IsDeleted
+						&& !ua.User.IsDeleted),
+				keySelector: ua => ua.User.Status,
+				idSelector: ua => ua.UserId,
+				cancellationToken
 			),
-			["level"] = new CursorSortFieldHandler<UserAccount>(
-				getCursorValue: async guid => {
-					var item =
-						await (
-							from ua in _dbContext.UserAccount.AsNoTracking()
-							where ua.UserId == guid
-								&& ua.Scope == AccountScope.Staff
-								&& !ua.IsDeleted
-								&& !ua.User.IsDeleted
-							select new {
-								ua.Level,
-								ua.UserId,
-							}
-						).FirstOrDefaultAsync(cancellationToken);
-					return item is not null
-						? (item.Level, item.UserId)
-						: null;
-				},
-				applyFilter: (q, cursorValue, asc) => {
-					if (cursorValue is null) {
-						return q;
-					}
-
-					var (cursorLevel, cursorId) = ((AccountLevel, Guid))cursorValue;
-					return asc
-						? from ua in q
-							where ua.Level > cursorLevel
-								|| (ua.Level == cursorLevel && ua.UserId > cursorId)
-							select ua
-						: from ua in q
-							where ua.Level < cursorLevel
-								|| (ua.Level == cursorLevel && ua.UserId < cursorId)
-							select ua;
-				},
-				applyOrdering: (q, asc) => asc
-					? from ua in q
-						orderby ua.Level, ua.UserId
-						select ua
-					: from ua in q
-						orderby ua.Level descending, ua.UserId descending
-						select ua
+			["level"] = CursorSortFieldHandlerFactory.Create<UserAccount, AccountLevel, Guid>(
+				cursorLookupQuery: () => _dbContext.UserAccount
+					.AsNoTracking()
+					.Where(ua => ua.Scope == AccountScope.Staff
+						&& !ua.IsDeleted
+						&& !ua.User.IsDeleted),
+				keySelector: ua => ua.Level,
+				idSelector: ua => ua.UserId,
+				cancellationToken
 			),
 		};
 

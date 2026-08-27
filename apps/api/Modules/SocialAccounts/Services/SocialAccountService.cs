@@ -172,73 +172,21 @@ public sealed class SocialAccountService {
 			new Dictionary<string, CursorSortFieldHandler<SocialAccount>>(
 				StringComparer.OrdinalIgnoreCase
 			) {
-				["created_at"] = new CursorSortFieldHandler<SocialAccount>(
-					getCursorValue: async (guid) => {
-						var account = await (
-							from a in _db.SocialAccount.AsNoTracking()
-							where a.Id == guid
-								&& a.TenantId == tenantId
-								&& !a.IsDeleted
-							select new { a.CreatedAt, a.Id }
-						).FirstOrDefaultAsync(cancellationToken);
-						return account is not null
-							? (account.CreatedAt, account.Id)
-							: null;
-					},
-					applyFilter: (q, cursorValue, isAsc) => {
-						if (cursorValue is null) {
-							return q;
-						}
-						var (cursorCreatedAt, cursorId) =
-							((DateTime, Guid?))cursorValue;
-						return isAsc
-							? q.Where(a =>
-								a.CreatedAt > cursorCreatedAt
-								|| (a.CreatedAt == cursorCreatedAt
-									&& a.Id > cursorId))
-							: q.Where(a =>
-								a.CreatedAt < cursorCreatedAt
-								|| (a.CreatedAt == cursorCreatedAt
-									&& a.Id < cursorId));
-					},
-					applyOrdering: (q, isAsc) => isAsc
-						? q.OrderBy(a => a.CreatedAt).ThenBy(a => a.Id)
-						: q.OrderByDescending(a => a.CreatedAt)
-							.ThenByDescending(a => a.Id)
+				["created_at"] = CursorSortFieldHandlerFactory.Create<SocialAccount, DateTime, Guid?>(
+					cursorLookupQuery: () => _db.SocialAccount
+						.AsNoTracking()
+						.Where(a => a.TenantId == tenantId && !a.IsDeleted),
+					keySelector: a => a.CreatedAt,
+					idSelector: a => a.Id,
+					cancellationToken
 				),
-				["updated_at"] = new CursorSortFieldHandler<SocialAccount>(
-					getCursorValue: async (guid) => {
-						var account = await (
-							from a in _db.SocialAccount.AsNoTracking()
-							where a.Id == guid
-								&& a.TenantId == tenantId
-								&& !a.IsDeleted
-							select new { a.UpdatedAt, a.Id }
-						).FirstOrDefaultAsync(cancellationToken);
-						return account is not null
-							? (account.UpdatedAt, account.Id)
-							: null;
-					},
-					applyFilter: (q, cursorValue, isAsc) => {
-						if (cursorValue is null) {
-							return q;
-						}
-						var (cursorUpdatedAt, cursorId) =
-							((DateTime, Guid?))cursorValue;
-						return isAsc
-							? q.Where(a =>
-								a.UpdatedAt > cursorUpdatedAt
-								|| (a.UpdatedAt == cursorUpdatedAt
-									&& a.Id > cursorId))
-							: q.Where(a =>
-								a.UpdatedAt < cursorUpdatedAt
-								|| (a.UpdatedAt == cursorUpdatedAt
-									&& a.Id < cursorId));
-					},
-					applyOrdering: (q, isAsc) => isAsc
-						? q.OrderBy(a => a.UpdatedAt).ThenBy(a => a.Id)
-						: q.OrderByDescending(a => a.UpdatedAt)
-							.ThenByDescending(a => a.Id)
+				["updated_at"] = CursorSortFieldHandlerFactory.Create<SocialAccount, DateTime, Guid?>(
+					cursorLookupQuery: () => _db.SocialAccount
+						.AsNoTracking()
+						.Where(a => a.TenantId == tenantId && !a.IsDeleted),
+					keySelector: a => a.UpdatedAt,
+					idSelector: a => a.Id,
+					cancellationToken
 				),
 			};
 
