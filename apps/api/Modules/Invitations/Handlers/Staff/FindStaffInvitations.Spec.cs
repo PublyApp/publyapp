@@ -441,9 +441,13 @@ public sealed class FindStaffInvitationsSpec : IClassFixture<ApiFixture> {
 	ItShouldWalkEveryEmailPageWithoutOverlapOrGap() {
 		string staffToken = await _authClient.LoginAsStaffAdminAsync();
 		string tag = Guid.NewGuid().ToString("N")[..8];
+		// Deterministic, anti-correlated emails: insertion order is c,b,a while
+		// the lexical (sort) order is a,b,c. The walk must return them in
+		// lexical order, so a keySelector swap to the id (insertion) order
+		// turns this assertion RED.
 		List<string> emails = [];
 		for (int i = 0; i < 3; i++) {
-			string email = $"email-walk-{tag}-{i}-{Guid.NewGuid():N}@example.com";
+			string email = $"email-walk-{tag}-{(char)('a' + (2 - i))}-{Guid.NewGuid():N}@example.com";
 			await CreateStaffInvitationAsync(staffToken, email);
 			emails.Add(email);
 		}
@@ -510,7 +514,10 @@ public sealed class FindStaffInvitationsSpec : IClassFixture<ApiFixture> {
 				staffToken,
 				$"acc-val-{tag}-{i}-{Guid.NewGuid():N}@example.com"
 			);
-			DateTime acceptedAt = baseDate.AddDays(i);
+			// Anti-correlated with insertion: i=0 -> +2d, i=1 -> +0d, i=2 -> +1d,
+			// so the AcceptedAt sorted order is NOT the insertion order. A
+			// keySelector swap to the id order turns the assertion below RED.
+			DateTime acceptedAt = baseDate.AddDays((3 - i) % 3);
 			await SetAcceptedAtAsync(id, acceptedAt);
 			acceptedSpecs.Add((id, acceptedAt));
 		}
