@@ -38,18 +38,23 @@ public sealed class FindSocialAccountsCursorBehaviorSpec
 	public async Task ItShouldWalkEveryCreatedAtPageWithoutOverlapOrGap() {
 		var (tenantId, token) = await LoginAsAcmeAdminAsync();
 
-		// 3 accounts with distinct CreatedAt; the walk must visit each once in
-		// ascending CreatedAt order with no gap or duplicate.
+		// 3 accounts with distinct, deliberately NOT insertion-ordered
+		// CreatedAt (anti-correlated with insertion). The walk must visit each
+		// once in ascending CreatedAt order, not insertion order, so a
+		// keySelector swap to UpdatedAt (stamped at insertion) turns this RED.
 		var baseDate = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
 		var seededIds = new List<Guid>();
+		var seededOrder = new List<DateTime>();
 		for (var i = 0; i < 3; i++) {
 			var id = await ConnectAsync(
 				tenantId,
 				token,
 				$"sa-walk-{i}-{Guid.NewGuid():N}"
 			);
-			await SetCreatedAtAsync(id, baseDate.AddDays(i));
+			var createdAt = baseDate.AddDays((3 - i) % 3);
+			await SetCreatedAtAsync(id, createdAt);
 			seededIds.Add(id);
+			seededOrder.Add(createdAt);
 		}
 
 		var visitedIds = new List<Guid>();
@@ -89,7 +94,30 @@ public sealed class FindSocialAccountsCursorBehaviorSpec
 		var visitedOrder = visitedIds
 			.Where(seededIds.Contains)
 			.ToList();
-		visitedOrder.Should().Equal(seededIds);
+		var createdAtById = seededIds
+			.Zip(seededOrder, (id, c) => (id, c))
+			.ToDictionary(x => x.id, x => x.c);
+		visitedOrder.Should().Equal(
+			seededIds.OrderBy(id => createdAtById[id]).ToList()
+		);
+
+		// Assert the OBSERVED CreatedAt order from the DB: ascending and equal
+		// to the seeded-but-sorted order, NOT the insertion order. The item
+		// does not expose CreatedAt, so resolve it by Id on SocialAccount.
+		List<DateTime> observedOrder;
+		{
+			await using var scope =
+				_fixture.Factory.Services.CreateAsyncScope();
+			var dbContext = scope.ServiceProvider
+				.GetRequiredService<AppDbContext>();
+			observedOrder = await dbContext.SocialAccount
+				.Where(a => visitedOrder.Contains((Guid)a.Id!))
+				.OrderBy(a => visitedOrder.IndexOf((Guid)a.Id!))
+				.Select(a => a.CreatedAt)
+				.ToListAsync();
+		}
+		observedOrder.Should().Equal(seededOrder.OrderBy(x => x).ToList());
+		observedOrder.Should().NotEqual(seededOrder);
 	}
 
 	[Fact]
