@@ -50,7 +50,9 @@ PUBLIC_API_BASE_URL: https://api.front.localhost:${E2E_PORT_TRAEFIK_WEBSECURE:-8
 
 Derives a stable, worktree-specific `COMPOSE_PROJECT_NAME` and port offsets
 by hashing the worktree path. Ports are assigned from a base-11000 range
-with a 330-stride offset per worktree.
+with a 330-stride offset per worktree. Project names are truncated to
+stay within Docker Compose's 64-character limit (with a 4-char SHA-256
+hash suffix for uniqueness on long worktree names).
 
 ### 5. Justfile `ci-e2e-front` + CI workflow
 
