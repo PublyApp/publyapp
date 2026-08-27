@@ -178,16 +178,22 @@ public class AppDbContext : Microsoft.EntityFrameworkCore.DbContext, IDataProtec
 		// migrator, tests, and a bare `new AppDbContext(...)` alike. There is no
 		// opt-out by design; see Modules/Publishing/Lib/PublicationStatusWriteGuard.
 		//
-		// Performance impact: ~0.83 us (median) per publication-table read
-		// query overhead on read paths (measured via micro-benchmark of the
-		// REAL production code, including StripSqlComments — two Regex.Replace
-		// calls). The overhead is negligible, well under 1% of typical query
-		// latency (a paginated read is 1-10 ms; the check is ~0.83 us of that).
-		// Method: 20,000 iterations, JIT/cache warmup discarded, median and
-		// 90th percentile reported (P90 ~0.92 us), Stopwatch.Frequency used
-		// for time conversion (NOT assumed 3GHz), no-op baseline subtracted.
-		// Full figures in the pull request that introduced this comment
-		// (#1673, issue #1615).
+		// Performance impact: ~0.14 µs (median) net overhead per publication-table
+		// read query — the guard's incremental cost above the ambient comment-strip
+		// + regex chain the production query already pays. Measured by
+		// MeasureStatusGuardOverhead (packages/scripts-cs/), which runs the REAL
+		// production regexes and StripSqlComments (not a stub), alternates the
+		// guarded vs. unguarded path A/B in the same loop (so thermal/cache drift
+		// cannot bias the subtraction), and reports per-iteration timings.
+		// Three consecutive runs on this machine (Intel i5-12500T, 12 cores,
+		// Stopwatch.Frequency = 1,000,000,000 ticks/s) gave net medians of
+		// 0.141 / 0.140 / 0.126 µs — consistent to within ~12%, well inside
+		// micro-benchmark dispersion. Even a 10× error (1.4 µs) stays under 2%
+		// of a 1 ms query, so the 1% robustness threshold survives.
+		// Full raw output in .dump/preuve-1615-r3.md (not part of the diff;
+		// gitignored under .dump/). Run yourself with:
+		//   dotnet run --project packages/scripts-cs/PublyApp.Scripts.csproj -- \
+		//     measure-status-guard-overhead
 		optionsBuilder.AddInterceptors(new PublicationStatusWriteGuard());
 
 		// EF Core 9: Define seeding logic here using reflection to discover all seeders

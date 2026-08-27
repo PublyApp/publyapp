@@ -7,9 +7,9 @@ namespace PublyApp.Scripts.Commands;
 
 /// <summary>
 /// Micro-benchmark for the Publication.Status single-writer guard
-/// (#1446 / #1615). Measures the REAL production code from
-/// PublicationStatusWriteGuard.cs — the five GeneratedRegex patterns and
-/// StripSqlComments (two Regex.Replace calls) — not a simplified stub.
+/// (#1446 / #1615). Measures the REAL production regex logic from
+/// PublicationStatusWriteGuard.cs — the five patterns and StripSqlComments
+/// (two Regex.Replace calls) — not a simplified stub.
 ///
 /// Fixes applied for r3 (issue #1615 round 3):
 ///   - Alternates guarded vs. unguarded paths A/B inside the SAME loop on the
@@ -26,8 +26,31 @@ namespace PublyApp.Scripts.Commands;
 ///   dotnet run --project packages/scripts-cs/PublyApp.Scripts.csproj -- \
 ///     measure-status-guard-overhead
 /// </summary>
-public static class MeasureStatusGuardOverhead {
-	public static int Run(IReadOnlyList<string> args) {
+public static partial class MeasureStatusGuardOverhead {
+	// ── Real production regexes (verbatim from PublicationStatusWriteGuard) ──
+	// GeneratedRegex is required by .NET 10 (SYSLIB1045 treated as error).
+	[GeneratedRegex(@"\bpublications\b", RegexOptions.IgnoreCase)]
+	private static partial Regex PublicationsTableWord();
+
+	[GeneratedRegex(
+		@"\bUPDATE\b.*?\bSET\b(?<setList>.*?)(?:\b(?:WHERE|FROM|RETURNING)\b|$)",
+		RegexOptions.Singleline | RegexOptions.IgnoreCase
+	)]
+	private static partial Regex UpdateStatementShape();
+
+	[GeneratedRegex(@"\bstatus\b", RegexOptions.IgnoreCase)]
+	private static partial Regex StatusColumnWord();
+
+	[GeneratedRegex(@"/\*.*?\*/", RegexOptions.Singleline)]
+	private static partial Regex SqlBlockComment();
+
+	[GeneratedRegex(@"--[^\r\n]*")]
+	private static partial Regex SqlLineComment();
+
+	public static int Run(string[] args) {
+		// args accepted to match the Program dispatch contract; this command
+		// takes no arguments. Suppress IDE0060 by acknowledging explicitly.
+		_ = args;
 		Console.OutputEncoding = System.Text.Encoding.UTF8;
 		Console.WriteLine("=== PublicationStatusWriteGuard overhead (r3) ===");
 
@@ -44,18 +67,6 @@ public static class MeasureStatusGuardOverhead {
 		var cpuStart = proc.TotalProcessorTime;
 		Console.WriteLine($"  Process CPU time (start): {cpuStart}");
 		Console.WriteLine();
-
-		// ── Real production regexes (verbatim from PublicationStatusWriteGuard) ──
-		var publicationsTableWord = new Regex(
-			@"\bpublications\b", RegexOptions.IgnoreCase | RegexOptions.Compiled
-		);
-		var updateStatementShape = new Regex(
-			@"\bUPDATE\b.*?\bSET\b(?<setList>.*?)(?:\b(?:WHERE|FROM|RETURNING)\b|$)",
-			RegexOptions.Singleline | RegexOptions.IgnoreCase | RegexOptions.Compiled
-		);
-		var statusColumnWord = new Regex(@"\bstatus\b", RegexOptions.IgnoreCase | RegexOptions.Compiled);
-		var sqlBlockComment = new Regex(@"/\*.*?\*/", RegexOptions.Singleline | RegexOptions.Compiled);
-		var sqlLineComment = new Regex(@"--[^\r\n]*", RegexOptions.Compiled);
 
 		// ── Representative query texts ──────────────────────────────────────
 		var queries = new Dictionary<string, string> {
@@ -90,50 +101,6 @@ public static class MeasureStatusGuardOverhead {
 			["Status UPDATE (must detect)"] = @"
 	        UPDATE publications SET status = 20 WHERE id = '00000000-0000-0000-0000-000000000000'",
 		};
-
-		// ── The work being measured ─────────────────────────────────────────
-		// GUARDED: the real UpdatesPublicationsStatus (full path incl. StripSqlComments).
-		// UNGUARDED: the IDENTICAL split + regex chain MINUS the single guard call —
-		//   i.e. the ambient work the query does regardless of the guard.
-		//   This is NOT a no-op; it strips comments and matches the "publications"
-		//   word, so the subtraction isolates the guard's incremental cost.
-		bool Guarded(string sql) {
-			foreach (var statement in sql.Split(';')) {
-				if (!publicationsTableWord.IsMatch(statement)) {
-					continue;
-				}
-
-				foreach (Match match in updateStatementShape.Matches(
-					StripSqlComments(statement, sqlBlockComment, sqlLineComment))) {
-					if (statusColumnWord.IsMatch(match.Groups["setList"].Value)) {
-						return true;
-					}
-				}
-			}
-
-			return false;
-		}
-
-		// The unguarded baseline runs the SAME chain but skips the guard's
-		// UpdateStatementShape + StatusColumnWord detection — it only fast-fails
-		// on publications presence (which is the work the guard piggy-backs on).
-		bool UnguardedBaseline(string sql) {
-			foreach (var statement in sql.Split(';')) {
-				if (!publicationsTableWord.IsMatch(statement)) {
-					continue;
-				}
-
-				_ = StripSqlComments(statement, sqlBlockComment, sqlLineComment);
-			}
-
-			return false;
-		}
-
-		static string StripSqlComments(
-			string sql, Regex block, Regex line
-		) {
-			return block.Replace(line.Replace(sql, " "), " ");
-		}
 
 		// ── Warmup ──────────────────────────────────────────────────────────
 		const int warmup = 1_000;
@@ -223,7 +190,6 @@ public static class MeasureStatusGuardOverhead {
 		);
 
 		var pubNet = 0.0;
-		var unrelNet = 0.0;
 
 		foreach (var kv in queries) {
 			var name = kv.Key;
@@ -240,27 +206,30 @@ public static class MeasureStatusGuardOverhead {
 			if (name == "Publication SELECT (read)") {
 				pubNet = netUs;
 			}
-
-			if (name == "Unrelated SELECT (fast-fail)") {
-				unrelNet = netUs;
-			}
 		}
 
 		Console.WriteLine();
 
 		// ── Correctness sanity check ────────────────────────────────────────
+		// Named assertions: these are the exact checks the r1/r2 proof committed
+		// to, verified here by name on every run.
+		var selectResult = Guarded(queries["Publication SELECT (read)"]);
+		var unrelResult = Guarded(queries["Unrelated SELECT (fast-fail)"]);
+		var commentedResult = Guarded(queries["Commented publication SELECT"]);
+		var updateResult = Guarded(queries["Status UPDATE (must detect)"]);
+
 		Console.WriteLine("── Guard correctness (UpdatesPublicationsStatus) ───────────");
 		Console.WriteLine(
-			$"  Publication SELECT detects status write: {Guarded(queries["Publication SELECT (read)"])} (expected: False)"
+			$"  [Assertion: Publication SELECT → False]     got {selectResult}  (expected False) {(selectResult ? "FAIL" : "PASS")}"
 		);
 		Console.WriteLine(
-			$"  Unrelated SELECT detects status write:   {Guarded(queries["Unrelated SELECT (fast-fail)"])} (expected: False)"
+			$"  [Assertion: Unrelated SELECT → False]        got {unrelResult}  (expected False) {(unrelResult ? "FAIL" : "PASS")}"
 		);
 		Console.WriteLine(
-			$"  Commented SELECT detects status write:   {Guarded(queries["Commented publication SELECT"])} (expected: False)"
+			$"  [Assertion: Commented SELECT → False]        got {commentedResult}  (expected False) {(commentedResult ? "FAIL" : "PASS")}"
 		);
 		Console.WriteLine(
-			$"  Status UPDATE detects status write:      {Guarded(queries["Status UPDATE (must detect)"])} (expected: True)"
+			$"  [Assertion: Status UPDATE → True]            got {updateResult}  (expected True)  {(!updateResult ? "FAIL" : "PASS")}"
 		);
 		Console.WriteLine();
 
@@ -285,11 +254,60 @@ public static class MeasureStatusGuardOverhead {
 		return 0;
 	}
 
+	/// <summary>
+	/// GUARDED: the real UpdatesPublicationsStatus (full path incl. StripSqlComments).
+	/// </summary>
+	private static bool Guarded(string commandText) {
+		foreach (var statement in commandText.Split(';')) {
+			if (!PublicationsTableWord().IsMatch(statement)) {
+				continue;
+			}
+
+			foreach (Match match in UpdateStatementShape().Matches(
+						StripSqlComments(statement)
+					)) {
+				if (StatusColumnWord().IsMatch(match.Groups["setList"].Value)) {
+					return true;
+				}
+			}
+		}
+
+		return false;
+	}
+
+	/// <summary>
+	/// UNGUARDED baseline: the IDENTICAL statement-splitting + comment stripping
+	/// + publications-word check, MINUS the single guard's detection step
+	/// (UpdateStatementShape + StatusColumnWord). This is NOT a no-op: it runs
+	/// the same regex chain the guard piggy-backs on, so the subtraction
+	/// isolates only the guard's incremental cost.
+	/// </summary>
+	private static bool UnguardedBaseline(string commandText) {
+		foreach (var statement in commandText.Split(';')) {
+			if (!PublicationsTableWord().IsMatch(statement)) {
+				continue;
+			}
+
+			_ = StripSqlComments(statement);
+		}
+
+		return false;
+	}
+
+	/// <summary>
+	/// REAL production StripSqlComments: two Regex.Replace calls (block then
+	/// line comments). Copied verbatim from PublicationStatusWriteGuard.
+	/// </summary>
+	private static string StripSqlComments(string sql) {
+		return SqlBlockComment().Replace(SqlLineComment().Replace(sql, " "), " ");
+	}
+
 	private static double Percentile(long[] sorted, double p) {
 		// Nearest-rank method: index = ceil(p * n) - 1, clamped to [0, n-1].
-		// For p=0.50 on an even-length array this returns the upper-middle
-		// element (the n/2-th), NOT the average of the two central elements.
-		// Documented here to avoid confusion with a true interpolated median.
+		// For p=0.50 on an even-length array this returns the UPPER of the two
+		// central elements (index n/2), NOT the average of the two central
+		// elements. Documented here to avoid confusion with a true interpolated
+		// median.
 		var idx = (int)Math.Ceiling(p * sorted.Length) - 1;
 		return sorted[Math.Max(0, Math.Min(idx, sorted.Length - 1))];
 	}

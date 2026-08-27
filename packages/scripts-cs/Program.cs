@@ -17,7 +17,7 @@ public static class Program {
 		}
 
 		if (string.Equals(command, "measure-status-guard-overhead", StringComparison.Ordinal)) {
-			return MeasureStatusGuardOverhead.Run(commandArgs);
+			return MeasureStatusGuardOverhead.Run(commandArgs.ToArray());
 		}
 
 		Console.Error.WriteLine($"Unknown command: {command}");
