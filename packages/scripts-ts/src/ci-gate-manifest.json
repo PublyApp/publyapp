@@ -246,10 +246,10 @@
 			"mirror": null,
 			"reason": "GitHub-only: round-5 BLOCKER fix. Reads steps.check-required-jobs.outcome, which GitHub computes BEFORE continue-on-error is applied (only .conclusion is rewritten afterward), so a continue-on-error added to the required-jobs check step cannot mask this step's own view of whether that step actually succeeded. That `.outcome` context only exists inside a real Actions run, so this stays GitHub-only/unmirrored locally; packages/scripts-ts/src/check-ci-gate-structure.ts pins that this exact step exists."
 		},
-		"front-ci.yml::supply-chain::Audit production dependencies (high and above)": {
-			"hash": "c637a892cd9a2386",
-			"mirror": "pnpm audit --prod --audit-level=high",
-			"reason": "CI fails on any high/critical in the production graph via pnpm audit --prod --audit-level=high; locally the same command reproduces it without Docker or CI."
+		"front-ci.yml::supply-chain::Audit production dependencies (moderate and above)": {
+			"hash": "8d5095ef73aba7b3",
+			"mirror": "pnpm audit --prod --audit-level=moderate",
+			"reason": "#1644: production-graph threshold lowered from high to moderate to align with the dev-graph gate (quality-gate.yml::quality::Audit development dependencies). The previous shape let a moderate advisory in a production dep slip through both audits: --prod excludes the dev graph, and --audit-level=high excludes moderate. The same command reproduces it locally without Docker or CI; the production graph is clean at every threshold today, so the cost is zero and the safety is immediate (no exception list needed)."
 		},
 		"front-ci.yml::supply-chain::Assert exact pins": {
 			"hash": "9f0331695e45ef30",
