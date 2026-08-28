@@ -1,5 +1,21 @@
 import type { QueryClient } from '@tanstack/react-query';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
+
+const LOCALES_DIR = join(
+	import.meta.dirname,
+	'../../i18n/locales',
+);
+
+const I18N_KEYS_PER_LOCALE = {
+	en: JSON.parse(
+		readFileSync(join(LOCALES_DIR, 'en/staff-jobs.json'), 'utf8'),
+	) as Record<string, string>,
+	fr: JSON.parse(
+		readFileSync(join(LOCALES_DIR, 'fr/staff-jobs.json'), 'utf8'),
+	) as Record<string, string>,
+};
 
 const mocks = vi.hoisted(() => ({
 	getOrCreateStaffClient: vi.fn(),
@@ -450,5 +466,51 @@ describe('row mappers', () => {
 		expect(toStaffJobQueueRows(null)).toEqual([]);
 		expect(toStaffDeadLetterRows(undefined)).toEqual([]);
 		expect(toStaffSystemJobDefinitionRows(null)).toEqual([]);
+	});
+});
+
+describe('mutation feedback meta (#1627 r3 — success feedback must be visible)', () => {
+	test('enabled toggle mutation declares a successMessage key (not silentSuccess)', () => {
+		expect(updateSystemJobEnabledMutationOptions.meta).toHaveProperty(
+			'successMessage',
+		);
+		expect(updateSystemJobEnabledMutationOptions.meta).not.toHaveProperty(
+			'silentSuccess',
+		);
+	});
+
+	test('cron update mutation declares a successMessage key (not silentSuccess)', () => {
+		expect(updateSystemJobCronMutationOptions.meta).toHaveProperty(
+			'successMessage',
+		);
+		expect(updateSystemJobCronMutationOptions.meta).not.toHaveProperty(
+			'silentSuccess',
+		);
+	});
+
+	test('the toggle successMessage key exists in every locale', () => {
+		const key = updateSystemJobEnabledMutationOptions.meta;
+		expect(key).toHaveProperty('successMessage');
+		const successKey = (key as { successMessage: string }).successMessage;
+
+		for (const [locale, keys] of Object.entries(I18N_KEYS_PER_LOCALE)) {
+			expect(
+				keys[successKey],
+				`successMessage key "${successKey}" is missing from ${locale}/staff-jobs.json`,
+			).toBeDefined();
+		}
+	});
+
+	test('the cron successMessage key exists in every locale', () => {
+		const key = updateSystemJobCronMutationOptions.meta;
+		expect(key).toHaveProperty('successMessage');
+		const successKey = (key as { successMessage: string }).successMessage;
+
+		for (const [locale, keys] of Object.entries(I18N_KEYS_PER_LOCALE)) {
+			expect(
+				keys[successKey],
+				`successMessage key "${successKey}" is missing from ${locale}/staff-jobs.json`,
+			).toBeDefined();
+		}
 	});
 });

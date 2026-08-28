@@ -1,5 +1,6 @@
 import { IconActivity } from '@tabler/icons-react';
 import { createFileRoute } from '@tanstack/react-router';
+import { useQueryClient } from '@tanstack/react-query';
 import { useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
@@ -15,6 +16,7 @@ import {
 	useStaffUpdateSystemJobEnabledMutation,
 	useStaffUpdateSystemJobCronMutation,
 	useStaffSystemJobDefinitionsQuery,
+	invalidateStaffJobsQueries,
 	type StaffSystemJobDefinitionRow,
 } from '~/lib/query/staff-jobs';
 
@@ -48,6 +50,7 @@ type CronDialogState = {
 const StaffJobsSystemJobsPage = () => {
 	const { t, i18n } = useTranslation(['staff-jobs', 'common']);
 	const locale = i18n?.language ?? 'en';
+	const queryClient = useQueryClient();
 	const permissions = useStaffJobPermissions();
 	const [shouldLogout, setShouldLogout] = useState(false);
 	const [cronDialog, setCronDialog] = useState<CronDialogState | null>(null);
@@ -101,11 +104,14 @@ const StaffJobsSystemJobsPage = () => {
 
 			void enabledMutation
 				.mutateAsync({ systemJobId: row.id, isEnabled: next })
+				.then(() => {
+					void invalidateStaffJobsQueries(queryClient);
+				})
 				.catch((error) => {
 					guardSession(error);
 				});
 		},
-		[permissions.canUpdateSystemJob, enabledMutation],
+		[permissions.canUpdateSystemJob, enabledMutation, queryClient],
 	);
 
 	const openCronDialog = useCallback(
@@ -143,6 +149,7 @@ const StaffJobsSystemJobsPage = () => {
 			return;
 		}
 
+		void invalidateStaffJobsQueries(queryClient);
 		closeCronDialog();
 	};
 

@@ -435,7 +435,7 @@ export const updateSystemJobEnabledMutationOptions = buildStaffMutationOptions<
 				.enabled.patch(body);
 		},
 		meta: {
-			silentSuccess: true,
+			successMessage: 'system-job-toggle-success',
 		},
 	},
 	{ clientAccessor: getClientManager() },
@@ -464,7 +464,7 @@ export const updateSystemJobCronMutationOptions = buildStaffMutationOptions<
 				.cron.patch(body);
 		},
 		meta: {
-			silentSuccess: true,
+			successMessage: 'system-job-definition-update-success',
 			validationHandledByForm: true,
 		},
 	},

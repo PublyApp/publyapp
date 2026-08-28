@@ -32,6 +32,7 @@
 	"cron-dialog-description": "Cron expression for “{{jobKey}}”.",
 	"cron-expression-label": "Cron expression",
 	"system-job-definition-update-success": "Schedule updated.",
+	"system-job-toggle-success": "Job enabled state updated.",
 	"action-permission-checking": "Checking your permissions…",
 	"action-permission-denied": "You don’t have permission for this action.",
 	"no-rows-match-title": "No matching jobs",
