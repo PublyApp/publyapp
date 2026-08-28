@@ -59,6 +59,7 @@ import {
 	parseInviteCsv,
 	parseInviteWorkbook,
 	parseInviteeEmails,
+	syncInvalidEmail,
 	type InviteFormValues,
 	type InviteRow,
 	useInviteForm,
@@ -372,6 +373,15 @@ const useInviteProfileResolution = ({
 
 	useEffect(() => {
 		const onRowsChange = () => {
+			const currentRows = methods.getValues('rows');
+			const synced = syncInvalidEmail(currentRows);
+			if (
+				JSON.stringify(synced.map((r) => r.invalidEmail)) !==
+				JSON.stringify(currentRows.map((r) => r.invalidEmail))
+			) {
+				methods.setValue('rows', synced, { shouldDirty: false });
+			}
+
 			if (!isOpen || namesSignature.length === 0) {
 				setProfileResolutionLimitError('');
 				return;

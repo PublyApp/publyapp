@@ -478,6 +478,16 @@ export const buildImportedInvites = (
 export const clearFileRows = (rows: InviteRow[]): InviteRow[] =>
 	rows.filter((row) => row.source !== 'file');
 
+/** Re-derives `invalidEmail` for each row from its current email value.
+ * Called on every row change so that manual edits (typing, paste) keep
+ * the per-row error flag in sync with the field value. */
+export const syncInvalidEmail = (rows: InviteRow[]): InviteRow[] =>
+	rows.map((row) => ({
+		...row,
+		invalidEmail:
+			row.email === '' || EMAIL_REGEX.test(row.email) ? null : row.email,
+	}));
+
 type ProfileResolutionOutcome = {
 	rows: InviteRow[];
 	unresolvedByRowKey: Record<string, Array<{ name: string; reason: string }>>;

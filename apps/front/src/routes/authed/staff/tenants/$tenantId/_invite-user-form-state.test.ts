@@ -13,6 +13,7 @@ import {
 	parseInviteeEmails,
 	parseInviteWorkbook,
 	splitProfileNames,
+	syncInvalidEmail,
 	type InviteRow,
 	type ProfileNameResolution,
 } from './_invite-user-form-state';
@@ -322,6 +323,34 @@ describe('clearFileRows', () => {
 		];
 
 		expect(clearFileRows(rows).map((row) => row.key)).toEqual(['k1']);
+	});
+});
+
+describe('syncInvalidEmail', () => {
+	test('flags an invalid email on a manual row as invalid', () => {
+		const rows: InviteRow[] = [{ ...makeManualRow('not-an-email') }];
+
+		expect(syncInvalidEmail(rows)[0]?.invalidEmail).toBe('not-an-email');
+	});
+
+	test('leaves a valid email as null', () => {
+		const rows: InviteRow[] = [{ ...makeManualRow('valid@example.com') }];
+
+		expect(syncInvalidEmail(rows)[0]?.invalidEmail).toBeNull();
+	});
+
+	test('clears invalidEmail when the email is later corrected to valid', () => {
+		const rows: InviteRow[] = [
+			{ ...makeManualRow('valid@example.com'), invalidEmail: 'bad@email' },
+		];
+
+		expect(syncInvalidEmail(rows)[0]?.invalidEmail).toBeNull();
+	});
+
+	test('leaves a blank email as null (not flagged invalid)', () => {
+		const rows: InviteRow[] = [{ ...makeManualRow('') }];
+
+		expect(syncInvalidEmail(rows)[0]?.invalidEmail).toBeNull();
 	});
 });
 

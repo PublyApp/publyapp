@@ -664,6 +664,9 @@ describe('InviteTenantUserDrawer', () => {
 		});
 
 		expect(
+			screen.getByText(/Row for not-an-email is not a valid email address/),
+		).toBeTruthy();
+		expect(
 			screen
 				.getByRole('button', { name: 'Invite people' })
 				.hasAttribute('disabled'),
