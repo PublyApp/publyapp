@@ -229,6 +229,11 @@ services:
       PORT: 3000
       SERVER_API_BASE_URL: http://request-counter:8800
       PUBLIC_API_BASE_URL: https://api.front.localhost:${E2E_PORT_TRAEFIK_WEBSECURE:-8443}
+      # Bare scheme+host (no trailing slash/path/query/fragment) matching the
+      # front's own public origin as seen by the browser behind Traefik.
+      # Required by validateRuntimeEnv() when NODE_ENV=production — without it
+      # the server refuses to start rather than trusting the Host header.
+      PUBLIC_ORIGIN: https://front.localhost:${E2E_PORT_TRAEFIK_WEBSECURE:-8443}
     depends_on:
       request-counter:
         condition: service_healthy
