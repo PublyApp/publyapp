@@ -262,6 +262,21 @@ const openInviteUserDrawer = async (page: Page): Promise<void> => {
 	await expect(page.getByTestId('invite-tenant-user-drawer')).toBeVisible({
 		timeout: 10_000,
 	});
+	// PR #979 introduced a Send gate that disables the footer submit until the
+	// form holds a valid row, so the geometry assertions' trial click would time
+	// out on the freshly opened (empty) invite form. Dirty it with one
+	// deterministic valid email (same reason the profile-edit drawer fills its
+	// name), without touching what the assertions measure. Target the bound
+	// field by its react-hook-form name: the role locator
+	// `getByRole('textbox', { name: 'Email', exact: true })` resolves to two
+	// controls inside this drawer, so `.fill()` can address a control that is
+	// not the bound `rows.0.email` field and leave the real row email empty —
+	// which keeps the Send gate (correctly) disabled. The name selector
+	// addresses the single bound field deterministically.
+	await page
+		.getByTestId('invite-tenant-user-drawer')
+		.locator('input[name="rows.0.email"]')
+		.fill('invitee@example.com');
 };
 
 const openProfileEditDrawer = async (page: Page): Promise<void> => {

@@ -7,16 +7,6 @@
 
 version: 2
 updates:
-  - package-ecosystem: "devcontainers"
-    directory: "/"
-    schedule:
-      interval: weekly
-    labels:
-      - "technical-debt"
-    commit-message:
-      prefix: "chore"
-      include: "scope"
-
   - package-ecosystem: "npm"
     directory: "/"
     schedule:
@@ -61,6 +51,7 @@ updates:
     commit-message:
       prefix: "chore"
       include: "scope"
+
   - package-ecosystem: "nuget"
     directory: "/packages/lint-cs"
     schedule:

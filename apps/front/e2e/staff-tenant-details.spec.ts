@@ -1,7 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 
 import { API_BASE_URL } from './helpers/api';
-import { loginAsStaffAdmin } from './helpers/login';
+import { loginAsStaffAdmin, setLocaleCookie } from './helpers/login';
 import { expectTableFitsCard } from './helpers/table-fits-card';
 
 const TENANT_ID = '0197b8f0-3333-7ccc-8ccc-cccccccccccc';
@@ -980,12 +980,17 @@ test.describe(
 			expect(usersOpenUrl.searchParams.get('invite')).toBe('1');
 			await expect(currentTenantSectionTab(page)).toHaveText('Users');
 
-			await drawer.getByRole('button', { name: 'Invite people' }).click();
-			await expect(page.getByText('Invalid email address')).toBeVisible();
+			// The rebuilt drawer gates Send on a valid batch instead of an
+			// inline email error: the untouched blank row keeps it disabled.
+			const sendButton = drawer.getByRole('button', {
+				name: 'Send 1 invitation',
+			});
+			await expect(sendButton).toBeDisabled();
 
 			await drawer
-				.getByRole('textbox', { name: 'Email', exact: true })
+				.locator('input[name="rows.0.email"]')
 				.fill('new-user@example.com');
+			await expect(sendButton).toBeEnabled();
 
 			const inviteRequest = page.waitForRequest(
 				(request) =>
@@ -994,7 +999,7 @@ test.describe(
 						.url()
 						.includes(`/staff/tenants/${TENANT_ID}/users/invitations`),
 			);
-			await drawer.getByRole('button', { name: 'Invite people' }).click();
+			await drawer.getByRole('button', { name: 'Send 1 invitation' }).click();
 			await inviteRequest;
 
 			await expect(page.getByTestId('staff-tenant-users-page')).toBeVisible();
@@ -1030,6 +1035,59 @@ test.describe(
 					viewport.height,
 				);
 			}
+		});
+
+		test('renders the plural Send button label when two rows are present, in EN and FR', async ({
+			page,
+		}) => {
+			await loginAsStaffAdmin(page);
+			await mockTenantDetails(page);
+
+			await page.goto(
+				`/staff/tenants/${TENANT_ID}/users?invite=1&status=active`,
+			);
+			await expect(page.getByTestId('staff-tenant-users-page')).toBeVisible();
+
+			const drawer = page.getByTestId('invite-tenant-user-drawer');
+			await expect(drawer).toBeVisible();
+
+			await drawer
+				.locator('input[name="rows.0.email"]')
+				.fill('first@example.com');
+			await drawer.getByRole('button', { name: 'Add another invitee' }).click();
+			await drawer
+				.locator('input[name="rows.1.email"]')
+				.fill('second@example.com');
+
+			// English: "Send 2 invitations"
+			await expect(
+				drawer.getByRole('button', { name: 'Send 2 invitations' }),
+			).toBeVisible();
+			await expect(
+				drawer.getByRole('button', { name: 'Send 1 invitation' }),
+			).toHaveCount(0);
+
+			// French: "Envoyer 2 invitations"
+			await setLocaleCookie(page, 'fr');
+			await page.reload();
+			await expect(drawer).toBeVisible();
+			// A reload resets the form's local state, so re-populate two rows
+			// before re-checking the plural button label under the new locale.
+			await drawer
+				.locator('input[name="rows.0.email"]')
+				.fill('first@example.com');
+			await drawer
+				.getByRole('button', { name: 'Ajouter un autre invité' })
+				.click();
+			await drawer
+				.locator('input[name="rows.1.email"]')
+				.fill('second@example.com');
+			await expect(
+				drawer.getByRole('button', { name: 'Envoyer 2 invitations' }),
+			).toBeVisible();
+			await expect(
+				drawer.getByRole('button', { name: 'Envoyer 1 invitation' }),
+			).toHaveCount(0);
 		});
 
 		test('opens from the Invitations tab, validates, and submits via the invitations endpoint', async ({
@@ -1075,7 +1133,7 @@ test.describe(
 			await expect(currentTenantSectionTab(page)).toHaveText('Invitations');
 
 			await drawer
-				.getByRole('textbox', { name: 'Email', exact: true })
+				.locator('input[name="rows.0.email"]')
 				.fill('new-user@example.com');
 			const inviteRequest = page.waitForRequest(
 				(request) =>
@@ -1084,7 +1142,7 @@ test.describe(
 						.url()
 						.includes(`/staff/tenants/${TENANT_ID}/users/invitations`),
 			);
-			await drawer.getByRole('button', { name: 'Invite people' }).click();
+			await drawer.getByRole('button', { name: 'Send 1 invitation' }).click();
 			await inviteRequest;
 
 			await expect(
@@ -1109,7 +1167,7 @@ test.describe(
 			await loginAsStaffAdmin(page);
 			await mockTenantDetails(page);
 			await page.route(
-				`**/staff/tenants/${TENANT_ID}/users/invitations`,
+				`**/staff/tenants/${TENANT_ID}/users/invitations/bulk`,
 				async (route) => {
 					if (route.request().method() !== 'POST') {
 						await route.fallback();
@@ -1135,12 +1193,17 @@ test.describe(
 			await expect(drawer).toBeVisible();
 
 			await drawer
-				.getByRole('textbox', { name: 'Email', exact: true })
+				.locator('input[name="rows.0.email"]')
 				.fill('new-user@example.com');
-			await drawer.getByRole('button', { name: 'Invite people' }).click();
+			await drawer.getByRole('button', { name: 'Send 1 invitation' }).click();
 
 			await expect(
-				drawer.getByRole('button', { name: 'Invite people' }),
+				drawer.getByRole('button', { name: 'Send 1 invitation' }),
+			).toBeVisible();
+			// The drawer stays open with the same route, AND the failure
+			// cause from the 500 response is surfaced to the user.
+			await expect(
+				page.getByText('Failed to send invite', { exact: true }),
 			).toBeVisible();
 			const failedSubmitUrl = new URL(page.url());
 			expect(failedSubmitUrl.pathname).toBe(
@@ -1193,7 +1256,7 @@ test.describe(
 			await expect(drawer).toBeVisible();
 
 			await drawer
-				.getByRole('textbox', { name: 'Email', exact: true })
+				.locator('input[name="rows.0.email"]')
 				.fill('new-user@example.com');
 			const inviteRequest = page.waitForRequest(
 				(request) =>
@@ -1202,7 +1265,7 @@ test.describe(
 						.url()
 						.includes(`/staff/tenants/${TENANT_ID}/users/invitations`),
 			);
-			await drawer.getByRole('button', { name: 'Invite people' }).click();
+			await drawer.getByRole('button', { name: 'Send 1 invitation' }).click();
 			await inviteRequest;
 
 			await expect(page.getByTestId('staff-tenant-users-page')).toBeVisible();
