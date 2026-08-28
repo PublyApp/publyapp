@@ -1710,35 +1710,39 @@ public sealed class FindTenantUsersAsStaffSpec
 	private async Task SwapTenantUserIdsAsync(string idA, string idB) {
 		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var tx = await dbContext.Database.BeginTransactionAsync();
+		// Set constraints to deferred so the FK from user_accounts to users
+		// doesn't violate during the swap. Constraints are checked at
+		// transaction commit time.
+		await dbContext.Database.ExecuteSqlRawAsync(
+			"SET CONSTRAINTS ALL DEFERRED"
+		);
+
 		var temp = Guid.NewGuid();
 		var guidA = Guid.Parse(idA);
 		var guidB = Guid.Parse(idB);
-		// Swap IDs on the parent (users) and child (user_accounts) tables.
-		// The three-step swap via a temp id avoids PK collision (the PK unique
-		// constraint must never see two rows with the same id concurrently).
-		// For the child table FK: update parent to temp FIRST, then repoint
-		// child rows to temp so the FK remains valid at every step.
-		// Step 1: move idA -> temp in users (freeing idA for the swap),
-		// then redirect user_accounts to temp.
-		await dbContext.Database.ExecuteSqlRawAsync(
-			"UPDATE users SET id = {0} WHERE id = {1}",
-			temp, guidA);
+		// Step 1: move idA -> temp in both tables.
 		await dbContext.Database.ExecuteSqlRawAsync(
 			"UPDATE user_accounts SET user_id = {0} WHERE user_id = {1}",
+			temp, guidA);
+		await dbContext.Database.ExecuteSqlRawAsync(
+			"UPDATE users SET id = {0} WHERE id = {1}",
 			temp, guidA);
 		// Step 2: move idB -> idA in both tables.
 		await dbContext.Database.ExecuteSqlRawAsync(
-			"UPDATE users SET id = {0} WHERE id = {1}",
+			"UPDATE user_accounts SET user_id = {0} WHERE user_id = {1}",
 			guidA, guidB);
 		await dbContext.Database.ExecuteSqlRawAsync(
-			"UPDATE user_accounts SET user_id = {0} WHERE user_id = {1}",
+			"UPDATE users SET id = {0} WHERE id = {1}",
 			guidA, guidB);
 		// Step 3: move temp -> idB in both tables (completing the swap).
 		await dbContext.Database.ExecuteSqlRawAsync(
-			"UPDATE users SET id = {0} WHERE id = {1}",
-			guidB, temp);
-		await dbContext.Database.ExecuteSqlRawAsync(
 			"UPDATE user_accounts SET user_id = {0} WHERE user_id = {1}",
 			guidB, temp);
+		await dbContext.Database.ExecuteSqlRawAsync(
+			"UPDATE users SET id = {0} WHERE id = {1}",
+			guidB, temp);
+
+		await tx.CommitAsync();
 	}
 }
