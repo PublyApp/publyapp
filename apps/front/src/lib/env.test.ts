@@ -342,6 +342,77 @@ describe('front runtime env registry', () => {
 				/failed to validate front server runtime env:.*PUBLIC_ORIGIN/,
 			);
 		});
+
+		describe('PUBLIC_ORIGIN normalized-form acceptance', () => {
+			// PUBLIC_ORIGIN must accept legitimate URL variations that differ from
+			// their normalized origin only by case, explicit default port, or IPv6
+			// bracketing — all valid per DNS/URL standards. These were
+			// previously rejected by a strict text comparison (R4 verdict).
+			const setup = () => {
+				process.env.PUBLIC_API_BASE_URL = 'https://public.example.test';
+				process.env.SERVER_API_BASE_URL = 'http://api:5000';
+			};
+
+			test('accepts an explicit default port (:443 on https)', async () => {
+				setup();
+				process.env.PUBLIC_ORIGIN = 'https://example.com:443';
+				const { getServerEnv } = await importEnv();
+
+				expect(getServerEnv().publicOrigin).toBe('https://example.com:443');
+			});
+
+			test('accepts an uppercase host (DNS is case-insensitive)', async () => {
+				setup();
+				process.env.PUBLIC_ORIGIN = 'https://EXAMPLE.COM';
+				const { getServerEnv } = await importEnv();
+
+				expect(getServerEnv().publicOrigin).toBe('https://EXAMPLE.COM');
+			});
+
+			test('accepts a mixed-case host', async () => {
+				setup();
+				process.env.PUBLIC_ORIGIN = 'https://Example.Com';
+				const { getServerEnv } = await importEnv();
+
+				expect(getServerEnv().publicOrigin).toBe('https://Example.Com');
+			});
+
+			test('accepts an IPv6 loopback with explicit default port', async () => {
+				setup();
+				process.env.PUBLIC_ORIGIN = 'https://[::1]:443';
+				const { getServerEnv } = await importEnv();
+
+				expect(getServerEnv().publicOrigin).toBe('https://[::1]:443');
+			});
+
+			test('accepts an IPv6 loopback without port', async () => {
+				setup();
+				process.env.PUBLIC_ORIGIN = 'https://[::1]';
+				const { getServerEnv } = await importEnv();
+
+				expect(getServerEnv().publicOrigin).toBe('https://[::1]');
+			});
+
+			test('still rejects a path even with uppercase host', async () => {
+				setup();
+				process.env.PUBLIC_ORIGIN = 'https://EXAMPLE.COM/path';
+				const { getServerEnv } = await importEnv();
+
+				expect(() => getServerEnv()).toThrow(
+					/failed to validate front server runtime env:.*PUBLIC_ORIGIN/,
+				);
+			});
+
+			test('still rejects a non-default explicit port with a path', async () => {
+				setup();
+				process.env.PUBLIC_ORIGIN = 'https://example.com:8080/app';
+				const { getServerEnv } = await importEnv();
+
+				expect(() => getServerEnv()).toThrow(
+					/failed to validate front server runtime env:.*PUBLIC_ORIGIN/,
+				);
+			});
+		});
 	});
 });
 

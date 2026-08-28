@@ -331,14 +331,18 @@ export const Route = createFileRoute(
 
 		// #851 round 3 (A3 fix): background revalidation of the cached data the
 		// initial query() just settled. With the default `staleTime: 0`, that
-		// data is immediately stale, so these fire-and-forget prefetchQuery()
-		// calls each issue a background refetch — exactly the behaviour
-		// ensureQueryData provided via prefetchQuery before the #851 migration.
-		// Errors are logged as warnings (they do not block the initial render)
-		// and the route's errorComponent only owns the awaited initial fetch's
+		// data is immediately stale, so these fire-and-forget query() calls
+		// each issue a background refetch — exactly the behaviour ensureQueryData
+		// provided via prefetchQuery before the #851 migration. Errors are
+		// logged as warnings (they do not block the initial render) and the
+		// route's errorComponent only owns the awaited initial fetch's
 		// failures.
+		//
+		// prefetchQuery() is deprecated in @tanstack/react-query 5.102+; the
+		// migration per the deprecation notice is query().catch(noop). We keep
+		// the .catch() handler to log background failures as warnings.
 		void context.queryClient
-			.prefetchQuery({
+			.query({
 				queryKey: staffTenantDetailsQueryOptions.queryKey({
 					tenantId: params.tenantId,
 				}),
@@ -354,7 +358,7 @@ export const Route = createFileRoute(
 				);
 			});
 		void context.queryClient
-			.prefetchQuery({
+			.query({
 				queryKey: staffTenantProfileDetailsQueryOptions.queryKey({
 					tenantId: params.tenantId,
 					profileId: params.profileId,

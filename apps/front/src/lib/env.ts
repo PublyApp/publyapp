@@ -28,19 +28,30 @@ const optionalTrimmedString = z.string().trim().min(1).optional();
 // PUBLIC_ORIGIN is used as a bare scheme+host base when building canonical
 // and Open Graph URLs (`${origin}${requestPath}`). A trailing path segment —
 // including the bare `/` of `https://example.com/` — produces double slashes
-// or corrupts the URL. The schema's refine accepts only inputs that equal
-// their own URL.origin (i.e. scheme://host), rejecting anything with a path,
-// query, or fragment. This enforces the "no trailing path" contract surfaced
-// by validateRuntimeEnv's error message.
+// or corrupts the URL. The schema's refine accepts only inputs whose
+// normalized form is a bare scheme+host (no path, query, or fragment),
+// accepting legitimate variations like uppercase hosts, explicit default
+// ports, and IPv6 addresses. This enforces the "no trailing path" contract
+// surfaced by validateRuntimeEnv's error message.
 const optionalPublicOrigin = z
 	.url()
 	.refine(
 		(value) => {
 			const parsed = new URL(value);
-			return value === parsed.origin;
+			// Normalize: URL.origin is case-insensitive for the host portion
+			// and omits default ports, so compare against that normalized form
+			// rather than the raw text. We accept the input only if, after
+			// normalization, it carries no path, query, or fragment.
+			return (
+				parsed.pathname === '/' &&
+				parsed.search === '' &&
+				parsed.hash === '' &&
+				parsed.origin !== ''
+			);
 		},
 		{
-			message: 'PUBLIC_ORIGIN must be a bare scheme+host with no trailing path',
+			message:
+				'PUBLIC_ORIGIN must be a bare scheme+host with no trailing path, query, or fragment',
 		},
 	)
 	.optional();
