@@ -43,6 +43,15 @@ namespace PublyApp.Api.Lib.Architecture;
 /// Proven RED by planting a second publications-row SKIP LOCKED claim and by
 /// stripping permission metadata from a publishing endpoint
 /// (.dump/mutation-rogue-schedule-writer.md).
+///
+/// Round R1 hardening: the route guard was suffix-based (<c>IsPublishingRoute</c>
+/// matched <c>/posts/*</c> paths ending in <c>/schedule</c> or <c>/publications</c>),
+/// which silently admitted any other <c>/posts/*</c> route (e.g. <c>/posts/{postId}/publish-now</c>,
+/// <c>/posts/publish-targets</c>) without permission metadata or rate-limiting. The
+/// guard now uses an EXPLICIT, CLOSED INVENTORY of every <c>/posts/*</c> route on the
+/// live route map. Each route is classified as publishing (must carry permission +
+/// rate-limit) or non-publishing (must be listed to stay closed). Any <c>/posts/*</c>
+/// route absent from the inventory fails loudly, naming the unknown route.
 /// </summary>
 public sealed partial class PublishingDispatchArchitectureSpec : IDisposable {
 	static PublishingDispatchArchitectureSpec() {
@@ -51,13 +60,40 @@ public sealed partial class PublishingDispatchArchitectureSpec : IDisposable {
 
 	// ── (a) Publishing tenant routes: permission + rate limiting ────────────
 
-	// The closed set of publishing tenant routes. Adding a route here is the
-	// review checkpoint; an unlisted publishing route fails the count assertion.
+	// The closed set of publishing tenant routes (by endpoint name). Adding a route
+	// here is the review checkpoint; an unlisted publishing route fails the
+	// count assertion.
 	private static readonly string[] PublishingRouteEndpointNames = [
 		"SchedulePostForTenant",
 		"EditPostScheduleForTenant",
 		"CancelPostScheduleForTenant",
 		"FindScheduledPublicationsForTenant",
+	];
+
+	// The explicit, closed inventory of every /posts/* route on the live route map.
+	// Each entry is classified as publishing (must carry permission metadata +
+	// rate-limit policy) or non-publishing (listed to keep the set closed). Any
+	// /posts/* route NOT in this inventory fails the guard loudly — it is named
+	// rather than silently bypassed. Adding a new /posts/* route requires choosing
+	// a bucket here FIRST.
+	//
+	// Route patterns are normalised to the ASP.NET route-template form with
+	// brace parameters (e.g. "/posts/{postId}/schedule"). The guard matches
+	// against RoutePattern.RawText, which is the template as registered.
+	private static readonly PublishingRouteInventoryEntry[] PublishingRouteInventory = [
+		// ── Publishing routes (must carry permission + rate limit) ─────────────
+		new("/posts/publications", "GET", IsPublishing: true),
+		new("/posts/{postId}/schedule", "POST", IsPublishing: true),
+		new("/posts/{postId}/schedule", "PATCH", IsPublishing: true),
+		new("/posts/{postId}/schedule", "DELETE", IsPublishing: true),
+		// ── Non-publishing routes (listed to keep the set closed) ──────────────
+		new("/posts", "POST", IsPublishing: false),
+		new("/posts", "GET", IsPublishing: false),
+		new("/posts/{postId}", "GET", IsPublishing: false),
+		new("/posts/{postId}", "PATCH", IsPublishing: false),
+		new("/posts/{postId}", "DELETE", IsPublishing: false),
+		new("/posts/{postId}/image", "POST", IsPublishing: false),
+		new("/posts/{postId}/image", "DELETE", IsPublishing: false),
 	];
 
 	// ── (b) Single SKIP LOCKED claimant on publications ─────────────────────
@@ -80,10 +116,18 @@ public sealed partial class PublishingDispatchArchitectureSpec : IDisposable {
 
 	// ── (a) Every publishing tenant endpoint is guarded ──────────────────────
 
+	/// <summary>
+	/// The closed-set guard is now driven by an EXPLICIT INVENTORY of every
+	/// <c>/posts/*</c> route on the live route map. A route absent from the
+	/// inventory makes this fact RED, naming the unknown route — there is no
+	/// suffix fallback that could silently admit an unreviewed publishing route
+	/// (see .dump/URGENT-garde-routes-publiantes-aveugle.md).
+	/// </summary>
 	[Fact]
 	public void ItShouldRequirePermissionAndRateLimitOnEveryPublishingTenantEndpoint() {
 		var endpoints = GetRouteEndpoints();
 
+		// (a1) Every publishing route by name still carries permission + rate limit.
 		foreach (var name in PublishingRouteEndpointNames) {
 			var endpoint = endpoints.SingleOrDefault(route =>
 				route.Metadata.GetMetadata<IEndpointNameMetadata>()?.EndpointName
@@ -115,16 +159,76 @@ public sealed partial class PublishingDispatchArchitectureSpec : IDisposable {
 			);
 		}
 
-		var publishingRoutes = endpoints
-			.Where(endpoint => IsPublishingRoute(
-				endpoint.RoutePattern.RawText ?? string.Empty
-			))
+		// (a2) The live route map exposes exactly the /posts/* routes we know
+		// about — no silent unknown /posts/* routes allowed.
+		var postsRoutesOnMap = endpoints
+			.Where(endpoint => {
+				var path = endpoint.RoutePattern.RawText ?? string.Empty;
+				return path.StartsWith("/posts", StringComparison.Ordinal);
+			})
+			.Select(endpoint => new {
+				Path = NormalizeRoutePath(
+					endpoint.RoutePattern.RawText ?? string.Empty),
+				Method = GetHttpMethod(endpoint),
+				Endpoint = endpoint
+			})
 			.ToList();
-		_ = publishingRoutes.Should().HaveCount(
-			PublishingRouteEndpointNames.Length,
-			"the publishing route set is closed: an unreviewed new /posts route "
-				+ "must join this guard (name + permission + rate limit) instead "
-				+ "of silently bypassing it"
+
+		_ = postsRoutesOnMap.Should().NotBeEmpty(
+			"the closed-set guard enumerates /posts/* routes from the live route "
+			+ "map; an empty enumeration would silently pass every assertion"
+		);
+
+		var unknownRoutes = new List<string>();
+		foreach (var entry in postsRoutesOnMap) {
+			var match = PublishingRouteInventory.FirstOrDefault(inv =>
+				string.Equals(
+					NormalizeRoutePath(inv.Path),
+					entry.Path,
+					StringComparison.Ordinal)
+				&& string.Equals(inv.Method, entry.Method, StringComparison.Ordinal)
+			);
+
+			if (match is null) {
+				// The route is NOT in the inventory — this is the core fix:
+				// an unknown /posts/* route fails loudly instead of being
+				// silently bypassed.
+				unknownRoutes.Add($"{entry.Method} {entry.Path}");
+			} else if (match.IsPublishing) {
+				// Cross-check: publishing routes must also appear in the
+				// endpoint-name list above — the two closed sets must agree.
+				var endpointName = entry.Endpoint
+					.Metadata.GetMetadata<IEndpointNameMetadata>()
+					?.EndpointName;
+
+				if (endpointName is not null
+					&& !PublishingRouteEndpointNames.Contains(
+						endpointName, StringComparer.Ordinal)) {
+					unknownRoutes.Add(
+						$"{entry.Method} {entry.Path} (endpoint '{endpointName}' "
+						+ "classified as publishing but absent from "
+						+ "PublishingRouteEndpointNames)"
+					);
+				}
+			}
+		}
+
+		_ = unknownRoutes.Should().BeEmpty(
+			"every /posts/* route must be explicitly inventoried as publishing or "
+			+ "non-publishing — an unlisted route silently bypasses permission + "
+			+ "rate-limit enforcement; add it to PublishingRouteInventory with its "
+			+ "classification (isPublishing flag):\n{0}",
+			string.Join("\n", unknownRoutes)
+		);
+
+		// (a3) The inventory count matches the route map — the closed set is
+		// complete. If a route was removed from the API, this fails, forcing the
+		// inventory to ratchet down.
+		_ = postsRoutesOnMap.Should().HaveCount(
+			PublishingRouteInventory.Length,
+			"the /posts/* route count on the live map must equal the explicit "
+			+ "inventory length; adding or removing a route requires reconciling "
+			+ "this closed set"
 		);
 	}
 
@@ -186,11 +290,44 @@ public sealed partial class PublishingDispatchArchitectureSpec : IDisposable {
 			.ToList();
 	}
 
-	private static bool IsPublishingRoute(string path) {
-		return path.StartsWith("/posts/", StringComparison.Ordinal)
-			&& (path.EndsWith("/schedule", StringComparison.Ordinal)
-				|| path.EndsWith("/publications", StringComparison.Ordinal));
+	private static string NormalizeRoutePath(string path) {
+		// ASP.NET Core route templates may or may not carry a trailing slash
+		// depending on how they were registered (e.g. .MapPost("/") on a group
+		// at /posts yields "/posts/"). Trim trailing slashes so the inventory
+		// matches consistently. The root path "/" is preserved as-is.
+		if (path.Length > 1) {
+			path = path.TrimEnd('/');
+		}
+		return path;
 	}
+
+	private static string GetHttpMethod(RouteEndpoint endpoint) {
+		var httpMethods = endpoint.Metadata
+			.OfType<HttpMethodMetadata>()
+			.SelectMany(metadata => metadata.HttpMethods)
+			.ToList();
+
+		// A route group with multiple verbs collapses to one endpoint per verb
+		// in EndpointDataSource, so we expect a single method here. If multiple
+		// appear, join them for disambiguation.
+		return httpMethods.Count > 0
+			? string.Join(",", httpMethods)
+			: "ANY";
+	}
+
+	/// <summary>
+	/// One entry in the explicit /posts/* route inventory. Each entry pairs a
+	/// route-template path with its HTTP verb and a classification flag:
+	/// <c>isPublishing</c> = true means the route carries scheduling/publication
+	/// intent and must bear permission metadata + a rate-limit policy;
+	/// <c>false</c> means the route is content CRUD (non-publishing) and is listed
+	/// only to keep the guard closed.
+	/// </summary>
+	private sealed record PublishingRouteInventoryEntry(
+		string Path,
+		string Method,
+		bool IsPublishing
+	);
 
 	private sealed record ForUpdateScan(
 		int TotalMatches,
