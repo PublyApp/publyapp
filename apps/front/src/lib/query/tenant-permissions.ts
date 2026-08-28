@@ -15,6 +15,11 @@ export const TENANT_PERMISSIONS_QUERY_KEY = ['tenant-permissions'] as const;
  * payload. */
 export const SOCIAL_ACCOUNTS_PUBLISH = 'tenant.socialaccounts.publish';
 
+/** The content verb the publish-now backend surface requires alongside
+ * `tenant.socialaccounts.publish` (PostEndpointsForTenant.cs:46-49): a caller
+ * holding only the socialaccounts verb gets 403. */
+export const POSTS_PUBLISH = 'tenant.posts.publish';
+
 export interface ScopeAuthDataPayload {
 	id?: string | null;
 	isAdmin?: boolean | null;

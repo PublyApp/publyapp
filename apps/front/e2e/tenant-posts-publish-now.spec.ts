@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test';
 
 import {
 	loginAsTenantUser,
-	SINGLE_TENANT_ADMIN_CREDENTIALS,
+	SINGLE_TENANT_USER_CREDENTIALS,
 } from './helpers/login';
 
 // The `chromium` project supplies a pre-authenticated staff-admin
@@ -12,12 +12,12 @@ import {
 test.use({ storageState: { cookies: [], origins: [] } });
 
 // D2 acceptance: the e2e stack runs APP_ROLE=all (api + worker in one
-// container) with PUBLISHING_FAKE_PROVIDER=1, so the full publish pipeline
+// container) with PUBLISHING_FAKE_PROVIDER=true, so the full publish pipeline
 // (session-open → delivery → status transition) runs end-to-end through the
-// deterministic fakes — no PDS is ever contacted. The test logs in as
-// admin-acme (AccountLevel.Admin), who carries the tenant.admin implicit
-// grant and therefore the tenant.socialaccounts.publish permission that
-// gates the PublishOnBlock.
+// deterministic fakes — no PDS is ever contacted. The test logs in as the
+// seeded non-admin member (user-acme), who carries the publish verbs through
+// the demo-publishing profile (PublishingProfileSeeder, gated behind
+// PUBLISHING_FAKE_PROVIDER) so the real permission gate is exercised.
 test.describe(
 	'tenant posts publish now',
 	{ tag: ['@tenant-workspace', '@645'] },
@@ -28,7 +28,7 @@ test.describe(
 		test('publish now appears once in history with an external link', async ({
 			page,
 		}) => {
-			await loginAsTenantUser(page, SINGLE_TENANT_ADMIN_CREDENTIALS);
+			await loginAsTenantUser(page, SINGLE_TENANT_USER_CREDENTIALS);
 
 			await page.goto('/tenant/posts/drafts');
 			const drafts = page.getByTestId('tenant-posts-drafts-page');
@@ -40,9 +40,11 @@ test.describe(
 			await expect(body).toBeVisible();
 			await body.fill('Publish-now end-to-end post from D2 (#645)');
 
-			// Choose the visible target(s) and publish immediately. Admin carries
-			// tenant.socialaccounts.publish implicitly, so the block renders; the
-			// demo SocialAccountSeeder (gated behind PUBLISHING_FAKE_PROVIDER=1)
+			// Choose the visible target(s) and publish immediately. The seeded
+			// non-admin member holds both tenant.posts.publish and
+			// tenant.socialaccounts.publish through the demo-publishing profile
+			// (PublishingProfileSeeder), so the block renders; the demo
+			// SocialAccountSeeder (gated behind PUBLISHING_FAKE_PROVIDER=true)
 			// seeds one Active Bluesky account for Acme.
 			const targets = page.locator(
 				'[data-testid^="tenant-posts-publish-target-"]',

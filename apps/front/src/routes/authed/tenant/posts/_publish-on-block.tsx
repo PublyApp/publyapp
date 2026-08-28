@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { Button } from '~/components/ui/button';
 import { Checkbox } from '~/components/ui/checkbox';
 import {
+	POSTS_PUBLISH,
 	SOCIAL_ACCOUNTS_PUBLISH,
 	useTenantPermissions,
 } from '~/lib/query/tenant-permissions';
@@ -22,10 +23,12 @@ import { toApiFailure } from '@org/shared-ts/lib/api-failure/to-api-failure';
 import { getFailureMessage } from '@org/shared-ts/lib/api-failure/to-api-failure';
 
 /** Composer "Publish on" block (Epic D step 6, plan D2 Task 8): the accounts
- * visible in the project per the Epic C rule, shown only with
- * `tenant.socialaccounts.publish`. One checked box per visible target;
- * unchecked-all disables Publish now; publishing fires `publishNowMutation`
- * with the checked ids then lands on History. */
+ * visible in the project per the Epic C rule, shown only with BOTH
+ * `tenant.posts.publish` AND `tenant.socialaccounts.publish` (the backend
+ * publish-now surface requires both — PostEndpointsForTenant.cs:46-49).
+ * One checked box per visible target; unchecked-all disables Publish now;
+ * publishing fires `publishNowMutation` with the checked ids then lands on
+ * History. */
 export const PublishOnBlock = ({
 	projectId,
 	postId,
@@ -107,7 +110,14 @@ export const PublishOnBlock = ({
 		}
 	};
 
-	if (!hasPermission(SOCIAL_ACCOUNTS_PUBLISH)) {
+	// D4 alignment (PR #1457): the publish-now backend surface requires BOTH
+	// tenant.posts.publish AND tenant.socialaccounts.publish (AND logic —
+	// PostEndpointsForTenant.cs:46-49). The front must promise only what the
+	// back will honor: hide the block unless the member holds both verbs.
+	if (
+		!hasPermission(POSTS_PUBLISH) ||
+		!hasPermission(SOCIAL_ACCOUNTS_PUBLISH)
+	) {
 		return null;
 	}
 

@@ -26,6 +26,7 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock('~/lib/query/tenant-permissions', () => ({
+	POSTS_PUBLISH: 'tenant.posts.publish',
 	SOCIAL_ACCOUNTS_PUBLISH: 'tenant.socialaccounts.publish',
 	useTenantPermissions: () => mocks.useTenantPermissions(),
 }));
@@ -68,9 +69,13 @@ import { PublishOnBlock } from './_publish-on-block';
 
 const allowPermission = (allowed: boolean) => {
 	mocks.useTenantPermissions.mockReturnValue({
-		permissions: allowed ? ['tenant.socialaccounts.publish'] : [],
+		permissions: allowed
+			? ['tenant.posts.publish', 'tenant.socialaccounts.publish']
+			: [],
 		hasPermission: (key: string) =>
-			allowed && key === 'tenant.socialaccounts.publish',
+			allowed &&
+			(key === 'tenant.posts.publish' ||
+				key === 'tenant.socialaccounts.publish'),
 	});
 };
 
