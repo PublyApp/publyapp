@@ -1,5 +1,5 @@
 import { IconUsers } from '@tabler/icons-react';
-import type { ColumnDef } from '@tanstack/react-table';
+import type { LegacyColumnDef as ColumnDef } from '@tanstack/react-table/legacy';
 /**
  * @vitest-environment jsdom
  */

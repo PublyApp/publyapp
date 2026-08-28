@@ -4,11 +4,10 @@ import {
 	type TablerIcon,
 } from '@tabler/icons-react';
 import {
-	type ColumnDef,
-	type VisibilityState,
+	type LegacyColumnDef as ColumnDef,
 	getCoreRowModel,
-	useReactTable,
-} from '@tanstack/react-table';
+	useLegacyTable as useReactTable,
+} from '@tanstack/react-table/legacy';
 import { useMemo, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { SearchInput } from '~/components/ui/search-input';
@@ -38,6 +37,9 @@ import {
 	useMatchedBreakpoints,
 } from './use-matched-breakpoints';
 import type { UseRowSelectionResult } from './use-row-selection';
+
+// v9 moved VisibilityState to table-core; this alias keeps the type local.
+type VisibilityState = Record<string, boolean>;
 
 export type { TableRowHeight };
 

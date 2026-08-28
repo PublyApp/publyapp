@@ -1,4 +1,4 @@
-import type { ColumnDef } from '@tanstack/react-table';
+import type { LegacyColumnDef as ColumnDef } from '@tanstack/react-table/legacy';
 import { useCallback, useMemo, useSyncExternalStore } from 'react';
 
 import { columnDisplayMeta } from './column-display-meta';

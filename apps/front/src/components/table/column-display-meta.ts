@@ -1,4 +1,4 @@
-import type { ColumnDef } from '@tanstack/react-table';
+import type { LegacyColumnDef as ColumnDef } from '@tanstack/react-table/legacy';
 import type { ReactNode } from 'react';
 
 /** Optional per-column display hints read from TanStack's ColumnDef meta. */
@@ -44,7 +44,7 @@ export type ColumnDisplayMeta = {
 };
 
 declare module '@tanstack/react-table' {
-	interface ColumnMeta<TData, TValue> extends ColumnDisplayMeta {}
+	interface ColumnMeta<TFeatures, TData, TValue> extends ColumnDisplayMeta {}
 }
 
 export const columnDisplayMeta = (

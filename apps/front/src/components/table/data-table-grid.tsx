@@ -1,4 +1,4 @@
-import type { Table as TanStackTable } from '@tanstack/react-table';
+import type { LegacyReactTable as TanStackTable } from '@tanstack/react-table/legacy';
 import { Table } from '~/components/ui/table';
 
 import { columnDisplayMeta, resolveColumnWidth } from './column-display-meta';

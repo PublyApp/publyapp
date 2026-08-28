@@ -1,5 +1,5 @@
 import { Link } from '@tanstack/react-router';
-import type { ColumnDef } from '@tanstack/react-table';
+import type { LegacyColumnDef as ColumnDef } from '@tanstack/react-table/legacy';
 import { PersonAvatar } from '~/components/ui/person-avatar';
 import { Switch } from '~/components/ui/switch';
 import type { StaffTenantUserRow } from '~/lib/query/staff-tenant-users';

@@ -254,7 +254,7 @@ vi.mock('./_invite-user-drawer-host', () => ({
 	},
 }));
 
-import type { ColumnDef } from '@tanstack/react-table';
+import type { LegacyColumnDef as ColumnDef } from '@tanstack/react-table/legacy';
 import type { StaffTenantUserRow } from '~/lib/query/staff-tenant-users';
 
 import {
