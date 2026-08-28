@@ -416,6 +416,13 @@ describe('#1388 profile users selection-mode bulk unassign (real router)', () =>
 			userIds: [USER_A],
 		});
 		await waitFor(() => expect(mocks.toastSuccess).toHaveBeenCalledOnce());
+		// #1605: the filter-leave warning accompanies the success toast.
+		await waitFor(() =>
+			expect(mocks.toastSuccess).toHaveBeenCalledWith(
+				'staff-profile-user-bulk-unassign-success',
+				{ description: 'bulk-action-rows-may-leave-filter' },
+			),
+		);
 	});
 
 	// Round-4 pin (PR #1413 review MAJOR): the FULLY-FAILED edge (succeeded =

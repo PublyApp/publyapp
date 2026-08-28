@@ -1161,11 +1161,13 @@ describe('staff tenant users route', () => {
 		await waitFor(() => expect(mocks.toastError).toHaveBeenCalledOnce());
 		// Total failure (succeededCount === 0): no row left the view, so
 		// the filter-leave warning is suppressed -- only the plain failure
-		// message rides as a single-argument toast.
+		// message rides, with an explicit undefined second arg.
 		expect(mocks.toastError).toHaveBeenCalledWith(
 			'Failed to remove selected users from this tenant.',
+			undefined,
 		);
-		expect(mocks.toastError.mock.calls[0]).toHaveLength(1);
+		expect(mocks.toastError.mock.calls[0]).toHaveLength(2);
+		expect(mocks.displayLocalMutationFailure).not.toHaveBeenCalled();
 		expect(mocks.invalidateAllStaffTenantScopes).toHaveBeenCalled();
 	}),
 		// #1442: the bulk-remove catch block consults the REAL
