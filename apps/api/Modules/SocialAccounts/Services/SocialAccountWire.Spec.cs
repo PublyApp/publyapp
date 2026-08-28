@@ -58,8 +58,19 @@ public sealed class SocialAccountWireSpec {
 		);
 	}
 
+	// DORMANT BY CONSTRUCTION, and said out loud rather than left to be
+	// discovered: SocialProvider has exactly one member today, so this
+	// assertion cannot fail — one value is trivially distinct from itself.
+	// It is not evidence of anything right now; it is a trap that arms itself
+	// the day a second provider is added and someone maps it to a wire value
+	// already in use. What actually protects the mapping TODAY is the
+	// compiler: IDE0072 ("Populate switch") is a warning, and
+	// TreatWarningsAsErrors makes it an error, so a new enum member stops the
+	// build inside FormatProvider until it is handled. Deleting this test
+	// would lose the future trap; pretending it proves something today would
+	// be worse.
 	[Fact]
-	public void ItShouldGiveEveryProviderADistinctWireValue() {
+	public void ItShouldGiveEveryProviderADistinctWireValueOnceMoreThanOneExists() {
 		var byWire = Enum.GetValues<SocialProvider>()
 			.ToDictionary(provider => provider, SocialAccountWire.FormatProvider);
 

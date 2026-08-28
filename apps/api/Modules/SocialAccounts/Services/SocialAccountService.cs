@@ -529,7 +529,11 @@ public sealed class SocialAccountService {
 	internal static SocialAccountListItem ToListItem(SocialAccount account) {
 		return new SocialAccountListItem {
 			Id = account.GetRequiredId(),
-			Provider = "bluesky",
+			// The literal used to be "bluesky" here while the two neighbouring
+			// fields already went through SocialAccountWire — so the ONE field
+			// naming the provider was the one that ignored it. A second provider
+			// would have been listed as Bluesky, and nothing would have said so.
+			Provider = SocialAccountWire.FormatProvider(account.Provider),
 			ExternalAccountId = account.ExternalAccountId,
 			DisplayHandle = account.DisplayHandle,
 			Status = SocialAccountWire.FormatStatus(account.Status),
