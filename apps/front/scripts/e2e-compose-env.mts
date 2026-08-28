@@ -319,6 +319,12 @@ export type E2eComposeEnv = {
 	E2E_BASE_URL: string;
 	E2E_API_BASE_URL: string;
 	E2E_LOCK_PATH: string;
+	/** Docker network subnet for the e2e stack, derived from the band index so two
+	 *  concurrent stacks never claim the same network. Band 0 → 172.28.0.0/24 (CI default). */
+	E2E_SUBNET: string;
+	/** Traefik's pinned IPv4 on the e2e network, derived from the same band.
+	 *  Band 0 → 172.28.0.2 (CI default). Must match what TRUSTED_PROXY_CIDRS points at. */
+	E2E_TRAEFIK_IP: string;
 };
 
 export function computeEnv(): E2eComposeEnv {
@@ -332,9 +338,17 @@ export function computeEnv(): E2eComposeEnv {
 		);
 	}
 
-	const { basePort, lockPath } = band;
+	const { basePort, lockPath, bandIndex } = band;
 	const offset = basePort - BASE_PORTS.traefik_web;
 	const projectName = deriveProjectName();
+
+	// Derive a per-band subnet so two concurrent stacks never claim the same
+	// Docker network. Band 0 → 172.28.0.0/24 (CI default). Each band steps the
+	// third octet by 1; /24 keeps each stack's network isolated.
+	const SUBNET_BASE = 28;
+	const subnetOctet3 = SUBNET_BASE + bandIndex;
+	const subnet = `172.${subnetOctet3}.0.0/24`;
+	const traefikIp = `172.${subnetOctet3}.0.2`;
 
 	return {
 		COMPOSE_PROJECT_NAME: projectName,
@@ -346,6 +360,8 @@ export function computeEnv(): E2eComposeEnv {
 		E2E_BASE_URL: `https://${E2E_FRONT_HOST}:${BASE_PORTS.traefik_websecure + offset}`,
 		E2E_API_BASE_URL: `https://${E2E_API_HOST}:${BASE_PORTS.traefik_websecure + offset}`,
 		E2E_LOCK_PATH: lockPath,
+		E2E_SUBNET: subnet,
+		E2E_TRAEFIK_IP: traefikIp,
 	};
 }
 
@@ -371,6 +387,8 @@ export type PortBandReservation = {
 
 export type E2EComposeEnv = {
 	projectName: string;
+	subnet: string;
+	traefikIp: string;
 	ports: {
 		http: number;
 		https: number;
@@ -416,6 +434,8 @@ export function setupE2EComposeEnv(): E2EComposeEnv {
 
 	return {
 		projectName: env.COMPOSE_PROJECT_NAME,
+		subnet: env.E2E_SUBNET,
+		traefikIp: env.E2E_TRAEFIK_IP,
 		ports: {
 			http: httpPort,
 			https: httpsPort,

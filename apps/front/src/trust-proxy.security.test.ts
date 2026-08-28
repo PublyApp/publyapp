@@ -1,8 +1,60 @@
 import { serve } from 'srvx';
 import type { Server, TrustProxyOption } from 'srvx';
+import { readFileSync } from 'node:fs';
 import { afterAll, describe, expect, test } from 'vitest';
 
 import { injectSeoMarkup } from './server';
+
+// --- Compose-file consistency: TRUSTED_PROXY_CIDRS must follow E2E_TRAEFIK_IP ---
+// Reads the compose file to verify the security guarantee stays intact.
+const composeFile = readFileSync(
+	new URL('../docker-compose.test.yml', import.meta.url),
+	'utf8',
+);
+
+describe('compose-file TRUSTED_PROXY_CIDRS consistency (r5)', () => {
+	test('TRUSTED_PROXY_CIDRS derives from E2E_TRAEFIK_IP — never a hardcoded IP', () => {
+		const match = composeFile.match(
+			/TRUSTED_PROXY_CIDRS:\s*"(\$\{E2E_TRAEFIK_IP:[^}]+\})\/32"/,
+		);
+		expect(match, 'TRUSTED_PROXY_CIDRS must reference ${E2E_TRAEFIK_IP:-...}/32').not.toBeNull();
+		// The default must be the band-0 Traefik IP (CI behavior preserved)
+		expect(match![1]).toContain('172.28.0.2');
+	});
+
+	test('Traefik ipv4_address derives from E2E_TRAEFIK_IP', () => {
+		const match = composeFile.match(
+			/ipv4_address:\s*(\$\{E2E_TRAEFIK_IP:[^}]+\})/,
+		);
+		expect(match, 'Traefik ipv4_address must reference ${E2E_TRAEFIK_IP:-...}').not.toBeNull();
+		expect(match![1]).toContain('172.28.0.2');
+	});
+
+	test('ipam subnet derives from E2E_SUBNET', () => {
+		const match = composeFile.match(/- subnet:\s*(\$\{E2E_SUBNET:[^}]+\})/);
+		expect(match, 'subnet must reference ${E2E_SUBNET:-...}').not.toBeNull();
+		expect(match![1]).toContain('172.28.0.0/24');
+	});
+
+	test('two concurrent stacks produce non-colliding security configs (subnet + IP diverge by band)', () => {
+		// Band 0: E2E_TRAEFIK_IP=172.28.0.2, E2E_SUBNET=172.28.0.0/24
+		// Band 1: E2E_TRAEFIK_IP=172.29.0.2, E2E_SUBNET=172.29.0.0/24
+		// Because every reference is via ${E2E_*:-default}, each stack resolves
+		// its own Traefik address and trusts only that peer.
+		expect(composeFile).not.toMatch(
+			/TRUSTED_PROXY_CIDRS:\s*"172\.28\.0\.2\/32"/,
+			'A hardcoded /32 would be a dead guarantee on any non-default band',
+		);
+		expect(composeFile).not.toMatch(
+			/ipv4_address:\s*172\.28\.0\.2/,
+			'A hardcoded IP would collide across concurrent stacks',
+		);
+		expect(composeFile).not.toMatch(
+			/- subnet:\s*172\.28\.0\.0/,
+			'A hardcoded subnet would collide across concurrent stacks',
+		);
+	});
+});
 
 /**
  * Security test for r2-shell-F10: proves that bounded trust proxy causes
