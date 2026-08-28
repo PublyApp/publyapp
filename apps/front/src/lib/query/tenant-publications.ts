@@ -86,7 +86,10 @@ const normalizeStatuses = (
 		normalized.push(trimmed);
 	}
 
-	return normalized.length > 0 ? normalized : undefined;
+	if (normalized.length === 0) {
+		return undefined;
+	}
+	return normalized;
 };
 
 // ── Normalization helpers ──────────────────────────────────────────
@@ -99,7 +102,10 @@ const normalizeString = (
 	}
 
 	const trimmed = value.trim();
-	return trimmed.length > 0 ? trimmed : undefined;
+	if (trimmed.length === 0) {
+		return undefined;
+	}
+	return trimmed;
 };
 
 const normalizeNullableString = (

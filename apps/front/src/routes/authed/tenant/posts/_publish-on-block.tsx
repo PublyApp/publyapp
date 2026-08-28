@@ -62,7 +62,10 @@ export const PublishOnBlock = ({
 	const toggleTarget = (id: string, checked: boolean) => {
 		setCheckedIds((previous) => {
 			const base = previous ?? targets.map((target) => target.id);
-			return checked ? [...base, id] : base.filter((value) => value !== id);
+			if (checked) {
+				return [...base, id];
+			}
+			return base.filter((value) => value !== id);
 		});
 	};
 
