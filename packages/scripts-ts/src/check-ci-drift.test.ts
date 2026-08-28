@@ -302,13 +302,33 @@ test('a commented-out gate-selftest invocation fails this independent wiring che
 // hash is unchanged. A deliberate rewrite is possible by updating
 // reason-guard-ref.json in the same commit.
 
+// Build a fixture reference that pins the original reason so the guard can
+// detect changes. In production, reason-guard-ref.json is the source of truth;
+// here we inject a test-only reference so the tests don't depend on the real one.
+const buildFixtureReasonRef = (originalReason) => ({
+	steps: {
+		'fixture.yml::build::Run tests': {
+			reason_hash: hashReason(originalReason),
+			reason_length: normalizeReason(originalReason).length,
+		},
+	},
+});
+
 test('reason guard: passes when the reason is unchanged', async () => {
 	const rootDir = await buildFixture({
 		manifestSteps: reconciled,
 		steps: mirroredStep,
 	});
 
-	assert.deepEqual(await findCiDrift({ rootDir }), []);
+	assert.deepEqual(
+		await findCiDrift({
+			rootDir,
+			reasonRef: buildFixtureReasonRef(
+				reconciled['fixture.yml::build::Run tests'].reason,
+			),
+		}),
+		[],
+	);
 });
 
 test('reason guard: fails when a reason SHRANKS while step hash is unchanged', async () => {
@@ -326,7 +346,10 @@ test('reason guard: fails when a reason SHRANKS while step hash is unchanged', a
 		steps: mirroredStep,
 	});
 
-	const findings = await findCiDrift({ rootDir });
+	const findings = await findCiDrift({
+		rootDir,
+		reasonRef: buildFixtureReasonRef(originalReason),
+	});
 
 	assert.equal(findings.length, 1);
 	assert.match(findings[0], /reason SHRANK/);
@@ -334,7 +357,9 @@ test('reason guard: fails when a reason SHRANKS while step hash is unchanged', a
 });
 
 test('reason guard: fails when a reason CHANGES while step hash is unchanged', async () => {
-	const changedReason = 'This is a completely different reason text that is longer than the original one for sure.';
+	const originalReason = reconciled['fixture.yml::build::Run tests'].reason;
+	const changedReason =
+		'This is a completely different reason text that is longer than the original one for sure.';
 
 	const rootDir = await buildFixture({
 		manifestSteps: {
@@ -347,7 +372,10 @@ test('reason guard: fails when a reason CHANGES while step hash is unchanged', a
 		steps: mirroredStep,
 	});
 
-	const findings = await findCiDrift({ rootDir });
+	const findings = await findCiDrift({
+		rootDir,
+		reasonRef: buildFixtureReasonRef(originalReason),
+	});
 
 	assert.equal(findings.length, 1);
 	assert.match(findings[0], /reason CHANGED/);
@@ -356,7 +384,9 @@ test('reason guard: fails when a reason CHANGES while step hash is unchanged', a
 test('reason guard: does not fire when step hash also changes', async () => {
 	// When the step hash changes, the CHANGED finding is already reported.
 	// The reason guard should not add a duplicate finding for the same step.
-	const changedReason = 'This is a completely different reason text that is longer than the original one for sure.';
+	const originalReason = reconciled['fixture.yml::build::Run tests'].reason;
+	const changedReason =
+		'This is a completely different reason text that is longer than the original one for sure.';
 
 	const rootDir = await buildFixture({
 		manifestSteps: {
@@ -369,7 +399,10 @@ test('reason guard: does not fire when step hash also changes', async () => {
 		steps: '      - name: Run tests\n        run: pnpm test --coverage\n', // Different command
 	});
 
-	const findings = await findCiDrift({ rootDir });
+	const findings = await findCiDrift({
+		rootDir,
+		reasonRef: buildFixtureReasonRef(originalReason),
+	});
 
 	// Should have exactly one finding: CHANGED for the step command
 	assert.equal(findings.length, 1);

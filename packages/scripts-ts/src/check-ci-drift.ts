@@ -62,10 +62,7 @@ export const normalizeReason = (text) =>
  */
 // @ts-expect-error rung-0: add proper type in later rung
 export const hashReason = (text) =>
-	createHash('sha256')
-		.update(normalizeReason(text))
-		.digest('hex')
-		.slice(0, 16);
+	createHash('sha256').update(normalizeReason(text)).digest('hex').slice(0, 16);
 
 /**
  * Checks whether a reason has changed (especially shrunk) while the step
@@ -75,31 +72,31 @@ export const hashReason = (text) =>
  * in the same commit — same mechanism as the complexity ceilings.
  */
 // @ts-expect-error rung-0: add proper type in later rung
-const getReasonGuardProblem = (id, entry) => {
-	const ref = reasonRef.steps[id];
+const getReasonGuardProblem = (id, entry, ref) => {
+	const stepRef = ref.steps[id];
 
 	// No reference entry (e.g., a brand-new step not yet pinned). The
 	// NEW STEP / CHANGED checks already cover step-level drift; the reason
 	// guard only fires against a known-good baseline.
-	if (ref === undefined) {
+	if (stepRef === undefined) {
 		return null;
 	}
 
 	const normalized = normalizeReason(entry.reason);
 	const currentHash = hashReason(entry.reason);
 
-	if (currentHash === ref.reason_hash) {
+	if (currentHash === stepRef.reason_hash) {
 		return null;
 	}
 
 	const currentLength = normalized.length;
-	const expectedLength = ref.reason_length;
+	const expectedLength = stepRef.reason_length;
 
 	if (currentLength < expectedLength) {
-		return `${manifestPath}: entry "${id}" reason SHRANK from ${expectedLength} to ${currentLength} characters while the step hash is unchanged (expected reason hash ${ref.reason_hash}, got ${currentHash}). Truncation is not a rewrite — restore the original reason, or update reason-guard-ref.json in the same commit if the rewrite is deliberate.`;
+		return `${manifestPath}: entry "${id}" reason SHRANK from ${expectedLength} to ${currentLength} characters while the step hash is unchanged (expected reason hash ${stepRef.reason_hash}, got ${currentHash}). Truncation is not a rewrite — restore the original reason, or update reason-guard-ref.json in the same commit if the rewrite is deliberate.`;
 	}
 
-	return `${manifestPath}: entry "${id}" reason CHANGED (expected hash ${ref.reason_hash}, got ${currentHash}; expected ${expectedLength} chars, got ${currentLength}) while the step hash is unchanged. If this is a deliberate rewrite, update reason-guard-ref.json in the same commit so the reference matches the new reason.`;
+	return `${manifestPath}: entry "${id}" reason CHANGED (expected hash ${stepRef.reason_hash}, got ${currentHash}; expected ${expectedLength} chars, got ${currentLength}) while the step hash is unchanged. If this is a deliberate rewrite, update reason-guard-ref.json in the same commit so the reference matches the new reason.`;
 };
 // @ts-expect-error rung-0: add proper type in later rung
 const normalizeCommand = (value) =>
@@ -284,9 +281,16 @@ const getEntryValidationProblem = (id, entry) => {
 /**
  * Compares the workflows against the manifest and returns human-readable
  * findings. Returns an empty array when the gate is fully reconciled.
+ *
+ * @param {Object} options
+ * @param {string} options.rootDir - Repository root directory.
+ * @param {Object} [options.reasonRef] - Optional reason reference override
+ *   (defaults to the pinned reason-guard-ref.json). Used by tests to inject
+ *   a fixture reference without touching the real one.
  */
 // @ts-expect-error rung-0: add proper type in later rung
-export const findCiDrift = async ({ rootDir }) => {
+export const findCiDrift = async ({ rootDir, reasonRef: reasonRefOption }) => {
+	const ref = reasonRefOption ?? reasonRef;
 	const { problems, steps } = await collectWorkflowSteps(rootDir);
 	const findings = [...problems];
 
@@ -323,7 +327,7 @@ export const findCiDrift = async ({ rootDir }) => {
 			// Reason guard: detect truncation/alteration of a reason while the
 			// step hash is unchanged. A deliberate rewrite is possible by
 			// updating reason-guard-ref.json in the same commit.
-			const reasonProblem = getReasonGuardProblem(step.id, entry);
+			const reasonProblem = getReasonGuardProblem(step.id, entry, ref);
 
 			if (reasonProblem !== null) {
 				findings.push(reasonProblem);
