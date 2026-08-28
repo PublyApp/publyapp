@@ -1,7 +1,8 @@
 import { expect, test, type Request } from '@playwright/test';
 
-import { FRONT_URL } from './helpers/compose-env';
 import { SESSION_VALIDATION_TIMEOUT_MS } from '@org/shared-ts/lib/session-validation';
+
+import { FRONT_URL } from './helpers/compose-env';
 import { loginAsStaffAdmin } from './helpers/login';
 
 const EMPTY_STORAGE_STATE = {
