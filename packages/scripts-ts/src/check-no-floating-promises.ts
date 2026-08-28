@@ -208,8 +208,8 @@ const countWarningsFromJson = (output: string, ruleName: string): number => {
 				`${emittedCodes.size} rule codes oxlint actually emitted — ` +
 				'refusing to report a count of 0, which would keep this gate ' +
 				'green forever. Fix `rule` in no-floating-promises-baseline.json ' +
-				`to one of oxlint's real codes. Emitted codes (first 10): ` +
-				`${[...emittedCodes].slice(0, 10).join(', ')}`,
+				"to one of oxlint's real codes. Emitted codes (first 10): " +
+				[...emittedCodes].slice(0, 10).join(', '),
 		);
 	}
 
