@@ -479,6 +479,12 @@ describe('#1388 profile users selection-mode bulk unassign (real router)', () =>
 				},
 			),
 		);
+		// #1605: total failure (succeededCount === 0) suppresses the
+		// filter-leave warning -- assert the second arg carries the per-row
+		// cause ONLY, no filter hint.
+		expect(mocks.toastError.mock.calls[0][1]?.description).not.toContain(
+			'bulk-action-rows-may-leave-filter',
+		);
 
 		// (a) Bookkeeping is UNCONDITIONAL even when NOTHING succeeded: the row
 		// checkbox unchecks and the selection bar unmounts.
@@ -623,6 +629,11 @@ describe('#1388 profile users selection-mode bulk unassign (real router)', () =>
 		expect(mocks.toastError).toHaveBeenCalledWith(
 			'Unassigned 1 user(s), 1 failed.',
 			{ description: 'Blake Row: this user is not assigned to this profile.' },
+		);
+		// #1605: partial-success with per-row failure lines carries the
+		// cause description, NOT the filter-leave warning.
+		expect(mocks.toastError.mock.calls[0][1]?.description).not.toContain(
+			'bulk-action-rows-may-leave-filter',
 		);
 
 		// (a) Selection cleared even though SOME rows succeeded: no row stays

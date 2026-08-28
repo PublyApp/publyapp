@@ -60,6 +60,9 @@ const mocks = vi.hoisted(() => ({
 	useGlobalTenantUserCompaniesQuery: vi.fn(),
 	useBulkUnlinkGlobalTenantUserCompaniesMutation: vi.fn(),
 	bulkUnlink: vi.fn().mockResolvedValue({ succeededCount: 1, failedCount: 0 }),
+	toastSuccess: vi.fn(),
+	toastWarning: vi.fn(),
+	toastError: vi.fn(),
 }));
 
 vi.mock('~/lib/query/staff-global-tenant-users', () => ({
@@ -110,9 +113,9 @@ vi.mock('~/lib/query/staff-global-tenant-users', () => ({
 vi.mock('~/lib/mutation-toast', () => ({
 	displayLocalMutationFailure: vi.fn().mockResolvedValue(undefined),
 	toastLocalMutationResult: {
-		success: vi.fn(),
-		warning: vi.fn(),
-		error: vi.fn(),
+		success: mocks.toastSuccess,
+		warning: mocks.toastWarning,
+		error: mocks.toastError,
 	},
 }));
 
@@ -317,5 +320,100 @@ describe('#1400 tenant-user organizations tab: bulk trigger label-in-name (real 
 				name: 'Retirer des organisations sélectionnées',
 			}),
 		).toBeTruthy();
+	});
+
+	// #1605 defect-3: pin the filter-leave warning on BOTH the success and
+	// partial-success paths of OrganizationsBulkActions. The mutation-toast
+	// module is mocked at the seam, so `toastLocalMutationResult.success`
+	// and `.error` are vi.fn() wired through `mocks` and inspectable directly.
+	test('(en) a successful bulk-unlink raises the filter-leave warning on the success toast', async () => {
+		mocks.bulkUnlink.mockResolvedValue({ succeededCount: 1, failedCount: 0 });
+
+		await renderAtOrganizationsTab('en');
+
+		fireEvent.click(
+			await screen.findByRole('checkbox', { name: rowCheckboxName('en') }),
+		);
+		const trigger = await screen.findByRole('button', { name: 'Bulk actions' });
+		fireEvent.click(trigger);
+		await waitFor(() =>
+			expect(trigger.getAttribute('aria-expanded')).toBe('true'),
+		);
+		fireEvent.click(
+			await screen.findByRole('menuitem', {
+				name: 'Remove from selected organizations',
+			}),
+		);
+		fireEvent.click(await screen.findByRole('button', { name: 'Remove' }));
+		await waitFor(() =>
+			expect(mocks.toastSuccess).toHaveBeenCalledWith(
+				'Successfully removed this user from 1 organization(s).',
+				'Some rows may no longer appear in the filtered view.',
+			),
+		);
+	});
+
+	test('(en) a partial-success bulk-unlink raises the filter-leave warning on the error toast', async () => {
+		mocks.bulkUnlink.mockResolvedValue({
+			succeededCount: 1,
+			failedCount: 1,
+			failedItems: [],
+		});
+
+		await renderAtOrganizationsTab('en');
+
+		fireEvent.click(
+			await screen.findByRole('checkbox', { name: rowCheckboxName('en') }),
+		);
+		const trigger = await screen.findByRole('button', { name: 'Bulk actions' });
+		fireEvent.click(trigger);
+		await waitFor(() =>
+			expect(trigger.getAttribute('aria-expanded')).toBe('true'),
+		);
+		fireEvent.click(
+			await screen.findByRole('menuitem', {
+				name: 'Remove from selected organizations',
+			}),
+		);
+		fireEvent.click(await screen.findByRole('button', { name: 'Remove' }));
+		await waitFor(() =>
+			expect(mocks.toastError).toHaveBeenCalledWith(
+				'Removed 1 organization(s), 1 failed.',
+				'Some rows may no longer appear in the filtered view.',
+			),
+		);
+	});
+
+	test('(en) a fully-failed bulk-unlink suppresses the filter-leave warning', async () => {
+		mocks.bulkUnlink.mockResolvedValue({
+			succeededCount: 0,
+			failedCount: 1,
+			failedItems: [],
+		});
+
+		await renderAtOrganizationsTab('en');
+
+		fireEvent.click(
+			await screen.findByRole('checkbox', { name: rowCheckboxName('en') }),
+		);
+		const trigger = await screen.findByRole('button', { name: 'Bulk actions' });
+		fireEvent.click(trigger);
+		await waitFor(() =>
+			expect(trigger.getAttribute('aria-expanded')).toBe('true'),
+		);
+		fireEvent.click(
+			await screen.findByRole('menuitem', {
+				name: 'Remove from selected organizations',
+			}),
+		);
+		fireEvent.click(await screen.findByRole('button', { name: 'Remove' }));
+		await waitFor(() => expect(mocks.toastError).toHaveBeenCalledOnce());
+		// Total failure (succeededCount === 0): the second arg is undefined,
+		// NOT the filter-leave warning.
+		expect(mocks.toastError).toHaveBeenCalledWith(
+			'Removed 0 organization(s), 1 failed.',
+			undefined,
+		);
+		expect(mocks.toastError.mock.calls[0]).toHaveLength(2);
 	});
 });
