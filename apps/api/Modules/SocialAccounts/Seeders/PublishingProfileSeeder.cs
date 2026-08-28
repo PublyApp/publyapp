@@ -78,7 +78,11 @@ public class PublishingProfileSeeder : IEntitySeeder {
 		// Publish capability end to end: list targets + fire publish-now need BOTH
 		// keys (publish-now is ALL-of posts.publish AND socialaccounts.publish),
 		// while the composer target lookup needs socialaccounts.publish alone.
+		// posts.create is needed so a NON-admin member can compose+create a draft
+		// through the composer in the e2e publish-now scenario (the composer's
+		// onBeforePublish calls POST /posts which requires Posts.CREATE).
 		string[] publishKeys = [
+			AppPermissions.Tenant.Posts.CREATE.Key,
 			AppPermissions.Tenant.Posts.PUBLISH.Key,
 			AppPermissions.Tenant.Posts.VIEW.Key,
 			AppPermissions.Tenant.SocialAccounts.PUBLISH.Key,
