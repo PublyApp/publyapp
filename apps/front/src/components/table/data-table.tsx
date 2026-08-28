@@ -337,9 +337,13 @@ type DataTablePaginationState = {
 	isPaginationPending: boolean;
 	onNextPage: () => void;
 	onPreviousPage: () => void;
-	/** Rows rendered on the current page — the range counter's end bound
-	 * (#282). Defaults to `size` when omitted; the last page is partial. */
-	pageRowCount?: number;
+	// NOTE (#1562): there is deliberately no `pageRowCount` here. `DataTable`
+	// renders its own rows, so it knows the page's real row count and passes
+	// `rows.length` to the footer itself. An optional field here would be read
+	// by nobody: a caller setting it would be silently ignored, which is the
+	// same silence — a wrong range label with no error — that this change
+	// exists to remove. The prop stays REQUIRED on `DataTableCursorFooter`,
+	// whose caller does not own the rows.
 	/** Total item count when the backend exposes one; a missing value means
 	 * UNKNOWN and renders the bare range — never zero (#282, #999). */
 	totalCount?: number | null;
