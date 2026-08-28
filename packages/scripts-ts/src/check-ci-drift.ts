@@ -5,6 +5,8 @@ import process from 'node:process';
 
 import { parse } from 'yaml';
 
+import { reasonRef } from './reason-guard-ref.ts';
+
 // Drift guard for the local CI gate (`just ci` / `just ci-full`).
 //
 // WHAT THIS GUARD ACTUALLY PROVES
@@ -41,12 +43,64 @@ const minimumReasonLength = 24;
 const toPosixPath = (value) => value.split(path.sep).join('/');
 
 /**
- * Normalizes a `run:` block so that cosmetic churn (CRLF, trailing spaces,
- * surrounding blank lines) does not trip the guard, while every meaningful
- * character change does. Internal whitespace is deliberately preserved: a
- * re-indent can change shell semantics (heredocs, YAML block scalars), so it
- * is treated as a real change rather than silently absorbed.
+ * Normalizes a reason string so the hash is encoding-invariant.
+ * Unescapes `\uXXXX` sequences to their UTF-8 characters, so a manifest
+ * that stores `\u2014` and one that stores `—` produce the same hash.
+ * This is idempotent: after JSON.parse, the reason is already in UTF-8
+ * form, so this is a no-op. It handles the case where a raw string
+ * (e.g., from a test fixture) still contains escape sequences.
  */
+// @ts-expect-error rung-0: add proper type in later rung
+const normalizeReason = (text) =>
+	String(text).replace(/\\u([0-9a-fA-F]{4})/g, (_, hex) =>
+		String.fromCharCode(parseInt(hex, 16)),
+	);
+
+/**
+ * Content-addresses a reason string using the same scheme as the reference
+ * file (SHA-256, first 16 hex chars).
+ */
+// @ts-expect-error rung-0: add proper type in later rung
+const hashReason = (text) =>
+	createHash('sha256')
+		.update(normalizeReason(text))
+		.digest('hex')
+		.slice(0, 16);
+
+/**
+ * Checks whether a reason has changed (especially shrunk) while the step
+ * hash is unchanged. The reference file (`reason-guard-ref.json`) holds the
+ * known-good fingerprint; any deviation while the step itself hasn't changed
+ * fails the guard. A deliberate rewrite is possible by updating the reference
+ * in the same commit — same mechanism as the complexity ceilings.
+ */
+// @ts-expect-error rung-0: add proper type in later rung
+const getReasonGuardProblem = (id, entry) => {
+	const ref = reasonRef.steps[id];
+
+	// No reference entry (e.g., a brand-new step not yet pinned). The
+	// NEW STEP / CHANGED checks already cover step-level drift; the reason
+	// guard only fires against a known-good baseline.
+	if (ref === undefined) {
+		return null;
+	}
+
+	const normalized = normalizeReason(entry.reason);
+	const currentHash = hashReason(entry.reason);
+
+	if (currentHash === ref.reason_hash) {
+		return null;
+	}
+
+	const currentLength = normalized.length;
+	const expectedLength = ref.reason_length;
+
+	if (currentLength < expectedLength) {
+		return `${manifestPath}: entry "${id}" reason SHRANK from ${expectedLength} to ${currentLength} characters while the step hash is unchanged (expected reason hash ${ref.reason_hash}, got ${currentHash}). Truncation is not a rewrite — restore the original reason, or update reason-guard-ref.json in the same commit if the rewrite is deliberate.`;
+	}
+
+	return `${manifestPath}: entry "${id}" reason CHANGED (expected hash ${ref.reason_hash}, got ${currentHash}; expected ${expectedLength} chars, got ${currentLength}) while the step hash is unchanged. If this is a deliberate rewrite, update reason-guard-ref.json in the same commit so the reference matches the new reason.`;
+};
 // @ts-expect-error rung-0: add proper type in later rung
 const normalizeCommand = (value) =>
 	String(value)
@@ -265,6 +319,15 @@ export const findCiDrift = async ({ rootDir }) => {
 			findings.push(
 				`CHANGED   ${step.id}\n    This CI step changed since it was reconciled (manifest ${entry.hash}, workflow ${step.hash}).\n    Re-check that "${entry.mirror ?? '(exempt)'}" still covers it, then update the hash to "${step.hash}".`,
 			);
+		} else {
+			// Reason guard: detect truncation/alteration of a reason while the
+			// step hash is unchanged. A deliberate rewrite is possible by
+			// updating reason-guard-ref.json in the same commit.
+			const reasonProblem = getReasonGuardProblem(step.id, entry);
+
+			if (reasonProblem !== null) {
+				findings.push(reasonProblem);
+			}
 		}
 	}
 

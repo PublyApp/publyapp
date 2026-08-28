@@ -295,3 +295,83 @@ test('a commented-out gate-selftest invocation fails this independent wiring che
 		/gate-selftest must run the CODEOWNERS contract from an executable line/,
 	);
 });
+
+// --- Reason guard tests (#1725) ---
+
+// The reason guard detects truncation/alteration of a reason while the step
+// hash is unchanged. A deliberate rewrite is possible by updating
+// reason-guard-ref.json in the same commit.
+
+test('reason guard: passes when the reason is unchanged', async () => {
+	const rootDir = await buildFixture({
+		manifestSteps: reconciled,
+		steps: mirroredStep,
+	});
+
+	assert.deepEqual(await findCiDrift({ rootDir }), []);
+});
+
+test('reason guard: fails when a reason SHRANKS while step hash is unchanged', async () => {
+	const originalReason = reconciled['fixture.yml::build::Run tests'].reason;
+	const shrunkReason = originalReason.slice(0, 50);
+
+	const rootDir = await buildFixture({
+		manifestSteps: {
+			'fixture.yml::build::Run tests': {
+				hash: reconciledHash,
+				mirror: 'just ci',
+				reason: shrunkReason,
+			},
+		},
+		steps: mirroredStep,
+	});
+
+	const findings = await findCiDrift({ rootDir });
+
+	assert.equal(findings.length, 1);
+	assert.match(findings[0], /reason SHRANK/);
+	assert.match(findings[0], /from .* to 50 characters/);
+});
+
+test('reason guard: fails when a reason CHANGES while step hash is unchanged', async () => {
+	const changedReason = 'This is a completely different reason text that is longer than the original one for sure.';
+
+	const rootDir = await buildFixture({
+		manifestSteps: {
+			'fixture.yml::build::Run tests': {
+				hash: reconciledHash,
+				mirror: 'just ci',
+				reason: changedReason,
+			},
+		},
+		steps: mirroredStep,
+	});
+
+	const findings = await findCiDrift({ rootDir });
+
+	assert.equal(findings.length, 1);
+	assert.match(findings[0], /reason CHANGED/);
+});
+
+test('reason guard: does not fire when step hash also changes', async () => {
+	// When the step hash changes, the CHANGED finding is already reported.
+	// The reason guard should not add a duplicate finding for the same step.
+	const changedReason = 'This is a completely different reason text that is longer than the original one for sure.';
+
+	const rootDir = await buildFixture({
+		manifestSteps: {
+			'fixture.yml::build::Run tests': {
+				hash: reconciledHash, // Same hash as workflow
+				mirror: 'just ci',
+				reason: changedReason,
+			},
+		},
+		steps: '      - name: Run tests\n        run: pnpm test --coverage\n', // Different command
+	});
+
+	const findings = await findCiDrift({ rootDir });
+
+	// Should have exactly one finding: CHANGED for the step command
+	assert.equal(findings.length, 1);
+	assert.match(findings[0], /^CHANGED {3}fixture\.yml::build::Run tests/);
+});
