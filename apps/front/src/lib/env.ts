@@ -25,7 +25,25 @@ type EnvDefinition = {
 
 const requiredTrimmedString = z.string().trim().min(1);
 const optionalTrimmedString = z.string().trim().min(1).optional();
-const optionalUrlWithTrailingSlash = z.url().optional();
+// PUBLIC_ORIGIN is used as a bare scheme+host base when building canonical
+// and Open Graph URLs (`${origin}${requestPath}`). A trailing path segment —
+// including the bare `/` of `https://example.com/` — produces double slashes
+// or corrupts the URL. The schema's refine accepts only inputs that equal
+// their own URL.origin (i.e. scheme://host), rejecting anything with a path,
+// query, or fragment. This enforces the "no trailing path" contract surfaced
+// by validateRuntimeEnv's error message.
+const optionalPublicOrigin = z
+	.url()
+	.refine(
+		(value) => {
+			const parsed = new URL(value);
+			return value === parsed.origin;
+		},
+		{
+			message: 'PUBLIC_ORIGIN must be a bare scheme+host with no trailing path',
+		},
+	)
+	.optional();
 
 const envDefinition = {
 	public: {
@@ -46,7 +64,7 @@ const envDefinition = {
 	server: {
 		publicOrigin: {
 			processKeys: ['PUBLIC_ORIGIN'],
-			schema: optionalUrlWithTrailingSlash,
+			schema: optionalPublicOrigin,
 		},
 		apiBaseUrl: {
 			processKeys: ['SERVER_API_BASE_URL'],

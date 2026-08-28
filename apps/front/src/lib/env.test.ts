@@ -284,6 +284,65 @@ describe('front runtime env registry', () => {
 		expect(payload).not.toContain('</script>');
 		expect(payload).toContain('\\u003c/script>');
 	});
+
+	describe('PUBLIC_ORIGIN trailing-path guard', () => {
+		// PUBLIC_ORIGIN must be a bare scheme+host (no trailing path). A trailing
+		// segment — including the bare `/` of https://example.com/ — corrupts
+		// canonical URL construction (${origin}${requestPath} → //path) and is
+		// rejected at parse time.
+		test('accepts a bare scheme+host', async () => {
+			process.env.PUBLIC_API_BASE_URL = 'https://public.example.test';
+			process.env.SERVER_API_BASE_URL = 'http://api:5000';
+			process.env.PUBLIC_ORIGIN = 'https://publyapp.com';
+			const { getServerEnv } = await importEnv();
+
+			expect(getServerEnv().publicOrigin).toBe('https://publyapp.com');
+		});
+
+		test('rejects a bare trailing slash (path of "/")', async () => {
+			process.env.PUBLIC_API_BASE_URL = 'https://public.example.test';
+			process.env.SERVER_API_BASE_URL = 'http://api:5000';
+			process.env.PUBLIC_ORIGIN = 'https://publyapp.com/';
+			const { getServerEnv } = await importEnv();
+
+			expect(() => getServerEnv()).toThrow(
+				/failed to validate front server runtime env:.*PUBLIC_ORIGIN/,
+			);
+		});
+
+		test('rejects a PUBLIC_ORIGIN with a non-empty path', async () => {
+			process.env.PUBLIC_API_BASE_URL = 'https://public.example.test';
+			process.env.SERVER_API_BASE_URL = 'http://api:5000';
+			process.env.PUBLIC_ORIGIN = 'https://publyapp.com/app';
+			const { getServerEnv } = await importEnv();
+
+			expect(() => getServerEnv()).toThrow(
+				/failed to validate front server runtime env:.*PUBLIC_ORIGIN/,
+			);
+		});
+
+		test('rejects a PUBLIC_ORIGIN with a query string', async () => {
+			process.env.PUBLIC_API_BASE_URL = 'https://public.example.test';
+			process.env.SERVER_API_BASE_URL = 'http://api:5000';
+			process.env.PUBLIC_ORIGIN = 'https://publyapp.com?x=1';
+			const { getServerEnv } = await importEnv();
+
+			expect(() => getServerEnv()).toThrow(
+				/failed to validate front server runtime env:.*PUBLIC_ORIGIN/,
+			);
+		});
+
+		test('rejects a PUBLIC_ORIGIN with a hash', async () => {
+			process.env.PUBLIC_API_BASE_URL = 'https://public.example.test';
+			process.env.SERVER_API_BASE_URL = 'http://api:5000';
+			process.env.PUBLIC_ORIGIN = 'https://publyapp.com#section';
+			const { getServerEnv } = await importEnv();
+
+			expect(() => getServerEnv()).toThrow(
+				/failed to validate front server runtime env:.*PUBLIC_ORIGIN/,
+			);
+		});
+	});
 });
 
 describe('dead PostHog env var guard', () => {
