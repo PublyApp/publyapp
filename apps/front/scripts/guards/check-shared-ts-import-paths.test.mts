@@ -449,7 +449,7 @@ void test('scanTreeForSharedTsReExports labels findings with the tree label', ()
 const TYPES_SPECIFIER = '@org/shared-ts/@types/foo';
 const SCRIPTS_SPECIFIER = '@org/shared-ts/scripts/generate-zod-i18n-map.mjs';
 
-test('RED: re-export of @org/shared-ts/@types/* is detected as DUAL_PATH (#1678)', () => {
+void test('RED: re-export of @org/shared-ts/@types/* is detected as DUAL_PATH (#1678)', () => {
 	const root = makeSandbox();
 	writeFileSync(
 		path.join(root, 'front-src/lib/types-shim.ts'),
@@ -477,7 +477,7 @@ test('RED: re-export of @org/shared-ts/@types/* is detected as DUAL_PATH (#1678)
 	);
 });
 
-test('RED: re-export of @org/shared-ts/scripts/* is detected as DUAL_PATH (#1678)', () => {
+void test('RED: re-export of @org/shared-ts/scripts/* is detected as DUAL_PATH (#1678)', () => {
 	const root = makeSandbox();
 	writeFileSync(
 		path.join(root, 'front-src/lib/scripts-shim.ts'),
@@ -507,7 +507,7 @@ test('RED: re-export of @org/shared-ts/scripts/* is detected as DUAL_PATH (#1678
 
 // ---- #1678 paired proof: legitimate non-shared-ts re-exports stay GREEN ----
 
-test('GREEN: re-export of a non-shared-ts package is NOT flagged (#1678 paired proof)', () => {
+void test('GREEN: re-export of a non-shared-ts package is NOT flagged (#1678 paired proof)', () => {
 	const root = makeSandbox();
 	writeFileSync(
 		path.join(root, 'front-src/lib/external-shim.ts'),
@@ -523,7 +523,7 @@ test('GREEN: re-export of a non-shared-ts package is NOT flagged (#1678 paired p
 	);
 });
 
-test('GREEN: re-export from another front-local file is NOT flagged (#1678 paired proof)', () => {
+void test('GREEN: re-export from another front-local file is NOT flagged (#1678 paired proof)', () => {
 	const root = makeSandbox();
 	writeFileSync(
 		path.join(root, 'front-src/lib/local-re-export.ts'),
@@ -541,7 +541,7 @@ test('GREEN: re-export from another front-local file is NOT flagged (#1678 paire
 
 // ---- #1678 fail-loudly: unknown first segment must not pass silently ----
 
-test('RED: re-export of @org/shared-ts/<unknown-segment> fails loudly with UNKNOWN_SEGMENT (#1678)', () => {
+void test('RED: re-export of @org/shared-ts/<unknown-segment> fails loudly with UNKNOWN_SEGMENT (#1678)', () => {
 	const root = makeSandbox();
 	writeFileSync(
 		path.join(root, 'front-src/lib/unknown-shim.ts'),
@@ -575,7 +575,7 @@ test('RED: re-export of @org/shared-ts/<unknown-segment> fails loudly with UNKNO
 
 // ---- #1678: PARSE_ERROR on unparseable files still produces a finding (requirement #6)
 
-test('RED: a source file with a syntax error produces a PARSE_ERROR finding (#1678 requirement 6)', () => {
+void test('RED: a source file with a syntax error produces a PARSE_ERROR finding (#1678 requirement 6)', () => {
 	const root = makeSandbox();
 	writeFileSync(
 		path.join(root, 'front-src/lib/broken.ts'),
@@ -608,7 +608,7 @@ test('RED: a source file with a syntax error produces a PARSE_ERROR finding (#16
 // keeps all 24 tests green while restoring the "silent pass" defect in CI. This
 // test invokes main() with sandbox roots and asserts the exit code.
 
-test('RED: main() exits non-zero when a shim re-export is present (#1678 R5)', () => {
+void test('RED: main() exits non-zero when a shim re-export is present (#1678 R5)', () => {
 	const root = makeSandbox();
 	writeFileSync(
 		path.join(root, 'front-src/lib/should-logout-for-failure.ts'),
@@ -634,7 +634,7 @@ main({
 	);
 });
 
-test('GREEN: main() exits zero when no shim is present (#1678 R5)', () => {
+void test('GREEN: main() exits zero when no shim is present (#1678 R5)', () => {
 	const root = makeSandbox();
 
 	const result = spawnSync(
@@ -656,7 +656,7 @@ main({
 	);
 });
 
-test('SHARED_TS_SEGMENTS is derived from packages/shared-ts/src and contains @types and scripts (#1678)', () => {
+void test('SHARED_TS_SEGMENTS is derived from packages/shared-ts/src and contains @types and scripts (#1678)', () => {
 	// The old hardcoded regex (lib|utils|validations|types) missed @types and scripts.
 	// This assertion ensures the derivation picks them up — a regression to the
 	// hardcoded list or an empty segment set would break this.
@@ -670,7 +670,7 @@ test('SHARED_TS_SEGMENTS is derived from packages/shared-ts/src and contains @ty
 	);
 });
 
-test('SHARED_TS_SEGMENTS fails loudly when packages/shared-ts/src is unreadable (#1678)', () => {
+void test('SHARED_TS_SEGMENTS fails loudly when packages/shared-ts/src is unreadable (#1678)', () => {
 	// deriveSharedTsSegments must throw on a missing directory — never exit 0 silently.
 	assert.throws(
 		() =>
@@ -686,7 +686,7 @@ test('SHARED_TS_SEGMENTS fails loudly when packages/shared-ts/src is unreadable 
 // nothing and main() exits 0 (green) on a clean tree with zero detection power.
 // The guard must self-check and fail loudly, naming the cause. This test creates
 // a sandbox with an empty shared-ts/src directory and asserts main() exits non-zero.
-test('RED: main() fails loudly when shared-ts segment derivation is empty (#1678 R6)', () => {
+void test('RED: main() fails loudly when shared-ts segment derivation is empty (#1678 R6)', () => {
 	const root = makeSandbox();
 	// Wipe the mirrored shared-ts-src tree so it exists but is empty — the exact
 	// case deriveSharedTsSegments cannot catch by itself (the dir is readable,
@@ -717,7 +717,7 @@ main({
 	);
 });
 
-test('GREEN: main() exits zero when segment derivation is non-empty and tree is clean (#1678 R6)', () => {
+void test('GREEN: main() exits zero when segment derivation is non-empty and tree is clean (#1678 R6)', () => {
 	const root = makeSandbox();
 	// The sandbox mirrors the real packages/shared-ts/src which has @types, lib,
 	// scripts, etc. — derivation is non-empty and the tree is clean, so main() passes.
@@ -743,7 +743,7 @@ main({
 // ---- #1678 R6: deriveSharedTsSegments re-derives from the path main() actually uses ----
 // Ensures the self-check inside main() is not using a stale module-level constant
 // captured before the path override — it must re-derive from roots.sharedTsSrc.
-test('REGRESSION: main() re-derives segments from the overriden sharedTsSrc path (#1678 R6)', () => {
+void test('REGRESSION: main() re-derives segments from the overriden sharedTsSrc path (#1678 R6)', () => {
 	// Point sharedTsSrc at the real directory: derivation is non-empty, tree clean.
 	// If main() used the module-level SHARED_TS_SEGMENTS instead of re-deriving
 	// from roots.sharedTsSrc, an empty-path override would be ignored. This
@@ -773,7 +773,7 @@ main({
 // directory exists and has some subdirectories but is missing expected ones (e.g.
 // @types was renamed to types2), the guard must still fail loudly — not silently
 // skip re-exports of the missing segment.
-test('RED: main() fails loudly when derived segments are missing expected segment(s) (#1678 R6)', () => {
+void test('RED: main() fails loudly when derived segments are missing expected segment(s) (#1678 R6)', () => {
 	const root = makeSandbox();
 	// Wipe the mirrored shared-ts-src tree and create only a subset of the real
 	// segments — missing @types and scripts (the ones the old hardcoded list
