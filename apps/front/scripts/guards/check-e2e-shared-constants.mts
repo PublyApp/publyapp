@@ -126,6 +126,13 @@ export const collectSharedTsExports = (
 		const source = project.addSourceFileAtPath(file);
 		const relative = path.relative(sharedTsSrc, file).replace(/\.tsx?$/, '');
 		for (const [name, declarations] of source.getExportedDeclarations()) {
+			// `default` is not a name a spec can re-declare — `const default = …`
+			// is a syntax error — so mapping it only adds an unstable entry that
+			// four different modules fight over. Dropping it keeps the map made
+			// of names the guard can actually be asked about.
+			if (name === 'default') {
+				continue;
+			}
 			const isValue = declarations.some(
 				(declaration) =>
 					Node.isVariableDeclaration(declaration) ||
@@ -136,7 +143,36 @@ export const collectSharedTsExports = (
 			if (!isValue) {
 				continue;
 			}
-			exports.set(name, `@org/shared-ts/${relative}`);
+			// A name reachable through a barrel is ALSO reachable through the
+			// module the barrel re-exports, so the same name is seen twice and a
+			// plain `set` lets directory order decide which specifier the
+			// developer is told to import — advice that would silently change
+			// when an unrelated file is renamed.
+			//
+			// The tie is broken on where the name is DECLARED, not on which path
+			// is shorter. Two reasons, both measured in this repo rather than
+			// assumed: `packages/shared-ts/package.json` maps `./*` to
+			// `./src/*.ts`, so `@org/shared-ts/lib/session` resolves to a
+			// `lib/session.ts` that does not exist — the barrel is not an
+			// importable specifier here, only `lib/session/index` is. And every
+			// real import in the tree names the declaring module
+			// (`@org/shared-ts/lib/session/parse`,
+			// `@org/shared-ts/lib/api-failure/to-api-failure`); not one imports a
+			// barrel. Pointing at the barrel would print advice that resolves
+			// nowhere and that no existing line follows.
+			const declaredHere = declarations.some(
+				(declaration) =>
+					declaration.getSourceFile().getFilePath() === file,
+			);
+			if (!declaredHere && exports.has(name)) {
+				continue;
+			}
+			const specifier = `@org/shared-ts/${relative}`;
+			const existing = exports.get(name);
+			if (existing !== undefined && !declaredHere) {
+				continue;
+			}
+			exports.set(name, specifier);
 		}
 	}
 	return exports;

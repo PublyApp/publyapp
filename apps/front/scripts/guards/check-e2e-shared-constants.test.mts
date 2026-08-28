@@ -41,6 +41,11 @@ write(
 write('func.ts', 'export function FUNC_NAME() {\n\treturn 1;\n}\n');
 write('klass.ts', 'export class CLASS_NAME {}\n');
 write('type-only.ts', 'export type TYPE_ONLY_NAME = string;\n');
+// A barrel that re-exports a name declared elsewhere. The same name is then
+// reachable through two specifiers, and only one of them is the declaring
+// module — see the note in the collector about why that one wins.
+write('barrel.ts', "export { SEPARATE_NAME } from './separate';\n");
+write('zz-late-barrel.ts', "export { INLINE_NAME } from './inline';\n");
 
 const exports_ = collectSharedTsExports(root);
 
@@ -64,4 +69,21 @@ test('ignores type-only exports', () => {
 	// An e2e `const` that happens to share a name with an exported TYPE is not
 	// a duplicated constant, so flagging it would be a false positive.
 	assert.equal(exports_.get('TYPE_ONLY_NAME'), undefined);
+});
+
+test('a re-exported name is attributed to the module that DECLARES it', () => {
+	// `barrel.ts` re-exports SEPARATE_NAME, and sorts BEFORE `separate.ts`, so a
+	// plain overwrite would have kept the barrel. `zz-late-barrel.ts` re-exports
+	// INLINE_NAME and sorts AFTER `inline.ts`, so a plain overwrite would have
+	// kept the barrel there too. Both must resolve to the declaring module —
+	// otherwise the suggestion depends on directory order, and the advice a
+	// developer reads would change when an unrelated file is renamed.
+	assert.equal(exports_.get('SEPARATE_NAME'), '@org/shared-ts/separate');
+	assert.equal(exports_.get('INLINE_NAME'), '@org/shared-ts/inline');
+});
+
+test('`default` is not collected', () => {
+	// `const default = …` is a syntax error, so a spec cannot re-declare it.
+	// Mapping it would only add an entry several modules overwrite in turn.
+	assert.equal(exports_.get('default'), undefined);
 });
