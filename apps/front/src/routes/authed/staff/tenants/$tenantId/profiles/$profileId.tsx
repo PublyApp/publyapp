@@ -8,6 +8,7 @@ import { View403 } from '~/components/error-views/View403';
 import { staffTenantProfileDetailsQueryOptions } from '~/lib/query/staff-tenant-profiles';
 import { staffTenantDetailsQueryOptions } from '~/lib/query/staff-tenants';
 
+import { logger } from '@org/shared-ts/lib/logger/iso-logger';
 import { shouldLogoutForFailure } from '@org/shared-ts/lib/should-logout-for-failure';
 
 import {
@@ -17,7 +18,6 @@ import {
 	TenantRetryActions,
 } from '../_tenant-details-shell';
 import { staffTenantProfileCrumbsBase } from './$profileId/_crumbs';
-import type { StaffTenantProfileDetailsContextValue } from './$profileId/_details-context';
 import {
 	MissingTenantProfileView,
 	ProfileDetailsLoading,
@@ -327,10 +327,17 @@ export const Route = createFileRoute(
 					}),
 			}),
 		]);
-		// Background revalidation of stale cached data (errors swallowed,
-		// matching the old ensureQueryData prefetchQuery behavior).
-		context.queryClient
-			.query({
+
+		// #851 round 3 (A3 fix): background revalidation of the cached data the
+		// initial query() just settled. With the default `staleTime: 0`, that
+		// data is immediately stale, so these fire-and-forget prefetchQuery()
+		// calls each issue a background refetch — exactly the behaviour
+		// ensureQueryData provided via prefetchQuery before the #851 migration.
+		// Errors are logged as warnings (they do not block the initial render)
+		// and the route's errorComponent only owns the awaited initial fetch's
+		// failures.
+		void context.queryClient
+			.prefetchQuery({
 				queryKey: staffTenantDetailsQueryOptions.queryKey({
 					tenantId: params.tenantId,
 				}),
@@ -339,11 +346,14 @@ export const Route = createFileRoute(
 						tenantId: params.tenantId,
 					}),
 			})
-			.catch(() => {
-				// Swallow errors to match old prefetchQuery behavior
+			.catch((error: unknown) => {
+				logger.warn(
+					'Profile details loader: background revalidation failed for tenant details fetch',
+					{ tenantId: params.tenantId, error },
+				);
 			});
-		context.queryClient
-			.query({
+		void context.queryClient
+			.prefetchQuery({
 				queryKey: staffTenantProfileDetailsQueryOptions.queryKey({
 					tenantId: params.tenantId,
 					profileId: params.profileId,
@@ -354,8 +364,15 @@ export const Route = createFileRoute(
 						profileId: params.profileId,
 					}),
 			})
-			.catch(() => {
-				// Swallow errors to match old prefetchQuery behavior
+			.catch((error: unknown) => {
+				logger.warn(
+					'Profile details loader: background revalidation failed for profile details fetch',
+					{
+						tenantId: params.tenantId,
+						profileId: params.profileId,
+						error,
+					},
+				);
 			});
 	},
 	pendingComponent: ProfileDetailsLoading,
