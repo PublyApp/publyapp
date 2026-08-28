@@ -300,29 +300,23 @@ export const Route = createFileRoute(
 	loader: async ({ context, params }) => {
 		await Promise.all([
 			context.queryClient.query({
-				...{
-					queryKey: staffTenantDetailsQueryOptions.queryKey({
-						tenantId: params.tenantId,
-					}),
-					queryFn: () =>
-						staffTenantDetailsQueryOptions.fetcher({
-							tenantId: params.tenantId,
-						}),
-				},
+				queryKey: staffTenantDetailsQueryOptions.queryKey({
+					tenantId: params.tenantId,
+				}),
+				queryFn: () =>
+					staffTenantDetailsQueryOptions.fetcher({ tenantId: params.tenantId }),
 				staleTime: 'static',
 			}),
 			context.queryClient.query({
-				...{
-					queryKey: staffTenantProfileDetailsQueryOptions.queryKey({
+				queryKey: staffTenantProfileDetailsQueryOptions.queryKey({
+					tenantId: params.tenantId,
+					profileId: params.profileId,
+				}),
+				queryFn: () =>
+					staffTenantProfileDetailsQueryOptions.fetcher({
 						tenantId: params.tenantId,
 						profileId: params.profileId,
 					}),
-					queryFn: () =>
-						staffTenantProfileDetailsQueryOptions.fetcher({
-							tenantId: params.tenantId,
-							profileId: params.profileId,
-						}),
-				},
 				staleTime: 'static',
 			}),
 		]);
