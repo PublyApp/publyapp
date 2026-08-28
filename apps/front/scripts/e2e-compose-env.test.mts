@@ -191,7 +191,11 @@ describe('setupE2EComposeEnv', () => {
 			`Traefik IP should be IPv4, got: ${env.traefikIp}`,
 		);
 		// Traefik IP must be within the declared subnet
-		const subnetPrefix = env.subnet.split('/')[0].split('.').slice(0, 3).join('.');
+		const subnetPrefix = env.subnet
+			.split('/')[0]
+			.split('.')
+			.slice(0, 3)
+			.join('.');
 		assert.ok(
 			env.traefikIp.startsWith(subnetPrefix),
 			`Traefik IP ${env.traefikIp} should be within subnet ${env.subnet}`,

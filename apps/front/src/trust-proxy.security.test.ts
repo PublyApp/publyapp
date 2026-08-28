@@ -16,7 +16,7 @@ const composeFile = readFileSync(
 describe('compose-file TRUSTED_PROXY_CIDRS consistency (r5)', () => {
 	test('TRUSTED_PROXY_CIDRS derives from E2E_TRAEFIK_IP — never a hardcoded IP', () => {
 		const match = composeFile.match(
-			/TRUSTED_PROXY_CIDRS:\s*"(\$\{E2E_TRAEFIK_IP:[^}]+\})\/32"/,
+			/TRUSTED_PROXY_CIDRS:\s*['"](\$\{E2E_TRAEFIK_IP:[^}]+\})\/32['"]/,
 		);
 		expect(
 			match,

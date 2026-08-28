@@ -344,11 +344,13 @@ export function computeEnv(): E2eComposeEnv {
 
 	// Derive a per-band subnet so two concurrent stacks never claim the same
 	// Docker network. Band 0 → 172.28.0.0/24 (CI default). Each band steps the
-	// third octet by 1; /24 keeps each stack's network isolated.
+	// fourth octet by 1, carrying into the third octet every 256 bands; this
+	// keeps all 500 bands within the valid 172.16–172.31 RFC1918 /12 range.
 	const SUBNET_BASE = 28;
-	const subnetOctet3 = SUBNET_BASE + bandIndex;
-	const subnet = `172.${subnetOctet3}.0.0/24`;
-	const traefikIp = `172.${subnetOctet3}.0.2`;
+	const octet2Steps = bandIndex >> 8;
+	const octet3 = bandIndex & 255;
+	const subnet = `172.${SUBNET_BASE + octet2Steps}.${octet3}.0/24`;
+	const traefikIp = `172.${SUBNET_BASE + octet2Steps}.${octet3}.2`;
 
 	return {
 		COMPOSE_PROJECT_NAME: projectName,
