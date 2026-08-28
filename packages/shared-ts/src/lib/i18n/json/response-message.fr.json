@@ -123,5 +123,14 @@
 	"publish-now-success": "Publication lancée",
 	"social-account-connected": "Compte Bluesky connecté",
 	"social-account-reconnected": "Compte Bluesky reconnecté",
-	"social-account-projects-updated": "Attachements de projets mis à jour"
+	"social-account-projects-updated": "Attachements de projets mis à jour",
+	"job-queue-item-not-found": "Élément de la file de jobs introuvable",
+	"dead-letter-requeue-success": "Job dead-letter remis en file",
+	"dead-letter-requeue-conflict": "Le job dead-letter a déjà été remis en file",
+	"system-job-definition-not-found": "Définition de job système introuvable",
+	"system-job-definition-update-success": "Définition de job système mise à jour",
+	"system-job-cron-invalid": "L'expression cron est invalide",
+	"system-job-disable-protected": "Ce job système ne peut pas être désactivé car sa cadence de rétention est un contrôle de confidentialité",
+	"system-job-trigger-success": "Job système mis en file",
+	"system-job-trigger-noop": "Le job système est désactivé et n'a pas été mis en file"
 }

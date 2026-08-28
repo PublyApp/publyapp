@@ -12,4 +12,12 @@ public static class JobDeadLetterEvents {
 
 	/// <summary>A row was flagged as needing human triage; stamps status 6 Unclassified (future writer).</summary>
 	public const string UnclassifiedFlagged = "dead_letter.external_state.unclassified";
+
+	/// <summary>
+	/// A row was requeued back into job_queue by a staff operator (A5, #636).
+	/// Not in the design's 1:1 event-vocabulary table on purpose: a requeue is
+	/// not a status transition — the DLQ row's external_state_status does not
+	/// change, only its requeued_as_job_id/requeued_at lineage pair does.
+	/// </summary>
+	public const string Requeued = "dead_letter.requeued";
 }

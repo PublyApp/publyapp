@@ -123,5 +123,14 @@
 	"publish-now-success": "Publishing started",
 	"social-account-connected": "Bluesky account connected",
 	"social-account-reconnected": "Bluesky account reconnected",
-	"social-account-projects-updated": "Project attachments updated"
+	"social-account-projects-updated": "Project attachments updated",
+	"job-queue-item-not-found": "Job queue item not found",
+	"dead-letter-requeue-success": "Dead-letter job requeued",
+	"dead-letter-requeue-conflict": "Dead-letter job has already been requeued",
+	"system-job-definition-not-found": "System job definition not found",
+	"system-job-definition-update-success": "System job definition updated",
+	"system-job-cron-invalid": "Cron expression is invalid",
+	"system-job-disable-protected": "This system job cannot be disabled because its retention cadence is a privacy control",
+	"system-job-trigger-success": "System job enqueued",
+	"system-job-trigger-noop": "System job is disabled and was not enqueued"
 }

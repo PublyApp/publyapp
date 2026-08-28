@@ -23,6 +23,7 @@ import { Route as authedTenantRouteImport } from './routes/authed/tenant'
 import { Route as authedStaffAuditLogsRouteImport } from './routes/authed/staff/audit-logs'
 import { Route as authedStaffDashboardRouteImport } from './routes/authed/staff/dashboard'
 import { Route as authedStaffInvitationsIndexRouteImport } from './routes/authed/staff/invitations/index'
+import { Route as authedStaffJobsRouteImport } from './routes/authed/staff/jobs'
 import { Route as authedStaffProfilesRouteImport } from './routes/authed/staff/profiles'
 import { Route as authedStaffStaffUsersRouteImport } from './routes/authed/staff/staff-users'
 import { Route as authedStaffTenantsRouteImport } from './routes/authed/staff/tenants'
@@ -36,6 +37,9 @@ import { Route as authedStaffDashboardActivityRouteImport } from './routes/authe
 import { Route as authedStaffDashboardReportsRouteImport } from './routes/authed/staff/dashboard/reports'
 import { Route as authedStaffInvitationsInvitationIdRouteImport } from './routes/authed/staff/invitations/$invitationId'
 import { Route as authedStaffInvitationsNewRouteImport } from './routes/authed/staff/invitations/new'
+import { Route as authedStaffJobsQueueRouteImport } from './routes/authed/staff/jobs/queue'
+import { Route as authedStaffJobsDeadLetterRouteImport } from './routes/authed/staff/jobs/dead-letter'
+import { Route as authedStaffJobsSystemJobsRouteImport } from './routes/authed/staff/jobs/system-jobs'
 import { Route as authedStaffProfilesProfileIdRouteImport } from './routes/authed/staff/profiles/$profileId'
 import { Route as authedStaffProfilesNewRouteImport } from './routes/authed/staff/profiles-new'
 import { Route as authedStaffStaffUsersUserIdRouteImport } from './routes/authed/staff/staff-users/$userId'
@@ -153,6 +157,11 @@ const authedStaffInvitationsIndexRoute =
     path: '/staff/invitations',
     getParentRoute: () => authedLayoutRoute,
   } as any)
+const authedStaffJobsRoute = authedStaffJobsRouteImport.update({
+  id: '/staff/jobs',
+  path: '/staff/jobs',
+  getParentRoute: () => authedLayoutRoute,
+} as any)
 const authedStaffProfilesRoute = authedStaffProfilesRouteImport.update({
   id: '/staff/profiles',
   path: '/staff/profiles',
@@ -224,6 +233,23 @@ const authedStaffInvitationsNewRoute =
     id: '/staff/invitations/new',
     path: '/staff/invitations/new',
     getParentRoute: () => authedLayoutRoute,
+  } as any)
+const authedStaffJobsQueueRoute = authedStaffJobsQueueRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => authedStaffJobsRoute,
+} as any)
+const authedStaffJobsDeadLetterRoute =
+  authedStaffJobsDeadLetterRouteImport.update({
+    id: '/dead-letter',
+    path: '/dead-letter',
+    getParentRoute: () => authedStaffJobsRoute,
+  } as any)
+const authedStaffJobsSystemJobsRoute =
+  authedStaffJobsSystemJobsRouteImport.update({
+    id: '/system-jobs',
+    path: '/system-jobs',
+    getParentRoute: () => authedStaffJobsRoute,
   } as any)
 const authedStaffProfilesProfileIdRoute =
   authedStaffProfilesProfileIdRouteImport.update({
@@ -511,6 +537,7 @@ export interface FileRoutesByFullPath {
   '/tenant': typeof authedTenantRouteWithChildren
   '/staff/audit-logs': typeof authedStaffAuditLogsRoute
   '/staff/dashboard': typeof authedStaffDashboardRouteWithChildren
+  '/staff/jobs': typeof authedStaffJobsRouteWithChildren
   '/staff/profiles': typeof authedStaffProfilesRoute
   '/staff/staff-users': typeof authedStaffStaffUsersRoute
   '/staff/tenants': typeof authedStaffTenantsRoute
@@ -519,6 +546,7 @@ export interface FileRoutesByFullPath {
   '/tenant/posts': typeof authedTenantPostsRouteWithChildren
   '/tenant/settings': typeof authedTenantSettingsRouteWithChildren
   '/staff/invitations': typeof authedStaffInvitationsIndexRoute
+  '/staff/jobs/': typeof authedStaffJobsQueueRoute
   '/tenant/account/': typeof authedTenantAccountProfileRoute
   '/tenant/posts/': typeof authedTenantPostsCalendarRoute
   '/tenant/settings/': typeof authedTenantSettingsGeneralRoute
@@ -527,6 +555,8 @@ export interface FileRoutesByFullPath {
   '/staff/dashboard/reports': typeof authedStaffDashboardReportsRoute
   '/staff/invitations/$invitationId': typeof authedStaffInvitationsInvitationIdRoute
   '/staff/invitations/new': typeof authedStaffInvitationsNewRoute
+  '/staff/jobs/dead-letter': typeof authedStaffJobsDeadLetterRoute
+  '/staff/jobs/system-jobs': typeof authedStaffJobsSystemJobsRoute
   '/staff/profiles/$profileId': typeof authedStaffProfilesProfileIdRoute
   '/staff/profiles/new': typeof authedStaffProfilesNewRoute
   '/staff/staff-users/$userId': typeof authedStaffStaffUsersUserIdRouteWithChildren
@@ -589,6 +619,7 @@ export interface FileRoutesByTo {
   '/staff/tenants': typeof authedStaffTenantsRoute
   '/tenant/organizations': typeof authedTenantOrganizationsRoute
   '/staff/invitations': typeof authedStaffInvitationsIndexRoute
+  '/staff/jobs': typeof authedStaffJobsQueueRoute
   '/tenant/account': typeof authedTenantAccountProfileRoute
   '/tenant/posts': typeof authedTenantPostsCalendarRoute
   '/tenant/settings': typeof authedTenantSettingsGeneralRoute
@@ -597,6 +628,8 @@ export interface FileRoutesByTo {
   '/staff/dashboard/reports': typeof authedStaffDashboardReportsRoute
   '/staff/invitations/$invitationId': typeof authedStaffInvitationsInvitationIdRoute
   '/staff/invitations/new': typeof authedStaffInvitationsNewRoute
+  '/staff/jobs/dead-letter': typeof authedStaffJobsDeadLetterRoute
+  '/staff/jobs/system-jobs': typeof authedStaffJobsSystemJobsRoute
   '/staff/profiles/$profileId': typeof authedStaffProfilesProfileIdRoute
   '/staff/profiles/new': typeof authedStaffProfilesNewRoute
   '/staff/tenants/$tenantId': typeof authedStaffTenantsTenantIdRoute
@@ -655,6 +688,7 @@ export interface FileRoutesById {
   '/_authed-layout/tenant': typeof authedTenantRouteWithChildren
   '/_authed-layout/staff/audit-logs': typeof authedStaffAuditLogsRoute
   '/_authed-layout/staff/dashboard': typeof authedStaffDashboardRouteWithChildren
+  '/_authed-layout/staff/jobs': typeof authedStaffJobsRouteWithChildren
   '/_authed-layout/staff/profiles': typeof authedStaffProfilesRoute
   '/_authed-layout/staff/staff-users': typeof authedStaffStaffUsersRoute
   '/_authed-layout/staff/tenants': typeof authedStaffTenantsRoute
@@ -663,6 +697,7 @@ export interface FileRoutesById {
   '/_authed-layout/tenant/posts': typeof authedTenantPostsRouteWithChildren
   '/_authed-layout/tenant/settings': typeof authedTenantSettingsRouteWithChildren
   '/_authed-layout/staff/invitations': typeof authedStaffInvitationsIndexRoute
+  '/_authed-layout/staff/jobs/': typeof authedStaffJobsQueueRoute
   '/_authed-layout/tenant/account/': typeof authedTenantAccountProfileRoute
   '/_authed-layout/tenant/posts/': typeof authedTenantPostsCalendarRoute
   '/_authed-layout/tenant/settings/': typeof authedTenantSettingsGeneralRoute
@@ -671,6 +706,8 @@ export interface FileRoutesById {
   '/_authed-layout/staff/dashboard/reports': typeof authedStaffDashboardReportsRoute
   '/_authed-layout/staff/invitations/$invitationId': typeof authedStaffInvitationsInvitationIdRoute
   '/_authed-layout/staff/invitations/new': typeof authedStaffInvitationsNewRoute
+  '/_authed-layout/staff/jobs/dead-letter': typeof authedStaffJobsDeadLetterRoute
+  '/_authed-layout/staff/jobs/system-jobs': typeof authedStaffJobsSystemJobsRoute
   '/_authed-layout/staff/profiles/$profileId': typeof authedStaffProfilesProfileIdRoute
   '/_authed-layout/staff/profiles/new': typeof authedStaffProfilesNewRoute
   '/_authed-layout/staff/staff-users/$userId': typeof authedStaffStaffUsersUserIdRouteWithChildren
@@ -731,6 +768,7 @@ export interface FileRouteTypes {
     | '/tenant'
     | '/staff/audit-logs'
     | '/staff/dashboard'
+    | '/staff/jobs'
     | '/staff/profiles'
     | '/staff/staff-users'
     | '/staff/tenants'
@@ -739,6 +777,7 @@ export interface FileRouteTypes {
     | '/tenant/posts'
     | '/tenant/settings'
     | '/staff/invitations'
+    | '/staff/jobs/'
     | '/tenant/account/'
     | '/tenant/posts/'
     | '/tenant/settings/'
@@ -747,6 +786,8 @@ export interface FileRouteTypes {
     | '/staff/dashboard/reports'
     | '/staff/invitations/$invitationId'
     | '/staff/invitations/new'
+    | '/staff/jobs/dead-letter'
+    | '/staff/jobs/system-jobs'
     | '/staff/profiles/$profileId'
     | '/staff/profiles/new'
     | '/staff/staff-users/$userId'
@@ -809,6 +850,7 @@ export interface FileRouteTypes {
     | '/staff/tenants'
     | '/tenant/organizations'
     | '/staff/invitations'
+    | '/staff/jobs'
     | '/tenant/account'
     | '/tenant/posts'
     | '/tenant/settings'
@@ -817,6 +859,8 @@ export interface FileRouteTypes {
     | '/staff/dashboard/reports'
     | '/staff/invitations/$invitationId'
     | '/staff/invitations/new'
+    | '/staff/jobs/dead-letter'
+    | '/staff/jobs/system-jobs'
     | '/staff/profiles/$profileId'
     | '/staff/profiles/new'
     | '/staff/tenants/$tenantId'
@@ -874,6 +918,7 @@ export interface FileRouteTypes {
     | '/_authed-layout/tenant'
     | '/_authed-layout/staff/audit-logs'
     | '/_authed-layout/staff/dashboard'
+    | '/_authed-layout/staff/jobs'
     | '/_authed-layout/staff/profiles'
     | '/_authed-layout/staff/staff-users'
     | '/_authed-layout/staff/tenants'
@@ -882,6 +927,7 @@ export interface FileRouteTypes {
     | '/_authed-layout/tenant/posts'
     | '/_authed-layout/tenant/settings'
     | '/_authed-layout/staff/invitations'
+    | '/_authed-layout/staff/jobs/'
     | '/_authed-layout/tenant/account/'
     | '/_authed-layout/tenant/posts/'
     | '/_authed-layout/tenant/settings/'
@@ -890,6 +936,8 @@ export interface FileRouteTypes {
     | '/_authed-layout/staff/dashboard/reports'
     | '/_authed-layout/staff/invitations/$invitationId'
     | '/_authed-layout/staff/invitations/new'
+    | '/_authed-layout/staff/jobs/dead-letter'
+    | '/_authed-layout/staff/jobs/system-jobs'
     | '/_authed-layout/staff/profiles/$profileId'
     | '/_authed-layout/staff/profiles/new'
     | '/_authed-layout/staff/staff-users/$userId'
@@ -1048,6 +1096,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof authedStaffInvitationsIndexRouteImport
       parentRoute: typeof authedLayoutRoute
     }
+    '/_authed-layout/staff/jobs': {
+      id: '/_authed-layout/staff/jobs'
+      path: '/staff/jobs'
+      fullPath: '/staff/jobs'
+      preLoaderRoute: typeof authedStaffJobsRouteImport
+      parentRoute: typeof authedLayoutRoute
+    }
     '/_authed-layout/staff/profiles': {
       id: '/_authed-layout/staff/profiles'
       path: '/staff/profiles'
@@ -1138,6 +1193,27 @@ declare module '@tanstack/react-router' {
       fullPath: '/staff/invitations/new'
       preLoaderRoute: typeof authedStaffInvitationsNewRouteImport
       parentRoute: typeof authedLayoutRoute
+    }
+    '/_authed-layout/staff/jobs/': {
+      id: '/_authed-layout/staff/jobs/'
+      path: '/'
+      fullPath: '/staff/jobs/'
+      preLoaderRoute: typeof authedStaffJobsQueueRouteImport
+      parentRoute: typeof authedStaffJobsRoute
+    }
+    '/_authed-layout/staff/jobs/dead-letter': {
+      id: '/_authed-layout/staff/jobs/dead-letter'
+      path: '/dead-letter'
+      fullPath: '/staff/jobs/dead-letter'
+      preLoaderRoute: typeof authedStaffJobsDeadLetterRouteImport
+      parentRoute: typeof authedStaffJobsRoute
+    }
+    '/_authed-layout/staff/jobs/system-jobs': {
+      id: '/_authed-layout/staff/jobs/system-jobs'
+      path: '/system-jobs'
+      fullPath: '/staff/jobs/system-jobs'
+      preLoaderRoute: typeof authedStaffJobsSystemJobsRouteImport
+      parentRoute: typeof authedStaffJobsRoute
     }
     '/_authed-layout/staff/profiles/$profileId': {
       id: '/_authed-layout/staff/profiles/$profileId'
@@ -1554,6 +1630,22 @@ const authedStaffDashboardRouteChildren: authedStaffDashboardRouteChildren = {
 const authedStaffDashboardRouteWithChildren =
   authedStaffDashboardRoute._addFileChildren(authedStaffDashboardRouteChildren)
 
+interface authedStaffJobsRouteChildren {
+  authedStaffJobsQueueRoute: typeof authedStaffJobsQueueRoute
+  authedStaffJobsDeadLetterRoute: typeof authedStaffJobsDeadLetterRoute
+  authedStaffJobsSystemJobsRoute: typeof authedStaffJobsSystemJobsRoute
+}
+
+const authedStaffJobsRouteChildren: authedStaffJobsRouteChildren = {
+  authedStaffJobsQueueRoute: authedStaffJobsQueueRoute,
+  authedStaffJobsDeadLetterRoute: authedStaffJobsDeadLetterRoute,
+  authedStaffJobsSystemJobsRoute: authedStaffJobsSystemJobsRoute,
+}
+
+const authedStaffJobsRouteWithChildren = authedStaffJobsRoute._addFileChildren(
+  authedStaffJobsRouteChildren,
+)
+
 interface authedStaffStaffUsersUserIdRouteChildren {
   authedStaffStaffUsersUserIdActivityRoute: typeof authedStaffStaffUsersUserIdActivityRoute
   authedStaffStaffUsersUserIdPermissionsRoute: typeof authedStaffStaffUsersUserIdPermissionsRoute
@@ -1604,6 +1696,7 @@ interface authedLayoutRouteChildren {
   authedTenantRoute: typeof authedTenantRouteWithChildren
   authedStaffAuditLogsRoute: typeof authedStaffAuditLogsRoute
   authedStaffDashboardRoute: typeof authedStaffDashboardRouteWithChildren
+  authedStaffJobsRoute: typeof authedStaffJobsRouteWithChildren
   authedStaffProfilesRoute: typeof authedStaffProfilesRoute
   authedStaffStaffUsersRoute: typeof authedStaffStaffUsersRoute
   authedStaffTenantsRoute: typeof authedStaffTenantsRoute
@@ -1642,6 +1735,7 @@ const authedLayoutRouteChildren: authedLayoutRouteChildren = {
   authedTenantRoute: authedTenantRouteWithChildren,
   authedStaffAuditLogsRoute: authedStaffAuditLogsRoute,
   authedStaffDashboardRoute: authedStaffDashboardRouteWithChildren,
+  authedStaffJobsRoute: authedStaffJobsRouteWithChildren,
   authedStaffProfilesRoute: authedStaffProfilesRoute,
   authedStaffStaffUsersRoute: authedStaffStaffUsersRoute,
   authedStaffTenantsRoute: authedStaffTenantsRoute,
