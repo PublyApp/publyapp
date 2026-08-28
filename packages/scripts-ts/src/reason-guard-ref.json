@@ -1,0 +1,682 @@
+{
+	"$comment": [
+		"Reference fingerprints for the reason guard. Read by packages/scripts-ts/src/check-ci-drift.ts.",
+		"",
+		"One entry per step in ci-gate-manifest.json, keyed identically.",
+		"  reason_hash  - SHA-256 (first 16 hex chars) of the reason text.",
+		"  reason_length - character count of the reason text.",
+		"",
+		"The reason text is used as-is: after JSON.parse, escape sequences are",
+		"already decoded to UTF-8, so no normalization step is needed.",
+		"",
+		"The guard fails when a reason changes (especially SHRINKS) while the step hash",
+		"is unchanged. A deliberate rewrite is possible by regenerating this file",
+		"in the same commit as the manifest change — same mechanism as the complexity",
+		"ceilings (cyclomatic-bound-ref.json).",
+		"",
+		"Regenerate with: node packages/scripts-ts/src/gen-reason-ref.ts",
+		"See docs/guides/local-ci-gate.md."
+	],
+	"steps": {
+		"api-tests.yml::changes::Check whether api-tests paths changed": {
+			"reason_hash": "c2421f2dcc723d14",
+			"reason_length": 791
+		},
+		"api-tests.yml::changes::Checkout classifier from the base commit (not the PR's own copy)": {
+			"reason_hash": "68e36b1ac0a34432",
+			"reason_length": 739
+		},
+		"api-tests.yml::changes::Setup Node": {
+			"reason_hash": "522d060c491d92cf",
+			"reason_length": 146
+		},
+		"api-tests.yml::gate::Check required jobs": {
+			"reason_hash": "4b38672b31f92ab7",
+			"reason_length": 863
+		},
+		"api-tests.yml::gate::Verify the required-jobs check truly succeeded (continue-on-error cannot mask this)": {
+			"reason_hash": "270aa0820881ca9d",
+			"reason_length": 504
+		},
+		"api-tests.yml::suite::Checkout": {
+			"reason_hash": "c80eb5bfb322fab4",
+			"reason_length": 102
+		},
+		"api-tests.yml::suite::Install workspace dependencies": {
+			"reason_hash": "e42faa2929ccb37c",
+			"reason_length": 284
+		},
+		"api-tests.yml::suite::Materialize .env.development from template (CI has no gitignored env file)": {
+			"reason_hash": "04d337c8d0c3573b",
+			"reason_length": 591
+		},
+		"api-tests.yml::suite::Run full API test suite": {
+			"reason_hash": "1b9e059140dfbd05",
+			"reason_length": 404
+		},
+		"api-tests.yml::suite::Set up .NET (pinned for CI determinism)": {
+			"reason_hash": "4c92a505a7d6b469",
+			"reason_length": 155
+		},
+		"api-tests.yml::suite::Set up Node": {
+			"reason_hash": "305da4753c978917",
+			"reason_length": 100
+		},
+		"api-tests.yml::suite::Set up just": {
+			"reason_hash": "997bb69cf1357de0",
+			"reason_length": 138
+		},
+		"api-tests.yml::suite::Set up pnpm": {
+			"reason_hash": "1fd22cde3ad0647d",
+			"reason_length": 114
+		},
+		"api-tests.yml::suite::Upload test results on failure": {
+			"reason_hash": "50c4c42df69e5537",
+			"reason_length": 128
+		},
+		"deploy-images.yml::publish::Build and push API migrate image": {
+			"reason_hash": "83411d8a82349d27",
+			"reason_length": 113
+		},
+		"deploy-images.yml::publish::Build and push API runtime image": {
+			"reason_hash": "32abfe5d32d9c901",
+			"reason_length": 108
+		},
+		"deploy-images.yml::publish::Build and push Front image": {
+			"reason_hash": "dbf1b0c97c9fafea",
+			"reason_length": 102
+		},
+		"deploy-images.yml::publish::Checkout": {
+			"reason_hash": "a7b85e23ad9fb86d",
+			"reason_length": 108
+		},
+		"deploy-images.yml::publish::Log in to GHCR": {
+			"reason_hash": "a766a54ca11b7dfa",
+			"reason_length": 101
+		},
+		"deploy-images.yml::publish::Resolve immutable release tag": {
+			"reason_hash": "bac6aa1bd3197a94",
+			"reason_length": 121
+		},
+		"deploy-images.yml::publish::Resolve lowercase image namespace": {
+			"reason_hash": "4289ad48b8f8daa4",
+			"reason_length": 315
+		},
+		"deploy-images.yml::publish::Set up Docker Buildx": {
+			"reason_hash": "8a049d5a0e89b91b",
+			"reason_length": 116
+		},
+		"docs-archive.yml::changes::Check whether docs-archive paths changed": {
+			"reason_hash": "a92e697fb6edbf4b",
+			"reason_length": 1139
+		},
+		"docs-archive.yml::changes::Checkout classifier from the base commit (not the PR's own copy)": {
+			"reason_hash": "68e36b1ac0a34432",
+			"reason_length": 739
+		},
+		"docs-archive.yml::changes::Setup Node": {
+			"reason_hash": "522d060c491d92cf",
+			"reason_length": 146
+		},
+		"docs-archive.yml::docs-archive::Check doc links": {
+			"reason_hash": "5a8250d5a7a47038",
+			"reason_length": 384
+		},
+		"docs-archive.yml::docs-archive::Check prune inventory freshness (--check)": {
+			"reason_hash": "39bb902b859a8306",
+			"reason_length": 955
+		},
+		"docs-archive.yml::docs-archive::Checkout": {
+			"reason_hash": "4faefa728edc3c6e",
+			"reason_length": 152
+		},
+		"docs-archive.yml::docs-archive::Install (frozen lockfile, no scripts)": {
+			"reason_hash": "22ecedae55037013",
+			"reason_length": 201
+		},
+		"docs-archive.yml::docs-archive::Install pnpm": {
+			"reason_hash": "64c05d55ceeaa3d7",
+			"reason_length": 177
+		},
+		"docs-archive.yml::docs-archive::Run doc-links guard fixture tests": {
+			"reason_hash": "4b3ce70213ed7527",
+			"reason_length": 318
+		},
+		"docs-archive.yml::docs-archive::Setup Node": {
+			"reason_hash": "522d060c491d92cf",
+			"reason_length": 146
+		},
+		"docs-archive.yml::gate::Check required jobs": {
+			"reason_hash": "6f711c83afb99da8",
+			"reason_length": 1081
+		},
+		"docs-archive.yml::gate::Verify the required-jobs check truly succeeded (continue-on-error cannot mask this)": {
+			"reason_hash": "270aa0820881ca9d",
+			"reason_length": 504
+		},
+		"front-ci.yml::changes::Check whether front-ci paths changed": {
+			"reason_hash": "eab3aa0aa7a8d3e8",
+			"reason_length": 2505
+		},
+		"front-ci.yml::changes::Checkout classifier from the base commit (not the PR's own copy)": {
+			"reason_hash": "68e36b1ac0a34432",
+			"reason_length": 739
+		},
+		"front-ci.yml::changes::Setup Node": {
+			"reason_hash": "522d060c491d92cf",
+			"reason_length": 146
+		},
+		"front-ci.yml::gate-selftest::Checkout": {
+			"reason_hash": "07b88f9bd968f6ed",
+			"reason_length": 196
+		},
+		"front-ci.yml::gate-selftest::Install (frozen lockfile, no scripts)": {
+			"reason_hash": "f2ea77b9b0038101",
+			"reason_length": 146
+		},
+		"front-ci.yml::gate-selftest::Install pnpm": {
+			"reason_hash": "62f39d69b79dbbc2",
+			"reason_length": 122
+		},
+		"front-ci.yml::gate-selftest::Run CI gate guard tests (mirrors `just ci-drift`)": {
+			"reason_hash": "84382a71d89940dd",
+			"reason_length": 2856
+		},
+		"front-ci.yml::gate-selftest::Run project closure adapter tests": {
+			"reason_hash": "56ac24350b0baf1a",
+			"reason_length": 200
+		},
+		"front-ci.yml::gate-selftest::Setup Node": {
+			"reason_hash": "228fe45b2adde632",
+			"reason_length": 77
+		},
+		"front-ci.yml::gate::Check required jobs": {
+			"reason_hash": "6f711c83afb99da8",
+			"reason_length": 1081
+		},
+		"front-ci.yml::gate::Checkout": {
+			"reason_hash": "ea5de802351f9cb7",
+			"reason_length": 319
+		},
+		"front-ci.yml::gate::Install (frozen lockfile, no scripts)": {
+			"reason_hash": "3097a5bd54649f03",
+			"reason_length": 133
+		},
+		"front-ci.yml::gate::Install pnpm": {
+			"reason_hash": "3fdfe2e6b7081848",
+			"reason_length": 175
+		},
+		"front-ci.yml::gate::Setup Node": {
+			"reason_hash": "131c7d40eeca4cb4",
+			"reason_length": 128
+		},
+		"front-ci.yml::gate::Verify the aggregate-gate job graph from inside the required job itself": {
+			"reason_hash": "a35b7da4880977c1",
+			"reason_length": 532
+		},
+		"front-ci.yml::gate::Verify the required-jobs check truly succeeded (continue-on-error cannot mask this)": {
+			"reason_hash": "270aa0820881ca9d",
+			"reason_length": 504
+		},
+		"front-ci.yml::supply-chain::Audit production dependencies (moderate and above)": {
+			"reason_hash": "a28ee8468a4fec6f",
+			"reason_length": 246
+		},
+		"front-ci.yml::supply-chain::Assert exact pins": {
+			"reason_hash": "23640fc62c5d63d6",
+			"reason_length": 88
+		},
+		"front-ci.yml::supply-chain::Build front": {
+			"reason_hash": "0274617a256af805",
+			"reason_length": 54
+		},
+		"front-ci.yml::supply-chain::Check front React Compiler artifacts": {
+			"reason_hash": "ad9f03648bf0dfc2",
+			"reason_length": 99
+		},
+		"front-ci.yml::supply-chain::Check front design system": {
+			"reason_hash": "01a0a839676c7503",
+			"reason_length": 68
+		},
+		"front-ci.yml::supply-chain::Check front formatting": {
+			"reason_hash": "6964f94cd7bace93",
+			"reason_length": 102
+		},
+		"front-ci.yml::supply-chain::Checkout": {
+			"reason_hash": "c80eb5bfb322fab4",
+			"reason_length": 102
+		},
+		"front-ci.yml::supply-chain::Install (frozen lockfile, no scripts)": {
+			"reason_hash": "663389920e93e4f6",
+			"reason_length": 78
+		},
+		"front-ci.yml::supply-chain::Install pnpm": {
+			"reason_hash": "1fd22cde3ad0647d",
+			"reason_length": 114
+		},
+		"front-ci.yml::supply-chain::Lint front": {
+			"reason_hash": "d3e6b9d007168353",
+			"reason_length": 182
+		},
+		"front-ci.yml::supply-chain::Run trusted first-party postinstall (@org/shared-ts)": {
+			"reason_hash": "11f4c937ecc6b38a",
+			"reason_length": 75
+		},
+		"front-ci.yml::supply-chain::Setup Node": {
+			"reason_hash": "305da4753c978917",
+			"reason_length": 100
+		},
+		"front-ci.yml::supply-chain::Smoke start front server and verify stylesheet tag": {
+			"reason_hash": "29e8110f0da3bfab",
+			"reason_length": 624
+		},
+		"front-ci.yml::supply-chain::Test front": {
+			"reason_hash": "367a0e99f268dd05",
+			"reason_length": 53
+		},
+		"front-ci.yml::supply-chain::Verify paired red proofs": {
+			"reason_hash": "60a54c847e815705",
+			"reason_length": 713
+		},
+		"front-ci.yml::supply-chain::Typecheck front": {
+			"reason_hash": "6ef1f2667344074b",
+			"reason_length": 58
+		},
+		"front-ci.yml::supply-chain::Verify front production build emits a CSS asset": {
+			"reason_hash": "9e935ee850ff3f34",
+			"reason_length": 124
+		},
+		"front-ci.yml::supply-chain::Verify front production font bundle references and unicode coverage": {
+			"reason_hash": "487cb5388bdce2cf",
+			"reason_length": 383
+		},
+		"front-e2e.yml::build::Build stack images": {
+			"reason_hash": "eb77e1d7609dd410",
+			"reason_length": 492
+		},
+		"front-e2e.yml::build::Checkout": {
+			"reason_hash": "c80eb5bfb322fab4",
+			"reason_length": 102
+		},
+		"front-e2e.yml::build::Detect fork pull request": {
+			"reason_hash": "2ffe0c83cc3ae2a3",
+			"reason_length": 202
+		},
+		"front-e2e.yml::build::Login to GHCR": {
+			"reason_hash": "55b1930aa190fa56",
+			"reason_length": 270
+		},
+		"front-e2e.yml::build::Push stack images to GHCR (same-repo runs only)": {
+			"reason_hash": "6008f52f153f1056",
+			"reason_length": 273
+		},
+		"front-e2e.yml::build::Resolve lowercase e2e image namespace": {
+			"reason_hash": "8f96f0363d5c1ea5",
+			"reason_length": 323
+		},
+		"front-e2e.yml::build::Save stack images tarball (fork runs)": {
+			"reason_hash": "c138fe542e1c54de",
+			"reason_length": 216
+		},
+		"front-e2e.yml::build::Set image tag": {
+			"reason_hash": "c034c12655c44c56",
+			"reason_length": 126
+		},
+		"front-e2e.yml::build::Setup Docker Buildx": {
+			"reason_hash": "2c0beee5968fc26c",
+			"reason_length": 122
+		},
+		"front-e2e.yml::build::Setup GitHub Actions runtime": {
+			"reason_hash": "a224d047894a40d8",
+			"reason_length": 101
+		},
+		"front-e2e.yml::build::Upload stack images artifact (fork runs)": {
+			"reason_hash": "7a5ace97ee3223d8",
+			"reason_length": 283
+		},
+		"front-e2e.yml::changes::Check whether front-e2e paths changed": {
+			"reason_hash": "690f348998abd4d6",
+			"reason_length": 915
+		},
+		"front-e2e.yml::changes::Checkout classifier from the base commit (not the PR's own copy)": {
+			"reason_hash": "68e36b1ac0a34432",
+			"reason_length": 739
+		},
+		"front-e2e.yml::changes::Setup Node": {
+			"reason_hash": "522d060c491d92cf",
+			"reason_length": 146
+		},
+		"front-e2e.yml::cleanup::Checkout": {
+			"reason_hash": "38a8d9128a37f199",
+			"reason_length": 467
+		},
+		"front-e2e.yml::cleanup::Delete run image versions": {
+			"reason_hash": "d356755e5e0221d0",
+			"reason_length": 726
+		},
+		"front-e2e.yml::cleanup::Install pnpm": {
+			"reason_hash": "1a6eed60824884a6",
+			"reason_length": 304
+		},
+		"front-e2e.yml::cleanup::Setup Node": {
+			"reason_hash": "42946681a7f61a41",
+			"reason_length": 350
+		},
+		"front-e2e.yml::gate::Check required jobs": {
+			"reason_hash": "6f711c83afb99da8",
+			"reason_length": 1081
+		},
+		"front-e2e.yml::gate::Verify the required-jobs check truly succeeded (continue-on-error cannot mask this)": {
+			"reason_hash": "270aa0820881ca9d",
+			"reason_length": 504
+		},
+		"front-e2e.yml::test::Assert exact pins": {
+			"reason_hash": "6cb9e97134a9d8da",
+			"reason_length": 79
+		},
+		"front-e2e.yml::test::Cache Playwright browsers": {
+			"reason_hash": "b5a6c9a7abe634b0",
+			"reason_length": 114
+		},
+		"front-e2e.yml::test::Checkout": {
+			"reason_hash": "c80eb5bfb322fab4",
+			"reason_length": 102
+		},
+		"front-e2e.yml::test::Detect partial re-run before pull": {
+			"reason_hash": "7a50432f37c02c9e",
+			"reason_length": 635
+		},
+		"front-e2e.yml::test::Import stack images into the local daemon (fork runs)": {
+			"reason_hash": "e5e8f8fc24c39192",
+			"reason_length": 252
+		},
+		"front-e2e.yml::test::Install dependencies": {
+			"reason_hash": "663389920e93e4f6",
+			"reason_length": 78
+		},
+		"front-e2e.yml::test::Install pnpm": {
+			"reason_hash": "1fd22cde3ad0647d",
+			"reason_length": 114
+		},
+		"front-e2e.yml::test::Load stack images from artifact (fork runs)": {
+			"reason_hash": "202dd5b31350dd24",
+			"reason_length": 206
+		},
+		"front-e2e.yml::test::Login to GHCR": {
+			"reason_hash": "320a29bcc745ff91",
+			"reason_length": 265
+		},
+		"front-e2e.yml::test::Pull stack": {
+			"reason_hash": "2286fdca91ace64f",
+			"reason_length": 347
+		},
+		"front-e2e.yml::test::Run playwright browser tests": {
+			"reason_hash": "33ffbef19956a095",
+			"reason_length": 802
+		},
+		"front-e2e.yml::test::Setup Node": {
+			"reason_hash": "305da4753c978917",
+			"reason_length": 100
+		},
+		"front-e2e.yml::test::Tear down front stack": {
+			"reason_hash": "89c39c4dc9b4de86",
+			"reason_length": 404
+		},
+		"front-e2e.yml::test::Up stack": {
+			"reason_hash": "198a5341459ee82a",
+			"reason_length": 163
+		},
+		"front-e2e.yml::test::Upload playwright report": {
+			"reason_hash": "811b438ae906241b",
+			"reason_length": 200
+		},
+		"front-e2e.yml::test::Wait for front stack health": {
+			"reason_hash": "65dc4bb6d9ca0a53",
+			"reason_length": 530
+		},
+		"openapi-spec-drift.yml::changes::Check whether openapi-spec-drift paths changed": {
+			"reason_hash": "690f348998abd4d6",
+			"reason_length": 915
+		},
+		"openapi-spec-drift.yml::changes::Checkout classifier from the base commit (not the PR's own copy)": {
+			"reason_hash": "68e36b1ac0a34432",
+			"reason_length": 739
+		},
+		"openapi-spec-drift.yml::changes::Setup Node": {
+			"reason_hash": "522d060c491d92cf",
+			"reason_length": 146
+		},
+		"openapi-spec-drift.yml::gate::Check required jobs": {
+			"reason_hash": "6f711c83afb99da8",
+			"reason_length": 1081
+		},
+		"openapi-spec-drift.yml::gate::Verify the required-jobs check truly succeeded (continue-on-error cannot mask this)": {
+			"reason_hash": "270aa0820881ca9d",
+			"reason_length": 504
+		},
+		"openapi-spec-drift.yml::spec-drift::Build API (regenerates openapi.json)": {
+			"reason_hash": "9c46ea70b75021a0",
+			"reason_length": 53
+		},
+		"openapi-spec-drift.yml::spec-drift::Fail if client drifted": {
+			"reason_hash": "3b4ce53e0a1b60f7",
+			"reason_length": 228
+		},
+		"openapi-spec-drift.yml::spec-drift::Fail if openapi.json drifted": {
+			"reason_hash": "91023d57b1fbc4ca",
+			"reason_length": 274
+		},
+		"openapi-spec-drift.yml::spec-drift::Install workspace dependencies": {
+			"reason_hash": "e42faa2929ccb37c",
+			"reason_length": 284
+		},
+		"openapi-spec-drift.yml::spec-drift::Materialize .env.development from template (CI has no gitignored env file)": {
+			"reason_hash": "876b7d9fb01ef928",
+			"reason_length": 447
+		},
+		"openapi-spec-drift.yml::spec-drift::Regenerate TypeScript client": {
+			"reason_hash": "1ece270d230bc5b5",
+			"reason_length": 54
+		},
+		"openapi-spec-drift.yml::spec-drift::Restore .NET tools (kiota, dotnet-ef)": {
+			"reason_hash": "aaf6387351aa1665",
+			"reason_length": 69
+		},
+		"openapi-spec-drift.yml::spec-drift::Run OpenAPI contract spec": {
+			"reason_hash": "1dcd34a7cd962e60",
+			"reason_length": 189
+		},
+		"openapi-spec-drift.yml::spec-drift::Set up .NET (pinned for CI determinism)": {
+			"reason_hash": "4c92a505a7d6b469",
+			"reason_length": 155
+		},
+		"openapi-spec-drift.yml::spec-drift::Set up Node": {
+			"reason_hash": "305da4753c978917",
+			"reason_length": 100
+		},
+		"openapi-spec-drift.yml::spec-drift::Set up just": {
+			"reason_hash": "997bb69cf1357de0",
+			"reason_length": 138
+		},
+		"openapi-spec-drift.yml::spec-drift::Set up pnpm": {
+			"reason_hash": "1fd22cde3ad0647d",
+			"reason_length": 114
+		},
+		"openapi-spec-drift.yml::spec-drift::uses:actions/checkout": {
+			"reason_hash": "c80eb5bfb322fab4",
+			"reason_length": 102
+		},
+		"quality-gate.yml::changes::Check whether quality-gate paths changed": {
+			"reason_hash": "357c6f67b627b215",
+			"reason_length": 982
+		},
+		"quality-gate.yml::changes::Checkout classifier from the base commit (not the PR's own copy)": {
+			"reason_hash": "68e36b1ac0a34432",
+			"reason_length": 739
+		},
+		"quality-gate.yml::changes::Setup Node": {
+			"reason_hash": "522d060c491d92cf",
+			"reason_length": 146
+		},
+		"quality-gate.yml::gate::Check required jobs": {
+			"reason_hash": "6f711c83afb99da8",
+			"reason_length": 1081
+		},
+		"quality-gate.yml::gate::Verify the required-jobs check truly succeeded (continue-on-error cannot mask this)": {
+			"reason_hash": "270aa0820881ca9d",
+			"reason_length": 504
+		},
+		"quality-gate.yml::quality::Assert exact pins": {
+			"reason_hash": "23640fc62c5d63d6",
+			"reason_length": 88
+		},
+		"quality-gate.yml::quality::Audit development dependencies (moderate and above)": {
+			"reason_hash": "01df57e4a1a2b377",
+			"reason_length": 501
+		},
+		"quality-gate.yml::quality::Bind pinned action SHAs to their version comments (#1392)": {
+			"reason_hash": "0ec591b68c82fd5b",
+			"reason_length": 389
+		},
+		"quality-gate.yml::quality::Build .NET solution (warnings as errors via Directory.Build.props)": {
+			"reason_hash": "fa3bbfa576e1dc0c",
+			"reason_length": 251
+		},
+		"quality-gate.yml::quality::Check formatting (oxfmt --check)": {
+			"reason_hash": "6b89e3c033cf0ebc",
+			"reason_length": 101
+		},
+		"quality-gate.yml::quality::Checkout": {
+			"reason_hash": "c80eb5bfb322fab4",
+			"reason_length": 102
+		},
+		"quality-gate.yml::quality::Install (frozen lockfile, no scripts)": {
+			"reason_hash": "663389920e93e4f6",
+			"reason_length": 78
+		},
+		"quality-gate.yml::quality::Install pnpm": {
+			"reason_hash": "1fd22cde3ad0647d",
+			"reason_length": 114
+		},
+		"quality-gate.yml::quality::Knip (unused exports & dependencies)": {
+			"reason_hash": "26699c77a749d567",
+			"reason_length": 157
+		},
+		"quality-gate.yml::quality::Lint (oxlint repo-wide)": {
+			"reason_hash": "c46cf606794d7a9a",
+			"reason_length": 139
+		},
+		"quality-gate.yml::quality::Lint plugin unit tests (lint-ts)": {
+			"reason_hash": "475a7e0913322026",
+			"reason_length": 148
+		},
+		"quality-gate.yml::quality::Materialize .env.development from template (CI has no gitignored env file)": {
+			"reason_hash": "16f19492a57762c6",
+			"reason_length": 444
+		},
+		"quality-gate.yml::quality::Restore .NET solution (PublyApp.slnx)": {
+			"reason_hash": "e3835e6215b51bfc",
+			"reason_length": 153
+		},
+		"quality-gate.yml::quality::Run NuGet audit fixture tests": {
+			"reason_hash": "35505f27a286461a",
+			"reason_length": 306
+		},
+		"quality-gate.yml::quality::Run analyzer tests": {
+			"reason_hash": "c5bc4cb7dcf41fbb",
+			"reason_length": 159
+		},
+		"quality-gate.yml::quality::Run dependency-health pin-location contract test": {
+			"reason_hash": "89e3000e5cdc3998",
+			"reason_length": 300
+		},
+		"quality-gate.yml::quality::Run trusted first-party postinstall (@org/shared-ts)": {
+			"reason_hash": "11f4c937ecc6b38a",
+			"reason_length": 75
+		},
+		"quality-gate.yml::quality::Scan .NET packages for known vulnerabilities": {
+			"reason_hash": "8cb5e597d26d0f9a",
+			"reason_length": 287
+		},
+		"quality-gate.yml::quality::Setup .NET (pinned for CI determinism)": {
+			"reason_hash": "4c92a505a7d6b469",
+			"reason_length": 155
+		},
+		"quality-gate.yml::quality::Setup Node": {
+			"reason_hash": "305da4753c978917",
+			"reason_length": 100
+		},
+		"quality-gate.yml::quality::Setup just": {
+			"reason_hash": "997bb69cf1357de0",
+			"reason_length": 138
+		},
+		"quality-gate.yml::quality::Test shared-ts": {
+			"reason_hash": "f1e453ba1ed83492",
+			"reason_length": 109
+		},
+		"quality-gate.yml::quality::Typecheck shared-ts": {
+			"reason_hash": "e8cabaa49080c354",
+			"reason_length": 106
+		},
+		"quality-gate.yml::quality::Verify complexity bounds are not drifting (#1661)": {
+			"reason_hash": "1cbb6db7d59ba3f0",
+			"reason_length": 384
+		},
+		"react-doctor.yml::changes::Check whether react-doctor paths changed": {
+			"reason_hash": "e145f4ee0e9639dd",
+			"reason_length": 437
+		},
+		"react-doctor.yml::changes::Checkout classifier from the base commit (not the PR's own copy)": {
+			"reason_hash": "23860a70e2f272a7",
+			"reason_length": 187
+		},
+		"react-doctor.yml::changes::Setup Node": {
+			"reason_hash": "b893636bc2ead2c1",
+			"reason_length": 102
+		},
+		"react-doctor.yml::gate::Check required jobs": {
+			"reason_hash": "a856ee8dc1cee2de",
+			"reason_length": 193
+		},
+		"react-doctor.yml::gate::Verify the required-jobs check truly succeeded (continue-on-error cannot mask this)": {
+			"reason_hash": "887f0f56bdb7589f",
+			"reason_length": 173
+		},
+		"react-doctor.yml::react-doctor::Assert diff base is present": {
+			"reason_hash": "d9547249c2faaa52",
+			"reason_length": 629
+		},
+		"react-doctor.yml::react-doctor::Checkout PR head (full history for diff)": {
+			"reason_hash": "67c7a6d1ffe0de50",
+			"reason_length": 128
+		},
+		"react-doctor.yml::react-doctor::Install (frozen lockfile)": {
+			"reason_hash": "23f5116ff13d8b64",
+			"reason_length": 204
+		},
+		"react-doctor.yml::react-doctor::Install pnpm": {
+			"reason_hash": "ccc5ecfe3b14822f",
+			"reason_length": 107
+		},
+		"react-doctor.yml::react-doctor::React Doctor -- changed files, blocking on warnings": {
+			"reason_hash": "e4e70e69b18211af",
+			"reason_length": 274
+		},
+		"react-doctor.yml::react-doctor::Resolve diff base": {
+			"reason_hash": "545489e22b927617",
+			"reason_length": 358
+		},
+		"react-doctor.yml::react-doctor::Setup Node": {
+			"reason_hash": "c741d8e30523ae13",
+			"reason_length": 85
+		},
+		"require-linked-issue.yml::require-linked-issue::Verify the PR closes an existing issue": {
+			"reason_hash": "9f671866bb224574",
+			"reason_length": 541
+		},
+		"quality-gate.yml::quality::Typecheck lint-ts": {
+			"reason_hash": "272f664f02dedc3c",
+			"reason_length": 289
+		}
+	}
+}

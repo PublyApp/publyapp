@@ -198,6 +198,24 @@ always returns green.
 
 Do not bump the hash without doing step 1. The hash is only meaningful if someone looked.
 
+### Reason guard
+
+Each manifest entry carries a `reason` — a human-readable explanation of how (or why) the
+local gate mirrors that CI step. The reason guard pins a SHA-256 fingerprint and character
+count for every reason in `packages/scripts-ts/src/reason-guard-ref.json`.
+
+It fires when a reason **shrinks** or otherwise **changes** while the step's own hash is
+unchanged — that's the window where a reason gets silently truncated during a manifest re-serialization,
+or quietly weakened, without touching the step itself. A deliberate reason rewrite is still
+possible: regenerate the reference with the same `reason` in the same commit:
+
+```bash
+node packages/scripts-ts/src/gen-reason-ref.ts
+```
+
+If the new reason makes the guard pass, the regen command proves the rewrite is intentional
+(not an accidental truncation). The command is cited in the guard's failure message too.
+
 ## Known gaps
 
 Recorded here rather than hidden, so they can be judged:

@@ -8,7 +8,7 @@ import { fileURLToPath } from 'node:url';
 import { test } from 'vitest';
 import { parse } from 'yaml';
 
-import { findCiDrift } from './check-ci-drift.ts';
+import { findCiDrift, hashReason } from './check-ci-drift.ts';
 
 // These tests are the standing proof that the drift guard actually fires.
 // Every failure mode it claims to catch gets exercised against a throwaway
@@ -19,8 +19,7 @@ const repoRoot = path.resolve(
 	'../../..',
 );
 
-// @ts-expect-error rung-0: add proper type in later rung
-const workflow = (steps) =>
+const workflow = (steps: string) =>
 	`name: fixture\non:\n  pull_request:\njobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n${steps}`;
 
 const mirroredStep = '      - name: Run tests\n        run: pnpm test\n';
@@ -30,8 +29,13 @@ const reason = 'Mirrored locally by the fixture gate for testing purposes.';
 /**
  * Builds a throwaway repo with one workflow and one manifest.
  */
-// @ts-expect-error rung-0: add proper type in later rung
-const buildFixture = async ({ manifestSteps, steps }) => {
+const buildFixture = async ({
+	manifestSteps,
+	steps,
+}: {
+	manifestSteps: Record<string, unknown>;
+	steps: string;
+}): Promise<string> => {
 	const rootDir = await mkdtemp(path.join(os.tmpdir(), 'publyapp-ci-drift-'));
 
 	await mkdir(path.join(rootDir, '.github/workflows'), { recursive: true });
@@ -67,8 +71,7 @@ const computeReconciledHash = async () => {
 
 	const [finding] = await findCiDrift({ rootDir });
 
-	// @ts-expect-error rung-0: TS2531
-	return finding.match(/workflow ([a-f0-9]+)/)[1];
+	return finding!.match(/workflow ([a-f0-9]+)/)![1];
 };
 
 const reconciledHash = await computeReconciledHash();
@@ -79,7 +82,7 @@ const reconciled = {
 		mirror: 'just ci',
 		reason,
 	},
-};
+} as const;
 
 test('passes when every workflow step is reconciled', async () => {
 	const rootDir = await buildFixture({
@@ -226,24 +229,25 @@ const ciDriftRecipe = readFileSync(
 	'utf8',
 ).match(/^ci-drift:\n([\s\S]*?)(?=^\S|(?![\s\S]))/m)?.[1];
 
-const gateSelftestRunBlock = parse(
-	readFileSync(path.join(repoRoot, '.github/workflows/front-ci.yml'), 'utf8'),
-).jobs['gate-selftest']?.steps.find(
-	// @ts-expect-error rung-0: add proper type in later rung
+const gateSelftestRunBlock = (
+	parse(
+		readFileSync(path.join(repoRoot, '.github/workflows/front-ci.yml'), 'utf8'),
+	) as {
+		jobs?: Record<string, { steps?: Array<{ name?: string; run?: string }> }>;
+	}
+).jobs?.['gate-selftest']?.steps?.find(
 	(step) => step.name === 'Run CI gate guard tests (mirrors `just ci-drift`)',
 )?.run;
 
-// @ts-expect-error rung-0: add proper type in later rung
-const executableLines = (block) =>
+const executableLines = (block: string | undefined) =>
 	block
-		.split('\n')
-		// @ts-expect-error rung-0: add proper type in later rung
-		.map((line) => line.trim())
-		// @ts-expect-error rung-0: add proper type in later rung
-		.filter((line) => line !== '' && !line.startsWith('#'));
+		? block
+				.split('\n')
+				.map((line) => line.trim())
+				.filter((line) => line !== '' && !line.startsWith('#'))
+		: [];
 
-// @ts-expect-error rung-0: add proper type in later rung
-const assertRunsCodeownersContract = (block, where) => {
+const assertRunsCodeownersContract = (block: string, where: string) => {
 	assert.ok(
 		executableLines(block).includes(codeownersInvocation),
 		`${where} must run the CODEOWNERS contract from an executable line: \`${codeownersInvocation}\``,
@@ -260,7 +264,7 @@ test('a commented-out ci-drift invocation fails this independent wiring check', 
 	assert.throws(
 		() =>
 			assertRunsCodeownersContract(
-				ciDriftRecipe.replace(
+				ciDriftRecipe!.replace(
 					codeownersInvocation,
 					`# ${codeownersInvocation}`,
 				),
@@ -275,7 +279,7 @@ test('the gate-selftest server mirror runs the CODEOWNERS contract', () => {
 		typeof gateSelftestRunBlock === 'string',
 		'front-ci.yml must define the gate-selftest run step that mirrors `just ci-drift`',
 	);
-	assertRunsCodeownersContract(gateSelftestRunBlock, 'gate-selftest');
+	assertRunsCodeownersContract(gateSelftestRunBlock!, 'gate-selftest');
 });
 
 test('a commented-out gate-selftest invocation fails this independent wiring check', () => {
@@ -286,7 +290,7 @@ test('a commented-out gate-selftest invocation fails this independent wiring che
 	assert.throws(
 		() =>
 			assertRunsCodeownersContract(
-				gateSelftestRunBlock.replace(
+				gateSelftestRunBlock!.replace(
 					codeownersInvocation,
 					`# ${codeownersInvocation}`,
 				),
@@ -294,4 +298,129 @@ test('a commented-out gate-selftest invocation fails this independent wiring che
 			),
 		/gate-selftest must run the CODEOWNERS contract from an executable line/,
 	);
+});
+
+// --- Reason guard tests (#1725) ---
+
+// The reason guard detects truncation/alteration of a reason while the step
+// hash is unchanged. A deliberate rewrite is possible by updating
+// reason-guard-ref.json in the same commit.
+
+// Build a fixture reference that pins the original reason so the guard can
+// detect changes. In production, reason-guard-ref.json is the source of truth;
+// here we inject a test-only reference so the tests don't depend on the real one.
+const buildFixtureReasonRef = (originalReason: string) => ({
+	steps: {
+		'fixture.yml::build::Run tests': {
+			reason_hash: hashReason(originalReason),
+			reason_length: originalReason.length,
+		},
+	},
+});
+
+test('reason guard: passes when the reason is unchanged', async () => {
+	const rootDir = await buildFixture({
+		manifestSteps: reconciled,
+		steps: mirroredStep,
+	});
+
+	assert.deepEqual(
+		await findCiDrift({
+			rootDir,
+			reasonRef: buildFixtureReasonRef(
+				reconciled['fixture.yml::build::Run tests'].reason,
+			),
+		}),
+		[],
+	);
+});
+
+test('reason guard: fails when a reason SHRINK while step hash is unchanged', async () => {
+	const originalReason = reconciled['fixture.yml::build::Run tests'].reason;
+	const shrunkReason = originalReason.slice(0, 50);
+
+	const rootDir = await buildFixture({
+		manifestSteps: {
+			'fixture.yml::build::Run tests': {
+				hash: reconciledHash,
+				mirror: 'just ci',
+				reason: shrunkReason,
+			},
+		},
+		steps: mirroredStep,
+	});
+
+	const findings = await findCiDrift({
+		rootDir,
+		reasonRef: buildFixtureReasonRef(originalReason),
+	});
+
+	assert.equal(findings.length, 1);
+	assert.match(findings[0], /reason SHRINK/);
+	assert.match(findings[0], /from .* to 50 characters/);
+});
+
+test('reason guard: fails when a reason CHANGES while step hash is unchanged', async () => {
+	const originalReason = reconciled['fixture.yml::build::Run tests'].reason;
+	const changedReason =
+		'This is a completely different reason text that is longer than the original one for sure.';
+
+	const rootDir = await buildFixture({
+		manifestSteps: {
+			'fixture.yml::build::Run tests': {
+				hash: reconciledHash,
+				mirror: 'just ci',
+				reason: changedReason,
+			},
+		},
+		steps: mirroredStep,
+	});
+
+	const findings = await findCiDrift({
+		rootDir,
+		reasonRef: buildFixtureReasonRef(originalReason),
+	});
+
+	assert.equal(findings.length, 1);
+	assert.match(findings[0], /reason CHANGED/);
+});
+
+test('reason guard: does not fire when step hash also changes', async () => {
+	// When the step hash changes, the CHANGED finding is already reported.
+	// The reason guard should not add a duplicate finding for the same step.
+	const originalReason = reconciled['fixture.yml::build::Run tests'].reason;
+	const changedReason =
+		'This is a completely different reason text that is longer than the original one for sure.';
+
+	const rootDir = await buildFixture({
+		manifestSteps: {
+			'fixture.yml::build::Run tests': {
+				hash: reconciledHash, // Same hash as workflow
+				mirror: 'just ci',
+				reason: changedReason,
+			},
+		},
+		steps: '      - name: Run tests\n        run: pnpm test --coverage\n', // Different command
+	});
+
+	const findings = await findCiDrift({
+		rootDir,
+		reasonRef: buildFixtureReasonRef(originalReason),
+	});
+
+	// Should have exactly one finding: CHANGED for the step command
+	assert.equal(findings.length, 1);
+	assert.match(findings[0], /^CHANGED {3}fixture\.yml::build::Run tests/);
+});
+
+test('reason guard: distinct reasons produce distinct fingerprints', () => {
+	// Two semantically different reasons must never collide under the hash,
+	// even if they differ by a single character. This proves the guard does
+	// not collapse distinct content into the same fingerprint.
+	const reasonA = 'The step mirrors the local just ci recipe exactly as-is.';
+	const reasonB = 'The step mirrors the local just ci recipe exacty as-is.';
+	//   ^^^ differs only by one character ('ly' dropped)
+
+	assert.notEqual(hashReason(reasonA), hashReason(reasonB));
+	assert.notEqual(reasonA.length, reasonB.length);
 });
