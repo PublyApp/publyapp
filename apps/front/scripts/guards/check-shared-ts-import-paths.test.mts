@@ -22,6 +22,7 @@
  * the AST and cannot silently fall back to line-by-line text scanning.
  */
 import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
 import { cpSync, mkdtempSync, rmSync, writeFileSync, mkdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -32,11 +33,17 @@ import {
 	scanFrontSrcForSharedTsReExports,
 	scanSharedTsSrcForSharedTsReExports,
 	scanTreeForSharedTsReExports,
+	SHARED_TS_SEGMENTS,
+	deriveSharedTsSegments,
+	formatFinding,
 } from './check-shared-ts-import-paths.mts';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const realFrontSrc = path.resolve(here, '../../src');
-const realSharedTsSrc = path.resolve(here, '../../../../packages/shared-ts/src');
+const realSharedTsSrc = path.resolve(
+	here,
+	'../../../../packages/shared-ts/src',
+);
 
 const SHIM_SPECIFIER = '@org/shared-ts/lib/should-logout-for-failure';
 const SHIM_BODY = `// Re-export shim recreating the R1 violation (#1533).
@@ -93,35 +100,68 @@ const makeSandbox = (): string => {
 test('RED: a front-side re-export of a shared-ts module is detected', () => {
 	const root = makeSandbox();
 	// Recreate the R1 shim exactly where it lived.
-	writeFileSync(path.join(root, 'front-src/lib/should-logout-for-failure.ts'), SHIM_BODY);
+	writeFileSync(
+		path.join(root, 'front-src/lib/should-logout-for-failure.ts'),
+		SHIM_BODY,
+	);
 
-	const findings = scanFrontSrcForSharedTsReExports(path.join(root, 'front-src'));
+	const findings = scanFrontSrcForSharedTsReExports(
+		path.join(root, 'front-src'),
+	);
 	assert.ok(findings.length >= 1, 'expected the shim re-export to be found');
 	const hit = findings.find(
 		(f) => f.file === 'apps/front/src/lib/should-logout-for-failure.ts',
 	);
-	assert.ok(hit, `expected a finding in lib/should-logout-for-failure.ts, got ${JSON.stringify(findings)}`);
-	assert.ok(hit.text.includes(SHIM_SPECIFIER), `finding text should name the shared-ts module: ${hit.text}`);
+	assert.ok(
+		hit,
+		`expected a finding in lib/should-logout-for-failure.ts, got ${JSON.stringify(findings)}`,
+	);
+	assert.equal(
+		hit.type,
+		'DUAL_PATH',
+		`shim re-export must be DUAL_PATH (#1678 R5)`,
+	);
+	assert.ok(
+		formatFinding(hit).includes(SHIM_SPECIFIER),
+		`finding text should name the shared-ts module: ${formatFinding(hit)}`,
+	);
 });
 
 test('RED: a named (non-barrel) front-side re-export of a shared-ts module is detected', () => {
 	// Adversarial form: a single-symbol re-export in a helpers barrel, the thing
 	// a developer adds without realising it opens a second path.
 	const root = makeSandbox();
-	writeFileSync(path.join(root, 'front-src/lib/should-logout.ts'), NAMED_SHIM_BODY);
+	writeFileSync(
+		path.join(root, 'front-src/lib/should-logout.ts'),
+		NAMED_SHIM_BODY,
+	);
 
-	const findings = scanFrontSrcForSharedTsReExports(path.join(root, 'front-src'));
-	const hit = findings.find((f) => f.file === 'apps/front/src/lib/should-logout.ts');
-	assert.ok(hit, `expected a finding in lib/should-logout.ts, got ${JSON.stringify(findings)}`);
+	const findings = scanFrontSrcForSharedTsReExports(
+		path.join(root, 'front-src'),
+	);
+	const hit = findings.find(
+		(f) => f.file === 'apps/front/src/lib/should-logout.ts',
+	);
 	assert.ok(
-		hit.text.includes('shouldLogoutForFailure'),
-		`finding text should name the re-exported symbol: ${hit.text}`,
+		hit,
+		`expected a finding in lib/should-logout.ts, got ${JSON.stringify(findings)}`,
+	);
+	assert.equal(
+		hit.type,
+		'DUAL_PATH',
+		`named re-export must be DUAL_PATH (#1678 R5)`,
+	);
+	assert.ok(
+		formatFinding(hit).includes('shouldLogoutForFailure'),
+		`finding text should name the re-exported symbol: ${formatFinding(hit)}`,
 	);
 });
 
 test('GREEN: without the shim, no shared-ts re-export is found', () => {
 	const root = makeSandbox();
-	const findings = scanFrontSrcForSharedTsReExports(path.join(root, 'front-src'));
+	const findings = scanFrontSrcForSharedTsReExports(
+		path.join(root, 'front-src'),
+	);
 	assert.deepEqual(
 		findings,
 		[],
@@ -133,7 +173,9 @@ test('GREEN: existing front code importing shared-ts directly is NOT flagged', (
 	const root = makeSandbox();
 	// Direct imports of shared-ts are the wanted path and must not trip the
 	// guard — verify by asserting the legitimate import sites are clean.
-	const findings = scanFrontSrcForSharedTsReExports(path.join(root, 'front-src'));
+	const findings = scanFrontSrcForSharedTsReExports(
+		path.join(root, 'front-src'),
+	);
 	assert.ok(
 		!findings.some((f) => f.file.includes('router.tsx')),
 		'router.tsx imports shared-ts directly and must not be flagged',
@@ -149,7 +191,9 @@ test('front-local re-exports are NOT flagged', () => {
 		path.join(root, 'front-src/lib/sub/barrel.ts'),
 		"export * from './thing';\n",
 	);
-	const findings = scanFrontSrcForSharedTsReExports(path.join(root, 'front-src'));
+	const findings = scanFrontSrcForSharedTsReExports(
+		path.join(root, 'front-src'),
+	);
 	assert.ok(
 		!findings.some((f) => f.file === 'apps/front/src/lib/sub/barrel.ts'),
 		'front-local re-exports must not be flagged',
@@ -160,9 +204,14 @@ test('front-local re-exports are NOT flagged', () => {
 
 test('RED: multi-line named re-export (`export {\\n foo,\\n} from ...`) is detected', () => {
 	const root = makeSandbox();
-	writeFileSync(path.join(root, 'front-src/lib/multi-line-shim.ts'), MULTILINE_NAMED_SHIM_BODY);
+	writeFileSync(
+		path.join(root, 'front-src/lib/multi-line-shim.ts'),
+		MULTILINE_NAMED_SHIM_BODY,
+	);
 
-	const findings = scanFrontSrcForSharedTsReExports(path.join(root, 'front-src'));
+	const findings = scanFrontSrcForSharedTsReExports(
+		path.join(root, 'front-src'),
+	);
 	const hit = findings.find(
 		(f) => f.file === 'apps/front/src/lib/multi-line-shim.ts',
 	);
@@ -170,9 +219,14 @@ test('RED: multi-line named re-export (`export {\\n foo,\\n} from ...`) is detec
 		hit,
 		`multi-line named re-export must be detected, got ${JSON.stringify(findings)}`,
 	);
+	assert.equal(
+		hit.type,
+		'DUAL_PATH',
+		`multi-line re-export must be DUAL_PATH (#1678 R5)`,
+	);
 	assert.ok(
-		hit.text.includes(SHIM_SPECIFIER),
-		`finding text should name the shared-ts module: ${hit.text}`,
+		formatFinding(hit).includes(SHIM_SPECIFIER),
+		`finding text should name the shared-ts module: ${formatFinding(hit)}`,
 	);
 });
 
@@ -183,11 +237,21 @@ test('RED: `export type * from "@org/shared-ts/..."` is detected', () => {
 		`export type * from '${SHIM_SPECIFIER}';\n`,
 	);
 
-	const findings = scanFrontSrcForSharedTsReExports(path.join(root, 'front-src'));
+	const findings = scanFrontSrcForSharedTsReExports(
+		path.join(root, 'front-src'),
+	);
 	const hit = findings.find(
 		(f) => f.file === 'apps/front/src/lib/type-star-shim.ts',
 	);
-	assert.ok(hit, `export type * must be detected, got ${JSON.stringify(findings)}`);
+	assert.ok(
+		hit,
+		`export type * must be detected, got ${JSON.stringify(findings)}`,
+	);
+	assert.equal(
+		hit.type,
+		'DUAL_PATH',
+		`export type * re-export must be DUAL_PATH (#1678 R5)`,
+	);
 });
 
 test('RED: `export * as ns from "@org/shared-ts/..."` is detected', () => {
@@ -197,11 +261,21 @@ test('RED: `export * as ns from "@org/shared-ts/..."` is detected', () => {
 		`export * as ns from '${SHIM_SPECIFIER}';\n`,
 	);
 
-	const findings = scanFrontSrcForSharedTsReExports(path.join(root, 'front-src'));
+	const findings = scanFrontSrcForSharedTsReExports(
+		path.join(root, 'front-src'),
+	);
 	const hit = findings.find(
 		(f) => f.file === 'apps/front/src/lib/namespace-alias-shim.ts',
 	);
-	assert.ok(hit, `export * as ns must be detected, got ${JSON.stringify(findings)}`);
+	assert.ok(
+		hit,
+		`export * as ns must be detected, got ${JSON.stringify(findings)}`,
+	);
+	assert.equal(
+		hit.type,
+		'DUAL_PATH',
+		`export * as ns re-export must be DUAL_PATH (#1678 R5)`,
+	);
 });
 
 test('GREEN: `export * from "./local"` (front-local namespace re-export) is NOT flagged', () => {
@@ -211,7 +285,9 @@ test('GREEN: `export * from "./local"` (front-local namespace re-export) is NOT 
 		`export * from './local';\n`,
 	);
 
-	const findings = scanFrontSrcForSharedTsReExports(path.join(root, 'front-src'));
+	const findings = scanFrontSrcForSharedTsReExports(
+		path.join(root, 'front-src'),
+	);
 	assert.ok(
 		!findings.some((f) => f.file === 'apps/front/src/lib/local-barrel.ts'),
 		`front-local export * must not be flagged, got ${JSON.stringify(findings)}`,
@@ -225,11 +301,21 @@ test('RED: `export type { X } from "@org/shared-ts/..."` (type-only named) is de
 		`export type { shouldLogoutForFailure } from '${SHIM_SPECIFIER}';\n`,
 	);
 
-	const findings = scanFrontSrcForSharedTsReExports(path.join(root, 'front-src'));
+	const findings = scanFrontSrcForSharedTsReExports(
+		path.join(root, 'front-src'),
+	);
 	const hit = findings.find(
 		(f) => f.file === 'apps/front/src/lib/type-only-shim.ts',
 	);
-	assert.ok(hit, `type-only named re-export must be detected, got ${JSON.stringify(findings)}`);
+	assert.ok(
+		hit,
+		`type-only named re-export must be detected, got ${JSON.stringify(findings)}`,
+	);
+	assert.equal(
+		hit.type,
+		'DUAL_PATH',
+		`type-only named re-export must be DUAL_PATH (#1678 R5)`,
+	);
 });
 
 test('GREEN: dynamic `import("@org/shared-ts/...")` is INSPECTED but NOT flagged', () => {
@@ -239,7 +325,9 @@ test('GREEN: dynamic `import("@org/shared-ts/...")` is INSPECTED but NOT flagged
 		`const mod = import('${SHIM_SPECIFIER}');\n`,
 	);
 
-	const findings = scanFrontSrcForSharedTsReExports(path.join(root, 'front-src'));
+	const findings = scanFrontSrcForSharedTsReExports(
+		path.join(root, 'front-src'),
+	);
 	assert.ok(
 		!findings.some((f) => f.file === 'apps/front/src/lib/dynamic-shim.ts'),
 		`dynamic import of a shared-ts module is a direct (wanted) import, must not be flagged, got ${JSON.stringify(findings)}`,
@@ -256,9 +344,14 @@ test('REGRESSION: guard inspects the AST, not lines — multi-line form must be 
 	// export-declaration nodes. If it reverts to per-line scanning, this test
 	// goes RED because the multi-line re-export above will not be found.
 	const root = makeSandbox();
-	writeFileSync(path.join(root, 'front-src/lib/multi-line-shim.ts'), MULTILINE_NAMED_SHIM_BODY);
+	writeFileSync(
+		path.join(root, 'front-src/lib/multi-line-shim.ts'),
+		MULTILINE_NAMED_SHIM_BODY,
+	);
 
-	const findings = scanFrontSrcForSharedTsReExports(path.join(root, 'front-src'));
+	const findings = scanFrontSrcForSharedTsReExports(
+		path.join(root, 'front-src'),
+	);
 	const hit = findings.find(
 		(f) => f.file === 'apps/front/src/lib/multi-line-shim.ts',
 	);
@@ -275,19 +368,37 @@ test('RED: a shared-ts-internal re-export of a sibling shared-ts module is detec
 	// A barrel inside the shared package that re-surfaces a sibling under a
 	// second @org/shared-ts specifier — the failure mode #1612 extends the
 	// guard to catch.
-	writeFileSync(path.join(root, 'shared-ts-src/lib/_staff-barrel.ts'), NAMED_SHIM_BODY);
+	writeFileSync(
+		path.join(root, 'shared-ts-src/lib/_staff-barrel.ts'),
+		NAMED_SHIM_BODY,
+	);
 
-	const findings = scanSharedTsSrcForSharedTsReExports(path.join(root, 'shared-ts-src'));
+	const findings = scanSharedTsSrcForSharedTsReExports(
+		path.join(root, 'shared-ts-src'),
+	);
 	const hit = findings.find(
 		(f) => f.file === 'packages/shared-ts/src/lib/_staff-barrel.ts',
 	);
-	assert.ok(hit, `expected a finding in lib/_staff-barrel.ts, got ${JSON.stringify(findings)}`);
-	assert.ok(hit.text.includes(SHIM_SPECIFIER), `finding text should name the shared-ts module: ${hit.text}`);
+	assert.ok(
+		hit,
+		`expected a finding in lib/_staff-barrel.ts, got ${JSON.stringify(findings)}`,
+	);
+	assert.equal(
+		hit.type,
+		'DUAL_PATH',
+		`shared-ts-internal re-export must be DUAL_PATH (#1678 R5)`,
+	);
+	assert.ok(
+		formatFinding(hit).includes(SHIM_SPECIFIER),
+		`finding text should name the shared-ts module: ${formatFinding(hit)}`,
+	);
 });
 
 test('GREEN: shared-ts/src with no internal re-export is clean', () => {
 	const root = makeSandbox();
-	const findings = scanSharedTsSrcForSharedTsReExports(path.join(root, 'shared-ts-src'));
+	const findings = scanSharedTsSrcForSharedTsReExports(
+		path.join(root, 'shared-ts-src'),
+	);
 	assert.deepEqual(
 		findings,
 		[],
@@ -305,16 +416,23 @@ test('GREEN: a shared-ts file re-exporting a sibling via a relative path is NOT 
 		path.join(root, 'shared-ts-src/lib/sub/barrel.ts'),
 		"export { shouldLogoutForFailure } from '../should-logout-for-failure';\n",
 	);
-	const findings = scanSharedTsSrcForSharedTsReExports(path.join(root, 'shared-ts-src'));
+	const findings = scanSharedTsSrcForSharedTsReExports(
+		path.join(root, 'shared-ts-src'),
+	);
 	assert.ok(
-		!findings.some((f) => f.file === 'packages/shared-ts/src/lib/sub/barrel.ts'),
+		!findings.some(
+			(f) => f.file === 'packages/shared-ts/src/lib/sub/barrel.ts',
+		),
 		'relative sibling re-exports inside shared-ts must not be flagged',
 	);
 });
 
 test('scanTreeForSharedTsReExports labels findings with the tree label', () => {
 	const root = makeSandbox();
-	writeFileSync(path.join(root, 'front-src/lib/should-logout.ts'), NAMED_SHIM_BODY);
+	writeFileSync(
+		path.join(root, 'front-src/lib/should-logout.ts'),
+		NAMED_SHIM_BODY,
+	);
 	const findings = scanTreeForSharedTsReExports({
 		label: 'apps/front/src',
 		root: path.join(root, 'front-src'),
@@ -323,5 +441,367 @@ test('scanTreeForSharedTsReExports labels findings with the tree label', () => {
 	assert.ok(
 		findings.every((f) => f.file.startsWith('apps/front/src/')),
 		`findings must be labelled with the tree, got ${JSON.stringify(findings.map((f) => f.file))}`,
+	);
+});
+
+// ---- #1678: every first segment that the package actually exposes must be recognised
+
+const TYPES_SPECIFIER = '@org/shared-ts/@types/foo';
+const SCRIPTS_SPECIFIER = '@org/shared-ts/scripts/generate-zod-i18n-map.mjs';
+
+test('RED: re-export of @org/shared-ts/@types/* is detected as DUAL_PATH (#1678)', () => {
+	const root = makeSandbox();
+	writeFileSync(
+		path.join(root, 'front-src/lib/types-shim.ts'),
+		`export * from '${TYPES_SPECIFIER}';\n`,
+	);
+
+	const findings = scanFrontSrcForSharedTsReExports(
+		path.join(root, 'front-src'),
+	);
+	const hit = findings.find(
+		(f) => f.file === 'apps/front/src/lib/types-shim.ts',
+	);
+	assert.ok(
+		hit,
+		`re-export of @org/shared-ts/@types/* must be detected, got ${JSON.stringify(findings)}`,
+	);
+	assert.equal(
+		hit.type,
+		'DUAL_PATH',
+		`@types re-export must be DUAL_PATH, not UNKNOWN_SEGMENT — this is the assertion that breaks when the bug fix is reverted (#1678)`,
+	);
+	assert.ok(
+		formatFinding(hit).includes(TYPES_SPECIFIER),
+		`finding text should name the @types module: ${formatFinding(hit)}`,
+	);
+});
+
+test('RED: re-export of @org/shared-ts/scripts/* is detected as DUAL_PATH (#1678)', () => {
+	const root = makeSandbox();
+	writeFileSync(
+		path.join(root, 'front-src/lib/scripts-shim.ts'),
+		`export type { JsonElement } from '${SCRIPTS_SPECIFIER}';\n`,
+	);
+
+	const findings = scanFrontSrcForSharedTsReExports(
+		path.join(root, 'front-src'),
+	);
+	const hit = findings.find(
+		(f) => f.file === 'apps/front/src/lib/scripts-shim.ts',
+	);
+	assert.ok(
+		hit,
+		`re-export of @org/shared-ts/scripts/* must be detected, got ${JSON.stringify(findings)}`,
+	);
+	assert.equal(
+		hit.type,
+		'DUAL_PATH',
+		`scripts re-export must be DUAL_PATH, not UNKNOWN_SEGMENT — this is the assertion that breaks when the bug fix is reverted (#1678)`,
+	);
+	assert.ok(
+		formatFinding(hit).includes(SCRIPTS_SPECIFIER),
+		`finding text should name the scripts module: ${formatFinding(hit)}`,
+	);
+});
+
+// ---- #1678 paired proof: legitimate non-shared-ts re-exports stay GREEN ----
+
+test('GREEN: re-export of a non-shared-ts package is NOT flagged (#1678 paired proof)', () => {
+	const root = makeSandbox();
+	writeFileSync(
+		path.join(root, 'front-src/lib/external-shim.ts'),
+		`export { foo } from 'some-other-pkg/lib';\n`,
+	);
+
+	const findings = scanFrontSrcForSharedTsReExports(
+		path.join(root, 'front-src'),
+	);
+	assert.ok(
+		!findings.some((f) => f.file === 'apps/front/src/lib/external-shim.ts'),
+		`non-shared-ts re-export must not be flagged, got ${JSON.stringify(findings)}`,
+	);
+});
+
+test('GREEN: re-export from another front-local file is NOT flagged (#1678 paired proof)', () => {
+	const root = makeSandbox();
+	writeFileSync(
+		path.join(root, 'front-src/lib/local-re-export.ts'),
+		`export { foo } from './other';\n`,
+	);
+
+	const findings = scanFrontSrcForSharedTsReExports(
+		path.join(root, 'front-src'),
+	);
+	assert.ok(
+		!findings.some((f) => f.file === 'apps/front/src/lib/local-re-export.ts'),
+		`front-local re-export must not be flagged, got ${JSON.stringify(findings)}`,
+	);
+});
+
+// ---- #1678 fail-loudly: unknown first segment must not pass silently ----
+
+test('RED: re-export of @org/shared-ts/<unknown-segment> fails loudly with UNKNOWN_SEGMENT (#1678)', () => {
+	const root = makeSandbox();
+	writeFileSync(
+		path.join(root, 'front-src/lib/unknown-shim.ts'),
+		`export * from '@org/shared-ts/nonexistent/foo';\n`,
+	);
+
+	const findings = scanFrontSrcForSharedTsReExports(
+		path.join(root, 'front-src'),
+	);
+	const hit = findings.find(
+		(f) => f.file === 'apps/front/src/lib/unknown-shim.ts',
+	);
+	assert.ok(
+		hit,
+		`re-export of an unknown shared-ts segment must be flagged, got ${JSON.stringify(findings)}`,
+	);
+	assert.equal(
+		hit.type,
+		'UNKNOWN_SEGMENT',
+		`unknown-segment re-export must be UNKNOWN_SEGMENT, not DUAL_PATH — this is the assertion that breaks when the fail-loudly branch is mutated to DUAL_PATH (#1678 R5)`,
+	);
+	assert.ok(
+		formatFinding(hit).startsWith('UNKNOWN_SEGMENT:'),
+		`finding text should carry UNKNOWN_SEGMENT cause, got: ${formatFinding(hit)}`,
+	);
+	assert.ok(
+		formatFinding(hit).includes('@org/shared-ts/nonexistent'),
+		`finding text should name the unknown specifier, got: ${formatFinding(hit)}`,
+	);
+});
+
+// ---- #1678: PARSE_ERROR on unparseable files still produces a finding (requirement #6)
+
+test('RED: a source file with a syntax error produces a PARSE_ERROR finding (#1678 requirement 6)', () => {
+	const root = makeSandbox();
+	writeFileSync(
+		path.join(root, 'front-src/lib/broken.ts'),
+		`import {
+`,
+	);
+
+	const findings = scanFrontSrcForSharedTsReExports(
+		path.join(root, 'front-src'),
+	);
+	const hit = findings.find((f) => f.file === 'apps/front/src/lib/broken.ts');
+	assert.ok(
+		hit,
+		`broken syntax file must produce a finding, got ${JSON.stringify(findings)}`,
+	);
+	assert.equal(
+		hit.type,
+		'PARSE_ERROR',
+		`broken syntax must produce PARSE_ERROR, not DUAL_PATH — this is the assertion that breaks when the parse-error branch is mutated to DUAL_PATH (#1678 R5)`,
+	);
+	assert.ok(
+		formatFinding(hit).startsWith('PARSE_ERROR:'),
+		`finding text should carry PARSE_ERROR cause, got: ${formatFinding(hit)}`,
+	);
+});
+
+// ---- #1678 R5: main() must exit non-zero when a violation is found ----
+// The paired tests above call scanFrontSrcForSharedTsReExports() directly and
+// never invoke main(). A mutation that changes process.exit(1) to process.exit(0)
+// keeps all 24 tests green while restoring the "silent pass" defect in CI. This
+// test invokes main() with sandbox roots and asserts the exit code.
+
+test('RED: main() exits non-zero when a shim re-export is present (#1678 R5)', () => {
+	const root = makeSandbox();
+	writeFileSync(
+		path.join(root, 'front-src/lib/should-logout-for-failure.ts'),
+		SHIM_BODY,
+	);
+
+	const result = spawnSync(
+		'node',
+		['--experimental-strip-types', '-e', `
+import { main } from '${path.resolve(here, './check-shared-ts-import-paths.mts').replace(/\\/g, '/')}';
+main({
+  frontSrc: '${path.join(root, 'front-src').replace(/\\/g, '/')}',
+  sharedTsSrc: '${path.join(root, 'shared-ts-src').replace(/\\/g, '/')}',
+});
+`],
+		{ encoding: 'utf8' },
+	);
+
+	assert.notEqual(
+		result.status,
+		0,
+		`main() must exit non-zero when a shim re-export is present, got exit code ${result.status}. stdout: ${result.stdout}. stderr: ${result.stderr}`,
+	);
+});
+
+test('GREEN: main() exits zero when no shim is present (#1678 R5)', () => {
+	const root = makeSandbox();
+
+	const result = spawnSync(
+		'node',
+		['--experimental-strip-types', '-e', `
+import { main } from '${path.resolve(here, './check-shared-ts-import-paths.mts').replace(/\\/g, '/')}';
+main({
+  frontSrc: '${path.join(root, 'front-src').replace(/\\/g, '/')}',
+  sharedTsSrc: '${path.join(root, 'shared-ts-src').replace(/\\/g, '/')}',
+});
+`],
+		{ encoding: 'utf8' },
+	);
+
+	assert.equal(
+		result.status,
+		0,
+		`main() must exit zero when no shim is present, got exit code ${result.status}. stdout: ${result.stdout}. stderr: ${result.stderr}`,
+	);
+});
+
+test('SHARED_TS_SEGMENTS is derived from packages/shared-ts/src and contains @types and scripts (#1678)', () => {
+	// The old hardcoded regex (lib|utils|validations|types) missed @types and scripts.
+	// This assertion ensures the derivation picks them up — a regression to the
+	// hardcoded list or an empty segment set would break this.
+	assert.ok(
+		SHARED_TS_SEGMENTS.includes('@types'),
+		`SHARED_TS_SEGMENTS must contain @types, got ${JSON.stringify(SHARED_TS_SEGMENTS)}`,
+	);
+	assert.ok(
+		SHARED_TS_SEGMENTS.includes('scripts'),
+		`SHARED_TS_SEGMENTS must contain scripts, got ${JSON.stringify(SHARED_TS_SEGMENTS)}`,
+	);
+});
+
+test('SHARED_TS_SEGMENTS fails loudly when packages/shared-ts/src is unreadable (#1678)', () => {
+	// deriveSharedTsSegments must throw on a missing directory — never exit 0 silently.
+	assert.throws(
+		() =>
+			deriveSharedTsSegments(
+				path.join(path.dirname(realSharedTsSrc), 'does-not-exist'),
+			),
+		/could not enumerate/,
+	);
+});
+
+// ---- #1678 R6: main() fails loudly when derivation is empty (false-GREEN guard) ----
+// A1 (R5): when deriveSharedTsSegments returns [], SHARED_TS_MODULE_PATTERN matches
+// nothing and main() exits 0 (green) on a clean tree with zero detection power.
+// The guard must self-check and fail loudly, naming the cause. This test creates
+// a sandbox with an empty shared-ts/src directory and asserts main() exits non-zero.
+test('RED: main() fails loudly when shared-ts segment derivation is empty (#1678 R6)', () => {
+	const root = makeSandbox();
+	// Wipe the mirrored shared-ts-src tree so it exists but is empty — the exact
+	// case deriveSharedTsSegments cannot catch by itself (the dir is readable,
+	// it just has no subdirectories).
+	rmSync(path.join(root, 'shared-ts-src'), { recursive: true, force: true });
+	mkdirSync(path.join(root, 'shared-ts-src'), { recursive: true });
+
+	const result = spawnSync(
+		'node',
+		['--experimental-strip-types', '-e', `
+import { main } from '${path.resolve(here, './check-shared-ts-import-paths.mts').replace(/\\/g, '/')}';
+main({
+  frontSrc: '${path.join(root, 'front-src').replace(/\\/g, '/')}',
+  sharedTsSrc: '${path.join(root, 'shared-ts-src').replace(/\\/g, '/')}',
+});
+`],
+		{ encoding: 'utf8' },
+	);
+
+	assert.notEqual(
+		result.status,
+		0,
+		`main() must exit non-zero when segment derivation is empty, got exit code ${result.status}. stdout: ${result.stdout}. stderr: ${result.stderr}`,
+	);
+	assert.ok(
+		result.stderr.includes('derived zero shared-ts segments'),
+		`stderr must name the empty-derivation cause, got: ${result.stderr}`,
+	);
+});
+
+test('GREEN: main() exits zero when segment derivation is non-empty and tree is clean (#1678 R6)', () => {
+	const root = makeSandbox();
+	// The sandbox mirrors the real packages/shared-ts/src which has @types, lib,
+	// scripts, etc. — derivation is non-empty and the tree is clean, so main() passes.
+	const result = spawnSync(
+		'node',
+		['--experimental-strip-types', '-e', `
+import { main } from '${path.resolve(here, './check-shared-ts-import-paths.mts').replace(/\\/g, '/')}';
+main({
+  frontSrc: '${path.join(root, 'front-src').replace(/\\/g, '/')}',
+  sharedTsSrc: '${path.join(root, 'shared-ts-src').replace(/\\/g, '/')}',
+});
+`],
+		{ encoding: 'utf8' },
+	);
+
+	assert.equal(
+		result.status,
+		0,
+		`main() must exit zero on a clean tree with non-empty derivation, got exit code ${result.status}. stdout: ${result.stdout}. stderr: ${result.stderr}`,
+	);
+});
+
+// ---- #1678 R6: deriveSharedTsSegments re-derives from the path main() actually uses ----
+// Ensures the self-check inside main() is not using a stale module-level constant
+// captured before the path override — it must re-derive from roots.sharedTsSrc.
+test('REGRESSION: main() re-derives segments from the overriden sharedTsSrc path (#1678 R6)', () => {
+	// Point sharedTsSrc at the real directory: derivation is non-empty, tree clean.
+	// If main() used the module-level SHARED_TS_SEGMENTS instead of re-deriving
+	// from roots.sharedTsSrc, an empty-path override would be ignored. This
+	// test proves the override flows through to the self-check by using the
+	// RED test above (empty dir) which would be green if the override were ignored.
+	const root = makeSandbox();
+	const result = spawnSync(
+		'node',
+		['--experimental-strip-types', '-e', `
+import { main } from '${path.resolve(here, './check-shared-ts-import-paths.mts').replace(/\\/g, '/')}';
+main({
+  frontSrc: '${path.join(root, 'front-src').replace(/\\/g, '/')}',
+  sharedTsSrc: '${realSharedTsSrc.replace(/\\/g, '/')}',
+});
+`],
+		{ encoding: 'utf8' },
+	);
+	assert.equal(
+		result.status,
+		0,
+		`main() with real sharedTsSrc override must exit zero, got ${result.status}. stderr: ${result.stderr}`,
+	);
+});
+
+// ---- #1678 R6: main() fails loudly when derivation is non-empty but incomplete ----
+// A1 (R5 verdict): "or a list that does not contain the expected segments". If the
+// directory exists and has some subdirectories but is missing expected ones (e.g.
+// @types was renamed to types2), the guard must still fail loudly — not silently
+// skip re-exports of the missing segment.
+test('RED: main() fails loudly when derived segments are missing expected segment(s) (#1678 R6)', () => {
+	const root = makeSandbox();
+	// Wipe the mirrored shared-ts-src tree and create only a subset of the real
+	// segments — missing @types and scripts (the ones the old hardcoded list
+	// missed, which is the historical bug #1678).
+	rmSync(path.join(root, 'shared-ts-src'), { recursive: true, force: true });
+	mkdirSync(path.join(root, 'shared-ts-src/lib'), { recursive: true });
+	mkdirSync(path.join(root, 'shared-ts-src/utils'), { recursive: true });
+	mkdirSync(path.join(root, 'shared-ts-src/validations'), { recursive: true });
+
+	const result = spawnSync(
+		'node',
+		['--experimental-strip-types', '-e', `
+import { main } from '${path.resolve(here, './check-shared-ts-import-paths.mts').replace(/\\/g, '/')}';
+main({
+  frontSrc: '${path.join(root, 'front-src').replace(/\\/g, '/')}',
+  sharedTsSrc: '${path.join(root, 'shared-ts-src').replace(/\\/g, '/')}',
+});
+`],
+		{ encoding: 'utf8' },
+	);
+
+	assert.notEqual(
+		result.status,
+		0,
+		`main() must exit non-zero when segment derivation is incomplete, got exit code ${result.status}. stdout: ${result.stdout}. stderr: ${result.stderr}`,
+	);
+	assert.ok(
+		result.stderr.includes('missing'),
+		`stderr must name the missing-segments cause, got: ${result.stderr}`,
 	);
 });
