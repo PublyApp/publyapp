@@ -8,11 +8,22 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 // Ratchet guard for issue #1679.
 //
 // Counts `typescript(no-floating-promises)` warnings repo-wide and FAILS when
-// it rises above the pinned baseline in
-// packages/scripts-ts/src/no-floating-promises-baseline.json. Eleven of these
-// were introduced silently with PR #1649 because warnings don't fail `pnpm
-// lint` (which passes `--quiet`). A green suite is not evidence here — it was
-// already green with the eleven warnings in place.
+// the count deviates from the pinned baseline in
+// packages/scripts-ts/src/no-floating-promises-baseline.json.
+//
+// Three directions:
+//   - count > baseline  → regression: the warnings increased. Fail (withinLimit
+//     is false). See issue #1679.
+//   - count < baseline  → stale floor: the warnings decreased but the baseline
+//     was not lowered. Fail (withinLimit is 'floor_stale'). The failure message
+//     names the exact value to write into the baseline file. The ratchet never
+//     writes the file itself — tightening the floor is a deliberate human gesture
+//     (see issue #1727).
+//   - count == baseline → green.
+//
+// Eleven of these were introduced silently with PR #1649 because warnings don't
+// fail `pnpm lint` (which passes `--quiet`). A green suite is not evidence
+// here — it was already green with the eleven warnings in place.
 //
 // Exit-code handling: oxlint exits 1 when it finds ERROR-severity problems —
 // that is a normal lint outcome, and the JSON output is still valid and
@@ -242,13 +253,19 @@ const countWarningsFromJson = (
 	return count;
 };
 
-// The result type includes an 'error' sentinel so the caller can distinguish
-// "count is within limit" from "could not count at all" without throwing.
+// The result type includes sentinels so the caller can distinguish three
+// failure modes from the pass condition:
+//   - 'error'        : the scan or baseline could not be evaluated (fail-closed)
+//   - 'floor_stale'  : count < baseline; the floor is below the real count and
+//                      must be lowered by a human
+//   - false          : count > baseline; a regression was introduced
+//   - true           : count == baseline; the ratchet is tight
+type FloorStale = 'floor_stale';
 type RatchetResult = {
 	rule: string;
 	baseline: number;
 	actual: number;
-	withinLimit: boolean | 'error';
+	withinLimit: boolean | 'error' | FloorStale;
 };
 
 export const checkNoFloatingPromises = async (): Promise<RatchetResult> => {
@@ -285,6 +302,24 @@ export const checkNoFloatingPromises = async (): Promise<RatchetResult> => {
 			baseline.count,
 		);
 
+		// Three directions — see the file header for the full rationale.
+		//
+		// count > baseline  → regression. withinLimit is false.
+		// count < baseline  → stale floor. The warnings decreased but the
+		//   baseline was not lowered. The ratchet refuses to pass, and the
+		//   `run()` entry point prints the exact value to write so the user
+		//   can tighten the floor with a deliberate commit. The file is never
+		//   written automatically — see issue #1727.
+		// count == baseline → green. withinLimit is true.
+		if (actualCount < baseline.count) {
+			return {
+				rule: baseline.rule,
+				baseline: baseline.count,
+				actual: actualCount,
+				withinLimit: 'floor_stale',
+			};
+		}
+
 		return {
 			rule: baseline.rule,
 			baseline: baseline.count,
@@ -304,11 +339,28 @@ export const checkNoFloatingPromises = async (): Promise<RatchetResult> => {
 	}
 };
 
-const run = async () => {
+export const run = async () => {
 	const result = await checkNoFloatingPromises();
 
 	if (result.withinLimit === 'error') {
 		// The error was already logged; just exit nonzero.
+		process.exit(1);
+	}
+
+	if (result.withinLimit === 'floor_stale') {
+		// The count dropped below the pinned baseline — the floor is stale.
+		// The ratchet refuses to pass so that every corrected violation
+		// capitalises: tighten the floor or a regression can sneak back in
+		// for free. The file is never written automatically (issue #1727).
+		console.error(
+			`${result.rule}: actual count ${result.actual} is below the pinned floor ${result.baseline} — floor is stale.`,
+		);
+		console.error(
+			`Tighten the floor deliberately: write "count": ${result.actual} into ${baselinePath}. This is not automatic so the tightening is visible in a diff and remains a human decision.`,
+		);
+		console.error(
+			'Removing warnings without lowering the floor lets new ones take their place for free — that is the regression this ratchet exists to prevent (issue #1727).',
+		);
 		process.exit(1);
 	}
 

@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 
 import { test, vi } from 'vitest';
 
-import { checkNoFloatingPromises } from './check-no-floating-promises.ts';
+import { checkNoFloatingPromises, run } from './check-no-floating-promises.ts';
 import baseline from './no-floating-promises-baseline.json' with { type: 'json' };
 
 // Les tests qui simulent un DEPASSEMENT doivent produire un compte superieur a
@@ -11,6 +11,9 @@ import baseline from './no-floating-promises-baseline.json' with { type: 'json' 
 // passe au vert en n'exercant plus rien du tout — le faux negatif silencieux
 // que ce cliquet existe justement pour empecher.
 const overBaseline = baseline.count + 1;
+// compte STRICTEMENT INFERIEUR au plancher epine — simule un nettoyage non
+// capitalise dans le plancher.
+const underBaseline = baseline.count - 1;
 
 test(
 	'the no-floating-promises count stays within the pinned baseline',
@@ -742,6 +745,260 @@ test(
 				'counting 0 because the rule was escalated to `error` would report ' +
 					'a green gate over real violations',
 			);
+		} finally {
+			vi.doUnmock('node:child_process');
+		}
+	},
+);
+
+// ---------------------------------------------------------------------------
+// Issue #1727: floor-stale detection
+//
+// Three tests covering every comparison direction between the real count and
+// the pinned baseline:
+//   1. count > floor  → regression (existing behaviour, message unchanged)
+//   2. count < floor  → stale floor (NEW: fails, message names the exact value)
+//   3. count == floor  → green
+//
+// The stale-floor tests also verify the MESSAGE content — the brief requires
+// the failure message to name the exact value to write and explain why
+// tightening is not automatic. `run()` is exported precisely so these tests
+// can assert on the console output.
+
+test(
+	'the ratchet FAILS (regression) when the count exceeds the floor (count > floor)',
+	{ timeout: 30_000 },
+	async () => {
+		// count = floor + 1 → regression. withinLimit must be `false` (the
+		// existing regression path), with the unchanged message that names
+		// the offending number and the pinned baseline.
+		vi.doMock('node:child_process', async (importOriginal) => {
+			const actual =
+				await importOriginal<typeof import('node:child_process')>();
+			return {
+				...actual,
+				spawnSync: () => ({
+					status: 1,
+					stdout: JSON.stringify({
+						diagnostics: Array.from({ length: overBaseline }, () => ({
+							message: 'Promises must be awaited',
+							code: 'typescript(no-floating-promises)',
+							severity: 'warning',
+						})),
+						number_of_files: 1000,
+					}),
+					stderr: '',
+					error: null,
+				}),
+			};
+		});
+
+		const { checkNoFloatingPromises: mockedCheck } =
+			await import('./check-no-floating-promises.ts?test-regression-over');
+
+		try {
+			const result = await mockedCheck();
+			// Regression: withinLimit is boolean false, not floor_stale.
+			assert.strictEqual(
+				result.withinLimit,
+				false,
+				`expected withinLimit=false for count ${overBaseline} > floor ${baseline.count}, but got ${result.withinLimit}`,
+			);
+			assert.strictEqual(result.actual, overBaseline);
+			// The actual count must exceed, not match, the floor.
+			assert.ok(
+				result.actual > baseline.count,
+				'count must be strictly greater than the floor for a regression',
+			);
+		} finally {
+			vi.doUnmock('node:child_process');
+		}
+	},
+);
+
+test(
+	'the ratchet FAILS (stale floor) when the count is below the floor (count < floor)',
+	{ timeout: 30_000 },
+	async () => {
+		// count = floor - 1 → stale floor. withinLimit must be 'floor_stale',
+		// and the `run()` message must name the exact value to write.
+		vi.doMock('node:child_process', async (importOriginal) => {
+			const actual =
+				await importOriginal<typeof import('node:child_process')>();
+			return {
+				...actual,
+				spawnSync: () => ({
+					status: 0,
+					stdout: JSON.stringify({
+						diagnostics: Array.from({ length: underBaseline }, () => ({
+							message: 'Promises must be awaited',
+							code: 'typescript(no-floating-promises)',
+							severity: 'warning',
+						})),
+						number_of_files: 1000,
+					}),
+					stderr: '',
+					error: null,
+				}),
+			};
+		});
+
+		const { checkNoFloatingPromises: mockedCheck } =
+			await import('./check-no-floating-promises.ts?test-stale-floor');
+
+		try {
+			const result = await mockedCheck();
+			// Stale floor: withinLimit must be 'floor_stale', not false.
+			assert.strictEqual(
+				result.withinLimit,
+				'floor_stale',
+				`expected withinLimit='floor_stale' for count ${underBaseline} < floor ${baseline.count}, but got ${result.withinLimit}`,
+			);
+			assert.strictEqual(result.actual, underBaseline);
+			assert.ok(
+				result.actual < baseline.count,
+				'count must be strictly less than the floor for a stale-floor',
+			);
+		} finally {
+			vi.doUnmock('node:child_process');
+		}
+
+		// Now verify `run()` prints the exact value and explains why it is
+		// not automatic. We mock process.exit so run() returns instead of
+		// killing the test runner.
+		// The exit CODE is the whole product of this branch: CI reads it, not the
+		// message. A mock that swallows the code lets `process.exit(1)` become
+		// `process.exit(0)` with every test still green — the ratchet would print
+		// its warning and let CI pass, reinstating the half-ratchet #1727 exists
+		// to remove. So capture the code and assert it below.
+		const exitCodes: (number | undefined)[] = [];
+		const exitMock = vi
+			.spyOn(process, 'exit')
+			.mockImplementation((code?: number) => {
+				exitCodes.push(code);
+				throw new Error('process.exit called');
+			});
+
+		// Re-import with a fresh mocked child_process for run().
+		vi.doMock('node:child_process', async (importOriginal) => {
+			const actual =
+				await importOriginal<typeof import('node:child_process')>();
+			return {
+				...actual,
+				spawnSync: () => ({
+					status: 0,
+					stdout: JSON.stringify({
+						diagnostics: Array.from({ length: underBaseline }, () => ({
+							message: 'Promises must be awaited',
+							code: 'typescript(no-floating-promises)',
+							severity: 'warning',
+						})),
+						number_of_files: 1000,
+					}),
+					stderr: '',
+					error: null,
+				}),
+			};
+		});
+
+		const { run: mockedRun } =
+			await import('./check-no-floating-promises.ts?test-stale-floor-run');
+
+		const runErrors: string[] = [];
+		const originalRunError = console.error;
+		console.error = (...args: unknown[]) => {
+			runErrors.push(args.join(' '));
+		};
+
+		try {
+			await mockedRun();
+			// If we get here, run() did not call process.exit — that is a bug.
+			assert.fail('run() should have called process.exit(1) for stale floor');
+		} catch (e) {
+			// Only the sentinel thrown by the exit mock is expected here. Any other
+			// error means run() failed for an unrelated reason and the assertions
+			// below would be checking nothing.
+			assert.ok(
+				e instanceof Error && e.message === 'process.exit called',
+				`run() threw something other than the exit sentinel: ${String(e)}`,
+			);
+		} finally {
+			console.error = originalRunError;
+			exitMock.mockRestore();
+			vi.doUnmock('node:child_process');
+		}
+
+		// The exit code is what CI acts on: 1 means the gate bites, 0 means it
+		// prints a warning and lets the build through.
+		assert.deepEqual(
+			exitCodes,
+			[1],
+			`run() must exit with code 1 on a stale floor, got: ${JSON.stringify(exitCodes)}`,
+		);
+
+		const joined = runErrors.join('\n');
+
+		// The message must name the exact value to write — `underBaseline`.
+		assert.ok(
+			joined.includes(`"count": ${underBaseline}`),
+			`the floor-stale message must name the exact value to write (expected "${underBaseline}"), got: ${joined}`,
+		);
+
+		// The message must explain why tightening is not automatic.
+		assert.match(
+			joined,
+			/not automatic/i,
+			'the floor-stale message must explain why tightening is not automatic',
+		);
+
+		// The message must reference the issue.
+		assert.match(
+			joined,
+			/#1727/,
+			'the floor-stale message must reference issue #1727',
+		);
+	},
+);
+
+test(
+	'the ratchet PASSES (green) when the count equals the floor (count == floor)',
+	{ timeout: 30_000 },
+	async () => {
+		// count == baseline exactly → green. withinLimit must be `true`.
+		const exactCount = baseline.count;
+		vi.doMock('node:child_process', async (importOriginal) => {
+			const actual =
+				await importOriginal<typeof import('node:child_process')>();
+			return {
+				...actual,
+				spawnSync: () => ({
+					status: 0,
+					stdout: JSON.stringify({
+						diagnostics: Array.from({ length: exactCount }, () => ({
+							message: 'Promises must be awaited',
+							code: 'typescript(no-floating-promises)',
+							severity: 'warning',
+						})),
+						number_of_files: 1000,
+					}),
+					stderr: '',
+					error: null,
+				}),
+			};
+		});
+
+		const { checkNoFloatingPromises: mockedCheck } =
+			await import('./check-no-floating-promises.ts?test-exact-floor');
+
+		try {
+			const result = await mockedCheck();
+			assert.strictEqual(
+				result.withinLimit,
+				true,
+				`expected withinLimit=true when count === floor (${exactCount}), but got ${result.withinLimit}`,
+			);
+			assert.strictEqual(result.actual, exactCount);
+			assert.strictEqual(result.actual, baseline.count);
 		} finally {
 			vi.doUnmock('node:child_process');
 		}
