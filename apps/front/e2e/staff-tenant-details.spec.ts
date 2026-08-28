@@ -1145,7 +1145,7 @@ test.describe(
 			await drawer.getByRole('button', { name: 'Send 1 invitation' }).click();
 
 			await expect(
-				drawer.getByRole('button', { name: 'Invite people' }),
+				drawer.getByRole('button', { name: 'Send 1 invitation' }),
 			).toBeVisible();
 			const failedSubmitUrl = new URL(page.url());
 			expect(failedSubmitUrl.pathname).toBe(
