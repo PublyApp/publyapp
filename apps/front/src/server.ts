@@ -79,6 +79,15 @@ const renderLinkTag = (link: {
 	return `<link ${attributes} />`;
 };
 
+const resolveOrigin = (request: Request): string => {
+	const host = request.headers.get('host');
+	if (host) {
+		const protocol = request.headers.get('x-forwarded-proto') ?? 'https';
+		return `${protocol}://${host}`;
+	}
+	return new URL(request.url).origin;
+};
+
 export const isIndexableSeoRoute = (
 	requestPath: string,
 	status: number,
@@ -106,6 +115,7 @@ export const injectSeoMarkup = (
 	request: Request,
 	locale: SupportedLanguage,
 	seoAllowed: boolean,
+	origin: string,
 	t: SeoTranslator,
 ): string => {
 	const requestUrl = new URL(request.url);
@@ -117,7 +127,6 @@ export const injectSeoMarkup = (
 		return output;
 	}
 
-	const origin = requestUrl.origin;
 	const canonical = `${origin}${requestPath}`;
 	const metaTags: string[] = [];
 
@@ -139,7 +148,12 @@ export const injectSeoMarkup = (
 		metaTags.push('<meta name="robots" content="noindex, nofollow" />');
 	}
 
-	return output.replace('</head>', `${metaTags.join('\n')}\n</head>`);
+	const newline = '\n';
+
+	return output.replace(
+		'</head>',
+		`${metaTags.join(newline)}${newline}</head>`,
+	);
 };
 
 const sendBadResponseCapture = (
@@ -203,6 +217,7 @@ export default {
 				ctx.request,
 				locale,
 				shouldInjectSeo,
+				resolveOrigin(ctx.request),
 				seoTranslator,
 			);
 			const headers = new Headers(response.headers);
