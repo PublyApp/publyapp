@@ -273,6 +273,7 @@ vi.mock('~/lib/query/tenant-posts', () => ({
 // is mocked to its pending/no-permission shape: hasPermission -> false keeps
 // PublishOnBlock at `return null` and leaves the asserted DOM untouched.
 vi.mock('~/lib/query/tenant-permissions', () => ({
+	POSTS_PUBLISH: 'tenant.posts.publish',
 	SOCIAL_ACCOUNTS_PUBLISH: 'tenant.socialaccounts.publish',
 	useTenantPermissions: () => ({ hasPermission: () => false }),
 }));
