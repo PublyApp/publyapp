@@ -38,15 +38,20 @@ const optionalPublicOrigin = z
 	.refine(
 		(value) => {
 			const parsed = new URL(value);
-			// Normalize: URL.origin is case-insensitive for the host portion
-			// and omits default ports, so compare against that normalized form
-			// rather than the raw text. We accept the input only if, after
-			// normalization, it carries no path, query, or fragment.
+			// The URL constructor normalizes away default ports and host case,
+			// so "https://EXAMPLE.COM:443" and "https://[::1]:443" parse cleanly.
+			// We accept any input whose parsed form has no path beyond the
+			// bare origin (pathname is "/"), no query, and no fragment — but
+			// we additionally require the original input not end with "/", so
+			// that "https://example.com/" (which parses identically to
+			// "https://example.com") is rejected while "https://example.com"
+			// is accepted.
 			return (
 				parsed.pathname === '/' &&
 				parsed.search === '' &&
 				parsed.hash === '' &&
-				parsed.origin !== ''
+				parsed.origin !== '' &&
+				!value.endsWith('/')
 			);
 		},
 		{
