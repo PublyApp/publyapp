@@ -295,3 +295,65 @@ test('a commented-out gate-selftest invocation fails this independent wiring che
 		/gate-selftest must run the CODEOWNERS contract from an executable line/,
 	);
 });
+
+// The artifact-version-compat guard (#1728) must stay wired into `just ci-drift`
+// and its server mirror (`front-ci.yml::gate-selftest`). The same anti-rot
+// reasoning as the CODEOWNERS block above applies: the guard cannot be the only
+// witness to its own wiring, because commenting out its invocation would remove
+// the detector along with the command it guards.
+const artifactCompatInvocation =
+	'node ./packages/scripts-ts/src/artifact-version-compat.ts';
+
+// @ts-expect-error rung-0: add proper type in later rung
+const assertRunsArtifactCompatGuard = (block, where) => {
+	assert.ok(
+		executableLines(block).includes(artifactCompatInvocation),
+		`${where} must run the artifact version compat guard from an executable line: \`${artifactCompatInvocation}\``,
+	);
+};
+
+test('the local ci-drift recipe runs the artifact version compat guard', () => {
+	assert.ok(ciDriftRecipe, 'justfile must define the ci-drift recipe');
+	assertRunsArtifactCompatGuard(ciDriftRecipe, 'ci-drift');
+});
+
+test('a commented-out ci-drift artifact-compat invocation fails this independent wiring check', () => {
+	assert.ok(ciDriftRecipe, 'justfile must define the ci-drift recipe');
+	assert.throws(
+		() =>
+			assertRunsArtifactCompatGuard(
+				ciDriftRecipe.replace(
+					artifactCompatInvocation,
+					`# ${artifactCompatInvocation}`,
+				),
+				'ci-drift',
+			),
+		/ci-drift must run the artifact version compat guard from an executable line/,
+	);
+});
+
+test('the gate-selftest server mirror runs the artifact version compat guard', () => {
+	assert.ok(
+		typeof gateSelftestRunBlock === 'string',
+		'front-ci.yml must define the gate-selftest run step that mirrors `just ci-drift`',
+	);
+	assertRunsArtifactCompatGuard(gateSelftestRunBlock, 'gate-selftest');
+});
+
+test('a commented-out gate-selftest artifact-compat invocation fails this independent wiring check', () => {
+	assert.ok(
+		typeof gateSelftestRunBlock === 'string',
+		'front-ci.yml must define the gate-selftest run step that mirrors `just ci-drift`',
+	);
+	assert.throws(
+		() =>
+			assertRunsArtifactCompatGuard(
+				gateSelftestRunBlock.replace(
+					artifactCompatInvocation,
+					`# ${artifactCompatInvocation}`,
+				),
+				'gate-selftest',
+			),
+		/gate-selftest must run the artifact version compat guard from an executable line/,
+	);
+});
