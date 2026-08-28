@@ -3,13 +3,32 @@ import assert from 'node:assert/strict';
 import { test, vi } from 'vitest';
 
 import { checkNoFloatingPromises } from './check-no-floating-promises.ts';
+import baseline from './no-floating-promises-baseline.json' with { type: 'json' };
+
+// Les tests qui simulent un DEPASSEMENT doivent produire un compte superieur a
+// la base reellement epinglee, pas a un nombre ecrit en dur. Un `1` code en dur
+// ne depasse la base que tant qu'elle vaut 0 : le jour ou elle change, le test
+// passe au vert en n'exercant plus rien du tout — le faux negatif silencieux
+// que ce cliquet existe justement pour empecher.
+const overBaseline = baseline.count + 1;
 
 test(
 	'the no-floating-promises count stays within the pinned baseline',
 	{ timeout: 120_000 },
 	async () => {
+		// This is a REAL test — it runs the actual oxlint binary against the
+		// entire repo and counts typescript(no-floating-promises) warnings.
+		// Not mocked, not stubbed. The oxlint binary path is resolved from
+		// node_modules at runtime in check-no-floating-promises.ts.
 		const result = await checkNoFloatingPromises();
 
+		// This asserts the ratchet direction only: the count must not rise
+		// above the pinned baseline. It deliberately does NOT pin an exact
+		// count, because the warnings are not yet fixed — the baseline is
+		// still 400 and lowering it is the job tracked by issue #1679.
+		// Pinning `actual === 0` here would be a test that asserts a state
+		// the repository is not in, and it would go red on a tree that is
+		// perfectly correct for today.
 		assert.ok(
 			result.withinLimit,
 			`${result.rule}: ${result.actual} exceeds baseline ${result.baseline} — ` +
@@ -176,12 +195,12 @@ test(
 );
 
 test(
-	'the ratchet FAILS CLOSED when oxlint exits with non-zero status',
+	'the ratchet FAILS CLOSED when oxlint exits with status 2 (config error)',
 	{ timeout: 30_000 },
 	async () => {
-		// Mock spawnSync to return a non-zero exit status. Even if the stdout
-		// contains valid-looking JSON, a non-zero exit means oxlint itself
-		// failed — we cannot trust the output.
+		// Mock spawnSync to return exit code 2 (config error). oxlint's config
+		// error means the scan did not run — output is unreliable and we must
+		// fail-closed even though stdout contains JSON.
 		vi.doMock('node:child_process', async (importOriginal) => {
 			const actual =
 				await importOriginal<typeof import('node:child_process')>();
@@ -197,7 +216,7 @@ test(
 		});
 
 		const { checkNoFloatingPromises: mockedCheck } =
-			await import('./check-no-floating-promises.ts?mocked-exit2');
+			await import('./check-no-floating-promises.ts?mocked-config-error');
 
 		try {
 			const result = await mockedCheck();
@@ -205,9 +224,66 @@ test(
 			assert.strictEqual(
 				result.withinLimit,
 				'error',
-				'expected withinLimit="error" when oxlint exits non-zero, ' +
+				'expected withinLimit="error" when oxlint exits with config error (status 2), ' +
 					`but got withinLimit=${result.withinLimit}`,
 			);
+		} finally {
+			vi.doUnmock('node:child_process');
+		}
+	},
+);
+
+test(
+	'the ratchet COUNTS warnings when oxlint exits with status 1 (lint problems found)',
+	{ timeout: 30_000 },
+	async () => {
+		// oxlint exit code 1 means it found lint problems (errors and/or warnings).
+		// This is NORMAL — the JSON output is still valid and parseable. The repo
+		// has 34 typescript(no-deprecated) errors that cause exit code 1, but the
+		// floating-promises warnings in the JSON are counted correctly.
+		// The ratchet must NOT fail-closed here — it must count and compare.
+		vi.doMock('node:child_process', async (importOriginal) => {
+			const actual =
+				await importOriginal<typeof import('node:child_process')>();
+			return {
+				...actual,
+				spawnSync: () => ({
+					status: 1,
+					stdout: JSON.stringify({
+						diagnostics: Array.from({ length: overBaseline }, () => ({
+							message: 'Promises must be awaited',
+							code: 'typescript(no-floating-promises)',
+							severity: 'warning',
+						})),
+						number_of_files: 1000,
+					}),
+					stderr: '',
+					error: null,
+				}),
+			};
+		});
+
+		const { checkNoFloatingPromises: mockedCheck } =
+			await import('./check-no-floating-promises.ts?mocked-exit1-problems');
+
+		try {
+			const result = await mockedCheck();
+
+			// Must NOT be 'error' — exit code 1 with valid JSON is normal.
+			assert.notStrictEqual(
+				result.withinLimit,
+				'error',
+				'expected the ratchet to count warnings (not fail-closed) when oxlint exits 1 with valid JSON, ' +
+					`but got withinLimit="error"`,
+			);
+			// One warning MORE than the pinned baseline — must be false.
+			assert.strictEqual(
+				result.withinLimit,
+				false,
+				`expected withinLimit=false when the count (${overBaseline}) exceeds ` +
+					`baseline ${baseline.count}, but got withinLimit=${result.withinLimit}`,
+			);
+			assert.strictEqual(result.actual, overBaseline);
 		} finally {
 			vi.doUnmock('node:child_process');
 		}
@@ -253,13 +329,11 @@ test(
 );
 
 test(
-	'the ratchet PASSES when oxlint returns valid JSON with a real count within limit',
+	'the ratchet PASSES when oxlint returns valid JSON with zero warnings',
 	{ timeout: 30_000 },
 	async () => {
 		// This is the only case that should pass green: valid JSON, files
-		// scanned, a real warning count that is within the pinned baseline.
-		// The baseline is 400 (pinned in no-floating-promises-baseline.json).
-		// We mock 5 warnings — well within the 400 limit.
+		// scanned, and a zero warning count — which is within any baseline.
 		vi.doMock('node:child_process', async (importOriginal) => {
 			const actual =
 				await importOriginal<typeof import('node:child_process')>();
@@ -268,11 +342,7 @@ test(
 				spawnSync: () => ({
 					status: 0,
 					stdout: JSON.stringify({
-						diagnostics: Array.from({ length: 5 }, () => ({
-							message: 'Promises must be awaited',
-							code: 'typescript(no-floating-promises)',
-							severity: 'warning',
-						})),
+						diagnostics: [],
 						number_of_files: 1000,
 					}),
 					stderr: '',
@@ -288,7 +358,7 @@ test(
 			const result = await mockedCheck();
 
 			assert.strictEqual(result.withinLimit, true);
-			assert.strictEqual(result.actual, 5);
+			assert.strictEqual(result.actual, 0);
 		} finally {
 			vi.doUnmock('node:child_process');
 		}
@@ -309,9 +379,9 @@ test(
 			return {
 				...actual,
 				spawnSync: () => ({
-					status: 0,
+					status: 1,
 					stdout: JSON.stringify({
-						diagnostics: Array.from({ length: 401 }, () => ({
+						diagnostics: Array.from({ length: overBaseline }, () => ({
 							message: 'Promises must be awaited',
 							code: 'typescript(no-floating-promises)',
 							severity: 'warning',
@@ -338,7 +408,7 @@ test(
 					`but got withinLimit=${result.withinLimit}`,
 			);
 			// The actual count must be reported accurately.
-			assert.strictEqual(result.actual, 401);
+			assert.strictEqual(result.actual, overBaseline);
 		} finally {
 			vi.doUnmock('node:child_process');
 		}

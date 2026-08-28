@@ -8,11 +8,30 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 // Ratchet guard for issue #1679.
 //
 // Counts `typescript(no-floating-promises)` warnings repo-wide and FAILS when
-// the count rises above the pinned baseline in
+// it rises above the pinned baseline in
 // packages/scripts-ts/src/no-floating-promises-baseline.json. Eleven of these
 // were introduced silently with PR #1649 because warnings don't fail `pnpm
 // lint` (which passes `--quiet`). A green suite is not evidence here — it was
 // already green with the eleven warnings in place.
+//
+// Exit-code handling: oxlint exits 1 when it finds ERROR-severity problems —
+// that is a normal lint outcome, and the JSON output is still valid and
+// complete. oxlint exits 2 for config errors, 70 for internal errors, and null
+// when killed by a signal; those mean the scan did not produce trustworthy
+// output, so we fail closed.
+//
+// Measured on this tree, 2026-08-28: oxlint exits 0 with 494 diagnostics, all
+// of them warnings (400 of which are this rule). So exit code 1 is NOT the
+// present state of the repository — an earlier version of this comment claimed
+// 34 no-deprecated errors force exit 1, and that claim is false here.
+//
+// The handling still matters, and here is the real reason: the first change
+// that introduces a single error-severity finding anywhere in the repo flips
+// oxlint to exit 1. With the previous `status !== 0` guard, this ratchet would
+// then throw "cannot count reliably" — reporting a broken scan when the scan
+// was in fact perfect. The author would chase a phantom tooling failure instead
+// of reading their own lint error. Distinguishing 1 from 2/70/null is what
+// keeps the failure message truthful.
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(here, '../../..');
@@ -51,14 +70,47 @@ const runOxlint = () => {
 		);
 	}
 
-	// status === null means the process was killed by a signal; nonzero means
-	// oxlint exited with an error. Either way, the output is unreliable.
-	if (result.status !== 0) {
+	// Handle different oxlint exit codes.
+	//
+	// oxlint uses structured exit codes:
+	//   0 — clean (no problems found)
+	//   1 — lint problems found (errors and/or warnings) — JSON output is valid
+	//   2 — config error — scan did not run, output is unreliable
+	//   70 — internal error — scan did not run, output is unreliable
+	//   null — process was killed by a signal — output is unreliable
+	//
+	// Exit code 1 (lint problems found) is the NORMAL case when there are
+	// errors or warnings in the repo. The JSON output is still valid and
+	// parseable. We MUST NOT treat it as a failure — the repo has 34
+	// typescript(no-deprecated) errors that cause exit code 1, but the
+	// floating-promises warnings in the JSON output are counted correctly.
+	//
+	// Only exit codes 2, 70, and null (signal kill) indicate a truly broken
+	// scan — fail-closed for those.
+	if (result.status === null) {
 		throw new Error(
-			`oxlint exited with status ${result.status} — ` +
+			`oxlint process was killed by a signal — ` +
 				'cannot count no-floating-promises warnings reliably.',
 		);
 	}
+
+	if (result.status === 2) {
+		throw new Error(
+			`oxlint exited with status 2 (config error) — ` +
+				'cannot count no-floating-promises warnings reliably. ' +
+				`stderr: ${result.stderr.slice(0, 500)}`,
+		);
+	}
+
+	if (result.status === 70) {
+		throw new Error(
+			`oxlint exited with status 70 (internal error) — ` +
+				'cannot count no-floating-promises warnings reliably. ' +
+				`stderr: ${result.stderr.slice(0, 500)}`,
+		);
+	}
+
+	// status 0 (clean) or status 1 (lint problems found): JSON output is valid.
 
 	return {
 		status: result.status,
