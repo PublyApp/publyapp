@@ -74,6 +74,14 @@ public sealed class FindSystemNoticesCursorBehaviorSpec
 			seededOrder.Add(createdAt);
 		}
 
+			// Swap the IDs of the two equal-key rows (i=0 and i=2) so the row
+			// inserted at i=2 has the smaller Id. Without this, UUID v7 IDs are
+			// insertion-ordered, so stable OrderBy(CreatedAt) already matches
+			// ThenBy(Id) and removing the production tiebreaker leaves the test
+			// green. After the swap, the tiebreaker is actually exercised.
+			await SwapSystemNoticeIdsAsync(seededIds[0], seededIds[2]);
+			(seededIds[0], seededIds[2]) = (seededIds[2], seededIds[0]);
+
 		var visitedIds = new List<Guid>();
 		var visitedCreatedAtOrder = new List<DateTime>();
 		string? cursor = null;
@@ -117,7 +125,7 @@ public sealed class FindSystemNoticesCursorBehaviorSpec
 			.Zip(seededOrder, (id, c) => (id, c))
 			.ToDictionary(x => x.id, x => x.c);
 		visitedSeededOrder.Should().Equal(
-			seededIds.OrderBy(id => createdAtById[id]).ToList()
+			seededIds.OrderBy(id => createdAtById[id]).ThenBy(id => id).ToList()
 		);
 
 		// Assert the OBSERVED CreatedAt order: ascending and equal to the
@@ -157,6 +165,14 @@ public sealed class FindSystemNoticesCursorBehaviorSpec
 			seededOrder.Add(startsAt);
 		}
 
+
+			// Swap the IDs of the two equal-key rows (i=0 and i=2) so the row
+			// inserted at i=2 has the smaller Id. Without this, UUID v7 IDs are
+			// insertion-ordered, so stable OrderBy(StartsAt) already matches
+			// ThenBy(Id) and removing the production tiebreaker leaves the test
+			// green. After the swap, the tiebreaker is actually exercised.
+			await SwapSystemNoticeIdsAsync(seededIds[0], seededIds[2]);
+			(seededIds[0], seededIds[2]) = (seededIds[2], seededIds[0]);
 		var visitedIds = new List<Guid>();
 		var visitedStartsAtOrder = new List<DateTime>();
 		string? cursor = null;
@@ -197,7 +213,7 @@ public sealed class FindSystemNoticesCursorBehaviorSpec
 			.Zip(seededOrder, (id, s) => (id, s))
 			.ToDictionary(x => x.id, x => x.s);
 		visitedOrder.Should().Equal(
-			seededIds.OrderBy(id => startsAtById[id]).ToList()
+			seededIds.OrderBy(id => startsAtById[id]).ThenBy(id => id).ToList()
 		);
 
 		var visitedSeededStartsAt = visitedOrder
@@ -393,5 +409,20 @@ public sealed class FindSystemNoticesCursorBehaviorSpec
 		public Guid Id { get; init; }
 		public DateTime CreatedAt { get; init; }
 		public DateTime StartsAt { get; init; }
+	}
+
+	private async Task SwapSystemNoticeIdsAsync(Guid idA, Guid idB) {
+		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		var temp = Guid.NewGuid();
+		await dbContext.Database.ExecuteSqlRawAsync(
+			"UPDATE system_notices SET id = {0} WHERE id = {1}",
+			temp, idA);
+		await dbContext.Database.ExecuteSqlRawAsync(
+			"UPDATE system_notices SET id = {0} WHERE id = {1}",
+			idA, idB);
+		await dbContext.Database.ExecuteSqlRawAsync(
+			"UPDATE system_notices SET id = {0} WHERE id = {1}",
+			idB, temp);
 	}
 }

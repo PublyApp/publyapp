@@ -69,6 +69,14 @@ public sealed class FindAuditLogsCursorBehaviorSpec
 			seededOrder.Add(createdAt);
 		}
 
+		// Swap the IDs of the two equal-key rows (i=0 and i=2) so the row
+		// inserted at i=2 has the smaller Id. Without this, UUID v7 IDs are
+		// insertion-ordered, so stable OrderBy(CreatedAt) already matches
+		// ThenBy(Id) and removing the production tiebreaker leaves the test
+		// green. After the swap, the tiebreaker is actually exercised.
+		await SwapAuditLogIdsAsync(seededIds[0], seededIds[2]);
+		(seededIds[0], seededIds[2]) = (seededIds[2], seededIds[0]);
+
 		var visitedIds = new List<Guid>();
 		var visitedCreatedAtOrder = new List<DateTime>();
 		string? cursor = null;
@@ -201,6 +209,23 @@ public sealed class FindAuditLogsCursorBehaviorSpec
 		await dbContext.SaveChangesAsync();
 
 		return id;
+	}
+
+	private async Task SwapAuditLogIdsAsync(Guid idA, Guid idB) {
+		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+		var dbContext = scope.ServiceProvider
+			.GetRequiredService<AppDbContext>();
+		var temp = Guid.NewGuid();
+		// Three-step swap via a temp Id so we never collide on the PK.
+		await dbContext.Database.ExecuteSqlRawAsync(
+			"UPDATE audit_logs SET id = {0} WHERE id = {1}",
+			temp, idA);
+		await dbContext.Database.ExecuteSqlRawAsync(
+			"UPDATE audit_logs SET id = {0} WHERE id = {1}",
+			idA, idB);
+		await dbContext.Database.ExecuteSqlRawAsync(
+			"UPDATE audit_logs SET id = {0} WHERE id = {1}",
+			idB, temp);
 	}
 
 	private sealed record FindAuditLogsResponse {

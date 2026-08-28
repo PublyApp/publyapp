@@ -889,7 +889,33 @@ public sealed class FindTenantUserCompaniesForStaffSpec
 			await dbContext.SaveChangesAsync();
 		}
 
+
+		// Swap the IDs of the two equal-key accounts (i=0 and i=2) so the row
+		// inserted at i=2 has the smaller Id. Without this, UUID v7 IDs are
+		// insertion-ordered, so stable OrderBy(CreatedAt) already matches
+		// ThenBy(Id) and removing the production tiebreaker leaves the test
+		// green. After the swap, the tiebreaker is actually exercised.
+		var accountIds = tenantIds.Select(t => dbContext.UserAccount
+			.Where(a => a.TenantId == t && a.UserId == userId)
+			.Select(a => a.Id!.Value)
+			.First()).ToList();
+		await SwapUserAccountIdsAsync(accountIds[0], accountIds[2]);
 		return (userId.ToString(), tenantIds, order);
+	}
+
+	private async Task SwapUserAccountIdsAsync(Guid idA, Guid idB) {
+		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		var temp = Guid.NewGuid();
+		await dbContext.Database.ExecuteSqlRawAsync(
+			"UPDATE user_accounts SET id = {0} WHERE id = {1}",
+			temp, idA);
+		await dbContext.Database.ExecuteSqlRawAsync(
+			"UPDATE user_accounts SET id = {0} WHERE id = {1}",
+			idA, idB);
+		await dbContext.Database.ExecuteSqlRawAsync(
+			"UPDATE user_accounts SET id = {0} WHERE id = {1}",
+			idB, temp);
 	}
 
 	private sealed record TenantUserCompanyResponse {

@@ -602,6 +602,14 @@ public sealed class FindStaffInvitationsSpec : IClassFixture<ApiFixture> {
 			seededOrder.Add(createdAt);
 		}
 
+			// Swap the IDs of the two equal-key rows (i=0 and i=2) so the row
+			// inserted at i=2 has the smaller Id. Without this, UUID v7 IDs are
+			// insertion-ordered, so stable OrderBy(CreatedAt) already matches
+			// ThenBy(Id) and removing the production tiebreaker leaves the test
+			// green. After the swap, the tiebreaker is actually exercised.
+			await SwapStaffInvitationIdsAsync(seededIds[0], seededIds[2]);
+			(seededIds[0], seededIds[2]) = (seededIds[2], seededIds[0]);
+
 		List<Guid> visitedIds = new();
 		List<DateTime> visitedCreatedAt = new();
 		string? cursor = null;
@@ -680,6 +688,14 @@ public sealed class FindStaffInvitationsSpec : IClassFixture<ApiFixture> {
 			seededOrder.Add(expiresAt);
 		}
 
+
+			// Swap the IDs of the two equal-key rows (i=0 and i=2) so the row
+			// inserted at i=2 has the smaller Id. Without this, UUID v7 IDs are
+			// insertion-ordered, so stable OrderBy(ExpiresAt) already matches
+			// ThenBy(Id) and removing the production tiebreaker leaves the test
+			// green. After the swap, the tiebreaker is actually exercised.
+			await SwapStaffInvitationIdsAsync(seededIds[0], seededIds[2]);
+			(seededIds[0], seededIds[2]) = (seededIds[2], seededIds[0]);
 		List<Guid> visitedIds = new();
 		List<DateTime> visitedExpiresAt = new();
 		string? cursor = null;
@@ -999,7 +1015,36 @@ public sealed class FindStaffInvitationsSpec : IClassFixture<ApiFixture> {
 		public string? InvitedByName { get; init; }
 	}
 
+
 	private sealed record InvitationCreatedResponse {
 		public Guid InvitationId { get; init; }
+	}
+
+	private async Task SwapStaffInvitationIdsAsync(Guid idA, Guid idB) {
+		using IServiceScope scope = _fixture.Factory.Services.CreateScope();
+		AppDbContext dbContext = scope.ServiceProvider
+			.GetRequiredService<AppDbContext>();
+		var temp = Guid.NewGuid();
+		// Swap IDs on both the parent (invitations) and child (invitation_profiles)
+		// tables. The three-step swap via temp avoids PK collision, and updating
+		// the child table avoids FK violation (FK is not DEFERRABLE).
+		await dbContext.Database.ExecuteSqlRawAsync(
+			"UPDATE invitation_profiles SET invitation_id = {0} WHERE invitation_id = {1}",
+			temp, idA);
+		await dbContext.Database.ExecuteSqlRawAsync(
+			"UPDATE invitations SET id = {0} WHERE id = {1}",
+			temp, idA);
+		await dbContext.Database.ExecuteSqlRawAsync(
+			"UPDATE invitation_profiles SET invitation_id = {0} WHERE invitation_id = {1}",
+			idA, idB);
+		await dbContext.Database.ExecuteSqlRawAsync(
+			"UPDATE invitations SET id = {0} WHERE id = {1}",
+			idA, idB);
+		await dbContext.Database.ExecuteSqlRawAsync(
+			"UPDATE invitation_profiles SET invitation_id = {0} WHERE invitation_id = {1}",
+			idB, temp);
+		await dbContext.Database.ExecuteSqlRawAsync(
+			"UPDATE invitations SET id = {0} WHERE id = {1}",
+			idB, temp);
 	}
 }

@@ -2093,6 +2093,14 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 					seededAcceptedAt.Add(acceptedAt);
 				}
 
+					// Swap the IDs of the two equal-key rows (i=0 and i=2) so the row
+					// inserted at i=2 has the smaller Id. Without this, UUID v7 IDs are
+					// insertion-ordered, so stable OrderBy(AcceptedAt) already matches
+					// ThenBy(Id) and removing the production tiebreaker leaves the test
+					// green. After the swap, the tiebreaker is actually exercised.
+					await SwapInvitationIdsAsync(seededIds[0], seededIds[2]);
+					(seededIds[0], seededIds[2]) = (seededIds[2], seededIds[0]);
+
 				var visitedIds = new List<Guid>();
 				string? cursor = null;
 				var pages = 0;
@@ -2178,6 +2186,14 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 					seededCreatedAt.Add(createdAt);
 				}
 
+
+					// Swap the IDs of the two equal-key rows (i=0 and i=2) so the row
+					// inserted at i=2 has the smaller Id. Without this, UUID v7 IDs are
+					// insertion-ordered, so stable OrderBy(CreatedAt) already matches
+					// ThenBy(Id) and removing the production tiebreaker leaves the test
+					// green. After the swap, the tiebreaker is actually exercised.
+					await SwapInvitationIdsAsync(seededIds[0], seededIds[2]);
+					(seededIds[0], seededIds[2]) = (seededIds[2], seededIds[0]);
 				var visitedIds = new List<Guid>();
 				string? cursor = null;
 				var pages = 0;
@@ -2262,6 +2278,14 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 				}
 
 				var visitedIds = new List<Guid>();
+
+					// Swap the IDs of the two equal-key rows (i=0 and i=2) so the row
+					// inserted at i=2 has the smaller Id. Without this, UUID v7 IDs are
+					// insertion-ordered, so stable OrderBy(ExpiresAt) already matches
+					// ThenBy(Id) and removing the production tiebreaker leaves the test
+				// green. After the swap, the tiebreaker is actually exercised.
+					await SwapInvitationIdsAsync(seededIds[0], seededIds[2]);
+					(seededIds[0], seededIds[2]) = (seededIds[2], seededIds[0]);
 				string? cursor = null;
 				var pages = 0;
 				do {
@@ -2703,5 +2727,21 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 		}
 
 		#endregion
+
+		private async Task SwapInvitationIdsAsync(Guid idA, Guid idB) {
+			using IServiceScope scope = _fixture.Factory.Services.CreateScope();
+			AppDbContext dbContext = scope.ServiceProvider
+				.GetRequiredService<AppDbContext>();
+			var temp = Guid.NewGuid();
+			await dbContext.Database.ExecuteSqlRawAsync(
+				"UPDATE invitations SET id = {0} WHERE id = {1}",
+				temp, idA);
+			await dbContext.Database.ExecuteSqlRawAsync(
+				"UPDATE invitations SET id = {0} WHERE id = {1}",
+				idA, idB);
+			await dbContext.Database.ExecuteSqlRawAsync(
+				"UPDATE invitations SET id = {0} WHERE id = {1}",
+				idB, temp);
+		}
 	}
 }

@@ -778,6 +778,14 @@ public sealed class FindTenantsAsStaffSpec
 			seededOrder.Add(createdAt);
 		}
 
+			// Swap the IDs of the two equal-key rows (i=0 and i=2) so the row
+			// inserted at i=2 has the smaller Id. Without this, UUID v7 IDs are
+			// insertion-ordered, so stable OrderBy(CreatedAt) already matches
+			// ThenBy(Id) and removing the production tiebreaker leaves the test
+			// green. After the swap, the tiebreaker is actually exercised.
+			await SwapTenantIdsAsync(seededIds[0], seededIds[2]);
+			(seededIds[0], seededIds[2]) = (seededIds[2], seededIds[0]);
+
 		var visitedIds = new List<Guid>();
 		string? cursor = null;
 		var pages = 0;
@@ -822,7 +830,7 @@ public sealed class FindTenantsAsStaffSpec
 			.Zip(seededOrder, (id, c) => (id, c))
 			.ToDictionary(x => x.id, x => x.c);
 		visitedOrder.Should().Equal(
-			seededIds.OrderBy(id => createdAtById[id]).ToList()
+			seededIds.OrderBy(id => createdAtById[id]).ThenBy(id => id).ToList()
 		);
 
 		// Assert the OBSERVED sort order against the real Tenant.CreatedAt
@@ -871,6 +879,14 @@ public sealed class FindTenantsAsStaffSpec
 			seededOrder.Add(updatedAt);
 		}
 
+
+			// Swap the IDs of the two equal-key rows (i=0 and i=2) so the row
+			// inserted at i=2 has the smaller Id. Without this, UUID v7 IDs are
+			// insertion-ordered, so stable OrderBy(UpdatedAt) already matches
+			// ThenBy(Id) and removing the production tiebreaker leaves the test
+			// green. After the swap, the tiebreaker is actually exercised.
+			await SwapTenantIdsAsync(seededIds[0], seededIds[2]);
+			(seededIds[0], seededIds[2]) = (seededIds[2], seededIds[0]);
 		var visitedIds = new List<Guid>();
 		string? cursor = null;
 		var pages = 0;
@@ -915,7 +931,7 @@ public sealed class FindTenantsAsStaffSpec
 			.Zip(seededOrder, (id, c) => (id, c))
 			.ToDictionary(x => x.id, x => x.c);
 		visitedOrder.Should().Equal(
-			seededIds.OrderBy(id => updatedAtById[id]).ToList()
+			seededIds.OrderBy(id => updatedAtById[id]).ThenBy(id => id).ToList()
 		);
 
 		// Assert the OBSERVED sort order against the real Tenant.UpdatedAt values
@@ -1184,5 +1200,20 @@ public sealed class FindTenantsAsStaffSpec
 		public string Name { get; init; } = string.Empty;
 		public int UsersCount { get; init; }
 		public string Status { get; init; } = string.Empty;
+	}
+
+	private async Task SwapTenantIdsAsync(Guid idA, Guid idB) {
+		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		var temp = Guid.NewGuid();
+		await dbContext.Database.ExecuteSqlRawAsync(
+			"UPDATE tenants SET id = {0} WHERE id = {1}",
+			temp, idA);
+		await dbContext.Database.ExecuteSqlRawAsync(
+			"UPDATE tenants SET id = {0} WHERE id = {1}",
+			idA, idB);
+		await dbContext.Database.ExecuteSqlRawAsync(
+			"UPDATE tenants SET id = {0} WHERE id = {1}",
+			idB, temp);
 	}
 }

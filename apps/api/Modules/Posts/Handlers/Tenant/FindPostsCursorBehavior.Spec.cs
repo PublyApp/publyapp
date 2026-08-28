@@ -63,6 +63,14 @@ public sealed class FindPostsCursorBehaviorSpec : IClassFixture<ApiFixture> {
 			seededOrder.Add(createdAt);
 		}
 
+		// Swap the IDs of the two equal-key rows (i=0 and i=2) so that the
+		// tiebreaker is actually exercised. Without this, UUID v7 IDs are
+		// insertion-ordered, so stable OrderBy(CreatedAt) already matches
+		// ThenBy(Id) and removing the production tiebreaker leaves the test
+		// green. After the swap, the row inserted at i=2 has the smaller Id.
+		await SwapPostIdsAsync(seededIds[0], seededIds[2]);
+		(seededIds[0], seededIds[2]) = (seededIds[2], seededIds[0]);
+
 		var visitedIds = new List<Guid>();
 		var visitedCreatedAtOrder = new List<DateTime>();
 		string? cursor = null;
@@ -140,15 +148,20 @@ public sealed class FindPostsCursorBehaviorSpec : IClassFixture<ApiFixture> {
 			// determine the order of the two equal-key rows.
 			var id = await SeedPostAtAsync(
 				tenantId,
-				userId,
-				$"post-walk-up-{i}-{Guid.NewGuid():N}",
-				baseDate
-			);
+				userId, $"post-walk-up-{i}-{Guid.NewGuid():N}", baseDate);
 			seededIds.Add(id);
 			var updatedAt = i == 1 ? baseDate.AddDays(1) : baseDate;
 			await OverrideUpdatedAtAsync(id, updatedAt);
 			seededOrder.Add(updatedAt);
 		}
+
+		// Swap the IDs of the two equal-key rows (i=0 and i=2) so that the
+		// tiebreaker is actually exercised. Without this, UUID v7 IDs are
+		// insertion-ordered, so stable OrderBy(UpdatedAt) already matches
+		// ThenBy(Id) and removing the production tiebreaker leaves the test
+		// green. After the swap, the row inserted at i=2 has the smaller Id.
+		await SwapPostIdsAsync(seededIds[0], seededIds[2]);
+		(seededIds[0], seededIds[2]) = (seededIds[2], seededIds[0]);
 
 		var visitedIds = new List<Guid>();
 		var visitedUpdatedAtOrder = new List<DateTime>();
@@ -350,6 +363,22 @@ public sealed class FindPostsCursorBehaviorSpec : IClassFixture<ApiFixture> {
 			"UPDATE posts SET updated_at = {0} WHERE id = {1}",
 			updatedAt, postId
 		);
+	}
+
+	private async Task SwapPostIdsAsync(Guid idA, Guid idB) {
+		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+		var dbContext = scope.ServiceProvider
+			.GetRequiredService<AppDbContext>();
+		var temp = Guid.NewGuid();
+		await dbContext.Database.ExecuteSqlRawAsync(
+			"UPDATE posts SET id = {0} WHERE id = {1}",
+			temp, idA);
+		await dbContext.Database.ExecuteSqlRawAsync(
+			"UPDATE posts SET id = {0} WHERE id = {1}",
+			idA, idB);
+		await dbContext.Database.ExecuteSqlRawAsync(
+			"UPDATE posts SET id = {0} WHERE id = {1}",
+			idB, temp);
 	}
 
 	private sealed record FindPostsResponse {

@@ -1204,6 +1204,14 @@ public sealed class FindTenantUsersAsStaffSpec
 			seededOrder.Add(createdAt);
 		}
 
+			// Swap the IDs of the two equal-key rows (i=0 and i=2) so the row
+			// inserted at i=2 has the smaller Id. Without this, UUID v7 IDs are
+			// insertion-ordered, so stable OrderBy(CreatedAt) already matches
+			// ThenBy(Id) and removing the production tiebreaker leaves the test
+			// green. After the swap, the tiebreaker is actually exercised.
+			await SwapTenantUserIdsAsync(seededIds[0], seededIds[2]);
+			(seededIds[0], seededIds[2]) = (seededIds[2], seededIds[0]);
+
 		var visitedIds = new List<string>();
 		string? cursor = null;
 		var pages = 0;
@@ -1697,5 +1705,34 @@ public sealed class FindTenantUsersAsStaffSpec
 			= string.Empty;
 		public string Level { get; init; }
 			= string.Empty;
+	}
+
+	private async Task SwapTenantUserIdsAsync(string idA, string idB) {
+		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		var temp = Guid.NewGuid();
+		var guidA = Guid.Parse(idA);
+		var guidB = Guid.Parse(idB);
+		// Swap IDs on both the parent (users) and child (user_accounts)
+		// tables. The three-step swap via temp avoids PK collision, and updating
+		// the child table avoids FK violation (FK is not DEFERRABLE).
+		await dbContext.Database.ExecuteSqlRawAsync(
+			"UPDATE user_accounts SET user_id = {0} WHERE user_id = {1}",
+			temp, guidA);
+		await dbContext.Database.ExecuteSqlRawAsync(
+			"UPDATE users SET id = {0} WHERE id = {1}",
+			temp, guidA);
+		await dbContext.Database.ExecuteSqlRawAsync(
+			"UPDATE user_accounts SET user_id = {0} WHERE user_id = {1}",
+			guidA, guidB);
+		await dbContext.Database.ExecuteSqlRawAsync(
+			"UPDATE users SET id = {0} WHERE id = {1}",
+			guidA, guidB);
+		await dbContext.Database.ExecuteSqlRawAsync(
+			"UPDATE user_accounts SET user_id = {0} WHERE user_id = {1}",
+			guidB, temp);
+		await dbContext.Database.ExecuteSqlRawAsync(
+			"UPDATE users SET id = {0} WHERE id = {1}",
+			guidB, temp);
 	}
 }
