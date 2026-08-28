@@ -34,14 +34,11 @@ const staticFileHandler = createStaticMiddleware({
  * socket origin.
  */
 const resolveTrustProxyFromEnv = async () => {
-	const raw = process.env.TRUSTED_PROXY_CIDRS?.trim();
-	if (raw) {
-		return raw
-			.split(',')
-			.map((entry) => entry.trim().split('/')[0])
-			.filter((entry) => entry.length > 0);
-	}
-
+	// E2E_DISCOVER_TRUSTED_PROXY takes precedence: the Dockerfile sets a
+	// default TRUSTED_PROXY_CIDRS (loopback-only), but the e2e compose stack
+	// explicitly opts into runtime discovery of Traefik's IP. Without this
+	// ordering, the Dockerfile default would always win and discovery would
+	// never trigger.
 	if (process.env.E2E_DISCOVER_TRUSTED_PROXY === 'true') {
 		try {
 			const address = await lookup('traefik', { family: 4 });
@@ -56,6 +53,14 @@ const resolveTrustProxyFromEnv = async () => {
 			);
 			return ['127.0.0.1', '::1'];
 		}
+	}
+
+	const raw = process.env.TRUSTED_PROXY_CIDRS?.trim();
+	if (raw) {
+		return raw
+			.split(',')
+			.map((entry) => entry.trim().split('/')[0])
+			.filter((entry) => entry.length > 0);
 	}
 
 	console.warn(
