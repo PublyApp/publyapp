@@ -136,6 +136,33 @@ public sealed record ResolveTenantProfileUserAssignmentsArgs(
 	List<Guid> UserAccountIds
 );
 
+public record ResolveTenantProfileNameResolution {
+	// Unresolved reasons; null Reason means resolved.
+	public const string ReasonNotFound = "not-found";
+	public const string ReasonAmbiguous = "ambiguous";
+
+	public required string Name { get; init; }
+
+	/// <summary>Resolved live profile id, or null when unresolved.</summary>
+	public Guid? ProfileId { get; init; }
+
+	/// <summary>Unresolved reason: ReasonNotFound or ReasonAmbiguous. Null when resolved.</summary>
+	public string? Reason { get; init; }
+}
+
+public sealed record ResolveTenantProfileNamesArgs(
+	Guid TenantId,
+	List<string> Names
+);
+
+public abstract record ResolveTenantProfileNamesResult {
+	public sealed record Success(
+		List<ResolveTenantProfileNameResolution> Resolutions
+	) : ResolveTenantProfileNamesResult;
+
+	public sealed record TenantNotFound : ResolveTenantProfileNamesResult;
+}
+
 public interface ITenantProfileQueryAsStaffService {
 	Task<FindTenantProfilesResult> FindTenantProfilesAsync(
 		FindTenantProfilesArgs args,
@@ -165,6 +192,14 @@ public interface ITenantProfileQueryAsStaffService {
 
 	Task<ResolveTenantProfileUserAssignmentsResult> ResolveTenantProfileUserAssignmentsAsync(
 		ResolveTenantProfileUserAssignmentsArgs args,
+		CancellationToken cancellationToken = default
+	);
+
+	// Batch-resolves profile NAMES to profile ids for bulk entry (#979 invite drawer
+	// CSV/Excel import): case-insensitive over the tenant's live scope-1 non-deleted
+	// profiles, `ambiguous` when several live rows match one name.
+	Task<ResolveTenantProfileNamesResult> ResolveTenantProfileNamesAsync(
+		ResolveTenantProfileNamesArgs args,
 		CancellationToken cancellationToken = default
 	);
 }
@@ -668,6 +703,89 @@ public sealed class TenantProfileQueryAsStaffService : ITenantProfileQueryAsStaf
 			.ToList();
 
 		return new ResolveTenantProfileUserAssignmentsResult.Success(assignments);
+	}
+
+	/// <summary>
+	/// Batch-resolves tenant profile names for the invite drawer's CSV/Excel import (#979).
+	/// Case-insensitive matching happens in memory after fetching only this tenant's
+	/// candidate profiles: name comparisons use .NET OrdinalIgnoreCase semantics, which are
+	/// not reliably expressible as a translated SQL predicate across collations. The candidate
+	/// set is bounded by the tenant's own catalogue. More than one case-insensitive match is
+	/// reported as `ambiguous` rather than picking one, because ux_profiles_tenant_name is
+	/// CASE-SENSITIVE and "Editor" / "editor" can both exist live.
+	/// </summary>
+	public async Task<ResolveTenantProfileNamesResult> ResolveTenantProfileNamesAsync(
+		ResolveTenantProfileNamesArgs args,
+		CancellationToken cancellationToken = default
+	) {
+		var tenantExists = await _dbContext.Tenant
+			.AnyAsync(tenant => tenant.Id == args.TenantId, cancellationToken);
+		if (!tenantExists) {
+			return new ResolveTenantProfileNamesResult.TenantNotFound();
+		}
+
+		if (args.Names.Count == 0) {
+			return new ResolveTenantProfileNamesResult.Success([]);
+		}
+
+		var lookups = args.Names
+			.Select(name => (
+				Name: name,
+				ComparisonKey: NormalizeNameKey(name)
+			))
+			.ToList();
+
+		var candidates = await _dbContext.Profile
+			.AsNoTracking()
+			.Where(profile =>
+				profile.TenantId == args.TenantId
+				&& !profile.IsDeleted
+				&& profile.Scope == ProfileScope.Tenant
+			)
+			.Select(profile => new { profile.Id, profile.Name })
+			.ToListAsync(cancellationToken);
+
+		var candidatesByKey = candidates
+			.GroupBy(
+				profile => NormalizeNameKey(profile.Name),
+				StringComparer.Ordinal
+			)
+			.ToDictionary(
+				group => group.Key,
+				group => group.ToList(),
+				StringComparer.Ordinal
+			);
+
+		var resolutions = new List<ResolveTenantProfileNameResolution>(
+			lookups.Count
+		);
+
+		foreach (var lookup in lookups) {
+			Guid? resolvedProfileId = null;
+			string? reason = null;
+
+			if (candidatesByKey.TryGetValue(lookup.ComparisonKey, out var matches)) {
+				if (matches.Count == 1) {
+					resolvedProfileId = matches[0].Id;
+				} else {
+					reason = ResolveTenantProfileNameResolution.ReasonAmbiguous;
+				}
+			} else {
+				reason = ResolveTenantProfileNameResolution.ReasonNotFound;
+			}
+
+			resolutions.Add(new ResolveTenantProfileNameResolution {
+				Name = lookup.Name,
+				ProfileId = resolvedProfileId,
+				Reason = reason,
+			});
+		}
+
+		return new ResolveTenantProfileNamesResult.Success(resolutions);
+
+		static string NormalizeNameKey(string name) {
+			return name.Trim().ToUpperInvariant();
+		}
 	}
 
 }
