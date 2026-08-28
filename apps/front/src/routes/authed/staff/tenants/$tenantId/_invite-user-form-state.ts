@@ -166,18 +166,18 @@ export type ParsedInviteRow = {
 /** Why a file parse produced no usable rows. Each cause has its own i18n key
  * so the drawer can name the problem in plain words instead of a generic
  * "could not read file" message. */
-export type ParseInviteFailureKind =
+type ParseInviteFailureKind =
 	| 'empty'
 	| 'no-email-column'
 	| 'unreadable-excel'
 	| 'no-sheet';
 
-export type ParseInviteSuccess = {
+type ParseInviteSuccess = {
 	outcome: 'parsed';
 	rows: ParsedInviteRow[];
 };
 
-export type ParseInviteFailure = {
+type ParseInviteFailure = {
 	outcome: 'error';
 	kind: ParseInviteFailureKind;
 };
@@ -185,7 +185,7 @@ export type ParseInviteFailure = {
 export type ParseInviteResult = ParseInviteSuccess | ParseInviteFailure;
 
 /** Parsed-row level fields: a recognised level, or the raw invalid value. */
-export type RowLevelFields = {
+type RowLevelFields = {
 	accountLevel: 'Admin' | 'User';
 	invalidLevel: string | null;
 };
@@ -458,7 +458,7 @@ export const buildImportedInvites = (
 export const clearFileRows = (rows: InviteRow[]): InviteRow[] =>
 	rows.filter((row) => row.source !== 'file');
 
-export type ProfileResolutionOutcome = {
+type ProfileResolutionOutcome = {
 	rows: InviteRow[];
 	unresolvedByRowKey: Record<string, Array<{ name: string; reason: string }>>;
 	unresolvedCount: number;
@@ -570,7 +570,7 @@ export type InviteFormValues = {
 	rows: InviteRow[];
 };
 
-export const DEFAULT_VALUES: InviteFormValues = {
+const DEFAULT_VALUES: InviteFormValues = {
 	pasteEmails: '',
 	sharedAccountLevel: 'User',
 	sharedProfileIds: [],
