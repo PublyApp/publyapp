@@ -1,12 +1,11 @@
 using Microsoft.Extensions.FileProviders;
-using Microsoft.Extensions.Primitives;
 
 namespace PublyApp.Api.Infrastructure.Storage;
 
 /// <summary>
 /// Wraps a <see cref="PhysicalFileProvider"/> and hides any file system entry
 /// whose attributes contain <see cref="FileAttributes.ReparsePoint"/>
-/// (i.e. symbolic links, mount points, and junction points).
+/// (i.e. symbolic links).
 ///
 /// Why wrap rather than use a custom IFileProvider: PhysicalFileProvider already
 /// implements correct path canonicalisation, traversal rejection (".."), and
@@ -29,18 +28,59 @@ namespace PublyApp.Api.Infrastructure.Storage;
 /// an intermediate directory (e.g. `uploads/symlinked-dir/file.txt`) is itself
 /// a symlink pointing outside the served tree — a file-level check on the leaf
 /// alone would miss that, because the leaf file itself is not a reparse point.
+///
+/// Platform scope: on Linux, <see cref="File.GetAttributes(string)"/> uses
+/// <c>lstat</c> (no symlink following) and sets <see cref="FileAttributes.ReparsePoint"/>
+/// ONLY for symbolic links — NOT for bind mounts or mount points. A bind mount
+/// inside the served tree is NOT detected by this guard and is therefore NOT
+/// masked; the guard covers symlinks exclusively. On Windows the same attribute
+/// marks NTFS junctions and network mounts, but the behaviour there is NOT tested —
+/// the test suite runs on Linux only. If this guard is ever deployed on a
+/// non-Linux host, that gap must be closed before relying on it.
+///
+/// TOCTOU: <see cref="HasReparsePointInPath"/> reads each component's
+/// attributes sequentially, then the static-file middleware opens the file.
+/// Between those two moments the path can change. On Linux each per-component
+/// check is atomic (<c>lstat</c> does not follow symlinks), but the walk across
+/// multiple components is not — a race between two components is theoretically
+/// possible. It requires an attacker who can mutate the filesystem at
+/// nanosecond granularity while a request is in flight; the risk is low and
+/// accepted. What IS guaranteed: a symlink swapped in only after the check has
+/// passed is served (the file is opened after the check), but the check still
+/// blocks the common case — a symlink already present when the request arrives.
+///
+/// Root coupling: the served root MUST remain an ordinary subtree of the
+/// filesystem, never a mount point itself. <see cref="HasReparsePointInPath"/>
+/// derives the root by length-subtraction
+/// (<c>physicalPath.Length - subpath.Length</c>), which relies on
+/// PhysicalFileProvider returning a physical path that ends with the requested
+/// subpath. If the served root ever becomes a mount point (e.g. a per-tenant
+/// volume mounted directly at <c>uploads/</c>), note that bind mounts do NOT
+/// carry <see cref="FileAttributes.ReparsePoint"/> on Linux, so the root itself
+/// is NOT masked by this guard — but the length-subtraction that derives it
+/// may still produce an incorrect root path, causing the walk to miss reparse
+/// points in the components above the true root. The server-side log (see
+/// <see cref="GetFileInfo"/>) is the only signal that this has happened.
 /// </summary>
 public sealed class ReparsePointExclusionFileProvider : IFileProvider {
 	private readonly PhysicalFileProvider _inner;
+	private readonly ILogger<ReparsePointExclusionFileProvider> _logger;
 
-	public ReparsePointExclusionFileProvider(PhysicalFileProvider inner) {
+	public ReparsePointExclusionFileProvider(
+		PhysicalFileProvider inner,
+		ILogger<ReparsePointExclusionFileProvider> logger
+	) {
 		_inner = inner;
+		_logger = logger;
 	}
 
 	/// <summary>
 	/// Returns a synthetic <see cref="IFileInfo"/> with Exists == false for any
 	/// entry that is — or has — a reparse point in its path. For regular files
-	/// the delegate call passes through unchanged.
+	/// the delegate call passes through unchanged. When an entry is masked, a
+	/// warning-level log records the masked subpath and the offending component
+	/// so an operator can see that the guard decided; the HTTP response stays a
+	/// bare 404 so the client learns nothing about why.
 	/// </summary>
 	public IFileInfo GetFileInfo(string subpath) {
 		var info = _inner.GetFileInfo(subpath);
@@ -54,11 +94,20 @@ public sealed class ReparsePointExclusionFileProvider : IFileProvider {
 		}
 
 		// Walk every directory component of the subpath from the served root
-		// downward. If ANY component is a reparse point (symlink, mount,
-		// junction), reject the entry. This covers both leaf symlinks (the
-		// final path component is a reparse point) and intermediate-directory
-		// symlinks (an ancestor directory in the path is a reparse point).
-		if (HasReparsePointInPath(physicalPath, subpath)) {
+		// downward. If ANY component is a reparse point (symlink), reject
+		// the entry. This covers both leaf symlinks (the final path
+		// component is a reparse point) and intermediate-directory symlinks
+		// (an ancestor directory in the path is a reparse point).
+		if (HasReparsePointInPath(physicalPath, subpath, out var offendingComponent)) {
+			// The {Component} field logs the full filesystem path of the offending
+			// entry. This is NOT a secret — it is an operator-facing diagnostic that
+			// never carries sensitive values (session tokens, user data, etc.). Its
+			// purpose is to help operators locate and remove a stray symlink.
+			_logger.LogWarning(
+				"Reparse-point guard masked entry: subpath {Subpath}, component {Component}",
+				subpath,
+				offendingComponent
+			);
 			return new NotFoundFileInfo(info.Name);
 		}
 
@@ -83,7 +132,18 @@ public sealed class ReparsePointExclusionFileProvider : IFileProvider {
 		var filtered = new List<IFileInfo>();
 		foreach (var entry in contents) {
 			var entryPath = entry.PhysicalPath;
-			if (string.IsNullOrEmpty(entryPath) || !IsReparsePoint(entryPath)) {
+			if (string.IsNullOrEmpty(entryPath)) {
+				filtered.Add(entry);
+				continue;
+			}
+
+			if (IsReparsePoint(entryPath)) {
+				_logger.LogWarning(
+					"Reparse-point guard masked directory entry: subpath {Subpath}, entry {Entry}",
+					subpath,
+					entry.Name
+				);
+			} else {
 				filtered.Add(entry);
 			}
 		}
@@ -91,24 +151,33 @@ public sealed class ReparsePointExclusionFileProvider : IFileProvider {
 		return new FilterableDirectoryContents(filtered);
 	}
 
-	public IChangeToken Watch(string filter) {
+	public Microsoft.Extensions.Primitives.IChangeToken Watch(string filter) {
 		return _inner.Watch(filter);
 	}
 
 	/// <summary>
 	/// Walks each component of <paramref name="subpath"/> from the root
 	/// (derived from <paramref name="physicalPath"/>) downward and returns
-	/// true if any directory component is a reparse point.
+	/// true if any directory component is a reparse point. The offending
+	/// component path is written to <paramref name="offendingComponent"/> when
+	/// one is found.
 	/// </summary>
 	private static bool HasReparsePointInPath(
 		string physicalPath,
-		string subpath
+		string subpath,
+		out string offendingComponent
 	) {
+		offendingComponent = string.Empty;
+
 		if (string.IsNullOrEmpty(physicalPath) || string.IsNullOrEmpty(subpath)) {
 			return false;
 		}
 
 		// The root path is everything in physicalPath before the subpath.
+		// This relies on PhysicalFileProvider returning a physical path whose
+		// tail matches the requested subpath character-for-character — a
+		// trailing-slash mismatch would shift the subtraction and produce a
+		// wrong root. See the type doc for the root-coupling guarantee.
 		var rootPath = physicalPath.Substring(
 			0,
 			physicalPath.Length - subpath.Length
@@ -131,6 +200,7 @@ public sealed class ReparsePointExclusionFileProvider : IFileProvider {
 				: Path.Combine(rootPath, partial);
 
 			if (IsReparsePoint(currentPath)) {
+				offendingComponent = currentPath;
 				return true;
 			}
 		}

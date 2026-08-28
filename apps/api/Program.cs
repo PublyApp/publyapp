@@ -273,9 +273,11 @@ public class Program {
 		// Wrap PhysicalFileProvider to reject symbolic links / reparse points
 		// (issue #1654): a symlink inside uploads/ pointing outside the served
 		// tree would otherwise be followed and its target served anonymously.
+		var loggerFactory = app.Services.GetRequiredService<ILoggerFactory>();
 		app.UseStaticFiles(new StaticFileOptions {
 			FileProvider = new ReparsePointExclusionFileProvider(
-				new PhysicalFileProvider(uploadsRoot)
+				new PhysicalFileProvider(uploadsRoot),
+				loggerFactory.CreateLogger<ReparsePointExclusionFileProvider>()
 			),
 			RequestPath = "/files/uploads",
 			ServeUnknownFileTypes = false,
