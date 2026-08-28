@@ -8,7 +8,10 @@ const boxesMatch = (a: Box, b: Box): boolean =>
 	Math.abs(a.width - b.width) < 0.5 &&
 	Math.abs(a.height - b.height) < 0.5;
 
-const delay = (ms: number): Promise<void> =>
+/** A bare sleep. Deliberately NOT `@org/shared-ts`'s `delay`, which logs a
+ * warning on every call — inside a polling loop that would emit one line per
+ * sample. Named `sleep` so the two never collide (#1682). */
+const sleep = (ms: number): Promise<void> =>
 	new Promise((resolve) => {
 		setTimeout(resolve, ms);
 	});
@@ -51,7 +54,7 @@ export const waitForBoundingBoxToSettle = async (
 		}
 		previous = box;
 		// eslint-disable-next-line no-await-in-loop -- intentional sequential poll
-		await delay(pollIntervalMs);
+		await sleep(pollIntervalMs);
 	}
 
 	throw new Error(
