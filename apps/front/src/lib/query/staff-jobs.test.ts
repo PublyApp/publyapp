@@ -558,21 +558,26 @@ describe('successMessage keys resolve in shared-ts common locale bundles (#1627 
 });
 
 describe('query invalidation after mutations (#1627 r4 — refresh must be visible)', () => {
-	test('system-jobs.tsx imports and calls invalidateStaffJobsQueries after the enabled toggle mutation', () => {
+	test('system-jobs.tsx imports invalidateStaffJobsQueries', () => {
 		expect(
 			PAGE_SOURCE,
 			'system-jobs.tsx must import invalidateStaffJobsQueries',
 		).toContain('invalidateStaffJobsQueries');
+	});
 
-		// The toggle mutation's .then() must call invalidateStaffJobsQueries.
-		// Removing this call leaves the list showing stale data after a toggle.
+	test('enabled toggle mutation calls invalidateStaffJobsQueries in its .then() success path', () => {
+		// The toggle's mutateAsync().then() must call invalidateStaffJobsQueries(queryClient).
+		// Removing this call makes the list show stale data after a toggle —
+		// indistinguishable from a silently failed mutation.
 		expect(
 			PAGE_SOURCE,
 			'enabled toggle must call invalidateStaffJobsQueries in its success path',
-		).toMatch(/invalidateStaffJobsQueries\(queryClient\)/);
+		).toMatch(
+			/mutateAsync\(\{[^}]*isEnabled[^}]*\}\)\s*.then\(\(\)\s*=>\s*\{\s*void\s+invalidateStaffJobsQueries\(queryClient\)/s,
+		);
 	});
 
-	test('system-jobs.tsx calls invalidateStaffJobsQueries after the cron update mutation', () => {
+	test('cron update mutation calls invalidateStaffJobsQueries after successful mutateAsync', () => {
 		// The cron update must invalidate queries so the list reflects the new schedule.
 		expect(
 			PAGE_SOURCE,
