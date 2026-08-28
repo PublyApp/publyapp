@@ -117,7 +117,10 @@ export const InviteProfileSelect = ({
 	useEffect(() => {
 		setKnownNames((previous) => {
 			const lookup = buildKnownNameLookup(profiles, previous);
-			return lookup.size === previous.size ? previous : lookup;
+			if (lookup.size === previous.size) {
+				return previous;
+			}
+			return lookup;
 		});
 	}, [profiles]);
 

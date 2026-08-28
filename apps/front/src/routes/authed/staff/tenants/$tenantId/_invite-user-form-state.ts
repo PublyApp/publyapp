@@ -440,12 +440,13 @@ export const buildImportedInvites = (
 		source: 'file' | 'manual';
 	} /* return shape intentionally inferred (anti-slop no-known-value-widening) */,
 ) => {
-	const seen = new Set(
-		existingEmails.flatMap((email) => {
-			const normalized = email.trim().toLowerCase();
-			return normalized === '' ? [] : [normalized];
-		}),
-	);
+	const seen = new Set<string>();
+	for (const email of existingEmails) {
+		const normalized = email.trim().toLowerCase();
+		if (normalized !== '') {
+			seen.add(normalized);
+		}
+	}
 
 	let duplicateCount = 0;
 	const rows: InviteRow[] = [];
