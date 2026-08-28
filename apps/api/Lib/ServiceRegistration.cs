@@ -156,6 +156,9 @@ public static class ServiceRegistration {
 		builder.Services.AddSingleton<IResend>((sp) => {
 			return ResendClient.Create(AppEnvironment.Instance.RESEND_API_KEY);
 		});
+		// ResendEmailClientAdapter wraps IResend behind the repo-owned IResendEmailClient
+		// port, so only this one file breaks when the SDK interface changes.
+		builder.Services.AddSingleton<IResendEmailClient, ResendEmailClientAdapter>();
 		// C2 (#641): Bluesky HTTP adapter. Named typed-client factory keeps the base
 		// address testable; the adapter classifies account-caused refusals vs transient
 		// failures so no exception crosses the seam. Integration specs replace IBlueskyClient
