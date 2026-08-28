@@ -50,16 +50,9 @@ describe('compose-file TRUSTED_PROXY_CIDRS consistency (r5)', () => {
 		// its own Traefik address and trusts only that peer.
 		expect(composeFile).not.toMatch(
 			/TRUSTED_PROXY_CIDRS:\s*"172\.28\.0\.2\/32"/,
-			'A hardcoded /32 would be a dead guarantee on any non-default band',
 		);
-		expect(composeFile).not.toMatch(
-			/ipv4_address:\s*172\.28\.0\.2/,
-			'A hardcoded IP would collide across concurrent stacks',
-		);
-		expect(composeFile).not.toMatch(
-			/- subnet:\s*172\.28\.0\.0/,
-			'A hardcoded subnet would collide across concurrent stacks',
-		);
+		expect(composeFile).not.toMatch(/ipv4_address:\s*172\.28\.0\.2/);
+		expect(composeFile).not.toMatch(/- subnet:\s*172\.28\.0\.0/);
 	});
 });
 
