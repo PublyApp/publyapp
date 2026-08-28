@@ -767,3 +767,41 @@ main({
 		`main() with real sharedTsSrc override must exit zero, got ${result.status}. stderr: ${result.stderr}`,
 	);
 });
+
+// ---- #1678 R6: main() fails loudly when derivation is non-empty but incomplete ----
+// A1 (R5 verdict): "or a list that does not contain the expected segments". If the
+// directory exists and has some subdirectories but is missing expected ones (e.g.
+// @types was renamed to types2), the guard must still fail loudly — not silently
+// skip re-exports of the missing segment.
+test('RED: main() fails loudly when derived segments are missing expected segment(s) (#1678 R6)', () => {
+	const root = makeSandbox();
+	// Wipe the mirrored shared-ts-src tree and create only a subset of the real
+	// segments — missing @types and scripts (the ones the old hardcoded list
+	// missed, which is the historical bug #1678).
+	rmSync(path.join(root, 'shared-ts-src'), { recursive: true, force: true });
+	mkdirSync(path.join(root, 'shared-ts-src/lib'), { recursive: true });
+	mkdirSync(path.join(root, 'shared-ts-src/utils'), { recursive: true });
+	mkdirSync(path.join(root, 'shared-ts-src/validations'), { recursive: true });
+
+	const result = spawnSync(
+		'node',
+		['--experimental-strip-types', '-e', `
+import { main } from '${path.resolve(here, './check-shared-ts-import-paths.mts').replace(/\\/g, '/')}';
+main({
+  frontSrc: '${path.join(root, 'front-src').replace(/\\/g, '/')}',
+  sharedTsSrc: '${path.join(root, 'shared-ts-src').replace(/\\/g, '/')}',
+});
+`],
+		{ encoding: 'utf8' },
+	);
+
+	assert.notEqual(
+		result.status,
+		0,
+		`main() must exit non-zero when segment derivation is incomplete, got exit code ${result.status}. stdout: ${result.stdout}. stderr: ${result.stderr}`,
+	);
+	assert.ok(
+		result.stderr.includes('missing'),
+		`stderr must name the missing-segments cause, got: ${result.stderr}`,
+	);
+});

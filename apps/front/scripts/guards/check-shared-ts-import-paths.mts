@@ -404,6 +404,23 @@ export const scanSharedTsSrcForSharedTsReExports = (
 	});
 };
 
+/**
+ * The top-level segments that `packages/shared-ts/src/` is expected to expose.
+ * These are the packages the `@org/shared-ts/*` export map actually publishes
+ * (`"exports": { "./*": ... }`). The guard self-checks against this list so that
+ * a derivation that returns empty or a partial set (e.g. after a directory rename
+ * or a partial checkout) fails loudly rather than silently passing with a
+ * degraded pattern (#1678 A1).
+ */
+const EXPECTED_SHARED_TS_SEGMENTS = [
+	'@types',
+	'lib',
+	'scripts',
+	'types',
+	'utils',
+	'validations',
+] as const;
+
 export const main = (roots?: { frontSrc?: string; sharedTsSrc?: string }): void => {
 	const sharedTsSrcPath = roots?.sharedTsSrc ?? sharedTsSrc;
 	const segments = deriveSharedTsSegments(sharedTsSrcPath);
@@ -412,7 +429,12 @@ export const main = (roots?: { frontSrc?: string; sharedTsSrc?: string }): void 
 	// source directory has been renamed, moved, or is empty) — NOT a clean tree.
 	// If we proceed with an empty list, SHARED_TS_MODULE_PATTERN matches no
 	// specifier and the guard silently passes every file, becoming a no-op.
-	// Fail loudly, naming what was searched and what was found.
+	//
+	// Additionally, the derived list must contain every EXPECTED_SHARED_TS_SEGMENTS.
+	// If it is a subset (e.g. @types was renamed to types2, or a partial checkout
+	// dropped subdirectories), the pattern silently misses re-exports of those
+	// segments. Fail loudly, naming what was searched, what was found, and what was
+	// expected.
 	if (segments.length === 0) {
 		console.error(
 			`check-shared-ts-import-paths: self-check failed — derived zero shared-ts ` +
@@ -420,6 +442,19 @@ export const main = (roots?: { frontSrc?: string; sharedTsSrc?: string }): void 
 				`module pattern and would silently skip every file. Expected at least one ` +
 				`top-level directory under packages/shared-ts/src. Resolve the path or ` +
 				`directory contents before running the guard.`,
+		);
+		process.exit(1);
+	}
+	const missing = EXPECTED_SHARED_TS_SEGMENTS.filter(
+		(s) => !segments.includes(s),
+	);
+	if (missing.length > 0) {
+		console.error(
+			`check-shared-ts-import-paths: self-check failed — derived segments ` +
+				`${JSON.stringify(segments)} from ${sharedTsSrcPath} are missing ` +
+				`expected segment(s) ${JSON.stringify(missing)}. The guard may ` +
+				`silently skip re-exports of @org/shared-ts/<missing-segment>/*. ` +
+				`Resolve the path or directory contents before running the guard.`,
 		);
 		process.exit(1);
 	}
