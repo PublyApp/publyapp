@@ -6,7 +6,6 @@ How we keep vulnerable dependencies from landing or staying on `develop`.
 
 `.github/dependabot.yml` (weekly, label `technical-debt`, security updates on):
 
-- `devcontainers` at `/`
 - `npm` at `/` — covers the pnpm workspace (root `pnpm-lock.yaml` + `apps/*`/`packages/*`; GitHub maps pnpm to the `npm` ecosystem)
 - `nuget` at `/apps/api` and `/packages/scripts-cs`
 - `github-actions` at `/`

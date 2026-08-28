@@ -8,7 +8,11 @@ import { fileURLToPath } from 'node:url';
 import { test } from 'vitest';
 import { parse } from 'yaml';
 
-import { findCiDrift, hashReason } from './check-ci-drift.ts';
+import {
+	findCiDrift,
+	findDuplicateKeys,
+	hashReason,
+} from './check-ci-drift.ts';
 
 // These tests are the standing proof that the drift guard actually fires.
 // Every failure mode it claims to catch gets exercised against a throwaway
@@ -698,4 +702,256 @@ test('reason guard: passes when manifest and reference are fully aligned (Case 3
 	});
 
 	assert.equal(findings.length, 0);
+});
+
+// --- Duplicate key guard tests (#1700) ---
+//
+// JSON.parse silently keeps the LAST occurrence of a duplicate key, dropping
+// the earlier one without error. This means a manifest with a duplicate entry
+// parses "successfully" while silently discarding a reconciled step. The
+// findDuplicateKeys guard reads the raw text directly to catch this.
+//
+// Each test below proves a specific property of the guard:
+//   - It detects a straightforward duplicate at the top level of `steps`
+//   - It returns empty for a manifest with no duplicates
+//   - It is integrated into findCiDrift (end-to-end)
+//   - It survives adversarial mutations (whitespace, escape sequences in keys)
+//   - It distinguishes same-named keys at different nesting depths (not a dup)
+//   - It proves JSON.parse would silently drop the duplicate (motivating the guard)
+
+test('duplicate key guard: detects a duplicate key in the manifest steps', () => {
+	const manifest = [
+		'{',
+		'\t"steps": {',
+		'\t\t"fixture.yml::build::Run tests": { "hash": "abc", "mirror": "just ci", "reason": "Mirrored locally for testing purposes." },',
+		'\t\t"fixture.yml::build::Run tests": { "hash": "def", "mirror": "just ci", "reason": "Different entry for testing purposes here." }',
+		'\t}',
+		'}',
+	].join('\n');
+
+	const findings = findDuplicateKeys(manifest);
+
+	assert.equal(findings.length, 1);
+	assert.match(findings[0], /DUPLICATE KEY "fixture\.yml::build::Run tests"/);
+	assert.match(findings[0], /lines 3 and 4/);
+});
+
+test('duplicate key guard: returns empty for a manifest with no duplicates', () => {
+	const manifest = JSON.stringify(
+		{
+			steps: {
+				'fixture.yml::build::Run tests': {
+					hash: 'abc',
+					mirror: 'just ci',
+					reason: 'Mirrored locally for testing purposes.',
+				},
+				'fixture.yml::build::Scan for secrets': {
+					hash: 'def',
+					mirror: 'just ci',
+					reason: 'Mirrored locally via the local scanner recipe.',
+				},
+			},
+		},
+		null,
+		'\t',
+	);
+
+	assert.deepEqual(findDuplicateKeys(manifest), []);
+});
+
+test('duplicate key guard: detects a duplicate nested inside an entry object', () => {
+	const manifest = [
+		'{',
+		'\t"steps": {',
+		'\t\t"fixture.yml::build::Run tests": { "hash": "abc", "mirror": null, "reason": "short reason text here" },',
+		'\t\t"fixture.yml::build::Run tests": { "hash": "abc", "mirror": null, "reason": "short reason text here" },',
+		'\t\t"other": {',
+		'\t\t\t"hash": "x",',
+		'\t\t\t"hash": "y"',
+		'\t\t}',
+		'\t}',
+		'}',
+	].join('\n');
+
+	const findings = findDuplicateKeys(manifest);
+
+	// Both duplicates should be detected: the one at the steps level AND the
+	// one nested inside the "other" entry object.
+	assert.ok(
+		findings.some((f) =>
+			f.includes('DUPLICATE KEY "fixture.yml::build::Run tests"'),
+		),
+		'Expected duplicate detection for the step-level key',
+	);
+	assert.ok(
+		findings.some((f) => f.includes('DUPLICATE KEY "hash"')),
+		'Expected duplicate detection for the nested hash key',
+	);
+});
+
+test('duplicate key guard: same key name at different nesting depths is NOT a duplicate', () => {
+	const manifest = [
+		'{',
+		'\t"steps": {',
+		'\t\t"a": { "hash": "x", "mirror": null, "reason": "short reason text here" }',
+		'\t}',
+		'\t"other": {',
+		'\t\t"a": { "hash": "y", "mirror": null, "reason": "short reason text here" }',
+		'\t}',
+		'}',
+	].join('\n');
+
+	assert.deepEqual(findDuplicateKeys(manifest), []);
+});
+
+test('duplicate key guard: is integrated into findCiDrift (end-to-end)', async () => {
+	// Build a fixture manifest with a duplicate key, bypassing JSON.stringify
+	// (which deduplicates) by writing raw text.
+	const rootDir = await mkdtemp(path.join(os.tmpdir(), 'publyapp-dup-key-'));
+	await mkdir(path.join(rootDir, '.github/workflows'), { recursive: true });
+	await mkdir(path.join(rootDir, 'packages/scripts-ts/src'), {
+		recursive: true,
+	});
+
+	await writeFile(
+		path.join(rootDir, '.github/workflows/fixture.yml'),
+		workflow(mirroredStep),
+	);
+
+	const dedupedHash = reconciledHash;
+	const rawManifest = [
+		'{',
+		'\t"steps": {',
+		`		"fixture.yml::build::Run tests": { "hash": "${dedupedHash}", "mirror": "just ci", "reason": "${reason}" },`,
+		`		"fixture.yml::build::Run tests": { "hash": "deadbeefdeadbeef", "mirror": null, "reason": "different reason text for testing purposes here." }`,
+		'\t}',
+		'}',
+	].join('\n');
+
+	await writeFile(
+		path.join(rootDir, 'packages/scripts-ts/src/ci-gate-manifest.json'),
+		rawManifest,
+	);
+
+	const findings = await findCiDrift({
+		rootDir,
+		reasonRef: buildFixtureReasonRef(reason),
+	});
+
+	assert.ok(
+		findings.some((f) => /DUPLICATE KEY/.test(f)),
+		'findCiDrift should report duplicate keys in the manifest',
+	);
+});
+
+test('duplicate key guard: proves JSON.parse silently drops the duplicate (motivating the guard)', () => {
+	// This is the RED proof: JSON.parse does NOT throw on duplicate keys.
+	// It silently keeps the LAST value, dropping the first. This is exactly
+	// why the raw-text guard is necessary — a manifest with a duplicate is
+	// invalid by intent but parses cleanly under JSON.parse.
+	const rawWithDup = [
+		'{',
+		'\t"key": "first-value-kept-by-humans",',
+		'\t"key": "second-value-kept-by-JSON-parse"',
+		'}',
+	].join('\n');
+
+	const parsed = JSON.parse(rawWithDup) as { key: string };
+
+	// JSON.parse keeps the last: the first value is silently dropped.
+	assert.equal(
+		parsed.key,
+		'second-value-kept-by-JSON-parse',
+		'JSON.parse silently keeps the last duplicate, dropping the first',
+	);
+	assert.notEqual(
+		parsed.key,
+		'first-value-kept-by-humans',
+		'The first value is lost without any error from JSON.parse',
+	);
+
+	// But the guard catches it.
+	const findings = findDuplicateKeys(rawWithDup);
+	assert.equal(findings.length, 1);
+	assert.match(findings[0], /DUPLICATE KEY "key"/);
+});
+
+test('duplicate key guard: tolerates escaped quotes inside key strings', () => {
+	// A key that contains escaped quotes should not confuse the scanner.
+	const manifest = [
+		'{',
+		'\t"steps": {',
+		'\t\t"key with \\"quotes\\" inside": { "hash": "abc", "mirror": null, "reason": "short reason text here" },',
+		'\t\t"key with \\"quotes\\" inside": { "hash": "def", "mirror": null, "reason": "short reason text here" }',
+		'\t}',
+		'}',
+	].join('\n');
+
+	const findings = findDuplicateKeys(manifest);
+
+	assert.equal(findings.length, 1);
+	assert.match(findings[0], /DUPLICATE KEY "key with "quotes" inside"/);
+});
+
+test('duplicate key guard: reports correct line numbers for multiple duplicates', () => {
+	const manifest = [
+		'{',
+		'\t"steps": {',
+		'\t\t"first": { "hash": "a", "mirror": null, "reason": "short reason text here" },',
+		'\t\t"second": { "hash": "b", "mirror": null, "reason": "short reason text here" },',
+		'\t\t"first": { "hash": "c", "mirror": null, "reason": "short reason text here" },',
+		'\t\t"second": { "hash": "d", "mirror": null, "reason": "short reason text here" }',
+		'\t}',
+		'}',
+	].join('\n');
+
+	const findings = findDuplicateKeys(manifest);
+
+	// Both "first" (lines 3 and 5) and "second" (lines 4 and 6) are duplicates.
+	assert.equal(findings.length, 2);
+
+	const firstFinding = findings.find((f) =>
+		f.includes('DUPLICATE KEY "first"'),
+	);
+	const secondFinding = findings.find((f) =>
+		f.includes('DUPLICATE KEY "second"'),
+	);
+
+	assert.ok(firstFinding, 'Expected a finding for the duplicate "first" key');
+	assert.ok(secondFinding, 'Expected a finding for the duplicate "second" key');
+	assert.match(firstFinding!, /lines 3 and 5/);
+	assert.match(secondFinding!, /lines 4 and 6/);
+});
+
+test('duplicate key guard: does not flag keys that appear as string values', () => {
+	// String values (not keys) that happen to share a name with another key
+	// must not trigger a duplicate finding. The guard distinguishes keys
+	// (preceded by `"`, followed by `:`) from values (preceded by `:`).
+	const manifest = [
+		'{',
+		'\t"steps": {',
+		'\t\t"unique-key": {',
+		'\t\t\t"hash": "a",',
+		'\t\t\t"mirror": "unique-key",',
+		'\t\t\t"reason": "short reason text here"',
+		'\t\t}',
+		'\t}',
+		'}',
+	].join('\n');
+
+	// "unique-key" appears once as a key and once as a string value.
+	// "hash", "mirror", "reason" appear once as keys. No duplicates expected.
+	assert.deepEqual(findDuplicateKeys(manifest), []);
+});
+
+test('duplicate key guard: the repo manifest has no duplicate keys', () => {
+	// The standing proof: the real manifest must pass the guard. If someone
+	// reintroduces a duplicate key (as happened in cd74695f4), this test turns
+	// red before CI ever runs.
+	const raw = readFileSync(
+		path.join(repoRoot, 'packages/scripts-ts/src/ci-gate-manifest.json'),
+		'utf8',
+	);
+
+	assert.deepEqual(findDuplicateKeys(raw), []);
 });
