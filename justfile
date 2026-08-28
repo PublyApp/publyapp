@@ -423,8 +423,27 @@ ci-front:
   # front test` AND an explicit front-ci.yml::supply-chain step.
   pnpm --filter front check:react-compiler
   pnpm --filter front test
+  just test-preuves
+  # end of front front-ci.yml::supply-chain parallel block (Test front step)
   @echo "=== [gate] production dependency audit (mirrors front-ci.yml::supply-chain) ==="
   pnpm audit --prod --audit-level=moderate
+
+# Run paired preuve red tests via vitest.preuves.config.ts.
+#
+# These tests are EXPECTED TO FAIL — each proves a bug is present by failing
+# against the corrected code. This recipe runs ONLY the proof tests that the
+# current PR declares (files added/modified under apps/front/tests/proofs/).
+# If the PR declares no proofs, the recipe prints an explicit no-op message
+# and exits 0 — this is NOT a silent success, it states what was checked.
+#
+# The proof files are versionned under apps/front/tests/proofs/ (committed to
+# the repo), so CI can always see them — unlike .dump/ which is git-ignored.
+# The developer replay path is `just test-preuves` in the lane worktree
+# (where .dump/ traces also exist). CI runs the same command on a clean
+# checkout.
+test-preuves:
+  @echo "=== [gate] paired red proofs (expected to fail) ==="
+  pnpm --filter front test:preuves
 
 # Quality gate (issue #803): repo-wide oxlint + oxfmt check + .NET warnings-as-errors + analyzer tests.
 # Mirrors .github/workflows/quality-gate.yml::quality — fails PRs on any oxlint diagnostic

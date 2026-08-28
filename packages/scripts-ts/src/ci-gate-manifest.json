@@ -336,6 +336,11 @@
 			"mirror": "just ci-front",
 			"reason": "ci-front runs the identical pnpm --filter front test."
 		},
+		"front-ci.yml::supply-chain::Verify paired red proofs": {
+			"hash": "84a5033fcfbeb3dd",
+			"mirror": "just ci-front",
+			"reason": "ci-front runs `just test-preuves`, which delegates to the same scripts/ci/run-preuves.mts script invoked by `pnpm --filter front test:preuves`. Option (b) of issue #1659 ronde 5: a PR declares a paired red proof by adding/modifying proof test files under apps/front/tests/proofs/<issue>/. The runner uses `git diff` to detect whether the current PR touched any proof files. If proofs were declared, it replays them with inverted semantics (fail = proof intact, pass = proof stale). If no proofs were declared, it prints an explicit no-op message and exits 0. Proof files are versionned (committed), unlike .dump/ which is git-ignored. The developer replay path is the lane worktree where .dump/ traces also exist."
+		},
 		"front-ci.yml::supply-chain::Typecheck front": {
 			"hash": "919f61e1a9c1b71c",
 			"mirror": "just ci-front",

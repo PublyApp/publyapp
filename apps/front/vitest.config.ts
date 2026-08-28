@@ -63,7 +63,13 @@ export default defineConfig({
 		// unit-lane contributor or CI run needs to install a browser for a
 		// synthetic guard the live e2e already bounds — see
 		// vitest.drawer.config.ts.
+		//
+		// tests/proofs/ holds EXPECTED-TO-FAIL red proof tests (issue #1659).
+		// They must never run in the green suite — a leaked red proof would
+		// make the suite permanently red. They are replayed by
+		// vitest.preuves.config.ts + run-preuves.mts instead.
 		exclude: [
+			'tests/proofs/**',
 			'src/styles/drawer-description-contrast.test.ts',
 			// The e2e tag guard is pure static analysis (reads .spec.ts files);
 			// it runs in the vitest lane but belongs under e2e/ for proximity.
