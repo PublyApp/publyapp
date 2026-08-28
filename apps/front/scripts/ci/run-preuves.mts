@@ -305,7 +305,7 @@ for (const test of replayable) {
 
 	console.log(`--- Running: ${test} ---`);
 	try {
-		execFileSync('pnpm', ['exec', 'vitest', 'run', '--config', CONFIG, test], {
+		execFileSync('pnpm', ['exec', 'vitest', 'run', '--config', CONFIG, '--no-color', test], {
 			stdio: 'pipe',
 			encoding: 'utf-8',
 		});
