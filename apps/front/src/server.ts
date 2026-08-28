@@ -175,7 +175,10 @@ const sendBadResponseCapture = (
 export const validateRuntimeEnv = (): void => {
 	getPublicEnv();
 	const serverEnv = getServerEnv();
-	if (serverEnv.nodeEnv === 'production' && serverEnv.publicOrigin === undefined) {
+	if (
+		serverEnv.nodeEnv === 'production' &&
+		serverEnv.publicOrigin === undefined
+	) {
 		throw new Error(
 			"PUBLIC_ORIGIN is required when NODE_ENV=production: without it the server trusts the client's Host header when building canonical and Open Graph URLs. Set PUBLIC_ORIGIN to the public https origin (for example https://app.publy.example), no trailing path.",
 		);
