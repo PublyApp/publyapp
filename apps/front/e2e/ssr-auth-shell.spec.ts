@@ -1,5 +1,7 @@
 import { expect, test, type Request } from '@playwright/test';
 
+import { SESSION_VALIDATION_TIMEOUT_MS } from '@org/shared-ts/lib/session-validation';
+
 import { FRONT_URL } from './helpers/compose-env';
 import { loginAsStaffAdmin } from './helpers/login';
 
@@ -109,63 +111,61 @@ test.describe('SSR auth shell', { tag: ['@security', '@997'] }, () => {
 		}
 	});
 
-	test('hydration never validates stale cookies on unknown authed-prefix paths, so 404 stays genuine', async ({
-		context,
-	}) => {
-		// `_authed-layout`'s own `beforeLoad` applies the same
-		// `hasExactAuthedRouteMatch` guard the root already applies (PR #997
-		// finding 1), so none of these cases may redirect away from an unknown
-		// path anymore: neither the tokenless/unresolvable-token branch (no
-		// cookie, an empty scoped cookie, an unscoped/malformed legacy cookie)
-		// nor the cross-surface branch (a bare tenant token, or an unscoped
-		// legacy cookie that also parses as a tenant token) may fire for a path
-		// that isn't an exact authenticated route match. With the redirect out
-		// of the way for every one of these shapes, only the RoutedShell
-		// surface-session query being fixed in this test is in play.
-		const cases = [
-			{
-				cookie: undefined,
-				name: 'no cookie on unknown staff path',
-				path: '/staff/not-a-route',
-			},
-			{
-				cookie: 's:',
-				name: 'empty scoped token on unknown staff path',
-				path: '/staff/not-a-route',
-			},
-			{
-				cookie: 'forged-legacy',
-				name: 'malformed raw legacy token on unknown staff path',
-				path: '/staff/not-a-route',
-			},
-			{
-				cookie: 't:forged-tenant',
-				name: 'cross-scope tenant-only token on unknown staff path',
-				path: '/staff/not-a-route',
-			},
-			{
-				cookie: 's:forged',
-				name: 'forged staff token on unknown staff path',
-				path: '/staff/not-a-route',
-			},
-			{
-				cookie: 's:expired',
-				name: 'expired staff token on unknown staff path',
-				path: '/staff/not-a-route',
-			},
-			{
-				cookie: 's:forged-staff+t:forged-tenant',
-				name: 'validly formatted forged staff and tenant hints on unknown staff path',
-				path: '/staff/not-a-route',
-			},
-			{
-				cookie: 's:forged',
-				name: 'forged staff token on a lookalike public path',
-				path: '/staffing',
-			},
-		] as const;
+	// #1641: each matrix case owns its own test so a future failure names the
+	// culprit. `_authed-layout`'s own `beforeLoad` applies the same
+	// `hasExactAuthedRouteMatch` guard the root already applies (PR #997
+	// finding 1), so none of these cases may redirect away from an unknown
+	// path. The matrix itself is unchanged (8 cookie/path shapes); only the
+	// loop that ran them inside one test has been lifted to generate one
+	// test() per case.
+	const staleCookieCases = [
+		{
+			cookie: undefined,
+			name: 'no cookie on unknown staff path',
+			path: '/staff/not-a-route',
+		},
+		{
+			cookie: 's:',
+			name: 'empty scoped token on unknown staff path',
+			path: '/staff/not-a-route',
+		},
+		{
+			cookie: 'forged-legacy',
+			name: 'malformed raw legacy token on unknown staff path',
+			path: '/staff/not-a-route',
+		},
+		{
+			cookie: 't:forged-tenant',
+			name: 'cross-scope tenant-only token on unknown staff path',
+			path: '/staff/not-a-route',
+		},
+		{
+			cookie: 's:forged',
+			name: 'forged staff token on unknown staff path',
+			path: '/staff/not-a-route',
+		},
+		{
+			cookie: 's:expired',
+			name: 'expired staff token on unknown staff path',
+			path: '/staff/not-a-route',
+		},
+		{
+			cookie: 's:forged-staff+t:forged-tenant',
+			name: 'validly formatted forged staff and tenant hints on unknown staff path',
+			path: '/staff/not-a-route',
+		},
+		{
+			cookie: 's:forged',
+			name: 'forged staff token on a lookalike public path',
+			path: '/staffing',
+		},
+	] as const;
 
-		for (const matrixCase of cases) {
+	for (const matrixCase of staleCookieCases) {
+		test(`hydration never validates stale cookies on unknown authed-prefix paths, so 404 stays genuine (${matrixCase.name})`, async ({
+			context,
+			page,
+		}) => {
 			await context.clearCookies();
 			if (matrixCase.cookie) {
 				await context.addCookies([
@@ -177,7 +177,7 @@ test.describe('SSR auth shell', { tag: ['@security', '@997'] }, () => {
 				]);
 			}
 
-			const casePage = await context.newPage();
+			const casePage = page;
 			const validationRequests: string[] = [];
 			casePage.on('request', (request) => {
 				if (isValidationRequest(request)) {
@@ -201,10 +201,8 @@ test.describe('SSR auth shell', { tag: ['@security', '@997'] }, () => {
 				matrixCase.path,
 			);
 			expectNoAuthedChrome(await casePage.content());
-
-			await casePage.close();
-		}
-	});
+		});
+	}
 
 	test('a genuine session cold-loads the authenticated shell without a hydration error', async ({
 		page,
@@ -324,25 +322,50 @@ test.describe('SSR auth shell', { tag: ['@security', '@997'] }, () => {
 		expect(mountedModes).not.toContain('authed');
 	});
 
-	test('session-validation failures expose an accessible neutral Retry and recover when the API returns', async ({
-		browser,
-		context,
-		page,
-	}, testInfo) => {
-		test.setTimeout(90_000);
-		await loginAsStaffAdmin(page);
-		const authenticatedState = await context.storageState();
-		const baseURL = testInfo.project.use.baseURL;
+	// #1641: each failure shape owns its own test so a future failure names
+	// the culprit, and no single test leans on a tripled budget. The matrix is
+	// unchanged (5 failure shapes); only the loop that ran them inside one test
+	// has been lifted to generate one test() per case. The pre-existing
+	// `test.setTimeout(90_000)` is removed: once split, each case keeps the
+	// default 30s envelope for a single recovery flow.
+	//
+	// #1641 r4: the `held past timeout` case uses a double bound to prove the
+	// Retry button appeared because the production timeout fired, not because of
+	// an immediate rejection. The floor (`SESSION_VALIDATION_FLOOR_MS` = 15s) is
+	// well below the production timeout (`SESSION_VALIDATION_TIMEOUT_MS` = 20s,
+	// imported from `@org/shared-ts/lib/session-validation`) but well above any
+	// immediate rejection (<1s). The ceiling (`SESSION_VALIDATION_CEILING_MS` = 35s)
+	// handles load variance while still distinguishing 20s from 1s.
+	const failureCases = [
+		'aborted',
+		'server 500',
+		'malformed response',
+		'disconnected',
+		'held past timeout',
+	] as const;
+	const SESSION_VALIDATION_FLOOR_MS = Math.max(
+		SESSION_VALIDATION_TIMEOUT_MS - 5_000,
+		5_000,
+	);
+	const SESSION_VALIDATION_CEILING_MS = SESSION_VALIDATION_TIMEOUT_MS + 15_000;
+	const HELD_PAST_TIMEOUT_BUDGET_MS = 40_000;
 
-		const cases = [
-			'aborted',
-			'server 500',
-			'malformed response',
-			'disconnected',
-			'held past timeout',
-		] as const;
+	for (const failureCase of failureCases) {
+		test(`session-validation failures expose an accessible neutral Retry and recover when the API returns (${failureCase})`, async ({
+			browser,
+			context,
+			page,
+		}, testInfo) => {
+			// See the block-level comment above for why this single case gets
+			// a budget above the 30s default. The other four cases in this
+			// matrix inherit the default and are unchanged.
+			if (failureCase === 'held past timeout') {
+				testInfo.setTimeout(HELD_PAST_TIMEOUT_BUDGET_MS);
+			}
+			await loginAsStaffAdmin(page);
+			const authenticatedState = await context.storageState();
+			const baseURL = testInfo.project.use.baseURL;
 
-		for (const failureCase of cases) {
 			const caseContext = await browser.newContext({
 				baseURL,
 				ignoreHTTPSErrors: true,
@@ -446,7 +469,39 @@ test.describe('SSR auth shell', { tag: ['@security', '@997'] }, () => {
 				.toBe(1);
 
 			const retry = casePage.getByRole('button', { name: 'Retry' });
-			await expect(retry, failureCase).toBeVisible({ timeout: 25_000 });
+
+			// #1641 r4: double bound for `held past timeout`. The Retry button
+			// must NOT appear before the floor, proving it appeared because the
+			// production timeout fired (20s), not because of an immediate
+			// rejection (aborted, 500, etc. would appear in <1s). The floor is
+			// well below the 20s timeout but well above any immediate rejection,
+			// so those would violate it. The ceiling must hold under load while
+			// still distinguishing 20s from 1s. For the other four cases, the
+			// button appears immediately (no timeout involved), so only the
+			// ceiling applies.
+			if (failureCase === 'held past timeout') {
+				const floorStart = Date.now();
+				while (Date.now() - floorStart < SESSION_VALIDATION_FLOOR_MS) {
+					await expect(
+						retry,
+						`${failureCase}: Retry must not appear before floor`,
+					).not.toBeVisible();
+					await casePage.waitForTimeout(200);
+				}
+			}
+
+			await expect(
+				retry,
+				`${failureCase}: Retry must appear after production timeout (${SESSION_VALIDATION_TIMEOUT_MS}ms)`,
+			).toBeVisible({
+				timeout: SESSION_VALIDATION_CEILING_MS,
+			});
+			// Release the route handler immediately after the Retry button appears.
+			// This proves the 20s production timeout fired (button appears at ~21s),
+			// not that the test manually released control early.
+			if (releaseFirstRequest) {
+				releaseFirstRequest();
+			}
 			await expect
 				.poll(() => activeRequestCount, {
 					message: `${failureCase}: failed validation request was cancelled`,
@@ -484,17 +539,14 @@ test.describe('SSR auth shell', { tag: ['@security', '@997'] }, () => {
 			await expect(casePage.getByTestId('app-shell-shell')).toBeVisible({
 				timeout: 15_000,
 			});
-			if (releaseFirstRequest) {
-				releaseFirstRequest();
-			}
 			expect(failedAttemptCount, failureCase).toBe(1);
 			expect(successfulAttemptCount, failureCase).toBe(1);
 			expect(totalRequestCount, failureCase).toBe(2);
 			expect(maximumActiveRequestCount, failureCase).toBe(1);
 
 			await caseContext.close();
-		}
-	});
+		});
+	}
 
 	// #1639: each matrix case owns its own test so a future failure names the
 	// culprit, and no single 30s envelope stretches across all twelve page
