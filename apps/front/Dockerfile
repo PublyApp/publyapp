@@ -72,6 +72,9 @@ COPY --from=build /workspace/deploy/dist ./dist
 
 ENV PORT=5050
 ENV NODE_ENV=production
+# Default to loopback-only so the image boots safely without a reverse proxy.
+# Production deployments MUST override this with the proxy peer's /32 address.
+ENV TRUSTED_PROXY_CIDRS="127.0.0.1/32,::1/128"
 EXPOSE 5050
 HEALTHCHECK --interval=5s --timeout=3s --start-period=15s --retries=20 \
   CMD node -e "fetch('http://127.0.0.1:'+(process.env.PORT||5050)+'/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
