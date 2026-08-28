@@ -88,8 +88,10 @@ export const resolveOrigin = (request: Request): string => {
 		if (publicOrigin === undefined) {
 			const nodeEnv = getServerEnv().nodeEnv;
 			if (nodeEnv === 'production') {
-				// validateRuntimeEnv should have refused to start, but defensively fall
-				// back to the configured origin if somehow we get here.
+				// validateRuntimeEnv already refused to start the process in this
+				// state, so reaching here in production is a hard contract breach.
+				// Fail loudly: a forged canonical origin is worse than a crashed
+				// request — a wrong canonical URL is served to every client silently.
 				throw new Error(
 					'PUBLIC_ORIGIN is required in production; resolveOrigin must not trust the Host header.',
 				);
