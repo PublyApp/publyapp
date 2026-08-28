@@ -4,6 +4,7 @@ using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Lib.DI;
 using PublyApp.Api.Modules.SocialAccounts.Entities;
 using PublyApp.Api.Modules.SocialAccounts.Lib;
+using PublyApp.Api.Modules.SocialAccounts.Services;
 
 namespace PublyApp.Api.Modules.Publishing.Services;
 
@@ -65,8 +66,13 @@ public sealed class PublishTargetService : IPublishTargetService {
 			.Select(account => new PublishTargetItem {
 				Id = account.GetRequiredId(),
 				Label = account.DisplayHandle,
-				// Same wire value as SocialAccountService.ToListItem (single source).
-				Provider = "bluesky",
+				// The single source really is called now (#1443). The literal that
+				// stood here made this comment false: every target reported
+				// "bluesky" regardless of account.Provider, so the first non-Bluesky
+				// provider would have been mislabelled on the wire with nothing
+				// failing — FormatProvider throws on an unhandled value, a literal
+				// cannot.
+				Provider = SocialAccountWire.FormatProvider(account.Provider),
 			})
 			.ToList();
 	}
