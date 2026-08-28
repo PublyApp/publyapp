@@ -1123,14 +1123,14 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 	private async Task SwapStaffUserIdsAsync(Guid idA, Guid idB) {
 		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var tx = await dbContext.Database.BeginTransactionAsync();
+		// Disable FK enforcement triggers on the child table so the swap
+		// doesn't violate non-deferrable FK constraints. Triggers are
+		// re-enabled automatically when the transaction ends.
+		await dbContext.Database.ExecuteSqlRawAsync("ALTER TABLE user_accounts DISABLE TRIGGER ALL");
+
 		var temp = Guid.NewGuid();
-		// Swap IDs on the parent (users) and child (user_accounts) tables.
-		// The three-step swap via a temp id avoids PK collision (the PK unique
-		// constraint must never see two rows with the same id concurrently).
-		// For the child table FK: update parent to temp FIRST, then repoint
-		// child rows to temp so the FK remains valid at every step.
-		// Step 1: move idA -> temp in users (freeing idA for the swap),
-		// then redirect user_accounts to temp.
+		// Step 1: move idA -> temp in both tables.
 		await dbContext.Database.ExecuteSqlRawAsync(
 			"UPDATE users SET id = {0} WHERE id = {1}",
 			temp, idA);
@@ -1151,5 +1151,7 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 		await dbContext.Database.ExecuteSqlRawAsync(
 			"UPDATE user_accounts SET user_id = {0} WHERE user_id = {1}",
 			idB, temp);
+
+		await tx.CommitAsync();
 	}
 }

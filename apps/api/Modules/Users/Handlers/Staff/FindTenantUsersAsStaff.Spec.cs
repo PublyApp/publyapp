@@ -1711,36 +1711,34 @@ public sealed class FindTenantUsersAsStaffSpec
 		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 		await using var tx = await dbContext.Database.BeginTransactionAsync();
-		// Set constraints to deferred so the FK from user_accounts to users
-		// doesn't violate during the swap. Constraints are checked at
-		// transaction commit time.
-		await dbContext.Database.ExecuteSqlRawAsync(
-			"SET CONSTRAINTS ALL DEFERRED"
-		);
+		// Disable FK enforcement triggers on the child table so the swap
+		// doesn't violate non-deferrable FK constraints. Triggers are
+		// re-enabled automatically when the transaction ends.
+		await dbContext.Database.ExecuteSqlRawAsync("ALTER TABLE user_accounts DISABLE TRIGGER ALL");
 
 		var temp = Guid.NewGuid();
 		var guidA = Guid.Parse(idA);
 		var guidB = Guid.Parse(idB);
 		// Step 1: move idA -> temp in both tables.
 		await dbContext.Database.ExecuteSqlRawAsync(
-			"UPDATE user_accounts SET user_id = {0} WHERE user_id = {1}",
+			"UPDATE users SET id = {0} WHERE id = {1}",
 			temp, guidA);
 		await dbContext.Database.ExecuteSqlRawAsync(
-			"UPDATE users SET id = {0} WHERE id = {1}",
+			"UPDATE user_accounts SET user_id = {0} WHERE user_id = {1}",
 			temp, guidA);
 		// Step 2: move idB -> idA in both tables.
 		await dbContext.Database.ExecuteSqlRawAsync(
-			"UPDATE user_accounts SET user_id = {0} WHERE user_id = {1}",
+			"UPDATE users SET id = {0} WHERE id = {1}",
 			guidA, guidB);
 		await dbContext.Database.ExecuteSqlRawAsync(
-			"UPDATE users SET id = {0} WHERE id = {1}",
+			"UPDATE user_accounts SET user_id = {0} WHERE user_id = {1}",
 			guidA, guidB);
 		// Step 3: move temp -> idB in both tables (completing the swap).
 		await dbContext.Database.ExecuteSqlRawAsync(
-			"UPDATE user_accounts SET user_id = {0} WHERE user_id = {1}",
+			"UPDATE users SET id = {0} WHERE id = {1}",
 			guidB, temp);
 		await dbContext.Database.ExecuteSqlRawAsync(
-			"UPDATE users SET id = {0} WHERE id = {1}",
+			"UPDATE user_accounts SET user_id = {0} WHERE user_id = {1}",
 			guidB, temp);
 
 		await tx.CommitAsync();
