@@ -408,9 +408,15 @@ ci-shared-ts:
 # publy/* oxlint rules that guard every front surface, but nothing verified
 # its own types — only its vitest tests ran (via ci-lint). The typecheck script
 # now runs here and in quality-gate.yml::quality, exactly as CI runs it.
+#
+# Since #1692, also typechecks @org/client-ts (the Kiota-generated TypeScript
+# API client). Its typecheck script was added to packages/client-ts/package.json
+# but was never wired into any CI step or local gate — trompe-l'oeil coverage.
+# Now runs here and in quality-gate.yml::quality, exactly as CI runs it.
 ci-lint-ts:
-  @echo "=== [gate] @org/lint-ts typecheck ==="
+  @echo "=== [gate] @org/lint-ts + @org/client-ts typecheck ==="
   pnpm --filter @org/lint-ts typecheck
+  pnpm --filter @org/client-ts typecheck
 
 # front: build, bundle guards, smoke start, typecheck, design system, unit tests
 ci-front:
