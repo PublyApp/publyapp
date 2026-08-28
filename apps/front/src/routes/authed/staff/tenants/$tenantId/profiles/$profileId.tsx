@@ -224,7 +224,7 @@ const StaffTenantProfileDetailsPage = () => {
 
 /**
  * #851 round 2 — the route's own loader-error surface. The awaited loader
- * rejects on 404/403/500 (`ensureQueryData` surfaces the Kiota problem
+ * rejects on 404/403/500 (`queryClient.query` surfaces the Kiota problem
  * pipeline), and without this boundary a loader throw short-circuits the
  * route render and the parent `_authed-layout` boundary takes over — moving
  * 404/500 UX off the route's own designed views onto generic ones.
@@ -299,7 +299,7 @@ export const Route = createFileRoute(
 		parseProfileDetailsSearchParams(search as ProfileDetailsSearchParamInput),
 	loader: async ({ context, params }) => {
 		await Promise.all([
-			context.queryClient.ensureQueryData({
+			context.queryClient.query({
 				queryKey: staffTenantDetailsQueryOptions.queryKey({
 					tenantId: params.tenantId,
 				}),
@@ -307,8 +307,9 @@ export const Route = createFileRoute(
 					staffTenantDetailsQueryOptions.fetcher({
 						tenantId: params.tenantId,
 					}),
+				staleTime: 'static',
 			}),
-			context.queryClient.ensureQueryData({
+			context.queryClient.query({
 				queryKey: staffTenantProfileDetailsQueryOptions.queryKey({
 					tenantId: params.tenantId,
 					profileId: params.profileId,
@@ -318,6 +319,7 @@ export const Route = createFileRoute(
 						tenantId: params.tenantId,
 						profileId: params.profileId,
 					}),
+				staleTime: 'static',
 			}),
 		]);
 	},
