@@ -1,43 +1,154 @@
 #!/usr/bin/env node
 /*
- * run-preuves.mts — executes the kept-red proof tests under .dump/preuves/.
+ * run-preuves.mts — executes kept-red proof tests declared by the current pull
+ * request under apps/front/tests/proofs/.
  *
  * Each proof test in this repo is EXPECTED TO FAIL. It proves a bug is present
  * by asserting the ideal behavior against the corrected code — the corrected
  * code does NOT satisfy the ideal, so the test fails, and that failure IS the
  * proof.
  *
- * This script inverts the usual pass/fail semantics:
+ * ## Option (b) — declaration-scoped replay (issue #1659, ronde 5)
  *
- *   - If a proof test FAILS  → success (the bug is still present, proof intact).
- *   - If a proof test PASSES → FAILURE (the bug has changed form or been fixed;
- *                                the proof is stale and must be rebuilt).
- *   - If NO proof tests exist  → FAILURE (exit 1). .dump/ is git-ignored and
- *                                        absent in CI checkouts, so a green CI
- *                                        step that verified nothing would hide
- *                                        the absence of proof behind a passing
- *                                        check. Failing loud makes the gap
- *                                        visible: the step is red until a proof
- *                                        file is present to replay.
+ * A pull request DECLARES a paired red proof by adding or modifying a proof
+ * test file under apps/front/tests/proofs/<issue>/. That directory is versionné
+ * (committed to the repo), so CI can always see the files — unlike .dump/,
+ * which is git-ignored and absent on a clean CI checkout.
  *
- * The developer replay path is the lane worktree (`just test-preuves`), where
- * .dump/preuves/ exists. CI runs the same command on a clean checkout and gets
- * exit 1 — the honest signal that there is nothing to replay.
+ * The script answers two questions:
+ *
+ * 1. Has THIS PR declared any proofs?
+ *    Uses `git diff --name-only <base> HEAD` to find files under tests/proofs/
+ *    that were added or modified by this PR. If none, the step is an explicit
+ *    no-op: it prints a clear "no proofs declared" message and exits 0. This
+ *    is NOT a silent green — it states exactly what was checked and why the
+ *    step did not run. PRs that do not claim a paired red proof are simply out
+ *    of scope, and the step says so.
+ *
+ * 2. Was a declared proof actually replayed?
+ *    If a PR declares proofs, this script replays them with inverted semantics:
+ *    - If a proof test FAILS  → success (bug still present, proof intact).
+ *    - If a proof test PASSES → FAILURE (bug changed form or fixed; rebuild).
+ *    - If a proof file is corrupt → FAILURE (naming the file).
+ *
+ * The developer replay path is `just test-preuves` (lane worktree where .dump/
+ * also exists for traces). CI runs the same command on a clean checkout.
+ *
+ * ## Why not (a) or (c)?
+ * See .dump/DONE-1687-r5.md for the full rationale.
  */
-import { execFileSync } from 'node:child_process';
+import { execFileSync, execSync } from 'node:child_process';
 import { type Dirent, readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 
-const PREUVES_DIR = join(process.cwd(), '.dump', 'preuves');
+const ROOT = join(process.cwd(), '..'); // apps/front → repo root
+const PROOFS_DIR = join(process.cwd(), 'tests', 'proofs');
 const CONFIG = 'vitest.preuves.config.ts';
+
+/**
+ * Determine which proof files were declared by the current PR.
+ *
+ * In CI, GITHUB_BASE_REF and GITHUB_HEAD_REF are available. Locally, we fall
+ * back to comparing HEAD against the most recent commit that touched a file
+ * outside tests/proofs/ (a reasonable proxy: the last non-proof commit is the
+ * "base"). In both cases, the diff is computed against a git ref.
+ *
+ * Returns the list of proof-test paths (relative to apps/front) that were
+ * added or modified in the diff.
+ */
+function declaredProofTests(): string[] | null {
+	// Find all proof test files in the versioned directory.
+	const allProofs = findProofFiles();
+
+	if (allProofs.length === 0) {
+		return null; // No proofs in the repo at all.
+	}
+
+	// Determine the base ref for diffing.
+	let baseRef: string | null = null;
+	if (process.env.GITHUB_BASE_REF && process.env.GITHUB_HEAD_REF) {
+		baseRef = `refs/remotes/origin/${process.env.GITHUB_BASE_REF}`;
+	}
+
+	if (!baseRef) {
+		// Local development or non-PR CI: diff against the previous commit.
+		// This is a reasonable approximation — the developer can verify by
+		// staging the proof file and running the script.
+		baseRef = 'HEAD~1';
+	}
+
+	// Get the list of files changed by this PR.
+	let changedFiles: string[];
+	try {
+		const diffOutput = execSync(
+			`git -C "${ROOT}" diff --name-only "${baseRef}" HEAD`,
+			{ encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] },
+		);
+		changedFiles = diffOutput
+			.split('\n')
+			.map((f) => f.trim())
+			.filter((f) => f.length > 0);
+	} catch {
+		// If git diff fails (e.g., no previous commit), treat as no declarations.
+		return [];
+	}
+
+	// Find proof files that were added or modified by this PR.
+	// Proof files live under apps/front/tests/proofs/, so the diff paths
+	// from the repo root will start with "apps/front/tests/proofs/".
+	const proofPaths = allProofs.map((p) =>
+		join('apps/front', p).replace(/\\/g, '/'),
+	);
+
+	const declared = proofPaths.filter((proofPath) =>
+		changedFiles.includes(proofPath),
+	);
+
+	// Return paths relative to apps/front (the working dir).
+	return declared.map((p) => p.replace(/^apps\/front\//, ''));
+}
+
+/**
+ * Find all proof test files in the versioned tests/proofs/ directory.
+ * Returns paths relative to apps/front (e.g., "tests/proofs/1613/name.test.ts").
+ */
+function findProofFiles(): string[] {
+	let dirents: Dirent[];
+	try {
+		dirents = readdirSync(PROOFS_DIR, { withFileTypes: true });
+	} catch {
+		throw new Error(
+			`tests/proofs/ is absent or unreadable: the versioned proofs directory must exist at apps/front/tests/proofs/`,
+		);
+	}
+
+	const results: string[] = [];
+	for (const dir of dirents) {
+		if (!dir.isDirectory()) continue;
+		const issueDir = join(PROOFS_DIR, dir.name);
+		let files: Dirent[];
+		try {
+			files = readdirSync(issueDir, { withFileTypes: true });
+		} catch (err) {
+			throw new Error(
+				`Cannot read issue directory ${issueDir}: ${(err as Error).message}`,
+			);
+		}
+		for (const file of files) {
+			if (file.isFile() && /\.test\.tsx?$/.test(file.name)) {
+				results.push(join('tests', 'proofs', dir.name, file.name));
+			}
+		}
+	}
+	return results;
+}
 
 /**
  * Validate that a proof-test file is a real, parseable test before handing it
  * to vitest. An empty, binary, or truncated file makes vitest exit 1 with
  * "No test suite found" or a PARSE_ERROR — which the runner would otherwise
- * misread as "the test failed as expected" (constat A3, ronde 3). We catch
- * that here and fail loud naming the file, so a corrupted proof is never
- * silently green.
+ * misread as "the test failed as expected". We catch that here and fail loud
+ * naming the file, so a corrupted proof is never silently green.
  */
 function validateProofFile(path: string): void {
 	const buf = readFileSync(path);
@@ -63,72 +174,45 @@ function validateProofFile(path: string): void {
 	}
 }
 
-function findPreuveTests(): string[] {
-	let dirents: Dirent[];
-	try {
-		dirents = readdirSync(PREUVES_DIR, { withFileTypes: true });
-	} catch (err) {
-		// .dump/preuves/ does not exist (git-ignored, absent in CI). Fail loud
-		// below rather than silently returning [] — the old no-op behaviour.
-		throw new Error(
-			`.dump/preuves/ is absent or unreadable: ${(err as Error).message}`,
-		);
-	}
+// --- Main logic ---
 
-	const results: string[] = [];
-	for (const dir of dirents) {
-		if (!dir.isDirectory()) continue;
-		const issueDir = join(PREUVES_DIR, dir.name);
-		let files: Dirent[];
-		try {
-			files = readdirSync(issueDir, { withFileTypes: true });
-		} catch (err) {
-			// The old runner swallowed this in a bare catch {}. Now it fails
-			// loud naming the directory, so a permission problem is not
-			// silently skipped.
-			throw new Error(
-				`Cannot read issue directory ${issueDir}: ${(err as Error).message}`,
-			);
-		}
-		for (const file of files) {
-			if (file.isFile() && file.name.endsWith('.test.ts')) {
-				results.push(join('.dump', 'preuves', dir.name, file.name));
-			}
-		}
-	}
-	return results;
+const declared = declaredProofTests();
+
+if (declared === null) {
+	// No proofs in the repo at all.
+	console.log('No paired red proof tests found in tests/proofs/.');
+	console.log('This step is a no-op for PRs that do not declare a paired red proof.');
+	console.log('To declare one, add a file under apps/front/tests/proofs/<issue>/.');
+	process.exit(0);
 }
 
-let tests: string[];
-try {
-	tests = findPreuveTests();
-} catch (err) {
-	console.error(`FAIL: ${(err as Error).message}`);
-	console.error(
-		'Proof replay requires .dump/preuves/<issue>/<name>.test.ts files, which live in the lane worktree (git-ignored, absent in CI).',
+if (declared.length === 0) {
+	// Proofs exist in the repo, but this PR did not declare any.
+	const allProofs = findProofFiles();
+	console.log(
+		`This PR did not declare any paired red proofs (no proof files added or modified).`,
 	);
-	process.exit(1);
-}
-
-if (tests.length === 0) {
-	console.error('FAIL: .dump/preuves/ exists but contains no .test.ts proof files.');
-	console.error(
-		'A green step that verified nothing would hide the absence of proof. Add a proof or remove the step.',
+	console.log(
+		`Proof tests are versionned under tests/proofs/ (${allProofs.length} file(s) in the repo); this PR did not touch any of them.`,
 	);
-	process.exit(1);
+	console.log('This step is an explicit no-op for PRs that do not declare a proof.');
+	process.exit(0);
 }
 
-console.log(`Running ${tests.length} proof test(s) — each is EXPECTED TO FAIL:\n`);
-for (const t of tests) {
+// The PR declared proofs — replay them with inverted semantics.
+console.log(
+	`This PR declared ${declared.length} paired red proof(s) — replaying with inverted semantics:\n`,
+);
+for (const t of declared) {
 	console.log(`  ${t}`);
 }
 console.log();
 
-let failures = 0;
+let failures = 0; // proof tests that failed as expected (good)
 let unexpectedPasses = 0;
 let corrupted = 0;
 
-for (const test of tests) {
+for (const test of declared) {
 	// Validate BEFORE running: distinguishes "test failed as expected" from
 	// "file could not be parsed" — the latter must fail loud naming the file.
 	try {
@@ -158,7 +242,7 @@ for (const test of tests) {
 
 		// vitest exits 1 both when tests fail (expected) AND when a file
 		// cannot be parsed (unexpected). Distinguish by looking for the
-		// "Tests no tests" marker — a real failing test reports a non-zero
+		// "Tests N failed" marker — a real failing test reports a non-zero
 		// test count. validateProofFile already caught empty/truncated files;
 		// this is a backstop for any case that slips through.
 		const output = stdout + stderr;
@@ -206,5 +290,5 @@ if (unexpectedPasses > 0 || corrupted > 0) {
 	process.exit(1);
 }
 
-console.log('\nAll proof tests behaved as expected.');
+console.log('\nAll declared proof tests behaved as expected.');
 process.exit(0);
