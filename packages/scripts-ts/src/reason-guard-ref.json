@@ -219,8 +219,8 @@
 			"reason_length": 504
 		},
 		"front-ci.yml::supply-chain::Audit production dependencies (moderate and above)": {
-			"reason_hash": "a28ee8468a4fec6f",
-			"reason_length": 246
+			"reason_hash": "b7c22d4996cc4f08",
+			"reason_length": 949
 		},
 		"front-ci.yml::supply-chain::Assert exact pins": {
 			"reason_hash": "23640fc62c5d63d6",
