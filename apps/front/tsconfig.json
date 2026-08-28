@@ -20,8 +20,8 @@
 		"**/*.ts",
 		"**/*.tsx",
 		"**/*.mts",
-		"server.mjs",
-		"scripts/**/*.mjs",
+		"scripts/**/*.mts",
+		"tools/**/*.mts",
 		"../../packages/shared-ts/src/@types/**/*.d.ts"
 	],
 	"exclude": ["node_modules", "dist", ".output"]
