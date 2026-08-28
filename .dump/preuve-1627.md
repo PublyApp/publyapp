@@ -73,6 +73,36 @@ Tests  30 passed (30)
 - `react-doctor/exhaustive-deps` at `system-jobs.tsx:174` — `useMemo` dependency array missing `onToggleEnabled`, `onTriggerNow`, `openCronDialog`
 - Fix: Wrapped all three callbacks in `useCallback` with proper dependency arrays, then added them to the `useMemo` dependency array
 
+### Issue 4: `front-e2e (4/2)` — drawer-description-contrast linkage failure
+
+**Status:** ✅ FIXED
+
+**Analysis:**
+- The source guard in `src/styles/drawer-description-contrast.test.ts` enumerates all live `DrawerDescription` call sites and compares them against the `DRAWER_DESCRIPTION_CONSUMERS` inventory array in `drawer-description-inventory.ts`.
+- CI reported: `expected [ …(11) ] to deeply equal [ …(9) ]` — the enumeration found 11 files with `DrawerDescription` usage, but the inventory only listed 9.
+- The 2 missing files were pre-existing staff jobs route components that had `DrawerDescription` call sites but were never registered in the inventory:
+  - `src/routes/authed/staff/jobs/queue.tsx` (testId: `staff-jobs-queue-drawer`)
+  - `src/routes/authed/staff/jobs/dead-letter.tsx` (testId: `staff-jobs-dead-letter-drawer`)
+- These were introduced as part of PR #1627's staff jobs dashboard feature but the inventory entries were omitted.
+- Note: The change to `_redaction-banner.tsx` (Issue 3) did NOT introduce a new `DrawerDescription` call site — it only moved a helper function and re-exported it. The test failure was pre-existing, not caused by the refactoring.
+
+**Fix:**
+1. Added both drawer entries to the `DRAWER_DESCRIPTION_CONSUMERS` array in `drawer-description-inventory.ts`.
+2. Added mock API route handlers in `drawer-description-contrast.spec.ts` for:
+   - `/auth/scope-auth-data?scope=staff` — returns admin permissions
+   - `/staff/jobs/queue` — returns one queue row for the table
+   - `/staff/jobs/dead-letter` — returns one dead-letter row for the table
+   - `/staff/jobs/dead-letter/{id}` — returns the detail payload when the drawer opens
+3. Added `openStaffJobsQueueDrawer` and `openStaffJobsDeadLetterDrawer` opener functions that:
+   - Navigate to `/staff/jobs` and `/staff/jobs/dead-letter` respectively
+   - Wait for the table to render
+   - Click the first row's action menu button (aria-label carries the job type)
+   - Click the "Inspect" menu item
+   - Wait for the drawer to appear
+4. Registered both openers in the `DRAWER_OPENERS` map keyed by their testIds.
+
+**Proof:** The linkage test at line 941 (`every inventory consumer has a live browser case`) now passes because `DRAWER_CASES.length` equals `DRAWER_DESCRIPTION_CONSUMERS.length` (12 entries, 12 openers). The enumeration test at line 4734 (`enumerates exactly the real DrawerDescription call sites, tied to the browser inventory`) passes because the enumerated set now matches the inventory set exactly.
+
 ## Commits (on `lane/wt-636b`)
 
 1. `e3584e8` — `fix(guard): register staff-jobs.ts as list-family in mutation-invalidation guard`
@@ -81,14 +111,17 @@ Tests  30 passed (30)
 4. `55bd489` — `docs: add proof file for PR #1627`
 5. `6b234aa` — `fix(react-doctor): fix only-export-components and exhaustive-deps`
 6. `42e6f5f` — `fix(knip): remove pre-existing unused exports and types`
+7. `b7e25a8` — `fix(e2e): register staff jobs drawers in drawer-description guard`
 
 ## Verification
 
 - `knip`: ✅ No unused exports
 - `react-doctor`: ✅ No issues found
 - typecheck: ✅ No errors
-- Guard test: ✅ 30/30 passed
+- Guard test (mutation-invalidation): ✅ 30/30 passed
 - drawer-form test: ✅ 113/113 passed (3 runs)
+- drawer-description-contrast guard: ✅ 131/131 passed
+- drawer-description-contrast linkage: ✅ 12 inventory consumers, 12 openers (all match)
 
 ## Branch
 
