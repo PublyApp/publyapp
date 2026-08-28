@@ -1,5 +1,5 @@
 import { Link } from '@tanstack/react-router';
-import type { ColumnDef } from '@tanstack/react-table';
+import type { ColumnDef } from '~/components/table/column-type';
 import { PersonAvatar } from '~/components/ui/person-avatar';
 import { StatusPill } from '~/components/ui/product-page';
 import { statusPillTone } from '~/components/ui/status-tone';

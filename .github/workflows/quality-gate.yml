@@ -198,6 +198,13 @@ jobs:
       - name: Typecheck lint-ts
         run: pnpm --filter @org/lint-ts typecheck
 
+      # @org/client-ts is the Kiota-generated TypeScript API client. Its
+      # typecheck script (tsc --noEmit) was added but never wired into any gate
+      # — a typecheck script no CI step calls is trompe-l'oeil coverage. This
+      # step runs it exactly as `just ci-lint-ts` runs it locally; see issue #1692.
+      - name: Typecheck client-ts
+        run: pnpm --filter @org/client-ts typecheck
+
       # #455: fail on unused files/deps/exports/types and duplicate exports.
       # Mirrored locally by `just ci-knip` (same command, same knip.ts).
       - name: Knip (unused exports & dependencies)
