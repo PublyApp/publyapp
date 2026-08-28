@@ -339,7 +339,7 @@ export const checkNoFloatingPromises = async (): Promise<RatchetResult> => {
 	}
 };
 
-const run = async () => {
+export const run = async () => {
 	const result = await checkNoFloatingPromises();
 
 	if (result.withinLimit === 'error') {
