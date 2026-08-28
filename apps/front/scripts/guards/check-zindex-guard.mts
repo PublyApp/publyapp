@@ -215,16 +215,29 @@ const sweepBuildDirectories = (directories: string[]): void => {
 		return;
 	}
 	const payload = `
-		const { rm } = require('node:fs/promises');
+		import { rm } from 'node:fs/promises';
 		(async () => {
 			for (const dir of ${JSON.stringify(directories)}) {
 				await rm(dir, { recursive: true, force: true });
 			}
 		})().catch(() => process.exit(1));
 	`;
-	const child = spawn(process.execPath, ['-e', payload], {
-		stdio: 'ignore',
+	const child = spawn(process.execPath, ['--input-type=module', '-e', payload], {
+		stdio: ['ignore', 'ignore', 'pipe'],
 		detached: true,
+	});
+	let stderrChunks: Buffer[] = [];
+	child.stderr?.on('data', (chunk: Buffer) => {
+		stderrChunks.push(chunk);
+	});
+	child.on('exit', (code) => {
+		if (code !== 0) {
+			const stderr = Buffer.concat(stderrChunks).toString('utf8').trim();
+			const detail = stderr || `(no stderr captured; exit code ${code})`;
+			process.stderr.write(
+				`[check-zindex-guard] sweepBuildDirectories payload failed (exit ${code}):\n${detail}\n`,
+			);
+		}
 	});
 	child.unref();
 };
