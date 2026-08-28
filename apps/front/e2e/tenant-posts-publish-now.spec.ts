@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test';
 
 import {
 	loginAsTenantUser,
-	SINGLE_TENANT_USER_CREDENTIALS,
+	SINGLE_TENANT_ADMIN_CREDENTIALS,
 } from './helpers/login';
 
 // The `chromium` project supplies a pre-authenticated staff-admin
@@ -11,24 +11,14 @@ import {
 // so this file must start from a clean, unauthenticated context.
 test.use({ storageState: { cookies: [], origins: [] } });
 
-// QUARANTINE (owner decision, D2 verdict-r1 BLOCKER → option a): the e2e
-// stack pins `APP_ROLE: api` (apps/front/docker-compose.test.yml, audit F24)
-// and runs NO worker. It DOES arm the fakes + seed demo SocialAccounts, because
-// it sets `PUBLISHING_FAKE_PROVIDER=1` + `DOTNET_ENVIRONMENT/ASPNETCORE_ENVIRONMENT:
-// Testing` (see `x-api-test-environment` anchor), so `FakePublishingProviderEnabled`
-// is true and `SocialAccountSeeder` inserts rows. Publish-now only *enqueues*
-// publishing.publish-publication.v1; the consumer (`JobQueueProcessor` +
-// `PublishPublicationJobHandler`) is registered only for `AppRole.All` (see
-// `Program.CreateWebHostBuilder`), so with no worker the publication can never
-// reach Published (no bsky.app link) here. The spec is honest about that
-// pipeline but cannot complete it in this topology — identical red on pre-merge
-// heads e7ef0c198 / 6191c4b20 and post-merge 88bf34857 (see .dump/merge-audit-m.md
-// §CI convergence rounds, .dump/verdict-r1.md). fixme (not skip) so it turns
-// RED the moment the pipeline works, prompting removal. Owner follow-up:
-// either run a worker in the e2e stack (AppRole.All) + grant
-// tenant.socialaccounts.publish to the e2e user so `PublishOnBlock` renders, or
-// drop the @645 tag. Tracked against #645.
-test.describe.fixme(
+// D2 acceptance: the e2e stack runs APP_ROLE=all (api + worker in one
+// container) with PUBLISHING_FAKE_PROVIDER=1, so the full publish pipeline
+// (session-open → delivery → status transition) runs end-to-end through the
+// deterministic fakes — no PDS is ever contacted. The test logs in as
+// admin-acme (AccountLevel.Admin), who carries the tenant.admin implicit
+// grant and therefore the tenant.socialaccounts.publish permission that
+// gates the PublishOnBlock.
+test.describe(
 	'tenant posts publish now',
 	{ tag: ['@tenant-workspace', '@645'] },
 	() => {
@@ -38,7 +28,7 @@ test.describe.fixme(
 		test('publish now appears once in history with an external link', async ({
 			page,
 		}) => {
-			await loginAsTenantUser(page, SINGLE_TENANT_USER_CREDENTIALS);
+			await loginAsTenantUser(page, SINGLE_TENANT_ADMIN_CREDENTIALS);
 
 			await page.goto('/tenant/posts/drafts');
 			const drafts = page.getByTestId('tenant-posts-drafts-page');
@@ -50,10 +40,10 @@ test.describe.fixme(
 			await expect(body).toBeVisible();
 			await body.fill('Publish-now end-to-end post from D2 (#645)');
 
-			// Choose the visible target(s) and publish immediately. The block
-			// only renders with tenant.socialaccounts.publish; if the seed has
-			// no linked account the block is absent and this scenario cannot
-			// run against the fake provider — fail loudly rather than silently.
+			// Choose the visible target(s) and publish immediately. Admin carries
+			// tenant.socialaccounts.publish implicitly, so the block renders; the
+			// demo SocialAccountSeeder (gated behind PUBLISHING_FAKE_PROVIDER=1)
+			// seeds one Active Bluesky account for Acme.
 			const targets = page.locator(
 				'[data-testid^="tenant-posts-publish-target-"]',
 			);
