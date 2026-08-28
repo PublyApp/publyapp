@@ -1,6 +1,6 @@
 // Single chokepoint for the legacy @tanstack/react-table/legacy imports.
-// All five deprecated symbols (ColumnDef, useLegacyTable, TanStackTable,
-// LegacyTable, LegacyRow) flow through this file. The rest of the codebase
+// The deprecated symbols the codebase actually consumes (ColumnDef,
+// useLegacyTable, TanStackTable, Row) flow through this file. The rest of it
 // imports them from here — keeping the `typescript/no-deprecated` suppression
 // confined to this file + data-table.tsx (see `.oxlintrc.json`).
 //
@@ -25,7 +25,6 @@ import {
 	getCoreRowModel,
 	type LegacyColumnDef,
 	type LegacyRow,
-	type LegacyTable as LegacyTableType,
 	type LegacyReactTable,
 } from '@tanstack/react-table/legacy';
 
@@ -48,11 +47,6 @@ export type ColumnDef<TData extends RowData, TValue = unknown> = Distribute<
 // TanStackTable is the full legacy table type (with deprecated getState/setState).
 export type TanStackTable<TData extends RowData> = Distribute<
 	LegacyReactTable<TData>
->;
-
-// LegacyTable is the base table type without deprecated state methods.
-export type LegacyTable<TData extends RowData> = Distribute<
-	LegacyTableType<TData>
 >;
 
 export type Row<TData extends RowData> = Distribute<LegacyRow<TData>>;
