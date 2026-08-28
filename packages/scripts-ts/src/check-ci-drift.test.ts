@@ -531,7 +531,9 @@ test('reason guard: fails when a manifest entry is absent from the reference (ne
 	// reason guard (no reference), no STALE REF for original, no STALE for new
 	// step in reference.
 	const newEntryFindings = findings.filter(
-		(f) => f.includes('manifest but missing from reason-guard-ref') && f.includes(newEntryId),
+		(f) =>
+			f.includes('manifest but missing from reason-guard-ref') &&
+			f.includes(newEntryId),
 	);
 
 	assert.equal(newEntryFindings.length, 1);
@@ -539,10 +541,7 @@ test('reason guard: fails when a manifest entry is absent from the reference (ne
 		newEntryFindings[0],
 		/is present in the manifest but missing from reason-guard-ref\.json/,
 	);
-	assert.match(
-		newEntryFindings[0],
-		/gen-reason-ref\.ts/,
-	);
+	assert.match(newEntryFindings[0], /gen-reason-ref\.ts/);
 });
 
 test('reason guard: warns when a reference entry is absent from the manifest (stale reference)', async () => {
@@ -573,12 +572,13 @@ test('reason guard: warns when a reference entry is absent from the manifest (st
 		reasonRef: refWithStaleEntry,
 	});
 
-	const staleRefFindings = findings.filter((f) =>
-		f.startsWith('STALE REF '),
-	);
+	const staleRefFindings = findings.filter((f) => f.startsWith('STALE REF '));
 
 	assert.equal(staleRefFindings.length, 1);
-	assert.match(staleRefFindings[0], /STALE REF fixture\.yml::build::Stale step/);
+	assert.match(
+		staleRefFindings[0],
+		/STALE REF fixture\.yml::build::Stale step/,
+	);
 	assert.match(staleRefFindings[0], /gen-reason-ref\.ts/);
 });
 
