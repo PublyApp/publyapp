@@ -9,7 +9,7 @@
 	},
 	"devDependencies": {
 		"yaml": "2.8.3",
-		"@types/node": "^26.2.0",
+		"@types/node": "^24.13.3",
 		"vitest": "4.1.9"
 	}
 }
