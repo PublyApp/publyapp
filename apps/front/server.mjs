@@ -28,6 +28,10 @@ const staticFileHandler = createStaticMiddleware({
 const resolveTrustProxyFromEnv = () => {
 	const raw = process.env.TRUSTED_PROXY_CIDRS?.trim();
 	if (!raw) {
+		console.warn(
+			'[trust-proxy] TRUSTED_PROXY_CIDRS is unset or empty — falling back to loopback-only trust (127.0.0.1, ::1). ' +
+				'In production with a reverse proxy (Traefik), set TRUSTED_PROXY_CIDRS to the proxy peer address as /32.',
+		);
 		return ['127.0.0.1', '::1'];
 	}
 	return raw
