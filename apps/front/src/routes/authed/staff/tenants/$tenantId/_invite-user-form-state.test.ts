@@ -62,6 +62,7 @@ describe('parseInviteCsv', () => {
 					accountLevel: 'Admin',
 					profileNames: ['Alpha', 'Beta'],
 					invalidLevel: null,
+					invalidEmail: null,
 				},
 			],
 		});
@@ -80,6 +81,7 @@ describe('parseInviteCsv', () => {
 					accountLevel: 'User',
 					profileNames: ['Alpha'],
 					invalidLevel: 'moderator',
+					invalidEmail: null,
 				},
 			],
 		});
@@ -89,6 +91,25 @@ describe('parseInviteCsv', () => {
 		expect(parseInviteCsv('')).toEqual({
 			outcome: 'error',
 			kind: 'empty',
+		});
+	});
+
+	test('flags a malformed email as an invalid row instead of silently accepting it', () => {
+		const result = parseInviteCsv(
+			'email,level,profiles\nnot-an-email,admin,Alpha\n',
+		);
+
+		expect(result).toEqual({
+			outcome: 'parsed',
+			rows: [
+				{
+					email: 'not-an-email',
+					accountLevel: 'Admin',
+					profileNames: ['Alpha'],
+					invalidLevel: null,
+					invalidEmail: 'not-an-email',
+				},
+			],
 		});
 	});
 
@@ -176,6 +197,7 @@ describe('parseInviteWorkbook', () => {
 					accountLevel: 'Admin',
 					profileNames: ['Alpha'],
 					invalidLevel: null,
+					invalidEmail: null,
 				},
 			],
 		});
@@ -201,6 +223,7 @@ describe('parseInviteWorkbook', () => {
 					accountLevel: 'User',
 					profileNames: [],
 					invalidLevel: null,
+					invalidEmail: null,
 				},
 			],
 		});
@@ -250,18 +273,21 @@ describe('buildImportedInvites', () => {
 					accountLevel: 'Admin',
 					profileNames: ['Alpha'],
 					invalidLevel: null,
+					invalidEmail: null,
 				},
 				{
 					email: 'A@Example.com',
 					accountLevel: 'User',
 					profileNames: [],
 					invalidLevel: null,
+					invalidEmail: null,
 				},
 				{
 					email: 'b@example.com',
 					accountLevel: 'User',
 					profileNames: [],
 					invalidLevel: null,
+					invalidEmail: null,
 				},
 			],
 			existingEmails: ['b@example.com'],
@@ -290,6 +316,7 @@ describe('clearFileRows', () => {
 				profileIds: [],
 				profileNames: [],
 				invalidLevel: null,
+				invalidEmail: null,
 				source: 'file',
 			},
 		];
@@ -312,6 +339,7 @@ describe('applyProfileResolutions', () => {
 		profileNames: ['alpha', 'ghost'],
 		source: 'file',
 		invalidLevel: null,
+		invalidEmail: null,
 		...overrides,
 	});
 
@@ -343,6 +371,7 @@ describe('canSendInvitations', () => {
 		profileIds: [],
 		profileNames: [],
 		invalidLevel: null,
+		invalidEmail: null,
 		source: 'manual',
 	};
 
@@ -421,6 +450,7 @@ describe('buildSubmitInvitations', () => {
 				profileIds: ['p-9'],
 				profileNames: ['x'],
 				invalidLevel: null,
+				invalidEmail: null,
 				source: 'file',
 			},
 			{
@@ -430,6 +460,7 @@ describe('buildSubmitInvitations', () => {
 				profileIds: ['p-1', 'p-1', 'p-2'],
 				profileNames: [],
 				invalidLevel: null,
+				invalidEmail: null,
 				source: 'manual',
 			},
 		];
