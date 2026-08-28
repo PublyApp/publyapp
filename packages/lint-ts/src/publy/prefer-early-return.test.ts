@@ -68,9 +68,25 @@ const runCases = (rule: typeof preferEarlyReturn, label: string) => {
 				// Ternary as an object property value — out of scope.
 				v('const obj = { key: cond ? a : b };'),
 				// Ternary assigned to a variable that is NOT immediately returned.
-				v('const x = cond ? a : b;\nconsole.log(x);\nreturn x;'),
+				v(
+					'function f() {\nconst x = cond ? a : b;\nconsole.log(x);\nreturn x;\n}',
+				),
 				// Ternary assigned, then a different variable returned.
-				v('const x = cond ? a : b;\nreturn y;'),
+				v('function f() {\nconst x = cond ? a : b;\nreturn y;\n}'),
+				// Non-ternary initialiser immediately returned — the assign-then-return
+				// shape without a ternary. Exercises the `isConditionalExpression`
+				// guard inside checkBodyStatements (without this case, dropping that
+				// guard leaves the suite green).
+				v('function f() {\nconst x = plain;\nreturn x;\n}'),
+				// Ternary assigned, then THROWN rather than returned. Exercises the
+				// `nextStmt.type === 'ReturnStatement'` guard: ThrowStatement also
+				// carries an `argument`, so without this case that guard can be
+				// dropped with the suite still green.
+				v('function f() {\nconst x = cond ? a : b;\nthrow x;\n}'),
+				// Destructuring target: the assign-then-return shape is deliberately
+				// out of scope when the declaration id is a pattern rather than a
+				// plain identifier. Pins that contract.
+				v('function f() {\nconst [x] = cond ? a : b;\nreturn x;\n}'),
 				// Ternary in a default parameter — not returned.
 				v('function f(x = cond ? a : b) { return x; }'),
 				// Ternary in a template literal — not returned directly.
