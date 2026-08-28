@@ -106,8 +106,12 @@ export type DataTableCursorFooterProps = {
 	size: number;
 	onSizeChange: (nextSize: number) => void;
 	/** Rows rendered on the current page — the range counter's end bound.
-	 * Distinct from `size`: the last page is usually partial (#282). */
-	pageRowCount?: number;
+	 * Distinct from `size`: the last page is usually partial (#282).
+	 * REQUIRED on purpose (#1562): when it was optional it silently fell back
+	 * to `size`, so a caller that forgot it showed "1–20" on a page holding 7
+	 * rows. An omission is a wrong number on screen, not a missing feature —
+	 * the type is what makes forgetting impossible. */
+	pageRowCount: number;
 	/** Total item count for the current query, when the backend exposes one.
 	 * A missing value means UNKNOWN (cursor surfaces, count still in flight)
 	 * and renders the bare range — never zero (#999's distinction). */
@@ -147,11 +151,12 @@ export const DataTableCursorFooter = ({
 
 	// #999's rule propagated to the label: a total of zero is only ever shown
 	// when zero is REAL; an absent total means unknown and shows the bare
-	// range. Falls back to the page size when a caller omits `pageRowCount`.
+	// range. `pageRowCount` is required (#1562), so there is no fallback to
+	// `size` left to hide a partial last page behind a full-page count.
 	const range = derivePaginationRange({
 		pageIndex,
 		size,
-		pageRowCount: pageRowCount ?? size,
+		pageRowCount,
 		totalCount,
 	});
 	let rangeLabelNode: string;

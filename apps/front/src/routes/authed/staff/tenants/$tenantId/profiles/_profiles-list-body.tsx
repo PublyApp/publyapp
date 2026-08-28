@@ -176,6 +176,7 @@ export const ProfilesListBody = ({
 						testId={testId}
 						pageIndex={controller.cursor.pageIndex}
 						size={controller.size}
+						pageRowCount={rows.length}
 						onSizeChange={controller.onSizeChange}
 						hasPreviousPage={controller.cursor.hasPreviousPage}
 						hasNextPage={nextCursor != null}
