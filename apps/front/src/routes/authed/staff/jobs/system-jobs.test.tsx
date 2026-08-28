@@ -54,7 +54,7 @@ vi.mock('@tanstack/react-router', () => ({
 		...options,
 		options,
 		useNavigate: () => mocks.navigate,
-		useSearch: () => ({}) as Record<string, unknown>,
+		useSearch: () => ({}) satisfies Record<string, unknown>,
 	}),
 }));
 
