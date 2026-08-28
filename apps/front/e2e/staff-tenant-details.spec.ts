@@ -1147,6 +1147,11 @@ test.describe(
 			await expect(
 				drawer.getByRole('button', { name: 'Send 1 invitation' }),
 			).toBeVisible();
+			// The drawer stays open with the same route, AND the failure
+			// cause from the 500 response is surfaced to the user.
+			await expect(
+				page.getByText('Failed to send invite', { exact: true }),
+			).toBeVisible();
 			const failedSubmitUrl = new URL(page.url());
 			expect(failedSubmitUrl.pathname).toBe(
 				`/staff/tenants/${TENANT_ID}/users`,
