@@ -369,10 +369,17 @@ export const findDuplicateKeys = (raw: string): string[] => {
  * Returns the decoded key, or null if this quote is not a key, plus the index
  * to continue scanning from.
  */
-const readJsonKey = (
-	line: string,
-	start: number,
-): { key: string | null; endQuote: number; nextIndex: number } => {
+/** What a single scan step of the manifest's raw text yields: the decoded key
+ * when the position held one, and where the scanner must resume. Named rather
+ * than inlined so the three return sites share one contract instead of three
+ * anonymous shapes that can drift apart (`publy` no-anonymous-return-type). */
+interface JsonKeyScan {
+	key: string | null;
+	endQuote: number;
+	nextIndex: number;
+}
+
+const readJsonKey = (line: string, start: number): JsonKeyScan => {
 	// Find the closing quote (handling escapes).
 	let end = start + 1;
 	let escape = false;
@@ -437,7 +444,7 @@ const decodeJsonString = (raw: string): string =>
 		.replace(/\\"/g, '"')
 		.replace(/\\\\/g, '\\')
 		.replace(/\\u([0-9a-fA-F]{4})/g, (_, hex) =>
-			String.fromCharCode(parseInt(hex, 16)),
+			String.fromCharCode(Number.parseInt(hex, 16)),
 		);
 
 // --- Reason reference type ---
