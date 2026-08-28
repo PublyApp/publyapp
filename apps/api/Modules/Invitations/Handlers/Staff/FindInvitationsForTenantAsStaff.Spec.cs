@@ -2077,16 +2077,17 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 					2026, 1, 1, 0, 0, 0, DateTimeKind.Utc
 				);
 				var seededIds = new List<Guid>();
-				// Anti-correlated with insertion: i=0 -> +2d, i=1 -> +0d, i=2 -> +1d,
-				// so the AcceptedAt sorted order is NOT the insertion order.
+				// Two rows share the same AcceptedAt (i=0 and i=2), one has a
+				// different value (i=1). The tiebreaker (Id ascending) must
+				// determine the order of the two equal-key rows.
 				var seededAcceptedAt = new List<DateTime>();
 				for (var i = 0; i < 3; i++) {
+					var acceptedAt = i == 1 ? baseDate.AddDays(1) : baseDate;
 					var id = await CreateTenantInvitationAsync(
 						staffToken,
 						acmeTenantId,
 						$"tenant-inv-walk-{i}-{Guid.NewGuid():N}@example.com"
 					);
-					var acceptedAt = baseDate.AddDays((3 - i) % 3);
 					await SetAcceptedAtAsync(id, acceptedAt);
 					seededIds.Add(id);
 					seededAcceptedAt.Add(acceptedAt);
@@ -2138,7 +2139,7 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 					.Zip(seededAcceptedAt, (id, c) => (id, c))
 					.ToDictionary(x => x.id, x => x.c);
 				visitedOrder.Should().Equal(
-					seededIds.OrderBy(id => acceptedAtById[id]).ToList()
+					seededIds.OrderBy(id => acceptedAtById[id]).ThenBy(id => id).ToList()
 				);
 			}
 
@@ -2161,16 +2162,17 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 					2026, 1, 1, 0, 0, 0, DateTimeKind.Utc
 				);
 				var seededIds = new List<Guid>();
-				// Anti-correlated with insertion: i=0 -> +2d, i=1 -> +0d, i=2 -> +1d,
-				// so the CreatedAt sorted order is NOT the insertion order.
+				// Two rows share the same CreatedAt (i=0 and i=2), one has a
+				// different value (i=1). The tiebreaker (Id ascending) must
+				// determine the order of the two equal-key rows.
 				var seededCreatedAt = new List<DateTime>();
 				for (var i = 0; i < 3; i++) {
+					var createdAt = i == 1 ? baseDate.AddDays(1) : baseDate;
 					var id = await CreateTenantInvitationAsync(
 						staffToken,
 						acmeTenantId,
 						$"tenant-inv-created-{i}-{Guid.NewGuid():N}@example.com"
 					);
-					var createdAt = baseDate.AddDays((3 - i) % 3);
 					await SetCreatedAtAsync(id, createdAt);
 					seededIds.Add(id);
 					seededCreatedAt.Add(createdAt);
@@ -2220,7 +2222,7 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 					.Zip(seededCreatedAt, (id, c) => (id, c))
 					.ToDictionary(x => x.id, x => x.c);
 				visitedOrder.Should().Equal(
-					seededIds.OrderBy(id => createdAtById[id]).ToList()
+					seededIds.OrderBy(id => createdAtById[id]).ThenBy(id => id).ToList()
 				);
 			}
 
@@ -2243,16 +2245,17 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 					2026, 1, 1, 0, 0, 0, DateTimeKind.Utc
 				);
 				var seededIds = new List<Guid>();
-				// Anti-correlated with insertion: i=0 -> +2d, i=1 -> +0d, i=2 -> +1d,
-				// so the ExpiresAt sorted order is NOT the insertion order.
+				// Two rows share the same ExpiresAt (i=0 and i=2), one has a
+				// different value (i=1). The tiebreaker (Id ascending) must
+				// determine the order of the two equal-key rows.
 				var seededExpiresAt = new List<DateTime>();
 				for (var i = 0; i < 3; i++) {
+					var expiresAt = i == 1 ? baseDate.AddDays(1) : baseDate;
 					var id = await CreateTenantInvitationAsync(
 						staffToken,
 						acmeTenantId,
 						$"tenant-inv-expires-{i}-{Guid.NewGuid():N}@example.com"
 					);
-					var expiresAt = baseDate.AddDays((3 - i) % 3);
 					await SetExpiresAtAsync(id, expiresAt);
 					seededIds.Add(id);
 					seededExpiresAt.Add(expiresAt);
@@ -2302,7 +2305,7 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 					.Zip(seededExpiresAt, (id, e) => (id, e))
 					.ToDictionary(x => x.id, x => x.e);
 				visitedOrder.Should().Equal(
-					seededIds.OrderBy(id => expiresAtById[id]).ToList()
+					seededIds.OrderBy(id => expiresAtById[id]).ThenBy(id => id).ToList()
 				);
 			}
 

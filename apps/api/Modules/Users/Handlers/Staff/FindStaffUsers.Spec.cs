@@ -541,7 +541,10 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 		var seededIds = new List<Guid>();
 		var seededOrder = new List<DateTime>();
 		for (var i = 0; i < 3; i++) {
-			var createdAt = baseDate.AddDays((3 - i) % 3);
+			// Two rows share the same CreatedAt (i=0 and i=2), one has a
+			// different value (i=1). The tiebreaker (Id ascending) must
+			// determine the order of the two equal-key rows.
+			var createdAt = i == 1 ? baseDate.AddDays(1) : baseDate;
 			var userId = await CreateStaffUserAsync(token, $"created-at-walk-{i}-{Guid.NewGuid():N}@example.com");
 			await SeedStaffUserCreatedAtAsync(userId, createdAt);
 			seededIds.Add(userId);
@@ -587,7 +590,7 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 			.Zip(seededOrder, (id, c) => (id, c))
 			.ToDictionary(x => x.id, x => x.c);
 		visitedOrder.Should().Equal(
-			seededIds.OrderBy(id => createdAtById[id]).ToList()
+			seededIds.OrderBy(id => createdAtById[id]).ThenBy(id => id).ToList()
 		);
 
 		// Assert the OBSERVED CreatedAt order from the DB, in walk order,
@@ -620,7 +623,10 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 		var seededIds = new List<Guid>();
 		var seededOrder = new List<DateTime>();
 		for (var i = 0; i < 3; i++) {
-			var updatedAt = baseDate.AddDays((3 - i) % 3);
+			// Two rows share the same UpdatedAt (i=0 and i=2), one has a
+			// different value (i=1). The tiebreaker (Id ascending) must
+			// determine the order of the two equal-key rows.
+			var updatedAt = i == 1 ? baseDate.AddDays(1) : baseDate;
 			var userId = await CreateStaffUserAsync(token, $"updated-at-walk-{i}-{Guid.NewGuid():N}@example.com");
 			await SeedStaffUserUpdatedAtAsync(userId, updatedAt);
 			seededIds.Add(userId);
@@ -664,7 +670,7 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 			.Zip(seededOrder, (id, c) => (id, c))
 			.ToDictionary(x => x.id, x => x.c);
 		visitedOrder.Should().Equal(
-			seededIds.OrderBy(id => updatedAtById[id]).ToList()
+			seededIds.OrderBy(id => updatedAtById[id]).ThenBy(id => id).ToList()
 		);
 
 		var visitedSeededUserIds = visitedOrder.ToList();
@@ -692,7 +698,10 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 		// turns this assertion RED.
 		var seededIds = new List<Guid>();
 		var seededFirstNames = new List<string>();
-		var firstNames = new[] { "Charlie", "Alpha", "Bravo" };
+		// Two rows share the same FirstName (i=0 and i=2), one has a
+		// different value (i=1). The tiebreaker (Id ascending) must
+		// determine the order of the two equal-key rows.
+		var firstNames = new[] { "Alpha", "Bravo", "Alpha" };
 		for (var i = 0; i < 3; i++) {
 			var userId = await CreateStaffUserAsync(token, $"first-name-walk-{i}-{Guid.NewGuid():N}@example.com");
 			await SeedStaffUserFirstNameAsync(userId, firstNames[i]);
@@ -702,6 +711,7 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 		var expectedOrder = seededIds
 			.Zip(seededFirstNames, (id, n) => (id, n))
 			.OrderBy(x => x.n, StringComparer.OrdinalIgnoreCase)
+			.ThenBy(x => x.id)
 			.Select(x => x.id)
 			.ToList();
 
@@ -751,7 +761,10 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 		// turns this assertion RED.
 		var seededIds = new List<Guid>();
 		var seededLastNames = new List<string>();
-		var lastNames = new[] { "Zulu", "Alpha", "Mike" };
+		// Two rows share the same LastName (i=0 and i=2), one has a
+		// different value (i=1). The tiebreaker (Id ascending) must
+		// determine the order of the two equal-key rows.
+		var lastNames = new[] { "Alpha", "Bravo", "Alpha" };
 		for (var i = 0; i < 3; i++) {
 			var userId = await CreateStaffUserAsync(token, $"last-name-walk-{i}-{Guid.NewGuid():N}@example.com");
 			await SeedStaffUserLastNameAsync(userId, lastNames[i]);
@@ -761,6 +774,7 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 		var expectedOrder = seededIds
 			.Zip(seededLastNames, (id, n) => (id, n))
 			.OrderBy(x => x.n, StringComparer.OrdinalIgnoreCase)
+			.ThenBy(x => x.id)
 			.Select(x => x.id)
 			.ToList();
 
@@ -1025,13 +1039,16 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 	}
 
 	private async Task SeedStaffUserUpdatedAtAsync(Guid userId, DateTime updatedAt) {
-		using var scope = _fixture.Factory.Services.CreateScope();
+		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
-		var user = await dbContext.User.FirstAsync(u => u.Id == userId);
-		user.UpdatedAt = updatedAt;
-
-		await dbContext.SaveChangesAsync();
+		// The audit interceptor stamps UpdatedAt = now on every Modified save,
+		// so a normal entity update would overwrite the seeded value. Use a
+		// direct UPDATE to bypass the interceptor (same pattern as Posts test).
+		await dbContext.Database.ExecuteSqlRawAsync(
+			"UPDATE users SET updated_at = {0} WHERE id = {1}",
+			updatedAt, userId
+		);
 	}
 
 	private async Task SeedStaffUserFirstNameAsync(Guid userId, string firstName) {

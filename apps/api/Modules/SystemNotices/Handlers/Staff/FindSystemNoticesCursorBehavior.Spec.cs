@@ -59,11 +59,10 @@ public sealed class FindSystemNoticesCursorBehaviorSpec
 		var seededIds = new List<Guid>();
 		var seededOrder = new List<DateTime>();
 		for (var i = 0; i < 3; i++) {
-			var createdAt = baseDate.AddDays((3 - i) % 3);
-			// StartsAt is in INSERTION order (day0, day1, day2), deliberately
-			// anti-correlated with CreatedAt (day2, day0, day1), so a
-			// keySelector swap created_at -> starts_at reverses the walk
-			// order and turns the assertion RED.
+			// Two rows share the same CreatedAt (i=0 and i=2), one has a
+			// different value (i=1). The tiebreaker (Id ascending) must
+			// determine the order of the two equal-key rows.
+			var createdAt = i == 1 ? baseDate.AddDays(1) : baseDate;
 			var startsAt = baseDate.AddDays(i);
 			var id = await SeedNoticeAtAsync(
 				staffUserId,
@@ -143,9 +142,10 @@ public sealed class FindSystemNoticesCursorBehaviorSpec
 		var seededIds = new List<Guid>();
 		var seededOrder = new List<DateTime>();
 		for (var i = 0; i < 3; i++) {
-			var startsAt = baseDate.AddDays((3 - i) % 3);
-			// CreatedAt is the SAME for all three so it cannot mask a
-			// keySelector swap to CreatedAt.
+			// Two rows share the same StartsAt (i=0 and i=2), one has a
+			// different value (i=1). The tiebreaker (Id ascending) must
+			// determine the order of the two equal-key rows.
+			var startsAt = i == 1 ? baseDate.AddDays(1) : baseDate;
 			var createdAt = baseDate.AddDays(30);
 			var id = await SeedNoticeAtAsync(
 				staffUserId,

@@ -49,14 +49,18 @@ public sealed class FindPostsCursorBehaviorSpec : IClassFixture<ApiFixture> {
 		var seededIds = new List<Guid>();
 		var seededOrder = new List<DateTime>();
 		for (var i = 0; i < 3; i++) {
+			// Two rows share the same CreatedAt (i=0 and i=2), one has a
+			// different value (i=1). The tiebreaker (Id ascending) must
+			// determine the order of the two equal-key rows.
+			var createdAt = i == 1 ? baseDate.AddDays(1) : baseDate;
 			var id = await SeedPostAtAsync(
 				tenantId,
 				userId,
 				$"post-walk-{i}-{Guid.NewGuid():N}",
-				baseDate.AddDays((3 - i) % 3)
+				createdAt
 			);
 			seededIds.Add(id);
-			seededOrder.Add(baseDate.AddDays((3 - i) % 3));
+			seededOrder.Add(createdAt);
 		}
 
 		var visitedIds = new List<Guid>();
@@ -104,7 +108,7 @@ public sealed class FindPostsCursorBehaviorSpec : IClassFixture<ApiFixture> {
 			.Zip(seededOrder, (id, c) => (id, c))
 			.ToDictionary(x => x.id, x => x.c);
 		visitedSeededOrder.Should().Equal(
-			seededIds.OrderBy(id => createdAtById[id]).ToList()
+			seededIds.OrderBy(id => createdAtById[id]).ThenBy(id => id).ToList()
 		);
 
 		// Assert the OBSERVED CreatedAt order: ascending and equal to the
@@ -131,18 +135,17 @@ public sealed class FindPostsCursorBehaviorSpec : IClassFixture<ApiFixture> {
 		var seededIds = new List<Guid>();
 		var seededOrder = new List<DateTime>();
 		for (var i = 0; i < 3; i++) {
+			// Two rows share the same UpdatedAt (i=0 and i=2), one has a
+			// different value (i=1). The tiebreaker (Id ascending) must
+			// determine the order of the two equal-key rows.
 			var id = await SeedPostAtAsync(
 				tenantId,
 				userId,
 				$"post-walk-up-{i}-{Guid.NewGuid():N}",
-				baseDate.AddDays((3 - i) % 3)
+				baseDate
 			);
 			seededIds.Add(id);
-			// UpdatedAt is set AFTER insertion via a direct SQL UPDATE to bypass the
-			// interceptor; the dates are deliberately anti-correlated with insertion
-			// order so .NotEqual(seededOrder) holds and a keySelector swap to CreatedAt
-			// (stamped at insertion, different order) turns this assertion RED.
-			var updatedAt = baseDate.AddDays((i + 1) % 3);
+			var updatedAt = i == 1 ? baseDate.AddDays(1) : baseDate;
 			await OverrideUpdatedAtAsync(id, updatedAt);
 			seededOrder.Add(updatedAt);
 		}
@@ -192,7 +195,7 @@ public sealed class FindPostsCursorBehaviorSpec : IClassFixture<ApiFixture> {
 			.Zip(seededOrder, (id, c) => (id, c))
 			.ToDictionary(x => x.id, x => x.c);
 		visitedSeededOrder.Should().Equal(
-			seededIds.OrderBy(id => updatedAtById[id]).ToList()
+			seededIds.OrderBy(id => updatedAtById[id]).ThenBy(id => id).ToList()
 		);
 
 		// Assert the OBSERVED UpdatedAt order: ascending and equal to the

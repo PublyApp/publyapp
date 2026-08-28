@@ -590,7 +590,10 @@ public sealed class FindStaffInvitationsSpec : IClassFixture<ApiFixture> {
 		List<Guid> seededIds = new();
 		List<DateTime> seededOrder = new();
 		for (int i = 0; i < 3; i++) {
-			DateTime createdAt = baseDate.AddDays((3 - i) % 3);
+			// Two rows share the same CreatedAt (i=0 and i=2), one has a
+			// different value (i=1). The tiebreaker (Id ascending) must
+			// determine the order of the two equal-key rows.
+			DateTime createdAt = i == 1 ? baseDate.AddDays(1) : baseDate;
 			DateTime expiresAt = baseDate.AddDays(30);
 			Guid id = await SeedStaffInvitationAtAsync(
 				$"created-at-walk-{tag}-{i}-{Guid.NewGuid():N}@example.com",
@@ -638,7 +641,7 @@ public sealed class FindStaffInvitationsSpec : IClassFixture<ApiFixture> {
 			.Zip(seededOrder, (id, c) => (id, c))
 			.ToDictionary(x => x.id, x => x.c);
 		_ = visitedOrder.Should().Equal(
-			seededIds.OrderBy(id => createdAtById[id]).ToList()
+			seededIds.OrderBy(id => createdAtById[id]).ThenBy(id => id).ToList()
 		);
 
 		// Assert the OBSERVED CreatedAt order equals the sorted seeded order,
@@ -665,8 +668,11 @@ public sealed class FindStaffInvitationsSpec : IClassFixture<ApiFixture> {
 		List<Guid> seededIds = new();
 		List<DateTime> seededOrder = new();
 		for (int i = 0; i < 3; i++) {
+			// Two rows share the same ExpiresAt (i=0 and i=2), one has a
+			// different value (i=1). The tiebreaker (Id ascending) must
+			// determine the order of the two equal-key rows.
 			DateTime createdAt = baseDate.AddDays(i);
-			DateTime expiresAt = baseDate.AddDays((3 - i) % 3);
+			DateTime expiresAt = i == 1 ? baseDate.AddDays(1) : baseDate;
 			Guid id = await SeedStaffInvitationAtAsync(
 				$"expires-at-walk-{tag}-{i}-{Guid.NewGuid():N}@example.com",
 				createdAt, expiresAt);
@@ -713,7 +719,7 @@ public sealed class FindStaffInvitationsSpec : IClassFixture<ApiFixture> {
 			.Zip(seededOrder, (id, e) => (id, e))
 			.ToDictionary(x => x.id, x => x.e);
 		_ = visitedOrder.Should().Equal(
-			seededIds.OrderBy(id => expiresAtById[id]).ToList()
+			seededIds.OrderBy(id => expiresAtById[id]).ThenBy(id => id).ToList()
 		);
 
 		// Assert the OBSERVED ExpiresAt order equals the sorted seeded order,

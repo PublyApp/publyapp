@@ -56,14 +56,17 @@ public sealed class FindAuditLogsCursorBehaviorSpec
 		var seededIds = new List<Guid>();
 		var seededOrder = new List<DateTime>();
 		for (var i = 0; i < 3; i++) {
+			// Two rows share the same CreatedAt (i=0 and i=2), one has a
+			// different value (i=1). The tiebreaker (Id ascending) must
+			// determine the order of the two equal-key rows.
+			var createdAt = i == 1 ? baseDate.AddDays(1) : baseDate;
 			var id = await SeedAuditLogAtAsync(
 				staffUserId,
 				$"audit-walk-{i}-{Guid.NewGuid():N}",
-				// index 0 -> day 2, 1 -> day 0, 2 -> day 1 (anti-correlated)
-				baseDate.AddDays((3 - i) % 3)
+				createdAt
 			);
 			seededIds.Add(id);
-			seededOrder.Add(baseDate.AddDays((3 - i) % 3));
+			seededOrder.Add(createdAt);
 		}
 
 		var visitedIds = new List<Guid>();
@@ -111,7 +114,7 @@ public sealed class FindAuditLogsCursorBehaviorSpec
 			.Zip(seededOrder, (id, c) => (id, c))
 			.ToDictionary(x => x.id, x => x.c);
 		visitedSeededOrder.Should().Equal(
-			seededIds.OrderBy(id => createdAtById[id]).ToList()
+			seededIds.OrderBy(id => createdAtById[id]).ThenBy(id => id).ToList()
 		);
 
 		// Capture the CreatedAt the API actually returned, in visit order, and

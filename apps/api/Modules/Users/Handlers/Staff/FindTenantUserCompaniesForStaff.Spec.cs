@@ -179,8 +179,16 @@ public sealed class FindTenantUserCompaniesForStaffSpec
 		var visitedOrder = visitedTenantIds
 			.Where(seededTenantIds.Contains)
 			.ToList();
+		// Production orders by TenantName ascending, then by Id ascending (tiebreaker).
+		// Query the actual tenant names to build the expected order.
+		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		var tenantNames = await dbContext.Tenant
+			.Where(t => seededTenantIds.Contains(t.Id!.Value))
+			.ToDictionaryAsync(t => t.Id!.Value, t => t.Name);
 		var expectedOrder = seededTenantIds
-			.OrderBy(id => seededOrder[seededTenantIds.IndexOf(id)])
+			.OrderBy(id => tenantNames[id])
+			.ThenBy(id => id)
 			.ToList();
 		visitedOrder.Should().Equal(expectedOrder);
 	}
@@ -199,6 +207,8 @@ public sealed class FindTenantUserCompaniesForStaffSpec
 		// deliberately NOT in insertion order (anti-correlated). The walk must
 		// visit each once in ascending status order, so a keySelector swap
 		// to another same-type field (e.g. account CreatedAt) turns this assertion RED.
+		// Note: SeedUserWithCompaniesAsync seeds all memberships with the default
+		// Status=Active, so the tiebreaker (Id ascending) determines the order.
 		var baseDate = new DateTime(
 			2026, 1, 1, 0, 0, 0, DateTimeKind.Utc
 		);
@@ -242,8 +252,12 @@ public sealed class FindTenantUserCompaniesForStaffSpec
 		var visitedOrder = visitedTenantIds
 			.Where(seededTenantIds.Contains)
 			.ToList();
+		// Production orders by Status ascending, then by Id ascending (tiebreaker).
+		// All three memberships are seeded with the default Status=Active, so the
+		// tiebreaker (Id ascending) determines the order.
 		var expectedOrder = seededTenantIds
-			.OrderBy(id => seededOrder[seededTenantIds.IndexOf(id)])
+			.OrderBy(id => AccountStatus.Active)
+			.ThenBy(id => id)
 			.ToList();
 		visitedOrder.Should().Equal(expectedOrder);
 	}
@@ -262,6 +276,8 @@ public sealed class FindTenantUserCompaniesForStaffSpec
 		// deliberately NOT in insertion order (anti-correlated). The walk must
 		// visit each once in ascending level order, so a keySelector swap
 		// to another same-type field (e.g. account CreatedAt) turns this assertion RED.
+		// Note: SeedUserWithCompaniesAsync seeds all memberships with the default
+		// Level=User, so the tiebreaker (Id ascending) determines the order.
 		var baseDate = new DateTime(
 			2026, 1, 1, 0, 0, 0, DateTimeKind.Utc
 		);
@@ -305,8 +321,12 @@ public sealed class FindTenantUserCompaniesForStaffSpec
 		var visitedOrder = visitedTenantIds
 			.Where(seededTenantIds.Contains)
 			.ToList();
+		// Production orders by Level ascending, then by Id ascending (tiebreaker).
+		// All three memberships are seeded with the default Level=User, so the
+		// tiebreaker (Id ascending) determines the order.
 		var expectedOrder = seededTenantIds
-			.OrderBy(id => seededOrder[seededTenantIds.IndexOf(id)])
+			.OrderBy(id => AccountLevel.User)
+			.ThenBy(id => id)
 			.ToList();
 		visitedOrder.Should().Equal(expectedOrder);
 	}

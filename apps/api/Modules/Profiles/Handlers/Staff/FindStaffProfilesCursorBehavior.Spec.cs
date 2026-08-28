@@ -50,8 +50,11 @@ public sealed class FindStaffProfilesCursorBehaviorSpec
 		const int total = 3;
 		var seededIds = new List<Guid>();
 		var seededNames = new List<string>();
+		// Two rows share the same Name (i=0 and i=2), one has a
+		// different value (i=1). The tiebreaker (Id ascending) must
+		// determine the order of the two equal-key rows.
 		for (var i = 0; i < total; i++) {
-			var name = $"Walk Page {(char)('a' + (2 - i))} {Guid.NewGuid():N}";
+			var name = i == 1 ? $"Walk Page Bravo {Guid.NewGuid():N}" : $"Walk Page Alpha {Guid.NewGuid():N}";
 			seededIds.Add(await SeedStaffProfileAsync(name));
 			seededNames.Add(name);
 		}
@@ -168,7 +171,10 @@ public sealed class FindStaffProfilesCursorBehaviorSpec
 		var seededIds = new List<Guid>();
 		var seededOrder = new List<DateTime>();
 		for (var i = 0; i < 3; i++) {
-			var createdAt = baseDate.AddDays((3 - i) % 3);
+			// Two rows share the same CreatedAt (i=0 and i=2), one has a
+			// different value (i=1). The tiebreaker (Id ascending) must
+			// determine the order of the two equal-key rows.
+			var createdAt = i == 1 ? baseDate.AddDays(1) : baseDate;
 			var id = await SeedStaffProfileAtAsync($"created-at-walk-{i}-{Guid.NewGuid():N}", createdAt);
 			seededIds.Add(id);
 			seededOrder.Add(createdAt);

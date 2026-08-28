@@ -1194,13 +1194,14 @@ public sealed class FindTenantUsersAsStaffSpec
 		var seededUserIds = new List<Guid>();
 		var seededOrder = new List<DateTime>();
 		for (var i = 0; i < 3; i++) {
-			var userId = await SeedTenantUserAtAsync(
-				tenantId,
-				baseDate.AddDays((3 - i) % 3)
-			);
+			// Two rows share the same CreatedAt (i=0 and i=2), one has a
+			// different value (i=1). The tiebreaker (Id ascending) must
+			// determine the order of the two equal-key rows.
+			var createdAt = i == 1 ? baseDate.AddDays(1) : baseDate;
+			var userId = await SeedTenantUserAtAsync(tenantId, createdAt);
 			seededIds.Add(userId);
 			seededUserIds.Add(Guid.Parse(userId));
-			seededOrder.Add(baseDate.AddDays((3 - i) % 3));
+			seededOrder.Add(createdAt);
 		}
 
 		var visitedIds = new List<string>();
@@ -1249,7 +1250,7 @@ public sealed class FindTenantUsersAsStaffSpec
 			.Zip(seededOrder, (id, c) => (id, c))
 			.ToDictionary(x => x.id, x => x.c);
 		visitedOrder.Should().Equal(
-			seededIds.OrderBy(id => createdAtById[id]).ToList()
+			seededIds.OrderBy(id => createdAtById[id]).ThenBy(id => Guid.Parse(id)).ToList()
 		);
 
 		// Assert the OBSERVED sort order against the real User.CreatedAt values
@@ -1438,6 +1439,9 @@ public sealed class FindTenantUsersAsStaffSpec
 		// ascending Status order. A keySelector swap to another same-type field
 		// (e.g. Level) turns this assertion RED.
 		// UserStatus: Suspended = 30, Active = 40.
+		// The production key selector maps: User.Status==Suspended -> 2,
+		// Account.Status==Suspended -> 1, else -> 0. So the seeded statuses
+		// {Suspended, Active, Suspended} map to keys {2, 0, 2}.
 		var statuses = new[] { UserStatus.Suspended, UserStatus.Active, UserStatus.Suspended };
 		var seededIds = new List<string>();
 		for (var i = 0; i < 3; i++) {
@@ -1489,9 +1493,12 @@ public sealed class FindTenantUsersAsStaffSpec
 		var visitedOrder = visitedIds
 			.Where(seededIds.Contains)
 			.ToList();
+		// Production orders by the key selector value ascending, then by Id ascending.
+		// Key selector: User.Status==Suspended -> 2, Account.Status==Suspended -> 1, else -> 0.
+		// Seeded statuses {Suspended, Active, Suspended} map to keys {2, 0, 2}.
 		var expectedOrder = seededIds
-			.Zip(statuses, (id, s) => (id, s))
-			.OrderBy(x => x.s)
+			.Zip(statuses, (id, s) => (id, key: s == UserStatus.Suspended ? 2 : 0))
+			.OrderBy(x => x.key)
 			.ThenBy(x => Guid.Parse(x.id))
 			.Select(x => x.id)
 			.ToList();

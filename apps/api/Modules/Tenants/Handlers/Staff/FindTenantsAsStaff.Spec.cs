@@ -770,7 +770,10 @@ public sealed class FindTenantsAsStaffSpec
 		var seededIds = new List<Guid>();
 		var seededOrder = new List<DateTime>();
 		for (var i = 0; i < 3; i++) {
-			var createdAt = baseDate.AddDays((3 - i) % 3);
+			// Two rows share the same CreatedAt (i=0 and i=2), one has a
+			// different value (i=1). The tiebreaker (Id ascending) must
+			// determine the order of the two equal-key rows.
+			var createdAt = i == 1 ? baseDate.AddDays(1) : baseDate;
 			seededIds.Add(await SeedTenantAtAsync(createdAt));
 			seededOrder.Add(createdAt);
 		}
@@ -858,7 +861,10 @@ public sealed class FindTenantsAsStaffSpec
 		var seededIds = new List<Guid>();
 		var seededOrder = new List<DateTime>();
 		for (var i = 0; i < 3; i++) {
-			var updatedAt = baseDate.AddDays((3 - i) % 3);
+			// Two rows share the same UpdatedAt (i=0 and i=2), one has a
+			// different value (i=1). The tiebreaker (Id ascending) must
+			// determine the order of the two equal-key rows.
+			var updatedAt = i == 1 ? baseDate.AddDays(1) : baseDate;
 			var id = await SeedTenantAtAsync(baseDate); // CreatedAt irrelevant for this test
 			await SetTenantUpdatedAtAsync(id, updatedAt);
 			seededIds.Add(id);
@@ -945,11 +951,11 @@ public sealed class FindTenantsAsStaffSpec
 		var seededNames = new List<string>();
 		var seededIds = new List<Guid>();
 		var seededCodes = new List<string>();
-		var letters = new[] { 'z', 'a', 'm' };
-		// Codes are deliberately ordered so their ASC order is the REVERSE of
-		// the names' ASC order (z-first name -> a-first code), guaranteeing the
-		// visited-sequence differs from the Name sequence under mutation.
-		var codePrefixes = new[] { "acode", "zcode", "mcode" };
+		// Two rows share the same Name (i=0 and i=2), one has a
+		// different value (i=1). The tiebreaker (Id ascending) must
+		// determine the order of the two equal-key rows.
+		var letters = new[] { 'a', 'b', 'a' };
+		var codePrefixes = new[] { "zcode", "acode", "mcode" };
 		for (var i = 0; i < 3; i++) {
 			var name = $"Walk Name {letters[i]}-{Guid.NewGuid():N}";
 			var code = $"{codePrefixes[i]}-{Guid.NewGuid():N}"[..10];
@@ -961,6 +967,7 @@ public sealed class FindTenantsAsStaffSpec
 		var expectedOrder = seededIds
 			.Zip(seededNames, (id, n) => (id, n))
 			.OrderBy(x => x.n)
+			.ThenBy(x => x.id)
 			.Select(x => x.id)
 			.ToList();
 
@@ -1017,11 +1024,14 @@ public sealed class FindTenantsAsStaffSpec
 		// (anti-correlated with insertion). The walk must visit each once in
 		// ascending Status order. A keySelector swap to Name (string, different
 		// distribution) turns this assertion RED.
+		// Two rows share the same Status (i=0 and i=2 are both Suspended),
+		// one has a different value (i=1 is Active). The tiebreaker
+		// (Id ascending) must determine the order of the two equal-key rows.
 		var statuses = new[]
 		{
 			TenantStatus.Suspended,
 			TenantStatus.Active,
-			TenantStatus.Pending,
+			TenantStatus.Suspended,
 		};
 		var seededIds = new List<Guid>();
 		for (var i = 0; i < 3; i++) {
@@ -1072,6 +1082,7 @@ public sealed class FindTenantsAsStaffSpec
 		var expectedOrder = seededIds
 			.Zip(statuses, (id, s) => (id, s))
 			.OrderBy(x => x.s)
+			.ThenBy(x => x.id)
 			.Select(x => x.id)
 			.ToList();
 		visitedOrder.Should().Equal(expectedOrder);

@@ -51,8 +51,11 @@ public sealed class FindTenantProfilesCursorBehaviorSpec
 		const int total = 3;
 		var seededIds = new List<Guid>();
 		var seededNames = new List<string>();
+		// Two rows share the same Name (i=0 and i=2), one has a
+		// different value (i=1). The tiebreaker (Id ascending) must
+		// determine the order of the two equal-key rows.
 		for (var i = 0; i < total; i++) {
-			var name = $"Walk Page {(char)('a' + (2 - i))} {Guid.NewGuid():N}";
+			var name = i == 1 ? $"Walk Page Bravo {Guid.NewGuid():N}" : $"Walk Page Alpha {Guid.NewGuid():N}";
 			seededIds.Add(await SeedTenantProfileWithNameAsync(tenantId, name));
 			seededNames.Add(name);
 		}
@@ -171,7 +174,10 @@ public sealed class FindTenantProfilesCursorBehaviorSpec
 		var seededIds = new List<Guid>();
 		var seededOrder = new List<DateTime>();
 		for (var i = 0; i < 3; i++) {
-			var createdAt = baseDate.AddDays((3 - i) % 3);
+			// Two rows share the same CreatedAt (i=0 and i=2), one has a
+			// different value (i=1). The tiebreaker (Id ascending) must
+			// determine the order of the two equal-key rows.
+			var createdAt = i == 1 ? baseDate.AddDays(1) : baseDate;
 			var id = await SeedTenantProfileAtAsync(tenantId, $"created-at-walk-{i}-{Guid.NewGuid():N}", createdAt);
 			seededIds.Add(id);
 			seededOrder.Add(createdAt);
@@ -216,7 +222,7 @@ public sealed class FindTenantProfilesCursorBehaviorSpec
 			.Zip(seededOrder, (id, c) => (id, c))
 			.ToDictionary(x => x.id, x => x.c);
 		visitedOrder.Should().Equal(
-			seededIds.OrderBy(id => createdAtById[id]).ToList()
+			seededIds.OrderBy(id => createdAtById[id]).ThenBy(id => id).ToList()
 		);
 	}
 

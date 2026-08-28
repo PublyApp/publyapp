@@ -46,12 +46,15 @@ public sealed class FindSocialAccountsCursorBehaviorSpec
 		var seededIds = new List<Guid>();
 		var seededOrder = new List<DateTime>();
 		for (var i = 0; i < 3; i++) {
+			// Two rows share the same CreatedAt (i=0 and i=2), one has a
+			// different value (i=1). The tiebreaker (Id ascending) must
+			// determine the order of the two equal-key rows.
 			var id = await ConnectAsync(
 				tenantId,
 				token,
 				$"sa-walk-{i}-{Guid.NewGuid():N}"
 			);
-			var createdAt = baseDate.AddDays((3 - i) % 3);
+			var createdAt = i == 1 ? baseDate.AddDays(1) : baseDate;
 			await SetCreatedAtAsync(id, createdAt);
 			seededIds.Add(id);
 			seededOrder.Add(createdAt);
@@ -98,7 +101,7 @@ public sealed class FindSocialAccountsCursorBehaviorSpec
 			.Zip(seededOrder, (id, c) => (id, c))
 			.ToDictionary(x => x.id, x => x.c);
 		visitedOrder.Should().Equal(
-			seededIds.OrderBy(id => createdAtById[id]).ToList()
+			seededIds.OrderBy(id => createdAtById[id]).ThenBy(id => id).ToList()
 		);
 
 		// Assert the OBSERVED CreatedAt order from the DB: ascending and equal
@@ -132,12 +135,15 @@ public sealed class FindSocialAccountsCursorBehaviorSpec
 		var seededIds = new List<Guid>();
 		var seededOrder = new List<DateTime>();
 		for (var i = 0; i < 3; i++) {
+			// Two rows share the same UpdatedAt (i=0 and i=2), one has a
+			// different value (i=1). The tiebreaker (Id ascending) must
+			// determine the order of the two equal-key rows.
 			var id = await ConnectAsync(
 				tenantId,
 				token,
 				$"sa-walk-up-{i}-{Guid.NewGuid():N}"
 			);
-			var updatedAt = baseDate.AddDays((3 - i) % 3);
+			var updatedAt = i == 1 ? baseDate.AddDays(1) : baseDate;
 			await SetUpdatedAtAsync(id, updatedAt);
 			seededIds.Add(id);
 			seededOrder.Add(updatedAt);
@@ -184,7 +190,7 @@ public sealed class FindSocialAccountsCursorBehaviorSpec
 			.Zip(seededOrder, (id, c) => (id, c))
 			.ToDictionary(x => x.id, x => x.c);
 		visitedOrder.Should().Equal(
-			seededIds.OrderBy(id => updatedAtById[id]).ToList()
+			seededIds.OrderBy(id => updatedAtById[id]).ThenBy(id => id).ToList()
 		);
 
 		// Assert the OBSERVED UpdatedAt order from the DB: ascending and equal
