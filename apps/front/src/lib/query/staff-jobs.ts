@@ -174,7 +174,11 @@ const normalizeString = (
 	}
 
 	const trimmed = value.trim();
-	return trimmed.length > 0 ? trimmed : undefined;
+	if (trimmed.length === 0) {
+		return undefined;
+	}
+
+	return trimmed;
 };
 
 const normalizeNullableString = (

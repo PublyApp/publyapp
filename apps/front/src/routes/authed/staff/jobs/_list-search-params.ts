@@ -39,7 +39,11 @@ const normalizeString = (value: unknown): string | undefined => {
 	}
 
 	const trimmed = value.trim();
-	return trimmed.length > 0 ? trimmed : undefined;
+	if (trimmed.length === 0) {
+		return undefined;
+	}
+
+	return trimmed;
 };
 
 /** Queue status is a closed wire vocabulary; anything else falls back to no
@@ -68,7 +72,11 @@ const parseStatusIdFilter = (value: unknown): string | undefined => {
 		return undefined;
 	}
 
-	return /^\d+$/.test(normalized) ? normalized : undefined;
+	if (!/^\d+$/.test(normalized)) {
+		return undefined;
+	}
+
+	return normalized;
 };
 
 const parseJobTypeFilter = normalizeString;
@@ -79,7 +87,11 @@ const parseTenantIdFilter = (value: unknown): string | undefined => {
 		return undefined;
 	}
 
-	return /^[0-9a-f-]{36}$/i.test(normalized) ? normalized : undefined;
+	if (!/^[0-9a-f-]{36}$/i.test(normalized)) {
+		return undefined;
+	}
+
+	return normalized;
 };
 
 export const parseStaffJobsListSearchParams = (
