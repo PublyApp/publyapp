@@ -110,7 +110,7 @@ vi.mock('~/components/error-views/LogoutRedirect', () => ({
 }));
 
 vi.mock('react-i18next', async (importOriginal) => {
-	const actual = await vi.importActual<typeof import('react-i18next')>();
+	const actual = await importOriginal<typeof import('react-i18next')>();
 
 	return {
 		...actual,
