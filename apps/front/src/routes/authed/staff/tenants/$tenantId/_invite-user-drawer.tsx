@@ -64,6 +64,7 @@ import {
 } from './_invite-user-form-state';
 
 const MAX_IMPORT_FILE_BYTES = 2_000_000;
+const MAX_PROFILE_NAMES = 500;
 const CSV_EXTENSION_PATTERN = /\.csv$/i;
 const EXCEL_EXTENSION_PATTERN = /\.xlsx?$/i;
 
@@ -325,6 +326,132 @@ const unresolvedFlagCount = (
 };
 
 type UnresolvedEntry = { name: string; reason: string };
+
+type UseInviteProfileResolutionArgs = {
+	tenantId: string;
+	rows: InviteRow[];
+	isOpen: boolean;
+	methods: ReturnType<typeof useForm<InviteFormValues>>;
+	resolveNames: ReturnType<typeof useResolveTenantProfileNamesMutation>;
+	onSessionExpired: () => void;
+	t: Translate;
+};
+
+type UseInviteProfileResolutionResult = {
+	unresolvedByRowKey: Record<string, UnresolvedEntry[]>;
+	profileResolutionLimitError: string;
+	isResolvingProfiles: boolean;
+};
+
+/** Server-side profile-name resolution (#979): resolves the unique names on
+ * file/manual rows once per signature change and stamps ids back onto the rows.
+ * Pulled into its own hook so the host component stays under the
+ * giant-component threshold. Owns the unresolved-by-row-key map, the
+ * over-limit error, and the resolving flag.
+ *
+ * State updates fire from a methods.watch callback (event handler), not from an
+ * effect body — this is what react-doctor's no-pass-data-to-parent and
+ * no-adjust-state-on-prop-change permit. The effect only subscribes and runs an
+ * initial pass. */
+const useInviteProfileResolution = ({
+	tenantId,
+	rows,
+	isOpen,
+	methods,
+	resolveNames,
+	onSessionExpired,
+	t,
+}: UseInviteProfileResolutionArgs): UseInviteProfileResolutionResult => {
+	const [unresolvedByRowKey, setUnresolvedByRowKey] = useState<
+		Record<string, UnresolvedEntry[]>
+	>({});
+	const [profileResolutionLimitError, setProfileResolutionLimitError] =
+		useState('');
+
+	const namesSignature = useMemo(
+		() => profileNamesNeedingResolution(rows ?? []).join('\u0000'),
+		[rows],
+	);
+	const lastResolvedSignatureRef = useRef<string>('');
+	const { mutateAsync: resolveNamesAsync } = resolveNames;
+
+	useEffect(() => {
+		const onRowsChange = () => {
+			if (!isOpen || namesSignature.length === 0) {
+				setProfileResolutionLimitError('');
+				return;
+			}
+
+			const names = namesSignature.split('\u0000');
+			if (names.length > MAX_PROFILE_NAMES) {
+				setProfileResolutionLimitError(
+					t('invite-import-too-many-profile-names', {
+						count: names.length,
+						limit: MAX_PROFILE_NAMES,
+					}),
+				);
+				return;
+			}
+
+			setProfileResolutionLimitError('');
+
+			if (lastResolvedSignatureRef.current === namesSignature) {
+				return;
+			}
+
+			lastResolvedSignatureRef.current = namesSignature;
+
+			resolveNamesAsync({
+				tenantId,
+				names: namesSignature.split('\u0000'),
+			})
+				.then((result) => {
+					if (lastResolvedSignatureRef.current !== namesSignature) {
+						return;
+					}
+
+					const resolutions = toResolveTenantProfileNameResolutions(result);
+					const currentRows = methods.getValues('rows');
+					const outcome = applyProfileResolutions(currentRows, resolutions);
+					methods.setValue('rows', outcome.rows, { shouldDirty: true });
+					setUnresolvedByRowKey(outcome.unresolvedByRowKey);
+				})
+				.catch((error) => {
+					if (lastResolvedSignatureRef.current !== namesSignature) {
+						return;
+					}
+
+					if (shouldLogoutForFailure(error)) {
+						onSessionExpired();
+						return;
+					}
+
+					lastResolvedSignatureRef.current = '';
+					void displayLocalMutationFailure(error, t('unable-to-load-profiles'));
+				});
+		};
+
+		onRowsChange();
+		const subscription = methods.watch(() => onRowsChange());
+		return () => {
+			subscription.unsubscribe();
+		};
+	}, [
+		isOpen,
+		namesSignature,
+		tenantId,
+		methods,
+		resolveNamesAsync,
+		onSessionExpired,
+		t,
+	]);
+
+	return {
+		unresolvedByRowKey,
+		profileResolutionLimitError,
+		isResolvingProfiles: resolveNames.isPending,
+	};
+};
 
 type RowInvalidLevelNoteProps = {
 	invalidLevel: string | null;
@@ -859,9 +986,6 @@ const InviteTenantUserDrawerInner = ({
 	const [rootValidationError, setRootValidationError] = useState('');
 	const [batchSummary, setBatchSummary] =
 		useState<StaffTenantInvitationBulkCreateSummary | null>(null);
-	const [unresolvedByRowKey, setUnresolvedByRowKey] = useState<
-		Record<string, UnresolvedEntry[]>
-	>({});
 
 	const methods = useInviteForm();
 	const {
@@ -869,12 +993,6 @@ const InviteTenantUserDrawerInner = ({
 		formState: { isSubmitting },
 	} = methods;
 
-	// Event-driven dirty-flag uplink: react-hook-form's change stream fires
-	// synchronously on the form mutation that owns each change. Dirtiness comes
-	// from its own synchronous dirty computation against the pristine defaults
-	// this session mounted with. The setter is a parent prop, but it is invoked
-	// from the change callback (not an effect), which no-pass-data-to-parent
-	// permits; it mirrors how onSessionExpired is called from event handlers.
 	useInviteDirtyUplink({ methods, onDirtyChange });
 
 	const { fileBar, importError, duplicateNote, handleFiles, clearFile } =
@@ -886,72 +1004,19 @@ const InviteTenantUserDrawerInner = ({
 	const rows = methods.watch('rows');
 	const [isDiscardConfirmOpen, setIsDiscardConfirmOpen] = useState(false);
 
-	// Server-side profile-name resolution (#979): whenever the set of names on
-	// file/manual rows changes, resolve once and stamp ids back onto the rows.
-	// Kept inline (not in a child hook fed via props) because it mutates the
-	// form and a parent setter from an effect — react-doctor's
-	// no-pass-data-to-parent rule rejects parent-promoted values used in effects.
-	const namesSignature = useMemo(
-		() => profileNamesNeedingResolution(rows ?? []).join('\u0000'),
-		[rows],
-	);
-	const lastResolvedSignatureRef = useRef<string>('');
-	const { mutateAsync: resolveNamesAsync } = resolveNames;
-	useEffect(() => {
-		if (!isOpen || namesSignature.length === 0) {
-			return;
-		}
-
-		if (lastResolvedSignatureRef.current === namesSignature) {
-			return;
-		}
-
-		lastResolvedSignatureRef.current = namesSignature;
-
-		resolveNamesAsync({
-			tenantId,
-			names: namesSignature.split('\u0000'),
-		})
-			.then((result) => {
-				// Stale-response discard instead of cleanup-cancellation: a
-				// cancelled-and-guarded pattern here loses the resolution forever
-				// (cleanup marks the promise dead while the same-signature guard
-				// blocks a retry). Superseded signatures simply drop their result.
-				if (lastResolvedSignatureRef.current !== namesSignature) {
-					return;
-				}
-
-				const resolutions = toResolveTenantProfileNameResolutions(result);
-				const currentRows = methods.getValues('rows');
-				const outcome = applyProfileResolutions(currentRows, resolutions);
-				methods.setValue('rows', outcome.rows, { shouldDirty: true });
-				setUnresolvedByRowKey(outcome.unresolvedByRowKey);
-			})
-			.catch((error) => {
-				if (lastResolvedSignatureRef.current !== namesSignature) {
-					return;
-				}
-
-				if (shouldLogoutForFailure(error)) {
-					onSessionExpired();
-					return;
-				}
-
-				// Allow a retry on the next signature change.
-				lastResolvedSignatureRef.current = '';
-				void displayLocalMutationFailure(error, t('unable-to-load-profiles'));
-			});
-	}, [
-		isOpen,
-		namesSignature,
+	const {
+		unresolvedByRowKey,
+		profileResolutionLimitError,
+		isResolvingProfiles,
+	} = useInviteProfileResolution({
 		tenantId,
+		rows: rows ?? [],
+		isOpen,
 		methods,
-		resolveNamesAsync,
+		resolveNames,
 		onSessionExpired,
 		t,
-	]);
-
-	const isResolvingProfiles = resolveNames.isPending;
+	});
 
 	const isFormLockedFinal =
 		bulkInvite.isPending || isSubmitting || resolveNames.isPending;
@@ -1017,7 +1082,8 @@ const InviteTenantUserDrawerInner = ({
 		invalidLevelCount: (rows ?? []).filter((row) => row.invalidLevel !== null)
 			.length,
 	});
-	const isSendDisabled = isFormLockedFinal || !canSend;
+	const isSendDisabled =
+		isFormLockedFinal || !canSend || profileResolutionLimitError.length > 0;
 	const peopleCount = rows?.length ?? 0;
 
 	const onSubmit = useInviteSubmit({
@@ -1095,6 +1161,11 @@ const InviteTenantUserDrawerInner = ({
 						{rootValidationError ? (
 							<p className="text-sm text-destructive" role="alert">
 								{rootValidationError}
+							</p>
+						) : null}
+						{profileResolutionLimitError ? (
+							<p className="text-sm text-destructive" role="alert">
+								{profileResolutionLimitError}
 							</p>
 						) : null}
 					</DrawerBody>
