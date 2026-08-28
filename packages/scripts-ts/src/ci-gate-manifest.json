@@ -319,7 +319,7 @@
 		"front-ci.yml::supply-chain::Verify paired red proofs": {
 			"hash": "84a5033fcfbeb3dd",
 			"mirror": "just ci-front",
-			"reason": "ci-front runs `just test-preuves`, which delegates to the same scripts/ci/run-preuves.mts script invoked by `pnpm --filter front test:preuves`. .dump/preuves/ is git-ignored and absent in CI, so the script no-ops (exit 0) when no proof tests exist."
+			"reason": "ci-front runs `just test-preuves`, which delegates to the same scripts/ci/run-preuves.mts script invoked by `pnpm --filter front test:preuves`. The runner EXITS 1 when .dump/preuves/ is absent or empty (option (b) of issue #1659 ronde 4) — a green step that verified nothing would hide the absence of proof. The developer replay path is the lane worktree where .dump/ exists."
 		},
 		"front-ci.yml::supply-chain::Typecheck front": {
 			"hash": "919f61e1a9c1b71c",

@@ -236,8 +236,14 @@ jobs:
       # each proves a bug by failing against the corrected code. The runner
       # script (scripts/ci/run-preuves.mts) inverts the semantics: a test that
       # fails is a pass, and a test that passes is a failure (the bug has changed
-      # form or been fixed, making the proof stale). If .dump/preuves/ is absent
-      # (git-ignored, not in CI checkout) the script no-ops with exit 0.
+      # form or been fixed, making the proof stale).
+      #
+      # The runner EXITS 1 when .dump/preuves/ is absent (git-ignored, not in
+      # CI checkout) or empty. A green step that verified nothing would hide
+      # the absence of proof — option (b) of issue #1659 ronde 4. The developer
+      # replay path is the lane worktree (`just test-preuves`), where .dump/
+      # exists. This CI step is therefore structurally red until a proof file
+      # is present to replay; that is the honest signal, not a regression.
       - name: Verify paired red proofs
         run: pnpm --filter front test:preuves
         # Mirrors `just test-preuves` in the local ci-front recipe.
