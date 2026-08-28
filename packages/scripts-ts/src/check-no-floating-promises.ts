@@ -1,4 +1,5 @@
 import { spawnSync } from 'node:child_process';
+import { existsSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import process from 'node:process';
@@ -19,13 +20,46 @@ const baselinePath = path.join(here, 'no-floating-promises-baseline.json');
 const oxlintBin = path.join(repoRoot, 'node_modules/oxlint/bin/oxlint');
 const oxlintConfigPath = path.join(repoRoot, '.oxlintrc.json');
 
+// Fail CLOSED: if the oxlint binary is missing or cannot be executed,
+// we cannot verify the warning count — so we must refuse to pass rather
+// than silently report "0 warnings, within limit". A ratchet that fails
+// open is no ratchet at all; it would let a missing dependency mask a
+// real regression. See issue #1679.
+const assertOxlintAvailable = () => {
+	if (!existsSync(oxlintBin)) {
+		throw new Error(
+			`oxlint binary not found at ${oxlintBin} — ` +
+				'cannot count no-floating-promises warnings. Ensure `pnpm install` ' +
+				'has run and oxlint is in node_modules.',
+		);
+	}
+};
+
 // @ts-expect-error rung-0: add proper type in later rung
 const runOxlint = () => {
+	assertOxlintAvailable();
+
 	const result = spawnSync(
 		process.execPath,
 		[oxlintBin, '--config', oxlintConfigPath, '--format', 'unix'],
 		{ cwd: repoRoot, encoding: 'utf8' },
 	);
+
+	if (result.error) {
+		throw new Error(
+			`Failed to execute oxlint: ${result.error.message} — ` +
+				'cannot count no-floating-promises warnings.',
+		);
+	}
+
+	// status === null means the process was killed by a signal; nonzero means
+	// oxlint exited with an error. Either way, the output is unreliable.
+	if (result.status !== 0) {
+		throw new Error(
+			`oxlint exited with status ${result.status} — ` +
+				'cannot count no-floating-promises warnings reliably.',
+		);
+	}
 
 	return {
 		status: result.status,
@@ -52,24 +86,50 @@ const countWarnings = (output, ruleName) => {
 	return count;
 };
 
-export const checkNoFloatingPromises = async () => {
-	const baselineContent = await readFile(baselinePath, 'utf8');
-	// @ts-expect-error rung-0: add proper type in later rung
-	const baseline = JSON.parse(baselineContent);
-	const { stdout, stderr } = runOxlint();
-	const combined = `${stdout}\n${stderr}`;
-	const actualCount = countWarnings(combined, baseline.rule);
+// The result type includes an 'error' sentinel so the caller can distinguish
+// "count is within limit" from "could not count at all" without throwing.
+type RatchetResult = {
+	rule: string;
+	baseline: number;
+	actual: number;
+	withinLimit: boolean | 'error';
+};
 
-	return {
-		rule: baseline.rule,
-		baseline: baseline.count,
-		actual: actualCount,
-		withinLimit: actualCount <= baseline.count,
-	};
+export const checkNoFloatingPromises = async (): Promise<RatchetResult> => {
+	try {
+		const baselineContent = await readFile(baselinePath, 'utf8');
+		// @ts-expect-error rung-0: add proper type in later rung
+		const baseline = JSON.parse(baselineContent);
+		const { stdout, stderr } = runOxlint();
+		const combined = `${stdout}\n${stderr}`;
+		const actualCount = countWarnings(combined, baseline.rule);
+
+		return {
+			rule: baseline.rule,
+			baseline: baseline.count,
+			actual: actualCount,
+			withinLimit: actualCount <= baseline.count,
+		};
+	} catch (error) {
+		console.error(
+			`no-floating-promises ratchet failed: ${error instanceof Error ? error.message : String(error)}`,
+		);
+		return {
+			rule: 'typescript(no-floating-promises)',
+			baseline: 0,
+			actual: 0,
+			withinLimit: 'error',
+		};
+	}
 };
 
 const run = async () => {
 	const result = await checkNoFloatingPromises();
+
+	if (result.withinLimit === 'error') {
+		// The error was already logged; just exit nonzero.
+		process.exit(1);
+	}
 
 	if (result.withinLimit) {
 		console.log(
