@@ -116,6 +116,12 @@ const deriveSharedTsSegments = (dir: string): string[] => {
 	let entries: string[];
 	try {
 		entries = readdirSync(dir, { withFileTypes: true })
+			// #1678 R5: isDirectory() is benign today because packages/shared-ts/src/
+			// contains only top-level directories. If a file ever exposes a first
+			// segment (e.g. a .ts barrel at packages/shared-ts/src/foo.ts making
+			// @org/shared-ts/foo resolvable), this filter would silently drop it
+			// and the guard would fail to see the exposed segment. Don't "simplify"
+			// this to readdirSync(dir) without also fixing the regex derivation.
 			.filter((entry) => entry.isDirectory() && !entry.name.startsWith('.'))
 			.map((entry) => entry.name);
 	} catch (err: unknown) {
@@ -152,10 +158,39 @@ type FindingType = 'DUAL_PATH' | 'UNKNOWN_SEGMENT' | 'PARSE_ERROR';
 interface Finding {
 	file: string;
 	line: number;
-	/** distinguishes a real dual-path violation from a fail-loudly unknown-segment or parse error (#1678) */
+	/**
+	 * Single source of truth for what this finding represents. The human-readable
+	 * text is DERIVED from this via formatFinding() — never written in parallel.
+	 * This makes any mutation to `type` change the observable output, which is
+	 * what makes the paired tests meaningful (#1678 R5).
+	 */
 	type: FindingType;
-	text: string;
+	/** The module specifier that triggered the finding (DUAL_PATH, UNKNOWN_SEGMENT). */
+	specifier: string;
+	/** The raw AST node text of the triggering statement (DUAL_PATH, UNKNOWN_SEGMENT). */
+	nodeText: string;
+	/** The compiler's diagnostic message text (PARSE_ERROR only). */
+	diagnosticMessage: string;
 }
+
+/**
+ * Derives the human-readable finding text from its `type` — the single source
+ * of truth. Because the prefix (`DUAL_PATH:`, `UNKNOWN_SEGMENT:`, `PARSE_ERROR:`)
+ * is computed from `type`, any mutation to `type` changes the observable output
+ * and therefore breaks the paired tests. This closes the R4 loophole where
+ * `Finding.text` was written in parallel to `Finding.type` and could be
+ * mutated independently (#1678 R5).
+ */
+export const formatFinding = (f: Finding): string => {
+	switch (f.type) {
+		case 'DUAL_PATH':
+			return `DUAL_PATH: re-export of ${f.specifier} creates a second resolvable path (#1533) — ${f.nodeText}`;
+		case 'UNKNOWN_SEGMENT':
+			return `UNKNOWN_SEGMENT: re-export of ${f.specifier}, which is not a recognised first segment of @org/shared-ts (#1678)`;
+		case 'PARSE_ERROR':
+			return `PARSE_ERROR: ${f.diagnosticMessage}`;
+	}
+};
 
 // ts-morph's SourceFile type omits parseDiagnostics, but its vendored
 // compiler always populates it (verified behaviour in check-design-system.mts).
@@ -263,12 +298,15 @@ const scanSourceFile = (relativePath: string, source: string): Finding[] => {
 		if (ts.isExportDeclaration(node)) {
 			const specifier = moduleSpecifierText(node);
 			if (specifier !== null && specifier.startsWith(SHARED_TS_PREFIX)) {
+				const nodeText = node.getText(sourceFile).trim().replace(/\s+/g, ' ');
 				if (SHARED_TS_MODULE_PATTERN.test(specifier)) {
 					findings.push({
 						file: relativePath,
 						line: lineOf(sourceFile, node),
 						type: 'DUAL_PATH',
-						text: node.getText(sourceFile).trim().replace(/\s+/g, ' '),
+						specifier,
+						nodeText,
+						diagnosticMessage: '',
 					});
 				} else {
 					// #1678: fail loudly — the specifier targets the shared-ts
@@ -278,7 +316,9 @@ const scanSourceFile = (relativePath: string, source: string): Finding[] => {
 						file: relativePath,
 						line: lineOf(sourceFile, node),
 						type: 'UNKNOWN_SEGMENT',
-						text: `UNKNOWN_SEGMENT: re-export of ${specifier}, which is not an recognised first segment of @org/shared-ts (#1678)`,
+						specifier,
+						nodeText,
+						diagnosticMessage: '',
 					});
 				}
 			}
@@ -310,7 +350,9 @@ const scanSourceFile = (relativePath: string, source: string): Finding[] => {
 					? 1
 					: sourceFile.getLineAndCharacterOfPosition(diagnostic.start).line + 1,
 			type: 'PARSE_ERROR',
-			text: `PARSE_ERROR: ${ts.flattenDiagnosticMessageText(diagnostic.messageText, ' ')}`,
+			specifier: '',
+			nodeText: '',
+			diagnosticMessage: ts.flattenDiagnosticMessageText(diagnostic.messageText, ' '),
 		});
 	}
 
@@ -362,10 +404,10 @@ export const scanSharedTsSrcForSharedTsReExports = (
 	});
 };
 
-const main = (): void => {
+export const main = (roots?: { frontSrc?: string; sharedTsSrc?: string }): void => {
 	const findings = [
-		...scanFrontSrcForSharedTsReExports(),
-		...scanSharedTsSrcForSharedTsReExports(),
+		...scanFrontSrcForSharedTsReExports(roots?.frontSrc),
+		...scanSharedTsSrcForSharedTsReExports(roots?.sharedTsSrc),
 	];
 	if (findings.length) {
 		console.error(
@@ -373,7 +415,7 @@ const main = (): void => {
 				'import path (#1533).',
 		);
 		for (const f of findings) {
-			console.error(`  ${f.file}:${f.line}  ${f.text}`);
+			console.error(`  ${f.file}:${f.line}  ${formatFinding(f)}`);
 		}
 		process.exit(1);
 	}

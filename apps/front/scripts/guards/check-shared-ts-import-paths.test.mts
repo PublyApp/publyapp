@@ -22,6 +22,7 @@
  * the AST and cannot silently fall back to line-by-line text scanning.
  */
 import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
 import { cpSync, mkdtempSync, rmSync, writeFileSync, mkdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -34,6 +35,7 @@ import {
 	scanTreeForSharedTsReExports,
 	SHARED_TS_SEGMENTS,
 	deriveSharedTsSegments,
+	formatFinding,
 } from './check-shared-ts-import-paths.mts';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -114,9 +116,14 @@ test('RED: a front-side re-export of a shared-ts module is detected', () => {
 		hit,
 		`expected a finding in lib/should-logout-for-failure.ts, got ${JSON.stringify(findings)}`,
 	);
+	assert.equal(
+		hit.type,
+		'DUAL_PATH',
+		`shim re-export must be DUAL_PATH (#1678 R5)`,
+	);
 	assert.ok(
-		hit.text.includes(SHIM_SPECIFIER),
-		`finding text should name the shared-ts module: ${hit.text}`,
+		formatFinding(hit).includes(SHIM_SPECIFIER),
+		`finding text should name the shared-ts module: ${formatFinding(hit)}`,
 	);
 });
 
@@ -139,9 +146,14 @@ test('RED: a named (non-barrel) front-side re-export of a shared-ts module is de
 		hit,
 		`expected a finding in lib/should-logout.ts, got ${JSON.stringify(findings)}`,
 	);
+	assert.equal(
+		hit.type,
+		'DUAL_PATH',
+		`named re-export must be DUAL_PATH (#1678 R5)`,
+	);
 	assert.ok(
-		hit.text.includes('shouldLogoutForFailure'),
-		`finding text should name the re-exported symbol: ${hit.text}`,
+		formatFinding(hit).includes('shouldLogoutForFailure'),
+		`finding text should name the re-exported symbol: ${formatFinding(hit)}`,
 	);
 });
 
@@ -207,9 +219,14 @@ test('RED: multi-line named re-export (`export {\\n foo,\\n} from ...`) is detec
 		hit,
 		`multi-line named re-export must be detected, got ${JSON.stringify(findings)}`,
 	);
+	assert.equal(
+		hit.type,
+		'DUAL_PATH',
+		`multi-line re-export must be DUAL_PATH (#1678 R5)`,
+	);
 	assert.ok(
-		hit.text.includes(SHIM_SPECIFIER),
-		`finding text should name the shared-ts module: ${hit.text}`,
+		formatFinding(hit).includes(SHIM_SPECIFIER),
+		`finding text should name the shared-ts module: ${formatFinding(hit)}`,
 	);
 });
 
@@ -230,6 +247,11 @@ test('RED: `export type * from "@org/shared-ts/..."` is detected', () => {
 		hit,
 		`export type * must be detected, got ${JSON.stringify(findings)}`,
 	);
+	assert.equal(
+		hit.type,
+		'DUAL_PATH',
+		`export type * re-export must be DUAL_PATH (#1678 R5)`,
+	);
 });
 
 test('RED: `export * as ns from "@org/shared-ts/..."` is detected', () => {
@@ -248,6 +270,11 @@ test('RED: `export * as ns from "@org/shared-ts/..."` is detected', () => {
 	assert.ok(
 		hit,
 		`export * as ns must be detected, got ${JSON.stringify(findings)}`,
+	);
+	assert.equal(
+		hit.type,
+		'DUAL_PATH',
+		`export * as ns re-export must be DUAL_PATH (#1678 R5)`,
 	);
 });
 
@@ -283,6 +310,11 @@ test('RED: `export type { X } from "@org/shared-ts/..."` (type-only named) is de
 	assert.ok(
 		hit,
 		`type-only named re-export must be detected, got ${JSON.stringify(findings)}`,
+	);
+	assert.equal(
+		hit.type,
+		'DUAL_PATH',
+		`type-only named re-export must be DUAL_PATH (#1678 R5)`,
 	);
 });
 
@@ -351,9 +383,14 @@ test('RED: a shared-ts-internal re-export of a sibling shared-ts module is detec
 		hit,
 		`expected a finding in lib/_staff-barrel.ts, got ${JSON.stringify(findings)}`,
 	);
+	assert.equal(
+		hit.type,
+		'DUAL_PATH',
+		`shared-ts-internal re-export must be DUAL_PATH (#1678 R5)`,
+	);
 	assert.ok(
-		hit.text.includes(SHIM_SPECIFIER),
-		`finding text should name the shared-ts module: ${hit.text}`,
+		formatFinding(hit).includes(SHIM_SPECIFIER),
+		`finding text should name the shared-ts module: ${formatFinding(hit)}`,
 	);
 });
 
@@ -435,8 +472,8 @@ test('RED: re-export of @org/shared-ts/@types/* is detected as DUAL_PATH (#1678)
 		`@types re-export must be DUAL_PATH, not UNKNOWN_SEGMENT — this is the assertion that breaks when the bug fix is reverted (#1678)`,
 	);
 	assert.ok(
-		hit.text.includes(TYPES_SPECIFIER),
-		`finding text should name the @types module: ${hit.text}`,
+		formatFinding(hit).includes(TYPES_SPECIFIER),
+		`finding text should name the @types module: ${formatFinding(hit)}`,
 	);
 });
 
@@ -463,8 +500,8 @@ test('RED: re-export of @org/shared-ts/scripts/* is detected as DUAL_PATH (#1678
 		`scripts re-export must be DUAL_PATH, not UNKNOWN_SEGMENT — this is the assertion that breaks when the bug fix is reverted (#1678)`,
 	);
 	assert.ok(
-		hit.text.includes(SCRIPTS_SPECIFIER),
-		`finding text should name the scripts module: ${hit.text}`,
+		formatFinding(hit).includes(SCRIPTS_SPECIFIER),
+		`finding text should name the scripts module: ${formatFinding(hit)}`,
 	);
 });
 
@@ -521,13 +558,18 @@ test('RED: re-export of @org/shared-ts/<unknown-segment> fails loudly with UNKNO
 		hit,
 		`re-export of an unknown shared-ts segment must be flagged, got ${JSON.stringify(findings)}`,
 	);
-	assert.ok(
-		hit.text.startsWith('UNKNOWN_SEGMENT:'),
-		`finding text should carry UNKNOWN_SEGMENT cause, got: ${hit.text}`,
+	assert.equal(
+		hit.type,
+		'UNKNOWN_SEGMENT',
+		`unknown-segment re-export must be UNKNOWN_SEGMENT, not DUAL_PATH — this is the assertion that breaks when the fail-loudly branch is mutated to DUAL_PATH (#1678 R5)`,
 	);
 	assert.ok(
-		hit.text.includes('@org/shared-ts/nonexistent'),
-		`finding text should name the unknown specifier, got: ${hit.text}`,
+		formatFinding(hit).startsWith('UNKNOWN_SEGMENT:'),
+		`finding text should carry UNKNOWN_SEGMENT cause, got: ${formatFinding(hit)}`,
+	);
+	assert.ok(
+		formatFinding(hit).includes('@org/shared-ts/nonexistent'),
+		`finding text should name the unknown specifier, got: ${formatFinding(hit)}`,
 	);
 });
 
@@ -549,13 +591,70 @@ test('RED: a source file with a syntax error produces a PARSE_ERROR finding (#16
 		hit,
 		`broken syntax file must produce a finding, got ${JSON.stringify(findings)}`,
 	);
+	assert.equal(
+		hit.type,
+		'PARSE_ERROR',
+		`broken syntax must produce PARSE_ERROR, not DUAL_PATH — this is the assertion that breaks when the parse-error branch is mutated to DUAL_PATH (#1678 R5)`,
+	);
 	assert.ok(
-		hit.text.startsWith('PARSE_ERROR:'),
-		`finding text should carry PARSE_ERROR cause, got: ${hit.text}`,
+		formatFinding(hit).startsWith('PARSE_ERROR:'),
+		`finding text should carry PARSE_ERROR cause, got: ${formatFinding(hit)}`,
 	);
 });
 
-// ---- #1678 R4: assertion on the derivation of SHARED_TS_SEGMENTS itself -----
+// ---- #1678 R5: main() must exit non-zero when a violation is found ----
+// The paired tests above call scanFrontSrcForSharedTsReExports() directly and
+// never invoke main(). A mutation that changes process.exit(1) to process.exit(0)
+// keeps all 24 tests green while restoring the "silent pass" defect in CI. This
+// test invokes main() with sandbox roots and asserts the exit code.
+
+test('RED: main() exits non-zero when a shim re-export is present (#1678 R5)', () => {
+	const root = makeSandbox();
+	writeFileSync(
+		path.join(root, 'front-src/lib/should-logout-for-failure.ts'),
+		SHIM_BODY,
+	);
+
+	const result = spawnSync(
+		'node',
+		['--experimental-strip-types', '-e', `
+import { main } from '${path.resolve(here, './check-shared-ts-import-paths.mts').replace(/\\/g, '/')}';
+main({
+  frontSrc: '${path.join(root, 'front-src').replace(/\\/g, '/')}',
+  sharedTsSrc: '${path.join(root, 'shared-ts-src').replace(/\\/g, '/')}',
+});
+`],
+		{ encoding: 'utf8' },
+	);
+
+	assert.notEqual(
+		result.status,
+		0,
+		`main() must exit non-zero when a shim re-export is present, got exit code ${result.status}. stdout: ${result.stdout}. stderr: ${result.stderr}`,
+	);
+});
+
+test('GREEN: main() exits zero when no shim is present (#1678 R5)', () => {
+	const root = makeSandbox();
+
+	const result = spawnSync(
+		'node',
+		['--experimental-strip-types', '-e', `
+import { main } from '${path.resolve(here, './check-shared-ts-import-paths.mts').replace(/\\/g, '/')}';
+main({
+  frontSrc: '${path.join(root, 'front-src').replace(/\\/g, '/')}',
+  sharedTsSrc: '${path.join(root, 'shared-ts-src').replace(/\\/g, '/')}',
+});
+`],
+		{ encoding: 'utf8' },
+	);
+
+	assert.equal(
+		result.status,
+		0,
+		`main() must exit zero when no shim is present, got exit code ${result.status}. stdout: ${result.stdout}. stderr: ${result.stderr}`,
+	);
+});
 
 test('SHARED_TS_SEGMENTS is derived from packages/shared-ts/src and contains @types and scripts (#1678)', () => {
 	// The old hardcoded regex (lib|utils|validations|types) missed @types and scripts.
