@@ -1059,6 +1059,8 @@
 	"revoke-invitation-success": "Invitation révoquée.",
 	"dead-letter-requeue-success": "Tâche remise en file.",
 	"system-job-trigger-success": "Tâche déclenchée.",
+	"system-job-toggle-success": "État d'activation de la tâche mis à jour.",
+	"system-job-definition-update-success": "Planification mise à jour.",
 	"back-to-staff-profiles": "Retour aux profils du personnel",
 	"unable-to-load-staff-permissions": "Impossible de charger les autorisations du personnel.",
 	"invitation-not-found": "Invitation introuvable",

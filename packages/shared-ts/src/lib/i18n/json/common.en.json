@@ -1059,6 +1059,8 @@
 	"revoke-invitation-success": "Invitation revoked.",
 	"dead-letter-requeue-success": "Job requeued.",
 	"system-job-trigger-success": "Job triggered.",
+	"system-job-toggle-success": "Job enabled state updated.",
+	"system-job-definition-update-success": "Schedule updated.",
 	"back-to-staff-profiles": "Back to staff profiles",
 	"unable-to-load-staff-permissions": "Unable to load staff permissions.",
 	"invitation-not-found": "Invitation not found",
