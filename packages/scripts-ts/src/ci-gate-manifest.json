@@ -87,17 +87,17 @@
 			"reason": "GitHub-only failure-only log capture: gets failing-spec output off an ephemeral runner. Locally the reports are already on disk."
 		},
 		"deploy-images.yml::publish::Build and push API migrate image": {
-			"hash": "92e036674badcdc4",
+			"hash": "e4dc88bbd1b1946a",
 			"mirror": "just ci",
 			"reason": "This is a CI publish path for the migration bundle image and does not have a local equivalent in pre-push checks."
 		},
 		"deploy-images.yml::publish::Build and push API runtime image": {
-			"hash": "80cadc2b17689106",
+			"hash": "73918aacfc6ab804",
 			"mirror": "just ci",
 			"reason": "This is a CI publish path for the API runtime image and does not have a local equivalent in pre-push checks."
 		},
 		"deploy-images.yml::publish::Build and push Front image": {
-			"hash": "ab5c6ca1fb00d1fe",
+			"hash": "679d848e6d15e12d",
 			"mirror": "just ci",
 			"reason": "This is a CI publish path for the front image and does not have a local equivalent in pre-push checks."
 		},
