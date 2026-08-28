@@ -179,8 +179,8 @@
 			"reason_length": 122
 		},
 		"front-ci.yml::gate-selftest::Run CI gate guard tests (mirrors `just ci-drift`)": {
-			"reason_hash": "f7a2933e5f44fbc0",
-			"reason_length": 3220
+			"reason_hash": "34dd2706e2ef8b27",
+			"reason_length": 3472
 		},
 		"front-ci.yml::gate-selftest::Run project closure adapter tests": {
 			"reason_hash": "56ac24350b0baf1a",

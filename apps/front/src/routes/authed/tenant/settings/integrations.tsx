@@ -6,10 +6,10 @@ import {
 	IconRefresh,
 } from '@tabler/icons-react';
 import { createFileRoute } from '@tanstack/react-router';
-import type { ColumnDef } from '@tanstack/react-table';
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ReconnectBanner } from '~/components/social-accounts/reconnect-banner';
+import type { ColumnDef } from '~/components/table/column-type';
 import { DataTable } from '~/components/table/data-table';
 import { DataTableRowActions } from '~/components/table/row-actions';
 import { Button } from '~/components/ui/button';

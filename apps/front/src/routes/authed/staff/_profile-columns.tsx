@@ -5,7 +5,7 @@ import {
 	IconUsers,
 } from '@tabler/icons-react';
 import { Link } from '@tanstack/react-router';
-import type { ColumnDef } from '@tanstack/react-table';
+import type { ColumnDef } from '~/components/table/column-type';
 import { DataTableRowActions } from '~/components/table/row-actions';
 import { DropdownMenuItem } from '~/components/ui/dropdown-menu';
 import { deriveProfileCardStyle } from '~/lib/profiles/profile-card-style';

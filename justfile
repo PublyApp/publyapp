@@ -296,6 +296,11 @@ ci-drift:
   pnpm --filter scripts-ts exec vitest run src/codeowners-contract.test.ts
   pnpm test:ci-drift
   pnpm --filter scripts-ts exec vitest run src/lint-front.test.ts
+  # #1679: the no-floating-promises ratchet's own suite. front-ci.yml's
+  # gate-selftest step runs it; without this line the local mirror would be
+  # missing a command CI actually runs — exactly the drift this recipe exists
+  # to make impossible.
+  pnpm --filter scripts-ts exec vitest run src/check-no-floating-promises.test.ts
   node ./packages/scripts-ts/src/check-ci-drift.ts
   pnpm --filter scripts-ts exec vitest run src/ci-changed-paths.test.ts
   pnpm --filter scripts-ts exec vitest run src/artifact-version-compat.test.ts
@@ -380,6 +385,7 @@ ci-format: format
 ci-lint:
   @echo "=== [gate] lint ==="
   node packages/scripts-ts/src/lint-front.ts --quiet
+  node packages/scripts-ts/src/check-no-floating-promises.ts
   pnpm lint:disables
   pnpm check:frontend-barrels
   pnpm --filter @org/lint-ts test

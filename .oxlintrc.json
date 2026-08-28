@@ -122,11 +122,22 @@
 				"**/*.test.ts",
 				"**/*.test.tsx",
 				"**/*.spec.ts",
-				"**/*.spec.tsx",
-				"apps/front/e2e/**"
+				"**/*.spec.tsx"
 			],
 			"rules": {
 				"complexity": ["error", { "max": 90 }]
+			}
+		},
+		{
+			"files": ["apps/front/src/components/table/column-type.ts"],
+			"rules": {
+				"typescript/no-deprecated": "off"
+			}
+		},
+		{
+			"files": ["apps/front/src/components/table/data-table.tsx"],
+			"rules": {
+				"typescript/no-deprecated": "off"
 			}
 		}
 	]

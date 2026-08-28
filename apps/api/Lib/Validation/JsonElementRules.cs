@@ -729,6 +729,67 @@ public static class JsonElementRules {
 	}
 
 	/// <summary>
+	/// Validates a required JsonElement string array field that allows an empty array:
+	/// required → array → bounded size → every item is a bounded non-empty string.
+	/// Use it for batch-read/resolve-style endpoints where an empty array is a valid
+	/// "resolve nothing" request rather than a validation error.
+	/// </summary>
+	public static IRuleBuilderOptions<T, JsonElement>
+		MustBeRequiredStringArrayAllowingEmpty<T>(
+			this IRuleBuilder<T, JsonElement> ruleBuilder,
+			string fieldName,
+			string itemName,
+			int maxCount,
+			int maxItemLength = 200
+		) {
+		return ruleBuilder
+			.Must(element =>
+				element.ValueKind
+				is not JsonValueKind.Undefined
+				and not JsonValueKind.Null
+			)
+			.WithMessage($"{fieldName} is required")
+			.Must(element => element.ValueKind == JsonValueKind.Array)
+			.WithMessage($"{fieldName} must be an array")
+			.Must(element =>
+				element.ValueKind == JsonValueKind.Array
+				&& element.EnumerateArray().Count() <= maxCount
+			)
+			.WithMessage($"Maximum {maxCount} {fieldName} allowed")
+			// Each Must runs independently of the previous ones (no short-circuit), so
+			// every array-walking predicate must tolerate non-array kinds itself.
+			.Must(element =>
+				element.ValueKind != JsonValueKind.Array
+				|| element.EnumerateArray().All(BeNonEmptyString)
+			)
+			.WithMessage($"Every {itemName} must be a non-empty string")
+			.Must(element =>
+				element.ValueKind != JsonValueKind.Array
+				|| element.EnumerateArray().All(BeBoundedString)
+			)
+			.WithMessage(
+				$"Every {itemName} must be {maxItemLength} characters or less"
+			);
+
+		bool BeNonEmptyString(JsonElement item) {
+			if (item.ValueKind != JsonValueKind.String) {
+				return false;
+			}
+
+			var value = item.GetString();
+			return !string.IsNullOrWhiteSpace(value);
+		}
+
+		bool BeBoundedString(JsonElement item) {
+			if (item.ValueKind != JsonValueKind.String) {
+				return false;
+			}
+
+			return (item.GetString()?.Length ?? 0) <= maxItemLength;
+		}
+	}
+
+	/// <summary>
 	/// Validates a required JsonElement string field that
 	/// must also be a valid encrypted string (for token IDs).
 	/// </summary>
