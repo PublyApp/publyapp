@@ -75,18 +75,13 @@ Résultat :
    > enabled toggle mutation calls invalidateStaffJobsQueries in its .then() success path
 
  Test Files  1 failed (1)
-      Tests  3 failed | 28 passed (31)
+      Tests  1 failed | 30 passed (31)
 ```
 
-Les trois échecs (les deux autres sont les preuves du message de succès ci-dessous,
-activées en même temps) :
-
-```
- FAIL  src/lib/query/staff-jobs.test.ts
-   > enabled toggle mutation calls invalidateStaffJobsQueries in its .then() success path
-   > the toggle successMessage key exists in every locale
-   > the toggle successMessage key resolves in shared-ts common locale bundles
-```
+Seul le test de rafraîchissement du toggle échoue. Le cron continue de passer
+car son propre appel à `invalidateStaffJobsQueries` (ligne 152) est intact, et
+les tests du message de succès sont indépendants — ils vérifient la clé dans
+les bundles de localisation, pas l'invalidation.
 
 Détail de l'échec central (le cœur de cette preuve) :
 
@@ -132,7 +127,7 @@ Résultat :
    > the toggle successMessage key resolves in shared-ts common EN and FR
 
  Test Files  1 failed (1)
-      Tests  3 failed | 28 passed (31)
+      Tests  2 failed | 29 passed (31)
 ```
 
 Détail de l'échec central :
@@ -153,7 +148,7 @@ bundles de localisation — seuls les tests r4 mordent.
 
 ---
 
-## 4. Mutation adverse
+## 3. Mutation adverse
 
 > Trouve une modification qui casse le rafraîchissement **en gardant tes tests verts**.
 > Si tu en trouves une, tes tests ne mordent pas — dis-le et renforce-les.
