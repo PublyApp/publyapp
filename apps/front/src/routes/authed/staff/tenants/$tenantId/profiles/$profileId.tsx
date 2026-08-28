@@ -18,6 +18,7 @@ import {
 	TenantRetryActions,
 } from '../_tenant-details-shell';
 import { staffTenantProfileCrumbsBase } from './$profileId/_crumbs';
+import type { StaffTenantProfileDetailsContextValue } from './$profileId/_details-context';
 import {
 	MissingTenantProfileView,
 	ProfileDetailsLoading,

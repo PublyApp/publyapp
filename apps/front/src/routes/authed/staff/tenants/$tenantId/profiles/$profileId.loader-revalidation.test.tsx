@@ -154,9 +154,6 @@ const countByPath = (suffix: string[]): number =>
 		return call && pathEndsWith(call, ...suffix);
 	}).length;
 
-/** Counts total fetcher invocations across all paths. */
-const countAll = (): number => mocks.respond.mock.calls.length;
-
 /** Mounts the production route's REAL option objects under a throwaway router.
  * The QueryClient uses `staleTime: 0` (default) so cached data is immediately
  * stale, making the background-revalidation `query()` calls actually fire. */
