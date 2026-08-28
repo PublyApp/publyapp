@@ -49,29 +49,29 @@ write('zz-late-barrel.ts', "export { INLINE_NAME } from './inline';\n");
 
 const exports_ = collectSharedTsExports(root);
 
-test('sees a name exported inline on its declaration', () => {
+void test('sees a name exported inline on its declaration', () => {
 	assert.equal(exports_.get('INLINE_NAME'), '@org/shared-ts/inline');
 });
 
-test('sees a name exported by a separate export statement', () => {
+void test('sees a name exported by a separate export statement', () => {
 	// The regression this whole file exists for. `export { SEPARATE_NAME }`
 	// carries the export; the `const` statement itself has no modifier, so
 	// asking the statement `isExported()` answers false and the name vanishes.
 	assert.equal(exports_.get('SEPARATE_NAME'), '@org/shared-ts/separate');
 });
 
-test('sees exported functions and classes, not only consts', () => {
+void test('sees exported functions and classes, not only consts', () => {
 	assert.equal(exports_.get('FUNC_NAME'), '@org/shared-ts/func');
 	assert.equal(exports_.get('CLASS_NAME'), '@org/shared-ts/klass');
 });
 
-test('ignores type-only exports', () => {
+void test('ignores type-only exports', () => {
 	// An e2e `const` that happens to share a name with an exported TYPE is not
 	// a duplicated constant, so flagging it would be a false positive.
 	assert.equal(exports_.get('TYPE_ONLY_NAME'), undefined);
 });
 
-test('a re-exported name is attributed to the module that DECLARES it', () => {
+void test('a re-exported name is attributed to the module that DECLARES it', () => {
 	// `barrel.ts` re-exports SEPARATE_NAME, and sorts BEFORE `separate.ts`, so a
 	// plain overwrite would have kept the barrel. `zz-late-barrel.ts` re-exports
 	// INLINE_NAME and sorts AFTER `inline.ts`, so a plain overwrite would have
@@ -82,7 +82,7 @@ test('a re-exported name is attributed to the module that DECLARES it', () => {
 	assert.equal(exports_.get('INLINE_NAME'), '@org/shared-ts/inline');
 });
 
-test('`default` is not collected', () => {
+void test('`default` is not collected', () => {
 	// `const default = …` is a syntax error, so a spec cannot re-declare it.
 	// Mapping it would only add an entry several modules overwrite in turn.
 	assert.equal(exports_.get('default'), undefined);

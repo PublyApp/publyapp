@@ -179,8 +179,8 @@
 			"reason_length": 122
 		},
 		"front-ci.yml::gate-selftest::Run CI gate guard tests (mirrors `just ci-drift`)": {
-			"reason_hash": "f7a2933e5f44fbc0",
-			"reason_length": 3220
+			"reason_hash": "34dd2706e2ef8b27",
+			"reason_length": 3472
 		},
 		"front-ci.yml::gate-selftest::Run project closure adapter tests": {
 			"reason_hash": "56ac24350b0baf1a",
@@ -219,8 +219,8 @@
 			"reason_length": 504
 		},
 		"front-ci.yml::supply-chain::Audit production dependencies (moderate and above)": {
-			"reason_hash": "a28ee8468a4fec6f",
-			"reason_length": 246
+			"reason_hash": "b7c22d4996cc4f08",
+			"reason_length": 949
 		},
 		"front-ci.yml::supply-chain::Assert exact pins": {
 			"reason_hash": "23640fc62c5d63d6",
@@ -677,6 +677,10 @@
 		"quality-gate.yml::quality::Typecheck lint-ts": {
 			"reason_hash": "272f664f02dedc3c",
 			"reason_length": 289
+		},
+		"quality-gate.yml::quality::Typecheck client-ts": {
+			"reason_hash": "27ef92467928c767",
+			"reason_length": 320
 		}
 	}
 }
