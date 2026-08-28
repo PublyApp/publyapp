@@ -117,6 +117,10 @@ vi.mock('~/lib/hooks/use-logout', () => ({
 	useLogout: () => ({ logout: mocks.logout }),
 }));
 
+vi.mock('~/components/error-views/LogoutRedirect', () => ({
+	LogoutRedirect: () => <div data-testid="logout-redirect">logout</div>,
+}));
+
 vi.mock('react-i18next', async (importOriginal) => {
 	const actual = await importOriginal<typeof import('react-i18next')>();
 
@@ -413,6 +417,33 @@ describe('breadcrumb-loader (#851 round 2)', () => {
 		expect(nav.textContent).toContain('Approvers');
 		expect(
 			screen.queryByTestId('app-shell-breadcrumb-entity-skeleton'),
+		).toBeNull();
+	});
+
+	// A3b: the 401 → logout chain must survive the ensureQueryData → queryClient.query
+	// migration. The route's errorComponent must route a 401 loader rejection to
+	// LogoutRedirect — the repo-wide "only 401 logs out" invariant.
+	test('a 401 loader rejection routes to LogoutRedirect (401→logout invariant preserved)', async () => {
+		mocks.respond.mockImplementation(async (call) => {
+			if (pathEndsWith(call, 'byTenantId', 'get')) {
+				throw problemFor(401);
+			}
+			if (pathEndsWith(call, 'byProfileId', 'get')) {
+				return PROFILE_PAYLOAD;
+			}
+			return {};
+		});
+
+		await renderRouteAtDetailsUrl();
+
+		// 401 must trigger logout, not render a not-found/forbidden/retry view
+		expect(screen.getByTestId('logout-redirect')).toBeTruthy();
+		expect(
+			screen.queryByTestId('staff-tenant-profile-details-not-found'),
+		).toBeNull();
+		expect(screen.queryByTestId('view-403')).toBeNull();
+		expect(
+			screen.queryByTestId('staff-tenant-profile-details-error'),
 		).toBeNull();
 	});
 });

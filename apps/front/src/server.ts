@@ -79,12 +79,32 @@ const renderLinkTag = (link: {
 	return `<link ${attributes} />`;
 };
 
-const resolveOrigin = (request: Request): string => {
+export const resolveOrigin = (request: Request): string => {
+	const publicOrigin = getServerEnv().publicOrigin;
 	const host = request.headers.get('host');
 	if (host) {
 		const protocol = request.headers.get('x-forwarded-proto') ?? 'https';
-		return `${protocol}://${host}`;
+		const candidate = `${protocol}://${host}`;
+		if (publicOrigin === undefined) {
+			logger.warn(
+				'resolveOrigin: PUBLIC_ORIGIN not set, falling back to request host (host-header injection risk)',
+			);
+			return candidate;
+		}
+		if (candidate === publicOrigin) {
+			return candidate;
+		}
+		logger.warn(
+			`resolveOrigin: host header "${host}" does not match PUBLIC_ORIGIN, using configured origin`,
+		);
+		return publicOrigin;
 	}
+	if (publicOrigin !== undefined) {
+		return publicOrigin;
+	}
+	logger.warn(
+		'resolveOrigin: no host header and PUBLIC_ORIGIN not set, falling back to request URL origin',
+	);
 	return new URL(request.url).origin;
 };
 

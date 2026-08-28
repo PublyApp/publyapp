@@ -25,6 +25,7 @@ type EnvDefinition = {
 
 const requiredTrimmedString = z.string().trim().min(1);
 const optionalTrimmedString = z.string().trim().min(1).optional();
+const optionalUrlWithTrailingSlash = z.url().optional();
 
 const envDefinition = {
 	public: {
@@ -43,6 +44,10 @@ const envDefinition = {
 		},
 	},
 	server: {
+		publicOrigin: {
+			processKeys: ['PUBLIC_ORIGIN'],
+			schema: optionalUrlWithTrailingSlash,
+		},
 		apiBaseUrl: {
 			processKeys: ['SERVER_API_BASE_URL'],
 			schema: requiredTrimmedString,

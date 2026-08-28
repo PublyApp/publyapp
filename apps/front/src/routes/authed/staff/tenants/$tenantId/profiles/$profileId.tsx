@@ -298,6 +298,13 @@ export const Route = createFileRoute(
 	validateSearch: (search) =>
 		parseProfileDetailsSearchParams(search as ProfileDetailsSearchParamInput),
 	loader: async ({ context, params }) => {
+		// #851 round 3 (A3 fix): the migration from ensureQueryData to
+		// query({staleTime:'static'}) eliminated the background revalidation of
+		// cached loader data that ensureQueryData provided via prefetchQuery.
+		// To preserve that behavior, we now use query() for the initial fetch
+		// (which propagates errors to the error boundary) followed by
+		// prefetchQuery() to trigger background revalidation of stale cached
+		// data — matching the old ensureQueryData semantics.
 		await Promise.all([
 			context.queryClient.query({
 				queryKey: staffTenantDetailsQueryOptions.queryKey({
@@ -307,7 +314,6 @@ export const Route = createFileRoute(
 					staffTenantDetailsQueryOptions.fetcher({
 						tenantId: params.tenantId,
 					}),
-				staleTime: 'static',
 			}),
 			context.queryClient.query({
 				queryKey: staffTenantProfileDetailsQueryOptions.queryKey({
@@ -319,9 +325,38 @@ export const Route = createFileRoute(
 						tenantId: params.tenantId,
 						profileId: params.profileId,
 					}),
-				staleTime: 'static',
 			}),
 		]);
+		// Background revalidation of stale cached data (errors swallowed,
+		// matching the old ensureQueryData prefetchQuery behavior).
+		context.queryClient
+			.query({
+				queryKey: staffTenantDetailsQueryOptions.queryKey({
+					tenantId: params.tenantId,
+				}),
+				queryFn: () =>
+					staffTenantDetailsQueryOptions.fetcher({
+						tenantId: params.tenantId,
+					}),
+			})
+			.catch(() => {
+				// Swallow errors to match old prefetchQuery behavior
+			});
+		context.queryClient
+			.query({
+				queryKey: staffTenantProfileDetailsQueryOptions.queryKey({
+					tenantId: params.tenantId,
+					profileId: params.profileId,
+				}),
+				queryFn: () =>
+					staffTenantProfileDetailsQueryOptions.fetcher({
+						tenantId: params.tenantId,
+						profileId: params.profileId,
+					}),
+			})
+			.catch(() => {
+				// Swallow errors to match old prefetchQuery behavior
+			});
 	},
 	pendingComponent: ProfileDetailsLoading,
 	errorComponent: ProfileRouteErrorBoundary,
