@@ -1123,25 +1123,27 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 	private async Task SwapStaffUserIdsAsync(Guid idA, Guid idB) {
 		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-		// Swap IDs on both the parent (users) and child (user_accounts) tables
-		// in a single statement so the FK constraint is checked at the end of the
-		// statement when both tables are consistent (FK is not DEFERRABLE).
+		var temp = Guid.NewGuid();
+		// Swap IDs on both the parent (users) and child (user_accounts)
+		// tables. The three-step swap via a temp id avoids the PK collision
+		// that a single-statement CTE swap causes (FK is not DEFERRABLE).
 		await dbContext.Database.ExecuteSqlRawAsync(
-			"""
-			WITH swap(user_a, user_b) AS (SELECT {0}::uuid, {1}::uuid),
-			ua AS (
-			  UPDATE user_accounts SET user_id = CASE user_id
-			    WHEN (SELECT user_a FROM swap) THEN (SELECT user_b FROM swap)
-			    WHEN (SELECT user_b FROM swap) THEN (SELECT user_a FROM swap)
-			    ELSE user_id END
-			  WHERE user_id IN ((SELECT user_a FROM swap), (SELECT user_b FROM swap))
-			)
-			UPDATE users SET id = CASE id
-			  WHEN (SELECT user_a FROM swap) THEN (SELECT user_b FROM swap)
-			  WHEN (SELECT user_b FROM swap) THEN (SELECT user_a FROM swap)
-			  ELSE id END
-			WHERE id IN ((SELECT user_a FROM swap), (SELECT user_b FROM swap))
-			""",
+			"UPDATE user_accounts SET user_id = {0} WHERE user_id = {1}",
+			temp, idA);
+		await dbContext.Database.ExecuteSqlRawAsync(
+			"UPDATE users SET id = {0} WHERE id = {1}",
+			temp, idA);
+		await dbContext.Database.ExecuteSqlRawAsync(
+			"UPDATE user_accounts SET user_id = {0} WHERE user_id = {1}",
 			idA, idB);
+		await dbContext.Database.ExecuteSqlRawAsync(
+			"UPDATE users SET id = {0} WHERE id = {1}",
+			idA, idB);
+		await dbContext.Database.ExecuteSqlRawAsync(
+			"UPDATE user_accounts SET user_id = {0} WHERE user_id = {1}",
+			idB, temp);
+		await dbContext.Database.ExecuteSqlRawAsync(
+			"UPDATE users SET id = {0} WHERE id = {1}",
+			idB, temp);
 	}
 }
