@@ -79,11 +79,11 @@ const runOxlint = () => {
 	//   70 — internal error — scan did not run, output is unreliable
 	//   null — process was killed by a signal — output is unreliable
 	//
-	// Exit code 1 (lint problems found) is the NORMAL case when there are
-	// errors or warnings in the repo. The JSON output is still valid and
-	// parseable. We MUST NOT treat it as a failure — the repo has 34
-	// typescript(no-deprecated) errors that cause exit code 1, but the
-	// floating-promises warnings in the JSON output are counted correctly.
+	// Exit code 1 (lint problems found) is a NORMAL outcome, not a failure:
+	// the JSON output is still valid and complete, and we count from it as
+	// usual. See the note at the top of this file for the measurement — this
+	// repository currently exits 0, and an earlier version of this comment
+	// wrongly claimed otherwise.
 	//
 	// Only exit codes 2, 70, and null (signal kill) indicate a truly broken
 	// scan — fail-closed for those.
@@ -174,11 +174,43 @@ const countWarningsFromJson = (output: string, ruleName: string): number => {
 
 	const diagnostics = parsedObj.diagnostics as Array<Record<string, unknown>>;
 	let count = 0;
+	const emittedCodes = new Set<string>();
 
 	for (const diagnostic of diagnostics) {
+		if (typeof diagnostic.code === 'string') {
+			emittedCodes.add(diagnostic.code);
+		}
 		if (diagnostic.code === ruleName && diagnostic.severity === 'warning') {
 			count += 1;
 		}
+	}
+
+	// Fail-closed: the pinned rule name is compared to `diagnostic.code` by
+	// exact string equality, so a rule name that matches NOTHING silently
+	// counts zero — and zero is within any baseline. A mistyped hyphen, the
+	// slash form `typescript/no-floating-promises` instead of oxlint's
+	// `typescript(no-floating-promises)`, or a future rename by oxlint would
+	// all leave this gate permanently green while the real warnings pile up.
+	// That is a conforming default produced from input the guard could not
+	// actually evaluate — the exact failure mode this ratchet exists to stop.
+	//
+	// So: if oxlint emitted diagnostics at all but NONE of them carries the
+	// pinned rule name, the name is dead and we refuse to report a count.
+	//
+	// Deliberately not covered: a scan that emits zero diagnostics in total.
+	// There, a dead rule name and a genuinely clean repository are
+	// indistinguishable from this output alone, and failing on a clean repo
+	// would be a guard that cries wolf. The `number_of_files === 0` check
+	// above already catches the broken-scan case.
+	if (diagnostics.length > 0 && !emittedCodes.has(ruleName)) {
+		throw new Error(
+			`the pinned rule name "${ruleName}" matches none of the ` +
+				`${emittedCodes.size} rule codes oxlint actually emitted — ` +
+				'refusing to report a count of 0, which would keep this gate ' +
+				'green forever. Fix `rule` in no-floating-promises-baseline.json ' +
+				`to one of oxlint's real codes. Emitted codes (first 10): ` +
+				`${[...emittedCodes].slice(0, 10).join(', ')}`,
+		);
 	}
 
 	return count;

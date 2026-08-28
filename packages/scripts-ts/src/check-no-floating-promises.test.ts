@@ -366,6 +366,79 @@ test(
 );
 
 test(
+	'the ratchet FAILS CLOSED when the pinned rule name matches no emitted code',
+	{ timeout: 30_000 },
+	async () => {
+		// The counter compares the pinned rule name to `diagnostic.code` by
+		// exact string equality. A name that matches nothing counts zero, and
+		// zero is within any baseline — so the gate would stay green forever
+		// while the real warnings pile up. This is the failure the reviewer of
+		// round 4 demonstrated with the slash form of the rule name.
+		//
+		// Here oxlint emits real diagnostics, none of which carries the pinned
+		// name. The guard must refuse to report a count rather than return 0.
+		vi.doMock('node:child_process', async (importOriginal) => {
+			const actual =
+				await importOriginal<typeof import('node:child_process')>();
+			return {
+				...actual,
+				spawnSync: () => ({
+					status: 1,
+					stdout: JSON.stringify({
+						diagnostics: [
+							{
+								message: 'Something else entirely',
+								code: 'typescript(no-deprecated)',
+								severity: 'error',
+							},
+							{
+								message: 'Promises must be awaited',
+								// The slash form — NOT what oxlint emits, and
+								// exactly the typo that would go unnoticed.
+								code: 'typescript/no-floating-promises',
+								severity: 'warning',
+							},
+						],
+						number_of_files: 1000,
+					}),
+					stderr: '',
+					error: null,
+				}),
+			};
+		});
+
+		const { checkNoFloatingPromises: mockedCheck } =
+			await import('./check-no-floating-promises.ts?mocked-dead-rule-name');
+
+		try {
+			const result = await mockedCheck();
+
+			// MUST fail closed — never a conforming 0.
+			assert.strictEqual(
+				result.withinLimit,
+				'error',
+				'expected the ratchet to fail closed when the pinned rule name ' +
+					`matches no emitted code, but got withinLimit=${result.withinLimit}`,
+			);
+			// The distinction that matters is withinLimit: on the fail-closed
+			// path `actual` is 0 because nothing was counted, but that 0 is
+			// reported as an ERROR, never as "within limit". The bug this
+			// covers is precisely a 0 dressed up as a pass — assert that the
+			// pass never happens.
+			assert.notStrictEqual(
+				result.withinLimit,
+				true,
+				'a count of 0 reported as "within limit" would be a conforming ' +
+					'default produced from input the guard could not evaluate — ' +
+					'the exact silent false negative this ratchet exists to prevent',
+			);
+		} finally {
+			vi.doUnmock('node:child_process');
+		}
+	},
+);
+
+test(
 	'the ratchet FAILS (withinLimit=false) when the count exceeds the baseline',
 	{ timeout: 30_000 },
 	async () => {
