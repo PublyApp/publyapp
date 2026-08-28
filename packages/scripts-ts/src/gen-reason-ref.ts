@@ -33,25 +33,21 @@ const manifest = JSON.parse(manifestRaw) as {
 };
 
 const steps = manifest.steps ?? {};
-const reference: Record<
-	string,
-	{ reason_hash: string; reason_length: number }
-> = {};
 
-for (const [id, entry] of Object.entries(steps)) {
-	if (typeof entry.reason !== 'string') continue;
-
-	const reasonHash = createHash('sha256')
-		.update(entry.reason)
-		.digest('hex')
-		.slice(0, 16);
-	const reasonLength = entry.reason.length;
-
-	reference[id] = {
-		reason_hash: reasonHash,
-		reason_length: reasonLength,
-	};
-}
+const reference = Object.fromEntries(
+	Object.entries(steps)
+		.filter(([, entry]) => typeof entry?.reason === 'string')
+		.map(([id, entry]) => [
+			id,
+			{
+				reason_hash: createHash('sha256')
+					.update(entry.reason)
+					.digest('hex')
+					.slice(0, 16),
+				reason_length: entry.reason.length,
+			},
+		]),
+);
 
 const output = {
 	$comment: [
@@ -66,7 +62,7 @@ const output = {
 		'',
 		'The guard fails when a reason changes (especially SHRINKS) while the step hash',
 		'is unchanged. A deliberate rewrite is possible by regenerating this file',
-		'in the same commit as the manifest change — same mechanism as the complexity',
+		'in the same commit as the manifest change \u2014 same mechanism as the complexity',
 		'ceilings (cyclomatic-bound-ref.json).',
 		'',
 		'Regenerate with: node packages/scripts-ts/src/gen-reason-ref.ts',
@@ -75,7 +71,7 @@ const output = {
 	steps: reference,
 };
 
-const json = JSON.stringify(output, null, '\t');
+const json = JSON.stringify(output, null, '\t') + '\n';
 await writeFile(path.resolve(process.cwd(), outputPath), json, 'utf8');
 console.log(
 	`Regenerated ${outputPath} with ${Object.keys(reference).length} reason fingerprints.`,
