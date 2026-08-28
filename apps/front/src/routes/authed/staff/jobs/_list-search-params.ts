@@ -9,7 +9,7 @@ import {
 /** Shared URL-state shape for the three `/staff/jobs` list pages. Each page
  * adds exactly one resource-specific filter on top of the table base
  * (q/sort_id/sort_order/cursor/size). */
-export type StaffJobsListFilters = {
+type StaffJobsListFilters = {
 	/** Queue: lowercase wire status (`pending`/`processing`). */
 	status?: string;
 	/** Dead-letter: external-state status id (wire `external_state_status`). */

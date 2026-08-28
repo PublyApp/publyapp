@@ -14,7 +14,6 @@ import type {
 	FindDeadLettersResponse,
 	FindJobQueueItemsResponse,
 	FindSystemJobDefinitionsResponse,
-	GetDeadLetterResponse,
 	JobQueueItemDetail,
 	JobQueueListItem,
 	RequeueDeadLetterForStaffBody,
@@ -492,18 +491,6 @@ export const useStaffJobQueueQuery = (variables: StaffJobQueueQueryVariables) =>
 		queryFn: () => staffJobQueueQueryOptions.fetcher(variables),
 	});
 
-export const useStaffJobQueueItemQuery = (
-	variables: StaffJobQueueDetailsQueryVariables,
-	options?: {
-		enabled?: boolean;
-	},
-) =>
-	useQuery({
-		queryKey: staffJobQueueDetailsQueryOptions.queryKey(variables),
-		queryFn: () => staffJobQueueDetailsQueryOptions.fetcher(variables),
-		enabled: options?.enabled ?? true,
-	});
-
 export const useStaffDeadLettersQuery = (
 	variables: StaffDeadLettersQueryVariables,
 ) =>
@@ -512,37 +499,12 @@ export const useStaffDeadLettersQuery = (
 		queryFn: () => staffDeadLettersQueryOptions.fetcher(variables),
 	});
 
-export const useStaffDeadLetterQuery = (
-	variables: StaffDeadLetterDetailsQueryVariables,
-	options?: {
-		enabled?: boolean;
-	},
-) =>
-	useQuery({
-		queryKey: staffDeadLetterDetailsQueryOptions.queryKey(variables),
-		queryFn: () => staffDeadLetterDetailsQueryOptions.fetcher(variables),
-		enabled: options?.enabled ?? true,
-	});
-
 export const useStaffSystemJobDefinitionsQuery = (
 	variables: StaffSystemJobDefinitionsQueryVariables,
 ) =>
 	useQuery({
 		queryKey: staffSystemJobDefinitionsQueryOptions.queryKey(variables),
 		queryFn: () => staffSystemJobDefinitionsQueryOptions.fetcher(variables),
-	});
-
-export const useStaffSystemJobDefinitionQuery = (
-	variables: StaffSystemJobDefinitionDetailsQueryVariables,
-	options?: {
-		enabled?: boolean;
-	},
-) =>
-	useQuery({
-		queryKey: staffSystemJobDefinitionDetailsQueryOptions.queryKey(variables),
-		queryFn: () =>
-			staffSystemJobDefinitionDetailsQueryOptions.fetcher(variables),
-		enabled: options?.enabled ?? true,
 	});
 
 export const useStaffRequeueDeadLetterMutation = () =>
@@ -640,7 +602,3 @@ export const toStaffSystemJobDefinitionRows = (
 
 	return rows;
 };
-
-// The Kiota wire types are referenced for the envelope shapes these hooks
-// round-trip; keep the import surface honest if the models drift.
-export type StaffGetDeadLetterResponse = GetDeadLetterResponse;
