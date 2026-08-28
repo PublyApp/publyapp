@@ -79,50 +79,6 @@ const renderLinkTag = (link: {
 	return `<link ${attributes} />`;
 };
 
-export const resolveOrigin = (request: Request): string => {
-	const publicOrigin = getServerEnv().publicOrigin;
-	const host = request.headers.get('host');
-	if (host) {
-		const protocol = request.headers.get('x-forwarded-proto') ?? 'https';
-		const candidate = `${protocol}://${host}`;
-		if (publicOrigin === undefined) {
-			const nodeEnv = getServerEnv().nodeEnv;
-			if (nodeEnv === 'production') {
-				// validateRuntimeEnv already refused to start the process in this
-				// state, so reaching here in production is a hard contract breach.
-				// Fail loudly: a forged canonical origin is worse than a crashed
-				// request — a wrong canonical URL is served to every client silently.
-				throw new Error(
-					'PUBLIC_ORIGIN is required in production; resolveOrigin must not trust the Host header.',
-				);
-			}
-			logger.warn(
-				'resolveOrigin: PUBLIC_ORIGIN not set, falling back to request host (host-header injection risk)',
-			);
-			return candidate;
-		}
-		if (candidate === publicOrigin) {
-			return candidate;
-		}
-		logger.warn(
-			`resolveOrigin: host header "${host}" does not match PUBLIC_ORIGIN, using configured origin`,
-		);
-		return publicOrigin;
-	}
-	if (publicOrigin !== undefined) {
-		return publicOrigin;
-	}
-	if (getServerEnv().nodeEnv === 'production') {
-		throw new Error(
-			'PUBLIC_ORIGIN is required in production; resolveOrigin must not trust the Host header.',
-		);
-	}
-	logger.warn(
-		'resolveOrigin: no host header and PUBLIC_ORIGIN not set, falling back to request URL origin',
-	);
-	return new URL(request.url).origin;
-};
-
 export const isIndexableSeoRoute = (
 	requestPath: string,
 	status: number,
@@ -150,7 +106,6 @@ export const injectSeoMarkup = (
 	request: Request,
 	locale: SupportedLanguage,
 	seoAllowed: boolean,
-	origin: string,
 	t: SeoTranslator,
 ): string => {
 	const requestUrl = new URL(request.url);
@@ -184,12 +139,7 @@ export const injectSeoMarkup = (
 		metaTags.push('<meta name="robots" content="noindex, nofollow" />');
 	}
 
-	const newline = '\n';
-
-	return output.replace(
-		'</head>',
-		`${metaTags.join(newline)}${newline}</head>`,
-	);
+	return output.replace('</head>', `${metaTags.join('\n')}\n</head>`);
 };
 
 const sendBadResponseCapture = (
@@ -301,7 +251,6 @@ export default {
 				ctx.request,
 				locale,
 				shouldInjectSeo,
-				resolveOrigin(ctx.request),
 				seoTranslator,
 			);
 			const headers = new Headers(response.headers);

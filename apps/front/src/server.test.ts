@@ -70,14 +70,7 @@ describe('injectSeoMarkup / resolveSeoTranslator (shell-r6-F1)', () => {
 
 	test('does not inject React-owned title or CSP nonce into raw HTML', async () => {
 		const t = await resolveSeoTranslator('en');
-		const output = injectSeoMarkup(
-			html,
-			request('/'),
-			'en',
-			true,
-			'https://publyapp.test',
-			t,
-		);
+		const output = injectSeoMarkup(html, request('/'), 'en', true, t);
 
 		expect(output).not.toContain('<title>');
 		expect(output).not.toContain('name="csp-nonce"');
@@ -90,7 +83,6 @@ describe('injectSeoMarkup / resolveSeoTranslator (shell-r6-F1)', () => {
 			request('/'),
 			'en',
 			true,
-			'https://publyapp.test',
 			t,
 		);
 
@@ -112,7 +104,6 @@ describe('injectSeoMarkup / resolveSeoTranslator (shell-r6-F1)', () => {
 			request('/'),
 			'fr',
 			true,
-			'https://publyapp.test',
 			t,
 		);
 
@@ -133,7 +124,6 @@ describe('injectSeoMarkup / resolveSeoTranslator (shell-r6-F1)', () => {
 			request('/login'),
 			'en',
 			true,
-			'https://publyapp.test',
 			en,
 		);
 		expect(enOutput).toContain('<title>Sign in to PublyApp</title>');
@@ -153,7 +143,6 @@ describe('injectSeoMarkup / resolveSeoTranslator (shell-r6-F1)', () => {
 			request('/login'),
 			'fr',
 			true,
-			'https://publyapp.test',
 			fr,
 		);
 		expect(frOutput).toContain('<title>Connexion à PublyApp</title>');
@@ -172,7 +161,6 @@ describe('injectSeoMarkup / resolveSeoTranslator (shell-r6-F1)', () => {
 			request('/staff/staff-users'),
 			'en',
 			false,
-			'https://publyapp.test',
 			t,
 		);
 
