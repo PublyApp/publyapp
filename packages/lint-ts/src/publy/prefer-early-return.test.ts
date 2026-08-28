@@ -144,6 +144,12 @@ const runCases = (rule: typeof preferEarlyReturn, label: string) => {
 				i(
 					'function f(x) { switch (x) { case 1: return a ? b : c; default: return null; } }',
 				),
+				// Ternary assigned-then-returned inside a `case` clause (Case 2).
+				// The `SwitchCase` visitor is the ONLY mechanism that catches this
+				// pattern, since `SwitchCase.consequent` is not a `BlockStatement`.
+				i(
+					'function f(x) { switch (x) { case 1: const v = a ? b : c; return v; default: return null; } }',
+				),
 
 				// ---- Nesting: bare block --------------------------------------
 				// Ternary returned inside a bare block.
