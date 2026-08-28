@@ -182,24 +182,6 @@ describe('setupE2EComposeEnv', () => {
 		);
 		assert.ok(env.lockPath.length > 0, 'Lock path should not be empty');
 		assert.ok(env.bandIndex >= 0, 'Band index should be non-negative');
-		assert.ok(
-			/^\d+\.\d+\.\d+\.\d+\/\d+$/.test(env.subnet),
-			`Subnet should be CIDR, got: ${env.subnet}`,
-		);
-		assert.ok(
-			/^\d+\.\d+\.\d+\.\d+$/.test(env.traefikIp),
-			`Traefik IP should be IPv4, got: ${env.traefikIp}`,
-		);
-		// Traefik IP must be within the declared subnet
-		const subnetPrefix = env.subnet
-			.split('/')[0]
-			.split('.')
-			.slice(0, 3)
-			.join('.');
-		assert.ok(
-			env.traefikIp.startsWith(subnetPrefix),
-			`Traefik IP ${env.traefikIp} should be within subnet ${env.subnet}`,
-		);
 
 		// Clean up
 		teardownE2EComposeEnv(env);
@@ -226,16 +208,6 @@ describe('integration: parallel stack isolation', () => {
 			env1.lockPath,
 			env2.lockPath,
 			'Both environments got the same lock path!',
-		);
-		assert.notEqual(
-			env1.subnet,
-			env2.subnet,
-			'Both environments got the same subnet — networks would collide!',
-		);
-		assert.notEqual(
-			env1.traefikIp,
-			env2.traefikIp,
-			'Both environments got the same Traefik IP!',
 		);
 
 		// Clean up

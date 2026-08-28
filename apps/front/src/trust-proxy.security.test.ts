@@ -6,53 +6,38 @@ import { afterAll, describe, expect, test } from 'vitest';
 
 import { injectSeoMarkup } from './server';
 
-// --- Compose-file consistency: TRUSTED_PROXY_CIDRS must follow E2E_TRAEFIK_IP ---
+// --- Compose-file consistency: security property preserved without a frozen subnet ---
 // Reads the compose file to verify the security guarantee stays intact.
+// The e2e stack no longer pins a subnet or Traefik IP — Docker allocates a
+// free range at runtime. The front container discovers Traefik's IP via
+// Docker's embedded DNS (`traefik` hostname) and trusts only that peer.
 const composeFile = readFileSync(
 	new URL('../docker-compose.test.yml', import.meta.url),
 	'utf8',
 );
 
-describe('compose-file TRUSTED_PROXY_CIDRS consistency (r5)', () => {
-	test('TRUSTED_PROXY_CIDRS derives from E2E_TRAEFIK_IP — never a hardcoded IP', () => {
-		const match = composeFile.match(
-			/TRUSTED_PROXY_CIDRS:\s*['"](\$\{E2E_TRAEFIK_IP:[^}]+\})\/32['"]/,
-		);
-		expect(
-			match,
-			'TRUSTED_PROXY_CIDRS must reference ${E2E_TRAEFIK_IP:-...}/32',
-		).not.toBeNull();
-		// The default must be the band-0 Traefik IP (CI behavior preserved)
-		expect(match![1]).toContain('172.28.0.2');
+describe('compose-file trust-proxy security (r5)', () => {
+	test('front service sets E2E_DISCOVER_TRUSTED_PROXY — no hardcoded trust value', () => {
+		expect(composeFile).toMatch(/E2E_DISCOVER_TRUSTED_PROXY:\s*['"]true['"]/);
 	});
 
-	test('Traefik ipv4_address derives from E2E_TRAEFIK_IP', () => {
-		const match = composeFile.match(
-			/ipv4_address:\s*(\$\{E2E_TRAEFIK_IP:[^}]+\})/,
-		);
-		expect(
-			match,
-			'Traefik ipv4_address must reference ${E2E_TRAEFIK_IP:-...}',
-		).not.toBeNull();
-		expect(match![1]).toContain('172.28.0.2');
+	test('no frozen subnet — Docker allocates a free range, removing the lottery', () => {
+		expect(composeFile).not.toMatch(/subnet:\s*172\./);
+		expect(composeFile).not.toMatch(/\{\$E2E_SUBNET:/);
 	});
 
-	test('ipam subnet derives from E2E_SUBNET', () => {
-		const match = composeFile.match(/- subnet:\s*(\$\{E2E_SUBNET:[^}]+\})/);
-		expect(match, 'subnet must reference ${E2E_SUBNET:-...}').not.toBeNull();
-		expect(match![1]).toContain('172.28.0.0/24');
+	test('no pinned Traefik IP — discovered at runtime', () => {
+		expect(composeFile).not.toMatch(/ipv4_address:/);
+		expect(composeFile).not.toMatch(/\{\$E2E_TRAEFIK_IP:/);
 	});
 
-	test('two concurrent stacks produce non-colliding security configs (subnet + IP diverge by band)', () => {
-		// Band 0: E2E_TRAEFIK_IP=172.28.0.2, E2E_SUBNET=172.28.0.0/24
-		// Band 1: E2E_TRAEFIK_IP=172.29.0.2, E2E_SUBNET=172.29.0.0/24
-		// Because every reference is via ${E2E_*:-default}, each stack resolves
-		// its own Traefik address and trusts only that peer.
-		expect(composeFile).not.toMatch(
-			/TRUSTED_PROXY_CIDRS:\s*"172\.28\.0\.2\/32"/,
+	test('ipam block is absent — network is created without explicit subnet config', () => {
+		// The network section should be bare: driver + external only, no ipam.
+		const networkSection = composeFile.match(
+			/networks:[\s\S]*?publyapp-network:[\s\S]*?(?=\n\n|\ntest:|\n\n\n|$)/,
 		);
-		expect(composeFile).not.toMatch(/ipv4_address:\s*172\.28\.0\.2/);
-		expect(composeFile).not.toMatch(/- subnet:\s*172\.28\.0\.0/);
+		expect(networkSection, 'network section should exist').not.toBeNull();
+		expect(networkSection![0]).not.toMatch(/ipam/);
 	});
 });
 
@@ -237,5 +222,32 @@ describe('trust-proxy security (r2-shell-F10)', () => {
 			'10.0.0.5',
 			'10.0.0.6',
 		]);
+	});
+
+	// --- Mutation test: forged x-forwarded-* from an untrusted peer is rejected ---
+	// This is the core security property the PR exists to guarantee: even when
+	// the trusted peer is a discovered Traefik IP (not a hardcoded value), a
+	// forged x-forwarded-* header from any other IP is ignored.
+	test('mutation: forged x-forwarded-host from a non-Tr peer is rejected when trust is bounded to a discovered IP', async () => {
+		// Simulate the discovered Traefik IP as a non-loopback address.
+		// The test's own peer is 127.0.0.1, which is NOT the trusted IP — so
+		// forwarded headers from this peer must be ignored.
+		const discoveredTraefikIp = '172.20.0.5';
+		const { server: s, origin } = await startServer([discoveredTraefikIp]);
+		server = s;
+
+		const response = await fetch(`${origin}${REAL_PATH}`, {
+			headers: {
+				'x-forwarded-host': FORGED_HOST,
+				'x-forwarded-proto': FORGED_PROTO,
+			},
+		});
+		const html = await response.text();
+
+		// The forged host is NOT accepted — origin falls back to socket.
+		expect(extractCanonical(html)).not.toContain(FORGED_HOST);
+		expect(extractOgUrl(html)).not.toContain(FORGED_HOST);
+		expect(extractCanonical(html)).toContain(HOST);
+		expect(extractOgUrl(html)).toContain(HOST);
 	});
 });
