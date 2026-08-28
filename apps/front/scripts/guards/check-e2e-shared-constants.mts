@@ -27,10 +27,19 @@
  * `NAME` is exported by any `packages/shared-ts/src/**` module, the guard fails
  * and names the file, the line, and the module to import from instead.
  *
- * FAIL-CLOSED. A file that cannot be parsed is a finding, not a skip: input the
- * guard cannot read must never be reported as compliant. A run that finds zero
- * e2e files, or zero shared-ts exports, is likewise a failure — examining
- * nothing must never pass.
+ * FAIL-CLOSED on an absent target. A missing directory is a finding, not a skip,
+ * and a run that finds zero e2e files or zero shared-ts exports is a failure:
+ * examining nothing must never be reported as compliance.
+ *
+ * FAIL-CLOSED does NOT extend to syntactically broken files, and saying so
+ * would be a lie worth more than the limit itself. ts-morph's parser is
+ * fault-tolerant: it accepts `const X = function( { return 1; };` without
+ * throwing and yields a best-effort tree. The guard therefore cannot promise to
+ * turn red on unparseable input — it will simply see whatever the tolerant
+ * parser produced. In practice broken TypeScript reddens the typecheck long
+ * before it reaches here, so this is a documentation boundary, not an open
+ * hole; it is written down because a guard that overstates what it proves is
+ * worse than one that states a narrow truth.
  *
  * KNOWN LIMIT, stated rather than left to be discovered. The rule keys on the
  * NAME, so a copy under a different local name (`const TOKEN_HEADER = 'X-Session-Token'`)
@@ -43,7 +52,7 @@ import { existsSync, readdirSync, statSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { Project } from 'ts-morph';
+import { Node, Project } from 'ts-morph';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const FRONT_DIR = path.resolve(HERE, '..', '..');
@@ -90,9 +99,21 @@ const listTypeScriptFiles = (root: string): string[] => {
 	return out;
 };
 
-/** Every name `packages/shared-ts/src/**` exports as a top-level const,
- * mapped to the module path a consumer should import it from. Read from the
- * real tree — this guard never carries its own copy of the list. */
+/** Every VALUE name `packages/shared-ts/src/**` exports, mapped to the module
+ * path a consumer should import it from. Read from the real tree — this guard
+ * never carries its own copy of the list.
+ *
+ * Collection goes through ts-morph's `getExportedDeclarations()`, which resolves
+ * a name whatever form its export takes. An earlier version walked
+ * `getVariableStatements()` and asked each statement `isExported()`; that misses
+ * `const X = …; export { X };` outright — the statement itself carries no export
+ * modifier — and it misses exported functions, classes and enums entirely. Three
+ * real shared-ts files use the separate-`export {}` form today, so the blind spot
+ * was not hypothetical: a re-declaration of one of those names would have gone
+ * unreported by a guard whose whole purpose is to report it.
+ *
+ * Type-only exports are dropped on purpose: an e2e `const` that happens to share
+ * a name with an exported TYPE is not a duplicated constant. */
 export const collectSharedTsExports = (
 	sharedTsSrc: string,
 ): Map<string, string> => {
@@ -103,16 +124,19 @@ export const collectSharedTsExports = (
 			continue;
 		}
 		const source = project.addSourceFileAtPath(file);
-		for (const statement of source.getVariableStatements()) {
-			if (!statement.isExported()) {
+		const relative = path.relative(sharedTsSrc, file).replace(/\.tsx?$/, '');
+		for (const [name, declarations] of source.getExportedDeclarations()) {
+			const isValue = declarations.some(
+				(declaration) =>
+					Node.isVariableDeclaration(declaration) ||
+					Node.isFunctionDeclaration(declaration) ||
+					Node.isClassDeclaration(declaration) ||
+					Node.isEnumDeclaration(declaration),
+			);
+			if (!isValue) {
 				continue;
 			}
-			for (const declaration of statement.getDeclarations()) {
-				const relative = path
-					.relative(sharedTsSrc, file)
-					.replace(/\.tsx?$/, '');
-				exports.set(declaration.getName(), `@org/shared-ts/${relative}`);
-			}
+			exports.set(name, `@org/shared-ts/${relative}`);
 		}
 	}
 	return exports;

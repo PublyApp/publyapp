@@ -30,10 +30,11 @@
 		"test:preuves": "node scripts/ci/run-preuves.mts",
 		"test:react-compiler-guard": "node --test scripts/guards/check-react-compiler.test.mts",
 		"test:shared-ts-import-paths": "node --test scripts/guards/check-shared-ts-import-paths.test.mts",
+		"test:e2e-shared-constants-guard": "node --test scripts/guards/check-e2e-shared-constants.test.mts",
 		"smoke:start": "node scripts/ci/smoke-start-server.mts",
 		"test:e2e:tag": "playwright test --grep",
 		"test:design-guards": "vitest run --config vitest.design-guards.config.ts",
-		"test": "node --test scripts/ci/compose-startup.test.mts && pnpm test:e2e-compose-env && pnpm test:route-tree-guard && vitest run && pnpm test:design-guards && pnpm test:request-counter && pnpm test:search-cancel-css && pnpm test:context-chunk-isolation && pnpm test:design-system-guard && pnpm test:zindex-guard && pnpm test:react-compiler-guard && pnpm test:shared-ts-import-paths && pnpm test:font-bundle && pnpm check:design-system && pnpm check:zindex && pnpm check:react-compiler && pnpm check:shared-ts-import-paths && pnpm check:e2e-shared-constants"
+		"test": "node --test scripts/ci/compose-startup.test.mts && pnpm test:e2e-compose-env && pnpm test:route-tree-guard && vitest run && pnpm test:design-guards && pnpm test:request-counter && pnpm test:search-cancel-css && pnpm test:context-chunk-isolation && pnpm test:design-system-guard && pnpm test:zindex-guard && pnpm test:react-compiler-guard && pnpm test:shared-ts-import-paths && pnpm test:e2e-shared-constants-guard && pnpm test:font-bundle && pnpm check:design-system && pnpm check:zindex && pnpm check:react-compiler && pnpm check:shared-ts-import-paths && pnpm check:e2e-shared-constants"
 	},
 	"dependencies": {
 		"@base-ui/react": "1.7.0",
