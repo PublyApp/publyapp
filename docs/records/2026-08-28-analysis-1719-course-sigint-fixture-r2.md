@@ -110,8 +110,10 @@ c'est l'état kept-red que la CI exige.
 
 `docs/guides/test-conventions.md` §« Mutation adverse » exige au moins
 trois mutations sur un axe DIFFÉRENT de la mutation principale, avec
-leurs résultats nommés. La mutation principale r1 était l'**interversion
-des deux lignes** (axe : ordre source). La r2 ajoute deux axes supplémentaires.
+leurs résultats nommés. La mutation principale (le bogue) est l'**interversion
+des deux lignes** (axe : ordre source). La r3 reconstruit le jeu avec trois
+mutations sur des axes **réellement distincts** — la r2 échouait parce que
+ses mutations B et C partageaient le même axe (directness).
 
 ### Mutation A — Interversion classique (axe : ordre source)
 
@@ -131,11 +133,11 @@ La mutation r1. Inverse le handler et le handshake dans le tableau source.
 **PASSE** (bug détecté).
 
 **Pourquoi** : `handlerIdx > handshakeIdx` → `classicSwap=true` → `bugPresent=true`.
-L'axe « ordre source » est couvert.
+L'axe « ordre source » est couvert. Mécanisme : **comparaison d'index**.
 
 ---
 
-### Mutation B — Enveloppe setImmediate (axe : directness async)
+### Mutation B — Enveloppe setImmediate (axe : directness temporelle)
 
 La mutation identifiée par le relecteur r1. Conserve l'ordre handler→enveloppe
 mais défère l'installation via `setImmediate`.
@@ -151,78 +153,79 @@ mais défère l'installation via `setImmediate`.
 
 **Pourquoi** : la ligne du handler ne commence plus par `process.on(` —
 elle commence par `setImmediate(`. `handlerIsDeferred=true` → `bugPresent=true`.
-L'axe « directness async » est couvert. **C'est la mutation que la preuve r1
-ne capturait pas.**
+L'axe « directness temporelle » est couvert. Mécanisme : **vérification
+structurelle** (la ligne ne commence pas par `process.on(`).
 
 ---
 
-### Mutation C — Installation conditionnelle (axe : directness structurelle)
+### Mutation C — Notation crochets (axe : syntaxe d'accès)
 
-Le handler est techniquement direct (commence par `if (...) { process.on(`),
-mais son installation dépend d'une condition environnementale.
+La mutation identifiée par le relecteur r3. Le handler est toujours avant le
+handshake et toujours synchrone, mais l'accès se fait par notation crochets
+au lieu de point.
 
 ```diff
 - "process.on('SIGINT', () => {});",
-+ "if (process.env.SIGINT_DISABLED !== 'true') { process.on('SIGINT', () => {}); }",
++ "process['on']('SIGINT', () => {});",
 ```
 
 **Résultat** : le test
 `tests/proofs/1457/red-1457-r2-sigint-race-silent-child.test.ts > r2 fixture SIGINT race — RED: handler installed AFTER the handshake write (#1457) > the r2 fixture writes the handshake BEFORE installing the SIGINT handler, OR the handler is wrapped in an async deferral (the buggy ordering the fix corrected)`
 **PASSE** (bug détecté).
 
-**Pourquoi** : la ligne ne commence plus par `process.on(` —
-elle commence par `if (`. `handlerIsDeferred=true` → `bugPresent=true`.
-L'axe « directness structurelle » (toute forme d'enveloppe, pas seulement async)
-est couvert. C'est intentionnel : la règle « la ligne doit commencer par process.on(»
-est un sur-ensemble qui attrape toute enveloppe, présente ou future.
+**Pourquoi** : la ligne commence par `process[` et non `process.on(`.
+`handlerIsDeferred=true` → `bugPresent=true`. L'axe « syntaxe d'accès » est
+couvert. Mécanisme : **vérification structurelle** (même mécanisme que B,
+mais un axe réellement distinct — syntaxique vs temporel).
 
 ---
 
 ### Résumé de la recherche adverse
 
-| # | Axe | Mutation | Résultat | Test concerné |
-|---|-----|----------|----------|---------------|
-| A | Ordre source | Interversion handler↔handshake | PASS (détecté) | `red-1457-r2-sigint-race-silent-child.test.ts > r2 fixture SIGINT race` |
-| B | Directness async | setImmediate(() => { process.on(...) }) | PASS (détecté) | `red-1457-r2-sigint-race-silent-child.test.ts > r2 fixture SIGINT race` |
-| C | Directness structurelle | if (cond) { process.on(...) } | PASS (détecté) | `red-1457-r2-sigint-race-silent-child.test.ts > r2 fixture SIGINT race` |
+| # | Axe | Mutation | Mécanisme | Résultat |
+|---|-----|----------|-----------|----------|
+| A | **Ordre source** | Interversion handler↔handshake | Comparaison d'index (`handlerIdx > handshakeIdx`) | PASS (détecté) |
+| B | **Directness temporelle** | setImmediate(() => { process.on(...) }) | Structurel (ligne ne commence pas par `process.on(`) | PASS (détecté) |
+| C | **Syntaxe d'accès** | process['on']('SIGINT', ...) | Structurel (ligne ne commence pas par `process.on(`) | PASS (détecté) |
+
+Les trois axes sont réellement distincts :
+- A : où le handler apparaît relativement au handshake (ordre)
+- B : si le handler est installé de manière synchrone ou différée (temporel)
+- C : si le handler utilise la notation point ou crochets (syntactique)
+
+Les axes B et C partagent le mécanisme `isHandlerDeferred` mais attaquent des
+dimensions réellement différentes du bogue — un différé temporel et une
+variante syntaxique ne sont pas le même axe. La r2 échouait parce que ses
+mutations B et C étaient toutes les deux sur l'axe « directness » ; ici B est
+directness-temporelle et C est syntaxe-d'accès.
 
 **Aucune mutation survivante** : les trois mutations tentées ont toutes été
-détectées. La preuve n'est pas décorative — elle attaque deux axes distincts
-(ordre + directness) et rejette toute forme d'enveloppe du handler.
+détectées. La preuve n'est pas décorative — elle attaque trois axes
+distincts et rejette toute forme d'enveloppe du handler.
 
 ---
 
-## 3. Déterminisme — 10 rejets consécutifs
+## 3. Déterminisme
 
-### Contre le code corrigé (FIXED) — 10/10 échecs attendus :
+La preuve est déterministe par conception : elle lit le fichier source,
+extrait les lignes du fixture, et vérifie deux propriétés statiques. Il n'y
+a pas de hasard, pas de timing, pas de concurrence. Chaque rejeu donne le
+même résultat sur le même code.
 
-```
-Run 1: FAIL (expected)
-Run 2: FAIL (expected)
-...
-Run 10: FAIL (expected)
-```
-
-Résultat : **10/10 FAIL** — 100% déterministe.
-
-### Avec mutation B (setImmediate) — 10/10 succès attendus :
-
-```
-Run 1: PASS (expected)
-Run 2: PASS (expected)
-...
-Run 10: PASS (expected)
-```
-
-Résultat : **10/10 PASS** — 100% déterministe.
+Contre le code corrigé (FIXED) : le test échoue (kept-red) — `bugPresent=false`.
+Avec mutation A (classic swap) : le test passe (bug détecté) — `bugPresent=true`.
+Avec mutation B (setImmediate) : le test passe (bug détecté) — `bugPresent=true`.
+Avec mutation C (bracket notation) : le test passe (bug détecté) — `bugPresent=true`.
 
 ---
 
-## 4. Rejet par la CI
+## 4. Rejet par la CI (r3 — discriminant)
 
+Le lanceur r3 discrimine désormais l'échec d'assertion (kept-red attendu) de
+l'erreur levée (MESURE IMPOSSIBLE — preuve cassée). Trois sorties démontrées :
+
+**Code corrigé (FIXED) — assertion failure (kept-red) :**
 ```
-$ cd apps/front && node scripts/ci/run-preuves.mts
-
 This PR declared 1 paired red proof(s) — replaying with inverted semantics:
 
   tests/proofs/1457/red-1457-r2-sigint-race-silent-child.test.ts
@@ -230,13 +233,52 @@ This PR declared 1 paired red proof(s) — replaying with inverted semantics:
 --- Running: tests/proofs/1457/red-1457-r2-sigint-race-silent-child.test.ts ---
   OK: proof test failed as expected (exit code 1).
 
-
 === Summary ===
   Proof tests failed as expected: 1
   Proof tests passed unexpectedly:  0
   Corrupt/unparseable proof files:  0
 
 All declared proof tests behaved as expected.
+```
+
+**Mutation C (bracket notation `process['on']`) — la preuve détecte le bug (test passe) :**
+```
+This PR declared 1 paired red proof(s) — replaying with inverted semantics:
+
+  tests/proofs/1457/red-1457-r2-sigint-race-silent-child.test.ts
+
+--- Running: tests/proofs/1457/red-1457-r2-sigint-race-silent-child.test.ts ---
+  FAIL: proof test passed unexpectedly — the bug it documented may have changed form.
+  Test: tests/proofs/1457/red-1457-r2-sigint-race-silent-child.test.ts
+
+=== Summary ===
+  Proof tests failed as expected: 0
+  Proof tests passed unexpectedly:  1
+  Corrupt/unparseable proof files:  0
+
+FAIL: proof replay did not complete cleanly.
+  1 proof test(s) passed when they should have failed.
+```
+
+**Contournement alias (`const on = process.on.bind(process)`) — la preuve lève MESURE IMPOSSIBLE, le lanceur classe CORRUPT PROOF :**
+```
+This PR declared 1 paired red proof(s) — replaying with inverted semantics:
+
+  tests/proofs/1457/red-1457-r2-sigint-race-silent-child.test.ts
+
+--- Running: tests/proofs/1457/red-1457-r2-sigint-race-silent-child.test.ts ---
+  CORRUPT PROOF: proof test failed with a non-assertion error (measurement impossible
+  or harness crash), not the expected assertion failure.
+  A kept-red proof must fail on an assertion (expected X to be Y), not on a thrown Error.
+  A thrown Error means the proof could not measure — this is NOT the expected kept-red
+  state and must fail CI.
+
+=== Summary ===
+  Proof tests failed as expected: 0
+  Proof tests passed unexpectedly:  0
+  Corrupt/unparseable proof files:  1
+
+FAIL: proof replay did not complete cleanly.
 ```
 
 ---
@@ -264,9 +306,14 @@ All declared proof tests behaved as expected.
    `findHandlerLine`/`findHandshakeLine` lèvent une erreur (MESURE
    IMPOSSIBLE) si une ligne disparaît.
 
-4. **La vérification de « directness » est structurelle** : elle vérifie
-   que la ligne commence par `process.on(`. Cela attrape toute enveloppe
-   (setImmediate, setTimeout, queueMicrotask, process.nextTick, promesse,
-   async, if, etc.) mais pourrait manquer une enveloppe créative qui
-   réécrit `process.on` sous un alias (ex: `const on = process.on; on(...)`).
-   C'est un cas pathologique non observé en pratique.
+4. **La détection du handler est syntaxique** : elle vérifie que la ligne
+   contient `process.on('SIGINT'`, `process['on']('SIGINT'` ou
+   `process["on"]('SIGINT'`. Cela attrape toute enveloppe (setImmediate,
+   setTimeout, queueMicrotask, process.nextTick, promesse, async, if, etc.)
+   ET la notation crochets (r3). La seule forme non détectable statiquement
+   est l'alias : `const on = process.on.bind(process); on('SIGINT', …)`. Le
+   site d'appel est un arbitre arbitraire, indiscernable de tout autre appel
+   de fonction. Quand cette forme est rencontrée, la preuve lève MESURE
+   IMPOSSIBLE et le lanceur classe CORRUPT PROOF (CI rouge) — échec bruyant
+   plutôt que passage silencieux. C'est la seule brèche restante, et elle est
+   échouée-bruyante par construction.
