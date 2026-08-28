@@ -1,6 +1,6 @@
 import { IconActivity } from '@tabler/icons-react';
 import { createFileRoute } from '@tanstack/react-router';
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
 import { DataTable } from '~/components/table/data-table';
@@ -93,28 +93,31 @@ const StaffJobsSystemJobsPage = () => {
 		return false;
 	};
 
-	const onToggleEnabled = (
-		row: StaffSystemJobDefinitionRow,
-		next: boolean,
-	): void => {
-		if (!permissions.canUpdateSystemJob) {
-			return;
-		}
+	const onToggleEnabled = useCallback(
+		(row: StaffSystemJobDefinitionRow, next: boolean): void => {
+			if (!permissions.canUpdateSystemJob) {
+				return;
+			}
 
-		void enabledMutation
-			.mutateAsync({ systemJobId: row.id, isEnabled: next })
-			.catch((error) => {
-				guardSession(error);
-			});
-	};
+			void enabledMutation
+				.mutateAsync({ systemJobId: row.id, isEnabled: next })
+				.catch((error) => {
+					guardSession(error);
+				});
+		},
+		[permissions.canUpdateSystemJob, enabledMutation],
+	);
 
-	const openCronDialog = (row: StaffSystemJobDefinitionRow): void => {
-		if (!permissions.canUpdateSystemJob) {
-			return;
-		}
+	const openCronDialog = useCallback(
+		(row: StaffSystemJobDefinitionRow): void => {
+			if (!permissions.canUpdateSystemJob) {
+				return;
+			}
 
-		setCronDialog({ row, draft: row.cronExpression ?? '', error: null });
-	};
+			setCronDialog({ row, draft: row.cronExpression ?? '', error: null });
+		},
+		[permissions.canUpdateSystemJob],
+	);
 
 	const closeCronDialog = (): void => setCronDialog(null);
 
@@ -143,19 +146,20 @@ const StaffJobsSystemJobsPage = () => {
 		closeCronDialog();
 	};
 
-	const onTriggerNow = async (
-		row: StaffSystemJobDefinitionRow,
-	): Promise<void> => {
-		if (!permissions.canTriggerSystemJob) {
-			return;
-		}
+	const onTriggerNow = useCallback(
+		async (row: StaffSystemJobDefinitionRow): Promise<void> => {
+			if (!permissions.canTriggerSystemJob) {
+				return;
+			}
 
-		try {
-			await triggerMutation.mutateAsync({ systemJobId: row.id });
-		} catch (error) {
-			guardSession(error);
-		}
-	};
+			try {
+				await triggerMutation.mutateAsync({ systemJobId: row.id });
+			} catch (error) {
+				guardSession(error);
+			}
+		},
+		[permissions.canTriggerSystemJob, triggerMutation],
+	);
 
 	const columns = useMemo(
 		() =>
@@ -171,7 +175,15 @@ const StaffJobsSystemJobsPage = () => {
 				onTriggerNow: (row) => void onTriggerNow(row),
 				onEditCron: openCronDialog,
 			}),
-		[t, locale, permissions, enabledMutation.isPending],
+		[
+			t,
+			locale,
+			permissions,
+			enabledMutation.isPending,
+			onToggleEnabled,
+			onTriggerNow,
+			openCronDialog,
+		],
 	);
 	if (shouldLogout) {
 		return <LogoutRedirect />;
