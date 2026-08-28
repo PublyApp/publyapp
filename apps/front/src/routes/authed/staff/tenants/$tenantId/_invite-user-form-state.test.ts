@@ -400,6 +400,41 @@ describe('parseInviteWorkbook', () => {
 		});
 	});
 
+	// La relecture adverse de la ronde 2 a trouvé une mutation qui restaure le
+	// défaut en laissant les trois tests `<rPh>` au vert : retirer le drapeau `/g`
+	// du motif de retrait. Seul le PREMIER `<rPh>` serait alors retiré, et un
+	// second bloc — Excel en écrit un par segment de texte annoté — polluerait de
+	// nouveau la valeur. Les trois tests existants ne portent qu'un seul `<rPh>`,
+	// donc aucun ne rougissait. Ce test épingle la répétition.
+	test('excludes EVERY <rPh> block, not just the first (the /g flag)', () => {
+		const bytes = buildWorkbook({
+			sharedStrings: [],
+			sheetXml:
+				'<worksheet><sheetData>' +
+				'<row r="1"><c r="A1" t="inlineStr"><is><t>email</t></is></c></row>' +
+				'<row r="2"><c r="A2" t="inlineStr"><is>' +
+				'<r><t>a@example.com</t></r><rPh sb="0" eb="1"><t>UN</t></rPh>' +
+				'<rPh sb="1" eb="2"><t>DEUX</t></rPh>' +
+				'</is></c></row>' +
+				'</sheetData></worksheet>',
+		});
+
+		const result = parseInviteWorkbook(bytes);
+
+		expect(result).toEqual({
+			outcome: 'parsed',
+			rows: [
+				{
+					email: 'a@example.com',
+					accountLevel: 'User',
+					profileNames: [],
+					invalidLevel: null,
+					invalidEmail: null,
+				},
+			],
+		});
+	});
+
 	test('excludes <rPh> phonetic text in shared-string cells', () => {
 		const bytes = buildWorkbookRaw({
 			sharedStringsXml:
