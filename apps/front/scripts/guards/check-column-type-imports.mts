@@ -18,8 +18,10 @@
  * `@tanstack/react-table` or `@tanstack/react-table/legacy` AND which imports
  * at least one of the three type names (`ColumnDef`, `Row`, `TanStackTable`)
  * from that specifier is flagged — UNLESS the importing file is the
- * passthrough itself (`column-type.ts`) or `data-table.tsx` (which needs the
- * runtime value).
+ * passthrough itself (`column-type.ts`). The brief asked to verify whether
+ * `data-table.tsx` needs an exemption; it does not import from
+ * `@tanstack/react-table` at all (checked against the current tree), so it is
+ * not listed as exempt.
  *
  * WHAT THIS GUARD INSPECTS (AST, not text).
  *
@@ -48,8 +50,8 @@
  * Only imports whose module specifier is exactly `@tanstack/react-table` or
  * `@tanstack/react-table/legacy` are inspected. Imports of
  * `@tanstack/react-table/legacy` are ALWAYS flagged (the passthrough is the
- * only file allowed to import from the legacy module, and it is in the
- * exception list).
+ * only file allowed to touch the legacy module, and it is the only file in
+ * the exemption list).
  *
  * What is deliberately NOT flagged (legitimate):
  *   - `import type { SortingState } from '@tanstack/react-table'` — not one
@@ -107,15 +109,15 @@ const BANNED_SPECIFIERS = new Set([
  * or a test sandbox under `scripts/guards/`. In production the path is
  * `components/table/column-type.ts`; in tests it may include the full
  * `apps/front/src/...` prefix or be relative to a scripts/guards/ root.
+ *
+ * Only `column-type.ts` is exempt — it is the passthrough itself. The brief
+ * asked to verify whether `data-table.tsx` needs an exemption; it does not
+ * import from `@tanstack/react-table` (checked against the current tree), so
+ * it is not listed here.
  */
 const isExempt = (normalizedPath: string): boolean => {
-	const suffixes = [
-		'components/table/column-type.ts',
-		'components/table/data-table.tsx',
-	];
-	return suffixes.some(
-		(suffix) => normalizedPath === suffix || normalizedPath.endsWith('/' + suffix),
-	);
+	const suffix = 'components/table/column-type.ts';
+	return normalizedPath === suffix || normalizedPath.endsWith('/' + suffix);
 };
 
 /** The replacement the message points to. */

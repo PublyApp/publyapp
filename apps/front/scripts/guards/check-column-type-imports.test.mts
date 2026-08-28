@@ -175,15 +175,19 @@ void test('allows the passthrough file itself (column-type.ts)', () => {
 	);
 });
 
-void test('allows data-table.tsx (runtime use of deprecated value)', () => {
+void test('flags data-table.tsx if it imports from legacy (no exemption)', () => {
+	// The brief asked to verify whether data-table.tsx needs an exemption.
+	// It does not import from @tanstack/react-table at all (checked against
+	// the current tree), so it is NOT exempt. If it did import from the
+	// legacy module, it would be flagged.
 	const root = makeSandbox({
 		'src/components/table/data-table.tsx':
 			`import { useLegacyTable } from '@tanstack/react-table/legacy';\n` +
-			`import type { ColumnDef } from './column-type';\n` +
 			`export const x = useLegacyTable;\n`,
 	});
 	const findings = scanFrontSrcForBannedImports(root);
-	assert.equal(findings.length, 0);
+	assert.equal(findings.length, 1, 'expected the legacy import to be flagged');
+	assert.equal(findings[0].specifier, '@tanstack/react-table/legacy');
 });
 
 void test('allows non-banned imports from @tanstack/react-table', () => {
