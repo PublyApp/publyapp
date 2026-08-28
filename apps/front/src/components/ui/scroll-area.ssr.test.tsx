@@ -2,7 +2,6 @@
  * @vitest-environment node
  */
 import { JSDOM } from 'jsdom';
-import * as React from 'react';
 import * as ReactDOMServer from 'react-dom/server';
 import { describe, expect, test } from 'vitest';
 
