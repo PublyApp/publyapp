@@ -10,13 +10,18 @@ public sealed class PublicationConfiguration : IEntityTypeConfiguration<Publicat
 			"status IN (10, 20, 30, 40, 50)"
 		));
 
-		// One publication per (post, account). Partial so a cancelled-and-recreated
-		// pair is free again (soft-deleted rows leave the constraint).
+		// One ACTIVE delivery per (post, account). Partial so a cancelled-and-recreated
+		// pair is free again (soft-deleted rows leave the constraint), and so a
+		// TERMINAL FAILED row frees the pair for a fresh attempt (round-2 MEDIUM fix:
+		// a failed publish-now must be re-issuable, not locked forever — the failed
+		// row stays as history). Published rows KEEP occupying the pair: the remote
+		// record exists and a second delivery would double-post. Status literals are
+		// pinned by CK_Publication_Status (40 = Failed).
 		builder
 			.HasIndex(publication => new { publication.PostId, publication.SocialAccountId })
 			.IsUnique()
 			.HasDatabaseName("ux_publications_post_account")
-			.HasFilter("is_deleted = false");
+			.HasFilter("is_deleted = false AND status <> 40");
 
 		// Due-scan claim path (D3): scheduled work ordered by instant.
 		builder
@@ -26,7 +31,9 @@ public sealed class PublicationConfiguration : IEntityTypeConfiguration<Publicat
 		// Tenant queue/calendar lists: keyset pagination by (instant, id) in one tenant.
 		builder
 			.HasIndex(publication => new {
-				publication.TenantId, publication.ScheduledAtUtc, publication.Id
+				publication.TenantId,
+				publication.ScheduledAtUtc,
+				publication.Id
 			})
 			.HasDatabaseName("ix_publications_tenant_scheduled_at_id");
 

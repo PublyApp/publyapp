@@ -315,6 +315,11 @@ public static partial class ResponseKeys {
 	public static readonly TranslationKey ProviderUnreachable = new("provider-unreachable");
 
 	/// <summary>
+	/// Publishing started
+	/// </summary>
+	public static readonly TranslationKey PublishNowSuccess = new("publish-now-success");
+
+	/// <summary>
 	/// Query parameter missing
 	/// </summary>
 	public static readonly TranslationKey QueryParametersMissing = new("query-parameters-missing");

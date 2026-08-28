@@ -62,8 +62,10 @@ public sealed class PublicationEntitySpec {
 			nameof(Publication.PostId), nameof(Publication.SocialAccountId)
 		);
 		unique.GetFilter().Should().Be(
-			"is_deleted = false",
-			"a cancelled-and-recreated publication must free its (post, account) pair"
+			"is_deleted = false AND status <> 40",
+			"a cancelled-and-recreated publication frees its (post, account) pair, AND a "
+			+ "terminal FAILED row (status 40) releases the pair so a fresh retry is "
+			+ "re-issuable; Published rows keep the pair through the index (D2 round-2 fix)"
 		);
 	}
 

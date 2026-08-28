@@ -6,6 +6,7 @@ using PublyApp.Api.Lib.ProblemResults;
 using PublyApp.Api.Lib.RateLimiting;
 using PublyApp.Api.Lib.Routes;
 using PublyApp.Api.Modules.Posts.Handlers.Tenant;
+using PublyApp.Api.Modules.Publishing.Handlers.Tenant;
 using PublyApp.Api.Modules.Uploads;
 
 namespace PublyApp.Api.Modules.Posts.Endpoints;
@@ -28,6 +29,24 @@ public static class PostEndpointsForTenant {
 			.WithSummary("Create a post for the current tenant")
 			.WithReqBodyValidation<CreatePostBody>()
 			.WithTenantPermission([AppPermissions.Tenant.Posts.CREATE]);
+
+		group.MapPost(
+			Routes.Posts.ForTenant.PublishNow,
+			PublishNowForTenant.Handle
+		)
+			.WithName("PublishNowForTenant")
+			.RequireRateLimiting(ApiRateLimitPolicies.AuthenticatedDefault)
+			// Round-2 item 4: the publishing-endpoint guard walks every handler in
+			// the Publishing namespace, wherever its route is mapped — this mapping
+			// lives in Modules/Posts but IS a publishing surface. The explicit
+			// policy keeps the contract readable at the mapping site (same
+			// behaviour as before: this equals the group default).
+			.WithSummary("Publish a post now through the chosen connected accounts")
+			.WithReqBodyValidation<PublishNowBody>()
+			.WithTenantPermission([
+				AppPermissions.Tenant.Posts.PUBLISH,
+				AppPermissions.Tenant.SocialAccounts.PUBLISH,
+			]);
 
 		group.MapGet(
 			Routes.Posts.ForTenant.Find,

@@ -7,11 +7,15 @@ x-api-test-environment: &api-test-environment
   # These services run under the Testing environment (set per-service below) so the
   # demo seeders run: they are gated off under Production (AppDbContext seeder filter),
   # and the e2e suites log in as demo-seed users (e.g. staff-admin@example.com).
-  # APP_ROLE is still required (Testing defaults it to All otherwise); "api" = HTTP
-  # surface + migrations, never the worker engine.
+  # APP_ROLE is still required (Testing defaults it to All otherwise); "all" =
+  # HTTP surface + worker engine in one container. The worker is REQUIRED for the
+  # D2 publish-now e2e scenario: publish-now only enqueues the delivery job, the
+  # worker (JobQueueProcessor + PublishPublicationJobHandler) drives the
+  # publication to Published so the history link appears. APP_ROLE=api would
+  # leave the publication stuck at Scheduled forever (no bsky.app link).
   # These inline test values replace the former `env_file: ../../.env.development`,
   # which is gitignored and absent in CI / fresh checkouts.
-  APP_ROLE: api
+  APP_ROLE: all
   POSTGRES_CONNECTION_STRING: Host=postgres;Port=5432;Database=publyapp_db;Username=postgres;Password=password;
   FRONT_URL: https://front.localhost:${E2E_PORT_TRAEFIK_WEBSECURE:-8443}
   RESEND_API_KEY: e2e-disabled
@@ -23,6 +27,11 @@ x-api-test-environment: &api-test-environment
   # protects nothing, never a production secret; distinct from every build
   # surface so a placeholder regression cannot silently match here).
   SOCIAL_ACCOUNTS_MASTER_KEY: Knf1UC9xADnUkGzLVSUOdyM/5nhMVP9JLHqjUpiws5M=
+  # E2E publish-now seam (plan D2 reconciliation 4): the api container ALSO runs the
+  # worker engine in this stack, so with the flag on both delivery and session-open
+  # resolve to deterministic fakes — no PDS is ever contacted. Refused under
+  # Production by design; real deployments never set it.
+  PUBLISHING_FAKE_PROVIDER: "true"
   # Pinned like every other non-dev booting surface (quality-gate.yml, the
   # Dockerfile stages): loopback-only, matches AppEnvironment's default.
   TRUSTED_PROXY_CIDRS: "127.0.0.1/32,::1/128"
