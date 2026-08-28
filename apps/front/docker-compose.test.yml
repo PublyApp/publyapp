@@ -118,10 +118,13 @@ services:
       cache_to:
         - type=gha,mode=max,scope=front-e2e-api
     environment:
-      # API-only surface for the frontend E2E — don't inherit the `All` default and start
-      # worker infrastructure where callers assume an api-only process (audit F24).
-      # APP_ROLE: api and FRONT_URL: https://front.localhost:8443 come from the anchor.
+      # APP_ROLE=all (api + worker in one container) so the full publish
+      # pipeline (session-open → delivery → status transition) runs
+      # end-to-end through the deterministic fakes. Required by
+      # tenant-posts-publish-now.spec.ts and matches develop's compose.
       <<: *api-test-environment
+      APP_ROLE: all
+      PUBLISHING_FAKE_PROVIDER: "true"
       DOTNET_ENVIRONMENT: Testing
       ASPNETCORE_ENVIRONMENT: Testing
       ASPNETCORE_URLS: http://+:5000
