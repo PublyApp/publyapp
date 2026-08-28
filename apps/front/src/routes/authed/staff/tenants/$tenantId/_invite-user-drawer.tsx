@@ -450,7 +450,7 @@ const useInviteProfileResolution = ({
 		unresolvedByRowKey,
 		profileResolutionLimitError,
 		isResolvingProfiles: resolveNames.isPending,
-	};
+	} satisfies UseInviteProfileResolutionResult;
 };
 
 type RowInvalidLevelNoteProps = {
