@@ -263,6 +263,58 @@ describe('parseInviteWorkbook', () => {
 			kind: 'no-email-column',
 		});
 	});
+
+	test('reads inline-string cells (t="inlineStr") from <is><t> instead of <v>', () => {
+		const bytes = buildWorkbook({
+			sharedStrings: [],
+			sheetXml:
+				'<worksheet><sheetData>' +
+				'<row r="1"><c r="A1" t="inlineStr"><is><t>email</t></is></c><c r="B1" t="inlineStr"><is><t>level</t></is></c><c r="C1" t="inlineStr"><is><t>profiles</t></is></c></row>' +
+				'<row r="2"><c r="A2" t="inlineStr"><is><t>a@example.com</t></is></c><c r="B2" t="inlineStr"><is><t>admin</t></is></c><c r="C2" t="inlineStr"><is><t>Alpha</t></is></c></row>' +
+				'</sheetData></worksheet>',
+		});
+
+		const result = parseInviteWorkbook(bytes);
+
+		expect(result).toEqual({
+			outcome: 'parsed',
+			rows: [
+				{
+					email: 'a@example.com',
+					accountLevel: 'Admin',
+					profileNames: ['Alpha'],
+					invalidLevel: null,
+					invalidEmail: null,
+				},
+			],
+		});
+	});
+
+	test('concatenates multiple <t> runs within a single inline-string <is>', () => {
+		const bytes = buildWorkbook({
+			sharedStrings: [],
+			sheetXml:
+				'<worksheet><sheetData>' +
+				'<row r="1"><c r="A1" t="inlineStr"><is><t>email</t></is></c></row>' +
+				'<row r="2"><c r="A2" t="inlineStr"><is><t>a@</t><t>example.com</t></is></c></row>' +
+				'</sheetData></worksheet>',
+		});
+
+		const result = parseInviteWorkbook(bytes);
+
+		expect(result).toEqual({
+			outcome: 'parsed',
+			rows: [
+				{
+					email: 'a@example.com',
+					accountLevel: 'User',
+					profileNames: [],
+					invalidLevel: null,
+					invalidEmail: null,
+				},
+			],
+		});
+	});
 });
 
 describe('buildImportedInvites', () => {

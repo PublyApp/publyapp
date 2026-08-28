@@ -344,6 +344,12 @@ export const parseInviteWorkbook = (bytes: Uint8Array): ParseInviteResult => {
 				value = Number.isInteger(sharedIndex)
 					? (sharedStrings[sharedIndex] ?? '')
 					: '';
+			} else if (/t="inlineStr"/.test(attrs)) {
+				// Inline strings store text in <is><t> (one or more <t> runs for
+				// rich-text fragments); concatenate them with the same XML-entity
+				// decoding as shared strings and <v> cells.
+				const tRuns = textContents(body, 't');
+				value = decodeXmlEntities(tRuns.join(''));
 			} else {
 				value = decodeXmlEntities(textContents(body, 'v')[0] ?? '');
 			}
