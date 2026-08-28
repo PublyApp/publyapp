@@ -529,6 +529,426 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 	}
 
 	[Fact]
+	public async Task ItShouldWalkEveryCreatedAtPageWithoutOverlapOrGap() {
+		var token = await _authClient.LoginAsStaffAdminAsync();
+
+		// 3 staff users with distinct, deliberately NOT insertion-ordered
+		// CreatedAt (anti-correlated). The walk must visit each once in
+		// ascending CreatedAt order, not insertion order, so a
+		// keySelector swap to another same-type field (e.g. UpdatedAt)
+		// turns this assertion RED.
+		var baseDate = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+		var seededIds = new List<Guid>();
+		var seededOrder = new List<DateTime>();
+		for (var i = 0; i < 3; i++) {
+			// Two rows share the same CreatedAt (i=0 and i=2), one has a
+			// different value (i=1). The tiebreaker (Id ascending) must
+			// determine the order of the two equal-key rows.
+			var createdAt = i == 1 ? baseDate.AddDays(1) : baseDate;
+			var userId = await CreateStaffUserAsync(token, $"created-at-walk-{i}-{Guid.NewGuid():N}@example.com");
+			await SeedStaffUserCreatedAtAsync(userId, createdAt);
+			seededIds.Add(userId);
+			seededOrder.Add(createdAt);
+		}
+
+			// Swap the IDs of the two equal-key rows (i=0 and i=2) so the row
+			// inserted at i=2 has the smaller Id. Without this, UUID v7 IDs are
+			// insertion-ordered, so stable OrderBy(CreatedAt) already matches
+			// ThenBy(Id) and removing the production tiebreaker leaves the test
+			// green. After the swap, the tiebreaker is actually exercised.
+			await SwapStaffUserIdsAsync(seededIds[0], seededIds[2]);
+			(seededIds[0], seededIds[2]) = (seededIds[2], seededIds[0]);
+
+		var visitedIds = new List<Guid>();
+		string? cursor = null;
+		var pages = 0;
+		do {
+			var url = GetFindUrl(
+				cursor: cursor,
+				limit: 1,
+				sortId: "created_at",
+				sortOrder: "asc"
+			);
+			using var request = new HttpRequestMessage(
+				HttpMethod.Get, url
+			).WithSessionToken(token);
+
+			using var response = await _http.SendAsync(request);
+			response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+			var page = await response.Content.ReadFromJsonAsync<FindResponse>();
+			page.Should().NotBeNull();
+			Assert.NotNull(page);
+			pages++;
+			visitedIds.AddRange(page.Data.Select(u => u.Id));
+			cursor = page.NextCursor;
+
+			// Guard against an infinite loop if the cursor filter regresses.
+			pages.Should().BeLessOrEqualTo(100);
+		} while (cursor is not null);
+
+		// The walk covers exactly our rows, each once, in CreatedAt order.
+		visitedIds.Should().OnlyHaveUniqueItems();
+		visitedIds.Should().Contain(seededIds);
+
+		var visitedOrder = visitedIds
+			.Where(seededIds.Contains)
+			.ToList();
+		var createdAtById = seededIds
+			.Zip(seededOrder, (id, c) => (id, c))
+			.ToDictionary(x => x.id, x => x.c);
+		visitedOrder.Should().Equal(
+			seededIds.OrderBy(id => createdAtById[id]).ThenBy(id => id).ToList()
+		);
+
+		// Assert the OBSERVED CreatedAt order from the DB, in walk order,
+		// pins the sort to User.CreatedAt (not UpdatedAt/insertion order).
+		var visitedSeededUserIds = visitedOrder.ToList();
+		List<DateTime> observedOrder;
+		{
+			await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+			var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+			observedOrder = await dbContext.User
+				.Where(u => visitedSeededUserIds.Contains(u.Id!.Value))
+				.OrderBy(u => visitedSeededUserIds.IndexOf(u.Id!.Value))
+				.Select(u => u.CreatedAt)
+				.ToListAsync();
+		}
+		observedOrder.Should().Equal(seededOrder.OrderBy(x => x).ToList());
+		observedOrder.Should().NotEqual(seededOrder);
+	}
+
+	[Fact]
+	public async Task ItShouldWalkEveryUpdatedAtPageWithoutOverlapOrGap() {
+		var token = await _authClient.LoginAsStaffAdminAsync();
+
+		// 3 staff users with distinct, deliberately NOT insertion-ordered
+		// UpdatedAt (anti-correlated). The walk must visit each once in
+		// ascending UpdatedAt order, not insertion order, so a
+		// keySelector swap to another same-type field (e.g. CreatedAt)
+		// turns this assertion RED.
+		var baseDate = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+		var seededIds = new List<Guid>();
+		var seededOrder = new List<DateTime>();
+		for (var i = 0; i < 3; i++) {
+			// Two rows share the same UpdatedAt (i=0 and i=2), one has a
+			// different value (i=1). The tiebreaker (Id ascending) must
+			// determine the order of the two equal-key rows.
+			var updatedAt = i == 1 ? baseDate.AddDays(1) : baseDate;
+			var userId = await CreateStaffUserAsync(token, $"updated-at-walk-{i}-{Guid.NewGuid():N}@example.com");
+			await SeedStaffUserUpdatedAtAsync(userId, updatedAt);
+			seededIds.Add(userId);
+			seededOrder.Add(updatedAt);
+		}
+
+
+			// Swap the IDs of the two equal-key rows (i=0 and i=2) so the row
+			// inserted at i=2 has the smaller Id. Without this, UUID v7 IDs are
+			// insertion-ordered, so stable OrderBy(UpdatedAt) already matches
+			// ThenBy(Id) and removing the production tiebreaker leaves the test
+			// green. After the swap, the tiebreaker is actually exercised.
+			await SwapStaffUserIdsAsync(seededIds[0], seededIds[2]);
+			(seededIds[0], seededIds[2]) = (seededIds[2], seededIds[0]);
+		var visitedIds = new List<Guid>();
+		string? cursor = null;
+		var pages = 0;
+		do {
+			var url = GetFindUrl(
+				cursor: cursor,
+				limit: 1,
+				sortId: "updated_at",
+				sortOrder: "asc"
+			);
+			using var request = new HttpRequestMessage(
+				HttpMethod.Get, url
+			).WithSessionToken(token);
+
+			using var response = await _http.SendAsync(request);
+			response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+			var page = await response.Content.ReadFromJsonAsync<FindResponse>();
+			page.Should().NotBeNull();
+			Assert.NotNull(page);
+			pages++;
+			visitedIds.AddRange(page.Data.Select(u => u.Id));
+			cursor = page.NextCursor;
+
+			pages.Should().BeLessOrEqualTo(100);
+		} while (cursor is not null);
+
+		visitedIds.Should().OnlyHaveUniqueItems();
+		visitedIds.Should().Contain(seededIds);
+
+		var visitedOrder = visitedIds
+			.Where(seededIds.Contains)
+			.ToList();
+		var updatedAtById = seededIds
+			.Zip(seededOrder, (id, c) => (id, c))
+			.ToDictionary(x => x.id, x => x.c);
+		visitedOrder.Should().Equal(
+			seededIds.OrderBy(id => updatedAtById[id]).ThenBy(id => id).ToList()
+		);
+
+		var visitedSeededUserIds = visitedOrder.ToList();
+		List<DateTime> observedOrder;
+		{
+			await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+			var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+			observedOrder = await dbContext.User
+				.Where(u => visitedSeededUserIds.Contains(u.Id!.Value))
+				.OrderBy(u => visitedSeededUserIds.IndexOf(u.Id!.Value))
+				.Select(u => u.UpdatedAt)
+				.ToListAsync();
+		}
+		observedOrder.Should().Equal(seededOrder.OrderBy(x => x).ToList());
+		observedOrder.Should().NotEqual(seededOrder);
+	}
+
+	[Fact]
+	public async Task ItShouldWalkEveryFirstNamePageWithoutOverlapOrGap() {
+		var token = await _authClient.LoginAsStaffAdminAsync();
+
+		// Deterministic, anti-correlated first names: insertion order is c,b,a while
+		// the lexical (sort) order is a,b,c. The walk must return them in
+		// lexical order, so a keySelector swap to the id (insertion) order
+		// turns this assertion RED.
+		var seededIds = new List<Guid>();
+		var seededFirstNames = new List<string>();
+		// Two rows share the same FirstName (i=0 and i=2), one has a
+		// different value (i=1). The tiebreaker (Id ascending) must
+		// determine the order of the two equal-key rows.
+		var firstNames = new[] { "Alpha", "Bravo", "Alpha" };
+		for (var i = 0; i < 3; i++) {
+			var userId = await CreateStaffUserAsync(token, $"first-name-walk-{i}-{Guid.NewGuid():N}@example.com");
+			await SeedStaffUserFirstNameAsync(userId, firstNames[i]);
+			seededIds.Add(userId);
+			seededFirstNames.Add(firstNames[i]);
+		}
+		var expectedOrder = seededIds
+			.Zip(seededFirstNames, (id, n) => (id, n))
+			.OrderBy(x => x.n, StringComparer.OrdinalIgnoreCase)
+			.ThenBy(x => x.id)
+			.Select(x => x.id)
+			.ToList();
+
+		var visitedIds = new List<Guid>();
+		string? cursor = null;
+		var pages = 0;
+		do {
+			var url = GetFindUrl(
+				cursor: cursor,
+				limit: 1,
+				sortId: "first_name",
+				sortOrder: "asc"
+			);
+			using var request = new HttpRequestMessage(
+				HttpMethod.Get, url
+			).WithSessionToken(token);
+
+			using var response = await _http.SendAsync(request);
+			response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+			var page = await response.Content.ReadFromJsonAsync<FindResponse>();
+			page.Should().NotBeNull();
+			Assert.NotNull(page);
+			pages++;
+			visitedIds.AddRange(page.Data.Select(u => u.Id));
+			cursor = page.NextCursor;
+
+			pages.Should().BeLessOrEqualTo(100);
+		} while (cursor is not null);
+
+		visitedIds.Should().OnlyHaveUniqueItems();
+		visitedIds.Should().Contain(seededIds);
+
+		var visitedOrder = visitedIds
+			.Where(seededIds.Contains)
+			.ToList();
+		visitedOrder.Should().Equal(expectedOrder);
+	}
+
+	[Fact]
+	public async Task ItShouldWalkEveryLastNamePageWithoutOverlapOrGap() {
+		var token = await _authClient.LoginAsStaffAdminAsync();
+
+		// Deterministic, anti-correlated last names: insertion order is c,b,a while
+		// the lexical (sort) order is a,b,c. The walk must return them in
+		// lexical order, so a keySelector swap to the id (insertion) order
+		// turns this assertion RED.
+		var seededIds = new List<Guid>();
+		var seededLastNames = new List<string>();
+		// Two rows share the same LastName (i=0 and i=2), one has a
+		// different value (i=1). The tiebreaker (Id ascending) must
+		// determine the order of the two equal-key rows.
+		var lastNames = new[] { "Alpha", "Bravo", "Alpha" };
+		for (var i = 0; i < 3; i++) {
+			var userId = await CreateStaffUserAsync(token, $"last-name-walk-{i}-{Guid.NewGuid():N}@example.com");
+			await SeedStaffUserLastNameAsync(userId, lastNames[i]);
+			seededIds.Add(userId);
+			seededLastNames.Add(lastNames[i]);
+		}
+		var expectedOrder = seededIds
+			.Zip(seededLastNames, (id, n) => (id, n))
+			.OrderBy(x => x.n, StringComparer.OrdinalIgnoreCase)
+			.ThenBy(x => x.id)
+			.Select(x => x.id)
+			.ToList();
+
+		var visitedIds = new List<Guid>();
+		string? cursor = null;
+		var pages = 0;
+		do {
+			var url = GetFindUrl(
+				cursor: cursor,
+				limit: 1,
+				sortId: "last_name",
+				sortOrder: "asc"
+			);
+			using var request = new HttpRequestMessage(
+				HttpMethod.Get, url
+			).WithSessionToken(token);
+
+			using var response = await _http.SendAsync(request);
+			response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+			var page = await response.Content.ReadFromJsonAsync<FindResponse>();
+			page.Should().NotBeNull();
+			Assert.NotNull(page);
+			pages++;
+			visitedIds.AddRange(page.Data.Select(u => u.Id));
+			cursor = page.NextCursor;
+
+			pages.Should().BeLessOrEqualTo(100);
+		} while (cursor is not null);
+
+		visitedIds.Should().OnlyHaveUniqueItems();
+		visitedIds.Should().Contain(seededIds);
+
+		var visitedOrder = visitedIds
+			.Where(seededIds.Contains)
+			.ToList();
+		visitedOrder.Should().Equal(expectedOrder);
+	}
+
+	[Fact]
+	public async Task ItShouldWalkEveryStatusPageWithoutOverlapOrGap() {
+		var token = await _authClient.LoginAsStaffAdminAsync();
+
+		// 3 staff users with distinct, deliberately NOT insertion-ordered Status
+		// (anti-correlated with insertion). The walk must visit each once in
+		// ascending Status order. A keySelector swap to another same-type field
+		// (e.g. Level) turns this assertion RED.
+		// UserStatus: Suspended = 30, Active = 40.
+		var statuses = new[] { UserStatus.Suspended, UserStatus.Active, UserStatus.Suspended };
+		var seededIds = new List<Guid>();
+		for (var i = 0; i < 3; i++) {
+			var userId = await CreateStaffUserAsync(token, $"status-walk-{i}-{Guid.NewGuid():N}@example.com");
+			await SetStaffUserStatusAsync(userId, statuses[i]);
+			seededIds.Add(userId);
+		}
+
+		var visitedIds = new List<Guid>();
+		string? cursor = null;
+		var pages = 0;
+		do {
+			var url = GetFindUrl(
+				cursor: cursor,
+				limit: 1,
+				sortId: "status",
+				sortOrder: "asc"
+			);
+			using var request = new HttpRequestMessage(
+				HttpMethod.Get, url
+			).WithSessionToken(token);
+
+			using var response = await _http.SendAsync(request);
+			response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+			var page = await response.Content.ReadFromJsonAsync<FindResponse>();
+			page.Should().NotBeNull();
+			Assert.NotNull(page);
+			pages++;
+			visitedIds.AddRange(page.Data.Select(u => u.Id));
+			cursor = page.NextCursor;
+
+			pages.Should().BeLessOrEqualTo(100);
+		} while (cursor is not null);
+
+		visitedIds.Should().OnlyHaveUniqueItems();
+		visitedIds.Should().Contain(seededIds);
+
+		var visitedOrder = visitedIds
+			.Where(seededIds.Contains)
+			.ToList();
+		var expectedOrder = seededIds
+			.Zip(statuses, (id, s) => (id, s))
+			.OrderBy(x => x.s)
+			.ThenBy(x => x.id)
+			.Select(x => x.id)
+			.ToList();
+		visitedOrder.Should().Equal(expectedOrder);
+	}
+
+	[Fact]
+	public async Task ItShouldWalkEveryLevelPageWithoutOverlapOrGap() {
+		var token = await _authClient.LoginAsStaffAdminAsync();
+
+		// 3 staff users with distinct, deliberately NOT insertion-ordered Level
+		// (anti-correlated with insertion). The walk must visit each once in
+		// ascending Level order. A keySelector swap to another same-type field
+		// (e.g. Status) turns this assertion RED.
+		// AccountLevel: User = 10, Admin = 50.
+		var levels = new[] { AccountLevel.Admin, AccountLevel.User, AccountLevel.Admin };
+		var seededIds = new List<Guid>();
+		for (var i = 0; i < 3; i++) {
+			var userId = await CreateStaffUserAsync(token, $"level-walk-{i}-{Guid.NewGuid():N}@example.com");
+			await SetStaffUserLevelAsync(userId, levels[i]);
+			seededIds.Add(userId);
+		}
+
+		var visitedIds = new List<Guid>();
+		string? cursor = null;
+		var pages = 0;
+		do {
+			var url = GetFindUrl(
+				cursor: cursor,
+				limit: 1,
+				sortId: "level",
+				sortOrder: "asc"
+			);
+			using var request = new HttpRequestMessage(
+				HttpMethod.Get, url
+			).WithSessionToken(token);
+
+			using var response = await _http.SendAsync(request);
+			response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+			var page = await response.Content.ReadFromJsonAsync<FindResponse>();
+			page.Should().NotBeNull();
+			Assert.NotNull(page);
+			pages++;
+			visitedIds.AddRange(page.Data.Select(u => u.Id));
+			cursor = page.NextCursor;
+
+			pages.Should().BeLessOrEqualTo(100);
+		} while (cursor is not null);
+
+		visitedIds.Should().OnlyHaveUniqueItems();
+		visitedIds.Should().Contain(seededIds);
+
+		var visitedOrder = visitedIds
+			.Where(seededIds.Contains)
+			.ToList();
+		var expectedOrder = seededIds
+			.Zip(levels, (id, l) => (id, l))
+			.OrderBy(x => x.l)
+			.ThenBy(x => x.id)
+			.Select(x => x.id)
+			.ToList();
+		visitedOrder.Should().Equal(expectedOrder);
+	}
+
+	[Fact]
 	public async Task ItShouldAcceptAnUppercaseSortId() {
 		var token = await _authClient.LoginAsStaffAdminAsync();
 
@@ -605,6 +1025,16 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 		await dbContext.SaveChangesAsync();
 	}
 
+	private async Task SeedStaffUserCreatedAtAsync(Guid userId, DateTime createdAt) {
+		using var scope = _fixture.Factory.Services.CreateScope();
+		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+		var user = await dbContext.User.FirstAsync(u => u.Id == userId);
+		user.CreatedAt = createdAt;
+
+		await dbContext.SaveChangesAsync();
+	}
+
 	private async Task SetStaffUserDeletedStateAsync(
 		Guid userId,
 		bool deleteUser = false,
@@ -620,6 +1050,51 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 
 		user.IsDeleted = deleteUser;
 		account.IsDeleted = deleteAccount;
+
+		await dbContext.SaveChangesAsync();
+	}
+
+	private async Task SeedStaffUserUpdatedAtAsync(Guid userId, DateTime updatedAt) {
+		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+		// The audit interceptor stamps UpdatedAt = now on every Modified save,
+		// so a normal entity update would overwrite the seeded value. Use a
+		// direct UPDATE to bypass the interceptor (same pattern as Posts test).
+		await dbContext.Database.ExecuteSqlRawAsync(
+			"UPDATE users SET updated_at = {0} WHERE id = {1}",
+			updatedAt, userId
+		);
+	}
+
+	private async Task SeedStaffUserFirstNameAsync(Guid userId, string firstName) {
+		using var scope = _fixture.Factory.Services.CreateScope();
+		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+		var user = await dbContext.User.FirstAsync(u => u.Id == userId);
+		user.FirstName = firstName;
+
+		await dbContext.SaveChangesAsync();
+	}
+
+	private async Task SeedStaffUserLastNameAsync(Guid userId, string lastName) {
+		using var scope = _fixture.Factory.Services.CreateScope();
+		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+		var user = await dbContext.User.FirstAsync(u => u.Id == userId);
+		user.LastName = lastName;
+
+		await dbContext.SaveChangesAsync();
+	}
+
+	private async Task SetStaffUserLevelAsync(Guid userId, AccountLevel level) {
+		using var scope = _fixture.Factory.Services.CreateScope();
+		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+		var account = await dbContext.UserAccount.FirstAsync(ua =>
+			ua.UserId == userId && ua.Scope == AccountScope.Staff
+		);
+		account.Level = level;
 
 		await dbContext.SaveChangesAsync();
 	}
@@ -643,5 +1118,40 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 		HttpResponseMessage response
 	) {
 		return await response.Content.ReadFromJsonAsync<AppProblemDetails>();
+	}
+
+	private async Task SwapStaffUserIdsAsync(Guid idA, Guid idB) {
+		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var tx = await dbContext.Database.BeginTransactionAsync();
+		// Disable FK enforcement triggers on both tables so the swap
+		// doesn't violate non-deferrable FK constraints. Triggers are
+		// re-enabled automatically when the transaction ends.
+		await dbContext.Database.ExecuteSqlRawAsync("ALTER TABLE users DISABLE TRIGGER ALL; ALTER TABLE user_accounts DISABLE TRIGGER ALL");
+
+		var temp = Guid.NewGuid();
+		// Step 1: move idA -> temp in users, then redirect user_accounts.
+		await dbContext.Database.ExecuteSqlRawAsync(
+			"UPDATE users SET id = {0} WHERE id = {1}",
+			temp, idA);
+		await dbContext.Database.ExecuteSqlRawAsync(
+			"UPDATE user_accounts SET user_id = {0} WHERE user_id = {1}",
+			temp, idA);
+		// Step 2: move idB -> idA in users, then redirect user_accounts.
+		await dbContext.Database.ExecuteSqlRawAsync(
+			"UPDATE users SET id = {0} WHERE id = {1}",
+			idA, idB);
+		await dbContext.Database.ExecuteSqlRawAsync(
+			"UPDATE user_accounts SET user_id = {0} WHERE user_id = {1}",
+			idA, idB);
+		// Step 3: move temp -> idB in users, then redirect user_accounts.
+		await dbContext.Database.ExecuteSqlRawAsync(
+			"UPDATE users SET id = {0} WHERE id = {1}",
+			idB, temp);
+		await dbContext.Database.ExecuteSqlRawAsync(
+			"UPDATE user_accounts SET user_id = {0} WHERE user_id = {1}",
+			idB, temp);
+
+		await tx.CommitAsync();
 	}
 }

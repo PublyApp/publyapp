@@ -289,14 +289,22 @@ test-api-debug $APP_ROLE="all" $ASPNETCORE_ENVIRONMENT="Testing":
 # if the #1017 changed-path classifier's fail-closed logic regresses, or if
 # an aggregate gate's job graph (needs/if/permissions/outputs — the metadata
 # check-ci-drift.ts's step-content hash does not cover) drifts from what
-# #1017 requires.
+# #1017 requires. Also enforces upload-artifact/download-artifact version
+# compatibility when archive: false is used (#1728).
 ci-drift:
   @echo "=== [gate] workflow drift guard ==="
   pnpm --filter scripts-ts exec vitest run src/codeowners-contract.test.ts
   pnpm test:ci-drift
   pnpm --filter scripts-ts exec vitest run src/lint-front.test.ts
+  # #1679: the no-floating-promises ratchet's own suite. front-ci.yml's
+  # gate-selftest step runs it; without this line the local mirror would be
+  # missing a command CI actually runs — exactly the drift this recipe exists
+  # to make impossible.
+  pnpm --filter scripts-ts exec vitest run src/check-no-floating-promises.test.ts
   node ./packages/scripts-ts/src/check-ci-drift.ts
   pnpm --filter scripts-ts exec vitest run src/ci-changed-paths.test.ts
+  pnpm --filter scripts-ts exec vitest run src/artifact-version-compat.test.ts
+  node ./packages/scripts-ts/src/artifact-version-compat.ts
   pnpm --filter scripts-ts exec vitest run src/ci-gate-bootstrap.test.ts
   pnpm --filter scripts-ts exec vitest run src/ci-gate-aggregation.test.ts
   pnpm --filter scripts-ts exec vitest run src/ci-e2e-rerun-guard.test.ts

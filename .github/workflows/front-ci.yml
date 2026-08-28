@@ -313,6 +313,8 @@ jobs:
           pnpm --filter scripts-ts exec vitest run src/check-no-floating-promises.test.ts
           node ./packages/scripts-ts/src/check-ci-drift.ts
           pnpm --filter scripts-ts exec vitest run src/ci-changed-paths.test.ts
+          pnpm --filter scripts-ts exec vitest run src/artifact-version-compat.test.ts
+          node ./packages/scripts-ts/src/artifact-version-compat.ts
           pnpm --filter scripts-ts exec vitest run src/ci-gate-bootstrap.test.ts
           pnpm --filter scripts-ts exec vitest run src/ci-gate-aggregation.test.ts
           pnpm --filter scripts-ts exec vitest run src/ci-e2e-rerun-guard.test.ts

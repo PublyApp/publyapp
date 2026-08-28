@@ -102,6 +102,17 @@ public static partial class Routes {
 				return $"{RootFn(tenantId)}/";
 			}
 
+			/// <summary>
+			/// Batch-resolve tenant profile NAMES to profile ids for bulk entry (the invite
+			/// drawer's CSV/Excel import). Case-insensitive over live scope-1 non-deleted
+			/// rows; a name matching several live rows reports ambiguous because
+			/// ux_profiles_tenant_name is case-sensitive.
+			/// </summary>
+			public const string ResolveNames = "/resolve-names";
+			public static string ResolveNamesFn(string tenantId) {
+				return $"{RootFn(tenantId)}/resolve-names";
+			}
+
 			// Bulk tenant profile deletion is scoped by tenantId route and uses one
 			// request body containing multiple profile IDs.
 			public const string BulkDelete = "/bulk-delete";

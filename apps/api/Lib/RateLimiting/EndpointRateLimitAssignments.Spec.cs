@@ -77,6 +77,10 @@ public sealed class EndpointRateLimitAssignmentsSpec
 		"CreateStaffUpload",
 		ApiRateLimitPolicies.Upload
 	)]
+	[InlineData(
+		"ResolveTenantProfileNamesAsStaff",
+		ApiRateLimitPolicies.HeavySearchList
+	)]
 	public void ItShouldAssignTheApprovedPolicyToEachEndpointClass(
 		string endpointName,
 		string expectedPolicy

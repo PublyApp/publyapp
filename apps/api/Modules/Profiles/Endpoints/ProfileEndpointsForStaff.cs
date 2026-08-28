@@ -307,6 +307,21 @@ public static class ProfileEndpointsForStaff {
 				AppPermissions.Staff.Users.UPDATE_FOR_TENANT
 			]);
 
+		tenantGroup.MapPost(
+			Routes.Profiles.ForTenantAsStaff.ResolveNames,
+			ResolveTenantProfileNamesAsStaff.Handle
+		)
+			.WithName("ResolveTenantProfileNamesAsStaff")
+			.RequireRateLimiting(
+				ApiRateLimitPolicies.HeavySearchList
+			)
+			.WithSummary("Resolve tenant profile names to profile ids (batch)")
+			// Read-only resolution of the tenant's own profile catalogue: same capability
+			// as listing profiles, exposed as a POST batch like the sibling assignment
+			// resolution endpoint above.
+			.WithPermission([AppPermissions.Staff.Profiles.LIST_FOR_TENANT])
+			.WithReqBodyValidation<ResolveTenantProfileNamesAsStaffBody>();
+
 		return routes;
 	}
 }

@@ -10,11 +10,12 @@ import {
 	type TestInfo,
 } from '@playwright/test';
 
+import { SESSION_TOKEN_HEADER_KEY } from '@org/shared-ts/lib/constants';
+
 import { API_BASE_URL } from './helpers/api';
 
 const COMPOSE_FILE = 'apps/front/docker-compose.test.yml';
 const STAFF_USERS_PATH = '/staff/users';
-const SESSION_TOKEN_HEADER_KEY = 'X-Session-Token';
 const SMOKE_BROWSER_MESSAGE = '[front] log-leak smoke probe';
 const COMPOSE_PROJECT_NAME = process.env.COMPOSE_PROJECT_NAME ?? 'publyapp-e2e';
 const CONTROL_REQUEST = {
