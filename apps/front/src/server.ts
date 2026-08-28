@@ -86,6 +86,14 @@ export const resolveOrigin = (request: Request): string => {
 		const protocol = request.headers.get('x-forwarded-proto') ?? 'https';
 		const candidate = `${protocol}://${host}`;
 		if (publicOrigin === undefined) {
+			const nodeEnv = getServerEnv().nodeEnv;
+			if (nodeEnv === 'production') {
+				// validateRuntimeEnv should have refused to start, but defensively fall
+				// back to the configured origin if somehow we get here.
+				throw new Error(
+					'PUBLIC_ORIGIN is required in production; resolveOrigin must not trust the Host header.',
+				);
+			}
 			logger.warn(
 				'resolveOrigin: PUBLIC_ORIGIN not set, falling back to request host (host-header injection risk)',
 			);
@@ -101,6 +109,11 @@ export const resolveOrigin = (request: Request): string => {
 	}
 	if (publicOrigin !== undefined) {
 		return publicOrigin;
+	}
+	if (getServerEnv().nodeEnv === 'production') {
+		throw new Error(
+			'PUBLIC_ORIGIN is required in production; resolveOrigin must not trust the Host header.',
+		);
 	}
 	logger.warn(
 		'resolveOrigin: no host header and PUBLIC_ORIGIN not set, falling back to request URL origin',
@@ -208,7 +221,15 @@ const sendBadResponseCapture = (
 
 export const validateRuntimeEnv = (): void => {
 	getPublicEnv();
-	getServerEnv();
+	const serverEnv = getServerEnv();
+	if (
+		serverEnv.nodeEnv === 'production' &&
+		serverEnv.publicOrigin === undefined
+	) {
+		throw new Error(
+			"PUBLIC_ORIGIN is required when NODE_ENV=production: without it the server trusts the client's Host header when building canonical and Open Graph URLs. Set PUBLIC_ORIGIN to the public https origin (for example https://app.publy.example), no trailing path.",
+		);
+	}
 };
 
 export default {
