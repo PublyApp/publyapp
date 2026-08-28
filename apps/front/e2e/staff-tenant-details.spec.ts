@@ -1,7 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 
 import { API_BASE_URL } from './helpers/api';
-import { loginAsStaffAdmin } from './helpers/login';
+import { loginAsStaffAdmin, setLocaleCookie } from './helpers/login';
 import { expectTableFitsCard } from './helpers/table-fits-card';
 
 const TENANT_ID = '0197b8f0-3333-7ccc-8ccc-cccccccccccc';
@@ -1035,6 +1035,47 @@ test.describe(
 					viewport.height,
 				);
 			}
+		});
+
+		test('renders the plural Send button label when two rows are present, in EN and FR', async ({
+			page,
+		}) => {
+			await loginAsStaffAdmin(page);
+			await mockTenantDetails(page);
+
+			await page.goto(
+				`/staff/tenants/${TENANT_ID}/users?invite=1&status=active`,
+			);
+			await expect(page.getByTestId('staff-tenant-users-page')).toBeVisible();
+
+			const drawer = page.getByTestId('invite-tenant-user-drawer');
+			await expect(drawer).toBeVisible();
+
+			await drawer
+				.locator('input[name="rows.0.email"]')
+				.fill('first@example.com');
+			await drawer.getByRole('button', { name: 'Add another invitee' }).click();
+			await drawer
+				.locator('input[name="rows.1.email"]')
+				.fill('second@example.com');
+
+			// English: "Send 2 invitations"
+			await expect(
+				drawer.getByRole('button', { name: 'Send 2 invitations' }),
+			).toBeVisible();
+			await expect(
+				drawer.getByRole('button', { name: 'Send 1 invitation' }),
+			).toHaveCount(0);
+
+			// French: "Envoyer 2 invitations"
+			await setLocaleCookie(page, 'fr');
+			await page.reload();
+			await expect(
+				drawer.getByRole('button', { name: 'Envoyer 2 invitations' }),
+			).toBeVisible();
+			await expect(
+				drawer.getByRole('button', { name: 'Envoyer 1 invitation' }),
+			).toHaveCount(0);
 		});
 
 		test('opens from the Invitations tab, validates, and submits via the invitations endpoint', async ({
