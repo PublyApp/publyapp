@@ -78,11 +78,6 @@ const CONFIG = 'vitest.preuves.config.ts';
  */
 const REPLAYABLE_EXTENSIONS = ['.test.ts', '.test.tsx'] as const;
 
-type ReplayableExtension = (typeof REPLAYABLE_EXTENSIONS)[number];
-
-function isReplayableExtension(ext: string): ext is ReplayableExtension {
-	return (REPLAYABLE_EXTENSIONS as readonly string[]).includes(ext);
-}
 
 /**
  * Determine which proof files were declared by the current PR.
@@ -192,13 +187,12 @@ function validateProofFile(path: string): void {
 }
 
 /**
- * Extract the file extension from a path. Only the last dot matters: a file
- * named `foo.test.ts` has extension `.test.ts`, not `.ts`.
+ * Determine if a filename ends with one of the replayable extensions.
+ * Uses exact suffix matching (not last-dot slicing) so multi-dot
+ * extensions like `.test.ts` and `.test.tsx` are recognized correctly.
  */
-function extensionOf(filename: string): string {
-	const dotIndex = filename.lastIndexOf('.');
-	if (dotIndex === -1) return '';
-	return filename.slice(dotIndex);
+function isReplayableFile(filename: string): boolean {
+	return REPLAYABLE_EXTENSIONS.some((ext) => filename.endsWith(ext));
 }
 
 // --- Main logic ---
@@ -233,8 +227,7 @@ const replayable: string[] = [];
 const unReplayable: string[] = [];
 
 for (const test of declared) {
-	const ext = extensionOf(test);
-	if (isReplayableExtension(ext)) {
+	if (isReplayableFile(test)) {
 		replayable.push(test);
 	} else {
 		unReplayable.push(test);
@@ -256,7 +249,7 @@ if (unReplayable.length > 0) {
 	);
 	console.error('UnReplayable declared proofs:');
 	for (const t of unReplayable) {
-		console.error(`  ${t} (extension: ${extensionOf(t) || '(none)'})`);
+		console.error(`  ${t}`);
 	}
 	console.error(
 		'A declared proof the guard cannot replay is a blind spot, not a no-op. ' +
