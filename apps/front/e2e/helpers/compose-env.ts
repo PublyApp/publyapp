@@ -19,7 +19,7 @@ const DEFAULT_TOXIPROXY_PORT = 8474;
 const port = (envVar: string, defaultPort: number): number =>
 	Number.parseInt(process.env[envVar] ?? String(defaultPort), 10);
 
-export const E2E_PORTS = {
+const E2E_PORTS = {
 	web: port('E2E_PORT_TRAEFIK_WEB', DEFAULT_WEB_PORT),
 	websecure: port('E2E_PORT_TRAEFIK_WEBSECURE', DEFAULT_WEBSECURE_PORT),
 	requestCounter: port('E2E_PORT_REQUEST_COUNTER', DEFAULT_COUNTER_PORT),
