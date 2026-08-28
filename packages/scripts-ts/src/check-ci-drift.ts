@@ -39,40 +39,29 @@ const manifestPath = 'packages/scripts-ts/src/ci-gate-manifest.json';
 // suppressions (see the sibling guard in scripts/). "n/a" is not a reason.
 const minimumReasonLength = 24;
 
-// @ts-expect-error rung-0: add proper type in later rung
-const toPosixPath = (value) => value.split(path.sep).join('/');
-
-/**
- * Normalizes a reason string so the hash is encoding-invariant.
- * Unescapes `\uXXXX` sequences to their UTF-8 characters, so a manifest
- * that stores `\u2014` and one that stores `—` produce the same hash.
- * This is idempotent: after JSON.parse, the reason is already in UTF-8
- * form, so this is a no-op. It handles the case where a raw string
- * (e.g., from a test fixture) still contains escape sequences.
- */
-// @ts-expect-error rung-0: add proper type in later rung
-export const normalizeReason = (text) =>
-	String(text).replace(/\\u([0-9a-fA-F]{4})/g, (_, hex) =>
-		String.fromCharCode(parseInt(hex, 16)),
-	);
+const toPosixPath = (value: string) => value.split(path.sep).join('/');
 
 /**
  * Content-addresses a reason string using the same scheme as the reference
- * file (SHA-256, first 16 hex chars).
+ * file (SHA-256, first 16 hex chars). The reason text is used as-is — after
+ * `JSON.parse`, escape sequences like `\u2014` are already decoded to their
+ * UTF-8 characters, so no normalization step is needed.
  */
-// @ts-expect-error rung-0: add proper type in later rung
-export const hashReason = (text) =>
-	createHash('sha256').update(normalizeReason(text)).digest('hex').slice(0, 16);
+export const hashReason = (text: string) =>
+	createHash('sha256').update(text).digest('hex').slice(0, 16);
 
-/**
- * Checks whether a reason has changed (especially shrunk) while the step
- * hash is unchanged. The reference file (`reason-guard-ref.json`) holds the
- * known-good fingerprint; any deviation while the step itself hasn't changed
- * fails the guard. A deliberate rewrite is possible by updating the reference
- * in the same commit — same mechanism as the complexity ceilings.
- */
-// @ts-expect-error rung-0: add proper type in later rung
-const getReasonGuardProblem = (id, entry, ref) => {
+// Checks whether a reason has changed (especially shrunk) while the step
+// hash is unchanged. The reference file (`reason-guard-ref.json`) holds the
+// known-good fingerprint; any deviation while the step itself hasn't changed
+// fails the guard. A deliberate rewrite is possible by updating the reference
+// in the same commit — same mechanism as the complexity ceilings.
+const getReasonGuardProblem = (
+	id: string,
+	entry: { hash: string; mirror: string | null; reason: string },
+	ref: {
+		steps: Record<string, { reason_hash: string; reason_length: number }>;
+	},
+): string | null => {
 	const stepRef = ref.steps[id];
 
 	// No reference entry (e.g., a brand-new step not yet pinned). The
@@ -82,24 +71,23 @@ const getReasonGuardProblem = (id, entry, ref) => {
 		return null;
 	}
 
-	const normalized = normalizeReason(entry.reason);
 	const currentHash = hashReason(entry.reason);
 
 	if (currentHash === stepRef.reason_hash) {
 		return null;
 	}
 
-	const currentLength = normalized.length;
+	const currentLength = entry.reason.length;
 	const expectedLength = stepRef.reason_length;
 
 	if (currentLength < expectedLength) {
-		return `${manifestPath}: entry "${id}" reason SHRANK from ${expectedLength} to ${currentLength} characters while the step hash is unchanged (expected reason hash ${stepRef.reason_hash}, got ${currentHash}). Truncation is not a rewrite — restore the original reason, or update reason-guard-ref.json in the same commit if the rewrite is deliberate.`;
+		return `${manifestPath}: entry "${id}" reason SHRINK from ${expectedLength} to ${currentLength} characters while the step hash is unchanged (expected reason hash ${stepRef.reason_hash}, got ${currentHash}). Truncation is not a rewrite \u2014 restore the original reason, or regenerate reason-guard-ref.json in the same commit if the rewrite is deliberate (run \`node packages/scripts-ts/src/gen-reason-ref.ts\`).`;
 	}
 
-	return `${manifestPath}: entry "${id}" reason CHANGED (expected hash ${stepRef.reason_hash}, got ${currentHash}; expected ${expectedLength} chars, got ${currentLength}) while the step hash is unchanged. If this is a deliberate rewrite, update reason-guard-ref.json in the same commit so the reference matches the new reason.`;
+	return `${manifestPath}: entry "${id}" reason CHANGED (expected hash ${stepRef.reason_hash}, got ${currentHash}; expected ${expectedLength} chars, got ${currentLength}) while the step hash is unchanged. If this is a deliberate rewrite, regenerate reason-guard-ref.json in the same commit so the reference matches the new reason \u2014 run \`node packages/scripts-ts/src/gen-reason-ref.ts\` to regenerate it.`;
 };
-// @ts-expect-error rung-0: add proper type in later rung
-const normalizeCommand = (value) =>
+
+const normalizeCommand = (value: string) =>
 	String(value)
 		.replace(/\r\n?/g, '\n')
 		.split('\n')
@@ -112,18 +100,18 @@ const normalizeCommand = (value) =>
  * Serializes a value with deterministic key ordering so the hash depends only
  * on content, never on YAML authoring order.
  */
-// @ts-expect-error rung-0: TS7023
-const toStableJson = (value) => {
+const toStableJson = (value: unknown): string => {
 	if (Array.isArray(value)) {
 		return `[${value.map(toStableJson).join(',')}]`;
 	}
 
 	if (value !== null && typeof value === 'object') {
 		const keys = Object.keys(value).sort();
-		// @ts-expect-error rung-0: TS7022
 		const body = keys
-			// @ts-expect-error rung-0: TS7024
-			.map((key) => `${JSON.stringify(key)}:${toStableJson(value[key])}`)
+			.map(
+				(key) =>
+					`${JSON.stringify(key)}:${toStableJson((value as Record<string, unknown>)[key])}`,
+			)
 			.join(',');
 
 		return `{${body}}`;
@@ -131,6 +119,26 @@ const toStableJson = (value) => {
 
 	return JSON.stringify(value ?? null);
 };
+
+// --- Minimal YAML structural types (parsed, untyped at runtime) ---
+
+interface YamlStep {
+	name?: string;
+	run?: string;
+	uses?: string;
+	env?: Record<string, string>;
+	if?: string;
+	continue_on_error?: boolean;
+	with?: Record<string, unknown>;
+}
+
+interface YamlJob {
+	steps?: YamlStep[];
+}
+
+interface YamlDocument {
+	jobs?: Record<string, YamlJob>;
+}
 
 /**
  * Content-addresses everything about a step that decides what it does: the
@@ -147,13 +155,12 @@ const toStableJson = (value) => {
  * loses it, everywhere in .github/workflows — not only inside the
  * verification jobs scripts/check-ci-gate-structure.mjs hard-rejects it in.
  */
-// @ts-expect-error rung-0: add proper type in later rung
-const hashStep = (step) => {
+const hashStep = (step: YamlStep) => {
 	const payload = {
-		'continue-on-error': step['continue-on-error'] ?? null,
+		'continue-on-error': step.continue_on_error ?? null,
 		env: step.env ?? null,
 		if: step.if ?? null,
-		run: 'run' in step ? normalizeCommand(step.run) : null,
+		run: 'run' in step ? normalizeCommand(step.run as string) : null,
 		uses: step.uses ?? null,
 		with: step.with ?? null,
 	};
@@ -172,8 +179,7 @@ const hashStep = (step) => {
  * but not the identity, which keeps the manifest diff readable instead of
  * churning a delete + add pair on every Dependabot bump.
  */
-// @ts-expect-error rung-0: add proper type in later rung
-const getStepLabel = (step, index) => {
+const getStepLabel = (step: YamlStep, index: number): string => {
 	if (typeof step.name === 'string' && step.name.trim().length > 0) {
 		return step.name.trim();
 	}
@@ -193,12 +199,11 @@ const getStepLabel = (step, index) => {
  * scanning action), and the gate must be forced to account for it rather than
  * ignore it by category.
  */
-// @ts-expect-error rung-0: add proper type in later rung
-const collectWorkflowSteps = async (rootDir) => {
+const collectWorkflowSteps = async (rootDir: string) => {
 	const directory = path.join(rootDir, workflowsDirectory);
 	const entries = await readdir(directory, { withFileTypes: true });
-	const steps = [];
-	const problems = [];
+	const steps: { hash: string; id: string; kind: 'run' | 'uses' }[] = [];
+	const problems: string[] = [];
 
 	const files = entries
 		.filter(
@@ -211,12 +216,13 @@ const collectWorkflowSteps = async (rootDir) => {
 
 	for (const file of files) {
 		const raw = await readFile(path.join(directory, file), 'utf8');
-		const document = parse(raw);
+		const document = parse(raw) as YamlDocument | null;
 		const jobs = document?.jobs ?? {};
 
 		for (const jobId of Object.keys(jobs).sort()) {
-			const jobSteps = jobs[jobId]?.steps ?? [];
-			const seenLabels = new Set();
+			const job = jobs[jobId];
+			const jobSteps: YamlStep[] = job?.steps ?? [];
+			const seenLabels = new Set<string>();
 
 			for (const [index, step] of jobSteps.entries()) {
 				const label = getStepLabel(step, index);
@@ -248,25 +254,30 @@ const collectWorkflowSteps = async (rootDir) => {
  * Validates one manifest entry's shape. An entry that neither names a mirror
  * nor gives a reason is not a reconciliation, it is a rubber stamp.
  */
-// @ts-expect-error rung-0: add proper type in later rung
-const getEntryValidationProblem = (id, entry) => {
-	if (entry === null || typeof entry !== 'object') {
+const getEntryValidationProblem = (
+	id: string,
+	entry: unknown,
+): string | null => {
+	if (entry === null || typeof entry !== 'object' || Array.isArray(entry)) {
 		return `${manifestPath}: entry "${id}" must be an object.`;
 	}
 
-	if (typeof entry.hash !== 'string' || entry.hash.length === 0) {
+	const record = entry as Record<string, unknown>;
+
+	if (typeof record.hash !== 'string' || record.hash.length === 0) {
 		return `${manifestPath}: entry "${id}" is missing a \`hash\`.`;
 	}
 
-	const hasMirror = typeof entry.mirror === 'string' && entry.mirror.length > 0;
+	const hasMirror =
+		typeof record.mirror === 'string' && record.mirror.length > 0;
 
-	if (!hasMirror && entry.mirror !== null) {
+	if (!hasMirror && record.mirror !== null) {
 		return `${manifestPath}: entry "${id}" must set \`mirror\` to the local command that covers it, or to null when it is exempt.`;
 	}
 
 	if (
-		typeof entry.reason !== 'string' ||
-		entry.reason.trim().length < minimumReasonLength
+		typeof record.reason !== 'string' ||
+		record.reason.trim().length < minimumReasonLength
 	) {
 		return `${manifestPath}: entry "${id}" needs a \`reason\` of at least ${minimumReasonLength} characters saying ${
 			hasMirror
@@ -278,27 +289,40 @@ const getEntryValidationProblem = (id, entry) => {
 	return null;
 };
 
+// --- Reason reference type ---
+
+interface ReasonRef {
+	steps: Record<string, { reason_hash: string; reason_length: number }>;
+}
+
 /**
  * Compares the workflows against the manifest and returns human-readable
  * findings. Returns an empty array when the gate is fully reconciled.
  *
  * @param {Object} options
  * @param {string} options.rootDir - Repository root directory.
- * @param {Object} [options.reasonRef] - Optional reason reference override
+ * @param {ReasonRef} [options.reasonRef] - Optional reason reference override
  *   (defaults to the pinned reason-guard-ref.json). Used by tests to inject
  *   a fixture reference without touching the real one.
  */
-// @ts-expect-error rung-0: add proper type in later rung
-export const findCiDrift = async ({ rootDir, reasonRef: reasonRefOption }) => {
+export const findCiDrift = async ({
+	rootDir,
+	reasonRef: reasonRefOption,
+}: {
+	rootDir: string;
+	reasonRef?: ReasonRef;
+}): Promise<string[]> => {
 	const ref = reasonRefOption ?? reasonRef;
 	const { problems, steps } = await collectWorkflowSteps(rootDir);
 	const findings = [...problems];
 
 	const manifestRaw = await readFile(path.join(rootDir, manifestPath), 'utf8');
-	const manifest = JSON.parse(manifestRaw);
+	const manifest = JSON.parse(manifestRaw) as {
+		steps?: Record<string, unknown>;
+	};
 	const entries = manifest.steps ?? {};
 
-	const seen = new Set();
+	const seen = new Set<string>();
 
 	for (const step of steps) {
 		const entry = entries[step.id];
@@ -319,15 +343,21 @@ export const findCiDrift = async ({ rootDir, reasonRef: reasonRefOption }) => {
 			continue;
 		}
 
-		if (entry.hash !== step.hash) {
+		const entryRecord = entry as {
+			hash: string;
+			mirror: string | null;
+			reason: string;
+		};
+
+		if (entryRecord.hash !== step.hash) {
 			findings.push(
-				`CHANGED   ${step.id}\n    This CI step changed since it was reconciled (manifest ${entry.hash}, workflow ${step.hash}).\n    Re-check that "${entry.mirror ?? '(exempt)'}" still covers it, then update the hash to "${step.hash}".`,
+				`CHANGED   ${step.id}\n    This CI step changed since it was reconciled (manifest ${entryRecord.hash}, workflow ${step.hash}).\n    Re-check that "${entryRecord.mirror ?? '(exempt)'}" still covers it, then update the hash to "${step.hash}".`,
 			);
 		} else {
 			// Reason guard: detect truncation/alteration of a reason while the
 			// step hash is unchanged. A deliberate rewrite is possible by
 			// updating reason-guard-ref.json in the same commit.
-			const reasonProblem = getReasonGuardProblem(step.id, entry, ref);
+			const reasonProblem = getReasonGuardProblem(step.id, entryRecord, ref);
 
 			if (reasonProblem !== null) {
 				findings.push(reasonProblem);
