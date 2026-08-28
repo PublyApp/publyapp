@@ -558,6 +558,164 @@ const openAssignMembersDrawer = async (page: Page): Promise<void> => {
 	});
 };
 
+// Staff jobs queue/dead-letter drawers surface the job type in their
+// DrawerDescription. Both open by clicking the Inspect eye icon in the table's
+// row-actions menu, so the list must return at least one row and the drawer
+// opener must find and click that row's action button.
+
+const STAFF_JOB_ID = '0197b8f0-8888-7ccc-8ccc-cccccccccccc';
+
+const mockStaffJobsDependencies = async (page: Page): Promise<void> => {
+	await page.route('**/auth/scope-auth-data**', async (route) => {
+		const request = route.request();
+		if (request.method() !== 'GET') {
+			await route.fallback();
+			return;
+		}
+
+		await route.fulfill({
+			status: 200,
+			contentType: 'application/json',
+			body: JSON.stringify({
+				code: 'staff',
+				isAdmin: true,
+				permissions: [],
+			}),
+		});
+	});
+
+	// Queue list endpoint — returns one row so the table renders with a row
+	// action button to click.
+	await page.route('**/staff/jobs/queue**', async (route) => {
+		const request = route.request();
+		if (request.method() !== 'GET') {
+			await route.fallback();
+			return;
+		}
+
+		await route.fulfill({
+			status: 200,
+			contentType: 'application/json',
+			body: JSON.stringify({
+				data: [
+					{
+						id: STAFF_JOB_ID,
+						jobType: 'SendWelcomeEmail',
+						status: 'queued',
+						priority: 1,
+						attempts: 0,
+						maxAttempts: 5,
+						nextAttemptAt: null,
+						lockedBy: null,
+						lastError: null,
+						tenantId: null,
+						createdAt: '2026-08-28T09:00:00Z',
+						updatedAt: '2026-08-28T09:00:00Z',
+					},
+				],
+				nextCursor: null,
+			}),
+		});
+	});
+
+	// Dead-letter list endpoint — returns one row so the table renders with a row
+	// action button to click.
+	await page.route('**/staff/jobs/dead-letter**', async (route) => {
+		const request = route.request();
+		if (request.method() !== 'GET') {
+			await route.fallback();
+			return;
+		}
+
+		await route.fulfill({
+			status: 200,
+			contentType: 'application/json',
+			body: JSON.stringify({
+				data: [
+					{
+						id: '0197b8f0-8888-7ccc-8ccc-cccccccccccc',
+						originalJobId: '0197b8f0-9999-7ccc-8ccc-cccccccccccc',
+						jobType: 'SendWelcomeEmail',
+						attempts: 3,
+						externalStateStatus: 1,
+						tenantId: null,
+						lastError: null,
+						requeuedAsJobId: null,
+						requeuedAt: null,
+						triagedAt: null,
+						failedAt: '2026-08-28T09:00:00Z',
+						createdAt: '2026-08-28T09:00:00Z',
+					},
+				],
+				nextCursor: null,
+			}),
+		});
+	});
+
+	// Dead-letter detail endpoint — returns payload detail data that the drawer
+	// reads when opened.
+	await page.route(
+		'**/staff/jobs/dead-letter/0197b8f0-8888-7ccc-8ccc-cccccccccccc',
+		async (route) => {
+			await route.fulfill({
+				status: 200,
+				contentType: 'application/json',
+				body: JSON.stringify({
+					detail: {
+						id: '0197b8f0-8888-7ccc-8ccc-cccccccccccc',
+						originalJobId: '0197b8f0-9999-7ccc-8ccc-cccccccccccc',
+						jobType: 'SendWelcomeEmail',
+						attempts: 3,
+						lastError: 'connection refused',
+						externalStateStatus: 1,
+						payload: null,
+						triagedAt: null,
+						failedAt: '2026-08-28T09:00:00Z',
+						createdAt: '2026-08-28T09:00:00Z',
+						updatedAt: '2026-08-28T09:00:00Z',
+					},
+				}),
+			});
+		},
+	);
+};
+
+const openStaffJobsQueueDrawer = async (page: Page): Promise<void> => {
+	await loginAsStaffAdmin(page);
+	await mockStaffJobsDependencies(page);
+	await page.goto('/staff/jobs');
+	await expect(page.getByTestId('staff-jobs-queue-table')).toBeVisible({
+		timeout: 10_000,
+	});
+	// The row-actions menu button carries the job type as its aria-label;
+	// click it to open the dropdown, then click the Inspect menu item.
+	await page
+		.locator('[data-testid="staff-jobs-queue-table"] button[aria-label]')
+		.first()
+		.click();
+	await page.getByRole('menuitem', { name: 'Inspect' }).click();
+	await expect(page.getByTestId('staff-jobs-queue-drawer')).toBeVisible({
+		timeout: 10_000,
+	});
+};
+
+const openStaffJobsDeadLetterDrawer = async (page: Page): Promise<void> => {
+	await loginAsStaffAdmin(page);
+	await mockStaffJobsDependencies(page);
+	await page.goto('/staff/jobs/dead-letter');
+	await expect(page.getByTestId('staff-jobs-dead-letter-table')).toBeVisible({
+		timeout: 10_000,
+	});
+	await page
+		.locator('[data-testid="staff-jobs-dead-letter-table"] button[aria-label]')
+		.first()
+		.click();
+	await page.getByRole('menuitem', { name: 'Inspect' }).click();
+	await expect(page.getByTestId('staff-jobs-dead-letter-drawer')).toBeVisible({
+		timeout: 10_000,
+	});
+};
+
 const openCookiePrefsDrawer = async (page: Page): Promise<void> => {
 	await page.goto('/');
 	await page.getByTestId('landing-cookie-band-customize').click();
@@ -913,6 +1071,14 @@ const DRAWER_OPENERS = {
 	'link-companies-drawer': {
 		name: 'link companies',
 		open: openLinkCompaniesDrawer,
+	},
+	'staff-jobs-queue-drawer': {
+		name: 'staff jobs queue',
+		open: openStaffJobsQueueDrawer,
+	},
+	'staff-jobs-dead-letter-drawer': {
+		name: 'staff jobs dead letter',
+		open: openStaffJobsDeadLetterDrawer,
 	},
 } satisfies Record<
 	string,
