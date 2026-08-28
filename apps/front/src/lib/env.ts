@@ -55,8 +55,9 @@ const optionalPublicOrigin = z
 			);
 		},
 		{
+			// i18n-guard-ignore: startup env-validation message shown to the operator in server logs, never rendered as UI copy
 			message:
-				'PUBLIC_ORIGIN must be a bare scheme+host with no trailing path, query, or fragment',
+				'PUBLIC_ORIGIN must be a bare scheme+host (e.g. "https://example.com") — no trailing slash, path, query, or fragment',
 		},
 	)
 	.optional();
