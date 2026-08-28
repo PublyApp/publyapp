@@ -129,7 +129,13 @@
 			}
 		},
 		{
-			"files": ["apps/front/src/components/table/**"],
+			"files": [
+				"apps/front/src/components/table/column-type.ts",
+				"apps/front/src/components/table/data-table.tsx",
+				"apps/front/src/components/table/data-table-grid.tsx",
+				"apps/front/src/components/table/data-table-header-row.tsx",
+				"apps/front/src/components/table/data-table-body-rows.tsx"
+			],
 			"rules": {
 				"typescript/no-deprecated": "off"
 			}
