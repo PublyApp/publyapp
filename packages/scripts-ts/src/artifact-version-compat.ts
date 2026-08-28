@@ -24,12 +24,17 @@ const UPLOAD_REPO = 'actions/upload-artifact';
 const DOWNLOAD_REPO = 'actions/download-artifact';
 const EXPRESSION_PATTERN = /\$\{\{.*\}\}/;
 
+/** What a `with:` entry can hold once YAML is parsed. Named on purpose: the
+ * two readers below narrow to this at the boundary rather than handing
+ * `unknown` to their callers, so no caller has to re-guess the shape. */
+type WithScalar = string | number | boolean | null;
+
 /**
  * Looks up a key in a `with:` block case-insensitively, because
  * GitHub Actions YAML keys are case-insensitive at evaluation time.
  */
-const withValue = (step: unknown, key: string): unknown => {
-	const withBlock = (step as { with?: Record<string, unknown> } | undefined)
+const readWith = (step: unknown, key: string): WithScalar | undefined => {
+	const withBlock = (step as { with?: Record<string, WithScalar> } | undefined)
 		?.with;
 	if (withBlock === undefined || withBlock === null) {
 		return undefined;
@@ -39,6 +44,36 @@ const withValue = (step: unknown, key: string): unknown => {
 		if (k.toLowerCase() === key) {
 			return withBlock[k];
 		}
+	}
+
+	return undefined;
+};
+
+/** The `with:` value as a non-empty string, or `undefined` when absent, empty,
+ * or of another type. A non-string here is a malformed workflow, not a default
+ * to silently substitute — the caller decides what an absent name means. */
+const readWithString = (step: unknown, key: string): string | undefined => {
+	const value = readWith(step, key);
+	if (typeof value !== 'string' || value.trim().length === 0) {
+		return undefined;
+	}
+
+	return value;
+};
+
+/** The `with:` value as a boolean, or `undefined` when absent or of another
+ * type. YAML also admits the strings "true"/"false" here, which GitHub
+ * evaluates as booleans, so both spellings are accepted. */
+const readWithBoolean = (step: unknown, key: string): boolean | undefined => {
+	const value = readWith(step, key);
+	if (typeof value === 'boolean') {
+		return value;
+	}
+	if (value === 'true') {
+		return true;
+	}
+	if (value === 'false') {
+		return false;
 	}
 
 	return undefined;
@@ -54,7 +89,11 @@ const withValue = (step: unknown, key: string): unknown => {
  */
 const staticPrefix = (name: string): string => {
 	const exprIndex = name.indexOf('${{');
-	return exprIndex === -1 ? name : name.slice(0, exprIndex);
+	if (exprIndex === -1) {
+		return name;
+	}
+
+	return name.slice(0, exprIndex);
 };
 
 /**
@@ -196,14 +235,12 @@ const collectArtifactSteps = async (
 					continue;
 				}
 
-				const nameValue = withValue(step, 'name');
-				const artifactName =
-					typeof nameValue === 'string' && nameValue.trim().length > 0
-						? nameValue
-						: `unnamed-step-${index}`;
+				const nameValue = readWithString(step, 'name');
+				const artifactName = nameValue ?? `unnamed-step-${index}`;
 
 				const isUpload = parsed.repo === UPLOAD_REPO;
-				const archiveFalse = isUpload && withValue(step, 'archive') === false;
+				const archiveFalse =
+					isUpload && readWithBoolean(step, 'archive') === false;
 
 				steps.push({
 					file,
