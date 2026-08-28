@@ -190,9 +190,7 @@ const moduleSpecifierText = (
  *   - namespace imports (`import * as ColumnDef from '...'`) — matched by alias
  * Returns an empty array when no banned name is among the bindings.
  */
-const bannedBindingsFromImport = (
-	node: ts.ImportDeclaration,
-): string[] => {
+const bannedBindingsFromImport = (node: ts.ImportDeclaration): string[] => {
 	const found: string[] = [];
 	const clause = node.importClause;
 
@@ -278,10 +276,7 @@ const scanSourceFile = (relativePath: string, source: string): Finding[] => {
 								? bindings
 								: ['(legacy specifier)']
 							: bindings,
-						nodeText: node
-							.getText(sourceFile)
-							.trim()
-							.replace(/\s+/g, ' '),
+						nodeText: node.getText(sourceFile).trim().replace(/\s+/g, ' '),
 					});
 				}
 			}
@@ -297,7 +292,10 @@ const scanSourceFile = (relativePath: string, source: string): Finding[] => {
 			if (specifier !== null && BANNED_SPECIFIERS.has(specifier)) {
 				const isLegacy = specifier === '@tanstack/react-table/legacy';
 				const exportedNames: string[] = [];
-				if (node.exportClause !== undefined && ts.isNamedExports(node.exportClause)) {
+				if (
+					node.exportClause !== undefined &&
+					ts.isNamedExports(node.exportClause)
+				) {
 					for (const element of node.exportClause.elements) {
 						const exportedName = element.propertyName ?? element.name;
 						if (BANNED_TYPE_NAMES.has(exportedName.text)) {
@@ -305,10 +303,7 @@ const scanSourceFile = (relativePath: string, source: string): Finding[] => {
 						}
 					}
 				}
-				if (
-					isLegacy ||
-					exportedNames.length > 0
-				) {
+				if (isLegacy || exportedNames.length > 0) {
 					findings.push({
 						file: relativePath,
 						line: lineOf(sourceFile, node),
@@ -318,10 +313,7 @@ const scanSourceFile = (relativePath: string, source: string): Finding[] => {
 								? exportedNames
 								: ['(legacy re-export)']
 							: exportedNames,
-						nodeText: node
-							.getText(sourceFile)
-							.trim()
-							.replace(/\s+/g, ' '),
+						nodeText: node.getText(sourceFile).trim().replace(/\s+/g, ' '),
 					});
 				}
 			}
@@ -344,10 +336,7 @@ const scanSourceFile = (relativePath: string, source: string): Finding[] => {
 						line: lineOf(sourceFile, node),
 						specifier,
 						bindings: ['(dynamic import)'],
-						nodeText: node
-							.getText(sourceFile)
-							.trim()
-							.replace(/\s+/g, ' '),
+						nodeText: node.getText(sourceFile).trim().replace(/\s+/g, ' '),
 					});
 				}
 			}

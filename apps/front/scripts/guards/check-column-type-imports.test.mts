@@ -49,9 +49,7 @@ after(() => {
  * the root directory. The tree lives under `scripts/` so ts-morph resolves
  * the same way it does in the real guard.
  */
-const makeSandbox = (
-	files: Record<string, string>,
-): string => {
+const makeSandbox = (files: Record<string, string>): string => {
 	const dir = mkdtempSync(path.join(here, 'column-type-guard-'));
 	sandboxes.push(dir);
 	for (const [relative, content] of Object.entries(files)) {
@@ -242,8 +240,7 @@ void test('allows module augmentation (declare module)', () => {
 
 void test('ADVERSE: catches local re-export shim (export ... from)', () => {
 	const root = makeSandbox({
-		'src/lib/table-types.ts':
-			`export { ColumnDef } from '@tanstack/react-table';\n`,
+		'src/lib/table-types.ts': `export { ColumnDef } from '@tanstack/react-table';\n`,
 		'src/routes/authed/tenant/posts/drafts.tsx':
 			`import type { ColumnDef } from '../lib/table-types';\n` +
 			`export const c = null as ColumnDef<never>;\n`,
