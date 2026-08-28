@@ -238,9 +238,10 @@ test(
 	{ timeout: 30_000 },
 	async () => {
 		// oxlint exit code 1 means it found lint problems (errors and/or warnings).
-		// This is NORMAL — the JSON output is still valid and parseable. The repo
-		// has 34 typescript(no-deprecated) errors that cause exit code 1, but the
-		// floating-promises warnings in the JSON are counted correctly.
+		// This is NORMAL — the JSON output is still valid and parseable, and the
+		// floating-promises warnings in it are counted correctly. (On this tree
+		// oxlint actually exits 0 today; status 1 is the case where some rule is
+		// configured as an error, which must not break the count.)
 		// The ratchet must NOT fail-closed here — it must count and compare.
 		vi.doMock('node:child_process', async (importOriginal) => {
 			const actual =
@@ -329,11 +330,18 @@ test(
 );
 
 test(
-	'the ratchet PASSES when oxlint returns valid JSON with zero warnings',
+	'the ratchet FAILS CLOSED on an empty scan while the baseline records debt',
 	{ timeout: 30_000 },
 	async () => {
-		// This is the only case that should pass green: valid JSON, files
-		// scanned, and a zero warning count — which is within any baseline.
+		// Zero diagnostics with files scanned USED to pass green as "0 is
+		// within any baseline". That is only true for a repository that
+		// genuinely has none. With a baseline recording 400 violations, an
+		// empty scan means the scan broke (a config that ignores every TS
+		// file, a changed invocation) — not that the debt vanished overnight.
+		// Reported as a pass, it would keep this gate green forever.
+		//
+		// The day the debt really reaches zero, the fix is one deliberate edit
+		// to `count` in the baseline file, which the error message names.
 		vi.doMock('node:child_process', async (importOriginal) => {
 			const actual =
 				await importOriginal<typeof import('node:child_process')>();
@@ -357,8 +365,18 @@ test(
 		try {
 			const result = await mockedCheck();
 
-			assert.strictEqual(result.withinLimit, true);
-			assert.strictEqual(result.actual, 0);
+			assert.strictEqual(
+				result.withinLimit,
+				'error',
+				'expected withinLimit="error" on an empty scan against a non-zero ' +
+					`baseline, but got withinLimit=${result.withinLimit}`,
+			);
+			assert.notStrictEqual(
+				result.withinLimit,
+				true,
+				'a 0 from an empty scan reported as "within limit" is the silent ' +
+					'false negative this ratchet exists to prevent',
+			);
 		} finally {
 			vi.doUnmock('node:child_process');
 		}
@@ -660,6 +678,72 @@ test(
 			);
 		} finally {
 			vi.doUnmock('node:fs/promises');
+		}
+	},
+);
+
+test(
+	'the ratchet COUNTS the pinned rule when oxlint emits it at severity "error"',
+	{ timeout: 30_000 },
+	async () => {
+		// The counter used to require `severity === 'warning'`. That opened a
+		// blind spot the dead-rule guard could not see: with the rule emitted
+		// as `error`, its code IS among the emitted codes (so the dead-rule
+		// guard stays silent) while the count sits at 0 — a green gate over
+		// any number of real violations. Raising a rule from warning to error
+		// is a routine config change, so this was one edit away at all times.
+		//
+		// This is the exact mutation round 5 named. It must be counted, not
+		// ignored: an escalated rule is strictly worse, never invisible.
+		vi.doMock('node:child_process', async (importOriginal) => {
+			const actual =
+				await importOriginal<typeof import('node:child_process')>();
+			return {
+				...actual,
+				spawnSync: () => ({
+					status: 1,
+					stdout: JSON.stringify({
+						diagnostics: Array.from({ length: overBaseline }, () => ({
+							message: 'Promises must be awaited',
+							code: 'typescript(no-floating-promises)',
+							// The mutation: error, not warning.
+							severity: 'error',
+						})),
+						number_of_files: 1000,
+					}),
+					stderr: '',
+					error: null,
+				}),
+			};
+		});
+
+		const { checkNoFloatingPromises: mockedCheck } =
+			await import('./check-no-floating-promises.ts?mocked-severity-error');
+
+		try {
+			const result = await mockedCheck();
+
+			assert.strictEqual(
+				result.actual,
+				overBaseline,
+				`expected all ${overBaseline} diagnostics to be counted regardless of ` +
+					`severity, but got actual=${result.actual} — a severity filter is ` +
+					'blinding the ratchet',
+			);
+			assert.strictEqual(
+				result.withinLimit,
+				false,
+				'expected withinLimit=false when the count exceeds the baseline, ' +
+					`but got withinLimit=${result.withinLimit}`,
+			);
+			assert.notStrictEqual(
+				result.withinLimit,
+				true,
+				'counting 0 because the rule was escalated to `error` would report ' +
+					'a green gate over real violations',
+			);
+		} finally {
+			vi.doUnmock('node:child_process');
 		}
 	},
 );

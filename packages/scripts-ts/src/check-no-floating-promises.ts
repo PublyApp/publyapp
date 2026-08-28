@@ -132,7 +132,11 @@ const runOxlint = () => {
 // output is not valid JSON, or not the shape we expect, JSON.parse fails
 // loud. That is exactly the fail-closed behaviour the ratchet needs — a
 // garbled oxlint must never look like "0 warnings, within limit".
-const countWarningsFromJson = (output: string, ruleName: string): number => {
+const countWarningsFromJson = (
+	output: string,
+	ruleName: string,
+	baselineCount: number,
+): number => {
 	let parsed: unknown;
 	try {
 		parsed = JSON.parse(output);
@@ -180,7 +184,14 @@ const countWarningsFromJson = (output: string, ruleName: string): number => {
 		if (typeof diagnostic.code === 'string') {
 			emittedCodes.add(diagnostic.code);
 		}
-		if (diagnostic.code === ruleName && diagnostic.severity === 'warning') {
+		// Counted regardless of `severity`. The pinned rule is what we are
+		// ratcheting; oxlint escalating it from `warning` to `error` makes the
+		// situation strictly worse, not invisible. Filtering on
+		// `severity === 'warning'` used to blind the ratchet completely: with the
+		// rule emitted as `error`, the code IS in `emittedCodes` (so the
+		// dead-rule guard below stays silent) while `count` sits at 0 — a green
+		// gate over any number of real violations.
+		if (diagnostic.code === ruleName) {
 			count += 1;
 		}
 	}
@@ -197,11 +208,9 @@ const countWarningsFromJson = (output: string, ruleName: string): number => {
 	// So: if oxlint emitted diagnostics at all but NONE of them carries the
 	// pinned rule name, the name is dead and we refuse to report a count.
 	//
-	// Deliberately not covered: a scan that emits zero diagnostics in total.
-	// There, a dead rule name and a genuinely clean repository are
-	// indistinguishable from this output alone, and failing on a clean repo
-	// would be a guard that cries wolf. The `number_of_files === 0` check
-	// above already catches the broken-scan case.
+	// A scan that emits zero diagnostics in total cannot distinguish a dead
+	// rule name from a genuinely clean repository — so it is handled by the
+	// baseline instead, just below.
 	if (diagnostics.length > 0 && !emittedCodes.has(ruleName)) {
 		throw new Error(
 			`the pinned rule name "${ruleName}" matches none of the ` +
@@ -210,6 +219,23 @@ const countWarningsFromJson = (output: string, ruleName: string): number => {
 				'green forever. Fix `rule` in no-floating-promises-baseline.json ' +
 				"to one of oxlint's real codes. Emitted codes (first 10): " +
 				[...emittedCodes].slice(0, 10).join(', '),
+		);
+	}
+
+	// Fail-closed on the empty scan. Zero diagnostics is a legitimate result
+	// only for a repository that genuinely has none; if the baseline records
+	// violations that were there last run, an empty scan means the scan broke
+	// (a config that ignores every TS file, a changed oxlint invocation), not
+	// that the debt vanished. Refusing here costs one deliberate baseline edit
+	// on the day the debt really reaches zero, and buys back the case where a
+	// broken scan would report 0 <= baseline and stay green forever.
+	if (diagnostics.length === 0 && baselineCount > 0) {
+		throw new Error(
+			'oxlint emitted zero diagnostics while the baseline records ' +
+				`${baselineCount} — refusing to report a count of 0. Either the scan ` +
+				'is broken (check the oxlint config and ignore patterns), or the ' +
+				'debt genuinely reached zero, in which case lower `count` in ' +
+				'no-floating-promises-baseline.json deliberately.',
 		);
 	}
 
@@ -253,7 +279,11 @@ export const checkNoFloatingPromises = async (): Promise<RatchetResult> => {
 		}
 
 		const { stdout } = runOxlint();
-		const actualCount = countWarningsFromJson(stdout, baseline.rule);
+		const actualCount = countWarningsFromJson(
+			stdout,
+			baseline.rule,
+			baseline.count,
+		);
 
 		return {
 			rule: baseline.rule,
