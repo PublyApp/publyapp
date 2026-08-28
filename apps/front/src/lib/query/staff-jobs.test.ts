@@ -1,11 +1,17 @@
-import type { QueryClient } from '@tanstack/react-query';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
+
+import type { QueryClient } from '@tanstack/react-query';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 
-const LOCALES_DIR = join(
-	import.meta.dirname,
-	'../../i18n/locales',
+import sharedEn from '@org/shared-ts/lib/i18n/locales/en';
+import sharedFr from '@org/shared-ts/lib/i18n/locales/fr';
+
+const LOCALES_DIR = join(import.meta.dirname, '../../i18n/locales');
+
+const PAGE_SOURCE = readFileSync(
+	join(import.meta.dirname, '../../routes/authed/staff/jobs/system-jobs.tsx'),
+	'utf8',
 );
 
 const I18N_KEYS_PER_LOCALE = {
@@ -512,5 +518,65 @@ describe('mutation feedback meta (#1627 r3 — success feedback must be visible)
 				`successMessage key "${successKey}" is missing from ${locale}/staff-jobs.json`,
 			).toBeDefined();
 		}
+	});
+});
+
+describe('successMessage keys resolve in shared-ts common locale bundles (#1627 r4 — visible feedback)', () => {
+	// The MutationCache's onSuccess handler looks up the successMessage string
+	// via t('common:<key>'). The mutation-feedback-architecture guard enforces
+	// that every successMessage literal resolves in the shared common bundles.
+	// Replacing a real key with a non-existent one must turn this red.
+	test('the toggle successMessage key resolves in shared-ts common EN and FR', () => {
+		const meta = updateSystemJobEnabledMutationOptions.meta;
+		expect(meta).toHaveProperty('successMessage');
+		const key = (meta as { successMessage: string }).successMessage;
+
+		expect(
+			Object.hasOwn(sharedEn.common, key),
+			`successMessage key "${key}" is missing from shared-ts common.en.json`,
+		).toBe(true);
+		expect(
+			Object.hasOwn(sharedFr.common, key),
+			`successMessage key "${key}" is missing from shared-ts common.fr.json`,
+		).toBe(true);
+	});
+
+	test('the cron successMessage key resolves in shared-ts common EN and FR', () => {
+		const meta = updateSystemJobCronMutationOptions.meta;
+		expect(meta).toHaveProperty('successMessage');
+		const key = (meta as { successMessage: string }).successMessage;
+
+		expect(
+			Object.hasOwn(sharedEn.common, key),
+			`successMessage key "${key}" is missing from shared-ts common.en.json`,
+		).toBe(true);
+		expect(
+			Object.hasOwn(sharedFr.common, key),
+			`successMessage key "${key}" is missing from shared-ts common.fr.json`,
+		).toBe(true);
+	});
+});
+
+describe('query invalidation after mutations (#1627 r4 — refresh must be visible)', () => {
+	test('system-jobs.tsx imports and calls invalidateStaffJobsQueries after the enabled toggle mutation', () => {
+		expect(
+			PAGE_SOURCE,
+			'system-jobs.tsx must import invalidateStaffJobsQueries',
+		).toContain('invalidateStaffJobsQueries');
+
+		// The toggle mutation's .then() must call invalidateStaffJobsQueries.
+		// Removing this call leaves the list showing stale data after a toggle.
+		expect(
+			PAGE_SOURCE,
+			'enabled toggle must call invalidateStaffJobsQueries in its success path',
+		).toMatch(/invalidateStaffJobsQueries\(queryClient\)/);
+	});
+
+	test('system-jobs.tsx calls invalidateStaffJobsQueries after the cron update mutation', () => {
+		// The cron update must invalidate queries so the list reflects the new schedule.
+		expect(
+			PAGE_SOURCE,
+			'cron update must call invalidateStaffJobsQueries in its success path',
+		).toMatch(/invalidateStaffJobsQueries\(queryClient\)/);
 	});
 });
