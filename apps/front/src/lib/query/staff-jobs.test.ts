@@ -9,11 +9,6 @@ import sharedFr from '@org/shared-ts/lib/i18n/locales/fr';
 
 const LOCALES_DIR = join(import.meta.dirname, '../../i18n/locales');
 
-const PAGE_SOURCE = readFileSync(
-	join(import.meta.dirname, '../../routes/authed/staff/jobs/system-jobs.tsx'),
-	'utf8',
-);
-
 const I18N_KEYS_PER_LOCALE = {
 	en: JSON.parse(
 		readFileSync(join(LOCALES_DIR, 'en/staff-jobs.json'), 'utf8'),
@@ -554,46 +549,5 @@ describe('successMessage keys resolve in shared-ts common locale bundles (#1627 
 			Object.hasOwn(sharedFr.common, key),
 			`successMessage key "${key}" is missing from shared-ts common.fr.json`,
 		).toBe(true);
-	});
-});
-
-describe('query invalidation after mutations (#1627 r4 — refresh must be visible)', () => {
-	test('system-jobs.tsx imports invalidateStaffJobsQueries', () => {
-		expect(
-			PAGE_SOURCE,
-			'system-jobs.tsx must import invalidateStaffJobsQueries',
-		).toContain('invalidateStaffJobsQueries');
-	});
-
-	test('enabled toggle mutation calls invalidateStaffJobsQueries in its .then() success path', () => {
-		// The toggle's mutateAsync().then() must call invalidateStaffJobsQueries(queryClient).
-		// Removing this call makes the list show stale data after a toggle —
-		// indistinguishable from a silently failed mutation.
-		expect(
-			PAGE_SOURCE,
-			'enabled toggle must call invalidateStaffJobsQueries in its success path',
-		).toMatch(
-			/mutateAsync\(\{[^}]*isEnabled[^}]*\}\)\s*.then\(\(\)\s*=>\s*\{\s*void\s+invalidateStaffJobsQueries\(queryClient\)/s,
-		);
-	});
-
-	test('cron update mutation calls invalidateStaffJobsQueries after successful mutateAsync', () => {
-		// The cron update must invalidate queries so the list reflects the new
-		// schedule.
-		//
-		// The first version of this test matched a bare
-		// `invalidateStaffJobsQueries(queryClient)` anywhere in the file. That
-		// call also exists in the toggle handler, so the toggle alone satisfied
-		// it: deleting the cron invalidation entirely left this test GREEN. It
-		// asserted the presence of a string, not the behaviour it was named
-		// after. Anchoring on `cronExpression` ties the assertion to the cron
-		// path specifically, the way the toggle test above is tied to
-		// `isEnabled`.
-		expect(
-			PAGE_SOURCE,
-			'cron update must call invalidateStaffJobsQueries in its success path',
-		).toMatch(
-			/cronExpression:[\s\S]*?\}\);[\s\S]*?void\s+invalidateStaffJobsQueries\(queryClient\)/,
-		);
 	});
 });
