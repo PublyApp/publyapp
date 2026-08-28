@@ -614,9 +614,7 @@ const TenantBulkActions = ({
 					succeeded: succeededCount,
 					failed: failedCount,
 				}),
-				succeededCount > 0
-					? t('bulk-action-rows-may-leave-filter')
-					: undefined,
+				succeededCount > 0 ? t('bulk-action-rows-may-leave-filter') : undefined,
 			);
 		} else {
 			toastLocalMutationResult.success(
