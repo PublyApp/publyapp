@@ -25,7 +25,7 @@
  * exit 1 — the honest signal that there is nothing to replay.
  */
 import { execFileSync } from 'node:child_process';
-import { readFileSync, readdirSync } from 'node:fs';
+import { type Dirent, readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 
 const PREUVES_DIR = join(process.cwd(), '.dump', 'preuves');
@@ -64,7 +64,7 @@ function validateProofFile(path: string): void {
 }
 
 function findPreuveTests(): string[] {
-	let dirents: readdirSync.Dirent[];
+	let dirents: Dirent[];
 	try {
 		dirents = readdirSync(PREUVES_DIR, { withFileTypes: true });
 	} catch (err) {
@@ -79,7 +79,7 @@ function findPreuveTests(): string[] {
 	for (const dir of dirents) {
 		if (!dir.isDirectory()) continue;
 		const issueDir = join(PREUVES_DIR, dir.name);
-		let files: readdirSync.Dirent[];
+		let files: Dirent[];
 		try {
 			files = readdirSync(issueDir, { withFileTypes: true });
 		} catch (err) {
