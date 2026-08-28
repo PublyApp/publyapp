@@ -1,11 +1,11 @@
 import { flexRender } from '@tanstack/react-table';
-import type { LegacyRow as Row } from '@tanstack/react-table/legacy';
 import type { KeyboardEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Checkbox } from '~/components/ui/checkbox';
 import { TableBody, TableCell, TableRow } from '~/components/ui/table';
 
 import { columnDisplayMeta } from './column-display-meta';
+import type { Row } from './column-type';
 
 // v9 moved RowData to table-core; this alias keeps the constraint local.
 type RowData = Record<string, unknown>;

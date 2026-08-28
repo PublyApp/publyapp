@@ -4,13 +4,13 @@ import {
 	IconArrowsSort,
 } from '@tabler/icons-react';
 import { flexRender } from '@tanstack/react-table';
-import { type LegacyTable as TanStackTable } from '@tanstack/react-table/legacy';
 import type { KeyboardEvent, ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Checkbox } from '~/components/ui/checkbox';
 import { TableHead, TableHeader, TableRow } from '~/components/ui/table';
 
 import { columnDisplayMeta, resolveAriaSortState } from './column-display-meta';
+import type { TanStackTable } from './column-type';
 import type { SortState } from './sort-descriptor';
 
 // v9 moved RowData to table-core; this alias keeps the constraint local.
