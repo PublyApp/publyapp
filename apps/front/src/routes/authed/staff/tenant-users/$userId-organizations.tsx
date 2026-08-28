@@ -263,6 +263,7 @@ const OrganizationsBulkActions = ({
 					t('tenant-user-company-bulk-remove-success', {
 						count: summary.succeededCount,
 					}),
+					t('bulk-action-rows-may-leave-filter'),
 				);
 				return;
 			}
@@ -272,6 +273,7 @@ const OrganizationsBulkActions = ({
 					succeeded: summary.succeededCount,
 					failed: summary.failedCount,
 				}),
+				t('bulk-action-rows-may-leave-filter'),
 			);
 		} catch (error) {
 			setOpen(false);

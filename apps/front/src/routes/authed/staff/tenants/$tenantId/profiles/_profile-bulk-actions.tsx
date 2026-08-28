@@ -74,12 +74,14 @@ export const ProfileBulkActions = ({
 					succeeded: summary.succeededCount,
 					failed: summary.failedCount,
 				}),
+				t('bulk-action-rows-may-leave-filter'),
 			);
 		} else {
 			toastLocalMutationResult.success(
 				t('tenant-profile-bulk-delete-success', {
 					count: summary.succeededCount,
 				}),
+				t('bulk-action-rows-may-leave-filter'),
 			);
 		}
 

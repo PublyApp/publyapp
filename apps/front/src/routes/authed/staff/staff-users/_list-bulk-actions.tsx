@@ -202,10 +202,12 @@ export const StaffUsersListBulkActions = ({
 					succeeded: succeededCount,
 					failed: failedCount,
 				}),
+				t('bulk-action-rows-may-leave-filter'),
 			);
 		} else {
 			toastLocalMutationResult.success(
 				t(STAFF_USER_BULK_SUCCESS_KEYS[action], { count: succeededCount }),
+				t('bulk-action-rows-may-leave-filter'),
 			);
 		}
 

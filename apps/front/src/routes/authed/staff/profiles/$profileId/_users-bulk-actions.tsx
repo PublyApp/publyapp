@@ -133,13 +133,16 @@ export const ProfileUsersListBulkActions = ({
 					succeeded: succeededCount,
 					failed: failedCount,
 				}),
-				failureLines.length > 0 ? failureLines.join('\n') : undefined,
+				failureLines.length > 0
+					? failureLines.join('\n')
+					: t('bulk-action-rows-may-leave-filter'),
 			);
 		} else {
 			toastLocalMutationResult.success(
 				t('staff-profile-user-bulk-unassign-success', {
 					count: succeededCount,
 				}),
+				t('bulk-action-rows-may-leave-filter'),
 			);
 		}
 

@@ -145,6 +145,7 @@ export const TenantUserBulkActions = ({
 				t('tenant-user-bulk-remove-success', {
 					count: summary.succeededCount,
 				}),
+				t('bulk-action-rows-may-leave-filter'),
 			);
 			return;
 		}
@@ -156,6 +157,7 @@ export const TenantUserBulkActions = ({
 						succeeded: summary.succeededCount,
 						failed: summary.failedCount,
 					}),
+			t('bulk-action-rows-may-leave-filter'),
 		);
 	};
 

@@ -610,10 +610,12 @@ const TenantBulkActions = ({
 					succeeded: succeededCount,
 					failed: failedCount,
 				}),
+				t('bulk-action-rows-may-leave-filter'),
 			);
 		} else {
 			toastLocalMutationResult.success(
 				t(TENANT_BULK_SUCCESS_KEYS[action], { count: succeededCount }),
+				t('bulk-action-rows-may-leave-filter'),
 			);
 		}
 

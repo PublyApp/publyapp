@@ -112,11 +112,14 @@ export const ProfilesListBulkActions = ({
 					succeeded: succeededCount,
 					failed: failedCount,
 				}),
-				reasons.length > 0 ? reasons.join('\n') : undefined,
+				reasons.length > 0
+					? reasons.join('\n')
+					: t('bulk-action-rows-may-leave-filter'),
 			);
 		} else {
 			toastLocalMutationResult.success(
 				t('staff-profile-bulk-delete-success', { count: succeededCount }),
+				t('bulk-action-rows-may-leave-filter'),
 			);
 		}
 

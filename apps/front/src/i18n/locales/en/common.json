@@ -750,6 +750,7 @@
 	"tenant-profile-bulk-delete-failure": "Failed to delete selected profiles.",
 	"bulk-action-success": "{{count}} {{action}} successfully",
 	"bulk-action-partial-success": "{{succeeded}} {{action}}, {{failed}} failed",
+	"bulk-action-rows-may-leave-filter": "Some rows may no longer appear in the filtered view.",
 	"export-csv": "Export CSV",
 	"export-json": "Export JSON",
 	"selection-mode-disable-controls": "Clear the current selection to change the table query or navigation.",

@@ -169,13 +169,17 @@ export const InvitationsListBulkActions = ({
 				t,
 			);
 			if (reasonsLine === undefined) {
-				toastLocalMutationResult.error(message);
+				toastLocalMutationResult.error(
+					message,
+					t('bulk-action-rows-may-leave-filter'),
+				);
 			} else {
 				toastLocalMutationResult.error(message, reasonsLine);
 			}
 		} else {
 			toastLocalMutationResult.success(
 				t(INVITATION_BULK_REVOKE_SUCCESS_KEY, { count: succeededCount }),
+				t('bulk-action-rows-may-leave-filter'),
 			);
 		}
 
