@@ -107,16 +107,16 @@ export const ProfilesListBulkActions = ({
 					}),
 				),
 			];
+			// `publy`/oxlint interdit les ternaires imbriques : on calcule
+			// l'avertissement de filtre en amont, la description reste identique.
+			const filterWarning =
+				succeededCount > 0 ? t('bulk-action-rows-may-leave-filter') : undefined;
 			toastLocalMutationResult.error(
 				t('staff-profile-bulk-delete-partial-success', {
 					succeeded: succeededCount,
 					failed: failedCount,
 				}),
-				reasons.length > 0
-					? reasons.join('\n')
-					: succeededCount > 0
-						? t('bulk-action-rows-may-leave-filter')
-						: undefined,
+				reasons.length > 0 ? reasons.join('\n') : filterWarning,
 			);
 		} else {
 			toastLocalMutationResult.success(

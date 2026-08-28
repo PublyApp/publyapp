@@ -128,16 +128,16 @@ export const ProfileUsersListBulkActions = ({
 				return [name, reason].filter(Boolean).join(': ');
 			});
 
+			// `publy`/oxlint interdit les ternaires imbriques : on calcule
+			// l'avertissement de filtre en amont, la description reste identique.
+			const filterWarning =
+				succeededCount > 0 ? t('bulk-action-rows-may-leave-filter') : undefined;
 			toastLocalMutationResult.error(
 				t('staff-profile-user-bulk-unassign-partial-success', {
 					succeeded: succeededCount,
 					failed: failedCount,
 				}),
-				failureLines.length > 0
-					? failureLines.join('\n')
-					: succeededCount > 0
-						? t('bulk-action-rows-may-leave-filter')
-						: undefined,
+				failureLines.length > 0 ? failureLines.join('\n') : filterWarning,
 			);
 		} else {
 			toastLocalMutationResult.success(
