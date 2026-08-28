@@ -1025,26 +1025,32 @@ public sealed class FindStaffInvitationsSpec : IClassFixture<ApiFixture> {
 		AppDbContext dbContext = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>();
 		var temp = Guid.NewGuid();
-		// Swap IDs on both the parent (invitations) and child (invitation_profiles)
-		// tables. The three-step swap via a temp id avoids the PK collision
-		// that a single-statement CTE swap causes (FK is not DEFERRABLE).
+		// Swap IDs on the parent (invitations) and child (invitation_profiles)
+		// tables. The three-step swap via a temp id avoids PK collision (the PK
+		// unique constraint must never see two rows with the same id concurrently).
+		// For the child table FK: update parent to temp FIRST, then repoint
+		// child rows to temp so the FK remains valid at every step.
+		// Step 1: move idA -> temp in invitations (freeing idA for the swap),
+		// then redirect invitation_profiles to temp.
+		await dbContext.Database.ExecuteSqlRawAsync(
+			"UPDATE invitations SET id = {0} WHERE id = {1}",
+			temp, idA);
 		await dbContext.Database.ExecuteSqlRawAsync(
 			"UPDATE invitation_profiles SET invitation_id = {0} WHERE invitation_id = {1}",
 			temp, idA);
-		await dbContext.Database.ExecuteSqlRawAsync(
-			"UPDATE invitations SET id = {0} WHERE id = {1}",
-			temp, idA);
-		await dbContext.Database.ExecuteSqlRawAsync(
-			"UPDATE invitation_profiles SET invitation_id = {0} WHERE invitation_id = {1}",
-			idA, idB);
+		// Step 2: move idB -> idA in both tables.
 		await dbContext.Database.ExecuteSqlRawAsync(
 			"UPDATE invitations SET id = {0} WHERE id = {1}",
 			idA, idB);
 		await dbContext.Database.ExecuteSqlRawAsync(
 			"UPDATE invitation_profiles SET invitation_id = {0} WHERE invitation_id = {1}",
+			idA, idB);
+		// Step 3: move temp -> idB in both tables (completing the swap).
+		await dbContext.Database.ExecuteSqlRawAsync(
+			"UPDATE invitations SET id = {0} WHERE id = {1}",
 			idB, temp);
 		await dbContext.Database.ExecuteSqlRawAsync(
-			"UPDATE invitations SET id = {0} WHERE id = {1}",
+			"UPDATE invitation_profiles SET invitation_id = {0} WHERE invitation_id = {1}",
 			idB, temp);
 	}
 }
