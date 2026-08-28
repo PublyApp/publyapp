@@ -1,7 +1,7 @@
-import type { LegacyColumnDef as ColumnDef } from '@tanstack/react-table/legacy';
 import { useCallback, useMemo, useSyncExternalStore } from 'react';
 
 import { columnDisplayMeta } from './column-display-meta';
+import type { ColumnDef } from './column-type';
 
 /** Every distinct `hideBelow`/`pinWidthAbove` value a table's columns
  * declare — the only widths a resize can actually need to react to. */

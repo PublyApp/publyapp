@@ -1,8 +1,8 @@
 import { useQueryClient } from '@tanstack/react-query';
-import type { LegacyColumnDef as ColumnDef } from '@tanstack/react-table/legacy';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
+import type { ColumnDef } from '~/components/table/column-type';
 import { DataTableRowActions } from '~/components/table/row-actions';
 import { ConfirmDialog } from '~/components/ui/confirm-dialog';
 import { BrandTile } from '~/components/ui/initials-avatar';

@@ -5,7 +5,7 @@ import {
 	IconUser,
 	IconWorld,
 } from '@tabler/icons-react';
-import type { LegacyColumnDef as ColumnDef } from '@tanstack/react-table/legacy';
+import type { ColumnDef } from '~/components/table/column-type';
 import { formatDateTime } from '~/lib/format-date-time';
 import type { TenantActivityRow } from '~/lib/query/staff-tenant-activity';
 

@@ -7,7 +7,7 @@ import {
 	IconWorld,
 } from '@tabler/icons-react';
 import { Link } from '@tanstack/react-router';
-import type { LegacyColumnDef as ColumnDef } from '@tanstack/react-table/legacy';
+import type { ColumnDef } from '~/components/table/column-type';
 import { DataTableRowActions } from '~/components/table/row-actions';
 import { DropdownMenuItem } from '~/components/ui/dropdown-menu';
 import { StatusPill } from '~/components/ui/product-page';

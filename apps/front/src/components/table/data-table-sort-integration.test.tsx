@@ -1,3 +1,7 @@
+import { cleanup, render, screen } from '@testing-library/react';
+import { afterEach, describe, expect, test, vi } from 'vitest';
+import type { TestLabelMap } from '~/lib/testing/test-label-map';
+
 /**
  * Integration test: verifies that a SortState passed through the real
  * useReactTable (legacy) hook produces a visibly rendered sort direction
@@ -12,11 +16,7 @@
  *
  * @vitest-environment jsdom
  */
-import type { LegacyColumnDef as ColumnDef } from '@tanstack/react-table/legacy';
-import { cleanup, render, screen } from '@testing-library/react';
-import { afterEach, describe, expect, test, vi } from 'vitest';
-import type { TestLabelMap } from '~/lib/testing/test-label-map';
-
+import type { ColumnDef } from './column-type';
 import { DataTable } from './data-table';
 import type { SortState } from './sort-descriptor';
 

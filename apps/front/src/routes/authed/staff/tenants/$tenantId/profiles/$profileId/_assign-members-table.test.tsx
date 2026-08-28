@@ -1,4 +1,3 @@
-import type { LegacyColumnDef as ColumnDef } from '@tanstack/react-table/legacy';
 /**
  * @vitest-environment jsdom
  *
@@ -11,6 +10,7 @@ import type { LegacyColumnDef as ColumnDef } from '@tanstack/react-table/legacy'
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { afterEach, describe, expect, test, vi } from 'vitest';
+import type { ColumnDef } from '~/components/table/column-type';
 import type { TestLabelMap } from '~/lib/testing/test-label-map';
 
 // v9 moved RowData to table-core; this alias keeps the constraint local.

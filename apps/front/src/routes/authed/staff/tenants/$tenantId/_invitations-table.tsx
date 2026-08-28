@@ -1,5 +1,5 @@
 import { IconMail, IconPlus } from '@tabler/icons-react';
-import type { LegacyColumnDef as ColumnDef } from '@tanstack/react-table/legacy';
+import type { ColumnDef } from '~/components/table/column-type';
 import { DataTable } from '~/components/table/data-table';
 import type { useTableController } from '~/components/table/use-table-controller';
 import { Button } from '~/components/ui/button';

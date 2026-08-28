@@ -7,10 +7,10 @@ import {
 	IconUserPlus,
 } from '@tabler/icons-react';
 import { createFileRoute, Link } from '@tanstack/react-router';
-import type { LegacyColumnDef as ColumnDef } from '@tanstack/react-table/legacy';
 import { useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
+import type { ColumnDef } from '~/components/table/column-type';
 import { DataTable } from '~/components/table/data-table';
 import { FloatingSelectionBar } from '~/components/table/floating-selection-bar';
 import { DataTableRowActions } from '~/components/table/row-actions';

@@ -1,4 +1,3 @@
-import type { LegacyColumnDef as ColumnDef } from '@tanstack/react-table/legacy';
 /**
  * Issue #282 — the "x–y on N" range counter in the table footer.
  *
@@ -36,6 +35,7 @@ import {
 	type SupportedLanguage,
 } from '~/lib/i18n.shared';
 
+import type { ColumnDef } from './column-type';
 import { DataTable, DataTableCursorFooter } from './data-table';
 
 afterEach(cleanup);

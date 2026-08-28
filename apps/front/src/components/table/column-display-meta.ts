@@ -1,5 +1,6 @@
-import type { LegacyColumnDef as ColumnDef } from '@tanstack/react-table/legacy';
 import type { ReactNode } from 'react';
+
+import type { ColumnDef } from './column-type';
 
 /** Optional per-column display hints read from TanStack's ColumnDef meta. */
 export type ColumnDisplayMeta = {

@@ -4,7 +4,6 @@ import {
 	type TablerIcon,
 } from '@tabler/icons-react';
 import {
-	type LegacyColumnDef as ColumnDef,
 	getCoreRowModel,
 	useLegacyTable as useReactTable,
 } from '@tanstack/react-table/legacy';
@@ -21,6 +20,7 @@ import {
 import { PAGE_SIZE_OPTIONS } from '~/lib/url-state/table-search-params';
 
 import { columnDisplayMeta } from './column-display-meta';
+import type { ColumnDef } from './column-type';
 import { DataTableGrid } from './data-table-grid';
 import { DataTableStates } from './data-table-states';
 import { derivePaginationRange } from './pagination-range';
