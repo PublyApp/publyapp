@@ -48,13 +48,15 @@ const CONFIG = 'vitest.preuves.config.ts';
 /**
  * Determine which proof files were declared by the current PR.
  *
- * In CI, GITHUB_BASE_REF and GITHUB_HEAD_REF are available. Locally, we fall
- * back to comparing HEAD against the most recent commit that touched a file
- * outside tests/proofs/ (a reasonable proxy: the last non-proof commit is the
- * "base"). In both cases, the diff is computed against a git ref.
+ * In CI, GITHUB_BASE_REF and GITHUB_HEAD_REF are available. We use a
+ * three-dot diff (refs/remotes/origin/<base>...HEAD) so only PR-introduced
+ * changes are listed, not files that diverged on the base branch.
+ *
+ * Locally (no env vars), we use two-dot diff (HEAD~1..HEAD) to show what the
+ * most recent commit introduced.
  *
  * Returns the list of proof-test paths (relative to apps/front) that were
- * added or modified in the diff.
+ * added or modified in the diff, or null when the repo has zero proof files.
  */
 function declaredProofTests(): string[] | null {
 	// Find all proof test files in the versioned directory.
@@ -64,30 +66,39 @@ function declaredProofTests(): string[] | null {
 		return null; // No proofs in the repo at all.
 	}
 
-	// Determine the base ref for diffing.
-	let baseRef: string | null = null;
-	if (process.env.GITHUB_BASE_REF && process.env.GITHUB_HEAD_REF) {
-		baseRef = `refs/remotes/origin/${process.env.GITHUB_BASE_REF}`;
-	}
-
-	if (!baseRef) {
-		// Local development or non-PR CI: diff against the previous commit.
-		// This is a reasonable approximation — the developer can verify by
-		// staging the proof file and running the script.
-		baseRef = 'HEAD~1';
-	}
-
 	// Get the list of files changed by this PR.
+	//
+	// In CI (GITHUB_BASE_REF + GITHUB_HEAD_REF set): use three-dot diff
+	// (base...HEAD) so only PR-introduced changes are listed — not files
+	// that diverged on the base branch. This is the standard GitHub Actions
+	// pattern for detecting what a PR changed.
+	//
+	// Locally (no env vars): use two-dot diff (HEAD~1..HEAD) to show what
+	// the most recent commit introduced. This lets a developer verify a
+	// proof file that was just committed.
 	let changedFiles: string[];
 	try {
-		const diffOutput = execSync(
-			`git -C "${ROOT}" diff --name-only "${baseRef}" HEAD`,
-			{ encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] },
-		);
-		changedFiles = diffOutput
-			.split('\n')
-			.map((f) => f.trim())
-			.filter((f) => f.length > 0);
+		if (process.env.GITHUB_BASE_REF && process.env.GITHUB_HEAD_REF) {
+			const baseRef = `refs/remotes/origin/${process.env.GITHUB_BASE_REF}`;
+			const diffOutput = execSync(
+				`git -C "${ROOT}" diff --name-only "${baseRef}...HEAD"`,
+				{ encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] },
+			);
+			changedFiles = diffOutput
+				.split('\n')
+				.map((f) => f.trim())
+				.filter((f) => f.length > 0);
+		} else {
+			// Local development: diff the most recent commit.
+			const diffOutput = execSync(
+				`git -C "${ROOT}" diff --name-only HEAD~1 HEAD`,
+				{ encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] },
+			);
+			changedFiles = diffOutput
+				.split('\n')
+				.map((f) => f.trim())
+				.filter((f) => f.length > 0);
+		}
 	} catch {
 		// If git diff fails (e.g., no previous commit), treat as no declarations.
 		return [];
