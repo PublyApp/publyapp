@@ -163,9 +163,12 @@ const StaffJobsSystemJobsPage = () => {
 				await triggerMutation.mutateAsync({ systemJobId: row.id });
 			} catch (error) {
 				guardSession(error);
+				return;
 			}
+
+			void invalidateStaffJobsQueries(queryClient);
 		},
-		[permissions.canTriggerSystemJob, triggerMutation],
+		[permissions.canTriggerSystemJob, triggerMutation, queryClient],
 	);
 
 	const columns = useMemo(
