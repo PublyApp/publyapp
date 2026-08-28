@@ -1317,6 +1317,7 @@
 	"invite-import-no-sheet": "That Excel file has no worksheet. Export it again or use the CSV template.",
 	"invite-import-too-many-profile-names": "That file lists too many unique profile names ({{count}}; the limit is {{limit}}). Reduce the number of distinct profiles and try again.",
 	"invite-invalid-level": "Row for {{email}} has an unknown level \"{{level}}\". Use admin or user, then try again.",
+	"invite-invalid-email": "Row for {{email}} is not a valid email address. Fix the address, then try again.",
 	"invite-import-parse-failed": "We couldn't read that file. Check the format and try again.",
 	"invite-file-duplicates-skipped_one": "{{count}} duplicate email skipped",
 	"invite-file-duplicates-skipped_other": "{{count}} duplicate emails skipped",

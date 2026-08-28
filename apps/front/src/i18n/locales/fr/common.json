@@ -1317,6 +1317,7 @@
 	"invite-import-no-sheet": "Ce fichier Excel n'a aucune feuille. Réexportez-le ou utilisez le modèle CSV.",
 	"invite-import-too-many-profile-names": "Ce fichier liste trop de noms de profils uniques ({{count}} ; la limite est {{limit}}). Réduisez le nombre de profils distincts et réessayez.",
 	"invite-invalid-level": "La ligne pour {{email}} a un niveau inconnu « {{level}} ». Utilisez admin ou user, puis réessayez.",
+	"invite-invalid-email": "La ligne pour {{email}} n'est pas une adresse e-mail valide. Corrigez l'adresse, puis réessayez.",
 	"invite-import-parse-failed": "Impossible de lire ce fichier. Vérifiez le format et réessayez.",
 	"invite-file-duplicates-skipped_one": "{{count}} e-mail en double ignoré",
 	"invite-file-duplicates-skipped_other": "{{count}} e-mails en double ignorés",

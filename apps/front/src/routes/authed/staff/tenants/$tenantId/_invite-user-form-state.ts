@@ -21,6 +21,10 @@ export type InviteRow = {
 	 * blank: the row is in error and blocks Send until the value is fixed.
 	 * Carries the exact raw value so the user sees which line/value is wrong. */
 	invalidLevel: string | null;
+	/** Non-null when the email on the row does not match the email format.
+	 * Carries the raw email value so the drawer can surface a per-row error
+	 * naming the offending address instead of a silent disabled button. */
+	invalidEmail: string | null;
 };
 
 export type ProfileNameResolution = {
@@ -29,7 +33,7 @@ export type ProfileNameResolution = {
 	reason: 'not-found' | 'ambiguous' | null;
 };
 
-const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+export const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 /** `;` or `|` between profile names — documented in the downloadable template. */
 export const splitProfileNames = (raw: string): string[] =>
@@ -161,6 +165,9 @@ export type ParsedInviteRow = {
 	/** Set when the file's `level` value was not admin/owner and not blank.
 	 * The row is in error; the drawer blocks Send and shows the raw value. */
 	invalidLevel: string | null;
+	/** Set when the email on the row does not match the email format.
+	 * The row is in error; the drawer blocks Send and shows the raw value. */
+	invalidEmail: string | null;
 };
 
 /** Why a file parse produced no usable rows. Each cause has its own i18n key
@@ -203,6 +210,22 @@ const mapLevelToRowFields = (rawLevel: string | undefined) => {
 	return { accountLevel: level, invalidLevel: null } satisfies RowLevelFields;
 };
 
+/** Maps a raw email cell to its parsed row field: the trimmed email if valid,
+ * or the raw trimmed value flagged as invalid. */
+const mapEmailToRowField = (
+	rawEmail: string | undefined,
+): {
+	email: string;
+	invalidEmail: string | null;
+} => {
+	const email = (rawEmail ?? '').trim();
+	if (email === '' || EMAIL_REGEX.test(email)) {
+		return { email, invalidEmail: null };
+	}
+
+	return { email, invalidEmail: email };
+};
+
 /** CSV → invite rows via the documented header: `email, level, profiles`. */
 export const parseInviteCsv = (text: string): ParseInviteResult => {
 	const rawRows = parseCsvRows(text);
@@ -227,14 +250,12 @@ export const parseInviteCsv = (text: string): ParseInviteResult => {
 			continue;
 		}
 
-		const { accountLevel, invalidLevel } = mapLevelToRowFields(
-			row[indexOfLevel],
-		);
+		const levelFields = mapLevelToRowFields(row[indexOfLevel]);
+		const emailFields = mapEmailToRowField(row[indexOfEmail]);
 		parsed.push({
-			email: (row[indexOfEmail] ?? '').trim(),
-			accountLevel,
+			...emailFields,
+			...levelFields,
 			profileNames: splitProfileNames(row[indexOfProfiles] ?? ''),
-			invalidLevel,
 		});
 	}
 
@@ -370,19 +391,16 @@ export const parseInviteWorkbook = (bytes: Uint8Array): ParseInviteResult => {
 			continue;
 		}
 
-		const email = (record[emailColumn] ?? '').trim();
-		if (!email) {
+		const emailFields = mapEmailToRowField(record[emailColumn]);
+		if (!emailFields.email) {
 			continue;
 		}
 
-		const { accountLevel, invalidLevel } = mapLevelToRowFields(
-			record[levelColumn],
-		);
+		const levelFields = mapLevelToRowFields(record[levelColumn]);
 		rows.push({
-			email,
-			accountLevel,
+			...emailFields,
+			...levelFields,
 			profileNames: splitProfileNames(record[profilesColumn] ?? ''),
-			invalidLevel,
 		});
 	}
 
@@ -403,6 +421,7 @@ export const makeManualRow = (email = ''): InviteRow => {
 		profileNames: [],
 		source: 'manual',
 		invalidLevel: null,
+		invalidEmail: null,
 	};
 };
 
@@ -448,6 +467,7 @@ export const buildImportedInvites = (
 			profileNames: parsed.profileNames,
 			source,
 			invalidLevel: parsed.invalidLevel,
+			invalidEmail: parsed.invalidEmail,
 		});
 	}
 

@@ -52,6 +52,7 @@ import {
 	buildImportedInvites,
 	buildInviteTemplateCsv,
 	buildSubmitInvitations,
+	EMAIL_REGEX,
 	canSendInvitations,
 	clearFileRows,
 	makeManualRow,
@@ -469,6 +470,24 @@ const RowInvalidLevelNote = ({
 	);
 };
 
+const RowInvalidEmailNote = ({
+	invalidEmail,
+	t,
+}: {
+	invalidEmail: string | null;
+	t: Translate;
+}) => {
+	if (!invalidEmail) {
+		return null;
+	}
+
+	return (
+		<p className="text-xs text-destructive" role="alert">
+			{t('invite-invalid-email', { email: invalidEmail })}
+		</p>
+	);
+};
+
 const RowUnresolvedNotes = ({
 	unresolved,
 	t,
@@ -614,6 +633,7 @@ const InviteRowsList = ({
 					email={row.email || t('invite-blank-row')}
 					t={t}
 				/>
+				<RowInvalidEmailNote invalidEmail={row.invalidEmail} t={t} />
 			</section>
 		);
 	};
@@ -1033,6 +1053,7 @@ const InviteTenantUserDrawerInner = ({
 				accountLevel: sharedAccountLevel,
 				profileNames: [] as string[],
 				invalidLevel: null,
+				invalidEmail: EMAIL_REGEX.test(email) ? null : email,
 			})),
 			existingEmails: currentRows.map((row) => row.email),
 			source: 'manual',
