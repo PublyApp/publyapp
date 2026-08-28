@@ -69,12 +69,18 @@ export const ProfileBulkActions = ({
 
 		const summary = toStaffTenantProfileBulkActionSummary(result);
 		if (summary.failedCount > 0) {
+			// Only hint that rows may leave the filtered view when at least
+			// one row actually changed state. On a total failure
+			// (succeededCount === 0) nothing left the view, so the hint
+			// would contradict the leading count message.
 			toastLocalMutationResult.error(
 				t('tenant-profile-bulk-delete-partial-success', {
 					succeeded: summary.succeededCount,
 					failed: summary.failedCount,
 				}),
-				t('bulk-action-rows-may-leave-filter'),
+				summary.succeededCount > 0
+					? t('bulk-action-rows-may-leave-filter')
+					: undefined,
 			);
 		} else {
 			toastLocalMutationResult.success(

@@ -169,9 +169,14 @@ export const InvitationsListBulkActions = ({
 				t,
 			);
 			if (reasonsLine === undefined) {
+				// Only hint that rows may leave the filtered view when at
+				// least one row actually changed state. On a total failure
+				// (succeededCount === 0) nothing left the view.
 				toastLocalMutationResult.error(
 					message,
-					t('bulk-action-rows-may-leave-filter'),
+					succeededCount > 0
+						? t('bulk-action-rows-may-leave-filter')
+						: undefined,
 				);
 			} else {
 				toastLocalMutationResult.error(message, reasonsLine);

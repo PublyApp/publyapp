@@ -114,7 +114,9 @@ export const ProfilesListBulkActions = ({
 				}),
 				reasons.length > 0
 					? reasons.join('\n')
-					: t('bulk-action-rows-may-leave-filter'),
+					: succeededCount > 0
+						? t('bulk-action-rows-may-leave-filter')
+						: undefined,
 			);
 		} else {
 			toastLocalMutationResult.success(

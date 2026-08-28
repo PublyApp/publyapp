@@ -157,7 +157,13 @@ export const TenantUserBulkActions = ({
 						succeeded: summary.succeededCount,
 						failed: summary.failedCount,
 					}),
-			t('bulk-action-rows-may-leave-filter'),
+			// Only hint that rows may leave the filtered view when at least
+			// one row actually changed state. On a total failure
+			// (succeededCount === 0) nothing left the view, so the hint
+			// would contradict the leading count message.
+			summary.succeededCount > 0
+				? t('bulk-action-rows-may-leave-filter')
+				: undefined,
 		);
 	};
 
