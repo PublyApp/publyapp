@@ -932,10 +932,12 @@ describe('staff tenant profiles route', () => {
 				profileIds: ['profile-2'],
 			}),
 		);
+		// Total failure (succeededCount === 0): no row left the view, so
+		// the filter-leave warning is suppressed.
 		expect(mocks.toastError).toHaveBeenCalledWith(
 			'Deleted 0 profile(s), 1 failed.',
-			'Some rows may no longer appear in the filtered view.',
 		);
+		expect(mocks.toastError.mock.calls[0]).toHaveLength(1);
 		expect(mocks.toastError).toHaveBeenCalledTimes(1);
 		expect(screen.queryByText('Deleted 0 profile(s), 1 failed.')).toBeNull();
 	});

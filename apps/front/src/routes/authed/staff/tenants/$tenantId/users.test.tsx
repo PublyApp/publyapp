@@ -1016,7 +1016,10 @@ describe('staff tenant users route', () => {
 			}),
 		);
 		expect(mocks.toastSuccess).toHaveBeenCalledOnce();
+		// Export never removes rows from the view, so the filter-leave
+		// warning must NOT accompany the export success toast.
 		expect(mocks.toastSuccess).toHaveBeenCalledWith('Export completed.');
+		expect(mocks.toastSuccess.mock.calls[0]).toHaveLength(1);
 		expect(mocks.downloadFile.mock.invocationCallOrder[0]).toBeLessThan(
 			mocks.toastSuccess.mock.invocationCallOrder[0],
 		);
@@ -1156,10 +1159,13 @@ describe('staff tenant users route', () => {
 		fireEvent.click(screen.getByRole('button', { name: 'Remove' }));
 
 		await waitFor(() => expect(mocks.toastError).toHaveBeenCalledOnce());
+		// Total failure (succeededCount === 0): no row left the view, so
+		// the filter-leave warning is suppressed -- only the plain failure
+		// message rides as a single-argument toast.
 		expect(mocks.toastError).toHaveBeenCalledWith(
 			'Failed to remove selected users from this tenant.',
-			'Some rows may no longer appear in the filtered view.',
 		);
+		expect(mocks.toastError.mock.calls[0]).toHaveLength(1);
 		expect(mocks.invalidateAllStaffTenantScopes).toHaveBeenCalled();
 	}),
 		// #1442: the bulk-remove catch block consults the REAL
