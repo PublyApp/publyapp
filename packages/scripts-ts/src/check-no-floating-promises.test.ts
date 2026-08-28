@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 
-import { test } from 'vitest';
+import { test, vi } from 'vitest';
 
 const { checkNoFloatingPromises } = await import(
 	`./check-${'no' + '-floating-promises.ts'}`
@@ -24,18 +24,39 @@ test(
 	'the ratchet FAILS CLOSED when the oxlint binary is missing',
 	{ timeout: 30_000 },
 	async () => {
-		// The binary resolves to an absolute path via existsSync(), so we
-		// can't easily simulate its absence without modifying node_modules.
-		// Instead, verify the error message contract directly: the function
-		// returns withinLimit='error' on failure.
-		const result = await checkNoFloatingPromises();
+		// Mock node:fs so existsSync returns false ONLY for the oxlint
+		// binary path. This directly exercises the binary's fail-closed
+		// guard — if the mock leaks or the guard is bypassed, the test
+		// fails loud.
+		vi.doMock('node:fs', async (importOriginal) => {
+			const actual = await importOriginal<typeof import('node:fs')>();
+			return {
+				...actual,
+				existsSync: (filePath: string) => {
+					if (typeof filePath === 'string' && filePath.endsWith('oxlint')) {
+						return false;
+					}
+					return actual.existsSync(filePath);
+				},
+			};
+		});
 
-		// If we got here, oxlint was present and the test passed normally.
-		// The fail-closed path is verified by the binary's unit behavior.
-		assert.notStrictEqual(
-			result.withinLimit,
-			'error',
-			'expected the ratchet to succeed with oxlint present, but it returned error',
+		// Re-import the binary so it picks up the mocked node:fs.
+		const { checkNoFloatingPromises: mockedCheck } = await import(
+			`./check-${'no' + '-floating-promises.ts'}?mocked`
 		);
+
+		try {
+			const result = await mockedCheck();
+
+			assert.strictEqual(
+				result.withinLimit,
+				'error',
+				'expected the ratchet to return withinLimit="error" when oxlint is missing, ' +
+					'but it did not — the fail-closed guard failed',
+			);
+		} finally {
+			vi.doUnmock('node:fs');
+		}
 	},
 );
