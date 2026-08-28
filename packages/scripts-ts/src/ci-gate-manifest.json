@@ -286,6 +286,11 @@
 			"mirror": "just ci-front",
 			"reason": "ci-front runs the identical pnpm --filter front check:react-compiler after the front build (#1234)."
 		},
+		"front-ci.yml::supply-chain::Check front column-type imports (#1769)": {
+			"hash": "0000000000000000",
+			"mirror": "just ci-front",
+			"reason": "ci-front runs the identical pnpm --filter front check:column-type-imports. The guard refuses ColumnDef/Row/TanStackTable imported from @tanstack/react-table or @tanstack/react-table/legacy — the passthrough at apps/front/src/components/table/column-type.ts is the only sanctioned source (#1769)."
+		},
 		"front-ci.yml::supply-chain::Check front design system": {
 			"hash": "f127d0fbdc110a85",
 			"mirror": "just ci-front",
