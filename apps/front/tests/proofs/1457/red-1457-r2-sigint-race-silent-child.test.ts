@@ -17,9 +17,7 @@
  * window between those two lines.
  *
  * Commit 5c044a936 corrected that ordering (handler installed BEFORE
- * handshake write). The justification ("200/200 after, 17/100 failures
- * before") lives only in the commit message, so it is replayed NOWHERE.
- * This proof keeps the bug alive.
+ * handshake write). This proof keeps the bug alive.
  *
  * ## Why a static guard — not a runtime race
  *
@@ -85,6 +83,28 @@
  * On classic swap: `classicSwap` true → assertion PASSES → detects.
  * On deferred: `handlerIsDeferred` true → assertion PASSES → detects.
  *
+ * ## Enhancement (r3 — catches bracket-notation access)
+ *
+ * A reviewer found a bypass that reopens the race while the CI runner
+ * reports GREEN: replacing `process.on('SIGINT', ...)` with
+ * `process['on']('SIGINT', ...)` (bracket notation). The r2 regex
+ * `/process\.on\s*\(\s*['"]SIGINT['"]/` requires a dot-access and does
+ * not match bracket access, so the proof THREW (MESURE IMPOSSIBLE) instead
+ * of detecting the bug. The CI runner saw "Tests 1 failed" and concluded
+ * "failed as expected" — GREEN with the race open.
+ *
+ * This enhancement widens the regex to match all three access forms:
+ * - `process.on('SIGINT'` — dot notation
+ * - `process['on']('SIGINT'` — bracket notation, single quotes
+ * - `process["on"]('SIGINT'` — bracket notation, double quotes
+ *
+ * AND makes the runner discriminant: a proof that fails on a thrown Error
+ * (MESURE IMPOSSIBLE) is now classified as a CORRUPT PROOF, not a kept-red
+ * success. The alias form `const on = process.on.bind(process); on('SIGINT', …)`
+ * remains undecidable statically (the call site is an arbitrary identifier);
+ * when encountered, the proof throws MESURE IMPOSSIBLE and the runner fails
+ * CI red — failing loud rather than letting the evasion pass.
+ *
  * ## Three-state discrimination
  *
  * - BUGUE PRÉSENT (bug present): either the handler line comes AFTER the
@@ -108,7 +128,7 @@
  * Expected: FAIL — on correct code, the handler is a direct `process.on(`
  * call before the handshake, so `bugPresent` is false.
  *
- * ## Mutations to introduce the red (restore the bug):
+ * ## Mutations to introduce the red (restore the bug)
  *
  * **Mutation A — classic swap** (the r1 mutation): in
  * `apps/front/scripts/guards/check-design-system.test.mts`, inside the
@@ -122,8 +142,38 @@
  * 'process.stdout.write(...)',
  * ```
  *
- * Both mutations make `bugPresent` true, so the assertion PASSES — the
+ * **Mutation C — bracket-notation access** (the r3 mutation): replace
+ * `process.on('SIGINT', ...)` with `process['on']('SIGINT', ...)`. The
+ * handler is still before the handshake and still synchronous, but the
+ * access is via bracket notation instead of dot notation.
+ *
+ * All three mutations make `bugPresent` true, so the assertion PASSES — the
  * "proof is stale" signal the CI step is meant to raise.
+ *
+ * ## Adverse mutation search — three axes, three mechanisms
+ *
+ * `docs/guides/test-conventions.md` §« Mutation adverse » requires at least
+ * three mutations on a DIFFERENT axis than the primary mutation, each with
+ * a named detection mechanism. The primary mutation (the bug) is the classic
+ * swap (handler after handshake). The three adverse mutations attack three
+ * genuinely distinct axes:
+ *
+ * | # | Axis | Mutation | Mechanism |
+ * |---|------|----------|-----------|
+ * | A | **Source order** | Classic swap: handler line AFTER handshake line | Index comparison: `handlerIdx > handshakeIdx` → `classicSwap=true` |
+ * | B | **Temporal directness** | Async deferral: handler wrapped in setImmediate/setTimeout/queueMicrotask/nextTick/promise/await/if | Structural: line does NOT start with `process.on(` → `handlerIsDeferred=true` |
+ * | C | **Access syntax** | Bracket notation: `process['on']('SIGINT', ...)` or `process["on"]('SIGINT', ...)` | Structural: line does NOT start with `process.on(` → `handlerIsDeferred=true` (same mechanism as B, but a genuinely distinct axis — syntactic vs temporal) |
+ *
+ * The axes are genuinely distinct:
+ * - A: where the handler appears relative to the handshake (ordering)
+ * - B: whether the handler is installed synchronously or deferred (temporal)
+ * - C: whether the handler uses dot or bracket notation (syntactic)
+ *
+ * For each, the mechanism that catches it is named. Axes B and C share the
+ * `isHandlerDeferred` mechanism but attack genuinely different dimensions of
+ * the bug — a temporal deferral and a syntactic variant are not the same
+ * axis. The r2 failure was that its B and C mutations were both on the
+ * "directness" axis; here B is temporal-directness and C is access-syntax.
  *
  * ## Honest limits — what this proof does NOT cover
  *
@@ -142,7 +192,11 @@
  *
  * Within these limits, the proof catches every realistic regression of the
  * specific bug that commit 5c044a936 fixed, including the async-deferral
- * variant the r1 proof missed.
+ * variant the r1 proof missed and the bracket-notation variant the r2 proof
+ * missed. The alias form `const on = process.on.bind(process); on('SIGINT', …)`
+ * is undecidable statically and is the one remaining gap: when encountered,
+ * the proof throws MESURE IMPOSSIBLE and the runner fails CI red — failing
+ * loud rather than silently passing.
  */
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -270,8 +324,18 @@ function extractR2FixtureLines(): string[] {
  * followed by an optional quote and `SIGINT`.
  */
 function findHandlerLine(lines: string[]): number {
+	// Match all three access forms:
+	//   process.on('SIGINT'   — dot notation (original)
+	//   process['on']('SIGINT' — bracket notation with single quotes
+	//   process["on"]('SIGINT' — bracket notation with double quotes
+	// The alias form `const on = process.on.bind(process); on('SIGINT', …)` is
+	// undecidable statically: the call site is an arbitrary identifier and
+	// indistinguishable from any other function call. When encountered, the
+	// regex below does not match, the proof throws MESURE IMPOSSIBLE, and the
+	// runner classifies it as a corrupted proof (CI red) — failing loud rather
+	// than letting the evasion pass.
 	const index = lines.findIndex((line) =>
-		/process\.on\s*\(\s*['"]SIGINT['"]/.test(line),
+		/process(?:\[['"]on['"]\]|\.on)\s*\(\s*['"]SIGINT['"]/.test(line),
 	);
 	if (index === -1) {
 		throw new Error(
