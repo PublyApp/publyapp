@@ -1,11 +1,42 @@
-import { describe, expect, test } from 'vitest';
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
-import {
+import { logger } from '@org/shared-ts/lib/logger/iso-logger';
+
+// Mock the env module so resolveOrigin works without a real runtime env
+const mockGetServerEnv = vi.fn();
+const mockGetPublicEnv = vi.fn();
+vi.mock('./lib/env', async (importOriginal) => {
+	const actual = await importOriginal<typeof import('./lib/env')>();
+	return {
+		...actual,
+		getServerEnv: () => mockGetServerEnv(),
+		getPublicEnv: () => mockGetPublicEnv(),
+	};
+});
+
+// Import after mock
+const {
 	escapeHtml,
 	injectSeoMarkup,
 	isIndexableSeoRoute,
 	resolveSeoTranslator,
-} from './server';
+} = await import('./server');
+
+const originalWarn = logger.warn;
+
+beforeEach(() => {
+	vi.clearAllMocks();
+	logger.warn = vi.fn();
+	mockGetServerEnv.mockReturnValue({
+		apiBaseUrl: 'http://localhost:5000',
+		nodeEnv: 'production',
+		publicOrigin: 'https://publyapp.test',
+	});
+});
+
+afterEach(() => {
+	logger.warn = originalWarn;
+});
 
 // This handler injects request-origin/locale-derived values into raw HTML —
 // the one code path in the app where that happens (r3-shell-F10) — so its

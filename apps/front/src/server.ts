@@ -162,6 +162,7 @@ export const injectSeoMarkup = (
 		return output;
 	}
 
+	const origin = resolveOrigin(request);
 	const canonical = `${origin}${requestPath}`;
 	const metaTags: string[] = [];
 
@@ -232,6 +233,46 @@ export const validateRuntimeEnv = (): void => {
 			"PUBLIC_ORIGIN is required when NODE_ENV=production: without it the server trusts the client's Host header when building canonical and Open Graph URLs. Set PUBLIC_ORIGIN to the public https origin (for example https://app.publy.example), no trailing path.",
 		);
 	}
+};
+
+export const resolveOrigin = (request: Request): string => {
+	const publicOrigin = getServerEnv().publicOrigin;
+	const host = request.headers.get('host');
+	if (host !== null && host !== undefined) {
+		const protocol = request.headers.get('x-forwarded-proto') ?? 'https';
+		const candidate = `${protocol}://${host}`;
+		if (publicOrigin === undefined) {
+			const nodeEnv = getServerEnv().nodeEnv;
+			if (nodeEnv === 'production') {
+				throw new Error(
+					'PUBLIC_ORIGIN is required in production; resolveOrigin must not trust the Host header.',
+				);
+			}
+			logger.warn(
+				'resolveOrigin: PUBLIC_ORIGIN not set, falling back to request host (host-header injection risk)',
+			);
+			return candidate;
+		}
+		if (candidate !== publicOrigin) {
+			logger.warn(
+				`resolveOrigin: request host ${candidate} does not match PUBLIC_ORIGIN ${publicOrigin}; using configured origin`,
+			);
+		}
+		return publicOrigin;
+	}
+	if (publicOrigin !== undefined) {
+		return publicOrigin;
+	}
+	if (getServerEnv().nodeEnv === 'production') {
+		throw new Error(
+			'PUBLIC_ORIGIN is required in production; resolveOrigin must not trust the Host header.',
+		);
+	}
+	logger.warn(
+		'resolveOrigin: no host header and PUBLIC_ORIGIN not set, falling back to request URL origin',
+	);
+	const requestUrl = new URL(request.url);
+	return requestUrl.origin;
 };
 
 export default {

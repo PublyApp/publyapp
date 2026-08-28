@@ -1,6 +1,3 @@
-/**
- * @vitest-environment node
- */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
 import { logger } from '@org/shared-ts/lib/logger/iso-logger';
@@ -22,16 +19,16 @@ const { resolveOrigin, validateRuntimeEnv } = await import('./server');
 
 const originalWarn = logger.warn;
 
+beforeEach(() => {
+	vi.clearAllMocks();
+	logger.warn = vi.fn();
+});
+
+afterEach(() => {
+	logger.warn = originalWarn;
+});
+
 describe('resolveOrigin — host-header injection guard (A1/A5)', () => {
-	beforeEach(() => {
-		vi.restoreAllMocks();
-		vi.spyOn(logger, 'warn').mockImplementation(() => undefined);
-	});
-
-	afterEach(() => {
-		logger.warn = originalWarn;
-	});
-
 	describe('Production refuses to trust a forged Host header', () => {
 		test('without PUBLIC_ORIGIN, resolveOrigin throws instead of trusting the forged Host header', () => {
 			mockGetServerEnv.mockReturnValue({
@@ -99,10 +96,11 @@ describe('resolveOrigin — host-header injection guard (A1/A5)', () => {
 
 			const origin = resolveOrigin(request);
 
-			// SECURE: the forged host is rejected, configured origin wins
+			// Must NOT return the forged host — must return the configured origin
 			expect(origin).toBe('https://publyapp.com');
+			// The mismatch is logged
 			expect(logger.warn).toHaveBeenCalledWith(
-				'resolveOrigin: host header "evil.example.com" does not match PUBLIC_ORIGIN, using configured origin',
+				'resolveOrigin: request host https://evil.example.com does not match PUBLIC_ORIGIN https://publyapp.com; using configured origin',
 			);
 		});
 
@@ -113,7 +111,7 @@ describe('resolveOrigin — host-header injection guard (A1/A5)', () => {
 				publicOrigin: 'https://publyapp.com',
 			});
 
-			const request = new Request('https://publyapp.com/', {
+			const request = new Request('http://internal:3000/', {
 				headers: { host: 'publyapp.com' },
 			});
 
@@ -130,9 +128,7 @@ describe('resolveOrigin — host-header injection guard (A1/A5)', () => {
 				publicOrigin: 'https://publyapp.com',
 			});
 
-			// Request without Host header
 			const request = new Request('http://internal:3000/');
-			// Remove host header if present
 			const headers = new Headers(request.headers);
 			headers.delete('host');
 			const requestWithoutHost = new Request('http://internal:3000/', {
@@ -142,6 +138,7 @@ describe('resolveOrigin — host-header injection guard (A1/A5)', () => {
 			const origin = resolveOrigin(requestWithoutHost);
 
 			expect(origin).toBe('https://publyapp.com');
+			expect(logger.warn).not.toHaveBeenCalled();
 		});
 	});
 
