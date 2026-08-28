@@ -51,6 +51,10 @@ const envDefinition = {
 			processKeys: ['NODE_ENV'],
 			schema: optionalTrimmedString,
 		},
+		publicOrigin: {
+			processKeys: ['PUBLIC_ORIGIN'],
+			schema: optionalTrimmedString,
+		},
 	},
 } as const satisfies EnvDefinition;
 
