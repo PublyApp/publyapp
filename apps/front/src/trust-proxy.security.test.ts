@@ -1,6 +1,7 @@
+import { readFileSync } from 'node:fs';
+
 import { serve } from 'srvx';
 import type { Server, TrustProxyOption } from 'srvx';
-import { readFileSync } from 'node:fs';
 import { afterAll, describe, expect, test } from 'vitest';
 
 import { injectSeoMarkup } from './server';
@@ -17,7 +18,10 @@ describe('compose-file TRUSTED_PROXY_CIDRS consistency (r5)', () => {
 		const match = composeFile.match(
 			/TRUSTED_PROXY_CIDRS:\s*"(\$\{E2E_TRAEFIK_IP:[^}]+\})\/32"/,
 		);
-		expect(match, 'TRUSTED_PROXY_CIDRS must reference ${E2E_TRAEFIK_IP:-...}/32').not.toBeNull();
+		expect(
+			match,
+			'TRUSTED_PROXY_CIDRS must reference ${E2E_TRAEFIK_IP:-...}/32',
+		).not.toBeNull();
 		// The default must be the band-0 Traefik IP (CI behavior preserved)
 		expect(match![1]).toContain('172.28.0.2');
 	});
@@ -26,7 +30,10 @@ describe('compose-file TRUSTED_PROXY_CIDRS consistency (r5)', () => {
 		const match = composeFile.match(
 			/ipv4_address:\s*(\$\{E2E_TRAEFIK_IP:[^}]+\})/,
 		);
-		expect(match, 'Traefik ipv4_address must reference ${E2E_TRAEFIK_IP:-...}').not.toBeNull();
+		expect(
+			match,
+			'Traefik ipv4_address must reference ${E2E_TRAEFIK_IP:-...}',
+		).not.toBeNull();
 		expect(match![1]).toContain('172.28.0.2');
 	});
 
