@@ -52,7 +52,8 @@ const getUntypedArray = (value: unknown) => {
 	}
 
 	const { value: array } = value as { value?: unknown };
-	return Array.isArray(array) ? array : undefined;
+	if (Array.isArray(array)) return array;
+	return undefined;
 };
 
 /** A Kiota payload with its `getValue()` wrappers recursively stripped. */

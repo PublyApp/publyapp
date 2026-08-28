@@ -66,7 +66,8 @@ const normalizeString = (
 	}
 
 	const trimmed = value.trim();
-	return trimmed.length > 0 ? trimmed : undefined;
+	if (trimmed.length > 0) return trimmed;
+	return undefined;
 };
 
 const normalizeNullableString = (
@@ -84,7 +85,8 @@ const normalizeDate = (
 		d = new Date(value);
 	}
 
-	return d !== null && !Number.isNaN(d.valueOf()) ? d : null;
+	if (d !== null && !Number.isNaN(d.valueOf())) return d;
+	return null;
 };
 
 const isPositiveSafeInteger = (value: number | undefined): boolean =>
@@ -373,5 +375,6 @@ export const tenantPostCrumbQuery = (params: Record<string, string>) => ({
 
 export const selectTenantPostCrumbName = (data: unknown) => {
 	const d = toTenantPostDetails(data as PostDetail | null);
-	return d ? d.body : undefined;
+	if (d) return d.body;
+	return undefined;
 };

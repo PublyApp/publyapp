@@ -23,10 +23,12 @@ import {
 } from '@org/shared-ts/lib/api-failure/to-api-failure';
 import { shouldLogoutForFailure } from '@org/shared-ts/lib/should-logout-for-failure';
 
-const toStringArray = (value: unknown): string[] =>
-	Array.isArray(value)
-		? value.filter((item): item is string => typeof item === 'string')
-		: [];
+const toStringArray = (value: unknown): string[] => {
+	if (Array.isArray(value)) {
+		return value.filter((item): item is string => typeof item === 'string');
+	}
+	return [];
+};
 
 export const InviteProfileSelect = ({
 	tenantId,

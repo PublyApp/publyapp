@@ -130,9 +130,10 @@ export const StaffUsersListBulkActions = ({
 					(user) =>
 						user.status?.trim().toLowerCase() === STAFF_USER_STATUS_SUSPENDED,
 				);
-			return allSelectedAreSuspended
-				? selectedUsers.map((user) => user.id)
-				: [];
+			if (allSelectedAreSuspended) {
+				return selectedUsers.map((user) => user.id);
+			}
+			return [];
 		}
 		return [];
 	};

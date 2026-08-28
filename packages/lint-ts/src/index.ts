@@ -34,6 +34,7 @@
  *   - `publy/prefer-query-display` → "off" (dormant)
  *   - `publy/no-never-any-casts` → "error" (enforced since #1346)
  *   - `publy/require-commit-of-use-offset-page-clamp` → "error" (enforced since #1660)
+ *   - `publy/prefer-early-return` → "error" (enforced since #1666)
  */
 import { arrowFunctionComponents } from './publy/arrow-function-components.ts';
 import { noArrayReduce } from './publy/no-array-reduce.ts';
@@ -45,6 +46,7 @@ import { noNeverAnyCasts } from './publy/no-never-any-casts.ts';
 import { noOp } from './publy/no-op.ts';
 import { noPackageSrcImport } from './publy/no-package-src-import.ts';
 import { noRequireCommitOfUseOffsetPageClamp } from './publy/no-require-commit-of-use-offset-page-clamp.ts';
+import { preferEarlyReturn } from './publy/prefer-early-return.ts';
 import { preferQueryDisplay } from './publy/prefer-query-display.ts';
 import { preferSpecificLodashImports } from './publy/prefer-specific-lodash-imports.ts';
 
@@ -65,6 +67,7 @@ const publyPlugin = {
 		'no-iife': noIife,
 		'arrow-function-components': arrowFunctionComponents,
 		'prefer-query-display': preferQueryDisplay,
+		'prefer-early-return': preferEarlyReturn,
 		'no-never-any-casts': noNeverAnyCasts,
 		'require-commit-of-use-offset-page-clamp':
 			noRequireCommitOfUseOffsetPageClamp,

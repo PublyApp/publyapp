@@ -82,7 +82,8 @@ const toDate = (value: string | Date | null | undefined): Date | null => {
 	}
 
 	const parsed = value instanceof Date ? value : new Date(value);
-	return Number.isNaN(parsed.valueOf()) ? null : parsed;
+	if (Number.isNaN(parsed.valueOf())) return null;
+	return parsed;
 };
 
 const toNonEmptyString = (value: string | null | undefined): string =>

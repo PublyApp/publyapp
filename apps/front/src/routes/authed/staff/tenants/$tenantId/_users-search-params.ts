@@ -54,7 +54,8 @@ const normalizeString = (value: unknown): string | undefined => {
 	}
 
 	const trimmed = value.trim();
-	return trimmed.length > 0 ? trimmed : undefined;
+	if (trimmed.length > 0) return trimmed;
+	return undefined;
 };
 
 export const parseTenantUserStatusFilter = (

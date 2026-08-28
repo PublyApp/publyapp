@@ -173,7 +173,10 @@ const getConsoleMethod = (callee: ESTree.MemberExpression): string | null => {
 	}
 
 	const method = prop.name;
-	return CONSOLE_METHODS.has(method) ? method : null;
+	if (CONSOLE_METHODS.has(method)) {
+		return method;
+	}
+	return null;
 };
 
 export const noConsoleInSource = {

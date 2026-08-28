@@ -76,14 +76,16 @@ export const CopyButton = ({
 		if (failed) {
 			return t('copy-failed');
 		}
-		return copied ? t('copied') : t('copy');
+		if (copied) return t('copied');
+		return t('copy');
 	};
 
 	const status = () => {
 		if (failed) {
 			return 'failed';
 		}
-		return copied ? 'copied' : 'idle';
+		if (copied) return 'copied';
+		return 'idle';
 	};
 
 	// Only the copy *result* is worth an unsolicited screen-reader
@@ -94,7 +96,8 @@ export const CopyButton = ({
 		if (failed) {
 			return t('copy-failed');
 		}
-		return copied ? t('copied') : '';
+		if (copied) return t('copied');
+		return '';
 	};
 
 	const icon = () => {

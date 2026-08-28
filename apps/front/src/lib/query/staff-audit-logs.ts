@@ -68,7 +68,8 @@ const normalizeString = (
 	}
 
 	const trimmed = value.trim();
-	return trimmed.length > 0 ? trimmed : undefined;
+	if (trimmed.length > 0) return trimmed;
+	return undefined;
 };
 
 const normalizeNullableString = (
@@ -127,7 +128,8 @@ const normalizeActions = (
 		normalized.push(trimmed);
 	}
 
-	return normalized.length > 0 ? normalized : undefined;
+	if (normalized.length > 0) return normalized;
+	return undefined;
 };
 
 type StaffAuditLogsQueryParameters = {

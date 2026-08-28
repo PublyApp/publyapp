@@ -86,9 +86,8 @@ const childRoutesOf = (route: RouteLike): RouteLike[] => {
 		return [];
 	}
 
-	return Array.isArray(route.children)
-		? route.children
-		: Object.values(route.children);
+	if (Array.isArray(route.children)) return route.children;
+	return Object.values(route.children);
 };
 
 const walkRealRouteTree = (

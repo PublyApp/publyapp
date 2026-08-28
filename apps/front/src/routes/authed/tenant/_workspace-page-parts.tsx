@@ -63,9 +63,10 @@ export const ReadOnlyValue = ({
 }) => {
 	const { t } = useTranslation('common');
 
-	return children ? (
-		<p className="pt-0.5 text-sm text-foreground">{children}</p>
-	) : (
+	if (children) {
+		return <p className="pt-0.5 text-sm text-foreground">{children}</p>;
+	}
+	return (
 		<p className="pt-0.5 text-sm text-muted-foreground">
 			{placeholder ?? t('not-available-yet')}
 		</p>

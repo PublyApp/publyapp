@@ -352,7 +352,8 @@ export const resolveRouteSurface = (pathname: string): RouteSurface => {
 
 const getRouteFailureStatus = (error: unknown): number | undefined => {
 	const failure = toApiFailure(error);
-	return failure.kind === 'problem' ? failure.status : undefined;
+	if (failure.kind === 'problem') return failure.status;
+	return undefined;
 };
 
 /**

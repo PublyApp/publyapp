@@ -7,5 +7,6 @@ import { toApiFailure } from '@org/shared-ts/lib/api-failure/to-api-failure';
  */
 export const getFailureStatus = (error: unknown): number | undefined => {
 	const failure = toApiFailure(error);
-	return failure.kind === 'problem' ? failure.status : undefined;
+	if (failure.kind === 'problem') return failure.status;
+	return undefined;
 };

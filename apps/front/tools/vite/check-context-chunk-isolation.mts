@@ -217,12 +217,13 @@ const symbolForBindingElement = (
 	const type: Type | undefined = checker.getTypeAtLocation(
 		declaration.initializer,
 	);
-	return type
-		? checker.getPropertyOfType(
-				type,
-				(bindingElement.propertyName ?? bindingElement.name).getText(),
-			)
-		: undefined;
+	if (type) {
+		return checker.getPropertyOfType(
+			type,
+			(bindingElement.propertyName ?? bindingElement.name).getText(),
+		);
+	}
+	return undefined;
 };
 
 const isContextFactoryAdapterCall = (expression: Node): boolean =>
@@ -236,11 +237,12 @@ const isReactNamespace = (
 	reactCreateContext: TsSymbol,
 ): boolean => {
 	const type: Type | undefined = checker.getTypeAtLocation(expression);
-	return type
-		? checker
-				.getPropertiesOfType(type)
-				.some((property) => property.id === reactCreateContext.id)
-		: false;
+	if (type) {
+		return checker
+			.getPropertiesOfType(type)
+			.some((property) => property.id === reactCreateContext.id);
+	}
+	return false;
 };
 
 const assertStaticReactElementAccess = (
@@ -613,9 +615,10 @@ const declarationBinding = (
 		}
 
 		const symbol = checker.getSymbolAtLocation(node.name);
-		return symbol
-			? { symbol, name: node.name.text, initializer: node.initializer }
-			: undefined;
+		if (symbol) {
+			return { symbol, name: node.name.text, initializer: node.initializer };
+		}
+		return undefined;
 	}
 
 	if (isBindingElement(node)) {
@@ -642,16 +645,17 @@ const declarationBinding = (
 		}
 
 		const symbol = checker.getSymbolAtLocation(node.name);
-		return symbol
-			? {
-					symbol,
-					name: node.name.text,
-					initializer: declaration.initializer,
-				}
-			: undefined;
+		if (symbol) {
+			return {
+				symbol,
+				name: node.name.text,
+				initializer: declaration.initializer,
+			};
+		}
+
+		return undefined;
 	}
 
-	return undefined;
 };
 
 // The position a call's value lands in, walked through transparent value

@@ -47,7 +47,8 @@ const normalizeString = (
 	}
 
 	const trimmed = value.trim();
-	return trimmed.length > 0 ? trimmed : undefined;
+	if (trimmed.length > 0) return trimmed;
+	return undefined;
 };
 
 const normalizeNullableString = (
@@ -60,9 +61,10 @@ const isPositiveSafeInteger = (value: number | undefined): value is number =>
 	typeof value === 'number' && Number.isSafeInteger(value) && value > 0;
 
 const normalizePageIndex = (value: number | undefined): number => {
-	return typeof value === 'number' && Number.isSafeInteger(value) && value >= 0
-		? value
-		: 0;
+	if (typeof value === 'number' && Number.isSafeInteger(value) && value >= 0) {
+		return value;
+	}
+	return 0;
 };
 
 export const toStaffProfileUserRows = (

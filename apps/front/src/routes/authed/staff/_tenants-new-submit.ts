@@ -10,7 +10,8 @@ import { mergeInitialUsers, type ImportedMember } from './tenants-new-helpers';
 
 const optionalField = (value: string): string | undefined => {
 	const trimmed = value.trim();
-	return trimmed.length > 0 ? trimmed : undefined;
+	if (trimmed.length > 0) return trimmed;
+	return undefined;
 };
 
 export const filterFilledEmails = <T extends OwnerSlotValues>(

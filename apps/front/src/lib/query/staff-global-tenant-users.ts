@@ -123,7 +123,8 @@ const normalizeString = (
 	}
 
 	const trimmed = value.trim();
-	return trimmed.length > 0 ? trimmed : undefined;
+	if (trimmed.length > 0) return trimmed;
+	return undefined;
 };
 
 const normalizeNullableString = (
@@ -142,7 +143,8 @@ const normalizeUpdateStringField = (
 	}
 
 	const trimmed = value.trim();
-	return trimmed.length > 0 ? trimmed : null;
+	if (trimmed.length > 0) return trimmed;
+	return null;
 };
 
 const normalizeDate = (value: Date | null | undefined): Date | null => {

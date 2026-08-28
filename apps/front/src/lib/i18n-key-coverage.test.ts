@@ -727,7 +727,10 @@ const collectProseLiteralValues = (
 	isCopy: (value: string) => boolean = isProseLikeLiteral,
 ): string[] => {
 	if (ts.isStringLiteralLike(expression)) {
-		return isCopy(expression.text) ? [expression.text] : [];
+		if (isCopy(expression.text)) {
+			return [expression.text];
+		}
+		return [];
 	}
 
 	if (ts.isConditionalExpression(expression)) {
@@ -756,7 +759,10 @@ const collectProseLiteralValues = (
 			...expression.templateSpans.map((span) => span.literal.text),
 		];
 		const combinedText = staticSpans.join(' ').trim();
-		return isCopy(combinedText) ? [combinedText] : [];
+		if (isCopy(combinedText)) {
+			return [combinedText];
+		}
+		return [];
 	}
 
 	if (
@@ -776,7 +782,10 @@ const collectProseLiteralValues = (
 		const combinedText = collectStringLiteralOperands(expression)
 			.join('')
 			.trim();
-		return isCopy(combinedText) ? [combinedText] : [];
+		if (isCopy(combinedText)) {
+			return [combinedText];
+		}
+		return [];
 	}
 
 	return [];

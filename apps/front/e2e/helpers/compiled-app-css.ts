@@ -27,7 +27,10 @@ const findAppCssPath = (): string | undefined => {
 		return undefined;
 	}
 	const match = entries.find((name) => /^app-.*\.css$/.test(name));
-	return match ? path.join(CLIENT_ASSETS_DIR, match) : undefined;
+	if (match) {
+		return path.join(CLIENT_ASSETS_DIR, match);
+	}
+	return undefined;
 };
 
 /** Newest mtime (ms) of `targetPath` itself, or of anything under it when it

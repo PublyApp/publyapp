@@ -5667,9 +5667,10 @@ const resolveValueIdentity = (
 
 	if (kind === SyntaxKind.Identifier) {
 		const symbol = (unwrapped as Identifier).getSymbol();
-		return symbol
-			? resolveSymbolValue(symbol, project, reassignedNamesByFile, seen)
-			: UNVERIFIABLE_TAG;
+		if (symbol) {
+			return resolveSymbolValue(symbol, project, reassignedNamesByFile, seen);
+		}
+		return UNVERIFIABLE_TAG;
 	}
 	if (kind === SyntaxKind.PropertyAccessExpression) {
 		return resolvePropertyAccessValue(
@@ -6238,9 +6239,10 @@ const isTracedArrayLiteralUnsafe = (
 				.some((prop) => {
 					if (prop.getKind() === SyntaxKind.PropertyAssignment) {
 						const initializer = (prop as PropertyAssignment).getInitializer();
-						return initializer
-							? argumentReferencesTracedArray(initializer)
-							: false;
+						if (initializer) {
+							return argumentReferencesTracedArray(initializer);
+						}
+						return false;
 					}
 					if (prop.getKind() === SyntaxKind.ShorthandPropertyAssignment) {
 						return argumentReferencesTracedArray(
@@ -6737,7 +6739,8 @@ const classifyObjectLiteralReference = (
 			}
 		}
 	}
-	return anyUnresolved ? 'unresolved' : 'does-not-reference';
+	if (anyUnresolved) return 'unresolved';
+	return 'does-not-reference';
 };
 
 /**
@@ -6765,7 +6768,8 @@ const classifyArrayLiteralReference = (
 			anyUnresolved = true;
 		}
 	}
-	return anyUnresolved ? 'unresolved' : 'does-not-reference';
+	if (anyUnresolved) return 'unresolved';
+	return 'does-not-reference';
 };
 
 /**
@@ -7997,7 +8001,10 @@ const extractComponentBody = (node: Node): Node[] | null => {
 		kind === SyntaxKind.FunctionExpression
 	) {
 		const block = (node as FunctionDeclaration).getBody() as Block | undefined;
-		return block ? extractBlockReturns(block) : [];
+		if (block) {
+			return extractBlockReturns(block);
+		}
+		return [];
 	}
 	if (kind === SyntaxKind.CallExpression) {
 		const call = node as CallExpression;
@@ -8009,7 +8016,10 @@ const extractComponentBody = (node: Node): Node[] | null => {
 			calleeText.endsWith('.forwardRef')
 		) {
 			const firstArg = call.getArguments()[0];
-			return firstArg ? extractComponentBody(firstArg) : [];
+			if (firstArg) {
+				return extractComponentBody(firstArg);
+			}
+			return [];
 		}
 		// Round 16 (IMPORTANT 5): a runtime component factory — a call whose
 		// first argument is a function expression or a dynamic import
@@ -8046,7 +8056,10 @@ const extractComponentBody = (node: Node): Node[] | null => {
 	}
 	if (kind === SyntaxKind.VariableDeclaration) {
 		const initializer = (node as VariableDeclaration).getInitializer();
-		return initializer ? extractComponentBody(initializer) : null;
+		if (initializer) {
+			return extractComponentBody(initializer);
+		}
+		return null;
 	}
 	if (
 		kind === SyntaxKind.NullKeyword ||
@@ -8080,7 +8093,10 @@ const evalLiteralCondition = (node: Node): boolean | null => {
 		const unary = node as PrefixUnaryExpression;
 		if (unary.getOperatorToken() === SyntaxKind.ExclamationToken) {
 			const operand = evalLiteralCondition(unary.getOperand());
-			return operand === null ? null : !operand;
+			if (operand === null) {
+				return null;
+			}
+			return !operand;
 		}
 	}
 	return null;
@@ -8614,7 +8630,10 @@ const resolveComponentDefinition = (
 						return null;
 					}
 					const body = extractComponentBody(result.node);
-					return body ? { body, file: result.file } : null;
+					if (body) {
+						return { body, file: result.file };
+					}
+					return null;
 				}
 			}
 			return null;
@@ -8641,7 +8660,10 @@ const resolveComponentDefinition = (
 			return null;
 		}
 		const body = extractComponentBody(result.node);
-		return body ? { body, file: result.file } : null;
+		if (body) {
+			return { body, file: result.file };
+		}
+		return null;
 	}
 
 	if (isLocallyDeclared(sourceFile, tagText, declaredNamesByFile)) {
@@ -8650,7 +8672,10 @@ const resolveComponentDefinition = (
 			return null;
 		}
 		const body = extractComponentBody(declaration);
-		return body ? { body, file: sourceFile } : null;
+		if (body) {
+			return { body, file: sourceFile };
+		}
+		return null;
 	}
 	for (const declaration of sourceFile.getImportDeclarations()) {
 		// Round 28's BLOCKER 3: a DEFAULT import is a normal in-repo component
@@ -8685,7 +8710,10 @@ const resolveComponentDefinition = (
 				return null;
 			}
 			const body = extractComponentBody(result.node);
-			return body ? { body, file: result.file } : null;
+			if (body) {
+				return { body, file: result.file };
+			}
+			return null;
 		}
 		for (const namedImport of declaration.getNamedImports()) {
 			const localName =
@@ -8715,7 +8743,10 @@ const resolveComponentDefinition = (
 				return null;
 			}
 			const body = extractComponentBody(result.node);
-			return body ? { body, file: result.file } : null;
+			if (body) {
+				return { body, file: result.file };
+			}
+			return null;
 		}
 	}
 	return null;
@@ -9671,7 +9702,8 @@ const stripTailwindVariants = (token: string): string => {
 			lastSeparator = index;
 		}
 	}
-	return lastSeparator === -1 ? token : token.slice(lastSeparator + 1);
+	if (lastSeparator === -1) return token;
+	return token.slice(lastSeparator + 1);
 };
 
 /**
@@ -9725,7 +9757,10 @@ const resolveApplyUtilityGeometryProperties = (
 		// non-geometry otherwise.
 		const inner = leaf.slice(1, -1);
 		const property = inner.slice(0, inner.indexOf(':')).trim();
-		return DRAWER_FORM_GEOMETRY_PROPERTIES.has(property) ? [property] : [];
+		if (DRAWER_FORM_GEOMETRY_PROPERTIES.has(property)) {
+			return [property];
+		}
+		return [];
 	}
 	if (TAILWIND_DISPLAY_UTILITIES.has(leaf)) {
 		return ['display'];

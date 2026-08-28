@@ -53,7 +53,10 @@ const extractAttribute = (
 		),
 	);
 
-	return match ? (match[1] ?? match[2] ?? match[3]) : undefined;
+	if (match) {
+		return match[1] ?? match[2] ?? match[3];
+	}
+	return undefined;
 };
 
 const extractInlineScripts = (html: string) => {

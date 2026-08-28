@@ -12,7 +12,8 @@ export const getSuspendLabelKey = (
 ): 'suspend' | 'reactivate' => {
 	const normalized = normalizeStatus(status);
 
-	return normalized === STAFF_STATUS_SUSPENDED ? 'reactivate' : 'suspend';
+	if (normalized === STAFF_STATUS_SUSPENDED) return 'reactivate';
+	return 'suspend';
 };
 
 type SuspendDialogKeys = { titleKey: string; descriptionKey: string };

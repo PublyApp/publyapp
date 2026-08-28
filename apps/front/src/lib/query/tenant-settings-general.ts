@@ -48,7 +48,8 @@ const normalizeString = (value: string | null | undefined): string | null => {
 	}
 
 	const trimmed = value.trim();
-	return trimmed.length > 0 ? trimmed : null;
+	if (trimmed.length > 0) return trimmed;
+	return null;
 };
 
 export const toTenantSettingsGeneral = (
@@ -114,7 +115,8 @@ const normalizeUpdateStringField = (
 	}
 
 	const trimmed = value.trim();
-	return trimmed.length > 0 ? trimmed : null;
+	if (trimmed.length > 0) return trimmed;
+	return null;
 };
 
 const CLEARABLE_BODY_FIELDS = [

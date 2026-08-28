@@ -22,13 +22,17 @@ const toNumber = (value: unknown): number | undefined => {
 		return undefined;
 	}
 
-	return Number.isInteger(value) && value >= 100 && value <= 599
-		? value
-		: undefined;
+	if (Number.isInteger(value) && value >= 100 && value <= 599) {
+		return value;
+	}
+	return undefined;
 };
 
 const toString = (value: unknown): string | undefined => {
-	return typeof value === 'string' ? value : undefined;
+	if (typeof value === 'string') {
+		return value;
+	}
+	return undefined;
 };
 
 // FluentValidation's `ValidationResult.ToDictionary()` keys the 422 body by
@@ -80,7 +84,10 @@ const toRecordOfStringArrays = (
 		}
 	}
 
-	return Object.keys(parsed).length > 0 ? parsed : undefined;
+	if (Object.keys(parsed).length > 0) {
+		return parsed;
+	}
+	return undefined;
 };
 
 type ProblemLike = {

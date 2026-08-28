@@ -33,7 +33,10 @@ export const resolveTableBodyState = ({
 	}
 
 	if (rowCount === 0) {
-		return hasActiveSearch ? 'no-match' : 'empty';
+		if (hasActiveSearch) {
+			return 'no-match';
+		}
+		return 'empty';
 	}
 
 	return 'rows';

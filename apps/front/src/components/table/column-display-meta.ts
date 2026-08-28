@@ -76,5 +76,6 @@ export const resolveAriaSortState = (
 		return 'none';
 	}
 
-	return tableSort.desc ? 'descending' : 'ascending';
+	if (tableSort.desc) return 'descending';
+	return 'ascending';
 };

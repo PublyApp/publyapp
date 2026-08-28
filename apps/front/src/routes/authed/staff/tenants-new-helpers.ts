@@ -125,22 +125,26 @@ export const parseCsv = (text: string): CsvParsedRow[] => {
 	const [headerRow, ...dataRows] = rows;
 	const headers = headerRow!.map((header) => header.trim().toLowerCase());
 
-	return dataRows
-		.filter((row) => row.some((cell) => cell.trim().length > 0))
-		.map((row) => {
-			const record: CsvParsedRow = {};
-			headers.forEach((header, index) => {
-				record[header] = (row[index] ?? '').trim();
-			});
-			return record;
+	const records: CsvParsedRow[] = [];
+	for (const row of dataRows) {
+		if (!row.some((cell) => cell.trim().length > 0)) {
+			continue;
+		}
+		const record: CsvParsedRow = {};
+		headers.forEach((header, index) => {
+			record[header] = (row[index] ?? '').trim();
 		});
+		records.push(record);
+	}
+	return records;
 };
 
 export const mapImportedRoleToAccountLevel = (
 	rawRole: string | undefined | null,
 ): ImportedMemberRole => {
 	const normalized = (rawRole ?? '').trim().toLowerCase();
-	return normalized === 'admin' || normalized === 'owner' ? 'Admin' : 'User';
+	if (normalized === 'admin' || normalized === 'owner') return 'Admin';
+	return 'User';
 };
 
 /** Dedupes parsed rows against each other and against `existingEmails`
@@ -153,9 +157,13 @@ export const buildMemberImportOutcome = ({
 	rows: CsvParsedRow[];
 	existingEmails: string[];
 }): MemberImportOutcome => {
-	const seen = new Set(
-		existingEmails.map((email) => email.trim().toLowerCase()).filter(Boolean),
-	);
+	const seen = new Set<string>();
+	for (const email of existingEmails) {
+		const trimmed = email.trim().toLowerCase();
+		if (trimmed) {
+			seen.add(trimmed);
+		}
+	}
 
 	let invalidCount = 0;
 	let duplicateCount = 0;

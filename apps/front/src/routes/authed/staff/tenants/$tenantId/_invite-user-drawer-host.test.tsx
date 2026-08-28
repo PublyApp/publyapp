@@ -95,19 +95,21 @@ vi.mock('~/components/ui/confirm-dialog', () => ({
 		isOpen: boolean;
 		onOpenChange: (isOpen: boolean) => void;
 		onConfirm: () => void;
-	}) =>
-		isOpen
-			? createElement(
-					'div',
-					{ role: 'alertdialog' },
-					createElement('button', { onClick: onConfirm }, 'Leave page'),
-					createElement(
-						'button',
-						{ onClick: () => onOpenChange(false) },
-						'close',
-					),
-				)
-			: null,
+	}) => {
+		if (isOpen) {
+			return createElement(
+				'div',
+				{ role: 'alertdialog' },
+				createElement('button', { onClick: onConfirm }, 'Leave page'),
+				createElement(
+					'button',
+					{ onClick: () => onOpenChange(false) },
+					'close',
+				),
+			);
+		}
+		return null;
+	},
 }));
 
 import { InviteTenantUserDrawerHost } from './_invite-user-drawer-host';

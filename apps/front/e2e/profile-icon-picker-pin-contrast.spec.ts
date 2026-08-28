@@ -53,7 +53,10 @@ const parseRgbString = (value: string): Rgb => {
 const relativeLuminance = ({ r, g, b }: Rgb): number => {
 	const linearize = (channel: number): number => {
 		const value = channel / 255;
-		return value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4;
+		if (value <= 0.04045) {
+			return value / 12.92;
+		}
+		return ((value + 0.055) / 1.055) ** 2.4;
 	};
 
 	return 0.2126 * linearize(r) + 0.7152 * linearize(g) + 0.0722 * linearize(b);

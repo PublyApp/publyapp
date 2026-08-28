@@ -22,7 +22,8 @@ export const normalizeNullableFileUrl = (
 	value: string | null | undefined,
 ): string | null => {
 	const trimmed = typeof value === 'string' ? value.trim() : '';
-	return trimmed ? resolveApiFileUrl(trimmed) : null;
+	if (trimmed) return resolveApiFileUrl(trimmed);
+	return null;
 };
 
 /** Inverse of {@link resolveApiFileUrl} — strips the API origin back off a

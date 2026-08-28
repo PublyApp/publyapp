@@ -58,7 +58,8 @@ const formatLastActive = (
 ): string => {
 	const parts = getRelativeTimeParts(value);
 	// data-honesty-ignore: relative-time "never active" fallback, not a fabricated identity
-	return parts ? t(parts.key, { count: parts.count }) : '—';
+	if (parts) return t(parts.key, { count: parts.count });
+	return '—';
 };
 
 export const OrganizationCard = ({
