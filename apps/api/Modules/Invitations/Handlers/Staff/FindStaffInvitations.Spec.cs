@@ -1025,27 +1025,27 @@ public sealed class FindStaffInvitationsSpec : IClassFixture<ApiFixture> {
 		AppDbContext dbContext = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>();
 		await using var tx = await dbContext.Database.BeginTransactionAsync();
-		// Disable FK enforcement triggers on the child table so the swap
+		// Disable FK enforcement triggers on both tables so the swap
 		// doesn't violate non-deferrable FK constraints. Triggers are
 		// re-enabled automatically when the transaction ends.
-		await dbContext.Database.ExecuteSqlRawAsync("ALTER TABLE invitation_profiles DISABLE TRIGGER ALL");
+		await dbContext.Database.ExecuteSqlRawAsync("ALTER TABLE invitations DISABLE TRIGGER ALL; ALTER TABLE invitation_profiles DISABLE TRIGGER ALL");
 
 		var temp = Guid.NewGuid();
-		// Step 1: move idA -> temp in both tables.
+		// Step 1: move idA -> temp in invitations, then redirect profiles.
 		await dbContext.Database.ExecuteSqlRawAsync(
 			"UPDATE invitations SET id = {0} WHERE id = {1}",
 			temp, idA);
 		await dbContext.Database.ExecuteSqlRawAsync(
 			"UPDATE invitation_profiles SET invitation_id = {0} WHERE invitation_id = {1}",
 			temp, idA);
-		// Step 2: move idB -> idA in both tables.
+		// Step 2: move idB -> idA in invitations, then redirect profiles.
 		await dbContext.Database.ExecuteSqlRawAsync(
 			"UPDATE invitations SET id = {0} WHERE id = {1}",
 			idA, idB);
 		await dbContext.Database.ExecuteSqlRawAsync(
 			"UPDATE invitation_profiles SET invitation_id = {0} WHERE invitation_id = {1}",
 			idA, idB);
-		// Step 3: move temp -> idB in both tables (completing the swap).
+		// Step 3: move temp -> idB in invitations, then redirect profiles.
 		await dbContext.Database.ExecuteSqlRawAsync(
 			"UPDATE invitations SET id = {0} WHERE id = {1}",
 			idB, temp);

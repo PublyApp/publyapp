@@ -1124,27 +1124,27 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 		await using var tx = await dbContext.Database.BeginTransactionAsync();
-		// Disable FK enforcement triggers on the child table so the swap
+		// Disable FK enforcement triggers on both tables so the swap
 		// doesn't violate non-deferrable FK constraints. Triggers are
 		// re-enabled automatically when the transaction ends.
-		await dbContext.Database.ExecuteSqlRawAsync("ALTER TABLE user_accounts DISABLE TRIGGER ALL");
+		await dbContext.Database.ExecuteSqlRawAsync("ALTER TABLE users DISABLE TRIGGER ALL; ALTER TABLE user_accounts DISABLE TRIGGER ALL");
 
 		var temp = Guid.NewGuid();
-		// Step 1: move idA -> temp in both tables.
+		// Step 1: move idA -> temp in users, then redirect user_accounts.
 		await dbContext.Database.ExecuteSqlRawAsync(
 			"UPDATE users SET id = {0} WHERE id = {1}",
 			temp, idA);
 		await dbContext.Database.ExecuteSqlRawAsync(
 			"UPDATE user_accounts SET user_id = {0} WHERE user_id = {1}",
 			temp, idA);
-		// Step 2: move idB -> idA in both tables.
+		// Step 2: move idB -> idA in users, then redirect user_accounts.
 		await dbContext.Database.ExecuteSqlRawAsync(
 			"UPDATE users SET id = {0} WHERE id = {1}",
 			idA, idB);
 		await dbContext.Database.ExecuteSqlRawAsync(
 			"UPDATE user_accounts SET user_id = {0} WHERE user_id = {1}",
 			idA, idB);
-		// Step 3: move temp -> idB in both tables (completing the swap).
+		// Step 3: move temp -> idB in users, then redirect user_accounts.
 		await dbContext.Database.ExecuteSqlRawAsync(
 			"UPDATE users SET id = {0} WHERE id = {1}",
 			idB, temp);
