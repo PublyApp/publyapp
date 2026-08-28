@@ -329,9 +329,39 @@ for (const test of replayable) {
 		const ranTests = /Tests\s+\d+\s+failed/.test(output) && !/Tests\s+no tests/.test(output);
 		const noTests = /Tests\s+no tests/.test(output) || /\(0 test\)/.test(output);
 
-		if (exitCode === 1 && ranTests) {
+		// A kept-red proof is EXPECTED TO FAIL on an ASSERTION
+		// (`AssertionError: expected false to be true`). It is NOT expected
+		// to fail because it THREW an Error. Two distinct failure modes that
+		// both produce "Tests 1 failed":
+		//   - assertion failure → the proof measured and the ideal is not met
+		//     (kept-red, the expected state) → success.
+		//   - thrown Error (MESURE IMPOSSIBLE, harness crash, extraction
+		//     failure) → the proof could NOT measure. This is NOT the
+		//     expected kept-red state — it is a broken measurement, and it
+		//     must FAIL THE STEP LOUD rather than be reported as "failed as
+		//     expected". Otherwise a mutation that makes the proof throw
+		//     (e.g. bracket-notation `process['on']` that the regex can't
+		//     match) keeps CI green while the guard is blind.
+		// We discriminate by checking for the AssertionError marker. vitest
+		// prints "AssertionError" for assertion failures and "Error" for
+		// thrown errors. A proof that fails without an AssertionError in
+		// its output is a measurement failure, not a kept-red success.
+		const hasAssertionFailure = /AssertionError/.test(output);
+		const hasMeasurementError = /MESURE IMPOSSIBLE/.test(output);
+
+		if (exitCode === 1 && ranTests && hasAssertionFailure && !hasMeasurementError) {
 			console.log(`  OK: proof test failed as expected (exit code 1).\n`);
 			failures++;
+		} else if (exitCode === 1 && ranTests && (!hasAssertionFailure || hasMeasurementError)) {
+			console.error(
+				`  CORRUPT PROOF: proof test failed with a non-assertion error ` +
+					`(measurement impossible or harness crash), not the expected assertion failure.\n` +
+					`  A kept-red proof must fail on an assertion (expected X to be Y), ` +
+					`  not on a thrown Error. A thrown Error means the proof could not measure ` +
+					`  — this is NOT the expected kept-red state and must fail CI.\n` +
+					`  stdout: ${stdout.slice(0, 500)}\n  stderr: ${stderr.slice(0, 500)}`,
+			);
+			corrupted++;
 		} else if (exitCode === 1 && noTests) {
 			console.error(
 				`  CORRUPT PROOF: vitest found no test cases in ${test} (empty/truncated/not a test).\n  stdout: ${stdout.slice(0, 500)}\n  stderr: ${stderr.slice(0, 500)}`,
