@@ -16,16 +16,16 @@ public class ResendEmailAdapter : IEmailSender {
 	// waiting revoke indefinitely. A timeout is a TRANSIENT fault → Retry, never Permanent.
 	private static readonly TimeSpan DefaultProviderTimeout = TimeSpan.FromSeconds(30);
 
-	private readonly IResend _resendClient;
+	private readonly IResendEmailClient _resendClient;
 	private readonly TimeSpan _providerTimeout;
 
-	public ResendEmailAdapter(IResend resendClient)
+	public ResendEmailAdapter(IResendEmailClient resendClient)
 		: this(resendClient, DefaultProviderTimeout) {
 	}
 
 	// Overload with an explicit bound: production always uses the 30 s default above;
 	// specs pass a tiny bound to drive the timeout->Retry classification without waiting.
-	public ResendEmailAdapter(IResend resendClient, TimeSpan providerTimeout) {
+	public ResendEmailAdapter(IResendEmailClient resendClient, TimeSpan providerTimeout) {
 		_resendClient = resendClient;
 		_providerTimeout = providerTimeout;
 	}
