@@ -345,7 +345,7 @@ describe('parseInviteWorkbook', () => {
 				'<row r="1"><c r="A1" t="inlineStr"><is><t>email</t></is></c>' +
 				'<c r="B1" t="inlineStr"><is><t>level</t></is></c>' +
 				'<c r="C1" t="inlineStr"><is><t>profiles</t></is></c></row>' +
-				'<row r="2"><c r="A2" t="inlineStr"><is><r><t>a@example.com</t><rPh sb="0" eb="2"><t>PARASITE</t></rPh></r></is></c>' +
+				'<row r="2"><c r="A2" t="inlineStr"><is><r><t>a@example.com</t></r><rPh sb="0" eb="2"><t>PARASITE</t></rPh></is></c>' +
 				'<c r="B2" t="inlineStr"><is><r><t>admin</t></r></is></c>' +
 				'<c r="C2" t="inlineStr"><is><r><t>Alpha</t></r></is></c></row>' +
 				'</sheetData></worksheet>',
