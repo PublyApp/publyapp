@@ -151,6 +151,14 @@ const runCases = (rule: typeof preferEarlyReturn, label: string) => {
 					'function f(x) { switch (x) { case 1: const v = a ? b : c; return v; default: return null; } }',
 				),
 
+				// ---- Statement between assignment and return --------------------
+				// Ternary assigned-then-returned, where a preceding statement breaks
+				// the adjacency at index 0. This proves `checkBodyStatements`
+				// iterates over ALL statement pairs, not just the first one.
+				i(
+					'function f() { declare function log(): void; log(); const v = a ? b : c; return v; }',
+				),
+
 				// ---- Nesting: bare block --------------------------------------
 				// Ternary returned inside a bare block.
 				i('function f() { { return a ? b : c; } }'),
