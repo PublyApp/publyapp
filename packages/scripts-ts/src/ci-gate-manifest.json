@@ -492,7 +492,7 @@
 			"reason": "Runner toolchain provisioning. Locally pnpm is pinned by the packageManager field and is a developer prerequisite."
 		},
 		"front-e2e.yml::test::Load stack images from artifact (fork runs)": {
-			"hash": "dd181b632078e9d6",
+			"hash": "7b15d475a1cfd271",
 			"mirror": null,
 			"reason": "GitHub-only, fork runs only (#1021): actions/download-artifact fetches the build job's image tarballs onto the shard runner. Locally the images are already in the daemon; there is no artifact hop to mirror."
 		},
