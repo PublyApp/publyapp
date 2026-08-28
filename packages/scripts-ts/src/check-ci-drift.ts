@@ -51,7 +51,7 @@ const toPosixPath = (value) => value.split(path.sep).join('/');
  * (e.g., from a test fixture) still contains escape sequences.
  */
 // @ts-expect-error rung-0: add proper type in later rung
-const normalizeReason = (text) =>
+export const normalizeReason = (text) =>
 	String(text).replace(/\\u([0-9a-fA-F]{4})/g, (_, hex) =>
 		String.fromCharCode(parseInt(hex, 16)),
 	);
@@ -61,7 +61,7 @@ const normalizeReason = (text) =>
  * file (SHA-256, first 16 hex chars).
  */
 // @ts-expect-error rung-0: add proper type in later rung
-const hashReason = (text) =>
+export const hashReason = (text) =>
 	createHash('sha256')
 		.update(normalizeReason(text))
 		.digest('hex')

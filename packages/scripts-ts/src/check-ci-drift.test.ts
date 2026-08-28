@@ -8,7 +8,7 @@ import { fileURLToPath } from 'node:url';
 import { test } from 'vitest';
 import { parse } from 'yaml';
 
-import { findCiDrift } from './check-ci-drift.ts';
+import { findCiDrift, hashReason, normalizeReason } from './check-ci-drift.ts';
 
 // These tests are the standing proof that the drift guard actually fires.
 // Every failure mode it claims to catch gets exercised against a throwaway
@@ -374,4 +374,22 @@ test('reason guard: does not fire when step hash also changes', async () => {
 	// Should have exactly one finding: CHANGED for the step command
 	assert.equal(findings.length, 1);
 	assert.match(findings[0], /^CHANGED {3}fixture\.yml::build::Run tests/);
+});
+
+test('reason guard: encoding-invariant (em-dash \\u2014 vs —)', () => {
+	// The reference was generated from the manifest which uses \\u2014 for
+	// em-dashes. If a tool re-serializes the manifest with literal UTF-8
+	// em-dashes (—), the hash must NOT change — otherwise every rebase
+	// would resurrect a merge conflict.
+	//
+	// This test verifies directly that normalizeReason treats both forms
+	// identically, which is the core property the guard relies on.
+	const withEscaped = 'Cannot silently change it \\u2014 it is NOT a defense';
+	const withLiteral = 'Cannot silently change it — it is NOT a defense';
+
+	// Both forms must produce the same normalized output
+	assert.equal(normalizeReason(withEscaped), normalizeReason(withLiteral));
+
+	// And the hash must match
+	assert.equal(hashReason(withEscaped), hashReason(withLiteral));
 });
