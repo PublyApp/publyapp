@@ -770,10 +770,21 @@ public sealed class FindTenantsAsStaffSpec
 		var seededIds = new List<Guid>();
 		var seededOrder = new List<DateTime>();
 		for (var i = 0; i < 3; i++) {
-			var createdAt = baseDate.AddDays((3 - i) % 3);
+			// Two rows share the same CreatedAt (i=0 and i=2), one has a
+			// different value (i=1). The tiebreaker (Id ascending) must
+			// determine the order of the two equal-key rows.
+			var createdAt = i == 1 ? baseDate.AddDays(1) : baseDate;
 			seededIds.Add(await SeedTenantAtAsync(createdAt));
 			seededOrder.Add(createdAt);
 		}
+
+			// Swap the IDs of the two equal-key rows (i=0 and i=2) so the row
+			// inserted at i=2 has the smaller Id. Without this, UUID v7 IDs are
+			// insertion-ordered, so stable OrderBy(CreatedAt) already matches
+			// ThenBy(Id) and removing the production tiebreaker leaves the test
+			// green. After the swap, the tiebreaker is actually exercised.
+			await SwapTenantIdsAsync(seededIds[0], seededIds[2]);
+			(seededIds[0], seededIds[2]) = (seededIds[2], seededIds[0]);
 
 		var visitedIds = new List<Guid>();
 		string? cursor = null;
@@ -819,7 +830,7 @@ public sealed class FindTenantsAsStaffSpec
 			.Zip(seededOrder, (id, c) => (id, c))
 			.ToDictionary(x => x.id, x => x.c);
 		visitedOrder.Should().Equal(
-			seededIds.OrderBy(id => createdAtById[id]).ToList()
+			seededIds.OrderBy(id => createdAtById[id]).ThenBy(id => id).ToList()
 		);
 
 		// Assert the OBSERVED sort order against the real Tenant.CreatedAt
@@ -839,6 +850,272 @@ public sealed class FindTenantsAsStaffSpec
 		}
 		observedOrder.Should().Equal(seededOrder.OrderBy(x => x).ToList());
 		observedOrder.Should().NotEqual(seededOrder);
+	}
+
+	[Fact]
+	public async Task
+	ItShouldWalkEveryUpdatedAtPageWithoutOverlapOrGap() {
+		var token =
+			await _authClient.LoginAsStaffAdminAsync();
+
+		// The audit interceptor stamps UpdatedAt = now on every Modified save, so the
+		// only way to control it is a direct UPDATE that bypasses the interceptor.
+		// 3 tenants with UpdatedAt deliberately NOT insertion-ordered (anti-correlated).
+		// The walk must visit each once in ascending UpdatedAt order; a keySelector swap
+		// to CreatedAt (stamped at insertion) turns this assertion RED.
+		var baseDate = new DateTime(
+			2026, 1, 1, 0, 0, 0, DateTimeKind.Utc
+		);
+		var seededIds = new List<Guid>();
+		var seededOrder = new List<DateTime>();
+		for (var i = 0; i < 3; i++) {
+			// Two rows share the same UpdatedAt (i=0 and i=2), one has a
+			// different value (i=1). The tiebreaker (Id ascending) must
+			// determine the order of the two equal-key rows.
+			var updatedAt = i == 1 ? baseDate.AddDays(1) : baseDate;
+			var id = await SeedTenantAtAsync(baseDate); // CreatedAt irrelevant for this test
+			await SetTenantUpdatedAtAsync(id, updatedAt);
+			seededIds.Add(id);
+			seededOrder.Add(updatedAt);
+		}
+
+
+			// Swap the IDs of the two equal-key rows (i=0 and i=2) so the row
+			// inserted at i=2 has the smaller Id. Without this, UUID v7 IDs are
+			// insertion-ordered, so stable OrderBy(UpdatedAt) already matches
+			// ThenBy(Id) and removing the production tiebreaker leaves the test
+			// green. After the swap, the tiebreaker is actually exercised.
+			await SwapTenantIdsAsync(seededIds[0], seededIds[2]);
+			(seededIds[0], seededIds[2]) = (seededIds[2], seededIds[0]);
+		var visitedIds = new List<Guid>();
+		string? cursor = null;
+		var pages = 0;
+		do {
+			var url = TenantTestHelper.GetFindUrl(
+				cursor: cursor,
+				limit: 1,
+				sortId: "updated_at",
+				sortOrder: "asc"
+			);
+			var request = new HttpRequestMessage(
+				HttpMethod.Get, url
+			).WithSessionToken(token);
+
+			using var response =
+				await _http.SendAsync(request);
+			response.StatusCode.Should()
+				.Be(HttpStatusCode.OK);
+
+			var page = await response.Content
+				.ReadFromJsonAsync<FindResponse>();
+			page.Should().NotBeNull();
+			Assert.NotNull(page);
+			pages++;
+			visitedIds.AddRange(
+				page.Data.Select(t => t.Id)
+			);
+			cursor = page.NextCursor;
+
+			// Guard against an infinite loop if the cursor filter regresses.
+			pages.Should().BeLessOrEqualTo(100);
+		} while (cursor is not null);
+
+		// The walk covers exactly our rows, each once, in order.
+		visitedIds.Should().OnlyHaveUniqueItems();
+		visitedIds.Should().Contain(seededIds);
+
+		var visitedOrder = visitedIds
+			.Where(seededIds.Contains)
+			.ToList();
+		var updatedAtById = seededIds
+			.Zip(seededOrder, (id, c) => (id, c))
+			.ToDictionary(x => x.id, x => x.c);
+		visitedOrder.Should().Equal(
+			seededIds.OrderBy(id => updatedAtById[id]).ThenBy(id => id).ToList()
+		);
+
+		// Assert the OBSERVED sort order against the real Tenant.UpdatedAt values
+		// from the DB, in walk order. The response does not expose UpdatedAt,
+		// so resolve it by Id on Tenant.
+		List<DateTime> observedOrder;
+		{
+			await using var scope =
+				_fixture.Factory.Services.CreateAsyncScope();
+			var dbContext = scope.ServiceProvider
+				.GetRequiredService<AppDbContext>();
+			observedOrder = await dbContext.Tenant
+				.Where(t => visitedOrder.Contains((Guid)t.Id!))
+				.OrderBy(t => visitedOrder.IndexOf((Guid)t.Id!))
+				.Select(t => t.UpdatedAt)
+				.ToListAsync();
+		}
+		observedOrder.Should().Equal(seededOrder.OrderBy(x => x).ToList());
+		observedOrder.Should().NotEqual(seededOrder);
+	}
+
+	[Fact]
+	public async Task
+	ItShouldWalkEveryNamePageWithoutOverlapOrGap() {
+		var token =
+			await _authClient.LoginAsStaffAdminAsync();
+
+		// 3 tenants with distinct, deliberately NOT insertion-ordered Names
+		// (anti-correlated with insertion). The walk must visit each once in
+		// ascending Name order, not insertion order, so a keySelector swap to
+		// Code (a sibling string column with a deliberately inverse ordering)
+		// turns this assertion RED.
+		var seededNames = new List<string>();
+		var seededIds = new List<Guid>();
+		var seededCodes = new List<string>();
+		// Two rows share the same Name (i=0 and i=2), one has a
+		// different value (i=1). The tiebreaker (Id ascending) must
+		// determine the order of the two equal-key rows.
+		var letters = new[] { 'a', 'b', 'a' };
+		var codePrefixes = new[] { "zcode", "acode", "mcode" };
+		for (var i = 0; i < 3; i++) {
+			var name = $"Walk Name {letters[i]}-{Guid.NewGuid():N}";
+			var code = $"{codePrefixes[i]}-{Guid.NewGuid():N}"[..10];
+			seededNames.Add(name);
+			seededCodes.Add(code);
+			var id = await SeedTenantWithCodeAsync(name, code);
+			seededIds.Add(id);
+		}
+		var expectedOrder = seededIds
+			.Zip(seededNames, (id, n) => (id, n))
+			.OrderBy(x => x.n)
+			.ThenBy(x => x.id)
+			.Select(x => x.id)
+			.ToList();
+
+		var visitedIds = new List<Guid>();
+		string? cursor = null;
+		var pages = 0;
+		do {
+			var url = TenantTestHelper.GetFindUrl(
+				cursor: cursor,
+				limit: 1,
+				sortId: "name",
+				sortOrder: "asc"
+			);
+			var request = new HttpRequestMessage(
+				HttpMethod.Get, url
+			).WithSessionToken(token);
+
+			using var response =
+				await _http.SendAsync(request);
+			response.StatusCode.Should()
+				.Be(HttpStatusCode.OK);
+
+			var page = await response.Content
+				.ReadFromJsonAsync<FindResponse>();
+			page.Should().NotBeNull();
+			Assert.NotNull(page);
+			pages++;
+			visitedIds.AddRange(
+				page.Data.Select(t => t.Id)
+			);
+			cursor = page.NextCursor;
+
+			// Guard against an infinite loop if the cursor filter regresses.
+			pages.Should().BeLessOrEqualTo(100);
+		} while (cursor is not null);
+
+		// The walk covers exactly our rows, each once.
+		visitedIds.Should().OnlyHaveUniqueItems();
+		visitedIds.Should().Contain(seededIds);
+
+		var visitedOrder = visitedIds
+			.Where(seededIds.Contains)
+			.ToList();
+		visitedOrder.Should().Equal(expectedOrder);
+	}
+
+	[Fact]
+	public async Task
+	ItShouldWalkEveryStatusPageWithoutOverlapOrGap() {
+		var token =
+			await _authClient.LoginAsStaffAdminAsync();
+
+		// 3 tenants with distinct, deliberately NOT insertion-ordered Status
+		// (anti-correlated with insertion). The walk must visit each once in
+		// ascending Status order. A keySelector swap to Name (string, different
+		// distribution) turns this assertion RED.
+		// Two rows share the same Status (i=0 and i=2 are both Suspended),
+		// one has a different value (i=1 is Active). The tiebreaker
+		// (Id ascending) must determine the order of the two equal-key rows.
+		var statuses = new[]
+		{
+			TenantStatus.Suspended,
+			TenantStatus.Active,
+			TenantStatus.Suspended,
+		};
+		var seededIds = new List<Guid>();
+		for (var i = 0; i < 3; i++) {
+			var id = await SeedTenantWithStatusAsync(statuses[i]);
+			seededIds.Add(id);
+		}
+
+		var visitedIds = new List<Guid>();
+		string? cursor = null;
+		var pages = 0;
+		do {
+			var url = TenantTestHelper.GetFindUrl(
+				cursor: cursor,
+				limit: 1,
+				sortId: "status",
+				sortOrder: "asc"
+			);
+			var request = new HttpRequestMessage(
+				HttpMethod.Get, url
+			).WithSessionToken(token);
+
+			using var response =
+				await _http.SendAsync(request);
+			response.StatusCode.Should()
+				.Be(HttpStatusCode.OK);
+
+			var page = await response.Content
+				.ReadFromJsonAsync<FindResponse>();
+			page.Should().NotBeNull();
+			Assert.NotNull(page);
+			pages++;
+			visitedIds.AddRange(
+				page.Data.Select(t => t.Id)
+			);
+			cursor = page.NextCursor;
+
+			// Guard against an infinite loop if the cursor filter regresses.
+			pages.Should().BeLessOrEqualTo(100);
+		} while (cursor is not null);
+
+		// The walk covers exactly our rows, each once.
+		visitedIds.Should().OnlyHaveUniqueItems();
+		visitedIds.Should().Contain(seededIds);
+
+		var visitedOrder = visitedIds
+			.Where(seededIds.Contains)
+			.ToList();
+		var expectedOrder = seededIds
+			.Zip(statuses, (id, s) => (id, s))
+			.OrderBy(x => x.s)
+			.ThenBy(x => x.id)
+			.Select(x => x.id)
+			.ToList();
+		visitedOrder.Should().Equal(expectedOrder);
+	}
+
+	private async Task SetTenantUpdatedAtAsync(Guid tenantId, DateTime updatedAt) {
+		await using var scope =
+			_fixture.Factory.Services.CreateAsyncScope();
+		var dbContext = scope.ServiceProvider
+			.GetRequiredService<AppDbContext>();
+
+		// Direct UPDATE bypasses the audit interceptor that would otherwise
+		// stamp UpdatedAt = now on every Modified save.
+		await dbContext.Database.ExecuteSqlRawAsync(
+			"UPDATE tenants SET updated_at = {0} WHERE id = {1}",
+			updatedAt, tenantId
+		);
 	}
 
 	private async Task<Guid> SeedTenantAtAsync(
@@ -870,6 +1147,45 @@ public sealed class FindTenantsAsStaffSpec
 		return id;
 	}
 
+	private async Task<Guid> SeedTenantWithCodeAsync(
+		string name,
+		string code
+	) {
+		await using var scope =
+			_fixture.Factory.Services.CreateAsyncScope();
+		var dbContext = scope.ServiceProvider
+			.GetRequiredService<AppDbContext>();
+
+		var tenant = new Tenant {
+			Name = name,
+			Code = code,
+			Status = TenantStatus.Active,
+			MaxUsers = 10,
+		};
+		await dbContext.Tenant.AddAsync(tenant);
+		await dbContext.SaveChangesAsync();
+		return tenant.GetRequiredId();
+	}
+
+	private async Task<Guid> SeedTenantWithStatusAsync(
+		TenantStatus status
+	) {
+		await using var scope =
+			_fixture.Factory.Services.CreateAsyncScope();
+		var dbContext = scope.ServiceProvider
+			.GetRequiredService<AppDbContext>();
+
+		var tenant = new Tenant {
+			Name = $"Tenant Status Walk {Guid.NewGuid():N}",
+			Code = Guid.NewGuid().ToString("N")[..10],
+			Status = status,
+			MaxUsers = 10,
+		};
+		await dbContext.Tenant.AddAsync(tenant);
+		await dbContext.SaveChangesAsync();
+		return tenant.GetRequiredId();
+	}
+
 	private record StaffProfileCreatedResponse {
 		public Guid ProfileId { get; init; }
 	}
@@ -884,5 +1200,20 @@ public sealed class FindTenantsAsStaffSpec
 		public string Name { get; init; } = string.Empty;
 		public int UsersCount { get; init; }
 		public string Status { get; init; } = string.Empty;
+	}
+
+	private async Task SwapTenantIdsAsync(Guid idA, Guid idB) {
+		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		var temp = Guid.NewGuid();
+		await dbContext.Database.ExecuteSqlRawAsync(
+			"UPDATE tenants SET id = {0} WHERE id = {1}",
+			temp, idA);
+		await dbContext.Database.ExecuteSqlRawAsync(
+			"UPDATE tenants SET id = {0} WHERE id = {1}",
+			idA, idB);
+		await dbContext.Database.ExecuteSqlRawAsync(
+			"UPDATE tenants SET id = {0} WHERE id = {1}",
+			idB, temp);
 	}
 }

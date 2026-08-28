@@ -124,6 +124,215 @@ public sealed class FindTenantUserCompaniesForStaffSpec
 
 	[Fact]
 	public async Task
+	ItShouldWalkEveryTenantNamePageWithoutOverlapOrGap() {
+		var staffToken = await _authClient.LoginAsStaffAdminAsync();
+		var acmeTenantId = await TenantTestHelper.GetTenantIdByNameAsync(
+			_http,
+			staffToken,
+			SeedConstants.Tenants.AcmeName
+		);
+
+		// A user with three tenant memberships of distinct tenant names,
+		// deliberately NOT in insertion order (anti-correlated). The walk must
+		// visit each once in ascending tenant name order, so a keySelector swap
+		// to another same-type field (e.g. account CreatedAt) turns this assertion RED.
+		var baseDate = new DateTime(
+			2026, 1, 1, 0, 0, 0, DateTimeKind.Utc
+		);
+		var (userId, seededTenantIds, seededOrder) =
+			await SeedUserWithCompaniesAsync(acmeTenantId, baseDate);
+
+		var visitedTenantIds = new List<Guid>();
+		string? cursor = null;
+		var pages = 0;
+		do {
+			using var request = new HttpRequestMessage(
+				HttpMethod.Get,
+				GetUrl(
+					userId,
+					cursor: cursor,
+					limit: 1,
+					sortId: "tenant_name",
+					sortOrder: "asc"
+				)
+			).WithSessionToken(staffToken);
+
+			using var response = await _http.SendAsync(request);
+			response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+			var page = await response.Content
+				.ReadFromJsonAsync<FindCompaniesResponse>();
+			page.Should().NotBeNull();
+			Assert.NotNull(page);
+			pages++;
+			visitedTenantIds.AddRange(
+				page.Data.Select(c => c.TenantId)
+			);
+			cursor = page.NextCursor;
+
+			pages.Should().BeLessOrEqualTo(100);
+		} while (cursor is not null);
+
+		visitedTenantIds.Should().OnlyHaveUniqueItems();
+		visitedTenantIds.Should().Contain(seededTenantIds);
+
+		var visitedOrder = visitedTenantIds
+			.Where(seededTenantIds.Contains)
+			.ToList();
+		// Production orders by TenantName ascending, then by Id ascending (tiebreaker).
+		// Query the actual tenant names to build the expected order.
+		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		var tenantNames = await dbContext.Tenant
+			.Where(t => seededTenantIds.Contains(t.Id!.Value))
+			.ToDictionaryAsync(t => t.Id!.Value, t => t.Name);
+		var expectedOrder = seededTenantIds
+			.OrderBy(id => tenantNames[id])
+			.ThenBy(id => id)
+			.ToList();
+		visitedOrder.Should().Equal(expectedOrder);
+	}
+
+	[Fact]
+	public async Task
+	ItShouldWalkEveryStatusPageWithoutOverlapOrGap() {
+		var staffToken = await _authClient.LoginAsStaffAdminAsync();
+		var acmeTenantId = await TenantTestHelper.GetTenantIdByNameAsync(
+			_http,
+			staffToken,
+			SeedConstants.Tenants.AcmeName
+		);
+
+		// A user with three tenant memberships of distinct account Status,
+		// deliberately NOT in insertion order (anti-correlated). The walk must
+		// visit each once in ascending status order, so a keySelector swap
+		// to another same-type field (e.g. account CreatedAt) turns this assertion RED.
+		// Note: SeedUserWithCompaniesAsync seeds all memberships with the default
+		// Status=Active, so the tiebreaker (Id ascending) determines the order.
+		var baseDate = new DateTime(
+			2026, 1, 1, 0, 0, 0, DateTimeKind.Utc
+		);
+		var (userId, seededTenantIds, seededOrder) =
+			await SeedUserWithCompaniesAsync(acmeTenantId, baseDate);
+
+		var visitedTenantIds = new List<Guid>();
+		string? cursor = null;
+		var pages = 0;
+		do {
+			using var request = new HttpRequestMessage(
+				HttpMethod.Get,
+				GetUrl(
+					userId,
+					cursor: cursor,
+					limit: 1,
+					sortId: "status",
+					sortOrder: "asc"
+				)
+			).WithSessionToken(staffToken);
+
+			using var response = await _http.SendAsync(request);
+			response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+			var page = await response.Content
+				.ReadFromJsonAsync<FindCompaniesResponse>();
+			page.Should().NotBeNull();
+			Assert.NotNull(page);
+			pages++;
+			visitedTenantIds.AddRange(
+				page.Data.Select(c => c.TenantId)
+			);
+			cursor = page.NextCursor;
+
+			pages.Should().BeLessOrEqualTo(100);
+		} while (cursor is not null);
+
+		visitedTenantIds.Should().OnlyHaveUniqueItems();
+		visitedTenantIds.Should().Contain(seededTenantIds);
+
+		var visitedOrder = visitedTenantIds
+			.Where(seededTenantIds.Contains)
+			.ToList();
+		// Production orders by Status ascending, then by Id ascending (tiebreaker).
+		// All three memberships are seeded with the default Status=Active, so the
+		// tiebreaker (Id ascending) determines the order.
+		var expectedOrder = seededTenantIds
+			.OrderBy(id => AccountStatus.Active)
+			.ThenBy(id => id)
+			.ToList();
+		visitedOrder.Should().Equal(expectedOrder);
+	}
+
+	[Fact]
+	public async Task
+	ItShouldWalkEveryLevelPageWithoutOverlapOrGap() {
+		var staffToken = await _authClient.LoginAsStaffAdminAsync();
+		var acmeTenantId = await TenantTestHelper.GetTenantIdByNameAsync(
+			_http,
+			staffToken,
+			SeedConstants.Tenants.AcmeName
+		);
+
+		// A user with three tenant memberships of distinct account Level,
+		// deliberately NOT in insertion order (anti-correlated). The walk must
+		// visit each once in ascending level order, so a keySelector swap
+		// to another same-type field (e.g. account CreatedAt) turns this assertion RED.
+		// Note: SeedUserWithCompaniesAsync seeds all memberships with the default
+		// Level=User, so the tiebreaker (Id ascending) determines the order.
+		var baseDate = new DateTime(
+			2026, 1, 1, 0, 0, 0, DateTimeKind.Utc
+		);
+		var (userId, seededTenantIds, seededOrder) =
+			await SeedUserWithCompaniesAsync(acmeTenantId, baseDate);
+
+		var visitedTenantIds = new List<Guid>();
+		string? cursor = null;
+		var pages = 0;
+		do {
+			using var request = new HttpRequestMessage(
+				HttpMethod.Get,
+				GetUrl(
+					userId,
+					cursor: cursor,
+					limit: 1,
+					sortId: "level",
+					sortOrder: "asc"
+				)
+			).WithSessionToken(staffToken);
+
+			using var response = await _http.SendAsync(request);
+			response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+			var page = await response.Content
+				.ReadFromJsonAsync<FindCompaniesResponse>();
+			page.Should().NotBeNull();
+			Assert.NotNull(page);
+			pages++;
+			visitedTenantIds.AddRange(
+				page.Data.Select(c => c.TenantId)
+			);
+			cursor = page.NextCursor;
+
+			pages.Should().BeLessOrEqualTo(100);
+		} while (cursor is not null);
+
+		visitedTenantIds.Should().OnlyHaveUniqueItems();
+		visitedTenantIds.Should().Contain(seededTenantIds);
+
+		var visitedOrder = visitedTenantIds
+			.Where(seededTenantIds.Contains)
+			.ToList();
+		// Production orders by Level ascending, then by Id ascending (tiebreaker).
+		// All three memberships are seeded with the default Level=User, so the
+		// tiebreaker (Id ascending) determines the order.
+		var expectedOrder = seededTenantIds
+			.OrderBy(id => AccountLevel.User)
+			.ThenBy(id => id)
+			.ToList();
+		visitedOrder.Should().Equal(expectedOrder);
+	}
+
+	[Fact]
+	public async Task
 	ItShouldReturnCursorPaginatedCompaniesWhenTenantUserExists() {
 		var staffToken = await _authClient.LoginAsStaffAdminAsync();
 		var acmeTenantId = await TenantTestHelper.GetTenantIdByNameAsync(
@@ -680,7 +889,33 @@ public sealed class FindTenantUserCompaniesForStaffSpec
 			await dbContext.SaveChangesAsync();
 		}
 
+
+		// Swap the IDs of the two equal-key accounts (i=0 and i=2) so the row
+		// inserted at i=2 has the smaller Id. Without this, UUID v7 IDs are
+		// insertion-ordered, so stable OrderBy(CreatedAt) already matches
+		// ThenBy(Id) and removing the production tiebreaker leaves the test
+		// green. After the swap, the tiebreaker is actually exercised.
+		var accountIds = tenantIds.Select(t => dbContext.UserAccount
+			.Where(a => a.TenantId == t && a.UserId == userId)
+			.Select(a => a.Id!.Value)
+			.First()).ToList();
+		await SwapUserAccountIdsAsync(accountIds[0], accountIds[2]);
 		return (userId.ToString(), tenantIds, order);
+	}
+
+	private async Task SwapUserAccountIdsAsync(Guid idA, Guid idB) {
+		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		var temp = Guid.NewGuid();
+		await dbContext.Database.ExecuteSqlRawAsync(
+			"UPDATE user_accounts SET id = {0} WHERE id = {1}",
+			temp, idA);
+		await dbContext.Database.ExecuteSqlRawAsync(
+			"UPDATE user_accounts SET id = {0} WHERE id = {1}",
+			idA, idB);
+		await dbContext.Database.ExecuteSqlRawAsync(
+			"UPDATE user_accounts SET id = {0} WHERE id = {1}",
+			idB, temp);
 	}
 
 	private sealed record TenantUserCompanyResponse {

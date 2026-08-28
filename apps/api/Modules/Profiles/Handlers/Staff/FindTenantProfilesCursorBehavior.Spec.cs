@@ -51,8 +51,11 @@ public sealed class FindTenantProfilesCursorBehaviorSpec
 		const int total = 3;
 		var seededIds = new List<Guid>();
 		var seededNames = new List<string>();
+		// Two rows share the same Name (i=0 and i=2), one has a
+		// different value (i=1). The tiebreaker (Id ascending) must
+		// determine the order of the two equal-key rows.
 		for (var i = 0; i < total; i++) {
-			var name = $"Walk Page {(char)('a' + (2 - i))} {Guid.NewGuid():N}";
+			var name = i == 1 ? $"Walk Page Bravo {Guid.NewGuid():N}" : $"Walk Page Alpha {Guid.NewGuid():N}";
 			seededIds.Add(await SeedTenantProfileWithNameAsync(tenantId, name));
 			seededNames.Add(name);
 		}
@@ -102,6 +105,151 @@ public sealed class FindTenantProfilesCursorBehaviorSpec
 			.Select(id => visitedNamesById[id])
 			.ToList();
 		visitedNames.Should().Equal(seededNames);
+	}
+
+	[Fact]
+	public async Task ItShouldWalkEveryIdPageWithoutOverlapOrGap() {
+		var token = await _authClient.LoginAsStaffAdminAsync();
+		var tenantId = await GetTenantIdAsync();
+
+		// 3 profiles with distinct Id; the walk must visit each once in
+		// ascending Id order. A keySelector swap to another same-type field
+		// (e.g. Name) turns this assertion RED.
+		var seededIds = new List<Guid>();
+		for (var i = 0; i < 3; i++) {
+			var name = $"Id Walk {i} {Guid.NewGuid():N}";
+			seededIds.Add(await SeedTenantProfileWithNameAsync(tenantId, name));
+		}
+
+		var visitedIds = new List<Guid>();
+		string? cursor = null;
+		var pages = 0;
+		do {
+			var query = "limit=1&sort_id=id&sort_order=asc";
+			if (cursor is not null) {
+				query += $"&cursor={Uri.EscapeDataString(cursor)}";
+			}
+
+			using var request = new HttpRequestMessage(
+				HttpMethod.Get,
+				GetUrl(tenantId.ToString(), query)
+			).WithSessionToken(token);
+
+			using var response = await _http.SendAsync(request);
+			response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+			var page = await response.Content.ReadFromJsonAsync<FindTenantProfilesResponse>();
+			page.Should().NotBeNull();
+			Assert.NotNull(page);
+			pages++;
+			foreach (var item in page.Data) {
+				visitedIds.Add(item.Id);
+			}
+			cursor = page.NextCursor;
+
+			pages.Should().BeLessOrEqualTo(100);
+		} while (cursor is not null);
+
+		visitedIds.Should().OnlyHaveUniqueItems();
+		visitedIds.Should().Contain(seededIds);
+
+		var visitedOrder = visitedIds
+			.Where(seededIds.Contains)
+			.ToList();
+		var expectedOrder = seededIds.OrderBy(id => id).ToList();
+		visitedOrder.Should().Equal(expectedOrder);
+	}
+
+	[Fact]
+	public async Task ItShouldWalkEveryCreatedAtPageWithoutOverlapOrGap() {
+		var token = await _authClient.LoginAsStaffAdminAsync();
+		var tenantId = await GetTenantIdAsync();
+
+		// 3 profiles with distinct, deliberately NOT insertion-ordered
+		// CreatedAt (anti-correlated). The walk must visit each once in
+		// ascending CreatedAt order, not insertion order, so a
+		// keySelector swap to another same-type field (e.g. Name)
+		// turns this assertion RED.
+		var baseDate = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+		var seededIds = new List<Guid>();
+		var seededOrder = new List<DateTime>();
+		for (var i = 0; i < 3; i++) {
+			// Two rows share the same CreatedAt (i=0 and i=2), one has a
+			// different value (i=1). The tiebreaker (Id ascending) must
+			// determine the order of the two equal-key rows.
+			var createdAt = i == 1 ? baseDate.AddDays(1) : baseDate;
+			var id = await SeedTenantProfileAtAsync(tenantId, $"created-at-walk-{i}-{Guid.NewGuid():N}", createdAt);
+			seededIds.Add(id);
+			seededOrder.Add(createdAt);
+		}
+
+			// Swap the IDs of the two equal-key rows (i=0 and i=2) so the row
+			// inserted at i=2 has the smaller Id. Without this, UUID v7 IDs are
+			// insertion-ordered, so stable OrderBy(CreatedAt) already matches
+			// ThenBy(Id) and removing the production tiebreaker leaves the test
+			// green. After the swap, the tiebreaker is actually exercised.
+			await SwapTenantProfileIdsAsync(seededIds[0], seededIds[2]);
+			(seededIds[0], seededIds[2]) = (seededIds[2], seededIds[0]);
+
+		var visitedIds = new List<Guid>();
+		string? cursor = null;
+		var pages = 0;
+		do {
+			var query = "limit=1&sort_id=created_at&sort_order=asc";
+			if (cursor is not null) {
+				query += $"&cursor={Uri.EscapeDataString(cursor)}";
+			}
+
+			using var request = new HttpRequestMessage(
+				HttpMethod.Get,
+				GetUrl(tenantId.ToString(), query)
+			).WithSessionToken(token);
+
+			using var response = await _http.SendAsync(request);
+			response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+			var page = await response.Content.ReadFromJsonAsync<FindTenantProfilesResponse>();
+			page.Should().NotBeNull();
+			Assert.NotNull(page);
+			pages++;
+			foreach (var item in page.Data) {
+				visitedIds.Add(item.Id);
+			}
+			cursor = page.NextCursor;
+
+			pages.Should().BeLessOrEqualTo(100);
+		} while (cursor is not null);
+
+		visitedIds.Should().OnlyHaveUniqueItems();
+		visitedIds.Should().Contain(seededIds);
+
+		var visitedOrder = visitedIds
+			.Where(seededIds.Contains)
+			.ToList();
+		var createdAtById = seededIds
+			.Zip(seededOrder, (id, c) => (id, c))
+			.ToDictionary(x => x.id, x => x.c);
+		visitedOrder.Should().Equal(
+			seededIds.OrderBy(id => createdAtById[id]).ThenBy(id => id).ToList()
+		);
+	}
+
+	private async Task<Guid> SeedTenantProfileAtAsync(Guid tenantId, string name, DateTime createdAt) {
+		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+		var profile = Profile.CreateTenantProfile(tenantId, name, isDefault: false);
+		await dbContext.Profile.AddAsync(profile);
+		await dbContext.SaveChangesAsync();
+
+		var id = profile.GetRequiredId();
+		var tracked = await dbContext.Profile
+			.Where(p => p.Id == id)
+			.FirstAsync();
+		tracked.CreatedAt = createdAt;
+		await dbContext.SaveChangesAsync();
+
+		return id;
 	}
 
 	[Fact]
@@ -163,5 +311,20 @@ public sealed class FindTenantProfilesCursorBehaviorSpec
 	private sealed record TenantProfileItemResponse {
 		public Guid Id { get; init; }
 		public string Name { get; init; } = string.Empty;
+	}
+
+	private async Task SwapTenantProfileIdsAsync(Guid idA, Guid idB) {
+		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		var temp = Guid.NewGuid();
+		await dbContext.Database.ExecuteSqlRawAsync(
+			"UPDATE profiles SET id = {0} WHERE id = {1}",
+			temp, idA);
+		await dbContext.Database.ExecuteSqlRawAsync(
+			"UPDATE profiles SET id = {0} WHERE id = {1}",
+			idA, idB);
+		await dbContext.Database.ExecuteSqlRawAsync(
+			"UPDATE profiles SET id = {0} WHERE id = {1}",
+			idB, temp);
 	}
 }
