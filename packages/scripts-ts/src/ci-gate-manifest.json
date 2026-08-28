@@ -82,7 +82,7 @@
 			"reason": "Runner toolchain provisioning. Locally pnpm is pinned by the packageManager field and is a developer prerequisite."
 		},
 		"api-tests.yml::suite::Upload test results on failure": {
-			"hash": "eed89b2546b548ae",
+			"hash": "dd121479f9cac55d",
 			"mirror": null,
 			"reason": "GitHub-only failure-only log capture: gets failing-spec output off an ephemeral runner. Locally the reports are already on disk."
 		},
@@ -269,7 +269,7 @@
 		"front-ci.yml::supply-chain::Audit production dependencies (moderate and above)": {
 			"hash": "8d5095ef73aba7b3",
 			"mirror": "pnpm audit --prod --audit-level=moderate",
-			"reason": "#1644: production-graph threshold lowered from high to moderate to align with the dev-graph gate (quality-gate.yml::quality::Audit development dependencies). The previous shape let a moderate advisory in a production dep slip through both audits: --prod excludes the dev graph, and --audit-level=high excludes moderate. The same command reproduces it locally without Docker or CI; the production graph is clean at every threshold today, so the cost is zero and the safety is immediate (no exception list needed). #1674: the bite-proof test (packages/scripts-ts/src/prod-audit-bites.test.ts) parses this step's `run:` body to pin the exact command string and runs `pnpm audit --prod --audit-level=moderate` against a controlled fixture carrying ejs@3.1.7 → GHSA-ghr5-ch3p-vcr6 (a stable moderate advisory) so a regression that reverts the threshold to `high`, drops `--prod`, or removes the step turns the suite red before the audit step itself runs."
+			"reason": "#1644: production-graph threshold lowered from high to moderate to align with the dev-graph gate (quality-gate.yml::quality::Audit development dependencies). The previous shape let a moderate advisory in a production dep slip through both audits."
 		},
 		"front-ci.yml::supply-chain::Assert exact pins": {
 			"hash": "9f0331695e45ef30",
@@ -407,7 +407,7 @@
 			"reason": "GitHub-only: exports Actions cache runtime variables for the gha backend; no local equivalent exists."
 		},
 		"front-e2e.yml::build::Upload stack images artifact (fork runs)": {
-			"hash": "2078b6e1685f6bde",
+			"hash": "eb59af77b34d5680",
 			"mirror": null,
 			"reason": "GitHub-only, fork runs only (#1021): actions/upload-artifact moves the image tarballs from the build runner to the versioned artifact the shards download \u2014 the registry-free stand-in for the GHCR hop. Locally there is nothing to upload; the images are already where the stack starts."
 		},
@@ -527,7 +527,7 @@
 			"reason": "ci-e2e-front starts the same stack via up --build --wait. CI starts the already-pulled images with --no-build and performs its unchanged health polling separately."
 		},
 		"front-e2e.yml::test::Upload playwright report": {
-			"hash": "088cce9de705d985",
+			"hash": "cd2d0ee1a88907e2",
 			"mirror": null,
 			"reason": "actions/upload-artifact uses a shard-specific name to get each report off its ephemeral runner. Locally the report is already on disk at apps/front/playwright-report; there is nothing to upload it to."
 		},
@@ -835,11 +835,6 @@
 			"hash": "a4cc669d0f05a839",
 			"mirror": null,
 			"reason": "Reads github.event.pull_request.body. At pre-push time there is no PR and therefore no body to check, so this gate is unreproducible locally by construction rather than by omission. The step gained a #1240 waiver that short-circuits to success for PR_AUTHOR == 'dependabot[bot]' (exact-login policy, not github.actor, not a label); the waiver's exact shape is guarded by packages/scripts-ts/src/require-linked-issue.test.ts, which just ci-drift now runs, but the step itself (which reads the live PR body) stays a GitHub-only required check."
-		},
-		"front-ci.yml::supply-chain::Audit production dependencies (moderate and above)": {
-			"hash": "8d5095ef73aba7b3",
-			"mirror": "pnpm audit --prod --audit-level=moderate",
-			"reason": "#1644: production-graph threshold lowered from high to moderate to align with the dev-graph gate (quality-gate.yml::quality::Audit development dependencies). The previous shape let a moderate advisory in a production dep slip through both audits."
 		},
 		"quality-gate.yml::quality::Typecheck lint-ts": {
 			"hash": "784fa13a651b3079",
