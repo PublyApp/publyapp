@@ -537,9 +537,9 @@ test('#1352 r2: the REAL probe flow fires within an injected small RUNNER_PROBE_
 			"const grandChildPath = path.join(path.dirname(fileURLToPath(import.meta.url)), 'r2-ignored-sigint-grandchild.mjs');",
 			"const grandChild = spawn(process.execPath, [grandChildPath], { stdio: 'ignore' });",
 			'writeFileSync(process.env.R2_FIXTURE_REPORT, `${process.pid}\\n${grandChild.pid}\\n`);',
-			'process.stdout.write(`RUNNER_PID=${process.pid}\\nRUNNER_OWNED_ROOT=${process.env.FRONT2_DESIGN_GUARD_HANDSHAKE_NONCE}:${process.env.R2_FIXTURE_ROOT}\\n`);',
 			'// Ignore SIGINT: only the budget-expiry SIGKILL may end this tree.',
 			"process.on('SIGINT', () => {});",
+			'process.stdout.write(`RUNNER_PID=${process.pid}\\nRUNNER_OWNED_ROOT=${process.env.FRONT2_DESIGN_GUARD_HANDSHAKE_NONCE}:${process.env.R2_FIXTURE_ROOT}\\n`);',
 			'setInterval(() => {}, 1_000);',
 		].join('\n'),
 	});
