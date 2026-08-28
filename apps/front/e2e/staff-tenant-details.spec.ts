@@ -1070,6 +1070,16 @@ test.describe(
 			// French: "Envoyer 2 invitations"
 			await setLocaleCookie(page, 'fr');
 			await page.reload();
+			await expect(drawer).toBeVisible();
+			// A reload resets the form's local state, so re-populate two rows
+			// before re-checking the plural button label under the new locale.
+			await drawer
+				.locator('input[name="rows.0.email"]')
+				.fill('first@example.com');
+			await drawer.getByRole('button', { name: 'Add another invitee' }).click();
+			await drawer
+				.locator('input[name="rows.1.email"]')
+				.fill('second@example.com');
 			await expect(
 				drawer.getByRole('button', { name: 'Envoyer 2 invitations' }),
 			).toBeVisible();

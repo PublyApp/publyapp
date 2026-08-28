@@ -82,6 +82,8 @@ vi.mock('react-i18next', () => ({
 					'Admins get full access; profiles do not apply.',
 				'invite-unresolved-profile-not-found': 'No profile named {{names}}.',
 				'invite-unresolved-profile-ambiguous': 'Ambiguous profile {{names}}.',
+				'invite-invalid-email':
+					'Row for {{email}} is not a valid email address. Fix the address, then try again.',
 				'invite-footer-count': 'People: {{count}}',
 				// Base key: i18next resolves _one/_other; the stub collapses to
 				// the historical label so submit-button queries stay stable.
@@ -646,7 +648,7 @@ describe('InviteTenantUserDrawer', () => {
 		expect(screen.getByRole('alertdialog')).toBeTruthy();
 	});
 
-	test('blocks submission when an email is locally invalid', async () => {
+	test('blocks submission when an email is locally invalid and shows the offending row', async () => {
 		render(
 			<InviteTenantUserDrawer
 				tenantId="tenant-1"
@@ -897,6 +899,35 @@ describe('InviteTenantUserDrawer', () => {
 		);
 		expect(screen.getByTestId('invite-dropzone')).toBeTruthy();
 		expect(screen.queryByText('fiona@example.com')).toBeNull();
+	});
+
+	test('flags a malformed email in a CSV import with a per-row error naming the offending address', async () => {
+		render(
+			<InviteTenantUserDrawer
+				tenantId="tenant-1"
+				isOpen
+				onOpenChange={vi.fn()}
+				onInvited={vi.fn()}
+				onSessionExpired={vi.fn()}
+			/>,
+		);
+
+		dropFile(
+			'email,level,profiles\nvalid@example.com,admin,\nnot-an-email,user,\n',
+		);
+
+		await waitFor(() =>
+			expect(screen.getByTestId('invite-file-bar')).toBeTruthy(),
+		);
+		expect(
+			screen.getByText(/Row for not-an-email is not a valid email address/),
+		).toBeTruthy();
+		expect(
+			screen
+				.getByRole('button', { name: 'Invite people' })
+				.hasAttribute('disabled'),
+		).toBe(true);
+		expect(mocks.inviteMutation).not.toHaveBeenCalled();
 	});
 
 	test('rejects an unsupported extension with the localized type error', async () => {
