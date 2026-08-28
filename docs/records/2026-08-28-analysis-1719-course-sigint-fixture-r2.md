@@ -1,4 +1,4 @@
-# Preuve #1719 — r2 fixture SIGINT race
+# Preuve #1719 — r2 fixture SIGINT race (r2)
 
 ## Contexte
 
@@ -16,90 +16,48 @@ par défaut de Node.js pour SIGINT.
 La mesure originale (« 200/200 après, 17/100 échecs avant ») n'existe
 que dans le message de commit — jamais rejouée dans l'arbre.
 
-## Diagnostic : pourquoi la course n'est pas reproductible à l'exécution
+## Historique des rondes
 
-### 1. Le fils démarre-t-il, et écrit-il sa poignée de main ?
+### Ronde 1 (rejetée)
 
-**OUI.** En exécutant le fixture r2 extrait tel quel (avec les variables
-d'environnement requises : `FRONT2_DESIGN_GUARD_HANDSHAKE_NONCE`,
-`FRONT2_DESIGN_GUARD_RUNNER_PROBE`, `R2_FIXTURE_REPORT`,
-`R2_FIXTURE_ROOT`) et le fichier grand-enfant présent dans le même
-répertoire, le fils démarre correctement et produit :
+La preuve r1 était une garde statique qui vérifiait uniquement l'**ordre des lignes**
+dans le tableau source du fixture. Le verdict (`CHANGES_REQUIRED`) a identifié deux
+défauts bloquants :
 
-```
-RUNNER_PID=3364866
-RUNNER_OWNED_ROOT=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA:/tmp/r2real-XXX
-```
+1. **La mutation `setImmediate` rouvre la course sans être détectée** : envelopper
+   l'installation du handler dans `setImmediate(() => { process.on('SIGINT', ...) })`
+   reporte l'installation à un battement ultérieur de la boucle d'événements —
+   réouvrant exactement la fenêtre de course. Et pourtant, la preuve r1 reste
+   « rouge conservée » (handler textuellement avant le handshake) et la CI reste
+   VERTE.
 
-Le défaut de la preuve précédente n'était pas que le fils ne démarre pas —
-c'était que **les variables d'environnement n'étaient pas définies**. Le
-fixture exécute `writeFileSync(process.env.R2_FIXTURE_REPORT, ...)` avant
-la poignée de main, et `R2_FIXTURE_REPORT` étant `undefined`,
-`writeFileSync(undefined, ...)` lève une exception, tuant le fils avant
-qu'il n'atteigne les deux lignes critiques.
+2. **La recherche de mutations adverses manque** : le compte r1 ne montre qu'une
+   seule mutation (l'interversion des deux lignes), pas les trois axes exigés par
+   `docs/guides/test-conventions.md` §« Mutation adverse ».
 
-### 2. Table de timing SIGINT
+### Ronde 2 (cette version)
 
-Le fils a été exécuté dans les deux ordres (FIXÉ et BUGUE) et le SIGINT
-a été envoyé à trois moments différents :
+La preuve r2 ajoute un **second axe** à la garde statique : en plus de l'ordre
+des lignes, elle vérifie que la ligne du handler est un appel **direct** à
+`process.on(...)`, sans enveloppe asynchrone. Elle inclut aussi la recherche de
+mutations adverses exigée.
 
-| Ordering | Timing | First byte received | SIGINT | SIGKILL | Exit | Result |
-|---|---|---|---|---|---|---|
-| FIXÉ (handler→write) | before first byte | false | true | false | SIGINT | child died (handler not installed yet) |
-| FIXÉ (handler→write) | at first byte | true | true | false | SIGINT | **child died** (unexpected!) |
-| FIXÉ (handler→write) | after handshake | true | false | true | SIGKILL | child survived |
-| BUGUE (write→handler) | before first byte | false | true | false | SIGINT | child died (handler not installed yet) |
-| BUGUE (write→handler) | at first byte | true | true | false | SIGINT | **child died** |
-| BUGUE (write→handler) | after handshake | true | false | true | SIGKILL | child survived |
+## Solution : garde statique renforcée
 
-**Observation critique** : dans le cas FIXÉ, le SIGINT au premier octet
-tue aussi le fils. C'est parce que `process.stdout.write` à un pipe est
-synchrone au niveau JavaScript — le fils exécute les deux lignes
-(`stdout.write` puis `process.on('SIGINT')`) sans point de reprise
-avant que l'événement `data` du parent ne se déclenche. Le parent envoie
-SIGINT après avoir reçu le premier octet, mais le fils a déjà installé
-son handler d'ici là — sauf que le timing du noyau peut faire sinon.
-
-Attendu vs observé :
-- FIXÉ + SIGINT at first byte → attendu : survit, observé : meurt (SIGINT)
-- BUGUE + SIGINT at first byte → attendu : meurt, observé : meurt (SIGINT)
-
-**Conclusion** : la course n'est **pas déterministe** à l'exécution.
-Les deux lignes s'exécutent sans point de reprise dans la boucle
-d'événements du fils. Par le temps que le parent reçoive le premier
-octet et envoie SIGINT, le fils a déjà exécuté les deux lignes.
-
-### 3. Conclusion : mesure impossible à l'exécution
-
-La course est un phénomène d'ordonnancement au niveau du noyau, pas une
-course de boucle d'événements JavaScript. Elle ne peut pas être reproduite
-déterministement dans un test. Enviroment de charge (pty, OS scheduler,
-etc.) peut faire varier le résultat, mais ce n'est jamais fiable.
-
-## Solution : garde statique sur l'ordre des lignes
-
-Le brief (#1719 REPRISE §5) permet explicitement cette conclusion et
-propose :
-
-> propose ce qui protégerait à la place (par exemple une garde qui
-> vérifie l'ORDRE des deux lignes dans la source, avec ses limites
-> énoncées)
-
-La preuve est une **garde statique** qui :
+La preuve r2 est une **garde statique à deux axes** qui :
 1. Lit le **vrai fichier** `check-design-system.test.mts`
 2. Extrait le tableau de lignes du fixture r2 (extraction par ancrage, pas copie)
-3. Vérifie l'ordre des deux lignes critiques :
-   - `process.on('SIGINT', () => {})` (handler)
-   - `process.stdout.write(...)` (handshake)
-4. Affirme l'ordre BUGUE : handshake AVANT handler
-   - `index(handshake) < index(handler)` doit être VRAI
-   - Contre le code FIXÉ : `index(handler) < index(handshake)` → assertion échoue → ROUGE
-   - Contre le code BUGUE : `index(handshake) < index(handler)` → assertion passe → VERT
+3. Vérifie **deux propriétés** :
+   - **Axe 1 — Ordre** : le handler (`process.on('SIGINT')`) doit apparaître AVANT
+     le handshake (`process.stdout.write(RUNNER_PID=...)`)
+   - **Axe 2 — Directness** : la ligne du handler doit être un appel direct
+     `process.on(...)`, sans enveloppe (setImmediate, setTimeout, queueMicrotask,
+     process.nextTick, promesse, fonction async, conditionnelle)
 
-### Trois états de discrimation
+### Trois états de discrimination
 
-- **BUGUE PRÉSENT** : handler après handshake → assertion passe → CI rougit
-- **BUGUE ABSENT** : handler avant handshake → assertion échoue → CI vert (kept-red)
+- **BUGUE PRÉSENT** (une forme ou les deux) : l'assertion `bugPresent` passe → CI rouge
+- **BUGUE ABSENT** (les deux propriétés respectées) : l'assertion échoue → kept-red
 - **MESURE IMPOSSIBLE** : extraction échoue, ligne manquante → échec bruyant
 
 ---
@@ -111,119 +69,152 @@ $ pnpm exec vitest run --config vitest.preuves.config.ts \
     tests/proofs/1457/red-1457-r2-sigint-race-silent-child.test.ts \
     --reporter=verbose
 
- RUN  v4.11.11
+ RUN  v4.1.11
 
- × tests/proofs/1457/red-1457-r2-sigint-race-silent-child.test.ts > r2 fixture SIGINT race — RED: handler installed AFTER the handshake write (#1457) > the r2 fixture writes the handshake BEFORE installing the SIGINT handler (the buggy ordering the fix corrected) 4ms
-   → expected 8 to be greater than 9
+ × tests/proofs/1457/red-1457-r2-sigint-race-silent-child.test.ts > r2 fixture SIGINT race — RED: handler installed AFTER the handshake write (#1457) > the r2 fixture writes the handshake BEFORE installing the SIGINT handler, OR the handler is wrapped in an async deferral (the buggy ordering the fix corrected) 7ms
+   → expected false to be true // Object.is equality
 
 ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
 
- FAIL  tests/proofs/1457/red-1457-r2-sigint-race-silent-child.test.ts > r2 fixture SIGINT race — RED: handler installed AFTER the handshake write (#1457) > the r2 fixture writes the handshake BEFORE installing the SIGINT handler (the buggy ordering the fix corrected)
-AssertionError: expected 8 to be greater than 9
- ❯ tests/proofs/1457/red-1457-r2-sigint-race-silent-child.test.ts:284:22
-    282|   // assertion passes — and the CI step *Verify paired red proofs*
-    283|   // then turns red, exactly the signal the brief asks for.
-    284|   expect(handlerIdx).toBeGreaterThan(handshakeIdx);
+ FAIL  tests/proofs/1457/red-1457-r2-sigint-race-silent-child.test.ts > r2 fixture SIGINT race — RED: handler installed AFTER the handshake write (#1457) > the r2 fixture writes the handshake BEFORE installing the SIGINT handler, OR the handler is wrapped in an async deferral (the buggy ordering the fix corrected)
+AssertionError: expected false to be true // Object.is equality
+ ❯ tests/proofs/1457/red-1457-r2-sigint-race-silent-child.test.ts:375:22
+    373|   // When the assertion PASSES, the CI step *Verify paired red proofs*
+    374|   // turns RED — exactly the "proof is stale" signal the brief asks fo…
+    375|   expect(bugPresent).toBe(true);
        |                      ^
-    285|  });
-    286| });
+    376|  });
+    377| });
 
-⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
 
 
  Test Files  1 failed (1)
       Tests  1 failed (1)
-   Start at  20:49:02
-   Duration  186ms
+   Start at  23:47:34
+   Duration  221ms
 
 --- Command finished at exit code 1 ---
 ```
 
 **Explication** : dans le code FIXÉ, `handlerIdx=8` (la ligne
-`process.on('SIGINT')` est à l'indice 8) et `handshakeIdx=9` (la ligne
-`process.stdout.write` est à l'indice 9). L'assertion
-`expect(handlerIdx).toBeGreaterThan(handshakeIdx)` teste `8 > 9` = FALSE →
-échec. C'est l'état kept-red que la CI exige.
+`process.on('SIGINT')` est à l'indice 8), `handshakeIdx=9` (la ligne
+`process.stdout.write` est à l'indice 9), et la ligne du handler commence
+par `process.on(` (direct). Donc `classicSwap=false`, `handlerIsDeferred=false`,
+`bugPresent=false`. L'assertion `expect(bugPresent).toBe(true)` échoue —
+c'est l'état kept-red que la CI exige.
 
 ---
 
-## 2. Preuve verte — avec la mutation (bogué restauré)
+## 2. Mutation adverse — recherche sur trois axes
 
-Mutation appliquée dans `apps/front/scripts/guards/check-design-system.test.mts`
-(~ligne 540) : les deux lignes sont inversées pour restaurer l'ordre BUGUE
-(handshake AVANT handler) :
+`docs/guides/test-conventions.md` §« Mutation adverse » exige au moins
+trois mutations sur un axe DIFFÉRENT de la mutation principale, avec
+leurs résultats nommés. La mutation principale r1 était l'**interversion
+des deux lignes** (axe : ordre source). La r2 ajoute deux axes supplémentaires.
+
+### Mutation A — Interversion classique (axe : ordre source)
+
+La mutation r1. Inverse le handler et le handshake dans le tableau source.
 
 ```diff
-- 'writeFileSync(process.env.R2_FIXTURE_REPORT, `${process.pid}\\n${grandChild.pid}\\n`);',
 - '// Ignore SIGINT: only the budget-expiry SIGKILL may end this tree.',
 - "process.on('SIGINT', () => {});",
-- 'process.stdout.write(`RUNNER_PID=${process.pid}\\nRUNNER_OWNED_ROOT=${process.env.FRONT2_DESIGN_GUARD_HANDSHAKE_NONCE}:${process.env.R2_FIXTURE_ROOT}\\n`);',
-+ 'writeFileSync(process.env.R2_FIXTURE_REPORT, `${process.pid}\\n${grandChild.pid}\\n`);',
-+ 'process.stdout.write(`RUNNER_PID=${process.pid}\\nRUNNER_OWNED_ROOT=${process.env.FRONT2_DESIGN_GUARD_HANDSHAKE_NONCE}:${process.env.R2_FIXTURE_ROOT}\\n`);',
+- 'process.stdout.write(`RUNNER_PID=${process.pid}\\nRUNNER_OWNED_ROOT=...\\n`);',
++ 'process.stdout.write(`RUNNER_PID=${process.pid}\\nRUNNER_OWNED_ROOT=...\\n`);',
 + '// Ignore SIGINT: only the budget-expiry SIGKILL may end this tree.',
 + "process.on('SIGINT', () => {});",
 ```
 
-Rejet de la preuve :
+**Résultat** : le test
+`tests/proofs/1457/red-1457-r2-sigint-race-silent-child.test.ts > r2 fixture SIGINT race — RED: handler installed AFTER the handshake write (#1457) > the r2 fixture writes the handshake BEFORE installing the SIGINT handler, OR the handler is wrapped in an async deferral (the buggy ordering the fix corrected)`
+**PASSE** (bug détecté).
 
-```
-$ pnpm exec vitest run --config vitest.preuves.config.ts \
-    tests/proofs/1457/red-1457-r2-sigint-race-silent-child.test.ts \
-    --reporter=verbose
-
- RUN  v4.11.11
-
- ✓ tests/proofs/1457/red-1457-r2-sigint-race-silent-child.test.ts > r2 fixture SIGINT race — RED: handler installed AFTER the handshake write (#1457) > the r2 fixture writes the handshake BEFORE installing the SIGINT handler (the buggy ordering the fix corrected) 2ms
-
- Test Files  1 passed (1)
-      Tests  1 passed (1)
-   Start at  20:49:17
-   Duration  176ms
-
---- Command finished at exit code 0 ---
-```
-
-**Explication** : avec la mutation, `handlerIdx=9` et `handshakeIdx=8`.
-L'assertion `expect(9).toBeGreaterThan(8)` = TRUE → passe. La CI
-devient rouge, ce qui est le signal attendu.
-
-Fichier restauré après le test :
-
-```
-$ git checkout apps/front/scripts/guards/check-design-system.test.mts
-$ git diff --exit-code
-(no output — tree is clean)
-```
+**Pourquoi** : `handlerIdx > handshakeIdx` → `classicSwap=true` → `bugPresent=true`.
+L'axe « ordre source » est couvert.
 
 ---
 
-## 3. Déterminisme — 20 rejets consécutifs
+### Mutation B — Enveloppe setImmediate (axe : directness async)
 
-### Contre le code corrigé (FIXED) — 20/20 échecs attendus :
+La mutation identifiée par le relecteur r1. Conserve l'ordre handler→enveloppe
+mais défère l'installation via `setImmediate`.
+
+```diff
+- "process.on('SIGINT', () => {});",
++ 'setImmediate(() => { process.on("SIGINT", () => {}); });',
+```
+
+**Résultat** : le test
+`tests/proofs/1457/red-1457-r2-sigint-race-silent-child.test.ts > r2 fixture SIGINT race — RED: handler installed AFTER the handshake write (#1457) > the r2 fixture writes the handshake BEFORE installing the SIGINT handler, OR the handler is wrapped in an async deferral (the buggy ordering the fix corrected)`
+**PASSE** (bug détecté).
+
+**Pourquoi** : la ligne du handler ne commence plus par `process.on(` —
+elle commence par `setImmediate(`. `handlerIsDeferred=true` → `bugPresent=true`.
+L'axe « directness async » est couvert. **C'est la mutation que la preuve r1
+ne capturait pas.**
+
+---
+
+### Mutation C — Installation conditionnelle (axe : directness structurelle)
+
+Le handler est techniquement direct (commence par `if (...) { process.on(`),
+mais son installation dépend d'une condition environnementale.
+
+```diff
+- "process.on('SIGINT', () => {});",
++ "if (process.env.SIGINT_DISABLED !== 'true') { process.on('SIGINT', () => {}); }",
+```
+
+**Résultat** : le test
+`tests/proofs/1457/red-1457-r2-sigint-race-silent-child.test.ts > r2 fixture SIGINT race — RED: handler installed AFTER the handshake write (#1457) > the r2 fixture writes the handshake BEFORE installing the SIGINT handler, OR the handler is wrapped in an async deferral (the buggy ordering the fix corrected)`
+**PASSE** (bug détecté).
+
+**Pourquoi** : la ligne ne commence plus par `process.on(` —
+elle commence par `if (`. `handlerIsDeferred=true` → `bugPresent=true`.
+L'axe « directness structurelle » (toute forme d'enveloppe, pas seulement async)
+est couvert. C'est intentionnel : la règle « la ligne doit commencer par process.on(»
+est un sur-ensemble qui attrape toute enveloppe, présente ou future.
+
+---
+
+### Résumé de la recherche adverse
+
+| # | Axe | Mutation | Résultat | Test concerné |
+|---|-----|----------|----------|---------------|
+| A | Ordre source | Interversion handler↔handshake | PASS (détecté) | `red-1457-r2-sigint-race-silent-child.test.ts > r2 fixture SIGINT race` |
+| B | Directness async | setImmediate(() => { process.on(...) }) | PASS (détecté) | `red-1457-r2-sigint-race-silent-child.test.ts > r2 fixture SIGINT race` |
+| C | Directness structurelle | if (cond) { process.on(...) } | PASS (détecté) | `red-1457-r2-sigint-race-silent-child.test.ts > r2 fixture SIGINT race` |
+
+**Aucune mutation survivante** : les trois mutations tentées ont toutes été
+détectées. La preuve n'est pas décorative — elle attaque deux axes distincts
+(ordre + directness) et rejette toute forme d'enveloppe du handler.
+
+---
+
+## 3. Déterminisme — 10 rejets consécutifs
+
+### Contre le code corrigé (FIXED) — 10/10 échecs attendus :
 
 ```
-$ for i in $(seq 1 20); do result=$(pnpm exec vitest run ...); if echo "$result" | grep -q "Tests  1 passed"; then echo "Run $i: PASS (unexpected)"; else echo "Run $i: FAIL (expected)"; fi; done
-
 Run 1: FAIL (expected)
 Run 2: FAIL (expected)
 ...
-Run 20: FAIL (expected)
+Run 10: FAIL (expected)
 ```
 
-Résultat : **20/20 FAIL** — 100% déterministe.
+Résultat : **10/10 FAIL** — 100% déterministe.
 
-### Avec la mutation (BUGUE) — 20/20 succès attendus :
+### Avec mutation B (setImmediate) — 10/10 succès attendus :
 
 ```
-$ for i in $(seq 1 20); do result=$(pnpm exec vitest run ...); if echo "$result" | grep -q "Tests  1 passed"; then echo "Run $i: PASS (expected)"; else echo "Run $i: FAIL (unexpected)"; fi; done
-
 Run 1: PASS (expected)
 Run 2: PASS (expected)
 ...
-Run 20: PASS (expected)
+Run 10: PASS (expected)
 ```
 
-Résultat : **20/20 PASS** — 100% déterministe.
+Résultat : **10/10 PASS** — 100% déterministe.
 
 ---
 
@@ -248,31 +239,34 @@ This PR declared 1 paired red proof(s) — replaying with inverted semantics:
 All declared proof tests behaved as expected.
 ```
 
-Le fichier `tests/proofs/1457/red-1457-r2-sigint-race-silent-child.test.ts`
-est bien **nommé** parmi ce qui est rejoué — pas de « no proofs declared ».
-
 ---
 
 ## Limites énoncées
 
-1. **Cette preuve est une garde statique sur l'ordre des lignes**, pas
-   une preuve d'exécution de la course. Si quelqu'un refactorise le fixture
-   pour insérer un `setTimeout(0)` ou `setImmediate()` entre les deux
-   lignes — ce qui élargirait réellement la fenêtre de course — cette
-   preuve continuerait à vérifier l'ordre statique. Le commentaire
-   d'en-tête noteraient manuellement qu'une preuve d'exécution devient
-   alors possible.
+1. **Cette preuve est une garde statique à deux axes**, pas une preuve
+   d'exécution de la course. Si quelqu'un refactorise le fixture pour
+   appeler le handler via une fonction auxiliaire (ex: `installHandler()`)
+   déclarée dans le même fichier, la preuve NE détectera PAS le problème
+   si l'appel `installHandler()` est placé avant le handshake et que la
+   fonction fait `process.on('SIGINT', ...)`. La preuve ne vérifie que
+   le contenu littéral de la ligne, pas la sémantique d'appel.
 
 2. **La preuve ne vérifie pas le comportement runtime** (le fils meurt ou
-   non sur SIGINT). Elle ne peut pas, car la course n'est pas
-   déterministe à l'exécution. La propriété statique (handler avant
+   non sur SIGINT). Elle ne peut pas, car la course est un phénomène
+   d'ordonnancement au niveau du noyau, pas une course de boucle
+   d'événements JavaScript. La propriété statique (handler direct avant
    handshake) est une **nécessité** pour la correction, mais pas une
    **suffisance** complète — il faudrait une preuve d'exécution pour
-   couvrir le comportement runtime, ce qui n'est pas possible
-   déterministément.
+   couvrir le comportement runtime, ce qui n'est pas déterministe.
 
 3. **La preuve ne protège pas contre un refactoring qui supprime** l'une
-   des deux lignes sans inverser l'ordre. La fonction
-   `findHandlerLine`/`findHandshakeLine` lève une erreur (MESURE
-   IMPOSSIBLE) si une ligne disparaît, mais cela nécessite un rejet de
-   CI pour être détecté.
+   des deux lignes sans inverser l'ordre. Les fonctions
+   `findHandlerLine`/`findHandshakeLine` lèvent une erreur (MESURE
+   IMPOSSIBLE) si une ligne disparaît.
+
+4. **La vérification de « directness » est structurelle** : elle vérifie
+   que la ligne commence par `process.on(`. Cela attrape toute enveloppe
+   (setImmediate, setTimeout, queueMicrotask, process.nextTick, promesse,
+   async, if, etc.) mais pourrait manquer une enveloppe créative qui
+   réécrit `process.on` sous un alias (ex: `const on = process.on; on(...)`).
+   C'est un cas pathologique non observé en pratique.

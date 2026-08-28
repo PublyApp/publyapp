@@ -21,7 +21,7 @@
  * before") lives only in the commit message, so it is replayed NOWHERE.
  * This proof keeps the bug alive.
  *
- * ## Why a static ordering guard — not a runtime race
+ * ## Why a static guard — not a runtime race
  *
  * The brief (REPRISE §4) asked for an attempt at runtime measurement first.
  * Diagnostics (see .dump/preuve-1719.md) confirmed that under Node.js the
@@ -41,60 +41,108 @@
  * "the very first byte" does not help because there IS no yield point
  * between the two lines.
  *
- * Therefore this proof is a **static ordering guard**: it reads the REAL
- * fixture source from the real test file, extracts the exact lines the
- * runtime fixture lays down, and asserts the BUGGY ordering is present
- * (handshake write BEFORE handler installation). This is deterministic and
- * 100% reproducible.
+ * Therefore this proof is a **static guard**: it reads the REAL fixture
+ * source from the real test file, extracts the exact lines the runtime
+ * fixture lays down, and asserts the BUGGY ordering is present (handshake
+ * write BEFORE handler installation). This is deterministic and 100%
+ * reproducible.
+ *
+ * ## Enhancement (r2 — catches async deferral)
+ *
+ * The r1 proof asserted only the LINE ORDERING. A reviewer found a trivial
+ * mutation that reopens the race while keeping the proof kept-red:
+ *
+ * ```js
+ * // In the fixture array, wrap the handler in setImmediate:
+ * 'setImmediate(() => { process.on("SIGINT", () => {}); });',
+ * 'process.stdout.write(...)',
+ * ```
+ *
+ * The handler TEXT (`process.on('SIGINT'`) still appears before the
+ * handshake, so `handlerIdx < handshakeIdx` and the r1 assertion stays
+ * FALSE — kept-red — even though the handler is now deferred past the
+ * handshake, reopening the race. The r1 proof guarded FORM, not BEHAVIOR.
+ *
+ * This enhancement adds a SECOND axis: the handler line must be a DIRECT
+ * `process.on(...)` call, not wrapped in ANY other construct. The
+ * `isHandlerDeferred()` check rejects lines that don't start with
+ * `process.on(` (after trimming), which catches:
+ *
+ * - `setImmediate(() => { process.on('SIGINT', ...) })` — macrotask deferral
+ * - `setTimeout(() => { process.on('SIGINT', ...) }, 0)` — timer deferral
+ * - `queueMicrotask(() => { process.on('SIGINT', ...) })` — microtask deferral
+ * - `process.nextTick(() => { process.on('SIGINT', ...) })` — nextTick deferral
+ * - `Promise.resolve().then(() => { process.on('SIGINT', ...) })` — promise deferral
+ * - `await something(); process.on('SIGINT', ...)` — async function deferral
+ * - `if (cond) { process.on('SIGINT', ...) }` — conditional installation
+ *
+ * The proof now asserts `bugPresent = classicSwap || handlerIsDeferred`,
+ * where:
+ * - `classicSwap` = handler appears AFTER handshake in source order
+ * - `handlerIsDeferred` = handler line is not a direct `process.on(` call
+ *
+ * On correct code: both false → assertion FAILS → kept-red.
+ * On classic swap: `classicSwap` true → assertion PASSES → detects.
+ * On deferred: `handlerIsDeferred` true → assertion PASSES → detects.
  *
  * ## Three-state discrimination
  *
- * - BUGUE PRÉSENT (bug present): the handler line comes AFTER the
- *   handshake line in the extracted fixture. The assertion
- *   `handlerIdx > handshakeIdx` PASSES. The CI step *Verify paired red
- *   proofs* then turns RED (proof passed when it should fail).
+ * - BUGUE PRÉSENT (bug present): either the handler line comes AFTER the
+ *   handshake line, OR the handler line is wrapped/deferred. The assertion
+ *   PASSES. The CI step *Verify paired red proofs* then turns RED.
  *
- * - BUGUE ABSENT (bug absent): the handler line comes BEFORE the
- *   handshake line — the fix is present. The assertion FAILS — the
+ * - BUGUE ABSENT (bug absent): handler line is a direct `process.on(`
+ *   call AND it comes BEFORE the handshake. The assertion FAILS — the
  *   kept-red state the CI step demands.
  *
  * - MESURE IMPOSSIBLE (measurement impossible): the extraction could not
  *   locate the r2 fixture array, the header/footer anchors drifted, or one
  *   of the two critical lines is missing from the extracted fixture. This
  *   state FAILS LOUD with a named reason — it NEVER silently collapses to
- *   `handlerIdx > handshakeIdx = false`.
+ *   `bugPresent = false`.
  *
  * ## Replay:
  *   cd apps/front && pnpm exec vitest run --config vitest.preuves.config.ts \
  *     tests/proofs/1457/red-1457-r2-sigint-race-silent-child.test.ts
  *
- * Expected: FAIL — the handler line comes before the handshake line in the
- * current (corrected) develop, so `handlerIdx > handshakeIdx` is false.
+ * Expected: FAIL — on correct code, the handler is a direct `process.on(`
+ * call before the handshake, so `bugPresent` is false.
  *
- * ## Mutation to introduce the red (restore the bug):
- *   In `apps/front/scripts/guards/check-design-system.test.mts`, inside
- *   the `r2-ignored-sigint-parent.mjs` array (~line 540-542), swap the
- *   two lines so the order is
- *     'process.stdout.write(`RUNNER_PID=...\\nRUNNER_OWNED_ROOT=...\\n`);',
- *     '// Ignore SIGINT: only the budget-expiry SIGKILL may end this tree.',
- *     "process.on('SIGINT', () => {});",
- *   (i.e. the handshake write comes BEFORE the handler installation).
+ * ## Mutations to introduce the red (restore the bug):
  *
- *   After the mutation the assertion PASSES — exactly the "proof is stale"
- *   signal the CI step is meant to raise.
+ * **Mutation A — classic swap** (the r1 mutation): in
+ * `apps/front/scripts/guards/check-design-system.test.mts`, inside the
+ * `r2-ignored-sigint-parent.mjs` array (~line 540-542), swap the two lines
+ * so the handshake write comes BEFORE the handler installation.
  *
- * ## Limitations (honest disclosure)
+ * **Mutation B — async deferral** (the r2 mutation): keep the handler
+ * before the handshake in source order, but wrap it in an async deferral:
+ * ```js
+ * 'setImmediate(() => { process.on("SIGINT", () => {}); });',
+ * 'process.stdout.write(...)',
+ * ```
  *
- * This proof guards the LINE ORDERING in the fixture source, not the
- * runtime race itself. If someone refactors the fixture to use a
- * `setTimeout(0)` or `setImmediate()` between the two lines — widening
- * the race window so a runtime test would then be possible — this proof
- * would NOT automatically switch to a runtime assertion. It would
- * continue to check the ordering, and its own header comment would need
- * manual review to remove that limitation note. This is an acceptable
- * trade-off: a deterministic static guard that catches the exact regression
- * the commit fixed is safer than a flaky runtime race that silently
- * collapses to green.
+ * Both mutations make `bugPresent` true, so the assertion PASSES — the
+ * "proof is stale" signal the CI step is meant to raise.
+ *
+ * ## Honest limits — what this proof does NOT cover
+ *
+ * This proof guards two axes of the bug: (1) line ordering and (2) directness
+ * of the handler installation. It does NOT cover:
+ *
+ * - A handler that is a direct `process.on('SIGINT', ...)` call but installs
+ *   a handler that THROWS or EXITS, defeating the purpose. The proof only
+ *   checks that the line starts with `process.on(`, not the callback body.
+ * - A refactor that moves the handler to a SEPARATE function called before
+ *   the handshake — the proof checks the literal line content, not function
+ *   call boundaries.
+ * - Runtime behavior: the proof cannot assert that the child survives a
+ *   SIGINT sent at the first byte, because the race is a kernel-scheduling
+ *   phenomenon that is not deterministic in a test environment.
+ *
+ * Within these limits, the proof catches every realistic regression of the
+ * specific bug that commit 5c044a936 fixed, including the async-deferral
+ * variant the r1 proof missed.
  */
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -215,9 +263,16 @@ function extractR2FixtureLines(): string[] {
 /**
  * Find the index of the handler-installation line in the extracted fixture.
  * Throws if the line is missing — a drift surfaces here, not as a silently-passing proof.
+ *
+ * Matches both quote styles: the original uses single quotes (`process.on('SIGINT'`)
+ * but a deferral wrapper may use double quotes (`setImmediate(() => { process.on("SIGINT"...`)
+ * The detection is intentionally quote-agnostic: we look for `process.on(` immediately
+ * followed by an optional quote and `SIGINT`.
  */
 function findHandlerLine(lines: string[]): number {
-	const index = lines.findIndex((line) => line.includes("process.on('SIGINT'"));
+	const index = lines.findIndex((line) =>
+		/process\.on\s*\(\s*['"]SIGINT['"]/.test(line),
+	);
 	if (index === -1) {
 		throw new Error(
 			`r2-sigint-race proof: could not find the "process.on('SIGINT'" line ` +
@@ -244,8 +299,32 @@ function findHandshakeLine(lines: string[]): number {
 	return index;
 }
 
+/**
+ * Check whether the handler line is a DIRECT `process.on(...)` call.
+ *
+ * Returns false (NOT deferred) when the trimmed line starts with `process.on(` —
+ * the handler is installed synchronously as a top-level statement.
+ *
+ * Returns true (deferred) for ANY other form:
+ *   - `setImmediate(() => { process.on('SIGINT', ...) })` — macrotask
+ *   - `setTimeout(() => { process.on('SIGINT', ...) }, 0)` — timer
+ *   - `queueMicrotask(() => { process.on('SIGINT', ...) })` — microtask
+ *   - `process.nextTick(() => { process.on('SIGINT', ...) })` — nextTick
+ *   - `Promise.resolve().then(() => { ... })` — promise chain
+ *   - `await something(); process.on('SIGINT', ...)` — async fn
+ *   - `if (cond) { process.on('SIGINT', ...) }` — conditional
+ *
+ * This is intentionally broader than a denylist of specific async primitives
+ * (setImmediate/setTimeout/etc.). A denylist would miss novel deferral
+ * mechanisms; a structural check ("does the line start with process.on(")
+ * catches ALL deferrals, including future ones.
+ */
+function isHandlerDeferred(line: string): boolean {
+	return !line.trim().startsWith('process.on(');
+}
+
 describe('r2 fixture SIGINT race — RED: handler installed AFTER the handshake write (#1457)', () => {
-	test('the r2 fixture writes the handshake BEFORE installing the SIGINT handler (the buggy ordering the fix corrected)', () => {
+	test('the r2 fixture writes the handshake BEFORE installing the SIGINT handler, OR the handler is wrapped in an async deferral (the buggy ordering the fix corrected)', () => {
 		// Step 1: Extract the REAL fixture lines from the production file.
 		// If extraction fails — anchor not found, footer not found, line
 		// count too low — this throws and the test fails LOUD naming the
@@ -267,23 +346,34 @@ describe('r2 fixture SIGINT race — RED: handler installed AFTER the handshake 
 		const handlerIdx = findHandlerLine(lines);
 		const handshakeIdx = findHandshakeLine(lines);
 
-		// Step 3: Assert the BUGGY ordering.
+		// Step 3: Detect BOTH forms of the bug.
 		//
-		// The BUGGY ordering (the bug commit 5c044a936 FIXED) is:
-		//   handshake write (stdout.write) comes BEFORE
-		//   handler installation (process.on('SIGINT'))
-		// i.e. handshakeIdx < handlerIdx.
+		// Form A — classic swap (the r1 mutation): the handler line comes
+		// AFTER the handshake line in source order. This is the exact
+		// regression that commit 5c044a936 fixed.
+		const classicSwap = handlerIdx > handshakeIdx;
+
+		// Form B — async deferral (the r2 mutation): the handler text
+		// appears before the handshake, BUT the handler line is not a
+		// direct `process.on(` call — it's wrapped in setImmediate,
+		// setTimeout, queueMicrotask, process.nextTick, a promise chain,
+		// an async function, or a conditional. The r1 proof missed this
+		// because it only checked line order.
+		const handlerLine = lines[handlerIdx]!;
+		const handlerIsDeferred = isHandlerDeferred(handlerLine);
+
+		const bugPresent = classicSwap || handlerIsDeferred;
+
+		// Step 4: Assert the BUG is present.
 		//
-		// Against the current (corrected) develop, the ordering is
-		//   handler installation comes BEFORE
-		//   handshake write
-		// i.e. handlerIdx < handshakeIdx — the assertion below FAILS.
-		// That failure IS the proof (the kept-red state the CI step
-		// *Verify paired red proofs* requires).
+		// The kept-red state requires this assertion to FAIL on correct code:
+		//   - Correct code: handlerIdx < handshakeIdx AND handler is a direct
+		//     `process.on(` call → bugPresent = false → assertion FAILS.
+		//   - Classic swap: handlerIdx > handshakeIdx → bugPresent = true → PASSES.
+		//   - Async deferral: handlerIsDeferred = true → bugPresent = true → PASSES.
 		//
-		// If someone re-inverts the two lines (restoring the bug), the
-		// assertion passes — and the CI step *Verify paired red proofs*
-		// then turns red, exactly the signal the brief asks for.
-		expect(handlerIdx).toBeGreaterThan(handshakeIdx);
+		// When the assertion PASSES, the CI step *Verify paired red proofs*
+		// turns RED — exactly the "proof is stale" signal the brief asks for.
+		expect(bugPresent).toBe(true);
 	});
 });
