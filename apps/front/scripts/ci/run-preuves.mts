@@ -8,7 +8,7 @@
  * code does NOT satisfy the ideal, so the test fails, and that failure IS the
  * proof.
  *
- * ## Option (b) — declaration-scoped replay (issue #1659, ronde 5)
+ * ## Option (b) — declaration-scoped replay (issue #1659, ronde 6)
  *
  * A pull request DECLARES a paired red proof by adding or modifying a proof
  * test file under apps/front/tests/proofs/<issue>/. That directory is versionné
@@ -31,6 +31,30 @@
  *    - If a proof test PASSES → FAILURE (bug changed form or fixed; rebuild).
  *    - If a proof file is corrupt → FAILURE (naming the file).
  *
+ * ## Design — inverting the burden of proof (r6)
+ *
+ * Previous versions discovered "all proof files" with a regex filter and then
+ * intersected with the PR's diff. The filter was a mutable point of failure:
+ * changing `/\.test\.tsx?$/` to `/\.test\.ts$/` silently excluded .tsx proofs
+ * and turned the guard into a no-op while every proof stayed red.
+ *
+ * This version inverts the burden:
+ *
+ * - The PR's `git diff` is the source of truth for what was declared. No regex
+ *   is applied to the result. Every file added/modified under tests/proofs/ is
+ *   a declared proof.
+ * - Each declared file is then validated: does it exist? does it have a
+ *   replayable extension? is its content parseable? A declared file the guard
+ *   cannot replay FAILS the step naming the file — it is never silently
+ *   ignored.
+ * - A git diff failure FAILS the step. An unresolvable base can never become a
+ *   compliant default; an input the guard cannot parse must be loud.
+ *
+ * This removes the guard's single mutable point of failure. No change to the
+ * guard's own code can flip it from "bites" to "silent green" without also
+ * breaking the `git diff` contract or the extension check — both of which are
+ * externally observable.
+ *
  * The developer replay path is `just test-preuves` (lane worktree where .dump/
  * also exists for traces). CI runs the same command on a clean checkout.
  *
@@ -38,7 +62,7 @@
  * See .dump/DONE-1687-r5.md for the full rationale.
  */
 import { execFileSync, execSync } from 'node:child_process';
-import { type Dirent, readFileSync, readdirSync } from 'node:fs';
+import { readFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 
 const ROOT = join(process.cwd(), '..'); // apps/front → repo root
@@ -46,7 +70,27 @@ const PROOFS_DIR = join(process.cwd(), 'tests', 'proofs');
 const CONFIG = 'vitest.preuves.config.ts';
 
 /**
+ * Extensions that vitest.preuves.config.ts can replay. The config's include
+ * pattern matches only .test.ts and .test.tsx files under tests/proofs/ — any
+ * file with a different extension is declared by the PR but cannot be
+ * replayed by the runner, which means the guard cannot verify it. Such a
+ * file must fail the step loud.
+ */
+const REPLAYABLE_EXTENSIONS = ['.test.ts', '.test.tsx'] as const;
+
+type ReplayableExtension = (typeof REPLAYABLE_EXTENSIONS)[number];
+
+function isReplayableExtension(ext: string): ext is ReplayableExtension {
+	return (REPLAYABLE_EXTENSIONS as readonly string[]).includes(ext);
+}
+
+/**
  * Determine which proof files were declared by the current PR.
+ *
+ * The PR's `git diff` is the single source of truth — no regex filter is
+ * applied afterward. Every file added or modified under tests/proofs/ is a
+ * declared proof, regardless of its extension. The caller is responsible for
+ * validating that each declared file is replayable.
  *
  * In CI, GITHUB_BASE_REF and GITHUB_HEAD_REF are available. We use a
  * three-dot diff (refs/remotes/origin/<base>...HEAD) so only PR-introduced
@@ -55,27 +99,20 @@ const CONFIG = 'vitest.preuves.config.ts';
  * Locally (no env vars), we use two-dot diff (HEAD~1..HEAD) to show what the
  * most recent commit introduced.
  *
- * Returns the list of proof-test paths (relative to apps/front) that were
- * added or modified in the diff, or null when the repo has zero proof files.
+ * @returns The list of proof-test paths (relative to apps/front) that were
+ *          added or modified in the diff.
+ * @throws If `git diff` fails. An unresolvable base can never silently become
+ *         "no proofs declared"; the operator must fetch the base or fix the
+ *         checkout.
  */
-function declaredProofTests(): string[] | null {
-	// Find all proof test files in the versioned directory.
-	const allProofs = findProofFiles();
-
-	if (allProofs.length === 0) {
-		return null; // No proofs in the repo at all.
+function declaredProofTests(): string[] {
+	// First, confirm the versioned directory exists at all. If it does not,
+	// the repo has no proof infrastructure — the step is a no-op.
+	if (!existsSync(PROOFS_DIR)) {
+		return [];
 	}
 
 	// Get the list of files changed by this PR.
-	//
-	// In CI (GITHUB_BASE_REF + GITHUB_HEAD_REF set): use three-dot diff
-	// (base...HEAD) so only PR-introduced changes are listed — not files
-	// that diverged on the base branch. This is the standard GitHub Actions
-	// pattern for detecting what a PR changed.
-	//
-	// Locally (no env vars): use two-dot diff (HEAD~1..HEAD) to show what
-	// the most recent commit introduced. This lets a developer verify a
-	// proof file that was just committed.
 	let changedFiles: string[];
 	try {
 		if (process.env.GITHUB_BASE_REF && process.env.GITHUB_HEAD_REF) {
@@ -99,59 +136,28 @@ function declaredProofTests(): string[] | null {
 				.map((f) => f.trim())
 				.filter((f) => f.length > 0);
 		}
-	} catch {
-		// If git diff fails (e.g., no previous commit), treat as no declarations.
-		return [];
-	}
-
-	// Find proof files that were added or modified by this PR.
-	// Proof files live under apps/front/tests/proofs/, so the diff paths
-	// from the repo root will start with "apps/front/tests/proofs/".
-	const proofPaths = allProofs.map((p) =>
-		join('apps/front', p).replace(/\\/g, '/'),
-	);
-
-	const declared = proofPaths.filter((proofPath) =>
-		changedFiles.includes(proofPath),
-	);
-
-	// Return paths relative to apps/front (the working dir).
-	return declared.map((p) => p.replace(/^apps\/front\//, ''));
-}
-
-/**
- * Find all proof test files in the versioned tests/proofs/ directory.
- * Returns paths relative to apps/front (e.g., "tests/proofs/1613/name.test.ts").
- */
-function findProofFiles(): string[] {
-	let dirents: Dirent[];
-	try {
-		dirents = readdirSync(PROOFS_DIR, { withFileTypes: true });
-	} catch {
+	} catch (err) {
+		// If git diff fails (e.g., fetch-depth limited and base ref not
+		// fetched), the operator cannot determine what the PR declared.
+		// An unresolvable base must fail LOUD — never become "no proofs
+		// declared → exit 0". An input we cannot parse is not replaced by a
+		// compliant default.
 		throw new Error(
-			`tests/proofs/ is absent or unreadable: the versioned proofs directory must exist at apps/front/tests/proofs/`,
+			`git diff failed — cannot determine which proofs this PR declared. ` +
+				`Fetch the base ref (e.g., "git fetch origin <base>") and retry. ` +
+				`Detail: ${(err as Error).message}`,
 		);
 	}
 
-	const results: string[] = [];
-	for (const dir of dirents) {
-		if (!dir.isDirectory()) continue;
-		const issueDir = join(PROOFS_DIR, dir.name);
-		let files: Dirent[];
-		try {
-			files = readdirSync(issueDir, { withFileTypes: true });
-		} catch (err) {
-			throw new Error(
-				`Cannot read issue directory ${issueDir}: ${(err as Error).message}`,
-			);
-		}
-		for (const file of files) {
-			if (file.isFile() && /\.test\.tsx?$/.test(file.name)) {
-				results.push(join('tests', 'proofs', dir.name, file.name));
-			}
-		}
-	}
-	return results;
+	// Every file added or modified under tests/proofs/ is a declared proof.
+	// Proof files live under apps/front/tests/proofs/, so the diff paths
+	// from the repo root start with "apps/front/tests/proofs/".
+	const declared = changedFiles.filter((f) =>
+		f.startsWith('apps/front/tests/proofs/'),
+	);
+
+	// Return paths relative to apps/front (the working directory).
+	return declared.map((p) => p.replace(/^apps\/front\//, ''));
 }
 
 /**
@@ -185,36 +191,85 @@ function validateProofFile(path: string): void {
 	}
 }
 
+/**
+ * Extract the file extension from a path. Only the last dot matters: a file
+ * named `foo.test.ts` has extension `.test.ts`, not `.ts`.
+ */
+function extensionOf(filename: string): string {
+	const dotIndex = filename.lastIndexOf('.');
+	if (dotIndex === -1) return '';
+	return filename.slice(dotIndex);
+}
+
 // --- Main logic ---
 
-const declared = declaredProofTests();
-
-if (declared === null) {
-	// No proofs in the repo at all.
+// Confirm the versioned directory exists. If it does not, the repo has no
+// proof infrastructure — the step is a no-op.
+if (!existsSync(PROOFS_DIR)) {
 	console.log('No paired red proof tests found in tests/proofs/.');
 	console.log('This step is a no-op for PRs that do not declare a paired red proof.');
 	console.log('To declare one, add a file under apps/front/tests/proofs/<issue>/.');
 	process.exit(0);
 }
 
+// Determine what this PR declared. This can throw if git diff fails — let it
+// propagate so the step fails loud rather than silently turning green.
+const declared = declaredProofTests();
+
 if (declared.length === 0) {
 	// Proofs exist in the repo, but this PR did not declare any.
-	const allProofs = findProofFiles();
 	console.log(
-		`This PR did not declare any paired red proofs (no proof files added or modified).`,
+		'This PR did not declare any paired red proofs (no proof files added or modified).',
 	);
 	console.log(
-		`Proof tests are versionned under tests/proofs/ (${allProofs.length} file(s) in the repo); this PR did not touch any of them.`,
+		'Proof tests are versionned under tests/proofs/; this PR did not touch any of them.',
 	);
 	console.log('This step is an explicit no-op for PRs that do not declare a proof.');
 	process.exit(0);
 }
 
-// The PR declared proofs — replay them with inverted semantics.
+// The PR declared proofs — validate each one is replayable.
+const replayable: string[] = [];
+const unReplayable: string[] = [];
+
+for (const test of declared) {
+	const ext = extensionOf(test);
+	if (isReplayableExtension(ext)) {
+		replayable.push(test);
+	} else {
+		unReplayable.push(test);
+	}
+}
+
+// A declared proof the guard cannot replay MUST fail the step loud. This is
+// the load-bearing check: it is what makes the guard monitor its own
+// integrity. If the runner's replay config cannot execute a declared file,
+// the author must either make the file replayable or remove it — not ignore
+// it.
+if (unReplayable.length > 0) {
+	console.error(
+		`The PR declared ${declared.length} proof file(s), but ${unReplayable.length} of them cannot be replayed by the runner.`,
+	);
+	console.error(
+		`Replayable extensions are: ${REPLAYABLE_EXTENSIONS.join(', ')}. ` +
+			`Declare only proof files with these extensions.`,
+	);
+	console.error('UnReplayable declared proofs:');
+	for (const t of unReplayable) {
+		console.error(`  ${t} (extension: ${extensionOf(t) || '(none)'})`);
+	}
+	console.error(
+		'A declared proof the guard cannot replay is a blind spot, not a no-op. ' +
+			'Fix the extension or remove the file from the PR.',
+	);
+	process.exit(1);
+}
+
+// All declared proofs are replayable — replay them with inverted semantics.
 console.log(
-	`This PR declared ${declared.length} paired red proof(s) — replaying with inverted semantics:\n`,
+	`This PR declared ${replayable.length} paired red proof(s) — replaying with inverted semantics:\n`,
 );
-for (const t of declared) {
+for (const t of replayable) {
 	console.log(`  ${t}`);
 }
 console.log();
@@ -223,7 +278,7 @@ let failures = 0; // proof tests that failed as expected (good)
 let unexpectedPasses = 0;
 let corrupted = 0;
 
-for (const test of declared) {
+for (const test of replayable) {
 	// Validate BEFORE running: distinguishes "test failed as expected" from
 	// "file could not be parsed" — the latter must fail loud naming the file.
 	try {
