@@ -866,9 +866,16 @@ test(
 		// Now verify `run()` prints the exact value and explains why it is
 		// not automatic. We mock process.exit so run() returns instead of
 		// killing the test runner.
+		// The exit CODE is the whole product of this branch: CI reads it, not the
+		// message. A mock that swallows the code lets `process.exit(1)` become
+		// `process.exit(0)` with every test still green — the ratchet would print
+		// its warning and let CI pass, reinstating the half-ratchet #1727 exists
+		// to remove. So capture the code and assert it below.
+		const exitCodes: (number | undefined)[] = [];
 		const exitMock = vi
 			.spyOn(process, 'exit')
-			.mockImplementation((_code?: number) => {
+			.mockImplementation((code?: number) => {
+				exitCodes.push(code);
 				throw new Error('process.exit called');
 			});
 
@@ -908,13 +915,26 @@ test(
 			// If we get here, run() did not call process.exit — that is a bug.
 			assert.fail('run() should have called process.exit(1) for stale floor');
 		} catch (e) {
-			// process.exit throws inside the mock — expected.
-			assert.ok(e instanceof Error);
+			// Only the sentinel thrown by the exit mock is expected here. Any other
+			// error means run() failed for an unrelated reason and the assertions
+			// below would be checking nothing.
+			assert.ok(
+				e instanceof Error && e.message === 'process.exit called',
+				`run() threw something other than the exit sentinel: ${String(e)}`,
+			);
 		} finally {
 			console.error = originalRunError;
 			exitMock.mockRestore();
 			vi.doUnmock('node:child_process');
 		}
+
+		// The exit code is what CI acts on: 1 means the gate bites, 0 means it
+		// prints a warning and lets the build through.
+		assert.deepEqual(
+			exitCodes,
+			[1],
+			`run() must exit with code 1 on a stale floor, got: ${JSON.stringify(exitCodes)}`,
+		);
 
 		const joined = runErrors.join('\n');
 
