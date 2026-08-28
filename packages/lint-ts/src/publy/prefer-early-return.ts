@@ -41,6 +41,14 @@ export const preferEarlyReturn = {
 					const declaration = stmt.declarations[0];
 					if (
 						declaration &&
+						// Type narrowing, not a behaviour guard: no test can watch this clause.
+						// Removing it changes nothing the rule reports — for a destructured
+						// target `declaration.id.name` is `undefined`, and `isIdentifier(argument,
+						// undefined)` is always false because `Identifier.name` is always a string.
+						// Verified twice on #1718: by mutation (79/79 green with and without it,
+						// including a deliberately added destructured case) and by enumerating
+						// every node type `VariableDeclarator.id` can hold. It stays because it is
+						// what lets TypeScript reach `.name` below — do not delete it as dead code.
 						declaration.id.type === 'Identifier' &&
 						isConditionalExpression(declaration.init)
 					) {
