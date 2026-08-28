@@ -55,6 +55,11 @@ export const hashReason = (text: string) =>
 // known-good fingerprint; any deviation while the step itself hasn't changed
 // fails the guard. A deliberate rewrite is possible by updating the reference
 // in the same commit — same mechanism as the complexity ceilings.
+//
+// The guard distinguishes three situations:
+//   1. entry in manifest, absent from reference → FAIL (new entry, regenerate ref)
+//   2. entry in reference, absent from manifest → WARN/ERROR (stale ref, clean up)
+//   3. entry in both → existing behavior (detect truncation/alteration)
 const getReasonGuardProblem = (
 	id: string,
 	entry: { hash: string; mirror: string | null; reason: string },
@@ -64,11 +69,12 @@ const getReasonGuardProblem = (
 ): string | null => {
 	const stepRef = ref.steps[id];
 
-	// No reference entry (e.g., a brand-new step not yet pinned). The
-	// NEW STEP / CHANGED checks already cover step-level drift; the reason
-	// guard only fires against a known-good baseline.
+	// Case 1: manifest entry has no reference fingerprint. A brand-new step
+	// was added to the manifest but the reference was not regenerated, so
+	// its reason has no known-good baseline. Fail closed and tell the user
+	// to regenerate.
 	if (stepRef === undefined) {
-		return null;
+		return `${manifestPath}: entry "${id}" is present in the manifest but missing from reason-guard-ref.json — new entry without a reference fingerprint. Regenerate reason-guard-ref.json in the same commit so the reason is consciously pinned (run \`node packages/scripts-ts/src/gen-reason-ref.ts\`).`;
 	}
 
 	const currentHash = hashReason(entry.reason);
@@ -81,10 +87,10 @@ const getReasonGuardProblem = (
 	const expectedLength = stepRef.reason_length;
 
 	if (currentLength < expectedLength) {
-		return `${manifestPath}: entry "${id}" reason SHRINK from ${expectedLength} to ${currentLength} characters while the step hash is unchanged (expected reason hash ${stepRef.reason_hash}, got ${currentHash}). Truncation is not a rewrite \u2014 restore the original reason, or regenerate reason-guard-ref.json in the same commit if the rewrite is deliberate (run \`node packages/scripts-ts/src/gen-reason-ref.ts\`).`;
+		return `${manifestPath}: entry "${id}" reason SHRINK from ${expectedLength} to ${currentLength} characters while the step hash is unchanged (expected reason hash ${stepRef.reason_hash}, got ${currentHash}). Truncation is not a rewrite — restore the original reason, or regenerate reason-guard-ref.json in the same commit if the rewrite is deliberate (run \`node packages/scripts-ts/src/gen-reason-ref.ts\`).`;
 	}
 
-	return `${manifestPath}: entry "${id}" reason CHANGED (expected hash ${stepRef.reason_hash}, got ${currentHash}; expected ${expectedLength} chars, got ${currentLength}) while the step hash is unchanged. If this is a deliberate rewrite, regenerate reason-guard-ref.json in the same commit so the reference matches the new reason \u2014 run \`node packages/scripts-ts/src/gen-reason-ref.ts\` to regenerate it.`;
+	return `${manifestPath}: entry "${id}" reason CHANGED (expected hash ${stepRef.reason_hash}, got ${currentHash}; expected ${expectedLength} chars, got ${currentLength}) while the step hash is unchanged. If this is a deliberate rewrite, regenerate reason-guard-ref.json in the same commit so the reference matches the new reason — run \`node packages/scripts-ts/src/gen-reason-ref.ts\` to regenerate it.`;
 };
 
 const normalizeCommand = (value: string) =>
@@ -372,6 +378,21 @@ export const findCiDrift = async ({
 
 		findings.push(
 			`STALE     ${id}\n    The manifest reconciles a CI step that no longer exists. Delete the entry (and drop the local mirror if nothing else needs it).`,
+		);
+	}
+
+	// Case 2: an entry exists in the reason reference but no longer has a
+	// manifest entry (the step was removed from the workflow or the manifest).
+	// The reference is now stale — it fingerprints a reason that no longer has
+	// a manifest entry to pin. Clean it up so the reference stays a faithful
+	// baseline.
+	for (const id of Object.keys(ref.steps)) {
+		if (id in entries) {
+			continue;
+		}
+
+		findings.push(
+			`STALE REF ${id}\n    The reason reference holds a fingerprint for "${id}" which is absent from the manifest. The CI step was removed; delete the reference entry by regenerating (run \`node packages/scripts-ts/src/gen-reason-ref.ts\`).`,
 		);
 	}
 
