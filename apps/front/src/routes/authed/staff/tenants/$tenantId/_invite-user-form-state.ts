@@ -285,13 +285,26 @@ const decodeXmlEntities = (value: string): string =>
 		return decoded ?? entity;
 	});
 
+/** Extract text contents of `<tag>` elements, excluding any `<t>` elements that
+ * are nested inside `<rPh>` (phonetic rubi/furigana) elements. The `<rPh>` block
+ * carries a phonetic reading of the preceding `<t>` run and must not be merged
+ * into the cell value — Excel writes it for any CJK input, so this is plain XLSX
+ * rather than exotic XML. */
 const textContents = (xml: string, tag: string): string[] => {
 	const results: string[] = [];
+	let source = xml;
+
+	if (tag === 't') {
+		// Strip `<rPh>...</rPh>` blocks (and their `<t>` children) before scanning
+		// for `<t>`, so phonetic readings never pollute the real cell text.
+		source = source.replace(/<rPh\b[^>]*>[\s\S]*?<\/rPh>/g, '');
+	}
+
 	const pattern = new RegExp(`<${tag}[^>]*>([\\s\\S]*?)</${tag}>`, 'g');
-	let match = pattern.exec(xml);
+	let match = pattern.exec(source);
 	while (match) {
 		results.push(match[1] ?? '');
-		match = pattern.exec(xml);
+		match = pattern.exec(source);
 	}
 
 	return results;

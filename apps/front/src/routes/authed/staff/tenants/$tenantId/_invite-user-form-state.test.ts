@@ -170,6 +170,27 @@ const buildWorkbook = (cells: {
 		{ level: 0 },
 	);
 
+/** Like buildWorkbook but lets the caller provide raw sharedStrings XML, which
+ * is needed to test rich-text entries with `<rPh>` children that the simple
+ * array form cannot express. */
+const buildWorkbookRaw = (cells: {
+	sharedStringsXml: string;
+	sheetXml: string;
+}): Uint8Array =>
+	zipSync(
+		{
+			'xl/workbook.xml': strToU8(
+				'<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="Sheet1" sheetId="1" r:id="rId1"/></sheets></workbook>',
+			),
+			'xl/_rels/workbook.xml.rels': strToU8(
+				'<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/></Relationships>',
+			),
+			'xl/sharedStrings.xml': strToU8(cells.sharedStringsXml),
+			'xl/worksheets/sheet1.xml': strToU8(cells.sheetXml),
+		},
+		{ level: 0 },
+	);
+
 describe('parseInviteWorkbook', () => {
 	test('reads shared-string cells through the first worksheet', () => {
 		const bytes = buildWorkbook({
@@ -309,6 +330,103 @@ describe('parseInviteWorkbook', () => {
 					email: 'a@example.com',
 					accountLevel: 'User',
 					profileNames: [],
+					invalidLevel: null,
+					invalidEmail: null,
+				},
+			],
+		});
+	});
+
+	test('excludes <rPh> phonetic text in inline-string cells (t="inlineStr")', () => {
+		const bytes = buildWorkbook({
+			sharedStrings: [],
+			sheetXml:
+				'<worksheet><sheetData>' +
+				'<row r="1"><c r="A1" t="inlineStr"><is><t>email</t></is></c>' +
+				'<c r="B1" t="inlineStr"><is><t>level</t></is></c>' +
+				'<c r="C1" t="inlineStr"><is><t>profiles</t></is></c></row>' +
+				'<row r="2"><c r="A2" t="inlineStr"><is><r><t>a@example.com</t><rPh sb="0" eb="2"><t>PARASITE</t></rPh></r></is></c>' +
+				'<c r="B2" t="inlineStr"><is><r><t>admin</t></r></is></c>' +
+				'<c r="C2" t="inlineStr"><is><r><t>Alpha</t></r></is></c></row>' +
+				'</sheetData></worksheet>',
+		});
+
+		const result = parseInviteWorkbook(bytes);
+
+		expect(result).toEqual({
+			outcome: 'parsed',
+			rows: [
+				{
+					email: 'a@example.com',
+					accountLevel: 'Admin',
+					profileNames: ['Alpha'],
+					invalidLevel: null,
+					invalidEmail: null,
+				},
+			],
+		});
+	});
+
+	test('decodes XML entities (&amp;) in inline-string cells', () => {
+		const bytes = buildWorkbook({
+			sharedStrings: [],
+			sheetXml:
+				'<worksheet><sheetData>' +
+				'<row r="1"><c r="A1" t="inlineStr"><is><t>email</t></is></c>' +
+				'<c r="B1" t="inlineStr"><is><t>level</t></is></c>' +
+				'<c r="C1" t="inlineStr"><is><t>profiles</t></is></c></row>' +
+				'<row r="2"><c r="A2" t="inlineStr"><is><t>A &amp; B@example.com</t></is></c>' +
+				'<c r="B2" t="inlineStr"><is><t>admin</t></is></c>' +
+				'<c r="C2" t="inlineStr"><is><t>Alpha</t></is></c></row>' +
+				'</sheetData></worksheet>',
+		});
+
+		const result = parseInviteWorkbook(bytes);
+
+		// The &amp; entity should be decoded to a literal &. "A & B@example.com"
+		// is not a valid email (spaces around the ampersand), so it is flagged as
+		// invalid while preserving the raw decoded value.
+		expect(result).toEqual({
+			outcome: 'parsed',
+			rows: [
+				{
+					email: 'A & B@example.com',
+					accountLevel: 'Admin',
+					profileNames: ['Alpha'],
+					invalidLevel: null,
+					invalidEmail: 'A & B@example.com',
+				},
+			],
+		});
+	});
+
+	test('excludes <rPh> phonetic text in shared-string cells', () => {
+		const bytes = buildWorkbookRaw({
+			sharedStringsXml:
+				'<sst xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' +
+				'<si><t>email</t></si>' +
+				'<si><t>level</t></si>' +
+				'<si><t>profiles</t></si>' +
+				'<si><r><t>a@example.com</t><rPh sb="0" eb="2"><t>PARASITE</t></rPh></r></si>' +
+				'<si><t>admin</t></si>' +
+				'<si><t>Alpha</t></si>' +
+				'</sst>',
+			sheetXml:
+				'<worksheet><sheetData>' +
+				'<row r="1"><c r="A1" t="s"><v>0</v></c><c r="B1" t="s"><v>1</v></c><c r="C1" t="s"><v>2</v></c></row>' +
+				'<row r="2"><c r="A2" t="s"><v>3</v></c><c r="B2" t="s"><v>4</v></c><c r="C2" t="s"><v>5</v></c></row>' +
+				'</sheetData></worksheet>',
+		});
+
+		const result = parseInviteWorkbook(bytes);
+
+		expect(result).toEqual({
+			outcome: 'parsed',
+			rows: [
+				{
+					email: 'a@example.com',
+					accountLevel: 'Admin',
+					profileNames: ['Alpha'],
 					invalidLevel: null,
 					invalidEmail: null,
 				},
