@@ -1024,27 +1024,25 @@ public sealed class FindStaffInvitationsSpec : IClassFixture<ApiFixture> {
 		using IServiceScope scope = _fixture.Factory.Services.CreateScope();
 		AppDbContext dbContext = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>();
-		var temp = Guid.NewGuid();
 		// Swap IDs on both the parent (invitations) and child (invitation_profiles)
-		// tables. The three-step swap via temp avoids PK collision, and updating
-		// the child table avoids FK violation (FK is not DEFERRABLE).
+		// tables in a single statement so the FK constraint is checked at the end
+		// of the statement when both tables are consistent (FK is not DEFERRABLE).
 		await dbContext.Database.ExecuteSqlRawAsync(
-			"UPDATE invitation_profiles SET invitation_id = {0} WHERE invitation_id = {1}",
-			temp, idA);
-		await dbContext.Database.ExecuteSqlRawAsync(
-			"UPDATE invitations SET id = {0} WHERE id = {1}",
-			temp, idA);
-		await dbContext.Database.ExecuteSqlRawAsync(
-			"UPDATE invitation_profiles SET invitation_id = {0} WHERE invitation_id = {1}",
+			"""
+			WITH swap(inv_a, inv_b) AS (SELECT {0}::uuid, {1}::uuid),
+			ip AS (
+			  UPDATE invitation_profiles SET invitation_id = CASE invitation_id
+			    WHEN (SELECT inv_a FROM swap) THEN (SELECT inv_b FROM swap)
+			    WHEN (SELECT inv_b FROM swap) THEN (SELECT inv_a FROM swap)
+			    ELSE invitation_id END
+			  WHERE invitation_id IN ((SELECT inv_a FROM swap), (SELECT inv_b FROM swap))
+			)
+			UPDATE invitations SET id = CASE id
+			  WHEN (SELECT inv_a FROM swap) THEN (SELECT inv_b FROM swap)
+			  WHEN (SELECT inv_b FROM swap) THEN (SELECT inv_a FROM swap)
+			  ELSE id END
+			WHERE id IN ((SELECT inv_a FROM swap), (SELECT inv_b FROM swap))
+			""",
 			idA, idB);
-		await dbContext.Database.ExecuteSqlRawAsync(
-			"UPDATE invitations SET id = {0} WHERE id = {1}",
-			idA, idB);
-		await dbContext.Database.ExecuteSqlRawAsync(
-			"UPDATE invitation_profiles SET invitation_id = {0} WHERE invitation_id = {1}",
-			idB, temp);
-		await dbContext.Database.ExecuteSqlRawAsync(
-			"UPDATE invitations SET id = {0} WHERE id = {1}",
-			idB, temp);
 	}
 }
