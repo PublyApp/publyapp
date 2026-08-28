@@ -40,7 +40,7 @@ const runOxlint = () => {
 
 	const result = spawnSync(
 		process.execPath,
-		[oxlintBin, '--config', oxlintConfigPath, '--format', 'unix'],
+		[oxlintBin, '--config', oxlintConfigPath, '--format', 'json'],
 		{ cwd: repoRoot, encoding: 'utf8' },
 	);
 
@@ -67,16 +67,64 @@ const runOxlint = () => {
 	};
 };
 
-const countWarnings = (output: string, ruleName: string): number => {
-	// oxlint prints `[Warning/typescript(no-floating-promises)]`. The ruleName
-	// already includes its parentheses (e.g. `typescript(no-floating-promises)`),
-	// so we only append the closing bracket.
-	const marker = `Warning/${ruleName}]`;
-	const lines = output.split(/\r?\n/);
+// Counts warnings matching `ruleName` from oxlint's JSON output.
+//
+// Fail-closed by design: oxlint's JSON format is the only output we know how
+// to interpret. Anything else — empty output, truncated JSON, garbled text,
+// an unexpected structure — makes us THROW, and the caller converts that into
+// an `withinLimit: 'error'` result. We never fall back to "0 warnings".
+//
+// Why JSON instead of the unix format we used to parse: the unix format is
+// line-oriented text. An empty or garbled line-oriented output silently
+// produces a count of 0, which passes green. JSON is structured: if the
+// output is not valid JSON, or not the shape we expect, JSON.parse fails
+// loud. That is exactly the fail-closed behaviour the ratchet needs — a
+// garbled oxlint must never look like "0 warnings, within limit".
+const countWarningsFromJson = (output: string, ruleName: string): number => {
+	let parsed: unknown;
+	try {
+		parsed = JSON.parse(output);
+	} catch (_error) {
+		throw new Error(
+			'oxlint output is not valid JSON — ' +
+				'expected JSON from `--format json`, but parsing failed. ' +
+				`Cannot count ${ruleName} warnings. Output (first 200 chars): ${output.slice(0, 200)}`,
+		);
+	}
+
+	if (typeof parsed !== 'object' || parsed === null) {
+		throw new Error(
+			'oxlint JSON output is not an object — ' +
+				`expected { diagnostics: [...], number_of_files: N }, got: ${output.slice(0, 200)}`,
+		);
+	}
+
+	const parsedObj = parsed as Record<string, unknown>;
+
+	if (!Array.isArray(parsedObj.diagnostics)) {
+		throw new Error(
+			'oxlint JSON output is missing the diagnostics array — ' +
+				`expected { diagnostics: [...], number_of_files: N }, got: ${output.slice(0, 200)}`,
+		);
+	}
+
+	// Fail-closed: the repo has thousands of TS/TSX files. If oxlint scanned 0,
+	// something is wrong (config error, all files ignored, etc.). A count of 0
+	// with 0 files scanned is not a real "within limit" result — it is a broken
+	// scan that would silently pass.
+	if (parsedObj.number_of_files === 0) {
+		throw new Error(
+			'oxlint scanned 0 files — ' +
+				"expected to scan the repo's TS/TSX files. " +
+				'Check the oxlint config and ignore patterns.',
+		);
+	}
+
+	const diagnostics = parsedObj.diagnostics as Array<Record<string, unknown>>;
 	let count = 0;
 
-	for (const line of lines) {
-		if (line.includes(marker)) {
+	for (const diagnostic of diagnostics) {
+		if (diagnostic.code === ruleName && diagnostic.severity === 'warning') {
 			count += 1;
 		}
 	}
@@ -100,9 +148,8 @@ export const checkNoFloatingPromises = async (): Promise<RatchetResult> => {
 			rule: string;
 			count: number;
 		};
-		const { stdout, stderr } = runOxlint();
-		const combined = `${stdout}\n${stderr}`;
-		const actualCount = countWarnings(combined, baseline.rule);
+		const { stdout } = runOxlint();
+		const actualCount = countWarningsFromJson(stdout, baseline.rule);
 
 		return {
 			rule: baseline.rule,

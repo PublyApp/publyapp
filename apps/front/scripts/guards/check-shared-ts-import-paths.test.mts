@@ -20,6 +20,16 @@
  * scanning). The tests below exercise every import/export form the R2 brief
  * requires, plus a structural regression test that proves the guard inspects
  * the AST and cannot silently fall back to line-by-line text scanning.
+ *
+ * NOTE ON `no-floating-promises`: this file uses `node:test` (not vitest).
+ * `node:test`'s runner captures test outcomes via its async-context mechanism,
+ * independent of the returned Promise. The `typescript(no-floating-promises)`
+ * rule flags `test()` as returning `Promise<void>` per `@types/node` 26.x, but
+ * in the `node:test` execution model that Promise is fire-and-forget — the
+ * runner does not depend on the caller awaiting it. We therefore disable this
+ * rule for the entire file via the `overrides` section in `.oxlintrc.json`.
+ * If these tests ever migrate to vitest (where the returned Promise IS the
+ * test result), this override MUST be removed.
  */
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
@@ -97,7 +107,7 @@ const makeSandbox = (): string => {
 
 // ---- existing RED tests (carried forward) ----------------------------------
 
-void test('RED: a front-side re-export of a shared-ts module is detected', () => {
+test('RED: a front-side re-export of a shared-ts module is detected', () => {
 	const root = makeSandbox();
 	// Recreate the R1 shim exactly where it lived.
 	writeFileSync(
@@ -127,7 +137,7 @@ void test('RED: a front-side re-export of a shared-ts module is detected', () =>
 	);
 });
 
-void test('RED: a named (non-barrel) front-side re-export of a shared-ts module is detected', () => {
+test('RED: a named (non-barrel) front-side re-export of a shared-ts module is detected', () => {
 	// Adversarial form: a single-symbol re-export in a helpers barrel, the thing
 	// a developer adds without realising it opens a second path.
 	const root = makeSandbox();
@@ -157,7 +167,7 @@ void test('RED: a named (non-barrel) front-side re-export of a shared-ts module 
 	);
 });
 
-void test('GREEN: without the shim, no shared-ts re-export is found', () => {
+test('GREEN: without the shim, no shared-ts re-export is found', () => {
 	const root = makeSandbox();
 	const findings = scanFrontSrcForSharedTsReExports(
 		path.join(root, 'front-src'),
@@ -169,7 +179,7 @@ void test('GREEN: without the shim, no shared-ts re-export is found', () => {
 	);
 });
 
-void test('GREEN: existing front code importing shared-ts directly is NOT flagged', () => {
+test('GREEN: existing front code importing shared-ts directly is NOT flagged', () => {
 	const root = makeSandbox();
 	// Direct imports of shared-ts are the wanted path and must not trip the
 	// guard — verify by asserting the legitimate import sites are clean.
@@ -184,7 +194,7 @@ void test('GREEN: existing front code importing shared-ts directly is NOT flagge
 
 // Sanity: front-local re-exports are not the second-path construct the guard
 // rejects.
-void test('front-local re-exports are NOT flagged', () => {
+test('front-local re-exports are NOT flagged', () => {
 	const root = makeSandbox();
 	mkdirSync(path.join(root, 'front-src/lib/sub'), { recursive: true });
 	writeFileSync(
@@ -202,7 +212,7 @@ void test('front-local re-exports are NOT flagged', () => {
 
 // ---- R2: all import/export forms the brief requires ----------------------
 
-void test('RED: multi-line named re-export (`export {\\n foo,\\n} from ...`) is detected', () => {
+test('RED: multi-line named re-export (`export {\\n foo,\\n} from ...`) is detected', () => {
 	const root = makeSandbox();
 	writeFileSync(
 		path.join(root, 'front-src/lib/multi-line-shim.ts'),
@@ -230,7 +240,7 @@ void test('RED: multi-line named re-export (`export {\\n foo,\\n} from ...`) is 
 	);
 });
 
-void test('RED: `export type * from "@org/shared-ts/..."` is detected', () => {
+test('RED: `export type * from "@org/shared-ts/..."` is detected', () => {
 	const root = makeSandbox();
 	writeFileSync(
 		path.join(root, 'front-src/lib/type-star-shim.ts'),
@@ -254,7 +264,7 @@ void test('RED: `export type * from "@org/shared-ts/..."` is detected', () => {
 	);
 });
 
-void test('RED: `export * as ns from "@org/shared-ts/..."` is detected', () => {
+test('RED: `export * as ns from "@org/shared-ts/..."` is detected', () => {
 	const root = makeSandbox();
 	writeFileSync(
 		path.join(root, 'front-src/lib/namespace-alias-shim.ts'),
@@ -278,7 +288,7 @@ void test('RED: `export * as ns from "@org/shared-ts/..."` is detected', () => {
 	);
 });
 
-void test('GREEN: `export * from "./local"` (front-local namespace re-export) is NOT flagged', () => {
+test('GREEN: `export * from "./local"` (front-local namespace re-export) is NOT flagged', () => {
 	const root = makeSandbox();
 	writeFileSync(
 		path.join(root, 'front-src/lib/local-barrel.ts'),
@@ -294,7 +304,7 @@ void test('GREEN: `export * from "./local"` (front-local namespace re-export) is
 	);
 });
 
-void test('RED: `export type { X } from "@org/shared-ts/..."` (type-only named) is detected', () => {
+test('RED: `export type { X } from "@org/shared-ts/..."` (type-only named) is detected', () => {
 	const root = makeSandbox();
 	writeFileSync(
 		path.join(root, 'front-src/lib/type-only-shim.ts'),
@@ -318,7 +328,7 @@ void test('RED: `export type { X } from "@org/shared-ts/..."` (type-only named) 
 	);
 });
 
-void test('GREEN: dynamic `import("@org/shared-ts/...")` is INSPECTED but NOT flagged', () => {
+test('GREEN: dynamic `import("@org/shared-ts/...")` is INSPECTED but NOT flagged', () => {
 	const root = makeSandbox();
 	writeFileSync(
 		path.join(root, 'front-src/lib/dynamic-shim.ts'),
@@ -336,7 +346,7 @@ void test('GREEN: dynamic `import("@org/shared-ts/...")` is INSPECTED but NOT fl
 
 // ---- R2: regression test — guard must inspect the AST, not lines ----------
 
-void test('REGRESSION: guard inspects the AST, not lines — multi-line form must be caught (not blank-line-skipped)', () => {
+test('REGRESSION: guard inspects the AST, not lines — multi-line form must be caught (not blank-line-skipped)', () => {
 	// This test exists to fail if the guard regresses to a line-by-line scan.
 	// A line-by-line regex scanning individual text lines would NEVER see a
 	// multi-line export declaration as a single `export ... from '...'` statement
@@ -363,7 +373,7 @@ void test('REGRESSION: guard inspects the AST, not lines — multi-line form mus
 
 // ---- existing shared-ts scope tests (carried forward) ---------------------
 
-void test('RED: a shared-ts-internal re-export of a sibling shared-ts module is detected', () => {
+test('RED: a shared-ts-internal re-export of a sibling shared-ts module is detected', () => {
 	const root = makeSandbox();
 	// A barrel inside the shared package that re-surfaces a sibling under a
 	// second @org/shared-ts specifier — the failure mode #1612 extends the
@@ -394,7 +404,7 @@ void test('RED: a shared-ts-internal re-export of a sibling shared-ts module is 
 	);
 });
 
-void test('GREEN: shared-ts/src with no internal re-export is clean', () => {
+test('GREEN: shared-ts/src with no internal re-export is clean', () => {
 	const root = makeSandbox();
 	const findings = scanSharedTsSrcForSharedTsReExports(
 		path.join(root, 'shared-ts-src'),
@@ -406,7 +416,7 @@ void test('GREEN: shared-ts/src with no internal re-export is clean', () => {
 	);
 });
 
-void test('GREEN: a shared-ts file re-exporting a sibling via a relative path is NOT flagged', () => {
+test('GREEN: a shared-ts file re-exporting a sibling via a relative path is NOT flagged', () => {
 	// A relative re-export does NOT create a second *published* path, so it must
 	// stay green — proves the contract is "second @org/shared-ts specifier", not
 	// "any re-export inside shared-ts".
@@ -427,7 +437,7 @@ void test('GREEN: a shared-ts file re-exporting a sibling via a relative path is
 	);
 });
 
-void test('scanTreeForSharedTsReExports labels findings with the tree label', () => {
+test('scanTreeForSharedTsReExports labels findings with the tree label', () => {
 	const root = makeSandbox();
 	writeFileSync(
 		path.join(root, 'front-src/lib/should-logout.ts'),
@@ -449,7 +459,7 @@ void test('scanTreeForSharedTsReExports labels findings with the tree label', ()
 const TYPES_SPECIFIER = '@org/shared-ts/@types/foo';
 const SCRIPTS_SPECIFIER = '@org/shared-ts/scripts/generate-zod-i18n-map.mjs';
 
-void test('RED: re-export of @org/shared-ts/@types/* is detected as DUAL_PATH (#1678)', () => {
+test('RED: re-export of @org/shared-ts/@types/* is detected as DUAL_PATH (#1678)', () => {
 	const root = makeSandbox();
 	writeFileSync(
 		path.join(root, 'front-src/lib/types-shim.ts'),
@@ -477,7 +487,7 @@ void test('RED: re-export of @org/shared-ts/@types/* is detected as DUAL_PATH (#
 	);
 });
 
-void test('RED: re-export of @org/shared-ts/scripts/* is detected as DUAL_PATH (#1678)', () => {
+test('RED: re-export of @org/shared-ts/scripts/* is detected as DUAL_PATH (#1678)', () => {
 	const root = makeSandbox();
 	writeFileSync(
 		path.join(root, 'front-src/lib/scripts-shim.ts'),
@@ -507,7 +517,7 @@ void test('RED: re-export of @org/shared-ts/scripts/* is detected as DUAL_PATH (
 
 // ---- #1678 paired proof: legitimate non-shared-ts re-exports stay GREEN ----
 
-void test('GREEN: re-export of a non-shared-ts package is NOT flagged (#1678 paired proof)', () => {
+test('GREEN: re-export of a non-shared-ts package is NOT flagged (#1678 paired proof)', () => {
 	const root = makeSandbox();
 	writeFileSync(
 		path.join(root, 'front-src/lib/external-shim.ts'),
@@ -523,7 +533,7 @@ void test('GREEN: re-export of a non-shared-ts package is NOT flagged (#1678 pai
 	);
 });
 
-void test('GREEN: re-export from another front-local file is NOT flagged (#1678 paired proof)', () => {
+test('GREEN: re-export from another front-local file is NOT flagged (#1678 paired proof)', () => {
 	const root = makeSandbox();
 	writeFileSync(
 		path.join(root, 'front-src/lib/local-re-export.ts'),
@@ -541,7 +551,7 @@ void test('GREEN: re-export from another front-local file is NOT flagged (#1678 
 
 // ---- #1678 fail-loudly: unknown first segment must not pass silently ----
 
-void test('RED: re-export of @org/shared-ts/<unknown-segment> fails loudly with UNKNOWN_SEGMENT (#1678)', () => {
+test('RED: re-export of @org/shared-ts/<unknown-segment> fails loudly with UNKNOWN_SEGMENT (#1678)', () => {
 	const root = makeSandbox();
 	writeFileSync(
 		path.join(root, 'front-src/lib/unknown-shim.ts'),
@@ -575,7 +585,7 @@ void test('RED: re-export of @org/shared-ts/<unknown-segment> fails loudly with 
 
 // ---- #1678: PARSE_ERROR on unparseable files still produces a finding (requirement #6)
 
-void test('RED: a source file with a syntax error produces a PARSE_ERROR finding (#1678 requirement 6)', () => {
+test('RED: a source file with a syntax error produces a PARSE_ERROR finding (#1678 requirement 6)', () => {
 	const root = makeSandbox();
 	writeFileSync(
 		path.join(root, 'front-src/lib/broken.ts'),
@@ -608,7 +618,7 @@ void test('RED: a source file with a syntax error produces a PARSE_ERROR finding
 // keeps all 24 tests green while restoring the "silent pass" defect in CI. This
 // test invokes main() with sandbox roots and asserts the exit code.
 
-void test('RED: main() exits non-zero when a shim re-export is present (#1678 R5)', () => {
+test('RED: main() exits non-zero when a shim re-export is present (#1678 R5)', () => {
 	const root = makeSandbox();
 	writeFileSync(
 		path.join(root, 'front-src/lib/should-logout-for-failure.ts'),
@@ -634,7 +644,7 @@ main({
 	);
 });
 
-void test('GREEN: main() exits zero when no shim is present (#1678 R5)', () => {
+test('GREEN: main() exits zero when no shim is present (#1678 R5)', () => {
 	const root = makeSandbox();
 
 	const result = spawnSync(
@@ -656,7 +666,7 @@ main({
 	);
 });
 
-void test('SHARED_TS_SEGMENTS is derived from packages/shared-ts/src and contains @types and scripts (#1678)', () => {
+test('SHARED_TS_SEGMENTS is derived from packages/shared-ts/src and contains @types and scripts (#1678)', () => {
 	// The old hardcoded regex (lib|utils|validations|types) missed @types and scripts.
 	// This assertion ensures the derivation picks them up — a regression to the
 	// hardcoded list or an empty segment set would break this.
@@ -670,7 +680,7 @@ void test('SHARED_TS_SEGMENTS is derived from packages/shared-ts/src and contain
 	);
 });
 
-void test('SHARED_TS_SEGMENTS fails loudly when packages/shared-ts/src is unreadable (#1678)', () => {
+test('SHARED_TS_SEGMENTS fails loudly when packages/shared-ts/src is unreadable (#1678)', () => {
 	// deriveSharedTsSegments must throw on a missing directory — never exit 0 silently.
 	assert.throws(
 		() =>
@@ -686,7 +696,7 @@ void test('SHARED_TS_SEGMENTS fails loudly when packages/shared-ts/src is unread
 // nothing and main() exits 0 (green) on a clean tree with zero detection power.
 // The guard must self-check and fail loudly, naming the cause. This test creates
 // a sandbox with an empty shared-ts/src directory and asserts main() exits non-zero.
-void test('RED: main() fails loudly when shared-ts segment derivation is empty (#1678 R6)', () => {
+test('RED: main() fails loudly when shared-ts segment derivation is empty (#1678 R6)', () => {
 	const root = makeSandbox();
 	// Wipe the mirrored shared-ts-src tree so it exists but is empty — the exact
 	// case deriveSharedTsSegments cannot catch by itself (the dir is readable,
@@ -717,7 +727,7 @@ main({
 	);
 });
 
-void test('GREEN: main() exits zero when segment derivation is non-empty and tree is clean (#1678 R6)', () => {
+test('GREEN: main() exits zero when segment derivation is non-empty and tree is clean (#1678 R6)', () => {
 	const root = makeSandbox();
 	// The sandbox mirrors the real packages/shared-ts/src which has @types, lib,
 	// scripts, etc. — derivation is non-empty and the tree is clean, so main() passes.
@@ -743,7 +753,7 @@ main({
 // ---- #1678 R6: deriveSharedTsSegments re-derives from the path main() actually uses ----
 // Ensures the self-check inside main() is not using a stale module-level constant
 // captured before the path override — it must re-derive from roots.sharedTsSrc.
-void test('REGRESSION: main() re-derives segments from the overriden sharedTsSrc path (#1678 R6)', () => {
+test('REGRESSION: main() re-derives segments from the overriden sharedTsSrc path (#1678 R6)', () => {
 	// Point sharedTsSrc at the real directory: derivation is non-empty, tree clean.
 	// If main() used the module-level SHARED_TS_SEGMENTS instead of re-deriving
 	// from roots.sharedTsSrc, an empty-path override would be ignored. This
@@ -773,7 +783,7 @@ main({
 // directory exists and has some subdirectories but is missing expected ones (e.g.
 // @types was renamed to types2), the guard must still fail loudly — not silently
 // skip re-exports of the missing segment.
-void test('RED: main() fails loudly when derived segments are missing expected segment(s) (#1678 R6)', () => {
+test('RED: main() fails loudly when derived segments are missing expected segment(s) (#1678 R6)', () => {
 	const root = makeSandbox();
 	// Wipe the mirrored shared-ts-src tree and create only a subset of the real
 	// segments — missing @types and scripts (the ones the old hardcoded list
