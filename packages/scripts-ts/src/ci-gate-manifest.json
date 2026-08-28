@@ -82,7 +82,7 @@
 			"reason": "Runner toolchain provisioning. Locally pnpm is pinned by the packageManager field and is a developer prerequisite."
 		},
 		"api-tests.yml::suite::Upload test results on failure": {
-			"hash": "eed89b2546b548ae",
+			"hash": "dd121479f9cac55d",
 			"mirror": null,
 			"reason": "GitHub-only failure-only log capture: gets failing-spec output off an ephemeral runner. Locally the reports are already on disk."
 		},
@@ -217,9 +217,9 @@
 			"reason": "GitHub-only pnpm setup for CI. Local development already assumes pnpm is installed via corepack/the repo's pinned version."
 		},
 		"front-ci.yml::gate-selftest::Run CI gate guard tests (mirrors `just ci-drift`)": {
-			"hash": "a9e6345876ba4dc9",
+			"hash": "4df7ce18fc96c6cf",
 			"mirror": "just ci-drift",
-			"reason": "The CODEOWNERS contract and CI gate guard suites (including packages/scripts-ts/src/ci-e2e-rerun-guard.test.ts since #1063), deterministic frontend-lint regression, check-ci-gate-structure.ts, the #1240 require-linked-issue guard test (packages/scripts-ts/src/require-linked-issue.test.ts), and the #1248 actions-pinning guard suite plus its real-tree scan (packages/scripts-ts/src/check-actions-pinned.{test,ts}, absorbed from #1248's .mjs into this lane's all-TypeScript package) run server-side as the mandatory mirror of `just ci-drift`, so these local protections cannot be silently unenforced in CI. The step gained one require-linked-issue line from develop and the two actions-pinned lines; `just ci-drift` runs those same three commands. Round-1 review of #1238 found a dangling justfile path invisible to every existing guard, so the step now also runs packages/scripts-ts/src/ci-referenced-paths.test.ts, which fails CI when a gate surface references a script path that does not exist; `just ci-drift` runs the same line. #1392 adds the actions pin/comment binding guard (check-actions-pins.test.ts + its live CLI run): the step gained those two lines and `just ci-drift` runs the same pair directly (the standalone `just ci-actions-pins` recipe wraps them for isolated runs); the guard's unit suite is network-free (injected resolver), while the live half authenticates with GH_TOKEN on both sides. Round-1 fix of this PR: the live half previously ran without a token in this job (every gh api tag lookup rejected anonymously), so the step now exports GH_TOKEN=${{ github.token }} in its env block \u2014 the default token reads the public actions/* tags, matching quality-gate.yml's own pins-guard step. #1661 fix (round 4): the check-cyclomatic-bound.test.ts fixture suite was orphaned \u2014 it ran locally via `just ci-drift` but was not wired into front-ci.yml::gate-selftest, so its DOCUMENTED_POLICY assertions (which pin the 60/90/125 ceilings) only executed when a developer manually ran the test. The guard binary (check-cyclomatic-bound.ts) already ran in quality-gate.yml and now its test sibling runs alongside it in this step, paired in the same test+binary pattern as check-actions-pinned.test.ts + check-actions-pinned.ts. `just ci-drift` runs the identical pair. #1674 adds the bite-proof prod-audit-bites.test.ts (packages/scripts-ts/src/prod-audit-bites.test.ts) to this step and to `just ci-drift`: it pins the exact `pnpm audit --prod --audit-level=moderate` command string from front-ci.yml::supply-chain and runs the real pnpm audit against a controlled fixture carrying ejs@3.1.7 (GHSA-ghr5-ch3p-vcr6, a stable moderate advisory) to prove the gate actually bites on a moderate prod advisory, with adverse mutations showing it does NOT bite under the pre-#1644 `high` threshold or under `--dev`. `just ci-drift` runs the same line."
+			"reason": "The CODEOWNERS contract and CI gate guard suites (including packages/scripts-ts/src/ci-e2e-rerun-guard.test.ts since #1063), deterministic frontend-lint regression, check-ci-gate-structure.ts, the #1240 require-linked-issue guard test (packages/scripts-ts/src/require-linked-issue.test.ts), and the #1248 actions-pinning guard suite plus its real-tree scan (packages/scripts-ts/src/check-actions-pinned.{test,ts}, absorbed from #1248's .mjs into this lane's all-TypeScript package) run server-side as the mandatory mirror of `just ci-drift`, so these local protections cannot be silently unenforced in CI. The step gained one require-linked-issue line from develop and the two actions-pinned lines; `just ci-drift` runs those same three commands. Round-1 review of #1238 found a dangling justfile path invisible to every existing guard, so the step now also runs packages/scripts-ts/src/ci-referenced-paths.test.ts, which fails CI when a gate surface references a script path that does not exist; `just ci-drift` runs the same line. #1392 adds the actions pin/comment binding guard (check-actions-pins.test.ts + its live CLI run): the step gained those two lines and `just ci-drift` runs the same pair directly (the standalone `just ci-actions-pins` recipe wraps them for isolated runs); the guard's unit suite is network-free (injected resolver), while the live half authenticates with GH_TOKEN on both sides. Round-1 fix of this PR: the live half previously ran without a token in this job (every gh api tag lookup rejected anonymously), so the step now exports GH_TOKEN=${{ github.token }} in its env block \u2014 the default token reads the public actions/* tags, matching quality-gate.yml's own pins-guard step. #1661 fix (round 4): the check-cyclomatic-bound.test.ts fixture suite was orphaned \u2014 it ran locally via `just ci-drift` but was not wired into front-ci.yml::gate-selftest, so its DOCUMENTED_POLICY assertions (which pin the 60/90/125 ceilings) only executed when a developer manually ran the test. The guard binary (check-cyclomatic-bound.ts) already ran in quality-gate.yml and now its test sibling runs alongside it in this step, paired in the same test+binary pattern as check-actions-pinned.test.ts + check-actions-pinned.ts. `just ci-drift` runs the identical pair. #1674 adds the bite-proof prod-audit-bites.test.ts (packages/scripts-ts/src/prod-audit-bites.test.ts) to this step and to `just ci-drift`: it pins the exact `pnpm audit --prod --audit-level=moderate` command string from front-ci.yml::supply-chain and runs the real pnpm audit against a controlled fixture carrying ejs@3.1.7 (GHSA-ghr5-ch3p-vcr6, a stable moderate advisory) to prove the gate actually bites on a moderate prod advisory, with adverse mutations showing it does NOT bite under the pre-#1644 `high` threshold or under `--dev`. `just ci-drift` runs the same line. #1728 adds the upload-artifact/download-artifact version compatibility guard (artifact-version-compat.test.ts + artifact-version-compat.ts) to this step and to `just ci-drift`: it pairs upload-artifact v7+ steps with archive: false to their matching download-artifact step by artifact name and asserts the download is v8+. `just ci-drift` runs the identical pair."
 		},
 		"front-ci.yml::gate-selftest::Run project closure adapter tests": {
 			"hash": "efdabfd7485185e8",
@@ -269,7 +269,7 @@
 		"front-ci.yml::supply-chain::Audit production dependencies (moderate and above)": {
 			"hash": "8d5095ef73aba7b3",
 			"mirror": "pnpm audit --prod --audit-level=moderate",
-			"reason": "#1644: production-graph threshold lowered from high to moderate to align with the dev-graph gate (quality-gate.yml::quality::Audit development dependencies). The previous shape let a moderate advisory in a production dep slip through both audits: --prod excludes the dev graph, and --audit-level=high excludes moderate. The same command reproduces it locally without Docker or CI; the production graph is clean at every threshold today, so the cost is zero and the safety is immediate (no exception list needed). #1674: the bite-proof test (packages/scripts-ts/src/prod-audit-bites.test.ts) parses this step's `run:` body to pin the exact command string and runs `pnpm audit --prod --audit-level=moderate` against a controlled fixture carrying ejs@3.1.7 → GHSA-ghr5-ch3p-vcr6 (a stable moderate advisory) so a regression that reverts the threshold to `high`, drops `--prod`, or removes the step turns the suite red before the audit step itself runs."
+			"reason": "#1644: production-graph threshold lowered from high to moderate to align with the dev-graph gate (quality-gate.yml::quality::Audit development dependencies). The previous shape let a moderate advisory in a production dep slip through both audits."
 		},
 		"front-ci.yml::supply-chain::Assert exact pins": {
 			"hash": "9f0331695e45ef30",
@@ -407,7 +407,7 @@
 			"reason": "GitHub-only: exports Actions cache runtime variables for the gha backend; no local equivalent exists."
 		},
 		"front-e2e.yml::build::Upload stack images artifact (fork runs)": {
-			"hash": "2078b6e1685f6bde",
+			"hash": "eb59af77b34d5680",
 			"mirror": null,
 			"reason": "GitHub-only, fork runs only (#1021): actions/upload-artifact moves the image tarballs from the build runner to the versioned artifact the shards download \u2014 the registry-free stand-in for the GHCR hop. Locally there is nothing to upload; the images are already where the stack starts."
 		},
@@ -492,7 +492,7 @@
 			"reason": "Runner toolchain provisioning. Locally pnpm is pinned by the packageManager field and is a developer prerequisite."
 		},
 		"front-e2e.yml::test::Load stack images from artifact (fork runs)": {
-			"hash": "dd181b632078e9d6",
+			"hash": "7b15d475a1cfd271",
 			"mirror": null,
 			"reason": "GitHub-only, fork runs only (#1021): actions/download-artifact fetches the build job's image tarballs onto the shard runner. Locally the images are already in the daemon; there is no artifact hop to mirror."
 		},
@@ -527,7 +527,7 @@
 			"reason": "ci-e2e-front starts the same stack via up --build --wait. CI starts the already-pulled images with --no-build and performs its unchanged health polling separately."
 		},
 		"front-e2e.yml::test::Upload playwright report": {
-			"hash": "088cce9de705d985",
+			"hash": "cd2d0ee1a88907e2",
 			"mirror": null,
 			"reason": "actions/upload-artifact uses a shard-specific name to get each report off its ephemeral runner. Locally the report is already on disk at apps/front/playwright-report; there is nothing to upload it to."
 		},
@@ -769,7 +769,7 @@
 		"quality-gate.yml::quality::Verify complexity bounds are not drifting (#1661)": {
 			"hash": "141f697f555addee",
 			"mirror": "node packages/scripts-ts/src/check-cyclomatic-bound.ts",
-			"reason": "The check-cyclomatic-bound guard verifies that complexity ceilings in .oxlintrc.json are not drifting. It reads the TRUE values from .oxlintrc.json and ensures they match the committed expected configuration in .cyclomatic-bound-ref.json (apps/front/src/**: 60, test files: 90, default: 125). CI runs this guard to provide actual protection against bound drift."
+			"reason": "The check-cyclomatic-bound guard verifies that complexity ceilings in .oxlintrc.json are not drifting. It reads the TRUE values from .oxlintrc.json and ensures they match the committed expected configuration in packages/scripts-ts/src/cyclomatic-bound-ref.json (apps/front/src/**: 60, test files: 90, default: 125). CI runs this guard to provide actual protection against bound drift."
 		},
 		"react-doctor.yml::changes::Check whether react-doctor paths changed": {
 			"hash": "85b8ebcec99c9f7d",
@@ -835,11 +835,6 @@
 			"hash": "a4cc669d0f05a839",
 			"mirror": null,
 			"reason": "Reads github.event.pull_request.body. At pre-push time there is no PR and therefore no body to check, so this gate is unreproducible locally by construction rather than by omission. The step gained a #1240 waiver that short-circuits to success for PR_AUTHOR == 'dependabot[bot]' (exact-login policy, not github.actor, not a label); the waiver's exact shape is guarded by packages/scripts-ts/src/require-linked-issue.test.ts, which just ci-drift now runs, but the step itself (which reads the live PR body) stays a GitHub-only required check."
-		},
-		"front-ci.yml::supply-chain::Audit production dependencies (moderate and above)": {
-			"hash": "8d5095ef73aba7b3",
-			"mirror": "pnpm audit --prod --audit-level=moderate",
-			"reason": "#1644: production-graph threshold lowered from high to moderate to align with the dev-graph gate (quality-gate.yml::quality::Audit development dependencies). The previous shape let a moderate advisory in a production dep slip through both audits."
 		},
 		"quality-gate.yml::quality::Typecheck lint-ts": {
 			"hash": "784fa13a651b3079",

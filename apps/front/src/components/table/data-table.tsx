@@ -3,12 +3,6 @@ import {
 	IconChevronRight,
 	type TablerIcon,
 } from '@tabler/icons-react';
-import {
-	type ColumnDef,
-	type VisibilityState,
-	getCoreRowModel,
-	useReactTable,
-} from '@tanstack/react-table';
 import { useMemo, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { SearchInput } from '~/components/ui/search-input';
@@ -22,6 +16,11 @@ import {
 import { PAGE_SIZE_OPTIONS } from '~/lib/url-state/table-search-params';
 
 import { columnDisplayMeta } from './column-display-meta';
+import {
+	getCoreRowModel,
+	useLegacyTable as useReactTable,
+} from './column-type';
+import type { ColumnDef } from './column-type';
 import { DataTableGrid } from './data-table-grid';
 import { DataTableStates } from './data-table-states';
 import { derivePaginationRange } from './pagination-range';
@@ -38,6 +37,9 @@ import {
 	useMatchedBreakpoints,
 } from './use-matched-breakpoints';
 import type { UseRowSelectionResult } from './use-row-selection';
+
+// v9 moved VisibilityState to table-core; this alias keeps the type local.
+type VisibilityState = Record<string, boolean>;
 
 export type { TableRowHeight };
 
@@ -106,8 +108,12 @@ export type DataTableCursorFooterProps = {
 	size: number;
 	onSizeChange: (nextSize: number) => void;
 	/** Rows rendered on the current page — the range counter's end bound.
-	 * Distinct from `size`: the last page is usually partial (#282). */
-	pageRowCount?: number;
+	 * Distinct from `size`: the last page is usually partial (#282).
+	 * REQUIRED on purpose (#1562): when it was optional it silently fell back
+	 * to `size`, so a caller that forgot it showed "1–20" on a page holding 7
+	 * rows. An omission is a wrong number on screen, not a missing feature —
+	 * the type is what makes forgetting impossible. */
+	pageRowCount: number;
 	/** Total item count for the current query, when the backend exposes one.
 	 * A missing value means UNKNOWN (cursor surfaces, count still in flight)
 	 * and renders the bare range — never zero (#999's distinction). */
@@ -147,11 +153,12 @@ export const DataTableCursorFooter = ({
 
 	// #999's rule propagated to the label: a total of zero is only ever shown
 	// when zero is REAL; an absent total means unknown and shows the bare
-	// range. Falls back to the page size when a caller omits `pageRowCount`.
+	// range. `pageRowCount` is required (#1562), so there is no fallback to
+	// `size` left to hide a partial last page behind a full-page count.
 	const range = derivePaginationRange({
 		pageIndex,
 		size,
-		pageRowCount: pageRowCount ?? size,
+		pageRowCount,
 		totalCount,
 	});
 	let rangeLabelNode: string;
@@ -332,9 +339,13 @@ type DataTablePaginationState = {
 	isPaginationPending: boolean;
 	onNextPage: () => void;
 	onPreviousPage: () => void;
-	/** Rows rendered on the current page — the range counter's end bound
-	 * (#282). Defaults to `size` when omitted; the last page is partial. */
-	pageRowCount?: number;
+	// NOTE (#1562): there is deliberately no `pageRowCount` here. `DataTable`
+	// renders its own rows, so it knows the page's real row count and passes
+	// `rows.length` to the footer itself. An optional field here would be read
+	// by nobody: a caller setting it would be silently ignored, which is the
+	// same silence — a wrong range label with no error — that this change
+	// exists to remove. The prop stays REQUIRED on `DataTableCursorFooter`,
+	// whose caller does not own the rows.
 	/** Total item count when the backend exposes one; a missing value means
 	 * UNKNOWN and renders the bare range — never zero (#282, #999). */
 	totalCount?: number | null;

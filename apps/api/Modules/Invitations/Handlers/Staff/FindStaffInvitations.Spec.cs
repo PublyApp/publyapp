@@ -578,6 +578,178 @@ public sealed class FindStaffInvitationsSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task
+	ItShouldWalkEveryCreatedAtPageWithoutOverlapOrGap() {
+		string staffToken = await _authClient.LoginAsStaffAdminAsync();
+		string tag = Guid.NewGuid().ToString("N")[..8];
+
+		// 3 invitations with distinct, deliberately NOT insertion-ordered
+		// CreatedAt (anti-correlated with insertion). The walk must return
+		// them in ascending CreatedAt order, so a keySelector swap to
+		// ExpiresAt (or another same-type field) turns this RED.
+		var baseDate = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+		List<Guid> seededIds = new();
+		List<DateTime> seededOrder = new();
+		for (int i = 0; i < 3; i++) {
+			// Two rows share the same CreatedAt (i=0 and i=2), one has a
+			// different value (i=1). The tiebreaker (Id ascending) must
+			// determine the order of the two equal-key rows.
+			DateTime createdAt = i == 1 ? baseDate.AddDays(1) : baseDate;
+			DateTime expiresAt = baseDate.AddDays(30);
+			Guid id = await SeedStaffInvitationAtAsync(
+				$"created-at-walk-{tag}-{i}-{Guid.NewGuid():N}@example.com",
+				createdAt, expiresAt);
+			seededIds.Add(id);
+			seededOrder.Add(createdAt);
+		}
+
+			// Swap the IDs of the two equal-key rows (i=0 and i=2) so the row
+			// inserted at i=2 has the smaller Id. Without this, UUID v7 IDs are
+			// insertion-ordered, so stable OrderBy(CreatedAt) already matches
+			// ThenBy(Id) and removing the production tiebreaker leaves the test
+			// green. After the swap, the tiebreaker is actually exercised.
+			await SwapStaffInvitationIdsAsync(seededIds[0], seededIds[2]);
+			(seededIds[0], seededIds[2]) = (seededIds[2], seededIds[0]);
+
+		List<Guid> visitedIds = new();
+		List<DateTime> visitedCreatedAt = new();
+		string? cursor = null;
+		int pages = 0;
+		do {
+			using HttpResponseMessage response = await _http.SendAsync(
+				CreateFindRequest(
+					staffToken,
+					limit: 1,
+					sortId: "created_at",
+					sortOrder: "asc",
+					cursor: cursor
+				)
+			);
+
+			_ = response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+			FindResponse? page = await response.Content
+				.ReadFromJsonAsync<FindResponse>();
+			_ = page.Should().NotBeNull();
+			Assert.NotNull(page);
+			pages++;
+			visitedIds.AddRange(page.Data.Select(item => item.Id));
+			visitedCreatedAt.AddRange(page.Data.Select(item => item.CreatedAt));
+			cursor = page.NextCursor;
+
+			_ = pages.Should().BeLessOrEqualTo(100);
+		} while (cursor is not null);
+
+		_ = visitedIds.Should().OnlyHaveUniqueItems();
+		_ = visitedIds.Should().Contain(seededIds);
+
+		var visitedOrder = visitedIds
+			.Where(seededIds.Contains)
+			.ToList();
+		var createdAtById = seededIds
+			.Zip(seededOrder, (id, c) => (id, c))
+			.ToDictionary(x => x.id, x => x.c);
+		_ = visitedOrder.Should().Equal(
+			seededIds.OrderBy(id => createdAtById[id]).ThenBy(id => id).ToList()
+		);
+
+		// Assert the OBSERVED CreatedAt order equals the sorted seeded order,
+		// NOT the insertion order. A keySelector swap breaks this.
+		var visitedSeededCreatedAt = visitedOrder
+			.Select(id => visitedCreatedAt[visitedIds.IndexOf(id)])
+			.ToList();
+		_ = visitedSeededCreatedAt.Should()
+			.Equal(seededOrder.OrderBy(x => x).ToList());
+		_ = visitedSeededCreatedAt.Should().NotEqual(seededOrder);
+	}
+
+	[Fact]
+	public async Task
+	ItShouldWalkEveryExpiresAtPageWithoutOverlapOrGap() {
+		string staffToken = await _authClient.LoginAsStaffAdminAsync();
+		string tag = Guid.NewGuid().ToString("N")[..8];
+
+		// 3 invitations with distinct, deliberately NOT insertion-ordered
+		// ExpiresAt (anti-correlated with insertion). The walk must return
+		// them in ascending ExpiresAt order, so a keySelector swap to
+		// CreatedAt (or another same-type field) turns this RED.
+		var baseDate = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+		List<Guid> seededIds = new();
+		List<DateTime> seededOrder = new();
+		for (int i = 0; i < 3; i++) {
+			// Two rows share the same ExpiresAt (i=0 and i=2), one has a
+			// different value (i=1). The tiebreaker (Id ascending) must
+			// determine the order of the two equal-key rows.
+			DateTime createdAt = baseDate.AddDays(i);
+			DateTime expiresAt = i == 1 ? baseDate.AddDays(1) : baseDate;
+			Guid id = await SeedStaffInvitationAtAsync(
+				$"expires-at-walk-{tag}-{i}-{Guid.NewGuid():N}@example.com",
+				createdAt, expiresAt);
+			seededIds.Add(id);
+			seededOrder.Add(expiresAt);
+		}
+
+
+			// Swap the IDs of the two equal-key rows (i=0 and i=2) so the row
+			// inserted at i=2 has the smaller Id. Without this, UUID v7 IDs are
+			// insertion-ordered, so stable OrderBy(ExpiresAt) already matches
+			// ThenBy(Id) and removing the production tiebreaker leaves the test
+			// green. After the swap, the tiebreaker is actually exercised.
+			await SwapStaffInvitationIdsAsync(seededIds[0], seededIds[2]);
+			(seededIds[0], seededIds[2]) = (seededIds[2], seededIds[0]);
+		List<Guid> visitedIds = new();
+		List<DateTime> visitedExpiresAt = new();
+		string? cursor = null;
+		int pages = 0;
+		do {
+			using HttpResponseMessage response = await _http.SendAsync(
+				CreateFindRequest(
+					staffToken,
+					limit: 1,
+					sortId: "expires_at",
+					sortOrder: "asc",
+					cursor: cursor
+				)
+			);
+
+			_ = response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+			FindResponse? page = await response.Content
+				.ReadFromJsonAsync<FindResponse>();
+			_ = page.Should().NotBeNull();
+			Assert.NotNull(page);
+			pages++;
+			visitedIds.AddRange(page.Data.Select(item => item.Id));
+			visitedExpiresAt.AddRange(page.Data.Select(item => item.ExpiresAt));
+			cursor = page.NextCursor;
+
+			_ = pages.Should().BeLessOrEqualTo(100);
+		} while (cursor is not null);
+
+		_ = visitedIds.Should().OnlyHaveUniqueItems();
+		_ = visitedIds.Should().Contain(seededIds);
+
+		var visitedOrder = visitedIds
+			.Where(seededIds.Contains)
+			.ToList();
+		var expiresAtById = seededIds
+			.Zip(seededOrder, (id, e) => (id, e))
+			.ToDictionary(x => x.id, x => x.e);
+		_ = visitedOrder.Should().Equal(
+			seededIds.OrderBy(id => expiresAtById[id]).ThenBy(id => id).ToList()
+		);
+
+		// Assert the OBSERVED ExpiresAt order equals the sorted seeded order,
+		// NOT the insertion order. A keySelector swap breaks this.
+		var visitedSeededExpiresAt = visitedOrder
+			.Select(id => visitedExpiresAt[visitedIds.IndexOf(id)])
+			.ToList();
+		_ = visitedSeededExpiresAt.Should()
+			.Equal(seededOrder.OrderBy(x => x).ToList());
+		_ = visitedSeededExpiresAt.Should().NotEqual(seededOrder);
+	}
+
+	[Fact]
+	public async Task
 	ItShouldAcceptAnUppercaseSortId() {
 		string staffToken = await _authClient.LoginAsStaffAdminAsync();
 
@@ -680,6 +852,51 @@ public sealed class FindStaffInvitationsSpec : IClassFixture<ApiFixture> {
 		_ = body.Should().NotBeNull();
 
 		return body?.InvitationId ?? Guid.Empty;
+	}
+
+	private async Task<Guid> SeedStaffInvitationAtAsync(
+		string email,
+		DateTime createdAt,
+		DateTime expiresAt
+	) {
+		using IServiceScope scope = _fixture.Factory.Services.CreateScope();
+		AppDbContext dbContext = scope.ServiceProvider
+			.GetRequiredService<AppDbContext>();
+
+		Profile staffProfile = await dbContext.Profile
+			.Where(profile =>
+				profile.Scope == ProfileScope.Staff
+				&& !profile.IsDeleted
+			)
+			.OrderBy(profile => profile.Name)
+			.FirstAsync();
+		User staffUser = await dbContext.User
+			.Where(user => user.Email == SeedConstants.Staff.AdminEmail)
+			.FirstAsync();
+
+		Invitation invitation = Invitation.CreateStaffInvitationWithProfiles(
+			email,
+			[staffProfile.GetRequiredId()],
+			staffUser.GetRequiredId(),
+			expiresAt,
+			Guid.NewGuid().ToString("N")[..32]
+		);
+
+		_ = await dbContext.Invitation.AddAsync(invitation);
+		_ = await dbContext.SaveChangesAsync();
+
+		var id = invitation.GetRequiredId();
+
+		// Re-fetch and overwrite CreatedAt/ExpiresAt so they stick
+		// (interceptor stamps CreatedAt/UpdatedAt = now on insert).
+		var tracked = await dbContext.Invitation
+			.Where(inv => inv.Id == id)
+			.FirstAsync();
+		tracked.CreatedAt = createdAt;
+		tracked.ExpiresAt = expiresAt;
+		_ = await dbContext.SaveChangesAsync();
+
+		return id;
 	}
 
 	private async Task RevokeStaffInvitationAsync(
@@ -798,7 +1015,44 @@ public sealed class FindStaffInvitationsSpec : IClassFixture<ApiFixture> {
 		public string? InvitedByName { get; init; }
 	}
 
+
 	private sealed record InvitationCreatedResponse {
 		public Guid InvitationId { get; init; }
+	}
+
+	private async Task SwapStaffInvitationIdsAsync(Guid idA, Guid idB) {
+		using IServiceScope scope = _fixture.Factory.Services.CreateScope();
+		AppDbContext dbContext = scope.ServiceProvider
+			.GetRequiredService<AppDbContext>();
+		await using var tx = await dbContext.Database.BeginTransactionAsync();
+		// Disable FK enforcement triggers on both tables so the swap
+		// doesn't violate non-deferrable FK constraints. Triggers are
+		// re-enabled automatically when the transaction ends.
+		await dbContext.Database.ExecuteSqlRawAsync("ALTER TABLE invitations DISABLE TRIGGER ALL; ALTER TABLE invitation_profiles DISABLE TRIGGER ALL");
+
+		var temp = Guid.NewGuid();
+		// Step 1: move idA -> temp in invitations, then redirect profiles.
+		await dbContext.Database.ExecuteSqlRawAsync(
+			"UPDATE invitations SET id = {0} WHERE id = {1}",
+			temp, idA);
+		await dbContext.Database.ExecuteSqlRawAsync(
+			"UPDATE invitation_profiles SET invitation_id = {0} WHERE invitation_id = {1}",
+			temp, idA);
+		// Step 2: move idB -> idA in invitations, then redirect profiles.
+		await dbContext.Database.ExecuteSqlRawAsync(
+			"UPDATE invitations SET id = {0} WHERE id = {1}",
+			idA, idB);
+		await dbContext.Database.ExecuteSqlRawAsync(
+			"UPDATE invitation_profiles SET invitation_id = {0} WHERE invitation_id = {1}",
+			idA, idB);
+		// Step 3: move temp -> idB in invitations, then redirect profiles.
+		await dbContext.Database.ExecuteSqlRawAsync(
+			"UPDATE invitations SET id = {0} WHERE id = {1}",
+			idB, temp);
+		await dbContext.Database.ExecuteSqlRawAsync(
+			"UPDATE invitation_profiles SET invitation_id = {0} WHERE invitation_id = {1}",
+			idB, temp);
+
+		await tx.CommitAsync();
 	}
 }

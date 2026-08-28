@@ -12,24 +12,36 @@ var publyDb = postgres.AddDatabase("publyapp-db", "publyapp_db");
 // The app reads its DSN from POSTGRES_CONNECTION_STRING (AppEnvironment), not the
 // Aspire-standard ConnectionStrings__ section, so mirror the database resource's
 // runtime-resolved connection string under the variable the app already consumes.
-// One callback per role keeps the two resources independently recomposable.
-var api = builder.AddProject<Projects.PublyApp_Api>("api")
-	.WithEnvironment("APP_ROLE", "api")
-	.WithEnvironment(context => {
+//
+// #1585: the two roles used to carry two byte-identical copies of this callback. The
+// call stays per-role — each resource is still composed independently, which is what
+// the original note was protecting — but the BODY now lives in one place, so the api
+// and the worker cannot drift onto different variable names or different expressions
+// without someone noticing. A drift there would be invisible at build time and would
+// only show up as one of the two processes failing to reach the database at run time.
+static IResourceBuilder<ProjectResource> WithPostgresConnectionString(
+	IResourceBuilder<ProjectResource> project,
+	IResourceBuilder<PostgresDatabaseResource> database
+) {
+	return project.WithEnvironment(context => {
 		context.EnvironmentVariables["POSTGRES_CONNECTION_STRING"] =
-			publyDb.Resource.ConnectionStringExpression;
-	})
+			database.Resource.ConnectionStringExpression;
+	});
+}
+
+var api = WithPostgresConnectionString(
+		builder.AddProject<Projects.PublyApp_Api>("api").WithEnvironment("APP_ROLE", "api"),
+		publyDb
+	)
 	.WaitFor(publyDb);
 
 // Same binary, APP_ROLE=worker: job engine only, no HTTP server (design §3.2).
 // No WaitFor(api): the worker's WorkerMigrationStartupGate already retries until
 // pending migrations clear, which absorbs the boot-order race by design.
-builder.AddProject<Projects.PublyApp_Api>("worker")
-	.WithEnvironment("APP_ROLE", "worker")
-	.WithEnvironment(context => {
-		context.EnvironmentVariables["POSTGRES_CONNECTION_STRING"] =
-			publyDb.Resource.ConnectionStringExpression;
-	})
+WithPostgresConnectionString(
+		builder.AddProject<Projects.PublyApp_Api>("worker").WithEnvironment("APP_ROLE", "worker"),
+		publyDb
+	)
 	.WaitFor(publyDb);
 
 // The shipped frontend in dev mode. TanStack Start dev server is Vite under the hood,

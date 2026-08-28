@@ -6,7 +6,7 @@ import { pathToFileURL } from 'node:url';
 // Cyclomatic complexity bound guard.
 //
 // This guard verifies that complexity ceilings declared in .oxlintrc.json match
-// the committed reference values in .cyclomatic-bound-ref.json. It reasons over
+// the committed reference values in cyclomatic-bound-ref.json. It reasons over
 // the COMPLETE set of override patterns — any override whose pattern is not in
 // the reference fails, and any reference pattern that is absent from
 // .oxlintrc.json also fails. This closes the blind spot where a new override
@@ -17,7 +17,7 @@ import { pathToFileURL } from 'node:url';
 
 /**
  * The repository root, resolved relative to this file's location.
- * Used to default the .oxlintrc.json and .cyclomatic-bound-ref.json paths.
+ * Used to default the .oxlintrc.json and cyclomatic-bound-ref.json paths.
  */
 const repoRoot = path.resolve(
 	path.dirname(new URL(import.meta.url).pathname),
@@ -75,7 +75,7 @@ function buildActualPatternMaxMap(config) {
 
 /**
  * Verifies that the complexity bounds in .oxlintrc.json match the reference
- * values in .cyclomatic-bound-ref.json.
+ * values in cyclomatic-bound-ref.json.
  *
  * Returns an array of human-readable error strings (empty = pass).
  * Throws SyntaxError if either JSON file is malformed.
@@ -83,7 +83,8 @@ function buildActualPatternMaxMap(config) {
 // @ts-expect-error rung-0: add proper type in later rung
 export function verifyComplexityBounds(oxlintrcPath, referencePath_) {
 	const refPath =
-		referencePath_ ?? path.resolve(repoRoot, '.cyclomatic-bound-ref.json');
+		referencePath_ ??
+		path.resolve(repoRoot, 'packages/scripts-ts/src/cyclomatic-bound-ref.json');
 	const oxlintPath = oxlintrcPath ?? path.resolve(repoRoot, '.oxlintrc.json');
 
 	let config;
@@ -116,7 +117,7 @@ export function verifyComplexityBounds(oxlintrcPath, referencePath_) {
 			errors.push(
 				'Unknown override pattern "' +
 					pattern +
-					'": .oxlintrc.json declares a complexity override for a pattern not present in .cyclomatic-bound-ref.json. Either add it to the reference (with justification) or remove the override.',
+					'": .oxlintrc.json declares a complexity override for a pattern not present in cyclomatic-bound-ref.json. Either add it to the reference (with justification) or remove the override.',
 			);
 			continue;
 		}
@@ -131,7 +132,7 @@ export function verifyComplexityBounds(oxlintrcPath, referencePath_) {
 						expectedMax +
 						' to ' +
 						actualMax +
-						' in .oxlintrc.json. To relax this bound, update .cyclomatic-bound-ref.json and justify the change in review.',
+						' in .oxlintrc.json. To relax this bound, update cyclomatic-bound-ref.json and justify the change in review.',
 				);
 			} else {
 				errors.push(
@@ -141,7 +142,7 @@ export function verifyComplexityBounds(oxlintrcPath, referencePath_) {
 						expectedMax +
 						' to ' +
 						actualMax +
-						' in .oxlintrc.json. Update .cyclomatic-bound-ref.json to match.',
+						' in .oxlintrc.json. Update cyclomatic-bound-ref.json to match.',
 				);
 			}
 		}
@@ -166,7 +167,7 @@ function main() {
 	const resolvedOxlintPath = path.resolve(process.cwd(), '.oxlintrc.json');
 	const resolvedRefPath = path.resolve(
 		process.cwd(),
-		'.cyclomatic-bound-ref.json',
+		'packages/scripts-ts/src/cyclomatic-bound-ref.json',
 	);
 
 	let errors;
@@ -184,14 +185,14 @@ function main() {
 		}
 		console.error('');
 		console.error(
-			'FAILED: Complexity bounds in .oxlintrc.json do not match .cyclomatic-bound-ref.json.',
+			'FAILED: Complexity bounds in .oxlintrc.json do not match cyclomatic-bound-ref.json.',
 		);
 		console.error('');
 		console.error(
 			'This guard verifies that complexity ceilings are NOT drifting.',
 		);
 		console.error('If you need to change a bound:');
-		console.error('1. Update .cyclomatic-bound-ref.json');
+		console.error('1. Update cyclomatic-bound-ref.json');
 		console.error(
 			'2. Update the test assertions in check-cyclomatic-bound.test.ts',
 		);
@@ -202,7 +203,7 @@ function main() {
 	}
 
 	console.log(
-		'PASSED: Complexity bounds in .oxlintrc.json match .cyclomatic-bound-ref.json.',
+		'PASSED: Complexity bounds in .oxlintrc.json match cyclomatic-bound-ref.json.',
 	);
 	process.exit(0);
 }

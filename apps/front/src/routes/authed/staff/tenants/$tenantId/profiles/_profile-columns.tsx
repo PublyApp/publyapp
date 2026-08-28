@@ -1,5 +1,5 @@
 import { Link } from '@tanstack/react-router';
-import type { ColumnDef } from '@tanstack/react-table';
+import type { ColumnDef } from '~/components/table/column-type';
 import type { StaffTenantProfileRow } from '~/lib/query/staff-tenant-profiles';
 
 import { ProfileRowActions } from './_profile-card';

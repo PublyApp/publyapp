@@ -8,6 +8,8 @@ import { BulkDeleteRequestBuilderRequestsMetadata, type BulkDeleteRequestBuilder
 // @ts-ignore
 import { type WithProfileItemRequestBuilder, WithProfileItemRequestBuilderNavigationMetadata, WithProfileItemRequestBuilderRequestsMetadata } from './item/index.js';
 // @ts-ignore
+import { ResolveNamesRequestBuilderRequestsMetadata, type ResolveNamesRequestBuilder } from './resolveNames/index.js';
+// @ts-ignore
 import { type BaseRequestBuilder, type KeysToExcludeForNavigationMetadata, type NavigationMetadata, type Parsable, type ParsableFactory, type RequestConfiguration, type RequestInformation, type RequestsMetadata } from '@microsoft/kiota-abstractions';
 
 /**
@@ -18,6 +20,10 @@ export interface ProfilesRequestBuilder extends BaseRequestBuilder<ProfilesReque
      * The bulkDelete property
      */
     get bulkDelete(): BulkDeleteRequestBuilder;
+    /**
+     * The resolveNames property
+     */
+    get resolveNames(): ResolveNamesRequestBuilder;
     /**
      * Gets an item from the PublyApp.Api.Client.staff.tenants.item.profiles.item collection
      * @param profileId Unique identifier of the item
@@ -98,6 +104,9 @@ export const ProfilesRequestBuilderNavigationMetadata: Record<Exclude<keyof Prof
     },
     bulkDelete: {
         requestsMetadata: BulkDeleteRequestBuilderRequestsMetadata,
+    },
+    resolveNames: {
+        requestsMetadata: ResolveNamesRequestBuilderRequestsMetadata,
     },
 };
 /**
