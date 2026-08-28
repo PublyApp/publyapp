@@ -1,9 +1,10 @@
 import { expect, test, type Page } from '@playwright/test';
 
 import { API_BASE_URL } from './helpers/api';
+import { COUNTER_URL } from './helpers/compose-env';
 import { loginAsStaffAdmin } from './helpers/login';
 
-const COUNTER_BASE_URL = 'http://127.0.0.1:8800';
+const COUNTER_BASE_URL = COUNTER_URL;
 const MAX_PREFLIGHT_COUNT = 1;
 const STAFF_INVITATIONS_PATH = '/staff/invitations';
 

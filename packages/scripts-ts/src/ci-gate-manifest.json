@@ -522,9 +522,9 @@
 			"reason": "actions/upload-artifact uses a shard-specific name to get each report off its ephemeral runner. Locally the report is already on disk at apps/front/playwright-report; there is nothing to upload it to."
 		},
 		"front-e2e.yml::test::Wait for front stack health": {
-			"hash": "8c73ac9b622decc1",
+			"hash": "50d0acf849a76841",
 			"mirror": "just ci-e2e-front",
-			"reason": "ci-e2e-front uses 'docker compose up --wait --wait-timeout 180' instead of the workflow's hand-rolled docker inspect polling loop. Same property (every service running and healthy before Playwright starts, 180s budget), enforced by compose itself rather than by bash."
+			"reason": "ci-e2e-front uses 'docker compose up --wait --wait-timeout 180' instead of the workflow's hand-rolled docker inspect polling loop. Same property (every service running and healthy before Playwright starts, 180s budget), enforced by compose itself rather than by bash. Reconciled after the run: block gained ${COMPOSE_PROJECT_NAME} in the docker ps --filter diagnostic (replacing a hardcoded project name) and the job-level env: added COMPOSE_PROJECT_NAME with github.run_attempt for per-attempt volume isolation (#1642 Constat 5)."
 		},
 		"openapi-spec-drift.yml::changes::Check whether openapi-spec-drift paths changed": {
 			"hash": "675e495cd7c44204",

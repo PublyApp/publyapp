@@ -2,6 +2,8 @@ import { expect, test } from '@playwright/test';
 
 import { LOCALE_COOKIE_KEY } from '@org/shared-ts/lib/constants';
 
+import { FRONT_URL } from './helpers/compose-env';
+
 type BrowserContextLike = {
 	context: () => {
 		addCookies: (
@@ -15,7 +17,7 @@ type BrowserContextLike = {
 	};
 };
 
-const DEFAULT_BASE_URL = 'https://front.localhost:8443';
+const DEFAULT_BASE_URL = FRONT_URL;
 
 const setLocaleCookie = async (
 	page: BrowserContextLike,

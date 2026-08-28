@@ -276,6 +276,15 @@ jobs:
       # namespace the images were actually pushed under (#1362).
       E2E_IMAGE_NS: ${{ needs.build.outputs.ns }}
       E2E_IMAGE_TAG: ${{ needs.build.outputs.tag }}
+      # Per-worktree isolation (#1642): docker compose indexes on the project
+      # name, not the file path. Each CI run gets its own project name so the
+      # `docker ps --filter name=...` diagnostic and teardown never touch
+      # another run's stack (each shard runs on a fresh runner, but this keeps
+      # the diagnostic filter correct and consistent with local justfile usage).
+      # Include github.run_attempt so a partial re-run (same run_id, attempt 2)
+      # gets a distinct project name and cannot recover a previous attempt's
+      # volumes as initial state (#1642 Constat 5).
+      COMPOSE_PROJECT_NAME: publyapp-e2e-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.shard }}
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -397,7 +406,7 @@ jobs:
                 fi
               done
 
-              docker ps --filter "name=publyapp-front2-real-test" --format "{{.Names}}\t{{.Status}}"
+              docker ps --filter "name=${COMPOSE_PROJECT_NAME}" --format "{{.Names}}\t{{.Status}}"
 
               if [ "$all_running" = true ]; then
                 break

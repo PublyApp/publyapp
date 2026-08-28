@@ -3,7 +3,18 @@
 From the repo root, run the local e2e compose stack:
 
 ```bash
-docker compose -f apps/front/docker-compose.test.yml up -d --build --wait
+# Per-worktree isolation (#1642): `just ci-e2e-front` derives a project name
+# and port offsets from the worktree path automatically. You can also set
+# them manually:
+#
+#   COMPOSE_PROJECT_NAME=my-stack \
+#   E2E_PORT_TRAEFIK_WEB=9080 \
+#   E2E_PORT_TRAEFIK_WEBSECURE=9443 \
+#   E2E_PORT_REQUEST_COUNTER=9800 \
+#   E2E_PORT_TOXIPROXY=9474 \
+#   docker compose -f apps/front/docker-compose.test.yml up -d --build --wait
+
+just ci-e2e-front
 ```
 
 `front.localhost` and `api.front.localhost` must resolve to loopback. On
@@ -13,7 +24,25 @@ machines where `*.localhost` does not resolve, add them explicitly:
 echo "127.0.0.1 front.localhost api.front.localhost" | sudo tee -a /etc/hosts
 ```
 
+The stack publishes ports on loopback. `just ci-e2e-front` derives a
+worktree-specific port offset so multiple worktrees can run independent
+stacks simultaneously on different ports. If you run the stack manually
+without setting `E2E_PORT_*` env vars, the default ports are used:
+
+| Service           | Default port |
+| ----------------- | ------------ |
+| Traefik (web)     | 8080         |
+| Traefik (websecure)| 8443        |
+| Request counter   | 8800         |
+| Toxiproxy         | 8474         |
+
 From the repo root, run Playwright:
+
+```bash
+just ci-e2e-front
+```
+
+Or manually, after starting the stack:
 
 ```bash
 pnpm --filter front exec playwright test

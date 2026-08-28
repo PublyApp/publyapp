@@ -29,6 +29,11 @@ const config: KnipConfig = {
 				'deploy/request-counter/server.mjs', // e2e sidecar service built from deploy/request-counter by docker-compose.test.yml
 				'e2e/helpers/entity-crumb-render-target.tsx', // loaded via vite.ssrLoadModule() by URL from e2e/helpers/render-entity-crumb.ts, never imported
 				'e2e/helpers/render-focus-ring-target.tsx', // loaded via vite.ssrLoadModule() by URL from e2e/helpers/render-focus-ring.ts, never imported
+				// Invoked by the justfile (`node apps/front/scripts/e2e-compose-env.mts`
+				// in the e2e recipes, #1642) to derive the per-worktree Compose
+				// project name and port band; knip cannot trace a justfile shell-out.
+				// Its co-located e2e-compose-env.test.mts runs via `pnpm test:e2e-compose-env`.
+				'scripts/e2e-compose-env.mts',
 				'scripts/generate/generate-route-tree.mts', // documented shim kept after #1300 moved the implementation to route-tree-generator.mts
 				'scripts/generate/generate-suppression-inventory.mts', // manual generator; check-design-system.mts tells humans to run it when the inventory drifts
 				'tools/ci/node-24-type-stripping.mts', // manual proof runner; its sibling node-24-type-stripping.test.mts pins it

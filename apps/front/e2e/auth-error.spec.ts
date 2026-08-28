@@ -4,11 +4,11 @@ import { SESSION_TOKEN_COOKIE_KEY } from '@org/shared-ts/lib/constants';
 import { formatSessionCookie } from '@org/shared-ts/lib/session/parse';
 
 import { API_BASE_URL } from './helpers/api';
+import { FRONT_URL, TOXIPROXY_API_URL } from './helpers/compose-env';
 import { loginAsStaffAdmin } from './helpers/login';
 
-const FRONTEND_ORIGIN = 'https://front.localhost:8443';
+const FRONTEND_ORIGIN = FRONT_URL;
 const STAFF_USERS_PATH = '/staff/users';
-const TOXIPROXY_API_URL = 'http://127.0.0.1:8474';
 const TOXIPROXY_PROXY_NAME = 'api';
 const TENANT_TOKEN_VALUE = formatSessionCookie({
 	tenantToken: 'front2-demo-token',

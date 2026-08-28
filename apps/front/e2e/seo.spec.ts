@@ -1,5 +1,7 @@
 import { expect, test, type APIRequestContext } from '@playwright/test';
 
+import { FRONT_URL } from './helpers/compose-env';
+
 // The `chromium` project supplies a pre-authenticated staff-admin
 // `storageState` (playwright.config.ts, review-r1-tests.md F29), which the
 // `request` fixture inherits too. With that session cookie attached, a raw
@@ -10,7 +12,7 @@ import { expect, test, type APIRequestContext } from '@playwright/test';
 // meta tags. Every route this file inspects is meant to be read anonymously.
 test.use({ storageState: { cookies: [], origins: [] } });
 
-const BASE_URL = 'https://front.localhost:8443';
+const BASE_URL = FRONT_URL;
 
 const extractAttribute = (tag: string, attribute: string): string | null => {
 	const match = tag.match(

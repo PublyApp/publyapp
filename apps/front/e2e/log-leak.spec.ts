@@ -16,6 +16,7 @@ const COMPOSE_FILE = 'apps/front/docker-compose.test.yml';
 const STAFF_USERS_PATH = '/staff/users';
 const SESSION_TOKEN_HEADER_KEY = 'X-Session-Token';
 const SMOKE_BROWSER_MESSAGE = '[front] log-leak smoke probe';
+const COMPOSE_PROJECT_NAME = process.env.COMPOSE_PROJECT_NAME ?? 'publyapp-e2e';
 const CONTROL_REQUEST = {
 	method: 'GET',
 	path: STAFF_USERS_PATH,
@@ -130,7 +131,16 @@ const findFirstLeakLine = (text: string, needles: string[]): string => {
 const readDockerLogs = (service: LogServiceName): string => {
 	return execFileSync(
 		'docker',
-		['compose', '-f', COMPOSE_FILE, 'logs', '--no-color', service],
+		[
+			'compose',
+			'-f',
+			COMPOSE_FILE,
+			'--project-name',
+			COMPOSE_PROJECT_NAME,
+			'logs',
+			'--no-color',
+			service,
+		],
 		{
 			cwd: REPO_ROOT,
 			encoding: 'utf8',
