@@ -304,11 +304,17 @@ public sealed partial class PublicationArchitectureSpec {
 		var unique = entity!.GetIndexes().SingleOrDefault(i =>
 			i.GetDatabaseName() == "ux_publications_post_account"
 		);
-		unique.Should().NotBeNull("one publication per (post, account)");
+		unique.Should().NotBeNull("one ACTIVE delivery per (post, account)");
 		unique!.IsUnique.Should().BeTrue();
+		// Round-2 widening: the partial filter must ALSO exclude terminal Failed
+		// rows so a failed publish-now is re-issuable (fresh attempt starts beside
+		// the failed history row), while Published rows keep occupying the pair.
+		// Proven discriminating by the .dump/guard-r2-filter-*.log mutation pair:
+		// reverting the model filter alone turns this RED.
 		unique.GetFilter().Should().Be(
-			"is_deleted = false",
-			"a cancelled-and-recreated pair must be free again"
+			"is_deleted = false AND status <> 40",
+			"a cancelled-and-recreated pair must be free again AND a terminal Failed "
+				+ "row must release the pair; Published rows stay live"
 		);
 
 		var dueScan = entity.GetIndexes().SingleOrDefault(i =>
@@ -814,6 +820,239 @@ public sealed partial class PublicationArchitectureSpec {
 				+ AppContext.BaseDirectory
 		);
 	}
+
+	// ── D2 (Task 5): publishing surface ratchet extensions ─────────────
+
+	// Every route mapped inside Modules/Publishing/Endpoints/** must carry BOTH a
+	// rate-limit policy and tenant-permission metadata ON ITS OWN CHAIN. Group-level
+	// middleware alone does not satisfy this fact: the ratchet wants each endpoint's
+	// contract readable at the mapping site (plan D2 Task 5 fact a).
+	[Fact]
+	public void ItShouldKeepEveryPublishingEndpointPermissionedAndRateLimited() {
+		var apiRoot = FindApiRoot();
+		var endpointsRoot = Path.Combine(
+			apiRoot, "Modules", "Publishing", "Endpoints"
+		);
+
+		_ = Directory.Exists(endpointsRoot).Should().BeTrue(
+			"the publishing endpoints directory must exist; if it moved, reconcile "
+				+ "this guard"
+		);
+
+		var offenders = new List<string>();
+		var scannedAny = false;
+
+		foreach (var file in EnumerateSourceFiles(endpointsRoot)) {
+			scannedAny = true;
+			var relative = Path.GetRelativePath(apiRoot, file).Replace('\\', '/');
+			var text = File.ReadAllText(file);
+			var segments = SplitIntoMappingSegments(text);
+
+			foreach (var (startLine, segment) in segments) {
+				if (!segment.Contains(
+						".RequireRateLimiting(",
+						StringComparison.Ordinal
+					)) {
+					offenders.Add(
+						$"{relative}:{startLine}: mapping without an explicit "
+							+ "RequireRateLimiting policy"
+					);
+				}
+
+				if (!segment.Contains(
+						".WithTenantPermission(",
+						StringComparison.Ordinal
+					)) {
+					offenders.Add(
+						$"{relative}:{startLine}: mapping without "
+							+ "WithTenantPermission metadata"
+					);
+				}
+			}
+		}
+
+		// Round-2 widening: publishing surfaces may be mapped OUTSIDE the Publishing
+		// module — POST /posts/{postId}/publish-now is handled by
+		// PublishNowForTenant but mapped under Modules/Posts/Endpoints, where the
+		// walk above never looked. Follow the HANDLER type: every *.cs outside the
+		// Publishing module that maps a handler from the Publishing namespace must
+		// carry the same on-chain rate-limit + tenant-permission metadata.
+		foreach (var (relative, startLine, segment) in
+			PublishingMappingsOutsideTheModule(apiRoot)) {
+			scannedAny = true;
+
+			if (!segment.Contains(
+					".RequireRateLimiting(",
+					StringComparison.Ordinal
+				)) {
+				offenders.Add(
+					$"{relative}:{startLine}: publishing mapping outside "
+						+ "Modules/Publishing without an explicit RequireRateLimiting "
+						+ "policy"
+				);
+			}
+
+			if (!segment.Contains(
+					".WithTenantPermission(",
+					StringComparison.Ordinal
+				)) {
+				offenders.Add(
+					$"{relative}:{startLine}: publishing mapping outside "
+						+ "Modules/Publishing without WithTenantPermission metadata"
+				);
+			}
+		}
+
+		_ = scannedAny.Should().BeTrue(
+			"an empty endpoint enumeration must never pass vacuously"
+		);
+		offenders.Should().BeEmpty(
+			"every publishing endpoint must be individually rate-limited and "
+				+ "permission-gated; found {0} offender(s):\n{1}",
+			offenders.Count,
+			string.Join("\n", offenders)
+		);
+	}
+
+	// Handlers orchestrate; services own queries. No PRODUCTION file under
+	// Modules/Publishing/Handlers/** may mention AppDbContext. Co-located *.Spec.cs
+	// files are exempt (they drive real HTTP round-trips against the hosted app and
+	// follow the PostTenantCrud.Spec precedent).
+	[Fact]
+	public void ItShouldKeepDbContextOutOfPublishingHandlers() {
+		var apiRoot = FindApiRoot();
+		var handlersRoot = Path.Combine(
+			apiRoot, "Modules", "Publishing", "Handlers"
+		);
+
+		_ = Directory.Exists(handlersRoot).Should().BeTrue(
+			"the publishing handlers directory must exist; if it moved, reconcile "
+				+ "this guard"
+		);
+
+		var offenders = EnumerateSourceFiles(handlersRoot)
+			.Where(file => !file.EndsWith(".Spec.cs", StringComparison.Ordinal))
+			.Select(file => (
+				Relative: Path.GetRelativePath(apiRoot, file).Replace('\\', '/'),
+				Text: File.ReadAllText(file)
+			))
+			.Where(entry => entry.Text.Contains(
+				"AppDbContext",
+				StringComparison.Ordinal
+			))
+			.Select(entry => entry.Relative)
+			.ToList();
+
+		offenders.Should().BeEmpty(
+			"publishing handlers orchestrate results; DbContext access belongs to "
+				+ "services. Files mentioning AppDbContext:\n{0}",
+			string.Join("\n", offenders)
+		);
+	}
+
+	// PublishNowService stays on infrastructure dependencies ONLY: AppDbContext +
+	// IJobEnqueuer. A third dependency would mean domain-service chaining, which the
+	// slice forbids (plan D2 Task 5 fact c).
+	[Fact]
+	public void ItShouldKeepPublishNowServiceOnInfrastructureDependenciesOnly() {
+		var apiRoot = FindApiRoot();
+		var serviceFile = Path.Combine(
+			apiRoot,
+			"Modules",
+			"Publishing",
+			"Services",
+			"PublishNowService.cs"
+		);
+		var text = File.ReadAllText(serviceFile);
+
+		var match = CtorParameterList().Match(text);
+		_ = match.Success.Should().BeTrue(
+			"PublishNowService must declare an explicit constructor"
+		);
+
+		var parameters = match.Groups[1].Value
+			.Split(',', StringSplitOptions.TrimEntries)
+			.Where(parameter => parameter.Length > 0)
+			.Select(parameter => parameter.Split(' ')[0])
+			.ToList();
+
+		parameters.Should().BeEquivalentTo([
+			"AppDbContext",
+			"IJobEnqueuer",
+		], because: "the publish-now service depends on infrastructure only "
+			+ "(DbContext + job enqueuer), never another domain service");
+	}
+
+
+	// Enumerates endpoint mappings OUTSIDE Modules/Publishing whose handler type
+	// resolves to the Publishing.Handlers namespace. Lexical containment of the
+	// namespace-qualified handler reference inside one Map* segment keeps this
+	// dependency-free; the segment boundaries come from the same splitter the
+	// in-module walk uses.
+	private static IEnumerable<(string RelativePath, int StartLine, string Segment)>
+		PublishingMappingsOutsideTheModule(string apiRoot) {
+		var modulesRoot = Path.Combine(apiRoot, "Modules");
+		foreach (var file in EnumerateSourceFiles(modulesRoot)) {
+			var relative = Path.GetRelativePath(apiRoot, file).Replace('\\', '/');
+			if (relative.StartsWith("Modules/Publishing/", StringComparison.Ordinal)) {
+				continue;
+			}
+
+			if (!file.Replace(Path.DirectorySeparatorChar, '/')
+					.Contains("/Endpoints/", StringComparison.Ordinal)) {
+				continue;
+			}
+
+			var text = File.ReadAllText(file);
+			foreach (var (startLine, segment) in SplitIntoMappingSegments(text)) {
+				if (segment.Contains(
+						"PublyApp.Api.Modules.Publishing.Handlers",
+						StringComparison.Ordinal
+					)) {
+					yield return (relative, startLine, segment);
+				}
+			}
+		}
+	}
+
+	private static IEnumerable<string> EnumerateSourceFiles(string root) {
+		return Directory
+			.EnumerateFiles(root, "*.cs", SearchOption.AllDirectories)
+			.Where(file => !file.Contains(
+				$"{Path.DirectorySeparatorChar}bin{Path.DirectorySeparatorChar}",
+				StringComparison.Ordinal
+			) && !file.Contains(
+				$"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}",
+				StringComparison.Ordinal
+			))
+			.OrderBy(file => file, StringComparer.Ordinal);
+	}
+
+	private static IReadOnlyList<(int StartLine, string Segment)>
+		SplitIntoMappingSegments(string text) {
+		var pattern = EndpointMapping();
+		var segments = new List<(int StartLine, string Segment)>();
+		var matches = pattern.Matches(text);
+		for (var index = 0; index < matches.Count; index++) {
+			var start = matches[index].Index;
+			var end = index + 1 < matches.Count
+				? matches[index + 1].Index
+				: text.Length;
+			var line = text[..start].Count(character => character == '\n') + 1;
+			segments.Add((line, text[start..end]));
+		}
+
+		return segments;
+	}
+
+	[GeneratedRegex(@"\bMap(?:Get|Post|Patch|Delete|Put)\s*\(")]
+	private static partial Regex EndpointMapping();
+
+	[GeneratedRegex(
+		@"public\s+PublishNowService\s*\(([^)]*)\)",
+		RegexOptions.Singleline
+	)]
+	private static partial Regex CtorParameterList();
 
 	[GeneratedRegex(
 		@"\bUPDATE\s+(?:ONLY\s+)?""?publications""?\b",

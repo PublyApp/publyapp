@@ -42,7 +42,6 @@ export const parseLocaleSyncMessage = (
 	data: unknown,
 ): SupportedLanguage | null => {
 	const locale = (data as { locale?: unknown } | null)?.locale;
-	return typeof locale === 'string' && isSupportedLanguage(locale)
-		? locale
-		: null;
+	if (typeof locale === 'string' && isSupportedLanguage(locale)) return locale;
+	return null;
 };

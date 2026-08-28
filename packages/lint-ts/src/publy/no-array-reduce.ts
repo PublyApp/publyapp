@@ -26,7 +26,10 @@ const resolveMethodName = (callee: ESTree.MemberExpression): string | null => {
 	if (!callee.computed) {
 		// StaticMemberExpression | PrivateFieldExpression — property is IdentifierName | PrivateIdentifier
 		const prop = callee.property;
-		return prop.type === 'Identifier' ? prop.name : null;
+		if (prop.type === 'Identifier') {
+			return prop.name;
+		}
+		return null;
 	}
 
 	// ComputedMemberExpression — property is Expression; check for string Literal

@@ -120,6 +120,7 @@
 	"credentials-refused": "Bluesky refused these credentials",
 	"provider-unreachable": "The provider could not be reached; nothing was stored",
 	"project-not-found": "Project not found in this tenant",
+	"publish-now-success": "Publishing started",
 	"social-account-connected": "Bluesky account connected",
 	"social-account-reconnected": "Bluesky account reconnected",
 	"social-account-projects-updated": "Project attachments updated"

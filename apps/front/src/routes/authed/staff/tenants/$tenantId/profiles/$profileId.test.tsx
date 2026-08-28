@@ -358,7 +358,8 @@ vi.mock('./_profile-form-drawer', () => ({
 	}) => {
 		mocks.capturedOnDirtyChange = onDirtyChange;
 		mocks.capturedOnSaved = onSaved;
-		return isOpen ? <div data-testid="profile-edit-drawer-open" /> : null;
+		if (isOpen) return <div data-testid="profile-edit-drawer-open" />;
+		return null;
 	},
 }));
 
@@ -374,9 +375,8 @@ vi.mock('./_profile-edit-details-drawer', () => ({
 	}) => {
 		mocks.capturedOnDirtyChange = onDirtyChange;
 		mocks.capturedOnSaved = onSaved;
-		return isOpen ? (
-			<div data-testid="profile-edit-details-drawer-open" />
-		) : null;
+		if (isOpen) return <div data-testid="profile-edit-details-drawer-open" />;
+		return null;
 	},
 }));
 

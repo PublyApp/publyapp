@@ -22,7 +22,8 @@ const trimStringOrUndefined = (value: unknown): string | undefined => {
 	}
 
 	const trimmed = value.trim();
-	return trimmed.length > 0 ? trimmed : undefined;
+	if (trimmed.length > 0) return trimmed;
+	return undefined;
 };
 
 const parseSortOrder = (value: unknown): SortOrder | undefined => {
@@ -56,9 +57,8 @@ const MAX_TABLE_SIZE = Math.max(...PAGE_SIZE_OPTIONS);
 
 const parseSize = (value: unknown): number | undefined => {
 	if (typeof value === 'number') {
-		return isPositiveSafeInteger(value) && value <= MAX_TABLE_SIZE
-			? value
-			: undefined;
+		if (isPositiveSafeInteger(value) && value <= MAX_TABLE_SIZE) return value;
+		return undefined;
 	}
 
 	const normalized = trimStringOrUndefined(value);
@@ -84,7 +84,8 @@ const trimIfString = (value: string | undefined): string | undefined => {
 	}
 
 	const normalized = value.trim();
-	return normalized.length > 0 ? normalized : undefined;
+	if (normalized.length > 0) return normalized;
+	return undefined;
 };
 
 export const parseTableSearchParams = (

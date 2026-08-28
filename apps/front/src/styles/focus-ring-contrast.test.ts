@@ -155,7 +155,10 @@ const resolveColor = (
 
 	if (HEX_PATTERN.test(trimmed)) {
 		const parsed = parseHex(trimmed);
-		return parsed.a < 1 ? composite(parsed, parseHex(backgroundHex)) : parsed;
+		if (parsed.a < 1) {
+			return composite(parsed, parseHex(backgroundHex));
+		}
+		return parsed;
 	}
 
 	throw new Error(`Unsupported colour value shape: ${trimmed}`);
@@ -164,7 +167,8 @@ const resolveColor = (
 const relativeLuminance = ({ r, g, b }: Rgb): number => {
 	const linearize = (channel: number): number => {
 		const c = channel / 255;
-		return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+		if (c <= 0.03928) return c / 12.92;
+		return ((c + 0.055) / 1.055) ** 2.4;
 	};
 	return 0.2126 * linearize(r) + 0.7152 * linearize(g) + 0.0722 * linearize(b);
 };

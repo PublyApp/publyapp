@@ -57,6 +57,13 @@ vi.mock('@tanstack/react-query', () => ({
 	useQueryClient: () => ({ invalidateQueries: vi.fn() }),
 }));
 
+// D2's "Publish on" block joined the drawer footer in the merge with develop.
+// These tests cover the deferred image handoff, not publishing, so a static
+// stub keeps the suite focused (same pattern as the edit page's suite).
+vi.mock('./_publish-on-block', () => ({
+	PublishOnBlock: () => null,
+}));
+
 vi.mock('~/lib/query/tenant-post-images', () => ({
 	useAttachPostImageMutation: () => ({
 		mutateAsync: mocks.attachMutateAsync,
@@ -129,6 +136,10 @@ vi.mock('react-hook-form', () => {
 					void onValid(rhf.snapshot());
 				},
 			formState: { errors: rhf.errors, isSubmitting: false },
+			// D2's "Publish on" block receives the selected project through
+			// useForm().watch, so the double must expose it even though this
+			// suite stubs the block component itself.
+			watch: (name: string) => rhf.get(name).value,
 			setError: (name: string, error: { message?: string }) => {
 				rhf.errors[name] = error;
 			},

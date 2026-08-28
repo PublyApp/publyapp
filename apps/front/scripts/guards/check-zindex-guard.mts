@@ -215,15 +215,31 @@ const sweepBuildDirectories = (directories: string[]): void => {
 		return;
 	}
 	const payload = `
-		const { rm } = require('node:fs/promises');
+		import { rm } from 'node:fs/promises';
 		(async () => {
 			for (const dir of ${JSON.stringify(directories)}) {
 				await rm(dir, { recursive: true, force: true });
 			}
 		})().catch(() => process.exit(1));
 	`;
-	const child = spawn(process.execPath, ['-e', payload], {
-		stdio: 'ignore',
+	// Fire-and-forget by construction, and deliberately so. The ONLY caller is
+	// the SIGINT/SIGTERM handler below, which calls process.exit() in the same
+	// synchronous tick; the child is detached and unref'd so it can outlive us
+	// and finish deleting. That means this process is gone before any 'exit'
+	// event from the child could ever fire.
+	//
+	// An earlier shape of this function captured the child's stderr and wrote a
+	// failure report on 'exit'. That report was unreachable code: the parent
+	// always died first. Keeping it would have been worse than useless — the PR
+	// body described the guard as reporting sweep failures, so it claimed a
+	// diagnostic that could never be printed. The child's stderr is therefore
+	// ignored honestly rather than captured for a report nobody can receive.
+	//
+	// The payload itself still fails loud where it can be seen: it runs with
+	// --input-type=module (so a stray `require` throws instead of silently
+	// working) and exits non-zero on any rm() rejection.
+	const child = spawn(process.execPath, ['--input-type=module', '-e', payload], {
+		stdio: ['ignore', 'ignore', 'ignore'],
 		detached: true,
 	});
 	child.unref();
@@ -727,9 +743,10 @@ export const classifyZUtility = (
 	if (!isZIndexUtility(utility)) {
 		return null;
 	}
-	return isAllowedZIndexUtility(utility, canonicalScaleTokens)
-		? 'allowed'
-		: 'raw';
+	if (isAllowedZIndexUtility(utility, canonicalScaleTokens)) {
+		return 'allowed';
+	}
+	return 'raw';
 };
 
 // ---------------------------------------------------------------------------
@@ -1128,7 +1145,10 @@ export const scanZIndexFile = ({
 			}
 			const bindings = importClause?.namedBindings;
 			if (bindings != null && ts.isNamespaceImport(bindings)) {
-				return bindings.name.text === name ? bindings : null;
+				if (bindings.name.text === name) {
+				return bindings;
+			}
+			return null;
 			}
 			if (bindings != null && ts.isNamedImports(bindings)) {
 				return (
@@ -1408,9 +1428,10 @@ export const scanZIndexFile = ({
 			}
 			if (ts.isIdentifier(expression)) {
 				const fixpoint = resolveModuleConstFixpoint(expression, visitedConsts);
-				return fixpoint == null
-					? null
-					: staticStringValues(fixpoint, visitedConsts);
+				if (fixpoint == null) {
+					return null;
+				}
+				return staticStringValues(fixpoint, visitedConsts);
 			}
 			if (ts.isConditionalExpression(expression)) {
 				const whenTrue = staticStringValues(expression.whenTrue, visitedConsts);
@@ -1684,9 +1705,10 @@ export const scanZIndexFile = ({
 			// a cycle — and the caller must fail loud by name instead of
 			// assuming compliant.
 			const fixpoint = resolveModuleConstFixpoint(expression);
-			return fixpoint != null && ts.isObjectLiteralExpression(fixpoint)
-				? fixpoint
-				: null;
+			if (fixpoint != null && ts.isObjectLiteralExpression(fixpoint)) {
+				return fixpoint;
+				}
+				return null;
 		};
 		const staticObjectMemberNode = (
 			object: ts.ObjectLiteralExpression,
@@ -2480,9 +2502,10 @@ export const scanZIndexFile = ({
 		) => {
 			const ownerEntry = rawImportEntryForExpression(owner, visitedConsts);
 			if (ownerEntry != null) {
-				return ownerEntry.kind === 'namespace' && name === 'default'
-					? { specifiers: [ownerEntry.specifier], unresolved: false }
-					: { specifiers: [], unresolved: false };
+				if (ownerEntry.kind === 'namespace' && name === 'default') {
+					return { specifiers: [ownerEntry.specifier], unresolved: false };
+				}
+				return { specifiers: [], unresolved: false };
 			}
 			const ownerChainResult = resolveMemberChain(owner, visitedConsts);
 			// An unresolvable owner chain — including an element-access key
@@ -2627,9 +2650,10 @@ export const scanZIndexFile = ({
 					// through `.default`) and a named element that is not
 					// `default` is undefined on a raw module and ships
 					// nothing — both stay green by name, never by omission.
-					return entry.kind === 'default'
-						? { specifiers: [entry.specifier], unresolved: false }
-						: { specifiers: [], unresolved: false };
+					if (entry.kind === 'default') {
+						return { specifiers: [entry.specifier], unresolved: false };
+					}
+					return { specifiers: [], unresolved: false };
 				}
 				const alias = moduleConstInitializers.get(expression.text);
 				if (
@@ -3572,7 +3596,10 @@ export const scanZIndexFile = ({
 			) {
 				return explicit.text;
 			}
-			return ts.isIdentifier(element.name) ? element.name.text : null;
+			if (ts.isIdentifier(element.name)) {
+		return element.name.text;
+	}
+	return null;
 		};
 		// The named type references of a parameter/const annotation, unwrapped
 		// through nullable unions: `HTMLElement`, `HTMLElement | null`, and
@@ -3586,7 +3613,10 @@ export const scanZIndexFile = ({
 				return [];
 			}
 			if (ts.isTypeReferenceNode(type)) {
-				return ts.isIdentifier(type.typeName) ? [type.typeName.text] : [];
+				if (ts.isIdentifier(type.typeName)) {
+				return [type.typeName.text];
+			}
+			return [];
 			}
 			if (ts.isUnionTypeNode(type) || ts.isIntersectionTypeNode(type)) {
 				return type.types.flatMap(namedTypeCandidates);
@@ -3717,7 +3747,10 @@ export const scanZIndexFile = ({
 			const identity = receiverIdentityFromTypeNames(
 				typeAnnotationNames(owner),
 			);
-			return identity == null ? 'unresolved' : 'style-decl';
+			if (identity == null) {
+		return 'unresolved';
+	}
+	return 'style-decl';
 		};
 		// Shared member-name decision for both spellings of a `.style`
 		// member read: a resolved member that is not `style` is provably not
@@ -3789,9 +3822,10 @@ export const scanZIndexFile = ({
 							if (memberName !== 'style') {
 								return 'other';
 							}
-							return binding.initializer == null
-								? 'unresolved'
-								: styleMemberOwnerKind(binding.initializer);
+							if (binding.initializer == null) {
+								return 'unresolved';
+							}
+							return styleMemberOwnerKind(binding.initializer);
 						}
 						return 'other';
 					}
@@ -3833,9 +3867,10 @@ export const scanZIndexFile = ({
 				return 'other-method';
 			}
 			if (ts.isPropertyAccessExpression(expression)) {
-				return expression.name.text === 'setProperty'
-					? 'setter-method'
-					: 'other-method';
+				if (expression.name.text === 'setProperty') {
+					return 'setter-method';
+				}
+				return 'other-method';
 			}
 			if (ts.isElementAccessExpression(expression)) {
 				return staticString(
@@ -3857,9 +3892,10 @@ export const scanZIndexFile = ({
 						const element = findBindingElement(binding.name, expression.text);
 						const boundMember =
 							element == null ? null : bindingPropertyNameText(element);
-						return boundMember === 'setProperty'
-							? 'setter-method'
-							: 'other-method';
+						if (boundMember === 'setProperty') {
+							return 'setter-method';
+						}
+						return 'other-method';
 					}
 					if (binding.initializer != null) {
 						return cssSetterMethodKind(binding.initializer, next);
@@ -3930,10 +3966,11 @@ export const scanZIndexFile = ({
 							callee.expression,
 							visited,
 						);
-						return receiverKind === 'style-decl' ||
-							receiverKind === 'unresolved'
-							? 'overflow'
-							: 'other';
+						if (receiverKind === 'style-decl' ||
+							receiverKind === 'unresolved') {
+							return 'overflow';
+						}
+						return 'other';
 					},
 					() => 'other',
 				);
@@ -4949,7 +4986,10 @@ const cssImportSpecifier = (params: string) => {
 		return quoted[1] ?? quoted[2];
 	}
 	const url = trimmed.match(/^url\(\s*(?:"([^"]+)"|'([^']+)'|([^\s)]+))\s*\)/i);
-	return url == null ? null : (url[1] ?? url[2] ?? url[3]);
+	if (url == null) {
+		return null;
+	}
+	return url[1] ?? url[2] ?? url[3];
 };
 
 const collectReachableAuthoredCssPaths = async (

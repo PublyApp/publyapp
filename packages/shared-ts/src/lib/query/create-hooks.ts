@@ -120,7 +120,10 @@ const normalizeTenantId = (
 	tenantId: string | undefined,
 ): string | undefined => {
 	const normalized = tenantId?.trim();
-	return normalized ? normalized : undefined;
+	if (normalized) {
+		return normalized;
+	}
+	return undefined;
 };
 
 const mergeHandlers = (

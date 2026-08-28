@@ -192,9 +192,10 @@ const readDokployServiceImageRoots = () => {
 
 // @ts-expect-error rung-0: add proper type in later rung
 const formatArgument = (argument) => {
-	return argument.length > 0 && !/[\s"']/.test(argument)
-		? argument
-		: JSON.stringify(argument);
+	if (argument.length > 0 && !/[\s"']/.test(argument)) {
+		return argument;
+	}
+	return JSON.stringify(argument);
 };
 
 // @ts-expect-error rung-0: add proper type in later rung

@@ -414,7 +414,10 @@ const deriveTopic = (source: string, explicit?: string): string => {
 const deriveDate = (rev: string, source: string): string => {
 	const base = path.basename(source, '.md');
 	const match = /^(\d{4}-\d{2}-\d{2})-/.exec(base);
-	return match ? match[1] : firstAddDate(rev, source);
+	if (match) {
+		return match[1];
+	}
+	return firstAddDate(rev, source);
 };
 
 // Git's OWN view of what happened to docs/ between the audited pre-prune

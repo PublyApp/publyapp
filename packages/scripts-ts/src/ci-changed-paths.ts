@@ -137,7 +137,10 @@ export const parseChangedFilesTotal = (raw) => {
 
 	const value = Number(trimmed);
 
-	return Number.isSafeInteger(value) ? value : undefined;
+	if (Number.isSafeInteger(value)) {
+		return value;
+	}
+	return undefined;
 };
 
 // @ts-expect-error rung-0: add proper type in later rung

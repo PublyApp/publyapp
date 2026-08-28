@@ -72,6 +72,7 @@
 		"publy/prefer-query-display": "error",
 		"publy/no-never-any-casts": "error",
 		"publy/require-commit-of-use-offset-page-clamp": "error",
+		"publy/prefer-early-return": "error",
 		"anti-slop/no-chained-type-assertions": "error",
 		"anti-slop/no-conditional-empty-object-spread": "error",
 		"anti-slop/no-known-value-widening": "error",
@@ -121,11 +122,22 @@
 				"**/*.test.ts",
 				"**/*.test.tsx",
 				"**/*.spec.ts",
-				"**/*.spec.tsx",
-				"apps/front/e2e/**"
+				"**/*.spec.tsx"
 			],
 			"rules": {
 				"complexity": ["error", { "max": 90 }]
+			}
+		},
+		{
+			"files": ["apps/front/src/components/table/column-type.ts"],
+			"rules": {
+				"typescript/no-deprecated": "off"
+			}
+		},
+		{
+			"files": ["apps/front/src/components/table/data-table.tsx"],
+			"rules": {
+				"typescript/no-deprecated": "off"
 			}
 		}
 	]

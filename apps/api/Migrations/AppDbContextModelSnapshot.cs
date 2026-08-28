@@ -1461,7 +1461,7 @@ namespace PublyApp.Api.Migrations
                     b.HasIndex("PostId", "SocialAccountId")
                         .IsUnique()
                         .HasDatabaseName("ux_publications_post_account")
-                        .HasFilter("is_deleted = false");
+                        .HasFilter("is_deleted = false AND status <> 40");
 
                     b.HasIndex("Status", "ScheduledAtUtc")
                         .HasDatabaseName("ix_publications_status_scheduled_at");

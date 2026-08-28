@@ -487,7 +487,10 @@ const normalizeNeeds = (needs) => {
 		return [];
 	}
 
-	return Array.isArray(needs) ? needs : [needs];
+	if (Array.isArray(needs)) {
+		return needs;
+	}
+	return [needs];
 };
 
 // @ts-expect-error rung-0: add proper type in later rung

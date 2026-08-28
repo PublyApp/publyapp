@@ -47,7 +47,8 @@ const buildLoginSearch = (
 		returnTo,
 	});
 
-	return Object.keys(search).length > 0 ? search : undefined;
+	if (Object.keys(search).length > 0) return search;
+	return undefined;
 };
 
 /**

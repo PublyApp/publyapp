@@ -79,7 +79,8 @@ const toRgb = (value: string): [number, number, number] => {
 
 const channel = (value: number): number => {
 	const c = value / 255;
-	return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+	if (c <= 0.03928) return c / 12.92;
+	return ((c + 0.055) / 1.055) ** 2.4;
 };
 
 const luminance = ([r, g, b]: [number, number, number]): number =>
@@ -173,6 +174,7 @@ const renderMarketingShell = () =>
 		// variadic children.
 		createElement(MarketingShell, {
 			pathname: '/',
+			// react-doctor-disable-next-line react-doctor/no-children-prop -- children is a required prop of MarketingShell; passing positionally fails createElement's overload check.
 			children: createElement('p', null, 'page body'),
 		}),
 	);

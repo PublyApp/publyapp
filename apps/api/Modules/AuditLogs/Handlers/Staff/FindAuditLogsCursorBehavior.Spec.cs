@@ -56,15 +56,26 @@ public sealed class FindAuditLogsCursorBehaviorSpec
 		var seededIds = new List<Guid>();
 		var seededOrder = new List<DateTime>();
 		for (var i = 0; i < 3; i++) {
+			// Two rows share the same CreatedAt (i=0 and i=2), one has a
+			// different value (i=1). The tiebreaker (Id ascending) must
+			// determine the order of the two equal-key rows.
+			var createdAt = i == 1 ? baseDate.AddDays(1) : baseDate;
 			var id = await SeedAuditLogAtAsync(
 				staffUserId,
 				$"audit-walk-{i}-{Guid.NewGuid():N}",
-				// index 0 -> day 2, 1 -> day 0, 2 -> day 1 (anti-correlated)
-				baseDate.AddDays((3 - i) % 3)
+				createdAt
 			);
 			seededIds.Add(id);
-			seededOrder.Add(baseDate.AddDays((3 - i) % 3));
+			seededOrder.Add(createdAt);
 		}
+
+		// Swap the IDs of the two equal-key rows (i=0 and i=2) so the row
+		// inserted at i=2 has the smaller Id. Without this, UUID v7 IDs are
+		// insertion-ordered, so stable OrderBy(CreatedAt) already matches
+		// ThenBy(Id) and removing the production tiebreaker leaves the test
+		// green. After the swap, the tiebreaker is actually exercised.
+		await SwapAuditLogIdsAsync(seededIds[0], seededIds[2]);
+		(seededIds[0], seededIds[2]) = (seededIds[2], seededIds[0]);
 
 		var visitedIds = new List<Guid>();
 		var visitedCreatedAtOrder = new List<DateTime>();
@@ -111,7 +122,7 @@ public sealed class FindAuditLogsCursorBehaviorSpec
 			.Zip(seededOrder, (id, c) => (id, c))
 			.ToDictionary(x => x.id, x => x.c);
 		visitedSeededOrder.Should().Equal(
-			seededIds.OrderBy(id => createdAtById[id]).ToList()
+			seededIds.OrderBy(id => createdAtById[id]).ThenBy(id => id).ToList()
 		);
 
 		// Capture the CreatedAt the API actually returned, in visit order, and
@@ -198,6 +209,23 @@ public sealed class FindAuditLogsCursorBehaviorSpec
 		await dbContext.SaveChangesAsync();
 
 		return id;
+	}
+
+	private async Task SwapAuditLogIdsAsync(Guid idA, Guid idB) {
+		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+		var dbContext = scope.ServiceProvider
+			.GetRequiredService<AppDbContext>();
+		var temp = Guid.NewGuid();
+		// Three-step swap via a temp Id so we never collide on the PK.
+		await dbContext.Database.ExecuteSqlRawAsync(
+			"UPDATE audit_logs SET id = {0} WHERE id = {1}",
+			temp, idA);
+		await dbContext.Database.ExecuteSqlRawAsync(
+			"UPDATE audit_logs SET id = {0} WHERE id = {1}",
+			idA, idB);
+		await dbContext.Database.ExecuteSqlRawAsync(
+			"UPDATE audit_logs SET id = {0} WHERE id = {1}",
+			idB, temp);
 	}
 
 	private sealed record FindAuditLogsResponse {

@@ -14,6 +14,8 @@ import { PostsRequestBuilderNavigationMetadata, PostsRequestBuilderRequestsMetad
 // @ts-ignore
 import { ProjectsRequestBuilderRequestsMetadata, type ProjectsRequestBuilder } from './projects/index.js';
 // @ts-ignore
+import { PublishingRequestBuilderNavigationMetadata, type PublishingRequestBuilder } from './publishing/index.js';
+// @ts-ignore
 import { SettingsRequestBuilderNavigationMetadata, type SettingsRequestBuilder } from './settings/index.js';
 // @ts-ignore
 import { SocialAccountsRequestBuilderNavigationMetadata, SocialAccountsRequestBuilderRequestsMetadata, type SocialAccountsRequestBuilder } from './socialAccounts/index.js';
@@ -58,6 +60,10 @@ export interface ApiClient extends BaseRequestBuilder<ApiClient> {
      * The projects property
      */
     get projects(): ProjectsRequestBuilder;
+    /**
+     * The publishing property
+     */
+    get publishing(): PublishingRequestBuilder;
     /**
      * The settings property
      */
@@ -128,6 +134,9 @@ export const ApiClientNavigationMetadata: Record<Exclude<keyof ApiClient, KeysTo
     },
     projects: {
         requestsMetadata: ProjectsRequestBuilderRequestsMetadata,
+    },
+    publishing: {
+        navigationMetadata: PublishingRequestBuilderNavigationMetadata,
     },
     settings: {
         navigationMetadata: SettingsRequestBuilderNavigationMetadata,

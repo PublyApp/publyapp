@@ -208,6 +208,7 @@ jobs:
       - name: Lint front
         run: |
           node packages/scripts-ts/src/lint-front.ts --quiet
+          node packages/scripts-ts/src/check-no-floating-promises.ts
           pnpm lint:disables
           pnpm check:frontend-barrels
 
@@ -231,6 +232,35 @@ jobs:
       # same Chromium and gates the real drawer spec.
       - name: Test front
         run: pnpm --filter front test
+
+      # Paired red-proof tests (issue #1659). These tests are EXPECTED TO FAIL —
+      # each proves a bug by failing against the corrected code. The runner
+      # script (scripts/ci/run-preuves.mts) inverts the semantics: a test that
+      # fails is a pass, and a test that passes is a failure (the bug has changed
+      # form or been fixed, making the proof stale).
+      #
+      # Option (b) of issue #1659 ronde 5: the step is scoped to PRs that
+      # DECLARE a paired red proof. A PR declares one by adding or modifying a
+      # proof test file under apps/front/tests/proofs/<issue>/. Proof files are
+      # versionned (committed to the repo), so CI can always see them — unlike
+      # .dump/, which is git-ignored and absent on a clean CI checkout. The
+      # runner uses `git diff` to detect whether the current PR touched any
+      # proof files:
+      #
+      # - If proofs were declared: replay them with inverted semantics. A proof
+      #   test that fails as expected → step passes. A proof test that passes
+      #   unexpectedly → step fails (the bug changed form or was fixed; the
+      #   proof is stale and must be rebuilt).
+      # - If no proofs were declared: the step prints an explicit "no proofs
+      #   declared" message and exits 0. This is NOT a silent green — it states
+      #   exactly what was checked and why the step did not run. PRs that do not
+      #   claim a paired red proof are out of scope.
+      #
+      # The developer replay path is the lane worktree (`just test-preuves`),
+      # where .dump/ also exists for trace artifacts.
+      - name: Verify paired red proofs
+        run: pnpm --filter front test:preuves
+        # Mirrors `just test-preuves` in the local ci-front recipe.
 
   # IMPORTANT fix: the four #1017 aggregate-gate test suites and the
   # packages/scripts-ts/src/check-ci-gate-structure.ts CLI were reachable only through local
@@ -280,8 +310,11 @@ jobs:
           pnpm --filter scripts-ts exec vitest run src/codeowners-contract.test.ts
           pnpm --filter scripts-ts exec vitest run src/check-ci-drift.test.ts
           pnpm --filter scripts-ts exec vitest run src/lint-front.test.ts
+          pnpm --filter scripts-ts exec vitest run src/check-no-floating-promises.test.ts
           node ./packages/scripts-ts/src/check-ci-drift.ts
           pnpm --filter scripts-ts exec vitest run src/ci-changed-paths.test.ts
+          pnpm --filter scripts-ts exec vitest run src/artifact-version-compat.test.ts
+          node ./packages/scripts-ts/src/artifact-version-compat.ts
           pnpm --filter scripts-ts exec vitest run src/ci-gate-bootstrap.test.ts
           pnpm --filter scripts-ts exec vitest run src/ci-gate-aggregation.test.ts
           pnpm --filter scripts-ts exec vitest run src/ci-e2e-rerun-guard.test.ts

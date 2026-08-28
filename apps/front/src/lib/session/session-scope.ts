@@ -75,15 +75,17 @@ export const determineSessionScope = (
 	}
 
 	if (isStaffPath) {
-		return availability.staff
-			? { scope: 'staff' }
-			: { redirectPath: TENANT_PATH };
+		if (availability.staff) {
+			return { scope: 'staff' };
+		}
+		return { redirectPath: TENANT_PATH };
 	}
 
 	if (isTenantPath) {
-		return availability.tenant
-			? { scope: 'tenant' }
-			: { redirectPath: STAFF_PATH };
+		if (availability.tenant) {
+			return { scope: 'tenant' };
+		}
+		return { redirectPath: STAFF_PATH };
 	}
 
 	return { scope: availability.staff ? 'staff' : 'tenant' };

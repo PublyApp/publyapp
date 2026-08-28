@@ -9,10 +9,10 @@ import {
 } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { createFileRoute, Link } from '@tanstack/react-router';
-import type { ColumnDef } from '@tanstack/react-table';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
+import type { ColumnDef } from '~/components/table/column-type';
 import {
 	DataTable,
 	SELECTION_LOCKED_TITLE_KEY,
@@ -537,9 +537,10 @@ const TenantBulkActions = ({
 				selectedTenants.every(
 					(tenant) => tenant.status === TENANT_STATUS_SUSPENDED,
 				);
-			return allSelectedAreSuspended
-				? selectedTenants.map((tenant) => tenant.id)
-				: [];
+			if (allSelectedAreSuspended) {
+				return selectedTenants.map((tenant) => tenant.id);
+			}
+			return [];
 		}
 		return [];
 	};

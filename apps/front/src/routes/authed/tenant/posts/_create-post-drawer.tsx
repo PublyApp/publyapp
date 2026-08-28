@@ -31,6 +31,7 @@ import { getFailureMessage } from '@org/shared-ts/lib/api-failure/to-api-failure
 
 import type { DeferredImageSelection } from './_post-image-picker';
 import { PostImagePicker } from './_post-image-picker';
+import { PublishOnBlock } from './_publish-on-block';
 
 const getSchema = (t: (k: string) => string) =>
 	z.object({
@@ -345,23 +346,49 @@ export const CreatePostDrawer = ({
 						)}
 					</DrawerBody>
 					<DrawerFooter>
-						<Button
-							type="button"
-							variant="outline"
-							onClick={() => onOpenChange(false)}
-						>
-							{t('common:cancel')}
-						</Button>
-						<Button
-							type="submit"
-							variant="default"
-							disabled={methods.formState.isSubmitting}
-							data-testid="tenant-posts-create-save"
-						>
-							{methods.formState.isSubmitting
-								? t('posts:saving')
-								: t('posts:save')}
-						</Button>
+						<div className="w-full space-y-3">
+							<PublishOnBlock
+								projectId={methods.watch('projectId') ?? null}
+								onBeforePublish={async () => {
+									const values = methods.getValues();
+									await methods.trigger();
+									if (!methods.formState.isValid || !values.body.trim()) {
+										return null;
+									}
+
+									const details = await savePost({
+										body: values.body,
+										projectId: values.projectId ?? null,
+										tenantId,
+									});
+									await invalidateTenantPosts(qc, tenantId);
+									methods.reset({
+										body: details.body,
+										projectId: details.projectId,
+									});
+									return details.id;
+								}}
+							/>
+							<div className="flex justify-end gap-2">
+								<Button
+									type="button"
+									variant="outline"
+									onClick={() => onOpenChange(false)}
+								>
+									{t('common:cancel')}
+								</Button>
+								<Button
+									type="submit"
+									variant="default"
+									disabled={methods.formState.isSubmitting}
+									data-testid="tenant-posts-create-save"
+								>
+									{methods.formState.isSubmitting
+										? t('posts:saving')
+										: t('posts:save')}
+								</Button>
+							</div>
+						</div>
 					</DrawerFooter>
 				</DrawerForm>
 			</DrawerContent>

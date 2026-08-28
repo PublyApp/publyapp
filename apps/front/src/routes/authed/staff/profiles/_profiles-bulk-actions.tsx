@@ -102,7 +102,8 @@ export const ProfilesListBulkActions = ({
 				...new Set(
 					failedItems.flatMap((item) => {
 						const reason = item.errorEscaped?.trim();
-						return reason ? [reason] : [];
+						if (reason) return [reason];
+						return [];
 					}),
 				),
 			];

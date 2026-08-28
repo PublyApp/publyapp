@@ -11,7 +11,8 @@ import {
 const normalizeLocale = (
 	value: string | null | undefined,
 ): SupportedLanguage => {
-	return isSupportedLanguage(value) ? value : FALLBACK_LANGUAGE;
+	if (isSupportedLanguage(value)) return value;
+	return FALLBACK_LANGUAGE;
 };
 
 export const resolveLocaleFromCookie = (

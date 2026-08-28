@@ -1,7 +1,7 @@
 import { IconShield } from '@tabler/icons-react';
-import type { ColumnDef } from '@tanstack/react-table';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
+import type { ColumnDef } from '~/components/table/column-type';
 import {
 	DataTable,
 	DataTableCursorFooter,
@@ -176,6 +176,7 @@ export const ProfilesListBody = ({
 						testId={testId}
 						pageIndex={controller.cursor.pageIndex}
 						size={controller.size}
+						pageRowCount={rows.length}
 						onSizeChange={controller.onSizeChange}
 						hasPreviousPage={controller.cursor.hasPreviousPage}
 						hasNextPage={nextCursor != null}

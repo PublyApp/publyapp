@@ -91,9 +91,10 @@ export type MatchForBreadcrumbs = {
 const rootCrumbForScope = (pathname: string): BreadcrumbRootItem => {
 	const scope = getShellScope(pathname);
 
-	return scope === 'tenant'
-		? { labelKey: 'nav-root-workspace', path: '/tenant' }
-		: { labelKey: 'nav-root-staff', path: '/staff' };
+	if (scope === 'tenant') {
+		return { labelKey: 'nav-root-workspace', path: '/tenant' };
+	}
+	return { labelKey: 'nav-root-staff', path: '/staff' };
 };
 
 /**

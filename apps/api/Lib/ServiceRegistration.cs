@@ -238,6 +238,23 @@ public static class ServiceRegistration {
 		builder.Services.AddHttpClient(BlueskyPublishProvider.HttpClientName);
 		builder.Services.AddSingleton<IPublishProvider, BlueskyPublishProvider>();
 
+		// E2E publish-now seam (plan D2 reconciliation 4, round-2 blocker fix): ONLY
+		// when PUBLISHING_FAKE_PROVIDER=1 on a Development/Testing host do BOTH
+		// delivery and session-open resolve to deterministic fakes, so the front-e2e
+		// stack runs the full publish → history pipeline without any network. Real
+		// deployments (and every spec host) keep the real providers; Production
+		// refuses the flag entirely (fail closed in FakePublishingProviderEnabled).
+		if (
+			Modules.Publishing.Providers.Fakes.FakePublishingProviderEnabled.IsEnabled()
+		) {
+			builder.Services.AddSingleton<IPublishProvider>(
+				new Modules.Publishing.Providers.Fakes.FakeBlueskyPublishProvider()
+			);
+			builder.Services.AddScoped<ISocialSessionProvider>(
+				_ => new Modules.SocialAccounts.Providers.Fakes.FakeBlueskySessionProvider()
+			);
+		}
+
 		// Register [Service] attributed classes after the explicit framework/app registrations above.
 		// Fail fast if any explicit registration overlaps with a discovered [Service] mapping.
 		RegisterDiscoveredServices(builder.Services, discoveredServices);

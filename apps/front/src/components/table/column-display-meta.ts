@@ -1,5 +1,6 @@
-import type { ColumnDef } from '@tanstack/react-table';
 import type { ReactNode } from 'react';
+
+import type { ColumnDef } from './column-type';
 
 /** Optional per-column display hints read from TanStack's ColumnDef meta. */
 export type ColumnDisplayMeta = {
@@ -44,7 +45,7 @@ export type ColumnDisplayMeta = {
 };
 
 declare module '@tanstack/react-table' {
-	interface ColumnMeta<TData, TValue> extends ColumnDisplayMeta {}
+	interface ColumnMeta<TFeatures, TData, TValue> extends ColumnDisplayMeta {}
 }
 
 export const columnDisplayMeta = (
@@ -76,5 +77,6 @@ export const resolveAriaSortState = (
 		return 'none';
 	}
 
-	return tableSort.desc ? 'descending' : 'ascending';
+	if (tableSort.desc) return 'descending';
+	return 'ascending';
 };

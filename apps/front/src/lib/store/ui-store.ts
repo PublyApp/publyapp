@@ -106,14 +106,12 @@ const readLegacySidebarState = (): boolean => {
 
 	try {
 		const parsed = JSON.parse(rawColorState) as PersistedColorValue;
-		const sidebarOpen =
-			typeof parsed.state === 'object' && parsed.state !== null
-				? parsed.state.sidebarOpen
-				: undefined;
-
-		return typeof sidebarOpen === 'boolean'
-			? sidebarOpen
-			: DEFAULT_SIDEBAR_OPEN;
+		if (typeof parsed.state === 'object' && parsed.state !== null) {
+			if (typeof parsed.state.sidebarOpen === 'boolean') {
+				return parsed.state.sidebarOpen;
+			}
+		}
+		return DEFAULT_SIDEBAR_OPEN;
 	} catch {
 		return DEFAULT_SIDEBAR_OPEN;
 	}

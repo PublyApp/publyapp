@@ -22,7 +22,10 @@ export const readSelectedTenantId = (): string | null => {
 			return null;
 		}
 		const trimmed = value.trim();
-		return trimmed.length > 0 ? trimmed : null;
+		if (trimmed.length > 0) {
+			return trimmed;
+		}
+		return null;
 	} catch {
 		return null;
 	}

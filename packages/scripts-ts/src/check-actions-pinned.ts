@@ -102,7 +102,10 @@ const findLineFinding = (line: string): LineFinding | null => {
 		const digestIdx = uses.lastIndexOf('@');
 		const digest = digestIdx === -1 ? '' : uses.slice(digestIdx + 1);
 
-		return dockerDigestPattern.test(digest) ? null : { uses };
+		if (dockerDigestPattern.test(digest)) {
+			return null;
+		}
+		return { uses };
 	}
 
 	// Fail-closed on input without a `@ref` at all: it cannot be
@@ -111,7 +114,10 @@ const findLineFinding = (line: string): LineFinding | null => {
 	if (atIdx === -1) return { uses };
 
 	// Accept only a full 40-hex SHA
-	return shaPattern.test(uses.slice(atIdx + 1)) ? null : { uses };
+	if (shaPattern.test(uses.slice(atIdx + 1))) {
+		return null;
+	}
+	return { uses };
 };
 
 /**
@@ -188,7 +194,10 @@ const resolveLocalActionTarget = async (
 const comparePosixPath = (a: string, b: string): number => {
 	if (a === b) return 0;
 
-	return a < b ? -1 : 1;
+	if (a < b) {
+		return -1;
+	}
+	return 1;
 };
 
 /**

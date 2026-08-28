@@ -289,14 +289,22 @@ test-api-debug $APP_ROLE="all" $ASPNETCORE_ENVIRONMENT="Testing":
 # if the #1017 changed-path classifier's fail-closed logic regresses, or if
 # an aggregate gate's job graph (needs/if/permissions/outputs — the metadata
 # check-ci-drift.ts's step-content hash does not cover) drifts from what
-# #1017 requires.
+# #1017 requires. Also enforces upload-artifact/download-artifact version
+# compatibility when archive: false is used (#1728).
 ci-drift:
   @echo "=== [gate] workflow drift guard ==="
   pnpm --filter scripts-ts exec vitest run src/codeowners-contract.test.ts
   pnpm test:ci-drift
   pnpm --filter scripts-ts exec vitest run src/lint-front.test.ts
+  # #1679: the no-floating-promises ratchet's own suite. front-ci.yml's
+  # gate-selftest step runs it; without this line the local mirror would be
+  # missing a command CI actually runs — exactly the drift this recipe exists
+  # to make impossible.
+  pnpm --filter scripts-ts exec vitest run src/check-no-floating-promises.test.ts
   node ./packages/scripts-ts/src/check-ci-drift.ts
   pnpm --filter scripts-ts exec vitest run src/ci-changed-paths.test.ts
+  pnpm --filter scripts-ts exec vitest run src/artifact-version-compat.test.ts
+  node ./packages/scripts-ts/src/artifact-version-compat.ts
   pnpm --filter scripts-ts exec vitest run src/ci-gate-bootstrap.test.ts
   pnpm --filter scripts-ts exec vitest run src/ci-gate-aggregation.test.ts
   pnpm --filter scripts-ts exec vitest run src/ci-e2e-rerun-guard.test.ts
@@ -377,6 +385,7 @@ ci-format: format
 ci-lint:
   @echo "=== [gate] lint ==="
   node packages/scripts-ts/src/lint-front.ts --quiet
+  node packages/scripts-ts/src/check-no-floating-promises.ts
   pnpm lint:disables
   pnpm check:frontend-barrels
   pnpm --filter @org/lint-ts test
@@ -405,9 +414,15 @@ ci-shared-ts:
 # publy/* oxlint rules that guard every front surface, but nothing verified
 # its own types — only its vitest tests ran (via ci-lint). The typecheck script
 # now runs here and in quality-gate.yml::quality, exactly as CI runs it.
+#
+# Since #1692, also typechecks @org/client-ts (the Kiota-generated TypeScript
+# API client). Its typecheck script was added to packages/client-ts/package.json
+# but was never wired into any CI step or local gate — trompe-l'oeil coverage.
+# Now runs here and in quality-gate.yml::quality, exactly as CI runs it.
 ci-lint-ts:
-  @echo "=== [gate] @org/lint-ts typecheck ==="
+  @echo "=== [gate] @org/lint-ts + @org/client-ts typecheck ==="
   pnpm --filter @org/lint-ts typecheck
+  pnpm --filter @org/client-ts typecheck
 
 # front: build, bundle guards, smoke start, typecheck, design system, unit tests
 ci-front:
@@ -423,8 +438,27 @@ ci-front:
   # front test` AND an explicit front-ci.yml::supply-chain step.
   pnpm --filter front check:react-compiler
   pnpm --filter front test
+  just test-preuves
+  # end of front front-ci.yml::supply-chain parallel block (Test front step)
   @echo "=== [gate] production dependency audit (mirrors front-ci.yml::supply-chain) ==="
   pnpm audit --prod --audit-level=moderate
+
+# Run paired preuve red tests via vitest.preuves.config.ts.
+#
+# These tests are EXPECTED TO FAIL — each proves a bug is present by failing
+# against the corrected code. This recipe runs ONLY the proof tests that the
+# current PR declares (files added/modified under apps/front/tests/proofs/).
+# If the PR declares no proofs, the recipe prints an explicit no-op message
+# and exits 0 — this is NOT a silent success, it states what was checked.
+#
+# The proof files are versionned under apps/front/tests/proofs/ (committed to
+# the repo), so CI can always see them — unlike .dump/ which is git-ignored.
+# The developer replay path is `just test-preuves` in the lane worktree
+# (where .dump/ traces also exist). CI runs the same command on a clean
+# checkout.
+test-preuves:
+  @echo "=== [gate] paired red proofs (expected to fail) ==="
+  pnpm --filter front test:preuves
 
 # Quality gate (issue #803): repo-wide oxlint + oxfmt check + .NET warnings-as-errors + analyzer tests.
 # Mirrors .github/workflows/quality-gate.yml::quality — fails PRs on any oxlint diagnostic

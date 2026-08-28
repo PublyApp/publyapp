@@ -74,7 +74,8 @@ const normalizeString = (value: string | undefined): string | undefined => {
 	}
 
 	const trimmed = value.trim();
-	return trimmed.length > 0 ? trimmed : undefined;
+	if (trimmed.length > 0) return trimmed;
+	return undefined;
 };
 
 export const buildFindStaffInvitationsQueryParameters = (
@@ -308,7 +309,8 @@ export const selectStaffInvitationCrumbName = (
 ): string | undefined => {
 	const email = (data as StaffInvitationDetails | null | undefined)?.email;
 	const trimmed = email?.trim();
-	return trimmed ? trimmed : undefined;
+	if (trimmed) return trimmed;
+	return undefined;
 };
 
 export const useStaffInvitationLinkMutation = () =>

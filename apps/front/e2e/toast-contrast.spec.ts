@@ -597,7 +597,10 @@ const readBrowserPaint = async (
 						return undefined;
 					}
 					const match = /^-?\d+(?:\.\d+)?px$/u.exec(value);
-					return match ? Number(value.slice(0, -2)) : undefined;
+					if (match) {
+						return Number(value.slice(0, -2));
+					}
+					return undefined;
 				};
 
 				let containing: BoxRect;
@@ -859,7 +862,10 @@ const readBrowserPaint = async (
 				if (zIndex === 'auto') {
 					return 'positioned-auto';
 				}
-				return Number(zIndex) < 0 ? 'negative' : 'positive';
+				if (Number(zIndex) < 0) {
+					return 'negative';
+				}
+				return 'positive';
 			};
 
 			const paintZ = (position: string, zIndex: string): number => {
@@ -1491,9 +1497,10 @@ const measurePaintedContrast = async (
 			const luminance = ([r, g, b]: number[]): number => {
 				const linearize = (channel: number): number => {
 					const value = channel / 255;
-					return value <= 0.04045
-						? value / 12.92
-						: ((value + 0.055) / 1.055) ** 2.4;
+					if (value <= 0.04045) {
+						return value / 12.92;
+					}
+					return ((value + 0.055) / 1.055) ** 2.4;
 				};
 				return (
 					0.2126 * linearize(r) + 0.7152 * linearize(g) + 0.0722 * linearize(b)
@@ -2088,7 +2095,10 @@ const measurePaintedContrast = async (
 			const strongest = [...clusters].sort((a, b) => {
 				const ratio =
 					contrast(b.average, surface) - contrast(a.average, surface);
-				return ratio !== 0 ? ratio : b.count - a.count;
+				if (ratio !== 0) {
+					return ratio;
+				}
+				return b.count - a.count;
 			})[0];
 			const ink = strongest?.average;
 			const ratio = ink ? contrast(ink, surface) : 0;

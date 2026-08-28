@@ -84,7 +84,10 @@ const readSourceMapVlq = (
 		}
 	}
 	const sign = value & 1;
-	return sign ? -(value >> 1) : value >> 1;
+	if (sign) {
+		return -(value >> 1);
+	}
+	return value >> 1;
 };
 
 // Returns every mapping's original source position, keyed by nothing but the

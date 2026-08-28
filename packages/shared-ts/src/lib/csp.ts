@@ -114,7 +114,10 @@ export const createCSPDirectives = ({
 			const directiveName = key.replace(/([A-Z])/g, '-$1').toLowerCase();
 
 			if (typeof value === 'boolean') {
-				return value ? [[directiveName, []]] : [];
+				if (value) {
+					return [[directiveName, []]];
+				}
+				return [];
 			}
 			if (Array.isArray(value)) {
 				return [[directiveName, value]];

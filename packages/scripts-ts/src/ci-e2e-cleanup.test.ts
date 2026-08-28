@@ -451,9 +451,10 @@ test('the safety re-list failing after the documented 400 fails loudly instead o
 			respond: () => {
 				lists += 1;
 
-				return lists === 1
-					? ok([rawVersion('42', [RUN_TAG])])
-					: httpFail(500, 'gh: HTTP 500: oh no');
+				if (lists === 1) {
+					return ok([rawVersion('42', [RUN_TAG])]);
+				}
+				return httpFail(500, 'gh: HTTP 500: oh no');
 			},
 		},
 		{

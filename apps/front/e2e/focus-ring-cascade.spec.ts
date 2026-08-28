@@ -196,7 +196,10 @@ const compositeOver = (fg: Rgba, bg: SurfaceRgb): SurfaceRgb => ({
 const relativeLuminance = ({ r, g, b }: SurfaceRgb): number => {
 	const linearize = (channel: number): number => {
 		const c = channel / 255;
-		return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+		if (c <= 0.03928) {
+			return c / 12.92;
+		}
+		return ((c + 0.055) / 1.055) ** 2.4;
 	};
 	return 0.2126 * linearize(r) + 0.7152 * linearize(g) + 0.0722 * linearize(b);
 };
@@ -231,9 +234,10 @@ const parseBoxShadowLayers = (
 			const colour = new RegExp(`${CSS_COLOUR_FN_SOURCE}[^)]*\\)`).exec(
 				rawLayer,
 			)?.[0];
-			return colour
-				? { key: rawLayer, color: parseComputedColor(colour) }
-				: undefined;
+			if (colour) {
+				return { key: rawLayer, color: parseComputedColor(colour) };
+			}
+			return undefined;
 		})
 		.filter((layer): layer is { key: string; color: Rgba } => Boolean(layer));
 };

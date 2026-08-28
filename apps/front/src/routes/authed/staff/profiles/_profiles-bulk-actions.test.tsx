@@ -88,9 +88,9 @@ vi.mock('react-i18next', () => ({
 				/\{\{(\w+)\}\}/g,
 				(_, name: string) => {
 					const value = options?.[name];
-					return typeof value === 'string' || typeof value === 'number'
-						? String(value)
-						: '';
+					if (typeof value === 'string' || typeof value === 'number')
+						return String(value);
+					return '';
 				},
 			);
 		},

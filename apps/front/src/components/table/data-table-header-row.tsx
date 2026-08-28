@@ -3,14 +3,18 @@ import {
 	IconArrowUp,
 	IconArrowsSort,
 } from '@tabler/icons-react';
-import { type Table as TanStackTable, flexRender } from '@tanstack/react-table';
+import { flexRender } from '@tanstack/react-table';
 import type { KeyboardEvent, ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Checkbox } from '~/components/ui/checkbox';
 import { TableHead, TableHeader, TableRow } from '~/components/ui/table';
 
 import { columnDisplayMeta, resolveAriaSortState } from './column-display-meta';
+import type { TanStackTable } from './column-type';
 import type { SortState } from './sort-descriptor';
+
+// v9 moved RowData to table-core; this alias keeps the constraint local.
+type RowData = Record<string, unknown>;
 
 const renderSortIcon = (
 	tableSort: { id: string; desc: boolean } | undefined,
@@ -20,11 +24,10 @@ const renderSortIcon = (
 		return <IconArrowsSort data-slot="table-sort-icon" />;
 	}
 
-	return tableSort.desc ? (
-		<IconArrowDown data-slot="table-sort-icon" />
-	) : (
-		<IconArrowUp data-slot="table-sort-icon" />
-	);
+	if (tableSort.desc) {
+		return <IconArrowDown data-slot="table-sort-icon" />;
+	}
+	return <IconArrowUp data-slot="table-sort-icon" />;
 };
 
 /** Select-all checkbox state for the header's leading selection cell. Omitted
@@ -35,7 +38,7 @@ type SelectionHeaderState = {
 	onToggleSelectAll: () => void;
 };
 
-export type DataTableHeaderRowProps<TData> = {
+export type DataTableHeaderRowProps<TData extends RowData> = {
 	table: TanStackTable<TData>;
 	tableSort: { id: string; desc: boolean } | undefined;
 	isSelectionMode: boolean;
@@ -45,7 +48,7 @@ export type DataTableHeaderRowProps<TData> = {
 
 /** The sortable header row (plus the select-all cell). Extracted from
  * `DataTable` verbatim — same DOM, same handlers. */
-export const DataTableHeaderRow = <TData,>({
+export const DataTableHeaderRow = <TData extends RowData>({
 	table,
 	tableSort,
 	isSelectionMode,

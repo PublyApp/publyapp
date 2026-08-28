@@ -249,11 +249,12 @@ vi.mock('./_invite-user-drawer-host', () => ({
 		mocks.inviteHostOnInvited = onInvited ?? (() => undefined);
 		mocks.inviteHostOnDirtyChange = undefined;
 
-		return isOpen ? <div data-testid="invite-drawer-open" /> : null;
+		if (isOpen) return <div data-testid="invite-drawer-open" />;
+		return null;
 	},
 }));
 
-import type { ColumnDef } from '@tanstack/react-table';
+import type { ColumnDef } from '~/components/table/column-type';
 import type { StaffTenantUserRow } from '~/lib/query/staff-tenant-users';
 
 import {

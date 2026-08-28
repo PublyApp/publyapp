@@ -216,7 +216,8 @@ vi.mock('./_invite-user-drawer-host', () => ({
 		mocks.inviteHostOnOpenChange = onOpenChange;
 		mocks.inviteHostOnInvited = onInvited ?? (() => undefined);
 
-		return isOpen ? <div data-testid="invite-drawer-open" /> : null;
+		if (isOpen) return <div data-testid="invite-drawer-open" />;
+		return null;
 	},
 }));
 

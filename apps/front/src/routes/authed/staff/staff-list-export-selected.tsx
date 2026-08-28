@@ -28,9 +28,8 @@ const normalizeLeadingFormulaPrefix = (value: string): string => {
 const escapeCsvField = (value: string): string => {
 	const safeValue = normalizeLeadingFormulaPrefix(value);
 
-	return /[",\r\n]/.test(safeValue)
-		? `"${safeValue.replaceAll('"', '""')}"`
-		: safeValue;
+	if (/[",\r\n]/.test(safeValue)) return `"${safeValue.replaceAll('"', '""')}"`;
+	return safeValue;
 };
 
 const buildCsvContent = (headers: string[], rows: string[][]): string =>

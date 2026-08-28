@@ -51,7 +51,10 @@ export const getUpdateStaffProfileSchema = (z: InterZod) => {
 					return undefined;
 				}
 
-				return val === '' ? null : val;
+				if (val === '') {
+					return null;
+				}
+				return val;
 			}),
 	});
 };

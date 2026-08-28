@@ -29,7 +29,8 @@ const normalizeString = (value: unknown): string | undefined => {
 	}
 
 	const trimmed = value.trim();
-	return trimmed.length > 0 ? trimmed : undefined;
+	if (trimmed.length > 0) return trimmed;
+	return undefined;
 };
 
 /** Splits a CSV action filter, trimming and de-duplicating tokens. Unknown
@@ -62,7 +63,8 @@ export const serializeAuditLogsActionsFilter = (
 	actions: string[],
 ): string | undefined => {
 	const unique = parseAuditLogsActionsFilter(actions.join(','));
-	return unique.length > 0 ? unique.join(',') : undefined;
+	if (unique.length > 0) return unique.join(',');
+	return undefined;
 };
 
 const isDateQueryValue = (value: string): boolean => {
