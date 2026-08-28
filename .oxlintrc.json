@@ -48,7 +48,7 @@
 		"default-param-last": "error",
 		"react/self-closing-comp": "error",
 		"react/rules-of-hooks": "error",
-		"typescript/no-deprecated": "off",
+		"typescript/no-deprecated": "error",
 		"typescript/no-explicit-any": "error",
 		"typescript/no-inferrable-types": "error",
 		"typescript/no-misused-spread": "off",
@@ -122,12 +122,16 @@
 				"**/*.test.ts",
 				"**/*.test.tsx",
 				"**/*.spec.ts",
-				"**/*.spec.tsx",
-				"apps/front/e2e/**"
+				"**/*.spec.tsx"
 			],
 			"rules": {
-				"typescript/no-deprecated": "off",
 				"complexity": ["error", { "max": 90 }]
+			}
+		},
+		{
+			"files": ["apps/front/e2e/**"],
+			"rules": {
+				"typescript/no-deprecated": "off"
 			}
 		}
 	]
