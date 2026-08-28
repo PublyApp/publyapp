@@ -578,10 +578,22 @@ describe('query invalidation after mutations (#1627 r4 — refresh must be visib
 	});
 
 	test('cron update mutation calls invalidateStaffJobsQueries after successful mutateAsync', () => {
-		// The cron update must invalidate queries so the list reflects the new schedule.
+		// The cron update must invalidate queries so the list reflects the new
+		// schedule.
+		//
+		// The first version of this test matched a bare
+		// `invalidateStaffJobsQueries(queryClient)` anywhere in the file. That
+		// call also exists in the toggle handler, so the toggle alone satisfied
+		// it: deleting the cron invalidation entirely left this test GREEN. It
+		// asserted the presence of a string, not the behaviour it was named
+		// after. Anchoring on `cronExpression` ties the assertion to the cron
+		// path specifically, the way the toggle test above is tied to
+		// `isEnabled`.
 		expect(
 			PAGE_SOURCE,
 			'cron update must call invalidateStaffJobsQueries in its success path',
-		).toMatch(/invalidateStaffJobsQueries\(queryClient\)/);
+		).toMatch(
+			/cronExpression:[\s\S]*?\}\);[\s\S]*?void\s+invalidateStaffJobsQueries\(queryClient\)/,
+		);
 	});
 });
