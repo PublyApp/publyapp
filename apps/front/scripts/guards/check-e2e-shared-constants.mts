@@ -1,0 +1,202 @@
+/**
+ * Guard (#1682): an e2e spec must not re-declare a constant that
+ * `packages/shared-ts` already exports.
+ *
+ * Background. `apps/front/e2e/log-leak.spec.ts` declared its own
+ * `SESSION_TOKEN_HEADER_KEY = 'X-Session-Token'` while
+ * `packages/shared-ts/src/lib/constants.ts` exports the same name. The test
+ * then asserted against ITS OWN copy: had production changed the header, the
+ * spec would have kept passing while asserting a value that no longer exists.
+ * The sibling case was worse — `SESSION_VALIDATION_TIMEOUT_MS` was copied into
+ * `ssr-auth-shell.spec.ts`, and PR #1647 cut the production timeout from 20s to
+ * 1s with the spec still green.
+ *
+ * WHAT THIS GUARD INSPECTS (AST, not text).
+ *
+ * Both sides are parsed into a TypeScript AST via ts-morph — the same reason
+ * `check-shared-ts-import-paths.mts` gives: under TS 7 a bare
+ * `import ts from 'typescript'` no longer exposes the AST. A regex over source
+ * text would also read the name out of comments and strings.
+ *
+ * The shared-ts side is read from the REAL module tree, never from a list
+ * copied into this file. A guard that carried its own list of exported names
+ * would be the very defect it is meant to catch: the list would drift from the
+ * module, and the guard would go quiet.
+ *
+ * THE RULE. For every top-level `const NAME = …` in `apps/front/e2e/**`, if
+ * `NAME` is exported by any `packages/shared-ts/src/**` module, the guard fails
+ * and names the file, the line, and the module to import from instead.
+ *
+ * FAIL-CLOSED. A file that cannot be parsed is a finding, not a skip: input the
+ * guard cannot read must never be reported as compliant. A run that finds zero
+ * e2e files, or zero shared-ts exports, is likewise a failure — examining
+ * nothing must never pass.
+ *
+ * KNOWN LIMIT, stated rather than left to be discovered. The rule keys on the
+ * NAME, so a copy under a different local name (`const TOKEN_HEADER = 'X-Session-Token'`)
+ * is NOT caught. Catching that needs value comparison, which would flag every
+ * unrelated string that happens to coincide. The name rule is the mechanical
+ * part; the value rule stays a review concern.
+ */
+
+import { existsSync, readdirSync, statSync } from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+import { Project } from 'ts-morph';
+
+const HERE = path.dirname(fileURLToPath(import.meta.url));
+const FRONT_DIR = path.resolve(HERE, '..', '..');
+const REPO_ROOT = path.resolve(FRONT_DIR, '..', '..');
+const E2E_DIR = path.join(FRONT_DIR, 'e2e');
+const SHARED_TS_SRC = path.join(REPO_ROOT, 'packages', 'shared-ts', 'src');
+
+type Finding = {
+	file: string;
+	line: number;
+	name: string;
+	source: string;
+};
+
+const listTypeScriptFiles = (root: string): string[] => {
+	// Fail-closed on a root that is not there. Letting `readdirSync` throw would
+	// end the run with a stack trace instead of a cause; an empty array would be
+	// worse still, reporting "0 re-declarations" for a scan that read nothing.
+	if (!existsSync(root)) {
+		console.error(
+			`e2e shared-constant guard: the directory to scan does not exist — ` +
+				`${root}. The guard cannot report compliance for a tree it never read.`,
+		);
+		process.exit(1);
+	}
+
+	const out: string[] = [];
+	const walk = (dir: string): void => {
+		for (const entry of readdirSync(dir)) {
+			const full = path.join(dir, entry);
+			if (statSync(full).isDirectory()) {
+				if (entry === 'node_modules') {
+					continue;
+				}
+				walk(full);
+				continue;
+			}
+			if (full.endsWith('.ts') || full.endsWith('.tsx')) {
+				out.push(full);
+			}
+		}
+	};
+	walk(root);
+	return out;
+};
+
+/** Every name `packages/shared-ts/src/**` exports as a top-level const,
+ * mapped to the module path a consumer should import it from. Read from the
+ * real tree — this guard never carries its own copy of the list. */
+export const collectSharedTsExports = (
+	sharedTsSrc: string,
+): Map<string, string> => {
+	const project = new Project({ useInMemoryFileSystem: false });
+	const exports = new Map<string, string>();
+	for (const file of listTypeScriptFiles(sharedTsSrc)) {
+		if (file.endsWith('.test.ts') || file.endsWith('.test.tsx')) {
+			continue;
+		}
+		const source = project.addSourceFileAtPath(file);
+		for (const statement of source.getVariableStatements()) {
+			if (!statement.isExported()) {
+				continue;
+			}
+			for (const declaration of statement.getDeclarations()) {
+				const relative = path
+					.relative(sharedTsSrc, file)
+					.replace(/\.tsx?$/, '');
+				exports.set(declaration.getName(), `@org/shared-ts/${relative}`);
+			}
+		}
+	}
+	return exports;
+};
+
+/** Top-level `const NAME = …` declarations in e2e specs whose NAME is already
+ * exported by shared-ts. */
+export const findRedeclaredConstants = (
+	e2eDir: string,
+	sharedExports: Map<string, string>,
+): Finding[] => {
+	const project = new Project({ useInMemoryFileSystem: false });
+	const findings: Finding[] = [];
+	for (const file of listTypeScriptFiles(e2eDir)) {
+		const source = project.addSourceFileAtPath(file);
+		for (const statement of source.getVariableStatements()) {
+			// Only module-level declarations: a const inside a test body is a
+			// local, not a stand-in for a production constant.
+			if (statement.getParent() !== source) {
+				continue;
+			}
+			for (const declaration of statement.getDeclarations()) {
+				const name = declaration.getName();
+				const source_ = sharedExports.get(name);
+				if (source_ === undefined) {
+					continue;
+				}
+				findings.push({
+					file: path.relative(REPO_ROOT, file),
+					line: declaration.getStartLineNumber(),
+					name,
+					source: source_,
+				});
+			}
+		}
+	}
+	return findings;
+};
+
+const main = (): void => {
+	const sharedExports = collectSharedTsExports(SHARED_TS_SRC);
+	if (sharedExports.size === 0) {
+		console.error(
+			'e2e shared-constant guard: read ZERO exported constants from ' +
+				`${path.relative(REPO_ROOT, SHARED_TS_SRC)}. Examining nothing must ` +
+				'never pass — check the path and the parse.',
+		);
+		process.exit(1);
+	}
+
+	const e2eFiles = listTypeScriptFiles(E2E_DIR);
+	if (e2eFiles.length === 0) {
+		console.error(
+			'e2e shared-constant guard: found ZERO e2e spec files under ' +
+				`${path.relative(REPO_ROOT, E2E_DIR)}. Examining nothing must never pass.`,
+		);
+		process.exit(1);
+	}
+
+	const findings = findRedeclaredConstants(E2E_DIR, sharedExports);
+	if (findings.length > 0) {
+		console.error(
+			'e2e specs re-declare constants that packages/shared-ts already exports ' +
+				'(#1682). The spec then asserts its OWN copy: change the production ' +
+				'value and the spec keeps passing on a value that no longer exists.',
+		);
+		for (const finding of findings) {
+			console.error(
+				`  ${finding.file}:${finding.line}  ${finding.name} — import it from ` +
+					`'${finding.source}' instead of re-declaring it.`,
+			);
+		}
+		process.exit(1);
+	}
+
+	console.log(
+		`e2e shared-constant guard: ${e2eFiles.length} spec files checked against ` +
+			`${sharedExports.size} shared-ts exports, 0 re-declarations [OK]`,
+	);
+};
+
+const invokedDirectly =
+	process.argv[1] &&
+	path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+if (invokedDirectly) {
+	main();
+}
