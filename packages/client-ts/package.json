@@ -14,7 +14,8 @@
 	"scripts": {
 		"kiota:generate": "dotnet kiota generate -d ../../apps/api/openapi.json -o src -l typescript -n PublyApp.Api.Client -c ApiClient",
 		"kiota:update": "dotnet kiota update -o src",
-		"kiota:info": "dotnet kiota info -d ../../apps/api/openapi.json -l typeScript"
+		"kiota:info": "dotnet kiota info -d ../../apps/api/openapi.json -l typeScript",
+		"typecheck": "tsc --noEmit"
 	},
 	"dependencies": {
 		"@microsoft/kiota-abstractions": "1.0.0-preview.103",

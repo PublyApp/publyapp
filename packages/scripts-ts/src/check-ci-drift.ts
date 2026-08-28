@@ -295,6 +295,158 @@ const getEntryValidationProblem = (
 	return null;
 };
 
+/**
+ * Scans the raw JSON text of the manifest for duplicate keys within the same
+ * object. `JSON.parse` silently keeps the LAST occurrence of a duplicate key,
+ * producing a false-negative: a manifest that parses without error while
+ * silently discarding a reconciled step. This guard reads the text directly,
+ * at the brace/quote level, and names every duplicate key with its line numbers.
+ *
+ * The parser is a minimal state machine: it tracks string contexts (so braces
+ * and colons inside string values are not mistaken for structural tokens) and
+ * a stack of key maps — one per open `{`. A key inside `"..."` followed by `:`
+ * is checked against the current object's map; if it was already seen, it is a
+ * duplicate.
+ *
+ * @param raw - The raw JSON text of ci-gate-manifest.json.
+ * @returns An array of human-readable findings (empty when no duplicates).
+ */
+export const findDuplicateKeys = (raw: string): string[] => {
+	const findings: string[] = [];
+	const lines = raw.split('\n');
+
+	// Stack of Maps: one per open object, mapping key -> first-seen line index.
+	const keyStack: Map<string, number>[] = [];
+
+	for (let i = 0; i < lines.length; i++) {
+		const line = lines[i];
+
+		for (let j = 0; j < line.length; j++) {
+			const char = line[j];
+
+			if (char === '"') {
+				// Try to read a key: "..." followed by optional whitespace then `:`.
+				const { key, endQuote, nextIndex } = readJsonKey(line, j);
+
+				if (key !== null) {
+					const current = keyStack[keyStack.length - 1];
+
+					if (current !== undefined) {
+						const firstLine = current.get(key);
+						if (firstLine !== undefined) {
+							findings.push(
+								`${manifestPath}: DUPLICATE KEY "${key}" at lines ${firstLine + 1} and ${i + 1} — JSON.parse would silently keep only the last occurrence, masking a reconciled step that should not be lost. Delete the duplicate entry and keep the intended one.`,
+							);
+						} else {
+							current.set(key, i);
+						}
+					}
+
+					// Resume scanning just after the colon.
+					j = nextIndex;
+				} else {
+					// This was a string value, not a key. Resume scanning just
+					// after the closing quote so the loop's j++ doesn't skip it.
+					j = endQuote;
+				}
+				continue;
+			}
+
+			if (char === '{') {
+				keyStack.push(new Map());
+			} else if (char === '}') {
+				keyStack.pop();
+			}
+		}
+	}
+
+	return findings;
+};
+
+/**
+ * Reads a JSON string key starting at the `"` on `line` at position `start`.
+ * The string must be immediately followed by optional whitespace and `:`.
+ * Returns the decoded key, or null if this quote is not a key, plus the index
+ * to continue scanning from.
+ */
+/** What a single scan step of the manifest's raw text yields: the decoded key
+ * when the position held one, and where the scanner must resume. Named rather
+ * than inlined so the three return sites share one contract instead of three
+ * anonymous shapes that can drift apart (`publy` no-anonymous-return-type). */
+interface JsonKeyScan {
+	key: string | null;
+	endQuote: number;
+	nextIndex: number;
+}
+
+const readJsonKey = (line: string, start: number): JsonKeyScan => {
+	// Find the closing quote (handling escapes).
+	let end = start + 1;
+	let escape = false;
+
+	while (end < line.length) {
+		if (escape) {
+			escape = false;
+			end++;
+			continue;
+		}
+
+		if (line[end] === '\\') {
+			escape = true;
+			end++;
+			continue;
+		}
+
+		if (line[end] === '"') {
+			break;
+		}
+
+		end++;
+	}
+
+	if (end >= line.length) {
+		return { key: null, endQuote: end, nextIndex: end };
+	}
+
+	// Check if followed by optional whitespace then `:`.
+	let k = end + 1;
+	while (
+		k < line.length &&
+		(line[k] === ' ' ||
+			line[k] === '\t' ||
+			line[k] === '\n' ||
+			line[k] === '\r')
+	) {
+		k++;
+	}
+
+	if (line[k] !== ':') {
+		return { key: null, endQuote: end, nextIndex: k };
+	}
+
+	// Decode the key content.
+	const rawKey = line.substring(start + 1, end);
+	const decodedKey = decodeJsonString(rawKey);
+
+	return { key: decodedKey, endQuote: end, nextIndex: k };
+};
+
+/**
+ * Minimal JSON string decoder for escape sequences that can appear in
+ * manifest keys (the step IDs themselves are plain strings, but this
+ * handles the general case defensively).
+ */
+const decodeJsonString = (raw: string): string =>
+	raw
+		.replace(/\\n/g, '\n')
+		.replace(/\\t/g, '\t')
+		.replace(/\\r/g, '\r')
+		.replace(/\\"/g, '"')
+		.replace(/\\\\/g, '\\')
+		.replace(/\\u([0-9a-fA-F]{4})/g, (_, hex) =>
+			String.fromCharCode(Number.parseInt(hex, 16)),
+		);
+
 // --- Reason reference type ---
 
 interface ReasonRef {
@@ -323,6 +475,13 @@ export const findCiDrift = async ({
 	const findings = [...problems];
 
 	const manifestRaw = await readFile(path.join(rootDir, manifestPath), 'utf8');
+
+	// Detect duplicate keys BEFORE parsing — JSON.parse silently keeps the last
+	// occurrence, which would mask a reconciled step as missing. This guard
+	// reads the raw text at the brace/quote level and names each duplicate
+	// with its line numbers.
+	findings.push(...findDuplicateKeys(manifestRaw));
+
 	const manifest = JSON.parse(manifestRaw) as {
 		steps?: Record<string, unknown>;
 	};

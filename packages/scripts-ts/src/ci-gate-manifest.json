@@ -269,7 +269,7 @@
 		"front-ci.yml::supply-chain::Audit production dependencies (moderate and above)": {
 			"hash": "8d5095ef73aba7b3",
 			"mirror": "pnpm audit --prod --audit-level=moderate",
-			"reason": "#1644: production-graph threshold lowered from high to moderate to align with the dev-graph gate (quality-gate.yml::quality::Audit development dependencies). The previous shape let a moderate advisory in a production dep slip through both audits."
+			"reason": "#1644: production-graph threshold lowered from high to moderate to align with the dev-graph gate (quality-gate.yml::quality::Audit development dependencies). The previous shape let a moderate advisory in a production dep slip through both audits: --prod excludes the dev graph, and --audit-level=high excludes moderate. The same command reproduces it locally without Docker or CI; the production graph is clean at every threshold today, so the cost is zero and the safety is immediate (no exception list needed). #1674: the bite-proof test (packages/scripts-ts/src/prod-audit-bites.test.ts) parses this step's `run:` body to pin the exact command string and runs `pnpm audit --prod --audit-level=moderate` against a controlled fixture carrying ejs@3.1.7 → GHSA-ghr5-ch3p-vcr6 (a stable moderate advisory) so a regression that reverts the threshold to `high`, drops `--prod`, or removes the step turns the suite red before the audit step itself runs."
 		},
 		"front-ci.yml::supply-chain::Assert exact pins": {
 			"hash": "9f0331695e45ef30",
@@ -840,6 +840,11 @@
 			"hash": "784fa13a651b3079",
 			"mirror": "just ci-lint-ts",
 			"reason": "ci-lint-ts runs the identical pnpm --filter @org/lint-ts typecheck (tsc --noEmit) that this step runs. The package ships the repo's custom publy/* oxlint rules that guard every front surface, but nothing verified its own types — only its vitest tests ran (the step above). See issue #1600."
+		},
+		"quality-gate.yml::quality::Typecheck client-ts": {
+			"hash": "b9b9694f73a244ad",
+			"mirror": "just ci-lint-ts",
+			"reason": "ci-lint-ts now also runs pnpm --filter @org/client-ts typecheck (tsc --noEmit), the identical invocation this step runs. The Kiota-generated TypeScript API client's typecheck script was added to packages/client-ts/package.json but was never wired into any CI step or local gate — trompe-l’oeil coverage. See issue #1692."
 		}
 	}
 }
