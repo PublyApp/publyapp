@@ -222,22 +222,25 @@ const sweepBuildDirectories = (directories: string[]): void => {
 			}
 		})().catch(() => process.exit(1));
 	`;
+	// Fire-and-forget by construction, and deliberately so. The ONLY caller is
+	// the SIGINT/SIGTERM handler below, which calls process.exit() in the same
+	// synchronous tick; the child is detached and unref'd so it can outlive us
+	// and finish deleting. That means this process is gone before any 'exit'
+	// event from the child could ever fire.
+	//
+	// An earlier shape of this function captured the child's stderr and wrote a
+	// failure report on 'exit'. That report was unreachable code: the parent
+	// always died first. Keeping it would have been worse than useless — the PR
+	// body described the guard as reporting sweep failures, so it claimed a
+	// diagnostic that could never be printed. The child's stderr is therefore
+	// ignored honestly rather than captured for a report nobody can receive.
+	//
+	// The payload itself still fails loud where it can be seen: it runs with
+	// --input-type=module (so a stray `require` throws instead of silently
+	// working) and exits non-zero on any rm() rejection.
 	const child = spawn(process.execPath, ['--input-type=module', '-e', payload], {
-		stdio: ['ignore', 'ignore', 'pipe'],
+		stdio: ['ignore', 'ignore', 'ignore'],
 		detached: true,
-	});
-	let stderrChunks: Buffer[] = [];
-	child.stderr?.on('data', (chunk: Buffer) => {
-		stderrChunks.push(chunk);
-	});
-	child.on('exit', (code) => {
-		if (code !== 0) {
-			const stderr = Buffer.concat(stderrChunks).toString('utf8').trim();
-			const detail = stderr || `(no stderr captured; exit code ${code})`;
-			process.stderr.write(
-				`[check-zindex-guard] sweepBuildDirectories payload failed (exit ${code}):\n${detail}\n`,
-			);
-		}
 	});
 	child.unref();
 };

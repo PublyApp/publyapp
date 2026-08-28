@@ -20,6 +20,19 @@
 		"**/*.ts",
 		"**/*.tsx",
 		"**/*.mts",
+		// `server.mjs` (the production entry point) is deliberately NOT listed.
+		// It used to be, before #1692 — but with no `allowJs`, TypeScript
+		// silently ignored it: `tsc --listFiles` matched it ZERO times. It was a
+		// decorative entry, the same defect as the `scripts/**/*.mjs` glob that
+		// matched no file at all, which is what this issue is about.
+		//
+		// Re-adding it for real needs `allowJs`, and that measurably breaks the
+		// gate: `allowJs` drags `dist/server/assets/*.js` (build output) into the
+		// program, and `tsc --noEmit` then exits 1 — with `checkJs: false` as
+		// well as with `checkJs: true`. Typechecking the production entry is
+		// genuine work (a dedicated tsconfig excluding `dist/`), tracked
+		// separately; putting the name back without `allowJs` would only restore
+		// the illusion of coverage.
 		"scripts/**/*.mts",
 		"tools/**/*.mts",
 		"../../packages/shared-ts/src/@types/**/*.d.ts"
