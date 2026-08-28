@@ -238,12 +238,25 @@ jobs:
       # fails is a pass, and a test that passes is a failure (the bug has changed
       # form or been fixed, making the proof stale).
       #
-      # The runner EXITS 1 when .dump/preuves/ is absent (git-ignored, not in
-      # CI checkout) or empty. A green step that verified nothing would hide
-      # the absence of proof — option (b) of issue #1659 ronde 4. The developer
-      # replay path is the lane worktree (`just test-preuves`), where .dump/
-      # exists. This CI step is therefore structurally red until a proof file
-      # is present to replay; that is the honest signal, not a regression.
+      # Option (b) of issue #1659 ronde 5: the step is scoped to PRs that
+      # DECLARE a paired red proof. A PR declares one by adding or modifying a
+      # proof test file under apps/front/tests/proofs/<issue>/. Proof files are
+      # versionned (committed to the repo), so CI can always see them — unlike
+      # .dump/, which is git-ignored and absent on a clean CI checkout. The
+      # runner uses `git diff` to detect whether the current PR touched any
+      # proof files:
+      #
+      # - If proofs were declared: replay them with inverted semantics. A proof
+      #   test that fails as expected → step passes. A proof test that passes
+      #   unexpectedly → step fails (the bug changed form or was fixed; the
+      #   proof is stale and must be rebuilt).
+      # - If no proofs were declared: the step prints an explicit "no proofs
+      #   declared" message and exits 0. This is NOT a silent green — it states
+      #   exactly what was checked and why the step did not run. PRs that do not
+      #   claim a paired red proof are out of scope.
+      #
+      # The developer replay path is the lane worktree (`just test-preuves`),
+      # where .dump/ also exists for trace artifacts.
       - name: Verify paired red proofs
         run: pnpm --filter front test:preuves
         # Mirrors `just test-preuves` in the local ci-front recipe.

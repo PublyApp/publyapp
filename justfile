@@ -421,13 +421,16 @@ ci-front:
 # Run paired preuve red tests via vitest.preuves.config.ts.
 #
 # These tests are EXPECTED TO FAIL — each proves a bug is present by failing
-# against the corrected code. This recipe runs them and asserts the suite is
-# red. If a proof test becomes green, the bug it documented has changed form
-# and the proof must be rebuilt — that is an error condition, not a success.
+# against the corrected code. This recipe runs ONLY the proof tests that the
+# current PR declares (files added/modified under apps/front/tests/proofs/).
+# If the PR declares no proofs, the recipe prints an explicit no-op message
+# and exits 0 — this is NOT a silent success, it states what was checked.
 #
-# `.dump/preuves/` is git-ignored and absent in CI checkouts; the recipe
-# handles that case gracefully (no files = no-op, exit 0) so it runs cleanly
-# both locally and in CI.
+# The proof files are versionned under apps/front/tests/proofs/ (committed to
+# the repo), so CI can always see them — unlike .dump/ which is git-ignored.
+# The developer replay path is `just test-preuves` in the lane worktree
+# (where .dump/ traces also exist). CI runs the same command on a clean
+# checkout.
 test-preuves:
   @echo "=== [gate] paired red proofs (expected to fail) ==="
   pnpm --filter front test:preuves

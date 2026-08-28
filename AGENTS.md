@@ -406,8 +406,10 @@ For writing and debugging integration tests, see:
 
 **Paired red/green proofs:** the test that proves a bug is present cannot stay in the suite — by
 construction it FAILS against the corrected code. The convention is to keep it under
-`apps/front/.dump/preuves/<issue>/` (git-ignored) and have the trace name the path plus the
-mutation that reproduces the red. Full rule and rationale in
+`apps/front/tests/proofs/<issue>/` (versionned, committed) and have the trace name the path plus the
+mutation that reproduces the red. A PR that claims a paired red proof declares it by adding or
+modifying a file under that directory; the CI step `Verify paired red proofs` replays only the
+declared proofs with inverted semantics. Full rule and rationale in
 [`docs/guides/test-conventions.md`](docs/guides/test-conventions.md) §"Paired Red/Green Proofs —
 keeping the red test alive".
 

@@ -8,15 +8,20 @@ import { defineConfig } from 'vitest/config';
 // timeout budget the moment anything else competes for the same cores).
 const maxWorkers = Math.max(2, Math.floor(cpus().length / 2));
 
-// Replay config for the kept red tests under .dump/preuves/. The default
-// vitest.config.ts restricts `include` to `src/**`, so the red tests the
-// convention keeps there cannot be run through it. This config extends the
-// base one (same aliases, same SSR policy, same worker cap) and overrides
-// `include` to also cover .dump/preuves/.
+// Replay config for kept-red proof tests declared via PRs under
+// tests/proofs/<issue>/. The default vitest.config.ts restricts `include` to
+// `src/**` (plus e2e helpers/tests), so proof tests — which are EXPECTED TO
+// FAIL — are never collected by the green suite. This config extends the base
+// one (same aliases, same SSR policy, same worker cap) and includes ONLY the
+// versioned tests/proofs/ directory.
 //
-// Usage:
+// Usage (replay a specific proof):
 //   cd apps/front && pnpm exec vitest run --config vitest.preuves.config.ts \
-//     .dump/preuves/<issue>/<name>.test.ts
+//     tests/proofs/<issue>/<name>.test.ts
+//
+// Usage (all proofs):
+//   cd apps/front && pnpm.exec vitest run --config vitest.preuves.config.ts \
+//     tests/proofs/
 export default defineConfig({
 	resolve: {
 		alias: {
@@ -40,17 +45,8 @@ export default defineConfig({
 				inline: ['@org/client-ts', '@org/shared-ts'],
 			},
 		},
-		include: [
-			'src/**/*.{test.ts,test.tsx}',
-			'.dump/preuves/**/*.test.ts',
-			'e2e/helpers/**/*.test.ts',
-			'e2e/__tests__/**/*.test.ts',
-		],
-		exclude: [
-			'src/styles/drawer-description-contrast.test.ts',
-			'src/lib/i18n-key-coverage.test.ts',
-			'src/lib/mutation-feedback-architecture.test.ts',
-		],
+		include: ['tests/proofs/**/*.{test.ts,test.tsx}'],
+		exclude: [],
 		setupFiles: ['./vitest.setup.ts'],
 		testTimeout: 30000,
 		maxWorkers,

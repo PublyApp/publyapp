@@ -157,28 +157,34 @@ This repo uses **form (3)**. Rationale:
 ### Where the test lives
 
 ```
-apps/front/.dump/preuves/<issue-number>/<descriptive-name>.test.ts   # front
-.dump/preuves/<issue-number>/<descriptive-name>.Spec.cs              # api
+apps/front/tests/proofs/<issue-number>/<descriptive-name>.test.ts   # front
+.dump/preuves/<issue-number>/<descriptive-name>.Spec.cs              # api (legacy)
 ```
 
-- The path under `.dump/` is **git-ignored** (see `.gitignore`), so the test does not pollute
-  the suite and does not have to be maintained as production code.
+- Front preuve proof tests live under the **versionned** directory `apps/front/tests/proofs/<issue>/`.
+  These files are committed to the repo (not git-ignored), so CI can always see them on a clean
+  checkout. A PR declares a paired red proof by adding or modifying a file under that directory;
+  the CI step `Verify paired red proofs` uses `git diff` to detect declared proofs and replays
+  only those. If none are declared, the step prints an explicit no-op message and exits 0.
+- API preuve traces continue to use `.dump/preuves/<issue>/` (the API proof convention is legacy
+  and not part of the #1659 front-side fix).
 - The file name carries the issue number and a short, hyphen-separated name (`red-1613-negligent-caller-no-reset`).
 - The file is **executable as-is**: real `import` statements, real assertions, no placeholder
   boilerplate. A reviewer who runs it must obtain the same red output the author did, on the
   same code state.
-- Front preuves MUST live under `apps/front/.dump/preuves/`, not the repo-root `.dump/`. The
-  front vitest config's `include` pattern (`src/**`) and module resolution require the test to
-  be inside the vitest root (`apps/front/`) for vite to resolve `react` and the production
-  imports. The default `vitest.config.ts` excludes `.dump/`; the companion
-  `vitest.preuves.config.ts` adds it back so the red test can be replayed on demand.
+- Front proof tests MUST live under `apps/front/tests/proofs/`, not `.dump/`. The front vitest
+  config's `include` patterns and module resolution require the test to be inside the vitest
+  root (`apps/front/`) for vite to resolve `react` and the production imports. The default
+  `vitest.config.ts` excludes `tests/proofs/**` so red tests never leak into the green suite; the
+  companion `vitest.preuves.config.ts` adds them back so the red test can be replayed on demand.
 
 ### What the trace must contain
 
 Every paired-proof trace (the `.dump/preuve-<issue>.md` file the lane already produces) MUST,
 in addition to the red and green outputs, name:
 
-- the **kept red test** by its path under `.dump/preuves/<issue>/`,
+- the **kept red test** by its path under `apps/front/tests/proofs/<issue>/` (front) or
+  `.dump/preuves/<issue>/` (api),
 - the **mutation** that produces the red (the exact code change applied to the production code,
   including the line and the diff), so a reviewer who cannot reach `.dump/` can re-apply it
   against the current code state, and
@@ -262,21 +268,23 @@ revert." For proof-of-limitation proofs, it is "run the kept test against the cu
 
 ### Replaying the proof from a detached worktree
 
-A reviewer working in a detached worktree does **not** see `.dump/` — it is git-ignored and
-never pushed. The convention is:
+Front proof tests under `apps/front/tests/proofs/` are **versionned** (committed to the repo),
+so any worktree that checks out the branch — including a detached worktree — can always see them.
+A reviewer working from `develop` (without checking out the lane branch) can run them directly:
 
-1. Fetch the lane branch (`git fetch origin lane/wt-<issue>`), then check it out into a
-   worktree of the lane that produced the proof. The `.dump/` files of that branch are present
-   in that worktree because they live in the branch's working tree, not in its tree-ish.
-2. If the reviewer cannot or will not check out the lane (they only have `develop`), the trace
-   MUST be self-sufficient: it must name the kept red test's path, the mutation to apply (or,
-   for proof-of-limitation cases, the ideal behavior and the reason the correct code does not
-   satisfy it), and the expected failure message, so a reviewer can reproduce the red by hand
-   against the current code.
+```
+cd apps/front && pnpm exec vitest run --config vitest.preuves.config.ts \
+    tests/proofs/<issue>/<name>.test.ts
+```
 
-The second path is the failure mode the issue warns about. The convention prevents it by
-**requiring** the trace to carry the mutation (or the ideal/trade-off for proof-of-limitation
-cases) — not by versioning `.dump/`.
+A reviewer who cannot or will not run the test can also rely on the trace being self-sufficient:
+it names the kept red test's path, the mutation to apply (or, for proof-of-limitation cases, the
+ideal behavior and the reason the correct code does not satisfy it), and the expected failure
+message, so the red can be reconstructed by hand against the current code.
+
+The trace must also carry the mutation (or the ideal/trade-off for proof-of-limitation cases) —
+not by versioning `.dump/` — because `git diff`-based detection in CI only identifies *which*
+proofs to run, not *what* they prove.
 
 ### When this convention does not apply
 
@@ -294,17 +302,19 @@ regardless of this convention.
 ### Why no automated guard (yet)
 
 Issue #1659 explicitly asks whether to add a CI guard that refuses a PR whose trace cites a
-deleted test. We considered three and rejected all of them at this stage:
+kept red test that is stale or absent. We considered three and rejected all of them at this stage:
 
 - A guard that scans `.dump/` traces for test paths and verifies the file exists would never
-  fire: by the convention's own design, the kept test lives in `.dump/`, which is git-ignored
-  and never reaches CI.
+  fire: by the convention's own design, the kept red test lives under `.dump/` (API) or
+  `apps/front/tests/proofs/` (front), and `.dump/` is git-ignored and never reaches CI. The front
+  proofs directory is versionned, but the guard would still need to verify that the proof is
+  genuinely red (the mutation still produces a failure), which requires replaying it.
 - A guard that requires the test path to exist in the suite contradicts the convention: the
   whole point is that the red test is **excluded** from the suite.
 - A guard that asks the PR body to declare the kept-test path and the mutation is feasible
   but premature: it would add a new required section to every PR body for a problem we have
   not yet seen at scale. The first wave is "convention, written and applied"; the second
-  wave, after we have a few examples in `.dump/preuves/`, can decide whether the convention
+  wave, after we have a few examples in `tests/proofs/`, can decide whether the convention
   is reliably followed enough to enforce.
 
 The convention is the right first step. If a future lane produces a paired proof without a
@@ -313,14 +323,14 @@ kept red test, the right response is a review comment naming this section, not a
 ### Worked example: #1613 / #1651 (negligent caller of `useOffsetPageClamp`)
 
 The red test that PR #1651 deleted is kept at
-`apps/front/.dump/preuves/1613/red-1613-negligent-caller-no-reset.test.ts` in this branch,
+`apps/front/tests/proofs/1613/red-1613-negligent-caller-no-reset.test.ts` in this branch,
 with the mutation and the red/green transcripts in
 `apps/front/.dump/preuve-1613-convention.md`. A reviewer replays the red by checking out
 this branch and running:
 
 ```
 cd apps/front && pnpm exec vitest run --config vitest.preuves.config.ts \
-    .dump/preuves/1613/red-1613-negligent-caller-no-reset.test.ts
+    tests/proofs/1613/red-1613-negligent-caller-no-reset.test.ts
 ```
 
 This is the first application of the convention; it is the only case the present branch

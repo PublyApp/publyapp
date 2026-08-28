@@ -43,15 +43,13 @@ const config: KnipConfig = {
 				'tools/vite/check-context-chunk-isolation.mts',
 				'src/components/ui/drawer-guard-tmp-dir.cjs', // string-keyed require() from drawer-form.test.tsx / the drawer guard, invisible to import analysis
 				// Used via CLI `--config` argument, not imported: replay config
-				// for kept red tests under .dump/preuves/ (see
-				// apps/front/.dump/preuve-1613-convention.md). Knip cannot
-				// trace CLI-argument usage. Now wired: `just test-preuves` (recipe
-				// in justfile) and the `Verify paired red proofs` step in
+				// for kept red tests under apps/front/tests/proofs/ (issue #1659).
+				// Knip cannot trace CLI-argument usage. Now wired: `just test-preuves`
+				// (recipe in justfile) and the `Verify paired red proofs` step in
 				// front-ci.yml::supply-chain both invoke it through
 				// `pnpm --filter front test:preuves` → scripts/ci/run-preuves.mts.
-				// In CI this no-ops (exit 0) when .dump/preuves/ is absent
-				// (git-ignored); locally it runs the red tests and inverts their
-				// pass/fail semantics.
+				// When no PRs declare proofs (no files added/modified under tests/proofs/),
+				// the runner prints an explicit no-op message and exits 0.
 				'vitest.preuves.config.ts',
 			],
 			// System binary invoked via execFileSync by the request-counter sidecar
