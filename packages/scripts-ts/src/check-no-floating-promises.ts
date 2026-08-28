@@ -35,7 +35,6 @@ const assertOxlintAvailable = () => {
 	}
 };
 
-// @ts-expect-error rung-0: add proper type in later rung
 const runOxlint = () => {
 	assertOxlintAvailable();
 
@@ -68,8 +67,7 @@ const runOxlint = () => {
 	};
 };
 
-// @ts-expect-error rung-0: add proper type in later rung
-const countWarnings = (output, ruleName) => {
+const countWarnings = (output: string, ruleName: string): number => {
 	// oxlint prints `[Warning/typescript(no-floating-promises)]`. The ruleName
 	// already includes its parentheses (e.g. `typescript(no-floating-promises)`),
 	// so we only append the closing bracket.
@@ -98,8 +96,10 @@ type RatchetResult = {
 export const checkNoFloatingPromises = async (): Promise<RatchetResult> => {
 	try {
 		const baselineContent = await readFile(baselinePath, 'utf8');
-		// @ts-expect-error rung-0: add proper type in later rung
-		const baseline = JSON.parse(baselineContent);
+		const baseline = JSON.parse(baselineContent) as {
+			rule: string;
+			count: number;
+		};
 		const { stdout, stderr } = runOxlint();
 		const combined = `${stdout}\n${stderr}`;
 		const actualCount = countWarnings(combined, baseline.rule);
