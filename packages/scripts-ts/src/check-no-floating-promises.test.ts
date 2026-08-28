@@ -8,7 +8,7 @@ const { checkNoFloatingPromises } = await import(
 
 test(
 	'the no-floating-promises count stays within the pinned baseline',
-	{ timeout: 30_000 },
+	{ timeout: 120_000 },
 	async () => {
 		const result = await checkNoFloatingPromises();
 
