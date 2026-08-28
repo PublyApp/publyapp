@@ -9,9 +9,9 @@ import {
 } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
-import type { ColumnDef } from '@tanstack/react-table';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import type { ColumnDef } from '~/components/table/column-type';
 import { DataTableRowActions } from '~/components/table/row-actions';
 import { paletteIndex } from '~/components/ui/avatar-initials';
 import { ConfirmDialog } from '~/components/ui/confirm-dialog';
