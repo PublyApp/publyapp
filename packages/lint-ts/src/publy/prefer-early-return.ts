@@ -15,10 +15,6 @@ const isIdentifier = (
 	node.type === 'Identifier' &&
 	node.name === name;
 
-const isBlockStatement = (
-	node: ESTree.Expression | ESTree.Statement,
-): node is ESTree.BlockStatement => node.type === 'BlockStatement';
-
 export const preferEarlyReturn = {
 	meta: {
 		type: 'problem' as const,
@@ -39,17 +35,6 @@ export const preferEarlyReturn = {
 		const checkBodyStatements = (statements: ESTree.Statement[]): void => {
 			for (let index = 0; index < statements.length; index += 1) {
 				const stmt = statements[index];
-
-				// Case 1: `return cond ? a : b;`
-				if (
-					stmt.type === 'ReturnStatement' &&
-					isConditionalExpression(stmt.argument)
-				) {
-					context.report({
-						node: stmt.argument,
-						messageId: 'preferEarlyReturn',
-					});
-				}
 
 				// Case 2: `const x = cond ? a : b; return x;`
 				if (stmt.type === 'VariableDeclaration') {
@@ -77,14 +62,28 @@ export const preferEarlyReturn = {
 		};
 
 		return {
-			FunctionDeclaration(node) {
-				if (node.body) checkBodyStatements(node.body.body);
+			// Case 1: `return cond ? a : b;` — the visitor reaches every
+			// `ReturnStatement` at any depth, so nesting is handled for free.
+			ReturnStatement(node) {
+				if (isConditionalExpression(node.argument)) {
+					context.report({
+						node: node.argument,
+						messageId: 'preferEarlyReturn',
+					});
+				}
 			},
-			FunctionExpression(node) {
-				if (node.body) checkBodyStatements(node.body.body);
+
+			// Case 2: `const x = cond ? a : b; return x;` — the visitor reaches
+			// every `BlockStatement` at any depth, so nesting is handled for
+			// free. Each block examines its own adjacent statement pairs.
+			BlockStatement(node) {
+				checkBodyStatements(node.body);
 			},
-			ArrowFunctionExpression(node) {
-				if (isBlockStatement(node.body)) checkBodyStatements(node.body.body);
+
+			// `SwitchCase.consequent` is a statement list but not a `BlockStatement`,
+			// so it needs its own visit to catch ternaries inside `case` clauses.
+			SwitchCase(node) {
+				checkBodyStatements(node.consequent);
 			},
 		};
 	},
