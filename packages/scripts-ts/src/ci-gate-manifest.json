@@ -840,6 +840,11 @@
 			"hash": "784fa13a651b3079",
 			"mirror": "just ci-lint-ts",
 			"reason": "ci-lint-ts runs the identical pnpm --filter @org/lint-ts typecheck (tsc --noEmit) that this step runs. The package ships the repo's custom publy/* oxlint rules that guard every front surface, but nothing verified its own types — only its vitest tests ran (the step above). See issue #1600."
+		},
+		"quality-gate.yml::quality::Typecheck client-ts": {
+			"hash": "b9b9694f73a244ad",
+			"mirror": "just ci-lint-ts",
+			"reason": "ci-lint-ts now also runs pnpm --filter @org/client-ts typecheck (tsc --noEmit), the identical invocation this step runs. The Kiota-generated TypeScript API client's typecheck script was added to packages/client-ts/package.json but was never wired into any CI step or local gate — trompe-l’oeil coverage. See issue #1692."
 		}
 	}
 }
