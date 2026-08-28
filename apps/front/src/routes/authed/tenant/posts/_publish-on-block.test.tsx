@@ -79,6 +79,17 @@ const allowPermission = (allowed: boolean) => {
 	});
 };
 
+// D4 round-4 follow-up: the guard requires BOTH permissions. This helper
+// grants exactly ONE so we can prove the block stays null when the member
+// holds only the socialaccounts verb (the asymmetric case the seeder also
+// covers on the back end — PublishNowForTenant.Spec.ItShouldReturn403WithoutPostsPublishEvenWithSocialAccountsPublish).
+const allowOnlyPermission = (key: string) => {
+	mocks.useTenantPermissions.mockReturnValue({
+		permissions: [key],
+		hasPermission: (requested: string) => requested === key,
+	});
+};
+
 const stubTargets = () => {
 	mocks.useTargetsQuery.mockReturnValue({
 		data: {
@@ -113,6 +124,19 @@ afterEach(() => {
 describe('PublishOnBlock', () => {
 	test('renders nothing without the socialaccounts.publish permission', () => {
 		allowPermission(false);
+		stubTargets();
+
+		const { container } = renderBlock();
+
+		expect(container.innerHTML).toBe('');
+	});
+
+	// D4 round-4 follow-up: the guard requires BOTH posts.publish AND
+	// socialaccounts.publish (AND logic — PostEndpointsForTenant.cs:46-49).
+	// This test pins the asymmetric case: a member who holds only
+	// socialaccounts.publish (without posts.publish) must still get null.
+	test('renders nothing when the member holds only socialaccounts.publish', () => {
+		allowOnlyPermission('tenant.socialaccounts.publish');
 		stubTargets();
 
 		const { container } = renderBlock();
