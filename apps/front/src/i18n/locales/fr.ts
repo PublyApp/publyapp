@@ -11,6 +11,7 @@ import settings from './fr/settings.json';
 import socialAccounts from './fr/social-accounts.json';
 import staffAuditLogs from './fr/staff-audit-logs.json';
 import staffInvitations from './fr/staff-invitations.json';
+import staffJobs from './fr/staff-jobs.json';
 import staffTenantActivity from './fr/staff-tenant-activity.json';
 import staffTenantProfiles from './fr/staff-tenant-profiles.json';
 import staffUsers from './fr/staff-users.json';
@@ -29,6 +30,7 @@ const resourceFR = {
 	'staff-users': staffUsers,
 	'staff-invitations': staffInvitations,
 	'staff-audit-logs': staffAuditLogs,
+	'staff-jobs': staffJobs,
 	'staff-tenant-activity': staffTenantActivity,
 	landing,
 } as const satisfies LooseResource;

@@ -84,6 +84,12 @@ public static class AuditActions {
 	public const string SystemNoticeDeleted = "system.notice.deleted";
 	// K-1 (#863): operator resolved a dead-letter row's external-state triage.
 	public const string JobDeadLetterTriageResolved = "job.dead_letter.triage.resolved";
+	// A5 (#636): DLQ requeue + system_job_definitions dashboard mutations.
+	public const string JobDeadLetterRequeued = "job.dead_letter.requeued";
+	public const string JobSystemJobEnabled = "job.system_job.enabled";
+	public const string JobSystemJobDisabled = "job.system_job.disabled";
+	public const string JobSystemJobCronUpdated = "job.system_job.cron_updated";
+	public const string JobSystemJobTriggered = "job.system_job.triggered";
 	public const string StaffProfileCreated = "staff.profile.created";
 	public const string StaffProfilePermissionsAssigned = "staff.profile.permissions.assigned";
 	// Distinguish bulk delete of staff profiles from single-profile delete audit events.

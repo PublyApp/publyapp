@@ -789,6 +789,9 @@ public sealed class ComprehensiveRateLimitingSpec
 		int tenantBulkPermitLimit = 100,
 		int uploadPermitLimit = 100,
 		int socialConnectPermitLimit = 100,
+		// A5 (#636): generous by default so only specs that target SystemJobTrigger
+		// explicitly exercise its limits.
+		int systemJobTriggerPermitLimit = 1000,
 		ISessionService? sessionService = null
 	) {
 		var anonymousSettings =
@@ -854,6 +857,12 @@ public sealed class ComprehensiveRateLimitingSpec
 			),
 			SocialConnect: new RateLimitWindowSettings(
 				socialConnectPermitLimit,
+				LongWindowSeconds
+			),
+			// A5 (#636): the trigger policy's own window; generous here so only
+				// tests that target SystemJobTrigger explicitly exercise its limits.
+			SystemJobTrigger: new RateLimitWindowSettings(
+				systemJobTriggerPermitLimit,
 				LongWindowSeconds
 			)
 		);

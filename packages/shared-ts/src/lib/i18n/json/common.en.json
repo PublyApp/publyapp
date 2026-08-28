@@ -1057,6 +1057,10 @@
 	"tenant-update-failed": "Unable to update this tenant.",
 	"profile-save-failed": "Unable to save this profile.",
 	"revoke-invitation-success": "Invitation revoked.",
+	"dead-letter-requeue-success": "Job requeued.",
+	"system-job-trigger-success": "Job triggered.",
+	"system-job-toggle-success": "Job enabled state updated.",
+	"system-job-definition-update-success": "Schedule updated.",
 	"back-to-staff-profiles": "Back to staff profiles",
 	"unable-to-load-staff-permissions": "Unable to load staff permissions.",
 	"invitation-not-found": "Invitation not found",
@@ -1353,5 +1357,6 @@
 	"tenant-invitations-batch-summary": "{{succeeded}} succeeded · {{failed}} failed",
 	"post-saved-success": "Post saved successfully",
 	"post-deleted-success": "Post deleted successfully",
-	"unknown-invitee": "Unknown invitee"
+	"unknown-invitee": "Unknown invitee",
+	"nav-staff-jobs": "Jobs"
 }
