@@ -117,7 +117,7 @@ export const injectSeoMarkup = (
 		return output;
 	}
 
-	const origin = requestUrl.origin;
+	const origin = resolveOrigin(request);
 	const canonical = `${origin}${requestPath}`;
 	const metaTags: string[] = [];
 
