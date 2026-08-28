@@ -31,6 +31,5 @@
 	"**/*.test.ts": 90,
 	"**/*.test.tsx": 90,
 	"**/*.spec.ts": 90,
-	"**/*.spec.tsx": 90,
-	"apps/front/e2e/**": 90
+	"**/*.spec.tsx": 90
 }

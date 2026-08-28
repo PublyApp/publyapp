@@ -1,10 +1,14 @@
-import { type Row, flexRender } from '@tanstack/react-table';
+import { flexRender } from '@tanstack/react-table';
 import type { KeyboardEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Checkbox } from '~/components/ui/checkbox';
 import { TableBody, TableCell, TableRow } from '~/components/ui/table';
 
 import { columnDisplayMeta } from './column-display-meta';
+import type { Row } from './column-type';
+
+// v9 moved RowData to table-core; this alias keeps the constraint local.
+type RowData = Record<string, unknown>;
 
 /** Roving-tabindex position: the single body cell that is a tab stop. */
 export type FocusedCell = { row: number; cell: number };
@@ -26,7 +30,7 @@ const focusCellAt = (
 		`tr[data-row-index="${rowIndex}"] td[data-cell-index="${cellIndex}"]`,
 	) ?? null;
 
-export type DataTableBodyRowsProps<TData> = {
+export type DataTableBodyRowsProps<TData extends RowData> = {
 	rowModels: Row<TData>[];
 	totalCellsPerRow: number;
 	focusedCell: FocusedCell;
@@ -36,7 +40,7 @@ export type DataTableBodyRowsProps<TData> = {
 
 /** The body rows, their selection checkboxes and the roving-tabindex grid
  * navigation. Extracted from `DataTable` verbatim — same DOM, same handlers. */
-export const DataTableBodyRows = <TData,>({
+export const DataTableBodyRows = <TData extends RowData>({
 	rowModels,
 	totalCellsPerRow,
 	focusedCell,

@@ -1,4 +1,3 @@
-import type { ColumnDef } from '@tanstack/react-table';
 /**
  * @vitest-environment jsdom
  *
@@ -11,13 +10,17 @@ import type { ColumnDef } from '@tanstack/react-table';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { afterEach, describe, expect, test, vi } from 'vitest';
+import type { ColumnDef } from '~/components/table/column-type';
 import type { TestLabelMap } from '~/lib/testing/test-label-map';
+
+// v9 moved RowData to table-core; this alias keeps the constraint local.
+type RowData = Record<string, unknown>;
 
 vi.mock('~/components/table/data-table', () => ({
 	// Minimal stub: renders each row and invokes each column's `cell` so the
 	// toggle column (built by makeAssignMembersColumns) is exercised, without
 	// pulling in the real table controller machinery.
-	DataTable: <T,>({
+	DataTable: <T extends RowData>({
 		rows,
 		columns,
 		testId,
