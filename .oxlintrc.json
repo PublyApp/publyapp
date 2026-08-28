@@ -100,14 +100,6 @@
 			}
 		},
 		{
-			"files": [
-				"apps/front/scripts/guards/check-shared-ts-import-paths.test.mts"
-			],
-			"rules": {
-				"typescript/no-floating-promises": "off"
-			}
-		},
-		{
 			"files": ["apps/front/src/**"],
 			"rules": {
 				"complexity": ["error", { "max": 60 }]

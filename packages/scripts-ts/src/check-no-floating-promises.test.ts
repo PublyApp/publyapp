@@ -2,9 +2,7 @@ import assert from 'node:assert/strict';
 
 import { test, vi } from 'vitest';
 
-const { checkNoFloatingPromises } = await import(
-	`./check-${'no' + '-floating-promises.ts'}`
-);
+import { checkNoFloatingPromises } from './check-no-floating-promises.ts';
 
 test(
 	'the no-floating-promises count stays within the pinned baseline',
@@ -42,9 +40,8 @@ test(
 		});
 
 		// Re-import the binary so it picks up the mocked node:fs.
-		const { checkNoFloatingPromises: mockedCheck } = await import(
-			`./check-${'no' + '-floating-promises.ts'}?mocked`
-		);
+		const { checkNoFloatingPromises: mockedCheck } =
+			await import('./check-no-floating-promises.ts?mocked');
 
 		try {
 			const result = await mockedCheck();
@@ -82,9 +79,8 @@ test(
 			};
 		});
 
-		const { checkNoFloatingPromises: mockedCheck } = await import(
-			`./check-${'no' + '-floating-promises.ts'}?mocked-empty`
-		);
+		const { checkNoFloatingPromises: mockedCheck } =
+			await import('./check-no-floating-promises.ts?mocked-empty');
 
 		try {
 			const result = await mockedCheck();
@@ -121,9 +117,8 @@ test(
 			};
 		});
 
-		const { checkNoFloatingPromises: mockedCheck } = await import(
-			`./check-${'no' + '-floating-promises.ts'}?mocked-garbled`
-		);
+		const { checkNoFloatingPromises: mockedCheck } =
+			await import('./check-no-floating-promises.ts?mocked-garbled');
 
 		try {
 			const result = await mockedCheck();
@@ -162,9 +157,8 @@ test(
 			};
 		});
 
-		const { checkNoFloatingPromises: mockedCheck } = await import(
-			`./check-${'no' + '-floating-promises.ts'}?mocked-truncated`
-		);
+		const { checkNoFloatingPromises: mockedCheck } =
+			await import('./check-no-floating-promises.ts?mocked-truncated');
 
 		try {
 			const result = await mockedCheck();
@@ -202,9 +196,8 @@ test(
 			};
 		});
 
-		const { checkNoFloatingPromises: mockedCheck } = await import(
-			`./check-${'no' + '-floating-promises.ts'}?mocked-exit2`
-		);
+		const { checkNoFloatingPromises: mockedCheck } =
+			await import('./check-no-floating-promises.ts?mocked-exit2');
 
 		try {
 			const result = await mockedCheck();
@@ -241,9 +234,8 @@ test(
 			};
 		});
 
-		const { checkNoFloatingPromises: mockedCheck } = await import(
-			`./check-${'no' + '-floating-promises.ts'}?mocked-zero-files`
-		);
+		const { checkNoFloatingPromises: mockedCheck } =
+			await import('./check-no-floating-promises.ts?mocked-zero-files');
 
 		try {
 			const result = await mockedCheck();
@@ -289,9 +281,8 @@ test(
 			};
 		});
 
-		const { checkNoFloatingPromises: mockedCheck } = await import(
-			`./check-${'no' + '-floating-promises.ts'}?mocked-valid`
-		);
+		const { checkNoFloatingPromises: mockedCheck } =
+			await import('./check-no-floating-promises.ts?mocked-valid');
 
 		try {
 			const result = await mockedCheck();
@@ -300,6 +291,232 @@ test(
 			assert.strictEqual(result.actual, 5);
 		} finally {
 			vi.doUnmock('node:child_process');
+		}
+	},
+);
+
+test(
+	'the ratchet FAILS (withinLimit=false) when the count exceeds the baseline',
+	{ timeout: 30_000 },
+	async () => {
+		// The ratchet must return withinLimit=false (and the binary must exit
+		// nonzero) when the warning count rises above the pinned baseline.
+		// A test that only asserts `result.withinLimit` is trivially satisfied
+		// by `true` — this test asserts the EXACT negation: false, not "error".
+		vi.doMock('node:child_process', async (importOriginal) => {
+			const actual =
+				await importOriginal<typeof import('node:child_process')>();
+			return {
+				...actual,
+				spawnSync: () => ({
+					status: 0,
+					stdout: JSON.stringify({
+						diagnostics: Array.from({ length: 401 }, () => ({
+							message: 'Promises must be awaited',
+							code: 'typescript(no-floating-promises)',
+							severity: 'warning',
+						})),
+						number_of_files: 1000,
+					}),
+					stderr: '',
+					error: null,
+				}),
+			};
+		});
+
+		const { checkNoFloatingPromises: mockedCheck } =
+			await import('./check-no-floating-promises.ts?mocked-over-baseline');
+
+		try {
+			const result = await mockedCheck();
+
+			// MUST be boolean false — not "error", not undefined, not null.
+			assert.strictEqual(
+				result.withinLimit,
+				false,
+				'expected withinLimit=false when count exceeds baseline, ' +
+					`but got withinLimit=${result.withinLimit}`,
+			);
+			// The actual count must be reported accurately.
+			assert.strictEqual(result.actual, 401);
+		} finally {
+			vi.doUnmock('node:child_process');
+		}
+	},
+);
+
+test(
+	'the ratchet FAILS CLOSED when the baseline file is missing',
+	{ timeout: 30_000 },
+	async () => {
+		// If no-floating-promises-baseline.json does not exist, readFile
+		// throws ENOENT, which the catch converts to withinLimit="error".
+		vi.doMock('node:fs/promises', async (importOriginal) => {
+			const actual = await importOriginal<typeof import('node:fs/promises')>();
+			return {
+				...actual,
+				readFile: async () => {
+					throw new Error(
+						"ENOENT: no such file or directory, open 'no-floating-promises-baseline.json'",
+					);
+				},
+			};
+		});
+
+		const { checkNoFloatingPromises: mockedCheck } =
+			await import('./check-no-floating-promises.ts?mocked-missing-baseline');
+
+		try {
+			const result = await mockedCheck();
+
+			assert.strictEqual(
+				result.withinLimit,
+				'error',
+				'expected withinLimit="error" when baseline file is missing, ' +
+					`but got withinLimit=${result.withinLimit}`,
+			);
+		} finally {
+			vi.doUnmock('node:fs/promises');
+		}
+	},
+);
+
+test(
+	'the ratchet FAILS CLOSED when the baseline file is unreadable',
+	{ timeout: 30_000 },
+	async () => {
+		// Permission denied on the baseline file — also withinLimit="error".
+		vi.doMock('node:fs/promises', async (importOriginal) => {
+			const actual = await importOriginal<typeof import('node:fs/promises')>();
+			return {
+				...actual,
+				readFile: async () => {
+					throw new Error('EACCES: permission denied');
+				},
+			};
+		});
+
+		const { checkNoFloatingPromises: mockedCheck } =
+			await import('./check-no-floating-promises.ts?mocked-unreadable-baseline');
+
+		try {
+			const result = await mockedCheck();
+
+			assert.strictEqual(
+				result.withinLimit,
+				'error',
+				'expected withinLimit="error" when baseline file is unreadable, ' +
+					`but got withinLimit=${result.withinLimit}`,
+			);
+		} finally {
+			vi.doUnmock('node:fs/promises');
+		}
+	},
+);
+
+test(
+	'the ratchet FAILS CLOSED when the baseline JSON is missing the count key',
+	{ timeout: 30_000 },
+	async () => {
+		// Baseline file exists and is valid JSON but has no `count` field.
+		// JSON.parse succeeds, but baseline.count is undefined, so the
+		// comparison `actualCount <= baseline.count` yields false (NaN-like).
+		// The catch converts this to withinLimit="error".
+		vi.doMock('node:fs/promises', async (importOriginal) => {
+			const actual = await importOriginal<typeof import('node:fs/promises')>();
+			return {
+				...actual,
+				readFile: async () =>
+					JSON.stringify({
+						rule: 'typescript(no-floating-promises)',
+						// count is intentionally missing
+					}),
+			};
+		});
+
+		const { checkNoFloatingPromises: mockedCheck } =
+			await import('./check-no-floating-promises.ts?mocked-missing-count');
+
+		try {
+			const result = await mockedCheck();
+
+			assert.strictEqual(
+				result.withinLimit,
+				'error',
+				'expected withinLimit="error" when baseline is missing count key, ' +
+					`but got withinLimit=${result.withinLimit}`,
+			);
+		} finally {
+			vi.doUnmock('node:fs/promises');
+		}
+	},
+);
+
+test(
+	'the ratchet FAILS CLOSED when the baseline count is non-numeric',
+	{ timeout: 30_000 },
+	async () => {
+		// Baseline file has count as a string "400" instead of number 400.
+		// The comparison `actualCount <= "400"` would be false (string compare),
+		// so the ratchet must fail closed rather than silently pass.
+		vi.doMock('node:fs/promises', async (importOriginal) => {
+			const actual = await importOriginal<typeof import('node:fs/promises')>();
+			return {
+				...actual,
+				readFile: async () =>
+					JSON.stringify({
+						rule: 'typescript(no-floating-promises)',
+						count: '400', // string, not number
+					}),
+			};
+		});
+
+		const { checkNoFloatingPromises: mockedCheck } =
+			await import('./check-no-floating-promises.ts?mocked-string-count');
+
+		try {
+			const result = await mockedCheck();
+
+			assert.strictEqual(
+				result.withinLimit,
+				'error',
+				'expected withinLimit="error" when baseline count is non-numeric, ' +
+					`but got withinLimit=${result.withinLimit}`,
+			);
+		} finally {
+			vi.doUnmock('node:fs/promises');
+		}
+	},
+);
+
+test(
+	'the ratchet FAILS CLOSED when the baseline JSON is malformed',
+	{ timeout: 30_000 },
+	async () => {
+		// The baseline file contains invalid JSON. JSON.parse throws,
+		// which the catch converts to withinLimit="error".
+		vi.doMock('node:fs/promises', async (importOriginal) => {
+			const actual = await importOriginal<typeof import('node:fs/promises')>();
+			return {
+				...actual,
+				readFile: async () => '{ "rule": "broken", ',
+			};
+		});
+
+		const { checkNoFloatingPromises: mockedCheck } =
+			await import('./check-no-floating-promises.ts?mocked-malformed-baseline');
+
+		try {
+			const result = await mockedCheck();
+
+			assert.strictEqual(
+				result.withinLimit,
+				'error',
+				'expected withinLimit="error" when baseline JSON is malformed, ' +
+					`but got withinLimit=${result.withinLimit}`,
+			);
+		} finally {
+			vi.doUnmock('node:fs/promises');
 		}
 	},
 );

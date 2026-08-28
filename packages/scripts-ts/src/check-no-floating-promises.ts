@@ -148,6 +148,26 @@ export const checkNoFloatingPromises = async (): Promise<RatchetResult> => {
 			rule: string;
 			count: number;
 		};
+
+		// Fail closed: an invalid baseline must never silently pass. A missing
+		// rule or a missing/non-numeric count means we cannot verify the
+		// ratchet — throwing here converts to withinLimit="error".
+		if (typeof baseline.rule !== 'string' || baseline.rule.length === 0) {
+			throw new Error(
+				'baseline JSON is missing a valid `rule` string — ' +
+					'cannot count no-floating-promises warnings without a rule to match.',
+			);
+		}
+		if (
+			typeof baseline.count !== 'number' ||
+			!Number.isFinite(baseline.count)
+		) {
+			throw new Error(
+				`baseline JSON has a missing or non-numeric \`count\` (${String(baseline.count)}) — ` +
+					'cannot compare the warning count against an invalid baseline.',
+			);
+		}
+
 		const { stdout } = runOxlint();
 		const actualCount = countWarningsFromJson(stdout, baseline.rule);
 
