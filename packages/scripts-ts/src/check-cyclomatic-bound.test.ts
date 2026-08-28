@@ -17,7 +17,7 @@ const writeFixture = async (rootDir, relativePath, contents) => {
 	await writeFile(absolutePath, contents);
 };
 
-// Builds a throwaway repo with an .oxlintrc.json and a .cyclomatic-bound-ref.json.
+// Builds a throwaway repo with an .oxlintrc.json and a cyclomatic-bound-ref.json.
 // @ts-expect-error rung-0: add proper type in later rung
 const buildFixture = async (oxlintrcJson, refJson) => {
 	const rootDir = await mkdtemp(
@@ -33,14 +33,14 @@ const buildFixture = async (oxlintrcJson, refJson) => {
 	);
 	await writeFixture(
 		rootDir,
-		'.cyclomatic-bound-ref.json',
+		'cyclomatic-bound-ref.json',
 		typeof refJson === 'string' ? refJson : JSON.stringify(refJson, null, '\t'),
 	);
 
 	return {
 		rootDir,
 		oxlintrcPath: path.join(rootDir, '.oxlintrc.json'),
-		refPath: path.join(rootDir, '.cyclomatic-bound-ref.json'),
+		refPath: path.join(rootDir, 'cyclomatic-bound-ref.json'),
 	};
 };
 
@@ -50,7 +50,7 @@ const repoRoot = path.resolve(
 );
 
 // The canonical reference values — the documented policy. The test independently
-// asserts these, so relaxing a ceiling in .cyclomatic-bound-ref.json alone is
+// asserts these, so relaxing a ceiling in cyclomatic-bound-ref.json alone is
 // insufficient: the test assertions must also change.
 const DOCUMENTED_POLICY = {
 	__default__: 125,
@@ -104,7 +104,7 @@ const canonicalRef = { ...DOCUMENTED_POLICY };
 // Nominal green case
 // ---------------------------------------------------------------------------
 
-test('passes when .oxlintrc.json matches .cyclomatic-bound-ref.json exactly', async () => {
+test('passes when .oxlintrc.json matches cyclomatic-bound-ref.json exactly', async () => {
 	const { oxlintrcPath, refPath } = await buildFixture(
 		canonicalOxlint,
 		canonicalRef,
@@ -253,7 +253,7 @@ test('a truncated .oxlintrc.json fails with a SyntaxError (no silent false negat
 	assert.match(errors[0], /SyntaxError/);
 });
 
-test('a truncated .cyclomatic-bound-ref.json fails with a SyntaxError', async () => {
+test('a truncated cyclomatic-bound-ref.json fails with a SyntaxError', async () => {
 	const { oxlintrcPath, refPath } = await buildFixture(
 		canonicalOxlint,
 		'{\n  "__default__": 125,\n  "apps/',
@@ -288,14 +288,17 @@ test('lowering a ceiling below the reference value fails', async () => {
 });
 
 // ---------------------------------------------------------------------------
-// Reference-level self-check: the committed .cyclomatic-bound-ref.json must
+// Reference-level self-check: the committed cyclomatic-bound-ref.json must
 // encode the documented policy constants. This is the Constat 2 defense: even
-// if someone edits .cyclomatic-bound-ref.json and .oxlintrc.json together,
+// if someone edits cyclomatic-bound-ref.json and .oxlintrc.json together,
 // the test still catches the change because these values are asserted here.
 // ---------------------------------------------------------------------------
 
 test('the committed reference file encodes the documented policy constants', async () => {
-	const refPath = path.resolve(repoRoot, '.cyclomatic-bound-ref.json');
+	const refPath = path.resolve(
+		repoRoot,
+		'packages/scripts-ts/src/cyclomatic-bound-ref.json',
+	);
 
 	const content = await readFile(refPath, 'utf-8');
 	const reference = JSON.parse(content);
@@ -313,15 +316,18 @@ test('the committed reference file encodes the documented policy constants', asy
 // Real-tree green: the actual repo files must pass.
 // ---------------------------------------------------------------------------
 
-test('the real repository .oxlintrc.json and .cyclomatic-bound-ref.json are reconciled', async () => {
+test('the real repository .oxlintrc.json and cyclomatic-bound-ref.json are reconciled', async () => {
 	const realOxlintPath = path.resolve(repoRoot, '.oxlintrc.json');
-	const realRefPath = path.resolve(repoRoot, '.cyclomatic-bound-ref.json');
+	const realRefPath = path.resolve(
+		repoRoot,
+		'packages/scripts-ts/src/cyclomatic-bound-ref.json',
+	);
 
 	const errors = verifyComplexityBounds(realOxlintPath, realRefPath);
 
 	assert.deepEqual(
 		errors,
 		[],
-		`the real .oxlintrc.json must match .cyclomatic-bound-ref.json\n${errors.join('\n')}`,
+		`the real .oxlintrc.json must match cyclomatic-bound-ref.json\n${errors.join('\n')}`,
 	);
 });

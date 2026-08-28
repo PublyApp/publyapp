@@ -769,7 +769,7 @@
 		"quality-gate.yml::quality::Verify complexity bounds are not drifting (#1661)": {
 			"hash": "141f697f555addee",
 			"mirror": "node packages/scripts-ts/src/check-cyclomatic-bound.ts",
-			"reason": "The check-cyclomatic-bound guard verifies that complexity ceilings in .oxlintrc.json are not drifting. It reads the TRUE values from .oxlintrc.json and ensures they match the committed expected configuration in .cyclomatic-bound-ref.json (apps/front/src/**: 60, test files: 90, default: 125). CI runs this guard to provide actual protection against bound drift."
+			"reason": "The check-cyclomatic-bound guard verifies that complexity ceilings in .oxlintrc.json are not drifting. It reads the TRUE values from .oxlintrc.json and ensures they match the committed expected configuration in packages/scripts-ts/src/cyclomatic-bound-ref.json (apps/front/src/**: 60, test files: 90, default: 125). CI runs this guard to provide actual protection against bound drift."
 		},
 		"react-doctor.yml::changes::Check whether react-doctor paths changed": {
 			"hash": "85b8ebcec99c9f7d",
