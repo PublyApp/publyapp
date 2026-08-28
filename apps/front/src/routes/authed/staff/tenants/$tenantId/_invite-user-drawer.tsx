@@ -337,22 +337,6 @@ type UseInviteProfileResolutionArgs = {
 	t: Translate;
 };
 
-type UseInviteProfileResolutionResult = {
-	unresolvedByRowKey: Record<string, UnresolvedEntry[]>;
-	profileResolutionLimitError: string;
-	isResolvingProfiles: boolean;
-};
-
-/** Server-side profile-name resolution (#979): resolves the unique names on
- * file/manual rows once per signature change and stamps ids back onto the rows.
- * Pulled into its own hook so the host component stays under the
- * giant-component threshold. Owns the unresolved-by-row-key map, the
- * over-limit error, and the resolving flag.
- *
- * State updates fire from a methods.watch callback (event handler), not from an
- * effect body — this is what react-doctor's no-pass-data-to-parent and
- * no-adjust-state-on-prop-change permit. The effect only subscribes and runs an
- * initial pass. */
 const useInviteProfileResolution = ({
 	tenantId,
 	rows,
@@ -361,7 +345,17 @@ const useInviteProfileResolution = ({
 	resolveNames,
 	onSessionExpired,
 	t,
-}: UseInviteProfileResolutionArgs): UseInviteProfileResolutionResult => {
+}: UseInviteProfileResolutionArgs) => {
+	/** Server-side profile-name resolution (#979): resolves the unique names on
+	 * file/manual rows once per signature change and stamps ids back onto the rows.
+	 * Pulled into its own hook so the host component stays under the
+	 * giant-component threshold. Owns the unresolved-by-row-key map, the
+	 * over-limit error, and the resolving flag.
+	 *
+	 * State updates fire from a methods.watch callback (event handler), not from an
+	 * effect body — this is what react-doctor's no-pass-data-to-parent and
+	 * no-adjust-state-on-prop-change permit. The effect only subscribes and runs an
+	 * initial pass. */
 	const [unresolvedByRowKey, setUnresolvedByRowKey] = useState<
 		Record<string, UnresolvedEntry[]>
 	>({});
@@ -450,7 +444,7 @@ const useInviteProfileResolution = ({
 		unresolvedByRowKey,
 		profileResolutionLimitError,
 		isResolvingProfiles: resolveNames.isPending,
-	} satisfies UseInviteProfileResolutionResult;
+	};
 };
 
 type RowInvalidLevelNoteProps = {
