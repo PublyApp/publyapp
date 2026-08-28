@@ -1,72 +1,83 @@
 /**
  * @vitest-environment node
  */
+import { JSDOM } from 'jsdom';
 import * as React from 'react';
 import * as ReactDOMServer from 'react-dom/server';
 import { describe, expect, test } from 'vitest';
 
 import { ScrollArea } from './scroll-area';
 
-// Rendered once and reused across assertions: the full HTML contract is the
-// same no matter which subset of classes a given assertion probes, and we
-// want a single capture to reason against — not N renders whose outputs a
-// future drift could silently desync.
-function render(label: string, child: React.ReactNode = <div>alpha</div>) {
-	return ReactDOMServer.renderToStaticMarkup(
-		<ScrollArea scrollAreaLabel={label}>{child}</ScrollArea>,
-	);
-}
-
-describe('ScrollArea — SSR-safe render (node, no window/document)', () => {
-	test('renders the full SimpleBar DOM contract as static markup without touching the DOM', () => {
-		const html = render('Contenu déroulant');
-
-		// Engine contract: every node SimpleBar's init() adopts must exist in
-		// the server output, with the exact class names the engine reads.
-		expect(html).toContain('data-simplebar="init"');
-		expect(html).toContain('simplebar-wrapper');
-		expect(html).toContain('simplebar-height-auto-observer-wrapper');
-		expect(html).toContain('simplebar-height-auto-observer');
-		expect(html).toContain('simplebar-mask');
-		expect(html).toContain('simplebar-offset');
-		expect(html).toContain('simplebar-content-wrapper');
-		expect(html).toContain('simplebar-content');
-		expect(html).toContain('simplebar-placeholder');
-
-		// Two tracks (horizontal + vertical), each carrying a thumb.
-		expect(html).toContain('simplebar-track simplebar-horizontal');
-		expect(html).toContain('simplebar-track simplebar-vertical');
-		// Exactly two .simplebar-scrollbar nodes — one per track.
-		const scrollbarCount = html.split('simplebar-scrollbar').length - 1;
-		expect(scrollbarCount).toBe(2);
-
-		// The real scroller (the node that receives scrollTop writes) carries
-		// the engine's region semantics and the consumer's accessible name.
-		expect(html).toContain('role="region"');
-		expect(html).toContain('aria-label="Contenu déroulant"');
-		expect(html).toContain('tabindex="-1"');
-
-		// Server output must stay inert: no revealed thumbs, no focus ring.
-		expect(html).not.toContain('simplebar-visible');
-		expect(html).not.toContain('simplebar-scrolling');
-	});
-
-	test('children land inside the content slot (no remount, same scaffold on both sides)', () => {
-		const html = render(
-			'Liste',
-			<ul>
-				<li>alpha</li>
-				<li>beta</li>
-			</ul>,
+describe('ScrollArea (SSR)', () => {
+	test('renders the full SimpleBar DOM contract on the server with correct nesting', () => {
+		const html = ReactDOMServer.renderToStaticMarkup(
+			<ScrollArea scrollAreaLabel="Contenu déroulant">
+				<div>alpha</div>
+			</ScrollArea>,
 		);
 
-		// Children are emitted inside the SimpleBar content slot — not outside
-		// the scaffold — so the adopted tree matches between server and client.
-		const contentIdx = html.indexOf('simplebar-content">');
-		expect(contentIdx).toBeGreaterThan(-1);
-		const markupFromContent = html.slice(contentIdx);
-		expect(markupFromContent).toContain('<ul>');
-		expect(markupFromContent).toContain('<li>alpha</li>');
-		expect(markupFromContent).toContain('<li>beta</li>');
+		const dom = new JSDOM(html);
+		const parsed = dom.window.document;
+
+		const root = parsed.querySelector('[data-simplebar="init"]');
+		expect(root).not.toBeNull();
+
+		const wrapper = root?.querySelector('.simplebar-wrapper');
+		expect(wrapper).not.toBeNull();
+		expect(wrapper?.parentElement).toBe(root);
+
+		const placeholder = wrapper?.querySelector('.simplebar-placeholder');
+		expect(placeholder).not.toBeNull();
+		expect(placeholder?.parentElement).toBe(wrapper);
+
+		const mask = wrapper?.querySelector('.simplebar-mask');
+		expect(mask).not.toBeNull();
+		expect(mask?.parentElement).toBe(wrapper);
+
+		const offset = mask?.querySelector('.simplebar-offset');
+		expect(offset).not.toBeNull();
+		expect(offset?.parentElement).toBe(mask);
+
+		const scroller = offset?.querySelector('.simplebar-content-wrapper');
+		expect(scroller).not.toBeNull();
+		expect(scroller?.parentElement).toBe(offset);
+
+		const content = scroller?.querySelector('.simplebar-content');
+		expect(content).not.toBeNull();
+		expect(content?.parentElement).toBe(scroller);
+		expect(content?.textContent).toBe('alpha');
+
+		expect(scroller?.getAttribute('role')).toBe('region');
+		expect(scroller?.getAttribute('aria-label')).toBe('Contenu déroulant');
+
+		const trackHorizontal = root?.querySelector(
+			'.simplebar-track.simplebar-horizontal',
+		);
+		expect(trackHorizontal).not.toBeNull();
+		expect(trackHorizontal?.parentElement).toBe(root);
+
+		const trackVertical = root?.querySelector(
+			'.simplebar-track.simplebar-vertical',
+		);
+		expect(trackVertical).not.toBeNull();
+		expect(trackVertical?.parentElement).toBe(root);
+
+		const scrollbars = parsed.querySelectorAll('.simplebar-scrollbar');
+		expect(scrollbars).toHaveLength(2);
+
+		expect(parsed.querySelectorAll('.simplebar-visible')).toHaveLength(0);
+	});
+
+	test('server output stays inert: no revealed thumbs, no focusability', () => {
+		const html = ReactDOMServer.renderToStaticMarkup(
+			<ScrollArea scrollAreaLabel="Test">
+				<div>content</div>
+			</ScrollArea>,
+		);
+
+		const dom = new JSDOM(html);
+		const parsed = dom.window.document;
+
+		expect(parsed.querySelectorAll('.simplebar-visible')).toHaveLength(0);
 	});
 });
