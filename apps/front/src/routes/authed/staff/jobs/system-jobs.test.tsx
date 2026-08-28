@@ -261,29 +261,25 @@ vi.mock('~/components/table/data-table', () => ({
 		columns,
 		rows,
 		queryState,
-		pagination,
 	}: {
 		testId?: string;
-		columns: unknown[];
-		rows: unknown[];
+		columns: Array<{ id: string; cell: (ctx: unknown) => ReactNode }>;
+		rows: Array<{ id: string; jobKey: string }>;
 		queryState: { isPending: boolean; isError: boolean };
-		pagination: unknown;
 	}) =>
 		createElement('div', { 'data-testid': testId }, [
 			queryState.isPending
 				? createElement('div', { key: 'loading' }, 'Loading...')
-				: rows.map((row: { id: string; jobKey: string }) =>
+				: rows.map((row) =>
 						createElement(
 							'div',
 							{ key: row.id, 'data-testid': `row-${row.id}` },
-							// Render each column cell, passing row context
-							columns.map(
-								(col: { id: string; cell: (ctx: unknown) => ReactNode }) =>
-									createElement(
-										'span',
-										{ key: col.id, 'data-testid': `cell-${col.id}-${row.id}` },
-										col.cell({ row: { original: row } }),
-									),
+							columns.map((col) =>
+								createElement(
+									'span',
+									{ key: col.id, 'data-testid': `cell-${col.id}-${row.id}` },
+									col.cell({ row: { original: row } }),
+								),
 							),
 						),
 					),
