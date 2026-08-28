@@ -64,8 +64,12 @@ describe('compose-file TRUSTED_PROXY_CIDRS consistency (r5)', () => {
  *
  * The existing e2e SEO test passes through Traefik (which sets these headers
  * legitimately) and can only ever exercise the happy path. This test sends a
- * forged `x-forwarded-host` directly to the server, bypassing any proxy, and
- * asserts the origin falls back to the real socket origin.
+ * forged `x-forwarded-host` directly to a srvx server instance, bypassing any
+ * proxy, and asserts the origin falls back to the real socket origin.
+ *
+ * It exercises the full HTTP path: real `serve()` → forged `x-forwarded-*`
+ * headers over a localhost fetch → srvx's `isTrustedProxy`/`applyTrustedProxy`
+ * → `injectSeoMarkup` → rendered `<link rel="canonical">`/`<meta og:url>`.
  */
 
 const HOST = '127.0.0.1';
@@ -129,10 +133,13 @@ const extractOgUrl = (html: string): string | null => {
 };
 
 /**
- * Re-implements the parsing logic from server.mjs so the test can verify
- * the exact behavior without importing server.mjs (which has side effects).
+ * Mirrors `resolveTrustProxyFromEnv` from server.mjs so the test can verify
+ * the env-parsing behavior in isolation without importing server.mjs (which
+ * has side effects at module-load time). The primary behavioral coverage is
+ * the RED/GREEN HTTP cases above; this unit-level check pins the CIDR-stripping
+ * contract.
  */
-const parseTrustProxyFromEnv = (envValue: string | undefined): string[] => {
+const resolveTrustProxyFromEnv = (envValue: string | undefined): string[] => {
 	const raw = envValue?.trim();
 	if (!raw) {
 		return ['127.0.0.1', '::1'];
@@ -214,19 +221,19 @@ describe('trust-proxy security (r2-shell-F10)', () => {
 		expect(extractOgUrl(html)).toContain('legitimate-proxy.test');
 	});
 
-	// --- Env var parsing ---
-	// Verifies that the TRUSTED_PROXY_CIDRS parsing strips CIDR notation,
+	// --- Env var parsing (unit-level pinning of the CIDR-stripping contract) ---
+	// Verifies that `resolveTrustProxyFromEnv` strips CIDR notation,
 	// since srvx uses exact string matching, not subnet matching.
-	test('parseTrustProxyFromEnv strips CIDR notation for srvx exact-match semantics', () => {
-		expect(parseTrustProxyFromEnv(undefined)).toEqual(['127.0.0.1', '::1']);
-		expect(parseTrustProxyFromEnv('')).toEqual(['127.0.0.1', '::1']);
-		expect(parseTrustProxyFromEnv('   ')).toEqual(['127.0.0.1', '::1']);
-		expect(parseTrustProxyFromEnv('10.0.0.5/32')).toEqual(['10.0.0.5']);
-		expect(parseTrustProxyFromEnv('127.0.0.1/32,::1/128')).toEqual([
+	test('resolveTrustProxyFromEnv strips CIDR notation for srvx exact-match semantics', () => {
+		expect(resolveTrustProxyFromEnv(undefined)).toEqual(['127.0.0.1', '::1']);
+		expect(resolveTrustProxyFromEnv('')).toEqual(['127.0.0.1', '::1']);
+		expect(resolveTrustProxyFromEnv('   ')).toEqual(['127.0.0.1', '::1']);
+		expect(resolveTrustProxyFromEnv('10.0.0.5/32')).toEqual(['10.0.0.5']);
+		expect(resolveTrustProxyFromEnv('127.0.0.1/32,::1/128')).toEqual([
 			'127.0.0.1',
 			'::1',
 		]);
-		expect(parseTrustProxyFromEnv(' 10.0.0.5/32 , 10.0.0.6/32 ')).toEqual([
+		expect(resolveTrustProxyFromEnv(' 10.0.0.5/32 , 10.0.0.6/32 ')).toEqual([
 			'10.0.0.5',
 			'10.0.0.6',
 		]);
