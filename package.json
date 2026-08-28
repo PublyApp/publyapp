@@ -21,7 +21,7 @@
 		"test:nuget-audit": "pnpm --filter scripts-ts exec vitest run src/nuget-audit.test.ts"
 	},
 	"devDependencies": {
-		"@types/node": "^20.19.7",
+		"@types/node": "^24.13.3",
 		"chokidar": "^5.0.0",
 		"husky": "^9.0.11",
 		"knip": "6.32.2",

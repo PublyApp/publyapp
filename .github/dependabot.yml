@@ -33,6 +33,14 @@ updates:
     commit-message:
       prefix: "chore"
       include: "scope"
+    ignore:
+      # @types/node must follow the runtime, never lead it. The repo runs Node 24
+      # (engines ">=v24.x", .nvmrc "24.x", every workflow pins node-version 24).
+      # Types for a newer Node describe built-ins that do not exist at runtime, so
+      # tsc goes green on code that throws — a false negative by construction.
+      # Raise this bound in the same change that raises the runtime. See #1580.
+      - dependency-name: "@types/node"
+        versions: [">=25"]
 
   - package-ecosystem: "nuget"
     directory: "/apps/api"
