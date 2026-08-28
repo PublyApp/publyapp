@@ -15,24 +15,31 @@ const staticFileHandler = createStaticMiddleware({
 });
 
 /**
- * Bounded trust proxy (r2-shell-F10): srvx accepts an array of IPs/CIDRs for
+ * Bounded trust proxy (r2-shell-F10): srvx accepts an array of IPs for
  * `trustProxy`. Only peers in that list have their `x-forwarded-*` headers
- * applied; everyone else falls back to the real socket origin. Defaults to
- * loopback-only; production sets `TRUSTED_PROXY_CIDRS` to Traefik's exact
- * /32 (or /128) address(es).
+ * applied; everyone else falls back to the real socket origin.
+ *
+ * Note: srvx's `isTrustedProxy` uses exact string matching
+ * (`Array.includes()`), NOT CIDR subnet matching. So we strip any `/32` or
+ * `/128` suffix from `TRUSTED_PROXY_CIDRS` before passing to srvx.
+ * Defaults to loopback-only; production sets `TRUSTED_PROXY_CIDRS` to
+ * Traefik's exact address(es).
  */
-const trustProxy = (() => {
-	const cidrs = process.env.TRUSTED_PROXY_CIDRS?.trim();
-	if (!cidrs) {
-		return ['127.0.0.1/32', '::1/128'];
+const resolveTrustProxyFromEnv = () => {
+	const raw = process.env.TRUSTED_PROXY_CIDRS?.trim();
+	if (!raw) {
+		return ['127.0.0.1', '::1'];
 	}
-	return cidrs.split(',').map((c) => c.trim()).filter(Boolean);
-})();
+	return raw
+		.split(',')
+		.map((entry) => entry.trim().split('/')[0])
+		.filter((entry) => entry.length > 0);
+};
 
 const server = serve({
 	port,
 	hostname: process.env.HOST ?? '0.0.0.0',
-	trustProxy,
+	trustProxy: resolveTrustProxyFromEnv(),
 	middleware: [staticFileHandler],
 	fetch: (request) => handler.fetch(request),
 });

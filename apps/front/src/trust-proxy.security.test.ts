@@ -25,7 +25,8 @@ const htmlWithHead =
 	'<html><head><title>Test</title></head><body></body></html>';
 
 /** Minimal translator that returns a fixed title. */
-const fakeT = (key: string) => (key.includes('title') ? 'Test PublyApp' : 'Test desc');
+const fakeT = (key: string) =>
+	key.includes('title') ? 'Test PublyApp' : 'Test desc';
 
 /**
  * Starts a srvx server whose fetch handler mirrors the real front handler's
@@ -71,10 +72,23 @@ const extractCanonical = (html: string): string | null => {
 };
 
 const extractOgUrl = (html: string): string | null => {
-	const match = html.match(
-		/<meta\s+property="og:url"\s+content="([^"]+)"/i,
-	);
+	const match = html.match(/<meta\s+property="og:url"\s+content="([^"]+)"/i);
 	return match?.[1] ?? null;
+};
+
+/**
+ * Re-implements the parsing logic from server.mjs so the test can verify
+ * the exact behavior without importing server.mjs (which has side effects).
+ */
+const parseTrustProxyFromEnv = (envValue: string | undefined): string[] => {
+	const raw = envValue?.trim();
+	if (!raw) {
+		return ['127.0.0.1', '::1'];
+	}
+	return raw
+		.split(',')
+		.map((entry) => entry.trim().split('/')[0])
+		.filter(Boolean);
 };
 
 describe('trust-proxy security (r2-shell-F10)', () => {
@@ -87,9 +101,6 @@ describe('trust-proxy security (r2-shell-F10)', () => {
 	});
 
 	// --- RED case: the vulnerable default ---
-	// `trustProxy: true` accepts forwarded headers from ANY peer, including a
-	// direct request that never passed through Traefik. The canonical then
-	// points at the attacker's domain.
 	test('trustProxy: true accepts forged x-forwarded-host from a direct peer (RED — vulnerability present)', async () => {
 		const { server: s, origin } = await startServer(true);
 		server = s;
@@ -108,10 +119,6 @@ describe('trust-proxy security (r2-shell-F10)', () => {
 	});
 
 	// --- GREEN case: bounded trust proxy ---
-	// A request from 127.0.0.1 to a server that trusts a DIFFERENT address has
-	// its forwarded headers dropped, so canonical falls back to the real socket
-	// origin. This mirrors production: `TRUSTED_PROXY_CIDRS` set to Traefik's
-	// exact address means peer containers on `dokploy-network` cannot forge XFF.
 	test('bounded trust proxy ignores forged x-forwarded-host from an untrusted peer (GREEN — fix applied)', async () => {
 		// Trust an address that is NOT 127.0.0.1, so this test's peer
 		// (127.0.0.1) is untrusted and forwarded headers are ignored.
@@ -134,8 +141,6 @@ describe('trust-proxy security (r2-shell-F10)', () => {
 	});
 
 	// --- Legitimate proxy path still works ---
-	// When the request comes from a trusted peer, forwarded headers ARE
-	// accepted. This proves the fix does not break the Traefik path.
 	test('trusted peer: forwarded headers accepted from loopback when loopback is trusted', async () => {
 		// Trust loopback (the test's own peer), so forwarded headers apply.
 		// In production the trusted peer is Traefik, not loopback; this test
@@ -155,5 +160,23 @@ describe('trust-proxy security (r2-shell-F10)', () => {
 		// Trusted peer's forwarded headers are applied.
 		expect(extractCanonical(html)).toContain('legitimate-proxy.test');
 		expect(extractOgUrl(html)).toContain('legitimate-proxy.test');
+	});
+
+	// --- Env var parsing ---
+	// Verifies that the TRUSTED_PROXY_CIDRS parsing strips CIDR notation,
+	// since srvx uses exact string matching, not subnet matching.
+	test('parseTrustProxyFromEnv strips CIDR notation for srvx exact-match semantics', () => {
+		expect(parseTrustProxyFromEnv(undefined)).toEqual(['127.0.0.1', '::1']);
+		expect(parseTrustProxyFromEnv('')).toEqual(['127.0.0.1', '::1']);
+		expect(parseTrustProxyFromEnv('   ')).toEqual(['127.0.0.1', '::1']);
+		expect(parseTrustProxyFromEnv('10.0.0.5/32')).toEqual(['10.0.0.5']);
+		expect(parseTrustProxyFromEnv('127.0.0.1/32,::1/128')).toEqual([
+			'127.0.0.1',
+			'::1',
+		]);
+		expect(parseTrustProxyFromEnv(' 10.0.0.5/32 , 10.0.0.6/32 ')).toEqual([
+			'10.0.0.5',
+			'10.0.0.6',
+		]);
 	});
 });
