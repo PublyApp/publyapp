@@ -84,13 +84,21 @@ const reconciled = {
 	},
 } as const;
 
+const manifestEntry = 'fixture.yml::build::Run tests';
+
 test('passes when every workflow step is reconciled', async () => {
 	const rootDir = await buildFixture({
 		manifestSteps: reconciled,
 		steps: mirroredStep,
 	});
 
-	assert.deepEqual(await findCiDrift({ rootDir }), []);
+	assert.deepEqual(
+		await findCiDrift({
+			rootDir,
+			reasonRef: buildFixtureReasonRef(reason),
+		}),
+		[],
+	);
 });
 
 test('fails when CI gains a step the local gate does not cover', async () => {
@@ -99,7 +107,10 @@ test('fails when CI gains a step the local gate does not cover', async () => {
 		steps: `${mirroredStep}      - name: Scan for secrets\n        run: pnpm scan:secrets\n`,
 	});
 
-	const findings = await findCiDrift({ rootDir });
+	const findings = await findCiDrift({
+		rootDir,
+		reasonRef: buildFixtureReasonRef(reason),
+	});
 
 	assert.equal(findings.length, 1);
 	assert.match(
@@ -114,7 +125,10 @@ test('fails when a reconciled CI step changes its command', async () => {
 		steps: '      - name: Run tests\n        run: pnpm test --coverage\n',
 	});
 
-	const findings = await findCiDrift({ rootDir });
+	const findings = await findCiDrift({
+		rootDir,
+		reasonRef: buildFixtureReasonRef(reason),
+	});
 
 	assert.equal(findings.length, 1);
 	assert.match(findings[0], /^CHANGED {3}fixture\.yml::build::Run tests/);
@@ -127,7 +141,10 @@ test('fails when a step changes only its env or condition', async () => {
 			'      - name: Run tests\n        env:\n          CI: "1"\n        run: pnpm test\n',
 	});
 
-	const findings = await findCiDrift({ rootDir });
+	const findings = await findCiDrift({
+		rootDir,
+		reasonRef: buildFixtureReasonRef(reason),
+	});
 
 	assert.equal(findings.length, 1);
 	assert.match(findings[0], /^CHANGED {3}fixture\.yml::build::Run tests/);
@@ -139,7 +156,13 @@ test('ignores cosmetic trailing whitespace so the guard is not noise', async () 
 		steps: '      - name: Run tests\n        run: |\n          pnpm test   \n',
 	});
 
-	assert.deepEqual(await findCiDrift({ rootDir }), []);
+	assert.deepEqual(
+		await findCiDrift({
+			rootDir,
+			reasonRef: buildFixtureReasonRef(reason),
+		}),
+		[],
+	);
 });
 
 test('fails when the manifest reconciles a step that no longer exists', async () => {
@@ -155,7 +178,21 @@ test('fails when the manifest reconciles a step that no longer exists', async ()
 		steps: mirroredStep,
 	});
 
-	const findings = await findCiDrift({ rootDir });
+	const findings = await findCiDrift({
+		rootDir,
+		reasonRef: {
+			steps: {
+				[manifestEntry]: {
+					reason_hash: hashReason(reason),
+					reason_length: reason.length,
+				},
+				'fixture.yml::build::Deleted step': {
+					reason_hash: hashReason(reason),
+					reason_length: reason.length,
+				},
+			},
+		},
+	});
 
 	assert.equal(findings.length, 1);
 	assert.match(findings[0], /^STALE {5}fixture\.yml::build::Deleted step/);
@@ -173,7 +210,10 @@ test('rejects an exemption that does not give a reviewable reason', async () => 
 		steps: mirroredStep,
 	});
 
-	const findings = await findCiDrift({ rootDir });
+	const findings = await findCiDrift({
+		rootDir,
+		reasonRef: buildFixtureReasonRef(reason),
+	});
 
 	assert.equal(findings.length, 1);
 	assert.match(findings[0], /needs a `reason` of at least 24 characters/);
@@ -185,7 +225,10 @@ test('tracks uses: steps, so a new action cannot slip in uncounted', async () =>
 		steps: `${mirroredStep}      - uses: some-org/scan-action@v1\n`,
 	});
 
-	const findings = await findCiDrift({ rootDir });
+	const findings = await findCiDrift({
+		rootDir,
+		reasonRef: buildFixtureReasonRef(reason),
+	});
 
 	assert.equal(findings.length, 1);
 	assert.match(
@@ -200,7 +243,10 @@ test('fails closed when two steps in a job share an identity', async () => {
 		steps: `${mirroredStep}      - name: Run tests\n        run: pnpm test:other\n`,
 	});
 
-	const findings = await findCiDrift({ rootDir });
+	const findings = await findCiDrift({
+		rootDir,
+		reasonRef: buildFixtureReasonRef(reason),
+	});
 
 	assert.ok(
 		findings.some((finding) => /two steps labelled "Run tests"/.test(finding)),
@@ -423,4 +469,171 @@ test('reason guard: distinct reasons produce distinct fingerprints', () => {
 
 	assert.notEqual(hashReason(reasonA), hashReason(reasonB));
 	assert.notEqual(reasonA.length, reasonB.length);
+});
+
+// --- Reason guard tests for #1732 (new entry without reference) ---
+
+test('reason guard: fails when a manifest entry is absent from the reference (new unpinned entry)', async () => {
+	// A true new CI step was added to the workflow and reconciled in the manifest,
+	// but reason-guard-ref.json was NOT regenerated. The guard must fail, naming
+	// the entry and the regeneration command.
+	const newStep = '      - name: Brand new step\n        run: pnpm brand-new\n';
+	const newEntryId = 'fixture.yml::build::Brand new step';
+	const newReason = 'A brand new CI step that mirrors the local gate recipe.';
+
+	// Build a fixture with both steps in the manifest and workflow.
+	const rootDir = await buildFixture({
+		manifestSteps: {
+			...reconciled,
+			[newEntryId]: {
+				hash: 'wronghash0000000',
+				mirror: 'just ci',
+				reason: newReason,
+			},
+		},
+		steps: `${mirroredStep}${newStep}`,
+	});
+
+	// First, get the actual hash for the new step by collecting workflow steps.
+	// We can call findCiDrift with an empty ref to see the CHANGED finding
+	// which reveals the workflow hash.
+	const preFindings = await findCiDrift({
+		rootDir,
+		reasonRef: { steps: {} },
+	});
+
+	// The CHANGED finding for the new step will show the workflow hash.
+	const changedFinding = preFindings.find((f) => f.includes(newEntryId));
+	assert.ok(changedFinding, 'Expected a CHANGED finding for the new step');
+	const workflowHash = changedFinding!.match(/workflow ([a-f0-9]+)/)![1];
+
+	// Now rebuild the fixture with the CORRECT hash for the new step so the
+	// CHANGED finding goes away and only the reason guard fires.
+	const rootDirCorrect = await buildFixture({
+		manifestSteps: {
+			...reconciled,
+			[newEntryId]: {
+				hash: workflowHash,
+				mirror: 'just ci',
+				reason: newReason,
+			},
+		},
+		steps: `${mirroredStep}${newStep}`,
+	});
+
+	const findings = await findCiDrift({
+		rootDir: rootDirCorrect,
+		// Reference only contains the ORIGINAL step, not the new one.
+		reasonRef: buildFixtureReasonRef(reason),
+	});
+
+	// Should find: the original step passes (ref aligned), the new step fails
+	// reason guard (no reference), no STALE REF for original, no STALE for new
+	// step in reference.
+	const newEntryFindings = findings.filter(
+		(f) =>
+			f.includes('manifest but missing from reason-guard-ref') &&
+			f.includes(newEntryId),
+	);
+
+	assert.equal(newEntryFindings.length, 1);
+	assert.match(
+		newEntryFindings[0],
+		/is present in the manifest but missing from reason-guard-ref\.json/,
+	);
+	assert.match(newEntryFindings[0], /gen-reason-ref\.ts/);
+});
+
+test('reason guard: warns when a reference entry is absent from the manifest (stale reference)', async () => {
+	// A step was removed from the workflow, but the reference still holds
+	// its fingerprint. The guard must report it as a stale reference so
+	// the user knows to clean up the reference.
+	const rootDir = await buildFixture({
+		manifestSteps: reconciled,
+		steps: mirroredStep,
+	});
+
+	const staleId = 'fixture.yml::build::Stale step';
+	const refWithStaleEntry = {
+		steps: {
+			'fixture.yml::build::Run tests': {
+				reason_hash: hashReason(reason),
+				reason_length: reason.length,
+			},
+			[staleId]: {
+				reason_hash: hashReason('old reason text that is long enough'),
+				reason_length: 42,
+			},
+		},
+	};
+
+	const findings = await findCiDrift({
+		rootDir,
+		reasonRef: refWithStaleEntry,
+	});
+
+	const staleRefFindings = findings.filter((f) => f.startsWith('STALE REF '));
+
+	assert.equal(staleRefFindings.length, 1);
+	assert.match(
+		staleRefFindings[0],
+		/STALE REF fixture\.yml::build::Stale step/,
+	);
+	assert.match(staleRefFindings[0], /gen-reason-ref\.ts/);
+});
+
+test('reason guard: passes when manifest and reference are fully aligned (Case 3 unchanged)', async () => {
+	// Case 3: both sides have the entry, hashes match, reasons match.
+	// No new entry, no stale ref, no changed reason. Guard must be green.
+	const newStep = '      - name: Another step\n        run: pnpm another\n';
+	const newEntryId = 'fixture.yml::build::Another step';
+	const newReason = 'A valid reason for a second step in the manifest file.';
+
+	// Get the workflow hash for the new step.
+	const tempRoot = await buildFixture({
+		manifestSteps: {
+			...reconciled,
+			[newEntryId]: { hash: 'wrong', mirror: 'just ci', reason: newReason },
+		},
+		steps: `${mirroredStep}${newStep}`,
+	});
+
+	const tempFindings = await findCiDrift({
+		rootDir: tempRoot,
+		reasonRef: buildFixtureReasonRef(reason),
+	});
+	const changedFinding = tempFindings.find((f) => f.includes(newEntryId));
+	assert.ok(changedFinding, 'Expected CHANGED for wrong hash');
+	const workflowHash = changedFinding!.match(/workflow ([a-f0-9]+)/)![1];
+
+	// Now rebuild with correct hash and a full reference.
+	const rootDir = await buildFixture({
+		manifestSteps: {
+			...reconciled,
+			[newEntryId]: {
+				hash: workflowHash,
+				mirror: 'just ci',
+				reason: newReason,
+			},
+		},
+		steps: `${mirroredStep}${newStep}`,
+	});
+
+	const findings = await findCiDrift({
+		rootDir,
+		reasonRef: {
+			steps: {
+				'fixture.yml::build::Run tests': {
+					reason_hash: hashReason(reason),
+					reason_length: reason.length,
+				},
+				[newEntryId]: {
+					reason_hash: hashReason(newReason),
+					reason_length: newReason.length,
+				},
+			},
+		},
+	});
+
+	assert.equal(findings.length, 0);
 });
