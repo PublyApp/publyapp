@@ -17,12 +17,12 @@ import {
 	useStaffSystemJobDefinitionsQuery,
 	type StaffSystemJobDefinitionRow,
 } from '~/lib/query/staff-jobs';
-import { shouldLogoutForFailure } from '~/lib/should-logout-for-failure';
 
 import {
 	getFailureMessage,
 	toApiFailure,
 } from '@org/shared-ts/lib/api-failure/to-api-failure';
+import { shouldLogoutForFailure } from '@org/shared-ts/lib/should-logout-for-failure';
 
 import { makeSystemJobColumns } from './_columns-system-jobs';
 import {
