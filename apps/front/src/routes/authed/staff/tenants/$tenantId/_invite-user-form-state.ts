@@ -210,14 +210,14 @@ const mapLevelToRowFields = (rawLevel: string | undefined) => {
 	return { accountLevel: level, invalidLevel: null } satisfies RowLevelFields;
 };
 
-/** Maps a raw email cell to its parsed row field: the trimmed email if valid,
- * or the raw trimmed value flagged as invalid. */
-const mapEmailToRowField = (
-	rawEmail: string | undefined,
-): {
+type EmailRowField = {
 	email: string;
 	invalidEmail: string | null;
-} => {
+};
+
+/** Maps a raw email cell to its parsed row field: the trimmed email if valid,
+ * or the raw trimmed value flagged as invalid. */
+const mapEmailToRowField = (rawEmail: string | undefined): EmailRowField => {
 	const email = (rawEmail ?? '').trim();
 	if (email === '' || EMAIL_REGEX.test(email)) {
 		return { email, invalidEmail: null };
