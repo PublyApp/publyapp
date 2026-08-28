@@ -1129,7 +1129,10 @@ export const scanZIndexFile = ({
 			}
 			const bindings = importClause?.namedBindings;
 			if (bindings != null && ts.isNamespaceImport(bindings)) {
-				return bindings.name.text === name ? bindings : null;
+				if (bindings.name.text === name) {
+				return bindings;
+			}
+			return null;
 			}
 			if (bindings != null && ts.isNamedImports(bindings)) {
 				return (
@@ -1409,9 +1412,10 @@ export const scanZIndexFile = ({
 			}
 			if (ts.isIdentifier(expression)) {
 				const fixpoint = resolveModuleConstFixpoint(expression, visitedConsts);
-				return fixpoint == null
-					? null
-					: staticStringValues(fixpoint, visitedConsts);
+				if (fixpoint == null) {
+					return null;
+				}
+				return staticStringValues(fixpoint, visitedConsts);
 			}
 			if (ts.isConditionalExpression(expression)) {
 				const whenTrue = staticStringValues(expression.whenTrue, visitedConsts);
@@ -2482,9 +2486,10 @@ export const scanZIndexFile = ({
 		) => {
 			const ownerEntry = rawImportEntryForExpression(owner, visitedConsts);
 			if (ownerEntry != null) {
-				return ownerEntry.kind === 'namespace' && name === 'default'
-					? { specifiers: [ownerEntry.specifier], unresolved: false }
-					: { specifiers: [], unresolved: false };
+				if (ownerEntry.kind === 'namespace' && name === 'default') {
+					return { specifiers: [ownerEntry.specifier], unresolved: false };
+				}
+				return { specifiers: [], unresolved: false };
 			}
 			const ownerChainResult = resolveMemberChain(owner, visitedConsts);
 			// An unresolvable owner chain — including an element-access key
@@ -2629,9 +2634,10 @@ export const scanZIndexFile = ({
 					// through `.default`) and a named element that is not
 					// `default` is undefined on a raw module and ships
 					// nothing — both stay green by name, never by omission.
-					return entry.kind === 'default'
-						? { specifiers: [entry.specifier], unresolved: false }
-						: { specifiers: [], unresolved: false };
+					if (entry.kind === 'default') {
+						return { specifiers: [entry.specifier], unresolved: false };
+					}
+					return { specifiers: [], unresolved: false };
 				}
 				const alias = moduleConstInitializers.get(expression.text);
 				if (
@@ -3591,7 +3597,10 @@ export const scanZIndexFile = ({
 				return [];
 			}
 			if (ts.isTypeReferenceNode(type)) {
-				return ts.isIdentifier(type.typeName) ? [type.typeName.text] : [];
+				if (ts.isIdentifier(type.typeName)) {
+				return [type.typeName.text];
+			}
+			return [];
 			}
 			if (ts.isUnionTypeNode(type) || ts.isIntersectionTypeNode(type)) {
 				return type.types.flatMap(namedTypeCandidates);
@@ -3797,9 +3806,10 @@ export const scanZIndexFile = ({
 							if (memberName !== 'style') {
 								return 'other';
 							}
-							return binding.initializer == null
-								? 'unresolved'
-								: styleMemberOwnerKind(binding.initializer);
+							if (binding.initializer == null) {
+								return 'unresolved';
+							}
+							return styleMemberOwnerKind(binding.initializer);
 						}
 						return 'other';
 					}
@@ -3841,9 +3851,10 @@ export const scanZIndexFile = ({
 				return 'other-method';
 			}
 			if (ts.isPropertyAccessExpression(expression)) {
-				return expression.name.text === 'setProperty'
-					? 'setter-method'
-					: 'other-method';
+				if (expression.name.text === 'setProperty') {
+					return 'setter-method';
+				}
+				return 'other-method';
 			}
 			if (ts.isElementAccessExpression(expression)) {
 				return staticString(
@@ -3865,9 +3876,10 @@ export const scanZIndexFile = ({
 						const element = findBindingElement(binding.name, expression.text);
 						const boundMember =
 							element == null ? null : bindingPropertyNameText(element);
-						return boundMember === 'setProperty'
-							? 'setter-method'
-							: 'other-method';
+						if (boundMember === 'setProperty') {
+							return 'setter-method';
+						}
+						return 'other-method';
 					}
 					if (binding.initializer != null) {
 						return cssSetterMethodKind(binding.initializer, next);

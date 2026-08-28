@@ -102,7 +102,10 @@ const findLineFinding = (line: string): LineFinding | null => {
 		const digestIdx = uses.lastIndexOf('@');
 		const digest = digestIdx === -1 ? '' : uses.slice(digestIdx + 1);
 
-		return dockerDigestPattern.test(digest) ? null : { uses };
+		if (dockerDigestPattern.test(digest)) {
+			return null;
+		}
+		return { uses };
 	}
 
 	// Fail-closed on input without a `@ref` at all: it cannot be

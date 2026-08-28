@@ -537,9 +537,10 @@ const TenantBulkActions = ({
 				selectedTenants.every(
 					(tenant) => tenant.status === TENANT_STATUS_SUSPENDED,
 				);
-			return allSelectedAreSuspended
-				? selectedTenants.map((tenant) => tenant.id)
-				: [];
+			if (allSelectedAreSuspended) {
+				return selectedTenants.map((tenant) => tenant.id);
+			}
+			return [];
 		}
 		return [];
 	};

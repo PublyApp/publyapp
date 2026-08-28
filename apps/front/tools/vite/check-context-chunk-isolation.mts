@@ -615,9 +615,10 @@ const declarationBinding = (
 		}
 
 		const symbol = checker.getSymbolAtLocation(node.name);
-		return symbol
-			? { symbol, name: node.name.text, initializer: node.initializer }
-			: undefined;
+		if (symbol) {
+			return { symbol, name: node.name.text, initializer: node.initializer };
+		}
+		return undefined;
 	}
 
 	if (isBindingElement(node)) {
@@ -644,16 +645,17 @@ const declarationBinding = (
 		}
 
 		const symbol = checker.getSymbolAtLocation(node.name);
-		return symbol
-			? {
-					symbol,
-					name: node.name.text,
-					initializer: declaration.initializer,
-				}
-			: undefined;
+		if (symbol) {
+			return {
+				symbol,
+				name: node.name.text,
+				initializer: declaration.initializer,
+			};
+		}
+
+		return undefined;
 	}
 
-	return undefined;
 };
 
 // The position a call's value lands in, walked through transparent value

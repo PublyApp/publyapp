@@ -69,7 +69,10 @@ const parsedType = (data: unknown): string => {
 		if (Number.isNaN(data)) {
 			return 'nan';
 		}
-		return Number.isInteger(data) ? 'int' : 'number';
+		if (Number.isInteger(data)) {
+			return 'int';
+		}
+		return 'number';
 	}
 	switch (typeof data) {
 		case 'string':

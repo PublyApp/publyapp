@@ -155,7 +155,10 @@ const resolveColor = (
 
 	if (HEX_PATTERN.test(trimmed)) {
 		const parsed = parseHex(trimmed);
-		return parsed.a < 1 ? composite(parsed, parseHex(backgroundHex)) : parsed;
+		if (parsed.a < 1) {
+			return composite(parsed, parseHex(backgroundHex));
+		}
+		return parsed;
 	}
 
 	throw new Error(`Unsupported colour value shape: ${trimmed}`);

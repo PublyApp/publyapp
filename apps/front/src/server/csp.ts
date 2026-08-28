@@ -9,7 +9,10 @@ const getPublicApiOrigin = (): string | undefined => {
 
 	try {
 		const origin = new URL(publicApiBaseUrl).origin;
-		return origin === 'null' ? undefined : origin;
+		if (origin === 'null') {
+			return undefined;
+		}
+		return origin;
 	} catch {
 		return undefined;
 	}
