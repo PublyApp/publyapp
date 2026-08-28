@@ -405,6 +405,24 @@ export const scanSharedTsSrcForSharedTsReExports = (
 };
 
 export const main = (roots?: { frontSrc?: string; sharedTsSrc?: string }): void => {
+	const sharedTsSrcPath = roots?.sharedTsSrc ?? sharedTsSrc;
+	const segments = deriveSharedTsSegments(sharedTsSrcPath);
+	// #1678 A1: a guard that derives its own configuration must validate that
+	// derivation succeeded. An empty segment list is a configuration error (the
+	// source directory has been renamed, moved, or is empty) — NOT a clean tree.
+	// If we proceed with an empty list, SHARED_TS_MODULE_PATTERN matches no
+	// specifier and the guard silently passes every file, becoming a no-op.
+	// Fail loudly, naming what was searched and what was found.
+	if (segments.length === 0) {
+		console.error(
+			`check-shared-ts-import-paths: self-check failed — derived zero shared-ts ` +
+				`segments from ${sharedTsSrcPath}. The guard cannot build a meaningful ` +
+				`module pattern and would silently skip every file. Expected at least one ` +
+				`top-level directory under packages/shared-ts/src. Resolve the path or ` +
+				`directory contents before running the guard.`,
+		);
+		process.exit(1);
+	}
 	const findings = [
 		...scanFrontSrcForSharedTsReExports(roots?.frontSrc),
 		...scanSharedTsSrcForSharedTsReExports(roots?.sharedTsSrc),

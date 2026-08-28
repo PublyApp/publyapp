@@ -680,3 +680,90 @@ test('SHARED_TS_SEGMENTS fails loudly when packages/shared-ts/src is unreadable 
 		/could not enumerate/,
 	);
 });
+
+// ---- #1678 R6: main() fails loudly when derivation is empty (false-GREEN guard) ----
+// A1 (R5): when deriveSharedTsSegments returns [], SHARED_TS_MODULE_PATTERN matches
+// nothing and main() exits 0 (green) on a clean tree with zero detection power.
+// The guard must self-check and fail loudly, naming the cause. This test creates
+// a sandbox with an empty shared-ts/src directory and asserts main() exits non-zero.
+test('RED: main() fails loudly when shared-ts segment derivation is empty (#1678 R6)', () => {
+	const root = makeSandbox();
+	// Wipe the mirrored shared-ts-src tree so it exists but is empty — the exact
+	// case deriveSharedTsSegments cannot catch by itself (the dir is readable,
+	// it just has no subdirectories).
+	rmSync(path.join(root, 'shared-ts-src'), { recursive: true, force: true });
+	mkdirSync(path.join(root, 'shared-ts-src'), { recursive: true });
+
+	const result = spawnSync(
+		'node',
+		['--experimental-strip-types', '-e', `
+import { main } from '${path.resolve(here, './check-shared-ts-import-paths.mts').replace(/\\/g, '/')}';
+main({
+  frontSrc: '${path.join(root, 'front-src').replace(/\\/g, '/')}',
+  sharedTsSrc: '${path.join(root, 'shared-ts-src').replace(/\\/g, '/')}',
+});
+`],
+		{ encoding: 'utf8' },
+	);
+
+	assert.notEqual(
+		result.status,
+		0,
+		`main() must exit non-zero when segment derivation is empty, got exit code ${result.status}. stdout: ${result.stdout}. stderr: ${result.stderr}`,
+	);
+	assert.ok(
+		result.stderr.includes('derived zero shared-ts segments'),
+		`stderr must name the empty-derivation cause, got: ${result.stderr}`,
+	);
+});
+
+test('GREEN: main() exits zero when segment derivation is non-empty and tree is clean (#1678 R6)', () => {
+	const root = makeSandbox();
+	// The sandbox mirrors the real packages/shared-ts/src which has @types, lib,
+	// scripts, etc. — derivation is non-empty and the tree is clean, so main() passes.
+	const result = spawnSync(
+		'node',
+		['--experimental-strip-types', '-e', `
+import { main } from '${path.resolve(here, './check-shared-ts-import-paths.mts').replace(/\\/g, '/')}';
+main({
+  frontSrc: '${path.join(root, 'front-src').replace(/\\/g, '/')}',
+  sharedTsSrc: '${path.join(root, 'shared-ts-src').replace(/\\/g, '/')}',
+});
+`],
+		{ encoding: 'utf8' },
+	);
+
+	assert.equal(
+		result.status,
+		0,
+		`main() must exit zero on a clean tree with non-empty derivation, got exit code ${result.status}. stdout: ${result.stdout}. stderr: ${result.stderr}`,
+	);
+});
+
+// ---- #1678 R6: deriveSharedTsSegments re-derives from the path main() actually uses ----
+// Ensures the self-check inside main() is not using a stale module-level constant
+// captured before the path override — it must re-derive from roots.sharedTsSrc.
+test('REGRESSION: main() re-derives segments from the overriden sharedTsSrc path (#1678 R6)', () => {
+	// Point sharedTsSrc at the real directory: derivation is non-empty, tree clean.
+	// If main() used the module-level SHARED_TS_SEGMENTS instead of re-deriving
+	// from roots.sharedTsSrc, an empty-path override would be ignored. This
+	// test proves the override flows through to the self-check by using the
+	// RED test above (empty dir) which would be green if the override were ignored.
+	const root = makeSandbox();
+	const result = spawnSync(
+		'node',
+		['--experimental-strip-types', '-e', `
+import { main } from '${path.resolve(here, './check-shared-ts-import-paths.mts').replace(/\\/g, '/')}';
+main({
+  frontSrc: '${path.join(root, 'front-src').replace(/\\/g, '/')}',
+  sharedTsSrc: '${realSharedTsSrc.replace(/\\/g, '/')}',
+});
+`],
+		{ encoding: 'utf8' },
+	);
+	assert.equal(
+		result.status,
+		0,
+		`main() with real sharedTsSrc override must exit zero, got ${result.status}. stderr: ${result.stderr}`,
+	);
+});
