@@ -129,7 +129,7 @@
 			}
 		},
 		{
-			"files": ["apps/front/e2e/**"],
+			"files": ["apps/front/src/components/table/**"],
 			"rules": {
 				"typescript/no-deprecated": "off"
 			}
