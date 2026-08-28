@@ -88,8 +88,19 @@ const REPLAYABLE_EXTENSIONS = ['.test.ts', '.test.tsx'] as const;
  * validating that each declared file is replayable.
  *
  * In CI, GITHUB_BASE_REF and GITHUB_HEAD_REF are available. We use a
- * three-dot diff (refs/remotes/origin/<base>...HEAD) so only PR-introduced
- * changes are listed, not files that diverged on the base branch.
+ * two-dot diff (refs/remotes/origin/<base>..HEAD) to list every file that
+ * differs between the base branch and the PR's HEAD. This is robust even
+ * when the base ref and HEAD share no merge base (a diverged branch), where
+ * a three-dot diff would fail with "no merge base". The two-dot form may
+ * include base-branch changes introduced since the fork — conservatively
+ * treating them as declared — but it never silently misses a proof the PR
+ * actually added.
+ *
+ * GitHub's checkout action fetches only the PR's own ref by default — the
+ * base branch's remote ref (refs/remotes/origin/<base>) is NOT available
+ * until we fetch it. We fetch it explicitly before the diff so the guard
+ * works on a clean CI checkout. The fetch is scoped to the single base ref
+ * and is fast (a few hundred KB at most).
  *
  * Locally (no env vars), we use two-dot diff (HEAD~1..HEAD) to show what the
  * most recent commit introduced.
@@ -112,8 +123,18 @@ function declaredProofTests(): string[] {
 	try {
 		if (process.env.GITHUB_BASE_REF && process.env.GITHUB_HEAD_REF) {
 			const baseRef = `refs/remotes/origin/${process.env.GITHUB_BASE_REF}`;
+
+			// GitHub's checkout action fetches only the PR's own ref. The base
+			// branch's remote ref does not exist until we fetch it. Fetch it
+			// explicitly so the diff works on a clean CI checkout. Scoped to
+			// the single base ref — fast, a few hundred KB at most.
+			execSync(
+				`git -C "${ROOT}" fetch --depth=1 origin "${process.env.GITHUB_BASE_REF}"`,
+				{ encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] },
+			);
+
 			const diffOutput = execSync(
-				`git -C "${ROOT}" diff --name-only "${baseRef}...HEAD"`,
+				`git -C "${ROOT}" diff --name-only "${baseRef}..HEAD"`,
 				{ encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] },
 			);
 			changedFiles = diffOutput
