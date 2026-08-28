@@ -622,6 +622,15 @@ const mockStaffJobsDependencies = async (page: Page): Promise<void> => {
 	// action button to click.
 	await page.route('**/staff/jobs/dead-letter**', async (route) => {
 		const request = route.request();
+		// Don't intercept page navigations (to the front), only API calls.
+		// The pattern `**/staff/jobs/dead-letter**` matches both the API
+		// endpoint and the page `/staff/jobs/dead-letter` — without this
+		// guard the mock fulfills the navigation with JSON and the React
+		// app never renders.
+		if (request.isNavigationRequest()) {
+			await route.fallback();
+			return;
+		}
 		if (request.method() !== 'GET') {
 			await route.fallback();
 			return;
