@@ -709,7 +709,9 @@ const extractGateSelftestTestPaths = (runBlock) => {
 	const paths = new Set();
 	for (const line of runBlock.split('\n')) {
 		const match = line.match(GATE_SELFTEST_VITEST_LINE);
-		if (match === null) continue;
+		if (match === null) {
+			continue;
+		}
 		// The workflow uses `src/X.test.ts` (relative to the package
 		// root); the structural expectation and on-disk check use the
 		// full `packages/scripts-ts/src/X.test.ts` form. Normalize so
@@ -773,7 +775,9 @@ export const findGateSelftestTestsProblems = async ({
 	/** file → Set<path>; derived from the given table's `gateSelftestTests`. */
 	const derivedByFile = new Map();
 	for (const workflow of workflows) {
-		if (workflow.gateSelftestTests === undefined) continue;
+		if (workflow.gateSelftestTests === undefined) {
+			continue;
+		}
 		derivedByFile.set(workflow.file, new Set());
 		for (const testPath of workflow.gateSelftestTests) {
 			derivedByFile.get(workflow.file).add(toPosixPath(testPath));
@@ -784,7 +788,9 @@ export const findGateSelftestTestsProblems = async ({
 	// `gate-selftest` job's expected step's `run:` block and compare the
 	// parsed test paths to the declared set.
 	for (const workflow of workflows) {
-		if (workflow.gateSelftestTests === undefined) continue;
+		if (workflow.gateSelftestTests === undefined) {
+			continue;
+		}
 
 		const declared = derivedByFile.get(workflow.file);
 		const filePath = path.join(rootDir, workflowsDirectory, workflow.file);
@@ -857,14 +863,18 @@ export const findGateSelftestTestsProblems = async ({
 	}
 
 	for (const testPath of expectedSet) {
-		if (flatDerived.has(testPath)) continue;
+		if (flatDerived.has(testPath)) {
+			continue;
+		}
 		findings.push(
 			`${GATE_SELFTEST_TESTS_EXPECTATION_HEADER}: EXPECTED_GATE_SELFTEST_TESTS declares \`${testPath}\` but no GATE_WORKFLOWS entry carries it in \`gateSelftestTests\`. The expectation must never describe coverage that the structural table has dropped — restore the entry, or consciously re-make BOTH lists together.`,
 		);
 	}
 
 	for (const testPath of flatDerived) {
-		if (expectedSet.has(testPath)) continue;
+		if (expectedSet.has(testPath)) {
+			continue;
+		}
 		findings.push(
 			`${GATE_SELFTEST_TESTS_EXPECTATION_HEADER}: GATE_WORKFLOWS carries an undeclared \`gateSelftestTests\` entry for \`${testPath}\`. Every entry must be declared in EXPECTED_GATE_SELFTEST_TESTS (check-ci-gate-structure.ts) — add it there consciously, or remove the undeclared entry.`,
 		);

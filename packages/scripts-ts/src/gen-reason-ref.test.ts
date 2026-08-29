@@ -636,8 +636,11 @@ test('bypass 6: 3-part committed regeneration attack IS CAUGHT by the merge-base
 				args,
 				{ cwd: rootDir },
 				(error: Error | null, stdout: string) => {
-					if (error) reject(error);
-					else resolve(stdout);
+					if (error) {
+						reject(error);
+					} else {
+						resolve(stdout);
+					}
 				},
 			);
 		});

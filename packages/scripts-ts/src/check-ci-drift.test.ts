@@ -1697,8 +1697,11 @@ test('readRefFromGit-fs: no origin/develop fails loudly (no silent fallback to H
 				args,
 				{ cwd: rootDir },
 				(error: Error | null, stdout: string) => {
-					if (error) reject(error);
-					else resolve(stdout);
+					if (error) {
+						reject(error);
+					} else {
+						resolve(stdout);
+					}
 				},
 			);
 		});
@@ -1751,8 +1754,11 @@ test('readRefFromGit-fs: reads committed floor from merge-base, ignoring working
 				args,
 				{ cwd: rootDir },
 				(error: Error | null, stdout: string) => {
-					if (error) reject(error);
-					else resolve(stdout);
+					if (error) {
+						reject(error);
+					} else {
+						resolve(stdout);
+					}
 				},
 			);
 		});
@@ -1880,8 +1886,11 @@ test('readRefFromGit-fs: 3-part committed attack IS CAUGHT by the merge-base flo
 				args,
 				{ cwd: rootDir },
 				(error: Error | null, stdout: string) => {
-					if (error) reject(error);
-					else resolve(stdout);
+					if (error) {
+						reject(error);
+					} else {
+						resolve(stdout);
+					}
 				},
 			);
 		});

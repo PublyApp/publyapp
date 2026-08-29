@@ -49,10 +49,14 @@ const minimumReasonLength = 24;
  * bar. We reject it regardless of length.
  */
 const isFiller = (text: string): boolean => {
-	if (text.length === 0) return false;
+	if (text.length === 0) {
+		return false;
+	}
 	const first = text[0];
 	for (let i = 1; i < text.length; i++) {
-		if (text[i] !== first) return false;
+		if (text[i] !== first) {
+			return false;
+		}
 	}
 	return true;
 };
