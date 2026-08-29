@@ -894,14 +894,11 @@ test('reason guard #1736: bypass reproduction — 24-char bogus reason with rege
 	);
 });
 
-test('reason guard #1736: tampered ref (hash changed but text not) is caught by the main comparison', async () => {
-	// A ref where an attacker manually edits reason_hash to match a bogus
-	// reason, but leaves the original `reason` text intact. The main
-	// comparison (hashReason(entry.reason) !== stepRef.reason_hash) catches
-	// this: the manifest's original reason hashes to a value that no longer
-	// matches the tampered hash. This proves the former defense-in-depth
-	// check was redundant — no case exists where ONLY it would fire — so it
-	// was removed in round 2 (#1841).
+test('reason guard #1841 r3: detects an internally inconsistent ref via check (B)', async () => {
+	// An internally inconsistent ref: stored text says A, stored hash says B.
+	// This means someone edited the ref manually — either changed the hash without
+	// updating the text, or vice versa. Check (B) catches this: hashReason(A) !== B.
+	// Round 2 incorrectly claimed this was redundant; round 3 restores it.
 	const originalReason = reconciled['fixture.yml::build::Run tests'].reason;
 	const bogusReason = 'x'.repeat(24); // passes min-length
 
@@ -910,9 +907,8 @@ test('reason guard #1736: tampered ref (hash changed but text not) is caught by 
 		steps: mirroredStep,
 	});
 
-	// The manifest has the ORIGINAL reason. The ref has a BOGUS hash (matching
-	// the bogus reason) but still holds the ORIGINAL reason TEXT. This is the
-	// tampered ref: hash says "bogus" but text says "original".
+	// The ref has ORIGINAL text but BOGUS hash (matching bogusReason).
+	// Check (B): hashReason(originalReason) !== hashReason(bogusReason) → finding.
 	const findings = await findCiDrift({
 		rootDir,
 		reasonRef: {
@@ -926,12 +922,90 @@ test('reason guard #1736: tampered ref (hash changed but text not) is caught by 
 		},
 	});
 
-	// The main comparison catches it: hashReason(originalReason) !== bogusHash.
-	// The old defense-in-depth check (hashReason(stepRef.reason) !== stepRef.reason_hash)
-	// would have fired on the SAME scenario, so it added zero coverage.
 	assert.ok(
-		findings.some((f) => f.includes('reason CHANGED')),
-		'Guard must detect a tampered ref via the main hash comparison (proving the defense-in-depth check was redundant)',
+		findings.length >= 1,
+		'Guard must detect an internally inconsistent ref',
+	);
+	assert.ok(
+		findings.some(
+			(f) =>
+				f.includes('internally inconsistent') || f.includes('reason CHANGED'),
+		),
+		'Guard must fire when stored text does not match stored hash',
+	);
+});
+
+test('reason guard #1841 r3: THE BYPASS — manifest reason B, ref text A, ref hash hashReason(B) — check (B) fires, check (A) is silent', async () => {
+	// This is the exact bypass scenario described in the brief:
+	//   - manifest.reason = B (bogus reason, written to bypass the guard)
+	//   - stepRef.reason = A (original text, NOT updated — so the diff is invisible)
+	//   - stepRef.reason_hash = hashReason(B) (updated to match the bogus reason)
+	//
+	// Check (A): hashReason(B) === stepRef.reason_hash → NO finding (silent!)
+	// Check (B): hashReason(A) !== hashReason(B) → YES finding (fires!)
+	//
+	// Without check (B), the guard passes: the diff shows only a hash changing,
+	// which is meaningless to a human reviewer. The human cannot see that the
+	// reason TEXT stayed the same — so the rewrite is invisible.
+	// With check (B), the finding names the inconsistency: stored text A does not
+	// match its own stored hash.
+	const originalReason = reconciled['fixture.yml::build::Run tests'].reason;
+	const bogusReason = 'xxxxxxxxxxxxxxxxxxxxxxxx'; // exactly 24 chars — passes min-length
+
+	const rootDir = await buildFixture({
+		manifestSteps: {
+			'fixture.yml::build::Run tests': {
+				hash: reconciledHash,
+				mirror: 'just ci',
+				reason: bogusReason, // BOGUS: manifest says B
+			},
+		},
+		steps: mirroredStep,
+	});
+
+	// The ref has ORIGINAL text A but hash for BOGUS reason B.
+	// This is the tampered ref: text says A, hash says hash(B).
+	const findings = await findCiDrift({
+		rootDir,
+		reasonRef: {
+			steps: {
+				'fixture.yml::build::Run tests': {
+					reason_hash: hashReason(bogusReason), // hashReason(B)
+					reason_length: bogusReason.length,
+					reason: originalReason, // ORIGINAL text A — NOT updated
+				},
+			},
+		},
+	});
+
+	// Check (A) is SILENT: hashReason(bogusReason) === stepRef.reason_hash.
+	// Check (B) FIRES: hashReason(originalReason) !== hashReason(bogusReason).
+	assert.ok(
+		findings.length >= 1,
+		'Guard must fire on the bypass — check (B) is not silent',
+	);
+	assert.ok(
+		findings.some(
+			(f) =>
+				f.includes('internally inconsistent') || f.includes('reason CHANGED'),
+		),
+		'Check (B) must detect that stored text does not match stored hash',
+	);
+
+	// PROOF that check (A) is silent: no "reason CHANGED because manifest reason
+	// differs from ref" finding. The CHANGED finding would say "manifest reason
+	// differs from ref fingerprint" — but here the manifest reason IS the fingerprint,
+	// so they match and check (A) is silent. Only check (B) catches this.
+	assert.ok(
+		!findings.some(
+			(f) =>
+				f.includes('manifest') &&
+				f.includes('reason_hash') &&
+				f.includes('got') &&
+				// This pattern means "manifest reason differs from ref fingerprint"
+				/manifest.*reason_hash|reason_hash.*manifest/.test(f),
+		),
+		'Check (A) must be silent — manifest reason hashes to the ref fingerprint',
 	);
 });
 
