@@ -229,4 +229,42 @@ describe('func-style: ["error", "expression"] (#1834 — uniform arrow form)', (
 			);
 		});
 	});
+
+	describe('production tree leg — the monorepo carries zero func-style diagnostics under the root config', () => {
+		// Drive `runOxlint` over the same paths oxlint lints in CI (the whole
+		// workspace, scoped by the config's own `ignorePatterns`). Asserting on
+		// ZERO `func-style` diagnostics here is the only honest way to pin
+		// "the 98 production violations are all converted" — a counter is not
+		// enough because a regression that re-introduces a `function`
+		// declaration on a NEW file would not move the counter from 98 to 99
+		// if the conversion left any other violation behind. The test fails
+		// with the exact file:line of every offender, so a regression names
+		// the regression in the test name.
+		it(
+			'no top-level `function` declaration survives anywhere oxlint lints',
+			{ timeout: 120_000 },
+			() => {
+				const result = runOxlint(['.'], {
+					cwd: WORKSPACE_ROOT,
+				});
+
+				const funcStyleDiagnostics = (result.diagnostics as Array<{
+					code?: string;
+					message?: string;
+				}>).filter((diag) => diag.code === 'func-style');
+
+				if (funcStyleDiagnostics.length > 0) {
+					const names = funcStyleDiagnostics
+						.map((diag) => diag.message ?? JSON.stringify(diag))
+						.join('\n  ');
+
+					assert.fail(
+						`oxlint must report zero func-style diagnostics on the production tree; got ${funcStyleDiagnostics.length}:\n  ${names}`,
+					);
+				}
+
+				assert.strictEqual(funcStyleDiagnostics.length, 0);
+			},
+		);
+	});
 });
