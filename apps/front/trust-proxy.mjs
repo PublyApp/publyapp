@@ -76,7 +76,9 @@ export const resolveTrustProxyFromEnv = async ({
 		// form, which operators mistake for "trust everything".
 		for (const entry of entries) {
 			const slashIdx = entry.lastIndexOf('/');
-			if (slashIdx === -1) continue;
+			if (slashIdx === -1) {
+				continue;
+			}
 			const addrPart = entry.slice(0, slashIdx);
 			const suffix = entry.slice(slashIdx + 1);
 			if (!/^\d+$/.test(suffix)) {
