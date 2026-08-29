@@ -60,11 +60,20 @@ export const hashReason = (text: string) =>
 //   1. entry in manifest, absent from reference → FAIL (new entry, regenerate ref)
 //   2. entry in reference, absent from manifest → WARN/ERROR (stale ref, clean up)
 //   3. entry in both → existing behavior (detect truncation/alteration)
+//
+// #1736: the reference now stores the full `reason` text (not just its hash and
+// length) so that regenerating the ref is visible in the diff. The guard also
+// verifies that the stored reason text is internally consistent (its hash and
+// length match), so a ref that has been tampered with — e.g. a hash changed to
+// match a bogus reason while the stored text remains the original — is caught.
 const getReasonGuardProblem = (
 	id: string,
 	entry: { hash: string; mirror: string | null; reason: string },
 	ref: {
-		steps: Record<string, { reason_hash: string; reason_length: number }>;
+		steps: Record<
+			string,
+			{ reason_hash: string; reason_length: number; reason: string }
+		>;
 	},
 ): string | null => {
 	const stepRef = ref.steps[id];
@@ -75,6 +84,16 @@ const getReasonGuardProblem = (
 	// to regenerate.
 	if (stepRef === undefined) {
 		return `${manifestPath}: entry "${id}" is present in the manifest but missing from reason-guard-ref.json — new entry without a reference fingerprint. Regenerate reason-guard-ref.json in the same commit so the reason is consciously pinned (run \`node packages/scripts-ts/src/gen-reason-ref.ts\`).`;
+	}
+
+	// Defense-in-depth (#1736): verify the reference entry is internally
+	// consistent — its stored reason_hash and reason_length must match its
+	// stored reason text. If someone manually edited the ref (e.g. changed
+	// the hash to match a bogus reason while leaving the original text), this
+	// catches the tampering before the text comparison below can be fooled.
+	const refHash = hashReason(stepRef.reason);
+	if (stepRef.reason_hash !== refHash) {
+		return `${manifestPath}: entry "${id}" reason-guard-ref.json is internally inconsistent — reason_hash (${stepRef.reason_hash}) does not match the hash of the stored reason text (${refHash}). The reference was tampered with; regenerate it with \`node packages/scripts-ts/src/gen-reason-ref.ts\`.`;
 	}
 
 	const currentHash = hashReason(entry.reason);
@@ -452,7 +471,10 @@ const decodeJsonString = (raw: string): string =>
 // --- Reason reference type ---
 
 interface ReasonRef {
-	steps: Record<string, { reason_hash: string; reason_length: number }>;
+	steps: Record<
+		string,
+		{ reason_hash: string; reason_length: number; reason: string }
+	>;
 }
 
 /**
