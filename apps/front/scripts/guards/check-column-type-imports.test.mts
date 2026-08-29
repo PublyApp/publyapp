@@ -1037,7 +1037,9 @@ void test('R9 MUTATION: guard catches a hardcoded || bypass in isExempt on the r
 			}
 		}
 		// REVIEWER'S BYPASS MUTATION
-		if (normalizedPath.includes('data-table-header-row.tsx')) return true;
+		if (normalizedPath.includes('data-table-header-row.tsx')) {
+			return true;
+		}
 		return false;
 	};
 
@@ -1047,7 +1049,9 @@ void test('R9 MUTATION: guard catches a hardcoded || bypass in isExempt on the r
 	const { files } = walk(frontSrc);
 	for (const file of files) {
 		const ext = path.extname(file).toLowerCase();
-		if (ext !== '.ts' && ext !== '.tsx') continue;
+		if (ext !== '.ts' && ext !== '.tsx') {
+			continue;
+		}
 		const normalized = path.relative(frontSrc, file).split(path.sep).join('/');
 		if (isExemptWithBypass(normalized)) {
 			const isPinned =
@@ -1073,7 +1077,9 @@ void test('R9 MUTATION: guard catches a hardcoded || bypass in isExempt on the r
 	const illicitWithCorrect: string[] = [];
 	for (const file of files) {
 		const ext = path.extname(file).toLowerCase();
-		if (ext !== '.ts' && ext !== '.tsx') continue;
+		if (ext !== '.ts' && ext !== '.tsx') {
+			continue;
+		}
 		const normalized = path.relative(frontSrc, file).split(path.sep).join('/');
 		if (isExempt(normalized)) {
 			const isPinned =
