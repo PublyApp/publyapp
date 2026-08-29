@@ -836,18 +836,31 @@ export const buildInviteTemplateCsv = (): string =>
 export const renderInvalidCellMessage = (
 	invalidCell: InvalidCell,
 	t: (key: string, options?: Record<string, unknown>) => string,
-): string =>
-	invalidCell.kind === 'boolean'
-		? t('invite-invalid-cell-boolean', {
+): string => {
+	const hasCell = Boolean(invalidCell.cell);
+	if (invalidCell.kind === 'boolean') {
+		return t(
+			hasCell
+				? 'invite-invalid-cell-boolean-with-cell'
+				: 'invite-invalid-cell-boolean-no-cell',
+			{
 				column: invalidCell.column,
 				cell: invalidCell.cell,
 				value: invalidCell.value,
-			})
-		: t('invite-invalid-cell-error', {
-				column: invalidCell.column,
-				cell: invalidCell.cell,
-				value: invalidCell.value,
-			});
+			},
+		);
+	}
+	return t(
+		hasCell
+			? 'invite-invalid-cell-error-with-cell'
+			: 'invite-invalid-cell-error-no-cell',
+		{
+			column: invalidCell.column,
+			cell: invalidCell.cell,
+			value: invalidCell.value,
+		},
+	);
+};
 
 /** Shape of the invite drawer's react-hook-form state. Mouthful but it is the
  * one contract the drawer's form, the host navigation blocker, and the submit
