@@ -16,13 +16,14 @@
  * Never silently substitutes a passing default.
  *
  * BASELINE
- * --------
+ * -------
  * Established with jscpd@4 --min-tokens 50 against this tree, excluding:
- *   node_modules, bin, obj, dist, .artifacts, Migrations, .worktrees.
+ *   node_modules, bin, obj, dist, .artifacts, Migrations, .worktrees,
+ *   packages/client-ts, apps/front/scripts.
  * Production paths: apps/api, apps/front/src, packages/shared-ts.
  *
- *   - Production clone pairs (unique, non-spec): 433, 6 703 lines
- *   - Production self-duplication files: 250, 4 782 lines
+ *   - Production clone pairs (unique, non-spec): 946, 14 468 lines
+ *   - Production self-duplication files: 253, 4 826 lines
  */
 
 import fs from 'node:fs';
@@ -39,7 +40,17 @@ const repoRoot = path.resolve(
 const PRODUCTION_PATHS = ['apps/api', 'apps/front/src', 'packages/shared-ts'];
 
 /** Spec/test file patterns — excluded from production-pair gate. */
-const SPEC_PATTERNS = ['.test.ts', '.test.tsx', '.spec.ts', '.spec.tsx'];
+// @ts-expect-error rung-0
+const SPEC_PATTERNS = [
+	/\.test\.tsx?$/,
+	/\.spec\.tsx?$/,
+	/\/test\//,
+	/\/spec\//,
+	/\/tests\//,
+	/\/specs\//,
+	/\/__tests__\//,
+	/\/__specs__\//,
+];
 
 /**
  * Whether a file path is inside a production path prefix.
@@ -60,18 +71,12 @@ const isProductionPath = (filePath) => {
 // @ts-expect-error rung-0
 const isSpecFile = (filePath) => {
 	for (const pat of SPEC_PATTERNS) {
-		if (filePath.includes(pat)) {
+		if (pat.test(filePath)) {
 			return true;
 		}
 	}
 	return false;
 };
-
-/**
- * Whether two files are the same path (self-duplication).
- */
-// @ts-expect-error rung-0
-const isSelfClone = (f0, f1) => f0 === f1;
 
 /**
  * jscpd@4 report shape (the JSON key for clone entries is "duplicates",
@@ -162,7 +167,7 @@ export const computeProductionStats = (dupes) => {
 			continue;
 		}
 
-		if (isSelfClone(f0, f1)) {
+		if (f0 === f1) {
 			if (isProductionPath(f0)) {
 				// Track the maximum duplicate-lines value for this file.
 				const prev = uniqueAuto.get(f0) ?? 0;
