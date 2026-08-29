@@ -30,6 +30,7 @@ const config: KnipConfig = {
 				'e2e/helpers/entity-crumb-render-target.tsx', // loaded via vite.ssrLoadModule() by URL from e2e/helpers/render-entity-crumb.ts, never imported
 				'e2e/helpers/render-focus-ring-target.tsx', // loaded via vite.ssrLoadModule() by URL from e2e/helpers/render-focus-ring.ts, never imported
 				'e2e/helpers/data-table-icon-guard-target.tsx', // loaded via vite.ssrLoadModule() by URL from e2e/helpers/render-data-table-icon-guard.ts (real DataTable SSR markup for the #1799 spec), never imported
+				'e2e/helpers/icon-guard-browser-entry.ts', // bundled by esbuild (string entryPoints path) from e2e/helpers/render-data-table-icon-guard.ts for the #1799 spec's in-page real guard, never imported
 				// Invoked by the justfile (`node apps/front/scripts/e2e-compose-env.mts`
 				// in the e2e recipes, #1642) to derive the per-worktree Compose
 				// project name and port band; knip cannot trace a justfile shell-out.

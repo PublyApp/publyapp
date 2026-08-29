@@ -3,8 +3,19 @@ import { expect, test, type Page } from '@playwright/test';
 import { readCompiledAppCss } from './helpers/compiled-app-css';
 import {
 	closeDataTableIconGuardRenderer,
+	getIconGuardBrowserScript,
 	renderDataTableAllSelected,
 } from './helpers/render-data-table-icon-guard';
+
+declare global {
+	interface Window {
+		/** The real guard bundle injected by `getIconGuardBrowserScript` — see
+		 * `helpers/icon-guard-browser-entry.ts`. */
+		__iconVisibilityGuard?: {
+			assertIconIsVisible: (element: Element, context: string) => void;
+		};
+	}
+}
 
 /**
  * #1799 — the icon visibility guard's real-browser proof.
@@ -19,20 +30,27 @@ import {
  * here: a real Chromium page with the real compiled production
  * stylesheet, the real `DataTable` markup (rendered through Vite SSR
  * with the real `Checkbox` primitive and the real `IconCheck` icon —
- * not a hand-mirrored span), and the browser's own `getComputedStyle`
+ * not a hand-mirrored span), and the REAL guard module running in the
+ * page: `getIconGuardBrowserScript` bundles
+ * `src/components/table/data-table-icon-visibility-guard.ts` verbatim
+ * (esbuild, once per worker) and the spec calls that bundle's
+ * `assertIconIsVisible` against the live DOM, its default reader being
+ * the page's own `window.getComputedStyle` — Chromium's measurement,
  * AFTER Tailwind's `@layer` precedence, specificity, and source order
- * have all been applied. The kept-red proof shows the helper is
- * correct against a fake reader; this spec proves the helper is correct
- * against the engine.
+ * have all been applied. The unit contract test at
+ * `src/components/table/data-table-icon-visibility-guard.test.ts` proves
+ * measurement-vs-enumeration with a fake reader; this spec proves the
+ * real guard is correct against the engine.
  *
  * What it asserts: for each of the four hiding mechanisms the issue
  * names (`invisible`, `hidden`, `opacity-0`, `aria-hidden="true"`),
- * `getComputedStyle` (or a direct attribute read for `aria-hidden`)
- * shows the icon as hidden, and the guard raises with a named reason.
- * The baseline read — a freshly painted icon with no mutation — must
- * pass the guard (no false positive), and the no-icon case — the
- * unchecked-row checkbox in a selection of zero rows — must not even
- * reach the guard (the assertion is gated on the icon's presence).
+ * the raw engine probe (`getComputedStyle`, or a direct attribute read
+ * for `aria-hidden`) shows the icon as hidden, AND the bundled real
+ * guard raises with a named reason. The baseline read — a freshly
+ * painted icon with no mutation — must pass the real guard (no false
+ * positive). The spec never re-implements the measurement: it probes
+ * raw engine values for the mutation sanity check and delegates the
+ * decision to the guard's own bundled code.
  *
  * Hermetic like `breadcrumb-entity-name-truncation.spec.ts`: no login,
  * no backend, no docker-compose stack — runs in the dedicated
@@ -48,8 +66,9 @@ import {
 type Mutation = {
 	label: string;
 	mutate: (page: Page, iconSelector: string) => Promise<void>;
-	// A probe of the icon's visibility AFTER the mutation. Returns the
-	// values a correctly-fixed guard would see.
+	// A probe of the RAW ENGINE state AFTER the mutation. Returns the
+	// values Chromium computed for the icon; the spec asserts these to
+	// prove the mutation actually hid the icon, independent of the guard.
 	readHiddenState: (
 		page: Page,
 		iconSelector: string,
@@ -198,50 +217,54 @@ const MUTATIONS: ReadonlyArray<Mutation> = [
 	},
 ];
 
-/** The probe runs the same logic the helper runs, in the page itself,
- * so the spec can assert that the helper's measurement is exactly the
- * browser's measurement — no transport, no translation, no fake
- * reader. */
-const assertIconVisibleToBrowser = async (
+/**
+ * Calls the REAL guard module against the icon in the live DOM.
+ *
+ * The module (`data-table-icon-visibility-guard.ts`) is bundled verbatim
+ * into the page by `getIconGuardBrowserScript` and exposed as
+ * `window.__iconVisibilityGuard` by `icon-guard-browser-entry.ts` — see the
+ * entry file for why this is the guard's own code, not a copy. The guard's
+ * default reader is the page's `window.getComputedStyle`, Chromium's own
+ * measurement. An `ok: false` verdict therefore means the real measurement
+ * code, reading the real engine, reported a named reason.
+ */
+const assertRealIconGuard = async (
 	page: Page,
 	iconSelector: string,
-): Promise<void> => {
-	const result = await page.evaluate(
+): Promise<{ ok: boolean; message?: string }> => {
+	return page.evaluate(
 		({ iconSelector, probe }) => {
 			const el = document.querySelector(iconSelector);
 			if (el === null) {
 				throw new Error(`${probe}: missing icon element`);
 			}
-			const cs = window.getComputedStyle(el);
-			const ariaHidden = el.getAttribute('aria-hidden');
-			if (ariaHidden === 'true') {
-				return { kind: 'aria-hidden', message: 'aria-hidden=true' } as const;
+			const guard = window.__iconVisibilityGuard;
+			if (guard === undefined || guard.assertIconIsVisible === undefined) {
+				throw new Error(
+					`${probe}: the icon guard bundle was not injected into the page`,
+				);
 			}
-			if (cs.visibility === 'hidden') {
-				return { kind: 'visibility', message: 'visibility:hidden' } as const;
+			try {
+				guard.assertIconIsVisible(el, 'e2e icon visibility guard');
+				return { ok: true } as const;
+			} catch (error) {
+				return {
+					ok: false,
+					message: error instanceof Error ? error.message : String(error),
+				} as const;
 			}
-			if (cs.display === 'none') {
-				return { kind: 'display', message: 'display:none' } as const;
-			}
-			const opacity = Number.parseFloat(cs.opacity);
-			if (Number.isFinite(opacity) && opacity === 0) {
-				return { kind: 'opacity', message: 'opacity:0' } as const;
-			}
-			return { kind: 'visible', message: 'visible' } as const;
 		},
 		{ iconSelector, probe: PROBE_ATTR },
 	);
-	if (result.kind === 'visible') {
-		return;
-	}
-	throw new Error(
-		`Icon visibility guard: icon is hidden by ${result.message} (real browser)`,
-	);
 };
 
-const buildPage = (css: string, bodyMarkup: string): string => `<!doctype html>
+const buildPage = (
+	css: string,
+	bodyMarkup: string,
+	guardScript: string,
+): string => `<!doctype html>
 <html>
-<head><style>${css}</style></head>
+<head><style>${css}</style><script>${guardScript}</script></head>
 <body>${bodyMarkup}</body>
 </html>`;
 
@@ -265,10 +288,11 @@ test.describe(
 			await closeDataTableIconGuardRenderer();
 		});
 
-		test('every hiding mechanism in the issue is caught by a real-browser measurement', async ({
+		test('every hiding mechanism in the issue is caught by the real guard measured in-page', async ({
 			page,
 		}) => {
 			const css = readCompiledAppCss();
+			const guardScript = await getIconGuardBrowserScript();
 			const { markup } = await renderDataTableAllSelected();
 
 			// Stamp the header checkbox so the spec's selector pinpoints the
@@ -283,7 +307,7 @@ test.describe(
 			);
 
 			for (const mutation of MUTATIONS) {
-				await page.setContent(buildPage(css, stampedMarkup));
+				await page.setContent(buildPage(css, stampedMarkup, guardScript));
 				await mutation.mutate(page, ICON_SELECTOR);
 
 				// The engine-side measurement must show the icon as hidden.
@@ -310,14 +334,17 @@ test.describe(
 					).toBe('true');
 				}
 
-				// The guard's measurement must agree with the engine's. If the
-				// helper ever silently returns "visible" while Chromium just
-				// proved the icon is hidden, the spec goes red here — exactly
-				// the defect the kept-red proof is shaped to catch, now
-				// verified against the real engine.
-				await expect(
-					assertIconVisibleToBrowser(page, ICON_SELECTOR),
-				).rejects.toThrow();
+				// The real guard's own code must agree with the engine's raw
+				// probe. The spec calls the REAL bundle (Chromium's
+				// `getComputedStyle` as the default reader); if the guard
+				// ever silently returns "visible" while the engine just
+				// proved the icon hidden, the spec goes red here, naming
+				// the guard's own reason.
+				const guardVerdict = await assertRealIconGuard(page, ICON_SELECTOR);
+				expect(
+					guardVerdict.ok,
+					`${mutation.label}: the real guard must agree with the engine — ${guardVerdict.message ?? 'no reason reported'}`,
+				).toBe(false);
 			}
 		});
 
@@ -325,13 +352,14 @@ test.describe(
 			page,
 		}) => {
 			const css = readCompiledAppCss();
+			const guardScript = await getIconGuardBrowserScript();
 			const { markup } = await renderDataTableAllSelected();
 			const stampedMarkup = markup.replace(
 				'data-slot="checkbox"',
 				`data-slot="checkbox" ${PROBE_ATTR}=""`,
 			);
 
-			await page.setContent(buildPage(css, stampedMarkup));
+			await page.setContent(buildPage(css, stampedMarkup, guardScript));
 			const state = await MUTATIONS[0].readHiddenState(page, ICON_SELECTOR);
 			// No mutation: visibility is `visible`, display is `inline-block`
 			// (the icon's own default — the `Checkbox.Indicator` is a
@@ -342,9 +370,13 @@ test.describe(
 			expect(state.display).not.toBe('none');
 			expect(state.opacity).toBe(1);
 			expect(state.ariaHidden).toBeNull();
-			await expect(
-				assertIconVisibleToBrowser(page, ICON_SELECTOR),
-			).resolves.toBeUndefined();
+			// The REAL guard, measured against Chromium's own
+			// `getComputedStyle`, must not raise on the painted icon.
+			const guardVerdict = await assertRealIconGuard(page, ICON_SELECTOR);
+			expect(
+				guardVerdict.ok,
+				`baseline: the real guard must report the icon visible — ${guardVerdict.message ?? 'no reason reported'}`,
+			).toBe(true);
 		});
 	},
 );
