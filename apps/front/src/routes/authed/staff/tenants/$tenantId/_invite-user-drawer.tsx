@@ -59,7 +59,9 @@ import {
 	parseInviteCsv,
 	parseInviteWorkbook,
 	parseInviteeEmails,
+	renderInvalidCellMessage,
 	syncInvalidEmail,
+	type InvalidCell,
 	type InviteFormValues,
 	type InviteRow,
 	useInviteForm,
@@ -498,6 +500,24 @@ const RowInvalidEmailNote = ({
 	);
 };
 
+const RowInvalidCellNote = ({
+	invalidCell,
+	t,
+}: {
+	invalidCell: InvalidCell | null;
+	t: Translate;
+}) => {
+	if (!invalidCell) {
+		return null;
+	}
+
+	return (
+		<p className="text-xs text-destructive" role="alert">
+			{renderInvalidCellMessage(invalidCell, t)}
+		</p>
+	);
+};
+
 const RowUnresolvedNotes = ({
 	unresolved,
 	t,
@@ -644,6 +664,7 @@ const InviteRowsList = ({
 					t={t}
 				/>
 				<RowInvalidEmailNote invalidEmail={row.invalidEmail} t={t} />
+				<RowInvalidCellNote invalidCell={row.invalidCell} t={t} />
 			</section>
 		);
 	};
@@ -1064,6 +1085,7 @@ const InviteTenantUserDrawerInner = ({
 				profileNames: [] as string[],
 				invalidLevel: null,
 				invalidEmail: EMAIL_REGEX.test(email) ? null : email,
+				invalidCell: null,
 			})),
 			existingEmails: currentRows.map((row) => row.email),
 			source: 'manual',
@@ -1105,6 +1127,8 @@ const InviteTenantUserDrawerInner = ({
 		isResolvingProfiles,
 		unresolvedCount: unresolvedFlagCount(unresolvedByRowKey),
 		invalidLevelCount: (rows ?? []).filter((row) => row.invalidLevel !== null)
+			.length,
+		invalidCellCount: (rows ?? []).filter((row) => row.invalidCell !== null)
 			.length,
 	});
 	const isSendDisabled =
