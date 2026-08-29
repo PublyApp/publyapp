@@ -152,8 +152,12 @@ export const BROWSER_TEXT_PAINT_CLASSIFIER_SNIPPET = [
 	.map((fn) => `const ${fn.name} = ${fn.toString()};`)
 	.join('\n');
 
-export const BROWSER_SCREENSHOT_DECODER_SNIPPET =
-	__publyDecodeScreenshot.toString();
+// `.toString()` d'une fonction flechee ne produit AUCUNE liaison nommee (#1834) :
+// l'extrait devient une expression anonyme, et le `return __publyDecodeScreenshot;`
+// du consommateur leve un ReferenceError dans le navigateur. On declare donc la
+// liaison explicitement, exactement comme le fait deja le snippet du classifieur
+// juste au-dessus.
+export const BROWSER_SCREENSHOT_DECODER_SNIPPET = `const ${__publyDecodeScreenshot.name} = ${__publyDecodeScreenshot.toString()};`;
 
 // Node aliases — same reference, not a second body (structural single-source proof).
 export const normalize = __publyNormalize;

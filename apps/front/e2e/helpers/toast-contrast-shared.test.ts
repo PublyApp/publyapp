@@ -287,9 +287,15 @@ describe('single source — browser snippets are derived, not hand-typed twins',
 		expect(BROWSER_TEXT_PAINT_CLASSIFIER_SNIPPET).toBe(expected);
 	});
 
-	test('BROWSER_SCREENSHOT_DECODER_SNIPPET is exactly __publyDecodeScreenshot.toString()', () => {
+	test('BROWSER_SCREENSHOT_DECODER_SNIPPET declares the named binding the browser returns', () => {
+		// Le consommateur fait `new Function(snippet + 'return __publyDecodeScreenshot;')`.
+		// Sans declaration `const <nom> =`, une fonction flechee stringifiee est anonyme
+		// et ce `return` leve un ReferenceError (22 tests e2e rouges, #1834).
 		expect(BROWSER_SCREENSHOT_DECODER_SNIPPET).toBe(
-			__publyDecodeScreenshot.toString(),
+			`const ${__publyDecodeScreenshot.name} = ${__publyDecodeScreenshot.toString()};`,
+		);
+		expect(BROWSER_SCREENSHOT_DECODER_SNIPPET).toContain(
+			'const __publyDecodeScreenshot =',
 		);
 	});
 
