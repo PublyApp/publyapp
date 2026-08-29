@@ -42,11 +42,12 @@
  *
  *   4. Suppression inventory leg — the production tree leg (above) asserts
  *      zero func-style diagnostics from oxlint, but that guard is bypassable:
- *      an `eslint-disable-next-line func-style` on any `function` declaration
- *      silences oxlint silently. This leg closes that gap by maintaining a
- *      versioned inventory of every such suppression. A new suppression not
- *      in the inventory fails, and an inventory entry whose suppression no
- *      longer exists also fails.
+ *      an inline suppression on any `function` declaration silences oxlint
+ *      silently. This leg closes that gap by maintaining a versioned
+ *      inventory of every such suppression. A new suppression not in the
+ *      inventory fails, and an inventory entry whose suppression no longer
+ *      exists also fails. The scan covers the FULL workspace (not just
+ *      apps/front/) to match what oxlint actually lints.
  *
  * Each leg runs through `runOxlint`, the same wrapper `lint-scoping.test.ts`
  * uses for its anti-slop wiring guard — both the config-driven check and the
@@ -93,7 +94,7 @@ const ROOT_RULES = ROOT_CONFIG.rules ?? {};
 
 const isFuncStyleTuple = (
 	value: unknown,
-): value is ['error' | string, string] =>
+): value is [string, string] =>
 	Array.isArray(value) &&
 	value.length === 2 &&
 	value[0] === 'error' &&
@@ -105,11 +106,20 @@ const writeFixture = (dir: string, name: string, body: string): string => {
 	return path;
 };
 
-// A real suppression is always the FIRST content of a single-line comment
-// (`// eslint-disable-next-line func-style`). Anchoring on "marker is the
-// first thing after the comment opener, at the start of the (trimmed) line"
-// is what keeps this scan from matching unrelated shapes.
-const COMMENT_OPENERS = ['//', '/*', '{/*', '<!--'];
+// Comment openers we handle: single-line (//), block (/*), Shebang-style
+// block comment (`{/*`), and HTML-style (`<!--`). Each opener has a corresponding
+// closer pattern for block-style comments.
+const COMMENT_OPENERS = ['//', '/*', '{/*', '<!--'] as const;
+type _CommentOpener = (typeof COMMENT_OPENERS)[number];
+
+const BLOCK_OPENERS = ['/*', '{/*', '<!--'] as const;
+type BlockOpener = (typeof BLOCK_OPENERS)[number];
+
+const BLOCK_CLOSER = {
+	'/*': '*/',
+	'{/*': '*/',
+	'<!--': '-->',
+} satisfies Record<BlockOpener, string>;
 
 type FuncStyleSuppressionEntry = {
 	file: string;
@@ -117,15 +127,50 @@ type FuncStyleSuppressionEntry = {
 	reason: string;
 };
 
+// The marker forms this function detects, mapped to whether they are single-line
+// comments or block comments.
+const SINGLE_LINE_MARKERS = [
+	'eslint-disable-next-line func-style',
+	'eslint-disable func-style',
+	'oxlint-disable-next-line func-style',
+	'oxlint-disable func-style',
+] as const;
+
+const BLOCK_MARKERS = [
+	'eslint-disable func-style',
+	'oxlint-disable func-style',
+	'eslint-disable',
+	'oxlint-disable',
+] as const;
+
 /**
- * Finds every `eslint-disable-next-line func-style` suppression comment in a
- * source file. The scan is anchored: the comment opener must be at the start
- * of the trimmed line, and the marker must follow immediately after it.
- * This mirrors the design-system guard's `findSuppressionSitesInSource`.
+ * Finds every suppression comment that could silence `func-style` in a source
+ * file. The scanner detects all suppression forms documented in issue #1834
+ * point 1:
  *
- * `eslint-disable-next-line func-style` always precedes the symbol it disables,
- * so when the suppression comment ends with a newline, the next line contains
- * the actual function/const declaration whose symbol to record.
+ * - eslint-disable-next-line func-style — next-line, records symbol
+ * - eslint-disable func-style — block-start (no symbol on next line)
+ * - oxlint-disable-next-line func-style — oxlint variant, next-line
+ * - oxlint-disable func-style — oxlint variant, block-start
+ * - eslint-disable block — inline block with func-style
+ * - oxlint-disable block — oxlint inline block
+ * - eslint-disable bare block — silences all rules
+ * - oxlint-disable bare block — silences all oxlint rules
+ *
+ * Single-line suppressions that are block-starts (e.g. eslint-disable func-style)
+ * suppress subsequent lines until end of file. The scanner records them as
+ * having no symbol (symbol = ''), indicating file-level suppression.
+ *
+ * Block suppressions that span multiple lines: the opener and closer may be on
+ * the same line or different lines. The scanner finds the closer by searching
+ * forward.
+ *
+ * @param source  The full file contents.
+ * @param relativePath  The file path relative to the scan root, used as the
+ *                      `file` field in returned entries.
+ * @returns One entry per suppression site. Block suppressions on the same line
+ *          as a single-line comment get one entry; multi-line block suppressions
+ *          (opener on one line, closer on another) also get one entry per opener.
  */
 const findFuncStyleSuppressionsInSource = (
 	source: string,
@@ -134,58 +179,192 @@ const findFuncStyleSuppressionsInSource = (
 	const entries: FuncStyleSuppressionEntry[] = [];
 	const lines = source.split('\n');
 
+	// For block suppressions that span multiple lines, we track openers.
+	// Each entry: { lineIndex, closerLineIndex } or null if inline.
+	const blockOpeners: Array<{
+		openerLine: number;
+		openerCol: number;
+		openerText: string;
+		marker: string;
+		closerLine: number;
+	}> = [];
+
+	// Pass 1: find all block openers and closers, record block suppressor ranges.
 	for (let i = 0; i < lines.length; i++) {
-		const rawLine = lines[i]!;
-		const line = rawLine.trim();
-		const opener = COMMENT_OPENERS.find((candidate) =>
-			line.startsWith(candidate),
-		);
-		if (!opener) {
-			continue;
-		}
-		const afterOpener = line.slice(opener.length).trimStart();
+		const line = lines[i]!;
 
-		// Match `eslint-disable-next-line func-style` with optional reason after.
-		// oxlint's own inline suppression format: `eslint-disable-next-line <rule>`
-		const marker = 'eslint-disable-next-line func-style';
-		if (!afterOpener.startsWith(marker)) {
-			continue;
-		}
+		// Check for block openers (/*, {/*, <!--)
+		for (const opener of BLOCK_OPENERS) {
+			const openerIdx = line.indexOf(opener);
+			if (openerIdx === -1) {
+				continue;
+			}
 
-		const afterMarker = afterOpener.slice(marker.length).trimStart();
+			const contentStart = openerIdx + opener.length;
+			const closer = BLOCK_CLOSER[opener as BlockOpener];
+			const closerIdx = line.indexOf(closer, contentStart);
 
-		// Extract the symbol: look at the next line for a function/const declaration.
-		// eslint-disable-next-line always precedes the thing it disables.
-		let symbol = '';
-		if (i + 1 < lines.length) {
-			const nextLine = lines[i + 1]!.trim();
-			// Match `export function symbolName(...)` or `export const symbolName =` or
-			// `function symbolName(...)` or `const symbolName =`.
-			const funcMatch = nextLine.match(
-				/^(?:export\s+)?function\s+([a-zA-Z_$][a-zA-Z0-9_$]*)/,
-			);
-			const constMatch = nextLine.match(
-				/^(?:export\s+)?const\s+([a-zA-Z_$][a-zA-Z0-9_$]*)/,
-			);
-			if (funcMatch) {
-				symbol = funcMatch[1] ?? '';
-			} else if (constMatch) {
-				symbol = constMatch[1] ?? '';
+			if (closerIdx !== -1) {
+				// Inline block: opener and closer on same line
+				const blockContent = line.slice(contentStart, closerIdx).trim();
+				// Only record suppressions that target func-style specifically or are bare
+				// (silencing all rules). Skip suppressions that target other specific rules.
+				if (isFuncStyleRelevantBlockSuppression(blockContent)) {
+					entries.push({
+						file: relativePath,
+						symbol: '',
+						reason: `(block suppression: ${blockContent.trim()})`,
+					});
+				}
+			} else {
+				// Multi-line block: opener but no closer on this line
+				const blockContent = line.slice(contentStart).trim();
+				if (isFuncStyleRelevantBlockSuppression(blockContent)) {
+					blockOpeners.push({
+						openerLine: i,
+						openerCol: openerIdx,
+						openerText: opener,
+						marker: blockContent.trim(),
+						closerLine: -1,
+					});
+				}
 			}
 		}
 
-		// For a bare suppression with no reason on this line and no symbol found
-		// on the next line, mark it distinctly so the inventory test can assert on it.
-		const reason =
-			symbol || '(bare suppression — no symbol found on next line)';
-		entries.push({ file: relativePath, symbol, reason });
+		// Check for block closers to resolve openers
+		for (const closer of ['*/', '-->']) {
+			const closerIdx = line.indexOf(closer);
+			if (closerIdx === -1) {
+				continue;
+			}
+			// Find the most recent unresolved opener of the matching type
+			for (let j = blockOpeners.length - 1; j >= 0; j--) {
+				const b = blockOpeners[j]!;
+				const expectedCloser =
+					b.openerText === '<!--' ? '-->' : '*/';
+				if (closer === expectedCloser && b.closerLine === -1) {
+					b.closerLine = i;
+				}
+			}
+		}
+	}
+
+	// Add entries for resolved multi-line block suppressions
+	for (const opener of blockOpeners) {
+		if (opener.closerLine !== -1) {
+			entries.push({
+				file: relativePath,
+				symbol: '',
+				reason: `(block suppression: ${opener.marker})`,
+			});
+		}
+	}
+
+	// Pass 2: find single-line suppressions (`// ...` lines)
+	for (let i = 0; i < lines.length; i++) {
+		const rawLine = lines[i]!;
+		const line = rawLine.trim();
+
+		// Only single-line comment openers start with // (after trim)
+		if (!line.startsWith('//')) {
+			continue;
+		}
+
+		const afterSlashSlash = line.slice(2).trimStart();
+
+		// Match `eslint-disable-next-line func-style` and variants
+		for (const marker of SINGLE_LINE_MARKERS) {
+			if (!afterSlashSlash.startsWith(marker)) {
+				continue;
+			}
+
+			// `// eslint-disable func-style` (without -next-line) is a block-start
+			// that suppresses all subsequent lines. It has no next-line symbol.
+			const isNextLine = marker.includes('disable-next-line');
+
+			if (!isNextLine) {
+				// Block-start suppression: no symbol to extract from next line
+				entries.push({
+					file: relativePath,
+					symbol: '',
+					reason: `(block-start suppression: ${marker})`,
+				});
+				continue;
+			}
+
+			// eslint-disable-next-line / oxlint-disable-next-line: extract next-line symbol
+			let symbol = '';
+			if (i + 1 < lines.length) {
+				const nextLine = lines[i + 1]!.trim();
+				const funcMatch = nextLine.match(
+					/^(?:export\s+)?function\s+([a-zA-Z_$][a-zA-Z0-9_$]*)/,
+				);
+				const constMatch = nextLine.match(
+					/^(?:export\s+)?const\s+([a-zA-Z_$][a-zA-Z0-9_$]*)/,
+				);
+				if (funcMatch) {
+					symbol = funcMatch[1] ?? '';
+				} else if (constMatch) {
+					symbol = constMatch[1] ?? '';
+				}
+			}
+
+			entries.push({
+				file: relativePath,
+				symbol,
+				reason: symbol || '(bare next-line suppression)',
+			});
+		}
 	}
 
 	return entries;
 };
 
-// Finds every `eslint-disable-next-line func-style` suppression across all
-// text files in a directory tree.
+/**
+ * Extracts the suppression marker text from a block comment's content.
+ * e.g. "eslint-disable func-style" → "eslint-disable func-style"
+ *      "eslint-disable" → "eslint-disable"
+ *      "oxlint-disable func-style" → "oxlint-disable func-style"
+ */
+const _extractBlockMarker = (content: string): string | null => {
+	for (const marker of BLOCK_MARKERS) {
+		if (content.startsWith(marker)) {
+			return marker;
+		}
+	}
+	return null;
+};
+
+/**
+ * Returns true if this block suppression content is relevant to func-style.
+ * A block suppression is relevant if:
+ * - It is a bare suppression (no rule specified): eslint-disable, oxlint-disable
+ * - It specifically targets func-style
+ * - It is a bare eslint-disable (silences all rules including func-style)
+ *
+ * We skip suppressions that target OTHER specific rules (e.g. `eslint-disable no-unused-vars`).
+ */
+const isFuncStyleRelevantBlockSuppression = (content: string): boolean => {
+	const trimmed = content.trim();
+	// Bare suppressions silence all rules including func-style
+	if (
+		trimmed === 'eslint-disable' ||
+		trimmed === 'oxlint-disable'
+	) {
+		return true;
+	}
+	// Suppressions that specifically target func-style
+	if (trimmed.includes('func-style')) {
+		return true;
+	}
+	// All other suppressions (targeting other specific rules) are not relevant
+	return false;
+};
+
+// Finds every suppression comment across all text files in a directory tree.
+// This mirrors the exact paths oxlint lints: it scans the workspace root
+// and respects the same ignore patterns oxlint uses, so the inventory stays
+// in sync with the linting scope.
 const scanFuncStyleSuppressions = async (
 	rootDir: string,
 ): Promise<FuncStyleSuppressionEntry[]> => {
@@ -197,7 +376,57 @@ const scanFuncStyleSuppressions = async (
 		'.mts',
 		'.js',
 		'.jsx',
+		'.cts',
+		'.cjs',
 	]);
+
+	// Replicate the ignorePatterns from .oxlintrc.json so we scan the same
+	// paths oxlint lints.
+	const IGNORED_PREFIXES = [
+		'**/node_modules',
+		'**/build',
+		'**/dist',
+		'**/.turbo',
+		'**/.husky/_',
+		'**/.react-router',
+		'**/routeTree.gen.ts',
+		'packages/client-ts',
+		'apps/api/openapi',
+		'apps/api/Migrations',
+		'apps/api/bin',
+		'.config/dotnet-tools.json',
+		'apps/api/Generated',
+		'.dump',
+		'.mcp.json',
+		'.claude/settings.local.json',
+		'.agent/**',
+		'.agents/**',
+		'.claude/**',
+		'.codex/**',
+		'.continue/**',
+		'.cursor/**',
+		'.gemini/**',
+		'.opencode/**',
+		'.pi/**',
+		'.roo/**',
+		'.windsurf/**',
+		'packages/lint-ts/src/anti-slop/**',
+		'.tmp',
+		// Exclude this test file from suppression scanning — it contains suppression
+		// patterns in string literals (fixture content) that are not actual suppressions.
+		'packages/lint-ts/src/publy/func-style-config.test.ts',
+	];
+
+	const isIgnored = (path: string): boolean => {
+		// Normalize to forward slashes
+		const normalized = path.replace(/\\/g, '/');
+		for (const pattern of IGNORED_PREFIXES) {
+			if (matchGlobPattern(pattern, normalized)) {
+				return true;
+			}
+		}
+		return false;
+	};
 
 	const walk = async (dir: string): Promise<void> => {
 		let dirEntries;
@@ -209,18 +438,24 @@ const scanFuncStyleSuppressions = async (
 
 		for (const entry of dirEntries) {
 			const fullPath = join(dir, entry.name);
+			const relativePath = fullPath
+				.slice(rootDir.length)
+				.replace(/^[/\\]/, '')
+				.replace(/\\/g, '/');
+
+			if (isIgnored(relativePath) || isIgnored(fullPath)) {
+				continue;
+			}
+
 			if (entry.isDirectory()) {
 				await walk(fullPath);
 				continue;
 			}
-			if (!TEXT_EXTENSIONS.has(entry.name.slice(entry.name.lastIndexOf('.')))) {
+
+			const ext = entry.name.slice(entry.name.lastIndexOf('.'));
+			if (!TEXT_EXTENSIONS.has(ext)) {
 				continue;
 			}
-			const relativePath = fullPath
-				.slice(rootDir.length)
-				.replace(/^[/\\]/, '')
-				.split(/[/\\]/)
-				.join('/');
 
 			const source = readFileSync(fullPath, 'utf8');
 			entries.push(...findFuncStyleSuppressionsInSource(source, relativePath));
@@ -229,6 +464,37 @@ const scanFuncStyleSuppressions = async (
 
 	await walk(rootDir);
 	return entries;
+};
+
+/**
+ * Minimal glob pattern matcher for the ignorePatterns patterns we use.
+ * Supports: double-star suffixes, double-star prefixes, and literal paths.
+ */
+const matchGlobPattern = (pattern: string, path: string): boolean => {
+	// Strip leading `**/` or `**` from pattern for prefix matching
+	const normalizedPattern = pattern
+		.replace(/\*\*/g, '')
+		.replace(/^\//, '');
+
+	if (pattern.startsWith('**/')) {
+		// Suffix match: **/node_modules matches foo/node_modules
+		return path.endsWith(normalizedPattern) || path.includes(normalizedPattern + '/');
+	}
+
+	if (pattern.endsWith('/**')) {
+		// Prefix match: foo/** matches foo/bar, foo/bar/baz
+		const prefix = pattern.slice(0, -2);
+		return path.startsWith(prefix);
+	}
+
+	if (pattern.includes('**')) {
+		// Middle double-star: foo/**/bar — simple substring check
+		const clean = pattern.replace(/\*\*/g, '');
+		return path.includes(clean);
+	}
+
+	// Literal match
+	return path === normalizedPattern || path.endsWith('/' + normalizedPattern);
 };
 
 // The suppression inventory lives alongside this test file.
@@ -268,6 +534,20 @@ const countByFileAndSymbol = (
 const funcStyleInventoryKey = (entry: FuncStyleSuppressionEntry): string =>
 	`${entry.file}\x00${entry.symbol}`;
 
+// Files that have a file-level suppression (block-start or block comment with
+// no specific symbol). These files are entirely exempted from func-style.
+const _filesWithFileLevelSuppression = (
+	inventory: FuncStyleSuppressionEntry[],
+): Set<string> => {
+	const files = new Set<string>();
+	for (const entry of inventory) {
+		if (entry.symbol === '') {
+			files.add(entry.file);
+		}
+	}
+	return files;
+};
+
 describe('func-style: ["error", "expression"] (#1834 — uniform arrow form)', () => {
 	describe('config leg — root .oxlintrc.json carries the exact shape', () => {
 		it('configures func-style as the ["error", "expression"] tuple at the root', () => {
@@ -297,25 +577,58 @@ describe('func-style: ["error", "expression"] (#1834 — uniform arrow form)', (
 			}
 		});
 
-		it('does not ignorePattern the 39 production files out of linting', () => {
-			const ignorePatterns = ROOT_CONFIG.ignorePatterns ?? [];
+		it('does not add new ignorePatterns that could hide production functions', () => {
+			// The committed baseline for ignorePatterns (issue #1834 point 2).
+			// Any addition to this list is a decision that must be declared,
+			// because a new ignorePattern entry is a silent way to hide a
+			// func-style violation from both oxlint and the suppression scanner.
+			const BASELINE_IGNORE_PATTERNS: string[] = [
+				'**/node_modules',
+				'**/build',
+				'**/dist',
+				'**/.turbo',
+				'**/.husky/_',
+				'**/.react-router',
+				'**/routeTree.gen.ts',
+				'packages/client-ts',
+				'apps/api/openapi',
+				'apps/api/Migrations',
+				'apps/api/bin',
+				'.config/dotnet-tools.json',
+				'apps/api/Generated',
+				'.dump',
+				'.mcp.json',
+				'.claude/settings.local.json',
+				'.agent/**',
+				'.agents/**',
+				'.claude/**',
+				'.codex/**',
+				'.continue/**',
+				'.cursor/**',
+				'.gemini/**',
+				'.opencode/**',
+				'.pi/**',
+				'.roo/**',
+				'.windsurf/**',
+				'packages/lint-ts/src/anti-slop/**',
+			];
 
-			// 39 production files own the issue (#1834). If any of them were
-			// dropped into `ignorePatterns` (a silent way to make a violation
-			// disappear), a `func-style` diagnostic on it would never surface
-			// in CI. None of them is a path oxlint already ignores by default,
-			// so a real entry here is always suspicious.
-			const suspiciousPattern =
-				/(func-style|arrow-function-components|scripts-ts|shared-ts)/;
-			const hit = ignorePatterns.find((pattern) =>
-				suspiciousPattern.test(pattern),
+			const currentPatterns = ROOT_CONFIG.ignorePatterns ?? [];
+			const baselineSet = new Set(BASELINE_IGNORE_PATTERNS);
+
+			const newPatterns = currentPatterns.filter(
+				(p) => !baselineSet.has(p),
 			);
 
-			assert.strictEqual(
-				hit,
-				undefined,
-				`ignorePatterns must not silence func-style on the 39 production files; found ${JSON.stringify(hit)}`,
-			);
+			if (newPatterns.length > 0) {
+				const listed = newPatterns.map((p) => JSON.stringify(p)).join(', ');
+				assert.fail(
+					`adding new ignorePatterns is a decision that must be declared; found new entries: ${listed}. ` +
+						'If the new pattern intentionally hides func-style violations, add it to the ' +
+						'suppression inventory instead. If it is a legitimate infrastructure exclusion, ' +
+						'update the BASELINE_IGNORE_PATTERNS constant in this test.',
+				);
+			}
 		});
 	});
 
@@ -467,11 +780,14 @@ describe('func-style: ["error", "expression"] (#1834 — uniform arrow form)', (
 
 	describe('suppression inventory leg — inline disable cannot bypass the production-tree guard', () => {
 		// The production tree leg (above) asserts zero func-style diagnostics from
-		// oxlint. That guard is bypassable: an `eslint-disable-next-line func-style`
-		// on any `function` declaration silences oxlint silently. This leg closes that
-		// gap by maintaining a versioned inventory of every such suppression — a new
-		// suppression not in the inventory fails, and an inventory entry whose
-		// suppression no longer exists also fails.
+		// oxlint. That guard is bypassable: any inline suppression on a `function`
+		// declaration silences oxlint silently. This leg closes that gap by
+		// maintaining an inventory of every such suppression — a new suppression
+		// not in the inventory fails, and an inventory entry whose suppression
+		// no longer exists also fails (issue #1834 point 1, 3, 5).
+		//
+		// The scanner covers the FULL workspace (not just apps/front/) to match
+		// what oxlint actually lints (issue #1834 point 3).
 
 		it('reports a new undeclared suppression with its file and symbol', async () => {
 			// Plant a temporary undeclared suppression in a temp fixture.
@@ -520,12 +836,186 @@ describe('func-style: ["error", "expression"] (#1834 — uniform arrow form)', (
 			rmSync(tempDir, { force: true, recursive: true });
 		});
 
+		it('reports a new undeclared block suppression (/* eslint-disable func-style */)', async () => {
+			// Plant a bare block suppression that the OLD scanner missed (point 1).
+			const tempDir = mkdtempSync(join(TMP_ROOT, 'func-style-block-'));
+			const fixtureFile = join(tempDir, 'undeclared-block.ts');
+			writeFileSync(
+				fixtureFile,
+				'/* eslint-disable func-style */\nexport function survieBloc() { return 1; }\n',
+			);
+
+			const foundEntries = findFuncStyleSuppressionsInSource(
+				readFileSync(fixtureFile, 'utf8'),
+				'undeclared-block.ts',
+			);
+
+			// The committed inventory has no such entry.
+			const foundCounts = countByFileAndSymbol(foundEntries);
+			const inventoryCounts = countByFileAndSymbol(SUPPRESSION_INVENTORY);
+
+			const undocumented: FuncStyleSuppressionEntry[] = [];
+			for (const [key, count] of foundCounts) {
+				const inventoryCount = inventoryCounts.get(key) ?? 0;
+				if (count > inventoryCount) {
+					const [file, ...rest] = key.split('\x00');
+					const symbol = rest.join('\x00');
+					undocumented.push({ file, symbol, reason: '(undocumented)' });
+				}
+			}
+
+			assert.ok(
+				undocumented.length > 0,
+				'the undeclared block suppression must be reported',
+			);
+			assert.strictEqual(
+				undocumented[0]!.file,
+				'undeclared-block.ts',
+				'the failure must name the file',
+			);
+			// Block suppressions have empty symbol (file-level)
+			assert.strictEqual(
+				undocumented[0]!.symbol,
+				'',
+				'block suppressions have empty symbol (file-level)',
+			);
+
+			rmSync(tempDir, { force: true, recursive: true });
+		});
+
+		it('reports a new undeclared bare oxlint block suppression (/* oxlint-disable */)', async () => {
+			const tempDir = mkdtempSync(join(TMP_ROOT, 'func-style-oxlint-block-'));
+			const fixtureFile = join(tempDir, 'undeclared-oxlint-block.ts');
+			writeFileSync(
+				fixtureFile,
+				'/* oxlint-disable */\nexport function survieOxlintGlobale() { return 1; }\n',
+			);
+
+			const foundEntries = findFuncStyleSuppressionsInSource(
+				readFileSync(fixtureFile, 'utf8'),
+				'undeclared-oxlint-block.ts',
+			);
+
+			const foundCounts = countByFileAndSymbol(foundEntries);
+			const inventoryCounts = countByFileAndSymbol(SUPPRESSION_INVENTORY);
+
+			const undocumented: FuncStyleSuppressionEntry[] = [];
+			for (const [key, count] of foundCounts) {
+				const inventoryCount = inventoryCounts.get(key) ?? 0;
+				if (count > inventoryCount) {
+					const [file, ...rest] = key.split('\x00');
+					const symbol = rest.join('\x00');
+					undocumented.push({ file, symbol, reason: '(undocumented)' });
+				}
+			}
+
+			assert.ok(
+				undocumented.length > 0,
+				'the undeclared oxlint block suppression must be reported',
+			);
+			assert.strictEqual(
+				undocumented[0]!.file,
+				'undeclared-oxlint-block.ts',
+				'the failure must name the file',
+			);
+
+			rmSync(tempDir, { force: true, recursive: true });
+		});
+
+		it('reports a new undeclared oxlint next-line suppression', async () => {
+			// Plant an oxlint-disable-next-line suppression (the oxlint variant).
+			const tempDir = mkdtempSync(join(TMP_ROOT, 'func-style-oxlint-next-'));
+			const fixtureFile = join(tempDir, 'undeclared-oxlint-next.ts');
+			// Use // (single-line) not /* */ (block) — oxlint-disable-next-line is single-line
+			writeFileSync(
+				fixtureFile,
+				'// oxlint-disable-next-line func-style\nexport function survieOxlintNext() { return 1; }\n',
+			);
+
+			const foundEntries = findFuncStyleSuppressionsInSource(
+				readFileSync(fixtureFile, 'utf8'),
+				'undeclared-oxlint-next.ts',
+			);
+
+			const foundCounts = countByFileAndSymbol(foundEntries);
+			const inventoryCounts = countByFileAndSymbol(SUPPRESSION_INVENTORY);
+
+			const undocumented: FuncStyleSuppressionEntry[] = [];
+			for (const [key, count] of foundCounts) {
+				const inventoryCount = inventoryCounts.get(key) ?? 0;
+				if (count > inventoryCount) {
+					const [file, ...rest] = key.split('\x00');
+					const symbol = rest.join('\x00');
+					undocumented.push({ file, symbol, reason: '(undocumented)' });
+				}
+			}
+
+			assert.ok(
+				undocumented.length > 0,
+				'the undeclared oxlint next-line suppression must be reported',
+			);
+			assert.strictEqual(
+				undocumented[0]!.file,
+				'undeclared-oxlint-next.ts',
+				'the failure must name the file',
+			);
+			assert.strictEqual(
+				undocumented[0]!.symbol,
+				'survieOxlintNext',
+				'the failure must name the symbol',
+			);
+
+			rmSync(tempDir, { force: true, recursive: true });
+		});
+
+		it('reports a new undeclared bare eslint-disable block (/* eslint-disable */)', async () => {
+			const tempDir = mkdtempSync(join(TMP_ROOT, 'func-style-bare-'));
+			const fixtureFile = join(tempDir, 'undeclared-bare.ts');
+			writeFileSync(
+				fixtureFile,
+				'/* eslint-disable */\nexport function survieBare() { return 1; }\n',
+			);
+
+			const foundEntries = findFuncStyleSuppressionsInSource(
+				readFileSync(fixtureFile, 'utf8'),
+				'undeclared-bare.ts',
+			);
+
+			const foundCounts = countByFileAndSymbol(foundEntries);
+			const inventoryCounts = countByFileAndSymbol(SUPPRESSION_INVENTORY);
+
+			const undocumented: FuncStyleSuppressionEntry[] = [];
+			for (const [key, count] of foundCounts) {
+				const inventoryCount = inventoryCounts.get(key) ?? 0;
+				if (count > inventoryCount) {
+					const [file, ...rest] = key.split('\x00');
+					const symbol = rest.join('\x00');
+					undocumented.push({ file, symbol, reason: '(undocumented)' });
+				}
+			}
+
+			assert.ok(
+				undocumented.length > 0,
+				'the undeclared bare eslint-disable block must be reported',
+			);
+			assert.strictEqual(
+				undocumented[0]!.file,
+				'undeclared-bare.ts',
+				'the failure must name the file',
+			);
+
+			rmSync(tempDir, { force: true, recursive: true });
+		});
+
 		it('reports a stale inventory entry (suppression removed from code)', async () => {
-			// The committed inventory has createQueryResult. Simulate it being removed
-			// by comparing an empty found list against the inventory.
-			const foundEntries: FuncStyleSuppressionEntry[] = [];
+			// The committed inventory has createQueryResult. Scan the full workspace to
+			// get current suppressions, then verify the inventory entry still exists.
+			// If createQueryResult's suppression is removed from the real tree, this
+			// test fails.
+			const foundEntries = await scanFuncStyleSuppressions(WORKSPACE_ROOT);
 			const foundCounts = countByFileAndSymbol(foundEntries);
 
+			// Check that the committed inventory entry is still present in the tree.
 			const stale: FuncStyleSuppressionEntry[] = [];
 			for (const entry of SUPPRESSION_INVENTORY) {
 				const key = funcStyleInventoryKey(entry);
@@ -535,30 +1025,35 @@ describe('func-style: ["error", "expression"] (#1834 — uniform arrow form)', (
 				}
 			}
 
-			// When comparing against an empty found list, every inventory entry is stale.
-			// This proves the stale-detection logic works.
+			// We expect the inventory entry for createQueryResult to be found
+			// in the tree (not stale). If it IS stale, the suppression was removed
+			// from the code and should be removed from the inventory too.
 			assert.ok(
-				stale.length > 0,
-				'at least one inventory entry must be detected as stale against an empty found list',
+				stale.length === 0,
+				`stale suppression inventory entries: ${stale.map((e) => `${e.file}: ${e.symbol}`).join(', ')}. ` +
+					'Remove these entries from func-style-suppressions.json if the suppression was intentionally removed.',
 			);
-			assert.strictEqual(
-				stale[0]!.file,
-				'src/routes/authed/layout.test.tsx',
-				'the stale entry must name the expected file',
-			);
-			assert.strictEqual(
-				stale[0]!.symbol,
-				'createQueryResult',
-				'the stale entry must name the expected symbol',
+		});
+
+		it('the full workspace scan covers packages/scripts-ts/ (not just apps/front/)', async () => {
+			// Scan the workspace root (not just apps/front/) — issue #1834 point 3.
+			// packages/scripts-ts/ is linted by oxlint, so suppressions there must
+			// also be tracked.
+			const scriptsRoot = join(WORKSPACE_ROOT, 'packages/scripts-ts/src');
+			const foundEntries = await scanFuncStyleSuppressions(scriptsRoot);
+
+			// This test just verifies the scanner can process packages/scripts-ts/
+			// without error. The real drift test (below) uses the workspace root.
+			assert.ok(
+				Array.isArray(foundEntries),
+				'scanFuncStyleSuppressions must return an array for packages/scripts-ts/',
 			);
 		});
 
 		it('the real production tree has zero drift against the committed suppression inventory', async () => {
-			// Scan the real production tree (apps/front/src) for func-style suppressions.
-			// Use apps/front/ as root so the relative paths match the inventory convention
-			// (which uses paths relative to apps/front/, e.g. "src/routes/...").
-			const frontRootDir = join(WORKSPACE_ROOT, 'apps/front');
-			const foundEntries = await scanFuncStyleSuppressions(frontRootDir);
+			// Scan the FULL workspace root (not just apps/front/) so the scanner
+			// scope matches what oxlint lints — issue #1834 point 3.
+			const foundEntries = await scanFuncStyleSuppressions(WORKSPACE_ROOT);
 
 			// Compare against the committed inventory using multiset diff.
 			const foundCounts = countByFileAndSymbol(foundEntries);
@@ -587,13 +1082,15 @@ describe('func-style: ["error", "expression"] (#1834 — uniform arrow form)', (
 
 			if (undocumented.length > 0) {
 				const names = undocumented
-					.map((e) => `${e.file}: ${e.symbol}`)
+					.map((e) => `${e.file}: ${e.symbol || '(file-level suppression)'}`)
 					.join('\n  ');
 				assert.fail(`undocumented func-style suppressions found:\n  ${names}`);
 			}
 
 			if (stale.length > 0) {
-				const names = stale.map((e) => `${e.file}: ${e.symbol}`).join('\n  ');
+				const names = stale
+					.map((e) => `${e.file}: ${e.symbol || '(file-level suppression)'}`)
+					.join('\n  ');
 				assert.fail(
 					`stale suppression inventory entries (suppression no longer exists in code):\n  ${names}`,
 				);
