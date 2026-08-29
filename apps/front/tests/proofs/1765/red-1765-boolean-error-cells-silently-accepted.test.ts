@@ -27,14 +27,18 @@ const buildWorkbook = (cells: {
 
 describe('Paired red proof #1765 — boolean/error cells silently accepted as email', () => {
 	// This test asserts the VULNERABLE behavior: a boolean cell (t="b") in the
-	// email column is silently accepted as valid email text. Against the
-	// corrected code, this test must FAIL (red) because the cell is now rejected
-	// with a structured InvalidCell error.
+	// email column is treated as plain text, passes through email validation,
+	// and is flagged only as an invalid email (because "1" fails EMAIL_REGEX).
+	// The vulnerable code has NO cell-type check, so no `invalidCell` is set.
+	// Against the corrected code, this test must FAIL (red) because the cell is
+	// now rejected with a structured `invalidCell` error before email validation,
+	// so `invalidEmail` stays null.
+	//
 	// The mutation that makes this test pass again (restores the bug) is to
 	// remove the type check in mapEmailToRowField so t="b"/t="e" cells are
 	// treated as plain text.
 	describe('RED: vulnerable behavior — boolean/error cells treated as text', () => {
-		test('boolean cell (t="b") in email column is silently accepted as valid email', () => {
+		test('boolean cell (t="b") in email column is silently accepted as text and flagged only as invalid email', () => {
 			const bytes = buildWorkbook({
 				sharedStrings: ['email', 'level', 'profiles', 'admin', 'Alpha'],
 				sheetXml:
@@ -46,7 +50,11 @@ describe('Paired red proof #1765 — boolean/error cells silently accepted as em
 
 			const result = parseInviteWorkbook(bytes);
 
-			// VULNERABLE: the boolean value "1" is treated as a valid email
+			// VULNERABLE: the boolean value "1" is treated as plain text, fails
+			// EMAIL_REGEX, and is flagged as invalidEmail — but no `invalidCell`
+			// names the offending cell. The corrected code must produce
+			// `invalidEmail: null` + `invalidCell: { cell: 'A2', value: '1', kind: 'boolean' }`,
+			// which will NOT match this expectation.
 			expect(result).toEqual({
 				outcome: 'parsed',
 				rows: [
@@ -55,13 +63,13 @@ describe('Paired red proof #1765 — boolean/error cells silently accepted as em
 						accountLevel: 'Admin',
 						profileNames: ['Alpha'],
 						invalidLevel: null,
-						invalidEmail: null,
+						invalidEmail: '1',
 					},
 				],
 			});
 		});
 
-		test('formula error cell (t="e") in email column is silently accepted as valid email', () => {
+		test('formula error cell (t="e") in email column is silently accepted as text and flagged only as invalid email', () => {
 			const bytes = buildWorkbook({
 				sharedStrings: ['email', 'level', 'profiles', 'admin', 'Alpha'],
 				sheetXml:
@@ -73,7 +81,11 @@ describe('Paired red proof #1765 — boolean/error cells silently accepted as em
 
 			const result = parseInviteWorkbook(bytes);
 
-			// VULNERABLE: the error value "#REF!" is treated as a valid email
+			// VULNERABLE: the error value "#REF!" is treated as plain text, fails
+			// EMAIL_REGEX, and is flagged as invalidEmail — but no `invalidCell`
+			// names the offending cell. The corrected code must produce
+			// `invalidEmail: null` + `invalidCell: { cell: 'A2', value: '#REF!', kind: 'formula-error' }`,
+			// which will NOT match this expectation.
 			expect(result).toEqual({
 				outcome: 'parsed',
 				rows: [
@@ -82,7 +94,7 @@ describe('Paired red proof #1765 — boolean/error cells silently accepted as em
 						accountLevel: 'Admin',
 						profileNames: ['Alpha'],
 						invalidLevel: null,
-						invalidEmail: null,
+						invalidEmail: '#REF!',
 					},
 				],
 			});

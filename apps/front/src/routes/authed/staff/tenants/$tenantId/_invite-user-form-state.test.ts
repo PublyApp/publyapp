@@ -572,6 +572,22 @@ describe('syncInvalidEmail', () => {
 
 		expect(syncInvalidEmail(rows)[0]?.invalidEmail).toBeNull();
 	});
+
+	test('clears invalidCell when the email is manually corrected to valid', () => {
+		const rows: InviteRow[] = [
+			{
+				...makeManualRow('valid@example.com'),
+				invalidEmail: 'bad@email',
+				invalidCell: {
+					cell: 'A2',
+					value: '1',
+					kind: 'boolean',
+				},
+			},
+		];
+
+		expect(syncInvalidEmail(rows)[0]?.invalidCell).toBeNull();
+	});
 });
 
 describe('applyProfileResolutions', () => {
@@ -855,6 +871,99 @@ describe('parseInviteWorkbook cell types', () => {
 					invalidLevel: null,
 					invalidEmail: null,
 					invalidCell: null,
+				},
+			],
+		});
+	});
+
+	test('rejects a boolean cell (t="b") in the profiles column with a structured error', () => {
+		const bytes = buildWorkbook({
+			sharedStrings: ['email', 'level', 'profiles', 'a@example.com', 'admin'],
+			sheetXml:
+				'<worksheet><sheetData>' +
+				'<row r="1"><c r="A1" t="s"><v>0</v></c><c r="B1" t="s"><v>1</v></c><c r="C1" t="s"><v>2</v></c></row>' +
+				'<row r="2"><c r="A2" t="s"><v>3</v></c><c r="B2" t="s"><v>4</v></c><c r="C2" t="b"><v>1</v></c></row>' +
+				'</sheetData></worksheet>',
+		});
+
+		const result = parseInviteWorkbook(bytes);
+
+		expect(result).toEqual({
+			outcome: 'parsed',
+			rows: [
+				{
+					email: 'a@example.com',
+					accountLevel: 'Admin',
+					profileNames: [],
+					invalidLevel: null,
+					invalidEmail: null,
+					invalidCell: {
+						cell: 'C2',
+						value: '1',
+						kind: 'boolean',
+					},
+				},
+			],
+		});
+	});
+
+	test('rejects a formula error cell (t="e") in the profiles column with a structured error', () => {
+		const bytes = buildWorkbook({
+			sharedStrings: ['email', 'level', 'profiles', 'a@example.com', 'admin'],
+			sheetXml:
+				'<worksheet><sheetData>' +
+				'<row r="1"><c r="A1" t="s"><v>0</v></c><c r="B1" t="s"><v>1</v></c><c r="C1" t="s"><v>2</v></c></row>' +
+				'<row r="2"><c r="A2" t="s"><v>3</v></c><c r="B2" t="s"><v>4</v></c><c r="C2" t="e"><v>#REF!</v></c></row>' +
+				'</sheetData></worksheet>',
+		});
+
+		const result = parseInviteWorkbook(bytes);
+
+		expect(result).toEqual({
+			outcome: 'parsed',
+			rows: [
+				{
+					email: 'a@example.com',
+					accountLevel: 'Admin',
+					profileNames: [],
+					invalidLevel: null,
+					invalidEmail: null,
+					invalidCell: {
+						cell: 'C2',
+						value: '#REF!',
+						kind: 'formula-error',
+					},
+				},
+			],
+		});
+	});
+
+	test('rejects a formula error code stored as a shared string (t="s") in the email column', () => {
+		const bytes = buildWorkbook({
+			sharedStrings: ['email', 'level', 'profiles', '#REF!', 'admin', 'Alpha'],
+			sheetXml:
+				'<worksheet><sheetData>' +
+				'<row r="1"><c r="A1" t="s"><v>0</v></c><c r="B1" t="s"><v>1</v></c><c r="C1" t="s"><v>2</v></c></row>' +
+				'<row r="2"><c r="A2" t="s"><v>3</v></c><c r="B2" t="s"><v>4</v></c><c r="C2" t="s"><v>5</v></c></row>' +
+				'</sheetData></worksheet>',
+		});
+
+		const result = parseInviteWorkbook(bytes);
+
+		expect(result).toEqual({
+			outcome: 'parsed',
+			rows: [
+				{
+					email: '#REF!',
+					accountLevel: 'Admin',
+					profileNames: ['Alpha'],
+					invalidLevel: null,
+					invalidEmail: null,
+					invalidCell: {
+						cell: 'A2',
+						value: '#REF!',
+						kind: 'formula-error',
+					},
 				},
 			],
 		});

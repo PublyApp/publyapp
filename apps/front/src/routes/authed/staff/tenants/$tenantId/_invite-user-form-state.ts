@@ -222,6 +222,27 @@ type RawCell = {
 	ref?: string;
 };
 
+/** Excel formula error codes that can appear as shared strings (t="s") when
+ * the cell's value is an error result cached as text. These are the codes
+ * Excel itself writes when a formula fails — they are not user-entered data
+ * and must be rejected as non-text cells. */
+const FORMULA_ERROR_CODES = new Set([
+	'#REF!',
+	'#DIV/0!',
+	'#VALUE!',
+	'#NAME?',
+	'#NULL!',
+	'#NUM!',
+	'#N/A',
+	'#GETTING_DATA',
+]);
+
+/** Returns true when a string value is an Excel formula error code.
+ * Needed because error cells can be stored as shared strings (t="s")
+ * instead of error cells (t="e"), bypassing the type-attribute guard. */
+const isFormulaErrorCode = (value: string): boolean =>
+	FORMULA_ERROR_CODES.has(value.trim());
+
 /** Parsed-row level fields: a recognised level, or the raw invalid value. */
 type RowLevelFields = {
 	accountLevel: 'Admin' | 'User';
@@ -229,19 +250,55 @@ type RowLevelFields = {
 	invalidCell: InvalidCell | null;
 };
 
+/** Parsed-row profiles fields: the split profile names, or a structured error. */
+type RowProfilesFields = {
+	profileNames: string[];
+	invalidCell: InvalidCell | null;
+};
+
+/** Maps a raw `profiles` cell to its parsed row fields: the split profile names,
+ * or a structured error when the cell is a boolean (t="b"), formula error (t="e"),
+ * or a formula error code stored as a shared string. Non-text cells are rejected,
+ * not imported as profile names. */
+const mapProfilesToRowFields = (rawCell: RawCell | undefined) => {
+	if (
+		rawCell?.type === 'b' ||
+		rawCell?.type === 'e' ||
+		isFormulaErrorCode(rawCell?.value ?? '')
+	) {
+		return {
+			profileNames: [],
+			invalidCell: {
+				cell: rawCell?.ref,
+				value: rawCell?.value ?? '',
+				kind: rawCell?.type === 'b' ? 'boolean' : 'formula-error',
+			},
+		} satisfies RowProfilesFields;
+	}
+
+	return {
+		profileNames: splitProfileNames(rawCell?.value ?? ''),
+		invalidCell: null,
+	} satisfies RowProfilesFields;
+};
+
 /** Maps a raw `level` cell (already extracted) to its parsed row fields.
- * Boolean (t="b") and formula error (t="e") cells are rejected with a
- * structured error naming the cell and value; other invalid values are
- * flagged as before. */
+ * Boolean (t="b") and formula error (t="e") cells, and formula error codes
+ * stored as shared strings, are rejected with a structured error naming the
+ * cell and value; other invalid values are flagged as before. */
 const mapLevelToRowFields = (rawCell: RawCell | undefined) => {
-	if (rawCell?.type === 'b' || rawCell?.type === 'e') {
+	if (
+		rawCell?.type === 'b' ||
+		rawCell?.type === 'e' ||
+		isFormulaErrorCode(rawCell?.value ?? '')
+	) {
 		return {
 			accountLevel: 'User',
-			invalidLevel: rawCell.value,
+			invalidLevel: rawCell?.value ?? '',
 			invalidCell: {
-				cell: rawCell.ref,
-				value: rawCell.value,
-				kind: rawCell.type === 'b' ? 'boolean' : 'formula-error',
+				cell: rawCell?.ref,
+				value: rawCell?.value ?? '',
+				kind: rawCell?.type === 'b' ? 'boolean' : 'formula-error',
 			},
 		} satisfies RowLevelFields;
 	}
@@ -269,17 +326,22 @@ type EmailRowField = {
 };
 
 /** Maps a raw email cell to its parsed row field: the trimmed email if valid,
- * or the raw trimmed value flagged as invalid. Boolean/error cells are
- * rejected with a structured error naming the cell. */
+ * or the raw trimmed value flagged as invalid. Boolean/error cells and formula
+ * error codes (which can be stored as shared strings, t="s") are rejected with
+ * a structured error naming the cell. */
 const mapEmailToRowField = (rawCell: RawCell | undefined): EmailRowField => {
-	if (rawCell?.type === 'b' || rawCell?.type === 'e') {
+	if (
+		rawCell?.type === 'b' ||
+		rawCell?.type === 'e' ||
+		isFormulaErrorCode(rawCell?.value ?? '')
+	) {
 		return {
-			email: rawCell.value,
+			email: rawCell?.value ?? '',
 			invalidEmail: null,
 			invalidCell: {
-				cell: rawCell.ref,
-				value: rawCell.value,
-				kind: rawCell.type === 'b' ? 'boolean' : 'formula-error',
+				cell: rawCell?.ref,
+				value: rawCell?.value ?? '',
+				kind: rawCell?.type === 'b' ? 'boolean' : 'formula-error',
 			},
 		};
 	}
@@ -508,12 +570,16 @@ export const parseInviteWorkbook = (bytes: Uint8Array): ParseInviteResult => {
 		}
 
 		const levelFields = mapLevelToRowFields(record.get(levelColumn));
+		const profilesFields = mapProfilesToRowFields(record.get(profilesColumn));
 		rows.push({
 			...emailFields,
 			...levelFields,
-			invalidCell: emailFields.invalidCell ?? levelFields.invalidCell,
-			profileNames: splitProfileNames(record.get(profilesColumn)?.value ?? ''),
-		});
+			...profilesFields,
+			invalidCell:
+				emailFields.invalidCell ??
+				levelFields.invalidCell ??
+				profilesFields.invalidCell,
+		} satisfies ParsedInviteRow);
 	}
 
 	return { outcome: 'parsed', rows };
@@ -595,13 +661,19 @@ export const clearFileRows = (rows: InviteRow[]): InviteRow[] =>
 
 /** Re-derives `invalidEmail` for each row from its current email value.
  * Called on every row change so that manual edits (typing, paste) keep
- * the per-row error flag in sync with the field value. */
+ * the per-row error flag in sync with the field value. Also clears
+ * `invalidCell` when the user manually corrects the email: the original
+ * file's cell-type error is no longer relevant once the user has taken
+ * manual action to fix the row. */
 export const syncInvalidEmail = (rows: InviteRow[]): InviteRow[] =>
-	rows.map((row) => ({
-		...row,
-		invalidEmail:
-			row.email === '' || EMAIL_REGEX.test(row.email) ? null : row.email,
-	}));
+	rows.map((row) => {
+		const isEmailValid = row.email === '' || EMAIL_REGEX.test(row.email);
+		return {
+			...row,
+			invalidEmail: isEmailValid ? null : row.email,
+			invalidCell: isEmailValid ? null : row.invalidCell,
+		};
+	});
 
 type ProfileResolutionOutcome = {
 	rows: InviteRow[];
