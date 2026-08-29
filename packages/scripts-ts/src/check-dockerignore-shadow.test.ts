@@ -224,3 +224,109 @@ test('GREEN: CLI exits 0 on a clean tree', async () => {
 		`expected an explicit OK line, got: ${result.stdout}`,
 	);
 });
+
+// RED case, round 2 of #1873: Docker matches the `.dockerignore` basename
+// case-INSENSITIVELY, so every case variant of a shadow name replaces the
+// root file too. The exact-case guard was green on all four of these —
+// four false negatives, i.e. the exact defect #1849 closes.
+
+test('RED: Dockerfile.DOCKERIGNORE (all-caps variant) is detected and named', async () => {
+	const rootDir = await buildFixtureTree();
+
+	await writeFixtureFile(rootDir, 'Dockerfile.DOCKERIGNORE');
+
+	const findings = await findDockerignoreShadows({ rootDir });
+
+	assert.ok(
+		findings.includes('Dockerfile.DOCKERIGNORE'),
+		`expected the guard to name Dockerfile.DOCKERIGNORE, got: ${JSON.stringify(findings)}`,
+	);
+});
+
+// RED case, round 2 of #1873: mixed case is a replacement risk too.
+test('RED: Dockerfile.DockerIgnore (mixed-case variant) is detected and named', async () => {
+	const rootDir = await buildFixtureTree();
+
+	await writeFixtureFile(rootDir, 'Dockerfile.DockerIgnore');
+
+	const findings = await findDockerignoreShadows({ rootDir });
+
+	assert.ok(
+		findings.includes('Dockerfile.DockerIgnore'),
+		`expected the guard to name Dockerfile.DockerIgnore, got: ${JSON.stringify(findings)}`,
+	);
+});
+
+// RED case, round 2 of #1873: the bare dotfile name with a different case
+// is still a `<...>.dockerignore` shadow (its basename is not exactly
+// `.dockerignore`).
+test('RED: .DockerIgnore (dotfile case variant) is detected and named', async () => {
+	const rootDir = await buildFixtureTree();
+
+	await writeFixtureFile(rootDir, '.DockerIgnore');
+
+	const findings = await findDockerignoreShadows({ rootDir });
+
+	assert.ok(
+		findings.includes('.DockerIgnore'),
+		`expected the guard to name .DockerIgnore, got: ${JSON.stringify(findings)}`,
+	);
+});
+
+// RED case, round 2 of #1873: a case variant sitting next to a real
+// Dockerfile is the exact #1832 shape in another spelling.
+test('RED: apps/api/Dockerfile.DockerIgnore (subdirectory case variant) is detected and named', async () => {
+	const rootDir = await buildFixtureTree();
+
+	await writeFixtureFile(rootDir, 'apps/api/Dockerfile.DockerIgnore');
+
+	const findings = await findDockerignoreShadows({ rootDir });
+
+	assert.ok(
+		findings.includes('apps/api/Dockerfile.DockerIgnore'),
+		`expected the guard to name apps/api/Dockerfile.DockerIgnore, got: ${JSON.stringify(findings)}`,
+	);
+});
+
+// CLI RED proof, round 2 of #1873: the real binary must exit 1 on a case
+// variant and name it — the reviewer's four files are the regression that
+// this test pins against the shipped artifact, not just the library.
+test('RED: CLI exits non-zero on a case-variant shadow file (Dockerfile.DOCKERIGNORE)', async () => {
+	const rootDir = await buildFixtureTree();
+
+	await writeFixtureFile(rootDir, 'Dockerfile.DOCKERIGNORE');
+
+	const result = spawnSync('node', [cliPath], {
+		cwd: rootDir,
+		encoding: 'utf8',
+	});
+
+	assert.notEqual(
+		result.status,
+		0,
+		'expected non-zero exit when a case-variant shadow file exists',
+	);
+	assert.ok(
+		(result.stderr ?? '').includes('Dockerfile.DOCKERIGNORE'),
+		`expected stderr to name the case-variant file, got: ${result.stderr}`,
+	);
+});
+
+// GREEN case, round 2 of #1873: making the match case-insensitive must NOT
+// open a new hole. A subdirectory file whose basename is exactly
+// `.dockerignore` in any case is the additive per-directory BuildKit
+// feature, not a shadow — a legitimate root .dockerignore stays accepted in
+// any spelling, so does this one.
+test('GREEN: subdirectory .DOCKERIGNORE (case variant, exact basename) is not a shadow file', async () => {
+	const rootDir = await buildFixtureTree();
+
+	await writeFixtureFile(rootDir, 'apps/api/.DOCKERIGNORE');
+
+	const findings = await findDockerignoreShadows({ rootDir });
+
+	assert.deepEqual(
+		findings,
+		[],
+		'expected a subdirectory .dockerignore case variant (exact basename) to be allowed',
+	);
+});
