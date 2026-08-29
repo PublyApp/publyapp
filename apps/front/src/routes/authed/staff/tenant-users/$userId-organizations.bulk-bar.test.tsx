@@ -334,7 +334,10 @@ describe('#1400 tenant-user organizations tab: bulk trigger label-in-name (real 
 		fireEvent.click(
 			await screen.findByRole('checkbox', { name: rowCheckboxName('en') }),
 		);
-		const trigger = await screen.findByRole('button', { name: 'Bulk actions' });
+		const trigger = await screen.findByRole('button', {
+			name: 'Bulk actions',
+			expanded: false,
+		});
 		fireEvent.click(trigger);
 		await waitFor(() =>
 			expect(trigger.getAttribute('aria-expanded')).toBe('true'),
@@ -365,7 +368,10 @@ describe('#1400 tenant-user organizations tab: bulk trigger label-in-name (real 
 		fireEvent.click(
 			await screen.findByRole('checkbox', { name: rowCheckboxName('en') }),
 		);
-		const trigger = await screen.findByRole('button', { name: 'Bulk actions' });
+		const trigger = await screen.findByRole('button', {
+			name: 'Bulk actions',
+			expanded: false,
+		});
 		fireEvent.click(trigger);
 		await waitFor(() =>
 			expect(trigger.getAttribute('aria-expanded')).toBe('true'),
@@ -396,7 +402,10 @@ describe('#1400 tenant-user organizations tab: bulk trigger label-in-name (real 
 		fireEvent.click(
 			await screen.findByRole('checkbox', { name: rowCheckboxName('en') }),
 		);
-		const trigger = await screen.findByRole('button', { name: 'Bulk actions' });
+		const trigger = await screen.findByRole('button', {
+			name: 'Bulk actions',
+			expanded: false,
+		});
 		fireEvent.click(trigger);
 		await waitFor(() =>
 			expect(trigger.getAttribute('aria-expanded')).toBe('true'),
