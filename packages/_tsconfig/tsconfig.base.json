@@ -15,6 +15,13 @@
 		"preserveWatchOutput": true,
 		"skipLibCheck": true,
 		"allowSyntheticDefaultImports": true,
+		// #1868: shared-ts sources run RAW under node (--experimental-strip-types /
+		// stable type stripping in Node 24) for apps/front .mts scripts. Node
+		// mandates the REAL file extension in relative specifiers and never
+		// rewrites `.js` to `.ts`, so shared-ts sibling imports carry `.ts`. This
+		// flag is the documented tsc pairing for that flow (Node.js "Modules:
+		// TypeScript" docs) and relaxes a restriction no existing specifier uses.
+		"allowImportingTsExtensions": true,
 		"resolveJsonModule": true,
 
 		/* Linting */
