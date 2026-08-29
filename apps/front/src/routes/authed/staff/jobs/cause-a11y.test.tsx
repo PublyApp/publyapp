@@ -7,8 +7,15 @@
  * and is reachable via keyboard through the standard inspect action
  * (DropdownMenuItem = <button>, focusable + activable via keyboard).
  *
- * This test verifies the keyboard-accessible elements exist, have the
- * right properties, AND that the drawer actually shows the full cause when opened.
+ * Brief #1815 ronde 3:
+ *  - the previous round asserted `tagName=BUTTON`, `tabIndex=0`,
+ *    `aria-label=email.send` against a *mocked* DataTableRowActions. Those
+ *    values were hard-coded in the mock and could not fail; they have been
+ *    removed (they were not testing the real artefact);
+ *  - the drawer mock has been dropped: the real ~/components/ui/drawer
+ *    (a thin wrapper over @base-ui/react/dialog) renders as `role="dialog"`.
+ *    That is the artefact the bug report named ("le tiroir ne s'ouvrait
+ *    jamais") and the only meaningful surface to assert.
  */
 import { cleanup, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -174,31 +181,6 @@ vi.mock('~/components/ui/confirm-dialog', () => ({
 	ConfirmDialog: () => null,
 }));
 
-vi.mock('~/components/table/row-actions', () => ({
-	DataTableRowActions: ({
-		ariaLabel,
-		children,
-		testId,
-	}: {
-		ariaLabel: string;
-		children: React.ReactNode;
-		testId?: string;
-	}) =>
-		createElement('div', { 'data-testid': 'row-actions' }, [
-			createElement(
-				'button',
-				{
-					'data-testid': testId ?? 'dropdown-trigger',
-					'aria-label': ariaLabel,
-					type: 'button',
-					tabIndex: 0,
-				},
-				'⋯',
-			),
-			children,
-		]),
-}));
-
 vi.mock('~/components/ui/dropdown-menu', () => {
 	const React = require('react');
 	return {
@@ -206,6 +188,21 @@ vi.mock('~/components/ui/dropdown-menu', () => {
 			React.createElement('div', { 'data-testid': 'dropdown-menu' }, children),
 		DropdownMenuPortal: ({ children }: { children: React.ReactNode }) =>
 			React.createElement('div', {}, children),
+		DropdownMenuTrigger: ({
+			children,
+			'aria-label': ariaLabel,
+		}: {
+			children: React.ReactNode;
+			'aria-label'?: string;
+		}) =>
+			React.createElement(
+				'button',
+				{
+					'data-testid': 'dropdown-trigger',
+					'aria-label': ariaLabel,
+				},
+				children,
+			),
 		DropdownMenuContent: ({ children }: { children: React.ReactNode }) =>
 			React.createElement(
 				'div',
@@ -252,40 +249,13 @@ vi.mock('~/components/ui/dropdown-menu', () => {
 	};
 });
 
-// Mock the drawer to render inline (no portal)
-vi.mock('~/components/ui/drawer', () => {
-	const React = require('react');
-	return {
-		Drawer: ({
-			children,
-			open,
-		}: {
-			children: React.ReactNode;
-			open?: boolean;
-		}) => (open ? React.createElement('div', {}, children) : null),
-		DrawerBody: ({ children }: { children: React.ReactNode }) =>
-			React.createElement('div', { 'data-testid': 'drawer-body' }, children),
-		DrawerContent: ({
-			children,
-			'data-testid': testId,
-		}: {
-			children: React.ReactNode;
-			'data-testid'?: string;
-		}) => React.createElement('div', { 'data-testid': testId }, children),
-		DrawerDescription: ({ children }: { children: React.ReactNode }) =>
-			React.createElement('p', {}, children),
-		DrawerHeader: ({ children }: { children: React.ReactNode }) =>
-			React.createElement('div', { 'data-testid': 'drawer-header' }, children),
-		DrawerTitle: ({ children }: { children: React.ReactNode }) =>
-			React.createElement('h2', {}, children),
-		DrawerTrigger: ({ children }: { children: React.ReactNode }) =>
-			React.createElement('button', {}, children),
-		DrawerClose: ({ children }: { children: React.ReactNode }) =>
-			React.createElement('button', {}, children),
-		DrawerForm: ({ children }: { children: React.ReactNode }) =>
-			React.createElement('form', {}, children),
-	};
-});
+// Note: the real Drawer (~/components/ui/drawer) is used here on purpose.
+// It is a thin wrapper over @base-ui/react/dialog and renders as
+// `role="dialog"` with `data-slot="drawer"`. The default portal target is
+// `document.body` which jsdom supports. Tests find the drawer via
+// `findByTestId('staff-jobs-dead-letter-drawer')` and assert the role is
+// `dialog`. If the inspect action never opens the drawer, the findByTestId
+// rejects and the test fails — that is the "le tiroir s'ouvre" guarantee.
 
 vi.mock('~/components/table/data-table', () => ({
 	DataTable: ({
@@ -334,9 +304,9 @@ vi.mock('@tabler/icons-react', () => ({
 	IconActivity: () => createElement('span', {}, 'icon-activity'),
 	IconRotateClockwise: () => createElement('span', {}, 'icon-rotate'),
 	IconDots: () => createElement('span', {}, 'icon-dots'),
+	IconX: () => createElement('span', { 'aria-hidden': 'true' }, '×'),
 }));
 
-import { makeDeadLetterColumns } from './_columns-dead-letter';
 import { Route } from './dead-letter';
 
 const LONG_CAUSE =
@@ -363,7 +333,7 @@ const renderPage = () => {
 	return render(<PageComponent />);
 };
 
-describe('accessibility: keyboard path to full cause (brief #1720 ronde 2)', () => {
+describe('accessibility: keyboard path to full cause (brief #1720 ronde 2, #1815 ronde 3)', () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
 		mocks.useQuery.mockReturnValue(NO_DETAIL);
@@ -390,16 +360,6 @@ describe('accessibility: keyboard path to full cause (brief #1720 ronde 2)', () 
 		cleanup();
 	});
 
-	test('the action trigger is a real button with an accessible name (focusable via Tab)', () => {
-		renderPage();
-
-		const actionTrigger = screen.getByRole('button', { name: 'email.send' });
-		// The trigger must be a real button — focusable via keyboard
-		expect(actionTrigger.tagName).toBe('BUTTON');
-		// It must have an accessible name
-		expect(actionTrigger.getAttribute('aria-label')).toBe('email.send');
-	});
-
 	test('the column cell shows the truncated cause with a title attribute for mouse users', () => {
 		renderPage();
 
@@ -412,51 +372,26 @@ describe('accessibility: keyboard path to full cause (brief #1720 ronde 2)', () 
 		expect(cell.getAttribute('title')).toBe(LONG_CAUSE);
 	});
 
-	test('the dropdown menu items are real buttons (focusable + activable via keyboard)', () => {
-		// Render the column directly to verify the dropdown items are buttons
-		const columns = makeDeadLetterColumns(
-			(key: string) => key,
-			'en',
-			() => {},
-			() => {},
-		);
-		const actions = columns.find((c) => c.id === 'actions');
-		expect(actions).toBeDefined();
-
-		// The actions cell renders a DataTableRowActions with DropdownMenuItem children
-		// DropdownMenuItem renders as a <button> — this is the keyboard-accessible path
-		const ui = (
-			actions!.cell as (ctx: {
-				row: { original: StaffDeadLetterRow };
-			}) => JSX.Element
-		)({ row: { original: DEAD_LETTER_ROWS[0] } });
-		render(ui);
-
-		// The trigger is a button
-		const trigger = screen.getByRole('button', { name: 'email.send' });
-		expect(trigger.tagName).toBe('BUTTON');
-		expect(trigger.getAttribute('tabIndex')).toBe('0');
-	});
-
-	test('the drawer component renders the full cause when opened', async () => {
+	test('the drawer (real, role=dialog) renders the full cause when opened', async () => {
 		const user = userEvent.setup();
 		// The drawer is controlled by `inspected` state. When a row is inspected,
 		// the drawer opens and shows the full cause via formatFailureCause.
 		renderPage();
 
-		// The drawer is not open yet (inspected is null)
-		expect(screen.queryByTestId('staff-jobs-dead-letter-drawer')).toBeNull();
+		// The drawer is not open yet (inspected is null) — no role=dialog
+		expect(screen.queryByRole('dialog')).toBeNull();
 
-		// Open the drawer via the inspect action (keyboard-accessible path)
+		// Open the drawer via the inspect action
 		const actionTrigger = screen.getAllByTestId('dropdown-trigger')[0];
 		await user.click(actionTrigger);
 
 		const inspectItem = screen.getByTestId('dead-letter-inspect-dl-1');
 		await user.click(inspectItem);
 
-		// The drawer should now be open
+		// The drawer should now be open and be a real dialog (role=dialog)
 		const drawer = await screen.findByTestId('staff-jobs-dead-letter-drawer');
-		expect(drawer).toBeTruthy();
+		expect(drawer.getAttribute('role')).toBe('dialog');
+		expect(drawer.getAttribute('data-slot')).toBe('drawer');
 
 		// The drawer shows the full cause — not truncated, not a marker
 		const detailValue = within(drawer).getByText(LONG_CAUSE);
@@ -484,19 +419,19 @@ describe('accessibility: keyboard path to full cause (brief #1720 ronde 2)', () 
 
 		renderPage();
 
-		// The drawer is not open yet (inspected is null)
-		expect(screen.queryByTestId('staff-jobs-dead-letter-drawer')).toBeNull();
+		// The drawer is not open yet (inspected is null) — no role=dialog
+		expect(screen.queryByRole('dialog')).toBeNull();
 
-		// Open the drawer via the inspect action (keyboard-accessible path)
+		// Open the drawer via the inspect action
 		const actionTrigger = screen.getAllByTestId('dropdown-trigger')[0];
 		await user.click(actionTrigger);
 
 		const inspectItem = screen.getByTestId('dead-letter-inspect-dl-1');
 		await user.click(inspectItem);
 
-		// The drawer should now be open
+		// The drawer should now be open and be a real dialog
 		const drawer = await screen.findByTestId('staff-jobs-dead-letter-drawer');
-		expect(drawer).toBeTruthy();
+		expect(drawer.getAttribute('role')).toBe('dialog');
 
 		// The drawer shows the marker — not a blank cell, not a raw empty string.
 		// This is the accessible, keyboard-reachable version of the column's marker.

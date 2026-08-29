@@ -6,8 +6,20 @@
  * diverges. Before the fix, the drawer used `??` and rendered a blank cell
  * for an empty-string cause while the column correctly showed the marker.
  *
- * This test renders the actual drawer component and verifies the cause text
- * matches what the column would show for the same row.
+ * Brief #1815 ronde 3: the reviewer observed that two of the previous tests
+ * gave `detail.lastError` and `inspected.lastError` the same value, so the
+ * expression `detail?.lastError ?? inspected.lastError` could be replaced
+ * by `inspected.lastError` without any test failing. This file splits the
+ * two paths:
+ *  - the "they differ" test seeds the row and the detail query with
+ *    *different* causes and asserts the drawer shows the detail's cause
+ *    (the `??` falls through to the row's only when detail is falsy);
+ *  - the "row cause is empty" tests still confirm the marker path.
+ *
+ * The drawer is the real one (~/components/ui/drawer is a thin wrapper over
+ * @base-ui/react/dialog). The dropdown menu is mocked inline (no portal) to
+ * keep the inspect click deterministic; the real drawer is the artefact
+ * under test — opening it is verified via `role="dialog"`.
  */
 import { cleanup, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -241,40 +253,14 @@ vi.mock('~/components/ui/dropdown-menu', () => {
 	};
 });
 
-// Mock the drawer to render inline (no portal)
-vi.mock('~/components/ui/drawer', () => {
-	const React = require('react');
-	return {
-		Drawer: ({
-			children,
-			open,
-		}: {
-			children: React.ReactNode;
-			open?: boolean;
-		}) => (open ? React.createElement('div', {}, children) : null),
-		DrawerBody: ({ children }: { children: React.ReactNode }) =>
-			React.createElement('div', { 'data-testid': 'drawer-body' }, children),
-		DrawerContent: ({
-			children,
-			'data-testid': testId,
-		}: {
-			children: React.ReactNode;
-			'data-testid'?: string;
-		}) => React.createElement('div', { 'data-testid': testId }, children),
-		DrawerDescription: ({ children }: { children: React.ReactNode }) =>
-			React.createElement('p', {}, children),
-		DrawerHeader: ({ children }: { children: React.ReactNode }) =>
-			React.createElement('div', { 'data-testid': 'drawer-header' }, children),
-		DrawerTitle: ({ children }: { children: React.ReactNode }) =>
-			React.createElement('h2', {}, children),
-		DrawerTrigger: ({ children }: { children: React.ReactNode }) =>
-			React.createElement('button', {}, children),
-		DrawerClose: ({ children }: { children: React.ReactNode }) =>
-			React.createElement('button', {}, children),
-		DrawerForm: ({ children }: { children: React.ReactNode }) =>
-			React.createElement('form', {}, children),
-	};
-});
+// Note: the real Drawer (~/components/ui/drawer) is used here on purpose.
+// It is a thin wrapper over @base-ui/react/dialog and renders as
+// `role="dialog"` with `data-slot="drawer"`. The default portal target is
+// `document.body` which jsdom supports. Tests find the drawer via
+// `findByTestId('staff-jobs-dead-letter-drawer')` (the data-testid is
+// spread onto DialogPrimitive.Popup) and assert the role is `dialog`. If
+// the inspected row never opens the drawer, the findByTestId rejects and
+// the test fails — that is the "le tiroir s'ouvre" guarantee.
 
 vi.mock('~/components/table/data-table', () => ({
 	DataTable: ({
@@ -323,9 +309,13 @@ vi.mock('@tabler/icons-react', () => ({
 	IconActivity: () => createElement('span', {}, 'icon-activity'),
 	IconRotateClockwise: () => createElement('span', {}, 'icon-rotate'),
 	IconDots: () => createElement('span', {}, 'icon-dots'),
+	IconX: () => createElement('span', { 'aria-hidden': 'true' }, '×'),
 }));
 
 import { Route } from './dead-letter';
+
+const ROW_CAUSE = 'Cause from the row (list endpoint)';
+const DETAIL_CAUSE = 'Cause from the detail (per-row endpoint)';
 
 const DEAD_LETTER_ROWS: StaffDeadLetterRow[] = [
 	{
@@ -333,7 +323,7 @@ const DEAD_LETTER_ROWS: StaffDeadLetterRow[] = [
 		originalJobId: null,
 		jobType: 'email.send',
 		attempts: 3,
-		lastError: 'boom',
+		lastError: ROW_CAUSE,
 		externalStateStatus: null,
 		triagedAt: null,
 		failedAt: null,
@@ -348,7 +338,16 @@ const renderPage = () => {
 	return render(<PageComponent />);
 };
 
-describe('dead-letter drawer: cause display parity with column (brief #1720 ronde 2)', () => {
+const openDrawer = async (): Promise<HTMLElement> => {
+	const user = userEvent.setup();
+	const actionTrigger = screen.getAllByTestId('dropdown-trigger')[0];
+	await user.click(actionTrigger);
+	const inspectItem = screen.getByTestId('dead-letter-inspect-dl-1');
+	await user.click(inspectItem);
+	return screen.findByTestId('staff-jobs-dead-letter-drawer');
+};
+
+describe('dead-letter drawer: cause display parity with column (brief #1720 ronde 2, #1815 ronde 3)', () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
 		mocks.useQuery.mockReturnValue(NO_DETAIL);
@@ -370,10 +369,73 @@ describe('dead-letter drawer: cause display parity with column (brief #1720 rond
 		cleanup();
 	});
 
+	// — the two paths must look different —
+	// Round-3 reviewer note: previous tests fed the same string to
+	// `inspected.lastError` and `detail.lastError`, so the `??` was
+	// observationally equivalent to `inspected.lastError`. This test gives
+	// the row and the detail two different, both-truthy values and asserts
+	// the drawer shows the DETAIL's value — that is the only way the
+	// `??` (or the `??` collapsing to the row's value when the detail is
+	// nullish) can be observed.
+	test('the drawer shows the detail cause, not the row cause, when they differ', async () => {
+		setDetailQuery({
+			data: {
+				lastError: DETAIL_CAUSE,
+				attempts: 3,
+				failedAt: null,
+				payload: null,
+			},
+			isPending: false,
+		});
+
+		renderPage();
+
+		const drawer = await openDrawer();
+		expect(drawer.getAttribute('role')).toBe('dialog');
+
+		// The row's cause must NOT appear in the drawer
+		expect(within(drawer).queryByText(ROW_CAUSE)).toBeNull();
+		// The detail's cause IS what the drawer shows
+		const detailValue = within(drawer).getByText(DETAIL_CAUSE);
+		expect(detailValue).toBeTruthy();
+		expect(detailValue.textContent).toBe(DETAIL_CAUSE);
+	});
+
+	// Round-3: the row can carry a real cause while the per-row detail
+	// endpoint is silent on `lastError` (it returns null or omits the
+	// field). The drawer must still surface the row's cause. The mirror
+	// of the previous test: now the detail is nullish and the row is
+	// the only source of truth.
+	test('the drawer falls back to the row cause when the detail is silent on lastError', async () => {
+		// Row carries a real cause
+		// Detail's lastError is null (the per-row endpoint didn't return it)
+		setDetailQuery({
+			data: {
+				lastError: null,
+				attempts: 3,
+				failedAt: null,
+				payload: null,
+			},
+			isPending: false,
+		});
+
+		renderPage();
+
+		const drawer = await openDrawer();
+		expect(drawer.getAttribute('role')).toBe('dialog');
+
+		// The row's cause IS what the drawer shows
+		const rowValue = within(drawer).getByText(ROW_CAUSE);
+		expect(rowValue).toBeTruthy();
+		expect(rowValue.textContent).toBe(ROW_CAUSE);
+		// The detail's value is null — must NOT show the marker
+		expect(within(drawer).queryByText('No cause recorded')).toBeNull();
+	});
+
+	// Round-2 surface: the column shows the marker for an empty/whitespace/null
+	// cause, the drawer must show the SAME marker. With the detail's lastError
+	// also empty the drawer's text must still be the marker, not a blank cell.
 	test('the drawer shows the same marker as the column for an empty-string cause', async () => {
-		const user = userEvent.setup();
-		// The row has an empty-string lastError — the column shows the marker.
-		// The drawer must show the SAME marker, not a blank cell.
 		const rowsWithEmptyCause: StaffDeadLetterRow[] = [
 			{ ...DEAD_LETTER_ROWS[0], lastError: '' },
 		];
@@ -384,6 +446,10 @@ describe('dead-letter drawer: cause display parity with column (brief #1720 rond
 			isFetching: false,
 			error: null,
 		});
+		setDetailQuery({
+			data: { lastError: '', attempts: 3, failedAt: null, payload: null },
+			isPending: false,
+		});
 
 		renderPage();
 
@@ -391,16 +457,8 @@ describe('dead-letter drawer: cause display parity with column (brief #1720 rond
 		const cell = screen.getByTestId('cell-last-error-dl-1');
 		expect(cell.textContent).toBe('No cause recorded');
 
-		// Open the drawer via the inspect action
-		const actionTrigger = screen.getAllByTestId('dropdown-trigger')[0];
-		await user.click(actionTrigger);
-
-		const inspectItem = screen.getByTestId('dead-letter-inspect-dl-1');
-		await user.click(inspectItem);
-
-		// The drawer should now be open
-		const drawer = await screen.findByTestId('staff-jobs-dead-letter-drawer');
-		expect(drawer).toBeTruthy();
+		const drawer = await openDrawer();
+		expect(drawer.getAttribute('role')).toBe('dialog');
 
 		// The drawer also shows the marker — not a blank cell
 		const marker = within(drawer).getByText('No cause recorded');
@@ -408,7 +466,6 @@ describe('dead-letter drawer: cause display parity with column (brief #1720 rond
 	});
 
 	test('the drawer shows the same marker as the column for a whitespace-only cause', async () => {
-		const user = userEvent.setup();
 		const rowsWithWhitespaceCause: StaffDeadLetterRow[] = [
 			{ ...DEAD_LETTER_ROWS[0], lastError: '   ' },
 		];
@@ -419,6 +476,10 @@ describe('dead-letter drawer: cause display parity with column (brief #1720 rond
 			isFetching: false,
 			error: null,
 		});
+		setDetailQuery({
+			data: { lastError: '   ', attempts: 3, failedAt: null, payload: null },
+			isPending: false,
+		});
 
 		renderPage();
 
@@ -426,16 +487,8 @@ describe('dead-letter drawer: cause display parity with column (brief #1720 rond
 		const cell = screen.getByTestId('cell-last-error-dl-1');
 		expect(cell.textContent).toBe('No cause recorded');
 
-		// Open the drawer via the inspect action
-		const actionTrigger = screen.getAllByTestId('dropdown-trigger')[0];
-		await user.click(actionTrigger);
-
-		const inspectItem = screen.getByTestId('dead-letter-inspect-dl-1');
-		await user.click(inspectItem);
-
-		// The drawer should now be open
-		const drawer = await screen.findByTestId('staff-jobs-dead-letter-drawer');
-		expect(drawer).toBeTruthy();
+		const drawer = await openDrawer();
+		expect(drawer.getAttribute('role')).toBe('dialog');
 
 		// The drawer also shows the marker — not a blank cell
 		const marker = within(drawer).getByText('No cause recorded');
@@ -443,7 +496,6 @@ describe('dead-letter drawer: cause display parity with column (brief #1720 rond
 	});
 
 	test('the drawer shows the same marker as the column for a null cause', async () => {
-		const user = userEvent.setup();
 		const rowsWithNullCause: StaffDeadLetterRow[] = [
 			{ ...DEAD_LETTER_ROWS[0], lastError: null },
 		];
@@ -454,6 +506,10 @@ describe('dead-letter drawer: cause display parity with column (brief #1720 rond
 			isFetching: false,
 			error: null,
 		});
+		setDetailQuery({
+			data: { lastError: null, attempts: 3, failedAt: null, payload: null },
+			isPending: false,
+		});
 
 		renderPage();
 
@@ -461,16 +517,8 @@ describe('dead-letter drawer: cause display parity with column (brief #1720 rond
 		const cell = screen.getByTestId('cell-last-error-dl-1');
 		expect(cell.textContent).toBe('No cause recorded');
 
-		// Open the drawer via the inspect action
-		const actionTrigger = screen.getAllByTestId('dropdown-trigger')[0];
-		await user.click(actionTrigger);
-
-		const inspectItem = screen.getByTestId('dead-letter-inspect-dl-1');
-		await user.click(inspectItem);
-
-		// The drawer should now be open
-		const drawer = await screen.findByTestId('staff-jobs-dead-letter-drawer');
-		expect(drawer).toBeTruthy();
+		const drawer = await openDrawer();
+		expect(drawer.getAttribute('role')).toBe('dialog');
 
 		// The drawer also shows the marker — not a blank cell
 		const marker = within(drawer).getByText('No cause recorded');
