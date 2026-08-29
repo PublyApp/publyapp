@@ -61,9 +61,12 @@ test.describe(
 			await expect(history).toBeVisible();
 
 			// The worker drives the publication to Published through the faked
-			// provider; poll the list until the link shows up.
+			// provider; poll the list until the link shows up. The worker is
+			// single-threaded and shares the API container — on a loaded CI
+			// runner the publish-now → Published transition can take longer
+			// than the default 30s, so poll for up to 60s before giving up.
 			const link = page.getByTestId('tenant-posts-history-link');
-			await expect(link).toBeVisible({ timeout: 30_000 });
+			await expect(link).toBeVisible({ timeout: 60_000 });
 			await expect(link).toHaveAttribute(
 				'href',
 				/^https:\/\/bsky\.app\/profile\//,
