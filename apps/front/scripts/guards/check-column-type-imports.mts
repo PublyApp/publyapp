@@ -225,10 +225,16 @@ const bannedBindingsFromImport = (node: ts.ImportDeclaration): string[] => {
 		}
 	}
 
-	// Namespace import: `import * as ColumnDef from '...'`
+	// Namespace import: `import * as ReactTable from '...'`
+	// A namespace import from a banned specifier gives access to ALL exports,
+	// including the banned types, so it's always a violation — regardless of
+	// the namespace alias name.
 	if (namedBindings !== undefined && ts.isNamespaceImport(namedBindings)) {
-		if (BANNED_TYPE_NAMES.has(namedBindings.name.text)) {
-			found.push(namedBindings.name.text);
+		const alias = namedBindings.name.text;
+		if (BANNED_TYPE_NAMES.has(alias)) {
+			found.push(alias);
+		} else {
+			found.push('(namespace import)');
 		}
 	}
 
@@ -291,6 +297,10 @@ const scanSourceFile = (relativePath: string, source: string): Finding[] => {
 			const specifier = rawSpecifier.replace(/^['"`]|['"`]+$/g, '');
 			if (specifier !== null && BANNED_SPECIFIERS.has(specifier)) {
 				const isLegacy = specifier === '@tanstack/react-table/legacy';
+				// A wildcard re-export (`export * from '...'`) has no
+				// exportClause and re-exports ALL exports, including the
+				// banned types.
+				const isWildcard = node.exportClause === undefined;
 				const exportedNames: string[] = [];
 				if (
 					node.exportClause !== undefined &&
@@ -303,16 +313,22 @@ const scanSourceFile = (relativePath: string, source: string): Finding[] => {
 						}
 					}
 				}
-				if (isLegacy || exportedNames.length > 0) {
-					// `oxlint` interdit les ternaires imbriques : on calcule la branche
-					// heritee en amont. Semantique inchangee.
-					const legacyExports =
-						exportedNames.length > 0 ? exportedNames : ['(legacy re-export)'];
+				if (isLegacy || isWildcard || exportedNames.length > 0) {
+					// `oxlint` interdit les ternaires imbriques : on calcule la
+					// branche en amont. Semantique inchangee.
+					let bindings: string[];
+					if (exportedNames.length > 0) {
+						bindings = exportedNames;
+					} else if (isWildcard) {
+						bindings = ['(wildcard re-export)'];
+					} else {
+						bindings = ['(legacy re-export)'];
+					}
 					findings.push({
 						file: relativePath,
 						line: lineOf(sourceFile, node),
 						specifier,
-						bindings: isLegacy ? legacyExports : exportedNames,
+						bindings,
 						nodeText: node.getText(sourceFile).trim().replace(/\s+/g, ' '),
 					});
 				}
@@ -336,6 +352,32 @@ const scanSourceFile = (relativePath: string, source: string): Finding[] => {
 						line: lineOf(sourceFile, node),
 						specifier,
 						bindings: ['(dynamic import)'],
+						nodeText: node.getText(sourceFile).trim().replace(/\s+/g, ' '),
+					});
+				}
+			}
+		}
+
+		// `require()` call: `const ReactTable = require('@tanstack/react-table')`.
+		// A require call with a banned specifier brings the same root types
+		// into scope. Only flag when the callee is an unqualified `require`
+		// identifier (not a method call like `foo.require(...)`) and the
+		// first argument is a string literal whose value is a banned specifier.
+		if (
+			ts.isCallExpression(node) &&
+			ts.isIdentifier(node.expression) &&
+			node.expression.text === 'require' &&
+			node.arguments.length > 0
+		) {
+			const firstArg = node.arguments[0];
+			if (ts.isStringLiteralLike(firstArg)) {
+				const specifier = firstArg.text;
+				if (BANNED_SPECIFIERS.has(specifier)) {
+					findings.push({
+						file: relativePath,
+						line: lineOf(sourceFile, node),
+						specifier,
+						bindings: ['(require call)'],
 						nodeText: node.getText(sourceFile).trim().replace(/\s+/g, ' '),
 					});
 				}
@@ -381,8 +423,35 @@ const walk = (dir: string): string[] => {
 export const scanFrontSrcForBannedImports = (
 	root: string = frontSrc,
 ): Finding[] => {
+	// Verify the scan root exists and is a directory. A missing or
+	// unreadable root means the guard cannot do its job — fail loudly
+	// rather than reporting a false [OK].
+	let isReadableDir = false;
+	try {
+		isReadableDir = statSync(root).isDirectory();
+	} catch (err) {
+		throw new Error(
+			`Guard #1769: scan root '${root}' does not exist or is not readable. ` +
+				`The guard cannot verify the ban.`,
+			{ cause: err },
+		);
+	}
+	if (!isReadableDir) {
+		throw new Error(
+			`Guard #1769: scan root '${root}' is not a directory. ` +
+				`The guard cannot verify the ban.`,
+		);
+	}
+
 	const findings: Finding[] = [];
-	for (const file of walk(root)) {
+	const files = walk(root);
+	if (files.length === 0) {
+		throw new Error(
+			`Guard #1769: no .ts/.tsx/.mts files found in '${root}'. ` +
+				`The guard cannot verify the ban without scanning files.`,
+		);
+	}
+	for (const file of files) {
 		const relativePath = path.relative(root, file);
 		// Normalize to forward slashes for consistent comparison.
 		const normalizedPath = relativePath.split(path.sep).join('/');

@@ -314,6 +314,55 @@ void test('ADVERSE: catches aliased import (import { foo as ColumnDef })', () =>
 });
 
 // ---------------------------------------------------------------------------
+// Bypass coverage: the three false negatives from r1 must now be caught.
+// ---------------------------------------------------------------------------
+
+void test('ADVERSE: catches namespace import (import * as ReactTable from)', () => {
+	// `import * as ReactTable from '@tanstack/react-table'` gives access to
+	// ALL exports including the banned types. The alias is NOT one of the
+	// banned names, so the old guard missed it. The new guard flags any
+	// namespace import from a banned specifier.
+	const root = makeSandbox({
+		'src/routes/authed/staff/profiles.tsx':
+			`import * as ReactTable from '@tanstack/react-table';\n` +
+			`export const x = null as ReactTable.ColumnDef<any>;\n`,
+	});
+	const findings = scanFrontSrcForBannedImports(root);
+	assert.equal(findings.length, 1, 'expected exactly one finding');
+	assert.equal(findings[0].specifier, '@tanstack/react-table');
+	assert.ok(findings[0].bindings.includes('(namespace import)'));
+});
+
+void test('ADVERSE: catches require() call', () => {
+	// `const ReactTable = require('@tanstack/react-table')` is a CommonJS
+	// module load that brings the same root types into scope. The guard
+	// must flag require calls whose first argument is a banned specifier.
+	const root = makeSandbox({
+		'src/routes/authed/staff/profiles.tsx':
+			`const ReactTable = require('@tanstack/react-table');\n` +
+			`export const x = null as ReactTable.ColumnDef<any>;\n`,
+	});
+	const findings = scanFrontSrcForBannedImports(root);
+	assert.equal(findings.length, 1, 'expected exactly one finding');
+	assert.equal(findings[0].specifier, '@tanstack/react-table');
+	assert.ok(findings[0].bindings.includes('(require call)'));
+});
+
+void test('ADVERSE: catches wildcard re-export (export * from)', () => {
+	// `export * from '@tanstack/react-table'` re-exports ALL exports,
+	// including the banned types. The old guard only entered the flagged
+	// branch when exportClause was a NamedExports; a wildcard has no
+	// exportClause and was silently skipped.
+	const root = makeSandbox({
+		'src/lib/table-types.ts': `export * from '@tanstack/react-table';\n`,
+	});
+	const findings = scanFrontSrcForBannedImports(root);
+	assert.equal(findings.length, 1, 'expected exactly one finding');
+	assert.equal(findings[0].specifier, '@tanstack/react-table');
+	assert.ok(findings[0].bindings.includes('(wildcard re-export)'));
+});
+
+// ---------------------------------------------------------------------------
 // Message quality: the message must name the replacement.
 // ---------------------------------------------------------------------------
 
