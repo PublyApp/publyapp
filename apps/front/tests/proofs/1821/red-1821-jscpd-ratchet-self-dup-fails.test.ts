@@ -20,7 +20,7 @@
 
 import { execSync } from 'child_process';
 import { writeFileSync, mkdirSync, rmSync } from 'fs';
-import { join, resolve } from 'path';
+import { dirname, join, resolve } from 'path';
 import { fileURLToPath } from 'url';
 
 import { describe, expect, test } from 'vitest';
