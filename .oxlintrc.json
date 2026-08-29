@@ -135,6 +135,15 @@
 			}
 		},
 		{
+			"files": [
+				"apps/front/scripts/ci/compose-startup.test.mts",
+				"apps/front/scripts/ci/validate-runtime-env-startup.test.mts"
+			],
+			"rules": {
+				"typescript/no-floating-promises": "off"
+			}
+		},
+		{
 			"files": ["apps/front/src/components/table/data-table.tsx"],
 			"rules": {
 				"typescript/no-deprecated": "off"
