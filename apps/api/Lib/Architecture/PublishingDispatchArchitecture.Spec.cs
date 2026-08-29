@@ -68,6 +68,10 @@ public sealed partial class PublishingDispatchArchitectureSpec : IDisposable {
 		"EditPostScheduleForTenant",
 		"CancelPostScheduleForTenant",
 		"FindScheduledPublicationsForTenant",
+		// D2 publish-now landed in #1457 and is a publishing surface; its
+		// handler resolves in PostEndpointsForTenant but its name must be
+		// inventoried here so the route-vs-name cross-check holds.
+		"PublishNowForTenant",
 	];
 
 	// The explicit, closed inventory of every /posts/* route on the live route map.
@@ -86,6 +90,10 @@ public sealed partial class PublishingDispatchArchitectureSpec : IDisposable {
 		new("/posts/{postId}/schedule", "POST", IsPublishing: true),
 		new("/posts/{postId}/schedule", "PATCH", IsPublishing: true),
 		new("/posts/{postId}/schedule", "DELETE", IsPublishing: true),
+		// D2 publish-now: immediate publishing through the job queue, hanging off
+		// the existing posts resource (D2 plan reconciliation 2 — the route
+		// landed in #1457 and is a publishing surface).
+		new("/posts/{postId}/publish-now", "POST", IsPublishing: true),
 		// ── Non-publishing routes (listed to keep the set closed) ──────────────
 		new("/posts", "POST", IsPublishing: false),
 		new("/posts", "GET", IsPublishing: false),

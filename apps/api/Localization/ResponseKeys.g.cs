@@ -330,11 +330,6 @@ public static partial class ResponseKeys {
 	public static readonly TranslationKey Profiles = new("profiles");
 
 	/// <summary>
-	/// A publication for this post is being published right now
-	/// </summary>
-	public static readonly TranslationKey PublicationScheduleInProgress = new("publication-schedule-in-progress");
-
-	/// <summary>
 	/// Project not found in this tenant
 	/// </summary>
 	public static readonly TranslationKey ProjectNotFound = new("project-not-found");
@@ -343,6 +338,11 @@ public static partial class ResponseKeys {
 	/// The provider could not be reached; nothing was stored
 	/// </summary>
 	public static readonly TranslationKey ProviderUnreachable = new("provider-unreachable");
+
+	/// <summary>
+	/// A publication for this post is being published right now
+	/// </summary>
+	public static readonly TranslationKey PublicationScheduleInProgress = new("publication-schedule-in-progress");
 
 	/// <summary>
 	/// Publishing started

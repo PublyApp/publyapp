@@ -6,12 +6,18 @@ import { createAppProblemDetailsFromDiscriminatorValue, createFindPostsForTenant
 // @ts-ignore
 import { type WithPostItemRequestBuilder, WithPostItemRequestBuilderNavigationMetadata, WithPostItemRequestBuilderRequestsMetadata } from './item/index.js';
 // @ts-ignore
+import { PublicationsRequestBuilderRequestsMetadata, type PublicationsRequestBuilder } from './publications/index.js';
+// @ts-ignore
 import { type BaseRequestBuilder, type KeysToExcludeForNavigationMetadata, type NavigationMetadata, type Parsable, type ParsableFactory, type RequestConfiguration, type RequestInformation, type RequestsMetadata } from '@microsoft/kiota-abstractions';
 
 /**
  * Builds and executes requests for operations under /posts
  */
 export interface PostsRequestBuilder extends BaseRequestBuilder<PostsRequestBuilder> {
+    /**
+     * The publications property
+     */
+    get publications(): PublicationsRequestBuilder;
     /**
      * Gets an item from the PublyApp.Api.Client.posts.item collection
      * @param postId Unique identifier of the item
@@ -86,6 +92,9 @@ export const PostsRequestBuilderNavigationMetadata: Record<Exclude<keyof PostsRe
         requestsMetadata: WithPostItemRequestBuilderRequestsMetadata,
         navigationMetadata: WithPostItemRequestBuilderNavigationMetadata,
         pathParametersMappings: ["postId"],
+    },
+    publications: {
+        requestsMetadata: PublicationsRequestBuilderRequestsMetadata,
     },
 };
 /**

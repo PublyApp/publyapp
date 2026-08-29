@@ -7,6 +7,14 @@ using PublyApp.Api.Modules.Publishing.Handlers.Tenant;
 namespace PublyApp.Api.Modules.Publishing.Endpoints;
 
 public static class PublishingEndpointsForTenant {
+	/// <summary>
+	/// Maps the D2 publishing surfaces (history + composer targets) under
+	/// <c>/publishing/*</c>. The D3 schedule lifecycle (POST/PATCH/DELETE
+	/// <c>/posts/{postId}/schedule</c>) and the D3 queue/calendar list
+	/// (GET <c>/posts/publications</c>) live in
+	/// <see cref="PostPublishingEndpointsForTenant"/> so they hang off the
+	/// posts resource where they belong.
+	/// </summary>
 	public static IEndpointRouteBuilder MapPublishingEndpointsForTenant(
 		this IEndpointRouteBuilder routes
 	) {
@@ -38,42 +46,6 @@ public static class PublishingEndpointsForTenant {
 			)
 			.WithSummary("List visible social accounts as composer publish targets")
 			.WithTenantPermission([AppPermissions.Tenant.SocialAccounts.PUBLISH]);
-
-		group.MapPost(
-			Routes.Publishing.ForTenant.Schedule,
-			SchedulePostForTenant.Handle
-		)
-			.WithName("SchedulePostForTenant")
-			.WithSummary("Schedule a post for future publication")
-			.WithReqBodyValidation<SchedulePostBody>()
-			.WithTenantPermission([AppPermissions.Tenant.Posts.PUBLISH]);
-
-		group.MapPatch(
-			Routes.Publishing.ForTenant.Schedule,
-			EditPostScheduleForTenant.Handle
-		)
-			.WithName("EditPostScheduleForTenant")
-			.WithSummary("Edit a scheduled post's text and/or schedule")
-			.WithReqBodyValidation<EditPostScheduleBody>()
-			.WithTenantPermission([AppPermissions.Tenant.Posts.PUBLISH]);
-
-		group.MapDelete(
-			Routes.Publishing.ForTenant.Schedule,
-			CancelPostScheduleForTenant.Handle
-		)
-			.WithName("CancelPostScheduleForTenant")
-			.WithSummary("Cancel a post's schedule (delete Scheduled publications)")
-			.WithTenantPermission([AppPermissions.Tenant.Posts.PUBLISH]);
-
-		group.MapGet(
-			Routes.Publishing.ForTenant.Find,
-			FindScheduledPublicationsForTenant.Handle
-		)
-			.WithName("FindScheduledPublicationsForTenant")
-			.RequireRateLimiting(ApiRateLimitPolicies.HeavySearchList)
-			.WithSummary("Find scheduled publications (queue + calendar)")
-			.WithReqQueryValidation<FindScheduledPublicationsQuery>()
-			.WithTenantPermission([AppPermissions.Tenant.Posts.VIEW]);
 
 		return routes;
 	}

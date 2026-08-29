@@ -267,8 +267,10 @@ vi.mock('~/components/table/data-table', () => ({
 		columns: Array<{ id: string; cell: (ctx: unknown) => ReactNode }>;
 		rows: Array<{ id: string } & Record<string, unknown>>;
 	}) =>
-		createElement('div', { 'data-testid': testId }, [
-			...rows.map((row) =>
+		createElement(
+			'div',
+			{ 'data-testid': testId },
+			rows.map((row) =>
 				createElement(
 					'div',
 					{ key: row.id, 'data-testid': `row-${row.id}` },
@@ -281,7 +283,7 @@ vi.mock('~/components/table/data-table', () => ({
 					),
 				),
 			),
-		]),
+		),
 }));
 
 vi.mock('./_permissions', () => ({
