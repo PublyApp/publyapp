@@ -346,8 +346,9 @@ function findHandlerLine(lines: string[]): number {
 	);
 	if (index === -1) {
 		throw new Error(
-			`r2-sigint-race proof: could not find the "process.on('SIGINT'" line ` +
-				`in the extracted r2 fixture. Extracted ${lines.length} lines: ${JSON.stringify(lines)}`,
+			`MESURE IMPOSSIBLE — r2-sigint-race proof: could not find the ` +
+				`"process.on('SIGINT'" line in the extracted r2 fixture. ` +
+				`Extracted ${lines.length} lines: ${JSON.stringify(lines)}`,
 		);
 	}
 	return index;
@@ -479,7 +480,26 @@ describe('r2 fixture SIGINT race — RED: handler installed AFTER the handshake 
 		modifiedLines[handlerIdx] = bracketLine;
 		findHandlerLine(modifiedLines);
 
-		// Step 4: Kept-red assertion — the ONLY assertion in this test.
+		// Step 4: Sanity check — verify isHandlerDeferred correctly classifies
+		// a KNOWN-DEFERRED line. This is a THROW check, not an assertion.
+		// On correct code, isHandlerDeferred returns true for a setImmediate-
+		// wrapped line. If the function regresses (Mutation D: inverted, or
+		// Mutation E: always false), it returns false here, and we throw
+		// MESURE IMPOSSIBLE — which the runner classifies as CORRUPT PROOF
+		// (CI red). This is the load-bearing check that makes Mutations D
+		// and E detectable: without it, the runner would see the first test's
+		// AssertionError and misclassify the second test's unexpected pass as
+		// "failed as expected" (CI green).
+		const knownDeferredLine = `setImmediate(() => { process.on('SIGINT', () => {}); });`;
+		if (!isHandlerDeferred(knownDeferredLine)) {
+			throw new Error(
+				`MESURE IMPOSSIBLE — isHandlerDeferred misclassified a known-deferred ` +
+					`line as non-deferred. This means the detection mechanism has ` +
+					`regressed (inverted or always-false), and the proof cannot measure.`,
+			);
+		}
+
+		// Step 5: Kept-red assertion — the ONLY assertion in this test.
 		//
 		// Derive a deferred line from the REAL handler by wrapping it in
 		// setImmediate. On correct code, isHandlerDeferred returns true (the
@@ -490,16 +510,17 @@ describe('r2 fixture SIGINT race — RED: handler installed AFTER the handshake 
 		// throw produces MESURE IMPOSSIBLE → CORRUPT PROOF → CI red.
 		//
 		// Mutation D (isHandlerDeferred inverted: `return line.trim().startsWith('process.on(')`):
-		//   isHandlerDeferred(deferredLine) → false (deferredLine doesn't
-		//   start with `process.on(`) → assertion PASSES → runner reports
-		//   FAILURE (unexpected pass) → CI red.
+		//   Step 4 sanity check: isHandlerDeferred(knownDeferredLine) → false
+		//   (doesn't start with `process.on(`) → throws MESURE IMPOSSIBLE →
+		//   CORRUPT PROOF → CI red.
 		//
 		// Mutation E (isHandlerDeferred always false: `return false`):
-		//   isHandlerDeferred(deferredLine) → false → assertion PASSES →
-		//   runner reports FAILURE (unexpected pass) → CI red.
+		//   Step 4 sanity check: isHandlerDeferred(knownDeferredLine) → false
+		//   → throws MESURE IMPOSSIBLE → CORRUPT PROOF → CI red.
 		//
 		// This single assertion is the load-bearing kept-red check: it is
-		// FALSE on correct code and TRUE for both Mutation D and Mutation E.
+		// FALSE on correct code and would be TRUE for both Mutation D and
+		// Mutation E IF the sanity check didn't catch them first.
 		const deferredLine = `setImmediate(() => { ${handlerLine} });`;
 		expect(isHandlerDeferred(deferredLine)).toBe(false);
 	});

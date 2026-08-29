@@ -21,7 +21,13 @@ réécrivant le second test pour exercer le pipeline de détection réel en deux
 3. **Test THROW (pas assertion)** — sur une variante bracket-notation du même
    handler : si `findHandlerLine` régressé en dot-only ne trouve pas la ligne,
    elle lève `MESURE IMPOSSIBLE` → le coureur classe en `CORRUPT PROOF` (CI rouge).
-4. **Assertion rouge gardé** — sur une ligne `setImmediate(() => { ... })` dérivée
+4. **Sanity check THROW** — vérifie qu'`isHandlerDeferred` classe correctement une
+   ligne connue comme différée (`setImmediate(() => { process.on('SIGINT', ...) })`).
+   Si la fonction régressé (inversée ou toujours-faux), elle lève `MESURE IMPOSSIBLE`
+   → CORRUPT PROOF (CI rouge). Ce check est essentiel : sans lui, le coureur
+   verrait l'AssertionError du premier test et malclassifierait le passage
+   inattendu du second test comme « échoué comme attendu » (CI vert).
+5. **Assertion rouge gardé** — sur une ligne `setImmediate(() => { ... })` dérivée
    du handler réel : `isHandlerDeferred(deferredLine)` renvoie `true` sur code
    correct ; l'assertion exige `false` → échoue sur code correct (rouge gardé).
 
@@ -34,37 +40,36 @@ mécanismes sont séquentiels (localiser, puis classifier), pas redondants.
 | # | Mutation | Effet attendu | Résultat |
 |---|---------|---------------|----------|
 | C | `findHandlerLine` régressé en regex dot-only (`/process\.on/…`) | Ne trouve pas `process['on']('SIGINT')` → `findIndex` retourne `-1` → lève `MESURE IMPOSSIBLE` → **CORRUPT PROOF** (CI rouge) | ✓ CI rouge |
-| D | `isHandlerDeferred` inversé (`return line.trim().startsWith('process.on(')`) | `isHandlerDeferred(deferredLine)` → `false` (ne commence PAS par `process.on(`) → assertion `toBe(false)` **passe** → coureur signale FAILURE (passage inattendu) → CI rouge | ✓ CI rouge |
-| E | `isHandlerDeferred` toujours faux (`return false`) | `isHandlerDeferred(deferredLine)` → `false` → assertion **passe** → coureur signale FAILURE → CI rouge | ✓ CI rouge |
+| D | `isHandlerDeferred` inversé (`return line.trim().startsWith('process.on(')`) | sanity check : `isHandlerDeferred(knownDeferredLine)` → `false` → lève `MESURE IMPOSSIBLE` → **CORRUPT PROOF** (CI rouge) | ✓ CI rouge |
+| E | `isHandlerDeferred` toujours faux (`return false`) | sanity check : `isHandlerDeferred(knownDeferredLine)` → `false` → lève `MESURE IMPOSSIBLE` → **CORRUPT PROOF** (CI rouge) | ✓ CI rouge |
 
 Chaque mutation est sur un axe **différent** de la mutation primaire (le bug) et
 détectée par un mécanisme distinct. Le pipeline en deux étapes est séquentiel,
 pas redondant : l'étape 1 trouve la ligne, l'étape 2 la classifie.
 
-## Preuve que la preuve n'est pas décorative
+## Pourquoi le sanity check est nécessaire
 
-La preuve réfute explicitement le risque qu'une mutation sur `findHandlerLine`
-laisse la preuve silencieusement verte. La mutation C est précisément ce cas :
-avec la regex dot-only, la bracket-notation n'est plus localisée, et la preuve
-lève `MESURE IMPOSSIBLE` — le coureur classe en CORRUPT PROOF (CI rouge), pas
-en succès silencieux.
+Le coureur (`run-preuves.mts`) exécute tout le fichier de test, pas les tests
+individuellement. Quand Mutation D ou E est appliquée, le premier test peut
+échouer avec AssertionError (masquant le passage inattendu du second test).
+Le coureur voit « Tests N failed » avec AssertionError et malclassifie comme
+« échoué comme attendu » (CI vert).
 
-Le second test (« the r2 fixture writes the handshake BEFORE installing the
-SIGINT handler ») ne dépend pas de `findHandlerLine` — il cherche directement
-`process.on(` dans les lignes extraites. La mutation C ne le touche pas. C'est
-intentionnel : le premier test couvre l'axe de l'ordre (A), le second couvre
-les axes de la directivité temporelle (B) **et** de la syntaxe d'accès (C).
+Le sanity check (Step 4) résout ceci : il lève `MESURE IMPOSSIBLE` quand
+`isHandlerDeferred` classe mal une ligne connue comme différée. Le coureur
+détecte `MESURE IMPOSSIBLE` dans la sortie et classe en CORRUPT PROOF (CI rouge).
 
 ## Vérifications
 
 - [x] Les deux tests échouent sur code correct (rouge gardé, état attendu)
 - [x] Typecheck passe (exit code 0)
-- [x] Mutation C → CORRUPT PROOF (MESURE IMPOSSIBLE)
-- [x] Mutation D → assertion passe inopinément → FAILURE (CI rouge)
-- [x] Mutation E → assertion passe inopinément → FAILURE (CI rouge)
+- [x] Mutation C → CORRUPT PROOF (MESURE IMPOSSIBLE depuis findHandlerLine)
+- [x] Mutation D → CORRUPT PROOF (MESURE IMPOSSIBLE depuis sanity check)
+- [x] Mutation E → CORRUPT PROOF (MESURE IMPOSSIBLE depuis sanity check)
 
 ## Fichiers modifiés
 
 - `apps/front/tests/proofs/1457/red-1457-r2-sigint-race-silent-child.test.ts`
   - En-tête « Adverse mutation search » réécrit (two-step detection pipeline)
-  - Second test réécrit pour exercer le pipeline réel (extract → find → throw → assert)
+  - Second test réécrit pour exercer le pipeline réel (extract → find → throw → sanity → assert)
+  - Message d'erreur de findHandlerLine préfixé par `MESURE IMPOSSIBLE` pour que le coureur classe correctement
