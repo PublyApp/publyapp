@@ -335,7 +335,9 @@ export const findDuplicateKeys = (raw: string): string[] => {
 						const firstLine = current.get(key);
 						if (firstLine !== undefined) {
 							findings.push(
-								`${manifestPath}: DUPLICATE KEY "${key}" at lines ${firstLine + 1} and ${i + 1} — JSON.parse would silently keep only the last occurrence, masking a reconciled step that should not be lost. Delete the duplicate entry and keep the intended one.`,
+								`${manifestPath}: DUPLICATE KEY ${JSON.stringify(
+									key,
+								)} at lines ${firstLine + 1} and ${i + 1} — JSON.parse would silently keep only the last occurrence, masking a reconciled step that should not be lost. Delete the duplicate entry and keep the intended one.`,
 							);
 						} else {
 							current.set(key, i);
@@ -454,6 +456,24 @@ interface ReasonRef {
 }
 
 /**
+ * Formats a JSON.parse error into a human-readable message that names the
+ * cause in plain words. Never includes the raw document content (which could
+ * be large or contain secrets) — only the error type and location.
+ */
+const formatJsonError = (error: unknown): string => {
+	if (error instanceof SyntaxError) {
+		// Node's JSON SyntaxError carries a "position" property in recent
+		// versions; fall back to the message when unavailable.
+		const position = (error as { position?: number }).position;
+		if (typeof position === 'number') {
+			return `syntax error at character ${position}: ${error.message}`;
+		}
+		return `syntax error: ${error.message}`;
+	}
+	return `unexpected error: ${error instanceof Error ? error.message : String(error)}`;
+};
+
+/**
  * Compares the workflows against the manifest and returns human-readable
  * findings. Returns an empty array when the gate is fully reconciled.
  *
@@ -474,17 +494,65 @@ export const findCiDrift = async ({
 	const { problems, steps } = await collectWorkflowSteps(rootDir);
 	const findings = [...problems];
 
-	const manifestRaw = await readFile(path.join(rootDir, manifestPath), 'utf8');
+	let manifestRaw: string;
+	try {
+		manifestRaw = await readFile(path.join(rootDir, manifestPath), 'utf8');
+	} catch (error) {
+		const code = (error as NodeJS.ErrnoException).code;
+		if (code === 'ENOENT') {
+			findings.push(
+				`${manifestPath}: manifest file not found at ${path.join(rootDir, manifestPath)}. The drift guard requires this manifest to verify CI step reconciliation. Create the manifest (see docs/guides/local-ci-gate.md) or ensure the file path is correct.`,
+			);
+		} else if (code === 'EACCES') {
+			findings.push(
+				`${manifestPath}: manifest file is not readable at ${path.join(rootDir, manifestPath)}. Check file permissions so the drift guard can read the manifest.`,
+			);
+		} else {
+			findings.push(
+				`${manifestPath}: could not read manifest file at ${path.join(rootDir, manifestPath)} — ${error instanceof Error ? error.message : String(error)}. Fix the file access issue and re-run.`,
+			);
+		}
+		return findings;
+	}
 
-	// Detect duplicate keys BEFORE parsing — JSON.parse silently keeps the last
-	// occurrence, which would mask a reconciled step as missing. This guard
-	// reads the raw text at the brace/quote level and names each duplicate
-	// with its line numbers.
+	let parsed: unknown;
+	try {
+		parsed = JSON.parse(manifestRaw);
+	} catch (error) {
+		findings.push(
+			`${manifestPath}: invalid JSON — ${formatJsonError(
+				error,
+			)}. The manifest document cannot be parsed, so the drift guard cannot assert anything about its keys or entries. Fix the JSON syntax error first, then re-run.`,
+		);
+		return findings;
+	}
+
+	if (parsed === null) {
+		findings.push(
+			`${manifestPath}: manifest is JSON null. The drift guard expects an object with a \`steps\` key. Replace null with a valid manifest object containing the reconciled CI steps.`,
+		);
+		return findings;
+	}
+
+	if (typeof parsed !== 'object' || Array.isArray(parsed)) {
+		findings.push(
+			`${manifestPath}: manifest is a ${
+				Array.isArray(parsed) ? 'JSON array' : typeof parsed
+			}, not an object. The drift guard expects a JSON object with a \`steps\` key. Replace the value with a valid manifest object containing the reconciled CI steps.`,
+		);
+		return findings;
+	}
+
+	const manifest = parsed as { steps?: Record<string, unknown> };
+
+	// Detect duplicate keys BEFORE using the parsed result — JSON.parse silently
+	// keeps the last occurrence, which would mask a reconciled step as missing.
+	// This guard reads the raw text at the brace/quote level and names each
+	// duplicate with its line numbers. Only reached when the document is a valid
+	// object (see the parse + shape checks above), so a "no duplicates" finding
+	// is meaningful.
 	findings.push(...findDuplicateKeys(manifestRaw));
 
-	const manifest = JSON.parse(manifestRaw) as {
-		steps?: Record<string, unknown>;
-	};
 	const entries = manifest.steps ?? {};
 
 	const seen = new Set<string>();

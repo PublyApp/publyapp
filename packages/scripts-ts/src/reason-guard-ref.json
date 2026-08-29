@@ -243,8 +243,8 @@
 			"reason_length": 102
 		},
 		"front-ci.yml::supply-chain::Checkout": {
-			"reason_hash": "c80eb5bfb322fab4",
-			"reason_length": 102
+			"reason_hash": "a931cf2242417aad",
+			"reason_length": 424
 		},
 		"front-ci.yml::supply-chain::Install (frozen lockfile, no scripts)": {
 			"reason_hash": "663389920e93e4f6",
