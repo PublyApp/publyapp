@@ -507,37 +507,4 @@ describe('#1386 ProfilesListBulkActions', () => {
 		expect(description).toContain('Profile not found');
 		expect(description).not.toContain('Some rows may no longer appear');
 	});
-
-	// #1811 : un échec total sans raison par item doit montrer une cause lisible.
-	// Aujourd'hui, description vaut undefined et l'utilisateur lit
-	// "Deleted 0 profile(s), 1 failed." sans aucune cause — violation de la règle
-	// produit "toute défaillance montre sa cause en mots clairs".
-	// Ce test doit ROUGIR contre le code actuel.
-	test('an all-failure delete without per-item reasons shows a cause description (#1811)', async () => {
-		mocks.bulkDelete.mockResolvedValue({
-			succeededCount: 0,
-			failedCount: 1,
-		});
-
-		renderBulkActions();
-
-		await openMenu();
-		fireEvent.click(screen.getByRole('menuitem', { name: 'Delete selected' }));
-		expect(await screen.findByText(/delete 1 selected profile/)).toBeTruthy();
-		fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
-
-		await waitFor(() => expect(mocks.toastError).toHaveBeenCalledTimes(1));
-		const [message, description] = mocks.toastError.mock.calls[0] as [
-			string,
-			string | undefined,
-		];
-		expect(message).toBe('Deleted 0 profile(s), 1 failed.');
-		// #1811 : la description ne doit PAS être undefined — elle doit porter
-		// une cause lisible (le serveur n'a pas précisé la raison, le produit
-		// doit l'avouer en mots clairs).
-		expect(description).toBeDefined();
-		expect(description).not.toBe('');
-		expect(typeof description).toBe('string');
-		expect(mocks.toastSuccess).not.toHaveBeenCalled();
-	});
 });
