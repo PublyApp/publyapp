@@ -74,7 +74,9 @@ const normalizeString = (value: string | undefined): string | undefined => {
 	}
 
 	const trimmed = value.trim();
-	if (trimmed.length > 0) return trimmed;
+	if (trimmed.length > 0) {
+		return trimmed;
+	}
 	return undefined;
 };
 
@@ -309,7 +311,9 @@ export const selectStaffInvitationCrumbName = (
 ): string | undefined => {
 	const email = (data as StaffInvitationDetails | null | undefined)?.email;
 	const trimmed = email?.trim();
-	if (trimmed) return trimmed;
+	if (trimmed) {
+		return trimmed;
+	}
 	return undefined;
 };
 

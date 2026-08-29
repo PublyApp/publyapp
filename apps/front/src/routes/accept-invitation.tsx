@@ -157,7 +157,9 @@ const resolveBranchKind = (
 	}
 
 	if (authState.status === 'anonymous') {
-		if (loaderData.userExists) return 'existing-signed-out';
+		if (loaderData.userExists) {
+			return 'existing-signed-out';
+		}
 		return 'new-user';
 	}
 
@@ -169,7 +171,9 @@ const resolveBranchKind = (
 		authState.email.trim().toLowerCase() ===
 		loaderData.email.trim().toLowerCase();
 
-	if (emailMatches) return 'existing-match';
+	if (emailMatches) {
+		return 'existing-match';
+	}
 	return 'mismatch';
 };
 

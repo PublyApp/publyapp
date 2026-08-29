@@ -78,7 +78,9 @@ const ScrollArea = React.forwardRef<HTMLDivElement, ScrollAreaProps>(
 		const scrollerRef = React.useRef<HTMLDivElement | null>(null);
 
 		React.useEffect(() => {
-			if (!rootRef.current) return undefined;
+			if (!rootRef.current) {
+				return undefined;
+			}
 			let instance: SimpleBarCore | null = null;
 			try {
 				instance = new SimpleBarCore(rootRef.current, {

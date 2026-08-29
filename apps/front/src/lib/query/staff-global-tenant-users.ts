@@ -123,7 +123,9 @@ const normalizeString = (
 	}
 
 	const trimmed = value.trim();
-	if (trimmed.length > 0) return trimmed;
+	if (trimmed.length > 0) {
+		return trimmed;
+	}
 	return undefined;
 };
 
@@ -143,7 +145,9 @@ const normalizeUpdateStringField = (
 	}
 
 	const trimmed = value.trim();
-	if (trimmed.length > 0) return trimmed;
+	if (trimmed.length > 0) {
+		return trimmed;
+	}
 	return null;
 };
 

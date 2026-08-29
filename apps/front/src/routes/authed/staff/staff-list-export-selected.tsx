@@ -28,7 +28,9 @@ const normalizeLeadingFormulaPrefix = (value: string): string => {
 const escapeCsvField = (value: string): string => {
 	const safeValue = normalizeLeadingFormulaPrefix(value);
 
-	if (/[",\r\n]/.test(safeValue)) return `"${safeValue.replaceAll('"', '""')}"`;
+	if (/[",\r\n]/.test(safeValue)) {
+		return `"${safeValue.replaceAll('"', '""')}"`;
+	}
 	return safeValue;
 };
 

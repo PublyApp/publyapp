@@ -205,7 +205,9 @@ const NewStaffInvitationsRoute = () => {
 		setKnownProfileNamesState((previous) => {
 			const next = new Map(previous);
 			rememberStaffProfileNames(next, profilesQuery.data?.data);
-			if (next.size === previous.size) return previous;
+			if (next.size === previous.size) {
+				return previous;
+			}
 			return next;
 		});
 	}, [profilesQuery.data]);

@@ -52,21 +52,39 @@ const cssSizeIsBody = (ruleText: string): boolean | null => {
 	const pxMatches = [...ruleText.matchAll(/font-size:\s*([\d.]+)px/g)];
 	for (const m of pxMatches) {
 		const v = Number(m[1]);
-		if (v >= 13) return true;
-		if (v <= 12) return false;
+		if (v >= 13) {
+			return true;
+		}
+		if (v <= 12) {
+			return false;
+		}
 	}
 
 	// Tailwind @apply or class fragments inside the rule text.
-	if (/(?:@apply|class)[^;]*\btext-xs\b/.test(ruleText)) return false;
-	if (/(?:@apply|class)[^;]*\btext-\[11px\]/.test(ruleText)) return false;
-	if (/(?:@apply|class)[^;]*\btext-\[12px\]/.test(ruleText)) return false;
-	if (/(?:@apply|class)[^;]*\btext-sm\b/.test(ruleText)) return true;
-	if (/(?:@apply|class)[^;]*\btext-base\b/.test(ruleText)) return true;
+	if (/(?:@apply|class)[^;]*\btext-xs\b/.test(ruleText)) {
+		return false;
+	}
+	if (/(?:@apply|class)[^;]*\btext-\[11px\]/.test(ruleText)) {
+		return false;
+	}
+	if (/(?:@apply|class)[^;]*\btext-\[12px\]/.test(ruleText)) {
+		return false;
+	}
+	if (/(?:@apply|class)[^;]*\btext-sm\b/.test(ruleText)) {
+		return true;
+	}
+	if (/(?:@apply|class)[^;]*\btext-base\b/.test(ruleText)) {
+		return true;
+	}
 	const bracketPx = [...ruleText.matchAll(/text-\[(\d+(?:\.\d+)?)px\]/g)];
 	for (const m of bracketPx) {
 		const v = Number(m[1]);
-		if (v >= 13) return true;
-		if (v <= 12) return false;
+		if (v >= 13) {
+			return true;
+		}
+		if (v <= 12) {
+			return false;
+		}
 	}
 
 	return null;
@@ -75,18 +93,36 @@ const cssSizeIsBody = (ruleText: string): boolean | null => {
 // Extract body verdict from a class string or arbitrary string literal that
 // contains Tailwind size tokens.
 const classStringIsBody = (classString: string): boolean | null => {
-	if (/\btext-xs\b/.test(classString)) return false;
-	if (/\btext-\[11px\]/.test(classString)) return false;
-	if (/\btext-\[12px\]/.test(classString)) return false;
-	if (/\btext-sm\b/.test(classString)) return true;
-	if (/\btext-base\b/.test(classString)) return true;
-	if (/\btext-lg\b/.test(classString)) return true;
-	if (/\btext-xl\b/.test(classString)) return true;
+	if (/\btext-xs\b/.test(classString)) {
+		return false;
+	}
+	if (/\btext-\[11px\]/.test(classString)) {
+		return false;
+	}
+	if (/\btext-\[12px\]/.test(classString)) {
+		return false;
+	}
+	if (/\btext-sm\b/.test(classString)) {
+		return true;
+	}
+	if (/\btext-base\b/.test(classString)) {
+		return true;
+	}
+	if (/\btext-lg\b/.test(classString)) {
+		return true;
+	}
+	if (/\btext-xl\b/.test(classString)) {
+		return true;
+	}
 	const bracketPx = [...classString.matchAll(/text-\[(\d+(?:\.\d+)?)px\]/g)];
 	for (const m of bracketPx) {
 		const v = Number(m[1]);
-		if (v >= 13) return true;
-		if (v <= 12) return false;
+		if (v >= 13) {
+			return true;
+		}
+		if (v <= 12) {
+			return false;
+		}
 	}
 	// No size token at all - inherits body (14px) by default.
 	return null;
@@ -99,11 +135,15 @@ const isAllowlistedCss = (selector: string): boolean =>
 
 const isAllowlistedTsx = (classString: string, relativeFile: string): boolean =>
 	SUBTLE_FOREGROUND_ALLOWLIST.some((e) => {
-		if (!e.file) return false;
+		if (!e.file) {
+			return false;
+		}
 		// Normalize file sep for cross-platform.
 		const want = e.file.replaceAll('\\', '/');
 		const got = relativeFile.replaceAll('\\', '/');
-		if (want !== got) return false;
+		if (want !== got) {
+			return false;
+		}
 		return classString.includes(e.selector);
 	});
 
@@ -113,8 +153,9 @@ const collectSrcFiles = (dir: string, acc: string[] = []): string[] => {
 		const st = statSync(full);
 		if (st.isDirectory()) {
 			// Skip generated / build artifacts.
-			if (entry === 'node_modules' || entry === '.next' || entry === 'dist')
+			if (entry === 'node_modules' || entry === '.next' || entry === 'dist') {
 				continue;
+			}
 			collectSrcFiles(full, acc);
 		} else if (
 			(entry.endsWith('.tsx') || entry.endsWith('.ts')) &&
@@ -138,8 +179,9 @@ const collectCssFiles = (dir: string, acc: string[] = []): string[] => {
 		const full = path.join(dir, entry);
 		const st = statSync(full);
 		if (st.isDirectory()) {
-			if (entry === 'node_modules' || entry === '.next' || entry === 'dist')
+			if (entry === 'node_modules' || entry === '.next' || entry === 'dist') {
 				continue;
+			}
 			collectCssFiles(full, acc);
 		} else if (entry.endsWith('.css')) {
 			acc.push(full);
@@ -157,7 +199,9 @@ describe('subtle foreground on body text guard (#1151)', () => {
 		for (const cssPath of cssFiles) {
 			const relCss = path.relative(FRONT_ROOT, cssPath);
 			// Skip test fixtures that might mention the token in comments.
-			if (relCss.includes('.test.')) continue;
+			if (relCss.includes('.test.')) {
+				continue;
+			}
 			const cssSource = readFileSync(cssPath, 'utf8');
 			const root = postcss.parse(cssSource);
 			root.walkRules((rule) => {
@@ -167,20 +211,28 @@ describe('subtle foreground on body text guard (#1151)', () => {
 						typeof (n as postcss.Declaration).value === 'string' &&
 						(n as postcss.Declaration).value.includes(SUBTLE_TOKEN),
 				);
-				if (!hasSubtle) return;
+				if (!hasSubtle) {
+					return;
+				}
 
 				const selector = rule.selector.trim();
-				if (isAllowlistedCss(selector)) return;
+				if (isAllowlistedCss(selector)) {
+					return;
+				}
 
 				// Placeholders are legitimate at any size (not readable body).
-				if (isPlaceholderSelector(selector)) return;
+				if (isPlaceholderSelector(selector)) {
+					return;
+				}
 				// Icon selectors are NOT blind-exempted - a future `*-icon`
 				// rule carrying readable body text must be explicitly
 				// allowlisted with a reason. Only the allowlist above exempts.
 
 				const sizeVerdict = cssSizeIsBody(rule.toString());
 				// Small / helper / eyebrow / label (<=12px) stays green.
-				if (sizeVerdict === false) return;
+				if (sizeVerdict === false) {
+					return;
+				}
 				// Body (>=13px) or unknown (no explicit size, inherits 14px) is
 				// standalone body - requires an explicit allowlist entry with a
 				// reason, so flag as violation.
@@ -199,20 +251,30 @@ describe('subtle foreground on body text guard (#1151)', () => {
 		const classAttrRe = /className\s*=\s*"([^"]*foreground-subtle[^"]*)"/g;
 		for (const fullPath of srcFiles) {
 			const rel = path.relative(FRONT_ROOT, fullPath);
-			if (rel.includes('subtle-foreground-allowlist')) continue;
-			if (rel.includes('.test.')) continue;
-			if (rel.endsWith('.d.ts')) continue;
+			if (rel.includes('subtle-foreground-allowlist')) {
+				continue;
+			}
+			if (rel.includes('.test.')) {
+				continue;
+			}
+			if (rel.endsWith('.d.ts')) {
+				continue;
+			}
 			const source = readFileSync(fullPath, 'utf8');
 			let m: RegExpExecArray | null;
 			// Reset regex state per file.
 			classAttrRe.lastIndex = 0;
 			while ((m = classAttrRe.exec(source)) !== null) {
 				const classString = m[1];
-				if (isAllowlistedTsx(classString, rel)) continue;
+				if (isAllowlistedTsx(classString, rel)) {
+					continue;
+				}
 
 				const sizeVerdict = classStringIsBody(classString);
 				// Caption / label / helper stays green.
-				if (sizeVerdict === false) continue;
+				if (sizeVerdict === false) {
+					continue;
+				}
 				// Body or unknown size without an allowlist entry is a violation.
 				// Unknown (null) is treated as body because the default text size
 				// is 14px - a bare `text-[var(--publy-foreground-subtle)]` with
@@ -233,17 +295,23 @@ describe('subtle foreground on body text guard (#1151)', () => {
 			// fail-closed - any string literal carrying the token is a
 			// violation unless the file+fragment is allowlisted. We do not
 			// trace consumers.
-			if (!source.includes(SUBTLE_TOKEN)) continue;
+			if (!source.includes(SUBTLE_TOKEN)) {
+				continue;
+			}
 			classAttrRe.lastIndex = 0;
 			const hadLiteralHit = classAttrRe.test(source);
-			if (hadLiteralHit) continue;
+			if (hadLiteralHit) {
+				continue;
+			}
 			// File-level subtle without a className literal - could be a .ts
 			// constant, a style prop, a cn() composition, or a dynamic class.
 			// Flag as needing allowlist unless the file is already covered.
 			const fileAllowlisted = SUBTLE_FOREGROUND_ALLOWLIST.some(
 				(e) => e.file && rel.replaceAll('\\', '/') === e.file,
 			);
-			if (fileAllowlisted) continue;
+			if (fileAllowlisted) {
+				continue;
+			}
 			// Find the first non-comment line carrying the token for a better message.
 			const lines = source.split('\n');
 			for (let i = 0; i < lines.length; i++) {
@@ -255,7 +323,9 @@ describe('subtle foreground on body text guard (#1151)', () => {
 					// Caption / label in a constant (e.g. text-[11px] subtle)
 					// stays green - only body or unknown size is a violation.
 					const lineVerdict = classStringIsBody(lines[i]);
-					if (lineVerdict === false) break;
+					if (lineVerdict === false) {
+						break;
+					}
 					violations.push(
 						`TS ${rel}:${i + 1} uses ${SUBTLE_TOKEN} outside a literal className - move it to a class or add an allowlist entry (fail-closed: string constants carrying the token are violations unless allowlisted)`,
 					);
@@ -277,7 +347,9 @@ describe('subtle foreground on body text guard (#1151)', () => {
 		const cssSelectors = new Set<string>();
 		for (const cssPath of cssFiles) {
 			const relCss = path.relative(FRONT_ROOT, cssPath);
-			if (relCss.includes('.test.')) continue;
+			if (relCss.includes('.test.')) {
+				continue;
+			}
 			const cssSource = readFileSync(cssPath, 'utf8');
 			const root = postcss.parse(cssSource);
 			root.walkRules((rule) => {
@@ -286,7 +358,9 @@ describe('subtle foreground on body text guard (#1151)', () => {
 						n.type === 'decl' &&
 						(n as postcss.Declaration).value.includes(SUBTLE_TOKEN),
 				);
-				if (hasSubtle) cssSelectors.add(rule.selector.trim());
+				if (hasSubtle) {
+					cssSelectors.add(rule.selector.trim());
+				}
 			});
 		}
 
@@ -300,9 +374,15 @@ describe('subtle foreground on body text guard (#1151)', () => {
 		const allClassStrings: string[] = [];
 		for (const fullPath of srcFiles) {
 			const rel = path.relative(FRONT_ROOT, fullPath).replaceAll('\\', '/');
-			if (rel.includes('.test.')) continue;
-			if (rel.endsWith('.d.ts')) continue;
-			if (rel.includes('subtle-foreground-allowlist')) continue;
+			if (rel.includes('.test.')) {
+				continue;
+			}
+			if (rel.endsWith('.d.ts')) {
+				continue;
+			}
+			if (rel.includes('subtle-foreground-allowlist')) {
+				continue;
+			}
 			const source = readFileSync(fullPath, 'utf8');
 			const re = /className\s*=\s*"([^"]*foreground-subtle[^"]*)"/g;
 			let m: RegExpExecArray | null;
@@ -318,7 +398,9 @@ describe('subtle foreground on body text guard (#1151)', () => {
 				// for stale matching - entry.selector fragment match is sufficient.
 				const lines = source.split('\n');
 				for (const line of lines) {
-					if (line.includes(SUBTLE_TOKEN)) arr.push(line);
+					if (line.includes(SUBTLE_TOKEN)) {
+						arr.push(line);
+					}
 				}
 			}
 			fileToClassStrings.set(rel, arr);
@@ -358,8 +440,9 @@ describe('subtle foreground on body text guard (#1151)', () => {
 					found = allClassStrings.some((cs) => cs.includes(entry.selector));
 				}
 			}
-			if (!found)
+			if (!found) {
 				stale.push(entry.selector + (entry.file ? ` (${entry.file})` : ''));
+			}
 		}
 
 		expect(

@@ -22,7 +22,9 @@ const trimStringOrUndefined = (value: unknown): string | undefined => {
 	}
 
 	const trimmed = value.trim();
-	if (trimmed.length > 0) return trimmed;
+	if (trimmed.length > 0) {
+		return trimmed;
+	}
 	return undefined;
 };
 
@@ -57,7 +59,9 @@ const MAX_TABLE_SIZE = Math.max(...PAGE_SIZE_OPTIONS);
 
 const parseSize = (value: unknown): number | undefined => {
 	if (typeof value === 'number') {
-		if (isPositiveSafeInteger(value) && value <= MAX_TABLE_SIZE) return value;
+		if (isPositiveSafeInteger(value) && value <= MAX_TABLE_SIZE) {
+			return value;
+		}
 		return undefined;
 	}
 
@@ -84,7 +88,9 @@ const trimIfString = (value: string | undefined): string | undefined => {
 	}
 
 	const normalized = value.trim();
-	if (normalized.length > 0) return normalized;
+	if (normalized.length > 0) {
+		return normalized;
+	}
 	return undefined;
 };
 

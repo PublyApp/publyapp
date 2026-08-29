@@ -54,7 +54,9 @@ export type TenantUserEditPayload = {
 export const normalizeAccountLevel = (
 	value: string | null,
 ): TenantUserEditValues['accountLevel'] => {
-	if (value === 'Admin') return 'Admin';
+	if (value === 'Admin') {
+		return 'Admin';
+	}
 	return 'User';
 };
 

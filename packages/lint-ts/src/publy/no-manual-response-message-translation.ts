@@ -67,9 +67,12 @@ const isTranslationCallee = (node: ESTree.Expression): boolean => {
 	}
 
 	const prop = node.property;
-	if (prop.type === 'Identifier') return prop.name === 't';
-	if (prop.type === 'Literal' && typeof prop.value === 'string')
+	if (prop.type === 'Identifier') {
+		return prop.name === 't';
+	}
+	if (prop.type === 'Literal' && typeof prop.value === 'string') {
 		return prop.value === 't';
+	}
 	return false;
 };
 

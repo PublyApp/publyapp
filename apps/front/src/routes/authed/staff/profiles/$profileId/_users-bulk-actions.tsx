@@ -201,7 +201,9 @@ export const ProfileUsersListBulkActions = ({
 					void performUnassign();
 				}}
 				onOpenChange={(isOpen) => {
-					if (!isOpen) setPendingAction(null);
+					if (!isOpen) {
+						setPendingAction(null);
+					}
 				}}
 			/>
 		</>

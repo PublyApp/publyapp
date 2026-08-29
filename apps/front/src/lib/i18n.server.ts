@@ -11,7 +11,9 @@ import {
 const normalizeLocale = (
 	value: string | null | undefined,
 ): SupportedLanguage => {
-	if (isSupportedLanguage(value)) return value;
+	if (isSupportedLanguage(value)) {
+		return value;
+	}
 	return FALLBACK_LANGUAGE;
 };
 

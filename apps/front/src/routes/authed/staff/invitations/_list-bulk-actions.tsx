@@ -241,7 +241,9 @@ export const InvitationsListBulkActions = ({
 					void performBulkRevoke();
 				}}
 				onOpenChange={(isOpen) => {
-					if (!isOpen) setPendingAction(null);
+					if (!isOpen) {
+						setPendingAction(null);
+					}
 				}}
 			/>
 		</>

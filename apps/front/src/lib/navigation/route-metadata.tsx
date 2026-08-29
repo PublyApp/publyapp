@@ -337,7 +337,9 @@ export function getShellScope(pathname: string): ShellScope | undefined {
 }
 
 export function getRailItems(scope: ShellScope): AppRouteMetadata[] {
-	if (scope === 'staff') return STAFF_ROUTES;
+	if (scope === 'staff') {
+		return STAFF_ROUTES;
+	}
 	return TENANT_ROUTES;
 }
 

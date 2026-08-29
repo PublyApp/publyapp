@@ -35,7 +35,9 @@ export const getSerializedErrorMessage = (
 	error: unknown,
 	t: TFunction<NameSpace>,
 ): string | null => {
-	if (error == null) return null;
+	if (error == null) {
+		return null;
+	}
 
 	if (typeof error === 'object') {
 		const obj = error as Record<string, unknown>;

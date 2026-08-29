@@ -132,7 +132,9 @@ const normalizeString = (value: string | undefined): string | undefined => {
 	}
 
 	const trimmed = value.trim();
-	if (trimmed.length > 0) return trimmed;
+	if (trimmed.length > 0) {
+		return trimmed;
+	}
 	return undefined;
 };
 
@@ -142,7 +144,9 @@ const normalizeOptionalString = (value: unknown): string | undefined => {
 	}
 
 	const trimmed = value.trim();
-	if (trimmed.length > 0) return trimmed;
+	if (trimmed.length > 0) {
+		return trimmed;
+	}
 	return undefined;
 };
 
@@ -313,14 +317,18 @@ export const toAssignedStaffPermissionGroups = (
 	for (const group of groups) {
 		group.permissions.sort((left, right) => {
 			const byLabel = left.label.localeCompare(right.label);
-			if (byLabel !== 0) return byLabel;
+			if (byLabel !== 0) {
+				return byLabel;
+			}
 			return left.key.localeCompare(right.key);
 		});
 	}
 
 	groups.sort((left, right) => {
 		const byLabel = left.label.localeCompare(right.label);
-		if (byLabel !== 0) return byLabel;
+		if (byLabel !== 0) {
+			return byLabel;
+		}
 		return left.key.localeCompare(right.key);
 	});
 

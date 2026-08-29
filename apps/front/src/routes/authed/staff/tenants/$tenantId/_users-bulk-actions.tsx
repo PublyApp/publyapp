@@ -202,7 +202,9 @@ export const TenantUserBulkActions = ({
 					void performBulkRemove();
 				}}
 				onOpenChange={(isOpen) => {
-					if (!isOpen) setIsRemoveDialogOpen(false);
+					if (!isOpen) {
+						setIsRemoveDialogOpen(false);
+					}
 				}}
 			/>
 		</>

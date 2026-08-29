@@ -99,7 +99,9 @@ const parseHex = (hex: string): Rgb => ({
 const relativeLuminance = ({ r, g, b }: Rgb): number => {
 	const linearize = (channel: number): number => {
 		const value = channel / 255;
-		if (value <= 0.04045) return value / 12.92;
+		if (value <= 0.04045) {
+			return value / 12.92;
+		}
 		return ((value + 0.055) / 1.055) ** 2.4;
 	};
 

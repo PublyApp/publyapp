@@ -559,14 +559,18 @@ export const findPinnedTestFilesProblems = async ({
 	}
 
 	for (const [key, expected] of expectedByKey) {
-		if (derivedByKey.has(key)) continue;
+		if (derivedByKey.has(key)) {
+			continue;
+		}
 		findings.push(
 			`${PINNED_TEST_FILES_EXPECTATION_HEADER}: GATE_WORKFLOWS no longer carries ${expected.length > 1 ? 'any of' : 'the'} ${expected.length > 1 ? 'entries' : 'entry'} for \`${expected[0].file}\` -> \`${expected[0].path}\`. Removing or editing a pinned-test-file entry switches that coverage's CI enforcement off silently — restore the entry in check-ci-gate-structure.ts exactly as declared by EXPECTED_PINNED_TEST_FILES, or consciously re-make BOTH lists together.`,
 		);
 	}
 
 	for (const [key, actual] of derivedByKey) {
-		if (expectedByKey.has(key)) continue;
+		if (expectedByKey.has(key)) {
+			continue;
+		}
 		findings.push(
 			`${PINNED_TEST_FILES_EXPECTATION_HEADER}: GATE_WORKFLOWS carries an undeclared pinnedTestFiles entry for \`${actual[0].file}\` -> \`${actual[0].path}\`. Every pin must be declared in EXPECTED_PINNED_TEST_FILES (check-ci-gate-structure.ts) — add it there consciously, or remove the undeclared entry.`,
 		);

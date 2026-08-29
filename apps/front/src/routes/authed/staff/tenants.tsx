@@ -90,8 +90,12 @@ const formatTenantStatusFilterLabel = (
 	}
 	return statuses
 		.map((status) => {
-			if (status === 'pending') return t('status-pending');
-			if (status === 'active') return t('status-active');
+			if (status === 'pending') {
+				return t('status-pending');
+			}
+			if (status === 'active') {
+				return t('status-active');
+			}
 			return t('status-suspended');
 		})
 		.join(', ');
@@ -679,7 +683,9 @@ const TenantBulkActions = ({
 					}
 				}}
 				onOpenChange={(isOpen) => {
-					if (!isOpen) setPendingAction(null);
+					if (!isOpen) {
+						setPendingAction(null);
+					}
 				}}
 			/>
 		</>
@@ -802,7 +808,9 @@ const TenantLifecycleActionsCell = ({
 					}
 				}}
 				onOpenChange={(isOpen) => {
-					if (!isOpen) setPendingAction(null);
+					if (!isOpen) {
+						setPendingAction(null);
+					}
 				}}
 			/>
 		</div>

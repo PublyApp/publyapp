@@ -41,7 +41,9 @@ const normalizeString = (value: unknown): string | undefined => {
 	}
 
 	const trimmed = value.trim();
-	if (trimmed.length > 0) return trimmed;
+	if (trimmed.length > 0) {
+		return trimmed;
+	}
 	return undefined;
 };
 
@@ -94,7 +96,9 @@ export const parseInvitationStatusFilter = (
 export const serializeInvitationStatusFilter = (
 	statuses: KnownInvitationStatus[],
 ): string | undefined => {
-	if (statuses.length > 0) return statuses.join(',');
+	if (statuses.length > 0) {
+		return statuses.join(',');
+	}
 	return undefined;
 };
 

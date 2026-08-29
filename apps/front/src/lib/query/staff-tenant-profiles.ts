@@ -259,7 +259,9 @@ const normalizeString = (
 	}
 
 	const trimmed = value.trim();
-	if (trimmed.length > 0) return trimmed;
+	if (trimmed.length > 0) {
+		return trimmed;
+	}
 	return undefined;
 };
 
@@ -281,7 +283,9 @@ const normalizeUnknownString = (value: unknown): string | undefined => {
 	}
 
 	const trimmed = value.trim();
-	if (trimmed.length > 0) return trimmed;
+	if (trimmed.length > 0) {
+		return trimmed;
+	}
 	return undefined;
 };
 
@@ -349,13 +353,17 @@ export const buildStaffTenantPermissionGroupColumns = (
 	);
 	const leftGroups = TENANT_PERMISSION_LEFT_COLUMN_FLOW.flatMap((moduleKey) => {
 		const group = groupByModuleKey.get(moduleKey);
-		if (group) return [group];
+		if (group) {
+			return [group];
+		}
 		return [];
 	});
 	const rightGroups = TENANT_PERMISSION_RIGHT_COLUMN_FLOW.flatMap(
 		(moduleKey) => {
 			const group = groupByModuleKey.get(moduleKey);
-			if (group) return [group];
+			if (group) {
+				return [group];
+			}
 			return [];
 		},
 	);

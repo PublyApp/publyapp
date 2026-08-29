@@ -76,7 +76,9 @@ export const CopyButton = ({
 		if (failed) {
 			return t('copy-failed');
 		}
-		if (copied) return t('copied');
+		if (copied) {
+			return t('copied');
+		}
 		return t('copy');
 	};
 
@@ -84,7 +86,9 @@ export const CopyButton = ({
 		if (failed) {
 			return 'failed';
 		}
-		if (copied) return 'copied';
+		if (copied) {
+			return 'copied';
+		}
 		return 'idle';
 	};
 
@@ -96,7 +100,9 @@ export const CopyButton = ({
 		if (failed) {
 			return t('copy-failed');
 		}
-		if (copied) return t('copied');
+		if (copied) {
+			return t('copied');
+		}
 		return '';
 	};
 

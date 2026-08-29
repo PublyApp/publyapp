@@ -230,7 +230,9 @@ export class IsoLogger implements ILogger {
 	// Helper method to get the calling location
 	private getCallerInfo(): string {
 		const stack = new Error().stack;
-		if (!stack) return '';
+		if (!stack) {
+			return '';
+		}
 
 		const lines = stack.split('\n');
 		// Skip the first 3 lines: Error, getCallerInfo, and the logger method

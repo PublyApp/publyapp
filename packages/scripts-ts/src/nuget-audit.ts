@@ -251,7 +251,9 @@ export const evaluateAudit = (
 		console.error('nuget-audit: VULNERABLE packages detected:');
 		for (const v of vulnerabilities) {
 			console.error(`  ${v.id}@${v.version} (${v.severity}) in ${v.project}`);
-			for (const url of v.advisories) console.error(`    ${url}`);
+			for (const url of v.advisories) {
+				console.error(`    ${url}`);
+			}
 		}
 		console.error('');
 		console.error('Bump to a patched version in Directory.Packages.props.');
@@ -402,7 +404,9 @@ if (isDirectRun) {
 		}
 		if (restoreErrors.length > 0) {
 			console.error('(restore reported issues -- continuing with scan):');
-			for (const e of restoreErrors) console.error(`  ${e}`);
+			for (const e of restoreErrors) {
+				console.error(`  ${e}`);
+			}
 		}
 	}
 

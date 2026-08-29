@@ -15,7 +15,9 @@ const normalizeOptionalString = (value: unknown): string | undefined => {
 	}
 
 	const trimmed = value.trim();
-	if (trimmed.length > 0) return trimmed;
+	if (trimmed.length > 0) {
+		return trimmed;
+	}
 	return undefined;
 };
 
@@ -41,7 +43,9 @@ const buildPermissionDescription = (
 		segments.push(description);
 	}
 
-	if (segments.length > 0) return segments.join(' • ');
+	if (segments.length > 0) {
+		return segments.join(' • ');
+	}
 	return undefined;
 };
 

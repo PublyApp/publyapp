@@ -104,7 +104,9 @@ const normalizeString = (value: string | null | undefined): string | null => {
 	}
 
 	const trimmed = value.trim();
-	if (trimmed.length > 0) return trimmed;
+	if (trimmed.length > 0) {
+		return trimmed;
+	}
 	return null;
 };
 

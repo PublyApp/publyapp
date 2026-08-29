@@ -115,7 +115,9 @@ const isReactStateSetter = (
 		scope = scope.upper;
 		variable = scope.set.get(varName);
 	}
-	if (!variable) return false;
+	if (!variable) {
+		return false;
+	}
 
 	// A global has no real definition in user code. `ImplicitGlobalVariable`
 	// is the scope manager's marker for an undeclared global reference.
@@ -140,17 +142,23 @@ const firstArgContainsVar = (
 	firstArg: ESTree.Expression | ESTree.SpreadElement | null,
 	varName: string,
 ): boolean => {
-	if (!firstArg) return false;
+	if (!firstArg) {
+		return false;
+	}
 	// SpreadElement is not a valid first arg for a setter call, but
 	// the AST type allows it — treat as not containing the variable.
-	if (firstArg.type === 'SpreadElement') return false;
+	if (firstArg.type === 'SpreadElement') {
+		return false;
+	}
 	let found = false;
 	const visited = new WeakSet<ESTree.Node>();
 	const walk = (node: ESTree.Node | null | undefined): void => {
 		if (found || !node || typeof node !== 'object' || !('type' in node)) {
 			return;
 		}
-		if (visited.has(node)) return;
+		if (visited.has(node)) {
+			return;
+		}
 		visited.add(node);
 		if (node.type === 'Identifier' && node.name === varName) {
 			found = true;
@@ -206,7 +214,9 @@ const isVariableCommittedViaScope = (
 		scope = scope.upper;
 		variable = scope.set.get(varName);
 	}
-	if (!variable) return false;
+	if (!variable) {
+		return false;
+	}
 
 	for (const reference of variable.references) {
 		const refNode = reference.identifier;

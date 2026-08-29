@@ -66,7 +66,9 @@ const normalizeString = (
 	}
 
 	const trimmed = value.trim();
-	if (trimmed.length > 0) return trimmed;
+	if (trimmed.length > 0) {
+		return trimmed;
+	}
 	return undefined;
 };
 
@@ -85,7 +87,9 @@ const normalizeDate = (
 		d = new Date(value);
 	}
 
-	if (d !== null && !Number.isNaN(d.valueOf())) return d;
+	if (d !== null && !Number.isNaN(d.valueOf())) {
+		return d;
+	}
 	return null;
 };
 
@@ -375,6 +379,8 @@ export const tenantPostCrumbQuery = (params: Record<string, string>) => ({
 
 export const selectTenantPostCrumbName = (data: unknown) => {
 	const d = toTenantPostDetails(data as PostDetail | null);
-	if (d) return d.body;
+	if (d) {
+		return d.body;
+	}
 	return undefined;
 };
