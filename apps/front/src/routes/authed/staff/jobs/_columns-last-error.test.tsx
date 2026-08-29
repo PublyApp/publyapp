@@ -1,14 +1,22 @@
 /**
  * @vitest-environment jsdom
  *
- * Brief #1720: the dead-letter list must show the failure cause on the row
- * (not only in the detail drawer). Four guarantees:
+ * Brief #1720 ronde 2: the dead-letter list must show the failure cause on the
+ * row (not only in the detail drawer). Four guarantees:
  *   1. a short cause is visible on the row;
  *   2. a very long cause is truncated at display AND the full text stays
  *      reachable (title attribute);
  *   3. a row with no cause shows the designated "no cause recorded" marker,
  *      distinct from an empty/legitimate cause;
  *   4. non-regression — existing columns are neither displaced nor broken.
+ *
+ * Ronde 2 additions:
+ *   5. empty string AND whitespace-only cause show the marker (the old `??`
+ *      form let these through as a blank cell);
+ *   6. the title attribute is ABSENT when the cause is absent — a `title` on
+ *      the marker would be redundant and misleading;
+ *   7. column order is verified exactly (not just `toContain`), so a column
+ *      displacement is caught.
  *
  * Each test renders the column builder the same way the production route does,
  * then asserts on the LINE — not the drawer — to avoid the dominant trap
@@ -96,21 +104,46 @@ describe('dead-letter last_error column on the row (brief #1720)', () => {
 		expect(cell.textContent).not.toBe('—');
 	});
 
-	test('non-regression: existing columns are neither displaced nor broken', () => {
+	test('ronde 2: an empty-string cause shows the marker, not a blank cell', () => {
+		// RED before fix: the old `??` form let '' through, rendering a blank cell.
+		renderCell(buildRow({ lastError: '' }));
+
+		const cell = screen.getByTestId('cell-last-error-dl-1');
+		expect(cell.textContent).toBe('No cause recorded');
+		expect(cell.textContent).not.toBe('');
+	});
+
+	test('ronde 2: a whitespace-only cause shows the marker, not a blank cell', () => {
+		// RED before fix: the old `??` form let '   ' through, rendering a blank cell.
+		renderCell(buildRow({ lastError: '   ' }));
+
+		const cell = screen.getByTestId('cell-last-error-dl-1');
+		expect(cell.textContent).toBe('No cause recorded');
+	});
+
+	test('ronde 2: the title attribute is absent when the cause is absent', () => {
+		// A `title` on the marker would be redundant and misleading.
+		renderCell(buildRow({ lastError: null }));
+
+		const cell = screen.getByTestId('cell-last-error-dl-1');
+		expect(cell.getAttribute('title')).toBeNull();
+	});
+
+	test('non-regression: column order is preserved exactly (no displacement)', () => {
 		const onInspect = vi.fn();
 		const onRequeue = vi.fn();
 		const columns = makeDeadLetterColumns(t, 'en', onInspect, onRequeue);
 		const ids = columns.map((c) => c.id);
 
-		// The original five columns remain, in the same relative order.
-		expect(ids).toContain('job_type');
-		expect(ids).toContain('external_state_status');
-		expect(ids).toContain('attempts');
-		expect(ids).toContain('failed_at');
-		expect(ids).toContain('requeued_at');
-		expect(ids).toContain('actions');
-
-		// The new column is present.
-		expect(ids).toContain('last_error');
+		// Exact order — not just `toContain`, which would miss a displacement.
+		expect(ids).toEqual([
+			'job_type',
+			'external_state_status',
+			'attempts',
+			'failed_at',
+			'last_error',
+			'requeued_at',
+			'actions',
+		]);
 	});
 });

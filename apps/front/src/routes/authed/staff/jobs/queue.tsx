@@ -24,6 +24,7 @@ import {
 import { shouldLogoutForFailure } from '@org/shared-ts/lib/should-logout-for-failure';
 
 import { makeQueueColumns } from './_columns';
+import { formatFailureCause } from './_jobs-helpers';
 import {
 	buildStaffJobsCursorResetKey,
 	type StaffJobsListSearchParams,
@@ -146,7 +147,7 @@ const StaffJobsQueuePage = () => {
 								/>
 								<DetailRow
 									label={t('detail-last-error')}
-									value={inspected.lastError ?? t('common:no-value')}
+									value={formatFailureCause(inspected.lastError, t)}
 								/>
 								<DetailRow
 									label={t('column-next-attempt')}

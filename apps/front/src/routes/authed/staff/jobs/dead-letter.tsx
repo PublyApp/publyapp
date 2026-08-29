@@ -36,6 +36,7 @@ import {
 import { shouldLogoutForFailure } from '@org/shared-ts/lib/should-logout-for-failure';
 
 import { makeDeadLetterColumns } from './_columns-dead-letter';
+import { formatFailureCause } from './_jobs-helpers';
 import {
 	buildStaffJobsCursorResetKey,
 	type StaffJobsListSearchParams,
@@ -285,11 +286,10 @@ const StaffJobsDeadLetterPage = () => {
 								/>
 								<DetailRow
 									label={t('detail-last-error')}
-									value={
-										detail?.lastError ??
-										inspected.lastError ??
-										t('common:no-value')
-									}
+									value={formatFailureCause(
+										detail?.lastError ?? inspected.lastError,
+										t,
+									)}
 								/>
 								<DetailRow
 									label={t('common:column-failed-at')}

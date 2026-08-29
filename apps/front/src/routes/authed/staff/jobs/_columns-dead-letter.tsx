@@ -6,6 +6,7 @@ import { StatusPill } from '~/components/ui/product-page';
 import { formatDateTime } from '~/lib/format-date-time';
 import type { StaffDeadLetterRow } from '~/lib/query/staff-jobs';
 
+import { formatFailureCause } from './_jobs-helpers';
 import {
 	externalStateStatusLabel,
 	externalStateStatusTone,
@@ -97,17 +98,21 @@ export const makeDeadLetterColumns = (
 		header: t('common:column-last-error'),
 		enableSorting: false,
 		meta: { width: '280px' },
-		cell: ({ row }) => (
-			<div className="min-w-0">
-				<span
-					className="block truncate text-[13px]"
-					title={row.original.lastError ?? undefined}
-					data-testid={`cell-last-error-${row.original.id}`}
-				>
-					{row.original.lastError || t('common:no-cause')}
-				</span>
-			</div>
-		),
+		cell: ({ row }) => {
+			const cause = formatFailureCause(row.original.lastError, t);
+			const isAbsent = cause === t('common:no-cause');
+			return (
+				<div className="min-w-0">
+					<span
+						className="block truncate text-[13px]"
+						title={isAbsent ? undefined : cause}
+						data-testid={`cell-last-error-${row.original.id}`}
+					>
+						{cause}
+					</span>
+				</div>
+			);
+		},
 	},
 	{
 		id: 'requeued_at',
