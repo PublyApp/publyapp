@@ -237,6 +237,17 @@ Spec par endpoint. Semer N lignes. Forcer l'échec du `COUNT` (via un `IDbContex
 
 Le front représente la plage seule.
 
+#### T1-ord (#1596) — les lignes survivent à l'échec du comptage
+
+Même jeu de seed. Sous le même échec forcé du `COUNT` :
+
+- le statut est `200` (jamais `500`) ;
+- les lignes sont retournées avec leur `nextCursor`.
+
+**Mutation adverse (nommée) : « calculer le total avant les lignes. »** Déplacer le `CountAsync` avant la récupération des lignes de sorte qu'une exception du comptage fasse échouer toute la requête en 500 au lieu de rendre un 200 partiel. Sous cette mutation, T1-ord rougit (500 au lieu de 200) tandis que T1-abs reste vert (rien à voir avec la présence du total) — prouvant que T1-ord capture bien l'ordre, pas la valeur. Variante équivalente : « rattraper l'échec mais émettre `totalCount: null` » — captée par T1-abs (la clé est présente), pas par T1-ord (le statut reste 200). Ensemble, T1-abs + T1-ord ferment la surface : une lane qui implémente l'un sans l'autre laisse passer l'autre moitié.
+
+**Preuve appariée requise** (couleur nommée, `--reporter=verbose`) : appliquer la mutation « compter avant les lignes » → T1-abs VERT, T1-ord ROUGE ; restaurer → les deux VERTS.
+
 ## 5. OpenAPI + client Kiota régénéré + câblage front
 
 ### Contrat (tous endpoints #1–#10)
