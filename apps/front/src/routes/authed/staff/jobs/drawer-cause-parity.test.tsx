@@ -16,6 +16,14 @@
  *    (the `??` falls through to the row's only when detail is falsy);
  *  - the "row cause is empty" tests still confirm the marker path.
  *
+ * Brief #1858 ronde 3: reviewer of #1827 swapped the drawer's `??` for `||`
+ * and none of the suite reddened — no dataset carried a *falsy but non-null*
+ * detail cause. The "empty-string detail cause" test below is the
+ * discriminator: an empty detail cause is not an absent cause, the drawer
+ * must keep the empty string and show the empty-cause marker, never the
+ * row's cause. Proven: it turns red under `||` (and under dropping the
+ * detail read entirely), green under `??`.
+ *
  * The drawer is the real one (~/components/ui/drawer is a thin wrapper over
  * @base-ui/react/dialog). The dropdown menu is mocked inline (no portal) to
  * keep the inspect click deterministic; the real drawer is the artefact
