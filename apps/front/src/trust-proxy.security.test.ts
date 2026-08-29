@@ -27,6 +27,8 @@ vi.mock('./lib/env', async (importOriginal) => {
 
 import { injectSeoMarkup } from './server';
 
+const { resolveTrustProxyFromEnv } = await import('../trust-proxy.mjs');
+
 const originalWarn = logger.warn;
 
 beforeEach(() => {
@@ -104,66 +106,6 @@ const extractCanonical = (html: string): string | null => {
 const extractOgUrl = (html: string): string | null => {
 	const match = html.match(/<meta\s+property="og:url"\s+content="([^"]+)"/i);
 	return match?.[1] ?? null;
-};
-
-/**
- * Mirrors `resolveTrustProxyFromEnv` from server.mjs so the test can verify
- * the env-parsing behavior in isolation without importing server.mjs (which
- * has side effects at module-load time).
- *
- * Throws on universal CIDRs (`/0`) and on any CIDR whose prefix-length suffix
- * is empty, non-numeric, or outside the valid range for the address family —
- * srvx uses exact string matching, not subnet matching, so `0.0.0.0` matches no
- * real peer and every client appears as the proxy's own address, silently
- * breaking per-IP rate limiting and audit logging. A value the parser cannot
- * honor must never be silently coerced to a "safe" default.
- */
-const resolveTrustProxyFromEnv = (envValue: string | undefined): string[] => {
-	const raw = envValue?.trim();
-	if (!raw) {
-		return ['127.0.0.1', '::1'];
-	}
-	const entries = raw
-		.split(',')
-		.map((entry) => entry.trim())
-		.filter((entry) => entry.length > 0);
-	// Parse CIDR suffix numerically to catch equivalent forms like /00, /000 —
-	// all are prefix-length 0, the universal wildcard. Also reject any suffix
-	// that is empty, non-numeric, or outside the valid range for the address
-	// family — an unreadable prefix length must fail startup, not be silently
-	// coerced to a bare address.
-	for (const entry of entries) {
-		const slashIdx = entry.lastIndexOf('/');
-		if (slashIdx === -1) continue;
-		const addrPart = entry.slice(0, slashIdx);
-		const suffix = entry.slice(slashIdx + 1);
-		if (!/^\d+$/.test(suffix)) {
-			throw new Error(
-				`Refusing to start: TRUSTED_PROXY_CIDRS contains '${entry}' with an unreadable prefix length ` +
-					`(expected decimal digits, got '${suffix || '<empty>'}'). ` +
-					`Give the exact proxy address followed by /32 (IPv4) or /128 (IPv6), e.g. '10.0.0.9/32'.`,
-			);
-		}
-		const prefixLength = Number.parseInt(suffix, 10);
-		const isIpv6 = addrPart.includes(':');
-		const maxPrefix = isIpv6 ? 128 : 32;
-		if (prefixLength > maxPrefix) {
-			throw new Error(
-				`Refusing to start: TRUSTED_PROXY_CIDRS contains '${entry}' with prefix length ${prefixLength}, ` +
-					`above the ${isIpv6 ? 'IPv6' : 'IPv4'} maximum of ${maxPrefix}. ` +
-					`Give the exact proxy address followed by /32 (IPv4) or /128 (IPv6), e.g. '10.0.0.9/32'.`,
-			);
-		}
-		if (prefixLength === 0) {
-			throw new Error(
-				`Refusing to start: TRUSTED_PROXY_CIDRS contains universal CIDR '${entry}', ` +
-					`which would silently break per-IP rate limiting and audit logging. ` +
-					`Replace it with the proxy's exact address as /32 (IPv4) or /128 (IPv6), ` +
-					`e.g. '10.0.0.9/32'.`,
-			);
-		}
-	}
-	return entries.map((entry) => entry.split('/')[0]);
 };
 
 describe('trust-proxy security (r2-shell-F10)', () => {
@@ -244,24 +186,6 @@ describe('trust-proxy security (r2-shell-F10)', () => {
 		expect(extractOgUrl(html)).toContain('https://publyapp.test');
 	});
 
-	// --- Env var parsing (unit-level pinning of the CIDR-stripping contract) ---
-	// Verifies that `resolveTrustProxyFromEnv` strips CIDR notation,
-	// since srvx uses exact string matching, not subnet matching.
-	test('resolveTrustProxyFromEnv strips CIDR notation for srvx exact-match semantics', () => {
-		expect(resolveTrustProxyFromEnv(undefined)).toEqual(['127.0.0.1', '::1']);
-		expect(resolveTrustProxyFromEnv('')).toEqual(['127.0.0.1', '::1']);
-		expect(resolveTrustProxyFromEnv('   ')).toEqual(['127.0.0.1', '::1']);
-		expect(resolveTrustProxyFromEnv('10.0.0.5/32')).toEqual(['10.0.0.5']);
-		expect(resolveTrustProxyFromEnv('127.0.0.1/32,::1/128')).toEqual([
-			'127.0.0.1',
-			'::1',
-		]);
-		expect(resolveTrustProxyFromEnv(' 10.0.0.5/32 , 10.0.0.6/32 ')).toEqual([
-			'10.0.0.5',
-			'10.0.0.6',
-		]);
-	});
-
 	// --- Mutation test: forged Host from an untrusted peer is rejected ---
 	// This is the core security property the PR exists to guarantee: even when
 	// the trusted peer is a discovered Traefik IP (not a hardcoded value), a
@@ -298,28 +222,48 @@ describe('trust-proxy security (r2-shell-F10)', () => {
 // NO peer is trusted, so every client appears as the proxy's own address,
 // silently breaking per-IP rate limiting and audit logging.
 describe('trust-proxy universal CIDR rejection (r7)', () => {
+	const originalEnv = process.env;
+
+	beforeEach(() => {
+		process.env = { ...originalEnv };
+	});
+
+	afterEach(() => {
+		process.env = originalEnv;
+	});
+
+	// Helper: set TRUSTED_PROXY_CIDRS, call the real function, return the promise.
+	const callWithEnv = (value: string | undefined) => {
+		if (value === undefined) {
+			delete process.env.TRUSTED_PROXY_CIDRS;
+		} else {
+			process.env.TRUSTED_PROXY_CIDRS = value;
+		}
+		return resolveTrustProxyFromEnv();
+	};
+
 	// --- RED/GREEN pair: universal CIDR is rejected after the fix, accepted before ---
-	test('rejects IPv4 universal CIDR 0.0.0.0/0 at startup with loud error', () => {
-		expect(() => resolveTrustProxyFromEnv('0.0.0.0/0')).toThrow(
+	test('rejects IPv4 universal CIDR 0.0.0.0/0 at startup with loud error', async () => {
+		await expect(callWithEnv('0.0.0.0/0')).rejects.toThrow(
 			/Refusing to start: TRUSTED_PROXY_CIDRS contains universal CIDR '0\.0\.0\.0\/0'/,
 		);
 	});
 
-	test('rejects IPv6 universal CIDR ::/0 at startup with loud error', () => {
-		expect(() => resolveTrustProxyFromEnv('::/0')).toThrow(
+	test('rejects IPv6 universal CIDR ::/0 at startup with loud error', async () => {
+		await expect(callWithEnv('::/0')).rejects.toThrow(
 			/Refusing to start: TRUSTED_PROXY_CIDRS contains universal CIDR '::\/0'/,
 		);
 	});
 
-	test('rejects universal CIDR embedded in CSV list', () => {
-		expect(() => resolveTrustProxyFromEnv('10.0.0.9/32,0.0.0.0/0')).toThrow(
+	test('rejects universal CIDR embedded in CSV list', async () => {
+		await expect(callWithEnv('10.0.0.9/32,0.0.0.0/0')).rejects.toThrow(
 			/Refusing to start: TRUSTED_PROXY_CIDRS contains universal CIDR '0\.0\.0\.0\/0'/,
 		);
 	});
 
-	test('rejection message names the offender and says what to put instead', () => {
+	test('rejection message names the offender and says what to put instead', async () => {
 		try {
-			resolveTrustProxyFromEnv('0.0.0.0/0');
+			await callWithEnv('0.0.0.0/0');
 			expect.unreachable('should have thrown');
 		} catch (error) {
 			const message = String(error);
@@ -334,28 +278,28 @@ describe('trust-proxy universal CIDR rejection (r7)', () => {
 	// `0.0.0.0/00`, `0.0.0.0/0 `, ` 0.0.0.0/0 `, or `0.0.0.0\0/0`. Our check
 	// uses `Number.parseInt` on a regex-validated decimal suffix — verify these
 	// are all caught.
-	test('adversarial mutation: /00 suffix is caught (0.0.0.0/00)', () => {
-		expect(() => resolveTrustProxyFromEnv('0.0.0.0/00')).toThrow(
+	test('adversarial mutation: /00 suffix is caught (0.0.0.0/00)', async () => {
+		await expect(callWithEnv('0.0.0.0/00')).rejects.toThrow(
 			/Refusing to start/,
 		);
 	});
 
-	test('adversarial mutation: leading/trailing whitespace is caught', () => {
-		expect(() => resolveTrustProxyFromEnv('  0.0.0.0/0  ')).toThrow(
+	test('adversarial mutation: leading/trailing whitespace is caught', async () => {
+		await expect(callWithEnv('  0.0.0.0/0  ')).rejects.toThrow(
 			/Refusing to start/,
 		);
 	});
 
-	test('adversarial mutation: mixed case is caught (::/0 vs ::/0)', () => {
-		expect(() => resolveTrustProxyFromEnv('::/0')).toThrow(/Refusing to start/);
+	test('adversarial mutation: mixed case is caught (::/0 vs ::/0)', async () => {
+		await expect(callWithEnv('::/0')).rejects.toThrow(/Refusing to start/);
 	});
 
 	// What does NOT bypass: a non-universal CIDR that ends in 0 but is not /0
 	// (e.g. `10.0.0.0/8`) — these are valid broad CIDRs that srvx will treat as
 	// exact-match (correctly failing to match real peers). The /0 check only
 	// rejects the universal-wildcard shape.
-	test('non-universal /8 CIDR is NOT rejected (srvx handles it as exact match)', () => {
-		expect(resolveTrustProxyFromEnv('10.0.0.0/8')).toEqual(['10.0.0.0']);
+	test('non-universal /8 CIDR is NOT rejected (srvx handles it as exact match)', async () => {
+		expect(await callWithEnv('10.0.0.0/8')).toEqual(['10.0.0.0']);
 	});
 
 	// --- R8: the three holes in the universal-CIDR rejection ---
@@ -365,38 +309,38 @@ describe('trust-proxy universal CIDR rejection (r7)', () => {
 	// to a bare address by the `.split('/')[0]` map, and ended up in the trust
 	// list. The same holes exist for IPv6 (`::/`, `::/abc`). An unreadable
 	// prefix length must fail startup, not be silently coerced.
-	test('R8 hole 1: empty IPv4 suffix 0.0.0.0/ is rejected', () => {
-		expect(() => resolveTrustProxyFromEnv('0.0.0.0/')).toThrow(
+	test('R8 hole 1: empty IPv4 suffix 0.0.0.0/ is rejected', async () => {
+		await expect(callWithEnv('0.0.0.0/')).rejects.toThrow(
 			/Refusing to start: TRUSTED_PROXY_CIDRS contains '0\.0\.0\.0\/' with an unreadable prefix length/,
 		);
 	});
 
-	test('R8 hole 2: non-numeric IPv4 suffix 0.0.0.0/abc is rejected', () => {
-		expect(() => resolveTrustProxyFromEnv('0.0.0.0/abc')).toThrow(
+	test('R8 hole 2: non-numeric IPv4 suffix 0.0.0.0/abc is rejected', async () => {
+		await expect(callWithEnv('0.0.0.0/abc')).rejects.toThrow(
 			/Refusing to start: TRUSTED_PROXY_CIDRS contains '0\.0\.0\.0\/abc' with an unreadable prefix length/,
 		);
 	});
 
-	test('R8 hole 3: empty IPv6 suffix ::/ is rejected', () => {
-		expect(() => resolveTrustProxyFromEnv('::/')).toThrow(
+	test('R8 hole 3: empty IPv6 suffix ::/ is rejected', async () => {
+		await expect(callWithEnv('::/')).rejects.toThrow(
 			/Refusing to start: TRUSTED_PROXY_CIDRS contains '::\/' with an unreadable prefix length/,
 		);
 	});
 
-	test('R8 hole 4: non-numeric IPv6 suffix ::/abc is rejected', () => {
-		expect(() => resolveTrustProxyFromEnv('::/abc')).toThrow(
+	test('R8 hole 4: non-numeric IPv6 suffix ::/abc is rejected', async () => {
+		await expect(callWithEnv('::/abc')).rejects.toThrow(
 			/Refusing to start: TRUSTED_PROXY_CIDRS contains '::\/abc' with an unreadable prefix length/,
 		);
 	});
 
-	test('R8 hole 5: out-of-range IPv4 suffix 0.0.0.0/33 is rejected', () => {
-		expect(() => resolveTrustProxyFromEnv('0.0.0.0/33')).toThrow(
+	test('R8 hole 5: out-of-range IPv4 suffix 0.0.0.0/33 is rejected', async () => {
+		await expect(callWithEnv('0.0.0.0/33')).rejects.toThrow(
 			/Refusing to start: TRUSTED_PROXY_CIDRS contains '0\.0\.0\.0\/33' with prefix length 33/,
 		);
 	});
 
-	test('R8 hole 6: out-of-range IPv6 suffix ::/129 is rejected', () => {
-		expect(() => resolveTrustProxyFromEnv('::/129')).toThrow(
+	test('R8 hole 6: out-of-range IPv6 suffix ::/129 is rejected', async () => {
+		await expect(callWithEnv('::/129')).rejects.toThrow(
 			/Refusing to start: TRUSTED_PROXY_CIDRS contains '::\/129' with prefix length 129/,
 		);
 	});
@@ -405,71 +349,107 @@ describe('trust-proxy universal CIDR rejection (r7)', () => {
 	// If the regex guard is dropped and only the numeric range checks remain,
 	// `0.0.0.0/abc` slips through: `parseInt('abc')` is NaN, NaN > 32 is false,
 	// NaN === 0 is false, so no throw. The regex is load-bearing.
-	test('R8 adversarial: regex is load-bearing — 0.0.0.0/abc throws even if range checks are weak', () => {
-		expect(() => resolveTrustProxyFromEnv('0.0.0.0/abc')).toThrow(
+	test('R8 adversarial: regex is load-bearing — 0.0.0.0/abc throws even if range checks are weak', async () => {
+		await expect(callWithEnv('0.0.0.0/abc')).rejects.toThrow(
 			/unreadable prefix length/,
 		);
 	});
 
-	test('R8 adversarial: regex is load-bearing — 0.0.0.0/3x throws (trailing junk)', () => {
-		expect(() => resolveTrustProxyFromEnv('0.0.0.0/3x')).toThrow(
+	test('R8 adversarial: regex is load-bearing — 0.0.0.0/3x throws (trailing junk)', async () => {
+		await expect(callWithEnv('0.0.0.0/3x')).rejects.toThrow(
 			/unreadable prefix length/,
 		);
 	});
 
-	test('R8 adversarial: regex is load-bearing — 0.0.0.0/ 3 throws (space in suffix)', () => {
-		expect(() => resolveTrustProxyFromEnv('0.0.0.0/ 3')).toThrow(
+	test('R8 adversarial: regex is load-bearing — 0.0.0.0/ 3 throws (space in suffix)', async () => {
+		await expect(callWithEnv('0.0.0.0/ 3')).rejects.toThrow(
 			/unreadable prefix length/,
 		);
 	});
 
-	test('R8 adversarial: regex is load-bearing — 0.0.0.0/+3 throws (sign in suffix)', () => {
-		expect(() => resolveTrustProxyFromEnv('0.0.0.0/+3')).toThrow(
+	test('R8 adversarial: regex is load-bearing — 0.0.0.0/+3 throws (sign in suffix)', async () => {
+		await expect(callWithEnv('0.0.0.0/+3')).rejects.toThrow(
 			/unreadable prefix length/,
 		);
 	});
 
-	test('R8 adversarial: regex is load-bearing — 0.0.0.0/3.5 throws (decimal in suffix)', () => {
-		expect(() => resolveTrustProxyFromEnv('0.0.0.0/3.5')).toThrow(
+	test('R8 adversarial: regex is load-bearing — 0.0.0.0/3.5 throws (decimal in suffix)', async () => {
+		await expect(callWithEnv('0.0.0.0/3.5')).rejects.toThrow(
 			/unreadable prefix length/,
 		);
 	});
 
 	// --- R8 non-regression: bare addresses without slash are valid srvx entries ---
-	test('R8 non-regression: bare IPv4 address without slash is accepted as-is', () => {
-		expect(resolveTrustProxyFromEnv('10.0.0.9')).toEqual(['10.0.0.9']);
+	test('R8 non-regression: bare IPv4 address without slash is accepted as-is', async () => {
+		expect(await callWithEnv('10.0.0.9')).toEqual(['10.0.0.9']);
 	});
 
-	test('R8 non-regression: bare IPv6 address without slash is accepted as-is', () => {
-		expect(resolveTrustProxyFromEnv('::1')).toEqual(['::1']);
+	test('R8 non-regression: bare IPv6 address without slash is accepted as-is', async () => {
+		expect(await callWithEnv('::1')).toEqual(['::1']);
 	});
 
 	// --- R8 non-regression: existing behavior is preserved ---
-	test('R8 non-regression: /32 is accepted', () => {
-		expect(resolveTrustProxyFromEnv('10.0.0.9/32')).toEqual(['10.0.0.9']);
+	test('R8 non-regression: /32 is accepted', async () => {
+		expect(await callWithEnv('10.0.0.9/32')).toEqual(['10.0.0.9']);
 	});
 
-	test('R8 non-regression: CSV list is accepted', () => {
-		expect(resolveTrustProxyFromEnv('10.0.0.9/32,10.0.0.10/32')).toEqual([
+	test('R8 non-regression: CSV list is accepted', async () => {
+		expect(await callWithEnv('10.0.0.9/32,10.0.0.10/32')).toEqual([
 			'10.0.0.9',
 			'10.0.0.10',
 		]);
 	});
 
-	test('R8 non-regression: absent value falls back to loopback', () => {
-		expect(resolveTrustProxyFromEnv(undefined)).toEqual(['127.0.0.1', '::1']);
-		expect(resolveTrustProxyFromEnv('')).toEqual(['127.0.0.1', '::1']);
-		expect(resolveTrustProxyFromEnv('   ')).toEqual(['127.0.0.1', '::1']);
+	test('R8 non-regression: absent value falls back to loopback', async () => {
+		expect(await callWithEnv(undefined)).toEqual(['127.0.0.1', '::1']);
+		expect(await callWithEnv('')).toEqual(['127.0.0.1', '::1']);
+		expect(await callWithEnv('   ')).toEqual(['127.0.0.1', '::1']);
 	});
 
-	test('R8 non-regression: IPv6 /128 is accepted', () => {
-		expect(resolveTrustProxyFromEnv('::1/128')).toEqual(['::1']);
+	test('R8 non-regression: IPv6 /128 is accepted', async () => {
+		expect(await callWithEnv('::1/128')).toEqual(['::1']);
 	});
 
-	test('R8 non-regression: mixed IPv4+IPv6 CSV is accepted', () => {
-		expect(resolveTrustProxyFromEnv('127.0.0.1/32,::1/128')).toEqual([
+	test('R8 non-regression: mixed IPv4+IPv6 CSV is accepted', async () => {
+		expect(await callWithEnv('127.0.0.1/32,::1/128')).toEqual([
 			'127.0.0.1',
 			'::1',
 		]);
+	});
+
+	// --- Env var parsing (unit-level pinning of the CIDR-stripping contract) ---
+	// Verifies that `resolveTrustProxyFromEnv` strips CIDR notation,
+	// since srvx uses exact string matching, not subnet matching.
+	test('resolveTrustProxyFromEnv strips CIDR notation for srvx exact-match semantics', async () => {
+		expect(await callWithEnv(undefined)).toEqual(['127.0.0.1', '::1']);
+		expect(await callWithEnv('')).toEqual(['127.0.0.1', '::1']);
+		expect(await callWithEnv('   ')).toEqual(['127.0.0.1', '::1']);
+		expect(await callWithEnv('10.0.0.5/32')).toEqual(['10.0.0.5']);
+		expect(await callWithEnv('127.0.0.1/32,::1/128')).toEqual([
+			'127.0.0.1',
+			'::1',
+		]);
+		expect(await callWithEnv(' 10.0.0.5/32 , 10.0.0.6/32 ')).toEqual([
+			'10.0.0.5',
+			'10.0.0.6',
+		]);
+	});
+
+	// --- DNS discovery path (E2E_DISCOVER_TRUSTED_PROXY) ---
+	// The real function reads process.env.E2E_DISCOVER_TRUSTED_PROXY and calls
+	// the injected lookup stub. A stub resolves traefik → 10.0.0.9.
+	test('E2E_DISCOVER_TRUSTED_PROXY resolves Traefik via injected lookup', async () => {
+		process.env.E2E_DISCOVER_TRUSTED_PROXY = 'true';
+		const fakeLookup = vi.fn().mockResolvedValue({ address: '10.0.0.9' });
+		const result = await resolveTrustProxyFromEnv({ lookup: fakeLookup });
+		expect(fakeLookup).toHaveBeenCalledWith('traefik', { family: 4 });
+		expect(result).toEqual(['10.0.0.9']);
+	});
+
+	test('E2E_DISCOVER_TRUSTED_PROXY falls back to loopback when lookup fails', async () => {
+		process.env.E2E_DISCOVER_TRUSTED_PROXY = 'true';
+		const fakeLookup = vi.fn().mockRejectedValue(new Error('NXDOMAIN'));
+		const result = await resolveTrustProxyFromEnv({ lookup: fakeLookup });
+		expect(result).toEqual(['127.0.0.1', '::1']);
 	});
 });

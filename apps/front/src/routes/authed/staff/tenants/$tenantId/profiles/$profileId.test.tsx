@@ -1440,7 +1440,7 @@ describe('staff tenant profile details route', () => {
 			context: { queryClient: new QueryClient() },
 		};
 
-		test('awaits tenant and profile queries through ensureQueryData', async () => {
+		test('awaits tenant and profile queries through query({ staleTime: static })', async () => {
 			const loader = Route.options.loader as
 				| ((args: {
 						params: { tenantId: string; profileId: string };
