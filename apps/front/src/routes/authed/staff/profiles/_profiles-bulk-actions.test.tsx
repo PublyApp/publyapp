@@ -84,14 +84,17 @@ vi.mock('react-i18next', () => ({
 					'Reduce your selection to at most {{max}} items ({{count}} selected).',
 				'bulk-action-rows-may-leave-filter':
 					'Some rows may no longer appear in the filtered view.',
+				'bulk-action-total-failure-no-reason':
+					"The server didn't specify a reason for this failure. Try again, or contact support if the problem persists.",
 			};
 
 			return (labels[key] ?? key).replace(
 				/\{\{(\w+)\}\}/g,
 				(_, name: string) => {
 					const value = options?.[name];
-					if (typeof value === 'string' || typeof value === 'number')
+					if (typeof value === 'string' || typeof value === 'number') {
 						return String(value);
+					}
 					return '';
 				},
 			);
@@ -338,6 +341,38 @@ describe('#1386 ProfilesListBulkActions', () => {
 		expect(mocks.toastSuccess).not.toHaveBeenCalled();
 	});
 
+	test('total-failure toast suppresses the filter-leave warning when nothing succeeded', async () => {
+		mocks.bulkDelete.mockResolvedValue({
+			succeededCount: 0,
+			failedCount: 1,
+			failedItems: [
+				{
+					profileId: PROFILE_A,
+					errorEscaped: 'Default profiles cannot be deleted',
+				},
+			],
+		});
+
+		renderBulkActions();
+
+		await openMenu();
+		fireEvent.click(screen.getByRole('menuitem', { name: 'Delete selected' }));
+		expect(await screen.findByText(/delete 1 selected profile/)).toBeTruthy();
+		fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
+
+		await waitFor(() => expect(mocks.toastError).toHaveBeenCalledTimes(1));
+		const [message, description] = mocks.toastError.mock.calls[0] as [
+			string,
+			string | undefined,
+		];
+		expect(message).toBe('Deleted 0 profile(s), 1 failed.');
+		// #1605: total failure (succeededCount === 0) with per-item reasons
+		// carries the cause description, NOT the filter-leave warning.
+		expect(description).toBe('Default profiles cannot be deleted');
+		expect(description).not.toContain('Some rows may no longer appear');
+		expect(mocks.toastSuccess).not.toHaveBeenCalled();
+	});
+
 	test('a 401-shaped failure routes to onSessionExpired instead of a toast', async () => {
 		mocks.shouldLogoutForFailure.mockReturnValue(true);
 		const onSessionExpired = vi.fn();
@@ -352,6 +387,43 @@ describe('#1386 ProfilesListBulkActions', () => {
 
 		await waitFor(() => expect(onSessionExpired).toHaveBeenCalledOnce());
 		expect(mocks.displayLocalMutationFailure).not.toHaveBeenCalled();
+	});
+
+	// #1605 / #1787 r6 / #1811 : total failure (succeededCount === 0) with no
+	// per-item reasons must NOT carry the filter-leave warning. Without this
+	// test, the `filterWarning` ternary on line 112-113 is unreachable on the
+	// profiles surface — the existing total-failure test always supplies
+	// errorEscaped, so reasons.length > 0 and the guard never falls through to
+	// filterWarning.
+	// #1811 : la description ne doit PLUS être undefined — elle doit porter la
+	// cause de repli "aucune raison fournie par le serveur" (la règle produit
+	// "toute défaillance montre sa cause en mots clairs" interdit le silence).
+	test('an all-failure delete without per-item reasons shows the no-reason fallback (#1811)', async () => {
+		mocks.bulkDelete.mockResolvedValue({
+			succeededCount: 0,
+			failedCount: 1,
+		});
+
+		renderBulkActions();
+
+		await openMenu();
+		fireEvent.click(screen.getByRole('menuitem', { name: 'Delete selected' }));
+		expect(await screen.findByText(/delete 1 selected profile/)).toBeTruthy();
+		fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
+
+		await waitFor(() =>
+			expect(mocks.toastError).toHaveBeenCalledWith(
+				'Deleted 0 profile(s), 1 failed.',
+				"The server didn't specify a reason for this failure. Try again, or contact support if the problem persists.",
+			),
+		);
+		// #1605 : total failure (succeededCount === 0) with no per-item
+		// reasons ne porte PAS l'avertissement de filtre — aucune ligne n'a
+		// quitté la vue.
+		expect(mocks.toastError.mock.calls[0][1]).not.toContain(
+			'Some rows may no longer appear',
+		);
+		expect(mocks.toastSuccess).not.toHaveBeenCalled();
 	});
 
 	// #1605: success and partial-success toasts carry the filter-warning

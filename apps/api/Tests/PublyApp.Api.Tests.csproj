@@ -21,6 +21,7 @@
 		     scanner produces the literal-masked view (version pinned centrally in
 		     Directory.Packages.props, shared with packages/lint-cs). -->
 		<PackageReference Include="Microsoft.CodeAnalysis.CSharp" />
+		<PackageReference Include="Moq" />
 	</ItemGroup>
 
 	<ItemGroup>

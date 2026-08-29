@@ -225,12 +225,28 @@ Le `DataTableCursorFooter` construit en #1549 traite déjà `totalCount === unde
 composant : il suffit de ne pas passer `totalCount` (ou de passer `undefined`) quand le
 backend ne le fournit pas. Le front n'affiche **jamais** « sur 0 ».
 
-### Test (API)
+### Test (API) — spécification nommée (T1-abs, #1595)
 
-Spec par endpoint : forcer l'échec du `COUNT` (ex. via un `IDbContextInterceptor` de test qui
-lève sur le second `CountAsync`, ou un seed d'erreur), vérifier que `GET` répond `200` avec
-`data` peuplé et `totalCount` **absent** (et non pas `0` ni une erreur 500). Le front
-représente la plage seule.
+Spec par endpoint. Semer N lignes. Forcer l'échec du `COUNT` (via un `IDbContextInterceptor` de test qui lève sur le second `CountAsync`, ou un seed d'erreur). `GET` avec `includeTotalCount=true`. Assertions sur le **corps JSON réel** (désérialisé depuis la réponse HTTP, pas l'objet de retour du handler : seule la sérialisation fait foi) :
+
+- statut `200` ;
+- `data` peuplé (les lignes sont retournées normalement, avec `nextCursor`) ;
+- la clé `totalCount` est **strictement absente** du JSON — `JsonElement.TryGetProperty("totalCount", out _)` retourne `false`. Pas `null`, pas `0`, pas une clé présente : **absente**.
+
+**Preuve appariée (rouge sans le correctif, vert avec).** Mutation adverse : une lane qui émet `totalCount: null` au lieu d'omettre le champ satisfait `TotalCount == null` côté objet mais le JSON contient la clé — le test rougit. Le défaut récurrent du dépôt est un test vide dont le vert est forcé par un second mécanisme : ici, une assertion sur l'objet de retour (au lieu du JSON) qui reste verte alors que le JSON transporte `null`.
+
+Le front représente la plage seule.
+
+#### T1-ord (#1596) — les lignes survivent à l'échec du comptage
+
+Même jeu de seed. Sous le même échec forcé du `COUNT` :
+
+- le statut est `200` (jamais `500`) ;
+- les lignes sont retournées avec leur `nextCursor`.
+
+**Mutation adverse (nommée) : « calculer le total avant les lignes. »** Déplacer le `CountAsync` avant la récupération des lignes de sorte qu'une exception du comptage fasse échouer toute la requête en 500 au lieu de rendre un 200 partiel. Sous cette mutation, T1-ord rougit (500 au lieu de 200) tandis que T1-abs reste vert (rien à voir avec la présence du total) — prouvant que T1-ord capture bien l'ordre, pas la valeur. Variante équivalente : « rattraper l'échec mais émettre `totalCount: null` » — captée par T1-abs (la clé est présente), pas par T1-ord (le statut reste 200). Ensemble, T1-abs + T1-ord ferment la surface : une lane qui implémente l'un sans l'autre laisse passer l'autre moitié.
+
+**Preuve appariée requise** (couleur nommée, `--reporter=verbose`) : appliquer la mutation « compter avant les lignes » → T1-abs VERT, T1-ord ROUGE ; restaurer → les deux VERTS.
 
 ## 5. OpenAPI + client Kiota régénéré + câblage front
 

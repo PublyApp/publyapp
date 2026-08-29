@@ -159,7 +159,9 @@ vi.mock('./_assign-members-drawer', () => ({
 	}) => {
 		mocks.drawerIsOpen = isOpen;
 		mocks.drawerOnOpenChange = onOpenChange;
-		if (isOpen) return <div data-testid="assign-drawer-open" />;
+		if (isOpen) {
+			return <div data-testid="assign-drawer-open" />;
+		}
 		return null;
 	},
 }));

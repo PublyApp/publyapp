@@ -1,0 +1,48 @@
+{
+	"$comment": [
+		"Pinned scan-surface baseline for the column-type-imports guard (#1769).",
+		"",
+		"The guard counts how many files it scans per extension and FAILS if any",
+		"count drops below the floor pinned here. This closes Hole 1: moving a",
+		"code extension (like .tsx) from SCANNED_EXTENSIONS into",
+		"NON_CODE_EXTENSIONS silently disables its analysis, and the guard used",
+		"to announce [OK] with a smaller count. Now a drop fails loudly, naming",
+		"the extension and the gap.",
+		"",
+		"Lower a floor deliberately when files are legitimately removed from the",
+		"tree (e.g. a .tsx page is deleted). Never raise a floor without review",
+		"— that would mask a silent surface reduction. To lower a floor: edit the",
+		"count, commit, and let CI verify the new floor matches the tree.",
+		"",
+		"Per-extension floors (not a total) so the message names the exact",
+		"extension that shrank. Extensions with 0 files have floor 0 — they are",
+		"protected by CORE_EXTENSIONS (cannot be declared non-code) and by the",
+		"\"still scanned\" test, not by the ratchet.",
+		"",
+		"R7: the three mutable sets below are pinned here so that ANY change to",
+		"SCANNED_EXTENSIONS, NON_CODE_EXTENSIONS, or EXEMPT_FILES fails the guard",
+		"loudly. This closes the three bypasses the r6 reviewer found:",
+		"  - Hole 1 (exemptions): adding a path to isExempt silently hides a file.",
+		"  - Hole 2 (justification): a 24-char string of 'a' passes the length bar.",
+		"  - Hole 3 (extension relocation): .ctsx/.mjs/.cjs have floor 0, so",
+		"    moving them to non-code keeps the real-tree guard green.",
+		"The pin makes every one of these gestures visible: the guard compares the",
+		"runtime set against the pinned baseline and fails on any divergence."
+	],
+	"perExtension": {
+		".ts": 275,
+		".tsx": 472,
+		".mts": 0,
+		".cts": 0,
+		".ctsx": 0,
+		".mjs": 0,
+		".cjs": 1
+	},
+	"scannedExtensions": [".ts", ".tsx", ".mts", ".cts", ".ctsx", ".mjs", ".cjs"],
+	"nonCodeExtensions": {
+		".json": "static data (e.g. translation files), never imports code",
+		".css": "style declarations, never imports code",
+		".svg": "vector graphics, never imports code"
+	},
+	"exemptFiles": ["components/table/column-type.ts"]
+}

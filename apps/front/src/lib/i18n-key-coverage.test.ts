@@ -62,7 +62,9 @@ const resolveUsageKey = (
 	defaultNamespace: SupportedNamespace,
 ): UsageKey => {
 	const separator = rawKey.indexOf(':');
-	if (separator === -1) return { namespace: defaultNamespace, key: rawKey };
+	if (separator === -1) {
+		return { namespace: defaultNamespace, key: rawKey };
+	}
 	return {
 		namespace: rawKey.slice(0, separator) as SupportedNamespace,
 		key: rawKey.slice(separator + 1),

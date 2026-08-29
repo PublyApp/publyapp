@@ -55,7 +55,9 @@ const findExactPinGroup = (
 		'peerDependencies',
 	]) {
 		const group = manifest[groupName];
-		if (typeof group !== 'object' || group === null) continue;
+		if (typeof group !== 'object' || group === null) {
+			continue;
+		}
 
 		if (
 			(group as Record<string, unknown>)[dependencyName] === expectedVersion
@@ -89,7 +91,9 @@ const recordBlock = (rawDoc: string): string => {
 
 	const blockLines = [lines[start]];
 	for (let index = start + 1; index < lines.length; index += 1) {
-		if (lines[index].trim() === '') break;
+		if (lines[index].trim() === '') {
+			break;
+		}
 		blockLines.push(lines[index]);
 	}
 
@@ -159,7 +163,9 @@ test('dependency-health.md attributes the fetch-library pin to apps/front/packag
 	// the #1331-review wording or any paraphrase of it — has no exclusion
 	// marker and fails here regardless of phrasing.
 	for (const sentence of sentencesOf(block)) {
-		if (!sentence.includes(clientTsPackagePath)) continue;
+		if (!sentence.includes(clientTsPackagePath)) {
+			continue;
+		}
 
 		assert.match(
 			sentence,

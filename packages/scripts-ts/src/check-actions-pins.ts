@@ -135,7 +135,9 @@ export const parsePinnedUseLine = (line: string): ParsedUseLine | null => {
 	const code = line.replace(/#.*/, '');
 	const match = code.match(/uses:\s*(\S+)/);
 
-	if (!match) return null;
+	if (!match) {
+		return null;
+	}
 
 	const uses = match[1];
 
@@ -223,7 +225,9 @@ export const resolveTagCommit = async ({
 }): Promise<GitObject | null> => {
 	let current = await lookup({ repo, what: { kind: 'tag-ref', name: tag } });
 
-	if (current === null) return null;
+	if (current === null) {
+		return null;
+	}
 
 	for (let depth = 0; current.type !== 'commit'; depth += 1) {
 		if (depth >= maxPeelDepth) {
@@ -362,7 +366,9 @@ export const assertCertifiedScan = ({
  * Deterministic lexicographic ordering for reported file paths.
  */
 const comparePosixPath = (a: string, b: string): number => {
-	if (a === b) return 0;
+	if (a === b) {
+		return 0;
+	}
 
 	if (a < b) {
 		return -1;
@@ -541,7 +547,9 @@ export const findPinMismatches = async ({
 		for (let i = 0; i < lines.length; i++) {
 			const parsed = parsePinnedUseLine(lines[i]);
 
-			if (parsed === null) continue;
+			if (parsed === null) {
+				continue;
+			}
 
 			if (parsed.kind === 'local') {
 				const uses =
@@ -567,7 +575,9 @@ export const findPinMismatches = async ({
 				continue;
 			}
 
-			if (parsed.kind === 'docker') continue;
+			if (parsed.kind === 'docker') {
+				continue;
+			}
 
 			if (parsed.kind === 'malformed') {
 				findings.push({
@@ -609,7 +619,9 @@ export const findPinMismatches = async ({
 	for (const entry of pinnedEntries) {
 		const resolved = await cachedResolve({ repo: entry.repo, tag: entry.tag });
 
-		if (resolved === entry.sha) continue;
+		if (resolved === entry.sha) {
+			continue;
+		}
 
 		if (resolved === null) {
 			findings.push({

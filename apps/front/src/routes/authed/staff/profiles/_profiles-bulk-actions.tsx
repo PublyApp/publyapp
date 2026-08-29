@@ -102,7 +102,9 @@ export const ProfilesListBulkActions = ({
 				...new Set(
 					failedItems.flatMap((item) => {
 						const reason = item.errorEscaped?.trim();
-						if (reason) return [reason];
+						if (reason) {
+							return [reason];
+						}
 						return [];
 					}),
 				),
@@ -111,12 +113,22 @@ export const ProfilesListBulkActions = ({
 			// l'avertissement de filtre en amont, la description reste identique.
 			const filterWarning =
 				succeededCount > 0 ? t('bulk-action-rows-may-leave-filter') : undefined;
+			// #1811 : un echec total sans raison par item doit montrer une cause
+			// lisible (regle produit "toute defaillance montre sa cause en mots
+			// clairs"). Le serveur n'a pas precise la raison : le produit l'avoue
+			// honnetement plutot que de se taire.
+			const noReasonFallback =
+				succeededCount === 0 && reasons.length === 0
+					? t('bulk-action-total-failure-no-reason')
+					: undefined;
 			toastLocalMutationResult.error(
 				t('staff-profile-bulk-delete-partial-success', {
 					succeeded: succeededCount,
 					failed: failedCount,
 				}),
-				reasons.length > 0 ? reasons.join('\n') : filterWarning,
+				reasons.length > 0
+					? reasons.join('\n')
+					: (filterWarning ?? noReasonFallback),
 			);
 		} else {
 			toastLocalMutationResult.success(
@@ -178,7 +190,9 @@ export const ProfilesListBulkActions = ({
 					void performBulkDelete();
 				}}
 				onOpenChange={(isOpen) => {
-					if (!isOpen) setIsDialogOpen(false);
+					if (!isOpen) {
+						setIsDialogOpen(false);
+					}
 				}}
 			/>
 		</>

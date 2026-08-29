@@ -25,7 +25,9 @@ describe('ScrollArea (client)', () => {
 
 		// Programmatic scrolling used to target the plain overflow-auto div;
 		// it must keep working through the forwarded ref.
-		if (!ref.current) throw new Error('ref not set');
+		if (!ref.current) {
+			throw new Error('ref not set');
+		}
 		ref.current.scrollTop = 42;
 		expect(ref.current.scrollTop).toBe(42);
 		expect(ref.current.getAttribute('aria-label')).toBe('Liste');

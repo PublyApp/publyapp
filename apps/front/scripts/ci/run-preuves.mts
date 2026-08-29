@@ -8,6 +8,40 @@
  * code does NOT satisfy the ideal, so the test fails, and that failure IS the
  * proof.
  *
+ * ## Classification — structural signals, not display text (issue #1784)
+ *
+ * The runner classifies a proof's failure mode using the STRUCTURAL report
+ * from vitest's `--reporter=json` output, never by regex on the human-readable
+ * stdout/stderr stream. This matters because the question we must answer is
+ * binary and precise: did this proof fail on an ASSERTION, or did it fail on
+ * a THROWN ERROR? Both produce "Tests 1 failed" and exit code 1, but they
+ * mean different things:
+ *
+ * - Assertion failure → the proof measured and the ideal is not met
+ *   (kept-red, the expected state) → success.
+ * - Thrown Error (MESURE IMPOSSIBLE, harness crash, extraction failure) →
+ *   the proof could NOT measure. This is NOT the expected kept-red state —
+ *   it is a broken measurement, and it must FAIL THE STEP LOUD rather than
+ *   be reported as "failed as expected".
+ *
+ * A text regex like `/AssertionError/.test(output)` is fragile: any thrown
+ * Error whose message happens to contain the words "AssertionError" (e.g. a
+ * harness error wrapping one) is misclassified as a kept-red success, and
+ * the regression is SILENT — a undesired green, the worst failure class.
+ *
+ * The JSON report gives us, per test, its `status` ("passed" / "failed") and
+ * the failure type as the first token of `failureMessages[0]`:
+ * "AssertionError: ..." for assertion failures, "Error: ..." for thrown
+ * errors. We classify on that structural signal.
+ *
+ * ### Unreadable reports — fail loud, name the cause
+ *
+ * A report the script cannot parse (missing file, empty, invalid JSON, wrong
+ * shape) MUST fail loud naming the cause — never fall back to text heuristics
+ * nor to a compliant default. This is the dominant defect class of this
+ * repo: substituting a defect of correct appearance for an unreadable input.
+ * `readProofReport()` enforces this with one error per failure case.
+ *
  * ## Option (b) — declaration-scoped replay (issue #1659, ronde 6)
  *
  * A pull request DECLARES a paired red proof by adding or modifying a proof
@@ -62,8 +96,15 @@
  * See .dump/DONE-1687-r5.md for the full rationale.
  */
 import { execFileSync, execSync } from 'node:child_process';
-import { readFileSync, existsSync } from 'node:fs';
+import { readFileSync, existsSync, unlinkSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+
+import {
+	classifyProof,
+	readProofReport,
+	type ProofReport,
+} from './classify-proof.mts';
 
 const ROOT = join(process.cwd(), '..'); // apps/front → repo root
 const PROOFS_DIR = join(process.cwd(), 'tests', 'proofs');
@@ -102,14 +143,25 @@ const REPLAYABLE_EXTENSIONS = ['.test.ts', '.test.tsx'] as const;
  * works on a clean CI checkout. The fetch is scoped to the single base ref
  * and is fast (a few hundred KB at most).
  *
+ * The workflow that runs this script (front-ci.yml) uses `fetch-depth: 0`
+ * so the checkout is never shallow. But this script is also run locally and
+ * from other contexts — if the repository is ALREADY shallow at entry
+ * (graft left by another workflow, a developer's shallow clone, etc.), the
+ * fetch below only fetches the base ref's history, not HEAD's. A shallow
+ * HEAD means `merge-base` returns empty and the diff silently becomes blank
+ * — concluding "no proofs declared" and exiting 0, a green light that
+ * verified nothing. Detect a shallow graft up front and repair it with
+ * `git fetch --unshallow` (never `--deepen=N`, which re-creates a bound
+ * instead of removing it — precedent: #1773).
+ *
  * Locally (no env vars), we use two-dot diff (HEAD~1..HEAD) to show what the
  * most recent commit introduced.
  *
  * @returns The list of proof-test paths (relative to apps/front) that were
  *          added or modified in the diff.
- * @throws If `git diff` fails. An unresolvable base can never silently become
- *         "no proofs declared"; the operator must fetch the base or fix the
- *         checkout.
+ * @throws If `git diff` or `git merge-base` fails. An unresolvable base can
+ *         never silently become "no proofs declared"; the operator must fetch
+ *         the base or fix the checkout.
  */
 function declaredProofTests(): string[] {
 	// First, confirm the versioned directory exists at all. If it does not,
@@ -118,20 +170,102 @@ function declaredProofTests(): string[] {
 		return [];
 	}
 
+	// If the repository is shallow at entry (graft left by a previous
+	// --depth=1 fetch in a shared worktree, a developer's shallow clone,
+	// etc.), the fetch below only fetches the base ref's history — HEAD
+	// stays shallow. Under a shallow graft, `git merge-base` returns empty
+	// and the diff silently becomes blank, concluding "no proofs declared"
+	// and exiting 0: a green light that verified nothing. Detect and repair
+	// up front with `git fetch --unshallow` (never `--deepen=N`, which
+	// re-creates a bound instead of removing it — precedent: #1773).
+	try {
+		const isShallow = execSync(
+			`git -C "${ROOT}" rev-parse --is-shallow-repository`,
+			{ encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] },
+		).trim();
+
+		if (isShallow === 'true') {
+			console.error(
+				`Repository is shallow at entry (.git/shallow exists) — ` +
+					`repairing with "git fetch --unshallow" before continuing. ` +
+					`A shallow graft would make merge-base return empty and the ` +
+					`diff go blank, silently concluding "no proofs declared".`,
+			);
+			execSync(
+				`git -C "${ROOT}" fetch --unshallow`,
+				{ encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] },
+			);
+		}
+	} catch (err) {
+		// If we cannot even determine shallow status, fail loud — an input
+		// we cannot parse is not replaced by a compliant default.
+		throw new Error(
+			`git rev-parse --is-shallow-repository failed — cannot determine ` +
+				`whether the repository is shallow. Detail: ${(err as Error).message}`,
+		);
+	}
+
 	// Get the list of files changed by this PR.
 	let changedFiles: string[];
 	try {
 		if (process.env.GITHUB_BASE_REF && process.env.GITHUB_HEAD_REF) {
 			const baseRef = `refs/remotes/origin/${process.env.GITHUB_BASE_REF}`;
 
-			// GitHub's checkout action fetches only the PR's own ref. The base
-			// branch's remote ref does not exist until we fetch it. Fetch it
-			// explicitly so the diff works on a clean CI checkout. Scoped to
-			// the single base ref — fast, a few hundred KB at most.
-			execSync(
-				`git -C "${ROOT}" fetch --depth=1 origin "${process.env.GITHUB_BASE_REF}"`,
-				{ encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] },
-			);
+				// GitHub's checkout action fetches only the PR's own ref. The
+				// base branch's remote ref does not exist until we fetch it.
+				// Fetch it explicitly so the diff works on a clean CI
+				// checkout. Scoped to the single base ref — fast, a few
+				// hundred KB at most.
+				//
+				// CRITICAL: do NOT use --depth=1 (shallow fetch). A shallow
+				// fetch writes .git/shallow, which is shared by all worktrees
+				// in this repository and persists after this script finishes.
+				// Under a shallow graft, `git merge-base` returns empty and
+				// the diff below silently becomes blank — concluding "no
+				// proofs declared" and exiting 0, a green light that
+				// verified nothing. Fetch the full history of the single base
+				// ref instead. A non-shallow fetch scoped to one ref is still
+				// fast (a few hundred KB at most for typical branches).
+				execSync(
+					`git -C "${ROOT}" fetch --no-tags origin +refs/heads/${process.env.GITHUB_BASE_REF}:${baseRef}`,
+					{ encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] },
+				);
+
+				// Verify the base and HEAD actually share a history. Under a
+				// shallow graft (e.g., one left by a previous --depth=1 fetch
+				// in a shared worktree), merge-base returns empty and the
+				// diff below would silently become blank — concluding "no
+				// proofs declared" and exiting 0, a green light that
+				// verified nothing. An unresolvable base must FAIL LOUD naming
+				// the cause; it can never silently become a compliant "no
+				// proofs".
+				let mergeBase: string;
+				try {
+					mergeBase = execSync(
+						`git -C "${ROOT}" merge-base "${baseRef}" HEAD`,
+						{ encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] },
+					).trim();
+				} catch {
+					throw new Error(
+						`git merge-base failed — no common ancestor between ` +
+							`origin/${process.env.GITHUB_BASE_REF} and HEAD. This is ` +
+							`commonly caused by a shallow graft (.git/shallow) left by a ` +
+							`previous --depth=1 fetch in a shared worktree. Remove the ` +
+							`graft ("git fetch --unshallow" or delete .git/shallow) and ` +
+							`retry.`,
+					);
+				}
+
+				if (!mergeBase) {
+					throw new Error(
+						`git merge-base returned empty — no common ancestor between ` +
+							`origin/${process.env.GITHUB_BASE_REF} and HEAD. This is ` +
+							`commonly caused by a shallow graft (.git/shallow) left by a ` +
+							`previous --depth=1 fetch in a shared worktree. Remove the ` +
+							`graft ("git fetch --unshallow" or delete .git/shallow) and ` +
+							`retry.`,
+					);
+				}
 
 			const diffOutput = execSync(
 				`git -C "${ROOT}" diff --name-only "${baseRef}..HEAD"`,
@@ -153,16 +287,16 @@ function declaredProofTests(): string[] {
 				.filter((f) => f.length > 0);
 		}
 	} catch (err) {
-		// If git diff fails (e.g., fetch-depth limited and base ref not
-		// fetched), the operator cannot determine what the PR declared.
-		// An unresolvable base must fail LOUD — never become "no proofs
-		// declared → exit 0". An input we cannot parse is not replaced by a
-		// compliant default.
-		throw new Error(
-			`git diff failed — cannot determine which proofs this PR declared. ` +
-				`Fetch the base ref (e.g., "git fetch origin <base>") and retry. ` +
-				`Detail: ${(err as Error).message}`,
-		);
+			// A merge-base failure (graft, diverged histories) is caught
+			// inline above and re-thrown with a clear cause — it never
+			// reaches here as a silent "no proofs declared". Any other git
+			// failure also fails LOUD. An input we cannot parse is not
+			// replaced by a compliant default.
+			throw new Error(
+				`git diff failed — cannot determine which proofs this PR declared. ` +
+					`Fetch the base ref (e.g., "git fetch origin <base>") and retry. ` +
+					`Detail: ${(err as Error).message}`,
+			);
 	}
 
 	// Every file added or modified under tests/proofs/ is a declared proof.
@@ -304,11 +438,17 @@ for (const test of replayable) {
 	}
 
 	console.log(`--- Running: ${test} ---`);
+
+	// Run vitest with the JSON reporter writing to a temp file. The JSON
+	// report gives us, per test, its status and the TYPE of the failure —
+	// structural signals we can classify without reading display text.
+	const reportFile = join(tmpdir(), `preuve-${process.pid}-${Date.now()}.json`);
 	try {
-		execFileSync('pnpm', ['exec', 'vitest', 'run', '--config', CONFIG, '--no-color', test], {
-			stdio: 'pipe',
-			encoding: 'utf-8',
-		});
+		execFileSync(
+			'pnpm',
+			['exec', 'vitest', 'run', '--config', CONFIG, '--no-color', '--reporter=json', `--outputFile=${reportFile}`, test],
+			{ stdio: 'pipe', encoding: 'utf-8' },
+		);
 		// If execFileSync did NOT throw, vitest exited 0 = the test passed.
 		console.error(
 			`  FAIL: proof test passed unexpectedly — the bug it documented may have changed form.\n  Test: ${test}`,
@@ -320,58 +460,70 @@ for (const test of replayable) {
 		const stderr = (error.stderr?.toString() ?? '').slice(0, 500);
 		const exitCode = error.status ?? 'unknown';
 
-		// vitest exits 1 both when tests fail (expected) AND when a file
-		// cannot be parsed (unexpected). Distinguish by looking for the
-		// "Tests N failed" marker — a real failing test reports a non-zero
-		// test count. validateProofFile already caught empty/truncated files;
-		// this is a backstop for any case that slips through.
-		const output = stdout + stderr;
-		const ranTests = /Tests\s+\d+\s+failed/.test(output) && !/Tests\s+no tests/.test(output);
-		const noTests = /Tests\s+no tests/.test(output) || /\(0 test\)/.test(output);
-
-		// A kept-red proof is EXPECTED TO FAIL on an ASSERTION
-		// (`AssertionError: expected false to be true`). It is NOT expected
-		// to fail because it THREW an Error. Two distinct failure modes that
-		// both produce "Tests 1 failed":
-		//   - assertion failure → the proof measured and the ideal is not met
-		//     (kept-red, the expected state) → success.
-		//   - thrown Error (MESURE IMPOSSIBLE, harness crash, extraction
-		//     failure) → the proof could NOT measure. This is NOT the
-		//     expected kept-red state — it is a broken measurement, and it
-		//     must FAIL THE STEP LOUD rather than be reported as "failed as
-		//     expected". Otherwise a mutation that makes the proof throw
-		//     (e.g. bracket-notation `process['on']` that the regex can't
-		//     match) keeps CI green while the guard is blind.
-		// We discriminate by checking for the AssertionError marker. vitest
-		// prints "AssertionError" for assertion failures and "Error" for
-		// thrown errors. A proof that fails without an AssertionError in
-		// its output is a measurement failure, not a kept-red success.
-		const hasAssertionFailure = /AssertionError/.test(output);
-		const hasMeasurementError = /MESURE IMPOSSIBLE/.test(output);
-
-		if (exitCode === 1 && ranTests && hasAssertionFailure && !hasMeasurementError) {
-			console.log(`  OK: proof test failed as expected (exit code 1).\n`);
-			failures++;
-		} else if (exitCode === 1 && ranTests && (!hasAssertionFailure || hasMeasurementError)) {
+		// Read and parse the structural report. If the report is
+		// unreadable for ANY reason (missing, empty, invalid JSON, wrong
+		// shape), fail loud naming the cause — never fall back to text
+		// heuristics nor to a compliant default.
+		let report: ProofReport;
+		try {
+			report = readProofReport(reportFile);
+		} catch (parseErr) {
 			console.error(
-				`  CORRUPT PROOF: proof test failed with a non-assertion error ` +
-					`(measurement impossible or harness crash), not the expected assertion failure.\n` +
-					`  A kept-red proof must fail on an assertion (expected X to be Y), ` +
-					`  not on a thrown Error. A thrown Error means the proof could not measure ` +
-					`  — this is NOT the expected kept-red state and must fail CI.\n` +
-					`  stdout: ${stdout.slice(0, 500)}\n  stderr: ${stderr.slice(0, 500)}`,
+				`  CORRUPT PROOF: vitest JSON report is unreadable — ${(parseErr as Error).message}\n` +
+					`  stdout: ${stdout}\n  stderr: ${stderr}`,
 			);
 			corrupted++;
-		} else if (exitCode === 1 && noTests) {
-			console.error(
-				`  CORRUPT PROOF: vitest found no test cases in ${test} (empty/truncated/not a test).\n  stdout: ${stdout.slice(0, 500)}\n  stderr: ${stderr.slice(0, 500)}`,
-			);
-			corrupted++;
-		} else {
-			console.error(
-				`  ERROR: proof test exited with unexpected code ${exitCode}.\n  stdout: ${stdout.slice(0, 500)}\n  stderr: ${stderr.slice(0, 500)}`,
-			);
-			unexpectedPasses++;
+			continue;
+		}
+
+		// Structural classification via the extracted classifier. The
+		// logic lives in classify-proof.mts so it can be unit-tested
+		// independently with a real vitest JSON report.
+		const result = classifyProof(report, exitCode as number);
+		switch (result.verdict) {
+			case 'OK':
+				console.log(`  OK: ${result.reason}\n`);
+				failures++;
+				break;
+			case 'CORRUPT PROOF':
+				console.error(
+					`  CORRUPT PROOF: ${result.reason}\n` +
+						`  A kept-red proof must fail on an assertion (expected X to be Y), ` +
+						`  not on a thrown Error. A thrown Error means the proof could not measure ` +
+						`  — this is NOT the expected kept-red state and must fail CI.\n` +
+						`  stdout: ${stdout}\n  stderr: ${stderr}`,
+				);
+				corrupted++;
+				break;
+			case 'NO_TESTS':
+				console.error(
+					`  CORRUPT PROOF: ${result.reason}\n` +
+						`  stdout: ${stdout}\n  stderr: ${stderr}`,
+				);
+				corrupted++;
+				break;
+			case 'UNEXPECTED_PASS':
+				console.error(
+					`  FAIL: ${result.reason}\n  Test: ${test}`,
+				);
+				unexpectedPasses++;
+				break;
+			case 'ERROR':
+				console.error(
+					`  ERROR: ${result.reason} ` +
+						`(failed: ${result.failedTests}, total: ${result.totalTests}).\n` +
+						`  stdout: ${stdout}\n  stderr: ${stderr}`,
+				);
+				unexpectedPasses++;
+				break;
+		}
+	} finally {
+		// Always clean up the temp report file — even on classification
+		// failure, we do not leave artifacts behind.
+		try {
+			unlinkSync(reportFile);
+		} catch {
+			// Ignore: the file may already be gone.
 		}
 	}
 }

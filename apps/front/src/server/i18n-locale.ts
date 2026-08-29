@@ -15,7 +15,9 @@ import duration from '@org/shared-ts/utils/duration.utils';
 
 const resolveLocaleFromCookie = (): SupportedLanguage => {
 	const localeFromCookie = getCookie(LOCALE_COOKIE_KEY);
-	if (isSupportedLanguage(localeFromCookie)) return localeFromCookie;
+	if (isSupportedLanguage(localeFromCookie)) {
+		return localeFromCookie;
+	}
 	return FALLBACK_LANGUAGE;
 };
 

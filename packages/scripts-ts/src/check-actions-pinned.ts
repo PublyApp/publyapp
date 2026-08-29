@@ -85,7 +85,9 @@ const findLineFinding = (line: string): LineFinding | null => {
 
 	// Match `uses:` — YAML indentation-insensitive
 	const match = code.match(/uses:\s*(\S+)/);
-	if (!match) return null;
+	if (!match) {
+		return null;
+	}
 
 	const uses = match[1];
 
@@ -111,7 +113,9 @@ const findLineFinding = (line: string): LineFinding | null => {
 	// Fail-closed on input without a `@ref` at all: it cannot be
 	// decided, so it never passes silently.
 	const atIdx = uses.lastIndexOf('@');
-	if (atIdx === -1) return { uses };
+	if (atIdx === -1) {
+		return { uses };
+	}
 
 	// Accept only a full 40-hex SHA
 	if (shaPattern.test(uses.slice(atIdx + 1))) {
@@ -192,7 +196,9 @@ const resolveLocalActionTarget = async (
  * Deterministic lexicographic ordering for reported file paths.
  */
 const comparePosixPath = (a: string, b: string): number => {
-	if (a === b) return 0;
+	if (a === b) {
+		return 0;
+	}
 
 	if (a < b) {
 		return -1;
@@ -260,7 +266,9 @@ const scanFileFindings = async ({
 	for (let i = 0; i < lines.length; i++) {
 		const finding = findLineFinding(lines[i]);
 
-		if (finding === null) continue;
+		if (finding === null) {
+			continue;
+		}
 
 		if (finding.local) {
 			// #1268: resolve the ./ target, fail closed when it does not exist

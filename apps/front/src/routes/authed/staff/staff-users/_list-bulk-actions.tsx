@@ -271,7 +271,9 @@ export const StaffUsersListBulkActions = ({
 					}
 				}}
 				onOpenChange={(isOpen) => {
-					if (!isOpen) setPendingAction(null);
+					if (!isOpen) {
+						setPendingAction(null);
+					}
 				}}
 			/>
 		</>

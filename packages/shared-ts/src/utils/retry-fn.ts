@@ -14,7 +14,9 @@ export const retry = async <F extends GenericFunction>({
 	try {
 		return await fn(...(args ?? []));
 	} catch (error) {
-		if (attempts === 0) throw error;
+		if (attempts === 0) {
+			throw error;
+		}
 		await delayFn(delay);
 		return retry({ fn, args, attempts: attempts - 1, delay: delay * 2 });
 	}

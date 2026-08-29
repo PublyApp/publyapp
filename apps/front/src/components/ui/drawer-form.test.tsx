@@ -6767,7 +6767,9 @@ const classifyObjectLiteralReference = (
 			}
 		}
 	}
-	if (anyUnresolved) return 'unresolved';
+	if (anyUnresolved) {
+		return 'unresolved';
+	}
 	return 'does-not-reference';
 };
 
@@ -6796,7 +6798,9 @@ const classifyArrayLiteralReference = (
 			anyUnresolved = true;
 		}
 	}
-	if (anyUnresolved) return 'unresolved';
+	if (anyUnresolved) {
+		return 'unresolved';
+	}
 	return 'does-not-reference';
 };
 
@@ -9730,7 +9734,9 @@ const stripTailwindVariants = (token: string): string => {
 			lastSeparator = index;
 		}
 	}
-	if (lastSeparator === -1) return token;
+	if (lastSeparator === -1) {
+		return token;
+	}
 	return token.slice(lastSeparator + 1);
 };
 

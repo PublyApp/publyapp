@@ -127,7 +127,9 @@ const TenantPostEditPage = () => {
 	});
 
 	const confirmBin = async () => {
-		if (!pendingBinId || !tenantId) return;
+		if (!pendingBinId || !tenantId) {
+			return;
+		}
 		try {
 			await deleteMutation.mutateAsync({
 				postId: pendingBinId,
@@ -303,7 +305,9 @@ const TenantPostEditPage = () => {
 								cancelLabel={t('common:stay')}
 								onConfirm={() => blocker.proceed?.()}
 								onOpenChange={(o) => {
-									if (!o) blocker.reset?.();
+									if (!o) {
+										blocker.reset?.();
+									}
 								}}
 							/>
 						) : null}
@@ -315,7 +319,9 @@ const TenantPostEditPage = () => {
 							isPending={deleteMutation.isPending}
 							onConfirm={() => void confirmBin()}
 							onOpenChange={(o) => {
-								if (!o) setPendingBinId(null);
+								if (!o) {
+									setPendingBinId(null);
+								}
 							}}
 						/>
 					</FormPageLayout>

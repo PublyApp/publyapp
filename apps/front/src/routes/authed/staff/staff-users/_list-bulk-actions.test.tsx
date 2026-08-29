@@ -365,6 +365,38 @@ describe('#820 StaffUsersListBulkActions', () => {
 		expect(mocks.toastSuccess).not.toHaveBeenCalled();
 	});
 
+	// #1814: the fully-failed edge WITHOUT per-item reasons (succeededCount: 0,
+	// no failedItems) exercises the `succeededCount > 0` guard directly — the
+	// second arg to the error toast must be undefined, NOT the filter-leave
+	// warning. The older partial-failure test above uses succeededCount: 1, so
+	// the guard is true and never evaluated at zero.
+	// #1811: the expected behavior here (failure count with no cause) is
+	// tracked separately; this test covers the CURRENT behavior only.
+	test('a fully-failed suspend without per-item reasons suppresses the filter-leave warning', async () => {
+		mocks.bulkSuspend.mockResolvedValue({
+			succeededCount: 0,
+			failedCount: 1,
+		});
+
+		renderBulkActions({ selectedIds: [USER_A] });
+
+		await openMenu();
+		fireEvent.click(screen.getByRole('menuitem', { name: 'Suspend selected' }));
+		expect(await screen.findByText(/suspend 1 staff member/)).toBeTruthy();
+		fireEvent.click(screen.getByRole('button', { name: 'Suspend' }));
+
+		await waitFor(() =>
+			expect(mocks.bulkSuspend).toHaveBeenCalledWith({ userIds: [USER_A] }),
+		);
+		await waitFor(() => expect(mocks.toastError).toHaveBeenCalledOnce());
+		expect(mocks.toastSuccess).not.toHaveBeenCalled();
+		// succeededCount === 0: the filter-leave warning is suppressed.
+		expect(mocks.toastError.mock.calls[0]?.[0]).toBe(
+			'Suspended 0 staff member(s), 1 failed.',
+		);
+		expect(mocks.toastError.mock.calls[0]?.[1]).toBeUndefined();
+	});
+
 	test('a 401-shaped failure routes to onSessionExpired instead of a toast', async () => {
 		mocks.shouldLogoutForFailure.mockReturnValue(true);
 		const onSessionExpired = vi.fn();

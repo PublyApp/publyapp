@@ -30,7 +30,9 @@ console.log('Generating zod i18n maps...');
 /** Length of the shared prefix of two strings. */
 const commonPrefixLength = (a, b) => {
 	let n = 0;
-	while (n < a.length && n < b.length && a[n] === b[n]) n += 1;
+	while (n < a.length && n < b.length && a[n] === b[n]) {
+		n += 1;
+	}
 	return n;
 };
 

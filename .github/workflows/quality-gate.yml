@@ -37,12 +37,19 @@ on:
       - 'apps/**'
       - 'packages/**'
       - 'packages/scripts-ts/**'
+      - '.gitignore'
+      # #1513: the no-ignored-tracked guard itself and the .gitignore it
+      # enforces — a new gitignored surface or a change to the guard must
+      # wake the gate.
+      - 'packages/scripts-ts/src/check-no-ignored-tracked.ts'
+      - 'packages/scripts-ts/src/check-no-ignored-tracked.test.ts'
       # #1334 fix round 1: the dependency-health.md pin-location contract
       # (packages/scripts-ts/src/dependency-health-pin-location.test.ts) runs in
       # this workflow, so a pull request touching ONLY the guarded doc must
       # still wake the gate — otherwise the sentence could drift straight past
       # the contract test that exists to catch it.
       - 'docs/guides/dependency-health.md'
+      - 'docs/deployment/first-deploy-runbook.md'
 
 permissions:
   contents: read
@@ -128,7 +135,7 @@ jobs:
           CLASSIFIER=base-ref/packages/scripts-ts/src/ci-changed-paths.ts
 
           if [ -f "$CLASSIFIER" ]; then
-            node "$CLASSIFIER" '^(\.github/workflows/quality-gate\.yml$|\.oxlintrc\.json$|\.oxfmtrc\.json$|package\.json$|knip\.ts$|pnpm-lock\.yaml$|pnpm-workspace\.yaml$|turbo\.json$|\.npmrc$|Directory\.Build\.props$|Directory\.Build\.targets$|Directory\.Packages\.props$|global\.json$|PublyApp\.slnx$|apps/|packages/|docs/guides/dependency-health\.md$)'
+            node "$CLASSIFIER" '^(\.github/workflows/quality-gate\.yml$|\.oxlintrc\.json$|\.oxfmtrc\.json$|package\.json$|knip\.ts$|pnpm-lock\.yaml$|pnpm-workspace\.yaml$|turbo\.json$|\.npmrc$|Directory\.Build\.props$|Directory\.Build\.targets$|Directory\.Packages\.props$|global\.json$|PublyApp\.slnx$|\.gitignore$|apps/|packages/|docs/guides/dependency-health\.md$|docs/deployment/first-deploy-runbook\.md$)'
           else
             echo "::warning::[MISSING BASE CLASSIFIER] $CLASSIFIER does not exist at the base commit. This is expected exactly once: for the pull request that introduces this classifier, or a branch cut before it existed on the base branch. Relevance cannot be determined from a classifier that is not there, so this fails closed: treating the workflow as relevant and running everything. If this keeps happening on ordinary pull requests well after the classifier has been on the base branch, something is wrong — investigate, do not silence it."
             echo "relevant=true" >> "$GITHUB_OUTPUT"
@@ -290,8 +297,56 @@ jobs:
           pnpm --filter scripts-ts exec vitest run src/check-actions-pins.test.ts
           node ./packages/scripts-ts/src/check-actions-pins.ts
 
+      # #1798: every production-required env var documented in the deploy runbook.
+      # Extracts required vars from actual source code (env.ts schema, server.ts
+      # validateRuntimeEnv, AppEnvironment.cs GetRequiredString calls) and the
+      # documented vars from the actual runbook (§5a table + §5b block). Fails
+      # closed: an unparseable source file FAILS LOUDLY with the file name and
+      # error rather than silently passing. Mirrors `just ci-deploy-env-docs`.
+      - name: Verify deploy env doc coverage (#1798)
+        run: |
+          pnpm --filter scripts-ts exec vitest run src/check-deploy-env-docs.test.ts
+          node ./packages/scripts-ts/src/check-deploy-env-docs.ts
+
       - name: Run analyzer tests
         run: pnpm exec just test-analyzers
+
+  # #1513: unconditioned guard — no tracked file may match a .gitignore rule.
+  #
+  # WHY THIS IS A SEPARATE, UNCONDITIONED JOB
+  # ----------------------------------------
+  # This guard interrogates the real repository via
+  # `git ls-files --cached --ignored --exclude-standard`. Its purpose is to
+  # catch force-added gitignored files (e.g. `git add -f .dump/...`). By
+  # construction, the files it is designed to catch live on surfaces that are
+  # gitignored — surfaces that the changed-paths classifier below does not
+  # and CANNOT enumerate without becoming a hand-maintained list that rots
+  # the instant a new gitignored surface is added.
+  #
+  # Gating this guard behind `needs.changes.outputs.relevant == 'true'` is a
+  # logical contradiction: a classifier of classified paths can never
+  # recognize the arrival of a file whose defining property is that it is on
+  # an UNCLASSIFIED path. A PR that adds a `.dump/` file without touching any
+  # classified path is declared "not relevant", the heavy job is skipped,
+  # and this guard — the one check whose entire reason for existence is to
+  # catch exactly that scenario — never runs. The local `just ci` gate
+  # catches it; CI does not. The guard looks present and protects nothing.
+  #
+  # This job runs UNCONDITIONALLY (no `if:`), so it always reports. It
+  # executes only `git ls-files` — no install, no build — so it is cheap and
+  # fast. Mirrors `just ci-no-ignored-tracked` (which runs the same script
+  # plus its vitest test).
+  no-ignored-tracked:
+    name: No tracked file matches .gitignore (#1513)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Verify no tracked file matches .gitignore (#1513)
+        run: node packages/scripts-ts/src/check-no-ignored-tracked.ts
 
   # Required status check: this is the one context that should be required
   # on the branch ruleset instead of relying on the trigger. It always
@@ -313,7 +368,7 @@ jobs:
     # required names either.
     name: ${{ (github.event_name == 'pull_request' || github.event_name == 'merge_group') && 'quality-gate' || 'quality-gate-push-check' }}
     if: always()
-    needs: [changes, quality]
+    needs: [changes, quality, no-ignored-tracked]
     runs-on: ubuntu-latest
     steps:
       # Reads the `needs` context directly (via toJSON) instead of a
