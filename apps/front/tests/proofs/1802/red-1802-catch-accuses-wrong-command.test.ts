@@ -220,10 +220,14 @@ function hasBuggyStructure(body: string): boolean {
 
 	for (const tryPos of tryPositions) {
 		const braceIdx = body.indexOf('{', tryPos + 3);
-		if (braceIdx === -1) continue;
+		if (braceIdx === -1) {
+			continue;
+		}
 
 		const tryEnd = findMatchingBrace(body, braceIdx);
-		if (tryEnd === -1) continue;
+		if (tryEnd === -1) {
+			continue;
+		}
 
 		const tryBody = body.slice(braceIdx + 1, tryEnd - 1);
 
@@ -238,7 +242,9 @@ function hasBuggyStructure(body: string): boolean {
 				// This is a leaf try covering both commands — the bug is present.
 				// Now check if the catch names `git rev-parse`.
 				let afterTry = tryEnd;
-				while (afterTry < body.length && /\s/.test(body[afterTry]!)) afterTry++;
+				while (afterTry < body.length && /\s/.test(body[afterTry]!)) {
+					afterTry++;
+				}
 				if (body.slice(afterTry, afterTry + 5) === 'catch') {
 					const catchBraceIdx = body.indexOf('{', afterTry);
 					if (catchBraceIdx !== -1) {
@@ -265,7 +271,9 @@ function findAllTryPositions(body: string): number[] {
 	let i = 0;
 	while (i < body.length - 3) {
 		const idx = body.indexOf('try', i);
-		if (idx === -1) break;
+		if (idx === -1) {
+			break;
+		}
 
 		// Check if this is a real `try` keyword (not part of another word)
 		if (idx > 0 && /[a-zA-Z_$]/.test(body[idx - 1]!)) {
@@ -306,7 +314,9 @@ function findMatchingBrace(body: string, start: number): number {
 			const quote = ch;
 			k++;
 			while (k < body.length && body[k] !== quote) {
-				if (body[k] === '\\') k++;
+				if (body[k] === '\\') {
+					k++;
+				}
 				k++;
 			}
 			k++;
@@ -323,8 +333,11 @@ function findMatchingBrace(body: string, start: number): number {
 					let d = 1;
 					k += 2;
 					while (k < body.length && d > 0) {
-						if (body[k] === '{') d++;
-						else if (body[k] === '}') d--;
+						if (body[k] === '{') {
+							d++;
+						} else if (body[k] === '}') {
+							d--;
+						}
 						k++;
 					}
 					continue;
