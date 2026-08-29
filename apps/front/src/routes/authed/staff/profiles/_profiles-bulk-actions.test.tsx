@@ -386,6 +386,39 @@ describe('#1386 ProfilesListBulkActions', () => {
 		expect(mocks.displayLocalMutationFailure).not.toHaveBeenCalled();
 	});
 
+	// #1605 / #1787 r6: total failure (succeededCount === 0) with no per-item
+	// reasons must NOT carry the filter-leave warning. Without this test, the
+	// `filterWarning` ternary on line 112-113 is unreachable on the profiles
+	// surface — the existing total-failure test always supplies errorEscaped,
+	// so reasons.length > 0 and the guard never falls through to filterWarning.
+	// NOTE: description === undefined ici est un défaut connu (fiche de suivi
+	// #1787) — l'utilisateur lit "0 supprimé, 1 en échec" sans aucune cause.
+	// Ce test documente le comportement observé sans le bénir.
+	test('an all-failure delete without per-item reasons suppresses the filter-leave warning', async () => {
+		mocks.bulkDelete.mockResolvedValue({
+			succeededCount: 0,
+			failedCount: 1,
+		});
+
+		renderBulkActions();
+
+		await openMenu();
+		fireEvent.click(screen.getByRole('menuitem', { name: 'Delete selected' }));
+		expect(await screen.findByText(/delete 1 selected profile/)).toBeTruthy();
+		fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
+
+		await waitFor(() =>
+			expect(mocks.toastError).toHaveBeenCalledWith(
+				'Deleted 0 profile(s), 1 failed.',
+				undefined,
+			),
+		);
+		// #1605: total failure (succeededCount === 0) with no per-item
+		// reasons passes undefined as description, NOT the filter warning.
+		expect(mocks.toastError.mock.calls[0][1]).toBeUndefined();
+		expect(mocks.toastSuccess).not.toHaveBeenCalled();
+	});
+
 	// #1605: success and partial-success toasts carry the filter-warning
 	// description so users know rows may vanish from the current filter.
 	test('success toast includes the filter-leave-warning description (#1605)', async () => {
