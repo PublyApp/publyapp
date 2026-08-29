@@ -68,6 +68,25 @@
  *   - `declare module '@tanstack/react-table'` — module augmentation, not an
  *     import.
  *
+ * EXTENSION POLICY — reversed burden of proof (R4).
+ *
+ * The guard no longer enumerates which extensions to scan. Instead it walks
+ * the tree, collects every distinct file extension it encounters, and then
+ * demands that EACH one be either:
+ *   - a SCANNED extension (code the AST parser handles), or
+ *   - a declared NON_CODE extension (a short, commented blocklist).
+ *
+ * Any extension that is neither scanned nor declared fails the guard LOUDLY,
+ * naming the offending extension. This closes the R3 defect where `.cts`,
+ * `.cjs`, `.mjs` and `.ctsx` sailed through with `[OK]` because the regex
+ * `/\.(ts|tsx|mts)$/` never looked at them — and where adding those four to
+ * the regex would have reconcealed the next unknown extension (e.g. `.cjsx`).
+ *
+ * The non-code blocklist is short and every entry is commented with WHY it is
+ * non-code. If a new non-code extension appears (e.g. `.webp`), the guard
+ * fails until the developer consciously adds it to the blocklist — never a
+ * silent pass.
+ *
  * Run: `node scripts/guards/check-column-type-imports.mts`
  * Tests: `node --test scripts/guards/check-column-type-imports.test.mts`
  */
@@ -107,6 +126,35 @@ const BANNED_SPECIFIERS = new Set([
 ]);
 
 /**
+ * Extensions that the guard's AST parser handles. A file with one of these
+ * extensions is scanned for banned imports.
+ *
+ * R4: this set is the explicit list of CODE extensions. Any extension not in
+ * this set AND not in NON_CODE_EXTENSIONS fails the guard loudly — so adding
+ * a new code extension here is a conscious act, not a silent default.
+ */
+const SCANNED_EXTENSIONS = new Set([
+	'.ts',
+	'.tsx',
+	'.mts',
+	'.cts',  // CommonJS TypeScript (CommonJS module + TS syntax)
+	'.ctsx', // CommonJS TypeScript with JSX
+	'.mjs',  // ES Module JavaScript
+	'.cjs',  // CommonJS JavaScript
+]);
+
+/**
+ * Extensions that are legitimately present under the scanned root but are
+ * NOT code and must NEVER be scanned. Each entry is commented with WHY it is
+ * non-code — the comment is the proof that the exclusion was conscious.
+ */
+const NON_CODE_EXTENSIONS = new Set([
+	'.json', // static data (e.g. translation files), never imports code
+	'.css',  // style declarations, never imports code
+	'.svg',  // vector graphics, never imports code
+]);
+
+/**
  * Determines whether `normalizedPath` (relative to the scanned root) refers
  * to an exempt file. The scanned root may be `apps/front/src` (production)
  * or a test sandbox under `scripts/guards/`. In production the path is
@@ -133,8 +181,6 @@ interface Finding {
 	specifier: string;
 	/** The imported binding name(s) that triggered the finding. */
 	bindings: string[];
-	/** The raw AST node text of the triggering import statement. */
-	nodeText: string;
 }
 
 /**
@@ -155,15 +201,22 @@ const lineOf = (sourceFile: ts.SourceFile, node: ts.Node): number =>
 
 /**
  * Determines the ScriptKind for ts-morph's createSourceFile based on file
- * extension, so .tsx files are parsed as TSX (and .mts as ExternalScript).
+ * extension, so .tsx/.ctsx files are parsed as TSX, .mts/.mjs as External
+ * (ES module), and .cjs as JS (CommonJS JavaScript).
  */
 const scriptKindForPath = (relativePath: string): ts.ScriptKind => {
 	const ext = path.extname(relativePath);
 	switch (ext) {
 		case '.tsx':
+		case '.ctsx':
 			return ts.ScriptKind.TSX;
 		case '.mts':
+		case '.mjs':
 			return ts.ScriptKind.External;
+		case '.cjs':
+			return ts.ScriptKind.JS;
+		case '.cts':
+			return ts.ScriptKind.TS;
 		case '.ts':
 		default:
 			return ts.ScriptKind.TS;
@@ -285,7 +338,6 @@ const scanSourceFile = (relativePath: string, source: string): Finding[] => {
 						line: lineOf(sourceFile, node),
 						specifier,
 						bindings: isLegacy ? legacyBindings : bindings,
-						nodeText: node.getText(sourceFile).trim().replace(/\s+/g, ' '),
 					});
 				}
 			}
@@ -332,7 +384,6 @@ const scanSourceFile = (relativePath: string, source: string): Finding[] => {
 						line: lineOf(sourceFile, node),
 						specifier,
 						bindings,
-						nodeText: node.getText(sourceFile).trim().replace(/\s+/g, ' '),
 					});
 				}
 			}
@@ -355,7 +406,6 @@ const scanSourceFile = (relativePath: string, source: string): Finding[] => {
 						line: lineOf(sourceFile, node),
 						specifier,
 						bindings: ['(dynamic import)'],
-						nodeText: node.getText(sourceFile).trim().replace(/\s+/g, ' '),
 					});
 				}
 			}
@@ -381,7 +431,6 @@ const scanSourceFile = (relativePath: string, source: string): Finding[] => {
 						line: lineOf(sourceFile, node),
 						specifier,
 						bindings: ['(require call)'],
-						nodeText: node.getText(sourceFile).trim().replace(/\s+/g, ' '),
 					});
 				}
 			}
@@ -407,7 +456,6 @@ const scanSourceFile = (relativePath: string, source: string): Finding[] => {
 						line: lineOf(sourceFile, node),
 						specifier,
 						bindings: ['(import = require)'],
-						nodeText: node.getText(sourceFile).trim().replace(/\s+/g, ' '),
 					});
 				}
 			}
@@ -421,9 +469,25 @@ const scanSourceFile = (relativePath: string, source: string): Finding[] => {
 	return findings;
 };
 
-/** Recursively walks `dir` and returns every .ts/.tsx/.mts file. */
-const walk = (dir: string): string[] => {
-	const out: string[] = [];
+/** Result of walking a directory: scanned files + every extension seen. */
+interface WalkResult {
+	/** Files with a scanned extension (code the AST parser handles). */
+	files: string[];
+	/** Every distinct file extension found under `dir` (including non-code). */
+	extensions: Set<string>;
+}
+
+/**
+ * Recursively walks `dir`. Returns every file with a scanned extension AND
+ * the set of ALL distinct file extensions encountered (scanned or not).
+ *
+ * The caller validates that every extension in `extensions` is either scanned
+ * or explicitly declared as non-code — any other extension fails the guard
+ * loudly (reversed burden of proof).
+ */
+const walk = (dir: string): WalkResult => {
+	const files: string[] = [];
+	const extensions = new Set<string>();
 	let entries: string[];
 	try {
 		entries = readdirSync(dir);
@@ -441,12 +505,20 @@ const walk = (dir: string): string[] => {
 		const full = path.join(dir, entry);
 		const st = statSync(full);
 		if (st.isDirectory()) {
-			out.push(...walk(full));
-		} else if (/\.(ts|tsx|mts)$/.test(entry)) {
-			out.push(full);
+			const sub = walk(full);
+			sub.files.forEach((f) => files.push(f));
+			sub.extensions.forEach((e) => extensions.add(e));
+		} else {
+			const ext = path.extname(entry).toLowerCase();
+			if (ext.length > 0) {
+				extensions.add(ext);
+			}
+			if (SCANNED_EXTENSIONS.has(ext)) {
+				files.push(full);
+			}
 		}
 	}
-	return out;
+	return { files, extensions };
 };
 
 /**
@@ -456,9 +528,8 @@ const walk = (dir: string): string[] => {
 export const scanFrontSrcForBannedImports = (
 	root: string = frontSrc,
 ): Finding[] => {
-	// Verify the scan root exists and is a directory. A missing or
-	// unreadable root means the guard cannot do its job — fail loudly
-	// rather than reporting a false [OK].
+	// Verify the scan root exists and is a directory. A missing root is a
+	// different failure from an empty root — the messages say which.
 	let isReadableDir = false;
 	try {
 		isReadableDir = statSync(root).isDirectory();
@@ -476,14 +547,43 @@ export const scanFrontSrcForBannedImports = (
 		);
 	}
 
-	const findings: Finding[] = [];
-	const files = walk(root);
-	if (files.length === 0) {
+	const { files, extensions } = walk(root);
+
+	// Reversed burden of proof (R4): the guard enumerates every extension it
+	// saw and demands that each one be known. An unknown extension is a
+	// failure that NAMES the extension — never a silent pass.
+	const unknownExtensions = [...extensions].filter(
+		(ext) => !SCANNED_EXTENSIONS.has(ext) && !NON_CODE_EXTENSIONS.has(ext),
+	);
+	if (unknownExtensions.length > 0) {
+		const scanned = [...SCANNED_EXTENSIONS].sort().join(', ');
+		const nonCode = [...NON_CODE_EXTENSIONS].sort().join(', ');
 		throw new Error(
-			`Guard #1769: no .ts/.tsx/.mts files found in '${root}'. ` +
-				`The guard cannot verify the ban without scanning files.`,
+			`Guard #1769: found file(s) with unrecognized extension(s) ` +
+				`${unknownExtensions.sort().join(', ')} in '${root}'. ` +
+				`The guard cannot verify the ban on files it does not scan. ` +
+				`Scanned: ${scanned}. Declared non-code: ${nonCode}. ` +
+				`Add the extension to SCANNED_EXTENSIONS (if code) or ` +
+				`NON_CODE_EXTENSIONS (if non-code).`,
 		);
 	}
+
+	if (files.length === 0) {
+		// Distinguish empty directory from directory-with-only-non-code files.
+		if (extensions.size === 0) {
+			throw new Error(
+				`Guard #1769: scan root '${root}' is an empty directory (no entries). ` +
+					`The guard cannot verify the ban without files to scan.`,
+			);
+		}
+		throw new Error(
+			`Guard #1769: scan root '${root}' contains only non-code files ` +
+				`(${[...extensions].sort().join(', ')}). ` +
+				`The guard cannot verify the ban without scanning code files.`,
+		);
+	}
+
+	const findings: Finding[] = [];
 	for (const file of files) {
 		const relativePath = path.relative(root, file);
 		// Normalize to forward slashes for consistent comparison.
@@ -503,7 +603,8 @@ export const main = (root: string = frontSrc): void => {
 	const findings = scanFrontSrcForBannedImports(root);
 	// Count files by walking the same root the scan uses, so the reported
 	// number matches what was actually scanned (not a static constant).
-	const fileCount = walk(root).length;
+	const { files } = walk(root);
+	const fileCount = files.length;
 	if (findings.length > 0) {
 		console.error(
 			`ColumnDef/Row/TanStackTable import violation (#1769): ` +

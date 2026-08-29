@@ -379,6 +379,117 @@ void test('ADVERSE: catches wildcard re-export (export * from)', () => {
 		assert.ok(findings[0].bindings.includes('(import = require)'));
 	});
 
+	// ---------------------------------------------------------------------------
+	// R4: reversed burden of proof — unrecognized extensions fail loudly.
+	// ---------------------------------------------------------------------------
+
+	void test('R4 RED: .cts file importing banned type is caught (extension now scanned)', () => {
+		// R3 defect: .cts was not scanned by the regex /\.(ts|tsx|mts)$/ and
+		// sailed through with [OK]. Now .cts is in SCANNED_EXTENSIONS, so
+		// the guard parses it and flags the banned import.
+		const root = makeSandbox({
+			'src/routes/authed/tenant/posts/probe.cts':
+				`import { ColumnDef } from '@tanstack/react-table';\n` +
+				`export const x = null as ColumnDef<any>;\n`,
+		});
+		const findings = scanFrontSrcForBannedImports(root);
+		assert.equal(findings.length, 1, 'expected exactly one finding');
+		assert.equal(findings[0].specifier, '@tanstack/react-table');
+		assert.ok(findings[0].bindings.includes('ColumnDef'));
+	});
+
+	void test('R4 RED: .cjs file with require() importing banned type is caught', () => {
+		const root = makeSandbox({
+			'src/routes/authed/tenant/posts/probe.cjs':
+				`const { ColumnDef } = require('@tanstack/react-table');\n` +
+				`module.exports = { ColumnDef };\n`,
+		});
+		const findings = scanFrontSrcForBannedImports(root);
+		assert.equal(findings.length, 1, 'expected exactly one finding');
+		assert.equal(findings[0].specifier, '@tanstack/react-table');
+		assert.ok(findings[0].bindings.includes('(require call)'));
+	});
+
+	void test('R4 RED: .mjs file importing banned type is caught', () => {
+		const root = makeSandbox({
+			'src/routes/authed/tenant/posts/probe.mjs':
+				`import { ColumnDef } from '@tanstack/react-table';\n` +
+				`export const x = null as ColumnDef<any>;\n`,
+		});
+		const findings = scanFrontSrcForBannedImports(root);
+		assert.equal(findings.length, 1, 'expected exactly one finding');
+		assert.equal(findings[0].specifier, '@tanstack/react-table');
+		assert.ok(findings[0].bindings.includes('ColumnDef'));
+	});
+
+	void test('R4 RED: .ctsx file importing banned type is caught', () => {
+		const root = makeSandbox({
+			'src/routes/authed/tenant/posts/probe.ctsx':
+				`import { ColumnDef } from '@tanstack/react-table';\n` +
+				`export const x = null as ColumnDef<any>;\n`,
+		});
+		const findings = scanFrontSrcForBannedImports(root);
+		assert.equal(findings.length, 1, 'expected exactly one finding');
+		assert.equal(findings[0].specifier, '@tanstack/react-table');
+		assert.ok(findings[0].bindings.includes('ColumnDef'));
+	});
+
+	void test('R4 RED: two-step workaround (.ts re-exporting from .ctsx) is caught', () => {
+		// A .ts file re-exports from a .ctsx file which imports the banned type.
+		// Both files are now scanned (both extensions are in SCANNED_EXTENSIONS).
+		const root = makeSandbox({
+			'src/routes/authed/tenant/posts/reexport.ctsx':
+				`import { ColumnDef } from '@tanstack/react-table';\n` +
+				`export const x = null as ColumnDef<any>;\n`,
+			'src/routes/authed/tenant/posts/consumer.ts':
+				`export { x } from './reexport.ctsx';\n`,
+		});
+		const findings = scanFrontSrcForBannedImports(root);
+		// The .ctsx file is flagged for the banned import.
+		const ctsxFinding = findings.find((f) => f.file.includes('reexport.ctsx'));
+		assert.ok(ctsxFinding, 'expected the .ctsx file to be flagged');
+		assert.ok(ctsxFinding!.bindings.includes('ColumnDef'));
+	});
+
+	void test('R4 RED: unknown extension .cjsx fails loudly naming the extension', () => {
+		// A .cjsx file is NOT in SCANNED_EXTENSIONS and NOT in NON_CODE_EXTENSIONS.
+		// The guard must fail loudly naming the extension, not silently pass.
+		const root = makeSandbox({
+			'src/routes/authed/tenant/posts/legit.ts':
+				`import type { SortingState } from '@tanstack/react-table';\n` +
+				`export const x: SortingState = [];\n`,
+			'src/routes/authed/tenant/posts/probe.cjsx':
+				`import { ColumnDef } from '@tanstack/react-table';\n` +
+				`export const x = null as ColumnDef<any>;\n`,
+		});
+		assert.throws(
+			() => scanFrontSrcForBannedImports(root),
+			/Guard #1769: found file\(s\) with unrecognized extension\(s\) \.cjsx/,
+			'expected the guard to fail loudly naming .cjsx',
+		);
+	});
+
+	void test('R4 GREEN: declared non-code extension (.json) does not fail', () => {
+		// .json is declared non-code — the guard must NOT fail on it.
+		const root = makeSandbox({
+			'src/routes/authed/tenant/posts/legit.ts':
+				`import type { SortingState } from '@tanstack/react-table';\n` +
+				`export const x: SortingState = [];\n`,
+			'src/translations/en.json': `{"key": "value"}\n`,
+		});
+		const findings = scanFrontSrcForBannedImports(root);
+		assert.equal(findings.length, 0, 'expected no findings');
+	});
+
+	void test('R4: empty directory fails with specific message', () => {
+		const root = makeSandbox({});
+		assert.throws(
+			() => scanFrontSrcForBannedImports(root),
+			/empty directory/,
+			'expected empty directory to fail with specific message',
+		);
+	});
+
 // ---------------------------------------------------------------------------
 // Message quality: the message must name the replacement.
 // ---------------------------------------------------------------------------
