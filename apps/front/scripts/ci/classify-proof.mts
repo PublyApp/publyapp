@@ -112,7 +112,10 @@ export function readProofReport(reportPath: string): ProofReport {
 	}
 	const obj = parsed as Record<string, unknown>;
 
-	if (typeof obj.numTotalTests !== 'number' || typeof obj.numFailedTests !== 'number') {
+	if (
+		typeof obj.numTotalTests !== 'number' ||
+		typeof obj.numFailedTests !== 'number'
+	) {
 		throw new Error(
 			`vitest JSON report missing numTotalTests/numFailedTests at ` +
 				`${reportPath} — the reporter output is malformed.`,
@@ -146,7 +149,8 @@ export function readProofReport(reportPath: string): ProofReport {
 					`at ${reportPath}.`,
 			);
 		}
-		const assertionResults: ProofReport['testResults'][number]['assertionResults'] = [];
+		const assertionResults: ProofReport['testResults'][number]['assertionResults'] =
+			[];
 		for (const assertion of suiteObj.assertionResults) {
 			if (typeof assertion !== 'object' || assertion === null) {
 				throw new Error(
@@ -164,7 +168,9 @@ export function readProofReport(reportPath: string): ProofReport {
 			}
 			if (
 				!Array.isArray(assertionObj.failureMessages) ||
-				assertionObj.failureMessages.some((message) => typeof message !== 'string')
+				assertionObj.failureMessages.some(
+					(message) => typeof message !== 'string',
+				)
 			) {
 				throw new Error(
 					`vitest JSON report has an assertion result whose ` +
@@ -195,7 +201,10 @@ export function readProofReport(reportPath: string): ProofReport {
  * @param exitCode The exit code vitest returned.
  * @returns The classification result with verdict and evidence.
  */
-export function classifyProof(report: ProofReport, exitCode: number): ClassificationResult {
+export function classifyProof(
+	report: ProofReport,
+	exitCode: number,
+): ClassificationResult {
 	const ranTests = report.numFailedTests > 0;
 	const noTests = report.numTotalTests === 0;
 
@@ -238,7 +247,12 @@ export function classifyProof(report: ProofReport, exitCode: number): Classifica
 		};
 	}
 
-	if (exitCode === 1 && ranTests && hasAssertionFailure && !hasMeasurementError) {
+	if (
+		exitCode === 1 &&
+		ranTests &&
+		hasAssertionFailure &&
+		!hasMeasurementError
+	) {
 		return {
 			verdict: 'OK',
 			reason: 'proof test failed as expected (assertion failure).',
@@ -248,7 +262,11 @@ export function classifyProof(report: ProofReport, exitCode: number): Classifica
 		};
 	}
 
-	if (exitCode === 1 && ranTests && (!hasAssertionFailure || hasMeasurementError)) {
+	if (
+		exitCode === 1 &&
+		ranTests &&
+		(!hasAssertionFailure || hasMeasurementError)
+	) {
 		const reason = hasMeasurementError
 			? 'measurement impossible (MESURE IMPOSSIBLE)'
 			: 'thrown Error (not an assertion failure)';

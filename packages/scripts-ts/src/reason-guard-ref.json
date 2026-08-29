@@ -369,6 +369,11 @@
 			"reason_length": 318,
 			"reason": "Identical invocation to the CI step itself: the fixture suite executes the real check-doc-links.ts against throwaway git repositories and pins the records exemption, the fence/code-span stripping, and the failure output shape. Run locally so the guard's own failure modes gate PRs before the production guard executes."
 		},
+		"docs-archive.yml::docs-archive::Run prune-inventory guard fixture tests": {
+			"reason_hash": "ef19fbd1323f19e2",
+			"reason_length": 767,
+			"reason": "Identical invocation to the CI step itself (added by #1867): the fixture suite executes the real audit-docs-prune.ts inside throwaway git repositories and pins the rename-vs-delete classification cross-checked against `git diff -M` (paid-modules red replay), the committed-history-only revision resolution (push-event AND pull_request red replay), the tampered-record freshness check and the protected docs/records destination. Until #1867 this file ran nowhere automated — CI and `just ci-doc-links` both executed only check-doc-links.test.ts — so #1441's no-known-value-widening rewrite of the MOVES declaration silently broke the table-rewrite fixture while every gate stayed green. Run locally, inside just ci-doc-links, so the guard's own failure modes gate PRs."
+		},
 		"docs-archive.yml::docs-archive::Setup Node": {
 			"reason_hash": "522d060c491d92cf",
 			"reason_length": 146,

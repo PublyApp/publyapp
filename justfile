@@ -362,6 +362,7 @@ ci-review-worktree-resolution:
 ci-doc-links:
   @echo "=== [gate] doc links ==="
   pnpm --filter scripts-ts exec vitest run src/check-doc-links.test.ts
+  pnpm --filter scripts-ts exec vitest run src/audit-docs-prune.test.ts
   node ./packages/scripts-ts/src/check-doc-links.ts
   node ./packages/scripts-ts/src/audit-docs-prune.ts --check
 
