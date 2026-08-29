@@ -267,15 +267,15 @@ const scanSourceFile = (relativePath: string, source: string): Finding[] => {
 					bindings.length > 0 ||
 					node.importClause === undefined
 				) {
+					// `oxlint` interdit les ternaires imbriques : on calcule la branche
+					// heritee en amont. Semantique inchangee.
+					const legacyBindings =
+						bindings.length > 0 ? bindings : ['(legacy specifier)'];
 					findings.push({
 						file: relativePath,
 						line: lineOf(sourceFile, node),
 						specifier,
-						bindings: isLegacy
-							? bindings.length > 0
-								? bindings
-								: ['(legacy specifier)']
-							: bindings,
+						bindings: isLegacy ? legacyBindings : bindings,
 						nodeText: node.getText(sourceFile).trim().replace(/\s+/g, ' '),
 					});
 				}
@@ -304,15 +304,15 @@ const scanSourceFile = (relativePath: string, source: string): Finding[] => {
 					}
 				}
 				if (isLegacy || exportedNames.length > 0) {
+					// `oxlint` interdit les ternaires imbriques : on calcule la branche
+					// heritee en amont. Semantique inchangee.
+					const legacyExports =
+						exportedNames.length > 0 ? exportedNames : ['(legacy re-export)'];
 					findings.push({
 						file: relativePath,
 						line: lineOf(sourceFile, node),
 						specifier,
-						bindings: isLegacy
-							? exportedNames.length > 0
-								? exportedNames
-								: ['(legacy re-export)']
-							: exportedNames,
+						bindings: isLegacy ? legacyExports : exportedNames,
 						nodeText: node.getText(sourceFile).trim().replace(/\s+/g, ' '),
 					});
 				}
