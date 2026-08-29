@@ -245,10 +245,22 @@ public sealed class SchedulePostForTenantSpec : IClassFixture<ApiFixture> {
 			await response.Content.ReadFromJsonAsync<ValidationProblemDetails>();
 		Assert.NotNull(problem);
 		problem.Errors.Should().ContainKey("accountIds");
+		// Transparent-failure rule: the cause must be plain words, never a raw
+		// translation key. The dedicated key is carried in translationKey so the
+		// frontend can render the localized (en/fr) message.
 		problem.Errors["accountIds"][0].Should().Be(
+			"This account is not attached to the post's project. "
+			+ "Pick an account visible in the project, or remove the "
+			+ "post's project."
+		);
+		problem.Detail.Should().Be(
+			"This account is not attached to the post's project. "
+			+ "Pick an account visible in the project, or remove the "
+			+ "post's project."
+		);
+		problem.TranslationKey.Should().Be(
 			"publication-schedule-account-not-in-project"
 		);
-		problem.TranslationKey.Should().Be("unprocessable-entity");
 	}
 
 	[Fact]

@@ -39,8 +39,22 @@ public abstract record ScheduleResult {
 
 	public sealed record NotFound() : ScheduleResult;
 
-	/// <summary>An account is missing, inactive, or invisible in the post's project.</summary>
-	public sealed record InvalidAccounts(string Cause) : ScheduleResult;
+	/// <summary>
+	/// An account is missing, inactive, or invisible in the post's project.
+	/// <see cref="ErrorKey"/> discriminates the failure so the calling handler can
+	/// pick the right translation key: the generic <c>accountIds</c> key for the
+	/// dynamic-text causes, and <see cref="AccountNotInProjectErrorKey"/> for the
+	/// static project-visibility cause.
+	/// </summary>
+	public sealed record InvalidAccounts(string Cause, string ErrorKey) : ScheduleResult {
+		/// <summary>
+		/// Stable key for the project-visibility failure, mapped by the handler to
+		/// <c>ResponseKeys.PublicationScheduleAccountNotInProject</c> so the cause
+		/// renders in the caller's locale (fr and en).
+		/// </summary>
+		public const string AccountNotInProjectErrorKey =
+			"publication-schedule-account-not-in-project";
+	}
 
 	/// <summary>The schedule itself is invalid (past instant, bad zone).</summary>
 	public sealed record InvalidSchedule(string Cause, string ErrorKey)
@@ -455,23 +469,29 @@ public sealed class PublicationService : IPublicationService {
 		);
 		if (account is null) {
 			return new ScheduleResult.InvalidAccounts(
-				$"Social account {accountId} was not found in this tenant."
+				$"Social account {accountId} was not found in this tenant.",
+				"accountIds"
 			);
 		}
 
 		if (account.Status != SocialAccountStatus.Active) {
 			return new ScheduleResult.InvalidAccounts(
 				$"Social account {account.DisplayHandle} is not active. "
-				+ "Reconnect it before scheduling."
+				+ "Reconnect it before scheduling.",
+				"accountIds"
 			);
 		}
 
 		// A post bound to a project accepts only accounts visible in THAT project;
-		// a project-less post is tenant-wide and accepts every active account.
+		// a project-less post is tenant-wide and accepts every active account. The
+		// cause is plain words (transparent-failure rule); the stable key drives
+		// the localized response-message translation.
 		if (post.ProjectId is Guid projectId
 			&& !VisibleIn.Visible(account, projectId)) {
 			return new ScheduleResult.InvalidAccounts(
-				"publication-schedule-account-not-in-project"
+				"This account is not attached to the post's project. Pick an "
+					+ "account visible in the project, or remove the post's project.",
+				ScheduleResult.InvalidAccounts.AccountNotInProjectErrorKey
 			);
 		}
 

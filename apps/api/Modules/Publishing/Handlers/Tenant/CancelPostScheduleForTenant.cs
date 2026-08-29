@@ -11,6 +11,7 @@ namespace PublyApp.Api.Modules.Publishing.Handlers.Tenant;
 public sealed class CancelPostScheduleForTenant {
 	public static async Task<Results<
 		Ok<ApiResponse>,
+		AppBadRequestHttpResult,
 		AppNotFoundHttpResult
 	>> Handle(
 		[FromRoute] string postId,
@@ -34,9 +35,11 @@ public sealed class CancelPostScheduleForTenant {
 		}
 
 		if (!Guid.TryParse(postId, out var postIdGuid)) {
-			return TypedProblems.NotFound(
-				"Post not found",
-				ResponseKeys.NotFound
+			// Repo rule: malformed id -> 400, absent entity -> 404. Same contract as
+			// SchedulePostForTenant and EditPostScheduleForTenant.
+			return TypedProblems.BadRequest(
+				"Invalid postId",
+				ResponseKeys.MalformedId
 			);
 		}
 

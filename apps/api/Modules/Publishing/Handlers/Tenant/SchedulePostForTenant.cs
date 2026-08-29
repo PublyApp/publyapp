@@ -129,7 +129,10 @@ public sealed class SchedulePostForTenant {
 			ScheduleResult.InvalidAccounts invalidAccounts =>
 				TypedProblems.ValidationProblem(
 					invalidAccounts.Cause,
-					ResponseKeys.UnprocessableEntity,
+					invalidAccounts.ErrorKey
+						== ScheduleResult.InvalidAccounts.AccountNotInProjectErrorKey
+						? ResponseKeys.PublicationScheduleAccountNotInProject
+						: ResponseKeys.UnprocessableEntity,
 					new Dictionary<string, string[]> {
 						["accountIds"] = [invalidAccounts.Cause],
 					}

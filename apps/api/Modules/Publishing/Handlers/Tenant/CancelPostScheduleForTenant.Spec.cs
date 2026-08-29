@@ -203,6 +203,19 @@ public sealed class CancelPostScheduleForTenantSpec : IClassFixture<ApiFixture> 
 	}
 
 	[Fact]
+	public async Task ItShouldReturn400WhenPostIdIsMalformed() {
+		var (tenantId, token, _) = await SeedScheduledPostAsync();
+
+		using var request =
+			new HttpRequestMessage(HttpMethod.Delete, ScheduleUrl("not-a-guid"))
+				.WithSessionToken(token)
+				.WithTenantId(tenantId);
+
+		using var response = await _http.SendAsync(request);
+		response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+	}
+
+	[Fact]
 	public async Task ItShouldReturn404ForUnknownAndCrossTenantPostIds() {
 		var (acmeTenantId, acmeToken, postId) =
 			await SeedScheduledPostAsync();

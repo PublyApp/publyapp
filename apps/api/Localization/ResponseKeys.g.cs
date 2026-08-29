@@ -340,6 +340,11 @@ public static partial class ResponseKeys {
 	public static readonly TranslationKey ProviderUnreachable = new("provider-unreachable");
 
 	/// <summary>
+	/// This account is not attached to the post&apos;s project. Pick an account visible in the project, or remove the post&apos;s project.
+	/// </summary>
+	public static readonly TranslationKey PublicationScheduleAccountNotInProject = new("publication-schedule-account-not-in-project");
+
+	/// <summary>
 	/// A publication for this post is being published right now
 	/// </summary>
 	public static readonly TranslationKey PublicationScheduleInProgress = new("publication-schedule-in-progress");

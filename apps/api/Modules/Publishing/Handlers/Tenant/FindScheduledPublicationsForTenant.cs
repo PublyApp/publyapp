@@ -13,7 +13,21 @@ using PublyApp.Api.Modules.Publishing.Services;
 
 namespace PublyApp.Api.Modules.Publishing.Handlers.Tenant;
 
-public class FindScheduledPublicationsQuery : CursorPaginatedQuery {
+/// <summary>
+/// Query DTO for the queue/calendar list. Deliberately NOT inheriting
+/// <see cref="CursorPaginatedQuery"/>: that base advertises <c>sort_id</c> and
+/// <c>sort_order</c> on the wire, but this endpoint is a fixed ascending keyset
+/// on <c>(scheduled_at, id)</c> (Epic D §4 — queue sorted by instant) whose
+/// cursor scheme has no sort dimension. Announcing sort params that the service
+/// ignores would be a contract lie, so the contract carries cursor + limit only.
+/// </summary>
+public class FindScheduledPublicationsQuery {
+	[FromQuery(Name = "cursor")]
+	public string? Cursor { get; set; }
+
+	[FromQuery(Name = "limit")]
+	public string? Limit { get; set; }
+
 	[FromQuery(Name = "from")]
 	public string? From { get; set; }
 
@@ -22,6 +36,25 @@ public class FindScheduledPublicationsQuery : CursorPaginatedQuery {
 
 	[FromQuery(Name = "status")]
 	public string? Status { get; set; }
+
+	public string? GetCursor() {
+		return Cursor;
+	}
+
+	public int? GetLimit() {
+		if (Limit is null) {
+			return null;
+		}
+
+		if (!int.TryParse(Limit, out var limit)) {
+			throw new ArgumentException(
+				"Limit must be a valid number",
+				nameof(Limit)
+			);
+		}
+
+		return limit;
+	}
 }
 
 public sealed class FindScheduledPublicationsQueryValidator

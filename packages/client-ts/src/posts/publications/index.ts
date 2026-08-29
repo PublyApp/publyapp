@@ -36,22 +36,13 @@ export interface PublicationsRequestBuilderGetQueryParameters {
     cursor?: string;
     from?: string;
     limit?: string;
-    sortId?: string;
-    sortOrder?: string;
     status?: string;
     to?: string;
 }
 /**
  * Uri template for the request builder.
  */
-export const PublicationsRequestBuilderUriTemplate = "{+baseurl}/posts/publications{?cursor*,from*,limit*,sort_id*,sort_order*,status*,to*}";
-/**
- * Mapper for query parameters from symbol name to serialization name represented as a constant.
- */
-const PublicationsRequestBuilderGetQueryParametersMapper: Record<string, string> = {
-    "sortId": "sort_id",
-    "sortOrder": "sort_order",
-};
+export const PublicationsRequestBuilderUriTemplate = "{+baseurl}/posts/publications{?cursor*,from*,limit*,status*,to*}";
 /**
  * Metadata for all the requests in the request builder.
  */
@@ -69,7 +60,6 @@ export const PublicationsRequestBuilderRequestsMetadata: RequestsMetadata = {
         },
         adapterMethodName: "send",
         responseBodyFactory:  createFindScheduledPublicationsResponseFromDiscriminatorValue,
-        queryParametersMapper: PublicationsRequestBuilderGetQueryParametersMapper,
     },
 };
 /* tslint:enable */
