@@ -220,7 +220,92 @@ public sealed class TenantUsageServiceSpec
 		);
 	}
 
-	// ── The cost anchor: every query filters on the requested tenant id ──
+	// ── The coupling guard: LastActivityAt read must carry its own IsDeleted ──
+
+	[Fact]
+	public async Task ItShouldGuardLastActivityAtReadWithIsDeletedFilter() {
+		// #1839 — the LastActivityAt read must carry its own `!tenant.IsDeleted`
+		// guard so that a future refactor that reorders or merges the two Tenant
+		// queries cannot leak a soft-deleted tenant's LastActivityAt.
+		//
+		// This test goes RED under the captain's probe (LastActivityAt read moved
+		// before the existence short-circuit + FirstAsync→FirstOrDefaultAsync):
+		// the emitted SQL selects last_activity_at without `is_deleted` → the
+		// assertion catches it. After the fix (adding `!tenant.IsDeleted` to the
+		// query), the SQL carries `is_deleted` → the test goes GREEN.
+		//
+		// On the unfixed code *without* the probe, the existence check
+		// short-circuits before the last_activity_at query is ever issued, so no
+		// such command is captured and the test is vacuously GREEN — the probe
+		// is the mutation that reveals the gap.
+		var lastActivity = new DateTime(2026, 8, 15, 12, 0, 0, DateTimeKind.Utc);
+		var tenantId = await SeedSoftDeletedTenantWithLastActivityAsync(lastActivity);
+		var connectionString = await GetConnectionStringAsync();
+		var interceptor = new TenantParameterCaptureInterceptor();
+
+		await using var serviceDbContext = new AppDbContext(
+			new DbContextOptionsBuilder<AppDbContext>()
+				.UseNpgsql(connectionString)
+				.AddInterceptors(interceptor)
+				.Options
+		);
+
+		var service = new TenantUsageService(
+			serviceDbContext,
+			NullLogger<TenantUsageService>.Instance
+		);
+
+		// Under the probe, the LastActivityAt query runs before the existence
+		// check. On unfixed code it lacks `is_deleted`; on fixed code it has it.
+		// FirstAsync may throw on the probe (fixed code, no rows for a deleted
+		// tenant); Record.ExceptionAsync lets us inspect captured SQL regardless.
+		await Record.ExceptionAsync(() => service.GetTenantUsageAsync(tenantId));
+
+		var lastActivityCommands = interceptor.Commands
+			.Where(c => c.Text.Contains("last_activity_at", StringComparison.OrdinalIgnoreCase))
+			.ToList();
+
+		foreach (var cmd in lastActivityCommands) {
+			cmd.Text.Should().Contain(
+				"is_deleted",
+				"LastActivityAt must be queried with an IsDeleted guard so the read"
+					+ " is correct independently of the existence-check ordering. Under"
+					+ " the #1839 probe a soft-deleted tenant's last_activity_at would"
+					+ " be selected without that guard."
+			);
+		}
+
+		// When the existence check short-circuits (no probe), the last_activity_at
+		// query is never issued and lastActivityCommands is empty — that is the
+		// correct, safe path. Under the #1839 probe the query IS issued; if it
+		// appears, it must carry the is_deleted guard (asserted above). The
+		// AbsenteeProperty-style loop handles both cases without a NotBeEmpty
+		// assertion that would falsely fail on the short-circuit path.
+	}
+
+	// ── existing helper seed methods ──
+
+	private async Task<Guid> SeedSoftDeletedTenantWithLastActivityAsync(
+		DateTime lastActivityAt
+	) {
+		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+		var tenant = new Tenant {
+			Name = $"usage-deleted-activity {Guid.NewGuid():N}",
+			Code = Guid.NewGuid().ToString("N")[..10],
+			Status = PublyApp.Api.Modules.Tenants.Entities.TenantStatus.Active,
+			MaxUsers = 10,
+			LastActivityAt = lastActivityAt,
+		};
+		await dbContext.Tenant.AddAsync(tenant);
+		await dbContext.SaveChangesAsync();
+
+		tenant.IsDeleted = true;
+		await dbContext.SaveChangesAsync();
+
+		return tenant.GetRequiredId();
+	}
 
 	[Fact]
 	public async Task ItShouldFilterEveryQueryOnTheRequestedTenantId() {

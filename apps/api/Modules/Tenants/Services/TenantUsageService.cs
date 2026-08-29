@@ -77,17 +77,9 @@ public class TenantUsageService : ITenantUsageService {
 			return null;
 		}
 
-		// The second query (lines 80-84) reads LastActivityAt WITHOUT an
-		// `IsDeleted` filter; it is correct only because the first query
-		// short-circuits the flow to `null` for any soft-deleted tenant.
-		// If a future refactor merges the two queries, that coupling breaks
-		// and a soft-deleted tenant's LastActivityAt could leak via the
-		// aggregate. #1818 r3 documents the coupling here; a behavioural fix
-		// (adding `!tenant.IsDeleted` to this query) is intentionally out of
-		// scope — see issue follow-up.
 		var lastActivityAt = await (
 			from tenant in _dbContext.Tenant.AsNoTracking()
-			where tenant.Id == tenantId
+			where tenant.Id == tenantId && !tenant.IsDeleted
 			select tenant.LastActivityAt
 		).FirstAsync(cancellationToken);
 
