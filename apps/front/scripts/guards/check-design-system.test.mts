@@ -1563,7 +1563,7 @@ test('flags non-confirmation centered overlay wording and DialogPopup usage', as
 // comments included, so a test explaining that a `data-testid` lands on
 // `DialogPrimitive.Popup` satisfied the pattern and tripped a false
 // positive that turned supply-chain red.
-	void test('#1844: a forbidden primitive cited inside a comment is not a violation (false positive proof)', async () => {
+void test('#1844: a forbidden primitive cited inside a comment is not a violation (false positive proof)', async () => {
 	const root = await makeFixture({
 		'src/components/ui/dialog-popup-comment.tsx': [
 			'// spread onto DialogPrimitive.Popup) and assert the role is `dialog`.',
@@ -1591,10 +1591,10 @@ test('flags non-confirmation centered overlay wording and DialogPopup usage', as
 // `//` must STILL be detected. A naive comment-stripping regex
 // (`//.*$`) would eat the URL and the real usage with it, hiding a
 // genuine violation. The AST-based approach must not mutate source text.
-	void test('#1844: a real DialogPopup usage on the same line as a URL containing // is still detected (false negative guard)', async () => {
+void test('#1844: a real DialogPopup usage on the same line as a URL containing // is still detected (false negative guard)', async () => {
 	const root = await makeFixture({
 		'src/components/ui/dialog-popup-with-url.tsx': [
-			'import { Dialog as DialogPrimitive } from \'@base-ui/react/dialog\';',
+			"import { Dialog as DialogPrimitive } from '@base-ui/react/dialog';",
 			'// https://base-ui.com/components/dialog#popup',
 			'const popup = <DialogPrimitive.Popup className="x" />;',
 		].join('\n'),
@@ -1617,10 +1617,10 @@ test('flags non-confirmation centered overlay wording and DialogPopup usage', as
 // #1844: a real usage inside a template literal containing /* */ must
 // still be detected — a naive `/\*[\s\S]*?\*\//` strip would eat the
 // template content and hide the violation.
-	void test('#1844: a real DialogPopup usage inside a template literal with /* */ is still detected', async () => {
+void test('#1844: a real DialogPopup usage inside a template literal with /* */ is still detected', async () => {
 	const root = await makeFixture({
 		'src/components/ui/dialog-popup-template.tsx': [
-			'import { Dialog as DialogPrimitive } from \'@base-ui/react/dialog\';',
+			"import { Dialog as DialogPrimitive } from '@base-ui/react/dialog';",
 			'const markup = `/* ${DialogPrimitive.Popup.toString()} */`;',
 		].join('\n'),
 	});
@@ -1642,10 +1642,10 @@ test('flags non-confirmation centered overlay wording and DialogPopup usage', as
 // #1844 edge case: a regex literal containing // must not hide a real
 // usage on the next line. A naive `//.*$` strip would eat the regex and
 // the real usage with it.
-	void test('#1844: a real DialogPopup usage after a regex literal with // is still detected', async () => {
+void test('#1844: a real DialogPopup usage after a regex literal with // is still detected', async () => {
 	const root = await makeFixture({
 		'src/components/ui/dialog-popup-regex.tsx': [
-			'import { Dialog as DialogPrimitive } from \'@base-ui/react/dialog\';',
+			"import { Dialog as DialogPrimitive } from '@base-ui/react/dialog';",
 			'const pattern = /https:\\/\\/base-ui.com\\/dialog/g;',
 			'const popup = <DialogPrimitive.Popup className="x" />;',
 		].join('\n'),
@@ -1667,7 +1667,7 @@ test('flags non-confirmation centered overlay wording and DialogPopup usage', as
 
 // #1844 edge case: a block comment /* */ containing a forbidden primitive
 // must not trigger a violation.
-	void test('#1844: a forbidden primitive inside a block comment is not a violation', async () => {
+void test('#1844: a forbidden primitive inside a block comment is not a violation', async () => {
 	const root = await makeFixture({
 		'src/components/ui/dialog-popup-block-comment.tsx': [
 			'/* This component uses DialogPrimitive.Popup for modal behavior. */',
@@ -1694,7 +1694,7 @@ test('flags non-confirmation centered overlay wording and DialogPopup usage', as
 // trivia scanner does not report JSX comments as comment ranges, so this
 // edge case is out of scope for the AST-based fix. The existing
 // no-dialog-popup-primitives rule already has a separate JSX-aware path.
-	void test('#1844: a forbidden primitive inside a JSX comment is not a violation (out of scope - JSX comments are not TS trivia)', async () => {
+void test('#1844: a forbidden primitive inside a JSX comment is not a violation (out of scope - JSX comments are not TS trivia)', async () => {
 	const root = await makeFixture({
 		'src/components/ui/dialog-popup-jsx-comment.tsx': [
 			'export const Component = () => (',
@@ -1723,7 +1723,7 @@ test('flags non-confirmation centered overlay wording and DialogPopup usage', as
 });
 
 // #1844: no-raw-internal-anchor must not flag a raw anchor cited in a comment.
-	void test('#1844: a raw anchor cited inside a comment is not a violation', async () => {
+void test('#1844: a raw anchor cited inside a comment is not a violation', async () => {
 	const root = await makeFixture({
 		'src/components/ui/anchor-comment.tsx': [
 			'// Use <a href="/staff/invitations"> for the back link',
@@ -1746,7 +1746,7 @@ test('flags non-confirmation centered overlay wording and DialogPopup usage', as
 });
 
 // #1844: no-single-star-route-glob must not flag a single-star glob cited in a comment.
-	void test('#1844: a single-star glob cited inside a comment is not a violation', async () => {
+void test('#1844: a single-star glob cited inside a comment is not a violation', async () => {
 	const root = await makeFixture({
 		'e2e/specs/route-comment.spec.ts': [
 			'// page.route(\"/api/users/*\") is a bad pattern',
@@ -1770,7 +1770,7 @@ test('flags non-confirmation centered overlay wording and DialogPopup usage', as
 
 // #1844: a multi-line block comment containing a forbidden primitive
 // must not trigger a violation.
-	void test('#1844: a forbidden primitive inside a multi-line block comment is not a violation', async () => {
+void test('#1844: a forbidden primitive inside a multi-line block comment is not a violation', async () => {
 	const root = await makeFixture({
 		'src/components/ui/dialog-popup-multiline-comment.tsx': [
 			'/*',

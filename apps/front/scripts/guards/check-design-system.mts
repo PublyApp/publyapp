@@ -2469,39 +2469,37 @@ export const scanFront2DesignSystem = async ({
 				// every mode:'source' rule — a match that starts inside a
 				// comment is a prose citation, not a real usage.
 				let commentRanges = commentRangesByRelativePath.get(relativePath);
-					if (!commentRanges) {
-						// Only TypeScript files can be parsed for comment
-						// ranges — CSS and other non-TS files have no TS
-						// comments to skip, so use an empty range set.
-						if (!isTypeScriptFile(relativePath)) {
+				if (!commentRanges) {
+					// Only TypeScript files can be parsed for comment
+					// ranges — CSS and other non-TS files have no TS
+					// comments to skip, so use an empty range set.
+					if (!isTypeScriptFile(relativePath)) {
+						commentRanges = [];
+					} else {
+						try {
+							commentRanges = collectCommentRanges(
+								source,
+								scriptKindForPath(relativePath),
+							);
+						} catch (error) {
+							// A file we cannot parse for comment ranges must
+							// fail loudly — record the parse failure as a
+							// visible violation rather than crashing the scan
+							// or silently producing a partial range set.
+							violations.push({
+								ruleId: 'comment-range-parse-failure',
+								message:
+									'cannot parse source for comment ranges: ' +
+									(error instanceof Error ? error.message : String(error)),
+								file: relativePath,
+								line: 1,
+								source: '',
+							});
 							commentRanges = [];
-						} else {
-							try {
-								commentRanges = collectCommentRanges(
-									source,
-									scriptKindForPath(relativePath),
-								);
-							} catch (error) {
-								// A file we cannot parse for comment ranges must
-								// fail loudly — record the parse failure as a
-								// visible violation rather than crashing the scan
-								// or silently producing a partial range set.
-								violations.push({
-									ruleId: 'comment-range-parse-failure',
-									message:
-										'cannot parse source for comment ranges: ' +
-										(error instanceof Error
-											? error.message
-											: String(error)),
-									file: relativePath,
-									line: 1,
-									source: '',
-								});
-								commentRanges = [];
-							}
 						}
-						commentRangesByRelativePath.set(relativePath, commentRanges);
 					}
+					commentRangesByRelativePath.set(relativePath, commentRanges);
+				}
 
 				for (const pattern of rule.patterns) {
 					// Every mode-'source' rule in this file declares plain RegExp
