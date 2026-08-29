@@ -750,6 +750,7 @@
 	"tenant-profile-bulk-delete-failure": "Échec de la suppression des profils sélectionnés.",
 	"bulk-action-success": "{{count}} {{action}} avec succès",
 	"bulk-action-partial-success": "{{succeeded}} {{action}}, {{failed}} échoué(s)",
+	"bulk-action-rows-may-leave-filter": "Certaines lignes peuvent ne plus apparaître dans la vue filtrée.",
 	"export-csv": "Exporter CSV",
 	"export-json": "Exporter JSON",
 	"selection-mode-disable-controls": "Effacez la sélection en cours pour modifier la requête ou la navigation du tableau.",

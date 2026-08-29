@@ -84,6 +84,8 @@ const TRANSLATIONS: TestLabelMap = {
 	'bulk-actions': 'Bulk actions',
 	'bulk-action-max-count-exceeded':
 		'Reduce your selection to at most {{max}} items ({{count}} selected).',
+	'bulk-action-rows-may-leave-filter':
+		'Some rows may no longer appear in the filtered view.',
 	'all-statuses': 'All statuses',
 	'select-row-named': 'Select {{name}}',
 	'select-all-rows': 'Select all rows',
@@ -1094,6 +1096,7 @@ describe('staff tenants route', () => {
 			await waitFor(() =>
 				expect(mocks.toastSuccess).toHaveBeenCalledWith(
 					'Successfully suspended 1 tenant(s).',
+					'Some rows may no longer appear in the filtered view.',
 				),
 			);
 			expect(mocks.bulkSuspendTenantsMutation).toHaveBeenCalledWith({
@@ -1133,6 +1136,7 @@ describe('staff tenants route', () => {
 			await waitFor(() =>
 				expect(mocks.toastError).toHaveBeenCalledWith(
 					'Suspended 1 tenant(s), 1 failed.',
+					'Some rows may no longer appear in the filtered view.',
 				),
 			);
 			expect(mocks.toastError).toHaveBeenCalledTimes(1);

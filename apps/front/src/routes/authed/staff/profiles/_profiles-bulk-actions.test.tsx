@@ -82,6 +82,8 @@ vi.mock('react-i18next', () => ({
 					'Failed to delete selected profiles.',
 				'bulk-action-max-count-exceeded':
 					'Reduce your selection to at most {{max}} items ({{count}} selected).',
+				'bulk-action-rows-may-leave-filter':
+					'Some rows may no longer appear in the filtered view.',
 			};
 
 			return (labels[key] ?? key).replace(
@@ -234,6 +236,7 @@ describe('#1386 ProfilesListBulkActions', () => {
 		await waitFor(() =>
 			expect(mocks.toastSuccess).toHaveBeenCalledWith(
 				'Successfully deleted 2 profile(s).',
+				'Some rows may no longer appear in the filtered view.',
 			),
 		);
 		await waitFor(() =>
@@ -349,5 +352,87 @@ describe('#1386 ProfilesListBulkActions', () => {
 
 		await waitFor(() => expect(onSessionExpired).toHaveBeenCalledOnce());
 		expect(mocks.displayLocalMutationFailure).not.toHaveBeenCalled();
+	});
+
+	// #1605: success and partial-success toasts carry the filter-warning
+	// description so users know rows may vanish from the current filter.
+	test('success toast includes the filter-leave-warning description (#1605)', async () => {
+		mocks.bulkDelete.mockResolvedValue({ succeededCount: 1, failedCount: 0 });
+
+		renderBulkActions();
+
+		await openMenu();
+		fireEvent.click(screen.getByRole('menuitem', { name: 'Delete selected' }));
+		expect(await screen.findByText(/delete 1 selected profile/)).toBeTruthy();
+		fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
+
+		await waitFor(() =>
+			expect(mocks.toastSuccess).toHaveBeenCalledWith(
+				'Successfully deleted 1 profile(s).',
+				'Some rows may no longer appear in the filtered view.',
+			),
+		);
+	});
+
+	test('partial-success toast includes the filter-leave-warning when no per-item reasons', async () => {
+		mocks.bulkDelete.mockResolvedValue({
+			succeededCount: 1,
+			failedCount: 2,
+			failedItems: [{ profileId: PROFILE_B }, { profileId: STALE_ID }],
+		});
+
+		renderBulkActions({
+			rows: [row(PROFILE_A), row(PROFILE_B), row(STALE_ID)],
+			selectedIds: [PROFILE_A, PROFILE_B, STALE_ID],
+		});
+
+		await openMenu();
+		fireEvent.click(screen.getByRole('menuitem', { name: 'Delete selected' }));
+		fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
+
+		await waitFor(() => expect(mocks.toastError).toHaveBeenCalledTimes(1));
+		const [, description] = mocks.toastError.mock.calls[0] as [
+			string,
+			string | undefined,
+		];
+		expect(description).toBe(
+			'Some rows may no longer appear in the filtered view.',
+		);
+	});
+
+	test('partial-success toast surfaces per-item reasons instead of the filter warning', async () => {
+		mocks.bulkDelete.mockResolvedValue({
+			succeededCount: 1,
+			failedCount: 3,
+			failedItems: [
+				{
+					profileId: PROFILE_B,
+					errorEscaped: 'Default profiles cannot be deleted',
+				},
+				{ profileId: STALE_ID, errorEscaped: 'Profile not found' },
+				{
+					profileId: 'dddddddd-4444-4444-4444-444444444444',
+					errorEscaped: 'Default profiles cannot be deleted',
+				},
+			],
+		});
+
+		renderBulkActions({
+			rows: [row(PROFILE_A), row(PROFILE_B), row(STALE_ID)],
+			selectedIds: [PROFILE_A, PROFILE_B, STALE_ID],
+		});
+
+		await openMenu();
+		fireEvent.click(screen.getByRole('menuitem', { name: 'Delete selected' }));
+		fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
+
+		await waitFor(() => expect(mocks.toastError).toHaveBeenCalledTimes(1));
+		const [, description] = mocks.toastError.mock.calls[0] as [
+			string,
+			string | undefined,
+		];
+		expect(description).toContain('Default profiles cannot be deleted');
+		expect(description).toContain('Profile not found');
+		expect(description).not.toContain('Some rows may no longer appear');
 	});
 });

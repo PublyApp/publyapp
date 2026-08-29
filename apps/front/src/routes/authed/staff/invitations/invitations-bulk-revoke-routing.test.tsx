@@ -148,6 +148,8 @@ vi.mock('react-i18next', () => ({
 				'invitation-bulk-revoke-reason-other': '{{count}} could not be revoked',
 				'invitation-bulk-revoke-failure':
 					'Failed to revoke selected invitations.',
+				'bulk-action-rows-may-leave-filter':
+					'Some rows may no longer appear in the filtered view.',
 			};
 
 			return (labels[bare] ?? bare).replace(
@@ -309,7 +311,7 @@ type BulkRevokeOutcomeCase =
 			name: string;
 			outcome: 'success';
 			response: BulkStaffInvitationActionResult;
-			successToastText: string;
+			successToastArgs: unknown[];
 	  }
 	| {
 			name: string;
@@ -323,7 +325,10 @@ const BULK_REVOKE_OUTCOME_CASES: BulkRevokeOutcomeCase[] = [
 		name: 'a full-success',
 		outcome: 'success',
 		response: { succeededCount: 2, failedCount: 0 },
-		successToastText: 'Successfully revoked 2 invitation(s).',
+		successToastArgs: [
+			'Successfully revoked 2 invitation(s).',
+			'Some rows may no longer appear in the filtered view.',
+		],
 	},
 	{
 		name: 'a partial-success',
@@ -487,7 +492,9 @@ describe('#1387 invitations selection-mode bulk revoke (real router)', () => {
 				expect(mocks.toastSuccess).not.toHaveBeenCalled();
 			} else {
 				await waitFor(() =>
-					expect(mocks.toastSuccess).toHaveBeenCalledWith(c.successToastText),
+					expect(mocks.toastSuccess).toHaveBeenCalledWith(
+						...c.successToastArgs,
+					),
 				);
 				expect(mocks.toastError).not.toHaveBeenCalled();
 			}
@@ -563,6 +570,7 @@ describe('#1387 invitations selection-mode bulk revoke (real router)', () => {
 		await waitFor(() =>
 			expect(mocks.toastError).toHaveBeenCalledWith(
 				'Revoked 1 invitation(s), 2 failed.',
+				'Some rows may no longer appear in the filtered view.',
 			),
 		);
 		expect(mocks.toastSuccess).not.toHaveBeenCalled();

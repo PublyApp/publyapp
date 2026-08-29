@@ -149,6 +149,8 @@ const TRANSLATIONS: TestLabelMap = {
 		'Removed {{succeeded}} user(s), {{failed}} failed.',
 	'tenant-user-bulk-remove-failure':
 		'Failed to remove selected users from this tenant.',
+	'bulk-action-rows-may-leave-filter':
+		'Some rows may no longer appear in the filtered view.',
 	'actions-for': 'Actions for {{name}}',
 	'tenant-users-table-aria-label': 'Tenant users',
 	'error-500-code': '500 — Server Error',
@@ -1014,7 +1016,10 @@ describe('staff tenant users route', () => {
 			}),
 		);
 		expect(mocks.toastSuccess).toHaveBeenCalledOnce();
+		// Export never removes rows from the view, so the filter-leave
+		// warning must NOT accompany the export success toast.
 		expect(mocks.toastSuccess).toHaveBeenCalledWith('Export completed.');
+		expect(mocks.toastSuccess.mock.calls[0]).toHaveLength(1);
 		expect(mocks.downloadFile.mock.invocationCallOrder[0]).toBeLessThan(
 			mocks.toastSuccess.mock.invocationCallOrder[0],
 		);
@@ -1099,6 +1104,7 @@ describe('staff tenant users route', () => {
 		await waitFor(() => expect(mocks.toastSuccess).toHaveBeenCalledOnce());
 		expect(mocks.toastSuccess).toHaveBeenCalledWith(
 			'Successfully removed 1 user(s) from this tenant.',
+			'Some rows may no longer appear in the filtered view.',
 		);
 		expect(
 			screen.queryByText('Successfully removed 1 user(s) from this tenant.'),
@@ -1128,6 +1134,7 @@ describe('staff tenant users route', () => {
 		await waitFor(() => expect(mocks.toastError).toHaveBeenCalledOnce());
 		expect(mocks.toastError).toHaveBeenCalledWith(
 			'Removed 1 user(s), 1 failed.',
+			'Some rows may no longer appear in the filtered view.',
 		);
 		expect(mocks.invalidateAllStaffTenantScopes).toHaveBeenCalled();
 	});
@@ -1152,9 +1159,15 @@ describe('staff tenant users route', () => {
 		fireEvent.click(screen.getByRole('button', { name: 'Remove' }));
 
 		await waitFor(() => expect(mocks.toastError).toHaveBeenCalledOnce());
+		// Total failure (succeededCount === 0): no row left the view, so
+		// the filter-leave warning is suppressed -- only the plain failure
+		// message rides, with an explicit undefined second arg.
 		expect(mocks.toastError).toHaveBeenCalledWith(
 			'Failed to remove selected users from this tenant.',
+			undefined,
 		);
+		expect(mocks.toastError.mock.calls[0]).toHaveLength(2);
+		expect(mocks.displayLocalMutationFailure).not.toHaveBeenCalled();
 		expect(mocks.invalidateAllStaffTenantScopes).toHaveBeenCalled();
 	}),
 		// #1442: the bulk-remove catch block consults the REAL
