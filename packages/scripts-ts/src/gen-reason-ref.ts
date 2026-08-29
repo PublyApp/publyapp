@@ -50,15 +50,20 @@ type ReasonRefFile = {
 // the 3-step attack where a covered step is deleted from CI, then from the
 // manifest, then the reference is regenerated to match.
 //
-// THE FLOOR IS DERIVED FROM GIT HEAD, NOT FROM THE WORKING TREE
+// THE FLOOR IS DERIVED FROM THE MERGE-BASE (origin/develop ∩ HEAD), NOT HEAD
 // -------------------------------------------------------------
-// The floor (`existingPinned`) is read from `git show HEAD:reason-guard-ref.json`,
-// NOT from the working-tree file. This closes the bypass where a contributor
-// lowers `pinned_step_ids` in the same commit as the manifest/YAML removal:
-// git HEAD still carries the previous pinned set, so the "vanished without
-// confession" check still fires. If git is unavailable, the script falls back
-// to reading the working-tree file (less secure, but maintains backward
-// compatibility).
+// The floor (`existingPinned`) is read from
+// `git show <merge-base>:reason-guard-ref.json`, where the merge-base is
+// `git merge-base origin/develop HEAD`. NOT from HEAD (the attacker's commit
+// in a PR) or the working tree. This closes the bypass where a contributor
+// deletes a CI step, removes its manifest entry, AND lowers pinned_step_ids —
+// all in one committed push — making HEAD agree with the removal.
+//
+// If the merge-base cannot be resolved (no origin/develop, not a repo), the
+// script falls back to `git show HEAD:` (still committed, not working-tree) so
+// local/first-run generation works. If HEAD also lacks the file, it is either
+// first-generation (never committed → empty floor) or a deletion attack
+// (was committed, now gone → refuse loudly).
 //
 // INTEGRITY ASSERTION
 // -------------------
@@ -108,6 +113,8 @@ interface Confession {
 	steps: ConfessionStep[];
 }
 
+const refFileName = 'packages/scripts-ts/src/reason-guard-ref.json';
+
 /**
  * Reads the floor (pinned_step_ids) from the merge-base of origin/develop and
  * HEAD — not from HEAD directly, and not from the working tree.
@@ -118,14 +125,22 @@ interface Confession {
  * and reading from HEAD would let the committed floor agree with the removal.
  *
  * If the merge-base cannot be resolved (no git, not a repo, no origin/develop,
- * no common ancestor), the function falls back to the working-tree file so that
- * first-time / local generation still works. This fallback is only for generation
- * (not enforcement — enforcement lives in check-ci-drift.ts which refuses to
- * run on merge-base failure).
+ * no common ancestor), the function falls back to reading from HEAD (the last
+ * commit). This is less secure than the merge-base — it doesn't catch a
+ * committed floor-lowering — but it still catches an uncommitted working-tree
+ * edit (which HEAD preserves). This fallback exists for local generation
+ * without a fetched origin/develop. Enforcement (check-ci-drift.ts) has no such
+ * fallback: it refuses to run when the merge-base can't be resolved.
+ *
+ * If HEAD also cannot be read (file deleted from the commit), the function
+ * throws — it must NOT silently reset the floor to empty. A deleted reference
+ * file is either a first-generation case (the file was never committed, which
+ * `git show HEAD:` will reject with a clear error) or a deletion attack (the
+ * file existed and was removed). The caller distinguishes these.
  */
 const readFloorFromGit = async (rootDir: string): Promise<string[]> => {
+	// Step 1: try the merge-base (the secure floor).
 	try {
-		// Step 1: resolve the merge-base between origin/develop and HEAD.
 		const { stdout: mbStdout } = await execFileAsync(
 			'git',
 			['merge-base', 'origin/develop', 'HEAD'],
@@ -134,30 +149,69 @@ const readFloorFromGit = async (rootDir: string): Promise<string[]> => {
 		const mergeBase = mbStdout.trim();
 
 		if (mergeBase === '') {
-			// No common ancestor — fall through to working-tree fallback.
 			throw new Error('merge-base returned empty');
 		}
 
-		// Step 2: read the committed reference from that merge-base commit.
 		const { stdout } = await execFileAsync(
 			'git',
-			['show', `${mergeBase}:packages/scripts-ts/src/reason-guard-ref.json`],
+			['show', `${mergeBase}:${refFileName}`],
 			{ cwd: rootDir, encoding: 'utf8' },
 		);
 
 		const parsed = JSON.parse(stdout) as { pinned_step_ids?: string[] };
 		return parsed.pinned_step_ids ?? [];
-	} catch {
-		// Git read failed (no repo, no origin/develop, no common ancestor,
-		// file missing at merge-base, etc.). Fall back to the working-tree
-		// file for backward compatibility (local / first-run generation).
-		// If that also fails, there is no floor — return empty (first gen).
+	} catch (mergeBaseError) {
+		// Step 2: merge-base failed (no origin/develop, not a repo, etc.).
+		// Fall back to HEAD — still committed (not working-tree), so an
+		// uncommitted edit cannot lower the floor.
 		try {
-			const raw = await readFile(path.join(rootDir, outputPath), 'utf8');
-			const parsed = JSON.parse(raw) as { pinned_step_ids?: string[] };
+			const { stdout } = await execFileAsync(
+				'git',
+				['show', `HEAD:${refFileName}`],
+				{ cwd: rootDir, encoding: 'utf8' },
+			);
+
+			const parsed = JSON.parse(stdout) as { pinned_step_ids?: string[] };
 			return parsed.pinned_step_ids ?? [];
-		} catch {
-			return [];
+		} catch (headError) {
+			// HEAD also failed — the file does not exist at HEAD. Distinguish:
+			//  - first-generation: the file was never committed → return []
+			//  - deletion attack: the file WAS committed and was removed → throw
+			try {
+				const { stdout: logOut } = await execFileAsync(
+					'git',
+					['log', '--oneline', '--all', '--', refFileName],
+					{ cwd: rootDir, encoding: 'utf8' },
+				);
+
+				// If git log returned output, the file was committed at some
+				// point and then deleted — deletion attack, not first-gen.
+				if (logOut.trim().length > 0) {
+					throw new Error(
+						`Cannot read the ratchet floor from git: ${refFileName} was committed and then deleted — the reference file has been tampered with (deletion attack). ` +
+							`Restore it with \`git checkout HEAD -- ${refFileName}\` and re-run, or see docs/guides/local-ci-gate.md.`,
+					);
+				}
+
+				// No git log entries — the file was never committed. First-gen.
+				return [];
+			} catch (logError) {
+				if (
+					logError instanceof Error &&
+					logError.message.includes('deletion attack')
+				) {
+					throw logError;
+				}
+
+				// git log itself failed (e.g., not a git repo). Fall through to
+				// throwing the original HEAD error with context.
+				throw new Error(
+					`Cannot read the ratchet floor from git: ${refFileName} does not exist at HEAD or merge-base. ` +
+						`Merge-base error: ${mergeBaseError instanceof Error ? mergeBaseError.message : String(mergeBaseError)}. ` +
+						`HEAD error: ${headError instanceof Error ? headError.message : String(headError)}. ` +
+						`Git log error: ${logError instanceof Error ? logError.message : String(logError)}.`,
+				);
+			}
 		}
 	}
 };
@@ -320,8 +374,8 @@ const reference = Object.fromEntries(
 
 // --- Ratchet floor: read existing pinned IDs and removals confession ---
 
-// Read the floor from git HEAD (not the working tree) so a contributor cannot
-// lower it in the same commit.
+// Read the floor from git (merge-base, with HEAD fallback) so a contributor
+// cannot lower it in the same commit.
 const existingPinned: string[] = await readFloorFromGit(process.cwd());
 
 // Read the existing reference file for the integrity pre-check.
@@ -425,9 +479,13 @@ const output = {
 		'Regeneration can only ADD step IDs, never remove them. To deliberately',
 		'remove a step, confess it in ci-gate-removals.json with a reason.',
 		'',
-		'The floor is derived from git HEAD, not the working tree. This prevents',
-		'a contributor from lowering pinned_step_ids in the same commit as the',
-		'removal.',
+		'The floor is derived from the merge-base of origin/develop and HEAD (the',
+		'last reviewed-and-merged state of the target branch), not from HEAD or the',
+		'working tree. This prevents a contributor from lowering pinned_step_ids in',
+		'the same commit as a step removal — in a PR, HEAD IS the attacker commit.',
+		'Enforcement (check-ci-drift.ts) refuses to run if the merge-base cannot be',
+		'resolved. Generation falls back to HEAD (still committed) when the',
+		'merge-base is unavailable (e.g., local without fetched origin/develop).',
 		'',
 		'pinned_step_ids is a subset of steps{}. A pinned step dropped from',
 		'steps{} is a floor-lowering attack. Extra steps in steps{} that exist',

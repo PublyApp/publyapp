@@ -605,3 +605,166 @@ test('bypass 5: deleting the reference file does NOT reset the floor', async () 
 		'Expected loud error about missing reference file',
 	);
 });
+
+test('bypass 6: 3-part committed regeneration attack IS CAUGHT by the merge-base floor', async () => {
+	// THE KEY PROOF for the gen side: the attacker commits a manifest step
+	// removal AND a reference regeneration (lowering pinned_step_ids) in ONE
+	// commit on a PR branch. With the r7 fix (read floor from HEAD), HEAD IS
+	// the attacker's commit — the floor agrees with the removal, and the
+	// script happily regenerates without the vanished step. With the r8 fix
+	// (read floor from merge-base), the floor is read from origin/develop's
+	// state, which still pins the vanished step, so regeneration REFUSES.
+	//
+	// This test sets up:
+	//   1. base commit: manifest + reference pin Step A and Step B
+	//   2. origin/develop -> base commit (the floor)
+	//   3. feature branch: commit the attack — remove Step B from manifest,
+	//      remove Step B from pinned_step_ids, all in one commit
+	//   4. run gen-reason-ref — should REFUSE (exit non-zero)
+
+	const rootDir = await mkdtemp(path.join(os.tmpdir(), 'publyapp-gen-attack-'));
+
+	await mkdir(path.join(rootDir, '.github/workflows'), { recursive: true });
+	await mkdir(path.join(rootDir, 'packages/scripts-ts/src'), {
+		recursive: true,
+	});
+
+	const execFile = (cmd: string, args: string[]) =>
+		new Promise<string>((resolve, reject) => {
+			require('node:child_process').execFile(
+				cmd,
+				args,
+				{ cwd: rootDir },
+				(error: Error | null, stdout: string) => {
+					if (error) reject(error);
+					else resolve(stdout);
+				},
+			);
+		});
+
+	await execFile('git', ['init', '-q']);
+	await execFile('git', ['config', 'user.email', 'test@test.test']);
+	await execFile('git', ['config', 'user.name', 'Test']);
+	await execFile('git', ['remote', 'add', 'origin', rootDir]);
+
+	const manifestSteps = {
+		'fixture.yml::build::Step A': {
+			hash: 'ab12cd34',
+			mirror: 'just ci',
+			reason:
+				'Mirrored locally by the fixture gate for testing purposes in Step A.',
+		},
+		'fixture.yml::build::Step B': {
+			hash: 'ef56ab78',
+			mirror: 'just ci',
+			reason:
+				'Mirrored locally by the fixture gate for testing purposes in Step B.',
+		},
+	};
+
+	// --- Step 1: base commit with both steps pinned ---
+	await writeFile(
+		path.join(rootDir, manifestPath),
+		JSON.stringify({ steps: manifestSteps }, null, '\t'),
+	);
+
+	await writeFile(
+		path.join(rootDir, outputPath),
+		JSON.stringify(
+			{
+				pinned_step_ids: [
+					'fixture.yml::build::Step A',
+					'fixture.yml::build::Step B',
+				],
+				steps: {
+					'fixture.yml::build::Step A': {
+						reason_hash: 'hashA',
+						reason_length:
+							manifestSteps['fixture.yml::build::Step A'].reason.length,
+					},
+					'fixture.yml::build::Step B': {
+						reason_hash: 'hashB',
+						reason_length:
+							manifestSteps['fixture.yml::build::Step B'].reason.length,
+					},
+				},
+			},
+			null,
+			'\t',
+		),
+	);
+
+	await execFile('git', ['add', '.']);
+	await execFile('git', ['commit', '-q', '-m', 'base: both steps pinned']);
+
+	// Set origin/develop to the base commit (the floor).
+	const baseSha = (await execFile('git', ['rev-parse', 'HEAD'])).trim();
+	await execFile('git', ['update-ref', 'refs/remotes/origin/develop', baseSha]);
+
+	// --- Step 3: the 3-part COMMITTED attack on a feature branch ---
+	await execFile('git', ['checkout', '-q', '-b', 'feature']);
+
+	// Attack part 1: remove Step B from the manifest
+	await writeFile(
+		path.join(rootDir, manifestPath),
+		JSON.stringify(
+			{
+				steps: {
+					'fixture.yml::build::Step A':
+						manifestSteps['fixture.yml::build::Step A'],
+				},
+			},
+			null,
+			'\t',
+		),
+	);
+
+	// Attack part 2: remove Step B from pinned_step_ids (committed regeneration)
+	await writeFile(
+		path.join(rootDir, outputPath),
+		JSON.stringify(
+			{
+				pinned_step_ids: ['fixture.yml::build::Step A'],
+				steps: {
+					'fixture.yml::build::Step A': {
+						reason_hash: 'hashA',
+						reason_length:
+							manifestSteps['fixture.yml::build::Step A'].reason.length,
+					},
+				},
+			},
+			null,
+			'\t',
+		),
+	);
+
+	await execFile('git', ['add', '.']);
+	await execFile('git', [
+		'commit',
+		'-q',
+		'-m',
+		'attack: remove Step B entirely',
+	]);
+
+	// Run the generator — it reads the floor from merge-base (base commit),
+	// which still pins Step B. The "vanished without confession" check must
+	// fire and refuse to regenerate.
+	const result = await runScript(rootDir);
+
+	assert.notEqual(
+		result.exitCode,
+		0,
+		'gen-reason-ref must refuse when the 3-part committed attack lowers the floor',
+	);
+	assert.equal(
+		result.stderr.includes('vanished') || result.stdout.includes('vanished'),
+		true,
+		'Expected "vanished" message from the ratchet floor check',
+	);
+	assert.equal(
+		result.stderr.includes('ci-gate-removals.json') ||
+			result.stdout.includes('ci-gate-removals.json'),
+		true,
+		'Expected message naming ci-gate-removals.json as the escape hatch',
+	);
+});

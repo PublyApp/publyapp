@@ -95,7 +95,36 @@ export const hashReason = (text: string) =>
  * "trust HEAD/the working tree" on error is a guard that turns green exactly
  * when the attack succeeds.
  */
-const readRefFromGit = async (rootDir: string): Promise<ReasonRef> => {
+const refFileName = 'packages/scripts-ts/src/reason-guard-ref.json';
+
+/**
+ * Reads the ratchet floor from the merge-base of origin/develop and HEAD —
+ * not from HEAD directly, and not from the working tree.
+ *
+ * WHY NOT HEAD? (the r7 defect that this supersedes)
+ * The round-7 fix read the reference from `git show HEAD:...`. That breaks an
+ * UNCOMMITTED working-tree edit, but NOT a COMMITTED one: in a PR, HEAD IS the
+ * attacker's commit. A contributor who deletes a CI step, deletes its manifest
+ * entry, AND deletes the id from `pinned_step_ids` — all in one commit — makes
+ * HEAD agree with the removal. The guard comparing its floor to itself sees
+ * nothing and stays green.
+ *
+ * WHY THE MERGE-BASE IS THE FLOOR
+ * The floor must come from the last reviewed-and-merged state of the target
+ * branch, i.e. what DEVELOP looked like before this PR's changes were applied.
+ * `git merge-base origin/develop HEAD` finds that shared ancestor commit. The
+ * reference read from THAT commit is the floor the ratchet enforces — it
+ * predates the attacker's removal, so the vanished step id is still pinned and
+ * the guard cries RATCHET.
+ *
+ * LOUD FAILURE MODE
+ * If the merge-base cannot be resolved — no git, not a repo, no origin/develop,
+ * a brand-new branch with no common ancestor — the guard REFUSES TO RUN. It must
+ * never fall back to HEAD or the working tree. A guard that degrades to
+ * "trust HEAD/the working tree" on error is a guard that turns green exactly
+ * when the attack succeeds.
+ */
+const readRatchetFloorFromGit = async (rootDir: string): Promise<ReasonRef> => {
 	// Step 1: resolve the merge-base between origin/develop and HEAD.
 	let mergeBase: string;
 	try {
@@ -128,7 +157,7 @@ const readRefFromGit = async (rootDir: string): Promise<ReasonRef> => {
 	try {
 		const { stdout } = await execFileAsync(
 			'git',
-			['show', `${mergeBase}:packages/scripts-ts/src/reason-guard-ref.json`],
+			['show', `${mergeBase}:${refFileName}`],
 			{ cwd: rootDir, encoding: 'utf8' },
 		);
 
@@ -137,6 +166,34 @@ const readRefFromGit = async (rootDir: string): Promise<ReasonRef> => {
 		throw new Error(
 			`Could not read reason-guard-ref.json from the merge-base commit ${mergeBase} (git merge-base origin/develop HEAD) — the ratchet floor must be derived from the committed reference at that commit, not the working tree. ` +
 				`Re-run from inside a git repository where reason-guard-ref.json exists at that commit. ` +
+				`Original error: ${error instanceof Error ? error.message : String(error)}`,
+		);
+	}
+};
+
+/**
+ * Reads the reason reference from git HEAD (committed, not working-tree) for
+ * the reason-guard comparison. The reason guard verifies that a manifest
+ * entry's `reason` text hasn't been silently truncated or altered. Legitimate
+ * reason rewrites are authorized by regenerating reason-guard-ref.json in the
+ * SAME commit as the manifest change — so both must be at HEAD. Reading from
+ * HEAD (not the working tree) closes the uncommitted-edit bypass for the reason
+ * guard, while the ratchet floor is separately read from the merge-base to
+ * close the committed-attack bypass for pinned_step_ids.
+ */
+const readRefFromGit = async (rootDir: string): Promise<ReasonRef> => {
+	try {
+		const { stdout } = await execFileAsync(
+			'git',
+			['show', `HEAD:${refFileName}`],
+			{ cwd: rootDir, encoding: 'utf8' },
+		);
+
+		return JSON.parse(stdout) as ReasonRef;
+	} catch (error) {
+		throw new Error(
+			`Could not read reason-guard-ref.json from git HEAD — the reason guard requires the committed reference, not the working tree. ` +
+				`Re-run from inside a git repository with a committed reason-guard-ref.json. ` +
 				`Original error: ${error instanceof Error ? error.message : String(error)}`,
 		);
 	}
@@ -729,20 +786,44 @@ const formatJsonError = (error: unknown): string => {
  * Compares the workflows against the manifest and returns human-readable
  * findings. Returns an empty array when the gate is fully reconciled.
  *
+ * Two reference sources are consulted:
+ *   1. REASON REFERENCE (HEAD): reason-guard-ref.json read from git HEAD. The
+ *      reason guard checks each manifest entry's `reason` text against the
+ *      committed fingerprint. Legitimate reason rewrites are authorized by
+ *      regenerating the reference in the SAME commit, so HEAD is the right
+ *      baseline. Reading from HEAD (not the working tree) closes the
+ *      uncommitted-edit bypass for the reason guard.
+ *   2. RATCHET FLOOR (merge-base): pinned_step_ids read from the merge-base of
+ *      origin/develop and HEAD — the last reviewed-and-merged state. This is
+ *      immune to a PR author's committed edits, closing the 3-part committed
+ *      attack (delete step + manifest entry + pinned id, all in one commit).
+ *
  * @param {Object} options
  * @param {string} options.rootDir - Repository root directory.
  * @param {ReasonRef} [options.reasonRef] - Optional reason reference override
- *   (defaults to reading reason-guard-ref.json from git HEAD). Used by tests
+ *   (defaults to reading from git HEAD). Used by tests
  *   to inject a fixture reference without touching the real one.
+ * @param {ReasonRef} [options.ratchetFloorRef] - Optional ratchet floor override
+ *   (defaults to reading from the merge-base commit). Used by tests to inject a
+ *   floor fixture.
  */
 export const findCiDrift = async ({
 	rootDir,
 	reasonRef: reasonRefOption,
+	ratchetFloorRef,
 }: {
 	rootDir: string;
 	reasonRef?: ReasonRef;
+	ratchetFloorRef?: ReasonRef;
 }): Promise<string[]> => {
 	const ref = reasonRefOption ?? (await readRefFromGit(rootDir));
+	// If reasonRef was injected (bypassing git), use it as the floor too — tests
+	// that inject a reasonRef for the reason guard don't have a git repo to read
+	// the merge-base floor from. In production, both are read from git (HEAD for
+	// reasons, merge-base for the ratchet floor).
+	const floor =
+		ratchetFloorRef ??
+		(reasonRefOption ? ref : await readRatchetFloorFromGit(rootDir));
 	const { problems, steps } = await collectWorkflowSteps(rootDir);
 	const findings = [...problems];
 
@@ -875,10 +956,9 @@ export const findCiDrift = async ({
 		);
 	}
 
-	// Ratchet floor check (#1709): pinned_step_ids in the reference can only
-	// grow, never shrink. A pinned step missing from the manifest without a
-	// confession in ci-gate-removals.json is silent erasure — fail closed.
-	findings.push(...(await getRatchetProblems(rootDir, entries, ref)));
+	// Ratchet floor check (#1709, r8): pinned_step_ids read from the
+	// merge-base commit (not HEAD) — immune to the 3-part committed attack.
+	findings.push(...(await getRatchetProblems(rootDir, entries, floor)));
 
 	return findings;
 };

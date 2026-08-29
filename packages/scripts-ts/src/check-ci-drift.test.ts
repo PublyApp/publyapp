@@ -1630,22 +1630,26 @@ test('ratchet floor: no pinned_step_ids means no ratchet check (backward compati
 	assert.equal(ratchetFindings.length, 0);
 });
 
-// --- Git-based reference read tests (#1762 round 7) ---
+// --- Git-based reference read tests (#1762 round 7, supersedes r8) ---
 //
 // The "ratchet can't rely on its own file" defect: the drift guard used to
-// import reason-guard-ref.json from the working tree. A contributor could
-// lower `pinned_step_ids` in the same commit as the removal, and the guard
-// would stay green because the working tree and the commit agreed.
+// import reason-guard-ref.json from the working tree, then from git HEAD.
+// The r7 fix (HEAD) breaks uncommitted edits but NOT committed ones: in a PR,
+// HEAD IS the attacker's commit. A contributor who deletes a CI step, removes
+// its manifest entry, and drops the id from pinned_step_ids — all in one
+// committed push — makes HEAD agree with the removal. The guard comparing its
+// floor to itself sees nothing and stays green.
 //
-// The fix reads the reference from git HEAD via `git show`. These tests prove
-// the fix holds: a working-tree edit to the reference does NOT change what the
-// guard sees — only the committed reference matters.
+// The r8 fix reads the floor from `git merge-base origin/develop HEAD`: the
+// shared ancestor representing the last reviewed-and-merged state of the
+// target branch. That commit predates the attacker's removal, so the vanished
+// step id is still pinned and the guard cries RATCHET.
 
-test('readRefFromGit: reading from a non-git directory fails loudly (no silent fallback)', async () => {
+test('readRefFromGit-fs: reading from a non-git directory fails loudly (no silent fallback)', async () => {
 	// A throwaway tmpdir with no .git — findCiDrift must refuse to run rather
-	// than silently fall back to a working-tree read. A guard that degrades to
-	// "trust the working tree" on error is a guard that turns green exactly when
-	// the attack succeeds.
+	// than silently fall back to a working-tree or HEAD read. A guard that
+	// degrades to "trust the working tree" on error is a guard that turns green
+	// exactly when the attack succeeds.
 	const rootDir = await mkdtemp(path.join(os.tmpdir(), 'publyapp-no-git-'));
 	await mkdir(path.join(rootDir, '.github/workflows'), { recursive: true });
 	await mkdir(path.join(rootDir, 'packages/scripts-ts/src'), {
@@ -1674,20 +1678,16 @@ test('readRefFromGit: reading from a non-git directory fails loudly (no silent f
 	);
 });
 
-test('readRefFromGit: reads committed reference from HEAD, ignoring working-tree edits', async () => {
-	// The load-bearing test: initialize a git repo with a committed reference,
-	// then mutate the working-tree copy. The guard must read the COMMITTED
-	// version, not the working-tree one. This is the exact attack the fix
-	// closes — an attacker lowers the ratchet floor in the working tree, and
-	// the guard must still see the original floor from HEAD.
-
-	const rootDir = await mkdtemp(path.join(os.tmpdir(), 'publyapp-git-ref-'));
+test('readRefFromGit-fs: no origin/develop fails loudly (no silent fallback to HEAD)', async () => {
+	// A git repo with commits but NO origin/develop remote-tracking ref.
+	// merge-base cannot resolve, so the guard must refuse to run — never
+	// silently fall back to HEAD or the working tree.
+	const rootDir = await mkdtemp(path.join(os.tmpdir(), 'publyapp-no-origin-'));
 	await mkdir(path.join(rootDir, '.github/workflows'), { recursive: true });
 	await mkdir(path.join(rootDir, 'packages/scripts-ts/src'), {
 		recursive: true,
 	});
 
-	// Set up a git repo.
 	await writeFile(path.join(rootDir, '.gitignore'), '');
 	const execFile = (cmd: string, args: string[]) =>
 		new Promise<string>((resolve, reject) => {
@@ -1706,14 +1706,67 @@ test('readRefFromGit: reads committed reference from HEAD, ignoring working-tree
 	await execFile('git', ['init', '-q']);
 	await execFile('git', ['config', 'user.email', 'test@test.test']);
 	await execFile('git', ['config', 'user.name', 'test']);
+	await writeFile(
+		path.join(rootDir, '.github/workflows/fixture.yml'),
+		workflow(mirroredStep),
+	);
+	await writeFile(
+		path.join(rootDir, 'packages/scripts-ts/src/ci-gate-manifest.json'),
+		JSON.stringify({ steps: {} }),
+	);
+	await writeFile(
+		path.join(rootDir, 'packages/scripts-ts/src/reason-guard-ref.json'),
+		JSON.stringify({ steps: {} }),
+	);
+	await execFile('git', ['add', '.']);
+	await execFile('git', ['commit', '-q', '-m', 'initial']);
+	// NOTE: no `git remote add` or `git update-ref refs/remotes/origin/develop`
+	// — origin/develop does not exist, so merge-base will fail.
 
-	// Workflow: a single step
+	await assert.rejects(
+		() => findCiDrift({ rootDir }),
+		/REFUSING TO RUN/,
+		'Guard must refuse when origin/develop is unavailable',
+	);
+});
+
+test('readRefFromGit-fs: reads committed floor from merge-base, ignoring working-tree edits', async () => {
+	// Sets up a repo with origin/develop at commit A (pinned floor), then
+	// creates HEAD on a branch that commits a working-tree edit lowering the
+	// floor. The guard must read the floor from the MERGE-BASE (commit A),
+	// not from HEAD or the working tree.
+	const rootDir = await mkdtemp(
+		path.join(os.tmpdir(), 'publyapp-git-mergebase-'),
+	);
+	await mkdir(path.join(rootDir, '.github/workflows'), { recursive: true });
+	await mkdir(path.join(rootDir, 'packages/scripts-ts/src'), {
+		recursive: true,
+	});
+
+	const execFile = (cmd: string, args: string[]) =>
+		new Promise<string>((resolve, reject) => {
+			const { execFile: nodeExec } = require('node:child_process');
+			nodeExec(
+				cmd,
+				args,
+				{ cwd: rootDir },
+				(error: Error | null, stdout: string) => {
+					if (error) reject(error);
+					else resolve(stdout);
+				},
+			);
+		});
+
+	await execFile('git', ['init', '-q']);
+	await execFile('git', ['config', 'user.email', 'test@test.test']);
+	await execFile('git', ['config', 'user.name', 'test']);
+
+	// Workflow: single step
 	await writeFile(
 		path.join(rootDir, '.github/workflows/fixture.yml'),
 		workflow('      - name: Step A\n        run: echo a\n'),
 	);
 
-	// Manifest: single entry, reconciled
 	const manifest = {
 		steps: {
 			'fixture.yml::build::Step A': {
@@ -1728,7 +1781,7 @@ test('readRefFromGit: reads committed reference from HEAD, ignoring working-tree
 		JSON.stringify(manifest, null, '\t'),
 	);
 
-	// Committed reference: pins Step A (ratchet floor).
+	// Committed reference at the base: pins Step A (ratchet floor).
 	const committedRef = {
 		pinned_step_ids: ['fixture.yml::build::Step A'],
 		steps: {
@@ -1745,29 +1798,40 @@ test('readRefFromGit: reads committed reference from HEAD, ignoring working-tree
 		JSON.stringify(committedRef, null, '\t'),
 	);
 
-	// Commit everything so HEAD has the committed reference.
+	await writeFile(path.join(rootDir, '.gitignore'), '');
 	await execFile('git', ['add', '.']);
-	await execFile('git', ['commit', '-q', '-m', 'initial']);
+	await execFile('git', [
+		'commit',
+		'-q',
+		'-m',
+		'base commit with pinned floor',
+	]);
 
-	// Now attack: edit the WORKING-TREE reference to empty pinned_step_ids.
-	// If the guard reads from the working tree, it would see no ratchet and
-	// stay green. The fix reads from HEAD, so the ratchet still fires.
+	// Create a branch (simulating a PR) so HEAD diverges from develop.
+	await execFile('git', ['checkout', '-q', '-b', 'feature']);
+
+	// Set up origin/develop to point at the base commit (the merge-base).
+	await execFile('git', ['remote', 'add', 'origin', rootDir]);
+	const baseSha = (await execFile('git', ['rev-parse', 'HEAD'])).trim();
+	await execFile('git', ['update-ref', 'refs/remotes/origin/develop', baseSha]);
+
+	// Attack: edit the WORKING-TREE reference to empty pinned_step_ids.
 	await writeFile(
 		path.join(rootDir, 'packages/scripts-ts/src/reason-guard-ref.json'),
 		JSON.stringify({ steps: {} }, null, '\t'),
 	);
 
-	// The manifest still pins Step A, so the guard should stay green — the
-	// committed reference still matches.
+	// The manifest still pins Step A, and the committed floor (at merge-base)
+	// still pins it — so the guard should stay green.
 	const findings = await findCiDrift({ rootDir });
 	assert.deepEqual(
 		findings,
 		[],
-		'Guard must read committed ref from HEAD, not working tree (findings should be empty since manifest is reconciled)',
+		'Guard must read floor from merge-base, not working tree',
 	);
 
-	// Now the real test: remove the step from the manifest, which should trip
-	// the ratchet because the committed reference still pins it.
+	// Now remove the step from the manifest. The floor at merge-base still
+	// pins Step A, so the ratchet must fire.
 	await writeFile(
 		path.join(rootDir, 'packages/scripts-ts/src/ci-gate-manifest.json'),
 		JSON.stringify({ steps: {} }, null, '\t'),
@@ -1780,7 +1844,237 @@ test('readRefFromGit: reads committed reference from HEAD, ignoring working-tree
 	assert.equal(
 		ratchetFindings.length,
 		1,
-		'Ratchet must fire from committed ref even when working-tree ref was emptied',
+		'Ratchet must fire from merge-base floor even when working-tree ref was emptied',
 	);
 	assert.match(ratchetFindings[0], /RATCHET\s+fixture\.yml::build::Step A/);
+});
+
+test('readRefFromGit-fs: 3-part committed attack IS CAUGHT by the merge-base floor', async () => {
+	// THE KEY PROOF: the attacker commits all three removal edits in ONE commit
+	// on a PR branch. With the r7 fix (read from HEAD), HEAD IS the attacker's
+	// commit — the committed floor agrees with the removal, and the guard
+	// stays green. With the r8 fix (read from merge-base), the floor is read
+	// from origin/develop's state, which still pins the step, so RATCHET fires.
+	//
+	// Steps:
+	//   1. base commit: workflow + manifest + reference all pin Step A and Step B
+	//   2. origin/develop -> base commit (the floor)
+	//   3. feature branch: commit the 3-part attack (remove Step B from workflow,
+	//      manifest, and pinned_step_ids all in one commit)
+	//   4. merge-base(origin/develop, HEAD) = base commit (still pins Step B)
+	//   5. guard fires RATCHET on Step B
+
+	const rootDir = await mkdtemp(
+		path.join(os.tmpdir(), 'publyapp-attack-3part-'),
+	);
+	await mkdir(path.join(rootDir, '.github/workflows'), { recursive: true });
+	await mkdir(path.join(rootDir, 'packages/scripts-ts/src'), {
+		recursive: true,
+	});
+
+	const execFile = (cmd: string, args: string[]) =>
+		new Promise<string>((resolve, reject) => {
+			const { execFile: nodeExec } = require('node:child_process');
+			nodeExec(
+				cmd,
+				args,
+				{ cwd: rootDir },
+				(error: Error | null, stdout: string) => {
+					if (error) reject(error);
+					else resolve(stdout);
+				},
+			);
+		});
+
+	await execFile('git', ['init', '-q']);
+	await execFile('git', ['config', 'user.email', 'test@test.test']);
+	await execFile('git', ['config', 'user.name', 'test']);
+	await execFile('git', ['remote', 'add', 'origin', rootDir]);
+
+	// --- Step 1: base commit with both steps pinned ---
+	const workflowBoth = workflow(
+		'      - name: Step A\n        run: echo a\n      - name: Step B\n        run: echo b\n',
+	);
+	await writeFile(
+		path.join(rootDir, '.github/workflows/fixture.yml'),
+		workflowBoth,
+	);
+
+	const reasonA = 'Mirrored locally by the fixture gate for testing purposes.';
+	const reasonB =
+		'Step B is also mirrored by the fixture gate for testing purposes here.';
+
+	// Compute hashes for both steps.
+	const tempRoot = await mkdtemp(path.join(os.tmpdir(), 'publyapp-tempsha-'));
+	await mkdir(path.join(tempRoot, '.github/workflows'), { recursive: true });
+	await mkdir(path.join(tempRoot, 'packages/scripts-ts/src'), {
+		recursive: true,
+	});
+	await writeFile(
+		path.join(tempRoot, '.github/workflows/fixture.yml'),
+		workflowBoth,
+	);
+	await writeFile(
+		path.join(tempRoot, 'packages/scripts-ts/src/ci-gate-manifest.json'),
+		JSON.stringify(
+			{
+				steps: {
+					'fixture.yml::build::Step A': {
+						hash: 'wrong',
+						mirror: 'just ci',
+						reason: reasonA,
+					},
+					'fixture.yml::build::Step B': {
+						hash: 'wrong',
+						mirror: 'just ci',
+						reason: reasonB,
+					},
+				},
+			},
+			null,
+			'\t',
+		),
+	);
+	const tempFindings = await findCiDrift({
+		rootDir: tempRoot,
+		reasonRef: { steps: {} },
+	});
+	const hashA = tempFindings
+		.find((f) => f.includes('fixture.yml::build::Step A'))!
+		.match(/workflow ([a-f0-9]+)/)![1];
+	const hashB = tempFindings
+		.find((f) => f.includes('fixture.yml::build::Step B'))!
+		.match(/workflow ([a-f0-9]+)/)![1];
+
+	// Write the manifest at base with correct hashes.
+	await writeFile(
+		path.join(rootDir, 'packages/scripts-ts/src/ci-gate-manifest.json'),
+		JSON.stringify(
+			{
+				steps: {
+					'fixture.yml::build::Step A': {
+						hash: hashA,
+						mirror: 'just ci',
+						reason: reasonA,
+					},
+					'fixture.yml::build::Step B': {
+						hash: hashB,
+						mirror: 'just ci',
+						reason: reasonB,
+					},
+				},
+			},
+			null,
+			'\t',
+		),
+	);
+
+	// Committed reference: pins BOTH Step A and Step B.
+	const baseRef = {
+		pinned_step_ids: [
+			'fixture.yml::build::Step A',
+			'fixture.yml::build::Step B',
+		],
+		steps: {
+			'fixture.yml::build::Step A': {
+				reason_hash: hashReason(reasonA),
+				reason_length: reasonA.length,
+			},
+			'fixture.yml::build::Step B': {
+				reason_hash: hashReason(reasonB),
+				reason_length: reasonB.length,
+			},
+		},
+	};
+	await writeFile(
+		path.join(rootDir, 'packages/scripts-ts/src/reason-guard-ref.json'),
+		JSON.stringify(baseRef, null, '\t'),
+	);
+
+	await execFile('git', ['add', '.']);
+	await execFile('git', ['commit', '-q', '-m', 'base: both steps pinned']);
+
+	// Set origin/develop to this base commit (the floor).
+	const baseSha = (await execFile('git', ['rev-parse', 'HEAD'])).trim();
+	await execFile('git', ['update-ref', 'refs/remotes/origin/develop', baseSha]);
+
+	// --- Step 3: the 3-part COMMITTED attack on a feature branch ---
+	await execFile('git', ['checkout', '-q', '-b', 'feature']);
+
+	// Attack part 1: remove Step B from the workflow
+	await writeFile(
+		path.join(rootDir, '.github/workflows/fixture.yml'),
+		workflow('      - name: Step A\n        run: echo a\n'),
+	);
+
+	// Attack part 2: remove Step B from the manifest
+	await writeFile(
+		path.join(rootDir, 'packages/scripts-ts/src/ci-gate-manifest.json'),
+		JSON.stringify(
+			{
+				steps: {
+					'fixture.yml::build::Step A': {
+						hash: hashA,
+						mirror: 'just ci',
+						reason: reasonA,
+					},
+				},
+			},
+			null,
+			'\t',
+		),
+	);
+
+	// Attack part 3: remove Step B from pinned_step_ids (committed, not just
+	// working-tree — this is what the r7 fix failed to catch)
+	await writeFile(
+		path.join(rootDir, 'packages/scripts-ts/src/reason-guard-ref.json'),
+		JSON.stringify(
+			{
+				pinned_step_ids: ['fixture.yml::build::Step A'],
+				steps: {
+					'fixture.yml::build::Step A': {
+						reason_hash: hashReason(reasonA),
+						reason_length: reasonA.length,
+					},
+				},
+			},
+			null,
+			'\t',
+		),
+	);
+
+	// Commit the attack.
+	await execFile('git', [
+		'-c',
+		'user.email=test@test.test',
+		'-c',
+		'user.name=test',
+		'add',
+		'.',
+	]);
+	await execFile('git', [
+		'-c',
+		'user.email=test@test.test',
+		'-c',
+		'user.name=test',
+		'commit',
+		'-q',
+		'-m',
+		'attack: remove Step B entirely',
+	]);
+
+	// Run the guard — it reads the floor from the merge-base (base commit),
+	// which still pins Step B. The ratchet must fire.
+	const findings = await findCiDrift({ rootDir });
+	const ratchetFindings = findings.filter((f) => f.startsWith('RATCHET'));
+
+	assert.equal(
+		ratchetFindings.length,
+		1,
+		'The 3-part committed attack must be caught by the merge-base floor',
+	);
+	assert.match(ratchetFindings[0], /RATCHET\s+fixture\.yml::build::Step B/);
+	assert.match(ratchetFindings[0], /silently erased/);
+	assert.match(ratchetFindings[0], /ci-gate-removals\.json/);
 });
