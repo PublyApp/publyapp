@@ -46,10 +46,12 @@ var api = WithPostgresConnectionString(
 	.WaitFor(publyDb);
 
 // Same binary, APP_ROLE=worker: job engine only, no HTTP server (design §3.2).
+// launchProfileName: null — the worker has no HTTP endpoints, so it must not bind
+// the API's port 5000 (DCP proxy fails with "address already in use" otherwise).
 // No WaitFor(api): the worker's WorkerMigrationStartupGate already retries until
 // pending migrations clear, which absorbs the boot-order race by design.
 WithPostgresConnectionString(
-		WithDevelopmentEnvironment(builder.AddProject<Projects.PublyApp_Api>("worker").WithEnvironment("APP_ROLE", "worker")),
+		WithDevelopmentEnvironment(builder.AddProject<Projects.PublyApp_Api>("worker", launchProfileName: null).WithEnvironment("APP_ROLE", "worker")),
 		publyDb
 	)
 	.WaitFor(publyDb);

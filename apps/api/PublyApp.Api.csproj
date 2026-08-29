@@ -74,8 +74,10 @@
 						  ReferenceOutputAssembly="false" />
 	</ItemGroup>
 
-	<!-- for exporting openapi documents to json file at build time -->
-	<PropertyGroup Condition="'$(Configuration)' != 'Test'">
+	<!-- for exporting openapi documents to json file at build time. Off by default —
+     the dotnet-getdocument step times out on a cold build (observed under Aspire
+     local orchestration). Opt in with /p:GENERATE_OPENAPI=true (just generate-client). -->
+	<PropertyGroup Condition="'$(GENERATE_OPENAPI)' == 'true'">
 		<OpenApiGenerateDocuments>true</OpenApiGenerateDocuments>
 		<OpenApiDocumentsDirectory>$(MSBuildProjectDirectory)</OpenApiDocumentsDirectory>
 		<OpenApiGeneratedProjectFile>$(MSBuildProjectDirectory)\PublyApp.Api.json</OpenApiGeneratedProjectFile>
@@ -83,6 +85,11 @@
 		<!-- Prevent duplicate assembly attributes when OpenAPI doc generation runs -->
 		<GenerateAssemblyInfo>false</GenerateAssemblyInfo>
 		<GenerateTargetFrameworkAttribute>false</GenerateTargetFrameworkAttribute>
+	</PropertyGroup>
+
+	<PropertyGroup Condition="'$(GENERATE_OPENAPI)' != 'true'">
+		<OpenApiGenerateDocuments>false</OpenApiGenerateDocuments>
+		<OpenApiGenerateDocumentsOnBuild>false</OpenApiGenerateDocumentsOnBuild>
 	</PropertyGroup>
 
 	<PropertyGroup Condition="'$(Configuration)' == 'Test'">
@@ -140,7 +147,7 @@
 
 	<Target Name="RenameOpenApiDocument"
 			AfterTargets="GenerateOpenApiDocuments"
-			Condition="'$(Configuration)' != 'Test' And Exists('$(OpenApiGeneratedProjectFile)')">
+			Condition="'$(GENERATE_OPENAPI)' == 'true' And Exists('$(OpenApiGeneratedProjectFile)')">
 		<Copy SourceFiles="$(OpenApiGeneratedProjectFile)"
 			  DestinationFiles="$(OpenApiJsonFile)"
 			  SkipUnchangedFiles="true" />
