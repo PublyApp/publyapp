@@ -1557,6 +1557,88 @@ test('flags non-confirmation centered overlay wording and DialogPopup usage', as
 	);
 });
 
+// #1844 paired red/green proof — test 1 (false positive): a forbidden
+// primitive cited inside a comment must NOT trigger a violation. Before
+// the fix, `mode: 'source'` rules ran their regex over raw source text
+// comments included, so a test explaining that a `data-testid` lands on
+// `DialogPrimitive.Popup` satisfied the pattern and tripped a false
+// positive that turned supply-chain red.
+test('#1844: a forbidden primitive cited inside a comment is not a violation (false positive proof)', async () => {
+	const root = await makeFixture({
+		'src/components/ui/dialog-popup-comment.tsx': [
+			'// spread onto DialogPrimitive.Popup) and assert the role is `dialog`.',
+			'// See: https://base-ui.com/components/dialog#popup',
+			'export const helper = true;',
+		].join('\n'),
+	});
+
+	const violations = await scanFront2DesignSystem({
+		baseDir: root,
+		sourceDir: path.join(root, 'src'),
+	});
+
+	assert.equal(
+		violations.some(
+			(violation) => violation.ruleId === 'no-dialog-popup-primitives',
+		),
+		false,
+		'a DialogPopup mention inside a comment must not be flagged as a violation',
+	);
+});
+
+// #1844 paired red/green proof — test 2 (false negative guard): a real
+// usage of a forbidden primitive on the same line as a URL containing
+// `//` must STILL be detected. A naive comment-stripping regex
+// (`//.*$`) would eat the URL and the real usage with it, hiding a
+// genuine violation. The AST-based approach must not mutate source text.
+test('#1844: a real DialogPopup usage on the same line as a URL containing // is still detected (false negative guard)', async () => {
+	const root = await makeFixture({
+		'src/components/ui/dialog-popup-with-url.tsx': [
+			'import { Dialog as DialogPrimitive } from \'@base-ui/react/dialog\';',
+			'// https://base-ui.com/components/dialog#popup',
+			'const popup = <DialogPrimitive.Popup className="x" />;',
+		].join('\n'),
+	});
+
+	const violations = await scanFront2DesignSystem({
+		baseDir: root,
+		sourceDir: path.join(root, 'src'),
+	});
+
+	assert.equal(
+		violations.some(
+			(violation) => violation.ruleId === 'no-dialog-popup-primitives',
+		),
+		true,
+		'a real DialogPrimitive.Popup usage must be detected even when a URL with // is present',
+	);
+});
+
+// #1844: a real usage inside a template literal containing /* */ must
+// still be detected — a naive `/\*[\s\S]*?\*\//` strip would eat the
+// template content and hide the violation.
+test('#1844: a real DialogPopup usage inside a template literal with /* */ is still detected', async () => {
+	const root = await makeFixture({
+		'src/components/ui/dialog-popup-template.tsx': [
+			'import { Dialog as DialogPrimitive } from \'@base-ui/react/dialog\';',
+			'const markup = `/* ${DialogPrimitive.Popup.toString()} */`;',
+		].join('\n'),
+	});
+
+	const violations = await scanFront2DesignSystem({
+		baseDir: root,
+		sourceDir: path.join(root, 'src'),
+	});
+
+	assert.equal(
+		violations.some(
+			(violation) => violation.ruleId === 'no-dialog-popup-primitives',
+		),
+		true,
+		'a real DialogPopup usage inside a template literal must be detected',
+	);
+});
+
 test('allows HeroUI imports and rules that should be exempt', async () => {
 	const root = await makeFixture({
 		'src/components/ui/confirm-dialog.tsx':

@@ -971,6 +971,88 @@ const isThemeInvariantToken = (name: string): boolean =>
 const stripCssComments = (text: string): string =>
 	text.replace(/\/\*[\s\S]*?\*\//g, '');
 
+// #1844: `mode: 'source'` rules run their patterns over the whole raw source
+// text, so a forbidden name cited inside a comment (e.g. a test explaining
+// that a `data-testid` lands on `DialogPrimitive.Popup`) satisfies the
+// pattern and trips a false positive. A naive regex strip (`//.*$`,
+// `/\/\*[\s\S]*?\*\//`) breaks on a string containing `//` (a URL), a template
+// literal containing `/* */`, or a regex literal — eating real code and
+// silently hiding a genuine violation. The TypeScript compiler (vendored
+// through ts-morph, already a dependency) parses the source once and
+// reports every comment range through its trivia API, so we can recognize
+// a match whose start falls inside a comment and skip it — without ever
+// mutating the source text. Every `mode: 'source'` rule shares this one
+// filter, so stripping comments here closes the hole everywhere at once.
+const scriptKindForPath = (relativePath: string): ts.ScriptKind =>
+	relativePath.endsWith('.tsx') ? ts.ScriptKind.TSX : ts.ScriptKind.TS;
+
+// Collects every comment range in a TS/TSX source file by walking the AST
+// and reading each node's leading and trailing trivia. Returns an array of
+// [start, end] pairs where `start` is the offset of the comment opener and
+// `end` is the offset just past the comment closer. Deduplicates because a
+// comment may be both trailing trivia of one node and leading trivia of
+// the next.
+const collectCommentRanges = (
+	source: string,
+	scriptKind: ts.ScriptKind,
+): Array<{ start: number; end: number }> => {
+	const sourceFile = ts.createSourceFile(
+		'temp.ts',
+		source,
+		ts.ScriptTarget.Latest,
+		true,
+		scriptKind,
+	);
+
+	const rangeSet = new Set<string>();
+	const ranges: Array<{ start: number; end: number }> = [];
+
+	const addRange = (pos: number, end: number): void => {
+		const key = `${pos}-${end}`;
+		if (!rangeSet.has(key)) {
+			rangeSet.add(key);
+			ranges.push({ start: pos, end });
+		}
+	};
+
+	const visit = (node: ts.Node): void => {
+		const leadingRanges = ts.getLeadingCommentRanges(source, node.pos);
+		if (leadingRanges) {
+			for (const range of leadingRanges) {
+				addRange(range.pos, range.end);
+			}
+		}
+
+		const trailingRanges = ts.getTrailingCommentRanges(source, node.end);
+		if (trailingRanges) {
+			for (const range of trailingRanges) {
+				addRange(range.pos, range.end);
+			}
+		}
+
+		ts.forEachChild(node, visit);
+	};
+
+	ts.forEachChild(sourceFile, visit);
+
+	return ranges;
+};
+
+// Returns true if the character at `index` falls inside any of the given
+// comment ranges — a match that starts in a comment is a prose citation, not
+// a real usage, and must be skipped.
+const isInsideComment = (
+	index: number,
+	commentRanges: Array<{ start: number; end: number }>,
+): boolean => {
+	for (const { start, end } of commentRanges) {
+		if (index >= start && index < end) {
+			return true;
+		}
+	}
+	return false;
+};
+
 // Parses `--publy-x: value;` pairs out of a block of CSS text, tolerating
 // multi-line values (e.g. a wrapped `box-shadow` declaration) since this
 // operates on the whole block instead of scanning line-by-line.
@@ -2276,6 +2358,13 @@ export const scanFront2DesignSystem = async ({
 
 	const violations: DesignViolation[] = [];
 	const fileContentsByRelativePath = new Map<string, string>();
+	// #1844: comment ranges keyed by relativePath, computed once per file
+	// and shared across every mode:'source' rule so a match that starts
+	// inside a comment is recognized as prose, not a real usage.
+	const commentRangesByRelativePath = new Map<
+		string,
+		Array<{ start: number; end: number }>
+	>();
 
 	for (const absolutePath of files) {
 		const relativePath = path
@@ -2358,6 +2447,20 @@ export const scanFront2DesignSystem = async ({
 			}
 
 			if (rule.mode === 'source') {
+				// #1844: compute comment ranges once per file, shared by
+				// every mode:'source' rule — a match that starts inside a
+				// comment is a prose citation, not a real usage.
+				const commentRanges =
+					commentRangesByRelativePath.get(relativePath) ??
+					(() => {
+						const ranges = collectCommentRanges(
+							source,
+							scriptKindForPath(relativePath),
+						);
+						commentRangesByRelativePath.set(relativePath, ranges);
+						return ranges;
+					})();
+
 				for (const pattern of rule.patterns) {
 					// Every mode-'source' rule in this file declares plain RegExp
 					// patterns; fail fast rather than widen the type if that ever
@@ -2373,6 +2476,12 @@ export const scanFront2DesignSystem = async ({
 					);
 					const matches = source.matchAll(globalPattern);
 					for (const match of matches) {
+						// #1844: skip matches that start inside a comment — a
+						// forbidden name cited in prose is not a real usage.
+						if (isInsideComment(match.index, commentRanges)) {
+							continue;
+						}
+
 						const line = source.slice(0, match.index).split('\n').length;
 						recordViolation(
 							violations,
