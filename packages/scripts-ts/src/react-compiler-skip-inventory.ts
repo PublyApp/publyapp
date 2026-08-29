@@ -105,4 +105,4 @@ export const parseSkipInventoryPaths = (contents: string): string[] => {
 	}
 
 	return paths;
-}
+};

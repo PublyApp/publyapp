@@ -253,7 +253,7 @@ const buildHarness = () => {
 	const addChildrenOf = (route: unknown) => {
 		return widenOptions<{ addChildren: (children: unknown[]) => void }>(route)
 			.addChildren;
-	}
+	};
 	const routeTree = addChildrenOf(rootRoute)([
 		addChildrenOf(layoutRoute)([editRoute, detailStubRoute]),
 	]);

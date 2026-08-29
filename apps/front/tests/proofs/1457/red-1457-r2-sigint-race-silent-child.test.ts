@@ -314,7 +314,7 @@ const extractR2FixtureLines = (): string[] => {
 		);
 	}
 	return lines;
-}
+};
 
 /**
  * Find the index of the handler-installation line in the extracted fixture.
@@ -346,7 +346,7 @@ const findHandlerLine = (lines: string[]): number => {
 		);
 	}
 	return index;
-}
+};
 
 /**
  * Find the index of the handshake-write line in the extracted fixture.
@@ -363,7 +363,7 @@ const findHandshakeLine = (lines: string[]): number => {
 		);
 	}
 	return index;
-}
+};
 
 /**
  * Check whether the handler line is a DIRECT `process.on(...)` call.
@@ -387,7 +387,7 @@ const findHandshakeLine = (lines: string[]): number => {
  */
 const isHandlerDeferred = (line: string): boolean => {
 	return !line.trim().startsWith('process.on(');
-}
+};
 
 describe('r2 fixture SIGINT race — RED: handler installed AFTER the handshake write (#1457)', () => {
 	test('the r2 fixture writes the handshake BEFORE installing the SIGINT handler, OR the handler is wrapped in an async deferral (the buggy ordering the fix corrected)', () => {

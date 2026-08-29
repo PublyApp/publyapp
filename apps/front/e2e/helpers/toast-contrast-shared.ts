@@ -51,7 +51,7 @@ export const __publyIsTransparentColor = (value: string): boolean => {
 		}
 	}
 	return false;
-}
+};
 
 export const __publyClassifyTextPaint = (
 	style: ClippedTextStyle,
@@ -86,7 +86,7 @@ export const __publyClassifyTextPaint = (
 		return 'transparent-fill';
 	}
 	return 'opaque';
-}
+};
 
 export const __publyAssertTextPaintIsMeasurable = (
 	style: ClippedTextStyle,
@@ -113,7 +113,7 @@ export const __publyAssertTextPaintIsMeasurable = (
 			`${label} has undecidable text paint: masked text (mask-image/mask) — the glyphs are masked and cannot be measured`,
 		);
 	}
-}
+};
 
 export const __publyDecodeScreenshot = async (
 	dataUrl: string,
@@ -137,7 +137,7 @@ export const __publyDecodeScreenshot = async (
 	}
 	ctx.drawImage(bitmap, 0, 0);
 	return ctx.getImageData(0, 0, canvas.width, canvas.height);
-}
+};
 
 // Derived browser snippets — single source, no hand-typed twin.
 // Each function is emitted as `const <name> = <arrow>;` so the snippet keeps its

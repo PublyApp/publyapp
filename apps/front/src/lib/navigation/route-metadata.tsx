@@ -334,7 +334,7 @@ export const getShellScope = (pathname: string): ShellScope | undefined => {
 	}
 
 	return undefined;
-}
+};
 
 export const getRailItems = (scope: ShellScope): AppRouteMetadata[] => {
 	if (scope === 'staff') {
@@ -378,7 +378,7 @@ export const filterRailItemsByPermissions = (
 			(item.visibility === 'permission-gated' &&
 				item.requiredPermissions.every((key) => allowedPermissions.has(key))),
 	);
-}
+};
 
 export const getRailItemsForPath = (
 	pathname: string,
@@ -396,7 +396,7 @@ export const getRailItemsForPath = (
 	}
 
 	return filterRailItemsByPermissions(items, allowed);
-}
+};
 
 const getActiveAppRoute = (pathname: string): AppRouteMetadata | undefined => {
 	const scope = getShellScope(pathname);
@@ -407,17 +407,19 @@ const getActiveAppRoute = (pathname: string): AppRouteMetadata | undefined => {
 	return getRailItems(scope)
 		.filter((route) => matchPath(pathname, route.matchPrefixes))
 		.sort((a, b) => b.path.length - a.path.length)[0];
-}
+};
 
 export const getActiveRailItem = (
 	pathname: string,
 ): AppRouteMetadata | undefined => {
 	return getActiveAppRoute(pathname);
-}
+};
 
-export const getSecondaryPanelItems = (pathname: string): SecondaryPanelItem[] => {
+export const getSecondaryPanelItems = (
+	pathname: string,
+): SecondaryPanelItem[] => {
 	return getActiveRailItem(pathname)?.secondaryItems ?? [];
-}
+};
 
 /**
  * A panel item is active when its pathname matches AND its declared search
@@ -439,7 +441,7 @@ export const isSecondaryPanelItemActive = (
 		typeof search.status === 'string' ? search.status : undefined;
 
 	return matchesPath && itemStatus === currentStatus;
-}
+};
 
 export const shouldShowSecondaryPanel = (
 	pathname: string,
@@ -453,4 +455,4 @@ export const shouldShowSecondaryPanel = (
 	const panelOpen = options?.sidebarOpen ?? true;
 
 	return panelOpen && viewportWidth >= 1024 && activeItems.length >= 2;
-}
+};

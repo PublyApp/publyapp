@@ -300,7 +300,7 @@ const buildAssignCompaniesBody = (
 			variables.tenantIds.map((tenantId) => createUntypedString(tenantId)),
 		),
 	}) as AssignTenantUserCompaniesForStaffBody;
-}
+};
 
 const linkGlobalTenantUserCompaniesMutationOptions = buildStaffMutationOptions<
 	ApiClient,

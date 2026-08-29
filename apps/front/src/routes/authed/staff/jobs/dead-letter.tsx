@@ -321,7 +321,7 @@ const useStaffDeadLetterDetailQuery = (deadLetterId: string | undefined) => {
 			}),
 		enabled: Boolean(deadLetterId),
 	});
-}
+};
 
 export const Route = createFileRoute('/_authed-layout/staff/jobs/dead-letter')({
 	staticData: {

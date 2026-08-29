@@ -283,7 +283,7 @@ const buildCursorResetKey = (
 		search.jobType ?? '',
 		search.tenantId ?? '',
 	].join('\u001f');
-}
+};
 
 export const Route = createFileRoute('/_authed-layout/staff/jobs/system-jobs')({
 	staticData: {

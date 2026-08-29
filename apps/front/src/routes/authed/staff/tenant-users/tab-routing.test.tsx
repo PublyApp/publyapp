@@ -216,7 +216,7 @@ const buildRouter = (initialUrl: string) => {
 	const addChildrenOf = (route: unknown) => {
 		return widenOptions<{ addChildren: (children: unknown[]) => void }>(route)
 			.addChildren;
-	}
+	};
 
 	const routeTree = addChildrenOf(rootRoute)([
 		notFoundRoute,
@@ -262,7 +262,7 @@ const renderAt = async (initialUrl: string) => {
 	const routerPathnameOf = (router: unknown): string => {
 		return (router as { state: { location: { pathname: string } } }).state
 			.location.pathname;
-	}
+	};
 
 	return Object.assign(harness, {
 		location: () => routerPathnameOf(harness.router),

@@ -28,4 +28,4 @@ export const useMediaQuery = (query: string): boolean => {
 	const getServerSnapshot = useCallback(() => true, []);
 
 	return useSyncExternalStore(subscribeToQuery, getSnapshot, getServerSnapshot);
-}
+};

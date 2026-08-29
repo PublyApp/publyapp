@@ -29,7 +29,7 @@ const readJsonFile = (filePath) => {
 	const content = fs.readFileSync(filePath, 'utf-8');
 
 	return JSON.parse(content);
-}
+};
 
 /** Extracts the complexity `max` from an oxlint complexity rule value. */
 // @ts-expect-error rung-0: add proper type in later rung
@@ -44,7 +44,7 @@ const extractComplexityMax = (rule) => {
 		return Number(rule[1].max);
 	}
 	return null;
-}
+};
 
 /**
  * Builds a Map of pattern → max from the .oxlintrc.json config.
@@ -71,7 +71,7 @@ const buildActualPatternMaxMap = (config) => {
 	}
 
 	return map;
-}
+};
 
 /**
  * Verifies that the complexity bounds in .oxlintrc.json match the reference
@@ -160,7 +160,7 @@ export const verifyComplexityBounds = (oxlintrcPath, referencePath_) => {
 	}
 
 	return errors;
-}
+};
 
 // Main entry point
 const main = () => {
@@ -206,7 +206,7 @@ const main = () => {
 		'PASSED: Complexity bounds in .oxlintrc.json match cyclomatic-bound-ref.json.',
 	);
 	process.exit(0);
-}
+};
 
 if (import.meta.url === pathToFileURL(process.argv[1]).href) {
 	main();

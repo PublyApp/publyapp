@@ -277,7 +277,7 @@ const tokenize = (source: string): Token[] => {
 	}
 
 	return tokens;
-}
+};
 
 /* ------------------------------------------------------------------ */
 /* Public types & API                                                  */
@@ -624,4 +624,4 @@ export const analyzeFile = (filePath: string): DescribeInfo[] => {
 	}
 
 	return results;
-}
+};

@@ -93,7 +93,7 @@ export const buildOrganizationColumns = (
 			),
 		},
 	];
-}
+};
 
 const ConfirmRemoveSingleOrganization = ({
 	userId,

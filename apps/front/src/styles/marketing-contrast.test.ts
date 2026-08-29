@@ -259,4 +259,4 @@ const shellHasRenderTimeSubtleTokens = (): boolean => {
 			/\btext-\(--publy-foreground-subtle\)/.test(tokenClass),
 		),
 	);
-}
+};

@@ -23,7 +23,7 @@ const fixture = (name: string, code: string): string => {
 	const filePath = path.join(dir, name);
 	fs.writeFileSync(filePath, code, 'utf8');
 	return filePath;
-}
+};
 
 describe('describe shape recognition', () => {
 	it('test.describe.serial missing @ticket → red', () => {

@@ -127,7 +127,7 @@ const run = (command, args, options = {}) => {
 			resolve({ code, signal, stdout, stderr }),
 		);
 	});
-}
+};
 
 const sharedEnv = (extra = {}) => {
 	const env = { ...process.env };
@@ -139,7 +139,7 @@ const sharedEnv = (extra = {}) => {
 		env[key] = value;
 	}
 	return env;
-}
+};
 
 // @ts-expect-error rung-0: add proper type in later rung
 const withTempDirectory = async (callback) => {
@@ -149,7 +149,7 @@ const withTempDirectory = async (callback) => {
 	} finally {
 		await rm(directory, { recursive: true, force: true });
 	}
-}
+};
 
 // @ts-expect-error rung-0: add proper type in later rung
 const runSharedGate = async (args, options = {}) => {
@@ -163,12 +163,12 @@ const runSharedGate = async (args, options = {}) => {
 		// @ts-expect-error rung-0: TS2339
 		env: sharedEnv(options.env),
 	});
-}
+};
 
 // @ts-expect-error rung-0: add proper type in later rung
 const fixtureCardMap = (directory) => {
 	return join(directory, 'card-map.json');
-}
+};
 
 // @ts-expect-error rung-0: add proper type in later rung
 const writeCardMap = async (directory, description, extra = {}) => {
@@ -195,14 +195,14 @@ const writeCardMap = async (directory, description, extra = {}) => {
 		),
 	);
 	return path;
-}
+};
 
 // @ts-expect-error rung-0: add proper type in later rung
 const mutateCardMap = async (path, mutate) => {
 	const cardMap = JSON.parse(await readFile(path, 'utf8'));
 	mutate(cardMap);
 	await writeFile(path, JSON.stringify(cardMap, null, 2));
-}
+};
 
 // @ts-expect-error rung-0: add proper type in later rung
 const adapterArgs = (cardMap, state = 'REVIEW_READY', mode = 'dry-run') => {
@@ -221,7 +221,7 @@ const adapterArgs = (cardMap, state = 'REVIEW_READY', mode = 'dry-run') => {
 		'--card-map',
 		cardMap,
 	];
-}
+};
 
 // @ts-expect-error rung-0: add proper type in later rung
 const assertLocalConfigContents = (config) => {
@@ -293,7 +293,7 @@ const assertLocalConfigContents = (config) => {
 				.sort((left, right) => left.localeCompare(right)),
 		),
 	);
-}
+};
 
 // @ts-expect-error rung-0: add proper type in later rung
 const assertAdapterClosureFields = (adapter) => {
@@ -301,7 +301,7 @@ const assertAdapterClosureFields = (adapter) => {
 		assert.match(adapter, new RegExp('\\| `' + field + '` \\|'));
 	}
 	assert.match(adapter, /\| `review_schema` \| `1`;/);
-}
+};
 
 const localBranchAndHead = async () => {
 	const branchResult = await run('git', ['branch', '--show-current']);
@@ -322,7 +322,7 @@ const localBranchAndHead = async () => {
 		// @ts-expect-error rung-0: TS18046
 		headOid: commitResult.stdout.trim(),
 	};
-}
+};
 
 test('project closure config validates and malformed config fails closed', async () => {
 	const config = JSON.parse(await readFile(configPath, 'utf8'));
