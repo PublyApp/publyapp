@@ -265,6 +265,46 @@ test('rejects an exemption that does not give a reviewable reason', async () => 
 	assert.match(findings[0], /needs a `reason` of at least 24 characters/);
 });
 
+// #1809 r11: the filler rejection must not be limited to a single repeated
+// character. Two-character cycles ("ab".repeat(12)) and repeated pairs
+// ("x ".repeat(12) + "x", a truncated final repetition) are equally
+// zero-information strings that clear a 24-char length bar, and the r8 commit
+// that claimed "reject repeated-char filler" was narrower than its claim. The
+// manifest-entry validator shares the widened check with the confession
+// reader; this test locks the manifest-entry side.
+test('rejects a reconciled step whose reason is a repeated-block filler', async () => {
+	const fillerReasons = [
+		'x'.repeat(24),
+		'ab'.repeat(12),
+		'x '.repeat(12) + 'x',
+	];
+
+	for (const fillerReason of fillerReasons) {
+		const rootDir = await buildFixture({
+			manifestSteps: {
+				'fixture.yml::build::Run tests': {
+					hash: reconciledHash,
+					mirror: 'just ci',
+					reason: fillerReason,
+				},
+			},
+			steps: mirroredStep,
+		});
+
+		const findings = await findCiDrift({
+			rootDir,
+			reasonRef: buildFixtureReasonRef(reason),
+		});
+
+		assert.equal(findings.length, 1);
+		assert.match(
+			findings[0],
+			/reason that is filler/,
+			`Expected the filler rejection for: ${fillerReason}`,
+		);
+	}
+});
+
 test('tracks uses: steps, so a new action cannot slip in uncounted', async () => {
 	const rootDir = await buildFixture({
 		manifestSteps: reconciled,

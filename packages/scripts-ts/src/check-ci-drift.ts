@@ -43,22 +43,47 @@ const removalsPath = 'packages/scripts-ts/src/ci-gate-removals.json';
 const minimumReasonLength = 24;
 
 /**
- * A reason is filler when it carries no information — a single repeated
- * character padded to clear the length bar (e.g. `"x".repeat(24)`). Such a
- * string is not a reviewable justification; it is a bypass of the quality
- * bar. We reject it regardless of length.
+ * A reason is filler when it carries no information — a repeated block padded
+ * to clear the length bar (a single repeated character like `"x".repeat(24)`,
+ * a two-character cycle like `"xy".repeat(12)`, or a repeated pair like
+ * `"x ".repeat(11) + "x"`). Such a string is not a reviewable justification;
+ * it is a bypass of the quality bar. We reject it regardless of length. A
+ * truncated final repetition still counts ("x x" is "x " twice), but any
+ * deviation from the repeated block means the text is not filler.
  */
 const isFiller = (text: string): boolean => {
 	if (text.length === 0) {
 		return false;
 	}
+	// Fast path, and the smallest period: one repeated character.
 	const first = text[0];
+	let allSameChar = true;
 	for (let i = 1; i < text.length; i++) {
 		if (text[i] !== first) {
-			return false;
+			allSameChar = false;
+			break;
 		}
 	}
-	return true;
+	if (allSameChar) {
+		return true;
+	}
+	// Wider net: an exact repetition of a short block (two-character cycles,
+	// repeated pairs). The final repetition may be truncated. Anything longer
+	// than half the string cannot repeat, so periods stop there.
+	for (let period = 2; period <= Math.floor(text.length / 2); period++) {
+		const block = text.slice(0, period);
+		let isRepetition = true;
+		for (let i = period; i < text.length; i++) {
+			if (text[i] !== block[i % period]) {
+				isRepetition = false;
+				break;
+			}
+		}
+		if (isRepetition) {
+			return true;
+		}
+	}
+	return false;
 };
 
 const toPosixPath = (value: string) => value.split(path.sep).join('/');
@@ -322,7 +347,7 @@ const readRemovalsConfession = async (
 
 		if (isFiller(reason.trim())) {
 			throw new Error(
-				`Confession file ${removalsPath}: entry "${stepId}" has a reason that is filler (a single repeated character). A valid confession must be a reviewable justification naming what was lost and why — filler is not a reason.`,
+				`Confession file ${removalsPath}: entry "${stepId}" has a reason that is filler (a repeated block — a single repeated character, a two-character cycle, or a repeated pair). A valid confession must be a reviewable justification naming what was lost and why — filler is not a reason.`,
 			);
 		}
 
@@ -593,7 +618,7 @@ const getEntryValidationProblem = (
 	}
 
 	if (isFiller(record.reason.trim())) {
-		return `${manifestPath}: entry "${id}" has a reason that is filler (a single repeated character). A reviewable reason must name what the mirror covers or why the step cannot run locally — filler is not a reason.`;
+		return `${manifestPath}: entry "${id}" has a reason that is filler (a repeated block — a single repeated character, a two-character cycle, or a repeated pair). A reviewable reason must name what the mirror covers or why the step cannot run locally — filler is not a reason.`;
 	}
 
 	return null;

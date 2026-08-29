@@ -531,60 +531,102 @@ test('reads the REAL reason-guard-ref.json from disk and verifies integrity', as
 	}
 });
 
-// BYPASS: a 24-char filler confession ("x".repeat(24)) clears the bar length
-// check and lets a contributor lower the ratchet floor with garbage. The
-// quality bar must reject repeated-character filler regardless of length.
-test('confession quality bar: 24-char filler (repeated single char) is rejected', async () => {
-	const rootDir = await buildRepo({
-		manifestSteps: {
-			'fixture.yml::build::Step A': {
-				hash: 'abc123',
-				mirror: 'just ci',
-				reason: 'Step A reason text.',
-			},
-		},
-		reference: {
-			pinned_step_ids: [
-				'fixture.yml::build::Step A',
-				'fixture.yml::build::Step B',
-			],
-			steps: {
-				'fixture.yml::build::Step A': {
-					reason_hash: 'hash',
-					reason_length: 10,
-				},
-				'fixture.yml::build::Step B': {
-					reason_hash: 'hash2',
-					reason_length: 10,
-				},
-			},
-		},
-		removals: {
-			steps: [
-				{
-					step_id: 'fixture.yml::build::Step B',
-					reason: 'x'.repeat(24),
-				},
-			],
-		},
-	});
+// #1809 r11 finding 2: the reference file's $comment used to claim generation
+// "falls back to HEAD (still committed) when the merge-base is unavailable",
+// the exact opposite of the code (readFloorFromGit REFUSES to run and exits
+// non-zero without touching the file). The comment was wrong because the
+// generator source that writes it was regenerated from a stale copy. This test
+// reads the REAL committed reference and pins the truth, so a regeneration
+// that reintroduces the false claim goes red.
+test('reads the REAL reason-guard-ref.json $comment and verifies it does not claim a HEAD fallback', async () => {
+	const realRefPath = path.join(repoRoot, outputPath);
+	const raw = await readFile(realRefPath, 'utf8');
+	const ref = JSON.parse(raw) as { $comment?: string[] };
 
-	const result = await runScript(rootDir);
+	const comment = (ref.$comment ?? []).join('\n');
 
-	// The script must refuse — filler is not a reviewable reason.
-	assert.notEqual(
-		result.exitCode,
-		0,
-		'Expected non-zero exit for filler confession',
+	assert.equal(
+		/Generation falls? back to HEAD/i.test(comment),
+		false,
+		'$comment must not claim generation falls back to HEAD when the merge-base is unavailable — the generator refuses to run (exits non-zero without touching the file)',
 	);
 	assert.equal(
-		result.stderr.includes('filler') ||
-			result.stdout.includes('filler') ||
-			result.stderr.includes('reviewable') ||
-			result.stdout.includes('reviewable'),
+		comment.includes('exits non-zero without'),
 		true,
-		'Expected rejection naming the filler/reviewable bar',
+		'$comment must state that generation refuses to run when the merge-base is unavailable',
 	);
+});
+
+// BYPASS: a 24-char filler confession ("x".repeat(24)) clears the bar length
+// check and lets a contributor lower the ratchet floor with garbage. The
+// quality bar must reject filler regardless of length — and (r11) not just
+// a single repeated character: two-character cycles ("ab".repeat(12)),
+// repeated pairs ("x " with a truncated tail), and longer cycles are all
+// zero-information strings that clear a length bar. A reason that is an
+// exact repetition of a short block is a bypass in every one of those cases.
+test('confession quality bar: repeated-block filler is rejected', async () => {
+	const fillerCases = [
+		{ label: 'repeated single character', reason: 'x'.repeat(24) },
+		{ label: 'two-character cycle', reason: 'ab'.repeat(12) },
+		{
+			label: 'repeated pair with truncated tail',
+			reason: 'x '.repeat(12) + 'x',
+		},
+		{ label: 'three-character cycle', reason: 'abc'.repeat(8) },
+	];
+
+	for (const { label, reason: fillerReason } of fillerCases) {
+		const rootDir = await buildRepo({
+			manifestSteps: {
+				'fixture.yml::build::Step A': {
+					hash: 'abc123',
+					mirror: 'just ci',
+					reason: 'Step A reason text.',
+				},
+			},
+			reference: {
+				pinned_step_ids: [
+					'fixture.yml::build::Step A',
+					'fixture.yml::build::Step B',
+				],
+				steps: {
+					'fixture.yml::build::Step A': {
+						reason_hash: 'hash',
+						reason_length: 10,
+					},
+					'fixture.yml::build::Step B': {
+						reason_hash: 'hash2',
+						reason_length: 10,
+					},
+				},
+			},
+			removals: {
+				steps: [
+					{
+						step_id: 'fixture.yml::build::Step B',
+						reason: fillerReason,
+					},
+				],
+			},
+		});
+
+		const result = await runScript(rootDir);
+
+		// The script must refuse — filler is not a reviewable reason.
+		assert.notEqual(
+			result.exitCode,
+			0,
+			`Expected non-zero exit for filler confession: ${label}`,
+		);
+		assert.equal(
+			result.stderr.includes('filler') ||
+				result.stdout.includes('filler') ||
+				result.stderr.includes('reviewable') ||
+				result.stdout.includes('reviewable'),
+			true,
+			`Expected rejection naming the filler/reviewable bar: ${label}`,
+		);
+	}
 });
 test('bypass 5: deleting the reference file does NOT silently reset the floor', async () => {
 	const rootDir = await buildRepo({

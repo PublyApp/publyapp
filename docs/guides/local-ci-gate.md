@@ -250,10 +250,12 @@ The confession file is the **only** way to lower the floor. Without it,
 regeneration succeeds and the guard turns green — the removal is deliberate,
 documented, and reviewable.
 
-The guard does not judge the quality of the confession's reason — that is a
-human review concern. The guard only verifies that the vanished step is
-**named**, so silent erasure is impossible but legitimate removal stays
-possible.
+The guard verifies the confession is reviewable — the reason must be at least
+24 characters and must not be filler (a repeated block like `"x".repeat(24)` or
+`"ab".repeat(12)`), in both `gen-reason-ref.ts` and `check-ci-drift.ts`. Beyond
+that it does not judge the quality of the argument — that is a human review
+concern. The guard verifies that the vanished step is **named**, so silent
+erasure is impossible but legitimate removal stays possible.
 
 Recorded here rather than hidden, so they can be judged:
 
