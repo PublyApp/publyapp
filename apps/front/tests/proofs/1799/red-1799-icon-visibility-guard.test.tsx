@@ -198,23 +198,25 @@ describe('Icon visibility guard (#1799) — kept red proof', () => {
 		// No mutation, no reader: the helper's default reader is
 		// `window.getComputedStyle`, which returns `''` for every property
 		// in jsdom — and the helper MUST treat the icon as visible.
-		expect(() => assertIconIsVisible(icon, 'proof-1799 baseline')).not.toThrow();
+		expect(() =>
+			assertIconIsVisible(icon, 'proof-1799 baseline'),
+		).not.toThrow();
 	});
 
 	test('invisible (Tailwind → visibility:hidden) is caught', () => {
 		const icon = renderAllSelected();
 		icon.classList.add('invisible');
-		expect(() => assertIconIsVisible(icon, 'proof-1799 invisible', reader)).toThrow(
-			/visibility:hidden|invisible/,
-		);
+		expect(() =>
+			assertIconIsVisible(icon, 'proof-1799 invisible', reader),
+		).toThrow(/visibility:hidden|invisible/);
 	});
 
 	test('hidden (Tailwind → display:none) is caught', () => {
 		const icon = renderAllSelected();
 		icon.classList.add('hidden');
-		expect(() => assertIconIsVisible(icon, 'proof-1799 hidden', reader)).toThrow(
-			/display:none|hidden/,
-		);
+		expect(() =>
+			assertIconIsVisible(icon, 'proof-1799 hidden', reader),
+		).toThrow(/display:none|hidden/);
 	});
 
 	test('opacity-0 (Tailwind → opacity:0) is caught — the bug the old enumeration missed', () => {
@@ -222,16 +224,16 @@ describe('Icon visibility guard (#1799) — kept red proof', () => {
 		icon.classList.add('opacity-0');
 		// The fixed reader returns opacity:0 for an `opacity-0` element.
 		// The guard MUST raise; the old classList enumeration would not.
-		expect(() => assertIconIsVisible(icon, 'proof-1799 opacity-0', reader)).toThrow(
-			/opacity:0/,
-		);
+		expect(() =>
+			assertIconIsVisible(icon, 'proof-1799 opacity-0', reader),
+		).toThrow(/opacity:0/);
 	});
 
 	test('aria-hidden="true" on the icon is caught — the bug the old enumeration missed', () => {
 		const icon = renderAllSelected();
 		icon.setAttribute('aria-hidden', 'true');
-		expect(() => assertIconIsVisible(icon, 'proof-1799 aria-hidden', reader)).toThrow(
-			/aria-hidden/,
-		);
+		expect(() =>
+			assertIconIsVisible(icon, 'proof-1799 aria-hidden', reader),
+		).toThrow(/aria-hidden/);
 	});
 });

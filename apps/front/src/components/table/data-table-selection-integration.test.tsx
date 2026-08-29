@@ -5,11 +5,9 @@ import { cleanup, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import type { TestLabelMap } from '~/lib/testing/test-label-map';
 
-import {
-	assertIconIsVisible,
-} from './data-table-icon-visibility-guard';
 import type { ColumnDef } from './column-type';
 import { DataTable } from './data-table';
+import { assertIconIsVisible } from './data-table-icon-visibility-guard';
 import type { SortState } from './sort-descriptor';
 import type {
 	RowSelectionMap,
