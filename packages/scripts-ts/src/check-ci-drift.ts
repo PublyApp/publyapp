@@ -494,17 +494,30 @@ export const findCiDrift = async ({
 	const { problems, steps } = await collectWorkflowSteps(rootDir);
 	const findings = [...problems];
 
-	const manifestRaw = await readFile(path.join(rootDir, manifestPath), 'utf8');
-
-	// Validate the manifest JSON BEFORE scanning for duplicate keys. The
-	// duplicate-key guard reads raw text at the brace/quote level and can stay
-	// silent on malformed input (e.g. a key spanning multiple lines with a
-	// literal newline). Failing loud here prevents a false sense of security:
-	// an invalid document that parses nowhere must not report "no duplicates"
-	// while the real problem is the unparseable document itself.
-	let manifest: { steps?: Record<string, unknown> };
+	let manifestRaw: string;
 	try {
-		manifest = JSON.parse(manifestRaw) as { steps?: Record<string, unknown> };
+		manifestRaw = await readFile(path.join(rootDir, manifestPath), 'utf8');
+	} catch (error) {
+		const code = (error as NodeJS.ErrnoException).code;
+		if (code === 'ENOENT') {
+			findings.push(
+				`${manifestPath}: manifest file not found at ${path.join(rootDir, manifestPath)}. The drift guard requires this manifest to verify CI step reconciliation. Create the manifest (see docs/guides/local-ci-gate.md) or ensure the file path is correct.`,
+			);
+		} else if (code === 'EACCES') {
+			findings.push(
+				`${manifestPath}: manifest file is not readable at ${path.join(rootDir, manifestPath)}. Check file permissions so the drift guard can read the manifest.`,
+			);
+		} else {
+			findings.push(
+				`${manifestPath}: could not read manifest file at ${path.join(rootDir, manifestPath)} — ${error instanceof Error ? error.message : String(error)}. Fix the file access issue and re-run.`,
+			);
+		}
+		return findings;
+	}
+
+	let parsed: unknown;
+	try {
+		parsed = JSON.parse(manifestRaw);
 	} catch (error) {
 		findings.push(
 			`${manifestPath}: invalid JSON — ${formatJsonError(
@@ -514,11 +527,30 @@ export const findCiDrift = async ({
 		return findings;
 	}
 
+	if (parsed === null) {
+		findings.push(
+			`${manifestPath}: manifest is JSON null. The drift guard expects an object with a \`steps\` key. Replace null with a valid manifest object containing the reconciled CI steps.`,
+		);
+		return findings;
+	}
+
+	if (typeof parsed !== 'object' || Array.isArray(parsed)) {
+		findings.push(
+			`${manifestPath}: manifest is a ${
+				Array.isArray(parsed) ? 'JSON array' : typeof parsed
+			}, not an object. The drift guard expects a JSON object with a \`steps\` key. Replace the value with a valid manifest object containing the reconciled CI steps.`,
+		);
+		return findings;
+	}
+
+	const manifest = parsed as { steps?: Record<string, unknown> };
+
 	// Detect duplicate keys BEFORE using the parsed result — JSON.parse silently
 	// keeps the last occurrence, which would mask a reconciled step as missing.
 	// This guard reads the raw text at the brace/quote level and names each
-	// duplicate with its line numbers. Only reached when the document is valid
-	// JSON (see the try/catch above), so a "no duplicates" finding is meaningful.
+	// duplicate with its line numbers. Only reached when the document is a valid
+	// object (see the parse + shape checks above), so a "no duplicates" finding
+	// is meaningful.
 	findings.push(...findDuplicateKeys(manifestRaw));
 
 	const entries = manifest.steps ?? {};

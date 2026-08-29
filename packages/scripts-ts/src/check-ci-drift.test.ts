@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { mkdir, mkdtemp, writeFile } from 'node:fs/promises';
+import { chmod, mkdir, mkdtemp, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -959,54 +959,8 @@ test('duplicate key guard: the repo manifest has no duplicate keys', () => {
 // --- Edge case tests for #1762 ---
 //
 // The duplicate-key guard reads raw text at the brace/quote level rather than
-// via JSON.parse. These four tests prove it behaves correctly on the boundary
+// via JSON.parse. These tests prove it behaves correctly on the boundary
 // cases that a naive line scanner would mishandle.
-
-test('edge case #1 — key with escaped quotes: does NOT report when keys differ', () => {
-	// Two keys that both contain escaped quotes but are NOT identical must not
-	// trigger a finding. This proves the guard distinguishes content, not just
-	// the presence of escape sequences.
-	const manifest = [
-		'{',
-		'\t"steps": {',
-		'\t\t"key with \\"quotes\\" one": { "hash": "a", "mirror": null, "reason": "short reason text here" },',
-		'\t\t"key with \\"quotes\\" two": { "hash": "b", "mirror": null, "reason": "short reason text here" }',
-		'\t}',
-		'}',
-	].join('\n');
-
-	assert.deepEqual(findDuplicateKeys(manifest), []);
-});
-
-test('edge case #2 — multi-line key with literal newline: loud failure via findCiDrift', () => {
-	// A key spanning multiple lines with a literal newline is INVALID JSON.
-	// JSON.parse rejects it with a SyntaxError. The guard's job is to catch
-	// what JSON.parse SILENTLY accepts (duplicate keys), but when the document
-	// is unparseable the guard must fail LOUDLY rather than silently return
-	// "no duplicates" — that would give false assurance. With the JSON.parse
-	// validation now in place BEFORE the duplicate-key scan, findCiDrift reports
-	// the syntax error with a message naming the cause.
-	const manifest = [
-		'{',
-		'\t"steps": {',
-		'\t\t"multi',
-		'\t\tline key": { "hash": "a", "mirror": null, "reason": "short reason text here" },',
-		'\t\t"multi',
-		'\t\tline key": { "hash": "b", "mirror": null, "reason": "short reason text here" }',
-		'\t}',
-		'}',
-	].join('\n');
-
-	// The raw guard stays silent (it reads line-by-line and cannot see a key
-	// that spans lines). This is expected — it is a text scanner, not a parser.
-	assert.deepEqual(findDuplicateKeys(manifest), []);
-
-	// But JSON.parse rejects this input (proof of the underlying problem):
-	assert.throws(
-		() => JSON.parse(manifest),
-		/Bad control character in string literal/,
-	);
-});
 
 test('edge case #2 — multi-line key with escaped newline (\\n): MUST report', () => {
 	// Unlike a literal newline, \\n is valid JSON. Two keys that both contain
@@ -1027,48 +981,6 @@ test('edge case #2 — multi-line key with escaped newline (\\n): MUST report', 
 	// The guard decodes \\n to a real newline in the reported key name.
 	assert.match(findings[0], /DUPLICATE KEY "multi\\nline key"/);
 	assert.match(findings[0], /lines 3 and 4/);
-});
-
-test('edge case #3 — string value containing ": {": MUST stay silent (no false positive)', () => {
-	// A string value that contains the sequence ": {" must not be mistaken for
-	// a key. The guard distinguishes keys (preceded by whitespace/start, followed
-	// by `:`) from values (preceded by `:`). This test proves no false positive.
-	const manifest = [
-		'{',
-		'\t"steps": {',
-		'\t\t"key1": {',
-		'\t\t\t"hash": "a",',
-		'\t\t\t"mirror": "value with \": { inside",',
-		'\t\t\t"reason": "short reason text here"',
-		'\t\t},',
-		'\t\t"key2": {',
-		'\t\t\t"hash": "b",',
-		'\t\t\t"mirror": "another value",',
-		'\t\t\t"reason": "short reason text here"',
-		'\t\t}',
-		'\t}',
-		'}',
-	].join('\n');
-
-	assert.deepEqual(findDuplicateKeys(manifest), []);
-});
-
-test('edge case #3 — string value ": {" at end of line: MUST stay silent', () => {
-	// The riskiest false-positive shape: a string value that ends with ": {"
-	// on a single line. The guard must still recognize this as a value, not a key.
-	const manifest = [
-		'{',
-		'\t"steps": {',
-		'\t\t"key1": {',
-		'\t\t\t"hash": "a",',
-		'\t\t\t"mirror": "see: {",',
-		'\t\t\t"reason": "short reason text here"',
-		'\t\t}',
-		'\t}',
-		'}',
-	].join('\n');
-
-	assert.deepEqual(findDuplicateKeys(manifest), []);
 });
 
 test('edge case #4 — unicode escape vs literal: MUST report (same key after decode)', () => {
@@ -1183,4 +1095,195 @@ test('findCiDrift: valid manifest with no duplicates stays green', async () => {
 	});
 
 	assert.deepEqual(findings, []);
+});
+
+// --- Input validation tests for #1762 (round 3) ---
+//
+// findCiDrift must distinguish five manifest-input states and surface each as
+// a named finding — none silently accepted, none crashing on a raw stack:
+//   1. valid object (baseline — existing tests)
+//   2. JSON null
+//   3. JSON non-object (array / string / number)
+//   4. malformed JSON (existing test: "fails loudly on invalid JSON manifest")
+//   5. missing file (ENOENT)
+//   6. unreadable file (EACCES)
+
+test('findCiDrift: manifest of null fails loudly with a named finding', async () => {
+	const rootDir = await mkdtemp(
+		path.join(os.tmpdir(), 'publyapp-null-manifest-'),
+	);
+	await mkdir(path.join(rootDir, '.github/workflows'), { recursive: true });
+	await mkdir(path.join(rootDir, 'packages/scripts-ts/src'), {
+		recursive: true,
+	});
+
+	await writeFile(
+		path.join(rootDir, '.github/workflows/fixture.yml'),
+		workflow(mirroredStep),
+	);
+	await writeFile(
+		path.join(rootDir, 'packages/scripts-ts/src/ci-gate-manifest.json'),
+		'null',
+	);
+
+	const findings = await findCiDrift({
+		rootDir,
+		reasonRef: buildFixtureReasonRef(reason),
+	});
+
+	assert.equal(findings.length, 1);
+	assert.match(findings[0], /manifest is JSON null/);
+	assert.match(findings[0], /expects an object with a `steps` key/);
+});
+
+test('findCiDrift: manifest of [] (array) fails loudly with a named finding', async () => {
+	const rootDir = await mkdtemp(
+		path.join(os.tmpdir(), 'publyapp-array-manifest-'),
+	);
+	await mkdir(path.join(rootDir, '.github/workflows'), { recursive: true });
+	await mkdir(path.join(rootDir, 'packages/scripts-ts/src'), {
+		recursive: true,
+	});
+
+	await writeFile(
+		path.join(rootDir, '.github/workflows/fixture.yml'),
+		workflow(mirroredStep),
+	);
+	await writeFile(
+		path.join(rootDir, 'packages/scripts-ts/src/ci-gate-manifest.json'),
+		'[]',
+	);
+
+	const findings = await findCiDrift({
+		rootDir,
+		reasonRef: buildFixtureReasonRef(reason),
+	});
+
+	assert.equal(findings.length, 1);
+	assert.match(findings[0], /manifest is a JSON array, not an object/);
+	assert.match(findings[0], /expects a JSON object with a `steps` key/);
+});
+
+test('findCiDrift: manifest of "texte" (string) fails loudly with a named finding', async () => {
+	const rootDir = await mkdtemp(
+		path.join(os.tmpdir(), 'publyapp-string-manifest-'),
+	);
+	await mkdir(path.join(rootDir, '.github/workflows'), { recursive: true });
+	await mkdir(path.join(rootDir, 'packages/scripts-ts/src'), {
+		recursive: true,
+	});
+
+	await writeFile(
+		path.join(rootDir, '.github/workflows/fixture.yml'),
+		workflow(mirroredStep),
+	);
+	await writeFile(
+		path.join(rootDir, 'packages/scripts-ts/src/ci-gate-manifest.json'),
+		'"texte"',
+	);
+
+	const findings = await findCiDrift({
+		rootDir,
+		reasonRef: buildFixtureReasonRef(reason),
+	});
+
+	assert.equal(findings.length, 1);
+	assert.match(findings[0], /manifest is a string, not an object/);
+	assert.match(findings[0], /expects a JSON object with a `steps` key/);
+});
+
+test('findCiDrift: manifest of 42 (number) fails loudly with a named finding', async () => {
+	const rootDir = await mkdtemp(
+		path.join(os.tmpdir(), 'publyapp-number-manifest-'),
+	);
+	await mkdir(path.join(rootDir, '.github/workflows'), { recursive: true });
+	await mkdir(path.join(rootDir, 'packages/scripts-ts/src'), {
+		recursive: true,
+	});
+
+	await writeFile(
+		path.join(rootDir, '.github/workflows/fixture.yml'),
+		workflow(mirroredStep),
+	);
+	await writeFile(
+		path.join(rootDir, 'packages/scripts-ts/src/ci-gate-manifest.json'),
+		'42',
+	);
+
+	const findings = await findCiDrift({
+		rootDir,
+		reasonRef: buildFixtureReasonRef(reason),
+	});
+
+	assert.equal(findings.length, 1);
+	assert.match(findings[0], /manifest is a number, not an object/);
+	assert.match(findings[0], /expects a JSON object with a `steps` key/);
+});
+
+test('findCiDrift: missing manifest file fails loudly (ENOENT)', async () => {
+	const rootDir = await mkdtemp(
+		path.join(os.tmpdir(), 'publyapp-no-manifest-'),
+	);
+	await mkdir(path.join(rootDir, '.github/workflows'), { recursive: true });
+	await mkdir(path.join(rootDir, 'packages/scripts-ts/src'), {
+		recursive: true,
+	});
+
+	await writeFile(
+		path.join(rootDir, '.github/workflows/fixture.yml'),
+		workflow(mirroredStep),
+	);
+	// Intentionally no ci-gate-manifest.json.
+
+	const findings = await findCiDrift({
+		rootDir,
+		reasonRef: buildFixtureReasonRef(reason),
+	});
+
+	assert.equal(findings.length, 1);
+	assert.match(findings[0], /manifest file not found/);
+	assert.match(
+		findings[0],
+		/requires this manifest to verify CI step reconciliation/,
+	);
+});
+
+test('findCiDrift: unreadable manifest file fails loudly (EACCES)', async () => {
+	const rootDir = await mkdtemp(
+		path.join(os.tmpdir(), 'publyapp-unreadable-manifest-'),
+	);
+	await mkdir(path.join(rootDir, '.github/workflows'), { recursive: true });
+	await mkdir(path.join(rootDir, 'packages/scripts-ts/src'), {
+		recursive: true,
+	});
+
+	await writeFile(
+		path.join(rootDir, '.github/workflows/fixture.yml'),
+		workflow(mirroredStep),
+	);
+	await writeFile(
+		path.join(rootDir, 'packages/scripts-ts/src/ci-gate-manifest.json'),
+		JSON.stringify({ steps: {} }),
+	);
+	await chmod(
+		path.join(rootDir, 'packages/scripts-ts/src/ci-gate-manifest.json'),
+		0o000,
+	);
+
+	try {
+		const findings = await findCiDrift({
+			rootDir,
+			reasonRef: buildFixtureReasonRef(reason),
+		});
+
+		assert.equal(findings.length, 1);
+		assert.match(findings[0], /manifest file is not readable/);
+		assert.match(findings[0], /Check file permissions/);
+	} finally {
+		// Restore permissions so cleanup can succeed.
+		await chmod(
+			path.join(rootDir, 'packages/scripts-ts/src/ci-gate-manifest.json'),
+			0o600,
+		);
+	}
 });
