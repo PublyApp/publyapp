@@ -9,19 +9,34 @@
  * This test renders the actual drawer component and verifies the cause text
  * matches what the column would show for the same row.
  */
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, render, screen, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import type { JSX, ReactNode } from 'react';
 import { createElement } from 'react';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import type { StaffDeadLetterRow } from '~/lib/query/staff-jobs';
 import type { TestLabelMap } from '~/lib/testing/test-label-map';
 
+/** Pilote la vraie couture (`useQuery`) en plus du mock de module, qui est inerte
+ * pour le hook local. Sans cela un test « le tiroir montre la cause du detail »
+ * passerait a tort en lisant la cause de la ligne. */
+const NO_DETAIL = { data: null, isPending: false, isError: false } as const;
+
 const mocks = vi.hoisted(() => ({
 	navigate: vi.fn(),
 	useStaffDeadLettersQuery: vi.fn(),
 	useStaffDeadLetterDetailQuery: vi.fn(),
+	// `useStaffDeadLetterDetailQuery` est defini LOCALEMENT dans dead-letter.tsx :
+	// le mock de module ci-dessus ne l'atteint pas. La seule couture reelle est le
+	// `useQuery` qu'il enveloppe, et c'est le seul appel a useQuery du fichier.
+	useQuery: vi.fn(),
 	shouldLogoutForFailure: vi.fn<(error: unknown) => boolean>(() => false),
 }));
+
+const setDetailQuery = (value: Record<string, unknown>): void => {
+	mocks.useStaffDeadLetterDetailQuery.mockReturnValue(value);
+	mocks.useQuery.mockReturnValue({ isError: false, ...value });
+};
 
 vi.mock('@tanstack/react-query', async (importOriginal) => {
 	const actual = await importOriginal<typeof import('@tanstack/react-query')>();
@@ -30,11 +45,7 @@ vi.mock('@tanstack/react-query', async (importOriginal) => {
 		useQueryClient: () => ({
 			invalidateQueries: vi.fn(),
 		}),
-		useQuery: () => ({
-			data: null,
-			isPending: false,
-			isError: false,
-		}),
+		useQuery: (...args: unknown[]) => mocks.useQuery(...args),
 	};
 });
 
@@ -169,10 +180,19 @@ vi.mock('~/components/ui/dropdown-menu', () => {
 			React.createElement('div', { 'data-testid': 'dropdown-menu' }, children),
 		DropdownMenuPortal: ({ children }: { children: React.ReactNode }) =>
 			React.createElement('div', {}, children),
-		DropdownMenuTrigger: ({ children }: { children: React.ReactNode }) =>
+		DropdownMenuTrigger: ({
+			children,
+			'aria-label': ariaLabel,
+		}: {
+			children: React.ReactNode;
+			'aria-label'?: string;
+		}) =>
 			React.createElement(
 				'button',
-				{ 'data-testid': 'dropdown-trigger' },
+				{
+					'data-testid': 'dropdown-trigger',
+					'aria-label': ariaLabel,
+				},
 				children,
 			),
 		DropdownMenuContent: ({ children }: { children: React.ReactNode }) =>
@@ -221,6 +241,41 @@ vi.mock('~/components/ui/dropdown-menu', () => {
 	};
 });
 
+// Mock the drawer to render inline (no portal)
+vi.mock('~/components/ui/drawer', () => {
+	const React = require('react');
+	return {
+		Drawer: ({
+			children,
+			open,
+		}: {
+			children: React.ReactNode;
+			open?: boolean;
+		}) => (open ? React.createElement('div', {}, children) : null),
+		DrawerBody: ({ children }: { children: React.ReactNode }) =>
+			React.createElement('div', { 'data-testid': 'drawer-body' }, children),
+		DrawerContent: ({
+			children,
+			'data-testid': testId,
+		}: {
+			children: React.ReactNode;
+			'data-testid'?: string;
+		}) => React.createElement('div', { 'data-testid': testId }, children),
+		DrawerDescription: ({ children }: { children: React.ReactNode }) =>
+			React.createElement('p', {}, children),
+		DrawerHeader: ({ children }: { children: React.ReactNode }) =>
+			React.createElement('div', { 'data-testid': 'drawer-header' }, children),
+		DrawerTitle: ({ children }: { children: React.ReactNode }) =>
+			React.createElement('h2', {}, children),
+		DrawerTrigger: ({ children }: { children: React.ReactNode }) =>
+			React.createElement('button', {}, children),
+		DrawerClose: ({ children }: { children: React.ReactNode }) =>
+			React.createElement('button', {}, children),
+		DrawerForm: ({ children }: { children: React.ReactNode }) =>
+			React.createElement('form', {}, children),
+	};
+});
+
 vi.mock('~/components/table/data-table', () => ({
 	DataTable: ({
 		testId,
@@ -232,7 +287,7 @@ vi.mock('~/components/table/data-table', () => ({
 		rows: Array<{ id: string } & Record<string, unknown>>;
 	}) =>
 		createElement('div', { 'data-testid': testId }, [
-			...rows.map((row) =>
+			rows.map((row) =>
 				createElement(
 					'div',
 					{ key: row.id, 'data-testid': `row-${row.id}` },
@@ -243,22 +298,6 @@ vi.mock('~/components/table/data-table', () => ({
 							col.cell({ row: { original: row } }),
 						),
 					),
-				),
-			),
-			// Hidden button to open the drawer for a row (simulates the inspect action)
-			...rows.map((row) =>
-				createElement(
-					'button',
-					{
-						key: `inspect-${row.id}`,
-						'data-testid': `inspect-${row.id}`,
-						onClick: () => {
-							// The drawer is controlled by `inspected` state — we can't
-							// directly open it from here, but the test verifies the
-							// drawer content via the detail query mock.
-						},
-					},
-					'Inspect',
 				),
 			),
 		]),
@@ -312,6 +351,7 @@ const renderPage = () => {
 describe('dead-letter drawer: cause display parity with column (brief #1720 ronde 2)', () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
+		mocks.useQuery.mockReturnValue(NO_DETAIL);
 		mocks.shouldLogoutForFailure.mockReturnValue(false);
 		mocks.useStaffDeadLettersQuery.mockReturnValue({
 			data: { data: DEAD_LETTER_ROWS, nextCursor: undefined },
@@ -320,7 +360,7 @@ describe('dead-letter drawer: cause display parity with column (brief #1720 rond
 			isFetching: false,
 			error: null,
 		});
-		mocks.useStaffDeadLetterDetailQuery.mockReturnValue({
+		setDetailQuery({
 			data: null,
 			isPending: false,
 		});
@@ -330,7 +370,8 @@ describe('dead-letter drawer: cause display parity with column (brief #1720 rond
 		cleanup();
 	});
 
-	test('the drawer shows the same marker as the column for an empty-string cause', () => {
+	test('the drawer shows the same marker as the column for an empty-string cause', async () => {
+		const user = userEvent.setup();
 		// The row has an empty-string lastError — the column shows the marker.
 		// The drawer must show the SAME marker, not a blank cell.
 		const rowsWithEmptyCause: StaffDeadLetterRow[] = [
@@ -349,9 +390,25 @@ describe('dead-letter drawer: cause display parity with column (brief #1720 rond
 		// The column cell shows the marker
 		const cell = screen.getByTestId('cell-last-error-dl-1');
 		expect(cell.textContent).toBe('No cause recorded');
+
+		// Open the drawer via the inspect action
+		const actionTrigger = screen.getAllByTestId('dropdown-trigger')[0];
+		await user.click(actionTrigger);
+
+		const inspectItem = screen.getByTestId('dead-letter-inspect-dl-1');
+		await user.click(inspectItem);
+
+		// The drawer should now be open
+		const drawer = await screen.findByTestId('staff-jobs-dead-letter-drawer');
+		expect(drawer).toBeTruthy();
+
+		// The drawer also shows the marker — not a blank cell
+		const marker = within(drawer).getByText('No cause recorded');
+		expect(marker).toBeTruthy();
 	});
 
-	test('the drawer shows the same marker as the column for a whitespace-only cause', () => {
+	test('the drawer shows the same marker as the column for a whitespace-only cause', async () => {
+		const user = userEvent.setup();
 		const rowsWithWhitespaceCause: StaffDeadLetterRow[] = [
 			{ ...DEAD_LETTER_ROWS[0], lastError: '   ' },
 		];
@@ -365,11 +422,28 @@ describe('dead-letter drawer: cause display parity with column (brief #1720 rond
 
 		renderPage();
 
+		// The column cell shows the marker
 		const cell = screen.getByTestId('cell-last-error-dl-1');
 		expect(cell.textContent).toBe('No cause recorded');
+
+		// Open the drawer via the inspect action
+		const actionTrigger = screen.getAllByTestId('dropdown-trigger')[0];
+		await user.click(actionTrigger);
+
+		const inspectItem = screen.getByTestId('dead-letter-inspect-dl-1');
+		await user.click(inspectItem);
+
+		// The drawer should now be open
+		const drawer = await screen.findByTestId('staff-jobs-dead-letter-drawer');
+		expect(drawer).toBeTruthy();
+
+		// The drawer also shows the marker — not a blank cell
+		const marker = within(drawer).getByText('No cause recorded');
+		expect(marker).toBeTruthy();
 	});
 
-	test('the drawer shows the same marker as the column for a null cause', () => {
+	test('the drawer shows the same marker as the column for a null cause', async () => {
+		const user = userEvent.setup();
 		const rowsWithNullCause: StaffDeadLetterRow[] = [
 			{ ...DEAD_LETTER_ROWS[0], lastError: null },
 		];
@@ -383,7 +457,23 @@ describe('dead-letter drawer: cause display parity with column (brief #1720 rond
 
 		renderPage();
 
+		// The column cell shows the marker
 		const cell = screen.getByTestId('cell-last-error-dl-1');
 		expect(cell.textContent).toBe('No cause recorded');
+
+		// Open the drawer via the inspect action
+		const actionTrigger = screen.getAllByTestId('dropdown-trigger')[0];
+		await user.click(actionTrigger);
+
+		const inspectItem = screen.getByTestId('dead-letter-inspect-dl-1');
+		await user.click(inspectItem);
+
+		// The drawer should now be open
+		const drawer = await screen.findByTestId('staff-jobs-dead-letter-drawer');
+		expect(drawer).toBeTruthy();
+
+		// The drawer also shows the marker — not a blank cell
+		const marker = within(drawer).getByText('No cause recorded');
+		expect(marker).toBeTruthy();
 	});
 });
