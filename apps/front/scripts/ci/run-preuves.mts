@@ -105,6 +105,7 @@ import {
 	readProofReport,
 	type ProofReport,
 } from './classify-proof.mts';
+import { consumeVerdict } from './consume-verdict.mts';
 
 const ROOT = join(process.cwd(), '..'); // apps/front → repo root
 const PROOFS_DIR = join(process.cwd(), 'tests', 'proofs');
@@ -480,10 +481,22 @@ for (const test of replayable) {
 		// logic lives in classify-proof.mts so it can be unit-tested
 		// independently with a real vitest JSON report.
 		const result = classifyProof(report, exitCode as number);
+
+		// The verdict-to-counter mapping lives in consume-verdict.mts as a
+		// pure function so it can be unit-tested independently. Here we
+		// apply the side effect (log + increment) based on the counter it
+		// returns. This is the load-bearing decision: a crashed vitest
+		// process → ERROR verdict → must increment unexpectedPasses, NOT
+		// failures. Misclassifying here is the exact defect class #1784
+		// was designed to eliminate.
+		const counts = consumeVerdict({ failures, unexpectedPasses, corrupted }, result.verdict);
+		failures = counts.failures;
+		unexpectedPasses = counts.unexpectedPasses;
+		corrupted = counts.corrupted;
+
 		switch (result.verdict) {
 			case 'OK':
 				console.log(`  OK: ${result.reason}\n`);
-				failures++;
 				break;
 			case 'CORRUPT PROOF':
 				console.error(
@@ -493,20 +506,17 @@ for (const test of replayable) {
 						`  — this is NOT the expected kept-red state and must fail CI.\n` +
 						`  stdout: ${stdout}\n  stderr: ${stderr}`,
 				);
-				corrupted++;
 				break;
 			case 'NO_TESTS':
 				console.error(
 					`  CORRUPT PROOF: ${result.reason}\n` +
 						`  stdout: ${stdout}\n  stderr: ${stderr}`,
 				);
-				corrupted++;
 				break;
 			case 'UNEXPECTED_PASS':
 				console.error(
 					`  FAIL: ${result.reason}\n  Test: ${test}`,
 				);
-				unexpectedPasses++;
 				break;
 			case 'ERROR':
 				console.error(
@@ -514,7 +524,6 @@ for (const test of replayable) {
 						`(failed: ${result.failedTests}, total: ${result.totalTests}).\n` +
 						`  stdout: ${stdout}\n  stderr: ${stderr}`,
 				);
-				unexpectedPasses++;
 				break;
 		}
 	} finally {
