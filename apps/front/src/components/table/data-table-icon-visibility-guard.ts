@@ -3,7 +3,7 @@
  * (or any other surface that has a `data-icon` child) is visually hidden from
  * the user. Used by the row-selection integration test
  * (`data-table-selection-integration.test.tsx`) and the real-browser
- * `e2e/__tests__/data-table-icon-visibility-guard.spec.ts` to guarantee the
+ * `e2e/data-table-icon-visibility-guard.spec.ts` to guarantee the
  * check state the test asserts (checked / indeterminate) is actually
  * painted, not just declared on the DOM.
  *
@@ -45,10 +45,12 @@
  *    test just applied, so the helper's measurement is exercised
  *    end-to-end without a browser round-trip.
  *  - The real-browser spec under
- *    `e2e/__tests__/data-table-icon-visibility-guard.spec.ts` passes
+ *    `e2e/data-table-icon-visibility-guard.spec.ts` passes
  *    Chromium's own `getComputedStyle` result so the guard sees the
  *    exact same values a user does.
  */
+import i18n from 'i18next';
+
 import type { ComputedStyleReader } from './data-table-icon-visibility-guard-reader';
 
 /**
@@ -92,7 +94,7 @@ export const detectIconHidden = (
 	if (iconElement.getAttribute('aria-hidden') === 'true') {
 		return {
 			kind: 'aria-hidden',
-			message: `${context}: icon has aria-hidden="true"`,
+			message: i18n.t('icon-hidden-aria', { context }),
 		};
 	}
 
@@ -106,14 +108,14 @@ export const detectIconHidden = (
 		return {
 			kind: 'css-visibility',
 			value: computed.visibility,
-			message: `${context}: icon has computed visibility:hidden`,
+			message: i18n.t('icon-hidden-visibility', { context }),
 		};
 	}
 	if (computed.display === 'none') {
 		return {
 			kind: 'css-display',
 			value: computed.display,
-			message: `${context}: icon has computed display:none`,
+			message: i18n.t('icon-hidden-display', { context }),
 		};
 	}
 	const parsedOpacity = Number.parseFloat(computed.opacity);
@@ -121,7 +123,7 @@ export const detectIconHidden = (
 		return {
 			kind: 'css-opacity',
 			value: parsedOpacity,
-			message: `${context}: icon has computed opacity:0`,
+			message: i18n.t('icon-hidden-opacity', { context }),
 		};
 	}
 
@@ -144,7 +146,7 @@ export const assertIconIsVisible = (
 	readComputed?: ComputedStyleReader,
 ): void => {
 	if (iconElement === null) {
-		throw new Error(`${context}: icon element is null`);
+		throw new Error(i18n.t('icon-guard-context-null', { context }));
 	}
 	const reason = detectIconHidden(iconElement, context, readComputed);
 	if (reason !== null) {

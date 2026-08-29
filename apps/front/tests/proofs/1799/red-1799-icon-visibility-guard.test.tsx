@@ -47,42 +47,59 @@ import type {
 	UseRowSelectionResult,
 } from '../../../src/components/table/use-row-selection';
 
+const { makeT } = vi.hoisted(() => {
+	const labels: TestLabelMap = {
+		'icon-hidden-aria': 'icon has aria-hidden="true"',
+		'icon-hidden-visibility': 'icon has computed visibility:hidden',
+		'icon-hidden-display': 'icon has computed display:none',
+		'icon-hidden-opacity': 'icon has computed opacity:0',
+		'icon-guard-context-null': '{{context}}: icon element is null',
+		'list-unavailable-title': 'List unavailable',
+		'list-error-default-description': 'There was a problem loading this list.',
+		retry: 'Retry',
+		'list-empty-title': 'Nothing here — yet',
+		'list-empty-default-description':
+			'No records yet. Create one to get started.',
+		'list-no-match-title': 'No matches for that search',
+		'list-no-match-default-description': 'No results match your search.',
+		'select-row-named': 'Select {{name}}',
+		search: 'Search',
+		'rows-per-page': 'Rows per page',
+		'page-n': 'Page {{page}}',
+		'previous-page': 'Previous page',
+		'next-page': 'Next page',
+		'range-no-total': '{{count}}',
+		'range-of-total': '{{start}}–{{end}} of {{count}}',
+		'range-of-counted': '{{start}}–{{end}}',
+		'row-selection-column': 'Row selection',
+		'select-all-rows': 'Select all rows',
+	};
+
+	const fn = (key: string, options?: Record<string, unknown>): string => {
+		let text = labels[key] ?? key;
+		if (!options) {
+			return text;
+		}
+		for (const [optionKey, value] of Object.entries(options)) {
+			text = text.replaceAll(`{{${optionKey}}}`, String(value));
+		}
+		return text;
+	};
+
+	return { makeT: fn };
+});
+
 vi.mock('react-i18next', () => ({
 	useTranslation: () => ({
-		t: (key: string, options?: Record<string, unknown>) => {
-			const labels: TestLabelMap = {
-				'list-unavailable-title': 'List unavailable',
-				'list-error-default-description':
-					'There was a problem loading this list.',
-				retry: 'Retry',
-				'list-empty-title': 'Nothing here — yet',
-				'list-empty-default-description':
-					'No records yet. Create one to get started.',
-				'list-no-match-title': 'No matches for that search',
-				'list-no-match-default-description': 'No results match your search.',
-				'select-row-named': 'Select {{name}}',
-				search: 'Search',
-				'rows-per-page': 'Rows per page',
-				'page-n': 'Page {{page}}',
-				'previous-page': 'Previous page',
-				'next-page': 'Next page',
-				'range-no-total': '{{count}}',
-				'range-of-total': '{{start}}–{{end}} of {{count}}',
-				'range-of-counted': '{{start}}–{{end}}',
-				'row-selection-column': 'Row selection',
-				'select-all-rows': 'Select all rows',
-			};
-			let text = labels[key] ?? key;
-			if (!options) {
-				return text;
-			}
-			for (const [optionKey, value] of Object.entries(options)) {
-				text = text.replaceAll(`{{${optionKey}}}`, String(value));
-			}
-			return text;
-		},
+		t: makeT,
 		i18n: { language: 'en' },
 	}),
+}));
+
+vi.mock('i18next', () => ({
+	default: {
+		t: makeT,
+	},
 }));
 
 type TestRow = { id: string; name: string };
