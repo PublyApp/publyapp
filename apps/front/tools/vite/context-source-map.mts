@@ -257,9 +257,7 @@ type CommentState = 'line' | 'block' | undefined;
 // truncated construct (an unterminated string or template) simply terminates
 // the scan at that point, and a truncated extent list only ever makes a copy
 // *less* attributable — the fail-closed direction.
-export const findEmittedCallExtents = (
-	code: string,
-): EmittedCallExtent[] => {
+export const findEmittedCallExtents = (code: string): EmittedCallExtent[] => {
 	const lineStarts: number[] = [];
 	lineStarts.push(0);
 	for (let index = 0; index < code.length; index++) {

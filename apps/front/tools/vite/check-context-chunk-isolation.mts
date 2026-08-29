@@ -655,7 +655,6 @@ const declarationBinding = (
 
 		return undefined;
 	}
-
 };
 
 // The position a call's value lands in, walked through transparent value

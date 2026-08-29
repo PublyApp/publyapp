@@ -94,7 +94,6 @@ import { readFileSync, readdirSync, statSync } from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
-
 // R6: the baseline lives next to the guard. assertScanSurface reads it at
 // runtime. Importing JSON via `with { type: 'json' }` is not used here
 // because this script runs under `node --test` with the tsx loader, which
@@ -143,10 +142,10 @@ export const SCANNED_EXTENSIONS = new Set([
 	'.ts',
 	'.tsx',
 	'.mts',
-	'.cts',  // CommonJS TypeScript (CommonJS module + TS syntax)
+	'.cts', // CommonJS TypeScript (CommonJS module + TS syntax)
 	'.ctsx', // CommonJS TypeScript with JSX
-	'.mjs',  // ES Module JavaScript
-	'.cjs',  // CommonJS JavaScript
+	'.mjs', // ES Module JavaScript
+	'.cjs', // CommonJS JavaScript
 ]);
 
 /**
@@ -402,10 +401,7 @@ const scanSourceFile = (relativePath: string, source: string): Finding[] => {
 				// only file allowed to touch it, and it's in EXEMPT_FILES).
 				// Root specifier is flagged when a banned binding is imported,
 				// or when it's a side-effect import (no import clause).
-				if (
-					isLegacy ||
-					bindings.length > 0
-				) {
+				if (isLegacy || bindings.length > 0) {
 					// `oxlint` interdit les ternaires imbriques : on calcule la branche
 					// heritee en amont. Semantique inchangee.
 					const legacyBindings =
@@ -635,9 +631,7 @@ export const assertNoOverlap = (
  * for analysis-suppression justifications (#1736). We align on it. An entry
  * with a too-short reason throws naming the offending extension(s).
  */
-export const assertAllJustified = (
-	nonCode: Map<string, string>,
-): void => {
+export const assertAllJustified = (nonCode: Map<string, string>): void => {
 	const entriesWithoutJustification = [...nonCode.entries()].filter(
 		([, reason]) => reason.trim().length < 24,
 	);
@@ -978,50 +972,45 @@ export const scanFrontSrcForBannedImports = (
 				{ cause: err },
 			);
 		}
-			assertScanSurface(perExtensionCounts, baselinePath);
-			assertScannedExtensionsPinned(SCANNED_EXTENSIONS, baseline);
-			assertNonCodeExtensionsPinned(NON_CODE_EXTENSIONS, baseline);
-			assertExemptionsPinned(EXEMPT_FILES, baseline);
+		assertScanSurface(perExtensionCounts, baselinePath);
+		assertScannedExtensionsPinned(SCANNED_EXTENSIONS, baseline);
+		assertNonCodeExtensionsPinned(NON_CODE_EXTENSIONS, baseline);
+		assertExemptionsPinned(EXEMPT_FILES, baseline);
 
-			// R8: assert on the REAL tree that isExempt returns true ONLY for
-			// files listed in EXEMPT_FILES. A hardcoded `||` clause in isExempt
-			// (the r6/r7 bypass) would exempt a real file not in EXEMPT_FILES.
-			// This assertion walks the actual scanned tree and fails if any
-			// exempted .ts/.tsx file is not in the pinned set — making the guard
-			// itself red on the bypass, not just the test suite.
-			const normalizedExemptions = [...EXEMPT_FILES].map((e) =>
-				e.split(path.sep).join('/'),
+		// R8: assert on the REAL tree that isExempt returns true ONLY for
+		// files listed in EXEMPT_FILES. A hardcoded `||` clause in isExempt
+		// (the r6/r7 bypass) would exempt a real file not in EXEMPT_FILES.
+		// This assertion walks the actual scanned tree and fails if any
+		// exempted .ts/.tsx file is not in the pinned set — making the guard
+		// itself red on the bypass, not just the test suite.
+		const normalizedExemptions = [...EXEMPT_FILES].map((e) =>
+			e.split(path.sep).join('/'),
+		);
+		const illicitExemptions: string[] = [];
+		for (const file of files) {
+			const ext = path.extname(file).toLowerCase();
+			if (ext !== '.ts' && ext !== '.tsx') {
+				continue;
+			}
+			const normalized = path.relative(root, file).split(path.sep).join('/');
+			if (isExempt(normalized)) {
+				const isPinned =
+					normalizedExemptions.includes(normalized) ||
+					normalizedExemptions.some((e) => normalized.endsWith('/' + e));
+				if (!isPinned) {
+					illicitExemptions.push(normalized);
+				}
+			}
+		}
+		if (illicitExemptions.length > 0) {
+			throw new Error(
+				`Guard #1769: isExempt returned true for ${illicitExemptions.length} ` +
+					`file(s) not in the pinned EXEMPT_FILES set — ` +
+					`illicit exemption(s): ${illicitExemptions.sort().join(', ')}. ` +
+					`isExempt must derive from EXEMPT_FILES; a hardcoded bypass ` +
+					`would exempt files without modifying the pinned set.`,
 			);
-			const illicitExemptions: string[] = [];
-			for (const file of files) {
-				const ext = path.extname(file).toLowerCase();
-				if (ext !== '.ts' && ext !== '.tsx') {
-					continue;
-				}
-				const normalized = path
-					.relative(root, file)
-					.split(path.sep)
-					.join('/');
-				if (isExempt(normalized)) {
-					const isPinned =
-						normalizedExemptions.includes(normalized) ||
-						normalizedExemptions.some(
-							(e) => normalized.endsWith('/' + e),
-						);
-					if (!isPinned) {
-						illicitExemptions.push(normalized);
-					}
-				}
-			}
-			if (illicitExemptions.length > 0) {
-				throw new Error(
-					`Guard #1769: isExempt returned true for ${illicitExemptions.length} ` +
-						`file(s) not in the pinned EXEMPT_FILES set — ` +
-						`illicit exemption(s): ${illicitExemptions.sort().join(', ')}. ` +
-						`isExempt must derive from EXEMPT_FILES; a hardcoded bypass ` +
-						`would exempt files without modifying the pinned set.`,
-				);
-			}
+		}
 	}
 
 	const findings: Finding[] = [];
