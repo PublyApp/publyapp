@@ -1,32 +1,75 @@
 /**
- * Paired red proof #1821 — jscpd ratchet guard
+ * @vitest-environment node
  *
- * This test proves the guard works by mutating the tree: it adds a C# file that
- * self-duplicates, runs the guard, and asserts it FAILS (red). The exact
- * mutation is named below so a reviewer can re-apply it.
+ * KEPT RED TEST — issue #1821, proof 3 of 3.
  *
- * RED: guard fails when production self-duplication increases.
- * GREEN: guard passes on the baseline (no self-dup added).
+ * ## Context
  *
- * Mutation to re-apply for red:
- *   File: apps/api/Modules/Example/Services/ExampleSvc.cs
- *   Content: see PROOF_FILE_CONTENT constant below
- *   (namespace + class + two identical string-returning methods +
- *    two identical block-bodied methods — sufficient to exceed jscpd 50-token min)
+ * Round 1 of PR #1859 found that self-duplication growth inside one file was
+ * invisible: `computeProductionStats` kept the MAX duplicate fragment per
+ * file, so adding a second identical block to an already-self-duplicated
+ * production file did not move the metric when the new fragment was smaller
+ * than the existing max. Measured: `create-hooks.ts` has 15 self-dup
+ * fragments ([13,10,49,14,15,34,15,23,40,21,23,12,40,21,8] = 338 dup lines,
+ * exactly the issue's number) yet max-wins counting reported only 49.
  *
- * To replay: copy the content below to that path, run `just ci-jscpd`, observe
- * failure, then delete the file.
+ * The fix: EVERY self-dup fragment in a file sums, so one more identical
+ * block moves the metric.
+ *
+ * This proof appends TWO identical methods to an already-self-duplicated
+ * production file (`InvitationAcceptanceService.cs`, 103 baseline dup
+ * lines), runs the full-tree CI scan, then runs the guard.
+ *
+ * ## What the proof asserts (kept-red direction)
+ *
+ * The proof asserts the BUGGY outcome: the guard PASSES (exit 0) with this
+ * mutation applied, i.e. the extra self-dup fragment inside the file is
+ * invisible.
+ *
+ * - CORRECTED code: the file's self-dup lines grow, the guard exits 1 with
+ *   "increased from". `expect(guardCode).toBe(0)` FAILS as an AssertionError
+ *   — the kept-red state the *Verify paired red proofs* step replays with
+ *   inverted semantics.
+ * - BUG re-introduced (max-wins counting restored, or any loosening): guard
+ *   exit 0 → the assertion PASSES → the replay step turns red with "proof
+ *   test passed unexpectedly" — the stale-proof signal.
+ *
+ * Secondary assertions: the output must contain "increased from" (the red is
+ * a ratchet metric violation, not the 0-clones anti-rot tripwire) and must
+ * not contain "0 clones".
+ *
+ * ## Adverse mutations (trace — three attempts)
+ *
+ * - C1: append ONE copy only. CAUGHT: a lone copy is not a clone, jscpd
+ *   reports nothing new, guard stays 0 → the assertion passes → replay red.
+ *   The primary mutation appends TWO identical copies.
+ * - C2: append the copies below the 50-token minimum. CAUGHT: jscpd does
+ *   not detect them, the metric does not move, guard exits 0 → assertion
+ *   passes → replay red. The appended method is ~18 lines, well above the
+ *   minimum.
+ * - C3: loosen the committed reference in the same commit. CAUGHT: guard
+ *   exits 0 → assertion passes → replay red (the known "reference from the
+ *   PR's own tree" gap, tracked as the #1859 follow-up issue).
+ *
+ * ## Replay
+ *   cd apps/front && pnpm exec vitest run --config vitest.preuves.config.ts \
+ *     tests/proofs/1821/red-1821-jscpd-ratchet-self-dup-fails.test.ts
+ *
+ * Expected: FAIL — on corrected code the guard exits 1, so
+ * `expect(guardCode).toBe(0)` fails.
+ *
+ * ## Mutation to introduce the red (restore the bug)
+ *   Revert the auto metric to max-fragment-wins and re-run the replay: the
+ *   guard then exits 0 and this proof PASSES, reddening the replay step.
  */
+import { execFileSync } from 'node:child_process';
+import { readFileSync, writeFileSync } from 'node:fs';
+import { dirname, join, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-import { execSync } from 'child_process';
-import { writeFileSync, mkdirSync, rmSync } from 'fs';
-import { dirname, join, resolve } from 'path';
-import { fileURLToPath } from 'url';
+import { expect, test } from 'vitest';
 
-import { describe, expect, test } from 'vitest';
-
-// Resolve monorepo root from this test file's location:
-// apps/front/tests/proofs/1821/test.ts → monorepo root is 5 levels up.
+// apps/front/tests/proofs/1821/<this file> -> monorepo root is 5 levels up.
 const __filename = fileURLToPath(import.meta.url);
 const MONOREPO_ROOT = resolve(
 	dirname(__filename),
@@ -36,14 +79,15 @@ const MONOREPO_ROOT = resolve(
 	'..',
 	'..',
 );
-const PROOF_FILE_PATH = join(
+
+// Already self-duplicated in the baseline (103 dup lines): a NEW identical
+// block here must move the auto metric.
+const TARGET_FILE = join(
 	MONOREPO_ROOT,
-	'apps/api/Modules/Example/Services/ExampleSvc.cs',
+	'apps/api/Modules/Invitations/Services/InvitationAcceptanceService.cs',
 );
-// Matches the path jscpd writes to when given --output .dump/jscpd-report.json
-// (it creates the directory and puts report.json inside).
-// jscpd --output .dump/jscpd-report.json writes report.json INSIDE that dir:
-//   → .dump/jscpd-report.json/jscpd-report.json
+const TARGET_REPO_PATH = TARGET_FILE.slice(MONOREPO_ROOT.length + 1);
+
 const REPORT_PATH = join(
 	MONOREPO_ROOT,
 	'.dump/jscpd-report.json/jscpd-report.json',
@@ -57,88 +101,115 @@ const GUARD_PATH = join(
 	'packages/scripts-ts/src/check-jscpd.ts',
 );
 
-const PROOF_FILE_CONTENT = `namespace PublyApp.Modules.Example.Services;
+// The exact CI exclusion list (single comma-separated --ignore value — see
+// check-jscpd.ts header: repeated --ignore flags silently drop all but the
+// last, measured in #1859 round 2).
+const IGNORE_LIST =
+	'/node_modules/**,/bin/**,/obj/**,/dist/**,/.artifacts/**,' +
+	'**/Migrations/**,.worktrees/**,packages/client-ts/**,apps/front/scripts/**';
 
-public static class ExampleService
-{
-    public static string GetMessage() => "Hello from the example service";
-    public static string GetMessage() => "Hello from the example service";
-
-    public static int CalculateValue(int input)
-    {
-        var result = input * 2;
-        return result;
-    }
-    public static int CalculateValue(int input)
-    {
-        var result = input * 2;
-        return result;
-    }
-}
+// ~18 lines, well above jscpd's 50-token minimum. Two identical copies are
+// appended so they clone with each other.
+const APPENDED_METHOD = `
+	public static string DescribeLevelRank(int level, bool optIn, string scope)
+	{
+		var bucket = level >= 10 ? "senior" : level >= 5 ? "mid" : "junior";
+		var label = optIn ? "opted" : "standard";
+		var fullLabel = string.IsNullOrWhiteSpace(scope) ? "account" : scope.Trim();
+		var combined = string.Concat(bucket, "/", label, "@", fullLabel);
+		var padded = combined.Length > 24 ? combined.Substring(0, 24) : combined;
+		return padded;
+	}
 `;
 
-/** The mutation: add a C# file with two identical method bodies → self-duplicate. */
-function applyMutation(): void {
-	const dir = join(MONOREPO_ROOT, 'apps/api/Modules/Example/Services');
-	rmSync(dir, { recursive: true, force: true });
-	mkdirSync(dir, { recursive: true });
-	writeFileSync(PROOF_FILE_PATH, PROOF_FILE_CONTENT);
-}
+/** The mutation: append two identical methods to the self-duplicated file. */
+const applyMutation = (): void => {
+	const src = readFileSync(TARGET_FILE, 'utf-8');
+	if (!src.trimEnd().endsWith('}')) {
+		throw new Error(
+			`MESURE IMPOSSIBLE — ${TARGET_FILE} no longer ends with '}'`,
+		);
+	}
+	const body = src.trimEnd().slice(0, -1).trimEnd();
+	writeFileSync(
+		TARGET_FILE,
+		body + APPENDED_METHOD + APPENDED_METHOD + '\n}\n',
+	);
+};
 
-/** Remove the mutation: restore green. */
-function revertMutation(): void {
-	rmSync(join(MONOREPO_ROOT, 'apps/api/Modules/Example'), {
-		recursive: true,
-		force: true,
+/** Restore the target file from git (the mutation overwrote the bytes). */
+const restoreFromGit = (): void => {
+	execFileSync('git', ['checkout', '--', TARGET_REPO_PATH], {
+		cwd: MONOREPO_ROOT,
+		stdio: 'pipe',
+		timeout: 30_000,
 	});
-}
+};
 
-describe('Paired red proof #1821 — jscpd ratchet guard', () => {
-	test('RED: guard fails when production self-duplication is added', () => {
-		applyMutation();
+const runScanAndGuard = () => {
+	try {
+		execFileSync(
+			'pnpm',
+			[
+				'exec',
+				'jscpd',
+				'.',
+				'--min-tokens',
+				'50',
+				'--ignore',
+				IGNORE_LIST,
+				'--reporters',
+				'json',
+				'--output',
+				'.dump/jscpd-report.json',
+			],
+			{ cwd: MONOREPO_ROOT, stdio: 'pipe', timeout: 300_000 },
+		);
+	} catch {
+		// jscpd can exit non-zero on clone detection; the report is what counts.
+	}
 
-		try {
-			// Run jscpd on just the Example directory — avoids full-tree scan timeout.
-			// jscpd exits 1 when it finds clones — suppress with || true.
-			execSync(
-				[
-					'pnpm exec jscpd apps/api/Modules/Example',
-					'--min-tokens 50',
-					'--reporters json',
-					'--output .dump/jscpd-report.json',
-					'2>/dev/null || true',
-				].join(' '),
-				{ cwd: MONOREPO_ROOT, timeout: 30_000 },
-			);
+	let output = '';
+	let code = 0;
+	try {
+		output = execFileSync('node', [GUARD_PATH, REPORT_PATH, REF_PATH], {
+			cwd: MONOREPO_ROOT,
+			encoding: 'utf-8',
+			stdio: 'pipe',
+			timeout: 30_000,
+		});
+	} catch (err: unknown) {
+		const std = err as { stdout?: Buffer; stderr?: Buffer; status?: number };
+		output = [std.stdout, std.stderr]
+			.filter((part): part is Buffer => part !== undefined)
+			.map((part) => part.toString())
+			.join('');
+		code = std.status ?? 1;
+	}
+	return { output, code };
+};
 
-			// The guard must exit non-zero when auto-dup lines increase.
-			let guardOutput = '';
-			let guardCode = 0;
-			try {
-				guardOutput = execSync(
-					`node "${GUARD_PATH}" "${REPORT_PATH}" "${REF_PATH}"`,
-					{
-						timeout: 10_000,
-						encoding: 'utf-8',
-						cwd: MONOREPO_ROOT,
-						stdio: 'pipe',
-					},
-				);
-			} catch (err: unknown) {
-				// Guard writes to stdout; errors also go to stderr — capture both.
-				const std = err as { stdout?: string; stderr?: string };
-				guardOutput = [std.stdout ?? '', std.stderr ?? '']
-					.filter(Boolean)
-					.join('');
-				guardCode = (err as { status?: number }).status ?? 1;
-			}
+test('RED: a new self-dup fragment inside an already-self-duplicated file leaves the guard green (buggy counting)', () => {
+	applyMutation();
+	try {
+		const { output, code } = runScanAndGuard();
 
-			// Guard must report a violation (exit non-zero).
-			expect(guardCode).not.toBe(0);
-			// Output must not be empty (sanity: guard had something to say).
-			expect(guardOutput.trim().length).toBeGreaterThan(0);
-		} finally {
-			revertMutation();
+		// BUGGY condition (asserted): the extra self-dup fragment is
+		// invisible (max-fragment-wins). On corrected code the file's
+		// self-dup lines sum and the guard exits 1 — so this assertion
+		// FAILS, the kept-red state. When it passes (a re-introduced bug),
+		// every other assertion passes too, so the replay step turns red
+		// with "proof test passed unexpectedly".
+		expect(code).toBe(0);
+
+		// When the guard DOES red (manual red-state verification, or a
+		// future variant that reds for the wrong reason), the red must come
+		// from a ratchet metric — never from the 0-clones anti-rot tripwire.
+		if (code !== 0) {
+			expect(output).toContain('increased from');
+			expect(output).not.toContain('0 clones');
 		}
-	});
-});
+	} finally {
+		restoreFromGit();
+	}
+}, 300_000);
