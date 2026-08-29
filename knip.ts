@@ -29,6 +29,7 @@ const config: KnipConfig = {
 				'deploy/request-counter/server.mjs', // e2e sidecar service built from deploy/request-counter by docker-compose.test.yml
 				'e2e/helpers/entity-crumb-render-target.tsx', // loaded via vite.ssrLoadModule() by URL from e2e/helpers/render-entity-crumb.ts, never imported
 				'e2e/helpers/render-focus-ring-target.tsx', // loaded via vite.ssrLoadModule() by URL from e2e/helpers/render-focus-ring.ts, never imported
+				'e2e/helpers/data-table-icon-guard-target.tsx', // loaded via vite.ssrLoadModule() by URL from e2e/helpers/render-data-table-icon-guard.ts (real DataTable SSR markup for the #1799 spec), never imported
 				// Invoked by the justfile (`node apps/front/scripts/e2e-compose-env.mts`
 				// in the e2e recipes, #1642) to derive the per-worktree Compose
 				// project name and port band; knip cannot trace a justfile shell-out.
