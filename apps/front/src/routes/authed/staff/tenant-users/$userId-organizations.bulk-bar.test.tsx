@@ -336,6 +336,7 @@ describe('#1400 tenant-user organizations tab: bulk trigger label-in-name (real 
 		);
 		const trigger = await screen.findByRole('button', {
 			name: 'Bulk actions',
+			expanded: false,
 		});
 		fireEvent.click(trigger);
 		await waitFor(() =>
@@ -369,6 +370,7 @@ describe('#1400 tenant-user organizations tab: bulk trigger label-in-name (real 
 		);
 		const trigger = await screen.findByRole('button', {
 			name: 'Bulk actions',
+			expanded: false,
 		});
 		fireEvent.click(trigger);
 		await waitFor(() =>
@@ -402,6 +404,7 @@ describe('#1400 tenant-user organizations tab: bulk trigger label-in-name (real 
 		);
 		const trigger = await screen.findByRole('button', {
 			name: 'Bulk actions',
+			expanded: false,
 		});
 		fireEvent.click(trigger);
 		await waitFor(() =>
