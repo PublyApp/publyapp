@@ -64,7 +64,7 @@ describe('parseInviteCsv', () => {
 					profileNames: ['Alpha', 'Beta'],
 					invalidLevel: null,
 					invalidEmail: null,
-					invalidCell: null,
+					invalidCells: [],
 				},
 			],
 		});
@@ -84,7 +84,7 @@ describe('parseInviteCsv', () => {
 					profileNames: ['Alpha'],
 					invalidLevel: 'moderator',
 					invalidEmail: null,
-					invalidCell: null,
+					invalidCells: [],
 				},
 			],
 		});
@@ -111,7 +111,7 @@ describe('parseInviteCsv', () => {
 					profileNames: ['Alpha'],
 					invalidLevel: null,
 					invalidEmail: 'not-an-email',
-					invalidCell: null,
+					invalidCells: [],
 				},
 			],
 		});
@@ -223,7 +223,7 @@ describe('parseInviteWorkbook', () => {
 					profileNames: ['Alpha'],
 					invalidLevel: null,
 					invalidEmail: null,
-					invalidCell: null,
+					invalidCells: [],
 				},
 			],
 		});
@@ -250,7 +250,7 @@ describe('parseInviteWorkbook', () => {
 					profileNames: [],
 					invalidLevel: null,
 					invalidEmail: null,
-					invalidCell: null,
+					invalidCells: [],
 				},
 			],
 		});
@@ -311,7 +311,7 @@ describe('parseInviteWorkbook', () => {
 					profileNames: ['Alpha'],
 					invalidLevel: null,
 					invalidEmail: null,
-					invalidCell: null,
+					invalidCells: [],
 				},
 			],
 		});
@@ -338,7 +338,7 @@ describe('parseInviteWorkbook', () => {
 					profileNames: [],
 					invalidLevel: null,
 					invalidEmail: null,
-					invalidCell: null,
+					invalidCells: [],
 				},
 			],
 		});
@@ -369,7 +369,7 @@ describe('parseInviteWorkbook', () => {
 					profileNames: ['Alpha'],
 					invalidLevel: null,
 					invalidEmail: null,
-					invalidCell: null,
+					invalidCells: [],
 				},
 			],
 		});
@@ -403,7 +403,7 @@ describe('parseInviteWorkbook', () => {
 					profileNames: ['Alpha'],
 					invalidLevel: null,
 					invalidEmail: 'A & B@example.com',
-					invalidCell: null,
+					invalidCells: [],
 				},
 			],
 		});
@@ -439,7 +439,7 @@ describe('parseInviteWorkbook', () => {
 					profileNames: [],
 					invalidLevel: null,
 					invalidEmail: null,
-					invalidCell: null,
+					invalidCells: [],
 				},
 			],
 		});
@@ -474,7 +474,7 @@ describe('parseInviteWorkbook', () => {
 					profileNames: ['Alpha'],
 					invalidLevel: null,
 					invalidEmail: null,
-					invalidCell: null,
+					invalidCells: [],
 				},
 			],
 		});
@@ -491,7 +491,7 @@ describe('buildImportedInvites', () => {
 					profileNames: ['Alpha'],
 					invalidLevel: null,
 					invalidEmail: null,
-					invalidCell: null,
+					invalidCells: [],
 				},
 				{
 					email: 'A@Example.com',
@@ -499,7 +499,7 @@ describe('buildImportedInvites', () => {
 					profileNames: [],
 					invalidLevel: null,
 					invalidEmail: null,
-					invalidCell: null,
+					invalidCells: [],
 				},
 				{
 					email: 'b@example.com',
@@ -507,7 +507,7 @@ describe('buildImportedInvites', () => {
 					profileNames: [],
 					invalidLevel: null,
 					invalidEmail: null,
-					invalidCell: null,
+					invalidCells: [],
 				},
 			],
 			existingEmails: ['b@example.com'],
@@ -537,7 +537,7 @@ describe('clearFileRows', () => {
 				profileNames: [],
 				invalidLevel: null,
 				invalidEmail: null,
-				invalidCell: null,
+				invalidCells: [],
 				source: 'file',
 			},
 		];
@@ -573,20 +573,22 @@ describe('syncInvalidEmail', () => {
 		expect(syncInvalidEmail(rows)[0]?.invalidEmail).toBeNull();
 	});
 
-	test('clears invalidCell when the email is manually corrected to valid', () => {
+	test('clears invalidCells when the email is manually corrected to valid', () => {
 		const rows: InviteRow[] = [
 			{
 				...makeManualRow('valid@example.com'),
 				invalidEmail: 'bad@email',
-				invalidCell: {
-					cell: 'A2',
-					value: '1',
-					kind: 'boolean',
-				},
+				invalidCells: [
+					{
+						cell: 'A2',
+						value: '1',
+						kind: 'boolean',
+					},
+				],
 			},
 		];
 
-		expect(syncInvalidEmail(rows)[0]?.invalidCell).toBeNull();
+		expect(syncInvalidEmail(rows)[0]?.invalidCells).toEqual([]);
 	});
 });
 
@@ -605,7 +607,7 @@ describe('applyProfileResolutions', () => {
 		source: 'file',
 		invalidLevel: null,
 		invalidEmail: null,
-		invalidCell: null,
+		invalidCells: [],
 		...overrides,
 	});
 
@@ -638,7 +640,7 @@ describe('canSendInvitations', () => {
 		profileNames: [],
 		invalidLevel: null,
 		invalidEmail: null,
-		invalidCell: null,
+		invalidCells: [],
 		source: 'manual',
 	};
 
@@ -707,6 +709,41 @@ describe('canSendInvitations', () => {
 	test('blocks rows with malformed emails', () => {
 		expect(evaluate([{ ...validRow, email: 'not-an-email' }])).toBe(false);
 	});
+
+	// A row whose three columns are all non-text carries three entries in
+	// `invalidCells` but the Send gate counts ROWS, not cells: one faulty
+	// row, regardless of how many cells it has, must count as one blocked
+	// row. The `invalidCellCount` arg is the count of rows with at least one
+	// non-text cell, not the count of cells.
+	test('a single row with three faulty cells counts as one blocked row, not three', () => {
+		const rowWithThreeCells = rowWith({
+			invalidCells: [
+				{ cell: 'A2', value: '1', kind: 'boolean' },
+				{ cell: 'B2', value: '#REF!', kind: 'formula-error' },
+				{ cell: 'C2', value: '0', kind: 'boolean' },
+			],
+		});
+		expect(evaluate([rowWithThreeCells], { invalidCellCount: 1 })).toBe(false);
+	});
+
+	test('a row with a single faulty cell still blocks Send', () => {
+		const rowWithOneCell = rowWith({
+			invalidCells: [{ cell: 'A2', value: '1', kind: 'boolean' }],
+		});
+		expect(evaluate([rowWithOneCell], { invalidCellCount: 1 })).toBe(false);
+	});
+
+	test('a row with one entry in invalidCells is exposed in full (no truncation, no extra cell)', () => {
+		const row = rowWith({
+			invalidCells: [{ cell: 'A2', value: '1', kind: 'boolean' }],
+		});
+		expect(row.invalidCells).toHaveLength(1);
+		expect(row.invalidCells[0]).toEqual({
+			cell: 'A2',
+			value: '1',
+			kind: 'boolean',
+		});
+	});
 });
 
 describe('buildSubmitInvitations', () => {
@@ -720,7 +757,7 @@ describe('buildSubmitInvitations', () => {
 				profileNames: ['x'],
 				invalidLevel: null,
 				invalidEmail: null,
-				invalidCell: null,
+				invalidCells: [],
 				source: 'file',
 			},
 			{
@@ -731,7 +768,7 @@ describe('buildSubmitInvitations', () => {
 				profileNames: [],
 				invalidLevel: null,
 				invalidEmail: null,
-				invalidCell: null,
+				invalidCells: [],
 				source: 'manual',
 			},
 		];
@@ -777,11 +814,13 @@ describe('parseInviteWorkbook cell types', () => {
 					profileNames: ['Alpha'],
 					invalidLevel: null,
 					invalidEmail: null,
-					invalidCell: {
-						cell: 'A2',
-						value: '1',
-						kind: 'boolean',
-					},
+					invalidCells: [
+						{
+							cell: 'A2',
+							value: '1',
+							kind: 'boolean',
+						},
+					],
 				},
 			],
 		});
@@ -808,11 +847,13 @@ describe('parseInviteWorkbook cell types', () => {
 					profileNames: ['Alpha'],
 					invalidLevel: null,
 					invalidEmail: null,
-					invalidCell: {
-						cell: 'A2',
-						value: '#REF!',
-						kind: 'formula-error',
-					},
+					invalidCells: [
+						{
+							cell: 'A2',
+							value: '#REF!',
+							kind: 'formula-error',
+						},
+					],
 				},
 			],
 		});
@@ -839,11 +880,13 @@ describe('parseInviteWorkbook cell types', () => {
 					profileNames: ['Alpha'],
 					invalidLevel: '1',
 					invalidEmail: null,
-					invalidCell: {
-						cell: 'B2',
-						value: '1',
-						kind: 'boolean',
-					},
+					invalidCells: [
+						{
+							cell: 'B2',
+							value: '1',
+							kind: 'boolean',
+						},
+					],
 				},
 			],
 		});
@@ -870,7 +913,7 @@ describe('parseInviteWorkbook cell types', () => {
 					profileNames: ['Alpha'],
 					invalidLevel: null,
 					invalidEmail: null,
-					invalidCell: null,
+					invalidCells: [],
 				},
 			],
 		});
@@ -897,11 +940,13 @@ describe('parseInviteWorkbook cell types', () => {
 					profileNames: [],
 					invalidLevel: null,
 					invalidEmail: null,
-					invalidCell: {
-						cell: 'C2',
-						value: '1',
-						kind: 'boolean',
-					},
+					invalidCells: [
+						{
+							cell: 'C2',
+							value: '1',
+							kind: 'boolean',
+						},
+					],
 				},
 			],
 		});
@@ -928,11 +973,13 @@ describe('parseInviteWorkbook cell types', () => {
 					profileNames: [],
 					invalidLevel: null,
 					invalidEmail: null,
-					invalidCell: {
-						cell: 'C2',
-						value: '#REF!',
-						kind: 'formula-error',
-					},
+					invalidCells: [
+						{
+							cell: 'C2',
+							value: '#REF!',
+							kind: 'formula-error',
+						},
+					],
 				},
 			],
 		});
@@ -959,13 +1006,40 @@ describe('parseInviteWorkbook cell types', () => {
 					profileNames: ['Alpha'],
 					invalidLevel: null,
 					invalidEmail: null,
-					invalidCell: {
-						cell: 'A2',
-						value: '#REF!',
-						kind: 'formula-error',
-					},
+					invalidCells: [
+						{
+							cell: 'A2',
+							value: '#REF!',
+							kind: 'formula-error',
+						},
+					],
 				},
 			],
 		});
+	});
+
+	// Regression for issue #1801: when a single row's three columns are
+	// all non-text (boolean email, formula-error level, boolean profiles),
+	// every faulty column must be retained in `invalidCells` — the parser
+	// must not collapse the list to a single entry.
+	test('retains every faulty column on a row whose three columns are all non-text', () => {
+		const bytes = buildWorkbook({
+			sharedStrings: ['email', 'level', 'profiles'],
+			sheetXml:
+				'<worksheet><sheetData>' +
+				'<row r="1"><c r="A1" t="s"><v>0</v></c><c r="B1" t="s"><v>1</v></c><c r="C1" t="s"><v>2</v></c></row>' +
+				'<row r="2"><c r="A2" t="b"><v>1</v></c><c r="B2" t="e"><v>#REF!</v></c><c r="C2" t="b"><v>0</v></c></row>' +
+				'</sheetData></worksheet>',
+		});
+
+		const result = parseInviteWorkbook(bytes);
+
+		expect(result.outcome).toBe('parsed');
+		const row = result.outcome === 'parsed' ? result.rows[0] : undefined;
+		expect(row?.invalidCells).toEqual([
+			{ cell: 'A2', value: '1', kind: 'boolean' },
+			{ cell: 'B2', value: '#REF!', kind: 'formula-error' },
+			{ cell: 'C2', value: '0', kind: 'boolean' },
+		]);
 	});
 });
