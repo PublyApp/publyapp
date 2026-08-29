@@ -511,6 +511,71 @@ describe('#1388 profile users selection-mode bulk unassign (real router)', () =>
 		});
 	});
 
+	// #1814: the fully-failed edge WITHOUT per-item reasons (failedItems: [])
+	// exercises the `succeededCount > 0` guard directly — reasons.length === 0
+	// falls back to filterWarning, which is undefined when succeededCount === 0.
+	// The older fully-failed test above carries a non-empty failedItems, so it
+	// takes the per-row cause branch and never evaluates the guard at zero.
+	// #1811: the expected behavior here (failure count with no cause) is
+	// tracked separately; this test covers the CURRENT behavior only.
+	test('a fully-failed unassign without per-item reasons suppresses the filter-leave warning', async () => {
+		mocks.bulkUnassign.mockResolvedValue({
+			succeededCount: 0,
+			failedCount: 1,
+			failedItems: [],
+		});
+
+		const harness = await renderAtPage();
+
+		const usersListKey = usersListCacheKey();
+		harness.queryClient.setQueryData(usersListKey, { users: [], count: 0 });
+		expect(
+			harness.queryClient.getQueryState(usersListKey)?.isInvalidated ?? false,
+		).toBe(false);
+
+		fireEvent.click(screen.getByRole('checkbox', { name: `Select ${USER_A}` }));
+		await waitFor(() =>
+			expect(
+				screen
+					.getByRole('checkbox', { name: `Select ${USER_A}` })
+					.getAttribute('aria-checked'),
+			).toBe('true'),
+		);
+
+		await chooseBulkAction('Unassign selected', 'More actions');
+		fireEvent.click(await screen.findByRole('button', { name: 'Unassign' }));
+
+		await waitFor(() => expect(mocks.bulkUnassign).toHaveBeenCalledOnce());
+		await waitFor(() => expect(mocks.toastError).toHaveBeenCalledOnce());
+		expect(mocks.toastSuccess).not.toHaveBeenCalled();
+		// reasons.length === 0 falls back to filterWarning, which is undefined
+		// when succeededCount === 0 — the filter-leave warning is suppressed.
+		expect(mocks.toastError.mock.calls[0]?.[0]).toBe(
+			'Unassigned 0 user(s), 1 failed.',
+		);
+		expect(mocks.toastError.mock.calls[0]?.[1]).toBeUndefined();
+
+		// Bookkeeping is unconditional even with no successes.
+		await waitFor(() =>
+			expect(
+				screen
+					.getByRole('checkbox', { name: `Select ${USER_A}` })
+					.getAttribute('aria-checked'),
+			).toBe('false'),
+		);
+		await waitFor(() =>
+			expect(
+				screen.queryByRole('button', { name: 'Clear selection' }),
+			).toBeNull(),
+		);
+		await waitFor(() => {
+			expect(mocks.invalidateStaffProfiles).toHaveBeenCalledOnce();
+			expect(
+				harness.queryClient.getQueryState(usersListKey)?.isInvalidated ?? false,
+			).toBe(true);
+		});
+	});
+
 	// #1407-class post-success contract: a successful bulk unassign must clear
 	// the selection AND invalidate the profile query family. Both behaviors are
 	// asserted against live state — the checkbox DOM for the selection, and the
