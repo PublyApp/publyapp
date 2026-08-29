@@ -374,6 +374,14 @@ ci-project-closure-adapter:
   @echo "=== [gate] project closure adapter ==="
   pnpm test:project-closure-adapter
 
+# #1513: fail if any tracked file matches a .gitignore rule. Interrogates the
+# real repo via `git ls-files --cached --ignored --exclude-standard` — empty
+# output is green, any named path is red. Mirrors quality-gate.yml::quality.
+ci-no-ignored-tracked:
+  @echo "=== [gate] no tracked file matches .gitignore (#1513) ==="
+  pnpm --filter scripts-ts exec vitest run src/check-no-ignored-tracked.test.ts
+  node ./packages/scripts-ts/src/check-no-ignored-tracked.ts
+
 # Install exactly as CI does (supply-chain policy: frozen + no lifecycle scripts)
 ci-install:
   @echo "=== [gate] install (frozen lockfile, no scripts) ==="
@@ -528,7 +536,7 @@ ci-e2e-front:
 
 
 # Everyday pre-push gate (no e2e). Fails on the first red sub-gate.
-ci: ci-drift ci-migration-expand-contract ci-review-worktree-resolution ci-doc-links ci-deploy-env-docs ci-project-closure-adapter ci-install ci-format ci-lint ci-lint-ts ci-knip ci-shared-ts ci-quality ci-front ci-spec-drift nuget-audit test-api
+ci: ci-drift ci-migration-expand-contract ci-review-worktree-resolution ci-doc-links ci-deploy-env-docs ci-project-closure-adapter ci-no-ignored-tracked ci-install ci-format ci-lint ci-lint-ts ci-knip ci-shared-ts ci-quality ci-front ci-spec-drift nuget-audit test-api
   @echo ""
   @echo "=== just ci: PASSED ==="
   @echo "Not covered here: the two e2e suites (run 'just ci-full')."

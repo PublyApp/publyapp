@@ -266,15 +266,15 @@
 			"mirror": null,
 			"reason": "GitHub-only: round-5 BLOCKER fix. Reads steps.check-required-jobs.outcome, which GitHub computes BEFORE continue-on-error is applied (only .conclusion is rewritten afterward), so a continue-on-error added to the required-jobs check step cannot mask this step's own view of whether that step actually succeeded. That `.outcome` context only exists inside a real Actions run, so this stays GitHub-only/unmirrored locally; packages/scripts-ts/src/check-ci-gate-structure.ts pins that this exact step exists."
 		},
-		"front-ci.yml::supply-chain::Audit production dependencies (moderate and above)": {
-			"hash": "8d5095ef73aba7b3",
-			"mirror": "pnpm audit --prod --audit-level=moderate",
-			"reason": "#1644: production-graph threshold lowered from high to moderate to align with the dev-graph gate (quality-gate.yml::quality::Audit development dependencies). The previous shape let a moderate advisory in a production dep slip through both audits: --prod excludes the dev graph, and --audit-level=high excludes moderate. The same command reproduces it locally without Docker or CI; the production graph is clean at every threshold today, so the cost is zero and the safety is immediate (no exception list needed). #1674: the bite-proof test (packages/scripts-ts/src/prod-audit-bites.test.ts) parses this step's `run:` body to pin the exact command string and runs `pnpm audit --prod --audit-level=moderate` against a controlled fixture carrying ejs@3.1.7 → GHSA-ghr5-ch3p-vcr6 (a stable moderate advisory) so a regression that reverts the threshold to `high`, drops `--prod`, or removes the step turns the suite red before the audit step itself runs."
-		},
 		"front-ci.yml::supply-chain::Assert exact pins": {
 			"hash": "9f0331695e45ef30",
 			"mirror": "just ci-install",
 			"reason": "ci-install runs the identical command: node apps/front/scripts/guards/assert-pinned.mts."
+		},
+		"front-ci.yml::supply-chain::Audit production dependencies (moderate and above)": {
+			"hash": "8d5095ef73aba7b3",
+			"mirror": "pnpm audit --prod --audit-level=moderate",
+			"reason": "#1644: production-graph threshold lowered from high to moderate to align with the dev-graph gate (quality-gate.yml::quality::Audit development dependencies). The previous shape let a moderate advisory in a production dep slip through both audits: --prod excludes the dev graph, and --audit-level=high excludes moderate. The same command reproduces it locally without Docker or CI; the production graph is clean at every threshold today, so the cost is zero and the safety is immediate (no exception list needed). #1674: the bite-proof test (packages/scripts-ts/src/prod-audit-bites.test.ts) parses this step's `run:` body to pin the exact command string and runs `pnpm audit --prod --audit-level=moderate` against a controlled fixture carrying ejs@3.1.7 → GHSA-ghr5-ch3p-vcr6 (a stable moderate advisory) so a regression that reverts the threshold to `high`, drops `--prod`, or removes the step turns the suite red before the audit step itself runs."
 		},
 		"front-ci.yml::supply-chain::Build front": {
 			"hash": "cbd03bead5b114fa",
@@ -336,11 +336,6 @@
 			"mirror": "just ci-front",
 			"reason": "ci-front runs the identical pnpm --filter front test."
 		},
-		"front-ci.yml::supply-chain::Verify paired red proofs": {
-			"hash": "84a5033fcfbeb3dd",
-			"mirror": "just ci-front",
-			"reason": "ci-front runs `just test-preuves`, which delegates to the same scripts/ci/run-preuves.mts script invoked by `pnpm --filter front test:preuves`. Option (b) of issue #1659 ronde 5: a PR declares a paired red proof by adding/modifying proof test files under apps/front/tests/proofs/<issue>/. The runner uses `git diff` to detect whether the current PR touched any proof files. If proofs were declared, it replays them with inverted semantics (fail = proof intact, pass = proof stale). If no proofs were declared, it prints an explicit no-op message and exits 0. Proof files are versionned (committed), unlike .dump/ which is git-ignored. The developer replay path is the lane worktree where .dump/ traces also exist."
-		},
 		"front-ci.yml::supply-chain::Typecheck front": {
 			"hash": "919f61e1a9c1b71c",
 			"mirror": "just ci-front",
@@ -355,6 +350,11 @@
 			"hash": "cce3dbe7f24e28a4",
 			"mirror": "just ci-front",
 			"reason": "ci-front runs pnpm --filter front verify:build, whose script body now also calls scripts/guards/verify-font-bundle.mts. The CI step passes --dist apps/front/dist and --locales-dir apps/front/src/i18n/locales explicitly; the script defaults resolve to the same two paths when it runs with apps/front as the working directory, so the local run is equivalent rather than merely similar."
+		},
+		"front-ci.yml::supply-chain::Verify paired red proofs": {
+			"hash": "84a5033fcfbeb3dd",
+			"mirror": "just ci-front",
+			"reason": "ci-front runs `just test-preuves`, which delegates to the same scripts/ci/run-preuves.mts script invoked by `pnpm --filter front test:preuves`. Option (b) of issue #1659 ronde 5: a PR declares a paired red proof by adding/modifying proof test files under apps/front/tests/proofs/<issue>/. The runner uses `git diff` to detect whether the current PR touched any proof files. If proofs were declared, it replays them with inverted semantics (fail = proof intact, pass = proof stale). If no proofs were declared, it prints an explicit no-op message and exits 0. Proof files are versionned (committed), unlike .dump/ which is git-ignored. The developer replay path is the lane worktree where .dump/ traces also exist."
 		},
 		"front-e2e.yml::build::Build stack images": {
 			"hash": "8a525f944e9edfab",
@@ -627,7 +627,7 @@
 			"reason": "GitHub-only: clones the repo onto the runner. Locally the working tree already is the code under test."
 		},
 		"quality-gate.yml::changes::Check whether quality-gate paths changed": {
-			"hash": "b4adc204e9a07793",
+			"hash": "bf05619ed75716df",
 			"mirror": "pnpm --filter scripts-ts exec vitest run src/ci-gate-bootstrap.test.ts",
 			"reason": "The step inlines the fallback directly (same pattern as the other four gate workflows): if base-ref/packages/scripts-ts/src/ci-changed-paths.ts exists, run it and pass its output/exit code straight through; otherwise print a loud [MISSING BASE CLASSIFIER] warning and resolve relevant=true, on a code path that never invokes the classifier. packages/scripts-ts/src/ci-gate-bootstrap.test.ts parses this exact `run:` block from the real workflow file (not a restatement) and executes it directly against both cases for all gate workflows. The classifier's own decision logic remains covered by ci-changed-paths.test.ts (#1334 fix round 1: the inline regex gained a docs/guides/dependency-health.md alternative so doc-only PRs wake this gate for the pin-location contract; that behavior is pinned by two new #1334 cases in ci-changed-paths.test.ts). The classifier regex (and the push paths list) also wake the gate on root knip.ts changes since #455, matching the Knip step's inputs."
 		},
@@ -650,6 +650,16 @@
 			"hash": "4f03457ecbb68642",
 			"mirror": null,
 			"reason": "GitHub-only: round-5 BLOCKER fix. Reads steps.check-required-jobs.outcome, which GitHub computes BEFORE continue-on-error is applied (only .conclusion is rewritten afterward), so a continue-on-error added to the required-jobs check step cannot mask this step's own view of whether that step actually succeeded. That `.outcome` context only exists inside a real Actions run, so this stays GitHub-only/unmirrored locally; packages/scripts-ts/src/check-ci-gate-structure.ts pins that this exact step exists."
+		},
+		"quality-gate.yml::no-ignored-tracked::Checkout": {
+			"hash": "11ee605b2ca0dfd4",
+			"mirror": null,
+			"reason": "GitHub-only: clones the repo onto the runner. Locally the working tree already is the code under test."
+		},
+		"quality-gate.yml::no-ignored-tracked::Verify no tracked file matches .gitignore (#1513)": {
+			"hash": "2dc45c4183ec20fb",
+			"mirror": "just ci-no-ignored-tracked",
+			"reason": "ci-no-ignored-tracked runs the identical `node packages/scripts-ts/src/check-no-ignored-tracked.ts` plus its vitest test, which interrogates the REAL repo via `git ls-files -z --cached --ignored --exclude-standard`. Empty output = green, any named path = red. See issue #1513."
 		},
 		"quality-gate.yml::quality::Assert exact pins": {
 			"hash": "9f0331695e45ef30",
@@ -761,6 +771,16 @@
 			"mirror": "just ci-shared-ts",
 			"reason": "ci-shared-ts runs the identical pnpm --filter @org/shared-ts test (vitest run, 82 tests) that this step runs."
 		},
+		"quality-gate.yml::quality::Typecheck client-ts": {
+			"hash": "b9b9694f73a244ad",
+			"mirror": "just ci-lint-ts",
+			"reason": "ci-lint-ts now also runs pnpm --filter @org/client-ts typecheck (tsc --noEmit), the identical invocation this step runs. The Kiota-generated TypeScript API client's typecheck script was added to packages/client-ts/package.json but was never wired into any CI step or local gate — trompe-l’oeil coverage. See issue #1692."
+		},
+		"quality-gate.yml::quality::Typecheck lint-ts": {
+			"hash": "784fa13a651b3079",
+			"mirror": "just ci-lint-ts",
+			"reason": "ci-lint-ts runs the identical pnpm --filter @org/lint-ts typecheck (tsc --noEmit) that this step runs. The package ships the repo's custom publy/* oxlint rules that guard every front surface, but nothing verified its own types — only its vitest tests ran (the step above). See issue #1600."
+		},
 		"quality-gate.yml::quality::Typecheck shared-ts": {
 			"hash": "332e3d0e05aa9d9b",
 			"mirror": "just ci-shared-ts",
@@ -770,6 +790,11 @@
 			"hash": "141f697f555addee",
 			"mirror": "node packages/scripts-ts/src/check-cyclomatic-bound.ts",
 			"reason": "The check-cyclomatic-bound guard verifies that complexity ceilings in .oxlintrc.json are not drifting. It reads the TRUE values from .oxlintrc.json and ensures they match the committed expected configuration in packages/scripts-ts/src/cyclomatic-bound-ref.json (apps/front/src/**: 60, test files: 90, default: 125). CI runs this guard to provide actual protection against bound drift."
+		},
+		"quality-gate.yml::quality::Verify deploy env doc coverage (#1798)": {
+			"hash": "7e3a5bf766524b33",
+			"mirror": "just ci-deploy-env-docs",
+			"reason": "ci-deploy-env-docs runs the identical pnpm --filter scripts-ts exec vitest run src/check-deploy-env-docs.test.ts && node ./packages/scripts-ts/src/check-deploy-env-docs.ts that this step runs. The guard extracts required env vars from actual source code (env.ts schema, server.ts validateRuntimeEnv, AppEnvironment.cs GetRequiredString calls) and compares them to the documented vars in the runbook. Fails closed: an unparseable source file FAILS LOUDLY with the file name and error."
 		},
 		"react-doctor.yml::changes::Check whether react-doctor paths changed": {
 			"hash": "85b8ebcec99c9f7d",
@@ -835,21 +860,6 @@
 			"hash": "a4cc669d0f05a839",
 			"mirror": null,
 			"reason": "Reads github.event.pull_request.body. At pre-push time there is no PR and therefore no body to check, so this gate is unreproducible locally by construction rather than by omission. The step gained a #1240 waiver that short-circuits to success for PR_AUTHOR == 'dependabot[bot]' (exact-login policy, not github.actor, not a label); the waiver's exact shape is guarded by packages/scripts-ts/src/require-linked-issue.test.ts, which just ci-drift now runs, but the step itself (which reads the live PR body) stays a GitHub-only required check."
-		},
-		"quality-gate.yml::quality::Typecheck lint-ts": {
-			"hash": "784fa13a651b3079",
-			"mirror": "just ci-lint-ts",
-			"reason": "ci-lint-ts runs the identical pnpm --filter @org/lint-ts typecheck (tsc --noEmit) that this step runs. The package ships the repo's custom publy/* oxlint rules that guard every front surface, but nothing verified its own types — only its vitest tests ran (the step above). See issue #1600."
-		},
-		"quality-gate.yml::quality::Typecheck client-ts": {
-			"hash": "b9b9694f73a244ad",
-			"mirror": "just ci-lint-ts",
-			"reason": "ci-lint-ts now also runs pnpm --filter @org/client-ts typecheck (tsc --noEmit), the identical invocation this step runs. The Kiota-generated TypeScript API client's typecheck script was added to packages/client-ts/package.json but was never wired into any CI step or local gate — trompe-l’oeil coverage. See issue #1692."
-		},
-		"quality-gate.yml::quality::Verify deploy env doc coverage (#1798)": {
-			"hash": "7e3a5bf766524b33",
-			"mirror": "just ci-deploy-env-docs",
-			"reason": "ci-deploy-env-docs runs the identical pnpm --filter scripts-ts exec vitest run src/check-deploy-env-docs.test.ts && node ./packages/scripts-ts/src/check-deploy-env-docs.ts that this step runs. The guard extracts required env vars from actual source code (env.ts schema, server.ts validateRuntimeEnv, AppEnvironment.cs GetRequiredString calls) and compares them to the documented vars in the runbook. Fails closed: an unparseable source file FAILS LOUDLY with the file name and error."
 		}
 	}
 }
