@@ -1870,11 +1870,15 @@ void test('#1844: a real single-star route glob is still detected (false negativ
 	);
 });
 
-// #1844 edge case: a match that starts at the very first character of
-// a comment must still be recognized as inside the comment. Changing
-// `index >= start` to `index > start` would miss this boundary and flag
-// a false positive.
-void test('#1844: a match at the very start of a comment is not a violation', async () => {
+// #1844 edge case: the `index >= start` boundary in `isInsideComment`.
+// A regex match can never start at the comment range's `start` offset
+// because that offset is always the `/*` or `//` opener, which the
+// forbidden-primitive regex (`DialogPrimitive.Popup`, `<a href=...`,
+// `page.route(...".../*")`) never matches. So changing `>=` to `>`
+// keeps this test green — this is a documentation of that boundary,
+// not a paired red proof. The invariant holds because the match is
+// ALWAYS at `start + 2` (after the opener), not at `start`.
+void test('#1844: a match after a block comment opener is not a violation (boundary documentation)', async () => {
 	const root = await makeFixture({
 		'src/components/ui/dialog-popup-start-comment.tsx': [
 			'/*DialogPrimitive.Popup*/',
@@ -1892,7 +1896,7 @@ void test('#1844: a match at the very start of a comment is not a violation', as
 			(violation) => violation.ruleId === 'no-dialog-popup-primitives',
 		),
 		false,
-		'a match at the very start of a comment must not be flagged',
+		'a match starting after the block comment opener must not be flagged',
 	);
 });
 
