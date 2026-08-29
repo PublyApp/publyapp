@@ -273,6 +273,39 @@ test('detects Archive: false with different casing — GitHub Actions YAML is ca
 	assert.match(findings[0], /v8/);
 });
 
+// #1742: the guard used to read the FIRST `uses:` line matching a repo@sha,
+// so when two steps pinned the same repo@sha (e.g. two downloads of the same
+// artifact in different jobs), the second step silently inherited the first
+// step's version comment. This test proves each step reads its OWN comment.
+test("reads each step's own version comment when two steps pin the same repo@sha (RED for #1742)", async () => {
+	const rootDir = await buildFixture({
+		'fixture.yml': makeWorkflow(
+			'  build:\n    runs-on: ubuntu-latest\n    outputs:\n      tag: ${{ steps.tag.outputs.tag }}\n    steps:\n' +
+				'      - name: Generate tag\n        id: tag\n        run: echo "tag=abc" >> $GITHUB_OUTPUT\n' +
+				'      - name: Upload\n' +
+				`        uses: actions/upload-artifact@${UPLOAD_V7_SHA} # v7.0.1\n` +
+				'        with:\n          name: my-artifact-${{ steps.tag.outputs.tag }}\n          path: dist/\n          archive: false\n' +
+				'  verify:\n    runs-on: ubuntu-latest\n    needs: build\n    steps:\n' +
+				'      - name: Download v8 (correct)\n' +
+				`        uses: actions/download-artifact@${DOWNLOAD_V8_SHA} # v8.0.1\n` +
+				'        with:\n          name: my-artifact-${{ needs.build.outputs.tag }}\n' +
+				'      - name: Download v4 (outdated comment, same sha as v8)\n' +
+				`        uses: actions/download-artifact@${DOWNLOAD_V8_SHA} # v4\n` +
+				'        with:\n          name: my-artifact-${{ needs.build.outputs.tag }}\n',
+		),
+	});
+
+	const findings = await findArtifactVersionIncompatibilities({ rootDir });
+
+	// With the fix: the second download reads its OWN comment (# v4), so the
+	// guard detects the incompatibility. Without the fix: the second download
+	// inherited the first download's comment (# v8.0.1), so no incompatibility
+	// was reported — the guard passed green without checking the right step.
+	assert.equal(findings.length, 1);
+	assert.match(findings[0], /v4/);
+	assert.match(findings[0], /v8\+/);
+});
+
 test('repo workflows pass — real front-e2e.yml and api-tests.yml are compatible', async () => {
 	const rootDir = path.resolve(
 		path.dirname(new URL(import.meta.url).pathname),

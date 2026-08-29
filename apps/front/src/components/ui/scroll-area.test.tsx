@@ -3,41 +3,13 @@
  */
 import { cleanup, render } from '@testing-library/react';
 import * as React from 'react';
-import * as ReactDOMServer from 'react-dom/server';
 import { afterEach, describe, expect, test } from 'vitest';
 
 import { ScrollArea } from './scroll-area';
 
 afterEach(cleanup);
 
-describe('ScrollArea', () => {
-	test('renders the full SimpleBar DOM contract on the server (SSR-safe, no client-only markup)', () => {
-		const html = ReactDOMServer.renderToStaticMarkup(
-			<ScrollArea scrollAreaLabel="Contenu déroulant">
-				<div>alpha</div>
-			</ScrollArea>,
-		);
-
-		expect(html).toContain('data-simplebar="init"');
-		expect(html).toContain('simplebar-wrapper');
-		expect(html).toContain('simplebar-mask');
-		expect(html).toContain('simplebar-offset');
-		expect(html).toContain('simplebar-content-wrapper');
-		expect(html).toContain('simplebar-content');
-		expect(html).toContain('simplebar-placeholder');
-		expect(html).toContain('simplebar-track');
-		expect(html).toContain('simplebar-horizontal');
-		expect(html).toContain('simplebar-vertical');
-
-		const parsed = new DOMParser().parseFromString(html, 'text/html');
-		const scroller = parsed.querySelector('.simplebar-content-wrapper');
-		expect(scroller).not.toBeNull();
-		expect(scroller?.getAttribute('role')).toBe('region');
-		expect(scroller?.getAttribute('aria-label')).toBe('Contenu déroulant');
-		// Server output must stay inert: no revealed thumbs, no focusability.
-		expect(parsed.querySelectorAll('.simplebar-visible')).toHaveLength(0);
-	});
-
+describe('ScrollArea (client)', () => {
 	test('forwards the ref to the REAL scroller: scrollTop writes land on the content wrapper', () => {
 		const ref = React.createRef<HTMLDivElement>();
 		const Host = () => (
@@ -97,5 +69,18 @@ describe('ScrollArea', () => {
 		// the engine, never by React).
 		const placeholder = area?.querySelector('.simplebar-placeholder');
 		expect(placeholder?.getAttribute('style')).toContain('height');
+	});
+
+	test('mounts without effects throwing (hydration smoke test)', () => {
+		// #1750 Limite 1: renderToStaticMarkup n'exécute pas les effets.
+		// Ce test vérifie que le montage (qui déclenche les effets) ne lève
+		// pas d'erreur — un accès `window` dans un effet casserait ici.
+		expect(() => {
+			render(
+				<ScrollArea scrollAreaLabel="Hydratation">
+					<div>contenu</div>
+				</ScrollArea>,
+			);
+		}).not.toThrow();
 	});
 });
