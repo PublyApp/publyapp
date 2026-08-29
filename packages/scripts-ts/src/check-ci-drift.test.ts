@@ -131,6 +131,13 @@ test('fails when CI gains a step the local gate does not cover', async () => {
 		findings[0],
 		/mirror it in `just ci` or record why it cannot run locally/,
 	);
+	// Order: cause must precede action.
+	assert.ok(
+		findings[0].indexOf(
+			'CI gained a step the local gate does not account for',
+		) < findings[0].indexOf('mirror it in `just ci`'),
+		'Cause (CI gained a step) must appear before the action (mirror it or record why)',
+	);
 });
 
 test('fails when a reconciled CI step changes its command', async () => {
@@ -152,6 +159,12 @@ test('fails when a reconciled CI step changes its command', async () => {
 	assert.match(findings[0], /Re-check that/);
 	assert.match(findings[0], /still covers it/);
 	assert.match(findings[0], /update the hash/);
+	// Order: cause must precede action.
+	assert.ok(
+		findings[0].indexOf('changed since it was reconciled') <
+			findings[0].indexOf('Re-check that'),
+		'Cause (this CI step changed) must appear before the action (Re-check and update hash)',
+	);
 });
 
 test('fails when a step changes only its env or condition', async () => {
@@ -221,6 +234,12 @@ test('fails when the manifest reconciles a step that no longer exists', async ()
 	// Action: delete the entry and drop the local mirror.
 	assert.match(findings[0], /Delete the entry/);
 	assert.match(findings[0], /drop the local mirror/);
+	// Order: cause must precede action.
+	assert.ok(
+		findings[0].indexOf('reconciles a CI step that no longer exists') <
+			findings[0].indexOf('Delete the entry'),
+		'Cause (manifest reconciles a non-existent step) must appear before the action (delete the entry)',
+	);
 });
 
 test('rejects an exemption that does not give a reviewable reason', async () => {
@@ -677,6 +696,12 @@ test('reason guard: warns when a reference entry is absent from the manifest (st
 		staleRefFindings[0],
 		/delete the reference entry by regenerating/,
 	);
+	// Order: cause must precede action.
+	assert.ok(
+		staleRefFindings[0].indexOf('absent from the manifest') <
+			staleRefFindings[0].indexOf('delete the reference entry by regenerating'),
+		'Cause (holds a fingerprint for absent step) must appear before the action (delete the reference entry)',
+	);
 });
 
 test('reason guard: passes when manifest and reference are fully aligned (Case 3 unchanged)', async () => {
@@ -779,9 +804,17 @@ test('duplicate key guard: detects a duplicate key in the manifest steps', () =>
 	);
 	// Action: the complete directive must tell the operator to delete the
 	// duplicate AND keep the intended one — not just one or the other.
-	assert.match(
-		findings[0],
-		/Delete the duplicate entry and keep the intended one/,
+	// Order: cause must precede action — not just both present. A message
+	// that states what to do before stating what is wrong leaves the operator
+	// without understanding the problem first.
+	assert.ok(
+		findings[0].indexOf(
+			'JSON.parse would silently keep only the last occurrence',
+		) <
+			findings[0].indexOf(
+				'Delete the duplicate entry and keep the intended one',
+			),
+		'Cause (JSON.parse silently drops the duplicate) must appear before the action (delete the duplicate)',
 	);
 });
 
