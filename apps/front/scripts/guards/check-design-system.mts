@@ -2450,16 +2450,14 @@ export const scanFront2DesignSystem = async ({
 				// #1844: compute comment ranges once per file, shared by
 				// every mode:'source' rule — a match that starts inside a
 				// comment is a prose citation, not a real usage.
-				const commentRanges =
-					commentRangesByRelativePath.get(relativePath) ??
-					(() => {
-						const ranges = collectCommentRanges(
-							source,
-							scriptKindForPath(relativePath),
-						);
-						commentRangesByRelativePath.set(relativePath, ranges);
-						return ranges;
-					})();
+				let commentRanges = commentRangesByRelativePath.get(relativePath);
+				if (!commentRanges) {
+					commentRanges = collectCommentRanges(
+						source,
+						scriptKindForPath(relativePath),
+					);
+					commentRangesByRelativePath.set(relativePath, commentRanges);
+				}
 
 				for (const pattern of rule.patterns) {
 					// Every mode-'source' rule in this file declares plain RegExp
