@@ -62,10 +62,18 @@ type ReasonRefFile = {
 //
 // INTEGRITY ASSERTION
 // -------------------
-// `pinned_step_ids` and `steps{}` must contain exactly the same set of IDs.
-// A mismatch means the reference file has been tampered with (one of the two
-// was edited without regenerating). The script fails loudly, naming the IDs
-// in discrepancy.
+// `pinned_step_ids` and `steps{}` are correlated through ci-gate-manifest.json:
+//
+//   - Every pinned step must be tracked in steps{}. A pinned step dropped from
+//     steps{} is a floor-lowering attack — refuse loudly.
+//   - Extra steps in steps{} that exist in the manifest are legitimate growth
+//     (the manifest gained steps since the last generation). The ratchet absorbs
+//     them.
+//   - Extra steps in steps{} that are NOT in the manifest are phantom steps
+//     inserted into the reference — refuse loudly.
+//
+// This distinction lets a legitimate manifest growth (another PR added a step)
+// regenerate without silently opening the door to tampering.
 //
 // To deliberately remove a step, the human must confess the removal in
 // ci-gate-removals.json, naming the step and why. Without that confession,
@@ -250,32 +258,39 @@ const readRemovalsConfession = async (
 const assertIntegrity = (
 	pinnedStepIds: string[],
 	steps: Record<string, unknown>,
+	manifestSteps: Record<string, unknown>,
 ): void => {
 	const pinnedSet = new Set(pinnedStepIds);
 	const stepsSet = new Set(Object.keys(steps));
+	const manifestSet = new Set(Object.keys(manifestSteps));
 
+	// A pinned step removed from steps{} is a floor-lowering attack: someone
+	// dropped a tracked step from the reference so the guard stops monitoring
+	// it. This is never legitimate — refuse loudly, naming the orphaned ID.
 	const missingFromSteps = [...pinnedSet].filter((id) => !stepsSet.has(id));
-	const missingFromPinned = [...stepsSet].filter((id) => !pinnedSet.has(id));
-
-	if (missingFromSteps.length > 0 || missingFromPinned.length > 0) {
-		const parts: string[] = [];
-
-		if (missingFromSteps.length > 0) {
-			parts.push(
-				`pinned_step_ids has ${missingFromSteps.length} ID(s) missing from steps{}: ${missingFromSteps.map((id) => `"${id}"`).join(', ')}`,
-			);
-		}
-
-		if (missingFromPinned.length > 0) {
-			parts.push(
-				`steps{} has ${missingFromPinned.length} ID(s) missing from pinned_step_ids: ${missingFromPinned.map((id) => `"${id}"`).join(', ')}`,
-			);
-		}
-
+	if (missingFromSteps.length > 0) {
 		throw new Error(
-			`Integrity check failed: pinned_step_ids and steps{} do not match. ${parts.join('; ')}. The reference file has been tampered with — regenerate it with \`node packages/scripts-ts/src/gen-reason-ref.ts\`.`,
+			`Integrity check failed: pinned_step_ids has ${missingFromSteps.length} ID(s) missing from steps{}: ${missingFromSteps.map((id) => `"${id}"`).join(', ')}. A pinned step was removed from tracking — the reference file has been tampered with (floor-lowering attack). Restore it with \`git checkout HEAD -- ${outputPath}\` and re-run.`,
 		);
 	}
+
+	// Extra steps in steps{} fall into two buckets. If the step exists in the
+	// manifest, the manifest grew since the last generation — legitimate, the
+	// ratchet will absorb it. If the step is NOT in the manifest, someone added
+	// a phantom step to steps{} — tampering, refuse loudly.
+	const phantomFromPinned = [...stepsSet].filter(
+		(id) => !pinnedSet.has(id) && !manifestSet.has(id),
+	);
+
+	if (phantomFromPinned.length > 0) {
+		throw new Error(
+			`Integrity check failed: steps{} has ${phantomFromPinned.length} ID(s) not present in ci-gate-manifest.json: ${phantomFromPinned.map((id) => `"${id}"`).join(', ')}. These phantom steps were inserted into the reference file — the file has been tampered with. Remove them manually or restore with \`git checkout HEAD -- ${outputPath}\` and re-run.`,
+		);
+	}
+
+	// Remaining case: steps{} has IDs not in pinned_step_ids but present in the
+	// manifest. This is legitimate growth — the manifest gained steps since the
+	// last generation. The ratchet absorbs them on regenerate, so this passes.
 };
 
 const manifestRaw = readFileSync(
@@ -326,7 +341,11 @@ try {
 
 // Integrity pre-check: the existing reference must have matching
 // pinned_step_ids and steps{}. This catches manual tampering.
-assertIntegrity(existingRef.pinned_step_ids ?? [], existingRef.steps ?? {});
+assertIntegrity(
+	existingRef.pinned_step_ids ?? [],
+	existingRef.steps ?? {},
+	steps,
+);
 
 // Read and validate the confession file. Throws on malformed input.
 const confession = await readRemovalsConfession(process.cwd());
@@ -386,7 +405,7 @@ if (vanishedWithoutConfession.length > 0) {
 // Integrity post-check: the new pinned_step_ids and steps{} must match.
 // steps{} is derived from the manifest (reference), and pinned_step_ids is
 // the ratchet floor. They must agree on every ID.
-assertIntegrity(newPinned, reference);
+assertIntegrity(newPinned, reference, steps);
 
 const output = {
 	$comment: [

@@ -130,7 +130,7 @@ test('integrity assertion: fails when pinned_step_ids has ID missing from steps{
 	);
 });
 
-test('integrity assertion: fails when steps{} has ID missing from pinned_step_ids', async () => {
+test('integrity assertion: extra step in steps{} that IS in manifest is legitimate growth (regenerates)', async () => {
 	const rootDir = await buildRepo({
 		manifestSteps: {
 			'fixture.yml::build::Step A': {
@@ -162,10 +162,102 @@ test('integrity assertion: fails when steps{} has ID missing from pinned_step_id
 	const result = await runScript(rootDir);
 
 	assert.equal(
+		result.exitCode,
+		0,
+		'Expected success — extra step in steps{} is in the manifest, so this is legitimate growth',
+	);
+	assert.equal(
+		result.stdout.includes('Regenerated'),
+		true,
+		'Expected regeneration',
+	);
+});
+
+test('integrity assertion: phantom step in steps{} (not in manifest) fails', async () => {
+	const rootDir = await buildRepo({
+		manifestSteps: {
+			'fixture.yml::build::Step A': {
+				hash: 'abc123',
+				mirror: 'just ci',
+				reason: 'Step A reason text.',
+			},
+		},
+		reference: {
+			pinned_step_ids: ['fixture.yml::build::Step A'],
+			steps: {
+				'fixture.yml::build::Step A': {
+					reason_hash: 'hash',
+					reason_length: 10,
+				},
+				'fixture.yml::build::Step PHANTOM': {
+					reason_hash: 'hash2',
+					reason_length: 10,
+				},
+			},
+		},
+	});
+
+	const result = await runScript(rootDir);
+
+	assert.notEqual(
+		result.exitCode,
+		0,
+		'Expected non-zero exit for phantom step',
+	);
+	assert.equal(
 		result.stderr.includes('Integrity check failed') ||
 			result.stdout.includes('Integrity check failed'),
 		true,
-		'Expected integrity check failure',
+		'Expected integrity check failure naming phantom step',
+	);
+	assert.equal(
+		result.stderr.includes('phantom') || result.stdout.includes('phantom'),
+		true,
+		'Expected error naming the phantom step',
+	);
+});
+
+test('integrity assertion: pinned step removed from steps{} (floor-lowering) fails', async () => {
+	const rootDir = await buildRepo({
+		manifestSteps: {
+			'fixture.yml::build::Step A': {
+				hash: 'abc123',
+				mirror: 'just ci',
+				reason: 'Step A reason text.',
+			},
+		},
+		reference: {
+			pinned_step_ids: [
+				'fixture.yml::build::Step A',
+				'fixture.yml::build::Step B',
+			],
+			steps: {
+				'fixture.yml::build::Step A': {
+					reason_hash: 'hash',
+					reason_length: 10,
+				},
+			},
+		},
+	});
+
+	const result = await runScript(rootDir);
+
+	assert.notEqual(
+		result.exitCode,
+		0,
+		'Expected non-zero exit for floor-lowering',
+	);
+	assert.equal(
+		result.stderr.includes('Integrity check failed') ||
+			result.stdout.includes('Integrity check failed'),
+		true,
+		'Expected integrity check failure naming orphaned pinned step',
+	);
+	assert.equal(
+		result.stderr.includes('floor-lowering') ||
+			result.stdout.includes('floor-lowering'),
+		true,
+		'Expected error naming the floor-lowering attack',
 	);
 });
 
