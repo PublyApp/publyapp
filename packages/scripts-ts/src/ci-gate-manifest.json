@@ -297,9 +297,9 @@
 			"reason": "just format runs pnpm format, the identical oxfmt --check invocation over the repo's configured globs."
 		},
 		"front-ci.yml::supply-chain::Checkout": {
-			"hash": "11ee605b2ca0dfd4",
+			"hash": "f6bbd86f711cad8c",
 			"mirror": null,
-			"reason": "GitHub-only: clones the repo onto the runner. Locally the working tree already is the code under test."
+			"reason": "GitHub-only: clones the repo onto the runner with fetch-depth:0 (full history) so scripts/ci/run-preuves.mts can run git merge-base between the base ref and HEAD. A shallow checkout (default fetch-depth:1) would leave HEAD with no common ancestor with the base ref, making merge-base return empty and the diff go blank — the script would fail loud or silently exit 0. Locally the working tree already is the code under test."
 		},
 		"front-ci.yml::supply-chain::Install (frozen lockfile, no scripts)": {
 			"hash": "2fd5cf518bdeb323",

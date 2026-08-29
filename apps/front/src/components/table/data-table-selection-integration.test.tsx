@@ -12,6 +12,20 @@ import type { TestLabelMap } from '~/lib/testing/test-label-map';
  * `hasPartialSelection` on the header checkbox), the header checkbox shows
  * the wrong state — this test turns RED.
  *
+ * Visibility guard: the `data-icon` assertion alone only proves an icon is
+ * *declared*, never that it is *visible*. A mutation like `invisible` (or any
+ * other CSS hiding mechanism) applied to the icon element would keep `data-icon`
+ * present and readable while the icon is hidden from the user. The guard below
+ * reads the computed style of the icon element and fails if its `visibility` is
+ * `hidden` or its `display` is `none` — the two canonical ways Tailwind's
+ * `invisible` / `hidden` utilities hide an element. This is an ENUMERATION of
+ * hiding mechanisms: it covers `visibility:hidden` (Tailwind `invisible`) and
+ * `display:none` (Tailwind `hidden`), but does NOT cover `opacity:0`
+ * (Tailwind `opacity-0`), `clip-path`, `transform: scale(0)`, `width:0`,
+ * `height:0`, `position:absolute` off-screen, or `aria-hidden` without visual
+ * hiding. Those are out of scope here and would need dedicated coverage if a
+ * mutation uses them.
+ *
  * @vitest-environment jsdom
  */
 import type { ColumnDef } from './column-type';
@@ -131,6 +145,50 @@ const getHeaderCheckbox = (): HTMLElement | null =>
 		.getByTestId('selection-integration-rows')
 		.querySelector('thead [data-slot="checkbox"]');
 
+/** Returns the rendered icon name inside a checkbox, or null if none. */
+const getCheckboxIcon = (checkbox: HTMLElement | null): string | null =>
+	checkbox?.querySelector('[data-icon]')?.getAttribute('data-icon') ?? null;
+
+/**
+ * Returns the icon element inside a checkbox (by `data-icon`), or null if none.
+ * Used to inspect the element's computed style for visibility.
+ */
+const getCheckboxIconElement = (
+	checkbox: HTMLElement | null,
+): HTMLElement | null =>
+	checkbox?.querySelector<HTMLElement>('[data-icon]') ?? null;
+
+/**
+ * Asserts that the icon element inside the checkbox is NOT visually hidden
+ * via the `invisible` (Tailwind → `visibility:hidden`) or `hidden` (Tailwind →
+ * `display:none`) utility classes. jsdom does NOT resolve CSS classes into
+ * computed styles, so `window.getComputedStyle` cannot detect Tailwind
+ * utilities — we inspect `classList` directly instead. This is an ENUMERATION
+ * of hiding mechanisms: it covers `invisible` and `hidden`, but does NOT cover
+ * `opacity-0`, `clip-path-*`, `size-0`, `translate-*` off-screen, or
+ * `aria-hidden` without visual hiding. Those are out of scope here and would
+ * need dedicated coverage if a mutation uses them. Fails the test with the
+ * reason when the icon is hidden.
+ */
+const assertIconIsVisible = (
+	checkbox: HTMLElement | null,
+	context: string,
+): void => {
+	const iconElement = getCheckboxIconElement(checkbox);
+	expect(iconElement, `${context}: icon element exists`).not.toBeNull();
+	if (iconElement !== null) {
+		const classes = Array.from(iconElement.classList);
+		expect(
+			!classes.includes('invisible'),
+			`${context}: icon does NOT carry Tailwind "invisible" (visibility:hidden)`,
+		).toBe(true);
+		expect(
+			!classes.includes('hidden'),
+			`${context}: icon does NOT carry Tailwind "hidden" (display:none)`,
+		).toBe(true);
+	}
+};
+
 /** Returns all row checkbox elements in the body. */
 const getRowCheckboxes = (): HTMLElement[] =>
 	Array.from(
@@ -154,6 +212,7 @@ describe('DataTable row selection integration (issue #1730)', () => {
 		for (const checkbox of checkboxes) {
 			expect(checkbox.hasAttribute('data-checked')).toBe(false);
 			expect(checkbox.getAttribute('data-indeterminate')).toBeNull();
+			expect(getCheckboxIcon(checkbox)).toBeNull();
 		}
 
 		// Header checkbox should also be unchecked (no selection).
@@ -161,6 +220,7 @@ describe('DataTable row selection integration (issue #1730)', () => {
 		expect(headerCheckbox).not.toBeNull();
 		expect(headerCheckbox?.hasAttribute('data-checked')).toBe(false);
 		expect(headerCheckbox?.getAttribute('data-indeterminate')).toBeNull();
+		expect(getCheckboxIcon(headerCheckbox)).toBeNull();
 	});
 
 	// Breaker: if row checkbox checked state is inverted (checked when the row
@@ -193,6 +253,9 @@ describe('DataTable row selection integration (issue #1730)', () => {
 		// All selected -> header is checked, not indeterminate.
 		expect(headerCheckbox?.hasAttribute('data-checked')).toBe(true);
 		expect(headerCheckbox?.getAttribute('data-indeterminate')).toBeNull();
+		expect(getCheckboxIcon(headerCheckbox)).toBe('check');
+		// Visibility guard: the icon must be visible, not just declared.
+		assertIconIsVisible(headerCheckbox, 'header checkbox (all selected)');
 		// Accessible state: checked.
 		expect(headerCheckbox?.getAttribute('aria-checked')).toBe('true');
 	});
@@ -211,6 +274,9 @@ describe('DataTable row selection integration (issue #1730)', () => {
 		// Partial selection -> header is indeterminate, not checked.
 		expect(headerCheckbox?.hasAttribute('data-checked')).toBe(false);
 		expect(headerCheckbox?.getAttribute('data-indeterminate')).toBe('');
+		expect(getCheckboxIcon(headerCheckbox)).toBe('minus');
+		// Visibility guard: the icon must be visible, not just declared.
+		assertIconIsVisible(headerCheckbox, 'header checkbox (partial selection)');
 		// Accessible state: mixed.
 		expect(headerCheckbox?.getAttribute('aria-checked')).toBe('mixed');
 	});
@@ -230,6 +296,7 @@ describe('DataTable row selection integration (issue #1730)', () => {
 		// No selection at all -> header is unchecked and not indeterminate.
 		expect(headerCheckbox?.hasAttribute('data-checked')).toBe(false);
 		expect(headerCheckbox?.getAttribute('data-indeterminate')).toBeNull();
+		expect(getCheckboxIcon(headerCheckbox)).toBeNull();
 		// Accessible state: false.
 		expect(headerCheckbox?.getAttribute('aria-checked')).toBe('false');
 	});

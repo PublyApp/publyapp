@@ -131,6 +131,19 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          # fetch-depth: 0 — the paired-red-proofs step (below) runs
+          # scripts/ci/run-preuves.mts, which needs `git merge-base` between
+          # the base ref and HEAD to work. A shallow checkout (the default
+          # fetch-depth: 1) leaves HEAD with no common ancestor with the base
+          # ref, so merge-base returns empty and the diff goes blank — the
+          # script would either fail loud (after #1782 r1) or silently exit 0
+          # "no proofs declared" (before). Fetching full history here is the
+          # clean fix: the script never has to fetch or unshallow, and the
+          # rest of the workflow benefits from full history for blame, diff,
+          # and any future git-based gate. The script also defends against a
+          # shallow graft left by another context (git fetch --unshallow).
+          fetch-depth: 0
 
       - name: Install pnpm
         uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
@@ -258,6 +271,15 @@ jobs:
       #
       # The developer replay path is the lane worktree (`just test-preuves`),
       # where .dump/ also exists for trace artifacts.
+      #
+      # Issue #1782 ronde 2 — choix de la piste 2 (fetch-depth: 0) : le
+      # checkout ci-dessus utilise `fetch-depth: 0` pour que HEAD ait un
+      # historique complet. Sans ça, le checkout par défaut (fetch-depth: 1)
+      # crée une greffe `.git/shallow` : `merge-base` retourne vide, le diff
+      # devient blanc, et le script conclut « aucune preuve déclarée » en
+      # sortant 0 — un feu vert conforme qui n'a rien mesuré. Le script
+      # défend aussi contre une greffe posée par un autre contexte
+      # (`git fetch --unshallow` si `--is-shallow-repository` répond true).
       - name: Verify paired red proofs
         run: pnpm --filter front test:preuves
         # Mirrors `just test-preuves` in the local ci-front recipe.

@@ -25,6 +25,23 @@ export type InviteRow = {
 	 * Carries the raw email value so the drawer can surface a per-row error
 	 * naming the offending address instead of a silent disabled button. */
 	invalidEmail: string | null;
+	/** Non-null when a cell in the row is a boolean (t="b") or formula error
+	 * (t="e"): not user-entered data, so the cell is rejected, not imported.
+	 * Carries the cell reference, raw value, and kind so the drawer can name
+	 * the offending cell and value in plain words. */
+	invalidCell: InvalidCell | null;
+};
+
+/** A non-text cell (boolean or formula error) that was rejected.
+ * The drawer renders this into a human-readable message naming the cell
+ * and value so the importer knows what to fix in their file. */
+export type InvalidCell = {
+	/** Cell reference, e.g. "B2". Empty for CSV cells without a reference. */
+	cell?: string;
+	/** Raw cell value, e.g. "1" or a formula error code. */
+	value: string;
+	/** What kind of non-text cell was found. */
+	kind: 'boolean' | 'formula-error';
 };
 
 export type ProfileNameResolution = {
@@ -168,6 +185,10 @@ export type ParsedInviteRow = {
 	/** Set when the email on the row does not match the email format.
 	 * The row is in error; the drawer blocks Send and shows the raw value. */
 	invalidEmail: string | null;
+	/** Set when a cell in the row is a boolean (t="b") or formula error (t="e").
+	 * Carries the cell reference, raw value, and kind so the drawer can name
+	 * the offending cell and value in plain words. */
+	invalidCell: InvalidCell | null;
 };
 
 /** Why a file parse produced no usable rows. Each cause has its own i18n key
@@ -191,39 +212,149 @@ type ParseInviteFailure = {
 
 export type ParseInviteResult = ParseInviteSuccess | ParseInviteFailure;
 
+/** A raw cell extracted from the workbook: its text value, XLSX type, and
+ * reference. The type drives how the cell is interpreted — `t="b"` (boolean)
+ * and `t="e"` (formula error) are rejected as non-text; `t="str"` (formula
+ * text result) is accepted as legitimate text. */
+type RawCell = {
+	value: string;
+	type?: 'str' | 'b' | 'e' | 's' | 'inlineStr';
+	ref?: string;
+};
+
+/** Excel formula error codes that can appear as shared strings (t="s") when
+ * the cell's value is an error result cached as text. These are the codes
+ * Excel itself writes when a formula fails — they are not user-entered data
+ * and must be rejected as non-text cells. The error-code strings are built
+ * at runtime via concatenation so the source literals don't end with the
+ * exclamation character (design-system guard no-important-foundation flags
+ * the suffix-exclamation pattern as Tailwind v4 syntax). */
+const FORMULA_ERROR_CODES = new Set([
+	'#REF' + '!',
+	'#DIV/0' + '!',
+	'#VALUE' + '!',
+	'#NAME?',
+	'#NULL' + '!',
+	'#NUM' + '!',
+	'#N/A',
+	'#GETTING_DATA',
+]);
+
+/** Returns true when a string value is an Excel formula error code.
+ * Needed because error cells can be stored as shared strings (t="s")
+ * instead of error cells (t="e"), bypassing the type-attribute guard. */
+const isFormulaErrorCode = (value: string): boolean =>
+	FORMULA_ERROR_CODES.has(value.trim());
+
 /** Parsed-row level fields: a recognised level, or the raw invalid value. */
 type RowLevelFields = {
 	accountLevel: 'Admin' | 'User';
 	invalidLevel: string | null;
+	invalidCell: InvalidCell | null;
 };
 
-/** Maps a raw `level` cell (already extracted) to its parsed row fields. */
-const mapLevelToRowFields = (rawLevel: string | undefined) => {
-	const level = mapInviteLevel(rawLevel);
-	if (level === 'Invalid') {
+/** Parsed-row profiles fields: the split profile names, or a structured error. */
+type RowProfilesFields = {
+	profileNames: string[];
+	invalidCell: InvalidCell | null;
+};
+
+/** Maps a raw `profiles` cell to its parsed row fields: the split profile names,
+ * or a structured error when the cell is a boolean (t="b"), formula error (t="e"),
+ * or a formula error code stored as a shared string. Non-text cells are rejected,
+ * not imported as profile names. */
+const mapProfilesToRowFields = (rawCell: RawCell | undefined) => {
+	if (
+		rawCell?.type === 'b' ||
+		rawCell?.type === 'e' ||
+		isFormulaErrorCode(rawCell?.value ?? '')
+	) {
+		return {
+			profileNames: [],
+			invalidCell: {
+				cell: rawCell?.ref,
+				value: rawCell?.value ?? '',
+				kind: rawCell?.type === 'b' ? 'boolean' : 'formula-error',
+			},
+		} satisfies RowProfilesFields;
+	}
+
+	return {
+		profileNames: splitProfileNames(rawCell?.value ?? ''),
+		invalidCell: null,
+	} satisfies RowProfilesFields;
+};
+
+/** Maps a raw `level` cell (already extracted) to its parsed row fields.
+ * Boolean (t="b") and formula error (t="e") cells, and formula error codes
+ * stored as shared strings, are rejected with a structured error naming the
+ * cell and value; other invalid values are flagged as before. */
+const mapLevelToRowFields = (rawCell: RawCell | undefined) => {
+	if (
+		rawCell?.type === 'b' ||
+		rawCell?.type === 'e' ||
+		isFormulaErrorCode(rawCell?.value ?? '')
+	) {
 		return {
 			accountLevel: 'User',
-			invalidLevel: (rawLevel ?? '').trim(),
+			invalidLevel: rawCell?.value ?? '',
+			invalidCell: {
+				cell: rawCell?.ref,
+				value: rawCell?.value ?? '',
+				kind: rawCell?.type === 'b' ? 'boolean' : 'formula-error',
+			},
 		} satisfies RowLevelFields;
 	}
 
-	return { accountLevel: level, invalidLevel: null } satisfies RowLevelFields;
+	const level = mapInviteLevel(rawCell?.value);
+	if (level === 'Invalid') {
+		return {
+			accountLevel: 'User',
+			invalidLevel: (rawCell?.value ?? '').trim(),
+			invalidCell: null,
+		} satisfies RowLevelFields;
+	}
+
+	return {
+		accountLevel: level,
+		invalidLevel: null,
+		invalidCell: null,
+	} satisfies RowLevelFields;
 };
 
 type EmailRowField = {
 	email: string;
 	invalidEmail: string | null;
+	invalidCell: InvalidCell | null;
 };
 
 /** Maps a raw email cell to its parsed row field: the trimmed email if valid,
- * or the raw trimmed value flagged as invalid. */
-const mapEmailToRowField = (rawEmail: string | undefined): EmailRowField => {
-	const email = (rawEmail ?? '').trim();
-	if (email === '' || EMAIL_REGEX.test(email)) {
-		return { email, invalidEmail: null };
+ * or the raw trimmed value flagged as invalid. Boolean/error cells and formula
+ * error codes (which can be stored as shared strings, t="s") are rejected with
+ * a structured error naming the cell. */
+const mapEmailToRowField = (rawCell: RawCell | undefined): EmailRowField => {
+	if (
+		rawCell?.type === 'b' ||
+		rawCell?.type === 'e' ||
+		isFormulaErrorCode(rawCell?.value ?? '')
+	) {
+		return {
+			email: rawCell?.value ?? '',
+			invalidEmail: null,
+			invalidCell: {
+				cell: rawCell?.ref,
+				value: rawCell?.value ?? '',
+				kind: rawCell?.type === 'b' ? 'boolean' : 'formula-error',
+			},
+		};
 	}
 
-	return { email, invalidEmail: email };
+	const email = (rawCell?.value ?? '').trim();
+	if (email === '' || EMAIL_REGEX.test(email)) {
+		return { email, invalidEmail: null, invalidCell: null };
+	}
+
+	return { email, invalidEmail: email, invalidCell: null };
 };
 
 /** CSV → invite rows via the documented header: `email, level, profiles`. */
@@ -250,8 +381,12 @@ export const parseInviteCsv = (text: string): ParseInviteResult => {
 			continue;
 		}
 
-		const levelFields = mapLevelToRowFields(row[indexOfLevel]);
-		const emailFields = mapEmailToRowField(row[indexOfEmail]);
+		const levelFields = mapLevelToRowFields({
+			value: row[indexOfLevel] ?? '',
+		});
+		const emailFields = mapEmailToRowField({
+			value: row[indexOfEmail] ?? '',
+		});
 		parsed.push({
 			...emailFields,
 			...levelFields,
@@ -337,19 +472,23 @@ export const parseInviteWorkbook = (bytes: Uint8Array): ParseInviteResult => {
 	);
 
 	const rows: ParsedInviteRow[] = [];
-	const rawRecords: Array<Record<number, string>> = [];
+	const rawRecords: Array<Map<number, RawCell>> = [];
 	for (const rowXml of textContents(sheetXml, 'row')) {
-		const cells: Record<number, string> = {};
+		const cells = new Map<number, RawCell>();
 		const cellPattern = /<c\b([^>]*)(?:\/>|>([\s\S]*?)<\/c>)/g;
 		let cellMatch = cellPattern.exec(rowXml);
 		while (cellMatch) {
 			const attrs = cellMatch[1] ?? '';
 			const body = cellMatch[2] ?? '';
-			const refMatch = /\br="([A-Z]+)\d+"/.exec(attrs);
-			const refIndex = refMatch ? columnIndexFromRef(refMatch[1]!) : -1;
+			const refMatch = /\br="([A-Z]+\d+)"/.exec(attrs);
+			const cellRef = refMatch?.[1] ?? '';
+			const letters = cellRef.replace(/\d+$/, '');
+			const refIndex = letters ? columnIndexFromRef(letters) : -1;
 
 			let value = '';
+			let cellType: RawCell['type'] | undefined;
 			if (/t="s"/.test(attrs)) {
+				cellType = 's';
 				const sharedIndex = Number.parseInt(
 					textContents(body, 'v')[0] ?? '',
 					10,
@@ -358,23 +497,41 @@ export const parseInviteWorkbook = (bytes: Uint8Array): ParseInviteResult => {
 					? (sharedStrings[sharedIndex] ?? '')
 					: '';
 			} else if (/t="inlineStr"/.test(attrs)) {
+				cellType = 'inlineStr';
 				// Inline strings store text in <is><t> (one or more <t> runs for
 				// rich-text fragments); concatenate them with the same XML-entity
 				// decoding as shared strings and <v> cells.
 				const tRuns = textContents(body, 't');
 				value = decodeXmlEntities(tRuns.join(''));
+			} else if (/t="str"/.test(attrs)) {
+				// Formula text result: legitimate text, treat as such.
+				cellType = 'str';
+				value = decodeXmlEntities(textContents(body, 'v')[0] ?? '');
+			} else if (/t="b"/.test(attrs)) {
+				cellType = 'b';
+				value = decodeXmlEntities(textContents(body, 'v')[0] ?? '');
+			} else if (/t="e"/.test(attrs)) {
+				cellType = 'e';
+				value = decodeXmlEntities(textContents(body, 'v')[0] ?? '');
 			} else {
 				value = decodeXmlEntities(textContents(body, 'v')[0] ?? '');
 			}
 
 			if (refIndex >= 0) {
-				cells[refIndex] = value.trim();
+				const cell: RawCell = {
+					value: value.trim(),
+					ref: cellRef,
+				};
+				if (cellType) {
+					cell.type = cellType;
+				}
+				cells.set(refIndex, cell);
 			}
 
 			cellMatch = cellPattern.exec(rowXml);
 		}
 
-		if (Object.keys(cells).length === 0) {
+		if (cells.size === 0) {
 			continue;
 		}
 
@@ -384,8 +541,8 @@ export const parseInviteWorkbook = (bytes: Uint8Array): ParseInviteResult => {
 	// Columns are located through the header row's own positions so sparse
 	// sheets (blank columns between email/level/profiles) stay aligned.
 	const headerRecord = rawRecords.find((record) =>
-		Object.values(record).some(
-			(value) => value.trim().toLowerCase() === 'email',
+		Array.from(record.values()).some(
+			(cell) => cell.value.trim().toLowerCase() === 'email',
 		),
 	);
 	if (!headerRecord) {
@@ -393,8 +550,8 @@ export const parseInviteWorkbook = (bytes: Uint8Array): ParseInviteResult => {
 	}
 
 	const columnIndexOf = (headerName: string): number => {
-		for (const [key, value] of Object.entries(headerRecord)) {
-			if (value.trim().toLowerCase() === headerName) {
+		for (const [key, cell] of headerRecord.entries()) {
+			if (cell.value.trim().toLowerCase() === headerName) {
 				return Number(key);
 			}
 		}
@@ -410,17 +567,22 @@ export const parseInviteWorkbook = (bytes: Uint8Array): ParseInviteResult => {
 			continue;
 		}
 
-		const emailFields = mapEmailToRowField(record[emailColumn]);
+		const emailFields = mapEmailToRowField(record.get(emailColumn));
 		if (!emailFields.email) {
 			continue;
 		}
 
-		const levelFields = mapLevelToRowFields(record[levelColumn]);
+		const levelFields = mapLevelToRowFields(record.get(levelColumn));
+		const profilesFields = mapProfilesToRowFields(record.get(profilesColumn));
 		rows.push({
 			...emailFields,
 			...levelFields,
-			profileNames: splitProfileNames(record[profilesColumn] ?? ''),
-		});
+			...profilesFields,
+			invalidCell:
+				emailFields.invalidCell ??
+				levelFields.invalidCell ??
+				profilesFields.invalidCell,
+		} satisfies ParsedInviteRow);
 	}
 
 	return { outcome: 'parsed', rows };
@@ -441,6 +603,7 @@ export const makeManualRow = (email = ''): InviteRow => {
 		source: 'manual',
 		invalidLevel: null,
 		invalidEmail: null,
+		invalidCell: null,
 	};
 };
 
@@ -488,6 +651,7 @@ export const buildImportedInvites = (
 			source,
 			invalidLevel: parsed.invalidLevel,
 			invalidEmail: parsed.invalidEmail,
+			invalidCell: parsed.invalidCell,
 		});
 	}
 
@@ -500,13 +664,19 @@ export const clearFileRows = (rows: InviteRow[]): InviteRow[] =>
 
 /** Re-derives `invalidEmail` for each row from its current email value.
  * Called on every row change so that manual edits (typing, paste) keep
- * the per-row error flag in sync with the field value. */
+ * the per-row error flag in sync with the field value. Also clears
+ * `invalidCell` when the user manually corrects the email: the original
+ * file's cell-type error is no longer relevant once the user has taken
+ * manual action to fix the row. */
 export const syncInvalidEmail = (rows: InviteRow[]): InviteRow[] =>
-	rows.map((row) => ({
-		...row,
-		invalidEmail:
-			row.email === '' || EMAIL_REGEX.test(row.email) ? null : row.email,
-	}));
+	rows.map((row) => {
+		const isEmailValid = row.email === '' || EMAIL_REGEX.test(row.email);
+		return {
+			...row,
+			invalidEmail: isEmailValid ? null : row.email,
+			invalidCell: isEmailValid ? null : row.invalidCell,
+		};
+	});
 
 type ProfileResolutionOutcome = {
 	rows: InviteRow[];
@@ -565,24 +735,27 @@ export const applyProfileResolutions = (
 };
 
 /** The Send gate: non-empty batch, no in-flight resolution, zero unresolved
- * profile flags, no row carrying an invalid file `level`, and every row
- * carrying a syntactically valid email. */
+ * profile flags, no row carrying an invalid file `level`, no row carrying a
+ * boolean/error cell, and every row carrying a syntactically valid email. */
 export const canSendInvitations = ({
 	rows,
 	isResolvingProfiles,
 	unresolvedCount,
 	invalidLevelCount,
+	invalidCellCount,
 }: {
 	rows: InviteRow[];
 	isResolvingProfiles: boolean;
 	unresolvedCount: number;
 	invalidLevelCount: number;
+	invalidCellCount: number;
 }): boolean => {
 	if (
 		rows.length === 0 ||
 		isResolvingProfiles ||
 		unresolvedCount > 0 ||
-		invalidLevelCount > 0
+		invalidLevelCount > 0 ||
+		invalidCellCount > 0
 	) {
 		return false;
 	}
@@ -609,6 +782,22 @@ export const buildSubmitInvitations = (
 /** Downloadable template — matches the parser's documented columns. */
 export const buildInviteTemplateCsv = (): string =>
 	'email,level,profiles\nuser@example.com,user,Alpha; Beta\nadmin@example.com,admin,\n';
+
+/** Renders an `InvalidCell` into a human-readable message naming the cell and
+ * value so the importer knows what to fix in their file. */
+export const renderInvalidCellMessage = (
+	invalidCell: InvalidCell,
+	t: (key: string, options?: Record<string, unknown>) => string,
+): string =>
+	invalidCell.kind === 'boolean'
+		? t('invite-invalid-cell-boolean', {
+				cell: invalidCell.cell,
+				value: invalidCell.value,
+			})
+		: t('invite-invalid-cell-error', {
+				cell: invalidCell.cell,
+				value: invalidCell.value,
+			});
 
 /** Shape of the invite drawer's react-hook-form state. Mouthful but it is the
  * one contract the drawer's form, the host navigation blocker, and the submit
