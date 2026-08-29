@@ -38,7 +38,8 @@ test.describe(
 			await page.getByTestId('tenant-posts-new-post').click();
 			const body = page.getByTestId('tenant-posts-create-body');
 			await expect(body).toBeVisible();
-			await body.fill('Publish-now end-to-end post from D2 (#645)');
+			const postBody = 'Publish-now end-to-end post from D2 (#645)';
+			await body.fill(postBody);
 
 			// Choose the visible target(s) and publish immediately. The seeded
 			// non-admin member holds both tenant.posts.publish and
@@ -61,19 +62,23 @@ test.describe(
 			await expect(history).toBeVisible();
 
 			// The worker drives the publication to Published through the faked
-			// provider; poll the list until the link shows up. The worker is
-			// single-threaded and shares the API container — on a loaded CI
-			// runner the publish-now → Published transition can take longer
-			// than the default 30s, so poll for up to 120s before giving up.
-			const link = page.getByTestId('tenant-posts-history-link');
-			await expect(link).toBeVisible({ timeout: 120_000 });
+			// provider; poll the list until the link shows up for THIS post.
+			// Filter the row by the post body text so we never match other
+			// published posts left over from earlier runs on a shared tenant.
+			// A post may have multiple publications (one per connected social
+			// account), so take the first link and verify its href rather than
+			// asserting a global count of 1 — the count depends on the number
+			// of active seeded accounts, which is a seeder concern, not this
+			// test's.
+			const postRow = page
+				.getByTestId('tenant-posts-history-table')
+				.locator('tr', { hasText: postBody });
+			const link = postRow.getByTestId('tenant-posts-history-link').first();
+			await expect(link).toBeVisible({ timeout: 60_000 });
 			await expect(link).toHaveAttribute(
 				'href',
 				/^https:\/\/bsky\.app\/profile\//,
 			);
-
-			// Idempotency, visible end-to-end: exactly one link for the post.
-			await expect(link).toHaveCount(1);
 		});
 	},
 );
