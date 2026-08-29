@@ -5,10 +5,56 @@
 // Production (dokploy.yml) and e2e (docker-compose.test.yml) are deliberately untouched.
 var builder = DistributedApplication.CreateBuilder(args);
 
+// Pre-flight: the postgres resource is pinned to host port 5454, and every app
+// connects via POSTGRES_CONNECTION_STRING = "Host=localhost;Port=5454". If that
+// port is already taken, the DCP postgres proxy cannot bind it and falls back to
+// a RANDOM ephemeral port while the announced connection string still says 5454 —
+// the API and worker would then silently connect to WHATEVER database occupies
+// 5454 (observed live: another worktree's Postgres, with the worker writing into
+// its job queue). DCP only logs that bind failure in its internal per-resource
+// logs, never in this console, so fail loudly here before anything starts.
+{
+	var port = 5454;
+	var probe = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+	bool occupied;
+	try {
+		probe.Bind(new IPEndPoint(IPAddress.Loopback, port));
+		occupied = false;
+	} catch (SocketException) {
+		occupied = true;
+	} finally {
+		probe.Dispose();
+	}
+
+	if (occupied) {
+		Console.Error.WriteLine(
+			"ERREUR — le port hôte 5454 est déjà occupé : le mandataire DCP de l'AppHost "
+				+ "n'arriverait pas à y lier Postgres (bind: address already in use), et la "
+					+ "pile continuerait silencieusement sur un port aléatoire, pendant que "
+						+ "POSTGRES_CONNECTION_STRING annonce toujours Host=localhost;Port=5454. "
+							+ "L'API et le worker se connecteraient alors à la BASE QUI OCCUPE "
+								+ "5454 — probablement le Postgres local d'un autre projet — et "
+									+ "écriraient dedans sans crier.\n"
+			+ "Actions : arrêtez le processus/conteneur qui écoute sur 5454 (ex. le conteneur "
+				+ "residuaire `publyapp-postgres` : docker rm -f publyapp-postgres ; vérification : "
+					+ "`ss -tlnp | grep 5454`), puis relancez `dotnet run --project apps/apphost` — "
+						+ "ou, pour un port différent, changez le 5454 de cet AppHost ET de "
+							+ "POSTGRES_CONNECTION_STRING dans .env.development ET des recettes "
+								+ "db-* du justfile, car tout est câblé sur 5454.");
+		Environment.Exit(1);
+	}
+}
+
 // Persistent local Postgres on the host's stable :5454 with a named data volume —
 // survives AppHost restarts and replaces the former local compose Postgres.
-var postgresPassword = builder.AddParameter("postgres-password", "password", secret: true);
-var postgres = builder.AddPostgres("postgres").WithPassword(postgresPassword).WithHostPort(5454).WithDataVolume();
+//
+// The password is the plain literal, not a secret parameter: it is a constant in
+// source either way, and an AddParameter(secret: true) would let Aspire substitute
+// a machine-local user-secrets value WITHOUT failing loudly — any such override
+// would silently break just db-migrate, which is hardwired to Password=password
+// (round-3 finding 4). .env.example documents the same value; keep the three in
+// sync if it ever changes.
+var postgres = builder.AddPostgres("postgres").WithPassword("password").WithHostPort(5454).WithDataVolume();
 var publyDb = postgres.AddDatabase("publyapp-db", "publyapp_db");
 
 // The app reads its DSN from POSTGRES_CONNECTION_STRING (AppEnvironment), not the
