@@ -16,7 +16,7 @@ namespace PublyApp.Api.Infrastructure.Messaging.Email;
 /// (rather than being swallowed and replaced with a fabricated success).
 ///
 /// These specs drive a <b>mock <see cref="IResend"/></b> — not
-	/// <see cref="Lib.Testing.Fakes.FakeResendClient"/>
+/// <see cref="Lib.Testing.Fakes.FakeResendClient"/>
 /// — so they exercise the adapter's thin wire between the application port
 /// (<see cref="IResendEmailClient"/>) and the third-party SDK (<see cref="IResend"/>).
 /// </summary>
@@ -140,5 +140,41 @@ public sealed class ResendEmailClientAdapterSpec {
 		var act = async () => await adapter.EmailSendAsync("idem-key", email);
 		var thrown = await act.Should().ThrowAsync<ResendException>();
 		thrown.Subject.Single().Should().BeSameAs(sdkException);
+	}
+
+	[Fact]
+	public async Task ItShouldForwardCancellationTokenToTheSdk() {
+		// Both overloads must forward the caller's CancellationToken so that host shutdown
+		// cancels the SDK call and the caller can bound the I/O window.
+		CancellationToken? capturedToken1 = null;
+		CancellationToken? capturedToken2 = null;
+		var mockResend = new Mock<IResend>();
+
+		mockResend
+			.Setup(r => r.EmailSendAsync(It.IsAny<EmailMessage>(), It.IsAny<CancellationToken>()))
+			.Callback<EmailMessage, CancellationToken>((_, ct) => capturedToken1 = ct)
+			.ReturnsAsync(new ResendResponse<Guid>(Guid.NewGuid(), new ResendRateLimit()));
+
+		mockResend
+			.Setup(r => r.EmailSendAsync(It.IsAny<string>(), It.IsAny<EmailMessage>(), It.IsAny<CancellationToken>()))
+			.Callback<string, EmailMessage, CancellationToken>((_, _, ct) => capturedToken2 = ct)
+			.ReturnsAsync(new ResendResponse<Guid>(Guid.NewGuid(), new ResendRateLimit()));
+
+		var adapter = new ResendEmailClientAdapter(mockResend.Object);
+		var email = new EmailMessage {
+			From = "from@example.com",
+			To = "to@example.com",
+			Subject = "Test",
+			HtmlBody = "<p>body</p>"
+		};
+
+		using var cts = new CancellationTokenSource();
+		var token = cts.Token;
+
+		_ = await adapter.EmailSendAsync(email, token);
+		_ = await adapter.EmailSendAsync("idem-key", email, token);
+
+		capturedToken1.Should().Be(token);
+		capturedToken2.Should().Be(token);
 	}
 }
