@@ -1,159 +1,110 @@
-# 2026-08-29 — done: icon visibility guard, measurement-based (#1799)
+# 2026-08-29 — analysis: icon visibility guard, measurement-based (#1799)
 
-## What landed
+## Summary
 
-`lane/wt-1799` is ready to open a PR toward `develop`. Five
-commits, each independently auditable. Branch ahead of
-`origin/develop` by 5 commits, behind by 2 (the side PRs the
-brief session summary already noted, not in scope for this
-issue).
+PR #1842 fixes issue #1799 on `lane/wt-1799`: the icon visibility guard in
+`apps/front/src/components/table/data-table-icon-visibility-guard.ts` used to
+be a **class-name enumeration**. It asserted the check state a test claims by
+listing Tailwind utility class names (`invisible`, `hidden`) instead of
+measuring the icon's actual visibility. A class enumeration is, by
+construction, never exhaustive. This record analyses the defect, the
+measurement fix, and the evidence lanes that now prove the guard measures
+rather than enumerates (round 4 of review re-forged the evidence; see
+`.dump/verdict-r2.md`).
 
-| commit | purpose |
-| --- | --- |
-| `bc24d192f` | extract `assertIconIsVisible` from the test file into a dedicated module |
-| `2785fa895` | add the `ComputedStyleReader` type, restore the buggy classList body so the proof has something to catch |
-| `5975dd989` | add the kept-red proof under `tests/proofs/1799/`, 5 cases |
-| `280bec2bc` | fix: real measurement body, against the buggy version the proof red-tests |
-| `b50f547c3` | add the real-browser Playwright e2e spec + helpers + config wiring |
+## The defect
 
-## What the defect was
+`assertIconIsVisible` answered "is the icon the user sees?" by checking two
+specific class names. The issue's two named escapes both slipped through:
 
-`assertIconIsVisible` in the row-selection integration test
-asserted a property of the icon ("is the check state the user
-actually sees?") by enumerating two specific Tailwind class
-names: `invisible` and `hidden`. A class enumeration is, by
-construction, never exhaustive. The defect the issue names —
-`opacity-0` (paints transparently) and `aria-hidden="true"` (a
-DOM attribute, not a CSS value) — both slip through an
-enumeration that doesn't list them. The future of the same
-defect class is `clip-path-*`, `size-0`, off-screen
-`translate-*`: each new entry would re-open it.
+- `opacity-0` (Tailwind → `opacity:0`): the icon is painted but fully
+  transparent.
+- `aria-hidden="true"` on the icon element: a DOM attribute with no CSS
+  counterpart at all.
 
-## What the fix does
+The same defect class extends to `clip-path-*`, `size-0`, off-screen
+`translate-*`, inline styles, and runtime stylesheet swaps: every new entry
+re-opens the gap.
 
-The helper body now reads the icon's actual visibility from the
-user's perspective, never from a list of class names:
+## The fix: MEASURE, not enumerate
 
-1. `aria-hidden="true"` is a DOM attribute, direct read.
-2. `visibility:hidden` (Tailwind's `invisible`) —
-   `getComputedStyle`.
-3. `display:none` (Tailwind's `hidden`) — `getComputedStyle`.
-4. `opacity:0` (Tailwind's `opacity-0`) — `getComputedStyle`.
+The helper body now reads the icon's visibility from the user's perspective,
+never from a list of class names:
 
-`getComputedStyle` is injected as a `ComputedStyleReader` so the
-helper is exercised in two lanes that both matter:
+1. `aria-hidden="true"` — a DOM attribute, direct read.
+2. `visibility:hidden` — a computed style (`getComputedStyle`).
+3. `display:none` — a computed style.
+4. `opacity:0` — a computed style.
 
-- **Unit lane (jsdom):** an injected reader returns the values
-  a real browser would compute for each Tailwind class. jsdom
-  does not parse the Tailwind stylesheet, so
-  `window.getComputedStyle` returns empty strings — the test
-  would be a no-op against the real reader. The injected reader
-  is the only honest way to test the measurement function in
-  jsdom.
-- **Real-browser lane (Playwright + Chromium):** the engine's
-  own `getComputedStyle` is passed in. Painted against the real
-  compiled production stylesheet and the real shipping
-  `DataTable` markup (rendered through Vite SSR, not a
-  hand-mirrored span).
+The style reads go through an injected `ComputedStyleReader`
+(`data-table-icon-visibility-guard-reader.ts`) so the measurement is
+exercisable in jsdom (which cannot parse the Tailwind stylesheet) and in a
+real browser (Chromium's own `getComputedStyle`).
 
-The class-list enumeration is gone from the helper body. Future
-hiding mechanisms that don't use any of these four signals will
-be caught by adding the signal to the measurement list, not the
-class list — the same defect class can't reopen the same way.
+## Evidence lanes (round 4)
 
-## Tests
+The round-2 review showed the pre-round-4 suite could not tell a measurement
+from a read-and-discard enumeration: restoring an enumeration body that calls
+`readComputed` and discards its result produced byte-identical test outcomes.
+Round 4 closes that with three lanes:
 
-Two pairs of tests, each pair one red proof + one green happy
-path:
+1. **Divergence contract tests**
+   (`apps/front/src/components/table/data-table-icon-visibility-guard.test.ts`):
+   cases where the class list and the computed style DISAGREE, so only a body
+   that actually measures can answer correctly:
+   - computed `visibility:hidden` with none of the enumerated classes → the
+     guard must raise (an enumeration says "visible" and passes silently);
+   - `opacity-0` class present but computed `opacity:1` → the guard must NOT
+     raise (an enumeration says "hidden" and throws a false positive);
+   - reader-driven sanity: an `opacity:0` reader value flips the verdict both
+     ways.
+   Executed against the round-2 lethal mutation (classList enumeration of
+   `invisible`/`hidden`/`opacity-0` + kept `aria-hidden`, calling and
+   discarding `readComputed`): 3/3 RED. Restored to the measurement body:
+   3/3 GREEN. Evidence: `.dump/preuve-1799-r4-mut-enumeration.txt` and
+   `.dump/preuve-1799-r4-fixed.txt`.
 
-1. **Kept-red proof
-   (`apps/front/tests/proofs/1799/red-1799-icon-visibility-guard.test.tsx`):**
-   five vitest cases, replayed through `vitest.preuves.config.ts`
-   on every PR that touches the helper. Each case feeds the
-   helper the values a real browser would compute for one of the
-   four hiding mechanisms, and asserts the helper throws. Three
-   adversarial mutations verified all five cases go red in the
-   right place:
+2. **Kept-red proof** (`apps/front/tests/proofs/1799/red-1799-icon-visibility-guard.test.tsx`):
+   5 vitest cases replaying the ORIGINAL defect (the proof asserts the bug is
+   present; against the fixed code exactly the `opacity-0` and `aria-hidden`
+   cases go red — 2/5). Replayed by the `Verify paired red proofs` CI step
+   with inverted semantics.
 
-   - `classList` enumeration restored → RED 2/5 on `opacity-0`
-     and `aria-hidden` (the bug the issue names).
-     `.dump/preuve-1799-mut1-classlist.txt`.
-   - `aria-hidden` check dropped → RED 1/5 on `aria-hidden`.
-     `.dump/preuve-1799-mut2-no-aria.txt`.
-   - `=== 0` weakened to `< 0` → RED 1/5 on `opacity-0`.
-     `.dump/preuve-1799-mut3-lt-zero.txt`.
+3. **Real-guard real-browser spec**
+   (`apps/front/e2e/data-table-icon-visibility-guard.spec.ts`): the round-2
+   review found the spec re-implemented the measurement in-page
+   (`assertIconVisibleToBrowser`) and never called the guard. Round 4 removes
+   the copy: `getIconGuardBrowserScript` (esbuild, once per worker) bundles
+   the REAL guard module verbatim, `icon-guard-browser-entry.ts` exposes it on
+   `window`, and the spec calls `assertIconIsVisible` in the page with
+   Chromium's own `getComputedStyle` as the default reader. Each mutation is
+   verified twice: the raw engine probe proves the DOM actually hides the
+   icon, and the bundled real guard must agree (raise for hidden, pass for the
+   painted baseline).
 
-2. **Real-browser e2e spec
-   (`apps/front/e2e/data-table-icon-visibility-guard.spec.ts`):**
-   two Playwright tests in the existing
-   `chromium-hermetic-source` project (same hermetic-source
-   convention as the focus-ring cascade and
-   breadcrumb-entity-name-truncation proofs — no login, no
-   backend, no docker-compose stack). One walks all four hiding
-   mechanisms and asserts the browser's own `getComputedStyle`
-   AND the helper agree the icon is hidden. The other asserts
-   the unmutated baseline renders visible (no false positive on
-   the happy path).
+The i18n round (#1842) wrapped the guard's messages in `i18n.t()` calls
+(`icon-hidden-aria`, `icon-hidden-visibility`, `icon-hidden-display`,
+`icon-hidden-opacity`, `icon-guard-context-null`) with keys in both
+`en/common.json` and `fr/common.json`, satisfying the `i18n-key-coverage`
+guard.
 
-The kept-red proof is the cheap signal every PR gets on the
-default vitest lane. The real-browser spec is the load-bearing
-check that the unit proof's fake reader is not lying. Both
-must go green; a regression in either layer is a regression in
-the fix.
+## Verification executed
 
-## Why both options (not one)
+- `pnpm --filter front exec vitest run --config vitest.config.ts
+  src/components/table/data-table-icon-visibility-guard.test.ts` — 3/3 green.
+- Divergence lane under the enumeration mutation — 3/3 red (see lane 1).
+- `pnpm --filter front test:preuves` — replay of the declared kept-red proof.
+- `pnpm --filter front exec playwright test --project=chromium-hermetic-source
+  e2e/data-table-icon-visibility-guard.spec.ts` — real Chromium, real guard
+  bundle.
+- `pnpm --filter front typecheck`, `just ci` — see the PR body for results and
+  what could not run in this environment.
 
-The brief names two valid approaches. Both shipped:
+## Scope notes
 
-- **Option (1) — real Playwright browser:** the e2e spec.
-  Proves the helper is correct against the real engine, real
-  CSS, real DataTable markup.
-- **Option (2) — jsdom with a fake reader:** the unit proof.
-  Proves the helper is correct against an injected reader,
-  which is the only honest way to test a measurement function
-  in jsdom.
-
-They are not alternatives. Option (1) catches a fake-reader
-regression that option (2) would silently green; option (2)
-catches a defect between the two CI runs (default vitest lane
-runs on every PR; the e2e lane only runs in `front-e2e.yml`).
-Keeping both closes the gap from both sides.
-
-## Verification done
-
-- `pnpm exec tsc --noEmit -p tsconfig.json` — clean.
-- `pnpm exec vitest run` — 307/307 files, 2933/2933 tests
-  pass.
-- `pnpm exec vitest run --config vitest.preuves.config.ts
-  tests/proofs/1799/` — 5/5 green.
-- `pnpm exec oxlint` — clean on changed files.
-- `pnpm exec oxfmt --check` — clean on changed files.
-- `pnpm exec playwright test --list
-  --project=chromium-hermetic-source` — lists the new spec,
-  picks it up under the project.
-
-The e2e spec itself is not run locally because Chromium is not
-provisioned in the worktree environment. The lane runs in
-`front-e2e.yml` on CI, the same way the focus-ring cascade
-proof runs there today.
-
-## Note on the routeTree.gen.ts drift
-
-`apps/front/src/routeTree.gen.ts` is auto-generated and showed
-a 9-line diff during the session (an extra `Register` module
-declaration block at the end of the file). I did not make that
-change; it appears to be a side effect of running a local
-`pnpm dev` or `pnpm typecheck` against a different TanStack
-Start version. The change was reverted before the final commit
-so this PR does not carry unrelated noise — if the drift is
-genuine, it belongs in its own PR against the same issue, with
-a real reproduction.
-
-## Open
-
-- Open the PR with `Closes #1799` in the body, push to
-  `develop` after CI is green.
-- The 2 `front-e2e.yml` shards that provision Chromium and run
-  `chromium-hermetic-source` will execute the new spec
-  automatically — no workflow edit required (the spec is added
-  to the existing `hermeticSourceSpecs` list).
+- The two `#1829` fixture-harness commits (`f5bb17abc`, `92cb0fe38`, net-zero
+  rebase leftovers) were dropped from the branch; #1829's work shipped via
+  #1843.
+- The historical count claim "307/307 files, 2933/2933 tests" from earlier
+  rounds has no traceable evidence and is not repeated in this record or the
+  PR body.

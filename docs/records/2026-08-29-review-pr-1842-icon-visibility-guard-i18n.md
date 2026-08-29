@@ -73,16 +73,20 @@ mocks so both return identical translations. The icon-guard keys were added
 to the same `TestLabelMap` so the mock `t` returns them when the guard calls
 `i18n.t(...)`.
 
-## E2E spec (unaffected)
+## E2E spec (real guard, bundled)
 
 The real-browser e2e spec
 (`apps/front/e2e/data-table-icon-visibility-guard.spec.ts`) renders the
 DataTable through Vite SSR using the real `common.json` resources, so its
-translations are already production-faithful. The e2e spec's inline
-`assertIconVisibleToBrowser` function (which runs inside `page.evaluate`)
-does not call the guard module — it re-implements the measurement logic for
-a cross-check against the real browser engine. It does not need the
-i18n mock.
+markup translations are production-faithful. The spec no longer re-implements
+the measurement: `getIconGuardBrowserScript` bundles the guard module itself
+(esbuild, once per worker) and the spec calls that bundle's
+`assertIconIsVisible` in-page, its default reader resolving to Chromium's own
+`getComputedStyle`. The guard's error messages run through the bundled
+`i18next` singleton, which has no resources in that bare test page, so
+messages fall back to the `icon-hidden-*` keys; the spec asserts the throw
+contract (hidden → raises, baseline → does not), never the translated text, so
+the i18n mock is not needed there.
 
 ## Verification
 

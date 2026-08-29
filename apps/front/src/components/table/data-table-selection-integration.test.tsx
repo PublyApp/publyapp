@@ -154,14 +154,25 @@ const getCheckboxIconElement = (
 
 /**
  * The icon visibility guard lives in
- * `data-table-icon-visibility-guard.ts`. The body is currently a class-name
- * enumeration over `invisible` and `hidden` (the PR #1796 implementation,
- * kept under issue #1799's proof until the fix lands); the load-bearing
- * real-browser check is in
- * `e2e/__tests__/data-table-icon-visibility-guard.spec.ts` (Chromium +
- * `getComputedStyle`). This thin wrapper finds the icon inside the
- * checkbox and delegates to the helper. When the helper is fixed, every
- * call site below stays unchanged — the helper's API is the same.
+ * `data-table-icon-visibility-guard.ts`. Its body MEASURES the icon's
+ * visibility (`aria-hidden` attribute plus the computed
+ * `visibility`/`display`/`opacity` styles) rather than enumerating a list
+ * of Tailwind class names, so an out-of-enumeration hide mechanism
+ * (`opacity-0`, `aria-hidden`, inline styles, runtime stylesheet swaps) is
+ * caught the same way as a utility class. The measurement-vs-enumeration
+ * contract is pinned on three lanes:
+ *
+ * - `data-table-icon-visibility-guard.test.ts` — divergence cases that go
+ *   red under any classList-based body (round 4, #1842);
+ * - `tests/proofs/1799/red-1799-icon-visibility-guard.test.tsx` — the
+ *   kept-red proof of the original defect;
+ * - `e2e/data-table-icon-visibility-guard.spec.ts` — runs THIS helper
+ *   (bundled verbatim) in a real Chromium page against the browser's own
+ *   `getComputedStyle`.
+ *
+ * This thin wrapper finds the icon inside the checkbox and delegates to
+ * the helper; every call site below stays unchanged — the helper's API is
+ * the same.
  */
 const assertIconIsVisibleFromCheckbox = (
 	checkbox: HTMLElement | null,
