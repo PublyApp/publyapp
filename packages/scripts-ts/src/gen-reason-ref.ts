@@ -63,11 +63,28 @@ type ReasonRefFile = {
 // deletes a CI step, removes its manifest entry, AND lowers pinned_step_ids —
 // all in one committed push — making HEAD agree with the removal.
 //
-// If the merge-base cannot be resolved (no origin/develop, not a repo), the
-// script falls back to `git show HEAD:` (still committed, not working-tree) so
-// local/first-run generation works. If HEAD also lacks the file, it is either
-// first-generation (never committed → empty floor) or a deletion attack
-// (was committed, now gone → refuse loudly).
+// If the merge-base cannot be resolved (no origin/develop, not a repo, brand
+// new branch with no common ancestor), the script REFUSES TO RUN. It must
+// never fall back to HEAD. A generator that degrades to "trust HEAD" when the
+// merge-base fails is a generator that silently lowers the floor exactly when
+// the attack succeeds — the round-7 lesson, re-learned the hard way: a
+// ratchet floor read from HEAD is not a ratchet floor at all. This is the
+// same loud-failure contract the enforcement (check-ci-drift.ts) already
+// honors; the generator must agree, otherwise an attacker can run the
+// generator locally (no fetched origin) to lower the floor, commit the
+// regeneration, and push — the enforcement then sees HEAD agree with the
+// removal and the ratchet stays green.
+//
+// To deliberately lower the floor (for first-run, recovery, or a brand-new
+// repository), the human must fetch origin/develop (or set up a local
+// `origin` ref that points at the right base commit) so the merge-base
+// resolves. The script will not paper over a missing base.
+//
+// A deleted reference file is either first-generation (the file was never
+// committed) or a deletion attack. After fixing the merge-base read to fail
+// loud, this script refuses before ever looking at HEAD or the working tree.
+// The caller (a human with a fetched base) never has to distinguish those
+// cases here; both are caught by the same loud-failure path.
 //
 // INTEGRITY ASSERTION
 // -------------------
@@ -129,33 +146,50 @@ const refFileName = 'packages/scripts-ts/src/reason-guard-ref.json';
  * and reading from HEAD would let the committed floor agree with the removal.
  *
  * If the merge-base cannot be resolved (no git, not a repo, no origin/develop,
- * no common ancestor), the function falls back to reading from HEAD (the last
- * commit). This is less secure than the merge-base — it doesn't catch a
- * committed floor-lowering — but it still catches an uncommitted working-tree
- * edit (which HEAD preserves). This fallback exists for local generation
- * without a fetched origin/develop. Enforcement (check-ci-drift.ts) has no such
- * fallback: it refuses to run when the merge-base can't be resolved.
+ * no common ancestor), the function REFUSES TO RUN. It must NOT fall back to
+ * HEAD. A floor that degrades to "trust HEAD" on error is a floor that turns
+ * green exactly when the attack succeeds — the round-7 lesson this function
+ * exists to keep honest. The enforcement (`check-ci-drift.ts`) already
+ * refuses to run in this case; the generator must do the same, otherwise an
+ * attacker who deletes origin/develop (or runs locally without fetching it)
+ * can regenerate the reference at the lower pinned set, commit that, and
+ * leave the enforcement with nothing to catch.
  *
- * If HEAD also cannot be read (file deleted from the commit), the function
- * throws — it must NOT silently reset the floor to empty. A deleted reference
- * file is either a first-generation case (the file was never committed, which
- * `git show HEAD:` will reject with a clear error) or a deletion attack (the
- * file existed and was removed). The caller distinguishes these.
+ * To deliberately lower the floor (first-run, recovery, new repo), the human
+ * must make the merge-base resolvable — typically `git fetch origin develop`
+ * and re-run. The script does not paper over a missing base.
  */
 const readFloorFromGit = async (rootDir: string): Promise<string[]> => {
-	// Step 1: try the merge-base (the secure floor).
+	// Step 1: resolve the merge-base between origin/develop and HEAD.
+	let mergeBase: string;
 	try {
-		const { stdout: mbStdout } = await execFileAsync(
+		const { stdout } = await execFileAsync(
 			'git',
 			['merge-base', 'origin/develop', 'HEAD'],
 			{ cwd: rootDir, encoding: 'utf8' },
 		);
-		const mergeBase = mbStdout.trim();
+		mergeBase = stdout.trim();
+	} catch (error) {
+		throw new Error(
+			`Generator REFUSING TO RUN: could not resolve \`git merge-base origin/develop HEAD\` in ${rootDir}. ` +
+				`The ratchet floor is read from the merge-base commit (the last reviewed state of origin/develop), and this command failed. ` +
+				`Re-run from inside a git repository that has origin/develop available (fetch it first if needed: \`git fetch origin develop\`). ` +
+				`The generator never falls back to HEAD or the working tree — a floor that degrades to "trust the attacker's commit" is no floor at all. ` +
+				`Original error: ${error instanceof Error ? error.message : String(error)}`,
+		);
+	}
 
-		if (mergeBase === '') {
-			throw new Error('merge-base returned empty');
-		}
+	if (mergeBase === '') {
+		throw new Error(
+			`Generator REFUSING TO RUN: \`git merge-base origin/develop HEAD\` returned empty (no common ancestor). ` +
+				`This happens when the branch has no shared history with origin/develop, or origin/develop does not exist locally. ` +
+				`The ratchet floor must come from the merge-base — the last reviewed-and-merged state of the target branch — not from HEAD (which in a PR IS the attacker's commit) or the working tree. ` +
+				`Fetch origin/develop and re-run, or verify the branch is based on origin/develop.`,
+		);
+	}
 
+	// Step 2: read the committed reference from that merge-base commit.
+	try {
 		const { stdout } = await execFileAsync(
 			'git',
 			['show', `${mergeBase}:${refFileName}`],
@@ -164,59 +198,12 @@ const readFloorFromGit = async (rootDir: string): Promise<string[]> => {
 
 		const parsed = JSON.parse(stdout) as { pinned_step_ids?: string[] };
 		return parsed.pinned_step_ids ?? [];
-	} catch (mergeBaseError) {
-		// Step 2: merge-base failed (no origin/develop, not a repo, etc.).
-		// Fall back to HEAD — still committed (not working-tree), so an
-		// uncommitted edit cannot lower the floor.
-		try {
-			const { stdout } = await execFileAsync(
-				'git',
-				['show', `HEAD:${refFileName}`],
-				{ cwd: rootDir, encoding: 'utf8' },
-			);
-
-			const parsed = JSON.parse(stdout) as { pinned_step_ids?: string[] };
-			return parsed.pinned_step_ids ?? [];
-		} catch (headError) {
-			// HEAD also failed — the file does not exist at HEAD. Distinguish:
-			//  - first-generation: the file was never committed → return []
-			//  - deletion attack: the file WAS committed and was removed → throw
-			try {
-				const { stdout: logOut } = await execFileAsync(
-					'git',
-					['log', '--oneline', '--all', '--', refFileName],
-					{ cwd: rootDir, encoding: 'utf8' },
-				);
-
-				// If git log returned output, the file was committed at some
-				// point and then deleted — deletion attack, not first-gen.
-				if (logOut.trim().length > 0) {
-					throw new Error(
-						`Cannot read the ratchet floor from git: ${refFileName} was committed and then deleted — the reference file has been tampered with (deletion attack). ` +
-							`Restore it with \`git checkout HEAD -- ${refFileName}\` and re-run, or see docs/guides/local-ci-gate.md.`,
-					);
-				}
-
-				// No git log entries — the file was never committed. First-gen.
-				return [];
-			} catch (logError) {
-				if (
-					logError instanceof Error &&
-					logError.message.includes('deletion attack')
-				) {
-					throw logError;
-				}
-
-				// git log itself failed (e.g., not a git repo). Fall through to
-				// throwing the original HEAD error with context.
-				throw new Error(
-					`Cannot read the ratchet floor from git: ${refFileName} does not exist at HEAD or merge-base. ` +
-						`Merge-base error: ${mergeBaseError instanceof Error ? mergeBaseError.message : String(mergeBaseError)}. ` +
-						`HEAD error: ${headError instanceof Error ? headError.message : String(headError)}. ` +
-						`Git log error: ${logError instanceof Error ? logError.message : String(logError)}.`,
-				);
-			}
-		}
+	} catch (error) {
+		throw new Error(
+			`Could not read reason-guard-ref.json from the merge-base commit ${mergeBase} (git merge-base origin/develop HEAD) — the ratchet floor must be derived from the committed reference at that commit, not the working tree. ` +
+				`Re-run from inside a git repository where reason-guard-ref.json exists at that commit. ` +
+				`Original error: ${error instanceof Error ? error.message : String(error)}`,
+		);
 	}
 };
 

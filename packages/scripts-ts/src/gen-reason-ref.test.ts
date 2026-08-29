@@ -23,6 +23,13 @@ const removalsPath = 'packages/scripts-ts/src/ci-gate-removals.json';
 /**
  * Builds a throwaway git repo with a manifest and optional reference file.
  * Returns the root directory.
+ *
+ * The repo is set up with an `origin/develop` ref pointing at the initial
+ * commit, mirroring the production CI scenario where the merge-base resolves.
+ * The generator reads the ratchet floor from the merge-base of origin/develop
+ * and HEAD — this is the only way it can be exercised end-to-end. Tests that
+ * want to assert the "no origin/develop" failure mode must NOT use this
+ * helper; they construct a repo without the ref so the loud refusal fires.
  */
 const buildRepo = async ({
 	manifestSteps,
@@ -74,6 +81,19 @@ const buildRepo = async ({
 	// Commit everything so HEAD exists.
 	await execFileAsync('git', ['add', '.'], { cwd: rootDir });
 	await execFileAsync('git', ['commit', '-m', 'initial'], { cwd: rootDir });
+
+	// Set up an `origin/develop` ref pointing at the initial commit so the
+	// generator's `git merge-base origin/develop HEAD` resolves. This mirrors
+	// what the production CI workflow does (fetches the base branch before
+	// running the gate). Without this ref, the generator refuses to run —
+	// which is the correct behavior in production, but here we want to
+	// exercise the actual ratchet / integrity logic, not the loud-failure
+	// path (which has its own dedicated test).
+	await execFileAsync(
+		'git',
+		['update-ref', 'refs/remotes/origin/develop', 'HEAD'],
+		{ cwd: rootDir },
+	);
 
 	return rootDir;
 };
@@ -566,7 +586,7 @@ test('confession quality bar: 24-char filler (repeated single char) is rejected'
 		'Expected rejection naming the filler/reviewable bar',
 	);
 });
-test('bypass 5: deleting the reference file does NOT reset the floor', async () => {
+test('bypass 5: deleting the reference file does NOT silently reset the floor', async () => {
 	const rootDir = await buildRepo({
 		manifestSteps: {
 			'fixture.yml::build::Step A': {
@@ -592,17 +612,29 @@ test('bypass 5: deleting the reference file does NOT reset the floor', async () 
 
 	const result = await runScript(rootDir);
 
-	// The script must fail — it must NOT silently reset the floor.
+	// The new contract (r10): the generator reads the ratchet floor from the
+	// merge-base, not HEAD or the working tree. Deleting the reference file
+	// at HEAD therefore cannot silently lower the floor — the floor still
+	// comes from the merge-base commit (the one `buildRepo` pinned into
+	// `origin/develop`), which still has Step A pinned. The generator may
+	// succeed (rc=0) and regenerate the reference from the merge-base state,
+	// as long as the regenerated `pinned_step_ids` is NOT shorter than what
+	// the merge-base had. The protection the r10 fix actually adds is: the
+	// merge-base floor is the only thing that can lower pinned_step_ids, and
+	// that requires an explicit confession. A silent reset to [] is no longer
+	// possible.
 	assert.equal(
-		result.exitCode !== 0,
+		result.exitCode === 0,
 		true,
-		'Expected non-zero exit when reference file is deleted',
+		'Generator should succeed by reading the floor from the merge-base — the merge-base commit still has the reference, so the floor is not silently reset',
 	);
+	const regenerated = JSON.parse(
+		await readFile(path.join(rootDir, outputPath), 'utf8'),
+	) as { pinned_step_ids: string[] };
 	assert.equal(
-		result.stderr.includes('Cannot read the ratchet floor') ||
-			result.stdout.includes('Cannot read the ratchet floor'),
+		regenerated.pinned_step_ids.includes('fixture.yml::build::Step A'),
 		true,
-		'Expected loud error about missing reference file',
+		'After deletion+regeneration, the floor must still pin Step A (read from merge-base, not silently reset)',
 	);
 });
 
@@ -769,5 +801,107 @@ test('bypass 6: 3-part committed regeneration attack IS CAUGHT by the merge-base
 			result.stdout.includes('ci-gate-removals.json'),
 		true,
 		'Expected message naming ci-gate-removals.json as the escape hatch',
+	);
+});
+
+// THE KEY PROOF for the r10 defect 2 fix: the generator must REFUSE to run
+// when `git merge-base origin/develop HEAD` cannot resolve. Before the r10
+// fix, the generator silently fell back to `git show HEAD:`, which let a
+// contributor whose HEAD already had a lowered pinned_step_ids regenerate
+// the reference at the lower value with rc=0. After the fix, the loud
+// refusal is the only path. This test exercises that refusal end-to-end:
+// a repo with no origin/develop (the exact CI failure mode that the
+// workflow fix for defect 1 addresses on its side) makes the generator
+// fail with a named cause, not silently degrade.
+//
+// If anyone re-introduces a HEAD fallback in `readFloorFromGit`, this test
+// will redden — exactly the "test that reddens if the refusal is removed"
+// property the r10 brief requires.
+test('bypass 7: generator REFUSES to run without origin/develop (loud, not silent)', async () => {
+	const rootDir = await mkdtemp(
+		path.join(os.tmpdir(), 'publyapp-gen-noorigin-'),
+	);
+
+	await mkdir(path.join(rootDir, '.git'), { recursive: true });
+	await mkdir(path.join(rootDir, 'packages/scripts-ts/src'), {
+		recursive: true,
+	});
+
+	await execFileAsync('git', ['init'], { cwd: rootDir });
+	await execFileAsync('git', ['config', 'user.email', 'test@test.test'], {
+		cwd: rootDir,
+	});
+	await execFileAsync('git', ['config', 'user.name', 'Test'], {
+		cwd: rootDir,
+	});
+
+	// Floor pre-populated at HEAD (this is the attacker's committed state).
+	await writeFile(
+		path.join(rootDir, outputPath),
+		JSON.stringify(
+			{
+				pinned_step_ids: ['fixture.yml::build::Step A'],
+				steps: {
+					'fixture.yml::build::Step A': {
+						reason_hash: 'hashA',
+						reason_length: 56,
+					},
+				},
+			},
+			null,
+			'\t',
+		),
+	);
+	await writeFile(
+		path.join(rootDir, manifestPath),
+		JSON.stringify(
+			{
+				steps: {
+					'fixture.yml::build::Step A': {
+						hash: 'b0ea35b0641c92e6',
+						mirror: 'just ci',
+						reason:
+							'Mirrored locally by the fixture gate for testing purposes.',
+					},
+				},
+			},
+			null,
+			'\t',
+		),
+	);
+
+	await execFileAsync('git', ['add', '.'], { cwd: rootDir });
+	await execFileAsync(
+		'git',
+		['commit', '-q', '-m', 'attack: pre-lowered floor at HEAD'],
+		{
+			cwd: rootDir,
+		},
+	);
+
+	// DELIBERATELY do NOT set up `origin/develop`. This is the exact CI
+	// scenario the workflow fix (r10 defect 1) makes impossible in production
+	// by fetching the base branch — but the generator's loud refusal must
+	// hold even if the workflow regression comes back. A HEAD fallback would
+	// happily regenerate at the lowered value, masking the regression.
+
+	const result = await runScript(rootDir);
+
+	assert.notEqual(
+		result.exitCode,
+		0,
+		'gen-reason-ref must refuse to run when merge-base cannot resolve — a silent HEAD fallback would mask the regression that removed the base fetch from the workflow',
+	);
+	assert.equal(
+		result.stderr.includes('REFUSING TO RUN') ||
+			result.stdout.includes('REFUSING TO RUN'),
+		true,
+		'Expected loud refusal naming the cause (no merge-base)',
+	);
+	assert.equal(
+		result.stderr.includes('merge-base') ||
+			result.stdout.includes('merge-base'),
+		true,
+		'Expected message naming the merge-base command that failed',
 	);
 });
