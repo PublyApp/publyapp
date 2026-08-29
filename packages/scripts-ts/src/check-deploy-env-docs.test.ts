@@ -618,11 +618,14 @@ test('UNREADABLE INPUT: malformed AppEnvironment.cs fails with named error', () 
 
 // ---------------------------------------------------------------------------
 // Test 8: PAIRED RED/GREEN against the REAL base runbook (Trou 3b)
-// Uses git show 490f6d03:docs/deployment/first-deploy-runbook.md — the actual
-// historical state at the merge base, not a hand-manipulated copy.
+// Uses a versioned fixture of the runbook at commit 490f6d03 (the merge-base
+// commit where this lane diverged). The fixture is a faithful copy of the
+// historical state — not a synthetic simulation — and lives in:
+//   packages/scripts-ts/src/fixtures/first-deploy-runbook-at-490f6d03.md
+// Sourced from: git show 490f6d03:docs/deployment/first-deploy-runbook.md
 // ---------------------------------------------------------------------------
 
-test('PAIRED RED/GREEN: guard is RED against the REAL base runbook (git show 490f6d03), GREEN after fix', () => {
+test('PAIRED RED/GREEN: guard is RED against the REAL base runbook (fixture at 490f6d03), GREEN after fix', () => {
 	const root = path.dirname(fileURLToPath(import.meta.url));
 	const repoRoot = path.resolve(root, '../../..');
 	const realRunbookPath = path.join(
@@ -630,19 +633,19 @@ test('PAIRED RED/GREEN: guard is RED against the REAL base runbook (git show 490
 		'docs/deployment/first-deploy-runbook.md',
 	);
 
-	// Read the REAL base runbook from git history (490f6d03 = the merge-base
-	// commit where this lane diverged). This is the actual historical state,
-	// not a simulation.
-	const { execSync } = require('node:child_process');
-	const baseRunbook = execSync(
-		'git show 490f6d03:docs/deployment/first-deploy-runbook.md',
-		{ cwd: repoRoot, encoding: 'utf8' },
+	// Read the REAL base runbook from the versioned fixture (commit 490f6d03).
+	// This is the actual historical state at the merge base, committed as a
+	// fixture so the test does not depend on git history depth.
+	const baseRunbookPath = path.join(
+		root,
+		'fixtures/first-deploy-runbook-at-490f6d03.md',
 	);
-	const baseRunbookPath = path.join(tmpDir, 'real-base-runbook.md');
-	writeFileSync(baseRunbookPath, baseRunbook);
+	const baseRunbook = readFileSync(baseRunbookPath, 'utf8');
+	const baseRunbookTmpPath = path.join(tmpDir, 'real-base-runbook.md');
+	writeFileSync(baseRunbookTmpPath, baseRunbook);
 
 	const requiredVars = collectRequiredVars(repoRoot);
-	const documentedVarsAtBase = extractDocumentedVars(baseRunbookPath);
+	const documentedVarsAtBase = extractDocumentedVars(baseRunbookTmpPath);
 	const undocumentedAtBase = findUndocumentedVars(
 		requiredVars,
 		documentedVarsAtBase,
