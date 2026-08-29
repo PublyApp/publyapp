@@ -121,6 +121,22 @@ public sealed class TenantUsageServiceSpec
 		result.Should().BeNull();
 	}
 
+	[Fact]
+	public async Task ItShouldReturnNullWhenTenantIsSoftDeleted() {
+		// The existence guard at TenantUsageService.cs:73 excludes soft-deleted
+		// tenants. Without that clause, a deleted space would surface as an
+		// empty-but-existing one instead of returning null.
+		var tenantId = await SeedSoftDeletedTenantAsync();
+
+		var result = await NewService().GetTenantUsageAsync(tenantId);
+
+		result.Should().BeNull(
+			"a soft-deleted tenant must be treated as non-existent — otherwise "
+			+ "it would surface as an empty-but-existing space instead of "
+			+ "returning null"
+		);
+	}
+
 	// ── The cost anchor: every query filters on the requested tenant id ──
 
 	[Fact]
@@ -312,6 +328,27 @@ public sealed class TenantUsageServiceSpec
 			MaxUsers = 10,
 		};
 		await dbContext.Tenant.AddAsync(tenant);
+		await dbContext.SaveChangesAsync();
+
+		return tenant.GetRequiredId();
+	}
+
+	private async Task<Guid> SeedSoftDeletedTenantAsync() {
+		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+		var tenant = new Tenant {
+			Name = $"usage-deleted {Guid.NewGuid():N}",
+			Code = Guid.NewGuid().ToString("N")[..10],
+			Status = TenantStatus.Active,
+			MaxUsers = 10,
+		};
+		await dbContext.Tenant.AddAsync(tenant);
+		await dbContext.SaveChangesAsync();
+
+		// Soft-delete AFTER insert: SaveChanges forces IsDeleted=false on Added
+		// rows (audit interceptor), matching the existing specs' seeding note.
+		tenant.IsDeleted = true;
 		await dbContext.SaveChangesAsync();
 
 		return tenant.GetRequiredId();
