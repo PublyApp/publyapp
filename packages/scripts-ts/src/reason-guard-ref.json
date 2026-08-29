@@ -338,6 +338,10 @@
 			"reason_hash": "7a5ace97ee3223d8",
 			"reason_length": 283
 		},
+		"front-e2e.yml::build::Verify the built front image starts and serves HTTP": {
+			"reason_hash": "4b40a4b7696d01a0",
+			"reason_length": 823
+		},
 		"front-e2e.yml::changes::Check whether front-e2e paths changed": {
 			"reason_hash": "690f348998abd4d6",
 			"reason_length": 915
