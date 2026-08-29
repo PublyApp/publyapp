@@ -313,34 +313,25 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-
-      # #1809 r10 defect 1: the CI gate (packages/scripts-ts/src/check-ci-drift.ts)
-      # reads the ratchet floor from `git merge-base origin/develop HEAD`.
-      # The default `actions/checkout` does not fetch the base branch, so
-      # `origin/develop` is absent in the runner and the merge-base fails
-      # with `fatal: Not a valid object name origin/develop`. The gate then
-      # refuses to run (correctly, by contract — see the loud-failure mode
-      # in check-ci-drift.ts), but the gate-selftest job itself goes red
-      # and the gate's own enforcement is silently disconnected. The fix
-      # is to fetch the base ref explicitly here, so origin/develop is a
-      # real ref the merge-base can resolve. The loud refusal stays loud
-      # for genuine misconfigurations (no fetch, no upstream) — we only
-      # make the well-formed run actually work.
-      - name: Fetch origin/develop so the CI gate's merge-base resolves
-        env:
-          BASE_REF: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.ref || 'develop' }}
-        run: |
-          set -euo pipefail
-          # Try a bounded fetch first; fall back to depth 1 if the runner
-          # rejects a too-large depth. The merge-base only needs the
-          # commit DAG between BASE_REF and HEAD, not full history, but
-          # fetch-depth: 0 (full history) is what the supply-chain job
-          # above uses; we mirror that treatment for symmetry.
-          git fetch --no-tags --depth=0 origin \
-            "$BASE_REF":"refs/remotes/origin/$BASE_REF" || \
-          git fetch --no-tags --depth=1 origin \
-            "$BASE_REF":"refs/remotes/origin/$BASE_REF"
-          echo "origin/$BASE_REF resolved to $(git rev-parse refs/remotes/origin/$BASE_REF)"
+        with:
+          # #1809 r11: fetch-depth: 0 — full history for every branch, exactly
+          # like the supply-chain job above. The CI gate
+          # (packages/scripts-ts/src/check-ci-drift.ts) and the ratchet-floor
+          # generator (packages/scripts-ts/src/gen-reason-ref.ts) both read the
+          # floor from `git merge-base origin/develop HEAD`. A shallow checkout
+          # (the default fetch-depth: 1) leaves HEAD with no common ancestor
+          # with origin/develop, so the merge-base can never resolve and the
+          # gate refuses to run — correctly, by contract — but it also takes
+          # this job (and front-ci-gate with it) red. The #1809 r10 fix tried
+          # a separate `git fetch --depth=0` step and could not work by
+          # construction: git rejects `--depth=0` ("depth 0 is not a positive
+          # number"), the `--depth=1` fallback still left two truncated tips
+          # without a common ancestor, and the job stayed red. Fetching full
+          # history here makes origin/develop a real ref the merge-base can
+          # resolve, so the r10 step has nothing left to do and was removed.
+          # The loud refusal stays loud for genuine misconfigurations (no
+          # upstream to fetch at all) — we only make the well-formed run work.
+          fetch-depth: 0
 
       - name: Install pnpm
         uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10

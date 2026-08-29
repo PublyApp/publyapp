@@ -23,8 +23,9 @@
 		"working tree. This prevents a contributor from lowering pinned_step_ids in",
 		"the same commit as a step removal — in a PR, HEAD IS the attacker commit.",
 		"Enforcement (check-ci-drift.ts) refuses to run if the merge-base cannot be",
-		"resolved. Generation falls back to HEAD (still committed) when the",
-		"merge-base is unavailable (e.g., local without fetched origin/develop).",
+		"resolved, and so does generation: gen-reason-ref.ts exits non-zero without",
+		"touching this file when the merge-base is unavailable (e.g., local without",
+		"fetched origin/develop). It never falls back to HEAD or the working tree.",
 		"",
 		"pinned_step_ids is a subset of steps{}. A pinned step dropped from",
 		"steps{} is a floor-lowering attack. Extra steps in steps{} that exist",
@@ -73,7 +74,6 @@
 		"front-ci.yml::changes::Checkout classifier from the base commit (not the PR's own copy)",
 		"front-ci.yml::changes::Setup Node",
 		"front-ci.yml::gate-selftest::Checkout",
-		"front-ci.yml::gate-selftest::Fetch origin/develop so the CI gate's merge-base resolves",
 		"front-ci.yml::gate-selftest::Install (frozen lockfile, no scripts)",
 		"front-ci.yml::gate-selftest::Install pnpm",
 		"front-ci.yml::gate-selftest::Run CI gate guard tests (mirrors `just ci-drift`)",
@@ -357,12 +357,8 @@
 			"reason_length": 146
 		},
 		"front-ci.yml::gate-selftest::Checkout": {
-			"reason_hash": "07b88f9bd968f6ed",
-			"reason_length": 196
-		},
-		"front-ci.yml::gate-selftest::Fetch origin/develop so the CI gate's merge-base resolves": {
-			"reason_hash": "4b1c99ad5e2c02e5",
-			"reason_length": 739
+			"reason_hash": "5fe76ae5a81e4529",
+			"reason_length": 535
 		},
 		"front-ci.yml::gate-selftest::Install (frozen lockfile, no scripts)": {
 			"reason_hash": "f2ea77b9b0038101",

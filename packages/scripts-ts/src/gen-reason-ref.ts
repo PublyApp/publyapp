@@ -365,8 +365,8 @@ const reference = Object.fromEntries(
 
 // --- Ratchet floor: read existing pinned IDs and removals confession ---
 
-// Read the floor from git (merge-base, with HEAD fallback) so a contributor
-// cannot lower it in the same commit.
+// Read the floor from git (merge-base, refusing to run when unavailable) so a
+// contributor cannot lower it in the same commit.
 const existingPinned: string[] = await readFloorFromGit(process.cwd());
 
 // Read the existing reference file for the integrity pre-check.
@@ -475,8 +475,9 @@ const output = {
 		'working tree. This prevents a contributor from lowering pinned_step_ids in',
 		'the same commit as a step removal — in a PR, HEAD IS the attacker commit.',
 		'Enforcement (check-ci-drift.ts) refuses to run if the merge-base cannot be',
-		'resolved. Generation falls back to HEAD (still committed) when the',
-		'merge-base is unavailable (e.g., local without fetched origin/develop).',
+		'resolved, and so does generation: gen-reason-ref.ts exits non-zero without',
+		'touching this file when the merge-base is unavailable (e.g., local without',
+		'fetched origin/develop). It never falls back to HEAD or the working tree.',
 		'',
 		'pinned_step_ids is a subset of steps{}. A pinned step dropped from',
 		'steps{} is a floor-lowering attack. Extra steps in steps{} that exist',

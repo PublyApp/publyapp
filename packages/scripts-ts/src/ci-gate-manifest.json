@@ -202,14 +202,9 @@
 			"reason": "GitHub-only Node setup for PR gating. This repository's local checks already assume Node is available locally for scripts and format/lint tooling."
 		},
 		"front-ci.yml::gate-selftest::Checkout": {
-			"hash": "11ee605b2ca0dfd4",
+			"hash": "f6bbd86f711cad8c",
 			"mirror": null,
-			"reason": "GitHub-only checkout of the pull request's own ref, identical in kind to every other job's checkout step in this file. Nothing to mirror locally beyond having the working tree already checked out."
-		},
-		"front-ci.yml::gate-selftest::Fetch origin/develop so the CI gate's merge-base resolves": {
-			"hash": "41d6daed38efa563",
-			"mirror": null,
-			"reason": "GitHub-only #1809 r10 defect 1 fix: the CI gate (packages/scripts-ts/src/check-ci-drift.ts) reads the ratchet floor from `git merge-base origin/develop HEAD`, but the default `actions/checkout` does not fetch the base branch, so the merge-base fails with `Not a valid object name origin/develop` and the gate refuses to run. This step explicitly fetches the base ref (with the depth the merge-base needs, mirrored on the supply-chain job's fetch-depth: 0 treatment) so the gate's loud-failure contract fires only on genuine misconfigurations, never on a missing base ref. The hash covers the BASE_REF env (pull_request.base.ref || 'develop'), the `set -euo pipefail` shell prologue, and the bounded fetch (depth: 0 with depth: 1 fallback)."
+			"reason": "GitHub-only checkout of the pull request's own ref with fetch-depth: 0 (full history for every branch), identical in treatment to the supply-chain job's checkout above. The full fetch is what makes `git merge-base origin/develop HEAD` resolve for the CI gate and the ratchet-floor generator, replacing the r10 'Fetch origin/develop' step (removed because git rejects `--depth=0` and the `--depth=1` fallback left two truncated tips with no common ancestor). Nothing to mirror locally beyond having the working tree already checked out."
 		},
 		"front-ci.yml::gate-selftest::Install (frozen lockfile, no scripts)": {
 			"hash": "2fd5cf518bdeb323",
