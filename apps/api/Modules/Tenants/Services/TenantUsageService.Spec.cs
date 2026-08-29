@@ -159,6 +159,44 @@ public sealed class TenantUsageServiceSpec
 		);
 	}
 
+	[Fact]
+	public async Task ItShouldNotEmitAnyWriteCommand() {
+		// The shape guard above only proves that every *read* filters on the
+		// tenant id. If this service ever starts writing (cached snapshot,
+		// access log, computed column), a write command would slip past that
+		// guard unnoticed — it carries no result set to count. This spec
+		// proves the service emits NO write command at all today, so a future
+		// write is a regression someone must think about, not a silent cost
+		// leak. The interceptor now captures NonQueryExecuting as well.
+		var tenantId = await SeedRichTenantAsync();
+		var connectionString = await GetConnectionStringAsync();
+		var interceptor = new TenantParameterCaptureInterceptor();
+
+		await using var serviceDbContext = new AppDbContext(
+			new DbContextOptionsBuilder<AppDbContext>()
+				.UseNpgsql(connectionString)
+				.AddInterceptors(interceptor)
+				.Options
+		);
+
+		var service = new TenantUsageService(
+			serviceDbContext,
+			NullLogger<TenantUsageService>.Instance
+		);
+
+		await service.GetTenantUsageAsync(tenantId);
+
+		var writeCommands = interceptor.Commands
+			.Where(c => !c.Text.StartsWith("SELECT", StringComparison.OrdinalIgnoreCase))
+			.ToList();
+		writeCommands.Should().BeEmpty(
+			"GetTenantUsageAsync must be a read-only operation — any write "
+			+ "command it emits today is a cost leak the shape guard would "
+			+ "miss. Offending commands:\n"
+			+ string.Join("\n", writeCommands.Select(c => c.Text))
+		);
+	}
+
 	private TenantUsageService NewService() {
 		return new TenantUsageService(
 			CreateServiceDbContext().GetAwaiter().GetResult(),
@@ -572,6 +610,25 @@ public sealed class TenantUsageServiceSpec
 		) {
 			Record(command);
 			return new ValueTask<InterceptionResult<object>>(result);
+		}
+
+		public override InterceptionResult<int> NonQueryExecuting(
+			DbCommand command,
+			CommandEventData eventData,
+			InterceptionResult<int> result
+		) {
+			Record(command);
+			return base.NonQueryExecuting(command, eventData, result);
+		}
+
+		public override ValueTask<InterceptionResult<int>> NonQueryExecutingAsync(
+			DbCommand command,
+			CommandEventData eventData,
+			InterceptionResult<int> result,
+			CancellationToken cancellationToken = default
+		) {
+			Record(command);
+			return new ValueTask<InterceptionResult<int>>(result);
 		}
 
 		private void Record(DbCommand command) {
