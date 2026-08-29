@@ -357,6 +357,17 @@ ci-doc-links:
   node ./packages/scripts-ts/src/check-doc-links.ts
   node ./packages/scripts-ts/src/audit-docs-prune.ts --check
 
+# #1798: every production-required env var documented in the deploy runbook.
+# Extracts required vars from actual source code (env.ts schema, server.ts
+# validateRuntimeEnv, AppEnvironment.cs GetRequiredString calls) and the
+# documented vars from the actual runbook (§5a table + §5b block). Fails
+# closed: an unparseable source file FAILS LOUDLY with the file name and
+# error rather than silently passing.
+ci-deploy-env-docs:
+  @echo "=== [gate] deploy env doc coverage ==="
+  pnpm --filter scripts-ts exec vitest run src/check-deploy-env-docs.test.ts
+  node ./packages/scripts-ts/src/check-deploy-env-docs.ts
+
 # Ensure the shared PR-closure projection cannot drift from the project's
 # durable config, board contract, or fail-closed security rules.
 ci-project-closure-adapter:
@@ -517,7 +528,7 @@ ci-e2e-front:
 
 
 # Everyday pre-push gate (no e2e). Fails on the first red sub-gate.
-ci: ci-drift ci-migration-expand-contract ci-review-worktree-resolution ci-doc-links ci-project-closure-adapter ci-install ci-format ci-lint ci-lint-ts ci-knip ci-shared-ts ci-quality ci-front ci-spec-drift nuget-audit test-api
+ci: ci-drift ci-migration-expand-contract ci-review-worktree-resolution ci-doc-links ci-deploy-env-docs ci-project-closure-adapter ci-install ci-format ci-lint ci-lint-ts ci-knip ci-shared-ts ci-quality ci-front ci-spec-drift nuget-audit test-api
   @echo ""
   @echo "=== just ci: PASSED ==="
   @echo "Not covered here: the two e2e suites (run 'just ci-full')."
