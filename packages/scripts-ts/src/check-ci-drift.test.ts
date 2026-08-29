@@ -992,7 +992,13 @@ test('reason guard #1841 r3: THE BYPASS — manifest reason B, ref text A, ref h
 	// With check (B), the finding names the inconsistency: stored text A does not
 	// match its own stored hash.
 	const originalReason = reconciled['fixture.yml::build::Run tests'].reason;
-	const bogusReason = 'xxxxxxxxxxxxxxxxxxxxxxxx'; // exactly 24 chars — passes min-length
+	// A PLAUSIBLE bogus reason, not filler: the manifest filler check fires on
+	// repeated blocks ('x'.repeat(24)) BEFORE the reason guard runs, so a filler
+	// bogus reason would be caught by the wrong control and check (B) would never
+	// be exercised. A real attacker cannot ship filler anyway (it is already
+	// rejected), so the bypass must look legitimate to reach check (B).
+	const bogusReason =
+		'The release train was blocked, so this gate was paused for one cycle to unblock deploys.';
 
 	const rootDir = await buildFixture({
 		manifestSteps: {
@@ -1760,7 +1766,8 @@ test('ratchet floor: 3-step sequence (delete from CI + manifest) turns RED — t
 				reason_hash: hashReason(
 					'Mirrored locally by the fixture gate for testing purposes.',
 				),
-				reason_length: 56,
+				reason_length: reason.length,
+				reason,
 			},
 		},
 	};
@@ -1845,7 +1852,8 @@ test('ratchet floor: legitimate deletion with confession turns GREEN', async () 
 				reason_hash: hashReason(
 					'Mirrored locally by the fixture gate for testing purposes.',
 				),
-				reason_length: 56,
+				reason_length: reason.length,
+				reason,
 			},
 		},
 	};
@@ -1923,7 +1931,8 @@ test('ratchet floor: adverse mutation — wrong step ID in confession does NOT c
 				reason_hash: hashReason(
 					'Mirrored locally by the fixture gate for testing purposes.',
 				),
-				reason_length: 56,
+				reason_length: reason.length,
+				reason,
 			},
 		},
 	};
@@ -1954,6 +1963,7 @@ test('ratchet floor: no pinned_step_ids means no ratchet check (backward compati
 			'fixture.yml::build::Run tests': {
 				reason_hash: hashReason(reason),
 				reason_length: reason.length,
+				reason,
 			},
 		},
 	};
@@ -2130,7 +2140,8 @@ test('readRefFromGit-fs: reads committed floor from merge-base, ignoring working
 				reason_hash: hashReason(
 					'Mirrored locally by the fixture gate for testing purposes.',
 				),
-				reason_length: 56,
+				reason_length: reason.length,
+				reason,
 			},
 		},
 	};
@@ -2323,10 +2334,12 @@ test('readRefFromGit-fs: 3-part committed attack IS CAUGHT by the merge-base flo
 			'fixture.yml::build::Step A': {
 				reason_hash: hashReason(reasonA),
 				reason_length: reasonA.length,
+				reason: reasonA,
 			},
 			'fixture.yml::build::Step B': {
 				reason_hash: hashReason(reasonB),
 				reason_length: reasonB.length,
+				reason: reasonB,
 			},
 		},
 	};
@@ -2380,6 +2393,7 @@ test('readRefFromGit-fs: 3-part committed attack IS CAUGHT by the merge-base flo
 					'fixture.yml::build::Step A': {
 						reason_hash: hashReason(reasonA),
 						reason_length: reasonA.length,
+						reason: reasonA,
 					},
 				},
 			},
