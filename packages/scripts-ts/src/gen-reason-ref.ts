@@ -9,6 +9,21 @@ import { promisify } from 'node:util';
 const execFileAsync = promisify(execFile);
 
 /**
+ * A reason is filler when it carries no information — a single repeated
+ * character padded to clear the length bar (e.g. `"x".repeat(24)`). Such a
+ * string is not a reviewable justification; it is a bypass of the quality
+ * bar. We reject it regardless of length.
+ */
+const isFiller = (text: string): boolean => {
+	if (text.length === 0) return false;
+	const first = text[0];
+	for (let i = 1; i < text.length; i++) {
+		if (text[i] !== first) return false;
+	}
+	return true;
+};
+
+/**
  * The shape of `reason-guard-ref.json` as this generator reads it back.
  *
  * Both fields are optional: the file is absent on first generation, and an
@@ -213,6 +228,12 @@ const readRemovalsConfession = async (
 		if (reason.trim().length < minimumReasonLength) {
 			throw new Error(
 				`Confession file ${removalsPath}: entry "${stepId}" has a reason shorter than ${minimumReasonLength} characters. A valid confession must name what was lost and why.`,
+			);
+		}
+
+		if (isFiller(reason.trim())) {
+			throw new Error(
+				`Confession file ${removalsPath}: entry "${stepId}" has a reason that is filler (a single repeated character). A valid confession must be a reviewable justification naming what was lost and why — filler is not a reason.`,
 			);
 		}
 

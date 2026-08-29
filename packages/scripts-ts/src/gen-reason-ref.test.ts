@@ -419,9 +419,61 @@ test('reads the REAL reason-guard-ref.json from disk and verifies integrity', as
 	);
 });
 
-// Bypass 5: delete the reference file entirely. The old code fell back to
-// reading the working-tree file, and when that also failed, returned [] —
-// silently resetting the floor. The fix must make this fail loudly.
+// BYPASS: a 24-char filler confession ("x".repeat(24)) clears the bar length
+// check and lets a contributor lower the ratchet floor with garbage. The
+// quality bar must reject repeated-character filler regardless of length.
+test('confession quality bar: 24-char filler (repeated single char) is rejected', async () => {
+	const rootDir = await buildRepo({
+		manifestSteps: {
+			'fixture.yml::build::Step A': {
+				hash: 'abc123',
+				mirror: 'just ci',
+				reason: 'Step A reason text.',
+			},
+		},
+		reference: {
+			pinned_step_ids: [
+				'fixture.yml::build::Step A',
+				'fixture.yml::build::Step B',
+			],
+			steps: {
+				'fixture.yml::build::Step A': {
+					reason_hash: 'hash',
+					reason_length: 10,
+				},
+				'fixture.yml::build::Step B': {
+					reason_hash: 'hash2',
+					reason_length: 10,
+				},
+			},
+		},
+		removals: {
+			steps: [
+				{
+					step_id: 'fixture.yml::build::Step B',
+					reason: 'x'.repeat(24),
+				},
+			],
+		},
+	});
+
+	const result = await runScript(rootDir);
+
+	// The script must refuse — filler is not a reviewable reason.
+	assert.notEqual(
+		result.exitCode,
+		0,
+		'Expected non-zero exit for filler confession',
+	);
+	assert.equal(
+		result.stderr.includes('filler') ||
+			result.stdout.includes('filler') ||
+			result.stderr.includes('reviewable') ||
+			result.stdout.includes('reviewable'),
+		true,
+		'Expected rejection naming the filler/reviewable bar',
+	);
+});
 test('bypass 5: deleting the reference file does NOT reset the floor', async () => {
 	const rootDir = await buildRepo({
 		manifestSteps: {
