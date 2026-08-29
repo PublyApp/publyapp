@@ -107,9 +107,9 @@ const REPLAYABLE_EXTENSIONS = ['.test.ts', '.test.tsx'] as const;
  *
  * @returns The list of proof-test paths (relative to apps/front) that were
  *          added or modified in the diff.
- * @throws If `git diff` fails. An unresolvable base can never silently become
- *         "no proofs declared"; the operator must fetch the base or fix the
- *         checkout.
+ * @throws If `git diff` or `git merge-base` fails. An unresolvable base can
+ *         never silently become "no proofs declared"; the operator must fetch
+ *         the base or fix the checkout.
  */
 function declaredProofTests(): string[] {
 	// First, confirm the versioned directory exists at all. If it does not,
@@ -124,14 +124,61 @@ function declaredProofTests(): string[] {
 		if (process.env.GITHUB_BASE_REF && process.env.GITHUB_HEAD_REF) {
 			const baseRef = `refs/remotes/origin/${process.env.GITHUB_BASE_REF}`;
 
-			// GitHub's checkout action fetches only the PR's own ref. The base
-			// branch's remote ref does not exist until we fetch it. Fetch it
-			// explicitly so the diff works on a clean CI checkout. Scoped to
-			// the single base ref — fast, a few hundred KB at most.
-			execSync(
-				`git -C "${ROOT}" fetch --depth=1 origin "${process.env.GITHUB_BASE_REF}"`,
-				{ encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] },
-			);
+				// GitHub's checkout action fetches only the PR's own ref. The
+				// base branch's remote ref does not exist until we fetch it.
+				// Fetch it explicitly so the diff works on a clean CI
+				// checkout. Scoped to the single base ref — fast, a few
+				// hundred KB at most.
+				//
+				// CRITICAL: do NOT use --depth=1 (shallow fetch). A shallow
+				// fetch writes .git/shallow, which is shared by all worktrees
+				// in this repository and persists after this script finishes.
+				// Under a shallow graft, `git merge-base` returns empty and
+				// the diff below silently becomes blank — concluding "no
+				// proofs declared" and exiting 0, a green light that
+				// verified nothing. Fetch the full history of the single base
+				// ref instead. A non-shallow fetch scoped to one ref is still
+				// fast (a few hundred KB at most for typical branches).
+				execSync(
+					`git -C "${ROOT}" fetch --no-tags origin +refs/heads/${process.env.GITHUB_BASE_REF}:${baseRef}`,
+					{ encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] },
+				);
+
+				// Verify the base and HEAD actually share a history. Under a
+				// shallow graft (e.g., one left by a previous --depth=1 fetch
+				// in a shared worktree), merge-base returns empty and the
+				// diff below would silently become blank — concluding "no
+				// proofs declared" and exiting 0, a green light that
+				// verified nothing. An unresolvable base must FAIL LOUD naming
+				// the cause; it can never silently become a compliant "no
+				// proofs".
+				let mergeBase: string;
+				try {
+					mergeBase = execSync(
+						`git -C "${ROOT}" merge-base "${baseRef}" HEAD`,
+						{ encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] },
+					).trim();
+				} catch {
+					throw new Error(
+						`git merge-base failed — no common ancestor between ` +
+							`origin/${process.env.GITHUB_BASE_REF} and HEAD. This is ` +
+							`commonly caused by a shallow graft (.git/shallow) left by a ` +
+							`previous --depth=1 fetch in a shared worktree. Remove the ` +
+							`graft ("git fetch --unshallow" or delete .git/shallow) and ` +
+							`retry.`,
+					);
+				}
+
+				if (!mergeBase) {
+					throw new Error(
+						`git merge-base returned empty — no common ancestor between ` +
+							`origin/${process.env.GITHUB_BASE_REF} and HEAD. This is ` +
+							`commonly caused by a shallow graft (.git/shallow) left by a ` +
+							`previous --depth=1 fetch in a shared worktree. Remove the ` +
+							`graft ("git fetch --unshallow" or delete .git/shallow) and ` +
+							`retry.`,
+					);
+				}
 
 			const diffOutput = execSync(
 				`git -C "${ROOT}" diff --name-only "${baseRef}..HEAD"`,
@@ -153,16 +200,16 @@ function declaredProofTests(): string[] {
 				.filter((f) => f.length > 0);
 		}
 	} catch (err) {
-		// If git diff fails (e.g., fetch-depth limited and base ref not
-		// fetched), the operator cannot determine what the PR declared.
-		// An unresolvable base must fail LOUD — never become "no proofs
-		// declared → exit 0". An input we cannot parse is not replaced by a
-		// compliant default.
-		throw new Error(
-			`git diff failed — cannot determine which proofs this PR declared. ` +
-				`Fetch the base ref (e.g., "git fetch origin <base>") and retry. ` +
-				`Detail: ${(err as Error).message}`,
-		);
+			// A merge-base failure (graft, diverged histories) is caught
+			// inline above and re-thrown with a clear cause — it never
+			// reaches here as a silent "no proofs declared". Any other git
+			// failure also fails LOUD. An input we cannot parse is not
+			// replaced by a compliant default.
+			throw new Error(
+				`git diff failed — cannot determine which proofs this PR declared. ` +
+					`Fetch the base ref (e.g., "git fetch origin <base>") and retry. ` +
+					`Detail: ${(err as Error).message}`,
+			);
 	}
 
 	// Every file added or modified under tests/proofs/ is a declared proof.
