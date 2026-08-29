@@ -1,1 +1,52 @@
-{"numTotalTestSuites":1,"numPassedTestSuites":0,"numFailedTestSuites":1,"numPendingTestSuites":0,"numTotalTests":1,"numPassedTests":0,"numFailedTests":1,"numPendingTests":0,"numTodoTests":0,"snapshot":{"added":0,"failure":false,"filesAdded":0,"filesRemoved":0,"filesRemovedList":[],"filesUnmatched":0,"filesUpdated":0,"matched":0,"total":0,"unchecked":0,"uncheckedKeysByFile":[],"unmatched":0,"updated":0,"didUpdate":false},"startTime":1788000965585,"success":false,"testResults":[{"assertionResults":[{"ancestorTitles":[],"fullName":"CORRUPT PROOF fixture — thrown Error","status":"failed","title":"CORRUPT PROOF fixture — thrown Error","duration":3.02458399999999,"failureMessages":["Error: thrown error, not assertion failure\n    at /home/radan/Projects/PublyApp/publyapp/.worktrees/wt-1829/apps/front/scripts/ci/__fixtures__/corrupt-fixture.test.ts:4:8\n    at file:///home/radan/Projects/PublyApp/publyapp/.worktrees/wt-1829/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:302:11\n    at file:///home/radan/Projects/PublyApp/publyapp/.worktrees/wt-1829/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:26\n    at file:///home/radan/Projects/PublyApp/publyapp/.worktrees/wt-1829/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:2326:20\n    at new Promise (<anonymous>)\n    at runWithCancel (file:///home/radan/Projects/PublyApp/publyapp/.worktrees/wt-1829/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:2323:10)\n    at file:///home/radan/Projects/PublyApp/publyapp/.worktrees/wt-1829/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:2305:20\n    at new Promise (<anonymous>)\n    at runWithTimeout (file:///home/radan/Projects/PublyApp/publyapp/.worktrees/wt-1829/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:2272:10)\n    at file:///home/radan/Projects/PublyApp/publyapp/.worktrees/wt-1829/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:2956:64"],"meta":{},"tags":[]}],"startTime":1788000965694,"endTime":1788000965697.0247,"status":"failed","message":"","name":"/home/radan/Projects/PublyApp/publyapp/.worktrees/wt-1829/apps/front/scripts/ci/__fixtures__/corrupt-fixture.test.ts"}]}
+{
+	"numTotalTestSuites": 1,
+	"numPassedTestSuites": 0,
+	"numFailedTestSuites": 1,
+	"numPendingTestSuites": 0,
+	"numTotalTests": 1,
+	"numPassedTests": 0,
+	"numFailedTests": 1,
+	"numPendingTests": 0,
+	"numTodoTests": 0,
+	"snapshot": {
+		"added": 0,
+		"failure": false,
+		"filesAdded": 0,
+		"filesRemoved": 0,
+		"filesRemovedList": [],
+		"filesUnmatched": 0,
+		"filesUpdated": 0,
+		"matched": 0,
+		"total": 0,
+		"unchecked": 0,
+		"uncheckedKeysByFile": [],
+		"unmatched": 0,
+		"updated": 0,
+		"didUpdate": false
+	},
+	"startTime": 1788000965585,
+	"success": false,
+	"testResults": [
+		{
+			"assertionResults": [
+				{
+					"ancestorTitles": [],
+					"fullName": "CORRUPT PROOF fixture — thrown Error",
+					"status": "failed",
+					"title": "CORRUPT PROOF fixture — thrown Error",
+					"duration": 3.02458399999999,
+					"failureMessages": [
+						"Error: thrown error, not assertion failure\n    at /home/radan/Projects/PublyApp/publyapp/.worktrees/wt-1829/apps/front/scripts/ci/__fixtures__/corrupt-fixture.test.ts:4:8\n    at file:///home/radan/Projects/PublyApp/publyapp/.worktrees/wt-1829/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:302:11\n    at file:///home/radan/Projects/PublyApp/publyapp/.worktrees/wt-1829/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:26\n    at file:///home/radan/Projects/PublyApp/publyapp/.worktrees/wt-1829/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:2326:20\n    at new Promise (<anonymous>)\n    at runWithCancel (file:///home/radan/Projects/PublyApp/publyapp/.worktrees/wt-1829/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:2323:10)\n    at file:///home/radan/Projects/PublyApp/publyapp/.worktrees/wt-1829/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:2305:20\n    at new Promise (<anonymous>)\n    at runWithTimeout (file:///home/radan/Projects/PublyApp/publyapp/.worktrees/wt-1829/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:2272:10)\n    at file:///home/radan/Projects/PublyApp/publyapp/.worktrees/wt-1829/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:2956:64"
+					],
+					"meta": {},
+					"tags": []
+				}
+			],
+			"startTime": 1788000965694,
+			"endTime": 1788000965697.0247,
+			"status": "failed",
+			"message": "",
+			"name": "/home/radan/Projects/PublyApp/publyapp/.worktrees/wt-1829/apps/front/scripts/ci/__fixtures__/corrupt-fixture.test.ts"
+		}
+	]
+}

@@ -1,3 +1,6 @@
+import { existsSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+
 /**
  * @vitest-environment node
  *
@@ -45,10 +48,10 @@
  * The proof then passes because the module it checks for no longer exists.
  */
 import { test, expect } from 'vitest';
-import { existsSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
 
-const scriptsDir = fileURLToPath(new URL('../../../scripts/ci', import.meta.url));
+const scriptsDir = fileURLToPath(
+	new URL('../../../scripts/ci', import.meta.url),
+);
 const consumeVerdictPath = `${scriptsDir}/consume-verdict.mts`;
 
 test('the verdict-to-counter switch is NOT independently testable (issue #1829)', () => {

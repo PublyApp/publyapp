@@ -1,3 +1,6 @@
+import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
 /**
  * consume-verdict.test.mts — unit tests for the verdict-to-counter mapping.
  *
@@ -30,13 +33,13 @@
  * the cross-group swaps, each of which has a named test that detects it.
  */
 import { test, expect } from 'vitest';
-import { fileURLToPath } from 'node:url';
-import { join } from 'node:path';
 
 import { classifyProof, readProofReport } from './classify-proof.mts';
 import { consumeVerdict, counterForVerdict } from './consume-verdict.mts';
 
-const fixturesDir = fileURLToPath(new URL('./__fixtures__/reports/', import.meta.url));
+const fixturesDir = fileURLToPath(
+	new URL('./__fixtures__/reports/', import.meta.url),
+);
 
 /**
  * Load a real vitest JSON report and classify it with the given exit code.
@@ -77,7 +80,10 @@ test('consumeVerdict: OK verdict (real assertion-failure report) increments fail
 	const result = classifyFixture('ok.json', 1);
 	expect(result.verdict).toBe('OK');
 
-	const next = consumeVerdict({ failures: 0, unexpectedPasses: 0, corrupted: 0 }, result.verdict);
+	const next = consumeVerdict(
+		{ failures: 0, unexpectedPasses: 0, corrupted: 0 },
+		result.verdict,
+	);
 	expect(next).toEqual({ failures: 1, unexpectedPasses: 0, corrupted: 0 });
 });
 
@@ -85,7 +91,10 @@ test('consumeVerdict: CORRUPT PROOF verdict (real thrown-Error report) increment
 	const result = classifyFixture('corrupt.json', 1);
 	expect(result.verdict).toBe('CORRUPT PROOF');
 
-	const next = consumeVerdict({ failures: 0, unexpectedPasses: 0, corrupted: 0 }, result.verdict);
+	const next = consumeVerdict(
+		{ failures: 0, unexpectedPasses: 0, corrupted: 0 },
+		result.verdict,
+	);
 	expect(next).toEqual({ failures: 0, unexpectedPasses: 0, corrupted: 1 });
 });
 
@@ -93,7 +102,10 @@ test('consumeVerdict: UNEXPECTED_PASS verdict (real passing test report) increme
 	const result = classifyFixture('pass.json', 0);
 	expect(result.verdict).toBe('UNEXPECTED_PASS');
 
-	const next = consumeVerdict({ failures: 0, unexpectedPasses: 0, corrupted: 0 }, result.verdict);
+	const next = consumeVerdict(
+		{ failures: 0, unexpectedPasses: 0, corrupted: 0 },
+		result.verdict,
+	);
 	expect(next).toEqual({ failures: 0, unexpectedPasses: 1, corrupted: 0 });
 });
 
@@ -101,7 +113,10 @@ test('consumeVerdict: NO_TESTS verdict (real empty-suite report) increments corr
 	const result = classifyFixture('notests.json', 1);
 	expect(result.verdict).toBe('NO_TESTS');
 
-	const next = consumeVerdict({ failures: 0, unexpectedPasses: 0, corrupted: 0 }, result.verdict);
+	const next = consumeVerdict(
+		{ failures: 0, unexpectedPasses: 0, corrupted: 0 },
+		result.verdict,
+	);
 	expect(next).toEqual({ failures: 0, unexpectedPasses: 0, corrupted: 1 });
 });
 
@@ -115,7 +130,10 @@ test('consumeVerdict: ERROR verdict (simulated crash, non-zero/non-one exit) inc
 	const result = classifyProof(report, 137);
 	expect(result.verdict).toBe('ERROR');
 
-	const next = consumeVerdict({ failures: 0, unexpectedPasses: 0, corrupted: 0 }, result.verdict);
+	const next = consumeVerdict(
+		{ failures: 0, unexpectedPasses: 0, corrupted: 0 },
+		result.verdict,
+	);
 	expect(next).toEqual({ failures: 0, unexpectedPasses: 1, corrupted: 0 });
 });
 
@@ -137,21 +155,33 @@ test('consumeVerdict: accumulates multiple verdicts without mutating input', () 
 });
 
 test('consumeVerdict: a single OK verdict does NOT increment unexpectedPasses (catches OK↔ERROR swap)', () => {
-	const result = consumeVerdict({ failures: 0, unexpectedPasses: 0, corrupted: 0 }, 'OK');
+	const result = consumeVerdict(
+		{ failures: 0, unexpectedPasses: 0, corrupted: 0 },
+		'OK',
+	);
 	expect(result.unexpectedPasses).toBe(0);
 });
 
 test('consumeVerdict: a single ERROR verdict does NOT increment failures (catches OK↔ERROR swap)', () => {
-	const result = consumeVerdict({ failures: 0, unexpectedPasses: 0, corrupted: 0 }, 'ERROR');
+	const result = consumeVerdict(
+		{ failures: 0, unexpectedPasses: 0, corrupted: 0 },
+		'ERROR',
+	);
 	expect(result.failures).toBe(0);
 });
 
 test('consumeVerdict: a single CORRUPT PROOF verdict does NOT increment unexpectedPasses (catches CORRUPT PROOF↔ERROR swap)', () => {
-	const result = consumeVerdict({ failures: 0, unexpectedPasses: 0, corrupted: 0 }, 'CORRUPT PROOF');
+	const result = consumeVerdict(
+		{ failures: 0, unexpectedPasses: 0, corrupted: 0 },
+		'CORRUPT PROOF',
+	);
 	expect(result.unexpectedPasses).toBe(0);
 });
 
 test('consumeVerdict: a single UNEXPECTED_PASS verdict does NOT increment corrupted (catches UNEXPECTED_PASS↔NO_TESTS swap)', () => {
-	const result = consumeVerdict({ failures: 0, unexpectedPasses: 0, corrupted: 0 }, 'UNEXPECTED_PASS');
+	const result = consumeVerdict(
+		{ failures: 0, unexpectedPasses: 0, corrupted: 0 },
+		'UNEXPECTED_PASS',
+	);
 	expect(result.corrupted).toBe(0);
 });
