@@ -15,7 +15,8 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 // list:
 //   - Front: apps/front/src/lib/env.ts (requiredTrimmedString schema entries) and
 //     apps/front/src/server.ts (validateRuntimeEnv's production conditional).
-//   - API: apps/api/Lib/AppEnvironment.cs (GetRequiredString calls in Initialize()).
+//   - API: apps/api/Lib/AppEnvironment.cs (GetRequiredString, GetRequiredInt, and
+//     GetOptionalAppRole calls in Initialize()).
 // The documented vars are extracted from the ACTUAL runbook (§5a table + §5b block).
 //
 // WHAT IT DOES NOT PROVE
@@ -29,6 +30,14 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 // naming the file and the parse error rather than concluding "nothing to report".
 // A guard that silently passes on an unreadable source is worse than no guard —
 // it installs a false negative that reassures.
+//
+// The API extractor enumerates every form of "required at startup" it knows:
+//   Form 1 — GetRequiredString(nameof(X)) / GetRequiredString("X")
+//   Form 2 — GetRequiredInt(nameof(X)) / GetRequiredInt("X")
+//   Form 3 — GetOptionalAppRole(CONSTANT, default)  [REQUIRED in production]
+// Any `Get*` call in Initialize() that is NOT one of these forms FAILS LOUD naming
+// the call and its line. A list we cannot close must signal itself, not announce
+// itself complete.
 
 const rootDir = path.resolve(
 	fileURLToPath(new URL('../../..', import.meta.url)),
@@ -146,6 +155,17 @@ export const extractApiRequiredStrings = (
 ): Set<string> => {
 	const source = readFileSync(appEnvironmentPath, 'utf8');
 
+	// Resolve `const string NAME = "VALUE"` declarations (e.g. AppRoleVariableName
+	// = "APP_ROLE") so GetOptionalAppRole(AppRoleVariableName, ...) resolves to
+	// the actual env var name. Scans the WHOLE file, not just Initialize().
+	const constantPattern =
+		/(?:internal\s+)?const\s+string\s+([A-Z][A-Za-z0-9_]*)\s*=\s*"([A-Z][A-Z0-9_]*)"/g;
+	const constants = new Map<string, string>();
+	let constantMatch: RegExpExecArray | null;
+	while ((constantMatch = constantPattern.exec(source)) !== null) {
+		constants.set(constantMatch[1], constantMatch[2]);
+	}
+
 	// Match the method signature's leading whitespace with a backreference so the
 	// closing brace must be at the EXACT same indentation level — works whether the
 	// file uses tabs (real AppEnvironment.cs) or spaces (test fixtures).
@@ -163,40 +183,42 @@ export const extractApiRequiredStrings = (
 	const initBody = initMatch[2];
 	const results = new Set<string>();
 
-	// In AppEnvironment.cs, GetRequiredString(nameof(X)) / GetRequiredInt(nameof(X))
-	// use C#'s nameof operator which resolves to the literal string "X" — the name
-	// of the property/constant. There are no intermediate const string declarations
-	// to resolve; the env var name IS the symbol name. So
-	// nameof(POSTGRES_CONNECTION_STRING) = "POSTGRES_CONNECTION_STRING".
-	// Literal form: GetRequiredString("SOME_NAME") / GetRequiredInt("SOME_NAME")
-	// uses the literal directly.
-	// #1798 round 4: GetRequiredInt declares 8 additional required vars
-	// (SESSION_EXPIRY_DAYS, EMAIL_VERIFY_TOKEN_VALIDITY_DURATION,
-	// PASSWORD_RESET_TOKEN_VALIDITY_DURATION, PASSWORD_MIN_LENGTH,
-	// EMAIL_VERIFY_TOKEN_LENGTH, PASSWORD_RESET_TOKEN_LENGTH,
-	// INVITATION_TOKEN_LENGTH) that crash-loop startup identically to
-	// GetRequiredString vars. Both must be covered.
+	// Tracks the character range [start, end) of every config-getter call the
+	// guard RECOGNIZES, so the fail-closed pass below can detect any `Get*` call
+	// it does NOT know how to classify. A guard that silently skips what it
+	// can't read is worse than no guard — it installs a false negative.
+	const recognizedCalls: Array<{ start: number; end: number }> = [];
+
+	// --- Form 1: GetRequiredString -------------------------------------------
+	// Throws InvalidOperationException when the env var is missing/blank.
+	// nameof(X) resolves to "X"; literal form uses the literal directly.
 	const requiredStringPattern =
 		/GetRequiredString\(\s*(?:nameof\s*\(\s*([A-Z][A-Z0-9_]*)\s*\)|"([A-Z][A-Z0-9_]*)")\s*\)/g;
 	let match: RegExpExecArray | null;
-	let callCount = 0;
 	while ((match = requiredStringPattern.exec(initBody)) !== null) {
-		callCount++;
+		recognizedCalls.push({
+			start: match.index,
+			end: match.index + match[0].length,
+		});
 		const nameofName = match[1];
 		const literalName = match[2];
 		if (nameofName) {
-			// nameof(X) resolves to the literal string "X"
 			results.add(nameofName);
 		} else if (literalName) {
 			results.add(literalName);
 		}
 	}
 
+	// --- Form 2: GetRequiredInt ----------------------------------------------
+	// Throws InvalidOperationException when missing/blank/unparseable.
 	const requiredIntPattern =
 		/GetRequiredInt\(\s*(?:nameof\s*\(\s*([A-Z][A-Z0-9_]*)\s*\)|"([A-Z][A-Z0-9_]*)")\s*\)/g;
 	let intMatch: RegExpExecArray | null;
 	while ((intMatch = requiredIntPattern.exec(initBody)) !== null) {
-		callCount++;
+		recognizedCalls.push({
+			start: intMatch.index,
+			end: intMatch.index + intMatch[0].length,
+		});
 		const nameofName = intMatch[1];
 		const literalName = intMatch[2];
 		if (nameofName) {
@@ -206,7 +228,69 @@ export const extractApiRequiredStrings = (
 		}
 	}
 
-	if (callCount === 0) {
+	// --- Form 3: GetOptionalAppRole ------------------------------------------
+	// The ONLY GetOptional* method that is REQUIRED in production. It takes the
+	// env var name as a constant (AppRoleVariableName) and a dev/test-only default
+	// (AppRole.All). Outside Development/Testing a missing/blank APP_ROLE throws
+	// the SAME InvalidOperationException path GetRequiredString uses.
+	const optionalAppRolePattern =
+		/GetOptionalAppRole\s*\(\s*([A-Z][A-Za-z0-9_]*)\s*,\s*[^)]+\)/g;
+	let roleMatch: RegExpExecArray | null;
+	while ((roleMatch = optionalAppRolePattern.exec(initBody)) !== null) {
+		recognizedCalls.push({
+			start: roleMatch.index,
+			end: roleMatch.index + roleMatch[0].length,
+		});
+		const firstArg = roleMatch[1];
+		const resolved = constants.get(firstArg);
+		if (resolved) {
+			results.add(resolved);
+		} else {
+			throw new Error(
+				`API AppEnvironment.cs parse failure: GetOptionalAppRole(${firstArg}, ...) at index ${roleMatch.index} in Initialize() — the constant "${firstArg}" could not be resolved to an env var name. Either the constant declaration is missing or its name changed.`,
+			);
+		}
+	}
+
+	// --- Known optional forms (have defaults, NOT required) ------------------
+	// Recognized only so the fail-closed pass below does not flag them.
+	const optionalPattern = /GetOptional(?:Bool|String|Int|Long|CsvList)\s*\(/g;
+	let optMatch: RegExpExecArray | null;
+	while ((optMatch = optionalPattern.exec(initBody)) !== null) {
+		recognizedCalls.push({
+			start: optMatch.index,
+			end: optMatch.index + optMatch[0].length,
+		});
+	}
+
+	// --- Fail-closed: any unrecognized config-getter call FAILS LOUD ---------
+	// Every `GetRequired*` / `GetOptional*` call in Initialize() must be classified
+	// above. If a new form appears (e.g. GetRequiredFoo, or an indirect form like
+	// `var key = "X"; GetRequiredString(key)`), the guard FAILS naming the call
+	// and its line rather than silently dropping it.
+	const anyGetterPattern = /Get(?:Required[A-Za-z]*|Optional[A-Za-z]*)\s*\(/g;
+	let anyMatch: RegExpExecArray | null;
+	while ((anyMatch = anyGetterPattern.exec(initBody)) !== null) {
+		const isRecognized = recognizedCalls.some(
+			(c) => anyMatch!.index >= c.start && anyMatch!.index < c.end,
+		);
+		if (!isRecognized) {
+			const callEnd = initBody.indexOf(')', anyMatch.index);
+			const callText =
+				callEnd > -1
+					? initBody.slice(anyMatch.index, callEnd + 1)
+					: initBody.slice(anyMatch.index, anyMatch.index + 40);
+			const initBodyStart = initMatch.index + initMatch[0].indexOf('\n') + 1;
+			const lineNumber = source
+				.slice(0, initBodyStart + anyMatch.index)
+				.split('\n').length;
+			throw new Error(
+				`API AppEnvironment.cs parse failure: unclassified config getter call "${callText}" at line ${lineNumber} in Initialize(). This guard does not know whether this call is required or optional at startup. Add it to the known patterns in the guard — do not silence this error.`,
+			);
+		}
+	}
+
+	if (results.size === 0) {
 		throw new Error(
 			`API AppEnvironment.cs parse failure: Initialize() found but no GetRequiredString or GetRequiredInt calls detected in ${appEnvironmentPath}. The method structure has changed.`,
 		);
@@ -316,7 +400,8 @@ export const collectRequiredVars = (root: string): RequiredVar[] => {
 		requiredVars.push({
 			name: varName,
 			source: 'API startup (AppEnvironment.cs)',
-			reason: 'GetRequiredString/GetRequiredInt in Initialize()',
+			reason:
+				'GetRequiredString/GetRequiredInt/GetOptionalAppRole in Initialize()',
 		});
 	}
 

@@ -86,10 +86,10 @@ test('PAIRED RED/GREEN: guard is RED against base runbook (PUBLIC_ORIGIN missing
 });
 
 // ---------------------------------------------------------------------------
-// Test 1b: GetRequiredInt coverage — the 8 int vars are in the required set.
+// Test 1b: GetRequiredInt coverage — the 7 int vars are in the required set.
 // ---------------------------------------------------------------------------
 
-test('GetRequiredInt coverage: all 8 int vars are in the required set', () => {
+test('GetRequiredInt coverage: all 7 int vars are in the required set', () => {
 	const root = path.dirname(fileURLToPath(import.meta.url));
 	const repoRoot = path.resolve(root, '../../..');
 	const requiredVars = collectRequiredVars(repoRoot);
@@ -144,6 +144,53 @@ test('PAIRED RED/GREEN: removing a GetRequiredInt var from the runbook turns the
 		'RED phase failed: SESSION_EXPIRY_DAYS was NOT flagged as undocumented after removal. The guard is blind to GetRequiredInt vars.',
 	);
 	assert.equal(sessionExpiryMissing!.name, 'SESSION_EXPIRY_DAYS');
+});
+
+// ---------------------------------------------------------------------------
+// Test 1d: PAIRED RED/GREEN for APP_ROLE — removing it from the runbook
+// turns the guard red, naming it. (Trou 1 proof)
+// ---------------------------------------------------------------------------
+
+test('PAIRED RED/GREEN: removing APP_ROLE from the runbook turns the guard red, naming it', () => {
+	const root = path.dirname(fileURLToPath(import.meta.url));
+	const repoRoot = path.resolve(root, '../../..');
+	const realRunbookPath = path.join(
+		repoRoot,
+		'docs/deployment/first-deploy-runbook.md',
+	);
+	const realRunbook = readFileSync(realRunbookPath, 'utf8');
+
+	// Remove APP_ROLE from §5a table
+	const mutatedRunbook = realRunbook.replace(/\| `APP_ROLE`.*\|.*\n/, '');
+	const mutatedPath = path.join(tmpDir, 'mutated-runbook.md');
+	writeFileSync(mutatedPath, mutatedRunbook);
+
+	const requiredVars = collectRequiredVars(repoRoot);
+	const documentedVars = extractDocumentedVars(mutatedPath);
+	const undocumented = findUndocumentedVars(requiredVars, documentedVars);
+
+	const appRoleMissing = undocumented.find((v) => v.name === 'APP_ROLE');
+	assert.ok(
+		appRoleMissing,
+		'RED phase failed: APP_ROLE was NOT flagged as undocumented after removal. The guard is blind to APP_ROLE — the third required form is invisible.',
+	);
+	assert.equal(appRoleMissing!.name, 'APP_ROLE');
+});
+
+// ---------------------------------------------------------------------------
+// Test 1e: APP_ROLE is in the required set (Trou 1 proof)
+// ---------------------------------------------------------------------------
+
+test('APP_ROLE is in the required set (GetOptionalAppRole form)', () => {
+	const root = path.dirname(fileURLToPath(import.meta.url));
+	const repoRoot = path.resolve(root, '../../..');
+	const requiredVars = collectRequiredVars(repoRoot);
+	const requiredNames = new Set(requiredVars.map((v) => v.name));
+
+	assert.ok(
+		requiredNames.has('APP_ROLE'),
+		'APP_ROLE is NOT in the required set — the guard ignores the GetOptionalAppRole form. Removing it from the runbook would not turn the guard red.',
+	);
 });
 
 // ---------------------------------------------------------------------------
@@ -373,13 +420,112 @@ public class AppEnvironment {
 });
 
 // ---------------------------------------------------------------------------
+// Test 4a: APP_ROLE extraction via GetOptionalAppRole (Trou 1)
+// ---------------------------------------------------------------------------
+
+test('extractApiRequiredStrings: extracts APP_ROLE via GetOptionalAppRole with constant', () => {
+	const dir = createFixture({
+		'AppEnvironment.cs': `
+public class AppEnvironment {
+    internal const string AppRoleVariableName = "APP_ROLE";
+
+    public static AppEnvironment Initialize() {
+        var existing = Volatile.Read(ref _instance);
+        if (existing is not null) {
+            return existing;
+        }
+
+        lock (InitLock) {
+            LoadDotEnvIfDevelopment();
+            var settings = new AppEnvironment(
+                postgresConnectionString: GetRequiredString(nameof(POSTGRES_CONNECTION_STRING)),
+                role: GetOptionalAppRole(AppRoleVariableName, AppRole.All)
+            );
+            return settings;
+        }
+    }
+}
+`,
+	});
+
+	const result = extractApiRequiredStrings(path.join(dir, 'AppEnvironment.cs'));
+	assert.ok(
+		result.has('APP_ROLE'),
+		'APP_ROLE must be extracted from GetOptionalAppRole(AppRoleVariableName, ...)',
+	);
+	assert.ok(result.has('POSTGRES_CONNECTION_STRING'));
+});
+
+// ---------------------------------------------------------------------------
+// Test 4b: Fail-closed on unclassified Get* call (Trou 2)
+// ---------------------------------------------------------------------------
+
+test('extractApiRequiredStrings: FAILS LOUD on unclassified Get* call (indirect form)', () => {
+	const dir = createFixture({
+		'AppEnvironment.cs': `
+public class AppEnvironment {
+    public static AppEnvironment Initialize() {
+        var existing = Volatile.Read(ref _instance);
+        if (existing is not null) {
+            return existing;
+        }
+
+        lock (InitLock) {
+            LoadDotEnvIfDevelopment();
+            var key = "SOME_VAR";
+            var settings = new AppEnvironment(
+                postgresConnectionString: GetRequiredString(key)
+            );
+            return settings;
+        }
+    }
+}
+`,
+	});
+
+	assert.throws(
+		() => extractApiRequiredStrings(path.join(dir, 'AppEnvironment.cs')),
+		/unclassified config getter call/,
+	);
+});
+
+test('extractApiRequiredStrings: FAILS LOUD on unknown Get* method', () => {
+	const dir = createFixture({
+		'AppEnvironment.cs': `
+public class AppEnvironment {
+    public static AppEnvironment Initialize() {
+        var existing = Volatile.Read(ref _instance);
+        if (existing is not null) {
+            return existing;
+        }
+
+        lock (InitLock) {
+            LoadDotEnvIfDevelopment();
+            var settings = new AppEnvironment(
+                postgresConnectionString: GetRequiredString(nameof(POSTGRES_CONNECTION_STRING)),
+                someValue: GetRequiredFoo(nameof(SOME_VAR))
+            );
+            return settings;
+        }
+    }
+}
+`,
+	});
+
+	assert.throws(
+		() => extractApiRequiredStrings(path.join(dir, 'AppEnvironment.cs')),
+		/unclassified config getter call "GetRequiredFoo/,
+	);
+});
+
+// ---------------------------------------------------------------------------
 // Test 5: Runbook extraction
 // ---------------------------------------------------------------------------
 
 test('extractDocumentedVars: finds vars in §5a table and §5b block', () => {
 	const dir = createFixture({
 		'runbook.md':
-			'# Deploy Runbook\n\n## 5. Env Vars\n\n### 5a. REQUIRED\n\n| Variable | Value |\n| -------- | ----- |\n| \`RELEASE_TAG\` | the tag |\n| \`POSTGRES_CONNECTION_STRING\` | the conn |\n\n### 5b. REQUIRED config\n\n\`\`\`\nSESSION_TOKEN_HEADER_KEY=X-Session-Token\nTENANT_ID_HEADER_KEY=X-Tenant-Id\n\`\`\`\n\n### 5c. OPTIONAL\n\nRATE_LIMIT, MAX_ROWS.\n',
+			'# Deploy Runbook\n\n## 5. Env Vars\n\n### 5a. REQUIRED\n\n| Variable | Value |\n| -------- | ----- |\n| `RELEASE_TAG` | the tag |\n| `POSTGRES_CONNECTION_STRING` | the conn |\n\n### 5b. REQUIRED config\n\n```\nSESSION_TOKEN_HEADER_KEY=X-Session-Token\nTENANT_ID_HEADER_KEY=X-Tenant-Id\n```\n\n### 5c. OPTIONAL\n\nRATE_LIMIT, MAX_ROWS.\n',
 	});
 
 	const result = extractDocumentedVars(path.join(dir, 'runbook.md'));
@@ -408,7 +554,7 @@ test('extractDocumentedVars: throws when §5a not found', () => {
 test('FALSE POSITIVE: optional var in §5c does not trigger the guard', () => {
 	const dir = createFixture({
 		'runbook.md':
-			'# Deploy Runbook\n\n### 5a. REQUIRED\n\n| Variable | Value |\n| -------- | ----- |\n| \`REQUIRED_VAR\` | required |\n\n### 5b. REQUIRED config\n\n\`\`\`\nANOTHER_REQUIRED=1\n\`\`\`\n\n### 5c. OPTIONAL\n\n\`OPTIONAL_RATE_LIMIT\` (30), \`OPTIONAL_MAX_ROWS\` (5).\n',
+			'# Deploy Runbook\n\n### 5a. REQUIRED\n\n| Variable | Value |\n| -------- | ----- |\n| `REQUIRED_VAR` | required |\n\n### 5b. REQUIRED config\n\n```\nANOTHER_REQUIRED=1\n```\n\n### 5c. OPTIONAL\n\n`OPTIONAL_RATE_LIMIT` (30), `OPTIONAL_MAX_ROWS` (5).\n',
 	});
 
 	// Simulate a required var set that includes an optional one
@@ -421,7 +567,8 @@ test('FALSE POSITIVE: optional var in §5c does not trigger the guard', () => {
 		{
 			name: 'ANOTHER_REQUIRED',
 			source: 'API startup (AppEnvironment.cs)' as const,
-			reason: 'GetRequiredString',
+			reason:
+				'GetRequiredString/GetRequiredInt/GetOptionalAppRole in Initialize()',
 		},
 	];
 
@@ -466,5 +613,56 @@ test('UNREADABLE INPUT: malformed AppEnvironment.cs fails with named error', () 
 	assert.throws(
 		() => extractApiRequiredStrings(path.join(dir, 'AppEnvironment.cs')),
 		/API AppEnvironment.cs parse failure: Initialize\(\) method not found/,
+	);
+});
+
+// ---------------------------------------------------------------------------
+// Test 8: PAIRED RED/GREEN against the REAL base runbook (Trou 3b)
+// Uses git show 490f6d03:docs/deployment/first-deploy-runbook.md — the actual
+// historical state at the merge base, not a hand-manipulated copy.
+// ---------------------------------------------------------------------------
+
+test('PAIRED RED/GREEN: guard is RED against the REAL base runbook (git show 490f6d03), GREEN after fix', () => {
+	const root = path.dirname(fileURLToPath(import.meta.url));
+	const repoRoot = path.resolve(root, '../../..');
+	const realRunbookPath = path.join(
+		repoRoot,
+		'docs/deployment/first-deploy-runbook.md',
+	);
+
+	// Read the REAL base runbook from git history (490f6d03 = the merge-base
+	// commit where this lane diverged). This is the actual historical state,
+	// not a simulation.
+	const { execSync } = require('node:child_process');
+	const baseRunbook = execSync(
+		'git show 490f6d03:docs/deployment/first-deploy-runbook.md',
+		{ cwd: repoRoot, encoding: 'utf8' },
+	);
+	const baseRunbookPath = path.join(tmpDir, 'real-base-runbook.md');
+	writeFileSync(baseRunbookPath, baseRunbook);
+
+	const requiredVars = collectRequiredVars(repoRoot);
+	const documentedVarsAtBase = extractDocumentedVars(baseRunbookPath);
+	const undocumentedAtBase = findUndocumentedVars(
+		requiredVars,
+		documentedVarsAtBase,
+	);
+
+	// RED: at least one var must be undocumented against the real base runbook
+	assert.ok(
+		undocumentedAtBase.length > 0,
+		'RED phase failed: no vars were flagged as undocumented against the REAL base runbook. The guard would not catch the defect it exists to catch.',
+	);
+
+	// GREEN: the corrected runbook (current state) has no undocumented vars
+	const documentedVarsFixed = extractDocumentedVars(realRunbookPath);
+	const undocumentedFixed = findUndocumentedVars(
+		requiredVars,
+		documentedVarsFixed,
+	);
+	assert.equal(
+		undocumentedFixed.length,
+		0,
+		`GREEN phase failed: expected 0 undocumented vars after fix, but found ${undocumentedFixed.length}: ${undocumentedFixed.map((v) => v.name).join(', ')}`,
 	);
 });
