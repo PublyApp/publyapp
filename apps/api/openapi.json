@@ -13677,16 +13677,23 @@
         }
       }
     },
-    "/publishing/publications": {
+    "/posts/publications": {
       "get": {
         "tags": [
           "Publishing"
         ],
-        "summary": "Find publications for the current tenant",
-        "operationId": "FindPublicationsForTenant",
+        "summary": "Find scheduled publications (queue + calendar)",
+        "operationId": "FindScheduledPublicationsForTenant",
         "parameters": [
           {
             "name": "cursor",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "from",
             "in": "query",
             "schema": {
               "type": "string"
@@ -13715,6 +13722,13 @@
           },
           {
             "name": "status",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "to",
             "in": "query",
             "schema": {
               "type": "string"
@@ -13777,7 +13791,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/FindPublicationsForTenantResponse"
+                  "$ref": "#/components/schemas/FindScheduledPublicationsResponse"
                 }
               }
             }
@@ -13795,7 +13809,7 @@
         }
       }
     },
-    "/publishing/publish-targets": {
+    "/posts/publish-targets": {
       "get": {
         "tags": [
           "Publishing"
@@ -13868,6 +13882,325 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/GetPublishTargetsForTenantResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/posts/{postId}/schedule": {
+      "post": {
+        "tags": [
+          "Publishing"
+        ],
+        "summary": "Schedule a post for future publication",
+        "operationId": "SchedulePostForTenant",
+        "parameters": [
+          {
+            "name": "postId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SchedulePostBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SchedulePostResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "Publishing"
+        ],
+        "summary": "Edit a scheduled post's text and/or schedule",
+        "operationId": "EditPostScheduleForTenant",
+        "parameters": [
+          {
+            "name": "postId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EditPostScheduleBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EditPostScheduleResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Publishing"
+        ],
+        "summary": "Cancel a post's schedule (delete Scheduled publications)",
+        "operationId": "CancelPostScheduleForTenant",
+        "parameters": [
+          {
+            "name": "postId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
                 }
               }
             }
@@ -15308,6 +15641,43 @@
           }
         }
       },
+      "EditPostScheduleBody": {
+        "type": "object",
+        "properties": {
+          "body": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/JsonElement"
+              }
+            ]
+          },
+          "scheduledAtLocal": {
+            "$ref": "#/components/schemas/JsonElement"
+          },
+          "timeZone": {
+            "$ref": "#/components/schemas/JsonElement"
+          }
+        }
+      },
+      "EditPostScheduleResponse": {
+        "required": [
+          "postId",
+          "publications"
+        ],
+        "type": "object",
+        "properties": {
+          "postId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "publications": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SchedulePostCreatedItem"
+            }
+          }
+        }
+      },
       "FindAuditLogsResponse": {
         "type": "object",
         "properties": {
@@ -15429,6 +15799,24 @@
             "items": {
               "description": "History row: one publication with the context History renders.",
               "$ref": "#/components/schemas/PublicationListItem"
+            }
+          },
+          "nextCursor": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "FindScheduledPublicationsResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "description": "One wire row of the scheduled-publications list (D3 Task 4): the publication\nplus its account/post context and the DST-aware zone-local ISO string.",
+              "$ref": "#/components/schemas/ScheduledPublicationItem"
             }
           },
           "nextCursor": {
@@ -17205,6 +17593,117 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/ResolveTenantProfileUserAssignmentsAsStaffItem"
+            }
+          }
+        }
+      },
+      "ScheduledPublicationItem": {
+        "required": [
+          "publicationId",
+          "postId",
+          "postBodyPreview",
+          "postStatus",
+          "socialAccountId",
+          "accountDisplayHandle",
+          "scheduledAtUtc",
+          "scheduledAtLocal",
+          "timeZone",
+          "status"
+        ],
+        "type": "object",
+        "properties": {
+          "publicationId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "postId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "postBodyPreview": {
+            "type": "string"
+          },
+          "postStatus": {
+            "type": "string"
+          },
+          "socialAccountId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "accountDisplayHandle": {
+            "type": "string"
+          },
+          "scheduledAtUtc": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "scheduledAtLocal": {
+            "type": "string"
+          },
+          "timeZone": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          }
+        },
+        "description": "One wire row of the scheduled-publications list (D3 Task 4): the publication\nplus its account/post context and the DST-aware zone-local ISO string."
+      },
+      "SchedulePostBody": {
+        "required": [
+          "accountIds",
+          "scheduledAtLocal",
+          "timeZone"
+        ],
+        "type": "object",
+        "properties": {
+          "accountIds": {
+            "$ref": "#/components/schemas/JsonElement"
+          },
+          "scheduledAtLocal": {
+            "$ref": "#/components/schemas/JsonElement"
+          },
+          "timeZone": {
+            "$ref": "#/components/schemas/JsonElement"
+          }
+        }
+      },
+      "SchedulePostCreatedItem": {
+        "required": [
+          "id",
+          "socialAccountId",
+          "status"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "socialAccountId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "status": {
+            "type": "string"
+          }
+        }
+      },
+      "SchedulePostResponse": {
+        "required": [
+          "postId",
+          "publications"
+        ],
+        "type": "object",
+        "properties": {
+          "postId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "publications": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SchedulePostCreatedItem"
             }
           }
         }

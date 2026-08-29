@@ -118,7 +118,6 @@ public sealed partial class PublicationArchitectureSpec {
 	) {
 		"Modules/Publishing/Services/PublicationService.cs",
 	};
-	};
 
 	private const string PublicationFullNamespace =
 		"PublyApp.Api.Modules.Publishing.Entities";
