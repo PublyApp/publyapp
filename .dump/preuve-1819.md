@@ -49,9 +49,9 @@
 
 ---
 
-## 4. Preuve `retry` — test vert (validation + condition `<= 0`)
+## 4. Preuve `retry` — test vert (validation + condition `<= 1`)
 
-**État du code** : `retry()` avec validation `Number.isInteger(attempts) && attempts >= 0` et condition `if (attempts <= 0) throw error;`.
+**État du code** : `retry()` avec validation `Number.isInteger(attempts) && attempts >= 0` et condition `if (attempts <= 1) throw error;` (tentatives totales, pas reprises).
 
 **Résultat** : ✅ VERT — 106 tests passent.
 
@@ -64,6 +64,18 @@
 
 ---
 
+## 5. Sémantique `attempts` — choix retenu
+
+**Problème** : `attempts = 3` produisait 4 appels (1 initial + 3 reprises). Le nom ment.
+
+**Décision** : corriger le compte. `attempts` = nombre total d'appels. `attempts=3` = 1 appel initial + 2 reprises = 3 appels au total.
+
+**Justification** : « 3 tentatives » signifie « 3 essais », pas « 3 essais après le premier ». Un nom qui ment est un bug latent — le prochain lecteur qui passe `attempts: 1` s'attend à un seul essai, pas deux.
+
+**Test** : `retry({ fn, attempts: 2, delay: 1 })` → `fn` appelé exactement 2 fois.
+
+---
+
 ## Résumé
 
 | Test | Avant correction | Après correction |
@@ -72,11 +84,12 @@
 | `delay(10, undefined, { trace: true })` journalise | ✅ VERT | ✅ VERT |
 | `retry({ attempts: 2.5 })` échoue bruyamment | ❌ ROUGE (timeout) | ✅ VERT |
 | `retry({ attempts: -1 })` échoue bruyamment | ❌ ROUGE (timeout) | ✅ VERT |
+| `retry({ attempts: 2 })` = 2 appels totaux | ❌ 3 appels | ✅ 2 appels |
 
 **Fichiers modifiés** :
 - `packages/shared-ts/src/utils/any.utils.ts` — `delay()` paramétrable avec `trace: boolean` par défaut `false` + alias `sleep`
-- `packages/shared-ts/src/utils/retry-fn.ts` — validation `attempts` entier non-négatif + condition `<= 0`
+- `packages/shared-ts/src/utils/retry-fn.ts` — validation `attempts` entier non-négatif + condition `<= 1` (tentatives totales)
 - `apps/front/e2e/helpers/settle.ts` — suppression du `sleep` local, import `@org/shared-ts/utils/any.utils`
-- `apps/front/scripts/ci/smoke-start-server.mts` — suppression du `delay` local, import `@org/shared-ts/utils/any.utils`
+- `apps/front/scripts/ci/smoke-start-server.mts` — miroir local conservé (Node pur, pas de loader TS) avec commentaire explicatif
 - `packages/shared-ts/src/utils/any.utils.test.ts` — tests `delay` et `sleep`
 - `packages/shared-ts/src/utils/retry-fn.test.ts` — tests `retry`
