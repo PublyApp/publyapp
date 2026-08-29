@@ -11,10 +11,16 @@ export const retry = async <F extends GenericFunction>({
 	attempts?: number;
 	delay?: number;
 }): Promise<ReturnType<F>> => {
+	if (!Number.isInteger(attempts) || attempts < 0) {
+		throw new RangeError(
+			`retry: attempts must be a non-negative integer, received ${attempts}`,
+		);
+	}
+
 	try {
 		return await fn(...(args ?? []));
 	} catch (error) {
-		if (attempts === 0) {
+		if (attempts <= 0) {
 			throw error;
 		}
 		await delayFn(delay);

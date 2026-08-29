@@ -3,14 +3,26 @@ import get from 'lodash/get';
 
 import { logger } from '@org/shared-ts/lib/logger/iso-logger';
 
-export const delay = <T = unknown>(timeout: number, value?: T) => {
-	logger.warn('delay function invoked', { timeout, value });
+export const delay = <T = unknown>(
+	timeout: number,
+	value?: T,
+	options: { trace?: boolean } = {},
+) => {
+	if (options.trace) {
+		logger.warn('delay function invoked', { timeout, value });
+	}
 	return new Promise<T>((resolve) => {
 		return setTimeout(() => {
 			resolve(value as T | PromiseLike<T>);
 		}, timeout);
 	});
 };
+
+/**
+ * Thin alias over {@link delay} for the "wait N ms, no value" case.
+ * Same signature the local copies used (`(ms: number): Promise<void>`).
+ */
+export const sleep = (ms: number): Promise<void> => delay(ms);
 
 export const isAsyncFunction = (
 	func: GenericFunction,

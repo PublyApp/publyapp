@@ -3,6 +3,14 @@ import { once } from 'node:events';
 import { createServer } from 'node:net';
 import process from 'node:process';
 
+// This script is executed by plain `node` (see `smoke:start` in apps/front/package.json)
+// and runs outside any Vite/bundler context, so it cannot resolve the TypeScript sources
+// re-exported by `@org/shared-ts`. Keep a local zero-dependency mirror of `delay` here —
+// re-routing through the shared primitive would pull winston, zod and the whole shared-ts
+// dependency tree into a context that only needs setTimeout.
+const delay = async (ms: number): Promise<void> =>
+	new Promise((resolve) => setTimeout(resolve, ms));
+
 // Local mirror of the "Smoke start front server and verify stylesheet tag"
 // step in .github/workflows/front-ci.yml.
 //
@@ -28,9 +36,6 @@ const retryDelayMs = 1000;
 const shutdownGraceMs = 5000;
 
 const stylesheetPattern = /rel="stylesheet"[^>]*href="[^"]+\.css"/;
-
-const delay = async (ms: number): Promise<void> =>
-	new Promise((resolve) => setTimeout(resolve, ms));
 
 /**
  * Asks the OS for a free port by binding to :0 and releasing it. There is a
