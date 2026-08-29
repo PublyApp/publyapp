@@ -11,7 +11,14 @@ import test from 'node:test';
 
 import { explainNodeCrash, formatCause } from './check-front-runtime-image.mts';
 
-test('explainNodeCrash pulls the missing module and importer from a Node crash trace', () => {
+// `node:test`'s runner captures test outcomes via its async-context mechanism,
+// independent of the returned Promise (see the same comment in
+// check-shared-ts-import-paths.test.mts and check-e2e-shared-constants.test.mts).
+// The `typescript(no-floating-promises)` rule flags `test()` as returning
+// `Promise<void>` per `@types/node` 26.x, but the runner does not depend on the
+// caller awaiting it. We therefore prefix each `test()` call with `void` (a
+// targeted, per-call suppression) rather than disabling the rule for the file.
+void test('explainNodeCrash pulls the missing module and importer from a Node crash trace', () => {
 	const logs = [
 		'node:internal/modules/esm/resolve:271',
 		'    throw new ERR_MODULE_NOT_FOUND(',
@@ -30,7 +37,7 @@ test('explainNodeCrash pulls the missing module and importer from a Node crash t
 	});
 });
 
-test('explainNodeCrash returns nulls when the crash is not a missing module', () => {
+void test('explainNodeCrash returns nulls when the crash is not a missing module', () => {
 	const logs = [
 		'Error: EADDRINUSE: address already in use :::5050',
 		'    at Server.setupListenHandle [as _listen2] (node:net:1872:16)',
@@ -44,14 +51,14 @@ test('explainNodeCrash returns nulls when the crash is not a missing module', ()
 	});
 });
 
-test('explainNodeCrash returns nulls on empty input', () => {
+void test('explainNodeCrash returns nulls on empty input', () => {
 	assert.deepEqual(explainNodeCrash(''), {
 		missingModule: null,
 		importedFrom: null,
 	});
 });
 
-test('formatCause names the missing module and the importer in plain words', () => {
+void test('formatCause names the missing module and the importer in plain words', () => {
 	const logs = [
 		"Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/app/trust-proxy.mjs' imported from /app/server.mjs",
 		'    at finalizeResolution (node:internal/modules/esm/resolve:271:11)',
@@ -77,7 +84,7 @@ test('formatCause names the missing module and the importer in plain words', () 
 	);
 });
 
-test('formatCause falls back to a log tail when the crash is not a missing module', () => {
+void test('formatCause falls back to a log tail when the crash is not a missing module', () => {
 	const logs = [
 		'Error: EADDRINUSE: address already in use :::5050',
 		'    at Server.setupListenHandle (node:net:1872:16)',
@@ -95,7 +102,7 @@ test('formatCause falls back to a log tail when the crash is not a missing modul
 	);
 });
 
-test('formatCause handles an empty log buffer without crashing', () => {
+void test('formatCause handles an empty log buffer without crashing', () => {
 	const cause = formatCause('');
 	assert.ok(Array.isArray(cause));
 	assert.ok(cause.length > 0);
