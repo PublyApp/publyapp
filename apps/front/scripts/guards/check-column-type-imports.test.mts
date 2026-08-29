@@ -24,7 +24,13 @@
  * disabling the rule for the entire file.
  */
 import assert from 'node:assert/strict';
-import { mkdtempSync, rmSync, writeFileSync, mkdirSync, readFileSync } from 'node:fs';
+import {
+	mkdtempSync,
+	rmSync,
+	writeFileSync,
+	mkdirSync,
+	readFileSync,
+} from 'node:fs';
 import path from 'node:path';
 import { after, test } from 'node:test';
 import { fileURLToPath } from 'node:url';
@@ -376,133 +382,132 @@ void test('ADVERSE: catches wildcard re-export (export * from)', () => {
 	assert.ok(findings[0].bindings.includes('(wildcard re-export)'));
 });
 
-	void test('ADVERSE: catches import = require() (ImportEqualsDeclaration)', () => {
-		// `import ReactTable = require('@tanstack/react-table')` is the
-		// CommonJS-style import assignment. The right-hand side is an
-		// ExternalModuleReference whose expression is a StringLiteral (not
-		// a CallExpression), so neither the import-declaration handler nor
-		// the require-call handler fires. The guard must flag this form.
-		const root = makeSandbox({
-			'src/routes/authed/staff/profiles.tsx':
-				`import ReactTable = require('@tanstack/react-table');\n` +
-				`export const x = null as ReactTable.ColumnDef<any>;\n`,
-		});
-		const findings = scanFrontSrcForBannedImports(root);
-		assert.equal(findings.length, 1, 'expected exactly one finding');
-		assert.equal(findings[0].specifier, '@tanstack/react-table');
-		assert.ok(findings[0].bindings.includes('(import = require)'));
+void test('ADVERSE: catches import = require() (ImportEqualsDeclaration)', () => {
+	// `import ReactTable = require('@tanstack/react-table')` is the
+	// CommonJS-style import assignment. The right-hand side is an
+	// ExternalModuleReference whose expression is a StringLiteral (not
+	// a CallExpression), so neither the import-declaration handler nor
+	// the require-call handler fires. The guard must flag this form.
+	const root = makeSandbox({
+		'src/routes/authed/staff/profiles.tsx':
+			`import ReactTable = require('@tanstack/react-table');\n` +
+			`export const x = null as ReactTable.ColumnDef<any>;\n`,
 	});
+	const findings = scanFrontSrcForBannedImports(root);
+	assert.equal(findings.length, 1, 'expected exactly one finding');
+	assert.equal(findings[0].specifier, '@tanstack/react-table');
+	assert.ok(findings[0].bindings.includes('(import = require)'));
+});
 
-	// ---------------------------------------------------------------------------
-	// R4: reversed burden of proof — unrecognized extensions fail loudly.
-	// ---------------------------------------------------------------------------
+// ---------------------------------------------------------------------------
+// R4: reversed burden of proof — unrecognized extensions fail loudly.
+// ---------------------------------------------------------------------------
 
-	void test('R4 RED: .cts file importing banned type is caught (extension now scanned)', () => {
-		// R3 defect: .cts was not scanned by the regex /\.(ts|tsx|mts)$/ and
-		// sailed through with [OK]. Now .cts is in SCANNED_EXTENSIONS, so
-		// the guard parses it and flags the banned import.
-		const root = makeSandbox({
-			'src/routes/authed/tenant/posts/probe.cts':
-				`import { ColumnDef } from '@tanstack/react-table';\n` +
-				`export const x = null as ColumnDef<any>;\n`,
-		});
-		const findings = scanFrontSrcForBannedImports(root);
-		assert.equal(findings.length, 1, 'expected exactly one finding');
-		assert.equal(findings[0].specifier, '@tanstack/react-table');
-		assert.ok(findings[0].bindings.includes('ColumnDef'));
+void test('R4 RED: .cts file importing banned type is caught (extension now scanned)', () => {
+	// R3 defect: .cts was not scanned by the regex /\.(ts|tsx|mts)$/ and
+	// sailed through with [OK]. Now .cts is in SCANNED_EXTENSIONS, so
+	// the guard parses it and flags the banned import.
+	const root = makeSandbox({
+		'src/routes/authed/tenant/posts/probe.cts':
+			`import { ColumnDef } from '@tanstack/react-table';\n` +
+			`export const x = null as ColumnDef<any>;\n`,
 	});
+	const findings = scanFrontSrcForBannedImports(root);
+	assert.equal(findings.length, 1, 'expected exactly one finding');
+	assert.equal(findings[0].specifier, '@tanstack/react-table');
+	assert.ok(findings[0].bindings.includes('ColumnDef'));
+});
 
-	void test('R4 RED: .cjs file with require() importing banned type is caught', () => {
-		const root = makeSandbox({
-			'src/routes/authed/tenant/posts/probe.cjs':
-				`const { ColumnDef } = require('@tanstack/react-table');\n` +
-				`module.exports = { ColumnDef };\n`,
-		});
-		const findings = scanFrontSrcForBannedImports(root);
-		assert.equal(findings.length, 1, 'expected exactly one finding');
-		assert.equal(findings[0].specifier, '@tanstack/react-table');
-		assert.ok(findings[0].bindings.includes('(require call)'));
+void test('R4 RED: .cjs file with require() importing banned type is caught', () => {
+	const root = makeSandbox({
+		'src/routes/authed/tenant/posts/probe.cjs':
+			`const { ColumnDef } = require('@tanstack/react-table');\n` +
+			`module.exports = { ColumnDef };\n`,
 	});
+	const findings = scanFrontSrcForBannedImports(root);
+	assert.equal(findings.length, 1, 'expected exactly one finding');
+	assert.equal(findings[0].specifier, '@tanstack/react-table');
+	assert.ok(findings[0].bindings.includes('(require call)'));
+});
 
-	void test('R4 RED: .mjs file importing banned type is caught', () => {
-		const root = makeSandbox({
-			'src/routes/authed/tenant/posts/probe.mjs':
-				`import { ColumnDef } from '@tanstack/react-table';\n` +
-				`export const x = null as ColumnDef<any>;\n`,
-		});
-		const findings = scanFrontSrcForBannedImports(root);
-		assert.equal(findings.length, 1, 'expected exactly one finding');
-		assert.equal(findings[0].specifier, '@tanstack/react-table');
-		assert.ok(findings[0].bindings.includes('ColumnDef'));
+void test('R4 RED: .mjs file importing banned type is caught', () => {
+	const root = makeSandbox({
+		'src/routes/authed/tenant/posts/probe.mjs':
+			`import { ColumnDef } from '@tanstack/react-table';\n` +
+			`export const x = null as ColumnDef<any>;\n`,
 	});
+	const findings = scanFrontSrcForBannedImports(root);
+	assert.equal(findings.length, 1, 'expected exactly one finding');
+	assert.equal(findings[0].specifier, '@tanstack/react-table');
+	assert.ok(findings[0].bindings.includes('ColumnDef'));
+});
 
-	void test('R4 RED: .ctsx file importing banned type is caught', () => {
-		const root = makeSandbox({
-			'src/routes/authed/tenant/posts/probe.ctsx':
-				`import { ColumnDef } from '@tanstack/react-table';\n` +
-				`export const x = null as ColumnDef<any>;\n`,
-		});
-		const findings = scanFrontSrcForBannedImports(root);
-		assert.equal(findings.length, 1, 'expected exactly one finding');
-		assert.equal(findings[0].specifier, '@tanstack/react-table');
-		assert.ok(findings[0].bindings.includes('ColumnDef'));
+void test('R4 RED: .ctsx file importing banned type is caught', () => {
+	const root = makeSandbox({
+		'src/routes/authed/tenant/posts/probe.ctsx':
+			`import { ColumnDef } from '@tanstack/react-table';\n` +
+			`export const x = null as ColumnDef<any>;\n`,
 	});
+	const findings = scanFrontSrcForBannedImports(root);
+	assert.equal(findings.length, 1, 'expected exactly one finding');
+	assert.equal(findings[0].specifier, '@tanstack/react-table');
+	assert.ok(findings[0].bindings.includes('ColumnDef'));
+});
 
-	void test('R4 RED: two-step workaround (.ts re-exporting from .ctsx) is caught', () => {
-		// A .ts file re-exports from a .ctsx file which imports the banned type.
-		// Both files are now scanned (both extensions are in SCANNED_EXTENSIONS).
-		const root = makeSandbox({
-			'src/routes/authed/tenant/posts/reexport.ctsx':
-				`import { ColumnDef } from '@tanstack/react-table';\n` +
-				`export const x = null as ColumnDef<any>;\n`,
-			'src/routes/authed/tenant/posts/consumer.ts':
-				`export { x } from './reexport.ctsx';\n`,
-		});
-		const findings = scanFrontSrcForBannedImports(root);
-		// The .ctsx file is flagged for the banned import.
-		const ctsxFinding = findings.find((f) => f.file.includes('reexport.ctsx'));
-		assert.ok(ctsxFinding, 'expected the .ctsx file to be flagged');
-		assert.ok(ctsxFinding!.bindings.includes('ColumnDef'));
+void test('R4 RED: two-step workaround (.ts re-exporting from .ctsx) is caught', () => {
+	// A .ts file re-exports from a .ctsx file which imports the banned type.
+	// Both files are now scanned (both extensions are in SCANNED_EXTENSIONS).
+	const root = makeSandbox({
+		'src/routes/authed/tenant/posts/reexport.ctsx':
+			`import { ColumnDef } from '@tanstack/react-table';\n` +
+			`export const x = null as ColumnDef<any>;\n`,
+		'src/routes/authed/tenant/posts/consumer.ts': `export { x } from './reexport.ctsx';\n`,
 	});
+	const findings = scanFrontSrcForBannedImports(root);
+	// The .ctsx file is flagged for the banned import.
+	const ctsxFinding = findings.find((f) => f.file.includes('reexport.ctsx'));
+	assert.ok(ctsxFinding, 'expected the .ctsx file to be flagged');
+	assert.ok(ctsxFinding!.bindings.includes('ColumnDef'));
+});
 
-	void test('R4 RED: unknown extension .cjsx fails loudly naming the extension', () => {
-		// A .cjsx file is NOT in SCANNED_EXTENSIONS and NOT in NON_CODE_EXTENSIONS.
-		// The guard must fail loudly naming the extension, not silently pass.
-		const root = makeSandbox({
-			'src/routes/authed/tenant/posts/legit.ts':
-				`import type { SortingState } from '@tanstack/react-table';\n` +
-				`export const x: SortingState = [];\n`,
-			'src/routes/authed/tenant/posts/probe.cjsx':
-				`import { ColumnDef } from '@tanstack/react-table';\n` +
-				`export const x = null as ColumnDef<any>;\n`,
-		});
-		assert.throws(
-			() => scanFrontSrcForBannedImports(root),
-			/Guard #1769: found file\(s\) with unrecognized extension\(s\) \.cjsx/,
-			'expected the guard to fail loudly naming .cjsx',
-		);
+void test('R4 RED: unknown extension .cjsx fails loudly naming the extension', () => {
+	// A .cjsx file is NOT in SCANNED_EXTENSIONS and NOT in NON_CODE_EXTENSIONS.
+	// The guard must fail loudly naming the extension, not silently pass.
+	const root = makeSandbox({
+		'src/routes/authed/tenant/posts/legit.ts':
+			`import type { SortingState } from '@tanstack/react-table';\n` +
+			`export const x: SortingState = [];\n`,
+		'src/routes/authed/tenant/posts/probe.cjsx':
+			`import { ColumnDef } from '@tanstack/react-table';\n` +
+			`export const x = null as ColumnDef<any>;\n`,
 	});
+	assert.throws(
+		() => scanFrontSrcForBannedImports(root),
+		/Guard #1769: found file\(s\) with unrecognized extension\(s\) \.cjsx/,
+		'expected the guard to fail loudly naming .cjsx',
+	);
+});
 
-	void test('R4 GREEN: declared non-code extension (.json) does not fail', () => {
-		// .json is declared non-code — the guard must NOT fail on it.
-		const root = makeSandbox({
-			'src/routes/authed/tenant/posts/legit.ts':
-				`import type { SortingState } from '@tanstack/react-table';\n` +
-				`export const x: SortingState = [];\n`,
-			'src/translations/en.json': `{"key": "value"}\n`,
-		});
-		const findings = scanFrontSrcForBannedImports(root);
-		assert.equal(findings.length, 0, 'expected no findings');
+void test('R4 GREEN: declared non-code extension (.json) does not fail', () => {
+	// .json is declared non-code — the guard must NOT fail on it.
+	const root = makeSandbox({
+		'src/routes/authed/tenant/posts/legit.ts':
+			`import type { SortingState } from '@tanstack/react-table';\n` +
+			`export const x: SortingState = [];\n`,
+		'src/translations/en.json': `{"key": "value"}\n`,
 	});
+	const findings = scanFrontSrcForBannedImports(root);
+	assert.equal(findings.length, 0, 'expected no findings');
+});
 
-	void test('R4: empty directory fails with specific message', () => {
-		const root = makeSandbox({});
-		assert.throws(
-			() => scanFrontSrcForBannedImports(root),
-			/empty directory/,
-			'expected empty directory to fail with specific message',
-		);
-	});
+void test('R4: empty directory fails with specific message', () => {
+	const root = makeSandbox({});
+	assert.throws(
+		() => scanFrontSrcForBannedImports(root),
+		/empty directory/,
+		'expected empty directory to fail with specific message',
+	);
+});
 
 // ---------------------------------------------------------------------------
 // Message quality: the message must name the replacement.
@@ -560,7 +565,7 @@ void test('R5 HOLE 2 RED: NON_CODE_EXTENSIONS overlapping SCANNED_EXTENSIONS fai
 	// overlap. We test the helper directly with a synthetic overlap to prove
 	// it throws naming the offending extension.
 	const overlappingNonCode = new Map<string, string>([
-		['.tsx', 'this would silently disable .tsx analysis']
+		['.tsx', 'this would silently disable .tsx analysis'],
 	]);
 	assert.throws(
 		() => assertNoOverlap(SCANNED_EXTENSIONS, overlappingNonCode),
@@ -589,11 +594,11 @@ void test('R6 HOLE 3 RED: NON_CODE_EXTENSIONS entry with < 24 char justification
 	// (which must pass the filter — boundary check).
 	const unjustifiedNonCode = new Map<string, string>([
 		['.xyz', 'legit non-code reason, twenty-four chars'],
-		['.bad', 'x']
+		['.bad', 'x'],
 	]);
 	assert.throws(
 		() => assertAllJustified(unjustifiedNonCode),
-		/Guard #1769: NON_CODE_EXTENSIONS has entry\(ies\) with a justification shorter than 24 characters \(\.bad\)/, 
+		/Guard #1769: NON_CODE_EXTENSIONS has entry\(ies\) with a justification shorter than 24 characters \(\.bad\)/,
 		'expected the guard to fail loudly naming .bad',
 	);
 });
@@ -621,7 +626,11 @@ void test('R5 ADVERSE: extensionless file with non-banned import stays GREEN', (
 			`export const x: SortingState = [];\n`,
 	});
 	const findings = scanFrontSrcForBannedImports(root);
-	assert.equal(findings.length, 0, 'expected no findings for non-banned import');
+	assert.equal(
+		findings.length,
+		0,
+		'expected no findings for non-banned import',
+	);
 });
 
 void test('R5 NON-REGRESSION: unknown extension .cjsx still fails loudly', () => {
@@ -672,7 +681,11 @@ void test('R5 NON-REGRESSION: .cts/.cjs/.mjs/.ctsx still scanned', () => {
 			`export const x = null as ColumnDef<any>;\n`,
 	});
 	const findings = scanFrontSrcForBannedImports(root);
-	assert.equal(findings.length, 4, 'expected four findings (one per extension)');
+	assert.equal(
+		findings.length,
+		4,
+		'expected four findings (one per extension)',
+	);
 	const extensions = findings.map((f) => path.extname(f.file)).sort();
 	assert.deepEqual(extensions, ['.cjs', '.cts', '.ctsx', '.mjs']);
 });
@@ -688,10 +701,11 @@ void test('R6 HOLE 1 RED: assertScanSurface fails when a core extension shrinks'
 	// helper directly with a synthetic count that drops .tsx below floor.
 	const baselinePath = path.resolve(here, 'column-type-imports-baseline.json');
 	assert.throws(
-		() => assertScanSurface(
-			{ '.ts': 275, '.tsx': 0, '.mts': 0, '.cts': 0, '.mjs': 0, '.cjs': 1 },
-			baselinePath,
-		),
+		() =>
+			assertScanSurface(
+				{ '.ts': 275, '.tsx': 0, '.mts': 0, '.cts': 0, '.mjs': 0, '.cjs': 1 },
+				baselinePath,
+			),
 		/Guard #1769: scan surface has shrunk below the pinned floor/,
 		'expected the ratchet to fail when .tsx drops below floor',
 	);
@@ -701,10 +715,11 @@ void test('R6 HOLE 1 RED: assertScanSurface passes when counts meet the floor', 
 	// Boundary: counts exactly at the floor must pass.
 	const baselinePath = path.resolve(here, 'column-type-imports-baseline.json');
 	assert.doesNotThrow(
-		() => assertScanSurface(
-			{ '.ts': 275, '.tsx': 472, '.mts': 0, '.cts': 0, '.mjs': 0, '.cjs': 1 },
-			baselinePath,
-		),
+		() =>
+			assertScanSurface(
+				{ '.ts': 275, '.tsx': 472, '.mts': 0, '.cts': 0, '.mjs': 0, '.cjs': 1 },
+				baselinePath,
+			),
 		'expected the ratchet to pass when counts meet the floor',
 	);
 });
@@ -714,7 +729,14 @@ void test('R6 HOLE 2 RED: assertCoreExtensionsScanned fails when a core extensio
 	// core-extension check must fail loudly naming the missing core
 	// extension. We test the helper directly with a synthetic scanned set
 	// that omits .mts.
-	const scannedWithoutMts = new Set(['.ts', '.tsx', '.cts', '.ctsx', '.mjs', '.cjs']);
+	const scannedWithoutMts = new Set([
+		'.ts',
+		'.tsx',
+		'.cts',
+		'.ctsx',
+		'.mjs',
+		'.cjs',
+	]);
 	assert.throws(
 		() => assertCoreExtensionsScanned(scannedWithoutMts, CORE_EXTENSIONS),
 		/Guard #1769: CORE_EXTENSIONS member\(s\) \.mts are missing from SCANNED_EXTENSIONS/,
@@ -732,7 +754,14 @@ void test('R6 HOLE 2 RED: assertCoreExtensionsScanned passes when all core exten
 
 void test('R6 HOLE 2 RED: removing .tsx from SCANNED_EXTENSIONS fails core check', () => {
 	// The captain's exact mutation: .tsx removed from SCANNED_EXTENSIONS.
-	const scannedWithoutTsx = new Set(['.ts', '.mts', '.cts', '.ctsx', '.mjs', '.cjs']);
+	const scannedWithoutTsx = new Set([
+		'.ts',
+		'.mts',
+		'.cts',
+		'.ctsx',
+		'.mjs',
+		'.cjs',
+	]);
 	assert.throws(
 		() => assertCoreExtensionsScanned(scannedWithoutTsx, CORE_EXTENSIONS),
 		/Guard #1769: CORE_EXTENSIONS member\(s\) \.tsx are missing from SCANNED_EXTENSIONS/,
@@ -743,7 +772,7 @@ void test('R6 HOLE 2 RED: removing .tsx from SCANNED_EXTENSIONS fails core check
 void test('R6 HOLE 3 RED: 23-char justification fails (boundary)', () => {
 	// Boundary: 23 characters is too short. The bar is 24.
 	const unjustifiedNonCode = new Map<string, string>([
-		['.xyz', '12345678901234567890123']  // 23 chars — fails
+		['.xyz', '12345678901234567890123'], // 23 chars — fails
 	]);
 	assert.throws(
 		() => assertAllJustified(unjustifiedNonCode),
@@ -755,7 +784,7 @@ void test('R6 HOLE 3 RED: 23-char justification fails (boundary)', () => {
 void test('R6 HOLE 3 RED: 24-char justification passes (boundary)', () => {
 	// Boundary: exactly 24 characters must pass.
 	const justifiedNonCode = new Map<string, string>([
-		['.xyz', '123456789012345678901234']  // 24 chars — passes
+		['.xyz', '123456789012345678901234'], // 24 chars — passes
 	]);
 	assert.doesNotThrow(
 		() => assertAllJustified(justifiedNonCode),
@@ -767,7 +796,9 @@ void test('R6: every CORE_EXTENSIONS member is in SCANNED_EXTENSIONS (invariant 
 	// The real protection is structural: the check runs on every scan, so
 	// any future removal of a core extension fails. We verify the invariant
 	// holds today.
-	const missing = [...CORE_EXTENSIONS].filter((ext) => !SCANNED_EXTENSIONS.has(ext));
+	const missing = [...CORE_EXTENSIONS].filter(
+		(ext) => !SCANNED_EXTENSIONS.has(ext),
+	);
 	assert.equal(
 		missing.length,
 		0,
@@ -793,13 +824,16 @@ void test('R6: baseline file is valid JSON with the expected shape', () => {
 	const baselinePath = path.resolve(here, 'column-type-imports-baseline.json');
 	const raw = readFileSync(baselinePath, 'utf8');
 	let parsed: unknown;
-	assert.doesNotThrow(
-		() => { parsed = JSON.parse(raw); },
-		'baseline must be valid JSON',
-	);
+	assert.doesNotThrow(() => {
+		parsed = JSON.parse(raw);
+	}, 'baseline must be valid JSON');
 	const baseline = parsed as { perExtension: Record<string, number> };
 	assert.ok(baseline.perExtension, 'baseline must have a perExtension field');
-	assert.equal(typeof baseline.perExtension, 'object', 'perExtension must be an object');
+	assert.equal(
+		typeof baseline.perExtension,
+		'object',
+		'perExtension must be an object',
+	);
 	// Every core extension must have a floor in the baseline.
 	for (const ext of CORE_EXTENSIONS) {
 		assert.ok(
@@ -827,7 +861,7 @@ void test('R6 ADVERSE: a fourth gesture — declaring .ts as non-code fails core
 	// would catch the removal of .ts from SCANNED_EXTENSIONS. We test the
 	// overlap check here since it's the first line of defense.
 	const overlappingNonCode = new Map<string, string>([
-		['.ts', 'this would silently disable .ts analysis']
+		['.ts', 'this would silently disable .ts analysis'],
 	]);
 	assert.throws(
 		() => assertNoOverlap(SCANNED_EXTENSIONS, overlappingNonCode),
@@ -851,7 +885,10 @@ void test('R7 HOLE 1 RED: adding a file to EXEMPT_FILES fails assertExemptionsPi
 		nonCodeExtensions: Record<string, string>;
 		exemptFiles: string[];
 	};
-	const expandedExempt = new Set([...EXEMPT_FILES, 'components/table/data-table-header-row.tsx']);
+	const expandedExempt = new Set([
+		...EXEMPT_FILES,
+		'components/table/data-table-header-row.tsx',
+	]);
 	assert.throws(
 		() => assertExemptionsPinned(expandedExempt, baseline),
 		/Guard #1769: EXEMPT_FILES has diverged from the pinned baseline — added: components\/table\/data-table-header-row\.tsx/,
@@ -1043,7 +1080,9 @@ void test('R9 MUTATION: guard catches a hardcoded || bypass in isExempt on the r
 		return false;
 	};
 
-	const normalizedExemptions = [...EXEMPT_FILES].map((e) => e.split(path.sep).join('/'));
+	const normalizedExemptions = [...EXEMPT_FILES].map((e) =>
+		e.split(path.sep).join('/'),
+	);
 	const illicitExemptions: string[] = [];
 	// Walk the real tree (as the R8 assertion does)
 	const { files } = walk(frontSrc);
