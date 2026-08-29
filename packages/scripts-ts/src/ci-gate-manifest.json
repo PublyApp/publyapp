@@ -671,6 +671,16 @@
 			"mirror": "just ci-no-ignored-tracked",
 			"reason": "ci-no-ignored-tracked runs the identical `node packages/scripts-ts/src/check-no-ignored-tracked.ts` plus its vitest test, which interrogates the REAL repo via `git ls-files -z --cached --ignored --exclude-standard`. Empty output = green, any named path = red. See issue #1513."
 		},
+		"quality-gate.yml::no-dockerignore-shadow::Checkout": {
+			"hash": "11ee605b2ca0dfd4",
+			"mirror": null,
+			"reason": "GitHub-only: clones the repo onto the runner. Locally the working tree already is the code under test."
+		},
+		"quality-gate.yml::no-dockerignore-shadow::Forbid .dockerignore shadow files (#1849)": {
+			"hash": "8fb85ac630acb929",
+			"mirror": "just ci-dockerignore-shadow",
+			"reason": "just ci-dockerignore-shadow runs the identical `node packages/scripts-ts/src/check-dockerignore-shadow.ts` against the real working tree plus its vitest fixture suite, which proves the guard names a recreated apps/api/Dockerfile.dockerignore and explains that Docker REPLACES the root .dockerignore instead of merging it (#1849). The job is UNCONDITIONED in the workflow for the same reason as no-ignored-tracked (#1513): a shadow file could arrive on a path the changed-paths classifier does not enumerate, so gating it behind relevance would let exactly the defect this guard exists to catch decide whether it runs."
+		},
 		"quality-gate.yml::quality::Assert exact pins": {
 			"hash": "9f0331695e45ef30",
 			"mirror": "just ci-install",
