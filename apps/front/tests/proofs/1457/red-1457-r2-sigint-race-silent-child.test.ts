@@ -150,31 +150,35 @@
  * All three mutations make `bugPresent` true, so the assertion PASSES — the
  * "proof is stale" signal the CI step is meant to raise.
  *
- * ## Adverse mutation search — three axes, two mechanisms
+ * ## Adverse mutation search — two-step detection pipeline
  *
- * `docs/guides/test-conventions.md` §« Mutation adverse » requires at least
- * three mutations on a DIFFERENT axis than the primary mutation, each with
- * a named detection mechanism. The primary mutation (the bug) is the classic
- * swap (handler after handshake). The three adverse mutations attack three
- * genuinely distinct axes:
+ * `docs/guides/test-conventions.md` §« Mutation adverse » requires mutations
+ * on axes DIFFERENT from the primary mutation, each with a named detection
+ * mechanism. The primary mutation (the bug) is the classic swap (handler
+ * after handshake). The detection pipeline has TWO sequential steps, and each
+ * step is an attack axis:
  *
- * | # | Axis | Mutation | Mechanism |
- * |---|------|----------|-----------|
- * | A | **Source order** | Classic swap: handler line AFTER handshake line | Index comparison: `handlerIdx > handshakeIdx` → `classicSwap=true` |
- * | B | **Temporal directness** | Async deferral: handler wrapped in setImmediate/setTimeout/queueMicrotask/nextTick/promise/await/if | Structural: line does NOT start with `process.on(` → `handlerIsDeferred=true` |
- * | C | **Access syntax** | Bracket notation: `process['on']('SIGINT', ...)` or `process["on"]('SIGINT', ...)` | Structural: line does NOT start with `process.on(` → `handlerIsDeferred=true` (shared with B) |
+ * | # | Step | Purpose | Regression it catches |
+ * |---|------|---------|-----------------------|
+ * | 1 | `findHandlerLine` | LOCALIZE the handler line via regex (`process.on(` or `process['on']('SIGINT')`) | If the regex regresses to dot-only (`/process\.on/`…), bracket-notation access (`process['on']`) is no longer localized → the proof throws MESURE IMPOSSIBLE → CORRUPT PROOF → CI red. |
+ * | 2 | `isHandlerDeferred` | CLASSIFY the localized line as direct (starts with `process.on(`) or wrapped (anything else) | If the structural check regresses (e.g., inverted or removed), temporal deferrals (setImmediate, etc.) are no longer classified as deferred → the proof stays red even though the race reopened. |
  *
- * Axes B and C share the `isHandlerDeferred` mechanism but attack genuinely
- * different dimensions of the bug — a temporal deferral and a syntactic
- * variant are not the same axis. The practical consequence: if
- * `isHandlerDeferred` ever ceases to match a legitimate direct `process.on(`
- * call, axes B and C go BLIND together. The proof's coverage of the
- * directness axis is only as strong as that one structural check.
+ * Steps 1 and 2 are sequential, not redundant: step 1 finds the line, step 2
+ * classifies it. A bracket-notation handler (`process['on']('SIGINT', ...)`)
+ * requires step 1's widened regex to be localized at all; once localized,
+ * step 2 classifies it as deferred (it does not start with `process.on(`).
+ * Both steps must be exercised — a proof that only tests step 2 on hardcoded
+ * strings stays green when step 1 regresses, which is exactly the gap this ronde
+ * closes.
  *
- * The axes are genuinely distinct:
+ * The mutation axes are genuinely distinct:
  * - A: where the handler appears relative to the handshake (ordering)
  * - B: whether the handler is installed synchronously or deferred (temporal)
- * - C: whether the handler uses dot or bracket notation (syntactic)
+ * - C: whether the handler uses dot or bracket notation (syntactic, attacks step 1)
+ *
+ * All three are covered by the two-step pipeline: axis A by index comparison,
+ * axis B by isHandlerDeferred on a wrapped line, axis C by findHandlerLine's
+ * regex. A regression on EITHER step turns a test red.
  *
  * ## Honest limits — what this proof does NOT cover
  *
@@ -444,22 +448,59 @@ describe('r2 fixture SIGINT race — RED: handler installed AFTER the handshake 
 		expect(bugPresent).toBe(true);
 	});
 
-	// Behavioral proof that axes B and C share the isHandlerDeferred mechanism:
-	// a single change to that function blinds BOTH axes together. The direct
-	// process.on( form is the ONLY one classified as non-deferred; every other
-	// form — temporal deferral (B) and bracket notation (C) — is deferred.
-	test('axes B and C share the isHandlerDeferred mechanism — a single change blinds both', () => {
-		// Direct call: the only form the proof accepts as synchronous.
-		expect(isHandlerDeferred(`process.on('SIGINT', () => {})`)).toBe(false);
+	// Behavioral proof that the detection pipeline has TWO load-bearing
+	// mechanisms — findHandlerLine (localizes the handler line via regex) and
+	// isHandlerDeferred (classifies it as direct or wrapped). A regression on
+	// EITHER mechanism must turn this test red. The proof exercises the REAL
+	// fixture lines extracted from the production file, not hardcoded strings.
+	test('the detection pipeline (findHandlerLine + isHandlerDeferred) classifies the real handler — a regression on either mechanism turns this red', () => {
+		// Step 1: Extract the REAL fixture lines. If extraction fails, this
+		// throws and the test fails LOUD naming the drift — never a silent pass.
+		const lines = extractR2FixtureLines();
 
-		// Axis B — temporal deferral wrapped in setImmediate.
-		expect(
-			isHandlerDeferred(
-				`setImmediate(() => { process.on("SIGINT", () => {}); });`,
-			),
-		).toBe(true);
+		// Step 2: Exercise findHandlerLine on the real fixture. This is the
+		// load-bearing localization step: if the regex regresses to
+		// dot-only (`/process\.on\s*\(\s*['"]SIGINT['"]/`), it will NOT match
+		// a bracket-notation handler (`process['on']('SIGINT', ...)`), the
+		// findIndex returns -1, and this throws MESURE IMPOSSIBLE — which the
+		// runner classifies as CORRUPT PROOF (CI red), not a kept-red success.
+		const handlerIdx = findHandlerLine(lines);
+		const handlerLine = lines[handlerIdx]!;
 
-		// Axis C — bracket notation access.
-		expect(isHandlerDeferred(`process['on']('SIGINT', () => {})`)).toBe(true);
+		// Step 3: Exercise findHandlerLine on a bracket-notation variant of
+		// the same handler. This is a THROW check, not an assertion — if
+		// findHandlerLine regresses to dot-only, it throws MESURE IMPOSSIBLE
+		// and the runner classifies this as CORRUPT PROOF (CI red). We do NOT
+		// assert here: an assertion that PASSES on correct code would, when
+		// it FAILS due to a mutation, be misread by the runner as "failed as
+		// expected" (CI green) — the exact gap this ronde closes.
+		const bracketLine = handlerLine.replace('process.on(', "process['on'](");
+		const modifiedLines = [...lines];
+		modifiedLines[handlerIdx] = bracketLine;
+		findHandlerLine(modifiedLines);
+
+		// Step 4: Kept-red assertion — the ONLY assertion in this test.
+		//
+		// Derive a deferred line from the REAL handler by wrapping it in
+		// setImmediate. On correct code, isHandlerDeferred returns true (the
+		// line does not start with `process.on(`). We assert it returns
+		// false — this FAILS on correct code (kept-red, the expected state).
+		//
+		// Mutation C (findHandlerLine dot-only): detected at Step 3 — the
+		// throw produces MESURE IMPOSSIBLE → CORRUPT PROOF → CI red.
+		//
+		// Mutation D (isHandlerDeferred inverted: `return line.trim().startsWith('process.on(')`):
+		//   isHandlerDeferred(deferredLine) → false (deferredLine doesn't
+		//   start with `process.on(`) → assertion PASSES → runner reports
+		//   FAILURE (unexpected pass) → CI red.
+		//
+		// Mutation E (isHandlerDeferred always false: `return false`):
+		//   isHandlerDeferred(deferredLine) → false → assertion PASSES →
+		//   runner reports FAILURE (unexpected pass) → CI red.
+		//
+		// This single assertion is the load-bearing kept-red check: it is
+		// FALSE on correct code and TRUE for both Mutation D and Mutation E.
+		const deferredLine = `setImmediate(() => { ${handlerLine} });`;
+		expect(isHandlerDeferred(deferredLine)).toBe(false);
 	});
 });
