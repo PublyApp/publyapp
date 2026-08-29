@@ -172,11 +172,19 @@ export const InvitationsListBulkActions = ({
 				// Only hint that rows may leave the filtered view when at
 				// least one row actually changed state. On a total failure
 				// (succeededCount === 0) nothing left the view.
+				// #1811 : un echec total sans raison par item doit montrer une
+				// cause lisible (regle produit "toute defaillance montre sa cause
+				// en mots clairs"). Le serveur n'a pas precise la raison : le
+				// produit l'avoue honnetement plutot que de se taire.
+				const noReasonFallback =
+					succeededCount === 0
+						? t('bulk-action-total-failure-no-reason')
+						: undefined;
 				toastLocalMutationResult.error(
 					message,
 					succeededCount > 0
 						? t('bulk-action-rows-may-leave-filter')
-						: undefined,
+						: noReasonFallback,
 				);
 			} else {
 				toastLocalMutationResult.error(message, reasonsLine);

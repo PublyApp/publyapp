@@ -86,6 +86,8 @@ const TRANSLATIONS: TestLabelMap = {
 		'Reduce your selection to at most {{max}} items ({{count}} selected).',
 	'bulk-action-rows-may-leave-filter':
 		'Some rows may no longer appear in the filtered view.',
+	'bulk-action-total-failure-no-reason':
+		"The server didn't specify a reason for this failure. Try again, or contact support if the problem persists.",
 	'all-statuses': 'All statuses',
 	'select-row-named': 'Select {{name}}',
 	'select-all-rows': 'Select all rows',
@@ -1143,7 +1145,7 @@ describe('staff tenants route', () => {
 			expect(screen.queryByRole('status')).toBeNull();
 		});
 
-		test('reports a total-failure message without the filter-leave warning when all bulk-suspended tenants fail', async () => {
+		test('reports a total-failure message with the no-reason fallback when all bulk-suspended tenants fail (#1811)', async () => {
 			mocks.bulkSuspendTenantsMutation.mockResolvedValue({
 				succeededCount: 0,
 				failedCount: 1,
@@ -1165,13 +1167,13 @@ describe('staff tenants route', () => {
 			await waitFor(() =>
 				expect(mocks.toastError).toHaveBeenCalledWith(
 					'Suspended 0 tenant(s), 1 failed.',
-					undefined,
+					"The server didn't specify a reason for this failure. Try again, or contact support if the problem persists.",
 				),
 			);
 			expect(mocks.toastError).toHaveBeenCalledTimes(1);
-			// #1605: total failure (succeededCount === 0) suppresses the
-			// filter-leave warning -- assert the second arg is undefined.
-			expect(mocks.toastError.mock.calls[0][1]).toBeUndefined();
+			// #1811 : un echec total sans raison par item doit montrer une
+			// cause lisible, pas undefined.
+			expect(mocks.toastError.mock.calls[0][1]).not.toBeUndefined();
 			expect(screen.queryByRole('status')).toBeNull();
 		});
 

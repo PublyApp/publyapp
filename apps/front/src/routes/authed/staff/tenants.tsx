@@ -613,12 +613,22 @@ const TenantBulkActions = ({
 			// one row actually changed state. On a total failure
 			// (succeededCount === 0) nothing left the view, so the hint
 			// would contradict the leading count message.
+			// #1811 : un echec total sans raison par item doit montrer une
+			// cause lisible (regle produit "toute defaillance montre sa cause
+			// en mots clairs"). Le serveur n'a pas precise la raison : le
+			// produit l'avoue honnetement plutot que de se taire.
+			const noReasonFallback =
+				succeededCount === 0
+					? t('bulk-action-total-failure-no-reason')
+					: undefined;
 			toastLocalMutationResult.error(
 				t(TENANT_BULK_PARTIAL_SUCCESS_KEYS[action], {
 					succeeded: succeededCount,
 					failed: failedCount,
 				}),
-				succeededCount > 0 ? t('bulk-action-rows-may-leave-filter') : undefined,
+				succeededCount > 0
+					? t('bulk-action-rows-may-leave-filter')
+					: noReasonFallback,
 			);
 		} else {
 			toastLocalMutationResult.success(
