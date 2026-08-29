@@ -194,12 +194,6 @@ jobs:
       - name: Verify complexity bounds are not drifting (#1661)
         run: node packages/scripts-ts/src/check-cyclomatic-bound.ts
 
-      # #1513: fail if any tracked file matches a .gitignore rule. Interrogates
-      # the real repo via `git ls-files --cached --ignored --exclude-standard`
-      # — empty output is green, any named path is red. Mirrors `just ci-no-ignored-tracked`.
-      - name: Verify no tracked file matches .gitignore (#1513)
-        run: node packages/scripts-ts/src/check-no-ignored-tracked.ts
-
       - name: Lint plugin unit tests (lint-ts)
         run: pnpm --filter @org/lint-ts test
 
@@ -305,6 +299,43 @@ jobs:
       - name: Run analyzer tests
         run: pnpm exec just test-analyzers
 
+  # #1513: unconditioned guard — no tracked file may match a .gitignore rule.
+  #
+  # WHY THIS IS A SEPARATE, UNCONDITIONED JOB
+  # ----------------------------------------
+  # This guard interrogates the real repository via
+  # `git ls-files --cached --ignored --exclude-standard`. Its purpose is to
+  # catch force-added gitignored files (e.g. `git add -f .dump/...`). By
+  # construction, the files it is designed to catch live on surfaces that are
+  # gitignored — surfaces that the changed-paths classifier below does not
+  # and CANNOT enumerate without becoming a hand-maintained list that rots
+  # the instant a new gitignored surface is added.
+  #
+  # Gating this guard behind `needs.changes.outputs.relevant == 'true'` is a
+  # logical contradiction: a classifier of classified paths can never
+  # recognize the arrival of a file whose defining property is that it is on
+  # an UNCLASSIFIED path. A PR that adds a `.dump/` file without touching any
+  # classified path is declared "not relevant", the heavy job is skipped,
+  # and this guard — the one check whose entire reason for existence is to
+  # catch exactly that scenario — never runs. The local `just ci` gate
+  # catches it; CI does not. The guard looks present and protects nothing.
+  #
+  # This job runs UNCONDITIONALLY (no `if:`), so it always reports. It
+  # executes only `git ls-files` — no install, no build — so it is cheap and
+  # fast. Mirrors `just ci-no-ignored-tracked` (which runs the same script
+  # plus its vitest test).
+  no-ignored-tracked:
+    name: No tracked file matches .gitignore (#1513)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Verify no tracked file matches .gitignore (#1513)
+        run: node packages/scripts-ts/src/check-no-ignored-tracked.ts
+
   # Required status check: this is the one context that should be required
   # on the branch ruleset instead of relying on the trigger. It always
   # reports (if: always()), passes when upstream jobs succeeded or were
@@ -325,7 +356,7 @@ jobs:
     # required names either.
     name: ${{ (github.event_name == 'pull_request' || github.event_name == 'merge_group') && 'quality-gate' || 'quality-gate-push-check' }}
     if: always()
-    needs: [changes, quality]
+    needs: [changes, quality, no-ignored-tracked]
     runs-on: ubuntu-latest
     steps:
       # Reads the `needs` context directly (via toJSON) instead of a

@@ -846,10 +846,15 @@
 			"mirror": "just ci-lint-ts",
 			"reason": "ci-lint-ts now also runs pnpm --filter @org/client-ts typecheck (tsc --noEmit), the identical invocation this step runs. The Kiota-generated TypeScript API client's typecheck script was added to packages/client-ts/package.json but was never wired into any CI step or local gate — trompe-l’oeil coverage. See issue #1692."
 		},
-		"quality-gate.yml::quality::Verify no tracked file matches .gitignore (#1513)": {
+		"quality-gate.yml::no-ignored-tracked::Checkout": {
+			"hash": "11ee605b2ca0dfd4",
+			"mirror": null,
+			"reason": "GitHub-only: clones the repo onto the runner. Locally the working tree already is the code under test."
+		},
+		"quality-gate.yml::no-ignored-tracked::Verify no tracked file matches .gitignore (#1513)": {
 			"hash": "2dc45c4183ec20fb",
 			"mirror": "just ci-no-ignored-tracked",
-			"reason": "ci-no-ignored-tracked runs the identical `node packages/scripts-ts/src/check-no-ignored-tracked.ts` plus its vitest test, which interrogates the REAL repo via `git ls-files --cached --ignored --exclude-standard`. Empty output = green, any named path = red. See issue #1513."
+			"reason": "ci-no-ignored-tracked runs the identical `node packages/scripts-ts/src/check-no-ignored-tracked.ts` plus its vitest test, which interrogates the REAL repo via `git ls-files -z --cached --ignored --exclude-standard`. Empty output = green, any named path = red. See issue #1513."
 		}
 	}
 }

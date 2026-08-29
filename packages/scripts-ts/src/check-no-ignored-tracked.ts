@@ -30,7 +30,7 @@ const runGit = (cwd: string): string => {
 	try {
 		return execFileSync(
 			'git',
-			['ls-files', '--cached', '--ignored', '--exclude-standard'],
+			['ls-files', '-z', '--cached', '--ignored', '--exclude-standard'],
 			{
 				cwd,
 				encoding: 'utf8',
@@ -60,8 +60,11 @@ export const findIgnoredTrackedFiles = (
 		return [];
 	}
 
+	// git -z emits NUL-terminated records. Split on NUL, not on \n: a filename
+	// containing a newline byte would corrupt a \n split, but NUL is the
+	// protocol boundary git guarantees.
 	return output
-		.split('\n')
+		.split('\0')
 		.map((line) => line.trim())
 		.filter((line) => line.length > 0);
 };
