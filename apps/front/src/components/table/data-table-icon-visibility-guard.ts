@@ -54,11 +54,11 @@ import i18n from 'i18next';
 import type { ComputedStyleReader } from './data-table-icon-visibility-guard-reader';
 
 /**
- * The reason an icon was declared hidden — exposed for callers that want
- * to test the detection logic without going through `assertIconIsVisible`'s
- * throw. The message is the same one the thrown Error uses.
+ * The reason an icon was declared hidden. The message is the same one the
+ * thrown `Error` from `assertIconIsVisible` uses. Internal to this module:
+ * `assertIconIsVisible` is the only public entry point.
  */
-export type IconHiddenReason =
+type IconHiddenReason =
 	| { kind: 'aria-hidden'; message: string }
 	| { kind: 'css-visibility'; value: string; message: string }
 	| { kind: 'css-display'; value: string; message: string }
@@ -85,7 +85,7 @@ const defaultReader: ComputedStyleReader = (element) => {
  * `window.getComputedStyle`. Tests inject a fake reader; the real-browser
  * spec passes through Chromium's own.
  */
-export const detectIconHidden = (
+const detectIconHidden = (
 	iconElement: Element,
 	context: string,
 	readComputed: ComputedStyleReader = defaultReader,
