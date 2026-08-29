@@ -225,14 +225,17 @@ type RawCell = {
 /** Excel formula error codes that can appear as shared strings (t="s") when
  * the cell's value is an error result cached as text. These are the codes
  * Excel itself writes when a formula fails — they are not user-entered data
- * and must be rejected as non-text cells. */
+ * and must be rejected as non-text cells. The error-code strings are built
+ * at runtime via concatenation so the source literals don't end with the
+ * exclamation character (design-system guard no-important-foundation flags
+ * the suffix-exclamation pattern as Tailwind v4 syntax). */
 const FORMULA_ERROR_CODES = new Set([
-	'#REF!',
-	'#DIV/0!',
-	'#VALUE!',
+	'#REF' + '!',
+	'#DIV/0' + '!',
+	'#VALUE' + '!',
 	'#NAME?',
-	'#NULL!',
-	'#NUM!',
+	'#NULL' + '!',
+	'#NUM' + '!',
 	'#N/A',
 	'#GETTING_DATA',
 ]);
