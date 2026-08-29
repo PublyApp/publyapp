@@ -37,11 +37,6 @@
 		<Compile Include="..\Lib\**\*.Spec.cs" Link="Lib\%(RecursiveDir)%(Filename)%(Extension)" />
 		<Compile Include="..\Migrations\**\*.Spec.cs" Link="Migrations\%(RecursiveDir)%(Filename)%(Extension)" />
 		<Compile Include="..\Modules\**\*.Spec.cs" Link="Modules\%(RecursiveDir)%(Filename)%(Extension)" />
-		<!-- Paired red proofs for issue #1713: lives in .dump/ but compiled here so the
-		     xUnit runner discovers them. Named *.Red.cs so they are NOT picked up by the
-		     suite's *.Spec.cs glob. Run on demand with mutation applied to reproduce the red.
-		     The trace lives in .dump/preuve-1713-r2.md. -->
-		<Compile Include="..\..\..\.dump\preuves\**\*.Red.cs" Link="DumpPreuves\%(RecursiveDir)%(Filename)%(Extension)" />
 	</ItemGroup>
 
 </Project>
