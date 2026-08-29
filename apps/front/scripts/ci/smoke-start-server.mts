@@ -3,13 +3,7 @@ import { once } from 'node:events';
 import { createServer } from 'node:net';
 import process from 'node:process';
 
-// This script is executed by plain `node` (see `smoke:start` in apps/front/package.json)
-// and runs outside any Vite/bundler context, so it cannot resolve the TypeScript sources
-// re-exported by `@org/shared-ts`. Keep a local zero-dependency mirror of `delay` here —
-// re-routing through the shared primitive would pull winston, zod and the whole shared-ts
-// dependency tree into a context that only needs setTimeout.
-const delay = async (ms: number): Promise<void> =>
-	new Promise((resolve) => setTimeout(resolve, ms));
+import { sleep } from '@org/shared-ts/utils/any.utils';
 
 // Local mirror of the "Smoke start front server and verify stylesheet tag"
 // step in .github/workflows/front-ci.yml.
@@ -78,7 +72,7 @@ const fetchHomeWithRetry = async (origin: string): Promise<string | null> => {
 			// Server not listening yet; fall through to the retry delay.
 		}
 
-		await delay(retryDelayMs);
+		await sleep(retryDelayMs);
 	}
 
 	return null;
@@ -115,7 +109,7 @@ const stopServer = async (): Promise<void> => {
 
 	const exited = await Promise.race([
 		once(server, 'exit').then(() => true),
-		delay(shutdownGraceMs).then(() => false),
+		sleep(shutdownGraceMs).then(() => false),
 	]);
 
 	if (!exited) {

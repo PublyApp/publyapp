@@ -1,7 +1,5 @@
-import forEach from 'lodash/forEach';
-import get from 'lodash/get';
-
-import { logger } from '@org/shared-ts/lib/logger/iso-logger';
+import forEach from 'lodash/forEach.js';
+import get from 'lodash/get.js';
 
 export const delay = <T = unknown>(
 	timeout: number,
@@ -9,7 +7,10 @@ export const delay = <T = unknown>(
 	options: { trace?: boolean } = {},
 ) => {
 	if (options.trace) {
-		logger.warn('delay function invoked', { timeout, value });
+		void (async () => {
+			const { logger } = await import('@org/shared-ts/lib/logger/iso-logger');
+			logger.warn('delay function invoked', { timeout, value });
+		})();
 	}
 	return new Promise<T>((resolve) => {
 		return setTimeout(() => {
