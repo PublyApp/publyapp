@@ -1,4 +1,4 @@
-import { delay as delayFn } from './any.utils';
+import { delay as delayFn } from './any.utils.ts';
 
 export const retry = async <F extends GenericFunction>({
 	fn,
@@ -20,9 +20,9 @@ export const retry = async <F extends GenericFunction>({
 	try {
 		return await fn(...(args ?? []));
 	} catch (error) {
-		// attempts is the total number of calls we are allowed to make. The
-		// initial call above consumed one; if none remain, rethrow. So
-		// attempts=3 means one initial call plus up to two retries.
+		// The initial call above always runs, even when attempts=0 ("never
+		// retry"). On failure we retry while attempts > 1, decrementing each
+		// round, so the total number of calls is max(1, attempts).
 		if (attempts <= 1) {
 			throw error;
 		}

@@ -16,6 +16,14 @@
  *    (the `??` falls through to the row's only when detail is falsy);
  *  - the "row cause is empty" tests still confirm the marker path.
  *
+ * Brief #1858 ronde 3: reviewer of #1827 swapped the drawer's `??` for `||`
+ * and none of the suite reddened — no dataset carried a *falsy but non-null*
+ * detail cause. The "empty-string detail cause" test below is the
+ * discriminator: an empty detail cause is not an absent cause, the drawer
+ * must keep the empty string and show the empty-cause marker, never the
+ * row's cause. Proven: it turns red under `||` (and under dropping the
+ * detail read entirely), green under `??`.
+ *
  * The drawer is the real one (~/components/ui/drawer is a thin wrapper over
  * @base-ui/react/dialog). The dropdown menu is mocked inline (no portal) to
  * keep the inspect click deterministic; the real drawer is the artefact
@@ -399,6 +407,37 @@ describe('dead-letter drawer: cause display parity with column (brief #1720 rond
 		const detailValue = within(drawer).getByText(DETAIL_CAUSE);
 		expect(detailValue).toBeTruthy();
 		expect(detailValue.textContent).toBe(DETAIL_CAUSE);
+	});
+
+	// Brief #1858: this is the ONE case that tells `??` from `||` apart — the
+	// detail carries a *falsy but non-null* cause. An empty-string detail cause
+	// is not an absent cause: the product shows the explicit empty-cause marker
+	// (transparent-failure rule). `||` would silently discard the empty detail
+	// cause and surface the ROW's cause, which is not the cause of the item
+	// being inspected. Under `??` the empty string is retained and the marker
+	// is shown. Any future swap of this `??` for `||` must turn this test red.
+	test('the drawer retains an empty-string detail cause and shows the marker, not the row cause', async () => {
+		setDetailQuery({
+			data: {
+				lastError: '',
+				attempts: 3,
+				failedAt: null,
+				payload: null,
+			},
+			isPending: false,
+		});
+
+		renderPage();
+
+		const drawer = await openDrawer();
+		expect(drawer.getAttribute('role')).toBe('dialog');
+
+		// The empty string survives the nullish coalescing: the marker is shown
+		const marker = within(drawer).getByText('No cause recorded');
+		expect(marker).toBeTruthy();
+		// The row's (non-empty) cause must NOT leak into the drawer: it is not
+		// the cause of the item being inspected
+		expect(within(drawer).queryByText(ROW_CAUSE)).toBeNull();
 	});
 
 	// Round-3: the row can carry a real cause while the per-row detail

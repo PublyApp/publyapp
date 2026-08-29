@@ -81,10 +81,7 @@ test('a healthy build passes: runtime chunk plus enough compiled modules', () =>
 	// found === true always carries compiledFiles (see analyzeClientBundle);
 	// the fallback only satisfies the optional-field type.
 	const compiledFiles = analysis.compiledFiles ?? [];
-	assert.deepEqual(compiledFiles.sort(), [
-		'page-one.js',
-		'page-two.js',
-	]);
+	assert.deepEqual(compiledFiles.sort(), ['page-one.js', 'page-two.js']);
 	assert.equal(assertCompiledArtifacts(analysis, 1), null);
 });
 

@@ -34,6 +34,31 @@ test('delay(10, undefined, { trace: true }) logs a warning', async () => {
 	});
 });
 
+test('delay with { trace: true } swallows a throwing logger (no unhandled rejection)', async () => {
+	// #1869: delay() fires traceLog() as fire-and-forget. Without the
+	// .catch(() => {}), a logger that throws rejects traceLog() and that
+	// rejection is unhandled — Node then reports an unhandledRejection and
+	// this test goes RED. With the .catch, nothing surfaces.
+	const unhandledRejections: unknown[] = [];
+	const onUnhandledRejection = (reason: unknown) => {
+		unhandledRejections.push(reason);
+	};
+	process.on('unhandledRejection', onUnhandledRejection);
+	try {
+		warnSpy.mockImplementation(() => {
+			throw new Error('logger exploded');
+		});
+		await delay(10, undefined, { trace: true });
+		// Give the fire-and-forget traceLog() promise time to settle before
+		// asserting that no unhandled rejection escaped.
+		await new Promise<void>((resolve) => setImmediate(resolve));
+		expect(unhandledRejections).toEqual([]);
+	} finally {
+		process.off('unhandledRejection', onUnhandledRejection);
+		warnSpy.mockReset();
+	}
+});
+
 test('delay resolves with the provided value', async () => {
 	const result = await delay<number>(10, 42);
 	expect(result).toBe(42);

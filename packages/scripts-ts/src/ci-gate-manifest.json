@@ -127,7 +127,7 @@
 			"reason": "Local pre-push checks do not run a GitHub container registry publish flow that requires runner buildx service setup."
 		},
 		"docs-archive.yml::changes::Check whether docs-archive paths changed": {
-			"hash": "3efb7a2850412b9d",
+			"hash": "73b60e3831f29f9d",
 			"mirror": "pnpm --filter scripts-ts exec vitest run src/ci-gate-bootstrap.test.ts",
 			"reason": "The step now inlines the fallback directly (round-3 review fix: replaced a separate PR-controlled wrapper script with a few lines of shell, since a separate file has no different trust level than inline YAML content — both are read from the pull request's merge commit): if base-ref/packages/scripts-ts/src/ci-changed-paths.ts exists, run it and pass its output/exit code straight through; otherwise print a loud [MISSING BASE CLASSIFIER] warning and resolve relevant=true, on a code path that never invokes the classifier. packages/scripts-ts/src/ci-gate-bootstrap.test.ts parses this exact `run:` block from the real workflow file (not a restatement) and executes it directly against both cases for all four workflows. The classifier's own decision logic (including the 3,000-file API-ceiling fail-closed check) remains covered by ci-changed-paths.test.ts. The live gh api calls remain GitHub-only and unmirrored. #1357 fix round 1: the inline regex gained a packages/scripts-ts/src/audit-docs-prune.ts alternative so an edit to the inventory generator itself wakes this gate now that the gate also enforces record freshness via --check."
 		},
@@ -170,6 +170,11 @@
 			"hash": "9e11b169ee35df67",
 			"mirror": "pnpm --filter scripts-ts exec vitest run src/check-doc-links.test.ts",
 			"reason": "Identical invocation to the CI step itself: the fixture suite executes the real check-doc-links.ts against throwaway git repositories and pins the records exemption, the fence/code-span stripping, and the failure output shape. Run locally so the guard's own failure modes gate PRs before the production guard executes."
+		},
+		"docs-archive.yml::docs-archive::Run prune-inventory guard fixture tests": {
+			"hash": "bcc2a9f7742b561c",
+			"mirror": "pnpm --filter scripts-ts exec vitest run src/audit-docs-prune.test.ts",
+			"reason": "Identical invocation to the CI step itself (added by #1867): the fixture suite executes the real audit-docs-prune.ts inside throwaway git repositories and pins the rename-vs-delete classification cross-checked against `git diff -M` (paid-modules red replay), the committed-history-only revision resolution (push-event AND pull_request red replay), the tampered-record freshness check and the protected docs/records destination. Until #1867 this file ran nowhere automated — CI and `just ci-doc-links` both executed only check-doc-links.test.ts — so #1441's no-known-value-widening rewrite of the MOVES declaration silently broke the table-rewrite fixture while every gate stayed green. Run locally, inside just ci-doc-links, so the guard's own failure modes gate PRs."
 		},
 		"docs-archive.yml::docs-archive::Setup Node": {
 			"hash": "6c699edc403fc068",
