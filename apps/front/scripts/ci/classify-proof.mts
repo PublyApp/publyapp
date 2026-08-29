@@ -35,9 +35,9 @@ export interface ProofReport {
 }
 
 /**
- * The four verdicts the classifier can return.
+ * The five verdicts the classifier can return.
  */
-export type ClassificationVerdict =
+type ClassificationVerdict =
 	| 'OK' // assertion failure — expected kept-red
 	| 'CORRUPT PROOF' // thrown Error or measurement impossible
 	| 'NO_TESTS' // vitest found no test cases
