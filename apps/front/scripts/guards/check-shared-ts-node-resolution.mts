@@ -105,7 +105,9 @@ export const main = (roots?: { sharedTsSrc?: string }): void => {
 		);
 		process.exit(1);
 	}
-	const { status, stderr } = resolveRetryFnViaNode(pathToFileURL(retryFnPath).href);
+	const { status, stderr } = resolveRetryFnViaNode(
+		pathToFileURL(retryFnPath).href,
+	);
 	if (status !== 0) {
 		console.error(
 			'check-shared-ts-node-resolution: FAILED — shared-ts source does not ' +
