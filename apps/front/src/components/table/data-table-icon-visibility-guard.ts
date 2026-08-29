@@ -2,70 +2,152 @@
  * `assertIconIsVisible` — fails the test if the icon element inside a checkbox
  * (or any other surface that has a `data-icon` child) is visually hidden from
  * the user. Used by the row-selection integration test
- * (`data-table-selection-integration.test.tsx`) to guarantee the check state
- * the test asserts (checked / indeterminate) is actually painted, not just
- * declared on the DOM.
+ * (`data-table-selection-integration.test.tsx`) and the real-browser
+ * `e2e/__tests__/data-table-icon-visibility-guard.spec.ts` to guarantee the
+ * check state the test asserts (checked / indeterminate) is actually
+ * painted, not just declared on the DOM.
  *
- * # Background
+ * # Why a measurement, not a class enumeration
  *
- * `data-icon` alone only proves an icon is *declared*, never that it is
- * *visible*. A mutation that hides the icon while keeping the attribute
- * present and readable would keep a `data-icon` test green while the user
- * sees an empty box. The function below is the guard against that family of
- * regressions.
+ * An earlier version of this function checked for two specific Tailwind
+ * utilities: `invisible` (→ `visibility:hidden`) and `hidden` (→
+ * `display:none`). That is a class enumeration, and a class enumeration is,
+ * by construction, never exhaustive. It did not catch `opacity-0`
+ * (opacity:0 — the icon is painted but transparent), `aria-hidden="true"`
+ * on the icon itself (a screen-reader-only hide that does not change CSS at
+ * all), `clip-path-*`, `size-0`, or off-screen `translate-*` translations.
+ * Each new entry would re-introduce the same design defect: the guard
+ * asserted a list of strings, not the property it claims to assert.
  *
- * # Status
+ * # The fix: MEASURE, not enumerate
  *
- * This module currently hosts the ORIGINAL guard — a class-name enumeration
- * over `invisible` and `hidden` — so the kept-red proof at
- * `apps/front/tests/proofs/1799/` is genuinely RED against it
- * (`opacity-0` and `aria-hidden` slip through). The fix in the next commit
- * replaces the body with a real measurement; the public API
- * (`assertIconIsVisible(icon, context)`) and the failure-mode contract
- * (throw with a named reason when hidden) stay the same so the kept-red
- * proof is the only file that has to change between the red and green runs.
+ * The fixed body reads the icon's actual visibility from the user's
+ * perspective, never from a list of class names. Three real measurements
+ * cover the four mechanisms the brief at #1799 names:
+ *
+ * 1. `aria-hidden="true"` is a DOM attribute, not a CSS value. Direct read.
+ * 2. `visibility:hidden` is the computed value Tailwind's `invisible`
+ *    compiles to. Read via `getComputedStyle` (or an injected reader).
+ * 3. `display:none` is the computed value Tailwind's `hidden` compiles to.
+ *    Same reader.
+ * 4. `opacity:0` is the computed value Tailwind's `opacity-0` compiles to.
+ *    Same reader. This is the one the old enumeration missed.
+ *
+ * # The reader parameter
+ *
+ * The real measurement comes from `window.getComputedStyle`, but the
+ * helper takes a `ComputedStyleReader` for two reasons:
+ *
+ *  - jsdom returns `''` for every `getComputedStyle` property when the
+ *    class is a Tailwind utility (jsdom does not parse the stylesheet).
+ *    The unit tests under `tests/proofs/1799/` inject a reader that
+ *    returns the values a real browser would compute for the class the
+ *    test just applied, so the helper's measurement is exercised
+ *    end-to-end without a browser round-trip.
+ *  - The real-browser spec under
+ *    `e2e/__tests__/data-table-icon-visibility-guard.spec.ts` passes
+ *    Chromium's own `getComputedStyle` result so the guard sees the
+ *    exact same values a user does.
  */
 import type { ComputedStyleReader } from './data-table-icon-visibility-guard-reader';
 
 /**
- * The original buggy class-name enumeration. Catches `invisible`
- * (Tailwind → `visibility:hidden`) and `hidden` (Tailwind → `display:none`)
- * — and only those two. Misses `opacity-0` (Tailwind → `opacity:0`,
- * invisible but not display:none), `aria-hidden="true"` (a DOM attribute
- * with no CSS counterpart), `clip-path-*`, off-screen `translate-*`, etc.
- *
- * Kept verbatim from the PR #1796 implementation so the kept-red proof
- * reproduces the original defect on the current code.
+ * The reason an icon was declared hidden — exposed for callers that want
+ * to test the detection logic without going through `assertIconIsVisible`'s
+ * throw. The message is the same one the thrown Error uses.
  */
-const isIconHidden = (iconElement: Element): boolean => {
-	const classes = Array.from(iconElement.classList);
-	return classes.includes('invisible') || classes.includes('hidden');
+export type IconHiddenReason =
+	| { kind: 'aria-hidden'; message: string }
+	| { kind: 'css-visibility'; value: string; message: string }
+	| { kind: 'css-display'; value: string; message: string }
+	| { kind: 'css-opacity'; value: number; message: string };
+
+const defaultReader: ComputedStyleReader = (element) => {
+	const computed = window.getComputedStyle(element);
+	return {
+		visibility: computed.visibility,
+		display: computed.display,
+		opacity: computed.opacity,
+	};
 };
 
 /**
- * Throws an `Error` whose message names the hiding reason. `vitest` reports
- * the message verbatim, so a test failure points at the exact mechanism
- * instead of a generic "icon is hidden".
+ * Inspects the icon element and returns the reason it is hidden, or `null`
+ * if it is visible. Pure: does not throw. The caller decides whether a
+ * hidden reason is a test failure.
  *
- * The two cases the original guard covered are the two this throws for.
- * Any other hiding mechanism (opacity-0, aria-hidden, clip-path, …) is
- * silently accepted — the original defect.
+ * @param iconElement The `data-icon` element to inspect.
+ * @param context A short label identifying the icon (used in error
+ * messages).
+ * @param readComputed Optional injected computed-style reader. Defaults to
+ * `window.getComputedStyle`. Tests inject a fake reader; the real-browser
+ * spec passes through Chromium's own.
+ */
+export const detectIconHidden = (
+	iconElement: Element,
+	context: string,
+	readComputed: ComputedStyleReader = defaultReader,
+): IconHiddenReason | null => {
+	// 1. aria-hidden: a DOM attribute, not a CSS value. Direct read.
+	if (iconElement.getAttribute('aria-hidden') === 'true') {
+		return {
+			kind: 'aria-hidden',
+			message: `${context}: icon has aria-hidden="true"`,
+		};
+	}
+
+	// 2-4. CSS-side measurement. The real values come from the reader;
+	// this body never inspects `classList`, so a mutation that hides the
+	// icon without touching the class list (an inline style, a global
+	// stylesheet, a runtime stylesheet swap) is caught exactly the same
+	// way as a Tailwind utility class.
+	const computed = readComputed(iconElement);
+	if (computed.visibility === 'hidden') {
+		return {
+			kind: 'css-visibility',
+			value: computed.visibility,
+			message: `${context}: icon has computed visibility:hidden`,
+		};
+	}
+	if (computed.display === 'none') {
+		return {
+			kind: 'css-display',
+			value: computed.display,
+			message: `${context}: icon has computed display:none`,
+		};
+	}
+	const parsedOpacity = Number.parseFloat(computed.opacity);
+	if (Number.isFinite(parsedOpacity) && parsedOpacity === 0) {
+		return {
+			kind: 'css-opacity',
+			value: parsedOpacity,
+			message: `${context}: icon has computed opacity:0`,
+		};
+	}
+
+	return null;
+};
+
+/**
+ * Asserts that the icon element is NOT hidden by any of the four
+ * mechanisms the brief names (`aria-hidden="true"`, `visibility:hidden`,
+ * `display:none`, `opacity:0`). Fails the current test with a named
+ * reason when the icon is hidden.
+ *
+ * Throws an `Error` whose message names the hiding reason — `vitest`
+ * reports the message verbatim, so a test failure points at the exact
+ * mechanism instead of a generic "icon is hidden".
  */
 export const assertIconIsVisible = (
 	iconElement: Element | null,
 	context: string,
-	// Accepted for API stability with the fix that will replace this body.
-	// The current enumeration ignores it; the fixed body will read it.
-	_readComputed?: ComputedStyleReader,
+	readComputed?: ComputedStyleReader,
 ): void => {
 	if (iconElement === null) {
 		throw new Error(`${context}: icon element is null`);
 	}
-	if (isIconHidden(iconElement)) {
-		const classes = Array.from(iconElement.classList);
-		const reason = classes.includes('invisible')
-			? 'invisible'
-			: 'hidden';
-		throw new Error(`${context}: icon carries Tailwind "${reason}"`);
+	const reason = detectIconHidden(iconElement, context, readComputed);
+	if (reason !== null) {
+		throw new Error(reason.message);
 	}
 };
