@@ -105,6 +105,7 @@ import {
 	readProofReport,
 	type ProofReport,
 } from './classify-proof.mts';
+import { consumeVerdict } from './consume-verdict.mts';
 
 const ROOT = join(process.cwd(), '..'); // apps/front → repo root
 const PROOFS_DIR = join(process.cwd(), 'tests', 'proofs');
@@ -118,7 +119,6 @@ const CONFIG = 'vitest.preuves.config.ts';
  * file must fail the step loud.
  */
 const REPLAYABLE_EXTENSIONS = ['.test.ts', '.test.tsx'] as const;
-
 
 /**
  * Determine which proof files were declared by the current PR.
@@ -178,24 +178,21 @@ function declaredProofTests(): string[] {
 	// and exiting 0: a green light that verified nothing. Detect and repair
 	// up front with `git fetch --unshallow` (never `--deepen=N`, which
 	// re-creates a bound instead of removing it — precedent: #1773).
+	//
+	// The two commands are wrapped in SEPARATE try/catch blocks so the
+	// catch can name the right command: if `git rev-parse` fails, the
+	// message accuses rev-parse; if `git fetch --unshallow` fails (the
+	// most probable case — network down, remote unreachable), the
+	// message accuses fetch. A single try/catch with the catch always
+	// naming rev-parse would send the operator to look for a local repo
+	// problem when the failure is remote access — worse than a vague
+	// message (precedent: #1802).
+	let isShallow: string;
 	try {
-		const isShallow = execSync(
-			`git -C "${ROOT}" rev-parse --is-shallow-repository`,
-			{ encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] },
-		).trim();
-
-		if (isShallow === 'true') {
-			console.error(
-				`Repository is shallow at entry (.git/shallow exists) — ` +
-					`repairing with "git fetch --unshallow" before continuing. ` +
-					`A shallow graft would make merge-base return empty and the ` +
-					`diff go blank, silently concluding "no proofs declared".`,
-			);
-			execSync(
-				`git -C "${ROOT}" fetch --unshallow`,
-				{ encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] },
-			);
-		}
+		isShallow = execSync(`git -C "${ROOT}" rev-parse --is-shallow-repository`, {
+			encoding: 'utf-8',
+			stdio: ['pipe', 'pipe', 'pipe'],
+		}).trim();
 	} catch (err) {
 		// If we cannot even determine shallow status, fail loud — an input
 		// we cannot parse is not replaced by a compliant default.
@@ -205,67 +202,87 @@ function declaredProofTests(): string[] {
 		);
 	}
 
+	if (isShallow === 'true') {
+		try {
+			console.error(
+				`Repository is shallow at entry (.git/shallow exists) — ` +
+					`repairing with "git fetch --unshallow" before continuing. ` +
+					`A shallow graft would make merge-base return empty and the ` +
+					`diff go blank, silently concluding "no proofs declared".`,
+			);
+			execSync(`git -C "${ROOT}" fetch --unshallow`, {
+				encoding: 'utf-8',
+				stdio: ['pipe', 'pipe', 'pipe'],
+			});
+		} catch (err) {
+			throw new Error(
+				`git fetch --unshallow failed — could not repair the shallow ` +
+					`repository. Detail: ${(err as Error).message}`,
+			);
+		}
+	}
+
 	// Get the list of files changed by this PR.
 	let changedFiles: string[];
 	try {
 		if (process.env.GITHUB_BASE_REF && process.env.GITHUB_HEAD_REF) {
 			const baseRef = `refs/remotes/origin/${process.env.GITHUB_BASE_REF}`;
 
-				// GitHub's checkout action fetches only the PR's own ref. The
-				// base branch's remote ref does not exist until we fetch it.
-				// Fetch it explicitly so the diff works on a clean CI
-				// checkout. Scoped to the single base ref — fast, a few
-				// hundred KB at most.
-				//
-				// CRITICAL: do NOT use --depth=1 (shallow fetch). A shallow
-				// fetch writes .git/shallow, which is shared by all worktrees
-				// in this repository and persists after this script finishes.
-				// Under a shallow graft, `git merge-base` returns empty and
-				// the diff below silently becomes blank — concluding "no
-				// proofs declared" and exiting 0, a green light that
-				// verified nothing. Fetch the full history of the single base
-				// ref instead. A non-shallow fetch scoped to one ref is still
-				// fast (a few hundred KB at most for typical branches).
-				execSync(
-					`git -C "${ROOT}" fetch --no-tags origin +refs/heads/${process.env.GITHUB_BASE_REF}:${baseRef}`,
-					{ encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] },
+			// GitHub's checkout action fetches only the PR's own ref. The
+			// base branch's remote ref does not exist until we fetch it.
+			// Fetch it explicitly so the diff works on a clean CI
+			// checkout. Scoped to the single base ref — fast, a few
+			// hundred KB at most.
+			//
+			// CRITICAL: do NOT use --depth=1 (shallow fetch). A shallow
+			// fetch writes .git/shallow, which is shared by all worktrees
+			// in this repository and persists after this script finishes.
+			// Under a shallow graft, `git merge-base` returns empty and
+			// the diff below silently becomes blank — concluding "no
+			// proofs declared" and exiting 0, a green light that
+			// verified nothing. Fetch the full history of the single base
+			// ref instead. A non-shallow fetch scoped to one ref is still
+			// fast (a few hundred KB at most for typical branches).
+			execSync(
+				`git -C "${ROOT}" fetch --no-tags origin +refs/heads/${process.env.GITHUB_BASE_REF}:${baseRef}`,
+				{ encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] },
+			);
+
+			// Verify the base and HEAD actually share a history. Under a
+			// shallow graft (e.g., one left by a previous --depth=1 fetch
+			// in a shared worktree), merge-base returns empty and the
+			// diff below would silently become blank — concluding "no
+			// proofs declared" and exiting 0, a green light that
+			// verified nothing. An unresolvable base must FAIL LOUD naming
+			// the cause; it can never silently become a compliant "no
+			// proofs".
+			let mergeBase: string;
+			try {
+				mergeBase = execSync(`git -C "${ROOT}" merge-base "${baseRef}" HEAD`, {
+					encoding: 'utf-8',
+					stdio: ['pipe', 'pipe', 'pipe'],
+				}).trim();
+			} catch {
+				throw new Error(
+					`git merge-base failed — no common ancestor between ` +
+						`origin/${process.env.GITHUB_BASE_REF} and HEAD. This is ` +
+						`commonly caused by a shallow graft (.git/shallow) left by a ` +
+						`previous --depth=1 fetch in a shared worktree. Remove the ` +
+						`graft ("git fetch --unshallow" or delete .git/shallow) and ` +
+						`retry.`,
 				);
+			}
 
-				// Verify the base and HEAD actually share a history. Under a
-				// shallow graft (e.g., one left by a previous --depth=1 fetch
-				// in a shared worktree), merge-base returns empty and the
-				// diff below would silently become blank — concluding "no
-				// proofs declared" and exiting 0, a green light that
-				// verified nothing. An unresolvable base must FAIL LOUD naming
-				// the cause; it can never silently become a compliant "no
-				// proofs".
-				let mergeBase: string;
-				try {
-					mergeBase = execSync(
-						`git -C "${ROOT}" merge-base "${baseRef}" HEAD`,
-						{ encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] },
-					).trim();
-				} catch {
-					throw new Error(
-						`git merge-base failed — no common ancestor between ` +
-							`origin/${process.env.GITHUB_BASE_REF} and HEAD. This is ` +
-							`commonly caused by a shallow graft (.git/shallow) left by a ` +
-							`previous --depth=1 fetch in a shared worktree. Remove the ` +
-							`graft ("git fetch --unshallow" or delete .git/shallow) and ` +
-							`retry.`,
-					);
-				}
-
-				if (!mergeBase) {
-					throw new Error(
-						`git merge-base returned empty — no common ancestor between ` +
-							`origin/${process.env.GITHUB_BASE_REF} and HEAD. This is ` +
-							`commonly caused by a shallow graft (.git/shallow) left by a ` +
-							`previous --depth=1 fetch in a shared worktree. Remove the ` +
-							`graft ("git fetch --unshallow" or delete .git/shallow) and ` +
-							`retry.`,
-					);
-				}
+			if (!mergeBase) {
+				throw new Error(
+					`git merge-base returned empty — no common ancestor between ` +
+						`origin/${process.env.GITHUB_BASE_REF} and HEAD. This is ` +
+						`commonly caused by a shallow graft (.git/shallow) left by a ` +
+						`previous --depth=1 fetch in a shared worktree. Remove the ` +
+						`graft ("git fetch --unshallow" or delete .git/shallow) and ` +
+						`retry.`,
+				);
+			}
 
 			const diffOutput = execSync(
 				`git -C "${ROOT}" diff --name-only "${baseRef}..HEAD"`,
@@ -287,16 +304,16 @@ function declaredProofTests(): string[] {
 				.filter((f) => f.length > 0);
 		}
 	} catch (err) {
-			// A merge-base failure (graft, diverged histories) is caught
-			// inline above and re-thrown with a clear cause — it never
-			// reaches here as a silent "no proofs declared". Any other git
-			// failure also fails LOUD. An input we cannot parse is not
-			// replaced by a compliant default.
-			throw new Error(
-				`git diff failed — cannot determine which proofs this PR declared. ` +
-					`Fetch the base ref (e.g., "git fetch origin <base>") and retry. ` +
-					`Detail: ${(err as Error).message}`,
-			);
+		// A merge-base failure (graft, diverged histories) is caught
+		// inline above and re-thrown with a clear cause — it never
+		// reaches here as a silent "no proofs declared". Any other git
+		// failure also fails LOUD. An input we cannot parse is not
+		// replaced by a compliant default.
+		throw new Error(
+			`git diff failed — cannot determine which proofs this PR declared. ` +
+				`Fetch the base ref (e.g., "git fetch origin <base>") and retry. ` +
+				`Detail: ${(err as Error).message}`,
+		);
 	}
 
 	// Every file added or modified under tests/proofs/ is a declared proof.
@@ -356,8 +373,12 @@ function isReplayableFile(filename: string): boolean {
 // proof infrastructure — the step is a no-op.
 if (!existsSync(PROOFS_DIR)) {
 	console.log('No paired red proof tests found in tests/proofs/.');
-	console.log('This step is a no-op for PRs that do not declare a paired red proof.');
-	console.log('To declare one, add a file under apps/front/tests/proofs/<issue>/.');
+	console.log(
+		'This step is a no-op for PRs that do not declare a paired red proof.',
+	);
+	console.log(
+		'To declare one, add a file under apps/front/tests/proofs/<issue>/.',
+	);
 	process.exit(0);
 }
 
@@ -373,7 +394,9 @@ if (declared.length === 0) {
 	console.log(
 		'Proof tests are versionned under tests/proofs/; this PR did not touch any of them.',
 	);
-	console.log('This step is an explicit no-op for PRs that do not declare a proof.');
+	console.log(
+		'This step is an explicit no-op for PRs that do not declare a proof.',
+	);
 	process.exit(0);
 }
 
@@ -446,7 +469,17 @@ for (const test of replayable) {
 	try {
 		execFileSync(
 			'pnpm',
-			['exec', 'vitest', 'run', '--config', CONFIG, '--no-color', '--reporter=json', `--outputFile=${reportFile}`, test],
+			[
+				'exec',
+				'vitest',
+				'run',
+				'--config',
+				CONFIG,
+				'--no-color',
+				'--reporter=json',
+				`--outputFile=${reportFile}`,
+				test,
+			],
 			{ stdio: 'pipe', encoding: 'utf-8' },
 		);
 		// If execFileSync did NOT throw, vitest exited 0 = the test passed.
@@ -480,10 +513,25 @@ for (const test of replayable) {
 		// logic lives in classify-proof.mts so it can be unit-tested
 		// independently with a real vitest JSON report.
 		const result = classifyProof(report, exitCode as number);
+
+		// The verdict-to-counter mapping lives in consume-verdict.mts as a
+		// pure function so it can be unit-tested independently. Here we
+		// apply the side effect (log + increment) based on the counter it
+		// returns. This is the load-bearing decision: a crashed vitest
+		// process → ERROR verdict → must increment unexpectedPasses, NOT
+		// failures. Misclassifying here is the exact defect class #1784
+		// was designed to eliminate.
+		const counts = consumeVerdict(
+			{ failures, unexpectedPasses, corrupted },
+			result.verdict,
+		);
+		failures = counts.failures;
+		unexpectedPasses = counts.unexpectedPasses;
+		corrupted = counts.corrupted;
+
 		switch (result.verdict) {
 			case 'OK':
 				console.log(`  OK: ${result.reason}\n`);
-				failures++;
 				break;
 			case 'CORRUPT PROOF':
 				console.error(
@@ -493,20 +541,15 @@ for (const test of replayable) {
 						`  — this is NOT the expected kept-red state and must fail CI.\n` +
 						`  stdout: ${stdout}\n  stderr: ${stderr}`,
 				);
-				corrupted++;
 				break;
 			case 'NO_TESTS':
 				console.error(
 					`  CORRUPT PROOF: ${result.reason}\n` +
 						`  stdout: ${stdout}\n  stderr: ${stderr}`,
 				);
-				corrupted++;
 				break;
 			case 'UNEXPECTED_PASS':
-				console.error(
-					`  FAIL: ${result.reason}\n  Test: ${test}`,
-				);
-				unexpectedPasses++;
+				console.error(`  FAIL: ${result.reason}\n  Test: ${test}`);
 				break;
 			case 'ERROR':
 				console.error(
@@ -514,7 +557,6 @@ for (const test of replayable) {
 						`(failed: ${result.failedTests}, total: ${result.totalTests}).\n` +
 						`  stdout: ${stdout}\n  stderr: ${stderr}`,
 				);
-				unexpectedPasses++;
 				break;
 		}
 	} finally {
@@ -536,7 +578,9 @@ console.log(`  Corrupt/unparseable proof files:  ${corrupted}`);
 if (unexpectedPasses > 0 || corrupted > 0) {
 	console.error(`\nFAIL: proof replay did not complete cleanly.`);
 	if (unexpectedPasses > 0) {
-		console.error(`  ${unexpectedPasses} proof test(s) passed when they should have failed.`);
+		console.error(
+			`  ${unexpectedPasses} proof test(s) passed when they should have failed.`,
+		);
 		console.error(
 			'A proof test passing means the bug it documented has been fixed or changed form.',
 		);

@@ -352,7 +352,10 @@ const scanSourceFile = (relativePath: string, source: string): Finding[] => {
 			type: 'PARSE_ERROR',
 			specifier: '',
 			nodeText: '',
-			diagnosticMessage: ts.flattenDiagnosticMessageText(diagnostic.messageText, ' '),
+			diagnosticMessage: ts.flattenDiagnosticMessageText(
+				diagnostic.messageText,
+				' ',
+			),
 		});
 	}
 
@@ -421,7 +424,10 @@ const EXPECTED_SHARED_TS_SEGMENTS = [
 	'validations',
 ] as const;
 
-export const main = (roots?: { frontSrc?: string; sharedTsSrc?: string }): void => {
+export const main = (roots?: {
+	frontSrc?: string;
+	sharedTsSrc?: string;
+}): void => {
 	const sharedTsSrcPath = roots?.sharedTsSrc ?? sharedTsSrc;
 	const segments = deriveSharedTsSegments(sharedTsSrcPath);
 	// #1678 A1: a guard that derives its own configuration must validate that

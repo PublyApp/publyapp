@@ -161,8 +161,7 @@ export const collectSharedTsExports = (
 			// barrel. Pointing at the barrel would print advice that resolves
 			// nowhere and that no existing line follows.
 			const declaredHere = declarations.some(
-				(declaration) =>
-					declaration.getSourceFile().getFilePath() === file,
+				(declaration) => declaration.getSourceFile().getFilePath() === file,
 			);
 			if (!declaredHere && exports.has(name)) {
 				continue;

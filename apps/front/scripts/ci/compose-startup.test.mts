@@ -7,13 +7,7 @@ import { fileURLToPath } from 'node:url';
 import { parse } from 'yaml';
 
 const scriptsDirectory = path.dirname(fileURLToPath(import.meta.url));
-const repositoryRoot = path.resolve(
-	scriptsDirectory,
-	'..',
-	'..',
-	'..',
-	'..',
-);
+const repositoryRoot = path.resolve(scriptsDirectory, '..', '..', '..', '..');
 const composePath = path.join(
 	repositoryRoot,
 	'apps',
@@ -122,11 +116,7 @@ export const assertComposeStartupContract = (
 		'front service must define PUBLIC_ORIGIN — without it, validateRuntimeEnv() refuses to start in NODE_ENV=production and the e2e stack times out at health check',
 	);
 	const publicOrigin = frontEnv.PUBLIC_ORIGIN;
-	assert.notEqual(
-		publicOrigin,
-		'',
-		'PUBLIC_ORIGIN must not be empty',
-	);
+	assert.notEqual(publicOrigin, '', 'PUBLIC_ORIGIN must not be empty');
 	assert.ok(
 		isBareSchemePlusHost(publicOrigin),
 		`PUBLIC_ORIGIN must be a bare scheme+host (e.g. "https://example.com") — no trailing slash, path, query, or fragment. Got: "${publicOrigin}"`,
@@ -162,6 +152,7 @@ void test('contract rejects a PUBLIC_ORIGIN mutation that breaks front startup i
 void test('contract rejects an invalid PUBLIC_ORIGIN (trailing slash)', () => {
 	const compose = loadCompose();
 	// Trailing slash: rejected by the runtime schema and by our bare-origin contract.
-	compose.services.front.environment.PUBLIC_ORIGIN = 'https://front.localhost:8443/';
+	compose.services.front.environment.PUBLIC_ORIGIN =
+		'https://front.localhost:8443/';
 	assert.throws(() => assertComposeStartupContract(compose), /PUBLIC_ORIGIN/);
 });
