@@ -338,6 +338,38 @@ describe('#1386 ProfilesListBulkActions', () => {
 		expect(mocks.toastSuccess).not.toHaveBeenCalled();
 	});
 
+	test('total-failure toast suppresses the filter-leave warning when nothing succeeded', async () => {
+		mocks.bulkDelete.mockResolvedValue({
+			succeededCount: 0,
+			failedCount: 1,
+			failedItems: [
+				{
+					profileId: PROFILE_A,
+					errorEscaped: 'Default profiles cannot be deleted',
+				},
+			],
+		});
+
+		renderBulkActions();
+
+		await openMenu();
+		fireEvent.click(screen.getByRole('menuitem', { name: 'Delete selected' }));
+		expect(await screen.findByText(/delete 1 selected profile/)).toBeTruthy();
+		fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
+
+		await waitFor(() => expect(mocks.toastError).toHaveBeenCalledTimes(1));
+		const [message, description] = mocks.toastError.mock.calls[0] as [
+			string,
+			string | undefined,
+		];
+		expect(message).toBe('Deleted 0 profile(s), 1 failed.');
+		// #1605: total failure (succeededCount === 0) with per-item reasons
+		// carries the cause description, NOT the filter-leave warning.
+		expect(description).toBe('Default profiles cannot be deleted');
+		expect(description).not.toContain('Some rows may no longer appear');
+		expect(mocks.toastSuccess).not.toHaveBeenCalled();
+	});
+
 	test('a 401-shaped failure routes to onSessionExpired instead of a toast', async () => {
 		mocks.shouldLogoutForFailure.mockReturnValue(true);
 		const onSessionExpired = vi.fn();

@@ -1143,6 +1143,38 @@ describe('staff tenants route', () => {
 			expect(screen.queryByRole('status')).toBeNull();
 		});
 
+		test('reports a total-failure message without the filter-leave warning when all bulk-suspended tenants fail', async () => {
+			mocks.bulkSuspendTenantsMutation.mockResolvedValue({
+				succeededCount: 0,
+				failedCount: 1,
+			});
+
+			renderPage();
+
+			fireEvent.click(
+				screen.getByRole('checkbox', { name: 'Select Acme Corporation' }),
+			);
+			await chooseBulkAction('Suspend selected', 'Bulk actions');
+			expect(
+				screen.getByRole('heading', { name: 'Suspend selected' }),
+			).toBeTruthy();
+			fireEvent.click(
+				screen.getAllByRole('button', { name: 'Suspend' }).slice(-1)[0],
+			);
+
+			await waitFor(() =>
+				expect(mocks.toastError).toHaveBeenCalledWith(
+					'Suspended 0 tenant(s), 1 failed.',
+					undefined,
+				),
+			);
+			expect(mocks.toastError).toHaveBeenCalledTimes(1);
+			// #1605: total failure (succeededCount === 0) suppresses the
+			// filter-leave warning -- assert the second arg is undefined.
+			expect(mocks.toastError.mock.calls[0][1]).toBeUndefined();
+			expect(screen.queryByRole('status')).toBeNull();
+		});
+
 		test('reports a bulk action failure through one local error toast owner', async () => {
 			const error = {
 				kind: 'problem',
