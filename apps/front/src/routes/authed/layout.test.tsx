@@ -9,38 +9,36 @@ import { SessionSurfaceValidationProvider } from '~/lib/session-surface-recovery
 
 import type { ParsedSessionTokens } from '@org/shared-ts/lib/session/parse';
 
-const mocks = vi.hoisted(() => {
-	const createQueryResult = (overrides: {
-		data: string | null | undefined;
-		isLoading?: boolean;
-		isError?: boolean;
-		error?: unknown;
-		refetch?: () => void;
-	}): UseQueryResult<string | null, unknown> => {
-		return {
-			error: overrides.error,
-			isError: overrides.isError,
-			isLoading: overrides.isLoading,
-			refetch: overrides.refetch,
-			data: overrides.data,
-		} as UseQueryResult<string | null, unknown>;
-	};
-
+const createQueryResult = (overrides: {
+	data: string | null | undefined;
+	isLoading?: boolean;
+	isError?: boolean;
+	error?: unknown;
+	refetch?: () => void;
+}): UseQueryResult<string | null, unknown> => {
 	return {
-		queryResult: createQueryResult({
-			data: undefined,
-			error: undefined,
-			isError: false,
-			isLoading: false,
-			refetch: vi.fn(),
-		}),
-		tokens: {} as ParsedSessionTokens,
-		location: {
-			pathname: '/staff/tenants',
-			search: {},
-		},
-	};
-});
+		error: overrides.error,
+		isError: overrides.isError,
+		isLoading: overrides.isLoading,
+		refetch: overrides.refetch,
+		data: overrides.data,
+	} as UseQueryResult<string | null, unknown>;
+};
+
+const mocks = vi.hoisted(() => ({
+	queryResult: createQueryResult({
+		data: undefined,
+		error: undefined,
+		isError: false,
+		isLoading: false,
+		refetch: vi.fn(),
+	}),
+	tokens: {} as ParsedSessionTokens,
+	location: {
+		pathname: '/staff/tenants',
+		search: {},
+	},
+}));
 
 vi.mock('@tanstack/react-router', () => ({
 	createFileRoute: () => (options: Record<string, unknown>) => ({
