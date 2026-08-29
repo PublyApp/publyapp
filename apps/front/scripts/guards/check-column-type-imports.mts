@@ -110,7 +110,7 @@ import { fileURLToPath } from 'node:url';
 import { ts } from 'ts-morph';
 
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
-const frontSrc = path.resolve(scriptDir, '../../src');
+export const frontSrc = path.resolve(scriptDir, '../../src');
 
 /**
  * The three type names that must NOT be imported from `@tanstack/react-table`
@@ -228,10 +228,25 @@ export const EXEMPT_FILES = new Set(['components/table/column-type.ts']);
  * `apps/front/src/...` prefix or be relative to a scripts/guards/ root.
  *
  * Only `column-type.ts` is exempt — it is the passthrough itself.
+ *
+ * R8: `isExempt` derives from the pinned `EXEMPT_FILES` set, which is itself
+ * asserted against the baseline by `assertExemptionsPinned`. After this fix,
+ * it is impossible to exempt a file without modifying `EXEMPT_FILES` — and
+ * every modification to `EXEMPT_FILES` is caught by the pin assertion. The
+ * function matches by basename AND by relative suffix, so a test sandbox with
+ * a different root still resolves to the same exempt file. The suffix match
+ * is restricted to entries that are known to be in EXEMPT_FILES, so a hardcoded
+ * `||` clause can never bypass the pin.
  */
-const isExempt = (normalizedPath: string): boolean => {
-	const suffix = 'components/table/column-type.ts';
-	return normalizedPath === suffix || normalizedPath.endsWith('/' + suffix);
+export const isExempt = (normalizedPath: string): boolean => {
+	const normalized = normalizedPath.split(path.sep).join('/');
+	for (const exempt of EXEMPT_FILES) {
+		const suffix = exempt.split(path.sep).join('/');
+		if (normalized === suffix || normalized.endsWith('/' + suffix)) {
+			return true;
+		}
+	}
+	return false;
 };
 
 /** The replacement the message points to. */
@@ -547,7 +562,7 @@ interface WalkResult {
  * or explicitly declared as non-code — any other extension fails the guard
  * loudly (reversed burden of proof).
  */
-const walk = (dir: string): WalkResult => {
+export const walk = (dir: string): WalkResult => {
 	const files: string[] = [];
 	const extensions = new Set<string>();
 	let entries: string[];
@@ -963,10 +978,50 @@ export const scanFrontSrcForBannedImports = (
 				{ cause: err },
 			);
 		}
-		assertScanSurface(perExtensionCounts, baselinePath);
-		assertScannedExtensionsPinned(SCANNED_EXTENSIONS, baseline);
-		assertNonCodeExtensionsPinned(NON_CODE_EXTENSIONS, baseline);
-		assertExemptionsPinned(EXEMPT_FILES, baseline);
+			assertScanSurface(perExtensionCounts, baselinePath);
+			assertScannedExtensionsPinned(SCANNED_EXTENSIONS, baseline);
+			assertNonCodeExtensionsPinned(NON_CODE_EXTENSIONS, baseline);
+			assertExemptionsPinned(EXEMPT_FILES, baseline);
+
+			// R8: assert on the REAL tree that isExempt returns true ONLY for
+			// files listed in EXEMPT_FILES. A hardcoded `||` clause in isExempt
+			// (the r6/r7 bypass) would exempt a real file not in EXEMPT_FILES.
+			// This assertion walks the actual scanned tree and fails if any
+			// exempted .ts/.tsx file is not in the pinned set — making the guard
+			// itself red on the bypass, not just the test suite.
+			const normalizedExemptions = [...EXEMPT_FILES].map((e) =>
+				e.split(path.sep).join('/'),
+			);
+			const illicitExemptions: string[] = [];
+			for (const file of files) {
+				const ext = path.extname(file).toLowerCase();
+				if (ext !== '.ts' && ext !== '.tsx') {
+					continue;
+				}
+				const normalized = path
+					.relative(root, file)
+					.split(path.sep)
+					.join('/');
+				if (isExempt(normalized)) {
+					const isPinned =
+						normalizedExemptions.includes(normalized) ||
+						normalizedExemptions.some(
+							(e) => normalized.endsWith('/' + e),
+						);
+					if (!isPinned) {
+						illicitExemptions.push(normalized);
+					}
+				}
+			}
+			if (illicitExemptions.length > 0) {
+				throw new Error(
+					`Guard #1769: isExempt returned true for ${illicitExemptions.length} ` +
+						`file(s) not in the pinned EXEMPT_FILES set — ` +
+						`illicit exemption(s): ${illicitExemptions.sort().join(', ')}. ` +
+						`isExempt must derive from EXEMPT_FILES; a hardcoded bypass ` +
+						`would exempt files without modifying the pinned set.`,
+				);
+			}
 	}
 
 	const findings: Finding[] = [];

@@ -32,6 +32,9 @@ import { fileURLToPath } from 'node:url';
 import {
 	scanFrontSrcForBannedImports,
 	formatFinding,
+	isExempt,
+	walk,
+	frontSrc,
 	SCANNED_EXTENSIONS,
 	NON_CODE_EXTENSIONS,
 	CORE_EXTENSIONS,
@@ -956,5 +959,135 @@ void test('R7 HOLE 3 RED: current SCANNED_EXTENSIONS matches the pinned baseline
 	assert.doesNotThrow(
 		() => assertScannedExtensionsPinned(SCANNED_EXTENSIONS, baseline),
 		'expected the guard to pass when SCANNED_EXTENSIONS matches the baseline',
+	);
+});
+
+// ---------------------------------------------------------------------------
+// R8: isExempt must derive from the pinned EXEMPT_FILES set — not a hardcoded
+// suffix. These tests walk the REAL apps/front/src tree and assert that no
+// real file can be silently exempted. (Brief §4: a test that only inspects
+// fabricated sandbox files does not measure the production artefact.)
+// ---------------------------------------------------------------------------
+
+void test('R8: isExempt returns false for every .ts/.tsx in apps/front/src except the sanctioned passthrough', () => {
+	// Walk the real tree and collect every .ts/.tsx file's normalized path.
+	const { files } = walk(frontSrc);
+	const codeFiles = files.filter((f) => {
+		const ext = path.extname(f).toLowerCase();
+		return ext === '.ts' || ext === '.tsx';
+	});
+	// Every exempted .ts/.tsx file MUST be in EXEMPT_FILES. If isExempt
+	// returns true for any file not in EXEMPT_FILES, a hardcoded bypass
+	// is active — fail.
+	for (const f of codeFiles) {
+		const normalized = path.relative(frontSrc, f).split(path.sep).join('/');
+		if (isExempt(normalized)) {
+			// The only files that should be exempted are those in EXEMPT_FILES.
+			const normalizedExemptions = [...EXEMPT_FILES].map((e) =>
+				e.split(path.sep).join('/'),
+			);
+			assert.ok(
+				normalizedExemptions.includes(normalized) ||
+					normalizedExemptions.some((e) => normalized.endsWith('/' + e)),
+				`isExempt returned true for ${normalized} but it is not in EXEMPT_FILES — ` +
+					`this indicates a hardcoded bypass rather than derivation from the pinned set`,
+			);
+		}
+	}
+	// Prove the sanctioned file IS exempted (so the test is not vacuously green).
+	const sanctionedExempt = codeFiles.some(
+		(f) =>
+			isExempt(path.relative(frontSrc, f).split(path.sep).join('/')) === true &&
+			f.endsWith('column-type.ts'),
+	);
+	assert.equal(
+		sanctionedExempt,
+		true,
+		'expected the sanctioned passthrough (column-type.ts) to be exempted',
+	);
+});
+
+void test('R8 ADVERSE: a hardcoded || clause in isExempt is caught — isExempt returns false for a non-pinned real file', () => {
+	// This test proves the fix: isExempt derives from EXEMPT_FILES, so
+	// isExempt must return false for any real file NOT in EXEMPT_FILES.
+	// The file `data-table-header-row.tsx` is a real .tsx file under
+	// apps/front/src that is NOT a banned-import file itself (it imports
+	// only flexRender, which is not one of the three banned type names).
+	// The proof (in preuve-1778-r8.md) adds a hardcoded `||` to exempt it
+	// and shows this test + the real-tree guard go RED.
+	const headerRow = 'components/table/data-table-header-row.tsx';
+	assert.equal(
+		isExempt(headerRow),
+		false,
+		'isExempt must return false for a file NOT in the pinned EXEMPT_FILES — ' +
+			'a hardcoded || bypass must not work',
+	);
+});
+
+void test('R9 MUTATION: guard catches a hardcoded || bypass in isExempt on the real tree', () => {
+	// Brief: replay the reviewer's mutation. Add a hardcoded `||` clause
+	// to exempt a real file, and show the R8 assertion catches it.
+	// The bypass: `|| normalizedPath.includes('data-table-header-row.tsx')`
+	// This exempts a real file not in EXEMPT_FILES.
+	const isExemptWithBypass = (normalizedPath: string): boolean => {
+		for (const exempt of EXEMPT_FILES) {
+			const suffix = exempt.split(path.sep).join('/');
+			if (normalizedPath === suffix || normalizedPath.endsWith('/' + suffix)) {
+				return true;
+			}
+		}
+		// REVIEWER'S BYPASS MUTATION
+		if (normalizedPath.includes('data-table-header-row.tsx')) return true;
+		return false;
+	};
+
+	const normalizedExemptions = [...EXEMPT_FILES].map((e) => e.split(path.sep).join('/'));
+	const illicitExemptions: string[] = [];
+	// Walk the real tree (as the R8 assertion does)
+	const { files } = walk(frontSrc);
+	for (const file of files) {
+		const ext = path.extname(file).toLowerCase();
+		if (ext !== '.ts' && ext !== '.tsx') continue;
+		const normalized = path.relative(frontSrc, file).split(path.sep).join('/');
+		if (isExemptWithBypass(normalized)) {
+			const isPinned =
+				normalizedExemptions.includes(normalized) ||
+				normalizedExemptions.some((e) => normalized.endsWith('/' + e));
+			if (!isPinned) {
+				illicitExemptions.push(normalized);
+			}
+		}
+	}
+	// The bypass must catch at least one file: data-table-header-row.tsx
+	assert.ok(
+		illicitExemptions.length > 0,
+		`expected the bypass to catch at least one illicit exemption, got none — ` +
+			`the mutation was not applied correctly`,
+	);
+	assert.ok(
+		illicitExemptions.some((f) => f.includes('data-table-header-row.tsx')),
+		`expected data-table-header-row.tsx to be caught as illicit — ` +
+			`got: ${JSON.stringify(illicitExemptions)}`,
+	);
+	// With the CORRECT isExempt (no bypass), illicitExemptions must be EMPTY.
+	const illicitWithCorrect: string[] = [];
+	for (const file of files) {
+		const ext = path.extname(file).toLowerCase();
+		if (ext !== '.ts' && ext !== '.tsx') continue;
+		const normalized = path.relative(frontSrc, file).split(path.sep).join('/');
+		if (isExempt(normalized)) {
+			const isPinned =
+				normalizedExemptions.includes(normalized) ||
+				normalizedExemptions.some((e) => normalized.endsWith('/' + e));
+			if (!isPinned) {
+				illicitWithCorrect.push(normalized);
+			}
+		}
+	}
+	assert.equal(
+		illicitWithCorrect.length,
+		0,
+		`isExempt must not exempt any file outside EXEMPT_FILES — ` +
+			`got illicit: ${JSON.stringify(illicitWithCorrect)}`,
 	);
 });
