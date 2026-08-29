@@ -236,7 +236,10 @@ const SUPPRESSION_INVENTORY_PATH = fileURLToPath(
 	new URL('./func-style-suppressions.json', import.meta.url),
 );
 
-const SUPPRESSION_INVENTORY: FuncStyleSuppressionEntry[] = (() => {
+// `publy/no-iife` interdit les IIFE : la lecture est une fonction nommee, appelee
+// une fois. Un inventaire illisible doit echouer BRUYAMMENT en le disant — jamais
+// retomber sur un tableau vide, qui rendrait la garde muette tout en restant verte.
+const readSuppressionInventory = (): FuncStyleSuppressionEntry[] => {
 	try {
 		return JSON.parse(
 			readFileSync(SUPPRESSION_INVENTORY_PATH, 'utf8'),
@@ -246,7 +249,10 @@ const SUPPRESSION_INVENTORY: FuncStyleSuppressionEntry[] = (() => {
 			`failed to read func-style suppression inventory at ${SUPPRESSION_INVENTORY_PATH}: ${error instanceof Error ? error.message : String(error)}`,
 		);
 	}
-})();
+};
+
+const SUPPRESSION_INVENTORY: FuncStyleSuppressionEntry[] =
+	readSuppressionInventory();
 
 const countByFileAndSymbol = (
 	entries: FuncStyleSuppressionEntry[],
