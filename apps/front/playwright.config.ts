@@ -20,6 +20,14 @@ const hermeticSourceSpecs = [
 	// #823: the rendered focus-ring cascade proof (real primitives, real
 	// compiled CSS, real keyboard focus) — same hermetic constraints.
 	'**/focus-ring-cascade.spec.ts',
+	// #1799: the icon visibility guard's real-browser proof. Real
+	// `DataTable` markup rendered through Vite SSR, real compiled
+	// production CSS, real `getComputedStyle`. The vitest proof at
+	// `tests/proofs/1799/` exercises the helper's measurement contract
+	// through a fake reader; this spec exercises the same helper through
+	// the browser's own reader, so a fake-reader regression cannot
+	// re-open the defect here.
+	'**/data-table-icon-visibility-guard.spec.ts',
 ];
 const isCiShard = process.env.PLAYWRIGHT_CI_SHARD === 'true';
 
