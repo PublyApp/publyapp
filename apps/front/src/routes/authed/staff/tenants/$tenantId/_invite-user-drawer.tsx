@@ -513,13 +513,13 @@ const RowInvalidCellNotes = ({
 
 	return (
 		<div role="alert" className="space-y-0.5">
-			{invalidCells.map((invalidCell, index) => (
-				// The cell ref + value uniquely identify the cell, so combining
-				// them with the row index is enough for a stable React key. The
-				// cell ref can be undefined for CSV cells with no XLSX reference,
-				// so the value is included to keep the key unique per row.
+			{invalidCells.map((invalidCell) => (
+				// The column + cell ref + value uniquely identify the cell across
+				// both XLSX and CSV: the column is always present (from the header
+				// row), the cell ref is present for XLSX, and the value distinguishes
+				// multiple non-text cells within the same column on the same row.
 				<p
-					key={`${invalidCell.cell ?? ''}-${invalidCell.value}-${String(index)}`}
+					key={`${invalidCell.column}-${invalidCell.cell ?? ''}-${invalidCell.value}`}
 					className="text-xs text-destructive"
 				>
 					{renderInvalidCellMessage(invalidCell, t)}

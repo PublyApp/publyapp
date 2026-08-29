@@ -38,6 +38,11 @@ export type InviteRow = {
  * The drawer renders this into a human-readable message naming the cell
  * and value so the importer knows what to fix in their file. */
 export type InvalidCell = {
+	/** Column header name that the cell was read from, e.g. "email", "level",
+	 * or "profiles". Stable and non-empty for every cell regardless of file
+	 * format — this is the stable React key and the column name surfaced in the
+	 * importer-facing error message when the cell reference is absent (CSV). */
+	column: string;
 	/** Cell reference, e.g. "B2". Empty for CSV cells without a reference. */
 	cell?: string;
 	/** Raw cell value, e.g. "1" or a formula error code. */
@@ -271,7 +276,10 @@ type RowProfilesFields = {
  * or a structured error when the cell is a boolean (t="b"), formula error (t="e"),
  * or a formula error code stored as a shared string. Non-text cells are rejected,
  * not imported as profile names. */
-const mapProfilesToRowFields = (rawCell: RawCell | undefined) => {
+const mapProfilesToRowFields = (
+	rawCell: RawCell | undefined,
+	column: string,
+) => {
 	if (
 		rawCell?.type === 'b' ||
 		rawCell?.type === 'e' ||
@@ -281,6 +289,7 @@ const mapProfilesToRowFields = (rawCell: RawCell | undefined) => {
 			profileNames: [],
 			invalidCells: [
 				{
+					column,
 					cell: rawCell?.ref,
 					value: rawCell?.value ?? '',
 					kind: rawCell?.type === 'b' ? 'boolean' : 'formula-error',
@@ -299,7 +308,7 @@ const mapProfilesToRowFields = (rawCell: RawCell | undefined) => {
  * Boolean (t="b") and formula error (t="e") cells, and formula error codes
  * stored as shared strings, are rejected with a structured error naming the
  * cell and value; other invalid values are flagged as before. */
-const mapLevelToRowFields = (rawCell: RawCell | undefined) => {
+const mapLevelToRowFields = (rawCell: RawCell | undefined, column: string) => {
 	if (
 		rawCell?.type === 'b' ||
 		rawCell?.type === 'e' ||
@@ -310,6 +319,7 @@ const mapLevelToRowFields = (rawCell: RawCell | undefined) => {
 			invalidLevel: rawCell?.value ?? '',
 			invalidCells: [
 				{
+					column,
 					cell: rawCell?.ref,
 					value: rawCell?.value ?? '',
 					kind: rawCell?.type === 'b' ? 'boolean' : 'formula-error',
@@ -344,7 +354,10 @@ type EmailRowField = {
  * or the raw trimmed value flagged as invalid. Boolean/error cells and formula
  * error codes (which can be stored as shared strings, t="s") are rejected with
  * a structured error naming the cell. */
-const mapEmailToRowField = (rawCell: RawCell | undefined): EmailRowField => {
+const mapEmailToRowField = (
+	rawCell: RawCell | undefined,
+	column: string,
+): EmailRowField => {
 	if (
 		rawCell?.type === 'b' ||
 		rawCell?.type === 'e' ||
@@ -355,6 +368,7 @@ const mapEmailToRowField = (rawCell: RawCell | undefined): EmailRowField => {
 			invalidEmail: null,
 			invalidCells: [
 				{
+					column,
 					cell: rawCell?.ref,
 					value: rawCell?.value ?? '',
 					kind: rawCell?.type === 'b' ? 'boolean' : 'formula-error',
@@ -395,15 +409,18 @@ export const parseInviteCsv = (text: string): ParseInviteResult => {
 			continue;
 		}
 
-		const levelFields = mapLevelToRowFields({
-			value: row[indexOfLevel] ?? '',
-		});
-		const emailFields = mapEmailToRowField({
-			value: row[indexOfEmail] ?? '',
-		});
-		const profilesFields = mapProfilesToRowFields({
-			value: row[indexOfProfiles] ?? '',
-		});
+		const levelFields = mapLevelToRowFields(
+			{ value: row[indexOfLevel] ?? '' },
+			'level',
+		);
+		const emailFields = mapEmailToRowField(
+			{ value: row[indexOfEmail] ?? '' },
+			'email',
+		);
+		const profilesFields = mapProfilesToRowFields(
+			{ value: row[indexOfProfiles] ?? '' },
+			'profiles',
+		);
 		parsed.push({
 			...emailFields,
 			...levelFields,
@@ -589,13 +606,16 @@ export const parseInviteWorkbook = (bytes: Uint8Array): ParseInviteResult => {
 			continue;
 		}
 
-		const emailFields = mapEmailToRowField(record.get(emailColumn));
+		const emailFields = mapEmailToRowField(record.get(emailColumn), 'email');
 		if (!emailFields.email) {
 			continue;
 		}
 
-		const levelFields = mapLevelToRowFields(record.get(levelColumn));
-		const profilesFields = mapProfilesToRowFields(record.get(profilesColumn));
+		const levelFields = mapLevelToRowFields(record.get(levelColumn), 'level');
+		const profilesFields = mapProfilesToRowFields(
+			record.get(profilesColumn),
+			'profiles',
+		);
 		rows.push({
 			...emailFields,
 			...levelFields,
@@ -809,18 +829,22 @@ export const buildSubmitInvitations = (
 export const buildInviteTemplateCsv = (): string =>
 	'email,level,profiles\nuser@example.com,user,Alpha; Beta\nadmin@example.com,admin,\n';
 
-/** Renders an `InvalidCell` into a human-readable message naming the cell and
- * value so the importer knows what to fix in their file. */
+/** Renders an `InvalidCell` into a human-readable message naming the column (and the
+ * cell reference when one exists) so the importer knows what to fix in their file.
+ * For CSV, the column header name replaces the absent cell reference; for XLSX both
+ * are available. */
 export const renderInvalidCellMessage = (
 	invalidCell: InvalidCell,
 	t: (key: string, options?: Record<string, unknown>) => string,
 ): string =>
 	invalidCell.kind === 'boolean'
 		? t('invite-invalid-cell-boolean', {
+				column: invalidCell.column,
 				cell: invalidCell.cell,
 				value: invalidCell.value,
 			})
 		: t('invite-invalid-cell-error', {
+				column: invalidCell.column,
 				cell: invalidCell.cell,
 				value: invalidCell.value,
 			});
