@@ -150,7 +150,12 @@ const RUN_PREUVES_FILE = fileURLToPath(
 // Anchors that delimit the `declaredProofTests` function body. If these
 // drift, the proof must NOT silently fall back to a "conformant" default —
 // it must fail loud naming the drift.
-const FUNCTION_HEADER = 'function declaredProofTests(): string[] {';
+//
+// The production function is a const arrow (func-style #1834 turned every
+// top-level function in run-preuves.mts into `const x = (): T => {`), so the
+// header anchor matches the arrow form exactly; a revert to a `function`
+// declaration would re-drift the anchor and the proof fails loud.
+const FUNCTION_HEADER = 'const declaredProofTests = (): string[] => {';
 const FUNCTION_FOOTER =
 	'	// Every file added or modified under tests/proofs/ is a declared proof.';
 
