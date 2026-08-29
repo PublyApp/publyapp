@@ -225,6 +225,26 @@ function declaredProofTests(): string[] {
 		}
 	}
 
+	// A half-set CI environment (exactly one of GITHUB_BASE_REF /
+	// GITHUB_HEAD_REF defined) is a BROKEN environment, not a local run.
+	// The old code silently fell through to the local HEAD~1..HEAD diff in
+	// that case, printed "This PR did not declare any paired red proofs"
+	// and exited 0 while CI believed the declaration check had run: a false
+	// green that verified nothing (precedent: #1806 ronde 9). Fail loud
+	// naming the missing variable — the operator must fix the workflow
+	// rather than inherit a diff scope the PR author never intended.
+	const baseRefEnv = process.env.GITHUB_BASE_REF;
+	const headRefEnv = process.env.GITHUB_HEAD_REF;
+	if (Boolean(baseRefEnv) !== Boolean(headRefEnv)) {
+		throw new Error(
+			`incomplete CI environment: GITHUB_BASE_REF and GITHUB_HEAD_REF must ` +
+				`be set together, but ${baseRefEnv ? 'GITHUB_HEAD_REF' : 'GITHUB_BASE_REF'} is ` +
+				`missing. A half-set environment cannot determine the PR diff scope ` +
+				`and must not fall back to a local diff silently. Fix the workflow ` +
+				`to export both variables, or unset both for a local run.`,
+		);
+	}
+
 	// Get the list of files changed by this PR.
 	let changedFiles: string[];
 	try {
@@ -296,6 +316,15 @@ function declaredProofTests(): string[] {
 				.map((f) => f.trim())
 				.filter((f) => f.length > 0);
 		} else {
+			// Local development: neither variable is defined. Announce this
+			// loudly so a local run is never mistaken for the CI declaration
+			// check, and so the "no proofs declared" conclusion below cannot
+			// be read as a CI verdict (precedent: #1806 ronde 9).
+			console.error(
+				`LOCAL RUN (GITHUB_BASE_REF/GITHUB_HEAD_REF unset) — using the ` +
+					`HEAD~1..HEAD diff of the most recent commit. This is a developer ` +
+					`fallback, not the CI declaration check.`,
+			);
 			// Local development: diff the most recent commit.
 			const diffOutput = execSync(
 				`git -C "${ROOT}" diff --name-only HEAD~1 HEAD`,
@@ -396,14 +425,28 @@ if (!existsSync(PROOFS_DIR)) {
 const declared = declaredProofTests();
 
 if (declared.length === 0) {
-	// Proofs exist in the repo, but this PR did not declare any.
-	console.log(
-		'This PR did not declare any paired red proofs (no proof files added or modified).',
-	);
-	console.log(
-		'Proof tests are versionned under tests/proofs/; this PR did not touch any of them.',
-	);
-	console.log('This step is an explicit no-op for PRs that do not declare a proof.');
+	// Proofs exist in the repo, but no proof files changed in scope.
+	// The message must distinguish a LOCAL diff-scope check from the CI
+	// declaration check: "no proofs in HEAD~1..HEAD" is not a CI verdict
+	// and must never be read as one (precedent: #1806 ronde 9).
+	const isLocalRun = !process.env.GITHUB_BASE_REF && !process.env.GITHUB_HEAD_REF;
+	if (isLocalRun) {
+		console.log(
+			'LOCAL RUN — no proof test files changed in HEAD~1..HEAD (local diff scope).',
+		);
+		console.log(
+			'This is NOT the CI declaration check; it only replays proofs touched ' +
+				'by the most recent commit. CI declares proofs from the full base..HEAD diff.',
+		);
+	} else {
+		console.log(
+			'This PR did not declare any paired red proofs (no proof files added or modified).',
+		);
+		console.log(
+			'Proof tests are versionned under tests/proofs/; this PR did not touch any of them.',
+		);
+		console.log('This step is an explicit no-op for PRs that do not declare a proof.');
+	}
 	process.exit(0);
 }
 
