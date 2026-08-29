@@ -159,6 +159,8 @@ const TRANSLATIONS: TestLabelMap = {
 	'tenant-profile-bulk-delete-partial-success':
 		'Deleted {{succeeded}} profile(s), {{failed}} failed.',
 	'tenant-profile-bulk-delete-failure': 'Failed to delete selected profiles.',
+	'bulk-action-rows-may-leave-filter':
+		'Some rows may no longer appear in the filtered view.',
 	'bulk-delete-disabled-only-default-profiles':
 		'Default profiles cannot be bulk-deleted.',
 	'bulk-action-max-count-exceeded':
@@ -848,6 +850,7 @@ describe('staff tenant profiles route', () => {
 		);
 		expect(mocks.toastSuccess).toHaveBeenCalledWith(
 			'Successfully deleted 1 profile(s).',
+			'Some rows may no longer appear in the filtered view.',
 		);
 		expect(mocks.toastSuccess).toHaveBeenCalledTimes(1);
 		expect(screen.queryByText('Successfully deleted 1 profile(s).')).toBeNull();
@@ -889,6 +892,7 @@ describe('staff tenant profiles route', () => {
 		);
 		expect(mocks.toastError).toHaveBeenCalledWith(
 			'Deleted 1 profile(s), 1 failed.',
+			'Some rows may no longer appear in the filtered view.',
 		);
 		expect(mocks.toastError).toHaveBeenCalledTimes(1);
 		expect(screen.queryByText('Deleted 1 profile(s), 1 failed.')).toBeNull();
@@ -928,9 +932,14 @@ describe('staff tenant profiles route', () => {
 				profileIds: ['profile-2'],
 			}),
 		);
+		// Total failure (succeededCount === 0): no row left the view, so
+		// the filter-leave warning is suppressed -- only the plain failure
+		// message rides, with an explicit undefined second arg.
 		expect(mocks.toastError).toHaveBeenCalledWith(
 			'Deleted 0 profile(s), 1 failed.',
+			undefined,
 		);
+		expect(mocks.toastError.mock.calls[0]).toHaveLength(2);
 		expect(mocks.toastError).toHaveBeenCalledTimes(1);
 		expect(screen.queryByText('Deleted 0 profile(s), 1 failed.')).toBeNull();
 	});

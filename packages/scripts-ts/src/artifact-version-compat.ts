@@ -196,6 +196,12 @@ const collectArtifactSteps = async (
 		const document = parse(raw);
 		const jobs = document?.jobs ?? {};
 
+		// Track which source lines have already been consumed by a step.
+		// Without this, two steps pinning the same repo@sha would resolve to
+		// the FIRST `uses:` line in the file — so the second step would silently
+		// inherit the first step's version comment. (#1742)
+		const consumedLines = new Set<number>();
+
 		for (const jobId of Object.keys(jobs).sort()) {
 			const jobSteps = jobs[jobId]?.steps ?? [];
 
@@ -212,15 +218,24 @@ const collectArtifactSteps = async (
 						: `step#${index}`;
 				const stepPath = `${file}::${jobId}::${stepName}`;
 
-				// Find the raw `uses:` line in the source text to extract the version comment.
-				const usesLine = lines.find(
-					(line) =>
-						line.includes('uses:') && line.includes(uses.split('#')[0].trim()),
+				// Find the raw `uses:` line in the source text to extract the
+				// version comment. Skip lines already consumed by a previous step
+				// so each step resolves to its OWN version comment, not the first
+				// matching line in the file.
+				const repoSha = uses.split('#')[0].trim();
+				const usesLineIndex = lines.findIndex(
+					(line, lineIndex) =>
+						!consumedLines.has(lineIndex) &&
+						line.includes('uses:') &&
+						line.includes(repoSha),
 				);
 
-				if (usesLine === undefined) {
+				if (usesLineIndex === -1) {
 					continue;
 				}
+
+				consumedLines.add(usesLineIndex);
+				const usesLine = lines[usesLineIndex];
 
 				const parsed = parseUsesLine(usesLine);
 				const repoFromUses = uses.split('@')[0];

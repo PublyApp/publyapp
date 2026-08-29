@@ -197,15 +197,21 @@ export const StaffUsersListBulkActions = ({
 		const failedCount = result?.failedCount ?? 0;
 
 		if (failedCount > 0) {
+			// Only hint that rows may leave the filtered view when at least
+			// one row actually changed state. On a total failure
+			// (succeededCount === 0) nothing left the view, so the hint
+			// would contradict the leading count message.
 			toastLocalMutationResult.error(
 				t(STAFF_USER_BULK_PARTIAL_SUCCESS_KEYS[action], {
 					succeeded: succeededCount,
 					failed: failedCount,
 				}),
+				succeededCount > 0 ? t('bulk-action-rows-may-leave-filter') : undefined,
 			);
 		} else {
 			toastLocalMutationResult.success(
 				t(STAFF_USER_BULK_SUCCESS_KEYS[action], { count: succeededCount }),
+				t('bulk-action-rows-may-leave-filter'),
 			);
 		}
 

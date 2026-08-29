@@ -263,15 +263,23 @@ const OrganizationsBulkActions = ({
 					t('tenant-user-company-bulk-remove-success', {
 						count: summary.succeededCount,
 					}),
+					t('bulk-action-rows-may-leave-filter'),
 				);
 				return;
 			}
 
+			// Only hint that rows may leave the filtered view when at least
+			// one row actually changed state. On a total failure
+			// (succeededCount === 0) nothing left the view, so the hint
+			// would contradict the leading count message.
 			toastLocalMutationResult.error(
 				t('tenant-user-company-bulk-remove-partial-success', {
 					succeeded: summary.succeededCount,
 					failed: summary.failedCount,
 				}),
+				summary.succeededCount > 0
+					? t('bulk-action-rows-may-leave-filter')
+					: undefined,
 			);
 		} catch (error) {
 			setOpen(false);

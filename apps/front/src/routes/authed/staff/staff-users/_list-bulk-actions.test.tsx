@@ -117,6 +117,8 @@ vi.mock('react-i18next', () => ({
 					'Only suspended staff members can be deleted. Clear active users from the selection first.',
 				'bulk-action-max-count-exceeded':
 					'Reduce your selection to at most {{max}} items ({{count}} selected).',
+				'bulk-action-rows-may-leave-filter':
+					'Some rows may no longer appear in the filtered view.',
 			};
 
 			return (labels[key] ?? key).replace(/\{\{(\w+)\}\}/g, (_, name: string) =>
@@ -300,6 +302,7 @@ describe('#820 StaffUsersListBulkActions', () => {
 		await waitFor(() =>
 			expect(mocks.toastSuccess).toHaveBeenCalledWith(
 				'Successfully suspended 1 staff member(s).',
+				'Some rows may no longer appear in the filtered view.',
 			),
 		);
 		await waitFor(() =>
@@ -337,6 +340,7 @@ describe('#820 StaffUsersListBulkActions', () => {
 		await waitFor(() =>
 			expect(mocks.toastError).toHaveBeenCalledWith(
 				'Reactivated 1 staff member(s), 2 failed.',
+				'Some rows may no longer appear in the filtered view.',
 			),
 		);
 		expect(mocks.toastSuccess).not.toHaveBeenCalled();
