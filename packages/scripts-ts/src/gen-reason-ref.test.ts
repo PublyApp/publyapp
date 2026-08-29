@@ -1,0 +1,389 @@
+import assert from 'node:assert/strict';
+import { execFile } from 'node:child_process';
+import { mkdir, mkdtemp, readFile, writeFile } from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
+import { promisify } from 'node:util';
+
+import { test } from 'vitest';
+
+const execFileAsync = promisify(execFile);
+
+// Absolute path to the script. Resolved from repo root (../../ from packages/scripts-ts).
+const repoRoot = path.resolve(process.cwd(), '../..');
+const scriptPath = path.resolve(
+	repoRoot,
+	'packages/scripts-ts/src/gen-reason-ref.ts',
+);
+
+const manifestPath = 'packages/scripts-ts/src/ci-gate-manifest.json';
+const outputPath = 'packages/scripts-ts/src/reason-guard-ref.json';
+const removalsPath = 'packages/scripts-ts/src/ci-gate-removals.json';
+
+/**
+ * Builds a throwaway git repo with a manifest and optional reference file.
+ * Returns the root directory.
+ */
+const buildRepo = async ({
+	manifestSteps,
+	reference,
+	removals,
+}: {
+	manifestSteps: Record<string, unknown>;
+	reference?: { pinned_step_ids?: string[]; steps?: Record<string, unknown> };
+	removals?: { steps: Array<{ step_id: string; reason: string }> };
+}): Promise<string> => {
+	const rootDir = await mkdtemp(path.join(os.tmpdir(), 'publyapp-gen-ref-'));
+
+	await mkdir(path.join(rootDir, '.git'), { recursive: true });
+	await mkdir(path.join(rootDir, 'packages/scripts-ts/src'), {
+		recursive: true,
+	});
+
+	// Initialize a git repo with one commit so `git show HEAD:` works.
+	await execFileAsync('git', ['init'], { cwd: rootDir });
+	await execFileAsync('git', ['config', 'user.email', 'test@test.test'], {
+		cwd: rootDir,
+	});
+	await execFileAsync('git', ['config', 'user.name', 'Test'], {
+		cwd: rootDir,
+	});
+
+	// Write the manifest.
+	await writeFile(
+		path.join(rootDir, manifestPath),
+		JSON.stringify({ steps: manifestSteps }, null, '\t'),
+	);
+
+	// Write the reference file (optional).
+	if (reference) {
+		await writeFile(
+			path.join(rootDir, outputPath),
+			JSON.stringify(reference, null, '\t'),
+		);
+	}
+
+	// Write the removals file (optional).
+	if (removals) {
+		await writeFile(
+			path.join(rootDir, removalsPath),
+			JSON.stringify(removals, null, '\t'),
+		);
+	}
+
+	// Commit everything so HEAD exists.
+	await execFileAsync('git', ['add', '.'], { cwd: rootDir });
+	await execFileAsync('git', ['commit', '-m', 'initial'], { cwd: rootDir });
+
+	return rootDir;
+};
+
+/**
+ * Runs the gen-reason-ref.ts script in the given repo root.
+ * The script reads from cwd, so we pass rootDir as cwd.
+ * Returns { stdout, stderr, exitCode } — never throws on non-zero exit.
+ */
+const runScript = async (rootDir: string) => {
+	try {
+		const { stdout, stderr } = await execFileAsync('node', [scriptPath], {
+			cwd: rootDir,
+			encoding: 'utf8',
+		});
+		return { stdout, stderr, exitCode: 0 };
+	} catch (error: unknown) {
+		const e = error as { stdout?: string; stderr?: string; code?: number };
+		return {
+			stdout: e.stdout ?? '',
+			stderr: e.stderr ?? '',
+			exitCode: e.code ?? 1,
+		};
+	}
+};
+
+test('integrity assertion: fails when pinned_step_ids has ID missing from steps{}', async () => {
+	const rootDir = await buildRepo({
+		manifestSteps: {
+			'fixture.yml::build::Step A': {
+				hash: 'abc123',
+				mirror: 'just ci',
+				reason: 'Step A reason text.',
+			},
+		},
+		reference: {
+			pinned_step_ids: ['fixture.yml::build::Step A', 'vanished-step'],
+			steps: {
+				'fixture.yml::build::Step A': {
+					reason_hash: 'hash',
+					reason_length: 10,
+				},
+			},
+		},
+	});
+
+	const result = await runScript(rootDir);
+
+	assert.equal(
+		result.stderr.includes('Integrity check failed') ||
+			result.stdout.includes('Integrity check failed'),
+		true,
+		'Expected integrity check failure',
+	);
+});
+
+test('integrity assertion: fails when steps{} has ID missing from pinned_step_ids', async () => {
+	const rootDir = await buildRepo({
+		manifestSteps: {
+			'fixture.yml::build::Step A': {
+				hash: 'abc123',
+				mirror: 'just ci',
+				reason: 'Step A reason text.',
+			},
+			'fixture.yml::build::Step B': {
+				hash: 'def456',
+				mirror: 'just ci',
+				reason: 'Step B reason text.',
+			},
+		},
+		reference: {
+			pinned_step_ids: ['fixture.yml::build::Step A'],
+			steps: {
+				'fixture.yml::build::Step A': {
+					reason_hash: 'hash',
+					reason_length: 10,
+				},
+				'fixture.yml::build::Step B': {
+					reason_hash: 'hash2',
+					reason_length: 10,
+				},
+			},
+		},
+	});
+
+	const result = await runScript(rootDir);
+
+	assert.equal(
+		result.stderr.includes('Integrity check failed') ||
+			result.stdout.includes('Integrity check failed'),
+		true,
+		'Expected integrity check failure',
+	);
+});
+
+test('git floor: cannot lower pinned_step_ids in the same commit', async () => {
+	const rootDir = await buildRepo({
+		manifestSteps: {
+			'fixture.yml::build::Step A': {
+				hash: 'abc123',
+				mirror: 'just ci',
+				reason: 'Step A reason text.',
+			},
+		},
+		reference: {
+			pinned_step_ids: [
+				'fixture.yml::build::Step A',
+				'fixture.yml::build::Step B',
+			],
+			steps: {
+				'fixture.yml::build::Step A': {
+					reason_hash: 'hash',
+					reason_length: 10,
+				},
+				'fixture.yml::build::Step B': {
+					reason_hash: 'hash2',
+					reason_length: 10,
+				},
+			},
+		},
+	});
+
+	const result = await runScript(rootDir);
+
+	assert.equal(
+		result.stderr.includes('Refusing to regenerate') ||
+			result.stdout.includes('Refusing to regenerate'),
+		true,
+		'Expected refusal to regenerate',
+	);
+});
+
+test('git floor: confession with valid reason allows removal', async () => {
+	const rootDir = await buildRepo({
+		manifestSteps: {
+			'fixture.yml::build::Step A': {
+				hash: 'abc123',
+				mirror: 'just ci',
+				reason: 'Step A reason text.',
+			},
+		},
+		reference: {
+			pinned_step_ids: [
+				'fixture.yml::build::Step A',
+				'fixture.yml::build::Step B',
+			],
+			steps: {
+				'fixture.yml::build::Step A': {
+					reason_hash: 'hash',
+					reason_length: 10,
+				},
+				'fixture.yml::build::Step B': {
+					reason_hash: 'hash2',
+					reason_length: 10,
+				},
+			},
+		},
+		removals: {
+			steps: [
+				{
+					step_id: 'fixture.yml::build::Step B',
+					reason:
+						'Step B was a duplicate verification step that was consolidated into Step A. The coverage is preserved.',
+				},
+			],
+		},
+	});
+
+	const result = await runScript(rootDir);
+
+	assert.equal(
+		result.stderr.includes('Refusing to regenerate'),
+		false,
+		'Expected success',
+	);
+	assert.equal(
+		result.stdout.includes('Regenerated'),
+		true,
+		'Expected regeneration',
+	);
+});
+
+test('confession quality bar: reason shorter than 24 chars fails', async () => {
+	const rootDir = await buildRepo({
+		manifestSteps: {
+			'fixture.yml::build::Step A': {
+				hash: 'abc123',
+				mirror: 'just ci',
+				reason: 'Step A reason text.',
+			},
+		},
+		reference: {
+			pinned_step_ids: [
+				'fixture.yml::build::Step A',
+				'fixture.yml::build::Step B',
+			],
+			steps: {
+				'fixture.yml::build::Step A': {
+					reason_hash: 'hash',
+					reason_length: 10,
+				},
+				'fixture.yml::build::Step B': {
+					reason_hash: 'hash2',
+					reason_length: 10,
+				},
+			},
+		},
+		removals: {
+			steps: [
+				{
+					step_id: 'fixture.yml::build::Step B',
+					reason: 'x',
+				},
+			],
+		},
+	});
+
+	const result = await runScript(rootDir);
+
+	assert.equal(
+		result.stderr.includes('shorter than 24 characters') ||
+			result.stdout.includes('shorter than 24 characters'),
+		true,
+		'Expected quality bar failure',
+	);
+});
+
+test('malformed confession: invalid JSON fails loudly', async () => {
+	const rootDir = await buildRepo({
+		manifestSteps: {
+			'fixture.yml::build::Step A': {
+				hash: 'abc123',
+				mirror: 'just ci',
+				reason: 'Step A reason text.',
+			},
+		},
+		reference: {
+			pinned_step_ids: [
+				'fixture.yml::build::Step A',
+				'fixture.yml::build::Step B',
+			],
+			steps: {
+				'fixture.yml::build::Step A': {
+					reason_hash: 'hash',
+					reason_length: 10,
+				},
+				'fixture.yml::build::Step B': {
+					reason_hash: 'hash2',
+					reason_length: 10,
+				},
+			},
+		},
+	});
+
+	await writeFile(path.join(rootDir, removalsPath), '{ invalid json }');
+
+	await execFileAsync('git', ['add', '.'], { cwd: rootDir });
+	await execFileAsync('git', ['commit', '-m', 'malformed'], { cwd: rootDir });
+
+	const result = await runScript(rootDir);
+
+	assert.equal(
+		result.stderr.includes('Malformed JSON') ||
+			result.stdout.includes('Malformed JSON'),
+		true,
+		'Expected malformed JSON error',
+	);
+});
+
+test('malformed confession: missing steps array fails loudly', async () => {
+	const rootDir = await buildRepo({
+		manifestSteps: {
+			'fixture.yml::build::Step A': {
+				hash: 'abc123',
+				mirror: 'just ci',
+				reason: 'Step A reason text.',
+			},
+		},
+		reference: {
+			pinned_step_ids: [
+				'fixture.yml::build::Step A',
+				'fixture.yml::build::Step B',
+			],
+			steps: {
+				'fixture.yml::build::Step A': {
+					reason_hash: 'hash',
+					reason_length: 10,
+				},
+				'fixture.yml::build::Step B': {
+					reason_hash: 'hash2',
+					reason_length: 10,
+				},
+			},
+		},
+	});
+
+	await writeFile(
+		path.join(rootDir, removalsPath),
+		JSON.stringify({ not_steps: [] }, null, '\t'),
+	);
+
+	await execFileAsync('git', ['add', '.'], { cwd: rootDir });
+	await execFileAsync('git', ['commit', '-m', 'no-steps'], { cwd: rootDir });
+
+	const result = await runScript(rootDir);
+
+	assert.equal(
+		result.stderr.includes('must have a `steps` array') ||
+			result.stdout.includes('must have a `steps` array'),
+		true,
+		'Expected missing steps array error',
+	);
+});

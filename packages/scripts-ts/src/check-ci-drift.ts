@@ -95,44 +95,85 @@ const getReasonGuardProblem = (
 };
 
 /**
- * Reads the removals confession file, if it exists. Returns null when the file
- * is absent — the absence of a confession is what makes the ratchet hold.
+ * Reads and validates the removals confession file.
+ * Returns null when the file does not exist (no confession).
+ * Throws when the file exists but is malformed — a malformed confession must
+ * never silently lower the floor.
+ *
+ * Validation rules:
+ *   - The file must be valid JSON.
+ *   - It must be an object with a `steps` array.
+ *   - Each entry must have a non-empty `step_id` and a `reason` of at least
+ *     24 characters (aligned with the repo's existing bar on lint suppressions).
  */
 const readRemovalsConfession = async (
 	rootDir: string,
 ): Promise<RemovalsConfession | null> => {
+	let raw: string;
 	try {
-		const raw = await readFile(path.join(rootDir, removalsPath), 'utf8');
-		const parsed = JSON.parse(raw) as unknown;
-
-		if (
-			parsed === null ||
-			typeof parsed !== 'object' ||
-			Array.isArray(parsed)
-		) {
+		raw = await readFile(path.join(rootDir, removalsPath), 'utf8');
+	} catch (error) {
+		if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
 			return null;
 		}
-
-		const record = parsed as Record<string, unknown>;
-
-		if (!Array.isArray(record.steps)) {
-			return null;
-		}
-
-		return {
-			steps: record.steps.map((entry: unknown) => {
-				const e = entry as Record<string, unknown>;
-				return {
-					step_id: typeof e.step_id === 'string' ? e.step_id : '',
-					reason: typeof e.reason === 'string' ? e.reason : '',
-					removed_at:
-						typeof e.removed_at === 'string' ? e.removed_at : undefined,
-				};
-			}),
-		};
-	} catch {
-		return null;
+		throw new Error(
+			`Cannot read confession file ${removalsPath}: ${error instanceof Error ? error.message : String(error)}.`,
+		);
 	}
+
+	let parsed: unknown;
+	try {
+		parsed = JSON.parse(raw);
+	} catch (error) {
+		throw new Error(
+			`Malformed JSON in confession file ${removalsPath}: ${error instanceof Error ? error.message : String(error)}. Fix the JSON syntax.`,
+		);
+	}
+
+	if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) {
+		throw new Error(
+			`Confession file ${removalsPath} must be a JSON object with a \`steps\` array.`,
+		);
+	}
+
+	const record = parsed as Record<string, unknown>;
+
+	if (!Array.isArray(record.steps)) {
+		throw new Error(
+			`Confession file ${removalsPath} must have a \`steps\` array.`,
+		);
+	}
+
+	const steps: RemovalsConfession['steps'] = [];
+	for (const entry of record.steps) {
+		if (entry === null || typeof entry !== 'object' || Array.isArray(entry)) {
+			throw new Error(
+				`Confession file ${removalsPath}: each entry in \`steps\` must be an object.`,
+			);
+		}
+
+		const e = entry as Record<string, unknown>;
+		const stepId = typeof e.step_id === 'string' ? e.step_id : '';
+		const reason = typeof e.reason === 'string' ? e.reason : '';
+		const removedAt =
+			typeof e.removed_at === 'string' ? e.removed_at : undefined;
+
+		if (stepId === '') {
+			throw new Error(
+				`Confession file ${removalsPath}: each entry must have a non-empty \`step_id\`.`,
+			);
+		}
+
+		if (reason.trim().length < minimumReasonLength) {
+			throw new Error(
+				`Confession file ${removalsPath}: entry "${stepId}" has a reason shorter than ${minimumReasonLength} characters. A valid confession must name what was lost and why.`,
+			);
+		}
+
+		steps.push({ step_id: stepId, reason, removed_at: removedAt });
+	}
+
+	return { steps };
 };
 
 /**
@@ -165,7 +206,18 @@ const getRatchetProblems = async (
 		return findings;
 	}
 
-	const confession = await readRemovalsConfession(rootDir);
+	let confession: RemovalsConfession | null;
+	try {
+		confession = await readRemovalsConfession(rootDir);
+	} catch (error) {
+		// A malformed confession file must never silently lower the floor.
+		// Report it as a named finding so the guard fails loudly.
+		findings.push(
+			`CONFESSION ERROR\n    The confession file ${removalsPath} is malformed and cannot be parsed: ${error instanceof Error ? error.message : String(error)}. Fix the confession file — a malformed confession cannot be accepted as a reason to lower the floor.`,
+		);
+		return findings;
+	}
+
 	const confessedIds = new Set(confession?.steps.map((s) => s.step_id) ?? []);
 
 	for (const id of pinned) {
