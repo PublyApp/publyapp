@@ -13,6 +13,7 @@ import type { ParsedSessionTokens } from '@org/shared-ts/lib/session/parse';
 // NOT a const arrow. vi.hoisted() runs at module load time and references
 // createQueryResult before a const arrow's initializer would run (temporal
 // dead zone). This is the one hoisting exception the brief allows.
+// eslint-disable-next-line func-style
 function createQueryResult(overrides: {
 	data: string | null | undefined;
 	isLoading?: boolean;
