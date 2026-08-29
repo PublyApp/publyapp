@@ -407,9 +407,9 @@ export const parseInviteWorkbook = (bytes: Uint8Array): ParseInviteResult => {
 	);
 
 	const rows: ParsedInviteRow[] = [];
-	const rawRecords: Array<Record<number, RawCell>> = [];
+	const rawRecords: Array<Map<number, RawCell>> = [];
 	for (const rowXml of textContents(sheetXml, 'row')) {
-		const cells: Record<number, RawCell> = {};
+		const cells = new Map<number, RawCell>();
 		const cellPattern = /<c\b([^>]*)(?:\/>|>([\s\S]*?)<\/c>)/g;
 		let cellMatch = cellPattern.exec(rowXml);
 		while (cellMatch) {
@@ -453,17 +453,20 @@ export const parseInviteWorkbook = (bytes: Uint8Array): ParseInviteResult => {
 			}
 
 			if (refIndex >= 0) {
-				cells[refIndex] = {
+				const cell: RawCell = {
 					value: value.trim(),
-					...(cellType ? { type: cellType } : {}),
 					ref: cellRef,
 				};
+				if (cellType) {
+					cell.type = cellType;
+				}
+				cells.set(refIndex, cell);
 			}
 
 			cellMatch = cellPattern.exec(rowXml);
 		}
 
-		if (Object.keys(cells).length === 0) {
+		if (cells.size === 0) {
 			continue;
 		}
 
@@ -473,7 +476,7 @@ export const parseInviteWorkbook = (bytes: Uint8Array): ParseInviteResult => {
 	// Columns are located through the header row's own positions so sparse
 	// sheets (blank columns between email/level/profiles) stay aligned.
 	const headerRecord = rawRecords.find((record) =>
-		Object.values(record).some(
+		Array.from(record.values()).some(
 			(cell) => cell.value.trim().toLowerCase() === 'email',
 		),
 	);
@@ -482,7 +485,7 @@ export const parseInviteWorkbook = (bytes: Uint8Array): ParseInviteResult => {
 	}
 
 	const columnIndexOf = (headerName: string): number => {
-		for (const [key, cell] of Object.entries(headerRecord)) {
+		for (const [key, cell] of headerRecord.entries()) {
 			if (cell.value.trim().toLowerCase() === headerName) {
 				return Number(key);
 			}
@@ -499,17 +502,17 @@ export const parseInviteWorkbook = (bytes: Uint8Array): ParseInviteResult => {
 			continue;
 		}
 
-		const emailFields = mapEmailToRowField(record[emailColumn]);
+		const emailFields = mapEmailToRowField(record.get(emailColumn));
 		if (!emailFields.email) {
 			continue;
 		}
 
-		const levelFields = mapLevelToRowFields(record[levelColumn]);
+		const levelFields = mapLevelToRowFields(record.get(levelColumn));
 		rows.push({
 			...emailFields,
 			...levelFields,
 			invalidCell: emailFields.invalidCell ?? levelFields.invalidCell,
-			profileNames: splitProfileNames(record[profilesColumn]?.value ?? ''),
+			profileNames: splitProfileNames(record.get(profilesColumn)?.value ?? ''),
 		});
 	}
 
