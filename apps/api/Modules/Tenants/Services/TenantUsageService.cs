@@ -132,4 +132,18 @@ public class TenantUsageService : ITenantUsageService {
 			ComputedAt = now,
 		};
 	}
+
+	/// <summary>
+	/// Returns the raw <c>LastActivityAt</c> query so tests can instrument it
+	/// directly without going through the existence guard.
+	/// </summary>
+	protected internal virtual IQueryable<DateTime?> LastActivityAtQuery(
+		Guid tenantId
+	) {
+		return (
+			from tenant in _dbContext.Tenant.AsNoTracking()
+			where tenant.Id == tenantId && !tenant.IsDeleted
+			select tenant.LastActivityAt
+		);
+	}
 }

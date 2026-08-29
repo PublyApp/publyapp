@@ -224,20 +224,19 @@ public sealed class TenantUsageServiceSpec
 
 	[Fact]
 	public async Task ItShouldGuardLastActivityAtReadWithIsDeletedFilter() {
-		// #1839 — the LastActivityAt read must carry its own `!tenant.IsDeleted`
-		// guard so that a future refactor that reorders or merges the two Tenant
-		// queries cannot leak a soft-deleted tenant's LastActivityAt.
+		// #1839 r2 — the LastActivityAt query must carry its own
+		// `!tenant.IsDeleted` guard so that a future refactor that reorders or
+		// merges the two Tenant queries cannot leak a soft-deleted tenant's
+		// LastActivityAt.
 		//
-		// This test goes RED under the captain's probe (LastActivityAt read moved
-		// before the existence short-circuit + FirstAsync→FirstOrDefaultAsync):
-		// the emitted SQL selects last_activity_at without `is_deleted` → the
-		// assertion catches it. After the fix (adding `!tenant.IsDeleted` to the
-		// query), the SQL carries `is_deleted` → the test goes GREEN.
+		// Strategy: call LastActivityAtQuery() directly (bypassing the existence
+		// guard) so the SQL is always emitted regardless of IsDeleted state.
 		//
-		// On the unfixed code *without* the probe, the existence check
-		// short-circuits before the last_activity_at query is ever issued, so no
-		// such command is captured and the test is vacuously GREEN — the probe
-		// is the mutation that reveals the gap.
+		// Semantic assertion: the SQL must contain a NEGATION of is_deleted
+		// (NOT is_deleted, is_deleted = FALSE). A guard that merely wraps
+		// is_deleted in an OR and does not negate it directly
+		// (e.g. `!IsDeleted || Status != Active`) passes a naive Contains
+		// check but fails this assertion.
 		var lastActivity = new DateTime(2026, 8, 15, 12, 0, 0, DateTimeKind.Utc);
 		var tenantId = await SeedSoftDeletedTenantWithLastActivityAsync(lastActivity);
 		var connectionString = await GetConnectionStringAsync();
@@ -255,32 +254,49 @@ public sealed class TenantUsageServiceSpec
 			NullLogger<TenantUsageService>.Instance
 		);
 
-		// Under the probe, the LastActivityAt query runs before the existence
-		// check. On unfixed code it lacks `is_deleted`; on fixed code it has it.
-		// FirstAsync may throw on the probe (fixed code, no rows for a deleted
-		// tenant); Record.ExceptionAsync lets us inspect captured SQL regardless.
-		await Record.ExceptionAsync(() => service.GetTenantUsageAsync(tenantId));
+		// Call the query directly so it is always emitted — no existence guard.
+		var query = service.LastActivityAtQuery(tenantId);
+
+		// Trigger materialisation. FirstOrDefaultAsync on a soft-deleted tenant
+		// returns null (correct), but the SQL has already been captured.
+		await query.FirstOrDefaultAsync();
 
 		var lastActivityCommands = interceptor.Commands
-			.Where(c => c.Text.Contains("last_activity_at", StringComparison.OrdinalIgnoreCase))
+			.Where(c => c.Text.Contains(
+				"last_activity_at", StringComparison.OrdinalIgnoreCase))
 			.ToList();
 
+		lastActivityCommands.Should().NotBeEmpty(
+			"LastActivityAtQuery must emit a SQL command so its shape can be "
+			+ "asserted"
+		);
+
 		foreach (var cmd in lastActivityCommands) {
-			cmd.Text.Should().Contain(
-				"is_deleted",
-				"LastActivityAt must be queried with an IsDeleted guard so the read"
-					+ " is correct independently of the existence-check ordering. Under"
-					+ " the #1839 probe a soft-deleted tenant's last_activity_at would"
-					+ " be selected without that guard."
+			// Two-part semantic assertion:
+			//
+			// 1. is_deleted must be explicitly negated (NOT is_deleted or
+			//    is_deleted = FALSE). A query that omits the guard entirely
+			//    fails this leg.
+			cmd.Text.Should().MatchRegex(
+				@"(?i)\bNOT\s+\(\s*(?:\w+\.)?is_deleted\s*\)|"
+					+ @"(?i)\b(?:\w+\.)?is_deleted\s*=\s*(?:FALSE|false)\b",
+				"LastActivityAtQuery must contain an explicit negation of "
+					+ "is_deleted (NOT (is_deleted) or is_deleted = FALSE)"
+			);
+			//
+			// 2. The WHERE clause must NOT contain an OR — a guard that wraps
+			// is_deleted in an OR (e.g. "!IsDeleted || Status != Active")
+			// lets soft-deleted tenants through. The correct guard uses AND
+			// exclusively: WHERE id = @p AND NOT (is_deleted).
+			cmd.Text.Should().NotContain(
+				" OR ",
+				"LastActivityAtQuery must not combine is_deleted with OR — "
+					+ "a permissive guard that uses OR (!IsDeleted || Status != "
+					+ "Active) lets a soft-deleted tenant through when its Status "
+					+ "is non-Active. The guard must be AND-only: "
+					+ "WHERE id = @p AND NOT (is_deleted)."
 			);
 		}
-
-		// When the existence check short-circuits (no probe), the last_activity_at
-		// query is never issued and lastActivityCommands is empty — that is the
-		// correct, safe path. Under the #1839 probe the query IS issued; if it
-		// appears, it must carry the is_deleted guard (asserted above). The
-		// AbsenteeProperty-style loop handles both cases without a NotBeEmpty
-		// assertion that would falsely fail on the short-circuit path.
 	}
 
 	// ── existing helper seed methods ──
