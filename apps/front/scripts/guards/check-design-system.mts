@@ -226,7 +226,9 @@ const statusMenuViolations = (
 		const menuText = node.getText(sourceFile);
 		const isStatusMenu =
 			/all-statuses/i.test(menuText) || containsStatusMap(node, sourceFile);
-		if (!isStatusMenu) {return;}
+		if (!isStatusMenu) {
+			return;
+		}
 
 		const items: (ts.JsxElement | ts.JsxSelfClosingElement)[] = [];
 		visitDescendants(node, (child) => {

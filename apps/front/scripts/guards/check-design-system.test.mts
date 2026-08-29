@@ -63,7 +63,9 @@ export const matchRunnerHandshake = (
 		);
 	}
 	const pidMatch = output.match(/^RUNNER_PID=(\d+)$/m);
-	if (!pidMatch) {return null;}
+	if (!pidMatch) {
+		return null;
+	}
 	const escaped = expectedNonce.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 	const rootMatch = output.match(
 		new RegExp(`^RUNNER_OWNED_ROOT=${escaped}:(\\S+)$`, 'm'),
@@ -274,7 +276,9 @@ export const killFixtureTreeFromReport = async (reportPath: string) => {
 		// The fixture never got far enough to report — nothing to kill.
 		return;
 	}
-	for (const pid of pids) {killProcessTree(pid);}
+	for (const pid of pids) {
+		killProcessTree(pid);
+	}
 };
 
 // Kill the whole process group first — the probe child is spawned
@@ -352,7 +356,9 @@ export const awaitExitWithinBudget = ({
 		}, budgetMs);
 		child.once('exit', (code: number | null, signal: NodeJS.Signals | null) => {
 			clearTimeout(timer);
-			if (graceTimer !== undefined) {clearTimeout(graceTimer);}
+			if (graceTimer !== undefined) {
+				clearTimeout(graceTimer);
+			}
 			if (expired) {
 				reject(new Error(timeoutMessage()));
 				return;
@@ -781,7 +787,9 @@ const runProbeHandshakeWiring = ({
 		);
 		stdout.on('data', onData);
 	});
-	for (const chunk of chunks) {stdout.emit('data', Buffer.from(chunk));}
+	for (const chunk of chunks) {
+		stdout.emit('data', Buffer.from(chunk));
+	}
 	return promise;
 };
 
@@ -1017,13 +1025,17 @@ test('fixture cleanup handles a failing node:test child process', async () => {
 	]);
 	const parents = [];
 	try {
-		for (const probe of probes) {parents.push(await probe.marker);}
+		for (const probe of probes) {
+			parents.push(await probe.marker);
+		}
 		const results = await Promise.all(probes.map((probe) => probe.exit));
 		for (const result of results) {
 			assert.notEqual(result.code, 0);
 			assert.equal(result.signal, null);
 		}
-		for (const parent of parents) {await assertParentGone(parent);}
+		for (const parent of parents) {
+			await assertParentGone(parent);
+		}
 	} finally {
 		for (const parent of parents)
 			{await rm(parent, { recursive: true, force: true });}

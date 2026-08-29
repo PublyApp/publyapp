@@ -237,7 +237,9 @@ const parseUnicodeRanges = (value: string): UnicodeRange[] => {
 	const ranges: UnicodeRange[] = [];
 	for (const token of value.split(',').map((entry) => entry.trim())) {
 		const match = /^U\+([0-9A-F]{2,6})(?:-([0-9A-F]{2,6}))?$/i.exec(token);
-		if (!match) {continue;}
+		if (!match) {
+			continue;
+		}
 		const start = Number.parseInt(match[1], 16);
 		const end = match[2] ? Number.parseInt(match[2], 16) : start;
 		ranges.push({ start, end });
@@ -297,7 +299,9 @@ const parseCmapSubtable = (subtable: Buffer): Set<number> => {
 	}
 
 	if (format === 0) {
-		if (subtable.length < 262) {return codepoints;}
+		if (subtable.length < 262) {
+			return codepoints;
+		}
 		for (let i = 0; i < 256; i += 1) {
 			if (subtable.readUInt8(6 + i) !== 0) {
 				codepoints.add(i);
@@ -307,7 +311,9 @@ const parseCmapSubtable = (subtable: Buffer): Set<number> => {
 	}
 
 	if (format === 4) {
-		if (subtable.length < 16) {return codepoints;}
+		if (subtable.length < 16) {
+			return codepoints;
+		}
 		const segCount = subtable.readUInt16BE(6) / 2;
 		const endCodesOffset = 14;
 		const startCodesOffset = endCodesOffset + segCount * 2 + 2;
@@ -354,7 +360,9 @@ const parseCmapSubtable = (subtable: Buffer): Set<number> => {
 	}
 
 	if (format === 6) {
-		if (subtable.length < 10) {return codepoints;}
+		if (subtable.length < 10) {
+			return codepoints;
+		}
 		const firstCode = subtable.readUInt16BE(6);
 		const entryCount = subtable.readUInt16BE(8);
 		for (let i = 0; i < entryCount; i += 1) {
@@ -367,11 +375,15 @@ const parseCmapSubtable = (subtable: Buffer): Set<number> => {
 	}
 
 	if (format === 12 || format === 13) {
-		if (subtable.length < 16) {return codepoints;}
+		if (subtable.length < 16) {
+			return codepoints;
+		}
 		const groupCount = subtable.readUInt32BE(12);
 		let groupOffset = 16;
 		for (let i = 0; i < groupCount; i += 1) {
-			if (groupOffset + 12 > subtable.length) {break;}
+			if (groupOffset + 12 > subtable.length) {
+				break;
+			}
 			const start = subtable.readUInt32BE(groupOffset);
 			const end = subtable.readUInt32BE(groupOffset + 4);
 			const glyphId = subtable.readUInt32BE(groupOffset + 8);
@@ -391,19 +403,27 @@ const parseCmapSubtable = (subtable: Buffer): Set<number> => {
 
 const parseCmapTable = (tableData: Buffer): Set<number> => {
 	const codepoints = new Set<number>();
-	if (tableData.length < 4) {return codepoints;}
-	if (tableData.readUInt16BE(0) > 1) {return codepoints;}
+	if (tableData.length < 4) {
+		return codepoints;
+	}
+	if (tableData.readUInt16BE(0) > 1) {
+		return codepoints;
+	}
 	const count = tableData.readUInt16BE(2);
 	let recordsOffset = 4;
 	const records = [];
 	for (let i = 0; i < count; i += 1) {
-		if (recordsOffset + 8 > tableData.length) {return codepoints;}
+		if (recordsOffset + 8 > tableData.length) {
+			return codepoints;
+		}
 		const offset = tableData.readUInt32BE(recordsOffset + 4);
 		records.push(offset);
 		recordsOffset += 8;
 	}
 	for (const offset of records) {
-		if (offset >= tableData.length) {continue;}
+		if (offset >= tableData.length) {
+			continue;
+		}
 		const subtable = tableData.subarray(offset);
 		for (const cp of parseCmapSubtable(subtable)) {
 			codepoints.add(cp);
