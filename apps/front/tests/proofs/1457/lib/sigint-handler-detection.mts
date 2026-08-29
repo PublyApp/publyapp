@@ -115,3 +115,92 @@ export function findHandlerLine(lines: string[]): number {
 export function isHandlerDeferred(line: string): boolean {
 	return !line.trim().startsWith('process.on(');
 }
+
+// Self-test: pin the detection contract at module load. See proof for
+// rationale. An adversary who weakens isHandlerDeferred or
+// findHandlerLine will see the module refuse to import, which makes
+// the proof's import throw and the runner classify the file as
+// CORRUPT PROOF (CI red) rather than silently green.
+//
+// Each check throws with a named cause so the operator can see
+// which contract broke. The self-test is a structural mirror of
+// the proof's own Step 3b / 4 / 4b sanity checks, lifted into the
+// shared module so a regression is caught at IMPORT time, before
+// any test in the proof runs.
+export function validateDetectionContract(): void {
+	// isHandlerDeferred: dot-notation is direct, every other form is
+	// deferred. The four cases below pin the contract.
+	const directDot = `process.on('SIGINT', () => {});`;
+	const bracketLine = `process['on']('SIGINT', () => {});`;
+	const setImmediateWrapped = `setImmediate(() => { process.on('SIGINT', () => {}); });`;
+	const awaitLine = `await something(); process.on('SIGINT', () => {});`;
+
+	if (isHandlerDeferred(directDot)) {
+		throw new Error(
+			`MESURE IMPOSSIBLE — sigint-handler-detection contract broken: ` +
+				`isHandlerDeferred classified a direct dot-notation handler as deferred. ` +
+				`The detection mechanism has regressed (always-true or accepting direct calls as deferred), and the proof cannot measure.`
+		);
+	}
+	if (!isHandlerDeferred(bracketLine)) {
+		throw new Error(
+			`MESURE IMPOSSIBLE — sigint-handler-detection contract broken: ` +
+				`isHandlerDeferred classified a bracket-notation handler as non-deferred. ` +
+				`The detection mechanism has regressed (accepts bracket notation as non-deferred), and the proof cannot measure.`
+		);
+	}
+	if (!isHandlerDeferred(setImmediateWrapped)) {
+		throw new Error(
+			`MESURE IMPOSSIBLE — sigint-handler-detection contract broken: ` +
+				`isHandlerDeferred classified a setImmediate-wrapped handler as non-deferred. ` +
+				`The detection mechanism has regressed (inverted or always-false), and the proof cannot measure.`
+		);
+	}
+	if (!isHandlerDeferred(awaitLine)) {
+		throw new Error(
+			`MESURE IMPOSSIBLE — sigint-handler-detection contract broken: ` +
+				`isHandlerDeferred classified an await-deferred handler as non-deferred. ` +
+				`The detection mechanism has regressed, and the proof cannot measure.`
+		);
+	}
+
+	// findHandlerLine: pin the regex on three inputs.
+	const notAHandler = `console.log('hello');`;
+	if (findHandlerLine([notAHandler, directDot]) !== 1) {
+		throw new Error(
+			`MESURE IMPOSSIBLE — sigint-handler-detection contract broken: ` +
+				`findHandlerLine failed to localize the dot-notation handler at the expected index. ` +
+				`The detection mechanism has regressed, and the proof cannot measure.`
+		);
+	}
+	if (findHandlerLine([notAHandler, bracketLine]) !== 1) {
+		throw new Error(
+			`MESURE IMPOSSIBLE — sigint-handler-detection contract broken: ` +
+				`findHandlerLine failed to localize the bracket-notation handler at the expected index. ` +
+				`The detection mechanism has regressed, and the proof cannot measure.`
+		);
+	}
+	let threw = false;
+	try {
+		findHandlerLine([notAHandler]);
+	} catch {
+		threw = true;
+	}
+	if (!threw) {
+		throw new Error(
+			`MESURE IMPOSSIBLE — sigint-handler-detection contract broken: ` +
+				`findHandlerLine did not throw on a hand-picked negative input. ` +
+				`The detection mechanism has regressed, and the proof cannot measure.`
+		);
+	}
+}
+
+// Module-load invocation: the import below is the r8 fix. An
+// adversary who weakens isHandlerDeferred or findHandlerLine will
+// see this throw on the very first import of the shared module,
+// which makes the proof's import throw and the runner classify the
+// file as CORRUPT PROOF (CI red). A silent green requires the
+// function to behave as if the test were not present, but the
+// test runs on every import.
+validateDetectionContract();
+
