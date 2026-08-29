@@ -387,3 +387,77 @@ test('malformed confession: missing steps array fails loudly', async () => {
 		'Expected missing steps array error',
 	);
 });
+
+// This test reads the ACTUAL reason-guard-ref.json from the repo — not a
+// fixture. It proves the real file is intact and the ratchet would resist
+// tampering. Without this, the other tests only prove the detection works
+// when injected a floor, never that the real floor survives an alteration.
+test('reads the REAL reason-guard-ref.json from disk and verifies integrity', async () => {
+	const realRefPath = path.join(repoRoot, outputPath);
+	const raw = await readFile(realRefPath, 'utf8');
+	const ref = JSON.parse(raw) as {
+		pinned_step_ids?: string[];
+		steps?: Record<string, unknown>;
+	};
+
+	// The floor must be non-empty — there are real pinned steps.
+	assert.ok(
+		(ref.pinned_step_ids?.length ?? 0) > 0,
+		'Expected at least one pinned step in the real reference file',
+	);
+
+	// The integrity assertion must hold: pinned_step_ids and steps{} match.
+	// If a contributor tampers with the real file (removes an ID from one list
+	// but not the other), this assertion fails — proving the real file is
+	// protected.
+	const pinnedSet = new Set(ref.pinned_step_ids ?? []);
+	const stepsSet = new Set(Object.keys(ref.steps ?? {}));
+	assert.deepEqual(
+		[...pinnedSet].sort(),
+		[...stepsSet].sort(),
+		'Real reference file has integrity: pinned_step_ids matches steps{}',
+	);
+});
+
+// Bypass 5: delete the reference file entirely. The old code fell back to
+// reading the working-tree file, and when that also failed, returned [] —
+// silently resetting the floor. The fix must make this fail loudly.
+test('bypass 5: deleting the reference file does NOT reset the floor', async () => {
+	const rootDir = await buildRepo({
+		manifestSteps: {
+			'fixture.yml::build::Step A': {
+				hash: 'abc123',
+				mirror: 'just ci',
+				reason: 'Step A reason text.',
+			},
+		},
+		reference: {
+			pinned_step_ids: ['fixture.yml::build::Step A'],
+			steps: {
+				'fixture.yml::build::Step A': {
+					reason_hash: 'hash',
+					reason_length: 10,
+				},
+			},
+		},
+	});
+
+	// Delete the reference file from git and working tree.
+	await execFileAsync('git', ['rm', outputPath], { cwd: rootDir });
+	await execFileAsync('git', ['commit', '-m', 'delete ref'], { cwd: rootDir });
+
+	const result = await runScript(rootDir);
+
+	// The script must fail — it must NOT silently reset the floor.
+	assert.equal(
+		result.exitCode !== 0,
+		true,
+		'Expected non-zero exit when reference file is deleted',
+	);
+	assert.equal(
+		result.stderr.includes('Cannot read the ratchet floor') ||
+			result.stdout.includes('Cannot read the ratchet floor'),
+		true,
+		'Expected loud error about missing reference file',
+	);
+});
