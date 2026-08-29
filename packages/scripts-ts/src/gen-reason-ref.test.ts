@@ -499,16 +499,16 @@ test('reads the REAL reason-guard-ref.json from disk and verifies integrity', as
 	);
 
 	// The integrity assertion must hold: pinned_step_ids ⊆ steps{}.
-	// If a contributor tampers with the real file (removes an ID from one list
-	// but not the other), this assertion fails — proving the real file is
-	// protected.
+	// Every pinned step must be tracked in steps{}. Extra steps in steps{}
+	// that exist in the manifest are legitimate growth.
 	const pinnedSet = new Set(ref.pinned_step_ids ?? []);
 	const stepsSet = new Set(Object.keys(ref.steps ?? {}));
-	assert.deepEqual(
-		[...pinnedSet].sort(),
-		[...stepsSet].sort(),
-		'Real reference file has integrity: pinned_step_ids matches steps{}',
-	);
+	for (const id of pinnedSet) {
+		assert.ok(
+			stepsSet.has(id),
+			`Real reference file has integrity: pinned step "${id}" must be in steps{}`,
+		);
+	}
 });
 
 // BYPASS: a 24-char filler confession ("x".repeat(24)) clears the bar length
