@@ -137,6 +137,46 @@ public sealed class TenantUsageServiceSpec
 		);
 	}
 
+	[Fact]
+	public async Task ItShouldReturnNonNullForALivePendingTenant() {
+		// Mirror of ItShouldReturnNullWhenTenantIsSoftDeleted (#1818 r2): a
+		// non-deleted tenant must surface, regardless of status. Without this
+		// half of the pin, a reviewer can swap the guard
+		// `!tenant.IsDeleted` for any status-conditional that happens to be
+		// false for the fixture's specific status and the test stays green.
+		// Pending is the default Tenant.Status value, so it's the cheapest
+		// status to keep un-derivable from the previous fixture.
+		var tenantId = await SeedLiveTenantWithStatusAsync(TenantStatus.Pending);
+
+		var result = await NewService().GetTenantUsageAsync(tenantId);
+
+		result.Should().NotBeNull(
+			"a non-deleted Pending tenant exists and must surface — the existence "
+			+ "guard must depend on IsDeleted, not on Status. A guard that "
+			+ "filtered on Status would either return null here (if it required "
+			+ "Active) or let a soft-deleted tenant through (if it required "
+			+ "Pending) — both are wrong."
+		);
+	}
+
+	[Fact]
+	public async Task ItShouldReturnNonNullForALiveSuspendedTenant() {
+		// Same mirror as ItShouldReturnNonNullForALivePendingTenant, but with
+		// Suspended. This case in particular kills the reviewer mutation
+		// `tenant.Status == TenantStatus.Pending`: a Suspended tenant would
+		// wrongly return null under that guard, so the assertion catches it.
+		var tenantId = await SeedLiveTenantWithStatusAsync(TenantStatus.Suspended);
+
+		var result = await NewService().GetTenantUsageAsync(tenantId);
+
+		result.Should().NotBeNull(
+			"a non-deleted Suspended tenant exists and must surface — soft "
+			+ "deletion and tenant suspension are independent concerns. A guard "
+			+ "based on Status would hide Suspended tenants from staff usage "
+			+ "readouts, breaking triage of suspended-but-still-billable spaces."
+		);
+	}
+
 	// ── The cost anchor: every query filters on the requested tenant id ──
 
 	[Fact]
@@ -349,6 +389,28 @@ public sealed class TenantUsageServiceSpec
 		// Soft-delete AFTER insert: SaveChanges forces IsDeleted=false on Added
 		// rows (audit interceptor), matching the existing specs' seeding note.
 		tenant.IsDeleted = true;
+		await dbContext.SaveChangesAsync();
+
+		return tenant.GetRequiredId();
+	}
+
+	private async Task<Guid> SeedLiveTenantWithStatusAsync(TenantStatus status) {
+		// Mirror of SeedSoftDeletedTenantAsync for the non-deleted half of the
+		// #1818 r2 pin: a tenant that exists and is not soft-deleted, with an
+		// explicit Status so the spec is decoupled from the entity default
+		// (Tenant.Status defaults to Pending — Pending and Suspended are
+		// covered by the two callers, and a future Active caller is one
+		// parameter away).
+		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+		var tenant = new Tenant {
+			Name = $"usage-live-{status} {Guid.NewGuid():N}",
+			Code = Guid.NewGuid().ToString("N")[..10],
+			Status = status,
+			MaxUsers = 10,
+		};
+		await dbContext.Tenant.AddAsync(tenant);
 		await dbContext.SaveChangesAsync();
 
 		return tenant.GetRequiredId();
