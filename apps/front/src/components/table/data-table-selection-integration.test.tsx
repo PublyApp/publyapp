@@ -1,5 +1,15 @@
+/**
+ * @vitest-environment jsdom
+ */
 import { cleanup, render, screen } from '@testing-library/react';
-import { afterEach, describe, expect, test, vi } from 'vitest';
+import {
+	afterEach,
+	beforeAll,
+	describe,
+	expect,
+	test,
+	vi,
+} from 'vitest';
 import type { TestLabelMap } from '~/lib/testing/test-label-map';
 
 /**
@@ -159,35 +169,16 @@ const getCheckboxIconElement = (
 	checkbox?.querySelector<HTMLElement>('[data-icon]') ?? null;
 
 /**
- * Asserts that the icon element inside the checkbox is NOT visually hidden
- * via the `invisible` (Tailwind → `visibility:hidden`) or `hidden` (Tailwind →
- * `display:none`) utility classes. jsdom does NOT resolve CSS classes into
- * computed styles, so `window.getComputedStyle` cannot detect Tailwind
- * utilities — we inspect `classList` directly instead. This is an ENUMERATION
- * of hiding mechanisms: it covers `invisible` and `hidden`, but does NOT cover
- * `opacity-0`, `clip-path-*`, `size-0`, `translate-*` off-screen, or
- * `aria-hidden` without visual hiding. Those are out of scope here and would
- * need dedicated coverage if a mutation uses them. Fails the test with the
- * reason when the icon is hidden.
+ * The icon visibility guard is implemented as a real measurement (computed
+ * styles + `aria-hidden` attribute), not a class-name enumeration. To make
+ * `window.getComputedStyle` return the real Tailwind values in jsdom, the
+ * guard's compiled CSS is injected into the test document once per test
+ * file. See `data-table-icon-visibility-guard.ts` for the full rationale.
  */
-const assertIconIsVisible = (
-	checkbox: HTMLElement | null,
-	context: string,
-): void => {
-	const iconElement = getCheckboxIconElement(checkbox);
-	expect(iconElement, `${context}: icon element exists`).not.toBeNull();
-	if (iconElement !== null) {
-		const classes = Array.from(iconElement.classList);
-		expect(
-			!classes.includes('invisible'),
-			`${context}: icon does NOT carry Tailwind "invisible" (visibility:hidden)`,
-		).toBe(true);
-		expect(
-			!classes.includes('hidden'),
-			`${context}: icon does NOT carry Tailwind "hidden" (display:none)`,
-		).toBe(true);
-	}
-};
+import {
+	assertIconIsVisible as assertIconIsVisibleImpl,
+	injectGuardStylesheet,
+} from './data-table-icon-visibility-guard';
 
 /** Returns all row checkbox elements in the body. */
 const getRowCheckboxes = (): HTMLElement[] =>
@@ -198,7 +189,37 @@ const getRowCheckboxes = (): HTMLElement[] =>
 	);
 
 describe('DataTable row selection integration (issue #1730)', () => {
+	beforeAll(async () => {
+		// jsdom does not resolve Tailwind utility classes into computed styles
+		// on its own. Inject the guard's compiled CSS once so
+		// `getComputedStyle` returns the real Tailwind values for `hidden`,
+		// `invisible`, and `opacity-0`. Without this injection, every
+		// `getComputedStyle` call would return `''` for `visibility` and
+		// `display`, and the icon visibility guard could not catch a
+		// `visibility:hidden` or `display:none` mutation at all.
+		await injectGuardStylesheet(document);
+	});
+
 	afterEach(cleanup);
+
+	/**
+	 * Thin wrapper around the guard helper that resolves the checkbox to its
+	 * icon element first. Fails the test when the icon element is missing
+	 * (none of the relevant states should ever produce a checkbox without
+	 * a `data-icon` child) and delegates the real measurement to
+	 * `assertIconIsVisibleImpl`.
+	 */
+	const assertIconIsVisible = (
+		checkbox: HTMLElement | null,
+		context: string,
+	): void => {
+		const iconElement = getCheckboxIconElement(checkbox);
+		expect(
+			iconElement,
+			`${context}: icon element exists`,
+		).not.toBeNull();
+		assertIconIsVisibleImpl(iconElement, context);
+	};
 
 	// Breaker: if row checkboxes render as checked when the selection map is
 	// empty (inverted logic), `data-checked` would be present — this test goes RED.
