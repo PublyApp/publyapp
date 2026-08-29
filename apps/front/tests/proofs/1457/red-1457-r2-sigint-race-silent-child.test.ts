@@ -105,6 +105,34 @@
  * when encountered, the proof throws MESURE IMPOSSIBLE and the runner fails
  * CI red — failing loud rather than letting the evasion pass.
  *
+ * ## Enhancement (r5/r6 — closes the Step 4b bracket-notation gap and adds Step 3b)
+ *
+ * The r5 commit added a Step 4b sanity check that passed a `setImmediate`-wrapped
+ * bracket-notation line (`setImmediate(() => { process['on']('SIGINT', ...) })`)
+ * to `isHandlerDeferred`. But that line starts with `setImmediate(`, NOT
+ * `process['on'](` — so the bracket-specific weakening of `isHandlerDeferred`
+ * (Mutation F: `!(startsWith('process.on(') || startsWith("process['on']("))`)
+ * was never exercised by Step 4b. The sanity check's `if (!isHandlerDeferred(...))`
+ * was false (the function still returned true for a setImmediate-wrapped line),
+ * so no MESURE IMPOSSIBLE was thrown, and the runner classified the file as OK
+ * (CI green) — the mutation survived.
+ *
+ * This r6 fix corrects Step 4b to pass a line that starts with `process['on'](`
+ * directly, so the bracket path of `isHandlerDeferred` is actually exercised.
+ * Mutation F now returns false (accepts bracket notation as non-deferred), the
+ * sanity check throws MESURE IMPOSSIBLE, and the runner classifies it as
+ * CORRUPT PROOF (CI red).
+ *
+ * Additionally, r6 adds Step 3b — a sanity check that `isHandlerDeferred`
+ * returns false for a DIRECT handler line (`process.on('SIGINT', ...)`).
+ * This catches Mutation G (`return true`) — where every line is classified as
+ * deferred. Without Step 3b, Mutation G would make Test 1 pass (bugPresent=true
+ * because the real handler is misclassified as deferred) while Test 2 fails on a
+ * plain AssertionError. The runner would see "Tests N failed" with an
+ * AssertionError and classify the file as OK (CI green) — the mutation survives.
+ * Step 3b throws MESURE IMPOSSIBLE before Test 2's assertion can mask the
+ * regression.
+ *
  * ## Three-state discrimination
  *
  * - BUGUE PRÉSENT (bug present): either the handler line comes AFTER the
@@ -149,6 +177,17 @@
  *
  * All three mutations make `bugPresent` true, so the assertion PASSES — the
  * "proof is stale" signal the CI step is meant to raise.
+ *
+ * **Mutation F — bracket-notation acceptance in isHandlerDeferred** (defensive):
+ * Weaken `isHandlerDeferred` to `!(line.startsWith('process.on(') || line.startsWith("process['on']"))`
+ * so it classifies `process['on'](` lines as non-deferred. Caught by Step 4b sanity
+ * THROW on `knownBracketDeferredLine` → CORRUPT PROOF → CI red.
+ *
+ * **Mutation G — always-true isHandlerDeferred** (defensive): change `isHandlerDeferred`
+ * to `return true` so ALL lines are classified as deferred. Caught by Step 3b sanity
+ * THROW on `knownDirectLine` → CORRUPT PROOF → CI red. Without Step 3b, the runner
+ * would see Test 1 pass and Test 2 fail on AssertionError, classifying the file as
+ * OK (CI green) — the mutation would survive.
  *
  * ## Adverse mutation search — two-step detection pipeline
  *
@@ -480,15 +519,34 @@ describe('r2 fixture SIGINT race — RED: handler installed AFTER the handshake 
 		modifiedLines[handlerIdx] = bracketLine;
 		findHandlerLine(modifiedLines);
 
+		// Step 3b: Sanity check — verify isHandlerDeferred correctly classifies
+		// a DIRECT handler line as non-deferred (false). This is a THROW check, not an assertion.
+		// On correct code, isHandlerDeferred returns false for a direct `process.on(` call.
+		// Mutation G (isHandlerDeferred always true: `return true`): it returns true here,
+		// and we throw MESURE IMPOSSIBLE — which the runner classifies as CORRUPT PROOF (CI red).
+		// Without this check, Mutation G would make Test 1 pass (bugPresent=true because
+		// the real handler is misclassified as deferred) while Test 2 fails on a plain
+		// AssertionError — the runner would classify the file as OK (CI green), and the
+		// mutation would survive.
+		const knownDirectLine = `process.on('SIGINT', () => {});`;
+		if (isHandlerDeferred(knownDirectLine)) {
+			throw new Error(
+				`MESURE IMPOSSIBLE — isHandlerDeferred misclassified a known-direct ` +
+					`handler line as deferred. The detection mechanism has ` +
+					`regressed (always-true or accepting direct calls as deferred), and the proof cannot measure.`,
+			);
+		}
+
 		// Step 4b: Sanity check — verify isHandlerDeferred correctly classifies
 		// a KNOWN-DEFERRED BRACKET-NOTATION line. This is a THROW check, not an assertion.
-		// On correct code, isHandlerDeferred returns true for a setImmediate-wrapped
-		// bracket-notation line. If the function regresses to accept bracket notation
+		// The line starts with `process['on'](` (bracket notation) so it does NOT start
+		// with `process.on(` — meaning isHandlerDeferred must classify it as deferred
+		// (true). On correct code, isHandlerDeferred returns true. If the function regresses to accept bracket notation
 		// as non-deferred (Mutation F: `!(line.startsWith('process.on(') || line.startsWith("process['on']("))`),
 		// it returns false here, and we throw MESURE IMPOSSIBLE — which the runner
 		// classifies as CORRUPT PROOF (CI red). This closes the gap: a bracket-specific
 		// weakening of isHandlerDeferred would be invisible to the dot-only Step 4 check.
-		const knownBracketDeferredLine = `setImmediate(() => { process['on']('SIGINT', () => {}); });`;
+		const knownBracketDeferredLine = `process['on']('SIGINT', () => {});`;
 		if (!isHandlerDeferred(knownBracketDeferredLine)) {
 			throw new Error(
 				`MESURE IMPOSSIBLE — isHandlerDeferred misclassified a known-deferred ` +
@@ -539,6 +597,13 @@ describe('r2 fixture SIGINT race — RED: handler installed AFTER the handshake 
 		//   Step 4b sanity THROW: isHandlerDeferred(knownBracketDeferredLine) → false
 		//   (bracket notation accepted as non-deferred) → throws MESURE IMPOSSIBLE →
 		//   CORRUPT PROOF → CI red.
+		//
+		// Mutation G (isHandlerDeferred always true: `return true`):
+		//   Step 3b sanity THROW: isHandlerDeferred(knownDirectLine) → true
+		//   (direct call classified as deferred) → throws MESURE IMPOSSIBLE →
+		//   CORRUPT PROOF → CI red. Without Step 3b, the runner would see
+		//   Test 1 pass (bugPresent=true) and Test 2 fail on AssertionError,
+		//   classifying the file as OK (CI green) — the mutation would survive.
 		//
 		// This single assertion is the load-bearing kept-red check: it is
 		// FALSE on correct code and would be TRUE for both Mutation D and
