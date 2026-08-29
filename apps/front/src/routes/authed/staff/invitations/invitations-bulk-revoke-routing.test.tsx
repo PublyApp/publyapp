@@ -659,6 +659,61 @@ describe('#1387 invitations selection-mode bulk revoke (real router)', () => {
 		expect(mocks.toastSuccess).not.toHaveBeenCalled();
 	});
 
+	test('an all-failure revoke without per-item reasons suppresses the filter-leave warning', async () => {
+		mocks.bulkRevoke.mockResolvedValue({
+			succeededCount: 0,
+			failedCount: 1,
+		});
+
+		await renderAtList();
+
+		fireEvent.click(
+			screen.getByRole('checkbox', { name: `Select ${PENDING_A}` }),
+		);
+		await chooseBulkAction('Revoke selected', 'Bulk actions');
+		fireEvent.click(await screen.findByRole('button', { name: 'Revoke' }));
+
+		await waitFor(() =>
+			expect(mocks.toastError).toHaveBeenCalledWith(
+				'Revoked 0 invitation(s), 1 failed.',
+				undefined,
+			),
+		);
+		// #1605: total failure (succeededCount === 0) with no per-item
+		// reasons passes undefined as description, NOT the filter warning.
+		expect(mocks.toastError.mock.calls[0][1]).toBeUndefined();
+		expect(mocks.toastSuccess).not.toHaveBeenCalled();
+	});
+
+	test('an all-failure revoke suppresses the filter-leave warning and surfaces the per-item reason', async () => {
+		mocks.bulkRevoke.mockResolvedValue({
+			succeededCount: 0,
+			failedCount: 1,
+			failedItems: [{ invitationId: PENDING_A, reason: 'already_accepted' }],
+		});
+
+		await renderAtList();
+
+		fireEvent.click(
+			screen.getByRole('checkbox', { name: `Select ${PENDING_A}` }),
+		);
+		await chooseBulkAction('Revoke selected', 'Bulk actions');
+		fireEvent.click(await screen.findByRole('button', { name: 'Revoke' }));
+
+		await waitFor(() =>
+			expect(mocks.toastError).toHaveBeenCalledWith(
+				'Revoked 0 invitation(s), 1 failed.',
+				'1 already accepted',
+			),
+		);
+		// #1605: total failure (succeededCount === 0) carries the per-item
+		// reason as description, NOT the filter-leave warning.
+		const description = mocks.toastError.mock.calls[0]?.[1];
+		expect(description).toBe('1 already accepted');
+		expect(description).not.toContain('Some rows may no longer appear');
+		expect(mocks.toastSuccess).not.toHaveBeenCalled();
+	});
+
 	test('mutation rejection surfaces a transparent local failure message', async () => {
 		mocks.bulkRevoke.mockRejectedValue(new Error('boom'));
 
