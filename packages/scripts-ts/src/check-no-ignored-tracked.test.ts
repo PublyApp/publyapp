@@ -297,6 +297,69 @@ test('RED: gitignore rule added after file is tracked flags it', async () => {
 	);
 });
 
+// FILENAMES WITH NEWLINES: a force-added file with a newline byte in its name
+// is detected. Git -z emits NUL-terminated records, so a filename containing
+// a newline byte must not corrupt the split (the old \n split would have
+// broken this into two spurious entries).
+test('RED: force-added file with newline in name is detected', async () => {
+	const rootDir = await buildFixtureRepo();
+
+	// Create a file whose name contains a literal newline byte.
+	const fileName = '.dump/fichier\navec\nretours.md';
+	await writeFixtureFile(rootDir, fileName, 'contenu\n');
+	// Use git add -f -- to force-add the file (the -- separates options from pathspec).
+	execFileSync('git', ['add', '-f', '--', fileName], {
+		cwd: rootDir,
+		encoding: 'utf8',
+		stdio: ['pipe', 'pipe', 'pipe'],
+	});
+	git(rootDir, ['commit', '-m', 'force-add file with newlines']);
+
+	const findings = findIgnoredTrackedFiles({ cwd: rootDir });
+
+	assert.ok(
+		findings.length > 0,
+		'expected at least one tracked file matching .gitignore',
+	);
+	// The exact filename (with newlines) should appear in the findings.
+	assert.ok(
+		findings.some((file) => file.includes('fichier\navec\nretours.md')),
+		`expected the guard to name the file with newlines, got: ${JSON.stringify(findings)}`,
+	);
+});
+
+// TRUNCATED OUTPUT: a repo with many tracked gitignored files is fully enumerated.
+// With -z, the NUL delimiter means the last record before any truncation point
+// is still a complete filename — no corruption. This stress-tests the buffer
+// (maxBuffer: 1 MiB) and verifies the guard does not silently drop entries.
+test('RED: many force-added files are all detected (no truncation)', async () => {
+	const rootDir = await buildFixtureRepo();
+
+	const fileNames: string[] = [];
+	for (let i = 0; i < 100; i++) {
+		const name = `.dump/file-${i}.md`;
+		fileNames.push(name);
+		await writeFixtureFile(rootDir, name, `content ${i}\n`);
+	}
+
+	// Force-add all files in one commit.
+	const addArgs = ['add', '-f', '--', ...fileNames];
+	execFileSync('git', addArgs, {
+		cwd: rootDir,
+		encoding: 'utf8',
+		stdio: ['pipe', 'pipe', 'pipe'],
+	});
+	git(rootDir, ['commit', '-m', 'force-add many files']);
+
+	const findings = findIgnoredTrackedFiles({ cwd: rootDir });
+
+	assert.equal(
+		findings.length,
+		100,
+		`expected 100 tracked files matching .gitignore, got ${findings.length}`,
+	);
+});
+
 // NEGATION EXCEPTION: .env.example is NOT flagged despite .env.* rule.
 test('GREEN: .env.example is not flagged (negation exception)', async () => {
 	const rootDir = await mkdtemp(path.join(os.tmpdir(), 'publyapp-negation-'));
