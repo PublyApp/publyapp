@@ -198,19 +198,14 @@ jobs:
 
       - name: Verify complexity bounds are not drifting (#1661)
         run: node packages/scripts-ts/src/check-cyclomatic-bound.ts
-      # #1821: production duplication ratchet. Runs jscpd against the full tree
-      # (same exclusions as the local gate) then verifies unique production-pair
-      # count and line count are within the committed baseline.
+      # #1821: production duplication ratchet. Runs the local gate
+      # (`just ci-jscpd`): full-tree jscpd scan with the single comma-separated
+      # exclusion list, then the guard's unit suite (vitest), then the ratchet
+      # guard itself, then the guard's typecheck. The manifest entry for this
+      # step mirrors `just ci-jscpd` exactly — the local command and the CI step
+      # are the same four commands in the same order.
       - name: Verify production duplication has not increased (#1821)
-        run: |
-          pnpm exec jscpd . --min-tokens 50 \
-            --ignore '/node_modules/**' --ignore '/bin/**' --ignore '/obj/**' \
-            --ignore '/dist/**' --ignore '/.artifacts/**' \
-            --ignore '**/Migrations/**' --ignore '.worktrees/**' \
-            --ignore 'packages/client-ts/**' \
-            --ignore 'apps/front/scripts/**' \
-            --reporters json --output .dump/jscpd-report.json
-          node packages/scripts-ts/src/check-jscpd.ts
+        run: just ci-jscpd
 
       - name: Lint plugin unit tests (lint-ts)
         run: pnpm --filter @org/lint-ts test

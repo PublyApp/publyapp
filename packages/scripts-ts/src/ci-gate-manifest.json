@@ -802,7 +802,7 @@
 			"reason": "The check-cyclomatic-bound guard verifies that complexity ceilings in .oxlintrc.json are not drifting. It reads the TRUE values from .oxlintrc.json and ensures they match the committed expected configuration in packages/scripts-ts/src/cyclomatic-bound-ref.json (apps/front/src/**: 60, test files: 90, default: 125). CI runs this guard to provide actual protection against bound drift."
 		},
 		"quality-gate.yml::quality::Verify production duplication has not increased (#1821)": {
-			"hash": "84ada92d45a8fc4d",
+			"hash": "69927407073c4cbd",
 			"mirror": "just ci-jscpd",
 			"reason": "jscpd@4 production duplication ratchet: runs jscpd against production paths and verifies unique pair count and line count within the committed baseline. Identical to the CI step quality-gate.yml::quality::Verify production duplication has not increased (#1821)."
 		},
