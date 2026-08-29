@@ -64,6 +64,7 @@ describe('parseInviteCsv', () => {
 					profileNames: ['Alpha', 'Beta'],
 					invalidLevel: null,
 					invalidEmail: null,
+					invalidCell: null,
 				},
 			],
 		});
@@ -83,6 +84,7 @@ describe('parseInviteCsv', () => {
 					profileNames: ['Alpha'],
 					invalidLevel: 'moderator',
 					invalidEmail: null,
+					invalidCell: null,
 				},
 			],
 		});
@@ -109,6 +111,7 @@ describe('parseInviteCsv', () => {
 					profileNames: ['Alpha'],
 					invalidLevel: null,
 					invalidEmail: 'not-an-email',
+					invalidCell: null,
 				},
 			],
 		});
@@ -220,6 +223,7 @@ describe('parseInviteWorkbook', () => {
 					profileNames: ['Alpha'],
 					invalidLevel: null,
 					invalidEmail: null,
+					invalidCell: null,
 				},
 			],
 		});
@@ -246,6 +250,7 @@ describe('parseInviteWorkbook', () => {
 					profileNames: [],
 					invalidLevel: null,
 					invalidEmail: null,
+					invalidCell: null,
 				},
 			],
 		});
@@ -306,6 +311,7 @@ describe('parseInviteWorkbook', () => {
 					profileNames: ['Alpha'],
 					invalidLevel: null,
 					invalidEmail: null,
+					invalidCell: null,
 				},
 			],
 		});
@@ -332,6 +338,7 @@ describe('parseInviteWorkbook', () => {
 					profileNames: [],
 					invalidLevel: null,
 					invalidEmail: null,
+					invalidCell: null,
 				},
 			],
 		});
@@ -362,6 +369,7 @@ describe('parseInviteWorkbook', () => {
 					profileNames: ['Alpha'],
 					invalidLevel: null,
 					invalidEmail: null,
+					invalidCell: null,
 				},
 			],
 		});
@@ -395,6 +403,7 @@ describe('parseInviteWorkbook', () => {
 					profileNames: ['Alpha'],
 					invalidLevel: null,
 					invalidEmail: 'A & B@example.com',
+					invalidCell: null,
 				},
 			],
 		});
@@ -430,6 +439,7 @@ describe('parseInviteWorkbook', () => {
 					profileNames: [],
 					invalidLevel: null,
 					invalidEmail: null,
+					invalidCell: null,
 				},
 			],
 		});
@@ -464,6 +474,7 @@ describe('parseInviteWorkbook', () => {
 					profileNames: ['Alpha'],
 					invalidLevel: null,
 					invalidEmail: null,
+					invalidCell: null,
 				},
 			],
 		});
@@ -480,6 +491,7 @@ describe('buildImportedInvites', () => {
 					profileNames: ['Alpha'],
 					invalidLevel: null,
 					invalidEmail: null,
+					invalidCell: null,
 				},
 				{
 					email: 'A@Example.com',
@@ -487,6 +499,7 @@ describe('buildImportedInvites', () => {
 					profileNames: [],
 					invalidLevel: null,
 					invalidEmail: null,
+					invalidCell: null,
 				},
 				{
 					email: 'b@example.com',
@@ -494,6 +507,7 @@ describe('buildImportedInvites', () => {
 					profileNames: [],
 					invalidLevel: null,
 					invalidEmail: null,
+					invalidCell: null,
 				},
 			],
 			existingEmails: ['b@example.com'],
@@ -523,6 +537,7 @@ describe('clearFileRows', () => {
 				profileNames: [],
 				invalidLevel: null,
 				invalidEmail: null,
+				invalidCell: null,
 				source: 'file',
 			},
 		];
@@ -574,6 +589,7 @@ describe('applyProfileResolutions', () => {
 		source: 'file',
 		invalidLevel: null,
 		invalidEmail: null,
+		invalidCell: null,
 		...overrides,
 	});
 
@@ -606,6 +622,7 @@ describe('canSendInvitations', () => {
 		profileNames: [],
 		invalidLevel: null,
 		invalidEmail: null,
+		invalidCell: null,
 		source: 'manual',
 	};
 
@@ -615,6 +632,7 @@ describe('canSendInvitations', () => {
 			isResolvingProfiles?: boolean;
 			unresolvedCount?: number;
 			invalidLevelCount?: number;
+			invalidCellCount?: number;
 		},
 	) =>
 		canSendInvitations({
@@ -622,6 +640,7 @@ describe('canSendInvitations', () => {
 			isResolvingProfiles: overrides?.isResolvingProfiles ?? false,
 			unresolvedCount: overrides?.unresolvedCount ?? 0,
 			invalidLevelCount: overrides?.invalidLevelCount ?? 0,
+			invalidCellCount: overrides?.invalidCellCount ?? 0,
 		});
 
 	const rowWith = (overrides: Partial<InviteRow>): InviteRow => ({
@@ -685,6 +704,7 @@ describe('buildSubmitInvitations', () => {
 				profileNames: ['x'],
 				invalidLevel: null,
 				invalidEmail: null,
+				invalidCell: null,
 				source: 'file',
 			},
 			{
@@ -695,6 +715,7 @@ describe('buildSubmitInvitations', () => {
 				profileNames: [],
 				invalidLevel: null,
 				invalidEmail: null,
+				invalidCell: null,
 				source: 'manual',
 			},
 		];
@@ -715,5 +736,127 @@ describe('parseInviteeEmails', () => {
 		expect(
 			parseInviteeEmails('a@Example.com, b@example.com\nc@example.com'),
 		).toEqual(['a@Example.com', 'b@example.com', 'c@example.com']);
+	});
+});
+
+describe('parseInviteWorkbook cell types', () => {
+	test('rejects a boolean cell (t="b") in the email column with a structured error', () => {
+		const bytes = buildWorkbook({
+			sharedStrings: ['email', 'level', 'profiles', 'admin', 'Alpha'],
+			sheetXml:
+				'<worksheet><sheetData>' +
+				'<row r="1"><c r="A1" t="s"><v>0</v></c><c r="B1" t="s"><v>1</v></c><c r="C1" t="s"><v>2</v></c></row>' +
+				'<row r="2"><c r="A2" t="b"><v>1</v></c><c r="B2" t="s"><v>3</v></c><c r="C2" t="s"><v>4</v></c></row>' +
+				'</sheetData></worksheet>',
+		});
+
+		const result = parseInviteWorkbook(bytes);
+
+		expect(result).toEqual({
+			outcome: 'parsed',
+			rows: [
+				{
+					email: '1',
+					accountLevel: 'Admin',
+					profileNames: ['Alpha'],
+					invalidLevel: null,
+					invalidEmail: null,
+					invalidCell: {
+						cell: 'A2',
+						value: '1',
+						kind: 'boolean',
+					},
+				},
+			],
+		});
+	});
+
+	test('rejects a formula error cell (t="e") in the email column with a structured error', () => {
+		const bytes = buildWorkbook({
+			sharedStrings: ['email', 'level', 'profiles', 'admin', 'Alpha'],
+			sheetXml:
+				'<worksheet><sheetData>' +
+				'<row r="1"><c r="A1" t="s"><v>0</v></c><c r="B1" t="s"><v>1</v></c><c r="C1" t="s"><v>2</v></c></row>' +
+				'<row r="2"><c r="A2" t="e"><v>#REF!</v></c><c r="B2" t="s"><v>3</v></c><c r="C2" t="s"><v>4</v></c></row>' +
+				'</sheetData></worksheet>',
+		});
+
+		const result = parseInviteWorkbook(bytes);
+
+		expect(result).toEqual({
+			outcome: 'parsed',
+			rows: [
+				{
+					email: '#REF!',
+					accountLevel: 'Admin',
+					profileNames: ['Alpha'],
+					invalidLevel: null,
+					invalidEmail: null,
+					invalidCell: {
+						cell: 'A2',
+						value: '#REF!',
+						kind: 'formula-error',
+					},
+				},
+			],
+		});
+	});
+
+	test('rejects a boolean cell (t="b") in the level column with a structured error', () => {
+		const bytes = buildWorkbook({
+			sharedStrings: ['email', 'level', 'profiles', 'a@example.com', 'Alpha'],
+			sheetXml:
+				'<worksheet><sheetData>' +
+				'<row r="1"><c r="A1" t="s"><v>0</v></c><c r="B1" t="s"><v>1</v></c><c r="C1" t="s"><v>2</v></c></row>' +
+				'<row r="2"><c r="A2" t="s"><v>3</v></c><c r="B2" t="b"><v>1</v></c><c r="C2" t="s"><v>4</v></c></row>' +
+				'</sheetData></worksheet>',
+		});
+
+		const result = parseInviteWorkbook(bytes);
+
+		expect(result).toEqual({
+			outcome: 'parsed',
+			rows: [
+				{
+					email: 'a@example.com',
+					accountLevel: 'User',
+					profileNames: ['Alpha'],
+					invalidLevel: '1',
+					invalidEmail: null,
+					invalidCell: {
+						cell: 'B2',
+						value: '1',
+						kind: 'boolean',
+					},
+				},
+			],
+		});
+	});
+
+	test('accepts a formula text result (t="str") as legitimate text', () => {
+		const bytes = buildWorkbook({
+			sharedStrings: ['email', 'level', 'profiles', 'admin', 'Alpha'],
+			sheetXml:
+				'<worksheet><sheetData>' +
+				'<row r="1"><c r="A1" t="s"><v>0</v></c><c r="B1" t="s"><v>1</v></c><c r="C1" t="s"><v>2</v></c></row>' +
+				'<row r="2"><c r="A2" t="str"><v>a@example.com</v></c><c r="B2" t="s"><v>3</v></c><c r="C2" t="s"><v>4</v></c></row>' +
+				'</sheetData></worksheet>',
+		});
+
+		const result = parseInviteWorkbook(bytes);
+
+		expect(result).toEqual({
+			outcome: 'parsed',
+			rows: [
+				{
+					email: 'a@example.com',
+					accountLevel: 'Admin',
+					profileNames: ['Alpha'],
+					invalidLevel: null,
+					invalidEmail: null,
+					invalidCell: null,
+				},
+			],
+		});
 	});
 });
