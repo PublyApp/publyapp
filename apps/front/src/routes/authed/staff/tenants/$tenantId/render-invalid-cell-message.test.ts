@@ -1,5 +1,4 @@
 import { describe, expect, test } from 'vitest';
-
 import resourceEN from '~/i18n/locales/en/common.json';
 import resourceFR from '~/i18n/locales/fr/common.json';
 import {
@@ -53,7 +52,10 @@ describe('renderInvalidCellMessage renders clear words, never raw interpolation 
 
 			const message = renderInvalidCellMessage(invalidCell, t);
 
-			console.log(`[${language}] boolean WITHOUT cell →`, JSON.stringify(message));
+			console.log(
+				`[${language}] boolean WITHOUT cell →`,
+				JSON.stringify(message),
+			);
 			expect(message).not.toContain('{{');
 			expect(message).not.toContain('}}');
 			expect(message).toContain('1');
@@ -70,7 +72,10 @@ describe('renderInvalidCellMessage renders clear words, never raw interpolation 
 
 			const message = renderInvalidCellMessage(invalidCell, t);
 
-			console.log(`[${language}] formula-error WITH cell →`, JSON.stringify(message));
+			console.log(
+				`[${language}] formula-error WITH cell →`,
+				JSON.stringify(message),
+			);
 			expect(message).not.toContain('{{');
 			expect(message).not.toContain('}}');
 			expect(message).toContain('A3');
@@ -87,7 +92,10 @@ describe('renderInvalidCellMessage renders clear words, never raw interpolation 
 
 			const message = renderInvalidCellMessage(invalidCell, t);
 
-			console.log(`[${language}] formula-error WITHOUT cell →`, JSON.stringify(message));
+			console.log(
+				`[${language}] formula-error WITHOUT cell →`,
+				JSON.stringify(message),
+			);
 			expect(message).not.toContain('{{');
 			expect(message).not.toContain('}}');
 			expect(message).toContain('#REF!');
