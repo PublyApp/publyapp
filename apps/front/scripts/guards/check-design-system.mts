@@ -1024,6 +1024,12 @@ const collectCommentRanges = (
 
 	const rangeSet = new Set<string>();
 	const ranges: Array<{ start: number; end: number }> = [];
+	// Literal-node spans (strings, template literals, regexes). The JSX
+	// scanner pass below must not mistake a `//` INSIDE a template
+	// interpolation (or a string) for a comment token: the scanner does not
+	// re-enter regex context inside `${}`, so a regex like `/\/\//` would
+	// otherwise surface as a fake `//...` comment and mask real code.
+	const literalSpans: Array<{ start: number; end: number }> = [];
 
 	const addRange = (pos: number, end: number): void => {
 		const key = `${pos}-${end}`;
@@ -1034,6 +1040,15 @@ const collectCommentRanges = (
 	};
 
 	const visit = (node: ts.Node): void => {
+		if (
+			ts.isStringLiteral(node) ||
+			ts.isNoSubstitutionTemplateLiteral(node) ||
+			ts.isTemplateExpression(node) ||
+			ts.isRegularExpressionLiteral(node)
+		) {
+			literalSpans.push({ start: node.pos, end: node.end });
+		}
+
 		const leadingRanges = ts.getLeadingCommentRanges(source, node.pos);
 		if (leadingRanges) {
 			for (const range of leadingRanges) {
@@ -1052,6 +1067,49 @@ const collectCommentRanges = (
 	};
 
 	ts.forEachChild(sourceFile, visit);
+
+	// JSX comments (`{/* ... */}`, `{ /* ... */ }`) are invisible to the
+	// trivia walk above: the TypeScript trivia APIs report neither leading
+	// nor trailing comment ranges for a comment-only JSX expression
+	// container (verified empirically — the container node has no child for
+	// the comment at all). Issue #1844 demands TS *and* JS comments be
+	// skipped, so recover them by scanning each JsxExpression container
+	// with the compiler's own scanner in JSX mode with trivia reporting
+	// enabled. Only comment tokens whose start is NOT inside a literal node
+	// span are kept — a `//` inside a template interpolation or string is
+	// not a comment.
+	if (scriptKind === ts.ScriptKind.TSX) {
+		const isInsideLiteralSpan = (pos: number): boolean =>
+			literalSpans.some(({ start, end }) => pos >= start && pos < end);
+
+		const visitJsx = (node: ts.Node): void => {
+			if (ts.isJsxExpression(node)) {
+				const containerText = source.slice(node.pos, node.end);
+				const scanner = ts.createScanner(
+					ts.ScriptTarget.Latest,
+					false,
+					ts.LanguageVariant.JSX,
+					containerText,
+				);
+				let token = scanner.scan();
+				while (token !== ts.SyntaxKind.EndOfFileToken) {
+					if (
+						(token === ts.SyntaxKind.MultiLineCommentTrivia ||
+							token === ts.SyntaxKind.SingleLineCommentTrivia) &&
+						!isInsideLiteralSpan(node.pos + scanner.getTokenPos())
+					) {
+						addRange(
+							node.pos + scanner.getTokenPos(),
+							node.pos + scanner.getTextPos(),
+						);
+					}
+					token = scanner.scan();
+				}
+			}
+			ts.forEachChild(node, visitJsx);
+		};
+		ts.forEachChild(sourceFile, visitJsx);
+	}
 
 	return ranges;
 };

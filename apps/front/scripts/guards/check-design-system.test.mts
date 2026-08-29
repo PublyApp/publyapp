@@ -1587,16 +1587,17 @@ void test('#1844: a forbidden primitive cited inside a comment is not a violatio
 });
 
 // #1844 paired red/green proof — test 2 (false negative guard): a real
-// usage of a forbidden primitive on the same line as a URL containing
+// usage of a forbidden primitive on the SAME line as a URL containing
 // `//` must STILL be detected. A naive comment-stripping regex
-// (`//.*$`) would eat the URL and the real usage with it, hiding a
-// genuine violation. The AST-based approach must not mutate source text.
+// (`//.*$`) would eat from the URL's `//` to end-of-line, hiding the
+// real usage that follows on the same line. The AST-based approach must
+// not mutate source text and must know the `//` sits inside a string
+// literal, not a comment.
 void test('#1844: a real DialogPopup usage on the same line as a URL containing // is still detected (false negative guard)', async () => {
 	const root = await makeFixture({
 		'src/components/ui/dialog-popup-with-url.tsx': [
 			"import { Dialog as DialogPrimitive } from '@base-ui/react/dialog';",
-			'// https://base-ui.com/components/dialog#popup',
-			'const popup = <DialogPrimitive.Popup className="x" />;',
+			'const url = "https://base-ui.com/components/dialog#popup"; const popup = <DialogPrimitive.Popup className="x" />;',
 		].join('\n'),
 	});
 
@@ -1689,12 +1690,16 @@ void test('#1844: a forbidden primitive inside a block comment is not a violatio
 	);
 });
 
-// #1844 edge case: a JSX comment {/* comment */} is NOT a TS trivia
-// comment — it's a JSX expression container. The TypeScript compiler API's
-// trivia scanner does not report JSX comments as comment ranges, so this
-// edge case is out of scope for the AST-based fix. The existing
-// no-dialog-popup-primitives rule already has a separate JSX-aware path.
-void test('#1844: a forbidden primitive inside a JSX comment is not a violation (out of scope - JSX comments are not TS trivia)', async () => {
+// #1844 r3: a JSX comment {/**/} is a JSX expression container whose
+// comment is invisible to the TS trivia APIs (no child node, no leading or
+// trailing trivia), so the trivia walk cannot report it. Issue #1844
+// demands TS *and* JS comments be skipped — the original incident (#1827)
+// was exactly a JSX comment naming a primitive turning CI red. The guard
+// now scans each JsxExpression container with the compiler's own scanner
+// (trivia reporting on) and feeds those comment ranges into the same
+// skip; the match must still be fully inside ONE comment range to be
+// skipped (span-wise rule, see r3 BLOQUANT 1).
+void test('#1844: a forbidden primitive inside a JSX comment is not a violation', async () => {
 	const root = await makeFixture({
 		'src/components/ui/dialog-popup-jsx-comment.tsx': [
 			'export const Component = () => (',
@@ -1711,14 +1716,126 @@ void test('#1844: a forbidden primitive inside a JSX comment is not a violation 
 		sourceDir: path.join(root, 'src'),
 	});
 
-	// JSX comments are not captured by TS trivia API - this is a known
-	// limitation. The test documents this edge case.
+	assert.equal(
+		violations.some(
+			(violation) => violation.ruleId === 'no-dialog-popup-primitives',
+		),
+		false,
+		'a DialogPopup mention inside a JSX comment must not be flagged',
+	);
+});
+
+// #1844 r3 false negative guard for the JSX scanner: a real primitive usage
+// on the SAME line as a JSX comment must still be detected — the JSX
+// scanner must only flag the comment's own span, never swallow the rest of
+// the line.
+void test('#1844: a real DialogPopup usage after a JSX comment on the same line is still detected (false negative guard for JSX comments)', async () => {
+	const root = await makeFixture({
+		'src/components/ui/dialog-popup-jsx-comment-real-usage.tsx': [
+			'export const Component = () => (',
+			'  <div>',
+			'    {/* TODO: keep */}<DialogPrimitive.Popup className="x" />',
+			'  </div>',
+			');',
+		].join('\n'),
+	});
+
+	const violations = await scanFront2DesignSystem({
+		baseDir: root,
+		sourceDir: path.join(root, 'src'),
+	});
+
 	assert.equal(
 		violations.some(
 			(violation) => violation.ruleId === 'no-dialog-popup-primitives',
 		),
 		true,
-		'JSX comments are not TS trivia - this is a known limitation, not a regression',
+		'a real DialogPopup usage after a JSX comment must still be detected',
+	);
+});
+
+// #1844 r3: a JSX container can mix a leading comment with a real
+// expression (`{/* TODO */ someValue}`). The comment part is still a JSX
+// comment and must be skipped; only the expression part is real code.
+void test('#1844: a forbidden primitive in a leading JSX comment of a mixed container is not a violation', async () => {
+	const root = await makeFixture({
+		'src/components/ui/dialog-popup-jsx-mixed-container.tsx': [
+			'export const Component = () => (',
+			'  <div>',
+			'    {/* TODO: use DialogPrimitive.Popup */ someValue}',
+			'  </div>',
+			');',
+		].join('\n'),
+	});
+
+	const violations = await scanFront2DesignSystem({
+		baseDir: root,
+		sourceDir: path.join(root, 'src'),
+	});
+
+	assert.equal(
+		violations.some(
+			(violation) => violation.ruleId === 'no-dialog-popup-primitives',
+		),
+		false,
+		'a forbidden primitive in a leading JSX comment must not be flagged',
+	);
+});
+
+// #1844 r3: the JSX scanner reports comment trivia tokens, but a `//`
+// INSIDE a template literal's `${...}` interpolation is NOT a comment (the
+// scanner does not re-enter regex context, so `/\/\//` would otherwise
+// surface as a fake `//...` token that swallows the rest of the template).
+// A real forbidden primitive later in that same template text must still
+// be detected. Guard against the literal-span filter in collectCommentRanges.
+void test('#1844: a real DialogPopup usage inside template text after a regex with // is still detected (JSX literal-span filter guard)', async () => {
+	const root = await makeFixture({
+		'src/components/ui/dialog-popup-jsx-template-regex.tsx': [
+			'export const Component = () => (',
+			'  <div>',
+			'    {`${/x\\/y\\//.source} DialogPrimitive.Popup text`}',
+			'  </div>',
+			');',
+		].join('\n'),
+	});
+
+	const violations = await scanFront2DesignSystem({
+		baseDir: root,
+		sourceDir: path.join(root, 'src'),
+	});
+
+	assert.equal(
+		violations.some(
+			(violation) => violation.ruleId === 'no-dialog-popup-primitives',
+		),
+		true,
+		'a real DialogPopup usage inside template text after a regex with // must still be detected',
+	);
+});
+
+// #1844 r3: a match may START in one comment range, cross real code, and
+// END in a DIFFERENT comment range (no-single-star-route-glob pattern 2
+// spans lazily across both). Only a match whose ENTIRE span lies inside ONE
+// comment range may be skipped — a start-in-A/end-in-B check across two
+// different ranges would mask the real call between them.
+void test('#1844: a route glob match spanning two comment ranges with real code between is still detected (single-range skip)', async () => {
+	const root = await makeFixture({
+		'e2e/specs/route-two-comments.spec.ts': [
+			'/* We call page.route( once per test to stub the API */ await page.route(usersGlob /* keep */, (route) => route.abort());',
+		].join('\n'),
+	});
+
+	const violations = await scanFront2DesignSystem({
+		baseDir: root,
+		sourceDirs: [path.join(root, 'e2e')],
+	});
+
+	assert.equal(
+		violations.some(
+			(violation) => violation.ruleId === 'no-single-star-route-glob',
+		),
+		true,
+		'a match spanning two comment ranges with real code between must not be skipped',
 	);
 });
 
@@ -1899,7 +2016,7 @@ void test('#1844: a real route glob call whose raw match starts inside a comment
 	);
 });
 
-// #1844 edge case: the `index >= start` boundary in `isInsideComment`.
+// #1844 edge case: the `index >= start` boundary in the span-wise skip.
 // A regex match can never start at the comment range's `start` offset
 // because that offset is always the `/*` or `//` opener, which the
 // forbidden-primitive regex (`DialogPrimitive.Popup`, `<a href=...`,
