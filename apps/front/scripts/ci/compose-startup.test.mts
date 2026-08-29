@@ -133,11 +133,11 @@ export const assertComposeStartupContract = (
 	);
 };
 
-test('frontend E2E Compose gates startup on authenticated PostgreSQL SQL readiness', () => {
+void test('frontend E2E Compose gates startup on authenticated PostgreSQL SQL readiness', () => {
 	assertComposeStartupContract(loadCompose());
 });
 
-test('contract rejects a healthcheck mutation that can hide SQL failure', () => {
+void test('contract rejects a healthcheck mutation that can hide SQL failure', () => {
 	const compose = loadCompose();
 	compose.services.postgres.healthcheck.test[1] =
 		'PGPASSWORD="$${POSTGRES_PASSWORD}" psql -h 127.0.0.1 -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}" -tAc \'SELECT 1\' || true';
@@ -145,21 +145,21 @@ test('contract rejects a healthcheck mutation that can hide SQL failure', () => 
 	assert.throws(() => assertComposeStartupContract(compose), /healthcheck/);
 });
 
-test('contract rejects a dependency-condition mutation that races migration', () => {
+void test('contract rejects a dependency-condition mutation that races migration', () => {
 	const compose = loadCompose();
 	compose.services.migrate.depends_on.postgres.condition = 'service_started';
 
 	assert.throws(() => assertComposeStartupContract(compose), /service_healthy/);
 });
 
-test('contract rejects a PUBLIC_ORIGIN mutation that breaks front startup in production', () => {
+void test('contract rejects a PUBLIC_ORIGIN mutation that breaks front startup in production', () => {
 	const compose = loadCompose();
 	// Absent PUBLIC_ORIGIN: validateRuntimeEnv() refuses to start and e2es time out.
 	delete compose.services.front.environment.PUBLIC_ORIGIN;
 	assert.throws(() => assertComposeStartupContract(compose), /PUBLIC_ORIGIN/);
 });
 
-test('contract rejects an invalid PUBLIC_ORIGIN (trailing slash)', () => {
+void test('contract rejects an invalid PUBLIC_ORIGIN (trailing slash)', () => {
 	const compose = loadCompose();
 	// Trailing slash: rejected by the runtime schema and by our bare-origin contract.
 	compose.services.front.environment.PUBLIC_ORIGIN = 'https://front.localhost:8443/';

@@ -37,7 +37,7 @@ const getFreePort = (): Promise<number> => {
 // then kills it (signal set, status null), failing loud.
 //
 // The paired RED/GREEN proof lives in .dump/preuve-r4-demarrage.md.
-test('startup: NODE_ENV=production without PUBLIC_ORIGIN exits non-zero and names PUBLIC_ORIGIN', async (t) => {
+void test('startup: NODE_ENV=production without PUBLIC_ORIGIN exits non-zero and names PUBLIC_ORIGIN', async (t) => {
 	if (!existsSync(DIST_SERVER_JS)) {
 		t.skip('dist/server/server.js not found; run `pnpm --filter front build` first');
 		return;
