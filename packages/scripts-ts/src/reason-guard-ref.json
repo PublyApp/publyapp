@@ -681,6 +681,10 @@
 		"quality-gate.yml::quality::Typecheck client-ts": {
 			"reason_hash": "27ef92467928c767",
 			"reason_length": 320
+		},
+		"quality-gate.yml::quality::Verify deploy env doc coverage (#1798)": {
+			"reason_hash": "41801181f18800e2",
+			"reason_length": 483
 		}
 	}
 }

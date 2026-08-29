@@ -845,6 +845,11 @@
 			"hash": "b9b9694f73a244ad",
 			"mirror": "just ci-lint-ts",
 			"reason": "ci-lint-ts now also runs pnpm --filter @org/client-ts typecheck (tsc --noEmit), the identical invocation this step runs. The Kiota-generated TypeScript API client's typecheck script was added to packages/client-ts/package.json but was never wired into any CI step or local gate — trompe-l’oeil coverage. See issue #1692."
+		},
+		"quality-gate.yml::quality::Verify deploy env doc coverage (#1798)": {
+			"hash": "7e3a5bf766524b33",
+			"mirror": "just ci-deploy-env-docs",
+			"reason": "ci-deploy-env-docs runs the identical pnpm --filter scripts-ts exec vitest run src/check-deploy-env-docs.test.ts && node ./packages/scripts-ts/src/check-deploy-env-docs.ts that this step runs. The guard extracts required env vars from actual source code (env.ts schema, server.ts validateRuntimeEnv, AppEnvironment.cs GetRequiredString calls) and compares them to the documented vars in the runbook. Fails closed: an unparseable source file FAILS LOUDLY with the file name and error."
 		}
 	}
 }
