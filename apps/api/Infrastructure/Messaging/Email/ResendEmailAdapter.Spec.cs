@@ -137,6 +137,25 @@ public sealed class ResendEmailAdapterSpec {
 		thrown.Which.Code.Should().Be("provider_timeout");
 	}
 
+	[Fact]
+	public async Task ItShouldDedupeDuplicateIdempotencyKeys() {
+		// Idempotency key should prevent duplicate sends. First call with the key
+		// should reach the provider; second call with same key should not.
+		var messageId = Guid.NewGuid();
+		var fake = new FakeResendClient {
+			EmailSendResponse = new ResendResponse<Guid>(messageId, new ResendRateLimit())
+		};
+		var adapter = new ResendEmailAdapter(fake);
+
+		// First send with idempotency key
+		await adapter.SendAsync(Request(), "same-idem-key");
+		fake.ProviderCallCount.Should().Be(1);
+
+		// Second send with same idempotency key - should be deduplicated
+		await adapter.SendAsync(Request(), "same-idem-key");
+		fake.ProviderCallCount.Should().Be(1); // Still 1, not incremented
+	}
+
 	private static EmailRequest Request() {
 		return new EmailRequest {
 			To = "to@example.com",
