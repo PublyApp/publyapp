@@ -1,4 +1,4 @@
-import { describe, expect, test } from 'vitest';
+import { describe, test } from 'vitest';
 
 describe('REPRO 1784 — thrown Error containing AssertionError', () => {
 	test('throws an Error whose message contains AssertionError', () => {

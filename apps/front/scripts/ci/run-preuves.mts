@@ -434,6 +434,13 @@ function readProofReport(reportPath: string): ProofReport {
 		);
 	}
 
+	// Build the narrowed value from the validated pieces instead of asserting
+	// the shape onto `obj`. An assertion chain would have hidden a real gap:
+	// nothing below `assertionResults` was checked, yet `status` and
+	// `failureMessages[0]` are exactly what the classifier reads. An entry we
+	// cannot read must fail loud here, at the boundary — never reach the
+	// classifier as a plausible default.
+	const testResults: ProofReport['testResults'] = [];
 	for (const suite of obj.testResults) {
 		if (typeof suite !== 'object' || suite === null) {
 			throw new Error(
@@ -447,9 +454,46 @@ function readProofReport(reportPath: string): ProofReport {
 					`at ${reportPath}.`,
 			);
 		}
+		const assertionResults: ProofReport['testResults'][number]['assertionResults'] = [];
+		for (const assertion of suiteObj.assertionResults) {
+			if (typeof assertion !== 'object' || assertion === null) {
+				throw new Error(
+					`vitest JSON report has a non-object assertion result at ` +
+						`${reportPath}.`,
+				);
+			}
+			const assertionObj = assertion as Record<string, unknown>;
+			if (typeof assertionObj.status !== 'string') {
+				throw new Error(
+					`vitest JSON report has an assertion result whose 'status' is ` +
+						`not a string at ${reportPath} — the reporter output is ` +
+						`malformed.`,
+				);
+			}
+			if (
+				!Array.isArray(assertionObj.failureMessages) ||
+				assertionObj.failureMessages.some((message) => typeof message !== 'string')
+			) {
+				throw new Error(
+					`vitest JSON report has an assertion result whose ` +
+						`'failureMessages' is not an array of strings at ` +
+						`${reportPath} — classification reads failureMessages[0], so ` +
+						`an unreadable value must not be classified at all.`,
+				);
+			}
+			assertionResults.push({
+				status: assertionObj.status,
+				failureMessages: assertionObj.failureMessages as string[],
+			});
+		}
+		testResults.push({ assertionResults });
 	}
 
-	return obj as unknown as ProofReport;
+	return {
+		numTotalTests: obj.numTotalTests,
+		numFailedTests: obj.numFailedTests,
+		testResults,
+	};
 }
 
 // --- Main logic ---
