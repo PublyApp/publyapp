@@ -53,6 +53,6 @@ test('retry exhausts attempts and throws last error', async () => {
 		'persistent failure',
 	);
 
-	// attempts=2 means: initial call + 2 retries = 3 total
-	expect(fn).toHaveBeenCalledTimes(3);
+	// attempts=2 means: 2 total calls (1 initial + 1 retry)
+	expect(fn).toHaveBeenCalledTimes(2);
 });

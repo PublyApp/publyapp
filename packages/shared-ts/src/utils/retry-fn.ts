@@ -20,7 +20,10 @@ export const retry = async <F extends GenericFunction>({
 	try {
 		return await fn(...(args ?? []));
 	} catch (error) {
-		if (attempts <= 0) {
+		// attempts is the total number of calls we are allowed to make. The
+		// initial call above consumed one; if none remain, rethrow. So
+		// attempts=3 means one initial call plus up to two retries.
+		if (attempts <= 1) {
 			throw error;
 		}
 		await delayFn(delay);
