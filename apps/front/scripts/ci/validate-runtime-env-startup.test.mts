@@ -3,8 +3,8 @@ import { spawnSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { createServer } from 'node:net';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import test from 'node:test';
+import { fileURLToPath } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const FRONT_DIR = path.resolve(__dirname, '..', '..');
@@ -39,7 +39,9 @@ const getFreePort = (): Promise<number> => {
 // The paired RED/GREEN proof lives in .dump/preuve-r4-demarrage.md.
 void test('startup: NODE_ENV=production without PUBLIC_ORIGIN exits non-zero and names PUBLIC_ORIGIN', async (t) => {
 	if (!existsSync(DIST_SERVER_JS)) {
-		t.skip('dist/server/server.js not found; run `pnpm --filter front build` first');
+		t.skip(
+			'dist/server/server.js not found; run `pnpm --filter front build` first',
+		);
 		return;
 	}
 
