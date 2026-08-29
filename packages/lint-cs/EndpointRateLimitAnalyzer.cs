@@ -48,7 +48,10 @@ public sealed class EndpointRateLimitAnalyzer
 				"tenant-email-operation",
 				"export",
 				"tenant-export",
-				"upload"
+				"upload",
+				// A5 (#636): dedicated staff system-job trigger bucket — produces
+				// real job_queue work, never shares another bucket.
+				"system-job-trigger"
 			);
 	private static readonly ImmutableHashSet<string>
 		ApprovedNamedPolicyHelpers =

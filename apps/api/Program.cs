@@ -332,6 +332,7 @@ public class Program {
 		staffGroup.MapAuditLogEndpointsForStaff();
 		staffGroup.MapUploadEndpointsForStaff();
 		staffGroup.MapJobDeadLetterEndpointsForStaff();
+		staffGroup.MapJobVisibilityEndpointsForStaff();
 
 		// First real tenant-scoped surface (root `/`): the signed-in user's
 		// own account profile. Posts shipped as the first real permission-gated
