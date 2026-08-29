@@ -3,8 +3,48 @@
 // the worker (APP_ROLE=worker) and the front dev server, plus the Aspire dashboard
 // (traces/metrics via OTel).
 // Production (dokploy.yml) and e2e (docker-compose.test.yml) are deliberately untouched.
+using System.Net;
+using System.Net.Sockets;
+
 var builder = DistributedApplication.CreateBuilder(args);
 
+// Persistent local Postgres on the host's stable :5454 with a named data volume —
+// survives AppHost restarts and replaces the former local compose Postgres.
+//
+// The password is the local-development literal `password`, the same constant in
+// .env.example and in the justfile db-* recipes. It stays a secret parameter
+// (the only WithPassword overload takes a ParameterResource), and Aspire allows
+// any configuration source — e.g. a machine-local user-secrets entry
+// `Parameters:postgres-password`, or an env var `Parameters__postgres-password` —
+// to override the declared value. Such an override would silently swap the
+// container's password for a different one while just db-migrate (hardwired to
+// Password=password) and every DSN keep the literal, so fail loudly here instead
+// (round-3 finding 4).
+var postgresPassword = builder.AddParameter("postgres-password", "password", secret: true);
+var configuredPassword = builder.Configuration["Parameters:postgres-password"];
+if (string.IsNullOrEmpty(configuredPassword) || configuredPassword == "password") {
+	// Absent: the declared literal wins. Present and equal: redundant but safe.
+} else {
+	Console.Error.WriteLine(
+		"ERREUR — une valeur de configuration locale remplace le mot de passe "
+			+ "local de développement de l'AppHost (Parameters:postgres-password = "
+				+ $"{configuredPassword.Length} caractères, la valeur attendue est le littéral "
+					+ "`password`). La pile locale (.env.example, .env.development et les recettes "
+						+ "db-* du justfile) est câblée sur Password=password : avec une valeur "
+							+ "différente, just db-migrate et toute connection string seraient "
+								+ "en désaccord silencieux avec le conteneur. "
+		+ "Actions : supprimez la valeur générée du magasin de secrets de l'AppHost "
+			+ "(dotnet user-secrets --id publyapp-apphost-255-spike remove "
+				+ "\"Parameters:postgres-password\", fichier ~/.microsoft/usersecrets/"
+					+ "publyapp-apphost-255-spike/secrets.json), retirez la variable d'environnement "
+						+ "Parameters__postgres-password si elle est posée, puis relancez "
+							+ "`dotnet run --project apps/apphost` — ou, si vous voulez vraiment un "
+								+ "autre mot de passe, changez la constante dans .env.example, "
+									+ ".env.development et les recettes db-* du justfile en même temps.");
+	Environment.Exit(1);
+}
+
+var postgres = builder.AddPostgres("postgres").WithPassword(postgresPassword).WithHostPort(5454).WithDataVolume();
 // Pre-flight: the postgres resource is pinned to host port 5454, and every app
 // connects via POSTGRES_CONNECTION_STRING = "Host=localhost;Port=5454". If that
 // port is already taken, the DCP postgres proxy cannot bind it and falls back to
@@ -45,16 +85,6 @@ var builder = DistributedApplication.CreateBuilder(args);
 	}
 }
 
-// Persistent local Postgres on the host's stable :5454 with a named data volume —
-// survives AppHost restarts and replaces the former local compose Postgres.
-//
-// The password is the plain literal, not a secret parameter: it is a constant in
-// source either way, and an AddParameter(secret: true) would let Aspire substitute
-// a machine-local user-secrets value WITHOUT failing loudly — any such override
-// would silently break just db-migrate, which is hardwired to Password=password
-// (round-3 finding 4). .env.example documents the same value; keep the three in
-// sync if it ever changes.
-var postgres = builder.AddPostgres("postgres").WithPassword("password").WithHostPort(5454).WithDataVolume();
 var publyDb = postgres.AddDatabase("publyapp-db", "publyapp_db");
 
 // The app reads its DSN from POSTGRES_CONNECTION_STRING (AppEnvironment), not the
