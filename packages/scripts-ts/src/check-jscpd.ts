@@ -60,7 +60,9 @@ const isProductionPath = (filePath) => {
 // @ts-expect-error rung-0
 const isSpecFile = (filePath) => {
 	for (const pat of SPEC_PATTERNS) {
-		if (filePath.includes(pat)) return true;
+		if (filePath.includes(pat)) {
+			return true;
+		}
 	}
 	return false;
 };
@@ -156,13 +158,17 @@ export const computeProductionStats = (dupes) => {
 		const f1 = dupe.secondFile?.name ?? '';
 		const lines = dupe.lines ?? 0;
 
-		if (!f0 || !f1) continue;
+		if (!f0 || !f1) {
+			continue;
+		}
 
 		if (isSelfClone(f0, f1)) {
 			if (isProductionPath(f0)) {
 				// Track the maximum duplicate-lines value for this file.
 				const prev = uniqueAuto.get(f0) ?? 0;
-				if (lines > prev) uniqueAuto.set(f0, lines);
+				if (lines > prev) {
+					uniqueAuto.set(f0, lines);
+				}
 			}
 		} else {
 			const p0 = isProductionPath(f0);
@@ -181,10 +187,14 @@ export const computeProductionStats = (dupes) => {
 	}
 
 	let pairLines = 0;
-	for (const l of uniquePairs.values()) pairLines += l;
+	for (const l of uniquePairs.values()) {
+		pairLines += l;
+	}
 
 	let autoLines = 0;
-	for (const l of uniqueAuto.values()) autoLines += l;
+	for (const l of uniqueAuto.values()) {
+		autoLines += l;
+	}
 
 	return {
 		pairCount: uniquePairs.size,
