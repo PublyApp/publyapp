@@ -127,7 +127,7 @@ export function isHandlerDeferred(line: string): boolean {
 // the proof's own Step 3b / 4 / 4b sanity checks, lifted into the
 // shared module so a regression is caught at IMPORT time, before
 // any test in the proof runs.
-export function validateDetectionContract(): void {
+function validateDetectionContract(): void {
 	// isHandlerDeferred: dot-notation is direct, every other form is
 	// deferred. The four cases below pin the contract.
 	const directDot = `process.on('SIGINT', () => {});`;

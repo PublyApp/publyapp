@@ -44,7 +44,7 @@ export interface ProofReport {
  * is the r8 fix for the angle mort identified in #1863, scoped to this
  * proof file.
  */
-export interface ExpectedRedDeclaration {
+interface ExpectedRedDeclaration {
 	testName: string;
 	why: string;
 }
