@@ -100,7 +100,7 @@ const rewriteRetryFnImport = (root: string, specifier: string): void => {
  * Runs the guard as CI runs it — a real `node --experimental-strip-types`
  * process — against the given shared-ts root.
  */
-const runGuard = (root: string): { status: number | null; stderr: string } => {
+const runGuard = (root: string) => {
 	const result = spawnSync(
 		'node',
 		[

@@ -56,9 +56,7 @@ const RETRY_FN_RELATIVE = path.join('utils', 'retry-fn.ts');
  * is not exported. The env var only carries the absolute target URL — quoting
  * a path inside `-e` would be fragile on Windows-style paths.
  */
-export const resolveRetryFnViaNode = (
-	retryFnUrl: string,
-): { status: number; stderr: string } => {
+export const resolveRetryFnViaNode = (retryFnUrl: string) => {
 	const result = spawnSync(
 		process.execPath,
 		[
