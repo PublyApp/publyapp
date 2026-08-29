@@ -83,4 +83,25 @@ describe('injectSeoMarkup — host-header injection guard (#1766, #1774)', () =>
 		// The forged host must not appear in any hreflang link.
 		expect(output).not.toContain('evil.example.com');
 	});
+
+	test('FORGED_HOST does not leak into rendered og:image and twitter:image; configured PUBLIC_ORIGIN wins (#1790)', async () => {
+		const { injectSeoMarkup, resolveSeoTranslator } = await import('./server');
+
+		const t = await resolveSeoTranslator('en');
+		const request = new Request('https://internal:3000/', {
+			headers: { host: 'evil.example.com' },
+		});
+
+		const output = injectSeoMarkup(html, request, 'en', true, t);
+
+		// The og:image and twitter:image meta tags must use the configured origin.
+		expect(output).toContain(
+			`property="og:image" content="${origin}/images/social-share.png"`,
+		);
+		expect(output).toContain(
+			`name="twitter:image" content="${origin}/images/social-share.png"`,
+		);
+		// The forged host must not appear in any image meta tag.
+		expect(output).not.toContain('evil.example.com');
+	});
 });
