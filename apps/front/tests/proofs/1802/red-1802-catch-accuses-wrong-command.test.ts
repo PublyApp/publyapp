@@ -334,11 +334,17 @@ function findMatchingBrace(body: string, start: number): number {
 			k++;
 			continue;
 		}
-		if (ch === '{') depth++;
-		else if (ch === '}') depth--;
+		if (ch === '{') {
+			depth++;
+		} else if (ch === '}') {
+			depth--;
+		}
 		k++;
 	}
-	return depth === 0 ? k : -1;
+	if (depth !== 0) {
+		return -1;
+	}
+	return k;
 }
 
 describe('shallow-repair catch attribution — RED: catch names git rev-parse even when git fetch --unshallow fails (#1802)', () => {
