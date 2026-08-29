@@ -8,6 +8,18 @@ import { promisify } from 'node:util';
 
 const execFileAsync = promisify(execFile);
 
+/**
+ * The shape of `reason-guard-ref.json` as this generator reads it back.
+ *
+ * Both fields are optional: the file is absent on first generation, and an
+ * older file may predate `pinned_step_ids`. Naming the contract keeps the
+ * inferred evidence intact at each use site (anti-slop/no-known-value-widening).
+ */
+type ReasonRefFile = {
+	pinned_step_ids?: string[];
+	steps?: Record<string, unknown>;
+};
+
 // Generation script for packages/scripts-ts/src/reason-guard-ref.json.
 //
 // The reason guard (check-ci-drift.ts) detects truncation or alteration of a
@@ -90,7 +102,7 @@ const readFloorFromGit = async (rootDir: string): Promise<string[]> => {
 
 		const parsed = JSON.parse(stdout) as { pinned_step_ids?: string[] };
 		return parsed.pinned_step_ids ?? [];
-	} catch (gitError) {
+	} catch {
 		// Git read failed. Determine why: is git unavailable, or is the file
 		// missing from HEAD (deleted in the same commit as the step removal)?
 		// We must NOT silently return [] when the file was deleted — that would
@@ -280,19 +292,13 @@ const reference = Object.fromEntries(
 const existingPinned: string[] = await readFloorFromGit(process.cwd());
 
 // Read the existing reference file for the integrity pre-check.
-let existingRef: {
-	pinned_step_ids?: string[];
-	steps?: Record<string, unknown>;
-} = {};
+let existingRef: ReasonRefFile = {};
 try {
 	const existingRefRaw = await readFile(
 		path.resolve(process.cwd(), outputPath),
 		'utf8',
 	);
-	existingRef = JSON.parse(existingRefRaw) as {
-		pinned_step_ids?: string[];
-		steps?: Record<string, unknown>;
-	};
+	existingRef = JSON.parse(existingRefRaw) as ReasonRefFile;
 } catch {
 	// File does not exist yet — first generation.
 }
