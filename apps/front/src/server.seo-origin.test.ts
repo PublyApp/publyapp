@@ -16,7 +16,7 @@ const stubProductionEnv = (): void => {
 	vi.stubEnv('PUBLIC_ORIGIN', origin);
 };
 
-describe('injectSeoMarkup — host-header injection guard (#1766)', () => {
+describe('injectSeoMarkup — host-header injection guard (#1766, #1774)', () => {
 	const html = '<html><head><title>PublyApp</title></head><body></body></html>';
 
 	beforeEach(() => {
@@ -46,5 +46,41 @@ describe('injectSeoMarkup — host-header injection guard (#1766)', () => {
 		// The configured PUBLIC_ORIGIN must appear in canonical and og:url.
 		expect(output).toContain(`href="${origin}/"`);
 		expect(output).toContain(`content="${origin}/"`);
+	});
+
+	test('FORGED_HOST does not leak into rendered sitemap URL; configured PUBLIC_ORIGIN wins (#1774)', async () => {
+		const { injectSeoMarkup, resolveSeoTranslator } = await import('./server');
+
+		const t = await resolveSeoTranslator('en');
+		const request = new Request('https://internal:3000/', {
+			headers: { host: 'evil.example.com' },
+		});
+
+		const output = injectSeoMarkup(html, request, 'en', true, t);
+
+		// The sitemap link must use the configured origin, not the forged host.
+		expect(output).toContain(`rel="sitemap" href="${origin}/sitemap.xml"`);
+		// The forged host must not appear in the sitemap URL.
+		expect(output).not.toContain('evil.example.com');
+	});
+
+	test('FORGED_HOST does not leak into rendered hreflang alternate links; configured PUBLIC_ORIGIN wins (#1774)', async () => {
+		const { injectSeoMarkup, resolveSeoTranslator } = await import('./server');
+
+		const t = await resolveSeoTranslator('en');
+		const request = new Request('https://internal:3000/', {
+			headers: { host: 'evil.example.com' },
+		});
+
+		const output = injectSeoMarkup(html, request, 'en', true, t);
+
+		// Every hreflang alternate link must use the configured origin.
+		expect(output).toContain(`rel="alternate" href="${origin}/" hreflang="en"`);
+		expect(output).toContain(`rel="alternate" href="${origin}/" hreflang="fr"`);
+		expect(output).toContain(
+			`rel="alternate" href="${origin}/" hreflang="x-default"`,
+		);
+		// The forged host must not appear in any hreflang link.
+		expect(output).not.toContain('evil.example.com');
 	});
 });
