@@ -252,8 +252,12 @@ const readRemovalsConfession = async (
 };
 
 /**
- * Verifies that `pinned_step_ids` and `steps{}` contain exactly the same set
- * of IDs. A mismatch means the reference file has been tampered with.
+ * Verifies the integrity of the reference file against the manifest.
+ * `pinned_step_ids` must be a subset of steps{} (a pinned step dropped
+ * from steps{} is a floor-lowering attack). Extra steps in steps{} fall
+ * into two buckets: those present in the manifest are legitimate growth
+ * (the ratchet absorbs them); those NOT in the manifest are phantom steps
+ * (tampering). Throws loudly on any violation.
  */
 const assertIntegrity = (
 	pinnedStepIds: string[],
