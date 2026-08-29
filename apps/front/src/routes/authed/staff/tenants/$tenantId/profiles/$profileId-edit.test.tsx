@@ -19,9 +19,9 @@ import { Route } from './$profileId-edit';
 
 describe('staff tenant profiles/$profileId/edit legacy route', () => {
 	test('redirects to the profile detail page with the edit-drawer flag', () => {
-		function widenOptions<T>(value: unknown): T {
+		const widenOptions = <T,>(value: unknown): T => {
 			return value as T;
-		}
+		};
 		const { beforeLoad } = widenOptions<{
 			beforeLoad: (context: {
 				params: { tenantId: string; profileId: string };

@@ -18,7 +18,7 @@ import { describe, it, expect } from 'vitest';
 import { analyzeFile } from './tag-guard';
 
 /** Write a temporary .spec.ts file and return its path. */
-function fixture(name: string, code: string): string {
+const fixture = (name: string, code: string): string => {
 	const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'tag-guard-fixture-'));
 	const filePath = path.join(dir, name);
 	fs.writeFileSync(filePath, code, 'utf8');

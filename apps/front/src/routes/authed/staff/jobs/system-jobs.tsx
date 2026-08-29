@@ -275,9 +275,9 @@ const StaffJobsSystemJobsPage = () => {
 	);
 };
 
-function buildCursorResetKey(
+const buildCursorResetKey = (
 	search: ReturnType<typeof parseStaffJobsListSearchParams>,
-): string {
+): string => {
 	return [
 		search.isEnabled === undefined ? '' : String(search.isEnabled),
 		search.jobType ?? '',

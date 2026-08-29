@@ -42,7 +42,7 @@ const isSeparatorRow = (row: string): boolean => {
 	);
 };
 
-export function parseSkipInventoryPaths(contents: string): string[] {
+export const parseSkipInventoryPaths = (contents: string): string[] => {
 	const lines = contents.split('\n');
 
 	const headingIndex = lines.findIndex((candidate) =>

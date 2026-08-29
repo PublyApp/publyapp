@@ -207,9 +207,9 @@ const invitationPayload = () => ({
  * generated `routeTree.gen.ts` does, with exactly this `.update()` call.
  * Same harness precedent as the #820 routing suite.
  */
-function widenOptions<T>(value: unknown): T {
+const widenOptions = <T,>(value: unknown): T => {
 	return value as T;
-}
+};
 const mountRealRoute = <TRoute,>(
 	route: TRoute,
 	options: Record<string, unknown>,
@@ -246,7 +246,7 @@ const buildHarness = () => {
 		getParentRoute: () => layoutRoute,
 	});
 
-	function addChildrenOf(route: unknown) {
+	const addChildrenOf = (route: unknown) => {
 		return widenOptions<{ addChildren: (children: unknown[]) => void }>(route)
 			.addChildren;
 	}

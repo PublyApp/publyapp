@@ -90,7 +90,7 @@ type LockContent = {
  * - Only alphanumeric, dash, underscore
  * - Must start with alphanumeric
  */
-export function normalizeComposeName(name: string): string {
+export const normalizeComposeName = (name: string): string => {
 	let normalized = name
 		.toLowerCase()
 		.replace(/[^a-z0-9_-]/g, '_')
@@ -107,7 +107,7 @@ export function normalizeComposeName(name: string): string {
 /**
  * Finds the repository root (contains .git directory)
  */
-function findRepoRoot(): string {
+const findRepoRoot = (): string => {
 	let dir = REPO_ROOT;
 
 	// Walk up the directory tree looking for .git
@@ -129,7 +129,7 @@ function findRepoRoot(): string {
 /**
  * Get the lock file path for a given port band
  */
-function getLockFilePath(bandIndex: number): string {
+const getLockFilePath = (bandIndex: number): string => {
 	const basePort = BASE_PORTS.traefik_web + bandIndex * PORT_BAND;
 	return pathJoin(LOCK_DIR, `band-${basePort}.lock`);
 }
@@ -138,7 +138,7 @@ function getLockFilePath(bandIndex: number): string {
  * Check if a PID is still alive.
  * Uses process.kill(pid, 0) which checks existence without sending a signal.
  */
-function isPidAlive(pid: number): boolean {
+const isPidAlive = (pid: number): boolean => {
 	try {
 		process.kill(pid, 0);
 		return true;
@@ -153,7 +153,7 @@ function isPidAlive(pid: number): boolean {
 /**
  * Parse lock file content.
  */
-function readLockContent(lockPath: string): LockContent | null {
+const readLockContent = (lockPath: string): LockContent | null => {
 	try {
 		const content = readFileSync(lockPath, 'utf8');
 		return JSON.parse(content) as LockContent;
@@ -166,7 +166,7 @@ function readLockContent(lockPath: string): LockContent | null {
  * Check if a lock is stale (owner dead or too old).
  * Exported for testing.
  */
-export function isLockStale(lockPath: string): boolean {
+export const isLockStale = (lockPath: string): boolean => {
 	const data = readLockContent(lockPath);
 	if (!data) {
 		// Can't read lock content - consider it stale
@@ -200,7 +200,7 @@ export function isLockStale(lockPath: string): boolean {
  * Returns true if the lock was successfully reclaimed.
  * Exported for testing.
  */
-export function reclaimStaleLock(lockPath: string): boolean {
+export const reclaimStaleLock = (lockPath: string): boolean => {
 	try {
 		// Delete the stale lock
 		unlinkSync(lockPath);
@@ -229,7 +229,7 @@ export function reclaimStaleLock(lockPath: string): boolean {
 /**
  * Ensure lock directory exists
  */
-function ensureLockDirExists(): void {
+const ensureLockDirExists = (): void => {
 	try {
 		mkdirSync(LOCK_DIR, { recursive: true });
 	} catch {
@@ -241,11 +241,11 @@ function ensureLockDirExists(): void {
  * Acquire a port band atomically using exclusive file creation
  * Returns lockPath as part of the result
  */
-function acquirePortBandInternal(): {
+const acquirePortBandInternal = (): {
 	bandIndex: number;
 	basePort: number;
 	lockPath: string;
-} | null {
+} | null => {
 	ensureLockDirExists();
 
 	for (let bandIndex = 0; bandIndex < MAX_BANDS; bandIndex++) {
@@ -285,7 +285,7 @@ function acquirePortBandInternal(): {
 /**
  * Release a port band lock
  */
-function releasePortBandInternal(lockPath: string): boolean {
+const releasePortBandInternal = (lockPath: string): boolean => {
 	try {
 		unlinkSync(lockPath);
 		return true;
@@ -298,7 +298,7 @@ function releasePortBandInternal(lockPath: string): boolean {
  * Derives a unique project name from the repository root path
  * (NOT from the worktree name which causes collisions)
  */
-export function deriveProjectName(): string {
+export const deriveProjectName = (): string => {
 	const repoPath = findRepoRoot();
 	const normalized = normalizeComposeName(repoPath);
 	return `publyapp-e2e-${normalized}`;
@@ -321,7 +321,7 @@ export type E2eComposeEnv = {
 	E2E_LOCK_PATH: string;
 };
 
-export function computeEnv(): E2eComposeEnv {
+export const computeEnv = (): E2eComposeEnv => {
 	// Acquire a port band
 	const band = acquirePortBandInternal();
 
@@ -352,7 +352,7 @@ export function computeEnv(): E2eComposeEnv {
 /**
  * Release the port band lock (for cleanup)
  */
-export function releaseLock(): void {
+export const releaseLock = (): void => {
 	// Read lock path from env if set
 	const lockPath = process.env.E2E_LOCK_PATH;
 	if (lockPath) {
@@ -398,7 +398,7 @@ export const releasePortBand: (lockPath: string) => boolean =
 /**
  * Setup complete e2e environment (exported for testing)
  */
-export function setupE2EComposeEnv(): E2EComposeEnv {
+export const setupE2EComposeEnv = (): E2EComposeEnv => {
 	const env = computeEnv();
 
 	// Extract values from environment
@@ -430,13 +430,13 @@ export function setupE2EComposeEnv(): E2EComposeEnv {
 /**
  * Teardown e2e environment (exported for testing)
  */
-export function teardownE2EComposeEnv(env: E2EComposeEnv): void {
+export const teardownE2EComposeEnv = (env: E2EComposeEnv): void => {
 	if (env.lockPath) {
 		releasePortBandInternal(env.lockPath);
 	}
 }
 
-function main() {
+const main = (): void => {
 	const env = computeEnv();
 	const isSet = process.argv.includes('--set');
 

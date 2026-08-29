@@ -107,7 +107,7 @@ const requiredClosureFields = [
 ];
 
 // @ts-expect-error rung-0: add proper type in later rung
-function run(command, args, options = {}) {
+const run = (command, args, options = {}) => {
 	return new Promise((resolve, reject) => {
 		const child = spawn(command, args, {
 			cwd: repo,
@@ -129,7 +129,7 @@ function run(command, args, options = {}) {
 	});
 }
 
-function sharedEnv(extra = {}) {
+const sharedEnv = (extra = {}) => {
 	const env = { ...process.env };
 	if (sharedPythonPath) {
 		env.PYTHONPATH = sharedPythonPath;
@@ -142,7 +142,7 @@ function sharedEnv(extra = {}) {
 }
 
 // @ts-expect-error rung-0: add proper type in later rung
-async function withTempDirectory(callback) {
+const withTempDirectory = async (callback) => {
 	const directory = await mkdtemp(join(tmpdir(), 'publyapp-closure-'));
 	try {
 		return await callback(directory);
@@ -152,7 +152,7 @@ async function withTempDirectory(callback) {
 }
 
 // @ts-expect-error rung-0: add proper type in later rung
-async function runSharedGate(args, options = {}) {
+const runSharedGate = async (args, options = {}) => {
 	if (!sharedGatePath) {
 		throw new Error(
 			'Shared gate path is unavailable; set PR_CLOSURE_GATE_ROOT',
@@ -166,12 +166,12 @@ async function runSharedGate(args, options = {}) {
 }
 
 // @ts-expect-error rung-0: add proper type in later rung
-function fixtureCardMap(directory) {
+const fixtureCardMap = (directory) => {
 	return join(directory, 'card-map.json');
 }
 
 // @ts-expect-error rung-0: add proper type in later rung
-async function writeCardMap(directory, description, extra = {}) {
+const writeCardMap = async (directory, description, extra = {}) => {
 	const path = fixtureCardMap(directory);
 	await writeFile(
 		path,
@@ -198,14 +198,14 @@ async function writeCardMap(directory, description, extra = {}) {
 }
 
 // @ts-expect-error rung-0: add proper type in later rung
-async function mutateCardMap(path, mutate) {
+const mutateCardMap = async (path, mutate) => {
 	const cardMap = JSON.parse(await readFile(path, 'utf8'));
 	mutate(cardMap);
 	await writeFile(path, JSON.stringify(cardMap, null, 2));
 }
 
 // @ts-expect-error rung-0: add proper type in later rung
-function adapterArgs(cardMap, state = 'REVIEW_READY', mode = 'dry-run') {
+const adapterArgs = (cardMap, state = 'REVIEW_READY', mode = 'dry-run') => {
 	return [
 		adapterPath,
 		'--project',
@@ -224,7 +224,7 @@ function adapterArgs(cardMap, state = 'REVIEW_READY', mode = 'dry-run') {
 }
 
 // @ts-expect-error rung-0: add proper type in later rung
-function assertLocalConfigContents(config) {
+const assertLocalConfigContents = (config) => {
 	const expectedConfigKeys = [
 		'ci_required_checks',
 		'closure_acceptance_commands',
@@ -296,14 +296,14 @@ function assertLocalConfigContents(config) {
 }
 
 // @ts-expect-error rung-0: add proper type in later rung
-function assertAdapterClosureFields(adapter) {
+const assertAdapterClosureFields = (adapter) => {
 	for (const field of requiredClosureFields) {
 		assert.match(adapter, new RegExp('\\| `' + field + '` \\|'));
 	}
 	assert.match(adapter, /\| `review_schema` \| `1`;/);
 }
 
-async function localBranchAndHead() {
+const localBranchAndHead = async () => {
 	const branchResult = await run('git', ['branch', '--show-current']);
 	const commitResult = await run('git', ['rev-parse', 'HEAD']);
 	// @ts-expect-error rung-0: TS18046

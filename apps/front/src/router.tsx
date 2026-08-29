@@ -154,7 +154,7 @@ export const handleMutationSuccess = (
 	displayNonSilentMutationIntent(intent);
 };
 
-export function getRouter() {
+export const getRouter = () => {
 	const queryClient = new QueryClient({
 		defaultOptions: {
 			queries: {

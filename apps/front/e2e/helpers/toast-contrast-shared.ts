@@ -27,11 +27,11 @@ export type TextPaintKind =
 // and Playwright's Node side both compile TS to JS before toString() runs,
 // so the output is valid ES for Chromium (no type annotations, no satisfies).
 
-export function __publyNormalize(value: string): string {
+export const __publyNormalize = (value: string): string => {
 	return value.trim().toLowerCase();
-}
+};
 
-export function __publyIsTransparentColor(value: string): boolean {
+export const __publyIsTransparentColor = (value: string): boolean => {
 	const n = __publyNormalize(value);
 	if (n === 'transparent') {
 		return true;
@@ -53,9 +53,9 @@ export function __publyIsTransparentColor(value: string): boolean {
 	return false;
 }
 
-export function __publyClassifyTextPaint(
+export const __publyClassifyTextPaint = (
 	style: ClippedTextStyle,
-): TextPaintKind {
+): TextPaintKind => {
 	const clip = __publyNormalize(
 		style.webkitBackgroundClip ?? style.backgroundClip ?? '',
 	);
@@ -88,10 +88,10 @@ export function __publyClassifyTextPaint(
 	return 'opaque';
 }
 
-export function __publyAssertTextPaintIsMeasurable(
+export const __publyAssertTextPaintIsMeasurable = (
 	style: ClippedTextStyle,
 	label: string,
-): void {
+): void => {
 	const kind = __publyClassifyTextPaint(style);
 	if (kind === 'clipped') {
 		throw new Error(
@@ -115,9 +115,9 @@ export function __publyAssertTextPaintIsMeasurable(
 	}
 }
 
-export async function __publyDecodeScreenshot(
+export const __publyDecodeScreenshot = async (
 	dataUrl: string,
-): Promise<ImageData> {
+): Promise<ImageData> => {
 	const prefix = 'data:image/png;base64,';
 	const base64 = dataUrl.slice(prefix.length);
 	const binary = atob(base64);

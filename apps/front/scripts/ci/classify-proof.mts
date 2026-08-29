@@ -73,7 +73,7 @@ export interface ClassificationResult {
  *   4. Wrong shape   → "missing numTotalTests/numFailedTests" or
  *                      "missing testResults array"
  */
-export function readProofReport(reportPath: string): ProofReport {
+export const readProofReport = (reportPath: string): ProofReport => {
 	if (!existsSync(reportPath)) {
 		throw new Error(
 			`vitest JSON report not found at ${reportPath} — vitest exited ` +
@@ -195,7 +195,7 @@ export function readProofReport(reportPath: string): ProofReport {
  * @param exitCode The exit code vitest returned.
  * @returns The classification result with verdict and evidence.
  */
-export function classifyProof(report: ProofReport, exitCode: number): ClassificationResult {
+export const classifyProof = (report: ProofReport, exitCode: number): ClassificationResult => {
 	const ranTests = report.numFailedTests > 0;
 	const noTests = report.numTotalTests === 0;
 

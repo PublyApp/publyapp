@@ -248,7 +248,7 @@ describe('marketing shell text contrast', () => {
 	});
 });
 
-function shellHasRenderTimeSubtleTokens(): boolean {
+const shellHasRenderTimeSubtleTokens = (): boolean => {
 	const shell = document.querySelector('[data-testid="marketing-shell"]');
 	if (!shell) {
 		return false;
