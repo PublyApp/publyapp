@@ -500,21 +500,32 @@ const RowInvalidEmailNote = ({
 	);
 };
 
-const RowInvalidCellNote = ({
-	invalidCell,
+const RowInvalidCellNotes = ({
+	invalidCells,
 	t,
 }: {
-	invalidCell: InvalidCell | null;
+	invalidCells: InvalidCell[];
 	t: Translate;
 }) => {
-	if (!invalidCell) {
+	if (invalidCells.length === 0) {
 		return null;
 	}
 
 	return (
-		<p className="text-xs text-destructive" role="alert">
-			{renderInvalidCellMessage(invalidCell, t)}
-		</p>
+		<div role="alert" className="space-y-0.5">
+			{invalidCells.map((invalidCell) => (
+				// The column + cell ref + value uniquely identify the cell across
+				// both XLSX and CSV: the column is always present (from the header
+				// row), the cell ref is present for XLSX, and the value distinguishes
+				// multiple non-text cells within the same column on the same row.
+				<p
+					key={`${invalidCell.column}-${invalidCell.cell ?? ''}-${invalidCell.value}`}
+					className="text-xs text-destructive"
+				>
+					{renderInvalidCellMessage(invalidCell, t)}
+				</p>
+			))}
+		</div>
 	);
 };
 
@@ -664,7 +675,7 @@ const InviteRowsList = ({
 					t={t}
 				/>
 				<RowInvalidEmailNote invalidEmail={row.invalidEmail} t={t} />
-				<RowInvalidCellNote invalidCell={row.invalidCell} t={t} />
+				<RowInvalidCellNotes invalidCells={row.invalidCells} t={t} />
 			</section>
 		);
 	};
@@ -948,6 +959,11 @@ const useInviteSubmit = ({
 		if (summary.failedCount > 0) {
 			setBatchSummary(summary);
 			// Keep only the failed rows so the staff member can fix and retry.
+			// `values` has been stripped by the zod schema (which only
+			// validates the on-the-wire row shape, not the bookkeeping fields
+			// like `invalidCells`), so the rows are normalized here: any
+			// missing bookkeeping field is filled with its default so the
+			// next render of the drawer does not crash on undefined access.
 			const seenIndexes = new Set<number>();
 			const failedRows: InviteRow[] = [];
 			for (const failedItem of summary.failedItems) {
@@ -958,7 +974,12 @@ const useInviteSubmit = ({
 
 				const row = values.rows[index];
 				if (row) {
-					failedRows.push(row);
+					failedRows.push({
+						...row,
+						invalidLevel: row.invalidLevel ?? null,
+						invalidEmail: row.invalidEmail ?? null,
+						invalidCells: row.invalidCells ?? [],
+					});
 					seenIndexes.add(index);
 				}
 			}
@@ -1085,7 +1106,7 @@ const InviteTenantUserDrawerInner = ({
 				profileNames: [] as string[],
 				invalidLevel: null,
 				invalidEmail: EMAIL_REGEX.test(email) ? null : email,
-				invalidCell: null,
+				invalidCells: [],
 			})),
 			existingEmails: currentRows.map((row) => row.email),
 			source: 'manual',
@@ -1128,8 +1149,9 @@ const InviteTenantUserDrawerInner = ({
 		unresolvedCount: unresolvedFlagCount(unresolvedByRowKey),
 		invalidLevelCount: (rows ?? []).filter((row) => row.invalidLevel !== null)
 			.length,
-		invalidCellCount: (rows ?? []).filter((row) => row.invalidCell !== null)
-			.length,
+		invalidCellCount: (rows ?? []).filter(
+			(row) => (row.invalidCells ?? []).length > 0,
+		).length,
 	});
 	const isSendDisabled =
 		isFormLockedFinal || !canSend || profileResolutionLimitError.length > 0;

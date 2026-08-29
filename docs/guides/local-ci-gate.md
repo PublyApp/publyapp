@@ -201,8 +201,15 @@ Do not bump the hash without doing step 1. The hash is only meaningful if someon
 ### Reason guard
 
 Each manifest entry carries a `reason` — a human-readable explanation of how (or why) the
-local gate mirrors that CI step. The reason guard pins a SHA-256 fingerprint and character
-count for every reason in `packages/scripts-ts/src/reason-guard-ref.json`.
+local gate mirrors that CI step. The reason guard pins a SHA-256 fingerprint, character
+count, and the full `reason` text itself for every entry in
+`packages/scripts-ts/src/reason-guard-ref.json`.
+
+Storing the reason text (not just its hash and length) makes regenerating the reference
+**visible in the diff** — a reviewer sees the actual reason text, not just opaque numbers.
+This closes the #1736 bypass where a 24-character bogus reason + regenerated ref was
+invisible to human review. The guard also verifies the stored hash matches the stored text
+(defense-in-depth), catching a ref that was manually tampered with.
 
 It fires when a reason **shrinks** or otherwise **changes** while the step's own hash is
 unchanged — that's the window where a reason gets silently truncated during a manifest re-serialization,

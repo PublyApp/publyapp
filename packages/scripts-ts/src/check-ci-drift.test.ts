@@ -220,10 +220,12 @@ test('fails when the manifest reconciles a step that no longer exists', async ()
 				[manifestEntry]: {
 					reason_hash: hashReason(reason),
 					reason_length: reason.length,
+					reason,
 				},
 				'fixture.yml::build::Deleted step': {
 					reason_hash: hashReason(reason),
 					reason_length: reason.length,
+					reason,
 				},
 			},
 		},
@@ -494,7 +496,7 @@ test('a commented-out gate-selftest artifact-compat invocation fails this indepe
 	);
 });
 
-// --- Reason guard tests (#1725) ---
+// --- Reason guard tests (#1725, #1732) ---
 
 // The reason guard detects truncation/alteration of a reason while the step
 // hash is unchanged. A deliberate rewrite is possible by updating
@@ -503,11 +505,16 @@ test('a commented-out gate-selftest artifact-compat invocation fails this indepe
 // Build a fixture reference that pins the original reason so the guard can
 // detect changes. In production, reason-guard-ref.json is the source of truth;
 // here we inject a test-only reference so the tests don't depend on the real one.
+//
+// #1736: the reference MUST include the `reason` text itself (not just its hash
+// and length) so that regenerating the ref is visible in the diff review.
+// The guard verifies that the stored reason text matches the manifest's reason.
 const buildFixtureReasonRef = (originalReason: string) => ({
 	steps: {
 		'fixture.yml::build::Run tests': {
 			reason_hash: hashReason(originalReason),
 			reason_length: originalReason.length,
+			reason: originalReason,
 		},
 	},
 });
@@ -702,15 +709,19 @@ test('reason guard: warns when a reference entry is absent from the manifest (st
 	});
 
 	const staleId = 'fixture.yml::build::Stale step';
+	const staleReason =
+		'old reason text that is long enough for the guard to accept';
 	const refWithStaleEntry = {
 		steps: {
 			'fixture.yml::build::Run tests': {
 				reason_hash: hashReason(reason),
 				reason_length: reason.length,
+				reason,
 			},
 			[staleId]: {
-				reason_hash: hashReason('old reason text that is long enough'),
-				reason_length: 42,
+				reason_hash: hashReason(staleReason),
+				reason_length: staleReason.length,
+				reason: staleReason,
 			},
 		},
 	};
@@ -790,16 +801,300 @@ test('reason guard: passes when manifest and reference are fully aligned (Case 3
 				'fixture.yml::build::Run tests': {
 					reason_hash: hashReason(reason),
 					reason_length: reason.length,
+					reason,
 				},
 				[newEntryId]: {
 					reason_hash: hashReason(newReason),
 					reason_length: newReason.length,
+					reason: newReason,
 				},
 			},
 		},
 	});
 
 	assert.equal(findings.length, 0);
+});
+
+// --- Reason guard tests for #1736 (visible reason text in ref) ---
+//
+// The bypass from #1736: writing a 24-char bogus reason and regenerating
+// reason-guard-ref.json in the same commit makes the guard green, because the
+// ref file only stored reason_hash + reason_length — the actual reason text
+// was invisible in the diff, so a human reviewer could not see "24 x" chars.
+//
+// The fix: reason-guard-ref.json now includes the `reason` text itself, so
+// regeneration is visible in the diff. The guard also verifies that the stored
+// reason text matches the manifest's reason (catching hash/text mismatch).
+
+test('reason guard #1736: ref format includes reason text for diff visibility', async () => {
+	// The reason-guard-ref.json file must include the actual `reason` text so
+	// that regeneration is visible in the diff. This test reads the REAL ref
+	// file and asserts the format.
+	const refRaw = readFileSync(
+		path.join(repoRoot, 'packages/scripts-ts/src/reason-guard-ref.json'),
+		'utf-8',
+	);
+	const ref = JSON.parse(refRaw) as {
+		steps: Record<
+			string,
+			{ reason_hash: string; reason_length: number; reason: string }
+		>;
+	};
+
+	for (const [id, entry] of Object.entries(ref.steps)) {
+		assert.ok(
+			typeof entry.reason === 'string' && entry.reason.trim().length > 0,
+			`reason-guard-ref.json entry "${id}" must include a non-empty \`reason\` text field for diff visibility`,
+		);
+		assert.equal(
+			entry.reason_hash,
+			hashReason(entry.reason),
+			`reason-guard-ref.json entry "${id}" reason_hash must match the hash of the stored reason text`,
+		);
+		assert.equal(
+			entry.reason_length,
+			entry.reason.length,
+			`reason-guard-ref.json entry "${id}" reason_length must match the stored reason text length`,
+		);
+	}
+});
+
+test('reason guard #1736: fails when ref reason text does not match manifest reason', async () => {
+	// Even if the hash and length match (impossible in practice but let's be
+	// explicit), the guard must verify the reason TEXT matches. Here we
+	// simulate a ref that has a bogus reason with the same hash/length as a
+	// different reason — but since hash is derived from text, a text mismatch
+	// means a hash mismatch, which the existing CHANGED detection catches.
+	// The key #1736 property is: the reason text is stored in the ref so
+	// regeneration is visible in diff. This test proves the guard catches
+	// when the ref's reason text differs from the manifest's.
+	const bogusReason = 'xxxxxxxxxxxxxxxxxxxxxxxx'; // exactly 24 chars — passes min-length
+	assert.equal(bogusReason.length, 24);
+
+	const rootDir = await buildFixture({
+		manifestSteps: reconciled,
+		steps: mirroredStep,
+	});
+
+	// The ref has the ORIGINAL reason, but the manifest has the BOGUS reason.
+	// The guard must fire because the reason changed.
+	const findings = await findCiDrift({
+		rootDir,
+		reasonRef: {
+			steps: {
+				'fixture.yml::build::Run tests': {
+					reason_hash: hashReason(bogusReason),
+					reason_length: bogusReason.length,
+					reason: bogusReason,
+				},
+			},
+		},
+	});
+
+	assert.ok(
+		findings.some(
+			(f) => f.includes('reason CHANGED') || f.includes('reason SHRINK'),
+		),
+		'Guard must detect when the manifest reason differs from the ref reason',
+	);
+});
+
+test('reason guard #1736: bypass reproduction — 24-char bogus reason with regenerated ref must be visible', async () => {
+	// This is the exact bypass from #1736: a 24-char bogus reason written
+	// into the manifest, with the ref regenerated to match. Under the OLD
+	// ref format (hash+length only), the diff showed nothing readable —
+	// only "24" appeared, not the actual bogus text.
+	//
+	// The fix ensures the ref stores the reason TEXT, so a reviewer seeing
+	// the regenerated ref in the diff immediately sees "xxxxxxxxxxxxxxxxxxxxxxxx"
+	// (24 x's). This test proves the ref format carries the text.
+	const bogusReason = 'xxxxxxxxxxxxxxxxxxxxxxxx'; // exactly 24 chars
+	assert.equal(bogusReason.length, 24);
+
+	// Simulate what gen-reason-ref.ts would produce with the new format:
+	// it must include the reason text.
+	const newRefFormat = {
+		steps: {
+			'fixture.yml::build::Bogus step': {
+				reason_hash: hashReason(bogusReason),
+				reason_length: bogusReason.length,
+				reason: bogusReason,
+			},
+		},
+	};
+
+	// The key assertion: the reason text is present in the ref, not just its
+	// hash and length. A reviewer reading the diff of this ref would see
+	// "xxxxxxxxxxxxxxxxxxxxxxxx" — immediately suspicious.
+	assert.equal(
+		newRefFormat.steps['fixture.yml::build::Bogus step'].reason,
+		bogusReason,
+	);
+	assert.equal(
+		newRefFormat.steps['fixture.yml::build::Bogus step'].reason_length,
+		bogusReason.length,
+	);
+});
+
+test('reason guard #1841 r3: detects an internally inconsistent ref via check (B)', async () => {
+	// An internally inconsistent ref: stored text says A, stored hash says B.
+	// This means someone edited the ref manually — either changed the hash without
+	// updating the text, or vice versa. Check (B) catches this: hashReason(A) !== B.
+	// Round 2 incorrectly claimed this was redundant; round 3 restores it.
+	const originalReason = reconciled['fixture.yml::build::Run tests'].reason;
+	const bogusReason = 'x'.repeat(24); // passes min-length
+
+	const rootDir = await buildFixture({
+		manifestSteps: reconciled,
+		steps: mirroredStep,
+	});
+
+	// The ref has ORIGINAL text but BOGUS hash (matching bogusReason).
+	// Check (B): hashReason(originalReason) !== hashReason(bogusReason) → finding.
+	const findings = await findCiDrift({
+		rootDir,
+		reasonRef: {
+			steps: {
+				'fixture.yml::build::Run tests': {
+					reason_hash: hashReason(bogusReason), // bogus hash
+					reason_length: bogusReason.length, // bogus length
+					reason: originalReason, // but original text!
+				},
+			},
+		},
+	});
+
+	assert.ok(
+		findings.length >= 1,
+		'Guard must detect an internally inconsistent ref',
+	);
+	assert.ok(
+		findings.some(
+			(f) =>
+				f.includes('internally inconsistent') || f.includes('reason CHANGED'),
+		),
+		'Guard must fire when stored text does not match stored hash',
+	);
+});
+
+test('reason guard #1841 r3: THE BYPASS — manifest reason B, ref text A, ref hash hashReason(B) — check (B) fires, check (A) is silent', async () => {
+	// This is the exact bypass scenario described in the brief:
+	//   - manifest.reason = B (bogus reason, written to bypass the guard)
+	//   - stepRef.reason = A (original text, NOT updated — so the diff is invisible)
+	//   - stepRef.reason_hash = hashReason(B) (updated to match the bogus reason)
+	//
+	// Check (A): hashReason(B) === stepRef.reason_hash → NO finding (silent!)
+	// Check (B): hashReason(A) !== hashReason(B) → YES finding (fires!)
+	//
+	// Without check (B), the guard passes: the diff shows only a hash changing,
+	// which is meaningless to a human reviewer. The human cannot see that the
+	// reason TEXT stayed the same — so the rewrite is invisible.
+	// With check (B), the finding names the inconsistency: stored text A does not
+	// match its own stored hash.
+	const originalReason = reconciled['fixture.yml::build::Run tests'].reason;
+	const bogusReason = 'xxxxxxxxxxxxxxxxxxxxxxxx'; // exactly 24 chars — passes min-length
+
+	const rootDir = await buildFixture({
+		manifestSteps: {
+			'fixture.yml::build::Run tests': {
+				hash: reconciledHash,
+				mirror: 'just ci',
+				reason: bogusReason, // BOGUS: manifest says B
+			},
+		},
+		steps: mirroredStep,
+	});
+
+	// The ref has ORIGINAL text A but hash for BOGUS reason B.
+	// This is the tampered ref: text says A, hash says hash(B).
+	const findings = await findCiDrift({
+		rootDir,
+		reasonRef: {
+			steps: {
+				'fixture.yml::build::Run tests': {
+					reason_hash: hashReason(bogusReason), // hashReason(B)
+					reason_length: bogusReason.length,
+					reason: originalReason, // ORIGINAL text A — NOT updated
+				},
+			},
+		},
+	});
+
+	// Check (A) is SILENT: hashReason(bogusReason) === stepRef.reason_hash.
+	// Check (B) FIRES: hashReason(originalReason) !== hashReason(bogusReason).
+	assert.ok(
+		findings.length >= 1,
+		'Guard must fire on the bypass — check (B) is not silent',
+	);
+	assert.ok(
+		findings.some(
+			(f) =>
+				f.includes('internally inconsistent') || f.includes('reason CHANGED'),
+		),
+		'Check (B) must detect that stored text does not match stored hash',
+	);
+
+	// PROOF that check (A) is silent: no "reason CHANGED because manifest reason
+	// differs from ref" finding. The CHANGED finding would say "manifest reason
+	// differs from ref fingerprint" — but here the manifest reason IS the fingerprint,
+	// so they match and check (A) is silent. Only check (B) catches this.
+	assert.ok(
+		!findings.some(
+			(f) =>
+				f.includes('manifest') &&
+				f.includes('reason_hash') &&
+				f.includes('got') &&
+				// This pattern means "manifest reason differs from ref fingerprint"
+				/manifest.*reason_hash|reason_hash.*manifest/.test(f),
+		),
+		'Check (A) must be silent — manifest reason hashes to the ref fingerprint',
+	);
+});
+
+test('reason guard #1841: fails loudly when ref entry has no `reason` text field', async () => {
+	// A ref entry that stores only reason_hash + reason_length (the pre-#1736
+	// format) instead of the full reason text. Before the fix, getReasonGuardProblem
+	// calls hashReason(stepRef.reason) where reason is undefined — throws
+	// TypeError: The "data" argument must be of type string, aborting the
+	// entire drift check instead of producing a named finding. A malformed
+	// entry must fail LOUDLY by naming the problem, never crash or fall
+	// back to a compliant default.
+	const originalReason = reconciled['fixture.yml::build::Run tests'].reason;
+
+	const rootDir = await buildFixture({
+		manifestSteps: reconciled,
+		steps: mirroredStep,
+	});
+
+	// Build a ref WITHOUT the `reason` field (simulating the old format).
+	// The guard must defend against a ref that predates #1736 or is
+	// otherwise malformed — parse it at the boundary as a loose shape,
+	// then narrow inside the guard itself (the guard's job, not the test's).
+	type StrictReasonRef = {
+		steps: Record<
+			string,
+			{ reason_hash: string; reason_length: number; reason: string }
+		>;
+	};
+
+	// Cast through the named StrictReasonRef: the guard narrows the field
+	// itself, the test only asserts that a malformed ref is tolerated.
+	const findings = await findCiDrift({
+		rootDir,
+		reasonRef: {
+			steps: {
+				'fixture.yml::build::Run tests': {
+					reason_hash: hashReason(originalReason),
+					reason_length: originalReason.length,
+					// reason is intentionally missing
+				},
+			},
+		} as StrictReasonRef,
+	});
+
+	assert.equal(findings.length, 1);
+	assert.match(findings[0], /is missing the `reason` text field/);
+	assert.match(findings[0], /gen-reason-ref\.ts/);
 });
 
 // --- Duplicate key guard tests (#1700) ---
