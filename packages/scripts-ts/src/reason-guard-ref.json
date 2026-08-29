@@ -142,6 +142,10 @@
 			"reason_hash": "4b3ce70213ed7527",
 			"reason_length": 318
 		},
+		"docs-archive.yml::docs-archive::Run prune-inventory guard fixture tests": {
+			"reason_hash": "ef19fbd1323f19e2",
+			"reason_length": 767
+		},
 		"docs-archive.yml::docs-archive::Setup Node": {
 			"reason_hash": "522d060c491d92cf",
 			"reason_length": 146
