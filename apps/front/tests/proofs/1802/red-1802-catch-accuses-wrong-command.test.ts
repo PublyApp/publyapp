@@ -159,7 +159,7 @@ const FUNCTION_FOOTER =
  * source file. Throws if the anchors drift — a content that cannot be
  * parsed is not a conformant content.
  */
-function extractFunctionBody(): string {
+const extractFunctionBody = (): string => {
 	const source = readFileSync(RUN_PREUVES_FILE, 'utf8');
 	const headerIndex = source.indexOf(FUNCTION_HEADER);
 	if (headerIndex === -1) {
@@ -193,7 +193,7 @@ function extractFunctionBody(): string {
  * On correct code, each command has its own try/catch, so no leaf try
  * covers both commands.
  */
-function hasBuggyStructure(body: string): boolean {
+const hasBuggyStructure = (body: string): boolean => {
 	// In the source, these commands appear inside template literals like:
 	//   `git -C "${ROOT}" rev-parse --is-shallow-repository`
 	//   `git -C "${ROOT}" fetch --unshallow`
@@ -266,7 +266,7 @@ function hasBuggyStructure(body: string): boolean {
 /**
  * Find all positions of `try` keyword in the body.
  */
-function findAllTryPositions(body: string): number[] {
+const findAllTryPositions = (body: string): number[] => {
 	const positions: number[] = [];
 	let i = 0;
 	while (i < body.length - 3) {
@@ -305,7 +305,7 @@ function findAllTryPositions(body: string): number[] {
  * Find the matching closing brace for an opening brace at position `start`.
  * Returns the position right after the closing brace, or -1 if unbalanced.
  */
-function findMatchingBrace(body: string, start: number): number {
+const findMatchingBrace = (body: string, start: number): number => {
 	let depth = 1;
 	let k = start + 1;
 	while (k < body.length && depth > 0) {
