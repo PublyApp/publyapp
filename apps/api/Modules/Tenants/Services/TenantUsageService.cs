@@ -77,11 +77,7 @@ public class TenantUsageService : ITenantUsageService {
 			return null;
 		}
 
-		var lastActivityAt = await (
-			from tenant in _dbContext.Tenant.AsNoTracking()
-			where tenant.Id == tenantId && !tenant.IsDeleted
-			select tenant.LastActivityAt
-		).FirstAsync(cancellationToken);
+		var lastActivityAt = await LastActivityAtQuery(tenantId).FirstAsync(cancellationToken);
 
 		// Membership counts mirror CountTenantUsersAsync parity rules: exclude
 		// soft-deleted memberships AND members whose owning User row was
@@ -137,7 +133,7 @@ public class TenantUsageService : ITenantUsageService {
 	/// Returns the raw <c>LastActivityAt</c> query so tests can instrument it
 	/// directly without going through the existence guard.
 	/// </summary>
-	protected internal virtual IQueryable<DateTime?> LastActivityAtQuery(
+	protected internal IQueryable<DateTime?> LastActivityAtQuery(
 		Guid tenantId
 	) {
 		return (
