@@ -123,7 +123,11 @@ describe('readProofReport — unreadable reports fail loud', () => {
 				testResults: [
 					{
 						assertionResults: [
-							{ status: 'failed', failureMessages: 'not array' },
+							{
+								fullName: 'suite bad messages',
+								status: 'failed',
+								failureMessages: 'not array',
+							},
 						],
 					},
 				],
@@ -146,6 +150,7 @@ describe('classifyProof — assertion failure is OK', () => {
 				{
 					assertionResults: [
 						{
+							fullName: 'suite kept-red fails on assertion',
 							status: 'failed',
 							failureMessages: ['AssertionError: expected "a" to be "b"'],
 						},
@@ -172,6 +177,7 @@ describe('classifyProof — thrown Error is CORRUPT PROOF', () => {
 				{
 					assertionResults: [
 						{
+							fullName: 'suite thrown error',
 							status: 'failed',
 							failureMessages: ['Error: something went wrong in the harness'],
 						},
@@ -194,6 +200,7 @@ describe('classifyProof — thrown Error is CORRUPT PROOF', () => {
 				{
 					assertionResults: [
 						{
+							fullName: 'suite type error',
 							status: 'failed',
 							failureMessages: [
 								"TypeError: Cannot read properties of undefined (reading 'foo')",
@@ -219,6 +226,7 @@ describe('classifyProof — thrown Error is CORRUPT PROOF', () => {
 				{
 					assertionResults: [
 						{
+							fullName: 'suite wrap-assertion-in-error',
 							status: 'failed',
 							failureMessages: ['Error: AssertionError: something went wrong'],
 						},
@@ -243,6 +251,7 @@ describe('classifyProof — MESURE IMPOSSIBLE is CORRUPT PROOF', () => {
 				{
 					assertionResults: [
 						{
+							fullName: 'suite mesure impossible',
 							status: 'failed',
 							failureMessages: [
 								'AssertionError: MESURE IMPOSSIBLE — harness could not extract',
@@ -284,6 +293,7 @@ describe('classifyProof — unexpected pass is UNEXPECTED_PASS', () => {
 				{
 					assertionResults: [
 						{
+							fullName: 'suite unexpected pass',
 							status: 'passed',
 							failureMessages: [],
 						},
@@ -308,6 +318,7 @@ describe('classifyProof — unexpected exit code is ERROR', () => {
 				{
 					assertionResults: [
 						{
+							fullName: 'suite unexpected exit code',
 							status: 'failed',
 							failureMessages: ['AssertionError: x'],
 						},
