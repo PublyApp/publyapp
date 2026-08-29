@@ -443,4 +443,23 @@ describe('r2 fixture SIGINT race — RED: handler installed AFTER the handshake 
 		// turns RED — exactly the "proof is stale" signal the brief asks for.
 		expect(bugPresent).toBe(true);
 	});
+
+	// Behavioral proof that axes B and C share the isHandlerDeferred mechanism:
+	// a single change to that function blinds BOTH axes together. The direct
+	// process.on( form is the ONLY one classified as non-deferred; every other
+	// form — temporal deferral (B) and bracket notation (C) — is deferred.
+	test('axes B and C share the isHandlerDeferred mechanism — a single change blinds both', () => {
+		// Direct call: the only form the proof accepts as synchronous.
+		expect(isHandlerDeferred(`process.on('SIGINT', () => {})`)).toBe(false);
+
+		// Axis B — temporal deferral wrapped in setImmediate.
+		expect(
+			isHandlerDeferred(
+				`setImmediate(() => { process.on("SIGINT", () => {}); });`,
+			),
+		).toBe(true);
+
+		// Axis C — bracket notation access.
+		expect(isHandlerDeferred(`process['on']('SIGINT', () => {})`)).toBe(true);
+	});
 });
