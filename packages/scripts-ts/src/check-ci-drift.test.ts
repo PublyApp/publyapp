@@ -890,7 +890,7 @@ test('duplicate key guard: tolerates escaped quotes inside key strings', () => {
 	const findings = findDuplicateKeys(manifest);
 
 	assert.equal(findings.length, 1);
-	assert.match(findings[0], /DUPLICATE KEY "key with "quotes" inside"/);
+	assert.match(findings[0], /DUPLICATE KEY "key with \\"quotes\\" inside"/);
 });
 
 test('duplicate key guard: reports correct line numbers for multiple duplicates', () => {
@@ -962,26 +962,6 @@ test('duplicate key guard: the repo manifest has no duplicate keys', () => {
 // via JSON.parse. These four tests prove it behaves correctly on the boundary
 // cases that a naive line scanner would mishandle.
 
-test('edge case #1 — key with escaped quotes: MUST report (true duplicate)', () => {
-	// A key containing \" is still a valid JSON key. Two identical keys with
-	// escaped quotes are a real duplicate: JSON.parse would silently keep the
-	// last one. The guard must report it.
-	const manifest = [
-		'{',
-		'\t"steps": {',
-		'\t\t"key with \\"quotes\\" inside": { "hash": "a", "mirror": null, "reason": "short reason text here" },',
-		'\t\t"key with \\"quotes\\" inside": { "hash": "b", "mirror": null, "reason": "short reason text here" }',
-		'\t}',
-		'}',
-	].join('\n');
-
-	const findings = findDuplicateKeys(manifest);
-
-	assert.equal(findings.length, 1);
-	assert.match(findings[0], /DUPLICATE KEY "key with "quotes" inside"/);
-	assert.match(findings[0], /lines 3 and 4/);
-});
-
 test('edge case #1 — key with escaped quotes: does NOT report when keys differ', () => {
 	// Two keys that both contain escaped quotes but are NOT identical must not
 	// trigger a finding. This proves the guard distinguishes content, not just
@@ -998,14 +978,14 @@ test('edge case #1 — key with escaped quotes: does NOT report when keys differ
 	assert.deepEqual(findDuplicateKeys(manifest), []);
 });
 
-test('edge case #2 — multi-line key with literal newline: deliberately OUT OF SCOPE', () => {
-	// A key spanning multiple lines with a literal newline (not \\n) is INVALID
-	// JSON — JSON.parse throws "Bad control character in string literal". The
-	// guard's purpose is to catch what JSON.parse SILENTLY accepts (duplicate
-	// keys), not to duplicate JSON.parse's own loud failure on invalid syntax.
-	// Therefore the guard stays silent: reporting a "duplicate key" on invalid
-	// JSON would be misleading, because the real problem is the unparseable
-	// document, not the duplicate. JSON.parse already fails loudly on this input.
+test('edge case #2 — multi-line key with literal newline: loud failure via findCiDrift', () => {
+	// A key spanning multiple lines with a literal newline is INVALID JSON.
+	// JSON.parse rejects it with a SyntaxError. The guard's job is to catch
+	// what JSON.parse SILENTLY accepts (duplicate keys), but when the document
+	// is unparseable the guard must fail LOUDLY rather than silently return
+	// "no duplicates" — that would give false assurance. With the JSON.parse
+	// validation now in place BEFORE the duplicate-key scan, findCiDrift reports
+	// the syntax error with a message naming the cause.
 	const manifest = [
 		'{',
 		'\t"steps": {',
@@ -1017,12 +997,11 @@ test('edge case #2 — multi-line key with literal newline: deliberately OUT OF 
 		'}',
 	].join('\n');
 
-	// The guard reads line-by-line and cannot see a key that spans lines.
-	// This is a deliberate omission: invalid JSON is JSON.parse's problem.
+	// The raw guard stays silent (it reads line-by-line and cannot see a key
+	// that spans lines). This is expected — it is a text scanner, not a parser.
 	assert.deepEqual(findDuplicateKeys(manifest), []);
 
-	// Proof that JSON.parse indeed rejects this input (the loud failure that
-	// makes the guard's silence acceptable):
+	// But JSON.parse rejects this input (proof of the underlying problem):
 	assert.throws(
 		() => JSON.parse(manifest),
 		/Bad control character in string literal/,
@@ -1046,7 +1025,7 @@ test('edge case #2 — multi-line key with escaped newline (\\n): MUST report', 
 
 	assert.equal(findings.length, 1);
 	// The guard decodes \\n to a real newline in the reported key name.
-	assert.match(findings[0], /DUPLICATE KEY "multi\nline key"/);
+	assert.match(findings[0], /DUPLICATE KEY "multi\\nline key"/);
 	assert.match(findings[0], /lines 3 and 4/);
 });
 
@@ -1139,4 +1118,69 @@ test('edge case #4 — different unicode escapes: MUST stay silent (truly distin
 		steps: Record<string, unknown>;
 	};
 	assert.equal(Object.keys(parsed.steps).length, 2);
+});
+
+test('findCiDrift: fails loudly on invalid JSON manifest (duplicate-key guard is protected)', async () => {
+	// A manifest with a literal newline in a key is INVALID JSON. Before the
+	// JSON.parse validation was added, findCiDrift would call findDuplicateKeys
+	// first (which stays silent on multi-line keys) and then JSON.parse would
+	// throw an unhandled error. Now, JSON.parse is attempted FIRST with a
+	// try/catch, and the guard reports the syntax error with a message naming
+	// the cause — never a silent "no duplicates" on an unparseable document.
+	const rootDir = await mkdtemp(
+		path.join(os.tmpdir(), 'publyapp-invalid-json-'),
+	);
+	await mkdir(path.join(rootDir, '.github/workflows'), { recursive: true });
+	await mkdir(path.join(rootDir, 'packages/scripts-ts/src'), {
+		recursive: true,
+	});
+
+	await writeFile(
+		path.join(rootDir, '.github/workflows/fixture.yml'),
+		workflow(mirroredStep),
+	);
+
+	// Invalid JSON: literal newline inside a string key.
+	const invalidManifest = [
+		'{',
+		'\t"steps": {',
+		'\t\t"multi',
+		'\t\tline key": { "hash": "a", "mirror": null, "reason": "short reason text here" }',
+		'\t}',
+		'}',
+	].join('\n');
+
+	await writeFile(
+		path.join(rootDir, 'packages/scripts-ts/src/ci-gate-manifest.json'),
+		invalidManifest,
+	);
+
+	const findings = await findCiDrift({
+		rootDir,
+		reasonRef: buildFixtureReasonRef(reason),
+	});
+
+	// The guard must report exactly one finding: the invalid JSON, naming the
+	// cause. It must NOT silently return "no duplicates" or throw unhandled.
+	assert.equal(findings.length, 1);
+	assert.match(findings[0], /invalid JSON/);
+	assert.match(findings[0], /syntax error/);
+	assert.match(findings[0], /Fix the JSON syntax error first/);
+});
+
+test('findCiDrift: valid manifest with no duplicates stays green', async () => {
+	// The positive control: a valid, reconciled manifest produces no findings.
+	// This proves the JSON.parse validation does not introduce false positives
+	// on well-formed input.
+	const rootDir = await buildFixture({
+		manifestSteps: reconciled,
+		steps: mirroredStep,
+	});
+
+	const findings = await findCiDrift({
+		rootDir,
+		reasonRef: buildFixtureReasonRef(reason),
+	});
+
+	assert.deepEqual(findings, []);
 });

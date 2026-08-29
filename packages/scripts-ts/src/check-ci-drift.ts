@@ -335,7 +335,9 @@ export const findDuplicateKeys = (raw: string): string[] => {
 						const firstLine = current.get(key);
 						if (firstLine !== undefined) {
 							findings.push(
-								`${manifestPath}: DUPLICATE KEY "${key}" at lines ${firstLine + 1} and ${i + 1} — JSON.parse would silently keep only the last occurrence, masking a reconciled step that should not be lost. Delete the duplicate entry and keep the intended one.`,
+								`${manifestPath}: DUPLICATE KEY ${JSON.stringify(
+									key,
+								)} at lines ${firstLine + 1} and ${i + 1} — JSON.parse would silently keep only the last occurrence, masking a reconciled step that should not be lost. Delete the duplicate entry and keep the intended one.`,
 							);
 						} else {
 							current.set(key, i);
@@ -454,6 +456,24 @@ interface ReasonRef {
 }
 
 /**
+ * Formats a JSON.parse error into a human-readable message that names the
+ * cause in plain words. Never includes the raw document content (which could
+ * be large or contain secrets) — only the error type and location.
+ */
+const formatJsonError = (error: unknown): string => {
+	if (error instanceof SyntaxError) {
+		// Node's JSON SyntaxError carries a "position" property in recent
+		// versions; fall back to the message when unavailable.
+		const position = (error as { position?: number }).position;
+		if (typeof position === 'number') {
+			return `syntax error at character ${position}: ${error.message}`;
+		}
+		return `syntax error: ${error.message}`;
+	}
+	return `unexpected error: ${error instanceof Error ? error.message : String(error)}`;
+};
+
+/**
  * Compares the workflows against the manifest and returns human-readable
  * findings. Returns an empty array when the gate is fully reconciled.
  *
@@ -476,15 +496,31 @@ export const findCiDrift = async ({
 
 	const manifestRaw = await readFile(path.join(rootDir, manifestPath), 'utf8');
 
-	// Detect duplicate keys BEFORE parsing — JSON.parse silently keeps the last
-	// occurrence, which would mask a reconciled step as missing. This guard
-	// reads the raw text at the brace/quote level and names each duplicate
-	// with its line numbers.
+	// Validate the manifest JSON BEFORE scanning for duplicate keys. The
+	// duplicate-key guard reads raw text at the brace/quote level and can stay
+	// silent on malformed input (e.g. a key spanning multiple lines with a
+	// literal newline). Failing loud here prevents a false sense of security:
+	// an invalid document that parses nowhere must not report "no duplicates"
+	// while the real problem is the unparseable document itself.
+	let manifest: { steps?: Record<string, unknown> };
+	try {
+		manifest = JSON.parse(manifestRaw) as { steps?: Record<string, unknown> };
+	} catch (error) {
+		findings.push(
+			`${manifestPath}: invalid JSON — ${formatJsonError(
+				error,
+			)}. The manifest document cannot be parsed, so the drift guard cannot assert anything about its keys or entries. Fix the JSON syntax error first, then re-run.`,
+		);
+		return findings;
+	}
+
+	// Detect duplicate keys BEFORE using the parsed result — JSON.parse silently
+	// keeps the last occurrence, which would mask a reconciled step as missing.
+	// This guard reads the raw text at the brace/quote level and names each
+	// duplicate with its line numbers. Only reached when the document is valid
+	// JSON (see the try/catch above), so a "no duplicates" finding is meaningful.
 	findings.push(...findDuplicateKeys(manifestRaw));
 
-	const manifest = JSON.parse(manifestRaw) as {
-		steps?: Record<string, unknown>;
-	};
 	const entries = manifest.steps ?? {};
 
 	const seen = new Set<string>();
