@@ -216,7 +216,44 @@ node packages/scripts-ts/src/gen-reason-ref.ts
 If the new reason makes the guard pass, the regen command proves the rewrite is intentional
 (not an accidental truncation). The command is cited in the guard's failure message too.
 
-## Known gaps
+### Ratchet floor (#1709)
+
+The reason guard pins each step's reason, but until #1709 it had no memory of
+**which steps had been reconciled**. A covered step could be deleted from CI,
+then from the manifest, then the reference regenerated — and the guard would
+turn green silently. The 3-step sequence looked like cleanup, not erasure.
+
+The reference file now holds a `pinned_step_ids` array that grows
+monotonically. Regeneration can only **ADD** step IDs to it — never remove
+them. This makes the set of reconciled steps a one-way ratchet: once a step
+is covered, it stays covered until a human explicitly confesses its removal.
+
+When a pinned step is missing from the manifest, the guard produces a
+`RATCHET` finding naming the step. The finding clears only one way: a
+**removals confession** in `packages/scripts-ts/src/ci-gate-removals.json`
+that names the step ID and says what was lost and why:
+
+```json
+{
+  "steps": [
+    {
+      "step_id": "front-ci.yml::supply-chain::Typecheck front",
+      "reason": "Typecheck folded into the lint step; the lint recipe now runs tsc --noEmit too.",
+      "removed_at": "2026-08-29"
+    }
+  ]
+}
+```
+
+The confession file is the **only** way to lower the floor. Without it,
+`gen-reason-ref.ts` refuses to regenerate and exits non-zero. With it, the
+regeneration succeeds and the guard turns green — the removal is deliberate,
+documented, and reviewable.
+
+The guard does not judge the quality of the confession's reason — that is a
+human review concern. The guard only verifies that the vanished step is
+**named**, so silent erasure is impossible but legitimate removal stays
+possible.
 
 Recorded here rather than hidden, so they can be judged:
 
