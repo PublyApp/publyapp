@@ -10,8 +10,8 @@ using Microsoft.Extensions.Logging.Abstractions;
 using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Lib.Testing.Fixtures;
 using PublyApp.Api.Modules.Posts.Entities;
-using PublyApp.Api.Modules.Publishing.Entities;
 using PublyApp.Api.Modules.Projects.Entities;
+using PublyApp.Api.Modules.Publishing.Entities;
 using PublyApp.Api.Modules.SocialAccounts.Entities;
 using PublyApp.Api.Modules.Tenants.Entities;
 using PublyApp.Api.Modules.Users.Entities;
@@ -188,6 +188,79 @@ public sealed class TenantUsageServiceSpec
 		}
 
 		return connectionString;
+	}
+
+	[Fact]
+	public async Task ItShouldNotCountProjectAccountsInTheTenantUserCounters() {
+		// A Project account has a non-null TenantId on the same tenant, so it
+		// would be counted as a tenant member if the Scope filter were absent.
+		// This spec proves the filter distinguishes scope, not just tenant id.
+		var tenantId = await SeedTenantWithAProjectAccountAsync();
+
+		var result = await NewService().GetTenantUsageAsync(tenantId);
+		result.Should().NotBeNull();
+		if (result is null) {
+			throw new InvalidOperationException(
+				"Tenant usage snapshot was empty."
+			);
+		}
+
+		result.UsersTotal.Should().Be(1);
+		result.UsersActive.Should().Be(1);
+	}
+
+	private async Task<Guid> SeedTenantWithAProjectAccountAsync() {
+		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+		var tenant = new Tenant {
+			Name = $"usage-scope-{Guid.NewGuid():N}",
+			Code = Guid.NewGuid().ToString("N")[..10],
+			Status = TenantStatus.Active,
+			MaxUsers = 20,
+		};
+		await dbContext.Tenant.AddAsync(tenant);
+		await dbContext.SaveChangesAsync();
+		var tenantId = tenant.GetRequiredId();
+
+		var tenantUser = new User {
+			Email = $"usage-scope-tenant-{Guid.NewGuid():N}@example.com",
+			Password = "unused",
+			Status = UserStatus.Active,
+			IsVerified = true,
+		};
+		await dbContext.User.AddAsync(tenantUser);
+		await dbContext.SaveChangesAsync();
+
+		await dbContext.UserAccount.AddAsync(
+			UserAccount.CreateTenantAccount(tenantUser.GetRequiredId(), tenantId)
+		);
+
+		var projectUser = new User {
+			Email = $"usage-scope-project-{Guid.NewGuid():N}@example.com",
+			Password = "unused",
+			Status = UserStatus.Active,
+			IsVerified = true,
+		};
+		await dbContext.User.AddAsync(projectUser);
+		await dbContext.SaveChangesAsync();
+
+		var project = new Project {
+			TenantId = tenantId,
+			Name = $"usage-scope-project-{Guid.NewGuid():N}",
+		};
+		await dbContext.Project.AddAsync(project);
+		await dbContext.SaveChangesAsync();
+
+		await dbContext.UserAccount.AddAsync(
+			UserAccount.CreateProjectAccount(
+				projectUser.GetRequiredId(), tenantId, project.GetRequiredId()
+			)
+		);
+
+		await dbContext.SaveChangesAsync();
+
+		return tenantId;
 	}
 
 	private async Task<Guid> SeedBareTenantAsync(string namePrefix) {
