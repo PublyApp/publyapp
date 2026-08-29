@@ -32,8 +32,9 @@ import {
  * measurement-vs-enumeration with a fake reader; this spec proves the
  * real guard is correct against the engine.
  *
- * What it asserts: for each of the four hiding mechanisms the issue
- * names (`invisible`, `hidden`, `opacity-0`, `aria-hidden="true"`),
+ * What it asserts: for each of the five hiding mechanisms the spec
+ * walks — the four the issue names (`invisible`, `hidden`, `opacity-0`,
+ * `aria-hidden="true"`) plus an inline-style (no-class) hide —
  * the raw engine probe (`getComputedStyle`, or a direct attribute read
  * for `aria-hidden`) shows the icon as hidden, AND the bundled real
  * guard raises with a named reason. The baseline read — a freshly
@@ -50,7 +51,9 @@ import {
  * shared.
  */
 
-/** The four hiding mechanisms the brief names. Each entry names the
+/** The five hiding mechanisms this spec walks: the four the brief names,
+ * plus an inline-style (no-class) hide that only a measurement can see.
+ * Each entry names the
  * mutation applied to the icon and the `getComputedStyle` / DOM
  * attribute read that MUST agree the icon is hidden. */
 type Mutation = {

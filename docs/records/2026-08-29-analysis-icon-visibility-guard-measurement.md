@@ -103,8 +103,11 @@ guard.
 - Divergence lane under the enumeration mutation — 3/3 red (see lane 1).
 - `pnpm --filter front test:preuves` — replay of the declared kept-red proof.
 - `pnpm --filter front exec playwright test --project=chromium-hermetic-source
-  e2e/data-table-icon-visibility-guard.spec.ts` — real Chromium, real guard
-  bundle.
+  e2e/data-table-icon-visibility-guard.spec.ts` — 2/2 green in real Chromium,
+  real guard bundle, walking FIVE mutations (the four the issue names plus an
+  inline-style, no-class hide). Under the read-and-discard enumeration
+  mutation the inline-style case goes 1 red; restored, 2/2 green
+  (`.dump/preuve-1799-r4-e2e-enumeration.txt` / `-fixed.txt`).
 - `pnpm --filter front typecheck`, `just ci` — see the PR body for results and
   what could not run in this environment.
 

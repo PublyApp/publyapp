@@ -22,7 +22,7 @@
  * # The fix: MEASURE, not enumerate
  *
  * The fixed body reads the icon's actual visibility from the user's
- * perspective, never from a list of class names. Three real measurements
+ * perspective, never from a list of class names. Four real measurements
  * cover the four mechanisms the brief at #1799 names:
  *
  * 1. `aria-hidden="true"` is a DOM attribute, not a CSS value. Direct read.
@@ -45,9 +45,10 @@
  *    test just applied, so the helper's measurement is exercised
  *    end-to-end without a browser round-trip.
  *  - The real-browser spec under
- *    `e2e/data-table-icon-visibility-guard.spec.ts` passes
- *    Chromium's own `getComputedStyle` result so the guard sees the
- *    exact same values a user does.
+ *    `e2e/data-table-icon-visibility-guard.spec.ts` bundles this module
+ *    verbatim (esbuild, once per worker) and calls it in the page, so the
+ *    default reader resolves to Chromium's own `getComputedStyle` — the
+ *    guard sees the exact same values a user does.
  */
 import i18n from 'i18next';
 
