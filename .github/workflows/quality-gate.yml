@@ -37,6 +37,12 @@ on:
       - 'apps/**'
       - 'packages/**'
       - 'packages/scripts-ts/**'
+      - '.gitignore'
+      # #1513: the no-ignored-tracked guard itself and the .gitignore it
+      # enforces — a new gitignored surface or a change to the guard must
+      # wake the gate.
+      - 'packages/scripts-ts/src/check-no-ignored-tracked.ts'
+      - 'packages/scripts-ts/src/check-no-ignored-tracked.test.ts'
       # #1334 fix round 1: the dependency-health.md pin-location contract
       # (packages/scripts-ts/src/dependency-health-pin-location.test.ts) runs in
       # this workflow, so a pull request touching ONLY the guarded doc must
@@ -128,7 +134,7 @@ jobs:
           CLASSIFIER=base-ref/packages/scripts-ts/src/ci-changed-paths.ts
 
           if [ -f "$CLASSIFIER" ]; then
-            node "$CLASSIFIER" '^(\.github/workflows/quality-gate\.yml$|\.oxlintrc\.json$|\.oxfmtrc\.json$|package\.json$|knip\.ts$|pnpm-lock\.yaml$|pnpm-workspace\.yaml$|turbo\.json$|\.npmrc$|Directory\.Build\.props$|Directory\.Build\.targets$|Directory\.Packages\.props$|global\.json$|PublyApp\.slnx$|apps/|packages/|docs/guides/dependency-health\.md$)'
+            node "$CLASSIFIER" '^(\.github/workflows/quality-gate\.yml$|\.oxlintrc\.json$|\.oxfmtrc\.json$|package\.json$|knip\.ts$|pnpm-lock\.yaml$|pnpm-workspace\.yaml$|turbo\.json$|\.npmrc$|Directory\.Build\.props$|Directory\.Build\.targets$|Directory\.Packages\.props$|global\.json$|PublyApp\.slnx$|\.gitignore$|apps/|packages/|docs/guides/dependency-health\.md$)'
           else
             echo "::warning::[MISSING BASE CLASSIFIER] $CLASSIFIER does not exist at the base commit. This is expected exactly once: for the pull request that introduces this classifier, or a branch cut before it existed on the base branch. Relevance cannot be determined from a classifier that is not there, so this fails closed: treating the workflow as relevant and running everything. If this keeps happening on ordinary pull requests well after the classifier has been on the base branch, something is wrong — investigate, do not silence it."
             echo "relevant=true" >> "$GITHUB_OUTPUT"
@@ -187,6 +193,12 @@ jobs:
 
       - name: Verify complexity bounds are not drifting (#1661)
         run: node packages/scripts-ts/src/check-cyclomatic-bound.ts
+
+      # #1513: fail if any tracked file matches a .gitignore rule. Interrogates
+      # the real repo via `git ls-files --cached --ignored --exclude-standard`
+      # — empty output is green, any named path is red. Mirrors `just ci-no-ignored-tracked`.
+      - name: Verify no tracked file matches .gitignore (#1513)
+        run: node packages/scripts-ts/src/check-no-ignored-tracked.ts
 
       - name: Lint plugin unit tests (lint-ts)
         run: pnpm --filter @org/lint-ts test
