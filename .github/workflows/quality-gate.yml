@@ -49,6 +49,7 @@ on:
       # still wake the gate — otherwise the sentence could drift straight past
       # the contract test that exists to catch it.
       - 'docs/guides/dependency-health.md'
+      - 'docs/deployment/first-deploy-runbook.md'
 
 permissions:
   contents: read
@@ -134,7 +135,7 @@ jobs:
           CLASSIFIER=base-ref/packages/scripts-ts/src/ci-changed-paths.ts
 
           if [ -f "$CLASSIFIER" ]; then
-            node "$CLASSIFIER" '^(\.github/workflows/quality-gate\.yml$|\.oxlintrc\.json$|\.oxfmtrc\.json$|package\.json$|knip\.ts$|pnpm-lock\.yaml$|pnpm-workspace\.yaml$|turbo\.json$|\.npmrc$|Directory\.Build\.props$|Directory\.Build\.targets$|Directory\.Packages\.props$|global\.json$|PublyApp\.slnx$|\.gitignore$|apps/|packages/|docs/guides/dependency-health\.md$)'
+            node "$CLASSIFIER" '^(\.github/workflows/quality-gate\.yml$|\.oxlintrc\.json$|\.oxfmtrc\.json$|package\.json$|knip\.ts$|pnpm-lock\.yaml$|pnpm-workspace\.yaml$|turbo\.json$|\.npmrc$|Directory\.Build\.props$|Directory\.Build\.targets$|Directory\.Packages\.props$|global\.json$|PublyApp\.slnx$|\.gitignore$|apps/|packages/|docs/guides/dependency-health\.md$|docs/deployment/first-deploy-runbook\.md$)'
           else
             echo "::warning::[MISSING BASE CLASSIFIER] $CLASSIFIER does not exist at the base commit. This is expected exactly once: for the pull request that introduces this classifier, or a branch cut before it existed on the base branch. Relevance cannot be determined from a classifier that is not there, so this fails closed: treating the workflow as relevant and running everything. If this keeps happening on ordinary pull requests well after the classifier has been on the base branch, something is wrong — investigate, do not silence it."
             echo "relevant=true" >> "$GITHUB_OUTPUT"
@@ -295,6 +296,17 @@ jobs:
         run: |
           pnpm --filter scripts-ts exec vitest run src/check-actions-pins.test.ts
           node ./packages/scripts-ts/src/check-actions-pins.ts
+
+      # #1798: every production-required env var documented in the deploy runbook.
+      # Extracts required vars from actual source code (env.ts schema, server.ts
+      # validateRuntimeEnv, AppEnvironment.cs GetRequiredString calls) and the
+      # documented vars from the actual runbook (§5a table + §5b block). Fails
+      # closed: an unparseable source file FAILS LOUDLY with the file name and
+      # error rather than silently passing. Mirrors `just ci-deploy-env-docs`.
+      - name: Verify deploy env doc coverage (#1798)
+        run: |
+          pnpm --filter scripts-ts exec vitest run src/check-deploy-env-docs.test.ts
+          node ./packages/scripts-ts/src/check-deploy-env-docs.ts
 
       - name: Run analyzer tests
         run: pnpm exec just test-analyzers

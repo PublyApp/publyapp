@@ -233,3 +233,14 @@ test('the audit decision table is exempt: it maps the pre-prune tree', () => {
 	const result = runGuard(root);
 	assert.equal(result.status, 0, result.stderr);
 });
+
+test('test fixtures are exempt: preserved historical artifacts', () => {
+	const root = makeRepo({
+		'packages/scripts-ts/src/fixtures/historical-runbook.md':
+			'Companion: [design](../production-deployment-design.md) and [runbook](../production-deploy-runbook.md).\n',
+		'docs/guides/live.md': 'content\n',
+	});
+	const result = runGuard(root);
+	assert.equal(result.status, 0, result.stderr);
+	assert.match(result.stdout, /doc links OK/);
+});

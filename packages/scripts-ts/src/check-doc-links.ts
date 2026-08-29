@@ -27,6 +27,7 @@ import process from 'node:process';
 // cannot trip the guard.
 
 const RECORDS_DIR = 'docs/records/';
+const FIXTURES_DIR = 'packages/scripts-ts/src/fixtures/';
 
 // Code surfaces scanned for `docs/...` path LITERALS (r1 MEDIUM): the prune
 // inventory counts these files among the survival surfaces, so a code
@@ -152,7 +153,7 @@ const main = (): void => {
 	// the literal scanner see identical, example-free line arrays.
 	const markdownScans: Array<[string, string[]]> = [];
 	for (const file of markdownFiles) {
-		if (file.startsWith(RECORDS_DIR)) {
+		if (file.startsWith(RECORDS_DIR) || file.startsWith(FIXTURES_DIR)) {
 			continue;
 		}
 		let text: string;
