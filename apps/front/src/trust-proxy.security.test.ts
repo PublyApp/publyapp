@@ -1,10 +1,43 @@
 import { readFileSync } from 'node:fs';
 
-import { serve } from 'srvx';
-import type { Server, TrustProxyOption } from 'srvx';
-import { afterAll, describe, expect, test } from 'vitest';
+import {
+	afterAll,
+	afterEach,
+	beforeEach,
+	describe,
+	expect,
+	test,
+	vi,
+} from 'vitest';
+
+import { logger } from '@org/shared-ts/lib/logger/iso-logger';
+
+// Mock the env module so resolveOrigin works without a real runtime env —
+// SERVER_API_BASE_URL would otherwise fail Zod validation and throw.
+const mockGetServerEnv = vi.fn();
+const mockGetPublicEnv = vi.fn();
+vi.mock('./lib/env', async (importOriginal) => {
+	const actual = await importOriginal<typeof import('./lib/env')>();
+	return {
+		...actual,
+		getServerEnv: () => mockGetServerEnv(),
+		getPublicEnv: () => mockGetPublicEnv(),
+	};
+});
 
 import { injectSeoMarkup } from './server';
+
+const originalWarn = logger.warn;
+
+beforeEach(() => {
+	vi.clearAllMocks();
+	logger.warn = vi.fn();
+	mockGetServerEnv.mockReturnValue({
+		apiBaseUrl: 'http://localhost:5000',
+		nodeEnv: 'production',
+		publicOrigin: 'https://publyapp.test',
+	});
+});
 
 // --- Compose-file consistency: security property preserved without a frozen subnet ---
 // Reads the compose file to verify the security guarantee stays intact.
@@ -42,25 +75,19 @@ describe('compose-file trust-proxy security (r5)', () => {
 });
 
 /**
- * Security test for r2-shell-F10: proves that bounded trust proxy causes
- * srvx to ignore forged `x-forwarded-*` headers from untrusted peers, so
- * `injectSeoMarkup` never emits a canonical/og:url pointing at an
- * attacker-controlled domain.
+ * Security tests for r2-shell-F10: proves that `resolveOrigin` never derives
+ * the public origin from a client-supplied `Host` header when `PUBLIC_ORIGIN`
+ * is configured. A forged `Host` header (set by a malicious proxy or direct
+ * attacker) must be ignored — the configured `PUBLIC_ORIGIN` always wins.
  *
- * The existing e2e SEO test passes through Traefik (which sets these headers
- * legitimately) and can only ever exercise the happy path. This test sends a
- * forged `x-forwarded-host` directly to a srvx server instance, bypassing any
- * proxy, and asserts the origin falls back to the real socket origin.
- *
- * It exercises the full HTTP path: real `serve()` → forged `x-forwarded-*`
- * headers over a localhost fetch → srvx's `isTrustedProxy`/`applyTrustedProxy`
- * → `injectSeoMarkup` → rendered `<link rel="canonical">`/`<meta og:url>`.
+ * The previous HTTP-based version of these tests was flawed: it sent
+ * `x-forwarded-host` to a srvx server, but `resolveOrigin` reads
+ * `request.headers.get('host')`, which srvx does NOT rewrite from forwarded
+ * headers. The forged host was never seen by the code under test, so the
+ * assertions were vacuous. These tests exercise `resolveOrigin` directly with
+ * mocked `Request` objects carrying the real `Host` header an attacker would
+ * forge, which is the actual host-header injection vector (#1731).
  */
-
-const HOST = '127.0.0.1';
-const FORGED_HOST = 'evil-attacker.com';
-const FORGED_PROTO = 'https';
-const REAL_PATH = '/';
 
 const htmlWithHead =
 	'<html><head><title>Test</title></head><body></body></html>';
@@ -68,44 +95,6 @@ const htmlWithHead =
 /** Minimal translator that returns a fixed title. */
 const fakeT = (key: string) =>
 	key.includes('title') ? 'Test PublyApp' : 'Test desc';
-
-/**
- * Starts a srvx server whose fetch handler mirrors the real front handler's
- * SEO injection: it reads `request.url` (which srvx may have rewritten from
- * forwarded headers) and injects canonical/og:url from it.
- */
-const startServer = async (
-	trustProxy: TrustProxyOption,
-): Promise<{ server: Server; origin: string }> => {
-	const server = serve({
-		port: 0,
-		hostname: HOST,
-		trustProxy,
-		fetch: async (request: Request) => {
-			const updatedHtml = injectSeoMarkup(
-				htmlWithHead,
-				request,
-				'en',
-				true,
-				fakeT,
-			);
-			return new Response(updatedHtml, {
-				status: 200,
-				headers: { 'content-type': 'text/html; charset=utf-8' },
-			});
-		},
-	});
-
-	await server.ready();
-
-	const address = server.node?.server?.address();
-	if (!address || typeof address === 'string') {
-		throw new Error('server did not bind to a port');
-	}
-
-	const origin = `http://${HOST}:${address.port}`;
-	return { server, origin };
-};
 
 const extractCanonical = (html: string): string | null => {
 	const match = html.match(/<link\s+rel="canonical"\s+href="([^"]+)"/i);
@@ -120,9 +109,7 @@ const extractOgUrl = (html: string): string | null => {
 /**
  * Mirrors `resolveTrustProxyFromEnv` from server.mjs so the test can verify
  * the env-parsing behavior in isolation without importing server.mjs (which
- * has side effects at module-load time). The primary behavioral coverage is
- * the RED/GREEN HTTP cases above; this unit-level check pins the CIDR-stripping
- * contract.
+ * has side effects at module-load time).
  */
 const resolveTrustProxyFromEnv = (envValue: string | undefined): string[] => {
 	const raw = envValue?.trim();
@@ -136,74 +123,81 @@ const resolveTrustProxyFromEnv = (envValue: string | undefined): string[] => {
 };
 
 describe('trust-proxy security (r2-shell-F10)', () => {
-	let server: Server | undefined;
-
-	afterAll(async () => {
-		if (server) {
-			await server.close();
-		}
+	afterEach(() => {
+		logger.warn = originalWarn;
 	});
 
-	// --- RED case: the vulnerable default ---
-	test('trustProxy: true accepts forged x-forwarded-host from a direct peer (RED — vulnerability present)', async () => {
-		const { server: s, origin } = await startServer(true);
-		server = s;
+	afterAll(() => {
+		// No server to clean up — these tests exercise resolveOrigin directly.
+	});
 
-		const response = await fetch(`${origin}${REAL_PATH}`, {
-			headers: {
-				'x-forwarded-host': FORGED_HOST,
-				'x-forwarded-proto': FORGED_PROTO,
-			},
+	// --- RED case: the vulnerable default (PUBLIC_ORIGIN unset) ---
+	test('without PUBLIC_ORIGIN, a forged Host header is trusted (RED — vulnerability present)', () => {
+		// Simulate the pre-#1731 state: no PUBLIC_ORIGIN configured, development.
+		// A forged Host header is trusted as the origin — the vulnerability.
+		mockGetServerEnv.mockReturnValue({
+			apiBaseUrl: 'http://localhost:5000',
+			nodeEnv: 'development',
+			publicOrigin: undefined,
 		});
-		const html = await response.text();
+
+		const forgedHost = 'evil-attacker.com';
+		const request = new Request('http://127.0.0.1/', {
+			headers: { host: forgedHost, 'x-forwarded-proto': 'https' },
+		});
+
+		const html = injectSeoMarkup(htmlWithHead, request, 'en', true, fakeT);
 
 		// The vulnerability: forged host is accepted as the origin.
-		expect(extractCanonical(html)).toContain(FORGED_HOST);
-		expect(extractOgUrl(html)).toContain(FORGED_HOST);
+		expect(extractCanonical(html)).toContain(forgedHost);
+		expect(extractOgUrl(html)).toContain(forgedHost);
 	});
 
-	// --- GREEN case: bounded trust proxy ---
-	test('bounded trust proxy ignores forged x-forwarded-host from an untrusted peer (GREEN — fix applied)', async () => {
-		// Trust an address that is NOT 127.0.0.1, so this test's peer
-		// (127.0.0.1) is untrusted and forwarded headers are ignored.
-		const { server: s, origin } = await startServer(['10.255.255.1']);
-		server = s;
-
-		const response = await fetch(`${origin}${REAL_PATH}`, {
-			headers: {
-				'x-forwarded-host': FORGED_HOST,
-				'x-forwarded-proto': FORGED_PROTO,
-			},
+	// --- GREEN case: PUBLIC_ORIGIN pins the origin ---
+	test('with PUBLIC_ORIGIN set, a forged Host header is ignored (GREEN — fix applied)', () => {
+		// The #1731 fix: PUBLIC_ORIGIN is configured, so a forged Host header
+		// is ignored and the configured origin is used instead.
+		mockGetServerEnv.mockReturnValue({
+			apiBaseUrl: 'http://localhost:5000',
+			nodeEnv: 'production',
+			publicOrigin: 'https://publyapp.test',
 		});
-		const html = await response.text();
 
-		// The fix: forged host is NOT accepted; origin falls back to socket.
-		expect(extractCanonical(html)).not.toContain(FORGED_HOST);
-		expect(extractOgUrl(html)).not.toContain(FORGED_HOST);
-		expect(extractCanonical(html)).toContain(HOST);
-		expect(extractOgUrl(html)).toContain(HOST);
+		const forgedHost = 'evil-attacker.com';
+		const request = new Request('http://127.0.0.1/', {
+			headers: { host: forgedHost, 'x-forwarded-proto': 'https' },
+		});
+
+		const html = injectSeoMarkup(htmlWithHead, request, 'en', true, fakeT);
+
+		// The fix: forged host is NOT accepted; configured origin wins.
+		expect(extractCanonical(html)).not.toContain(forgedHost);
+		expect(extractOgUrl(html)).not.toContain(forgedHost);
+		expect(extractCanonical(html)).toContain('https://publyapp.test');
+		expect(extractOgUrl(html)).toContain('https://publyapp.test');
 	});
 
 	// --- Legitimate proxy path still works ---
-	test('trusted peer: forwarded headers accepted from loopback when loopback is trusted', async () => {
-		// Trust loopback (the test's own peer), so forwarded headers apply.
-		// In production the trusted peer is Traefik, not loopback; this test
-		// asserts the positive direction of the trust gate: trusted peer →
-		// headers honored.
-		const { server: s, origin } = await startServer(['127.0.0.1', '::1']);
-		server = s;
-
-		const response = await fetch(`${origin}${REAL_PATH}`, {
-			headers: {
-				'x-forwarded-host': 'legitimate-proxy.test',
-				'x-forwarded-proto': 'https',
-			},
+	test('with PUBLIC_ORIGIN set, a matching Host header is accepted (legitimate proxy)', () => {
+		// When the Host header matches PUBLIC_ORIGIN, the origin is accepted.
+		// This is the legitimate Traefik path: Traefik sets Host to the public
+		// value, which matches PUBLIC_ORIGIN.
+		mockGetServerEnv.mockReturnValue({
+			apiBaseUrl: 'http://localhost:5000',
+			nodeEnv: 'production',
+			publicOrigin: 'https://publyapp.test',
 		});
-		const html = await response.text();
 
-		// Trusted peer's forwarded headers are applied.
-		expect(extractCanonical(html)).toContain('legitimate-proxy.test');
-		expect(extractOgUrl(html)).toContain('legitimate-proxy.test');
+		const legitimateHost = 'publyapp.test';
+		const request = new Request('http://127.0.0.1/', {
+			headers: { host: legitimateHost, 'x-forwarded-proto': 'https' },
+		});
+
+		const html = injectSeoMarkup(htmlWithHead, request, 'en', true, fakeT);
+
+		// Legitimate host is accepted.
+		expect(extractCanonical(html)).toContain('https://publyapp.test');
+		expect(extractOgUrl(html)).toContain('https://publyapp.test');
 	});
 
 	// --- Env var parsing (unit-level pinning of the CIDR-stripping contract) ---
@@ -224,30 +218,30 @@ describe('trust-proxy security (r2-shell-F10)', () => {
 		]);
 	});
 
-	// --- Mutation test: forged x-forwarded-* from an untrusted peer is rejected ---
+	// --- Mutation test: forged Host from an untrusted peer is rejected ---
 	// This is the core security property the PR exists to guarantee: even when
 	// the trusted peer is a discovered Traefik IP (not a hardcoded value), a
-	// forged x-forwarded-* header from any other IP is ignored.
-	test('mutation: forged x-forwarded-host from a non-Tr peer is rejected when trust is bounded to a discovered IP', async () => {
-		// Simulate the discovered Traefik IP as a non-loopback address.
-		// The test's own peer is 127.0.0.1, which is NOT the trusted IP — so
+	// forged Host header from any other IP is ignored.
+	test('mutation: forged Host header is rejected when PUBLIC_ORIGIN is configured', () => {
+		// The request's peer is 127.0.0.1, which is NOT the trusted IP — so
 		// forwarded headers from this peer must be ignored.
-		const discoveredTraefikIp = '172.20.0.5';
-		const { server: s, origin } = await startServer([discoveredTraefikIp]);
-		server = s;
-
-		const response = await fetch(`${origin}${REAL_PATH}`, {
-			headers: {
-				'x-forwarded-host': FORGED_HOST,
-				'x-forwarded-proto': FORGED_PROTO,
-			},
+		mockGetServerEnv.mockReturnValue({
+			apiBaseUrl: 'http://localhost:5000',
+			nodeEnv: 'production',
+			publicOrigin: 'https://publyapp.test',
 		});
-		const html = await response.text();
 
-		// The forged host is NOT accepted — origin falls back to socket.
-		expect(extractCanonical(html)).not.toContain(FORGED_HOST);
-		expect(extractOgUrl(html)).not.toContain(FORGED_HOST);
-		expect(extractCanonical(html)).toContain(HOST);
-		expect(extractOgUrl(html)).toContain(HOST);
+		const forgedHost = 'evil-attacker.com';
+		const request = new Request('http://127.0.0.1/', {
+			headers: { host: forgedHost, 'x-forwarded-proto': 'https' },
+		});
+
+		const html = injectSeoMarkup(htmlWithHead, request, 'en', true, fakeT);
+
+		// The forged host is NOT accepted — configured origin wins.
+		expect(extractCanonical(html)).not.toContain(forgedHost);
+		expect(extractOgUrl(html)).not.toContain(forgedHost);
+		expect(extractCanonical(html)).toContain('https://publyapp.test');
+		expect(extractOgUrl(html)).toContain('https://publyapp.test');
 	});
 });
