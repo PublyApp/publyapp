@@ -131,7 +131,9 @@ vi.mock('~/lib/query/tenant-posts', () => ({
 	savePost: mocks.savePost,
 	invalidateTenantPosts: mocks.invalidateTenantPosts,
 	toTenantPostDetails: vi.fn((data: unknown) => {
-		if (!data) return null;
+		if (!data) {
+			return null;
+		}
 		const d = data as Record<string, unknown>;
 		return {
 			id: (d.id as string) ?? 'test-id',

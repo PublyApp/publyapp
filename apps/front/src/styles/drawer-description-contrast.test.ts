@@ -293,7 +293,9 @@ const parseOklchColor = (raw: string, name: string): Rgba => {
 	];
 	const toSrgb = (channel: number): number => {
 		const clamped = Math.max(0, Math.min(1, channel));
-		if (clamped <= 0.0031308) return 12.92 * clamped;
+		if (clamped <= 0.0031308) {
+			return 12.92 * clamped;
+		}
 		return 1.055 * clamped ** (1 / 2.4) - 0.055;
 	};
 
@@ -437,7 +439,9 @@ const compositedDrawerBackground = (theme: 'light' | 'dark'): Rgba => {
 const relativeLuminance = ({ r, g, b }: Rgba): number => {
 	const linearize = (channel: number): number => {
 		const value = channel / 255;
-		if (value <= 0.04045) return value / 12.92;
+		if (value <= 0.04045) {
+			return value / 12.92;
+		}
 		return ((value + 0.055) / 1.055) ** 2.4;
 	};
 
@@ -700,7 +704,9 @@ const classNameValueOf = (initializer: Node | undefined): string | null => {
 		return null;
 	}
 	const constants = evaluateConstantStrings(expression);
-	if (constants !== null && constants.length === 1) return constants[0];
+	if (constants !== null && constants.length === 1) {
+		return constants[0];
+	}
 	return null;
 };
 
@@ -1245,7 +1251,9 @@ const rootIdentifierOf = (expression: Expression): string | null => {
 	while (node.getKind() === SyntaxKind.PropertyAccessExpression) {
 		node = (node as PropertyAccessExpression).getExpression();
 	}
-	if (node.getKind() === SyntaxKind.Identifier) return node.getText();
+	if (node.getKind() === SyntaxKind.Identifier) {
+		return node.getText();
+	}
 	return null;
 };
 
@@ -1984,7 +1992,9 @@ const escapeSequenceLength = (text: string, backslashIndex: number): number => {
 		}
 		return cursor - backslashIndex;
 	}
-	if (cursor < text.length) return 2;
+	if (cursor < text.length) {
+		return 2;
+	}
 	return 1;
 };
 
@@ -2167,7 +2177,9 @@ const flattenSelector = (
 	if (parentSelector === null) {
 		return selector;
 	}
-	if (selector.includes('&')) return selector.replace(/&/g, parentSelector);
+	if (selector.includes('&')) {
+		return selector.replace(/&/g, parentSelector);
+	}
 	return `${parentSelector} ${selector}`;
 };
 
@@ -3232,7 +3244,9 @@ const buildFabricatedChildVariants = (
 	utilities: string[],
 ): string[][] => {
 	const fabricated = probeChildrenFor(recorded, utilities);
-	if (fabricated.length === 0) return [[]];
+	if (fabricated.length === 0) {
+		return [[]];
+	}
 	return [[], fabricated];
 };
 

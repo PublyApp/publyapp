@@ -173,8 +173,12 @@ vi.mock('@tanstack/react-router', () => ({
 		options,
 	}),
 	useLoaderData: ({ from }: { from?: string } = {}) => {
-		if (from === '/accept-invitation') return mocks.invitationLoaderData;
-		if (from === '/verify-email') return mocks.verifyEmailLoaderData;
+		if (from === '/accept-invitation') {
+			return mocks.invitationLoaderData;
+		}
+		if (from === '/verify-email') {
+			return mocks.verifyEmailLoaderData;
+		}
 		return mocks.resetPasswordLoaderData;
 	},
 	useLocation: () => ({
@@ -422,11 +426,13 @@ const setRouteLoader = (
 	route: CallSiteSpec['route'],
 	loaderData: CallSiteSpec['loaderData'],
 ): void => {
-	if (route === 'reset-password')
+	if (route === 'reset-password') {
 		mocks.resetPasswordLoaderData = loaderData as ResetPasswordLoaderData;
-	else if (route === 'verify-email')
+	} else if (route === 'verify-email') {
 		mocks.verifyEmailLoaderData = loaderData as VerifyEmailLoaderData;
-	else mocks.invitationLoaderData = loaderData as InvitationLoaderData;
+	} else {
+		mocks.invitationLoaderData = loaderData as InvitationLoaderData;
+	}
 };
 
 const renderThroughRealI18n = (
@@ -460,14 +466,18 @@ const renderCallSite = async (
 		const emailInput = rendered.container.querySelector<HTMLInputElement>(
 			'#reset-password-email',
 		);
-		if (emailInput === null) throw new Error('request form email input');
+		if (emailInput === null) {
+			throw new Error('request form email input');
+		}
 		fireEvent.change(emailInput, {
 			target: { value: RESET_REQUEST_EMAIL },
 		});
 		const form = rendered.container.querySelector(
 			'[data-testid="reset-password-request-form"]',
 		);
-		if (form === null) throw new Error('request form');
+		if (form === null) {
+			throw new Error('request form');
+		}
 		fireEvent.submit(form);
 
 		await waitFor(() =>
@@ -502,7 +512,9 @@ const standingUnpinnedEntries = (sites: DiscoveredTransSite[]): string[] => {
 	for (const spec of CALL_SITES) {
 		const sitesInFile = discoveredByFile.get(spec.file);
 		expect(sitesInFile, `no discovered site in ${spec.file}`).toBeDefined();
-		if (!sitesInFile) continue;
+		if (!sitesInFile) {
+			continue;
+		}
 
 		const remaining = [...sitesInFile];
 		// A single spec may cover several identical-key sites
@@ -517,7 +529,9 @@ const standingUnpinnedEntries = (sites: DiscoveredTransSite[]): string[] => {
 			matchedIndex,
 			`no discovered <Trans> with key ${spec.key} in ${spec.file}`,
 		).toBeGreaterThanOrEqual(0);
-		if (matchedIndex >= 0) remaining.splice(matchedIndex, 1);
+		if (matchedIndex >= 0) {
+			remaining.splice(matchedIndex, 1);
+		}
 		discoveredByFile.set(spec.file, remaining);
 	}
 
@@ -593,16 +607,28 @@ const listSourceFiles = (): string[] => {
 			const child = `${relative}${relative === '' ? '' : '/'}${entry.name}`;
 
 			if (entry.isDirectory()) {
-				if (child === 'e2e') continue;
+				if (child === 'e2e') {
+					continue;
+				}
 				walk(child);
 				continue;
 			}
 
-			if (!/\.(ts|tsx)$/.test(child)) continue;
-			if (child.endsWith('.d.ts')) continue;
-			if (/\.test\.(ts|tsx)$/.test(child)) continue;
-			if (/\.spec\./.test(child)) continue;
-			if (child.endsWith('.stories.tsx')) continue;
+			if (!/\.(ts|tsx)$/.test(child)) {
+				continue;
+			}
+			if (child.endsWith('.d.ts')) {
+				continue;
+			}
+			if (/\.test\.(ts|tsx)$/.test(child)) {
+				continue;
+			}
+			if (/\.spec\./.test(child)) {
+				continue;
+			}
+			if (child.endsWith('.stories.tsx')) {
+				continue;
+			}
 			files.push(child);
 		}
 	};
@@ -676,7 +702,9 @@ const discoverTransCallSites = (): DiscoveredTransSite[] => {
 	for (const relative of listSourceFiles()) {
 		const source = readFileSync(path.join(SRC_ROOT, relative), 'utf8');
 
-		if (!source.includes('react-i18next')) continue;
+		if (!source.includes('react-i18next')) {
+			continue;
+		}
 
 		const sourceFile = createScannedSourceFile(source, relative);
 
@@ -691,7 +719,9 @@ const discoverTransCallSites = (): DiscoveredTransSite[] => {
 		const namespaceLocalNames = new Set<string>();
 
 		const collectTransBindings = (node: ts.Node): void => {
-			if (!ts.isImportDeclaration(node)) return;
+			if (!ts.isImportDeclaration(node)) {
+				return;
+			}
 
 			const module_ = node.moduleSpecifier;
 			if (
@@ -712,7 +742,9 @@ const discoverTransCallSites = (): DiscoveredTransSite[] => {
 			}
 
 			const { namedBindings } = node.importClause;
-			if (namedBindings === undefined) return;
+			if (namedBindings === undefined) {
+				return;
+			}
 
 			if (ts.isNamedImports(namedBindings)) {
 				for (const element of namedBindings.elements) {
@@ -729,7 +761,9 @@ const discoverTransCallSites = (): DiscoveredTransSite[] => {
 
 		/** Local tag text of a JSX tag name: `Trans` or `i18n.Trans`. */
 		const tagNameOf = (tagName: ts.JsxTagNameExpression): string | null => {
-			if (ts.isIdentifier(tagName)) return tagName.text;
+			if (ts.isIdentifier(tagName)) {
+				return tagName.text;
+			}
 			if (
 				ts.isPropertyAccessExpression(tagName) &&
 				ts.isIdentifier(tagName.expression)
@@ -746,10 +780,16 @@ const discoverTransCallSites = (): DiscoveredTransSite[] => {
 			const tagText = tagNameOf(
 				ts.isJsxElement(node) ? node.openingElement.tagName : node.tagName,
 			);
-			if (tagText === null) return false;
-			if (transLocalNames.has(tagText)) return true;
+			if (tagText === null) {
+				return false;
+			}
+			if (transLocalNames.has(tagText)) {
+				return true;
+			}
 			for (const alias of namespaceLocalNames) {
-				if (`${alias}.Trans` === tagText) return true;
+				if (`${alias}.Trans` === tagText) {
+					return true;
+				}
 			}
 			return false;
 		};
@@ -823,7 +863,9 @@ const PRODUCTION_STRONG_CLASSNAME = 'text-foreground';
 const readStringAttributeText = (
 	initializer: ts.JsxAttributeValue,
 ): string | null => {
-	if (ts.isStringLiteral(initializer)) return initializer.text;
+	if (ts.isStringLiteral(initializer)) {
+		return initializer.text;
+	}
 	if (
 		ts.isJsxExpression(initializer) &&
 		initializer.expression &&
@@ -854,11 +896,17 @@ const hasStrongComponentsMap = (attributes: ts.JsxAttributes): boolean => {
 		}
 
 		const expression = property.initializer.expression;
-		if (!expression || !ts.isObjectLiteralExpression(expression)) continue;
+		if (!expression || !ts.isObjectLiteralExpression(expression)) {
+			continue;
+		}
 
 		for (const entry of expression.properties) {
-			if (!ts.isPropertyAssignment(entry) || entry.name.getText() !== 'strong')
+			if (
+				!ts.isPropertyAssignment(entry) ||
+				entry.name.getText() !== 'strong'
+			) {
 				continue;
+			}
 
 			const value = entry.initializer;
 			let attributesOfValue: ts.JsxAttributes | undefined;
@@ -867,7 +915,9 @@ const hasStrongComponentsMap = (attributes: ts.JsxAttributes): boolean => {
 			} else if (ts.isJsxSelfClosingElement(value)) {
 				attributesOfValue = value.attributes;
 			}
-			if (!attributesOfValue) continue;
+			if (!attributesOfValue) {
+				continue;
+			}
 
 			let tagName: string | null = null;
 			if (ts.isJsxSelfClosingElement(value)) {
@@ -875,7 +925,9 @@ const hasStrongComponentsMap = (attributes: ts.JsxAttributes): boolean => {
 			} else if (ts.isJsxElement(value)) {
 				tagName = value.openingElement.tagName.getText();
 			}
-			if (tagName === null || tagName.toLowerCase() !== 'strong') continue;
+			if (tagName === null || tagName.toLowerCase() !== 'strong') {
+				continue;
+			}
 
 			for (const attribute of attributesOfValue.properties) {
 				if (
@@ -1191,10 +1243,11 @@ describe('real-<Trans> render guard over the real route files (#1285)', () => {
 						const found = container.querySelector(
 							`[data-testid="${spec.scopeTestId}"]`,
 						);
-						if (found === null)
+						if (found === null) {
 							throw new Error(
 								`missing scope [data-testid="${spec.scopeTestId}"]`,
 							);
+						}
 						scope = found;
 					}
 					assertTransDom(scope, spec, language, 'call-site');
@@ -1280,7 +1333,9 @@ const assertTransDom = (
 		host ??= scope;
 	}
 
-	if (!host) throw new Error('unreachable: host asserted above');
+	if (!host) {
+		throw new Error('unreachable: host asserted above');
+	}
 
 	// Never escaped-markup text (`&lt;strong&gt;…`): that is how a broken
 	// parser renders these resources.

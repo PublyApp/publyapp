@@ -122,7 +122,9 @@ export async function __publyDecodeScreenshot(
 	const base64 = dataUrl.slice(prefix.length);
 	const binary = atob(base64);
 	const bytes = new Uint8Array(binary.length);
-	for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
+	for (let i = 0; i < binary.length; i += 1) {
+		bytes[i] = binary.charCodeAt(i);
+	}
 	const bitmap = await createImageBitmap(
 		new Blob([bytes], { type: 'image/png' }),
 	);
@@ -130,7 +132,9 @@ export async function __publyDecodeScreenshot(
 	canvas.width = bitmap.width;
 	canvas.height = bitmap.height;
 	const ctx = canvas.getContext('2d');
-	if (!ctx) throw new Error('Browser canvas colour resolver is unavailable');
+	if (!ctx) {
+		throw new Error('Browser canvas colour resolver is unavailable');
+	}
 	ctx.drawImage(bitmap, 0, 0);
 	return ctx.getImageData(0, 0, canvas.width, canvas.height);
 }

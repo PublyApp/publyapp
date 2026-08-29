@@ -138,7 +138,9 @@ test('marks a pin without any version comment as malformed', () => {
 	const parsed = parsePinnedUseLine(`      - uses: actions/checkout@${PINNED}`);
 
 	assert.strictEqual(parsed?.kind, 'malformed');
-	if (parsed.kind !== 'malformed') return assert.fail('unexpected kind');
+	if (parsed.kind !== 'malformed') {
+		return assert.fail('unexpected kind');
+	}
 	assert.match(parsed.reason, /no version comment/i);
 });
 
@@ -148,7 +150,9 @@ test('marks a short-SHA pin as malformed naming the 40-hex requirement', () => {
 	);
 
 	assert.strictEqual(parsed?.kind, 'malformed');
-	if (parsed.kind !== 'malformed') return assert.fail('unexpected kind');
+	if (parsed.kind !== 'malformed') {
+		return assert.fail('unexpected kind');
+	}
 	assert.match(parsed.reason, /40-hex/i);
 });
 
@@ -167,7 +171,9 @@ test('marks non-version comments as malformed', () => {
 		);
 
 		assert.strictEqual(parsed?.kind, 'malformed', comment);
-		if (parsed.kind !== 'malformed') return assert.fail('unexpected kind');
+		if (parsed.kind !== 'malformed') {
+			return assert.fail('unexpected kind');
+		}
 		assert.match(parsed.reason, /version comment/i, comment);
 	}
 });
@@ -176,7 +182,9 @@ test('marks a uses: value without any @ref as malformed', () => {
 	const parsed = parsePinnedUseLine('      - uses: some-action-without-ref');
 
 	assert.strictEqual(parsed?.kind, 'malformed');
-	if (parsed.kind !== 'malformed') return assert.fail('unexpected kind');
+	if (parsed.kind !== 'malformed') {
+		return assert.fail('unexpected kind');
+	}
 	assert.match(parsed.reason, /@ref/i);
 });
 
@@ -206,7 +214,9 @@ test('fails naming file:line, action, expected vs actual on a wrong SHA', async 
 	assert.strictEqual(findings[0].kind, 'mismatch');
 	assert.strictEqual(findings[0].file, '.github/workflows/fixture.yml');
 	assert.strictEqual(findings[0].line, 8);
-	if (findings[0].kind !== 'mismatch') return assert.fail('unexpected kind');
+	if (findings[0].kind !== 'mismatch') {
+		return assert.fail('unexpected kind');
+	}
 	assert.strictEqual(findings[0].uses, `actions/checkout@${otherSha}`);
 	assert.strictEqual(findings[0].tag, 'v7');
 	assert.strictEqual(findings[0].expected, PINNED);
@@ -242,7 +252,9 @@ test('a missing tag fails loud instead of passing silently', async () => {
 
 	assert.strictEqual(findings.length, 1);
 	assert.strictEqual(findings[0].kind, 'mismatch');
-	if (findings[0].kind !== 'mismatch') return assert.fail('unexpected kind');
+	if (findings[0].kind !== 'mismatch') {
+		return assert.fail('unexpected kind');
+	}
 	assert.strictEqual(findings[0].expected, '(missing)');
 	assert.strictEqual(findings[0].actual, PINNED);
 	assert.match(findings[0].message, /does not exist/i);

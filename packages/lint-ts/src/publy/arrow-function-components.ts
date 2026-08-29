@@ -81,8 +81,12 @@ const isJsxNode = (node: ESTree.Node | null | undefined): boolean =>
 const expressionContainsJsx = (
 	node: ESTree.Expression | null | undefined,
 ): boolean => {
-	if (!node) return false;
-	if (isJsxNode(node)) return true;
+	if (!node) {
+		return false;
+	}
+	if (isJsxNode(node)) {
+		return true;
+	}
 
 	if (node.type === 'ParenthesizedExpression') {
 		return expressionContainsJsx(node.expression);
@@ -122,7 +126,9 @@ const buildImportInfo = (programNode: ESTree.Program): ImportInfo => {
 	const localObjectMembers = new Map<string, Map<string, FunctionNode>>();
 
 	const registerLocalFn = (name: string, fnNode: FunctionNode): void => {
-		if (name) localFunctionDecls.set(name, fnNode);
+		if (name) {
+			localFunctionDecls.set(name, fnNode);
+		}
 	};
 
 	/**
@@ -157,7 +163,9 @@ const buildImportInfo = (programNode: ESTree.Program): ImportInfo => {
 				into.set(prop.key.name, value);
 			}
 		}
-		if (!resolvable) into.clear();
+		if (!resolvable) {
+			into.clear();
+		}
 	};
 
 	const collectVarDeclarators = (varDecl: ESTree.VariableDeclaration): void => {
@@ -165,7 +173,9 @@ const buildImportInfo = (programNode: ESTree.Program): ImportInfo => {
 			const id = decl.id;
 			const name = id.type === 'Identifier' ? id.name : undefined;
 			const init = decl.init;
-			if (!name || !init) continue;
+			if (!name || !init) {
+				continue;
+			}
 			if (
 				init.type === 'ArrowFunctionExpression' ||
 				init.type === 'FunctionExpression'
@@ -195,7 +205,9 @@ const buildImportInfo = (programNode: ESTree.Program): ImportInfo => {
 					const localName = specifier.local.name;
 					if (localName) {
 						importedNames.add(localName);
-						if (isReact) reactNamespaces.add(localName);
+						if (isReact) {
+							reactNamespaces.add(localName);
+						}
 					}
 				} else if (specifier.type === 'ImportSpecifier') {
 					const localName = specifier.local.name;
@@ -237,7 +249,9 @@ const buildImportInfo = (programNode: ESTree.Program): ImportInfo => {
 
 			if (fn) {
 				const id = fn.id;
-				if (id) registerLocalFn(id.name, fn);
+				if (id) {
+					registerLocalFn(id.name, fn);
+				}
 			}
 		}
 	}
@@ -264,7 +278,9 @@ const analyseBody = (
 		callsHook: false,
 		returnsRendererCall: false,
 	};
-	if (!body) return result;
+	if (!body) {
+		return result;
+	}
 
 	// #1293: names of local variables whose (statement-order) initializer
 	// carries JSX in THIS function body. Fresh per analyseBody call, so each
@@ -286,7 +302,9 @@ const analyseBody = (
 	const isKnownRendererCallee = (
 		callee: ESTree.Expression | undefined,
 	): boolean => {
-		if (!callee) return false;
+		if (!callee) {
+			return false;
+		}
 
 		if (callee.type === 'Identifier' && KNOWN_RENDERERS.has(callee.name)) {
 			return true;
@@ -306,7 +324,9 @@ const analyseBody = (
 	};
 
 	const isHookCallee = (callee: ESTree.Expression | undefined): boolean => {
-		if (!callee) return false;
+		if (!callee) {
+			return false;
+		}
 
 		if (
 			callee.type === 'MemberExpression' &&
@@ -322,15 +342,25 @@ const analyseBody = (
 			const name = callee.name;
 			if (reactImportedNameToImported.has(name)) {
 				const importedName = reactImportedNameToImported.get(name);
-				if (importedName && isHookLike(importedName)) return true;
+				if (importedName && isHookLike(importedName)) {
+					return true;
+				}
 			}
-			if (!isHookLike(name)) return false;
-			if (importedNames.has(name)) return true;
+			if (!isHookLike(name)) {
+				return false;
+			}
+			if (importedNames.has(name)) {
+				return true;
+			}
 			if (localFunctionDecls.has(name)) {
-				if (recursingFor.has(name)) return false;
+				if (recursingFor.has(name)) {
+					return false;
+				}
 				const localFn = localFunctionDecls.get(name);
 				const fnBody = localFn?.body;
-				if (!fnBody) return false;
+				if (!fnBody) {
+					return false;
+				}
 				const next = new Set(recursingFor).add(name);
 				if (fnBody.type === 'BlockStatement') {
 					return analyseBody(fnBody, importInfo, next).callsHook;
@@ -347,22 +377,36 @@ const analyseBody = (
 	const walkExprForHooks = (
 		expr: ESTree.Expression | null | undefined,
 	): void => {
-		if (!expr) return;
+		if (!expr) {
+			return;
+		}
 		if (expr.type === 'CallExpression') {
 			const callee = expr.callee;
-			if (isHookCallee(callee)) result.callsHook = true;
-			for (const arg of expr.arguments) {
-				if (arg.type !== 'SpreadElement') walkExprForHooks(arg);
+			if (isHookCallee(callee)) {
+				result.callsHook = true;
 			}
-			if (callee.type === 'MemberExpression') walkExprForHooks(callee.object);
+			for (const arg of expr.arguments) {
+				if (arg.type !== 'SpreadElement') {
+					walkExprForHooks(arg);
+				}
+			}
+			if (callee.type === 'MemberExpression') {
+				walkExprForHooks(callee.object);
+			}
 		}
-		if (expr.type === 'MemberExpression') walkExprForHooks(expr.object);
+		if (expr.type === 'MemberExpression') {
+			walkExprForHooks(expr.object);
+		}
 	};
 
 	const scanStatements = (statements: ESTree.Statement[]): void => {
 		for (const stmt of statements) {
-			if (!stmt) continue;
-			if (stmt.type === 'FunctionDeclaration') continue;
+			if (!stmt) {
+				continue;
+			}
+			if (stmt.type === 'FunctionDeclaration') {
+				continue;
+			}
 
 			if (stmt.type === 'VariableDeclaration') {
 				for (const decl of stmt.declarations) {
@@ -398,7 +442,9 @@ const analyseBody = (
 			}
 			if (stmt.type === 'ReturnStatement') {
 				const arg = stmt.argument;
-				if (arg === null || arg === undefined) continue;
+				if (arg === null || arg === undefined) {
+					continue;
+				}
 				if (expressionContainsJsx(arg)) {
 					result.returnsJsx = true;
 				} else if (
@@ -441,14 +487,18 @@ const analyseBody = (
 					const isNullLike =
 						(arg.type === 'Literal' && arg.value === null) ||
 						(arg.type === 'Identifier' && arg.name === 'undefined');
-					if (!isNullLike) result.returnsOnlyNullOrJsx = false;
+					if (!isNullLike) {
+						result.returnsOnlyNullOrJsx = false;
+					}
 				}
 				continue;
 			}
 			if (stmt.type === 'IfStatement') {
 				walkExprForHooks(stmt.test);
 				scanStatements([stmt.consequent]);
-				if (stmt.alternate) scanStatements([stmt.alternate]);
+				if (stmt.alternate) {
+					scanStatements([stmt.alternate]);
+				}
 				continue;
 			}
 			if (stmt.type === 'BlockStatement') {
@@ -471,15 +521,21 @@ const analyseBody = (
 			}
 			if (stmt.type === 'SwitchStatement') {
 				walkExprForHooks(stmt.discriminant);
-				for (const c of stmt.cases) scanStatements(c.consequent);
+				for (const c of stmt.cases) {
+					scanStatements(c.consequent);
+				}
 				continue;
 			}
 			if (stmt.type === 'TryStatement') {
 				scanStatements(stmt.block.body);
 				const handler = stmt.handler;
-				if (handler) scanStatements(handler.body.body);
+				if (handler) {
+					scanStatements(handler.body.body);
+				}
 				const finalizer = stmt.finalizer;
-				if (finalizer) scanStatements(finalizer.body);
+				if (finalizer) {
+					scanStatements(finalizer.body);
+				}
 			}
 		}
 	};
@@ -501,13 +557,21 @@ const isLocalRenderDelegate = (
 	visiting: Set<string>,
 ): boolean => {
 	const { importedNames, localFunctionDecls } = importInfo;
-	if (importedNames.has(name)) return false;
+	if (importedNames.has(name)) {
+		return false;
+	}
 	const localFn = localFunctionDecls.get(name);
-	if (!localFn) return false;
-	if (visiting.has(name)) return false;
+	if (!localFn) {
+		return false;
+	}
+	if (visiting.has(name)) {
+		return false;
+	}
 
 	const fnBody = localFn.body;
-	if (!fnBody) return false;
+	if (!fnBody) {
+		return false;
+	}
 	const next = new Set(visiting).add(name);
 
 	if (fnBody.type === 'BlockStatement') {
@@ -516,7 +580,9 @@ const isLocalRenderDelegate = (
 	}
 
 	// Concise arrow body (`const h = (props) => <div {...props} />`).
-	if (expressionContainsJsx(fnBody)) return true;
+	if (expressionContainsJsx(fnBody)) {
+		return true;
+	}
 	if (fnBody.type === 'CallExpression' && fnBody.callee.type === 'Identifier') {
 		return isLocalRenderDelegate(fnBody.callee.name, importInfo, next);
 	}
@@ -548,20 +614,34 @@ const isLocalMemberRenderDelegate = (
 	importInfo: ImportInfo,
 	visiting: Set<string>,
 ): boolean => {
-	if (object.type !== 'Identifier') return false;
-	if (property.type !== 'Identifier') return false;
+	if (object.type !== 'Identifier') {
+		return false;
+	}
+	if (property.type !== 'Identifier') {
+		return false;
+	}
 	const { importedNames, localObjectMembers } = importInfo;
 	// An imported namespace is never a locally declared object literal.
-	if (importedNames.has(object.name)) return false;
+	if (importedNames.has(object.name)) {
+		return false;
+	}
 	const members = localObjectMembers.get(object.name);
-	if (!members) return false;
+	if (!members) {
+		return false;
+	}
 	const key = `${object.name}.${property.name}` as const;
 	const memberFn = members.get(property.name);
-	if (!memberFn) return false;
-	if (visiting.has(key)) return false;
+	if (!memberFn) {
+		return false;
+	}
+	if (visiting.has(key)) {
+		return false;
+	}
 
 	const fnBody = memberFn.body;
-	if (!fnBody) return false;
+	if (!fnBody) {
+		return false;
+	}
 	const next = new Set(visiting).add(key);
 
 	if (fnBody.type === 'BlockStatement') {
@@ -570,7 +650,9 @@ const isLocalMemberRenderDelegate = (
 	}
 
 	// Concise arrow property (`{ customRender: (props) => <b>{props.t}</b> }`).
-	if (expressionContainsJsx(fnBody)) return true;
+	if (expressionContainsJsx(fnBody)) {
+		return true;
+	}
 	if (fnBody.type === 'CallExpression' && fnBody.callee.type === 'Identifier') {
 		return isLocalRenderDelegate(fnBody.callee.name, importInfo, next);
 	}
@@ -594,9 +676,15 @@ const bodyLooksLikeComponent = (
 ): boolean => {
 	const { returnsJsx, returnsOnlyNullOrJsx, callsHook, returnsRendererCall } =
 		analyseBody(body, importInfo);
-	if (returnsJsx) return true;
-	if (returnsRendererCall) return true;
-	if (callsHook && returnsOnlyNullOrJsx) return true;
+	if (returnsJsx) {
+		return true;
+	}
+	if (returnsRendererCall) {
+		return true;
+	}
+	if (callsHook && returnsOnlyNullOrJsx) {
+		return true;
+	}
 	return false;
 };
 
@@ -604,7 +692,9 @@ const isWrapperCall = (
 	node: ESTree.Expression | null | undefined,
 	importInfo: ImportInfo,
 ): boolean => {
-	if (!node || node.type !== 'CallExpression') return false;
+	if (!node || node.type !== 'CallExpression') {
+		return false;
+	}
 
 	const { reactNamespaces, reactImportedNames } = importInfo;
 	const callee = node.callee;
@@ -663,13 +753,17 @@ export const arrowFunctionComponents = {
 				importInfo = buildImportInfo(node);
 			},
 			FunctionDeclaration(node) {
-				if (node.generator) return;
+				if (node.generator) {
+					return;
+				}
 				const info = importInfo ?? buildImportInfo(EMPTY_PROGRAM);
 				const name = node.id?.name;
 				const parent = node.parent;
 
 				if (!node.id && parent?.type === 'ExportDefaultDeclaration') {
-					if (!bodyLooksLikeComponent(node.body, info)) return;
+					if (!bodyLooksLikeComponent(node.body, info)) {
+						return;
+					}
 					context.report({
 						node,
 						messageId: 'useArrowFunctionAnonymous',
@@ -678,8 +772,12 @@ export const arrowFunctionComponents = {
 					return;
 				}
 
-				if (!name || !isPascalCase(name)) return;
-				if (!bodyLooksLikeComponent(node.body, info)) return;
+				if (!name || !isPascalCase(name)) {
+					return;
+				}
+				if (!bodyLooksLikeComponent(node.body, info)) {
+					return;
+				}
 				context.report({
 					node,
 					messageId: 'useArrowFunction',
@@ -687,9 +785,13 @@ export const arrowFunctionComponents = {
 				});
 			},
 			FunctionExpression(node) {
-				if (node.generator) return;
+				if (node.generator) {
+					return;
+				}
 				const parent = node.parent;
-				if (!parent) return;
+				if (!parent) {
+					return;
+				}
 				const info = importInfo ?? buildImportInfo(EMPTY_PROGRAM);
 
 				if (
@@ -697,7 +799,9 @@ export const arrowFunctionComponents = {
 					isWrapperCall(parent, info) &&
 					parent.arguments[0] === node
 				) {
-					if (!bodyLooksLikeComponent(node.body, info)) return;
+					if (!bodyLooksLikeComponent(node.body, info)) {
+						return;
+					}
 					const name = node.id?.name ?? 'Component';
 					context.report({
 						node,

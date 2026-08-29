@@ -79,7 +79,9 @@ export const classifyBadResponse = (status: number): BadResponseDisposition => {
 		return 'drop';
 	}
 
-	if (status >= 500) return 'error';
+	if (status >= 500) {
+		return 'error';
+	}
 	return 'debug';
 };
 

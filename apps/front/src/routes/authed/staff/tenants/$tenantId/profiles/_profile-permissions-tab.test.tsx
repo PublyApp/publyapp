@@ -177,12 +177,16 @@ vi.mock('~/lib/query/staff-tenant-profiles', () => ({
 		return [
 			leftFlow.flatMap((moduleKey) => {
 				const group = groupByModuleKey.get(moduleKey);
-				if (group) return [group];
+				if (group) {
+					return [group];
+				}
 				return [];
 			}),
 			rightFlow.flatMap((moduleKey) => {
 				const group = groupByModuleKey.get(moduleKey);
-				if (group) return [group];
+				if (group) {
+					return [group];
+				}
 				return [];
 			}),
 		];

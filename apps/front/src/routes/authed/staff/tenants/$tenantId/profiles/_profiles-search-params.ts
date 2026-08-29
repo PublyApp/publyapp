@@ -36,7 +36,9 @@ const normalizeUnknownString = (value: unknown): string | undefined => {
 	}
 
 	const trimmed = value.trim();
-	if (trimmed.length > 0) return trimmed;
+	if (trimmed.length > 0) {
+		return trimmed;
+	}
 	return undefined;
 };
 
@@ -47,7 +49,9 @@ export const toStaffTenantProfileTypeFilterString = (
 		return undefined;
 	}
 
-	if (value) return 'true';
+	if (value) {
+		return 'true';
+	}
 	return 'false';
 };
 
@@ -63,7 +67,9 @@ export const parseStaffTenantProfileTypeFilter = (
 		return true;
 	}
 
-	if (normalized === 'false') return false;
+	if (normalized === 'false') {
+		return false;
+	}
 	return undefined;
 };
 

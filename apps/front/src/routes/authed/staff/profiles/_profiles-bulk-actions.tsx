@@ -102,7 +102,9 @@ export const ProfilesListBulkActions = ({
 				...new Set(
 					failedItems.flatMap((item) => {
 						const reason = item.errorEscaped?.trim();
-						if (reason) return [reason];
+						if (reason) {
+							return [reason];
+						}
 						return [];
 					}),
 				),
@@ -178,7 +180,9 @@ export const ProfilesListBulkActions = ({
 					void performBulkDelete();
 				}}
 				onOpenChange={(isOpen) => {
-					if (!isOpen) setIsDialogOpen(false);
+					if (!isOpen) {
+						setIsDialogOpen(false);
+					}
 				}}
 			/>
 		</>

@@ -42,6 +42,7 @@
 		"packages/lint-ts/src/anti-slop/**"
 	],
 	"rules": {
+		"curly": "error",
 		"no-else-return": "error",
 		"no-nested-ternary": "error",
 		"no-param-reassign": "error",

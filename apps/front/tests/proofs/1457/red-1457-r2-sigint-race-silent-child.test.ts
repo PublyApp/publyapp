@@ -266,7 +266,9 @@ function extractR2FixtureLines(): string[] {
 		while (i < body.length && /\s/.test(body[i]!)) {
 			i += 1;
 		}
-		if (i >= body.length) break;
+		if (i >= body.length) {
+			break;
+		}
 		const opener = body[i]!;
 		if (opener !== "'" && opener !== '"') {
 			throw new Error(

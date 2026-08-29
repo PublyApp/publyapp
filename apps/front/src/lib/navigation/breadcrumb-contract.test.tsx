@@ -86,7 +86,9 @@ const childRoutesOf = (route: RouteLike): RouteLike[] => {
 		return [];
 	}
 
-	if (Array.isArray(route.children)) return route.children;
+	if (Array.isArray(route.children)) {
+		return route.children;
+	}
 	return Object.values(route.children);
 };
 

@@ -111,7 +111,9 @@ export const normalizeOptionalUpdateString = (
 		return undefined;
 	}
 
-	if (trimmed.length > 0) return trimmed;
+	if (trimmed.length > 0) {
+		return trimmed;
+	}
 	return null;
 };
 
