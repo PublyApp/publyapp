@@ -40,7 +40,9 @@ export type Counter = 'failures' | 'unexpectedPasses' | 'corrupted';
  * @param verdict The verdict from `classifyProof`.
  * @returns The counter that must be incremented for this verdict.
  */
-export function counterForVerdict(verdict: ClassificationResult['verdict']): Counter {
+export const counterForVerdict = (
+	verdict: ClassificationResult['verdict'],
+): Counter => {
 	switch (verdict) {
 		case 'OK':
 			return 'failures';
@@ -53,7 +55,7 @@ export function counterForVerdict(verdict: ClassificationResult['verdict']): Cou
 		case 'ERROR':
 			return 'unexpectedPasses';
 	}
-}
+};
 
 /**
  * Consume a classification result by incrementing the counter it maps to.
@@ -67,14 +69,21 @@ export function counterForVerdict(verdict: ClassificationResult['verdict']): Cou
  * @param verdict  The verdict from `classifyProof`.
  * @returns The next counter values (a new object — input is never mutated).
  */
-export function consumeVerdict(
-	counts: { failures: number; unexpectedPasses: number; corrupted: number },
+export type ProofCounts = {
+	failures: number;
+	unexpectedPasses: number;
+	corrupted: number;
+};
+
+export const consumeVerdict = (
+	counts: ProofCounts,
 	verdict: ClassificationResult['verdict'],
-): { failures: number; unexpectedPasses: number; corrupted: number } {
+): ProofCounts => {
 	const counter = counterForVerdict(verdict);
 	return {
 		failures: counts.failures + (counter === 'failures' ? 1 : 0),
-		unexpectedPasses: counts.unexpectedPasses + (counter === 'unexpectedPasses' ? 1 : 0),
+		unexpectedPasses:
+			counts.unexpectedPasses + (counter === 'unexpectedPasses' ? 1 : 0),
 		corrupted: counts.corrupted + (counter === 'corrupted' ? 1 : 0),
 	};
-}
+};
