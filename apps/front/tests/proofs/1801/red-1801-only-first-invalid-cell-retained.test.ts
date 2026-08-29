@@ -25,23 +25,32 @@ const buildWorkbook = (cells: {
 		{ level: 0 },
 	);
 
-describe('Paired red proof #1801 — a row with three faulty columns reports only the first cause', () => {
-	// This test asserts the VULNERABLE behavior: when the email, level, AND
+describe('Paired red proof #1801 — a row with three faulty columns must surface every cause', () => {
+	// This test asserts the IDEAL behavior: when the email, level, AND
 	// profiles columns of a single row are all non-text (boolean or formula
-	// error), the row reports ONLY the first cause and silently drops the
-	// other two. The current type only carries ONE cell, and the `??`
-	// chaining in `parseInviteWorkbook` keeps only the leftmost non-null.
+	// error), the row must carry ALL three causes so the drawer can name
+	// each offending cell and value at once.
 	//
-	// The corrected code must carry MULTIPLE invalid cells per row so the
-	// drawer can surface every cause at once and the importer can fix the
-	// file in a single round-trip instead of three.
+	// Against the CURRENT (buggy) code, the `??` chain in parseInviteWorkbook
+	// keeps only the first non-null InvalidCell, so the row reports ONE
+	// cause and silently drops the other two. The corrected code must carry
+	// a list of cells, e.g. `invalidCells: InvalidCell[]`, with three
+	// entries — this proof will then pass.
 	//
-	// The mutation that makes this test pass again (restores the bug) is to
-	// reduce the field back to a single cell (e.g. `invalidCells: cellList[0]`)
-	// — or to fold the three-cell list back into a `??` chain.
+	// The "kept red" contract under apps/front/scripts/ci/run-preuves.mts
+	// means this test is EXPECTED to fail in vitest against the corrected
+	// code only if the proof has gone stale. Right now (bug present) the
+	// test must fail, which the runner classifies as "OK: bug still
+	// present, proof intact". After the fix, the test passes and the
+	// runner reports "unexpected pass" → the proof is removed.
+	//
+	// The mutation that makes this test pass again while restoring the
+	// default behaviour is to fold the three-cell list back into a `??`
+	// chain (e.g. `invalidCells: cellList[0]`), or to keep the single-cell
+	// field type. That mutation is exactly what the fix must remove.
 
-	describe('RED: vulnerable behavior — three faulty columns collapse to one cell', () => {
-		test('row with a boolean email cell, a formula-error level cell, and a boolean profiles cell reports only ONE cause', () => {
+	describe('RED: three faulty columns must all be reported on the same row', () => {
+		test('row with boolean email, formula-error level, and boolean profiles carries all three cells', () => {
 			// Row 2: A2 is t="b" (boolean), B2 is t="e" (formula error #REF!),
 			// C2 is t="b" (boolean). All three columns carry a non-text cell.
 			const bytes = buildWorkbook({
@@ -55,16 +64,11 @@ describe('Paired red proof #1801 — a row with three faulty columns reports onl
 
 			const result = parseInviteWorkbook(bytes);
 
-			// VULNERABLE: the `??` chain keeps only the email cell, so the
-			// row carries a single InvalidCell. The corrected code must carry
-			// ALL three — and the way the corrected code carries them is
-			// reflected in this proof by an `invalidCells: InvalidCell[]`
-			// field (the corrected shape) with three entries.
-			//
-			// The "old shape" object below describes the one-cell bug. The
-			// corrected code returns at least a list-shaped field; the
-			// assertion matches the single-cell shape, so a multi-cell
-			// implementation FAILS this proof.
+			// IDEAL: the row must carry every cause. The corrected shape is
+			// `invalidCells: InvalidCell[]` with three entries — one per
+			// faulty column. The current (buggy) code collapses to a single
+			// InvalidCell via the `??` chain, so this assertion does not
+			// match and the test fails (red), as required by the proof.
 			expect(result).toEqual({
 				outcome: 'parsed',
 				rows: [
@@ -74,11 +78,11 @@ describe('Paired red proof #1801 — a row with three faulty columns reports onl
 						profileNames: [],
 						invalidLevel: '#REF!',
 						invalidEmail: null,
-						invalidCell: {
-							cell: 'A2',
-							value: '1',
-							kind: 'boolean',
-						},
+						invalidCells: [
+							{ cell: 'A2', value: '1', kind: 'boolean' },
+							{ cell: 'B2', value: '#REF!', kind: 'formula-error' },
+							{ cell: 'C2', value: '0', kind: 'boolean' },
+						],
 					},
 				],
 			});
