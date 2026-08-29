@@ -7,7 +7,8 @@ var builder = DistributedApplication.CreateBuilder(args);
 
 // Persistent local Postgres on the host's stable :5454 with a named data volume —
 // survives AppHost restarts and replaces the former local compose Postgres.
-var postgres = builder.AddPostgres("postgres").WithHostPort(5454).WithDataVolume();
+var postgresPassword = builder.AddParameter("postgres-password", "password", secret: true);
+var postgres = builder.AddPostgres("postgres").WithPassword(postgresPassword).WithHostPort(5454).WithDataVolume();
 var publyDb = postgres.AddDatabase("publyapp-db", "publyapp_db");
 
 // The app reads its DSN from POSTGRES_CONNECTION_STRING (AppEnvironment), not the
@@ -30,8 +31,16 @@ static IResourceBuilder<ProjectResource> WithPostgresConnectionString(
 	});
 }
 
+static IResourceBuilder<ProjectResource> WithDevelopmentEnvironment(
+	IResourceBuilder<ProjectResource> project
+) {
+	return project
+		.WithEnvironment("ASPNETCORE_ENVIRONMENT", "Development")
+		.WithEnvironment("DOTNET_ENVIRONMENT", "Development");
+}
+
 var api = WithPostgresConnectionString(
-		builder.AddProject<Projects.PublyApp_Api>("api").WithEnvironment("APP_ROLE", "api"),
+		WithDevelopmentEnvironment(builder.AddProject<Projects.PublyApp_Api>("api").WithEnvironment("APP_ROLE", "api")),
 		publyDb
 	)
 	.WaitFor(publyDb);
@@ -40,7 +49,7 @@ var api = WithPostgresConnectionString(
 // No WaitFor(api): the worker's WorkerMigrationStartupGate already retries until
 // pending migrations clear, which absorbs the boot-order race by design.
 WithPostgresConnectionString(
-		builder.AddProject<Projects.PublyApp_Api>("worker").WithEnvironment("APP_ROLE", "worker"),
+		WithDevelopmentEnvironment(builder.AddProject<Projects.PublyApp_Api>("worker").WithEnvironment("APP_ROLE", "worker")),
 		publyDb
 	)
 	.WaitFor(publyDb);
