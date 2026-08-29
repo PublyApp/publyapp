@@ -955,3 +955,188 @@ test('duplicate key guard: the repo manifest has no duplicate keys', () => {
 
 	assert.deepEqual(findDuplicateKeys(raw), []);
 });
+
+// --- Edge case tests for #1762 ---
+//
+// The duplicate-key guard reads raw text at the brace/quote level rather than
+// via JSON.parse. These four tests prove it behaves correctly on the boundary
+// cases that a naive line scanner would mishandle.
+
+test('edge case #1 — key with escaped quotes: MUST report (true duplicate)', () => {
+	// A key containing \" is still a valid JSON key. Two identical keys with
+	// escaped quotes are a real duplicate: JSON.parse would silently keep the
+	// last one. The guard must report it.
+	const manifest = [
+		'{',
+		'\t"steps": {',
+		'\t\t"key with \\"quotes\\" inside": { "hash": "a", "mirror": null, "reason": "short reason text here" },',
+		'\t\t"key with \\"quotes\\" inside": { "hash": "b", "mirror": null, "reason": "short reason text here" }',
+		'\t}',
+		'}',
+	].join('\n');
+
+	const findings = findDuplicateKeys(manifest);
+
+	assert.equal(findings.length, 1);
+	assert.match(findings[0], /DUPLICATE KEY "key with "quotes" inside"/);
+	assert.match(findings[0], /lines 3 and 4/);
+});
+
+test('edge case #1 — key with escaped quotes: does NOT report when keys differ', () => {
+	// Two keys that both contain escaped quotes but are NOT identical must not
+	// trigger a finding. This proves the guard distinguishes content, not just
+	// the presence of escape sequences.
+	const manifest = [
+		'{',
+		'\t"steps": {',
+		'\t\t"key with \\"quotes\\" one": { "hash": "a", "mirror": null, "reason": "short reason text here" },',
+		'\t\t"key with \\"quotes\\" two": { "hash": "b", "mirror": null, "reason": "short reason text here" }',
+		'\t}',
+		'}',
+	].join('\n');
+
+	assert.deepEqual(findDuplicateKeys(manifest), []);
+});
+
+test('edge case #2 — multi-line key with literal newline: deliberately OUT OF SCOPE', () => {
+	// A key spanning multiple lines with a literal newline (not \\n) is INVALID
+	// JSON — JSON.parse throws "Bad control character in string literal". The
+	// guard's purpose is to catch what JSON.parse SILENTLY accepts (duplicate
+	// keys), not to duplicate JSON.parse's own loud failure on invalid syntax.
+	// Therefore the guard stays silent: reporting a "duplicate key" on invalid
+	// JSON would be misleading, because the real problem is the unparseable
+	// document, not the duplicate. JSON.parse already fails loudly on this input.
+	const manifest = [
+		'{',
+		'\t"steps": {',
+		'\t\t"multi',
+		'\t\tline key": { "hash": "a", "mirror": null, "reason": "short reason text here" },',
+		'\t\t"multi',
+		'\t\tline key": { "hash": "b", "mirror": null, "reason": "short reason text here" }',
+		'\t}',
+		'}',
+	].join('\n');
+
+	// The guard reads line-by-line and cannot see a key that spans lines.
+	// This is a deliberate omission: invalid JSON is JSON.parse's problem.
+	assert.deepEqual(findDuplicateKeys(manifest), []);
+
+	// Proof that JSON.parse indeed rejects this input (the loud failure that
+	// makes the guard's silence acceptable):
+	assert.throws(
+		() => JSON.parse(manifest),
+		/Bad control character in string literal/,
+	);
+});
+
+test('edge case #2 — multi-line key with escaped newline (\\n): MUST report', () => {
+	// Unlike a literal newline, \\n is valid JSON. Two keys that both contain
+	// \\n and are otherwise identical are a real duplicate that JSON.parse would
+	// silently accept. The guard must report them.
+	const manifest = [
+		'{',
+		'\t"steps": {',
+		'\t\t"multi\\nline key": { "hash": "a", "mirror": null, "reason": "short reason text here" },',
+		'\t\t"multi\\nline key": { "hash": "b", "mirror": null, "reason": "short reason text here" }',
+		'\t}',
+		'}',
+	].join('\n');
+
+	const findings = findDuplicateKeys(manifest);
+
+	assert.equal(findings.length, 1);
+	// The guard decodes \\n to a real newline in the reported key name.
+	assert.match(findings[0], /DUPLICATE KEY "multi\nline key"/);
+	assert.match(findings[0], /lines 3 and 4/);
+});
+
+test('edge case #3 — string value containing ": {": MUST stay silent (no false positive)', () => {
+	// A string value that contains the sequence ": {" must not be mistaken for
+	// a key. The guard distinguishes keys (preceded by whitespace/start, followed
+	// by `:`) from values (preceded by `:`). This test proves no false positive.
+	const manifest = [
+		'{',
+		'\t"steps": {',
+		'\t\t"key1": {',
+		'\t\t\t"hash": "a",',
+		'\t\t\t"mirror": "value with \": { inside",',
+		'\t\t\t"reason": "short reason text here"',
+		'\t\t},',
+		'\t\t"key2": {',
+		'\t\t\t"hash": "b",',
+		'\t\t\t"mirror": "another value",',
+		'\t\t\t"reason": "short reason text here"',
+		'\t\t}',
+		'\t}',
+		'}',
+	].join('\n');
+
+	assert.deepEqual(findDuplicateKeys(manifest), []);
+});
+
+test('edge case #3 — string value ": {" at end of line: MUST stay silent', () => {
+	// The riskiest false-positive shape: a string value that ends with ": {"
+	// on a single line. The guard must still recognize this as a value, not a key.
+	const manifest = [
+		'{',
+		'\t"steps": {',
+		'\t\t"key1": {',
+		'\t\t\t"hash": "a",',
+		'\t\t\t"mirror": "see: {",',
+		'\t\t\t"reason": "short reason text here"',
+		'\t\t}',
+		'\t}',
+		'}',
+	].join('\n');
+
+	assert.deepEqual(findDuplicateKeys(manifest), []);
+});
+
+test('edge case #4 — unicode escape vs literal: MUST report (same key after decode)', () => {
+	// Two keys that differ only in unicode escaping (e.g., \\u2014 vs the literal
+	// em-dash —) are DISTINCT as raw text but IDENTICAL after JSON.parse decodes
+	// them. JSON.parse would silently keep the last one. The guard decodes escape
+	// sequences before comparing, so it correctly identifies them as duplicates.
+	const manifest = [
+		'{',
+		'\t"steps": {',
+		'\t\t"em\\u2014dash": { "hash": "a", "mirror": null, "reason": "short reason text here" },',
+		'\t\t"em—dash": { "hash": "b", "mirror": null, "reason": "short reason text here" }',
+		'\t}',
+		'}',
+	].join('\n');
+
+	const findings = findDuplicateKeys(manifest);
+
+	// Both decode to "em—dash", so the guard reports a duplicate.
+	assert.equal(findings.length, 1);
+	assert.match(findings[0], /DUPLICATE KEY "em—dash"/);
+	assert.match(findings[0], /lines 3 and 4/);
+
+	// Proof that JSON.parse treats them as the same key (silently keeps last):
+	const parsed = JSON.parse(manifest) as {
+		steps: Record<string, unknown>;
+	};
+	assert.equal(Object.keys(parsed.steps).length, 1);
+});
+
+test('edge case #4 — different unicode escapes: MUST stay silent (truly distinct keys)', () => {
+	// Two keys that use DIFFERENT unicode escapes (\\u2014 em-dash vs \\u2013
+	// en-dash) are distinct after decoding. The guard must NOT report them.
+	const manifest = [
+		'{',
+		'\t"steps": {',
+		'\t\t"em\\u2014dash": { "hash": "a", "mirror": null, "reason": "short reason text here" },',
+		'\t\t"en\\u2013dash": { "hash": "b", "mirror": null, "reason": "short reason text here" }',
+		'\t}',
+		'}',
+	].join('\n');
+
+	assert.deepEqual(findDuplicateKeys(manifest), []);
+
+	// Proof that JSON.parse treats them as distinct keys:
+	const parsed = JSON.parse(manifest) as {
+		steps: Record<string, unknown>;
+	};
+	assert.equal(Object.keys(parsed.steps).length, 2);
+});
