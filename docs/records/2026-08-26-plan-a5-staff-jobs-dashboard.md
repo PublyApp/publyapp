@@ -273,7 +273,8 @@ public async Task ItShouldReturnNotFoundForAnUnknownKey() { ... }
 
 [Fact]
 public async Task ItShouldReadTheCurrentScheduleEpoch() { ... }
-// The boundary reads schedule_epoch FOR UPDATE from system_job_definitions
+// The boundary reads schedule_epoch UNLOCKED (AsNoTracking, no transaction — the authoritative
+// FOR UPDATE is held by EnqueueSystemJobJob.EnqueueOccurrenceAsync)
 // (same SQL as EnqueueSystemJobJob.cs:81-88) and passes the CURRENT epoch
 // to EnqueueOccurrenceAsync — never a rotated one, never a default.
 
