@@ -102,7 +102,7 @@ export const normalizeComposeName = (name: string): string => {
 	}
 
 	return normalized || 'default';
-}
+};
 
 /**
  * Finds the repository root (contains .git directory)
@@ -124,7 +124,7 @@ const findRepoRoot = (): string => {
 	}
 
 	return REPO_ROOT;
-}
+};
 
 /**
  * Get the lock file path for a given port band
@@ -132,7 +132,7 @@ const findRepoRoot = (): string => {
 const getLockFilePath = (bandIndex: number): string => {
 	const basePort = BASE_PORTS.traefik_web + bandIndex * PORT_BAND;
 	return pathJoin(LOCK_DIR, `band-${basePort}.lock`);
-}
+};
 
 /**
  * Check if a PID is still alive.
@@ -148,7 +148,7 @@ const isPidAlive = (pid: number): boolean => {
 		const code = (e as NodeJS.ErrnoException).code;
 		return code === 'EPERM';
 	}
-}
+};
 
 /**
  * Parse lock file content.
@@ -160,7 +160,7 @@ const readLockContent = (lockPath: string): LockContent | null => {
 	} catch {
 		return null;
 	}
-}
+};
 
 /**
  * Check if a lock is stale (owner dead or too old).
@@ -188,7 +188,7 @@ export const isLockStale = (lockPath: string): boolean => {
 
 	// PID is dead or missing
 	return true;
-}
+};
 
 /**
  * Reclaim a stale lock atomically.
@@ -224,7 +224,7 @@ export const reclaimStaleLock = (lockPath: string): boolean => {
 		// Another process created the file first
 		return false;
 	}
-}
+};
 
 /**
  * Ensure lock directory exists
@@ -235,7 +235,7 @@ const ensureLockDirExists = (): void => {
 	} catch {
 		// Directory already exists or couldn't create
 	}
-}
+};
 
 /**
  * Acquire a port band atomically using exclusive file creation
@@ -280,7 +280,7 @@ const acquirePortBandInternal = (): {
 	}
 
 	return null;
-}
+};
 
 /**
  * Release a port band lock
@@ -292,7 +292,7 @@ const releasePortBandInternal = (lockPath: string): boolean => {
 	} catch {
 		return false;
 	}
-}
+};
 
 /**
  * Derives a unique project name from the repository root path
@@ -302,7 +302,7 @@ export const deriveProjectName = (): string => {
 	const repoPath = findRepoRoot();
 	const normalized = normalizeComposeName(repoPath);
 	return `publyapp-e2e-${normalized}`;
-}
+};
 
 /**
  * Compute environment variables for the e2e stack
@@ -347,7 +347,7 @@ export const computeEnv = (): E2eComposeEnv => {
 		E2E_API_BASE_URL: `https://${E2E_API_HOST}:${BASE_PORTS.traefik_websecure + offset}`,
 		E2E_LOCK_PATH: lockPath,
 	};
-}
+};
 
 /**
  * Release the port band lock (for cleanup)
@@ -358,7 +358,7 @@ export const releaseLock = (): void => {
 	if (lockPath) {
 		releasePortBandInternal(lockPath);
 	}
-}
+};
 
 /**
  * Types exported for testing
@@ -425,7 +425,7 @@ export const setupE2EComposeEnv = (): E2EComposeEnv => {
 		lockPath: lockPath,
 		bandIndex: bandIndex,
 	};
-}
+};
 
 /**
  * Teardown e2e environment (exported for testing)
@@ -434,7 +434,7 @@ export const teardownE2EComposeEnv = (env: E2EComposeEnv): void => {
 	if (env.lockPath) {
 		releasePortBandInternal(env.lockPath);
 	}
-}
+};
 
 const main = (): void => {
 	const env = computeEnv();
@@ -456,6 +456,6 @@ const main = (): void => {
 			}
 		}
 	}
-}
+};
 
 main();

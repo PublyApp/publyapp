@@ -46,7 +46,13 @@
  * in CI, so this test cannot pass under a config that CI would reject.
  */
 import assert from 'node:assert/strict';
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import {
+	mkdirSync,
+	mkdtempSync,
+	readFileSync,
+	rmSync,
+	writeFileSync,
+} from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -54,12 +60,16 @@ import { afterAll, describe, it } from 'vitest';
 
 import { runOxlint } from '../lib/run-oxlint.ts';
 
-const WORKSPACE_ROOT = fileURLToPath(
-	new URL('../../../../', import.meta.url),
-);
+const WORKSPACE_ROOT = fileURLToPath(new URL('../../../../', import.meta.url));
 const OXLINTRC_PATH = fileURLToPath(
 	new URL('../../../../.oxlintrc.json', import.meta.url),
 );
+
+// `.tmp/` n'est pas versionne : sur un checkout neuf (et donc en CI) il n'existe pas, et
+// `mkdtempSync` echoue en ENOENT avant meme que le test ne demarre. On le cree ici, une
+// fois, plutot que de dependre d'un residu d'execution locale.
+const TMP_ROOT = join(WORKSPACE_ROOT, '.tmp');
+mkdirSync(TMP_ROOT, { recursive: true });
 
 interface OxlintRootConfig {
 	rules?: Record<string, unknown>;
@@ -138,9 +148,7 @@ describe('func-style: ["error", "expression"] (#1834 — uniform arrow form)', (
 	});
 
 	describe('behavioural leg — oxlint reports a `function` declaration under the root config', () => {
-		const tempDir = mkdtempSync(
-			join(WORKSPACE_ROOT, '.tmp', 'func-style-red-'),
-		);
+		const tempDir = mkdtempSync(join(TMP_ROOT, 'func-style-red-'));
 		const fixturePath = writeFixture(
 			tempDir,
 			'function-declaration.fixture.ts',
@@ -184,9 +192,7 @@ describe('func-style: ["error", "expression"] (#1834 — uniform arrow form)', (
 	});
 
 	describe('negative fixture leg — non-violating code produces zero func-style diagnostics', () => {
-		const tempDir = mkdtempSync(
-			join(WORKSPACE_ROOT, '.tmp', 'func-style-green-'),
-		);
+		const tempDir = mkdtempSync(join(TMP_ROOT, 'func-style-green-'));
 		const arrowOnlyPath = writeFixture(
 			tempDir,
 			'arrow-only.fixture.ts',
@@ -265,10 +271,12 @@ describe('func-style: ["error", "expression"] (#1834 — uniform arrow form)', (
 				// rule. A regression that re-introduces a top-level `function`
 				// on any file would land here as a non-empty list, naming the
 				// file in the test output — the proof the brief asks for.
-				const funcStyleDiagnostics = (result.diagnostics as Array<{
-					code?: string;
-					message?: string;
-				}>).filter((diag) => (diag.code ?? '').includes('func-style'));
+				const funcStyleDiagnostics = (
+					result.diagnostics as Array<{
+						code?: string;
+						message?: string;
+					}>
+				).filter((diag) => (diag.code ?? '').includes('func-style'));
 
 				if (funcStyleDiagnostics.length > 0) {
 					const names = funcStyleDiagnostics
