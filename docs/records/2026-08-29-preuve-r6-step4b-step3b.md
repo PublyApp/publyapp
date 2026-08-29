@@ -35,13 +35,16 @@ que Mutation F est détectée par Step 4b — cette revendication est **fausse**
 Une mutation supplémentaire, **Mutation G** (`isHandlerDeferred` retourne toujours `true`),
 n'était pas détectée non plus. Sans Step 3b :
 
-- **Test 1** (le test principal) échoue sur assertion : `bugPresent` est `true`
-  (handler misé en évidence comme différé) → assertion `expect(bugPresent).toBe(true)` PASSE.
+- **Test 1** (le test principal) : `isHandlerDeferred(handlerLine)` renvoie `true`
+  (Mutation G), donc `handlerIsDeferred = true`, `bugPresent = true` →
+  `expect(bugPresent).toBe(true)` **PASSE** (passage inattendu).
 - **Test 2** (pipeline) échoue sur Step 5 : `expect(isHandlerDeferred(deferredLine)).toBe(false)`
-  — mais `isHandlerDeferred` retourne toujours `true`, donc l'attente `false` ÉCHEC.
+  — mais `isHandlerDeferred` retourne toujours `true`, donc l'attente `false` ÉCHEC
+  sur une **AssertionError**.
 
-Le coureur voit "Tests 1 failed" avec AssertionError. Sans `MESURE IMPOSSIBLE` dans
-la sortie, il classifie comme "échec attendu" → CI verte. **La mutation G survivait.**
+Le coureur voit "1 failed, 1 passed" avec un AssertionError sur Test 2. Sans
+`MESURE IMPOSSIBLE` dans la sortie, il classifie le fichier comme "échec attendu"
+(CI verte) — la mutation G survivait.
 
 ### Fix r6
 
