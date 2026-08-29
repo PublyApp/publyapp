@@ -616,7 +616,9 @@ const TenantBulkActions = ({
 				...new Set(
 					failedItems.flatMap((item) => {
 						const reason = item.errorEscaped?.trim();
-						if (reason) return [reason];
+						if (reason) {
+							return [reason];
+						}
 						return [];
 					}),
 				),
