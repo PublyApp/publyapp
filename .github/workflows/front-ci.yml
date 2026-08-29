@@ -340,6 +340,10 @@ jobs:
         run: |
           pnpm --filter scripts-ts exec vitest run src/codeowners-contract.test.ts
           pnpm --filter scripts-ts exec vitest run src/check-ci-drift.test.ts
+          # #1709: the ratchet-floor generator's own suite — without this
+          # line, the ratchet guarding against silent step erasure would be
+          # itself unverified on the server, exactly the #1709 finding.
+          pnpm --filter scripts-ts exec vitest run src/gen-reason-ref.test.ts
           pnpm --filter scripts-ts exec vitest run src/lint-front.test.ts
           pnpm --filter scripts-ts exec vitest run src/check-no-floating-promises.test.ts
           node ./packages/scripts-ts/src/check-ci-drift.ts
