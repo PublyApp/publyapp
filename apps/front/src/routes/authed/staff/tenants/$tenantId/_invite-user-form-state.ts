@@ -216,7 +216,7 @@ export type ParseInviteResult = ParseInviteSuccess | ParseInviteFailure;
  * reference. The type drives how the cell is interpreted — `t="b"` (boolean)
  * and `t="e"` (formula error) are rejected as non-text; `t="str"` (formula
  * text result) is accepted as legitimate text. */
-export type RawCell = {
+type RawCell = {
 	value: string;
 	type?: 'str' | 'b' | 'e' | 's' | 'inlineStr';
 	ref?: string;
