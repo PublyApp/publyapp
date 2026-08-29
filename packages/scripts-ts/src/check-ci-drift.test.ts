@@ -983,25 +983,25 @@ test('edge case #2 — multi-line key with escaped newline (\\n): MUST report', 
 	assert.match(findings[0], /lines 3 and 4/);
 });
 
-test('edge case #4 — unicode escape vs literal: MUST report (same key after decode)', () => {
-	// Two keys that differ only in unicode escaping (e.g., \\u2014 vs the literal
-	// em-dash —) are DISTINCT as raw text but IDENTICAL after JSON.parse decodes
-	// them. JSON.parse would silently keep the last one. The guard decodes escape
-	// sequences before comparing, so it correctly identifies them as duplicates.
+test('edge case #4 — unicode escape vs escaped quote: MUST report (same key after decode)', () => {
+	// Two keys that differ only in how they escape a quote (\\u0022 vs \\) are
+	// DISTINCT as raw text but IDENTICAL after JSON.parse decodes them. JSON.parse
+	// would silently keep the last one. The guard decodes escape sequences before
+	// comparing, so it correctly identifies them as duplicates.
 	const manifest = [
 		'{',
 		'\t"steps": {',
-		'\t\t"em\\u2014dash": { "hash": "a", "mirror": null, "reason": "short reason text here" },',
-		'\t\t"em—dash": { "hash": "b", "mirror": null, "reason": "short reason text here" }',
+		'\t\t"foo\\u0022bar": { "hash": "a", "mirror": null, "reason": "short reason text here" },',
+		'\t\t"foo\\\"bar": { "hash": "b", "mirror": null, "reason": "short reason text here" }',
 		'\t}',
 		'}',
 	].join('\n');
 
 	const findings = findDuplicateKeys(manifest);
 
-	// Both decode to "em—dash", so the guard reports a duplicate.
+	// Both decode to "foo\"bar", so the guard reports a duplicate.
 	assert.equal(findings.length, 1);
-	assert.match(findings[0], /DUPLICATE KEY "em—dash"/);
+	assert.match(findings[0], /DUPLICATE KEY "foo\\"bar"/);
 	assert.match(findings[0], /lines 3 and 4/);
 
 	// Proof that JSON.parse treats them as the same key (silently keeps last):
@@ -1011,14 +1011,14 @@ test('edge case #4 — unicode escape vs literal: MUST report (same key after de
 	assert.equal(Object.keys(parsed.steps).length, 1);
 });
 
-test('edge case #4 — different unicode escapes: MUST stay silent (truly distinct keys)', () => {
-	// Two keys that use DIFFERENT unicode escapes (\\u2014 em-dash vs \\u2013
-	// en-dash) are distinct after decoding. The guard must NOT report them.
+test('edge case #4 — different escape sequences: MUST stay silent (truly distinct keys)', () => {
+	// Two keys that use DIFFERENT escape sequences (\\u0022 quote vs \\u0023 hash)
+	// decode to DIFFERENT characters. The guard must NOT report them.
 	const manifest = [
 		'{',
 		'\t"steps": {',
-		'\t\t"em\\u2014dash": { "hash": "a", "mirror": null, "reason": "short reason text here" },',
-		'\t\t"en\\u2013dash": { "hash": "b", "mirror": null, "reason": "short reason text here" }',
+		'\t\t"foo\\u0022bar": { "hash": "a", "mirror": null, "reason": "short reason text here" },',
+		'\t\t"foo\\u0023bar": { "hash": "b", "mirror": null, "reason": "short reason text here" }',
 		'\t}',
 		'}',
 	].join('\n');
