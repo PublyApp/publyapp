@@ -480,6 +480,23 @@ describe('r2 fixture SIGINT race — RED: handler installed AFTER the handshake 
 		modifiedLines[handlerIdx] = bracketLine;
 		findHandlerLine(modifiedLines);
 
+		// Step 4b: Sanity check — verify isHandlerDeferred correctly classifies
+		// a KNOWN-DEFERRED BRACKET-NOTATION line. This is a THROW check, not an assertion.
+		// On correct code, isHandlerDeferred returns true for a setImmediate-wrapped
+		// bracket-notation line. If the function regresses to accept bracket notation
+		// as non-deferred (Mutation F: `!(line.startsWith('process.on(') || line.startsWith("process['on']("))`),
+		// it returns false here, and we throw MESURE IMPOSSIBLE — which the runner
+		// classifies as CORRUPT PROOF (CI red). This closes the gap: a bracket-specific
+		// weakening of isHandlerDeferred would be invisible to the dot-only Step 4 check.
+		const knownBracketDeferredLine = `setImmediate(() => { process['on']('SIGINT', () => {}); });`;
+		if (!isHandlerDeferred(knownBracketDeferredLine)) {
+			throw new Error(
+				`MESURE IMPOSSIBLE — isHandlerDeferred misclassified a known-deferred ` +
+					`bracket-notation line as non-deferred. The detection mechanism has ` +
+					`regressed (accepts bracket notation as non-deferred), and the proof cannot measure.`,
+			);
+		}
+
 		// Step 4: Sanity check — verify isHandlerDeferred correctly classifies
 		// a KNOWN-DEFERRED line. This is a THROW check, not an assertion.
 		// On correct code, isHandlerDeferred returns true for a setImmediate-
@@ -518,9 +535,14 @@ describe('r2 fixture SIGINT race — RED: handler installed AFTER the handshake 
 		//   Step 4 sanity check: isHandlerDeferred(knownDeferredLine) → false
 		//   → throws MESURE IMPOSSIBLE → CORRUPT PROOF → CI red.
 		//
+		// Mutation F (isHandlerDeferred accepts bracket notation as non-deferred):
+		//   Step 4b sanity THROW: isHandlerDeferred(knownBracketDeferredLine) → false
+		//   (bracket notation accepted as non-deferred) → throws MESURE IMPOSSIBLE →
+		//   CORRUPT PROOF → CI red.
+		//
 		// This single assertion is the load-bearing kept-red check: it is
 		// FALSE on correct code and would be TRUE for both Mutation D and
-		// Mutation E IF the sanity check didn't catch them first.
+		// Mutation E IF the sanity checks didn't catch them first.
 		const deferredLine = `setImmediate(() => { ${handlerLine} });`;
 		expect(isHandlerDeferred(deferredLine)).toBe(false);
 	});

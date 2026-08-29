@@ -35,13 +35,14 @@ Le commentaire d'en-tête « Adverse mutation search » est passé de « three a
 two mechanisms » à « two-step detection pipeline » pour refléter que les deux
 mécanismes sont séquentiels (localiser, puis classifier), pas redondants.
 
-## Mutations défensives — trois axes, toutes détectées
+## Mutations défensives — axes détectés et par quoi
 
-| # | Mutation | Effet attendu | Résultat |
-|---|---------|---------------|----------|
-| C | `findHandlerLine` régressé en regex dot-only (`/process\.on/…`) | Ne trouve pas `process['on']('SIGINT')` → `findIndex` retourne `-1` → lève `MESURE IMPOSSIBLE` → **CORRUPT PROOF** (CI rouge) | ✓ CI rouge |
-| D | `isHandlerDeferred` inversé (`return line.trim().startsWith('process.on(')`) | sanity check : `isHandlerDeferred(knownDeferredLine)` → `false` → lève `MESURE IMPOSSIBLE` → **CORRUPT PROOF** (CI rouge) | ✓ CI rouge |
-| E | `isHandlerDeferred` toujours faux (`return false`) | sanity check : `isHandlerDeferred(knownDeferredLine)` → `false` → lève `MESURE IMPOSSIBLE` → **CORRUPT PROOF** (CI rouge) | ✓ CI rouge |
+| # | Mutation | Axe | Détecté par | Résultat |
+|---|---------|-----|-------------|----------|
+| C | `findHandlerLine` régressé en regex dot-only (`/process\.on/…`) | Axe C : notation crochet vs point | Step 3 THROW : `findHandlerLine` lève `MESURE IMPOSSIBLE` sur `process['on']` → **CORRUPT PROOF** | ✓ CI rouge |
+| D | `isHandlerDeferred` inversé (`return line.trim().startsWith('process.on(')`) | Axe B : diffèrement temporel | Step 4 sanity THROW : `isHandlerDeferred(knownDeferredLine)` → `false` → lève `MESURE IMPOSSIBLE` → **CORRUPT PROOF** | ✓ CI rouge |
+| E | `isHandlerDeferred` toujours faux (`return false`) | Axe B | Step 4 sanity THROW : `isHandlerDeferred(knownDeferredLine)` → `false` → lève `MESURE IMPOSSIBLE` → **CORRUPT PROOF** | ✓ CI rouge |
+| F | `isHandlerDeferred` accepte les crochets comme non-différés (`!(line.startsWith('process.on(') || line.startsWith("process['on']("))`) | Axe B+C | Step 4b sanity THROW : `isHandlerDeferred(knownBracketDeferredLine)` → `false` → lève `MESURE IMPOSSIBLE` → **CORRUPT PROOF** | ✓ CI rouge (r5) |
 
 Chaque mutation est sur un axe **différent** de la mutation primaire (le bug) et
 détectée par un mécanisme distinct. Le pipeline en deux étapes est séquentiel,
@@ -66,6 +67,7 @@ détecte `MESURE IMPOSSIBLE` dans la sortie et classe en CORRUPT PROOF (CI rouge
 - [x] Mutation C → CORRUPT PROOF (MESURE IMPOSSIBLE depuis findHandlerLine)
 - [x] Mutation D → CORRUPT PROOF (MESURE IMPOSSIBLE depuis sanity check)
 - [x] Mutation E → CORRUPT PROOF (MESURE IMPOSSIBLE depuis sanity check)
+- [x] Mutation F → CORRUPT PROOF (r5 : Step 4b lève MESURE IMPOSSIBLE sur ligne crochet difféée)
 
 ## Fichiers modifiés
 
