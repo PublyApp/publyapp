@@ -150,6 +150,8 @@ vi.mock('react-i18next', () => ({
 					'Failed to revoke selected invitations.',
 				'bulk-action-rows-may-leave-filter':
 					'Some rows may no longer appear in the filtered view.',
+				'bulk-action-total-failure-no-reason':
+					"The server didn't specify a reason for this failure. Try again, or contact support if the problem persists.",
 			};
 
 			return (labels[bare] ?? bare).replace(
@@ -659,7 +661,7 @@ describe('#1387 invitations selection-mode bulk revoke (real router)', () => {
 		expect(mocks.toastSuccess).not.toHaveBeenCalled();
 	});
 
-	test('an all-failure revoke without per-item reasons suppresses the filter-leave warning', async () => {
+	test('an all-failure revoke without per-item reasons shows the no-reason fallback (#1811)', async () => {
 		mocks.bulkRevoke.mockResolvedValue({
 			succeededCount: 0,
 			failedCount: 1,
@@ -676,12 +678,12 @@ describe('#1387 invitations selection-mode bulk revoke (real router)', () => {
 		await waitFor(() =>
 			expect(mocks.toastError).toHaveBeenCalledWith(
 				'Revoked 0 invitation(s), 1 failed.',
-				undefined,
+				"The server didn't specify a reason for this failure. Try again, or contact support if the problem persists.",
 			),
 		);
-		// #1605: total failure (succeededCount === 0) with no per-item
-		// reasons passes undefined as description, NOT the filter warning.
-		expect(mocks.toastError.mock.calls[0][1]).toBeUndefined();
+		// #1811 : un echec total sans raison par item doit montrer une cause
+		// lisible, pas undefined.
+		expect(mocks.toastError.mock.calls[0][1]).not.toBeUndefined();
 		expect(mocks.toastSuccess).not.toHaveBeenCalled();
 	});
 

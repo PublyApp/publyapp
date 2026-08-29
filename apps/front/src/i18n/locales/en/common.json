@@ -1365,6 +1365,7 @@
 	"invite-unresolved-profile-ambiguous": "\"{{names}}\" matches more than one profile. Rename one of them, then re-add the file.",
 	"invite-unresolved-profile-not-found": "No profile named {{names}}. Fix or remove it before sending.",
 	"nav-staff-jobs": "Jobs",
+	"bulk-action-total-failure-no-reason": "The server didn't specify a reason for this failure. Try again, or contact support if the problem persists.",
 	"no-cause": "No cause recorded",
 	"no-value": "—",
 	"queue-status-completed": "Completed",
