@@ -2,42 +2,12 @@
  * @vitest-environment jsdom
  */
 import { cleanup, render, screen } from '@testing-library/react';
-import {
-	afterEach,
-	beforeAll,
-	describe,
-	expect,
-	test,
-	vi,
-} from 'vitest';
+import { afterEach, describe, expect, test, vi } from 'vitest';
 import type { TestLabelMap } from '~/lib/testing/test-label-map';
 
-/**
- * Integration test: verifies that row selection state passed through the real
- * useReactTable (legacy) hook produces a visibly rendered checkbox state —
- * checked, unchecked, and indeterminate header — NOT a mock.
- *
- * Breaker: if `DataTableGrid` incorrectly inverts the `allRowsSelected` /
- * `hasPartialSelection` derivation (e.g. swapping `allRowsSelected` for
- * `hasPartialSelection` on the header checkbox), the header checkbox shows
- * the wrong state — this test turns RED.
- *
- * Visibility guard: the `data-icon` assertion alone only proves an icon is
- * *declared*, never that it is *visible*. A mutation like `invisible` (or any
- * other CSS hiding mechanism) applied to the icon element would keep `data-icon`
- * present and readable while the icon is hidden from the user. The guard below
- * reads the computed style of the icon element and fails if its `visibility` is
- * `hidden` or its `display` is `none` — the two canonical ways Tailwind's
- * `invisible` / `hidden` utilities hide an element. This is an ENUMERATION of
- * hiding mechanisms: it covers `visibility:hidden` (Tailwind `invisible`) and
- * `display:none` (Tailwind `hidden`), but does NOT cover `opacity:0`
- * (Tailwind `opacity-0`), `clip-path`, `transform: scale(0)`, `width:0`,
- * `height:0`, `position:absolute` off-screen, or `aria-hidden` without visual
- * hiding. Those are out of scope here and would need dedicated coverage if a
- * mutation uses them.
- *
- * @vitest-environment jsdom
- */
+import {
+	assertIconIsVisible,
+} from './data-table-icon-visibility-guard';
 import type { ColumnDef } from './column-type';
 import { DataTable } from './data-table';
 import type { SortState } from './sort-descriptor';
@@ -169,16 +139,24 @@ const getCheckboxIconElement = (
 	checkbox?.querySelector<HTMLElement>('[data-icon]') ?? null;
 
 /**
- * The icon visibility guard is implemented as a real measurement (computed
- * styles + `aria-hidden` attribute), not a class-name enumeration. To make
- * `window.getComputedStyle` return the real Tailwind values in jsdom, the
- * guard's compiled CSS is injected into the test document once per test
- * file. See `data-table-icon-visibility-guard.ts` for the full rationale.
+ * The icon visibility guard lives in
+ * `data-table-icon-visibility-guard.ts`. The body is currently a class-name
+ * enumeration over `invisible` and `hidden` (the PR #1796 implementation,
+ * kept under issue #1799's proof until the fix lands); the load-bearing
+ * real-browser check is in
+ * `e2e/__tests__/data-table-icon-visibility-guard.spec.ts` (Chromium +
+ * `getComputedStyle`). This thin wrapper finds the icon inside the
+ * checkbox and delegates to the helper. When the helper is fixed, every
+ * call site below stays unchanged — the helper's API is the same.
  */
-import {
-	assertIconIsVisible as assertIconIsVisibleImpl,
-	injectGuardStylesheet,
-} from './data-table-icon-visibility-guard';
+const assertIconIsVisibleFromCheckbox = (
+	checkbox: HTMLElement | null,
+	context: string,
+): void => {
+	const iconElement = getCheckboxIconElement(checkbox);
+	expect(iconElement, `${context}: icon element exists`).not.toBeNull();
+	assertIconIsVisible(iconElement, context);
+};
 
 /** Returns all row checkbox elements in the body. */
 const getRowCheckboxes = (): HTMLElement[] =>
@@ -189,37 +167,7 @@ const getRowCheckboxes = (): HTMLElement[] =>
 	);
 
 describe('DataTable row selection integration (issue #1730)', () => {
-	beforeAll(async () => {
-		// jsdom does not resolve Tailwind utility classes into computed styles
-		// on its own. Inject the guard's compiled CSS once so
-		// `getComputedStyle` returns the real Tailwind values for `hidden`,
-		// `invisible`, and `opacity-0`. Without this injection, every
-		// `getComputedStyle` call would return `''` for `visibility` and
-		// `display`, and the icon visibility guard could not catch a
-		// `visibility:hidden` or `display:none` mutation at all.
-		await injectGuardStylesheet(document);
-	});
-
 	afterEach(cleanup);
-
-	/**
-	 * Thin wrapper around the guard helper that resolves the checkbox to its
-	 * icon element first. Fails the test when the icon element is missing
-	 * (none of the relevant states should ever produce a checkbox without
-	 * a `data-icon` child) and delegates the real measurement to
-	 * `assertIconIsVisibleImpl`.
-	 */
-	const assertIconIsVisible = (
-		checkbox: HTMLElement | null,
-		context: string,
-	): void => {
-		const iconElement = getCheckboxIconElement(checkbox);
-		expect(
-			iconElement,
-			`${context}: icon element exists`,
-		).not.toBeNull();
-		assertIconIsVisibleImpl(iconElement, context);
-	};
 
 	// Breaker: if row checkboxes render as checked when the selection map is
 	// empty (inverted logic), `data-checked` would be present — this test goes RED.
@@ -276,7 +224,10 @@ describe('DataTable row selection integration (issue #1730)', () => {
 		expect(headerCheckbox?.getAttribute('data-indeterminate')).toBeNull();
 		expect(getCheckboxIcon(headerCheckbox)).toBe('check');
 		// Visibility guard: the icon must be visible, not just declared.
-		assertIconIsVisible(headerCheckbox, 'header checkbox (all selected)');
+		assertIconIsVisibleFromCheckbox(
+			headerCheckbox,
+			'header checkbox (all selected)',
+		);
 		// Accessible state: checked.
 		expect(headerCheckbox?.getAttribute('aria-checked')).toBe('true');
 	});
@@ -297,7 +248,10 @@ describe('DataTable row selection integration (issue #1730)', () => {
 		expect(headerCheckbox?.getAttribute('data-indeterminate')).toBe('');
 		expect(getCheckboxIcon(headerCheckbox)).toBe('minus');
 		// Visibility guard: the icon must be visible, not just declared.
-		assertIconIsVisible(headerCheckbox, 'header checkbox (partial selection)');
+		assertIconIsVisibleFromCheckbox(
+			headerCheckbox,
+			'header checkbox (partial selection)',
+		);
 		// Accessible state: mixed.
 		expect(headerCheckbox?.getAttribute('aria-checked')).toBe('mixed');
 	});
