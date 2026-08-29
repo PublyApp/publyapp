@@ -24,7 +24,7 @@
  * disabling the rule for the entire file.
  */
 import assert from 'node:assert/strict';
-import { mkdtempSync, rmSync, writeFileSync, mkdirSync } from 'node:fs';
+import { mkdtempSync, rmSync, writeFileSync, mkdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { after, test } from 'node:test';
 import { fileURLToPath } from 'node:url';
@@ -34,8 +34,11 @@ import {
 	formatFinding,
 	SCANNED_EXTENSIONS,
 	NON_CODE_EXTENSIONS,
+	CORE_EXTENSIONS,
 	assertNoOverlap,
 	assertAllJustified,
+	assertCoreExtensionsScanned,
+	assertScanSurface,
 } from './check-column-type-imports.mts';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -572,32 +575,33 @@ void test('R5 HOLE 2 RED: current sets are disjoint (invariant holds)', () => {
 	);
 });
 
-void test('R5 HOLE 3 RED: NON_CODE_EXTENSIONS entry without justification fails', () => {
-	// The brief's "comment is proof" claim was false. Now the justification
-	// is structural: an entry with an empty reason must fail. We test the
-	// helper directly with a synthetic entry lacking justification.
+void test('R6 HOLE 3 RED: NON_CODE_EXTENSIONS entry with < 24 char justification fails', () => {
+	// The bar is now 24 characters, not "non-empty". 'x' or 'todo' no
+	// longer pass. We test the helper directly with a synthetic entry
+	// whose justification is too short, and one that is 24+ chars
+	// (which must pass the filter — boundary check).
 	const unjustifiedNonCode = new Map<string, string>([
-		['.xyz', 'legit non-code reason'],
-		['.bad', '']
+		['.xyz', 'legit non-code reason, twenty-four chars'],
+		['.bad', 'x']
 	]);
 	assert.throws(
 		() => assertAllJustified(unjustifiedNonCode),
-		/Guard #1769: NON_CODE_EXTENSIONS has entry\(ies\) without justification \(\.bad\)/,
+		/Guard #1769: NON_CODE_EXTENSIONS has entry\(ies\) with a justification shorter than 24 characters \(\.bad\)/, 
 		'expected the guard to fail loudly naming .bad',
 	);
 });
 
-void test('R5 HOLE 3 RED: current entries all justified (invariant holds)', () => {
+void test('R6 HOLE 3 RED: current entries all justified at 24+ chars (invariant holds)', () => {
 	// The real protection is structural: the check runs on every scan, so
-	// any future entry without justification fails. We verify the invariant
-	// holds today.
+	// any future entry with a too-short justification fails. We verify the
+	// invariant holds today.
 	const entriesWithoutJustification = [...NON_CODE_EXTENSIONS.entries()].filter(
-		([, reason]) => reason.trim().length === 0,
+		([, reason]) => reason.trim().length < 24,
 	);
 	assert.equal(
 		entriesWithoutJustification.length,
 		0,
-		'every NON_CODE_EXTENSIONS entry must carry a non-empty justification',
+		'every NON_CODE_EXTENSIONS entry must carry a 24+ char justification',
 	);
 });
 
@@ -664,4 +668,163 @@ void test('R5 NON-REGRESSION: .cts/.cjs/.mjs/.ctsx still scanned', () => {
 	assert.equal(findings.length, 4, 'expected four findings (one per extension)');
 	const extensions = findings.map((f) => path.extname(f.file)).sort();
 	assert.deepEqual(extensions, ['.cjs', '.cts', '.ctsx', '.mjs']);
+});
+
+// ---------------------------------------------------------------------------
+// R6: the three holes from the brief — each must now fail loudly.
+// ---------------------------------------------------------------------------
+
+void test('R6 HOLE 1 RED: assertScanSurface fails when a core extension shrinks', () => {
+	// The captain's mutation: moving .tsx from SCANNED_EXTENSIONS into
+	// NON_CODE_EXTENSIONS silently disables its analysis. The ratchet
+	// must fail loudly naming the extension and the gap. We test the
+	// helper directly with a synthetic count that drops .tsx below floor.
+	const baselinePath = path.resolve(here, 'column-type-imports-baseline.json');
+	assert.throws(
+		() => assertScanSurface(
+			{ '.ts': 275, '.tsx': 0, '.mts': 0, '.cts': 0, '.mjs': 0, '.cjs': 1 },
+			baselinePath,
+		),
+		/Guard #1769: scan surface has shrunk below the pinned floor/,
+		'expected the ratchet to fail when .tsx drops below floor',
+	);
+});
+
+void test('R6 HOLE 1 RED: assertScanSurface passes when counts meet the floor', () => {
+	// Boundary: counts exactly at the floor must pass.
+	const baselinePath = path.resolve(here, 'column-type-imports-baseline.json');
+	assert.doesNotThrow(
+		() => assertScanSurface(
+			{ '.ts': 275, '.tsx': 472, '.mts': 0, '.cts': 0, '.mjs': 0, '.cjs': 1 },
+			baselinePath,
+		),
+		'expected the ratchet to pass when counts meet the floor',
+	);
+});
+
+void test('R6 HOLE 2 RED: assertCoreExtensionsScanned fails when a core extension is missing', () => {
+	// The reviewer's mutation: removing .mts from SCANNED_EXTENSIONS. The
+	// core-extension check must fail loudly naming the missing core
+	// extension. We test the helper directly with a synthetic scanned set
+	// that omits .mts.
+	const scannedWithoutMts = new Set(['.ts', '.tsx', '.cts', '.ctsx', '.mjs', '.cjs']);
+	assert.throws(
+		() => assertCoreExtensionsScanned(scannedWithoutMts, CORE_EXTENSIONS),
+		/Guard #1769: CORE_EXTENSIONS member\(s\) \.mts are missing from SCANNED_EXTENSIONS/,
+		'expected the guard to fail loudly naming .mts',
+	);
+});
+
+void test('R6 HOLE 2 RED: assertCoreExtensionsScanned passes when all core extensions present', () => {
+	// Boundary: all core extensions present must pass.
+	assert.doesNotThrow(
+		() => assertCoreExtensionsScanned(SCANNED_EXTENSIONS, CORE_EXTENSIONS),
+		'expected the guard to pass when all core extensions are scanned',
+	);
+});
+
+void test('R6 HOLE 2 RED: removing .tsx from SCANNED_EXTENSIONS fails core check', () => {
+	// The captain's exact mutation: .tsx removed from SCANNED_EXTENSIONS.
+	const scannedWithoutTsx = new Set(['.ts', '.mts', '.cts', '.ctsx', '.mjs', '.cjs']);
+	assert.throws(
+		() => assertCoreExtensionsScanned(scannedWithoutTsx, CORE_EXTENSIONS),
+		/Guard #1769: CORE_EXTENSIONS member\(s\) \.tsx are missing from SCANNED_EXTENSIONS/,
+		'expected the guard to fail loudly naming .tsx',
+	);
+});
+
+void test('R6 HOLE 3 RED: 23-char justification fails (boundary)', () => {
+	// Boundary: 23 characters is too short. The bar is 24.
+	const unjustifiedNonCode = new Map<string, string>([
+		['.xyz', '12345678901234567890123']  // 23 chars — fails
+	]);
+	assert.throws(
+		() => assertAllJustified(unjustifiedNonCode),
+		/Guard #1769: NON_CODE_EXTENSIONS has entry\(ies\) with a justification shorter than 24 characters \(\.xyz\)/,
+		'expected the guard to fail loudly naming .xyz',
+	);
+});
+
+void test('R6 HOLE 3 RED: 24-char justification passes (boundary)', () => {
+	// Boundary: exactly 24 characters must pass.
+	const justifiedNonCode = new Map<string, string>([
+		['.xyz', '123456789012345678901234']  // 24 chars — passes
+	]);
+	assert.doesNotThrow(
+		() => assertAllJustified(justifiedNonCode),
+		'expected the guard to pass with a 24-char justification',
+	);
+});
+
+void test('R6: every CORE_EXTENSIONS member is in SCANNED_EXTENSIONS (invariant holds)', () => {
+	// The real protection is structural: the check runs on every scan, so
+	// any future removal of a core extension fails. We verify the invariant
+	// holds today.
+	const missing = [...CORE_EXTENSIONS].filter((ext) => !SCANNED_EXTENSIONS.has(ext));
+	assert.equal(
+		missing.length,
+		0,
+		`CORE_EXTENSIONS members missing from SCANNED_EXTENSIONS: ${missing.join(', ')}`,
+	);
+});
+
+void test('R6: .mts file importing banned type is caught (dedicated .mts test)', () => {
+	// The reviewer's mutation: .mts has no dedicated test. Now it does.
+	const root = makeSandbox({
+		'src/routes/authed/tenant/posts/probe.mts':
+			`import { ColumnDef } from '@tanstack/react-table';\n` +
+			`export const x = null as ColumnDef<any>;\n`,
+	});
+	const findings = scanFrontSrcForBannedImports(root);
+	assert.equal(findings.length, 1, 'expected exactly one finding');
+	assert.equal(findings[0].specifier, '@tanstack/react-table');
+	assert.ok(findings[0].bindings.includes('ColumnDef'));
+});
+
+void test('R6: baseline file is valid JSON with the expected shape', () => {
+	// The baseline must be a valid JSON object with a perExtension record.
+	const baselinePath = path.resolve(here, 'column-type-imports-baseline.json');
+	const raw = readFileSync(baselinePath, 'utf8');
+	let parsed: unknown;
+	assert.doesNotThrow(
+		() => { parsed = JSON.parse(raw); },
+		'baseline must be valid JSON',
+	);
+	const baseline = parsed as { perExtension: Record<string, number> };
+	assert.ok(baseline.perExtension, 'baseline must have a perExtension field');
+	assert.equal(typeof baseline.perExtension, 'object', 'perExtension must be an object');
+	// Every core extension must have a floor in the baseline.
+	for (const ext of CORE_EXTENSIONS) {
+		assert.ok(
+			ext in baseline.perExtension,
+			`baseline must pin a floor for core extension ${ext}`,
+		);
+	}
+});
+
+void test('R6 ADVERSE: a fourth gesture — emptying SCANNED_EXTENSIONS fails core check', () => {
+	// Adversarial: what if a developer empties SCANNED_EXTENSIONS entirely?
+	// The core-extension check must fail loudly naming ALL missing core
+	// extensions. This proves the check is not just a cosmetic bar.
+	const emptyScanned = new Set<string>();
+	assert.throws(
+		() => assertCoreExtensionsScanned(emptyScanned, CORE_EXTENSIONS),
+		/Guard #1769: CORE_EXTENSIONS member\(s\) \.cts, \.mts, \.ts, \.tsx are missing from SCANNED_EXTENSIONS/,
+		'expected the guard to fail loudly naming all missing core extensions',
+	);
+});
+
+void test('R6 ADVERSE: a fourth gesture — declaring .ts as non-code fails core check', () => {
+	// Adversarial: what if a developer declares .ts as non-code? The
+	// overlap check fires first, but even if it didn't, the core check
+	// would catch the removal of .ts from SCANNED_EXTENSIONS. We test the
+	// overlap check here since it's the first line of defense.
+	const overlappingNonCode = new Map<string, string>([
+		['.ts', 'this would silently disable .ts analysis']
+	]);
+	assert.throws(
+		() => assertNoOverlap(SCANNED_EXTENSIONS, overlappingNonCode),
+		/Guard #1769: NON_CODE_EXTENSIONS overlaps SCANNED_EXTENSIONS \(\.ts\)/,
+		'expected the guard to fail loudly naming .ts',
+	);
 });

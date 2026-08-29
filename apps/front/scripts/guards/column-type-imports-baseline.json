@@ -1,0 +1,31 @@
+{
+	"$comment": [
+		"Pinned scan-surface baseline for the column-type-imports guard (#1769).",
+		"",
+		"The guard counts how many files it scans per extension and FAILS if any",
+		"count drops below the floor pinned here. This closes Hole 1: moving a",
+		"code extension (like .tsx) from SCANNED_EXTENSIONS into",
+		"NON_CODE_EXTENSIONS silently disables its analysis, and the guard used",
+		"to announce [OK] with a smaller count. Now a drop fails loudly, naming",
+		"the extension and the gap.",
+		"",
+		"Lower a floor deliberately when files are legitimately removed from the",
+		"tree (e.g. a .tsx page is deleted). Never raise a floor without review",
+		"— that would mask a silent surface reduction. To lower a floor: edit the",
+		"count, commit, and let CI verify the new floor matches the tree.",
+		"",
+		"Per-extension floors (not a total) so the message names the exact",
+		"extension that shrank. Extensions with 0 files have floor 0 — they are",
+		"protected by CORE_EXTENSIONS (cannot be declared non-code) and by the",
+		"\"still scanned\" test, not by the ratchet."
+	],
+	"perExtension": {
+		".ts": 275,
+		".tsx": 472,
+		".mts": 0,
+		".cts": 0,
+		".ctsx": 0,
+		".mjs": 0,
+		".cjs": 1
+	}
+}

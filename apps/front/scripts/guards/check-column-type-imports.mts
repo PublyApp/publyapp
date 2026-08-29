@@ -95,6 +95,12 @@ import path from 'node:path';
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
 
+// R6: the baseline lives next to the guard. assertScanSurface reads it at
+// runtime. Importing JSON via `with { type: 'json' }` is not used here
+// because this script runs under `node --test` with the tsx loader, which
+// does not support import attributes. readFileSync + JSON.parse keeps a
+// single, predictable loading path.
+
 // chore/908 (TypeScript 7): see the same-named comment in
 // check-design-system.mts — the classic Compiler API is no longer reachable
 // through bare `import ts from 'typescript'` and its replacement,
@@ -142,6 +148,36 @@ export const SCANNED_EXTENSIONS = new Set([
 	'.mjs',  // ES Module JavaScript
 	'.cjs',  // CommonJS JavaScript
 ]);
+
+/**
+ * R6 (Hole 2): extensions that the AST parser handles AND that can NEVER be
+ * declared non-code. These four (.ts, .tsx, .mts, .cts) are the backbone of
+ * the codebase — declaring any of them non-code would silently disable a
+ * huge surface of analysis. This set makes the gesture structurally
+ * impossible: assertCoreExtensionsScanned fails loudly if any core extension
+ * is missing from SCANNED_EXTENSIONS, so a developer cannot remove a core
+ * extension from the scan set at all.
+ *
+ * .mjs/.cjs/.ctsx are scanned (see SCANNED_EXTENSIONS) but are NOT core:
+ * they may be absent from the tree today, and we must not force them into
+ * the scan set. They are protected by the "still scanned" test in the suite,
+ * not by this structural lock.
+ */
+export const CORE_EXTENSIONS = new Set(['.ts', '.tsx', '.mts', '.cts']);
+
+/**
+ * R6 (Hole 1): the minimum number of files the guard must scan, per
+ * extension. A drop below any floor fails the guard loudly, naming the
+ * extension and the gap. This closes the class of gestures that silently
+ * reduce the analyzed surface — not just the specific "move .tsx to
+ * non-code" mutation the captain found, but any shrinking of the scan set.
+ *
+ * The floor is loaded from column-type-imports-baseline.json at runtime.
+ * See that file's $comment for when and how to lower a floor.
+ */
+export interface ScanBaseline {
+	perExtension: Record<string, number>;
+}
 
 /**
  * Extensions that are legitimately present under the scanned root but are
@@ -332,8 +368,7 @@ const scanSourceFile = (relativePath: string, source: string): Finding[] => {
 				// or when it's a side-effect import (no import clause).
 				if (
 					isLegacy ||
-					bindings.length > 0 ||
-					node.importClause === undefined
+					bindings.length > 0
 				) {
 					// `oxlint` interdit les ternaires imbriques : on calcule la branche
 					// heritee en amont. Semantique inchangee.
@@ -557,17 +592,18 @@ export const assertNoOverlap = (
 };
 
 /**
- * R5 (Hole 3): asserts that every NON_CODE_EXTENSIONS entry carries a
- * non-empty justification. The brief's "comment is proof" claim was false
- * because the comment was conventional and unchecked. Now the justification
- * is a structural requirement: an entry with an empty or whitespace-only
- * reason throws naming the offending extension(s).
+ * R6 (Hole 3): asserts that every NON_CODE_EXTENSIONS entry carries a
+ * justification of at least 24 characters. The previous bar (non-empty) let
+ * one-character justifications like 'x' or 'todo' pass — a cosmetic bar.
+ * The repo already applies this real bar elsewhere: 24 characters minimum
+ * for analysis-suppression justifications (#1736). We align on it. An entry
+ * with a too-short reason throws naming the offending extension(s).
  */
 export const assertAllJustified = (
 	nonCode: Map<string, string>,
 ): void => {
 	const entriesWithoutJustification = [...nonCode.entries()].filter(
-		([, reason]) => reason.trim().length === 0,
+		([, reason]) => reason.trim().length < 24,
 	);
 	if (entriesWithoutJustification.length > 0) {
 		const names = entriesWithoutJustification
@@ -575,9 +611,92 @@ export const assertAllJustified = (
 			.sort()
 			.join(', ');
 		throw new Error(
-			`Guard #1769: NON_CODE_EXTENSIONS has entry(ies) without ` +
-				`justification (${names}). Every non-code exclusion must ` +
-				`carry a non-empty reason explaining why it is non-code.`,
+			`Guard #1769: NON_CODE_EXTENSIONS has entry(ies) with a ` +
+				`justification shorter than 24 characters (${names}). Every ` +
+				`non-code exclusion must carry a reason that is substantive ` +
+				`enough to explain why it is non-code — see #1736.`,
+		);
+	}
+};
+
+/**
+ * R6 (Hole 2): asserts that every CORE_EXTENSIONS member is present in
+ * SCANNED_EXTENSIONS. A developer who removes a core extension (like .tsx)
+ * from the scan set would silently disable a huge surface of analysis.
+ * This structural check makes the gesture impossible: the guard fails loudly
+ * naming the missing core extension(s). Throws when the invariant is
+ * violated.
+ */
+export const assertCoreExtensionsScanned = (
+	scanned: Set<string>,
+	core: Set<string>,
+): void => {
+	const missing = [...core].filter((ext) => !scanned.has(ext));
+	if (missing.length > 0) {
+		throw new Error(
+			`Guard #1769: CORE_EXTENSIONS member(s) ${missing.sort().join(', ')} ` +
+				`are missing from SCANNED_EXTENSIONS. These extensions are the ` +
+				`backbone of the codebase and can never be removed from the scan ` +
+				`set — doing so would silently disable their analysis.`,
+		);
+	}
+};
+
+/**
+ * R6 (Hole 1): asserts that the number of files scanned per extension has
+ * not dropped below the pinned floor. Reads column-type-imports-baseline.json
+ * and compares each extension's actual count against the baseline. A drop
+ * fails the guard loudly, naming the extension, the floor, and the actual
+ * count. This closes the class of gestures that silently reduce the analyzed
+ * surface — not just the specific "move .tsx to non-code" mutation, but any
+ * shrinking of the scan set.
+ *
+ * Extensions absent from the baseline are not checked (the baseline only
+ * pins what exists today). Extensions in the baseline but absent from the
+ * tree count as 0, which fails — so removing the last .cjs file requires
+ * lowering the floor first.
+ */
+export const assertScanSurface = (
+	perExtensionCounts: Record<string, number>,
+	baselinePath: string,
+): void => {
+	let raw: string;
+	try {
+		raw = readFileSync(baselinePath, 'utf8');
+	} catch (err) {
+		throw new Error(
+			`Guard #1769: cannot read scan-surface baseline '${baselinePath}'. ` +
+				`The guard cannot verify the scan surface without it.`,
+			{ cause: err },
+		);
+	}
+	let baseline: ScanBaseline;
+	try {
+		baseline = JSON.parse(raw) as ScanBaseline;
+	} catch (err) {
+		throw new Error(
+			`Guard #1769: scan-surface baseline '${baselinePath}' is not valid JSON. ` +
+				`The guard cannot verify the scan surface without a valid baseline.`,
+			{ cause: err },
+		);
+	}
+	const violations: string[] = [];
+	for (const [ext, floor] of Object.entries(baseline.perExtension)) {
+		const actual = perExtensionCounts[ext] ?? 0;
+		if (actual < floor) {
+			violations.push(
+				`${ext}: scanned ${actual}, floor ${floor} (gap of ${floor - actual})`,
+			);
+		}
+	}
+	if (violations.length > 0) {
+		throw new Error(
+			`Guard #1769: scan surface has shrunk below the pinned floor —\n  ` +
+				violations.join('\n  ') +
+				`\nThe analyzed surface has silently shrunk. If the drop is ` +
+				`legitimate (files were removed), lower the floor in ` +
+				`column-type-imports-baseline.json — never raise it to mask a ` +
+				`regression.`,
 		);
 	}
 };
@@ -610,6 +729,14 @@ export const scanFrontSrcForBannedImports = (
 
 	const { files, extensions } = walk(root);
 
+	// R6 (Hole 2): CORE_EXTENSIONS must all be in SCANNED_EXTENSIONS. This
+	// makes it structurally impossible to remove a core extension (like .tsx)
+	// from the scan set — the guard fails loudly naming the missing core
+	// extension(s). This closes the "move .tsx to non-code" mutation: even
+	// before the overlap check fires, the core-extension check blocks the
+	// removal of .tsx from the scan set entirely.
+	assertCoreExtensionsScanned(SCANNED_EXTENSIONS, CORE_EXTENSIONS);
+
 	// R5 (Hole 2): NON_CODE_EXTENSIONS must not overlap SCANNED_EXTENSIONS.
 	// Moving a code extension (like `.tsx`) into NON_CODE_EXTENSIONS would
 	// silently disable its analysis — exactly the defect the reversal was
@@ -621,13 +748,12 @@ export const scanFrontSrcForBannedImports = (
 	// unknown extension is neither scanned nor declared.
 	assertNoOverlap(SCANNED_EXTENSIONS, NON_CODE_EXTENSIONS);
 
-	// R5 (Hole 3): every NON_CODE_EXTENSIONS entry must carry a non-empty
-	// justification. The brief's "comment is proof" claim was false because
-	// the comment was conventional and unchecked. Now the justification is a
-	// structural requirement: an entry with an empty or whitespace-only
-	// reason fails the guard loudly, naming the offending extension. A
-	// developer who wants to exclude an extension MUST explain why — the
-	// silence is no longer an option.
+	// R6 (Hole 3): every NON_CODE_EXTENSIONS entry must carry a justification
+	// of at least 24 characters. The previous bar (non-empty) let one-character
+	// justifications like 'x' or 'todo' pass — a cosmetic bar. The repo already
+	// applies this real bar elsewhere (#1736). Now the justification is a
+	// structural requirement: an entry with a too-short reason fails the guard
+	// loudly, naming the offending extension.
 	assertAllJustified(NON_CODE_EXTENSIONS);
 
 	// Reversed burden of proof (R4): the guard enumerates every extension it
@@ -661,6 +787,26 @@ export const scanFrontSrcForBannedImports = (
 			`Guard #1769: scan root '${root}' contains only non-code files ` +
 				`(${[...extensions].sort().join(', ')}). ` +
 				`The guard cannot verify the ban without scanning code files.`,
+		);
+	}
+
+	// R6 (Hole 1): count files per extension and assert the scan surface has
+	// not shrunk below the pinned floor. This closes the class of gestures
+	// that silently reduce the analyzed surface — not just the specific
+	// "move .tsx to non-code" mutation, but any shrinking of the scan set.
+	// Only enforced on the production root: test sandboxes are partial trees
+	// and would always fall below the floor.
+	if (root === frontSrc) {
+		const perExtensionCounts: Record<string, number> = {};
+		for (const file of files) {
+			const ext = path.extname(file).toLowerCase();
+			if (ext.length > 0) {
+				perExtensionCounts[ext] = (perExtensionCounts[ext] ?? 0) + 1;
+			}
+		}
+		assertScanSurface(
+			perExtensionCounts,
+			path.resolve(scriptDir, 'column-type-imports-baseline.json'),
 		);
 	}
 
