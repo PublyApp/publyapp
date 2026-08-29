@@ -234,6 +234,10 @@
 			"reason_hash": "ad9f03648bf0dfc2",
 			"reason_length": 99
 		},
+		"front-ci.yml::supply-chain::Check front column-type imports (#1769)": {
+			"reason_hash": "aab0080ad391b02e",
+			"reason_length": 295
+		},
 		"front-ci.yml::supply-chain::Check front design system": {
 			"reason_hash": "01a0a839676c7503",
 			"reason_length": 68

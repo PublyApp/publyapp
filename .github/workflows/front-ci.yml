@@ -228,6 +228,15 @@ jobs:
       - name: Check front design system
         run: pnpm --filter front check:design-system
 
+      # #1769: refuse `ColumnDef`/`Row`/`TanStackTable` imported from
+      # `@tanstack/react-table` or `@tanstack/react-table/legacy` — the
+      # passthrough at `apps/front/src/components/table/column-type.ts` is the
+      # only sanctioned source. Without this, a developer who imports the v9
+      # root types instead of the passthrough gets twenty `TS7031` errors very
+      # far from the cause (this is the third occurrence: #1627, #1737).
+      - name: Check front column-type imports (#1769)
+        run: pnpm --filter front check:column-type-imports
+
       # #1234: built-artifact guard — asserts on the dist emitted by the
       # "Build front" step above that the React Compiler actually ran (its
       # runtime chunk is present and the compiled-module count is at or
