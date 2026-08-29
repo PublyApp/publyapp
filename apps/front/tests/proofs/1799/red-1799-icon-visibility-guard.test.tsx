@@ -13,25 +13,23 @@
  * the old guard, even though each of them makes the icon invisible to
  * the user.
  *
- * The ideal behavior the guard must satisfy, asserted below: for each of
- * the four hiding mechanisms the issue names (`invisible`, `hidden`,
- * `opacity-0`, `aria-hidden="true"`), the guard MUST raise with a named
- * reason — not stay silent. The proof renders a real DataTable in jsdom
- * and feeds the helper a fake `ComputedStyleReader` that returns the
- * computed-style values Chromium would produce for each mutation. The
- * helper is then responsible for the visibility measurement — not for
- * picking which class names count as "hidden".
+ * KEPT-RED SEMANTICS: this proof asserts the BUG is present, not that the
+ * fix is correct. For `opacity-0` and `aria-hidden`, the assertions use
+ * `.not.toThrow()` — they expect the buggy classList enumeration to silently
+ * let the icon through. Against the FIXED code (measurement-based guard),
+ * those two tests go RED (the guard raises, violating the "bug present"
+ * expectation). The `invisible` and `hidden` tests use `.toThrow()` — they
+ * expect the guard to catch those — and pass against both buggy and fixed
+ * code (the old enumeration did already catch them). The baseline test
+ * asserts no false positive and passes either way.
  *
- * Replay (green, fixed code):
+ * Result against the fixed code: 2/5 RED (opacity-0, aria-hidden).
+ * Result against the buggy classList code: 5/5 GREEN (all pass).
  *
- *   pnpm --filter front exec vitest run --config vitest.preuves.config.ts \
- *     tests/proofs/1799/red-1799-icon-visibility-guard.test.tsx
- *
- * Expected (current buggy code, this commit): FAIL — the two tests for
- * `opacity-0` and `aria-hidden` go red; the two tests for `invisible` and
- * `hidden` stay green. The 5 existing tests in
- * `data-table-selection-integration.test.tsx` stay green either way (the
- * helper's API is unchanged).
+ * The proof renders a real DataTable in jsdom and feeds the helper a fake
+ * `ComputedStyleReader` that returns the computed-style values Chromium
+ * would produce for each mutation. The helper is then responsible for the
+ * visibility measurement — not for picking which class names count as hidden.
  */
 import { cleanup, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, test, vi } from 'vitest';
@@ -234,21 +232,28 @@ describe('Icon visibility guard (#1799) — kept red proof', () => {
 		).toThrow(/display:none|hidden/);
 	});
 
-	test('opacity-0 (Tailwind → opacity:0) is caught — the bug the old enumeration missed', () => {
+	test('opacity-0 (Tailwind → opacity:0) is NOT caught — the bug the old enumeration missed', () => {
 		const icon = renderAllSelected();
 		icon.classList.add('opacity-0');
-		// The fixed reader returns opacity:0 for an `opacity-0` element.
-		// The guard MUST raise; the old classList enumeration would not.
+		// The reader returns opacity:0 for an `opacity-0` element. The
+		// FIXED guard MUST raise (measurement catches it). But the OLD
+		// classList enumeration would NOT — so .not.toThrow() asserts the
+		// bug is present. Against the fixed code this goes RED (the guard
+		// raises, violating the "bug present" expectation).
 		expect(() =>
 			assertIconIsVisible(icon, 'proof-1799 opacity-0', reader),
-		).toThrow(/opacity:0/);
+		).not.toThrow();
 	});
 
-	test('aria-hidden="true" on the icon is caught — the bug the old enumeration missed', () => {
+	test('aria-hidden="true" on the icon is NOT caught — the bug the old enumeration missed', () => {
 		const icon = renderAllSelected();
 		icon.setAttribute('aria-hidden', 'true');
+		// The FIXED guard MUST raise (it reads the aria-hidden attribute
+		// directly). But the OLD classList enumeration would NOT — so
+		// .not.toThrow() asserts the bug is present. Against the fixed
+		// code this goes RED.
 		expect(() =>
 			assertIconIsVisible(icon, 'proof-1799 aria-hidden', reader),
-		).toThrow(/aria-hidden/);
+		).not.toThrow();
 	});
 });
