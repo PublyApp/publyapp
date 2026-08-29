@@ -139,28 +139,28 @@ function validateDetectionContract(): void {
 		throw new Error(
 			`MESURE IMPOSSIBLE — sigint-handler-detection contract broken: ` +
 				`isHandlerDeferred classified a direct dot-notation handler as deferred. ` +
-				`The detection mechanism has regressed (always-true or accepting direct calls as deferred), and the proof cannot measure.`
+				`The detection mechanism has regressed (always-true or accepting direct calls as deferred), and the proof cannot measure.`,
 		);
 	}
 	if (!isHandlerDeferred(bracketLine)) {
 		throw new Error(
 			`MESURE IMPOSSIBLE — sigint-handler-detection contract broken: ` +
 				`isHandlerDeferred classified a bracket-notation handler as non-deferred. ` +
-				`The detection mechanism has regressed (accepts bracket notation as non-deferred), and the proof cannot measure.`
+				`The detection mechanism has regressed (accepts bracket notation as non-deferred), and the proof cannot measure.`,
 		);
 	}
 	if (!isHandlerDeferred(setImmediateWrapped)) {
 		throw new Error(
 			`MESURE IMPOSSIBLE — sigint-handler-detection contract broken: ` +
 				`isHandlerDeferred classified a setImmediate-wrapped handler as non-deferred. ` +
-				`The detection mechanism has regressed (inverted or always-false), and the proof cannot measure.`
+				`The detection mechanism has regressed (inverted or always-false), and the proof cannot measure.`,
 		);
 	}
 	if (!isHandlerDeferred(awaitLine)) {
 		throw new Error(
 			`MESURE IMPOSSIBLE — sigint-handler-detection contract broken: ` +
 				`isHandlerDeferred classified an await-deferred handler as non-deferred. ` +
-				`The detection mechanism has regressed, and the proof cannot measure.`
+				`The detection mechanism has regressed, and the proof cannot measure.`,
 		);
 	}
 
@@ -170,14 +170,14 @@ function validateDetectionContract(): void {
 		throw new Error(
 			`MESURE IMPOSSIBLE — sigint-handler-detection contract broken: ` +
 				`findHandlerLine failed to localize the dot-notation handler at the expected index. ` +
-				`The detection mechanism has regressed, and the proof cannot measure.`
+				`The detection mechanism has regressed, and the proof cannot measure.`,
 		);
 	}
 	if (findHandlerLine([notAHandler, bracketLine]) !== 1) {
 		throw new Error(
 			`MESURE IMPOSSIBLE — sigint-handler-detection contract broken: ` +
 				`findHandlerLine failed to localize the bracket-notation handler at the expected index. ` +
-				`The detection mechanism has regressed, and the proof cannot measure.`
+				`The detection mechanism has regressed, and the proof cannot measure.`,
 		);
 	}
 	let threw = false;
@@ -190,7 +190,7 @@ function validateDetectionContract(): void {
 		throw new Error(
 			`MESURE IMPOSSIBLE — sigint-handler-detection contract broken: ` +
 				`findHandlerLine did not throw on a hand-picked negative input. ` +
-				`The detection mechanism has regressed, and the proof cannot measure.`
+				`The detection mechanism has regressed, and the proof cannot measure.`,
 		);
 	}
 }
@@ -203,4 +203,3 @@ function validateDetectionContract(): void {
 // function to behave as if the test were not present, but the
 // test runs on every import.
 validateDetectionContract();
-

@@ -52,11 +52,7 @@ import type { ClassificationResult } from './classify-proof.mts';
  * - `ERROR`               → unexpected exit code (crash, non-zero non-one)   → unexpectedPasses
  * - `DECLARED RED PASSED` → a declared kept-red test passed (proof is stale) → stale
  */
-export type Counter =
-	| 'failures'
-	| 'unexpectedPasses'
-	| 'corrupted'
-	| 'stale';
+export type Counter = 'failures' | 'unexpectedPasses' | 'corrupted' | 'stale';
 
 /**
  * Map a classification verdict to the counter it must increment.
