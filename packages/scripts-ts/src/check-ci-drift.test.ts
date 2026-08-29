@@ -1369,3 +1369,261 @@ test('findCiDrift: unreadable manifest file fails loudly (EACCES)', async () => 
 		);
 	}
 });
+
+// --- Ratchet floor tests for #1709 ---
+//
+// The ratchet floor breaks the 3-step attack where a covered step is deleted
+// from CI, then from the manifest, then the reference is regenerated to match.
+// The reference's `pinned_step_ids` array grows monotonically — regeneration
+// can only ADD, never remove. A step can only be removed by confessing it in
+// ci-gate-removals.json with a reason naming what was lost and why.
+
+test('ratchet floor: 3-step sequence (delete from CI + manifest) turns RED — the bug proof', async () => {
+	// This is the paired RED proof: before the fix, this sequence turned green.
+	// After the fix, the ratchet catches it.
+	const rootDir = await mkdtemp(path.join(os.tmpdir(), 'publyapp-ratchet-'));
+	await mkdir(path.join(rootDir, '.github/workflows'), { recursive: true });
+	await mkdir(path.join(rootDir, 'packages/scripts-ts/src'), {
+		recursive: true,
+	});
+
+	// Workflow: only Step A remains (Step B was deleted)
+	await writeFile(
+		path.join(rootDir, '.github/workflows/fixture.yml'),
+		workflow('      - name: Step A\n        run: echo a\n'),
+	);
+
+	// Manifest: only Step A (Step B was deleted)
+	await writeFile(
+		path.join(rootDir, 'packages/scripts-ts/src/ci-gate-manifest.json'),
+		JSON.stringify(
+			{
+				steps: {
+					'fixture.yml::build::Step A': {
+						hash: 'b0ea35b0641c92e6',
+						mirror: 'just ci',
+						reason:
+							'Mirrored locally by the fixture gate for testing purposes.',
+					},
+				},
+			},
+			null,
+			'\t',
+		),
+	);
+
+	// Reference: still pins BOTH steps (ratchet holds — regeneration refused to drop Step B)
+	const ref = {
+		pinned_step_ids: [
+			'fixture.yml::build::Step A',
+			'fixture.yml::build::Step B',
+		],
+		steps: {
+			'fixture.yml::build::Step A': {
+				reason_hash: hashReason(
+					'Mirrored locally by the fixture gate for testing purposes.',
+				),
+				reason_length: 56,
+			},
+		},
+	};
+
+	const findings = await findCiDrift({ rootDir, reasonRef: ref });
+
+	// The ratchet must catch the vanished Step B
+	const ratchetFindings = findings.filter((f) => f.startsWith('RATCHET'));
+	assert.equal(
+		ratchetFindings.length,
+		1,
+		'Expected exactly one RATCHET finding for Step B',
+	);
+	assert.match(ratchetFindings[0], /RATCHET\s+fixture\.yml::build::Step B/);
+	assert.match(ratchetFindings[0], /silently erased/);
+	assert.match(ratchetFindings[0], /ci-gate-removals\.json/);
+});
+
+test('ratchet floor: legitimate deletion with confession turns GREEN', async () => {
+	// A step is removed deliberately, with a confession file naming it and why.
+	// The guard must accept this and stay green.
+	const rootDir = await mkdtemp(
+		path.join(os.tmpdir(), 'publyapp-ratchet-green-'),
+	);
+	await mkdir(path.join(rootDir, '.github/workflows'), { recursive: true });
+	await mkdir(path.join(rootDir, 'packages/scripts-ts/src'), {
+		recursive: true,
+	});
+
+	// Workflow: only Step A
+	await writeFile(
+		path.join(rootDir, '.github/workflows/fixture.yml'),
+		workflow('      - name: Step A\n        run: echo a\n'),
+	);
+
+	// Manifest: only Step A
+	await writeFile(
+		path.join(rootDir, 'packages/scripts-ts/src/ci-gate-manifest.json'),
+		JSON.stringify(
+			{
+				steps: {
+					'fixture.yml::build::Step A': {
+						hash: 'b0ea35b0641c92e6',
+						mirror: 'just ci',
+						reason:
+							'Mirrored locally by the fixture gate for testing purposes.',
+					},
+				},
+			},
+			null,
+			'\t',
+		),
+	);
+
+	// Confession file: Step B was deliberately removed
+	await writeFile(
+		path.join(rootDir, 'packages/scripts-ts/src/ci-gate-removals.json'),
+		JSON.stringify(
+			{
+				steps: [
+					{
+						step_id: 'fixture.yml::build::Step B',
+						reason:
+							'Step B was a duplicate verification step that was consolidated into Step A. The coverage is preserved.',
+						removed_at: '2026-08-29',
+					},
+				],
+			},
+			null,
+			'\t',
+		),
+	);
+
+	// Reference: pins both steps (the ratchet holds, but confession covers Step B)
+	const ref = {
+		pinned_step_ids: [
+			'fixture.yml::build::Step A',
+			'fixture.yml::build::Step B',
+		],
+		steps: {
+			'fixture.yml::build::Step A': {
+				reason_hash: hashReason(
+					'Mirrored locally by the fixture gate for testing purposes.',
+				),
+				reason_length: 56,
+			},
+		},
+	};
+
+	const findings = await findCiDrift({ rootDir, reasonRef: ref });
+
+	// No RATCHET finding — the confession covers the removal
+	const ratchetFindings = findings.filter((f) => f.startsWith('RATCHET'));
+	assert.equal(
+		ratchetFindings.length,
+		0,
+		'Expected no RATCHET findings when confession is present',
+	);
+	assert.deepEqual(findings, [], 'Expected fully green when step is confessed');
+});
+
+test('ratchet floor: adverse mutation — wrong step ID in confession does NOT cover the vanished step', async () => {
+	// Adversary tries: confess a DIFFERENT step ID to distract the guard.
+	// The ratchet must NOT be fooled — only the exact vanished step ID counts.
+	const rootDir = await mkdtemp(
+		path.join(os.tmpdir(), 'publyapp-ratchet-adverse2-'),
+	);
+	await mkdir(path.join(rootDir, '.github/workflows'), { recursive: true });
+	await mkdir(path.join(rootDir, 'packages/scripts-ts/src'), {
+		recursive: true,
+	});
+
+	await writeFile(
+		path.join(rootDir, '.github/workflows/fixture.yml'),
+		workflow('      - name: Step A\n        run: echo a\n'),
+	);
+
+	await writeFile(
+		path.join(rootDir, 'packages/scripts-ts/src/ci-gate-manifest.json'),
+		JSON.stringify(
+			{
+				steps: {
+					'fixture.yml::build::Step A': {
+						hash: 'b0ea35b0641c92e6',
+						mirror: 'just ci',
+						reason:
+							'Mirrored locally by the fixture gate for testing purposes.',
+					},
+				},
+			},
+			null,
+			'\t',
+		),
+	);
+
+	// Confession for a DIFFERENT step — not the one that vanished
+	await writeFile(
+		path.join(rootDir, 'packages/scripts-ts/src/ci-gate-removals.json'),
+		JSON.stringify(
+			{
+				steps: [
+					{
+						step_id: 'fixture.yml::build::Some other step',
+						reason: 'This is not the step that vanished.',
+					},
+				],
+			},
+			null,
+			'\t',
+		),
+	);
+
+	const ref = {
+		pinned_step_ids: [
+			'fixture.yml::build::Step A',
+			'fixture.yml::build::Step B',
+		],
+		steps: {
+			'fixture.yml::build::Step A': {
+				reason_hash: hashReason(
+					'Mirrored locally by the fixture gate for testing purposes.',
+				),
+				reason_length: 56,
+			},
+		},
+	};
+
+	const findings = await findCiDrift({ rootDir, reasonRef: ref });
+
+	// The ratchet must still catch Step B — wrong confession doesn't cover it
+	const ratchetFindings = findings.filter((f) => f.startsWith('RATCHET'));
+	assert.equal(
+		ratchetFindings.length,
+		1,
+		'Wrong confession does not cover the vanished step',
+	);
+	assert.match(ratchetFindings[0], /RATCHET\s+fixture\.yml::build::Step B/);
+});
+
+test('ratchet floor: no pinned_step_ids means no ratchet check (backward compatible)', async () => {
+	// A reference without pinned_step_ids (old format) should not trigger
+	// the ratchet check. This ensures backward compatibility.
+	const rootDir = await buildFixture({
+		manifestSteps: reconciled,
+		steps: mirroredStep,
+	});
+
+	const refWithoutPinned = {
+		// No pinned_step_ids field
+		steps: {
+			'fixture.yml::build::Run tests': {
+				reason_hash: hashReason(reason),
+				reason_length: reason.length,
+			},
+		},
+	};
+
+	const findings = await findCiDrift({ rootDir, reasonRef: refWithoutPinned });
+
+	// No RATCHET findings — ratchet is not active without pinned_step_ids
+	const ratchetFindings = findings.filter((f) => f.startsWith('RATCHET'));
+	assert.equal(ratchetFindings.length, 0);
+});

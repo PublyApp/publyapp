@@ -34,6 +34,7 @@ import { reasonRef } from './reason-guard-ref.ts';
 
 const workflowsDirectory = '.github/workflows';
 const manifestPath = 'packages/scripts-ts/src/ci-gate-manifest.json';
+const removalsPath = 'packages/scripts-ts/src/ci-gate-removals.json';
 
 // Matches the reviewable-reason bar this repo already enforces on lint
 // suppressions (see the sibling guard in scripts/). "n/a" is not a reason.
@@ -91,6 +92,97 @@ const getReasonGuardProblem = (
 	}
 
 	return `${manifestPath}: entry "${id}" reason CHANGED (expected hash ${stepRef.reason_hash}, got ${currentHash}; expected ${expectedLength} chars, got ${currentLength}) while the step hash is unchanged. If this is a deliberate rewrite, regenerate reason-guard-ref.json in the same commit so the reference matches the new reason — run \`node packages/scripts-ts/src/gen-reason-ref.ts\` to regenerate it.`;
+};
+
+/**
+ * Reads the removals confession file, if it exists. Returns null when the file
+ * is absent — the absence of a confession is what makes the ratchet hold.
+ */
+const readRemovalsConfession = async (
+	rootDir: string,
+): Promise<RemovalsConfession | null> => {
+	try {
+		const raw = await readFile(path.join(rootDir, removalsPath), 'utf8');
+		const parsed = JSON.parse(raw) as unknown;
+
+		if (
+			parsed === null ||
+			typeof parsed !== 'object' ||
+			Array.isArray(parsed)
+		) {
+			return null;
+		}
+
+		const record = parsed as Record<string, unknown>;
+
+		if (!Array.isArray(record.steps)) {
+			return null;
+		}
+
+		return {
+			steps: record.steps.map((entry: unknown) => {
+				const e = entry as Record<string, unknown>;
+				return {
+					step_id: typeof e.step_id === 'string' ? e.step_id : '',
+					reason: typeof e.reason === 'string' ? e.reason : '',
+					removed_at:
+						typeof e.removed_at === 'string' ? e.removed_at : undefined,
+				};
+			}),
+		};
+	} catch {
+		return null;
+	}
+};
+
+/**
+ * Ratchet floor check (#1709).
+ *
+ * The reference file (`reason-guard-ref.json`) holds a `pinned_step_ids` array
+ * that grows monotonically — regeneration can only ADD to it, never remove.
+ * This breaks the 3-step attack where a covered step is deleted from CI, then
+ * from the manifest, then the reference is regenerated to match.
+ *
+ * This function checks every pinned step ID against the current manifest. A
+ * pinned step that is missing from the manifest is either:
+ *   - LEGITIMATE: named in the removals confession file (`ci-gate-removals.json`)
+ *     with a reason — the human deliberately removed it and confessed why.
+ *   - SILENT ERASSING: missing without confession — the ratchet fails closed.
+ *
+ * The confession file is the ONLY way to lower the floor, and it must name the
+ * step explicitly. This makes deliberate removal possible but never an accident
+ * disguised as cleanup.
+ */
+const getRatchetProblems = async (
+	rootDir: string,
+	entries: Record<string, unknown>,
+	ref: ReasonRef,
+): Promise<string[]> => {
+	const findings: string[] = [];
+	const pinned = ref.pinned_step_ids ?? [];
+
+	if (pinned.length === 0) {
+		return findings;
+	}
+
+	const confession = await readRemovalsConfession(rootDir);
+	const confessedIds = new Set(confession?.steps.map((s) => s.step_id) ?? []);
+
+	for (const id of pinned) {
+		if (id in entries) {
+			continue;
+		}
+
+		if (confessedIds.has(id)) {
+			continue;
+		}
+
+		findings.push(
+			`RATCHET  ${id}\n    A CI step that was reconciled and pinned in reason-guard-ref.json has vanished from the manifest without a confession. A covered verification step was silently erased — either restore the step and its manifest entry, or confess the removal in ${removalsPath} with a reason naming what was lost and why (see docs/guides/local-ci-gate.md).`,
+		);
+	}
+
+	return findings;
 };
 
 const normalizeCommand = (value: string) =>
@@ -452,7 +544,16 @@ const decodeJsonString = (raw: string): string =>
 // --- Reason reference type ---
 
 interface ReasonRef {
+	pinned_step_ids?: string[];
 	steps: Record<string, { reason_hash: string; reason_length: number }>;
+}
+
+interface RemovalsConfession {
+	steps: Array<{
+		step_id: string;
+		reason: string;
+		removed_at?: string;
+	}>;
 }
 
 /**
@@ -622,6 +723,11 @@ export const findCiDrift = async ({
 			`STALE REF ${id}\n    The reason reference holds a fingerprint for "${id}" which is absent from the manifest. The CI step was removed; delete the reference entry by regenerating (run \`node packages/scripts-ts/src/gen-reason-ref.ts\`).`,
 		);
 	}
+
+	// Ratchet floor check (#1709): pinned_step_ids in the reference can only
+	// grow, never shrink. A pinned step missing from the manifest without a
+	// confession in ci-gate-removals.json is silent erasure — fail closed.
+	findings.push(...(await getRatchetProblems(rootDir, entries, ref)));
 
 	return findings;
 };
