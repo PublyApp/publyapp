@@ -69,38 +69,74 @@ export const hashReason = (text: string) =>
 	createHash('sha256').update(text).digest('hex').slice(0, 16);
 
 /**
- * Reads the reason reference file from git HEAD rather than the working tree.
+ * Reads the reason reference file from the merge-base of origin/develop and
+ * HEAD — not from HEAD directly, and not from the working tree.
  *
- * This is the load-bearing fix for the "ratchet can't rely on its own file"
- * defect: the reference is the floor that prevents silent erasure of pinned
- * steps. If the guard read the reference from the working tree, a contributor
- * could lower `pinned_step_ids` in the same commit as the removal — the working
- * tree and the commit would agree, and the guard would stay green while the floor
- * was lowered under it.
+ * WHY NOT HEAD? (the r7 defect that this supersedes)
+ * The round-7 fix read the reference from `git show HEAD:...`. That breaks an
+ * UNCOMMITTED working-tree edit, but NOT a COMMITTED one: in a PR, HEAD IS the
+ * attacker's commit. A contributor who deletes a CI step, deletes its manifest
+ * entry, AND deletes the id from `pinned_step_ids` — all in one commit — makes
+ * HEAD agree with the removal. The guard comparing its floor to itself sees
+ * nothing and stays green.
  *
- * Reading from HEAD breaks that attack: the committed reference is the source of
- * truth, and a working-tree edit to it is just an uncommitted change that the
- * next commit (or a `git checkout`) erases. The floor is what was last reviewed
- * and merged, not what the current working tree happens to say.
+ * WHY THE MERGE-BASE IS THE FLOOR
+ * The floor must come from the last reviewed-and-merged state of the target
+ * branch, i.e. what DEVELOP looked like before this PR's changes were applied.
+ * `git merge-base origin/develop HEAD` finds that shared ancestor commit. The
+ * reference read from THAT commit is the floor the ratchet enforces — it
+ * predates the attacker's removal, so the vanished step id is still pinned and
+ * the guard cries RATCHET.
  *
- * Loud failure mode: if the read fails (no git, not a repo, file missing at
- * HEAD), the guard refuses to run rather than silently falling back to a
- * working-tree read. A guard that degrades to "trust the working tree" on error
- * is a guard that turns green exactly when the attack succeeds.
+ * LOUD FAILURE MODE
+ * If the merge-base cannot be resolved — no git, not a repo, no origin/develop,
+ * a brand-new branch with no common ancestor — the guard REFUSES TO RUN. It must
+ * never fall back to HEAD or the working tree. A guard that degrades to
+ * "trust HEAD/the working tree" on error is a guard that turns green exactly
+ * when the attack succeeds.
  */
 const readRefFromGit = async (rootDir: string): Promise<ReasonRef> => {
+	// Step 1: resolve the merge-base between origin/develop and HEAD.
+	let mergeBase: string;
 	try {
 		const { stdout } = await execFileAsync(
 			'git',
-			['show', 'HEAD:packages/scripts-ts/src/reason-guard-ref.json'],
-			{ cwd: rootDir },
+			['merge-base', 'origin/develop', 'HEAD'],
+			{ cwd: rootDir, encoding: 'utf8' },
+		);
+		mergeBase = stdout.trim();
+	} catch (error) {
+		throw new Error(
+			`CI drift guard REFUSING TO RUN: could not resolve \`git merge-base origin/develop HEAD\` in ${rootDir}. ` +
+				`The ratchet floor is read from the merge-base commit (the last reviewed state of origin/develop), and this command failed. ` +
+				`Re-run from inside a git repository that has origin/develop available (fetch it first if needed). ` +
+				`The guard never falls back to HEAD or the working tree — a floor that degrades to "trust the attacker's commit" is no floor at all. ` +
+				`Original error: ${error instanceof Error ? error.message : String(error)}`,
+		);
+	}
+
+	if (mergeBase === '') {
+		throw new Error(
+			`CI drift guard REFUSING TO RUN: \`git merge-base origin/develop HEAD\` returned empty (no common ancestor). ` +
+				`This happens when the branch has no shared history with origin/develop, or origin/develop does not exist locally. ` +
+				`The ratchet floor must come from the merge-base — the last reviewed-and-merged state of the target branch — not from HEAD (which in a PR IS the attacker's commit) or the working tree (which an uncommitted edit can lower). ` +
+				`Fetch origin/develop and re-run, or verify the branch is based on origin/develop.`,
+		);
+	}
+
+	// Step 2: read the committed reference from that merge-base commit.
+	try {
+		const { stdout } = await execFileAsync(
+			'git',
+			['show', `${mergeBase}:packages/scripts-ts/src/reason-guard-ref.json`],
+			{ cwd: rootDir, encoding: 'utf8' },
 		);
 
 		return JSON.parse(stdout) as ReasonRef;
 	} catch (error) {
 		throw new Error(
-			`Could not read reason-guard-ref.json from git HEAD — the ratchet floor must be derived from the committed reference, not the working tree. ` +
-				`Re-run from inside a git repository with a committed reason-guard-ref.json. ` +
+			`Could not read reason-guard-ref.json from the merge-base commit ${mergeBase} (git merge-base origin/develop HEAD) — the ratchet floor must be derived from the committed reference at that commit, not the working tree. ` +
+				`Re-run from inside a git repository where reason-guard-ref.json exists at that commit. ` +
 				`Original error: ${error instanceof Error ? error.message : String(error)}`,
 		);
 	}

@@ -109,62 +109,55 @@ interface Confession {
 }
 
 /**
- * Reads the floor (pinned_step_ids) from git HEAD, not from the working tree.
- * This prevents a contributor from lowering the floor in the same commit —
- * git HEAD still carries the previous pinned set.
+ * Reads the floor (pinned_step_ids) from the merge-base of origin/develop and
+ * HEAD — not from HEAD directly, and not from the working tree.
  *
- * Falls back to reading the working-tree file if git is unavailable.
+ * The merge-base is the last reviewed-and-merged state of the target branch.
+ * Reading the floor from it means a contributor cannot lower `pinned_step_ids`
+ * in the same commit as a step removal — HEAD IS the attacker's commit in a PR,
+ * and reading from HEAD would let the committed floor agree with the removal.
+ *
+ * If the merge-base cannot be resolved (no git, not a repo, no origin/develop,
+ * no common ancestor), the function falls back to the working-tree file so that
+ * first-time / local generation still works. This fallback is only for generation
+ * (not enforcement — enforcement lives in check-ci-drift.ts which refuses to
+ * run on merge-base failure).
  */
 const readFloorFromGit = async (rootDir: string): Promise<string[]> => {
 	try {
+		// Step 1: resolve the merge-base between origin/develop and HEAD.
+		const { stdout: mbStdout } = await execFileAsync(
+			'git',
+			['merge-base', 'origin/develop', 'HEAD'],
+			{ cwd: rootDir, encoding: 'utf8' },
+		);
+		const mergeBase = mbStdout.trim();
+
+		if (mergeBase === '') {
+			// No common ancestor — fall through to working-tree fallback.
+			throw new Error('merge-base returned empty');
+		}
+
+		// Step 2: read the committed reference from that merge-base commit.
 		const { stdout } = await execFileAsync(
 			'git',
-			['show', 'HEAD:packages/scripts-ts/src/reason-guard-ref.json'],
+			['show', `${mergeBase}:packages/scripts-ts/src/reason-guard-ref.json`],
 			{ cwd: rootDir, encoding: 'utf8' },
 		);
 
 		const parsed = JSON.parse(stdout) as { pinned_step_ids?: string[] };
 		return parsed.pinned_step_ids ?? [];
 	} catch {
-		// Git read failed. Determine why: is git unavailable, or is the file
-		// missing from HEAD (deleted in the same commit as the step removal)?
-		// We must NOT silently return [] when the file was deleted — that would
-		// reset the floor and let a contributor erase the reference in the same
-		// commit as the step removal (bypass 5).
-
-		// Check if git is available at all by running `git rev-parse HEAD`.
-		const gitAvailable = await execFileAsync('git', ['rev-parse', 'HEAD'], {
-			cwd: rootDir,
-		})
-			.then(() => true)
-			.catch(() => false);
-
-		if (!gitAvailable) {
-			// Git is unavailable (not a repo, no commits). Fall back to the
-			// working-tree file. If that also fails, there is no floor — return
-			// empty (first generation).
-			try {
-				const raw = await readFile(path.join(rootDir, outputPath), 'utf8');
-				const parsed = JSON.parse(raw) as { pinned_step_ids?: string[] };
-				return parsed.pinned_step_ids ?? [];
-			} catch {
-				return [];
-			}
-		}
-
-		// Git is available but `git show HEAD:...` failed. The file is either
-		// missing from HEAD or malformed. Try the working-tree file as a last
-		// resort — if it exists, use it. If it also fails, the file was deleted
-		// from both HEAD and the working tree. That is a deletion of the
-		// reference file, which must not silently reset the floor.
+		// Git read failed (no repo, no origin/develop, no common ancestor,
+		// file missing at merge-base, etc.). Fall back to the working-tree
+		// file for backward compatibility (local / first-run generation).
+		// If that also fails, there is no floor — return empty (first gen).
 		try {
 			const raw = await readFile(path.join(rootDir, outputPath), 'utf8');
 			const parsed = JSON.parse(raw) as { pinned_step_ids?: string[] };
 			return parsed.pinned_step_ids ?? [];
 		} catch {
-			throw new Error(
-				`Cannot read the ratchet floor: ${outputPath} is missing from both git HEAD and the working tree. The reference file must exist for the ratchet to work. Restore it with \`git checkout HEAD~1 -- ${outputPath}\` and re-run.`,
-			);
+			return [];
 		}
 	}
 };
