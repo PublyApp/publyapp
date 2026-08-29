@@ -20,7 +20,6 @@ using PublyApp.Api.Modules.Jobs.Endpoints;
 using PublyApp.Api.Modules.Permissions.Endpoints;
 using PublyApp.Api.Modules.Posts.Endpoints;
 using PublyApp.Api.Modules.Profiles.Endpoints;
-using PublyApp.Api.Modules.Publishing.Endpoints;
 using PublyApp.Api.Modules.Projects.Endpoints;
 using PublyApp.Api.Modules.Publishing.Endpoints;
 using PublyApp.Api.Modules.Settings.Endpoints;
