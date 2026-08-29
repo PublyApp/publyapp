@@ -225,12 +225,17 @@ Le `DataTableCursorFooter` construit en #1549 traite déjà `totalCount === unde
 composant : il suffit de ne pas passer `totalCount` (ou de passer `undefined`) quand le
 backend ne le fournit pas. Le front n'affiche **jamais** « sur 0 ».
 
-### Test (API)
+### Test (API) — spécification nommée (T1-abs, #1595)
 
-Spec par endpoint : forcer l'échec du `COUNT` (ex. via un `IDbContextInterceptor` de test qui
-lève sur le second `CountAsync`, ou un seed d'erreur), vérifier que `GET` répond `200` avec
-`data` peuplé et `totalCount` **absent** (et non pas `0` ni une erreur 500). Le front
-représente la plage seule.
+Spec par endpoint. Semer N lignes. Forcer l'échec du `COUNT` (via un `IDbContextInterceptor` de test qui lève sur le second `CountAsync`, ou un seed d'erreur). `GET` avec `includeTotalCount=true`. Assertions sur le **corps JSON réel** (désérialisé depuis la réponse HTTP, pas l'objet de retour du handler : seule la sérialisation fait foi) :
+
+- statut `200` ;
+- `data` peuplé (les lignes sont retournées normalement, avec `nextCursor`) ;
+- la clé `totalCount` est **strictement absente** du JSON — `JsonElement.TryGetProperty("totalCount", out _)` retourne `false`. Pas `null`, pas `0`, pas une clé présente : **absente**.
+
+**Preuve appariée (rouge sans le correctif, vert avec).** Mutation adverse : une lane qui émet `totalCount: null` au lieu d'omettre le champ satisfait `TotalCount == null` côté objet mais le JSON contient la clé — le test rougit. Le défaut récurrent du dépôt est un test vide dont le vert est forcé par un second mécanisme : ici, une assertion sur l'objet de retour (au lieu du JSON) qui reste verte alors que le JSON transporte `null`.
+
+Le front représente la plage seule.
 
 ## 5. OpenAPI + client Kiota régénéré + câblage front
 
