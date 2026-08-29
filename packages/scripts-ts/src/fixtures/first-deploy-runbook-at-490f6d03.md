@@ -22,9 +22,9 @@ pay for them twice.
 > Dokploy mode is an operator observation, not a setting stored in this repository; Dokploy supports
 > separate Docker Compose and Stack/Swarm configuration methods. Compose applies
 > `deploy.restart_policy` when present and falls back to `restart:` only when that policy is absent.
-> Both migrator declarations say not restart; an unhealthy container is **not** restarted or
+> Both migrator declarations say not to restart; an unhealthy container is **not** restarted or
 > killed — it just stays running and Traefik withholds routing until it's healthy.
-> 2. A Dokploy-managed database sits on the shared **`dokploy-network`**. A Compose app gets its **own** network by default and must **explicitly join `dokploy-network`** to reach the DB. This is the #1 thing that breaks a first deploy — **the committed `dokploy.yml` already does this** (all four services are on `dokploy-network`, and nothing else).
+> 2. A Dokploy-managed database sits on the shared **`dokploy-network`**. A Compose app gets its **own** network by default and must **explicitly join `dokploy-network`** to reach the DB. This is the #1 thing that breaks a first deploy — **the committed `dokploy.yml` already does this** (all services are on `dokploy-network`, and nothing else).
 > 3. Traefik routing is **not** configured by labels in the compose file. You add each domain in Dokploy's **Domains tab**, and Dokploy generates the real `traefik.*` labels (including pinning the container's network to `dokploy-network`). So domain setup is a UI step, not a file edit — see §4.5.
 
 ---
