@@ -137,7 +137,137 @@ const getFailureReason = (line) => {
 };
 
 /**
- * Scans one source file and appends all low-quality disable findings.
+ * Walks one source line and extracts the content of every comment whose
+ * trimmed content starts with the disable token — i.e. comments that actually
+ * ARE oxlint directives. Text inside string literals (fixture payloads such
+ * as `'oxlint-disable func-style'`) and prose that merely mentions the token
+ * (doc comments like ` * - oxlint-disable func-style — the oxlint variant`)
+ * are not directives: oxlint ignores them, so the guard must ignore them too.
+ * A guard that flags fixture text on sight installs a false negative — the
+ * real directive planted in the same file would be drowned in noise (round-4
+ * finding for #1854).
+ *
+ * The walker tracks string literals and multi-line block comments across
+ * calls so a directive on any line is only recognized where it would actually
+ * take effect: at the very start of a single-line `//` comment, of a block
+ * comment opened with `/*`, or of an `<!-- -->` comment. Everything else on
+ * the line is skipped.
+ */
+const extractDirectiveContents = (
+	line: string,
+	inBlockComment: boolean,
+	blockCommentCloser: string,
+): {
+	directiveContents: string[];
+	inBlockComment: boolean;
+	blockCommentCloser: string;
+} => {
+	const directiveContents: string[] = [];
+	let index = 0;
+	let inString = false;
+	let stringQuote = '';
+	let isInBlock = inBlockComment;
+	let closer = blockCommentCloser;
+
+	while (index < line.length) {
+		if (inString) {
+			if (line[index] === '\\') {
+				index += 2;
+				continue;
+			}
+
+			if (line[index] === stringQuote) {
+				inString = false;
+			}
+
+			index += 1;
+			continue;
+		}
+
+		if (isInBlock) {
+			if (line.startsWith(closer, index)) {
+				isInBlock = false;
+				index += closer.length;
+				continue;
+			}
+
+			index += 1;
+			continue;
+		}
+
+		const char = line[index];
+
+		// A real directive must start a comment; anything inside a string
+		// literal is fixture text, not a directive.
+		if (char === "'" || char === '"' || char === '`') {
+			inString = true;
+			stringQuote = char;
+			index += 1;
+			continue;
+		}
+
+		if (line.startsWith('//', index)) {
+			const content = line.slice(index + 2).trimStart();
+			if (content.startsWith(disableToken)) {
+				directiveContents.push(content);
+			}
+			break;
+		}
+
+		if (line.startsWith('/*', index)) {
+			const closerIndex = line.indexOf('*/', index + 2);
+			if (closerIndex === -1) {
+				const content = line.slice(index + 2).trimStart();
+				if (content.startsWith(disableToken)) {
+					directiveContents.push(content);
+				}
+				isInBlock = true;
+				closer = '*/';
+				break;
+			}
+
+			const content = line.slice(index + 2, closerIndex).trimStart();
+			if (content.startsWith(disableToken)) {
+				directiveContents.push(content);
+			}
+			index = closerIndex + 2;
+			continue;
+		}
+
+		if (line.startsWith('<!--', index)) {
+			const closerIndex = line.indexOf('-->', index + 4);
+			if (closerIndex === -1) {
+				const content = line.slice(index + 4).trimStart();
+				if (content.startsWith(disableToken)) {
+					directiveContents.push(content);
+				}
+				isInBlock = true;
+				closer = '-->';
+				break;
+			}
+
+			const content = line.slice(index + 4, closerIndex).trimStart();
+			if (content.startsWith(disableToken)) {
+				directiveContents.push(content);
+			}
+			index = closerIndex + 3;
+			continue;
+		}
+
+		index += 1;
+	}
+
+	return {
+		directiveContents,
+		inBlockComment: isInBlock,
+		blockCommentCloser: closer,
+	};
+};
+
+/**
+ * Scans one source file and appends all low-quality disable findings. Only
+ * comment content that actually starts a directive is checked — see
+ * `extractDirectiveContents`.
  */
 // @ts-expect-error rung-0: add proper type in later rung
 const scanFile = async (filePath, failures, rootDir) => {
@@ -145,18 +275,31 @@ const scanFile = async (filePath, failures, rootDir) => {
 	const relativePath = getRelativePath(filePath, rootDir);
 	const lines = content.split(/\r?\n/);
 
+	let inBlockComment = false;
+	let blockCommentCloser = '*/';
+
 	for (const [index, line] of lines.entries()) {
+		const extracted = extractDirectiveContents(
+			line,
+			inBlockComment,
+			blockCommentCloser,
+		);
+		inBlockComment = extracted.inBlockComment;
+		blockCommentCloser = extracted.blockCommentCloser;
+
 		if (!line.includes(disableToken)) {
 			continue;
 		}
 
-		const reason = getFailureReason(line);
+		for (const directiveContent of extracted.directiveContents) {
+			const reason = getFailureReason(directiveContent);
 
-		if (reason === null) {
-			continue;
+			if (reason === null) {
+				continue;
+			}
+
+			failures.push(`${relativePath}:${index + 1} - ${reason}`);
 		}
-
-		failures.push(`${relativePath}:${index + 1} - ${reason}`);
 	}
 };
 
