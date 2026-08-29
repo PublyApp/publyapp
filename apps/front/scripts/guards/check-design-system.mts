@@ -1009,14 +1009,17 @@ const collectCommentRanges = (
 		scriptKind,
 	);
 
-	// A file we cannot parse for comment ranges must not crash the scan —
-	// many test fixtures and edge-case files are intentionally malformed.
-	// Return an empty range set so the scan continues without comment
-	// skipping (a safe degradation: no false negatives, just no comment
-	// filtering for this file).
+	// A file we cannot parse for comment ranges must fail loudly — otherwise
+	// a malformed TS file would silently produce a PARTIAL set of comment
+	// ranges, and the guard would stay green while missing real violations.
+	// Align with statusMenuViolations: a file we cannot analyze must say so.
+	// The caller catches this and records it as a visible violation rather
+	// than crashing the scan.
 	const { parseDiagnostics } = sourceFile as SourceFileWithParseDiagnostics;
 	if (parseDiagnostics.length > 0) {
-		return [];
+		throw new Error(
+			`cannot parse source for comment ranges: ${ts.flattenDiagnosticMessageText(parseDiagnostics[0].messageText, ' ')}`,
+		);
 	}
 
 	const rangeSet = new Set<string>();
@@ -2470,12 +2473,33 @@ export const scanFront2DesignSystem = async ({
 						// Only TypeScript files can be parsed for comment
 						// ranges — CSS and other non-TS files have no TS
 						// comments to skip, so use an empty range set.
-						commentRanges = isTypeScriptFile(relativePath)
-							? collectCommentRanges(
+						if (!isTypeScriptFile(relativePath)) {
+							commentRanges = [];
+						} else {
+							try {
+								commentRanges = collectCommentRanges(
 									source,
 									scriptKindForPath(relativePath),
-								)
-							: [];
+								);
+							} catch (error) {
+								// A file we cannot parse for comment ranges must
+								// fail loudly — record the parse failure as a
+								// visible violation rather than crashing the scan
+								// or silently producing a partial range set.
+								violations.push({
+									ruleId: 'comment-range-parse-failure',
+									message:
+										'cannot parse source for comment ranges: ' +
+										(error instanceof Error
+											? error.message
+											: String(error)),
+									file: relativePath,
+									line: 1,
+									source: '',
+								});
+								commentRanges = [];
+							}
+						}
 						commentRangesByRelativePath.set(relativePath, commentRanges);
 					}
 

@@ -1896,6 +1896,36 @@ void test('#1844: a match at the very start of a comment is not a violation', as
 	);
 });
 
+// #1844 point 4: a malformed TypeScript file that cannot be parsed for
+// comment ranges must fail loudly — the scan records a visible
+// `comment-range-parse-failure` violation instead of crashing or silently
+// producing a partial range set.
+void test('#1844: a malformed TS file fails loudly with a comment-range-parse-failure violation', async () => {
+	const root = await makeFixture({
+		// Intentionally malformed: an unterminated string literal makes the
+		// file unparseable — the TS parser reports parseDiagnostics.
+		'src/components/ui/malformed.tsx': [
+			"export const a = 'unterminated string;",
+			'export const b = <DialogPrimitive.Popup />;',
+		].join('\n'),
+	});
+
+	const violations = await scanFront2DesignSystem({
+		baseDir: root,
+		sourceDir: path.join(root, 'src'),
+	});
+
+	const parseFailures = violations.filter(
+		(violation) => violation.ruleId === 'comment-range-parse-failure',
+	);
+
+	assert.equal(
+		parseFailures.length > 0,
+		true,
+		'a malformed TS file must produce a comment-range-parse-failure violation',
+	);
+});
+
 test('allows HeroUI imports and rules that should be exempt', async () => {
 	const root = await makeFixture({
 		'src/components/ui/confirm-dialog.tsx':
