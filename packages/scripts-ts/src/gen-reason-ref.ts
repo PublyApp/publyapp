@@ -343,8 +343,8 @@ try {
 	// File does not exist yet — first generation.
 }
 
-// Integrity pre-check: the existing reference must have matching
-// pinned_step_ids and steps{}. This catches manual tampering.
+// Integrity pre-check: the existing reference must have
+// pinned_step_ids ⊆ steps{}. This catches manual tampering.
 assertIntegrity(
 	existingRef.pinned_step_ids ?? [],
 	existingRef.steps ?? {},
@@ -406,9 +406,10 @@ if (vanishedWithoutConfession.length > 0) {
 	process.exit(1);
 }
 
-// Integrity post-check: the new pinned_step_ids and steps{} must match.
-// steps{} is derived from the manifest (reference), and pinned_step_ids is
-// the ratchet floor. They must agree on every ID.
+// Integrity post-check: the new pinned_step_ids must be a subset of
+// steps{}. steps{} is derived from the manifest (reference), and
+// pinned_step_ids is the ratchet floor. Extra steps in steps{} that
+// exist in the manifest are legitimate growth.
 assertIntegrity(newPinned, reference, steps);
 
 const output = {

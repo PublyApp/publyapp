@@ -498,7 +498,7 @@ test('reads the REAL reason-guard-ref.json from disk and verifies integrity', as
 		'Expected at least one pinned step in the real reference file',
 	);
 
-	// The integrity assertion must hold: pinned_step_ids and steps{} match.
+	// The integrity assertion must hold: pinned_step_ids ⊆ steps{}.
 	// If a contributor tampers with the real file (removes an ID from one list
 	// but not the other), this assertion fails — proving the real file is
 	// protected.
