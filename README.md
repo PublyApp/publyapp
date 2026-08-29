@@ -210,27 +210,26 @@ cp .env.example .env.development
 # 2. Install everything (pnpm workspaces + dotnet restore + shared postinstall)
 just install
 
-# 3. Start PostgreSQL in Docker
+# 3. Start the full local stack: the Aspire AppHost runs a persistent Postgres
+#    (host port 5454, named data volume), the API (5000), the worker, and the
+#    front dev server.
 just dev-db
 
 # 4. Apply database migrations
 just db-migrate
-
-# 5. Start the API           (terminal 1)
-just dev-api
-
-# 6. Start the frontend       (terminal 2)
-pnpm --filter front dev
 ```
 
-The copied template already targets the local Compose database. Keep its local development values
+Alternative without the AppHost — one terminal each: `just dev-api-migrated`
+(migrations + API, port 5000) and `just dev-front` (port 5050). Do NOT run
+`just dev-api` alongside `just dev-db`: both would bind port 5000.
+
+The copied template already targets the local AppHost database (port 5454). Keep its local development values
 unless you intentionally run a different local database.
 
 > Use `pnpm --filter front <script>` or `just ci-front` for the frontend. `apps/old-front` was retired on 2026-08-22 (tag `old-front-final`).
 
-> After creating and editing `.env.development`, `just dev-setup` can run install + database in one
-> step. Its final prompt — and the final prompt from `just quick-start` — says to run
-> `just dev-front`, which is correct for the frontend that actually ships.
+> After creating and editing `.env.development`, `just dev-setup` can run install + the
+> AppHost in one step.
 
 ### Local URLs
 
