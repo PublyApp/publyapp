@@ -157,8 +157,13 @@ describe('func-style: ["error", "expression"] (#1834 — uniform arrow form)', (
 				message?: string;
 			}>;
 
-			const funcStyleDiagnostics = diagnostics.filter(
-				(diag) => diag.code === 'func-style',
+			// oxlint reports native ESLint rules with a `eslint(<rule>)` code,
+			// not the bare rule name. A filter against `diag.code === 'func-style'`
+			// would always be empty and the leg would never go red on a real
+			// regression; substring match is the only test that actually
+			// observes the rule.
+			const funcStyleDiagnostics = diagnostics.filter((diag) =>
+				(diag.code ?? '').includes('func-style'),
 			);
 
 			assert.ok(
@@ -202,8 +207,11 @@ describe('func-style: ["error", "expression"] (#1834 — uniform arrow form)', (
 				code?: string;
 			}>;
 
-			const funcStyleDiagnostics = diagnostics.filter(
-				(diag) => diag.code === 'func-style',
+			// oxlint reports native ESLint rules with a `eslint(<rule>)` code
+			// (see the behavioural leg above); substring match is the only
+			// filter that actually observes the rule.
+			const funcStyleDiagnostics = diagnostics.filter((diag) =>
+				(diag.code ?? '').includes('func-style'),
 			);
 
 			assert.strictEqual(
@@ -218,8 +226,11 @@ describe('func-style: ["error", "expression"] (#1834 — uniform arrow form)', (
 				code?: string;
 			}>;
 
-			const funcStyleDiagnostics = diagnostics.filter(
-				(diag) => diag.code === 'func-style',
+			// See the arrow-only test above: oxlint prefixes native ESLint
+			// rule codes with `eslint(`, so substring match is the only
+			// filter that observes the rule.
+			const funcStyleDiagnostics = diagnostics.filter((diag) =>
+				(diag.code ?? '').includes('func-style'),
 			);
 
 			assert.strictEqual(
@@ -248,10 +259,16 @@ describe('func-style: ["error", "expression"] (#1834 — uniform arrow form)', (
 					cwd: WORKSPACE_ROOT,
 				});
 
+				// oxlint reports native ESLint rules with a `eslint(<rule>)` code
+				// (see the behavioural leg above); substring match against the
+				// function name is the only filter that actually observes the
+				// rule. A regression that re-introduces a top-level `function`
+				// on any file would land here as a non-empty list, naming the
+				// file in the test output — the proof the brief asks for.
 				const funcStyleDiagnostics = (result.diagnostics as Array<{
 					code?: string;
 					message?: string;
-				}>).filter((diag) => diag.code === 'func-style');
+				}>).filter((diag) => (diag.code ?? '').includes('func-style'));
 
 				if (funcStyleDiagnostics.length > 0) {
 					const names = funcStyleDiagnostics
