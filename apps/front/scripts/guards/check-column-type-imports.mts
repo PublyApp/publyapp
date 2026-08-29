@@ -133,7 +133,7 @@ const BANNED_SPECIFIERS = new Set([
  * this set AND not in NON_CODE_EXTENSIONS fails the guard loudly — so adding
  * a new code extension here is a conscious act, not a silent default.
  */
-const SCANNED_EXTENSIONS = new Set([
+export const SCANNED_EXTENSIONS = new Set([
 	'.ts',
 	'.tsx',
 	'.mts',
@@ -145,13 +145,19 @@ const SCANNED_EXTENSIONS = new Set([
 
 /**
  * Extensions that are legitimately present under the scanned root but are
- * NOT code and must NEVER be scanned. Each entry is commented with WHY it is
- * non-code — the comment is the proof that the exclusion was conscious.
+ * NOT code and must NEVER be scanned. Each entry carries a mandatory
+ * justification (the value) — the guard fails loudly if any entry's
+ * justification is empty or whitespace-only. This makes the "comment is
+ * proof" claim true: an exclusion without a visible reason is rejected,
+ * so a developer cannot silently add an exclusion without explaining why.
+ *
+ * R5 (Hole 3): the justification is no longer a conventional comment that
+ * nobody checks — it is a structural requirement enforced by the guard.
  */
-const NON_CODE_EXTENSIONS = new Set([
-	'.json', // static data (e.g. translation files), never imports code
-	'.css',  // style declarations, never imports code
-	'.svg',  // vector graphics, never imports code
+export const NON_CODE_EXTENSIONS = new Map<string, string>([
+	['.json', 'static data (e.g. translation files), never imports code'],
+	['.css', 'style declarations, never imports code'],
+	['.svg', 'vector graphics, never imports code'],
 ]);
 
 /**
@@ -513,12 +519,67 @@ const walk = (dir: string): WalkResult => {
 			if (ext.length > 0) {
 				extensions.add(ext);
 			}
-			if (SCANNED_EXTENSIONS.has(ext)) {
+			// Extensionless files are treated as code and scanned (fail
+			// closed): a file without extension can contain banned imports
+			// just as easily as a .ts file, so the guard must not let it
+			// escape analysis. The default ScriptKind (TS) in
+			// scriptKindForPath handles the parse. An extensionless file
+			// is NOT added to `extensions` — it has no extension to track
+			// or validate — it is simply scanned and that is enough.
+			if (ext.length === 0 || SCANNED_EXTENSIONS.has(ext)) {
 				files.push(full);
 			}
 		}
 	}
 	return { files, extensions };
+};
+
+/**
+ * R5 (Hole 2): asserts that the scanned-extensions set and the non-code
+ * extensions map are disjoint. An extension cannot be BOTH scanned AND
+ * declared non-code — that would silently disable its analysis, which is
+ * exactly the defect the reversal was meant to prevent. Throws naming the
+ * overlapping extension(s) when the invariant is violated.
+ */
+export const assertNoOverlap = (
+	scanned: Set<string>,
+	nonCode: Map<string, string>,
+): void => {
+	const overlap = [...nonCode.keys()].filter((ext) => scanned.has(ext));
+	if (overlap.length > 0) {
+		throw new Error(
+			`Guard #1769: NON_CODE_EXTENSIONS overlaps SCANNED_EXTENSIONS ` +
+				`(${overlap.sort().join(', ')}). An extension cannot be both ` +
+				`scanned AND declared non-code — this would silently disable ` +
+				`its analysis. Remove the extension from one set.`,
+		);
+	}
+};
+
+/**
+ * R5 (Hole 3): asserts that every NON_CODE_EXTENSIONS entry carries a
+ * non-empty justification. The brief's "comment is proof" claim was false
+ * because the comment was conventional and unchecked. Now the justification
+ * is a structural requirement: an entry with an empty or whitespace-only
+ * reason throws naming the offending extension(s).
+ */
+export const assertAllJustified = (
+	nonCode: Map<string, string>,
+): void => {
+	const entriesWithoutJustification = [...nonCode.entries()].filter(
+		([, reason]) => reason.trim().length === 0,
+	);
+	if (entriesWithoutJustification.length > 0) {
+		const names = entriesWithoutJustification
+			.map(([ext]) => ext)
+			.sort()
+			.join(', ');
+		throw new Error(
+			`Guard #1769: NON_CODE_EXTENSIONS has entry(ies) without ` +
+				`justification (${names}). Every non-code exclusion must ` +
+				`carry a non-empty reason explaining why it is non-code.`,
+		);
+	}
 };
 
 /**
@@ -549,6 +610,26 @@ export const scanFrontSrcForBannedImports = (
 
 	const { files, extensions } = walk(root);
 
+	// R5 (Hole 2): NON_CODE_EXTENSIONS must not overlap SCANNED_EXTENSIONS.
+	// Moving a code extension (like `.tsx`) into NON_CODE_EXTENSIONS would
+	// silently disable its analysis — exactly the defect the reversal was
+	// meant to prevent. This structural check makes it impossible: the guard
+	// fails loudly if any extension appears in BOTH sets, naming the
+	// offender. Excluding code requires a deliberate, visible gesture: the
+	// extension must be REMOVED from SCANNED_EXTENSIONS first (a separate
+	// conscious act), then the guard still fails because the resulting
+	// unknown extension is neither scanned nor declared.
+	assertNoOverlap(SCANNED_EXTENSIONS, NON_CODE_EXTENSIONS);
+
+	// R5 (Hole 3): every NON_CODE_EXTENSIONS entry must carry a non-empty
+	// justification. The brief's "comment is proof" claim was false because
+	// the comment was conventional and unchecked. Now the justification is a
+	// structural requirement: an entry with an empty or whitespace-only
+	// reason fails the guard loudly, naming the offending extension. A
+	// developer who wants to exclude an extension MUST explain why — the
+	// silence is no longer an option.
+	assertAllJustified(NON_CODE_EXTENSIONS);
+
 	// Reversed burden of proof (R4): the guard enumerates every extension it
 	// saw and demands that each one be known. An unknown extension is a
 	// failure that NAMES the extension — never a silent pass.
@@ -557,7 +638,7 @@ export const scanFrontSrcForBannedImports = (
 	);
 	if (unknownExtensions.length > 0) {
 		const scanned = [...SCANNED_EXTENSIONS].sort().join(', ');
-		const nonCode = [...NON_CODE_EXTENSIONS].sort().join(', ');
+		const nonCode = [...NON_CODE_EXTENSIONS.keys()].sort().join(', ');
 		throw new Error(
 			`Guard #1769: found file(s) with unrecognized extension(s) ` +
 				`${unknownExtensions.sort().join(', ')} in '${root}'. ` +

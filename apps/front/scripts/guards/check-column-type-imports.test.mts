@@ -32,6 +32,10 @@ import { fileURLToPath } from 'node:url';
 import {
 	scanFrontSrcForBannedImports,
 	formatFinding,
+	SCANNED_EXTENSIONS,
+	NON_CODE_EXTENSIONS,
+	assertNoOverlap,
+	assertAllJustified,
 } from './check-column-type-imports.mts';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -506,4 +510,158 @@ void test('message names the exact replacement', () => {
 	assert.match(message, /column-type/);
 	assert.match(message, /#1769/);
 	assert.match(message, /drafts\.tsx/);
+});
+
+// ---------------------------------------------------------------------------
+// R5: the three holes from the brief — each must now fail loudly.
+// ---------------------------------------------------------------------------
+
+void test('R5 HOLE 1 RED: extensionless file importing banned type is caught', () => {
+	// The reviewer's probe: a file with NO extension containing a banned
+	// import. Before the fix, walk() skipped it entirely (neither added to
+	// `extensions` nor `files`). Now extensionless files are scanned as code
+	// (fail closed), so the import is flagged.
+	const root = makeSandbox({
+		'src/routes/authed/tenant/noext-test/probe':
+			`import { ColumnDef } from '@tanstack/react-table';\n` +
+			`export const x = null as ColumnDef<any>;\n`,
+	});
+	const findings = scanFrontSrcForBannedImports(root);
+	assert.equal(findings.length, 1, 'expected exactly one finding');
+	assert.equal(findings[0].specifier, '@tanstack/react-table');
+	assert.ok(findings[0].bindings.includes('ColumnDef'));
+});
+
+void test('R5 HOLE 1 RED: extensionless file importing from legacy is caught', () => {
+	// Legacy specifier is always flagged — even from an extensionless file.
+	const root = makeSandbox({
+		'src/routes/authed/tenant/noext-test/probe':
+			`import { useLegacyTable } from '@tanstack/react-table/legacy';\n` +
+			`export const x = useLegacyTable;\n`,
+	});
+	const findings = scanFrontSrcForBannedImports(root);
+	assert.equal(findings.length, 1, 'expected exactly one finding');
+	assert.equal(findings[0].specifier, '@tanstack/react-table/legacy');
+});
+
+void test('R5 HOLE 2 RED: NON_CODE_EXTENSIONS overlapping SCANNED_EXTENSIONS fails', () => {
+	// Moving a code extension (like `.tsx`) into NON_CODE_EXTENSIONS would
+	// silently disable its analysis. The guard must fail loudly naming the
+	// overlap. We test the helper directly with a synthetic overlap to prove
+	// it throws naming the offending extension.
+	const overlappingNonCode = new Map<string, string>([
+		['.tsx', 'this would silently disable .tsx analysis']
+	]);
+	assert.throws(
+		() => assertNoOverlap(SCANNED_EXTENSIONS, overlappingNonCode),
+		/Guard #1769: NON_CODE_EXTENSIONS overlaps SCANNED_EXTENSIONS \(\.tsx\)/,
+		'expected the guard to fail loudly naming .tsx',
+	);
+});
+
+void test('R5 HOLE 2 RED: current sets are disjoint (invariant holds)', () => {
+	// The real protection is structural: the check runs on every scan, so
+	// any future overlap fails. We verify the invariant holds today.
+	const overlap = [...NON_CODE_EXTENSIONS.keys()].filter((ext) =>
+		SCANNED_EXTENSIONS.has(ext),
+	);
+	assert.equal(
+		overlap.length,
+		0,
+		'NON_CODE_EXTENSIONS and SCANNED_EXTENSIONS must be disjoint',
+	);
+});
+
+void test('R5 HOLE 3 RED: NON_CODE_EXTENSIONS entry without justification fails', () => {
+	// The brief's "comment is proof" claim was false. Now the justification
+	// is structural: an entry with an empty reason must fail. We test the
+	// helper directly with a synthetic entry lacking justification.
+	const unjustifiedNonCode = new Map<string, string>([
+		['.xyz', 'legit non-code reason'],
+		['.bad', '']
+	]);
+	assert.throws(
+		() => assertAllJustified(unjustifiedNonCode),
+		/Guard #1769: NON_CODE_EXTENSIONS has entry\(ies\) without justification \(\.bad\)/,
+		'expected the guard to fail loudly naming .bad',
+	);
+});
+
+void test('R5 HOLE 3 RED: current entries all justified (invariant holds)', () => {
+	// The real protection is structural: the check runs on every scan, so
+	// any future entry without justification fails. We verify the invariant
+	// holds today.
+	const entriesWithoutJustification = [...NON_CODE_EXTENSIONS.entries()].filter(
+		([, reason]) => reason.trim().length === 0,
+	);
+	assert.equal(
+		entriesWithoutJustification.length,
+		0,
+		'every NON_CODE_EXTENSIONS entry must carry a non-empty justification',
+	);
+});
+
+void test('R5 ADVERSE: extensionless file with non-banned import stays GREEN', () => {
+	// An extensionless file with only non-banned imports must NOT be flagged
+	// — the fail-closed scan must not create false positives.
+	const root = makeSandbox({
+		'src/routes/authed/tenant/noext-test/probe':
+			`import type { SortingState } from '@tanstack/react-table';\n` +
+			`export const x: SortingState = [];\n`,
+	});
+	const findings = scanFrontSrcForBannedImports(root);
+	assert.equal(findings.length, 0, 'expected no findings for non-banned import');
+});
+
+void test('R5 NON-REGRESSION: unknown extension .cjsx still fails loudly', () => {
+	// The R4 reversed-burden-of-proof must still hold: an unknown extension
+	// fails loudly naming the extension.
+	const root = makeSandbox({
+		'src/routes/authed/tenant/posts/legit.ts':
+			`import type { SortingState } from '@tanstack/react-table';\n` +
+			`export const x: SortingState = [];\n`,
+		'src/routes/authed/tenant/posts/probe.cjsx':
+			`import { ColumnDef } from '@tanstack/react-table';\n` +
+			`export const x = null as ColumnDef<any>;\n`,
+	});
+	assert.throws(
+		() => scanFrontSrcForBannedImports(root),
+		/Guard #1769: found file\(s\) with unrecognized extension\(s\) \.cjsx/,
+		'expected the guard to fail loudly naming .cjsx',
+	);
+});
+
+void test('R5 NON-REGRESSION: declared non-code extension (.json) still does not fail', () => {
+	// A declared non-code extension must still pass — the justification
+	// requirement must not break legitimate exclusions.
+	const root = makeSandbox({
+		'src/routes/authed/tenant/posts/legit.ts':
+			`import type { SortingState } from '@tanstack/react-table';\n` +
+			`export const x: SortingState = [];\n`,
+		'src/translations/en.json': `{"key": "value"}\n`,
+	});
+	const findings = scanFrontSrcForBannedImports(root);
+	assert.equal(findings.length, 0, 'expected no findings');
+});
+
+void test('R5 NON-REGRESSION: .cts/.cjs/.mjs/.ctsx still scanned', () => {
+	// The four extensions that the R3 regex missed must still be scanned.
+	const root = makeSandbox({
+		'src/routes/authed/tenant/posts/probe.cts':
+			`import { ColumnDef } from '@tanstack/react-table';\n` +
+			`export const x = null as ColumnDef<any>;\n`,
+		'src/routes/authed/tenant/posts/probe.cjs':
+			`const { ColumnDef } = require('@tanstack/react-table');\n` +
+			`module.exports = { ColumnDef };\n`,
+		'src/routes/authed/tenant/posts/probe.mjs':
+			`import { ColumnDef } from '@tanstack/react-table';\n` +
+			`export const x = null as ColumnDef<any>;\n`,
+		'src/routes/authed/tenant/posts/probe.ctsx':
+			`import { ColumnDef } from '@tanstack/react-table';\n` +
+			`export const x = null as ColumnDef<any>;\n`,
+	});
+	const findings = scanFrontSrcForBannedImports(root);
+	assert.equal(findings.length, 4, 'expected four findings (one per extension)');
+	const extensions = findings.map((f) => path.extname(f.file)).sort();
+	assert.deepEqual(extensions, ['.cjs', '.cts', '.ctsx', '.mjs']);
 });
