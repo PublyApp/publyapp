@@ -86,15 +86,25 @@ i18n mock.
 
 ## Verification
 
-- `pnpm --filter front exec vitest run --config vitest.preuves.config.ts
-  tests/proofs/1799/red-1799-icon-visibility-guard.test.tsx` — 5/5 green.
-- `pnpm --filter front exec vitest run
-  src/components/table/data-table-selection-integration.test.tsx` — 5/5 green.
-- `pnpm --filter front exec vitest run --config vitest.design-guards.config.ts`
-  (includes `i18n-key-coverage`) — 55/55 green; no hardcoded literals in the
-  guard, all `t()` call keys resolve in both locale bundles.
+- **1799 proof test** (`tests/proofs/1799/red-1799-icon-visibility-guard.test.tsx`)
+  against the fixed measurement-based guard: 2/5 RED (`opacity-0` and
+  `aria-hidden` assertions use `.not.toThrow()` to assert the bug is present;
+  the guard raises, violating that assertion); 3/5 GREEN (baseline, `invisible`,
+  `hidden`). RED replay: swapping the guard back to the buggy classList
+  enumeration makes all 5 pass (bug present, as the proof demands).
+
+- **1802 proof test** (`tests/proofs/1802/red-1802-catch-accuses-wrong-command.test.ts`)
+  against the fixed two-try/catch `run-preuves.mts`: 1/1 RED (the proof asserts
+  the buggy single-try structure exists; the fix removed it).
+
+- **1829 proof test** (`tests/proofs/1829/red-1829-switch-not-independently-testable.test.ts`)
+  against the fixed code with `consume-verdict.mts` present: 1/1 RED (the proof
+  asserts the module does not exist; the fix added it).
+
+- **1824 consume-verdict unit tests** (`scripts/ci/consume-verdict.test.ts`):
+  15/15 green — cover all five verdict branches and the OK↔ERROR swap mutation.
+
+- `pnpm --filter front exec vitest run src/components/table/data-table-selection-integration.test.tsx` — 5/5 green.
+- `pnpm --filter front exec vitest run --config vitest.design-guards.config.ts` (includes `i18n-key-coverage`) — 55/55 green; no hardcoded literals in the guard, all `t()` call keys resolve in both locale bundles.
 - `npx tsc --noEmit -p tsconfig.json` — clean.
 - `npx oxlint` + `npx oxfmt --check` on changed files — clean.
-- RED replay: swapping the guard back to the buggy classList enumeration
-  makes the proof test fail 2/5 on `opacity-0` and `aria-hidden` (the exact
-  bug the issue names). Restoring the fixed guard returns 5/5 green.
