@@ -7,10 +7,11 @@ export const delay = <T = unknown>(
 	options: { trace?: boolean } = {},
 ) => {
 	if (options.trace) {
-		void (async () => {
+		const traceLog = async (): Promise<void> => {
 			const { logger } = await import('@org/shared-ts/lib/logger/iso-logger');
 			logger.warn('delay function invoked', { timeout, value });
-		})();
+		};
+		void traceLog();
 	}
 	return new Promise<T>((resolve) => {
 		return setTimeout(() => {
