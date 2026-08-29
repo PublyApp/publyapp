@@ -17,9 +17,9 @@ const Checkbox = ({ className, ...props }: CheckboxPrimitive.Root.Props) => {
 				className="grid place-content-center text-current"
 			>
 				{props.indeterminate ? (
-					<IconMinus className="size-3.5 stroke-[2.5]" />
+					<IconMinus data-icon="minus" className="size-3.5 stroke-[2.5]" />
 				) : (
-					<IconCheck className="size-3.5 stroke-[2.5]" />
+					<IconCheck data-icon="check" className="size-3.5 stroke-[2.5]" />
 				)}
 			</CheckboxPrimitive.Indicator>
 		</CheckboxPrimitive.Root>

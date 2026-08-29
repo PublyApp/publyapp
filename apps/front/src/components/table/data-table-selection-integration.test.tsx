@@ -131,6 +131,10 @@ const getHeaderCheckbox = (): HTMLElement | null =>
 		.getByTestId('selection-integration-rows')
 		.querySelector('thead [data-slot="checkbox"]');
 
+/** Returns the rendered icon name inside a checkbox, or null if none. */
+const getCheckboxIcon = (checkbox: HTMLElement | null): string | null =>
+	checkbox?.querySelector('[data-icon]')?.getAttribute('data-icon') ?? null;
+
 /** Returns all row checkbox elements in the body. */
 const getRowCheckboxes = (): HTMLElement[] =>
 	Array.from(
@@ -154,6 +158,7 @@ describe('DataTable row selection integration (issue #1730)', () => {
 		for (const checkbox of checkboxes) {
 			expect(checkbox.hasAttribute('data-checked')).toBe(false);
 			expect(checkbox.getAttribute('data-indeterminate')).toBeNull();
+			expect(getCheckboxIcon(checkbox)).toBeNull();
 		}
 
 		// Header checkbox should also be unchecked (no selection).
@@ -161,6 +166,7 @@ describe('DataTable row selection integration (issue #1730)', () => {
 		expect(headerCheckbox).not.toBeNull();
 		expect(headerCheckbox?.hasAttribute('data-checked')).toBe(false);
 		expect(headerCheckbox?.getAttribute('data-indeterminate')).toBeNull();
+		expect(getCheckboxIcon(headerCheckbox)).toBeNull();
 	});
 
 	// Breaker: if row checkbox checked state is inverted (checked when the row
@@ -193,6 +199,7 @@ describe('DataTable row selection integration (issue #1730)', () => {
 		// All selected -> header is checked, not indeterminate.
 		expect(headerCheckbox?.hasAttribute('data-checked')).toBe(true);
 		expect(headerCheckbox?.getAttribute('data-indeterminate')).toBeNull();
+		expect(getCheckboxIcon(headerCheckbox)).toBe('check');
 		// Accessible state: checked.
 		expect(headerCheckbox?.getAttribute('aria-checked')).toBe('true');
 	});
@@ -211,6 +218,7 @@ describe('DataTable row selection integration (issue #1730)', () => {
 		// Partial selection -> header is indeterminate, not checked.
 		expect(headerCheckbox?.hasAttribute('data-checked')).toBe(false);
 		expect(headerCheckbox?.getAttribute('data-indeterminate')).toBe('');
+		expect(getCheckboxIcon(headerCheckbox)).toBe('minus');
 		// Accessible state: mixed.
 		expect(headerCheckbox?.getAttribute('aria-checked')).toBe('mixed');
 	});
@@ -230,6 +238,7 @@ describe('DataTable row selection integration (issue #1730)', () => {
 		// No selection at all -> header is unchecked and not indeterminate.
 		expect(headerCheckbox?.hasAttribute('data-checked')).toBe(false);
 		expect(headerCheckbox?.getAttribute('data-indeterminate')).toBeNull();
+		expect(getCheckboxIcon(headerCheckbox)).toBeNull();
 		// Accessible state: false.
 		expect(headerCheckbox?.getAttribute('aria-checked')).toBe('false');
 	});
