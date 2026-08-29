@@ -7,16 +7,6 @@ import {
 	renderDataTableAllSelected,
 } from './helpers/render-data-table-icon-guard';
 
-declare global {
-	interface Window {
-		/** The real guard bundle injected by `getIconGuardBrowserScript` — see
-		 * `helpers/icon-guard-browser-entry.ts`. */
-		__iconVisibilityGuard?: {
-			assertIconIsVisible: (element: Element, context: string) => void;
-		};
-	}
-}
-
 /**
  * #1799 — the icon visibility guard's real-browser proof.
  *
