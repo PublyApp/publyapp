@@ -136,7 +136,9 @@ export const ProfileBulkActions = ({
 					void performBulkDelete();
 				}}
 				onOpenChange={(isOpen) => {
-					if (!isOpen) setIsDeleteDialogOpen(false);
+					if (!isOpen) {
+						setIsDeleteDialogOpen(false);
+					}
 				}}
 			/>
 		</>

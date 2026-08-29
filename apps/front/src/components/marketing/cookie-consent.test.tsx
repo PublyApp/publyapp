@@ -14,7 +14,9 @@ import { renderMarketing } from './marketing.test-helper';
 
 const readStored = () => {
 	const raw = window.localStorage.getItem(COOKIE_CONSENT_STORAGE_KEY);
-	if (raw === null) return null;
+	if (raw === null) {
+		return null;
+	}
 	return JSON.parse(raw);
 };
 

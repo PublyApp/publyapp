@@ -35,7 +35,9 @@ export const profileSectionPathname = (
 ): string => {
 	const base = profileDetailsBasePathname(tenantId, profileId);
 
-	if (section === 'overview') return base;
+	if (section === 'overview') {
+		return base;
+	}
 	return `${base}/${section}`;
 };
 

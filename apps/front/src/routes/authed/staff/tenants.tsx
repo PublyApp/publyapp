@@ -90,8 +90,12 @@ const formatTenantStatusFilterLabel = (
 	}
 	return statuses
 		.map((status) => {
-			if (status === 'pending') return t('status-pending');
-			if (status === 'active') return t('status-active');
+			if (status === 'pending') {
+				return t('status-pending');
+			}
+			if (status === 'active') {
+				return t('status-active');
+			}
 			return t('status-suspended');
 		})
 		.join(', ');
@@ -603,18 +607,42 @@ const TenantBulkActions = ({
 
 		const succeededCount = result?.succeededCount ?? 0;
 		const failedCount = result?.failedCount ?? 0;
+		const failedItems = result?.failedItems ?? [];
 
 		if (failedCount > 0) {
-			// Only hint that rows may leave the filtered view when at least
-			// one row actually changed state. On a total failure
-			// (succeededCount === 0) nothing left the view, so the hint
-			// would contradict the leading count message.
+			// Transparent failure causes: surface each per-item reason verbatim
+			// (deduplicated, order-preserved), never a bare "some items failed".
+			const reasons = [
+				...new Set(
+					failedItems.flatMap((item) => {
+						const reason = item.errorEscaped?.trim();
+						if (reason) {
+							return [reason];
+						}
+						return [];
+					}),
+				),
+			];
+			// `publy`/oxlint interdit les ternaires imbriques : on calcule
+			// l'avertissement de filtre en amont, la description reste identique.
+			const filterWarning =
+				succeededCount > 0 ? t('bulk-action-rows-may-leave-filter') : undefined;
+			// #1811 : un echec total sans raison par item doit montrer une cause
+			// lisible (regle produit "toute defaillance montre sa cause en mots
+			// clairs"). Le serveur n'a pas precise la raison : le produit l'avoue
+			// honnetement plutot que de se taire.
+			const noReasonFallback =
+				succeededCount === 0 && reasons.length === 0
+					? t('bulk-action-total-failure-no-reason')
+					: undefined;
 			toastLocalMutationResult.error(
 				t(TENANT_BULK_PARTIAL_SUCCESS_KEYS[action], {
 					succeeded: succeededCount,
 					failed: failedCount,
 				}),
-				succeededCount > 0 ? t('bulk-action-rows-may-leave-filter') : undefined,
+				reasons.length > 0
+					? reasons.join('\n')
+					: (filterWarning ?? noReasonFallback),
 			);
 		} else {
 			toastLocalMutationResult.success(
@@ -679,7 +707,9 @@ const TenantBulkActions = ({
 					}
 				}}
 				onOpenChange={(isOpen) => {
-					if (!isOpen) setPendingAction(null);
+					if (!isOpen) {
+						setPendingAction(null);
+					}
 				}}
 			/>
 		</>
@@ -802,7 +832,9 @@ const TenantLifecycleActionsCell = ({
 					}
 				}}
 				onOpenChange={(isOpen) => {
-					if (!isOpen) setPendingAction(null);
+					if (!isOpen) {
+						setPendingAction(null);
+					}
 				}}
 			/>
 		</div>

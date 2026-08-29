@@ -63,7 +63,9 @@ export const ProfilesPageDialogs = ({
 				isPending={isDeletePending}
 				onConfirm={onDeleteConfirm}
 				onOpenChange={(isOpen) => {
-					if (!isOpen) onDeleteDialogClose();
+					if (!isOpen) {
+						onDeleteDialogClose();
+					}
 				}}
 			/>
 

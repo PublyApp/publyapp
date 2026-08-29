@@ -49,7 +49,9 @@ export const serializeTenantStatusFilter = (
 	const canonical = TENANT_STATUS_FILTERS.filter((status) =>
 		selected.has(status),
 	);
-	if (canonical.length > 0) return canonical.join(',');
+	if (canonical.length > 0) {
+		return canonical.join(',');
+	}
 	return undefined;
 };
 

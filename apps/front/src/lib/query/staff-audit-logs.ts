@@ -68,7 +68,9 @@ const normalizeString = (
 	}
 
 	const trimmed = value.trim();
-	if (trimmed.length > 0) return trimmed;
+	if (trimmed.length > 0) {
+		return trimmed;
+	}
 	return undefined;
 };
 
@@ -128,7 +130,9 @@ const normalizeActions = (
 		normalized.push(trimmed);
 	}
 
-	if (normalized.length > 0) return normalized;
+	if (normalized.length > 0) {
+		return normalized;
+	}
 	return undefined;
 };
 

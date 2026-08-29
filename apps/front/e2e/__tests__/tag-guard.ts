@@ -83,14 +83,18 @@ function tokenize(source: string): Token[] {
 
 		// --- Single-line comment ---
 		if (ch === '/' && source[i + 1] === '/') {
-			while (i < len && source[i] !== '\n') i++;
+			while (i < len && source[i] !== '\n') {
+				i++;
+			}
 			continue;
 		}
 
 		// --- Multi-line comment ---
 		if (ch === '/' && source[i + 1] === '*') {
 			i += 2;
-			while (i < len - 1 && !(source[i] === '*' && source[i + 1] === '/')) i++;
+			while (i < len - 1 && !(source[i] === '*' && source[i + 1] === '/')) {
+				i++;
+			}
 			i += 2;
 			regexAllowed = true;
 			continue;
@@ -107,14 +111,20 @@ function tokenize(source: string): Token[] {
 					i += 2; // skip escaped char
 					continue;
 				}
-				if (c === '[') inClass = true;
-				else if (c === ']') inClass = false;
-				else if (c === '/' && !inClass) break;
+				if (c === '[') {
+					inClass = true;
+				} else if (c === ']') {
+					inClass = false;
+				} else if (c === '/' && !inClass) {
+					break;
+				}
 				i++;
 			}
 			i++; // skip closing /
 			// flags
-			while (i < len && /[gimsuy]/.test(source[i]!)) i++;
+			while (i < len && /[gimsuy]/.test(source[i]!)) {
+				i++;
+			}
 			tokens.push({
 				type: 'regex',
 				text: source.slice(start, i),
@@ -130,7 +140,9 @@ function tokenize(source: string): Token[] {
 			const start = i;
 			i++; // skip opening quote
 			while (i < len && source[i] !== q) {
-				if (source[i] === '\\') i++;
+				if (source[i] === '\\') {
+					i++;
+				}
 				i++;
 			}
 			i++; // skip closing quote
@@ -156,8 +168,11 @@ function tokenize(source: string): Token[] {
 					let d = 1;
 					i += 2;
 					while (i < len && d > 0) {
-						if (source[i] === '{') d++;
-						else if (source[i] === '}') d--;
+						if (source[i] === '{') {
+							d++;
+						} else if (source[i] === '}') {
+							d--;
+						}
 						i++;
 					}
 					continue;
@@ -177,11 +192,15 @@ function tokenize(source: string): Token[] {
 		// --- Number ---
 		if (/[0-9]/.test(ch)) {
 			const start = i;
-			while (i < len && /[0-9]/.test(source[i]!)) i++;
+			while (i < len && /[0-9]/.test(source[i]!)) {
+				i++;
+			}
 			// decimal
 			if (source[i] === '.' && /[0-9]/.test(source[i + 1] ?? '')) {
 				i++; // skip .
-				while (i < len && /[0-9]/.test(source[i]!)) i++;
+				while (i < len && /[0-9]/.test(source[i]!)) {
+					i++;
+				}
 			}
 			tokens.push({
 				type: 'num',
@@ -195,7 +214,9 @@ function tokenize(source: string): Token[] {
 		// --- Identifier / keyword ---
 		if (/[a-zA-Z_$]/.test(ch)) {
 			const start = i;
-			while (i < len && /[a-zA-Z0-9_$]/.test(source[i]!)) i++;
+			while (i < len && /[a-zA-Z0-9_$]/.test(source[i]!)) {
+				i++;
+			}
 			const text = source.slice(start, i);
 			tokens.push({ type: 'id', text, pos: start });
 			// After identifiers, / is division, not regex
@@ -330,7 +351,9 @@ export function analyzeFile(filePath: string): DescribeInfo[] {
 			) {
 				parenIdx += 2;
 			}
-			if (tokens[parenIdx]?.type !== '(') continue;
+			if (tokens[parenIdx]?.type !== '(') {
+				continue;
+			}
 
 			const describePos = tokens[i]!.pos;
 			const callOpen = parenIdx; // index of the opening (
@@ -339,8 +362,9 @@ export function analyzeFile(filePath: string): DescribeInfo[] {
 			let parenDepth = 0;
 			let callClose = -1;
 			for (let j = callOpen; j < tokens.length; j++) {
-				if (tokens[j]!.type === '(') parenDepth++;
-				else if (tokens[j]!.type === ')') {
+				if (tokens[j]!.type === '(') {
+					parenDepth++;
+				} else if (tokens[j]!.type === ')') {
 					parenDepth--;
 					if (parenDepth === 0) {
 						callClose = j;
@@ -348,7 +372,9 @@ export function analyzeFile(filePath: string): DescribeInfo[] {
 					}
 				}
 			}
-			if (callClose === -1) continue;
+			if (callClose === -1) {
+				continue;
+			}
 
 			// Extract title: first string/template token after opening (
 			let title = '';
@@ -367,9 +393,11 @@ export function analyzeFile(filePath: string): DescribeInfo[] {
 			let firstComma = -1;
 			parenDepth = 0;
 			for (let j = callOpen + 1; j < callClose; j++) {
-				if (tokens[j]!.type === '(') parenDepth++;
-				else if (tokens[j]!.type === ')') parenDepth--;
-				else if (tokens[j]!.type === ',' && parenDepth === 0) {
+				if (tokens[j]!.type === '(') {
+					parenDepth++;
+				} else if (tokens[j]!.type === ')') {
+					parenDepth--;
+				} else if (tokens[j]!.type === ',' && parenDepth === 0) {
 					firstComma = j;
 					break;
 				}
@@ -398,8 +426,9 @@ export function analyzeFile(filePath: string): DescribeInfo[] {
 					let braceDepth = 0;
 					let optsEnd = -1;
 					for (let j = optsStart; j < callClose; j++) {
-						if (tokens[j]!.type === '{') braceDepth++;
-						else if (tokens[j]!.type === '}') {
+						if (tokens[j]!.type === '{') {
+							braceDepth++;
+						} else if (tokens[j]!.type === '}') {
 							braceDepth--;
 							if (braceDepth === 0) {
 								optsEnd = j;
@@ -419,10 +448,13 @@ export function analyzeFile(filePath: string): DescribeInfo[] {
 							) {
 								let bracketDepth = 0;
 								for (let k = j + 2; k <= optsEnd; k++) {
-									if (tokens[k]!.type === '[') bracketDepth++;
-									else if (tokens[k]!.type === ']') {
+									if (tokens[k]!.type === '[') {
+										bracketDepth++;
+									} else if (tokens[k]!.type === ']') {
 										bracketDepth--;
-										if (bracketDepth === 0) break;
+										if (bracketDepth === 0) {
+											break;
+										}
 									} else if (
 										tokens[k]!.type === 'string' &&
 										bracketDepth === 1
@@ -447,7 +479,9 @@ export function analyzeFile(filePath: string): DescribeInfo[] {
 			let titleTagMatch: RegExpExecArray | null;
 			while ((titleTagMatch = TAG_RE.exec(title)) !== null) {
 				const tag = `@${titleTagMatch[1]}`;
-				if (!tags.includes(tag)) tags.push(tag);
+				if (!tags.includes(tag)) {
+					tags.push(tag);
+				}
 			}
 
 			// Find callback body: scan inside (...) at depth 1
@@ -457,10 +491,13 @@ export function analyzeFile(filePath: string): DescribeInfo[] {
 			{
 				let depth = 0;
 				for (let j = callOpen; j <= callClose; j++) {
-					if (tokens[j]!.type === '(') depth++;
-					else if (tokens[j]!.type === ')') {
+					if (tokens[j]!.type === '(') {
+						depth++;
+					} else if (tokens[j]!.type === ')') {
 						depth--;
-						if (depth === 0) break;
+						if (depth === 0) {
+							break;
+						}
 					}
 					// => or function at depth 1 means inside test.describe's parens
 					if (depth === 1) {
@@ -493,8 +530,9 @@ export function analyzeFile(filePath: string): DescribeInfo[] {
 				if (bodyOpen !== -1) {
 					let braceDepth = 0;
 					for (let j = bodyOpen; j < tokens.length; j++) {
-						if (tokens[j]!.type === '{') braceDepth++;
-						else if (tokens[j]!.type === '}') {
+						if (tokens[j]!.type === '{') {
+							braceDepth++;
+						} else if (tokens[j]!.type === '}') {
 							braceDepth--;
 							if (braceDepth === 0) {
 								bodyStart = tokens[bodyOpen]!.pos;
@@ -517,8 +555,9 @@ export function analyzeFile(filePath: string): DescribeInfo[] {
 				if (bodyOpen !== -1) {
 					let braceDepth = 0;
 					for (let j = bodyOpen; j < tokens.length; j++) {
-						if (tokens[j]!.type === '{') braceDepth++;
-						else if (tokens[j]!.type === '}') {
+						if (tokens[j]!.type === '{') {
+							braceDepth++;
+						} else if (tokens[j]!.type === '}') {
 							braceDepth--;
 							if (braceDepth === 0) {
 								bodyStart = tokens[bodyOpen]!.pos;

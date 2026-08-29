@@ -11,7 +11,9 @@ export const pruneSelection = (
 	const visible = new Set(visibleRowIds);
 	const entries = Object.entries(selection).filter(([id]) => visible.has(id));
 
-	if (entries.length === Object.keys(selection).length) return selection;
+	if (entries.length === Object.keys(selection).length) {
+		return selection;
+	}
 	return Object.fromEntries(entries);
 };
 

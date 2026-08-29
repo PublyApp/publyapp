@@ -77,10 +77,14 @@ if (typeof window !== 'undefined' && typeof window.matchMedia !== 'function') {
 			},
 			onchange: null as MediaQueryList['onchange'],
 			addEventListener: (type: string, listener: (event: Event) => void) => {
-				if (type === 'change') entry?.listeners.add(listener);
+				if (type === 'change') {
+					entry?.listeners.add(listener);
+				}
 			},
 			removeEventListener: (type: string, listener: (event: Event) => void) => {
-				if (type === 'change') entry?.listeners.delete(listener);
+				if (type === 'change') {
+					entry?.listeners.delete(listener);
+				}
 			},
 			dispatchEvent: (): boolean => false,
 		};

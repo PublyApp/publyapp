@@ -95,7 +95,9 @@ export const readSessionCookieValue = (): string | undefined => {
 	// unusable (surfaces as a false "session token is invalid or expired").
 	const parsed = cookie.parse(header);
 	const sessionCookieValue = parsed[SESSION_TOKEN_COOKIE_KEY];
-	if (typeof sessionCookieValue === 'string') return sessionCookieValue;
+	if (typeof sessionCookieValue === 'string') {
+		return sessionCookieValue;
+	}
 	return undefined;
 };
 

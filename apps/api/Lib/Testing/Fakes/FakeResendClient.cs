@@ -1,6 +1,6 @@
-using Resend;
-
 using PublyApp.Api.Infrastructure.Messaging.Email;
+
+using Resend;
 
 namespace PublyApp.Api.Lib.Testing.Fakes;
 
@@ -33,6 +33,19 @@ public sealed class FakeResendClient : IResendEmailClient {
 	/// </summary>
 	public TimeSpan Delay { get; set; } = TimeSpan.Zero;
 
+	/// <summary>
+	/// How many times the provider has actually been called (due to non-duplicate
+	/// idempotency keys). Used to verify idempotency behavior in tests.
+	/// </summary>
+	public int ProviderCallCount { get; private set; }
+
+	/// <summary>
+	/// Set of idempotency keys that have been seen by the provider. Once a key
+	/// is seen, subsequent calls with the same key are deduplicated (no provider
+	/// call is made).
+	/// </summary>
+	public ISet<string> SeenIdempotencyKeys { get; } = new HashSet<string>();
+
 	public async Task<ResendResponse<Guid>> EmailSendAsync(
 		EmailMessage email,
 		CancellationToken cancellationToken = default
@@ -45,6 +58,7 @@ public sealed class FakeResendClient : IResendEmailClient {
 			throw ExceptionToThrow;
 		}
 
+		ProviderCallCount++;
 		return EmailSendResponse;
 	}
 
@@ -53,6 +67,19 @@ public sealed class FakeResendClient : IResendEmailClient {
 		EmailMessage email,
 		CancellationToken cancellationToken = default
 	) {
+		// If this idempotency key was already seen, skip the provider call
+		// (simulating idempotent deduplication)
+		if (!string.IsNullOrEmpty(idempotencyKey) && SeenIdempotencyKeys.Contains(idempotencyKey)) {
+			// Return a fabricated response without calling the provider
+			return Task.FromResult(EmailSendResponse);
+		}
+
+		// Track this key as seen
+		if (!string.IsNullOrEmpty(idempotencyKey)) {
+			SeenIdempotencyKeys.Add(idempotencyKey);
+		}
+
+		// Make the actual provider call
 		return EmailSendAsync(email, cancellationToken);
 	}
 }

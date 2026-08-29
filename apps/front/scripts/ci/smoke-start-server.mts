@@ -3,6 +3,8 @@ import { once } from 'node:events';
 import { createServer } from 'node:net';
 import process from 'node:process';
 
+import { sleep } from '@org/shared-ts/utils/any.utils';
+
 // Local mirror of the "Smoke start front server and verify stylesheet tag"
 // step in .github/workflows/front-ci.yml.
 //
@@ -28,9 +30,6 @@ const retryDelayMs = 1000;
 const shutdownGraceMs = 5000;
 
 const stylesheetPattern = /rel="stylesheet"[^>]*href="[^"]+\.css"/;
-
-const delay = async (ms: number): Promise<void> =>
-	new Promise((resolve) => setTimeout(resolve, ms));
 
 /**
  * Asks the OS for a free port by binding to :0 and releasing it. There is a
@@ -73,7 +72,7 @@ const fetchHomeWithRetry = async (origin: string): Promise<string | null> => {
 			// Server not listening yet; fall through to the retry delay.
 		}
 
-		await delay(retryDelayMs);
+		await sleep(retryDelayMs);
 	}
 
 	return null;
@@ -110,7 +109,7 @@ const stopServer = async (): Promise<void> => {
 
 	const exited = await Promise.race([
 		once(server, 'exit').then(() => true),
-		delay(shutdownGraceMs).then(() => false),
+		sleep(shutdownGraceMs).then(() => false),
 	]);
 
 	if (!exited) {

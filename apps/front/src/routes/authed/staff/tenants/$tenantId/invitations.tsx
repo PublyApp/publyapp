@@ -225,7 +225,9 @@ const StaffTenantInvitationsPage = () => {
 								}
 							}}
 							onOpenChange={(isOpen) => {
-								if (!isOpen) setPendingRevokeRowId(null);
+								if (!isOpen) {
+									setPendingRevokeRowId(null);
+								}
 							}}
 						/>
 

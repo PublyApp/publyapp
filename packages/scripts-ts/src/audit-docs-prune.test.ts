@@ -81,11 +81,17 @@ const makeRepo = (
 // entry left behind would trip the non-candidate guard before fidelity
 // runs). An empty table makes every candidate default to `delete` — exactly
 // the shared-omission shape of the paid-modules defect.
+// The MOVES declaration is written as `const MOVES = { ... } satisfies
+// Record<string, Decision>;` — the exact spelling `anti-slop/no-known-value-
+// widening` (error repo-wide, #1441) now enforces. The rewrite regex pins
+// THAT spelling on purpose: if the source ever stops matching it, the
+// `assert.notEqual` below fails all fixtures loudly instead of rewriting a
+// table that is no longer there.
 const scriptWithTable = (entries: string): string => {
 	const self = readFileSync(scriptPath, 'utf8');
 	const rewritten = self.replace(
-		/const MOVES: Record<string, Decision> = \{[\s\S]*?\n\};/,
-		`const MOVES: Record<string, Decision> = {\n${entries}};`,
+		/const MOVES = \{[\s\S]*?\n\} satisfies Record<string, Decision>;/,
+		`const MOVES = {\n${entries}} satisfies Record<string, Decision>;`,
 	);
 	assert.notEqual(
 		rewritten,

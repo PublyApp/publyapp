@@ -29,7 +29,9 @@ const normalizeString = (value: unknown): string | undefined => {
 	}
 
 	const trimmed = value.trim();
-	if (trimmed.length > 0) return trimmed;
+	if (trimmed.length > 0) {
+		return trimmed;
+	}
 	return undefined;
 };
 
@@ -63,7 +65,9 @@ export const serializeAuditLogsActionsFilter = (
 	actions: string[],
 ): string | undefined => {
 	const unique = parseAuditLogsActionsFilter(actions.join(','));
-	if (unique.length > 0) return unique.join(',');
+	if (unique.length > 0) {
+		return unique.join(',');
+	}
 	return undefined;
 };
 

@@ -274,8 +274,9 @@ const readBrowserPaint = async (
 						['data-close-button', 'close button'],
 						['data-button', 'button'],
 					] as const) {
-						if (layer.hasAttribute(attr))
+						if (layer.hasAttribute(attr)) {
 							return layer.getAttribute(attr) || fallback;
+						}
 					}
 					return layer.tagName.toLowerCase();
 				};
@@ -290,11 +291,16 @@ const readBrowserPaint = async (
 							(n.textContent ?? '').trim() !== '',
 					);
 				const earlyPainters: Element[] = [element];
-				for (const d of element.querySelectorAll('*'))
-					if (hasText(d)) earlyPainters.push(d);
+				for (const d of element.querySelectorAll('*')) {
+					if (hasText(d)) {
+						earlyPainters.push(d);
+					}
+				}
 				for (const painter of earlyPainters) {
 					const ps = getComputedStyle(painter);
-					if (ps.display === 'none' || ps.visibility === 'hidden') continue;
+					if (ps.display === 'none' || ps.visibility === 'hidden') {
+						continue;
+					}
 					const label = earlyName(painter);
 					earlyAssert(
 						{
@@ -321,7 +327,9 @@ const readBrowserPaint = async (
 							);
 						}
 						// Only need ancestors up to the toast; beyond toaster is page chrome not relevant but harmless.
-						if (a === document.body) break;
+						if (a === document.body) {
+							break;
+						}
 					}
 				}
 			}
@@ -1262,7 +1270,9 @@ const readBrowserPaint = async (
 								`${painterName} has undecidable text paint: transparent opacity 0 on ancestor ${elementName(ancestor)} — the glyphs are fully transparent and cannot be measured`,
 							);
 						}
-						if (ancestor === document.body) break;
+						if (ancestor === document.body) {
+							break;
+						}
 					}
 					if (painterStyle.textShadow !== 'none') {
 						throw new Error(
@@ -3159,7 +3169,9 @@ const dismissAllToasts = async (page: Page): Promise<void> => {
 		const front = page
 			.locator('[data-sonner-toast][data-front="true"]')
 			.first();
-		if ((await front.count()) === 0) break;
+		if ((await front.count()) === 0) {
+			break;
+		}
 		const type = await front.getAttribute('data-type');
 		await front.locator('.publy-toast-close-button').evaluate((el) =>
 			el.dispatchEvent(

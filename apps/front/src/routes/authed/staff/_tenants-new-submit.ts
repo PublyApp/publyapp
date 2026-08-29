@@ -10,7 +10,9 @@ import { mergeInitialUsers, type ImportedMember } from './tenants-new-helpers';
 
 const optionalField = (value: string): string | undefined => {
 	const trimmed = value.trim();
-	if (trimmed.length > 0) return trimmed;
+	if (trimmed.length > 0) {
+		return trimmed;
+	}
 	return undefined;
 };
 

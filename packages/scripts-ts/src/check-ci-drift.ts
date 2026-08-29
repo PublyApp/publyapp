@@ -60,11 +60,47 @@ export const hashReason = (text: string) =>
 //   1. entry in manifest, absent from reference → FAIL (new entry, regenerate ref)
 //   2. entry in reference, absent from manifest → WARN/ERROR (stale ref, clean up)
 //   3. entry in both → existing behavior (detect truncation/alteration)
+//
+// #1736: the reference now stores the full `reason` text (not just its hash and
+// length) so that regenerating the ref is visible in the diff. A ref that has
+// been tampered with — e.g. a hash changed to match a bogus reason while the
+// stored text remains the original — is caught by the main comparison:
+// hashReason(entry.reason) produces a value that no longer matches the tampered
+// reason_hash, so the existing reason CHANGED finding fires.
+//
+// #1841 (round 2): the internal consistency check
+// (hashReason(stepRef.reason) !== stepRef.reason_hash) was removed after
+// round 1 claimed it was redundant with the main comparison.
+//
+// #1841 (round 3): RESTORED. The two checks verify DIFFERENT invariants:
+//   (A) Main comparison: hashReason(entry.reason) vs stepRef.reason_hash
+//       → detects: manifest reason differs from ref fingerprint
+//   (B) Internal consistency: hashReason(stepRef.reason) vs stepRef.reason_hash
+//       → detects: ref itself is inconsistent (text A but hash B)
+//
+// The bypass that proves both are needed:
+//   - manifest.reason = B (bogus reason)
+//   - stepRef.reason = A (original text, NOT updated)
+//   - stepRef.reason_hash = hashReason(B) (updated to match bogus reason)
+//
+// Result: entry.reason = B hashes to hashReason(B) = stepRef.reason_hash → no finding (A).
+//
+// Without check (B), the guard passes silently: the diff shows only the hash changing,
+// which is meaningless to a human reviewer. The human cannot see that reason TEXT did
+// not change (because check (B) would have fired).
+//
+// With check (B), hashReason(A) !== hashReason(B) → finding (B) fires, naming that
+// the ref itself is internally inconsistent: its stored text does not match its own hash.
+// This is exactly what #1736 set out to prevent — a bypass that makes reason change
+// invisible to the human reviewer.
 const getReasonGuardProblem = (
 	id: string,
 	entry: { hash: string; mirror: string | null; reason: string },
 	ref: {
-		steps: Record<string, { reason_hash: string; reason_length: number }>;
+		steps: Record<
+			string,
+			{ reason_hash: string; reason_length: number; reason: string }
+		>;
 	},
 ): string | null => {
 	const stepRef = ref.steps[id];
@@ -75,6 +111,28 @@ const getReasonGuardProblem = (
 	// to regenerate.
 	if (stepRef === undefined) {
 		return `${manifestPath}: entry "${id}" is present in the manifest but missing from reason-guard-ref.json — new entry without a reference fingerprint. Regenerate reason-guard-ref.json in the same commit so the reason is consciously pinned (run \`node packages/scripts-ts/src/gen-reason-ref.ts\`).`;
+	}
+
+	// Validate the reference entry's shape before hashing. An entry that is
+	// missing the `reason` text field (e.g. a pre-#1736 ref format, or a
+	// manually edited ref) must fail LOUDLY by naming the problem — never
+	// crash inside hashReason with TypeError, never fall back to a compliant
+	// default. A malformed entry is a finding, not an exception.
+	if (typeof stepRef.reason !== 'string' || stepRef.reason.length === 0) {
+		return `${manifestPath}: entry "${id}" reason-guard-ref.json is missing the \`reason\` text field (got ${stepRef.reason === undefined ? 'undefined' : typeof stepRef.reason}). The reference must store the full reason text so regeneration is visible in the diff; regenerate it with \`node packages/scripts-ts/src/gen-reason-ref.ts\`.`;
+	}
+
+	// (B) Internal consistency check: the stored reason text must match its own
+	// stored hash. If they diverge, the ref was hand-edited in a way that breaks
+	// the fingerprint contract — either the text was changed without updating
+	// the hash, or the hash was set to match a different text than what is stored.
+	// This detects the #1736 bypass: writing a bogus reason, updating only the hash
+	// to match, and leaving the original text in place so the diff stays invisible.
+	// hashReason(stepRef.reason) === stepRef.reason_hash when the ref is consistent.
+	const refTextHash = hashReason(stepRef.reason);
+
+	if (refTextHash !== stepRef.reason_hash) {
+		return `${manifestPath}: entry "${id}" reason-guard-ref.json is internally inconsistent — stored reason text hashes to ${refTextHash} but stored reason_hash is ${stepRef.reason_hash}. The reference text and its fingerprint do not match; regenerate it with \`node packages/scripts-ts/src/gen-reason-ref.ts\` to restore consistency.`;
 	}
 
 	const currentHash = hashReason(entry.reason);
@@ -452,7 +510,10 @@ const decodeJsonString = (raw: string): string =>
 // --- Reason reference type ---
 
 interface ReasonRef {
-	steps: Record<string, { reason_hash: string; reason_length: number }>;
+	steps: Record<
+		string,
+		{ reason_hash: string; reason_length: number; reason: string }
+	>;
 }
 
 /**

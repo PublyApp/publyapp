@@ -109,7 +109,9 @@ export const createCSPDirectives = ({
 	// Explicit Helmet contract annotation restored after the round-1 review.
 	const result: HelmetCSPDirectives = Object.fromEntries(
 		entries(baseDirectives).flatMap(([key, value]): [string, string[]][] => {
-			if (value === undefined) return [];
+			if (value === undefined) {
+				return [];
+			}
 
 			const directiveName = key.replace(/([A-Z])/g, '-$1').toLowerCase();
 
@@ -133,7 +135,9 @@ export const directivesToString = (directives: CSPDirectives): string => {
 	const parts: string[] = [];
 
 	entries(directives).forEach(([key, value]) => {
-		if (value === undefined) return;
+		if (value === undefined) {
+			return;
+		}
 
 		const directiveName = key.replace(/([A-Z])/g, '-$1').toLowerCase();
 

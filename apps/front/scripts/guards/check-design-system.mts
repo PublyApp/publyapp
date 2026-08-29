@@ -114,9 +114,7 @@ const e2eDir = path.join(rootDir, 'e2e');
 
 const STATUS_FILTER_RULE_ID = 'status-filter-checkbox-contract';
 
-const jsxTagName = (
-	node: ts.JsxElement | ts.JsxSelfClosingElement,
-): string => {
+const jsxTagName = (node: ts.JsxElement | ts.JsxSelfClosingElement): string => {
 	const tagName = ts.isJsxElement(node)
 		? node.openingElement.tagName
 		: node.tagName;
@@ -147,8 +145,8 @@ const hasSpreadAttribute = (
 const isExplicitFalse = (attribute: ts.JsxAttribute | undefined): boolean =>
 	Boolean(
 		attribute?.initializer &&
-			ts.isJsxExpression(attribute.initializer) &&
-			attribute.initializer.expression?.kind === ts.SyntaxKind.FalseKeyword,
+		ts.isJsxExpression(attribute.initializer) &&
+		attribute.initializer.expression?.kind === ts.SyntaxKind.FalseKeyword,
 	);
 
 const isExplicitTrue = (attribute: ts.JsxAttribute | undefined): boolean => {
@@ -165,7 +163,10 @@ const isExplicitTrue = (attribute: ts.JsxAttribute | undefined): boolean => {
 const lineForNode = (sourceFile: ts.SourceFile, node: ts.Node): number =>
 	sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile)).line + 1;
 
-const containsStatusMap = (menu: ts.Node, sourceFile: ts.SourceFile): boolean => {
+const containsStatusMap = (
+	menu: ts.Node,
+	sourceFile: ts.SourceFile,
+): boolean => {
 	let found = false;
 	visitDescendants(menu, (node) => {
 		if (
@@ -226,7 +227,9 @@ const statusMenuViolations = (
 		const menuText = node.getText(sourceFile);
 		const isStatusMenu =
 			/all-statuses/i.test(menuText) || containsStatusMap(node, sourceFile);
-		if (!isStatusMenu) return;
+		if (!isStatusMenu) {
+			return;
+		}
 
 		const items: (ts.JsxElement | ts.JsxSelfClosingElement)[] = [];
 		visitDescendants(node, (child) => {
@@ -794,9 +797,7 @@ const getBlockLineRanges = (
 let tokenLayerRangesByLines = new WeakMap<string[], [number, number][]>();
 let tokenLayerRangeComputeCalls = 0;
 
-const getTokenLayerBlockRanges = (
-	lines: string[],
-): [number, number][] => {
+const getTokenLayerBlockRanges = (lines: string[]): [number, number][] => {
 	const cached = tokenLayerRangesByLines.get(lines);
 	if (cached !== undefined) {
 		return cached;
@@ -833,7 +834,6 @@ const isAppCssTokenLayerLine = (
 	lineIndex: number,
 	lines: string[],
 ): boolean => {
-
 	if (relativePath !== APP_CSS_PATH) {
 		return false;
 	}
@@ -974,9 +974,7 @@ const stripCssComments = (text: string): string =>
 // Parses `--publy-x: value;` pairs out of a block of CSS text, tolerating
 // multi-line values (e.g. a wrapped `box-shadow` declaration) since this
 // operates on the whole block instead of scanning line-by-line.
-const extractTokenDeclarations = (
-	blockText: string,
-): Map<string, string> => {
+const extractTokenDeclarations = (blockText: string): Map<string, string> => {
 	const declarations = new Map<string, string>();
 	const pattern = /(--publy-[\w-]+)\s*:\s*([^;]+);/g;
 	let match;
@@ -1052,9 +1050,9 @@ const collectScopedCustomPropertyDeclarations = (
 		const declarations = extractTokenDeclarations(blockText);
 		if (declarations.size > 0) {
 			const entry: ScopedCustomPropertyPair = byKey.get(key) ?? {
-			light: new Map<string, TokenDecl>(),
-			dark: new Map<string, TokenDecl>(),
-		};
+				light: new Map<string, TokenDecl>(),
+				dark: new Map<string, TokenDecl>(),
+			};
 			const bucket = isDark ? entry.dark : entry.light;
 			for (const [name, value] of declarations) {
 				if (!bucket.has(name)) {
@@ -2581,7 +2579,9 @@ export const scanFront2DesignSystem = async ({
 			);
 		}
 		const relevantInventory = suppressionInventory.filter(
-			(site): site is SuppressionSite & {
+			(
+				site,
+			): site is SuppressionSite & {
 				convention: 'design-system-ignore';
 			} => site.convention === 'design-system-ignore',
 		);

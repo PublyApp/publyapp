@@ -210,7 +210,9 @@ export const noConsoleInSource = {
 			Program(node) {
 				program = node;
 				hasLoggerImport = node.body.some((statement) => {
-					if (!isImportDeclaration(statement)) return false;
+					if (!isImportDeclaration(statement)) {
+						return false;
+					}
 					return isLoggerImport(statement) && hasLoggerSpecifier(statement);
 				});
 				hasConsoleShadow = nodeHasConsoleShadow(program);
@@ -223,9 +225,13 @@ export const noConsoleInSource = {
 				}
 
 				const method = getConsoleMethod(callee);
-				if (method === null) return;
+				if (method === null) {
+					return;
+				}
 
-				if (hasConsoleShadow) return;
+				if (hasConsoleShadow) {
+					return;
+				}
 
 				context.report({
 					node: n,

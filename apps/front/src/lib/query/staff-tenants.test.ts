@@ -52,7 +52,9 @@ const getUntypedArray = (value: unknown) => {
 	}
 
 	const { value: array } = value as { value?: unknown };
-	if (Array.isArray(array)) return array;
+	if (Array.isArray(array)) {
+		return array;
+	}
 	return undefined;
 };
 

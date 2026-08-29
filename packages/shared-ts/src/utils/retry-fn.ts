@@ -1,4 +1,4 @@
-import { delay as delayFn } from './any.utils';
+import { delay as delayFn } from './any.utils.ts';
 
 export const retry = async <F extends GenericFunction>({
 	fn,
@@ -11,10 +11,21 @@ export const retry = async <F extends GenericFunction>({
 	attempts?: number;
 	delay?: number;
 }): Promise<ReturnType<F>> => {
+	if (!Number.isInteger(attempts) || attempts < 0) {
+		throw new RangeError(
+			`retry: attempts must be a non-negative integer, received ${attempts}`,
+		);
+	}
+
 	try {
 		return await fn(...(args ?? []));
 	} catch (error) {
-		if (attempts === 0) throw error;
+		// The initial call above always runs, even when attempts=0 ("never
+		// retry"). On failure we retry while attempts > 1, decrementing each
+		// round, so the total number of calls is max(1, attempts).
+		if (attempts <= 1) {
+			throw error;
+		}
 		await delayFn(delay);
 		return retry({ fn, args, attempts: attempts - 1, delay: delay * 2 });
 	}

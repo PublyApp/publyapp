@@ -7,7 +7,9 @@ export const slugify = (str?: string) => {
 };
 
 export const toPascalCase = (str: string) => {
-	if (!str) return '';
+	if (!str) {
+		return '';
+	}
 
 	return (
 		str

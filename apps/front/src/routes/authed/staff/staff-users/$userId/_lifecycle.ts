@@ -12,7 +12,9 @@ export const getSuspendLabelKey = (
 ): 'suspend' | 'reactivate' => {
 	const normalized = normalizeStatus(status);
 
-	if (normalized === STAFF_STATUS_SUSPENDED) return 'reactivate';
+	if (normalized === STAFF_STATUS_SUSPENDED) {
+		return 'reactivate';
+	}
 	return 'suspend';
 };
 

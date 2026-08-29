@@ -1,5 +1,6 @@
 import type { Context, Visitor } from '@oxlint/plugins';
 import type { ESTree } from '@oxlint/plugins';
+
 import {
 	isFrontComponentTsxFile,
 	normalizeFilename,
@@ -134,7 +135,9 @@ interface TrackedBindings {
 
 const getHookName = (init: ESTree.CallExpression): string | null => {
 	const callee = init.callee;
-	if (callee.type === 'Identifier') return callee.name;
+	if (callee.type === 'Identifier') {
+		return callee.name;
+	}
 	if (
 		callee.type === 'MemberExpression' &&
 		!callee.computed &&
@@ -193,7 +196,9 @@ const collectTrackedBindings = (
 		const visited = new WeakSet<ESTree.Node>();
 
 		const isQueryInit = (init: ESTree.Expression | null): boolean => {
-			if (!init || init.type !== 'CallExpression') return false;
+			if (!init || init.type !== 'CallExpression') {
+				return false;
+			}
 			const hookName = getHookName(init);
 			return (
 				hookName !== null &&
@@ -210,7 +215,9 @@ const collectTrackedBindings = (
 			tracked.whole.has(init.name);
 
 		const visit = (node: ESTree.Node | null | undefined): void => {
-			if (!node || visited.has(node)) return;
+			if (!node || visited.has(node)) {
+				return;
+			}
 			visited.add(node);
 			if (
 				node.type === 'FunctionDeclaration' ||
@@ -255,7 +262,9 @@ const collectTrackedBindings = (
 						id.type === 'ObjectPattern' &&
 						(fromQuery || fromTrackedWhole)
 					) {
-						if (trackPattern(id)) changed = true;
+						if (trackPattern(id)) {
+							changed = true;
+						}
 					}
 				}
 			}
@@ -277,7 +286,9 @@ const collectTrackedBindings = (
 	};
 
 	for (let pass = 0; pass < MAX_PASSES; pass += 1) {
-		if (!runPass()) break;
+		if (!runPass()) {
+			break;
+		}
 	}
 
 	return tracked;
@@ -288,7 +299,9 @@ const queryFieldRef = (
 	node: ESTree.Node | null | undefined,
 	tracked: TrackedBindings,
 ): string | null => {
-	if (!node) return null;
+	if (!node) {
+		return null;
+	}
 	if (node.type === 'MemberExpression' && !node.computed) {
 		const object = node.object;
 		const property = node.property;
@@ -322,7 +335,9 @@ const resolveHoistedCallback = (
 	tracked: TrackedBindings,
 	expr: ESTree.Node | null | undefined,
 ): HoistedFn | null => {
-	if (!expr) return null;
+	if (!expr) {
+		return null;
+	}
 	if (expr.type === 'Identifier') {
 		return tracked.hoistedJsxCallbacks.get(expr.name) ?? null;
 	}
@@ -333,7 +348,9 @@ const resolveHoistedCallback = (
 		expr.property.type === 'Identifier'
 	) {
 		const literal = tracked.objectLiterals.get(expr.object.name);
-		if (!literal) return null;
+		if (!literal) {
+			return null;
+		}
 		for (const prop of literal.properties) {
 			if (
 				prop.type === 'Property' &&
@@ -365,7 +382,9 @@ const directlyReturnsJsx = (
 	fn: ESTree.Function | ESTree.ArrowFunctionExpression,
 ): boolean => {
 	const body = fn.body;
-	if (!body) return false;
+	if (!body) {
+		return false;
+	}
 
 	const visited = new WeakSet<ESTree.Node>();
 	let found = false;
@@ -373,7 +392,9 @@ const directlyReturnsJsx = (
 		if (found || !node || typeof node !== 'object' || !('type' in node)) {
 			return;
 		}
-		if (visited.has(node)) return;
+		if (visited.has(node)) {
+			return;
+		}
 		visited.add(node);
 		if (
 			node.type === 'ArrowFunctionExpression' ||
@@ -416,8 +437,12 @@ const scan = (
 		conditional: boolean,
 		jsxValuePosition: boolean,
 	): void => {
-		if (!node || typeof node !== 'object' || !('type' in node)) return;
-		if (visited.has(node)) return;
+		if (!node || typeof node !== 'object' || !('type' in node)) {
+			return;
+		}
+		if (visited.has(node)) {
+			return;
+		}
 		visited.add(node);
 
 		if (
@@ -442,7 +467,9 @@ const scan = (
 		}
 		if (conditional) {
 			const field = queryFieldRef(node, tracked);
-			if (field !== null) onField(field);
+			if (field !== null) {
+				onField(field);
+			}
 		}
 
 		switch (node.type) {
@@ -458,7 +485,9 @@ const scan = (
 			case 'IfStatement':
 				scanInner(node.test, true, false);
 				scanInner(node.consequent, conditional, false);
-				if (node.alternate) scanInner(node.alternate, conditional, false);
+				if (node.alternate) {
+					scanInner(node.alternate, conditional, false);
+				}
 				return;
 			case 'ReturnStatement':
 				if (isConditionalExpr(node.argument)) {
@@ -470,11 +499,15 @@ const scan = (
 			case 'ForStatement':
 			case 'WhileStatement':
 			case 'DoWhileStatement': {
-				if ('test' in node && node.test) scanInner(node.test, true, false);
-				if ('init' in node && node.init)
+				if ('test' in node && node.test) {
+					scanInner(node.test, true, false);
+				}
+				if ('init' in node && node.init) {
 					scanInner(node.init, conditional, false);
-				if ('update' in node && node.update)
+				}
+				if ('update' in node && node.update) {
 					scanInner(node.update, conditional, false);
+				}
 				scanInner(node.body, conditional, false);
 				return;
 			}
@@ -498,7 +531,9 @@ const scan = (
 						? [node.openingElement, node.closingElement]
 						: [node.openingFragment, node.closingFragment];
 				for (const edge of edges) {
-					if (edge) scanInner(edge as ESTree.Node, conditional, false);
+					if (edge) {
+						scanInner(edge as ESTree.Node, conditional, false);
+					}
 				}
 				for (const child of node.children) {
 					// Children sit in a JSX value position: an inline function
@@ -523,7 +558,9 @@ const scan = (
 			case 'JSXAttribute': {
 				scanInner(node.name, conditional, false);
 				const value = node.value;
-				if (!value) return;
+				if (!value) {
+					return;
+				}
 				if (value.type === 'JSXExpressionContainer') {
 					// Only a function value is a render-prop candidate
 					// (`<Controller render={(…) => …}>`). Any other expression
@@ -576,18 +613,26 @@ const containsJsx = (
 	fn: ESTree.Function | ESTree.ArrowFunctionExpression,
 ): boolean => {
 	const body = fn.body;
-	if (!body) return false;
+	if (!body) {
+		return false;
+	}
 
 	if (body.type === 'JSXElement' || body.type === 'JSXFragment') {
 		return true;
 	}
-	if (body.type !== 'BlockStatement') return false;
+	if (body.type !== 'BlockStatement') {
+		return false;
+	}
 
 	const visited = new WeakSet<ESTree.Node>();
 	let found = false;
 	const walk = (node: ESTree.Node | null | undefined): void => {
-		if (found || !node || typeof node !== 'object' || !('type' in node)) return;
-		if (visited.has(node)) return;
+		if (found || !node || typeof node !== 'object' || !('type' in node)) {
+			return;
+		}
+		if (visited.has(node)) {
+			return;
+		}
 		visited.add(node);
 		if (node.type === 'JSXElement' || node.type === 'JSXFragment') {
 			found = true;
@@ -644,15 +689,23 @@ export const preferQueryDisplay = {
 			'FunctionDeclaration, FunctionExpression, ArrowFunctionExpression'(
 				node: ESTree.Function | ESTree.ArrowFunctionExpression,
 			) {
-				if (!containsJsx(node)) return;
+				if (!containsJsx(node)) {
+					return;
+				}
 				const body = node.body;
-				if (!body || body.type !== 'BlockStatement') return;
+				if (!body || body.type !== 'BlockStatement') {
+					return;
+				}
 
 				const tracked = collectTrackedBindings(body);
-				if (tracked.whole.size === 0 && tracked.flagged.size === 0) return;
+				if (tracked.whole.size === 0 && tracked.flagged.size === 0) {
+					return;
+				}
 
 				scan(body, false, tracked, (field) => {
-					if (reportedFields.has(field)) return;
+					if (reportedFields.has(field)) {
+						return;
+					}
 					reportedFields.add(field);
 					context.report({
 						node,

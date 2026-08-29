@@ -73,7 +73,9 @@ const TenantPostsDraftsPage = () => {
 	const deleteMutation = useDeleteTenantPostMutation();
 
 	const confirmBin = async () => {
-		if (!pendingBinId || !tenantId) return;
+		if (!pendingBinId || !tenantId) {
+			return;
+		}
 		try {
 			await deleteMutation.mutateAsync({
 				postId: pendingBinId,
@@ -218,7 +220,9 @@ const TenantPostsDraftsPage = () => {
 				isPending={deleteMutation.isPending}
 				onConfirm={() => void confirmBin()}
 				onOpenChange={(o) => {
-					if (!o) setPendingBinId(null);
+					if (!o) {
+						setPendingBinId(null);
+					}
 				}}
 			/>
 		</div>

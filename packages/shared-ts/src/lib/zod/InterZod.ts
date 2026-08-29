@@ -83,11 +83,21 @@ const parsedType = (data: unknown): string => {
 		case 'function':
 			return typeof data;
 		case 'object': {
-			if (data === null) return 'null';
-			if (Array.isArray(data)) return 'array';
-			if (data instanceof Date) return 'date';
-			if (data instanceof Map) return 'map';
-			if (data instanceof Set) return 'set';
+			if (data === null) {
+				return 'null';
+			}
+			if (Array.isArray(data)) {
+				return 'array';
+			}
+			if (data instanceof Date) {
+				return 'date';
+			}
+			if (data instanceof Map) {
+				return 'map';
+			}
+			if (data instanceof Set) {
+				return 'set';
+			}
 			return 'object';
 		}
 		default:
