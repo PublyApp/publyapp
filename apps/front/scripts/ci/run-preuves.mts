@@ -8,6 +8,40 @@
  * code does NOT satisfy the ideal, so the test fails, and that failure IS the
  * proof.
  *
+ * ## Classification — structural signals, not display text (issue #1784)
+ *
+ * The runner classifies a proof's failure mode using the STRUCTURAL report
+ * from vitest's `--reporter=json` output, never by regex on the human-readable
+ * stdout/stderr stream. This matters because the question we must answer is
+ * binary and precise: did this proof fail on an ASSERTION, or did it fail on
+ * a THROWN ERROR? Both produce "Tests 1 failed" and exit code 1, but they
+ * mean different things:
+ *
+ * - Assertion failure → the proof measured and the ideal is not met
+ *   (kept-red, the expected state) → success.
+ * - Thrown Error (MESURE IMPOSSIBLE, harness crash, extraction failure) →
+ *   the proof could NOT measure. This is NOT the expected kept-red state —
+ *   it is a broken measurement, and it must FAIL THE STEP LOUD rather than
+ *   be reported as "failed as expected".
+ *
+ * A text regex like `/AssertionError/.test(output)` is fragile: any thrown
+ * Error whose message happens to contain the words "AssertionError" (e.g. a
+ * harness error wrapping one) is misclassified as a kept-red success, and
+ * the regression is SILENT — a undesired green, the worst failure class.
+ *
+ * The JSON report gives us, per test, its `status` ("passed" / "failed") and
+ * the failure type as the first token of `failureMessages[0]`:
+ * "AssertionError: ..." for assertion failures, "Error: ..." for thrown
+ * errors. We classify on that structural signal.
+ *
+ * ### Unreadable reports — fail loud, name the cause
+ *
+ * A report the script cannot parse (missing file, empty, invalid JSON, wrong
+ * shape) MUST fail loud naming the cause — never fall back to text heuristics
+ * nor to a compliant default. This is the dominant defect class of this
+ * repo: substituting a defect of correct appearance for an unreadable input.
+ * `readProofReport()` enforces this with one error per failure case.
+ *
  * ## Option (b) — declaration-scoped replay (issue #1659, ronde 6)
  *
  * A pull request DECLARES a paired red proof by adding or modifying a proof
@@ -62,7 +96,8 @@
  * See .dump/DONE-1687-r5.md for the full rationale.
  */
 import { execFileSync, execSync } from 'node:child_process';
-import { readFileSync, existsSync } from 'node:fs';
+import { readFileSync, existsSync, unlinkSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 const ROOT = join(process.cwd(), '..'); // apps/front → repo root
@@ -309,6 +344,114 @@ function isReplayableFile(filename: string): boolean {
 	return REPLAYABLE_EXTENSIONS.some((ext) => filename.endsWith(ext));
 }
 
+/**
+ * Structural classification: the shape of the vitest JSON report that
+ * `readProofReport` parses. A proof test is a collection of assertion
+ * results; each result either passes or fails, and a failed one carries
+ * the error type vitest observed (AssertionError for assertion failures,
+ * Error subclasses for thrown errors) as the first line of its
+ * failureMessages.
+ */
+interface ProofReport {
+	numTotalTests: number;
+	numFailedTests: number;
+	testResults: Array<{
+		assertionResults: Array<{
+			status: string;
+			failureMessages: string[];
+		}>;
+	}>;
+}
+
+/**
+ * Read and validate the vitest JSON report from --outputFile.
+ *
+ * The report is the single source of structural truth for classifying a
+ * proof. Any deviation — missing file, empty file, invalid JSON, or a
+ * shape that lacks the fields we read — is an UNREADABLE REPORT and MUST
+ * fail loud naming the cause. We never fall back to text heuristics nor
+ * to a compliant default: an input we cannot parse is not replaced by a
+ * "failed as expected" verdict.
+ *
+ * The four unreadable-report cases each get their own error so the
+ * message names the cause:
+ *   1. File absent   → "not found"
+ *   2. File empty    → "empty (0 bytes)"
+ *   3. File garbage  → "not valid JSON" + the parse error
+ *   4. Wrong shape   → "missing numTotalTests/numFailedTests" or
+ *                      "missing testResults array"
+ */
+function readProofReport(reportPath: string): ProofReport {
+	if (!existsSync(reportPath)) {
+		throw new Error(
+			`vitest JSON report not found at ${reportPath} — vitest exited ` +
+				`without writing a report. The test file may have a syntax error ` +
+				`or the test setup may have crashed before the JSON reporter ` +
+				`could write.`,
+		);
+	}
+
+	const buf = readFileSync(reportPath);
+	if (buf.length === 0) {
+		throw new Error(
+			`vitest JSON report is empty (0 bytes) at ${reportPath} — vitest ` +
+				`wrote no data. The test file may be unparseable.`,
+		);
+	}
+
+	const raw = buf.toString('utf-8');
+
+	let parsed: unknown;
+	try {
+		parsed = JSON.parse(raw);
+	} catch (err) {
+		throw new Error(
+			`vitest JSON report is not valid JSON at ${reportPath}: ` +
+				`${(err as Error).message} — the output is truncated or the ` +
+				`process was interrupted.`,
+		);
+	}
+
+	if (typeof parsed !== 'object' || parsed === null) {
+		throw new Error(
+			`vitest JSON report is not an object at ${reportPath} — ` +
+				`the reporter output is malformed.`,
+		);
+	}
+	const obj = parsed as Record<string, unknown>;
+
+	if (typeof obj.numTotalTests !== 'number' || typeof obj.numFailedTests !== 'number') {
+		throw new Error(
+			`vitest JSON report missing numTotalTests/numFailedTests at ` +
+				`${reportPath} — the reporter output is malformed.`,
+		);
+	}
+
+	if (!Array.isArray(obj.testResults)) {
+		throw new Error(
+			`vitest JSON report missing testResults array at ${reportPath} — ` +
+				`the reporter output is malformed.`,
+		);
+	}
+
+	for (const suite of obj.testResults) {
+		if (typeof suite !== 'object' || suite === null) {
+			throw new Error(
+				`vitest JSON report has a non-object test result at ${reportPath}.`,
+			);
+		}
+		const suiteObj = suite as Record<string, unknown>;
+		if (!Array.isArray(suiteObj.assertionResults)) {
+			throw new Error(
+				`vitest JSON report has a test result missing assertionResults ` +
+					`at ${reportPath}.`,
+			);
+		}
+	}
+
+	return obj as unknown as ProofReport;
+}
+
 // --- Main logic ---
 
 // Confirm the versioned directory exists. If it does not, the repo has no
@@ -397,11 +540,17 @@ for (const test of replayable) {
 	}
 
 	console.log(`--- Running: ${test} ---`);
+
+	// Run vitest with the JSON reporter writing to a temp file. The JSON
+	// report gives us, per test, its status and the TYPE of the failure —
+	// structural signals we can classify without reading display text.
+	const reportFile = join(tmpdir(), `preuve-${process.pid}-${Date.now()}.json`);
 	try {
-		execFileSync('pnpm', ['exec', 'vitest', 'run', '--config', CONFIG, '--no-color', test], {
-			stdio: 'pipe',
-			encoding: 'utf-8',
-		});
+		execFileSync(
+			'pnpm',
+			['exec', 'vitest', 'run', '--config', CONFIG, '--no-color', '--reporter=json', `--outputFile=${reportFile}`, test],
+			{ stdio: 'pipe', encoding: 'utf-8' },
+		);
 		// If execFileSync did NOT throw, vitest exited 0 = the test passed.
 		console.error(
 			`  FAIL: proof test passed unexpectedly — the bug it documented may have changed form.\n  Test: ${test}`,
@@ -413,58 +562,92 @@ for (const test of replayable) {
 		const stderr = (error.stderr?.toString() ?? '').slice(0, 500);
 		const exitCode = error.status ?? 'unknown';
 
-		// vitest exits 1 both when tests fail (expected) AND when a file
-		// cannot be parsed (unexpected). Distinguish by looking for the
-		// "Tests N failed" marker — a real failing test reports a non-zero
-		// test count. validateProofFile already caught empty/truncated files;
-		// this is a backstop for any case that slips through.
-		const output = stdout + stderr;
-		const ranTests = /Tests\s+\d+\s+failed/.test(output) && !/Tests\s+no tests/.test(output);
-		const noTests = /Tests\s+no tests/.test(output) || /\(0 test\)/.test(output);
+		// Read and parse the structural report. If the report is
+		// unreadable for ANY reason (missing, empty, invalid JSON, wrong
+		// shape), fail loud naming the cause — never fall back to text
+		// heuristics nor to a compliant default.
+		let report: ProofReport;
+		try {
+			report = readProofReport(reportFile);
+		} catch (parseErr) {
+			console.error(
+				`  CORRUPT PROOF: vitest JSON report is unreadable — ${(parseErr as Error).message}\n` +
+					`  stdout: ${stdout}\n  stderr: ${stderr}`,
+			);
+			corrupted++;
+			continue;
+		}
 
-		// A kept-red proof is EXPECTED TO FAIL on an ASSERTION
-		// (`AssertionError: expected false to be true`). It is NOT expected
-		// to fail because it THREW an Error. Two distinct failure modes that
-		// both produce "Tests 1 failed":
-		//   - assertion failure → the proof measured and the ideal is not met
-		//     (kept-red, the expected state) → success.
-		//   - thrown Error (MESURE IMPOSSIBLE, harness crash, extraction
-		//     failure) → the proof could NOT measure. This is NOT the
-		//     expected kept-red state — it is a broken measurement, and it
-		//     must FAIL THE STEP LOUD rather than be reported as "failed as
-		//     expected". Otherwise a mutation that makes the proof throw
-		//     (e.g. bracket-notation `process['on']` that the regex can't
-		//     match) keeps CI green while the guard is blind.
-		// We discriminate by checking for the AssertionError marker. vitest
-		// prints "AssertionError" for assertion failures and "Error" for
-		// thrown errors. A proof that fails without an AssertionError in
-		// its output is a measurement failure, not a kept-red success.
-		const hasAssertionFailure = /AssertionError/.test(output);
-		const hasMeasurementError = /MESURE IMPOSSIBLE/.test(output);
+		// Structural classification from the JSON report — no regex on
+		// display text. The report tells us per-test status and failure
+		// type directly.
+		const ranTests = report.numFailedTests > 0;
+		const noTests = report.numTotalTests === 0;
+
+		// An assertion failure in vitest is reported with the error type
+		// as the first token of the failure message: "AssertionError: ...".
+		// A thrown error (Error, TypeError, ...) starts with that type
+		// instead: "Error: ...". Checking the first token distinguishes
+		// "the proof measured and the ideal is not met" (assertion
+		// failure, the expected kept-red state) from "the proof could not
+		// measure" (thrown Error — harness crash, extraction failure).
+		const hasAssertionFailure = report.testResults.some((suite) =>
+			suite.assertionResults.some(
+				(t) =>
+					t.status === 'failed' &&
+					t.failureMessages.length > 0 &&
+					t.failureMessages[0]!.startsWith('AssertionError:'),
+			),
+		);
+
+		// The measurement-impossible marker is carried in the failure
+		// message. We check every failed test's messages, not just the
+		// first — a proof can fail on multiple axes and any of them may
+		// carry the marker.
+		const hasMeasurementError = report.testResults.some((suite) =>
+			suite.assertionResults.some(
+				(t) =>
+					t.status === 'failed' &&
+					t.failureMessages.some((m) => m.includes('MESURE IMPOSSIBLE')),
+			),
+		);
 
 		if (exitCode === 1 && ranTests && hasAssertionFailure && !hasMeasurementError) {
-			console.log(`  OK: proof test failed as expected (exit code 1).\n`);
+			console.log(`  OK: proof test failed as expected (assertion failure).\n`);
 			failures++;
 		} else if (exitCode === 1 && ranTests && (!hasAssertionFailure || hasMeasurementError)) {
+			const reason = hasMeasurementError
+				? 'measurement impossible (MESURE IMPOSSIBLE)'
+				: 'thrown Error (not an assertion failure)';
 			console.error(
-				`  CORRUPT PROOF: proof test failed with a non-assertion error ` +
-					`(measurement impossible or harness crash), not the expected assertion failure.\n` +
+				`  CORRUPT PROOF: proof test failed with ${reason}, not the expected assertion failure.\n` +
 					`  A kept-red proof must fail on an assertion (expected X to be Y), ` +
 					`  not on a thrown Error. A thrown Error means the proof could not measure ` +
 					`  — this is NOT the expected kept-red state and must fail CI.\n` +
-					`  stdout: ${stdout.slice(0, 500)}\n  stderr: ${stderr.slice(0, 500)}`,
+					`  stdout: ${stdout}\n  stderr: ${stderr}`,
 			);
 			corrupted++;
 		} else if (exitCode === 1 && noTests) {
 			console.error(
-				`  CORRUPT PROOF: vitest found no test cases in ${test} (empty/truncated/not a test).\n  stdout: ${stdout.slice(0, 500)}\n  stderr: ${stderr.slice(0, 500)}`,
+				`  CORRUPT PROOF: vitest found no test cases in ${test} (empty/truncated/not a test).\n` +
+					`  stdout: ${stdout}\n  stderr: ${stderr}`,
 			);
 			corrupted++;
 		} else {
 			console.error(
-				`  ERROR: proof test exited with unexpected code ${exitCode}.\n  stdout: ${stdout.slice(0, 500)}\n  stderr: ${stderr.slice(0, 500)}`,
+				`  ERROR: proof test exited with unexpected code ${exitCode} ` +
+					`(failed: ${report.numFailedTests}, total: ${report.numTotalTests}).\n` +
+					`  stdout: ${stdout}\n  stderr: ${stderr}`,
 			);
 			unexpectedPasses++;
+		}
+	} finally {
+		// Always clean up the temp report file — even on classification
+		// failure, we do not leave artifacts behind.
+		try {
+			unlinkSync(reportFile);
+		} catch {
+			// Ignore: the file may already be gone.
 		}
 	}
 }
