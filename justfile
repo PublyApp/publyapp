@@ -90,9 +90,14 @@ review-api *args:
 review-api *args:
   node packages/scripts-ts/src/review-api.ts @args
 
-# Start Aspire AppHost (postgres + api + worker + front)
+# Start Aspire AppHost (postgres + api + worker + front).
+# -property:OpenApiGenerateDocuments=false: `dotnet run`'s implicit build would
+# otherwise run the API's OpenAPI document generation, which boots the app with
+# the ambient .env.development (APP_ROLE=all) while no Postgres is up yet, and the
+# worker's migration gate retries until the build fails. This recipe only needs a
+# build; the drift gate (build-api-full) and `just generate-client` regenerate.
 dev-services:
-  dotnet run --project apps/apphost
+  dotnet run --project apps/apphost --property:OpenApiGenerateDocuments=false
 
 # Start Aspire AppHost (alias for dev-services)
 dev-db: dev-services
@@ -569,7 +574,7 @@ generate-response-keys:
 # APP_ROLE pinned for the same reason as build-api: this `dotnet build` boots the app to
 # regenerate openapi.json before kiota reads it (design §3.1 item 3).
 generate-client $APP_ROLE="api" $SOCIAL_ACCOUNTS_MASTER_KEY="AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=":
-  cd {{api_dir}} && dotnet build --no-restore /p:GENERATE_OPENAPI=true
+  cd {{api_dir}} && dotnet build --no-restore
   cd {{js_client_dir}} && dotnet kiota generate -d ../../{{api_dir}}/openapi.json -o src -l typescript -n PublyApp.Api.Client -c ApiClient
   cd {{js_client_dir}} && node -e "const fs=require('fs'),path=require('path'); const walk=(d)=>fs.readdirSync(d,{withFileTypes:true}).flatMap(e=>{const p=path.join(d,e.name); return e.isDirectory()?walk(p):[p];}); for (const f of walk('src')) { if (f.endsWith('.ts')||f.endsWith('.json')) { const c=fs.readFileSync(f,'utf8'); const n=c.replace(/\r\n?/g,'\n'); if (n!==c) fs.writeFileSync(f,n); } }"
 

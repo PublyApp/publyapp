@@ -74,10 +74,14 @@
 						  ReferenceOutputAssembly="false" />
 	</ItemGroup>
 
-	<!-- for exporting openapi documents to json file at build time. Off by default —
-     the dotnet-getdocument step times out on a cold build (observed under Aspire
-     local orchestration). Opt in with /p:GENERATE_OPENAPI=true (just generate-client). -->
-	<PropertyGroup Condition="'$(GENERATE_OPENAPI)' == 'true'">
+	<!-- for exporting openapi documents to json file at build time.
+	     Kept ON by default (non-Test): the openapi-spec-drift CI gate and
+	     `just ci-spec-drift` rebuild through plain `dotnet build` and diff the
+	     artifact — a default-off generation makes that gate vacuous (round-3
+	     review). Local builds that do not want the boot run pass
+	     `-property:OpenApiGenerateDocuments=false` explicitly, exactly as the
+	     dev-api/db-* recipes already do. -->
+	<PropertyGroup Condition="'$(Configuration)' != 'Test'">
 		<OpenApiGenerateDocuments>true</OpenApiGenerateDocuments>
 		<OpenApiDocumentsDirectory>$(MSBuildProjectDirectory)</OpenApiDocumentsDirectory>
 		<OpenApiGeneratedProjectFile>$(MSBuildProjectDirectory)\PublyApp.Api.json</OpenApiGeneratedProjectFile>
@@ -85,11 +89,6 @@
 		<!-- Prevent duplicate assembly attributes when OpenAPI doc generation runs -->
 		<GenerateAssemblyInfo>false</GenerateAssemblyInfo>
 		<GenerateTargetFrameworkAttribute>false</GenerateTargetFrameworkAttribute>
-	</PropertyGroup>
-
-	<PropertyGroup Condition="'$(GENERATE_OPENAPI)' != 'true'">
-		<OpenApiGenerateDocuments>false</OpenApiGenerateDocuments>
-		<OpenApiGenerateDocumentsOnBuild>false</OpenApiGenerateDocumentsOnBuild>
 	</PropertyGroup>
 
 	<PropertyGroup Condition="'$(Configuration)' == 'Test'">
@@ -147,7 +146,7 @@
 
 	<Target Name="RenameOpenApiDocument"
 			AfterTargets="GenerateOpenApiDocuments"
-			Condition="'$(GENERATE_OPENAPI)' == 'true' And Exists('$(OpenApiGeneratedProjectFile)')">
+			Condition="'$(Configuration)' != 'Test' And Exists('$(OpenApiGeneratedProjectFile)')">
 		<Copy SourceFiles="$(OpenApiGeneratedProjectFile)"
 			  DestinationFiles="$(OpenApiJsonFile)"
 			  SkipUnchangedFiles="true" />

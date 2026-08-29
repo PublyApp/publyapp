@@ -483,8 +483,7 @@ public sealed class AppEnvironmentDotEnvPrecedenceSpec : IDisposable {
 				$"-p:OpenApiJsonFile={Path.Combine(outputDirectory, "openapi.json")}",
 				$"-p:OpenApiDocumentsDirectory={outputDirectory}",
 				$"-p:OpenApiGeneratedProjectFile={Path.Combine(outputDirectory, "PublyApp.Api.json")}",
-				$"-p:_OpenApiDocumentsCache={redirectedCachePath}",
-				"-p:GENERATE_OPENAPI=true");
+				$"-p:_OpenApiDocumentsCache={redirectedCachePath}");
 			await File.WriteAllTextAsync(rspPath, rspContent);
 			cleanupActions.Add(() => {
 				if (File.Exists(rspPath)) {
