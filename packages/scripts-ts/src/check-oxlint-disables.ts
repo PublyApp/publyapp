@@ -137,6 +137,16 @@ const getFailureReason = (line) => {
 };
 
 /**
+ * The owner contract for one extracted line: the directive contents found on
+ * the line plus the block-comment state carried over to the next line.
+ */
+type DirectiveExtraction = {
+	directiveContents: string[];
+	inBlockComment: boolean;
+	blockCommentCloser: string;
+};
+
+/**
  * Walks one source line and extracts the content of every comment whose
  * trimmed content starts with the disable token — i.e. comments that actually
  * ARE oxlint directives. Text inside string literals (fixture payloads such
@@ -157,11 +167,7 @@ const extractDirectiveContents = (
 	line: string,
 	inBlockComment: boolean,
 	blockCommentCloser: string,
-): {
-	directiveContents: string[];
-	inBlockComment: boolean;
-	blockCommentCloser: string;
-} => {
+): DirectiveExtraction => {
 	const directiveContents: string[] = [];
 	let index = 0;
 	let inString = false;
