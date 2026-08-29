@@ -77,6 +77,21 @@ const RUN_ENV = {
 	TRUSTED_PROXY_CIDRS: '127.0.0.1/32,::1/128',
 } as const;
 
+interface DockerResult {
+	stdout: string;
+	stderr: string;
+	status: number;
+}
+
+interface NodeCrashExplanation {
+	missingModule: string | null;
+	importedFrom: string | null;
+}
+
+interface FrontRuntimeImageArgs {
+	image: string;
+}
+
 const log = (message: string): void => {
 	console.log(`[front-runtime-image] ${message}`);
 };
@@ -102,7 +117,7 @@ const delay = (ms: number): Promise<void> =>
  */
 const docker = (
 	args: ReadonlyArray<string>,
-): { stdout: string; stderr: string; status: number } => {
+): DockerResult => {
 	const result = spawnSync('docker', [...args], {
 		encoding: 'utf8',
 		maxBuffer: 50 * 1024 * 1024,
@@ -136,7 +151,7 @@ const docker = (
  */
 export const explainNodeCrash = (
 	logs: string,
-): { missingModule: string | null; importedFrom: string | null } => {
+): NodeCrashExplanation => {
 	const missingModuleMatch = logs.match(
 		/Error \[ERR_MODULE_NOT_FOUND\]: Cannot find module '([^']+)' imported from ([^\s]+)/,
 	);
@@ -245,7 +260,7 @@ const probeUntilAnswering = async (
 	return { kind: 'timeout' };
 };
 
-const parseArgs = (argv: ReadonlyArray<string>): { image: string } => {
+const parseArgs = (argv: ReadonlyArray<string>): FrontRuntimeImageArgs => {
 	let image = DEFAULT_IMAGE_TAG;
 	for (let i = 0; i < argv.length; i += 1) {
 		const arg = argv[i];
@@ -379,7 +394,13 @@ const readContainerLogs = (): string => {
 	if (/No such container/i.test(err)) {
 		return out;
 	}
-	return `${out}${err === '' ? '' : out === '' ? err : `\n${err}`}`;
+	if (err === '') {
+		return out;
+	}
+	if (out === '') {
+		return err;
+	}
+	return `${out}\n${err}`;
 };
 
 // Detect whether this file was invoked directly (the CLI) or imported
@@ -387,7 +408,7 @@ const readContainerLogs = (): string => {
 // ran the file as the entry point, `process.argv[1]` is the same path.
 // The mismatch lets the test file import `formatCause` / `explainNodeCrash`
 // without triggering a docker run.
-const isMainModule = (() => {
+const isMainModule = (): boolean => {
 	const entry = process.argv[1];
 	if (entry === undefined) {
 		return false;
@@ -397,9 +418,9 @@ const isMainModule = (() => {
 	} catch {
 		return false;
 	}
-})();
+};
 
-if (isMainModule) {
+if (isMainModule()) {
 	try {
 		await main();
 	} catch (error: unknown) {
