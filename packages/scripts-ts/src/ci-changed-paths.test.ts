@@ -389,6 +389,53 @@ test('#1334: an unrelated docs page stays outside quality-gate selection', () =>
 });
 
 // ---------------------------------------------------------------------------
+// #1798 fix round 4: quality-gate.yml runs the deploy env doc guard
+// (packages/scripts-ts/src/check-deploy-env-docs.ts), which guards
+// docs/deployment/first-deploy-runbook.md. That workflow gates its heavy job
+// on this classifier, whose pattern previously had no `docs/deployment/` group
+// at all, so a pull request touching ONLY the guarded runbook skipped the gate
+// entirely and the guard never executed — exactly the bypass #1798 exists to
+// close. The runbook path is now pinned here against the REAL pattern
+// extracted from the workflow YAML, so deleting the
+// `docs/deployment/first-deploy-runbook\.md$` alternative from the inline
+// regex is caught by CI, not discovered by review. Paired proof: the first
+// case is RED when the alternative is removed from the shipped pattern and
+// GREEN against it.
+// ---------------------------------------------------------------------------
+
+test('#1798: quality-gate classifier selects docs/deployment/first-deploy-runbook.md as relevant', () => {
+	assert.ok(
+		qualityGateClassifierPattern,
+		'classifier invocation found in quality-gate.yml',
+	);
+
+	const result = classifyRelevance({
+		eventName: 'pull_request',
+		files: ['docs/deployment/first-deploy-runbook.md'],
+		changedFilesTotal: 1,
+		pattern: qualityGateClassifierPattern,
+	});
+
+	assert.equal(result.relevant, true);
+});
+
+test('#1798: an unrelated deployment doc stays outside quality-gate selection', () => {
+	assert.ok(
+		qualityGateClassifierPattern,
+		'classifier invocation found in quality-gate.yml',
+	);
+
+	const result = classifyRelevance({
+		eventName: 'pull_request',
+		files: ['docs/deployment/unrelated-doc.md'],
+		changedFilesTotal: 1,
+		pattern: qualityGateClassifierPattern,
+	});
+
+	assert.equal(result.relevant, false);
+});
+
+// ---------------------------------------------------------------------------
 // #1357 fix round 1: docs-archive.yml now also runs the prune-inventory
 // freshness step (`node packages/scripts-ts/src/audit-docs-prune.ts --check`),
 // so an edit to that generator itself must wake the gate. Its classifier

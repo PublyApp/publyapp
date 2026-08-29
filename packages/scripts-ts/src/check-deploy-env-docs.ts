@@ -163,11 +163,19 @@ export const extractApiRequiredStrings = (
 	const initBody = initMatch[2];
 	const results = new Set<string>();
 
-	// In AppEnvironment.cs, GetRequiredString(nameof(X)) uses C#'s nameof operator
-	// which resolves to the literal string "X" — the name of the property/constant.
-	// There are no intermediate const string declarations to resolve; the env var
-	// name IS the symbol name. So nameof(POSTGRES_CONNECTION_STRING) = "POSTGRES_CONNECTION_STRING".
-	// Literal form: GetRequiredString("SOME_NAME") uses the literal directly.
+	// In AppEnvironment.cs, GetRequiredString(nameof(X)) / GetRequiredInt(nameof(X))
+	// use C#'s nameof operator which resolves to the literal string "X" — the name
+	// of the property/constant. There are no intermediate const string declarations
+	// to resolve; the env var name IS the symbol name. So
+	// nameof(POSTGRES_CONNECTION_STRING) = "POSTGRES_CONNECTION_STRING".
+	// Literal form: GetRequiredString("SOME_NAME") / GetRequiredInt("SOME_NAME")
+	// uses the literal directly.
+	// #1798 round 4: GetRequiredInt declares 8 additional required vars
+	// (SESSION_EXPIRY_DAYS, EMAIL_VERIFY_TOKEN_VALIDITY_DURATION,
+	// PASSWORD_RESET_TOKEN_VALIDITY_DURATION, PASSWORD_MIN_LENGTH,
+	// EMAIL_VERIFY_TOKEN_LENGTH, PASSWORD_RESET_TOKEN_LENGTH,
+	// INVITATION_TOKEN_LENGTH) that crash-loop startup identically to
+	// GetRequiredString vars. Both must be covered.
 	const requiredStringPattern =
 		/GetRequiredString\(\s*(?:nameof\s*\(\s*([A-Z][A-Z0-9_]*)\s*\)|"([A-Z][A-Z0-9_]*)")\s*\)/g;
 	let match: RegExpExecArray | null;
@@ -184,9 +192,23 @@ export const extractApiRequiredStrings = (
 		}
 	}
 
+	const requiredIntPattern =
+		/GetRequiredInt\(\s*(?:nameof\s*\(\s*([A-Z][A-Z0-9_]*)\s*\)|"([A-Z][A-Z0-9_]*)")\s*\)/g;
+	let intMatch: RegExpExecArray | null;
+	while ((intMatch = requiredIntPattern.exec(initBody)) !== null) {
+		callCount++;
+		const nameofName = intMatch[1];
+		const literalName = intMatch[2];
+		if (nameofName) {
+			results.add(nameofName);
+		} else if (literalName) {
+			results.add(literalName);
+		}
+	}
+
 	if (callCount === 0) {
 		throw new Error(
-			`API AppEnvironment.cs parse failure: Initialize() found but no GetRequiredString calls detected in ${appEnvironmentPath}. The method structure has changed.`,
+			`API AppEnvironment.cs parse failure: Initialize() found but no GetRequiredString or GetRequiredInt calls detected in ${appEnvironmentPath}. The method structure has changed.`,
 		);
 	}
 
@@ -294,7 +316,7 @@ export const collectRequiredVars = (root: string): RequiredVar[] => {
 		requiredVars.push({
 			name: varName,
 			source: 'API startup (AppEnvironment.cs)',
-			reason: 'GetRequiredString in Initialize()',
+			reason: 'GetRequiredString/GetRequiredInt in Initialize()',
 		});
 	}
 

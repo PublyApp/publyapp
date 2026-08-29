@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, rmSync, writeFileSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -16,29 +16,134 @@ import {
 } from './check-deploy-env-docs.ts';
 
 // ---------------------------------------------------------------------------
-// Test 1: Guard is RED today — PUBLIC_ORIGIN missing from runbook
+// Test 1: PAIRED RED/GREEN PROOF — guard is RED against the BASE runbook
+// (without PUBLIC_ORIGIN), GREEN after the fix.
 // ---------------------------------------------------------------------------
+// This is the real paired proof the brief demands: the guard, executed against
+// the runbook AS IT WAS AT THE BASE (without the PR's own addition), must RED
+// naming PUBLIC_ORIGIN. Executed against the corrected runbook, it must PASS.
+// The previous version of this test asserted only the post-fix state (GREEN)
+// and mislabeled it "RED proof" — the inversion the R3 verdict caught.
 
-test('RED proof: PUBLIC_ORIGIN is undocumented in the real runbook', () => {
+let tmpDir: string;
+
+beforeEach(() => {
+	tmpDir = path.join(
+		tmpdir(),
+		`check-deploy-env-docs-paired-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+	);
+	mkdirSync(tmpDir, { recursive: true });
+});
+
+afterEach(() => {
+	rmSync(tmpDir, { recursive: true, force: true });
+});
+
+test('PAIRED RED/GREEN: guard is RED against base runbook (PUBLIC_ORIGIN missing), GREEN after fix', () => {
 	const root = path.dirname(fileURLToPath(import.meta.url));
 	const repoRoot = path.resolve(root, '../../..');
-	const runbookPath = path.join(
+	const realRunbookPath = path.join(
 		repoRoot,
 		'docs/deployment/first-deploy-runbook.md',
 	);
+	const realRunbook = readFileSync(realRunbookPath, 'utf8');
+
+	// --- RED phase: simulate the base runbook without PUBLIC_ORIGIN ---
+	const baseRunbook = realRunbook.replace(/\| `PUBLIC_ORIGIN`.*\|.*\n/, '');
+	const baseRunbookPath = path.join(tmpDir, 'base-runbook.md');
+	writeFileSync(baseRunbookPath, baseRunbook);
 
 	const requiredVars = collectRequiredVars(repoRoot);
-	const documentedVars = extractDocumentedVars(runbookPath);
+	const documentedVarsAtBase = extractDocumentedVars(baseRunbookPath);
+	const undocumentedAtBase = findUndocumentedVars(
+		requiredVars,
+		documentedVarsAtBase,
+	);
+
+	// RED: PUBLIC_ORIGIN must be flagged as undocumented against the base runbook
+	const publicOriginMissing = undocumentedAtBase.find(
+		(v) => v.name === 'PUBLIC_ORIGIN',
+	);
+	assert.ok(
+		publicOriginMissing,
+		'RED phase failed: PUBLIC_ORIGIN was NOT flagged as undocumented against the base runbook. The guard would not catch the defect it exists to catch.',
+	);
+	assert.equal(publicOriginMissing!.name, 'PUBLIC_ORIGIN');
+
+	// --- GREEN phase: the corrected runbook (with PUBLIC_ORIGIN) ---
+	const documentedVarsFixed = extractDocumentedVars(realRunbookPath);
+	const undocumentedFixed = findUndocumentedVars(
+		requiredVars,
+		documentedVarsFixed,
+	);
+
+	// GREEN: no undocumented vars after the fix
+	assert.equal(
+		undocumentedFixed.length,
+		0,
+		`GREEN phase failed: expected 0 undocumented vars after fix, but found ${undocumentedFixed.length}: ${undocumentedFixed.map((v) => v.name).join(', ')}`,
+	);
+});
+
+// ---------------------------------------------------------------------------
+// Test 1b: GetRequiredInt coverage — the 8 int vars are in the required set.
+// ---------------------------------------------------------------------------
+
+test('GetRequiredInt coverage: all 8 int vars are in the required set', () => {
+	const root = path.dirname(fileURLToPath(import.meta.url));
+	const repoRoot = path.resolve(root, '../../..');
+	const requiredVars = collectRequiredVars(repoRoot);
+	const requiredNames = new Set(requiredVars.map((v) => v.name));
+
+	const intVars = [
+		'SESSION_EXPIRY_DAYS',
+		'EMAIL_VERIFY_TOKEN_VALIDITY_DURATION',
+		'PASSWORD_RESET_TOKEN_VALIDITY_DURATION',
+		'PASSWORD_MIN_LENGTH',
+		'EMAIL_VERIFY_TOKEN_LENGTH',
+		'PASSWORD_RESET_TOKEN_LENGTH',
+		'INVITATION_TOKEN_LENGTH',
+	];
+
+	for (const varName of intVars) {
+		assert.ok(
+			requiredNames.has(varName),
+			`GetRequiredInt var ${varName} is NOT in the required set — the guard is blind to it. Removing it from the runbook would not turn the guard red.`,
+		);
+	}
+});
+
+// ---------------------------------------------------------------------------
+// Test 1c: PAIRED RED/GREEN for GetRequiredInt — removing one from the
+// runbook turns the guard red, naming it.
+// ---------------------------------------------------------------------------
+
+test('PAIRED RED/GREEN: removing a GetRequiredInt var from the runbook turns the guard red, naming it', () => {
+	const root = path.dirname(fileURLToPath(import.meta.url));
+	const repoRoot = path.resolve(root, '../../..');
+	const realRunbookPath = path.join(
+		repoRoot,
+		'docs/deployment/first-deploy-runbook.md',
+	);
+	const realRunbook = readFileSync(realRunbookPath, 'utf8');
+
+	// Remove one GetRequiredInt var (SESSION_EXPIRY_DAYS) from §5b
+	const mutatedRunbook = realRunbook.replace(/SESSION_EXPIRY_DAYS=\d+\n/, '');
+	const mutatedPath = path.join(tmpDir, 'mutated-runbook.md');
+	writeFileSync(mutatedPath, mutatedRunbook);
+
+	const requiredVars = collectRequiredVars(repoRoot);
+	const documentedVars = extractDocumentedVars(mutatedPath);
 	const undocumented = findUndocumentedVars(requiredVars, documentedVars);
 
-	// After fix: this test should now PASS (no undocumented vars).
-	// Before fix: PUBLIC_ORIGIN would be in undocumented.
-	console.log('Undocumented vars (should be empty after fix):', undocumented);
-	assert.equal(
-		undocumented.length,
-		0,
-		`Expected 0 undocumented vars after fix, but found ${undocumented.length}: ${undocumented.map((v) => v.name).join(', ')}`,
+	const sessionExpiryMissing = undocumented.find(
+		(v) => v.name === 'SESSION_EXPIRY_DAYS',
 	);
+	assert.ok(
+		sessionExpiryMissing,
+		'RED phase failed: SESSION_EXPIRY_DAYS was NOT flagged as undocumented after removal. The guard is blind to GetRequiredInt vars.',
+	);
+	assert.equal(sessionExpiryMissing!.name, 'SESSION_EXPIRY_DAYS');
 });
 
 // ---------------------------------------------------------------------------
@@ -233,8 +338,38 @@ public class AppEnvironment {
 
 	assert.throws(
 		() => extractApiRequiredStrings(path.join(dir, 'AppEnvironment.cs')),
-		/no GetRequiredString calls detected/,
+		/no GetRequiredString or GetRequiredInt calls detected/,
 	);
+});
+
+test('extractApiRequiredStrings: finds GetRequiredInt calls with nameof and literal', () => {
+	const dir = createFixture({
+		'AppEnvironment.cs': `
+public class AppEnvironment {
+    public int SESSION_EXPIRY_DAYS { get; }
+
+    public static AppEnvironment Initialize() {
+        var existing = Volatile.Read(ref _instance);
+        if (existing is not null) {
+            return existing;
+        }
+
+        lock (InitLock) {
+            LoadDotEnvIfDevelopment();
+            var settings = new AppEnvironment(
+                sessionExpiryDays: GetRequiredInt(nameof(SESSION_EXPIRY_DAYS)),
+                tokenLength: GetRequiredInt("EMAIL_VERIFY_TOKEN_LENGTH")
+            );
+            return settings;
+        }
+    }
+}
+`,
+	});
+
+	const result = extractApiRequiredStrings(path.join(dir, 'AppEnvironment.cs'));
+	assert.ok(result.has('SESSION_EXPIRY_DAYS'));
+	assert.ok(result.has('EMAIL_VERIFY_TOKEN_LENGTH'));
 });
 
 // ---------------------------------------------------------------------------

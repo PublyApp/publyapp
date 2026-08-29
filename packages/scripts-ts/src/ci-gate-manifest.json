@@ -627,7 +627,7 @@
 			"reason": "GitHub-only: clones the repo onto the runner. Locally the working tree already is the code under test."
 		},
 		"quality-gate.yml::changes::Check whether quality-gate paths changed": {
-			"hash": "28223842b81810e0",
+			"hash": "b4adc204e9a07793",
 			"mirror": "pnpm --filter scripts-ts exec vitest run src/ci-gate-bootstrap.test.ts",
 			"reason": "The step inlines the fallback directly (same pattern as the other four gate workflows): if base-ref/packages/scripts-ts/src/ci-changed-paths.ts exists, run it and pass its output/exit code straight through; otherwise print a loud [MISSING BASE CLASSIFIER] warning and resolve relevant=true, on a code path that never invokes the classifier. packages/scripts-ts/src/ci-gate-bootstrap.test.ts parses this exact `run:` block from the real workflow file (not a restatement) and executes it directly against both cases for all gate workflows. The classifier's own decision logic remains covered by ci-changed-paths.test.ts (#1334 fix round 1: the inline regex gained a docs/guides/dependency-health.md alternative so doc-only PRs wake this gate for the pin-location contract; that behavior is pinned by two new #1334 cases in ci-changed-paths.test.ts). The classifier regex (and the push paths list) also wake the gate on root knip.ts changes since #455, matching the Knip step's inputs."
 		},
