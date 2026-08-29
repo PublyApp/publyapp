@@ -18,6 +18,13 @@
 		"Regeneration can only ADD step IDs, never remove them. To deliberately",
 		"remove a step, confess it in ci-gate-removals.json with a reason.",
 		"",
+		"The floor is derived from git HEAD, not the working tree. This prevents",
+		"a contributor from lowering pinned_step_ids in the same commit as the",
+		"removal.",
+		"",
+		"pinned_step_ids and steps{} must contain exactly the same set of IDs.",
+		"A mismatch fails regeneration with a named error.",
+		"",
 		"Regenerate with: node packages/scripts-ts/src/gen-reason-ref.ts",
 		"See docs/guides/local-ci-gate.md."
 	],
