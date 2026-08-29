@@ -362,6 +362,23 @@ void test('ADVERSE: catches wildcard re-export (export * from)', () => {
 	assert.ok(findings[0].bindings.includes('(wildcard re-export)'));
 });
 
+	void test('ADVERSE: catches import = require() (ImportEqualsDeclaration)', () => {
+		// `import ReactTable = require('@tanstack/react-table')` is the
+		// CommonJS-style import assignment. The right-hand side is an
+		// ExternalModuleReference whose expression is a StringLiteral (not
+		// a CallExpression), so neither the import-declaration handler nor
+		// the require-call handler fires. The guard must flag this form.
+		const root = makeSandbox({
+			'src/routes/authed/staff/profiles.tsx':
+				`import ReactTable = require('@tanstack/react-table');\n` +
+				`export const x = null as ReactTable.ColumnDef<any>;\n`,
+		});
+		const findings = scanFrontSrcForBannedImports(root);
+		assert.equal(findings.length, 1, 'expected exactly one finding');
+		assert.equal(findings[0].specifier, '@tanstack/react-table');
+		assert.ok(findings[0].bindings.includes('(import = require)'));
+	});
+
 // ---------------------------------------------------------------------------
 // Message quality: the message must name the replacement.
 // ---------------------------------------------------------------------------

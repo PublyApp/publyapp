@@ -45,7 +45,10 @@
  *     import specifier + message regardless, since a namespace import of the
  *     root module is itself the violation);
  *   - `import('@tanstack/react-table')` (dynamic import call — flagged because
- *     the specifier is the root and the brief requires it).
+ *     the specifier is the root and the brief requires it);
+ *   - `import ReactTable = require('@tanstack/react-table')` (CommonJS-style
+ *     import assignment — flagged because the specifier is the root module,
+ *     which gives access to all banned types).
  *
  * Only imports whose module specifier is exactly `@tanstack/react-table` or
  * `@tanstack/react-table/legacy` are inspected. Imports of
@@ -384,6 +387,32 @@ const scanSourceFile = (relativePath: string, source: string): Finding[] => {
 			}
 		}
 
+		// `import X = require('...')` (ImportEqualsDeclaration) — the
+		// CommonJS-style import assignment. The right-hand side is an
+		// `ExternalModuleReference` whose expression is a StringLiteral (not
+		// a CallExpression), so neither the import-declaration handler nor the
+		// require-call handler above fires. A banned specifier here gives
+		// access to all exports, including the banned types.
+		if (ts.isImportEqualsDeclaration(node)) {
+			const moduleRef = node.moduleReference;
+			if (
+				moduleRef !== undefined &&
+				ts.isExternalModuleReference(moduleRef) &&
+				ts.isStringLiteralLike(moduleRef.expression)
+			) {
+				const specifier = moduleRef.expression.text;
+				if (BANNED_SPECIFIERS.has(specifier)) {
+					findings.push({
+						file: relativePath,
+						line: lineOf(sourceFile, node),
+						specifier,
+						bindings: ['(import = require)'],
+						nodeText: node.getText(sourceFile).trim().replace(/\s+/g, ' '),
+					});
+				}
+			}
+		}
+
 		node.forEachChild(visit);
 	};
 
@@ -398,8 +427,12 @@ const walk = (dir: string): string[] => {
 	let entries: string[];
 	try {
 		entries = readdirSync(dir);
-	} catch {
-		return out;
+	} catch (err) {
+		throw new Error(
+			`Guard #1769: cannot read directory '${dir}'. ` +
+				`The guard cannot verify the ban without scanning every file.`,
+			{ cause: err },
+		);
 	}
 	for (const entry of entries) {
 		if (entry === 'node_modules' || entry === '.cache' || entry === '.turbo') {
@@ -468,10 +501,13 @@ export const scanFrontSrcForBannedImports = (
 
 export const main = (root: string = frontSrc): void => {
 	const findings = scanFrontSrcForBannedImports(root);
+	// Count files by walking the same root the scan uses, so the reported
+	// number matches what was actually scanned (not a static constant).
+	const fileCount = walk(root).length;
 	if (findings.length > 0) {
 		console.error(
 			`ColumnDef/Row/TanStackTable import violation (#1769): ` +
-				`${findings.length} banned import(s) found. ` +
+				`${findings.length} banned import(s) found across ${fileCount} file(s). ` +
 				`Import from '${REPLACEMENT}' instead.`,
 		);
 		for (const f of findings) {
@@ -480,7 +516,7 @@ export const main = (root: string = frontSrc): void => {
 		process.exit(1);
 	}
 	console.log(
-		'No banned @tanstack/react-table imports found (apps/front/src) [OK]',
+		`No banned @tanstack/react-table imports found (${fileCount} files scanned) [OK]`,
 	);
 };
 
