@@ -183,7 +183,7 @@ const extractFunctionBody = (): string => {
 		);
 	}
 	return source.slice(headerIndex, footerIndex);
-}
+};
 
 /**
  * Check whether the function body has the buggy structure:
@@ -266,7 +266,7 @@ const hasBuggyStructure = (body: string): boolean => {
 	}
 
 	return false;
-}
+};
 
 /**
  * Find all positions of `try` keyword in the body.
@@ -304,7 +304,7 @@ const findAllTryPositions = (body: string): number[] => {
 		i = braceIdx + 1;
 	}
 	return positions;
-}
+};
 
 /**
  * Find the matching closing brace for an opening brace at position `start`.
@@ -363,7 +363,7 @@ const findMatchingBrace = (body: string, start: number): number => {
 		return -1;
 	}
 	return k;
-}
+};
 
 describe('shallow-repair catch attribution — RED: catch names git rev-parse even when git fetch --unshallow fails (#1802)', () => {
 	test('the declaredProofTests function has a single try block covering BOTH git rev-parse and git fetch --unshallow, whose catch names git rev-parse (the buggy structure the fix corrected)', () => {
