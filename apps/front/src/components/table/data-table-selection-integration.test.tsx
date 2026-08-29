@@ -193,6 +193,8 @@ describe('DataTable row selection integration (issue #1730)', () => {
 		// All selected -> header is checked, not indeterminate.
 		expect(headerCheckbox?.hasAttribute('data-checked')).toBe(true);
 		expect(headerCheckbox?.getAttribute('data-indeterminate')).toBeNull();
+		// Accessible state: checked.
+		expect(headerCheckbox?.getAttribute('aria-checked')).toBe('true');
 	});
 
 	// Breaker: if `hasPartialSelection` logic is inverted (only returns true when
@@ -209,6 +211,8 @@ describe('DataTable row selection integration (issue #1730)', () => {
 		// Partial selection -> header is indeterminate, not checked.
 		expect(headerCheckbox?.hasAttribute('data-checked')).toBe(false);
 		expect(headerCheckbox?.getAttribute('data-indeterminate')).toBe('');
+		// Accessible state: mixed.
+		expect(headerCheckbox?.getAttribute('aria-checked')).toBe('mixed');
 	});
 
 	// Breaker: if the header checkbox is always indeterminate when nothing is
@@ -226,5 +230,7 @@ describe('DataTable row selection integration (issue #1730)', () => {
 		// No selection at all -> header is unchecked and not indeterminate.
 		expect(headerCheckbox?.hasAttribute('data-checked')).toBe(false);
 		expect(headerCheckbox?.getAttribute('data-indeterminate')).toBeNull();
+		// Accessible state: false.
+		expect(headerCheckbox?.getAttribute('aria-checked')).toBe('false');
 	});
 });
