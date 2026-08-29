@@ -35,10 +35,14 @@ import {
 	SCANNED_EXTENSIONS,
 	NON_CODE_EXTENSIONS,
 	CORE_EXTENSIONS,
+	EXEMPT_FILES,
 	assertNoOverlap,
 	assertAllJustified,
 	assertCoreExtensionsScanned,
 	assertScanSurface,
+	assertExemptionsPinned,
+	assertNonCodeExtensionsPinned,
+	assertScannedExtensionsPinned,
 } from './check-column-type-imports.mts';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -826,5 +830,131 @@ void test('R6 ADVERSE: a fourth gesture — declaring .ts as non-code fails core
 		() => assertNoOverlap(SCANNED_EXTENSIONS, overlappingNonCode),
 		/Guard #1769: NON_CODE_EXTENSIONS overlaps SCANNED_EXTENSIONS \(\.ts\)/,
 		'expected the guard to fail loudly naming .ts',
+	);
+});
+
+// ---------------------------------------------------------------------------
+// R7: pinned-set assertions — prove the three r6 bypasses are now caught.
+// ---------------------------------------------------------------------------
+
+void test('R7 HOLE 1 RED: adding a file to EXEMPT_FILES fails assertExemptionsPinned', () => {
+	// The r6 reviewer's mutation: adding data-table-header-row.tsx to the
+	// exempt set. The pinned baseline must catch this.
+	const baselinePath = path.resolve(here, 'column-type-imports-baseline.json');
+	const raw = readFileSync(baselinePath, 'utf8');
+	const baseline = JSON.parse(raw) as {
+		perExtension: Record<string, number>;
+		scannedExtensions: string[];
+		nonCodeExtensions: Record<string, string>;
+		exemptFiles: string[];
+	};
+	const expandedExempt = new Set([...EXEMPT_FILES, 'components/table/data-table-header-row.tsx']);
+	assert.throws(
+		() => assertExemptionsPinned(expandedExempt, baseline),
+		/Guard #1769: EXEMPT_FILES has diverged from the pinned baseline — added: components\/table\/data-table-header-row\.tsx/,
+		'expected the guard to fail loudly naming the added exempt file',
+	);
+});
+
+void test('R7 HOLE 1 RED: current EXEMPT_FILES matches the pinned baseline', () => {
+	const baselinePath = path.resolve(here, 'column-type-imports-baseline.json');
+	const raw = readFileSync(baselinePath, 'utf8');
+	const baseline = JSON.parse(raw) as {
+		perExtension: Record<string, number>;
+		scannedExtensions: string[];
+		nonCodeExtensions: Record<string, string>;
+		exemptFiles: string[];
+	};
+	assert.doesNotThrow(
+		() => assertExemptionsPinned(EXEMPT_FILES, baseline),
+		'expected the guard to pass when EXEMPT_FILES matches the baseline',
+	);
+});
+
+void test('R7 HOLE 2 RED: adding a non-code extension with 24-char padding fails assertNonCodeExtensionsPinned', () => {
+	// The r6 reviewer's mutation: a 24-char string of 'a' passes the length
+	// bar. Pinning the full map catches this.
+	const baselinePath = path.resolve(here, 'column-type-imports-baseline.json');
+	const raw = readFileSync(baselinePath, 'utf8');
+	const baseline = JSON.parse(raw) as {
+		perExtension: Record<string, number>;
+		scannedExtensions: string[];
+		nonCodeExtensions: Record<string, string>;
+		exemptFiles: string[];
+	};
+	const paddedNonCode = new Map(NON_CODE_EXTENSIONS);
+	paddedNonCode.set('.ctsx', 'aaaaaaaaaaaaaaaaaaaaaaaa');
+	assert.throws(
+		() => assertNonCodeExtensionsPinned(paddedNonCode, baseline),
+		/Guard #1769: NON_CODE_EXTENSIONS has diverged from the pinned baseline — added: \.ctsx/,
+		'expected the guard to fail loudly naming the added non-code extension',
+	);
+});
+
+void test('R7 HOLE 2 RED: changing a justification fails assertNonCodeExtensionsPinned', () => {
+	const baselinePath = path.resolve(here, 'column-type-imports-baseline.json');
+	const raw = readFileSync(baselinePath, 'utf8');
+	const baseline = JSON.parse(raw) as {
+		perExtension: Record<string, number>;
+		scannedExtensions: string[];
+		nonCodeExtensions: Record<string, string>;
+		exemptFiles: string[];
+	};
+	const changedNonCode = new Map(NON_CODE_EXTENSIONS);
+	changedNonCode.set('.json', 'short');
+	assert.throws(
+		() => assertNonCodeExtensionsPinned(changedNonCode, baseline),
+		/Guard #1769: NON_CODE_EXTENSIONS has diverged from the pinned baseline — justification changed: \.json/,
+		'expected the guard to fail loudly naming the changed justification',
+	);
+});
+
+void test('R7 HOLE 2 RED: current NON_CODE_EXTENSIONS matches the pinned baseline', () => {
+	const baselinePath = path.resolve(here, 'column-type-imports-baseline.json');
+	const raw = readFileSync(baselinePath, 'utf8');
+	const baseline = JSON.parse(raw) as {
+		perExtension: Record<string, number>;
+		scannedExtensions: string[];
+		nonCodeExtensions: Record<string, string>;
+		exemptFiles: string[];
+	};
+	assert.doesNotThrow(
+		() => assertNonCodeExtensionsPinned(NON_CODE_EXTENSIONS, baseline),
+		'expected the guard to pass when NON_CODE_EXTENSIONS matches the baseline',
+	);
+});
+
+void test('R7 HOLE 3 RED: removing .ctsx from SCANNED_EXTENSIONS fails assertScannedExtensionsPinned', () => {
+	// The r6 reviewer's mutation: removing .ctsx from SCANNED_EXTENSIONS and
+	// adding it to NON_CODE_EXTENSIONS. The pinned baseline catches this.
+	const baselinePath = path.resolve(here, 'column-type-imports-baseline.json');
+	const raw = readFileSync(baselinePath, 'utf8');
+	const baseline = JSON.parse(raw) as {
+		perExtension: Record<string, number>;
+		scannedExtensions: string[];
+		nonCodeExtensions: Record<string, string>;
+		exemptFiles: string[];
+	};
+	const reducedScanned = new Set([...SCANNED_EXTENSIONS]);
+	reducedScanned.delete('.ctsx');
+	assert.throws(
+		() => assertScannedExtensionsPinned(reducedScanned, baseline),
+		/Guard #1769: SCANNED_EXTENSIONS has diverged from the pinned baseline — removed: \.ctsx/,
+		'expected the guard to fail loudly naming the removed extension',
+	);
+});
+
+void test('R7 HOLE 3 RED: current SCANNED_EXTENSIONS matches the pinned baseline', () => {
+	const baselinePath = path.resolve(here, 'column-type-imports-baseline.json');
+	const raw = readFileSync(baselinePath, 'utf8');
+	const baseline = JSON.parse(raw) as {
+		perExtension: Record<string, number>;
+		scannedExtensions: string[];
+		nonCodeExtensions: Record<string, string>;
+		exemptFiles: string[];
+	};
+	assert.doesNotThrow(
+		() => assertScannedExtensionsPinned(SCANNED_EXTENSIONS, baseline),
+		'expected the guard to pass when SCANNED_EXTENSIONS matches the baseline',
 	);
 });

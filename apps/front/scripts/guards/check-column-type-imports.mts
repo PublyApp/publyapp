@@ -174,9 +174,21 @@ export const CORE_EXTENSIONS = new Set(['.ts', '.tsx', '.mts', '.cts']);
  *
  * The floor is loaded from column-type-imports-baseline.json at runtime.
  * See that file's $comment for when and how to lower a floor.
+ *
+ * R7: the baseline also pins the exact contents of SCANNED_EXTENSIONS,
+ * NON_CODE_EXTENSIONS, and EXEMPT_FILES. Any divergence from the pinned
+ * baseline fails the guard loudly — this is what makes the three r6 bypasses
+ * (exemption expansion, justification padding, extension relocation)
+ * visible at the guard level, not just at the test level.
  */
 export interface ScanBaseline {
 	perExtension: Record<string, number>;
+	/** Pinned SCANNED_EXTENSIONS — any addition or removal fails. */
+	scannedExtensions: string[];
+	/** Pinned NON_CODE_EXTENSIONS — any addition, removal, or justification change fails. */
+	nonCodeExtensions: Record<string, string>;
+	/** Pinned EXEMPT_FILES — any addition or removal fails. */
+	exemptFiles: string[];
 }
 
 /**
@@ -197,16 +209,25 @@ export const NON_CODE_EXTENSIONS = new Map<string, string>([
 ]);
 
 /**
+ * R7: the set of files that are exempt from scanning. Only
+ * `column-type.ts` is exempt — it is the passthrough itself. This set is
+ * pinned in column-type-imports-baseline.json; any addition fails the guard
+ * via assertExemptionsPinned.
+ *
+ * The brief asked to verify whether `data-table.tsx` needs an exemption; it
+ * does not import from `@tanstack/react-table` (checked against the current
+ * tree), so it is not listed here.
+ */
+export const EXEMPT_FILES = new Set(['components/table/column-type.ts']);
+
+/**
  * Determines whether `normalizedPath` (relative to the scanned root) refers
  * to an exempt file. The scanned root may be `apps/front/src` (production)
  * or a test sandbox under `scripts/guards/`. In production the path is
  * `components/table/column-type.ts`; in tests it may include the full
  * `apps/front/src/...` prefix or be relative to a scripts/guards/ root.
  *
- * Only `column-type.ts` is exempt — it is the passthrough itself. The brief
- * asked to verify whether `data-table.tsx` needs an exemption; it does not
- * import from `@tanstack/react-table` (checked against the current tree), so
- * it is not listed here.
+ * Only `column-type.ts` is exempt — it is the passthrough itself.
  */
 const isExempt = (normalizedPath: string): boolean => {
 	const suffix = 'components/table/column-type.ts';
@@ -702,6 +723,125 @@ export const assertScanSurface = (
 };
 
 /**
+ * R7 (Hole 1): asserts that the runtime EXEMPT_FILES set matches the pinned
+ * baseline exactly. The r6 reviewer showed that adding a single
+ * `|| normalizedPath.endsWith('components/table/data-table-header-row.tsx')`
+ * to isExempt keeps the real-tree guard green (748 files scanned, 0 findings)
+ * AND all 53 tests green, while silently exempting a real file that contains
+ * banned @tanstack/react-table imports. The floor check does not catch this
+ * because walk() still counts the file — isExempt runs AFTER the count.
+ *
+ * Pinning the exempt set in the committed baseline makes this gesture
+ * visible: any addition to EXEMPT_FILES fails the guard loudly, naming the
+ * diverging path(s). The justification bar (24 chars) is not a semantic check
+ * — it is a cosmetic barrier. The only robust protection is to pin the set
+ * itself so that any change is a visible, reviewable commit.
+ */
+export const assertExemptionsPinned = (
+	exemptFiles: Set<string>,
+	baseline: ScanBaseline,
+): void => {
+	const pinned = new Set(baseline.exemptFiles);
+	const added = [...exemptFiles].filter((f) => !pinned.has(f));
+	const removed = [...pinned].filter((f) => !exemptFiles.has(f));
+	if (added.length > 0 || removed.length > 0) {
+		const parts: string[] = [];
+		if (added.length > 0) {
+			parts.push(`added: ${added.sort().join(', ')}`);
+		}
+		if (removed.length > 0) {
+			parts.push(`removed: ${removed.sort().join(', ')}`);
+		}
+		throw new Error(
+			`Guard #1769: EXEMPT_FILES has diverged from the pinned baseline — ` +
+				parts.join('; ') +
+				`. The exempt set is pinned in ` +
+				`column-type-imports-baseline.json. To change it, edit the ` +
+				`baseline and let the diff make the change visible in review.`,
+		);
+	}
+};
+
+/**
+ * R7 (Hole 2): asserts that the runtime NON_CODE_EXTENSIONS map matches the
+ * pinned baseline exactly — both the set of extensions AND their
+ * justifications. The r6 reviewer showed that a 24-char string of 'a' passes
+ * assertAllJustified, so the length bar is not a semantic check. Pinning the
+ * full map makes any addition, removal, or justification change visible.
+ */
+export const assertNonCodeExtensionsPinned = (
+	nonCode: Map<string, string>,
+	baseline: ScanBaseline,
+): void => {
+	const pinned = new Map(Object.entries(baseline.nonCodeExtensions));
+	const pinnedKeys = new Set(pinned.keys());
+	const actualKeys = new Set(nonCode.keys());
+	const added = [...actualKeys].filter((k) => !pinnedKeys.has(k));
+	const removed = [...pinnedKeys].filter((k) => !actualKeys.has(k));
+	const changed: string[] = [];
+	for (const [key, pinnedValue] of pinned) {
+		if (actualKeys.has(key) && nonCode.get(key) !== pinnedValue) {
+			changed.push(key);
+		}
+	}
+	if (added.length > 0 || removed.length > 0 || changed.length > 0) {
+		const parts: string[] = [];
+		if (added.length > 0) {
+			parts.push(`added: ${added.sort().join(', ')}`);
+		}
+		if (removed.length > 0) {
+			parts.push(`removed: ${removed.sort().join(', ')}`);
+		}
+		if (changed.length > 0) {
+			parts.push(`justification changed: ${changed.sort().join(', ')}`);
+		}
+		throw new Error(
+			`Guard #1769: NON_CODE_EXTENSIONS has diverged from the pinned ` +
+				`baseline — ${parts.join('; ')}. The non-code set is pinned ` +
+				`in column-type-imports-baseline.json. To change it, edit ` +
+				`the baseline and let the diff make the change visible in ` +
+				`review.`,
+		);
+	}
+};
+
+/**
+ * R7 (Hole 3): asserts that the runtime SCANNED_EXTENSIONS set matches the
+ * pinned baseline exactly. The r6 reviewer showed that for .ctsx, .mjs, .cjs
+ * (floor 0 in baseline), removing the extension from SCANNED_EXTENSIONS and
+ * adding it to NON_CODE_EXTENSIONS keeps the real-tree guard green — no floor
+ * to bite, no core-extensions check to fail. Tests catch the removal, but the
+ * real-tree guard itself silently passes.
+ *
+ * Pinning the scanned set makes this gesture visible at the guard level: any
+ * addition or removal fails loudly, naming the diverging extension(s).
+ */
+export const assertScannedExtensionsPinned = (
+	scanned: Set<string>,
+	baseline: ScanBaseline,
+): void => {
+	const pinned = new Set(baseline.scannedExtensions);
+	const added = [...scanned].filter((e) => !pinned.has(e));
+	const removed = [...pinned].filter((e) => !scanned.has(e));
+	if (added.length > 0 || removed.length > 0) {
+		const parts: string[] = [];
+		if (added.length > 0) {
+			parts.push(`added: ${added.sort().join(', ')}`);
+		}
+		if (removed.length > 0) {
+			parts.push(`removed: ${removed.sort().join(', ')}`);
+		}
+		throw new Error(
+			`Guard #1769: SCANNED_EXTENSIONS has diverged from the pinned ` +
+				`baseline — ${parts.join('; ')}. The scanned set is pinned ` +
+				`in column-type-imports-baseline.json. To change it, edit ` +
+				`the baseline and let the diff make the change visible in ` +
+				`review.`,
+		);
+	}
+};
+
+/**
  * Scans the front source tree for banned imports.
  * @param root Override the root directory (used by tests).
  */
@@ -796,6 +936,11 @@ export const scanFrontSrcForBannedImports = (
 	// "move .tsx to non-code" mutation, but any shrinking of the scan set.
 	// Only enforced on the production root: test sandboxes are partial trees
 	// and would always fall below the floor.
+	//
+	// R7: the three mutable sets (SCANNED_EXTENSIONS, NON_CODE_EXTENSIONS,
+	// EXEMPT_FILES) are also pinned in the baseline. Any divergence from the
+	// pinned baseline fails the guard loudly — this is what makes the three
+	// r6 bypasses visible at the guard level, not just at the test level.
 	if (root === frontSrc) {
 		const perExtensionCounts: Record<string, number> = {};
 		for (const file of files) {
@@ -804,10 +949,24 @@ export const scanFrontSrcForBannedImports = (
 				perExtensionCounts[ext] = (perExtensionCounts[ext] ?? 0) + 1;
 			}
 		}
-		assertScanSurface(
-			perExtensionCounts,
-			path.resolve(scriptDir, 'column-type-imports-baseline.json'),
+		const baselinePath = path.resolve(
+			scriptDir,
+			'column-type-imports-baseline.json',
 		);
+		let baseline: ScanBaseline;
+		try {
+			baseline = JSON.parse(readFileSync(baselinePath, 'utf8')) as ScanBaseline;
+		} catch (err) {
+			throw new Error(
+				`Guard #1769: cannot read scan-surface baseline '${baselinePath}'. ` +
+					`The guard cannot verify the scan surface without it.`,
+				{ cause: err },
+			);
+		}
+		assertScanSurface(perExtensionCounts, baselinePath);
+		assertScannedExtensionsPinned(SCANNED_EXTENSIONS, baseline);
+		assertNonCodeExtensionsPinned(NON_CODE_EXTENSIONS, baseline);
+		assertExemptionsPinned(EXEMPT_FILES, baseline);
 	}
 
 	const findings: Finding[] = [];
