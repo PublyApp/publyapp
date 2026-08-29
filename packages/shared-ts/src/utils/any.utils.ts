@@ -11,7 +11,9 @@ export const delay = <T = unknown>(
 			const { logger } = await import('@org/shared-ts/lib/logger/iso-logger');
 			logger.warn('delay function invoked', { timeout, value });
 		};
-		void traceLog();
+		// Fire-and-forget, but never let a throwing logger surface as an
+		// unhandled rejection: delay() must resolve regardless.
+		void traceLog().catch(() => {});
 	}
 	return new Promise<T>((resolve) => {
 		return setTimeout(() => {
