@@ -177,6 +177,49 @@ public sealed class TenantUsageServiceSpec
 		);
 	}
 
+	[Fact]
+	public async Task ItShouldReturnNullForASoftDeletedSuspendedTenant() {
+		// #1818 r3 — closes the "too-permissive" half of the pin. The r1 test
+		// (ItShouldReturnNullWhenTenantIsSoftDeleted) seeds a soft-deleted
+		// tenant with Status=Active, so any guard that is false for
+		// (IsDeleted=true, Status=Active) keeps it green — including the
+		// reviewer mutation `!IsDeleted || Status != Active`. This spec
+		// combines IsDeleted=true with Status=Suspended; under that mutation
+		// `!IsDeleted || Status != Active` evaluates to `false || true` =
+		// true, the existence guard passes, and a snapshot is returned. The
+		// spec asserts the opposite, so the mutation fails this test.
+		var tenantId = await SeedSoftDeletedTenantWithStatusAsync(TenantStatus.Suspended);
+
+		var result = await NewService().GetTenantUsageAsync(tenantId);
+
+		result.Should().BeNull(
+			"a soft-deleted tenant must be treated as non-existent regardless "
+			+ "of its Status. A guard that lets a deleted-but-non-Active tenant "
+			+ "through — e.g. `!IsDeleted || Status != Active` — would surface a "
+			+ "deleted space as an empty-but-existing one instead of returning "
+			+ "null. Soft deletion and tenant status are independent concerns."
+		);
+	}
+
+	[Fact]
+	public async Task ItShouldReturnNullForASoftDeletedPendingTenant() {
+		// #1818 r3 — same direction as the Suspended variant, on the other
+		// non-Active status. A guard that lets a deleted-but-Pending tenant
+		// through also fails here. Pending is the Tenant.Status default, so
+		// this case is the cheapest to seed (no explicit Status assignment is
+		// required) and would be the first to silently regress if a future
+		// refactor defaulted a soft-deleted tenant to Pending.
+		var tenantId = await SeedSoftDeletedTenantWithStatusAsync(TenantStatus.Pending);
+
+		var result = await NewService().GetTenantUsageAsync(tenantId);
+
+		result.Should().BeNull(
+			"a soft-deleted tenant must be treated as non-existent regardless "
+			+ "of its Status — including the default Pending. A guard that "
+			+ "relies on `Status != Active` would let this row through."
+		);
+	}
+
 	// ── The cost anchor: every query filters on the requested tenant id ──
 
 	[Fact]
@@ -381,6 +424,34 @@ public sealed class TenantUsageServiceSpec
 			Name = $"usage-deleted {Guid.NewGuid():N}",
 			Code = Guid.NewGuid().ToString("N")[..10],
 			Status = TenantStatus.Active,
+			MaxUsers = 10,
+		};
+		await dbContext.Tenant.AddAsync(tenant);
+		await dbContext.SaveChangesAsync();
+
+		// Soft-delete AFTER insert: SaveChanges forces IsDeleted=false on Added
+		// rows (audit interceptor), matching the existing specs' seeding note.
+		tenant.IsDeleted = true;
+		await dbContext.SaveChangesAsync();
+
+		return tenant.GetRequiredId();
+	}
+
+	private async Task<Guid> SeedSoftDeletedTenantWithStatusAsync(
+			TenantStatus status
+		) {
+		// Mirror of SeedSoftDeletedTenantAsync, with an explicit Status so the
+		// r3 specs can probe the (IsDeleted=true, Status∈{Suspended,Pending})
+		// quadrant. The r1 seed used Status=Active, which made the reviewer
+		// mutation `!IsDeleted || Status != Active` indistinguishable from
+		// the real `!IsDeleted` guard on that single fixture.
+		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+		var tenant = new Tenant {
+			Name = $"usage-deleted-{status} {Guid.NewGuid():N}",
+			Code = Guid.NewGuid().ToString("N")[..10],
+			Status = status,
 			MaxUsers = 10,
 		};
 		await dbContext.Tenant.AddAsync(tenant);
