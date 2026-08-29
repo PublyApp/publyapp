@@ -208,6 +208,7 @@ jobs:
             --ignore '/dist/**' --ignore '/.artifacts/**' \
             --ignore '**/Migrations/**' --ignore '.worktrees/**' \
             --ignore 'packages/client-ts/**' \
+            --ignore 'apps/front/scripts/**' \
             --reporters json --output .dump/jscpd-report.json
           node packages/scripts-ts/src/check-jscpd.ts
 

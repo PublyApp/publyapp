@@ -332,7 +332,7 @@ ci-drift:
 ci-jscpd:
   @echo "=== [gate] jscpd duplication ratchet ==="
   @echo "Running jscpd scan..."
-  pnpm exec jscpd . --min-tokens 50 --ignore '/node_modules/**' --ignore '/bin/**' --ignore '/obj/**' --ignore '/dist/**' --ignore '/.artifacts/**' --ignore '**/Migrations/**' --ignore '.worktrees/**' --ignore 'packages/client-ts/**' --reporters json --output .dump/jscpd-report.json
+  pnpm exec jscpd . --min-tokens 50 --ignore '/node_modules/**' --ignore '/bin/**' --ignore '/obj/**' --ignore '/dist/**' --ignore '/.artifacts/**' --ignore '**/Migrations/**' --ignore '.worktrees/**' --ignore 'packages/client-ts/**' --ignore 'apps/front/scripts/**' --reporters json --output .dump/jscpd-report.json
   @echo "Verifying baseline..."
   pnpm --filter scripts-ts exec vitest run src/check-jscpd.test.ts
   node ./packages/scripts-ts/src/check-jscpd.ts

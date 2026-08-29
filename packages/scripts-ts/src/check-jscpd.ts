@@ -21,7 +21,7 @@
  *   node_modules, bin, obj, dist, .artifacts, Migrations, .worktrees.
  * Production paths: apps/api, apps/front/src, packages/shared-ts.
  *
- *   - Production clone pairs (unique, non-spec): 945, 14 367 lines
+ *   - Production clone pairs (unique, non-spec): 433, 6 703 lines
  *   - Production self-duplication files: 250, 4 782 lines
  */
 

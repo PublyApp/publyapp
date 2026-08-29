@@ -296,8 +296,6 @@ test('fails loudly when both report and duplicates are empty', async () => {
 });
 
 test('real repository passes with current baseline', () => {
-	// repoRoot resolves relative to check-jscpd.ts, which is under
-	// packages/scripts-ts/src/. We need the report one level up.
 	const reportPath = path.resolve(
 		path.dirname(fileURLToPath(import.meta.url)),
 		'../../../.dump/jscpd-report.json/jscpd-report.json',
