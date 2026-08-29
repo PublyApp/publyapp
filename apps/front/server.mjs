@@ -61,29 +61,58 @@ const resolveTrustProxyFromEnv = async () => {
 			.split(',')
 			.map((entry) => entry.trim())
 			.filter((entry) => entry.length > 0);
-		// Reject universal CIDRs at startup. `0.0.0.0/0` and `::/0` do NOT
-		// mean "trust everyone" with srvx — srvx uses exact string matching
-		// (Array.includes), not subnet matching. `0.0.0.0` matches no real peer,
-		// so every client appears as the proxy's own address, silently breaking
-		// per-IP rate limiting and audit logging. A value the parser cannot
-		// honor must never be silently coerced to a "safe" default — fail loud,
-		// name the offender, and say what to put instead.
+		// Validate every CIDR entry at startup. srvx uses exact string
+		// matching (Array.includes), not subnet matching, so a "trust" list
+		// containing `0.0.0.0` or `::` matches no real peer — every client
+		// appears as the proxy's own address, silently breaking per-IP rate
+		// limiting and audit logging. A value the parser cannot honor must
+		// never be silently coerced to a "safe" default — fail loud, name the
+		// offender, and say what to put instead.
 		//
-		// Parse the CIDR suffix to catch equivalent forms like /00, /000 —
-		// all are prefix-length 0, the universal wildcard.
-		const universal = entries.find((entry) => {
+		// For each entry that carries a slash, the prefix-length suffix must
+		// be a plain decimal string (no sign, no space, no decimal point,
+		// no trailing junk) and fall within the valid range for the address
+		// family (0-32 for IPv4, 0-128 for IPv6). A prefix length of 0 is the
+		// universal wildcard and is refused with the dedicated message below;
+		// any absent, empty, or non-conforming suffix fails startup with a
+		// distinct message that names the offending entry.
+		//
+		// A bare address without a slash (e.g. `10.0.0.9`) is a valid
+		// srvx exact-match entry and is accepted as-is. It is not a wildcard:
+		// srvx matches it against the literal peer address, and a bare
+		// `0.0.0.0` simply matches no real peer (a visibly broken
+		// configuration, not a silent one). The silent danger is the `/0`
+		// form, which operators mistake for "trust everything".
+		for (const entry of entries) {
 			const slashIdx = entry.lastIndexOf('/');
-			if (slashIdx === -1) return false;
+			if (slashIdx === -1) continue;
+			const addrPart = entry.slice(0, slashIdx);
 			const suffix = entry.slice(slashIdx + 1);
-			return suffix.length > 0 && Number.parseInt(suffix, 10) === 0;
-		});
-		if (universal) {
-			throw new Error(
-				`Refusing to start: TRUSTED_PROXY_CIDRS contains universal CIDR '${universal}', ` +
-					`which would silently break per-IP rate limiting and audit logging. ` +
-					`Replace it with the proxy's exact address as /32 (IPv4) or /128 (IPv6), ` +
-					`e.g. '10.0.0.9/32'.`,
-			);
+			if (!/^\d+$/.test(suffix)) {
+				throw new Error(
+					`Refusing to start: TRUSTED_PROXY_CIDRS contains '${entry}' with an unreadable prefix length ` +
+						`(expected decimal digits, got '${suffix || '<empty>'}'). ` +
+						`Give the exact proxy address followed by /32 (IPv4) or /128 (IPv6), e.g. '10.0.0.9/32'.`,
+				);
+			}
+			const prefixLength = Number.parseInt(suffix, 10);
+			const isIpv6 = addrPart.includes(':');
+			const maxPrefix = isIpv6 ? 128 : 32;
+			if (prefixLength > maxPrefix) {
+				throw new Error(
+					`Refusing to start: TRUSTED_PROXY_CIDRS contains '${entry}' with prefix length ${prefixLength}, ` +
+						`above the ${isIpv6 ? 'IPv6' : 'IPv4'} maximum of ${maxPrefix}. ` +
+						`Give the exact proxy address followed by /32 (IPv4) or /128 (IPv6), e.g. '10.0.0.9/32'.`,
+				);
+			}
+			if (prefixLength === 0) {
+				throw new Error(
+					`Refusing to start: TRUSTED_PROXY_CIDRS contains universal CIDR '${entry}', ` +
+						`which would silently break per-IP rate limiting and audit logging. ` +
+						`Replace it with the proxy's exact address as /32 (IPv4) or /128 (IPv6), ` +
+						`e.g. '10.0.0.9/32'.`,
+				);
+			}
 		}
 		return entries.map((entry) => entry.split('/')[0]);
 	}
