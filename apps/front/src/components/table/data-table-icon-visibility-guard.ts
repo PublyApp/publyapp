@@ -84,7 +84,7 @@ const defaultReader: ComputedStyleReader = (element) => {
  * messages).
  * @param readComputed Optional injected computed-style reader. Defaults to
  * `window.getComputedStyle`. Tests inject a fake reader; the real-browser
- * spec passes through Chromium's own.
+ * spec runs the module in the page, so its default reader is Chromium's own.
  */
 const detectIconHidden = (
 	iconElement: Element,
