@@ -116,6 +116,11 @@
 	},
 	{
 		"convention": "i18n-guard-ignore",
+		"file": "src/lib/env.ts",
+		"reason": "no-hardcoded-ui-literal — startup env-validation message shown to the operator in server logs, never rendered as UI copy."
+	},
+	{
+		"convention": "i18n-guard-ignore",
 		"file": "src/lib/server/server-failure.ts",
 		"reason": "no-hardcoded-ui-literal — see comment above."
 	},

@@ -55,6 +55,7 @@ const optionalPublicOrigin = z
 			);
 		},
 		{
+			// i18n-guard-ignore: no-hardcoded-ui-literal — startup env-validation message shown to the operator in server logs, never rendered as UI copy.
 			message:
 				'PUBLIC_ORIGIN must be a bare scheme+host with no trailing path, query, or fragment',
 		},
