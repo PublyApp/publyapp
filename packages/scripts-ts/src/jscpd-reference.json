@@ -1,12 +1,11 @@
 {
-	"$comment": "jscpd@4 --min-tokens 50 baseline established on e4c0c66ee (develop). Exclusions: node_modules, bin, obj, dist, .artifacts, Migrations, .worktrees, packages/client-ts, apps/front/scripts. Production paths: apps/api, apps/front/src, packages/shared-ts. Spec/test files excluded from production-pair count.",
-	"baselineCommit": "e4c0c66ee",
+	"$comment": "jscpd@4 --min-tokens 50 baseline regenerated in #1859 round 2 on lane/wt-1821 (issue #1821). Exclusions: node_modules, bin, obj, dist, .artifacts, Migrations, .worktrees, packages/client-ts, apps/front/scripts — passed as ONE comma-separated --ignore value (repeated --ignore flags silently drop all but the last; measured). Production paths: apps/api, apps/front/src, packages/shared-ts. Spec/test/generated files (TS .test.*/.spec.*, C# *.Spec.cs/*.Tests.cs/*.g.cs, test dirs) are excluded from BOTH gated surfaces and only reported. Pair lines and auto lines SUM every jscpd fragment (growth inside an already-paired pair or already-self-duplicated file must move the metric).",
 	"productionPairs": {
-		"count": 946,
-		"lines": 14468
+		"count": 422,
+		"lines": 10213
 	},
 	"productionAuto": {
-		"count": 253,
-		"lines": 4826
+		"count": 48,
+		"lines": 1473
 	}
 }

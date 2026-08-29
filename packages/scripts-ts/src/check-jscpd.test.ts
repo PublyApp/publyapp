@@ -33,7 +33,7 @@ test('production pair is counted and lines summed', () => {
 	assert.equal(r.pairLines, 50);
 });
 
-test('same pair reported twice counts once (canonical key)', () => {
+test('same pair reported twice is one pair but every fragment counts', () => {
 	const dupes = [
 		{
 			firstFile: { name: 'apps/api/SvcA.cs' },
@@ -48,8 +48,12 @@ test('same pair reported twice counts once (canonical key)', () => {
 	];
 	const r = computeProductionStats(dupes);
 	assert.equal(r.pairCount, 1);
-	// First occurrence wins
-	assert.equal(r.pairLines, 30);
+	// #1821-r2: growth INSIDE an already-paired pair must move the metric. A
+	// "first fragment wins" count made a newly added identical block between
+	// two already-paired files invisible — the exact accumulation pattern the
+	// ratchet exists to stop. Every jscpd fragment now adds its lines.
+	assert.equal(r.pairLines, 70);
+	assert.equal(r.topPairs[0].fragments, 2);
 });
 
 test('production self-duplication is counted', () => {
@@ -65,7 +69,7 @@ test('production self-duplication is counted', () => {
 	assert.equal(r.autoLines, 60);
 });
 
-test('self-duplication with higher lines replaces lower (max per file)', () => {
+test('self-duplication fragments sum per file (growth stays visible)', () => {
 	const dupes = [
 		{
 			firstFile: { name: 'apps/api/Module/Svc.cs' },
@@ -80,7 +84,9 @@ test('self-duplication with higher lines replaces lower (max per file)', () => {
 	];
 	const r = computeProductionStats(dupes);
 	assert.equal(r.autoCount, 1);
-	assert.equal(r.autoLines, 80); // max wins
+	// #1821-r2: every self-dup fragment counts. A "max fragment wins" count
+	// hid a second identical block added to an already-self-duplicated file.
+	assert.equal(r.autoLines, 100);
 });
 
 test('spec files are excluded from production pairs', () => {
@@ -94,6 +100,71 @@ test('spec files are excluded from production pairs', () => {
 	const r = computeProductionStats(dupes);
 	assert.equal(r.pairCount, 0);
 	assert.equal(r.pairLines, 0);
+});
+
+test('C# Spec.cs files are excluded from production pairs', () => {
+	// *.Spec.cs is the repo's standard C# test suffix. #1821-r2: a C# spec
+	// side must never count as production — it belongs to the reported,
+	// non-gating spec surface.
+	const dupes = [
+		{
+			firstFile: { name: 'apps/api/Svc.cs' },
+			secondFile: { name: 'apps/api/Svc.Spec.cs' },
+			lines: 50,
+		},
+	];
+	const r = computeProductionStats(dupes);
+	assert.equal(r.pairCount, 0);
+	assert.equal(r.pairLines, 0);
+	assert.equal(r.specPairCount, 1);
+	assert.equal(r.specPairLines, 50);
+});
+
+test('C# Tests.cs and g.cs files are excluded from production pairs', () => {
+	const dupes = [
+		{
+			firstFile: { name: 'apps/api/A.cs' },
+			secondFile: { name: 'apps/api/A.Tests.cs' },
+			lines: 40,
+		},
+		{
+			firstFile: { name: 'apps/api/B.cs' },
+			secondFile: { name: 'apps/api/B.g.cs' },
+			lines: 30,
+		},
+	];
+	const r = computeProductionStats(dupes);
+	assert.equal(r.pairCount, 0);
+	assert.equal(r.specPairCount, 2);
+});
+
+test('C# spec self-duplication is reported but never gated', () => {
+	const dupes = [
+		{
+			firstFile: { name: 'apps/api/Svc.Spec.cs' },
+			secondFile: { name: 'apps/api/Svc.Spec.cs' },
+			lines: 90,
+		},
+	];
+	const r = computeProductionStats(dupes);
+	assert.equal(r.autoCount, 0);
+	assert.equal(r.autoLines, 0);
+	assert.equal(r.specAutoCount, 1);
+	assert.equal(r.specAutoLines, 90);
+});
+
+test('TS test self-duplication under a production path is reported, not gated', () => {
+	const dupes = [
+		{
+			firstFile: { name: 'apps/front/src/components/ui/x.test.tsx' },
+			secondFile: { name: 'apps/front/src/components/ui/x.test.tsx' },
+			lines: 70,
+		},
+	];
+	const r = computeProductionStats(dupes);
+	assert.equal(r.autoCount, 0);
+	assert.equal(r.specAutoCount, 1);
+	assert.equal(r.specAutoLines, 70);
 });
 
 test('non-production pair is not counted', () => {
@@ -126,7 +197,17 @@ test('entry without files field is skipped', () => {
 // verifyJscpdRatchet fixture tests
 // ---------------------------------------------------------------------------
 
-const buildFixture = async (overrides) => {
+/** Fixture overrides for buildFixture. */
+interface FixtureOverrides {
+	ref?: {
+		productionPairs?: { count?: number; lines?: number };
+		productionAuto?: { count?: number; lines?: number };
+	};
+	dupes?: import('./check-jscpd.ts').JscpdCloneEntry[];
+	cloneCount?: number;
+}
+
+const buildFixture = async (overrides: FixtureOverrides = {}) => {
 	const root = await mkdtemp(path.join(os.tmpdir(), 'publyapp-jscpd-'));
 	const ref = {
 		productionPairs: { count: 10, lines: 200 },
@@ -163,14 +244,32 @@ test('passes when all values are at or below baseline', async () => {
 		],
 		cloneCount: 1,
 	});
-	const errors = verifyJscpdRatchet(
+	const { errors } = verifyJscpdRatchet(
 		path.join(root, 'report.json'),
 		path.join(root, 'ref.json'),
 	);
 	assert.deepEqual(errors, []);
 });
 
-test('fails when production pair count increases', async () => {
+test('passes when spec duplication grows (reported, not gating)', async () => {
+	const { root } = await buildFixture({
+		ref: { productionPairs: { count: 10, lines: 200 } },
+		dupes: Array.from({ length: 20 }, (_, i) => ({
+			firstFile: { name: `apps/api/SvcA${i}.cs` },
+			secondFile: { name: `apps/api/SvcA${i}.Spec.cs` },
+			lines: 10,
+		})),
+		cloneCount: 20,
+	});
+	const { errors } = verifyJscpdRatchet(
+		path.join(root, 'report.json'),
+		path.join(root, 'ref.json'),
+	);
+	// Issue #1821 requirement 2: specs/tests are reported, never blocking.
+	assert.deepEqual(errors, []);
+});
+
+test('fails when production pair count increases, naming the files', async () => {
 	const { root } = await buildFixture({
 		ref: { productionPairs: { count: 10, lines: 200 } },
 		dupes: Array.from({ length: 11 }, (_, i) => ({
@@ -180,7 +279,7 @@ test('fails when production pair count increases', async () => {
 		})),
 		cloneCount: 11,
 	});
-	const errors = verifyJscpdRatchet(
+	const { errors } = verifyJscpdRatchet(
 		path.join(root, 'report.json'),
 		path.join(root, 'ref.json'),
 	);
@@ -188,9 +287,14 @@ test('fails when production pair count increases', async () => {
 		errors.some((e) => e.includes('increased from 10 to 11')),
 		errors.join('\n'),
 	);
+	// House rule: a red guard must name the file(s) — never a bare count.
+	assert.ok(
+		errors.some((e) => e.includes('apps/api/SvcA0.cs')),
+		errors.join('\n'),
+	);
 });
 
-test('fails when production pair lines increase', async () => {
+test('fails when production pair lines increase, naming the files', async () => {
 	const { root } = await buildFixture({
 		ref: { productionPairs: { count: 10, lines: 200 } },
 		dupes: [
@@ -202,7 +306,7 @@ test('fails when production pair lines increase', async () => {
 		],
 		cloneCount: 1,
 	});
-	const errors = verifyJscpdRatchet(
+	const { errors } = verifyJscpdRatchet(
 		path.join(root, 'report.json'),
 		path.join(root, 'ref.json'),
 	);
@@ -210,9 +314,13 @@ test('fails when production pair lines increase', async () => {
 		errors.some((e) => e.includes('increased from 200 to 201')),
 		errors.join('\n'),
 	);
+	assert.ok(
+		errors.some((e) => e.includes('apps/api/SvcA.cs')),
+		errors.join('\n'),
+	);
 });
 
-test('fails when production auto file count increases', async () => {
+test('fails when production auto file count increases, naming the files', async () => {
 	const { root } = await buildFixture({
 		ref: { productionAuto: { count: 5, lines: 100 } },
 		dupes: Array.from({ length: 6 }, (_, i) => ({
@@ -222,7 +330,7 @@ test('fails when production auto file count increases', async () => {
 		})),
 		cloneCount: 6,
 	});
-	const errors = verifyJscpdRatchet(
+	const { errors } = verifyJscpdRatchet(
 		path.join(root, 'report.json'),
 		path.join(root, 'ref.json'),
 	);
@@ -230,9 +338,13 @@ test('fails when production auto file count increases', async () => {
 		errors.some((e) => e.includes('increased from 5 to 6')),
 		errors.join('\n'),
 	);
+	assert.ok(
+		errors.some((e) => e.includes('apps/api/Svc0.cs')),
+		errors.join('\n'),
+	);
 });
 
-test('fails when production auto lines increase', async () => {
+test('fails when production auto lines increase, naming the files', async () => {
 	const { root } = await buildFixture({
 		ref: { productionAuto: { count: 5, lines: 100 } },
 		dupes: [
@@ -244,7 +356,7 @@ test('fails when production auto lines increase', async () => {
 		],
 		cloneCount: 1,
 	});
-	const errors = verifyJscpdRatchet(
+	const { errors } = verifyJscpdRatchet(
 		path.join(root, 'report.json'),
 		path.join(root, 'ref.json'),
 	);
@@ -252,10 +364,14 @@ test('fails when production auto lines increase', async () => {
 		errors.some((e) => e.includes('increased from 100 to 101')),
 		errors.join('\n'),
 	);
+	assert.ok(
+		errors.some((e) => e.includes('apps/api/Svc.cs')),
+		errors.join('\n'),
+	);
 });
 
 test('fails loudly when report is missing', () => {
-	const errors = verifyJscpdRatchet('/nope/report.json', '/nope/ref.json');
+	const { errors } = verifyJscpdRatchet('/nope/report.json', '/nope/ref.json');
 	assert.ok(errors.length > 0);
 	assert.ok(errors[0].includes('unavailable'), errors[0]);
 });
@@ -270,7 +386,7 @@ test('fails loudly when report is malformed JSON', async () => {
 			productionAuto: { count: 0, lines: 0 },
 		}),
 	);
-	const errors = verifyJscpdRatchet(
+	const { errors } = verifyJscpdRatchet(
 		path.join(root, 'report.json'),
 		path.join(root, 'ref.json'),
 	);
@@ -285,7 +401,7 @@ test('fails loudly when both report and duplicates are empty', async () => {
 		dupes: [],
 		cloneCount: 0,
 	});
-	const errors = verifyJscpdRatchet(
+	const { errors } = verifyJscpdRatchet(
 		path.join(root, 'report.json'),
 		path.join(root, 'ref.json'),
 	);
@@ -304,6 +420,6 @@ test('real repository passes with current baseline', () => {
 		path.dirname(fileURLToPath(import.meta.url)),
 		'./jscpd-reference.json',
 	);
-	const errors = verifyJscpdRatchet(reportPath, refPath);
+	const { errors } = verifyJscpdRatchet(reportPath, refPath);
 	assert.deepEqual(errors, [], `real-tree guard failed:\n${errors.join('\n')}`);
 });
