@@ -275,14 +275,14 @@ describe('classifyTextPaint — clipped/transparent/masked fail-loud', () => {
 });
 
 describe('single source — browser snippets are derived, not hand-typed twins', () => {
-	test('BROWSER_TEXT_PAINT_CLASSIFIER_SNIPPET is exactly the toString join of the __publy* functions', () => {
+	test('BROWSER_TEXT_PAINT_CLASSIFIER_SNIPPET is exactly the const-declaration join of the __publy* functions', () => {
 		const expected = [
 			__publyNormalize,
 			__publyIsTransparentColor,
 			__publyClassifyTextPaint,
 			__publyAssertTextPaintIsMeasurable,
 		]
-			.map((fn) => fn.toString())
+			.map((fn) => `const ${fn.name} = ${fn.toString()};`)
 			.join('\n');
 		expect(BROWSER_TEXT_PAINT_CLASSIFIER_SNIPPET).toBe(expected);
 	});

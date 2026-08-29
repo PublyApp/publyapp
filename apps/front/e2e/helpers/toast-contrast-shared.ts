@@ -140,13 +140,16 @@ export const __publyDecodeScreenshot = async (
 }
 
 // Derived browser snippets — single source, no hand-typed twin.
+// Each function is emitted as `const <name> = <arrow>;` so the snippet keeps its
+// named bindings under `new Function` (an arrow's toString() is anonymous, so a
+// bare join would leave `__publyClassifyTextPaint` undefined inside the eval).
 export const BROWSER_TEXT_PAINT_CLASSIFIER_SNIPPET = [
 	__publyNormalize,
 	__publyIsTransparentColor,
 	__publyClassifyTextPaint,
 	__publyAssertTextPaintIsMeasurable,
 ]
-	.map((fn) => fn.toString())
+	.map((fn) => `const ${fn.name} = ${fn.toString()};`)
 	.join('\n');
 
 export const BROWSER_SCREENSHOT_DECODER_SNIPPET =
