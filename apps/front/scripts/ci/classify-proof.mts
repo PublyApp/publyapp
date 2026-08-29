@@ -357,7 +357,7 @@ export function readExpectedRedManifest(manifestPath: string): ExpectedRedManife
 	} catch (err) {
 		throw new Error(
 			`expected-red manifest is not valid JSON at ${manifestPath}: ` +
-				`${(err as Error).message}`,
+				(err as Error).message,
 		);
 	}
 
