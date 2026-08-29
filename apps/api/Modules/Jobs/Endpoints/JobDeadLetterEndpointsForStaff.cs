@@ -25,6 +25,16 @@ public static class JobDeadLetterEndpointsForStaff {
 			.WithReqBodyValidation<ResolveDeadLetterUnclassifiedForStaffBody>()
 			.WithPermission([AppPermissions.Staff.Jobs.RESOLVE]);
 
+		// A5 (#636): requeue lives on the K-1 root so the path never moves.
+		group.MapPost(
+				Routes.Jobs.ForStaff.DeadLetter.Requeue,
+				RequeueDeadLetterForStaff.Handle
+			)
+			.WithName("RequeueDeadLetter")
+			.WithSummary("Requeue a dead-lettered job back into job_queue")
+			.WithReqBodyValidation<RequeueDeadLetterForStaffBody>()
+			.WithPermission([AppPermissions.Staff.Jobs.REQUEUE]);
+
 		return routes;
 	}
 }

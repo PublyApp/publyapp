@@ -227,6 +227,73 @@ const loadScopedKey = async () =>
 	await import('@org/shared-ts/lib/query/create-hooks');
 
 const REGISTRY = {
+	// `staff-jobs` is special: it owns THREE list families (queue, dead-letter,
+	// system-jobs) plus three detail factories, ALL sharing the single root
+	// STAFF_JOBS_QUERY_KEY = ['staff-jobs']. One invalidation helper covers all six
+	// via the prefix ['staff','staff-jobs']. The LINE is reached through that same
+	// prefix — proven below against each real detail factory, not assumed.
+	'staff-jobs.ts': {
+		kind: 'list-family',
+		helperName: 'invalidateStaffJobsQueries',
+		run: async () => {
+			const {
+				invalidateStaffJobsQueries,
+				STAFF_JOBS_QUERY_KEY,
+				staffJobQueueDetailsQueryOptions,
+				staffDeadLetterDetailsQueryOptions,
+				staffSystemJobDefinitionDetailsQueryOptions,
+			} = await import('./staff-jobs');
+			const { scopedKey } = await loadScopedKey();
+			const invalidated = await capturedInvalidationKeys((client) =>
+				invalidateStaffJobsQueries(client),
+			);
+			expectListCovered(
+				'staff-jobs',
+				'invalidateStaffJobsQueries',
+				invalidated,
+				[
+					[
+						'queue list family root',
+						scopedKey('staff', [...STAFF_JOBS_QUERY_KEY, 'queue']),
+					],
+					[
+						'dead-letters list family root',
+						scopedKey('staff', [...STAFF_JOBS_QUERY_KEY, 'dead-letter']),
+					],
+					[
+						'system-jobs list family root',
+						scopedKey('staff', [...STAFF_JOBS_QUERY_KEY, 'system-jobs']),
+					],
+				],
+			);
+			// LINE: each detail factory's REAL key, proven to be nested under the
+			// ['staff','staff-jobs'] root that the helper invalidates — so the
+			// prefix reaches them, but we assert it explicitly rather than assume.
+			expectLineCovered(
+				'staff-jobs',
+				'invalidateStaffJobsQueries',
+				invalidated,
+				[
+					[
+						'job-queue detail (the line)',
+						staffJobQueueDetailsQueryOptions.queryKey({ queueItemId: 'q1' }),
+					],
+					[
+						'dead-letter detail (the line)',
+						staffDeadLetterDetailsQueryOptions.queryKey({
+							deadLetterId: 'dl1',
+						}),
+					],
+					[
+						'system-job-definition detail (the line)',
+						staffSystemJobDefinitionDetailsQueryOptions.queryKey({
+							systemJobId: 'sj1',
+						}),
+					],
+				],
+			);
+		},
+	},
 	'staff-users.ts': {
 		kind: 'list-family',
 		helperName: 'invalidateStaffUsers',

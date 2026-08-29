@@ -1,0 +1,23 @@
+{
+	"$comment": [
+		"Pinned baseline for the no-floating-promises ratchet (issue #1679).",
+		"",
+		"packages/scripts-ts/src/check-no-floating-promises.ts runs oxlint repo-wide,",
+		"counts `typescript(no-floating-promises)` warnings, and FAILS if the count",
+		"rises above `count`. Lower it deliberately when warnings are fixed. Never",
+		"raise it without review — that is exactly the silent regression this",
+		"ratchet exists to prevent.",
+		"",
+		"Note: oxlint prints the rule as `typescript(no-floating-promises)` (plugin",
+		"prefix + parentheses around the specific rule), not the usual `typescript/",
+		"no-floating-promises` slash form — the `rule` field below matches oxlint's",
+		"actual output so the string comparison is exact.",
+		"",
+		"Excluded files (via .oxlintrc.json overrides):",
+		"- apps/front/scripts/guards/check-shared-ts-import-paths.test.mts: uses",
+		"  node:test, whose runner captures test outcomes via async-context, not via",
+		"  the returned Promise. The rule has no behavioral meaning for node:test."
+	],
+	"rule": "typescript(no-floating-promises)",
+	"count": 400
+}

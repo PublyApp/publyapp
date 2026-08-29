@@ -1,7 +1,7 @@
 import { IconPlus, IconUsers } from '@tabler/icons-react';
-import type { ColumnDef } from '@tanstack/react-table';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
+import type { ColumnDef } from '~/components/table/column-type';
 import { DataTable } from '~/components/table/data-table';
 import type { UseRowSelectionResult } from '~/components/table/use-row-selection';
 import type { UseTableControllerResult } from '~/components/table/use-table-controller';

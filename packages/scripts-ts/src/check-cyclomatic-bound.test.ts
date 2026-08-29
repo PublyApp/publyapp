@@ -64,7 +64,6 @@ const DOCUMENTED_POLICY = {
 	'**/*.test.tsx': 90,
 	'**/*.spec.ts': 90,
 	'**/*.spec.tsx': 90,
-	'apps/front/e2e/**': 90,
 };
 
 // A canonical, matching pair of configs (the nominal green case).
@@ -86,13 +85,7 @@ const canonicalOxlint = {
 			rules: { complexity: ['error', { max: 125 }] },
 		},
 		{
-			files: [
-				'**/*.test.ts',
-				'**/*.test.tsx',
-				'**/*.spec.ts',
-				'**/*.spec.tsx',
-				'apps/front/e2e/**',
-			],
+			files: ['**/*.test.ts', '**/*.test.tsx', '**/*.spec.ts', '**/*.spec.tsx'],
 			rules: { complexity: ['error', { max: 90 }] },
 		},
 	],

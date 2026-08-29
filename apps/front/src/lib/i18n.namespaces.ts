@@ -17,6 +17,7 @@ const FEATURE_I18N_NAMESPACES = [
 	'staff-users',
 	'staff-invitations',
 	'staff-audit-logs',
+	'staff-jobs',
 	'staff-tenant-activity',
 	// The landing page at `/`. Its own namespace rather than keys in `common`:
 	// it is the largest single body of copy in the app and the only surface a

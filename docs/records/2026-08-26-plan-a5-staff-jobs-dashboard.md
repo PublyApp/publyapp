@@ -297,6 +297,8 @@ Run: `dotnet test Tests/PublyApp.Api.Tests.csproj -c Test --filter "FullyQualifi
 
 - [ ] **Step 2: Implement the interface and class.** The implementation:
 
+**is_enabled race bound (#1458 follow-up 3):** the boundary's own `is_enabled = false` short-circuit (step 3) is a cheap pre-check WITHOUT the row lock; the authoritative check is the engine's `SELECT ... FOR UPDATE ... AND is_enabled = true` inside its transaction. Worst case: a disable commits between the boundary's unlocked pre-read and the engine's locked re-check → the engine refuses and zero rows land (bounded, not leaked). The residual worst case across BOTH checks is ONE extra occurrence enqueued for a fire instant claimed just before a disable commits; the `system_job_occurrences` composite key (`ON CONFLICT (job_key, scheduled_fire_at) DO NOTHING`) makes that occurrence unrepeatable. Spec case (e) pins the disabled-key zero-row outcome; the engine's fence tests pin the locked re-check.
+
 1. Begin a transaction.
 2. `SELECT schedule_epoch FROM system_job_definitions WHERE job_key = $1 AND is_deleted = false FOR UPDATE` (the same projection `EnqueueSystemJobJob.cs:81-88` uses, but WITHOUT `is_enabled = true` here — see step 3). Zero rows → return `BoundaryResult.NotFound`.
 3. **If `is_enabled = false`**, return `BoundaryResult.NoOp` (the verdict-r1 disabled-key finding #2). This is the boundary's own short-circuit; the engine ALSO has the filter at `EnqueueSystemJobJob.cs:85` (`AND is_enabled = true`), so even if the boundary skipped step 3, the engine would refuse. The two checks together are belt-and-suspenders.
@@ -520,6 +522,8 @@ public static class Jobs {
 
 **Critical — the brief's non-negotiable fix #1, again.** Three new `MapGroup`s for the A5 surfaces, all joined with `Routes.Jobs.ForStaff.JobsRoot = "/jobs"`, plus an EXTENSION of the existing K-1 `MapGroup` for the requeue route. The K-1 `MapGroup` is NOT re-rooted.
 
+**Same-path groups are intentional (#1458 follow-up 4).** Below, `sysGroup` (HeavySearchList), `sysMutationGroup` (AuthenticatedDefault), and `triggerGroup` (SystemJobTrigger) deliberately build THREE `MapGroup`s over the SAME `/staff/jobs/system-jobs` path prefix with DIFFERENT `RequireRateLimiting` policies — each policy applies to only the routes registered through its own group variable. Do NOT "deduplicate" them into one group: merging would put the reads and the trigger into one rate-limit bucket, and the trigger must not share the general bucket (Global Constraint 4).
+
 ```csharp
 // apps/api/Modules/Jobs/Endpoints/JobVisibilityEndpointsForStaff.cs
 public static class JobVisibilityEndpointsForStaff {
@@ -678,15 +682,17 @@ Run `just generate-response-keys`; the new `TranslationKey` properties land in `
 
 ### 7f. `PayloadRedaction` (allowlist-based, FAIL-CLOSED)
 
-**Critical — the brief's non-negotiable fix #6 (verdict-r1 MAJOR finding #5).** The redactor is a small static class. The sensitive job types live in an allowlist with three explicit families:
+**Critical — the brief's non-negotiable fix #6 (verdict-r1 MAJOR finding #5).** The redactor is a small static class. The sensitive job types live in an allowlist with explicit families:
 
-- `email.*` — any job_type starting with `email.` (the email handler family, where payloads carry email bodies and recipient lists).
-- `socialaccount.*` — any job_type starting with `socialaccount.` (the social-accounts job family — even though the codebase does not currently have a system job in this family, the boundary is here to protect any future worker that may add one).
-- `messaging.*` — any job_type starting with `messaging.` (the prepared-send state job family, which carries token-bearing prepared bytes per the K-3 retention sweep).
+Sensitive families (#1458 follow-up 2 — real job keys use DASHES, so both spellings are covered):
 
-The allowlist is fail-closed: a job_type that does NOT match any of the three prefixes is **fully redacted** by default. The redactor's contract:
+- `email.` prefix AND `email-` prefix — any job_type starting with `email.` (`email.tenant-invitation.v1`, `email.password-reset.v1`, `email.verify-email.v1`, `email.staff-invitation.v1`) or `email-` (`email-log-retention`, `email-prepared-sends-retention`), where payloads carry email bodies and recipient lists.
+- `socialaccount.` / `social-account-` — the social-accounts job family in both spellings (even though no system job exists in this family yet, the boundary is here to protect any future worker that may add one).
+- `messaging.` — the prepared-send state job family, which carries token-bearing prepared bytes per the K-3 retention sweep.
 
-- The `PayloadRedaction.Redact(jobType, payloadJson)` method returns the original `payloadJson` only if the job_type matches a known-safe pattern (e.g. `upload.*`, `analytics.*` — the explicit safe-list is a separate constant the implementer reads from `apps/api/Modules/Jobs/Handlers/Staff/PayloadRedaction.cs`).
+The allowlist is fail-closed: a job_type that does NOT match a known-safe pattern is **fully redacted** by default. The redactor's contract:
+
+- The `PayloadRedaction.Redact(jobType, payloadJson)` method returns the original `payloadJson` only if the job_type matches a known-safe pattern — the explicit safe-list is a constant naming the REAL seeded, payload-free system job keys: `session-cleanup`, `email-log-retention`, `job-dead-letter-retention`, `system-job-occurrence-retention`, `upload-orphan-reclaim`.
 - For any job_type that is NOT in the safe-list, the method returns the redacted envelope `{"redacted": true, "reason": "sensitive-payload-staff-redacted"}`. This is the fail-closed default.
 - A `null` or empty `payloadJson` returns `""` unchanged.
 
@@ -694,15 +700,17 @@ The redactor's unit spec is `PayloadRedactionSpec.cs` and covers:
 
 ```csharp
 [Fact]
-public void ItShouldRedactEmailJobTypes() { ... } // email.foo → redacted
+public void ItShouldRedactEmailDotJobTypes() { ... } // email.tenant-invitation.v1 → redacted
 [Fact]
-public void ItShouldRedactSocialAccountJobTypes() { ... } // socialaccount.foo → redacted
+public void ItShouldRedactEmailDashJobTypes() { ... } // email-prepared-sends-retention → redacted
+[Fact]
+public void ItShouldRedactSocialAccountJobTypes() { ... } // socialaccount.foo AND social-account-foo → redacted
 [Fact]
 public void ItShouldRedactMessagingJobTypes() { ... } // messaging.foo → redacted
 [Fact]
 public void ItShouldRedactUnknownJobTypesByDefault() { ... } // bogus.unknown → redacted (FAIL-CLOSED)
 [Fact]
-public void ItShouldPassThroughSafeJobTypes() { ... } // upload.foo → raw payload
+public void ItShouldPassThroughSafeSeededJobKeys() { ... } // upload-orphan-reclaim, session-cleanup, job-dead-letter-retention, system-job-occurrence-retention, email-log-retention → raw payload
 [Fact]
 public void ItShouldReturnEmptyForNullOrEmptyPayload() { ... } // null/"" → ""
 ```
@@ -739,7 +747,7 @@ git commit -m "feat(jobs): A5 handlers + i18n + redaction policy (#636)"
 
 - [ ] **Step 2: `JobVisibilityEndpointsForStaff.Spec.cs`** — the **10-route** reachability spec. Login as staff admin, GET each of the 10 routes with a known seeded definition → 200 for reads, 200 for the trigger (one row inserted), PATCH cron + PATCH enabled each → 200, POST requeue → 200. Then an unprivileged staff user, walk all 10 → 403. The test name is `ItShouldReachAllTenStaffJobsRoutesForStaffAdminAndForbiddenForUnprivileged`.
 
-- [ ] **Step 3: `SystemJobTriggerRateLimit.Spec.cs`** — the rate-limit test: 31st trigger within 60s on the same session → 429 (the policy default is 30 / 60s, so the 31st must be refused). Use the existing `ComprehensiveRateLimiting.Spec` style for partitioning by session fingerprint.
+- [ ] **Step 3: `SystemJobTriggerRateLimit.Spec.cs`** — the rate-limit test: 31st trigger within 60s on the same session → 429 (the policy default is 30 / 60s, so the 31st must be refused). **Partition key (#1458 follow-up 5): the validated session fingerprint** (`ApiRateLimitPartitionKeys.GetSessionFingerprint` — the hashed validated session id stamped by session auth, falling back to `unauthenticated:<hashed client ip>` before validation). Two different staff sessions therefore have independent 30-permit budgets; the spec drives 31 requests through ONE session token and asserts the 31st is 429 while a second session's request still passes. Mirror the `ComprehensiveRateLimiting.Spec` style for constructing settings.
 
 - [ ] **Step 4: Run `dotnet test Tests/PublyApp.Api.Tests.csproj -c Test` → all green. Commit.**
 
@@ -821,13 +829,12 @@ git commit -m "feat(front): A5 staff jobs query hooks (#636)"
 
 - [ ] **Step 3: Implement `_columns-*.tsx` files.** Three column files, one per page. Each is a `makeXxxColumns(t, locale)` factory (no arrow components — methods stay methods, per `publy/arrow-function-components` at `error` severity in front). Action buttons are gated on per-permission booleans derived from the auth payload (see Step 3.5 below for the derivation).
 
-- [ ] **Step 3.5: Per-action permission derivation (CRITICAL — verdict-r1 MINOR finding #5).** There is NO `useStaffJobPermissions()` helper. There is also no `FindAuthStateForStaff` file (the verdict is correct: that file does not exist on develop). The implementer MUST derive per-action gating from the REAL auth payload shape: `GetScopeAuthData` at `apps/api/Modules/Auth/Handlers/GetScopeAuthData.cs:54-60` returns a `GetScopeAuthDataStaff` object whose `Permissions: List<string>` carries the staff user's effective permission keys (lines 119-123 of that file flatten the permission list from all staff profiles).
+- [ ] **Step 3.5: Per-action permission derivation (CRITICAL — verdict-r1 MINOR finding #5, corrected by #1458 follow-up 1).** There is NO `useStaffJobPermissions()` helper today. The implementer MUST derive per-action gating from a REAL auth payload — and #1458's literal replacement must itself be read carefully:
 
-  The implementation pattern (this is the SPECIFIC grep the implementer must run before writing the helper — `grep -rn "GetScopeAuthData" apps/front/src/lib/` to find the existing front consumer):
-  - The front has a `useStaffAuth()` hook (or equivalent) that calls `client.staff.auth.data.get({scope: 'staff'})` and returns the `GetScopeAuthDataStaff` payload. The `Permissions: string[]` field is a flat list of permission keys (e.g. `"staff.jobs.view"`, `"staff.jobs.requeue"`).
-  - A small `useStaffJobPermissions()` hook is created in `apps/front/src/lib/query/staff-jobs.ts` (or a co-located `apps/front/src/routes/authed/staff/jobs/_permissions.ts`) that wraps the existing auth hook and returns `{ canView, canRequeue, canUpdateSystemJob, canTriggerSystemJob }` booleans via `permissions.includes('staff.jobs.<verb>')`. The hook is a thin adapter, not an invention — the permissions are read from the real auth payload, not invented.
-  - The verdict-r1 MINOR finding about "add per-permission booleans to the auth payload" is therefore NOT a backend change — the real `GetScopeAuthData` already returns the per-permission string list; the front just consumes it.
-  - The implementer MUST read `apps/front/src/lib/auth-data/` (or whatever folder the existing auth hook lives in — `git grep -rn "useStaffAuth\|GetScopeAuthData" apps/front/src/lib/`) before writing the helper. The hand-wave in the r1 plan ("if the shape does not include per-permission booleans, add them there as part of this task") is wrong — the shape DOES include them.
+  - #1458 names `client.staff.permissions.scopes.staff.get({queryParameters: {language}})` as the real front call. That endpoint EXISTS (`GET /staff/permissions/scopes/staff`, consumed by `apps/front/src/lib/query/staff-profiles.ts:509`), but its payload is the PERMISSION CATALOG: `PermissionAsStaffService.FindStaffPermissionsAsync` reflects over EVERY property of `AppPermissions.Staff` and filters only to permissions defined in the database — it lists all definable permissions for any staff session and knows nothing about who is GRANTED them. Gating UI actions on it would show every button to everyone. Do NOT use it for gating.
+  - The payload that DOES carry the caller's effective permission keys is `GET /auth/scope-auth-data?scope=staff` (`GetScopeAuthData.cs`): it returns `GetScopeAuthDataStaff` whose `Permissions: List<string>` is flattened from the staff user's profiles at lines 119-123. In the regenerated Kiota client this is `client.auth.scopeAuthData.get({ queryParameters: { scope: 'staff' } })` (`packages/client-ts/src/auth/scopeAuthData/`). NOTE: Kiota collapses the handler's `Ok<GetScopeAuthDataStaff> | Ok<GetScopeAuthDataTenant>` union into the `GetScopeAuthDataTenant` model — that model already carries `code`, `profiles`, `accountLevel`, `isAdmin`, and `permissions?: string[]`, so the staff shape round-trips through it (check `code === 'staff'` defensively). If `just generate-client` produces a differently-shaped accessor, READ the regenerated files and adapt — do not guess.
+  - A small `useStaffJobPermissions()` hook is created in `apps/front/src/routes/authed/staff/jobs/_permissions.ts` that wraps the scope-auth-data query and returns `{ canView, canRequeue, canUpdateSystemJob, canTriggerSystemJob }` booleans via `(data?.permissions ?? []).includes('staff.jobs.view')` etc. The hook is a thin adapter over the real effective-permission payload, not an invention.
+  - While editing this file, verify the generated accessor names with `git grep -n "scopeAuthData" packages/client-ts/src/auth/index.ts` before writing the hook.
 
 - [ ] **Step 4: Implement the three list pages.** Each follows `authed/staff/audit-logs.tsx:1-307` exactly: `Route.useNavigate`, `parseXxxListSearchParams`, `useTableController`, `useXxxQuery`, `toXxxRows`, `DataTable`, `LogoutRedirect` on auth failure, `state-view.tsx` for empty/no-match, `state-surface.tsx` for loading skeletons, design tokens (no raw colors), `publy-data-table-filter-button` for the filter triggers. The DLQ page adds a "Requeue" action column gated on `canRequeue`. The system-jobs page adds an inline `Switch` for the enabled toggle (gated on `canUpdateSystemJob`) and a "Trigger now" button (gated on `canTriggerSystemJob`) and an "Edit cron" link that opens `_system-job-edit-cron-drawer.tsx`.
 
@@ -862,7 +869,7 @@ git commit -m "feat(front): A5 staff jobs list pages + drawers (#636)"
 
 - [ ] **Step 2: e2e 403 path.** An unprivileged staff user lands on `/staff/jobs`, sees the queue tab but the Requeue / Trigger / Edit-cron actions are all missing (per the bulk-action convention — "bulk-action items on list-page selection menus always render — never disabled, never conditionally hidden by per-row eligibility; ineligible clicks show an i18n toast" applies; per-row action buttons follow the same "render, gate the click" pattern, mirroring the audit-logs export button which is shown but disabled when the list is empty). Direct navigation to a mutation URL returns the 403 error view (per the design tokens rule + the convention that mutation URLs are not deep-linkable for the unprivileged).
 
-- [ ] **Step 3: e2e K-3 protected key.** Staff admin opens the system-jobs tab, locates the `email-prepared-sends-retention` definition (it's seeded by `SystemJobDefinitionSeeder.cs:140-154`), toggles the enabled switch → server returns 409 with the `system-job-disable-protected` key → the i18n toast shows the localized sentence; the row's enabled state is unchanged.
+- [ ] **Step 3: e2e K-3 protected key.** Staff admin opens the system-jobs tab, locates the `email-prepared-sends-retention` definition (it's seeded by `SystemJobDefinitionSeeder.cs:140-154`; the dashed spelling matches the handler's real `JobKey` constant — #1458 follow-up 2), toggles the enabled switch → server returns 409 with the `system-job-disable-protected` key → the i18n toast shows the localized sentence; the row's enabled state is unchanged.
 
 - [ ] **Step 4: mutation evidence.** For the PR body: temporarily comment out the `SystemJobDisableProtection.IsDisableProtected` check in `UpdateSystemJobDefinitionEnabledForStaff.Handle`, run the e2e K-3 step, capture the failure, revert, capture the pass into `.dump/mutation-check.md`.
 

@@ -1,7 +1,7 @@
-import type { Table as TanStackTable } from '@tanstack/react-table';
 import { Table } from '~/components/ui/table';
 
 import { columnDisplayMeta, resolveColumnWidth } from './column-display-meta';
+import type { TanStackTable } from './column-type';
 import { DataTableBodyRows } from './data-table-body-rows';
 import type { FocusedCell } from './data-table-body-rows';
 import { DataTableHeaderRow } from './data-table-header-row';
@@ -48,7 +48,7 @@ export const DataTableGrid = <TData extends { id: string }>({
 		.getVisibleLeafColumns()
 		.some((column) => columnDisplayMeta(column.columnDef).width != null);
 
-	const tableSort = table.getState().sorting.at(0);
+	const tableSort = table.state.sorting.at(0);
 	const rowModels = table.getRowModel().rows;
 	const visibleRowIds = rowModels.map((row) => row.id);
 	const selectedRowIds = selection?.rowSelection ?? {};

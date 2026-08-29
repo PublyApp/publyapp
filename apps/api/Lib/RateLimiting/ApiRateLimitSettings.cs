@@ -12,7 +12,10 @@ public sealed record ApiRateLimitSettings(
 	RateLimitWindowSettings Export,
 	RateLimitWindowSettings TenantExport,
 	RateLimitWindowSettings Upload,
-	RateLimitWindowSettings SocialConnect
+	RateLimitWindowSettings SocialConnect,
+	// A5 (#636): trigger-now produces a real job_queue enqueue, so it gets its
+	// own window instead of sharing a general bucket.
+	RateLimitWindowSettings SystemJobTrigger
 ) {
 	public static ApiRateLimitSettings FromEnvironment(
 		AppEnvironment environment
@@ -77,6 +80,10 @@ public sealed record ApiRateLimitSettings(
 			SocialConnect: new RateLimitWindowSettings(
 				environment.SOCIAL_CONNECT_RATE_LIMIT_PERMIT_LIMIT,
 				environment.SOCIAL_CONNECT_RATE_LIMIT_WINDOW_SECONDS
+			),
+			SystemJobTrigger: new RateLimitWindowSettings(
+				environment.SYSTEM_JOB_TRIGGER_RATE_LIMIT_PERMIT_LIMIT,
+				environment.SYSTEM_JOB_TRIGGER_RATE_LIMIT_WINDOW_SECONDS
 			)
 		);
 	}
@@ -96,6 +103,9 @@ public static class ApiRateLimitPolicies {
 	public const string TenantExport = "tenant-export";
 	public const string Upload = "upload";
 	public const string SocialConnect = "social-connect";
+	// A5 (#636): trigger-now is a real enqueue into job_queue; it must not share
+	// the general authenticated bucket.
+	public const string SystemJobTrigger = "system-job-trigger";
 
 	public static bool IsKnown(string? policyName) {
 		return policyName is AnonymousOther
@@ -108,7 +118,8 @@ public static class ApiRateLimitPolicies {
 			or Export
 			or TenantExport
 			or Upload
-			or SocialConnect;
+			or SocialConnect
+			or SystemJobTrigger;
 	}
 
 	public static bool UsesValidatedSessionPartition(
@@ -123,6 +134,7 @@ public static class ApiRateLimitPolicies {
 			or Export
 			or TenantExport
 			or Upload
-			or SocialConnect;
+			or SocialConnect
+			or SystemJobTrigger;
 	}
 }

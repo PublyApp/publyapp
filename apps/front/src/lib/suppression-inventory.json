@@ -21,6 +21,16 @@
 	},
 	{
 		"convention": "data-honesty-ignore",
+		"file": "src/routes/authed/staff/jobs/_columns.tsx",
+		"reason": "a legacy row's missing job type renders as a no-value dash, not fabricated identity data"
+	},
+	{
+		"convention": "data-honesty-ignore",
+		"file": "src/routes/authed/staff/jobs/_columns.tsx",
+		"reason": "a purged tenant reference renders as a no-value dash"
+	},
+	{
+		"convention": "data-honesty-ignore",
 		"file": "src/routes/authed/staff/audit-logs/_audit-log-columns.tsx",
 		"reason": "ip address is a documented OPTIONAL field — a server-side event has none, not fabricated identity data"
 	},

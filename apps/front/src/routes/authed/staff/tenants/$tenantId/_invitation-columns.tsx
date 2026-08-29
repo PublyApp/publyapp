@@ -5,7 +5,7 @@ import {
 	IconMail,
 	IconUser,
 } from '@tabler/icons-react';
-import type { ColumnDef } from '@tanstack/react-table';
+import type { ColumnDef } from '~/components/table/column-type';
 import { DataTableRowActions } from '~/components/table/row-actions';
 import { paletteIndex } from '~/components/ui/avatar-initials';
 import { DropdownMenuItem } from '~/components/ui/dropdown-menu';

@@ -105,4 +105,12 @@ export const DRAWER_DESCRIPTION_CONSUMERS = [
 		file: 'src/routes/authed/staff/tenant-users/$userId-organizations-drawer.tsx',
 		testId: 'link-companies-drawer',
 	},
+	{
+		file: 'src/routes/authed/staff/jobs/queue.tsx',
+		testId: 'staff-jobs-queue-drawer',
+	},
+	{
+		file: 'src/routes/authed/staff/jobs/dead-letter.tsx',
+		testId: 'staff-jobs-dead-letter-drawer',
+	},
 ] as const satisfies readonly DrawerDescriptionConsumer[];

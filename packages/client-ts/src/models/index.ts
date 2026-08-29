@@ -1034,6 +1034,42 @@ export function createCreateTenantProfileAsStaffBodyFromDiscriminatorValue(parse
 /**
  * Creates a new instance of the appropriate class based on discriminator value
  * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {DeadLetterDetail}
+ */
+// @ts-ignore
+export function createDeadLetterDetailFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoDeadLetterDetail;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {DeadLetterEventItem}
+ */
+// @ts-ignore
+export function createDeadLetterEventItemFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoDeadLetterEventItem;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {DeadLetterListItem}
+ */
+// @ts-ignore
+export function createDeadLetterListItemFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoDeadLetterListItem;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {DeadLetterRequeuedResponse}
+ */
+// @ts-ignore
+export function createDeadLetterRequeuedResponseFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoDeadLetterRequeuedResponse;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
  * @returns {DeadLetterResolvedResponse}
  */
 // @ts-ignore
@@ -1052,11 +1088,29 @@ export function createFindAuditLogsResponseFromDiscriminatorValue(parseNode: Par
 /**
  * Creates a new instance of the appropriate class based on discriminator value
  * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {FindDeadLettersResponse}
+ */
+// @ts-ignore
+export function createFindDeadLettersResponseFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoFindDeadLettersResponse;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
  * @returns {FindInvitationsForTenantAsStaffResult}
  */
 // @ts-ignore
 export function createFindInvitationsForTenantAsStaffResultFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
     return deserializeIntoFindInvitationsForTenantAsStaffResult;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {FindJobQueueItemsResponse}
+ */
+// @ts-ignore
+export function createFindJobQueueItemsResponseFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoFindJobQueueItemsResponse;
 }
 /**
  * Creates a new instance of the appropriate class based on discriminator value
@@ -1151,6 +1205,15 @@ export function createFindStaffUsersResponseFromDiscriminatorValue(parseNode: Pa
 /**
  * Creates a new instance of the appropriate class based on discriminator value
  * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {FindSystemJobDefinitionsResponse}
+ */
+// @ts-ignore
+export function createFindSystemJobDefinitionsResponseFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoFindSystemJobDefinitionsResponse;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
  * @returns {FindSystemNoticesResponse}
  */
 // @ts-ignore
@@ -1228,6 +1291,15 @@ export function createFindTenantUsersAsStaffResultFromDiscriminatorValue(parseNo
 // @ts-ignore
 export function createGetAuditLogActionsResponseFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
     return deserializeIntoGetAuditLogActionsResponse;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {GetDeadLetterResponse}
+ */
+// @ts-ignore
+export function createGetDeadLetterResponseFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoGetDeadLetterResponse;
 }
 /**
  * Creates a new instance of the appropriate class based on discriminator value
@@ -1413,6 +1485,24 @@ export interface CreateInvitationForTenantAsStaffBody extends AdditionalDataHold
 // @ts-ignore
 export function createInvitationListItemFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
     return deserializeIntoInvitationListItem;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {JobQueueItemDetail}
+ */
+// @ts-ignore
+export function createJobQueueItemDetailFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoJobQueueItemDetail;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {JobQueueListItem}
+ */
+// @ts-ignore
+export function createJobQueueListItemFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoJobQueueListItem;
 }
 /**
  * Creates a new instance of the appropriate class based on discriminator value
@@ -1612,6 +1702,15 @@ export function createRequestPasswordResetBodyFromDiscriminatorValue(parseNode: 
 // @ts-ignore
 export function createRequestPasswordResetResultFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
     return deserializeIntoRequestPasswordResetResult;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {RequeueDeadLetterForStaffBody}
+ */
+// @ts-ignore
+export function createRequeueDeadLetterForStaffBodyFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoRequeueDeadLetterForStaffBody;
 }
 /**
  * Creates a new instance of the appropriate class based on discriminator value
@@ -1909,6 +2008,51 @@ export function createSuspendTenantAsStaffBodyFromDiscriminatorValue(parseNode: 
 // @ts-ignore
 export function createSuspendTenantUserResultFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
     return deserializeIntoSuspendTenantUserResult;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {SystemJobDefinitionDetail}
+ */
+// @ts-ignore
+export function createSystemJobDefinitionDetailFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoSystemJobDefinitionDetail;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {SystemJobDefinitionListItem}
+ */
+// @ts-ignore
+export function createSystemJobDefinitionListItemFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoSystemJobDefinitionListItem;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {SystemJobDefinitionUpdatedResponse}
+ */
+// @ts-ignore
+export function createSystemJobDefinitionUpdatedResponseFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoSystemJobDefinitionUpdatedResponse;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {SystemJobOccurrenceItem}
+ */
+// @ts-ignore
+export function createSystemJobOccurrenceItemFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoSystemJobOccurrenceItem;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {SystemJobTriggeredResponse}
+ */
+// @ts-ignore
+export function createSystemJobTriggeredResponseFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoSystemJobTriggeredResponse;
 }
 export interface CreateSystemNoticeBody extends AdditionalDataHolder, Parsable {
     /**
@@ -2277,6 +2421,24 @@ export function createUpdateStaffUserProfilesResultFromDiscriminatorValue(parseN
 /**
  * Creates a new instance of the appropriate class based on discriminator value
  * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {UpdateSystemJobDefinitionCronForStaffBody}
+ */
+// @ts-ignore
+export function createUpdateSystemJobDefinitionCronForStaffBodyFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoUpdateSystemJobDefinitionCronForStaffBody;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {UpdateSystemJobDefinitionEnabledForStaffBody}
+ */
+// @ts-ignore
+export function createUpdateSystemJobDefinitionEnabledForStaffBodyFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoUpdateSystemJobDefinitionEnabledForStaffBody;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
  * @returns {UpdateSystemNoticeBody}
  */
 // @ts-ignore
@@ -2372,6 +2534,206 @@ export function createVerifyEmailRequestBodyFromDiscriminatorValue(parseNode: Pa
 // @ts-ignore
 export function createVerifyEmailRequestResultFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
     return deserializeIntoVerifyEmailRequestResult;
+}
+export interface DeadLetterDetail extends AdditionalDataHolder, Parsable {
+    /**
+     * The actorUserId property
+     */
+    actorUserId?: Guid | null;
+    /**
+     * The attempts property
+     */
+    attempts?: number | null;
+    /**
+     * The correlationId property
+     */
+    correlationId?: string | null;
+    /**
+     * The createdAt property
+     */
+    createdAt?: Date | null;
+    /**
+     * The enqueuedAt property
+     */
+    enqueuedAt?: Date | null;
+    /**
+     * The events property
+     */
+    events?: DeadLetterEventItem[] | null;
+    /**
+     * The externalStateExpiredAt property
+     */
+    externalStateExpiredAt?: Date | null;
+    /**
+     * The externalStateExpiresAt property
+     */
+    externalStateExpiresAt?: Date | null;
+    /**
+     * The externalStatePreparedAt property
+     */
+    externalStatePreparedAt?: Date | null;
+    /**
+     * The externalStateStatus property
+     */
+    externalStateStatus?: number | null;
+    /**
+     * The failedAt property
+     */
+    failedAt?: Date | null;
+    /**
+     * The id property
+     */
+    id?: Guid | null;
+    /**
+     * The jobType property
+     */
+    jobType?: string | null;
+    /**
+     * The lastError property
+     */
+    lastError?: string | null;
+    /**
+     * The lockedBy property
+     */
+    lockedBy?: string | null;
+    /**
+     * The maxAttempts property
+     */
+    maxAttempts?: number | null;
+    /**
+     * The originalJobId property
+     */
+    originalJobId?: Guid | null;
+    /**
+     * The payload property
+     */
+    payload?: string | null;
+    /**
+     * The priority property
+     */
+    priority?: number | null;
+    /**
+     * The requeuedAsJobId property
+     */
+    requeuedAsJobId?: Guid | null;
+    /**
+     * The requeuedAt property
+     */
+    requeuedAt?: Date | null;
+    /**
+     * The requeuedFromDeadLetterId property
+     */
+    requeuedFromDeadLetterId?: Guid | null;
+    /**
+     * The tenantId property
+     */
+    tenantId?: Guid | null;
+    /**
+     * The triagedAt property
+     */
+    triagedAt?: Date | null;
+    /**
+     * The triagedBy property
+     */
+    triagedBy?: string | null;
+    /**
+     * The triageNote property
+     */
+    triageNote?: string | null;
+}
+export interface DeadLetterEventItem extends AdditionalDataHolder, Parsable {
+    /**
+     * The details property
+     */
+    details?: string | null;
+    /**
+     * The detectedBy property
+     */
+    detectedBy?: string | null;
+    /**
+     * The event property
+     */
+    event?: string | null;
+    /**
+     * The newStatus property
+     */
+    newStatus?: number | null;
+    /**
+     * The occurredAt property
+     */
+    occurredAt?: Date | null;
+    /**
+     * The priorStatus property
+     */
+    priorStatus?: number | null;
+}
+export interface DeadLetterListItem extends AdditionalDataHolder, Parsable {
+    /**
+     * The attempts property
+     */
+    attempts?: number | null;
+    /**
+     * The createdAt property
+     */
+    createdAt?: Date | null;
+    /**
+     * The externalStateStatus property
+     */
+    externalStateStatus?: number | null;
+    /**
+     * The failedAt property
+     */
+    failedAt?: Date | null;
+    /**
+     * The id property
+     */
+    id?: Guid | null;
+    /**
+     * The jobType property
+     */
+    jobType?: string | null;
+    /**
+     * The lastError property
+     */
+    lastError?: string | null;
+    /**
+     * The originalJobId property
+     */
+    originalJobId?: Guid | null;
+    /**
+     * The requeuedAsJobId property
+     */
+    requeuedAsJobId?: Guid | null;
+    /**
+     * The requeuedAt property
+     */
+    requeuedAt?: Date | null;
+    /**
+     * The tenantId property
+     */
+    tenantId?: Guid | null;
+    /**
+     * The triagedAt property
+     */
+    triagedAt?: Date | null;
+}
+export interface DeadLetterRequeuedResponse extends AdditionalDataHolder, Parsable {
+    /**
+     * The deadLetterId property
+     */
+    deadLetterId?: Guid | null;
+    /**
+     * The jobId property
+     */
+    jobId?: Guid | null;
+    /**
+     * The key property
+     */
+    key?: string | null;
+    /**
+     * The message property
+     */
+    message?: string | null;
 }
 export interface DeadLetterResolvedResponse extends AdditionalDataHolder, Parsable {
     /**
@@ -3068,6 +3430,94 @@ export function deserializeIntoCreateTenantProfileAsStaffBody(createTenantProfil
 }
 /**
  * The deserialization information for the current model
+ * @param DeadLetterDetail The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoDeadLetterDetail(deadLetterDetail: Partial<DeadLetterDetail> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "actorUserId": n => { deadLetterDetail.actorUserId = n.getGuidValue(); },
+        "attempts": n => { deadLetterDetail.attempts = n.getNumberValue(); },
+        "correlationId": n => { deadLetterDetail.correlationId = n.getStringValue(); },
+        "createdAt": n => { deadLetterDetail.createdAt = n.getDateValue(); },
+        "enqueuedAt": n => { deadLetterDetail.enqueuedAt = n.getDateValue(); },
+        "events": n => { deadLetterDetail.events = n.getCollectionOfObjectValues<DeadLetterEventItem>(createDeadLetterEventItemFromDiscriminatorValue); },
+        "externalStateExpiredAt": n => { deadLetterDetail.externalStateExpiredAt = n.getDateValue(); },
+        "externalStateExpiresAt": n => { deadLetterDetail.externalStateExpiresAt = n.getDateValue(); },
+        "externalStatePreparedAt": n => { deadLetterDetail.externalStatePreparedAt = n.getDateValue(); },
+        "externalStateStatus": n => { deadLetterDetail.externalStateStatus = n.getNumberValue(); },
+        "failedAt": n => { deadLetterDetail.failedAt = n.getDateValue(); },
+        "id": n => { deadLetterDetail.id = n.getGuidValue(); },
+        "jobType": n => { deadLetterDetail.jobType = n.getStringValue(); },
+        "lastError": n => { deadLetterDetail.lastError = n.getStringValue(); },
+        "lockedBy": n => { deadLetterDetail.lockedBy = n.getStringValue(); },
+        "maxAttempts": n => { deadLetterDetail.maxAttempts = n.getNumberValue(); },
+        "originalJobId": n => { deadLetterDetail.originalJobId = n.getGuidValue(); },
+        "payload": n => { deadLetterDetail.payload = n.getStringValue(); },
+        "priority": n => { deadLetterDetail.priority = n.getNumberValue(); },
+        "requeuedAsJobId": n => { deadLetterDetail.requeuedAsJobId = n.getGuidValue(); },
+        "requeuedAt": n => { deadLetterDetail.requeuedAt = n.getDateValue(); },
+        "requeuedFromDeadLetterId": n => { deadLetterDetail.requeuedFromDeadLetterId = n.getGuidValue(); },
+        "tenantId": n => { deadLetterDetail.tenantId = n.getGuidValue(); },
+        "triagedAt": n => { deadLetterDetail.triagedAt = n.getDateValue(); },
+        "triagedBy": n => { deadLetterDetail.triagedBy = n.getStringValue(); },
+        "triageNote": n => { deadLetterDetail.triageNote = n.getStringValue(); },
+    }
+}
+/**
+ * The deserialization information for the current model
+ * @param DeadLetterEventItem The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoDeadLetterEventItem(deadLetterEventItem: Partial<DeadLetterEventItem> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "details": n => { deadLetterEventItem.details = n.getStringValue(); },
+        "detectedBy": n => { deadLetterEventItem.detectedBy = n.getStringValue(); },
+        "event": n => { deadLetterEventItem.event = n.getStringValue(); },
+        "newStatus": n => { deadLetterEventItem.newStatus = n.getNumberValue(); },
+        "occurredAt": n => { deadLetterEventItem.occurredAt = n.getDateValue(); },
+        "priorStatus": n => { deadLetterEventItem.priorStatus = n.getNumberValue(); },
+    }
+}
+/**
+ * The deserialization information for the current model
+ * @param DeadLetterListItem The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoDeadLetterListItem(deadLetterListItem: Partial<DeadLetterListItem> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "attempts": n => { deadLetterListItem.attempts = n.getNumberValue(); },
+        "createdAt": n => { deadLetterListItem.createdAt = n.getDateValue(); },
+        "externalStateStatus": n => { deadLetterListItem.externalStateStatus = n.getNumberValue(); },
+        "failedAt": n => { deadLetterListItem.failedAt = n.getDateValue(); },
+        "id": n => { deadLetterListItem.id = n.getGuidValue(); },
+        "jobType": n => { deadLetterListItem.jobType = n.getStringValue(); },
+        "lastError": n => { deadLetterListItem.lastError = n.getStringValue(); },
+        "originalJobId": n => { deadLetterListItem.originalJobId = n.getGuidValue(); },
+        "requeuedAsJobId": n => { deadLetterListItem.requeuedAsJobId = n.getGuidValue(); },
+        "requeuedAt": n => { deadLetterListItem.requeuedAt = n.getDateValue(); },
+        "tenantId": n => { deadLetterListItem.tenantId = n.getGuidValue(); },
+        "triagedAt": n => { deadLetterListItem.triagedAt = n.getDateValue(); },
+    }
+}
+/**
+ * The deserialization information for the current model
+ * @param DeadLetterRequeuedResponse The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoDeadLetterRequeuedResponse(deadLetterRequeuedResponse: Partial<DeadLetterRequeuedResponse> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "deadLetterId": n => { deadLetterRequeuedResponse.deadLetterId = n.getGuidValue(); },
+        "jobId": n => { deadLetterRequeuedResponse.jobId = n.getGuidValue(); },
+        "key": n => { deadLetterRequeuedResponse.key = n.getStringValue(); },
+        "message": n => { deadLetterRequeuedResponse.message = n.getStringValue(); },
+    }
+}
+/**
+ * The deserialization information for the current model
  * @param DeadLetterResolvedResponse The instance to deserialize into.
  * @returns {Record<string, (node: ParseNode) => void>}
  */
@@ -3094,6 +3544,18 @@ export function deserializeIntoFindAuditLogsResponse(findAuditLogsResponse: Part
 }
 /**
  * The deserialization information for the current model
+ * @param FindDeadLettersResponse The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoFindDeadLettersResponse(findDeadLettersResponse: Partial<FindDeadLettersResponse> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "data": n => { findDeadLettersResponse.data = n.getCollectionOfObjectValues<DeadLetterListItem>(createDeadLetterListItemFromDiscriminatorValue); },
+        "nextCursor": n => { findDeadLettersResponse.nextCursor = n.getStringValue(); },
+    }
+}
+/**
+ * The deserialization information for the current model
  * @param FindInvitationsForTenantAsStaffResult The instance to deserialize into.
  * @returns {Record<string, (node: ParseNode) => void>}
  */
@@ -3102,6 +3564,18 @@ export function deserializeIntoFindInvitationsForTenantAsStaffResult(findInvitat
     return {
         "data": n => { findInvitationsForTenantAsStaffResult.data = n.getCollectionOfObjectValues<StaffTenantInvitationListItem>(createStaffTenantInvitationListItemFromDiscriminatorValue); },
         "nextCursor": n => { findInvitationsForTenantAsStaffResult.nextCursor = n.getStringValue(); },
+    }
+}
+/**
+ * The deserialization information for the current model
+ * @param FindJobQueueItemsResponse The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoFindJobQueueItemsResponse(findJobQueueItemsResponse: Partial<FindJobQueueItemsResponse> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "data": n => { findJobQueueItemsResponse.data = n.getCollectionOfObjectValues<JobQueueListItem>(createJobQueueListItemFromDiscriminatorValue); },
+        "nextCursor": n => { findJobQueueItemsResponse.nextCursor = n.getStringValue(); },
     }
 }
 /**
@@ -3223,6 +3697,18 @@ export function deserializeIntoFindStaffUsersResponse(findStaffUsersResponse: Pa
 }
 /**
  * The deserialization information for the current model
+ * @param FindSystemJobDefinitionsResponse The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoFindSystemJobDefinitionsResponse(findSystemJobDefinitionsResponse: Partial<FindSystemJobDefinitionsResponse> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "data": n => { findSystemJobDefinitionsResponse.data = n.getCollectionOfObjectValues<SystemJobDefinitionListItem>(createSystemJobDefinitionListItemFromDiscriminatorValue); },
+        "nextCursor": n => { findSystemJobDefinitionsResponse.nextCursor = n.getStringValue(); },
+    }
+}
+/**
+ * The deserialization information for the current model
  * @param FindSystemNoticesResponse The instance to deserialize into.
  * @returns {Record<string, (node: ParseNode) => void>}
  */
@@ -3325,6 +3811,17 @@ export function deserializeIntoFindTenantUsersAsStaffResult(findTenantUsersAsSta
 export function deserializeIntoGetAuditLogActionsResponse(getAuditLogActionsResponse: Partial<GetAuditLogActionsResponse> | undefined = {}) : Record<string, (node: ParseNode) => void> {
     return {
         "actions": n => { getAuditLogActionsResponse.actions = n.getCollectionOfPrimitiveValues<string>("string"); },
+    }
+}
+/**
+ * The deserialization information for the current model
+ * @param GetDeadLetterResponse The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoGetDeadLetterResponse(getDeadLetterResponse: Partial<GetDeadLetterResponse> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "detail": n => { getDeadLetterResponse.detail = n.getObjectValue<DeadLetterDetail>(createDeadLetterDetailFromDiscriminatorValue); },
     }
 }
 /**
@@ -3604,6 +4101,58 @@ export function deserializeIntoInvitationListItem(invitationListItem: Partial<In
         "profileName": n => { invitationListItem.profileName = n.getStringValue(); },
         "scope": n => { invitationListItem.scope = n.getStringValue(); },
         "status": n => { invitationListItem.status = n.getEnumValue<InvitationEffectiveStatus>(InvitationEffectiveStatusObject); },
+    }
+}
+/**
+ * The deserialization information for the current model
+ * @param JobQueueItemDetail The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoJobQueueItemDetail(jobQueueItemDetail: Partial<JobQueueItemDetail> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "actorUserId": n => { jobQueueItemDetail.actorUserId = n.getGuidValue(); },
+        "attempts": n => { jobQueueItemDetail.attempts = n.getNumberValue(); },
+        "correlationId": n => { jobQueueItemDetail.correlationId = n.getStringValue(); },
+        "createdAt": n => { jobQueueItemDetail.createdAt = n.getDateValue(); },
+        "id": n => { jobQueueItemDetail.id = n.getGuidValue(); },
+        "idempotencyKey": n => { jobQueueItemDetail.idempotencyKey = n.getStringValue(); },
+        "jobType": n => { jobQueueItemDetail.jobType = n.getStringValue(); },
+        "lastError": n => { jobQueueItemDetail.lastError = n.getStringValue(); },
+        "lockedBy": n => { jobQueueItemDetail.lockedBy = n.getStringValue(); },
+        "lockedUntil": n => { jobQueueItemDetail.lockedUntil = n.getDateValue(); },
+        "lockToken": n => { jobQueueItemDetail.lockToken = n.getGuidValue(); },
+        "maxAttempts": n => { jobQueueItemDetail.maxAttempts = n.getNumberValue(); },
+        "nextAttemptAt": n => { jobQueueItemDetail.nextAttemptAt = n.getDateValue(); },
+        "payload": n => { jobQueueItemDetail.payload = n.getStringValue(); },
+        "priority": n => { jobQueueItemDetail.priority = n.getNumberValue(); },
+        "requeuedFromDeadLetterId": n => { jobQueueItemDetail.requeuedFromDeadLetterId = n.getGuidValue(); },
+        "status": n => { jobQueueItemDetail.status = n.getStringValue(); },
+        "tenantId": n => { jobQueueItemDetail.tenantId = n.getGuidValue(); },
+        "updatedAt": n => { jobQueueItemDetail.updatedAt = n.getDateValue(); },
+    }
+}
+/**
+ * The deserialization information for the current model
+ * @param JobQueueListItem The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoJobQueueListItem(jobQueueListItem: Partial<JobQueueListItem> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "attempts": n => { jobQueueListItem.attempts = n.getNumberValue(); },
+        "createdAt": n => { jobQueueListItem.createdAt = n.getDateValue(); },
+        "id": n => { jobQueueListItem.id = n.getGuidValue(); },
+        "jobType": n => { jobQueueListItem.jobType = n.getStringValue(); },
+        "lastError": n => { jobQueueListItem.lastError = n.getStringValue(); },
+        "lockedBy": n => { jobQueueListItem.lockedBy = n.getStringValue(); },
+        "lockedUntil": n => { jobQueueListItem.lockedUntil = n.getDateValue(); },
+        "maxAttempts": n => { jobQueueListItem.maxAttempts = n.getNumberValue(); },
+        "nextAttemptAt": n => { jobQueueListItem.nextAttemptAt = n.getDateValue(); },
+        "priority": n => { jobQueueListItem.priority = n.getNumberValue(); },
+        "status": n => { jobQueueListItem.status = n.getStringValue(); },
+        "tenantId": n => { jobQueueListItem.tenantId = n.getGuidValue(); },
+        "updatedAt": n => { jobQueueListItem.updatedAt = n.getDateValue(); },
     }
 }
 /**
@@ -3902,6 +4451,17 @@ export function deserializeIntoRequestPasswordResetBody(requestPasswordResetBody
 export function deserializeIntoRequestPasswordResetResult(requestPasswordResetResult: Partial<RequestPasswordResetResult> | undefined = {}) : Record<string, (node: ParseNode) => void> {
     return {
         "status": n => { requestPasswordResetResult.status = n.getStringValue(); },
+    }
+}
+/**
+ * The deserialization information for the current model
+ * @param RequeueDeadLetterForStaffBody The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoRequeueDeadLetterForStaffBody(requeueDeadLetterForStaffBody: Partial<RequeueDeadLetterForStaffBody> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "note": n => { requeueDeadLetterForStaffBody.note = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
     }
 }
 /**
@@ -4300,6 +4860,86 @@ export function deserializeIntoSuspendTenantUserResult(suspendTenantUserResult: 
         "level": n => { suspendTenantUserResult.level = n.getEnumValue<AccountLevel>(AccountLevelObject); },
         "status": n => { suspendTenantUserResult.status = n.getEnumValue<TenantUserStatus>(TenantUserStatusObject); },
         "tenantId": n => { suspendTenantUserResult.tenantId = n.getGuidValue(); },
+    }
+}
+/**
+ * The deserialization information for the current model
+ * @param SystemJobDefinitionDetail The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoSystemJobDefinitionDetail(systemJobDefinitionDetail: Partial<SystemJobDefinitionDetail> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "createdAt": n => { systemJobDefinitionDetail.createdAt = n.getDateValue(); },
+        "cronExpression": n => { systemJobDefinitionDetail.cronExpression = n.getStringValue(); },
+        "description": n => { systemJobDefinitionDetail.description = n.getStringValue(); },
+        "id": n => { systemJobDefinitionDetail.id = n.getGuidValue(); },
+        "isEnabled": n => { systemJobDefinitionDetail.isEnabled = n.getBooleanValue(); },
+        "jobKey": n => { systemJobDefinitionDetail.jobKey = n.getStringValue(); },
+        "lastEnqueuedAt": n => { systemJobDefinitionDetail.lastEnqueuedAt = n.getDateValue(); },
+        "recentOccurrences": n => { systemJobDefinitionDetail.recentOccurrences = n.getCollectionOfObjectValues<SystemJobOccurrenceItem>(createSystemJobOccurrenceItemFromDiscriminatorValue); },
+        "scheduleEpoch": n => { systemJobDefinitionDetail.scheduleEpoch = n.getGuidValue(); },
+        "updatedAt": n => { systemJobDefinitionDetail.updatedAt = n.getDateValue(); },
+    }
+}
+/**
+ * The deserialization information for the current model
+ * @param SystemJobDefinitionListItem The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoSystemJobDefinitionListItem(systemJobDefinitionListItem: Partial<SystemJobDefinitionListItem> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "cronExpression": n => { systemJobDefinitionListItem.cronExpression = n.getStringValue(); },
+        "id": n => { systemJobDefinitionListItem.id = n.getGuidValue(); },
+        "isEnabled": n => { systemJobDefinitionListItem.isEnabled = n.getBooleanValue(); },
+        "jobKey": n => { systemJobDefinitionListItem.jobKey = n.getStringValue(); },
+        "lastEnqueuedAt": n => { systemJobDefinitionListItem.lastEnqueuedAt = n.getDateValue(); },
+        "updatedAt": n => { systemJobDefinitionListItem.updatedAt = n.getDateValue(); },
+    }
+}
+/**
+ * The deserialization information for the current model
+ * @param SystemJobDefinitionUpdatedResponse The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoSystemJobDefinitionUpdatedResponse(systemJobDefinitionUpdatedResponse: Partial<SystemJobDefinitionUpdatedResponse> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "cronExpression": n => { systemJobDefinitionUpdatedResponse.cronExpression = n.getStringValue(); },
+        "id": n => { systemJobDefinitionUpdatedResponse.id = n.getGuidValue(); },
+        "isEnabled": n => { systemJobDefinitionUpdatedResponse.isEnabled = n.getBooleanValue(); },
+        "key": n => { systemJobDefinitionUpdatedResponse.key = n.getStringValue(); },
+        "message": n => { systemJobDefinitionUpdatedResponse.message = n.getStringValue(); },
+        "scheduleEpoch": n => { systemJobDefinitionUpdatedResponse.scheduleEpoch = n.getGuidValue(); },
+    }
+}
+/**
+ * The deserialization information for the current model
+ * @param SystemJobOccurrenceItem The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoSystemJobOccurrenceItem(systemJobOccurrenceItem: Partial<SystemJobOccurrenceItem> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "enqueuedAt": n => { systemJobOccurrenceItem.enqueuedAt = n.getDateValue(); },
+        "enqueuedJobId": n => { systemJobOccurrenceItem.enqueuedJobId = n.getGuidValue(); },
+        "scheduledFireAt": n => { systemJobOccurrenceItem.scheduledFireAt = n.getDateValue(); },
+    }
+}
+/**
+ * The deserialization information for the current model
+ * @param SystemJobTriggeredResponse The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoSystemJobTriggeredResponse(systemJobTriggeredResponse: Partial<SystemJobTriggeredResponse> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "jobId": n => { systemJobTriggeredResponse.jobId = n.getGuidValue(); },
+        "key": n => { systemJobTriggeredResponse.key = n.getStringValue(); },
+        "message": n => { systemJobTriggeredResponse.message = n.getStringValue(); },
+        "scheduledFireAt": n => { systemJobTriggeredResponse.scheduledFireAt = n.getDateValue(); },
+        "scheduleEpoch": n => { systemJobTriggeredResponse.scheduleEpoch = n.getGuidValue(); },
     }
 }
 /**
@@ -4725,6 +5365,28 @@ export function deserializeIntoUpdateStaffUserProfilesResult(updateStaffUserProf
 }
 /**
  * The deserialization information for the current model
+ * @param UpdateSystemJobDefinitionCronForStaffBody The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoUpdateSystemJobDefinitionCronForStaffBody(updateSystemJobDefinitionCronForStaffBody: Partial<UpdateSystemJobDefinitionCronForStaffBody> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "cronExpression": n => { updateSystemJobDefinitionCronForStaffBody.cronExpression = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
+    }
+}
+/**
+ * The deserialization information for the current model
+ * @param UpdateSystemJobDefinitionEnabledForStaffBody The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoUpdateSystemJobDefinitionEnabledForStaffBody(updateSystemJobDefinitionEnabledForStaffBody: Partial<UpdateSystemJobDefinitionEnabledForStaffBody> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "isEnabled": n => { updateSystemJobDefinitionEnabledForStaffBody.isEnabled = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
+    }
+}
+/**
+ * The deserialization information for the current model
  * @param UpdateSystemNoticeBody The instance to deserialize into.
  * @returns {Record<string, (node: ParseNode) => void>}
  */
@@ -4889,11 +5551,31 @@ export interface FindAuditLogsResponse extends AdditionalDataHolder, Parsable {
      */
     nextCursor?: string | null;
 }
+export interface FindDeadLettersResponse extends AdditionalDataHolder, Parsable {
+    /**
+     * The data property
+     */
+    data?: DeadLetterListItem[] | null;
+    /**
+     * The nextCursor property
+     */
+    nextCursor?: string | null;
+}
 export interface FindInvitationsForTenantAsStaffResult extends AdditionalDataHolder, Parsable {
     /**
      * The data property
      */
     data?: StaffTenantInvitationListItem[] | null;
+    /**
+     * The nextCursor property
+     */
+    nextCursor?: string | null;
+}
+export interface FindJobQueueItemsResponse extends AdditionalDataHolder, Parsable {
+    /**
+     * The data property
+     */
+    data?: JobQueueListItem[] | null;
     /**
      * The nextCursor property
      */
@@ -4987,6 +5669,16 @@ export interface FindStaffUsersResponse extends AdditionalDataHolder, Parsable {
      */
     nextCursor?: string | null;
 }
+export interface FindSystemJobDefinitionsResponse extends AdditionalDataHolder, Parsable {
+    /**
+     * The data property
+     */
+    data?: SystemJobDefinitionListItem[] | null;
+    /**
+     * The nextCursor property
+     */
+    nextCursor?: string | null;
+}
 export interface FindSystemNoticesResponse extends AdditionalDataHolder, Parsable {
     /**
      * The data property
@@ -5068,6 +5760,15 @@ export interface GetAuditLogActionsResponse extends AdditionalDataHolder, Parsab
      * The actions property
      */
     actions?: string[] | null;
+}
+/**
+ * Wire wrapper so the detail stays a single camelCase object under "detail"while keeping the service record free of wire concerns.
+ */
+export interface GetDeadLetterResponse extends AdditionalDataHolder, Parsable {
+    /**
+     * The detail property
+     */
+    detail?: DeadLetterDetail | null;
 }
 export interface GetPublishTargetsForTenantResponse extends AdditionalDataHolder, Parsable {
     /**
@@ -5463,6 +6164,138 @@ export interface InvitationListItem extends AdditionalDataHolder, Parsable {
      * The status property
      */
     status?: InvitationEffectiveStatus | null;
+}
+export interface JobQueueItemDetail extends AdditionalDataHolder, Parsable {
+    /**
+     * The actorUserId property
+     */
+    actorUserId?: Guid | null;
+    /**
+     * The attempts property
+     */
+    attempts?: number | null;
+    /**
+     * The correlationId property
+     */
+    correlationId?: string | null;
+    /**
+     * The createdAt property
+     */
+    createdAt?: Date | null;
+    /**
+     * The id property
+     */
+    id?: Guid | null;
+    /**
+     * The idempotencyKey property
+     */
+    idempotencyKey?: string | null;
+    /**
+     * The jobType property
+     */
+    jobType?: string | null;
+    /**
+     * The lastError property
+     */
+    lastError?: string | null;
+    /**
+     * The lockedBy property
+     */
+    lockedBy?: string | null;
+    /**
+     * The lockedUntil property
+     */
+    lockedUntil?: Date | null;
+    /**
+     * The lockToken property
+     */
+    lockToken?: Guid | null;
+    /**
+     * The maxAttempts property
+     */
+    maxAttempts?: number | null;
+    /**
+     * The nextAttemptAt property
+     */
+    nextAttemptAt?: Date | null;
+    /**
+     * The payload property
+     */
+    payload?: string | null;
+    /**
+     * The priority property
+     */
+    priority?: number | null;
+    /**
+     * The requeuedFromDeadLetterId property
+     */
+    requeuedFromDeadLetterId?: Guid | null;
+    /**
+     * The status property
+     */
+    status?: string | null;
+    /**
+     * The tenantId property
+     */
+    tenantId?: Guid | null;
+    /**
+     * The updatedAt property
+     */
+    updatedAt?: Date | null;
+}
+export interface JobQueueListItem extends AdditionalDataHolder, Parsable {
+    /**
+     * The attempts property
+     */
+    attempts?: number | null;
+    /**
+     * The createdAt property
+     */
+    createdAt?: Date | null;
+    /**
+     * The id property
+     */
+    id?: Guid | null;
+    /**
+     * The jobType property
+     */
+    jobType?: string | null;
+    /**
+     * The lastError property
+     */
+    lastError?: string | null;
+    /**
+     * The lockedBy property
+     */
+    lockedBy?: string | null;
+    /**
+     * The lockedUntil property
+     */
+    lockedUntil?: Date | null;
+    /**
+     * The maxAttempts property
+     */
+    maxAttempts?: number | null;
+    /**
+     * The nextAttemptAt property
+     */
+    nextAttemptAt?: Date | null;
+    /**
+     * The priority property
+     */
+    priority?: number | null;
+    /**
+     * The status property
+     */
+    status?: string | null;
+    /**
+     * The tenantId property
+     */
+    tenantId?: Guid | null;
+    /**
+     * The updatedAt property
+     */
+    updatedAt?: Date | null;
 }
 export interface PasswordLoginBody extends AdditionalDataHolder, Parsable {
     /**
@@ -5861,6 +6694,12 @@ export interface RequestPasswordResetResult extends AdditionalDataHolder, Parsab
      * The status property
      */
     status?: string | null;
+}
+export interface RequeueDeadLetterForStaffBody extends AdditionalDataHolder, Parsable {
+    /**
+     * The note property
+     */
+    note?: UntypedNode | null;
 }
 export interface ResetPasswordBody extends AdditionalDataHolder, Parsable {
     /**
@@ -6691,6 +7530,98 @@ export function serializeCreateTenantProfileAsStaffBody(writer: SerializationWri
 }
 /**
  * Serializes information the current object
+ * @param DeadLetterDetail The instance to serialize from.
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeDeadLetterDetail(writer: SerializationWriter, deadLetterDetail: Partial<DeadLetterDetail> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!deadLetterDetail || isSerializingDerivedType) { return; }
+    writer.writeGuidValue("actorUserId", deadLetterDetail.actorUserId);
+    writer.writeNumberValue("attempts", deadLetterDetail.attempts);
+    writer.writeStringValue("correlationId", deadLetterDetail.correlationId);
+    writer.writeDateValue("createdAt", deadLetterDetail.createdAt);
+    writer.writeDateValue("enqueuedAt", deadLetterDetail.enqueuedAt);
+    writer.writeCollectionOfObjectValues<DeadLetterEventItem>("events", deadLetterDetail.events, serializeDeadLetterEventItem);
+    writer.writeDateValue("externalStateExpiredAt", deadLetterDetail.externalStateExpiredAt);
+    writer.writeDateValue("externalStateExpiresAt", deadLetterDetail.externalStateExpiresAt);
+    writer.writeDateValue("externalStatePreparedAt", deadLetterDetail.externalStatePreparedAt);
+    writer.writeNumberValue("externalStateStatus", deadLetterDetail.externalStateStatus);
+    writer.writeDateValue("failedAt", deadLetterDetail.failedAt);
+    writer.writeGuidValue("id", deadLetterDetail.id);
+    writer.writeStringValue("jobType", deadLetterDetail.jobType);
+    writer.writeStringValue("lastError", deadLetterDetail.lastError);
+    writer.writeStringValue("lockedBy", deadLetterDetail.lockedBy);
+    writer.writeNumberValue("maxAttempts", deadLetterDetail.maxAttempts);
+    writer.writeGuidValue("originalJobId", deadLetterDetail.originalJobId);
+    writer.writeStringValue("payload", deadLetterDetail.payload);
+    writer.writeNumberValue("priority", deadLetterDetail.priority);
+    writer.writeGuidValue("requeuedAsJobId", deadLetterDetail.requeuedAsJobId);
+    writer.writeDateValue("requeuedAt", deadLetterDetail.requeuedAt);
+    writer.writeGuidValue("requeuedFromDeadLetterId", deadLetterDetail.requeuedFromDeadLetterId);
+    writer.writeGuidValue("tenantId", deadLetterDetail.tenantId);
+    writer.writeDateValue("triagedAt", deadLetterDetail.triagedAt);
+    writer.writeStringValue("triagedBy", deadLetterDetail.triagedBy);
+    writer.writeStringValue("triageNote", deadLetterDetail.triageNote);
+    writer.writeAdditionalData(deadLetterDetail.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param DeadLetterEventItem The instance to serialize from.
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeDeadLetterEventItem(writer: SerializationWriter, deadLetterEventItem: Partial<DeadLetterEventItem> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!deadLetterEventItem || isSerializingDerivedType) { return; }
+    writer.writeStringValue("details", deadLetterEventItem.details);
+    writer.writeStringValue("detectedBy", deadLetterEventItem.detectedBy);
+    writer.writeStringValue("event", deadLetterEventItem.event);
+    writer.writeNumberValue("newStatus", deadLetterEventItem.newStatus);
+    writer.writeDateValue("occurredAt", deadLetterEventItem.occurredAt);
+    writer.writeNumberValue("priorStatus", deadLetterEventItem.priorStatus);
+    writer.writeAdditionalData(deadLetterEventItem.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param DeadLetterListItem The instance to serialize from.
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeDeadLetterListItem(writer: SerializationWriter, deadLetterListItem: Partial<DeadLetterListItem> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!deadLetterListItem || isSerializingDerivedType) { return; }
+    writer.writeNumberValue("attempts", deadLetterListItem.attempts);
+    writer.writeDateValue("createdAt", deadLetterListItem.createdAt);
+    writer.writeNumberValue("externalStateStatus", deadLetterListItem.externalStateStatus);
+    writer.writeDateValue("failedAt", deadLetterListItem.failedAt);
+    writer.writeGuidValue("id", deadLetterListItem.id);
+    writer.writeStringValue("jobType", deadLetterListItem.jobType);
+    writer.writeStringValue("lastError", deadLetterListItem.lastError);
+    writer.writeGuidValue("originalJobId", deadLetterListItem.originalJobId);
+    writer.writeGuidValue("requeuedAsJobId", deadLetterListItem.requeuedAsJobId);
+    writer.writeDateValue("requeuedAt", deadLetterListItem.requeuedAt);
+    writer.writeGuidValue("tenantId", deadLetterListItem.tenantId);
+    writer.writeDateValue("triagedAt", deadLetterListItem.triagedAt);
+    writer.writeAdditionalData(deadLetterListItem.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param DeadLetterRequeuedResponse The instance to serialize from.
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeDeadLetterRequeuedResponse(writer: SerializationWriter, deadLetterRequeuedResponse: Partial<DeadLetterRequeuedResponse> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!deadLetterRequeuedResponse || isSerializingDerivedType) { return; }
+    writer.writeGuidValue("deadLetterId", deadLetterRequeuedResponse.deadLetterId);
+    writer.writeGuidValue("jobId", deadLetterRequeuedResponse.jobId);
+    writer.writeStringValue("key", deadLetterRequeuedResponse.key);
+    writer.writeStringValue("message", deadLetterRequeuedResponse.message);
+    writer.writeAdditionalData(deadLetterRequeuedResponse.additionalData);
+}
+/**
+ * Serializes information the current object
  * @param DeadLetterResolvedResponse The instance to serialize from.
  * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
  * @param writer Serialization writer to use to serialize this model
@@ -6719,6 +7650,19 @@ export function serializeFindAuditLogsResponse(writer: SerializationWriter, find
 }
 /**
  * Serializes information the current object
+ * @param FindDeadLettersResponse The instance to serialize from.
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeFindDeadLettersResponse(writer: SerializationWriter, findDeadLettersResponse: Partial<FindDeadLettersResponse> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!findDeadLettersResponse || isSerializingDerivedType) { return; }
+    writer.writeCollectionOfObjectValues<DeadLetterListItem>("data", findDeadLettersResponse.data, serializeDeadLetterListItem);
+    writer.writeStringValue("nextCursor", findDeadLettersResponse.nextCursor);
+    writer.writeAdditionalData(findDeadLettersResponse.additionalData);
+}
+/**
+ * Serializes information the current object
  * @param FindInvitationsForTenantAsStaffResult The instance to serialize from.
  * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
  * @param writer Serialization writer to use to serialize this model
@@ -6729,6 +7673,19 @@ export function serializeFindInvitationsForTenantAsStaffResult(writer: Serializa
     writer.writeCollectionOfObjectValues<StaffTenantInvitationListItem>("data", findInvitationsForTenantAsStaffResult.data, serializeStaffTenantInvitationListItem);
     writer.writeStringValue("nextCursor", findInvitationsForTenantAsStaffResult.nextCursor);
     writer.writeAdditionalData(findInvitationsForTenantAsStaffResult.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param FindJobQueueItemsResponse The instance to serialize from.
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeFindJobQueueItemsResponse(writer: SerializationWriter, findJobQueueItemsResponse: Partial<FindJobQueueItemsResponse> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!findJobQueueItemsResponse || isSerializingDerivedType) { return; }
+    writer.writeCollectionOfObjectValues<JobQueueListItem>("data", findJobQueueItemsResponse.data, serializeJobQueueListItem);
+    writer.writeStringValue("nextCursor", findJobQueueItemsResponse.nextCursor);
+    writer.writeAdditionalData(findJobQueueItemsResponse.additionalData);
 }
 /**
  * Serializes information the current object
@@ -6859,6 +7816,19 @@ export function serializeFindStaffUsersResponse(writer: SerializationWriter, fin
 }
 /**
  * Serializes information the current object
+ * @param FindSystemJobDefinitionsResponse The instance to serialize from.
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeFindSystemJobDefinitionsResponse(writer: SerializationWriter, findSystemJobDefinitionsResponse: Partial<FindSystemJobDefinitionsResponse> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!findSystemJobDefinitionsResponse || isSerializingDerivedType) { return; }
+    writer.writeCollectionOfObjectValues<SystemJobDefinitionListItem>("data", findSystemJobDefinitionsResponse.data, serializeSystemJobDefinitionListItem);
+    writer.writeStringValue("nextCursor", findSystemJobDefinitionsResponse.nextCursor);
+    writer.writeAdditionalData(findSystemJobDefinitionsResponse.additionalData);
+}
+/**
+ * Serializes information the current object
  * @param FindSystemNoticesResponse The instance to serialize from.
  * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
  * @param writer Serialization writer to use to serialize this model
@@ -6971,6 +7941,18 @@ export function serializeGetAuditLogActionsResponse(writer: SerializationWriter,
     if (!getAuditLogActionsResponse || isSerializingDerivedType) { return; }
     writer.writeCollectionOfPrimitiveValues<string>("actions", getAuditLogActionsResponse.actions);
     writer.writeAdditionalData(getAuditLogActionsResponse.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param GetDeadLetterResponse The instance to serialize from.
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeGetDeadLetterResponse(writer: SerializationWriter, getDeadLetterResponse: Partial<GetDeadLetterResponse> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!getDeadLetterResponse || isSerializingDerivedType) { return; }
+    writer.writeObjectValue<DeadLetterDetail>("detail", getDeadLetterResponse.detail, serializeDeadLetterDetail);
+    writer.writeAdditionalData(getDeadLetterResponse.additionalData);
 }
 /**
  * Serializes information the current object
@@ -7269,6 +8251,60 @@ export function serializeInvitationListItem(writer: SerializationWriter, invitat
     writer.writeStringValue("scope", invitationListItem.scope);
     writer.writeEnumValue<InvitationEffectiveStatus>("status", invitationListItem.status);
     writer.writeAdditionalData(invitationListItem.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param JobQueueItemDetail The instance to serialize from.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeJobQueueItemDetail(writer: SerializationWriter, jobQueueItemDetail: Partial<JobQueueItemDetail> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!jobQueueItemDetail || isSerializingDerivedType) { return; }
+    writer.writeGuidValue("actorUserId", jobQueueItemDetail.actorUserId);
+    writer.writeNumberValue("attempts", jobQueueItemDetail.attempts);
+    writer.writeStringValue("correlationId", jobQueueItemDetail.correlationId);
+    writer.writeDateValue("createdAt", jobQueueItemDetail.createdAt);
+    writer.writeGuidValue("id", jobQueueItemDetail.id);
+    writer.writeStringValue("idempotencyKey", jobQueueItemDetail.idempotencyKey);
+    writer.writeStringValue("jobType", jobQueueItemDetail.jobType);
+    writer.writeStringValue("lastError", jobQueueItemDetail.lastError);
+    writer.writeStringValue("lockedBy", jobQueueItemDetail.lockedBy);
+    writer.writeDateValue("lockedUntil", jobQueueItemDetail.lockedUntil);
+    writer.writeGuidValue("lockToken", jobQueueItemDetail.lockToken);
+    writer.writeNumberValue("maxAttempts", jobQueueItemDetail.maxAttempts);
+    writer.writeDateValue("nextAttemptAt", jobQueueItemDetail.nextAttemptAt);
+    writer.writeStringValue("payload", jobQueueItemDetail.payload);
+    writer.writeNumberValue("priority", jobQueueItemDetail.priority);
+    writer.writeGuidValue("requeuedFromDeadLetterId", jobQueueItemDetail.requeuedFromDeadLetterId);
+    writer.writeStringValue("status", jobQueueItemDetail.status);
+    writer.writeGuidValue("tenantId", jobQueueItemDetail.tenantId);
+    writer.writeDateValue("updatedAt", jobQueueItemDetail.updatedAt);
+    writer.writeAdditionalData(jobQueueItemDetail.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param JobQueueListItem The instance to serialize from.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeJobQueueListItem(writer: SerializationWriter, jobQueueListItem: Partial<JobQueueListItem> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!jobQueueListItem || isSerializingDerivedType) { return; }
+    writer.writeNumberValue("attempts", jobQueueListItem.attempts);
+    writer.writeDateValue("createdAt", jobQueueListItem.createdAt);
+    writer.writeGuidValue("id", jobQueueListItem.id);
+    writer.writeStringValue("jobType", jobQueueListItem.jobType);
+    writer.writeStringValue("lastError", jobQueueListItem.lastError);
+    writer.writeStringValue("lockedBy", jobQueueListItem.lockedBy);
+    writer.writeDateValue("lockedUntil", jobQueueListItem.lockedUntil);
+    writer.writeNumberValue("maxAttempts", jobQueueListItem.maxAttempts);
+    writer.writeDateValue("nextAttemptAt", jobQueueListItem.nextAttemptAt);
+    writer.writeNumberValue("priority", jobQueueListItem.priority);
+    writer.writeStringValue("status", jobQueueListItem.status);
+    writer.writeGuidValue("tenantId", jobQueueListItem.tenantId);
+    writer.writeDateValue("updatedAt", jobQueueListItem.updatedAt);
+    writer.writeAdditionalData(jobQueueListItem.additionalData);
 }
 /**
  * Serializes information the current object
@@ -7586,6 +8622,18 @@ export function serializeRequestPasswordResetResult(writer: SerializationWriter,
     if (!requestPasswordResetResult || isSerializingDerivedType) { return; }
     writer.writeStringValue("status", requestPasswordResetResult.status);
     writer.writeAdditionalData(requestPasswordResetResult.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param RequeueDeadLetterForStaffBody The instance to serialize from.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeRequeueDeadLetterForStaffBody(writer: SerializationWriter, requeueDeadLetterForStaffBody: Partial<RequeueDeadLetterForStaffBody> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!requeueDeadLetterForStaffBody || isSerializingDerivedType) { return; }
+    writer.writeObjectValue("note", requeueDeadLetterForStaffBody.note);
+    writer.writeAdditionalData(requeueDeadLetterForStaffBody.additionalData);
 }
 /**
  * Serializes information the current object
@@ -8013,6 +9061,91 @@ export function serializeSuspendTenantUserResult(writer: SerializationWriter, su
     writer.writeEnumValue<TenantUserStatus>("status", suspendTenantUserResult.status);
     writer.writeGuidValue("tenantId", suspendTenantUserResult.tenantId);
     writer.writeAdditionalData(suspendTenantUserResult.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param SystemJobDefinitionDetail The instance to serialize from.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeSystemJobDefinitionDetail(writer: SerializationWriter, systemJobDefinitionDetail: Partial<SystemJobDefinitionDetail> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!systemJobDefinitionDetail || isSerializingDerivedType) { return; }
+    writer.writeDateValue("createdAt", systemJobDefinitionDetail.createdAt);
+    writer.writeStringValue("cronExpression", systemJobDefinitionDetail.cronExpression);
+    writer.writeStringValue("description", systemJobDefinitionDetail.description);
+    writer.writeGuidValue("id", systemJobDefinitionDetail.id);
+    writer.writeBooleanValue("isEnabled", systemJobDefinitionDetail.isEnabled);
+    writer.writeStringValue("jobKey", systemJobDefinitionDetail.jobKey);
+    writer.writeDateValue("lastEnqueuedAt", systemJobDefinitionDetail.lastEnqueuedAt);
+    writer.writeCollectionOfObjectValues<SystemJobOccurrenceItem>("recentOccurrences", systemJobDefinitionDetail.recentOccurrences, serializeSystemJobOccurrenceItem);
+    writer.writeGuidValue("scheduleEpoch", systemJobDefinitionDetail.scheduleEpoch);
+    writer.writeDateValue("updatedAt", systemJobDefinitionDetail.updatedAt);
+    writer.writeAdditionalData(systemJobDefinitionDetail.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param SystemJobDefinitionListItem The instance to serialize from.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeSystemJobDefinitionListItem(writer: SerializationWriter, systemJobDefinitionListItem: Partial<SystemJobDefinitionListItem> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!systemJobDefinitionListItem || isSerializingDerivedType) { return; }
+    writer.writeStringValue("cronExpression", systemJobDefinitionListItem.cronExpression);
+    writer.writeGuidValue("id", systemJobDefinitionListItem.id);
+    writer.writeBooleanValue("isEnabled", systemJobDefinitionListItem.isEnabled);
+    writer.writeStringValue("jobKey", systemJobDefinitionListItem.jobKey);
+    writer.writeDateValue("lastEnqueuedAt", systemJobDefinitionListItem.lastEnqueuedAt);
+    writer.writeDateValue("updatedAt", systemJobDefinitionListItem.updatedAt);
+    writer.writeAdditionalData(systemJobDefinitionListItem.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param SystemJobDefinitionUpdatedResponse The instance to serialize from.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeSystemJobDefinitionUpdatedResponse(writer: SerializationWriter, systemJobDefinitionUpdatedResponse: Partial<SystemJobDefinitionUpdatedResponse> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!systemJobDefinitionUpdatedResponse || isSerializingDerivedType) { return; }
+    writer.writeStringValue("cronExpression", systemJobDefinitionUpdatedResponse.cronExpression);
+    writer.writeGuidValue("id", systemJobDefinitionUpdatedResponse.id);
+    writer.writeBooleanValue("isEnabled", systemJobDefinitionUpdatedResponse.isEnabled);
+    writer.writeStringValue("key", systemJobDefinitionUpdatedResponse.key);
+    writer.writeStringValue("message", systemJobDefinitionUpdatedResponse.message);
+    writer.writeGuidValue("scheduleEpoch", systemJobDefinitionUpdatedResponse.scheduleEpoch);
+    writer.writeAdditionalData(systemJobDefinitionUpdatedResponse.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param SystemJobOccurrenceItem The instance to serialize from.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeSystemJobOccurrenceItem(writer: SerializationWriter, systemJobOccurrenceItem: Partial<SystemJobOccurrenceItem> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!systemJobOccurrenceItem || isSerializingDerivedType) { return; }
+    writer.writeDateValue("enqueuedAt", systemJobOccurrenceItem.enqueuedAt);
+    writer.writeGuidValue("enqueuedJobId", systemJobOccurrenceItem.enqueuedJobId);
+    writer.writeDateValue("scheduledFireAt", systemJobOccurrenceItem.scheduledFireAt);
+    writer.writeAdditionalData(systemJobOccurrenceItem.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param SystemJobTriggeredResponse The instance to serialize from.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeSystemJobTriggeredResponse(writer: SerializationWriter, systemJobTriggeredResponse: Partial<SystemJobTriggeredResponse> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!systemJobTriggeredResponse || isSerializingDerivedType) { return; }
+    writer.writeGuidValue("jobId", systemJobTriggeredResponse.jobId);
+    writer.writeStringValue("key", systemJobTriggeredResponse.key);
+    writer.writeStringValue("message", systemJobTriggeredResponse.message);
+    writer.writeDateValue("scheduledFireAt", systemJobTriggeredResponse.scheduledFireAt);
+    writer.writeGuidValue("scheduleEpoch", systemJobTriggeredResponse.scheduleEpoch);
+    writer.writeAdditionalData(systemJobTriggeredResponse.additionalData);
 }
 /**
  * Serializes information the current object
@@ -8462,6 +9595,30 @@ export function serializeUpdateStaffUserProfilesResult(writer: SerializationWrit
     if (!updateStaffUserProfilesResult || isSerializingDerivedType) { return; }
     writer.writeCollectionOfObjectValues<StaffUserProfileItem>("assignedProfiles", updateStaffUserProfilesResult.assignedProfiles, serializeStaffUserProfileItem);
     writer.writeAdditionalData(updateStaffUserProfilesResult.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param UpdateSystemJobDefinitionCronForStaffBody The instance to serialize from.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeUpdateSystemJobDefinitionCronForStaffBody(writer: SerializationWriter, updateSystemJobDefinitionCronForStaffBody: Partial<UpdateSystemJobDefinitionCronForStaffBody> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!updateSystemJobDefinitionCronForStaffBody || isSerializingDerivedType) { return; }
+    writer.writeObjectValue("cronExpression", updateSystemJobDefinitionCronForStaffBody.cronExpression);
+    writer.writeAdditionalData(updateSystemJobDefinitionCronForStaffBody.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param UpdateSystemJobDefinitionEnabledForStaffBody The instance to serialize from.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeUpdateSystemJobDefinitionEnabledForStaffBody(writer: SerializationWriter, updateSystemJobDefinitionEnabledForStaffBody: Partial<UpdateSystemJobDefinitionEnabledForStaffBody> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!updateSystemJobDefinitionEnabledForStaffBody || isSerializingDerivedType) { return; }
+    writer.writeObjectValue("isEnabled", updateSystemJobDefinitionEnabledForStaffBody.isEnabled);
+    writer.writeAdditionalData(updateSystemJobDefinitionEnabledForStaffBody.additionalData);
 }
 /**
  * Serializes information the current object
@@ -9022,6 +10179,136 @@ export interface SuspendTenantUserResult extends AdditionalDataHolder, Parsable 
      * The tenantId property
      */
     tenantId?: Guid | null;
+}
+export interface SystemJobDefinitionDetail extends AdditionalDataHolder, Parsable {
+    /**
+     * The createdAt property
+     */
+    createdAt?: Date | null;
+    /**
+     * The cronExpression property
+     */
+    cronExpression?: string | null;
+    /**
+     * The description property
+     */
+    description?: string | null;
+    /**
+     * The id property
+     */
+    id?: Guid | null;
+    /**
+     * The isEnabled property
+     */
+    isEnabled?: boolean | null;
+    /**
+     * The jobKey property
+     */
+    jobKey?: string | null;
+    /**
+     * The lastEnqueuedAt property
+     */
+    lastEnqueuedAt?: Date | null;
+    /**
+     * The recentOccurrences property
+     */
+    recentOccurrences?: SystemJobOccurrenceItem[] | null;
+    /**
+     * The scheduleEpoch property
+     */
+    scheduleEpoch?: Guid | null;
+    /**
+     * The updatedAt property
+     */
+    updatedAt?: Date | null;
+}
+export interface SystemJobDefinitionListItem extends AdditionalDataHolder, Parsable {
+    /**
+     * The cronExpression property
+     */
+    cronExpression?: string | null;
+    /**
+     * The id property
+     */
+    id?: Guid | null;
+    /**
+     * The isEnabled property
+     */
+    isEnabled?: boolean | null;
+    /**
+     * The jobKey property
+     */
+    jobKey?: string | null;
+    /**
+     * The lastEnqueuedAt property
+     */
+    lastEnqueuedAt?: Date | null;
+    /**
+     * The updatedAt property
+     */
+    updatedAt?: Date | null;
+}
+export interface SystemJobDefinitionUpdatedResponse extends AdditionalDataHolder, Parsable {
+    /**
+     * The cronExpression property
+     */
+    cronExpression?: string | null;
+    /**
+     * The id property
+     */
+    id?: Guid | null;
+    /**
+     * The isEnabled property
+     */
+    isEnabled?: boolean | null;
+    /**
+     * The key property
+     */
+    key?: string | null;
+    /**
+     * The message property
+     */
+    message?: string | null;
+    /**
+     * The scheduleEpoch property
+     */
+    scheduleEpoch?: Guid | null;
+}
+export interface SystemJobOccurrenceItem extends AdditionalDataHolder, Parsable {
+    /**
+     * The enqueuedAt property
+     */
+    enqueuedAt?: Date | null;
+    /**
+     * The enqueuedJobId property
+     */
+    enqueuedJobId?: Guid | null;
+    /**
+     * The scheduledFireAt property
+     */
+    scheduledFireAt?: Date | null;
+}
+export interface SystemJobTriggeredResponse extends AdditionalDataHolder, Parsable {
+    /**
+     * The jobId property
+     */
+    jobId?: Guid | null;
+    /**
+     * The key property
+     */
+    key?: string | null;
+    /**
+     * The message property
+     */
+    message?: string | null;
+    /**
+     * The scheduledFireAt property
+     */
+    scheduledFireAt?: Date | null;
+    /**
+     * The scheduleEpoch property
+     */
+    scheduleEpoch?: Guid | null;
 }
 export interface SystemNoticeCreated extends AdditionalDataHolder, Parsable {
     /**
@@ -9647,6 +10934,18 @@ export interface UpdateStaffUserProfilesResult extends AdditionalDataHolder, Par
      * The assignedProfiles property
      */
     assignedProfiles?: StaffUserProfileItem[] | null;
+}
+export interface UpdateSystemJobDefinitionCronForStaffBody extends AdditionalDataHolder, Parsable {
+    /**
+     * The cronExpression property
+     */
+    cronExpression?: UntypedNode | null;
+}
+export interface UpdateSystemJobDefinitionEnabledForStaffBody extends AdditionalDataHolder, Parsable {
+    /**
+     * The isEnabled property
+     */
+    isEnabled?: UntypedNode | null;
 }
 export interface UpdateSystemNoticeBody extends AdditionalDataHolder, Parsable {
     /**
