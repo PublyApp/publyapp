@@ -24,12 +24,15 @@ namespace PublyApp.Api.Lib.Architecture;
 ///   remove .WithDataVolume()            -> ItShouldPersistPostgresDataInANamedVolume
 ///   remove .WithHostPort(5454)           -> ItShouldPinThePostgresHostPortTo5454
 ///   drop launchProfileName: null         -> ItShouldKeepTheWorkerOffTheApiPort
-///   drop the port-5454 pre-flight guard  -> ItShouldFailLoudlyWhenHostPort5454IsAlreadyOccupied
-///                                           (fails at run time with the plain
-///                                           "address already in use" DCP text —
-///                                           this spec asserts the loud, caused
-///                                           message, so the bare error cannot
-///                                           pass the suite)
+///   drop the port-5454 pre-flight guard  -> ItShouldGuardTheOccupiedPort5454CaseLoudly
+///                                           + ItShouldFailLoudlyWhenHostPort5454IsAlreadyOccupied
+///                                           (without the guard, DCP logs 'address
+///                                           already in use' only in its internal
+///                                           per-resource logs, the AppHost keeps
+///                                           running on an ephemeral port, and the
+///                                           console never names the cause — so both
+///                                           the source-token and the behavioral test
+///                                           go red)
 /// </summary>
 public sealed partial class AppHostOrchestrationGuardSpec : IDisposable {
 	// The one file this guard reads. Kept as a constant so a rename of the AppHost
@@ -37,24 +40,13 @@ public sealed partial class AppHostOrchestrationGuardSpec : IDisposable {
 	// narrowing the scan.
 	private const string AppHostProgramRelativePath = "apps/apphost/Program.cs";
 
-	// The worker's launchProfileName: null must stay attached to the worker's
-	// AddProject call. Whitespace-tolerant: the point is the argument, not the
-	// formatting.
-	private static readonly Regex WorkerLaunchProfileNullPattern = MyRegex();
+	private const int HostPort = 5454;
 
-	// The guard must name the port AND the DCP symptom AND the concrete next
-	// action (stop the occupier / pick another port). "Nommer la cause en clair".
-	private static readonly Regex PortGuardMessagePattern = new(
-		"5454[\\s\\S]{0,400}already in use[\\s\\S]{0,400}dotnet run --project apps/apphost",
-		RegexOptions.Compiled
-	);
-
-	private readonly List<Socket> _occupiers = [];
+	private TcpListener? _occupier;
 
 	public void Dispose() {
-		foreach (var occupier in _occupiers) {
-			occupier.Dispose();
-		}
+		_occupier?.Dispose();
+		_occupier = null;
 	}
 
 	[Fact]
@@ -87,7 +79,7 @@ public sealed partial class AppHostOrchestrationGuardSpec : IDisposable {
 	public void ItShouldKeepTheWorkerOffTheApiPort() {
 		var program = ReadAppHostProgram();
 
-		WorkerLaunchProfileNullPattern.IsMatch(program).Should().BeTrue(
+		WorkerLaunchProfileNull().IsMatch(program).Should().BeTrue(
 			"round-3 mutation: dropping 'launchProfileName: null' from the worker's "
 				+ "AddProject call made the worker inherit the 'http' launch profile "
 				+ "and try to bind the API's port 5000, which the DCP proxy fails on "
@@ -99,7 +91,7 @@ public sealed partial class AppHostOrchestrationGuardSpec : IDisposable {
 	public void ItShouldGuardTheOccupiedPort5454CaseLoudly() {
 		var program = ReadAppHostProgram();
 
-		PortGuardMessagePattern.IsMatch(program).Should().BeTrue(
+		PortGuardMessage().IsMatch(program).Should().BeTrue(
 			"the AppHost must pre-flight host port 5454 and fail loudly — naming the "
 				+ "port, the 'address already in use' cause, and the next action — "
 					+ "before it starts anything. A silent fallback to an ephemeral "
@@ -111,27 +103,35 @@ public sealed partial class AppHostOrchestrationGuardSpec : IDisposable {
 
 	[Fact]
 	public async Task ItShouldFailLoudlyWhenHostPort5454IsAlreadyOccupied() {
+		// Behavioral half of B1: the source-token guard above proves the code is
+		// there; this test proves it FIRES. Run the real AppHost against an
+		// occupied 5454 and require a loud, self-caused failure.
+		//
+		// Occupancy: bind 127.0.0.1:5454 in-process — exactly the address DCP's
+		// postgres proxy binds (its own error says 'listen tcp 127.0.0.1:5454:
+		// bind: address already in use'). No docker dependency, works on CI
+		// runners. If the port is already occupied on a dev machine (the normal
+		// case: a leftover local dev Postgres), the bind fails and we use the
+		// existing occupier — the AppHost must fail the same way for ANY
+		// occupier, so the test stays valid.
 		try {
-			// Behavioral half of B1: the source-token guard above proves the code is
-			// there; this test proves it FIRES. Run the real AppHost against an
-			// occupied 5454 and require a loud, self-caused failure.
-			//
-			// Occupancy: bind 127.0.0.1:5454 in-process — exactly the address DCP's
-			// postgres proxy binds (its own error says 'listen tcp 127.0.0.1:5454:
-			// bind: address already in use'). No docker dependency, works on CI
-			// runners. If the port is already occupied on a dev machine (the normal
-			// case: a leftover local dev Postgres), the bind fails and we use the
-			// existing occupier — the AppHost must fail the same way for ANY
-			// occupier, so the test stays valid.
-			TcpListener? occupier = new TcpListener(IPAddress.Loopback, 5454);
-			occupier.Start();
-			_occupiers.Add(occupier);
+			var listener = new TcpListener(IPAddress.Loopback, HostPort);
+			listener.Start();
+			_occupier = listener;
 		} catch (SocketException) {
 			// 5454 already occupied by a real process — equally valid evidence.
 		}
 
 		var repoRoot = FindRepoRoot();
-		var run = await RunAppHostAsync(repoRoot, TimeSpan.FromMinutes(8));
+		var run = await RunAppHostAsync(
+			repoRoot,
+			TimeSpan.FromMinutes(10),
+			// Same pin as the justfile dev-services recipe: the implicit build
+			// must not run OpenAPI document generation, which boots the app with
+			// the ambient .env.development (APP_ROLE=all) while no Postgres is
+			// up yet. This test exercises the port pre-flight, not doc-gen.
+			["run", "--project", "apps/apphost", "--property:OpenApiGenerateDocuments=false"]
+		);
 
 		run.ExitedOnItsOwn.Should().BeTrue(
 			"with 5454 occupied the AppHost must fail on its own, fast — not run "
@@ -141,12 +141,13 @@ public sealed partial class AppHostOrchestrationGuardSpec : IDisposable {
 			1,
 			$"a non-zero exit is the loud half; actual exit code {run.ExitCode}"
 		);
-		run.Console.Should().Match(
-			PortGuardMessagePattern,
+		var tailStart = Math.Max(0, run.Console.Length - 800);
+		PortGuardMessage().IsMatch(run.Console).Should().BeTrue(
 			"the console must name the cause in plain words: port 5454 is already "
 				+ "in use and what to do about it. The bare DCP "
 				+ "'address already in use' proxy log is internal to DCP and never "
-				+ "reaches the console — that silence is the round-3 finding."
+				+ "reaches the console — that silence is the round-3 finding. "
+				+ $"Console tail: …{run.Console[tailStart..]}"
 		);
 	}
 
@@ -154,7 +155,7 @@ public sealed partial class AppHostOrchestrationGuardSpec : IDisposable {
 		var repoRoot = FindRepoRoot();
 		var path = Path.Combine(repoRoot, AppHostProgramRelativePath);
 
-		path.Should().Exist(
+		File.Exists(path).Should().BeTrue(
 			"the AppHost entrypoint moved or was renamed — reconcile the guard "
 				+ "path, do not let the scan silently narrow"
 		);
@@ -162,7 +163,11 @@ public sealed partial class AppHostOrchestrationGuardSpec : IDisposable {
 		return File.ReadAllText(path);
 	}
 
-	private static async Task<AppHostRun> RunAppHostAsync(string repoRoot, TimeSpan budget) {
+	private static async Task<AppHostRun> RunAppHostAsync(
+		string repoRoot,
+		TimeSpan budget,
+		string[] dotnetArguments
+	) {
 		using var cts = new CancellationTokenSource(budget);
 		var console = new StringBuilder();
 		var process = new Process {
@@ -174,8 +179,11 @@ public sealed partial class AppHostOrchestrationGuardSpec : IDisposable {
 				RedirectStandardError = true,
 			}
 		};
+		foreach (var argument in dotnetArguments) {
+			process.StartInfo.ArgumentList.Add(argument);
+		}
 
-		void AppendOutput(object? sender, ProcessOutputEventArgs args) {
+		void AppendOutput(object? sender, DataReceivedEventArgs args) {
 			if (args.Data is not null) {
 				lock (console) {
 					console.AppendLine(args.Data);
@@ -210,6 +218,7 @@ public sealed partial class AppHostOrchestrationGuardSpec : IDisposable {
 			if (!exitedOnItsOwn) {
 				process.Kill(entireProcessTree: true);
 			}
+
 			// Drain whatever the process emitted on its way out.
 			await process.WaitForExitAsync(CancellationToken.None);
 		} catch (Exception) {
@@ -225,10 +234,26 @@ public sealed partial class AppHostOrchestrationGuardSpec : IDisposable {
 		return new AppHostRun(
 			process.ExitCode,
 			consoleText,
-			exitedOnItsOwn
-				&& (DateTime.UtcNow - startedAt) < budget
+			exitedOnItsOwn && (DateTime.UtcNow - startedAt) < budget
 		);
 	}
+
+	// The guard must name the port AND the DCP symptom AND the concrete next
+	// action (stop the occupier / pick another port). "Nommer la cause en clair".
+	// The window is wide because in the source file the message is a multi-line
+	// C# literal; in the console it is one block.
+	[GeneratedRegex(
+		"5454[\\s\\S]{0,1200}address already in use[\\s\\S]{0,1200}dotnet run --project apps/apphost"
+	)]
+	private static partial Regex PortGuardMessage();
+
+	// The worker's launchProfileName: null must stay attached to the worker's
+	// AddProject call. Whitespace-tolerant: the point is the argument, not the
+	// formatting.
+	[GeneratedRegex(
+		"AddProject<Projects\\.PublyApp_Api>\\s*\\(\\s*\"worker\"\\s*,\\s*launchProfileName:\\s*null\\s*\\)"
+	)]
+	private static partial Regex WorkerLaunchProfileNull();
 
 	// Walk further up for the repo root containing justfile (AppHost paths are
 	// repo-root-relative). Same convention as CanaryProbeContainmentSpec.
@@ -250,8 +275,4 @@ public sealed partial class AppHostOrchestrationGuardSpec : IDisposable {
 	}
 
 	private sealed record AppHostRun(int ExitCode, string Console, bool ExitedOnItsOwn);
-
-	[GeneratedRegex("AddProject<Projects\\.PublyApp_Api>\\s*\\(\\s*\"worker\"\\s*,\\s*launchProfileName:\\s*null\\s*\\)", RegexOptions.Compiled
-	)]
-	private static partial Regex MyRegex();
 }
