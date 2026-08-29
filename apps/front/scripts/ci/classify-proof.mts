@@ -533,15 +533,17 @@ export function classifyProofWithManifest(
 /**
  * Find an assertion result by its declared testName. The declared name
  * is the exact `test('…', …)` literal; vitest's `fullName` is the
- * concatenation of describe + test names. We match by suffix equality
- * (the test name is at the END of fullName, separated by ' > ') so
+ * concatenation of describe + test names with a SPACE separator
+ * (vitest's reporter does not emit Jest's ` > ` between them — it
+ * joins them directly). We match by suffix equality (the test name
+ * is at the END of fullName, after the describe prefix + a space) so
  * the runner works regardless of where the proof is mounted.
  */
 function findAssertionByTestName(
 	report: ProofReport,
 	declaredName: string,
 ): { fullName: string; shortName: string; status: string } | undefined {
-	const SEPARATOR = ' > ';
+	const SEPARATOR = ' ';
 	const suffix = SEPARATOR + declaredName;
 	for (const suite of report.testResults) {
 		for (const t of suite.assertionResults) {

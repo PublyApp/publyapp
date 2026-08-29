@@ -322,8 +322,18 @@ function declaredProofTests(): string[] {
 	// Every file added or modified under tests/proofs/ is a declared proof.
 	// Proof files live under apps/front/tests/proofs/, so the diff paths
 	// from the repo root start with "apps/front/tests/proofs/".
+	// Filter to files that are REPLAYABLE test files. A sidecar
+	// manifest (`.expected-red.json`) or a shared detection module
+	// (`lib/sigint-handler-detection.mts`) lives in the same
+	// directory tree but is not itself a proof — it is supporting
+	// infrastructure. Including non-test files in `declared` would
+	// make the runner's un-replayable check fail loud, which is the
+	// right call for an undeclared test file but a false alarm for a
+	// shared lib. The path-prefix filter alone is too broad; pin to
+	// the replayable extensions the runner actually executes.
 	const declared = changedFiles.filter((f) =>
-		f.startsWith('apps/front/tests/proofs/'),
+		f.startsWith('apps/front/tests/proofs/') &&
+		(f.endsWith('.test.ts') || f.endsWith('.test.tsx')),
 	);
 
 	// Return paths relative to apps/front (the working directory).
