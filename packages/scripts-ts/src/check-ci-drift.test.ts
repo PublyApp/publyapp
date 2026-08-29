@@ -121,6 +121,16 @@ test('fails when CI gains a step the local gate does not cover', async () => {
 		findings[0],
 		/^NEW STEP {2}fixture\.yml::build::Scan for secrets/,
 	);
+	// Cause: CI gained a step the local gate does not account for.
+	assert.match(
+		findings[0],
+		/CI gained a step the local gate does not account for/,
+	);
+	// Action: mirror it or record why it cannot run locally.
+	assert.match(
+		findings[0],
+		/mirror it in `just ci` or record why it cannot run locally/,
+	);
 });
 
 test('fails when a reconciled CI step changes its command', async () => {
@@ -136,6 +146,12 @@ test('fails when a reconciled CI step changes its command', async () => {
 
 	assert.equal(findings.length, 1);
 	assert.match(findings[0], /^CHANGED {3}fixture\.yml::build::Run tests/);
+	// Cause: the CI step changed since it was reconciled.
+	assert.match(findings[0], /changed since it was reconciled/);
+	// Action: re-check the mirror and update the hash.
+	assert.match(findings[0], /Re-check that/);
+	assert.match(findings[0], /still covers it/);
+	assert.match(findings[0], /update the hash/);
 });
 
 test('fails when a step changes only its env or condition', async () => {
@@ -200,6 +216,11 @@ test('fails when the manifest reconciles a step that no longer exists', async ()
 
 	assert.equal(findings.length, 1);
 	assert.match(findings[0], /^STALE {5}fixture\.yml::build::Deleted step/);
+	// Cause: the manifest reconciles a CI step that no longer exists.
+	assert.match(findings[0], /reconciles a CI step that no longer exists/);
+	// Action: delete the entry and drop the local mirror.
+	assert.match(findings[0], /Delete the entry/);
+	assert.match(findings[0], /drop the local mirror/);
 });
 
 test('rejects an exemption that does not give a reviewable reason', async () => {
@@ -646,6 +667,16 @@ test('reason guard: warns when a reference entry is absent from the manifest (st
 		/STALE REF fixture\.yml::build::Stale step/,
 	);
 	assert.match(staleRefFindings[0], /gen-reason-ref\.ts/);
+	// Cause: the reference holds a fingerprint for a step absent from the manifest.
+	assert.match(
+		staleRefFindings[0],
+		/holds a fingerprint for .* which is absent from the manifest/,
+	);
+	// Action: delete the reference entry by regenerating.
+	assert.match(
+		staleRefFindings[0],
+		/delete the reference entry by regenerating/,
+	);
 });
 
 test('reason guard: passes when manifest and reference are fully aligned (Case 3 unchanged)', async () => {
@@ -734,6 +765,24 @@ test('duplicate key guard: detects a duplicate key in the manifest steps', () =>
 	assert.equal(findings.length, 1);
 	assert.match(findings[0], /DUPLICATE KEY "fixture\.yml::build::Run tests"/);
 	assert.match(findings[0], /lines 3 and 4/);
+	// Cause: the complete explanation must name the actor (JSON.parse), the
+	// danger (silently), the mechanism (keeps only the last occurrence), and
+	// what is at risk (a reconciled step). Truncating any of these leaves the
+	// operator without understanding why the finding is dangerous.
+	assert.match(
+		findings[0],
+		/JSON\.parse would silently keep only the last occurrence/,
+	);
+	assert.match(
+		findings[0],
+		/masking a reconciled step that should not be lost/,
+	);
+	// Action: the complete directive must tell the operator to delete the
+	// duplicate AND keep the intended one — not just one or the other.
+	assert.match(
+		findings[0],
+		/Delete the duplicate entry and keep the intended one/,
+	);
 });
 
 test('duplicate key guard: returns empty for a manifest with no duplicates', () => {
