@@ -77,10 +77,18 @@ Round 4 closes that with three lanes:
    the copy: `getIconGuardBrowserScript` (esbuild, once per worker) bundles
    the REAL guard module verbatim, `icon-guard-browser-entry.ts` exposes it on
    `window`, and the spec calls `assertIconIsVisible` in the page with
-   Chromium's own `getComputedStyle` as the default reader. Each mutation is
+   Chromium's own `getComputedStyle` as the default reader. The spec walks
+   FIVE hiding mechanisms: the four the issue names, plus an **inline style
+   `visibility:hidden` with no Tailwind class at all** — an
+   out-of-enumeration hide that only a measurement can see, so a classList
+   enumeration would leave it green in a real browser. Each mutation is
    verified twice: the raw engine probe proves the DOM actually hides the
    icon, and the bundled real guard must agree (raise for hidden, pass for the
-   painted baseline).
+   painted baseline). Executed against the read-and-discard enumeration
+   mutation: the inline-style case goes RED in real Chromium (the enumeration
+   answers "visible" while the engine proves hidden); restored to the
+   measurement body the spec is green. Evidence:
+   `.dump/preuve-1799-r4-e2e-enumeration.txt` / `-fixed.txt`.
 
 The i18n round (#1842) wrapped the guard's messages in `i18n.t()` calls
 (`icon-hidden-aria`, `icon-hidden-visibility`, `icon-hidden-display`,

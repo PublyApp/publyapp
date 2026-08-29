@@ -205,6 +205,46 @@ const MUTATIONS: ReadonlyArray<Mutation> = [
 			);
 		},
 	},
+	// Fifth, the out-of-enumeration mechanism: an INLINE style with no
+	// Tailwind class at all. A classList enumeration answers "visible"
+	// here (no class to match); only a measurement sees
+	// `visibility:hidden` from the computed style. This is the
+	// real-browser counterpart of the unit divergence test
+	// (`data-table-icon-visibility-guard.test.ts`): under any
+	// classList-based body, this case goes RED in real Chromium.
+	{
+		label: 'inline style visibility:hidden (no Tailwind class)',
+		mutate: async (page, iconSelector) => {
+			await page.evaluate(
+				({ iconSelector, probe }) => {
+					const el = document.querySelector(iconSelector);
+					if (el === null) {
+						throw new Error(`${probe}: missing icon element`);
+					}
+					el.setAttribute('style', 'visibility: hidden');
+				},
+				{ iconSelector, probe: PROBE_ATTR },
+			);
+		},
+		readHiddenState: async (page, iconSelector) => {
+			return page.evaluate(
+				({ iconSelector, probe }) => {
+					const el = document.querySelector(iconSelector);
+					if (el === null) {
+						throw new Error(`${probe}: missing icon element`);
+					}
+					const cs = window.getComputedStyle(el);
+					return {
+						visibility: cs.visibility,
+						display: cs.display,
+						opacity: Number.parseFloat(cs.opacity),
+						ariaHidden: el.getAttribute('aria-hidden'),
+					};
+				},
+				{ iconSelector, probe: PROBE_ATTR },
+			);
+		},
+	},
 ];
 
 /**
@@ -322,6 +362,11 @@ test.describe(
 						state.ariaHidden,
 						`${mutation.label}: real-browser aria-hidden must be 'true'`,
 					).toBe('true');
+				} else if (mutation.label.startsWith('inline style')) {
+					expect(
+						state.visibility,
+						`${mutation.label}: real-browser visibility must be 'hidden'`,
+					).toBe('hidden');
 				}
 
 				// The real guard's own code must agree with the engine's raw
