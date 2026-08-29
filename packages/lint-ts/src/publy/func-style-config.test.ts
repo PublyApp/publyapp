@@ -520,6 +520,36 @@ const readSuppressionInventory = (): FuncStyleSuppressionEntry[] => {
 const SUPPRESSION_INVENTORY: FuncStyleSuppressionEntry[] =
 	readSuppressionInventory();
 
+// Round-4 finding (#1854): the inventory keyed only on file+symbol, so
+// anyone could exempt any function by inventing an entry with a hollow
+// reason — a backdoor around review. The inventory must validate the reason,
+// not just the presence of the symbol. The rule mirrors check-oxlint-disables
+// (the repo's suppression guard): trimmed and non-empty, at least
+// MIN_SUPPRESSION_REASON_LENGTH characters, free of placeholder phrases that
+// signal a smell rather than an explanation.
+const MIN_SUPPRESSION_REASON_LENGTH = 24;
+
+const bannedReasonPatterns = [
+	/<explanation>/i,
+	/\bfor now\b/i,
+	/\bsafe to use any here\b/i,
+	/\bcode from template leave as is for now\b/i,
+];
+
+const isReviewableSuppressionReason = (reason: string): boolean => {
+	const trimmed = reason.trim();
+
+	if (trimmed.length === 0) {
+		return false;
+	}
+
+	if (trimmed.length < MIN_SUPPRESSION_REASON_LENGTH) {
+		return false;
+	}
+
+	return !bannedReasonPatterns.some((pattern) => pattern.test(trimmed));
+};
+
 const countByFileAndSymbol = (
 	entries: FuncStyleSuppressionEntry[],
 ): Map<string, number> => {
@@ -759,13 +789,25 @@ describe('func-style: ["error", "expression"] (#1834 — uniform arrow form)', (
 				const funcStyleDiagnostics = (
 					result.diagnostics as Array<{
 						code?: string;
+						filename?: string;
+						line?: number;
 						message?: string;
 					}>
 				).filter((diag) => (diag.code ?? '').includes('func-style'));
 
 				if (funcStyleDiagnostics.length > 0) {
+					// Name the file:line of every offender. A guard that reddens
+					// without naming the file is half useless (round-4 finding
+					// #1854): a bare "got 1: Expected a function expression."
+					// forces the maintainer to re-run oxlint to locate the
+					// regression instead of fixing it.
 					const names = funcStyleDiagnostics
-						.map((diag) => diag.message ?? JSON.stringify(diag))
+						.map((diag) => {
+							const location =
+								(diag.filename ?? '<unknown file>') +
+								(diag.line ? `:${diag.line}` : '');
+							return `${location} — ${diag.message ?? JSON.stringify(diag)}`;
+						})
 						.join('\n  ');
 
 					assert.fail(
@@ -1005,6 +1047,26 @@ describe('func-style: ["error", "expression"] (#1834 — uniform arrow form)', (
 			);
 
 			rmSync(tempDir, { force: true, recursive: true });
+		});
+
+		it('every inventory entry carries a reviewable suppression reason', () => {
+			// Round-4 finding (#1854): the inventory validated only file+symbol,
+			// so an invented entry with a hollow reason silently exempted any
+			// function from review. Each entry must justify why func-style is
+			// inapplicable — trimmed, ≥ 24 chars, no placeholder phrases (same
+			// rule as check-oxlint-disables).
+			const hollow = SUPPRESSION_INVENTORY.filter(
+				(entry) => !isReviewableSuppressionReason(entry.reason),
+			);
+
+			assert.deepStrictEqual(
+				hollow,
+				[],
+				`inventory entries with hollow reasons: ${hollow.map((entry) => `${entry.file}: ${entry.symbol || '(file-level)'} — "${entry.reason}"`).join('; ')}. ` +
+					'Every entry must justify why func-style is inapplicable: a trimmed reason of at least ' +
+					`${MIN_SUPPRESSION_REASON_LENGTH} characters, free of placeholder phrases. Inventing an entry ` +
+					'with an empty or hollow reason is a review bypass, not a suppression.',
+			);
 		});
 
 		it('reports a stale inventory entry (suppression removed from code)', async () => {
