@@ -312,21 +312,22 @@ test('RED: CLI exits non-zero on a case-variant shadow file (Dockerfile.DOCKERIG
 	);
 });
 
-// GREEN case, round 2 of #1873: making the match case-insensitive must NOT
-// open a new hole. A subdirectory file whose basename is exactly
-// `.dockerignore` in any case is the additive per-directory BuildKit
-// feature, not a shadow — a legitimate root .dockerignore stays accepted in
-// any spelling, so does this one.
-test('GREEN: subdirectory .DOCKERIGNORE (case variant, exact basename) is not a shadow file', async () => {
+// RED case, round 2 of #1873: the exemption is EXACT. A case variant of the
+// dotfile name in a subdirectory is not the additive BuildKit file (that
+// one is spelled exactly `.dockerignore`), and on a case-insensitive
+// filesystem it would collide with it — it is the ambiguity #1849 closes,
+// so the guard flags it. Without this pin, "case-insensitive" would
+// over-reach: the guard would either allow `.DOCKERIGNORE` shadows or
+// silently stop recognising the legitimate dotfile.
+test('RED: apps/api/.DOCKERIGNORE (dotfile case variant in a subdirectory) is detected and named', async () => {
 	const rootDir = await buildFixtureTree();
 
 	await writeFixtureFile(rootDir, 'apps/api/.DOCKERIGNORE');
 
 	const findings = await findDockerignoreShadows({ rootDir });
 
-	assert.deepEqual(
-		findings,
-		[],
-		'expected a subdirectory .dockerignore case variant (exact basename) to be allowed',
+	assert.ok(
+		findings.includes('apps/api/.DOCKERIGNORE'),
+		`expected the guard to name apps/api/.DOCKERIGNORE, got: ${JSON.stringify(findings)}`,
 	);
 });

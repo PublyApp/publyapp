@@ -18,13 +18,24 @@ import { pathToFileURL } from 'node:url';
 // .turbo, .worktrees, .dump and .claude. #1836 deleted the offending file;
 // this guard exists so a shadow file cannot silently reappear.
 //
+// Docker matches the dockerignore name case-INSENSITIVELY, so the detection
+// is case-insensitive too: `Dockerfile.DOCKERIGNORE`,
+// `Dockerfile.DockerIgnore` and `apps/api/Dockerfile.DockerIgnore` all
+// replace the root file and must all go red. The exemption stays EXACT:
+// only the canonical spelling `.dockerignore` is accepted, because the
+// round-2 reviewer pinned a root `.DockerIgnore` as a red shadow as well.
+// A case variant of the dotfile (root or in a subdirectory) is therefore
+// flagged too: on the case-sensitive filesystem this repo builds on it is a
+// dead, confusing file, and on a case-insensitive filesystem it is exactly
+// the ambiguity #1849 closes. The legitimate root `.dockerignore` (exact
+// spelling) remains accepted, and a subdirectory `.dockerignore` (exact
+// spelling) is the separate additive BuildKit feature, which also cannot
+// replace the root file.
+//
 // The guard interrogates the REAL working tree (the same filesystem a build
 // context is drawn from): it walks every directory and flags each file whose
-// basename ends with `.dockerignore` but is not exactly `.dockerignore`. A
-// `.dockerignore` whose basename is exactly that (root or in a subdirectory)
-// is never a shadow file, so it stays green — subdirectory `.dockerignore`
-// files are a separate, additive BuildKit feature and cannot replace the
-// root file. Files inside `.git` and `node_modules` are out of scope
+// basename ends with `.dockerignore` case-insensitively but is not exactly
+// `.dockerignore`. Files inside `.git` and `node_modules` are out of scope
 // (`node_modules` is always excluded from every build context by the root
 // `.dockerignore`, so a third-party package can never shadow it).
 //
@@ -47,7 +58,7 @@ const SKIP_DIRS = new Set(['.git', 'node_modules']);
 const toPosixPath = (value: string) => value.split(path.sep).join('/');
 
 const isShadowFile = (name: string): boolean =>
-	name !== '.dockerignore' && name.endsWith('.dockerignore');
+	name !== '.dockerignore' && name.toLowerCase().endsWith('.dockerignore');
 
 const walkForShadows = async (
 	rootDir: string,
