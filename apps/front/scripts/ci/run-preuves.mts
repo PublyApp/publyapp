@@ -179,13 +179,32 @@ function declaredProofTests(): string[] {
 	// and exiting 0: a green light that verified nothing. Detect and repair
 	// up front with `git fetch --unshallow` (never `--deepen=N`, which
 	// re-creates a bound instead of removing it — precedent: #1773).
+	//
+	// The two commands are wrapped in SEPARATE try/catch blocks so the
+	// catch can name the right command: if `git rev-parse` fails, the
+	// message accuses rev-parse; if `git fetch --unshallow` fails (the
+	// most probable case — network down, remote unreachable), the
+	// message accuses fetch. A single try/catch with the catch always
+	// naming rev-parse would send the operator to look for a local repo
+	// problem when the failure is remote access — worse than a vague
+	// message (precedent: #1802).
+	let isShallow: string;
 	try {
-		const isShallow = execSync(
+		isShallow = execSync(
 			`git -C "${ROOT}" rev-parse --is-shallow-repository`,
 			{ encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] },
 		).trim();
+	} catch (err) {
+		// If we cannot even determine shallow status, fail loud — an input
+		// we cannot parse is not replaced by a compliant default.
+		throw new Error(
+			`git rev-parse --is-shallow-repository failed — cannot determine ` +
+				`whether the repository is shallow. Detail: ${(err as Error).message}`,
+		);
+	}
 
-		if (isShallow === 'true') {
+	if (isShallow === 'true') {
+		try {
 			console.error(
 				`Repository is shallow at entry (.git/shallow exists) — ` +
 					`repairing with "git fetch --unshallow" before continuing. ` +
@@ -196,14 +215,12 @@ function declaredProofTests(): string[] {
 				`git -C "${ROOT}" fetch --unshallow`,
 				{ encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] },
 			);
+		} catch (err) {
+			throw new Error(
+				`git fetch --unshallow failed — could not repair the shallow ` +
+					`repository. Detail: ${(err as Error).message}`,
+			);
 		}
-	} catch (err) {
-		// If we cannot even determine shallow status, fail loud — an input
-		// we cannot parse is not replaced by a compliant default.
-		throw new Error(
-			`git rev-parse --is-shallow-repository failed — cannot determine ` +
-				`whether the repository is shallow. Detail: ${(err as Error).message}`,
-		);
 	}
 
 	// Get the list of files changed by this PR.
