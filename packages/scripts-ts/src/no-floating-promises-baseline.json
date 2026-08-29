@@ -13,16 +13,11 @@
 		"no-floating-promises` slash form — the `rule` field below matches oxlint's",
 		"actual output so the string comparison is exact.",
 		"",
-		"Excluded files (via .oxlintrc.json overrides):",
-		"- apps/front/scripts/guards/check-shared-ts-import-paths.test.mts: uses",
-		"  node:test, whose runner captures test outcomes via async-context, not via",
-		"  the returned Promise. The rule has no behavioral meaning for node:test.",
-		"- apps/front/scripts/ci/compose-startup.test.mts: uses node:test, whose",
-		"  runner captures test outcomes via async-context, not via the returned",
-		"  Promise. The rule has no behavioral meaning for node:test.",
-		"- apps/front/scripts/ci/validate-runtime-env-startup.test.mts: uses",
-		"  node:test, whose runner captures test outcomes via async-context, not via",
-		"  the returned Promise. The rule has no behavioral meaning for node:test."
+		"As of 2026-08-29 (round 7 of #1679), there are NO file-level overrides",
+		"disabling this rule. All node:test files now use `void test(...)`",
+		"explicitly. Any new node:test file that forgets `void` will trip the",
+		"ratchet — which is the point: the rule's behavioral meaning is real even",
+		"for node:test, and `void` documents the intentional fire-and-forget."
 	],
 	"rule": "typescript(no-floating-promises)",
 	"count": 397
