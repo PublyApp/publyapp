@@ -8,6 +8,40 @@
  * code does NOT satisfy the ideal, so the test fails, and that failure IS the
  * proof.
  *
+ * ## Classification — structural signals, not display text (issue #1784)
+ *
+ * The runner classifies a proof's failure mode using the STRUCTURAL report
+ * from vitest's `--reporter=json` output, never by regex on the human-readable
+ * stdout/stderr stream. This matters because the question we must answer is
+ * binary and precise: did this proof fail on an ASSERTION, or did it fail on
+ * a THROWN ERROR? Both produce "Tests 1 failed" and exit code 1, but they
+ * mean different things:
+ *
+ * - Assertion failure → the proof measured and the ideal is not met
+ *   (kept-red, the expected state) → success.
+ * - Thrown Error (MESURE IMPOSSIBLE, harness crash, extraction failure) →
+ *   the proof could NOT measure. This is NOT the expected kept-red state —
+ *   it is a broken measurement, and it must FAIL THE STEP LOUD rather than
+ *   be reported as "failed as expected".
+ *
+ * A text regex like `/AssertionError/.test(output)` is fragile: any thrown
+ * Error whose message happens to contain the words "AssertionError" (e.g. a
+ * harness error wrapping one) is misclassified as a kept-red success, and
+ * the regression is SILENT — a undesired green, the worst failure class.
+ *
+ * The JSON report gives us, per test, its `status` ("passed" / "failed") and
+ * the failure type as the first token of `failureMessages[0]`:
+ * "AssertionError: ..." for assertion failures, "Error: ..." for thrown
+ * errors. We classify on that structural signal.
+ *
+ * ### Unreadable reports — fail loud, name the cause
+ *
+ * A report the script cannot parse (missing file, empty, invalid JSON, wrong
+ * shape) MUST fail loud naming the cause — never fall back to text heuristics
+ * nor to a compliant default. This is the dominant defect class of this
+ * repo: substituting a defect of correct appearance for an unreadable input.
+ * `readProofReport()` enforces this with one error per failure case.
+ *
  * ## Option (b) — declaration-scoped replay (issue #1659, ronde 6)
  *
  * A pull request DECLARES a paired red proof by adding or modifying a proof
@@ -62,8 +96,15 @@
  * See .dump/DONE-1687-r5.md for the full rationale.
  */
 import { execFileSync, execSync } from 'node:child_process';
-import { readFileSync, existsSync } from 'node:fs';
+import { readFileSync, existsSync, unlinkSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+
+import {
+	classifyProof,
+	readProofReport,
+	type ProofReport,
+} from './classify-proof.mts';
 
 const ROOT = join(process.cwd(), '..'); // apps/front → repo root
 const PROOFS_DIR = join(process.cwd(), 'tests', 'proofs');
@@ -397,11 +438,17 @@ for (const test of replayable) {
 	}
 
 	console.log(`--- Running: ${test} ---`);
+
+	// Run vitest with the JSON reporter writing to a temp file. The JSON
+	// report gives us, per test, its status and the TYPE of the failure —
+	// structural signals we can classify without reading display text.
+	const reportFile = join(tmpdir(), `preuve-${process.pid}-${Date.now()}.json`);
 	try {
-		execFileSync('pnpm', ['exec', 'vitest', 'run', '--config', CONFIG, '--no-color', test], {
-			stdio: 'pipe',
-			encoding: 'utf-8',
-		});
+		execFileSync(
+			'pnpm',
+			['exec', 'vitest', 'run', '--config', CONFIG, '--no-color', '--reporter=json', `--outputFile=${reportFile}`, test],
+			{ stdio: 'pipe', encoding: 'utf-8' },
+		);
 		// If execFileSync did NOT throw, vitest exited 0 = the test passed.
 		console.error(
 			`  FAIL: proof test passed unexpectedly — the bug it documented may have changed form.\n  Test: ${test}`,
@@ -413,58 +460,70 @@ for (const test of replayable) {
 		const stderr = (error.stderr?.toString() ?? '').slice(0, 500);
 		const exitCode = error.status ?? 'unknown';
 
-		// vitest exits 1 both when tests fail (expected) AND when a file
-		// cannot be parsed (unexpected). Distinguish by looking for the
-		// "Tests N failed" marker — a real failing test reports a non-zero
-		// test count. validateProofFile already caught empty/truncated files;
-		// this is a backstop for any case that slips through.
-		const output = stdout + stderr;
-		const ranTests = /Tests\s+\d+\s+failed/.test(output) && !/Tests\s+no tests/.test(output);
-		const noTests = /Tests\s+no tests/.test(output) || /\(0 test\)/.test(output);
-
-		// A kept-red proof is EXPECTED TO FAIL on an ASSERTION
-		// (`AssertionError: expected false to be true`). It is NOT expected
-		// to fail because it THREW an Error. Two distinct failure modes that
-		// both produce "Tests 1 failed":
-		//   - assertion failure → the proof measured and the ideal is not met
-		//     (kept-red, the expected state) → success.
-		//   - thrown Error (MESURE IMPOSSIBLE, harness crash, extraction
-		//     failure) → the proof could NOT measure. This is NOT the
-		//     expected kept-red state — it is a broken measurement, and it
-		//     must FAIL THE STEP LOUD rather than be reported as "failed as
-		//     expected". Otherwise a mutation that makes the proof throw
-		//     (e.g. bracket-notation `process['on']` that the regex can't
-		//     match) keeps CI green while the guard is blind.
-		// We discriminate by checking for the AssertionError marker. vitest
-		// prints "AssertionError" for assertion failures and "Error" for
-		// thrown errors. A proof that fails without an AssertionError in
-		// its output is a measurement failure, not a kept-red success.
-		const hasAssertionFailure = /AssertionError/.test(output);
-		const hasMeasurementError = /MESURE IMPOSSIBLE/.test(output);
-
-		if (exitCode === 1 && ranTests && hasAssertionFailure && !hasMeasurementError) {
-			console.log(`  OK: proof test failed as expected (exit code 1).\n`);
-			failures++;
-		} else if (exitCode === 1 && ranTests && (!hasAssertionFailure || hasMeasurementError)) {
+		// Read and parse the structural report. If the report is
+		// unreadable for ANY reason (missing, empty, invalid JSON, wrong
+		// shape), fail loud naming the cause — never fall back to text
+		// heuristics nor to a compliant default.
+		let report: ProofReport;
+		try {
+			report = readProofReport(reportFile);
+		} catch (parseErr) {
 			console.error(
-				`  CORRUPT PROOF: proof test failed with a non-assertion error ` +
-					`(measurement impossible or harness crash), not the expected assertion failure.\n` +
-					`  A kept-red proof must fail on an assertion (expected X to be Y), ` +
-					`  not on a thrown Error. A thrown Error means the proof could not measure ` +
-					`  — this is NOT the expected kept-red state and must fail CI.\n` +
-					`  stdout: ${stdout.slice(0, 500)}\n  stderr: ${stderr.slice(0, 500)}`,
+				`  CORRUPT PROOF: vitest JSON report is unreadable — ${(parseErr as Error).message}\n` +
+					`  stdout: ${stdout}\n  stderr: ${stderr}`,
 			);
 			corrupted++;
-		} else if (exitCode === 1 && noTests) {
-			console.error(
-				`  CORRUPT PROOF: vitest found no test cases in ${test} (empty/truncated/not a test).\n  stdout: ${stdout.slice(0, 500)}\n  stderr: ${stderr.slice(0, 500)}`,
-			);
-			corrupted++;
-		} else {
-			console.error(
-				`  ERROR: proof test exited with unexpected code ${exitCode}.\n  stdout: ${stdout.slice(0, 500)}\n  stderr: ${stderr.slice(0, 500)}`,
-			);
-			unexpectedPasses++;
+			continue;
+		}
+
+		// Structural classification via the extracted classifier. The
+		// logic lives in classify-proof.mts so it can be unit-tested
+		// independently with a real vitest JSON report.
+		const result = classifyProof(report, exitCode as number);
+		switch (result.verdict) {
+			case 'OK':
+				console.log(`  OK: ${result.reason}\n`);
+				failures++;
+				break;
+			case 'CORRUPT PROOF':
+				console.error(
+					`  CORRUPT PROOF: ${result.reason}\n` +
+						`  A kept-red proof must fail on an assertion (expected X to be Y), ` +
+						`  not on a thrown Error. A thrown Error means the proof could not measure ` +
+						`  — this is NOT the expected kept-red state and must fail CI.\n` +
+						`  stdout: ${stdout}\n  stderr: ${stderr}`,
+				);
+				corrupted++;
+				break;
+			case 'NO_TESTS':
+				console.error(
+					`  CORRUPT PROOF: ${result.reason}\n` +
+						`  stdout: ${stdout}\n  stderr: ${stderr}`,
+				);
+				corrupted++;
+				break;
+			case 'UNEXPECTED_PASS':
+				console.error(
+					`  FAIL: ${result.reason}\n  Test: ${test}`,
+				);
+				unexpectedPasses++;
+				break;
+			case 'ERROR':
+				console.error(
+					`  ERROR: ${result.reason} ` +
+						`(failed: ${result.failedTests}, total: ${result.totalTests}).\n` +
+						`  stdout: ${stdout}\n  stderr: ${stderr}`,
+				);
+				unexpectedPasses++;
+				break;
+		}
+	} finally {
+		// Always clean up the temp report file — even on classification
+		// failure, we do not leave artifacts behind.
+		try {
+			unlinkSync(reportFile);
+		} catch {
+			// Ignore: the file may already be gone.
 		}
 	}
 }
