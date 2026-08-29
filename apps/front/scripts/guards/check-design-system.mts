@@ -1056,15 +1056,19 @@ const collectCommentRanges = (
 	return ranges;
 };
 
-// Returns true if the character at `index` falls inside any of the given
-// comment ranges — a match that starts in a comment is a prose citation, not
-// a real usage, and must be skipped.
-const isInsideComment = (
+// Returns true only when the match's ENTIRE span (index .. index + length)
+// falls inside ONE comment range. Judging by the start index alone lets a
+// match that begins inside a comment (e.g. no-single-star-route-glob pattern
+// 2, which has no quote barrier) lazily extend into real code and take a real
+// call down with it — skipping it would hide a genuine violation.
+const isMatchFullyInsideComment = (
 	index: number,
+	length: number,
 	commentRanges: Array<{ start: number; end: number }>,
 ): boolean => {
+	const matchEnd = index + length;
 	for (const { start, end } of commentRanges) {
-		if (index >= start && index < end) {
+		if (index >= start && matchEnd <= end) {
 			return true;
 		}
 	}
@@ -2516,9 +2520,19 @@ export const scanFront2DesignSystem = async ({
 					);
 					const matches = source.matchAll(globalPattern);
 					for (const match of matches) {
-						// #1844: skip matches that start inside a comment — a
-						// forbidden name cited in prose is not a real usage.
-						if (isInsideComment(match.index, commentRanges)) {
+						// #1844 (r3): skip a match only when its ENTIRE span
+						// lies inside one comment range — a forbidden name
+						// cited in prose is not a real usage. A match that
+						// merely STARTS in a comment can still be a real call
+						// (no-single-star-route-glob pattern 2 spans lazily
+						// past the comment, into the real call).
+						if (
+							isMatchFullyInsideComment(
+								match.index,
+								match[0].length,
+								commentRanges,
+							)
+						) {
 							continue;
 						}
 

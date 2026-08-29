@@ -1870,6 +1870,35 @@ void test('#1844: a real single-star route glob is still detected (false negativ
 	);
 });
 
+// #1844 r3 paired red/green proof (BLOQUANT 1, relecteur round 2): the raw
+// regex match for a real `page.route(usersGlob, ...)` call can START inside a
+// comment and lazily extend into the real call — no-single-star-route-glob
+// pattern 2 (`...route\(\s*(?!['"`/])\S[^,)]*`) has no quote barrier. A skip
+// judged on match.index alone drops the WHOLE match, including the real call
+// it consumed. This test asserts the real call IS still detected; it is RED
+// on the start-index skip and GREEN once only matches whose ENTIRE span lies
+// inside a single comment range are skipped.
+void test('#1844: a real route glob call whose raw match starts inside a comment is still detected (span-wise comment skip)', async () => {
+	const root = await makeFixture({
+		'e2e/specs/route-comment-prefix.spec.ts': [
+			'/* We call page.route( once per test to stub the API */ await page.route(usersGlob, (route) => route.abort());',
+		].join('\n'),
+	});
+
+	const violations = await scanFront2DesignSystem({
+		baseDir: root,
+		sourceDirs: [path.join(root, 'e2e')],
+	});
+
+	assert.equal(
+		violations.some(
+			(violation) => violation.ruleId === 'no-single-star-route-glob',
+		),
+		true,
+		'a real page.route( call whose raw match starts inside a comment must not be masked by the comment skip',
+	);
+});
+
 // #1844 edge case: the `index >= start` boundary in `isInsideComment`.
 // A regex match can never start at the comment range's `start` offset
 // because that offset is always the `/*` or `//` opener, which the
