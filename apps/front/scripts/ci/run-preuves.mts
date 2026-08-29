@@ -455,6 +455,7 @@ console.log();
 let failures = 0; // proof tests that failed as expected (good)
 let unexpectedPasses = 0;
 let corrupted = 0;
+let stale = 0;
 
 for (const test of replayable) {
 	// Validate BEFORE running: distinguishes "test failed as expected" from
@@ -541,10 +542,14 @@ for (const test of replayable) {
 		// pure, testable seule. Ici on n'applique que l'effet de bord. Decision
 		// porteuse : un vitest qui plante -> verdict ERROR -> doit incrementer
 		// unexpectedPasses, PAS failures.
-		const counts = consumeVerdict({ failures, unexpectedPasses, corrupted }, result.verdict);
+		const counts = consumeVerdict(
+			{ failures, unexpectedPasses, corrupted, stale },
+			result.verdict,
+		);
 		failures = counts.failures;
 		unexpectedPasses = counts.unexpectedPasses;
 		corrupted = counts.corrupted;
+		stale = counts.stale;
 
 		switch (result.verdict) {
 			case 'OK':
@@ -570,6 +575,11 @@ for (const test of replayable) {
 					`  FAIL: ${result.reason}\n  Test: ${test}`,
 				);
 				break;
+			case 'DECLARED RED PASSED':
+				console.error(
+					`  STALE PROOF: ${result.reason}\n  Test: ${test}`,
+				);
+				break;
 			case 'ERROR':
 				console.error(
 					`  ERROR: ${result.reason} ` +
@@ -593,8 +603,9 @@ console.log(`\n=== Summary ===`);
 console.log(`  Proof tests failed as expected: ${failures}`);
 console.log(`  Proof tests passed unexpectedly:  ${unexpectedPasses}`);
 console.log(`  Corrupt/unparseable proof files:  ${corrupted}`);
+console.log(`  Stale proofs (declared red went green): ${stale}`);
 
-if (unexpectedPasses > 0 || corrupted > 0) {
+if (unexpectedPasses > 0 || stale > 0 || corrupted > 0) {
 	console.error(`\nFAIL: proof replay did not complete cleanly.`);
 	if (unexpectedPasses > 0) {
 		console.error(`  ${unexpectedPasses} proof test(s) passed when they should have failed.`);
@@ -602,14 +613,19 @@ if (unexpectedPasses > 0 || corrupted > 0) {
 			'A proof test passing means the bug it documented has been fixed or changed form.',
 		);
 	}
+	if (stale > 0) {
+		console.error(
+			`  ${stale} declared kept-red test(s) passed unexpectedly \u2014 the proof is stale (the bug changed form or was weakened).`,
+		);
+		console.error(
+			'Rebuild the proof: update the test assertion to match the current bug, or remove it if the bug is fixed.',
+		);
+	}
 	if (corrupted > 0) {
 		console.error(
 			`  ${corrupted} proof file(s) could not be parsed — they are empty, binary, or truncated.`,
 		);
 	}
-	console.error(
-		'Rebuild the proof: update the test assertion to match the current bug, or remove it if the bug is fixed.',
-	);
 	process.exit(1);
 }
 

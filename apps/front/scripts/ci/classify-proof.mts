@@ -60,13 +60,14 @@ export interface ExpectedRedManifest {
 }
 
 /**
- * The five verdicts the classifier can return.
+ * The six verdicts the classifier can return.
  */
 type ClassificationVerdict =
 	| 'OK' // assertion failure — expected kept-red
 	| 'CORRUPT PROOF' // thrown Error or measurement impossible
 	| 'NO_TESTS' // vitest found no test cases
 	| 'UNEXPECTED_PASS' // test passed when it should have failed
+	| 'DECLARED RED PASSED' // a declared kept-red test passed (proof is stale)
 	| 'ERROR'; // unexpected exit code
 
 /**
@@ -496,14 +497,17 @@ export function classifyProofWithManifest(
 		}
 	}
 
-	// Step 3: a declared kept-red test that PASSED is the r8 fix.
-	// This is the silent-green path the global classifier missed:
-	// the file still has another test that fails on an AssertionError
-	// (so classifyProof said OK), but the declared kept-red is gone.
+	// Step 3: a declared kept-red test that PASSED is a STALE PROOF.
+	// This is the silent-green path the global classifier missed: the file
+	// still has another test that fails on an AssertionError (so
+	// classifyProof said OK), but the declared kept-red is gone.
+	// We use a DISTINCT verdict from CORRUPT PROOF so the summary can
+	// name the different failure cause — a stale proof is a different
+	// defect class from a corrupt/unparseable proof file (issue #1806).
 	if (passedDeclaredRed.length > 0) {
 		const first = passedDeclaredRed[0]!;
 		return {
-			verdict: 'CORRUPT PROOF',
+			verdict: 'DECLARED RED PASSED',
 			reason:
 				`declared kept-red test PASSED: ${first.fullName}. ` +
 				`Why this test was declared kept-red: ${first.why}. ` +
