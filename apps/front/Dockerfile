@@ -68,6 +68,7 @@ WORKDIR /app
 COPY --from=build /workspace/deploy/node_modules ./node_modules
 COPY --from=build /workspace/deploy/package.json /app/package.json
 COPY --from=build /workspace/deploy/server.mjs /app/server.mjs
+COPY --from=build /workspace/deploy/trust-proxy.mjs /app/trust-proxy.mjs
 COPY --from=build /workspace/deploy/dist ./dist
 
 ENV PORT=5050
