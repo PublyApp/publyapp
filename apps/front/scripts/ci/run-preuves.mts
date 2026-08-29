@@ -102,6 +102,17 @@ const REPLAYABLE_EXTENSIONS = ['.test.ts', '.test.tsx'] as const;
  * works on a clean CI checkout. The fetch is scoped to the single base ref
  * and is fast (a few hundred KB at most).
  *
+ * The workflow that runs this script (front-ci.yml) uses `fetch-depth: 0`
+ * so the checkout is never shallow. But this script is also run locally and
+ * from other contexts — if the repository is ALREADY shallow at entry
+ * (graft left by another workflow, a developer's shallow clone, etc.), the
+ * fetch below only fetches the base ref's history, not HEAD's. A shallow
+ * HEAD means `merge-base` returns empty and the diff silently becomes blank
+ * — concluding "no proofs declared" and exiting 0, a green light that
+ * verified nothing. Detect a shallow graft up front and repair it with
+ * `git fetch --unshallow` (never `--deepen=N`, which re-creates a bound
+ * instead of removing it — precedent: #1773).
+ *
  * Locally (no env vars), we use two-dot diff (HEAD~1..HEAD) to show what the
  * most recent commit introduced.
  *
@@ -116,6 +127,41 @@ function declaredProofTests(): string[] {
 	// the repo has no proof infrastructure — the step is a no-op.
 	if (!existsSync(PROOFS_DIR)) {
 		return [];
+	}
+
+	// If the repository is shallow at entry (graft left by a previous
+	// --depth=1 fetch in a shared worktree, a developer's shallow clone,
+	// etc.), the fetch below only fetches the base ref's history — HEAD
+	// stays shallow. Under a shallow graft, `git merge-base` returns empty
+	// and the diff silently becomes blank, concluding "no proofs declared"
+	// and exiting 0: a green light that verified nothing. Detect and repair
+	// up front with `git fetch --unshallow` (never `--deepen=N`, which
+	// re-creates a bound instead of removing it — precedent: #1773).
+	try {
+		const isShallow = execSync(
+			`git -C "${ROOT}" rev-parse --is-shallow-repository`,
+			{ encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] },
+		).trim();
+
+		if (isShallow === 'true') {
+			console.error(
+				`Repository is shallow at entry (.git/shallow exists) — ` +
+					`repairing with "git fetch --unshallow" before continuing. ` +
+					`A shallow graft would make merge-base return empty and the ` +
+					`diff go blank, silently concluding "no proofs declared".`,
+			);
+			execSync(
+				`git -C "${ROOT}" fetch --unshallow`,
+				{ encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] },
+			);
+		}
+	} catch (err) {
+		// If we cannot even determine shallow status, fail loud — an input
+		// we cannot parse is not replaced by a compliant default.
+		throw new Error(
+			`git rev-parse --is-shallow-repository failed — cannot determine ` +
+				`whether the repository is shallow. Detail: ${(err as Error).message}`,
+		);
 	}
 
 	// Get the list of files changed by this PR.
