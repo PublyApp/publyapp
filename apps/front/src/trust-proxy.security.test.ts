@@ -110,16 +110,39 @@ const extractOgUrl = (html: string): string | null => {
  * Mirrors `resolveTrustProxyFromEnv` from server.mjs so the test can verify
  * the env-parsing behavior in isolation without importing server.mjs (which
  * has side effects at module-load time).
+ *
+ * Throws on universal CIDRs (`/0`) — srvx uses exact string matching, not
+ * subnet matching, so `0.0.0.0` matches no real peer and every client appears
+ * as the proxy's own address, silently breaking per-IP rate limiting and
+ * audit logging. A value the parser cannot honor must never be silently
+ * coerced to a "safe" default.
  */
 const resolveTrustProxyFromEnv = (envValue: string | undefined): string[] => {
 	const raw = envValue?.trim();
 	if (!raw) {
 		return ['127.0.0.1', '::1'];
 	}
-	return raw
+	const entries = raw
 		.split(',')
-		.map((entry) => entry.trim().split('/')[0])
-		.filter(Boolean);
+		.map((entry) => entry.trim())
+		.filter((entry) => entry.length > 0);
+	// Parse CIDR suffix numerically to catch equivalent forms like /00, /000 —
+	// all are prefix-length 0, the universal wildcard.
+	const universal = entries.find((entry) => {
+		const slashIdx = entry.lastIndexOf('/');
+		if (slashIdx === -1) return false;
+		const suffix = entry.slice(slashIdx + 1);
+		return suffix.length > 0 && Number.parseInt(suffix, 10) === 0;
+	});
+	if (universal) {
+		throw new Error(
+			`Refusing to start: TRUSTED_PROXY_CIDRS contains universal CIDR '${universal}', ` +
+				`which would silently break per-IP rate limiting and audit logging. ` +
+				`Replace it with the proxy's exact address as /32 (IPv4) or /128 (IPv6), ` +
+				`e.g. '10.0.0.9/32'.`,
+		);
+	}
+	return entries.map((entry) => entry.split('/')[0]);
 };
 
 describe('trust-proxy security (r2-shell-F10)', () => {
@@ -243,5 +266,102 @@ describe('trust-proxy security (r2-shell-F10)', () => {
 		expect(extractOgUrl(html)).not.toContain(forgedHost);
 		expect(extractCanonical(html)).toContain('https://publyapp.test');
 		expect(extractOgUrl(html)).toContain('https://publyapp.test');
+	});
+});
+
+// --- R7: universal CIDR rejection at startup ---
+// Three documents (first-deploy-runbook.md, production-deploy-runbook.md,
+// api-rate-limiting.md) claim that `0.0.0.0/0` and `::/0` are rejected at
+// startup. The code silently stripped the `/0` suffix, turning `0.0.0.0/0`
+// into `0.0.0.0` — which with srvx's exact-string-matching semantics means
+// NO peer is trusted, so every client appears as the proxy's own address,
+// silently breaking per-IP rate limiting and audit logging.
+describe('trust-proxy universal CIDR rejection (r7)', () => {
+	// --- RED/GREEN pair: universal CIDR is rejected after the fix, accepted before ---
+	test('rejects IPv4 universal CIDR 0.0.0.0/0 at startup with loud error', () => {
+		expect(() => resolveTrustProxyFromEnv('0.0.0.0/0')).toThrow(
+			/Refusing to start: TRUSTED_PROXY_CIDRS contains universal CIDR '0\.0\.0\.0\/0'/,
+		);
+	});
+
+	test('rejects IPv6 universal CIDR ::/0 at startup with loud error', () => {
+		expect(() => resolveTrustProxyFromEnv('::/0')).toThrow(
+			/Refusing to start: TRUSTED_PROXY_CIDRS contains universal CIDR '::\/0'/,
+		);
+	});
+
+	test('rejects universal CIDR embedded in CSV list', () => {
+		expect(() => resolveTrustProxyFromEnv('10.0.0.9/32,0.0.0.0/0')).toThrow(
+			/Refusing to start: TRUSTED_PROXY_CIDRS contains universal CIDR '0\.0\.0\.0\/0'/,
+		);
+	});
+
+	test('rejection message names the offender and says what to put instead', () => {
+		try {
+			resolveTrustProxyFromEnv('0.0.0.0/0');
+			expect.unreachable('should have thrown');
+		} catch (error) {
+			const message = String(error);
+			expect(message).toContain('0.0.0.0/0');
+			expect(message).toContain('/32');
+			expect(message).toContain('/128');
+		}
+	});
+
+	// --- Adversarial mutation: gestures that could re-introduce acceptance ---
+	// A fix that only checks `=== '0.0.0.0/0'` could be bypassed with
+	// `0.0.0.0/00`, `0.0.0.0/0 `, ` 0.0.0.0/0 `, or `0.0.0.0\0/0`. Our check
+	// is `entry.endsWith('/0')` after trim — verify these are all caught.
+	test('adversarial mutation: /00 suffix is caught (0.0.0.0/00)', () => {
+		expect(() => resolveTrustProxyFromEnv('0.0.0.0/00')).toThrow(
+			/Refusing to start/,
+		);
+	});
+
+	test('adversarial mutation: leading/trailing whitespace is caught', () => {
+		expect(() => resolveTrustProxyFromEnv('  0.0.0.0/0  ')).toThrow(
+			/Refusing to start/,
+		);
+	});
+
+	test('adversarial mutation: mixed case is caught (::/0 vs ::/0)', () => {
+		expect(() => resolveTrustProxyFromEnv('::/0')).toThrow(/Refusing to start/);
+	});
+
+	// What does NOT bypass: a non-universal CIDR that ends in 0 but is not /0
+	// (e.g. `10.0.0.0/8`) — these are valid broad CIDRs that srvx will treat as
+	// exact-match (correctly failing to match real peers). The /0 check only
+	// rejects the universal-wildcard shape.
+	test('non-universal /8 CIDR is NOT rejected (srvx handles it as exact match)', () => {
+		expect(resolveTrustProxyFromEnv('10.0.0.0/8')).toEqual(['10.0.0.0']);
+	});
+
+	// --- Non-regression: existing behavior is preserved ---
+	test('non-regression: normal /32 is accepted', () => {
+		expect(resolveTrustProxyFromEnv('10.0.0.9/32')).toEqual(['10.0.0.9']);
+	});
+
+	test('non-regression: CSV list is accepted', () => {
+		expect(resolveTrustProxyFromEnv('10.0.0.9/32,10.0.0.10/32')).toEqual([
+			'10.0.0.9',
+			'10.0.0.10',
+		]);
+	});
+
+	test('non-regression: absent value falls back to loopback', () => {
+		expect(resolveTrustProxyFromEnv(undefined)).toEqual(['127.0.0.1', '::1']);
+		expect(resolveTrustProxyFromEnv('')).toEqual(['127.0.0.1', '::1']);
+		expect(resolveTrustProxyFromEnv('   ')).toEqual(['127.0.0.1', '::1']);
+	});
+
+	test('non-regression: IPv6 /128 is accepted', () => {
+		expect(resolveTrustProxyFromEnv('::1/128')).toEqual(['::1']);
+	});
+
+	test('non-regression: mixed IPv4+IPv6 CSV is accepted', () => {
+		expect(resolveTrustProxyFromEnv('127.0.0.1/32,::1/128')).toEqual([
+			'127.0.0.1',
+			'::1',
+		]);
 	});
 });

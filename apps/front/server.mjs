@@ -57,10 +57,35 @@ const resolveTrustProxyFromEnv = async () => {
 
 	const raw = process.env.TRUSTED_PROXY_CIDRS?.trim();
 	if (raw) {
-		return raw
+		const entries = raw
 			.split(',')
-			.map((entry) => entry.trim().split('/')[0])
+			.map((entry) => entry.trim())
 			.filter((entry) => entry.length > 0);
+		// Reject universal CIDRs at startup. `0.0.0.0/0` and `::/0` do NOT
+		// mean "trust everyone" with srvx — srvx uses exact string matching
+		// (Array.includes), not subnet matching. `0.0.0.0` matches no real peer,
+		// so every client appears as the proxy's own address, silently breaking
+		// per-IP rate limiting and audit logging. A value the parser cannot
+		// honor must never be silently coerced to a "safe" default — fail loud,
+		// name the offender, and say what to put instead.
+		//
+		// Parse the CIDR suffix to catch equivalent forms like /00, /000 —
+		// all are prefix-length 0, the universal wildcard.
+		const universal = entries.find((entry) => {
+			const slashIdx = entry.lastIndexOf('/');
+			if (slashIdx === -1) return false;
+			const suffix = entry.slice(slashIdx + 1);
+			return suffix.length > 0 && Number.parseInt(suffix, 10) === 0;
+		});
+		if (universal) {
+			throw new Error(
+				`Refusing to start: TRUSTED_PROXY_CIDRS contains universal CIDR '${universal}', ` +
+					`which would silently break per-IP rate limiting and audit logging. ` +
+					`Replace it with the proxy's exact address as /32 (IPv4) or /128 (IPv6), ` +
+					`e.g. '10.0.0.9/32'.`,
+			);
+		}
+		return entries.map((entry) => entry.split('/')[0]);
 	}
 
 	console.warn(
