@@ -102,6 +102,8 @@ import { join } from 'node:path';
 
 import {
 	classifyProof,
+	classifyProofWithManifest,
+	readExpectedRedManifest,
 	readProofReport,
 	type ProofReport,
 } from './classify-proof.mts';
@@ -494,18 +496,41 @@ for (const test of replayable) {
 			continue;
 		}
 
-		// Structural classification via the extracted classifier. The
-		// logic lives in classify-proof.mts so it can be unit-tested
-		// independently with a real vitest JSON report.
-		const result = classifyProof(report, exitCode as number);
+		// Look for a per-test expectation manifest sitting next to the
+		// proof file (named `<proof>.expected-red.json`). When present,
+		// use the per-test classifier (r8 fix for the angle mort in
+		// #1863, scoped to this proof file). When absent, fall back to
+		// the global classifier (existing r7 behavior). When present but
+		// unreadable, fail loud naming the cause — never silently
+		// fall back to a compliant default.
+		const manifestPath = `${test}.expected-red.json`;
+		let result;
+		if (existsSync(manifestPath)) {
+			let manifest;
+			try {
+				manifest = readExpectedRedManifest(manifestPath);
+			} catch (manifestErr) {
+				console.error(
+					`  CORRUPT PROOF: expected-red manifest is unreadable — ${(manifestErr as Error).message}\n` +
+					`  Manifest: ${manifestPath}\n` +
+					`  The runner refuses to classify a paired red proof with a malformed per-test expectation.\n` +
+					`  stdout: ${stdout}\n  stderr: ${stderr}`,
+				);
+				corrupted++;
+				continue;
+			}
+			result = classifyProofWithManifest(report, exitCode as number, manifest);
+		} else {
+			// No sidecar: fall through to the global classifier (r7).
+			// Generalization to per-test manifests for every proof file
+			// is scoped in #1863.
+			result = classifyProof(report, exitCode as number);
+		}
 
-		// The verdict-to-counter mapping lives in consume-verdict.mts as a
-		// pure function so it can be unit-tested independently. Here we
-		// apply the side effect (log + increment) based on the counter it
-		// returns. This is the load-bearing decision: a crashed vitest
-		// process → ERROR verdict → must increment unexpectedPasses, NOT
-		// failures. Misclassifying here is the exact defect class #1784
-		// was designed to eliminate.
+		// Le comptage vit dans consume-verdict.mts (extrait par #1843) : fonction
+		// pure, testable seule. Ici on n'applique que l'effet de bord. Decision
+		// porteuse : un vitest qui plante -> verdict ERROR -> doit incrementer
+		// unexpectedPasses, PAS failures.
 		const counts = consumeVerdict({ failures, unexpectedPasses, corrupted }, result.verdict);
 		failures = counts.failures;
 		unexpectedPasses = counts.unexpectedPasses;

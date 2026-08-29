@@ -247,6 +247,11 @@ import { fileURLToPath } from 'node:url';
 
 import { describe, expect, test } from 'vitest';
 
+import {
+	findHandlerLine,
+	isHandlerDeferred,
+} from './lib/sigint-handler-detection.mts';
+
 // The real production-code test file. Reading the r2 fixture's array lines
 // out of THIS file is the load-bearing part of the proof: a proof that
 // copied the lines into its own file would stay green even if the
@@ -361,39 +366,6 @@ function extractR2FixtureLines(): string[] {
 }
 
 /**
- * Find the index of the handler-installation line in the extracted fixture.
- * Throws if the line is missing — a drift surfaces here, not as a silently-passing proof.
- *
- * Matches both quote styles: the original uses single quotes (`process.on('SIGINT'`)
- * but a deferral wrapper may use double quotes (`setImmediate(() => { process.on("SIGINT"...`)
- * The detection is intentionally quote-agnostic: we look for `process.on(` immediately
- * followed by an optional quote and `SIGINT`.
- */
-function findHandlerLine(lines: string[]): number {
-	// Match all three access forms:
-	//   process.on('SIGINT'   — dot notation (original)
-	//   process['on']('SIGINT' — bracket notation with single quotes
-	//   process["on"]('SIGINT' — bracket notation with double quotes
-	// The alias form `const on = process.on.bind(process); on('SIGINT', …)` is
-	// undecidable statically: the call site is an arbitrary identifier and
-	// indistinguishable from any other function call. When encountered, the
-	// regex below does not match, the proof throws MESURE IMPOSSIBLE, and the
-	// runner classifies it as a corrupted proof (CI red) — failing loud rather
-	// than letting the evasion pass.
-	const index = lines.findIndex((line) =>
-		/process(?:\[['"]on['"]\]|\.on)\s*\(\s*['"]SIGINT['"]/.test(line),
-	);
-	if (index === -1) {
-		throw new Error(
-			`MESURE IMPOSSIBLE — r2-sigint-race proof: could not find the ` +
-				`"process.on('SIGINT'" line in the extracted r2 fixture. ` +
-				`Extracted ${lines.length} lines: ${JSON.stringify(lines)}`,
-		);
-	}
-	return index;
-}
-
-/**
  * Find the index of the handshake-write line in the extracted fixture.
  * Throws if the line is missing.
  */
@@ -408,30 +380,6 @@ function findHandshakeLine(lines: string[]): number {
 		);
 	}
 	return index;
-}
-
-/**
- * Check whether the handler line is a DIRECT `process.on(...)` call.
- *
- * Returns false (NOT deferred) when the trimmed line starts with `process.on(` —
- * the handler is installed synchronously as a top-level statement.
- *
- * Returns true (deferred) for ANY other form:
- *   - `setImmediate(() => { process.on('SIGINT', ...) })` — macrotask
- *   - `setTimeout(() => { process.on('SIGINT', ...) }, 0)` — timer
- *   - `queueMicrotask(() => { process.on('SIGINT', ...) })` — microtask
- *   - `process.nextTick(() => { process.on('SIGINT', ...) })` — nextTick
- *   - `Promise.resolve().then(() => { ... })` — promise chain
- *   - `await something(); process.on('SIGINT', ...)` — async fn
- *   - `if (cond) { process.on('SIGINT', ...) }` — conditional
- *
- * This is intentionally broader than a denylist of specific async primitives
- * (setImmediate/setTimeout/etc.). A denylist would miss novel deferral
- * mechanisms; a structural check ("does the line start with process.on(")
- * catches ALL deferrals, including future ones.
- */
-function isHandlerDeferred(line: string): boolean {
-	return !line.trim().startsWith('process.on(');
 }
 
 describe('r2 fixture SIGINT race — RED: handler installed AFTER the handshake write (#1457)', () => {

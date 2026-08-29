@@ -1,0 +1,33 @@
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"$id": "https://publyapp.local/schemas/expected-red.schema.json",
+	"title": "Per-test kept-red expectation manifest for a paired red proof",
+	"description": "A versioned JSON file sitting next to a paired red proof test, named <proof-file>.expected-red.json. Read by apps/front/scripts/ci/run-preuves.mts. Each test declared in `expectedRed` MUST fail on correct code. If a declared kept-red test PASSES, the runner fails CI with verdict CORRUPT PROOF. The runner refuses to classify if this file is missing, invalid JSON, or the test list is empty.",
+	"type": "object",
+	"required": ["expectedRed"],
+	"additionalProperties": true,
+	"properties": {
+		"$schema": { "type": "string" },
+		"_comment": { "type": "string" },
+		"expectedRed": {
+			"type": "array",
+			"minItems": 1,
+			"items": {
+				"type": "object",
+				"required": ["testName", "why"],
+				"properties": {
+					"testName": {
+						"type": "string",
+						"minLength": 1,
+						"description": "The exact test() name declared in the proof file. Matched by suffix/equality against vitest's assertionResults[].fullName."
+					},
+					"why": {
+						"type": "string",
+						"minLength": 1,
+						"description": "Human-readable justification for why this test MUST fail. Surfaced in the runner's CORRUPT PROOF output."
+					}
+				}
+			}
+		}
+	}
+}
