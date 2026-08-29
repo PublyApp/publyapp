@@ -45,7 +45,10 @@ export default defineConfig({
 				inline: ['@org/client-ts', '@org/shared-ts'],
 			},
 		},
-		include: ['tests/proofs/**/*.{test.ts,test.tsx}'],
+		include: [
+			'tests/proofs/**/*.{test.ts,test.tsx}',
+			'tests/fixtures/**/*.{test.ts,test.tsx}',
+		],
 		exclude: [],
 		setupFiles: ['./vitest.setup.ts'],
 		testTimeout: 30000,

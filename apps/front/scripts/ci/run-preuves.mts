@@ -100,6 +100,12 @@ import { readFileSync, existsSync, unlinkSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
+import {
+	classifyProof,
+	readProofReport,
+	type ProofReport,
+} from './classify-proof.mts';
+
 const ROOT = join(process.cwd(), '..'); // apps/front → repo root
 const PROOFS_DIR = join(process.cwd(), 'tests', 'proofs');
 const CONFIG = 'vitest.preuves.config.ts';
@@ -344,158 +350,6 @@ function isReplayableFile(filename: string): boolean {
 	return REPLAYABLE_EXTENSIONS.some((ext) => filename.endsWith(ext));
 }
 
-/**
- * Structural classification: the shape of the vitest JSON report that
- * `readProofReport` parses. A proof test is a collection of assertion
- * results; each result either passes or fails, and a failed one carries
- * the error type vitest observed (AssertionError for assertion failures,
- * Error subclasses for thrown errors) as the first line of its
- * failureMessages.
- */
-interface ProofReport {
-	numTotalTests: number;
-	numFailedTests: number;
-	testResults: Array<{
-		assertionResults: Array<{
-			status: string;
-			failureMessages: string[];
-		}>;
-	}>;
-}
-
-/**
- * Read and validate the vitest JSON report from --outputFile.
- *
- * The report is the single source of structural truth for classifying a
- * proof. Any deviation — missing file, empty file, invalid JSON, or a
- * shape that lacks the fields we read — is an UNREADABLE REPORT and MUST
- * fail loud naming the cause. We never fall back to text heuristics nor
- * to a compliant default: an input we cannot parse is not replaced by a
- * "failed as expected" verdict.
- *
- * The four unreadable-report cases each get their own error so the
- * message names the cause:
- *   1. File absent   → "not found"
- *   2. File empty    → "empty (0 bytes)"
- *   3. File garbage  → "not valid JSON" + the parse error
- *   4. Wrong shape   → "missing numTotalTests/numFailedTests" or
- *                      "missing testResults array"
- */
-function readProofReport(reportPath: string): ProofReport {
-	if (!existsSync(reportPath)) {
-		throw new Error(
-			`vitest JSON report not found at ${reportPath} — vitest exited ` +
-				`without writing a report. The test file may have a syntax error ` +
-				`or the test setup may have crashed before the JSON reporter ` +
-				`could write.`,
-		);
-	}
-
-	const buf = readFileSync(reportPath);
-	if (buf.length === 0) {
-		throw new Error(
-			`vitest JSON report is empty (0 bytes) at ${reportPath} — vitest ` +
-				`wrote no data. The test file may be unparseable.`,
-		);
-	}
-
-	const raw = buf.toString('utf-8');
-
-	let parsed: unknown;
-	try {
-		parsed = JSON.parse(raw);
-	} catch (err) {
-		throw new Error(
-			`vitest JSON report is not valid JSON at ${reportPath}: ` +
-				`${(err as Error).message} — the output is truncated or the ` +
-				`process was interrupted.`,
-		);
-	}
-
-	if (typeof parsed !== 'object' || parsed === null) {
-		throw new Error(
-			`vitest JSON report is not an object at ${reportPath} — ` +
-				`the reporter output is malformed.`,
-		);
-	}
-	const obj = parsed as Record<string, unknown>;
-
-	if (typeof obj.numTotalTests !== 'number' || typeof obj.numFailedTests !== 'number') {
-		throw new Error(
-			`vitest JSON report missing numTotalTests/numFailedTests at ` +
-				`${reportPath} — the reporter output is malformed.`,
-		);
-	}
-
-	if (!Array.isArray(obj.testResults)) {
-		throw new Error(
-			`vitest JSON report missing testResults array at ${reportPath} — ` +
-				`the reporter output is malformed.`,
-		);
-	}
-
-	// Build the narrowed value from the validated pieces instead of asserting
-	// the shape onto `obj`. An assertion chain would have hidden a real gap:
-	// nothing below `assertionResults` was checked, yet `status` and
-	// `failureMessages[0]` are exactly what the classifier reads. An entry we
-	// cannot read must fail loud here, at the boundary — never reach the
-	// classifier as a plausible default.
-	const testResults: ProofReport['testResults'] = [];
-	for (const suite of obj.testResults) {
-		if (typeof suite !== 'object' || suite === null) {
-			throw new Error(
-				`vitest JSON report has a non-object test result at ${reportPath}.`,
-			);
-		}
-		const suiteObj = suite as Record<string, unknown>;
-		if (!Array.isArray(suiteObj.assertionResults)) {
-			throw new Error(
-				`vitest JSON report has a test result missing assertionResults ` +
-					`at ${reportPath}.`,
-			);
-		}
-		const assertionResults: ProofReport['testResults'][number]['assertionResults'] = [];
-		for (const assertion of suiteObj.assertionResults) {
-			if (typeof assertion !== 'object' || assertion === null) {
-				throw new Error(
-					`vitest JSON report has a non-object assertion result at ` +
-						`${reportPath}.`,
-				);
-			}
-			const assertionObj = assertion as Record<string, unknown>;
-			if (typeof assertionObj.status !== 'string') {
-				throw new Error(
-					`vitest JSON report has an assertion result whose 'status' is ` +
-						`not a string at ${reportPath} — the reporter output is ` +
-						`malformed.`,
-				);
-			}
-			if (
-				!Array.isArray(assertionObj.failureMessages) ||
-				assertionObj.failureMessages.some((message) => typeof message !== 'string')
-			) {
-				throw new Error(
-					`vitest JSON report has an assertion result whose ` +
-						`'failureMessages' is not an array of strings at ` +
-						`${reportPath} — classification reads failureMessages[0], so ` +
-						`an unreadable value must not be classified at all.`,
-				);
-			}
-			assertionResults.push({
-				status: assertionObj.status,
-				failureMessages: assertionObj.failureMessages as string[],
-			});
-		}
-		testResults.push({ assertionResults });
-	}
-
-	return {
-		numTotalTests: obj.numTotalTests,
-		numFailedTests: obj.numFailedTests,
-		testResults,
-	};
-}
-
 // --- Main logic ---
 
 // Confirm the versioned directory exists. If it does not, the repo has no
@@ -622,68 +476,46 @@ for (const test of replayable) {
 			continue;
 		}
 
-		// Structural classification from the JSON report — no regex on
-		// display text. The report tells us per-test status and failure
-		// type directly.
-		const ranTests = report.numFailedTests > 0;
-		const noTests = report.numTotalTests === 0;
-
-		// An assertion failure in vitest is reported with the error type
-		// as the first token of the failure message: "AssertionError: ...".
-		// A thrown error (Error, TypeError, ...) starts with that type
-		// instead: "Error: ...". Checking the first token distinguishes
-		// "the proof measured and the ideal is not met" (assertion
-		// failure, the expected kept-red state) from "the proof could not
-		// measure" (thrown Error — harness crash, extraction failure).
-		const hasAssertionFailure = report.testResults.some((suite) =>
-			suite.assertionResults.some(
-				(t) =>
-					t.status === 'failed' &&
-					t.failureMessages.length > 0 &&
-					t.failureMessages[0]!.startsWith('AssertionError:'),
-			),
-		);
-
-		// The measurement-impossible marker is carried in the failure
-		// message. We check every failed test's messages, not just the
-		// first — a proof can fail on multiple axes and any of them may
-		// carry the marker.
-		const hasMeasurementError = report.testResults.some((suite) =>
-			suite.assertionResults.some(
-				(t) =>
-					t.status === 'failed' &&
-					t.failureMessages.some((m) => m.includes('MESURE IMPOSSIBLE')),
-			),
-		);
-
-		if (exitCode === 1 && ranTests && hasAssertionFailure && !hasMeasurementError) {
-			console.log(`  OK: proof test failed as expected (assertion failure).\n`);
-			failures++;
-		} else if (exitCode === 1 && ranTests && (!hasAssertionFailure || hasMeasurementError)) {
-			const reason = hasMeasurementError
-				? 'measurement impossible (MESURE IMPOSSIBLE)'
-				: 'thrown Error (not an assertion failure)';
-			console.error(
-				`  CORRUPT PROOF: proof test failed with ${reason}, not the expected assertion failure.\n` +
-					`  A kept-red proof must fail on an assertion (expected X to be Y), ` +
-					`  not on a thrown Error. A thrown Error means the proof could not measure ` +
-					`  — this is NOT the expected kept-red state and must fail CI.\n` +
-					`  stdout: ${stdout}\n  stderr: ${stderr}`,
-			);
-			corrupted++;
-		} else if (exitCode === 1 && noTests) {
-			console.error(
-				`  CORRUPT PROOF: vitest found no test cases in ${test} (empty/truncated/not a test).\n` +
-					`  stdout: ${stdout}\n  stderr: ${stderr}`,
-			);
-			corrupted++;
-		} else {
-			console.error(
-				`  ERROR: proof test exited with unexpected code ${exitCode} ` +
-					`(failed: ${report.numFailedTests}, total: ${report.numTotalTests}).\n` +
-					`  stdout: ${stdout}\n  stderr: ${stderr}`,
-			);
-			unexpectedPasses++;
+		// Structural classification via the extracted classifier. The
+		// logic lives in classify-proof.mts so it can be unit-tested
+		// independently with a real vitest JSON report.
+		const result = classifyProof(report, exitCode as number);
+		switch (result.verdict) {
+			case 'OK':
+				console.log(`  OK: ${result.reason}\n`);
+				failures++;
+				break;
+			case 'CORRUPT PROOF':
+				console.error(
+					`  CORRUPT PROOF: ${result.reason}\n` +
+						`  A kept-red proof must fail on an assertion (expected X to be Y), ` +
+						`  not on a thrown Error. A thrown Error means the proof could not measure ` +
+						`  — this is NOT the expected kept-red state and must fail CI.\n` +
+						`  stdout: ${stdout}\n  stderr: ${stderr}`,
+				);
+				corrupted++;
+				break;
+			case 'NO_TESTS':
+				console.error(
+					`  CORRUPT PROOF: ${result.reason}\n` +
+						`  stdout: ${stdout}\n  stderr: ${stderr}`,
+				);
+				corrupted++;
+				break;
+			case 'UNEXPECTED_PASS':
+				console.error(
+					`  FAIL: ${result.reason}\n  Test: ${test}`,
+				);
+				unexpectedPasses++;
+				break;
+			case 'ERROR':
+				console.error(
+					`  ERROR: ${result.reason} ` +
+						`(failed: ${result.failedTests}, total: ${result.totalTests}).\n` +
+						`  stdout: ${stdout}\n  stderr: ${stderr}`,
+				);
+				unexpectedPasses++;
+				break;
 		}
 	} finally {
 		// Always clean up the temp report file — even on classification
