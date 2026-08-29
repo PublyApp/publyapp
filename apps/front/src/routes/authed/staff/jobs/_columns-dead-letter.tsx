@@ -6,6 +6,7 @@ import { StatusPill } from '~/components/ui/product-page';
 import { formatDateTime } from '~/lib/format-date-time';
 import type { StaffDeadLetterRow } from '~/lib/query/staff-jobs';
 
+import { formatFailureCause } from './_jobs-helpers';
 import {
 	externalStateStatusLabel,
 	externalStateStatusTone,
@@ -93,6 +94,27 @@ export const makeDeadLetterColumns = (
 		),
 	},
 	{
+		id: 'last_error',
+		header: t('common:column-last-error'),
+		enableSorting: false,
+		meta: { width: '280px' },
+		cell: ({ row }) => {
+			const cause = formatFailureCause(row.original.lastError, t);
+			const isAbsent = cause === t('common:no-cause');
+			return (
+				<div className="min-w-0">
+					<span
+						className="block truncate text-[13px]"
+						title={isAbsent ? undefined : cause}
+						data-testid={`cell-last-error-${row.original.id}`}
+					>
+						{cause}
+					</span>
+				</div>
+			);
+		},
+	},
+	{
 		id: 'requeued_at',
 		header: t('common:column-requeued-at'),
 		enableSorting: false,
@@ -113,7 +135,10 @@ export const makeDeadLetterColumns = (
 		meta: { width: '60px' },
 		cell: ({ row }) => (
 			<DataTableRowActions ariaLabel={row.original.jobType ?? ''}>
-				<DropdownMenuItem onClick={() => onInspect(row.original)}>
+				<DropdownMenuItem
+					data-testid={`dead-letter-inspect-${row.original.id}`}
+					onClick={() => onInspect(row.original)}
+				>
 					<IconActivity aria-hidden="true" className="size-4" />
 					{t('common:action-inspect')}
 				</DropdownMenuItem>

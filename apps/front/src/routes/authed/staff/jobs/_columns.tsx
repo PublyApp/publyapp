@@ -94,7 +94,10 @@ export const makeQueueColumns = (
 		meta: { width: '60px' },
 		cell: ({ row }) => (
 			<DataTableRowActions ariaLabel={row.original.jobType ?? ''}>
-				<DropdownMenuItem onClick={() => onInspect(row.original)}>
+				<DropdownMenuItem
+					data-testid={`queue-inspect-${row.original.id}`}
+					onClick={() => onInspect(row.original)}
+				>
 					<IconEye aria-hidden="true" className="size-4" />
 					{t('common:action-inspect')}
 				</DropdownMenuItem>
