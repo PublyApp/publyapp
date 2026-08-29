@@ -12,7 +12,7 @@
  * `"error"` (which oxlint rejects for this rule), or that removes the entry
  * entirely, fails at least one of the legs below.
  *
- * The three legs are independent on purpose so a regression names the exact
+ * The four legs are independent on purpose so a regression names the exact
  * axis that drifted:
  *
  *   1. Config leg — the root `.oxlintrc.json` configures `func-style` as the
@@ -40,6 +40,14 @@
  *      accidentally drag unrelated class methods or arrow expressions into
  *      a re-fix.
  *
+ *   4. Suppression inventory leg — the production tree leg (above) asserts
+ *      zero func-style diagnostics from oxlint, but that guard is bypassable:
+ *      an `eslint-disable-next-line func-style` on any `function` declaration
+ *      silences oxlint silently. This leg closes that gap by maintaining a
+ *      versioned inventory of every such suppression. A new suppression not
+ *      in the inventory fails, and an inventory entry whose suppression no
+ *      longer exists also fails.
+ *
  * Each leg runs through `runOxlint`, the same wrapper `lint-scoping.test.ts`
  * uses for its anti-slop wiring guard — both the config-driven check and the
  * rule-fires check go through the same code path oxlint itself goes through
@@ -53,6 +61,7 @@ import {
 	rmSync,
 	writeFileSync,
 } from 'node:fs';
+import { readdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -95,6 +104,163 @@ const writeFixture = (dir: string, name: string, body: string): string => {
 	writeFileSync(path, body);
 	return path;
 };
+
+// A real suppression is always the FIRST content of a single-line comment
+// (`// eslint-disable-next-line func-style`). Anchoring on "marker is the
+// first thing after the comment opener, at the start of the (trimmed) line"
+// is what keeps this scan from matching unrelated shapes.
+const COMMENT_OPENERS = ['//', '/*', '{/*', '<!--'];
+
+type FuncStyleSuppressionEntry = {
+	file: string;
+	symbol: string;
+	reason: string;
+};
+
+/**
+ * Finds every `eslint-disable-next-line func-style` suppression comment in a
+ * source file. The scan is anchored: the comment opener must be at the start
+ * of the trimmed line, and the marker must follow immediately after it.
+ * This mirrors the design-system guard's `findSuppressionSitesInSource`.
+ *
+ * `eslint-disable-next-line func-style` always precedes the symbol it disables,
+ * so when the suppression comment ends with a newline, the next line contains
+ * the actual function/const declaration whose symbol to record.
+ */
+const findFuncStyleSuppressionsInSource = (
+	source: string,
+	relativePath: string,
+): FuncStyleSuppressionEntry[] => {
+	const entries: FuncStyleSuppressionEntry[] = [];
+	const lines = source.split('\n');
+
+	for (let i = 0; i < lines.length; i++) {
+		const rawLine = lines[i]!;
+		const line = rawLine.trim();
+		const opener = COMMENT_OPENERS.find((candidate) =>
+			line.startsWith(candidate),
+		);
+		if (!opener) {
+			continue;
+		}
+		const afterOpener = line.slice(opener.length).trimStart();
+
+		// Match `eslint-disable-next-line func-style` with optional reason after.
+		// oxlint's own inline suppression format: `eslint-disable-next-line <rule>`
+		const marker = 'eslint-disable-next-line func-style';
+		if (!afterOpener.startsWith(marker)) {
+			continue;
+		}
+
+		const afterMarker = afterOpener.slice(marker.length).trimStart();
+
+		// Extract the symbol: look at the next line for a function/const declaration.
+		// eslint-disable-next-line always precedes the thing it disables.
+		let symbol = '';
+		if (i + 1 < lines.length) {
+			const nextLine = lines[i + 1]!.trim();
+			// Match `export function symbolName(...)` or `export const symbolName =` or
+			// `function symbolName(...)` or `const symbolName =`.
+			const funcMatch = nextLine.match(
+				/^(?:export\s+)?function\s+([a-zA-Z_$][a-zA-Z0-9_$]*)/,
+			);
+			const constMatch = nextLine.match(
+				/^(?:export\s+)?const\s+([a-zA-Z_$][a-zA-Z0-9_$]*)/,
+			);
+			if (funcMatch) {
+				symbol = funcMatch[1] ?? '';
+			} else if (constMatch) {
+				symbol = constMatch[1] ?? '';
+			}
+		}
+
+		// For a bare suppression with no reason on this line and no symbol found
+		// on the next line, mark it distinctly so the inventory test can assert on it.
+		const reason =
+			symbol || '(bare suppression — no symbol found on next line)';
+		entries.push({ file: relativePath, symbol, reason });
+	}
+
+	return entries;
+};
+
+// Finds every `eslint-disable-next-line func-style` suppression across all
+// text files in a directory tree.
+const scanFuncStyleSuppressions = async (
+	rootDir: string,
+): Promise<FuncStyleSuppressionEntry[]> => {
+	const entries: FuncStyleSuppressionEntry[] = [];
+	const TEXT_EXTENSIONS = new Set([
+		'.ts',
+		'.tsx',
+		'.mjs',
+		'.mts',
+		'.js',
+		'.jsx',
+	]);
+
+	const walk = async (dir: string): Promise<void> => {
+		let dirEntries;
+		try {
+			dirEntries = await readdir(dir, { withFileTypes: true });
+		} catch {
+			return;
+		}
+
+		for (const entry of dirEntries) {
+			const fullPath = join(dir, entry.name);
+			if (entry.isDirectory()) {
+				await walk(fullPath);
+				continue;
+			}
+			if (!TEXT_EXTENSIONS.has(entry.name.slice(entry.name.lastIndexOf('.')))) {
+				continue;
+			}
+			const relativePath = fullPath
+				.slice(rootDir.length)
+				.replace(/^[/\\]/, '')
+				.split(/[/\\]/)
+				.join('/');
+
+			const source = readFileSync(fullPath, 'utf8');
+			entries.push(...findFuncStyleSuppressionsInSource(source, relativePath));
+		}
+	};
+
+	await walk(rootDir);
+	return entries;
+};
+
+// The suppression inventory lives alongside this test file.
+const SUPPRESSION_INVENTORY_PATH = fileURLToPath(
+	new URL('./func-style-suppressions.json', import.meta.url),
+);
+
+const SUPPRESSION_INVENTORY: FuncStyleSuppressionEntry[] = (() => {
+	try {
+		return JSON.parse(
+			readFileSync(SUPPRESSION_INVENTORY_PATH, 'utf8'),
+		) as FuncStyleSuppressionEntry[];
+	} catch (error) {
+		throw new Error(
+			`failed to read func-style suppression inventory at ${SUPPRESSION_INVENTORY_PATH}: ${error instanceof Error ? error.message : String(error)}`,
+		);
+	}
+})();
+
+const countByFileAndSymbol = (
+	entries: FuncStyleSuppressionEntry[],
+): Map<string, number> => {
+	const counts = new Map<string, number>();
+	for (const entry of entries) {
+		const key = `${entry.file}\x00${entry.symbol}`;
+		counts.set(key, (counts.get(key) ?? 0) + 1);
+	}
+	return counts;
+};
+
+const funcStyleInventoryKey = (entry: FuncStyleSuppressionEntry): string =>
+	`${entry.file}\x00${entry.symbol}`;
 
 describe('func-style: ["error", "expression"] (#1834 — uniform arrow form)', () => {
 	describe('config leg — root .oxlintrc.json carries the exact shape', () => {
@@ -291,5 +457,148 @@ describe('func-style: ["error", "expression"] (#1834 — uniform arrow form)', (
 				assert.strictEqual(funcStyleDiagnostics.length, 0);
 			},
 		);
+	});
+
+	describe('suppression inventory leg — inline disable cannot bypass the production-tree guard', () => {
+		// The production tree leg (above) asserts zero func-style diagnostics from
+		// oxlint. That guard is bypassable: an `eslint-disable-next-line func-style`
+		// on any `function` declaration silences oxlint silently. This leg closes that
+		// gap by maintaining a versioned inventory of every such suppression — a new
+		// suppression not in the inventory fails, and an inventory entry whose
+		// suppression no longer exists also fails.
+
+		it('reports a new undeclared suppression with its file and symbol', async () => {
+			// Plant a temporary undeclared suppression in a temp fixture.
+			const tempDir = mkdtempSync(join(TMP_ROOT, 'func-style-inventory-'));
+			const fixtureFile = join(tempDir, 'undeclared-suppression.ts');
+			writeFileSync(
+				fixtureFile,
+				'// eslint-disable-next-line func-style\nfunction undeclaredProbe() {}\n',
+			);
+
+			// Scan the temp fixture alongside an empty real-tree scan.
+			const foundEntries = findFuncStyleSuppressionsInSource(
+				readFileSync(fixtureFile, 'utf8'),
+				'undeclared-suppression.ts',
+			);
+
+			// Compare against the committed inventory (which has no such entry).
+			const foundCounts = countByFileAndSymbol(foundEntries);
+			const inventoryCounts = countByFileAndSymbol(SUPPRESSION_INVENTORY);
+
+			const undocumented: FuncStyleSuppressionEntry[] = [];
+			for (const [key, count] of foundCounts) {
+				const inventoryCount = inventoryCounts.get(key) ?? 0;
+				if (count > inventoryCount) {
+					const [file, ...rest] = key.split('\x00');
+					const symbol = rest.join('\x00');
+					undocumented.push({ file, symbol, reason: '(undocumented)' });
+				}
+			}
+
+			assert.ok(
+				undocumented.length > 0,
+				'the undeclared suppression must be reported',
+			);
+			assert.strictEqual(
+				undocumented[0]!.file,
+				'undeclared-suppression.ts',
+				'the failure must name the file',
+			);
+			assert.strictEqual(
+				undocumented[0]!.symbol,
+				'undeclaredProbe',
+				'the failure must name the symbol',
+			);
+
+			rmSync(tempDir, { force: true, recursive: true });
+		});
+
+		it('reports a stale inventory entry (suppression removed from code)', async () => {
+			// The committed inventory has createQueryResult. Simulate it being removed
+			// by comparing an empty found list against the inventory.
+			const foundEntries: FuncStyleSuppressionEntry[] = [];
+			const foundCounts = countByFileAndSymbol(foundEntries);
+
+			const stale: FuncStyleSuppressionEntry[] = [];
+			for (const entry of SUPPRESSION_INVENTORY) {
+				const key = funcStyleInventoryKey(entry);
+				const foundCount = foundCounts.get(key) ?? 0;
+				if (foundCount === 0) {
+					stale.push(entry);
+				}
+			}
+
+			// When comparing against an empty found list, every inventory entry is stale.
+			// This proves the stale-detection logic works.
+			assert.ok(
+				stale.length > 0,
+				'at least one inventory entry must be detected as stale against an empty found list',
+			);
+			assert.strictEqual(
+				stale[0]!.file,
+				'src/routes/authed/layout.test.tsx',
+				'the stale entry must name the expected file',
+			);
+			assert.strictEqual(
+				stale[0]!.symbol,
+				'createQueryResult',
+				'the stale entry must name the expected symbol',
+			);
+		});
+
+		it('the real production tree has zero drift against the committed suppression inventory', async () => {
+			// Scan the real production tree (apps/front/src) for func-style suppressions.
+			// Use apps/front/ as root so the relative paths match the inventory convention
+			// (which uses paths relative to apps/front/, e.g. "src/routes/...").
+			const frontRootDir = join(WORKSPACE_ROOT, 'apps/front');
+			const foundEntries = await scanFuncStyleSuppressions(frontRootDir);
+
+			// Compare against the committed inventory using multiset diff.
+			const foundCounts = countByFileAndSymbol(foundEntries);
+			const inventoryCounts = countByFileAndSymbol(SUPPRESSION_INVENTORY);
+
+			// Undocumented: more found than in inventory.
+			const undocumented: Array<{ file: string; symbol: string }> = [];
+			for (const [key, count] of foundCounts) {
+				const inventoryCount = inventoryCounts.get(key) ?? 0;
+				if (count > inventoryCount) {
+					const [file, ...rest] = key.split('\x00');
+					const symbol = rest.join('\x00');
+					undocumented.push({ file, symbol });
+				}
+			}
+
+			// Stale: more in inventory than found.
+			const stale: Array<{ file: string; symbol: string }> = [];
+			for (const entry of SUPPRESSION_INVENTORY) {
+				const key = funcStyleInventoryKey(entry);
+				const foundCount = foundCounts.get(key) ?? 0;
+				if (foundCount === 0) {
+					stale.push({ file: entry.file, symbol: entry.symbol });
+				}
+			}
+
+			if (undocumented.length > 0) {
+				const names = undocumented
+					.map((e) => `${e.file}: ${e.symbol}`)
+					.join('\n  ');
+				assert.fail(`undocumented func-style suppressions found:\n  ${names}`);
+			}
+
+			if (stale.length > 0) {
+				const names = stale.map((e) => `${e.file}: ${e.symbol}`).join('\n  ');
+				assert.fail(
+					`stale suppression inventory entries (suppression no longer exists in code):\n  ${names}`,
+				);
+			}
+
+			assert.deepStrictEqual(
+				undocumented,
+				[],
+				'no undocumented func-style suppressions',
+			);
+			assert.deepStrictEqual(stale, [], 'no stale inventory entries');
+		});
 	});
 });
