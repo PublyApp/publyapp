@@ -1,11 +1,13 @@
+import { execFile } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { readdir, readFile } from 'node:fs/promises';
 import path from 'node:path';
 import process from 'node:process';
+import { promisify } from 'node:util';
 
 import { parse } from 'yaml';
 
-import { reasonRef } from './reason-guard-ref.ts';
+const execFileAsync = promisify(execFile);
 
 // Drift guard for the local CI gate (`just ci` / `just ci-full`).
 //
@@ -66,7 +68,43 @@ const toPosixPath = (value: string) => value.split(path.sep).join('/');
 export const hashReason = (text: string) =>
 	createHash('sha256').update(text).digest('hex').slice(0, 16);
 
-// Checks whether a reason has changed (especially shrunk) while the step
+/**
+ * Reads the reason reference file from git HEAD rather than the working tree.
+ *
+ * This is the load-bearing fix for the "ratchet can't rely on its own file"
+ * defect: the reference is the floor that prevents silent erasure of pinned
+ * steps. If the guard read the reference from the working tree, a contributor
+ * could lower `pinned_step_ids` in the same commit as the removal — the working
+ * tree and the commit would agree, and the guard would stay green while the floor
+ * was lowered under it.
+ *
+ * Reading from HEAD breaks that attack: the committed reference is the source of
+ * truth, and a working-tree edit to it is just an uncommitted change that the
+ * next commit (or a `git checkout`) erases. The floor is what was last reviewed
+ * and merged, not what the current working tree happens to say.
+ *
+ * Loud failure mode: if the read fails (no git, not a repo, file missing at
+ * HEAD), the guard refuses to run rather than silently falling back to a
+ * working-tree read. A guard that degrades to "trust the working tree" on error
+ * is a guard that turns green exactly when the attack succeeds.
+ */
+const readRefFromGit = async (rootDir: string): Promise<ReasonRef> => {
+	try {
+		const { stdout } = await execFileAsync(
+			'git',
+			['show', 'HEAD:packages/scripts-ts/src/reason-guard-ref.json'],
+			{ cwd: rootDir },
+		);
+
+		return JSON.parse(stdout) as ReasonRef;
+	} catch (error) {
+		throw new Error(
+			`Could not read reason-guard-ref.json from git HEAD — the ratchet floor must be derived from the committed reference, not the working tree. ` +
+				`Re-run from inside a git repository with a committed reason-guard-ref.json. ` +
+				`Original error: ${error instanceof Error ? error.message : String(error)}`,
+		);
+	}
+};
 // hash is unchanged. The reference file (`reason-guard-ref.json`) holds the
 // known-good fingerprint; any deviation while the step itself hasn't changed
 // fails the guard. A deliberate rewrite is possible by updating the reference
@@ -658,8 +696,8 @@ const formatJsonError = (error: unknown): string => {
  * @param {Object} options
  * @param {string} options.rootDir - Repository root directory.
  * @param {ReasonRef} [options.reasonRef] - Optional reason reference override
- *   (defaults to the pinned reason-guard-ref.json). Used by tests to inject
- *   a fixture reference without touching the real one.
+ *   (defaults to reading reason-guard-ref.json from git HEAD). Used by tests
+ *   to inject a fixture reference without touching the real one.
  */
 export const findCiDrift = async ({
 	rootDir,
@@ -668,7 +706,7 @@ export const findCiDrift = async ({
 	rootDir: string;
 	reasonRef?: ReasonRef;
 }): Promise<string[]> => {
-	const ref = reasonRefOption ?? reasonRef;
+	const ref = reasonRefOption ?? (await readRefFromGit(rootDir));
 	const { problems, steps } = await collectWorkflowSteps(rootDir);
 	const findings = [...problems];
 

@@ -73,7 +73,9 @@ const computeReconciledHash = async () => {
 		steps: mirroredStep,
 	});
 
-	const [finding] = await findCiDrift({ rootDir });
+	// Inject an empty ref so the call exercises the CHANGED path without
+	// needing a git repo (these fixtures are throwaway tmpdirs).
+	const [finding] = await findCiDrift({ rootDir, reasonRef: { steps: {} } });
 
 	return finding!.match(/workflow ([a-f0-9]+)/)![1];
 };
@@ -1626,4 +1628,159 @@ test('ratchet floor: no pinned_step_ids means no ratchet check (backward compati
 	// No RATCHET findings — ratchet is not active without pinned_step_ids
 	const ratchetFindings = findings.filter((f) => f.startsWith('RATCHET'));
 	assert.equal(ratchetFindings.length, 0);
+});
+
+// --- Git-based reference read tests (#1762 round 7) ---
+//
+// The "ratchet can't rely on its own file" defect: the drift guard used to
+// import reason-guard-ref.json from the working tree. A contributor could
+// lower `pinned_step_ids` in the same commit as the removal, and the guard
+// would stay green because the working tree and the commit agreed.
+//
+// The fix reads the reference from git HEAD via `git show`. These tests prove
+// the fix holds: a working-tree edit to the reference does NOT change what the
+// guard sees — only the committed reference matters.
+
+test('readRefFromGit: reading from a non-git directory fails loudly (no silent fallback)', async () => {
+	// A throwaway tmpdir with no .git — findCiDrift must refuse to run rather
+	// than silently fall back to a working-tree read. A guard that degrades to
+	// "trust the working tree" on error is a guard that turns green exactly when
+	// the attack succeeds.
+	const rootDir = await mkdtemp(path.join(os.tmpdir(), 'publyapp-no-git-'));
+	await mkdir(path.join(rootDir, '.github/workflows'), { recursive: true });
+	await mkdir(path.join(rootDir, 'packages/scripts-ts/src'), {
+		recursive: true,
+	});
+
+	await writeFile(
+		path.join(rootDir, '.github/workflows/fixture.yml'),
+		workflow(mirroredStep),
+	);
+	await writeFile(
+		path.join(rootDir, 'packages/scripts-ts/src/ci-gate-manifest.json'),
+		JSON.stringify({ steps: {} }),
+	);
+	// A reason-guard-ref.json in the working tree that an attacker might try to
+	// use as a fallback. The guard must NOT read this.
+	await writeFile(
+		path.join(rootDir, 'packages/scripts-ts/src/reason-guard-ref.json'),
+		JSON.stringify({ steps: {} }),
+	);
+
+	await assert.rejects(
+		() => findCiDrift({ rootDir }),
+		/Could not read reason-guard-ref\.json from git HEAD/,
+		'Guard must fail loudly when no git repo is available',
+	);
+});
+
+test('readRefFromGit: reads committed reference from HEAD, ignoring working-tree edits', async () => {
+	// The load-bearing test: initialize a git repo with a committed reference,
+	// then mutate the working-tree copy. The guard must read the COMMITTED
+	// version, not the working-tree one. This is the exact attack the fix
+	// closes — an attacker lowers the ratchet floor in the working tree, and
+	// the guard must still see the original floor from HEAD.
+
+	const rootDir = await mkdtemp(path.join(os.tmpdir(), 'publyapp-git-ref-'));
+	await mkdir(path.join(rootDir, '.github/workflows'), { recursive: true });
+	await mkdir(path.join(rootDir, 'packages/scripts-ts/src'), {
+		recursive: true,
+	});
+
+	// Set up a git repo.
+	await writeFile(path.join(rootDir, '.gitignore'), '');
+	const execFile = (cmd: string, args: string[]) =>
+		new Promise<string>((resolve, reject) => {
+			const { execFile: nodeExec } = require('node:child_process');
+			nodeExec(
+				cmd,
+				args,
+				{ cwd: rootDir },
+				(error: Error | null, stdout: string) => {
+					if (error) reject(error);
+					else resolve(stdout);
+				},
+			);
+		});
+
+	await execFile('git', ['init', '-q']);
+	await execFile('git', ['config', 'user.email', 'test@test.test']);
+	await execFile('git', ['config', 'user.name', 'test']);
+
+	// Workflow: a single step
+	await writeFile(
+		path.join(rootDir, '.github/workflows/fixture.yml'),
+		workflow('      - name: Step A\n        run: echo a\n'),
+	);
+
+	// Manifest: single entry, reconciled
+	const manifest = {
+		steps: {
+			'fixture.yml::build::Step A': {
+				hash: 'b0ea35b0641c92e6',
+				mirror: 'just ci',
+				reason: 'Mirrored locally by the fixture gate for testing purposes.',
+			},
+		},
+	};
+	await writeFile(
+		path.join(rootDir, 'packages/scripts-ts/src/ci-gate-manifest.json'),
+		JSON.stringify(manifest, null, '\t'),
+	);
+
+	// Committed reference: pins Step A (ratchet floor).
+	const committedRef = {
+		pinned_step_ids: ['fixture.yml::build::Step A'],
+		steps: {
+			'fixture.yml::build::Step A': {
+				reason_hash: hashReason(
+					'Mirrored locally by the fixture gate for testing purposes.',
+				),
+				reason_length: 56,
+			},
+		},
+	};
+	await writeFile(
+		path.join(rootDir, 'packages/scripts-ts/src/reason-guard-ref.json'),
+		JSON.stringify(committedRef, null, '\t'),
+	);
+
+	// Commit everything so HEAD has the committed reference.
+	await execFile('git', ['add', '.']);
+	await execFile('git', ['commit', '-q', '-m', 'initial']);
+
+	// Now attack: edit the WORKING-TREE reference to empty pinned_step_ids.
+	// If the guard reads from the working tree, it would see no ratchet and
+	// stay green. The fix reads from HEAD, so the ratchet still fires.
+	await writeFile(
+		path.join(rootDir, 'packages/scripts-ts/src/reason-guard-ref.json'),
+		JSON.stringify({ steps: {} }, null, '\t'),
+	);
+
+	// The manifest still pins Step A, so the guard should stay green — the
+	// committed reference still matches.
+	const findings = await findCiDrift({ rootDir });
+	assert.deepEqual(
+		findings,
+		[],
+		'Guard must read committed ref from HEAD, not working tree (findings should be empty since manifest is reconciled)',
+	);
+
+	// Now the real test: remove the step from the manifest, which should trip
+	// the ratchet because the committed reference still pins it.
+	await writeFile(
+		path.join(rootDir, 'packages/scripts-ts/src/ci-gate-manifest.json'),
+		JSON.stringify({ steps: {} }, null, '\t'),
+	);
+
+	const findingsAfterRemoval = await findCiDrift({ rootDir });
+	const ratchetFindings = findingsAfterRemoval.filter((f) =>
+		f.startsWith('RATCHET'),
+	);
+	assert.equal(
+		ratchetFindings.length,
+		1,
+		'Ratchet must fire from committed ref even when working-tree ref was emptied',
+	);
+	assert.match(ratchetFindings[0], /RATCHET\s+fixture\.yml::build::Step A/);
 });
