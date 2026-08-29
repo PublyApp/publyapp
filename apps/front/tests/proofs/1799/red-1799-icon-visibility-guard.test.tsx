@@ -172,9 +172,7 @@ const renderAllSelected = (): HTMLElement => {
  * then responsible for measuring, not for enumerating — exactly the
  * invariant the original defect violated.
  */
-const fixedComputedStyleFor = (
-	element: Element,
-): { visibility: string; display: string; opacity: string } => {
+const fixedComputedStyleFor: ComputedStyleReader = (element) => {
 	const classes = new Set(Array.from(element.classList));
 	if (classes.has('invisible')) {
 		return { visibility: 'hidden', display: 'inline-block', opacity: '1' };
