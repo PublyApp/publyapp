@@ -83,12 +83,13 @@ Chromium (Playwright), against the live current app.
 Setup used:
 
 - Fresh Dell dev machine: installed .NET SDK `10.0.102` (per `global.json`) and
-  Playwright Chromium. The repo dev `docker-compose.services.yml` crash-loops with
-  the current `postgres:18-alpine` image (PG18 changed its data-dir convention,
-  docker-library #1259, so the `…:/var/lib/postgresql/data` volume mount is
-  rejected) — worked around with an **ephemeral** `postgres:18-alpine` container on
-  `localhost:5454` (no volume). This dev-compose breakage is a separate repo bug to
-  fix on its own.
+  Playwright Chromium. The repo's former local compose Postgres (removed in
+  #1722, replaced by the persistent Postgres in `apps/apphost`) used to crash-loop
+  with the `postgres:18-alpine` image (PG18 changed its data-dir convention,
+  docker-library #1259, so the `…:/var/lib/postgresql/data` volume mount was
+  rejected) — worked around at the time with an **ephemeral** `postgres:18-alpine`
+  container on `localhost:5454` (no volume). This dev-compose breakage was a separate
+  repo bug to fix on its own.
 - EF `database update` migrated + seeded the DB (3 tenants, 12 users, 3 staff
   profiles, 15 accounts). API `/health` healthy on `localhost:5000`. `apps/front`
   served on `localhost:5050` from the `feat/front-2-phase-1` worktree.

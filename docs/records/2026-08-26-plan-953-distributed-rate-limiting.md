@@ -18,7 +18,7 @@ response (#953 trigger: do it before adding a second replica).
 - Production (Dokploy on one Hostinger VPS, plain compose): `publyapp-api`,
   `publyapp-worker` (same API image), `publyapp-front`, one-shot `publyapp-migrate`,
   Traefik. Exactly **one shared stateful service: PostgreSQL 18**.
-- Local development: `docker-compose.services.yml` starts only `publyapp-postgres`.
+- Local development: Aspire AppHost (`apps/apphost`) starts Postgres on :5454 with a persistent data volume.
 - E2E stack: Postgres plus the api/migrate/front containers.
 - **No Redis anywhere** in the repo, compose files, workflows, or docs.
 

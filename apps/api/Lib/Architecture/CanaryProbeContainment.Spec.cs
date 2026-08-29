@@ -234,7 +234,6 @@ public sealed partial class CanaryProbeContainmentSpec {
 		return [
 			"apps/api/Dockerfile",
 			"dokploy.yml",
-			"docker-compose.services.yml",
 			"apps/api/Properties/launchSettings.json",
 			"apps/front/docker-compose.test.yml",
 			"apps/front/docker-compose.fork-overlay.yml",

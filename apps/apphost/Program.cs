@@ -1,12 +1,13 @@
 // Issue #255 spike: LOCAL DEV ORCHESTRATION ONLY. `dotnet run --project apps/apphost`
-// starts a disposable Postgres, the API (APP_ROLE=api), the worker (APP_ROLE=worker)
-// and the front dev server, plus the Aspire dashboard (traces/metrics via OTel).
+// starts a persistent Postgres (port 5454, data volume), the API (APP_ROLE=api),
+// the worker (APP_ROLE=worker) and the front dev server, plus the Aspire dashboard
+// (traces/metrics via OTel).
 // Production (dokploy.yml) and e2e (docker-compose.test.yml) are deliberately untouched.
 var builder = DistributedApplication.CreateBuilder(args);
 
-// Disposable local Postgres. Deliberately NEVER the shared host-wide instance on :5454:
-// Aspire binds the container to a free ephemeral port and tears it down with the AppHost.
-var postgres = builder.AddPostgres("postgres");
+// Persistent local Postgres on the host's stable :5454 with a named data volume —
+// survives AppHost restarts and replaces the former local compose Postgres.
+var postgres = builder.AddPostgres("postgres").WithHostPort(5454).WithDataVolume();
 var publyDb = postgres.AddDatabase("publyapp-db", "publyapp_db");
 
 // The app reads its DSN from POSTGRES_CONNECTION_STRING (AppEnvironment), not the

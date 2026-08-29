@@ -273,7 +273,7 @@ publyapp/
 ├── docs/guides/            # Canonical architecture & convention guides
 ├── justfile                # Task runner — see `just --list`
 ├── turbo.json              # Turborepo pipeline
-└── docker-compose.services.yml # Local PostgreSQL service definition
+└── apps/apphost/            # Aspire AppHost — local dev orchestration (postgres + api + worker + front)
 ```
 
 <!-- markdownlint-enable MD013 MD060 -->
@@ -292,7 +292,7 @@ authoritative reference — the highlights:
 | `just install`           | Install all dependencies (pnpm + dotnet restore)      |
 | `just dev-api`           | Run the API with hot reload (`dotnet watch`)          |
 | `pnpm --filter front dev` | Run the frontend (TanStack Start dev server)       |
-| `just dev-db`            | Start PostgreSQL in Docker                            |
+| `just dev-db`            | Start the Aspire AppHost (postgres + api + worker + front) |
 | `just build-api`         | Build the .NET API                                    |
 | `pnpm --filter front build` | Build the frontend for production                |
 | `just db-migrate`        | Apply EF Core migrations                              |
