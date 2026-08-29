@@ -41,7 +41,9 @@ import { describe, expect, test } from 'vitest';
 // relative to process.cwd()).
 const FRONT_ROOT = fileURLToPath(new URL('../../', import.meta.url));
 
-function runScript(setBaseRef: boolean, setHeadRef: boolean) {
+// Arrow function per the lane's coding rule (arrow everywhere except class
+// methods, #1806 ronde 10).
+const runScript = (setBaseRef: boolean, setHeadRef: boolean) => {
 	const env: NodeJS.ProcessEnv = { ...process.env };
 	delete env.GITHUB_BASE_REF;
 	delete env.GITHUB_HEAD_REF;
@@ -68,7 +70,7 @@ function runScript(setBaseRef: boolean, setHeadRef: boolean) {
 		stdout: result.stdout ?? '',
 		stderr: result.stderr ?? '',
 	};
-}
+};
 
 describe('declaredProofTests — CI environment handling', () => {
 	test('a half-set CI environment (only GITHUB_BASE_REF) fails loud naming the missing variable', () => {
