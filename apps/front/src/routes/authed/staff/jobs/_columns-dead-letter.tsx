@@ -93,6 +93,23 @@ export const makeDeadLetterColumns = (
 		),
 	},
 	{
+		id: 'last_error',
+		header: t('common:column-last-error'),
+		enableSorting: false,
+		meta: { width: '280px' },
+		cell: ({ row }) => (
+			<div className="min-w-0">
+				<span
+					className="block truncate text-[13px]"
+					title={row.original.lastError ?? undefined}
+					data-testid={`cell-last-error-${row.original.id}`}
+				>
+					{row.original.lastError || t('common:no-cause')}
+				</span>
+			</div>
+		),
+	},
+	{
 		id: 'requeued_at',
 		header: t('common:column-requeued-at'),
 		enableSorting: false,
