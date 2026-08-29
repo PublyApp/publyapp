@@ -92,9 +92,7 @@ const ROOT_CONFIG = JSON.parse(
 ) as OxlintRootConfig;
 const ROOT_RULES = ROOT_CONFIG.rules ?? {};
 
-const isFuncStyleTuple = (
-	value: unknown,
-): value is [string, string] =>
+const isFuncStyleTuple = (value: unknown): value is [string, string] =>
 	Array.isArray(value) &&
 	value.length === 2 &&
 	value[0] === 'error' &&
@@ -240,8 +238,7 @@ const findFuncStyleSuppressionsInSource = (
 			// Find the most recent unresolved opener of the matching type
 			for (let j = blockOpeners.length - 1; j >= 0; j--) {
 				const b = blockOpeners[j]!;
-				const expectedCloser =
-					b.openerText === '<!--' ? '-->' : '*/';
+				const expectedCloser = b.openerText === '<!--' ? '-->' : '*/';
 				if (closer === expectedCloser && b.closerLine === -1) {
 					b.closerLine = i;
 				}
@@ -347,10 +344,7 @@ const _extractBlockMarker = (content: string): string | null => {
 const isFuncStyleRelevantBlockSuppression = (content: string): boolean => {
 	const trimmed = content.trim();
 	// Bare suppressions silence all rules including func-style
-	if (
-		trimmed === 'eslint-disable' ||
-		trimmed === 'oxlint-disable'
-	) {
+	if (trimmed === 'eslint-disable' || trimmed === 'oxlint-disable') {
 		return true;
 	}
 	// Suppressions that specifically target func-style
@@ -472,13 +466,13 @@ const scanFuncStyleSuppressions = async (
  */
 const matchGlobPattern = (pattern: string, path: string): boolean => {
 	// Strip leading `**/` or `**` from pattern for prefix matching
-	const normalizedPattern = pattern
-		.replace(/\*\*/g, '')
-		.replace(/^\//, '');
+	const normalizedPattern = pattern.replace(/\*\*/g, '').replace(/^\//, '');
 
 	if (pattern.startsWith('**/')) {
 		// Suffix match: **/node_modules matches foo/node_modules
-		return path.endsWith(normalizedPattern) || path.includes(normalizedPattern + '/');
+		return (
+			path.endsWith(normalizedPattern) || path.includes(normalizedPattern + '/')
+		);
 	}
 
 	if (pattern.endsWith('/**')) {
@@ -646,9 +640,7 @@ describe('func-style: ["error", "expression"] (#1834 — uniform arrow form)', (
 			const currentPatterns = ROOT_CONFIG.ignorePatterns ?? [];
 			const baselineSet = new Set(BASELINE_IGNORE_PATTERNS);
 
-			const newPatterns = currentPatterns.filter(
-				(p) => !baselineSet.has(p),
-			);
+			const newPatterns = currentPatterns.filter((p) => !baselineSet.has(p));
 
 			if (newPatterns.length > 0) {
 				const listed = newPatterns.map((p) => JSON.stringify(p)).join(', ');
