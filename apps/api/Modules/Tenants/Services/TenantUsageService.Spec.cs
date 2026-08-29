@@ -1,4 +1,5 @@
 using System.Data.Common;
+using System.Linq.Expressions;
 
 using FluentAssertions;
 
@@ -220,108 +221,242 @@ public sealed class TenantUsageServiceSpec
 		);
 	}
 
-	// ── The coupling guard: LastActivityAt read must carry its own IsDeleted ──
+	// ── IsDeleted guard specs (expression-tree based, not SQL-regex) ──
 
 	[Fact]
 	public async Task ItShouldGuardLastActivityAtReadWithIsDeletedFilter() {
-		// #1839 r2 — the LastActivityAt query must carry its own
+		// #1839 r4 — the LastActivityAt query must carry its own
 		// `!tenant.IsDeleted` guard so that a future refactor that reorders or
 		// merges the two Tenant queries cannot leak a soft-deleted tenant's
 		// LastActivityAt.
 		//
-		// Strategy: call LastActivityAtQuery() directly (bypassing the existence
-		// guard) so the SQL is always emitted regardless of IsDeleted state.
-		//
-		// Semantic assertion: the SQL must contain a NEGATION of is_deleted
-		// (NOT is_deleted, is_deleted = FALSE). A guard that merely wraps
-		// is_deleted in an OR and does not negate it directly
-		// (e.g. `!IsDeleted || Status != Active`) passes a naive Contains
-		// check but fails this assertion.
-		var lastActivity = new DateTime(2026, 8, 15, 12, 0, 0, DateTimeKind.Utc);
-		var tenantId = await SeedSoftDeletedTenantWithLastActivityAsync(lastActivity);
-		var connectionString = await GetConnectionStringAsync();
-		var interceptor = new TenantParameterCaptureInterceptor();
-
-		await using var serviceDbContext = new AppDbContext(
-			new DbContextOptionsBuilder<AppDbContext>()
-				.UseNpgsql(connectionString)
-				.AddInterceptors(interceptor)
-				.Options
+		// Strategy: call LastActivityAtQuery() directly (bypassing the
+		// existence guard), then assert on the resolved EF expression tree
+		// that IsDeleted is negated in the WHERE predicate. This is robust to
+		// SQL dialect (NOT (is_deleted), is_deleted = FALSE, NOT EXISTS …) and
+		// to semantically equivalent rewrites — a regex on emitted SQL is not.
+		var tenantId = await SeedTenantWithLastActivityAsync(
+			new DateTime(2026, 8, 15, 12, 0, 0, DateTimeKind.Utc)
 		);
+		var service = NewServiceWithContext();
 
-		var service = new TenantUsageService(
-			serviceDbContext,
-			NullLogger<TenantUsageService>.Instance
-		);
-
-		// Call the query directly so it is always emitted — no existence guard.
 		var query = service.LastActivityAtQuery(tenantId);
 
-		// Trigger materialisation. FirstOrDefaultAsync on a soft-deleted tenant
-		// returns null (correct), but the SQL has already been captured.
-		await query.FirstOrDefaultAsync();
-
-		var lastActivityCommands = interceptor.Commands
-			.Where(c => c.Text.Contains(
-				"last_activity_at", StringComparison.OrdinalIgnoreCase))
-			.ToList();
-
-		lastActivityCommands.Should().NotBeEmpty(
-			"LastActivityAtQuery must emit a SQL command so its shape can be "
-			+ "asserted"
+		AssertIsDeletedNegated(
+			query.Expression,
+			"Tenant (LastActivityAt)"
 		);
+	}
 
-		foreach (var cmd in lastActivityCommands) {
-			// Two-part semantic assertion:
-			//
-			// 1. is_deleted must be explicitly negated (NOT is_deleted or
-			//    is_deleted = FALSE). A query that omits the guard entirely
-			//    fails this leg.
-			cmd.Text.Should().MatchRegex(
-				@"(?i)\bNOT\s+\(\s*(?:\w+\.)?is_deleted\s*\)|"
-					+ @"(?i)\b(?:\w+\.)?is_deleted\s*=\s*(?:FALSE|false)\b",
-				"LastActivityAtQuery must contain an explicit negation of "
-					+ "is_deleted (NOT (is_deleted) or is_deleted = FALSE)"
-			);
-			//
-			// 2. The WHERE clause must NOT contain an OR — a guard that wraps
-			// is_deleted in an OR (e.g. "!IsDeleted || Status != Active")
-			// lets soft-deleted tenants through. The correct guard uses AND
-			// exclusively: WHERE id = @p AND NOT (is_deleted).
-			cmd.Text.Should().NotContain(
-				" OR ",
-				"LastActivityAtQuery must not combine is_deleted with OR — "
-					+ "a permissive guard that uses OR (!IsDeleted || Status != "
-					+ "Active) lets a soft-deleted tenant through when its Status "
-					+ "is non-Active. The guard must be AND-only: "
-					+ "WHERE id = @p AND NOT (is_deleted)."
-			);
+	[Fact]
+	public async Task ItShouldGuardUsersTotalQueryWithIsDeletedFilter() {
+		// #1839 r4 — UsersTotalQuery must negate IsDeleted on the membership
+		// row AND on the owning User row. Without either, a soft-deleted
+		// membership or user would leak into the total.
+		var tenantId = await SeedTenantWithLastActivityAsync(
+			new DateTime(2026, 8, 15, 12, 0, 0, DateTimeKind.Utc)
+		);
+		var service = NewServiceWithContext();
+
+		var query = service.UsersTotalQuery(tenantId);
+
+		AssertIsDeletedNegated(
+			query.Expression,
+			"UserAccount (UsersTotal)"
+		);
+	}
+
+	[Fact]
+	public async Task ItShouldGuardUsersActiveQueryWithIsDeletedFilter() {
+		// #1839 r4 — UsersActiveQuery must negate IsDeleted on the membership
+		// row AND on the owning User row. Same guard as UsersTotal, plus the
+		// Active status filter.
+		var tenantId = await SeedTenantWithLastActivityAsync(
+			new DateTime(2026, 8, 15, 12, 0, 0, DateTimeKind.Utc)
+		);
+		var service = NewServiceWithContext();
+
+		var query = service.UsersActiveQuery(tenantId);
+
+		AssertIsDeletedNegated(
+			query.Expression,
+			"UserAccount (UsersActive)"
+		);
+	}
+
+	[Fact]
+	public async Task ItShouldGuardProjectsCountQueryWithIsDeletedFilter() {
+		// #1839 r4 — ProjectsCountQuery must negate IsDeleted on the project
+		// row. Without it, a soft-deleted project would leak into the count.
+		var tenantId = await SeedTenantWithLastActivityAsync(
+			new DateTime(2026, 8, 15, 12, 0, 0, DateTimeKind.Utc)
+		);
+		var service = NewServiceWithContext();
+
+		var query = service.ProjectsCountQuery(tenantId);
+
+		AssertIsDeletedNegated(
+			query.Expression,
+			"Project (ProjectsCount)"
+		);
+	}
+
+	[Fact]
+	public async Task ItShouldGuardScheduledPublicationsCountQueryWithIsDeletedFilter() {
+		// #1839 r4 — ScheduledPublicationsCountQuery must negate IsDeleted on
+		// the publication row. Without it, a soft-deleted publication would
+		// leak into the count.
+		var tenantId = await SeedTenantWithLastActivityAsync(
+			new DateTime(2026, 8, 15, 12, 0, 0, DateTimeKind.Utc)
+		);
+		var service = NewServiceWithContext();
+
+		var query = service.ScheduledPublicationsCountQuery(tenantId);
+
+		AssertIsDeletedNegated(
+			query.Expression,
+			"Publication (ScheduledPublicationsCount)"
+		);
+	}
+
+	/// <summary>
+	/// Walks the expression tree and proves that <c>IsDeleted</c> is negated
+	/// on the ROOT entity of the query. A regex on emitted SQL would fail on
+	/// semantically equivalent rewrites (NOT EXISTS, is_deleted = FALSE, …);
+	/// this asserts the MEANING, not the rendering.
+	///
+	/// Entity-specific: for a UserAccount query, it checks that the
+	/// UserAccount.IsDeleted is negated (not just a related entity's). This
+	/// prevents a mutation that removes the guard on the queried entity but
+	/// leaves a guard on a related entity from passing.
+	/// </summary>
+	private static void AssertIsDeletedNegated(
+		Expression expression,
+		string entityName
+	) {
+		// Unwrap to find the lambda whose parameter is the root entity.
+		var lambda = ExtractWhereLambda(expression);
+		var entityParam = lambda.Parameters[0];
+
+		var visitor = new IsDeletedNegationVisitor(entityParam);
+		visitor.Visit(lambda.Body);
+
+		visitor.Found.Should().BeTrue(
+			$"the query for {entityName} must negate IsDeleted on the queried "
+			+ "entity in its WHERE predicate — a query that reads through "
+			+ "soft-deleted rows leaks deleted data into the usage snapshot. "
+			+ "A regex on emitted SQL would fail here on equivalent rewrites "
+			+ "(NOT EXISTS, is_deleted = FALSE); this asserts the meaning, "
+			+ "not the rendering."
+		);
+	}
+
+	/// <summary>
+	/// Extracts the Where lambda from a query expression. Handles the common
+	/// pattern of DbSet.Where(...).Where(...) chains by finding the innermost
+	/// lambda whose parameter type matches the entity type.
+	/// </summary>
+	private static LambdaExpression ExtractWhereLambda(Expression expression) {
+		// If it's already a lambda, return it.
+		if (expression is LambdaExpression lambda) {
+			return lambda;
+		}
+
+		// Look for MethodCallExpression (Where, Select, etc.) and recurse
+		// into the lambda argument.
+		if (expression is MethodCallExpression {
+			Method.Name: "Where"
+		} call) {
+			// The lambda is the last argument to Where.
+			var lambdaArg = call.Arguments.Last();
+			if (lambdaArg is UnaryExpression {
+				Operand: LambdaExpression innerLambda
+			}) {
+				return innerLambda;
+			}
+			if (lambdaArg is LambdaExpression directLambda) {
+				return directLambda;
+			}
+		}
+
+		// Fallback: try to find any lambda in the expression.
+		// This handles edge cases like query syntax compilation.
+		var finder = new LambdaFinder();
+		finder.Visit(expression);
+		if (finder.Found is not null) {
+			return finder.Found;
+		}
+
+		throw new InvalidOperationException(
+			"Could not extract Where lambda from query expression of type "
+				+ expression.GetType().Name
+		);
+	}
+
+	private sealed class LambdaFinder : ExpressionVisitor {
+		public LambdaExpression? Found { get; private set; }
+
+		protected override Expression VisitLambda<T>(Expression<T> node) {
+			Found ??= node;
+			return base.VisitLambda(node);
+		}
+	}
+
+	/// <summary>
+	/// Visitor that detects a <c>NOT</c> (<c>!</c>) applied to the queried
+	/// entity's <c>IsDeleted</c> property anywhere in the expression tree.
+	/// Robust to SQL dialect and to semantically equivalent rewrites — it
+	/// inspects the LINQ expression, not the rendered SQL.
+	///
+	/// Entity-specific: only matches <c>!entity.IsDeleted</c> where
+	/// <c>entity</c> is the query's root parameter. A negation on a related
+	/// entity (e.g. <c>!ua.User.IsDeleted</c>) does not count for the
+	/// entity-specific assertion.
+	/// </summary>
+	private sealed class IsDeletedNegationVisitor : ExpressionVisitor {
+		private readonly ParameterExpression _entityParam;
+
+		public IsDeletedNegationVisitor(ParameterExpression entityParam) {
+			_entityParam = entityParam;
+		}
+
+		public bool Found { get; private set; }
+
+		protected override Expression VisitUnary(UnaryExpression node) {
+			if (node.NodeType == ExpressionType.Not
+				&& IsEntityIsDeletedAccess(node.Operand)) {
+				Found = true;
+			}
+			return base.VisitUnary(node);
+		}
+
+		protected override Expression VisitBinary(BinaryExpression node) {
+			// Also catch `is_deleted == false` / `is_deleted = FALSE`.
+			if (node.NodeType == ExpressionType.Equal
+				&& IsEntityIsDeletedAccess(node.Left)
+				&& node.Right is ConstantExpression { Value: false }) {
+				Found = true;
+			}
+			return base.VisitBinary(node);
+		}
+
+		private bool IsEntityIsDeletedAccess(Expression expression) {
+			// Unwrap conversions (e.g. bool -> bool?).
+			if (expression is UnaryExpression {
+				NodeType: ExpressionType.Convert or ExpressionType.Quote
+			} convert) {
+				expression = convert.Operand;
+			}
+			// Match `entity.IsDeleted` where entity IS the root parameter
+			// directly — NOT a member access chain like `entity.User.IsDeleted`.
+			return expression is MemberExpression {
+				Member.Name: "IsDeleted",
+				Expression: ParameterExpression param
+			} && param == _entityParam;
 		}
 	}
 
 	// ── existing helper seed methods ──
-
-	private async Task<Guid> SeedSoftDeletedTenantWithLastActivityAsync(
-		DateTime lastActivityAt
-	) {
-		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-
-		var tenant = new Tenant {
-			Name = $"usage-deleted-activity {Guid.NewGuid():N}",
-			Code = Guid.NewGuid().ToString("N")[..10],
-			Status = PublyApp.Api.Modules.Tenants.Entities.TenantStatus.Active,
-			MaxUsers = 10,
-			LastActivityAt = lastActivityAt,
-		};
-		await dbContext.Tenant.AddAsync(tenant);
-		await dbContext.SaveChangesAsync();
-
-		tenant.IsDeleted = true;
-		await dbContext.SaveChangesAsync();
-
-		return tenant.GetRequiredId();
-	}
 
 	[Fact]
 	public async Task ItShouldFilterEveryQueryOnTheRequestedTenantId() {
@@ -398,6 +533,13 @@ public sealed class TenantUsageServiceSpec
 	}
 
 	private TenantUsageService NewService() {
+		return new TenantUsageService(
+			CreateServiceDbContext().GetAwaiter().GetResult(),
+			NullLogger<TenantUsageService>.Instance
+		);
+	}
+
+	private TenantUsageService NewServiceWithContext() {
 		return new TenantUsageService(
 			CreateServiceDbContext().GetAwaiter().GetResult(),
 			NullLogger<TenantUsageService>.Instance

@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 
 using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Lib.DI;
+using PublyApp.Api.Modules.Projects.Entities;
 using PublyApp.Api.Modules.Publishing.Entities;
 using PublyApp.Api.Modules.Users.Entities;
 
@@ -82,39 +83,11 @@ public class TenantUsageService : ITenantUsageService {
 		// Membership counts mirror CountTenantUsersAsync parity rules: exclude
 		// soft-deleted memberships AND members whose owning User row was
 		// soft-deleted, so the number never drifts from the tenant users list.
-		var usersTotal = await (
-			from ua in _dbContext.UserAccount.AsNoTracking()
-			where ua.TenantId == tenantId
-				&& ua.Scope == AccountScope.Tenant
-				&& !ua.IsDeleted
-				&& !ua.User.IsDeleted
-			select ua
-		).CountAsync(cancellationToken);
-
-		var usersActive = await (
-			from ua in _dbContext.UserAccount.AsNoTracking()
-			where ua.TenantId == tenantId
-				&& ua.Scope == AccountScope.Tenant
-				&& !ua.IsDeleted
-				&& !ua.User.IsDeleted
-				&& ua.Status == AccountStatus.Active
-			select ua
-		).CountAsync(cancellationToken);
-
-		var projectsCount = await (
-			from project in _dbContext.Project.AsNoTracking()
-			where project.TenantId == tenantId
-				&& !project.IsDeleted
-			select project
-		).CountAsync(cancellationToken);
-
-		var scheduledPublicationsCount = await (
-			from publication in _dbContext.Publication.AsNoTracking()
-			where publication.TenantId == tenantId
-				&& !publication.IsDeleted
-				&& publication.Status == PublicationStatus.Scheduled
-			select publication
-		).CountAsync(cancellationToken);
+		var usersTotal = await UsersTotalQuery(tenantId).CountAsync(cancellationToken);
+		var usersActive = await UsersActiveQuery(tenantId).CountAsync(cancellationToken);
+		var projectsCount = await ProjectsCountQuery(tenantId).CountAsync(cancellationToken);
+		var scheduledPublicationsCount = await ScheduledPublicationsCountQuery(tenantId)
+			.CountAsync(cancellationToken);
 
 		return new TenantUsageSnapshot {
 			TenantId = tenantId,
@@ -140,6 +113,74 @@ public class TenantUsageService : ITenantUsageService {
 			from tenant in _dbContext.Tenant.AsNoTracking()
 			where tenant.Id == tenantId && !tenant.IsDeleted
 			select tenant.LastActivityAt
+		);
+	}
+
+	/// <summary>
+	/// Returns the raw <c>UsersTotal</c> query so tests can instrument it
+	/// directly. Excludes soft-deleted memberships AND members whose owning
+	/// User row was soft-deleted.
+	/// </summary>
+	protected internal IQueryable<UserAccount> UsersTotalQuery(
+		Guid tenantId
+	) {
+		return (
+			from ua in _dbContext.UserAccount.AsNoTracking()
+			where ua.TenantId == tenantId
+				&& ua.Scope == AccountScope.Tenant
+				&& !ua.IsDeleted
+				&& !ua.User.IsDeleted
+			select ua
+		);
+	}
+
+	/// <summary>
+	/// Returns the raw <c>UsersActive</c> query so tests can instrument it
+	/// directly. Mirrors <see cref="UsersTotalQuery"/> plus an Active status
+	/// filter.
+	/// </summary>
+	protected internal IQueryable<UserAccount> UsersActiveQuery(
+		Guid tenantId
+	) {
+		return (
+			from ua in _dbContext.UserAccount.AsNoTracking()
+			where ua.TenantId == tenantId
+				&& ua.Scope == AccountScope.Tenant
+				&& !ua.IsDeleted
+				&& !ua.User.IsDeleted
+				&& ua.Status == AccountStatus.Active
+			select ua
+		);
+	}
+
+	/// <summary>
+	/// Returns the raw <c>ProjectsCount</c> query so tests can instrument it
+	/// directly. Excludes soft-deleted projects.
+	/// </summary>
+	protected internal IQueryable<Project> ProjectsCountQuery(
+		Guid tenantId
+	) {
+		return (
+			from project in _dbContext.Project.AsNoTracking()
+			where project.TenantId == tenantId
+				&& !project.IsDeleted
+			select project
+		);
+	}
+
+	/// <summary>
+	/// Returns the raw <c>ScheduledPublicationsCount</c> query so tests can
+	/// instrument it directly. Excludes soft-deleted publications.
+	/// </summary>
+	protected internal IQueryable<Publication> ScheduledPublicationsCountQuery(
+		Guid tenantId
+	) {
+		return (
+			from publication in _dbContext.Publication.AsNoTracking()
+			where publication.TenantId == tenantId
+				&& !publication.IsDeleted
+				&& publication.Status == PublicationStatus.Scheduled
+			select publication
 		);
 	}
 }
