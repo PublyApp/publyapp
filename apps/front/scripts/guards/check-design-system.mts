@@ -983,6 +983,11 @@ const stripCssComments = (text: string): string =>
 // a match whose start falls inside a comment and skip it — without ever
 // mutating the source text. Every `mode: 'source'` rule shares this one
 // filter, so stripping comments here closes the hole everywhere at once.
+// Only TypeScript files can be parsed for comment ranges — CSS and other
+// non-TS files have no TS comments to skip, so use an empty range set.
+const isTypeScriptFile = (relativePath: string): boolean =>
+	relativePath.endsWith('.ts') || relativePath.endsWith('.tsx');
+
 const scriptKindForPath = (relativePath: string): ts.ScriptKind =>
 	relativePath.endsWith('.tsx') ? ts.ScriptKind.TSX : ts.ScriptKind.TS;
 
@@ -1003,6 +1008,16 @@ const collectCommentRanges = (
 		true,
 		scriptKind,
 	);
+
+	// A file we cannot parse for comment ranges must not crash the scan —
+	// many test fixtures and edge-case files are intentionally malformed.
+	// Return an empty range set so the scan continues without comment
+	// skipping (a safe degradation: no false negatives, just no comment
+	// filtering for this file).
+	const { parseDiagnostics } = sourceFile as SourceFileWithParseDiagnostics;
+	if (parseDiagnostics.length > 0) {
+		return [];
+	}
 
 	const rangeSet = new Set<string>();
 	const ranges: Array<{ start: number; end: number }> = [];
@@ -2451,13 +2466,18 @@ export const scanFront2DesignSystem = async ({
 				// every mode:'source' rule — a match that starts inside a
 				// comment is a prose citation, not a real usage.
 				let commentRanges = commentRangesByRelativePath.get(relativePath);
-				if (!commentRanges) {
-					commentRanges = collectCommentRanges(
-						source,
-						scriptKindForPath(relativePath),
-					);
-					commentRangesByRelativePath.set(relativePath, commentRanges);
-				}
+					if (!commentRanges) {
+						// Only TypeScript files can be parsed for comment
+						// ranges — CSS and other non-TS files have no TS
+						// comments to skip, so use an empty range set.
+						commentRanges = isTypeScriptFile(relativePath)
+							? collectCommentRanges(
+									source,
+									scriptKindForPath(relativePath),
+								)
+							: [];
+						commentRangesByRelativePath.set(relativePath, commentRanges);
+					}
 
 				for (const pattern of rule.patterns) {
 					// Every mode-'source' rule in this file declares plain RegExp

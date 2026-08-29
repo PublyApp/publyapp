@@ -1563,7 +1563,7 @@ test('flags non-confirmation centered overlay wording and DialogPopup usage', as
 // comments included, so a test explaining that a `data-testid` lands on
 // `DialogPrimitive.Popup` satisfied the pattern and tripped a false
 // positive that turned supply-chain red.
-test('#1844: a forbidden primitive cited inside a comment is not a violation (false positive proof)', async () => {
+	void test('#1844: a forbidden primitive cited inside a comment is not a violation (false positive proof)', async () => {
 	const root = await makeFixture({
 		'src/components/ui/dialog-popup-comment.tsx': [
 			'// spread onto DialogPrimitive.Popup) and assert the role is `dialog`.',
@@ -1591,7 +1591,7 @@ test('#1844: a forbidden primitive cited inside a comment is not a violation (fa
 // `//` must STILL be detected. A naive comment-stripping regex
 // (`//.*$`) would eat the URL and the real usage with it, hiding a
 // genuine violation. The AST-based approach must not mutate source text.
-test('#1844: a real DialogPopup usage on the same line as a URL containing // is still detected (false negative guard)', async () => {
+	void test('#1844: a real DialogPopup usage on the same line as a URL containing // is still detected (false negative guard)', async () => {
 	const root = await makeFixture({
 		'src/components/ui/dialog-popup-with-url.tsx': [
 			'import { Dialog as DialogPrimitive } from \'@base-ui/react/dialog\';',
@@ -1617,7 +1617,7 @@ test('#1844: a real DialogPopup usage on the same line as a URL containing // is
 // #1844: a real usage inside a template literal containing /* */ must
 // still be detected — a naive `/\*[\s\S]*?\*\//` strip would eat the
 // template content and hide the violation.
-test('#1844: a real DialogPopup usage inside a template literal with /* */ is still detected', async () => {
+	void test('#1844: a real DialogPopup usage inside a template literal with /* */ is still detected', async () => {
 	const root = await makeFixture({
 		'src/components/ui/dialog-popup-template.tsx': [
 			'import { Dialog as DialogPrimitive } from \'@base-ui/react/dialog\';',
@@ -1642,7 +1642,7 @@ test('#1844: a real DialogPopup usage inside a template literal with /* */ is st
 // #1844 edge case: a regex literal containing // must not hide a real
 // usage on the next line. A naive `//.*$` strip would eat the regex and
 // the real usage with it.
-test('#1844: a real DialogPopup usage after a regex literal with // is still detected', async () => {
+	void test('#1844: a real DialogPopup usage after a regex literal with // is still detected', async () => {
 	const root = await makeFixture({
 		'src/components/ui/dialog-popup-regex.tsx': [
 			'import { Dialog as DialogPrimitive } from \'@base-ui/react/dialog\';',
@@ -1667,7 +1667,7 @@ test('#1844: a real DialogPopup usage after a regex literal with // is still det
 
 // #1844 edge case: a block comment /* */ containing a forbidden primitive
 // must not trigger a violation.
-test('#1844: a forbidden primitive inside a block comment is not a violation', async () => {
+	void test('#1844: a forbidden primitive inside a block comment is not a violation', async () => {
 	const root = await makeFixture({
 		'src/components/ui/dialog-popup-block-comment.tsx': [
 			'/* This component uses DialogPrimitive.Popup for modal behavior. */',
@@ -1694,7 +1694,7 @@ test('#1844: a forbidden primitive inside a block comment is not a violation', a
 // trivia scanner does not report JSX comments as comment ranges, so this
 // edge case is out of scope for the AST-based fix. The existing
 // no-dialog-popup-primitives rule already has a separate JSX-aware path.
-test('#1844: a forbidden primitive inside a JSX comment is not a violation (out of scope - JSX comments are not TS trivia)', async () => {
+	void test('#1844: a forbidden primitive inside a JSX comment is not a violation (out of scope - JSX comments are not TS trivia)', async () => {
 	const root = await makeFixture({
 		'src/components/ui/dialog-popup-jsx-comment.tsx': [
 			'export const Component = () => (',
@@ -1723,7 +1723,7 @@ test('#1844: a forbidden primitive inside a JSX comment is not a violation (out 
 });
 
 // #1844: no-raw-internal-anchor must not flag a raw anchor cited in a comment.
-test('#1844: a raw anchor cited inside a comment is not a violation', async () => {
+	void test('#1844: a raw anchor cited inside a comment is not a violation', async () => {
 	const root = await makeFixture({
 		'src/components/ui/anchor-comment.tsx': [
 			'// Use <a href="/staff/invitations"> for the back link',
@@ -1746,7 +1746,7 @@ test('#1844: a raw anchor cited inside a comment is not a violation', async () =
 });
 
 // #1844: no-single-star-route-glob must not flag a single-star glob cited in a comment.
-test('#1844: a single-star glob cited inside a comment is not a violation', async () => {
+	void test('#1844: a single-star glob cited inside a comment is not a violation', async () => {
 	const root = await makeFixture({
 		'e2e/specs/route-comment.spec.ts': [
 			'// page.route(\"/api/users/*\") is a bad pattern',
@@ -1770,7 +1770,7 @@ test('#1844: a single-star glob cited inside a comment is not a violation', asyn
 
 // #1844: a multi-line block comment containing a forbidden primitive
 // must not trigger a violation.
-test('#1844: a forbidden primitive inside a multi-line block comment is not a violation', async () => {
+	void test('#1844: a forbidden primitive inside a multi-line block comment is not a violation', async () => {
 	const root = await makeFixture({
 		'src/components/ui/dialog-popup-multiline-comment.tsx': [
 			'/*',
@@ -1792,6 +1792,107 @@ test('#1844: a forbidden primitive inside a multi-line block comment is not a vi
 		),
 		false,
 		'a DialogPopup mention inside a multi-line block comment must not be flagged',
+	);
+});
+
+// #1844: a forbidden primitive cited in an END-OF-LINE comment must not
+// trigger a violation. This exercises getTrailingCommentRanges — skipping
+// it would let a real end-of-line comment sail through unrecognized and
+// flag a false positive.
+void test('#1844: a forbidden primitive in an end-of-line comment is not a violation', async () => {
+	const root = await makeFixture({
+		'src/components/ui/dialog-popup-eol-comment.tsx': [
+			'export const helper = 1; // uses DialogPrimitive.Popup for modal behavior',
+		].join('\n'),
+	});
+
+	const violations = await scanFront2DesignSystem({
+		baseDir: root,
+		sourceDir: path.join(root, 'src'),
+	});
+
+	assert.equal(
+		violations.some(
+			(violation) => violation.ruleId === 'no-dialog-popup-primitives',
+		),
+		false,
+		'a DialogPopup mention in an end-of-line comment must not be flagged',
+	);
+});
+
+// #1844: a real raw anchor usage must STILL be detected — the false
+// negative guard for no-raw-internal-anchor. A naive comment-stripping
+// approach must not hide a genuine violation.
+void test('#1844: a real raw anchor usage is still detected (false negative guard for no-raw-internal-anchor)', async () => {
+	const root = await makeFixture({
+		'src/components/ui/real-anchor.tsx': [
+			'export const BackLink = () => <a href="/staff/invitations">Back</a>;',
+		].join('\n'),
+	});
+
+	const violations = await scanFront2DesignSystem({
+		baseDir: root,
+		sourceDir: path.join(root, 'src'),
+	});
+
+	assert.equal(
+		violations.some(
+			(violation) => violation.ruleId === 'no-raw-internal-anchor',
+		),
+		true,
+		'a real raw anchor usage must be detected',
+	);
+});
+
+// #1844: a real single-star route glob must STILL be detected — the
+// false negative guard for no-single-star-route-glob. A naive
+// comment-stripping approach must not hide a genuine violation.
+void test('#1844: a real single-star route glob is still detected (false negative guard for no-single-star-route-glob)', async () => {
+	const root = await makeFixture({
+		'e2e/specs/real-route-glob.spec.ts': [
+			'test("mock users", async ({ page }) => {',
+			'  await page.route("/api/users/*", (route) => route.fulfill({ body: "[]" }));',
+			'});',
+		].join('\n'),
+	});
+
+	const violations = await scanFront2DesignSystem({
+		baseDir: root,
+		sourceDirs: [path.join(root, 'e2e')],
+	});
+
+	assert.equal(
+		violations.some(
+			(violation) => violation.ruleId === 'no-single-star-route-glob',
+		),
+		true,
+		'a real single-star route glob usage must be detected',
+	);
+});
+
+// #1844 edge case: a match that starts at the very first character of
+// a comment must still be recognized as inside the comment. Changing
+// `index >= start` to `index > start` would miss this boundary and flag
+// a false positive.
+void test('#1844: a match at the very start of a comment is not a violation', async () => {
+	const root = await makeFixture({
+		'src/components/ui/dialog-popup-start-comment.tsx': [
+			'/*DialogPrimitive.Popup*/',
+			'export const helper = true;',
+		].join('\n'),
+	});
+
+	const violations = await scanFront2DesignSystem({
+		baseDir: root,
+		sourceDir: path.join(root, 'src'),
+	});
+
+	assert.equal(
+		violations.some(
+			(violation) => violation.ruleId === 'no-dialog-popup-primitives',
+		),
+		false,
+		'a match at the very start of a comment must not be flagged',
 	);
 });
 
