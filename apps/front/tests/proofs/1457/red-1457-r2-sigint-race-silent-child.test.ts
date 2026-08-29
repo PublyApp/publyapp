@@ -150,7 +150,7 @@
  * All three mutations make `bugPresent` true, so the assertion PASSES — the
  * "proof is stale" signal the CI step is meant to raise.
  *
- * ## Adverse mutation search — three axes, three mechanisms
+ * ## Adverse mutation search — three axes, two mechanisms
  *
  * `docs/guides/test-conventions.md` §« Mutation adverse » requires at least
  * three mutations on a DIFFERENT axis than the primary mutation, each with
@@ -162,18 +162,19 @@
  * |---|------|----------|-----------|
  * | A | **Source order** | Classic swap: handler line AFTER handshake line | Index comparison: `handlerIdx > handshakeIdx` → `classicSwap=true` |
  * | B | **Temporal directness** | Async deferral: handler wrapped in setImmediate/setTimeout/queueMicrotask/nextTick/promise/await/if | Structural: line does NOT start with `process.on(` → `handlerIsDeferred=true` |
- * | C | **Access syntax** | Bracket notation: `process['on']('SIGINT', ...)` or `process["on"]('SIGINT', ...)` | Structural: line does NOT start with `process.on(` → `handlerIsDeferred=true` (same mechanism as B, but a genuinely distinct axis — syntactic vs temporal) |
+ * | C | **Access syntax** | Bracket notation: `process['on']('SIGINT', ...)` or `process["on"]('SIGINT', ...)` | Structural: line does NOT start with `process.on(` → `handlerIsDeferred=true` (shared with B) |
+ *
+ * Axes B and C share the `isHandlerDeferred` mechanism but attack genuinely
+ * different dimensions of the bug — a temporal deferral and a syntactic
+ * variant are not the same axis. The practical consequence: if
+ * `isHandlerDeferred` ever ceases to match a legitimate direct `process.on(`
+ * call, axes B and C go BLIND together. The proof's coverage of the
+ * directness axis is only as strong as that one structural check.
  *
  * The axes are genuinely distinct:
  * - A: where the handler appears relative to the handshake (ordering)
  * - B: whether the handler is installed synchronously or deferred (temporal)
  * - C: whether the handler uses dot or bracket notation (syntactic)
- *
- * For each, the mechanism that catches it is named. Axes B and C share the
- * `isHandlerDeferred` mechanism but attack genuinely different dimensions of
- * the bug — a temporal deferral and a syntactic variant are not the same
- * axis. The r2 failure was that its B and C mutations were both on the
- * "directness" axis; here B is temporal-directness and C is access-syntax.
  *
  * ## Honest limits — what this proof does NOT cover
  *
