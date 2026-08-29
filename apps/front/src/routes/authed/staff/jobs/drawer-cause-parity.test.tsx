@@ -258,8 +258,8 @@ vi.mock('~/components/ui/dropdown-menu', () => {
 // `role="dialog"` with `data-slot="drawer"`. The default portal target is
 // `document.body` which jsdom supports. Tests find the drawer via
 // `findByTestId('staff-jobs-dead-letter-drawer')` (the data-testid is
-// spread onto DialogPrimitive.Popup) and assert the role is `dialog`. If
-// the inspected row never opens the drawer, the findByTestId rejects and
+// spread onto the Base UI dialog popup element) and assert the role is
+// `dialog`. If the inspected row never opens the drawer, the findByTestId rejects and
 // the test fails — that is the "le tiroir s'ouvre" guarantee.
 
 vi.mock('~/components/table/data-table', () => ({
