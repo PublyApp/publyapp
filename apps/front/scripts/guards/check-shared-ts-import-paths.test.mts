@@ -630,13 +630,17 @@ void test('RED: main() exits non-zero when a shim re-export is present (#1678 R5
 
 	const result = spawnSync(
 		'node',
-		['--experimental-strip-types', '-e', `
+		[
+			'--experimental-strip-types',
+			'-e',
+			`
 import { main } from '${path.resolve(here, './check-shared-ts-import-paths.mts').replace(/\\/g, '/')}';
 main({
   frontSrc: '${path.join(root, 'front-src').replace(/\\/g, '/')}',
   sharedTsSrc: '${path.join(root, 'shared-ts-src').replace(/\\/g, '/')}',
 });
-`],
+`,
+		],
 		{ encoding: 'utf8' },
 	);
 
@@ -652,13 +656,17 @@ void test('GREEN: main() exits zero when no shim is present (#1678 R5)', () => {
 
 	const result = spawnSync(
 		'node',
-		['--experimental-strip-types', '-e', `
+		[
+			'--experimental-strip-types',
+			'-e',
+			`
 import { main } from '${path.resolve(here, './check-shared-ts-import-paths.mts').replace(/\\/g, '/')}';
 main({
   frontSrc: '${path.join(root, 'front-src').replace(/\\/g, '/')}',
   sharedTsSrc: '${path.join(root, 'shared-ts-src').replace(/\\/g, '/')}',
 });
-`],
+`,
+		],
 		{ encoding: 'utf8' },
 	);
 
@@ -709,13 +717,17 @@ void test('RED: main() fails loudly when shared-ts segment derivation is empty (
 
 	const result = spawnSync(
 		'node',
-		['--experimental-strip-types', '-e', `
+		[
+			'--experimental-strip-types',
+			'-e',
+			`
 import { main } from '${path.resolve(here, './check-shared-ts-import-paths.mts').replace(/\\/g, '/')}';
 main({
   frontSrc: '${path.join(root, 'front-src').replace(/\\/g, '/')}',
   sharedTsSrc: '${path.join(root, 'shared-ts-src').replace(/\\/g, '/')}',
 });
-`],
+`,
+		],
 		{ encoding: 'utf8' },
 	);
 
@@ -736,13 +748,17 @@ void test('GREEN: main() exits zero when segment derivation is non-empty and tre
 	// scripts, etc. — derivation is non-empty and the tree is clean, so main() passes.
 	const result = spawnSync(
 		'node',
-		['--experimental-strip-types', '-e', `
+		[
+			'--experimental-strip-types',
+			'-e',
+			`
 import { main } from '${path.resolve(here, './check-shared-ts-import-paths.mts').replace(/\\/g, '/')}';
 main({
   frontSrc: '${path.join(root, 'front-src').replace(/\\/g, '/')}',
   sharedTsSrc: '${path.join(root, 'shared-ts-src').replace(/\\/g, '/')}',
 });
-`],
+`,
+		],
 		{ encoding: 'utf8' },
 	);
 
@@ -765,13 +781,17 @@ void test('REGRESSION: main() re-derives segments from the overriden sharedTsSrc
 	const root = makeSandbox();
 	const result = spawnSync(
 		'node',
-		['--experimental-strip-types', '-e', `
+		[
+			'--experimental-strip-types',
+			'-e',
+			`
 import { main } from '${path.resolve(here, './check-shared-ts-import-paths.mts').replace(/\\/g, '/')}';
 main({
   frontSrc: '${path.join(root, 'front-src').replace(/\\/g, '/')}',
   sharedTsSrc: '${realSharedTsSrc.replace(/\\/g, '/')}',
 });
-`],
+`,
+		],
 		{ encoding: 'utf8' },
 	);
 	assert.equal(
@@ -798,13 +818,17 @@ void test('RED: main() fails loudly when derived segments are missing expected s
 
 	const result = spawnSync(
 		'node',
-		['--experimental-strip-types', '-e', `
+		[
+			'--experimental-strip-types',
+			'-e',
+			`
 import { main } from '${path.resolve(here, './check-shared-ts-import-paths.mts').replace(/\\/g, '/')}';
 main({
   frontSrc: '${path.join(root, 'front-src').replace(/\\/g, '/')}',
   sharedTsSrc: '${path.join(root, 'shared-ts-src').replace(/\\/g, '/')}',
 });
-`],
+`,
+		],
 		{ encoding: 'utf8' },
 	);
 

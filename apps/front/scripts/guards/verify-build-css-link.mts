@@ -9,11 +9,7 @@
  * over every emitted `.js`/`.mjs`/`.cjs`/`.html` in dist/client AND dist/server — plus the
  * secondary source scan, which names a file and a line the bundle scan cannot.
  */
-import {
-	readFileSync,
-	readdirSync,
-	type Dirent,
-} from 'node:fs';
+import { readFileSync, readdirSync, type Dirent } from 'node:fs';
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
 

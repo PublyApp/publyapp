@@ -10,11 +10,7 @@ import { compile } from '@tailwindcss/node';
 import { Scanner } from '@tailwindcss/oxide';
 import postcss from 'postcss';
 import { ts } from 'ts-morph';
-import {
-	createBuilder,
-	isCSSRequest,
-	type Plugin,
-} from 'vite';
+import { createBuilder, isCSSRequest, type Plugin } from 'vite';
 
 /**
  * Shared type aliases for the guard. The guard is a standalone `.mts` script
@@ -58,7 +54,10 @@ type ScriptBindingDeclaration =
 	| ts.NamespaceImport
 	| ts.ImportSpecifier;
 
-export type RawImportBindingKind = 'default' | 'namespace' | 'named-non-default';
+export type RawImportBindingKind =
+	| 'default'
+	| 'namespace'
+	| 'named-non-default';
 export type RawImportBindingEntry = {
 	specifier: string;
 	declaration: ScriptBindingDeclaration;
@@ -238,10 +237,14 @@ const sweepBuildDirectories = (directories: string[]): void => {
 	// The payload itself still fails loud where it can be seen: it runs with
 	// --input-type=module (so a stray `require` throws instead of silently
 	// working) and exits non-zero on any rm() rejection.
-	const child = spawn(process.execPath, ['--input-type=module', '-e', payload], {
-		stdio: ['ignore', 'ignore', 'ignore'],
-		detached: true,
-	});
+	const child = spawn(
+		process.execPath,
+		['--input-type=module', '-e', payload],
+		{
+			stdio: ['ignore', 'ignore', 'ignore'],
+			detached: true,
+		},
+	);
 	child.unref();
 };
 for (const signal of ['SIGINT', 'SIGTERM']) {
@@ -601,7 +604,8 @@ const scaleVarReferenceToken = (value: string): string | null => {
 	return null;
 };
 
-const isScaleVarReference = (value: string): boolean => scaleVarReferenceToken(value) != null;
+const isScaleVarReference = (value: string): boolean =>
+	scaleVarReferenceToken(value) != null;
 
 // First top-level `:` — the property/value separator. `:` inside parentheses,
 // brackets, strings, or escapes never counts, so `url(http://…)` and
@@ -1146,9 +1150,9 @@ export const scanZIndexFile = ({
 			const bindings = importClause?.namedBindings;
 			if (bindings != null && ts.isNamespaceImport(bindings)) {
 				if (bindings.name.text === name) {
-				return bindings;
-			}
-			return null;
+					return bindings;
+				}
+				return null;
 			}
 			if (bindings != null && ts.isNamedImports(bindings)) {
 				return (
@@ -1470,10 +1474,7 @@ export const scanZIndexFile = ({
 						(whenFalse?.partial ?? false),
 				};
 			}
-			if (
-				ts.isCallExpression(expression) &&
-				isStringCoercion(expression)
-			) {
+			if (ts.isCallExpression(expression) && isStringCoercion(expression)) {
 				return staticStringValues(expression.arguments[0], visitedConsts);
 			}
 			if (
@@ -1629,11 +1630,7 @@ export const scanZIndexFile = ({
 			if (result.overflow) {
 				return { kind: 'overflow' };
 			}
-			if (
-				result.values == null ||
-				result.partial ||
-				result.values.size !== 1
-			) {
+			if (result.values == null || result.partial || result.values.size !== 1) {
 				return { kind: 'not-static' };
 			}
 			return { kind: 'value', value: [...result.values][0] };
@@ -1707,8 +1704,8 @@ export const scanZIndexFile = ({
 			const fixpoint = resolveModuleConstFixpoint(expression);
 			if (fixpoint != null && ts.isObjectLiteralExpression(fixpoint)) {
 				return fixpoint;
-				}
-				return null;
+			}
+			return null;
 		};
 		const staticObjectMemberNode = (
 			object: ts.ObjectLiteralExpression,
@@ -1882,9 +1879,7 @@ export const scanZIndexFile = ({
 					// string, so the value stays unprovable either way.
 					if (property.initializer == null) {
 						valueNode = null;
-					} else if (
-						ts.isJsxExpression(property.initializer)
-					) {
+					} else if (ts.isJsxExpression(property.initializer)) {
 						valueNode = property.initializer.expression ?? null;
 					} else {
 						valueNode = property.initializer;
@@ -2111,9 +2106,7 @@ export const scanZIndexFile = ({
 			}
 			return nearestBinding(owner, owner.text) == null;
 		};
-		const staticStyleElementCss = (
-			node: TsNode,
-		): StaticStylePayload | null => {
+		const staticStyleElementCss = (node: TsNode): StaticStylePayload | null => {
 			// Both JSX spellings carry the same payload: a `<style>` element
 			// and a self-closing `<style … />` are the same DOM node, so the
 			// `dangerouslySetInnerHTML` attribute lives in a different
@@ -2192,10 +2185,7 @@ export const scanZIndexFile = ({
 			for (const child of node.children) {
 				if (ts.isJsxText(child)) {
 					partSets.push(new Set([child.text]));
-				} else if (
-					ts.isJsxExpression(child) &&
-					child.expression != null
-				) {
+				} else if (ts.isJsxExpression(child) && child.expression != null) {
 					const result = staticStringValues(child.expression);
 					const values = result?.values ?? null;
 					// A child that also reaches a recorded raw binding is not
@@ -2585,10 +2575,7 @@ export const scanZIndexFile = ({
 					unresolved: whenTrue.unresolved || whenFalse.unresolved,
 				};
 			}
-			if (
-				ts.isCallExpression(expression) &&
-				isStringCoercion(expression)
-			) {
+			if (ts.isCallExpression(expression) && isStringCoercion(expression)) {
 				return rawBindingSpecifiersForExpression(
 					expression.arguments[0],
 					visitedConsts,
@@ -3559,10 +3546,7 @@ export const scanZIndexFile = ({
 				if (!ts.isBindingElement(element)) {
 					continue;
 				}
-				if (
-					ts.isIdentifier(element.name) &&
-					element.name.text === name
-				) {
+				if (ts.isIdentifier(element.name) && element.name.text === name) {
 					return element;
 				}
 				if (
@@ -3597,26 +3581,24 @@ export const scanZIndexFile = ({
 				return explicit.text;
 			}
 			if (ts.isIdentifier(element.name)) {
-		return element.name.text;
-	}
-	return null;
+				return element.name.text;
+			}
+			return null;
 		};
 		// The named type references of a parameter/const annotation, unwrapped
 		// through nullable unions: `HTMLElement`, `HTMLElement | null`, and
 		// `CSSStyleDeclaration` are the identities this guard can prove. An
 		// empty list means the annotation (if any) names nothing the guard
 		// understands — the identity is unprovable.
-		const namedTypeCandidates = (
-			type: TsNode | null | undefined,
-		): string[] => {
+		const namedTypeCandidates = (type: TsNode | null | undefined): string[] => {
 			if (type == null) {
 				return [];
 			}
 			if (ts.isTypeReferenceNode(type)) {
 				if (ts.isIdentifier(type.typeName)) {
-				return [type.typeName.text];
-			}
-			return [];
+					return [type.typeName.text];
+				}
+				return [];
 			}
 			if (ts.isUnionTypeNode(type) || ts.isIntersectionTypeNode(type)) {
 				return type.types.flatMap(namedTypeCandidates);
@@ -3629,9 +3611,7 @@ export const scanZIndexFile = ({
 		//   - a DOM-element-typed value carries the accessor under `.style`
 		//     and has no `setProperty` member of its own — a direct call on
 		//     it is provably not a write.
-		const receiverIdentityFromTypeNames = (
-			names: ReadonlyArray<string>,
-		) => {
+		const receiverIdentityFromTypeNames = (names: ReadonlyArray<string>) => {
 			if (
 				names.some(
 					(name) =>
@@ -3748,9 +3728,9 @@ export const scanZIndexFile = ({
 				typeAnnotationNames(owner),
 			);
 			if (identity == null) {
-		return 'unresolved';
-	}
-	return 'style-decl';
+				return 'unresolved';
+			}
+			return 'style-decl';
 		};
 		// Shared member-name decision for both spellings of a `.style`
 		// member read: a resolved member that is not `style` is provably not
@@ -3966,8 +3946,10 @@ export const scanZIndexFile = ({
 							callee.expression,
 							visited,
 						);
-						if (receiverKind === 'style-decl' ||
-							receiverKind === 'unresolved') {
+						if (
+							receiverKind === 'style-decl' ||
+							receiverKind === 'unresolved'
+						) {
 							return 'overflow';
 						}
 						return 'other';
@@ -4017,10 +3999,7 @@ export const scanZIndexFile = ({
 			}
 			return 'other';
 		};
-		const recordScaleTokenDefinition = (
-			name: string | null,
-			node: TsNode,
-		) => {
+		const recordScaleTokenDefinition = (name: string | null, node: TsNode) => {
 			if (name == null || !name.startsWith('--publy-z-')) {
 				return;
 			}
@@ -4228,7 +4207,9 @@ const describeCssContainer = (node: PostcssNode): CssContainerDescription => {
 	};
 };
 
-const cssAncestorsFor = (declaration: PostcssNode): CssContainerDescription[] => {
+const cssAncestorsFor = (
+	declaration: PostcssNode,
+): CssContainerDescription[] => {
 	const ancestors: CssContainerDescription[] = [];
 	let node: PostcssNode | null | undefined =
 		declaration.parent?.type === 'rule'
@@ -4244,8 +4225,7 @@ const cssAncestorsFor = (declaration: PostcssNode): CssContainerDescription[] =>
 const cssAncestorsEqual = (
 	left: CssContainerDescription[],
 	right: CssContainerDescription[],
-): boolean =>
-	JSON.stringify(left) === JSON.stringify(right);
+): boolean => JSON.stringify(left) === JSON.stringify(right);
 
 // Parse the compiled stylesheet with a CSS grammar and return each real
 // declaration. PostCSS keeps comment syntax, nested rules, at-rules, and

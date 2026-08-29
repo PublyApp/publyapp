@@ -568,9 +568,7 @@ interface FontFaceDeclaration {
 	ranges: UnicodeRange[];
 }
 
-const parseFontFaceDeclarations = (
-	cssFile: string,
-): FontFaceDeclaration[] => {
+const parseFontFaceDeclarations = (cssFile: string): FontFaceDeclaration[] => {
 	const declarations: FontFaceDeclaration[] = [];
 	const cssText = readFileSync(cssFile, 'utf8');
 	const faceRegex = /@font-face\s*{([^}]*)}/gs;

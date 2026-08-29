@@ -189,10 +189,10 @@ const declaredProofTests = (): string[] => {
 	// message (precedent: #1802).
 	let isShallow: string;
 	try {
-		isShallow = execSync(
-			`git -C "${ROOT}" rev-parse --is-shallow-repository`,
-			{ encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] },
-		).trim();
+		isShallow = execSync(`git -C "${ROOT}" rev-parse --is-shallow-repository`, {
+			encoding: 'utf-8',
+			stdio: ['pipe', 'pipe', 'pipe'],
+		}).trim();
 	} catch (err) {
 		// If we cannot even determine shallow status, fail loud — an input
 		// we cannot parse is not replaced by a compliant default.
@@ -521,7 +521,10 @@ for (const test of replayable) {
 		// process → ERROR verdict → must increment unexpectedPasses, NOT
 		// failures. Misclassifying here is the exact defect class #1784
 		// was designed to eliminate.
-		const counts = consumeVerdict({ failures, unexpectedPasses, corrupted }, result.verdict);
+		const counts = consumeVerdict(
+			{ failures, unexpectedPasses, corrupted },
+			result.verdict,
+		);
 		failures = counts.failures;
 		unexpectedPasses = counts.unexpectedPasses;
 		corrupted = counts.corrupted;

@@ -69,9 +69,8 @@ const FIXTURE_APP_CSS = `@import 'tailwindcss' source('./src');
 // the shipped CLI runs, not a test-file copy of it. A regression in the real
 // plugin's extension test, query parsing, or path recording reds these tests
 // instead of sailing past a stand-in.
-const buildViteFixture = async (
-	root: string,
-): Promise<ProductionBuildResult> => buildProductionApp(root);
+const buildViteFixture = async (root: string): Promise<ProductionBuildResult> =>
+	buildProductionApp(root);
 
 const runFixtureGuard = async (
 	files: Record<string, string>,
@@ -230,9 +229,7 @@ test('guard structure (round 23 B1): every staticString() consumption routes thr
 		node.forEachChild(visit);
 	};
 	visit(sourceFile);
-	const requireFunnel = (
-		value: ts.ArrowFunction | null,
-	): ts.ArrowFunction => {
+	const requireFunnel = (value: ts.ArrowFunction | null): ts.ArrowFunction => {
 		assert.ok(value, 'the staticString funnel must exist');
 		return value;
 	};
@@ -256,9 +253,7 @@ test('guard structure (round 23 B1): every staticString() consumption routes thr
 	);
 	assert.ok(funnelCalls.length >= 7, 'every consumer must use the funnel');
 	// Every raw-projection call site must sit inside the funnel body.
-	const enclosingFunction = (
-		call: ts.CallExpression,
-	): ts.Node | null => {
+	const enclosingFunction = (call: ts.CallExpression): ts.Node | null => {
 		let cursor: ts.Node | null = call.parent;
 		while (cursor != null) {
 			if (
@@ -392,7 +387,11 @@ test('e2e: unknown scale utility is rejected while canonical utility stays green
 	});
 	assert.ok(
 		violations.some(
-			({ file, ruleId, source }: {
+			({
+				file,
+				ruleId,
+				source,
+			}: {
 				file?: string;
 				ruleId: string;
 				source?: string;
@@ -3110,10 +3109,7 @@ test('raw sinks (round 17 I3): a non-default named element is recorded by name, 
 	// The walk resolves each binding exactly: the non-default element ships
 	// nothing (green), the `{ default as x }` spelling is the default
 	// binding and reds at the raw file.
-	const walk = (
-		content: string,
-		files: Record<string, string>,
-	) =>
+	const walk = (content: string, files: Record<string, string>) =>
 		scanZIndexFile({
 			scanner,
 			relativePath: 'probe.tsx',
@@ -3972,10 +3968,7 @@ test("raw sinks: the import binding's sink, never the bytes, decides the walk", 
 	// binding is never mistaken for the raw import, and the namespace import
 	// spelling resolves through `.default`.
 	const baseDir = '/tmp/zindex-r9-unit';
-	const walk = (
-		content: string,
-		files: Record<string, string>,
-	) =>
+	const walk = (content: string, files: Record<string, string>) =>
 		scanZIndexFile({
 			scanner,
 			relativePath: 'probe.tsx',
@@ -5690,9 +5683,9 @@ test('unmodified repository passes with zero violations', async () => {
 		assert.ok(value != null, 'the production build must be captured');
 		return value;
 	};
-	const scripts = requireCapturedBuild(
-		capturedBuild,
-	).authoredScriptPaths.map((filePath: string) => path.resolve(filePath));
+	const scripts = requireCapturedBuild(capturedBuild).authoredScriptPaths.map(
+		(filePath: string) => path.resolve(filePath),
+	);
 	assert.ok(
 		scripts.includes(path.resolve(frontDir, 'src/server.ts')),
 		'src/server.ts must be recorded as build-reachable (SSR environment)',

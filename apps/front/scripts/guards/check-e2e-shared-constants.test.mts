@@ -34,10 +34,7 @@ const write = (name: string, contents: string): void => {
 };
 
 write('inline.ts', "export const INLINE_NAME = 'a';\n");
-write(
-	'separate.ts',
-	"const SEPARATE_NAME = 'b';\nexport { SEPARATE_NAME };\n",
-);
+write('separate.ts', "const SEPARATE_NAME = 'b';\nexport { SEPARATE_NAME };\n");
 write('func.ts', 'export function FUNC_NAME() {\n\treturn 1;\n}\n');
 write('klass.ts', 'export class CLASS_NAME {}\n');
 write('type-only.ts', 'export type TYPE_ONLY_NAME = string;\n');

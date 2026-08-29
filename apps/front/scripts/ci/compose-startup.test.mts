@@ -7,13 +7,7 @@ import { fileURLToPath } from 'node:url';
 import { parse } from 'yaml';
 
 const scriptsDirectory = path.dirname(fileURLToPath(import.meta.url));
-const repositoryRoot = path.resolve(
-	scriptsDirectory,
-	'..',
-	'..',
-	'..',
-	'..',
-);
+const repositoryRoot = path.resolve(scriptsDirectory, '..', '..', '..', '..');
 const composePath = path.join(
 	repositoryRoot,
 	'apps',
