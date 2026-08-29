@@ -22,8 +22,10 @@
 		"a contributor from lowering pinned_step_ids in the same commit as the",
 		"removal.",
 		"",
-		"pinned_step_ids and steps{} must contain exactly the same set of IDs.",
-		"A mismatch fails regeneration with a named error.",
+		"pinned_step_ids is a subset of steps{}. A pinned step dropped from",
+		"steps{} is a floor-lowering attack. Extra steps in steps{} that exist",
+		"in ci-gate-manifest.json are legitimate growth (the ratchet absorbs",
+		"them). Extra steps NOT in the manifest are phantom steps — tampering.",
 		"",
 		"Regenerate with: node packages/scripts-ts/src/gen-reason-ref.ts",
 		"See docs/guides/local-ci-gate.md."
