@@ -412,7 +412,7 @@ describe('detail skeleton ↔ content correspondence (#1558)', () => {
 			// stacked EntityHeaderSkeleton has 3 lines, and each loaded
 			// card has 3 text blocks (name + description + member/permission
 			// meta) plus a chip and an actions button.
-			import('~/components/ui/detail-skeleton').then(
+			void import('~/components/ui/detail-skeleton').then(
 				({ EntityHeaderSkeleton }) => {
 					const { container } = render(
 						<EntityHeaderSkeleton
@@ -433,7 +433,7 @@ describe('detail skeleton ↔ content correspondence (#1558)', () => {
 			// Loaded side: the real ProfileCard component (the consumer
 			// referenced by the third surface) renders exactly the
 			// corresponding content blocks per card.
-			import('~/routes/authed/staff/tenants/$tenantId/profiles/_profile-card').then(
+			void import('~/routes/authed/staff/tenants/$tenantId/profiles/_profile-card').then(
 				({ ProfileCard }) => {
 					const sampleProfile = {
 						id: 'profile-1',
