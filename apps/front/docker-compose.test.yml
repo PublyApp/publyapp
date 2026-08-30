@@ -34,7 +34,7 @@ x-api-test-environment: &api-test-environment
   PUBLISHING_FAKE_PROVIDER: "true"
   # Pinned like every other non-dev booting surface (quality-gate.yml, the
   # Dockerfile stages): loopback-only, matches AppEnvironment's default.
-  TRUSTED_PROXY_CIDRS: "127.0.0.1/32,::1/128"
+  TRUSTED_PROXY_CIDRS: '127.0.0.1/32,::1/128'
   STAFF_OWNER_EMAIL: owner@publyapp.local
   STAFF_OWNER_BOOTSTRAP_CODE: e2e-disabled
   APP_NAME: PublyApp
@@ -88,7 +88,11 @@ services:
       POSTGRES_PASSWORD: password
       POSTGRES_DB: publyapp_db
     healthcheck:
-      test: ["CMD-SHELL", "PGPASSWORD=\"$${POSTGRES_PASSWORD}\" psql -h 127.0.0.1 -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\" -tAc 'SELECT 1' | grep -qx 1"]
+      test:
+        [
+          'CMD-SHELL',
+          'PGPASSWORD="$${POSTGRES_PASSWORD}" psql -h 127.0.0.1 -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}" -tAc ''SELECT 1'' | grep -qx 1',
+        ]
       interval: 5s
       timeout: 5s
       retries: 20
@@ -143,7 +147,11 @@ services:
       migrate:
         condition: service_completed_successfully
     healthcheck:
-      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://127.0.0.1:5000/health || exit 1"]
+      test:
+        [
+          'CMD-SHELL',
+          'wget --no-verbose --tries=1 --spider http://127.0.0.1:5000/health || exit 1',
+        ]
       interval: 5s
       timeout: 5s
       retries: 20
@@ -160,7 +168,7 @@ services:
       api:
         condition: service_healthy
     ports:
-      - "127.0.0.1:${E2E_PORT_TOXIPROXY:-8474}:8474"
+      - '127.0.0.1:${E2E_PORT_TOXIPROXY:-8474}:8474'
     volumes:
       - ./deploy/toxiproxy/toxiproxy.json:/config/toxiproxy.json:ro
     networks:
@@ -183,9 +191,9 @@ services:
     healthcheck:
       test:
         [
-          "CMD",
-          "node",
-          "-e",
+          'CMD',
+          'node',
+          '-e',
           "fetch('http://127.0.0.1:8800/__counter').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
         ]
       interval: 5s
@@ -193,7 +201,7 @@ services:
       retries: 10
       start_period: 5s
     ports:
-      - "127.0.0.1:${E2E_PORT_REQUEST_COUNTER:-8800}:8800"
+      - '127.0.0.1:${E2E_PORT_REQUEST_COUNTER:-8800}:8800'
     networks:
       - publyapp-network
 
@@ -209,14 +217,14 @@ services:
       - --ping=true
       - --api.dashboard=false
     healthcheck:
-      test: ["CMD", "traefik", "healthcheck", "--ping"]
+      test: ['CMD', 'traefik', 'healthcheck', '--ping']
       interval: 5s
       timeout: 3s
       retries: 10
       start_period: 5s
     ports:
-      - "127.0.0.1:${E2E_PORT_TRAEFIK_WEB:-8080}:80"
-      - "127.0.0.1:${E2E_PORT_TRAEFIK_WEBSECURE:-8443}:443"
+      - '127.0.0.1:${E2E_PORT_TRAEFIK_WEB:-8080}:80'
+      - '127.0.0.1:${E2E_PORT_TRAEFIK_WEBSECURE:-8443}:443'
     volumes:
       - ./traefik-dynamic.test.yml:/etc/traefik/dynamic.yml:ro
     networks:
@@ -234,7 +242,7 @@ services:
       # so the e2e suite can cover InterZod's localized built-in validation
       # messages, which no other route exercises.
       args:
-        VITE_FEATURE_FIELD_VALIDATION_DEMO_ENABLED: "true"
+        VITE_FEATURE_FIELD_VALIDATION_DEMO_ENABLED: 'true'
     image: ${E2E_IMAGE_NS:-ghcr.io/publyapp/publyapp-e2e}-front:${E2E_IMAGE_TAG:-test}
     environment:
       NODE_ENV: production
@@ -246,6 +254,11 @@ services:
       # canonical/Open Graph URLs. This stack runs NODE_ENV=production, so it
       # must declare it — it matches playwright.config.ts's default baseURL.
       PUBLIC_ORIGIN: https://front.localhost:${E2E_PORT_TRAEFIK_WEBSECURE:-8443}
+      # Traefik's IP is discovered at runtime (see server.mjs discoverTraefikIp).
+      # Docker allocates a free subnet, so two concurrent stacks never collide.
+      # Only Traefik's discovered IP is trusted for x-forwarded-* headers;
+      # a direct request from any other IP falls back to socket origin.
+      E2E_DISCOVER_TRUSTED_PROXY: 'true'
     depends_on:
       request-counter:
         condition: service_healthy

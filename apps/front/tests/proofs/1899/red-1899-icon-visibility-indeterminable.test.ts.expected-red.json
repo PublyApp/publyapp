@@ -1,0 +1,15 @@
+{
+	"$schema": "../expected-red.schema.json",
+	"_comment": "Per-test kept-red expectation manifest for the icon-visibility indeterminate-input proof (issue #1899). Read by apps/front/scripts/ci/run-preuves.mts BEFORE classification. Each test declared in `expectedRed` MUST fail with an AssertionError on correct code. If a declared kept-red test PASSES, the runner fails CI with verdict CORRUPT PROOF. This manifest was missing when #1910 merged: the F1 invariant test that requires it did not exist on that branch, so the PR was green, and the omission only surfaced on branches cut from the develop that carries both.",
+	"expectedRed": [
+		{
+			"testName": "DEFECT: a detached node silently passes the guard (unanalyzable input treated as visible)",
+			"why": "The test asserts `expect(() => assertIconIsVisible(icon, ...)).not.toThrow()` on a node deliberately never attached to the document. On correct code the guard raises because the node is not connected — it refuses to answer about a style it could not read — so `.not.toThrow()` fails with an AssertionError. If this test PASSES, the guard has gone back to reading jsdom's plausible default and answering \"visible\" without having measured anything."
+		},
+		{
+			"testName": "DEFECT: unresolved (empty) computed values silently pass the guard (treated as \"nothing hides it\")",
+			"why": "The test attaches the icon and injects a reader returning the engine's unresolved marker (empty strings for visibility, display and opacity), then asserts `.not.toThrow()`. On correct code the guard raises because the style is unresolved, so the assertion fails with an AssertionError. If this test PASSES, the guard has gone back to scanning empty strings for `hidden`, `none` and `0`, finding none, and concluding \"visible\" — substituting a compliant default for a value it cannot read."
+		}
+	],
+	"measuredAgainst": "331905f1c74b565131cf534d8e402f7b0a50c8e6"
+}

@@ -1,21 +1,33 @@
 import { fileURLToPath } from 'node:url';
 
 import { serve } from 'srvx';
-import { staticMiddleware } from 'srvx/static';
+import { staticMiddleware as createStaticMiddleware } from 'srvx/static';
 
-import handler, { validateRuntimeEnv } from './dist/server/server.js';
+// #1758: the built server bundle is imported through the `#server-build`
+// package-imports alias so the dedicated tsconfig.server.json can typecheck
+// this file without dragging build output into the program. Node resolves the
+// alias's `default` condition to `./dist/server/server.js` at runtime; the
+// `types` condition (resolved only by tsc) points at types/server-build.d.ts.
+import handler, { validateRuntimeEnv } from '#server-build';
 
 validateRuntimeEnv();
 
 const __dirname = fileURLToPath(new URL('.', import.meta.url));
 const port = Number(process.env.PORT ?? 3000);
 
-const staticHandler = staticMiddleware({ dir: `${__dirname}/dist/client` });
+const staticFileHandler = createStaticMiddleware({
+	dir: `${__dirname}/dist/client`,
+});
+
+const { resolveTrustProxyFromEnv } = await import('./trust-proxy.mjs');
+
+const trustProxy = await resolveTrustProxyFromEnv();
 
 const server = serve({
 	port,
 	hostname: process.env.HOST ?? '0.0.0.0',
-	middleware: [staticHandler],
+	trustProxy,
+	middleware: [staticFileHandler],
 	fetch: (request) => handler.fetch(request),
 });
 

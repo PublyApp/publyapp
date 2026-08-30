@@ -990,15 +990,26 @@ export const scanFrontSrcForBannedImports = (
 		// files listed in EXEMPT_FILES. A hardcoded `||` clause in isExempt
 		// (the r6/r7 bypass) would exempt a real file not in EXEMPT_FILES.
 		// This assertion walks the actual scanned tree and fails if any
-		// exempted .ts/.tsx file is not in the pinned set — making the guard
-		// itself red on the bypass, not just the test suite.
+		// exempted file in SCANNED_EXTENSIONS is not in the pinned set —
+		// making the guard itself red on the bypass, not just the test suite.
+		//
+		// R9 (#1851): the previous version only walked `.ts`/`.tsx`. A bypass
+		// on a `.mts`/`.cts`/`.ctsx`/`.mjs`/`.cjs` file (all in
+		// SCANNED_EXTENSIONS) was invisible to the assertion. The fix iterates
+		// every scanned extension so the assertion's perimeter matches the
+		// guard's scan perimeter.
 		const normalizedExemptions = [...EXEMPT_FILES].map((e) =>
 			e.split(path.sep).join('/'),
 		);
 		const illicitExemptions: string[] = [];
 		for (const file of files) {
 			const ext = path.extname(file).toLowerCase();
-			if (ext !== '.ts' && ext !== '.tsx') {
+			// Match the guard's scan surface exactly: extensionless files are
+			// scanned (fail-closed), and every SCANNED_EXTENSIONS extension
+			// is scanned. Skip only files with a non-code extension — those
+			// were never scanned by walk() in the first place.
+			const isScanned = ext.length === 0 || SCANNED_EXTENSIONS.has(ext);
+			if (!isScanned) {
 				continue;
 			}
 			const normalized = path.relative(root, file).split(path.sep).join('/');

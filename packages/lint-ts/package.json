@@ -16,6 +16,7 @@
 	"devDependencies": {
 		"@oxlint/plugins": "1.80.0",
 		"oxlint": "1.80.0",
+		"ts-morph": "28.0.0",
 		"vitest": "4.1.11"
 	}
 }

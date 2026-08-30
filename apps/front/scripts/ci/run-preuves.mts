@@ -142,19 +142,19 @@ const REPLAYABLE_EXTENSIONS = ['.test.ts', '.test.tsx'] as const;
  * validating that each declared file is replayable.
  *
  * In CI, GITHUB_BASE_REF and GITHUB_HEAD_REF are available. We use a
- * two-dot diff (refs/remotes/origin/<base>..HEAD) to list every file that
- * differs between the base branch and the PR's HEAD. This is robust even
- * when the base ref and HEAD share no merge base (a diverged branch), where
- * a three-dot diff would fail with "no merge base". The two-dot form may
- * include base-branch changes introduced since the fork — conservatively
- * treating them as declared — but it never silently misses a proof the PR
- * actually added.
+ * three-dot diff (`git diff <mergeBase>...HEAD`) to list every file that
+ * differs between the merge base and the PR's HEAD. The three-dot form
+ * shows ONLY changes introduced by the PR branch — not base-branch changes
+ * made since the fork — so a behind-HEAD branch does not fail with spurious
+ * "declared proof" noise. Computing the merge base first also validates that
+ * the base and HEAD actually share history; a diverged branch (no merge base)
+ * fails loud naming the cause, never silently becoming "no proofs declared".
  *
  * GitHub's checkout action fetches only the PR's own ref by default — the
  * base branch's remote ref (refs/remotes/origin/<base>) is NOT available
- * until we fetch it. We fetch it explicitly before the diff so the guard
- * works on a clean CI checkout. The fetch is scoped to the single base ref
- * and is fast (a few hundred KB at most).
+ * until we fetch it. We fetch it explicitly before the merge-base check so
+ * the guard works on a clean CI checkout. The fetch is scoped to the single
+ * base ref and is fast (a few hundred KB at most).
  *
  * The workflow that runs this script (front-ci.yml) uses `fetch-depth: 0`
  * so the checkout is never shallow. But this script is also run locally and
@@ -317,8 +317,24 @@ const declaredProofTests = (): string[] => {
 				);
 			}
 
+			// The diff must be computed against the FORK POINT (the mergeBase
+			// commit SHA validated above), never against the moving base REF.
+			// `git diff <baseRef>..HEAD` is a TREE diff of the CURRENT base ref
+			// against HEAD, so a proof file merged to develop AFTER this branch
+			// forked shows up as a DELETED entry and gets declared as "this PR's
+			// proof" — replay then fails on ENOENT (measured in r4 validation: an
+			// advanced origin/develop mis-declared 4 foreign proof files and
+			// reddened the step; measured again on #1930 and #1873, which were red
+			// on a proof neither branch had ever touched).
+			//
+			// The three-dot form below (`<mergeBase>...HEAD`) lists ONLY what this
+			// branch introduced. With mergeBase on the left the two forms are
+			// equivalent — three-dot re-derives the same merge base — but the
+			// three-dot spelling states the intent, and it is the form the #1865
+			// test names and pins. A diverged branch (no merge base) fails loud
+			// above; it can never silently become "no proofs declared".
 			const diffOutput = execSync(
-				`git -C "${ROOT}" diff --name-only "${baseRef}..HEAD"`,
+				`git -C "${ROOT}" diff --name-only "${mergeBase}...HEAD"`,
 				{ encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] },
 			);
 			changedFiles = diffOutput
@@ -529,6 +545,46 @@ for (const test of replayable) {
 		continue;
 	}
 
+	// Every declared paired red proof MUST carry a per-test expectation
+	// manifest sitting next to it, named `<proof-file>.expected-red.json`.
+	// Validate the manifest BEFORE launching vitest: a missing or unreadable
+	// manifest makes the proof unclassifiable, so launching vitest would
+	// waste cycles only to fail loud anyway. Catching it here names the
+	// cause precisely (missing file, invalid JSON, empty declaration) and
+	// avoids a noisy vitest crash that would obscure the real defect.
+	// The global classifier cannot see a declared kept-red test turn green,
+	// so falling back to it would silently restore the exact defect class
+	// this runner exists to catch (issue #1806 ronde 11). A missing manifest
+	// is therefore a LOUD failure that names the missing file and the
+	// expected action — there is no silent fallback, ever.
+	const manifestPath = `${test}.expected-red.json`;
+	if (!existsSync(manifestPath)) {
+		console.error(
+			`  CORRUPT PROOF: expected-red manifest is MISSING — ${manifestPath}\n` +
+				`  Every declared paired red proof MUST carry a per-test expectation manifest ` +
+				`(<proof-file>.expected-red.json) declaring which test(s) are expected to stay ` +
+				`red. Without it the runner cannot see a declared kept-red test turn green, so ` +
+				`it refuses to classify. Add the manifest and declare the kept-red test(s) — ` +
+				`tests/proofs/1457/red-1457-r2-sigint-race-silent-child.test.ts.expected-red.json ` +
+				`is the reference shape.`,
+		);
+		corrupted++;
+		continue;
+	}
+
+	let manifest;
+	try {
+		manifest = readExpectedRedManifest(manifestPath);
+	} catch (manifestErr) {
+		console.error(
+			`  CORRUPT PROOF: expected-red manifest is unreadable — ${(manifestErr as Error).message}\n` +
+				`  Manifest: ${manifestPath}\n` +
+				`  The runner refuses to classify a paired red proof with a malformed per-test expectation.`,
+		);
+		corrupted++;
+		continue;
+	}
+
 	console.log(`--- Running: ${test} ---`);
 
 	// Run vitest with the JSON reporter writing to a temp file. The JSON
@@ -578,46 +634,6 @@ for (const test of replayable) {
 			continue;
 		}
 
-		// Every declared paired red proof MUST carry a per-test expectation
-		// manifest sitting next to it, named `<proof-file>.expected-red.json`.
-		// The manifest declares which test(s) are expected to stay red; the
-		// per-test classifier turns a passed declared-red test into a STALE
-		// PROOF. A declared proof WITHOUT a manifest is an input the guard
-		// cannot classify: the global classifier cannot see a declared
-		// kept-red test turn green, so falling back to it would silently
-		// restore the exact defect class this runner exists to catch
-		// (issue #1806 ronde 11). A missing manifest is therefore a LOUD
-		// failure that names the missing file and the expected action —
-		// there is no silent fallback, ever.
-		const manifestPath = `${test}.expected-red.json`;
-		if (!existsSync(manifestPath)) {
-			console.error(
-				`  CORRUPT PROOF: expected-red manifest is MISSING — ${manifestPath}\n` +
-					`  Every declared paired red proof MUST carry a per-test expectation manifest ` +
-					`(<proof-file>.expected-red.json) declaring which test(s) are expected to stay ` +
-					`red. Without it the runner cannot see a declared kept-red test turn green, so ` +
-					`it refuses to classify. Add the manifest and declare the kept-red test(s) — ` +
-					`tests/proofs/1457/red-1457-r2-sigint-race-silent-child.test.ts.expected-red.json ` +
-					`is the reference shape.\n` +
-					`  stdout: ${stdout}\n  stderr: ${stderr}`,
-			);
-			corrupted++;
-			continue;
-		}
-
-		let manifest;
-		try {
-			manifest = readExpectedRedManifest(manifestPath);
-		} catch (manifestErr) {
-			console.error(
-				`  CORRUPT PROOF: expected-red manifest is unreadable — ${(manifestErr as Error).message}\n` +
-					`  Manifest: ${manifestPath}\n` +
-					`  The runner refuses to classify a paired red proof with a malformed per-test expectation.\n` +
-					`  stdout: ${stdout}\n  stderr: ${stderr}`,
-			);
-			corrupted++;
-			continue;
-		}
 		const result = classifyProofWithManifest(
 			report,
 			exitCode as number,
@@ -636,40 +652,6 @@ for (const test of replayable) {
 		unexpectedPasses = counts.unexpectedPasses;
 		corrupted = counts.corrupted;
 		stale = counts.stale;
-
-		switch (result.verdict) {
-			case 'OK':
-				console.log(`  OK: ${result.reason}\n`);
-				break;
-			case 'CORRUPT PROOF':
-				console.error(
-					`  CORRUPT PROOF: ${result.reason}\n` +
-						`  A kept-red proof must fail on an assertion (expected X to be Y), ` +
-						`  not on a thrown Error. A thrown Error means the proof could not measure ` +
-						`  — this is NOT the expected kept-red state and must fail CI.\n` +
-						`  stdout: ${stdout}\n  stderr: ${stderr}`,
-				);
-				break;
-			case 'NO_TESTS':
-				console.error(
-					`  CORRUPT PROOF: ${result.reason}\n` +
-						`  stdout: ${stdout}\n  stderr: ${stderr}`,
-				);
-				break;
-			case 'UNEXPECTED_PASS':
-				console.error(`  FAIL: ${result.reason}\n  Test: ${test}`);
-				break;
-			case 'DECLARED RED PASSED':
-				console.error(`  STALE PROOF: ${result.reason}\n  Test: ${test}`);
-				break;
-			case 'ERROR':
-				console.error(
-					`  ERROR: ${result.reason} ` +
-						`(failed: ${result.failedTests}, total: ${result.totalTests}).\n` +
-						`  stdout: ${stdout}\n  stderr: ${stderr}`,
-				);
-				break;
-		}
 	} finally {
 		// Always clean up the temp report file — even on classification
 		// failure, we do not leave artifacts behind.

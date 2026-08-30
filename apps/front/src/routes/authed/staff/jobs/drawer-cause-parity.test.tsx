@@ -35,7 +35,6 @@ import type { JSX, ReactNode } from 'react';
 import { createElement } from 'react';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import type { StaffDeadLetterRow } from '~/lib/query/staff-jobs';
-import type { TestLabelMap } from '~/lib/testing/test-label-map';
 
 /** Pilote la vraie couture (`useQuery`) en plus du mock de module, qui est inerte
  * pour le hook local. Sans cela un test « le tiroir montre la cause du detail »
@@ -51,6 +50,11 @@ const mocks = vi.hoisted(() => ({
 	// `useQuery` qu'il enveloppe, et c'est le seul appel a useQuery du fichier.
 	useQuery: vi.fn(),
 	shouldLogoutForFailure: vi.fn<(error: unknown) => boolean>(() => false),
+	// Brief #1880: `t` must be a spy so tests can assert the translation KEY
+	// (e.g. 'common:no-cause') is passed through, not just the literal output.
+	// Hardcoding the English string in the mock would mask an i18n regression
+	// where the source returns the literal instead of calling t.
+	t: vi.fn<(key: string, options?: Record<string, unknown>) => string>(),
 }));
 
 const setDetailQuery = (value: Record<string, unknown>): void => {
@@ -80,43 +84,7 @@ vi.mock('@tanstack/react-router', () => ({
 
 vi.mock('react-i18next', () => ({
 	useTranslation: () => ({
-		t: (key: string, options?: Record<string, unknown>) => {
-			const labels: TestLabelMap = {
-				'dl-page-title': 'Dead-letter jobs',
-				'dl-page-description': 'Failed jobs',
-				'detail-last-error': 'Last error',
-				'common:no-cause': 'No cause recorded',
-				'common:no-value': '—',
-				'common:column-attempts': 'Attempts',
-				'common:column-failed-at': 'Failed at',
-				'common:action-inspect': 'Inspect',
-				'common:action-requeue': 'Requeue',
-				'common:cancel': 'Cancel',
-				'requeue-confirm-title': 'Requeue',
-				'requeue-confirm-description': 'Requeue {{jobType}}?',
-				'requeue-confirm-description-generic': 'Requeue this job?',
-				'requeue-note-label': 'Note',
-				'dl-drawer-title': 'Details',
-				'no-rows-match-title': 'No matches',
-				'no-rows-match-description': 'No dead letters match.',
-				'action-permission-checking': 'Checking your permissions…',
-				'action-permission-denied':
-					"You don't have permission for this action.",
-				'common:no-audit-logs-yet': 'No audit logs yet',
-				'common:no-audit-logs-description': 'There are no audit logs to show.',
-			};
-
-			let text = labels[key] ?? key;
-			if (!options) {
-				return text;
-			}
-
-			for (const [optionKey, value] of Object.entries(options)) {
-				text = text.replaceAll(`{{${optionKey}}}`, String(value));
-			}
-
-			return text;
-		},
+		t: mocks.t,
 		i18n: { language: 'en' },
 	}),
 }));
@@ -324,6 +292,8 @@ import { Route } from './dead-letter';
 
 const ROW_CAUSE = 'Cause from the row (list endpoint)';
 const DETAIL_CAUSE = 'Cause from the detail (per-row endpoint)';
+const PADDED_DETAIL_CAUSE = '  Cause from the detail (per-row endpoint)  ';
+const TRIMMED_DETAIL_CAUSE = 'Cause from the detail (per-row endpoint)';
 
 const DEAD_LETTER_ROWS: StaffDeadLetterRow[] = [
 	{
@@ -358,6 +328,47 @@ const openDrawer = async (): Promise<HTMLElement> => {
 describe('dead-letter drawer: cause display parity with column (brief #1720 ronde 2, #1815 ronde 3)', () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
+
+		// Brief #1880: `t` is a spy. Wire it to a label map so rendering still
+		// produces visible text, but every call is recorded for assertion.
+		// If the source hardcodes 'No cause recorded' instead of calling
+		// t('common:no-cause'), the spy assertions below catch it.
+		const labels = {
+			'dl-page-title': 'Dead-letter jobs',
+			'dl-page-description': 'Failed jobs',
+			'detail-last-error': 'Last error',
+			'common:no-cause': 'No cause recorded',
+			'common:no-value': '—',
+			'common:column-attempts': 'Attempts',
+			'common:column-failed-at': 'Failed at',
+			'common:action-inspect': 'Inspect',
+			'common:action-requeue': 'Requeue',
+			'common:cancel': 'Cancel',
+			'requeue-confirm-title': 'Requeue',
+			'requeue-confirm-description': 'Requeue {{jobType}}?',
+			'requeue-confirm-description-generic': 'Requeue this job?',
+			'requeue-note-label': 'Note',
+			'dl-drawer-title': 'Details',
+			'no-rows-match-title': 'No matches',
+			'no-rows-match-description': 'No dead letters match.',
+			'action-permission-checking': 'Checking your permissions…',
+			'action-permission-denied': "You don't have permission for this action.",
+			'common:no-audit-logs-yet': 'No audit logs yet',
+			'common:no-audit-logs-description': 'There are no audit logs to show.',
+		} satisfies Record<string, string>;
+
+		mocks.t.mockImplementation(
+			(key: string, options?: Record<string, unknown>) => {
+				let text = labels[key as keyof typeof labels] ?? key;
+				if (options) {
+					for (const [optionKey, value] of Object.entries(options)) {
+						text = text.replaceAll(`{{${optionKey}}}`, String(value));
+					}
+				}
+				return text;
+			},
+		);
+
 		mocks.useQuery.mockReturnValue(NO_DETAIL);
 		mocks.shouldLogoutForFailure.mockReturnValue(false);
 		mocks.useStaffDeadLettersQuery.mockReturnValue({
@@ -407,6 +418,36 @@ describe('dead-letter drawer: cause display parity with column (brief #1720 rond
 		const detailValue = within(drawer).getByText(DETAIL_CAUSE);
 		expect(detailValue).toBeTruthy();
 		expect(detailValue.textContent).toBe(DETAIL_CAUSE);
+	});
+
+	// Brief #1878: the suite never covered a cause with leading/trailing
+	// whitespace in the drawer. If `formatFailureCause` returned the untrimmed
+	// value, the drawer would render the raw padded string verbatim. This test
+	// seeds a padded detail cause and asserts the rendered textContent is trimmed
+	// — any future regression to `return cause` (instead of `return trimmed`)
+	// turns this red.
+	test('the drawer trims leading and trailing whitespace from the detail cause', async () => {
+		setDetailQuery({
+			data: {
+				lastError: PADDED_DETAIL_CAUSE,
+				attempts: 3,
+				failedAt: null,
+				payload: null,
+			},
+			isPending: false,
+		});
+
+		renderPage();
+
+		const drawer = await openDrawer();
+		expect(drawer.getAttribute('role')).toBe('dialog');
+
+		// The drawer must show the trimmed value, not the padded original
+		const detailValue = within(drawer).getByText(TRIMMED_DETAIL_CAUSE);
+		expect(detailValue).toBeTruthy();
+		expect(detailValue.textContent).toBe(TRIMMED_DETAIL_CAUSE);
+		// The padded original must NOT appear anywhere
+		expect(within(drawer).queryByText(PADDED_DETAIL_CAUSE)).toBeNull();
 	});
 
 	// Brief #1858: this is the ONE case that tells `??` from `||` apart — the
@@ -534,7 +575,12 @@ describe('dead-letter drawer: cause display parity with column (brief #1720 rond
 		expect(marker).toBeTruthy();
 	});
 
-	test('the drawer shows the same marker as the column for a null cause', async () => {
+	// Brief #1880: the marker must come from the translation KEY, not a
+	// hardcoded English literal. Map 'common:no-cause' to a French control
+	// value in the mock. If the source code hardcodes 'No cause recorded',
+	// the rendered text will be English — the assertion against the French
+	// label fails. The spy also confirms t('common:no-cause') was called.
+	test('the no-cause marker is rendered via t("common:no-cause"), not a hardcoded literal', async () => {
 		const rowsWithNullCause: StaffDeadLetterRow[] = [
 			{ ...DEAD_LETTER_ROWS[0], lastError: null },
 		];
@@ -545,6 +591,43 @@ describe('dead-letter drawer: cause display parity with column (brief #1720 rond
 			isFetching: false,
 			error: null,
 		});
+		// Override the label map: common:no-cause maps to a NON-English
+		// control value so a hardcoded English literal is detectable.
+		const CAUSE_MARKER_FR = 'Aucune cause enregistrée';
+		const labels = {
+			'dl-page-title': 'Dead-letter jobs',
+			'dl-page-description': 'Failed jobs',
+			'detail-last-error': 'Last error',
+			'common:no-cause': CAUSE_MARKER_FR,
+			'common:no-value': '—',
+			'common:column-attempts': 'Attempts',
+			'common:column-failed-at': 'Failed at',
+			'common:action-inspect': 'Inspect',
+			'common:action-requeue': 'Requeue',
+			'common:cancel': 'Cancel',
+			'requeue-confirm-title': 'Requeue',
+			'requeue-confirm-description': 'Requeue {{jobType}}?',
+			'requeue-confirm-description-generic': 'Requeue this job?',
+			'requeue-note-label': 'Note',
+			'dl-drawer-title': 'Details',
+			'no-rows-match-title': 'No matches',
+			'no-rows-match-description': 'No dead letters match.',
+			'action-permission-checking': 'Checking your permissions…',
+			'action-permission-denied': "You don't have permission for this action.",
+			'common:no-audit-logs-yet': 'No audit logs yet',
+			'common:no-audit-logs-description': 'There are no audit logs to show.',
+		} satisfies Record<string, string>;
+		mocks.t.mockImplementation(
+			(key: string, options?: Record<string, unknown>) => {
+				let text = labels[key as keyof typeof labels] ?? key;
+				if (options) {
+					for (const [optionKey, value] of Object.entries(options)) {
+						text = text.replaceAll(`{{${optionKey}}}`, String(value));
+					}
+				}
+				return text;
+			},
+		);
 		setDetailQuery({
 			data: { lastError: null, attempts: 3, failedAt: null, payload: null },
 			isPending: false,
@@ -552,15 +635,48 @@ describe('dead-letter drawer: cause display parity with column (brief #1720 rond
 
 		renderPage();
 
-		// The column cell shows the marker
-		const cell = screen.getByTestId('cell-last-error-dl-1');
-		expect(cell.textContent).toBe('No cause recorded');
+		const drawer = await openDrawer();
+		expect(drawer.getAttribute('role')).toBe('dialog');
+
+		// The marker must be the French control value from the label map,
+		// NOT the hardcoded English literal. If the source returns
+		// t('common:no-cause'), the rendered text is the French value.
+		expect(mocks.t).toHaveBeenCalledWith('common:no-cause');
+		const marker = within(drawer).getByText(CAUSE_MARKER_FR);
+		expect(marker).toBeTruthy();
+		// The English literal must NOT appear (that would mean hardcoding)
+		expect(within(drawer).queryByText('No cause recorded')).toBeNull();
+	});
+
+	// Brief #1877: the suite injects detail data directly into the useQuery mock
+	// but never asserts on the actual useQuery arguments — queryKey and enabled.
+	// A mutation setting `enabled: false` leaves all 8 tests green (the detail
+	// is never fetched; the drawer always falls back to the row cause). This
+	// test asserts useQuery is called with the inspected row's ID in the
+	// queryKey and enabled: true, so disabling the fetch turns this red.
+	test('the detail query is enabled and keyed to the inspected dead-letter row', async () => {
+		renderPage();
+
+		// Clear useQuery mock after initial render (column query only)
+		mocks.useQuery.mockClear();
 
 		const drawer = await openDrawer();
 		expect(drawer.getAttribute('role')).toBe('dialog');
 
-		// The drawer also shows the marker — not a blank cell
-		const marker = within(drawer).getByText('No cause recorded');
-		expect(marker).toBeTruthy();
+		// useQuery was called for the detail fetch with enabled: true
+		// and the queryKey containing the inspected row's ID ('dl-1')
+		expect(mocks.useQuery).toHaveBeenCalledTimes(1);
+		const useQueryArgs = mocks.useQuery.mock.calls[0][0] as {
+			queryKey: unknown[];
+			enabled: boolean;
+		};
+		expect(useQueryArgs.enabled).toBe(true);
+		expect(useQueryArgs.queryKey).toEqual([
+			'staff',
+			'staff-jobs',
+			'dead-letter',
+			'detail',
+			'dl-1',
+		]);
 	});
 });

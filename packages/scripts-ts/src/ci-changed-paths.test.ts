@@ -12,6 +12,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { test } from 'vitest';
+import { parse } from 'yaml';
 
 import {
 	classifyRelevance,
@@ -498,6 +499,171 @@ test('#1357 r1: docs-archive classifier selects packages/scripts-ts/src/audit-do
 	});
 
 	assert.equal(result.relevant, true);
+});
+
+// ---------------------------------------------------------------------------
+// #1888: docs-archive.yml declares two trigger paths for the same workflow
+// — the `pull_request` classifier (used to wake the heavy jobs on a PR) and
+// the `push.paths` filter (the literal `paths:` list GitHub evaluates
+// BEFORE the workflow body runs, deciding whether to start the workflow at
+// all on a push). The bug: the classifier accepts
+// `packages/scripts-ts/src/audit-docs-prune.ts` and its `.test.ts`, but the
+// `push.paths` filter does not. A push that modifies ONLY either file
+// therefore never starts the workflow, so the prune-inventory `--check`
+// and the fixture suite never run for that push — the gate cannot red-flag
+// a defect introduced on push (#1888).
+//
+// GitHub's `push.paths` evaluation is the OPPOSITE direction of the
+// classifier's "fail closed" property: a path the classifier accepts but
+// the filter rejects is dropped silently, with no run, no check, no log
+// beyond GitHub's "no paths matched" UI message. The structural assertion
+// here is the exact property the push trigger depends on: every path the
+// classifier matches must also be matched by the push.paths filter.
+//
+// Paired proof: the test is RED when audit-docs-prune{.ts,.test.ts} is in
+// the classifier but NOT in push.paths (the shipped shape at the time of
+// the issue); GREEN once both paths are added to push.paths. The classifier
+// pattern is read from the workflow YAML, not restated, so narrowing the
+// pattern back is caught here rather than silently reintroducing the gap.
+// ---------------------------------------------------------------------------
+
+const readDocsArchivePushPaths = (): string[] => {
+	const document = parse(
+		readFileSync(
+			new URL('../../../.github/workflows/docs-archive.yml', import.meta.url),
+			'utf8',
+		),
+	);
+	const push = document?.on?.push;
+
+	if (push === undefined || push === null) {
+		return [];
+	}
+
+	const paths = push.paths;
+
+	if (!Array.isArray(paths)) {
+		return [];
+	}
+
+	return paths.filter((entry): entry is string => typeof entry === 'string');
+};
+
+const docsArchivePushPaths = readDocsArchivePushPaths();
+
+// `push.paths` is a GitHub Actions glob list, not a regex. Translate each
+// entry to a regex over POSIX paths so the assertion can compare to the
+// classifier's pattern; exactly the same shape `check-ci-gate-structure.ts`
+// uses for its workflow `include`/`exclude` checks.
+const globToRegExpForPushPaths = (pattern: string): RegExp => {
+	let expression = '';
+
+	for (let i = 0; i < pattern.length; i += 1) {
+		const char = pattern[i];
+
+		if (char === '*' && pattern[i + 1] === '*') {
+			expression += '[\\s\\S]*';
+			i += 1;
+		} else if (char === '*') {
+			expression += '[^/]*';
+		} else if ('\\^$.|+()[]{}'.includes(char)) {
+			expression += `\\${char}`;
+		} else {
+			expression += char;
+		}
+	}
+
+	return new RegExp(`^${expression}$`);
+};
+
+test('#1888: docs-archive push.paths filter covers every path the pull_request classifier accepts', () => {
+	assert.ok(
+		docsArchiveClassifierPattern,
+		'classifier invocation found in docs-archive.yml',
+	);
+	assert.ok(
+		docsArchivePushPaths.length > 0,
+		'push.paths filter found in docs-archive.yml',
+	);
+
+	const classifierRegex = new RegExp(docsArchiveClassifierPattern);
+
+	// Every literal alternative in the classifier regex is a path the
+	// classifier accepts on a pull_request event; the test enumerates the
+	// paths the workflow actually references on disk to find the
+	// classifier-accepted paths the push filter must cover. Paths whose
+	// classifier regex matches the literal string `docs/` are covered
+	// separately below by the `docs/**` glob.
+	const literalClassifierPaths = [
+		'packages/scripts-ts/src/check-doc-links.ts',
+		'packages/scripts-ts/src/check-doc-links.test.ts',
+		'packages/scripts-ts/src/audit-docs-prune.ts',
+		'packages/scripts-ts/src/audit-docs-prune.test.ts',
+		'.github/workflows/docs-archive.yml',
+	];
+
+	const pushPatterns = docsArchivePushPaths.map(globToRegExpForPushPaths);
+	const pushAccepts = (path: string): boolean =>
+		pushPatterns.some((regex) => regex.test(path));
+
+	const missingFromPush: string[] = [];
+
+	for (const path of literalClassifierPaths) {
+		if (!classifierRegex.test(path)) {
+			continue;
+		}
+
+		if (!pushAccepts(path)) {
+			missingFromPush.push(path);
+		}
+	}
+
+	// `docs/**` is the regex's `docs/` prefix; verify the filter also covers
+	// a real docs/ path the classifier accepts, so a docs-only push still
+	// wakes the workflow.
+	const docsPathSample = 'docs/records/2026-08-25-spec-foo.md';
+
+	if (classifierRegex.test(docsPathSample) && !pushAccepts(docsPathSample)) {
+		missingFromPush.push(docsPathSample);
+	}
+
+	assert.deepEqual(
+		missingFromPush,
+		[],
+		`docs-archive.yml: the pull_request classifier pattern matches paths the push.paths filter does NOT accept. A push that modifies ONLY such a path will never start docs-archive.yml on push — the classifier's relevant=true answer never fires, the heavy jobs (prune-inventory --check, fixture suite, doc-links) never run, and the gate cannot red-flag a defect introduced on push (#1888). Add the missing paths to push.paths so the trigger covers the same surface the classifier covers.\n  Missing: ${JSON.stringify(missingFromPush)}`,
+	);
+});
+
+// #1888 paired RED: removing the audit-docs-prune alternative from the
+// classifier pattern alone must NOT silence this guard. The classifier
+// still expects the path; the push filter must match. This pins the
+// structural property in the OTHER direction: with the audit-docs-prune
+// alternative REMOVED from the classifier, the new path is not in the
+// classifier's accepted set, so the previous case is GREEN — but the
+// classifier itself now has the exact #1357-round-1 defect the #1357
+// fixture above exists to catch, which would now go red there.
+test("#1888 paired: a path the classifier rejects is not the guard's concern", () => {
+	assert.ok(
+		docsArchiveClassifierPattern,
+		'classifier invocation found in docs-archive.yml',
+	);
+
+	const narrowedPattern = (docsArchiveClassifierPattern ?? '')
+		.split('|packages/scripts-ts/src/audit-docs-prune\\.ts$')
+		.join('');
+
+	const result = classifyRelevance({
+		eventName: 'pull_request',
+		files: ['packages/scripts-ts/src/audit-docs-prune.ts'],
+		changedFilesTotal: 1,
+		pattern: narrowedPattern,
+	});
+
+	assert.equal(
+		result.relevant,
+		false,
+		'RED phase failed: removing the audit-docs-prune alternative from the classifier should make this path irrelevant — if it is still relevant, the regex split above did not remove what it claimed to remove.',
+	);
 });
 
 // ---------------------------------------------------------------------------

@@ -55,6 +55,7 @@
  * in CI, so this test cannot pass under a config that CI would reject.
  */
 import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
 import {
 	mkdirSync,
 	mkdtempSync,
@@ -63,11 +64,18 @@ import {
 	writeFileSync,
 } from 'node:fs';
 import { readdir } from 'node:fs/promises';
-import { join } from 'node:path';
+import { dirname, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { ts } from 'ts-morph';
 import { afterAll, describe, it } from 'vitest';
 
+import {
+	analyzeModuleOrder,
+	isImmediatelyInvokedCallee,
+	ModuleOrderAnalysisError,
+	scanModuleOrderViolations,
+} from '../lib/module-order-analysis.ts';
 import { runOxlint } from '../lib/run-oxlint.ts';
 
 const WORKSPACE_ROOT = fileURLToPath(new URL('../../../../', import.meta.url));
@@ -355,6 +363,66 @@ const isFuncStyleRelevantBlockSuppression = (content: string): boolean => {
 	return false;
 };
 
+/**
+ * Git-ignore consultation for the scanner (issue #1909): the authority for
+ * what the walk skips is git itself — `git check-ignore` — united with the
+ * gate's static prefix list above. Paths are batched through a single
+ * `git check-ignore --stdin -z` call per tree level, not one spawn per file.
+ * Tracked files never match, so committed paths still reach the scanner
+ * unless the static list excludes them. Returns null when the root is not
+ * inside a git work tree (CI fixture roots), so the static list remains the
+ * only authority there — the same behavior as before the fix.
+ */
+type GitIgnoreChecker = (absolutePaths: string[]) => Set<string>;
+
+const gitIgnoreCheckerForWorkspace = (): GitIgnoreChecker | null => {
+	const probeResult = spawnSync(
+		'git',
+		['-C', WORKSPACE_ROOT, 'rev-parse', '--is-inside-work-tree'],
+		{ encoding: 'utf8' },
+	);
+
+	if (probeResult.status !== 0 || probeResult.stdout.trim() !== 'true') {
+		return null;
+	}
+
+	return (absolutePaths: string[]): Set<string> => {
+		if (absolutePaths.length === 0) {
+			return new Set();
+		}
+
+		const relativePaths = absolutePaths.map((absolutePath) =>
+			relative(WORKSPACE_ROOT, absolutePath).split(sep).join('/'),
+		);
+		const result = spawnSync('git', ['check-ignore', '--stdin', '-z'], {
+			cwd: WORKSPACE_ROOT,
+			encoding: 'utf8',
+			input: `${relativePaths.join('\0')}\0`,
+		});
+
+		if (result.error !== undefined) {
+			throw new Error(
+				`failed to run git check-ignore: ${result.error.message}`,
+			);
+		}
+		if (result.status !== 0 && result.status !== 1) {
+			throw new Error(
+				`git check-ignore failed with status ${String(result.status)}: ${result.stderr}`,
+			);
+		}
+
+		const ignored = new Set<string>();
+		if (result.stdout.length > 0) {
+			for (const relativePath of result.stdout.split('\0')) {
+				if (relativePath.length > 0) {
+					ignored.add(resolve(WORKSPACE_ROOT, relativePath));
+				}
+			}
+		}
+		return ignored;
+	};
+};
+
 // Finds every suppression comment across all text files in a directory tree.
 // This mirrors the exact paths oxlint lints: it scans the workspace root
 // and respects the same ignore patterns oxlint uses, so the inventory stays
@@ -381,7 +449,6 @@ const scanFuncStyleSuppressions = async (
 		'**/build',
 		'**/dist',
 		'**/.turbo',
-		'**/.husky/_',
 		'**/.react-router',
 		'**/routeTree.gen.ts',
 		'packages/client-ts',
@@ -422,6 +489,13 @@ const scanFuncStyleSuppressions = async (
 		return false;
 	};
 
+	// git's own ignore set is the authority for what the walk skips (issue
+	// #1909), united with the gate's static prefix list above. One batched
+	// `git check-ignore --stdin -z` per tree level, not one spawn per file.
+	// Tracked files never match, so committed paths still reach the scanner
+	// unless the static list excludes them.
+	const gitIgnoreChecker = gitIgnoreCheckerForWorkspace();
+
 	const walk = async (dir: string): Promise<void> => {
 		let dirEntries;
 		try {
@@ -430,16 +504,34 @@ const scanFuncStyleSuppressions = async (
 			return;
 		}
 
-		for (const entry of dirEntries) {
+		const visibleEntries = dirEntries.filter((entry) => {
 			const fullPath = join(dir, entry.name);
 			const relativePath = fullPath
 				.slice(rootDir.length)
 				.replace(/^[/\\]/, '')
 				.replace(/\\/g, '/');
 
-			if (isIgnored(relativePath) || isIgnored(fullPath)) {
+			return !isIgnored(relativePath) && !isIgnored(fullPath);
+		});
+
+		const gitIgnoredPaths =
+			gitIgnoreChecker === null
+				? new Set<string>()
+				: gitIgnoreChecker(
+						visibleEntries.map((entry) => join(dir, entry.name)),
+					);
+
+		for (const entry of visibleEntries) {
+			const fullPath = join(dir, entry.name);
+
+			if (gitIgnoredPaths.has(fullPath)) {
 				continue;
 			}
+
+			const relativePath = fullPath
+				.slice(rootDir.length)
+				.replace(/^[/\\]/, '')
+				.replace(/\\/g, '/');
 
 			if (entry.isDirectory()) {
 				await walk(fullPath);
@@ -611,7 +703,6 @@ describe('func-style: ["error", "expression"] (#1834 — uniform arrow form)', (
 				'**/build',
 				'**/dist',
 				'**/.turbo',
-				'**/.husky/_',
 				'**/.react-router',
 				'**/routeTree.gen.ts',
 				'packages/client-ts',
@@ -1156,6 +1247,713 @@ describe('func-style: ["error", "expression"] (#1834 — uniform arrow form)', (
 				'no undocumented func-style suppressions',
 			);
 			assert.deepStrictEqual(stale, [], 'no stale inventory entries');
+		});
+	});
+
+	describe('order leg — no arrow constant is called during module evaluation before its definition (#1898)', () => {
+		// The shape-only legs above pin WHAT a function must look like
+		// (`func-style` declares expression, oxlint reports declarations, the
+		// suppression inventory stays closed). They do not pin ORDER: a
+		// `function` declaration is hoisted, a `const` arrow is not.
+		// Converting the one into the other can therefore produce code where
+		// a module-level call reaches the binding before its initializer
+		// runs — `ReferenceError: Cannot access 'x' before initialization` at
+		// module load, invisible to the compiler and the typechecker. This
+		// leg analyses the ACTUAL syntax tree (via ts-morph's vendored
+		// compiler, the same surface check-design-system.mts uses) and
+		// refuses any module-eval call of an arrow constant before its
+		// definition.
+		//
+		// The reviewer-constructed case that drives this leg (#1898):
+		//
+		//   const isEntry = () => toPosixPath('x');
+		//   const toPosixPath = () => { /* ... */ };
+		//
+		// ...is only a defect once something CALLS `isEntry` (or a later
+		// module-level expression is evaluated) before `toPosixPath` is
+		// defined — the arrow body defers the call until its invocation. The
+		// red fixtures below therefore pair the reviewer's shape with the
+		// module-eval invocation that makes it break, exactly the shape the
+		// #1854 diff nearly produced in ci-e2e-cleanup.ts (`isDirectRun`
+		// calling `toPosixPath`).
+
+		const analyze = (source: string) =>
+			analyzeModuleOrder('fixture.ts', source);
+
+		describe('red fixtures — a module-eval call before a later arrow-constant definition is reported', () => {
+			it('flags the reviewer construction: isEntry() calls toPosixPath before the toPosixPath const arrow is defined', () => {
+				const violations = analyze(
+					`const isEntry = () => toPosixPath('x');
+const entries = [isEntry()];
+const toPosixPath = () => 'x';
+`,
+				);
+
+				assert.strictEqual(violations.length, 1);
+				assert.strictEqual(violations[0]!.callee, 'toPosixPath');
+				assert.strictEqual(violations[0]!.kind, 'transitive');
+				assert.deepStrictEqual(violations[0]!.chain, ['isEntry']);
+				assert.strictEqual(violations[0]!.line, 1);
+			});
+
+			it('flags the #1854-era real risk: a module-level expression calls toPosixPath before its converted const definition', () => {
+				// What the #1854 converter would have produced in
+				// ci-e2e-cleanup.ts had it converted in place instead of
+				// moving the declaration above the call.
+				const violations = analyze(
+					`const isDirectRun =
+	process.argv[1] &&
+	toPosixPath(process.argv[1]).endsWith('packages/scripts-ts/src/ci-e2e-cleanup.ts');
+const toPosixPath = (value) => value.split('/').join('/');
+`,
+				);
+
+				assert.strictEqual(violations.length, 1);
+				assert.strictEqual(violations[0]!.callee, 'toPosixPath');
+				assert.strictEqual(violations[0]!.kind, 'direct');
+				assert.strictEqual(violations[0]!.line, 3);
+			});
+
+			it('flags a call inside another immediately-evaluated module expression (declarator initializer)', () => {
+				const violations = analyze(
+					`const start = messageFor({ code: 'x' });
+const messageFor = () => 'y';
+`,
+				);
+
+				assert.strictEqual(violations.length, 1);
+				assert.strictEqual(violations[0]!.callee, 'messageFor');
+				assert.strictEqual(violations[0]!.kind, 'direct');
+				assert.strictEqual(violations[0]!.line, 1);
+			});
+
+			it('flags a call inside an immediately-executed module block and an if branch', () => {
+				const blockViolations = analyze(
+					`{
+	const probe = () => run();
+	probe();
+}
+const run = () => 1;
+`,
+				);
+				const ifViolations = analyze(
+					`if (true) {
+	run();
+}
+const run = () => 1;
+`,
+				);
+
+				assert.strictEqual(blockViolations.length, 1);
+				assert.strictEqual(blockViolations[0]!.callee, 'run');
+				assert.strictEqual(ifViolations.length, 1);
+				assert.strictEqual(ifViolations[0]!.callee, 'run');
+			});
+
+			it('flags a transitive chain: a() invokes b() which invokes c() with c defined after the module-level a() call', () => {
+				const violations = analyze(
+					`const a = () => b();
+const b = () => c();
+a();
+const c = () => 1;
+`,
+				);
+
+				assert.strictEqual(violations.length, 1);
+				assert.strictEqual(violations[0]!.callee, 'c');
+				assert.strictEqual(violations[0]!.kind, 'transitive');
+				assert.deepStrictEqual(violations[0]!.chain, ['a', 'b']);
+				// The call site is the TEXTUAL call inside b's body; the chain
+				// names the module-eval trigger (a() at line 3).
+				assert.strictEqual(violations[0]!.line, 2);
+			});
+
+			it('flags a block-scoped arrow constant called before its own definition in an immediately-executed block', () => {
+				const violations = analyze(
+					`{
+	probe();
+	const probe = () => 1;
+}
+`,
+				);
+
+				assert.strictEqual(violations.length, 1);
+				assert.strictEqual(violations[0]!.callee, 'probe');
+				assert.strictEqual(violations[0]!.kind, 'direct');
+			});
+
+			it('names the file, line and column of the call and the declaration', () => {
+				const violations = analyze(
+					`const result = callIt();
+const callIt = () => 1;
+`,
+				);
+
+				assert.strictEqual(violations.length, 1);
+				assert.strictEqual(violations[0]!.file, 'fixture.ts');
+				assert.strictEqual(violations[0]!.line, 1);
+				assert.deepStrictEqual(violations[0]!.chain, []);
+				const { declaredAtLine, declaredAtColumn } = violations[0]!;
+				assert.strictEqual(declaredAtLine, 2);
+				assert.ok(declaredAtColumn > 0);
+			});
+
+			it('flags a call in a loop condition, a class static block and an enum initializer', () => {
+				const loopViolations = analyze(
+					`for (const item of probe()) {
+	void item;
+}
+const probe = () => [1];
+`,
+				);
+				const classViolations = analyze(
+					`class Probe {
+	static {
+		run();
+	}
+}
+const run = () => 1;
+`,
+				);
+				const enumViolations = analyze(
+					`enum Probe {
+	First = run(),
+}
+const run = () => 1;
+`,
+				);
+
+				assert.strictEqual(loopViolations.length, 1);
+				assert.strictEqual(classViolations.length, 1);
+				assert.strictEqual(enumViolations.length, 1);
+				const allViolations = [
+					...loopViolations,
+					...classViolations,
+					...enumViolations,
+				];
+				for (const violation of allViolations) {
+					assert.strictEqual(violation.kind, 'direct');
+				}
+			});
+
+			it('flags a call inside an IIFE body that executes at module-eval time', () => {
+				const violations = analyze(
+					`(() => run())();
+const run = () => 1;
+`,
+				);
+
+				assert.strictEqual(violations.length, 1);
+				assert.strictEqual(violations[0]!.callee, 'run');
+				assert.strictEqual(violations[0]!.kind, 'direct');
+				assert.strictEqual(violations[0]!.line, 1);
+			});
+
+			it('flags a call inside an object-literal getter body, triggered by a module-eval property access', () => {
+				const violations = analyze(
+					`const obj = {
+	get value() {
+		return run();
+	},
+};
+void obj.value;
+const run = () => 1;
+`,
+				);
+
+				assert.strictEqual(violations.length, 1);
+				assert.strictEqual(violations[0]!.callee, 'run');
+				assert.strictEqual(violations[0]!.kind, 'direct');
+				assert.strictEqual(violations[0]!.line, 3);
+			});
+
+			it('flags a call inside an object-literal getter body, triggered by a module-eval property access inside a declarator initializer', () => {
+				const violations = analyze(
+					`const obj = {
+	get value() {
+		return run();
+	},
+};
+const x = obj.value;
+const run = () => 1;
+`,
+				);
+
+				assert.strictEqual(violations.length, 1);
+				assert.strictEqual(violations[0]!.callee, 'run');
+				assert.strictEqual(violations[0]!.kind, 'direct');
+			});
+
+			it('flags a call inside a class heritage clause (decorator on class, bare identifier)', () => {
+				const violations = analyze(
+					`@run
+class Probe {}
+const run = () => 1;
+`,
+				);
+
+				assert.strictEqual(violations.length, 1);
+				assert.strictEqual(violations[0]!.callee, 'run');
+				assert.strictEqual(violations[0]!.kind, 'direct');
+				assert.strictEqual(violations[0]!.line, 1);
+			});
+
+			it('flags a call inside a class heritage clause (decorator on class, call syntax @run())', () => {
+				const violations = analyze(
+					`@run()
+class Probe {}
+const run = () => 1;
+`,
+				);
+
+				assert.strictEqual(violations.length, 1);
+				assert.strictEqual(violations[0]!.callee, 'run');
+				assert.strictEqual(violations[0]!.kind, 'direct');
+			});
+
+			it('flags a call inside a class heritage clause (decorator on member)', () => {
+				const violations = analyze(
+					`class Probe {
+	@run
+	method() {}
+}
+const run = () => 1;
+`,
+				);
+
+				assert.strictEqual(violations.length, 1);
+				assert.strictEqual(violations[0]!.callee, 'run');
+				assert.strictEqual(violations[0]!.kind, 'direct');
+			});
+
+			it('flags a call inside a tagged template at module-eval time', () => {
+				const violations = analyze(
+					'tag`template`;' + '\n' + 'const tag = () => 1;',
+				);
+
+				assert.strictEqual(violations.length, 1);
+				assert.strictEqual(violations[0]!.callee, 'tag');
+				assert.strictEqual(violations[0]!.kind, 'direct');
+				assert.strictEqual(violations[0]!.line, 1);
+			});
+
+			it('flags a call inside a top-level await at module-eval time', () => {
+				const violations = analyze(
+					`await run();
+const run = () => 1;
+`,
+				);
+
+				assert.strictEqual(violations.length, 1);
+				assert.strictEqual(violations[0]!.callee, 'run');
+				assert.strictEqual(violations[0]!.kind, 'direct');
+				assert.strictEqual(violations[0]!.line, 1);
+			});
+		});
+
+		describe('green fixtures — healthy code produces zero order violations', () => {
+			it('does not flag a call after the definition', () => {
+				const violations = analyze(
+					`const toPosixPath = (value) => value;
+const isDirectRun = toPosixPath('x').endsWith('y');
+`,
+				);
+
+				assert.deepStrictEqual(violations, []);
+			});
+
+			it('does not flag a call inside a function body that is only invoked later (deferred)', () => {
+				const violations = analyze(
+					`const isEntry = () => toPosixPath('x');
+const toPosixPath = () => 'x';
+setTimeout(isEntry, 0);
+`,
+				);
+
+				assert.deepStrictEqual(violations, []);
+			});
+
+			it('does not flag the reviewer construction with no module-eval invocation (the body defers)', () => {
+				const violations = analyze(
+					`const isEntry = () => toPosixPath('x');
+const toPosixPath = () => 'x';
+`,
+				);
+
+				assert.deepStrictEqual(violations, []);
+			});
+
+			it('does not flag same-statement declarators in definition order', () => {
+				const violations = analyze(
+					`const first = () => 1, second = first();
+`,
+				);
+
+				assert.deepStrictEqual(violations, []);
+			});
+
+			it('does not flag a block-scoped binding that shadows a later module-level name', () => {
+				const violations = analyze(
+					`{
+	const probe = () => 1;
+	probe();
+}
+const probe = () => 2;
+`,
+				);
+
+				assert.deepStrictEqual(violations, []);
+			});
+
+			it('does not flag a class field initializer (deferred to instantiation)', () => {
+				const violations = analyze(
+					`class Probe {
+	value = run();
+}
+const run = () => 1;
+`,
+				);
+
+				assert.deepStrictEqual(violations, []);
+			});
+
+			it('does not flag member invocations (declared gap: member callees are not tracked)', () => {
+				const violations = analyze(
+					`const engine = { run: () => 1 };
+const result = engine.run();
+`,
+				);
+
+				assert.deepStrictEqual(violations, []);
+			});
+
+			it('does not flag plain references before the definition (declared gap: reads are not calls)', () => {
+				const violations = analyze(
+					`const later = () => 1;
+const holder = later;
+`,
+				);
+
+				assert.deepStrictEqual(violations, []);
+			});
+
+			it('does not flag an IIFE that does not call a tracked binding', () => {
+				const violations = analyze(
+					`(() => { void 1; })();
+const run = () => 1;
+`,
+				);
+
+				assert.deepStrictEqual(violations, []);
+			});
+
+			it('does not flag a binding declared before its call inside an IIFE body', () => {
+				const violations = analyze(
+					`(() => {
+	const run = () => 1;
+	run();
+})();
+`,
+				);
+
+				assert.deepStrictEqual(violations, []);
+			});
+
+			it('does not flag a binding declared before its call inside a class static block', () => {
+				const violations = analyze(
+					`class Probe {
+	static {
+		const run = () => 1;
+		run();
+	}
+}
+`,
+				);
+
+				assert.deepStrictEqual(violations, []);
+			});
+
+			it('does not flag a getter body that is never accessed at module-eval time', () => {
+				const violations = analyze(
+					`const obj = {
+	get value() {
+		return run();
+	},
+};
+const run = () => 1;
+`,
+				);
+
+				assert.deepStrictEqual(violations, []);
+			});
+
+			it('does not flag a non-getter property access on an object literal', () => {
+				const violations = analyze(
+					`const obj = { value: 42 };
+const x = obj.value;
+const run = () => 1;
+`,
+				);
+
+				assert.deepStrictEqual(violations, []);
+			});
+
+			it('does not flag a decorator whose expression is already defined', () => {
+				const violations = analyze(
+					`const run = () => 1;
+@run
+class Probe {}
+`,
+				);
+
+				assert.deepStrictEqual(violations, []);
+			});
+		});
+
+		describe('unanalysable input fails loudly (never counts as healthy)', () => {
+			it('throws ModuleOrderAnalysisError on a syntax error', () => {
+				assert.throws(
+					() => analyze('const broken = () => {\n'),
+					ModuleOrderAnalysisError,
+				);
+			});
+
+			it('the analysis error names the file', () => {
+				try {
+					analyze('const broken = () => {\n');
+					assert.fail('expected ModuleOrderAnalysisError');
+				} catch (error) {
+					assert.ok(error instanceof ModuleOrderAnalysisError);
+					assert.strictEqual(error.file, 'fixture.ts');
+					assert.ok(error.diagnostics.length > 0);
+				}
+			});
+		});
+
+		describe('type-guard leg — isImmediatelyInvokedCallee narrows only to function-like callees (PR #1902)', () => {
+			// The guard MUST reject anything that is not an `ArrowFunction` or
+			// a `FunctionExpression` — otherwise `walkIIFE` would be handed a
+			// non-function node and the first code that reads `.body` (or
+			// `.parameters`) on it would crash at runtime, exactly the
+			// failure mode the original `as` cast was hiding.
+			//
+			// The leg below parses real `ts.Expression` nodes and checks the
+			// guard's return value AND the type-level narrowing it provides
+			// (the `.body` and `.parameters` accesses are only legal when the
+			// guard returned `true`).
+			//
+			// The paired-red mutation is dropping either of the two
+			// `ts.is*` checks: removing `ts.isArrowFunction` makes the
+			// `() => 1` case fail; removing `ts.isFunctionExpression` makes
+			// the `function () {}` case fail. Both legs together pin the
+			// full truth table.
+
+			// Parses a single TS expression source and returns the first
+			// top-level expression, with any wrapping parens stripped (the
+			// real call site does this via `unwrapParens` before invoking
+			// the guard — see `handleInvocation`).
+			const parseCalleeExpression = (source: string): ts.Expression => {
+				const sourceFile = ts.createSourceFile(
+					'callee.ts',
+					`(${source});`,
+					ts.ScriptTarget.Latest,
+					true,
+					ts.ScriptKind.TS,
+				);
+				let expr = (sourceFile.statements[0] as ts.ExpressionStatement)
+					.expression;
+				while (ts.isParenthesizedExpression(expr)) {
+					expr = expr.expression;
+				}
+				return expr;
+			};
+
+			it('accepts an arrow function callee (the IIFE shape)', () => {
+				const node = parseCalleeExpression('() => 1');
+				assert.strictEqual(isImmediatelyInvokedCallee(node), true);
+				// The narrowing is real: these accesses are only legal on
+				// `ArrowFunction | FunctionExpression`.
+				assert.ok(
+					ts.isArrowFunction(node),
+					'the narrowed node must be an arrow function',
+				);
+			});
+
+			it('accepts a function expression callee (named or anonymous)', () => {
+				const node = parseCalleeExpression('function () { return 1; }');
+				assert.strictEqual(isImmediatelyInvokedCallee(node), true);
+				assert.ok(
+					ts.isFunctionExpression(node),
+					'the narrowed node must be a function expression',
+				);
+			});
+
+			it('rejects a bare identifier callee (handled by the identifier branch upstream, never by the IIFE branch)', () => {
+				const node = parseCalleeExpression('foo');
+				assert.strictEqual(isImmediatelyInvokedCallee(node), false);
+			});
+
+			it('rejects a numeric literal callee', () => {
+				const node = parseCalleeExpression('42');
+				assert.strictEqual(isImmediatelyInvokedCallee(node), false);
+			});
+
+			it('rejects a string literal callee', () => {
+				const node = parseCalleeExpression("'x'");
+				assert.strictEqual(isImmediatelyInvokedCallee(node), false);
+			});
+
+			it('rejects an array literal callee', () => {
+				const node = parseCalleeExpression('[1, 2]');
+				assert.strictEqual(isImmediatelyInvokedCallee(node), false);
+			});
+
+			it('rejects an object literal callee (parens are stripped by the caller before this guard runs)', () => {
+				const node = parseCalleeExpression('{ a: 1 }');
+				assert.strictEqual(isImmediatelyInvokedCallee(node), false);
+			});
+
+			it('rejects a call expression callee (the call result, not a function definition)', () => {
+				const node = parseCalleeExpression('factory()');
+				assert.strictEqual(isImmediatelyInvokedCallee(node), false);
+			});
+
+			it('rejects a member access callee (e.g. `obj.prop`)', () => {
+				const node = parseCalleeExpression('obj.prop');
+				assert.strictEqual(isImmediatelyInvokedCallee(node), false);
+			});
+
+			it('rejects a binary expression callee', () => {
+				const node = parseCalleeExpression('a + b');
+				assert.strictEqual(isImmediatelyInvokedCallee(node), false);
+			});
+		});
+
+		describe('production tree leg — no source file oxlint lints carries a module-order defect', () => {
+			// The whole point of #1898: the shape guard cannot see ORDER. This
+			// leg analyses the REAL AST of every file oxlint lints (the same
+			// inventory as the suppression scanner above) and fails on the
+			// first call-before-definition, naming the file:line, the binding
+			// and the invocation chain. An unparsable file ALSO fails loudly
+			// instead of being silently counted healthy.
+			it(
+				'no module-eval call reaches an arrow constant before its definition anywhere oxlint lints',
+				{ timeout: 120_000 },
+				() => {
+					const startedAt = performance.now();
+					const { violations, scannedFileCount } =
+						scanModuleOrderViolations(WORKSPACE_ROOT);
+					const elapsedMs = Math.round(performance.now() - startedAt);
+
+					// Vacuity: the scan must have analysed a real tree, not
+					// silently walked nothing.
+					assert.ok(
+						scannedFileCount > 500,
+						`expected the real-tree scan to analyse the production files, got only ${scannedFileCount}`,
+					);
+
+					if (violations.length > 0) {
+						const names = violations
+							.map(
+								(violation) =>
+									`${violation.file}:${violation.line}:${violation.column} — ${violation.callee} ` +
+									`(declared ${violation.declaredAtLine}:${violation.declaredAtColumn}) ` +
+									`${violation.kind} via ${[...violation.chain, violation.callee].join(' -> ')}`,
+							)
+							.join('\n  ');
+						assert.fail(
+							`module-eval call before arrow-constant definition:\n  ${names}`,
+						);
+					}
+
+					assert.strictEqual(
+						violations.length,
+						0,
+						`real-tree module-order scan (${scannedFileCount} files, ${elapsedMs}ms) must be clean`,
+					);
+				},
+			);
+		});
+	});
+
+	describe('git-ignored directories are skipped by the scanner (issue #1909)', () => {
+		// Paired executed proof, leg 1 + adversarial leg 2, against the REAL
+		// workspace: `.worktrees/` is ignored by the committed root
+		// `.gitignore` (line 73), exactly the sibling-checkout scenario that
+		// reddened `just ci-lint` on a clean develop. The adversary half plants
+		// the SAME violation under `apps/front/` (not git-ignored) and asserts
+		// the scanner still sees it — a fix that "simply stops walking" would
+		// pass leg 1 while blinding the guard.
+		const plantedWorktreeFile = join(
+			WORKSPACE_ROOT,
+			'.worktrees/proof-1909/apps/front/src/viable.ts',
+		);
+		const plantedTrackedFile = join(
+			WORKSPACE_ROOT,
+			'apps/front/proof-1909-not-ignored/src/viable.ts',
+		);
+		const suppressionBody =
+			'// oxlint-disable-next-line func-style\nfunction survie1909() {\n\treturn 1;\n}\nsurvie1909();\n';
+
+		const plantSuppression = (absolutePath: string): void => {
+			mkdirSync(dirname(absolutePath), { recursive: true });
+			writeFileSync(absolutePath, suppressionBody);
+		};
+
+		const removePlanted = (): void => {
+			rmSync(join(WORKSPACE_ROOT, '.worktrees/proof-1909'), {
+				force: true,
+				recursive: true,
+			});
+			rmSync(join(WORKSPACE_ROOT, 'apps/front/proof-1909-not-ignored'), {
+				force: true,
+				recursive: true,
+			});
+		};
+
+		afterAll(removePlanted);
+
+		it('leg 1: a suppression inside a git-ignored directory is not scanned', async () => {
+			plantSuppression(plantedWorktreeFile);
+
+			try {
+				const foundEntries = await scanFuncStyleSuppressions(WORKSPACE_ROOT);
+				const worktreeEntries = foundEntries.filter((entry) =>
+					entry.file.startsWith('.worktrees/proof-1909/'),
+				);
+
+				assert.deepStrictEqual(
+					worktreeEntries,
+					[],
+					`the scanner must skip the git-ignored .worktrees/ directory; found ${worktreeEntries.map((entry) => `${entry.file}: ${entry.symbol}`).join(', ')}`,
+				);
+			} finally {
+				removePlanted();
+			}
+		});
+
+		it('adversarial leg 2: the same suppression in a NON-ignored file is still reported', async () => {
+			plantSuppression(plantedTrackedFile);
+
+			try {
+				const foundEntries = await scanFuncStyleSuppressions(WORKSPACE_ROOT);
+				const found = foundEntries.filter((entry) =>
+					entry.file.startsWith('apps/front/proof-1909-not-ignored/'),
+				);
+
+				assert.strictEqual(
+					found.length,
+					1,
+					`the scanner must still report the non-ignored suppression; got ${JSON.stringify(found)}`,
+				);
+				assert.strictEqual(
+					found[0]!.symbol,
+					'survie1909',
+					'the reported suppression must carry its symbol',
+				);
+			} finally {
+				removePlanted();
+			}
 		});
 	});
 });
