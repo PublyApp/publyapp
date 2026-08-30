@@ -955,6 +955,179 @@ test('#1890: the explicit base seam reads a reference file', async () => {
 	);
 });
 
+test('#1890: the CLI default resolves the reference from the base (a working-tree raise cannot pass the gate)', async () => {
+	// The guard is invoked through `just ci-jscpd` as a bare CLI run
+	// (`node check-jscpd.ts <report>`). That entry point must resolve the
+	// reference from the merge base — a mutation that makes the CLI default
+	// to the packaged reference file reopens the #1890 bypass while every
+	// unit test stays green, so this test drives the real CLI end to end.
+	const { gitDir } = await buildBaseGitFixture({
+		productionPairs: { count: 10, lines: 100 },
+		productionAuto: { count: 5, lines: 100 },
+		pairLines: {},
+		autoLines: {},
+	});
+
+	// The attack: the PR tree raises the reference to 200 — the value that
+	// would swallow the 200-line report below. The CLI must measure against
+	// the base (100), never this working-tree decoy.
+	await writeFile(
+		path.join(gitDir, 'packages/scripts-ts/src/jscpd-reference.json'),
+		JSON.stringify(
+			{
+				productionPairs: { count: 10, lines: 200 },
+				productionAuto: { count: 5, lines: 100 },
+			},
+			null,
+			'\t',
+		),
+	);
+
+	const cli = path.resolve(
+		path.dirname(fileURLToPath(import.meta.url)),
+		'check-jscpd.ts',
+	);
+	const runCli = async (
+		report: unknown,
+	): Promise<{ code: number; stdout: string; stderr: string }> => {
+		const root = await mkdtemp(path.join(os.tmpdir(), 'publyapp-jscpd-cli-'));
+		const reportPath = path.join(root, 'report.json');
+		await writeFile(reportPath, JSON.stringify(report, null, '\t'));
+		const env = {
+			...process.env,
+			PUBLY_JSCPD_GIT_DIR: gitDir,
+			PUBLY_JSCPD_BASE_REF: 'refs/remotes/origin/main',
+		};
+		try {
+			const out = execFileSync(process.execPath, [cli, reportPath], {
+				env,
+				encoding: 'utf-8',
+			});
+			return { code: 0, stdout: out, stderr: '' };
+		} catch (e) {
+			const err = e as {
+				status?: number;
+				stdout?: string | Buffer;
+				stderr?: string | Buffer;
+			};
+			return {
+				code: err.status ?? 1,
+				stdout: String(err.stdout ?? ''),
+				stderr: String(err.stderr ?? ''),
+			};
+		}
+	};
+
+	const report = {
+		statistics: { total: { clones: 1 } },
+		duplicates: [
+			{
+				firstFile: { name: 'apps/api/SvcA.cs' },
+				secondFile: { name: 'apps/api/SvcB.cs' },
+				lines: 200,
+			},
+		],
+	};
+
+	// Attack run: 200 lines vs the base's 100 -> exit 1, pair named, and the
+	// message says it measured against the BASE ref, not the working tree.
+	const attack = await runCli(report);
+	assert.equal(attack.code, 1, attack.stderr);
+	assert.ok(attack.stderr.includes('increased from 100 to 200'), attack.stderr);
+	assert.ok(
+		attack.stderr.includes('apps/api/SvcA.cs <-> apps/api/SvcB.cs'),
+		attack.stderr,
+	);
+	assert.ok(
+		attack.stderr.includes('Measured against git:refs/remotes/origin/main'),
+		attack.stderr,
+	);
+
+	// Control run: the same tree with a report at the base total passes.
+	const control = await runCli({
+		statistics: { total: { clones: 1 } },
+		duplicates: [
+			{
+				firstFile: { name: 'apps/api/SvcA.cs' },
+				secondFile: { name: 'apps/api/SvcB.cs' },
+				lines: 100,
+			},
+		],
+	});
+	assert.equal(control.code, 0, control.stderr);
+});
+
+test('#1890: a missing base fails loud even when a decoy reference sits in the working tree', async () => {
+	// The silent-fallback hole: when the base is unavailable, a mutation can
+	// fall back to the working-tree reference. The existing base-missing test
+	// cannot see that hole — its fixture has no reference file in the working
+	// tree, so a fallback has nothing to read and still fails loud. This test
+	// plants the decoy (the PR's own raised baseline) and demands a loud
+	// failure: the guard must never measure against a file the PR provides.
+	const gitDir = await mkdtemp(path.join(os.tmpdir(), 'publyapp-jscpd-decoy-'));
+	gitIn(gitDir, 'init', '--initial-branch=main', '.');
+	gitIn(gitDir, 'config', 'user.email', 'test@example.com');
+	gitIn(gitDir, 'config', 'user.name', 'Test');
+	const dir = path.join(gitDir, 'packages', 'scripts-ts', 'src');
+	await mkdir(dir, { recursive: true });
+	// The decoy reference: a raised baseline that would swallow the report.
+	await writeFile(
+		path.join(dir, 'jscpd-reference.json'),
+		JSON.stringify(
+			{
+				productionPairs: { count: 20, lines: 500 },
+				productionAuto: { count: 5, lines: 100 },
+			},
+			null,
+			'\t',
+		),
+	);
+
+	const root = await mkdtemp(path.join(os.tmpdir(), 'publyapp-jscpd-'));
+	const report = {
+		statistics: { total: { clones: 11 } },
+		duplicates: Array.from({ length: 11 }, (_, i) => ({
+			firstFile: { name: `apps/api/SvcA${i}.cs` },
+			secondFile: { name: `apps/api/SvcB${i}.cs` },
+			lines: 10,
+		})),
+	};
+	await writeFile(
+		path.join(root, 'report.json'),
+		JSON.stringify(report, null, '\t'),
+	);
+
+	const prevRemote = process.env.GITHUB_BASE_REF;
+	const prevSeam = process.env.PUBLY_JSCPD_BASE_REF;
+	try {
+		delete process.env.GITHUB_BASE_REF;
+		delete process.env.PUBLY_JSCPD_BASE_REF;
+		const verdict = verifyJscpdRatchet(
+			path.join(root, 'report.json'),
+			undefined,
+			undefined,
+			gitDir,
+		);
+		assert.ok(
+			verdict.errors.length > 0,
+			'the decoy must NOT satisfy the guard',
+		);
+		const msg = verdict.errors[0];
+		assert.ok(msg.includes('unavailable from the merge base'), msg);
+		assert.ok(msg.includes('refs/remotes/origin/develop'), msg);
+		assert.ok(msg.includes('git fetch origin develop'), msg);
+		// Never a silent fallback: the guard must not resolve anything.
+		assert.equal(verdict.refSource, null, `refSource=${verdict.refSource}`);
+	} finally {
+		if (prevRemote !== undefined) {
+			process.env.GITHUB_BASE_REF = prevRemote;
+		}
+		if (prevSeam !== undefined) {
+			process.env.PUBLY_JSCPD_BASE_REF = prevSeam;
+		}
+	}
+});
+
 // ---------------------------------------------------------------------------
 // Real-tree tests (require a jscpd report at the default path and an
 // origin/develop remote — `just ci-jscpd` provides both before running).
