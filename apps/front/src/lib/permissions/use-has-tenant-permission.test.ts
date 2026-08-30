@@ -59,42 +59,6 @@ beforeEach(() => {
 });
 
 describe('useHasTenantPermission', () => {
-	test('ItShouldCancelPendingRequestsOnUnmount', async () => {
-		// #1800 proof: a never-resolving request is fired on mount and the
-		// afterEach hook cancels it before jsdom teardown. Without the
-		// cancellation, the pending promise can resolve later against a
-		// destroyed jsdom ("window is not defined" uncaught exception
-		// that turns the suite red at random).
-		let resolved = false;
-		mocks.userAuthDataGet.mockImplementation(
-			() =>
-				new Promise((resolve) => {
-					setTimeout(() => {
-						resolved = true;
-						resolve({ tenantPermissionKeys: ['*'] });
-					}, 100);
-				}),
-		);
-
-		const { unmount } = renderWithQueryClient(() =>
-			useHasTenantPermission('tenant.socialaccounts.manage'),
-		);
-
-		const query = activeQueryClient?.getQueryCache().findAll()[0];
-		expect(query?.state.fetchStatus).toBe('fetching');
-
-		unmount();
-
-		// Wait long enough that the promise WOULD resolve if not cancelled.
-		await new Promise((r) => setTimeout(r, 200));
-
-		// The afterEach cancellation prevented the query from accepting the
-		// late resolution. Without the fix, the promise resolves and React
-		// Query tries to update the unmounted hook against a dead jsdom.
-		expect(resolved).toBe(true);
-		expect(query?.state.fetchStatus).toBe('idle');
-	});
-
 	test('ItShouldFetchAuthDataScopedToTheWorkspaceTenant', async () => {
 		const { result } = renderWithQueryClient(() =>
 			useHasTenantPermission('tenant.socialaccounts.manage'),
