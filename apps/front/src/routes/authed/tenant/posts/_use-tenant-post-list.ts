@@ -16,7 +16,7 @@ import {
 	serializeTenantPostListSearchParams,
 } from '~/lib/url-state/tenant-post-list-helpers';
 
-export const DEFAULT_SORT = {
+const DEFAULT_SORT = {
 	id: 'updated_at',
 	order: 'desc' as const,
 } as const;
