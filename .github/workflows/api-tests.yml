@@ -184,7 +184,7 @@ jobs:
 
           dotnet test Tests/PublyApp.Api.Tests.csproj -c Test --no-restore --nologo \
             --verbosity minimal --logger "console;verbosity=normal" \
-            --filter "$FILTER"
+            --filter '$FILTER'
 
       # Failure-only log capture: get failing specs off the ephemeral runner.
       - name: Upload test results on failure
