@@ -30,8 +30,31 @@ export const preferEarlyReturn = {
 		},
 	},
 	create(context: Context): Visitor {
-		// oxlint ESTree: `VariableDeclaration` appears directly in
-		// `BlockStatement.body` — no `VariableStatement` wrapper.
+		// A ternary that fits on a single line is idiomatically readable
+		// (e.g. a sort comparator `return a < b ? -1 : 1;`). Such
+		// single-line ternaries are allowed; everything else is still
+		// flagged — the paired invalid cases below keep the rule live.
+		const isSingleLineTernary = (node: ESTree.ConditionalExpression): boolean =>
+			node.loc.start.line === node.loc.end.line;
+
+		const reportIfMultiLine = (node: ESTree.ConditionalExpression): void => {
+			if (!isSingleLineTernary(node)) {
+				context.report({
+					loc: {
+						start: {
+							line: node.loc.start.line,
+							column: node.loc.start.column,
+						},
+						end: {
+							line: node.loc.end.line,
+							column: node.loc.end.column,
+						},
+					},
+					messageId: 'preferEarlyReturn',
+				});
+			}
+		};
+
 		const checkBodyStatements = (statements: ESTree.Statement[]): void => {
 			for (let index = 0; index < statements.length; index += 1) {
 				const stmt = statements[index];
@@ -59,10 +82,7 @@ export const preferEarlyReturn = {
 							nextStmt.type === 'ReturnStatement' &&
 							isIdentifier(nextStmt.argument, varName)
 						) {
-							context.report({
-								node: declaration.init,
-								messageId: 'preferEarlyReturn',
-							});
+							reportIfMultiLine(declaration.init);
 						}
 					}
 				}
@@ -74,10 +94,7 @@ export const preferEarlyReturn = {
 			// `ReturnStatement` at any depth, so nesting is handled for free.
 			ReturnStatement(node) {
 				if (isConditionalExpression(node.argument)) {
-					context.report({
-						node: node.argument,
-						messageId: 'preferEarlyReturn',
-					});
+					reportIfMultiLine(node.argument);
 				}
 			},
 
