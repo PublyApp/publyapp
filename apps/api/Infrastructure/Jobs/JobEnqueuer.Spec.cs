@@ -8,6 +8,7 @@ using Microsoft.Extensions.DependencyInjection;
 using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Lib;
 using PublyApp.Api.Lib.Testing.Fixtures;
+using PublyApp.Api.Modules.Publishing.Jobs;
 
 using Xunit;
 
@@ -182,6 +183,44 @@ public sealed class JobEnqueuerSpec : IClassFixture<ApiFixture> {
 			count.Should().Be(0);
 		} finally {
 			await DeleteJobsByTypeAsync(definition.JobType);
+		}
+	}
+
+	// #1717 part 2: PublishPublicationPayload.IdempotencyKey is a redundant copy of
+	// the derived key, but the redundancy is NOT silent — the definition's Validate
+	// hook fires inside JobEnqueuer.EnqueueAsync and rejects a payload whose key
+	// diverges from the key derived from the publication id. A reader who edits the
+	// payload field gets a loud failure instead of silently diverging from the
+	// EnqueueOptions key the queue dedups on.
+	[Fact]
+	public async Task ItShouldRejectEnqueueWhenPublishingPayloadIdempotencyKeyMismatchesTheDerivedKey() {
+		var publicationId = Guid.CreateVersion7();
+		var wrongKey = "not-the-derived-key";
+
+		try {
+			await using var dbContext = await CreateDbContextAsync();
+			var enqueuer = new JobEnqueuer(dbContext, new RequestAuthContext());
+
+			var act = async () => await enqueuer.EnqueueAsync(
+				PublishingJobs.PublishPublicationV1,
+				new PublishPublicationPayload {
+					PublicationId = publicationId,
+					IdempotencyKey = wrongKey,
+				}
+			);
+
+			// The payload key is READ at enqueue: a mismatch is refused loudly, so
+			// the field can never silently mislead a reader into thinking it drives
+			// idempotency on its own.
+			await act.Should().ThrowAsync<InvalidOperationException>()
+				.WithMessage("*does not match the key derived from the publication id*");
+
+			await using var verifyContext = await CreateDbContextAsync();
+			var count = await verifyContext.JobQueue
+				.CountAsync(j => j.JobType == PublishingJobs.PublishPublicationV1JobType);
+			count.Should().Be(0, "a rejected payload must not be persisted");
+		} finally {
+			await DeleteJobsByTypeAsync(PublishingJobs.PublishPublicationV1JobType);
 		}
 	}
 

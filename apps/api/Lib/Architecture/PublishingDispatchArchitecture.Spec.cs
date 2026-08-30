@@ -6,6 +6,9 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.Routing;
+using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -33,12 +36,21 @@ namespace PublyApp.Api.Lib.Architecture;
 /// <c>SELECT … FOR UPDATE SKIP LOCKED</c> against the publications table. The
 /// due-scan lock IS the linearization point of concurrent dispatch; a second
 /// locker would silently fork the exactly-once guarantee proven by
-/// DispatchDuePostsConcurrencySpec. Detection is lexical but statement-scoped:
-/// each <c>SKIP LOCKED</c> occurrence is attributed to its enclosing SQL
-/// statement, which must reference the publications table.</item>
+/// DispatchDuePostsConcurrencySpec. Two passes guard it: Phase 1 keeps the
+/// original lexical statement-window scan (each <c>SKIP LOCKED</c> occurrence
+/// is attributed to its enclosing SQL statement, which must reference the
+/// publications table); Phase 2 (#1717) replaces the naive concat-widening
+/// with a CLOSED INVENTORY of every raw-SQL invocation site
+/// (<c>Database.SqlQuery*/ExecuteSql*/FromSql*</c>), where an un-reviewed site
+/// fails loudly no matter how its SQL text is assembled. The guard also
+/// declares its residual blind spots in <see cref="KnownScanBlindSpots"/>,
+/// machine-checked so the declaration itself cannot be silently removed.</item>
 /// </list>
-/// Documented residual gap: SQL assembled dynamically from pieces can evade the
-/// statement window — same stance as the sibling guards (CanaryProbeContainment,
+/// Documented residual gap: SQL assembled dynamically from pieces can still
+/// evade the statement window — that limit is now declared LOUDLY in
+/// <see cref="KnownScanBlindSpots"/> and the closed invocation-site inventory
+/// shrinks the practical escape surface: any new EF raw-SQL call must join the
+/// reviewed list first. Same honest stance as the sibling guards (CanaryProbeContainment,
 /// PublicationArchitecture reflection gap).
 /// Proven RED by planting a second publications-row SKIP LOCKED claim and by
 /// stripping permission metadata from a publishing endpoint
@@ -284,6 +296,35 @@ public sealed partial class PublishingDispatchArchitectureSpec : IDisposable {
 			scan.Offenders.Count,
 			string.Join("\n", scan.Offenders.Take(20))
 		);
+
+		// #1717: the closed raw-SQL invocation-site inventory. A second claimant
+		// written ANY other way (concat, interpolation, a table name in a variable)
+		// is an un-reviewed Database.SqlQuery*/ExecuteSql*/FromSql* call and fails
+		// here, named by file — the lexical statement scan alone is a method limit,
+		// not coverage.
+		scan.UnknownInvocationSites.Should().BeEmpty(
+			"every raw-SQL invocation site must be a reviewed entry in "
+				+ "ReviewedRawSqlSites; a new site (regardless of how its SQL text "
+				+ "is built) must join the inventory with its target table and "
+				+ "review note, or it could be a second publications-row claimant "
+				+ "invisible to the lexical scan — found:\n{0}",
+			string.Join("\n", scan.UnknownInvocationSites)
+		);
+
+		// #1717 blind-spot honesty: the guard must declare what it still cannot
+		// see (SQL outside EF raw-SQL APIs, DB views/functions, runtime-loaded
+		// SQL). Emptied or deleted, this declaration must fail the suite — a guard
+		// that silently claims completeness is the most expensive defect here.
+		KnownScanBlindSpots.Should().NotBeEmpty(
+			"[#1717] the guard must declare its blind spots loudly; emptying "
+			+ "this list removes the honesty and turns the scan into a silent "
+			+ "false negative"
+		);
+		KnownScanBlindSpots.Should().AllSatisfy(spot =>
+			spot.Should().NotBeNullOrWhiteSpace(
+				"a blind-spot entry must be a named gap, not a placeholder"
+			)
+		);
 	}
 
 	// ── Helpers ──────────────────────────────────────────────────────────────
@@ -340,8 +381,260 @@ public sealed partial class PublishingDispatchArchitectureSpec : IDisposable {
 	private sealed record ForUpdateScan(
 		int TotalMatches,
 		Dictionary<string, int> SanctionedByFile,
-		List<string> Offenders
+		List<string> Offenders,
+		List<string> UnknownInvocationSites
 	);
+
+	// ── (c) Explicit reviewed inventory of raw-SQL invocation sites (#1717) ──
+
+	// A lexical scan can never see SQL assembled dynamically: the table name can
+	// live in a variable, the fragments can be concatenated, the statement can be
+	// interpolated. The issue's own piste is the inventory: every raw-SQL entry
+	// point (Database.SqlQuery*/ExecuteSql*/FromSql*) is an explicit, REVIEWED
+	// site; a new invocation anywhere fails loudly until it joins the inventory,
+	// whatever its SQL text looks like. The sanctioned due-scan claim is one
+	// reviewed site (publications); Phase 1 still attributes its literal text.
+	private sealed record ReviewedRawSqlSite(
+		string RelativePath,
+		string MethodName,
+		string Table,
+		string Review
+	);
+
+	private static readonly ReviewedRawSqlSite[] ReviewedRawSqlSites = [
+		new(
+			"Modules/Publishing/Jobs/DispatchDuePostsJob.cs",
+			"SqlQuery",
+			"publications",
+			"sANCTIONED due-scan SKIP LOCKED claim (Phase-1 literal attribution)"
+		),
+		new(
+			"Modules/Messaging/Jobs/EmailLogRetentionHandler.cs",
+			"ExecuteSqlAsync",
+			"email_log",
+			"bounded retention sweep"
+		),
+		new(
+			"Modules/Messaging/Jobs/EmailPreparedSendsRetentionHandler.cs",
+			"ExecuteSqlAsync",
+			"email_prepared_sends",
+			"bounded retention sweep"
+		),
+		new(
+			"Modules/Messaging/Jobs/EmailJobHandlerBase.cs",
+			"ExecuteSqlRawAsync",
+			"users/invitations",
+			"LockRowAsync: FOR UPDATE on a per-handler constant table"
+		),
+		new(
+			"Modules/Messaging/Jobs/EmailJobHandlerBase.cs",
+			"ExecuteSqlAsync",
+			"email_prepared_sends",
+			"freeze-the-envelope-once insert"
+		),
+		new(
+			"Modules/Tenants/Services/TenantAsStaffService.cs",
+			"SqlQuery",
+			"tenants",
+			"bulk suspend/reactivate/delete RETURNING"
+		),
+		new(
+			"Modules/Profiles/Seeders/StaffProfileSeeder.cs",
+			"SqlQueryRaw",
+			"information_schema.columns",
+			"column-existence guard"
+		),
+		new(
+			"Modules/Jobs/Jobs/DeadLetterRetentionHandler.cs",
+			"ExecuteSqlAsync",
+			"job_queue",
+			"bounded retention sweep"
+		),
+		new(
+			"Modules/Jobs/Jobs/DeadLetterRetentionHandler.cs",
+			"SqlQuery",
+			"job_queue",
+			"retention/claim scan"
+		),
+		new(
+			"Modules/Jobs/Jobs/SystemJobOccurrenceRetentionHandler.cs",
+			"ExecuteSqlAsync",
+			"system_job_occurrences",
+			"bounded retention sweep"
+		),
+		new(
+			"Modules/Jobs/Services/DeadLetterQueryService.cs",
+			"ExecuteSqlAsync",
+			"job_queue",
+			"DLQ requeue"
+		),
+		new(
+			"Modules/Jobs/Services/DeadLetterQueryService.cs",
+			"SqlQuery",
+			"job_queue",
+			"envelope FOR UPDATE read"
+		),
+		new(
+			"Modules/Jobs/Services/JobDeadLetterService.cs",
+			"ExecuteSqlAsync",
+			"job_queue",
+			"state transition"
+		),
+		new(
+			"Modules/Jobs/Services/SystemJobDefinitionQueryService.cs",
+			"ExecuteSqlAsync",
+			"system_job_definitions",
+			"definition update"
+		),
+		new(
+			"Modules/Jobs/Services/SystemJobDefinitionQueryService.cs",
+			"SqlQuery",
+			"system_job_definitions",
+			"epoch read"
+		),
+		new(
+			"Modules/Jobs/Seeders/SystemJobDefinitionSeeder.cs",
+			"SqlQueryRaw",
+			"to_regclass",
+			"table-existence guard"
+		),
+		new(
+			"Modules/Jobs/Seeders/SystemJobDefinitionSeeder.cs",
+			"ExecuteSqlAsync",
+			"system_job_definitions",
+			"seed upsert"
+		),
+		new(
+			"Modules/Uploads/Jobs/UploadOrphanReclaimerHandler.cs",
+			"ExecuteSqlAsync",
+			"upload_assets",
+			"orphan reclamation"
+		),
+		new(
+			"Modules/Uploads/Jobs/UploadOrphanReclaimerHandler.cs",
+			"SqlQuery",
+			"upload_assets",
+			"candidate scan"
+		),
+		new(
+			"Modules/Uploads/Services/UploadAssetReferenceService.cs",
+			"ExecuteSqlAsync",
+			"upload_assets",
+			"reference transitions"
+		),
+		new(
+			"Modules/Users/Services/TenantMembershipLockOrder.cs",
+			"ExecuteSqlAsync",
+			"users/tenants",
+			"deterministic lock order (FOR UPDATE)"
+		),
+		new(
+			"Modules/Users/Services/TenantMembershipLockOrder.cs",
+			"FromSql",
+			"profiles/user_accounts",
+			"locked live-profile/account reads (FOR UPDATE)"
+		),
+		new(
+			"Modules/Users/Services/StaffUserProfileAssignmentService.cs",
+			"FromSqlInterpolated",
+			"staff_profile_membership",
+			"assignment scope read"
+		),
+		new(
+			"Modules/Auth/Jobs/CleanupExpiredSessionsHandler.cs",
+			"ExecuteSqlAsync",
+			"sessions",
+			"bounded expired-session sweep"
+		),
+		new(
+			"Modules/Auth/Services/PasswordResetService.cs",
+			"ExecuteSqlAsync",
+			"password_reset_tokens",
+			"token cleanup"
+		),
+		new(
+			"Lib/Seeding/BulkSeeder.cs",
+			"ExecuteSqlInterpolatedAsync",
+			"bootstrap tables",
+			"dev bulk seeding"
+		),
+		new(
+			"Lib/Testing/Helpers/PostgresLockBarrier.cs",
+			"SqlQuery",
+			"pg advisory locks",
+			"test-only lock barrier"
+		),
+		new(
+			"Infrastructure/Messaging/Email/InvitationEmailOutboxDispatcher.cs",
+			"SqlQuery",
+			"email_outbox",
+			"outbox claim"
+		),
+		new(
+			"Infrastructure/Jobs/JobQueueMonitorService.cs",
+			"SqlQuery",
+			"job_queue",
+			"monitor query"
+		),
+		new(
+			"Infrastructure/Jobs/WorkerHeartbeatService.cs",
+			"ExecuteSqlAsync",
+			"job_queue",
+			"heartbeat stamp"
+		),
+		new(
+			"Infrastructure/Jobs/Quartz/EnqueueSystemJobJob.cs",
+			"ExecuteSqlAsync",
+			"system_job_definitions/job_queue",
+			"schedule enqueue"
+		),
+		new(
+			"Infrastructure/Jobs/Quartz/EnqueueSystemJobJob.cs",
+			"SqlQuery",
+			"system_job_definitions",
+			"epoch read"
+		),
+		new(
+			"Infrastructure/Jobs/JobQueueProcessor.cs",
+			"ExecuteSqlAsync",
+			"job_queue",
+			"claim/release/fail transitions"
+		),
+		new(
+			"Infrastructure/Jobs/JobQueueProcessor.cs",
+			"SqlQuery",
+			"job_queue",
+			"claim scan / lease stamp"
+		),
+		new(
+			"Infrastructure/Jobs/JobEnqueuer.cs",
+			"ExecuteSqlAsync",
+			"pg_notify",
+			"transactional wake"
+		),
+		new(
+			"Infrastructure/Jobs/DeadLetterRequeueEnqueuer.cs",
+			"ExecuteSqlAsync",
+			"job_queue",
+			"requeue insert"
+		),
+		new(
+			"Infrastructure/Storage/UploadAdmissionService.cs",
+			"ExecuteSqlAsync",
+			"upload_assets",
+			"durable byte-budget reservations"
+		),
+	];
+
+	// The guard KNOWS it cannot see every way SQL reaches the database. This
+	// list is the machine-checked blind-spot declaration: emptying or deleting it
+	// is itself a failing test, so the guard can never silently claim completeness
+	// while a new dynamic-SQL path escapes it.
+	private static readonly string[] KnownScanBlindSpots = [
+		"SQL executed through Npgsql/NpgsqlDataSource outside EF raw-SQL APIs",
+		"SQL hidden inside database views, functions, or triggers",
+		"SQL loaded from .sql files or configuration at runtime",
+	];
 
 	private static ForUpdateScan ScanForUpdateSkipLockedOnPublications(
 		IReadOnlyList<(string RelativePath, string Source)> sources
@@ -351,11 +644,10 @@ public sealed partial class PublishingDispatchArchitectureSpec : IDisposable {
 		var total = 0;
 
 		foreach (var (relativePath, rawSource) in sources) {
-			// Comments legitimately DISCUSS locking strategies (seeder docs, job
-			// docs); only executable code can claim rows. Ordinary string literals
-			// carry DESCRIPTIONS (data), so their contents are blanked too — raw
-			// string literals ("""…"""), where executable SQL lives, stay
-			// scannable. Both passes preserve length for line attribution.
+			// Phase 1 (kept): literal statement-window scan. Comments legitimately
+			// DISCUSS locking strategies; only executable code can claim rows.
+			// Ordinary string literals carry DESCRIPTIONS (blanked); raw string
+			// literals ("""…"""), where executable SQL lives, stay scannable.
 			var source = BlankCommentsAndDataStrings(rawSource);
 			var index = 0;
 			while ((index = source.IndexOf(
@@ -363,11 +655,6 @@ public sealed partial class PublishingDispatchArchitectureSpec : IDisposable {
 						index,
 						StringComparison.OrdinalIgnoreCase
 					)) >= 0) {
-				// Attribute the occurrence to its enclosing SQL statement:
-				// everything from the previous statement terminator to the token.
-				// A statement window (not a whole-file search) keeps co-located
-				// claims on OTHER tables (job_queue, email_prepared_sends, …)
-				// clean while still flagging any publications-row claimant.
 				var statementStart =
 					source.LastIndexOf(';', Math.Max(index - 1, 0)) + 1;
 				var statement = source[statementStart..index];
@@ -397,7 +684,81 @@ public sealed partial class PublishingDispatchArchitectureSpec : IDisposable {
 			}
 		}
 
-		return new ForUpdateScan(total, sanctionedByFile, offenders);
+		// Phase 2 (#1717): syntax-tree inventory. Every raw-SQL invocation site
+		// must be reviewed; the sanctioned file is one reviewed site, so a new
+		// claimant written ANY other way (concat, interpolation, variable table)
+		// fails the closed inventory instead of slipping past the regex.
+		var unknownInvocationSites = EnumerateUnknownRawSqlSites(sources);
+
+		return new ForUpdateScan(total, sanctionedByFile, offenders, unknownInvocationSites);
+	}
+
+	private static readonly string[] RawSqlMethodNames = [
+		"SqlQuery",
+		"SqlQueryRaw",
+		"SqlQueryInterpolated",
+		"FromSql",
+		"FromSqlRaw",
+		"FromSqlInterpolated",
+		"ExecuteSql",
+		"ExecuteSqlRaw",
+		"ExecuteSqlInterpolated",
+		"ExecuteSqlAsync",
+		"ExecuteSqlRawAsync",
+		"ExecuteSqlInterpolatedAsync",
+	];
+
+	private static List<string> EnumerateUnknownRawSqlSites(
+		IReadOnlyList<(string RelativePath, string Source)> sources
+	) {
+		var seen = new List<(string RelativePath, string MethodName)>();
+
+		foreach (var (relativePath, rawSource) in sources) {
+			var syntaxTree = CSharpSyntaxTree.ParseText(
+				rawSource,
+				path: relativePath
+			);
+			var root = syntaxTree.GetRoot();
+
+			foreach (var invocation in root
+					.DescendantNodes()
+					.OfType<InvocationExpressionSyntax>()) {
+				var methodName = ResolveRawSqlMethodName(invocation);
+				if (methodName is not null) {
+					seen.Add((relativePath, methodName));
+				}
+			}
+		}
+
+		var unknown = new List<string>();
+		foreach (var site in seen
+				.Distinct()
+				.OrderBy(s => s.RelativePath, StringComparer.Ordinal)
+				.ThenBy(s => s.MethodName, StringComparer.Ordinal)) {
+			var reviewed = ReviewedRawSqlSites.Any(r =>
+				r.RelativePath == site.RelativePath
+				&& r.MethodName == site.MethodName
+			);
+
+			if (!reviewed) {
+				unknown.Add($"{site.RelativePath} — {site.MethodName}()");
+			}
+		}
+
+		return unknown;
+	}
+
+	private static string? ResolveRawSqlMethodName(
+		InvocationExpressionSyntax invocation
+	) {
+		if (invocation.Expression is not MemberAccessExpressionSyntax access) {
+			return null;
+		}
+
+		var methodName = access.Name.Identifier.ValueText;
+		return RawSqlMethodNames.Contains(methodName, StringComparer.Ordinal)
+			? methodName
+			: null;
 	}
 
 	private static IReadOnlyList<(string RelativePath, string Source)>
