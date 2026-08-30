@@ -905,6 +905,26 @@
 			"hash": "a4cc669d0f05a839",
 			"mirror": null,
 			"reason": "Reads github.event.pull_request.body. At pre-push time there is no PR and therefore no body to check, so this gate is unreproducible locally by construction rather than by omission. The step gained a #1240 waiver that short-circuits to success for PR_AUTHOR == 'dependabot[bot]' (exact-login policy, not github.actor, not a label); the waiver's exact shape is guarded by packages/scripts-ts/src/require-linked-issue.test.ts, which just ci-drift now runs, but the step itself (which reads the live PR body) stays a GitHub-only required check."
+		},
+		"quality-gate.yml::ratchet-raise::Install pnpm": {
+			"hash": "8985553731d304dc",
+			"mirror": null,
+			"reason": "Runner toolchain provisioning. Locally pnpm is pinned by the packageManager field and is a developer prerequisite."
+		},
+		"quality-gate.yml::ratchet-raise::Setup Node": {
+			"hash": "6c699edc403fc068",
+			"mirror": null,
+			"reason": "Runner toolchain provisioning. Locally the Node version is pinned by .node-version / .nvmrc instead."
+		},
+		"quality-gate.yml::ratchet-raise::Setup just": {
+			"hash": "17b73e0220816c76",
+			"mirror": null,
+			"reason": "Runner toolchain provisioning: installs the just binary. Locally just is the entrypoint being run, so it is by definition already present."
+		},
+		"quality-gate.yml::ratchet-raise::Install (frozen lockfile, no scripts)": {
+			"hash": "2fd5cf518bdeb323",
+			"mirror": "just ci-install",
+			"reason": "ci-install runs the identical pnpm install --frozen-lockfile --ignore-scripts."
 		}
 	}
 }

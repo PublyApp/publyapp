@@ -214,6 +214,10 @@
 		"quality-gate.yml::quality::Verify deploy env doc coverage (#1798)",
 		"quality-gate.yml::quality::Verify production duplication has not increased (#1821)",
 		"quality-gate.yml::ratchet-raise::Checkout",
+		"quality-gate.yml::ratchet-raise::Install (frozen lockfile, no scripts)",
+		"quality-gate.yml::ratchet-raise::Install pnpm",
+		"quality-gate.yml::ratchet-raise::Setup Node",
+		"quality-gate.yml::ratchet-raise::Setup just",
 		"quality-gate.yml::ratchet-raise::Verify jscpd reference raise is accompanied by a docs/records/ change (#1969)",
 		"react-doctor.yml::changes::Check whether react-doctor paths changed",
 		"react-doctor.yml::changes::Checkout classifier from the base commit (not the PR's own copy)",
@@ -1119,6 +1123,26 @@
 			"reason_hash": "9f671866bb224574",
 			"reason_length": 541,
 			"reason": "Reads github.event.pull_request.body. At pre-push time there is no PR and therefore no body to check, so this gate is unreproducible locally by construction rather than by omission. The step gained a #1240 waiver that short-circuits to success for PR_AUTHOR == 'dependabot[bot]' (exact-login policy, not github.actor, not a label); the waiver's exact shape is guarded by packages/scripts-ts/src/require-linked-issue.test.ts, which just ci-drift now runs, but the step itself (which reads the live PR body) stays a GitHub-only required check."
+		},
+		"quality-gate.yml::ratchet-raise::Install pnpm": {
+			"reason_hash": "1fd22cde3ad0647d",
+			"reason_length": 114,
+			"reason": "Runner toolchain provisioning. Locally pnpm is pinned by the packageManager field and is a developer prerequisite."
+		},
+		"quality-gate.yml::ratchet-raise::Setup Node": {
+			"reason_hash": "305da4753c978917",
+			"reason_length": 100,
+			"reason": "Runner toolchain provisioning. Locally the Node version is pinned by .node-version / .nvmrc instead."
+		},
+		"quality-gate.yml::ratchet-raise::Setup just": {
+			"reason_hash": "997bb69cf1357de0",
+			"reason_length": 138,
+			"reason": "Runner toolchain provisioning: installs the just binary. Locally just is the entrypoint being run, so it is by definition already present."
+		},
+		"quality-gate.yml::ratchet-raise::Install (frozen lockfile, no scripts)": {
+			"reason_hash": "663389920e93e4f6",
+			"reason_length": 78,
+			"reason": "ci-install runs the identical pnpm install --frozen-lockfile --ignore-scripts."
 		}
 	}
 }

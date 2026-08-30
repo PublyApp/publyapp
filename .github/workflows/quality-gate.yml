@@ -374,6 +374,26 @@ jobs:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
+      # `just ci-jscpd-raise` runs pnpm/vitest/tsc, so this job needs the same
+      # toolchain as `quality`. The first push of this job ran on a bare
+      # checkout and died with `just: command not found` — a job that cannot
+      # start is not a guard.
+      - name: Install pnpm
+        uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+        with:
+          version: 10.13.1
+
+      - name: Setup Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: 24
+
+      - name: Setup just
+        uses: extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3 # v4.0.0
+
+      - name: Install (frozen lockfile, no scripts)
+        run: pnpm install --frozen-lockfile --ignore-scripts
+
       - name: Verify jscpd reference raise is accompanied by a docs/records/ change (#1969)
         run: just ci-jscpd-raise
 
