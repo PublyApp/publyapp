@@ -90,11 +90,16 @@ review-api *args:
 review-api *args:
   node packages/scripts-ts/src/review-api.ts @args
 
-# Start docker services (postgres, etc.)
+# Start Aspire AppHost (postgres + api + worker + front).
+# -property:OpenApiGenerateDocuments=false: `dotnet run`'s implicit build would
+# otherwise run the API's OpenAPI document generation, which boots the app with
+# the ambient .env.development (APP_ROLE=all) while no Postgres is up yet, and the
+# worker's migration gate retries until the build fails. This recipe only needs a
+# build; the drift gate (build-api-full) and `just generate-client` regenerate.
 dev-services:
-  docker compose -f docker-compose.services.yml up -d
+  dotnet run --project apps/apphost --property:OpenApiGenerateDocuments=false
 
-# Start database (alias for dev-services)
+# Start Aspire AppHost (alias for dev-services)
 dev-db: dev-services
 
 # =============================================================================
@@ -578,22 +583,6 @@ ci-full: ci ci-e2e-front
   @echo "=== just ci-full: PASSED ==="
 
 # =============================================================================
-# Docker
-# =============================================================================
-
-# Build docker images
-docker-build:
-  docker compose -f docker-compose.services.yml build
-
-# Start docker services
-docker-up:
-  docker compose -f docker-compose.services.yml up -d
-
-# Stop docker services
-docker-down:
-  docker compose -f docker-compose.services.yml down
-
-# =============================================================================
 # Code generation
 # =============================================================================
 
@@ -651,12 +640,11 @@ env-check:
   @echo "Dotnet version: $(dotnet --version)"
   @echo "Docker version: $(docker --version)"
 
-# Convenience: setup dev env (install + db)
-dev-setup: install dev-db
+# Convenience: setup dev env (install + apphost)
+dev-setup: install dev-services
   @echo "Development environment ready!"
-  @echo "Run 'just dev-api' in one terminal and 'just dev-front' in another"
+  @echo "The Aspire AppHost is running the API, worker, and front."
 
-# Convenience: quick-start api after install+db
-quick-start: install dev-db dev-api
-  @echo "API started on http://localhost:5000"
-  @echo "Run 'just dev-front' in another terminal for the frontend"
+# Convenience: quick-start (install + apphost)
+quick-start: install dev-services
+  @echo "Aspire AppHost started — API on http://localhost:5000, front on http://localhost:5050"
