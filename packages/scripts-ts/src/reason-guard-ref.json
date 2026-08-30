@@ -186,6 +186,7 @@
 		"quality-gate.yml::quality::Audit development dependencies (moderate and above)",
 		"quality-gate.yml::quality::Bind pinned action SHAs to their version comments (#1392)",
 		"quality-gate.yml::quality::Build .NET solution (warnings as errors via Directory.Build.props)",
+		"quality-gate.yml::quality::Check C# formatting (dotnet format --verify-no-changes)",
 		"quality-gate.yml::quality::Check formatting (oxfmt --check)",
 		"quality-gate.yml::quality::Checkout",
 		"quality-gate.yml::quality::Install (frozen lockfile, no scripts)",
@@ -904,6 +905,11 @@
 			"reason_hash": "fa3bbfa576e1dc0c",
 			"reason_length": 251,
 			"reason": "ci-quality-dotnet runs the identical dotnet build PublyApp.slnx --no-restore with TreatWarningsAsErrors and EnforceCodeStyleInBuild active via Directory.Build.props, so any analyzer or code-style warning fails the build the same way in CI and locally."
+		},
+		"quality-gate.yml::quality::Check C# formatting (dotnet format --verify-no-changes)": {
+			"reason_hash": "bcb3a7e9bc2c833b",
+			"reason_length": 674,
+			"reason": "#1924: dotnet format --verify-no-changes catches whitespace diagnostics that compile-time checks (TreatWarningsAsErrors + EnforceCodeStyleInBuild) miss: trailing spaces, brace style, blank-line spacing, tab/space indentation, and column width. ci-quality-dotnet runs the identical command as its final step. The guard was demonstrated red+green against a trailing-space mutation (exit 2) and clean tree (exit 0). Known limitation: EF Core regenerates migration .cs files in its own Allman/4-space style; the .editorconfig Migrations section exempts only IDE0005/IDE0300/CA1861, not whitespace. Fix: run `dotnet format` immediately after each `just db-add` before committing."
 		},
 		"quality-gate.yml::quality::Check formatting (oxfmt --check)": {
 			"reason_hash": "6b89e3c033cf0ebc",
