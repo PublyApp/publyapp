@@ -41,23 +41,41 @@ import { getSourceRelativePath, normalizeFilename } from './path-scopes.ts';
  *
  * Detection:
  *   - A "query hook call" is a `CallExpression` whose callee resolves (after
- *     import-alias resolution) to an identifier named `useQuery` exactly, or
+ *     alias resolution) to an identifier named `useQuery` exactly, or
  *     matching `/^use[A-Z].*\wQuery$/` (the repo's shared-factory hooks:
  *     `useStaffTenantDetailsQuery`, `useStaffProfilesQuery`, `useSuspenseQuery`,
  *     `useInfiniteQuery`; deliberately NOT `useQueryClient` — it ends in
  *     `Client` — and not `usePreloadIntentQueries`, which ends in `Queries`).
- *   - Import aliases are followed: `import { useQuery as uq } from ...` plus
- *     `uq({...})` is recognised as a query-hook call, because the only other
- *     reading is the silent false-negative that r3 caught (the rule sees an
- *     unknown identifier and defaults to silence — an entry it cannot decide
- *     MUST surface loudly, never quietly).
- *   - Namespace imports (`import * as Q from ...`) are intentionally not
- *     resolved: an oxlint JS plugin runs without TypeScript's module
- *     resolver, so the only safe reading is `Q.useQuery` etc., which the
- *     `MemberExpression` branch already names. Callers that go through a
- *     namespace import plus a renamable export are outside this rule's
- *     contract; the fix is to import the hook by name.
- *   - The diagnostic message names the alias actually seen in the source
+ *   - Aliases are followed wherever a static reader can: named imports
+ *     (`import { useQuery as uq }`), variable assignments
+ *     (`const uq = useQuery`, `let` included), destructuring
+ *     (`const { useQuery: uq } = ...`), require chains
+ *     (`const uq = require('@tanstack/react-query').useQuery`), and alias
+ *     chains (`const a = useQuery; const b = a;`). Every alias resolves to a
+ *     canonical hook name in ONE hop — no chain-fixpoint is needed, because
+ *     an assignment alias is only created when its initialiser is already
+ *     canonical (a maintainer "simplifying" that invariant can measure it:
+ *     the alias-chain test in the spec pins the observable behaviour). The
+ *     only other reading for any of these would be the silent
+ *     false-negative mode this rule is forbidden from entering (an entry it
+ *     cannot decide MUST surface loudly, never quietly).
+ *   - Namespace member calls are handled TRUTHFULLY: when the object side is
+ *     a namespace import (or whole-module require) from a query module,
+ *     `RQ.useQuery(...)` is recognised and the diagnostic names `RQ.useQuery`
+ *     as the alias actually written in the source, with `useQuery` as the
+ *     canonical export name. This is not a blind spot; the earlier state —
+ *     docs claiming a blind spot while the member branch half-caught it with
+ *     a message naming only the property — was the worst of three options.
+ *   - Everything else fails LOUDLY with a dedicated diagnostic: if a route
+ *     file binds a name from a query module (`@tanstack/react-query` or a
+ *     path containing `lib/query/`) in a way the static reader cannot resolve
+ *     to a canonical hook name (default import, whole-module `require`) and
+ *     then CALLS that name, the rule reports `unresolvedHookCall` saying
+ *     exactly that: it imported from module M as X and cannot decide whether
+ *     the call to Y is a query hook. A noisy false positive that a motivated
+ *     escape comment silences is worth infinitely more than a silent false
+ *     negative (repo doctrine).
+ *   - The diagnostic messages name the alias actually seen in the source
  *     (so the developer can grep for it) and the canonical hook name (so
  *     the diagnosis is honest about WHAT the rule saw).
  *   - "preload declared" means the file contains, anywhere, an object
@@ -96,21 +114,39 @@ export const ALLOWLISTED_ROUTE_PATHS: readonly string[] = [
 const isRouteQueryHookName = (name: string): boolean =>
 	name === 'useQuery' || /^use[A-Z].*\wQuery$/.test(name);
 
+/**
+ * Sources that provide query hooks: react-query itself and the repo's
+ * shared-factory modules (`apps/front/src/lib/query/**`, imported as
+ * `~/lib/query/...` or a relative path). Bindings taken from these modules
+ * that the rule cannot resolve to a canonical hook name must fail loudly.
+ */
+const isQueryModuleSource = (source: string): boolean =>
+	source === '@tanstack/react-query' || source.includes('lib/query/');
+
 /** True when the filename is a test/spec file (excluded from checking). */
 const isTestFile = (filename: string): boolean =>
 	/(?:^|\/)[^/]+\.(?:test|spec)\.(?:ts|tsx|jsx|mjs|js)$/.test(filename);
 
-/** Extracts the callee name from a CallExpression's callee. */
-const getCalleeName = (callee: ESTree.Expression): string | null => {
+interface CalleeInfo {
+	/** The name the rule resolves (identifier name, or member property name). */
+	readonly callName: string;
+	/** For `obj.prop(...)` callees, the object's identifier name; null for
+	 *  plain identifier callees. Used to build the truthful alias text. */
+	readonly memberObject: string | null;
+}
+
+/** Extracts the resolvable name from a CallExpression's callee. */
+const getCalleeInfo = (callee: ESTree.Expression): CalleeInfo | null => {
 	if (callee.type === 'Identifier') {
-		return callee.name;
+		return { callName: callee.name, memberObject: null };
 	}
 	if (
 		callee.type === 'MemberExpression' &&
 		!callee.computed &&
-		callee.property.type === 'Identifier'
+		callee.property.type === 'Identifier' &&
+		callee.object.type === 'Identifier'
 	) {
-		return callee.property.name;
+		return { callName: callee.property.name, memberObject: callee.object.name };
 	}
 	return null;
 };
@@ -136,11 +172,39 @@ interface TrackedHookCall {
 	readonly node: ESTree.CallExpression;
 }
 
+/** A binding taken from a query module in a way the rule cannot resolve to a
+ *  canonical hook name (default import, whole-module require). */
+interface UnresolvedQueryBinding {
+	/** The name bound by the import/require itself (grep-able in source). */
+	readonly importName: string;
+	/** The module source the binding came from. */
+	readonly module: string;
+}
+
 interface RouteQueryPreloadState {
 	queryHookCalls: TrackedHookCall[];
 	firstHookCall: ESTree.CallExpression | null;
+	unresolvedCalls: Array<{
+		readonly node: ESTree.CallExpression;
+		readonly callName: string;
+		readonly binding: UnresolvedQueryBinding;
+	}>;
 	preloadDeclared: boolean;
 	reported: boolean;
+	unresolvedReported: boolean;
+	/** local name → canonical hook/export name. Built from named-import
+	 *  aliases, assignment aliases (`const uq = useQuery`), destructuring
+	 *  (`const { useQuery: uq } = ...`), require chains
+	 *  (`const uq = require('...').useQuery`) and alias chains. */
+	aliasToOrigin: Map<string, string>;
+	/** Whole-module bindings from query modules (namespace imports, default
+	 *  imports, whole-module requires) → the module source. Member calls on
+	 *  these resolve truthfully (`RQ.useQuery`). */
+	queryModuleBindings: Map<string, string>;
+	/** Bindings from a query module that the rule cannot resolve to a
+	 *  canonical hook name (default imports, whole-module requires). A call
+	 *  to one of these is an undecidable entry → loud `unresolvedHookCall`. */
+	unresolvedQueryBindings: Map<string, UnresolvedQueryBinding>;
 }
 
 export const routeQueryPreload = {
@@ -155,6 +219,8 @@ export const routeQueryPreload = {
 		messages: {
 			missingPreload:
 				'Route file calls query hook `{{alias}}` (imported as `{{origin}}`) without declaring `staticData.preload`. Declare `staticData: { preload: ({ params }) => [ { options: <shared factory>, variables: <params> } ] }` (see docs/records/2026-08-26-plan-preload-routes.md), or add an escape comment with a reason when the query is secondary / interaction-triggered (#1589).',
+			unresolvedHookCall:
+				'Route file imports from query module `{{module}}` as `{{importName}}` and calls `{{callName}}`, which this rule cannot resolve to a known query hook. Declare `staticData.preload` (see docs/records/2026-08-26-plan-preload-routes.md), or add an escape comment with a reason when the query is secondary / interaction-triggered (#1589).',
 		},
 	},
 	create(context: Context): Visitor {
@@ -176,20 +242,24 @@ export const routeQueryPreload = {
 		const state: RouteQueryPreloadState = {
 			queryHookCalls: [],
 			firstHookCall: null,
+			unresolvedCalls: [],
 			preloadDeclared: false,
 			reported: false,
+			unresolvedReported: false,
+			// local → canonical-name resolution. Built once per file from
+			// `ImportDeclaration` / `VariableDeclarator` visitors, consumed by
+			// the `CallExpression` visitor. The pre-r3 version of the rule
+			// looked up only the local name in the callee, which let
+			// `import { useQuery as uq }` + `uq({...})` slip through (silent
+			// false negative). r5 extends the same map to assignment aliases
+			// (`const uq = useQuery`), destructuring
+			// (`const { useQuery: uq } = ...`), require chains
+			// (`const uq = require('...').useQuery`) and alias chains, so the
+			// ImportDeclaration visitor alone is no longer the only source.
+			aliasToOrigin: new Map<string, string>(),
+			queryModuleBindings: new Map<string, string>(),
+			unresolvedQueryBindings: new Map<string, UnresolvedQueryBinding>(),
 		};
-
-		// local → canonical-name resolution for named imports. Built once per
-		// file from `ImportDeclaration` visitors, consumed by the
-		// `CallExpression` visitor. The pre-fix version of the rule looked up
-		// only the local name in the callee, which let `import { useQuery as
-		// uq }` + `uq({...})` slip through (r3 finding: silent false negative).
-		// Namespace imports (`import * as Q`) are NOT added here — a JS plugin
-		// has no module resolver, so the safe reading is `Q.useQuery` etc.
-		// accessed as a MemberExpression, which the existing branch already
-		// names correctly.
-		const aliasToOrigin = new Map<string, string>();
 
 		return {
 			ImportDeclaration(node: ESTree.ImportDeclaration) {
@@ -199,36 +269,179 @@ export const routeQueryPreload = {
 				) {
 					return;
 				}
+				const module = node.source.value;
+				const isQueryModule = isQueryModuleSource(module);
 				for (const specifier of node.specifiers) {
-					if (specifier.type !== 'ImportSpecifier') {
+					if (specifier.type === 'ImportSpecifier') {
+						if (
+							specifier.imported.type !== 'Identifier' ||
+							specifier.local.type !== 'Identifier'
+						) {
+							continue;
+						}
+						const origin = specifier.imported.name;
+						const local = specifier.local.name;
+						if (local === origin) {
+							continue;
+						}
+						state.aliasToOrigin.set(local, origin);
 						continue;
 					}
-					if (
-						specifier.imported.type !== 'Identifier' ||
-						specifier.local.type !== 'Identifier'
-					) {
+					// Default / namespace imports: the local name binds the WHOLE
+					// module. Only query modules matter — the binding is either
+					// resolved truthfully on member access (`dq.useQuery`) or
+					// reported as undecidable when called directly (`dq(...)`).
+					if (specifier.local.type !== 'Identifier' || !isQueryModule) {
 						continue;
 					}
-					const origin = specifier.imported.name;
 					const local = specifier.local.name;
-					if (local === origin) {
-						continue;
+					state.queryModuleBindings.set(local, module);
+					if (specifier.type === 'ImportDefaultSpecifier') {
+						state.unresolvedQueryBindings.set(local, {
+							importName: local,
+							module,
+						});
 					}
-					aliasToOrigin.set(local, origin);
+				}
+			},
+			VariableDeclarator(node: ESTree.VariableDeclarator) {
+				// `const { useQuery: uq } = <anything>` — the property name is
+				// the canonical name, the local name is the alias. Shorthand
+				// (`const { useQuery } = ...`) binds local === origin and is a
+				// no-op. Non-hook property names (e.g. `useQueryClient`) are
+				// not added — they never satisfy the hook contract.
+				if (node.id.type === 'ObjectPattern') {
+					for (const prop of node.id.properties) {
+						if (
+							prop.type !== 'Property' ||
+							prop.key.type !== 'Identifier' ||
+							prop.value.type !== 'Identifier'
+						) {
+							continue;
+						}
+						const origin = prop.key.name;
+						const local = prop.value.name;
+						if (!isRouteQueryHookName(origin)) {
+							continue;
+						}
+						state.aliasToOrigin.set(local, origin);
+					}
+					return;
+				}
+				if (node.id.type !== 'Identifier') {
+					return;
+				}
+				const init = node.init;
+				if (init === null || init === undefined) {
+					return;
+				}
+				const local = node.id.name;
+				// `const uq = <identifier>` — assignment alias. Resolves through
+				// the alias map, the hook contract, query-module bindings and
+				// unresolved query bindings, so chains like
+				// `const a = useQuery; const b = a;` propagate too.
+				if (init.type === 'Identifier') {
+					const origin = state.aliasToOrigin.get(init.name);
+					if (origin !== undefined) {
+						state.aliasToOrigin.set(local, origin);
+					} else if (isRouteQueryHookName(init.name)) {
+						state.aliasToOrigin.set(local, init.name);
+					}
+					const module = state.queryModuleBindings.get(init.name);
+					if (module !== undefined) {
+						state.queryModuleBindings.set(local, module);
+					}
+					const unresolved = state.unresolvedQueryBindings.get(init.name);
+					if (unresolved !== undefined) {
+						state.unresolvedQueryBindings.set(local, unresolved);
+					}
+					return;
+				}
+				// `const RQ = require('@tanstack/react-query')` — whole-module
+				// require, same status as a default import.
+				if (
+					init.type === 'CallExpression' &&
+					init.callee.type === 'Identifier' &&
+					init.callee.name === 'require' &&
+					init.arguments.length === 1 &&
+					init.arguments[0].type === 'Literal' &&
+					typeof init.arguments[0].value === 'string' &&
+					isQueryModuleSource(init.arguments[0].value)
+				) {
+					const module = init.arguments[0].value;
+					state.queryModuleBindings.set(local, module);
+					state.unresolvedQueryBindings.set(local, {
+						importName: local,
+						module,
+					});
+					return;
+				}
+				// `const uq = <anything>.useQuery` — require chains
+				// (`require('@tanstack/react-query').useQuery`), namespace
+				// member reads, plain object reads. The property name is the
+				// canonical name, exactly like a destructuring alias.
+				if (
+					init.type === 'MemberExpression' &&
+					!init.computed &&
+					init.property.type === 'Identifier' &&
+					isRouteQueryHookName(init.property.name)
+				) {
+					state.aliasToOrigin.set(local, init.property.name);
 				}
 			},
 			CallExpression(node: ESTree.CallExpression) {
-				const localName = getCalleeName(node.callee);
-				if (localName === null) {
+				const info = getCalleeInfo(node.callee);
+				if (info === null) {
 					return;
 				}
-				const origin = aliasToOrigin.get(localName) ?? localName;
-				if (!isRouteQueryHookName(origin)) {
+				// Member callee (`RQ.useQuery(...)`): the property name IS the
+				// canonical name. When the object side is a whole-module
+				// binding from a query module, the truthful alias is the full
+				// member text written in the source — the earlier state, which
+				// named only the property, produced a misleading message for
+				// namespace imports.
+				if (info.memberObject !== null) {
+					const origin = info.callName;
+					if (!isRouteQueryHookName(origin)) {
+						return;
+					}
+					const module = state.queryModuleBindings.get(info.memberObject);
+					const alias =
+						module !== undefined ? `${info.memberObject}.${origin}` : origin;
+					state.queryHookCalls.push({ alias, origin, node });
+					if (state.firstHookCall === null) {
+						state.firstHookCall = node;
+					}
 					return;
 				}
-				state.queryHookCalls.push({ alias: localName, origin, node });
-				if (state.firstHookCall === null) {
-					state.firstHookCall = node;
+				// Identifier callee: resolve through the alias map, then the
+				// hook-name contract.
+				const origin = state.aliasToOrigin.get(info.callName) ?? info.callName;
+				if (isRouteQueryHookName(origin)) {
+					state.queryHookCalls.push({
+						alias: info.callName,
+						origin,
+						node,
+					});
+					if (state.firstHookCall === null) {
+						state.firstHookCall = node;
+					}
+					return;
+				}
+				// Not resolvable to a canonical hook name. If the callee was
+				// bound from a query module in a way the rule cannot resolve
+				// (default import, whole-module require, or an alias chain
+				// from either), this may be a query hook under an opaque name —
+				// fail BRUYAMMENT rather than silently: the alternative is the
+				// #1589 defect (a route consuming query data with no preload)
+				// with no diagnostic at all.
+				const binding = state.unresolvedQueryBindings.get(info.callName);
+				if (binding !== undefined) {
+					state.unresolvedCalls.push({
+						node,
+						callName: info.callName,
+						binding,
+					});
 				}
 			},
 			ObjectExpression(node: ESTree.ObjectExpression) {
@@ -251,28 +464,44 @@ export const routeQueryPreload = {
 				}
 			},
 			'Program:exit'() {
-				if (state.reported) {
+				// A declared preload makes BOTH families silent: the route is
+				// not defect-dormant, the query is preloaded.
+				if (state.preloadDeclared) {
 					return;
 				}
-				if (state.preloadDeclared || state.queryHookCalls.length === 0) {
-					return;
+				if (!state.reported) {
+					const tracked = state.queryHookCalls[0];
+					if (tracked !== undefined) {
+						state.reported = true;
+						// Report once per file on the first hook call, naming the
+						// alias actually written in the source AND the canonical
+						// hook name the rule matched. Both are required: the
+						// alias so the developer can grep, the origin so the
+						// diagnosis is honest about WHAT the rule recognised
+						// (the latter matters because `uq` alone would not match
+						// the hook contract).
+						context.report({
+							node: tracked.node,
+							messageId: 'missingPreload',
+							data: { alias: tracked.alias, origin: tracked.origin },
+						});
+					}
 				}
-				const tracked = state.queryHookCalls[0];
-				if (tracked === undefined) {
-					return;
+				if (!state.unresolvedReported) {
+					const unresolved = state.unresolvedCalls[0];
+					if (unresolved !== undefined) {
+						state.unresolvedReported = true;
+						context.report({
+							node: unresolved.node,
+							messageId: 'unresolvedHookCall',
+							data: {
+								callName: unresolved.callName,
+								importName: unresolved.binding.importName,
+								module: unresolved.binding.module,
+							},
+						});
+					}
 				}
-				state.reported = true;
-				// Report once per file on the first hook call, naming the
-				// local alias actually written in the source AND the canonical
-				// hook name the rule matched. Both are required: the alias so
-				// the developer can grep, the origin so the diagnosis is
-				// honest about WHAT the rule recognised (the latter matters
-				// because `uq` alone would not match the hook contract).
-				context.report({
-					node: tracked.node,
-					messageId: 'missingPreload',
-					data: { alias: tracked.alias, origin: tracked.origin },
-				});
 			},
 		};
 	},

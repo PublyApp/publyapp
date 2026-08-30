@@ -190,6 +190,112 @@ const runCases = (rule, label) => {
 					].join('\n'),
 					filename: ROUTE_FILE,
 				},
+				// Assignment alias WITH staticData.preload declared — same
+				// green half for the VariableDeclarator alias pass (r5).
+				{
+					code: [
+						'import { useQuery } from "@tanstack/react-query";',
+						'const uq = useQuery;',
+						'export const Route = createFileRoute("/x")({',
+						'  staticData: { preload: () => [] },',
+						'});',
+						'const X = () => {',
+						'  const q = uq({ queryKey: ["x"] });',
+						'  return <div>{String(q.data)}</div>;',
+						'};',
+					].join('\n'),
+					filename: ROUTE_FILE,
+				},
+				// Destructuring alias WITH preload (r5).
+				{
+					code: [
+						'import * as ReactQuery from "@tanstack/react-query";',
+						'const { useQuery: uq } = ReactQuery;',
+						'export const Route = createFileRoute("/x")({',
+						'  staticData: { preload: () => [] },',
+						'});',
+						'const X = () => {',
+						'  const q = uq({ queryKey: ["x"] });',
+						'  return <div>{String(q.data)}</div>;',
+						'};',
+					].join('\n'),
+					filename: ROUTE_FILE,
+				},
+				// Require chain alias WITH preload (r5).
+				{
+					code: [
+						'const uq = require("@tanstack/react-query").useQuery;',
+						'export const Route = createFileRoute("/x")({',
+						'  staticData: { preload: () => [] },',
+						'});',
+						'const X = () => {',
+						'  const q = uq({ queryKey: ["x"] });',
+						'  return <div>{String(q.data)}</div>;',
+						'};',
+					].join('\n'),
+					filename: ROUTE_FILE,
+				},
+				// Namespace member call WITH preload (r5) — the truthful
+				// member-alias branch must not fire when preload is declared.
+				{
+					code: [
+						'import * as RQ from "@tanstack/react-query";',
+						'export const Route = createFileRoute("/x")({',
+						'  staticData: { preload: () => [] },',
+						'});',
+						'const X = () => {',
+						'  const q = RQ.useQuery({ queryKey: ["x"] });',
+						'  return <div>{String(q.data)}</div>;',
+						'};',
+					].join('\n'),
+					filename: ROUTE_FILE,
+				},
+				// Default import from a query module WITH preload — the
+				// undecidable family must also stay silent when the route
+				// declares preload (r5).
+				{
+					code: [
+						'import uq from "@tanstack/react-query";',
+						'export const Route = createFileRoute("/x")({',
+						'  staticData: { preload: () => [] },',
+						'});',
+						'const X = () => {',
+						'  const q = uq({ queryKey: ["x"] });',
+						'  return <div>{String(q.data)}</div>;',
+						'};',
+					].join('\n'),
+					filename: ROUTE_FILE,
+				},
+				// Whole-module require WITH preload — same as a default
+				// import, silent when preload is declared (r5).
+				{
+					code: [
+						'const RQ = require("@tanstack/react-query");',
+						'import { createFileRoute } from "@tanstack/react-router";',
+						'export const Route = createFileRoute("/x")({',
+						'  staticData: { preload: () => [] },',
+						'});',
+						'const X = () => {',
+						'  const q = RQ.useQuery({ queryKey: ["x"] });',
+						'  return <div>{String(q.data)}</div>;',
+						'};',
+					].join('\n'),
+					filename: ROUTE_FILE,
+				},
+				// Destructuring a NON-hook name (`useQueryClient`) must not
+				// create an alias entry that later flags innocent calls (r5).
+				{
+					code: [
+						'import * as ReactQuery from "@tanstack/react-query";',
+						'const { useQueryClient: qc } = ReactQuery;',
+						'export const Route = createFileRoute("/x")({ component: X });',
+						'const X = () => {',
+						'  const client = qc();',
+						'  return <div>{String(client.getQueryState(["x"]))}</div>;',
+						'};',
+					].join('\n'),
+					filename: 'apps/front/src/routes/x.tsx',
+				},
 			],
 			invalid: [
 				// The core defect: route mounts a query hook, no preload.
@@ -309,6 +415,278 @@ const runCases = (rule, label) => {
 							data: {
 								alias: 'fetchTenant',
 								origin: 'useStaffTenantDetailsQuery',
+							},
+						},
+					],
+				},
+				// r5: assignment alias — `const uq = useQuery` then `uq({...})`
+				// was the silent false negative the r4 reviewer ran against the
+				// real CLI (zero diagnostics). The VariableDeclarator pass must
+				// resolve it like a named-import alias.
+				{
+					code: [
+						'import { useQuery } from "@tanstack/react-query";',
+						'const uq = useQuery;',
+						'export const Route = createFileRoute("/x")({ component: X });',
+						'const X = () => {',
+						'  const q = uq({ queryKey: ["x"] });',
+						'  return <div>{String(q.data)}</div>;',
+						'};',
+					].join('\n'),
+					filename: ROUTE_FILE,
+					errors: [
+						{
+							messageId: 'missingPreload',
+							data: { alias: 'uq', origin: 'useQuery' },
+						},
+					],
+				},
+				// r5: destructuring alias — `const { useQuery: uq } = ...`.
+				{
+					code: [
+						'import * as ReactQuery from "@tanstack/react-query";',
+						'const { useQuery: uq } = ReactQuery;',
+						'export const Route = createFileRoute("/x")({ component: X });',
+						'const X = () => {',
+						'  const q = uq({ queryKey: ["x"] });',
+						'  return <div>{String(q.data)}</div>;',
+						'};',
+					].join('\n'),
+					filename: ROUTE_FILE,
+					errors: [
+						{
+							messageId: 'missingPreload',
+							data: { alias: 'uq', origin: 'useQuery' },
+						},
+					],
+				},
+				// r5: require chain alias — `const uq = require('...').useQuery`.
+				{
+					code: [
+						'const uq = require("@tanstack/react-query").useQuery;',
+						'export const Route = createFileRoute("/x")({ component: X });',
+						'const X = () => {',
+						'  const q = uq({ queryKey: ["x"] });',
+						'  return <div>{String(q.data)}</div>;',
+						'};',
+					].join('\n'),
+					filename: ROUTE_FILE,
+					errors: [
+						{
+							messageId: 'missingPreload',
+							data: { alias: 'uq', origin: 'useQuery' },
+						},
+					],
+				},
+				// r5: alias chain — `const a = useQuery; const b = a; b({...})`
+				// resolves in one hop (the assignment-alias pass only creates
+				// aliases from canonical names, so no chain fixpoint exists).
+				{
+					code: [
+						'import { useQuery } from "@tanstack/react-query";',
+						'const a = useQuery;',
+						'const b = a;',
+						'export const Route = createFileRoute("/x")({ component: X });',
+						'const X = () => {',
+						'  const q = b({ queryKey: ["x"] });',
+						'  return <div>{String(q.data)}</div>;',
+						'};',
+					].join('\n'),
+					filename: ROUTE_FILE,
+					errors: [
+						{
+							messageId: 'missingPreload',
+							data: { alias: 'b', origin: 'useQuery' },
+						},
+					],
+				},
+				// r5: `let` assignment alias — the declaration keyword must not
+				// change the resolution (a const-only tracking mutation would
+				// restore the silent false negative for `let uq = useQuery`).
+				{
+					code: [
+						'import { useQuery } from "@tanstack/react-query";',
+						'let uq = useQuery;',
+						'export const Route = createFileRoute("/x")({ component: X });',
+						'const X = () => {',
+						'  const q = uq({ queryKey: ["x"] });',
+						'  return <div>{String(q.data)}</div>;',
+						'};',
+					].join('\n'),
+					filename: ROUTE_FILE,
+					errors: [
+						{
+							messageId: 'missingPreload',
+							data: { alias: 'uq', origin: 'useQuery' },
+						},
+					],
+				},
+				// r5: unresolved binding propagated through an assignment —
+				// `const uq = dq` must inherit the default-import status, so a
+				// mutation dropping the propagation leaves an undecidable call
+				// silent on the final name.
+				{
+					code: [
+						'import dq from "@tanstack/react-query";',
+						'const uq = dq;',
+						'export const Route = createFileRoute("/x")({ component: X });',
+						'const X = () => {',
+						'  const q = uq({ queryKey: ["x"] });',
+						'  return <div>{String(q.data)}</div>;',
+						'};',
+					].join('\n'),
+					filename: ROUTE_FILE,
+					errors: [
+						{
+							messageId: 'unresolvedHookCall',
+							data: {
+								callName: 'uq',
+								importName: 'dq',
+								module: '@tanstack/react-query',
+							},
+						},
+					],
+				},
+				// r5: namespace member call — the diagnostic must name the
+				// FULL member text written in the source (`RQ.useQuery`), not
+				// just the property; the earlier half-catch said "imported as
+				// `useQuery`" for a call that never imported that name.
+				{
+					code: [
+						'import * as RQ from "@tanstack/react-query";',
+						'export const Route = createFileRoute("/x")({ component: X });',
+						'const X = () => {',
+						'  const q = RQ.useQuery({ queryKey: ["x"] });',
+						'  return <div>{String(q.data)}</div>;',
+						'};',
+					].join('\n'),
+					filename: ROUTE_FILE,
+					errors: [
+						{
+							messageId: 'missingPreload',
+							data: { alias: 'RQ.useQuery', origin: 'useQuery' },
+						},
+					],
+				},
+				// r5: whole-module require member call — `const RQ =
+				// require('...'); RQ.useQuery(...)` must name the member text
+				// like a namespace import (pins the require → query-module
+				// binding registration; dropping it only degrades the message).
+				{
+					code: [
+						'const RQ = require("@tanstack/react-query");',
+						'export const Route = createFileRoute("/x")({ component: X });',
+						'const X = () => {',
+						'  const q = RQ.useQuery({ queryKey: ["x"] });',
+						'  return <div>{String(q.data)}</div>;',
+						'};',
+					].join('\n'),
+					filename: ROUTE_FILE,
+					errors: [
+						{
+							messageId: 'missingPreload',
+							data: { alias: 'RQ.useQuery', origin: 'useQuery' },
+						},
+					],
+				},
+				// r5: default import from a query module called directly is an
+				// undecidable entry — the rule cannot tell whether `uq` is a
+				// hook, so it must fail loudly with `unresolvedHookCall`.
+				{
+					code: [
+						'import uq from "@tanstack/react-query";',
+						'export const Route = createFileRoute("/x")({ component: X });',
+						'const X = () => {',
+						'  const q = uq({ queryKey: ["x"] });',
+						'  return <div>{String(q.data)}</div>;',
+						'};',
+					].join('\n'),
+					filename: ROUTE_FILE,
+					errors: [
+						{
+							messageId: 'unresolvedHookCall',
+							data: {
+								callName: 'uq',
+								importName: 'uq',
+								module: '@tanstack/react-query',
+							},
+						},
+					],
+				},
+				// r5: default import from a shared-factory module — the query
+				// module classification must cover `~/lib/query/**` sources,
+				// not just @tanstack/react-query (the mutation candidate a
+				// narrow source matcher would escape through).
+				{
+					code: [
+						'import dq from "~/lib/query/staff-tenants";',
+						'export const Route = createFileRoute("/x")({ component: X });',
+						'const X = () => {',
+						'  const q = dq(null);',
+						'  return <div>{String(q.data)}</div>;',
+						'};',
+					].join('\n'),
+					filename: ROUTE_FILE,
+					errors: [
+						{
+							messageId: 'unresolvedHookCall',
+							data: {
+								callName: 'dq',
+								importName: 'dq',
+								module: '~/lib/query/staff-tenants',
+							},
+						},
+					],
+				},
+				// r5: whole-module require called directly — same undecidable
+				// family as a default import.
+				{
+					code: [
+						'const uq = require("@tanstack/react-query");',
+						'export const Route = createFileRoute("/x")({ component: X });',
+						'const X = () => {',
+						'  const q = uq({ queryKey: ["x"] });',
+						'  return <div>{String(q.data)}</div>;',
+						'};',
+					].join('\n'),
+					filename: ROUTE_FILE,
+					errors: [
+						{
+							messageId: 'unresolvedHookCall',
+							data: {
+								callName: 'uq',
+								importName: 'uq',
+								module: '@tanstack/react-query',
+							},
+						},
+					],
+				},
+				// r5: a file can carry BOTH families — a resolved hook call AND
+				// an undecidable default-import call. Both must be reported;
+				// an escape comment on one line does not silence the other.
+				{
+					code: [
+						'import { useQuery } from "@tanstack/react-query";',
+						'import dq from "@tanstack/react-query";',
+						'export const Route = createFileRoute("/x")({ component: X });',
+						'const X = () => {',
+						'  const a = useQuery({ queryKey: ["a"] });',
+						'  const b = dq({ queryKey: ["b"] });',
+						'  return <div>{String(a.data)}{String(b.data)}</div>;',
+						'};',
+					].join('\n'),
+					filename: ROUTE_FILE,
+					errors: [
+						{
+							messageId: 'missingPreload',
+							data: { alias: 'useQuery', origin: 'useQuery' },
+						},
+						{
+							messageId: 'unresolvedHookCall',
+							data: {
+								callName: 'dq',
+								importName: 'dq',
+								module: '@tanstack/react-query',
 							},
 						},
 					],
@@ -434,5 +812,141 @@ void test('CLI RED: aliased import `useQuery as uq` + `uq({...})` reports the di
 		stdout,
 		/`uq` \(imported as `useQuery`\)/,
 		`expected the diagnostic to name the alias and the origin, got stdout: ${stdout}`,
+	);
+});
+
+void test('CLI RED: assignment alias `const uq = useQuery` + `uq({...})` reports the diagnostic (r5)', () => {
+	const source = [
+		'import { useQuery } from "@tanstack/react-query";',
+		'const uq = useQuery;',
+		'export const Route = createFileRoute("/probe")({ component: Page });',
+		'const Page = () => {',
+		'  const q = uq({ queryKey: ["x"] });',
+		'  return <div>{String(q.data)}</div>;',
+		'};',
+	].join('\n');
+
+	const stdout = runCliWithDeniedWarnings(source);
+	assert.match(
+		stdout,
+		/publy\(route-query-preload\)/,
+		`expected the CLI to report publy/route-query-preload for an assignment alias, got stdout: ${stdout}`,
+	);
+	assert.match(
+		stdout,
+		/`uq` \(imported as `useQuery`\)/,
+		`expected the diagnostic to name the assignment alias and the origin, got stdout: ${stdout}`,
+	);
+});
+
+void test('CLI RED: destructuring `const { useQuery: uq } = ...` + `uq({...})` reports the diagnostic (r5)', () => {
+	const source = [
+		'import * as ReactQuery from "@tanstack/react-query";',
+		'const { useQuery: uq } = ReactQuery;',
+		'export const Route = createFileRoute("/probe")({ component: Page });',
+		'const Page = () => {',
+		'  const q = uq({ queryKey: ["x"] });',
+		'  return <div>{String(q.data)}</div>;',
+		'};',
+	].join('\n');
+
+	const stdout = runCliWithDeniedWarnings(source);
+	assert.match(
+		stdout,
+		/publy\(route-query-preload\)/,
+		`expected the CLI to report publy/route-query-preload for a destructuring alias, got stdout: ${stdout}`,
+	);
+	assert.match(
+		stdout,
+		/`uq` \(imported as `useQuery`\)/,
+		`expected the diagnostic to name the destructuring alias and the origin, got stdout: ${stdout}`,
+	);
+});
+
+void test('CLI RED: default import `import uq from "@tanstack/react-query"` + `uq({...})` reports the undecidable diagnostic (r5)', () => {
+	const source = [
+		'import uq from "@tanstack/react-query";',
+		'export const Route = createFileRoute("/probe")({ component: Page });',
+		'const Page = () => {',
+		'  const q = uq({ queryKey: ["x"] });',
+		'  return <div>{String(q.data)}</div>;',
+		'};',
+	].join('\n');
+
+	const stdout = runCliWithDeniedWarnings(source);
+	assert.match(
+		stdout,
+		/publy\(route-query-preload\)/,
+		`expected the CLI to report publy/route-query-preload for a default import, got stdout: ${stdout}`,
+	);
+	assert.match(
+		stdout,
+		/imports from query module `@tanstack\/react-query` as `uq` and calls `uq`, which this rule cannot resolve/,
+		`expected the undecidable diagnostic to name the module, the binding and the call, got stdout: ${stdout}`,
+	);
+});
+
+void test('CLI RED: require chain `const uq = require(...).useQuery` + `uq({...})` reports the diagnostic (r5)', () => {
+	const source = [
+		'const uq = require("@tanstack/react-query").useQuery;',
+		'export const Route = createFileRoute("/probe")({ component: Page });',
+		'const Page = () => {',
+		'  const q = uq({ queryKey: ["x"] });',
+		'  return <div>{String(q.data)}</div>;',
+		'};',
+	].join('\n');
+
+	const stdout = runCliWithDeniedWarnings(source);
+	assert.match(
+		stdout,
+		/publy\(route-query-preload\)/,
+		`expected the CLI to report publy/route-query-preload for a require-chain alias, got stdout: ${stdout}`,
+	);
+	assert.match(
+		stdout,
+		/`uq` \(imported as `useQuery`\)/,
+		`expected the diagnostic to name the require-chain alias and the origin, got stdout: ${stdout}`,
+	);
+});
+
+void test('CLI RED: namespace `RQ.useQuery({...})` reports the diagnostic naming the truthful member text (r5)', () => {
+	const source = [
+		'import * as RQ from "@tanstack/react-query";',
+		'export const Route = createFileRoute("/probe")({ component: Page });',
+		'const Page = () => {',
+		'  const q = RQ.useQuery({ queryKey: ["x"] });',
+		'  return <div>{String(q.data)}</div>;',
+		'};',
+	].join('\n');
+
+	const stdout = runCliWithDeniedWarnings(source);
+	assert.match(
+		stdout,
+		/publy\(route-query-preload\)/,
+		`expected the CLI to report publy/route-query-preload for a namespace member call, got stdout: ${stdout}`,
+	);
+	assert.match(
+		stdout,
+		/`RQ\.useQuery` \(imported as `useQuery`\)/,
+		`expected the diagnostic to name the full member text written in the source, got stdout: ${stdout}`,
+	);
+});
+
+void test('CLI GREEN: an escape comment silences the undecidable default-import diagnostic (r5)', () => {
+	const source = [
+		'import uq from "@tanstack/react-query";',
+		'export const Route = createFileRoute("/probe")({ component: Page });',
+		'const Page = () => {',
+		'  // oxlint-disable-next-line publy/route-query-preload -- default-imported query shape, never route-preloaded (secondary data, issue #487).',
+		'  const q = uq({ queryKey: ["x"] });',
+		'  return <div>{String(q.data)}</div>;',
+		'};',
+	].join('\n');
+
+	const stdout = runCliWithDeniedWarnings(source);
+	assert.doesNotMatch(
+		stdout,
+		/publy\(route-query-preload\)/,
+		`expected zero diagnostics with the escape comment on the undecidable call, got stdout: ${stdout}`,
 	);
 });
