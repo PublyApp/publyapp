@@ -18,8 +18,9 @@
  * app always runs with i18n initialized, so this entry mirrors that
  * environment: it initializes the singleton synchronously with the real
  * `en/common.json` resource (the guard's production texts, not a stand-in)
- * before exposing the guard. `initImmediate: false` keeps the init
- * synchronous because the resources are inline.
+ * before exposing the guard. `initAsync: false` keeps the init synchronous
+ * because the resources are inline (the same option the app's
+ * `createI18nFromResources` in `src/lib/i18n.shared.ts` uses).
  */
 import i18next from 'i18next';
 
@@ -30,7 +31,7 @@ i18next.init({
 	lng: 'en',
 	fallbackLng: 'en',
 	resources: { en: { translation: enCommon } },
-	initImmediate: false,
+	initAsync: false,
 	interpolation: { escapeValue: false },
 });
 
