@@ -1130,10 +1130,10 @@ const countListQueryFactories = (
 					if (variablesTypeName) {
 						const declaration = typeDeclarations.get(variablesTypeName);
 						if (!declaration) {
-							// #1691 : le type est introuvable dans la source. C'est
-							// une erreur — pas un `continue` silencieux. Un type
-							// imported must be reported so the source is
-							// auto-suffisante.
+							// #1691: the type is nowhere in the source. That is an
+							// error, not a silent `continue`. An imported type has
+							// to be reported, so that the source stays
+							// self-sufficient.
 							throw new Error(
 								`countListQueryFactories: type '${variablesTypeName}' is not declared in-source (it may be imported). The classifier cannot resolve its pagination shape. Either declare the type locally or update the classifier to resolve imports.`,
 							);
@@ -1241,24 +1241,24 @@ export const useDownloadAuditLog = () =>
 
 // ── Red proof #1690-r2: a `>` NESTED inside a generic type argument ──
 //
-// The test delivered by PR #1925 places the `>` inside a string OUTSIDE the
-// arguments de type (dans le corps de l'appel, `fetcher: async () => ({ id: 'a > b' })`).
-// This string does not affect the non-greedy regex `<([\s\S]*?)>\s*\(` : its content
-// is found AFTER the `>` that closes the type arguments, so after the match.
+// The test PR #1925 shipped puts the `>` inside a string that sits OUTSIDE the
+// type arguments (in the call body, `fetcher: async () => ({ id: 'a > b' })`).
+// That string cannot affect the non-greedy regex `<([\s\S]*?)>\s*\(`, because it
+// appears after the `>` that closes the type arguments — that is, after the match.
 //
-// The case described by issue #1690 (and round 1) is different: a `>` placed INSIDE
-// of the type arguments — that is, inside a string literal
-// used as a type, inside a nested generic argument. The PR
-// n'expose pas ce cas. La reproduction ci-dessous est le cas exact que la regex
-// non-greedy rate : the third generic argument is a parameterized type
-// `Container<"a > b", PageQueryVariables>`. The regex stops at the first `>`
-// (the one from the literal `"a > b"`), captures `ApiClient, Response, Container<"a `,
-// et l'extraction `splitTopLevel` + `match(/[\w]*QueryVariables\b/)` ne retrouve
-// never `PageQueryVariables` → the factory is silently ignored → 0.
+// The case issue #1690 (and round 1) describes is a different one: a `>` placed
+// INSIDE the type arguments — inside a string-literal type, inside a nested
+// generic argument. That PR does not exercise it. The reproduction below is
+// exactly the shape the non-greedy regex misses: the third type argument is a
+// parameterized type, `Container<"a > b", PageQueryVariables>`. The regex stops
+// at the first `>` (the one inside the literal `"a > b"`) and captures
+// `ApiClient, Response, Container<"a `, so `splitTopLevel` followed by
+// `match(/[\w]*QueryVariables\b/)` never finds `PageQueryVariables`: the factory
+// is silently ignored and the count is 0.
 //
-// Expected on OLD code (regex): returns 0 (silent false negative).
-// Attendu sur le NOUVEAU code (AST via ts-morph) : retourne 1 (extraction
-// correct detection of the *QueryVariables type name in nested generics).
+// Expected on the OLD code (regex): 0 — a silent false negative.
+// Expected on the NEW code (AST via ts-morph): 1 — the *QueryVariables type name
+// is found even when nested inside another generic.
 
 describe('nested-generic arg with ">" inside a string-literal type — #1690-r2', () => {
 	test('a ">" inside a string-literal generic argument defeats the regex (RED on old, GREEN on AST)', () => {
