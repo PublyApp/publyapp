@@ -560,6 +560,3 @@ internal static class ProbeBindFaultReporter {
 		Environment.Exit(1);
 	}
 }
-
-// ROUND-2 PROOF: deliberately uncompilable (PR #1975 round 2, prove-the-hole step).
-int roundTwoProof = "not-an-int";
