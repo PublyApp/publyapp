@@ -134,7 +134,6 @@ test('integrity assertion: fails when pinned_step_ids has ID missing from steps{
 			steps: {
 				'fixture.yml::build::Step A': {
 					reason_hash: 'hash',
-					reason_length: 10,
 				},
 			},
 		},
@@ -169,11 +168,9 @@ test('integrity assertion: extra step in steps{} that IS in manifest is legitima
 			steps: {
 				'fixture.yml::build::Step A': {
 					reason_hash: 'hash',
-					reason_length: 10,
 				},
 				'fixture.yml::build::Step B': {
 					reason_hash: 'hash2',
-					reason_length: 10,
 				},
 			},
 		},
@@ -207,11 +204,9 @@ test('integrity assertion: phantom step in steps{} (not in manifest) fails', asy
 			steps: {
 				'fixture.yml::build::Step A': {
 					reason_hash: 'hash',
-					reason_length: 10,
 				},
 				'fixture.yml::build::Step PHANTOM': {
 					reason_hash: 'hash2',
-					reason_length: 10,
 				},
 			},
 		},
@@ -254,7 +249,6 @@ test('integrity assertion: pinned step removed from steps{} (floor-lowering) fai
 			steps: {
 				'fixture.yml::build::Step A': {
 					reason_hash: 'hash',
-					reason_length: 10,
 				},
 			},
 		},
@@ -298,11 +292,9 @@ test('git floor: cannot lower pinned_step_ids in the same commit', async () => {
 			steps: {
 				'fixture.yml::build::Step A': {
 					reason_hash: 'hash',
-					reason_length: 10,
 				},
 				'fixture.yml::build::Step B': {
 					reason_hash: 'hash2',
-					reason_length: 10,
 				},
 			},
 		},
@@ -335,11 +327,9 @@ test('git floor: confession with valid reason allows removal', async () => {
 			steps: {
 				'fixture.yml::build::Step A': {
 					reason_hash: 'hash',
-					reason_length: 10,
 				},
 				'fixture.yml::build::Step B': {
 					reason_hash: 'hash2',
-					reason_length: 10,
 				},
 			},
 		},
@@ -385,11 +375,9 @@ test('confession quality bar: reason shorter than 24 chars fails', async () => {
 			steps: {
 				'fixture.yml::build::Step A': {
 					reason_hash: 'hash',
-					reason_length: 10,
 				},
 				'fixture.yml::build::Step B': {
 					reason_hash: 'hash2',
-					reason_length: 10,
 				},
 			},
 		},
@@ -430,11 +418,9 @@ test('malformed confession: invalid JSON fails loudly', async () => {
 			steps: {
 				'fixture.yml::build::Step A': {
 					reason_hash: 'hash',
-					reason_length: 10,
 				},
 				'fixture.yml::build::Step B': {
 					reason_hash: 'hash2',
-					reason_length: 10,
 				},
 			},
 		},
@@ -472,11 +458,9 @@ test('malformed confession: missing steps array fails loudly', async () => {
 			steps: {
 				'fixture.yml::build::Step A': {
 					reason_hash: 'hash',
-					reason_length: 10,
 				},
 				'fixture.yml::build::Step B': {
 					reason_hash: 'hash2',
-					reason_length: 10,
 				},
 			},
 		},
@@ -617,11 +601,9 @@ test('confession quality bar: repeated-block filler is rejected', async () => {
 				steps: {
 					'fixture.yml::build::Step A': {
 						reason_hash: 'hash',
-						reason_length: 10,
 					},
 					'fixture.yml::build::Step B': {
 						reason_hash: 'hash2',
-						reason_length: 10,
 					},
 				},
 			},
@@ -667,7 +649,6 @@ test('confession naming a step still present in the manifest fails loudly', asyn
 			steps: {
 				'fixture.yml::build::Step A': {
 					reason_hash: 'hash',
-					reason_length: 10,
 				},
 			},
 		},
@@ -718,7 +699,6 @@ test('bypass 5: deleting the reference file does NOT silently reset the floor', 
 			steps: {
 				'fixture.yml::build::Step A': {
 					reason_hash: 'hash',
-					reason_length: 10,
 				},
 			},
 		},
@@ -832,13 +812,9 @@ test('bypass 6: 3-part committed regeneration attack IS CAUGHT by the merge-base
 				steps: {
 					'fixture.yml::build::Step A': {
 						reason_hash: 'hashA',
-						reason_length:
-							manifestSteps['fixture.yml::build::Step A'].reason.length,
 					},
 					'fixture.yml::build::Step B': {
 						reason_hash: 'hashB',
-						reason_length:
-							manifestSteps['fixture.yml::build::Step B'].reason.length,
 					},
 				},
 			},
@@ -881,8 +857,6 @@ test('bypass 6: 3-part committed regeneration attack IS CAUGHT by the merge-base
 				steps: {
 					'fixture.yml::build::Step A': {
 						reason_hash: 'hashA',
-						reason_length:
-							manifestSteps['fixture.yml::build::Step A'].reason.length,
 					},
 				},
 			},
@@ -962,7 +936,6 @@ test('bypass 7: generator REFUSES to run without origin/develop (loud, not silen
 				steps: {
 					'fixture.yml::build::Step A': {
 						reason_hash: 'hashA',
-						reason_length: 56,
 					},
 				},
 			},

@@ -3,9 +3,8 @@
 		"Reference fingerprints for the reason guard. Read by packages/scripts-ts/src/check-ci-drift.ts.",
 		"",
 		"One entry per step in ci-gate-manifest.json, keyed identically.",
-		"  reason_hash   - SHA-256 (first 16 hex chars) of the reason text.",
-		"  reason_length - character count of the reason text.",
-		"  reason        - the full reason text itself.",
+		"  reason_hash - SHA-256 (first 16 hex chars) of the reason text.",
+		"  reason      - the full reason text itself.",
 		"",
 		"The reason text is stored in full so that regenerating this file is",
 		"visible in the diff: a reviewer sees the actual reason text, not just a",
@@ -232,892 +231,714 @@
 	"steps": {
 		"api-tests.yml::changes::Check whether api-tests paths changed": {
 			"reason_hash": "c2421f2dcc723d14",
-			"reason_length": 791,
 			"reason": "The step inlines the base-classifier fallback directly (round-3 review fix used across every #1017 gate): classifier ABSENT at the base commit -> warn loudly and fail closed to relevant=true without invoking it; classifier PRESENT -> delegated to entirely, exit code and output passed through unchanged. Its path-group regex mirrors this workflow's push.paths groups (apps/api, packages/client-ts, packages/shared-ts, packages/lint-cs, .config/dotnet-tools.json, Directory.Build.props/targets/Packages.props, global.json, justfile, PublyApp.slnx, .github/workflows/api-tests.yml). packages/scripts-ts/src/ci-gate-bootstrap.test.ts extracts and executes this exact script body (parsed from this file, not restated) against both fallback outcomes plus real-classifier true/false/nonzero cases."
 		},
 		"api-tests.yml::changes::Checkout classifier from the base commit (not the PR's own copy)": {
 			"reason_hash": "68e36b1ac0a34432",
-			"reason_length": 739,
 			"reason": "GitHub-only: checks out the classifier script (packages/scripts-ts/src/ci-changed-paths.ts) from the pull request's base commit into base-ref/ rather than its own merge commit. This pins the classifier's SOURCE so an accidental or careless edit (a rename, a bad rebase) cannot silently change it — it is NOT a defense against a pull request that deliberately tries to bypass its own gates, since the `changes` job's YAML itself (including the invocation step) is read from the pull request's merge commit the same as everything else in this workflow; see #1022 for the honest framing and why that residual exposure is accepted. Locally the working tree already is the code under test, and there is no PR base/head distinction to reproduce."
 		},
 		"api-tests.yml::changes::Setup Node": {
 			"reason_hash": "522d060c491d92cf",
-			"reason_length": 146,
 			"reason": "GitHub-only Node setup for PR gating. This repository's local checks already assume Node is available locally for scripts and format/lint tooling."
 		},
 		"api-tests.yml::gate::Check required jobs": {
 			"reason_hash": "4b38672b31f92ab7",
-			"reason_length": 863,
 			"reason": "GitHub-only: this is the #1017 aggregate required-check step, which reads the needs context (via toJSON(needs)) across the workflow's other jobs. Correlates skipped work with the classifier's own verdict — asserts needs.changes.result is exactly success, requires needs.changes.outputs.relevant to be exactly true or false (failing closed on absent/empty/malformed, since GitHub can omit an output entirely), allows skipped only when relevant is false, and requires success (not skipped) from every required job when relevant is true. packages/scripts-ts/src/ci-gate-aggregation.test.ts extracts and executes this exact run: body (parsed from the real workflow, not restated) against every documented result combination plus every fail-open shape a reviewer found. That context only exists inside a GitHub Actions run, so this step is GitHub-only by construction."
 		},
 		"api-tests.yml::gate::Verify the required-jobs check truly succeeded (continue-on-error cannot mask this)": {
 			"reason_hash": "270aa0820881ca9d",
-			"reason_length": 504,
 			"reason": "GitHub-only: round-5 BLOCKER fix. Reads steps.check-required-jobs.outcome, which GitHub computes BEFORE continue-on-error is applied (only .conclusion is rewritten afterward), so a continue-on-error added to the required-jobs check step cannot mask this step's own view of whether that step actually succeeded. That `.outcome` context only exists inside a real Actions run, so this stays GitHub-only/unmirrored locally; packages/scripts-ts/src/check-ci-gate-structure.ts pins that this exact step exists."
 		},
 		"api-tests.yml::suite::Checkout": {
 			"reason_hash": "c80eb5bfb322fab4",
-			"reason_length": 102,
 			"reason": "GitHub-only: clones the repo onto the runner. Locally the working tree already is the code under test."
 		},
 		"api-tests.yml::suite::Install workspace dependencies": {
 			"reason_hash": "e42faa2929ccb37c",
-			"reason_length": 284,
 			"reason": "This workflow runs a plain 'pnpm install --frozen-lockfile' (lifecycle scripts allowed). ci-install runs the hardened variant used by every other workflow: --ignore-scripts plus an explicit trusted @org/shared-ts postinstall. Same resulting tree, stricter supply-chain policy locally."
 		},
 		"api-tests.yml::suite::Materialize .env.development from template (CI has no gitignored env file)": {
 			"reason_hash": "04d337c8d0c3573b",
-			"reason_length": 591,
 			"reason": "CI-only compensation for the gitignored, absent .env.development, which TestEnvironment.Bootstrap() requires. Copies .env.example verbatim and deliberately does NOT force APP_ROLE=api here (unlike openapi-spec-drift.yml): `just test-api` exports APP_ROLE=all / ASPNETCORE_ENVIRONMENT=Testing itself, and since #1019 DotNetEnv's NoClobber option makes those process env vars win over the file. The suite provisions its own Postgres via Testcontainers, so no connection string is needed. Locally a developer already has a real repo-root .env.development, so `just test-api` needs no such step."
 		},
 		"api-tests.yml::suite::Run full API test suite": {
 			"reason_hash": "1b9e059140dfbd05",
-			"reason_length": 404,
 			"reason": "The whole point of #1462: this runs the FULL API test suite (`just test-api`, ~2,000 specs on real Postgres provisioned by Testcontainers), which until this workflow existed ran ONLY locally inside `just ci`. The mirror is the identical invocation the recipe composes (dotnet restore + dotnet test -c Test over Tests/PublyApp.Api.Tests.csproj), so `just ci` has always exercised exactly what CI now runs."
 		},
 		"api-tests.yml::suite::Set up .NET (pinned for CI determinism)": {
 			"reason_hash": "4c92a505a7d6b469",
-			"reason_length": 155,
 			"reason": "Runner toolchain provisioning. Locally the SDK version is pinned by global.json instead; CI pins it again because the runner image ships whatever it ships."
 		},
 		"api-tests.yml::suite::Set up Node": {
 			"reason_hash": "305da4753c978917",
-			"reason_length": 100,
 			"reason": "Runner toolchain provisioning. Locally the Node version is pinned by .node-version / .nvmrc instead."
 		},
 		"api-tests.yml::suite::Set up just": {
 			"reason_hash": "997bb69cf1357de0",
-			"reason_length": 138,
 			"reason": "Runner toolchain provisioning: installs the just binary. Locally just is the entrypoint being run, so it is by definition already present."
 		},
 		"api-tests.yml::suite::Set up pnpm": {
 			"reason_hash": "1fd22cde3ad0647d",
-			"reason_length": 114,
 			"reason": "Runner toolchain provisioning. Locally pnpm is pinned by the packageManager field and is a developer prerequisite."
 		},
 		"api-tests.yml::suite::Upload test results on failure": {
 			"reason_hash": "50c4c42df69e5537",
-			"reason_length": 128,
 			"reason": "GitHub-only failure-only log capture: gets failing-spec output off an ephemeral runner. Locally the reports are already on disk."
 		},
 		"deploy-images.yml::publish::Build and push API migrate image": {
 			"reason_hash": "83411d8a82349d27",
-			"reason_length": 113,
 			"reason": "This is a CI publish path for the migration bundle image and does not have a local equivalent in pre-push checks."
 		},
 		"deploy-images.yml::publish::Build and push API runtime image": {
 			"reason_hash": "32abfe5d32d9c901",
-			"reason_length": 108,
 			"reason": "This is a CI publish path for the API runtime image and does not have a local equivalent in pre-push checks."
 		},
 		"deploy-images.yml::publish::Build and push Front image": {
 			"reason_hash": "dbf1b0c97c9fafea",
-			"reason_length": 102,
 			"reason": "This is a CI publish path for the front image and does not have a local equivalent in pre-push checks."
 		},
 		"deploy-images.yml::publish::Checkout": {
 			"reason_hash": "a7b85e23ad9fb86d",
-			"reason_length": 108,
 			"reason": "GitHub-only: clones the repository onto the runner. Locally the working tree already is the code under test."
 		},
 		"deploy-images.yml::publish::Log in to GHCR": {
 			"reason_hash": "a766a54ca11b7dfa",
-			"reason_length": 101,
 			"reason": "GitHub-only registry authentication step required to push images; local gate does not publish images."
 		},
 		"deploy-images.yml::publish::Resolve immutable release tag": {
 			"reason_hash": "bac6aa1bd3197a94",
-			"reason_length": 121,
 			"reason": "The workflow computes RELEASE_TAG from GITHUB_SHA for immutable tagging; local checks do not perform registry publishing."
 		},
 		"deploy-images.yml::publish::Resolve lowercase image namespace": {
 			"reason_hash": "4289ad48b8f8daa4",
-			"reason_length": 315,
 			"reason": "#1362 reconciliation (2026-08-25 org move radandevist -> PublyApp): derives the lowercased ghcr.io owner namespace from github.repository_owner because GHCR rejects uppercase image paths. GitHub-only shell one-liner; the local deploy-images.ts wrapper keeps its own IMAGE_ROOT constant reconciled by its unit tests."
 		},
 		"deploy-images.yml::publish::Set up Docker Buildx": {
 			"reason_hash": "8a049d5a0e89b91b",
-			"reason_length": 116,
 			"reason": "Local pre-push checks do not run a GitHub container registry publish flow that requires runner buildx service setup."
 		},
 		"docs-archive.yml::changes::Check whether docs-archive paths changed": {
 			"reason_hash": "a92e697fb6edbf4b",
-			"reason_length": 1139,
 			"reason": "The step now inlines the fallback directly (round-3 review fix: replaced a separate PR-controlled wrapper script with a few lines of shell, since a separate file has no different trust level than inline YAML content — both are read from the pull request's merge commit): if base-ref/packages/scripts-ts/src/ci-changed-paths.ts exists, run it and pass its output/exit code straight through; otherwise print a loud [MISSING BASE CLASSIFIER] warning and resolve relevant=true, on a code path that never invokes the classifier. packages/scripts-ts/src/ci-gate-bootstrap.test.ts parses this exact `run:` block from the real workflow file (not a restatement) and executes it directly against both cases for all four workflows. The classifier's own decision logic (including the 3,000-file API-ceiling fail-closed check) remains covered by ci-changed-paths.test.ts. The live gh api calls remain GitHub-only and unmirrored. #1357 fix round 1: the inline regex gained a packages/scripts-ts/src/audit-docs-prune.ts alternative so an edit to the inventory generator itself wakes this gate now that the gate also enforces record freshness via --check."
 		},
 		"docs-archive.yml::changes::Checkout classifier from the base commit (not the PR's own copy)": {
 			"reason_hash": "68e36b1ac0a34432",
-			"reason_length": 739,
 			"reason": "GitHub-only: checks out the classifier script (packages/scripts-ts/src/ci-changed-paths.ts) from the pull request's base commit into base-ref/ rather than its own merge commit. This pins the classifier's SOURCE so an accidental or careless edit (a rename, a bad rebase) cannot silently change it — it is NOT a defense against a pull request that deliberately tries to bypass its own gates, since the `changes` job's YAML itself (including the invocation step) is read from the pull request's merge commit the same as everything else in this workflow; see #1022 for the honest framing and why that residual exposure is accepted. Locally the working tree already is the code under test, and there is no PR base/head distinction to reproduce."
 		},
 		"docs-archive.yml::changes::Setup Node": {
 			"reason_hash": "522d060c491d92cf",
-			"reason_length": 146,
 			"reason": "GitHub-only Node setup for PR gating. This repository's local checks already assume Node is available locally for scripts and format/lint tooling."
 		},
 		"docs-archive.yml::docs-archive::Check doc links": {
 			"reason_hash": "5a8250d5a7a47038",
-			"reason_length": 384,
 			"reason": "#1357 retarget: the docs-archive required gate now runs the repo-wide dead-relative-link guard over tracked Markdown instead of the deleted archive-records guard. docs/records/ bodies are write-once evidence and exempt; every other Markdown surface is enforced. Run locally to catch broken links in AGENTS.md, DESIGN.md, README.md, guides and deployment docs before docs changes land."
 		},
 		"docs-archive.yml::docs-archive::Check prune inventory freshness (--check)": {
 			"reason_hash": "39bb902b859a8306",
-			"reason_length": 955,
 			"reason": "#1357 fix round 1 (review r1 CRITICAL): the prune-inventory record is generated evidence, so a record that no longer matches what audit-docs-prune.ts produces must fail the required gate instead of rotting silently — the committed 91-row record was already stale against its own script at the reviewed tip. The step is the identical invocation to this local mirror: it regenerates from the audited pre-prune tree — derived from committed history alone since #1425 (the youngest ancestor of the record-introducing commit whose tree still carries every decision-table source), identical on PR and push events and on a plain checkout — in memory and exits nonzero on any byte difference with HEAD's committed record. #1425 rescope: the audited pre-prune tree excludes the protected docs/records/ destination, so records merged there (e.g. #1389's email-log actor analysis) are never prune fuel and never inventory rows. Runs locally inside just ci-doc-links."
 		},
 		"docs-archive.yml::docs-archive::Checkout": {
 			"reason_hash": "4faefa728edc3c6e",
-			"reason_length": 152,
 			"reason": "GitHub-only: checks out the repository for the guard to evaluate git history and file identity. Local verification uses an already-present working tree."
 		},
 		"docs-archive.yml::docs-archive::Install (frozen lockfile, no scripts)": {
 			"reason_hash": "22ecedae55037013",
-			"reason_length": 201,
 			"reason": "Identical install command to every other workflow job's frozen-lockfile install step; local development already runs pnpm install as part of setup, which the local fixture-test mirror below depends on."
 		},
 		"docs-archive.yml::docs-archive::Install pnpm": {
 			"reason_hash": "64c05d55ceeaa3d7",
-			"reason_length": 177,
 			"reason": "GitHub-only pnpm provisioning added so this job can run its vitest fixture-test step; local development already assumes pnpm is installed via corepack/the repo's pinned version."
 		},
 		"docs-archive.yml::docs-archive::Run doc-links guard fixture tests": {
 			"reason_hash": "4b3ce70213ed7527",
-			"reason_length": 318,
 			"reason": "Identical invocation to the CI step itself: the fixture suite executes the real check-doc-links.ts against throwaway git repositories and pins the records exemption, the fence/code-span stripping, and the failure output shape. Run locally so the guard's own failure modes gate PRs before the production guard executes."
 		},
 		"docs-archive.yml::docs-archive::Run prune-inventory guard fixture tests": {
 			"reason_hash": "ef19fbd1323f19e2",
-			"reason_length": 767,
 			"reason": "Identical invocation to the CI step itself (added by #1867): the fixture suite executes the real audit-docs-prune.ts inside throwaway git repositories and pins the rename-vs-delete classification cross-checked against `git diff -M` (paid-modules red replay), the committed-history-only revision resolution (push-event AND pull_request red replay), the tampered-record freshness check and the protected docs/records destination. Until #1867 this file ran nowhere automated — CI and `just ci-doc-links` both executed only check-doc-links.test.ts — so #1441's no-known-value-widening rewrite of the MOVES declaration silently broke the table-rewrite fixture while every gate stayed green. Run locally, inside just ci-doc-links, so the guard's own failure modes gate PRs."
 		},
 		"docs-archive.yml::docs-archive::Setup Node": {
 			"reason_hash": "522d060c491d92cf",
-			"reason_length": 146,
 			"reason": "GitHub-only Node setup for PR gating. This repository's local checks already assume Node is available locally for scripts and format/lint tooling."
 		},
 		"docs-archive.yml::gate::Check required jobs": {
 			"reason_hash": "6f711c83afb99da8",
-			"reason_length": 1081,
 			"reason": "GitHub-only: this is the #1017 aggregate required-check step, which reads the needs context (via toJSON(needs)) across the workflow's other jobs. Round-4 review fix: the round-3 shape now additionally correlates skipped work with the classifier's own verdict — asserts needs.changes.result is exactly success, requires needs.changes.outputs.relevant to be exactly true or false (failing closed on absent/empty/malformed, since GitHub can omit an output entirely), allows skipped only when relevant is false, and requires success (not skipped) from every required job when relevant is true. Previously every skipped result passed unconditionally, so changes=success with an absent relevant output and every heavy job skipped reported green. packages/scripts-ts/src/ci-gate-aggregation.test.ts extracts and executes this exact run: body (parsed from the real workflow, not restated) against every documented result combination plus every fail-open shape a reviewer found. That context only exists inside a GitHub Actions run, so this step itself stays GitHub-only/unmirrored locally."
 		},
 		"docs-archive.yml::gate::Verify the required-jobs check truly succeeded (continue-on-error cannot mask this)": {
 			"reason_hash": "270aa0820881ca9d",
-			"reason_length": 504,
 			"reason": "GitHub-only: round-5 BLOCKER fix. Reads steps.check-required-jobs.outcome, which GitHub computes BEFORE continue-on-error is applied (only .conclusion is rewritten afterward), so a continue-on-error added to the required-jobs check step cannot mask this step's own view of whether that step actually succeeded. That `.outcome` context only exists inside a real Actions run, so this stays GitHub-only/unmirrored locally; packages/scripts-ts/src/check-ci-gate-structure.ts pins that this exact step exists."
 		},
 		"front-ci.yml::changes::Check whether front-ci paths changed": {
 			"reason_hash": "16de9106d9bb8dbe",
-			"reason_length": 2986,
 			"reason": "The step now inlines the fallback directly (round-3 review fix: replaced a separate PR-controlled wrapper script with a few lines of shell, since a separate file has no different trust level than inline YAML content — both are read from the pull request's merge commit): if base-ref/packages/scripts-ts/src/ci-changed-paths.ts exists, run it and pass its output/exit code straight through; otherwise print a loud [MISSING BASE CLASSIFIER] warning and resolve relevant=true, on a code path that never invokes the classifier. packages/scripts-ts/src/ci-gate-bootstrap.test.ts parses this exact `run:` block from the real workflow file (not a restatement) and executes it directly against both cases for all four workflows. The classifier's own decision logic (including the 3,000-file API-ceiling fail-closed check) remains covered by packages/scripts-ts/src/ci-changed-paths.test.ts. The live gh api calls remain GitHub-only and unmirrored. Round-4 update: the pattern now also matches the other three #1017 gate workflow files (front-e2e.yml, openapi-spec-drift.yml, docs-archive.yml), so the new gate-selftest job wakes for a change to any of them; packages/scripts-ts/src/check-ci-gate-structure.ts's selfTestCoverage check pins that this pattern keeps matching all four. Round-6 update (hash bump reviewed against the real step): the workflow-file alternation `\\.github/workflows/(front-ci|front-e2e|openapi-spec-drift|docs-archive)\\.yml$` is replaced by the prefix `\\.github/workflows/`. Nothing else in the step changed. Required because check-ci-gate-structure.ts's new required-context uniqueness scan asserts against EVERY workflow in the repository, and under the old alternation an edit to a non-gate workflow (the reviewer's reproduction made old-front-characterization.yml report `docs-archive-gate`) classified as irrelevant, so both jobs that run the scan server-side were skipped. selfTestCoverage now lists every workflow file plus one path for a workflow file that does not exist, so the pattern cannot narrow back to an enumerated list. #1261 round-2 update (hash bump reviewed against the real step): the path alternation gains `\\.github/actions/` so an actions-only PR (e.g. a Dependabot github-actions bump inside an action.yml) classifies as relevant and wakes gate-selftest, the one job that runs the actions-pinning guard suite server-side; packages/scripts-ts/src/ci-changed-paths.test.ts pins that the real pattern extracted from this step matches .github/actions/foo/action.yml. #1920 round 2: PR_NUMBER env var changed from `${{ github.event.pull_request.number }}` to `${{ github.event.pull_request.number || '' }}` so the step is safe for push/schedule events where github.event.pull_request is undefined — without this the classifier receives an empty string PR_NUMBER and can misclassify. The bootstrap test (ci-gate-bootstrap.test.ts) covers this step unchanged since it executes the real run: body directly against both present/absent classifier cases."
 		},
 		"front-ci.yml::changes::Checkout classifier from the base commit (not the PR's own copy)": {
 			"reason_hash": "68e36b1ac0a34432",
-			"reason_length": 739,
 			"reason": "GitHub-only: checks out the classifier script (packages/scripts-ts/src/ci-changed-paths.ts) from the pull request's base commit into base-ref/ rather than its own merge commit. This pins the classifier's SOURCE so an accidental or careless edit (a rename, a bad rebase) cannot silently change it — it is NOT a defense against a pull request that deliberately tries to bypass its own gates, since the `changes` job's YAML itself (including the invocation step) is read from the pull request's merge commit the same as everything else in this workflow; see #1022 for the honest framing and why that residual exposure is accepted. Locally the working tree already is the code under test, and there is no PR base/head distinction to reproduce."
 		},
 		"front-ci.yml::changes::Setup Node": {
 			"reason_hash": "522d060c491d92cf",
-			"reason_length": 146,
 			"reason": "GitHub-only Node setup for PR gating. This repository's local checks already assume Node is available locally for scripts and format/lint tooling."
 		},
 		"front-ci.yml::gate-selftest::Checkout": {
 			"reason_hash": "5fe76ae5a81e4529",
-			"reason_length": 535,
 			"reason": "GitHub-only checkout of the pull request's own ref with fetch-depth: 0 (full history for every branch), identical in treatment to the supply-chain job's checkout above. The full fetch is what makes `git merge-base origin/develop HEAD` resolve for the CI gate and the ratchet-floor generator, replacing the r10 'Fetch origin/develop' step (removed because git rejects `--depth=0` and the `--depth=1` fallback left two truncated tips with no common ancestor). Nothing to mirror locally beyond having the working tree already checked out."
 		},
 		"front-ci.yml::gate-selftest::Install (frozen lockfile, no scripts)": {
 			"reason_hash": "f2ea77b9b0038101",
-			"reason_length": 146,
 			"reason": "Identical install command to front-ci.yml::supply-chain's own install step; local development already runs pnpm install as part of `just install`."
 		},
 		"front-ci.yml::gate-selftest::Install pnpm": {
 			"reason_hash": "62f39d69b79dbbc2",
-			"reason_length": 122,
 			"reason": "GitHub-only pnpm setup for CI. Local development already assumes pnpm is installed via corepack/the repo's pinned version."
 		},
 		"front-ci.yml::gate-selftest::Run CI gate guard tests (mirrors `just ci-drift`)": {
 			"reason_hash": "0bfce08892b7c4b4",
-			"reason_length": 4173,
 			"reason": "The CODEOWNERS contract and CI gate guard suites (including packages/scripts-ts/src/ci-e2e-rerun-guard.test.ts since #1063), deterministic frontend-lint regression, check-ci-gate-structure.ts, the #1240 require-linked-issue guard test (packages/scripts-ts/src/require-linked-issue.test.ts), and the #1248 actions-pinning guard suite plus its real-tree scan (packages/scripts-ts/src/check-actions-pinned.{test,ts}, absorbed from #1248's .mjs into this lane's all-TypeScript package) run server-side as the mandatory mirror of `just ci-drift`, so these local protections cannot be silently unenforced in CI. The step gained one require-linked-issue line from develop and the two actions-pinned lines; `just ci-drift` runs those same three commands. Round-1 review of #1238 found a dangling justfile path invisible to every existing guard, so the step now also runs packages/scripts-ts/src/ci-referenced-paths.test.ts, which fails CI when a gate surface references a script path that does not exist; `just ci-drift` runs the same line. #1392 adds the actions pin/comment binding guard (check-actions-pins.test.ts + its live CLI run): the step gained those two lines and `just ci-drift` runs the same pair directly (the standalone `just ci-actions-pins` recipe wraps them for isolated runs); the guard's unit suite is network-free (injected resolver), while the live half authenticates with GH_TOKEN on both sides. Round-1 fix of this PR: the live half previously ran without a token in this job (every gh api tag lookup rejected anonymously), so the step now exports GH_TOKEN=${{ github.token }} in its env block — the default token reads the public actions/* tags, matching quality-gate.yml's own pins-guard step. #1661 fix (round 4): the check-cyclomatic-bound.test.ts fixture suite was orphaned — it ran locally via `just ci-drift` but was not wired into front-ci.yml::gate-selftest, so its DOCUMENTED_POLICY assertions (which pin the 60/90/125 ceilings) only executed when a developer manually ran the test. The guard binary (check-cyclomatic-bound.ts) already ran in quality-gate.yml and now its test sibling runs alongside it in this step, paired in the same test+binary pattern as check-actions-pinned.test.ts + check-actions-pinned.ts. `just ci-drift` runs the identical pair. #1674 adds the bite-proof prod-audit-bites.test.ts (packages/scripts-ts/src/prod-audit-bites.test.ts) to this step and to `just ci-drift`: it pins the exact `pnpm audit --prod --audit-level=moderate` command string from front-ci.yml::supply-chain and runs the real pnpm audit against a controlled fixture carrying ejs@3.1.7 (GHSA-ghr5-ch3p-vcr6, a stable moderate advisory) to prove the gate actually bites on a moderate prod advisory, with adverse mutations showing it does NOT bite under the pre-#1644 `high` threshold or under `--dev`. `just ci-drift` runs the same line. #1728 adds the upload-artifact/download-artifact version compatibility guard (artifact-version-compat.test.ts + artifact-version-compat.ts) to this step and to `just ci-drift`: it pairs upload-artifact v7+ steps with archive: false to their matching download-artifact step by artifact name and asserts the download is v8+. `just ci-drift` runs the identical pair. #1679 adds the no-floating-promises ratchet suite (packages/scripts-ts/src/check-no-floating-promises.test.ts) to this step; the `just ci-drift` recipe gained the identical line in the same commit, so the local mirror is not missing a command CI runs. #1709 round 6: the ratchet floor guard's own suite (packages/scripts-ts/src/gen-reason-ref.test.ts) ships here too — the round-6 finding was that 463 lines of ratchet tests shipped in that file with no CI consumer because the file-by-file enumeration in this step's `run:` block quietly missed it. The line is now wired into BOTH this step and the `just ci-drift` mirror in the same commit, and pinned structurally by packages/scripts-ts/src/check-ci-gate-structure.ts's `gateSelftestTests` array (with the `EXPECTED_GATE_SELFTEST_TESTS` pin-of-the-pin) so a future edit that drops the line goes RED rather than the silent omission the round-6 reviewer found. `just ci-drift` runs the identical line."
 		},
 		"front-ci.yml::gate-selftest::Run project closure adapter tests": {
 			"reason_hash": "56ac24350b0baf1a",
-			"reason_length": 200,
 			"reason": "The required front-ci dependency runs the same focused project-closure adapter suite as the local ci sub-gate, so config, Trello projection, and fail-closed security checks are enforced on the server."
 		},
 		"front-ci.yml::gate-selftest::Setup Node": {
 			"reason_hash": "228fe45b2adde632",
-			"reason_length": 77,
 			"reason": "GitHub-only Node setup for CI. Local checks already assume Node is available."
 		},
 		"front-ci.yml::gate::Check required jobs": {
 			"reason_hash": "6f711c83afb99da8",
-			"reason_length": 1081,
 			"reason": "GitHub-only: this is the #1017 aggregate required-check step, which reads the needs context (via toJSON(needs)) across the workflow's other jobs. Round-4 review fix: the round-3 shape now additionally correlates skipped work with the classifier's own verdict — asserts needs.changes.result is exactly success, requires needs.changes.outputs.relevant to be exactly true or false (failing closed on absent/empty/malformed, since GitHub can omit an output entirely), allows skipped only when relevant is false, and requires success (not skipped) from every required job when relevant is true. Previously every skipped result passed unconditionally, so changes=success with an absent relevant output and every heavy job skipped reported green. packages/scripts-ts/src/ci-gate-aggregation.test.ts extracts and executes this exact run: body (parsed from the real workflow, not restated) against every documented result combination plus every fail-open shape a reviewer found. That context only exists inside a GitHub Actions run, so this step itself stays GitHub-only/unmirrored locally."
 		},
 		"front-ci.yml::gate::Checkout": {
 			"reason_hash": "ea5de802351f9cb7",
-			"reason_length": 319,
 			"reason": "GitHub-only checkout, identical in kind to every other job's checkout step in this file. Round-5 BLOCKER fix: front-ci-gate now checks itself out so its own \"Verify the aggregate-gate job graph\" step below can run check-ci-gate-structure.ts. Nothing to mirror locally beyond having the working tree already checked out."
 		},
 		"front-ci.yml::gate::Install (frozen lockfile, no scripts)": {
 			"reason_hash": "3097a5bd54649f03",
-			"reason_length": 133,
 			"reason": "Identical install command to gate-selftest's own install step; local development already runs pnpm install as part of `just install`."
 		},
 		"front-ci.yml::gate::Install pnpm": {
 			"reason_hash": "3fdfe2e6b7081848",
-			"reason_length": 175,
 			"reason": "GitHub-only pnpm setup, identical in kind to gate-selftest's own Install pnpm step. Local development already assumes pnpm is installed via corepack/the repo's pinned version."
 		},
 		"front-ci.yml::gate::Setup Node": {
 			"reason_hash": "131c7d40eeca4cb4",
-			"reason_length": 128,
 			"reason": "GitHub-only Node setup, identical in kind to gate-selftest's own Setup Node step. Local checks already assume Node is available."
 		},
 		"front-ci.yml::gate::Verify the aggregate-gate job graph from inside the required job itself": {
 			"reason_hash": "a35b7da4880977c1",
-			"reason_length": 532,
 			"reason": "Round-5 BLOCKER fix: gate-selftest running this script server-side is only real enforcement while it stays connected to front-ci-gate's needs — dropping gate-selftest from needs disconnects the only job that ran it, while front-ci-gate itself stayed green. This step runs the identical script as one of front-ci-gate's OWN steps, so it cannot be silently disconnected the way a whole job can. `just ci-drift` runs this exact script directly (not through gate-selftest's job wrapper), so the local mirror is the identical invocation."
 		},
 		"front-ci.yml::gate::Verify the required-jobs check truly succeeded (continue-on-error cannot mask this)": {
 			"reason_hash": "270aa0820881ca9d",
-			"reason_length": 504,
 			"reason": "GitHub-only: round-5 BLOCKER fix. Reads steps.check-required-jobs.outcome, which GitHub computes BEFORE continue-on-error is applied (only .conclusion is rewritten afterward), so a continue-on-error added to the required-jobs check step cannot mask this step's own view of whether that step actually succeeded. That `.outcome` context only exists inside a real Actions run, so this stays GitHub-only/unmirrored locally; packages/scripts-ts/src/check-ci-gate-structure.ts pins that this exact step exists."
 		},
 		"front-ci.yml::supply-chain::Assert exact pins": {
 			"reason_hash": "23640fc62c5d63d6",
-			"reason_length": 88,
 			"reason": "ci-install runs the identical command: node apps/front/scripts/guards/assert-pinned.mts."
 		},
 		"front-ci.yml::supply-chain::Audit production dependencies (moderate and above)": {
 			"reason_hash": "b7c22d4996cc4f08",
-			"reason_length": 949,
 			"reason": "#1644: production-graph threshold lowered from high to moderate to align with the dev-graph gate (quality-gate.yml::quality::Audit development dependencies). The previous shape let a moderate advisory in a production dep slip through both audits: --prod excludes the dev graph, and --audit-level=high excludes moderate. The same command reproduces it locally without Docker or CI; the production graph is clean at every threshold today, so the cost is zero and the safety is immediate (no exception list needed). #1674: the bite-proof test (packages/scripts-ts/src/prod-audit-bites.test.ts) parses this step's `run:` body to pin the exact command string and runs `pnpm audit --prod --audit-level=moderate` against a controlled fixture carrying ejs@3.1.7 → GHSA-ghr5-ch3p-vcr6 (a stable moderate advisory) so a regression that reverts the threshold to `high`, drops `--prod`, or removes the step turns the suite red before the audit step itself runs."
 		},
 		"front-ci.yml::supply-chain::Build front": {
 			"reason_hash": "0274617a256af805",
-			"reason_length": 54,
 			"reason": "ci-front runs the identical pnpm --filter front build."
 		},
 		"front-ci.yml::supply-chain::Check front srvx/static import shape (#1822)": {
 			"reason_hash": "f190fa994d00657b",
-			"reason_length": 731,
 			"reason": "ci-front runs the identical pnpm --filter front check:server-static-imports (#1822). The guard parses server.mjs with ts-morph, loads the real installed srvx/static, and asserts every named import from srvx/static resolves against the live module — without it, a dependabot srvx bump that renames or removes an export re-opens the same startup crash the publish-now e2e surfaced in #1628 and #1655, but only behind the next retrigger. The unit test (apps/front/scripts/guards/check-server-static-imports.test.mts, including a real-load assertion that pinned staticMiddleware is exported and serveStatic is not) runs inside the front `test` chain as test:server-static-imports-guard, mirrored by the same `just ci-front` invocation."
 		},
 		"front-ci.yml::supply-chain::Check front React Compiler artifacts": {
 			"reason_hash": "ad9f03648bf0dfc2",
-			"reason_length": 99,
 			"reason": "ci-front runs the identical pnpm --filter front check:react-compiler after the front build (#1234)."
 		},
 		"front-ci.yml::supply-chain::Check front column-type imports (#1769)": {
 			"reason_hash": "aab0080ad391b02e",
-			"reason_length": 295,
 			"reason": "ci-front runs the identical pnpm --filter front check:column-type-imports. The guard refuses ColumnDef/Row/TanStackTable imported from @tanstack/react-table or @tanstack/react-table/legacy — the passthrough at apps/front/src/components/table/column-type.ts is the only sanctioned source (#1769)."
 		},
 		"front-ci.yml::supply-chain::Check front design system": {
 			"reason_hash": "01a0a839676c7503",
-			"reason_length": 68,
 			"reason": "ci-front runs the identical pnpm --filter front check:design-system."
 		},
 		"front-ci.yml::supply-chain::Check front formatting": {
 			"reason_hash": "6964f94cd7bace93",
-			"reason_length": 102,
 			"reason": "just format runs pnpm format, the identical oxfmt --check invocation over the repo's configured globs."
 		},
 		"front-ci.yml::supply-chain::Checkout": {
 			"reason_hash": "a931cf2242417aad",
-			"reason_length": 424,
 			"reason": "GitHub-only: clones the repo onto the runner with fetch-depth:0 (full history) so scripts/ci/run-preuves.mts can run git merge-base between the base ref and HEAD. A shallow checkout (default fetch-depth:1) would leave HEAD with no common ancestor with the base ref, making merge-base return empty and the diff go blank — the script would fail loud or silently exit 0. Locally the working tree already is the code under test."
 		},
 		"front-ci.yml::supply-chain::Install (frozen lockfile, no scripts)": {
 			"reason_hash": "663389920e93e4f6",
-			"reason_length": 78,
 			"reason": "ci-install runs the identical pnpm install --frozen-lockfile --ignore-scripts."
 		},
 		"front-ci.yml::supply-chain::Install Git hooks (mirrors prepare)": {
 			"reason_hash": "21482eabd1752b25",
-			"reason_length": 751,
 			"reason": "#1852: the supply-chain job installs with --ignore-scripts, so the root prepare never ran and core.hooksPath is unwired in the checkout. This step runs `pnpm run prepare` — the exact command a developer's pnpm install runs — which points core.hooksPath at the versioned .husky dir via packages/scripts-ts/src/install-git-hooks.ts (shared config, so fresh worktrees inherit it). The local mirror is the same command: just test-preuves (part of just ci-front) starts with `pnpm run prepare` before replaying the paired red proofs, and the installer itself fails loud when hooks cannot be wired. Using `pnpm run prepare` keeps a single source: a commit that removes the prepare script from package.json fails the step instead of silently unpinning hooks."
 		},
 		"front-ci.yml::supply-chain::Install pnpm": {
 			"reason_hash": "1fd22cde3ad0647d",
-			"reason_length": 114,
 			"reason": "Runner toolchain provisioning. Locally pnpm is pinned by the packageManager field and is a developer prerequisite."
 		},
 		"front-ci.yml::supply-chain::Lint front": {
 			"reason_hash": "d3e6b9d007168353",
-			"reason_length": 182,
 			"reason": "ci-lint runs the same wrapper and two follow-up guards over apps/front, packages/shared-ts, and scripts; the wrapper keeps type-aware TypeScript separate from syntax-only JavaScript."
 		},
 		"front-ci.yml::supply-chain::Run trusted first-party postinstall (@org/shared-ts)": {
 			"reason_hash": "11f4c937ecc6b38a",
-			"reason_length": 75,
 			"reason": "ci-install runs the identical pnpm --filter @org/shared-ts run postinstall."
 		},
 		"front-ci.yml::supply-chain::Setup Node": {
 			"reason_hash": "305da4753c978917",
-			"reason_length": 100,
 			"reason": "Runner toolchain provisioning. Locally the Node version is pinned by .node-version / .nvmrc instead."
 		},
 		"front-ci.yml::supply-chain::Smoke start front server and verify stylesheet tag": {
 			"reason_hash": "29e8110f0da3bfab",
-			"reason_length": 624,
 			"reason": "ci-front runs pnpm --filter front smoke:start. The workflow does this with inline bash (background job + trap + curl + grep) which cannot run under the justfile's pwsh shell on Windows, so apps/front/scripts/ci/smoke-start-server.mts re-implements the same assertions in Node: serve the production build, GET /, require a rel=stylesheet link to a .css asset. DELIBERATE DIFFERENCE: CI hardcodes port 3000 (a fresh runner has nothing else on it); the local script binds a free ephemeral port via PORT, because probing a busy 3000 on a dev machine would assert against whatever unrelated app answered and report a false green."
 		},
 		"front-ci.yml::supply-chain::Test front": {
 			"reason_hash": "367a0e99f268dd05",
-			"reason_length": 53,
 			"reason": "ci-front runs the identical pnpm --filter front test."
 		},
 		"front-ci.yml::supply-chain::Typecheck front": {
 			"reason_hash": "6ef1f2667344074b",
-			"reason_length": 58,
 			"reason": "ci-front runs the identical pnpm --filter front typecheck."
 		},
 		"front-ci.yml::supply-chain::Verify front production build emits a CSS asset": {
 			"reason_hash": "9e935ee850ff3f34",
-			"reason_length": 124,
 			"reason": "ci-front runs pnpm --filter front verify:build, whose script body is the same scripts/guards/verify-build-css-link.mts call."
 		},
 		"front-ci.yml::supply-chain::Verify front production font bundle references and unicode coverage": {
 			"reason_hash": "487cb5388bdce2cf",
-			"reason_length": 383,
 			"reason": "ci-front runs pnpm --filter front verify:build, whose script body now also calls scripts/guards/verify-font-bundle.mts. The CI step passes --dist apps/front/dist and --locales-dir apps/front/src/i18n/locales explicitly; the script defaults resolve to the same two paths when it runs with apps/front as the working directory, so the local run is equivalent rather than merely similar."
 		},
 		"front-ci.yml::supply-chain::Verify paired red proofs": {
 			"reason_hash": "60a54c847e815705",
-			"reason_length": 713,
 			"reason": "ci-front runs `just test-preuves`, which delegates to the same scripts/ci/run-preuves.mts script invoked by `pnpm --filter front test:preuves`. Option (b) of issue #1659 ronde 5: a PR declares a paired red proof by adding/modifying proof test files under apps/front/tests/proofs/<issue>/. The runner uses `git diff` to detect whether the current PR touched any proof files. If proofs were declared, it replays them with inverted semantics (fail = proof intact, pass = proof stale). If no proofs were declared, it prints an explicit no-op message and exits 0. Proof files are versionned (committed), unlike .dump/ which is git-ignored. The developer replay path is the lane worktree where .dump/ traces also exist."
 		},
 		"front-e2e.yml::build::Build stack images": {
 			"reason_hash": "eb77e1d7609dd410",
-			"reason_length": 492,
 			"reason": "ci-e2e-front builds the same four Compose services locally via up --build. CI enables Compose Bake for the GHA cache while retaining Compose-file-relative build-context resolution and loading the four GHCR-tagged images. #1021: on fork runs the build adds apps/front/docker-compose.fork-overlay.yml (strips the gha cache_from/cache_to the read-only token cannot write) and loads the images into the local daemon for the artifact handoff — the same local-build property ci-e2e-front exercises."
 		},
 		"front-e2e.yml::build::Checkout": {
 			"reason_hash": "c80eb5bfb322fab4",
-			"reason_length": 102,
 			"reason": "GitHub-only: clones the repo onto the runner. Locally the working tree already is the code under test."
 		},
 		"front-e2e.yml::build::Detect fork pull request": {
 			"reason_hash": "2ffe0c83cc3ae2a3",
-			"reason_length": 202,
 			"reason": "GitHub-only: resolves github.event.pull_request.head.repo.fork into the build job's `fork` output that switches every fork-conditional step below (#1021). There is no local pull_request event to detect."
 		},
 		"front-e2e.yml::build::Login to GHCR": {
 			"reason_hash": "55b1930aa190fa56",
-			"reason_length": 270,
 			"reason": "GitHub-only: authenticates the workflow token to GHCR so the shared per-run images can be pushed. #1021: the step is now skipped on fork runs (read-only token), which take the artifact handoff path instead; the local gate has no GHCR authentication to mirror either way."
 		},
 		"front-e2e.yml::build::Push stack images to GHCR (same-repo runs only)": {
 			"reason_hash": "6008f52f153f1056",
-			"reason_length": 273,
 			"reason": "GitHub-only: pushes the four loaded, immutable per-run application images to GHCR for the matrix runners; local e2e builds never publish them. #1021: renamed and now skipped on fork runs, which hand the images to the shards as a tarball artifact instead of a registry push."
 		},
 		"front-e2e.yml::build::Resolve lowercase e2e image namespace": {
 			"reason_hash": "8f96f0363d5c1ea5",
-			"reason_length": 323,
 			"reason": "#1362 reconciliation (2026-08-25 org move radandevist -> PublyApp): emits the build job ns output, the lowercased ghcr.io/<owner>/publyapp-e2e root consumed by every E2E_IMAGE_NS consumer in this workflow. GitHub-only derivation; ci-e2e-front resolves the same compose images via the compose-file default namespace instead."
 		},
 		"front-e2e.yml::build::Save stack images tarball (fork runs)": {
 			"reason_hash": "c138fe542e1c54de",
-			"reason_length": 216,
 			"reason": "GitHub-only, fork runs only (#1021): docker saves the four built images into gzipped tarballs for the artifact handoff to the matrix runners. Local e2e runs keep the images in the local daemon and never package them."
 		},
 		"front-e2e.yml::build::Set image tag": {
 			"reason_hash": "c034c12655c44c56",
-			"reason_length": 126,
 			"reason": "GitHub-only: derives an immutable image tag from the Actions run id and attempt; local e2e builds use the Compose default tag."
 		},
 		"front-e2e.yml::build::Setup Docker Buildx": {
 			"reason_hash": "2c0beee5968fc26c",
-			"reason_length": 122,
 			"reason": "GitHub-only: Buildx's container driver and gha cache export require the GitHub Actions runner; no local equivalent exists."
 		},
 		"front-e2e.yml::build::Setup GitHub Actions runtime": {
 			"reason_hash": "a224d047894a40d8",
-			"reason_length": 101,
 			"reason": "GitHub-only: exports Actions cache runtime variables for the gha backend; no local equivalent exists."
 		},
 		"front-e2e.yml::build::Upload stack images artifact (fork runs)": {
 			"reason_hash": "7a5ace97ee3223d8",
-			"reason_length": 283,
 			"reason": "GitHub-only, fork runs only (#1021): actions/upload-artifact moves the image tarballs from the build runner to the versioned artifact the shards download — the registry-free stand-in for the GHCR hop. Locally there is nothing to upload; the images are already where the stack starts."
 		},
 		"front-e2e.yml::build::Verify the built front image starts and serves HTTP": {
 			"reason_hash": "4b40a4b7696d01a0",
-			"reason_length": 823,
 			"reason": "#1628 round 10 build-artifact guard: starts the just-built front image as a container with the production env surface (NODE_ENV=production, PUBLIC_ORIGIN, SERVER_API_BASE_URL, TRUSTED_PROXY_CIDRS — the same validateRuntimeEnv() gate #1731 enforces) and waits for an actual HTTP response, not merely for 'the process is running'. A container that crashes at startup with ERR_MODULE_NOT_FOUND is the exact shape the front fell into when trust-proxy.mjs was added without a matching COPY in the Dockerfile — nine rounds of 'tests pass' missed it because every other e2e test only fails downstream with a generic 'element(s) not found'. The local mirror runs the same guard script against a freshly built image (default tag publyapp-front-runtime-guard:local), so it exercises the same COPY-surface property the CI step guards."
 		},
 		"front-e2e.yml::changes::Check whether front-e2e paths changed": {
 			"reason_hash": "690f348998abd4d6",
-			"reason_length": 915,
 			"reason": "The step now inlines the fallback directly (round-3 review fix: replaced a separate PR-controlled wrapper script with a few lines of shell, since a separate file has no different trust level than inline YAML content — both are read from the pull request's merge commit): if base-ref/packages/scripts-ts/src/ci-changed-paths.ts exists, run it and pass its output/exit code straight through; otherwise print a loud [MISSING BASE CLASSIFIER] warning and resolve relevant=true, on a code path that never invokes the classifier. packages/scripts-ts/src/ci-gate-bootstrap.test.ts parses this exact `run:` block from the real workflow file (not a restatement) and executes it directly against both cases for all four workflows. The classifier's own decision logic (including the 3,000-file API-ceiling fail-closed check) remains covered by ci-changed-paths.test.ts. The live gh api calls remain GitHub-only and unmirrored."
 		},
 		"front-e2e.yml::changes::Checkout classifier from the base commit (not the PR's own copy)": {
 			"reason_hash": "68e36b1ac0a34432",
-			"reason_length": 739,
 			"reason": "GitHub-only: checks out the classifier script (packages/scripts-ts/src/ci-changed-paths.ts) from the pull request's base commit into base-ref/ rather than its own merge commit. This pins the classifier's SOURCE so an accidental or careless edit (a rename, a bad rebase) cannot silently change it — it is NOT a defense against a pull request that deliberately tries to bypass its own gates, since the `changes` job's YAML itself (including the invocation step) is read from the pull request's merge commit the same as everything else in this workflow; see #1022 for the honest framing and why that residual exposure is accepted. Locally the working tree already is the code under test, and there is no PR base/head distinction to reproduce."
 		},
 		"front-e2e.yml::changes::Setup Node": {
 			"reason_hash": "522d060c491d92cf",
-			"reason_length": 146,
 			"reason": "GitHub-only Node setup for PR gating. This repository's local checks already assume Node is available locally for scripts and format/lint tooling."
 		},
 		"front-e2e.yml::cleanup::Checkout": {
 			"reason_hash": "38a8d9128a37f199",
-			"reason_length": 467,
 			"reason": "#1362 round-1 fix (PR #1396): the cleanup job ran `node packages/scripts-ts/src/ci-e2e-cleanup.ts` with NO checkout, so the runner had no repository and every run failed ('Cannot find module .../ci-e2e-cleanup.ts'). Same pinned checkout as every other job in this workflow (fetch-depth: 1). GitHub-only: clones the repo onto the runner; locally the working tree already is the code under test, and the step's decision logic remains mirrored by ci-e2e-cleanup.test.ts."
 		},
 		"front-e2e.yml::cleanup::Delete run image versions": {
 			"reason_hash": "d356755e5e0221d0",
-			"reason_length": 726,
 			"reason": "#1362 round-1 reconciliation: the step's decision logic moved from inline shell into packages/scripts-ts/src/ci-e2e-cleanup.ts (injectable gh api runner), so the branch logic IS now locally executable and mirrored by its co-located suite — last-tagged-version 400 -> race-guarded package delete; shared/concurrent tags -> skip or version-delete fallback; 403 -> loud failure with the grant guidance; owner scope derived from GET /users/{owner} -> .type; fork/empty-tag fast paths. What remains GitHub-only: the real registry calls (this run's ephemeral GHCR images do not exist locally) and the workflow-layer fork/tag short-circuits, which the script re-asserts. Still no continue-on-error (#1018): any refusal fails the job."
 		},
 		"front-e2e.yml::cleanup::Install pnpm": {
 			"reason_hash": "1a6eed60824884a6",
-			"reason_length": 304,
 			"reason": "#1362 round-1 fix (PR #1396): identical pinned pnpm/action-setup step as the test job's, added so the cleanup job carries the same complete toolchain setup as every other code-running job in this workflow. The cleanup itself executes through plain Node; no local mirror beyond the developer prerequisite."
 		},
 		"front-e2e.yml::cleanup::Setup Node": {
 			"reason_hash": "42946681a7f61a41",
-			"reason_length": 350,
 			"reason": "#1362 round-1 fix (PR #1396): identical pinned setup-node step as every other job in this workflow. Required on the runner because ci-e2e-cleanup.ts is a dependency-free .ts file executed directly via Node 24's native TypeScript stripping; locally Node is pinned by .node-version / .nvmrc and the script's logic is mirrored by ci-e2e-cleanup.test.ts."
 		},
 		"front-e2e.yml::gate::Check required jobs": {
 			"reason_hash": "6f711c83afb99da8",
-			"reason_length": 1081,
 			"reason": "GitHub-only: this is the #1017 aggregate required-check step, which reads the needs context (via toJSON(needs)) across the workflow's other jobs. Round-4 review fix: the round-3 shape now additionally correlates skipped work with the classifier's own verdict — asserts needs.changes.result is exactly success, requires needs.changes.outputs.relevant to be exactly true or false (failing closed on absent/empty/malformed, since GitHub can omit an output entirely), allows skipped only when relevant is false, and requires success (not skipped) from every required job when relevant is true. Previously every skipped result passed unconditionally, so changes=success with an absent relevant output and every heavy job skipped reported green. packages/scripts-ts/src/ci-gate-aggregation.test.ts extracts and executes this exact run: body (parsed from the real workflow, not restated) against every documented result combination plus every fail-open shape a reviewer found. That context only exists inside a GitHub Actions run, so this step itself stays GitHub-only/unmirrored locally."
 		},
 		"front-e2e.yml::gate::Verify the required-jobs check truly succeeded (continue-on-error cannot mask this)": {
 			"reason_hash": "270aa0820881ca9d",
-			"reason_length": 504,
 			"reason": "GitHub-only: round-5 BLOCKER fix. Reads steps.check-required-jobs.outcome, which GitHub computes BEFORE continue-on-error is applied (only .conclusion is rewritten afterward), so a continue-on-error added to the required-jobs check step cannot mask this step's own view of whether that step actually succeeded. That `.outcome` context only exists inside a real Actions run, so this stays GitHub-only/unmirrored locally; packages/scripts-ts/src/check-ci-gate-structure.ts pins that this exact step exists."
 		},
 		"front-e2e.yml::test::Assert exact pins": {
 			"reason_hash": "6cb9e97134a9d8da",
-			"reason_length": 79,
 			"reason": "ci-install runs the identical node apps/front/scripts/guards/assert-pinned.mts."
 		},
 		"front-e2e.yml::test::Cache Playwright browsers": {
 			"reason_hash": "b5a6c9a7abe634b0",
-			"reason_length": 114,
 			"reason": "GitHub-only actions/cache step; the local recipe has no separate browser-cache action or equivalent cache backend."
 		},
 		"front-e2e.yml::test::Checkout": {
 			"reason_hash": "c80eb5bfb322fab4",
-			"reason_length": 102,
 			"reason": "GitHub-only: clones the repo onto the runner. Locally the working tree already is the code under test."
 		},
 		"front-e2e.yml::test::Detect partial re-run before pull": {
 			"reason_hash": "7a50432f37c02c9e",
-			"reason_length": 635,
 			"reason": "GitHub-only (partial re-run of failed jobs is a GitHub Actions feature): #1063 guard that fails the step loudly BEFORE pulling when needs.build.outputs.tag (E2E_IMAGE_TAG) does not match this attempt's per-run tag ${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}, i.e. when the build job was not re-run and the cleanup job already deleted the previous attempt's images (a pull would fail with 'manifest unknown'). Locally there is no build/push/cleanup split or re-run concept to mirror; packages/scripts-ts/src/ci-e2e-rerun-guard.test.ts extracts and executes this exact run: body against the fresh-run, full-rerun, and partial-rerun scenarios."
 		},
 		"front-e2e.yml::test::Import stack images into the local daemon (fork runs)": {
 			"reason_hash": "e5e8f8fc24c39192",
-			"reason_length": 252,
 			"reason": "GitHub-only, fork runs only (#1021): docker loads the downloaded tarballs so `up --no-build` resolves the same four image tags the GHCR path would have pulled. Locally the equivalent state (images present in the daemon) is produced by the build itself."
 		},
 		"front-e2e.yml::test::Install dependencies": {
 			"reason_hash": "663389920e93e4f6",
-			"reason_length": 78,
 			"reason": "ci-install runs the identical pnpm install --frozen-lockfile --ignore-scripts."
 		},
 		"front-e2e.yml::test::Install pnpm": {
 			"reason_hash": "1fd22cde3ad0647d",
-			"reason_length": 114,
 			"reason": "Runner toolchain provisioning. Locally pnpm is pinned by the packageManager field and is a developer prerequisite."
 		},
 		"front-e2e.yml::test::Load stack images from artifact (fork runs)": {
 			"reason_hash": "202dd5b31350dd24",
-			"reason_length": 206,
 			"reason": "GitHub-only, fork runs only (#1021): actions/download-artifact fetches the build job's image tarballs onto the shard runner. Locally the images are already in the daemon; there is no artifact hop to mirror."
 		},
 		"front-e2e.yml::test::Login to GHCR": {
 			"reason_hash": "320a29bcc745ff91",
-			"reason_length": 265,
 			"reason": "GitHub-only: authenticates each matrix runner to GHCR so it can read the build job's private package versions. #1021: now skipped on fork runs, whose images arrive via artifact instead of the registry; the local gate has no GHCR authentication to mirror either way."
 		},
 		"front-e2e.yml::test::Pull stack": {
 			"reason_hash": "2286fdca91ace64f",
-			"reason_length": 347,
 			"reason": "ci-e2e-front makes the same four application images available by building them locally. CI instead pulls the build job's immutable images plus the same pinned public dependencies. #1021: on fork runs this pull is skipped and the shard loads the artifact tarballs instead — the same make-the-four-images-available property the local build provides."
 		},
 		"front-e2e.yml::test::Run playwright browser tests": {
 			"reason_hash": "33ffbef19956a095",
-			"reason_length": 802,
 			"reason": "ci-e2e-front runs the same complete Playwright suite on one isolated local stack AND, since round 19, the drawer-description Vitest source guard (pnpm --filter front test:drawer-contrast) in the same browser-provisioned lane, through the identical package script CI's shard-4 block now calls. CI partitions the non-counter projects across four isolated runners, runs the counter project alone after setup on shard 4, and drops --with-deps (which requires root; system libraries are a one-time developer setup); the local gate stays unsharded to preserve coverage without multiplying Docker stacks. Round-5 BLOCKER fix: the run: body starts with `set -euo pipefail`, so fail-fast is a property of the script itself rather than relying solely on the surrounding job/workflow's (unmirrored) shell default."
 		},
 		"front-e2e.yml::test::Setup Node": {
 			"reason_hash": "305da4753c978917",
-			"reason_length": 100,
 			"reason": "Runner toolchain provisioning. Locally the Node version is pinned by .node-version / .nvmrc instead."
 		},
 		"front-e2e.yml::test::Tear down front stack": {
 			"reason_hash": "89c39c4dc9b4de86",
-			"reason_length": 404,
 			"reason": "ci-e2e-front runs the identical docker compose ... down -v as its final step. DELIBERATE DIFFERENCE: this workflow step is if:always(), which a justfile cannot express (just stops at the first failing line), so the recipe also resets the stack with down -v --remove-orphans before bringing it up. Net effect is the same clean slate per run; a failed run's stack is left up locally for inspection instead."
 		},
 		"front-e2e.yml::test::Up stack": {
 			"reason_hash": "198a5341459ee82a",
-			"reason_length": 163,
 			"reason": "ci-e2e-front starts the same stack via up --build --wait. CI starts the already-pulled images with --no-build and performs its unchanged health polling separately."
 		},
 		"front-e2e.yml::test::Upload playwright report": {
 			"reason_hash": "811b438ae906241b",
-			"reason_length": 200,
 			"reason": "actions/upload-artifact uses a shard-specific name to get each report off its ephemeral runner. Locally the report is already on disk at apps/front/playwright-report; there is nothing to upload it to."
 		},
 		"front-e2e.yml::test::Wait for front stack health": {
 			"reason_hash": "65dc4bb6d9ca0a53",
-			"reason_length": 530,
 			"reason": "ci-e2e-front uses 'docker compose up --wait --wait-timeout 180' instead of the workflow's hand-rolled docker inspect polling loop. Same property (every service running and healthy before Playwright starts, 180s budget), enforced by compose itself rather than by bash. Reconciled after the run: block gained ${COMPOSE_PROJECT_NAME} in the docker ps --filter diagnostic (replacing a hardcoded project name) and the job-level env: added COMPOSE_PROJECT_NAME with github.run_attempt for per-attempt volume isolation (#1642 Constat 5)."
 		},
 		"openapi-spec-drift.yml::changes::Check whether openapi-spec-drift paths changed": {
 			"reason_hash": "690f348998abd4d6",
-			"reason_length": 915,
 			"reason": "The step now inlines the fallback directly (round-3 review fix: replaced a separate PR-controlled wrapper script with a few lines of shell, since a separate file has no different trust level than inline YAML content — both are read from the pull request's merge commit): if base-ref/packages/scripts-ts/src/ci-changed-paths.ts exists, run it and pass its output/exit code straight through; otherwise print a loud [MISSING BASE CLASSIFIER] warning and resolve relevant=true, on a code path that never invokes the classifier. packages/scripts-ts/src/ci-gate-bootstrap.test.ts parses this exact `run:` block from the real workflow file (not a restatement) and executes it directly against both cases for all four workflows. The classifier's own decision logic (including the 3,000-file API-ceiling fail-closed check) remains covered by ci-changed-paths.test.ts. The live gh api calls remain GitHub-only and unmirrored."
 		},
 		"openapi-spec-drift.yml::changes::Checkout classifier from the base commit (not the PR's own copy)": {
 			"reason_hash": "68e36b1ac0a34432",
-			"reason_length": 739,
 			"reason": "GitHub-only: checks out the classifier script (packages/scripts-ts/src/ci-changed-paths.ts) from the pull request's base commit into base-ref/ rather than its own merge commit. This pins the classifier's SOURCE so an accidental or careless edit (a rename, a bad rebase) cannot silently change it — it is NOT a defense against a pull request that deliberately tries to bypass its own gates, since the `changes` job's YAML itself (including the invocation step) is read from the pull request's merge commit the same as everything else in this workflow; see #1022 for the honest framing and why that residual exposure is accepted. Locally the working tree already is the code under test, and there is no PR base/head distinction to reproduce."
 		},
 		"openapi-spec-drift.yml::changes::Setup Node": {
 			"reason_hash": "522d060c491d92cf",
-			"reason_length": 146,
 			"reason": "GitHub-only Node setup for PR gating. This repository's local checks already assume Node is available locally for scripts and format/lint tooling."
 		},
 		"openapi-spec-drift.yml::gate::Check required jobs": {
 			"reason_hash": "6f711c83afb99da8",
-			"reason_length": 1081,
 			"reason": "GitHub-only: this is the #1017 aggregate required-check step, which reads the needs context (via toJSON(needs)) across the workflow's other jobs. Round-4 review fix: the round-3 shape now additionally correlates skipped work with the classifier's own verdict — asserts needs.changes.result is exactly success, requires needs.changes.outputs.relevant to be exactly true or false (failing closed on absent/empty/malformed, since GitHub can omit an output entirely), allows skipped only when relevant is false, and requires success (not skipped) from every required job when relevant is true. Previously every skipped result passed unconditionally, so changes=success with an absent relevant output and every heavy job skipped reported green. packages/scripts-ts/src/ci-gate-aggregation.test.ts extracts and executes this exact run: body (parsed from the real workflow, not restated) against every documented result combination plus every fail-open shape a reviewer found. That context only exists inside a GitHub Actions run, so this step itself stays GitHub-only/unmirrored locally."
 		},
 		"openapi-spec-drift.yml::gate::Verify the required-jobs check truly succeeded (continue-on-error cannot mask this)": {
 			"reason_hash": "270aa0820881ca9d",
-			"reason_length": 504,
 			"reason": "GitHub-only: round-5 BLOCKER fix. Reads steps.check-required-jobs.outcome, which GitHub computes BEFORE continue-on-error is applied (only .conclusion is rewritten afterward), so a continue-on-error added to the required-jobs check step cannot mask this step's own view of whether that step actually succeeded. That `.outcome` context only exists inside a real Actions run, so this stays GitHub-only/unmirrored locally; packages/scripts-ts/src/check-ci-gate-structure.ts pins that this exact step exists."
 		},
 		"openapi-spec-drift.yml::spec-drift::Build API (regenerates openapi.json)": {
 			"reason_hash": "9c46ea70b75021a0",
-			"reason_length": 53,
 			"reason": "ci-spec-drift runs the identical just build-api-full."
 		},
 		"openapi-spec-drift.yml::spec-drift::Fail if client drifted": {
 			"reason_hash": "3b4ce53e0a1b60f7",
-			"reason_length": 228,
 			"reason": "ci-spec-drift asserts the same property via node ./packages/scripts-ts/src/check-tree-clean.ts packages/client-ts, which uses the same git status --porcelain check the workflow relies on to catch newly generated untracked files."
 		},
 		"openapi-spec-drift.yml::spec-drift::Fail if openapi.json drifted": {
 			"reason_hash": "91023d57b1fbc4ca",
-			"reason_length": 274,
 			"reason": "ci-spec-drift asserts the same property via node ./packages/scripts-ts/src/check-tree-clean.ts apps/api/openapi.json. It uses git status --porcelain rather than the workflow's git diff --exit-code, which is strictly stronger: a diff cannot see newly created untracked files."
 		},
 		"openapi-spec-drift.yml::spec-drift::Install workspace dependencies": {
 			"reason_hash": "e42faa2929ccb37c",
-			"reason_length": 284,
 			"reason": "This workflow runs a plain 'pnpm install --frozen-lockfile' (lifecycle scripts allowed). ci-install runs the hardened variant used by every other workflow: --ignore-scripts plus an explicit trusted @org/shared-ts postinstall. Same resulting tree, stricter supply-chain policy locally."
 		},
 		"openapi-spec-drift.yml::spec-drift::Materialize .env.development from template (CI has no gitignored env file)": {
 			"reason_hash": "876b7d9fb01ef928",
-			"reason_length": 447,
 			"reason": "CI-only compensation for the gitignored, absent .env.development. Copies .env.example, then forces APP_ROLE=api so build-time OpenAPI doc-gen runs api-only (no worker WorkerMigrationStartupGate, no DB connection) -- .env.example ships APP_ROLE=all, which DotNetEnv would clobber the recipe's APP_ROLE=api with and hang the DB-less runner. Locally a developer already has a real repo-root .env.development, so just ci-spec-drift needs no such step."
 		},
 		"openapi-spec-drift.yml::spec-drift::Regenerate TypeScript client": {
 			"reason_hash": "1ece270d230bc5b5",
-			"reason_length": 54,
 			"reason": "ci-spec-drift runs the identical just generate-client."
 		},
 		"openapi-spec-drift.yml::spec-drift::Restore .NET tools (kiota, dotnet-ef)": {
 			"reason_hash": "aaf6387351aa1665",
-			"reason_length": 69,
 			"reason": "ci-spec-drift runs the identical dotnet tool restore before building."
 		},
 		"openapi-spec-drift.yml::spec-drift::Run OpenAPI contract spec": {
 			"reason_hash": "1dcd34a7cd962e60",
-			"reason_length": 189,
 			"reason": "ci-spec-drift runs the identical filtered dotnet test for FullyQualifiedName~OpenApiContractSpec. Note that just ci also runs just test-api, the full suite of which this filter is a subset."
 		},
 		"openapi-spec-drift.yml::spec-drift::Set up .NET (pinned for CI determinism)": {
 			"reason_hash": "4c92a505a7d6b469",
-			"reason_length": 155,
 			"reason": "Runner toolchain provisioning. Locally the SDK version is pinned by global.json instead; CI pins it again because the runner image ships whatever it ships."
 		},
 		"openapi-spec-drift.yml::spec-drift::Set up Node": {
 			"reason_hash": "305da4753c978917",
-			"reason_length": 100,
 			"reason": "Runner toolchain provisioning. Locally the Node version is pinned by .node-version / .nvmrc instead."
 		},
 		"openapi-spec-drift.yml::spec-drift::Set up just": {
 			"reason_hash": "997bb69cf1357de0",
-			"reason_length": 138,
 			"reason": "Runner toolchain provisioning: installs the just binary. Locally just is the entrypoint being run, so it is by definition already present."
 		},
 		"openapi-spec-drift.yml::spec-drift::Set up pnpm": {
 			"reason_hash": "1fd22cde3ad0647d",
-			"reason_length": 114,
 			"reason": "Runner toolchain provisioning. Locally pnpm is pinned by the packageManager field and is a developer prerequisite."
 		},
 		"openapi-spec-drift.yml::spec-drift::uses:actions/checkout": {
 			"reason_hash": "c80eb5bfb322fab4",
-			"reason_length": 102,
 			"reason": "GitHub-only: clones the repo onto the runner. Locally the working tree already is the code under test."
 		},
 		"quality-gate.yml::changes::Check whether quality-gate paths changed": {
 			"reason_hash": "357c6f67b627b215",
-			"reason_length": 982,
 			"reason": "The step inlines the fallback directly (same pattern as the other four gate workflows): if base-ref/packages/scripts-ts/src/ci-changed-paths.ts exists, run it and pass its output/exit code straight through; otherwise print a loud [MISSING BASE CLASSIFIER] warning and resolve relevant=true, on a code path that never invokes the classifier. packages/scripts-ts/src/ci-gate-bootstrap.test.ts parses this exact `run:` block from the real workflow file (not a restatement) and executes it directly against both cases for all gate workflows. The classifier's own decision logic remains covered by ci-changed-paths.test.ts (#1334 fix round 1: the inline regex gained a docs/guides/dependency-health.md alternative so doc-only PRs wake this gate for the pin-location contract; that behavior is pinned by two new #1334 cases in ci-changed-paths.test.ts). The classifier regex (and the push paths list) also wake the gate on root knip.ts changes since #455, matching the Knip step's inputs."
 		},
 		"quality-gate.yml::changes::Checkout classifier from the base commit (not the PR's own copy)": {
 			"reason_hash": "68e36b1ac0a34432",
-			"reason_length": 739,
 			"reason": "GitHub-only: checks out the classifier script (packages/scripts-ts/src/ci-changed-paths.ts) from the pull request's base commit into base-ref/ rather than its own merge commit. This pins the classifier's SOURCE so an accidental or careless edit (a rename, a bad rebase) cannot silently change it — it is NOT a defense against a pull request that deliberately tries to bypass its own gates, since the `changes` job's YAML itself (including the invocation step) is read from the pull request's merge commit the same as everything else in this workflow; see #1022 for the honest framing and why that residual exposure is accepted. Locally the working tree already is the code under test, and there is no PR base/head distinction to reproduce."
 		},
 		"quality-gate.yml::changes::Setup Node": {
 			"reason_hash": "522d060c491d92cf",
-			"reason_length": 146,
 			"reason": "GitHub-only Node setup for PR gating. This repository's local checks already assume Node is available locally for scripts and format/lint tooling."
 		},
 		"quality-gate.yml::gate::Check required jobs": {
 			"reason_hash": "6f711c83afb99da8",
-			"reason_length": 1081,
 			"reason": "GitHub-only: this is the #1017 aggregate required-check step, which reads the needs context (via toJSON(needs)) across the workflow's other jobs. Round-4 review fix: the round-3 shape now additionally correlates skipped work with the classifier's own verdict — asserts needs.changes.result is exactly success, requires needs.changes.outputs.relevant to be exactly true or false (failing closed on absent/empty/malformed, since GitHub can omit an output entirely), allows skipped only when relevant is false, and requires success (not skipped) from every required job when relevant is true. Previously every skipped result passed unconditionally, so changes=success with an absent relevant output and every heavy job skipped reported green. packages/scripts-ts/src/ci-gate-aggregation.test.ts extracts and executes this exact run: body (parsed from the real workflow, not restated) against every documented result combination plus every fail-open shape a reviewer found. That context only exists inside a GitHub Actions run, so this step itself stays GitHub-only/unmirrored locally."
 		},
 		"quality-gate.yml::gate::Verify the required-jobs check truly succeeded (continue-on-error cannot mask this)": {
 			"reason_hash": "270aa0820881ca9d",
-			"reason_length": 504,
 			"reason": "GitHub-only: round-5 BLOCKER fix. Reads steps.check-required-jobs.outcome, which GitHub computes BEFORE continue-on-error is applied (only .conclusion is rewritten afterward), so a continue-on-error added to the required-jobs check step cannot mask this step's own view of whether that step actually succeeded. That `.outcome` context only exists inside a real Actions run, so this stays GitHub-only/unmirrored locally; packages/scripts-ts/src/check-ci-gate-structure.ts pins that this exact step exists."
 		},
 		"quality-gate.yml::no-ignored-tracked::Checkout": {
 			"reason_hash": "c80eb5bfb322fab4",
-			"reason_length": 102,
 			"reason": "GitHub-only: clones the repo onto the runner. Locally the working tree already is the code under test."
 		},
 		"quality-gate.yml::no-ignored-tracked::Verify no tracked file matches .gitignore (#1513)": {
 			"reason_hash": "0b7b1ce1965ab1f9",
-			"reason_length": 276,
 			"reason": "ci-no-ignored-tracked runs the identical `node packages/scripts-ts/src/check-no-ignored-tracked.ts` plus its vitest test, which interrogates the REAL repo via `git ls-files -z --cached --ignored --exclude-standard`. Empty output = green, any named path = red. See issue #1513."
 		},
 		"quality-gate.yml::no-dockerignore-shadow::Checkout": {
 			"reason_hash": "c80eb5bfb322fab4",
-			"reason_length": 102,
 			"reason": "GitHub-only: clones the repo onto the runner. Locally the working tree already is the code under test."
 		},
 		"quality-gate.yml::no-dockerignore-shadow::Forbid .dockerignore shadow files (#1849)": {
 			"reason_hash": "b60edaad18888f9d",
-			"reason_length": 579,
 			"reason": "ci-dockerignore-shadow runs the identical `node packages/scripts-ts/src/check-dockerignore-shadow.ts`, which walks the REAL working tree (the same filesystem a build context is drawn from) and flags every file whose basename ends with `.dockerignore` case-insensitively but is not exactly `.dockerignore`. Git-ignored paths (e.g. parallel .worktrees/) are filtered out via a single batch `git check-ignore --stdin -z` call (issue #1909 class). The `-v` form is deliberately NOT used: it was the round-4 defect, because its verbose output changes the parse shape. See issue #1849."
 		},
 		"quality-gate.yml::quality::Assert exact pins": {
 			"reason_hash": "23640fc62c5d63d6",
-			"reason_length": 88,
 			"reason": "ci-install runs the identical command: node apps/front/scripts/guards/assert-pinned.mts."
 		},
 		"quality-gate.yml::quality::Audit development dependencies (moderate and above)": {
 			"reason_hash": "01df57e4a1a2b377",
-			"reason_length": 501,
 			"reason": "#1631 closes the dev-graph blind spot the prod-only `pnpm audit --prod --audit-level=high` left open: this scans the development-only dependency graph repo-wide (every package.json's dev deps, no --filter) at moderate so a moderate dev advisory (the nanoid-via-postcss class) turns the gate red instead of passing silently. Locally the identical `pnpm audit --dev --audit-level=moderate` reproduces it without Docker or CI; the graph is clean today at every threshold, so no exception list is carried."
 		},
 		"quality-gate.yml::quality::Bind pinned action SHAs to their version comments (#1392)": {
 			"reason_hash": "0ec591b68c82fd5b",
-			"reason_length": 389,
 			"reason": "#1392 supply-chain binding: binds every 40-hex action SHA to the commit its \"# vX.Y.Z\" comment claims via gh api tag resolution with annotated-tag peeling. Mirrored by just ci-actions-pins (same two commands; ARGS=\"--offline\" skips only the live network half locally — CI never passes it). The vitest half is network-free; the live half needs GH_TOKEN, which CI provides in this very step."
 		},
 		"quality-gate.yml::quality::Build .NET solution (warnings as errors via Directory.Build.props)": {
 			"reason_hash": "fa3bbfa576e1dc0c",
-			"reason_length": 251,
 			"reason": "ci-quality-dotnet runs the identical dotnet build PublyApp.slnx --no-restore with TreatWarningsAsErrors and EnforceCodeStyleInBuild active via Directory.Build.props, so any analyzer or code-style warning fails the build the same way in CI and locally."
 		},
 		"quality-gate.yml::quality::Check formatter scope (#1875)": {
 			"reason_hash": "954284ab5e9c6631",
-			"reason_length": 439,
 			"reason": "ci-format now runs pnpm format AND then pnpm --filter scripts-ts exec vitest run src/check-formatter-scope.test.ts, the same vitest file this step runs. The guard asks oxfmt itself (via the real .oxfmtrc.json from the repo root) which files each package.json format glob would process, so an ignorePatterns entry that silently swallows a directory the globs enumerate fails red naming the directory instead of letting `pnpm format` exit 0."
 		},
 		"quality-gate.yml::quality::Check formatting (oxfmt --check)": {
 			"reason_hash": "6b89e3c033cf0ebc",
-			"reason_length": 101,
 			"reason": "ci-quality runs pnpm format, the identical oxfmt --check invocation over the repo's configured globs."
 		},
 		"quality-gate.yml::quality::Checkout": {
 			"reason_hash": "c80eb5bfb322fab4",
-			"reason_length": 102,
 			"reason": "GitHub-only: clones the repo onto the runner. Locally the working tree already is the code under test."
 		},
 		"quality-gate.yml::quality::Install (frozen lockfile, no scripts)": {
 			"reason_hash": "663389920e93e4f6",
-			"reason_length": 78,
 			"reason": "ci-install runs the identical pnpm install --frozen-lockfile --ignore-scripts."
 		},
 		"quality-gate.yml::quality::Install pnpm": {
 			"reason_hash": "1fd22cde3ad0647d",
-			"reason_length": 114,
 			"reason": "Runner toolchain provisioning. Locally pnpm is pinned by the packageManager field and is a developer prerequisite."
 		},
 		"quality-gate.yml::quality::Knip (unused exports & dependencies)": {
 			"reason_hash": "26699c77a749d567",
-			"reason_length": 157,
 			"reason": "ci-knip runs the identical pnpm exec knip over the same knip.ts workspace config, so the unused-exports/dependencies gate is exercised locally on every push."
 		},
 		"quality-gate.yml::quality::Lint (oxlint repo-wide)": {
 			"reason_hash": "c46cf606794d7a9a",
-			"reason_length": 139,
 			"reason": "ci-quality runs pnpm lint, the repo-wide oxlint --quiet invocation (plus lint:disables and frontend-barrels guards) over the same rule set."
 		},
 		"quality-gate.yml::quality::Lint plugin unit tests (lint-ts)": {
 			"reason_hash": "475a7e0913322026",
-			"reason_length": 148,
 			"reason": "ci-lint runs pnpm --filter @org/lint-ts test, the same vitest suite for the custom publy/* oxlint plugin rules that CI now runs after the lint step."
 		},
 		"quality-gate.yml::quality::Materialize .env.development from template (CI has no gitignored env file)": {
 			"reason_hash": "16f19492a57762c6",
-			"reason_length": 444,
 			"reason": "CI-only compensation for the gitignored, absent .env.development. Copies .env.example, then forces APP_ROLE=api so build-time OpenAPI doc-gen runs api-only (no worker WorkerMigrationStartupGate, no DB connection) -- .env.example ships APP_ROLE=all, which DotNetEnv would clobber the recipe's APP_ROLE=api with and hang the DB-less runner. Locally a developer already has a real repo-root .env.development, so just ci-quality needs no such step."
 		},
 		"quality-gate.yml::quality::Restore .NET solution (PublyApp.slnx)": {
 			"reason_hash": "e3835e6215b51bfc",
-			"reason_length": 153,
 			"reason": "ci-quality-dotnet runs the identical dotnet restore PublyApp.slnx with APP_ROLE=api and TRUSTED_PROXY_CIDRS pinned so AppEnvironment boots in Production."
 		},
 		"quality-gate.yml::quality::Run NuGet audit fixture tests": {
 			"reason_hash": "35505f27a286461a",
-			"reason_length": 306,
 			"reason": "Identical invocation to the CI step itself: since the scripts-ts migration the test runs under vitest (node --test no longer works on the .ts file). Run locally so the fixture suite that validates the audit evaluator's own failure modes gates PRs, not just local runs, before the production audit executes."
 		},
 		"quality-gate.yml::quality::Run analyzer tests": {
 			"reason_hash": "c5bc4cb7dcf41fbb",
-			"reason_length": 159,
 			"reason": "ci-quality runs just test-analyzers (dotnet test of PublyApp.Analyzers.Tests.csproj), the same custom analyzer suite CI runs via pnpm exec just test-analyzers."
 		},
 		"quality-gate.yml::quality::Run dependency-health pin-location contract test": {
 			"reason_hash": "89e3000e5cdc3998",
-			"reason_length": 300,
 			"reason": "Identical invocation to the CI step itself, which was added in #1334 fix round 1 so the contract actually executes in CI instead of being an orphaned local-only suite. Locally it runs inside `just nuget-audit` (and therefore `just ci`) right after the NuGet audit fixture tests it sits next to in CI."
 		},
 		"quality-gate.yml::quality::Run trusted first-party postinstall (@org/shared-ts)": {
 			"reason_hash": "11f4c937ecc6b38a",
-			"reason_length": 75,
 			"reason": "ci-install runs the identical pnpm --filter @org/shared-ts run postinstall."
 		},
 		"quality-gate.yml::quality::Scan .NET packages for known vulnerabilities": {
 			"reason_hash": "8cb5e597d26d0f9a",
-			"reason_length": 287,
 			"reason": "just nuget-audit calls `node packages/scripts-ts/src/nuget-audit.ts`, which is the same script invoked by the CI step. Both parse the machine-readable `--format json` output from `dotnet list package --vulnerable` and fail when any vulnerabilities array is non-empty. Issue #1187 rung 3."
 		},
 		"quality-gate.yml::quality::Setup .NET (pinned for CI determinism)": {
 			"reason_hash": "4c92a505a7d6b469",
-			"reason_length": 155,
 			"reason": "Runner toolchain provisioning. Locally the SDK version is pinned by global.json instead; CI pins it again because the runner image ships whatever it ships."
 		},
 		"quality-gate.yml::quality::Setup Node": {
 			"reason_hash": "305da4753c978917",
-			"reason_length": 100,
 			"reason": "Runner toolchain provisioning. Locally the Node version is pinned by .node-version / .nvmrc instead."
 		},
 		"quality-gate.yml::quality::Setup just": {
 			"reason_hash": "997bb69cf1357de0",
-			"reason_length": 138,
 			"reason": "Runner toolchain provisioning: installs the just binary. Locally just is the entrypoint being run, so it is by definition already present."
 		},
 		"quality-gate.yml::quality::Test shared-ts": {
 			"reason_hash": "f1e453ba1ed83492",
-			"reason_length": 109,
 			"reason": "ci-shared-ts runs the identical pnpm --filter @org/shared-ts test (vitest run, 82 tests) that this step runs."
 		},
 		"quality-gate.yml::quality::Typecheck client-ts": {
 			"reason_hash": "27ef92467928c767",
-			"reason_length": 320,
 			"reason": "ci-lint-ts now also runs pnpm --filter @org/client-ts typecheck (tsc --noEmit), the identical invocation this step runs. The Kiota-generated TypeScript API client's typecheck script was added to packages/client-ts/package.json but was never wired into any CI step or local gate — trompe-l’oeil coverage. See issue #1692."
 		},
 		"quality-gate.yml::quality::Typecheck lint-ts": {
 			"reason_hash": "272f664f02dedc3c",
-			"reason_length": 289,
 			"reason": "ci-lint-ts runs the identical pnpm --filter @org/lint-ts typecheck (tsc --noEmit) that this step runs. The package ships the repo's custom publy/* oxlint rules that guard every front surface, but nothing verified its own types — only its vitest tests ran (the step above). See issue #1600."
 		},
 		"quality-gate.yml::quality::Typecheck shared-ts": {
 			"reason_hash": "e8cabaa49080c354",
-			"reason_length": 106,
 			"reason": "ci-shared-ts runs the identical pnpm --filter @org/shared-ts typecheck (tsc --noEmit) that this step runs."
 		},
 		"quality-gate.yml::quality::Verify complexity bounds are not drifting (#1661)": {
 			"reason_hash": "1cbb6db7d59ba3f0",
-			"reason_length": 384,
 			"reason": "The check-cyclomatic-bound guard verifies that complexity ceilings in .oxlintrc.json are not drifting. It reads the TRUE values from .oxlintrc.json and ensures they match the committed expected configuration in packages/scripts-ts/src/cyclomatic-bound-ref.json (apps/front/src/**: 60, test files: 90, default: 125). CI runs this guard to provide actual protection against bound drift."
 		},
 		"quality-gate.yml::quality::Verify production duplication has not increased (#1821)": {
 			"reason_hash": "119fd701d06941df",
-			"reason_length": 261,
 			"reason": "jscpd@4 production duplication ratchet: runs jscpd against production paths and verifies unique pair count and line count within the committed baseline. Identical to the CI step quality-gate.yml::quality::Verify production duplication has not increased (#1821)."
 		},
 		"quality-gate.yml::quality::Verify deploy env doc coverage (#1798)": {
 			"reason_hash": "41801181f18800e2",
-			"reason_length": 483,
 			"reason": "ci-deploy-env-docs runs the identical pnpm --filter scripts-ts exec vitest run src/check-deploy-env-docs.test.ts && node ./packages/scripts-ts/src/check-deploy-env-docs.ts that this step runs. The guard extracts required env vars from actual source code (env.ts schema, server.ts validateRuntimeEnv, AppEnvironment.cs GetRequiredString calls) and compares them to the documented vars in the runbook. Fails closed: an unparseable source file FAILS LOUDLY with the file name and error."
 		},
 		"react-doctor.yml::changes::Check whether react-doctor paths changed": {
 			"reason_hash": "e145f4ee0e9639dd",
-			"reason_length": 437,
 			"reason": "The step inlines the fallback directly (same pattern as the other gate workflows): if base-ref/packages/scripts-ts/src/ci-changed-paths.ts exists, run it and pass its output/exit code straight through; otherwise print a loud [MISSING BASE CLASSIFIER] warning and resolve relevant=true. packages/scripts-ts/src/ci-gate-bootstrap.test.ts parses this exact run: block from the real workflow file and executes it directly against both cases."
 		},
 		"react-doctor.yml::changes::Checkout classifier from the base commit (not the PR's own copy)": {
 			"reason_hash": "23860a70e2f272a7",
-			"reason_length": 187,
 			"reason": "GitHub-only: checks out the classifier script from the pull request's base commit into base-ref/ rather than its own merge commit. Locally the working tree already is the code under test."
 		},
 		"react-doctor.yml::changes::Setup Node": {
 			"reason_hash": "b893636bc2ead2c1",
-			"reason_length": 102,
 			"reason": "GitHub-only Node setup for PR gating. This repository's local checks already assume Node is available."
 		},
 		"react-doctor.yml::gate::Check required jobs": {
 			"reason_hash": "a856ee8dc1cee2de",
-			"reason_length": 193,
 			"reason": "GitHub-only: reads the needs context via toJSON(needs) across the workflow's other jobs. That context only exists inside a GitHub Actions run, so this step stays GitHub-only/unmirrored locally."
 		},
 		"react-doctor.yml::gate::Verify the required-jobs check truly succeeded (continue-on-error cannot mask this)": {
 			"reason_hash": "887f0f56bdb7589f",
-			"reason_length": 173,
 			"reason": "GitHub-only: reads steps.check-required-jobs.outcome, which GitHub computes BEFORE continue-on-error is applied. That .outcome context only exists inside a real Actions run."
 		},
 		"react-doctor.yml::react-doctor::Assert diff base is present": {
 			"reason_hash": "d9547249c2faaa52",
-			"reason_length": 629,
 			"reason": "GitHub-only: asserts the per-event DIFF_BASE (resolved by the Resolve diff base step) is present in the fetch-depth:0 checkout via `git rev-parse --verify --quiet \"${DIFF_BASE}^{commit}\"`, failing loud if it is not so an unexamined run can never be reported green. Round 2 fix: replaces the old `git fetch --no-tags ${DIFF_BASE}` step that aborted CI because for a PR the resolved value is the local remote-tracking ref name `origin/<base>`, which `git fetch` does not accept as a `<remote> <ref>` position. Locally origin/develop is already present, and the fetch-depth:0 checkout means the base sha is present without fetching."
 		},
 		"react-doctor.yml::react-doctor::Checkout PR head (full history for diff)": {
 			"reason_hash": "67c7a6d1ffe0de50",
-			"reason_length": 128,
 			"reason": "GitHub-only: clones the repo with fetch-depth: 0 for full diff history. Locally the working tree already is the code under test."
 		},
 		"react-doctor.yml::react-doctor::Install (frozen lockfile)": {
 			"reason_hash": "23f5116ff13d8b64",
-			"reason_length": 204,
 			"reason": "ci-install runs the equivalent pnpm install --frozen-lockfile --ignore-scripts. The CI step allows lifecycle scripts for react-doctor's npx resolution; the local mirror uses the stricter --ignore-scripts."
 		},
 		"react-doctor.yml::react-doctor::Install pnpm": {
 			"reason_hash": "ccc5ecfe3b14822f",
-			"reason_length": 107,
 			"reason": "GitHub-only pnpm setup. Locally pnpm is pinned by the packageManager field and is a developer prerequisite."
 		},
 		"react-doctor.yml::react-doctor::React Doctor -- changed files, blocking on warnings": {
 			"reason_hash": "e4e70e69b18211af",
-			"reason_length": 274,
 			"reason": "just react-doctor runs the identical pnpm dlx react-doctor@0.9.12 --scope files --base <diff_base> --blocking warning --no-telemetry --verbose from apps/front; CI now supplies the per-event diff base via the Resolve diff base step instead of the hardcoded origin/<base_ref>."
 		},
 		"react-doctor.yml::react-doctor::Resolve diff base": {
 			"reason_hash": "545489e22b927617",
-			"reason_length": 358,
 			"reason": "GitHub-only: derives a single DIFF_BASE per event (pull_request -> origin/<base_ref>, merge_group -> the merge-group base sha, push -> github.event.before with a HEAD~1 fallback for a brand-new branch) so the Assert diff base is present step and --base cannot drift. The checkout uses fetch-depth: 0, so the resolved base is present locally without fetching."
 		},
 		"react-doctor.yml::react-doctor::Setup Node": {
 			"reason_hash": "c741d8e30523ae13",
-			"reason_length": 85,
 			"reason": "GitHub-only Node setup. Locally the Node version is pinned by .node-version / .nvmrc."
 		},
 		"require-linked-issue.yml::require-linked-issue::Verify the PR closes an existing issue": {
 			"reason_hash": "9f671866bb224574",
-			"reason_length": 541,
 			"reason": "Reads github.event.pull_request.body. At pre-push time there is no PR and therefore no body to check, so this gate is unreproducible locally by construction rather than by omission. The step gained a #1240 waiver that short-circuits to success for PR_AUTHOR == 'dependabot[bot]' (exact-login policy, not github.actor, not a label); the waiver's exact shape is guarded by packages/scripts-ts/src/require-linked-issue.test.ts, which just ci-drift now runs, but the step itself (which reads the live PR body) stays a GitHub-only required check."
 		}
 	}

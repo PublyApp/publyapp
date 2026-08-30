@@ -407,7 +407,6 @@ const reference = Object.fromEntries(
 					.update(entry.reason)
 					.digest('hex')
 					.slice(0, 16),
-				reason_length: entry.reason.length,
 				reason: entry.reason,
 			},
 		]),
@@ -531,9 +530,8 @@ const output = {
 		'Reference fingerprints for the reason guard. Read by packages/scripts-ts/src/check-ci-drift.ts.',
 		'',
 		'One entry per step in ci-gate-manifest.json, keyed identically.',
-		'  reason_hash   - SHA-256 (first 16 hex chars) of the reason text.',
-		'  reason_length - character count of the reason text.',
-		'  reason        - the full reason text itself.',
+		'  reason_hash - SHA-256 (first 16 hex chars) of the reason text.',
+		'  reason      - the full reason text itself.',
 		'',
 		'The reason text is stored in full so that regenerating this file is',
 		'visible in the diff: a reviewer sees the actual reason text, not just a',
