@@ -246,6 +246,8 @@ const REAL_FRONT_NODE_MODULES = join(FRONT_ROOT, 'node_modules');
 interface ReplayFixtureOptions {
 	/** The declared kept-red test PASSES (stale scenario) or FAILS (healthy). */
 	declaredTestPasses: boolean;
+	/** The sibling test also PASSES, so the whole file goes green (exit 0). */
+	siblingPasses: boolean;
 	/** Whether the proof file gets its `.expected-red.json` companion. */
 	withManifest: boolean;
 }
@@ -294,11 +296,14 @@ const buildReplayFixture = (options: ReplayFixtureOptions): string => {
 	symlinkSync(REAL_FRONT_NODE_MODULES, join(appDir, 'node_modules'), 'dir');
 
 	// The proof: one test that behaves per the option, plus a sibling that
-	// always fails on an assertion so the FILE stays red (vitest exit 1) and
-	// the classification path (not the unexpected-pass path) is exercised.
+	// fails on an assertion (FILE stays red, vitest exit 1, classification
+	// path exercised) unless the scenario demands an all-green file (exit 0).
 	const declaredBody = options.declaredTestPasses
 		? '\t\texpect(true).toBe(true);'
 		: '\t\texpect(1).toBe(2);';
+	const siblingBody = options.siblingPasses
+		? '\t\t\texpect(true).toBe(true);'
+		: '\t\t\texpect(1).toBe(2);';
 	writeFileSync(
 		join(proofDir, 'stale-proof.test.ts'),
 		[
@@ -309,7 +314,7 @@ const buildReplayFixture = (options: ReplayFixtureOptions): string => {
 			declaredBody,
 			'\t\t});',
 			"\t\ttest('sibling test fails on an assertion so the file stays red', () => {",
-			'\t\t\texpect(1).toBe(2);',
+			siblingBody,
 			'\t\t});',
 			'});',
 			'',
@@ -381,6 +386,7 @@ describe('proof replay — F1: the per-test manifest is mandatory, not optional'
 		// loud naming the missing file and demanding the manifest.
 		const root = buildReplayFixture({
 			declaredTestPasses: true,
+			siblingPasses: false,
 			withManifest: false,
 		});
 		try {
@@ -413,6 +419,7 @@ describe('proof replay — F2: the exit gate is pinned by a real process launch'
 		// non-zero.
 		const root = buildReplayFixture({
 			declaredTestPasses: true,
+			siblingPasses: false,
 			withManifest: true,
 		});
 		try {
@@ -439,6 +446,7 @@ describe('proof replay — F2: the exit gate is pinned by a real process launch'
 		// the manifest declares it, and the runner exits 0.
 		const root = buildReplayFixture({
 			declaredTestPasses: false,
+			siblingPasses: false,
 			withManifest: true,
 		});
 		try {
@@ -449,6 +457,35 @@ describe('proof replay — F2: the exit gate is pinned by a real process launch'
 				'All declared proof tests behaved as expected.',
 			);
 			expect(result.stdout).toContain('Proof tests failed as expected: 1');
+			expect(result.stdout).toContain(
+				'Stale proofs (declared red went green): 0',
+			);
+		} finally {
+			rmSync(root, { recursive: true, force: true });
+		}
+	}, 120000);
+});
+
+describe('proof replay — an all-green proof file must fail the step (exit-0 lane)', () => {
+	test('the runner exits NON-ZERO when the WHOLE proof file passes (vitest exit 0)', () => {
+		// The strongest weakening of a proof: every assertion passes and
+		// vitest exits 0. The runner's early exit-0 branch counts this as
+		// unexpectedPasses (the manifest is never consulted — no report
+		// is read). A mutation that counted the pass as an expected
+		// failure (failures++) would silently green-light a fully
+		// defused proof; this process test pins the branch against the
+		// REAL script.
+		const root = buildReplayFixture({
+			declaredTestPasses: true,
+			siblingPasses: true,
+			withManifest: true,
+		});
+		try {
+			const result = runReplayFixture(root);
+
+			expect(result.status).not.toBe(0);
+			expect(result.stderr).toContain('passed unexpectedly');
+			expect(result.stdout).toContain('Proof tests passed unexpectedly:  1');
 			expect(result.stdout).toContain(
 				'Stale proofs (declared red went green): 0',
 			);
