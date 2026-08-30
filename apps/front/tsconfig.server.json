@@ -1,0 +1,35 @@
+{
+	"extends": "../../packages/_tsconfig/tsconfig.base.json",
+	"compilerOptions": {
+		"module": "ESNext",
+		"moduleResolution": "Bundler",
+		"allowJs": true,
+		"checkJs": true,
+		"noEmit": true,
+		"target": "ES2022",
+		"lib": ["DOM", "DOM.Iterable", "ES2022"],
+		"types": ["node"]
+	},
+	// Dedicated tsconfig for the PRODUCTION entry `server.mjs` (#1758).
+	// It used to sit in the main tsconfig `include` but, with no `allowJs`,
+	// TypeScript silently ignored it: `tsc --listFiles` matched it ZERO times
+	// (#1692) — a decorative entry that protected nothing. Enabling `allowJs`
+	// on the MAIN tsconfig is measured to break the gate: it drags
+	// `dist/server/assets/*.js` (build output) into the program and
+	// `tsc --noEmit` exits 1, with `checkJs` on or off (#1749).
+	//
+	// This config checks ONLY `server.mjs` (plus what it imports) with
+	// `allowJs`/`checkJs`, `dist/` excluded, so build output never enters the
+	// program. The one import that genuinely points into the build —
+	// `./dist/server/server.js` — is aliased through the `#server-build`
+	// package-imports entry: the `types` condition resolves it to
+	// `types/server-build.d.ts`, the `default` condition is what Node uses at
+	// runtime.
+	//
+	// The guard `scripts/guards/check-typecheck-coverage.mts` asserts this
+	// config really attends `server.mjs` (it replays `tsc --listFiles` and
+	// fails loud if the file is absent from the program), so a future edit
+	// cannot quietly turn this entry decorative again.
+	"include": ["server.mjs"],
+	"exclude": ["node_modules", "dist", ".output"]
+}
