@@ -1358,5 +1358,6 @@
 	"post-saved-success": "Publication enregistrée avec succès",
 	"post-deleted-success": "Publication supprimée avec succès",
 	"unknown-invitee": "Personne invitée inconnue",
+	"post-schedule-cancelled-success": "Planification annulée — le post est de retour dans les brouillons",
 	"nav-staff-jobs": "Tâches"
 }

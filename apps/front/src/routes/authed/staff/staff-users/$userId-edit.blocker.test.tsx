@@ -194,9 +194,9 @@ const settledQuery = (data: unknown) => ({
 // from the exported `options` union; the helper is the ONE widening point
 // (a single assert through a named shape), matching the repo's other
 // real-route suites.
-function widenOptions<T>(value: unknown): T {
+const widenOptions = <T,>(value: unknown): T => {
 	return value as T;
-}
+};
 const mountRealRoute = <TRoute,>(
 	route: TRoute,
 	options: Record<string, unknown>,
@@ -250,10 +250,10 @@ const buildHarness = () => {
 		),
 	});
 
-	function addChildrenOf(route: unknown) {
+	const addChildrenOf = (route: unknown) => {
 		return widenOptions<{ addChildren: (children: unknown[]) => void }>(route)
 			.addChildren;
-	}
+	};
 	const routeTree = addChildrenOf(rootRoute)([
 		addChildrenOf(layoutRoute)([editRoute, detailStubRoute]),
 	]);

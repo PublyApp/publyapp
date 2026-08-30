@@ -1358,5 +1358,6 @@
 	"post-saved-success": "Post saved successfully",
 	"post-deleted-success": "Post deleted successfully",
 	"unknown-invitee": "Unknown invitee",
+	"post-schedule-cancelled-success": "Schedule cancelled — the post is back in drafts",
 	"nav-staff-jobs": "Jobs"
 }

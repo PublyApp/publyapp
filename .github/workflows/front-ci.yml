@@ -314,6 +314,25 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          # #1809 r11: fetch-depth: 0 — full history for every branch, exactly
+          # like the supply-chain job above. The CI gate
+          # (packages/scripts-ts/src/check-ci-drift.ts) and the ratchet-floor
+          # generator (packages/scripts-ts/src/gen-reason-ref.ts) both read the
+          # floor from `git merge-base origin/develop HEAD`. A shallow checkout
+          # (the default fetch-depth: 1) leaves HEAD with no common ancestor
+          # with origin/develop, so the merge-base can never resolve and the
+          # gate refuses to run — correctly, by contract — but it also takes
+          # this job (and front-ci-gate with it) red. The #1809 r10 fix tried
+          # a separate `git fetch --depth=0` step and could not work by
+          # construction: git rejects `--depth=0` ("depth 0 is not a positive
+          # number"), the `--depth=1` fallback still left two truncated tips
+          # without a common ancestor, and the job stayed red. Fetching full
+          # history here makes origin/develop a real ref the merge-base can
+          # resolve, so the r10 step has nothing left to do and was removed.
+          # The loud refusal stays loud for genuine misconfigurations (no
+          # upstream to fetch at all) — we only make the well-formed run work.
+          fetch-depth: 0
 
       - name: Install pnpm
         uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
@@ -341,6 +360,10 @@ jobs:
         run: |
           pnpm --filter scripts-ts exec vitest run src/codeowners-contract.test.ts
           pnpm --filter scripts-ts exec vitest run src/check-ci-drift.test.ts
+          # #1709: the ratchet-floor generator's own suite — without this
+          # line, the ratchet guarding against silent step erasure would be
+          # itself unverified on the server, exactly the #1709 finding.
+          pnpm --filter scripts-ts exec vitest run src/gen-reason-ref.test.ts
           pnpm --filter scripts-ts exec vitest run src/lint-front.test.ts
           pnpm --filter scripts-ts exec vitest run src/check-no-floating-promises.test.ts
           node ./packages/scripts-ts/src/check-ci-drift.ts

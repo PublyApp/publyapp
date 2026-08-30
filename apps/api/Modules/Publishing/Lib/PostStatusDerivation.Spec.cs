@@ -66,4 +66,22 @@ public sealed class PostStatusDerivationSpec {
 
 		PostStatusDerivation.Derive(publications).Should().Be(DerivedPostStatus.Partial);
 	}
+
+	[Theory]
+	[InlineData(DerivedPostStatus.Draft, "draft")]
+	[InlineData(DerivedPostStatus.Scheduled, "scheduled")]
+	[InlineData(DerivedPostStatus.Published, "published")]
+	[InlineData(DerivedPostStatus.Partial, "partial")]
+	[InlineData(DerivedPostStatus.Failed, "failed")]
+	public void ItShouldEmitSnakeCaseWireValuesForEveryDerivedStatus(
+		DerivedPostStatus status,
+		string expectedWireValue
+	) {
+		// Round-2 finding: the queue contract used ToString().ToLowerInvariant()
+		// next to the closed-snake_case publication status. The closed switch
+		// must emit the SAME vocabulary as the status formatter (PUBLY0003:
+		// ToLower* is never a contract-conversion strategy).
+		PostStatusDerivation.FormatPostStatus(status)
+			.Should().Be(expectedWireValue);
+	}
 }

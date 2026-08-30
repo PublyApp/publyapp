@@ -40,12 +40,49 @@ interface ComposeContract {
 		};
 		migrate: { depends_on: { postgres: { condition: string } } };
 		api: { depends_on: { migrate: { condition: string } } };
+		front: {
+			environment: Record<string, string>;
+		};
 	};
 }
 
 /** Parses the compose file into the contract shape. */
 const loadCompose = (): ComposeContract =>
 	parse(readFileSync(composePath, 'utf8')) as ComposeContract;
+
+const resolveShellDefaults = (value: string): string => {
+	// Resolve ${VAR:-default} and ${VAR} shell expansions against process.env,
+	// falling back to the `:-` default when the variable is unset. Docker
+	// expands these at container start; we replicate that here so the bare-origin
+	// URL contract can be validated on the static compose file.
+	return value.replace(/\$\{([^}]+)\}/g, (_, expr: string) => {
+		const [name, defaultSuffix] = expr.split(':-');
+		const envValue = process.env[name];
+		if (envValue !== undefined && envValue !== '') {
+			return envValue;
+		}
+		return defaultSuffix ?? '';
+	});
+};
+
+const isBareSchemePlusHost = (rawValue: string): boolean => {
+	const value = resolveShellDefaults(rawValue);
+	try {
+		const url = new URL(value);
+		// PUBLIC_ORIGIN is consumed as `${origin}${requestPath}`; a trailing
+		// slash, path, query, or fragment corrupts canonical URLs. The schema
+		// in src/lib/env.ts enforces the same contract at runtime.
+		return (
+			url.pathname === '/' &&
+			url.search === '' &&
+			url.hash === '' &&
+			url.origin !== '' &&
+			!value.endsWith('/')
+		);
+	} catch {
+		return false;
+	}
+};
 
 export const assertComposeStartupContract = (
 	compose: ComposeContract,
@@ -62,13 +99,35 @@ export const assertComposeStartupContract = (
 	assert.deepEqual(services.api.depends_on.migrate, {
 		condition: 'service_completed_successfully',
 	});
+
+	// Cause racine des 4 shards e2e rouges (voir .dump/cause-e2e.md) : le
+	// service front tourne avec NODE_ENV=production, et validateRuntimeEnv()
+	// refuse le démarrage si PUBLIC_ORIGIN est absent. Absent, le conteneur
+	// front s'arrête immédiatement, le health check e2e timeout, et les 4
+	// shards + le gate sont rouges. Cette assertion est ROUGE si
+	// PUBLIC_ORIGIN est absent/invalid, VERT avec le correctif.
+	const frontEnv = services.front.environment;
+	assert.ok(
+		frontEnv !== undefined,
+		'front service must declare an environment block',
+	);
+	assert.ok(
+		'PUBLIC_ORIGIN' in frontEnv,
+		'front service must define PUBLIC_ORIGIN — without it, validateRuntimeEnv() refuses to start in NODE_ENV=production and the e2e stack times out at health check',
+	);
+	const publicOrigin = frontEnv.PUBLIC_ORIGIN;
+	assert.notEqual(publicOrigin, '', 'PUBLIC_ORIGIN must not be empty');
+	assert.ok(
+		isBareSchemePlusHost(publicOrigin),
+		`PUBLIC_ORIGIN must be a bare scheme+host (e.g. "https://example.com") — no trailing slash, path, query, or fragment. Got: "${publicOrigin}"`,
+	);
 };
 
-test('frontend E2E Compose gates startup on authenticated PostgreSQL SQL readiness', () => {
+void test('frontend E2E Compose gates startup on authenticated PostgreSQL SQL readiness', () => {
 	assertComposeStartupContract(loadCompose());
 });
 
-test('contract rejects a healthcheck mutation that can hide SQL failure', () => {
+void test('contract rejects a healthcheck mutation that can hide SQL failure', () => {
 	const compose = loadCompose();
 	compose.services.postgres.healthcheck.test[1] =
 		'PGPASSWORD="$${POSTGRES_PASSWORD}" psql -h 127.0.0.1 -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}" -tAc \'SELECT 1\' || true';
@@ -76,9 +135,24 @@ test('contract rejects a healthcheck mutation that can hide SQL failure', () => 
 	assert.throws(() => assertComposeStartupContract(compose), /healthcheck/);
 });
 
-test('contract rejects a dependency-condition mutation that races migration', () => {
+void test('contract rejects a dependency-condition mutation that races migration', () => {
 	const compose = loadCompose();
 	compose.services.migrate.depends_on.postgres.condition = 'service_started';
 
 	assert.throws(() => assertComposeStartupContract(compose), /service_healthy/);
+});
+
+void test('contract rejects a PUBLIC_ORIGIN mutation that breaks front startup in production', () => {
+	const compose = loadCompose();
+	// Absent PUBLIC_ORIGIN: validateRuntimeEnv() refuses to start and e2es time out.
+	delete compose.services.front.environment.PUBLIC_ORIGIN;
+	assert.throws(() => assertComposeStartupContract(compose), /PUBLIC_ORIGIN/);
+});
+
+void test('contract rejects an invalid PUBLIC_ORIGIN (trailing slash)', () => {
+	const compose = loadCompose();
+	// Trailing slash: rejected by the runtime schema and by our bare-origin contract.
+	compose.services.front.environment.PUBLIC_ORIGIN =
+		'https://front.localhost:8443/';
+	assert.throws(() => assertComposeStartupContract(compose), /PUBLIC_ORIGIN/);
 });

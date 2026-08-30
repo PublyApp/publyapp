@@ -69,18 +69,18 @@ test.describe(
 			await expect(history).toBeVisible();
 
 			// The worker drives the publication to Published through the faked
-			// provider. The history list auto-refreshes only while it has
-			// observed a row `in_progress`; when the mount fetch catches the
-			// fresh publish-now row still `scheduled` (the worker is
-			// asynchronous), the page would otherwise sit on the stale row
-			// until a manual reload. Reload on a short cadence so the test
-			// deterministically observes the worker's transition. Filter the
-			// row by the post body text so we never match other published posts
-			// left over from earlier runs on a shared tenant. A post may have
-			// multiple publications (one per connected social account), so take
-			// the first link and verify its href rather than asserting a global
-			// count of 1 — the count depends on the number of active seeded
-			// accounts, which is a seeder concern, not this test's.
+			// provider. The history list auto-refreshes while a row is in
+			// flight (in_progress, or scheduled and freshly updated), but the
+			// mount fetch can still land outside that window and then the page
+			// sits on the stale row until a manual reload. Reload on a short
+			// cadence so the test deterministically observes the worker's
+			// transition. Filter the row by the post body text so we never
+			// match other published posts left over from earlier runs on a
+			// shared tenant. A post may have multiple publications (one per
+			// connected social account), so take the first link and verify its
+			// href rather than asserting a global count of 1 — the count
+			// depends on the number of active seeded accounts, which is a
+			// seeder concern, not this test's.
 			const postRow = () =>
 				page
 					.getByTestId('tenant-posts-history-table')

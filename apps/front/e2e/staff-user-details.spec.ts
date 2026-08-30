@@ -6,9 +6,9 @@ const SEEDED_STAFF_EMAIL = 'staff-user@example.com';
 const OVERVIEW_ONLY_TEXT = 'Contact details';
 const PLACEHOLDER_TEXT = 'This section is not built yet.';
 
-function escapeRegExp(value: string): string {
+const escapeRegExp = (value: string): string => {
 	return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-}
+};
 
 const staffUserRow = (page: Page, email: string) =>
 	page.getByRole('row', { name: new RegExp(escapeRegExp(email)) });

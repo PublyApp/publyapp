@@ -1,78 +1,72 @@
+/**
+ * @vitest-environment jsdom
+ */
 import { cleanup, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import type { TestLabelMap } from '~/lib/testing/test-label-map';
 
-/**
- * Integration test: verifies that row selection state passed through the real
- * useReactTable (legacy) hook produces a visibly rendered checkbox state —
- * checked, unchecked, and indeterminate header — NOT a mock.
- *
- * Breaker: if `DataTableGrid` incorrectly inverts the `allRowsSelected` /
- * `hasPartialSelection` derivation (e.g. swapping `allRowsSelected` for
- * `hasPartialSelection` on the header checkbox), the header checkbox shows
- * the wrong state — this test turns RED.
- *
- * Visibility guard: the `data-icon` assertion alone only proves an icon is
- * *declared*, never that it is *visible*. A mutation like `invisible` (or any
- * other CSS hiding mechanism) applied to the icon element would keep `data-icon`
- * present and readable while the icon is hidden from the user. The guard below
- * reads the computed style of the icon element and fails if its `visibility` is
- * `hidden` or its `display` is `none` — the two canonical ways Tailwind's
- * `invisible` / `hidden` utilities hide an element. This is an ENUMERATION of
- * hiding mechanisms: it covers `visibility:hidden` (Tailwind `invisible`) and
- * `display:none` (Tailwind `hidden`), but does NOT cover `opacity:0`
- * (Tailwind `opacity-0`), `clip-path`, `transform: scale(0)`, `width:0`,
- * `height:0`, `position:absolute` off-screen, or `aria-hidden` without visual
- * hiding. Those are out of scope here and would need dedicated coverage if a
- * mutation uses them.
- *
- * @vitest-environment jsdom
- */
 import type { ColumnDef } from './column-type';
 import { DataTable } from './data-table';
+import { assertIconIsVisible } from './data-table-icon-visibility-guard';
 import type { SortState } from './sort-descriptor';
 import type {
 	RowSelectionMap,
 	UseRowSelectionResult,
 } from './use-row-selection';
 
+const { makeT } = vi.hoisted(() => {
+	const labels: TestLabelMap = {
+		'icon-hidden-aria': 'icon has aria-hidden="true"',
+		'icon-hidden-visibility': 'icon has computed visibility:hidden',
+		'icon-hidden-display': 'icon has computed display:none',
+		'icon-hidden-opacity': 'icon has computed opacity:0',
+		'icon-guard-context-null': '{{context}}: icon element is null',
+		'list-unavailable-title': 'List unavailable',
+		'list-error-default-description': 'There was a problem loading this list.',
+		retry: 'Retry',
+		'list-empty-title': 'Nothing here — yet',
+		'list-empty-default-description':
+			'No records yet. Create one to get started.',
+		'list-no-match-title': 'No matches for that search',
+		'list-no-match-default-description': 'No results match your search.',
+		'select-row-named': 'Select {{name}}',
+		search: 'Search',
+		'rows-per-page': 'Rows per page',
+		'page-n': 'Page {{page}}',
+		'previous-page': 'Previous page',
+		'next-page': 'Next page',
+		'range-no-total': '{{count}}',
+		'range-of-total': '{{start}}–{{end}} of {{count}}',
+		'range-of-counted': '{{start}}–{{end}}',
+		'row-selection-column': 'Row selection',
+		'select-all-rows': 'Select all rows',
+	};
+
+	const fn = (key: string, options?: Record<string, unknown>): string => {
+		let text = labels[key] ?? key;
+		if (!options) {
+			return text;
+		}
+		for (const [optionKey, value] of Object.entries(options)) {
+			text = text.replaceAll(`{{${optionKey}}}`, String(value));
+		}
+		return text;
+	};
+
+	return { makeT: fn };
+});
+
 vi.mock('react-i18next', () => ({
 	useTranslation: () => ({
-		t: (key: string, options?: Record<string, unknown>) => {
-			const labels: TestLabelMap = {
-				'list-unavailable-title': 'List unavailable',
-				'list-error-default-description':
-					'There was a problem loading this list.',
-				retry: 'Retry',
-				'list-empty-title': 'Nothing here — yet',
-				'list-empty-default-description':
-					'No records yet. Create one to get started.',
-				'list-no-match-title': 'No matches for that search',
-				'list-no-match-default-description': 'No results match your search.',
-				'select-row-named': 'Select {{name}}',
-				search: 'Search',
-				'rows-per-page': 'Rows per page',
-				'page-n': 'Page {{page}}',
-				'previous-page': 'Previous page',
-				'next-page': 'Next page',
-				'range-no-total': '{{count}}',
-				'range-of-total': '{{start}}–{{end}} of {{count}}',
-				'range-of-counted': '{{start}}–{{end}}',
-				'row-selection-column': 'Row selection',
-				'select-all-rows': 'Select all rows',
-			};
-
-			let text = labels[key] ?? key;
-			if (!options) {
-				return text;
-			}
-			for (const [optionKey, value] of Object.entries(options)) {
-				text = text.replaceAll(`{{${optionKey}}}`, String(value));
-			}
-			return text;
-		},
+		t: makeT,
 		i18n: { language: 'en' },
 	}),
+}));
+
+vi.mock('i18next', () => ({
+	default: {
+		t: makeT,
+	},
 }));
 
 type TestRow = { id: string; name: string };
@@ -159,34 +153,34 @@ const getCheckboxIconElement = (
 	checkbox?.querySelector<HTMLElement>('[data-icon]') ?? null;
 
 /**
- * Asserts that the icon element inside the checkbox is NOT visually hidden
- * via the `invisible` (Tailwind → `visibility:hidden`) or `hidden` (Tailwind →
- * `display:none`) utility classes. jsdom does NOT resolve CSS classes into
- * computed styles, so `window.getComputedStyle` cannot detect Tailwind
- * utilities — we inspect `classList` directly instead. This is an ENUMERATION
- * of hiding mechanisms: it covers `invisible` and `hidden`, but does NOT cover
- * `opacity-0`, `clip-path-*`, `size-0`, `translate-*` off-screen, or
- * `aria-hidden` without visual hiding. Those are out of scope here and would
- * need dedicated coverage if a mutation uses them. Fails the test with the
- * reason when the icon is hidden.
+ * The icon visibility guard lives in
+ * `data-table-icon-visibility-guard.ts`. Its body MEASURES the icon's
+ * visibility (`aria-hidden` attribute plus the computed
+ * `visibility`/`display`/`opacity` styles) rather than enumerating a list
+ * of Tailwind class names, so an out-of-enumeration hide mechanism
+ * (`opacity-0`, `aria-hidden`, inline styles, runtime stylesheet swaps) is
+ * caught the same way as a utility class. The measurement-vs-enumeration
+ * contract is pinned on three lanes:
+ *
+ * - `data-table-icon-visibility-guard.test.ts` — divergence cases that go
+ *   red under any classList-based body (round 4, #1842);
+ * - `tests/proofs/1799/red-1799-icon-visibility-guard.test.tsx` — the
+ *   kept-red proof of the original defect;
+ * - `e2e/data-table-icon-visibility-guard.spec.ts` — runs THIS helper
+ *   (bundled verbatim) in a real Chromium page against the browser's own
+ *   `getComputedStyle`.
+ *
+ * This thin wrapper finds the icon inside the checkbox and delegates to
+ * the helper; every call site below stays unchanged — the helper's API is
+ * the same.
  */
-const assertIconIsVisible = (
+const assertIconIsVisibleFromCheckbox = (
 	checkbox: HTMLElement | null,
 	context: string,
 ): void => {
 	const iconElement = getCheckboxIconElement(checkbox);
 	expect(iconElement, `${context}: icon element exists`).not.toBeNull();
-	if (iconElement !== null) {
-		const classes = Array.from(iconElement.classList);
-		expect(
-			!classes.includes('invisible'),
-			`${context}: icon does NOT carry Tailwind "invisible" (visibility:hidden)`,
-		).toBe(true);
-		expect(
-			!classes.includes('hidden'),
-			`${context}: icon does NOT carry Tailwind "hidden" (display:none)`,
-		).toBe(true);
-	}
+	assertIconIsVisible(iconElement, context);
 };
 
 /** Returns all row checkbox elements in the body. */
@@ -255,7 +249,10 @@ describe('DataTable row selection integration (issue #1730)', () => {
 		expect(headerCheckbox?.getAttribute('data-indeterminate')).toBeNull();
 		expect(getCheckboxIcon(headerCheckbox)).toBe('check');
 		// Visibility guard: the icon must be visible, not just declared.
-		assertIconIsVisible(headerCheckbox, 'header checkbox (all selected)');
+		assertIconIsVisibleFromCheckbox(
+			headerCheckbox,
+			'header checkbox (all selected)',
+		);
 		// Accessible state: checked.
 		expect(headerCheckbox?.getAttribute('aria-checked')).toBe('true');
 	});
@@ -276,7 +273,10 @@ describe('DataTable row selection integration (issue #1730)', () => {
 		expect(headerCheckbox?.getAttribute('data-indeterminate')).toBe('');
 		expect(getCheckboxIcon(headerCheckbox)).toBe('minus');
 		// Visibility guard: the icon must be visible, not just declared.
-		assertIconIsVisible(headerCheckbox, 'header checkbox (partial selection)');
+		assertIconIsVisibleFromCheckbox(
+			headerCheckbox,
+			'header checkbox (partial selection)',
+		);
 		// Accessible state: mixed.
 		expect(headerCheckbox?.getAttribute('aria-checked')).toBe('mixed');
 	});

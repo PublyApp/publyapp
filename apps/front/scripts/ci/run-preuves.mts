@@ -42,6 +42,18 @@
  * repo: substituting a defect of correct appearance for an unreadable input.
  * `readProofReport()` enforces this with one error per failure case.
  *
+ * ### Per-test expectation manifests are REQUIRED (issue #1806, ronde 11)
+ *
+ * Every declared paired red proof MUST carry a per-test expectation manifest
+ * named `<proof-file>.expected-red.json` (see the reference shape next to
+ * tests/proofs/1457/). The manifest declares which test(s) are expected to
+ * stay red, so a declared kept-red test that goes green is reported as a
+ * STALE PROOF. When a declared proof has NO manifest, the runner FAILS LOUD
+ * naming the missing file and the expected action — it NEVER falls back to
+ * the global classifier, which by construction cannot see a declared-red
+ * test turn green. A missing manifest is an unanalysable input, and an
+ * unanalysable input is a loud failure, never a silenced fallback.
+ *
  * ## Option (b) — declaration-scoped replay (issue #1659, ronde 6)
  *
  * A pull request DECLARES a paired red proof by adding or modifying a proof
@@ -101,11 +113,12 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import {
-	classifyProof,
+	classifyProofWithManifest,
+	readExpectedRedManifest,
 	readProofReport,
 	type ProofReport,
 } from './classify-proof.mts';
-import { consumeVerdict } from './consume-verdict.mts';
+import { consumeVerdict, gateShouldFail } from './consume-verdict.mts';
 
 const ROOT = join(process.cwd(), '..'); // apps/front → repo root
 const PROOFS_DIR = join(process.cwd(), 'tests', 'proofs');
@@ -163,7 +176,7 @@ const REPLAYABLE_EXTENSIONS = ['.test.ts', '.test.tsx'] as const;
  *         never silently become "no proofs declared"; the operator must fetch
  *         the base or fix the checkout.
  */
-function declaredProofTests(): string[] {
+const declaredProofTests = (): string[] => {
 	// First, confirm the versioned directory exists at all. If it does not,
 	// the repo has no proof infrastructure — the step is a no-op.
 	if (!existsSync(PROOFS_DIR)) {
@@ -220,6 +233,26 @@ function declaredProofTests(): string[] {
 					`repository. Detail: ${(err as Error).message}`,
 			);
 		}
+	}
+
+	// A half-set CI environment (exactly one of GITHUB_BASE_REF /
+	// GITHUB_HEAD_REF defined) is a BROKEN environment, not a local run.
+	// The old code silently fell through to the local HEAD~1..HEAD diff in
+	// that case, printed "This PR did not declare any paired red proofs"
+	// and exited 0 while CI believed the declaration check had run: a false
+	// green that verified nothing (precedent: #1806 ronde 9). Fail loud
+	// naming the missing variable — the operator must fix the workflow
+	// rather than inherit a diff scope the PR author never intended.
+	const baseRefEnv = process.env.GITHUB_BASE_REF;
+	const headRefEnv = process.env.GITHUB_HEAD_REF;
+	if (Boolean(baseRefEnv) !== Boolean(headRefEnv)) {
+		throw new Error(
+			`incomplete CI environment: GITHUB_BASE_REF and GITHUB_HEAD_REF must ` +
+				`be set together, but ${baseRefEnv ? 'GITHUB_HEAD_REF' : 'GITHUB_BASE_REF'} is ` +
+				`missing. A half-set environment cannot determine the PR diff scope ` +
+				`and must not fall back to a local diff silently. Fix the workflow ` +
+				`to export both variables, or unset both for a local run.`,
+		);
 	}
 
 	// Get the list of files changed by this PR.
@@ -293,6 +326,15 @@ function declaredProofTests(): string[] {
 				.map((f) => f.trim())
 				.filter((f) => f.length > 0);
 		} else {
+			// Local development: neither variable is defined. Announce this
+			// loudly so a local run is never mistaken for the CI declaration
+			// check, and so the "no proofs declared" conclusion below cannot
+			// be read as a CI verdict (precedent: #1806 ronde 9).
+			console.error(
+				`LOCAL RUN (GITHUB_BASE_REF/GITHUB_HEAD_REF unset) — using the ` +
+					`HEAD~1..HEAD diff of the most recent commit. This is a developer ` +
+					`fallback, not the CI declaration check.`,
+			);
 			// Local development: diff the most recent commit.
 			const diffOutput = execSync(
 				`git -C "${ROOT}" diff --name-only HEAD~1 HEAD`,
@@ -319,13 +361,24 @@ function declaredProofTests(): string[] {
 	// Every file added or modified under tests/proofs/ is a declared proof.
 	// Proof files live under apps/front/tests/proofs/, so the diff paths
 	// from the repo root start with "apps/front/tests/proofs/".
-	const declared = changedFiles.filter((f) =>
-		f.startsWith('apps/front/tests/proofs/'),
+	// Filter to files that are REPLAYABLE test files. A sidecar
+	// manifest (`.expected-red.json`) or a shared detection module
+	// (`lib/sigint-handler-detection.mts`) lives in the same
+	// directory tree but is not itself a proof — it is supporting
+	// infrastructure. Including non-test files in `declared` would
+	// make the runner's un-replayable check fail loud, which is the
+	// right call for an undeclared test file but a false alarm for a
+	// shared lib. The path-prefix filter alone is too broad; pin to
+	// the replayable extensions the runner actually executes.
+	const declared = changedFiles.filter(
+		(f) =>
+			f.startsWith('apps/front/tests/proofs/') &&
+			(f.endsWith('.test.ts') || f.endsWith('.test.tsx')),
 	);
 
 	// Return paths relative to apps/front (the working directory).
 	return declared.map((p) => p.replace(/^apps\/front\//, ''));
-}
+};
 
 /**
  * Validate that a proof-test file is a real, parseable test before handing it
@@ -334,7 +387,7 @@ function declaredProofTests(): string[] {
  * misread as "the test failed as expected". We catch that here and fail loud
  * naming the file, so a corrupted proof is never silently green.
  */
-function validateProofFile(path: string): void {
+const validateProofFile = (path: string): void => {
 	const buf = readFileSync(path);
 
 	if (buf.length === 0) {
@@ -356,16 +409,16 @@ function validateProofFile(path: string): void {
 			`Proof file declares no test/it/describe (truncated? not a test?): ${path}`,
 		);
 	}
-}
+};
 
 /**
  * Determine if a filename ends with one of the replayable extensions.
  * Uses exact suffix matching (not last-dot slicing) so multi-dot
  * extensions like `.test.ts` and `.test.tsx` are recognized correctly.
  */
-function isReplayableFile(filename: string): boolean {
+const isReplayableFile = (filename: string): boolean => {
 	return REPLAYABLE_EXTENSIONS.some((ext) => filename.endsWith(ext));
-}
+};
 
 // --- Main logic ---
 
@@ -387,16 +440,31 @@ if (!existsSync(PROOFS_DIR)) {
 const declared = declaredProofTests();
 
 if (declared.length === 0) {
-	// Proofs exist in the repo, but this PR did not declare any.
-	console.log(
-		'This PR did not declare any paired red proofs (no proof files added or modified).',
-	);
-	console.log(
-		'Proof tests are versionned under tests/proofs/; this PR did not touch any of them.',
-	);
-	console.log(
-		'This step is an explicit no-op for PRs that do not declare a proof.',
-	);
+	// Proofs exist in the repo, but no proof files changed in scope.
+	// The message must distinguish a LOCAL diff-scope check from the CI
+	// declaration check: "no proofs in HEAD~1..HEAD" is not a CI verdict
+	// and must never be read as one (precedent: #1806 ronde 9).
+	const isLocalRun =
+		!process.env.GITHUB_BASE_REF && !process.env.GITHUB_HEAD_REF;
+	if (isLocalRun) {
+		console.log(
+			'LOCAL RUN — no proof test files changed in HEAD~1..HEAD (local diff scope).',
+		);
+		console.log(
+			'This is NOT the CI declaration check; it only replays proofs touched ' +
+				'by the most recent commit. CI declares proofs from the full base..HEAD diff.',
+		);
+	} else {
+		console.log(
+			'This PR did not declare any paired red proofs (no proof files added or modified).',
+		);
+		console.log(
+			'Proof tests are versionned under tests/proofs/; this PR did not touch any of them.',
+		);
+		console.log(
+			'This step is an explicit no-op for PRs that do not declare a proof.',
+		);
+	}
 	process.exit(0);
 }
 
@@ -448,6 +516,7 @@ console.log();
 let failures = 0; // proof tests that failed as expected (good)
 let unexpectedPasses = 0;
 let corrupted = 0;
+let stale = 0;
 
 for (const test of replayable) {
 	// Validate BEFORE running: distinguishes "test failed as expected" from
@@ -509,25 +578,64 @@ for (const test of replayable) {
 			continue;
 		}
 
-		// Structural classification via the extracted classifier. The
-		// logic lives in classify-proof.mts so it can be unit-tested
-		// independently with a real vitest JSON report.
-		const result = classifyProof(report, exitCode as number);
+		// Every declared paired red proof MUST carry a per-test expectation
+		// manifest sitting next to it, named `<proof-file>.expected-red.json`.
+		// The manifest declares which test(s) are expected to stay red; the
+		// per-test classifier turns a passed declared-red test into a STALE
+		// PROOF. A declared proof WITHOUT a manifest is an input the guard
+		// cannot classify: the global classifier cannot see a declared
+		// kept-red test turn green, so falling back to it would silently
+		// restore the exact defect class this runner exists to catch
+		// (issue #1806 ronde 11). A missing manifest is therefore a LOUD
+		// failure that names the missing file and the expected action —
+		// there is no silent fallback, ever.
+		const manifestPath = `${test}.expected-red.json`;
+		if (!existsSync(manifestPath)) {
+			console.error(
+				`  CORRUPT PROOF: expected-red manifest is MISSING — ${manifestPath}\n` +
+					`  Every declared paired red proof MUST carry a per-test expectation manifest ` +
+					`(<proof-file>.expected-red.json) declaring which test(s) are expected to stay ` +
+					`red. Without it the runner cannot see a declared kept-red test turn green, so ` +
+					`it refuses to classify. Add the manifest and declare the kept-red test(s) — ` +
+					`tests/proofs/1457/red-1457-r2-sigint-race-silent-child.test.ts.expected-red.json ` +
+					`is the reference shape.\n` +
+					`  stdout: ${stdout}\n  stderr: ${stderr}`,
+			);
+			corrupted++;
+			continue;
+		}
 
-		// The verdict-to-counter mapping lives in consume-verdict.mts as a
-		// pure function so it can be unit-tested independently. Here we
-		// apply the side effect (log + increment) based on the counter it
-		// returns. This is the load-bearing decision: a crashed vitest
-		// process → ERROR verdict → must increment unexpectedPasses, NOT
-		// failures. Misclassifying here is the exact defect class #1784
-		// was designed to eliminate.
+		let manifest;
+		try {
+			manifest = readExpectedRedManifest(manifestPath);
+		} catch (manifestErr) {
+			console.error(
+				`  CORRUPT PROOF: expected-red manifest is unreadable — ${(manifestErr as Error).message}\n` +
+					`  Manifest: ${manifestPath}\n` +
+					`  The runner refuses to classify a paired red proof with a malformed per-test expectation.\n` +
+					`  stdout: ${stdout}\n  stderr: ${stderr}`,
+			);
+			corrupted++;
+			continue;
+		}
+		const result = classifyProofWithManifest(
+			report,
+			exitCode as number,
+			manifest,
+		);
+
+		// Le comptage vit dans consume-verdict.mts (extrait par #1843) : fonction
+		// pure, testable seule. Ici on n'applique que l'effet de bord. Decision
+		// porteuse : un vitest qui plante -> verdict ERROR -> doit incrementer
+		// unexpectedPasses, PAS failures.
 		const counts = consumeVerdict(
-			{ failures, unexpectedPasses, corrupted },
+			{ failures, unexpectedPasses, corrupted, stale },
 			result.verdict,
 		);
 		failures = counts.failures;
 		unexpectedPasses = counts.unexpectedPasses;
 		corrupted = counts.corrupted;
+		stale = counts.stale;
 
 		switch (result.verdict) {
 			case 'OK':
@@ -550,6 +658,9 @@ for (const test of replayable) {
 				break;
 			case 'UNEXPECTED_PASS':
 				console.error(`  FAIL: ${result.reason}\n  Test: ${test}`);
+				break;
+			case 'DECLARED RED PASSED':
+				console.error(`  STALE PROOF: ${result.reason}\n  Test: ${test}`);
 				break;
 			case 'ERROR':
 				console.error(
@@ -574,8 +685,17 @@ console.log(`\n=== Summary ===`);
 console.log(`  Proof tests failed as expected: ${failures}`);
 console.log(`  Proof tests passed unexpectedly:  ${unexpectedPasses}`);
 console.log(`  Corrupt/unparseable proof files:  ${corrupted}`);
+console.log(`  Stale proofs (declared red went green): ${stale}`);
 
-if (unexpectedPasses > 0 || corrupted > 0) {
+// The exit gate, pinned by tests (issue #1806 ronde 11): the runner MUST
+// exit non-zero when ANY of the three red counters is non-zero — a stale
+// proof alone (a declared kept-red test went green, with
+// unexpectedPasses == 0 and corrupted == 0) fails CI. The predicate
+// lives in consume-verdict.mts so the exit condition is testable without
+// spawning this script; the process-launch regression in
+// run-preuves.test.ts additionally proves the REAL script exits
+// non-zero when only stale > 0.
+if (gateShouldFail({ failures, unexpectedPasses, corrupted, stale })) {
 	console.error(`\nFAIL: proof replay did not complete cleanly.`);
 	if (unexpectedPasses > 0) {
 		console.error(
@@ -585,14 +705,20 @@ if (unexpectedPasses > 0 || corrupted > 0) {
 			'A proof test passing means the bug it documented has been fixed or changed form.',
 		);
 	}
-	if (corrupted > 0) {
+	if (stale > 0) {
 		console.error(
-			`  ${corrupted} proof file(s) could not be parsed — they are empty, binary, or truncated.`,
+			`  ${stale} declared kept-red test(s) passed unexpectedly \u2014 the proof is stale (the bug changed form or was weakened).`,
+		);
+		console.error(
+			'Rebuild the proof: update the test assertion to match the current bug, or remove it if the bug is fixed.',
 		);
 	}
-	console.error(
-		'Rebuild the proof: update the test assertion to match the current bug, or remove it if the bug is fixed.',
-	);
+	if (corrupted > 0) {
+		console.error(
+			`  ${corrupted} proof file(s) could not be classified — an empty/binary/truncated file, ` +
+				`an unreadable vitest JSON report, or a MISSING expected-red manifest.`,
+		);
+	}
 	process.exit(1);
 }
 
