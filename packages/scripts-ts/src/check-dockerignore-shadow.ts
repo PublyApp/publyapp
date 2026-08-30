@@ -1,5 +1,5 @@
-import { opendir } from 'node:fs/promises';
 import { execFileSync } from 'node:child_process';
+import { opendir } from 'node:fs/promises';
 import path from 'node:path';
 import process from 'node:process';
 import { pathToFileURL } from 'node:url';
@@ -107,8 +107,7 @@ const findGitIgnored = (rootDir: string, candidates: string[]): Set<string> => {
 			return new Set();
 		}
 
-		const message =
-			error instanceof Error ? error.message : String(error);
+		const message = error instanceof Error ? error.message : String(error);
 		throw new Error(
 			`git check-ignore failed while filtering shadow candidates: ${message}`,
 		);
