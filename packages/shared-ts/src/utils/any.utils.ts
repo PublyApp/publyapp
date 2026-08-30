@@ -1,16 +1,32 @@
-import forEach from 'lodash/forEach';
-import get from 'lodash/get';
+import forEach from 'lodash/forEach.js';
+import get from 'lodash/get.js';
 
-import { logger } from '@org/shared-ts/lib/logger/iso-logger';
-
-export const delay = <T = unknown>(timeout: number, value?: T) => {
-	logger.warn('delay function invoked', { timeout, value });
+export const delay = <T = unknown>(
+	timeout: number,
+	value?: T,
+	options: { trace?: boolean } = {},
+) => {
+	if (options.trace) {
+		const traceLog = async (): Promise<void> => {
+			const { logger } = await import('@org/shared-ts/lib/logger/iso-logger');
+			logger.warn('delay function invoked', { timeout, value });
+		};
+		// Fire-and-forget, but never let a throwing logger surface as an
+		// unhandled rejection: delay() must resolve regardless.
+		void traceLog().catch(() => {});
+	}
 	return new Promise<T>((resolve) => {
 		return setTimeout(() => {
 			resolve(value as T | PromiseLike<T>);
 		}, timeout);
 	});
 };
+
+/**
+ * Thin alias over {@link delay} for the "wait N ms, no value" case.
+ * Same signature the local copies used (`(ms: number): Promise<void>`).
+ */
+export const sleep = (ms: number): Promise<void> => delay(ms);
 
 export const isAsyncFunction = (
 	func: GenericFunction,

@@ -84,7 +84,9 @@ export const collectClientJsFiles = (assetsDir: string): string[] | null => {
 	return readdirSync(assetsDir).filter((name) => name.endsWith('.js'));
 };
 
-export const analyzeClientBundle = (assetsDir: string): ClientBundleAnalysis => {
+export const analyzeClientBundle = (
+	assetsDir: string,
+): ClientBundleAnalysis => {
 	const jsFiles = collectClientJsFiles(assetsDir);
 	if (jsFiles === null) {
 		return { found: false, reason: 'dist/client/assets does not exist' };

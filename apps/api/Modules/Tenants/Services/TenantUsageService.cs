@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 
 using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Lib.DI;
+using PublyApp.Api.Modules.Projects.Entities;
 using PublyApp.Api.Modules.Publishing.Entities;
 using PublyApp.Api.Modules.Users.Entities;
 
@@ -77,56 +78,16 @@ public class TenantUsageService : ITenantUsageService {
 			return null;
 		}
 
-		// The second query (lines 80-84) reads LastActivityAt WITHOUT an
-		// `IsDeleted` filter; it is correct only because the first query
-		// short-circuits the flow to `null` for any soft-deleted tenant.
-		// If a future refactor merges the two queries, that coupling breaks
-		// and a soft-deleted tenant's LastActivityAt could leak via the
-		// aggregate. #1818 r3 documents the coupling here; a behavioural fix
-		// (adding `!tenant.IsDeleted` to this query) is intentionally out of
-		// scope — see issue follow-up.
-		var lastActivityAt = await (
-			from tenant in _dbContext.Tenant.AsNoTracking()
-			where tenant.Id == tenantId
-			select tenant.LastActivityAt
-		).FirstAsync(cancellationToken);
+		var lastActivityAt = await LastActivityAtQuery(tenantId).FirstAsync(cancellationToken);
 
 		// Membership counts mirror CountTenantUsersAsync parity rules: exclude
 		// soft-deleted memberships AND members whose owning User row was
 		// soft-deleted, so the number never drifts from the tenant users list.
-		var usersTotal = await (
-			from ua in _dbContext.UserAccount.AsNoTracking()
-			where ua.TenantId == tenantId
-				&& ua.Scope == AccountScope.Tenant
-				&& !ua.IsDeleted
-				&& !ua.User.IsDeleted
-			select ua
-		).CountAsync(cancellationToken);
-
-		var usersActive = await (
-			from ua in _dbContext.UserAccount.AsNoTracking()
-			where ua.TenantId == tenantId
-				&& ua.Scope == AccountScope.Tenant
-				&& !ua.IsDeleted
-				&& !ua.User.IsDeleted
-				&& ua.Status == AccountStatus.Active
-			select ua
-		).CountAsync(cancellationToken);
-
-		var projectsCount = await (
-			from project in _dbContext.Project.AsNoTracking()
-			where project.TenantId == tenantId
-				&& !project.IsDeleted
-			select project
-		).CountAsync(cancellationToken);
-
-		var scheduledPublicationsCount = await (
-			from publication in _dbContext.Publication.AsNoTracking()
-			where publication.TenantId == tenantId
-				&& !publication.IsDeleted
-				&& publication.Status == PublicationStatus.Scheduled
-			select publication
-		).CountAsync(cancellationToken);
+		var usersTotal = await UsersTotalQuery(tenantId).CountAsync(cancellationToken);
+		var usersActive = await UsersActiveQuery(tenantId).CountAsync(cancellationToken);
+		var projectsCount = await ProjectsCountQuery(tenantId).CountAsync(cancellationToken);
+		var scheduledPublicationsCount = await ScheduledPublicationsCountQuery(tenantId)
+			.CountAsync(cancellationToken);
 
 		return new TenantUsageSnapshot {
 			TenantId = tenantId,
@@ -139,5 +100,87 @@ public class TenantUsageService : ITenantUsageService {
 			// was computed inside this request, against this instant.
 			ComputedAt = now,
 		};
+	}
+
+	/// <summary>
+	/// Returns the raw <c>LastActivityAt</c> query so tests can instrument it
+	/// directly without going through the existence guard.
+	/// </summary>
+	protected internal IQueryable<DateTime?> LastActivityAtQuery(
+		Guid tenantId
+	) {
+		return (
+			from tenant in _dbContext.Tenant.AsNoTracking()
+			where tenant.Id == tenantId && !tenant.IsDeleted
+			select tenant.LastActivityAt
+		);
+	}
+
+	/// <summary>
+	/// Returns the raw <c>UsersTotal</c> query so tests can instrument it
+	/// directly. Excludes soft-deleted memberships AND members whose owning
+	/// User row was soft-deleted.
+	/// </summary>
+	protected internal IQueryable<UserAccount> UsersTotalQuery(
+		Guid tenantId
+	) {
+		return (
+			from ua in _dbContext.UserAccount.AsNoTracking()
+			where ua.TenantId == tenantId
+				&& ua.Scope == AccountScope.Tenant
+				&& !ua.IsDeleted
+				&& !ua.User.IsDeleted
+			select ua
+		);
+	}
+
+	/// <summary>
+	/// Returns the raw <c>UsersActive</c> query so tests can instrument it
+	/// directly. Mirrors <see cref="UsersTotalQuery"/> plus an Active status
+	/// filter.
+	/// </summary>
+	protected internal IQueryable<UserAccount> UsersActiveQuery(
+		Guid tenantId
+	) {
+		return (
+			from ua in _dbContext.UserAccount.AsNoTracking()
+			where ua.TenantId == tenantId
+				&& ua.Scope == AccountScope.Tenant
+				&& !ua.IsDeleted
+				&& !ua.User.IsDeleted
+				&& ua.Status == AccountStatus.Active
+			select ua
+		);
+	}
+
+	/// <summary>
+	/// Returns the raw <c>ProjectsCount</c> query so tests can instrument it
+	/// directly. Excludes soft-deleted projects.
+	/// </summary>
+	protected internal IQueryable<Project> ProjectsCountQuery(
+		Guid tenantId
+	) {
+		return (
+			from project in _dbContext.Project.AsNoTracking()
+			where project.TenantId == tenantId
+				&& !project.IsDeleted
+			select project
+		);
+	}
+
+	/// <summary>
+	/// Returns the raw <c>ScheduledPublicationsCount</c> query so tests can
+	/// instrument it directly. Excludes soft-deleted publications.
+	/// </summary>
+	protected internal IQueryable<Publication> ScheduledPublicationsCountQuery(
+		Guid tenantId
+	) {
+		return (
+			from publication in _dbContext.Publication.AsNoTracking()
+			where publication.TenantId == tenantId
+				&& !publication.IsDeleted
+				&& publication.Status == PublicationStatus.Scheduled
+			select publication
+		);
 	}
 }

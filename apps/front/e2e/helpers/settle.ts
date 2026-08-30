@@ -1,5 +1,7 @@
 import type { Locator } from '@playwright/test';
 
+import { sleep } from '@org/shared-ts/utils/any.utils';
+
 type Box = { x: number; y: number; width: number; height: number };
 
 const boxesMatch = (a: Box, b: Box): boolean =>
@@ -7,14 +9,6 @@ const boxesMatch = (a: Box, b: Box): boolean =>
 	Math.abs(a.y - b.y) < 0.5 &&
 	Math.abs(a.width - b.width) < 0.5 &&
 	Math.abs(a.height - b.height) < 0.5;
-
-/** A bare sleep. Deliberately NOT `@org/shared-ts`'s `delay`, which logs a
- * warning on every call — inside a polling loop that would emit one line per
- * sample. Named `sleep` so the two never collide (#1682). */
-const sleep = (ms: number): Promise<void> =>
-	new Promise((resolve) => {
-		setTimeout(resolve, ms);
-	});
 
 /**
  * Polls `locator.boundingBox()` until it reports the same geometry across

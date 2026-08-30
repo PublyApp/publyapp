@@ -58,7 +58,10 @@ const createWorkspace = (
 	write('apps/front/src/styles/app.css', canonicalSourceCss);
 	write('apps/front/server.mjs', 'export default {};\n');
 	write('apps/front/vite.config.ts', 'export default {};\n');
-	write('apps/front/scripts/guards/placeholder.mts', 'export const noop = 0;\n');
+	write(
+		'apps/front/scripts/guards/placeholder.mts',
+		'export const noop = 0;\n',
+	);
 	write(
 		'packages/shared-ts/src/lib/placeholder.ts',
 		'export const noop = 0;\n',
@@ -183,7 +186,10 @@ test('rejects important on the canonical source declarations', () => {
 		(error) => {
 			assert.match(thrownError(error).message, /canonical declarations/i);
 			assert.match(thrownError(error).message, /display: none !important/);
-			assert.match(thrownError(error).message, /apps\/front\/src\/styles\/app\.css:\d+/);
+			assert.match(
+				thrownError(error).message,
+				/apps\/front\/src\/styles\/app\.css:\d+/,
+			);
 			return true;
 		},
 	);
@@ -207,7 +213,10 @@ test('rejects a second emitted rule and identifies the built asset', () => {
 			),
 		(error) => {
 			assert.match(thrownError(error).message, /found 2 occurrences/i);
-			assert.match(thrownError(error).message, /dist\/client\/assets\/app-mutated\.css:1/);
+			assert.match(
+				thrownError(error).message,
+				/dist\/client\/assets\/app-mutated\.css:1/,
+			);
 			assert.match(thrownError(error).message, /\[class~=publy-search-input\]/);
 			return true;
 		},
@@ -281,8 +290,14 @@ test('rejects a sole canonical rule moved out of app.css into another stylesheet
 		assert.throws(
 			() => assertShippedSourceSearchCancelCss(workspaceRoot),
 			(error) => {
-				assert.match(thrownError(error).message, /outside the committed mention inventory/i);
-				assert.match(thrownError(error).message, /apps\/front\/src\/styles\/other\.css:\d+/);
+				assert.match(
+					thrownError(error).message,
+					/outside the committed mention inventory/i,
+				);
+				assert.match(
+					thrownError(error).message,
+					/apps\/front\/src\/styles\/other\.css:\d+/,
+				);
 				return true;
 			},
 		);
@@ -331,7 +346,10 @@ export const SEARCH_CANCEL_OVERRIDE_CSS = \`
 		assert.throws(
 			() => assertShippedSourceSearchCancelCss(workspaceRoot),
 			(error) => {
-				assert.match(thrownError(error).message, /outside the committed mention inventory/i);
+				assert.match(
+					thrownError(error).message,
+					/outside the committed mention inventory/i,
+				);
 				assert.match(
 					thrownError(error).message,
 					/packages\/shared-ts\/src\/lib\/profile-style\/search-cancel-style\.ts:\d+/,
@@ -448,7 +466,10 @@ export const SearchInput = () => <style>{SEARCH_CANCEL_OVERRIDE}</style>;
 		assert.throws(
 			() => assertShippedSourceSearchCancelCss(workspaceRoot),
 			(error) => {
-				assert.match(thrownError(error).message, /outside the committed mention inventory/i);
+				assert.match(
+					thrownError(error).message,
+					/outside the committed mention inventory/i,
+				);
 				assert.match(
 					thrownError(error).message,
 					/apps\/front\/src\/components\/ui\/search-input\.tsx:\d+/,
@@ -480,7 +501,10 @@ export const SEARCH_CANCEL_OVERRIDE = \`
 		assert.throws(
 			() => assertShippedSourceSearchCancelCss(workspaceRoot),
 			(error) => {
-				assert.match(thrownError(error).message, /outside the committed mention inventory/i);
+				assert.match(
+					thrownError(error).message,
+					/outside the committed mention inventory/i,
+				);
 				assert.match(
 					thrownError(error).message,
 					/packages\/shared-ts\/src\/lib\/search-cancel-override\.ts:\d+/,
@@ -505,7 +529,10 @@ test('fails closed when a shipped source root is missing', () => {
 		assert.throws(
 			() => assertShippedSourceSearchCancelCss(workspaceRoot),
 			(error) => {
-				assert.match(thrownError(error).message, /missing root "packages\/shared-ts"/);
+				assert.match(
+					thrownError(error).message,
+					/missing root "packages\/shared-ts"/,
+				);
 				return true;
 			},
 		);
@@ -648,7 +675,10 @@ test('rejects the token in emitted output even inside comment syntax', () => {
 			]),
 		(error) => {
 			assert.match(thrownError(error).message, /expected 0 occurrences/i);
-			assert.match(thrownError(error).message, /dist\/client\/assets\/index-abc\.js:1/);
+			assert.match(
+				thrownError(error).message,
+				/dist\/client\/assets\/index-abc\.js:1/,
+			);
 			return true;
 		},
 	);

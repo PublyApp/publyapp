@@ -50,10 +50,7 @@ let fixtureParent: string | undefined;
 // whole buffer in its message instead of touching a process or path we do
 // not own.
 const HANDSHAKE_NONCE_RE = /^[A-Za-z0-9+/=]{32,}$/;
-export const matchRunnerHandshake = (
-	output: string,
-	expectedNonce: string,
-) => {
+export const matchRunnerHandshake = (output: string, expectedNonce: string) => {
 	if (
 		typeof expectedNonce !== 'string' ||
 		!HANDSHAKE_NONCE_RE.test(expectedNonce)
@@ -187,58 +184,60 @@ export const runRunnerInterruptionProbe = async ({
 	let output = '';
 	let probe;
 	try {
-		probe = await new Promise<{ pid: number; root: string }>((resolve, reject) => {
-			let timeout: ReturnType<typeof setTimeout>;
-			const onData = (chunk: Buffer) => {
-				output += chunk.toString();
-				// The probe's own two handshake lines and the grand-child
-				// runner's TAP stream share one pipe, so under load (or a pty)
-				// TAP banners interleave between them.
-				// matchRunnerHandshake matches the two values independently
-				// instead of demanding adjacent undecorated lines — the values
-				// themselves are what matter.
-				try {
-					const handshake = matchRunnerHandshake(output, handshakeNonce);
-					if (handshake) {
-						clearTimeout(timeout);
-						resolve(handshake);
+		probe = await new Promise<{ pid: number; root: string }>(
+			(resolve, reject) => {
+				let timeout: ReturnType<typeof setTimeout>;
+				const onData = (chunk: Buffer) => {
+					output += chunk.toString();
+					// The probe's own two handshake lines and the grand-child
+					// runner's TAP stream share one pipe, so under load (or a pty)
+					// TAP banners interleave between them.
+					// matchRunnerHandshake matches the two values independently
+					// instead of demanding adjacent undecorated lines — the values
+					// themselves are what matter.
+					try {
+						const handshake = matchRunnerHandshake(output, handshakeNonce);
+						if (handshake) {
+							clearTimeout(timeout);
+							resolve(handshake);
+						}
+					} catch {
+						// Unreachable: handshakeNonce is always a valid nonce.
 					}
-				} catch {
-					// Unreachable: handshakeNonce is always a valid nonce.
-				}
-			};
-			timeout = setTimeout(() => {
-				// A start failure must not leak the child either — kill the whole
-				// tree before failing loud with the whole buffer.
-				const childPid = child.pid;
-				assert.ok(
-					childPid !== undefined,
-				`probe child pid expected, got: ${String(childPid)}`,
-				);
-				killProcessTree(childPid);
-				reject(new Error(`runner probe did not start:\n${output}`));
-			}, 20_000);
-			// An early death (e.g. a broken wrapper) must reject NOW, not leave
-			// this promise hanging on the 20 s timer. Once the handshake has
-			// resolved, this handler is inert: rejecting an already-settled
-			// promise is a no-op.
-			child.once('exit', () => {
-				clearTimeout(timeout);
-				reject(
-					new Error(`runner probe exited before its handshake:\n${output}`),
-				);
-			});
-			child.stdout.on('data', onData);
-			child.stderr.on('data', onData);
-			child.once('error', reject);
-		});
+				};
+				timeout = setTimeout(() => {
+					// A start failure must not leak the child either — kill the whole
+					// tree before failing loud with the whole buffer.
+					const childPid = child.pid;
+					assert.ok(
+						childPid !== undefined,
+						`probe child pid expected, got: ${String(childPid)}`,
+					);
+					killProcessTree(childPid);
+					reject(new Error(`runner probe did not start:\n${output}`));
+				}, 20_000);
+				// An early death (e.g. a broken wrapper) must reject NOW, not leave
+				// this promise hanging on the 20 s timer. Once the handshake has
+				// resolved, this handler is inert: rejecting an already-settled
+				// promise is a no-op.
+				child.once('exit', () => {
+					clearTimeout(timeout);
+					reject(
+						new Error(`runner probe exited before its handshake:\n${output}`),
+					);
+				});
+				child.stdout.on('data', onData);
+				child.stderr.on('data', onData);
+				child.once('error', reject);
+			},
+		);
 	} catch (error) {
 		// A start failure already killed the tree; make sure no partial child
 		// survives an 'error'-path rejection either.
 		const childPid = child.pid;
 		assert.ok(
 			childPid !== undefined,
-		`probe child pid expected, got: ${String(childPid)}`,
+			`probe child pid expected, got: ${String(childPid)}`,
 		);
 		killProcessTree(childPid);
 		throw error;
@@ -338,34 +337,41 @@ export const awaitExitWithinBudget = ({
 		(resolve, reject) => {
 			let expired = false;
 			let graceTimer: ReturnType<typeof setTimeout> | undefined;
-		const timeoutMessage = () =>
-			formatProbeTimeoutMessage({
-				probeName,
-				budgetMs,
-				output: getLastOutput(),
-			});
-		const timer = setTimeout(() => {
-			expired = true;
-			const childPid = child.pid;
-			assert.ok(
-				childPid !== undefined,
-			`probe child pid expected, got: ${String(childPid)}`,
+			const timeoutMessage = () =>
+				formatProbeTimeoutMessage({
+					probeName,
+					budgetMs,
+					output: getLastOutput(),
+				});
+			const timer = setTimeout(() => {
+				expired = true;
+				const childPid = child.pid;
+				assert.ok(
+					childPid !== undefined,
+					`probe child pid expected, got: ${String(childPid)}`,
+				);
+				killProcessTree(childPid);
+				graceTimer = setTimeout(
+					() => reject(new Error(timeoutMessage())),
+					1_000,
+				);
+			}, budgetMs);
+			child.once(
+				'exit',
+				(code: number | null, signal: NodeJS.Signals | null) => {
+					clearTimeout(timer);
+					if (graceTimer !== undefined) {
+						clearTimeout(graceTimer);
+					}
+					if (expired) {
+						reject(new Error(timeoutMessage()));
+						return;
+					}
+					resolve({ code, signal });
+				},
 			);
-			killProcessTree(childPid);
-			graceTimer = setTimeout(() => reject(new Error(timeoutMessage())), 1_000);
-		}, budgetMs);
-		child.once('exit', (code: number | null, signal: NodeJS.Signals | null) => {
-			clearTimeout(timer);
-			if (graceTimer !== undefined) {
-				clearTimeout(graceTimer);
-			}
-			if (expired) {
-				reject(new Error(timeoutMessage()));
-				return;
-			}
-			resolve({ code, signal });
-		});
-	});
+		},
+	);
 
 if (process.env.FRONT2_DESIGN_GUARD_RUNNER_PROBE) {
 	test('runner interruption probe leaves an active owned fixture', async () => {
@@ -552,9 +558,9 @@ test('#1352 r2: the REAL probe flow fires within an injected small RUNNER_PROBE_
 	const reportPath = path.join(root, 'pids.txt');
 	// Registered so the module-level test:fail cleanup below can reach this
 	// run's fixture tree even when an assertion throws mid-test.
-		// Registered so the module-level test:fail cleanup below can reach
-		// this run's fixture tree even when an assertion throws mid-test.
-		r2FixtureReportPath = reportPath;
+	// Registered so the module-level test:fail cleanup below can reach
+	// this run's fixture tree even when an assertion throws mid-test.
+	r2FixtureReportPath = reportPath;
 	// Extra keys ride through the shared function's env spread into the
 	// fixture's environment; the budget override rides the same way.
 	const env = {
@@ -767,26 +773,28 @@ const runProbeHandshakeWiring = ({
 }) => {
 	const stdout = new EventEmitter();
 	let buffered = '';
-	const promise = new Promise<{ pid: number; root: string }>((resolve, reject) => {
-		let timeout: ReturnType<typeof setTimeout>;
-		const onData = (chunk: Buffer) => {
-			buffered += chunk.toString();
-			try {
-				const handshake = matchRunnerHandshake(buffered, nonce);
-				if (handshake) {
-					clearTimeout(timeout);
-					resolve(handshake);
+	const promise = new Promise<{ pid: number; root: string }>(
+		(resolve, reject) => {
+			let timeout: ReturnType<typeof setTimeout>;
+			const onData = (chunk: Buffer) => {
+				buffered += chunk.toString();
+				try {
+					const handshake = matchRunnerHandshake(buffered, nonce);
+					if (handshake) {
+						clearTimeout(timeout);
+						resolve(handshake);
+					}
+				} catch {
+					// Unreachable: nonce is always valid here.
 				}
-			} catch {
-				// Unreachable: nonce is always valid here.
-			}
-		};
-		timeout = setTimeout(
-			() => reject(new Error(`runner probe did not start:\n${buffered}`)),
-			50,
-		);
-		stdout.on('data', onData);
-	});
+			};
+			timeout = setTimeout(
+				() => reject(new Error(`runner probe did not start:\n${buffered}`)),
+				50,
+			);
+			stdout.on('data', onData);
+		},
+	);
 	for (const chunk of chunks) {
 		stdout.emit('data', Buffer.from(chunk));
 	}
@@ -1011,8 +1019,9 @@ for (const [mode, signal, expectedCode] of [
 			assert.equal(result.signal, null);
 			await assertParentGone(fixtureParent);
 		} finally {
-			if (fixtureParent)
-				{await rm(fixtureParent, { recursive: true, force: true });}
+			if (fixtureParent) {
+				await rm(fixtureParent, { recursive: true, force: true });
+			}
 			await rm(probe.reportDirectory, { recursive: true, force: true });
 		}
 	});
@@ -1037,10 +1046,12 @@ test('fixture cleanup handles a failing node:test child process', async () => {
 			await assertParentGone(parent);
 		}
 	} finally {
-		for (const parent of parents)
-			{await rm(parent, { recursive: true, force: true });}
-		for (const probe of probes)
-			{await rm(probe.reportDirectory, { recursive: true, force: true });}
+		for (const parent of parents) {
+			await rm(parent, { recursive: true, force: true });
+		}
+		for (const probe of probes) {
+			await rm(probe.reportDirectory, { recursive: true, force: true });
+		}
 	}
 });
 
@@ -3159,7 +3170,9 @@ test('r1-fix: every KNOWN_GUARD_DEBT budget equals the exact current occurrence 
 		'tooltip budget must equal its real occurrence count',
 	);
 	const tooltipContent = await readFile(
-		fileURLToPath(new URL('../../src/components/ui/tooltip.tsx', import.meta.url)),
+		fileURLToPath(
+			new URL('../../src/components/ui/tooltip.tsx', import.meta.url),
+		),
 		'utf8',
 	);
 	const probe = createHandoffLedgerProbe(KNOWN_GUARD_DEBT);

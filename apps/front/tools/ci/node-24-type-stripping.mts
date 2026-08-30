@@ -4,7 +4,9 @@
 // Proof test: node --test tools/ci/node-24-type-stripping.test.mts
 import assert from 'node:assert/strict';
 
-interface Answer { value: number }
+interface Answer {
+	value: number;
+}
 const double = (n: number): number => n * 2;
 const result: Answer = { value: double(21) };
 assert.equal(result.value, 42);
