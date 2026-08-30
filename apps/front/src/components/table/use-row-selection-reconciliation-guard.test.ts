@@ -97,14 +97,12 @@ const SELECTION_SITE_RE =
 //   (b) `useState<Record<string, boolean>>(...)` — the loose twin of the
 //       same shape, used when a developer didn't bother importing the
 //       canonical type.
-const HAND_ROLLED_STATE_RE =
-	/useState\s*<\s*(?:RowSelectionMap|Record\s*<\s*string\s*,\s*boolean\s*>)\s*>\s*\(/;
 
 /**
  * AST-based detector (#1943 follow-up).
  *
- * The regex above was a textual sketch — it required the type parameter to
- * be exactly the canonical name (no `| undefined` / `| null` suffix, no
+ * This replaced a regex that required the type parameter to be exactly the
+ * canonical name (no `| undefined` / `| null` suffix, no
  * indexed type alias). The AST detector inspects the useState call's type
  * argument structurally, so it catches:
  *
@@ -158,7 +156,9 @@ const isIndexedStringBooleanType = (n: ts.Node): boolean => {
 		if (m && ts.isIndexSignatureDeclaration(m)) {
 			const keyType = m.parameters[0]?.type;
 			const valType = m.type;
-			if (!keyType || !valType) return false;
+			if (!keyType || !valType) {
+				return false;
+			}
 			// `string` / `boolean` are KeywordTypeNodes here, not TypeReferenceNodes.
 			const keyOk = keyType.kind === ts.SyntaxKind.StringKeyword;
 			const valOk = valType.kind === ts.SyntaxKind.BooleanKeyword;
@@ -169,9 +169,15 @@ const isIndexedStringBooleanType = (n: ts.Node): boolean => {
 };
 
 const typeArgIsShadowSelectionState = (n: ts.Node): boolean => {
-	if (isCanonicalRowSelectionMapRef(n)) return true;
-	if (isCanonicalRecordStringBooleanRef(n)) return true;
-	if (isIndexedStringBooleanType(n)) return true;
+	if (isCanonicalRowSelectionMapRef(n)) {
+		return true;
+	}
+	if (isCanonicalRecordStringBooleanRef(n)) {
+		return true;
+	}
+	if (isIndexedStringBooleanType(n)) {
+		return true;
+	}
 	// Union types: scan every branch. `RowSelectionMap | undefined`,
 	// `Record<string, boolean> | null`, etc. — the canonical shape sits on
 	// one side of a `|`, the optionality modifier on the other. A file
@@ -179,7 +185,9 @@ const typeArgIsShadowSelectionState = (n: ts.Node): boolean => {
 	// hand-rolling shadow state.
 	if (ts.isUnionTypeNode(n)) {
 		for (const part of n.types) {
-			if (typeArgIsShadowSelectionState(part)) return true;
+			if (typeArgIsShadowSelectionState(part)) {
+				return true;
+			}
 		}
 	}
 	return false;

@@ -109,17 +109,6 @@ type Violation = {
 	line: number;
 };
 
-/**
- * Extract the source text of a node, unwrapped from parentheses.
- */
-const nodeText = (node: ts.Node): string => {
-	let n = node;
-	while (ts.isParenthesizedExpression(n)) {
-		n = n.expression;
-	}
-	return n.getText();
-};
-
 /** True if the argument to Object.keys/entries/values is the selection map
  * directly (e.g. `selection.rowSelection` or `rowSelection` itself), possibly
  * nested in parentheses. */
@@ -193,7 +182,9 @@ const findViolationsInSource = (
 		// Detect `[...selection.rowSelection]` / `[...rowSelection]` spread
 		if (ts.isArrayLiteralExpression(node)) {
 			for (const elt of node.elements) {
-				if (!elt) continue;
+				if (!elt) {
+					continue;
+				}
 				// Spread elements wrap the spread expression — unwrap before
 				// testing the underlying expression.
 				const inner = ts.isSpreadElement(elt) ? elt.expression : elt;
