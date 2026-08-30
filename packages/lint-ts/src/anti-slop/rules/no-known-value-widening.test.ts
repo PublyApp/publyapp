@@ -195,21 +195,15 @@ describe(`anti-slop/${RULE_NAME} (#1601 untested-visitor escape hatches)`, () =>
 			// ── AssignmentExpression (direct identifier reassignment) ──────
 			// Reassigning a widened binding with a known literal launders the
 			// evidence through the declared type.
-			i(
-				'let acc: Record<string, unknown> = {};\nacc = { key: "known" };',
-			),
+			i('let acc: Record<string, unknown> = {};\nacc = { key: "known" };'),
 			// ── ReturnStatement ────────────────────────────────────────────
 			// A function whose return type widens to an open container
 			// discards the known literal returned.
-			i(
-				'function f(): Record<string, unknown> { return { key: "known" }; }',
-			),
+			i('function f(): Record<string, unknown> { return { key: "known" }; }'),
 			// ── ArrowFunctionExpression (expression body) ──────────────────
 			// An arrow with a widened return type and an expression body
 			// discards the known literal returned.
-			i(
-				'const f = (): Record<string, unknown> => ({ key: "known" });',
-			),
+			i('const f = (): Record<string, unknown> => ({ key: "known" });'),
 		],
 	});
 });

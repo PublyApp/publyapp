@@ -67,7 +67,7 @@ describe(`#1831 — witness file fidelity guard`, () => {
  * file; a diff pinpoints the exact divergence, which is what the operator
  * needs to repair the witness.
  */
-function findFirstDiff(expected: string, actual: string): string | null {
+const findFirstDiff = (expected: string, actual: string): string | null => {
 	const expectedLines = expected.split('\n');
 	const actualLines = actual.split('\n');
 	const maxLines = Math.max(expectedLines.length, actualLines.length);
@@ -84,8 +84,7 @@ function findFirstDiff(expected: string, actual: string): string | null {
 		}
 	}
 	return null;
-}
+};
 
-function truncate(line: string, max = 200): string {
-	return line.length > max ? `${line.slice(0, max)}…` : line;
-}
+const truncate = (line: string, max = 200): string =>
+	line.length > max ? `${line.slice(0, max)}…` : line;
