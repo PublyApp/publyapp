@@ -905,3 +905,55 @@ git commit -m "test(jobs): A5 e2e proof + K-3 mutation evidence (#636)"
 - [ ] **Step 4: Poll CI to green.** If `gh pr checks` reports "no checks reported on the branch" for more than a minute after the push, the PR is CONFLICTING with develop: `git fetch origin develop && git rebase origin/develop` (keep both intents, re-read every conflicted file), push with `--force-with-lease`, then wait for the checks.
 
 - [ ] **Step 5: Write `.dump/DONE.md`** with the tip SHA, the PR URL, the green CI run URL, and the mutation evidence path. Print **DONE**.
+
+## Round-5 follow-up audit (per #1458)
+
+Each of the five #1458 follow-up claims in this plan body was
+re-verified at the implementation start of the A5 lane on
+`lane/grp-planfollowups` against the current code on `develop`. The
+inline `(#1458 follow-up N)` markers in the plan body carry the line-by-line
+citations; the round-5 note below consolidates the verification evidence.
+
+1. **Follow-up 1 — auth client path.** The plan's Task 11 Step 3.5 names
+   `client.auth.scopeAuthData.get` (staff scope) and
+   `client.staff.permissions.scopes.staff.get` (staff permission set) as
+   the real client paths. Both are present in the regenerated
+   `packages/client-ts/` (no `staff/auth` subpath; the surface splits
+   between the auth module and the staff module). The plan's example
+   snippet at lines 825-830 reflects the real shape: read
+   `client.auth.scopeAuthData.get({ queryParameters: { scope: 'staff' } })`
+   for the caller's effective permission keys, and the staff
+   permission set is materialised server-side per request.
+2. **Follow-up 2 — job keys are dash-separated.** The seeder
+   `apps/api/Modules/Jobs/Seeders/SystemJobDefinitionSeeder.cs` defines
+   `JobKey` constants with dash separators (e.g.
+   `email-prepared-sends-retention`). The plan's K-3 e2e step
+   references the dashed spelling.
+3. **Follow-up 3 — is_enabled race bounded.** The boundary's
+   `is_enabled` pre-read is intentionally unlocked and only a cheap
+   early signal; the authoritative check is the engine's
+   `SELECT ... FOR UPDATE ... AND is_enabled = true` inside
+   `EnqueueSystemJobJob.EnqueueOccurrenceAsync`. A disable that
+   commits between the two is bounded by the
+   `ON CONFLICT (job_key, scheduled_fire_at) DO NOTHING` composite
+   key, so a single extra occurrence cannot repeat.
+4. **Follow-up 4 — three MapGroups on the same path.** The plan
+   documents the three distinct group variables (`sysGroup`,
+   `sysMutationGroup`, `triggerGroup`) on the same path prefix with
+   distinct `RequireRateLimiting` policies. The
+   `JobVisibilityEndpointsForStaff.cs` file actually wires those three
+   group variables; merging them into one group would put the
+   trigger under the read bucket, which is not the intent.
+5. **Follow-up 5 — rate-limit partition key.** The validated session
+   fingerprint (`ApiRateLimitPartitionKeys.GetSessionFingerprint`,
+   hashing the validated session id) is the partition key for the
+   `SystemJobTrigger` policy. Two distinct staff sessions therefore
+   have independent 30-permit budgets; the test
+   `SystemJobTriggerRateLimit.Spec.cs` drives 31 requests through one
+   session token and asserts the 31st is 429 while a second session's
+   request still passes.
+
+No code change is required; the inline markers in the plan body
+already record the verification evidence. This round-5 note exists so
+the audit trail from #1458 is captured at the same standing-rules
+level as the round-2 corrections, not scattered across the body.
