@@ -411,6 +411,17 @@ ci-no-ignored-tracked:
   pnpm --filter scripts-ts exec vitest run src/check-no-ignored-tracked.test.ts
   node ./packages/scripts-ts/src/check-no-ignored-tracked.ts
 
+# #1849: no `<Dockerfile>.dockerignore` shadow file may exist anywhere in the
+# tree — Docker REPLACES (not merges) the root .dockerignore when one sits next
+# to a Dockerfile, silently re-including node_modules, dist, .turbo and
+# .worktrees in every build context (see #1832/#1836). Walks the real working
+# tree and names every offending path. Mirrors
+# quality-gate.yml::no-dockerignore-shadow (unconditioned job, same binary).
+ci-dockerignore-shadow:
+  @echo "=== [gate] no .dockerignore shadow files (#1849) ==="
+  pnpm --filter scripts-ts exec vitest run src/check-dockerignore-shadow.test.ts
+  node ./packages/scripts-ts/src/check-dockerignore-shadow.ts
+
 # Install exactly as CI does (supply-chain policy: frozen + no lifecycle scripts)
 ci-install:
   @echo "=== [gate] install (frozen lockfile, no scripts) ==="
@@ -578,7 +589,7 @@ ci-e2e-front:
 
 
 # Everyday pre-push gate (no e2e). Fails on the first red sub-gate.
-ci: ci-drift ci-migration-expand-contract ci-review-worktree-resolution ci-doc-links ci-jscpd ci-deploy-env-docs ci-project-closure-adapter ci-no-ignored-tracked ci-install ci-format ci-lint ci-lint-ts ci-knip ci-shared-ts ci-quality ci-front ci-spec-drift nuget-audit test-api
+ci: ci-drift ci-migration-expand-contract ci-review-worktree-resolution ci-doc-links ci-jscpd ci-deploy-env-docs ci-project-closure-adapter ci-no-ignored-tracked ci-dockerignore-shadow ci-install ci-format ci-lint ci-lint-ts ci-knip ci-shared-ts ci-quality ci-front ci-spec-drift nuget-audit test-api
   @echo ""
   @echo "=== just ci: PASSED ==="
   @echo "Not covered here: the two e2e suites (run 'just ci-full')."
