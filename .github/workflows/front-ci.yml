@@ -271,6 +271,18 @@ jobs:
       - name: Check front React Compiler artifacts
         run: pnpm --filter front check:react-compiler
 
+      # #1808: the committed routeTree.gen.ts is generated and versioned. A route
+      # change that lands without regenerating it leaves the tree stale — the
+      # committed file then diverges from what the generator actually emits,
+      # which both produces phantom +9-line diffs on every lane and splits typing
+      # truth between CI (committed file) and a developer who regenerated. The
+      # guard regenerates through the SAME derived generator the dev/build plugin
+      # uses and compares; on drift it fails naming the repair command
+      # (pnpm --filter front generate:route-tree) and restores the pre-check bytes
+      # so CI never leaves tracked-file churn behind.
+      - name: Check route tree freshness (#1808)
+        run: pnpm --filter front check:route-tree
+
       # Round 19 I3: the drawer-description contrast guard is the ONLY
       # browser-launching test in the front unit suite. It no longer runs in
       # this lane — the ordinary suite is browser-free, so no unit-lane

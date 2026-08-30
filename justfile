@@ -335,6 +335,11 @@ ci-drift:
   node ./packages/scripts-ts/src/check-shallow-repo.ts
   pnpm --filter scripts-ts exec vitest run src/check-merge-base.test.ts
   node ./packages/scripts-ts/src/check-merge-base.ts
+  # #1808: the committed routeTree.gen.ts is generated and versioned. The guard
+  # regenerates through the SAME derived generator the dev/build plugin uses and
+  # compares; on drift it fails naming the repair command and restores the
+  # pre-check bytes so the run never leaves tracked-file churn behind.
+  pnpm --filter front check:route-tree
   # #1674: bite-proof test for the production-dependency audit gate.
   # The CI gate is `pnpm audit --prod --audit-level=moderate`
   # (front-ci.yml::supply-chain), and this test pins that exact command
