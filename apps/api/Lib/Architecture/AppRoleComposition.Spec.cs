@@ -69,6 +69,12 @@ public sealed class AppRoleCompositionSpec : IClassFixture<ApiFixture> {
 		// that Host.StartAsync actually starts, where the web host service is added during
 		// Build(). Absent in the Worker Generic Host (no Kestrel), so it never masks a leak.
 		"Microsoft.AspNetCore.Hosting.GenericWebHostService",
+
+		// Registered by AddPublyLogging in EVERY role (#1708). StartAsync is a no-op; the
+		// whole point is StopAsync, which calls Serilog's CloseAndFlush so the last lines
+		// written during shutdown reach the sink instead of dying in the buffer. It owns no
+		// loop, no timer and no queue: it does nothing at all until the host stops.
+		"PublyApp.Api.Lib.Logging.SerilogFlushOnShutdown",
 	];
 
 	public AppRoleCompositionSpec(ApiFixture fixture) {
