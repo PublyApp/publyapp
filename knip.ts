@@ -17,7 +17,14 @@ const config: KnipConfig = {
 			// so knip cannot trace the import. It matches develop's declared
 			// dependency set (kept deliberately), so it is ignored here rather
 			// than removed from the manifest.
-			ignoreDependencies: ['winston-transport-browserconsole'],
+			// `lint-staged` is invoked by the versioned .husky/pre-commit hook
+			// (`pnpm exec lint-staged`, issue #1852). knip only scanned that
+			// hook while the `husky` package was a dependency (its husky plugin
+			// gates on it); with husky removed, the hook is invisible to
+			// dependency tracing, so the real usage is declared here. The
+			// lint-staged plugin still resolves oxfmt/dotnet from
+			// .lintstagedrc.js, so those stay covered.
+			ignoreDependencies: ['winston-transport-browserconsole', 'lint-staged'],
 		},
 		'apps/api': {
 			entry: 'run-dev.mjs',
