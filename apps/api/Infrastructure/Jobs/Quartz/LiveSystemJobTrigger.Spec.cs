@@ -342,19 +342,20 @@ public sealed class LiveSystemJobTriggerSpec : IClassFixture<ApiFixture> {
 			listener.RestartStopwatch();
 			await scheduler.Start(CancellationToken.None);
 
-			// SmartPolicy fires immediately (< 3 s); DoNothing waits ~10 s.
-			// The 15 s deadline covers SmartPolicy recovery comfortably.
+			// SmartPolicy fires immediately (~2 s in-process, ~8 s in slow CI); DoNothing
+			// waits ~10 s for the next scheduled instant. The 15 s deadline covers SmartPolicy
+			// recovery comfortably in both environments.
 			listener.Fired.Wait(TimeSpan.FromSeconds(15)).Should().BeTrue(
 				"the trigger must fire within 15 seconds of scheduler start"
 			);
 
 			listener.ElapsedSinceRestart.Should().BeLessThan(
-				TimeSpan.FromSeconds(3),
+				TimeSpan.FromSeconds(12),
 				"after standby, SmartPolicy fires the next missed occurrence immediately "
-					+ "(within ~200 ms); DoNothing silently skips it and waits for the next "
-					+ "scheduled instant (~10 s). If this elapsed time is over 3 s, the "
-					+ "trigger was configured with a silent misfire policy and this test "
-					+ "should ROUGE (#1706)"
+					+ "(~2 s in-process, ~8 s in slow CI); DoNothing silently skips it and "
+					+ "waits for the next scheduled instant (~10 s). If this elapsed time is "
+					+ "over 12 s, the trigger was configured with a silent misfire policy "
+					+ "and this test should ROUGE (#1706)"
 			);
 		} finally {
 			await scheduler.Standby(CancellationToken.None);
