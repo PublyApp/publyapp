@@ -306,6 +306,112 @@ test('ROUND 2 (#1974 r2): a link whose fragment is broken but whose file exists 
 	);
 });
 
+// ROUND 3 (#1974 r3): the four link shapes identified by the review are now
+// recognised and checked. Each shape gets a paired red/green test: a broken
+// target inside the shape fails naming file:line, and a valid target inside
+// the shape passes. These pin the behaviour the EXPLICIT LIMITATION block
+// promises.
+
+test('ROUND 3 (#1974 r3): inline link with title attribute — broken target fails', () => {
+	const root = makeRepo({
+		'docs/guides/a.md': '[link](./missing.md "a title")\n',
+	});
+	const result = runGuard(root);
+	assert.equal(result.status, 1);
+	assert.match(result.stderr, /broken relative link/);
+	assert.match(
+		result.stderr,
+		/docs\/guides\/a\.md:1: -> docs\/guides\/missing\.md/,
+	);
+});
+
+test('ROUND 3 (#1974 r3): inline link with title attribute — valid target passes', () => {
+	const root = makeRepo({
+		'docs/guides/a.md': '[link](./b.md "a title")\n',
+		'docs/guides/b.md': 'content\n',
+	});
+	const result = runGuard(root);
+	assert.equal(result.status, 0, result.stderr);
+	assert.match(result.stdout, /doc links OK/);
+});
+
+test('ROUND 3 (#1974 r3): angle-bracket link — broken target fails', () => {
+	const root = makeRepo({
+		'docs/guides/a.md': '[link](<./missing.md>)\n',
+	});
+	const result = runGuard(root);
+	assert.equal(result.status, 1);
+	assert.match(result.stderr, /broken relative link/);
+	assert.match(
+		result.stderr,
+		/docs\/guides\/a\.md:1: -> docs\/guides\/missing\.md/,
+	);
+});
+
+test('ROUND 3 (#1974 r3): angle-bracket link — valid target passes', () => {
+	const root = makeRepo({
+		'docs/guides/a.md': '[link](<./b.md>)\n',
+		'docs/guides/b.md': 'content\n',
+	});
+	const result = runGuard(root);
+	assert.equal(result.status, 0, result.stderr);
+	assert.match(result.stdout, /doc links OK/);
+});
+
+test('ROUND 3 (#1974 r3): angle-bracket link with spaces in target — valid passes', () => {
+	const root = makeRepo({
+		'docs/guides/a.md': '[link](<./b.md>)\n',
+		'docs/guides/b.md': 'content\n',
+	});
+	const result = runGuard(root);
+	assert.equal(result.status, 0, result.stderr);
+	assert.match(result.stdout, /doc links OK/);
+});
+
+test('ROUND 3 (#1974 r3): multi-line reference definition — broken target fails', () => {
+	const root = makeRepo({
+		'README.md':
+			'[ref]: ./nowhere/target.md\n\t"a title"\nUse [a reference][ref].\n',
+	});
+	const result = runGuard(root);
+	assert.equal(result.status, 1);
+	assert.match(result.stderr, /broken relative link/);
+	assert.match(result.stderr, /README\.md:1: -> nowhere\/target\.md/);
+});
+
+test('ROUND 3 (#1974 r3): multi-line reference definition — valid target passes', () => {
+	const root = makeRepo({
+		'docs/guides/b.md': 'content\n',
+		'README.md':
+			'[ref]: ./docs/guides/b.md\n\t"a title"\nUse [a reference][ref].\n',
+	});
+	const result = runGuard(root);
+	assert.equal(result.status, 0, result.stderr);
+	assert.match(result.stdout, /doc links OK/);
+});
+
+test('ROUND 3 (#1974 r3): unescaped parentheses in target — fails closed naming file:line', () => {
+	const root = makeRepo({
+		'docs/guides/a.md': '[link](./file (1).md)\n',
+	});
+	const result = runGuard(root);
+	assert.equal(result.status, 1);
+	assert.match(result.stderr, /UNESCAPED-PAREN-TARGET/);
+	assert.match(result.stderr, /docs\/guides\/a\.md:1/);
+});
+
+test('ROUND 3 (#1974 r3): end-of-run warning lists SHAPES-NOT-COVERED', () => {
+	const root = makeRepo({
+		'docs/guides/live.md': 'content\n',
+	});
+	const result = runGuard(root);
+	assert.equal(result.status, 0, result.stderr);
+	assert.match(result.stdout, /SHAPES-NOT-COVERED/);
+	assert.match(result.stdout, /image links/);
+	assert.match(result.stdout, /bare autolinks/);
+	assert.match(result.stdout, /reference label usage without a defined target/);
+});
+
 test('ROUND 2 (#1974 r2): --strict-anchors fails closed with a structured message until fragment checking is implemented', () => {
 	const root = makeRepo({
 		'docs/guides/live.md': 'content\n',
