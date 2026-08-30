@@ -980,7 +980,6 @@ const walkClass = (
 	for (const member of node.members) {
 		if (ts.isClassStaticBlockDeclaration(member)) {
 			// Static blocks run when the class definition is evaluated.
-			// Static blocks run when the class definition is evaluated.
 			const scope: Scope = { names: new Map() };
 			collectDeclarations(member.body.statements, scope);
 			scopes.push(scope);
@@ -989,7 +988,7 @@ const walkClass = (
 					statement,
 					context,
 					scopes,
-					scopes.length,
+					bodyRootIndex,
 					executionPos,
 					chain,
 					visitedBindings,
@@ -1094,7 +1093,7 @@ const walkIIFE = (
 					statement,
 					context,
 					scopes,
-					scopes.length,
+					bodyRootIndex,
 					executionPos,
 					chain,
 					visitedBindings,
@@ -1106,7 +1105,7 @@ const walkIIFE = (
 				functionNode.body,
 				context,
 				scopes,
-				scopes.length,
+				bodyRootIndex,
 				executionPos,
 				chain,
 				visitedBindings,
@@ -1121,7 +1120,7 @@ const walkIIFE = (
 				statement,
 				context,
 				scopes,
-				scopes.length,
+				bodyRootIndex,
 				executionPos,
 				chain,
 				visitedBindings,
