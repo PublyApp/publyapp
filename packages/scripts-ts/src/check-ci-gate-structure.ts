@@ -361,6 +361,8 @@ export const GATE_WORKFLOWS = [
 			'packages/scripts-ts/src/ci-changed-paths.ts',
 			'packages/scripts-ts/src/check-ci-drift.ts',
 			'packages/scripts-ts/src/check-ci-gate-structure.ts',
+			// #1962: guard script for test deletion
+			'packages/scripts-ts/src/check-guard-test-deletion.ts',
 		],
 		// Round 5 BLOCKER fix: front-ci-gate must independently re-derive its
 		// own job graph's correctness rather than relying solely on
@@ -434,6 +436,8 @@ export const GATE_WORKFLOWS = [
 			'packages/scripts-ts/src/check-ci-drift.test.ts',
 			'packages/scripts-ts/src/check-ci-gate-structure.test.ts',
 			'packages/scripts-ts/src/check-cyclomatic-bound.test.ts',
+			// #1962: guard against test deletion from guard test files
+			'packages/scripts-ts/src/check-guard-test-deletion.test.ts',
 			'packages/scripts-ts/src/check-no-floating-promises.test.ts',
 			'packages/scripts-ts/src/ci-changed-paths.test.ts',
 			'packages/scripts-ts/src/ci-e2e-rerun-guard.test.ts',
@@ -549,6 +553,8 @@ export const EXPECTED_GATE_SELFTEST_TESTS = [
 	'packages/scripts-ts/src/check-ci-drift.test.ts',
 	'packages/scripts-ts/src/check-ci-gate-structure.test.ts',
 	'packages/scripts-ts/src/check-cyclomatic-bound.test.ts',
+	// #1962: guard against test deletion from guard test files
+	'packages/scripts-ts/src/check-guard-test-deletion.test.ts',
 	'packages/scripts-ts/src/check-no-floating-promises.test.ts',
 	'packages/scripts-ts/src/ci-changed-paths.test.ts',
 	'packages/scripts-ts/src/ci-e2e-rerun-guard.test.ts',

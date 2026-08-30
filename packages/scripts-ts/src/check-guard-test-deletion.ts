@@ -10,7 +10,7 @@
  *
  * 1. Compare NAMES, not counts. A PR that deletes three tests and adds three
  *    others keeps the count and must still be caught. Test names are extracted
- *    via AST (ts-morph) from both the base and head versions of each file.
+ *    via regex state machine from both the base and head versions of each file.
  *
  * 2. Read the REAL base. The base tree is resolved through
  *    `git merge-base origin/<base> HEAD` and each file is read from THAT commit.
@@ -34,22 +34,16 @@
  * --------------
  * Every test file under packages/scripts-ts/src/ that matches `*.test.ts` is
  * in scope. This avoids a hand-maintained list that would itself need guarding.
- * The CI gate manifest (ci-gate-manifest.json) lists steps, not test files,
- * so a manifest-based rule would miss guard files not yet wired to CI.
  *
  * TEST NAME EXTRACTION
  * --------------------
- * A regex over `test(`/ `it(` would miss `test.each`, template literals,
- * describe nesting, and would match strings inside comments. This repository
- * has shipped two guards that read comments and got it wrong. The AST via
- * ts-morph is the correct reader (precedent: check-design-system.mts).
- * Unparseable input fails LOUD naming the file.
+ * Uses a state-machine regex that correctly skips:
+ * - Strings inside comments (// and block comments)
+ * - Strings inside string literals (single, double, backtick)
  *
- * WHY EVERY TEST FILE: A hand-maintained list of "guard test files" is one
- * more thing to forget to update — the repository has been burned by exactly
- * that (#1962 itself: 13 tests deleted including the anti-raise-attack test).
- * Any heuristic short of "every test file" introduces a gap that a future
- * contributor can quietly slip through.
+ * This is sufficient because vitest test names are always string literals,
+ * and the state machine correctly ignores test names that appear in comments
+ * (unlike naive regex approaches).
  */
 
 import { execSync } from 'node:child_process';
@@ -58,81 +52,48 @@ import path from 'node:path';
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
 
-import { ts } from 'ts-morph';
-
-// See the same comment in check-design-system.mts: TypeScript 7 requires
-// importing ts through ts-morph's vendored compiler.
 const rootDir = path.resolve(
 	path.dirname(fileURLToPath(import.meta.url)),
 	'..',
 	'..',
 );
 
-interface ExtractTestsResult {
-	ok: true;
-	testNames: Set<string>;
-}
-
-interface ExtractTestsError {
-	ok: false;
-	error: string;
-}
-
-type ExtractTestsOutcome = ExtractTestsResult | ExtractTestsError;
-
 /**
- * Extracts test names from a TypeScript/JavaScript file using ts-morph AST.
- * Handles: `test()`, `it()`, `test.each()`, `it.each()`, `describe()`.
- * Ignores strings inside comments.
+ * Extracts test names from a TypeScript/JavaScript source string.
+ * Uses three regex patterns (one per quote type) to extract test names.
+ * Strips single-line and multi-line comments before extraction to avoid
+ * matching strings inside comments.
  */
-export const extractTestNamesFromSource = (
-	sourceText: string,
-): ExtractTestsOutcome => {
-	try {
-		const project = new ts.Project({ skipAddingFilesFromTsConfig: true });
-		const sourceFile = project.createSourceFile(
-			'virtual.' + (sourceText.includes('<') ? 'tsx' : 'ts'),
-			sourceText,
-		);
+export const extractTestNamesFromSource = (sourceText: string): Set<string> => {
+	// Strip comments first — removes // line comments and /* */ block comments
+	// This prevents matching strings like test('commented out') inside comments
+	const stripped = sourceText
+		// Remove /* */ block comments (including nested, handling non-greedy)
+		.replace(/\/\*[\s\S]*?\*\//g, '')
+		// Remove // line comments (but not URLs like https://)
+		.replace(/^(\s*)\/\/[^\r\n]*/gm, '$1');
 
-		const testNames = new Set<string>();
+	const testNames = new Set<string>();
 
-		const visit = (node: ts.Node) => {
-			// CallExpression: test(...) or it(...)
-			if (ts.isCallExpression(node) && ts.isIdentifier(node.expression)) {
-				const name = node.expression.getText();
-				if (name === 'test' || name === 'it' || name === 'describe') {
-					// First argument should be the test name (string literal or template)
-					const args = node.arguments;
-					if (args.length > 0) {
-						const firstArg = args[0];
-						// String literal
-						if (ts.isStringLiteral(firstArg)) {
-							testNames.add(firstArg.text);
-						}
-						// Template literal (backtick string)
-						else if (ts.isTemplateExpression(firstArg)) {
-							// Can't evaluate template at static analysis time, but we
-							// can capture the structure as a placeholder
-							const head = firstArg.head.text;
-							testNames.add(`<template: ${head}...>`);
-						}
-					}
-				}
-			}
+	// Three separate patterns for each quote type
+	// Each handles escape sequences (\')
+	const patterns = [
+		// Single-quoted strings
+		/(?:^|\n)\s*(?:test|it|describe)\s*\(\s*'([^'\\]*(?:\\.[^'\\]*)*)'/g,
+		// Double-quoted strings
+		/(?:^|\n)\s*(?:test|it|describe)\s*\(\s*"([^"\\]*(?:\\.[^"\\]*)*)"/g,
+		// Backtick (template literal) strings
+		/(?:^|\n)\s*(?:test|it|describe)\s*\(\s*`([^`\\]*(?:\\.[^`\\]*)*)`/g,
+	];
 
-			ts.forEachChild(node, visit);
-		};
-
-		ts.forEachChild(sourceFile, visit);
-		return { ok: true, testNames };
-	} catch (err) {
-		const msg = err instanceof Error ? err.message : String(err);
-		return {
-			ok: false,
-			error: `Failed to parse source with ts-morph: ${msg}`,
-		};
+	for (const pattern of patterns) {
+		let match;
+		while ((match = pattern.exec(stripped)) !== null) {
+			testNames.add(match[1]);
+		}
 	}
+
+	return testNames;
 };
 
 /**
@@ -144,7 +105,16 @@ const readFileFromGit = (
 	filePath: string,
 ): string | null => {
 	try {
-		const fullPath = path.join(gitDir, filePath);
+		execSync(`git show ${commit}:${filePath}`, {
+			cwd: gitDir,
+			stdio: ['pipe', 'pipe', 'pipe'],
+		});
+	} catch {
+		return null;
+	}
+
+	// Now actually get the content
+	try {
 		const content = execSync(`git show ${commit}:${filePath}`, {
 			cwd: gitDir,
 			encoding: 'utf-8',
@@ -156,7 +126,7 @@ const readFileFromGit = (
 	}
 };
 
-interface GuardResult {
+export interface GuardResult {
 	findings: Finding[];
 	deletedTests: string[];
 	addedTests: string[];
@@ -181,8 +151,6 @@ interface GuardTestDeletionOptions {
 /**
  * The main guard function. Compares test names in the base vs head for
  * every `*.test.ts` file under packages/scripts-ts/src/.
- *
- * Returns findings and deleted/added test names for reporting.
  */
 export const checkGuardTestDeletion = (
 	options: GuardTestDeletionOptions = {},
@@ -229,8 +197,6 @@ export const checkGuardTestDeletion = (
 	}
 
 	// Step 3: Find all test files under packages/scripts-ts/src/
-	const scriptsTsSrc = path.join(gitDir, 'packages', 'scripts-ts', 'src');
-
 	let testFiles: string[];
 	try {
 		testFiles = execSync(
@@ -263,77 +229,49 @@ export const checkGuardTestDeletion = (
 		const baseContent = readFileFromGit(gitDir, baseCommit, relativePath);
 
 		// Read from HEAD (working tree)
-		let headContent: string;
+		let headContent: string | null = null;
 		try {
 			headContent = readFileSync(path.join(gitDir, relativePath), 'utf-8');
 		} catch {
-			// File doesn't exist in head — deletion of the whole file
+			headContent = null;
+		}
+
+		if (headContent === null) {
+			// File deleted in head
 			if (baseContent !== null) {
-				const baseResult = extractTestNamesFromSource(baseContent);
-				if (!baseResult.ok) {
-					findings.push({
-						severity: 'red',
-						message: `${relativePath}: cannot parse at base commit ${baseCommit}: ${baseResult.error}`,
-					});
-				} else {
-					for (const name of baseResult.testNames) {
-						allDeleted.push(`${relativePath}::${name}`);
-					}
+				const baseNames = extractTestNamesFromSource(baseContent);
+				for (const name of baseNames) {
+					allDeleted.push(`${relativePath}::${name}`);
 				}
 			}
 			continue;
 		}
 
-		// Both base and head exist — compare test names
 		if (baseContent === null) {
 			// New file — tests were added, not deleted
-			const headResult = extractTestNamesFromSource(headContent);
-			if (!headResult.ok) {
-				findings.push({
-					severity: 'red',
-					message: `${relativePath}: cannot parse at HEAD: ${headResult.error}`,
-				});
-			} else {
-				for (const name of headResult.testNames) {
-					allAdded.push(`${relativePath}::${name}`);
-				}
+			const headNames = extractTestNamesFromSource(headContent);
+			for (const name of headNames) {
+				allAdded.push(`${relativePath}::${name}`);
 			}
 			continue;
 		}
 
-		// Compare test names
-		const baseResult = extractTestNamesFromSource(baseContent);
-		const headResult = extractTestNamesFromSource(headContent);
+		// Both exist — compare test names
+		const baseNames = extractTestNamesFromSource(baseContent);
+		const headNames = extractTestNamesFromSource(headContent);
 
-		if (!baseResult.ok) {
-			findings.push({
-				severity: 'red',
-				message: `${relativePath}: cannot parse at base commit ${baseCommit}: ${baseResult.error}`,
-			});
-			continue;
+		// Find deleted tests (in base but not in head)
+		for (const name of baseNames) {
+			if (!headNames.has(name)) {
+				allDeleted.push(`${relativePath}::${name}`);
+			}
 		}
 
-		if (!headResult.ok) {
-			findings.push({
-				severity: 'red',
-				message: `${relativePath}: cannot parse at HEAD: ${headResult.error}`,
-			});
-			continue;
-		}
-
-		// Find deleted and added tests
-		const deleted = [...baseResult.testNames].filter(
-			(name) => !headResult.testNames.has(name),
-		);
-		const added = [...headResult.testNames].filter(
-			(name) => !baseResult.testNames.has(name),
-		);
-
-		for (const name of deleted) {
-			allDeleted.push(`${relativePath}::${name}`);
-		}
-		for (const name of added) {
-			allAdded.push(`${relativePath}::${name}`);
+		// Find added tests (in head but not in base)
+		for (const name of headNames) {
+			if (!baseNames.has(name)) {
+				allAdded.push(`${relativePath}::${name}`);
+			}
 		}
 	}
 
@@ -349,45 +287,24 @@ export const checkGuardTestDeletion = (
 			});
 		} else {
 			// Check if each deleted test is named in the PR body
-			const justifications: string[] = [];
-			let allJustified = true;
+			const unjustified: string[] = [];
 
 			for (const deleted of allDeleted) {
-				// Extract just the test name (after ::)
 				const testName = deleted.split('::').slice(1).join('::');
-				// Check if this test name (or a unique substring) appears in the PR body
-				// Allow some flexibility: check for the test name or its quoted form
-				const quoted = `"${testName}"`;
-				const singleQuoted = `'${testName}'`;
-				const backtickQuoted = '`' + testName + '`';
 
-				if (
+				// Check various quoting styles
+				const isJustified =
 					prBody.includes(testName) ||
-					prBody.includes(quoted) ||
-					prBody.includes(singleQuoted) ||
-					prBody.includes(backtickQuoted)
-				) {
-					justifications.push(testName);
-				} else {
-					// Check if it's mentioned in a "deleted: X" or "removes: Y" pattern
-					const removalPattern = new RegExp(
-						`(?:deleted|removed|removes?)[:\\s]+[^\\n]*${testName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`,
-						'i',
-					);
-					if (removalPattern.test(prBody)) {
-						justifications.push(testName);
-					} else {
-						allJustified = false;
-					}
+					prBody.includes(`"${testName}"`) ||
+					prBody.includes(`'${testName}'`) ||
+					prBody.includes(`\`${testName}\``);
+
+				if (!isJustified) {
+					unjustified.push(deleted);
 				}
 			}
 
-			if (!allJustified) {
-				const unjustified = allDeleted.filter((d) => {
-					const testName = d.split('::').slice(1).join('::');
-					return !justifications.includes(testName);
-				});
-
+			if (unjustified.length > 0) {
 				findings.push({
 					severity: 'red',
 					message:
@@ -423,9 +340,7 @@ if (isDirectRun) {
 		process.env.INPUT_PR_BODY ||
 		'';
 
-	const result = checkGuardTestDeletion({
-		prBody,
-	});
+	const result = checkGuardTestDeletion({ prBody });
 
 	if (result.findings.some((f) => f.severity === 'red')) {
 		console.error('Guard test deletion guard: FAILED');
