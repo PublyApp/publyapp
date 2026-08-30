@@ -1754,6 +1754,108 @@ void test('#1844: a real DialogPopup usage after a JSX comment on the same line 
 	);
 });
 
+// #1844 r4 (BLOQUANT M12): a real primitive usage INSIDE THE SAME JSX
+// expression container as a JSX comment must still be detected — the JSX
+// scanner's reported comment range must cover only the comment TOKEN,
+// never the whole container (`{...}`). `{/* keep */ <DialogPrimitive.Popup
+// className="x" />}` is ONE JsxExpression node, so reporting the
+// container's whole `node.pos..node.end` span as a comment swallows the
+// real `<DialogPrimitive.Popup />` that sits right after the comment in
+// the same container. The test is RED on that mutation (container-span
+// range) and GREEN on the correct token-span range — the same-line r3
+// test cannot see it, because there the usage lives in a SEPARATE
+// container.
+void test('#1844: a real DialogPopup usage in the same JSX container as a comment is still detected (comment-token span, never the container span)', async () => {
+	const root = await makeFixture({
+		'src/components/ui/dialog-popup-jsx-container-real-usage.tsx': [
+			'export const Component = () => (',
+			'  <div>',
+			'    {/* keep */ <DialogPrimitive.Popup className="x" />}',
+			'  </div>',
+			');',
+		].join('\n'),
+	});
+
+	const violations = await scanFront2DesignSystem({
+		baseDir: root,
+		sourceDir: path.join(root, 'src'),
+	});
+
+	assert.equal(
+		violations.some(
+			(violation) => violation.ruleId === 'no-dialog-popup-primitives',
+		),
+		true,
+		'a real DialogPopup usage in the same JSX container as a comment must still be detected',
+	);
+});
+
+// #1844 r4 (BLOQUANT M9): the span-wise skip must treat a match that ends
+// EXACTLY at a comment range's `end` offset as inside that comment.
+// no-single-star-route-glob pattern 2 (`[^,)]*`) greedily consumes the
+// comment's `*/` and stops at the first `,`/`)` after the closer — when
+// that token abuts the closer, the match's end equals the comment's end
+// offset exactly. Tightening `matchEnd <= end` to `matchEnd < end`
+// un-skips it and flags a pure prose citation as a violation (the original
+// #1844 false-positive defect). The test is RED on that mutation and GREEN
+// on the correct `<=` bound.
+void test('#1844: a route glob cited in a comment whose match ends exactly at the comment closer is not a violation (comment end bound)', async () => {
+	const root = await makeFixture({
+		'e2e/specs/route-comment-end-boundary.spec.ts': [
+			'[/* page.route( users */, x];',
+			'export const helper = true;',
+		].join('\n'),
+	});
+
+	const violations = await scanFront2DesignSystem({
+		baseDir: root,
+		sourceDirs: [path.join(root, 'e2e')],
+	});
+
+	assert.equal(
+		violations.some(
+			(violation) => violation.ruleId === 'no-single-star-route-glob',
+		),
+		false,
+		'a route glob citation whose match ends exactly at the comment closer must not be flagged',
+	);
+});
+
+// #1844 r4 (THIRD mutation, found while hunting beyond M9/M12): the JSX
+// scanner pass must report the comment TOKEN's exact end. An off-by-one
+// (`scanner.getTokenEnd() - 1`) un-skips a match that ends exactly at the
+// JSX comment closer. Pattern 2's `[^,)]*` consumes the comment's `*/` and
+// stops at the first `,`/`)` after the closer; in `{fn(/* page.route(
+// users */)}` that `)` abuts the closer, so the match's end equals the JSX
+// comment token's end exactly. The trivia path (M9 test above) CANNOT see
+// this: JSX comment ranges come from the scanner, not from the trivia
+// APIs. RED on the end-1 mutation, GREEN here. (The `</div>` variant
+// without an abutting stop char is NOT used on purpose — there the lazy
+// match escapes the comment on correct code too, which would make the test
+// a false positive rather than a boundary pin.)
+void test('#1844: a route glob cited in a JSX comment whose match ends exactly at the JSX comment closer is not a violation (JSX comment end bound)', async () => {
+	const root = await makeFixture({
+		'e2e/specs/route-jsx-comment-end-boundary.spec.tsx': [
+			'export const Component = () => (',
+			'  <div>{fn(/* page.route( users */)}</div>',
+			');',
+		].join('\n'),
+	});
+
+	const violations = await scanFront2DesignSystem({
+		baseDir: root,
+		sourceDirs: [path.join(root, 'e2e')],
+	});
+
+	assert.equal(
+		violations.some(
+			(violation) => violation.ruleId === 'no-single-star-route-glob',
+		),
+		false,
+		'a route glob citation whose match ends exactly at the JSX comment closer must not be flagged',
+	);
+});
+
 // #1844 r3: a JSX container can mix a leading comment with a real
 // expression (`{/* TODO */ someValue}`). The comment part is still a JSX
 // comment and must be skipped; only the expression part is real code.
