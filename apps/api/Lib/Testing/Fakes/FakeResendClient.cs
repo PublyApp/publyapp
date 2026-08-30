@@ -1,3 +1,7 @@
+using System.Net;
+using System.Text.Json;
+using System.Text.Json.Nodes;
+
 using PublyApp.Api.Infrastructure.Messaging.Email;
 
 using Resend;
@@ -40,11 +44,12 @@ public sealed class FakeResendClient : IResendEmailClient {
 	public int ProviderCallCount { get; private set; }
 
 	/// <summary>
-	/// Set of idempotency keys that have been seen by the provider. Once a key
-	/// is seen, subsequent calls with the same key are deduplicated (no provider
-	/// call is made).
+	/// Idempotency keys already seen by the provider, each with the payload signature
+	/// it was first used with. A key seen again with the SAME payload is deduplicated
+	/// (no provider call); a key reused with a DIFFERENT payload is rejected with
+	/// 409 invalid_idempotent_request, matching Resend's documented contract (§4.5).
 	/// </summary>
-	public ISet<string> SeenIdempotencyKeys { get; } = new HashSet<string>();
+	private readonly Dictionary<string, JsonNode> _seenPayloadSignatures = new();
 
 	public async Task<ResendResponse<Guid>> EmailSendAsync(
 		EmailMessage email,
@@ -67,19 +72,42 @@ public sealed class FakeResendClient : IResendEmailClient {
 		EmailMessage email,
 		CancellationToken cancellationToken = default
 	) {
-		// If this idempotency key was already seen, skip the provider call
-		// (simulating idempotent deduplication)
-		if (!string.IsNullOrEmpty(idempotencyKey) && SeenIdempotencyKeys.Contains(idempotencyKey)) {
-			// Return a fabricated response without calling the provider
-			return Task.FromResult(EmailSendResponse);
-		}
-
-		// Track this key as seen
 		if (!string.IsNullOrEmpty(idempotencyKey)) {
-			SeenIdempotencyKeys.Add(idempotencyKey);
+			var signature = PayloadSignature(email);
+			if (_seenPayloadSignatures.TryGetValue(idempotencyKey, out var previous)) {
+				if (!JsonNode.DeepEquals(previous, signature)) {
+					// Same key, different payload: the provider rejects the request
+					// (409 invalid_idempotent_request); it never serves the cached
+					// reply for a body it has not seen (§4.5).
+					var rejected = new ResendException(
+						HttpStatusCode.Conflict,
+						ErrorType.InvalidIdempotentRequest,
+						"Idempotency key was already used with a different payload",
+						new ResendRateLimit()
+					);
+					return Task.FromResult(new ResendResponse<Guid>(rejected, new ResendRateLimit()));
+				}
+
+				// Same key, same payload: return the cached response without calling
+				// the provider (simulating idempotent deduplication).
+				return Task.FromResult(EmailSendResponse);
+			}
+
+			_seenPayloadSignatures[idempotencyKey] = signature;
 		}
 
-		// Make the actual provider call
+		// New key (or no key): make the actual provider call.
 		return EmailSendAsync(email, cancellationToken);
+	}
+
+	// Canonical JSON signature of the whole payload, so the fake distinguishes payloads
+	// the same way the provider does (the request body must be byte-identical).
+	private static JsonNode PayloadSignature(EmailMessage email) {
+		var node = JsonSerializer.SerializeToNode(email);
+		if (node is null) {
+			throw new InvalidOperationException("Failed to serialize the email payload.");
+		}
+
+		return node;
 	}
 }
