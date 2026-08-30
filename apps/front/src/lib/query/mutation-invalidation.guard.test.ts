@@ -4,6 +4,12 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { QueryClient } from '@tanstack/react-query';
+// #1690 / #1691 : le classificateur lit des regex sur du texte brut — un `>`
+// dans un littéral de chaîne, ou une définition de type introuvable, le met
+// en défaut silencieusement. On passe par l'AST via le TypeScript vendoré par
+// ts-morph (le `import ts from 'typescript'` nu n'expose plus la Compiler API
+// sous TypeScript 7 — précédent : check-design-system.mts, même commentaire).
+import { ts } from 'ts-morph';
 import { describe, expect, test, vi } from 'vitest';
 
 /**
@@ -790,56 +796,6 @@ describe('mutation modules invalidate their list query family (#359)', () => {
 const LIST_QUERY_FACTORY_RE =
 	/build(Staff|Tenant|StaffSuspense|TenantSuspense)QueryOptions\s*</;
 
-/**
- * Split a comma-delimited generic argument list at depth zero — commas nested
- * inside `<…>` or `(…)` do not split. Used by `countListQueryFactories` to
- * extract the three generic arguments of a `build*QueryOptions<…>` call.
- *
- * Exported so the invariant "no nested generic in the third argument" can be
- * pinned by a unit test (see `describe('splitTopLevel')` below).
- */
-export const splitTopLevel = (inner: string): string[] => {
-	const parts: string[] = [];
-	let depth = 0;
-	let current = '';
-	for (const ch of inner) {
-		if (ch === '<' || ch === '(') {
-			depth += 1;
-			current += ch;
-		} else if (ch === '>' || ch === ')') {
-			depth = Math.max(0, depth - 1);
-			current += ch;
-		} else if (ch === ',' && depth === 0) {
-			parts.push(current);
-			current = '';
-		} else {
-			current += ch;
-		}
-	}
-	if (current.trim().length > 0) {
-		parts.push(current);
-	}
-	return parts;
-};
-
-describe('splitTopLevel depth tracking (#1662)', () => {
-	test('splits three flat arguments', () => {
-		expect(
-			splitTopLevel('ApiClient, Response, StaffUsersQueryVariables'),
-		).toEqual(['ApiClient', ' Response', ' StaffUsersQueryVariables']);
-	});
-
-	test('does NOT split on commas nested inside angle brackets', () => {
-		expect(
-			splitTopLevel('ApiClient, Response, SomeWrapper<PageQueryVariables>'),
-		).toEqual(['ApiClient', ' Response', ' SomeWrapper<PageQueryVariables>']);
-	});
-
-	test('does NOT split on commas nested inside parens', () => {
-		expect(splitTopLevel('A, B, Fn<C, D>')).toEqual(['A', ' B', ' Fn<C, D>']);
-	});
-});
-
 // ── Part 1 (#1662): nested-generic third argument is NOT silently skipped ──
 //
 // `countListQueryFactories` decides whether a module owns a list query by
@@ -911,51 +867,177 @@ const staffUsersQueryOptions = buildStaffQueryOptions<
 	});
 });
 
+// ── #1690 : le classificateur AST ne se laisse pas piéger par les
+// littéraux de chaîne ──
+//
+// - #1690 : un `>` dans un littéral de chaîne en position d'argument
+//   générique (ou dans le corps de l'appel) arrêtait la regex non-greedy trop
+//   tôt → usine ignorée. L'AST n'a pas ce problème.
+
+describe('string-literal > does not stop the match (#1690)', () => {
+	test('#1690 — a `>` inside a string literal in the call body does NOT stop the match', () => {
+		// BEFORE the fix: the non-greedy regex stopped at the first `>` (in the
+		// string literal), so the factory was silently skipped.
+		// AFTER the fix: the classifier parses the AST, so string literals are
+		// not confused with type argument boundaries.
+		const withGtInBody = `
+export type StaffUsersQueryVariables = {
+	cursor?: string;
+	size?: number;
+};
+
+const staffUsersQueryOptions = buildStaffQueryOptions<
+	ApiClient,
+	FindStaffUsersResponse,
+	StaffUsersQueryVariables
+>(
+	{
+		queryKeyFn: () => ['staff-users'],
+		fetcher: async () => ({ id: 'a > b' }),
+	},
+	{ clientAccessor: getClientManager() },
+);
+`;
+		expect(countListQueryFactories(withGtInBody)).toBe(1);
+	});
+});
+
+/**
+ * #1690 : le classificateur lit maintenant l'AST via le TypeScript
+ * vendoré par ts-morph — plus de regex sur du texte brut.
+ *
+ * - #1690 (réglé) : un `>` dans un littéral de chaîne en position d'argument
+ *   générique arrêtaient la regex non-greedy trop tôt → usine ignorée.
+ *   L'AST n'a pas ce problème.
+ */
 const countListQueryFactories = (source: string): number => {
 	if (!LIST_QUERY_FACTORY_RE.test(source)) {
 		return 0;
 	}
-	// A list factory has the shape build*QueryOptions<Client, Response, Vars>:
-	// the THIRD generic argument is the *QueryVariables type that declares the
-	// pagination fields (cursor/sortId/size/…). A detail factory's third arg is
-	// an id-only type, so a list is "owned" iff that type declares pagination.
-	const factoryRe =
-		/build(Staff|Tenant|StaffSuspense|TenantSuspense)QueryOptions<([\s\S]*?)>\s*\(/g;
-	// The third generic of a build*QueryOptions factory is, by construction, a
-	// query-variables type. The codebase names every one of them *QueryVariables
-	// (Staff*, Tenant*, GlobalTenant*, Find*, etc.), so we match ANY *QueryVariables
-	// type rather than a fixed prefix allowlist — the allowlist omitted Tenant* and
-	// silently let a no-list module own a Tenant-prefixed paginated list.
-	const paginationVarRe =
-		/\b(cursor|sortId|sortOrder|size|page|limit|q)\s*\??:/;
+	const sf = ts.createSourceFile(
+		'__guard_virtual__.ts',
+		source,
+		ts.ScriptTarget.Latest,
+		true,
+		ts.ScriptKind.TS,
+	);
+	// Collecte les déclarations de types (type alias + interface) indexées par
+	// nom, pour la résolution ultérieure du type `*QueryVariables`.
+	const typeDeclarations = new Map<
+		string,
+		ts.TypeAliasDeclaration | ts.InterfaceDeclaration
+	>();
+	ts.forEachChild(sf, (node) => {
+		if (
+			node.kind === ts.SyntaxKind.TypeAliasDeclaration ||
+			node.kind === ts.SyntaxKind.InterfaceDeclaration
+		) {
+			const name = (node as ts.TypeAliasDeclaration | ts.InterfaceDeclaration)
+				.name.text;
+			typeDeclarations.set(
+				name,
+				node as ts.TypeAliasDeclaration | ts.InterfaceDeclaration,
+			);
+		}
+	});
+	// Champs qui caractérisent une liste paginée (cursor/keyset ou offset).
+	const isPaginationMember = (name: string): boolean =>
+		/(?:^|\.)(?:cursor|sortId|sortOrder|size|page|limit|q)$/.test(name);
+	// Détermine si un type (TypeLiteral ou interface) déclare de la pagination.
+	const declaresPagination = (
+		node: ts.TypeAliasDeclaration | ts.InterfaceDeclaration,
+	): boolean => {
+		// type X = { ... } (TypeLiteral)
+		if (node.kind === ts.SyntaxKind.TypeAliasDeclaration) {
+			const typeNode = (node as ts.TypeAliasDeclaration).type;
+			if (typeNode.kind === ts.SyntaxKind.TypeLiteral) {
+				return (typeNode as ts.TypeLiteralNode).members.some(
+					(m: ts.TypeElement) =>
+						m.kind === ts.SyntaxKind.PropertySignature &&
+						m.name !== undefined &&
+						ts.isIdentifier(m.name) &&
+						isPaginationMember(m.name.text),
+				);
+			}
+			// type X = SomeWrapper<...> (alias vers un type paramétré) : on résout
+			// récursivement si la cible est déclarée dans la source.
+			if (typeNode.kind === ts.SyntaxKind.TypeReference) {
+				const refName = (typeNode as ts.TypeReferenceNode).typeName.getText(sf);
+				const target = typeDeclarations.get(refName);
+				if (target) {
+					return declaresPagination(target);
+				}
+			}
+		}
+		// interface X { ... }
+		if (node.kind === ts.SyntaxKind.InterfaceDeclaration) {
+			const typeNode = node as ts.InterfaceDeclaration;
+			return typeNode.members.some(
+				(m: ts.TypeElement) =>
+					m.kind === ts.SyntaxKind.PropertySignature &&
+					m.name !== undefined &&
+					ts.isIdentifier(m.name) &&
+					isPaginationMember(m.name.text),
+			);
+		}
+		return false;
+	};
+	// Extrait le nom du type `*QueryVariables` d'un argument générique (peut
+	// être imbriqué dans un generic : SomeWrapper<PageQueryVariables>).
+	const extractVariablesTypeName = (typeNode: ts.TypeNode): string | null => {
+		if (typeNode.kind === ts.SyntaxKind.TypeReference) {
+			const ref = typeNode as ts.TypeReferenceNode;
+			const refName = ref.typeName.getText(sf);
+			if (refName.endsWith('QueryVariables')) {
+				return refName;
+			}
+			// Tester les arguments génériques (ex. SomeWrapper<PageQueryVariables>)
+			if (ref.typeArguments) {
+				for (const arg of ref.typeArguments) {
+					const nested = extractVariablesTypeName(arg);
+					if (nested) {
+						return nested;
+					}
+				}
+			}
+		}
+		return null;
+	};
+	// Visite récursivement l'AST pour compter les usines de liste.
 	let count = 0;
-	let match: RegExpExecArray | null;
-	while ((match = factoryRe.exec(source)) !== null) {
-		const args = splitTopLevel(match[2] ?? '');
-		const thirdArg = (args[2] ?? '').trim();
-		// The third arg may itself be generic: SomeWrapper<PageQueryVariables>.
-		// The old code stripped the nested generic (replace(/<.*$/, '')) and
-		// checked the wrapper name against *QueryVariables — which silently
-		// skipped any nested-generic factory (the wrapper is not a *QueryVariables
-		// type). Instead, extract the *QueryVariables type name from ANYWHERE in
-		// the third argument (including nested generics), then look up THAT type.
-		const typeNameMatch = thirdArg.match(/[\w]*QueryVariables\b/);
-		if (!typeNameMatch) {
-			continue;
+	const visit = (node: ts.Node): void => {
+		if (node.kind === ts.SyntaxKind.CallExpression) {
+			const call = node as ts.CallExpression;
+			const expressionName = call.expression.getText(sf);
+			if (
+				/^build(?:Staff|Tenant|StaffSuspense|TenantSuspense)QueryOptions$/.test(
+					expressionName,
+				)
+			) {
+				const typeArgs = call.typeArguments;
+				if (typeArgs && typeArgs.length >= 3) {
+					const variablesTypeName = extractVariablesTypeName(typeArgs[2]!);
+					if (variablesTypeName) {
+						const declaration = typeDeclarations.get(variablesTypeName);
+						if (!declaration) {
+							// #1691 : le type est introuvable dans la source. C'est
+							// une erreur — pas un `continue` silencieux. Un type
+							// importé doit être signalé pour que la source soit
+							// auto-suffisante.
+							throw new Error(
+								`countListQueryFactories: type '${variablesTypeName}' is not declared in-source (it may be imported). The classifier cannot resolve its pagination shape. Either declare the type locally or update the classifier to resolve imports.`,
+							);
+						}
+						if (declaresPagination(declaration)) {
+							count += 1;
+						}
+					}
+				}
+			}
 		}
-		const variablesRaw = typeNameMatch[0];
-		const typeBlock = source.match(
-			new RegExp(
-				`export (?:type|interface) ${variablesRaw.replace(
-					/[.*+?^${}()|[\]\\]/g,
-					'\\$&',
-				)}\\s*[=:]\\s*\\{([\\s\\S]*?)\\n\\};?`,
-			),
-		)?.[1];
-		if (typeBlock && paginationVarRe.test(typeBlock)) {
-			count += 1;
-		}
-	}
+		ts.forEachChild(node, visit);
+	};
+	visit(sf);
 	return count;
 };
 
