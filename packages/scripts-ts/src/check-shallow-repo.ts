@@ -70,6 +70,14 @@ const run = () => {
 	console.log('[shallow-repo] repository is not shallow. [OK]');
 };
 
-if (import.meta.url === pathToFileURL(process.argv[1]).href) {
+// `process.argv[1]` is undefined under `node -e` / `node --input-type=module -e`
+// (no script file): pathToFileURL(undefined) must not run, or importing the
+// module from a `-e` context — including this guard's own fail-loud tests —
+// would crash on the import line instead of exercising the guard.
+const cliEntry = process.argv[1];
+if (
+	cliEntry !== undefined &&
+	import.meta.url === pathToFileURL(cliEntry).href
+) {
 	run();
 }
