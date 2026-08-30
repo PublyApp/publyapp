@@ -218,6 +218,8 @@ public sealed class UploadAdmissionService(AppDbContext dbContext) : IUploadAdmi
 	// runner stretches each attempt's commit window, so 8 attempts exhausted
 	// there (#1467 run 32936347299). 12 attempts with an ~800 ms backoff
 	// ceiling keep every loser alive until a winner finishes committing.
+	// Justification: CI run 32936347299 failed with 8 attempts on the
+	// 2-core GitHub runner; 12 is the minimum that passes everywhere.
 	private const int RetryMaxAttempts = 12;
 	private const int RetryBackoffBaseMs = 10;
 	private const int RetryBackoffMaxShift = 6;
@@ -399,13 +401,13 @@ public sealed class UploadAdmissionService(AppDbContext dbContext) : IUploadAdmi
 	}
 
 	private static int ScopeToInt(UploadBudgetScope scope) {
-	return (int)scope;
-}
+		return (int)scope;
+	}
 
-private async Task EnsureBudgetRowsExistAsync(
-		Guid staffUserId,
-		CancellationToken cancellationToken
-	) {
+	private async Task EnsureBudgetRowsExistAsync(
+			Guid staffUserId,
+			CancellationToken cancellationToken
+		) {
 		var env = AppEnvironment.Instance;
 
 		// Idempotent config seeding: ON CONFLICT DO NOTHING means two simultaneous

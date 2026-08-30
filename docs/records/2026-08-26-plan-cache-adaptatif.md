@@ -51,7 +51,11 @@ Une surface qui sert du périmé doit le dire dans l'interface. Mécanisme reten
 public sealed record CachedResult<T>(T Data, DateTimeOffset GeneratedAtUtc);
 ```
 
-- Règle : toute surface inscrite dans `StaleSurfaces` stocke `CachedResult<T>` et projette `GeneratedAtUtc` dans son DTO de réponse sous `generated_at_utc` (camelCase JSON). Le front affiche « données du JJ/MM à HH:mm » à partir de ce champ. Même quand la valeur est fraîche le champ existe : l'UI affiche la fraîcheur réelle, et un périmé servi par fail-safe se voit immédiatement — impossible de confondre les deux.
+- `CachedResult<T>` est testée par trois specs distinctes et réfutables :
+  1. **Round-trip de sérialisation** : `CachedResult<T>` avec un `T` arbitraire survit à la sérialisation/désérialisation via `FusionCacheSystemTextJsonSerializer` (le même sérialiseur que le L2) — preuve que le L2 est viable ;
+  2. **Périmé porte un horodatage, frais ne le porte pas** : quand le fail-safe active, `generated_at_utc` est un timestamp antérieur ; une valeur fraîche porte un timestamp proche de maintenant ;
+  3. **`generated_at_utc` est lu, pas seulement écrit** : test qui crée, sérialise, désérialise et vérifie que le champ est consommé — interception du mensonge silencieux.
+- Règle : toute surface inscrite dans `StaleSurfaces` stocke `CachedResult<T>` et projette `generated_at_utc` dans son DTO de réponse sous `generated_at_utc` (camelCase JSON). Le front affiche « données du JJ/MM à HH:mm » à partir de ce champ. Même quand la valeur est fraîche le champ existe : l'UI affiche la fraîcheur réelle, et un périmé servi par fail-safe se voit immédiatement — impossible de confondre les deux.
 - Pourquoi pas les événements FusionCache (`OnFailSafeActivate`) : ils ne traversent pas la façade `HybridCache` (aucun canal pour remonter « cette réponse-ci vient du fail-safe » jusqu'au handler), et dépendraient d'un état latéral par clé. L'enveloppe survit à la sérialisation L2, se teste sans provoquer de panne, et dit la vérité même hors panne (fraîcheur normale).
 - Le journal reste la deuxième couche : FusionCache trace nativement les activations fail-safe dans ses logs structurés Serilog ; rien à écrire, mais le plan l'exige dans la revue de chaque surface StaleTolerant (vérifier la ligne dans `.dump/` de la lane lors de la preuve locale).
 
@@ -92,7 +96,7 @@ La méthode de service utilise exactement cette méthode statique pour composer 
 
 Trois enveloppes dans `apps/api/Lib/Caching/`, enregistrées dans `CacheRegistration` (le scanner `[Service]` est réservé à `Modules.*.Services`, ces classes vivent en `Lib` et s'enregistrent manuellement) :
 
-- `TenantScopedCache` (**scoped**) : construite depuis `IRequestAuthContext` ; son constructeur jette si le tenant résolu est vide — une requête sans tenant ne peut pas mettre en cache silencieusement en portée globale. N'expose que `GetOrCreateAsync<T>(string subKey, ...)`, `GetAsync<T>`, `SetAsync<T>`, `RemoveAsync(string subKey)`, tous composés `t/<tenantId>/<subKey>`. Impossible d'y passer un tenant : il n'existe pas de paramètre pour ça.
+- `TenantScopedCache` (**scoped**) : construite depuis `IRequestAuthContext` ; son constructeur normalise `IRequestAuthContext.TenantId` (type `string?`) en `Guid` à la première utilisation — `Trim()`, puis `Guid.TryParse` — et jette une `InvalidOperationException` si le résultat est `Guid.Empty` ou si l'analyse échoue. Les formes rejetées incluent `null`, `""`, `"   "`, `"00000000-0000-0000-0000-000000000000"` (toutes représentations de `Guid.Empty`), et toute chaîne qui ne parse pas en `Guid`. Le champ stocké est un `Guid` non-nullable — impossible d'arriver au chemin de la clé avec une forme qui produit une clé partagée. Une requête sans tenant ne peut pas mettre en cache silencieusement en portée globale. N'expose que `GetOrCreateAsync<T>(string subKey, ...)`, `GetAsync<T>`, `SetAsync<T>`, `RemoveAsync(string subKey)`, tous composés `t/<tenantId>/<subKey>`. Impossible d'y passer un tenant : il n'existe pas de paramètre pour ça.
 - `UserScopedCache` (scoped, même forme, préfixe `u/<userId>/`) pour le périmètre par utilisateur (permissions staff).
 - `GlobalCache` (singleton, préfixe `g/`) pour les données vraiment partagées.
 
@@ -103,6 +107,15 @@ Un service métier ne voit jamais la classe `HybridCache` : les enveloppes sont 
 1. **Garde d'étanchéité** — `apps/api/Lib/Architecture/CacheKeyScopeGuard.Spec.cs` : via `ArchitectureDiscovery.EnumerateApiTypes()` (le point d'entrée réflexif imposé aux nouveaux gardes d'architecture, `develop:apps/api/Lib/Architecture/ArchitectureDiscovery.cs` symbole `ArchitectureDiscovery`, preuve `git show origin/develop:apps/api/Lib/Architecture/ArchitectureDiscovery.cs | sed -n '13p'`, citations-r1 C11) :
    - tout type sous `Modules.*` dont un constructeur injecte `HybridCache` (nu ou indexé) est un échec, sauf inscription explicite dans la liste blanche du fichier de spéc (initialement : aucune entrée métier ; les enveloppes de `Lib/Caching` et les futures surfaces `StaleSurfaces` consomment l'indexé et sont tracées par le registre) ;
    - toute injection `[FromKeyedServices(CacheNames.StaleTolerant)]` dont le type déclarant n'apparaît pas dans `StaleSurfaces.Allowed` est un échec.
+   - **Entrée inanalysable = échec bruyant** : si le garde rencontre un type qu'il ne peut pas classifier (p. ex. type générique paramétré), il jette une `InvalidOperationException` nommant le type et la raison de l'échec. Aucun faux négatif silencieux.
+
+   **Surface d'évasion connue** (non bloquée par le garde, discipline humaine requise) :
+   - Résolution via `IServiceProvider.GetService` / `IServiceScope.ServiceProvider.GetService` — le garde inspecte les paramètres de constructeur, pas les appels à `GetService` ;
+   - Injection de factory / delegate (`Func<HybridCache>`, `Func<IIndexProvider, HybridCache>`) — le paramètre de constructeur est la factory, pas le cache ;
+   - Capture dans une closure transmise à un job Quartz — la variable capturée n'est pas un paramètre de constructeur au moment de l'analyse ;
+   - Résolution dynamique / `IServiceProvider.GetService(typeof(HybridCache))` — le type effectif est `IServiceProvider`.
+
+   Les types en dehors de `Modules.*` (`Lib/`, `Infrastructure/`) ne sont pas couverts par le garde : leur périmètre est `Lib/` infrastructure qui ne sert pas de données métier à portée locataire. Toute nouvelle utilisation de `HybridCache` dans un domaine métier doit passer par une enveloppe de portée.
 2. **Registre des surfaces périmé-autorisées** — `apps/api/Lib/Caching/StaleSurfaces.cs` : liste statique d'entrées `(Type DeclaringType, string Justification, DateOnly DecisionDate)`, vide à la création. Chaque activation future est une ligne écrite ici, citée dans la PR de la surface. Le garde 1 assujettit ce registre.
 3. **Garde de fabrique** — specs unitaires de `CacheKeys` : refus de `Guid.Empty` en portée locataire/utilisateur, refus d'une sous-clé commençant par un préfixe de portée (anti double-préfixe), déterminisme octet-par-octet, non-collision sur valeurs piégées (`"a:b/c=d"`).
 4. **Garde fail-safe** — `apps/api/Lib/Caching/CacheEntryOptionsDefaults.cs` expose deux fonctions pures `CreateDefault()` et `CreateStaleTolerant()` utilisées par l'enregistrement ; leur spéc épingle `AllowFailSafeResponse = false` côté défaut et les plafonds fail-safe côté StaleTolerant. Une dérive des options d'enregistrement casse la spéc avant de casser la règle maison.
