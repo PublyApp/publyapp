@@ -589,4 +589,109 @@ public sealed class FindScheduledPublicationsForTenantSpec : IClassFixture<
 			.LocalIso;
 		local.Should().Be("2099-12-15T09:00:00+01:00");
 	}
+
+	[Fact]
+	public async Task ItShouldReturnAnEmptyPageWhenTheWindowMatchesNoRows() {
+		var tenantId = await GetAcmeIdAsync();
+		var token = await _authClient.LoginAsync(
+			TestConstants.AcmeAdminEmail,
+			TestConstants.SeedPassword
+		);
+
+		// Deliberately FAR future window: no seeded spec row lands there, so
+		// this exercises the "empty window is a normal page, not an error" case
+		// (round-2 finding: the keyset tail read rows[^1] unconditionally and
+		// 500'd on an empty result set).
+		using var request = new HttpRequestMessage(
+			HttpMethod.Get,
+			$"{FindUrl}?from=2100-03-01T00%3A00%3A00Z"
+			+ "&to=2100-03-31T00%3A00%3A00Z"
+		)
+			.WithSessionToken(token)
+			.WithTenantId(tenantId);
+		using var response = await _http.SendAsync(request);
+
+		response.StatusCode.Should().Be(HttpStatusCode.OK);
+		var doc = await GetJsonAsync(response);
+		doc.GetProperty("data").GetArrayLength().Should().Be(0);
+		doc.GetProperty("nextCursor").ValueKind.Should()
+			.Be(JsonValueKind.Null);
+	}
+
+	[Fact]
+	public async Task ItShouldRejectALimitAboveThePaginationMax() {
+		var tenantId = await GetAcmeIdAsync();
+		var token = await _authClient.LoginAsync(
+			TestConstants.AcmeAdminEmail,
+			TestConstants.SeedPassword
+		);
+
+		// Round-2 finding: removing the base CursorPaginatedQuery lost the
+		// interval check, so limit=999 was accepted silently (Take(1000)).
+		using var request = new HttpRequestMessage(
+			HttpMethod.Get,
+			$"{FindUrl}?from=2099-05-31T00%3A00%3A00Z"
+			+ "&to=2099-07-01T00%3A00%3A00Z&limit=999"
+		)
+			.WithSessionToken(token)
+			.WithTenantId(tenantId);
+		using var response = await _http.SendAsync(request);
+
+		response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
+		var problem = await response.Content
+			.ReadFromJsonAsync<ValidationProblemDetails>();
+		problem!.Errors.Should().ContainKey("limit");
+	}
+
+	[Fact]
+	public async Task ItShouldRejectALimitBelowTheMinimum() {
+		var tenantId = await GetAcmeIdAsync();
+		var token = await _authClient.LoginAsync(
+			TestConstants.AcmeAdminEmail,
+			TestConstants.SeedPassword
+		);
+
+		// Round-2 finding: with the interval check gone, limit=0 sailed
+		// through and silently returned an (at most) 1-row page instead of
+		// a 422 naming the cause.
+		using var request = new HttpRequestMessage(
+			HttpMethod.Get,
+			$"{FindUrl}?from=2099-05-31T00%3A00%3A00Z"
+			+ "&to=2099-07-01T00%3A00%3A00Z&limit=0"
+		)
+			.WithSessionToken(token)
+			.WithTenantId(tenantId);
+		using var response = await _http.SendAsync(request);
+
+		response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
+		var problem = await response.Content
+			.ReadFromJsonAsync<ValidationProblemDetails>();
+		problem!.Errors.Should().ContainKey("limit");
+	}
+
+	[Fact]
+	public async Task ItShouldRejectANonNumericLimitWithAReadableCause() {
+		var tenantId = await GetAcmeIdAsync();
+		var token = await _authClient.LoginAsync(
+			TestConstants.AcmeAdminEmail,
+			TestConstants.SeedPassword
+		);
+
+		// Rule of the house: an unanalysable input must fail LOUDLY with a
+		// named cause. Today GetLimit() throws inside the handler and the
+		// generic middleware turns it into a 500 "Internal server error".
+		using var request = new HttpRequestMessage(
+			HttpMethod.Get,
+			$"{FindUrl}?from=2099-05-31T00%3A00%3A00Z"
+			+ "&to=2099-07-01T00%3A00%3A00Z&limit=abc"
+		)
+			.WithSessionToken(token)
+			.WithTenantId(tenantId);
+		using var response = await _http.SendAsync(request);
+
+		response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
+		var problem = await response.Content
+			.ReadFromJsonAsync<ValidationProblemDetails>();
+		problem!.Errors.Should().ContainKey("limit");
+	}
 }
