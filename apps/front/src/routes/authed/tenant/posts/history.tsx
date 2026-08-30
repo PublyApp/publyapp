@@ -123,7 +123,7 @@ const PublicationStatusCell = ({
 };
 
 const TenantPostsHistoryPage = () => {
-	const { t } = useTranslation(['posts', 'common']);
+	const { t, i18n } = useTranslation(['posts', 'common']);
 	const navigate = Route.useNavigate();
 	const search = parseTenantPostListSearchParams(
 		Route.useSearch() as TableSearchParamInput,
@@ -222,7 +222,7 @@ const TenantPostsHistoryPage = () => {
 				meta: { width: '132px' },
 				cell: ({ row }) =>
 					row.original.updatedAt
-						? formatDateTime(row.original.updatedAt, 'en')
+						? formatDateTime(row.original.updatedAt, i18n.language)
 						: '\u2014',
 			},
 		],

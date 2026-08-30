@@ -38,7 +38,7 @@ const DEFAULT_SORT = { id: 'updated_at', order: 'desc' as const } as const;
  * coming-later state — never fabricated draft rows.
  */
 const TenantPostsDraftsPage = () => {
-	const { t } = useTranslation(['posts', 'common']);
+	const { t, i18n } = useTranslation(['posts', 'common']);
 	const navigate = Route.useNavigate();
 	const search = parseTenantPostListSearchParams(
 		Route.useSearch() as TableSearchParamInput,
@@ -114,7 +114,7 @@ const TenantPostsDraftsPage = () => {
 				meta: { width: '132px' },
 				cell: ({ row }) =>
 					row.original.updatedAt
-						? formatDateTime(row.original.updatedAt, 'en')
+						? formatDateTime(row.original.updatedAt, i18n.language)
 						: '\u2014',
 			},
 			{

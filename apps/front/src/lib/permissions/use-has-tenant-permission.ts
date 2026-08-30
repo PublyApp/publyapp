@@ -11,7 +11,6 @@ import { getClientManager } from '~/lib/api-client/client-manager';
 import { useResolvedWorkspaceTenantId } from '~/lib/query/tenants-for-picker';
 
 const WILDCARD_SENTINEL = '*';
-const SOCIAL_VIEW_PERMISSION = 'tenant.socialaccounts.view';
 
 /** Wire shape of GET /auth/user-auth-data (only what the gates read). */
 type TenantPermissionKeysResult = {
