@@ -151,13 +151,13 @@ describe('list-table components own selection via useRowSelection (#1603)', () =
 
 		expect(
 			offenders,
-			`List-table selection sites must source their selection from ` +
-				`\`useRowSelection(visibleRowIds)\` (the hook that prunes the ` +
-				`map to visible ids on every data change). A hand-rolled ` +
-				`\`useState<RowSelectionMap>({})\` or \`useState<Record<string, ` +
-				`boolean>>({})\` skips the prune effect, so a row that leaves ` +
-				`the view will linger in the selection. Offenders: ` +
-				`${JSON.stringify(offenders, null, 2)}`,
+			'List-table selection sites must source their selection from ' +
+				'`useRowSelection(visibleRowIds)` (the hook that prunes the ' +
+				'map to visible ids on every data change). A hand-rolled ' +
+				'`useState<RowSelectionMap>({})` or `useState<Record<string, ' +
+				'boolean>>({})` skips the prune effect, so a row that leaves ' +
+				'the view will linger in the selection. Offenders: ' +
+				JSON.stringify(offenders, null, 2),
 		).toEqual([]);
 	});
 
