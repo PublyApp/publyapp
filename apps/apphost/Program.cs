@@ -293,6 +293,22 @@ if (args.Contains("--probe-bind-fault")) {
 	ProbeBindFault(parsedCode);
 }
 
+if (!HostPort5454IsFree(args.Contains("--plain-bind-preflight"))) {
+	FailLoudlyOnOccupiedPort();
+}
+
+if (args.Contains("--preflight-only")) {
+	// Guard-only standalone entry point (issue #1926 point 2). Sharing the
+	// SAME call site with the boot path means there is exactly one call to
+	// HostPort5454IsFree in the program: any future refactor that drops it
+	// also drops the guard-only mode's check, which the architecture guard
+	// catches immediately. This used to live as its own block with a second
+	// call, which the compiler could not pin (two call sites, one of which
+	// was the test's only exercise) — see point 2 of the round-3 review.
+	Console.WriteLine("host port 5454 preflight: free");
+	return;
+}
+
 if (args.Contains("--hold-port-5454")) {
 	try {
 		HoldPort5454Forever();
@@ -303,19 +319,6 @@ if (args.Contains("--hold-port-5454")) {
 				+ "Libérez le port puis relancez le test.");
 		Environment.Exit(1);
 	}
-}
-
-if (!HostPort5454IsFree()) {
-	FailLoudlyOnOccupiedPort();
-}
-
-if (args.Contains("--preflight-only")) {
-	var plainBind = args.Contains("--plain-bind-preflight");
-	if (!HostPort5454IsFree(plainBind)) {
-		FailLoudlyOnOccupiedPort();
-	}
-	Console.WriteLine("host port 5454 preflight: free");
-	return;
 }
 
 builder.Build().Run();

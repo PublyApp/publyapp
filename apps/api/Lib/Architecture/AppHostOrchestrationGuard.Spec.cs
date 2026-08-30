@@ -236,6 +236,19 @@ public sealed partial class AppHostOrchestrationGuardSpec : IDisposable {
 		// fail. Together they pin the SO_REUSEADDR semantics: no false negative,
 		// no false positive.
 		//
+		// Issue #1926 point 2: this test used to run the AppHost in BOOT mode (no
+		// --preflight-only flag) and rely on DCP's bind error to fail loud.
+		// Removing the preflight CALL — commenting out
+		//   if (!HostPort5454IsFree()) { FailLoudlyOnOccupiedPort(); }
+		// — then compiles cleanly, but the boot path runs DCP/docker for ~5 minutes
+		// before DCP's silent 'address already in use' proxy log (internal to DCP,
+		// never on the console) ever manifests as a non-zero exit. A 5-minute guard
+		// is one the next person optimizes away. The fix exercises --preflight-only
+		// directly — that mode owns its own probe call, so removing the boot-path
+		// call OR the --preflight-only call both cause this test to fail FAST (the
+		// --preflight-only branch prints 'free' without probing, and the boot path
+		// is not reached).
+		//
 		// Occupancy: bind 127.0.0.1:5454 in-process — exactly the address DCP's
 		// postgres proxy binds (its own error says 'listen tcp 127.0.0.1:5454:
 		// bind: address already in use'). No docker dependency, works on CI
@@ -255,8 +268,9 @@ public sealed partial class AppHostOrchestrationGuardSpec : IDisposable {
 		var repoRoot = FindRepoRoot();
 		var run = await RunAppHostAsync(
 			repoRoot,
-			TimeSpan.FromMinutes(10),
-			["run", "--project", "apps/apphost", "--no-build", OpenApiSkipBuildProperty]
+			TimeSpan.FromMinutes(2),
+			["run", "--project", "apps/apphost", "--no-build", OpenApiSkipBuildProperty,
+				"--", "--preflight-only"]
 		);
 
 		run.ExitedOnItsOwn.Should().BeTrue(
