@@ -20,7 +20,7 @@ in the fixture's source array. The verdict (`CHANGES_REQUIRED`) identified two
 blocking defects:
 
 1. **The `setImmediate` mutation reopens the race without being detected**: wrapping
-   l'installation du handler dans `setImmediate(() => { process.on('SIGINT', ...) })`
+   the handler installation in `setImmediate(() => { process.on('SIGINT', ...) })`
    defers installation to a subsequent event loop tick —
    reopening exactly the race window. And yet the r1 proof stays
    "kept-red" (handler textually before the handshake) and CI stays
@@ -137,7 +137,7 @@ but defers installation via `setImmediate`.
 `tests/proofs/1457/red-1457-r2-sigint-race-silent-child.test.ts > r2 fixture SIGINT race — RED: handler installed AFTER the handshake write (#1457) > the r2 fixture writes the handshake BEFORE installing the SIGINT handler, OR the handler is wrapped in an async deferral (the buggy ordering the fix corrected)`
 **PASSES** (bug detected).
 
-**Why**: la ligne du handler ne commence plus par `process.on(` —
+**Why**: the handler line no longer starts with `process.on(` —
 it starts with `setImmediate(`. `handlerIsDeferred=true` → `bugPresent=true`.
 The "temporal directness" axis is covered. Mechanism: **structural verification
 ** (the line does not start with `process.on(`).
