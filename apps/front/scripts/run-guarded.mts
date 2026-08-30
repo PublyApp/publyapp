@@ -33,24 +33,32 @@
  *   node scripts/run-guarded.mts scripts/guards/check-design-system.mts
  *   node scripts/run-guarded.mts --test script1.mts script2.mts extra-arg
  *
- * The timeout is read from GUARD_TIMEOUT_SECONDS env (default 180s).
+ * The timeout is read from GUARD_TIMEOUT_SECONDS env (default 300s).
  *
- * Justified default of 180s: measured durations of all front guard tests:
- *   - check-context-chunk-isolation.test.mts: ~68s  (slowest)
- *   - check-zindex-guard.test.mts:              ~40s
- *   - check-design-system.test.mts:             ~9s
- *   - check-shared-ts-import-paths.test.mts:   ~11s
- *   - all others:                            < 2s
+ * Justified default of 300s: measured durations of all front guard tests
+ * on this machine (loaded, 2026-08-30):
+ *   - check-context-chunk-isolation.test.mts: ~157s (slowest; ~68s on CI)
+ *   - check-zindex-guard.test.mts:              ~56s (~40s on CI)
+ *   - check-design-system.test.mts:             ~3s
+ *   - check-shared-ts-import-paths.test.mts:   ~19s
+ *   - check-react-compiler.test.mts:            ~19s
+ *   - check-shared-ts-node-resolution.test.mts: ~4s
+ *   - check-e2e-shared-constants.test.mts:     ~0s
+ *   - check-column-type-imports.test.mts:      ~0s
+ *   - verify-font-bundle.test.mts:             ~0s
+ *   - search-cancel-css-policy.test.mts:       ~0s
+ *   - all check:* script guards (< 2s each):   < 2s
  *
- * 180s is ~2.6× the slowest guard, giving headroom for a loaded machine while
- * bounding the worst-case freeze to 3 minutes instead of indefinite. A slower
- * guard can override via `GUARD_TIMEOUT_SECONDS` env var.
+ * 300s is ~1.9× the slowest measured guard (157s), bounding the worst-case
+ * freeze to 5 minutes instead of indefinite while giving ample headroom for a
+ * loaded machine. Guards that routinely exceed this on a specific machine can
+ * override via `GUARD_TIMEOUT_SECONDS` env var.
  */
 import { spawn, type ChildProcess } from 'node:child_process';
 import process from 'node:process';
 
 const GUARD_TIMEOUT_SECONDS = Number(
-	process.env.GUARD_TIMEOUT_SECONDS ?? '180',
+	process.env.GUARD_TIMEOUT_SECONDS ?? '300',
 );
 const GUARD_TIMEOUT_MS = Math.round(GUARD_TIMEOUT_SECONDS * 1000);
 
