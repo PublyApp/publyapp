@@ -139,10 +139,10 @@ public sealed class ResendEmailAdapterSpec {
 
 	[Fact]
 	public async Task ItShouldRejectSameIdempotencyKeyWithDifferentPayload() {
-		// Resend's documented contract (§4.5): reusing an idempotency key with a
-		// DIFFERENT request body is a 409 invalid_idempotent_request, never a cached
-		// reply. The fake must surface the rejection so a test that reuses a key by
-		// mistake fails locally instead of passing against a lying test double.
+		// Resend's documented contract: reusing an idempotency key with a DIFFERENT
+		// request body is a 409 invalid_idempotent_request, never a cached reply.
+		// The fake must surface the rejection so a test that reuses a key by mistake
+		// fails locally instead of passing against a lying test double (#1950).
 		var fake = new FakeResendClient {
 			EmailSendResponse = new ResendResponse<Guid>(Guid.NewGuid(), new ResendRateLimit())
 		};
@@ -163,8 +163,8 @@ public sealed class ResendEmailAdapterSpec {
 		// Idempotency key should prevent duplicate sends. First call with the key
 		// should reach the provider; second call with same key should not. A THIRD
 		// call with a DIFFERENT key must reach the provider again: deduplication is
-		// scoped to the key, not to "the first call ever" (#1847 — a fake that
-		// ignores keys and caps at one provider call keeps the count at 1 here).
+		// scoped to the key, not to "the first call ever" — a fake that ignores keys
+		// and caps at one provider call keeps the count at 1 here. (#1950)
 		var messageId = Guid.NewGuid();
 		var fake = new FakeResendClient {
 			EmailSendResponse = new ResendResponse<Guid>(messageId, new ResendRateLimit())
