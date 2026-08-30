@@ -10,8 +10,29 @@
  * bundled verbatim from source. The guard's default reader is the page's own
  * `window.getComputedStyle` (Chromium's), so the assertions exercise the real
  * measurement against the real engine — never a reimplementation.
+ *
+ * #1899 — the guard's error messages come from the i18next singleton, and an
+ * UNINITIALIZED i18next returns the empty string for a key (measured: the
+ * pre-init bundle threw an `Error` with `message === ''`, a loud failure
+ * that named nothing — the same defect class this issue removes). The real
+ * app always runs with i18n initialized, so this entry mirrors that
+ * environment: it initializes the singleton synchronously with the real
+ * `en/common.json` resource (the guard's production texts, not a stand-in)
+ * before exposing the guard. `initImmediate: false` keeps the init
+ * synchronous because the resources are inline.
  */
+import i18next from 'i18next';
+
 import { assertIconIsVisible } from '../../src/components/table/data-table-icon-visibility-guard';
+import enCommon from '../../src/i18n/locales/en/common.json';
+
+i18next.init({
+	lng: 'en',
+	fallbackLng: 'en',
+	resources: { en: { translation: enCommon } },
+	initImmediate: false,
+	interpolation: { escapeValue: false },
+});
 
 declare global {
 	interface Window {
