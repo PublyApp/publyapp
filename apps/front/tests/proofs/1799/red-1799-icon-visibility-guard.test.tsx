@@ -209,8 +209,10 @@ describe('Icon visibility guard (#1799) — kept red proof', () => {
 	test('baseline: an unmutated icon is visible (no false positive)', () => {
 		const icon = renderAllSelected();
 		// No mutation, no reader: the helper's default reader is
-		// `window.getComputedStyle`, which returns `''` for every property
-		// in jsdom — and the helper MUST treat the icon as visible.
+		// `window.getComputedStyle`. Measured (issue #1899): jsdom 30
+		// returns RESOLVED defaults here (`visible` / `inline` / `1`), not
+		// the `''` an earlier comment claimed — and the helper MUST treat
+		// the icon as visible.
 		expect(() =>
 			assertIconIsVisible(icon, 'proof-1799 baseline'),
 		).not.toThrow();
