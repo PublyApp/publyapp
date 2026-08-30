@@ -108,6 +108,7 @@
 		"front-ci.yml::supply-chain::Check front column-type imports (#1769)",
 		"front-ci.yml::supply-chain::Check front design system",
 		"front-ci.yml::supply-chain::Check front formatting",
+		"front-ci.yml::supply-chain::Check route tree freshness (#1808)",
 		"front-ci.yml::supply-chain::Checkout",
 		"front-ci.yml::supply-chain::Install (frozen lockfile, no scripts)",
 		"front-ci.yml::supply-chain::Install Git hooks (mirrors prepare)",
@@ -500,6 +501,11 @@
 			"reason_hash": "ad9f03648bf0dfc2",
 			"reason_length": 99,
 			"reason": "ci-front runs the identical pnpm --filter front check:react-compiler after the front build (#1234)."
+		},
+		"front-ci.yml::supply-chain::Check route tree freshness (#1808)": {
+			"reason_hash": "c363b33bd819d627",
+			"reason_length": 608,
+			"reason": "ci-drift runs the identical pnpm --filter front check:route-tree. The committed routeTree.gen.ts is generated and versioned; a route change that lands without regenerating it leaves the tree stale, which both produces phantom +9-line diffs on every lane and splits typing truth between CI (committed file) and a developer who regenerated. The guard regenerates through the SAME derived generator the dev/build plugin uses and compares; on drift it fails naming the repair command (pnpm --filter front generate:route-tree) and restores the pre-check bytes so CI never leaves tracked-file churn behind (#1808)."
 		},
 		"front-ci.yml::supply-chain::Check front column-type imports (#1769)": {
 			"reason_hash": "aab0080ad391b02e",

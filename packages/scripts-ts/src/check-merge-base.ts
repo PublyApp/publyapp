@@ -46,7 +46,10 @@ const gitError = (error: unknown): string => {
 	if (err.stderr !== undefined && String(err.stderr).trim().length > 0) {
 		return String(err.stderr).trim();
 	}
-	return error instanceof Error ? error.message : String(error);
+	if (error instanceof Error) {
+		return error.message;
+	}
+	return String(error);
 };
 
 const runGit = (cwd: string, args: string[]): string => {
