@@ -363,6 +363,18 @@ void test('classifyLoadFailure maps the message shapes Node v24.19.0 really emit
 		),
 		{ kind: 'unclassified' },
 	);
+	// #1894: the verbatim ERR_UNSUPPORTED_DIR_IMPORT message captured from a
+	// real node v24.19.0 run (a directory as the import target).
+	assert.deepEqual(
+		classifyLoadFailure(
+			"check-shared-ts-node-resolution: ERR_UNSUPPORTED_DIR_IMPORT: Directory import '/pkg/src/utils/any.utils' is not supported resolving ES modules imported from /pkg/src/utils/retry-fn.ts\n",
+		),
+		{
+			kind: 'directory-import',
+			targetPath: '/pkg/src/utils/any.utils',
+			importer: '/pkg/src/utils/retry-fn.ts',
+		},
+	);
 });
 
 // ---- #1894 directory-import classification --------------------------------
@@ -396,7 +408,7 @@ void test('RED (#1894): importing a directory fails with the directory-import ca
 		`stderr must name the cause: a directory is not a valid entry point under Node ESM, got: ${result.stderr}`,
 	);
 	assert.ok(
-		result.stderr.includes('point the import at the file explicitly'),
+		result.stderr.includes('Point the import at the file explicitly'),
 		`stderr must name the next action: point the import at the file explicitly, got: ${result.stderr}`,
 	);
 	assert.ok(
