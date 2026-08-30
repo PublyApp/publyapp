@@ -98,6 +98,20 @@ Each rule is exposed under the `publy/*` namespace and registered in `.oxlintrc.
 - **Shipped in / Enforced in:** #1303 (22 baseline offenders across 12 files extracted in the same PR → 0 at enforcement).
 - **Re-measured in:** #1327 after peeling conditional/logical callees — 0 offenders across `apps/front/src`, `packages/**`, `apps/front/scripts` (config-copy method, oxlint 1.79.0, plugin firing verified by an injected probe file).
 
+### `publy/route-query-preload`
+
+- **Severity:** `"warn"` (deliberately not `error` — see "Enforced in" below)
+- **Source:** `packages/lint-ts/src/publy/route-query-preload.ts`
+- **Spec:** `packages/lint-ts/src/publy/route-query-preload.test.ts`
+- **Rationale (issue #1589, follow-up of #487):** a route file that calls a TanStack Query hook must declare `staticData.preload` in the same file. The mandatory contract test (`preload-contract.test.tsx`, plan §4 of `docs/records/2026-08-26-plan-preload-routes.md`) walks the REAL generated route tree and fails on any orphan preload key — but it can only see routes that already declare preload. This rule is the cheap first gate for the OTHER half: a query-consuming route that never declares `staticData.preload` is invisible to the contract test by construction.
+- **Autofix:** no
+- **Detection:** flags a file under `apps/front/src/routes/` (`.ts`/`.tsx`, tests/specs excluded) that calls a route query hook (`useQuery` exactly, or `/^use[A-Z].*\wQuery$/` — `useStaffTenantDetailsQuery`, `useSuspenseQuery`, `useInfiniteQuery`; deliberately not `useQueryClient` / `usePreloadQueries`) and does NOT contain a `preload` property nested inside a `staticData` object literal. One diagnostic per file, named with a concrete hook.
+- **Escape comments:** oxlint's native `oxlint-disable` directives, which `check-oxlint-disables.ts` requires to name the rule and carry a reviewable reason. The documented escapes are #487's secondary / interaction-triggered query classes (drawer, tab, preview data that must NOT be route-preloaded).
+- **Exclusions:** exactly `routes/__root.tsx`, `routes/authed/layout.tsx`, `routes/accept-invitation.tsx` (auth/routing surfaces where the preload hook mounts in the app shell instead — mirrors `prefer-query-display`'s allowlist), test/spec files, and anything outside `routes/`.
+- **Offender baseline before enforcement (2026-08-30, measure collée dans le PR #1589):** 51 route files / 51 diagnostics across `apps/front/src/routes/**` (one diagnostic per file). Zero `staticData.preload` declarations exist on the tree — the preload mechanism (plan T1–T7) has not landed yet; this number is the migration backlog it measures.
+- **Shipped in:** #1589 (warning level; invisible to `pnpm lint --quiet` until the mechanism lands).
+
+
 ## Anti-slop rules (`packages/lint-ts/src/anti-slop/`, vendored from dmmulroy/anti-slop)
 
 The 15 `anti-slop/*` rules are installed **neutral** (all `off`) and released as a **ladder**: one rule per PR, switched straight to `error` with every violation in the repo fixed in that same PR — never a `warn` stage, never a baseline of tolerated hits. The measured baseline per rule lives on issue #1160; pick the next rung from it. A PR that enables a rule must show `pnpm lint` green repo-wide at its tip.
