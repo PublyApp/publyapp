@@ -1,9 +1,19 @@
 import { expect, test } from '@playwright/test';
 
+import { checkFeatureAncestry } from './helpers/feature-ancestry.ts';
 import {
 	loginAsTenantUser,
 	SINGLE_TENANT_USER_CREDENTIALS,
 } from './helpers/login';
+
+// #1726: a branch that predates the publish-now merge (#1457, ef8a43d83) still
+// runs this e2e test, taken from the base — and the failure blames the wrong
+// PR. Before the test touches any UI that may not exist in the current tree,
+// verify that the feature commit is an ancestor of HEAD. If it is not, the
+// branch is older than the feature merge: fail LOUDLY naming the situation
+// and the remedy (rebase) instead of letting a downstream assertion break on
+// a missing page.
+checkFeatureAncestry('ef8a43d83', 'publish-now (#1457)');
 
 // The `chromium` project supplies a pre-authenticated staff-admin
 // `storageState` (playwright.config.ts). Every test here calls
