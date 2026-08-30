@@ -67,10 +67,12 @@ import { readdir } from 'node:fs/promises';
 import { dirname, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { ts } from 'ts-morph';
 import { afterAll, describe, it } from 'vitest';
 
 import {
 	analyzeModuleOrder,
+	isImmediatelyInvokedCallee,
 	ModuleOrderAnalysisError,
 	scanModuleOrderViolations,
 } from '../lib/module-order-analysis.ts';
@@ -1725,6 +1727,105 @@ class Probe {}
 					assert.strictEqual(error.file, 'fixture.ts');
 					assert.ok(error.diagnostics.length > 0);
 				}
+			});
+		});
+
+		describe('type-guard leg — isImmediatelyInvokedCallee narrows only to function-like callees (PR #1902)', () => {
+			// The guard MUST reject anything that is not an `ArrowFunction` or
+			// a `FunctionExpression` — otherwise `walkIIFE` would be handed a
+			// non-function node and the first code that reads `.body` (or
+			// `.parameters`) on it would crash at runtime, exactly the
+			// failure mode the original `as` cast was hiding.
+			//
+			// The leg below parses real `ts.Expression` nodes and checks the
+			// guard's return value AND the type-level narrowing it provides
+			// (the `.body` and `.parameters` accesses are only legal when the
+			// guard returned `true`).
+			//
+			// The paired-red mutation is dropping either of the two
+			// `ts.is*` checks: removing `ts.isArrowFunction` makes the
+			// `() => 1` case fail; removing `ts.isFunctionExpression` makes
+			// the `function () {}` case fail. Both legs together pin the
+			// full truth table.
+
+			// Parses a single TS expression source and returns the first
+			// top-level expression, with any wrapping parens stripped (the
+			// real call site does this via `unwrapParens` before invoking
+			// the guard — see `handleInvocation`).
+			const parseCalleeExpression = (source: string): ts.Expression => {
+				const sourceFile = ts.createSourceFile(
+					'callee.ts',
+					`(${source});`,
+					ts.ScriptTarget.Latest,
+					true,
+					ts.ScriptKind.TS,
+				);
+				let expr = (sourceFile.statements[0] as ts.ExpressionStatement)
+					.expression;
+				while (ts.isParenthesizedExpression(expr)) {
+					expr = expr.expression;
+				}
+				return expr;
+			};
+
+			it('accepts an arrow function callee (the IIFE shape)', () => {
+				const node = parseCalleeExpression('() => 1');
+				assert.strictEqual(isImmediatelyInvokedCallee(node), true);
+				// The narrowing is real: these accesses are only legal on
+				// `ArrowFunction | FunctionExpression`.
+				assert.ok(
+					ts.isArrowFunction(node),
+					'the narrowed node must be an arrow function',
+				);
+			});
+
+			it('accepts a function expression callee (named or anonymous)', () => {
+				const node = parseCalleeExpression('function () { return 1; }');
+				assert.strictEqual(isImmediatelyInvokedCallee(node), true);
+				assert.ok(
+					ts.isFunctionExpression(node),
+					'the narrowed node must be a function expression',
+				);
+			});
+
+			it('rejects a bare identifier callee (handled by the identifier branch upstream, never by the IIFE branch)', () => {
+				const node = parseCalleeExpression('foo');
+				assert.strictEqual(isImmediatelyInvokedCallee(node), false);
+			});
+
+			it('rejects a numeric literal callee', () => {
+				const node = parseCalleeExpression('42');
+				assert.strictEqual(isImmediatelyInvokedCallee(node), false);
+			});
+
+			it('rejects a string literal callee', () => {
+				const node = parseCalleeExpression("'x'");
+				assert.strictEqual(isImmediatelyInvokedCallee(node), false);
+			});
+
+			it('rejects an array literal callee', () => {
+				const node = parseCalleeExpression('[1, 2]');
+				assert.strictEqual(isImmediatelyInvokedCallee(node), false);
+			});
+
+			it('rejects an object literal callee (parens are stripped by the caller before this guard runs)', () => {
+				const node = parseCalleeExpression('{ a: 1 }');
+				assert.strictEqual(isImmediatelyInvokedCallee(node), false);
+			});
+
+			it('rejects a call expression callee (the call result, not a function definition)', () => {
+				const node = parseCalleeExpression('factory()');
+				assert.strictEqual(isImmediatelyInvokedCallee(node), false);
+			});
+
+			it('rejects a member access callee (e.g. `obj.prop`)', () => {
+				const node = parseCalleeExpression('obj.prop');
+				assert.strictEqual(isImmediatelyInvokedCallee(node), false);
+			});
+
+			it('rejects a binary expression callee', () => {
+				const node = parseCalleeExpression('a + b');
+				assert.strictEqual(isImmediatelyInvokedCallee(node), false);
 			});
 		});
 

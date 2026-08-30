@@ -228,6 +228,35 @@ const addScopeDeclaration = (
 };
 
 /**
+ * Records the parameters of a function-like node as scope bindings. Parameters
+ * are NOT statements (`ts.isVariableStatement`/`isFunctionDeclaration`/
+ * `isClassDeclaration` all reject them), so `collectDeclarations` cannot
+ * accept them. They DO introduce names into the surrounding scope, exactly
+ * like variable declarations do — a reference to the parameter name must
+ * resolve through this scope when the body runs. This helper exists so the
+ * intent ("a function parameter, not a statement, introduces a name") is
+ * named in the type and the call site cannot be mistaken for a statement
+ * collection that would later read `.statements` on a parameter.
+ */
+const collectParameterDeclarations = (
+	parameters: readonly ts.ParameterDeclaration[],
+	scope: Scope,
+): void => {
+	for (const parameter of parameters) {
+		if (!ts.isIdentifier(parameter.name)) {
+			continue;
+		}
+		addScopeDeclaration(
+			scope,
+			parameter.name.text,
+			position(parameter.name),
+			undefined,
+			false,
+		);
+	}
+};
+
+/**
  * Collects the direct lexical declarations of the statements in `statements`
  * into `scope`. Bindings are collected BEFORE the statements are walked, so
  * resolution is static (TDZ semantics: a `const` binding exists for the whole
@@ -895,7 +924,7 @@ const walkGetterAccess = (
 
 	// The getter body runs at the moment of property access.
 	const getterScope: Scope = { names: new Map() };
-	collectDeclarations(getter.node.parameters ?? [], getterScope);
+	collectParameterDeclarations(getter.node.parameters, getterScope);
 	scopes.push(getterScope);
 	for (const statement of getter.node.body?.statements ?? []) {
 		walkImmediate(
@@ -1036,11 +1065,17 @@ const unwrapParens = (node: ts.Expression): ts.Expression => {
 	return current;
 };
 
-/** Checks if a callee expression is a function expression or arrow function
- * (possibly wrapped in parentheses) — i.e., the callee of an IIFE. */
-const isImmediatelyInvokedCallee = (node: ts.Node): boolean => {
-	const unwrapped = unwrapParens(node as ts.Expression);
-	return ts.isFunctionExpression(unwrapped) || ts.isArrowFunction(unwrapped);
+/** Type guard: a callee expression (post-unwrap of parens) is the function
+ * expression of an IIFE — either a function expression or an arrow function.
+ * The caller must already have stripped any parenthesized wrappers; the
+ * surrounding `isParenthesizedExpression` nodes carry no function body of
+ * their own. Returning a type guard lets the compiler narrow the callee
+ * to `ts.ArrowFunction | ts.FunctionExpression` so `walkIIFE` accepts it
+ * without an `as` cast. */
+export const isImmediatelyInvokedCallee = (
+	node: ts.Expression,
+): node is ts.ArrowFunction | ts.FunctionExpression => {
+	return ts.isFunctionExpression(node) || ts.isArrowFunction(node);
 };
 
 /** Walks the body of an immediately-invoked anonymous function (an IIFE). The
@@ -1155,11 +1190,16 @@ const handleInvocation = (
 			chain,
 			visitedBindings,
 		);
-	} else if (isImmediatelyInvokedCallee(calleeExpression)) {
-		// IIFE: the callee is a function expression (possibly wrapped in
-		// parentheses). Its body (and parameter defaults) executes at this
-		// moment — module-evaluation time when the IIFE is at module level.
-		const fn = unwrapParens(calleeExpression);
+		return;
+	}
+
+	// IIFE: the callee is a function expression (possibly wrapped in
+	// parentheses). Its body (and parameter defaults) executes at this
+	// moment — module-evaluation time when the IIFE is at module level.
+	// The local binding carries the narrowed type from the type guard,
+	// so `walkIIFE` accepts it without a cast.
+	const fn = unwrapParens(calleeExpression);
+	if (isImmediatelyInvokedCallee(fn)) {
 		walkIIFE(
 			fn,
 			context,
@@ -1169,20 +1209,21 @@ const handleInvocation = (
 			chain,
 			visitedBindings,
 		);
-	} else {
-		// Member/expression callees can still carry immediately-executed
-		// parts (e.g. `obj[f()]()`); walk them, but not as a tracked
-		// invocation.
-		walkImmediate(
-			calleeExpression,
-			context,
-			scopes,
-			bodyRootIndex,
-			executionPos,
-			chain,
-			visitedBindings,
-		);
+		return;
 	}
+
+	// Member/expression callees can still carry immediately-executed
+	// parts (e.g. `obj[f()]()`); walk them, but not as a tracked
+	// invocation.
+	walkImmediate(
+		calleeExpression,
+		context,
+		scopes,
+		bodyRootIndex,
+		executionPos,
+		chain,
+		visitedBindings,
+	);
 
 	for (const argument of argumentsList) {
 		walkImmediate(
