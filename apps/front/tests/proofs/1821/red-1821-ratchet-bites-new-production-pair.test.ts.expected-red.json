@@ -7,5 +7,5 @@
 			"why": "On correct code the ratchet bites on a real new production duplicate and fails the guard, so the assertion that the guard passes fails with an AssertionError. If this test passes, the ratchet promise (bite on growth) is absent again."
 		}
 	],
-	"measuredAgainst": "1d425ffe7d86fea934ec4053e2d653a77d4f3c93"
+	"measuredAgainst": "f0bdc25e2da41cbacf9f0fc106921de4895936a1"
 }

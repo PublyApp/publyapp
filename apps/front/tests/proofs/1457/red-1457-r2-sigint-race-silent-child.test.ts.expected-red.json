@@ -11,5 +11,5 @@
 			"why": "On correct code, the structural assertion `expect(isHandlerDeferred(deferredLine)).toBe(false)` fails because isHandlerDeferred correctly classifies the setImmediate-wrapped line as deferred. If this test passes, isHandlerDeferred has been weakened to accept all lines as non-deferred (always-false) — the proof cannot measure the bug."
 		}
 	],
-	"measuredAgainst": "1d425ffe7d86fea934ec4053e2d653a77d4f3c93"
+	"measuredAgainst": "9d29052aa6437cb915631fdff09b88fbddb071dc"
 }

@@ -7,5 +7,5 @@
 			"why": "On correct code growth inside an already-paired pair is counted and fails the guard, so the assertion that the guard stays green fails with an AssertionError. If this test passes, the (buggy) counting that ignores intra-pair growth is back."
 		}
 	],
-	"measuredAgainst": "1d425ffe7d86fea934ec4053e2d653a77d4f3c93"
+	"measuredAgainst": "f0bdc25e2da41cbacf9f0fc106921de4895936a1"
 }

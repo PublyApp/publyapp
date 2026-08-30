@@ -11,5 +11,5 @@
 			"why": "On correct code the guard reads aria-hidden directly and raises, so `expect(...).not.toThrow()` fails with an AssertionError. If this test passes, the guard regressed to the old classList enumeration that misses aria-hidden."
 		}
 	],
-	"measuredAgainst": "1d425ffe7d86fea934ec4053e2d653a77d4f3c93"
+	"measuredAgainst": "0924167c380f718c9f4243eacaeca0f66f01d9dc"
 }
