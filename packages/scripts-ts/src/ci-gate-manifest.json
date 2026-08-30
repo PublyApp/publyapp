@@ -57,7 +57,7 @@
 			"reason": "CI-only compensation for the gitignored, absent .env.development, which TestEnvironment.Bootstrap() requires. Copies .env.example verbatim and deliberately does NOT force APP_ROLE=api here (unlike openapi-spec-drift.yml): `just test-api` exports APP_ROLE=all / ASPNETCORE_ENVIRONMENT=Testing itself, and since #1019 DotNetEnv's NoClobber option makes those process env vars win over the file. The suite provisions its own Postgres via Testcontainers, so no connection string is needed. Locally a developer already has a real repo-root .env.development, so `just test-api` needs no such step."
 		},
 		"api-tests.yml::suite::Run API test suite (shard ${{ matrix.shard }}/4)": {
-			"hash": "78bb5ceaa515aa02",
+			"hash": "0fa0beeee91455b5",
 			"mirror": null,
 			"reason": "Lane #1947: this is the sharded replacement for the removed 'Run full API test suite' step. Each of the 4 matrix shards runs a CLASSNAME-filtered subset of the suite via shard-api-tests-cli.ts, provisioning its own Testcontainers Postgres. The partitioning is by SHA-1 hash of the FQN (see packages/scripts-ts/src/shard-api-tests.ts), so every class lands deterministically in exactly one shard and a red shard is reproducible across re-runs. There is no single local `just test-api` invocation that covers only one shard's work, so this step is null-mirrored by design: `just ci` runs the FULL suite via `just test-api`, which is strictly stronger than any one shard. A reviewer who wonders whether the sharder itself is verified should read packages/scripts-ts/src/shard-api-tests.test.ts, which runs `dotnet test --list-tests` against the real project and asserts no class splits across shards, the union equals the full list, and all four shards are non-empty."
 		},
