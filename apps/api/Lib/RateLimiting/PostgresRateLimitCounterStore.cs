@@ -102,8 +102,6 @@ internal sealed partial class PostgresRateLimitCounterStore
 			return ApplyFailMode(policyName);
 		}
 
-		var windowStartedAt = GetWindowStart(utcNow, window);
-
 		try {
 			await using var scope = _scopeFactory.CreateAsyncScope();
 			var dbContext = scope.ServiceProvider
@@ -112,37 +110,51 @@ internal sealed partial class PostgresRateLimitCounterStore
 			// provider); every command auto-commits so the accounting UPSERT persists
 			// immediately — a wrapping transaction would let a later rollback undo
 			// permits other replicas already observed.
-			var connection =
-				(NpgsqlConnection)dbContext.Database.GetDbConnection();
+			var connection = dbContext.Database.GetDbConnection()
+				is not NpgsqlConnection npgsql
+				? throw new NotSupportedException(
+					"PostgresRateLimitCounterStore requires an "
+						+ "Npgsql-backed AppDbContext; "
+						+ "the configured provider is "
+						+ dbContext.Database.ProviderName
+				)
+				: npgsql;
 			if (connection.State != ConnectionState.Open) {
 				await connection.OpenAsync();
 			}
 
-			var newPermitCount = await UpsertCounterAsync(
+			// #1546: Window start is computed by Postgres from its own clock
+			// (floor(EXTRACT(EPOCH FROM now())) truncated to the window boundary),
+			// not from the app's clock. Two replicas with NTP drift therefore land
+			// in the same aligned window and share one budget row.
+			var upsert = await UpsertCounterAsync(
 				connection,
 				policyName,
 				partitionKey,
-				windowStartedAt,
+				window,
 				permitCount,
 				permitLimit
 			);
 
-			await DeleteSupersededWindowsAsync(
-				connection,
-				policyName,
-				partitionKey,
-				windowStartedAt
-			);
+			if (upsert is not null) {
+				await DeleteSupersededWindowsAsync(
+					connection,
+					policyName,
+					partitionKey,
+					upsert.Value.WindowStartedAt
+				);
+			}
 			await MaybeSweepExpiredAsync(connection, utcNow);
 
 			RecordSuccess();
-			return newPermitCount is not null
-				? CounterLeaseResult.Granted(newPermitCount.Value)
+			return upsert is not null
+				? CounterLeaseResult.Granted(upsert.Value.PermitCount)
 				: CounterLeaseResult.Rejected();
 		} catch (Exception exception) when (
 			exception is NpgsqlException
 				or DbUpdateException
 				or InvalidOperationException
+				or NotSupportedException
 		) {
 			RecordFailure();
 			LogAcquisitionFailed(exception, policyName);
@@ -184,33 +196,54 @@ internal sealed partial class PostgresRateLimitCounterStore
 		return Convert.ToHexString(hash)[..32];
 	}
 
-	private static async Task<long?> UpsertCounterAsync(
+	private readonly record struct UpsertResult(
+		long PermitCount,
+		DateTimeOffset WindowStartedAt
+	);
+
+	private static async Task<UpsertResult?> UpsertCounterAsync(
 		NpgsqlConnection connection,
 		string policyName,
 		string partitionKey,
-		DateTimeOffset windowStartedAt,
+		TimeSpan window,
 		int permitCount,
 		int permitLimit
 	) {
 		await using var command = connection.CreateCommand();
 		command.CommandTimeout = CommandTimeoutSeconds;
+		var windowSeconds = (long)window.TotalSeconds;
+		// #1546: window_started_at is computed by Postgres from its own clock
+		// (floor(EXTRACT(EPOCH FROM now())) truncated to the window boundary), not from the app clock. This guarantees every
+		// replica — even with NTP drift — lands in the same aligned window and
+		// shares exactly one counter row, eliminating silent budget splitting.
 		command.CommandText = """
 			INSERT INTO rate_limit_counters
 				(policy_name, partition_key_hash, window_started_at, permit_count)
-			VALUES ($1, $2, $3, $4)
+			VALUES (
+				$1, $2,
+				to_timestamp(floor(EXTRACT(EPOCH FROM now()) / $4::double precision) * $4::double precision),
+				$3
+			)
 			ON CONFLICT (policy_name, partition_key_hash, window_started_at) DO UPDATE
 				SET permit_count = rate_limit_counters.permit_count + EXCLUDED.permit_count
 				WHERE rate_limit_counters.permit_count + EXCLUDED.permit_count <= $5
-			RETURNING permit_count
+			RETURNING permit_count, window_started_at
 			""";
 		AddParameter(command, policyName);
 		AddParameter(command, HashPartitionKey(partitionKey));
-		AddParameter(command, windowStartedAt.UtcDateTime);
 		AddParameter(command, (long)permitCount);
+		AddParameter(command, windowSeconds);
 		AddParameter(command, (long)permitLimit);
 
-		var result = await command.ExecuteScalarAsync();
-		return result is long count ? count : null;
+		await using var reader = await command.ExecuteReaderAsync();
+		if (await reader.ReadAsync()) {
+			return new UpsertResult(
+				reader.GetInt64(0),
+				reader.GetFieldValue<DateTimeOffset>(1)
+			);
+		}
+
+		return null;
 	}
 
 	private static void AddParameter(
