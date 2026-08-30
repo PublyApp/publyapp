@@ -122,7 +122,7 @@ export const runTscListFiles = (config: string): string[] => {
 	if (result.status !== 0) {
 		throw new Error(
 			`tsc failed for ${config} (exit ${String(result.status)}) — ` +
-				`${String(result.stderr).trim()}`,
+				String(result.stderr).trim(),
 		);
 	}
 	return (result.stdout ?? '')
@@ -182,7 +182,7 @@ const main = (): void => {
 		)) {
 			problems.push(
 				`${config}: expected artifact absent from the typecheck program: ` +
-					`${path.relative(FRONT_DIR, missing)}`,
+					path.relative(FRONT_DIR, missing),
 			);
 		}
 	}
