@@ -264,6 +264,17 @@ jobs:
           SOCIAL_ACCOUNTS_MASTER_KEY: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
         run: dotnet build PublyApp.slnx --no-restore
 
+      # #1924: enforce C# formatting (whitespace, indentation, import ordering) via
+      # dotnet format --verify-no-changes. The compile-time code-style checks
+      # (TreatWarningsAsErrors + EnforceCodeStyleInBuild) do NOT catch WHITESPACE
+      # diagnostics — only dotnet format does.
+      - name: Check C# formatting (dotnet format --verify-no-changes)
+        env:
+          APP_ROLE: api
+          TRUSTED_PROXY_CIDRS: "127.0.0.1/32"
+          SOCIAL_ACCOUNTS_MASTER_KEY: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+        run: dotnet format PublyApp.slnx --verify-no-changes
+
       # NuGet vulnerability scan (issue #1187 rung 3). Uses the machine-readable
       # `--format json` output (not the text format that TreatWarningsAsErrors
       # breaks by converting NU1903 into an error before the grep pattern can
