@@ -43,6 +43,10 @@ on:
       # wake the gate.
       - 'packages/scripts-ts/src/check-no-ignored-tracked.ts'
       - 'packages/scripts-ts/src/check-no-ignored-tracked.test.ts'
+      # #1821: the jscpd ratchet and its reference + tests.
+      - 'packages/scripts-ts/src/check-jscpd.ts'
+      - 'packages/scripts-ts/src/check-jscpd.test.ts'
+      - 'packages/scripts-ts/src/jscpd-reference.json'
       # #1334 fix round 1: the dependency-health.md pin-location contract
       # (packages/scripts-ts/src/dependency-health-pin-location.test.ts) runs in
       # this workflow, so a pull request touching ONLY the guarded doc must
@@ -194,6 +198,14 @@ jobs:
 
       - name: Verify complexity bounds are not drifting (#1661)
         run: node packages/scripts-ts/src/check-cyclomatic-bound.ts
+      # #1821: production duplication ratchet. Runs the local gate
+      # (`just ci-jscpd`): full-tree jscpd scan with the single comma-separated
+      # exclusion list, then the guard's unit suite (vitest), then the ratchet
+      # guard itself, then the guard's typecheck. The manifest entry for this
+      # step mirrors `just ci-jscpd` exactly — the local command and the CI step
+      # are the same four commands in the same order.
+      - name: Verify production duplication has not increased (#1821)
+        run: just ci-jscpd
 
       - name: Lint plugin unit tests (lint-ts)
         run: pnpm --filter @org/lint-ts test

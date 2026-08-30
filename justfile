@@ -327,6 +327,21 @@ ci-drift:
   # or removes the step is caught locally as well as in CI.
   pnpm --filter scripts-ts exec vitest run src/prod-audit-bites.test.ts
 
+# #1821: production duplication ratchet. Runs jscpd against production paths and
+# verifies the unique pair count and line count are within the committed baseline.
+# NOTE: the exclusion list is a SINGLE comma-separated --ignore value. jscpd's
+# CLI keeps only the LAST repeated --ignore flag, so repeated flags silently
+# drop every exclusion but the last (measured in #1821-r2: only
+# apps/front/scripts never bound until the comma-separated form).
+ci-jscpd:
+  @echo "=== [gate] jscpd duplication ratchet ==="
+  @echo "Running jscpd scan..."
+  pnpm exec jscpd . --min-tokens 50 --ignore '/node_modules/**,/bin/**,/obj/**,/dist/**,/.artifacts/**,**/Migrations/**,.worktrees/**,packages/client-ts/**,apps/front/scripts/**' --reporters json --output .dump/jscpd-report.json
+  @echo "Verifying baseline..."
+  pnpm --filter scripts-ts exec vitest run src/check-jscpd.test.ts
+  node ./packages/scripts-ts/src/check-jscpd.ts
+  pnpm --filter scripts-ts exec tsc -p tsconfig.jscpd.json
+
 # Bind every pinned action SHA to the version its "# vX.Y.Z" comment claims
 # (#1392): resolves each tag through `gh api` (annotated tags peeled to their
 # commit) and compares against the pinned SHA; unparseable input fails loud.
@@ -544,7 +559,7 @@ ci-e2e-front:
 
 
 # Everyday pre-push gate (no e2e). Fails on the first red sub-gate.
-ci: ci-drift ci-migration-expand-contract ci-review-worktree-resolution ci-doc-links ci-deploy-env-docs ci-project-closure-adapter ci-no-ignored-tracked ci-install ci-format ci-lint ci-lint-ts ci-knip ci-shared-ts ci-quality ci-front ci-spec-drift nuget-audit test-api
+ci: ci-drift ci-migration-expand-contract ci-review-worktree-resolution ci-doc-links ci-jscpd ci-deploy-env-docs ci-project-closure-adapter ci-no-ignored-tracked ci-install ci-format ci-lint ci-lint-ts ci-knip ci-shared-ts ci-quality ci-front ci-spec-drift nuget-audit test-api
   @echo ""
   @echo "=== just ci: PASSED ==="
   @echo "Not covered here: the two e2e suites (run 'just ci-full')."

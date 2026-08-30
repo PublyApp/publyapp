@@ -51,9 +51,9 @@ import { afterEach, describe, expect, test, vi } from 'vitest';
 import { AppShell } from '~/components/app-shell/app-shell';
 import { Route as ProfileDetailsRoute } from '~/routes/authed/staff/tenants/$tenantId/profiles/$profileId';
 
-function widenOptions<T>(value: unknown): T {
+const widenOptions = <T,>(value: unknown): T => {
 	return value as T;
-}
+};
 
 type FakeClientCall = { path: readonly string[]; args: readonly unknown[] };
 type FakeResponse = Record<string, unknown>;

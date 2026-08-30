@@ -47,10 +47,10 @@ const fixturesDir = fileURLToPath(
  * would verify the switch against a model, not against reality. We feed the chain
  * a real vitest JSON report, exactly as run-preuves.mts does.
  */
-function classifyFixture(file: string, exitCode: number) {
+const classifyFixture = (file: string, exitCode: number) => {
 	const report = readProofReport(join(fixturesDir, file));
 	return classifyProof(report, exitCode);
-}
+};
 
 // --- Direct counterForVerdict tests (the pure mapping) ---
 

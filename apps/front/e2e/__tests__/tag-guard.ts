@@ -61,7 +61,7 @@ interface Token {
  * Correctly skips/identifies strings, template literals, regex literals,
  * and comments so that brace/paren counting is structural-only.
  */
-function tokenize(source: string): Token[] {
+const tokenize = (source: string): Token[] => {
 	const tokens: Token[] = [];
 	let i = 0;
 	const len = source.length;
@@ -277,7 +277,7 @@ function tokenize(source: string): Token[] {
 	}
 
 	return tokens;
-}
+};
 
 /* ------------------------------------------------------------------ */
 /* Public types & API                                                  */
@@ -314,7 +314,7 @@ const DESCRIBE_MODIFIERS = new Set([
  * (`function () {}`).  Unrecognized shapes produce an `error` field rather
  * than being silently skipped.
  */
-export function analyzeFile(filePath: string): DescribeInfo[] {
+export const analyzeFile = (filePath: string): DescribeInfo[] => {
 	const source = fs.readFileSync(filePath, 'utf8');
 	const tokens = tokenize(source);
 	const results: DescribeInfo[] = [];
@@ -624,4 +624,4 @@ export function analyzeFile(filePath: string): DescribeInfo[] {
 	}
 
 	return results;
-}
+};

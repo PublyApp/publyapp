@@ -9,6 +9,11 @@ import { SessionSurfaceValidationProvider } from '~/lib/session-surface-recovery
 
 import type { ParsedSessionTokens } from '@org/shared-ts/lib/session/parse';
 
+// NOTE: createQueryResult is intentionally a hoisted `function` declaration,
+// NOT a const arrow. vi.hoisted() runs at module load time and references
+// createQueryResult before a const arrow's initializer would run (temporal
+// dead zone). This is the one hoisting exception the brief allows.
+// eslint-disable-next-line func-style
 function createQueryResult(overrides: {
 	data: string | null | undefined;
 	isLoading?: boolean;
@@ -93,9 +98,9 @@ type MockMatch = {
 // `Route.options` types its members against the real route tree, so
 // `component`/`pendingComponent`/`beforeLoad` resolve through generics the
 // test can't name. The helper is the single widening point.
-function widenOptions<T>(value: unknown): T {
+const widenOptions = <T,>(value: unknown): T => {
 	return value as T;
-}
+};
 const routeOptions = widenOptions<{
 	component: ComponentType;
 	pendingComponent: ComponentType;

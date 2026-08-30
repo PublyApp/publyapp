@@ -1,0 +1,7 @@
+[
+	{
+		"file": "apps/front/src/routes/authed/layout.test.tsx",
+		"symbol": "createQueryResult",
+		"reason": "vi.hoisted() references createQueryResult before a const arrow's initializer would run (temporal dead zone). This hoisting exception is the one case the brief allows."
+	}
+]

@@ -231,9 +231,9 @@ import { Route as ProfilesRoute } from './profiles';
  * `routeTree.gen.ts` re-parents it onto the authed layout. Sibling stubs stand
  * in for the routes the page's own links point at, so a click that DID leave
  * the list would land somewhere observable instead of erroring. */
-function widenOptions<T>(value: unknown): T {
+const widenOptions = <T,>(value: unknown): T => {
 	return value as T;
-}
+};
 
 const buildRouter = (initialUrl: string) => {
 	const rootRoute = createRootRoute({
