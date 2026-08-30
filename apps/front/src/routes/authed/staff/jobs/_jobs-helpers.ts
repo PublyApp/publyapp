@@ -9,6 +9,10 @@
  * Returns the trimmed cause when present, the translated marker otherwise.
  * Never returns the dash (`no-value`) — that key is for genuinely-empty
  * non-cause fields (e.g. a missing job type), not for a missing failure cause.
+ *
+ * Uses a whitespace predicate wider than `String.prototype.trim` so that
+ * zero-width spaces (U+200B) and other Cf-category "invisible" characters
+ * that `trim()` leaves behind are treated as absent — see brief #1879.
  */
 export const formatFailureCause = (
 	cause: string | null | undefined,
@@ -19,7 +23,11 @@ export const formatFailureCause = (
 	}
 
 	const trimmed = cause.trim();
-	if (trimmed.length === 0) {
+	// `String.prototype.trim` does not strip U+200B (zero-width space,
+	// category Cf) or other invisible/zero-width characters. A cause that
+	// is visually empty — e.g. only U+200B or only spaces around it — must
+	// still show the marker. Strip Cf characters and re-check emptiness.
+	if (trimmed.replace(/\p{Cf}/gu, '').trim().length === 0) {
 		return t('common:no-cause');
 	}
 

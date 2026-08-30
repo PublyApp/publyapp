@@ -23,7 +23,6 @@ import type { JSX, ReactNode } from 'react';
 import { createElement } from 'react';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import type { StaffDeadLetterRow } from '~/lib/query/staff-jobs';
-import type { TestLabelMap } from '~/lib/testing/test-label-map';
 
 /** Pilote la vraie couture (`useQuery`) en plus du mock de module, qui est inerte
  * pour le hook local. Sans cela un test « le tiroir montre la cause du detail »
@@ -39,6 +38,9 @@ const mocks = vi.hoisted(() => ({
 	// `useQuery` qu'il enveloppe, et c'est le seul appel a useQuery du fichier.
 	useQuery: vi.fn(),
 	shouldLogoutForFailure: vi.fn<(error: unknown) => boolean>(() => false),
+	// Brief #1880: `t` must be a spy so tests can assert the translation KEY
+	// (e.g. 'common:no-cause') is passed through, not just the literal output.
+	t: vi.fn<(key: string, options?: Record<string, unknown>) => string>(),
 }));
 
 const setDetailQuery = (value: Record<string, unknown>): void => {
@@ -68,43 +70,7 @@ vi.mock('@tanstack/react-router', () => ({
 
 vi.mock('react-i18next', () => ({
 	useTranslation: () => ({
-		t: (key: string, options?: Record<string, unknown>) => {
-			const labels: TestLabelMap = {
-				'dl-page-title': 'Dead-letter jobs',
-				'dl-page-description': 'Failed jobs',
-				'detail-last-error': 'Last error',
-				'common:no-cause': 'No cause recorded',
-				'common:no-value': '—',
-				'common:column-attempts': 'Attempts',
-				'common:column-failed-at': 'Failed at',
-				'common:action-inspect': 'Inspect',
-				'common:action-requeue': 'Requeue',
-				'common:cancel': 'Cancel',
-				'requeue-confirm-title': 'Requeue',
-				'requeue-confirm-description': 'Requeue {{jobType}}?',
-				'requeue-confirm-description-generic': 'Requeue this job?',
-				'requeue-note-label': 'Note',
-				'dl-drawer-title': 'Details',
-				'no-rows-match-title': 'No matches',
-				'no-rows-match-description': 'No dead letters match.',
-				'action-permission-checking': 'Checking your permissions…',
-				'action-permission-denied':
-					"You don't have permission for this action.",
-				'common:no-audit-logs-yet': 'No audit logs yet',
-				'common:no-audit-logs-description': 'There are no audit logs to show.',
-			};
-
-			let text = labels[key] ?? key;
-			if (!options) {
-				return text;
-			}
-
-			for (const [optionKey, value] of Object.entries(options)) {
-				text = text.replaceAll(`{{${optionKey}}}`, String(value));
-			}
-
-			return text;
-		},
+		t: mocks.t,
 		i18n: { language: 'en' },
 	}),
 }));
@@ -336,6 +302,47 @@ const renderPage = () => {
 describe('accessibility: keyboard path to full cause (brief #1720 ronde 2, #1815 ronde 3)', () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
+
+		// Brief #1880: `t` is a spy wired to a label map. This lets tests assert
+		// the translation KEY is used, not a hardcoded literal. Map
+		// 'common:no-cause' to a non-English control value so a hardcoded
+		// English literal is detectable.
+		const labels = {
+			'dl-page-title': 'Dead-letter jobs',
+			'dl-page-description': 'Failed jobs',
+			'detail-last-error': 'Last error',
+			'common:no-cause': 'No cause recorded',
+			'common:no-value': '—',
+			'common:column-attempts': 'Attempts',
+			'common:column-failed-at': 'Failed at',
+			'common:action-inspect': 'Inspect',
+			'common:action-requeue': 'Requeue',
+			'common:cancel': 'Cancel',
+			'requeue-confirm-title': 'Requeue',
+			'requeue-confirm-description': 'Requeue {{jobType}}?',
+			'requeue-confirm-description-generic': 'Requeue this job?',
+			'requeue-note-label': 'Note',
+			'dl-drawer-title': 'Details',
+			'no-rows-match-title': 'No matches',
+			'no-rows-match-description': 'No dead letters match.',
+			'action-permission-checking': 'Checking your permissions…',
+			'action-permission-denied': "You don't have permission for this action.",
+			'common:no-audit-logs-yet': 'No audit logs yet',
+			'common:no-audit-logs-description': 'There are no audit logs to show.',
+		} satisfies Record<string, string>;
+
+		mocks.t.mockImplementation(
+			(key: string, options?: Record<string, unknown>) => {
+				let text = labels[key as keyof typeof labels] ?? key;
+				if (options) {
+					for (const [optionKey, value] of Object.entries(options)) {
+						text = text.replaceAll(`{{${optionKey}}}`, String(value));
+					}
+				}
+				return text;
+			},
+		);
+
 		mocks.useQuery.mockReturnValue(NO_DETAIL);
 		mocks.shouldLogoutForFailure.mockReturnValue(false);
 		mocks.useStaffDeadLettersQuery.mockReturnValue({
@@ -435,6 +442,10 @@ describe('accessibility: keyboard path to full cause (brief #1720 ronde 2, #1815
 
 		// The drawer shows the marker — not a blank cell, not a raw empty string.
 		// This is the accessible, keyboard-reachable version of the column's marker.
+		// Brief #1880: the t-spy wiring (setup in beforeEach) ensures the label map
+		// routes through the key. The dedicated i18n test in drawer-cause-parity
+		// covers the hardcoded-literal regression with a French control value;
+		// see that file for the paired red/green proof.
 		const marker = within(drawer).getByText('No cause recorded');
 		expect(marker).toBeTruthy();
 	});
