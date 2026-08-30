@@ -12,7 +12,7 @@ import {
 //
 // Usage:
 //   shard-api-tests-cli <shard>              # 1..SHARD_COUNT; print
-//                                            #   ClassName=FQN1|ClassName=FQN2|...
+//                                            #   FullyQualifiedName~FQN1|FullyQualifiedName~FQN2|...
 //                                            #   for `dotnet test --filter`
 //   shard-api-tests-cli --count <shard>      # print "shard <N> tests: K of T"
 //                                            #   (K = entries in shard, T = total)
@@ -22,13 +22,29 @@ import {
 //                                            #   from a stdin list-tests blob
 //
 // Default mode (no flag) reads the `dotnet test --list-tests` output from
-// stdin and prints the `--filter` predicate for the requested shard. The
-// predicate is `ClassName="FQN"`, ORed across the shard's classes: xUnit's
-// filter syntax treats `|` as OR when used between top-level expressions,
-// and a `ClassName=` exact match is precise — it matches only the exact
-// class FQN, not a substring of a longer FQN (unlike `FullyQualifiedName~`
-// which is a substring match and could match unintended classes if names
-// share prefixes).
+// stdin and prints the `--filter` predicate for the requested shard.
+//
+// WHY FULLYQUALIFIEDNAME~, NOT CLASSNAME=
+// ---------------------------------------
+// `ClassName="FQN"` looks like an xUnit class filter but is not one:
+// xUnit's trait filter syntax treats `ClassName=X` as a TRAIT key/value
+// match, and no test in this suite carries a `ClassName` trait, so a
+// `ClassName=` predicate matches zero tests and the shard exits green
+// with no work done. Worse, when the value contains `=`, MSBuild's
+// command-line parser interprets `--filter X=Y` as a property
+// assignment (`MSB4177: Invalid property. The name "..." contains an
+// invalid character "."`).
+//
+// `FullyQualifiedName~FQN` is xUnit's standard substring match on the
+// method's fully-qualified name. Every xUnit test method's FQN starts
+// with its class FQN, so `FullyQualifiedName~ClassFQN` matches every
+// method in that class and no method outside it. The `~` operator is
+// not `=`, so MSBuild does not see a property assignment. (The
+// shard-api-tests-cli itself does not import any xUnit library; the
+// `~` is just the documented xUnit filter operator.) Openapi-spec-drift
+// already uses the same operator against this same project
+// (`--filter "FullyQualifiedName~OpenApiContractSpec"`), so the
+// behaviour is established in this repo.
 
 const USAGE = `Usage:
   shard-api-tests-cli <shard>              Print --filter predicate for shard N (1..${SHARD_COUNT})
@@ -60,22 +76,28 @@ const readStdin = async () => {
 	return Buffer.concat(chunks).toString('utf8');
 };
 
-const printFilter = (classNames: string[]) => {
+const predicateForClasses = (classNames: string[]): string => {
 	if (classNames.length === 0) {
 		// Empty shard: emit a predicate that matches nothing rather
 		// than letting xUnit interpret an empty --filter as "run
-		// everything" (the historical default). xUnit's `ClassName=`
-		// requires a non-empty value, and `ClassName=""` matches
-		// classes with no namespace (which don't exist in this repo).
-		process.stdout.write('ClassName="\u0000never-matches"\n');
-		return;
+		// everything" (the historical default). xUnit's
+		// `FullyQualifiedName~` requires a non-empty value, and
+		// `FullyQualifiedName~""` matches every test (the inverse of
+		// what we want), so use a value xUnit cannot match: a string
+		// containing the NUL byte. xUnit's filter parser rejects the
+		// character and short-circuits to "no test matches", which is
+		// what we want for an empty shard: a fast green run, not an
+		// error.
+		return 'FullyQualifiedName~"\u0000never-matches"';
 	}
 
-	process.stdout.write(
-		classNames
-			.map((name) => `ClassName="${name.replace(/"/g, '\\"')}"`)
-			.join('|') + '\n',
-	);
+	return classNames
+		.map((name) => `FullyQualifiedName~"${name.replace(/"/g, '\\"')}"`)
+		.join('|');
+};
+
+const printFilter = (classNames: string[]) => {
+	process.stdout.write(predicateForClasses(classNames) + '\n');
 };
 
 const printCount = (shardIndex: number, partition: ShardPartition) => {
@@ -116,9 +138,7 @@ const runDotnetTest = (
 				.filter((name): name is string => name !== null),
 		),
 	);
-	const filter = classNames
-		.map((name) => `ClassName="${name.replace(/"/g, '\\"')}"`)
-		.join('|');
+	const filter = predicateForClasses(classNames);
 
 	const args = ['test', project];
 
@@ -126,7 +146,7 @@ const runDotnetTest = (
 		// --filter with an unreachable value makes xUnit short-circuit
 		// out of the test loop with zero discovered tests, which is what
 		// we want for an empty shard: a fast green run, not an error.
-		args.push('--filter', 'ClassName="\u0000never-matches"');
+		args.push('--filter', 'FullyQualifiedName~"\u0000never-matches"');
 	} else {
 		args.push('--filter', filter);
 	}

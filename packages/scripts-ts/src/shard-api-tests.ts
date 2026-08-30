@@ -30,6 +30,24 @@ import { createHash } from 'node:crypto';
 // lands in the same shard, so a re-run on the same commit reproduces the
 // same failure on the same shard, and an unrelated commit that moves a
 // class into a different shard leaves the original red shard alone.
+//
+// THE --list-tests PARSE CONTRACT (Round 2)
+// -----------------------------------------
+// Round 1 of #1947 (commit 776c2b4ca) shipped a parser that returned
+// `null` for any line it could not interpret — a forgiving design that
+// silently dropped the line. Round 2 (#1984) tightens the contract:
+// `classFqnFromListLine` distinguishes three outcomes:
+//   - `null`         — a KNOWN non-test line (header, blank, summary)
+//   - `<class FQN>`  — a line whose shape matches the test-entry grammar
+//   - throws         — a non-empty line whose shape does NOT match the
+//                      grammar. A `dotnet test --list-tests` blob that
+//                      contains such a line has been corrupted (e.g.,
+//                      piped from the wrong `dotnet test` subcommand, or
+//                      from a `dotnet test --filter ...` run that
+//                      produces the "ClassName=... -> /path/..." line).
+//                      Silently turning it into a class FQN would seed
+//                      the predicate with garbage and quietly fail every
+//                      shard. Failing loud forces a real investigation.
 
 export const SHARD_COUNT = 4;
 
@@ -77,6 +95,60 @@ export const shardFor = (
 };
 
 /**
+ * The shape every test entry in `dotnet test --list-tests` MUST match.
+ * Captured as a single regex so the parser and the strict-mode tests
+ * agree on what counts as a real test entry vs. a header line.
+ *
+ * Matches, on a trimmed line:
+ *   - `<PascalCase identifier segments separated by .>`
+ *   - `.` (the boundary between class FQN and method name)
+ *   - `<method name>` (a PascalCase identifier — xUnit's `[Fact]` and
+ *     `[Theory]` convention)
+ *   - optional `(parenthesized parameter list)` (theory parameters)
+ *
+ * No `->`, no `=`, no path separators: a line like
+ *   `ClassName="PublyApp.Api.Tests -> /home/runner/.../PublyApp.Api.Tests"`
+ * does NOT match, and the parser throws.
+ */
+const TEST_ENTRY_GRAMMAR =
+	/^[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)+$/;
+
+// Strip the trailing theory parameter list if present. Theory lines
+// look like
+//   `    Foo.BarSpec.ItShouldDoX(value: "admin")`
+// and may contain anything (including nested parens, e.g.
+// `(logoUrl: "javascript:alert(document.cookie)")`). A naive
+// `\([^)]*\)\s*$` regex breaks on nested parens: it stops at the
+// first `)` it sees, leaving a trailing `(...)` stranded at end of
+// line. The correct shape is "the LAST `(` that has its matching
+// `)` at end of line" — walked right-to-left counting depth.
+const stripTrailingParenGroup = (s: string): string => {
+	if (!s.endsWith(')')) {
+		return s;
+	}
+
+	let depth = 0;
+
+	for (let i = s.length - 1; i >= 0; i--) {
+		const c = s[i];
+
+		if (c === ')') {
+			depth++;
+		} else if (c === '(') {
+			depth--;
+
+			if (depth === 0) {
+				return s.slice(0, i).trimEnd();
+			}
+		}
+	}
+
+	// Unbalanced parens at end of line: fall through to grammar check,
+	// which will reject the line.
+	return s;
+};
+
+/**
  * Strip a `--list-tests` line down to its class fully-qualified name.
  *
  * `dotnet test --list-tests` emits one line per discovered test, indented
@@ -86,10 +158,26 @@ export const shardFor = (
  *   `    PublyApp.Api.Foo.BarSpec.ItShouldDoX(value: "foo")`
  * This returns `PublyApp.Api.Foo.BarSpec` in both cases.
  *
+ * Returns:
+ *   - `null`     — the line is a KNOWN non-test entry (header, blank,
+ *                  summary, "X test(s) discovered", etc.)
+ *   - `<class FQN>` — the line matches the test-entry grammar
+ *
+ * Throws when the line is non-empty, is not a known header, and does NOT
+ * match the test-entry grammar. That happens when the blob fed to
+ * `partitionFromListOutput` is not a real `--list-tests` listing — for
+ * example, the output of a `dotnet test --filter ...` invocation
+ * (which writes `No test matches the given testcase filter
+ * \`ClassName=...\` in /path/to/PublyApp.Api.Tests.dll`) starts with a
+ * line `ClassName="PublyApp.Api.Tests -> /path/.../PublyApp.Api.Tests"`,
+ * which the round-1 parser happily accepted as a class FQN and silently
+ * partitioned. Round 2 (#1984) throws instead, so the partition fails
+ * loudly rather than producing a green shard that ran zero tests.
+ *
  * @param {string} line - one raw line from `dotnet test --list-tests`
- * @returns {string | null} the class FQN, or `null` if the line is not a
- *   test entry (header lines, blank lines, the trailing
- *   "X test(s) discovered" summary line)
+ * @returns {string | null} the class FQN, or `null` for known headers
+ * @throws when the line is not empty, not a known header, and not a
+ *   valid test entry
  */
 export const classFqnFromListLine = (line: string): string | null => {
 	const trimmed = line.trim();
@@ -100,28 +188,45 @@ export const classFqnFromListLine = (line: string): string | null => {
 
 	// Summary / header lines: "The following Tests are available:",
 	// "X test(s) discovered", "Test run for ... (.NETCoreApp,...)".
+	// MSBuild build messages appear above the listing
+	// (`<Project> -> <path>` shape) even with `--nologo`. Round 2
+	// skips them explicitly rather than relying on the grammar to
+	// reject them, so the partition does not throw on the inevitable
+	// build trail when a shard happens to need a build.
 	if (
 		trimmed.startsWith('The following Tests') ||
 		trimmed.startsWith('Test run for ') ||
-		/\btest\(s\) discovered\b/.test(trimmed)
+		/\btest\(s\) discovered\b/.test(trimmed) ||
+		/->\s/.test(trimmed)
 	) {
 		return null;
 	}
 
-	// Drop the trailing `(args: ...)` parameter suffix if present. The
-	// suffix is always parenthesized and always comes after the method
-	// name (a PascalCase identifier), so matching from the last `.`+word
-	// boundary forward is sufficient.
-	const withoutParams = trimmed.replace(/\([^)]*\)\s*$/, '');
+	// Strip the optional trailing parenthesized parameter list (theory
+	// parameters). Without this, a theory line like
+	//   `    Foo.BarSpec.ItShouldDoX(value: "admin")`
+	// would not match TEST_ENTRY_GRAMMAR because of the `(value: ...)`
+	// tail. The grammar (not this strip) defines what counts as a test
+	// entry; this strip just prepares the line for the grammar check.
+	const withoutParams = stripTrailingParenGroup(trimmed);
 
-	// Drop the last segment (the method name). Methods start with a
-	// capital letter by xUnit convention; the preceding dot is the
-	// namespace/class separator we want to keep.
-	const lastDot = withoutParams.lastIndexOf('.');
-
-	if (lastDot < 1) {
-		return null;
+	if (!TEST_ENTRY_GRAMMAR.test(withoutParams)) {
+		// The line is non-empty, not a known header, and not a valid
+		// test entry. The blob we are parsing is not a real
+		// `--list-tests` listing. Fail loud: silently coercing this
+		// to a class FQN was the round-1 defect (silently seeded the
+		// shard predicate with garbage and produced four green shards
+		// that ran zero tests).
+		throw new Error(
+			`shard-api-tests: cannot parse line as a --list-tests entry: ${JSON.stringify(line)}\n` +
+				`Expected the indented shape '    <Namespace>.<ClassSpec>.<MethodName>' or its theory variant '(args: ...)'. ` +
+				`Got a non-empty, non-header line that does not match — most often this means the blob fed to partitionFromListOutput() is not a real --list-tests output (e.g., the output of a failed 'dotnet test --filter ...' run, which produces lines like 'No test matches the given testcase filter ...' and 'ClassName="..." -> /path/...').`,
+		);
 	}
+
+	// Drop the last segment (the method name) — the test-entry grammar
+	// guarantees at least one `.`, so the slice is always defined.
+	const lastDot = withoutParams.lastIndexOf('.');
 
 	return withoutParams.slice(0, lastDot);
 };
@@ -129,10 +234,10 @@ export const classFqnFromListLine = (line: string): string | null => {
 /**
  * Partition a raw `dotnet test --list-tests` blob into per-shard test
  * entries. Preserves the original line text on every emitted entry, so
- * the consumer can reuse xUnit's `DisplayName` filter syntax directly:
- * a shard's `entries` joined by `|` produces a `--filter` predicate
- * `DisplayName~"name1"|DisplayName~"name2"|...` that exactly matches what
- * the runner would have discovered.
+ * the consumer can reuse xUnit's filter syntax directly: a shard's
+ * `entries` joined by `|` produces a `--filter` predicate of
+ * `FullyQualifiedName~"name1"|FullyQualifiedName~"name2"|...` that
+ * matches exactly the methods the runner would have discovered.
  *
  * @param {string} listOutput - the entire stdout of
  *   `dotnet test --list-tests`
@@ -163,6 +268,10 @@ export const partitionFromListOutput = (
 	let totalTestCount = 0;
 
 	for (const line of listOutput.split('\n')) {
+		// `classFqnFromListLine` returns `null` for known headers and
+		// throws on unparseable lines. A throw aborts the partition
+		// loudly, which is the round-2 fix for the round-1 silent
+		// acceptance of malformed input.
 		const classFqn = classFqnFromListLine(line);
 
 		if (classFqn === null) {

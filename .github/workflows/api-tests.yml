@@ -161,9 +161,31 @@ jobs:
         run: cp .env.example .env.development
 
       # Discover tests, partition by hash of class FQN, and run only this
-      # shard's classes. The sharder emits a `ClassName="FQN"` OR-predicate
-      # that xUnit interprets as "run exactly these classes". Each shard
-      # provisions its own Postgres via Testcontainers — no shared state.
+      # shard's classes. The sharder emits a `FullyQualifiedName~FQN1|FullyQualifiedName~FQN2|...`
+      # predicate that xUnit interprets as "run all test methods whose FQN
+      # contains one of these class FQNs". Each shard provisions its own
+      # Postgres via Testcontainers — no shared state.
+      #
+      # ROUND 2 FIXES (#1984):
+      # 1. Filter operator is `FullyQualifiedName~`, not `ClassName=`:
+      #    `ClassName=X` is xUnit's TRAIT-filter syntax, not a class filter,
+      #    so a `ClassName=` predicate matches zero tests in this suite and
+      #    the shard exits green with no work done. `FullyQualifiedName~X`
+      #    is xUnit's substring match on the method's FQN — every method
+      #    in class X has an FQN starting with X, so the predicate matches
+      #    exactly X's tests. The `~` operator is not `=`, which also
+      #    dodges MSBuild's `--filter X=Y`-as-property-assignment parse.
+      # 2. The CI step parses the test summary line and ASSERTS that
+      #    tests actually ran. An exit code of 0 from `dotnet test` does
+      #    NOT prove tests ran — `dotnet test --filter ...` exits 0 with
+      #    no test executions when the predicate matches nothing (and
+      #    used to leave the matrix step green). The grep below catches
+      #    that and fails the step, naming the shard.
+      # 3. The shard writes a `shard-summary.json` artifact carrying
+      #    `executed` (parsed from the summary line) and `partitionTotal`
+      #    (from the partition manifest). The `gate` job downloads all
+      #    four artifacts and asserts sum(executed) == partitionTotal —
+      #    the property the partition must preserve.
       - name: Run API test suite (shard ${{ matrix.shard }}/4)
         env:
           APP_ROLE: all
@@ -175,16 +197,89 @@ jobs:
           dotnet restore Tests/PublyApp.Api.Tests.csproj
 
           # Discover all tests, partition, and run this shard's classes.
-          # shard-api-tests-cli prints a `ClassName=FQN1|ClassName=FQN2|...`
-          # predicate; we pass it to `dotnet test --filter`.
+          # Capture both the predicate and the partition manifest: the
+          # predicate runs `dotnet test`, the manifest carries the
+          # total-discovered figure for the gate's sum-vs-total check.
           FILTER=$(dotnet test Tests/PublyApp.Api.Tests.csproj -c Test --no-restore --nologo --list-tests 2>/dev/null \
             | node "${{ github.workspace }}/packages/scripts-ts/src/shard-api-tests-cli.ts" ${{ matrix.shard }})
 
+          # Re-run --list-tests to obtain the manifest (same blob, second
+          # partition). `--list-tests` is idempotent on a built project.
+          MANIFEST=$(dotnet test Tests/PublyApp.Api.Tests.csproj -c Test --no-restore --nologo --list-tests 2>/dev/null \
+            | node "${{ github.workspace }}/packages/scripts-ts/src/shard-api-tests-cli.ts" --manifest)
+
           echo "Shard ${{ matrix.shard }} filter: $FILTER"
 
+          # Run with the predicate interpolated. Double quotes are safe
+          # here: the predicate uses `~` (FullyQualifiedName~"FQN"|...),
+          # not `=`, so MSBuild does not interpret any token as a
+          # property assignment. Single quotes would skip interpolation
+          # (round 1's regression — `dotnet test --filter '$FILTER'`
+          # passed the literal `$FILTER` and matched zero tests).
           dotnet test Tests/PublyApp.Api.Tests.csproj -c Test --no-restore --nologo \
-            --verbosity minimal --logger "console;verbosity=normal" \
-            --filter '$FILTER'
+            --verbosity normal --logger "console;verbosity=normal" \
+            --filter "$FILTER" 2>&1 | tee shard-${{ matrix.shard }}-run.log
+
+          # ASSERTS that real tests ran (round 2 fix #2). A clean exit
+          # from `dotnet test` does not prove work was done; the
+          # predicate could have matched nothing. Both conditions below
+          # are needed:
+          #   - the summary line shows Passed + Skipped + Failed > 0
+          #     (counted from `Passed: N, ... Total: M` on the final
+          #     summary line);
+          #   - the output does NOT contain `No test matches the given
+          #     testcase filter`, which is the marker for a zero-match
+          #     predicate.
+          SUMMARY_LINE=$(grep -E '^[[:space:]]*Passed![[:space:]]' shard-${{ matrix.shard }}-run.log | tail -n1 || true)
+
+          if [ -z "$SUMMARY_LINE" ]; then
+            echo "::error::[SHARD ${{ matrix.shard }}/4] No 'Passed!' summary line in the test output. The shard ran zero tests — the predicate matched nothing or `dotnet test` failed before producing a summary. Filter was: $FILTER"
+            exit 1
+          fi
+
+          if grep -qE 'No test matches the given testcase filter' shard-${{ matrix.shard }}-run.log; then
+            echo "::error::[SHARD ${{ matrix.shard }}/4] 'No test matches the given testcase filter' was printed. The filter matched zero tests — the predicate is wrong. Filter was: $FILTER"
+            exit 1
+          fi
+
+          # Parse 'Total: N' from the summary line. `grep -oE 'Total:[[:space:]]+[0-9]+'`
+          # extracts the value; the test below enforces Total > 0.
+          TOTAL=$(echo "$SUMMARY_LINE" | grep -oE 'Total:[[:space:]]+[0-9]+' | grep -oE '[0-9]+' | tail -n1)
+
+          if [ -z "$TOTAL" ] || [ "$TOTAL" -eq 0 ]; then
+            echo "::error::[SHARD ${{ matrix.shard }}/4] Summary line present but 'Total:' was zero or missing. The shard ran zero tests. Summary line: $SUMMARY_LINE"
+            exit 1
+          fi
+
+          echo "Shard ${{ matrix.shard }} executed $TOTAL tests."
+
+          # Per-shard summary artifact for the gate's sum-vs-total
+          # assertion (round 2 fix #3). The gate job downloads all four
+          # artifacts and asserts sum(executed) == partitionTotalTestCount.
+          cd "${{ github.workspace }}"
+          mkdir -p api-shard-summaries
+          jq -n \
+            --argjson shard ${{ matrix.shard }} \
+            --argjson executed "$TOTAL" \
+            --argjson manifest "$MANIFEST" \
+            '{
+              shard: $shard,
+              executed: $executed,
+              partitionTotal: $manifest.totalTestCount,
+              partitionClassCount: $manifest.totalClassCount
+            }' > api-shard-summaries/shard-${{ matrix.shard }}.json
+          echo "Wrote shard summary: $(cat api-shard-summaries/shard-${{ matrix.shard }}.json)"
+
+      # Always-on shard-summary upload: the gate's sum-vs-total check needs
+      # every shard's summary to be downloadable even on success. Failure
+      # log capture stays conditional below.
+      - name: Upload shard summary (always)
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: api-shard-summary-${{ github.run_id }}-${{ matrix.shard }}
+          path: api-shard-summaries/shard-${{ matrix.shard }}.json
+          retention-days: 5
 
       # Failure-only log capture: get failing specs off the ephemeral runner.
       - name: Upload test results on failure
@@ -195,6 +290,7 @@ jobs:
           path: |
             apps/api/Tests/TestResults/
             apps/api/.artifacts/logs/
+            api-shard-summaries/
           if-no-files-found: ignore
           retention-days: 5
 
@@ -297,3 +393,111 @@ jobs:
             echo "::error::steps.check-required-jobs.outcome was \"$outcome\", not \"success\". continue-on-error can rewrite a step's CONCLUSION but not its OUTCOME, so a masked required-jobs check failure is still caught here."
             exit 1
           fi
+
+      # ROUND 2 FIX (#1984) — ASSERT that the four shards preserved the
+      # partition. The `check-required-jobs` step above verifies that
+      # each matrix shard's parent job reported `success`, but a parent
+      # job can be `success` while every child silently ran zero tests
+      # (this is the round-1 defect: `dotnet test --filter X` exits 0
+      # when X matches nothing, the matrix job reports `success`, and
+      # four green shards certified a partition that did no work).
+      #
+      # Each shard writes an `api-shard-summary-<run-id>-<shard>.json`
+      # artifact with `executed` (parsed from the `Passed!` summary line)
+      # and `partitionTotal` (from the partition manifest). This step
+      # downloads all four summaries, sums `executed`, and asserts the
+      # sum equals `partitionTotal` — the property the partition MUST
+      # preserve, and the property a round-1 silent zero-run shard could
+      # never satisfy.
+      #
+      # Why here and not in the `suite` job: the matrix's parent job
+      # cannot aggregate matrix subtotal data (GitHub exposes only
+      # `result`, no per-shard outputs). The aggregation step needs
+      # cross-shard state, so it must run in a downstream job. Putting
+      # it in `gate` keeps the topology honest (one logical check,
+      # one job boundary) and avoids introducing a fourth job whose
+      # existence the structural guard would need to be told about.
+      - name: Download shard summaries
+        if: needs.changes.outputs.relevant == 'true'
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          pattern: api-shard-summary-${{ github.run_id }}-*
+          path: shard-summaries
+          merge-multiple: false
+
+      - name: Verify shard-sum equals partition total
+        if: needs.changes.outputs.relevant == 'true'
+        run: |
+          # 1. Exactly four summaries, one per shard (1..4). A
+          #    missing or duplicated summary means a shard was lost
+          #    or doubled — either is a partition violation.
+          expected_count=4
+          actual_count=$(find shard-summaries -maxdepth 1 -type f -name 'shard-*.json' | wc -l)
+
+          if [ "$actual_count" -ne "$expected_count" ]; then
+            echo "::error::Expected exactly $expected_count shard summary files under shard-summaries/, found $actual_count. Each of the 4 matrix shards must have produced one summary."
+            find shard-summaries -maxdepth 1 -type f -name 'shard-*.json' -printf '  %p\n' || true
+            exit 1
+          fi
+
+          # 2. Every summary has the expected shape: a `shard` number
+          #    in [1,4], a non-negative `executed`, and a non-negative
+          #    `partitionTotal`. A summary missing any of these is a
+          #    sign the shard step produced malformed output — fail
+          #    loud rather than trust a 0.
+          for f in shard-summaries/shard-*.json; do
+            shape_ok=$(jq -e '
+              (.shard | type == "number" and . >= 1 and . <= 4) and
+              (.executed | type == "number" and . >= 0) and
+              (.partitionTotal | type == "number" and . >= 0)
+            ' "$f" >/dev/null 2>&1 && echo yes || echo no)
+            if [ "$shape_ok" != "yes" ]; then
+              echo "::error::Summary $f does not have the expected shape {shard: number 1..4, executed: number >=0, partitionTotal: number >=0}. Contents: $(cat "$f")"
+              exit 1
+            fi
+          done
+
+          # 3. Every shard reports the same partitionTotal — the
+          #    partition is deterministic (sha1 of class FQN modulo 4),
+          #    so all four shards see the same discovered total. A
+          #    mismatch would mean a shard was built against a
+          #    different --list-tests blob (e.g., the test project
+          #    rebuilt between shards with a different test count).
+          distinct_totals=$(jq -r '.partitionTotal' shard-summaries/shard-*.json | sort -u | wc -l)
+          if [ "$distinct_totals" -ne 1 ]; then
+            echo "::error::The four shards reported different partition totals (the partition is supposed to be deterministic). The test project likely rebuilt with a different test count between shards."
+            for f in shard-summaries/shard-*.json; do
+              echo "  $(jq -c '.' "$f")"
+            done
+            exit 1
+          fi
+
+          # 4. THE ASSERTION: sum(executed) == partitionTotal. This is
+          #    the property the partition MUST preserve and the
+          #    property a round-1 silent zero-run shard could never
+          #    satisfy. Every shard reports its own `executed` and its
+          #    own `partitionTotal`; they agree on the partitionTotal
+          #    (check 3), so we can use any of them as the RHS.
+          total_executed=$(jq -s '[.[].executed] | add' shard-summaries/shard-*.json)
+          partition_total=$(jq -r '.partitionTotal' shard-summaries/shard-*.json | head -n1)
+          total_partition_class=$(jq -s '[.[].partitionClassCount] | add' shard-summaries/shard-*.json | head -n1)
+
+          echo "Shard execution summary:"
+          for f in shard-summaries/shard-*.json; do
+            echo "  $(jq -c '.' "$f")"
+          done
+          echo "Sum of executed across 4 shards: $total_executed"
+          echo "Partition total (discovered):    $partition_total"
+          echo "Partition class count:           $total_partition_class"
+
+          if [ "$total_executed" -ne "$partition_total" ]; then
+            echo "::error::Shard-sum does not equal partition-total. The partition failed to preserve the discovered test count — one or more shards ran fewer tests than they were assigned, or the predicate matched nothing. Expected $partition_total, got $total_executed."
+            exit 1
+          fi
+
+          if [ "$total_executed" -eq 0 ]; then
+            echo "::error::The four shards together executed zero tests. The partition is broken end-to-end — every shard's predicate matched nothing."
+            exit 1
+          fi
+
+          echo "Shard-sum equals partition-total: $total_executed == $partition_total."

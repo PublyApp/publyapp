@@ -213,7 +213,50 @@ describe('classFqnFromListLine', () => {
 	});
 
 	it('ShouldReturnNullWhenThereIsNoClassSeparator', () => {
-		expect(classFqnFromListLine('    JustAMethodName')).toBe(null);
+		// Round 2 (#1984): a single-segment line like `JustAMethodName`
+		// has no class boundary, so it does not match the test-entry
+		// grammar. The round-1 parser returned null for "no boundary";
+		// the round-2 parser throws on "shape does not match any
+		// known header AND does not match the grammar". Either
+		// outcome rejects the line — null just silently drops it, throw
+		// aborts the partition. This asserts the strict-mode contract.
+		expect(() => classFqnFromListLine('    JustAMethodName')).toThrow(
+			/cannot parse line as a --list-tests entry/,
+		);
+	});
+
+	it('ShouldThrowOnANoTestMatchesFilterErrorLine', () => {
+		// Round 2 (#1984): the round-1 defect was that lines from
+		// `dotnet test --filter ...` were silently parsed as class
+		// FQNs. The most dangerous shape was anything that ended up
+		// looking like `<dots>.<dots>.<dots>` after the round-1 parser
+		// stripped a tail. The round-2 grammar throws on it, naming
+		// the mis-shape. The arrow-shaped `ClassName="..." -> /path/...`
+		// is now caught by the explicit MSBuild-skip rule (returns
+		// null, not throws); both behaviours reject the line, just
+		// for different reasons.
+		expect(() =>
+			classFqnFromListLine(
+				'No test matches the given testcase filter `Foo` in /tmp/PublyApp.Api.Tests.dll',
+			),
+		).toThrow(/cannot parse line as a --list-tests entry/);
+	});
+
+	it('ShouldSkipMsBuildArrowLinesThatAppearAboveTheListing', () => {
+		// MSBuild build messages (`<Project> -> <path>`) appear above
+		// the actual `--list-tests` listing even with `--nologo`. They
+		// are NOT test entries and the partition must skip them, not
+		// throw. Round 2 explicitly classifies them as headers.
+		expect(
+			classFqnFromListLine(
+				'  PublyApp.Api.Tests -> /home/runner/work/PublyApp.Api.Tests.dll',
+			),
+		).toBe(null);
+		expect(
+			classFqnFromListLine(
+				'    ClassName="PublyApp.Api.Tests -> /home/runner/work/PublyApp.Api.Tests.dll"',
+			),
+		).toBe(null);
 	});
 });
 
