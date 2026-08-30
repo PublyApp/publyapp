@@ -17,6 +17,13 @@ namespace PublyApp.Api.Lib.Logging;
 // LogEvents still queued at SIGTERM/StopAsync are dropped — and the dropped events
 // are exactly the ones that explain why the process exited.
 //
+// DEPENDENCY: xUnit runs test classes serially by default (collection execution
+// order is non-parallel unless [CollectionDefinition] enables parallelism). These
+// tests mutate the static Serilog.Log.Logger without a lock; enabling parallel
+// class execution would require either a collection-level lock or a [Collection]
+// attribute isolating this class to serial execution. The current behaviour is
+// correct because xUnit's default serial class execution is the implicit contract.
+//
 // The composition witness below pins the registration: both host roles must carry
 // THE concrete SerilogFlushOnShutdown hosted service, the only type whose StopAsync
 // drains anything. The two behavioral tests then pin the artifact itself: StopAsync
