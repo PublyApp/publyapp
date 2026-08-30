@@ -18,16 +18,29 @@
  *    runs `pnpm --filter front typecheck` executes it, and its own unit test
  *    runs inside the front test suite.
  *
+ * What each config must attend:
+ * - tsconfig.json — every real TypeScript file under e2e/ (specs + helpers).
+ *   #1760 claimed this surface escaped all type checking; measured here it is
+ *   already inside the main program (the tsconfig include globs match it),
+ *   so this entry pins that measurement: a future edit that excludes e2e from
+ *   the main config turns the guard red instead of silently reopening the gap.
+ * - tsconfig.server.json — the production entry `server.mjs` (#1758).
+ * - tsconfig.js-surfaces.json — the deploy/request-counter scripts and the
+ *   tooling `.cjs` (#1760).
+ *
  * FAIL-CLOSED: a config listed here that tsc cannot run, a program that lists
- * nothing, or a coverage table with no entries is a failure — never a skip.
+ * nothing, a coverage table with no entries, or an e2e tree that yields zero
+ * files is a failure — never a skip.
  */
 
 import { spawnSync } from 'node:child_process';
+import { existsSync, readdirSync, statSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const FRONT_DIR = path.resolve(HERE, '..', '..');
+const E2E_DIR = path.join(FRONT_DIR, 'e2e');
 
 export type CoverageExpectation = {
 	/** Path of the tsconfig, relative to apps/front. */
@@ -37,12 +50,65 @@ export type CoverageExpectation = {
 	expected: readonly string[];
 };
 
-export const COVERAGE_EXPECTATIONS: readonly CoverageExpectation[] = [
-	{
-		config: 'tsconfig.server.json',
-		expected: ['server.mjs'],
-	},
+export const EXPECTED_SERVER_FILES: readonly string[] = ['server.mjs'];
+
+export const EXPECTED_JS_SURFACE_FILES: readonly string[] = [
+	'deploy/request-counter/control-routes.mjs',
+	'deploy/request-counter/control-routes.test.mjs',
+	'deploy/request-counter/server.mjs',
+	'src/components/ui/drawer-guard-tmp-dir.cjs',
 ];
+
+/** Real `.ts`/`.tsx` files under a root, walked from the actual tree. Fails
+ * closed on a missing root: a guard that reports compliance for a tree it
+ * never read is worse than one that fails loud. */
+export const listTypeScriptFiles = (root: string): string[] => {
+	if (!existsSync(root)) {
+		throw new Error(
+			`the directory to scan does not exist — ${root}. The coverage guard ` +
+				'cannot report compliance for a tree it never read.',
+		);
+	}
+
+	const out: string[] = [];
+	const walk = (dir: string): void => {
+		for (const entry of readdirSync(dir)) {
+			const full = path.join(dir, entry);
+			if (statSync(full).isDirectory()) {
+				if (entry === 'node_modules') {
+					continue;
+				}
+				walk(full);
+				continue;
+			}
+			if (full.endsWith('.ts') || full.endsWith('.tsx')) {
+				out.push(full);
+			}
+		}
+	};
+	walk(root);
+	return out;
+};
+
+/** Coverage table, resolved at run time so the e2e entry is measured from the
+ * real tree rather than a copied list (a hand-maintained list would drift). */
+export const resolveCoverageExpectations = (): CoverageExpectation[] => {
+	const e2eFiles = listTypeScriptFiles(E2E_DIR);
+	if (e2eFiles.length === 0) {
+		throw new Error(
+			`found ZERO e2e TypeScript files under ${E2E_DIR} — examining nothing ` +
+				'must never pass.',
+		);
+	}
+	return [
+		{ config: 'tsconfig.json', expected: e2eFiles },
+		{ config: 'tsconfig.server.json', expected: EXPECTED_SERVER_FILES },
+		{
+			config: 'tsconfig.js-surfaces.json',
+			expected: EXPECTED_JS_SURFACE_FILES,
+		},
+	];
+};
 
 /** Run `tsc --noEmit -p <config> --listFiles` and return the absolute paths
  * tsc put in the program. Throws (never returns an empty compliance) when tsc
@@ -78,18 +144,18 @@ export const findMissingProgramFiles = (
 };
 
 const main = (): void => {
-	if (COVERAGE_EXPECTATIONS.length === 0) {
-		console.error(
-			'typecheck coverage guard: no coverage expectations configured — ' +
-				'nothing would be verified. Fail loud rather than report compliance.',
-		);
+	let expectations: CoverageExpectation[];
+	try {
+		expectations = resolveCoverageExpectations();
+	} catch (err) {
+		console.error(`typecheck coverage guard FAILED: ${(err as Error).message}`);
 		process.exit(1);
 	}
 
 	const problems: string[] = [];
 	let expectedCount = 0;
 
-	for (const { config, expected } of COVERAGE_EXPECTATIONS) {
+	for (const { config, expected } of expectations) {
 		let programFiles: string[];
 		try {
 			programFiles = runTscListFiles(config);
@@ -130,7 +196,7 @@ const main = (): void => {
 	}
 
 	console.log(
-		`typecheck coverage guard: ${COVERAGE_EXPECTATIONS.length} config(s), ` +
+		`typecheck coverage guard: ${expectations.length} config(s), ` +
 			`${expectedCount} expected artifact(s) present in their programs [OK]`,
 	);
 };

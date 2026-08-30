@@ -18,7 +18,7 @@
 		"verify:build": "node scripts/guards/verify-build-css-link.mts && node scripts/guards/verify-font-bundle.mts",
 		"verify:fonts": "node scripts/guards/verify-font-bundle.mts",
 		"start": "node server.mjs",
-		"typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.server.json && node scripts/guards/check-typecheck-coverage.mts",
+		"typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.server.json && tsc --noEmit -p tsconfig.js-surfaces.json && node scripts/guards/check-typecheck-coverage.mts",
 		"test:request-counter": "node --test deploy/request-counter/control-routes.test.mjs",
 		"test:e2e-compose-env": "node --test scripts/e2e-compose-env.test.mts",
 		"test:route-tree-guard": "node --test scripts/generate/check-route-tree-freshness.test.mts scripts/generate/route-tree-generator.test.mts && pnpm check:route-tree",

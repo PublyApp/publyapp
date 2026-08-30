@@ -1,9 +1,22 @@
 const CONTROL_INDEX_PATH = '/__counter';
 const CONTROL_RESET_PATH = '/__counter/reset';
 
+/**
+ * @typedef {object} ControlRequest
+ * @property {string} [method]
+ * @property {string} [url]
+ */
+
+/**
+ * @typedef {{ statusCode: number, headers: Record<string, string>, body: string }} ControlResponse
+ */
+
+/** @param {string} method @param {string} path @returns {string} */
 const getCountKey = (method, path) => `${method} ${path}`;
+/** @param {string | undefined} requestUrl @returns {string} */
 const getRawPath = (requestUrl) => (requestUrl ?? '/').split('?')[0] ?? '/';
 
+/** @param {Map<string, number>} counts @param {string} path @returns {number} */
 const getPathTotal = (counts, path) => {
 	let total = 0;
 
@@ -17,6 +30,7 @@ const getPathTotal = (counts, path) => {
 	return total;
 };
 
+/** @param {string} allow @returns {ControlResponse} */
 const methodNotAllowed = (allow) => ({
 	statusCode: 405,
 	headers: {
@@ -34,6 +48,7 @@ const notFound = () => ({
 	body: 'Not Found',
 });
 
+/** @param {unknown} body @returns {ControlResponse} */
 const json = (body) => ({
 	statusCode: 200,
 	headers: {
@@ -42,6 +57,11 @@ const json = (body) => ({
 	body: JSON.stringify(body),
 });
 
+/**
+ * @param {ControlRequest} request
+ * @param {Map<string, number>} counts
+ * @returns {ControlResponse | null}
+ */
 export const getControlResponse = (request, counts) => {
 	const method = request.method ?? 'GET';
 	const rawPath = getRawPath(request.url);
@@ -81,6 +101,10 @@ export const getControlResponse = (request, counts) => {
 	return null;
 };
 
+/**
+ * @param {import('node:http').ServerResponse} res
+ * @param {ControlResponse} response
+ */
 export const writeControlResponse = (res, response) => {
 	for (const [key, value] of Object.entries(response.headers)) {
 		res.setHeader(key, value);
