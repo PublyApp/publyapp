@@ -4,11 +4,11 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { QueryClient } from '@tanstack/react-query';
-// #1690 / #1691 : le classificateur lit des regex sur du texte brut — un `>`
-// dans un littéral de chaîne, ou une définition de type introuvable, le met
-// en défaut silencieusement. On passe par l'AST via le TypeScript vendoré par
-// ts-morph (le `import ts from 'typescript'` nu n'expose plus la Compiler API
-// sous TypeScript 7 — précédent : check-design-system.mts, même commentaire).
+// #1690 / #1691: the classifier read regexes over raw text — a `>` inside a
+// string literal, or a type definition it could not resolve, defeated it
+// silently. We go through the AST via ts-morph's vendored TypeScript
+// (`import ts from 'typescript'` bare no longer exposes the Compiler API
+// under TypeScript 7 — precedent: check-design-system.mts, same comment).
 import { ts } from 'ts-morph';
 import { describe, expect, test, vi } from 'vitest';
 
@@ -864,12 +864,12 @@ const staffUsersQueryOptions = buildStaffQueryOptions<
 	});
 });
 
-// ── #1690 : le classificateur AST ne se laisse pas piéger par les
-// littéraux de chaîne ──
+// ── #1690 : the AST classifier is not tripped by string
+// literals ──
 //
-// - #1690 : un `>` dans un littéral de chaîne en position d'argument
-//   générique (ou dans le corps de l'appel) arrêtait la regex non-greedy trop
-//   tôt → usine ignorée. L'AST n'a pas ce problème.
+// - #1690 : a `>` in a string literal in the generic argument
+//   position (or in the call body) was stopping the non-greedy regex
+//   too early → factory silently skipped. The AST has no such issue.
 
 describe('string-literal > does not stop the match (#1690)', () => {
 	test('#1690 — a `>` inside a string literal in the call body does NOT stop the match', () => {
@@ -899,12 +899,14 @@ const staffUsersQueryOptions = buildStaffQueryOptions<
 	});
 });
 
-// ── #1691 : un type *QueryVariables importé (pas déclaré dans la source)
-// provoque un échec bruyant — jamais un `continue` silencieux ──
+// ── #1691 : an imported *QueryVariables type
+// (not declared in source) throws loudly — never a silent
+// `continue` ──
 //
-// - #1691 : quand le type `*QueryVariables` est importé (pas déclaré dans la
-//   source), le code faisait `continue` silencieusement. C'est un faux négatif
-//   — interdit par la doctrine du repo (échec bruyant). On throw maintenant.
+// - #1691 : when the `*QueryVariables` type is imported (not
+//   declared in source), the code did a silent `continue`. That is
+//   a false negative — forbidden by the repo doctrine (loud
+//   failure). It now throws instead.
 
 describe('imported *QueryVariables type throws loudly (#1691)', () => {
 	test('#1691 — an imported *QueryVariables type throws instead of silently skipping', () => {
@@ -935,37 +937,37 @@ const staffUsersQueryOptions = buildStaffQueryOptions<
 });
 
 /**
- * #1690 / #1691 / #1925-r3 (point 1 & 2) : le classificateur lit maintenant l'AST
- * via le TypeScript vendoré par ts-morph — plus de regex sur du texte brut.
+ * #1690 / #1691 / #1925-r3 (point 1 & 2) : the classifier now reads the AST
+ * via ts-morph's vendored TypeScript — no more regex over raw text.
  *
- * - #1690 (réglé) : un `>` dans un littéral de chaîne en position d'argument
- *   générique arrêtaient la regex non-greedy trop tôt → usine ignorée.
- *   L'AST n'a pas ce problème.
- * - #1691 (réglé) : quand la définition du type `*QueryVariables` est
- *   introuvable (ex. importée, pas dans la source), le code faisait `continue`
- *   silencieusement. C'est un faux négatif silencieux — interdit par la
- *   doctrine du repo (échec bruyant). On throw maintenant.
+ * - #1690 (fixed) : a `>` in a string literal in the generic argument
+ *   position was stopping the non-greedy regex too early → factory
+ *   silently skipped. The AST has no such issue.
+ * - #1691 (fixed) : when the `*QueryVariables` type definition is
+ *   not found (e.g. imported, not in source), the code did a silent
+ *   `continue`. That is a silent false negative — forbidden by the
+ *   repo doctrine (loud failure). It now throws instead.
  *
- * Pré-filtre retiré (#1690-r2) : la regex `LIST_QUERY_FACTORY_RE` qui
- * court-circuitait l'analyse AST quand le source ne contenait pas la chaîne
- * littérale `build*QueryOptions<` produisait un faux négatif silencieux pour
- * les modules qui importent la fabrique sous un alias
- * (`import { buildStaffQueryOptions as bsq } from '...'` puis `bsq<…>(…)`).
- * Le coût de `ts.createSourceFile` sur l'arbre complet (26 modules réels,
- * 250 Ko, 51 ms en pratique) est négligeable face au risque d'un « rien à
- * signaler » qui cache une régression. L'AST fait l'analyse de toute façon ;
- * la regex textuelle n'apportait qu'un raccourci peu fiable.
+ * Pre-filter removed (#1690-r2) : the `LIST_QUERY_FACTORY_RE` regex
+ * that short-circuited the AST analysis when the source did not contain
+ * the literal string `build*QueryOptions<` produced a silent false
+ * negative for modules that import the factory under an alias
+ * (`import { buildStaffQueryOptions as bsq } from '...'` then `bsq<…>(…)`).
+ * The cost of `ts.createSourceFile` on the full tree (26 real modules,
+ * 250 KB, 51 ms in practice) is negligible compared to the risk of a
+ * "nothing to report" hiding a regression. The AST does the analysis
+ * anyway; the textual regex was just an unreliable shortcut.
  *
- * Résolution d'alias (#1925-r3, point 1) : un import
- * `import { buildStaffQueryOptions as bsq } from '...'` fait que le site
- * d'appel utilise `bsq<…>(…)`, qui ne correspond pas au motif de nom. On
- * construit une map des alias locaux → noms importés depuis les
- * ImportDeclaration pour résoudre le nom avant la correspondance.
+ * Alias resolution (#1925-r3, point 1) : an import
+ * `import { buildStaffQueryOptions as bsq } from '...'` makes the call
+ * site use `bsq<…>(…)`, which does not match the name pattern. We
+ * build a map of local alias → imported name from ImportDeclaration
+ * nodes to resolve the name before matching.
  *
- * Échec bruyant sur source illisible (#1925-r3, point 2) : `ts.createSourceFile`
- * ne lève pas sur une source invalide — il produit un arbre partiel et
- * `countListQueryFactories` retourne 0 en silence. On lève maintenant avec
- * le nom du fichier et les diagnostics de parse.
+ * Loud failure on unparseable source (#1925-r3, point 2) : `ts.createSourceFile`
+ * does not throw on invalid input — it produces a partial AST and
+ * `countListQueryFactories` returns 0 silently. It now throws with
+ * the file name and the parse diagnostics.
  */
 const countListQueryFactories = (
 	source: string,
@@ -1023,8 +1025,8 @@ const countListQueryFactories = (
 			}
 		}
 	});
-	// Collecte les déclarations de types (type alias + interface) indexées par
-	// nom, pour la résolution ultérieure du type `*QueryVariables`.
+	// Collect type declarations (type alias + interface) indexed by
+	// name, for later resolution of the `*QueryVariables` type.
 	const typeDeclarations = new Map<
 		string,
 		ts.TypeAliasDeclaration | ts.InterfaceDeclaration
@@ -1042,10 +1044,12 @@ const countListQueryFactories = (
 			);
 		}
 	});
-	// Champs qui caractérisent une liste paginée (cursor/keyset ou offset).
+	// Fields that characterize a paginated list
+	// (cursor/keyset or offset).
 	const isPaginationMember = (name: string): boolean =>
 		/(?:^|\.)(?:cursor|sortId|sortOrder|size|page|limit|q)$/.test(name);
-	// Détermine si un type (TypeLiteral ou interface) déclare de la pagination.
+	// Determines whether a type (TypeLiteral or interface)
+	// declares pagination.
 	const declaresPagination = (
 		node: ts.TypeAliasDeclaration | ts.InterfaceDeclaration,
 	): boolean => {
@@ -1061,8 +1065,8 @@ const countListQueryFactories = (
 						isPaginationMember(m.name.text),
 				);
 			}
-			// type X = SomeWrapper<...> (alias vers un type paramétré) : on résout
-			// récursivement si la cible est déclarée dans la source.
+			// type X = SomeWrapper<...> (alias to a parameterized type): resolve
+			// recursively if the target is declared in the source.
 			if (typeNode.kind === ts.SyntaxKind.TypeReference) {
 				const refName = (typeNode as ts.TypeReferenceNode).typeName.getText(sf);
 				const target = typeDeclarations.get(refName);
@@ -1084,8 +1088,8 @@ const countListQueryFactories = (
 		}
 		return false;
 	};
-	// Extrait le nom du type `*QueryVariables` d'un argument générique (peut
-	// être imbriqué dans un generic : SomeWrapper<PageQueryVariables>).
+	// Extracts the `*QueryVariables` type name from a generic argument (may
+	// be nested inside a generic: SomeWrapper<PageQueryVariables>).
 	const extractVariablesTypeName = (typeNode: ts.TypeNode): string | null => {
 		if (typeNode.kind === ts.SyntaxKind.TypeReference) {
 			const ref = typeNode as ts.TypeReferenceNode;
@@ -1093,7 +1097,7 @@ const countListQueryFactories = (
 			if (refName.endsWith('QueryVariables')) {
 				return refName;
 			}
-			// Tester les arguments génériques (ex. SomeWrapper<PageQueryVariables>)
+			// Test generic arguments (e.g. SomeWrapper<PageQueryVariables>)
 			if (ref.typeArguments) {
 				for (const arg of ref.typeArguments) {
 					const nested = extractVariablesTypeName(arg);
@@ -1105,7 +1109,7 @@ const countListQueryFactories = (
 		}
 		return null;
 	};
-	// Visite récursivement l'AST pour compter les usines de liste.
+	// Walks the AST recursively to count list factories.
 	let count = 0;
 	const visit = (node: ts.Node): void => {
 		if (node.kind === ts.SyntaxKind.CallExpression) {
@@ -1128,7 +1132,7 @@ const countListQueryFactories = (
 						if (!declaration) {
 							// #1691 : le type est introuvable dans la source. C'est
 							// une erreur — pas un `continue` silencieux. Un type
-							// importé doit être signalé pour que la source soit
+							// imported must be reported so the source is
 							// auto-suffisante.
 							throw new Error(
 								`countListQueryFactories: type '${variablesTypeName}' is not declared in-source (it may be imported). The classifier cannot resolve its pagination shape. Either declare the type locally or update the classifier to resolve imports.`,
@@ -1235,26 +1239,26 @@ export const useDownloadAuditLog = () =>
 	});
 });
 
-// ── Preuve rouge #1690-r2 : un `>` IMBRIQUÉ dans un argument de type générique ──
+// ── Red proof #1690-r2: a `>` NESTED inside a generic type argument ──
 //
-// Le test livré par le PR #1925 place le `>` dans une chaîne DE HORS des
+// The test delivered by PR #1925 places the `>` inside a string OUTSIDE the
 // arguments de type (dans le corps de l'appel, `fetcher: async () => ({ id: 'a > b' })`).
-// Cette chaîne n'affecte pas la regex non-greedy `<([\s\S]*?)>\s*\(` : son contenu
-// se trouve APRÈS le `>` qui ferme les arguments de type, donc après le match.
+// This string does not affect the non-greedy regex `<([\s\S]*?)>\s*\(` : its content
+// is found AFTER the `>` that closes the type arguments, so after the match.
 //
-// Le cas décrit par l'issue #1690 (et la ronde 1) est différent : un `>` placé À
-// L'INTÉRIEUR des arguments de type — c'est-à-dire dans un littéral de chaîne
-// utilisé comme type, à l'intérieur d'un argument générique imbriqué. Le PR
+// The case described by issue #1690 (and round 1) is different: a `>` placed INSIDE
+// of the type arguments — that is, inside a string literal
+// used as a type, inside a nested generic argument. The PR
 // n'expose pas ce cas. La reproduction ci-dessous est le cas exact que la regex
-// non-greedy rate : le troisième argument générique est un type paramétré
-// `Container<"a > b", PageQueryVariables>`. La regex s'arrête au premier `>`
-// (celui du littéral `"a > b"`), capture `ApiClient, Response, Container<"a `,
+// non-greedy rate : the third generic argument is a parameterized type
+// `Container<"a > b", PageQueryVariables>`. The regex stops at the first `>`
+// (the one from the literal `"a > b"`), captures `ApiClient, Response, Container<"a `,
 // et l'extraction `splitTopLevel` + `match(/[\w]*QueryVariables\b/)` ne retrouve
-// jamais `PageQueryVariables` → la fabrique est silencieusement ignorée → 0.
+// never `PageQueryVariables` → the factory is silently ignored → 0.
 //
-// Attendu sur l'ANCIEN code (regex) : retourne 0 (faux négatif silencieux).
+// Expected on OLD code (regex): returns 0 (silent false negative).
 // Attendu sur le NOUVEAU code (AST via ts-morph) : retourne 1 (extraction
-// correcte du nom du type *QueryVariables dans les génériques imbriqués).
+// correct detection of the *QueryVariables type name in nested generics).
 
 describe('nested-generic arg with ">" inside a string-literal type — #1690-r2', () => {
 	test('a ">" inside a string-literal generic argument defeats the regex (RED on old, GREEN on AST)', () => {
