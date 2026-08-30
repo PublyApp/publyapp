@@ -102,6 +102,25 @@ bool HostPort5454IsFree(bool plainBind = false, SocketError? forcedBindError = n
 
 	var probe = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
 	probe.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
+	// Issue #1926 point 3: the explicit SetSocketOption above is redundant with
+	// .NET's managed default on Linux today (strace-verified) — removing it
+	// compiles cleanly and the residue test still greens, so any future runtime
+	// change to the default would silently re-introduce the round-4 false
+	// positive. Read the option back and throw if the kernel did not actually
+	// enable SO_REUSEADDR: the architecture guard (which compares this probe's
+	// exit code to the --plain-bind-preflight exit code on the same residue)
+	// reddens the moment the option flips off, because the throw exits 1 and
+	// the residue still has no listener, so the comparison diverges.
+	if (probe.GetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress) is not int reuseAddr
+		|| reuseAddr == 0) {
+		throw new InvalidOperationException(
+			"Le probe 5454 n'a pas SO_REUSEADDR active apres SetSocketOption — "
+				+ "le defaut de la plateforme a change et le faux positif de la "
+				+ "ronde 4 (bind sur residu de fermeture = EADDRINUSE) revient. "
+				+ "Reactivez la ligne SetSocketOption ci-dessus, ou mettez a jour "
+				+ "le probe pour basculer explicitement la valeur."
+		);
+	}
 	try {
 		probe.Bind(new IPEndPoint(IPAddress.Loopback, 5454));
 		return true;
@@ -293,7 +312,12 @@ if (args.Contains("--probe-bind-fault")) {
 	ProbeBindFault(parsedCode);
 }
 
-if (!HostPort5454IsFree(args.Contains("--plain-bind-preflight"))) {
+// --hold-port-5454 must skip the preflight: it IS the listener and the
+// preflight would (correctly) report the port occupied, killing the test
+// helper before it can accept the residue probe. The preflight is for the
+// user-facing flows (boot and --preflight-only), not for this guard hook.
+if (!args.Contains("--hold-port-5454")
+	&& !HostPort5454IsFree(args.Contains("--plain-bind-preflight"))) {
 	FailLoudlyOnOccupiedPort();
 }
 
