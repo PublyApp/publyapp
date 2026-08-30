@@ -300,6 +300,16 @@ public static partial class ResponseKeys {
 	public static readonly TranslationKey PostNotFound = new("post-not-found");
 
 	/// <summary>
+	/// Nothing scheduled to cancel
+	/// </summary>
+	public static readonly TranslationKey PostScheduleCancelNoop = new("post-schedule-cancel-noop");
+
+	/// <summary>
+	/// Schedule cancelled — the post is back in drafts
+	/// </summary>
+	public static readonly TranslationKey PostScheduleCancelledSuccess = new("post-schedule-cancelled-success");
+
+	/// <summary>
 	/// profile
 	/// </summary>
 	public static readonly TranslationKey Profile = new("profile");
@@ -328,6 +338,16 @@ public static partial class ResponseKeys {
 	/// The provider could not be reached; nothing was stored
 	/// </summary>
 	public static readonly TranslationKey ProviderUnreachable = new("provider-unreachable");
+
+	/// <summary>
+	/// This account is not attached to the post&apos;s project. Pick an account visible in the project, or remove the post&apos;s project.
+	/// </summary>
+	public static readonly TranslationKey PublicationScheduleAccountNotInProject = new("publication-schedule-account-not-in-project");
+
+	/// <summary>
+	/// A publication for this post is being published right now
+	/// </summary>
+	public static readonly TranslationKey PublicationScheduleInProgress = new("publication-schedule-in-progress");
 
 	/// <summary>
 	/// Publishing started
