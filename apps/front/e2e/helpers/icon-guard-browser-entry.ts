@@ -27,7 +27,10 @@ import i18next from 'i18next';
 import { assertIconIsVisible } from '../../src/components/table/data-table-icon-visibility-guard';
 import enCommon from '../../src/i18n/locales/en/common.json';
 
-i18next.init({
+// `init` returns a `Promise` even with `initAsync: false` (the app's own
+// call in `src/lib/i18n.shared.ts` voids it for the same reason); the
+// resources are inline, so the init resolves before the next task runs.
+void i18next.init({
 	lng: 'en',
 	fallbackLng: 'en',
 	resources: { en: { translation: enCommon } },
