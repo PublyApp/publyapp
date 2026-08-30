@@ -22,11 +22,11 @@ const {
 	resolveSeoTranslator,
 } = await import('./server');
 
-const originalWarn = logger.warn;
+const originalWarn = () => logger.warn();
 
 beforeEach(() => {
 	vi.clearAllMocks();
-	logger.warn = vi.fn();
+	() => (logger.warn = vi.fn());
 	mockGetServerEnv.mockReturnValue({
 		apiBaseUrl: 'http://localhost:5000',
 		nodeEnv: 'production',
@@ -35,7 +35,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-	logger.warn = originalWarn;
+	() => (logger.warn = originalWarn());
 });
 
 // This handler injects request-origin/locale-derived values into raw HTML —

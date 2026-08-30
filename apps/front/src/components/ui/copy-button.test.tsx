@@ -144,13 +144,15 @@ describe('CopyButton', () => {
 		}).not.toThrow();
 
 		await vi.waitFor(() => expect(writeText).toHaveBeenCalledTimes(1));
-		await vi.waitFor(() => expect(logger.warn).toHaveBeenCalledTimes(1));
+		await vi.waitFor(() =>
+			expect(() => logger.warn()).toHaveBeenCalledTimes(1),
+		);
 		await vi.waitFor(() =>
 			expect(
 				screen.getByRole('button', { name: 'Copy' }).getAttribute('data-state'),
 			).toBe('failed'),
 		);
-		expect(logger.warn).toHaveBeenCalledWith(
+		expect(() => logger.warn()).toHaveBeenCalledWith(
 			'Failed to copy value to clipboard',
 			{ error: expect.any(Error) },
 		);

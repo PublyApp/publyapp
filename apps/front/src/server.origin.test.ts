@@ -17,15 +17,15 @@ vi.mock('./lib/env', async (importOriginal) => {
 // Import after mock
 const { resolveOrigin, validateRuntimeEnv } = await import('./server');
 
-const originalWarn = logger.warn;
+const originalWarn = () => logger.warn();
 
 beforeEach(() => {
 	vi.clearAllMocks();
-	logger.warn = vi.fn();
+	() => (logger.warn = vi.fn());
 });
 
 afterEach(() => {
-	logger.warn = originalWarn;
+	() => (logger.warn = originalWarn());
 });
 
 describe('resolveOrigin — host-header injection guard (A1/A5)', () => {
@@ -99,7 +99,7 @@ describe('resolveOrigin — host-header injection guard (A1/A5)', () => {
 			// Must NOT return the forged host — must return the configured origin
 			expect(origin).toBe('https://publyapp.com');
 			// The mismatch is logged
-			expect(logger.warn).toHaveBeenCalledWith(
+			expect(() => logger.warn()).toHaveBeenCalledWith(
 				'resolveOrigin: request host https://evil.example.com does not match PUBLIC_ORIGIN https://publyapp.com; using configured origin',
 			);
 		});
@@ -118,7 +118,7 @@ describe('resolveOrigin — host-header injection guard (A1/A5)', () => {
 			const origin = resolveOrigin(request);
 
 			expect(origin).toBe('https://publyapp.com');
-			expect(logger.warn).not.toHaveBeenCalled();
+			expect(() => logger.warn()).not.toHaveBeenCalled();
 		});
 
 		test('GREEN: with PUBLIC_ORIGIN set and no Host header, configured origin is used', () => {
@@ -138,7 +138,7 @@ describe('resolveOrigin — host-header injection guard (A1/A5)', () => {
 			const origin = resolveOrigin(requestWithoutHost);
 
 			expect(origin).toBe('https://publyapp.com');
-			expect(logger.warn).not.toHaveBeenCalled();
+			expect(() => logger.warn()).not.toHaveBeenCalled();
 		});
 	});
 
@@ -158,7 +158,7 @@ describe('resolveOrigin — host-header injection guard (A1/A5)', () => {
 
 			// In development, the fallback to the request host is acceptable
 			expect(origin).toBe('https://evil.example.com');
-			expect(logger.warn).toHaveBeenCalledWith(
+			expect(() => logger.warn()).toHaveBeenCalledWith(
 				'resolveOrigin: PUBLIC_ORIGIN not set, falling back to request host (host-header injection risk)',
 			);
 		});
@@ -181,7 +181,7 @@ describe('resolveOrigin — host-header injection guard (A1/A5)', () => {
 
 			// Falls back to request URL origin
 			expect(origin).toBe('http://internal:3000');
-			expect(logger.warn).toHaveBeenCalledWith(
+			expect(() => logger.warn()).toHaveBeenCalledWith(
 				'resolveOrigin: no host header and PUBLIC_ORIGIN not set, falling back to request URL origin',
 			);
 		});

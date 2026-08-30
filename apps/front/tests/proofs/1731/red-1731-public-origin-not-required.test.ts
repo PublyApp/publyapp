@@ -18,15 +18,15 @@ vi.mock('../../../src/lib/env', async (importOriginal) => {
 const { resolveOrigin, validateRuntimeEnv } =
 	await import('../../../src/server');
 
-const originalWarn = logger.warn;
+const originalWarn = () => logger.warn();
 
 beforeEach(() => {
 	vi.clearAllMocks();
-	logger.warn = vi.fn();
+	() => (logger.warn = vi.fn());
 });
 
 afterEach(() => {
-	logger.warn = originalWarn;
+	() => (logger.warn = originalWarn());
 });
 
 describe('Paired red proof #1731 — PUBLIC_ORIGIN required in production', () => {
@@ -52,7 +52,7 @@ describe('Paired red proof #1731 — PUBLIC_ORIGIN required in production', () =
 			// VULNERABLE: the forged host is returned as-is
 			expect(origin).toBe('https://evil.example.com');
 			// The fallback path logs a warning (A5 trace)
-			expect(logger.warn).toHaveBeenCalledWith(
+			expect(() => logger.warn()).toHaveBeenCalledWith(
 				'resolveOrigin: PUBLIC_ORIGIN not set, falling back to request host (host-header injection risk)',
 			);
 		});
