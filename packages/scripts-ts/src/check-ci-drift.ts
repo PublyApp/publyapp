@@ -886,7 +886,11 @@ const decodeJsonString = (raw: string): string =>
 // --- Reason reference type ---
 
 interface ReasonRef {
-	pinned_step_ids?: string[];
+	// The reference is parsed from untrusted JSON, so `pinned_step_ids` can
+	// legitimately decode to `null` (a hand-tampered file). The type models
+	// the boundary: `undefined` = pre-ratchet file (field absent), `null` or
+	// a non-array = malformed/tampered (a named finding, never a silent skip).
+	pinned_step_ids?: string[] | null;
 	steps: Record<
 		string,
 		{ reason_hash: string; reason_length: number; reason: string }
@@ -1109,15 +1113,28 @@ export const findCiDrift = async ({
 	// (no `pinned_step_ids` field) keeps the pre-ratchet meaning: the field
 	// is what activates the floor, matching the RATCHET check above.
 	if (ref.pinned_step_ids !== undefined) {
-		const pinnedAtHead = new Set(ref.pinned_step_ids);
-		for (const id of Object.keys(entries)) {
-			if (pinnedAtHead.has(id)) {
-				continue;
-			}
-
+		// The field activates the floor; a malformed value is tampering, never
+		// a silent skip. `null`, a string, or an object would crash
+		// `new Set(...)` with a raw TypeError; a hand-edited reference must
+		// produce a NAMED finding instead (the generator can only ever write
+		// the array form, so any other shape is hand tampering). A reference
+		// from before the ratchet keeps its pre-ratchet meaning (absent field
+		// = floor inactive, matching the RATCHET check above).
+		if (!Array.isArray(ref.pinned_step_ids)) {
 			findings.push(
-				`UNPINNED ${id}\n    This step is reconciled in the manifest but not pinned in reason-guard-ref.json. A covered step that nothing pins can vanish without the ratchet moving — its removal needs no confession and trips no RATCHET. Regenerate reason-guard-ref.json so every reconciled step is pinned (run \`node packages/scripts-ts/src/gen-reason-ref.ts\`).`,
+				`reason-guard-ref.json: \`pinned_step_ids\` must be an array of step ids (got ${ref.pinned_step_ids === null ? 'null' : typeof ref.pinned_step_ids}). The pin floor cannot be reconciled from a malformed value — regenerate reason-guard-ref.json (\`node packages/scripts-ts/src/gen-reason-ref.ts\`).`,
 			);
+		} else {
+			const pinnedAtHead = new Set(ref.pinned_step_ids);
+			for (const id of Object.keys(entries)) {
+				if (pinnedAtHead.has(id)) {
+					continue;
+				}
+
+				findings.push(
+					`UNPINNED ${id}\n    This step is reconciled in the manifest but not pinned in reason-guard-ref.json. A covered step that nothing pins can vanish without the ratchet moving — its removal needs no confession and trips no RATCHET. Regenerate reason-guard-ref.json so every reconciled step is pinned (run \`node packages/scripts-ts/src/gen-reason-ref.ts\`).`,
+				);
+			}
 		}
 	}
 

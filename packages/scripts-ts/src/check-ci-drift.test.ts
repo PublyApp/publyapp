@@ -369,6 +369,39 @@ test('pin completeness: passes when every reconciled step is pinned in the curre
 	assert.deepEqual(await findCiDrift({ rootDir, reasonRef: refWithPin }), []);
 });
 
+test('pin completeness: a malformed pinned_step_ids is a named finding, never a crash', async () => {
+	// A hand-tampered reference can carry `"pinned_step_ids": null` (or a
+	// non-array). `new Set(null)` would throw a raw TypeError and abort the
+	// whole drift check; the guard must instead emit a named finding telling
+	// the operator what is wrong and how to repair. The generator can only
+	// ever write the array form, so any other shape is tampering.
+	const rootDir = await buildFixture({
+		manifestSteps: reconciled,
+		steps: mirroredStep,
+	});
+
+	const nullPinsRef = {
+		pinned_step_ids: null,
+		steps: {
+			[manifestEntry]: {
+				reason_hash: hashReason(reason),
+				reason_length: reason.length,
+				reason,
+			},
+		},
+	};
+
+	const findings = await findCiDrift({
+		rootDir,
+		reasonRef: nullPinsRef,
+	});
+
+	assert.equal(findings.length, 1);
+	assert.match(findings[0], /pinned_step_ids` must be an array of step ids/);
+	assert.match(findings[0], /got null/);
+	assert.match(findings[0], /gen-reason-ref\.ts/);
+});
+
 test('tracks uses: steps, so a new action cannot slip in uncounted', async () => {
 	const rootDir = await buildFixture({
 		manifestSteps: reconciled,
