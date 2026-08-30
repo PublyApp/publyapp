@@ -1,0 +1,10 @@
+{
+	"$schema": "../expected-red.schema.json",
+	"_comment": "Per-test kept-red expectation manifest (required since #1806 r11 — the runner fails loud when a declared proof lacks it). The declared test MUST fail with an AssertionError on correct code.",
+	"expectedRed": [
+		{
+			"testName": "RED: growth inside an already-paired pair leaves the guard green (buggy counting)",
+			"why": "On correct code growth inside an already-paired pair is counted and fails the guard, so the assertion that the guard stays green fails with an AssertionError. If this test passes, the (buggy) counting that ignores intra-pair growth is back."
+		}
+	]
+}

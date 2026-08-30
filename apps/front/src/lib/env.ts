@@ -25,6 +25,42 @@ type EnvDefinition = {
 
 const requiredTrimmedString = z.string().trim().min(1);
 const optionalTrimmedString = z.string().trim().min(1).optional();
+// PUBLIC_ORIGIN is used as a bare scheme+host base when building canonical
+// and Open Graph URLs (`${origin}${requestPath}`). A trailing path segment —
+// including the bare `/` of `https://example.com/` — produces double slashes
+// or corrupts the URL. The schema's refine accepts only inputs whose
+// normalized form is a bare scheme+host (no path, query, or fragment),
+// accepting legitimate variations like uppercase hosts, explicit default
+// ports, and IPv6 addresses. This enforces the "no trailing path" contract
+// surfaced by validateRuntimeEnv's error message.
+const optionalPublicOrigin = z
+	.url()
+	.refine(
+		(value) => {
+			const parsed = new URL(value);
+			// The URL constructor normalizes away default ports and host case,
+			// so "https://EXAMPLE.COM:443" and "https://[::1]:443" parse cleanly.
+			// We accept any input whose parsed form has no path beyond the
+			// bare origin (pathname is "/"), no query, and no fragment — but
+			// we additionally require the original input not end with "/", so
+			// that "https://example.com/" (which parses identically to
+			// "https://example.com") is rejected while "https://example.com"
+			// is accepted.
+			return (
+				parsed.pathname === '/' &&
+				parsed.search === '' &&
+				parsed.hash === '' &&
+				parsed.origin !== '' &&
+				!value.endsWith('/')
+			);
+		},
+		{
+			// i18n-guard-ignore: no-hardcoded-ui-literal — startup env-validation message shown to the operator in server logs, never rendered as UI copy.
+			message:
+				'PUBLIC_ORIGIN must be a bare scheme+host with no trailing path, query, or fragment',
+		},
+	)
+	.optional();
 
 const envDefinition = {
 	public: {
@@ -43,16 +79,16 @@ const envDefinition = {
 		},
 	},
 	server: {
+		publicOrigin: {
+			processKeys: ['PUBLIC_ORIGIN'],
+			schema: optionalPublicOrigin,
+		},
 		apiBaseUrl: {
 			processKeys: ['SERVER_API_BASE_URL'],
 			schema: requiredTrimmedString,
 		},
 		nodeEnv: {
 			processKeys: ['NODE_ENV'],
-			schema: optionalTrimmedString,
-		},
-		publicOrigin: {
-			processKeys: ['PUBLIC_ORIGIN'],
 			schema: optionalTrimmedString,
 		},
 	},

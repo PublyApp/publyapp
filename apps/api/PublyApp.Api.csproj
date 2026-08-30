@@ -74,7 +74,13 @@
 						  ReferenceOutputAssembly="false" />
 	</ItemGroup>
 
-	<!-- for exporting openapi documents to json file at build time -->
+	<!-- for exporting openapi documents to json file at build time.
+	     Kept ON by default (non-Test): the openapi-spec-drift CI gate and
+	     `just ci-spec-drift` rebuild through plain `dotnet build` and diff the
+	     artifact — a default-off generation makes that gate vacuous (round-3
+	     review). Local builds that do not want the boot run pass
+	     `-property:OpenApiGenerateDocuments=false` explicitly, exactly as the
+	     dev-api/db-* recipes already do. -->
 	<PropertyGroup Condition="'$(Configuration)' != 'Test'">
 		<OpenApiGenerateDocuments>true</OpenApiGenerateDocuments>
 		<OpenApiDocumentsDirectory>$(MSBuildProjectDirectory)</OpenApiDocumentsDirectory>

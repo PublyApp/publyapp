@@ -7,6 +7,14 @@ using PublyApp.Api.Modules.Publishing.Handlers.Tenant;
 namespace PublyApp.Api.Modules.Publishing.Endpoints;
 
 public static class PublishingEndpointsForTenant {
+	/// <summary>
+	/// Maps the D2 publishing surfaces (history + composer targets) under
+	/// <c>/publishing/*</c>. The D3 schedule lifecycle (POST/PATCH/DELETE
+	/// <c>/posts/{postId}/schedule</c>) and the D3 queue/calendar list
+	/// (GET <c>/posts/publications</c>) live in
+	/// <see cref="PostPublishingEndpointsForTenant"/> so they hang off the
+	/// posts resource where they belong.
+	/// </summary>
 	public static IEndpointRouteBuilder MapPublishingEndpointsForTenant(
 		this IEndpointRouteBuilder routes
 	) {

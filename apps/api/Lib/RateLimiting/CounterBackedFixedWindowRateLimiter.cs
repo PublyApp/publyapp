@@ -39,9 +39,8 @@ internal sealed class CounterBackedFixedWindowRateLimiter
 
 	public override TimeSpan? IdleDuration {
 		get {
-			// Same idle contract PartitionedResourceRateLimiter gave the
-			// in-process limiter: eligible for eviction one full window after
-			// the last access, reported as time since that threshold passed.
+			// Eligible for eviction one full window after the last access,
+			// reported as time since that threshold passed.
 			var lastAccess = Volatile.Read(ref _lastAccessTimestamp);
 			var elapsed = TimeProvider.System
 				.GetElapsedTime(lastAccess);

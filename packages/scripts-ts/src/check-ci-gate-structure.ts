@@ -398,6 +398,57 @@ export const GATE_WORKFLOWS = [
 					'the real-<Trans> render guard: the only suite file exercising react-i18next unmocked over the production route files, so losing it silently would reintroduce the exact #1269/#1285 blindness this guard offsets',
 			},
 		],
+		// #1709 round 6: the ratchet floor guard's own test file
+		// (gen-reason-ref.test.ts) shipped with 463 lines of tests that NO
+		// workflow step ran — the literal "guard that nothing runs" failure
+		// mode. The step's `run:` block is file-by-file enumeration
+		// (intentional: running every `*.test.ts` under
+		// packages/scripts-ts/src/ would pull in audit-docs-prune.test.ts,
+		// which is currently red on a pre-existing fixture bug and is out of
+		// scope for this fix). To keep that enumeration from quietly losing
+		// the next test file the same way, this array lists the files the
+		// `Run CI gate guard tests (mirrors \`just ci-drift\`)` step's
+		// `run:` block is EXPECTED to invoke, and findGateSelftestTestsProblems
+		// below parses the REAL `run:` text to assert it covers exactly
+		// these files. Mirrored by EXPECTED_GATE_SELFTEST_TESTS so the
+		// expectation cannot quietly outlive the workflow step (symmetric
+		// pin, the same shape as pinnedTestFiles above).
+		//
+		// What this catches: any edit to the workflow's `run:` block that
+		// drops or renames a vitest invocation, any edit to the
+		// GATE_WORKFLOWS entry's `gateSelftestTests` array, and any edit
+		// to EXPECTED_GATE_SELFTEST_TESTS that is not re-made on BOTH sides
+		// at once. What it does NOT catch: a contributor adding a brand-new
+		// `*.test.ts` file under packages/scripts-ts/src/ and forgetting to
+		// add a matching line in three places (the workflow step, the
+		// gateSelftestTests array, AND the EXPECTED_GATE_SELFTEST_TESTS
+		// array). That three-place wiring is the load-bearing cost of
+		// running the suite selectively rather than the whole thing; the
+		// review's job is to keep them in lock-step, and the structural
+		// check below makes any one-side edit fail the gate immediately so
+		// the drift cannot be silent.
+		gateSelftestTests: [
+			'packages/scripts-ts/src/artifact-version-compat.test.ts',
+			'packages/scripts-ts/src/check-actions-pinned.test.ts',
+			'packages/scripts-ts/src/check-actions-pins.test.ts',
+			'packages/scripts-ts/src/check-ci-drift.test.ts',
+			'packages/scripts-ts/src/check-ci-gate-structure.test.ts',
+			'packages/scripts-ts/src/check-cyclomatic-bound.test.ts',
+			'packages/scripts-ts/src/check-no-floating-promises.test.ts',
+			'packages/scripts-ts/src/ci-changed-paths.test.ts',
+			'packages/scripts-ts/src/ci-e2e-rerun-guard.test.ts',
+			'packages/scripts-ts/src/ci-gate-aggregation.test.ts',
+			'packages/scripts-ts/src/ci-gate-bootstrap.test.ts',
+			'packages/scripts-ts/src/ci-referenced-paths.test.ts',
+			'packages/scripts-ts/src/codeowners-contract.test.ts',
+			// #1709: ratchet floor generator's own suite. This is the
+			// line that closes the round-6 finding: 463 lines of tests
+			// that were never run on the server.
+			'packages/scripts-ts/src/gen-reason-ref.test.ts',
+			'packages/scripts-ts/src/lint-front.test.ts',
+			'packages/scripts-ts/src/prod-audit-bites.test.ts',
+			'packages/scripts-ts/src/require-linked-issue.test.ts',
+		],
 	},
 	{
 		file: 'openapi-spec-drift.yml',
@@ -475,6 +526,46 @@ export const EXPECTED_PINNED_TEST_FILES = [
 		reason:
 			'the real-<Trans> render guard: the only suite file exercising react-i18next unmocked over the production route files, so losing it silently would reintroduce the exact #1269/#1285 blindness this guard offsets',
 	},
+];
+
+// #1709 round 6: the pin-of-the-pin for the `gate-selftest` step's vitest
+// invocations. The `gateSelftestTests` array on front-ci.yml's GATE_WORKFLOWS
+// entry is the source of truth for the structural check below; this list is
+// the declared expectation that must stay in lock-step with it, exactly like
+// EXPECTED_PINNED_TEST_FILES above. Removing an entry here is RED naming it;
+// adding an undeclared entry to GATE_WORKFLOWS is RED naming it. This
+// eliminates the round-6 failure mode: 463 lines of ratchet-floor tests
+// shipped in a file the workflow never ran, because no structural check
+// linked the workflow's `run:` block to the existence of the test file.
+//
+// This list MUST stay in lock-step with the `gateSelftestTests` arrays in
+// GATE_WORKFLOWS — which is exactly the point: any change to either side
+// must be a conscious, reviewed edit to both.
+// Exported for the structure test's symmetric RED assertions (see above).
+export const EXPECTED_GATE_SELFTEST_TESTS = [
+	'packages/scripts-ts/src/artifact-version-compat.test.ts',
+	'packages/scripts-ts/src/check-actions-pinned.test.ts',
+	'packages/scripts-ts/src/check-actions-pins.test.ts',
+	'packages/scripts-ts/src/check-ci-drift.test.ts',
+	'packages/scripts-ts/src/check-ci-gate-structure.test.ts',
+	'packages/scripts-ts/src/check-cyclomatic-bound.test.ts',
+	'packages/scripts-ts/src/check-no-floating-promises.test.ts',
+	'packages/scripts-ts/src/ci-changed-paths.test.ts',
+	'packages/scripts-ts/src/ci-e2e-rerun-guard.test.ts',
+	'packages/scripts-ts/src/ci-gate-aggregation.test.ts',
+	'packages/scripts-ts/src/ci-gate-bootstrap.test.ts',
+	'packages/scripts-ts/src/ci-referenced-paths.test.ts',
+	'packages/scripts-ts/src/codeowners-contract.test.ts',
+	// #1709: ratchet floor generator's own suite. The round-6 finding
+	// was that 463 lines of ratchet tests shipped with no CI consumer
+	// because the file-by-file enumeration in the `gate-selftest`
+	// step's `run:` block quietly missed it. This entry is the
+	// structural pin that ensures the line cannot be dropped again
+	// without also updating the expectation here.
+	'packages/scripts-ts/src/gen-reason-ref.test.ts',
+	'packages/scripts-ts/src/lint-front.test.ts',
+	'packages/scripts-ts/src/prod-audit-bites.test.ts',
+	'packages/scripts-ts/src/require-linked-issue.test.ts',
 ];
 
 // @ts-expect-error rung-0: add proper type in later rung
@@ -584,6 +675,219 @@ export const findPinnedTestFilesProblems = async ({
 		} catch {
 			findings.push(
 				`${PINNED_TEST_FILES_EXPECTATION_HEADER}: the declared pin \`${pin.file}\` -> \`${pin.path}\` points at a file that does not exist on disk. Re-point both lists at the file's reviewed new path.`,
+			);
+		}
+	}
+
+	return findings;
+};
+
+const GATE_SELFTEST_TESTS_EXPECTATION_HEADER =
+	'#1709 round 6: the declared gateSelftestTests expectation';
+
+// Matches the vitest invocation line shape the `gate-selftest` step's `run:`
+// block uses. Deliberately tight: `pnpm --filter scripts-ts exec vitest run
+// <path>`, anchored on the leading `pnpm --filter scripts-ts` so unrelated
+// shell text (e.g. a future step that runs the same test via a different
+// command) is not double-counted. Captures the test file path as group 1.
+const GATE_SELFTEST_VITEST_LINE =
+	/^\s*pnpm --filter scripts-ts exec vitest run (\S+\.test\.tsx?)\s*$/;
+
+/**
+ * Extracts every `pnpm --filter scripts-ts exec vitest run src/X.test.ts`
+ * invocation from a multiline `run:` block, as a Set of POSIX-normalized
+ * paths. Lines that don't match the exact shape are ignored — the structural
+ * check below is intentionally narrow so a future comment line, an
+ * environment variable expansion, or a piped command does not get parsed as
+ * a test invocation.
+ */
+// @ts-expect-error rung-0: add proper type in later rung
+const extractGateSelftestTestPaths = (runBlock) => {
+	if (typeof runBlock !== 'string') {
+		return new Set();
+	}
+	const paths = new Set();
+	for (const line of runBlock.split('\n')) {
+		const match = line.match(GATE_SELFTEST_VITEST_LINE);
+		if (match === null) {
+			continue;
+		}
+		// The workflow uses `src/X.test.ts` (relative to the package
+		// root); the structural expectation and on-disk check use the
+		// full `packages/scripts-ts/src/X.test.ts` form. Normalize so
+		// the comparison is path-form agnostic — a future switch to
+		// either form is a no-op for the structural check.
+		const captured = match[1];
+		const normalized = captured.startsWith('packages/')
+			? toPosixPath(captured)
+			: toPosixPath(`packages/scripts-ts/${captured}`);
+		paths.add(normalized);
+	}
+	return paths;
+};
+
+/**
+ * PR #1709 round 6 (review MAJOR/BLOCKS_PR): the ratchet floor guard's own
+ * test file (`packages/scripts-ts/src/gen-reason-ref.test.ts`) shipped with
+ * 463 lines of tests that no workflow step ran — the "guard that nothing
+ * runs" failure mode. The gate-selftest step's `run:` block is a deliberate
+ * file-by-file enumeration (a bare `pnpm --filter scripts-ts exec vitest run`
+ * would pull in `audit-docs-prune.test.ts`, currently red on a pre-existing
+ * fixture bug out of scope here, and other suites the gate does not own).
+ * Without a structural pin, the next omitted file is silent.
+ *
+ * This function pins the test-file list three ways, symmetrically, exactly
+ * the shape used by `findPinnedTestFilesProblems` above for pinnedTestFiles:
+ *   1. The REAL `gate-selftest` step's `run:` block in front-ci.yml is parsed
+ *      for `pnpm --filter scripts-ts exec vitest run src/X.test.ts` lines.
+ *      That derived set is compared against the `gateSelftestTests` array
+ *      declared on the front-ci GATE_WORKFLOWS entry — any drift between the
+ *      workflow and the structural expectation goes RED.
+ *   2. The `gateSelftestTests` array is compared against
+ *      EXPECTED_GATE_SELFTEST_TESTS, the declared pin-of-the-pin — removing
+ *      an entry from either side is RED naming it; adding an undeclared
+ *      entry is RED naming it.
+ *   3. Every entry in EXPECTED_GATE_SELFTEST_TESTS is required to exist on
+ *      disk, so the expectation cannot quietly outlive the file.
+ *
+ * Deliberately asserted inside findCiGateStructureProblems (not only in a
+ * test): the real-tree self-test, this script's CLI, gate-selftest, and
+ * `just ci-drift` then all carry it with no new wiring to drop — exactly
+ * the false-negative shape this closes.
+ */
+export const findGateSelftestTestsProblems = async ({
+	// @ts-expect-error rung-0: add proper type in later rung
+	rootDir,
+	// Test seam ONLY: lets the structure test derive from a mutated copy of
+	// the table to prove the comparison flips RED symmetrically. Every
+	// production caller omits it, so the check always runs against the real
+	// GATE_WORKFLOWS.
+	workflows = GATE_WORKFLOWS,
+}) => {
+	const findings = [];
+
+	// The step name the gate-selftest job's vitest step carries today. The
+	// structural check anchors on this name so a renamed step is RED rather
+	// than silently un-pinned.
+	const EXPECTED_GATE_SELFTEST_STEP_NAME =
+		'Run CI gate guard tests (mirrors `just ci-drift`)';
+
+	/** file → Set<path>; derived from the given table's `gateSelftestTests`. */
+	const derivedByFile = new Map();
+	for (const workflow of workflows) {
+		if (workflow.gateSelftestTests === undefined) {
+			continue;
+		}
+		derivedByFile.set(workflow.file, new Set());
+		for (const testPath of workflow.gateSelftestTests) {
+			derivedByFile.get(workflow.file).add(toPosixPath(testPath));
+		}
+	}
+
+	// (1) For every workflow that declares gateSelftestTests, read its real
+	// `gate-selftest` job's expected step's `run:` block and compare the
+	// parsed test paths to the declared set.
+	for (const workflow of workflows) {
+		if (workflow.gateSelftestTests === undefined) {
+			continue;
+		}
+
+		const declared = derivedByFile.get(workflow.file);
+		const filePath = path.join(rootDir, workflowsDirectory, workflow.file);
+
+		let document;
+		try {
+			const raw = await readFile(filePath, 'utf8');
+			document = parse(raw);
+		} catch {
+			findings.push(
+				`${GATE_SELFTEST_TESTS_EXPECTATION_HEADER}: cannot read ${workflow.file} to verify the \`gate-selftest\` step's \`run:\` block against \`gateSelftestTests\` — file is missing or unreadable.`,
+			);
+			continue;
+		}
+
+		const jobs = document?.jobs ?? {};
+		const selftestJob = jobs['gate-selftest'];
+		if (selftestJob === undefined) {
+			findings.push(
+				`${GATE_SELFTEST_TESTS_EXPECTATION_HEADER}: ${workflow.file} declares a \`gateSelftestTests\` list but the workflow has no \`gate-selftest\` job to anchor it against. Either add the job or remove the list.`,
+			);
+			continue;
+		}
+
+		const steps = Array.isArray(selftestJob.steps) ? selftestJob.steps : [];
+		const selftestStep = steps.find(
+			// @ts-expect-error rung-0: TS2345
+			(step) => step?.name === EXPECTED_GATE_SELFTEST_STEP_NAME,
+		);
+
+		if (selftestStep === undefined) {
+			findings.push(
+				`${GATE_SELFTEST_TESTS_EXPECTATION_HEADER}: ${workflow.file}::gate-selftest is expected to carry a step named "${EXPECTED_GATE_SELFTEST_STEP_NAME}" so its \`run:\` block can be pinned against \`gateSelftestTests\`, but the step is missing. Rename the step or update the check's expected name.`,
+			);
+			continue;
+		}
+
+		const runBlock =
+			typeof selftestStep.run === 'string' ? selftestStep.run : '';
+		const parsed = extractGateSelftestTestPaths(runBlock);
+
+		// Files in the declared set but missing from the real `run:` block.
+		for (const testPath of declared) {
+			if (!parsed.has(testPath)) {
+				findings.push(
+					`${GATE_SELFTEST_TESTS_EXPECTATION_HEADER}: ${workflow.file}::gate-selftest's "${EXPECTED_GATE_SELFTEST_STEP_NAME}" step's \`run:\` block does NOT invoke \`pnpm --filter scripts-ts exec vitest run ${testPath}\` (declared in GATE_WORKFLOWS.front-ci.gateSelftestTests). Adding a structural pin without the matching shell line silences the guard exactly like the round-6 finding: a contributor edits the expectation, the guard's own tests stop running. Re-add the line to the step's \`run:\` block (mirror the addition in \`just ci-drift\` too), or remove the entry from the structural list.`,
+				);
+			}
+		}
+
+		// Files in the real `run:` block but missing from the declared set.
+		for (const testPath of parsed) {
+			if (!declared.has(testPath)) {
+				findings.push(
+					`${GATE_SELFTEST_TESTS_EXPECTATION_HEADER}: ${workflow.file}::gate-selftest's "${EXPECTED_GATE_SELFTEST_STEP_NAME}" step's \`run:\` block invokes \`pnpm --filter scripts-ts exec vitest run ${testPath}\` but the file is NOT declared in GATE_WORKFLOWS.front-ci.gateSelftestTests. Adding a vitest line without the matching structural pin re-introduces the round-6 silent-drop mode the next time someone touches the structural list — declare it there (and in EXPECTED_GATE_SELFTEST_TESTS) at the same time.`,
+				);
+			}
+		}
+	}
+
+	// (2) Symmetric pin: GATE_WORKFLOWS.gateSelftestTests ↔ EXPECTED_GATE_SELFTEST_TESTS.
+	const expectedSet = new Set(
+		EXPECTED_GATE_SELFTEST_TESTS.map((value) => toPosixPath(value)),
+	);
+	const flatDerived = new Set();
+	for (const value of derivedByFile.values()) {
+		for (const testPath of value) {
+			flatDerived.add(testPath);
+		}
+	}
+
+	for (const testPath of expectedSet) {
+		if (flatDerived.has(testPath)) {
+			continue;
+		}
+		findings.push(
+			`${GATE_SELFTEST_TESTS_EXPECTATION_HEADER}: EXPECTED_GATE_SELFTEST_TESTS declares \`${testPath}\` but no GATE_WORKFLOWS entry carries it in \`gateSelftestTests\`. The expectation must never describe coverage that the structural table has dropped — restore the entry, or consciously re-make BOTH lists together.`,
+		);
+	}
+
+	for (const testPath of flatDerived) {
+		if (expectedSet.has(testPath)) {
+			continue;
+		}
+		findings.push(
+			`${GATE_SELFTEST_TESTS_EXPECTATION_HEADER}: GATE_WORKFLOWS carries an undeclared \`gateSelftestTests\` entry for \`${testPath}\`. Every entry must be declared in EXPECTED_GATE_SELFTEST_TESTS (check-ci-gate-structure.ts) — add it there consciously, or remove the undeclared entry.`,
+		);
+	}
+
+	// (3) Every declared file must exist on disk, so the expectation can
+	// never describe a coverage that has been deleted.
+	for (const testPath of expectedSet) {
+		try {
+			await access(path.join(rootDir, testPath));
+		} catch {
+			findings.push(
+				`${GATE_SELFTEST_TESTS_EXPECTATION_HEADER}: the declared entry \`${testPath}\` points at a file that does not exist on disk. Re-point the structural table and EXPECTED_GATE_SELFTEST_TESTS at the file's reviewed new path, or remove the coverage if it was deliberately deleted.`,
 			);
 		}
 	}
@@ -1394,6 +1698,14 @@ export const findCiGateStructureProblems = async ({
 	// the expectation is checked against the REAL table only.
 	if (workflows === GATE_WORKFLOWS) {
 		findings.push(...(await findPinnedTestFilesProblems({ rootDir })));
+		// #1709 round 6 (review MAJOR/BLOCKS_PR): same shape, applied to
+		// the `gate-selftest` step's vitest invocations. The 463-line
+		// gen-reason-ref test file shipped without a CI consumer because
+		// no structural check linked the workflow's `run:` block to the
+		// existence of the test file. Asserted HERE (not only in a test)
+		// so the real-tree self-test, this script's CLI, gate-selftest,
+		// and `just ci-drift` carry it with no new wiring to drop.
+		findings.push(...(await findGateSelftestTestsProblems({ rootDir })));
 	}
 
 	return findings;

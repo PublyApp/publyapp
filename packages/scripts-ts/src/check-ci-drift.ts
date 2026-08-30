@@ -1,11 +1,13 @@
+import { execFile } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { readdir, readFile } from 'node:fs/promises';
 import path from 'node:path';
 import process from 'node:process';
+import { promisify } from 'node:util';
 
 import { parse } from 'yaml';
 
-import { reasonRef } from './reason-guard-ref.ts';
+const execFileAsync = promisify(execFile);
 
 // Drift guard for the local CI gate (`just ci` / `just ci-full`).
 //
@@ -34,10 +36,79 @@ import { reasonRef } from './reason-guard-ref.ts';
 
 const workflowsDirectory = '.github/workflows';
 const manifestPath = 'packages/scripts-ts/src/ci-gate-manifest.json';
+const removalsPath = 'packages/scripts-ts/src/ci-gate-removals.json';
 
 // Matches the reviewable-reason bar this repo already enforces on lint
 // suppressions (see the sibling guard in scripts/). "n/a" is not a reason.
 const minimumReasonLength = 24;
+
+/**
+ * How long a single repeated block may be and still count as padding.
+ * Blocks longer than this are prose, not a repetition cycle an automated
+ * padder would use. Anything between 24 and this limit is already caught by
+ * `isFiller` when the whole string is one repetition; the limit exists to
+ * bound the scan of multi-block compositions.
+ */
+const maxFillerBlockLength = 8;
+
+/**
+ * Length of the non-repetitive residue after greedily stripping maximal
+ * repetition runs from `text`. A run is a short block (at most
+ * `maxFillerBlockLength` chars) repeated at least twice, optionally followed
+ * by a truncated final repetition of the same block. Runs are consumed
+ * longest-first at each position; scanning stops at the first position with
+ * no valid run. The residue is what remains — 0 when the whole string is
+ * padding, and close to `text.length` for ordinary prose.
+ */
+const fillerResidueLength = (text: string): number => {
+	const length = text.length;
+	let position = 0;
+	while (position < length) {
+		let bestEnd = 0;
+		const maxPeriod = Math.min(
+			maxFillerBlockLength,
+			Math.floor((length - position) / 2),
+		);
+		for (let period = 1; period <= maxPeriod; period++) {
+			// Maximal end of the prefix that repeats text[position..position+period).
+			let end = position + period;
+			while (
+				end < length &&
+				text[end] === text[position + ((end - position) % period)]
+			) {
+				end++;
+			}
+			// A run needs at least two full repetitions; the truncated tail is
+			// already included in `end`.
+			if (end - position >= 2 * period && end > bestEnd) {
+				bestEnd = end;
+			}
+		}
+		if (bestEnd === 0) {
+			break;
+		}
+		position = bestEnd;
+	}
+	return length - position;
+};
+
+/**
+ * A reason is filler when it carries no information — repeated blocks padded
+ * to clear the length bar. This covers a single repeated block (`"x".repeat(24)`,
+ * `"xy".repeat(12)`, `"x ".repeat(11) + "x"`), a multi-block composition
+ * (`"ab".repeat(6) + "cd".repeat(6)` — the r13 measured bypass), three-block
+ * stacks, and a run followed by a single stray character (`"a".repeat(23) + "b"`).
+ * Such a string is not a reviewable justification; it is a bypass of the
+ * quality bar. We reject it regardless of length when the non-repetitive
+ * residue is at most one character — a text that is (almost) entirely
+ * short-block repetition is hollow no matter how the blocks are stacked.
+ */
+const isFiller = (text: string): boolean => {
+	if (text.length === 0) {
+		return false;
+	}
+	return fillerResidueLength(text) <= 1;
+};
 
 const toPosixPath = (value: string) => value.split(path.sep).join('/');
 
@@ -50,7 +121,136 @@ const toPosixPath = (value: string) => value.split(path.sep).join('/');
 export const hashReason = (text: string) =>
 	createHash('sha256').update(text).digest('hex').slice(0, 16);
 
-// Checks whether a reason has changed (especially shrunk) while the step
+/**
+ * Reads the reason reference file from the merge-base of origin/develop and
+ * HEAD — not from HEAD directly, and not from the working tree.
+ *
+ * WHY NOT HEAD? (the r7 defect that this supersedes)
+ * The round-7 fix read the reference from `git show HEAD:...`. That breaks an
+ * UNCOMMITTED working-tree edit, but NOT a COMMITTED one: in a PR, HEAD IS the
+ * attacker's commit. A contributor who deletes a CI step, deletes its manifest
+ * entry, AND deletes the id from `pinned_step_ids` — all in one commit — makes
+ * HEAD agree with the removal. The guard comparing its floor to itself sees
+ * nothing and stays green.
+ *
+ * WHY THE MERGE-BASE IS THE FLOOR
+ * The floor must come from the last reviewed-and-merged state of the target
+ * branch, i.e. what DEVELOP looked like before this PR's changes were applied.
+ * `git merge-base origin/develop HEAD` finds that shared ancestor commit. The
+ * reference read from THAT commit is the floor the ratchet enforces — it
+ * predates the attacker's removal, so the vanished step id is still pinned and
+ * the guard cries RATCHET.
+ *
+ * LOUD FAILURE MODE
+ * If the merge-base cannot be resolved — no git, not a repo, no origin/develop,
+ * a brand-new branch with no common ancestor — the guard REFUSES TO RUN. It must
+ * never fall back to HEAD or the working tree. A guard that degrades to
+ * "trust HEAD/the working tree" on error is a guard that turns green exactly
+ * when the attack succeeds.
+ */
+const refFileName = 'packages/scripts-ts/src/reason-guard-ref.json';
+
+/**
+ * Reads the ratchet floor from the merge-base of origin/develop and HEAD —
+ * not from HEAD directly, and not from the working tree.
+ *
+ * WHY NOT HEAD? (the r7 defect that this supersedes)
+ * The round-7 fix read the reference from `git show HEAD:...`. That breaks an
+ * UNCOMMITTED working-tree edit, but NOT a COMMITTED one: in a PR, HEAD IS the
+ * attacker's commit. A contributor who deletes a CI step, deletes its manifest
+ * entry, AND deletes the id from `pinned_step_ids` — all in one commit — makes
+ * HEAD agree with the removal. The guard comparing its floor to itself sees
+ * nothing and stays green.
+ *
+ * WHY THE MERGE-BASE IS THE FLOOR
+ * The floor must come from the last reviewed-and-merged state of the target
+ * branch, i.e. what DEVELOP looked like before this PR's changes were applied.
+ * `git merge-base origin/develop HEAD` finds that shared ancestor commit. The
+ * reference read from THAT commit is the floor the ratchet enforces — it
+ * predates the attacker's removal, so the vanished step id is still pinned and
+ * the guard cries RATCHET.
+ *
+ * LOUD FAILURE MODE
+ * If the merge-base cannot be resolved — no git, not a repo, no origin/develop,
+ * a brand-new branch with no common ancestor — the guard REFUSES TO RUN. It must
+ * never fall back to HEAD or the working tree. A guard that degrades to
+ * "trust HEAD/the working tree" on error is a guard that turns green exactly
+ * when the attack succeeds.
+ */
+const readRatchetFloorFromGit = async (rootDir: string): Promise<ReasonRef> => {
+	// Step 1: resolve the merge-base between origin/develop and HEAD.
+	let mergeBase: string;
+	try {
+		const { stdout } = await execFileAsync(
+			'git',
+			['merge-base', 'origin/develop', 'HEAD'],
+			{ cwd: rootDir, encoding: 'utf8' },
+		);
+		mergeBase = stdout.trim();
+	} catch (error) {
+		throw new Error(
+			`CI drift guard REFUSING TO RUN: could not resolve \`git merge-base origin/develop HEAD\` in ${rootDir}. ` +
+				`The ratchet floor is read from the merge-base commit (the last reviewed state of origin/develop), and this command failed. ` +
+				`Re-run from inside a git repository that has origin/develop available (fetch it first if needed). ` +
+				`The guard never falls back to HEAD or the working tree — a floor that degrades to "trust the attacker's commit" is no floor at all. ` +
+				`Original error: ${error instanceof Error ? error.message : String(error)}`,
+		);
+	}
+
+	if (mergeBase === '') {
+		throw new Error(
+			`CI drift guard REFUSING TO RUN: \`git merge-base origin/develop HEAD\` returned empty (no common ancestor). ` +
+				`This happens when the branch has no shared history with origin/develop, or origin/develop does not exist locally. ` +
+				`The ratchet floor must come from the merge-base — the last reviewed-and-merged state of the target branch — not from HEAD (which in a PR IS the attacker's commit) or the working tree (which an uncommitted edit can lower). ` +
+				`Fetch origin/develop and re-run, or verify the branch is based on origin/develop.`,
+		);
+	}
+
+	// Step 2: read the committed reference from that merge-base commit.
+	try {
+		const { stdout } = await execFileAsync(
+			'git',
+			['show', `${mergeBase}:${refFileName}`],
+			{ cwd: rootDir, encoding: 'utf8' },
+		);
+
+		return JSON.parse(stdout) as ReasonRef;
+	} catch (error) {
+		throw new Error(
+			`Could not read reason-guard-ref.json from the merge-base commit ${mergeBase} (git merge-base origin/develop HEAD) — the ratchet floor must be derived from the committed reference at that commit, not the working tree. ` +
+				`Re-run from inside a git repository where reason-guard-ref.json exists at that commit. ` +
+				`Original error: ${error instanceof Error ? error.message : String(error)}`,
+		);
+	}
+};
+
+/**
+ * Reads the reason reference from git HEAD (committed, not working-tree) for
+ * the reason-guard comparison. The reason guard verifies that a manifest
+ * entry's `reason` text hasn't been silently truncated or altered. Legitimate
+ * reason rewrites are authorized by regenerating reason-guard-ref.json in the
+ * SAME commit as the manifest change — so both must be at HEAD. Reading from
+ * HEAD (not the working tree) closes the uncommitted-edit bypass for the reason
+ * guard, while the ratchet floor is separately read from the merge-base to
+ * close the committed-attack bypass for pinned_step_ids.
+ */
+const readRefFromGit = async (rootDir: string): Promise<ReasonRef> => {
+	try {
+		const { stdout } = await execFileAsync(
+			'git',
+			['show', `HEAD:${refFileName}`],
+			{ cwd: rootDir, encoding: 'utf8' },
+		);
+
+		return JSON.parse(stdout) as ReasonRef;
+	} catch (error) {
+		throw new Error(
+			`Could not read reason-guard-ref.json from git HEAD — the reason guard requires the committed reference, not the working tree. ` +
+				`Re-run from inside a git repository with a committed reason-guard-ref.json. ` +
+				`Original error: ${error instanceof Error ? error.message : String(error)}`,
+		);
+	}
+};
 // hash is unchanged. The reference file (`reason-guard-ref.json`) holds the
 // known-good fingerprint; any deviation while the step itself hasn't changed
 // fails the guard. A deliberate rewrite is possible by updating the reference
@@ -149,6 +349,178 @@ const getReasonGuardProblem = (
 	}
 
 	return `${manifestPath}: entry "${id}" reason CHANGED (expected hash ${stepRef.reason_hash}, got ${currentHash}; expected ${expectedLength} chars, got ${currentLength}) while the step hash is unchanged. If this is a deliberate rewrite, regenerate reason-guard-ref.json in the same commit so the reference matches the new reason — run \`node packages/scripts-ts/src/gen-reason-ref.ts\` to regenerate it.`;
+};
+
+/**
+ * Reads and validates the removals confession file.
+ * Returns null when the file does not exist (no confession).
+ * Throws when the file exists but is malformed — a malformed confession must
+ * never silently lower the floor.
+ *
+ * Validation rules:
+ *   - The file must be valid JSON.
+ *   - It must be an object with a `steps` array.
+ *   - Each entry must have a non-empty `step_id` and a `reason` of at least
+ *     24 characters (aligned with the repo's existing bar on lint suppressions).
+ */
+const readRemovalsConfession = async (
+	rootDir: string,
+): Promise<RemovalsConfession | null> => {
+	let raw: string;
+	try {
+		raw = await readFile(path.join(rootDir, removalsPath), 'utf8');
+	} catch (error) {
+		if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+			return null;
+		}
+		throw new Error(
+			`Cannot read confession file ${removalsPath}: ${error instanceof Error ? error.message : String(error)}.`,
+		);
+	}
+
+	let parsed: unknown;
+	try {
+		parsed = JSON.parse(raw);
+	} catch (error) {
+		throw new Error(
+			`Malformed JSON in confession file ${removalsPath}: ${error instanceof Error ? error.message : String(error)}. Fix the JSON syntax.`,
+		);
+	}
+
+	if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) {
+		throw new Error(
+			`Confession file ${removalsPath} must be a JSON object with a \`steps\` array.`,
+		);
+	}
+
+	const record = parsed as Record<string, unknown>;
+
+	if (!Array.isArray(record.steps)) {
+		throw new Error(
+			`Confession file ${removalsPath} must have a \`steps\` array.`,
+		);
+	}
+
+	const steps: RemovalsConfession['steps'] = [];
+	for (const entry of record.steps) {
+		if (entry === null || typeof entry !== 'object' || Array.isArray(entry)) {
+			throw new Error(
+				`Confession file ${removalsPath}: each entry in \`steps\` must be an object.`,
+			);
+		}
+
+		const e = entry as Record<string, unknown>;
+		const stepId = typeof e.step_id === 'string' ? e.step_id : '';
+		const reason = typeof e.reason === 'string' ? e.reason : '';
+		const removedAt =
+			typeof e.removed_at === 'string' ? e.removed_at : undefined;
+
+		if (stepId === '') {
+			throw new Error(
+				`Confession file ${removalsPath}: each entry must have a non-empty \`step_id\`.`,
+			);
+		}
+
+		if (reason.trim().length < minimumReasonLength) {
+			throw new Error(
+				`Confession file ${removalsPath}: entry "${stepId}" has a reason shorter than ${minimumReasonLength} characters. A valid confession must name what was lost and why.`,
+			);
+		}
+
+		if (isFiller(reason.trim())) {
+			throw new Error(
+				`Confession file ${removalsPath}: entry "${stepId}" has a reason that is filler (repeated short blocks — a single repeated character, a cycle, a repeated pair, or a stack of them). A valid confession must be a reviewable justification naming what was lost and why — filler is not a reason.`,
+			);
+		}
+
+		steps.push({ step_id: stepId, reason, removed_at: removedAt });
+	}
+
+	return { steps };
+};
+
+/**
+ * Ratchet floor check (#1709).
+ *
+ * The reference file (`reason-guard-ref.json`) holds a `pinned_step_ids` array
+ * that grows monotonically — regeneration can only ADD to it, never remove.
+ * This breaks the 3-step attack where a covered step is deleted from CI, then
+ * from the manifest, then the reference is regenerated to match.
+ *
+ * This function checks every pinned step ID against the current manifest. A
+ * pinned step that is missing from the manifest is either:
+ *   - LEGITIMATE: named in the removals confession file (`ci-gate-removals.json`)
+ *     with a reason — the human deliberately removed it and confessed why.
+ *   - SILENT ERASSING: missing without confession — the ratchet fails closed.
+ *
+ * The confession file is the ONLY way to lower the floor, and it must name the
+ * step explicitly. This makes deliberate removal possible but never an accident
+ * disguised as cleanup.
+ */
+const getRatchetProblems = async (
+	rootDir: string,
+	entries: Record<string, unknown>,
+	ref: ReasonRef,
+): Promise<string[]> => {
+	const findings: string[] = [];
+
+	let confession: RemovalsConfession | null;
+	try {
+		confession = await readRemovalsConfession(rootDir);
+	} catch (error) {
+		// A malformed confession file must never silently lower the floor.
+		// Report it as a named finding so the guard fails loudly.
+		findings.push(
+			`CONFESSION ERROR\n    The confession file ${removalsPath} is malformed and cannot be parsed: ${error instanceof Error ? error.message : String(error)}. Fix the confession file — a malformed confession cannot be accepted as a reason to lower the floor.`,
+		);
+		return findings;
+	}
+
+	// A confession naming a step that is STILL reconciled in the manifest is a
+	// contradiction, not a no-op: the confession file exists only to authorize
+	// REMOVING a step from the floor, so confessing a step that is still
+	// covered cannot lower anything — it quietly asserts that the step is gone
+	// while the manifest keeps protecting it. A warning nobody reads and a
+	// silence have the same value, so this is a hard finding: the contributor
+	// must either delete the confession entry (the step was not removed) or
+	// actually remove the step from CI and the manifest (if that was the real
+	// intent). Without this check the confession file can rot into a permanent
+	// "pre-confessed" state that desensitizes the removal path. It runs before
+	// the ratchet's early return because it validates the confession itself,
+	// not the floor.
+	const confessedIds = new Set(confession?.steps.map((s) => s.step_id) ?? []);
+
+	for (const id of confessedIds) {
+		if (!(id in entries)) {
+			continue;
+		}
+
+		findings.push(
+			`CONFESSION CONTRADICTION  ${id}\n    ci-gate-removals.json confesses the removal of "${id}", but the step is still reconciled in the manifest. A confession exists ONLY to authorize removing a step from the floor; a confession for a step that is still covered has no effect and quietly asserts a removal that did not happen. Delete the confession entry (the step was not removed), or actually remove the step from CI and the manifest if that was the intent.`,
+		);
+	}
+
+	const pinned = ref.pinned_step_ids ?? [];
+
+	if (pinned.length === 0) {
+		return findings;
+	}
+
+	for (const id of pinned) {
+		if (id in entries) {
+			continue;
+		}
+
+		if (confessedIds.has(id)) {
+			continue;
+		}
+
+		findings.push(
+			`RATCHET  ${id}\n    A CI step that was reconciled and pinned in reason-guard-ref.json has vanished from the manifest without a confession. A covered verification step was silently erased — either restore the step and its manifest entry, or confess the removal in ${removalsPath} with a reason naming what was lost and why (see docs/guides/local-ci-gate.md).`,
+		);
+	}
+
+	return findings;
 };
 
 const normalizeCommand = (value: string) =>
@@ -350,6 +722,10 @@ const getEntryValidationProblem = (
 		}.`;
 	}
 
+	if (isFiller(record.reason.trim())) {
+		return `${manifestPath}: entry "${id}" has a reason that is filler (repeated short blocks — a single repeated character, a cycle, a repeated pair, or a stack of them). A reviewable reason must name what the mirror covers or why the step cannot run locally — filler is not a reason.`;
+	}
+
 	return null;
 };
 
@@ -510,10 +886,23 @@ const decodeJsonString = (raw: string): string =>
 // --- Reason reference type ---
 
 interface ReasonRef {
+	// The reference is parsed from untrusted JSON, so `pinned_step_ids` can
+	// legitimately decode to `null` (a hand-tampered file). The type models
+	// the boundary: `undefined` = pre-ratchet file (field absent), `null` or
+	// a non-array = malformed/tampered (a named finding, never a silent skip).
+	pinned_step_ids?: string[] | null;
 	steps: Record<
 		string,
 		{ reason_hash: string; reason_length: number; reason: string }
 	>;
+}
+
+interface RemovalsConfession {
+	steps: Array<{
+		step_id: string;
+		reason: string;
+		removed_at?: string;
+	}>;
 }
 
 /**
@@ -538,20 +927,44 @@ const formatJsonError = (error: unknown): string => {
  * Compares the workflows against the manifest and returns human-readable
  * findings. Returns an empty array when the gate is fully reconciled.
  *
+ * Two reference sources are consulted:
+ *   1. REASON REFERENCE (HEAD): reason-guard-ref.json read from git HEAD. The
+ *      reason guard checks each manifest entry's `reason` text against the
+ *      committed fingerprint. Legitimate reason rewrites are authorized by
+ *      regenerating the reference in the SAME commit, so HEAD is the right
+ *      baseline. Reading from HEAD (not the working tree) closes the
+ *      uncommitted-edit bypass for the reason guard.
+ *   2. RATCHET FLOOR (merge-base): pinned_step_ids read from the merge-base of
+ *      origin/develop and HEAD — the last reviewed-and-merged state. This is
+ *      immune to a PR author's committed edits, closing the 3-part committed
+ *      attack (delete step + manifest entry + pinned id, all in one commit).
+ *
  * @param {Object} options
  * @param {string} options.rootDir - Repository root directory.
  * @param {ReasonRef} [options.reasonRef] - Optional reason reference override
- *   (defaults to the pinned reason-guard-ref.json). Used by tests to inject
- *   a fixture reference without touching the real one.
+ *   (defaults to reading from git HEAD). Used by tests
+ *   to inject a fixture reference without touching the real one.
+ * @param {ReasonRef} [options.ratchetFloorRef] - Optional ratchet floor override
+ *   (defaults to reading from the merge-base commit). Used by tests to inject a
+ *   floor fixture.
  */
 export const findCiDrift = async ({
 	rootDir,
 	reasonRef: reasonRefOption,
+	ratchetFloorRef,
 }: {
 	rootDir: string;
 	reasonRef?: ReasonRef;
+	ratchetFloorRef?: ReasonRef;
 }): Promise<string[]> => {
-	const ref = reasonRefOption ?? reasonRef;
+	const ref = reasonRefOption ?? (await readRefFromGit(rootDir));
+	// If reasonRef was injected (bypassing git), use it as the floor too — tests
+	// that inject a reasonRef for the reason guard don't have a git repo to read
+	// the merge-base floor from. In production, both are read from git (HEAD for
+	// reasons, merge-base for the ratchet floor).
+	const floor =
+		ratchetFloorRef ??
+		(reasonRefOption ? ref : await readRatchetFloorFromGit(rootDir));
 	const { problems, steps } = await collectWorkflowSteps(rootDir);
 	const findings = [...problems];
 
@@ -682,6 +1095,47 @@ export const findCiDrift = async ({
 		findings.push(
 			`STALE REF ${id}\n    The reason reference holds a fingerprint for "${id}" which is absent from the manifest. The CI step was removed; delete the reference entry by regenerating (run \`node packages/scripts-ts/src/gen-reason-ref.ts\`).`,
 		);
+	}
+
+	// Ratchet floor check (#1709, r8): pinned_step_ids read from the
+	// merge-base commit (not HEAD) — immune to the 3-part committed attack.
+	findings.push(...(await getRatchetProblems(rootDir, entries, floor)));
+
+	// Pin completeness (#1809 r13): every step reconciled in the manifest must
+	// be pinned in the CURRENT reference (read from HEAD). The reverse
+	// direction — pinned ⊆ steps ⊆ manifest — was already enforced (integrity
+	// in gen-reason-ref.ts, RATCHET here), but completeness never was: a step
+	// covered by the manifest could sit unpinned, protected in name only. Its
+	// reason could be dropped or the step removed from the manifest later
+	// without the ratchet moving — a floor with a hole nobody knows about.
+	// Regeneration pins the union of the existing floor and the manifest, so
+	// the only fix is to regenerate. A reference from before the ratchet
+	// (no `pinned_step_ids` field) keeps the pre-ratchet meaning: the field
+	// is what activates the floor, matching the RATCHET check above.
+	if (ref.pinned_step_ids !== undefined) {
+		// The field activates the floor; a malformed value is tampering, never
+		// a silent skip. `null`, a string, or an object would crash
+		// `new Set(...)` with a raw TypeError; a hand-edited reference must
+		// produce a NAMED finding instead (the generator can only ever write
+		// the array form, so any other shape is hand tampering). A reference
+		// from before the ratchet keeps its pre-ratchet meaning (absent field
+		// = floor inactive, matching the RATCHET check above).
+		if (!Array.isArray(ref.pinned_step_ids)) {
+			findings.push(
+				`reason-guard-ref.json: \`pinned_step_ids\` must be an array of step ids (got ${ref.pinned_step_ids === null ? 'null' : typeof ref.pinned_step_ids}). The pin floor cannot be reconciled from a malformed value — regenerate reason-guard-ref.json (\`node packages/scripts-ts/src/gen-reason-ref.ts\`).`,
+			);
+		} else {
+			const pinnedAtHead = new Set(ref.pinned_step_ids);
+			for (const id of Object.keys(entries)) {
+				if (pinnedAtHead.has(id)) {
+					continue;
+				}
+
+				findings.push(
+					`UNPINNED ${id}\n    This step is reconciled in the manifest but not pinned in reason-guard-ref.json. A covered step that nothing pins can vanish without the ratchet moving — its removal needs no confession and trips no RATCHET. Regenerate reason-guard-ref.json so every reconciled step is pinned (run \`node packages/scripts-ts/src/gen-reason-ref.ts\`).`,
+				);
+			}
+		}
 	}
 
 	return findings;

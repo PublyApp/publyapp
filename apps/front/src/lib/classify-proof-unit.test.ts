@@ -19,7 +19,10 @@ import { afterAll, beforeAll, describe, expect, test } from 'vitest';
 
 import {
 	classifyProof,
+	classifyProofWithManifest,
 	readProofReport,
+	type ExpectedRedManifest,
+	type ProofReport,
 } from '../../scripts/ci/classify-proof.mts';
 
 // --- Helpers ---
@@ -123,7 +126,11 @@ describe('readProofReport — unreadable reports fail loud', () => {
 				testResults: [
 					{
 						assertionResults: [
-							{ status: 'failed', failureMessages: 'not array' },
+							{
+								fullName: 'suite bad messages',
+								status: 'failed',
+								failureMessages: 'not array',
+							},
 						],
 					},
 				],
@@ -146,6 +153,7 @@ describe('classifyProof — assertion failure is OK', () => {
 				{
 					assertionResults: [
 						{
+							fullName: 'suite kept-red fails on assertion',
 							status: 'failed',
 							failureMessages: ['AssertionError: expected "a" to be "b"'],
 						},
@@ -172,6 +180,7 @@ describe('classifyProof — thrown Error is CORRUPT PROOF', () => {
 				{
 					assertionResults: [
 						{
+							fullName: 'suite thrown error',
 							status: 'failed',
 							failureMessages: ['Error: something went wrong in the harness'],
 						},
@@ -194,6 +203,7 @@ describe('classifyProof — thrown Error is CORRUPT PROOF', () => {
 				{
 					assertionResults: [
 						{
+							fullName: 'suite type error',
 							status: 'failed',
 							failureMessages: [
 								"TypeError: Cannot read properties of undefined (reading 'foo')",
@@ -219,6 +229,7 @@ describe('classifyProof — thrown Error is CORRUPT PROOF', () => {
 				{
 					assertionResults: [
 						{
+							fullName: 'suite wrap-assertion-in-error',
 							status: 'failed',
 							failureMessages: ['Error: AssertionError: something went wrong'],
 						},
@@ -243,6 +254,7 @@ describe('classifyProof — MESURE IMPOSSIBLE is CORRUPT PROOF', () => {
 				{
 					assertionResults: [
 						{
+							fullName: 'suite mesure impossible',
 							status: 'failed',
 							failureMessages: [
 								'AssertionError: MESURE IMPOSSIBLE — harness could not extract',
@@ -284,6 +296,7 @@ describe('classifyProof — unexpected pass is UNEXPECTED_PASS', () => {
 				{
 					assertionResults: [
 						{
+							fullName: 'suite unexpected pass',
 							status: 'passed',
 							failureMessages: [],
 						},
@@ -308,6 +321,7 @@ describe('classifyProof — unexpected exit code is ERROR', () => {
 				{
 					assertionResults: [
 						{
+							fullName: 'suite unexpected exit code',
 							status: 'failed',
 							failureMessages: ['AssertionError: x'],
 						},
@@ -320,5 +334,185 @@ describe('classifyProof — unexpected exit code is ERROR', () => {
 
 		expect(result.verdict).toBe('ERROR');
 		expect(result.reason).toContain('unexpected code 2');
+	});
+});
+
+// --- classifyProofWithManifest: verdicts (r8 per-test expectation path) ---
+
+// The r8 manifest classifier layers per-test kept-red expectations on top of
+// the r7 global classifier. These tests cover the two verdicts the global
+// classifier cannot produce: DECLARED RED PASSED (a declared kept-red test
+// went green) and the manifest-driven CORRUPT PROOF cases (declared test
+// missing from the report, or skipped/pending). The behavior itself is
+// verified end-to-end by the preuves replay; these unit tests pin the verdict
+// logic so a regression in classifyProofWithManifest turns a named test red
+// instead of waiting for a CI replay.
+
+describe('classifyProofWithManifest — base CORRUPT PROOF passes through', () => {
+	test('a thrown Error report stays CORRUPT PROOF even with a valid manifest', () => {
+		const report: ProofReport = {
+			numTotalTests: 1,
+			numFailedTests: 1,
+			testResults: [
+				{
+					assertionResults: [
+						{
+							fullName: 'suite throws',
+							status: 'failed',
+							failureMessages: ['Error: harness crash'],
+						},
+					],
+				},
+			],
+		};
+
+		const manifest: ExpectedRedManifest = {
+			expectedRed: [{ testName: 'throws', why: 'must measure the bug' }],
+		};
+
+		const result = classifyProofWithManifest(report, 1, manifest);
+
+		expect(result.verdict).toBe('CORRUPT PROOF');
+		expect(result.reason).toContain('thrown Error');
+	});
+});
+
+describe('classifyProofWithManifest — declared kept-red test PASSED is DECLARED RED PASSED', () => {
+	test('a passed declared-red test yields DECLARED RED PASSED even when another test still fails on an assertion', () => {
+		// The r8 angle mort: the global classifier sees an AssertionError and
+		// reports OK; the per-test classifier must catch that the DECLARED
+		// kept-red test went green and report DECLARED RED PASSED instead.
+		const report: ProofReport = {
+			numTotalTests: 2,
+			numFailedTests: 1,
+			testResults: [
+				{
+					assertionResults: [
+						{
+							fullName: 'suite other test still fails',
+							status: 'failed',
+							failureMessages: ['AssertionError: expected 1 to be 2'],
+						},
+						{
+							fullName: 'suite the declared red went green',
+							status: 'passed',
+							failureMessages: [],
+						},
+					],
+				},
+			],
+		};
+
+		const manifest: ExpectedRedManifest = {
+			expectedRed: [
+				{
+					testName: 'the declared red went green',
+					why: 'must fail on correct code',
+				},
+			],
+		};
+
+		const result = classifyProofWithManifest(report, 1, manifest);
+
+		expect(result.verdict).toBe('DECLARED RED PASSED');
+		expect(result.reason).toContain('declared kept-red test PASSED');
+	});
+});
+
+describe('classifyProofWithManifest — manifest-driven CORRUPT PROOF cases', () => {
+	test('a declared kept-red test missing from the report is CORRUPT PROOF', () => {
+		const report: ProofReport = {
+			numTotalTests: 1,
+			numFailedTests: 1,
+			testResults: [
+				{
+					assertionResults: [
+						{
+							fullName: 'suite only test',
+							status: 'failed',
+							failureMessages: ['AssertionError: expected 1 to be 2'],
+						},
+					],
+				},
+			],
+		};
+
+		const manifest: ExpectedRedManifest = {
+			expectedRed: [{ testName: 'ghost test', why: 'declared but gone' }],
+		};
+
+		const result = classifyProofWithManifest(report, 1, manifest);
+
+		expect(result.verdict).toBe('CORRUPT PROOF');
+		expect(result.reason).toContain('not found in vitest report');
+	});
+
+	test('a declared kept-red test that was skipped is CORRUPT PROOF', () => {
+		const report: ProofReport = {
+			numTotalTests: 2,
+			numFailedTests: 1,
+			testResults: [
+				{
+					assertionResults: [
+						{
+							fullName: 'suite red one',
+							status: 'failed',
+							failureMessages: ['AssertionError: expected a to be b'],
+						},
+						{
+							fullName: 'suite skipped red',
+							status: 'skipped',
+							failureMessages: [],
+						},
+					],
+				},
+			],
+		};
+
+		const manifest: ExpectedRedManifest = {
+			expectedRed: [{ testName: 'skipped red', why: 'must fail, not skip' }],
+		};
+
+		const result = classifyProofWithManifest(report, 1, manifest);
+
+		expect(result.verdict).toBe('CORRUPT PROOF');
+		expect(result.reason).toContain('skipped/pending');
+	});
+});
+
+describe('classifyProofWithManifest — all declared tests red is OK (control)', () => {
+	test('every declared kept-red test failing on an assertion yields OK', () => {
+		const report: ProofReport = {
+			numTotalTests: 2,
+			numFailedTests: 2,
+			testResults: [
+				{
+					assertionResults: [
+						{
+							fullName: 'suite red one',
+							status: 'failed',
+							failureMessages: ['AssertionError: expected a to be b'],
+						},
+						{
+							fullName: 'suite red two',
+							status: 'failed',
+							failureMessages: ['AssertionError: expected b to be c'],
+						},
+					],
+				},
+			],
+		};
+
+		const manifest: ExpectedRedManifest = {
+			expectedRed: [
+				{ testName: 'red one', why: 'first kept-red axis' },
+				{ testName: 'red two', why: 'second kept-red axis' },
+			],
+		};
+
+		const result = classifyProofWithManifest(report, 1, manifest);
+
+		expect(result.verdict).toBe('OK');
+		expect(result.reason).toContain('2 declared kept-red');
 	});
 });

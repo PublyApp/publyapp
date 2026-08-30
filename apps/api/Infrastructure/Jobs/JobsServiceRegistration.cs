@@ -125,6 +125,11 @@ public static class JobsServiceRegistration {
 		builder.AddJobHandler<PublishPublicationJobHandler>(
 			PublishingJobs.PublishPublicationV1.JobType
 		);
+
+		// System due-scan (Epic D3): every-minute sweep that claims past-due
+		// Scheduled publications and enqueues their publish jobs. Registered by
+		// JobKey like the retention sweeps above, NOT by PublishingJobs' type.
+		builder.AddJobHandler<DispatchDuePostsJob>(DispatchDuePostsJob.JobKey);
 	}
 
 	// Email job handlers (design §5.4). Built to the finalized engine contract: SCOPED,

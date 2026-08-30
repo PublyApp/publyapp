@@ -1374,5 +1374,12 @@
 	"queue-status-failed": "Échouée",
 	"queue-status-pending": "En attente",
 	"queue-status-processing": "En traitement",
-	"scroll-area-label": "Contenu déroulant"
+	"scroll-area-label": "Contenu déroulant",
+	"icon-hidden-aria": "l'icône a aria-hidden=\"true\"",
+	"icon-hidden-visibility": "l'icône a visibility:hidden calculé",
+	"icon-hidden-display": "l'icône a display:none calculé",
+	"icon-hidden-opacity": "l'icône a opacity:0 calculé",
+	"icon-guard-context-null": "{{context}}: l'élément d'icône est nul",
+	"icon-guard-indeterminate-detached": "{{context}}: l'élément d'icône n'est pas connecté au document, sa visibilité ne peut pas être mesurée. Action attendue : attacher l'élément au document (le rendre dans un conteneur vivant) puis relancer la garde.",
+	"icon-guard-indeterminate-unresolved": "{{context}}: une valeur de style calculé est non résolue (chaîne vide), la visibilité de l'icône ne peut pas être mesurée. Action attendue : s'assurer que le style calculé est lisible (nœud connecté, feuille de style résolue) puis relancer la garde."
 }

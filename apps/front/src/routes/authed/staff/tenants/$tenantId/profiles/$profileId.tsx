@@ -8,6 +8,7 @@ import { View403 } from '~/components/error-views/View403';
 import { staffTenantProfileDetailsQueryOptions } from '~/lib/query/staff-tenant-profiles';
 import { staffTenantDetailsQueryOptions } from '~/lib/query/staff-tenants';
 
+import { logger } from '@org/shared-ts/lib/logger/iso-logger';
 import { shouldLogoutForFailure } from '@org/shared-ts/lib/should-logout-for-failure';
 
 import {
@@ -224,7 +225,7 @@ const StaffTenantProfileDetailsPage = () => {
 
 /**
  * #851 round 2 — the route's own loader-error surface. The awaited loader
- * rejects on 404/403/500 (`ensureQueryData` surfaces the Kiota problem
+ * rejects on 404/403/500 (`queryClient.query` surfaces the Kiota problem
  * pipeline), and without this boundary a loader throw short-circuits the
  * route render and the parent `_authed-layout` boundary takes over — moving
  * 404/500 UX off the route's own designed views onto generic ones.
@@ -298,8 +299,19 @@ export const Route = createFileRoute(
 	validateSearch: (search) =>
 		parseProfileDetailsSearchParams(search as ProfileDetailsSearchParamInput),
 	loader: async ({ context, params }) => {
-		await Promise.all([
-			context.queryClient.ensureQueryData({
+		// #851 round 3 (A3 fix): the migration from ensureQueryData to
+		// query({staleTime:'static'}) eliminated the background revalidation of
+		// cached loader data that ensureQueryData provided via prefetchQuery.
+		// To preserve that behavior, we now use query() for the initial fetch
+		// (which propagates errors to the error boundary) followed by
+		// prefetchQuery() to trigger background revalidation of stale cached
+		// data — matching the old ensureQueryData semantics.
+		//
+		// prefetchQuery() is deprecated in @tanstack/react-query 5.102+; the
+		// migration per the deprecation notice is query().catch(noop). We keep
+		// the .catch() handler to log background failures as warnings.
+		const fetchTenantDetails = () =>
+			context.queryClient.query({
 				queryKey: staffTenantDetailsQueryOptions.queryKey({
 					tenantId: params.tenantId,
 				}),
@@ -307,8 +319,9 @@ export const Route = createFileRoute(
 					staffTenantDetailsQueryOptions.fetcher({
 						tenantId: params.tenantId,
 					}),
-			}),
-			context.queryClient.ensureQueryData({
+			});
+		const fetchProfileDetails = () =>
+			context.queryClient.query({
 				queryKey: staffTenantProfileDetailsQueryOptions.queryKey({
 					tenantId: params.tenantId,
 					profileId: params.profileId,
@@ -318,8 +331,35 @@ export const Route = createFileRoute(
 						tenantId: params.tenantId,
 						profileId: params.profileId,
 					}),
-			}),
-		]);
+			});
+
+		// #851 round 3 (A3 fix): the awaited initial fetch settles both keys.
+		// Errors propagate to the error boundary; only this fetch is owned by
+		// the route's errorComponent.
+		await Promise.all([fetchTenantDetails(), fetchProfileDetails()]);
+
+		// #851 round 3 (A3 fix): background revalidation of the cached data the
+		// initial query() just settled. With the default `staleTime: 0`, that
+		// data is immediately stale, so these fire-and-forget query() calls
+		// each issue a background refetch — exactly the behaviour ensureQueryData
+		// provided via prefetchQuery before the #851 migration. Errors are
+		// logged as warnings (they do not block the initial render).
+		void fetchTenantDetails().catch((error: unknown) => {
+			logger.warn(
+				'Profile details loader: background revalidation failed for tenant details fetch',
+				{ tenantId: params.tenantId, error },
+			);
+		});
+		void fetchProfileDetails().catch((error: unknown) => {
+			logger.warn(
+				'Profile details loader: background revalidation failed for profile details fetch',
+				{
+					tenantId: params.tenantId,
+					profileId: params.profileId,
+					error,
+				},
+			);
+		});
 	},
 	pendingComponent: ProfileDetailsLoading,
 	errorComponent: ProfileRouteErrorBoundary,

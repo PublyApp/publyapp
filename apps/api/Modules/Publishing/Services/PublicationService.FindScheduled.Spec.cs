@@ -1,0 +1,181 @@
+using System.Text;
+
+using FluentAssertions;
+
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+
+using PublyApp.Api.Data.DbContext;
+using PublyApp.Api.Lib.Testing.Fixtures;
+using PublyApp.Api.Modules.Posts.Entities;
+using PublyApp.Api.Modules.Publishing.Entities;
+using PublyApp.Api.Modules.SocialAccounts.Entities;
+using PublyApp.Api.Modules.Tenants.Entities;
+using PublyApp.Api.Modules.Users.Entities;
+
+using Xunit;
+
+namespace PublyApp.Api.Modules.Publishing.Services;
+
+// Direct-invocation integration spec for PublicationService.FindScheduledAsync
+// (real ephemeral Postgres, no HTTP surface). Pins the round-3 fixes at the
+// service boundary: an empty window is a normal empty page (not a crash), and
+// the cursor-existence probe is tenant-scoped like the main query. The context
+// is built WITHOUT the tenant model filter, so these cases exercise the code's
+// OWN tenant predicates and cannot be masked by first-tenant model caching.
+public sealed class PublicationServiceFindScheduledSpec : IClassFixture<ApiFixture> {
+	private readonly ApiFixture _fixture;
+
+	public PublicationServiceFindScheduledSpec(ApiFixture fixture) {
+		_fixture = fixture;
+	}
+
+	private async Task<AppDbContext> NewDbAsync() {
+		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+		var connectionString = scope.ServiceProvider
+			.GetRequiredService<AppDbContext>()
+			.Database.GetConnectionString();
+
+		if (connectionString is null) {
+			throw new InvalidOperationException(
+				"Test database connection string was unexpectedly null."
+			);
+		}
+
+		return new AppDbContext(
+			new DbContextOptionsBuilder<AppDbContext>()
+				.UseNpgsql(connectionString)
+				.Options
+		);
+	}
+
+	private static PublicationService NewService(AppDbContext db) {
+		return new PublicationService(db, new Microsoft.AspNetCore.Http.HttpContextAccessor());
+	}
+
+	private static async Task<(Guid TenantId, Guid AccountId, Guid UserId)>
+		SeedTenantAndAccountAsync(AppDbContext db) {
+		var tenant = new Tenant {
+			Name = $"pub-find-{Guid.NewGuid():N}",
+			Code = Guid.NewGuid().ToString("N")[..10],
+			Status = TenantStatus.Active,
+			MaxUsers = 10,
+		};
+		var user = new User {
+			Email = $"pub-find-{Guid.NewGuid():N}@example.com",
+			Password = "unused",
+			IsVerified = true,
+		};
+		db.Tenant.Add(tenant);
+		db.User.Add(user);
+		await db.SaveChangesAsync();
+
+		var account = new SocialAccount {
+			TenantId = tenant.GetRequiredId(),
+			ExternalAccountId = $"did:plc:{Guid.NewGuid():N}",
+			DisplayHandle = "@findspec.bsky.social",
+			ProtectedCredentials = "enc-spec-blob",
+		};
+		db.SocialAccount.Add(account);
+		await db.SaveChangesAsync();
+
+		return (tenant.GetRequiredId(), account.GetRequiredId(), user.GetRequiredId());
+	}
+
+	private static async Task<Publication> SeedPublicationAsync(
+		AppDbContext db,
+		Guid tenantId,
+		Guid accountId,
+		Guid userId,
+		DateTime scheduledAtUtc
+	) {
+		var post = new Post {
+			TenantId = tenantId,
+			Body = "find service spec body",
+			CreatedByUserId = userId,
+		};
+		db.Post.Add(post);
+		await db.SaveChangesAsync();
+
+		var publication = new Publication {
+			TenantId = tenantId,
+			PostId = post.GetRequiredId(),
+			SocialAccountId = accountId,
+			Status = PublicationStatus.Scheduled,
+			ScheduledAtUtc = scheduledAtUtc,
+			ScheduledTimeZone = "Europe/Paris",
+			IdempotencyKey = $"find-service-spec-{Guid.NewGuid():N}",
+		};
+		db.Publication.Add(publication);
+		await db.SaveChangesAsync();
+		return publication;
+	}
+
+	private static string EncodeCursor(DateTime utcInstant, Guid id) {
+		return Convert.ToBase64String(
+			Encoding.UTF8.GetBytes($"{utcInstant:O}|{id}")
+		);
+	}
+
+	[Fact]
+	public async Task ItShouldReturnAnEmptyPageWhenTheWindowMatchesNoRows() {
+		await using var db = await NewDbAsync();
+		var (tenantA, accountA, userA) = await SeedTenantAndAccountAsync(db);
+		_ = await SeedPublicationAsync(
+			db, tenantA, accountA, userA,
+			new DateTime(2099, 6, 1, 10, 0, 0, DateTimeKind.Utc)
+		);
+		var service = NewService(db);
+
+		// Round-2 finding: rows[^1] was read unconditionally, so a window with no
+		// matching row crashed with 500. The service must answer a coherent empty
+		// page with no next cursor.
+		var result = await service.FindScheduledAsync(
+			new FindScheduledPublicationsArgs(
+				TenantId: tenantA,
+				FromUtc: new DateTime(2100, 3, 1, 0, 0, 0, DateTimeKind.Utc),
+				ToUtc: new DateTime(2100, 3, 31, 0, 0, 0, DateTimeKind.Utc),
+				Statuses: null,
+				Cursor: null,
+				Limit: 50
+			)
+		);
+
+		result.Should().BeOfType<FindScheduledResult.Success>();
+		var page = ((FindScheduledResult.Success)result).Page;
+		page.Data.Should().BeEmpty();
+		page.NextCursor.Should().BeNull();
+	}
+
+	[Fact]
+	public async Task ItShouldRejectACursorThatRefersToAnotherTenantsPublication() {
+		await using var db = await NewDbAsync();
+		var (tenantA, accountA, userA) = await SeedTenantAndAccountAsync(db);
+		var (tenantB, accountB, userB) = await SeedTenantAndAccountAsync(db);
+		var foreignRow = await SeedPublicationAsync(
+			db, tenantA, accountA, userA,
+			new DateTime(2100, 1, 15, 8, 0, 0, DateTimeKind.Utc)
+		);
+		var service = NewService(db);
+
+		// Round-2 finding: the cursor-existence probe was not tenant-scoped while
+		// the main query was. A cursor anchored on tenant A's row must not anchor
+		// tenant B's page: B answers CursorNotFound (400), not a page built from
+		// nothing.
+		var result = await service.FindScheduledAsync(
+			new FindScheduledPublicationsArgs(
+				TenantId: tenantB,
+				FromUtc: new DateTime(2100, 1, 1, 0, 0, 0, DateTimeKind.Utc),
+				ToUtc: new DateTime(2100, 2, 1, 0, 0, 0, DateTimeKind.Utc),
+				Statuses: null,
+				Cursor: EncodeCursor(
+					foreignRow.ScheduledAtUtc,
+					foreignRow.GetRequiredId()
+				),
+				Limit: 50
+			)
+		);
+
+		result.Should().BeOfType<FindScheduledResult.CursorNotFound>();
+	}
+}

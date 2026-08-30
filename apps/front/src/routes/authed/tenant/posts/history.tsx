@@ -34,6 +34,23 @@ const DEFAULT_SORT = { id: 'updated_at', order: 'desc' as const } as const;
  * without a manual reload); it stops once nothing is in flight. */
 const IN_PROGRESS_POLL_MS = 5_000;
 
+/** A publish-now row is `scheduled` until the worker claims its delivery job
+ * (LISTEN/NOTIFY wake, or the 5 s queue poll at the latest). If the history
+ * list's first fetch lands in that window it sees `scheduled`, and a gate that
+ * only watches `in_progress` would never start polling — the worker publishes a
+ * few seconds later, but the list never re-validates and the external link is
+ * missing until a manual reload. A row whose `updatedAt` is recent is therefore
+ * in flight for the same poll cadence; the window is far longer than any
+ * realistic worker pickup and far shorter than a deliberate future schedule, so
+ * scheduled posts stay quiet.
+ *
+ * Freshness is measured against the query's `dataUpdatedAt` (the client time of
+ * the last successful fetch) rather than the wall clock: it is a pure function
+ * of the data the render is already holding, so no impure `Date.now()` runs
+ * during render, and each poll's refetch advances it so the window expires once
+ * the row stops being touched. */
+const SCHEDULED_IN_FLIGHT_WINDOW_MS = 60_000;
+
 /** Terminal statuses with a dedicated label — anything else renders raw. */
 const STATUS_LABEL_KEYS = {
 	published: 'posts:publish-status-published',
@@ -140,9 +157,20 @@ const TenantPostsHistoryPage = () => {
 	const hasInProgress = rows.some(
 		(publication) => publication.status === 'in_progress',
 	);
+	const dataUpdatedAt = query.dataUpdatedAt;
+	const hasInFlightScheduled =
+		dataUpdatedAt > 0 &&
+		rows.some(
+			(publication) =>
+				publication.status === 'scheduled' &&
+				publication.updatedAt !== null &&
+				dataUpdatedAt - publication.updatedAt.getTime() <=
+					SCHEDULED_IN_FLIGHT_WINDOW_MS,
+		);
+	const hasInFlight = hasInProgress || hasInFlightScheduled;
 
 	useEffect(() => {
-		if (!hasInProgress || !tenantId) {
+		if (!hasInFlight || !tenantId) {
 			return;
 		}
 
@@ -151,7 +179,7 @@ const TenantPostsHistoryPage = () => {
 		}, IN_PROGRESS_POLL_MS);
 
 		return () => clearInterval(interval);
-	}, [hasInProgress, tenantId, qc]);
+	}, [hasInFlight, tenantId, qc]);
 
 	const columns = useMemo<ColumnDef<TenantPublicationRow>[]>(
 		() => [
