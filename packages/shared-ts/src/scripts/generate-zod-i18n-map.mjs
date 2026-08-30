@@ -147,8 +147,8 @@ for (const language of supportedLanguages) {
 			commonPrefixLength(sExpA, sRecC),
 			commonPrefixLength(sRecB, sRecC),
 		);
-		// Invariant text after the received token (empty in English, " received"
-		// in French). Derived structurally — never assumed.
+		// Invariant text after the received token (empty in English, " reçu"
+		// — French for "received" — in French). Derived structurally — never assumed.
 		const recPost = Math.min(
 			commonSuffixLength(sExpA, sRecB),
 			commonSuffixLength(sExpA, sRecC),
