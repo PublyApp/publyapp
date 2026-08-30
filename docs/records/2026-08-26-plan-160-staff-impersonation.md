@@ -663,7 +663,7 @@ public async Task<ImpersonationEndResult> EndImpersonationSessionForStaffAsync(
 "impersonation-ended-success": "Impersonation ended successfully"
 ```
 
-FR translations mirror the same shape ("Session d'usurpation d'identité démarrée", etc.). Run `just generate-response-keys` and commit the regenerated `ResponseKeys.g.cs`.
+FR translations mirror the same shape ("Identity impersonation session started", etc.). Run `just generate-response-keys` and commit the regenerated `ResponseKeys.g.cs`.
 
 - [ ] **Step 5: GREEN check + commit.**
 

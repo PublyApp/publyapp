@@ -1,151 +1,150 @@
-# Preuve r6 — correction du Step 4b et ajout du Step 3b
+# Proof r6 — Step 4b fix and Step 3b addition
 
 **Issue :** #1457 / #1783 (PR #1806)
 **Ronde :** r6
 **Branche :** `lane/wt-1783`
 **Worktree :** `wt-1774`
-**Fichier de preuve :** `apps/front/tests/proofs/1457/red-1457-r2-sigint-race-silent-child.test.ts`
-**Remplace :** `docs/records/2026-08-29-preuve-r4-two-step-pipeline.md`
+**Proof file:** `apps/front/tests/proofs/1457/red-1457-r2-sigint-race-silent-child.test.ts`
+**Replaces:** `docs/records/2026-08-29-preuve-r4-two-step-pipeline.md`
 
-## Ce que la ronde a fait
+## What the round did
 
-### Problème identifié dans la ronde r5
+### Problem identified in round r5
 
-La ronde r5 a ajouté un **Step 4b** (sanity check) pour faire passer une ligne
-de notation crochet différée à `isHandlerDeferred`. Mais la ligne choisie était :
+Round r5 added a **Step 4b** (sanity check) to make a line
+of deferred bracket notation pass `isHandlerDeferred`. But the line chosen was:
 
 ```js
 const knownBracketDeferredLine = `setImmediate(() => { process['on']('SIGINT', () => {}); });`;
 ```
 
-Cette ligne commence par `setImmediate(`, **pas** par `process['on'](`. La
-fonction `isHandlerDeferred` ne regarde que le préfixe de la ligne, donc elle
-classait correctement cette ligne comme différée (true) — même si le bug
-Mutation F (accepter la notation crochet comme non-différé) était présent.
+This line starts with `setImmediate(`, **not** with `process['on'](`. The
+`isHandlerDeferred` function only looks at the line prefix, so it
+correctly classified this line as deferred (true) — even if the bug
+Mutation F (accepting bracket notation as non-deferred) was present.
 
-**Résultat :** Step 4b ne lançait jamais `MESURE IMPOSSIBLE` pour Mutation F.
-Le coureur n'avait aucun signal d'erreur et classait le fichier comme OK (CI vert).
-La mutation F survivait à la CI verte.
+**Result:** Step 4b never threw `MEASUREMENT IMPOSSIBLE` for Mutation F.
+The runner had no error signal and classified the file as OK (CI green).
+Mutation F survived the green CI.
 
-Le document r4 (`2026-08-29-preuve-r4-two-step-pipeline.md`) revendiquait à tort
-que Mutation F est détectée par Step 4b — cette revendication est **fausse**.
+The r4 document (`2026-08-29-preuve-r4-two-step-pipeline.md`) falsely claimed
+that Mutation F is detected by Step 4b — this claim is **false**.
 
-### Problème identifié dans la ronde r5 — Mutation G
+### Problem identified in round r5 — Mutation G
 
-Une mutation supplémentaire, **Mutation G** (`isHandlerDeferred` retourne toujours `true`),
-n'était pas détectée non plus. Sans Step 3b :
+An additional mutation, **Mutation G** (`isHandlerDeferred` always returns `true`),
+was not detected either. Without Step 3b:
 
-- **Test 1** (le test principal) : `isHandlerDeferred(handlerLine)` renvoie `true`
-  (Mutation G), donc `handlerIsDeferred = true`, `bugPresent = true` →
-  `expect(bugPresent).toBe(true)` **PASSE** (passage inattendu).
-- **Test 2** (pipeline) échoue sur Step 5 : `expect(isHandlerDeferred(deferredLine)).toBe(false)`
-  — mais `isHandlerDeferred` retourne toujours `true`, donc l'attente `false` ÉCHEC
-  sur une **AssertionError**.
+- **Test 1** (the main test): `isHandlerDeferred(handlerLine)` returns `true`
+  (Mutation G), so `handlerIsDeferred = true`, `bugPresent = true` →
+  `expect(bugPresent).toBe(true)` **PASSES** (unexpected passage).
+- **Test 2** (pipeline) fails on Step 5: `expect(isHandlerDeferred(deferredLine)).toBe(false)`
+  — but `isHandlerDeferred` always returns `true`, so the `false` expectation FAILS
+  on an **AssertionError**.
 
-Le coureur voit "1 failed, 1 passed" avec un AssertionError sur Test 2. Sans
-`MESURE IMPOSSIBLE` dans la sortie, il classifie le fichier comme "échec attendu"
-(CI verte) — la mutation G survivait.
+The runner sees "1 failed, 1 passed" with an AssertionError on Test 2. Without
+`MEASUREMENT IMPOSSIBLE` in the output, it classifies the file as "expected failure"
+(CI green) — Mutation G survived.
 
 ### Fix r6
 
-#### Step 4b corrigé
+#### Step 4b corrected
 
-`knownBracketDeferredLine` est changé de :
+`knownBracketDeferredLine` is changed from:
 
 ```js
 // AVANT (r5 — ne commence pas par process['on']()
 const knownBracketDeferredLine = `setImmediate(() => { process['on']('SIGINT', () => {}); });`;
 ```
 
-à :
+to:
 
 ```js
-// APRÈS (r6 — commence bien par process['on'()
+// AFTER (r6 — does start with process['on'()
 const knownBracketDeferredLine = `process['on']('SIGINT', () => {});`;
 ```
 
-Cette ligne commence par `process['on'](` — la forme crochet directe. Sauf
-forme `process.on(`, elle ne commence PAS par `process.on(`, donc
-`isHandlerDeferred` **doit** la classer comme différé (true). Si Mutation F
-affaiblit `isHandlerDeferred` pour accepter `process['on'](` comme non-différé,
-la fonction renvoie `false`, le sanity check lance `MESURE IMPOSSIBLE`, et le
-coureur classe en **CORRUPT PROOF** (CI rouge).
+This line starts with `process['on'](` — the direct bracket form. Unless
+it's the `process.on(` form, it does NOT start with `process.on(`, so
+`isHandlerDeferred` **must** classify it as deferred (true). If Mutation F
+weakens `isHandlerDeferred` to accept `process['on'](` as non-deferred,
+the function returns `false`, the sanity check throws `MEASUREMENT IMPOSSIBLE`, and the
+runner classes it as **CORRUPT PROOF** (CI red).
 
-#### Step 3b ajouté
+#### Step 3b added
 
-Un nouveau sanity check avant Step 4b :
+A new sanity check before Step 4b:
 
 ```js
 const knownDirectLine = `process.on('SIGINT', () => {});`;
 if (isHandlerDeferred(knownDirectLine)) {
-    throw new Error(`MESURE IMPOSSIBLE — isHandlerDeferred misclassified a known-direct handler line as deferred...`);
+    throw new Error(`MEASUREMENT IMPOSSIBLE — isHandlerDeferred misclassified a known-direct handler line as deferred...`);
 }
 ```
 
-Sur le code correct, `isHandlerDeferred` renvoie `false` pour une ligne directe.
-Mutation G (`return true`) renvoie `true` → lance `MESURE IMPOSSIBLE` → **CORRUPT PROOF**.
+On correct code, `isHandlerDeferred` returns `false` for a direct line.
+Mutation G (`return true`) returns `true` → throws `MEASUREMENT IMPOSSIBLE` → **CORRUPT PROOF**.
 
-### Pourquoi deux sanity checks (Step 3b et Step 4) sont nécessaires
+### Why two sanity checks (Step 3b and Step 4) are necessary
 
-- **Step 3b** attrape `isHandlerDeferred` = toujours `true` (Mutation G) : la fonction
-  classe un direct comme différé.
-- **Step 4** attrape `isHandlerDeferred` = toujours `false` (Mutation E) ou inversée
-  (Mutation D) : la fonction classe un différé comme non-différé.
-- **Step 4b** attrape Mutation F : la fonction accepte la notation crochet comme non-différé.
+- **Step 3b** catches `isHandlerDeferred` = always `true` (Mutation G): the function
+  classifies a direct as deferred.
+- **Step 4** catches `isHandlerDeferred` = always `false` (Mutation E) or inverted
+  (Mutation D): the function classifies a deferred as non-deferred.
+- **Step 4b** catches Mutation F: the function accepts bracket notation as non-deferred.
 
-Chacun de ces trois affirmations est l'opposé de l'autre — un seul sanity check
-ne peut pas attraper les trois mutations car elles produisent des effets
-contradires sur la même entrée.
+Each of these three assertions is the opposite of the other — a single sanity check
+cannot catch all three mutations because they produce contradictory effects on the same input.
 
-## Mutations défensives — tableau récapitulatif
+## Defensive mutations — summary table
 
-| # | Mutation | Axe | Détecté par | Résultat |
+| # | Mutation | Axis | Detected by | Result |
 |---|---------|-----|-------------|----------|
-| C | `findHandlerLine` régressé en regex dot-only (`/process\.on/…`) | Syntaxe (localisation) | Step 3 THROW : `findHandlerLine` lève `MESURE IMPOSSIBLE` sur `process['on']` → **CORRUPT PROOF** | ✓ CI rouge |
-| D | `isHandlerDeferred` inversé (`return line.trim().startsWith('process.on(')`) | Temporalité (classification) | Step 4 sanity THROW : `isHandlerDeferred(knownDeferredLine)` → `false` → lève `MESURE IMPOSSIBLE` → **CORRUPT PROOF** | ✓ CI rouge |
-| E | `isHandlerDeferred` toujours faux (`return false`) | Temporalité (classification) | Step 4 sanity THROW : `isHandlerDeferred(knownDeferredLine)` → `false` → lève `MESURE IMPOSSIBLE` → **CORRUPT PROOF** | ✓ CI rouge |
-| F | `isHandlerDeferred` accepte les crochets comme non-différés (`!(startsWith('process.on(') \|\| startsWith("process['on']"))`) | Syntaxe + temporalité | Step 4b sanity THROW : `isHandlerDeferred(knownBracketDeferredLine)` → `false` → lève `MESURE IMPOSSIBLE` → **CORRUPT PROOF** | ✓ CI rouge (r6) |
-| G | `isHandlerDeferred` toujours vrai (`return true`) | Temporalité (classification) | Step 3b sanity THROW : `isHandlerDeferred(knownDirectLine)` → `true` → lève `MESURE IMPOSSIBLE` → **CORRUPT PROOF** | ✓ CI rouge (r6) |
+| C | `findHandlerLine` regressed to dot-only regex (`/process\.on/…`) | Syntax (location) | Step 3 THROW: `findHandlerLine` throws `MEASUREMENT IMPOSSIBLE` on `process['on']` → **CORRUPT PROOF** | ✓ CI red |
+| D | `isHandlerDeferred` inverted (`return line.trim().startsWith('process.on(')`) | Temporality (classification) | Step 4 sanity THROW: `isHandlerDeferred(knownDeferredLine)` → `false` → throws `MEASUREMENT IMPOSSIBLE` → **CORRUPT PROOF** | ✓ CI red |
+| E | `isHandlerDeferred` always false (`return false`) | Temporality (classification) | Step 4 sanity THROW: `isHandlerDeferred(knownDeferredLine)` → `false` → throws `MEASUREMENT IMPOSSIBLE` → **CORRUPT PROOF** | ✓ CI red |
+| F | `isHandlerDeferred` accepts brackets as non-deferred (`!(startsWith('process.on(') \|\| startsWith("process['on']"))`) | Syntax + temporality | Step 4b sanity THROW: `isHandlerDeferred(knownBracketDeferredLine)` → `false` → throws `MESURE IMPOSSIBLE` → **CORRUPT PROOF** | ✓ CI red (r6) |
+| G | `isHandlerDeferred` always true (`return true`) | Temporality (classification) | Step 3b sanity THROW: `isHandlerDeferred(knownDirectLine)` → `true` → throws `MEASUREMENT IMPOSSIBLE` → **CORRUPT PROOF** | ✓ CI red (r6) |
 
-### Ce que le document r4 affirmait à tort
+### What the r4 document falsely claimed
 
-Le document r4 revendiquait :
+The r4 document claimed:
 
-> - [x] Mutation F → CORRUPT PROOF (r5 : Step 4b lève MESURE IMPOSSIBLE sur ligne crochet difféée)
+> - [x] Mutation F → CORRUPT PROOF (r5: Step 4b throws MEASUREMENT IMPOSSIBLE on deferred bracket line)
 
-Cette assertion est **fausse**. La ronde r5 n'a pas vérifié que `knownBracketDeferredLine`
-commençait réellement par `process['on'](`. La ligne choisie commençait par `setImmediate(`,
-donc `isHandlerDeferred` la classait correctement comme différé même avec Mutation F
-appliquée. Aucun `MESURE IMPOSSIBLE` n'était lancé. La mutation F a survivé.
+This assertion is **false**. Round r5 did not verify that `knownBracketDeferredLine`
+actually started with `process['on'](`. The chosen line started with `setImmediate(`,
+so `isHandlerDeferred` correctly classified it as deferred even with Mutation F
+applied. No `MEASUREMENT IMPOSSIBLE` was thrown. Mutation F survived.
 
-Le document r4 a également omis Mutation G (`return true`), qui survivait pour
-la même raison : le coureur malclassifiait un AssertionError comme "échec attendu"
-sans l'absence de `MESURE IMPOSSIBLE` dans la sortie.
+The r4 document also omitted Mutation G (`return true`), which survived for
+the same reason: the runner misclassified an AssertionError as "expected failure"
+without the absence of `MEASUREMENT IMPOSSIBLE` in the output.
 
-## Processus de détection en deux étapes
+## Two-step detection process
 
-1. **LOCALISER** — `findHandlerLine` localise la ligne du handler via regex
-   (gère `process.on(`, `process['on']`, et `process["on"]`). Rétrogration en dot-only → `MESURE IMPOSSIBLE`.
-2. **CLASSIFIER** — `isHandlerDeferred` classe la ligne comme directe
-   (`process.on(` → `false`) ou différée (tout le reste → `true`). Rétrogradation → `MESURE IMPOSSIBLE`
-   via Step 3b, 4, ou 4b selon la forme de la rétrogradation.
+1. **LOCATE** — `findHandlerLine` locates the handler line via regex
+   (handles `process.on(`, `process['on']`, and `process["on"]`). Regression to dot-only → `MEASUREMENT IMPOSSIBLE`.
+2. **CLASSIFY** — `isHandlerDeferred` classifies the line as direct
+   (`process.on(` → `false`) or deferred (everything else → `true`). Regression → `MEASUREMENT IMPOSSIBLE`
+   via Step 3b, 4, or 4b depending on the form of the regression.
 
-## Vérifications
+## Verifications
 
-- [x] Les deux tests échouent sur code correct (rouge gardé, état attendu)
-- [x] Typecheck passe (exit code 0)
-- [x] Mutation C → CORRUPT PROOF (MESURE IMPOSSIBLE depuis findHandlerLine)
-- [x] Mutation D → CORRUPT PROOF (MESURE IMPOSSIBLE depuis Step 4 sanity)
-- [x] Mutation E → CORRUPT PROOF (MESURE IMPOSSIBLE depuis Step 4 sanity)
-- [x] Mutation F → CORRUPT PROOF (MESURE IMPOSSIBLE depuis Step 4b sanity) — **corrigé en r6**
-- [x] Mutation G → CORRUPT PROOF (MESURE IMPOSSIBLE depuis Step 3b sanity) — **nouveau en r6**
+- [x] Both tests fail on correct code (kept-red, expected state)
+- [x] Typecheck passes (exit code 0)
+- [x] Mutation C → CORRUPT PROOF (MEASUREMENT IMPOSSIBLE from findHandlerLine)
+- [x] Mutation D → CORRUPT PROOF (MEASUREMENT IMPOSSIBLE from Step 4 sanity)
+- [x] Mutation E → CORRUPT PROOF (MEASUREMENT IMPOSSIBLE from Step 4 sanity)
+- [x] Mutation F → CORRUPT PROOF (MEASUREMENT IMPOSSIBLE from Step 4b sanity) — **fixed in r6**
+- [x] Mutation G → CORRUPT PROOF (MEASUREMENT IMPOSSIBLE from Step 3b sanity) — **new in r6**
 
-## Fichiers modifiés
+## Modified files
 
 - `apps/front/tests/proofs/1457/red-1457-r2-sigint-race-silent-child.test.ts`
-  - Step 4b corrigé : `knownBracketDeferredLine` changé de `setImmediate(() => { process['on'](...) })` à `process['on'](...)` direct
-  - Step 3b ajouté : sanity check sur une ligne directe `process.on('SIGINT', () => {})`
-  - En-tête "Enhancement (r5/r6)" mis à jour
-  - Mutations F et G documentées dans la section "Mutations to introduce the red"
-  - Commentaires Step 5 mis à jour pour mentionner Mutation G
-- `docs/records/2026-08-29-preuve-r6-step4b-step3b.md` (ce fichier — remplace le r4)
+  - Step 4b corrected: `knownBracketDeferredLine` changed from `setImmediate(() => { process['on'](...) })` to direct `process['on'](...)`
+  - Step 3b added: sanity check on a direct line `process.on('SIGINT', () => {})`
+  - Header "Enhancement (r5/r6)" updated
+  - Mutations F and G documented in the "Mutations to introduce the red" section
+  - Step 5 comments updated to mention Mutation G
+- `docs/records/2026-08-29-preuve-r6-step4b-step3b.md` (this file — replaces r4)
