@@ -1,9 +1,9 @@
 # Proof r6 — Step 4b fix and Step 3b addition
 
-**Issue :** #1457 / #1783 (PR #1806)
-**Ronde :** r6
-**Branche :** `lane/wt-1783`
-**Worktree :** `wt-1774`
+**Issue:** #1457 / #1783 (PR #1806)
+**Round:** r6
+**Branch:** `lane/wt-1783`
+**Worktree:** `wt-1774`
 **Proof file:** `apps/front/tests/proofs/1457/red-1457-r2-sigint-race-silent-child.test.ts`
 **Replaces:** `docs/records/2026-08-29-preuve-r4-two-step-pipeline.md`
 
@@ -53,7 +53,7 @@ The runner sees "1 failed, 1 passed" with an AssertionError on Test 2. Without
 `knownBracketDeferredLine` is changed from:
 
 ```js
-// AVANT (r5 — ne commence pas par process['on']()
+// BEFORE (r5 — does not start with process['on']()
 const knownBracketDeferredLine = `setImmediate(() => { process['on']('SIGINT', () => {}); });`;
 ```
 
@@ -78,7 +78,7 @@ A new sanity check before Step 4b:
 ```js
 const knownDirectLine = `process.on('SIGINT', () => {});`;
 if (isHandlerDeferred(knownDirectLine)) {
-    throw new Error(`MEASUREMENT IMPOSSIBLE — isHandlerDeferred misclassified a known-direct handler line as deferred...`);
+    throw new Error(`MESURE IMPOSSIBLE — isHandlerDeferred misclassified a known-direct handler line as deferred...`);
 }
 ```
 
@@ -103,7 +103,7 @@ cannot catch all three mutations because they produce contradictory effects on t
 | C | `findHandlerLine` regressed to dot-only regex (`/process\.on/…`) | Syntax (location) | Step 3 THROW: `findHandlerLine` throws `MEASUREMENT IMPOSSIBLE` on `process['on']` → **CORRUPT PROOF** | ✓ CI red |
 | D | `isHandlerDeferred` inverted (`return line.trim().startsWith('process.on(')`) | Temporality (classification) | Step 4 sanity THROW: `isHandlerDeferred(knownDeferredLine)` → `false` → throws `MEASUREMENT IMPOSSIBLE` → **CORRUPT PROOF** | ✓ CI red |
 | E | `isHandlerDeferred` always false (`return false`) | Temporality (classification) | Step 4 sanity THROW: `isHandlerDeferred(knownDeferredLine)` → `false` → throws `MEASUREMENT IMPOSSIBLE` → **CORRUPT PROOF** | ✓ CI red |
-| F | `isHandlerDeferred` accepts brackets as non-deferred (`!(startsWith('process.on(') \|\| startsWith("process['on']"))`) | Syntax + temporality | Step 4b sanity THROW: `isHandlerDeferred(knownBracketDeferredLine)` → `false` → throws `MESURE IMPOSSIBLE` → **CORRUPT PROOF** | ✓ CI red (r6) |
+| F | `isHandlerDeferred` accepts brackets as non-deferred (`!(startsWith('process.on(') \|\| startsWith("process['on']"))`) | Syntax + temporality | Step 4b sanity THROW: `isHandlerDeferred(knownBracketDeferredLine)` → `false` → throws `MEASUREMENT IMPOSSIBLE` → **CORRUPT PROOF** | ✓ CI red (r6) |
 | G | `isHandlerDeferred` always true (`return true`) | Temporality (classification) | Step 3b sanity THROW: `isHandlerDeferred(knownDirectLine)` → `true` → throws `MEASUREMENT IMPOSSIBLE` → **CORRUPT PROOF** | ✓ CI red (r6) |
 
 ### What the r4 document falsely claimed
