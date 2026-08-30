@@ -1,0 +1,10 @@
+{
+	"$schema": "../expected-red.schema.json",
+	"_comment": "Per-test kept-red expectation manifest (required since #1806 r11 — the runner fails loud when a declared proof lacks it). The declared test MUST fail with an AssertionError on correct code.",
+	"expectedRed": [
+		{
+			"testName": "RED: a new self-dup fragment inside an already-self-duplicated file leaves the guard green (buggy counting)",
+			"why": "On correct code the ratchet counts the fragment as new growth and fails the guard, so the assertion that the guard stays green fails with an AssertionError. If this test passes, the (buggy) counting that leaves the guard green is back."
+		}
+	]
+}

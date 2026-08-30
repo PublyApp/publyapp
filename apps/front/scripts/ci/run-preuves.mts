@@ -42,6 +42,18 @@
  * repo: substituting a defect of correct appearance for an unreadable input.
  * `readProofReport()` enforces this with one error per failure case.
  *
+ * ### Per-test expectation manifests are REQUIRED (issue #1806, ronde 11)
+ *
+ * Every declared paired red proof MUST carry a per-test expectation manifest
+ * named `<proof-file>.expected-red.json` (see the reference shape next to
+ * tests/proofs/1457/). The manifest declares which test(s) are expected to
+ * stay red, so a declared kept-red test that goes green is reported as a
+ * STALE PROOF. When a declared proof has NO manifest, the runner FAILS LOUD
+ * naming the missing file and the expected action — it NEVER falls back to
+ * the global classifier, which by construction cannot see a declared-red
+ * test turn green. A missing manifest is an unanalysable input, and an
+ * unanalysable input is a loud failure, never a silenced fallback.
+ *
  * ## Option (b) — declaration-scoped replay (issue #1659, ronde 6)
  *
  * A pull request DECLARES a paired red proof by adding or modifying a proof
@@ -101,13 +113,12 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import {
-	classifyProof,
 	classifyProofWithManifest,
 	readExpectedRedManifest,
 	readProofReport,
 	type ProofReport,
 } from './classify-proof.mts';
-import { consumeVerdict } from './consume-verdict.mts';
+import { consumeVerdict, gateShouldFail } from './consume-verdict.mts';
 
 const ROOT = join(process.cwd(), '..'); // apps/front → repo root
 const PROOFS_DIR = join(process.cwd(), 'tests', 'proofs');
@@ -567,36 +578,51 @@ for (const test of replayable) {
 			continue;
 		}
 
-		// Look for a per-test expectation manifest sitting next to the
-		// proof file (named `<proof>.expected-red.json`). When present,
-		// use the per-test classifier (r8 fix for the angle mort in
-		// #1863, scoped to this proof file). When absent, fall back to
-		// the global classifier (existing r7 behavior). When present but
-		// unreadable, fail loud naming the cause — never silently
-		// fall back to a compliant default.
+		// Every declared paired red proof MUST carry a per-test expectation
+		// manifest sitting next to it, named `<proof-file>.expected-red.json`.
+		// The manifest declares which test(s) are expected to stay red; the
+		// per-test classifier turns a passed declared-red test into a STALE
+		// PROOF. A declared proof WITHOUT a manifest is an input the guard
+		// cannot classify: the global classifier cannot see a declared
+		// kept-red test turn green, so falling back to it would silently
+		// restore the exact defect class this runner exists to catch
+		// (issue #1806 ronde 11). A missing manifest is therefore a LOUD
+		// failure that names the missing file and the expected action —
+		// there is no silent fallback, ever.
 		const manifestPath = `${test}.expected-red.json`;
-		let result;
-		if (existsSync(manifestPath)) {
-			let manifest;
-			try {
-				manifest = readExpectedRedManifest(manifestPath);
-			} catch (manifestErr) {
-				console.error(
-					`  CORRUPT PROOF: expected-red manifest is unreadable — ${(manifestErr as Error).message}\n` +
-						`  Manifest: ${manifestPath}\n` +
-						`  The runner refuses to classify a paired red proof with a malformed per-test expectation.\n` +
-						`  stdout: ${stdout}\n  stderr: ${stderr}`,
-				);
-				corrupted++;
-				continue;
-			}
-			result = classifyProofWithManifest(report, exitCode as number, manifest);
-		} else {
-			// No sidecar: fall through to the global classifier (r7).
-			// Generalization to per-test manifests for every proof file
-			// is scoped in #1863.
-			result = classifyProof(report, exitCode as number);
+		if (!existsSync(manifestPath)) {
+			console.error(
+				`  CORRUPT PROOF: expected-red manifest is MISSING — ${manifestPath}\n` +
+					`  Every declared paired red proof MUST carry a per-test expectation manifest ` +
+					`(<proof-file>.expected-red.json) declaring which test(s) are expected to stay ` +
+					`red. Without it the runner cannot see a declared kept-red test turn green, so ` +
+					`it refuses to classify. Add the manifest and declare the kept-red test(s) — ` +
+					`tests/proofs/1457/red-1457-r2-sigint-race-silent-child.test.ts.expected-red.json ` +
+					`is the reference shape.\n` +
+					`  stdout: ${stdout}\n  stderr: ${stderr}`,
+			);
+			corrupted++;
+			continue;
 		}
+
+		let manifest;
+		try {
+			manifest = readExpectedRedManifest(manifestPath);
+		} catch (manifestErr) {
+			console.error(
+				`  CORRUPT PROOF: expected-red manifest is unreadable — ${(manifestErr as Error).message}\n` +
+					`  Manifest: ${manifestPath}\n` +
+					`  The runner refuses to classify a paired red proof with a malformed per-test expectation.\n` +
+					`  stdout: ${stdout}\n  stderr: ${stderr}`,
+			);
+			corrupted++;
+			continue;
+		}
+		const result = classifyProofWithManifest(
+			report,
+			exitCode as number,
+			manifest,
+		);
 
 		// Le comptage vit dans consume-verdict.mts (extrait par #1843) : fonction
 		// pure, testable seule. Ici on n'applique que l'effet de bord. Decision
@@ -661,7 +687,15 @@ console.log(`  Proof tests passed unexpectedly:  ${unexpectedPasses}`);
 console.log(`  Corrupt/unparseable proof files:  ${corrupted}`);
 console.log(`  Stale proofs (declared red went green): ${stale}`);
 
-if (unexpectedPasses > 0 || stale > 0 || corrupted > 0) {
+// The exit gate, pinned by tests (issue #1806 ronde 11): the runner MUST
+// exit non-zero when ANY of the three red counters is non-zero — a stale
+// proof alone (a declared kept-red test went green, with
+// unexpectedPasses == 0 and corrupted == 0) fails CI. The predicate
+// lives in consume-verdict.mts so the exit condition is testable without
+// spawning this script; the process-launch regression in
+// run-preuves.test.ts additionally proves the REAL script exits
+// non-zero when only stale > 0.
+if (gateShouldFail({ failures, unexpectedPasses, corrupted, stale })) {
 	console.error(`\nFAIL: proof replay did not complete cleanly.`);
 	if (unexpectedPasses > 0) {
 		console.error(
@@ -681,7 +715,8 @@ if (unexpectedPasses > 0 || stale > 0 || corrupted > 0) {
 	}
 	if (corrupted > 0) {
 		console.error(
-			`  ${corrupted} proof file(s) could not be parsed — they are empty, binary, or truncated.`,
+			`  ${corrupted} proof file(s) could not be classified — an empty/binary/truncated file, ` +
+				`an unreadable vitest JSON report, or a MISSING expected-red manifest.`,
 		);
 	}
 	process.exit(1);

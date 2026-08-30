@@ -59,7 +59,11 @@ import { fileURLToPath } from 'node:url';
 import { test, expect } from 'vitest';
 
 import { classifyProof, readProofReport } from './classify-proof.mts';
-import { consumeVerdict, counterForVerdict } from './consume-verdict.mts';
+import {
+	consumeVerdict,
+	counterForVerdict,
+	gateShouldFail,
+} from './consume-verdict.mts';
 
 const fixturesDir = fileURLToPath(
 	new URL('./__fixtures__/reports/', import.meta.url),
@@ -289,4 +293,82 @@ test('consumeVerdict: a single DECLARED RED PASSED verdict does NOT increment co
 		'DECLARED RED PASSED',
 	);
 	expect(result.corrupted).toBe(0);
+});
+
+// --- Exit-gate predicate (#1806 ronde 11) ---
+
+test('gateShouldFail: a stale proof ALONE (stale=1, unexpectedPasses=0, corrupted=0) fails the gate', () => {
+	// The ronde-8 signal in isolation: a declared kept-red test went green
+	// while nothing else is wrong. The runner MUST exit non-zero. This is the
+	// exact condition the brief pins — before ronde 11, no test exercised the
+	// exit gate with `stale > 0` as the ONLY red counter, so deleting the
+	// `stale > 0` term from the gate left everything green.
+	expect(
+		gateShouldFail({
+			failures: 0,
+			unexpectedPasses: 0,
+			corrupted: 0,
+			stale: 1,
+		}),
+	).toBe(true);
+});
+
+test('gateShouldFail: unexpectedPasses alone trips the gate', () => {
+	expect(
+		gateShouldFail({
+			failures: 0,
+			unexpectedPasses: 1,
+			corrupted: 0,
+			stale: 0,
+		}),
+	).toBe(true);
+});
+
+test('gateShouldFail: corrupted alone trips the gate', () => {
+	expect(
+		gateShouldFail({
+			failures: 0,
+			unexpectedPasses: 0,
+			corrupted: 1,
+			stale: 0,
+		}),
+	).toBe(true);
+});
+
+test('gateShouldFail: kept-red failure counts alone do NOT trip the gate', () => {
+	// A proof that failed as expected is the HEALTHY state — the summary may
+	// show any number of `failures` and the runner must still exit 0.
+	expect(
+		gateShouldFail({
+			failures: 3,
+			unexpectedPasses: 0,
+			corrupted: 0,
+			stale: 0,
+		}),
+	).toBe(false);
+});
+
+test('gateShouldFail: all-zero counts pass the gate', () => {
+	expect(
+		gateShouldFail({
+			failures: 0,
+			unexpectedPasses: 0,
+			corrupted: 0,
+			stale: 0,
+		}),
+	).toBe(false);
+});
+
+test('gateShouldFail: a stale proof alongside expected failures still fails the gate', () => {
+	// failures and stale can coexist: the file has one kept-red test failing
+	// as expected AND one declared red that went green. The green one must
+	// fail CI even though the other axis is healthy.
+	expect(
+		gateShouldFail({
+			failures: 1,
+			unexpectedPasses: 0,
+			corrupted: 0,
+			stale: 1,
+		}),
+	).toBe(true);
 });

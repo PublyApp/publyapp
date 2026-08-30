@@ -1,0 +1,14 @@
+{
+	"$schema": "../expected-red.schema.json",
+	"_comment": "Per-test kept-red expectation manifest (required since #1806 r11 — the runner fails loud when a declared proof lacks it). Only the two NOT-caught axes are declared kept-red: the baseline/invisible/hidden tests PASS on correct code and are deliberately not declared.",
+	"expectedRed": [
+		{
+			"testName": "opacity-0 (Tailwind → opacity:0) is NOT caught — the bug the old enumeration missed",
+			"why": "On correct code the measurement-based guard raises for an opacity-0 element, so `expect(...).not.toThrow()` fails with an AssertionError. If this test passes, the guard regressed to the old classList enumeration that misses opacity."
+		},
+		{
+			"testName": "aria-hidden=\"true\" on the icon is NOT caught — the bug the old enumeration missed",
+			"why": "On correct code the guard reads aria-hidden directly and raises, so `expect(...).not.toThrow()` fails with an AssertionError. If this test passes, the guard regressed to the old classList enumeration that misses aria-hidden."
+		}
+	]
+}

@@ -115,3 +115,23 @@ export const consumeVerdict = (
 		stale: counts.stale + (counter === 'stale' ? 1 : 0),
 	};
 };
+
+/**
+ * The exit-gate predicate of the runner (issue #1806, ronde 11). The runner
+ * MUST exit non-zero when ANY of the three red counters is non-zero — a
+ * stale proof ALONE (a declared kept-red test went green, with
+ * `unexpectedPasses == 0` and `corrupted == 0`) is enough to fail CI. The
+ * `stale` term is the only carrier of the declared-red-passed signal, so it
+ * must be pinned by a named test: this predicate is unit-tested in
+ * consume-verdict.test.ts, and the process-launch regression in
+ * run-preuves.test.ts proves the REAL script exits non-zero when only
+ * `stale > 0`.
+ *
+ * `failures` (kept-red proofs that failed as expected) is NOT a failure:
+ * it never trips the gate.
+ *
+ * @param counts The counter values after the replay loop.
+ * @returns True when the runner must exit non-zero.
+ */
+export const gateShouldFail = (counts: ProofCounts): boolean =>
+	counts.unexpectedPasses > 0 || counts.stale > 0 || counts.corrupted > 0;
