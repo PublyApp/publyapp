@@ -1039,7 +1039,7 @@ test('ROUND 4 BLOCKER: the shard flag denominator drifting from the matrix lengt
 	assert.equal(findings.length, 1);
 	assert.match(
 		findings[0],
-		/test: expected a step invoking Playwright with `--shard=\$\{\{ matrix\.shard \}\}\/4`/,
+		/test: expected a step invoking the test runner with `--shard=\$\{\{ matrix\.shard \}\}\/4`/,
 	);
 });
 
@@ -1077,7 +1077,7 @@ test('ROUND 4 BLOCKER: the uploaded report name denominator drifting from the ma
 	assert.equal(findings.length, 1);
 	assert.match(
 		findings[0],
-		/test: expected the Playwright report upload's `with\.name` to be `front-e2e-playwright-report-\$\{\{ matrix\.shard \}\}-of-4`/,
+		/test: expected the report upload's `with\.name` to be `front-e2e-playwright-report-\$\{\{ matrix\.shard \}\}-of-4`/,
 	);
 });
 
@@ -1113,7 +1113,7 @@ test('ROUND 5 BLOCKER: the Playwright step missing `set -euo pipefail` is caught
 	assert.equal(findings.length, 1);
 	assert.match(
 		findings[0],
-		/test: expected the Playwright step's `run:` to start with `set -euo pipefail`/,
+		/test: expected the shard step's `run:` to start with `set -euo pipefail`/,
 	);
 });
 
