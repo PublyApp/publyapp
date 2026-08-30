@@ -314,7 +314,12 @@ export const GATE_WORKFLOWS = [
 		// `[1]` (running a quarter of the suite) cannot pass silently, and
 		// so the job name / shard flag / last-shard check / artifact name
 		// cannot drift out of sync with the matrix length independently.
-		matrix: { jobId: 'test', key: 'shard', expected: [1, 2, 3, 4], namePrefix: 'front-e2e' },
+		matrix: {
+			jobId: 'test',
+			key: 'shard',
+			expected: [1, 2, 3, 4],
+			namePrefix: 'front-e2e',
+		},
 	},
 	{
 		file: 'front-ci.yml',
@@ -498,7 +503,13 @@ export const GATE_WORKFLOWS = [
 		// skipPlaywrightChecks: api-tests uses `dotnet test --filter`, not
 		// Playwright — the Playwright-specific checks (shard flag, upload
 		// name) do not apply.
-		matrix: { jobId: 'suite', key: 'shard', expected: [1, 2, 3, 4], namePrefix: 'api-tests', skipPlaywrightChecks: true },
+		matrix: {
+			jobId: 'suite',
+			key: 'shard',
+			expected: [1, 2, 3, 4],
+			namePrefix: 'api-tests',
+			skipPlaywrightChecks: true,
+		},
 	},
 	{
 		file: 'react-doctor.yml',
@@ -1314,12 +1325,15 @@ const checkWorkflow = async (
 			// (front-e2e). api-tests uses `dotnet test --filter` and skips
 			// these.
 			if (!skipPlaywrightChecks) {
-				const matrixSteps = Array.isArray(matrixJob.steps) ? matrixJob.steps : [];
+				const matrixSteps = Array.isArray(matrixJob.steps)
+					? matrixJob.steps
+					: [];
 				const shardFlag = `--shard=\${{ matrix.${key} }}/${denominator}`;
 				const lastShardCheck = `if [ "\${{ matrix.${key} }}" = "${denominator}" ]`;
 				const testStep = matrixSteps.find(
 					// @ts-expect-error rung-0: add proper type in later rung
-					(step) => typeof step?.run === 'string' && step.run.includes(shardFlag),
+					(step) =>
+						typeof step?.run === 'string' && step.run.includes(shardFlag),
 				);
 
 				if (testStep === undefined) {

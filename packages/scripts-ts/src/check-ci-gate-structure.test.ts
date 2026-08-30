@@ -973,7 +973,12 @@ const matrixFixtureConfig = [
 		pushCheckName: 'fixture-push-check',
 		relevanceGatedJobs: [{ id: 'test', needs: ['changes'] }],
 		alwaysJobs: [],
-		matrix: { jobId: 'test', key: 'shard', expected: [1, 2, 3, 4], namePrefix: 'front-e2e' },
+		matrix: {
+			jobId: 'test',
+			key: 'shard',
+			expected: [1, 2, 3, 4],
+			namePrefix: 'front-e2e',
+		},
 	},
 ];
 

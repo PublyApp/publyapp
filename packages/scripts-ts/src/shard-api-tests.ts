@@ -47,7 +47,10 @@ export const SHARD_COUNT = 4;
  *   into; defaults to 4 to match .github/workflows/api-tests.yml's matrix
  * @returns {number} shard index in `[0, shardCount)`
  */
-export const shardFor = (classFqn: string, shardCount: number = SHARD_COUNT) => {
+export const shardFor = (
+	classFqn: string,
+	shardCount: number = SHARD_COUNT,
+) => {
 	if (typeof classFqn !== 'string' || classFqn.length === 0) {
 		throw new Error(
 			`shardFor: classFqn must be a non-empty string (got: ${JSON.stringify(classFqn)})`,
