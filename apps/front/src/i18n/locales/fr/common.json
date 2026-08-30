@@ -1374,5 +1374,10 @@
 	"queue-status-failed": "Échouée",
 	"queue-status-pending": "En attente",
 	"queue-status-processing": "En traitement",
-	"scroll-area-label": "Contenu déroulant"
+	"scroll-area-label": "Contenu déroulant",
+	"icon-hidden-aria": "l'icône a aria-hidden=\"true\"",
+	"icon-hidden-visibility": "l'icône a visibility:hidden calculé",
+	"icon-hidden-display": "l'icône a display:none calculé",
+	"icon-hidden-opacity": "l'icône a opacity:0 calculé",
+	"icon-guard-context-null": "{{context}}: l'élément d'icône est nul"
 }
