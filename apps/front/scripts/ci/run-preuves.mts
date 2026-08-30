@@ -125,6 +125,101 @@ const PROOFS_DIR = join(process.cwd(), 'tests', 'proofs');
 const CONFIG = 'vitest.preuves.config.ts';
 
 /**
+ * The shape of a single entry returned by `git diff --name-status`. The
+ * status column is the load-bearing field for #1940: a wholly deleted
+ * `tests/proofs/<issue>/` directory shows up here as one `D` entry per
+ * file, and the runner must refuse the deletion — `existsSync` cannot
+ * distinguish "the file was never there" from "the file was there and
+ * has now been deleted", so the runner inspects the status column
+ * explicitly.
+ *
+ * Renames (`R`) carry two paths: the old path and the new path. We model
+ * them as a single entry whose `path` is the NEW path (the one the
+ * runner would replay) and `oldPath` records where it came from so the
+ * error message can name both. Renames are a CI red by default: the
+ * proof's manifest sits next to the OLD path and the runner cannot
+ * verify the NEW path without an explicit rename.
+ */
+export interface DiffEntry {
+	/** The status reported by `git diff --name-status`: A/M/D/R/C/T. */
+	status: 'A' | 'M' | 'D' | 'R' | 'C' | 'T';
+	/** The path the runner would replay (new path for renames). */
+	path: string;
+	/** For renames only: the path the entry was renamed from. */
+	oldPath?: string;
+}
+
+/**
+ * Parse the NUL-delimited output of `git diff --name-status -z`. The
+ * `-z` flag changes the format substantially: rather than
+ * `<status>\t<path>\n` per line, the output is `<status>\0<path>\0`,
+ * with renames as `<status>\0<old>\0<new>\0` (three NUL-separated
+ * tokens). A trailing NUL is allowed. Anything else (an empty
+ * buffer, a status character outside the documented set, a rename
+ * without both paths) is rejected loud — an unparseable diff is an
+ * unanalysable input and must not fall back to a compliant default.
+ *
+ * The `-z` shape was chosen for ONE reason: filenames containing
+ * newlines or tabs (legal on Linux) would otherwise make the line-
+ * oriented parser silently drop them. The NUL delimiter is the only
+ * one git offers that cannot appear inside a path.
+ */
+export const parseDiffNameStatus = (raw: string): DiffEntry[] => {
+	if (raw.length === 0) {
+		return [];
+	}
+	const tokens = raw.split('\0');
+	const entries: DiffEntry[] = [];
+	let i = 0;
+	while (i < tokens.length) {
+		const statusToken = tokens[i];
+		if (statusToken === undefined || statusToken.length === 0) {
+			// Trailing NUL or empty token — the parser consumed everything
+			// the buffer declared. Stop here.
+			break;
+		}
+		const statusChar = statusToken[0];
+		if (statusChar === 'R' || statusChar === 'C') {
+			// Renames and copies carry an optional similarity score in the
+			// first token (e.g. "R100") and the OLD path in the next token.
+			const oldPath = tokens[i + 1];
+			const newPath = tokens[i + 2];
+			if (
+				oldPath === undefined ||
+				newPath === undefined ||
+				oldPath.length === 0
+			) {
+				throw new Error(
+					`parseDiffNameStatus: rename/copy entry is missing the old or new path (got status "${statusToken}", old="${String(oldPath)}", new="${String(newPath)}"). An unparseable diff is an unanalysable input — refusing to silently drop the entry.`,
+				);
+			}
+			entries.push({ status: statusChar, path: newPath, oldPath });
+			i += 3;
+			continue;
+		}
+		const path = tokens[i + 1];
+		if (path === undefined) {
+			throw new Error(
+				`parseDiffNameStatus: entry is missing its path (got status "${statusToken}"). An unparseable diff is an unanalysable input — refusing to silently drop the entry.`,
+			);
+		}
+		if (
+			statusChar !== 'A' &&
+			statusChar !== 'M' &&
+			statusChar !== 'D' &&
+			statusChar !== 'T'
+		) {
+			throw new Error(
+				`parseDiffNameStatus: unknown status character "${String(statusChar)}" (full token "${statusToken}"). An unparseable diff is an unanalysable input — refusing to silently drop the entry.`,
+			);
+		}
+		entries.push({ status: statusChar, path });
+		i += 2;
+	}
+	return entries;
+};
+
+/**
  * Extensions that vitest.preuves.config.ts can replay. The config's include
  * pattern matches only .test.ts and .test.tsx files under tests/proofs/ — any
  * file with a different extension is declared by the PR but cannot be
@@ -176,12 +271,14 @@ const REPLAYABLE_EXTENSIONS = ['.test.ts', '.test.tsx'] as const;
  *         never silently become "no proofs declared"; the operator must fetch
  *         the base or fix the checkout.
  */
-const declaredProofTests = (): string[] => {
-	// First, confirm the versioned directory exists at all. If it does not,
-	// the repo has no proof infrastructure — the step is a no-op.
-	if (!existsSync(PROOFS_DIR)) {
-		return [];
-	}
+const declaredProofTests = (): DiffEntry[] => {
+	// Note: do NOT short-circuit on `!existsSync(PROOFS_DIR)` here.
+	// A wholly-deleted `tests/proofs/<issue>/` directory will not
+	// exist on the working tree, but the diff still lists every
+	// deleted file under it. Returning [] in that case is exactly
+	// the silent false-green #1940 fixes. The "no proofs at all"
+	// verdict must come from inspecting git history, not the
+	// working tree.
 
 	// If the repository is shallow at entry (graft left by a previous
 	// --depth=1 fetch in a shared worktree, a developer's shallow clone,
@@ -255,8 +352,13 @@ const declaredProofTests = (): string[] => {
 		);
 	}
 
-	// Get the list of files changed by this PR.
-	let changedFiles: string[];
+	// Get the list of files changed by this PR, with their status. The
+	// status column (A/M/D/R/C/T) is what makes #1940 actionable: a wholly
+	// deleted `tests/proofs/<issue>/` directory shows up here as one `D`
+	// entry per file, and the runner must refuse the deletion (no path
+	// on disk → no validation possible → must fail loud, never silently
+	// count as "no proofs declared").
+	let changedEntries: DiffEntry[];
 	try {
 		if (process.env.GITHUB_BASE_REF && process.env.GITHUB_HEAD_REF) {
 			const baseRef = `refs/remotes/origin/${process.env.GITHUB_BASE_REF}`;
@@ -333,33 +435,39 @@ const declaredProofTests = (): string[] => {
 			// three-dot spelling states the intent, and it is the form the #1865
 			// test names and pins. A diverged branch (no merge base) fails loud
 			// above; it can never silently become "no proofs declared".
+			// Get the list of files changed by this PR with their status.
+			// `git diff --name-status` is used (not `--name-only`) so the
+			// runner can see DELETIONS — issue #1940: a wholly deleted
+			// `tests/proofs/<issue>/` directory listed as deleted entries
+			// was previously dropped on the floor by the name-only filter
+			// and the existsSync path, leaving the deletion undeclared and
+			// unverified. The status column is read on every line; renamed
+			// paths are reported as `R<score>\t<old>\t<new>` and are
+			// rejected loud too (a renamed proof needs a manifest rename,
+			// and the runner cannot verify the new path without one).
 			const diffOutput = execSync(
-				`git -C "${ROOT}" diff --name-only "${mergeBase}...HEAD"`,
+				`git -C "${ROOT}" diff --name-status --diff-filter=ACDMRT -z "${mergeBase}...HEAD"`,
 				{ encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] },
 			);
-			changedFiles = diffOutput
-				.split('\n')
-				.map((f) => f.trim())
-				.filter((f) => f.length > 0);
+			changedEntries = parseDiffNameStatus(diffOutput);
 		} else {
 			// Local development: neither variable is defined. Announce this
 			// loudly so a local run is never mistaken for the CI declaration
 			// check, and so the "no proofs declared" conclusion below cannot
-			// be read as a CI verdict (precedent: #1806 ronde 9).
+			// be read as a CI verdict (precedent: #1806 ronde 11).
 			console.error(
-				`LOCAL RUN (GITHUB_BASE_REF/GITHUB_HEAD_REF unset) — using the ` +
-					`HEAD~1..HEAD diff of the most recent commit. This is a developer ` +
+				`LOCAL RUN (GITHUB_BASE_REF/GITHUB_HEAD_REF unset) — using ` +
+					`the HEAD~1..HEAD diff of the most recent commit. This is a developer ` +
 					`fallback, not the CI declaration check.`,
 			);
-			// Local development: diff the most recent commit.
+			// Local development: diff the most recent commit. Same
+			// `--name-status` shape as CI so the parseDiffNameStatus
+			// contract is exercised on both paths.
 			const diffOutput = execSync(
-				`git -C "${ROOT}" diff --name-only HEAD~1 HEAD`,
+				`git -C "${ROOT}" diff --name-status --diff-filter=ACDMRT -z HEAD~1 HEAD`,
 				{ encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] },
 			);
-			changedFiles = diffOutput
-				.split('\n')
-				.map((f) => f.trim())
-				.filter((f) => f.length > 0);
+			changedEntries = parseDiffNameStatus(diffOutput);
 		}
 	} catch (err) {
 		// A merge-base failure (graft, diverged histories) is caught
@@ -386,14 +494,42 @@ const declaredProofTests = (): string[] => {
 	// right call for an undeclared test file but a false alarm for a
 	// shared lib. The path-prefix filter alone is too broad; pin to
 	// the replayable extensions the runner actually executes.
-	const declared = changedFiles.filter(
-		(f) =>
-			f.startsWith('apps/front/tests/proofs/') &&
-			(f.endsWith('.test.ts') || f.endsWith('.test.tsx')),
-	);
+	//
+	// Renames and copies are excluded here on purpose. A renamed proof
+	// would need its manifest renamed to match the new path, and the
+	// runner cannot verify the new path without that rename. The
+	// rename's full info is preserved on the entry (`oldPath`) and
+	// surfaces in the un-replayable branch below with a clear cause.
+	const declared: DiffEntry[] = [];
+	for (const entry of changedEntries) {
+		if (entry.status === 'R' || entry.status === 'C') {
+			// The runner cannot verify a renamed/copied proof without a
+			// matching manifest rename. Reject loud with the cause and
+			// both paths so the operator knows exactly what to look at.
+			throw new Error(
+				`declaredProofTests: a proof file was renamed or copied ` +
+					`in this PR (status "${entry.status}", ` +
+					`"${String(entry.oldPath)}" → "${entry.path}"). ` +
+					`Renamed proofs need a manifest rename the runner cannot ` +
+					`perform, so the rename MUST be split into an explicit ` +
+					`"delete old + add new" pair, each carrying its own manifest.`,
+			);
+		}
+		if (
+			!entry.path.startsWith('apps/front/tests/proofs/') ||
+			!(entry.path.endsWith('.test.ts') || entry.path.endsWith('.test.tsx'))
+		) {
+			continue;
+		}
+		// Strip the apps/front/ prefix so the rest of the runner sees paths
+		// relative to the working directory it actually operates in.
+		declared.push({
+			status: entry.status,
+			path: entry.path.replace(/^apps\/front\//, ''),
+		});
+	}
 
-	// Return paths relative to apps/front (the working directory).
-	return declared.map((p) => p.replace(/^apps\/front\//, ''));
+	return declared;
 };
 
 /**
@@ -438,8 +574,114 @@ const isReplayableFile = (filename: string): boolean => {
 
 // --- Main logic ---
 
-// Confirm the versioned directory exists. If it does not, the repo has no
-// proof infrastructure — the step is a no-op.
+// First, determine what this PR declared, BEFORE the no-op check
+// below. The previous order (no-op check first) created #1940: a PR
+// that wholly deleted `tests/proofs/<issue>/` left the working tree
+// without that directory, the early check fired, and the runner
+// printed "no paired red proof tests found" and exited 0 — a silent
+// green that verified nothing. The declaration step inspects git
+// history, not the working tree, so it can detect a deletion even
+// when the directory no longer exists locally. Let it propagate on
+// any git error so the step fails loud rather than silently turning
+// green.
+const declared = declaredProofTests();
+
+// #1940 — the load-bearing fix. `git diff --name-only` (the previous
+// shape) dropped deletion status on the floor: a wholly deleted
+// `tests/proofs/<issue>/` directory showed up as zero entries and
+// the `existsSync` path could either crash on ENOENT (a hard red) or,
+// worse, silently count as "no proofs declared" and exit 0. We now
+// use `git diff --name-status`, so every entry carries its status.
+// The runner's job is to refuse the deletion loud with the exact
+// files touched, not to let it through. Two failure shapes:
+//
+// 1. Any entry under tests/proofs/ with status D or R is a deletion
+//    the runner cannot verify (no path on disk → no validation). One
+//    error message per file, naming the path, so the operator knows
+//    exactly what to look at.
+// 2. If every entry under a single tests/proofs/<X>/ subtree is
+//    deleted (the entire directory has been removed), the message
+//    groups them: deleting the whole directory is a stronger signal
+//    than deleting a single file, and a grouped error saves the
+//    operator from reading 6 redundant file names when 1 root cause
+//    is at stake. The "PROUVE_ALLOW_DELETED=<X>" opt-in env var lets
+//    a deliberate deletion proceed without rewriting the runner —
+//    the variable's whole purpose is to force a conscious decision
+//    rather than a silent "no proofs declared" green.
+//
+// This check must run BEFORE the working-tree "no proofs found"
+// no-op below, otherwise a wholly-deleted subtree short-circuits to
+// the silent false-green (the directory no longer exists on disk).
+const deletedEntries = declared.filter((e) => e.status === 'D');
+if (deletedEntries.length > 0) {
+	// Group deletions by their top-level `tests/proofs/<X>/` directory.
+	// A PR that deletes the entire tests/proofs/<X>/ subtree shows up
+	// here as one group with every entry status `D`; a PR that deletes
+	// individual files across several directories shows up as several
+	// one-entry groups. The grouping is the operator-facing signal:
+	// "you just deleted an entire subtree" reads differently from
+	// "you deleted these individual files".
+	const PROOFS_RE = /^tests\/proofs\/([^/]+)\//;
+	const groups = new Map<string, string[]>();
+	const orphans: string[] = [];
+	for (const entry of deletedEntries) {
+		const match = entry.path.match(PROOFS_RE);
+		if (match) {
+			const key = `tests/proofs/${match[1]}/`;
+			const list = groups.get(key) ?? [];
+			list.push(entry.path);
+			groups.set(key, list);
+			continue;
+		}
+		orphans.push(entry.path);
+	}
+
+	const lines: string[] = [
+		'This PR deleted one or more proof files under tests/proofs/. ' +
+			'The runner cannot verify a deleted proof (no path on disk), so ' +
+			'the deletion is REFUSED.',
+	];
+	for (const [dir, files] of groups) {
+		const subDir = dir.replace(/^tests\/proofs\//, '').replace(/\/$/, '');
+		// The opt-in env var is checked per-subtree so a PR that
+		// legitimately deletes tests/proofs/old-issue/ but not
+		// tests/proofs/current-issue/ can opt in to ONE without
+		// exempting the other.
+		if (process.env.PROUVE_ALLOW_DELETED === subDir) {
+			console.log(
+				`Skipping deletion refusal for tests/proofs/${subDir}/ ` +
+					`(PROUVE_ALLOW_DELETED=${subDir}).`,
+			);
+			continue;
+		}
+		const subTree =
+			dir === `tests/proofs/${subDir}/` && files.length > 1
+				? `Entire tests/proofs/${subDir}/ subtree deleted (${files.length} files):\n` +
+					files.map((f) => `  - ${f}`).join('\n')
+				: `Deleted proof file: ${files.join(', ')}`;
+		lines.push(subTree);
+		lines.push(
+			`If this deletion is intentional, re-run with ` +
+				`PROUVE_ALLOW_DELETED=${subDir} to acknowledge the loss.`,
+		);
+	}
+	for (const orphan of orphans) {
+		lines.push(`Deleted proof file: ${orphan}`);
+	}
+	throw new Error(lines.join('\n'));
+}
+
+// Renames inside tests/proofs/ already throw above. Anything past this
+// point is A or M — entries the runner can replay. Keep the rest of
+// the script unchanged in shape: it iterates over paths and validates
+// each one. Use the same declared array, but resolve the path field
+// (now the only thing the downstream code uses).
+
+// Confirm the versioned directory exists on the WORKING TREE. If it
+// does not, the repo has no proof infrastructure — the step is a
+// no-op. This is checked AFTER the declaration+delete scan above so
+// a wholly-deleted subtree is still refused loud (it cannot fall
+// through to this branch).
 if (!existsSync(PROOFS_DIR)) {
 	console.log('No paired red proof tests found in tests/proofs/.');
 	console.log(
@@ -450,10 +692,6 @@ if (!existsSync(PROOFS_DIR)) {
 	);
 	process.exit(0);
 }
-
-// Determine what this PR declared. This can throw if git diff fails — let it
-// propagate so the step fails loud rather than silently turning green.
-const declared = declaredProofTests();
 
 if (declared.length === 0) {
 	// Proofs exist in the repo, but no proof files changed in scope.
@@ -485,14 +723,16 @@ if (declared.length === 0) {
 }
 
 // The PR declared proofs — validate each one is replayable.
+// Renames have already thrown above; at this point every entry in
+// `declared` is A or M and has a `.path` we can hand to the runner.
 const replayable: string[] = [];
 const unReplayable: string[] = [];
 
-for (const test of declared) {
-	if (isReplayableFile(test)) {
-		replayable.push(test);
+for (const entry of declared) {
+	if (isReplayableFile(entry.path)) {
+		replayable.push(entry.path);
 	} else {
-		unReplayable.push(test);
+		unReplayable.push(entry.path);
 	}
 }
 

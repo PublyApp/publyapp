@@ -967,3 +967,189 @@ describe('proof replay — three-dot diff excludes base-branch changes (#1865)',
 		}
 	}, 120000);
 });
+// --- Fixture test for #1940: deleted proofs under tests/proofs/ ---
+
+/**
+ * Build a throwaway git repo where the PR commit DELETES proof files under
+ * `apps/front/tests/proofs/`. The deletion mode is the parameter so the
+ * test suite can exercise (a) an entire subtree deleted, (b) a single
+ * file deleted, and (c) a renamed proof. The repo shape matches
+ * `buildReplayFixture` so the runner's local-mode diff (HEAD~1..HEAD)
+ * sees exactly the deletion we want it to refuse.
+ */
+const buildDeletionFixture = (mode: 'subtree' | 'file' | 'rename'): string => {
+	const root = mkdtempSync(join(tmpdir(), 'preuve-deletion-'));
+	const appDir = join(root, 'apps', 'front');
+	const proofDir = join(appDir, 'tests', 'proofs', '1940');
+	mkdirSync(proofDir, { recursive: true });
+
+	writeFileSync(
+		join(appDir, 'package.json'),
+		'{"name":"preuve-deletion-fixture","private":true,"type":"module","packageManager":"pnpm@10.13.1"}\n',
+	);
+	writeFileSync(
+		join(appDir, 'vitest.preuves.config.ts'),
+		[
+			"import { defineConfig } from 'vitest/config';",
+			'',
+			'export default defineConfig({',
+			'\ttest: {',
+			"\t\tenvironment: 'node',",
+			"\t\tinclude: ['tests/proofs/**/*.{test.ts,test.tsx}'],",
+			'\t\texclude: [],',
+			'\t},',
+			'});',
+			'',
+		].join('\n'),
+	);
+	// node_modules shape — mirrors buildReplayFixture so pnpm 10 can
+	// resolve the vitest binary the same way.
+	const fixtureNodeModules = join(appDir, 'node_modules');
+	const storeVitestDir = join(
+		REAL_FRONT_NODE_MODULES,
+		readlinkSync(join(REAL_FRONT_NODE_MODULES, 'vitest')),
+	);
+	const storePkgDir = basename(dirname(dirname(storeVitestDir)));
+	mkdirSync(join(fixtureNodeModules, '.pnpm', storePkgDir, 'node_modules'), {
+		recursive: true,
+	});
+	symlinkSync(
+		storeVitestDir,
+		join(fixtureNodeModules, '.pnpm', storePkgDir, 'node_modules', 'vitest'),
+		'dir',
+	);
+	symlinkSync(storeVitestDir, join(fixtureNodeModules, 'vitest'), 'dir');
+	mkdirSync(join(fixtureNodeModules, '.bin'), { recursive: true });
+	symlinkSync(
+		join(storeVitestDir, 'vitest.mjs'),
+		join(fixtureNodeModules, '.bin', 'vitest'),
+	);
+
+	// Commit 1: app shell + a "doomed" proof file under tests/proofs/1940/.
+	const writeProof = (rel: string) => {
+		writeFileSync(
+			join(proofDir, rel),
+			[
+				"import { describe, expect, test } from 'vitest';",
+				'',
+				"describe('1940 deletion fixture', () => {",
+				"\ttest('fails on an assertion (would be replayed as a kept-red proof)', () => {",
+				'\t\texpect(1).toBe(2);',
+				'\t});',
+				'});',
+				'',
+			].join('\n'),
+		);
+	};
+	writeProof('doomed.test.ts');
+	writeProof('also-doomed.test.ts');
+	execSync('git init -q -b main', { cwd: root });
+	execSync('git config user.email preuve-fixture@example.com', { cwd: root });
+	execSync('git config user.name preuve-fixture', { cwd: root });
+	execSync(
+		'git add apps/front/package.json apps/front/vitest.preuves.config.ts apps/front/tests/proofs',
+		{ cwd: root },
+	);
+	execSync('git commit -qm base-with-proofs', { cwd: root });
+
+	if (mode === 'subtree') {
+		// `git rm -r` an entire tests/proofs/1940 subtree. HEAD~1..HEAD
+		// shows two D entries — the runner must refuse the entire
+		// directory loud, naming the subtree.
+		execSync('git rm -rq apps/front/tests/proofs/1940', { cwd: root });
+	} else if (mode === 'file') {
+		// `git rm` exactly one file under the subtree — the runner must
+		// refuse the individual file loud, naming the path.
+		execSync('git rm -q apps/front/tests/proofs/1940/doomed.test.ts', {
+			cwd: root,
+		});
+	} else {
+		// `git mv` a proof into a sibling subtree. With -z renames are
+		// reported as R<score> OLD NEW, and the runner must reject the
+		// rename loud because the manifest cannot follow.
+		execSync('mkdir -p apps/front/tests/proofs/1940-renamed', { cwd: root });
+		execSync(
+			'git mv apps/front/tests/proofs/1940/doomed.test.ts apps/front/tests/proofs/1940-renamed/moved.test.ts',
+			{ cwd: root },
+		);
+	}
+	execSync('git commit -qm deletion', { cwd: root });
+	return root;
+};
+
+describe('proof replay — deletions under tests/proofs/ are refused loud (#1940)', () => {
+	test('a wholly-deleted tests/proofs/<X>/ subtree is refused loud, naming the directory and offering PROUVE_ALLOW_DELETED', () => {
+		// The defect: `git diff --name-only` (the pre-#1940 shape) listed
+		// zero entries for a deletion-only diff. `declaredProofTests()`
+		// then returned [], the runner hit the "no proofs declared"
+		// branch and exited 0 — a silent green light that verified
+		// nothing. The fix inspects the status column; the runner must
+		// now exit non-zero AND name the deleted subtree AND offer the
+		// explicit PROUVE_ALLOW_DELETED opt-in.
+		const root = buildDeletionFixture('subtree');
+		try {
+			const result = runReplayFixture(root);
+
+			expect(result.status).not.toBe(0);
+			// The error must name the directory (not just one of its files).
+			expect(result.stderr).toContain('tests/proofs/1940/');
+			// The opt-in must be offered — that is the explicit-conscious-
+			// decision shape the fix mandates.
+			expect(result.stderr).toContain('PROUVE_ALLOW_DELETED=1940');
+			// The silent false-green must be gone: no "no proofs
+			// declared" message and no all-green summary.
+			expect(result.stdout).not.toContain(
+				'This PR did not declare any paired red proofs',
+			);
+			expect(result.stdout).not.toContain(
+				'All declared proof tests behaved as expected.',
+			);
+		} finally {
+			rmSync(root, { recursive: true, force: true });
+		}
+	}, 120000);
+
+	test('a single deleted .test.ts under tests/proofs/ is refused loud, naming the file', () => {
+		// A single-file deletion shares the same defect class as the
+		// subtree case but with a different surface: `existsSync` would
+		// have crashed on ENOENT (a hard red) or, worse, the runner
+		// would have reported "corrupted" — a misleading classification
+		// that masks the real cause (deletion, not corruption). The fix
+		// must surface the file path and the opt-in to acknowledge the
+		// deletion, not the corruption story.
+		const root = buildDeletionFixture('file');
+		try {
+			const result = runReplayFixture(root);
+
+			expect(result.status).not.toBe(0);
+			expect(result.stderr).toContain('doomed.test.ts');
+			expect(result.stderr).toContain('PROUVE_ALLOW_DELETED=1940');
+			// The "CORRUPT PROOF" misnomer must be gone.
+			expect(result.stdout).not.toContain('CORRUPT PROOF');
+		} finally {
+			rmSync(root, { recursive: true, force: true });
+		}
+	}, 120000);
+
+	test('a renamed proof file is refused loud, naming both old and new paths', () => {
+		// Renames are reported as R<score> OLD NEW in the -z format.
+		// The runner cannot verify the new path without an explicit
+		// manifest rename, so the rename must be refused loud with both
+		// paths named. A silent rename (e.g. a runner that followed the
+		// new path and replayed a manifest-less file) would have
+		// surfaced as "missing manifest" — a misleading cause. The fix
+		// surfaces the rename directly.
+		const root = buildDeletionFixture('rename');
+		try {
+			const result = runReplayFixture(root);
+
+			expect(result.status).not.toBe(0);
+			expect(result.stderr).toContain('doomed.test.ts');
+			expect(result.stderr).toContain('moved.test.ts');
+			// The status character is named so the operator can grep.
+			expect(result.stderr).toContain('"R"');
+		} finally {
+			rmSync(root, { recursive: true, force: true });
+		}
+	}, 120000);
+});
