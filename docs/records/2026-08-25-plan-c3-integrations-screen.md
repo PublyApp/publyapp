@@ -1559,8 +1559,10 @@ round-3 note below adds the verification evidence that the proof file
    it verbatim). The implemented code at
    `apps/front/src/routes/authed/tenant/settings/integrations.tsx:283, 287`
    mirrors both testids. The test file at
-   `apps/front/src/routes/authed/tenant/settings/integrations.test.tsx:229, 251, 275, 349`
-   uses both testids for RED assertions. RED/GREEN cannot desync.
+   `apps/front/src/routes/authed/tenant/settings/integrations.test.tsx:229, 251, 349`
+   uses both testids for RED assertions (line 275 asserts a third,
+   `tenant-settings-social-accounts-table-loading`, which the plan body
+   does not declare). RED/GREEN cannot desync.
 3. **Private helpers copied VERBATIM.** The plan body at line ~239
    contains the verbatim body of `CreateTenantProfileWithPermissionsAsync`,
    `AssignProfileToTenantUserAsync`, and `CleanupTenantProfileArtifactsAsync`

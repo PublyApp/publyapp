@@ -306,8 +306,11 @@ file `.dump/proof-1440.md` recorded.
    of truth. The summer-DST test exists at
    `apps/api/Modules/Publishing/Handlers/Tenant/SchedulePostForTenant.Spec.cs:65-70`
    (Paris summer 09:00 = 07:00Z). The winter-DST assertion
-   (Paris winter 09:00 = 08:00Z) shares the same `FutureZone` constant
-   and validator pipeline.
+   (Paris winter 09:00 = 08:00Z) lives in
+   `apps/api/Modules/Publishing/Handlers/Tenant/EditPostScheduleForTenant.Spec.cs`
+   under its own `ParisZone` constant (`FutureZone` is the equivalent
+   constant in `SchedulePostForTenant.Spec.cs`); both resolve to
+   `Europe/Paris` and run the same validator pipeline.
 
 No code change is required; the round-4 corrections list above
 already names each fix. This round-5 note exists so the audit trail

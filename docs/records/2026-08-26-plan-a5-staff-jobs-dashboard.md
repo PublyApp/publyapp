@@ -924,11 +924,13 @@ citations; the round-5 note below consolidates the verification evidence.
    `client.auth.scopeAuthData.get({ queryParameters: { scope: 'staff' } })`
    for the caller's effective permission keys, and the staff
    permission set is materialised server-side per request.
-2. **Follow-up 2 — job keys are dash-separated.** The seeder
-   `apps/api/Modules/Jobs/Seeders/SystemJobDefinitionSeeder.cs` defines
-   `JobKey` constants with dash separators (e.g.
-   `email-prepared-sends-retention`). The plan's K-3 e2e step
-   references the dashed spelling.
+2. **Follow-up 2 — job keys are dash-separated.** Each handler
+   defines its own `JobKey` constant with dash separators (e.g.
+   `EmailPreparedSendsRetentionHandler.JobKey` =
+   `email-prepared-sends-retention`); the seeder
+   `apps/api/Modules/Jobs/Seeders/SystemJobDefinitionSeeder.cs`
+   references those constants rather than defining them. The plan's
+   K-3 e2e step references the dashed spelling.
 3. **Follow-up 3 — is_enabled race bounded.** The boundary's
    `is_enabled` pre-read is intentionally unlocked and only a cheap
    early signal; the authoritative check is the engine's

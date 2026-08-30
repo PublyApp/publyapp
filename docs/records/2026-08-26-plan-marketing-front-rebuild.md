@@ -214,7 +214,7 @@ provenance note for the deleted guide (line 35 of the original "Sources
 read" table); the round-3 note below adds the file-count verification
 that the proof file `.dump/proof-1517.md` recorded.
 
-1. **File counts re-derived.** The "reel" column in the table below is
+1. **File counts re-derived.** The "measured" column in the table below is
    re-derivable today via
    `gh pr view <N> --json files --jq '[.files[] | select(.path | test("marketing"; "i"))] | length'`,
    counting entries whose path contains the substring "marketing"
@@ -222,9 +222,9 @@ that the proof file `.dump/proof-1517.md` recorded.
    `state: "CLOSED"`, `mergedAt: null`), so the literal command the
    issue requests, `git show --stat <mergeCommit>`, cannot run; the
    `gh pr view --json files` snapshot exposes the same file list and
-   matches the "reel" column to the unit:
+   matches the "measured" column to the unit:
 
-   | PR | annonce (planned) | reel (PR diff, path ~ /marketing/i) |
+   | PR | claimed (planned) | measured (PR diff, path ~ /marketing/i) |
    |----|-------------------|-------------------------------------|
    | #668 | 12/13 | 9/13 |
    | #669 | 12/13 | 9/13 |
@@ -233,10 +233,12 @@ that the proof file `.dump/proof-1517.md` recorded.
    | #672 | 21/28 | 18/28 |
    | #673 | 11/13 | 1/13 |
 
-   The "annonce" column cannot be re-derived from a non-existent
-   citations file; it is the plan-as-merged ground truth. The
-   "reel" column is the only one a future implementer needs to
-   re-derive, and the methodology above is named.
+   The "claimed" column cannot be re-derived: it reproduces the
+   figures issue #1517 quotes from the citations file that was
+   deleted, and the merged plan carries no such table. It is
+   therefore a quotation, not ground truth. The "measured" column
+   is the only one a future implementer needs to re-derive, and the
+   methodology above is named.
 2. **Provenance of the deleted guide.** The plan's "Sources read"
    table (line 35) already records the deletion commit
    `77609e3575307c1e6b225f458f36b6e29e390d0b` and notes that the
