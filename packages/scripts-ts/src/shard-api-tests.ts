@@ -184,7 +184,10 @@ export const partitionFromListOutput = (
 
 	// Every class FQN appears in exactly one shard; sum the unique class
 	// counts to assert partition completeness at the consumer.
-	const totalClassCount = shards.reduce((sum, s) => sum + s.classCount, 0);
+	let totalClassCount = 0;
+	for (const s of shards) {
+		totalClassCount += s.classCount;
+	}
 
 	return {
 		shards,

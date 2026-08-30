@@ -79,7 +79,10 @@ describe('partitionFromListOutput (real artifact)', () => {
 		expect(union).toEqual(expected);
 
 		// 2. Sum of per-shard test counts equals total.
-		const sum = partition.shards.reduce((acc, s) => acc + s.testCount, 0);
+		let sum = 0;
+		for (const s of partition.shards) {
+			sum += s.testCount;
+		}
 		expect(sum).toBe(partition.totalTestCount);
 
 		// 3. No class FQN appears in more than one shard.
@@ -165,9 +168,12 @@ describe('shardFor', () => {
 
 	it('ShouldThrowWhenClassFqnIsEmptyOrNotAString', () => {
 		expect(() => shardFor('')).toThrow();
-		expect(() => shardFor(null as unknown as string)).toThrow();
-		expect(() => shardFor(undefined as unknown as string)).toThrow();
-		expect(() => shardFor(42 as unknown as string)).toThrow();
+		// @ts-expect-error intentionally passing invalid types to test runtime guard
+		expect(() => shardFor(null)).toThrow();
+		// @ts-expect-error intentionally passing invalid types to test runtime guard
+		expect(() => shardFor(undefined)).toThrow();
+		// @ts-expect-error intentionally passing invalid types to test runtime guard
+		expect(() => shardFor(42)).toThrow();
 	});
 
 	it('ShouldThrowWhenShardCountIsNotPositive', () => {
@@ -280,11 +286,17 @@ The following Tests are available:
 		expect(union).toEqual(expected);
 
 		// Sum of per-shard test counts equals total.
-		const sum = partition.shards.reduce((acc, s) => acc + s.testCount, 0);
+		let sum = 0;
+		for (const s of partition.shards) {
+			sum += s.testCount;
+		}
 		expect(sum).toBe(partition.totalTestCount);
 
 		// Sum of per-shard class counts equals total unique classes.
-		const sumClass = partition.shards.reduce((acc, s) => acc + s.classCount, 0);
+		let sumClass = 0;
+		for (const s of partition.shards) {
+			sumClass += s.classCount;
+		}
 		expect(sumClass).toBe(partition.totalClassCount);
 	});
 
@@ -350,10 +362,10 @@ The following Tests are available:
 		const partition = partitionFromListOutput(tiny);
 		expect(partition.shards).toHaveLength(SHARD_COUNT);
 
-		const totalEntries = partition.shards.reduce(
-			(acc, s) => acc + s.entries.length,
-			0,
-		);
+		let totalEntries = 0;
+		for (const s of partition.shards) {
+			totalEntries += s.entries.length;
+		}
 		expect(totalEntries).toBe(1);
 	});
 
@@ -362,6 +374,10 @@ The following Tests are available:
 		expect(partition.totalTestCount).toBe(0);
 		expect(partition.totalClassCount).toBe(0);
 		expect(partition.shards).toHaveLength(SHARD_COUNT);
-		expect(partition.shards.reduce((acc, s) => acc + s.testCount, 0)).toBe(0);
+		let totalTestCount = 0;
+		for (const s of partition.shards) {
+			totalTestCount += s.testCount;
+		}
+		expect(totalTestCount).toBe(0);
 	});
 });
