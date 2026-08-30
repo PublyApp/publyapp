@@ -226,7 +226,7 @@ const TenantPostsHistoryPage = () => {
 						: '\u2014',
 			},
 		],
-		[t],
+		[t, i18n.language],
 	);
 
 	// Hoisted so the fatal-error gate reads a plain local, not a query flag —
