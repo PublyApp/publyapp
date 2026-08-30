@@ -40,12 +40,26 @@ import { getSourceRelativePath, normalizeFilename } from './path-scopes.ts';
  *     and the repo's paired-red-proof convention even relies on fixtures).
  *
  * Detection:
- *   - A "query hook call" is a `CallExpression` whose callee resolves to an
- *     identifier named `useQuery` exactly, or matching
- *     `/^use[A-Z].*\wQuery$/` (the repo's shared-factory hooks:
+ *   - A "query hook call" is a `CallExpression` whose callee resolves (after
+ *     import-alias resolution) to an identifier named `useQuery` exactly, or
+ *     matching `/^use[A-Z].*\wQuery$/` (the repo's shared-factory hooks:
  *     `useStaffTenantDetailsQuery`, `useStaffProfilesQuery`, `useSuspenseQuery`,
  *     `useInfiniteQuery`; deliberately NOT `useQueryClient` — it ends in
  *     `Client` — and not `usePreloadIntentQueries`, which ends in `Queries`).
+ *   - Import aliases are followed: `import { useQuery as uq } from ...` plus
+ *     `uq({...})` is recognised as a query-hook call, because the only other
+ *     reading is the silent false-negative that r3 caught (the rule sees an
+ *     unknown identifier and defaults to silence — an entry it cannot decide
+ *     MUST surface loudly, never quietly).
+ *   - Namespace imports (`import * as Q from ...`) are intentionally not
+ *     resolved: an oxlint JS plugin runs without TypeScript's module
+ *     resolver, so the only safe reading is `Q.useQuery` etc., which the
+ *     `MemberExpression` branch already names. Callers that go through a
+ *     namespace import plus a renamable export are outside this rule's
+ *     contract; the fix is to import the hook by name.
+ *   - The diagnostic message names the alias actually seen in the source
+ *     (so the developer can grep for it) and the canonical hook name (so
+ *     the diagnosis is honest about WHAT the rule saw).
  *   - "preload declared" means the file contains, anywhere, an object
  *     property named `preload` nested inside an object literal that is the
  *     value of a property named `staticData` (shorthand accepted).
@@ -116,8 +130,14 @@ const isPreloadUnderStaticData = (prop: ESTree.Node): boolean => {
 	return true;
 };
 
+interface TrackedHookCall {
+	readonly alias: string;
+	readonly origin: string;
+	readonly node: ESTree.CallExpression;
+}
+
 interface RouteQueryPreloadState {
-	queryHookNames: Set<string>;
+	queryHookCalls: TrackedHookCall[];
 	firstHookCall: ESTree.CallExpression | null;
 	preloadDeclared: boolean;
 	reported: boolean;
@@ -134,7 +154,7 @@ export const routeQueryPreload = {
 		schema: [],
 		messages: {
 			missingPreload:
-				'Route file calls query hook `{{hook}}` without declaring `staticData.preload`. Declare `staticData: { preload: ({ params }) => [ { options: <shared factory>, variables: <params> } ] }` (see docs/records/2026-08-26-plan-preload-routes.md), or add an escape comment with a reason when the query is secondary / interaction-triggered (#1589).',
+				'Route file calls query hook `{{alias}}` (imported as `{{origin}}`) without declaring `staticData.preload`. Declare `staticData: { preload: ({ params }) => [ { options: <shared factory>, variables: <params> } ] }` (see docs/records/2026-08-26-plan-preload-routes.md), or add an escape comment with a reason when the query is secondary / interaction-triggered (#1589).',
 		},
 	},
 	create(context: Context): Visitor {
@@ -154,19 +174,59 @@ export const routeQueryPreload = {
 		}
 
 		const state: RouteQueryPreloadState = {
-			queryHookNames: new Set(),
+			queryHookCalls: [],
 			firstHookCall: null,
 			preloadDeclared: false,
 			reported: false,
 		};
 
+		// local → canonical-name resolution for named imports. Built once per
+		// file from `ImportDeclaration` visitors, consumed by the
+		// `CallExpression` visitor. The pre-fix version of the rule looked up
+		// only the local name in the callee, which let `import { useQuery as
+		// uq }` + `uq({...})` slip through (r3 finding: silent false negative).
+		// Namespace imports (`import * as Q`) are NOT added here — a JS plugin
+		// has no module resolver, so the safe reading is `Q.useQuery` etc.
+		// accessed as a MemberExpression, which the existing branch already
+		// names correctly.
+		const aliasToOrigin = new Map<string, string>();
+
 		return {
-			CallExpression(node: ESTree.CallExpression) {
-				const calleeName = getCalleeName(node.callee);
-				if (calleeName === null || !isRouteQueryHookName(calleeName)) {
+			ImportDeclaration(node: ESTree.ImportDeclaration) {
+				if (
+					node.source.type !== 'Literal' ||
+					typeof node.source.value !== 'string'
+				) {
 					return;
 				}
-				state.queryHookNames.add(calleeName);
+				for (const specifier of node.specifiers) {
+					if (specifier.type !== 'ImportSpecifier') {
+						continue;
+					}
+					if (
+						specifier.imported.type !== 'Identifier' ||
+						specifier.local.type !== 'Identifier'
+					) {
+						continue;
+					}
+					const origin = specifier.imported.name;
+					const local = specifier.local.name;
+					if (local === origin) {
+						continue;
+					}
+					aliasToOrigin.set(local, origin);
+				}
+			},
+			CallExpression(node: ESTree.CallExpression) {
+				const localName = getCalleeName(node.callee);
+				if (localName === null) {
+					return;
+				}
+				const origin = aliasToOrigin.get(localName) ?? localName;
+				if (!isRouteQueryHookName(origin)) {
+					return;
+				}
+				state.queryHookCalls.push({ alias: localName, origin, node });
 				if (state.firstHookCall === null) {
 					state.firstHookCall = node;
 				}
@@ -194,21 +254,24 @@ export const routeQueryPreload = {
 				if (state.reported) {
 					return;
 				}
-				if (state.preloadDeclared || state.queryHookNames.size === 0) {
+				if (state.preloadDeclared || state.queryHookCalls.length === 0) {
 					return;
 				}
-				const node = state.firstHookCall;
-				if (node === null) {
+				const tracked = state.queryHookCalls[0];
+				if (tracked === undefined) {
 					return;
 				}
 				state.reported = true;
-				// Report once per file on the first hook call, naming one
-				// concrete hook so the developer knows which the rule saw.
-				const hook = [...state.queryHookNames][0] ?? 'useQuery';
+				// Report once per file on the first hook call, naming the
+				// local alias actually written in the source AND the canonical
+				// hook name the rule matched. Both are required: the alias so
+				// the developer can grep, the origin so the diagnosis is
+				// honest about WHAT the rule recognised (the latter matters
+				// because `uq` alone would not match the hook contract).
 				context.report({
-					node,
+					node: tracked.node,
 					messageId: 'missingPreload',
-					data: { hook },
+					data: { alias: tracked.alias, origin: tracked.origin },
 				});
 			},
 		};

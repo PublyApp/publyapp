@@ -168,6 +168,28 @@ const runCases = (rule, label) => {
 					].join('\n'),
 					filename: 'apps/front/src/routes/x.tsx',
 				},
+				// Aliased import WITH staticData.preload declared — must stay
+				// silent (the alias was the only thing different from the
+				// pre-existing valid case above). Pins the GREEN half: the
+				// alias-tracking pass does not create false positives when
+				// preload is present.
+				{
+					code: [
+						'import { useStaffTenantDetailsQuery as fetchTenant } from "~/lib/query/staff-tenants";',
+						'export const Route = createFileRoute("/staff/tenants/$tenantId")({',
+						'  staticData: {',
+						'    preload: ({ params }) => [',
+						'      { options: staffTenantDetailsQueryOptions, variables: { tenantId: params.tenantId } },',
+						'    ],',
+						'  },',
+						'});',
+						'const Page = () => {',
+						'  const tenant = fetchTenant({ tenantId });',
+						'  return <div>{tenant.data?.name}</div>;',
+						'};',
+					].join('\n'),
+					filename: ROUTE_FILE,
+				},
 			],
 			invalid: [
 				// The core defect: route mounts a query hook, no preload.
@@ -246,6 +268,50 @@ const runCases = (rule, label) => {
 					].join('\n'),
 					filename: ROUTE_FILE,
 					errors: [{ messageId: 'missingPreload' }],
+				},
+				// Aliased import is still a query hook (r3 false-negative fix:
+				// `import { useQuery as uq }` + `uq({...})` must be reported,
+				// naming the alias actually seen in the source and the canonical
+				// hook name the rule matched). Without the alias-tracking pass
+				// this case was a silent false negative — the rule saw an
+				// unknown identifier and defaulted to silence.
+				{
+					code: [
+						'import { useQuery as uq } from "@tanstack/react-query";',
+						'export const Route = createFileRoute("/x")({ component: X });',
+						'const X = () => {',
+						'  const q = uq({ queryKey: ["x"] });',
+						'  return <div>{q.data}</div>;',
+						'};',
+					].join('\n'),
+					filename: ROUTE_FILE,
+					errors: [
+						{
+							messageId: 'missingPreload',
+							data: { alias: 'uq', origin: 'useQuery' },
+						},
+					],
+				},
+				// Aliased shared-factory hook — same coverage for the regex arm.
+				{
+					code: [
+						"import { useStaffTenantDetailsQuery as fetchTenant } from '~/lib/query/staff-tenants';",
+						'export const Route = createFileRoute("/x")({ component: X });',
+						'const X = () => {',
+						'  const tenant = fetchTenant({ tenantId });',
+						'  return <div>{tenant.data?.name}</div>;',
+						'};',
+					].join('\n'),
+					filename: ROUTE_FILE,
+					errors: [
+						{
+							messageId: 'missingPreload',
+							data: {
+								alias: 'fetchTenant',
+								origin: 'useStaffTenantDetailsQuery',
+							},
+						},
+					],
 				},
 			],
 		});
@@ -345,5 +411,28 @@ void test('CLI GREEN: the same file with an oxlint-disable escape comment for th
 		stdout,
 		/publy\(route-query-preload\)/,
 		`expected zero diagnostics with the escape comment, got stdout: ${stdout}`,
+	);
+});
+
+void test('CLI RED: aliased import `useQuery as uq` + `uq({...})` reports the diagnostic (r3 false-negative fix)', () => {
+	const source = [
+		'import { useQuery as uq } from "@tanstack/react-query";',
+		'export const Route = createFileRoute("/probe")({ component: Page });',
+		'const Page = () => {',
+		'  const q = uq({ queryKey: ["x"] });',
+		'  return <div>{String(q.data)}</div>;',
+		'};',
+	].join('\n');
+
+	const stdout = runCliWithDeniedWarnings(source);
+	assert.match(
+		stdout,
+		/publy\(route-query-preload\)/,
+		`expected the CLI to report publy/route-query-preload for an aliased import, got stdout: ${stdout}`,
+	);
+	assert.match(
+		stdout,
+		/`uq` \(imported as `useQuery`\)/,
+		`expected the diagnostic to name the alias and the origin, got stdout: ${stdout}`,
 	);
 });

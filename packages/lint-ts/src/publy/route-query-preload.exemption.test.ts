@@ -149,6 +149,44 @@ describe('publy/route-query-preload exemption boundary (#1589)', () => {
 			);
 		}
 	});
+
+	// Liveness pin (r4 follow-up): a route stays on the allow-list only as
+	// long as it lacks `staticData.preload`. If one of the three entries
+	// later adopts preload, the exemption becomes unnecessary — without this
+	// pin nothing would tell the maintainer, and the list would only grow.
+	// The pin reads the file source through a deliberately narrow regex
+	// (`staticData` followed by an object literal that contains `preload`)
+	// so a comment mentioning the words does NOT count. Adding
+	// `staticData: { preload: () => [] }` to one exempt route makes this
+	// test red with a message naming that file.
+	const livenessRegex = /staticData\s*:\s*\{[\s\S]*?\bpreload\s*:/;
+	it('liveness regex matches a real staticData.preload declaration (catches a weakened regex)', () => {
+		const fixture = [
+			'export const Route = createFileRoute("/probe")({',
+			'  staticData: {',
+			'    preload: () => [],',
+			'  },',
+			'});',
+		].join('\n');
+		assert.strictEqual(
+			livenessRegex.test(fixture),
+			true,
+			'the liveness regex no longer recognises a staticData.preload declaration — a weakened regex slipped past the liveness pin',
+		);
+	});
+	it('only allows routes that still lack staticData.preload (shrink when they adopt it)', () => {
+		for (const route of EXPECTED_ALLOWLISTED_ROUTES) {
+			const source = readFileSync(
+				join(WORKSPACE_ROOT, 'apps/front/src', route),
+				'utf8',
+			);
+			assert.strictEqual(
+				livenessRegex.test(source),
+				false,
+				`exempt route ${route} declares staticData.preload — the exemption became unnecessary; shrink the allow-list (#1589)`,
+			);
+		}
+	});
 });
 
 // -- Behavioral leg ------------------------------------------------------------
