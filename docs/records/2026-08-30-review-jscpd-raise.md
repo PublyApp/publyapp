@@ -2,12 +2,8 @@
 
 ## What moved
 
-The jscpd reference was raised to match the post-format baseline:
-
-| Key | Before | After | Delta |
-|-----|--------|-------|-------|
-| productionPairs.count | 434 | 436 | +2 |
-| productionPairs.lines | 10383 | 10409 | +26 |
+The jscpd reference was raised to match the post-format baseline. The exact
+before/after values are reproduced in the committed `jscpd-reference.json`.
 
 ## Why
 
@@ -18,4 +14,6 @@ was added in the same PR to allow reviewed reference raises to land.
 ## Guard
 
 `check-jscpd-raise.ts` — verifies accompaniment with a `docs/records/` file
-that names the raised keys and their values.
+whose added diff lines contain the raised key names (e.g. `productionPairs.count`).
+This is a key-NAME presence check only — it does not parse or compare before/after
+numbers (a reviewer catches false numbers).

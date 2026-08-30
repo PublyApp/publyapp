@@ -40,9 +40,11 @@ the missing record.
 
 ### The accompaniment record
 
-Must be a `docs/records/YYYY-MM-DD-*.md` file whose diff body contains the string
-`jscpd` (case-insensitive). This proves the record covers this metric. A record that
-does not match this shape does not satisfy the guard.
+Must be a `docs/records/YYYY-MM-DD-*.md` file whose added diff lines contain the
+**raised key names** (e.g. `productionPairs.count`). This proves the author
+identified which metric moved. The check is key-NAME presence only — it does not
+parse or compare before/after numbers (a reviewer catches false numbers). A
+record that does not match this shape does not satisfy the guard.
 
 ### Why the main ratchet stays honest
 
@@ -58,7 +60,7 @@ is counted against the reference.
 ## Scope
 
 - `packages/scripts-ts/src/check-jscpd-raise.ts`: guard script with `verifyJscpdRaise()`
-- `packages/scripts-ts/src/check-jscpd-raise.test.ts`: 11 tests covering all paths
+- `packages/scripts-ts/src/check-jscpd-raise.test.ts`: 20 tests covering all paths
 - `.github/workflows/quality-gate.yml`: new `ratchet-raise` job, conditioned on changes
 - `justfile`: new `ci-jscpd-raise` recipe
 - `ci-gate-manifest.json`: step entries with real hashes
@@ -67,6 +69,7 @@ is counted against the reference.
 ## Accompanying record
 
 This record accompanies the #1969 guard implementation, not #1945. The guard
-requires a `docs/records/YYYY-MM-DD-*.md` file whose content names the specific
-metric keys that raised (e.g. `productionPairs.count: 10 → 12`), proving the
-author looked at the actual numbers.
+requires a `docs/records/YYYY-MM-DD-*.md` file whose added diff lines contain the
+**raised key names** (e.g. `productionPairs.count`). This is a key-NAME presence
+check only — it does not parse or compare before/after numbers (a reviewer
+catches false numbers).
