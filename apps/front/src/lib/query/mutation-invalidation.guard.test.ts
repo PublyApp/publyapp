@@ -1167,3 +1167,48 @@ export const useDownloadAuditLog = () =>
 		);
 	});
 });
+
+// ── Preuve rouge #1690-r2 : un `>` IMBRIQUÉ dans un argument de type générique ──
+//
+// Le test livré par le PR #1925 place le `>` dans une chaîne DE HORS des
+// arguments de type (dans le corps de l'appel, `fetcher: async () => ({ id: 'a > b' })`).
+// Cette chaîne n'affecte pas la regex non-greedy `<([\s\S]*?)>\s*\(` : son contenu
+// se trouve APRÈS le `>` qui ferme les arguments de type, donc après le match.
+//
+// Le cas décrit par l'issue #1690 (et la ronde 1) est différent : un `>` placé À
+// L'INTÉRIEUR des arguments de type — c'est-à-dire dans un littéral de chaîne
+// utilisé comme type, à l'intérieur d'un argument générique imbriqué. Le PR
+// n'expose pas ce cas. La reproduction ci-dessous est le cas exact que la regex
+// non-greedy rate : le troisième argument générique est un type paramétré
+// `Container<"a > b", PageQueryVariables>`. La regex s'arrête au premier `>`
+// (celui du littéral `"a > b"`), capture `ApiClient, Response, Container<"a `,
+// et l'extraction `splitTopLevel` + `match(/[\w]*QueryVariables\b/)` ne retrouve
+// jamais `PageQueryVariables` → la fabrique est silencieusement ignorée → 0.
+//
+// Attendu sur l'ANCIEN code (regex) : retourne 0 (faux négatif silencieux).
+// Attendu sur le NOUVEAU code (AST via ts-morph) : retourne 1 (extraction
+// correcte du nom du type *QueryVariables dans les génériques imbriqués).
+
+describe('nested-generic arg with ">" inside a string-literal type — #1690-r2', () => {
+	test('a ">" inside a string-literal generic argument defeats the regex (RED on old, GREEN on AST)', () => {
+		const withNestedGtInTypeArg = `
+export type PageQueryVariables = {
+	cursor?: string;
+	size?: number;
+};
+
+const staffUsersQueryOptions = buildStaffQueryOptions<
+	ApiClient,
+	FindStaffUsersResponse,
+	Container<"a > b", PageQueryVariables>
+>(
+	{
+		queryKeyFn: () => ['staff-users'],
+		fetcher: async () => ({}),
+	},
+	{ clientAccessor: getClientManager() },
+);
+`;
+		expect(countListQueryFactories(withNestedGtInTypeArg)).toBe(1);
+	});
+});
