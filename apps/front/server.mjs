@@ -1,7 +1,7 @@
 import { fileURLToPath } from 'node:url';
 
 import { serve } from 'srvx';
-import { serveStatic } from 'srvx/static';
+import { staticMiddleware } from 'srvx/static';
 
 import handler, { validateRuntimeEnv } from './dist/server/server.js';
 
@@ -10,12 +10,12 @@ validateRuntimeEnv();
 const __dirname = fileURLToPath(new URL('.', import.meta.url));
 const port = Number(process.env.PORT ?? 3000);
 
-const staticMiddleware = serveStatic({ dir: `${__dirname}/dist/client` });
+const staticHandler = staticMiddleware({ dir: `${__dirname}/dist/client` });
 
 const server = serve({
 	port,
 	hostname: process.env.HOST ?? '0.0.0.0',
-	middleware: [staticMiddleware],
+	middleware: [staticHandler],
 	fetch: (request) => handler.fetch(request),
 });
 

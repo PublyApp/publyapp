@@ -69,12 +69,18 @@ export const extractFrontSchemaRequirements = (
 		const processKeysRaw = match[2];
 		const schemaIdentifier = match[3];
 
+		const knownOptional = new Set([
+			'optionalTrimmedString',
+			'optionalPublicOrigin',
+		]);
+
 		if (
 			schemaIdentifier !== 'requiredTrimmedString' &&
-			schemaIdentifier !== 'optionalTrimmedString'
+			!knownOptional.has(schemaIdentifier)
 		) {
+			const known = ['requiredTrimmedString', ...knownOptional].join(', ');
 			throw new Error(
-				`Front env.ts parse failure at entry "${entryName}": schema identifier "${schemaIdentifier}" is not requiredTrimmedString or optionalTrimmedString. The env.ts structure has changed and this guard no longer understands it — update the guard, do not silence it.`,
+				`Front env.ts parse failure at entry "${entryName}": schema identifier "${schemaIdentifier}" is not one of ${known}. The env.ts structure has changed and this guard no longer understands it — update the guard, do not silence it.`,
 			);
 		}
 
