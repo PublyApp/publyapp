@@ -102,12 +102,25 @@ const buildFixture = async (opts: {
 // Core behaviour
 // ---------------------------------------------------------------------------
 
-test('no raise: verdict is none (caller exits 0)', () => {
-	const verdict = verifyJscpdRaise(
-		'/home/radan/Projects/PublyApp/publyapp/.worktrees/grp-ratchet-raise',
-		undefined,
-	);
-	// This worktree has no raise in progress.
+test('no raise: verdict is none (caller exits 0)', async () => {
+	// Hermetic fixture, NOT the checkout this test happens to run in. The first
+	// version of this test passed the author's own worktree path as an absolute
+	// literal: on CI that directory does not exist, git resolved nothing, and
+	// the assertion read 'fail' instead of 'none'. A test whose subject is the
+	// machine it runs on measures the machine, not the guard.
+	const { prDir } = await buildFixture({
+		baseRef: {
+			productionPairs: { count: 10, lines: 200 },
+			productionAuto: { count: 5, lines: 100 },
+		},
+		prRef: {
+			productionPairs: { count: 10, lines: 200 },
+			productionAuto: { count: 5, lines: 100 },
+		},
+	});
+
+	const verdict = verifyJscpdRaise(prDir, 'main');
+
 	assert.equal(verdict.hasRaise, false);
 	assert.equal(verdict.verdict, 'none');
 });
