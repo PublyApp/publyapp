@@ -291,9 +291,24 @@ the breadcrumb shell needs (entity names) is in the query cache before the first
 deep link then paints its full named trail immediately, instead of flashing entity skeletons.
 Pair such a loader with a `pendingComponent` for the pending window. Do not use a loader as a
 second fetch path with different keys — reuse the page's own query-options factories so the
-cache dedupes. The one shipped example is
-`src/routes/authed/staff/tenants/$tenantId/profiles/$profileId.tsx` (#846's skeleton-flash fix,
-implemented in #851); integration coverage lives in `src/lib/navigation/breadcrumb-loader.test.tsx`.
+cache dedupes.
+
+**This is a guard, not a description.** The query-key subset rule above is enforced statically
+by `src/lib/route-loader-query-key-guard.test.ts` (test "every route loader preloads only query
+keys the route's own components pass to useQuery (route-loader query-key subset guard)"): every
+route `loader`'s query keys must be a subset of the query keys that route's own components pass
+to `useQuery`. Inclusion, not equality — a route may query more than it preloads, never the
+reverse. The guard walks the real modules under `src/routes/`, resolves one import hop into
+`lib/query/*` for hook-wrapped queries, and fails loudly — naming the route — on any loader it
+cannot statically resolve (a dynamic loader value, an unresolvable `queryKey` expression, or an
+opaque helper call in a loader that has `queryClient` access). It runs in CI via the
+`front-ci.yml` job `supply-chain`, step "Test front" (`pnpm --filter front test` →
+`pnpm test:design-guards`). A lane that wants to warm the cache for a new surface must satisfy
+this guard — the sanctioning decision is explicit and findable, not emergent.
+
+The one shipped example is `src/routes/authed/staff/tenants/$tenantId/profiles/$profileId.tsx`
+(#846's skeleton-flash fix, implemented in #851); integration coverage lives in
+`src/lib/navigation/breadcrumb-loader.test.tsx`.
 
 ## Server-Function Boundary
 
