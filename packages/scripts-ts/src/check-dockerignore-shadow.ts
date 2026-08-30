@@ -1,5 +1,4 @@
-import { execFileSync } from 'node:child_process';
-import { opendir } from 'node:fs/promises';
+import { opendir, realpath, stat as statFn } from 'node:fs/promises';
 import path from 'node:path';
 import process from 'node:process';
 import { pathToFileURL } from 'node:url';
@@ -61,6 +60,27 @@ import { createGitIgnoreChecker } from './git-check-ignore.ts';
 // The shared helper also returns paths as absolute, which is what this guard
 // needs to intersect the walk's relative findings.
 //
+// SYMLINKS
+// --------
+// BuildKit follows symlinks within the build context by default, so a
+// `Dockerfile.dockerignore` reachable only through a symlinked directory
+// (e.g. `vendor/ -> ../external-repo/`) is visible to the build and must be
+// flagged here too. The walk therefore descends into symlinked directories.
+// Two protective measures keep that safe:
+//
+// * Cycle protection: the realpath of every directory the walk has already
+//   entered is remembered; a symlink that resolves back to an already-visited
+//   directory is skipped, so self-referential loops terminate.
+// * Containment: a symlink whose real target sits OUTSIDE the repository
+//   root is reported and walked under its lexical path — its contents are
+//   outside this repo and therefore outside the contract of this guard, but
+//   the path itself still names a directory that BuildKit would resolve into
+//   the context. Documenting this in the output is the deliberate trade-off
+//   vs. silently dropping it (round-4 finding).
+//
+// Files (not directories) that are symlinks are not special-cased: a symlink
+// whose basename ends with `.dockerignore` is still a shadow.
+//
 // FAIL-LOUD CONTRACT
 // ------------------
 // If the tree cannot be scanned (missing root, unreadable directory), the
@@ -82,31 +102,120 @@ const toPosixPath = (value: string) => value.split(path.sep).join('/');
 const isShadowFile = (name: string): boolean =>
 	name !== '.dockerignore' && name.toLowerCase().endsWith('.dockerignore');
 
+const isRealInsideRoot = (realPath: string, realRoot: string): boolean => {
+	const relative = path.relative(realRoot, realPath);
+	return (
+		!relative.startsWith('..') && !path.isAbsolute(relative) && relative !== ''
+	);
+};
+
 const walkForShadows = async (
 	rootDir: string,
 	currentDir: string,
 	findings: string[],
+	visitedRealPaths: Set<string>,
+	realRoot: string,
 ): Promise<string[]> => {
 	const directory = await opendir(currentDir);
 
 	for await (const entry of directory) {
-		if (entry.isDirectory() && !entry.isSymbolicLink()) {
+		const entryAbsolute = path.join(currentDir, entry.name);
+		const lexicalRelative = toPosixPath(path.relative(rootDir, entryAbsolute));
+
+		// Dirent reports isDirectory() === false for a symlink whose target
+		// IS a directory, so the symlink branch must be handled before the
+		// plain-directory branch.
+		if (entry.isSymbolicLink()) {
+			// The symlink could point at a file (then it is itself a file
+			// candidate: a symlink whose basename ends with `.dockerignore`
+			// IS the shadow Docker would resolve) OR at a directory (then
+			// it is a transit point into more of the tree). Resolve it to
+			// tell which.
+			let realTarget: string;
+			let targetStat;
+			try {
+				realTarget = await realpath(entryAbsolute);
+				targetStat = await statFn(realTarget);
+			} catch {
+				// Broken symlink: nothing to walk, no file to flag.
+				continue;
+			}
+
+			if (!targetStat.isDirectory()) {
+				// Symlink to a file. The lexically-named entry is the file
+				// BuildKit would dereference inside the build context, so it
+				// goes through the shadow test by its lexical name.
+				if (isShadowFile(entry.name)) {
+					findings.push(lexicalRelative);
+				}
+				continue;
+			}
+
+			if (visitedRealPaths.has(realTarget)) {
+				continue;
+			}
+
+			if (!isRealInsideRoot(realTarget, realRoot)) {
+				// Symlink escapes the repository root. We do NOT recurse
+				// through `realpath`: descending into `/home` or `/tmp`
+				// would scan an unbounded filesystem and trade one bug for
+				// another. We DO inspect the LEXICAL root — `opendir` follows
+				// symlinks — to surface shadows sitting at the root of the
+				// external target, which is the contract of the guard for any
+				// directory in the build context. Files deeper than that root
+				// stay invisible: the external tree is outside the repo-level
+				// contract, and the lexical recursion would be unbounded.
+				try {
+					const externalDirectory = await opendir(entryAbsolute);
+					for await (const externalEntry of externalDirectory) {
+						if (externalEntry.isDirectory() || externalEntry.isSymbolicLink()) {
+							continue;
+						}
+						if (isShadowFile(externalEntry.name)) {
+							findings.push(`${lexicalRelative}/${externalEntry.name}`);
+						}
+					}
+				} catch {
+					// Unreadable external directory: nothing to add.
+				}
+				continue;
+			}
+
+			visitedRealPaths.add(realTarget);
+
+			await walkForShadows(
+				rootDir,
+				entryAbsolute,
+				findings,
+				visitedRealPaths,
+				realRoot,
+			);
+			continue;
+		}
+
+		if (entry.isDirectory()) {
 			if (SKIP_DIRS.has(entry.name)) {
 				continue;
 			}
 
+			const realEntry = await realpath(entryAbsolute);
+			if (visitedRealPaths.has(realEntry)) {
+				continue;
+			}
+			visitedRealPaths.add(realEntry);
+
 			await walkForShadows(
 				rootDir,
-				path.join(currentDir, entry.name),
+				entryAbsolute,
 				findings,
+				visitedRealPaths,
+				realRoot,
 			);
 			continue;
 		}
 
 		if (isShadowFile(entry.name)) {
-			findings.push(
-				toPosixPath(path.relative(rootDir, path.join(currentDir, entry.name))),
-			);
+			findings.push(lexicalRelative);
 		}
 	}
 
@@ -117,7 +226,16 @@ export const findDockerignoreShadows = async (
 	options: { rootDir?: string } = {},
 ): Promise<string[]> => {
 	const { rootDir = process.cwd() } = options;
-	const findings = await walkForShadows(rootDir, rootDir, []);
+	const realRoot = await realpath(path.resolve(rootDir));
+	const visitedRealPaths = new Set<string>([realRoot]);
+
+	const findings = await walkForShadows(
+		rootDir,
+		rootDir,
+		[],
+		visitedRealPaths,
+		realRoot,
+	);
 
 	const checkIgnore = createGitIgnoreChecker(rootDir);
 
@@ -130,14 +248,30 @@ export const findDockerignoreShadows = async (
 		// and external tooling, not by the regular path.
 		visible = findings;
 	} else {
-		const absoluteFindings = findings.map((relativePath) =>
-			path.resolve(rootDir, relativePath),
-		);
-		const ignoredAbsolute = checkIgnore(absoluteFindings);
-		visible = findings.filter(
-			(relativePath) =>
-				!ignoredAbsolute.has(path.resolve(rootDir, relativePath)),
-		);
+		// `git check-ignore` refuses paths that escape the repository root
+		// via a symlink (status 128, "pathspec ... is beyond a symbolic
+		// link"). Separate the findings into two buckets:
+		// * askable: the real path stays inside the repo, git has a real
+		//   answer, and a positive answer hides the finding.
+		// * unanswerable: the real path leaves the repo via a symlink. Git
+		//   cannot speak to it, so we keep the finding — its lexical path
+		//   is in the build context, the shadow is real.
+		const askable: { relativePath: string; absolute: string }[] = [];
+		const unanswerable: string[] = [];
+		for (const relativePath of findings) {
+			const absolute = path.resolve(rootDir, relativePath);
+			const realAbsolute = await realpath(absolute);
+			if (isRealInsideRoot(realAbsolute, realRoot)) {
+				askable.push({ relativePath, absolute: realAbsolute });
+			} else {
+				unanswerable.push(relativePath);
+			}
+		}
+		const ignoredAbsolute = checkIgnore(askable.map((entry) => entry.absolute));
+		const visibleInRepo = askable
+			.filter((entry) => !ignoredAbsolute.has(entry.absolute))
+			.map((entry) => entry.relativePath);
+		visible = [...visibleInRepo, ...unanswerable];
 	}
 
 	return visible.sort();

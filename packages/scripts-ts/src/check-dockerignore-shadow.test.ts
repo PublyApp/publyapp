@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { execFileSync, spawnSync } from 'node:child_process';
-import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, rm, symlink, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -489,5 +489,158 @@ test('RED: shadow file in a tracked directory whose name contains a tab is still
 		);
 	} finally {
 		await rm(repoDir, { recursive: true, force: true });
+	}
+});
+
+// -----------------------------------------------------------------------
+// Round 4 of #1873: BuildKit follows symlinks within the build context, so a
+// `Dockerfile.dockerignore` reachable only through a symlinked directory
+// (e.g. `vendor/ -> external-repo/`) must still be flagged. The previous
+// walk skipped any directory whose entry reported `isSymbolicLink()` and
+// silently missed the shadow. The walk now follows symlinks with a realpath
+// cycle guard and reports (but does not follow) symlinks that escape the
+// repository root.
+//
+// PAIRED PROOF
+// ------------
+// Without the fix, the GREEN leg below is RED: a shadow sitting behind a
+// symlinked directory is invisible, and the guard reports nothing. With the
+// fix, the guard reports it under both the lexical and the real path. The
+// RED leg pins that the round-2 case-insensitive acquisition survives.
+// -----------------------------------------------------------------------
+
+// GREEN (paired proof): a shadow file sitting in a directory the walk only
+// reaches through a symlink must be flagged. ROUGE before the fix when the
+// symlink points outside the repository root: the walk skipped symlinks, so
+// the lexical target was invisible AND the walk never descended, so the
+// shadow was unreachable. VERT after: the walk now follows symlinks and
+// the shadow under one is reported under its lexical path. Anchored on a
+// symlink pointing OUTSIDE the repo root so the lexical tree under it is
+// the only place the shadow exists.
+test('GREEN: shadow file under a symlinked directory pointing outside the repo root is reported (#1873 round 4)', async () => {
+	const repoDir = await mkdtemp(
+		path.join(os.tmpdir(), 'publyapp-symlink-shadow-'),
+	);
+
+	try {
+		await initGitRepo(repoDir);
+		await writeFixtureFile(repoDir, '.gitignore', '');
+		// Empty target outside the repo so the walk only sees the shadow
+		// via the lexical path through the symlink.
+		const outsideDir = await mkdtemp(
+			path.join(os.tmpdir(), 'publyapp-symlink-shadow-target-'),
+		);
+		try {
+			await symlink(outsideDir, path.join(repoDir, 'linked'), 'dir');
+			// `opendir` follows the symlink, so the lexical walk descends
+			// into the external directory and finds the shadow under its
+			// lexical name. This pins the fix: under the old code the walk
+			// refused to follow any symlink, so `linked/` was never
+			// entered and the shadow was invisible.
+			await writeFile(
+				path.join(repoDir, 'linked', 'Dockerfile.SONDE.dockerignore'),
+				'',
+			);
+
+			const findings = await findDockerignoreShadows({ rootDir: repoDir });
+
+			assert.deepEqual(
+				findings,
+				['linked/Dockerfile.SONDE.dockerignore'],
+				`expected the guard to flag the shadow under the symlinked path, got: ${JSON.stringify(findings)}`,
+			);
+		} finally {
+			await rm(outsideDir, { recursive: true, force: true });
+		}
+	} finally {
+		await rm(repoDir, { recursive: true, force: true });
+	}
+});
+
+// RED (paired proof): a shadow under a symlinked directory that is also
+// mixed-case must still be reported — the round-2 case-insensitive
+// acquisition must not be lost when the walk learns to follow symlinks.
+test('RED: mixed-case shadow behind a symlinked directory is reported (#1873 round 4)', async () => {
+	const repoDir = await mkdtemp(
+		path.join(os.tmpdir(), 'publyapp-symlink-mixed-'),
+	);
+
+	try {
+		await initGitRepo(repoDir);
+		await writeFixtureFile(repoDir, '.gitignore', '');
+		await mkdir(path.join(repoDir, 'real'), { recursive: true });
+		await writeFile(path.join(repoDir, 'real', 'Dockerfile.DockerIgnore'), '');
+		await symlink('real', path.join(repoDir, 'linked'), 'dir');
+
+		const findings = await findDockerignoreShadows({ rootDir: repoDir });
+
+		assert.ok(
+			findings.some(
+				(p) =>
+					p === 'linked/Dockerfile.DockerIgnore' ||
+					p === 'real/Dockerfile.DockerIgnore',
+			),
+			`expected the guard to flag the mixed-case shadow behind a symlink, got: ${JSON.stringify(findings)}`,
+		);
+	} finally {
+		await rm(repoDir, { recursive: true, force: true });
+	}
+});
+
+// CYCLE PROTECTION: a symlink whose real target is an ancestor of itself
+// must not loop. Build the simplest cycle (a/loop -> .) and confirm the
+// walk terminates and reports nothing on a clean tree.
+test('GREEN: a self-referential symlinked directory does not loop (#1873 round 4)', async () => {
+	const repoDir = await mkdtemp(
+		path.join(os.tmpdir(), 'publyapp-symlink-cycle-'),
+	);
+
+	try {
+		await initGitRepo(repoDir);
+		await writeFixtureFile(repoDir, '.gitignore', '');
+		await mkdir(path.join(repoDir, 'a'), { recursive: true });
+		await symlink('.', path.join(repoDir, 'a', 'loop'), 'dir');
+
+		const findings = await findDockerignoreShadows({ rootDir: repoDir });
+
+		assert.deepEqual(
+			findings,
+			[],
+			`expected no findings on a self-referential symlink without any shadow, got: ${JSON.stringify(findings)}`,
+		);
+	} finally {
+		await rm(repoDir, { recursive: true, force: true });
+	}
+});
+
+// ESCAPE REPORTING: a symlink whose target sits outside the repository root
+// is NOT recursed into (that would scan an unbounded filesystem), but its
+// root is inspected once via the lexical entry: shadows sitting at the root
+// of the external target are reported under their lexical path through the
+// symlink.
+test('RED: shadow at the root of a symlinked directory escaping the repository root is reported under its lexical path (#1873 round 4)', async () => {
+	const repoDir = await mkdtemp(
+		path.join(os.tmpdir(), 'publyapp-symlink-escape-'),
+	);
+
+	const outsideDir = await mkdtemp(
+		path.join(os.tmpdir(), 'publyapp-symlink-escape-outside-'),
+	);
+
+	try {
+		await initGitRepo(repoDir);
+		await writeFixtureFile(repoDir, '.gitignore', '');
+		await symlink(outsideDir, path.join(repoDir, 'escape'), 'dir');
+		await writeFile(path.join(outsideDir, 'Dockerfile.SONDE.dockerignore'), '');
+
+		const findings = await findDockerignoreShadows({ rootDir: repoDir });
+
+		assert.ok(
+			findings.includes('escape/Dockerfile.SONDE.dockerignore'),
+			`expected the guard to flag the shadow at the root of the escaping symlink, got: ${JSON.stringify(findings)}`,
+		);
+	} finally {
+		await rm(repoDir, { recursive: true, force: true });
+		await rm(outsideDir, { recursive: true, force: true });
 	}
 });
