@@ -20,10 +20,13 @@ const frontPkg = JSON.parse(readFileSync(frontPkgPath, 'utf8')) as {
 
 const guardPaths = new Set<string>();
 // Capture every path argument after `run-guarded.mts` (optionally `--test`),
-// stopping at shell operators (&, |, ;). Some invocations pass multiple files
-// to a single run-guarded.mts call (e.g. test:route-tree-guard), so we must
-// grab them all, not just the first.
-const re = /run-guarded\.mts(?:\s+--test)?((?:\s+[^\s&|;]+)+)/g;
+// stopping at shell operators (&, |, ;) and at the `--` passthrough marker
+// (after `run-guarded.mts -- <command>` the tokens are a wrapped non-node
+// command line — vitest/playwright — not guard paths; capturing them would
+// add `vitest`, `run`, config files etc. as bogus entries). Some invocations
+// pass multiple files to a single run-guarded.mts call (e.g.
+// test:route-tree-guard), so we must grab them all, not just the first.
+const re = /run-guarded\.mts(?:\s+--test)?((?:\s+[^\s&|;]+)+?)(?=\s+--\s|$)/g;
 for (const script of Object.values(frontPkg.scripts ?? {})) {
 	let m: RegExpExecArray | null;
 	while ((m = re.exec(script)) !== null) {
