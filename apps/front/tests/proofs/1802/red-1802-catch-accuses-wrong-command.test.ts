@@ -150,7 +150,12 @@ const RUN_PREUVES_FILE = fileURLToPath(
 // Anchors that delimit the `declaredProofTests` function body. If these
 // drift, the proof must NOT silently fall back to a "conformant" default —
 // it must fail loud naming the drift.
-const FUNCTION_HEADER = 'function declaredProofTests(): string[] {';
+//
+// The production function is a const arrow (func-style #1834 turned every
+// top-level function in run-preuves.mts into `const x = (): T => {`), so the
+// header anchor matches the arrow form exactly; a revert to a `function`
+// declaration would re-drift the anchor and the proof fails loud.
+const FUNCTION_HEADER = 'const declaredProofTests = (): string[] => {';
 const FUNCTION_FOOTER =
 	'	// Every file added or modified under tests/proofs/ is a declared proof.';
 
@@ -159,7 +164,7 @@ const FUNCTION_FOOTER =
  * source file. Throws if the anchors drift — a content that cannot be
  * parsed is not a conformant content.
  */
-function extractFunctionBody(): string {
+const extractFunctionBody = (): string => {
 	const source = readFileSync(RUN_PREUVES_FILE, 'utf8');
 	const headerIndex = source.indexOf(FUNCTION_HEADER);
 	if (headerIndex === -1) {
@@ -178,7 +183,7 @@ function extractFunctionBody(): string {
 		);
 	}
 	return source.slice(headerIndex, footerIndex);
-}
+};
 
 /**
  * Check whether the function body has the buggy structure:
@@ -193,7 +198,7 @@ function extractFunctionBody(): string {
  * On correct code, each command has its own try/catch, so no leaf try
  * covers both commands.
  */
-function hasBuggyStructure(body: string): boolean {
+const hasBuggyStructure = (body: string): boolean => {
 	// In the source, these commands appear inside template literals like:
 	//   `git -C "${ROOT}" rev-parse --is-shallow-repository`
 	//   `git -C "${ROOT}" fetch --unshallow`
@@ -261,12 +266,12 @@ function hasBuggyStructure(body: string): boolean {
 	}
 
 	return false;
-}
+};
 
 /**
  * Find all positions of `try` keyword in the body.
  */
-function findAllTryPositions(body: string): number[] {
+const findAllTryPositions = (body: string): number[] => {
 	const positions: number[] = [];
 	let i = 0;
 	while (i < body.length - 3) {
@@ -299,13 +304,13 @@ function findAllTryPositions(body: string): number[] {
 		i = braceIdx + 1;
 	}
 	return positions;
-}
+};
 
 /**
  * Find the matching closing brace for an opening brace at position `start`.
  * Returns the position right after the closing brace, or -1 if unbalanced.
  */
-function findMatchingBrace(body: string, start: number): number {
+const findMatchingBrace = (body: string, start: number): number => {
 	let depth = 1;
 	let k = start + 1;
 	while (k < body.length && depth > 0) {
@@ -358,7 +363,7 @@ function findMatchingBrace(body: string, start: number): number {
 		return -1;
 	}
 	return k;
-}
+};
 
 describe('shallow-repair catch attribution — RED: catch names git rev-parse even when git fetch --unshallow fails (#1802)', () => {
 	test('the declaredProofTests function has a single try block covering BOTH git rev-parse and git fetch --unshallow, whose catch names git rev-parse (the buggy structure the fix corrected)', () => {

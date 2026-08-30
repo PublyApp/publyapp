@@ -94,9 +94,9 @@ const buildRouter = (initialUrl: string, includeErrorPreview: boolean) => {
 	// `.addChildren` isn't part of its exported type — it's only ever called
 	// here, building a throwaway per-test route tree. The helper is the one
 	// widening point; the call site stays readable.
-	function widenOptions<T>(value: unknown): T {
+	const widenOptions = <T,>(value: unknown): T => {
 		return value as T;
-	}
+	};
 	const routeTree = widenOptions<{
 		addChildren: (children: unknown[]) => typeof RootRoute;
 	}>(RootRoute).addChildren(children);

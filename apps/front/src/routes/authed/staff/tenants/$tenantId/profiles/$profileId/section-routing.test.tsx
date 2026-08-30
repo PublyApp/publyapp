@@ -322,13 +322,13 @@ const buildRouter = (
 	// `.addChildren` exists at runtime on every route but is absent from the
 	// exported `options` union; the helper is the one widening point and each
 	// call names its shape once.
-	function widenOptions<T>(value: unknown): T {
+	const widenOptions = <T,>(value: unknown): T => {
 		return value as T;
-	}
-	function addChildrenOf(route: unknown) {
+	};
+	const addChildrenOf = (route: unknown) => {
 		return widenOptions<{ addChildren: (children: unknown[]) => void }>(route)
 			.addChildren;
-	}
+	};
 	const routeTree = addChildrenOf(rootRoute)([
 		addChildrenOf(layoutRoute)([
 			addChildrenOf(detailsRoute)([

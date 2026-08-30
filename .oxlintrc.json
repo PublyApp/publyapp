@@ -44,6 +44,7 @@
 	"rules": {
 		"curly": "error",
 		"no-else-return": "error",
+		"func-style": ["error", "expression"],
 		"no-nested-ternary": "error",
 		"no-param-reassign": "error",
 		"default-param-last": "error",

@@ -142,12 +142,12 @@ test('generateRouteTree writes a non-empty routeTree.gen.ts into an isolated fix
 	}
 });
 
-async function mkdirp(dir: string): Promise<void> {
+const mkdirp = async (dir: string): Promise<void> => {
 	const { mkdir } = await import('node:fs/promises');
 	await mkdir(dir, { recursive: true });
-}
+};
 
-async function writeFile(file: string, contents: string): Promise<void> {
+const writeFile = async (file: string, contents: string): Promise<void> => {
 	const fs = await import('node:fs/promises');
 	await fs.writeFile(file, contents);
-}
+};

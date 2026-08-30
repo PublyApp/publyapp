@@ -291,16 +291,16 @@ const globalTenantUserCompaniesQueryOptions = buildStaffQueryOptions<
  * wire-shape call site names the target type once here instead of widening
  * and re-asserting inline.
  */
-function buildAssignCompaniesBody(
+const buildAssignCompaniesBody = (
 	variables: GlobalTenantUserCompaniesLinkInput,
-): AssignTenantUserCompaniesForStaffBody {
+): AssignTenantUserCompaniesForStaffBody => {
 	return createUntypedObject({
 		level: createUntypedString(variables.level),
 		tenantIds: createUntypedArray(
 			variables.tenantIds.map((tenantId) => createUntypedString(tenantId)),
 		),
 	}) as AssignTenantUserCompaniesForStaffBody;
-}
+};
 
 const linkGlobalTenantUserCompaniesMutationOptions = buildStaffMutationOptions<
 	ApiClient,

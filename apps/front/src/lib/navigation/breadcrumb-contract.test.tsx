@@ -234,9 +234,9 @@ const ENTITY_QUERY_REGISTRY: readonly EntityRegistryEntry[] = [
 	},
 ];
 
-function widenOptions<T>(value: unknown): T {
+const widenOptions = <T,>(value: unknown): T => {
 	return value as T;
-}
+};
 
 // `fullPath` is populated by the router's own tree-processing pass
 // (`RouterCore.buildRouteTree`, run from `createRouter`), not eagerly by

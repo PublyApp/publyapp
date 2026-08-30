@@ -27,11 +27,11 @@ export type TextPaintKind =
 // and Playwright's Node side both compile TS to JS before toString() runs,
 // so the output is valid ES for Chromium (no type annotations, no satisfies).
 
-export function __publyNormalize(value: string): string {
+export const __publyNormalize = (value: string): string => {
 	return value.trim().toLowerCase();
-}
+};
 
-export function __publyIsTransparentColor(value: string): boolean {
+export const __publyIsTransparentColor = (value: string): boolean => {
 	const n = __publyNormalize(value);
 	if (n === 'transparent') {
 		return true;
@@ -51,11 +51,11 @@ export function __publyIsTransparentColor(value: string): boolean {
 		}
 	}
 	return false;
-}
+};
 
-export function __publyClassifyTextPaint(
+export const __publyClassifyTextPaint = (
 	style: ClippedTextStyle,
-): TextPaintKind {
+): TextPaintKind => {
 	const clip = __publyNormalize(
 		style.webkitBackgroundClip ?? style.backgroundClip ?? '',
 	);
@@ -86,12 +86,12 @@ export function __publyClassifyTextPaint(
 		return 'transparent-fill';
 	}
 	return 'opaque';
-}
+};
 
-export function __publyAssertTextPaintIsMeasurable(
+export const __publyAssertTextPaintIsMeasurable = (
 	style: ClippedTextStyle,
 	label: string,
-): void {
+): void => {
 	const kind = __publyClassifyTextPaint(style);
 	if (kind === 'clipped') {
 		throw new Error(
@@ -113,11 +113,11 @@ export function __publyAssertTextPaintIsMeasurable(
 			`${label} has undecidable text paint: masked text (mask-image/mask) — the glyphs are masked and cannot be measured`,
 		);
 	}
-}
+};
 
-export async function __publyDecodeScreenshot(
+export const __publyDecodeScreenshot = async (
 	dataUrl: string,
-): Promise<ImageData> {
+): Promise<ImageData> => {
 	const prefix = 'data:image/png;base64,';
 	const base64 = dataUrl.slice(prefix.length);
 	const binary = atob(base64);
@@ -137,20 +137,27 @@ export async function __publyDecodeScreenshot(
 	}
 	ctx.drawImage(bitmap, 0, 0);
 	return ctx.getImageData(0, 0, canvas.width, canvas.height);
-}
+};
 
 // Derived browser snippets — single source, no hand-typed twin.
+// Each function is emitted as `const <name> = <arrow>;` so the snippet keeps its
+// named bindings under `new Function` (an arrow's toString() is anonymous, so a
+// bare join would leave `__publyClassifyTextPaint` undefined inside the eval).
 export const BROWSER_TEXT_PAINT_CLASSIFIER_SNIPPET = [
 	__publyNormalize,
 	__publyIsTransparentColor,
 	__publyClassifyTextPaint,
 	__publyAssertTextPaintIsMeasurable,
 ]
-	.map((fn) => fn.toString())
+	.map((fn) => `const ${fn.name} = ${fn.toString()};`)
 	.join('\n');
 
-export const BROWSER_SCREENSHOT_DECODER_SNIPPET =
-	__publyDecodeScreenshot.toString();
+// `.toString()` d'une fonction flechee ne produit AUCUNE liaison nommee (#1834) :
+// l'extrait devient une expression anonyme, et le `return __publyDecodeScreenshot;`
+// du consommateur leve un ReferenceError dans le navigateur. On declare donc la
+// liaison explicitement, exactement comme le fait deja le snippet du classifieur
+// juste au-dessus.
+export const BROWSER_SCREENSHOT_DECODER_SNIPPET = `const ${__publyDecodeScreenshot.name} = ${__publyDecodeScreenshot.toString()};`;
 
 // Node aliases — same reference, not a second body (structural single-source proof).
 export const normalize = __publyNormalize;
