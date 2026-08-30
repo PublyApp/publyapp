@@ -333,10 +333,18 @@ jobs:
         run: pnpm --filter front test:preuves
         # Mirrors `just test-preuves` in the local ci-front recipe.
 
-  # #1948: the vitest suite (315 files) is the single longest step in this
-  # workflow. Running it as a 4-way shard matrix cuts wall-clock time by ~4x
-  # (from ~10m39 to ~2m40 per shard, bounded by the slowest shard). Each
-  # shard runs independently and reports its own result to the aggregate gate.
+  # #1948: the vitest suite (319 files, measured 2026-08-30) is the single
+  # longest step in this workflow. Running it as a 4-way shard matrix cuts
+  # wall-clock time by ~4x (from ~10m39 to ~2m40 per shard, bounded by the
+  # slowest shard). Each shard runs independently and reports its own result
+  # to the aggregate gate (#1699: a failing shard cannot mask the other
+  # shards' or the non-vitest checks' results — fail-fast: false keeps every
+  # leg running, and the supply-chain step is a separate job).
+  #
+  # The file-count equality (319 before, sum of the four shards after) is
+  # pinned by the test-vitest-coverage job below, which reads the REAL
+  # `vitest list --shard=i/4` discovery of every shard against the unsharded
+  # suite, not a model of the split.
   test-vitest:
     name: front-ci (${{ matrix.shard }}/4)
     needs: changes
@@ -393,6 +401,42 @@ jobs:
           name: front-ci-vitest-report-${{ matrix.shard }}-of-4
           path: apps/front/test-results
           if-no-files-found: ignore
+
+  # #1948 equality proof: the shard matrix must partition the suite exactly
+  # once. Runs the REAL discovery of every shard (`vitest list --shard=i/n`
+  # resolves the same file partition `vitest run --shard=i/n` executes) and
+  # of the unsharded suite, then fails if any file is lost, duplicated, or
+  # invented by the matrix. A separate job (parallel to the shards and to
+  # the supply-chain lane) so the ~3m40 serial cost never lands on the
+  # critical path of the shards or of the non-vitest checks, and so its own
+  # result reports independently (#1699).
+  test-vitest-coverage:
+    name: front-ci vitest shard coverage
+    needs: changes
+    if: needs.changes.outputs.relevant == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+        with:
+          version: 10.13.1
+
+      - name: Setup Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: 24
+
+      - name: Install (frozen lockfile, no scripts)
+        run: pnpm install --frozen-lockfile --ignore-scripts
+
+      - name: Run trusted first-party postinstall (@org/shared-ts)
+        run: pnpm --filter @org/shared-ts run postinstall
+
+      - name: Check vitest shard coverage equality (#1948)
+        run: pnpm --filter front test:vitest-shard-coverage
 
   # IMPORTANT fix: the four #1017 aggregate-gate test suites and the
   # packages/scripts-ts/src/check-ci-gate-structure.ts CLI were reachable only through local
@@ -539,7 +583,7 @@ jobs:
     # report one of the four required names either.
     name: ${{ (github.event_name == 'pull_request' || github.event_name == 'merge_group') && 'front-ci-gate' || 'front-ci-push-check' }}
     if: always()
-    needs: [changes, supply-chain, gate-selftest, test-vitest]
+    needs: [changes, supply-chain, gate-selftest, test-vitest, test-vitest-coverage]
     runs-on: ubuntu-latest
     steps:
       # BLOCKER fix (round 5): `gate-selftest` above runs
