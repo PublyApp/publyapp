@@ -1374,5 +1374,10 @@
 	"queue-status-failed": "Failed",
 	"queue-status-pending": "Pending",
 	"queue-status-processing": "Processing",
-	"scroll-area-label": "Scrollable content"
+	"scroll-area-label": "Scrollable content",
+	"icon-hidden-aria": "icon has aria-hidden=\"true\"",
+	"icon-hidden-visibility": "icon has computed visibility:hidden",
+	"icon-hidden-display": "icon has computed display:none",
+	"icon-hidden-opacity": "icon has computed opacity:0",
+	"icon-guard-context-null": "{{context}}: icon element is null"
 }
