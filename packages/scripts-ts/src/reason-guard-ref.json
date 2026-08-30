@@ -108,6 +108,7 @@
 		"front-ci.yml::supply-chain::Check front column-type imports (#1769)",
 		"front-ci.yml::supply-chain::Check front design system",
 		"front-ci.yml::supply-chain::Check front formatting",
+		"front-ci.yml::supply-chain::Check front srvx/static import shape (#1822)",
 		"front-ci.yml::supply-chain::Checkout",
 		"front-ci.yml::supply-chain::Install (frozen lockfile, no scripts)",
 		"front-ci.yml::supply-chain::Install Git hooks (mirrors prepare)",
@@ -498,6 +499,11 @@
 			"reason_hash": "0274617a256af805",
 			"reason_length": 54,
 			"reason": "ci-front runs the identical pnpm --filter front build."
+		},
+		"front-ci.yml::supply-chain::Check front srvx/static import shape (#1822)": {
+			"reason_hash": "f190fa994d00657b",
+			"reason_length": 731,
+			"reason": "ci-front runs the identical pnpm --filter front check:server-static-imports (#1822). The guard parses server.mjs with ts-morph, loads the real installed srvx/static, and asserts every named import from srvx/static resolves against the live module — without it, a dependabot srvx bump that renames or removes an export re-opens the same startup crash the publish-now e2e surfaced in #1628 and #1655, but only behind the next retrigger. The unit test (apps/front/scripts/guards/check-server-static-imports.test.mts, including a real-load assertion that pinned staticMiddleware is exported and serveStatic is not) runs inside the front `test` chain as test:server-static-imports-guard, mirrored by the same `just ci-front` invocation."
 		},
 		"front-ci.yml::supply-chain::Check front React Compiler artifacts": {
 			"reason_hash": "ad9f03648bf0dfc2",

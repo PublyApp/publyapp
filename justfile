@@ -504,6 +504,17 @@ ci-front:
   # of the passthrough gets twenty TS7031 errors very far from the cause
   # (this is the third occurrence: #1627, #1737).
   pnpm --filter front check:column-type-imports
+  # #1822: real-artifact guard — `srvx/static` renamed its `serveStatic`
+  # named export to `staticMiddleware` in 0.12.7. The pre-#1628 import
+  # `import { serveStatic } from 'srvx/static'` would throw at module
+  # load and crash the front server at startup, surfacing as the
+  # publish-now e2e timing out on a `toBeVisible` (Traefik 502 over the
+  # down upstream). This guard parses server.mjs with ts-morph, loads
+  # the real installed srvx/static, and asserts every imported name
+  # resolves — without it, a future rename would re-open the same
+  # shape behind the next dependabot srvx bump.
+  pnpm --filter front check:server-static-imports
+  pnpm --filter front test:server-static-imports-guard
   # Built-artifact guard (#1234): proves the React Compiler actually ran on
   # the dist produced above (runtime chunk present, compiled-module count
   # >= floor). Same pattern as check:design-system: a step of `pnpm --filter
