@@ -57,14 +57,18 @@
  * are not themselves immediately invoked.
  *
  * Known gaps — deliberate, declared for review (see the adverse-mutation
- * section of the PR):
+ * section of the PR). The #1956 call shapes describe block in
+ * func-style-config.test.ts ("one red test per declared gap") is the single
+ * source of truth for which call shapes the guard follows; the bullets below
+ * name only what remains open:
  * - plain REFERENCES before the declaration (`const x = f;` — a TDZ read,
  *   not a call) are not reported; the guard's mandate is the call defect.
  * - bindings whose initializer is not directly a function expression
  *   (`const f = [() => {}][0]`, `const f = g.bind(null)`, re-exports) are
  *   not tracked.
- * - invocations through member/sequence callees (`obj.f()`, `(0, f)()`,
- *   `obj[f]()`) are not followed as hops.
+ * - invocations through sequence callees (`(0, f)()`) are not followed as
+ *   hops; member callees on module-level const object literals ARE followed
+ *   (#1956 shape 1).
  * - getter bodies on class declarations, class instances, or computed
  *   property names are not tracked (only object-literal getters on
  *   module-level const bindings are analysed).
@@ -339,6 +343,10 @@ interface WalkContext {
 	 * read for that property at module-eval time, the getter body runs and is
 	 * walked for TDZ violations. */
 	getterIndex: Map<string, Map<string, ObjectGetter>>;
+	/** For each module-level const/let binding whose initializer is an object
+	 * literal, the literal itself. Member callee resolution (`obj.run()`,
+	 * `obj['run']()`) reads the function-expression property off it. */
+	objectLiteralInitializers: Map<string, ts.ObjectLiteralExpression>;
 	violations: ModuleOrderViolation[];
 }
 
@@ -940,6 +948,60 @@ const walkGetterAccess = (
 	scopes.pop();
 };
 
+/** Resolves an object-literal member access (`obj.run` / `obj['run']`) to
+ * the function-expression property on a module-level const object literal.
+ * When the member is invoked at module-eval time, that body runs at
+ * module-eval time, so it is walked as an immediate invocation. Only
+ * identifier/string-literal property names and function-expression values
+ * are followed; computed indexes and method-definition shorthand stay
+ * unresolved (declared boundary, not silently claimed as covered). */
+const resolveObjectLiteralMethod = (
+	access: ts.PropertyAccessExpression | ts.ElementAccessExpression,
+	context: WalkContext,
+): { name: string; fn: FunctionLike } | undefined => {
+	if (!ts.isIdentifier(access.expression)) {
+		return undefined;
+	}
+	const propertyName =
+		ts.isPropertyAccessExpression(access) && ts.isIdentifier(access.name)
+			? access.name.text
+			: ts.isElementAccessExpression(access) &&
+				  (ts.isStringLiteral(access.argumentExpression) ||
+						ts.isNoSubstitutionTemplateLiteral(access.argumentExpression))
+				? access.argumentExpression.text
+				: undefined;
+	if (propertyName === undefined) {
+		return undefined;
+	}
+	const objectLiteral = context.objectLiteralInitializers.get(
+		access.expression.text,
+	);
+	if (objectLiteral === undefined) {
+		return undefined;
+	}
+	for (const property of objectLiteral.properties) {
+		if (!ts.isPropertyAssignment(property)) {
+			continue;
+		}
+		const matches =
+			(ts.isIdentifier(property.name) && property.name.text === propertyName) ||
+			(ts.isStringLiteral(property.name) &&
+				property.name.text === propertyName);
+		if (!matches) {
+			continue;
+		}
+		const fn = functionInitializer(property.initializer);
+		if (fn === undefined) {
+			return undefined;
+		}
+		return {
+			name: `${access.expression.text}.${propertyName}`,
+			fn,
+		};
+	}
+	return undefined;
+};
+
 /** Walks a decorator expression at class-definition time. A decorator
  * `@expr` is sugar for `expr(class)` — the decorator function executes at
  * class definition time (module-evaluation time when the class is at module
@@ -1212,6 +1274,53 @@ const handleInvocation = (
 		return;
 	}
 
+	// Member callee: `obj.run()` / `obj['run']()` where `obj` is a
+	// module-level const object literal and the property a
+	// function-expression value. The method body runs at the moment of the
+	// call — module-evaluation time when the call is at module level — so
+	// it is walked as an immediate invocation (inner calls to later
+	// bindings are reported transitively).
+	const memberCallee = unwrapParens(calleeExpression);
+	if (
+		ts.isPropertyAccessExpression(memberCallee) ||
+		ts.isElementAccessExpression(memberCallee)
+	) {
+		const method = resolveObjectLiteralMethod(memberCallee, context);
+		if (method !== undefined) {
+			invokeBinding(
+				method.fn,
+				method.name,
+				0,
+				context,
+				scopes,
+				position(calleeExpression),
+				chain,
+				visitedBindings,
+			);
+			walkImmediate(
+				memberCallee.expression,
+				context,
+				scopes,
+				bodyRootIndex,
+				executionPos,
+				chain,
+				visitedBindings,
+			);
+			for (const argument of argumentsList) {
+				walkImmediate(
+					argument,
+					context,
+					scopes,
+					bodyRootIndex,
+					executionPos,
+					chain,
+					visitedBindings,
+				);
+			}
+			return;
+		}
+	}
+
 	// Member/expression callees can still carry immediately-executed
 	// parts (e.g. `obj[f()]()`); walk them, but not as a tracked
 	// invocation.
@@ -1443,6 +1552,7 @@ export const analyzeModuleOrder = (
 		sourceFile,
 		moduleBindings: new Map(),
 		getterIndex: new Map(),
+		objectLiteralInitializers: new Map(),
 		violations: [],
 	};
 
@@ -1456,6 +1566,17 @@ export const analyzeModuleOrder = (
 					continue;
 				}
 				const fn = functionInitializer(declaration.initializer);
+				if (
+					declaration.initializer !== undefined &&
+					ts.isObjectLiteralExpression(declaration.initializer)
+				) {
+					// Object literals are not function bindings, but member
+					// callee resolution (`obj.run()`) needs the literal.
+					context.objectLiteralInitializers.set(
+						declaration.name.text,
+						declaration.initializer,
+					);
+				}
 				if (fn === undefined) {
 					// Still collect getters from non-function initializers (object
 					// literals with getter properties).

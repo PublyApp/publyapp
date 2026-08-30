@@ -1549,6 +1549,29 @@ const run = () => 1;
 				assert.strictEqual(violations[0]!.kind, 'direct');
 				assert.strictEqual(violations[0]!.line, 1);
 			});
+
+			// #1956: the six call shapes the round-3 reviewer reproduced as
+			// real module-evaluation-order crashes the guard stayed silent on.
+			// One test per shape — this describe IS the gap list's single
+			// source of truth (the analyzer's header comment points here
+			// instead of duplicating the list).
+			describe('#1956 call shapes — one red test per declared gap', () => {
+				it('shape 1, member callee: helpers.normalise() runs its body before toPosixPath is defined', () => {
+					const violations = analyze(
+						`const helpers = { normalise: (x) => toPosixPath(x) };
+const out = helpers.normalise('a');
+const toPosixPath = (x) => x;
+`,
+					);
+
+					assert.strictEqual(violations.length, 1);
+					assert.strictEqual(violations[0]!.callee, 'toPosixPath');
+					assert.strictEqual(violations[0]!.kind, 'transitive');
+					assert.deepStrictEqual(violations[0]!.chain, ['helpers.normalise']);
+					assert.strictEqual(violations[0]!.line, 1);
+					assert.strictEqual(violations[0]!.declaredAtLine, 3);
+				});
+			});
 		});
 
 		describe('green fixtures — healthy code produces zero order violations', () => {
@@ -1617,7 +1640,10 @@ const run = () => 1;
 				assert.deepStrictEqual(violations, []);
 			});
 
-			it('does not flag member invocations (declared gap: member callees are not tracked)', () => {
+			it('does not flag a member invocation whose method body makes no TDZ call', () => {
+				// #1956 shape 1: member callees ARE followed now. This stays
+				// green because the resolved method body (`() => 1`) calls
+				// nothing that is declared later.
 				const violations = analyze(
 					`const engine = { run: () => 1 };
 const result = engine.run();
