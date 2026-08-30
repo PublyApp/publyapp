@@ -366,7 +366,9 @@ const BULK_REVOKE_OUTCOME_CASES: BulkRevokeOutcomeCase[] = [
 		response: {
 			succeededCount: 1,
 			failedCount: 1,
-			failedItems: [{ invitationId: ACCEPTED_B, reason: null as unknown as string }],
+			failedItems: [
+				{ invitationId: ACCEPTED_B, reason: null as unknown as string },
+			],
 		},
 		errorToastArgs: [
 			'Revoked 1 invitation(s), 1 failed.',
