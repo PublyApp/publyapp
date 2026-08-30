@@ -1688,6 +1688,37 @@ const toPosixPath = (x) => x;
 					assert.strictEqual(violations[0]!.line, 3);
 					assert.strictEqual(violations[0]!.declaredAtLine, 8);
 				});
+
+				it('shape 6, alias then call: const g = f; g() reaches f before f is defined', () => {
+					const violations = analyze(
+						`const g = f;
+const result = g();
+const f = () => 1;
+`,
+					);
+
+					assert.strictEqual(violations.length, 1);
+					assert.strictEqual(violations[0]!.callee, 'f');
+					assert.strictEqual(violations[0]!.kind, 'direct');
+					assert.strictEqual(violations[0]!.line, 2);
+					assert.strictEqual(violations[0]!.declaredAtLine, 3);
+				});
+
+				it('shape 6, alias chain: h = g, g = f; h() reaches f before f is defined', () => {
+					const violations = analyze(
+						`const h = g;
+const g = f;
+const result = h();
+const f = () => 1;
+`,
+					);
+
+					assert.strictEqual(violations.length, 1);
+					assert.strictEqual(violations[0]!.callee, 'f');
+					assert.strictEqual(violations[0]!.kind, 'direct');
+					assert.strictEqual(violations[0]!.line, 3);
+					assert.strictEqual(violations[0]!.declaredAtLine, 4);
+				});
 			});
 		});
 
@@ -1783,7 +1814,10 @@ const result = engine.run();
 				assert.deepStrictEqual(violations, []);
 			});
 
-			it('does not flag plain references before the definition (declared gap: reads are not calls)', () => {
+			it('does not flag plain references before the definition (reads are not calls)', () => {
+				// #1956 shape 6: identifier aliases ARE tracked now, but this
+				// fixture has no call — a bare reference (even a healthy one
+				// reading an already-initialised binding) produces nothing.
 				const violations = analyze(
 					`const later = () => 1;
 const holder = later;

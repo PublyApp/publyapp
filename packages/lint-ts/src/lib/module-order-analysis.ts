@@ -65,7 +65,8 @@
  *   not a call) are not reported; the guard's mandate is the call defect.
  * - bindings whose initializer is not directly a function expression are
  *   not tracked (`const f = [() => {}][0]`, re-exports); the bind chain
- *   `const f = g.bind(null)` IS tracked (#1956 shape 2).
+ *   `const f = g.bind(null)` and the identifier alias `const g = f` are
+ *   tracked (shapes 2 and 6).
  * - getter bodies on class instances are tracked when the property access
  *   goes through `new Cls().prop` or a module const holding `new Cls()`
  *   (shape 5); `Cls.prototype.prop`, computed property names and static
@@ -231,21 +232,26 @@ const resolveBindTarget = (call: ts.CallExpression): string | undefined => {
 };
 
 /** Alias target of a module binding initializer that hops to another
- * function binding (the binding's value is a bound copy of the target).
+ * function binding instead of holding a function expression itself.
  * #1956 shape 2 recognises the bind chain `const f = g.bind(null)`;
- * the plain-identifier alias (`const g = f`) is shape 6 and lands
- * separately. */
-const bindAliasTarget = (
+ * shape 6 recognises the plain-identifier alias `const g = f`. Only
+ * identifier and bind-call initializers are followed; indexed reads and
+ * member reads (`const g = helpers.run`) stay unresolved (declared
+ * boundaries). */
+const aliasReferenceTarget = (
 	initializer: ts.Expression | undefined,
 ): string | undefined => {
 	if (initializer === undefined) {
 		return undefined;
 	}
 	const unwrapped = unwrapParens(initializer);
-	if (!ts.isCallExpression(unwrapped)) {
-		return undefined;
+	if (ts.isIdentifier(unwrapped)) {
+		return unwrapped.text;
 	}
-	return resolveBindTarget(unwrapped);
+	if (ts.isCallExpression(unwrapped)) {
+		return resolveBindTarget(unwrapped);
+	}
+	return undefined;
 };
 
 const addScopeDeclaration = (
@@ -360,9 +366,10 @@ const resolveBinding = (
 			return { kind: 'scope', scopeIndex: index, binding };
 		}
 	}
-	// Module bindings, following bind-alias hops (`const f = g.bind(null)`
-	// makes `f` a hop to `g`) with a cycle guard. The reported binding is
-	// the ultimate target; a call before its initializer ran is the defect.
+	// Module bindings, following alias hops (`const f = g.bind(null)` and
+	// `const g = f` make the left name a hop to the right one) with a cycle
+	// guard. The reported binding is the ultimate target; a call before its
+	// initializer ran is the defect.
 	const visited = new Set<string>();
 	let current = name;
 	while (!visited.has(current)) {
@@ -395,9 +402,9 @@ interface WalkContext {
 	objectLiteralInitializers: Map<string, ts.ObjectLiteralExpression>;
 	/** Module bindings whose initializer is a hop to another function
 	 * binding instead of a function expression itself. The bind chain
-	 * (`const f = g.bind(null)`) records name → target; a call through
-	 * `f` resolves to `g` (shape 2). The plain-identifier alias
-	 * (`const g = f`) is shape 6 and is recorded separately there. */
+	 * (`const f = g.bind(null)`) and the plain-identifier alias
+	 * (`const g = f`) both record name → target (shapes 2 and 6); a call
+	 * through the aliased name resolves to the ultimate target. */
 	aliasTargets: Map<string, string>;
 	/** Module-level class declarations and class-expression consts, by
 	 * binding name. Class-instance getter access (`new Cls().prop` or a
@@ -1830,7 +1837,7 @@ export const analyzeModuleOrder = (
 						declaration.initializer,
 					);
 				}
-				const aliasTarget = bindAliasTarget(declaration.initializer);
+				const aliasTarget = aliasReferenceTarget(declaration.initializer);
 				if (aliasTarget !== undefined) {
 					context.aliasTargets.set(declaration.name.text, aliasTarget);
 				}
