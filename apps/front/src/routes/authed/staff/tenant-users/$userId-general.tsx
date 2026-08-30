@@ -14,6 +14,7 @@ import {
 	toastLocalMutationResult,
 } from '~/lib/mutation-toast';
 import {
+	globalTenantUserDetailsQueryOptions,
 	invalidateGlobalTenantUsers,
 	toGlobalTenantUserDetails,
 	useGlobalTenantUserDetailsQuery,
@@ -59,6 +60,12 @@ export const Route = createFileRoute(
 )({
 	staticData: {
 		i18nNamespaces: ['common'],
+		preload: ({ params }) => [
+			{
+				options: globalTenantUserDetailsQueryOptions,
+				variables: { userId: params.userId },
+			},
+		],
 		crumbs: tenantUserDetailsCrumbs,
 	},
 	component: TenantUserGeneralTabPage,

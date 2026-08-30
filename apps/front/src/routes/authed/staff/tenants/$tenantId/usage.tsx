@@ -13,6 +13,8 @@ import { StatCard } from '~/components/ui/stat-card';
 import {
 	selectStaffTenantCrumbName,
 	staffTenantCrumbQuery,
+	staffTenantDetailsQueryOptions,
+	staffTenantUsageQueryOptions,
 	toStaffTenantDetails,
 	toStaffTenantUsage,
 	useStaffTenantDetailsQuery,
@@ -223,6 +225,16 @@ export const Route = createFileRoute(
 	'/_authed-layout/staff/tenants/$tenantId/usage',
 )({
 	staticData: {
+		preload: ({ params }) => [
+			{
+				options: staffTenantDetailsQueryOptions,
+				variables: { tenantId: params.tenantId },
+			},
+			{
+				options: staffTenantUsageQueryOptions,
+				variables: { tenantId: params.tenantId },
+			},
+		],
 		crumbs: (params) => [
 			{ kind: 'label', labelKey: 'nav-tenants', to: '/staff/tenants' },
 			{

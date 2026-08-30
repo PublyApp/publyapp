@@ -10,6 +10,7 @@ import { StatusPill } from '~/components/ui/product-page';
 import { StateSurface } from '~/components/ui/state-surface';
 import { formatDateTime } from '~/lib/format-date-time';
 import {
+	staffAuditLogsQueryOptions,
 	toStaffAuditLogRows,
 	useStaffAuditLogsQuery,
 	type StaffAuditLogRow,
@@ -178,6 +179,12 @@ export const Route = createFileRoute(
 	'/_authed-layout/staff/dashboard/activity',
 )({
 	staticData: {
+		preload: () => [
+			{
+				options: staffAuditLogsQueryOptions,
+				variables: { size: ACTIVITY_FEED_SIZE },
+			},
+		],
 		crumbs: () => [
 			{ kind: 'label', labelKey: 'nav-dashboard', to: '/staff/dashboard' },
 			{ kind: 'label', labelKey: 'nav-dashboard-activity' },

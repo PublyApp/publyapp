@@ -839,7 +839,7 @@ export const toStaffTenantProfileMemberAssignmentMap = (
 	return map;
 };
 
-const staffTenantProfilesQueryOptions = buildStaffQueryOptions<
+export const staffTenantProfilesQueryOptions = buildStaffQueryOptions<
 	ApiClient,
 	FindTenantProfilesAsStaffResult,
 	StaffTenantProfilesQueryVariables
@@ -1041,7 +1041,7 @@ export const staffTenantPermissionCatalogQueryOptions = buildStaffQueryOptions<
  * (page/limit), not cursor — mirrors `FindStaffProfileUsers` (the
  * staff-profiles precedent this endpoint was intentionally modeled on).
  */
-const staffTenantProfileMembersQueryOptions = buildStaffQueryOptions<
+export const staffTenantProfileMembersQueryOptions = buildStaffQueryOptions<
 	ApiClient,
 	FindTenantProfileUsersAsStaffResult,
 	StaffTenantProfileMembersQueryVariables

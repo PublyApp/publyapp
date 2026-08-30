@@ -165,7 +165,7 @@ export const isStaffTenantInvitationRevocable = ({
 }: Pick<StaffTenantInvitationRow, 'status'>): boolean =>
 	normalizeStatusToken(status) === 'pending';
 
-const staffTenantInvitationsQueryOptions = buildStaffQueryOptions<
+export const staffTenantInvitationsQueryOptions = buildStaffQueryOptions<
 	ApiClient,
 	FindInvitationsForTenantAsStaffResult,
 	StaffTenantInvitationsQueryVariables

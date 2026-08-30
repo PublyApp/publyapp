@@ -23,6 +23,7 @@ import { formatDateTime } from '~/lib/format-date-time';
 import {
 	invalidateStaffJobsQueries,
 	staffDeadLetterDetailsQueryOptions,
+	staffDeadLettersQueryOptions,
 	toStaffDeadLetterRows,
 	useStaffDeadLettersQuery,
 	type StaffDeadLetterRow,
@@ -326,6 +327,19 @@ const useStaffDeadLetterDetailQuery = (deadLetterId: string | undefined) => {
 export const Route = createFileRoute('/_authed-layout/staff/jobs/dead-letter')({
 	staticData: {
 		i18nNamespaces: ['staff-jobs'],
+		preload: () => [
+			{
+				options: staffDeadLettersQueryOptions,
+				variables: {
+					externalStateStatus: undefined,
+					jobType: undefined,
+					tenantId: undefined,
+					sortId: 'failed_at',
+					sortOrder: 'desc',
+					size: 50,
+				},
+			},
+		],
 		crumbs: () => [{ kind: 'label', labelKey: 'nav-staff-jobs' }],
 	},
 	validateSearch: (search) =>

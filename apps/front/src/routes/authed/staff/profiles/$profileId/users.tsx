@@ -15,12 +15,14 @@ import { useTableController } from '~/components/table/use-table-controller';
 import { buttonVariants } from '~/components/ui/button.variants';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '~/components/ui/tabs';
 import {
+	staffProfileUsersQueryOptions,
 	toStaffProfileUserRows,
 	useStaffProfileUsersQuery,
 } from '~/lib/query/staff-profile-users';
 import {
 	selectStaffProfileCrumbName,
 	staffProfileCrumbQuery,
+	staffProfileDetailsQueryOptions,
 	toStaffProfileDetails,
 	useStaffProfileDetailsQuery,
 } from '~/lib/query/staff-profiles';
@@ -335,6 +337,23 @@ export const Route = createFileRoute(
 	'/_authed-layout/staff/profiles/$profileId/users',
 )({
 	staticData: {
+		preload: ({ params }) => [
+			{
+				options: staffProfileDetailsQueryOptions,
+				variables: { profileId: params.profileId },
+			},
+			{
+				options: staffProfileUsersQueryOptions,
+				variables: {
+					profileId: params.profileId,
+					q: '',
+					sortId: 'created_at',
+					sortOrder: 'desc',
+					pageIndex: 0,
+					size: 100,
+				},
+			},
+		],
 		crumbs: (params) => [
 			{ kind: 'label', labelKey: 'nav-staff-profiles', to: '/staff/profiles' },
 			{

@@ -13,6 +13,7 @@ import {
 	invalidateStaffUsers,
 	removeStaffUserDetails,
 	staffUserDetailsQueryOptions,
+	staffUserProfilesQueryOptions,
 	toAssignedStaffProfiles,
 	toStaffUserDetails,
 	useDeleteStaffUserMutation,
@@ -286,6 +287,10 @@ export const Route = createFileRoute(
 		preload: ({ params }) => [
 			{
 				options: staffUserDetailsQueryOptions,
+				variables: { userId: params.userId },
+			},
+			{
+				options: staffUserProfilesQueryOptions,
 				variables: { userId: params.userId },
 			},
 		],

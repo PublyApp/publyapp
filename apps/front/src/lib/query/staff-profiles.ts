@@ -510,7 +510,7 @@ const staffProfilePermissionKeysQueryOptions = buildStaffQueryOptions<
 	{ clientAccessor: getClientManager() },
 );
 
-const staffPermissionCatalogQueryOptions = buildStaffQueryOptions<
+export const staffPermissionCatalogQueryOptions = buildStaffQueryOptions<
 	ApiClient,
 	StaffGetResponse,
 	StaffPermissionCatalogQueryVariables

@@ -20,6 +20,7 @@ import {
 	toastLocalMutationResult,
 } from '~/lib/mutation-toast';
 import {
+	globalTenantUserCompaniesQueryOptions,
 	invalidateGlobalTenantUsers,
 	toGlobalTenantUserBulkUnlinkSummary,
 	toGlobalTenantUserCompanyRows,
@@ -60,6 +61,18 @@ export const Route = createFileRoute(
 )({
 	staticData: {
 		i18nNamespaces: ['common'],
+		preload: ({ params }) => [
+			{
+				options: globalTenantUserCompaniesQueryOptions,
+				variables: {
+					userId: params.userId,
+					q: '',
+					sortId: 'tenant_name',
+					sortOrder: 'asc',
+					size: 100,
+				},
+			},
+		],
 		crumbs: tenantUserDetailsCrumbs,
 	},
 	validateSearch: (search) =>

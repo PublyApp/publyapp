@@ -7,9 +7,11 @@ import { AppErrorView } from '~/components/error-views/AppErrorView';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
 import { FloatingSelectionBar } from '~/components/table/floating-selection-bar';
 import { Button } from '~/components/ui/button';
+import { staffTenantProfilesQueryOptions } from '~/lib/query/staff-tenant-profiles';
 import {
 	selectStaffTenantCrumbName,
 	staffTenantCrumbQuery,
+	staffTenantDetailsQueryOptions,
 	toStaffTenantDetails,
 } from '~/lib/query/staff-tenants';
 
@@ -279,6 +281,22 @@ export const Route = createFileRoute(
 )({
 	staticData: {
 		i18nNamespaces: ['staff-tenant-profiles'],
+		preload: ({ params }) => [
+			{
+				options: staffTenantDetailsQueryOptions,
+				variables: { tenantId: params.tenantId },
+			},
+			{
+				options: staffTenantProfilesQueryOptions,
+				variables: {
+					tenantId: params.tenantId,
+					q: '',
+					sortId: 'created_at',
+					sortOrder: 'desc',
+					size: 100,
+				},
+			},
+		],
 		crumbs: (params) => [
 			{ kind: 'label', labelKey: 'nav-tenants', to: '/staff/tenants' },
 			{

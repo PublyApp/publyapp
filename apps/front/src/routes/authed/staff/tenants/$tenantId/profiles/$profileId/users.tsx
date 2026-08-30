@@ -6,11 +6,14 @@ import QueryDisplay from '~/components/query-display';
 import {
 	selectStaffTenantProfileCrumbName,
 	staffTenantProfileCrumbQuery,
+	staffTenantProfileDetailsQueryOptions,
+	staffTenantProfileMembersQueryOptions,
 	toStaffTenantProfileDetails,
 } from '~/lib/query/staff-tenant-profiles';
 import {
 	selectStaffTenantCrumbName,
 	staffTenantCrumbQuery,
+	staffTenantDetailsQueryOptions,
 	toStaffTenantDetails,
 } from '~/lib/query/staff-tenants';
 import type { TableSearchParams } from '~/lib/url-state/table-search-params';
@@ -203,6 +206,31 @@ export const Route = createFileRoute(
 )({
 	staticData: {
 		i18nNamespaces: ['staff-tenant-profiles'],
+		preload: ({ params }) => [
+			{
+				options: staffTenantDetailsQueryOptions,
+				variables: { tenantId: params.tenantId },
+			},
+			{
+				options: staffTenantProfileDetailsQueryOptions,
+				variables: {
+					tenantId: params.tenantId,
+					profileId: params.profileId,
+				},
+			},
+			{
+				options: staffTenantProfileMembersQueryOptions,
+				variables: {
+					tenantId: params.tenantId,
+					profileId: params.profileId,
+					q: '',
+					sortId: 'created_at',
+					sortOrder: 'desc',
+					pageIndex: 0,
+					size: 20,
+				},
+			},
+		],
 		crumbs: (params) => [
 			{ kind: 'label', labelKey: 'nav-tenants', to: '/staff/tenants' },
 			{

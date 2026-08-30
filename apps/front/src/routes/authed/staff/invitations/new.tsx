@@ -26,7 +26,10 @@ import {
 	useBulkCreateStaffInvitationsMutation,
 	type StaffInvitationInput,
 } from '~/lib/query/staff-invitations';
-import { useStaffProfilesQuery } from '~/lib/query/staff-profiles';
+import {
+	staffProfilesQueryOptions,
+	useStaffProfilesQuery,
+} from '~/lib/query/staff-profiles';
 
 import {
 	getFailureMessage,
@@ -421,6 +424,17 @@ const NewStaffInvitationsRoute = () => {
 export const Route = createFileRoute('/_authed-layout/staff/invitations/new')({
 	staticData: {
 		i18nNamespaces: ['staff-invitations'],
+		preload: () => [
+			{
+				options: staffProfilesQueryOptions,
+				variables: {
+					limit: 20,
+					sortId: 'name',
+					sortOrder: 'asc',
+					q: undefined,
+				},
+			},
+		],
 		crumbs: () => [
 			{
 				kind: 'label',

@@ -290,6 +290,19 @@ export const Route = createFileRoute(
 )({
 	staticData: {
 		i18nNamespaces: ['staff-tenant-profiles'],
+		preload: ({ params }) => [
+			{
+				options: staffTenantDetailsQueryOptions,
+				variables: { tenantId: params.tenantId },
+			},
+			{
+				options: staffTenantProfileDetailsQueryOptions,
+				variables: {
+					tenantId: params.tenantId,
+					profileId: params.profileId,
+				},
+			},
+		],
 		// Always matched alongside an index/permissions/members child (never
 		// the deepest match on its own — see `deriveBreadcrumbTrail`), but the
 		// contract requires every route to declare its own trail. The overview

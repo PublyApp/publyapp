@@ -386,7 +386,7 @@ export const staffUserDetailsQueryOptions = buildStaffQueryOptions<
 	{ clientAccessor: getClientManager() },
 );
 
-const staffUserProfilesQueryOptions = buildStaffQueryOptions<
+export const staffUserProfilesQueryOptions = buildStaffQueryOptions<
 	ApiClient,
 	GetStaffUserProfilesResult,
 	StaffUserProfilesQueryVariables

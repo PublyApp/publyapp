@@ -17,6 +17,7 @@ import { LoadingSpinner } from '~/components/ui/loading-spinner';
 import { FALLBACK_LANGUAGE, isSupportedLanguage } from '~/lib/i18n.shared';
 import {
 	invalidateStaffProfiles,
+	staffPermissionCatalogQueryOptions,
 	useCreateStaffProfileMutation,
 	useStaffPermissionCatalogQuery,
 } from '~/lib/query/staff-profiles';
@@ -338,6 +339,12 @@ const NewStaffProfileRoute = () => {
 
 export const Route = createFileRoute('/_authed-layout/staff/profiles/new')({
 	staticData: {
+		preload: () => [
+			{
+				options: staffPermissionCatalogQueryOptions,
+				variables: { language: FALLBACK_LANGUAGE },
+			},
+		],
 		crumbs: () => [
 			{ kind: 'label', labelKey: 'nav-staff-profiles', to: '/staff/profiles' },
 			{ kind: 'label', labelKey: 'common:create-profile' },

@@ -254,7 +254,7 @@ const updateGlobalTenantUserIdentityMutationOptions = buildStaffMutationOptions<
 	{ clientAccessor: getClientManager() },
 );
 
-const globalTenantUserCompaniesQueryOptions = buildStaffQueryOptions<
+export const globalTenantUserCompaniesQueryOptions = buildStaffQueryOptions<
 	ApiClient,
 	FindTenantUserCompaniesForStaffResult,
 	GlobalTenantUserCompaniesQueryVariables

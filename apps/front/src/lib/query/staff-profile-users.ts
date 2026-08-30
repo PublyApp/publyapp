@@ -107,7 +107,7 @@ export const buildStaffProfileUsersRequestQuery = (
 	};
 };
 
-const staffProfileUsersQueryOptions = buildStaffQueryOptions<
+export const staffProfileUsersQueryOptions = buildStaffQueryOptions<
 	ApiClient,
 	FindStaffProfileUsersResult,
 	StaffProfileUsersQueryVariables

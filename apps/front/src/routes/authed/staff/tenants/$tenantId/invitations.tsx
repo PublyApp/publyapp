@@ -8,6 +8,7 @@ import { useRowSelection } from '~/components/table/use-row-selection';
 import { useTableController } from '~/components/table/use-table-controller';
 import { ConfirmDialog } from '~/components/ui/confirm-dialog';
 import {
+	staffTenantInvitationsQueryOptions,
 	type StaffTenantInvitationRow,
 	toStaffTenantInvitationRows,
 	useRevokeStaffTenantInvitationMutation,
@@ -17,6 +18,7 @@ import {
 	invalidateAllStaffTenantScopes,
 	selectStaffTenantCrumbName,
 	staffTenantCrumbQuery,
+	staffTenantDetailsQueryOptions,
 	toStaffTenantDetails,
 	useStaffTenantDetailsQuery,
 } from '~/lib/query/staff-tenants';
@@ -269,6 +271,24 @@ export const Route = createFileRoute(
 	'/_authed-layout/staff/tenants/$tenantId/invitations',
 )({
 	staticData: {
+		preload: ({ params }) => [
+			{
+				options: staffTenantDetailsQueryOptions,
+				variables: { tenantId: params.tenantId },
+			},
+			{
+				options: staffTenantInvitationsQueryOptions,
+				variables: {
+					tenantId: params.tenantId,
+					q: '',
+					status: undefined,
+					level: undefined,
+					sortId: 'created_at',
+					sortOrder: 'desc',
+					size: 100,
+				},
+			},
+		],
 		crumbs: (params) => [
 			{ kind: 'label', labelKey: 'nav-tenants', to: '/staff/tenants' },
 			{
