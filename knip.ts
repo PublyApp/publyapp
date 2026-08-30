@@ -70,6 +70,16 @@ const config: KnipConfig = {
 			// System binary invoked via execFileSync by the request-counter sidecar
 			// to mint its throwaway TLS cert; not an npm package.
 			ignoreBinaries: ['openssl'],
+			// #1758: server.mjs imports the built server bundle through the
+			// `#server-build` package-imports alias so tsconfig.server.json can
+			// typecheck it without pulling build output into the program. Node
+			// resolves the alias's `default` condition to ./dist/server/server.js
+			// at runtime and tsc resolves its `types` condition to
+			// types/server-build.d.ts; knip does neither, and dist/ is build
+			// output absent from a clean checkout, so it reports the import as
+			// unresolved. Scoped to this one specifier: any other unresolved
+			// import still fails knip loud.
+			ignoreUnresolved: ['#server-build'],
 			// Scoped knip gaps carried by upstream develop (verified: `pnpm exec
 			// knip` against origin/develop reports the same two symbols). Each is a
 			// single, pre-existing develop export knip flags as unused — surfaced on
