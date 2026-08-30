@@ -3,6 +3,7 @@ import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join, relative, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { ts } from 'ts-morph';
 import { describe, expect, test } from 'vitest';
 
 /**
@@ -99,23 +100,134 @@ const SELECTION_SITE_RE =
 const HAND_ROLLED_STATE_RE =
 	/useState\s*<\s*(?:RowSelectionMap|Record\s*<\s*string\s*,\s*boolean\s*>)\s*>\s*\(/;
 
+/**
+ * AST-based detector (#1943 follow-up).
+ *
+ * The regex above was a textual sketch — it required the type parameter to
+ * be exactly the canonical name (no `| undefined` / `| null` suffix, no
+ * indexed type alias). The AST detector inspects the useState call's type
+ * argument structurally, so it catches:
+ *
+ *   - `useState<RowSelectionMap>({})` — direct TypeReference.
+ *   - `useState<RowSelectionMap | undefined>({})` — union with the canonical
+ *     type on one side.
+ *   - `useState<Record<string, boolean> | null>({})` — same shape, with a
+ *     `null` suffix.
+ *   - `useState<{ [id: string]: boolean }>({})` — the indexed-type literal
+ *     twin.
+ *
+ * Both the direct useState and the wrapped `useState<...>(select(arg))` form
+ * go through this detector.
+ */
+const isCanonicalRowSelectionMapRef = (n: ts.Node): boolean => {
+	if (ts.isTypeReferenceNode(n) && ts.isIdentifier(n.typeName)) {
+		return n.typeName.text === 'RowSelectionMap';
+	}
+	return false;
+};
+
+const isCanonicalRecordStringBooleanRef = (n: ts.Node): boolean => {
+	if (
+		ts.isTypeReferenceNode(n) &&
+		ts.isIdentifier(n.typeName) &&
+		n.typeName.text === 'Record' &&
+		n.typeArguments &&
+		n.typeArguments.length === 2
+	) {
+		const key = n.typeArguments[0];
+		const val = n.typeArguments[1];
+		if (key && val) {
+			// `string` / `boolean` are KeywordTypeNodes (SyntaxKind.StringKeyword /
+			// BooleanKeyword) in this TypeScript version, not TypeReferenceNodes —
+			// check by the keyword kind rather than the type shape.
+			const keyOk = key.kind === ts.SyntaxKind.StringKeyword;
+			const valOk = val.kind === ts.SyntaxKind.BooleanKeyword;
+			return keyOk && valOk;
+		}
+	}
+	return false;
+};
+
+const isIndexedStringBooleanType = (n: ts.Node): boolean => {
+	// `{ [id: string]: boolean }` — TypeLiteralNode with a single
+	// IndexSignatureDeclaration whose key type is `string` and value type is
+	// `boolean`. Any other signature (a regular property, a different value
+	// type) is not a forbidden shadow state.
+	if (ts.isTypeLiteralNode(n) && n.members.length === 1) {
+		const m = n.members[0];
+		if (m && ts.isIndexSignatureDeclaration(m)) {
+			const keyType = m.parameters[0]?.type;
+			const valType = m.type;
+			if (!keyType || !valType) return false;
+			// `string` / `boolean` are KeywordTypeNodes here, not TypeReferenceNodes.
+			const keyOk = keyType.kind === ts.SyntaxKind.StringKeyword;
+			const valOk = valType.kind === ts.SyntaxKind.BooleanKeyword;
+			return keyOk && valOk;
+		}
+	}
+	return false;
+};
+
+const typeArgIsShadowSelectionState = (n: ts.Node): boolean => {
+	if (isCanonicalRowSelectionMapRef(n)) return true;
+	if (isCanonicalRecordStringBooleanRef(n)) return true;
+	if (isIndexedStringBooleanType(n)) return true;
+	// Union types: scan every branch. `RowSelectionMap | undefined`,
+	// `Record<string, boolean> | null`, etc. — the canonical shape sits on
+	// one side of a `|`, the optionality modifier on the other. A file
+	// that imports RowSelectionMap and writes it as the union is still
+	// hand-rolling shadow state.
+	if (ts.isUnionTypeNode(n)) {
+		for (const part of n.types) {
+			if (typeArgIsShadowSelectionState(part)) return true;
+		}
+	}
+	return false;
+};
+
+const findShadowUseStateCalls = (
+	source: string,
+	filePath: string,
+): string[] => {
+	const sourceFile = ts.createSourceFile(
+		filePath,
+		source,
+		ts.ScriptTarget.Latest,
+		true,
+		ts.ScriptKind.TS,
+	);
+	const offenders: string[] = [];
+	const visit = (node: ts.Node): void => {
+		if (ts.isCallExpression(node)) {
+			const expr = node.expression;
+			if (ts.isIdentifier(expr) && expr.text === 'useState') {
+				const targs = node.typeArguments;
+				if (targs && targs.length > 0) {
+					const t = targs[0];
+					if (t && typeArgIsShadowSelectionState(t)) {
+						const { line } = sourceFile.getLineAndCharacterOfPosition(
+							node.getStart(sourceFile),
+						);
+						offenders.push(`line ${line + 1}: ${node.getText()}`);
+					}
+				}
+			}
+		}
+		node.forEachChild(visit);
+	};
+	visit(sourceFile);
+	return offenders;
+};
+
 const findViolations = (file: string): string[] => {
 	const source = readFileSync(file, 'utf8');
 	if (!SELECTION_SITE_RE.test(source)) {
 		// Not a list-table selection site — out of scope for this guard.
 		return [];
 	}
-	if (!HAND_ROLLED_STATE_RE.test(source)) {
-		return [];
-	}
-	const lines = source.split('\n');
-	const offenders: string[] = [];
-	lines.forEach((line, i) => {
-		if (HAND_ROLLED_STATE_RE.test(line)) {
-			offenders.push(`line ${i + 1}: ${line.trim()}`);
-		}
-	});
-	return offenders;
+	// AST detector covers the canonical case AND the three #1943 follow-up
+	// shapes (union with `| undefined` / `| null`, indexed type literal).
+	return findShadowUseStateCalls(source, file);
 };
 
 const allRouteFiles = walkDir(ROUTES_ROOT);
@@ -208,6 +320,53 @@ export const MyWidget = () => {
 };
 `;
 		expect(findViolationsAgainstSource(nonSite)).toEqual([]);
+
+		// --- #1943 follow-up: three shapes the regex misses ---
+		// The regex required the type parameter to be exactly the canonical
+		// name (no `| undefined` / `| null` suffix, no indexed type alias).
+		// The AST detector below accepts these because it inspects the
+		// type argument's symbol rather than its textual form.
+		const unionUndefined = `
+import { useState } from 'react';
+import { useRowSelection } from '~/components/table/use-row-selection';
+export const A = () => {
+	const sel = useRowSelection([]);
+	const [s, setS] = useState<RowSelectionMap | undefined>({});
+	return null;
+};
+`;
+		expect(
+			findViolationsAgainstSource(unionUndefined).length,
+			'#1943 follow-up: useState<RowSelectionMap | undefined> must be caught',
+		).toBeGreaterThan(0);
+
+		const unionNull = `
+import { useState } from 'react';
+import { useRowSelection } from '~/components/table/use-row-selection';
+export const B = () => {
+	const sel = useRowSelection([]);
+	const [s, setS] = useState<Record<string, boolean> | null>({});
+	return null;
+};
+`;
+		expect(
+			findViolationsAgainstSource(unionNull).length,
+			'#1943 follow-up: useState<Record<string, boolean> | null> must be caught',
+		).toBeGreaterThan(0);
+
+		const indexedMap = `
+import { useState } from 'react';
+import { useRowSelection } from '~/components/table/use-row-selection';
+export const C = () => {
+	const sel = useRowSelection([]);
+	const [s, setS] = useState<{ [id: string]: boolean }>({});
+	return null;
+};
+`;
+		expect(
+			findViolationsAgainstSource(indexedMap).length,
+			'#1943 follow-up: useState<{ [id: string]: boolean }> must be caught',
+		).toBeGreaterThan(0);
 	});
 });
 
@@ -221,15 +380,5 @@ export const findViolationsAgainstSource = (source: string): string[] => {
 	if (!SELECTION_SITE_RE.test(source)) {
 		return [];
 	}
-	if (!HAND_ROLLED_STATE_RE.test(source)) {
-		return [];
-	}
-	const lines = source.split('\n');
-	const offenders: string[] = [];
-	lines.forEach((line, i) => {
-		if (HAND_ROLLED_STATE_RE.test(line)) {
-			offenders.push(`line ${i + 1}: ${line.trim()}`);
-		}
-	});
-	return offenders;
+	return findShadowUseStateCalls(source, '<fabricated>');
 };
