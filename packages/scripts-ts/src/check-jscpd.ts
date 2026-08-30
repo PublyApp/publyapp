@@ -173,7 +173,7 @@ const isTestInfraDir = (filePath: string): boolean => {
 /**
  * Whether a file is a generated file explicitly excluded by path.
  */
-const isGeneratedFile = (filePath: string): boolean => {
+export const isGeneratedFile = (filePath: string): boolean => {
 	return GENERATED_FILE_PATHS.has(filePath);
 };
 
@@ -222,7 +222,7 @@ const isProductionPath = (filePath: string): boolean => {
  *   - isTestInfraDir(): by directory (`Lib/Testing/`, `Tests/`)
  *   - isGeneratedFile(): explicit set of known generated files
  */
-const isSpecFile = (filePath: string): boolean => {
+export const isSpecFile = (filePath: string): boolean => {
 	if (isGeneratedFile(filePath)) {
 		return true;
 	}
