@@ -154,10 +154,13 @@ describe('run-guarded.mts — issue #1525 timeout kills process tree', () => {
 			// stderr must name the specific frozen guard script path.
 			expect(result.stderr).toContain(frozenGuardPath);
 
-			// stderr must report the 3-second timeout, not the default 180s.
+			// stderr must report the 3-second timeout, not the default 300s.
 			// The wrapper prints: GUARD TIMEOUT: "..." did not finish within 3s
 			expect(result.stderr).toMatch(/3s\b/);
-			expect(result.stderr).not.toMatch(/180s\b/);
+			expect(result.stderr).not.toMatch(/300s\b/);
+
+			// stderr must show the command line that timed out.
+			expect(result.stderr).toContain('command:');
 
 			// stdout must show the guard actually started (proof that the
 			// wrapper spawned the *real* guard, not a no-op).

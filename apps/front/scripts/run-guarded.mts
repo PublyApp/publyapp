@@ -127,7 +127,7 @@ const failHard = (exitCode: number): never => {
 	settled = true;
 	const elapsedSec = ((Date.now() - startMs) / 1000).toFixed(1);
 	const cmdPreview =
-		`--test ${guardLabel}${scriptArgs.map((a) => ` ${a}`).join('')}`.trim();
+		[...nodeFlags, guardLabel, ...scriptArgs].join(' ');
 	console.error(
 		'\n' +
 			'═'.repeat(72) +

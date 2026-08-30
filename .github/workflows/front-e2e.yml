@@ -300,7 +300,7 @@ jobs:
           node-version: 24
 
       - name: Assert exact pins
-        run: node apps/front/scripts/guards/assert-pinned.mts
+        run: node apps/front/scripts/run-guarded.mts apps/front/scripts/guards/assert-pinned.mts
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile --ignore-scripts
