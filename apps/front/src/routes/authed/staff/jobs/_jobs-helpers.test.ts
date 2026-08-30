@@ -41,6 +41,18 @@ describe('formatFailureCause — shared decision for failure cause display', () 
 		expect(formatFailureCause('   ', t)).toBe('No cause recorded');
 	});
 
+	test('returns the no-cause marker for zero-width space (U+200B)', () => {
+		// U+200B is category Cf (format), NOT WhiteSpace — `trim()` leaves it
+		// intact. A cause consisting solely of U+200B is visually empty and
+		// must render the marker, not a blank cell. See brief #1879.
+		expect(formatFailureCause('\u200B', t)).toBe('No cause recorded');
+	});
+
+	test('returns the no-cause marker for ASCII whitespace mixed with U+200B', () => {
+		// Spaces around a zero-width space: still visually empty.
+		expect(formatFailureCause('  \u200B  ', t)).toBe('No cause recorded');
+	});
+
 	test('never returns the dash (no-value) — that key is for non-cause fields', () => {
 		for (const value of [null, undefined, '', '   ']) {
 			expect(formatFailureCause(value, t)).not.toBe('—');
