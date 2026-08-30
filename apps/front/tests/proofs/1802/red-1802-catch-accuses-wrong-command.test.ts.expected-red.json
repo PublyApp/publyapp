@@ -6,5 +6,6 @@
 			"testName": "the declaredProofTests function has a single try block covering BOTH git rev-parse and git fetch --unshallow, whose catch names git rev-parse (the buggy structure the fix corrected)",
 			"why": "On correct code each command has its own try/catch, so bugPresent is false and `expect(bugPresent).toBe(true)` fails with an AssertionError. If this test passes, the structural fix regressed to a single try block whose catch names rev-parse."
 		}
-	]
+	],
+	"measuredAgainst": "331905f1c74b565131cf534d8e402f7b0a50c8e6"
 }

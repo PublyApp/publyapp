@@ -367,6 +367,7 @@ describe('classifyProofWithManifest — base CORRUPT PROOF passes through', () =
 		};
 
 		const manifest: ExpectedRedManifest = {
+			measuredAgainst: '0000000000000000000000000000000000000000',
 			expectedRed: [{ testName: 'throws', why: 'must measure the bug' }],
 		};
 
@@ -404,6 +405,7 @@ describe('classifyProofWithManifest — declared kept-red test PASSED is DECLARE
 		};
 
 		const manifest: ExpectedRedManifest = {
+			measuredAgainst: '0000000000000000000000000000000000000000',
 			expectedRed: [
 				{
 					testName: 'the declared red went green',
@@ -438,6 +440,7 @@ describe('classifyProofWithManifest — manifest-driven CORRUPT PROOF cases', ()
 		};
 
 		const manifest: ExpectedRedManifest = {
+			measuredAgainst: '0000000000000000000000000000000000000000',
 			expectedRed: [{ testName: 'ghost test', why: 'declared but gone' }],
 		};
 
@@ -470,6 +473,7 @@ describe('classifyProofWithManifest — manifest-driven CORRUPT PROOF cases', ()
 		};
 
 		const manifest: ExpectedRedManifest = {
+			measuredAgainst: '0000000000000000000000000000000000000000',
 			expectedRed: [{ testName: 'skipped red', why: 'must fail, not skip' }],
 		};
 
@@ -504,6 +508,7 @@ describe('classifyProofWithManifest — all declared tests red is OK (control)',
 		};
 
 		const manifest: ExpectedRedManifest = {
+			measuredAgainst: '0000000000000000000000000000000000000000',
 			expectedRed: [
 				{ testName: 'red one', why: 'first kept-red axis' },
 				{ testName: 'red two', why: 'second kept-red axis' },

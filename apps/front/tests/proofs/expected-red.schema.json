@@ -4,11 +4,16 @@
 	"title": "Per-test kept-red expectation manifest for a paired red proof",
 	"description": "A versioned JSON file sitting next to a paired red proof test, named <proof-file>.expected-red.json. Read by apps/front/scripts/ci/run-preuves.mts. Each test declared in `expectedRed` MUST fail on correct code. If a declared kept-red test PASSES, the runner fails CI with verdict CORRUPT PROOF. The runner refuses to classify if this file is missing, invalid JSON, or the test list is empty. EDITOR-ONLY VALUE: this schema is decoration for authoring awareness; it has no runtime consumer. Runtime validation of the manifest is performed line-by-line by readExpectedRedManifest() in apps/front/scripts/ci/classify-proof.mts, whose checks deliberately mirror this schema's assertions. There is no JSON-schema validator in the dependency tree, so wiring this file into the runtime would add ajv to the shipped front package for zero behavioral gain. Keep it in sync by hand with readExpectedRedManifest().",
 	"type": "object",
-	"required": ["expectedRed"],
+	"required": ["measuredAgainst", "expectedRed"],
 	"additionalProperties": true,
 	"properties": {
 		"$schema": { "type": "string" },
 		"_comment": { "type": "string" },
+		"measuredAgainst": {
+			"type": "string",
+			"pattern": "^[0-9a-f]{40,64}$",
+			"description": "The git SHA (40-64 hex chars) of the commit this proof was measured against. Provides an audit trail for proof validity."
+		},
 		"expectedRed": {
 			"type": "array",
 			"minItems": 1,

@@ -6,5 +6,6 @@
 			"testName": "a caller that discards the returned reset-to-0 is stranded on a non-zero page — the reset does NOT stick without a commit",
 			"why": "On correct code the reset must win even for a negligent caller: the third render returns 0, so `expect(consumer.renders[2]).toBe(0)` fails with an AssertionError (the hook clamps back to 1). If this test passes, the reset-to-0 has been made to stick without a commit — the bug is fixed or the proof cannot measure it."
 		}
-	]
+	],
+	"measuredAgainst": "331905f1c74b565131cf534d8e402f7b0a50c8e6"
 }

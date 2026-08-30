@@ -10,5 +10,6 @@
 			"testName": "the detection pipeline (findHandlerLine + isHandlerDeferred) classifies the real handler — a regression on either mechanism turns this red",
 			"why": "On correct code, the structural assertion `expect(isHandlerDeferred(deferredLine)).toBe(false)` fails because isHandlerDeferred correctly classifies the setImmediate-wrapped line as deferred. If this test passes, isHandlerDeferred has been weakened to accept all lines as non-deferred (always-false) — the proof cannot measure the bug."
 		}
-	]
+	],
+	"measuredAgainst": "331905f1c74b565131cf534d8e402f7b0a50c8e6"
 }

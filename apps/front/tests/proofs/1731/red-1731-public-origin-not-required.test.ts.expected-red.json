@@ -10,5 +10,6 @@
 			"testName": "validateRuntimeEnv does NOT throw when PUBLIC_ORIGIN is absent in production (no guard)",
 			"why": "On correct code validateRuntimeEnv must throw when PUBLIC_ORIGIN is absent in production, so `expect(() => validateRuntimeEnv()).not.toThrow()` fails with an AssertionError. If this test passes, the startup guard is missing or was removed."
 		}
-	]
+	],
+	"measuredAgainst": "331905f1c74b565131cf534d8e402f7b0a50c8e6"
 }
