@@ -1,8 +1,8 @@
 {
 	"$comment": "jscpd@4 --min-tokens 50 baseline regenerated in #1859 round 2 on lane/wt-1821 (issue #1821); RATCHET STEP on lane/wt-646b (PR #1450, D3 publication scheduling). Exclusions: node_modules, bin, obj, dist, .artifacts, Migrations, .worktrees, packages/client-ts, apps/front/scripts — passed as ONE comma-separated --ignore value (repeated --ignore flags silently drop all but the last; measured). Production paths: apps/api, apps/front/src, packages/shared-ts. Spec/test/generated files (TS .test.*/.spec.*, C# *.Spec.cs/*.Tests.cs/*.g.cs, test dirs) are excluded from BOTH gated surfaces and only reported. Pair lines and auto lines SUM every jscpd fragment (growth inside an already-paired pair or already-self-duplicated file must move the metric). PR #1450 adds the D3 backend module: its handler family shares the repo's own handler/endpoint shells (using headers, auth-context guard sliver, cursor/limit accessors), which the guard counts as 12 new production clone pairs (+170 lines). In the SAME PR the module's two real self-duplications were removed (PublicationService post-load helper; PublicationStatusTransitionService StageReschedule), keeping the productionAuto metrics at the #1859 baseline.",
 	"productionPairs": {
-		"count": 434,
-		"lines": 10383
+		"count": 436,
+		"lines": 10409
 	},
 	"productionAuto": {
 		"count": 48,

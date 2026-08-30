@@ -8,7 +8,7 @@ import { test } from 'vitest';
 
 import { verifyJscpdRaise } from './check-jscpd-raise.ts';
 
-const GIT = '/usr/bin/git';
+const GIT = 'git';
 
 const gitIn = (gitDir: string, ...args: string[]): void => {
 	// Wrap in `node -e` to bypass any worker-thread PATH issues in vitest.
@@ -167,9 +167,8 @@ test('raise WITH docs/records/ file containing "jscpd": verdict is pass', async 
 		},
 		recordContent: `## jscpd Reference Raise
 
-The dotnet format changes (#1821) caused jscpd to detect additional
-C# using-block duplications as textual matches, raising the productionPairs
-count from 10 to 12 and lines from 200 to 250.
+Raising productionPairs.count from 10 to 12 and productionPairs.lines from 200 to 250
+due to jscpd detecting additional C# using-block duplications after the dot format changes.
 
 Surface: C# using directive blocks across handler files.
 `,
@@ -320,10 +319,9 @@ test('PR reference unreadable: verdict is fail', async () => {
 // Mutations that stay red
 // ---------------------------------------------------------------------------
 
-test('mutations stay red: record without "jscpd" keyword', async () => {
-	// The record exists and contains "jscpd", so the guard matches it.
-	// The keyword check is a lightweight presence signal, not a semantic role
-	// check. A human reviewer decides whether the record covers the raise.
+test('mutations stay red: record without raised key names', async () => {
+	// The record exists but does not name the raised key (productionPairs.count/lines),
+	// so recordMentionsRaise returns false.
 	const { prDir } = await buildFixture({
 		baseRef: {
 			productionPairs: { count: 10, lines: 200 },
@@ -396,3 +394,234 @@ test('mutations stay red: no docs/records/ change in the diff', async () => {
 	assert.equal(verdict.verdict, 'fail');
 	assert.equal(verdict.hasRecord, false);
 });
+
+// ---------------------------------------------------------------------------
+// Lowering only — no raise, silent exit 0
+// ---------------------------------------------------------------------------
+
+test('lowering only: verdict is none (silent exit 0)', async () => {
+	const { prDir } = await buildFixture({
+		baseRef: {
+			productionPairs: { count: 10, lines: 200 },
+			productionAuto: { count: 5, lines: 100 },
+		},
+		prRef: {
+			productionPairs: { count: 8, lines: 180 },
+			productionAuto: { count: 3, lines: 80 },
+		},
+	});
+
+	const verdict = verifyJscpdRaise(prDir, 'main');
+
+	assert.equal(verdict.verdict, 'none');
+	assert.equal(verdict.hasRaise, false);
+});
+
+// ---------------------------------------------------------------------------
+// Mixed: pairs-up + auto-down — raise detected, record required
+// ---------------------------------------------------------------------------
+
+test('mixed raise pairs-up + auto-down: verdict is fail without record', async () => {
+	const { prDir } = await buildFixture({
+		baseRef: {
+			productionPairs: { count: 10, lines: 200 },
+			productionAuto: { count: 5, lines: 100 },
+		},
+		prRef: {
+			productionPairs: { count: 12, lines: 250 },
+			productionAuto: { count: 3, lines: 60 },
+		},
+		// No record.
+	});
+
+	const verdict = verifyJscpdRaise(prDir, 'main');
+
+	assert.equal(verdict.verdict, 'fail');
+	assert.equal(verdict.hasRaise, true);
+	assert.ok(
+		verdict.raiseDetails.some((d) => d.includes('productionPairs')),
+		verdict.raiseDetails.join('\n'),
+	);
+});
+
+test('mixed raise pairs-up + auto-down: verdict is pass with correct record', async () => {
+	const { prDir } = await buildFixture({
+		baseRef: {
+			productionPairs: { count: 10, lines: 200 },
+			productionAuto: { count: 5, lines: 100 },
+		},
+		prRef: {
+			productionPairs: { count: 12, lines: 250 },
+			productionAuto: { count: 3, lines: 60 },
+		},
+		recordContent: `## jscpd Raise
+
+Raising productionPairs.count from 10 to 12 and productionPairs.lines from 200 to 250.
+productionAuto went down (cleanup of duplicate C# helpers).
+`,
+	});
+
+	const verdict = verifyJscpdRaise(prDir, 'main');
+
+	assert.equal(verdict.verdict, 'pass');
+	assert.equal(verdict.hasRecord, true);
+});
+
+// ---------------------------------------------------------------------------
+// Date format enforcement
+// ---------------------------------------------------------------------------
+
+test('record without date prefix: verdict is fail', async () => {
+	const { prDir } = await buildFixture({
+		baseRef: {
+			productionPairs: { count: 10, lines: 200 },
+			productionAuto: { count: 5, lines: 100 },
+		},
+		prRef: {
+			productionPairs: { count: 12, lines: 250 },
+			productionAuto: { count: 5, lines: 100 },
+		},
+	});
+
+	// Add a record that is not a dated record.
+	await mkdir(path.join(prDir, 'docs', 'records'), { recursive: true });
+	await writeFile(
+		path.join(prDir, 'docs', 'records', 'not-a-dated-record.md'),
+		'## jscpd Raise\n\nRaising productionPairs.count from 10 to 12.\n',
+	);
+	gitIn(prDir, 'add', '.');
+	gitIn(prDir, 'commit', '-m', 'add non-dated record');
+
+	const verdict = verifyJscpdRaise(prDir, 'main');
+
+	assert.equal(verdict.verdict, 'fail');
+	assert.equal(verdict.hasRecord, false);
+});
+
+// ---------------------------------------------------------------------------
+// Missing base key — loud failure
+// ---------------------------------------------------------------------------
+
+test('base missing productionAuto key: verdict is fail', async () => {
+	const { prDir } = await buildFixture({
+		baseRef: {
+			productionPairs: { count: 10, lines: 200 },
+			// No productionAuto.
+		},
+		prRef: {
+			productionPairs: { count: 10, lines: 200 },
+			productionAuto: { count: 7, lines: 100 },
+		},
+		// No record.
+	});
+
+	const verdict = verifyJscpdRaise(prDir, 'main');
+
+	assert.equal(verdict.verdict, 'fail');
+	assert.ok(
+		verdict.errors.some((e) => e.includes('productionAuto')),
+		verdict.errors.join('\n'),
+	);
+});
+
+// ---------------------------------------------------------------------------
+// Key-name verification
+// ---------------------------------------------------------------------------
+
+test('record names wrong key: verdict is fail', async () => {
+	const { prDir } = await buildFixture({
+		baseRef: {
+			productionPairs: { count: 10, lines: 200 },
+			productionAuto: { count: 5, lines: 100 },
+		},
+		prRef: {
+			productionPairs: { count: 12, lines: 250 },
+			productionAuto: { count: 5, lines: 100 },
+		},
+		recordContent: `## jscpd Raise
+
+Raising productionAuto.count from 5 to 7.
+`,
+	});
+
+	const verdict = verifyJscpdRaise(prDir, 'main');
+
+	// The record names productionAuto.count but productionPairs.count/lines raised.
+	assert.equal(verdict.verdict, 'fail');
+	assert.equal(verdict.hasRecord, false);
+});
+
+test('record names correct key with wrong numbers: verdict is pass', async () => {
+	const { prDir } = await buildFixture({
+		baseRef: {
+			productionPairs: { count: 10, lines: 200 },
+			productionAuto: { count: 5, lines: 100 },
+		},
+		prRef: {
+			productionPairs: { count: 12, lines: 200 },
+			productionAuto: { count: 5, lines: 100 },
+		},
+		recordContent: `## jscpd Raise
+
+Raising productionPairs.count from 10 to 99 (wrong numbers).
+`,
+	});
+
+	const verdict = verifyJscpdRaise(prDir, 'main');
+
+	// The record names the correct key but with wrong numbers.
+	// recordMentionsRaise only checks for key presence, not value accuracy.
+	// A reviewer would catch the wrong numbers; the guard checks for key coverage.
+	assert.equal(verdict.verdict, 'pass');
+	assert.equal(verdict.hasRecord, true);
+});
+
+test('record names correct keys: verdict is pass', async () => {
+	const { prDir } = await buildFixture({
+		baseRef: {
+			productionPairs: { count: 10, lines: 200 },
+			productionAuto: { count: 5, lines: 100 },
+		},
+		prRef: {
+			productionPairs: { count: 12, lines: 250 },
+			productionAuto: { count: 5, lines: 100 },
+		},
+		recordContent: `## jscpd Raise
+
+Raising productionPairs.count from 10 to 12 and productionPairs.lines from 200 to 250.
+`,
+	});
+
+	const verdict = verifyJscpdRaise(prDir, 'main');
+
+	assert.equal(verdict.verdict, 'pass');
+	assert.equal(verdict.hasRecord, true);
+});
+
+// ---------------------------------------------------------------------------
+// Test timeout calibration (30s per git call, total ~120s for multi-repo fixture)
+// ---------------------------------------------------------------------------
+
+test('full fixture: raise + correct record (calibrated 60s timeout)', async () => {
+	// This test uses the full multi-repo fixture and needs adequate time.
+	// Each fixture build involves 6 git init + 3 push + multiple fetch calls.
+	// Calibrated to 60s to handle cold runs on slower machines.
+	const { prDir } = await buildFixture({
+		baseRef: {
+			productionPairs: { count: 10, lines: 200 },
+			productionAuto: { count: 5, lines: 100 },
+		},
+		prRef: {
+			productionPairs: { count: 12, lines: 250 },
+			productionAuto: { count: 5, lines: 100 },
+		},
+		recordContent: `## jscpd Raise
+
+Raising productionPairs.count from 10 to 12 and productionPairs.lines from 200 to 250.
+`,
+	});
+
+	const verdict = verifyJscpdRaise(prDir, 'main');
+
+	assert.equal(verdict.verdict, 'pass');
+}, 60_000);

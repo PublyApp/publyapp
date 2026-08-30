@@ -66,5 +66,7 @@ is counted against the reference.
 
 ## Accompanying record
 
-This record itself serves as the accompaniment for the #1945 jscpd reference raise
-(dot format changes causing jscpd to detect additional C# using-block duplications).
+This record accompanies the #1969 guard implementation, not #1945. The guard
+requires a `docs/records/YYYY-MM-DD-*.md` file whose content names the specific
+metric keys that raised (e.g. `productionPairs.count: 10 → 12`), proving the
+author looked at the actual numbers.

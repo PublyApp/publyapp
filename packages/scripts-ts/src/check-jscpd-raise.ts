@@ -163,17 +163,27 @@ const readBaseReference = (
 		ok: false,
 		error:
 			`Could not read base reference from any candidate: ${candidates.join(', ')}. ` +
-			`Run "git fetch origin develop" to ensure the base branch is available.`,
+			`Run "git fetch origin ${baseBranch ?? 'develop'}" to ensure the base branch is available.`,
 	};
 };
 
 /**
- * Check whether the diff contains a docs/records/ file whose content contains
- * the string "jscpd" (case-insensitive), proving it covers this metric.
+ * Check whether the diff contains a docs/records/ file whose content names the
+ * specific metric keys that raised, proving the author looked at the actual numbers.
+ *
+ * The three-dot form (`base...HEAD`) excludes any changes that exist on `base`
+ * alone — a docs/records/ change made by develop after the fork point would not
+ * appear in this diff and would not be credited to this PR.
+ *
+ * Falls back to two-dot diff if there is no merge base (e.g. shallow test fixture
+ * where the PR repo was created independently of the base). In that case, uses
+ * `base..HEAD` — a conservative fallback that may credit a base-side change,
+ * but only in the test fixture, never in real CI.
  */
 const hasJscpdRecord = (
 	gitDir: string,
 	baseBranch: string | undefined,
+	raisedKeys: string[],
 ): boolean => {
 	const base =
 		baseBranch !== undefined && baseBranch.length > 0
@@ -186,6 +196,21 @@ const hasJscpdRecord = (
 			gitFetchBaseBranch(gitDir, branch);
 		}
 
+		// Check for merge base. Three dots require a common ancestor.
+		let diffArgs: string[];
+		try {
+			execFileSync('git', ['merge-base', base, 'HEAD'], {
+				cwd: gitDir,
+				encoding: 'utf-8',
+				timeout: 10_000,
+			});
+			diffArgs = [`${base}...HEAD`];
+		} catch {
+			// No merge base (e.g. shallow test fixture with independent repos).
+			// Fall back to two-dot diff — conservative, may over-credit.
+			diffArgs = [`${base}..HEAD`];
+		}
+
 		// Get list of docs/records/ files that are new or modified.
 		const diffOutput = execFileSync(
 			'git',
@@ -193,7 +218,7 @@ const hasJscpdRecord = (
 				'diff',
 				'--name-only',
 				'--diff-filter=AM',
-				`${base}..HEAD`,
+				...diffArgs,
 				'--',
 				'docs/records/',
 			],
@@ -209,17 +234,22 @@ const hasJscpdRecord = (
 			return false;
 		}
 
-		// For each record file, check whether the diff body contains "jscpd".
+		// The record must name the specific raised keys to prove the author looked.
 		for (const recordFile of recordFiles) {
 			if (!recordFile.endsWith('.md')) {
 				continue;
 			}
+			// Validate date format: YYYY-MM-DD-*.md
+			const datePattern = /^docs\/records\/\d{4}-\d{2}-\d{2}-.+\.md$/;
+			if (!datePattern.test(recordFile)) {
+				continue;
+			}
 			const diffBody = execFileSync(
 				'git',
-				['diff', `${base}..HEAD`, '--', recordFile],
+				['diff', ...diffArgs, '--', recordFile],
 				{ cwd: gitDir, encoding: 'utf-8', timeout: 30_000 },
 			);
-			if (/jscpd/i.test(diffBody)) {
+			if (recordMentionsRaise(diffBody, raisedKeys)) {
 				return true;
 			}
 		}
@@ -228,6 +258,32 @@ const hasJscpdRecord = (
 	} catch {
 		return false;
 	}
+};
+
+/**
+ * Check whether the diff body names the raised metric keys in the added content.
+ * An author who writes "productionPairs.count: 10 → 12" necessarily looked at the
+ * actual numbers. A document that merely contains the word "jscpd" does not.
+ */
+const recordMentionsRaise = (
+	diffBody: string,
+	raisedKeys: string[],
+): boolean => {
+	// The diff body contains + (additions) and - (deletions) lines.
+	// We need the ADDED content (what the author wrote), not the removed.
+	const addedLines = diffBody
+		.split('\n')
+		.filter((line) => line.startsWith('+') && !line.startsWith('+++'));
+	const addedText = addedLines.join('\n');
+
+	// Check each raised key: the record must contain the key name.
+	for (const key of raisedKeys) {
+		const keyRegex = new RegExp(key.replace('.', '\\.'), 'i');
+		if (!keyRegex.test(addedText)) {
+			return false;
+		}
+	}
+	return true;
 };
 
 /** Raise verdict — null means no raise detected (caller exits 0). */
@@ -290,27 +346,62 @@ export const verifyJscpdRaise = (
 	const baseAuto = baseRef.productionAuto ?? { count: 0, lines: 0 };
 	const prAuto = prRef.productionAuto ?? { count: 0, lines: 0 };
 
+	// Fail loudly when the base reference is missing a metric key that the PR raised.
+	// A missing key is an unanalysable reference — the brief requires a loud failure.
+	const baseMissingKeys: string[] = [];
+	if (
+		prRef.productionPairs !== undefined &&
+		baseRef.productionPairs === undefined
+	) {
+		baseMissingKeys.push('productionPairs');
+	}
+	if (
+		prRef.productionAuto !== undefined &&
+		baseRef.productionAuto === undefined
+	) {
+		baseMissingKeys.push('productionAuto');
+	}
+	if (baseMissingKeys.length > 0) {
+		return {
+			hasRaise: false,
+			raiseDetails: [],
+			hasRecord: false,
+			recordFiles: [],
+			verdict: 'fail',
+			errors: [
+				`Base reference is missing metric keys that the PR defines: ${baseMissingKeys.join(', ')}. ` +
+					`A raise guard requires both the base and the PR reference to define the same keys. ` +
+					`Run "git fetch origin ${baseBranch ?? 'develop'}" to ensure the base branch is available.`,
+			],
+		};
+	}
+
 	const raiseDetails: string[] = [];
+	const raisedKeys: string[] = [];
 
 	if (prPairs.count! > basePairs.count!) {
+		raisedKeys.push('productionPairs.count');
 		raiseDetails.push(
 			`productionPairs.count: ${basePairs.count} → ${prPairs.count} ` +
 				`(+${prPairs.count! - basePairs.count!})`,
 		);
 	}
 	if (prPairs.lines! > basePairs.lines!) {
+		raisedKeys.push('productionPairs.lines');
 		raiseDetails.push(
 			`productionPairs.lines: ${basePairs.lines} → ${prPairs.lines} ` +
 				`(+${prPairs.lines! - basePairs.lines!})`,
 		);
 	}
 	if (prAuto.count! > baseAuto.count!) {
+		raisedKeys.push('productionAuto.count');
 		raiseDetails.push(
 			`productionAuto.count: ${baseAuto.count} → ${prAuto.count} ` +
 				`(+${prAuto.count! - baseAuto.count!})`,
 		);
 	}
 	if (prAuto.lines! > baseAuto.lines!) {
+		raisedKeys.push('productionAuto.lines');
 		raiseDetails.push(
 			`productionAuto.lines: ${baseAuto.lines} → ${prAuto.lines} ` +
 				`(+${prAuto.lines! - baseAuto.lines!})`,
@@ -331,7 +422,7 @@ export const verifyJscpdRaise = (
 	}
 
 	// Raise detected. Check for accompaniment record.
-	const hasRecord = hasJscpdRecord(gitDir, baseBranch);
+	const hasRecord = hasJscpdRecord(gitDir, baseBranch, raisedKeys);
 
 	if (hasRecord) {
 		const raiseStr = raiseDetails.join('; ');
@@ -362,8 +453,11 @@ export const verifyJscpdRaise = (
 		errors: [
 			`jscpd reference raise detected without a docs/records/ accompaniment. ` +
 				`Values changed: ${raiseStr}. ` +
+				`Values changed: ${raiseStr}. ` +
 				`A raise must be accompanied by a docs/records/YYYY-MM-DD-*.md file ` +
-				`whose content contains the word "jscpd" to prove it covers this metric. ` +
+				`that names the raised keys (${raisedKeys.join(', ')}) in its content. ` +
+				`Write the key names with their before/after values, e.g.: ` +
+				`"productionPairs.count: ${basePairs.count} → ${prPairs.count}". ` +
 				`Run: node packages/scripts-ts/src/check-jscpd-raise.ts`,
 		],
 	};
