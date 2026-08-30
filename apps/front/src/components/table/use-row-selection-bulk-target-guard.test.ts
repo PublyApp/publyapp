@@ -88,7 +88,8 @@ const allRouteFiles = walkDir(ROUTES_ROOT);
 // Patterns that indicate this file touches selection state. Tight enough
 // to be unambiguous; broad enough to cover both `selection.rowSelection`
 // and a `rowSelection` direct-binding style.
-const SELECTION_REFERENCE_RE = /(?:^|\W)(?:selection|rowSelection)\.rowSelection\b|(?:^|\W)rowSelection\b\s*\[/;
+const SELECTION_REFERENCE_RE =
+	/(?:^|\W)(?:selection|rowSelection)\.rowSelection\b|(?:^|\W)rowSelection\b\s*\[/;
 
 // Forbidden ID-derivation patterns. Each is a structural way to extract
 // ids from the raw selection map without consulting the visible rows.

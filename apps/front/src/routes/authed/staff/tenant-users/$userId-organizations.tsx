@@ -246,9 +246,9 @@ const OrganizationsBulkActions = ({
 	// Filtering the visible rows keeps the contract tight: every id is
 	// something the user can currently see, and the prune window cannot
 	// leak a target the server no longer has on this page.
-	const selectedIds = rows.filter((row) => selection.rowSelection[row.id]).map(
-		(row) => row.id,
-	);
+	const selectedIds = rows
+		.filter((row) => selection.rowSelection[row.id])
+		.map((row) => row.id);
 	const isOverLimit = selectedIds.length > BULK_ACTION_MAX_COUNT;
 
 	const confirmRemoveSelectedOrganizations = async () => {
