@@ -11,6 +11,8 @@ import path from 'node:path';
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
 
+import { createGitIgnoreChecker } from './git-check-ignore.ts';
+
 const scriptDirectory = path.dirname(fileURLToPath(import.meta.url));
 const repositoryDirectory = path.resolve(scriptDirectory, '../../..');
 const ignoredDirectories = new Set([
@@ -132,7 +134,12 @@ const getOxlintCommand = (rootDirectory) => {
 };
 
 // @ts-expect-error rung-0: add proper type in later rung
-const findFiles = (rootDirectory, relativeDirectories, extensions) => {
+const findFiles = (
+	rootDirectory,
+	relativeDirectories,
+	extensions,
+	gitIgnoreChecker,
+) => {
 	// @ts-expect-error rung-0: TS7034
 	const files = [];
 
@@ -142,12 +149,29 @@ const findFiles = (rootDirectory, relativeDirectories, extensions) => {
 			(left, right) => compareStrings(left.name, right.name),
 		);
 
+		// One batched `git check-ignore --stdin -z` per tree level (issue
+		// #1909): git's ignore set is the authority for what the walk skips,
+		// united with the gate's own static list below. Tracked files never
+		// match, so committed paths (`apps/api/Generated`, `routeTree.gen.ts`)
+		// still reach oxlint unless the static list excludes them.
+		const gitIgnoredPaths =
+			gitIgnoreChecker === null
+				? new Set()
+				: gitIgnoreChecker(
+						entries.map((entry) => path.join(directory, entry.name)),
+					);
+
 		for (const entry of entries) {
+			const absolutePath = path.join(directory, entry.name);
+
+			if (gitIgnoredPaths.has(absolutePath)) {
+				continue;
+			}
+
 			if (entry.isDirectory() && ignoredDirectories.has(entry.name)) {
 				continue;
 			}
 
-			const absolutePath = path.join(directory, entry.name);
 			if (entry.isDirectory()) {
 				visit(absolutePath);
 				continue;
@@ -349,15 +373,18 @@ const main = () => {
 		throw new Error('expected all explicit lint configs to exist');
 	}
 
+	const gitIgnoreChecker = createGitIgnoreChecker(rootDirectory);
 	const typeScriptFiles = findFiles(
 		rootDirectory,
 		['apps/front', 'packages/shared-ts', 'packages/scripts-ts/src'],
 		new Set(['.ts', '.tsx']),
+		gitIgnoreChecker,
 	);
 	const javaScriptFiles = findFiles(
 		rootDirectory,
 		['apps/front', 'packages/shared-ts', 'packages/scripts-ts/src'],
 		new Set(['.js', '.mjs', '.cjs']),
+		gitIgnoreChecker,
 	);
 
 	const typeScriptProjects = classifyFiles(rootDirectory, typeScriptFiles, [
