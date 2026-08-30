@@ -342,7 +342,7 @@
 			"reason": "Runner toolchain provisioning. Locally the Node version is pinned by .node-version / .nvmrc instead."
 		},
 		"front-ci.yml::supply-chain::Smoke start front server and verify stylesheet tag": {
-			"hash": "056e04ce212f4f40",
+			"hash": "dfd4529ec217653c",
 			"mirror": "just ci-front",
 			"reason": "ci-front runs pnpm --filter front smoke:start. The workflow does this with inline bash (background job + trap + curl + grep) which cannot run under the justfile's pwsh shell on Windows, so apps/front/scripts/ci/smoke-start-server.mts re-implements the same assertions in Node: serve the production build, GET /, require a rel=stylesheet link to a .css asset. DELIBERATE DIFFERENCE: CI hardcodes port 3000 (a fresh runner has nothing else on it); the local script binds a free ephemeral port via PORT, because probing a busy 3000 on a dev machine would assert against whatever unrelated app answered and report a false green."
 		},
