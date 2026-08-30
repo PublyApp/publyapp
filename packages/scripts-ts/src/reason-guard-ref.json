@@ -226,6 +226,8 @@
 		"react-doctor.yml::react-doctor::React Doctor -- changed files, blocking on warnings",
 		"react-doctor.yml::react-doctor::Resolve diff base",
 		"react-doctor.yml::react-doctor::Setup Node",
+		"require-linked-issue.yml::pr-body-exhaustiveness::Checkout",
+		"require-linked-issue.yml::pr-body-exhaustiveness::Verify the PR body makes no unverifiable exhaustiveness claims (#1569)",
 		"require-linked-issue.yml::require-linked-issue::Verify the PR closes an existing issue"
 	],
 	"steps": {
@@ -940,6 +942,14 @@
 		"require-linked-issue.yml::require-linked-issue::Verify the PR closes an existing issue": {
 			"reason_hash": "9f671866bb224574",
 			"reason": "Reads github.event.pull_request.body. At pre-push time there is no PR and therefore no body to check, so this gate is unreproducible locally by construction rather than by omission. The step gained a #1240 waiver that short-circuits to success for PR_AUTHOR == 'dependabot[bot]' (exact-login policy, not github.actor, not a label); the waiver's exact shape is guarded by packages/scripts-ts/src/require-linked-issue.test.ts, which just ci-drift now runs, but the step itself (which reads the live PR body) stays a GitHub-only required check."
+		},
+		"require-linked-issue.yml::pr-body-exhaustiveness::Checkout": {
+			"reason_hash": "53bddbb8f8ed9751",
+			"reason": "GitHub-only: clones the repo onto the runner so the #1569 body guard script exists. Locally the working tree already is the code under test."
+		},
+		"require-linked-issue.yml::pr-body-exhaustiveness::Verify the PR body makes no unverifiable exhaustiveness claims (#1569)": {
+			"reason_hash": "cb14d79231045eba",
+			"reason": "GitHub-only: reads the LIVE PR body via the GitHub API (gh api repos/$GH_REPO/pulls/$PR_NUMBER --jq '.body // \"\"') — never a fixture, never an author-supplied echo — and runs packages/scripts-ts/src/check-pr-body-exhaustiveness.ts against it. At pre-push time there is no PR and therefore no body to check, so this guard is unreproducible locally by construction (the same stance as the require-linked-issue step). Its logic is mirrored by the co-located unit suite; the wiring pin test extracts this exact run: block from the workflow file itself."
 		}
 	}
 }
