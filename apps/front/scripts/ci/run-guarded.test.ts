@@ -54,6 +54,17 @@ const runWrapper = (
 	timeoutSeconds: string,
 	env: Record<string, string | undefined> = process.env,
 ): Promise<{ code: number; stdout: string; stderr: string }> =>
+	runWrapperArgs([guardPath], timeoutSeconds, env);
+
+/**
+ * `runWrapper` with explicit wrapper arguments, used for the `--` passthrough
+ * mode (`node scripts/run-guarded.mts -- <command line...>`).
+ */
+const runWrapperArgs = (
+	args: readonly string[],
+	timeoutSeconds: string,
+	env: Record<string, string | undefined> = process.env,
+): Promise<{ code: number; stdout: string; stderr: string }> =>
 	new Promise((resolve, reject) => {
 		const timeout = setTimeout(() => {
 			// Safety net: if even the wrapper's own mechanism has failed,
@@ -67,7 +78,7 @@ const runWrapper = (
 
 		execFile(
 			process.execPath,
-			[WRAPPER, guardPath],
+			[WRAPPER, ...args],
 			{
 				env: {
 					...env,
@@ -81,12 +92,15 @@ const runWrapper = (
 			(err: ExecFileException | null, stdout: string, stderr: string) => {
 				clearTimeout(timeout);
 				if (err) {
-					// execFile surfaces non-zero exits as errors with .code set
-					// to the process exit code string.
+					// execFile surfaces non-zero exits as errors. Node 24 gives
+					// `err.code` as a NUMBER for a clean non-zero exit; older
+					// Node gave a numeric STRING. Accept both.
 					const code =
-						typeof err.code === 'string' && /^\d+$/.test(err.code)
-							? Number.parseInt(err.code, 10)
-							: -1;
+						typeof err.code === 'number'
+							? err.code
+							: typeof err.code === 'string' && /^\d+$/.test(err.code)
+								? Number.parseInt(err.code, 10)
+								: -1;
 					resolve({ code, stdout, stderr });
 				} else {
 					resolve({ code: 0, stdout, stderr });
@@ -124,6 +138,55 @@ const makeFrozenGuard = async (): Promise<string> => {
 		'utf-8',
 	);
 	return guardPath;
+};
+
+/**
+ * Scans /proc for processes whose cmdline contains any of the needles.
+ * Returns the survivor count, or null when /proc is unavailable (non-Linux):
+ * the orphan guarantees cannot be verified there, and a silent 0 would be a
+ * vacuous green — every caller must fail loud on null instead.
+ */
+const countOrphanSurvivors = (needles: readonly string[]): number | null => {
+	let entries: string[];
+	try {
+		entries = readdirSync('/proc');
+	} catch {
+		return null;
+	}
+	let count = 0;
+	for (const entry of entries) {
+		if (!/^\d+$/.test(entry)) {
+			continue;
+		}
+		try {
+			const cmdline = readFileSync(`/proc/${entry}/cmdline`, 'utf-8').replace(
+				/\0/g,
+				' ',
+			);
+			if (needles.some((needle) => cmdline.includes(needle))) {
+				count++;
+			}
+		} catch {
+			// Process may have exited — skip.
+		}
+	}
+	return count;
+};
+
+/**
+ * Asserts a zero-orphan scan result, failing LOUD when /proc is unavailable.
+ * Without this, a non-Linux developer would see the orphan assertions pass
+ * while they verified nothing.
+ */
+const expectNoOrphanSurvivors = (needles: readonly string[]): void => {
+	const survivors = countOrphanSurvivors(needles);
+	expect(
+		survivors,
+		'/proc unavailable: the orphan-survivor scan cannot run on this platform, ' +
+			'so the process-tree-kill guarantee is NOT verified here. Run the suite ' +
+			'on Linux (or CI) to exercise it.',
+	).not.toBeNull();
+	expect(survivors).toBe(0);
 };
 
 const makeNormalGuard = async (): Promise<{ path: string; dir: string }> => {
@@ -190,35 +253,7 @@ describe('run-guarded.mts — issue #1525 timeout kills process tree', () => {
 			// If only the parent PID were killed (not the process group),
 			// the child would survive as an orphan holding the CI lock.
 			await new Promise((r) => setTimeout(r, 200));
-
-			let survivors = 0;
-			try {
-				const entries = readdirSync('/proc');
-				for (const entry of entries) {
-					if (!/^\d+$/.test(entry)) {
-						continue;
-					}
-					const cmdlinePath = `/proc/${entry}/cmdline`;
-					try {
-						const cmdline = readFileSync(cmdlinePath, 'utf-8').replace(
-							/\0/g,
-							' ',
-						);
-						if (
-							cmdline.includes('frozen-guard') ||
-							cmdline.includes('frozen-child')
-						) {
-							survivors++;
-						}
-					} catch {
-						// Process may have exited — skip.
-					}
-				}
-			} catch {
-				// /proc not available (non-Linux) — skip the orphan check.
-			}
-
-			expect(survivors).toBe(0);
+			expectNoOrphanSurvivors(['frozen-guard', 'frozen-child']);
 
 			await rm(path.dirname(frozenGuardPath), { recursive: true, force: true });
 		},
@@ -289,29 +324,85 @@ describe('run-guarded.mts — issue #1525 timeout kills process tree', () => {
 			});
 
 			// Verify no orphaned child process remains.
-			let survivors = 0;
-			try {
-				const entries = readdirSync('/proc');
-				for (const entry of entries) {
-					if (!/^\d+$/.test(entry)) {
-						continue;
-					}
-					try {
-						const cmdline = readFileSync(
-							`/proc/${entry}/cmdline`,
-							'utf-8',
-						).replace(/\0/g, ' ');
-						if (cmdline.includes('running-guard')) {
-							survivors++;
-						}
-					} catch {
-						// Process may have exited — skip.
-					}
-				}
-			} catch {
-				// /proc not available — skip.
-			}
-			expect(survivors).toBe(0);
+			await new Promise((r) => setTimeout(r, 200));
+			expectNoOrphanSurvivors(['running-guard']);
+
+			await rm(dir, { recursive: true, force: true });
+		},
+		PROOF_TIMEOUT_MS + 5000,
+	);
+
+	it(
+		'passes a `--` passthrough command through and propagates its exit code',
+		async () => {
+			const dir = await mkdtemp(path.join(tmpdir(), 'proof-1525-ps-'));
+			const scriptPath = path.join(dir, 'passthrough-ok.mjs');
+			await writeFile(
+				scriptPath,
+				"process.stdout.write('passthrough-ok\\n');\nprocess.exit(0);\n",
+				'utf-8',
+			);
+
+			const result = await runWrapperArgs(
+				['--', 'node', scriptPath, '--some-node-flag'],
+				'3',
+			);
+
+			// The command ran and its exit 0 passed straight through.
+			expect(result.code).toBe(0);
+			expect(result.stdout).toContain('passthrough-ok');
+
+			await rm(dir, { recursive: true, force: true });
+		},
+		PROOF_TIMEOUT_MS,
+	);
+
+	it(
+		'propagates a non-zero exit code from a `--` passthrough command',
+		async () => {
+			const dir = await mkdtemp(path.join(tmpdir(), 'proof-1525-ps-'));
+			const scriptPath = path.join(dir, 'passthrough-fail.mjs');
+			await writeFile(
+				scriptPath,
+				"process.stdout.write('passthrough-fail\\n');\nprocess.exit(42);\n",
+				'utf-8',
+			);
+
+			const result = await runWrapperArgs(['--', 'node', scriptPath], '3');
+
+			expect(result.code).toBe(42);
+			expect(result.stdout).toContain('passthrough-fail');
+
+			await rm(dir, { recursive: true, force: true });
+		},
+		PROOF_TIMEOUT_MS,
+	);
+
+	it(
+		'times out a frozen `--` passthrough command, names it, and leaves no orphans',
+		async () => {
+			const dir = await mkdtemp(path.join(tmpdir(), 'proof-1525-ps-'));
+			const scriptPath = path.join(dir, 'frozen-passthrough.mjs');
+			await writeFile(
+				scriptPath,
+				"process.stdout.write('frozen-passthrough-started\\n');\nsetInterval(() => {}, 1000);\n",
+				'utf-8',
+			);
+
+			const result = await runWrapperArgs(['--', 'node', scriptPath], '3');
+
+			// Timeout failure, not 0.
+			expect(result.code).not.toBe(0);
+			// The timeout message names the passthrough command line.
+			expect(result.stderr).toContain('GUARD TIMEOUT');
+			expect(result.stderr).toContain('frozen-passthrough.mjs');
+			expect(result.stderr).toMatch(/3s\b/);
+			// The command actually started (proof the wrapper ran it).
+			expect(result.stdout).toContain('frozen-passthrough-started');
+
+			// The whole process group was SIGKILLed: no survivor remains.
+			await new Promise((r) => setTimeout(r, 200));
+			expectNoOrphanSurvivors(['frozen-passthrough']);
 
 			await rm(dir, { recursive: true, force: true });
 		},

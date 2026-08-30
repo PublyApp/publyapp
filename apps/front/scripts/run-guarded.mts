@@ -24,6 +24,7 @@
  *
  * Usage (from apps/front):
  *   node scripts/run-guarded.mts [--node-flags...] <guard-script-path> [script-args...]
+ *   node scripts/run-guarded.mts -- <command-line...>
  *
  * Any argument BEFORE the first non-flag argument (doesn't start with `-`)
  * is treated as a node flag (e.g. `--test`). The first non-flag argument
@@ -33,26 +34,28 @@
  *   node scripts/run-guarded.mts scripts/guards/check-design-system.mts
  *   node scripts/run-guarded.mts --test script1.mts script2.mts extra-arg
  *
+ * A BARE `--` as the FIRST argument switches to passthrough mode: everything
+ * after it is executed as one shell command line in the same process group
+ * (used to bound non-node runners such as `vitest run` and `playwright test`,
+ * which take no node `--test` form):
+ *
+ *   node scripts/run-guarded.mts -- vitest run --config vitest.design-guards.config.ts
+ *
  * The timeout is read from GUARD_TIMEOUT_SECONDS env (default 300s).
  *
- * Justified default of 300s: measured durations of all front guard tests
- * on this machine (loaded, 2026-08-30):
- *   - check-context-chunk-isolation.test.mts: ~157s (slowest; ~68s on CI)
- *   - check-zindex-guard.test.mts:              ~56s (~40s on CI)
- *   - check-design-system.test.mts:             ~3s
- *   - check-shared-ts-import-paths.test.mts:   ~19s
- *   - check-react-compiler.test.mts:            ~19s
- *   - check-shared-ts-node-resolution.test.mts: ~4s
- *   - check-e2e-shared-constants.test.mts:     ~0s
- *   - check-column-type-imports.test.mts:      ~0s
- *   - verify-font-bundle.test.mts:             ~0s
- *   - search-cancel-css-policy.test.mts:       ~0s
- *   - all check:* script guards (< 2s each):   < 2s
+ * Justified default of 300s: measured durations of every front guard are
+ * recorded in `docs/records/2026-08-30-analysis-front-guard-durations.md`
+ * (raw timings of bounded runs, methodology included; slowest guard measured
+ * ~165s loaded, next-slowest ~15s). 300s is ~1.8x the slowest measured guard
+ * on the loaded recording machine — a modest margin, deliberately not
+ * "ample": guards that routinely exceed it on a given machine can override
+ * via `GUARD_TIMEOUT_SECONDS`, and the guard suite is re-measured whenever a
+ * guard grows heavy (see the record).
  *
- * 300s is ~1.9× the slowest measured guard (157s), bounding the worst-case
- * freeze to 5 minutes instead of indefinite while giving ample headroom for a
- * loaded machine. Guards that routinely exceed this on a specific machine can
- * override via `GUARD_TIMEOUT_SECONDS` env var.
+ * The `apps/front/scripts/guards/check-guard-coverage.mts` gate makes sure
+ * every test:/check:/verify: script and every bare node invocation routes
+ * through this wrapper; only the long-running `dev` and `start` servers are
+ * exempt (a 300s bound would kill them mid-session).
  */
 import { spawn, type ChildProcess } from 'node:child_process';
 import process from 'node:process';
@@ -76,9 +79,23 @@ const rawArgs = process.argv.slice(2);
 
 if (rawArgs.length === 0) {
 	console.error(
-		'run-guarded.mts: usage: run-guarded.mts [--node-flags...] <guard-script> [script-args...]',
+		'run-guarded.mts: usage: run-guarded.mts [--node-flags...] <guard-script> [script-args...]' +
+			' or run-guarded.mts -- <command-line...>',
 	);
 	process.exit(2);
+}
+
+// Passthrough mode: a bare `--` as the first argument means everything after
+// it is one shell command line to bound (non-node runners: vitest, playwright).
+let passthroughCommand: string | null = null;
+if (rawArgs[0] === '--') {
+	passthroughCommand = rawArgs.slice(1).join(' ');
+	if (passthroughCommand.trim() === '') {
+		console.error(
+			'run-guarded.mts: empty command after `--`. usage: run-guarded.mts -- <command-line...>',
+		);
+		process.exit(2);
+	}
 }
 
 // Split into node flags (everything before the first non-flag) and the
@@ -86,31 +103,36 @@ if (rawArgs.length === 0) {
 // `node --test <script>` and `node <script>` and `node --test <s1> <s2>`.
 const nodeFlags: string[] = [];
 let scriptIndex = -1;
-for (let i = 0; i < rawArgs.length; i++) {
-	const arg = rawArgs[i];
-	if (arg.startsWith('-') && scriptIndex === -1) {
-		nodeFlags.push(arg);
-	} else {
-		scriptIndex = i;
-		break;
+if (passthroughCommand === null) {
+	for (let i = 0; i < rawArgs.length; i++) {
+		const arg = rawArgs[i];
+		if (arg.startsWith('-') && scriptIndex === -1) {
+			nodeFlags.push(arg);
+		} else {
+			scriptIndex = i;
+			break;
+		}
+	}
+
+	if (scriptIndex === -1) {
+		console.error(
+			'run-guarded.mts: no guard script path found after flags. ' +
+				'usage: run-guarded.mts [--node-flags...] <guard-script> [script-args...]',
+		);
+		process.exit(2);
 	}
 }
 
-if (scriptIndex === -1) {
-	console.error(
-		'run-guarded.mts: no guard script path found after flags. ' +
-			'usage: run-guarded.mts [--node-flags...] <guard-script> [script-args...]',
-	);
-	process.exit(2);
-}
-
-const guardScript = rawArgs[scriptIndex]!;
-const scriptArgs = rawArgs.slice(scriptIndex + 1);
+const guardScript = scriptIndex >= 0 ? rawArgs[scriptIndex]! : null;
+const scriptArgs = scriptIndex >= 0 ? rawArgs.slice(scriptIndex + 1) : [];
 
 // Derive a human-readable guard label for the error message.
-const guardLabel = guardScript.includes('apps/front/')
-	? guardScript.split('apps/front/').pop()!
-	: guardScript;
+const guardLabel =
+	passthroughCommand !== null
+		? passthroughCommand
+		: guardScript!.includes('apps/front/')
+			? guardScript!.split('apps/front/').pop()!
+			: guardScript!;
 
 const startMs = Date.now();
 
@@ -118,15 +140,23 @@ const startMs = Date.now();
 // the child's PGID to its own PID). This means kill(-child.pid) targets the
 // entire group, including every descendant the guard may spawn (vite, node,
 // etc.).
-const child: ChildProcess = spawn(
-	process.execPath,
-	[...nodeFlags, guardScript, ...scriptArgs],
-	{
-		cwd: process.cwd(),
-		stdio: 'inherit',
-		detached: true,
-	},
-);
+// Passthrough mode spawns the shell command line directly (still as its own
+// process-group leader: `sh -c` becomes the group leader and every descendant
+// — vitest workers, playwright browsers — lands in the same group, so the
+// timeout SIGKILL takes the whole tree).
+const child: ChildProcess =
+	passthroughCommand !== null
+		? spawn(passthroughCommand, {
+				cwd: process.cwd(),
+				stdio: 'inherit',
+				detached: true,
+				shell: true,
+			})
+		: spawn(process.execPath, [...nodeFlags, guardScript!, ...scriptArgs], {
+				cwd: process.cwd(),
+				stdio: 'inherit',
+				detached: true,
+			});
 
 let settled = false;
 

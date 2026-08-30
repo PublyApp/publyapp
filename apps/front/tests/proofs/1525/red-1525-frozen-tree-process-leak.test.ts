@@ -139,27 +139,35 @@ const makeFrozenTree = async (): Promise<{
 
 /** Count process-tree survivors whose cmdline mentions the child token. */
 const countSurvivors = (childToken: string): number => {
-	let count = 0;
+	// /proc is Linux-only. A platform without it cannot evaluate the orphan
+	// assertion; returning a silent 0 would make this kept-red proof look
+	// "fixed" (survivors > 0 unverifiable) instead of unverifiable. Fail loud
+	// with the reason so no developer believes the tree-kill was verified:
+	// the replay runner treats a failed proof as the expected red.
+	let entries: string[];
 	try {
-		const entries = readdirSync('/proc');
-		for (const entry of entries) {
-			if (!/^\d+$/.test(entry)) {
-				continue;
-			}
-			try {
-				const cmdline = readFileSync(`/proc/${entry}/cmdline`, 'utf-8').replace(
-					/\0/g,
-					' ',
-				);
-				if (cmdline.includes(childToken)) {
-					count++;
-				}
-			} catch {
-				// Process exited.
-			}
-		}
+		entries = readdirSync('/proc');
 	} catch {
-		// /proc unavailable.
+		throw new Error(
+			'red-1525 proof: /proc unavailable (non-Linux) — the orphan-survivor scan cannot run here, so the kept-red process-tree assertion is unverifiable on this platform. Run the proof on Linux (or CI) to exercise it.',
+		);
+	}
+	let count = 0;
+	for (const entry of entries) {
+		if (!/^\d+$/.test(entry)) {
+			continue;
+		}
+		try {
+			const cmdline = readFileSync(`/proc/${entry}/cmdline`, 'utf-8').replace(
+				/\0/g,
+				' ',
+			);
+			if (cmdline.includes(childToken)) {
+				count++;
+			}
+		} catch {
+			// Process exited.
+		}
 	}
 	return count;
 };
