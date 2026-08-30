@@ -138,6 +138,11 @@ public static class ServiceRegistration {
 				"database_migrations",
 				failureStatus: Microsoft.Extensions.Diagnostics.HealthChecks.HealthStatus.Unhealthy,
 				tags: ["ready"]
+			)
+			.AddCheck<JobQueueDrainHealthCheck>(
+				"job_queue_drain",
+				failureStatus: Microsoft.Extensions.Diagnostics.HealthChecks.HealthStatus.Unhealthy,
+				tags: ["ready"]
 			);
 
 		// Register scoped DbContext (for per-request instances)

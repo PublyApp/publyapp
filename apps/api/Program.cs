@@ -3,6 +3,7 @@ using System.Reflection;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.Extensions.FileProviders;
 
+using PublyApp.Api.Infrastructure.Health;
 using PublyApp.Api.Infrastructure.Jobs;
 using PublyApp.Api.Infrastructure.Storage;
 using PublyApp.Api.Lib;
@@ -348,6 +349,10 @@ public class Program {
 
 		var readinessOptions = new HealthCheckOptions {
 			Predicate = registration => registration.Tags.Contains("ready"),
+			// Issue #1716: render the cause, not just the word "Unhealthy", so the
+			// readiness refusal names what is wrong (e.g. a worker that stopped
+			// draining the job queue) in the state an operator actually reads.
+			ResponseWriter = HealthResponseWriter.WriteAsync,
 		};
 		app.MapHealthChecks("/health/live", new HealthCheckOptions {
 			Predicate = _ => false,
