@@ -57,12 +57,30 @@ import { describe, expect, test, vi } from 'vitest';
 import { assertIconIsVisible } from './data-table-icon-visibility-guard';
 import type { ComputedStyleReader } from './data-table-icon-visibility-guard-reader';
 
-// The guard imports the `i18next` singleton for its error messages. A `t`
-// that returns the key is the smallest honest stand-in — deterministic
-// messages, and the assertions pin WHICH mechanism the guard named.
+// The guard imports the `i18next` singleton for its error messages. The
+// indeterminate cases must fail LOUD with a message that NAMES the cause and
+// the expected action — the issue's own acceptance criterion — so this mock
+// maps the guard's keys to their real `en` texts (same pattern as the
+// TestLabelMap in `tests/proofs/1799/`). The other hidden-mechanism keys map
+// to the bare key: their wording is not under test here.
 vi.mock('i18next', () => ({
 	default: {
-		t: (key: string): string => key,
+		t: (key: string, options?: Record<string, unknown>): string => {
+			const labels: Record<string, string> = {
+				'icon-guard-indeterminate-detached':
+					'{{context}}: icon element is not connected to the document, so its visibility cannot be measured. Expected action: attach the element to the document (render it in a live container) and re-run the guard.',
+				'icon-guard-indeterminate-unresolved':
+					"{{context}}: computed style value is unresolved (empty), so the icon's visibility cannot be measured. Expected action: make sure the element's computed style can be read (connected node, resolved stylesheet), then re-run the guard.",
+			};
+			let text = labels[key] ?? key;
+			if (!options) {
+				return text;
+			}
+			for (const [optionKey, value] of Object.entries(options)) {
+				text = text.replaceAll(`{{${optionKey}}}`, String(value));
+			}
+			return text;
+		},
 	},
 }));
 
@@ -83,9 +101,11 @@ describe('icon visibility guard — indeterminable input (#1899)', () => {
 		icon.setAttribute('data-icon', 'check');
 		expect(() =>
 			assertIconIsVisible(icon, 'ctx-detached-default', undefined),
-		).toThrow(/icon-guard-indeterminate-detached/);
+		).toThrow(/not connected to the document/);
 		// The message must name the cause (node not connected) AND the
-		// expected action — a bare "unanalyzable" is not loud enough.
+		// expected action — a bare "unanalyzable" is not loud enough. The
+		// full thrown text is captured and checked as one unit so neither
+		// half can quietly disappear.
 		const thrown = (() => {
 			try {
 				assertIconIsVisible(icon, 'ctx-detached-default', undefined);
@@ -94,25 +114,32 @@ describe('icon visibility guard — indeterminable input (#1899)', () => {
 				return error instanceof Error ? error.message : '';
 			}
 		})();
-		expect(thrown).toMatch(/connected to the document/i);
+		expect(thrown).toContain('not connected to the document');
+		expect(thrown).toContain(
+			'Expected action: attach the element to the document',
+		);
 	});
 
 	test('a reader that returns UNRESOLVED values fails loudly, naming the cause', () => {
 		// Chromium's `getComputedStyle` on a detached node (and a real engine
 		// failing to resolve a value) returns the UNRESOLVED empty string.
 		// The jsdom default reader never does (see header), so this case
-		// injects the reader shape that a real engine produces — the value
-		// the guard must refuse to treat as a measurement.
+		// injects the reader shape a real engine produces — the value the
+		// guard must refuse to treat as a measurement. The node is
+		// CONNECTED here on purpose: the connection gate must pass first,
+		// so this case isolates the value gate and not the connection gate.
 		const icon = document.createElement('span');
 		icon.setAttribute('data-icon', 'check');
 		icon.setAttribute('aria-hidden', 'false');
+		document.body.appendChild(icon);
 		expect(() =>
 			assertIconIsVisible(icon, 'ctx-unresolved', () => ({
 				visibility: '',
 				display: '',
 				opacity: '',
 			})),
-		).toThrow(/icon-guard-indeterminate-unresolved/);
+		).toThrow(/unresolved \(empty\)/);
+		icon.remove();
 	});
 
 	test('NO false positive: healthy connected visible / hidden verdicts are unchanged', () => {
