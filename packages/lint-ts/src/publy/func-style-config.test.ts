@@ -664,6 +664,67 @@ const _filesWithFileLevelSuppression = (
 	return files;
 };
 
+// #1968 — the loud-timeout wrapper. The defect the brief describes
+// is that a slow `git check-ignore` call surfaces as a vitest
+// "Test timed out in 5000ms" message that an operator reads as a
+// correctness failure ("the scanner stopped reporting") when the
+// actual cause is the stopwatch. This wrapper replaces the silent
+// vitest stopwatch with a NAMED cause: the test name, the actual
+// elapsed time, the configured budget, and the load context.
+//
+// The wrapper is generic on purpose: any future test that shells
+// out to a slow external tool can reuse it. The cost paid is a
+// single `performance.now()` pair and a `setTimeout` — both cheap,
+// both bounded.
+export type LoudTimeoutResult<T> = {
+	entries: T;
+	elapsedMs: number;
+};
+
+export const withLoudTimeout = async <T>(
+	label: string,
+	budgetMs: number,
+	fn: () => Promise<T>,
+): Promise<LoudTimeoutResult<T>> => {
+	const startedAt = performance.now();
+	const timer = setTimeout(() => {
+		// We do NOT throw from inside setTimeout: the throw would
+		// land on the timer event-loop and be uncaught. Instead we
+		// log the cause and let the fn finish (or fail) naturally;
+		// the next assertion below turns the over-budget run into
+		// a named failure with a precise cause.
+		// eslint-disable-next-line no-console
+		console.error(
+			`[#1968] ${label} exceeded its ${String(budgetMs)}ms budget — ` +
+				`likely a slow git check-ignore spawn under load. The result ` +
+				`below will be reported as a TIMEOUT, not a correctness ` +
+				`failure, so the operator can act on the actual cause.`,
+		);
+	}, budgetMs);
+	let entries: T;
+	try {
+		entries = await fn();
+	} finally {
+		clearTimeout(timer);
+	}
+	const elapsedMs = Math.round(performance.now() - startedAt);
+	if (elapsedMs > budgetMs) {
+		throw new Error(
+			`#1968 ${label} took ${String(elapsedMs)}ms, exceeding the ` +
+				`${String(budgetMs)}ms budget. The most likely cause is a slow ` +
+				`git check-ignore spawn under sustained load (23 lanes on a ` +
+				`shared host, observed in the wild on 2026-08-30). The previous ` +
+				`shape — vitest's default 5000ms timeout — surfaced this as a ` +
+				`silent "scanner stopped reporting" failure. This wrapper names ` +
+				`the actual cause (load + spawn latency) and refuses to let a ` +
+				`slow machine hide a real regression. If the wall time stays ` +
+				`consistently above 30s, raise the budget AND investigate ` +
+				`whether the spawn itself can be hoisted.`,
+		);
+	}
+	return { entries, elapsedMs };
+};
+
 describe('func-style: ["error", "expression"] (#1834 — uniform arrow form)', () => {
 	describe('config leg — root .oxlintrc.json carries the exact shape', () => {
 		it('configures func-style as the ["error", "expression"] tuple at the root', () => {
@@ -1913,47 +1974,75 @@ class Probe {}
 
 		afterAll(removePlanted);
 
-		it('leg 1: a suppression inside a git-ignored directory is not scanned', async () => {
-			plantSuppression(plantedWorktreeFile);
+		// #1968 — the budget below was measured (2026-08-30) across 5
+		// quiet runs: 3.44s, 3.54s, 3.65s, 3.96s, 4.30s. The previous
+		// 5000ms vitest default was at the edge of the observed
+		// maximum; under sustained load (23 lanes on a shared host)
+		// the wall time exceeded 5s and the test failed with a
+		// stopwatch message that an operator reads as a correctness
+		// failure. The 30s budget is 6× the observed max with
+		// comfortable headroom for 23-lane load, and the
+		// `withLoudTimeout` wrapper below names the actual cause
+		// (duration in ms) when the budget is exceeded, so a
+		// genuine regression cannot be confused with a slow
+		// machine.
+		it(
+			'leg 1: a suppression inside a git-ignored directory is not scanned',
+			{ timeout: 30_000 },
+			async () => {
+				plantSuppression(plantedWorktreeFile);
 
-			try {
-				const foundEntries = await scanFuncStyleSuppressions(WORKSPACE_ROOT);
-				const worktreeEntries = foundEntries.filter((entry) =>
-					entry.file.startsWith('.worktrees/proof-1909/'),
-				);
+				try {
+					const { entries: foundEntries, elapsedMs } = await withLoudTimeout(
+						'leg 1',
+						30_000,
+						() => scanFuncStyleSuppressions(WORKSPACE_ROOT),
+					);
+					const worktreeEntries = foundEntries.filter((entry) =>
+						entry.file.startsWith('.worktrees/proof-1909/'),
+					);
 
-				assert.deepStrictEqual(
-					worktreeEntries,
-					[],
-					`the scanner must skip the git-ignored .worktrees/ directory; found ${worktreeEntries.map((entry) => `${entry.file}: ${entry.symbol}`).join(', ')}`,
-				);
-			} finally {
-				removePlanted();
-			}
-		});
+					assert.deepStrictEqual(
+						worktreeEntries,
+						[],
+						`the scanner must skip the git-ignored .worktrees/ directory; found ${worktreeEntries.map((entry) => `${entry.file}: ${entry.symbol}`).join(', ')} (elapsed ${String(elapsedMs)}ms)`,
+					);
+				} finally {
+					removePlanted();
+				}
+			},
+		);
 
-		it('adversarial leg 2: the same suppression in a NON-ignored file is still reported', async () => {
-			plantSuppression(plantedTrackedFile);
+		it(
+			'adversarial leg 2: the same suppression in a NON-ignored file is still reported',
+			{ timeout: 30_000 },
+			async () => {
+				plantSuppression(plantedTrackedFile);
 
-			try {
-				const foundEntries = await scanFuncStyleSuppressions(WORKSPACE_ROOT);
-				const found = foundEntries.filter((entry) =>
-					entry.file.startsWith('apps/front/proof-1909-not-ignored/'),
-				);
+				try {
+					const { entries: foundEntries, elapsedMs } = await withLoudTimeout(
+						'leg 2',
+						30_000,
+						() => scanFuncStyleSuppressions(WORKSPACE_ROOT),
+					);
+					const found = foundEntries.filter((entry) =>
+						entry.file.startsWith('apps/front/proof-1909-not-ignored/'),
+					);
 
-				assert.strictEqual(
-					found.length,
-					1,
-					`the scanner must still report the non-ignored suppression; got ${JSON.stringify(found)}`,
-				);
-				assert.strictEqual(
-					found[0]!.symbol,
-					'survie1909',
-					'the reported suppression must carry its symbol',
-				);
-			} finally {
-				removePlanted();
-			}
-		});
+					assert.strictEqual(
+						found.length,
+						1,
+						`the scanner must still report the non-ignored suppression; got ${JSON.stringify(found)} (elapsed ${String(elapsedMs)}ms)`,
+					);
+					assert.strictEqual(
+						found[0]!.symbol,
+						'survie1909',
+						'the reported suppression must carry its symbol',
+					);
+				} finally {
+					removePlanted();
+				}
+			},
+		);
 	});
 });
