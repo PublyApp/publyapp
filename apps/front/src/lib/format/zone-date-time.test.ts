@@ -47,7 +47,7 @@ describe('#1531 formatInZone locale awareness', () => {
 	});
 
 	test('formatInZone returns a dash for an invalid date', () => {
-		expect(formatInZone(new Date(NaN), 'Europe/Paris', 'en')).toBe('—');
+		expect(formatInZone(new Date(Number.NaN), 'Europe/Paris', 'en')).toBe('—');
 		expect(formatInZone(new Date(), '', 'en')).toBe('—');
 	});
 
