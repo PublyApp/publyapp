@@ -2,7 +2,6 @@ import { spawnSync } from 'node:child_process';
 import process from 'node:process';
 
 import type { ShardPartition } from './shard-api-tests.ts';
-
 import {
 	SHARD_COUNT,
 	classFqnFromListLine,
