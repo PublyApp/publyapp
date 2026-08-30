@@ -27,21 +27,21 @@ if (string.IsNullOrEmpty(configuredPassword) || configuredPassword == "password"
 	// Absent: the declared literal wins. Present and equal: redundant but safe.
 } else {
 	Console.Error.WriteLine(
-		"ERREUR — une valeur de configuration locale remplace le mot de passe "
-			+ "local de développement de l'AppHost (Parameters:postgres-password = "
-				+ $"{configuredPassword.Length} caractères, la valeur attendue est le littéral "
-					+ "`password`). La pile locale (.env.example, .env.development et les recettes "
-						+ "db-* du justfile) est câblée sur Password=password : avec une valeur "
-							+ "différente, just db-migrate et toute connection string seraient "
-								+ "en désaccord silencieux avec le conteneur. "
-		+ "Actions : supprimez la valeur générée du magasin de secrets de l'AppHost "
+		"ERROR — a local configuration value overrides the AppHost's local development "
+			+ "password (Parameters:postgres-password = "
+				+ $"{configuredPassword.Length} characters, the expected value is the literal "
+					+ "`password`). The local stack (.env.example, .env.development and the justfile "
+						+ "db-* recipes) is hard-wired to Password=password: with a different "
+							+ "value, just db-migrate and every connection string would silently "
+								+ "disagree with the container. "
+		+ "Actions: remove the generated value from the AppHost's secret store "
 			+ "(dotnet user-secrets --id publyapp-apphost-255-spike remove "
-				+ "\"Parameters:postgres-password\", fichier ~/.microsoft/usersecrets/"
-					+ "publyapp-apphost-255-spike/secrets.json), retirez la variable d'environnement "
-						+ "Parameters__postgres-password si elle est posée, puis relancez "
-							+ "`dotnet run --project apps/apphost` — ou, si vous voulez vraiment un "
-								+ "autre mot de passe, changez la constante dans .env.example, "
-									+ ".env.development et les recettes db-* du justfile en même temps.");
+				+ "\"Parameters:postgres-password\", file ~/.microsoft/usersecrets/"
+					+ "publyapp-apphost-255-spike/secrets.json), unset the "
+						+ "Parameters__postgres-password environment variable if it is set, then re-run "
+							+ "`dotnet run --project apps/apphost` — or, if you really want a "
+								+ "different password, change the constant in .env.example, "
+									+ ".env.development and the justfile db-* recipes at the same time.");
 	Environment.Exit(1);
 }
 
@@ -73,6 +73,14 @@ var postgres = builder.AddPostgres("postgres").WithPassword(postgresPassword).Wi
 // proof lives in AppHostOrchestrationGuardSpec: the closing residue must read
 // as FREE, an active listener must still fail loudly, and --plain-bind-preflight
 // reproduces the exact kernel hazard (plain bind -> errno 98 on the residue).
+//
+// Issue #1926 point 1: HostPort5454IsFree used to catch ANY SocketException
+// and answer "occupied". A permission error, a sandbox restriction, an absent
+// IPv4 family all produced the misleading "stop the container listening on
+// 5454" diagnosis — sending the user after a phantom listener. The
+// classification now distinguishes AddressAlreadyInUse (the only verdict
+// that means "occupied") from every other error: the latter throws a loud
+// exception naming the real SocketError so the user follows the actual cause.
 bool HostPort5454IsFree(bool plainBind = false) {
 	if (plainBind) {
 		// Guard-only variant: a TRUE plain bind (no SO_REUSEADDR) via libc.
@@ -84,31 +92,77 @@ bool HostPort5454IsFree(bool plainBind = false) {
 
 	var probe = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
 	probe.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
+	// Issue #1926 point 3: the explicit SetSocketOption above is redundant with
+	// .NET's managed default on Linux today (strace-verified) — removing it
+	// compiles cleanly and the residue test still greens, so any future runtime
+	// change to the default would silently re-introduce the round-4 false
+	// positive. Read the option back and throw if the kernel did not actually
+	// enable SO_REUSEADDR: the architecture guard (which compares this probe's
+	// exit code to the --plain-bind-preflight exit code on the same residue)
+	// reddens the moment the option flips off, because the throw exits 1 and
+	// the residue still has no listener, so the comparison diverges.
+	if (probe.GetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress) is not int reuseAddr
+		|| reuseAddr == 0) {
+		throw new InvalidOperationException(
+			"The 5454 probe did not have SO_REUSEADDR enabled after SetSocketOption — "
+				+ "the platform default has changed and the round-4 false positive "
+				+ "(bind on closing residue = EADDRINUSE) is back. "
+				+ "Re-enable the SetSocketOption line above, or update the probe to "
+				+ "toggle the value explicitly."
+		);
+	}
 	try {
 		probe.Bind(new IPEndPoint(IPAddress.Loopback, 5454));
 		return true;
-	} catch (SocketException) {
-		return false;
+	} catch (SocketException ex) {
+		var outcome = ProbeBind.ClassifyBindException(ex);
+		return HostPort5454IsFree_Outcome.Apply(outcome);
 	} finally {
 		probe.Dispose();
 	}
 }
 
+// Issue #1926 point 1 — the --probe-bind-fault hook's entry point. Runs the
+// production classification against a synthetic SocketException, then exits
+// with the matching loud message. Free → exit 0 (no problem); Occupied →
+// the same "stop the container listening on 5454" diagnosis the production
+// probe would print (so the guard can also assert that path); Other → the
+// diagnostic that names the real SocketError. Never reachable from the user
+// flow — the dispatcher in main only routes here when the flag is present,
+// and the flag is a guard-only test hook.
+void ProbeBindFault(SocketError code) {
+	var outcome = ProbeBind.ClassifyBindException(new SocketException((int)code));
+	switch (outcome.Kind) {
+		case ProbeBind.OutcomeKind.Free:
+			Console.WriteLine("host port 5454 preflight: free (probe-bind-fault)");
+			return;
+		case ProbeBind.OutcomeKind.Occupied:
+			FailLoudlyOnOccupiedPort();
+			break;
+		case ProbeBind.OutcomeKind.Other:
+			ProbeBindFaultReporter.ReportAndExit(outcome);
+			break;
+		default:
+			throw new InvalidOperationException(
+				$"ProbeBindFault: unknown verdict ({outcome.Kind}).");
+	}
+}
+
 void FailLoudlyOnOccupiedPort() {
 	Console.Error.WriteLine(
-		"ERREUR — le port hôte 5454 est déjà occupé : le mandataire DCP de l'AppHost "
-			+ "n'arriverait pas à y lier Postgres (bind: address already in use), et la "
-			+ "pile continuerait silencieusement sur un port aléatoire, pendant que "
-			+ "POSTGRES_CONNECTION_STRING annonce toujours Host=localhost;Port=5454. "
-			+ "L'API et le worker se connecteraient alors à la BASE QUI OCCUPE "
-			+ "5454 — probablement le Postgres local d'un autre projet — et "
-			+ "écriraient dedans sans crier.\n"
-		+ "Actions : arrêtez le processus/conteneur qui écoute sur 5454 (ex. le conteneur "
-			+ "residuaire `publyapp-postgres` : docker rm -f publyapp-postgres ; vérification : "
-			+ "`ss -tlnp | grep 5454`), puis relancez `dotnet run --project apps/apphost` — "
-			+ "ou, pour un port différent, changez le 5454 de cet AppHost ET de "
-			+ "POSTGRES_CONNECTION_STRING dans .env.development ET des recettes "
-			+ "db-* du justfile, car tout est câblé sur 5454.");
+		"ERROR — host port 5454 is already in use: the AppHost's DCP proxy "
+			+ "would not be able to bind Postgres there (bind: address already in use), and the "
+			+ "stack would silently continue on a random port, while "
+			+ "POSTGRES_CONNECTION_STRING still announces Host=localhost;Port=5454. "
+			+ "The API and worker would then connect to WHATEVER DATABASE OCCUPIES "
+			+ "5454 — probably another project's local Postgres — and "
+			+ "write to it without complaining.\n"
+		+ "Actions: stop the process/container listening on 5454 (e.g. the leftover "
+			+ "`publyapp-postgres` container: docker rm -f publyapp-postgres ; verify with: "
+			+ "`ss -tlnp | grep 5454`), then re-run `dotnet run --project apps/apphost` — "
+			+ "or, for a different port, change the 5454 in this AppHost AND in "
+			+ "POSTGRES_CONNECTION_STRING in .env.development AND in the justfile "
+			+ "db-* recipes, because everything is hard-wired to 5454.");
 	Environment.Exit(1);
 }
 
@@ -234,29 +288,51 @@ if (args.Contains("--dump-model")) {
 	return;
 }
 
+if (args.Contains("--probe-bind-fault")) {
+	var idx = args.IndexOf("--probe-bind-fault");
+	var codeName = idx + 1 < args.Length ? args[idx + 1] : null;
+	var parsedCode = SocketError.Success;
+	if (codeName is null || !Enum.TryParse<SocketError>(codeName, ignoreCase: true, out parsedCode)) {
+		Console.Error.WriteLine(
+			"ERROR — --probe-bind-fault expects a System.Net.Sockets.SocketError name "
+				+ $"(e.g. AddressAlreadyInUse, AccessDenied). Received: {codeName ?? "<missing>"}. "
+				+ "AppHostOrchestrationGuardSpec guard mode only.");
+		Environment.Exit(2);
+	}
+	ProbeBindFault(parsedCode);
+}
+
+// --hold-port-5454 must skip the preflight: it IS the listener and the
+// preflight would (correctly) report the port occupied, killing the test
+// helper before it can accept the residue probe. The preflight is for the
+// user-facing flows (boot and --preflight-only), not for this guard hook.
+if (!args.Contains("--hold-port-5454")
+	&& !HostPort5454IsFree(args.Contains("--plain-bind-preflight"))) {
+	FailLoudlyOnOccupiedPort();
+}
+
+if (args.Contains("--preflight-only")) {
+	// Guard-only standalone entry point (issue #1926 point 2). Sharing the
+	// SAME call site with the boot path means there is exactly one call to
+	// HostPort5454IsFree in the program: any future refactor that drops it
+	// also drops the guard-only mode's check, which the architecture guard
+	// catches immediately. This used to live as its own block with a second
+	// call, which the compiler could not pin (two call sites, one of which
+	// was the test's only exercise) — see point 2 of the round-3 review.
+	Console.WriteLine("host port 5454 preflight: free");
+	return;
+}
+
 if (args.Contains("--hold-port-5454")) {
 	try {
 		HoldPort5454Forever();
 	} catch (SocketException ex) {
 		Console.Error.WriteLine(
-			"ERREUR — hold-port-5454 : impossible de binder 127.0.0.1:5454 "
-				+ $"(un écouteur actif l'occupe probablement ; {ex.Message}). "
-				+ "Libérez le port puis relancez le test.");
+			"ERROR — hold-port-5454: cannot bind 127.0.0.1:5454 "
+				+ $"(an active listener probably occupies it; {ex.Message}). "
+				+ "Free the port then re-run the test.");
 		Environment.Exit(1);
 	}
-}
-
-if (!HostPort5454IsFree()) {
-	FailLoudlyOnOccupiedPort();
-}
-
-if (args.Contains("--preflight-only")) {
-	var plainBind = args.Contains("--plain-bind-preflight");
-	if (!HostPort5454IsFree(plainBind)) {
-		FailLoudlyOnOccupiedPort();
-	}
-	Console.WriteLine("host port 5454 preflight: free");
-	return;
 }
 
 builder.Build().Run();
@@ -312,5 +388,84 @@ internal static partial class RawPlainBind {
 		} finally {
 			close(fd);
 		}
+	}
+}
+
+// Issue #1926 point 1 — probe bind-error classification. The OLD probe caught
+// every SocketException and answered "occupied", so a permission error, a
+// sandbox restriction, or an absent address family all became the misleading
+// "stop the container listening on 5454" — sending the user after a
+// phantom listener. Only AddressAlreadyInUse means "occupied"; any other
+// SocketError is a real, named environment problem that the user must
+// address (sandbox capabilities, IPv4 availability, NIC policy, ...).
+//
+// The classification is a single, side-effect-free switch over the
+// SocketException so the production probe, the --probe-bind-fault guard
+// hook, and any future caller all share the same mapping. Changing the
+// mapping changes the user-visible verdict — that is what the architecture
+// guard (see AppHostOrchestrationGuardSpec) witnesses end-to-end.
+internal static partial class ProbeBind {
+	public enum OutcomeKind { Free, Occupied, Other }
+
+	public readonly record struct Outcome(OutcomeKind Kind, SocketError? Code, string Diagnostic) {
+		public static Outcome Occupied(SocketError code) {
+			return new(OutcomeKind.Occupied, code, $"SocketError.{code}");
+		}
+		public static Outcome Other(SocketError code, string message) {
+			return new(OutcomeKind.Other, code, message);
+		}
+	}
+
+	public static Outcome ClassifyBindException(SocketException ex) {
+		var code = ex.SocketErrorCode;
+		if (code == SocketError.AddressAlreadyInUse) {
+			return Outcome.Occupied(code);
+		}
+		return Outcome.Other(
+			code,
+			$"SocketError.{code} (native errno: {ex.NativeErrorCode})");
+	}
+}
+
+// Issue #1926 point 1 — the verdict the production probe applies to a
+// classified outcome. Free and Occupied are normal; Other is the loud-fail
+// path that names the real SocketError. The top-level local function uses
+// this via static dispatch so the call site reads the same as the old
+// `return false` while the failure path actually surfaces the cause.
+internal static class HostPort5454IsFree_Outcome {
+	public static bool Apply(ProbeBind.Outcome outcome) {
+		switch (outcome.Kind) {
+			case ProbeBind.OutcomeKind.Free:
+				return true;
+			case ProbeBind.OutcomeKind.Occupied:
+				return false;
+			case ProbeBind.OutcomeKind.Other:
+				throw new InvalidOperationException(
+					"AppHost pre-flight: cannot determine whether 127.0.0.1:5454 is free. "
+						+ $"Real cause: {outcome.Diagnostic}. "
+						+ "Actions: examine the process permissions (sandbox, capabilities, "
+						+ "firewall), the availability of IPv4 on the loopback, and the network "
+						+ "state before re-running `dotnet run --project apps/apphost`.");
+			default:
+				throw new InvalidOperationException(
+					$"AppHost pre-flight: unknown verdict ({outcome.Kind}).");
+		}
+	}
+}
+
+// Issue #1926 point 1 — the --probe-bind-fault hook's reporting path. Same
+// loud message as Apply's exception so the guard can assert against a
+// process exit (not an in-process exception). The probe classification
+// itself is the same one the production probe runs.
+internal static class ProbeBindFaultReporter {
+	public static void ReportAndExit(ProbeBind.Outcome outcome) {
+		Console.Error.WriteLine(
+			"ERROR — AppHost pre-flight: the probe could not determine "
+				+ $"whether 127.0.0.1:5454 is free. Real cause: {outcome.Diagnostic}. "
+				+ "Unexpected socket error (neither address-already-in-use nor a successful bind). "
+				+ "Actions: examine the process permissions (sandbox, capabilities, "
+				+ "firewall), the availability of IPv4 on the loopback, and the network "
+				+ "state before re-running `dotnet run --project apps/apphost`.");
+		Environment.Exit(1);
 	}
 }
