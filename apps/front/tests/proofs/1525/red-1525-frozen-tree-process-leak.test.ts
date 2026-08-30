@@ -143,13 +143,17 @@ const countSurvivors = (childToken: string): number => {
 	try {
 		const entries = readdirSync('/proc');
 		for (const entry of entries) {
-			if (!/^\d+$/.test(entry)) continue;
+			if (!/^\d+$/.test(entry)) {
+				continue;
+			}
 			try {
 				const cmdline = readFileSync(`/proc/${entry}/cmdline`, 'utf-8').replace(
 					/\0/g,
 					' ',
 				);
-				if (cmdline.includes(childToken)) count++;
+				if (cmdline.includes(childToken)) {
+					count++;
+				}
 			} catch {
 				// Process exited.
 			}
