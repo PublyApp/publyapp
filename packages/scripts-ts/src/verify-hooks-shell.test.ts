@@ -106,9 +106,10 @@ const addExecutableHook = (
 	return path;
 };
 
-const runScript = (
-	repoRoot: string,
-): { status: number; stdout: string; stderr: string } => {
+// Return types stay inferred: an explicit anonymous object type here trips
+// anti-slop(no-known-value-widening), and the inferred shape is exactly what
+// the two return sites already prove.
+const runScript = (repoRoot: string) => {
 	const result = execFileSync(
 		'sh',
 		[join(repoRoot, '.husky', '_verify-hooks.sh')],
@@ -121,9 +122,7 @@ const runScript = (
 	return { status: 0, stdout: result, stderr: '' };
 };
 
-const runScriptExpectingFailure = (
-	repoRoot: string,
-): { status: number | null; stdout: string; stderr: string } => {
+const runScriptExpectingFailure = (repoRoot: string) => {
 	try {
 		const result = execFileSync(
 			'sh',

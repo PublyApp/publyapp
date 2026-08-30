@@ -152,8 +152,8 @@ export const verifyHook = (cwd: string, hook: HookName): HookVerification => {
 	const workingMode = readFileMode(hookPath);
 
 	if (indexMode !== null && workingMode !== null) {
-		const indexExecutable = (parseInt(indexMode, 8) & 0o111) !== 0;
-		const workingExecutable = (parseInt(workingMode, 8) & 0o111) !== 0;
+		const indexExecutable = (Number.parseInt(indexMode, 8) & 0o111) !== 0;
+		const workingExecutable = (Number.parseInt(workingMode, 8) & 0o111) !== 0;
 
 		// Both index and working copy expect the hook to be runnable: confirm
 		// the working copy honours it. (This is the common case after a
