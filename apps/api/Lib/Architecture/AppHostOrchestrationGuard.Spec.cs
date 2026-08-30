@@ -185,8 +185,8 @@ public sealed partial class AppHostOrchestrationGuardSpec : IDisposable {
 				+ $"state — the silent 'looks free' or 'looks occupied' verdicts both "
 				+ $"fail this fix. Actual exit: {run.ExitCode}"
 		);
-		// The misleading "address already in use" / "arrêtez le conteneur qui
-		// écoute sur 5454" diagnosis is exactly what the round-4 review caught:
+		// The misleading "address already in use" / "stop the container listening
+		// on 5454" diagnosis is exactly what the round-4 review caught:
 		// it sends the user chasing a phantom listener. The new path MUST NOT
 		// repeat it for a non-AddressAlreadyInUse error.
 		PortGuardMessage().IsMatch(run.Console).Should().BeFalse(
@@ -606,8 +606,8 @@ public sealed partial class AppHostOrchestrationGuardSpec : IDisposable {
 	private static partial Regex NamedPostgresVolumeMount();
 
 	// The guard must name the port AND the DCP symptom AND the concrete next
-	// action (stop the occupier / pick another port). "Nommer la cause en clair".
-	// The window is wide because in the console the message is one block.
+	// action (stop the occupier / pick another port). The console message is
+	// one block, so the regex window is wide.
 	[GeneratedRegex(
 		"5454[\\s\\S]{0,1200}address already in use[\\s\\S]{0,1200}dotnet run --project apps/apphost"
 	)]
