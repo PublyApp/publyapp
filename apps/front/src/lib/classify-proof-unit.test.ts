@@ -569,14 +569,24 @@ describe('readExpectedRedManifest — measuredAgainst is mandatory and validated
 			bad,
 			JSON.stringify({
 				expectedRed: [{ testName: 't', why: 't' }],
-				measuredAgainst: 'pas-un-sha',
+				measuredAgainst: 'not-a-sha',
 			}),
 		);
 
-		// RED: unreadable value must throw, showing the bad value
-		expect(() => readExpectedRedManifest(bad)).toThrow(
-			/measuredAgainst.*pas-un-sha.*t5-bad-sha\.json/s,
-		);
+		// RED: unreadable value must throw, naming BOTH the bad value and the
+		// file it came from. Asserted as two independent substrings, not one
+		// ordered regex: the contract is what the message says, not the order
+		// it says it in, and an ordered regex reddens on a harmless rewording.
+		let thrown: unknown;
+		try {
+			readExpectedRedManifest(bad);
+		} catch (error) {
+			thrown = error;
+		}
+		expect(thrown).toBeInstanceOf(Error);
+		expect((thrown as Error).message).toContain('measuredAgainst');
+		expect((thrown as Error).message).toContain('not-a-sha');
+		expect((thrown as Error).message).toContain('t5-bad-sha.json');
 
 		// GREEN: valid SHA passes
 		writeFileSync(
