@@ -39,9 +39,10 @@ import { describe, expect, it } from 'vitest';
 const FRONT_ROOT = path.resolve(import.meta.dirname, '..', '..'); // scripts/ci → apps/front
 const WRAPPER = path.join(FRONT_ROOT, 'scripts', 'run-guarded.mts');
 
-// The proof itself must never hang more than ~6s even if the wrapper is
-// missing or misbehaving (3s guard timeout × safety multiplier of 2).
-const PROOF_TIMEOUT_MS = 6000;
+// The proof itself must never hang more than ~15s even if the wrapper is
+// missing or misbehaving (3s guard timeout × safety multiplier of 5,
+// leaving generous headroom for child-process spawn + /proc scan overhead).
+const PROOF_TIMEOUT_MS = 15000;
 
 /**
  * Spawn the wrapper with the given guard path and timeout override.
@@ -96,15 +97,28 @@ const runWrapper = (
 
 const makeFrozenGuard = async (): Promise<string> => {
 	const dir = await mkdtemp(path.join(tmpdir(), 'proof-1525-'));
+	const childScriptPath = path.join(dir, 'frozen-child.mts');
+	await writeFile(
+		childScriptPath,
+		[
+			"process.stdout.write('frozen-child-started\\n');",
+			'// This child runs forever — the exact #1525 orphan scenario.',
+			'setInterval(() => {}, 1000);',
+		].join('\n'),
+		'utf-8',
+	);
 	const guardPath = path.join(dir, 'frozen-guard.mts');
 	await writeFile(
 		guardPath,
 		[
-			'// Deliberately frozen guard — never resolves, never exits. ',
-			'// Without run-guarded.mts this hangs forever.',
+			'// Deliberately frozen guard that spawns a child process.',
+			'// Without run-guarded.mts this hangs forever AND leaves the child',
+			'// orphaned when killed by PID (the exact #1525 bug class).',
+			"import { spawn } from 'node:child_process';",
+			"import process from 'node:process';",
 			"process.stdout.write('frozen-guard-started\\n');",
-			'// setInterval keeps the process alive forever without top-level',
-			'// await (which Node 24 rejects). This is the #1525 freeze pattern.',
+			"const child = spawn(process.execPath, [process.argv[1].replace('frozen-guard.mts', 'frozen-child.mts')], { stdio: 'inherit' });",
+			'// setInterval keeps the parent alive forever.',
 			'setInterval(() => {}, 1000);',
 		].join('\n'),
 		'utf-8',
@@ -149,6 +163,11 @@ describe('run-guarded.mts — issue #1525 timeout kills process tree', () => {
 			// wrapper spawned the *real* guard, not a no-op).
 			expect(result.stdout).toContain('frozen-guard-started');
 
+			// stdout must also show the spawned child started — proving the
+			// frozen guard spawns a child process that the wrapper MUST
+			// kill via process-group SIGKILL (not just the parent PID).
+			expect(result.stdout).toContain('frozen-child-started');
+
 			await rm(dir, { recursive: true, force: true });
 		},
 		PROOF_TIMEOUT_MS + 5000,
@@ -164,7 +183,9 @@ describe('run-guarded.mts — issue #1525 timeout kills process tree', () => {
 
 			// Give the kernel a moment to reap the killed process group.
 			// Then scan /proc for any process whose command line contains
-			// 'frozen-guard' — the frozen guard should be gone.
+			// 'frozen-guard' OR 'frozen-child' — both should be gone.
+			// If only the parent PID were killed (not the process group),
+			// the child would survive as an orphan holding the CI lock.
 			await new Promise((r) => setTimeout(r, 200));
 
 			let survivors = 0;
@@ -180,7 +201,10 @@ describe('run-guarded.mts — issue #1525 timeout kills process tree', () => {
 							/\0/g,
 							' ',
 						);
-						if (cmdline.includes('frozen-guard')) {
+						if (
+							cmdline.includes('frozen-guard') ||
+							cmdline.includes('frozen-child')
+						) {
 							survivors++;
 						}
 					} catch {
