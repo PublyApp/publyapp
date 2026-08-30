@@ -57,10 +57,20 @@
 import { spawn, type ChildProcess } from 'node:child_process';
 import process from 'node:process';
 
-const GUARD_TIMEOUT_SECONDS = Number(
-	process.env.GUARD_TIMEOUT_SECONDS ?? '300',
-);
-const GUARD_TIMEOUT_MS = Math.round(GUARD_TIMEOUT_SECONDS * 1000);
+const parsedTimeoutSeconds = Number(process.env.GUARD_TIMEOUT_SECONDS ?? '300');
+if (!Number.isFinite(parsedTimeoutSeconds) || parsedTimeoutSeconds <= 0) {
+	const raw = process.env.GUARD_TIMEOUT_SECONDS ?? '(not set)';
+	console.error(
+		'\n' +
+			'═'.repeat(72) +
+			'\n' +
+			`GUARD_TIMEOUT_SECONDS is invalid: got "${raw}", expected a finite number > 0.\n` +
+			'═'.repeat(72) +
+			'\n',
+	);
+	process.exit(2);
+}
+const GUARD_TIMEOUT_MS = Math.round(parsedTimeoutSeconds * 1000);
 
 const rawArgs = process.argv.slice(2);
 
@@ -137,37 +147,38 @@ const forwardSignal = (sig: NodeJS.Signals) => {
 process.on('SIGINT', () => forwardSignal('SIGINT'));
 process.on('SIGTERM', () => forwardSignal('SIGTERM'));
 
-const failHard = (exitCode: number): never => {
-	if (settled) {
-		throw new Error('failHard called after settlement');
-	}
-	settled = true;
-	const elapsedSec = ((Date.now() - startMs) / 1000).toFixed(1);
-	const cmdPreview = [...nodeFlags, guardLabel, ...scriptArgs].join(' ');
-	console.error(
-		'\n' +
-			'═'.repeat(72) +
-			'\n' +
-			`GUARD TIMEOUT: "${guardLabel}" did not finish within ${GUARD_TIMEOUT_SECONDS}s ` +
-			`(it ran for ${elapsedSec}s).\n` +
-			`command: node ${cmdPreview}\n` +
-			`process tree killed (PGID ${child.pid}).\n` +
-			'═'.repeat(72) +
-			'\n',
-	);
-	process.exit(exitCode);
-};
-
 const watchdog = setTimeout(() => {
 	// The guard exceeded the timeout. SIGKILL the entire process group.
+	let killFailed = false;
 	if (child.pid && child.pid > 0) {
 		try {
 			process.kill(-child.pid, 'SIGKILL');
 		} catch {
 			// Child may have exited between timeout firing and this call.
+			killFailed = true;
 		}
 	}
-	failHard(1);
+	if (settled) {
+		return;
+	}
+	settled = true;
+	const elapsedSec = ((Date.now() - startMs) / 1000).toFixed(1);
+	const cmdPreview = [...nodeFlags, guardLabel, ...scriptArgs].join(' ');
+	const killResult = killFailed
+		? 'failed to send SIGKILL — child process had already exited'
+		: `process tree killed (PGID ${child.pid})`;
+	console.error(
+		'\n' +
+			'═'.repeat(72) +
+			'\n' +
+			`GUARD TIMEOUT: "${guardLabel}" did not finish within ${parsedTimeoutSeconds}s ` +
+			`(it ran for ${elapsedSec}s).\n` +
+			`command: node ${cmdPreview}\n` +
+			`${killResult}.\n` +
+			'═'.repeat(72) +
+			'\n',
+	);
+	process.exit(1);
 }, GUARD_TIMEOUT_MS);
 
 child.on('exit', (code: number | null, signal: NodeJS.Signals | null) => {
