@@ -827,14 +827,14 @@
 			"reason": "jscpd@4 production duplication ratchet: runs jscpd against production paths and verifies unique pair count and line count within the committed baseline. Identical to the CI step quality-gate.yml::quality::Verify production duplication has not increased (#1821)."
 		},
 		"quality-gate.yml::ratchet-raise::Checkout": {
-			"hash": "11ee605b2ca0dfd4",
+			"hash": "f6bbd86f711cad8c",
 			"mirror": null,
-			"reason": "GitHub-only: clones the repo onto the runner. Locally the working tree already is the code under test."
+			"reason": "GitHub-only: clones the repo onto the runner with fetch-depth: 0 so `git merge-base` can succeed. A shallow checkout (default fetch-depth: 1) leaves HEAD with no common ancestor with the base ref, which would silently degrade the guard's diff scope."
 		},
 		"quality-gate.yml::ratchet-raise::Verify jscpd reference raise is accompanied by a docs/records/ change (#1969)": {
 			"hash": "50a873c06f4fe681",
 			"mirror": "just ci-jscpd-raise",
-			"reason": "#1969 dedicated job: verifies that a jscpd reference raise is provably accompanied by a docs/records/ file whose diff body contains the keyword 'jscpd'. The raise is a visible, reviewed decision rather than a red gate someone waves through. Mirrors `just ci-jscpd-raise`, which runs the same vitest suite and the guard script."
+			"reason": "#1969 dedicated job: verifies that a jscpd reference raise is provably accompanied by a docs/records/ file whose added diff lines contain the raised key names (e.g. productionPairs.count). The raise is a visible, reviewed decision rather than a red gate someone waves through. Mirrors `just ci-jscpd-raise`, which runs the same vitest suite and the guard script."
 		},
 		"quality-gate.yml::quality::Verify deploy env doc coverage (#1798)": {
 			"hash": "7e3a5bf766524b33",

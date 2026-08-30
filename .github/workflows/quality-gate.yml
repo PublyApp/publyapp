@@ -371,8 +371,21 @@ jobs:
     if: needs.changes.outputs.relevant == 'true'
     runs-on: ubuntu-latest
     steps:
+      # fetch-depth: 0 — this job's guard (`check-jscpd-raise.ts`) runs
+      # `git merge-base origin/<base> HEAD` to scope the diff to the PR's own
+      # changes. A shallow checkout (the default fetch-depth: 1) fetches HEAD
+      # and the base as two independent depth-1 tips that share NO common
+      # ancestor — merge-base returns empty and the diff goes blank (the guard
+      # silently substitutes `base..HEAD`, crediting base-side changes to the
+      # PR). Fetching full history is the clean fix: the guard never has to
+      # fetch or unshallow, and the rest of the workflow benefits from full
+      # history for blame, diff, and any future git-based gate. The script
+      # also defends against a shallow graft left by another context
+      # (`git fetch --unshallow`).
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
 
       # `just ci-jscpd-raise` runs pnpm/vitest/tsc, so this job needs the same
       # toolchain as `quality`. The first push of this job ran on a bare
