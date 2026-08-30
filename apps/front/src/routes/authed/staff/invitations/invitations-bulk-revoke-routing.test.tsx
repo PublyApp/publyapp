@@ -355,6 +355,37 @@ const BULK_REVOKE_OUTCOME_CASES: BulkRevokeOutcomeCase[] = [
 			'1 already accepted',
 		],
 	},
+	// #1862: a null reason must fall back to the generic "other" key — never a
+	// known reason, never empty. The `?? ''` fallback turns null/undefined into
+	// '', which Map.get misses, so the "other" key fires. The `|| 'already_accepted'`
+	// mutation (the #1862 bypass) would turn this into a false "already accepted"
+	// cause — this case must be RED under that mutation and GREEN without it.
+	{
+		name: 'a failure with null reason falls back to other',
+		outcome: 'error',
+		response: {
+			succeededCount: 1,
+			failedCount: 1,
+			failedItems: [{ invitationId: ACCEPTED_B, reason: null as unknown as string }],
+		},
+		errorToastArgs: [
+			'Revoked 1 invitation(s), 1 failed.',
+			'1 could not be revoked',
+		],
+	},
+	{
+		name: 'a failure with empty reason falls back to other',
+		outcome: 'error',
+		response: {
+			succeededCount: 1,
+			failedCount: 1,
+			failedItems: [{ invitationId: ACCEPTED_B, reason: '' }],
+		},
+		errorToastArgs: [
+			'Revoked 1 invitation(s), 1 failed.',
+			'1 could not be revoked',
+		],
+	},
 ];
 
 describe('#1387 invitations selection-mode bulk revoke (real router)', () => {
