@@ -685,9 +685,9 @@
 			"reason": "GitHub-only: clones the repo onto the runner. Locally the working tree already is the code under test."
 		},
 		"quality-gate.yml::no-dockerignore-shadow::Forbid .dockerignore shadow files (#1849)": {
-			"reason_hash": "63fd1426eae1882c",
-			"reason_length": 617,
-			"reason": "just ci-dockerignore-shadow runs the identical `node packages/scripts-ts/src/check-dockerignore-shadow.ts` against the real working tree plus its vitest fixture suite, which proves the guard names a recreated apps/api/Dockerfile.dockerignore and explains that Docker REPLACES the root .dockerignore instead of merging it (#1849). The job is UNCONDITIONED in the workflow for the same reason as no-ignored-tracked (#1513): a shadow file could arrive on a path the changed-paths classifier does not enumerate, so gating it behind relevance would let exactly the defect this guard exists to catch decide whether it runs."
+			"reason_hash": "7feddba3f6765aa4",
+			"reason_length": 460,
+			"reason": "ci-dockerignore-shadow runs the identical `node packages/scripts-ts/src/check-dockerignore-shadow.ts`, which walks the REAL working tree (the same filesystem a build context is drawn from) and flags every file whose basename ends with `.dockerignore` case-insensitively but is not exactly `.dockerignore`. Git-ignored paths (e.g. parallel .worktrees/) are filtered out via a single batch `git check-ignore -v --stdin` call (issue #1909 class). See issue #1849."
 		},
 		"quality-gate.yml::quality::Assert exact pins": {
 			"reason_hash": "23640fc62c5d63d6",
