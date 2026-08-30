@@ -410,6 +410,8 @@ jobs:
           node ./packages/scripts-ts/src/check-cyclomatic-bound.ts
           pnpm --filter scripts-ts exec vitest run src/check-shallow-repo.test.ts
           node ./packages/scripts-ts/src/check-shallow-repo.ts
+          pnpm --filter scripts-ts exec vitest run src/check-merge-base.test.ts
+          node ./packages/scripts-ts/src/check-merge-base.ts
           # #1674: bite-proof test for the production-dependency audit
           # gate. Runs the real pnpm audit on a controlled fixture
           # carrying a known-stable moderate advisory (ejs@3.1.7 →

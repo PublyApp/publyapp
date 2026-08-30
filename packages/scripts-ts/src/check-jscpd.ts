@@ -345,13 +345,21 @@ const gitShowBlob = (gitDir: string, ref: string, relPath: string): string =>
 	});
 
 /**
- * Fetch the base branch once (shallow) when its remote-tracking ref is
- * missing. Best effort: the caller retries the read and fails loud naming
- * every attempt when the fetch does not help.
+ * Fetch the base branch once when its remote-tracking ref is missing. Best
+ * effort: the caller retries the read and fails loud naming every attempt
+ * when the fetch does not help.
+ *
+ * #1773: this fetch must NEVER carry `--depth` (or `--deepen`). A shallow
+ * fetch of a single branch writes the branch tip into the shared
+ * `.git/shallow`, grafting its history: `git merge-base` then returns empty
+ * and every history comparison against the branch measures nothing while
+ * staying green — the 2026-08-29 incident, re-seeded by the very "repair"
+ * meant to remove it. A plain fetch of the branch's full history is slower
+ * but never grafts the repository.
  */
 const gitFetchBaseBranch = (gitDir: string, branch: string): string => {
 	try {
-		execFileSync('git', ['fetch', '--depth', '1', 'origin', branch], {
+		execFileSync('git', ['fetch', 'origin', branch], {
 			cwd: gitDir,
 			encoding: 'utf-8',
 			timeout: 120_000,
