@@ -48,6 +48,7 @@ import {
 	scanTreeForSharedTsReExports,
 	SHARED_TS_SEGMENTS,
 	deriveSharedTsSegments,
+	buildSharedTsModulePattern,
 	formatFinding,
 } from './check-shared-ts-import-paths.mts';
 
@@ -840,5 +841,83 @@ main({
 	assert.ok(
 		result.stderr.includes('missing'),
 		`stderr must name the missing-segments cause, got: ${result.stderr}`,
+	);
+});
+
+// ---- #1707: file-type entries in packages/shared-ts/src/ must be recognised as segments ----
+// The package.json declares "exports": { "./*": { "types": ["./src/*.ts"] } }, so a
+// file like packages/shared-ts/src/foo.ts IS resolvable as @org/shared-ts/foo. The
+// previous isDirectory()-only filter silently dropped it, leaving the guard blind
+// to re-exports of that segment. The fix extends the derivation to file entries,
+// stripping the .ts/.mts/.cts extension to obtain the segment name.
+
+void test('RED: a .ts file at shared-ts/src root is recognised as a segment (#1707)', () => {
+	const root = mkdtempSync(path.join(tmpdir(), 'seg-file-'));
+	sandboxes.push(root);
+	mkdirSync(path.join(root, '@types'), { recursive: true });
+	mkdirSync(path.join(root, 'lib'), { recursive: true });
+	mkdirSync(path.join(root, 'scripts'), { recursive: true });
+	mkdirSync(path.join(root, 'types'), { recursive: true });
+	mkdirSync(path.join(root, 'utils'), { recursive: true });
+	mkdirSync(path.join(root, 'validations'), { recursive: true });
+	writeFileSync(path.join(root, 'foo.ts'), `export const foo = 'bar';\n`);
+
+	const segments = deriveSharedTsSegments(root);
+
+	assert.ok(
+		segments.includes('foo'),
+		`deriveSharedTsSegments must include 'foo' (the file segment), got ${JSON.stringify(segments)}`,
+	);
+});
+
+void test('RED: a re-export of a file-segment @org/shared-ts/foo is detected as DUAL_PATH (#1707)', () => {
+	const root = makeSandbox();
+	writeFileSync(
+		path.join(root, 'shared-ts-src/foo.ts'),
+		`export const foo = 'bar';\n`,
+	);
+	writeFileSync(
+		path.join(root, 'front-src/lib/file-segment-shim.ts'),
+		`export { foo } from '@org/shared-ts/foo';\n`,
+	);
+
+	// Build the pattern from the sandbox's shared-ts-src so the file-level
+	// segment `foo` is recognised (the module-level pattern is derived from the
+	// real tree which does not contain foo.ts).
+	const pattern = buildSharedTsModulePattern(path.join(root, 'shared-ts-src'));
+	const findings = scanFrontSrcForSharedTsReExports(
+		path.join(root, 'front-src'),
+		pattern,
+	);
+	const hit = findings.find(
+		(f) => f.file === 'apps/front/src/lib/file-segment-shim.ts',
+	);
+	assert.ok(
+		hit,
+		`re-export of a file-segment shared-ts module must be detected, got ${JSON.stringify(findings)}`,
+	);
+	assert.equal(
+		hit.type,
+		'DUAL_PATH',
+		`file-segment re-export must be DUAL_PATH, not UNKNOWN_SEGMENT — breaks when fix is reverted (#1707)`,
+	);
+});
+
+void test('MUTATION: reverting to isDirectory()-only drops file segments (#1707)', () => {
+	const root = mkdtempSync(path.join(tmpdir(), 'seg-mutation-'));
+	sandboxes.push(root);
+	mkdirSync(path.join(root, 'lib'), { recursive: true });
+	writeFileSync(path.join(root, 'foo.ts'), `export const foo = 'bar';\n`);
+	writeFileSync(path.join(root, 'bar.json'), `{}\n`);
+
+	const segments = deriveSharedTsSegments(root);
+
+	assert.ok(
+		segments.includes('foo'),
+		`file segment 'foo' must be derived — reverting to isDirectory() only drops it (#1707): ${JSON.stringify(segments)}`,
+	);
+	assert.ok(
+		!segments.includes('bar'),
+		`non-source file 'bar.json' must NOT be derived as a segment: ${JSON.stringify(segments)}`,
 	);
 });

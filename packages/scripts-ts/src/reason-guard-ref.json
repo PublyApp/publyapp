@@ -189,6 +189,7 @@
 		"quality-gate.yml::quality::Audit development dependencies (moderate and above)",
 		"quality-gate.yml::quality::Bind pinned action SHAs to their version comments (#1392)",
 		"quality-gate.yml::quality::Build .NET solution (warnings as errors via Directory.Build.props)",
+		"quality-gate.yml::quality::Check formatter scope (#1875)",
 		"quality-gate.yml::quality::Check formatting (oxfmt --check)",
 		"quality-gate.yml::quality::Checkout",
 		"quality-gate.yml::quality::Install (frozen lockfile, no scripts)",
@@ -922,6 +923,11 @@
 			"reason_hash": "fa3bbfa576e1dc0c",
 			"reason_length": 251,
 			"reason": "ci-quality-dotnet runs the identical dotnet build PublyApp.slnx --no-restore with TreatWarningsAsErrors and EnforceCodeStyleInBuild active via Directory.Build.props, so any analyzer or code-style warning fails the build the same way in CI and locally."
+		},
+		"quality-gate.yml::quality::Check formatter scope (#1875)": {
+			"reason_hash": "954284ab5e9c6631",
+			"reason_length": 439,
+			"reason": "ci-format now runs pnpm format AND then pnpm --filter scripts-ts exec vitest run src/check-formatter-scope.test.ts, the same vitest file this step runs. The guard asks oxfmt itself (via the real .oxfmtrc.json from the repo root) which files each package.json format glob would process, so an ignorePatterns entry that silently swallows a directory the globs enumerate fails red naming the directory instead of letting `pnpm format` exit 0."
 		},
 		"quality-gate.yml::quality::Check formatting (oxfmt --check)": {
 			"reason_hash": "6b89e3c033cf0ebc",

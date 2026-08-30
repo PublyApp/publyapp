@@ -193,6 +193,16 @@ jobs:
       - name: Check formatting (oxfmt --check)
         run: pnpm format
 
+      # #1875: the formatter-scope guard. `pnpm format` above runs oxfmt with
+      # the globs declared in package.json against the ignorePatterns in
+      # .oxfmtrc.json. The guard asks OXFMT ITSELF which files each glob would
+      # process, so an ignorePatterns entry that swallows a directory the globs
+      # explicitly enumerate (the #1875 bypass) turns this step red naming the
+      # directory, instead of silently skipping the files. Mirrored by
+      # `just ci-format` (the same vitest file runs inside the recipe).
+      - name: Check formatter scope (#1875)
+        run: pnpm --filter scripts-ts exec vitest run src/check-formatter-scope.test.ts
+
       - name: Lint (oxlint repo-wide)
         run: pnpm lint
 

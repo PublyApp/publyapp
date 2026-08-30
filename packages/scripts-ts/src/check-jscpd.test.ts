@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
 import { mkdir, mkdtemp, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -1142,4 +1143,116 @@ test('real repository passes with the merge-base reference', () => {
 	assert.ok(refSource !== null, 'the reference must come from the merge base');
 	assert.ok(refSource.startsWith('git:'), `refSource=${refSource}`);
 	assert.deepEqual(errors, [], `real-tree guard failed:\n${errors.join('\n')}`);
+});
+
+// ---------------------------------------------------------------------------
+// #1932: the guard must name the EXACT pair that crossed its base, not just the
+// top-5 contributors. This requires pairLines/autoLines to be present in the
+// reference. The test proves both properties:
+//   1. With pairLines populated, a synthetic over-baseline pair is named by its
+//      exact file pair (base -> current lines), not the top-5 list.
+//   2. The committed reference carries pairLines and autoLines (stripped maps
+//      cause the test to fail loudly).
+// ---------------------------------------------------------------------------
+
+test('#1932: with pairLines in the reference, the exact crossing pair is named, not the top-5 list', async () => {
+	// A synthetic report: five large pre-existing pairs fill the top-5, plus a
+	// small NEW pair (a <-> b, 5 lines, base total 0) that crosses its base.
+	// The guard must name (a <-> b, 0 -> 5) — the pair the PR actually made
+	// worse — not the top-5 contributors.
+	const big = Array.from({ length: 5 }, (_, i) => [
+		`apps/api/Large${i}A.cs`,
+		`apps/api/Large${i}B.cs`,
+	]);
+	const dupes = [
+		...big.map(([a, b]) => ({
+			firstFile: { name: a },
+			secondFile: { name: b },
+			lines: 100,
+		})),
+		{
+			firstFile: { name: 'apps/api/NewA.cs' },
+			secondFile: { name: 'apps/api/NewB.cs' },
+			lines: 5,
+		},
+	];
+
+	// The reference HAS pairLines — every pair's base is its current value,
+	// except the new pair which has no base (base total 0).
+	const ref = {
+		productionPairs: { count: 5, lines: 500 },
+		productionAuto: { count: 0, lines: 0 },
+		pairLines: {
+			...Object.fromEntries(big.map(([a, b]) => [`${a}|${b}`, 100])),
+		},
+		autoLines: {},
+	};
+
+	const root = await mkdtemp(path.join(os.tmpdir(), 'publyapp-jscpd-1932-'));
+	const refPath = path.join(root, 'ref.json');
+	const reportPath = path.join(root, 'report.json');
+	await writeFile(refPath, JSON.stringify(ref, null, '\t'));
+	await writeFile(
+		reportPath,
+		JSON.stringify(
+			{
+				statistics: { total: { clones: 6 } },
+				duplicates: dupes,
+			},
+			null,
+			'\t',
+		),
+	);
+
+	const { errors } = verifyJscpdRatchet(reportPath, refPath);
+	assert.ok(errors.length > 0, 'the new pair must red the guard');
+
+	// The EXACT crossing pair must be named (not the top-5 list).
+	assert.ok(
+		errors.some(
+			(e) =>
+				e.includes('apps/api/NewA.cs <-> apps/api/NewB.cs') &&
+				e.includes('(0 -> 5 duplicated lines)'),
+		),
+		`guard must name the exact crossing pair, got: ${errors.join('\n')}`,
+	);
+
+	// The top-5 fallback message must NOT appear when pairLines is present.
+	assert.ok(
+		!errors.some((e) => e.includes('Largest pair contributors')),
+		`guard must not fall back to top-5 list when pairLines is present, got: ${errors.join('\n')}`,
+	);
+});
+
+test('#1932: the committed jscpd-reference.json carries pairLines and autoLines (stripping them fails the test)', () => {
+	// Read the REAL committed reference file. The guard requires pairLines and
+	// autoLines to name exact offenders; if they are stripped the guard degrades
+	// to a top-5 list that frequently does NOT point at the pair the PR made
+	// worse. This test pins their presence so they cannot be silently removed.
+	const refPath = path.resolve(
+		path.dirname(fileURLToPath(import.meta.url)),
+		'jscpd-reference.json',
+	);
+	const raw = readFileSync(refPath, 'utf-8');
+	const ref = JSON.parse(raw) as {
+		pairLines?: unknown;
+		autoLines?: unknown;
+	};
+
+	assert.ok(
+		typeof ref.pairLines === 'object' && ref.pairLines !== null,
+		'jscpd-reference.json must carry pairLines (stripping it breaks offender naming, #1932)',
+	);
+	assert.ok(
+		Object.keys(ref.pairLines).length > 0,
+		'pairLines must be non-empty (at least one production clone pair exists)',
+	);
+	assert.ok(
+		typeof ref.autoLines === 'object' && ref.autoLines !== null,
+		'jscpd-reference.json must carry autoLines (stripping it breaks self-dup offender naming, #1932)',
+	);
+	assert.ok(
+		Object.keys(ref.autoLines).length > 0,
+		'autoLines must be non-empty (at least one self-duplicated production file exists)',
+	);
 });
