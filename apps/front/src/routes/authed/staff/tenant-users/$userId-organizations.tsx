@@ -246,9 +246,16 @@ const OrganizationsBulkActions = ({
 	// Filtering the visible rows keeps the contract tight: every id is
 	// something the user can currently see, and the prune window cannot
 	// leak a target the server no longer has on this page.
-	const selectedIds = rows
-		.filter((row) => selection.rowSelection[row.id])
-		.map((row) => row.id);
+	//
+	// Single pass (react-doctor/js-combine-iterations): no chained
+	// filter+map. The loop pushes `row.id` for every visible row that is
+	// selected, preserving both the visibility filter and the projection.
+	const selectedIds: string[] = [];
+	for (const row of rows) {
+		if (selection.rowSelection[row.id]) {
+			selectedIds.push(row.id);
+		}
+	}
 	const isOverLimit = selectedIds.length > BULK_ACTION_MAX_COUNT;
 
 	const confirmRemoveSelectedOrganizations = async () => {
