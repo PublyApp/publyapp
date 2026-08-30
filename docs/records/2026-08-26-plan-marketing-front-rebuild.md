@@ -204,3 +204,55 @@ No local e2e stack (`just ci-e2e-front`, docker compose test stack) — CI runs 
 2. **Q2 — trailing slash.** Default: no trailing slash (TanStack norm), enforced canonically in #374 with redirects if the owner prefers slashes.
 3. **Q3 — blog authoring format.** JSX-as-content for phase 2 (parity, zero new infra); revisit MDX when #368 brings real articles.
 4. **Q4 — language switcher.** The retired `languageSwitcher` flag is not rebuilt; current front has no switcher UI and EN+FR is served by i18n negotiation. Out of scope until product asks.
+
+## Round-3 follow-up audit (per #1517)
+
+The two #1517 follow-up items were re-verified at the implementation
+start of the marketing rebuild on `lane/grp-planfollowups` against the
+current state on `develop`. The plan body already carries the
+provenance note for the deleted guide (line 35 of the original "Sources
+read" table); the round-3 note below adds the file-count verification
+that the proof file `.dump/proof-1517.md` recorded.
+
+1. **File counts re-derived.** The "reel" column in the table below is
+   re-derivable today via
+   `gh pr view <N> --json files --jq '[.files[] | select(.path | test("marketing"; "i"))] | length'`,
+   counting entries whose path contains the substring "marketing"
+   (case-insensitive). None of the six PRs has a mergeCommit (all are
+   `state: "CLOSED"`, `mergedAt: null`), so the literal command the
+   issue requests, `git show --stat <mergeCommit>`, cannot run; the
+   `gh pr view --json files` snapshot exposes the same file list and
+   matches the "reel" column to the unit:
+
+   | PR | annonce (planned) | reel (PR diff, path ~ /marketing/i) |
+   |----|-------------------|-------------------------------------|
+   | #668 | 12/13 | 9/13 |
+   | #669 | 12/13 | 9/13 |
+   | #670 | 10/12 | 7/12 |
+   | #671 | 9/13  | 8/13 |
+   | #672 | 21/28 | 18/28 |
+   | #673 | 11/13 | 1/13 |
+
+   The "annonce" column cannot be re-derived from a non-existent
+   citations file; it is the plan-as-merged ground truth. The
+   "reel" column is the only one a future implementer needs to
+   re-derive, and the methodology above is named.
+2. **Provenance of the deleted guide.** The plan's "Sources read"
+   table (line 35) already records the deletion commit
+   `77609e3575307c1e6b225f458f36b6e29e390d0b` and notes that the
+   only path that resolves today is
+   `git show 77609e357~1:docs/guides/marketing-surface-conventions.md`.
+   Verified by `git show 77609e357~1:docs/guides/marketing-surface-conventions.md`
+   (returns the file's content header) and
+   `git show 77609e357:docs/guides/marketing-surface-conventions.md`
+   (returns "fatal: path ... not found in tree"). `git ls-tree -r HEAD`
+   and `git ls-tree -r origin/develop` return no path matching
+   `marketing-surface-conventions`. The plan's wording now says
+   "read from history", not "read from the file" — an implementer
+   following the plan will run the git-show command, not look for
+   the file on disk.
+
+No code change is required; the corrections are already present in
+the merged plan's "Sources read" table. This round-3 note exists so
+the audit trail from #1517 is captured at the same standing-rules
+level as the round-2 corrections, not scattered across the body.
