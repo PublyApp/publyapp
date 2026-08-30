@@ -1,8 +1,9 @@
 // @vitest-environment node
-import { readdirSync, readFileSync, statSync } from 'node:fs';
+import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join, relative, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { ts } from 'ts-morph';
 import { describe, expect, test } from 'vitest';
 
 /**
@@ -37,6 +38,8 @@ import { describe, expect, test } from 'vitest';
  *        - `Object.entries(selection.rowSelection)` / `Object.entries(rowSelection)`
  *        - `Object.values(selection.rowSelection)` / `Object.values(rowSelection)`
  *        - `[...selection.rowSelection]` / `[...rowSelection]`
+ *        - `for (const id in selection.rowSelection)` — for-in over the map
+ *        - `const m = selection.rowSelection; Object.keys(m)` — aliasing the map
  *
  *   2. A bulk-action site that iterates the selection map without ever
  *      consulting the visible rows list is the regression this guard pins.
@@ -44,6 +47,12 @@ import { describe, expect, test } from 'vitest';
  * The `useRowSelection` primitive itself is excluded — it owns the map
  * and is allowed to introspect it (it is the one source of truth for the
  * pruned state, and its effect is the prune).
+ *
+ * #1943 hardening: migrated from regex matching to ts-morph AST analysis to
+ * catch structural forms regex could not see:
+ *   - `for...in` loops over the selection map (not caught by Object.* patterns)
+ *   - aliased variable extraction: `const m = selection.rowSelection; Object.keys(m)`
+ *     (regex required the map expression inline, not through a variable)
  */
 
 const here = fileURLToPath(new URL('.', import.meta.url));
@@ -85,49 +94,219 @@ const walkDir = (dir: string): string[] => {
 
 const allRouteFiles = walkDir(ROUTES_ROOT);
 
-// Patterns that indicate this file touches selection state. Tight enough
-// to be unambiguous; broad enough to cover both `selection.rowSelection`
-// and a `rowSelection` direct-binding style.
-const SELECTION_REFERENCE_RE =
-	/(?:^|\W)(?:selection|rowSelection)\.rowSelection\b|(?:^|\W)rowSelection\b\s*\[/;
+/**
+ * AST-based violation detector (#1943).
+ *
+ * Walks the TypeScript AST to find forbidden id-derivation patterns that
+ * extract keys from the selection map without consulting the visible rows.
+ * Unlike regex, the AST distinguishes a `for...in` loop, an aliased variable
+ * holding `selection.rowSelection`, and a call to `Object.keys` on that alias.
+ *
+ * Returns violation description strings in source order.
+ */
+type Violation = {
+	name: string;
+	line: number;
+};
 
-// Forbidden ID-derivation patterns. Each is a structural way to extract
-// ids from the raw selection map without consulting the visible rows.
-const FORBIDDEN_PATTERNS: Array<{ name: string; re: RegExp }> = [
-	{
-		name: 'Object.keys(selection.rowSelection|rowSelection)',
-		re: /Object\.keys\s*\(\s*(?:selection\.)?rowSelection\s*\)/,
-	},
-	{
-		name: 'Object.entries(selection.rowSelection|rowSelection)',
-		re: /Object\.entries\s*\(\s*(?:selection\.)?rowSelection\s*\)/,
-	},
-	{
-		name: 'Object.values(selection.rowSelection|rowSelection)',
-		re: /Object\.values\s*\(\s*(?:selection\.)?rowSelection\s*\)/,
-	},
-	{
-		name: '[...selection.rowSelection|rowSelection]',
-		re: /\[\s*\.\.\.\s*(?:selection\.)?rowSelection\s*\]/,
-	},
-];
-
-const findViolations = (file: string): string[] => {
-	const source = readFileSync(file, 'utf8');
-	const violations: string[] = [];
-	for (const { name, re } of FORBIDDEN_PATTERNS) {
-		if (re.test(source)) {
-			violations.push(name);
-		}
+/**
+ * Extract the source text of a node, unwrapped from parentheses.
+ */
+const nodeText = (node: ts.Node): string => {
+	let n = node;
+	while (ts.isParenthesizedExpression(n)) {
+		n = n.expression;
 	}
+	return n.getText();
+};
+
+/** True if the argument to Object.keys/entries/values is the selection map
+ * directly (e.g. `selection.rowSelection` or `rowSelection` itself), possibly
+ * nested in parentheses. */
+const isSelectionMapExpression = (arg: ts.Expression): boolean => {
+	let e = arg;
+	while (ts.isParenthesizedExpression(e)) {
+		e = e.expression;
+	}
+	if (ts.isPropertyAccessExpression(e) && e.name.text === 'rowSelection') {
+		return true;
+	}
+	if (ts.isIdentifier(e) && e.text === 'rowSelection') {
+		return true;
+	}
+	return false;
+};
+
+const FORBIDDEN_METHODS = new Set(['keys', 'entries', 'values']);
+
+/**
+ * Walk a single SourceFile and return all violations found.
+ */
+const findViolationsInSource = (
+	source: string,
+	filePath: string,
+): Violation[] => {
+	const sourceFile = ts.createSourceFile(
+		filePath,
+		source,
+		ts.ScriptTarget.Latest,
+		true,
+		ts.ScriptKind.TS,
+	);
+
+	const violations: Violation[] = [];
+
+	/** Visitor callback that records a violation at the node's line. */
+	const record = (name: string, node: ts.Node) => {
+		const { line } = sourceFile.getLineAndCharacterOfPosition(
+			node.getStart(sourceFile),
+		);
+		violations.push({ name, line: line + 1 });
+	};
+
+	/**
+	 * First pass: collect aliases of the selection map.
+	 * An alias is a `const m = selection.rowSelection` (or `rowSelection`
+	 * direct) binding so we can detect `Object.keys(m)` in the second pass.
+	 */
+	const selectionMapAliases = new Set<string>();
+	const visit = (node: ts.Node): void => {
+		// Detect `Object.keys/entries/values(selection.rowSelection | rowSelection)`
+		if (ts.isCallExpression(node)) {
+			const expr = node.expression;
+			if (
+				ts.isPropertyAccessExpression(expr) &&
+				ts.isIdentifier(expr.expression) &&
+				expr.expression.text === 'Object' &&
+				FORBIDDEN_METHODS.has(expr.name.text)
+			) {
+				const arg = node.arguments[0];
+				if (arg && isSelectionMapExpression(arg)) {
+					record(
+						`Object.${expr.name.text}(selection.rowSelection|rowSelection)`,
+						node,
+					);
+				}
+			}
+		}
+
+		// Detect `[...selection.rowSelection]` / `[...rowSelection]` spread
+		if (ts.isArrayLiteralExpression(node)) {
+			for (const elt of node.elements) {
+				if (!elt) continue;
+				// Spread elements wrap the spread expression — unwrap before
+				// testing the underlying expression.
+				const inner = ts.isSpreadElement(elt) ? elt.expression : elt;
+				if (isSelectionMapExpression(inner)) {
+					record('[...selection.rowSelection|rowSelection]', node);
+				}
+			}
+		}
+
+		// Detect `for (const id in selection.rowSelection)` — for-in over the map
+		if (ts.isForInStatement(node)) {
+			// TypeScript 7+ stores the iterated expression on `.expression`
+			// (older versions named it `.iterable`); the .iterable alias is
+			// not present in the vendored ts-morph compiler this repo uses.
+			const iterated = node.expression;
+			if (iterated && isSelectionMapExpression(iterated)) {
+				record('for-in over selection map', node);
+			}
+		}
+
+		// Collect aliases: `const m = selection.rowSelection` or `const m = rowSelection`
+		if (ts.isVariableStatement(node)) {
+			for (const decl of node.declarationList.declarations) {
+				if (decl.initializer && isSelectionMapExpression(decl.initializer)) {
+					if (ts.isIdentifier(decl.name)) {
+						selectionMapAliases.add(decl.name.text);
+					}
+				}
+			}
+		}
+
+		// Detect `Object.keys(m)` where m is an alias of the selection map
+		if (ts.isCallExpression(node)) {
+			const expr = node.expression;
+			if (
+				ts.isPropertyAccessExpression(expr) &&
+				ts.isIdentifier(expr.expression) &&
+				expr.expression.text === 'Object' &&
+				FORBIDDEN_METHODS.has(expr.name.text)
+			) {
+				const arg = node.arguments[0];
+				if (arg && ts.isIdentifier(arg) && selectionMapAliases.has(arg.text)) {
+					record(`Object.${expr.name.text} on aliased selection map`, node);
+				}
+			}
+		}
+
+		node.forEachChild(visit);
+	};
+
+	visit(sourceFile);
 	return violations;
+};
+
+/**
+ * Detect whether a source file references the selection map at all (either
+ * `selection.rowSelection` or a direct `rowSelection` binding). Uses the
+ * AST to avoid false positives on comments or strings.
+ */
+const hasSelectionMapReference = (source: string): boolean => {
+	const sourceFile = ts.createSourceFile(
+		'',
+		source,
+		ts.ScriptTarget.Latest,
+		true,
+		ts.ScriptKind.TS,
+	);
+	let found = false;
+	const visit = (node: ts.Node): void => {
+		if (
+			ts.isPropertyAccessExpression(node) &&
+			node.name.text === 'rowSelection'
+		) {
+			found = true;
+		}
+		if (ts.isIdentifier(node) && node.text === 'rowSelection') {
+			found = true;
+		}
+		if (!found) {
+			node.forEachChild(visit);
+		}
+	};
+	visit(sourceFile);
+	return found;
+};
+
+/**
+ * Walk route files that touch the selection map and collect offenders.
+ */
+const findViolations = (file: string): Violation[] => {
+	const source = readFileSync(file, 'utf8');
+	if (!hasSelectionMapReference(source)) {
+		return [];
+	}
+	return findViolationsInSource(source, file);
+};
+
+/**
+ * Run the violation detector against an in-memory source string.
+ * Exported for the fabrication test above and for any future synthetic
+ * proof (e.g. pairing the RED of a real offender with a fabricated
+ * baseline that asserts the detector's contract).
+ */
+export const findViolationsAgainstSource = (source: string): string[] => {
+	const violations = findViolationsInSource(source, '<fabricated>');
+	// Deduplicate by name (multiple occurrences of the same pattern class)
+	return [...new Set(violations.map((v) => v.name))];
 };
 
 describe('bulk-action sites derive ids from visible rows, not the raw selection map (#1604)', () => {
 	// Discover bulk-action sites: route files that touch selection state.
-	// (The visible-rows derive is structural; we do not parse the AST.)
 	const candidateFiles = allRouteFiles
-		.filter((file) => readFileSync(file, 'utf8').match(SELECTION_REFERENCE_RE))
+		.filter((file) => hasSelectionMapReference(readFileSync(file, 'utf8')))
 		.map((file) => relative(FRONT_ROOT, file).split(sep).join('/'));
 
 	// The selection primitive itself owns the map; the test library that
@@ -153,17 +332,13 @@ describe('bulk-action sites derive ids from visible rows, not the raw selection 
 	});
 
 	test('no bulk-action site derives ids via Object.keys/entries/values/[...] on the selection map', () => {
-		const offenders: Array<{ file: string; patterns: string[] }> = [];
+		const offenders: Array<{ file: string; violations: Violation[] }> = [];
 		for (const file of allRouteFiles) {
-			const source = readFileSync(file, 'utf8');
-			if (!SELECTION_REFERENCE_RE.test(source)) {
-				continue;
-			}
-			const patterns = findViolations(file);
-			if (patterns.length > 0) {
+			const violations = findViolations(file);
+			if (violations.length > 0) {
 				offenders.push({
 					file: relative(FRONT_ROOT, file).split(sep).join('/'),
-					patterns,
+					violations,
 				});
 			}
 		}
@@ -196,6 +371,13 @@ for (const [id, checked] of Object.entries(selection.rowSelection)) {
 const keys = Object.keys(selection.rowSelection);
 const values = Object.values(rowSelection);
 const spread = [...selection.rowSelection];
+// #1943 missed form: for-in loop over the selection map directly
+for (const id in selection.rowSelection) {
+	selectedIds.push(id);
+}
+// #1943 missed form: alias the selection map, then iterate via Object.keys
+const m = selection.rowSelection;
+const aliasKeys = Object.keys(m);
 `;
 		const violations = findViolationsAgainstSource(fabricated);
 		expect(
@@ -207,23 +389,9 @@ const spread = [...selection.rowSelection];
 				'Object.keys(selection.rowSelection|rowSelection)',
 				'Object.values(selection.rowSelection|rowSelection)',
 				'[...selection.rowSelection|rowSelection]',
+				'for-in over selection map',
+				'Object.keys on aliased selection map',
 			].sort(),
 		);
 	});
 });
-
-/**
- * Run the forbidden-pattern detector against an in-memory source string.
- * Exported for the fabrication test above and for any future synthetic
- * proof (e.g. pairing the RED of a real offender with a fabricated
- * baseline that asserts the detector's contract).
- */
-export const findViolationsAgainstSource = (source: string): string[] => {
-	const violations: string[] = [];
-	for (const { name, re } of FORBIDDEN_PATTERNS) {
-		if (re.test(source)) {
-			violations.push(name);
-		}
-	}
-	return violations;
-};
