@@ -420,7 +420,6 @@ test('fails loudly when both report and duplicates are empty', async () => {
 	);
 });
 
-
 test('real repository passes with current baseline', async () => {
 	const reportPath = path.resolve(
 		path.dirname(fileURLToPath(import.meta.url)),
