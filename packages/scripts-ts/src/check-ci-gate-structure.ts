@@ -327,6 +327,15 @@ export const GATE_WORKFLOWS = [
 		relevanceGatedJobs: [
 			{ id: 'supply-chain', needs: ['changes'] },
 			{ id: 'gate-selftest', needs: ['changes'] },
+			// #1948: the shard matrix and its coverage proof are both
+			// gated on the changes classifier like their siblings. Being in
+			// this list gives them the same hard protections as the other
+			// verification jobs: required `if:`, required `needs`,
+			// no job- or step-level `continue-on-error`, and no
+			// `defaults:` shell override (which could drop `-e` and mask a
+			// shard failure).
+			{ id: 'test-vitest', needs: ['changes'] },
+			{ id: 'test-vitest-coverage', needs: ['changes'] },
 		],
 		alwaysJobs: [],
 		// #1948: pins the 4-way vitest shard matrix for front-ci.yml, same
