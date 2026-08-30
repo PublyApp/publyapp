@@ -15,18 +15,18 @@ import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import type { StaffDeadLetterRow } from '~/lib/query/staff-jobs';
 import type { TestLabelMap } from '~/lib/testing/test-label-map';
 
-/** Pilote la vraie couture (`useQuery`) en plus du mock de module, qui est inerte
- * pour le hook local. Sans cela un test « le tiroir montre la cause du detail »
- * passerait a tort en lisant la cause de la ligne. */
+/** Drives the real seam (`useQuery`) on top of the module mock, which is inert
+ * for the local hook. Without this, a test named "the drawer shows the detail's
+ * cause" would pass for the wrong reason, by reading the row's cause instead. */
 const NO_DETAIL = { data: null, isPending: false, isError: false } as const;
 
 const mocks = vi.hoisted(() => ({
 	navigate: vi.fn(),
 	useStaffDeadLettersQuery: vi.fn(),
 	useStaffDeadLetterDetailQuery: vi.fn(),
-	// `useStaffDeadLetterDetailQuery` est defini LOCALEMENT dans dead-letter.tsx :
-	// le mock de module ci-dessus ne l'atteint pas. La seule couture reelle est le
-	// `useQuery` qu'il enveloppe, et c'est le seul appel a useQuery du fichier.
+	// `useStaffDeadLetterDetailQuery` is defined LOCALLY in dead-letter.tsx, so
+	// the module mock above never reaches it. The only real seam is the
+	// `useQuery` it wraps, and that is the file's only useQuery call.
 	useQuery: vi.fn(),
 	shouldLogoutForFailure: vi.fn<(error: unknown) => boolean>(() => false),
 }));
