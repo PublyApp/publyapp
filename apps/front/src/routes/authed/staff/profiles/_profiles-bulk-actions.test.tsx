@@ -417,9 +417,8 @@ describe('#1386 ProfilesListBulkActions', () => {
 				"The server didn't specify a reason for this failure. Try again, or contact support if the problem persists.",
 			),
 		);
-		// #1605 : total failure (succeededCount === 0) with no per-item
-		// reasons ne porte PAS l'avertissement de filtre — aucune ligne n'a
-		// quitté la vue.
+		// #1605: a total failure (succeededCount === 0) with no per-item
+		// reasons does NOT carry the filter warning — no row left the view.
 		expect(mocks.toastError.mock.calls[0][1]).not.toContain(
 			'Some rows may no longer appear',
 		);
