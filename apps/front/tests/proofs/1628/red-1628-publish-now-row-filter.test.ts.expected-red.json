@@ -1,0 +1,14 @@
+{
+	"$schema": "../expected-red.schema.json",
+	"_comment": "Per-test kept-red expectation manifest for issue #1628 (ronde 10 paired proof). Read by apps/front/scripts/ci/run-preuves.mts BEFORE classification. Each test declared in `expectedRed` MUST fail with an AssertionError on correct code. If a declared kept-red test PASSES, the runner fails CI with verdict CORRUPT PROOF.",
+	"expectedRed": [
+		{
+			"testName": "publish-now row selector is missing the { hasText: postBody } filter (defect: postRow() matches stale rows on a shared tenant)",
+			"why": "On correct code postRow() filters by { hasText: postBody }, so `expect(filterPresent).toBe(false)` fails with an AssertionError — the kept-red state. If this test PASSES, the postRow() filter has been removed and the publish-now feature can be silently broken while the test stays green on a shared tenant."
+		},
+		{
+			"testName": "publish-now final invariant is missing the getByText(postBody) check (defect: stale link could satisfy the loop without the row carrying the composed body)",
+			"why": "On correct code the spec carries a final invariant that verifies a row with the freshly-composed postBody exists in the history table body. The proof asserts the invariant is MISSING, so `expect(invariantPresent).toBe(false)` fails with an AssertionError on correct code. If this test PASSES, the invariant has been removed and a stale link could satisfy the loop without the row carrying the composed body."
+		}
+	]
+}
