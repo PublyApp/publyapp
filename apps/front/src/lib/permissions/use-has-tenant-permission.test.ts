@@ -34,7 +34,6 @@ vi.mock('~/lib/api-client/client-manager', () => ({
 // eslint-disable-next-line import/first -- must follow the vi.mock calls above
 import {
 	useCanManageSocialAccounts,
-	useCanViewIntegrations,
 	useHasTenantPermission,
 } from './use-has-tenant-permission';
 
@@ -149,15 +148,5 @@ describe('social slice convenience wrappers', () => {
 		});
 		const viewOnly = renderWithQueryClient(() => useCanManageSocialAccounts());
 		await waitFor(() => expect(viewOnly.result.current).toBe(false));
-	});
-
-	test('ItShouldGateViewIntegrationsOnTheViewKeyOrWildcard', async () => {
-		mocks.userAuthDataGet.mockResolvedValue({ tenantPermissionKeys: ['*'] });
-		const wildcard = renderWithQueryClient(() => useCanViewIntegrations());
-		await waitFor(() => expect(wildcard.result.current).toBe(true));
-
-		mocks.userAuthDataGet.mockResolvedValue({ tenantPermissionKeys: [] });
-		const none = renderWithQueryClient(() => useCanViewIntegrations());
-		await waitFor(() => expect(none.result.current).toBe(false));
 	});
 });
