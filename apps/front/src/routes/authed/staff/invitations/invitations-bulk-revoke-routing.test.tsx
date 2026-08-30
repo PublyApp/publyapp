@@ -305,7 +305,11 @@ const renderAtList = async () => {
 type BulkStaffInvitationActionResult = {
 	succeededCount: number;
 	failedCount: number;
-	failedItems?: { invitationId: string; reason: string }[];
+	// `reason` is nullable on the wire: the API can answer with a failed item
+	// whose reason is null, and #1862 is precisely about what the drawer shows
+	// then. Declaring it `string` here and casting the null away at the call
+	// site would hide the case this table exists to pin.
+	failedItems?: { invitationId: string; reason: string | null }[];
 };
 
 type BulkRevokeOutcomeCase =
@@ -366,9 +370,7 @@ const BULK_REVOKE_OUTCOME_CASES: BulkRevokeOutcomeCase[] = [
 		response: {
 			succeededCount: 1,
 			failedCount: 1,
-			failedItems: [
-				{ invitationId: ACCEPTED_B, reason: null as unknown as string },
-			],
+			failedItems: [{ invitationId: ACCEPTED_B, reason: null }],
 		},
 		errorToastArgs: [
 			'Revoked 1 invitation(s), 1 failed.',
