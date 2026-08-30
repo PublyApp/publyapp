@@ -60,7 +60,7 @@ is counted against the reference.
 ## Scope
 
 - `packages/scripts-ts/src/check-jscpd-raise.ts`: guard script with `verifyJscpdRaise()`
-- `packages/scripts-ts/src/check-jscpd-raise.test.ts`: 20 tests covering all paths
+- `packages/scripts-ts/src/check-jscpd-raise.test.ts`: 23 tests covering all paths (20 original + 3 depth-1 CI-shape fixture tests)
 - `.github/workflows/quality-gate.yml`: new `ratchet-raise` job, conditioned on changes
 - `justfile`: new `ci-jscpd-raise` recipe
 - `ci-gate-manifest.json`: step entries with real hashes
