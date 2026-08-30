@@ -793,9 +793,6 @@ describe('mutation modules invalidate their list query family (#359)', () => {
 // read-only list). A drift to a sibling-style invisible list query reddens
 // here, naming the module — closing the manual-classification blind spot.
 
-const LIST_QUERY_FACTORY_RE =
-	/build(Staff|Tenant|StaffSuspense|TenantSuspense)QueryOptions\s*</;
-
 // ── Part 1 (#1662): nested-generic third argument is NOT silently skipped ──
 //
 // `countListQueryFactories` decides whether a module owns a list query by
@@ -948,11 +945,18 @@ const staffUsersQueryOptions = buildStaffQueryOptions<
  *   introuvable (ex. importée, pas dans la source), le code faisait `continue`
  *   silencieusement. C'est un faux négatif silencieux — interdit par la
  *   doctrine du repo (échec bruyant). On throw maintenant.
+ *
+ * Pré-filtre retiré (#1690-r2) : la regex `LIST_QUERY_FACTORY_RE` qui
+ * court-circuitait l'analyse AST quand le source ne contenait pas la chaîne
+ * littérale `build*QueryOptions<` produisait un faux négatif silencieux pour
+ * les modules qui importent la fabrique sous un alias
+ * (`import { buildStaffQueryOptions as bsq } from '...'` puis `bsq<…>(…)`).
+ * Le coût de `ts.createSourceFile` sur l'arbre complet (26 modules réels,
+ * 250 Ko, 51 ms en pratique) est négligeable face au risque d'un « rien à
+ * signaler » qui cache une régression. L'AST fait l'analyse de toute façon ;
+ * la regex textuelle n'apportait qu'un raccourci peu fiable.
  */
 const countListQueryFactories = (source: string): number => {
-	if (!LIST_QUERY_FACTORY_RE.test(source)) {
-		return 0;
-	}
 	const sf = ts.createSourceFile(
 		'__guard_virtual__.ts',
 		source,
