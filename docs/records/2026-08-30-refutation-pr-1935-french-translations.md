@@ -150,7 +150,7 @@ The brief raised a question about whether the `apphost/Program.cs` change was a 
 
 The brief raised a concern about whether the comment translation in this script affects i18n map generation. Verification:
 
-- The commit translates only **comments** in the Zod i18n map generator — specifically, 3 French phrases in probe-example comments:
+- The commit translates only **comments** in the Zod i18n map generator — specifically, 3 French phrases in probe-example comments. Each arrow below pairs the original French phrase (left) with its English replacement (right); in French, "attendu" and "reçu" mean "expected" and "received", and "chaîne"/"booléen" mean "string"/"boolean":
   - `" attendu, nombre reçu"` → `" expected, received number"`
   - `"chaîne"/"booléen"` → `"string"/"boolean"`
   - `" reçu"` → `" received"`
