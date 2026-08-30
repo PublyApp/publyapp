@@ -81,17 +81,7 @@ var postgres = builder.AddPostgres("postgres").WithPassword(postgresPassword).Wi
 // classification now distinguishes AddressAlreadyInUse (the only verdict
 // that means "occupied") from every other error: the latter throws a loud
 // exception naming the real SocketError so the user follows the actual cause.
-bool HostPort5454IsFree(bool plainBind = false, SocketError? forcedBindError = null) {
-	if (forcedBindError.HasValue) {
-		// Guard-only fault injection (--probe-bind-fault): runs the production
-		// classification path against a synthetic SocketException so the
-		// architecture guard can assert the mapping without depending on the
-		// OS reproducing a permission-denied bind at runtime.
-		var outcome = ProbeBind.ClassifyBindException(
-			new SocketException((int)forcedBindError.Value));
-		return HostPort5454IsFree_Outcome.Apply(outcome);
-	}
-
+bool HostPort5454IsFree(bool plainBind = false) {
 	if (plainBind) {
 		// Guard-only variant: a TRUE plain bind (no SO_REUSEADDR) via libc.
 		// .NET has no managed switch to drop the bind-time reuse default, so
