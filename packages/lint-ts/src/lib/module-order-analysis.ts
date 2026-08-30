@@ -66,9 +66,6 @@
  * - bindings whose initializer is not directly a function expression are
  *   not tracked (`const f = [() => {}][0]`, re-exports); the bind chain
  *   `const f = g.bind(null)` IS tracked (#1956 shape 2).
- * - invocations through sequence callees (`(0, f)()`) are not followed as
- *   hops; member callees on module-level const object literals ARE followed
- *   (#1956 shape 1).
  * - getter bodies on class declarations, class instances, or computed
  *   property names are not tracked (only object-literal getters on
  *   module-level const bindings are analysed).
@@ -1294,6 +1291,49 @@ const handleInvocation = (
 	chain: string[],
 	visitedBindings: Set<string>,
 ): void => {
+	const unwrappedCallee = unwrapParens(calleeExpression);
+	// Sequence callee: `(0, f)()` — a comma expression in callee position.
+	// The rightmost operand is the actual callee; every discarded operand
+	// still evaluates immediately (it may hold calls of its own). Comma is
+	// left-associative, so the parsed tree is ((a, b), c): the left spine
+	// owns all discarded operands.
+	if (
+		ts.isBinaryExpression(unwrappedCallee) &&
+		unwrappedCallee.operatorToken.kind === ts.SyntaxKind.CommaToken
+	) {
+		const discardedOperands: ts.Expression[] = [];
+		let valueOperand: ts.Expression = unwrappedCallee;
+		while (
+			ts.isBinaryExpression(valueOperand) &&
+			valueOperand.operatorToken.kind === ts.SyntaxKind.CommaToken
+		) {
+			discardedOperands.push(valueOperand.left);
+			valueOperand = unwrapParens(valueOperand.right);
+		}
+		handleInvocation(
+			valueOperand,
+			argumentsList,
+			context,
+			scopes,
+			bodyRootIndex,
+			executionPos,
+			chain,
+			visitedBindings,
+		);
+		for (const operand of discardedOperands) {
+			walkImmediate(
+				operand,
+				context,
+				scopes,
+				bodyRootIndex,
+				executionPos,
+				chain,
+				visitedBindings,
+			);
+		}
+		return;
+	}
+
 	if (ts.isIdentifier(calleeExpression)) {
 		handleResolvedIdentifier(
 			calleeExpression.text,

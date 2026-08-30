@@ -1600,6 +1600,35 @@ const g = () => 1;
 					assert.strictEqual(violations[0]!.line, 1);
 					assert.strictEqual(violations[0]!.declaredAtLine, 2);
 				});
+
+				it('shape 3, sequence callee: (0, f)() calls f before f is defined', () => {
+					const violations = analyze(
+						`const result = (0, f)();
+const f = () => 1;
+`,
+					);
+
+					assert.strictEqual(violations.length, 1);
+					assert.strictEqual(violations[0]!.callee, 'f');
+					assert.strictEqual(violations[0]!.kind, 'direct');
+					assert.strictEqual(violations[0]!.line, 1);
+					assert.strictEqual(violations[0]!.declaredAtLine, 2);
+				});
+
+				it('shape 3, sequence callee: discarded operands still execute immediately', () => {
+					const violations = analyze(
+						`const result = (toPosixPath('a'), f)();
+const f = () => 1;
+const toPosixPath = (x) => x;
+`,
+					);
+
+					assert.strictEqual(violations.length, 2);
+					assert.deepStrictEqual(
+						violations.map((violation) => violation.callee).sort(),
+						['f', 'toPosixPath'],
+					);
+				});
 			});
 		});
 
