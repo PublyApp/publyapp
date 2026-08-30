@@ -1,12 +1,18 @@
 import assert from 'node:assert/strict';
-import { mkdtemp, writeFile } from 'node:fs/promises';
+import { execFileSync } from 'node:child_process';
+import { mkdir, mkdtemp, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import os from 'os';
 
 import { test } from 'vitest';
 
-import { computeProductionStats, verifyJscpdRatchet } from './check-jscpd.ts';
+import {
+	computeProductionStats,
+	findOffendingPairs,
+	readReferenceFromBase,
+	verifyJscpdRatchet,
+} from './check-jscpd.ts';
 
 // ---------------------------------------------------------------------------
 // computeProductionStats unit tests
@@ -202,6 +208,8 @@ interface FixtureOverrides {
 	ref?: {
 		productionPairs?: { count?: number; lines?: number };
 		productionAuto?: { count?: number; lines?: number };
+		pairLines?: Record<string, number>;
+		autoLines?: Record<string, number>;
 	};
 	dupes?: import('./check-jscpd.ts').JscpdCloneEntry[];
 	cloneCount?: number;
@@ -411,15 +419,554 @@ test('fails loudly when both report and duplicates are empty', async () => {
 	);
 });
 
-test('real repository passes with current baseline', () => {
+// ---------------------------------------------------------------------------
+// #1890 — offender naming against the stored base report
+// ---------------------------------------------------------------------------
+
+test('names the exact pair that crossed its base (offender below the top-5 cut)', async () => {
+	// Five big pairs fill the old top-5 list; the NEW offender (a <-> b,
+	// 5 lines, a new pair with base total 0) ranks sixth by size. The old
+	// top-5 message could not name it; the base-report diff must.
+	const big = Array.from({ length: 5 }, (_, i) => [
+		`apps/api/Large${i}A.cs`,
+		`apps/api/Large${i}B.cs`,
+	]);
+	const dupes = [
+		...big.map(([a, b]) => ({
+			firstFile: { name: a },
+			secondFile: { name: b },
+			lines: 100,
+		})),
+		{
+			firstFile: { name: 'apps/api/NewA.cs' },
+			secondFile: { name: 'apps/api/NewB.cs' },
+			lines: 5,
+		},
+	];
+	const { root } = await buildFixture({
+		ref: {
+			productionPairs: { count: 5, lines: 500 },
+			productionAuto: { count: 5, lines: 100 },
+			pairLines: Object.fromEntries(big.map(([a, b]) => [`${a}|${b}`, 100])),
+		},
+		dupes,
+		cloneCount: 6,
+	});
+	const { errors } = verifyJscpdRatchet(
+		path.join(root, 'report.json'),
+		path.join(root, 'ref.json'),
+	);
+	assert.ok(
+		errors.some((e) => e.includes('increased from 5 to 6')),
+		errors.join('\n'),
+	);
+	// The exact offender, named with its base -> current totals — even though
+	// it is NOT in the top-5 contributors.
+	assert.ok(
+		errors.some(
+			(e) =>
+				e.includes('apps/api/NewA.cs <-> apps/api/NewB.cs') &&
+				e.includes('(0 -> 5 duplicated lines)'),
+		),
+		errors.join('\n'),
+	);
+	// And the measurement source is stated.
+	assert.ok(
+		errors.some((e) => e.includes('Measured against file:')),
+		errors.join('\n'),
+	);
+});
+
+test('names the self-duplicated file that crossed its base', async () => {
+	const { root } = await buildFixture({
+		ref: {
+			productionPairs: { count: 10, lines: 200 },
+			productionAuto: { count: 5, lines: 20 },
+			autoLines: { 'apps/api/A.cs': 10, 'apps/api/B.cs': 10 },
+		},
+		dupes: [
+			{
+				firstFile: { name: 'apps/api/A.cs' },
+				secondFile: { name: 'apps/api/A.cs' },
+				lines: 15,
+			},
+			{
+				firstFile: { name: 'apps/api/B.cs' },
+				secondFile: { name: 'apps/api/B.cs' },
+				lines: 10,
+			},
+		],
+		cloneCount: 2,
+	});
+	const { errors } = verifyJscpdRatchet(
+		path.join(root, 'report.json'),
+		path.join(root, 'ref.json'),
+	);
+	assert.ok(
+		errors.some((e) => e.includes('increased from 20 to 25')),
+		errors.join('\n'),
+	);
+	// Only A grew (10 -> 15); B is at its base (10) and must NOT be named.
+	assert.ok(
+		errors.some(
+			(e) =>
+				e.includes('Files that crossed their base') &&
+				e.includes('apps/api/A.cs (10 -> 15 duplicated lines)'),
+		),
+		errors.join('\n'),
+	);
+	assert.ok(
+		!errors.some((e) => e.includes('apps/api/B.cs (')),
+		errors.join('\n'),
+	);
+});
+
+test('legacy reference (no per-pair map) falls back to the top-5 list and says so', async () => {
+	const { root } = await buildFixture({
+		ref: { productionPairs: { count: 1, lines: 40 } },
+		dupes: [
+			{
+				firstFile: { name: 'apps/api/NewA.cs' },
+				secondFile: { name: 'apps/api/NewB.cs' },
+				lines: 50,
+			},
+		],
+		cloneCount: 1,
+	});
+	const { errors } = verifyJscpdRatchet(
+		path.join(root, 'report.json'),
+		path.join(root, 'ref.json'),
+	);
+	assert.ok(
+		errors.some((e) => e.includes('increased from 40 to 50')),
+		errors.join('\n'),
+	);
+	// The legacy fallback names the top contributors, not a base diff.
+	assert.ok(
+		errors.some((e) =>
+			e.includes('Largest pair contributors (by duplicated lines)'),
+		),
+		errors.join('\n'),
+	);
+});
+
+test('a pair at its base total is not an offender (equal is not a violation)', async () => {
+	const { root } = await buildFixture({
+		ref: {
+			productionPairs: { count: 2, lines: 40 },
+			productionAuto: { count: 5, lines: 100 },
+			pairLines: {
+				'apps/api/A.cs|apps/api/B.cs': 20,
+				'apps/api/C.cs|apps/api/D.cs': 20,
+			},
+		},
+		dupes: [
+			{
+				firstFile: { name: 'apps/api/A.cs' },
+				secondFile: { name: 'apps/api/B.cs' },
+				lines: 20,
+			},
+			{
+				firstFile: { name: 'apps/api/C.cs' },
+				secondFile: { name: 'apps/api/D.cs' },
+				lines: 20,
+			},
+		],
+		cloneCount: 2,
+	});
+	const { errors } = verifyJscpdRatchet(
+		path.join(root, 'report.json'),
+		path.join(root, 'ref.json'),
+	);
+	assert.deepEqual(errors, []);
+});
+
+test('findOffendingPairs returns null for a legacy reference (no pairLines map)', () => {
+	const stats = computeProductionStats(
+		[
+			{
+				firstFile: { name: 'apps/api/A.cs' },
+				secondFile: { name: 'apps/api/B.cs' },
+				lines: 10,
+			},
+		],
+		{ withMaps: true },
+	);
+	if (stats.pairMaps === undefined) {
+		assert.fail('withMaps must expose the pair map');
+	}
+	assert.equal(findOffendingPairs(stats.pairMaps, undefined), null);
+	const offenders = findOffendingPairs(stats.pairMaps, {});
+	assert.ok(offenders !== null);
+	assert.deepEqual(offenders, [
+		{ files: ['apps/api/A.cs', 'apps/api/B.cs'], lines: 10, baseLines: 0 },
+	]);
+});
+
+// ---------------------------------------------------------------------------
+// #1890 — the reference is anchored to the merge base, never to this tree
+// ---------------------------------------------------------------------------
+
+const gitIn = (gitDir: string, ...args: string[]): void => {
+	execFileSync('git', args, { cwd: gitDir, stdio: 'pipe', timeout: 30_000 });
+};
+
+/**
+ * Builds a hermetic git fixture: a bare "remote" plus a clone whose branch
+ * `main` carries the reference. The clone's `refs/remotes/origin/main` is
+ * what a PR merge-base read would resolve.
+ */
+const buildBaseGitFixture = async (
+	ref: Record<string, unknown>,
+): Promise<{ gitDir: string }> => {
+	const remote = await mkdtemp(
+		path.join(os.tmpdir(), 'publyapp-jscpd-remote-'),
+	);
+	gitIn(remote, 'init', '--bare', '--initial-branch=main', '.');
+	const gitDir = await mkdtemp(path.join(os.tmpdir(), 'publyapp-jscpd-clone-'));
+	gitIn(gitDir, 'init', '--initial-branch=main', '.');
+	gitIn(gitDir, 'config', 'user.email', 'test@example.com');
+	gitIn(gitDir, 'config', 'user.name', 'Test');
+
+	const dir = path.join(gitDir, 'packages', 'scripts-ts', 'src');
+	await mkdir(dir, { recursive: true });
+	await writeFile(
+		path.join(dir, 'jscpd-reference.json'),
+		`${JSON.stringify(ref, null, '\t')}\n`,
+	);
+
+	gitIn(gitDir, 'add', '.');
+	gitIn(gitDir, 'commit', '-m', 'base reference');
+	gitIn(gitDir, 'remote', 'add', 'origin', remote);
+	gitIn(gitDir, 'push', 'origin', 'main');
+	gitIn(gitDir, 'fetch', 'origin');
+	return { gitDir };
+};
+
+test('#1890: the ratchet reads the reference from the base, not from this tree', async () => {
+	const { gitDir } = await buildBaseGitFixture({
+		productionPairs: { count: 10, lines: 200 },
+		productionAuto: { count: 5, lines: 100 },
+	});
+
+	const root = await mkdtemp(path.join(os.tmpdir(), 'publyapp-jscpd-'));
+	const report = {
+		statistics: { total: { clones: 1 } },
+		duplicates: [
+			{
+				firstFile: { name: 'apps/api/SvcA.cs' },
+				secondFile: { name: 'apps/api/SvcB.cs' },
+				lines: 200,
+			},
+		],
+	};
+	await writeFile(
+		path.join(root, 'report.json'),
+		JSON.stringify(report, null, '\t'),
+	);
+
+	// 1. Explicit base ref (the CI merge-base seam): 200 lines vs the base
+	//    total of 200 -> pass.
+	const ok = verifyJscpdRatchet(
+		path.join(root, 'report.json'),
+		undefined,
+		'refs/remotes/origin/main',
+		gitDir,
+	);
+	assert.deepEqual(ok.errors, []);
+	assert.ok(
+		ok.refSource === 'git:refs/remotes/origin/main',
+		`refSource=${ok.refSource}`,
+	);
+
+	// 2. Same tree, base with a TIGHTER reference (100 lines): the identical
+	//    report must now FAIL. The verdict depends on the BASE, not on any
+	//    file in this tree — the old guard read the reference from the
+	//    working tree and could never distinguish these two.
+	const tight = await mkdtemp(path.join(os.tmpdir(), 'publyapp-jscpd-tight-'));
+	gitIn(tight, 'init', '--initial-branch=main', '.');
+	gitIn(tight, 'config', 'user.email', 'test@example.com');
+	gitIn(tight, 'config', 'user.name', 'Test');
+	const tightDir = path.join(tight, 'packages', 'scripts-ts', 'src');
+	await mkdir(tightDir, { recursive: true });
+	await writeFile(
+		path.join(tightDir, 'jscpd-reference.json'),
+		JSON.stringify(
+			{
+				productionPairs: { count: 10, lines: 100 },
+				productionAuto: { count: 5, lines: 100 },
+			},
+			null,
+			'\t',
+		),
+	);
+	gitIn(tight, 'add', '.');
+	gitIn(tight, 'commit', '-m', 'tighter base');
+	// The tight repo has no remote-tracking refs; use the commit ref form:
+	const red = verifyJscpdRatchet(
+		path.join(root, 'report.json'),
+		undefined,
+		'HEAD',
+		tight,
+	);
+	assert.ok(red.errors.length > 0, 'tighter base must red the same report');
+	assert.ok(
+		red.errors.some((e) => e.includes('increased from 100 to 200')),
+		red.errors.join('\n'),
+	);
+	assert.ok(red.refSource === 'git:HEAD', `refSource=${red.refSource}`);
+});
+
+test('#1890: the ATTACK is caught — a raised working-tree reference does not loosen the ratchet', async () => {
+	// The #1890 bypass, end to end: the base carries 100 lines; the PR tree
+	// "raises" the committed reference to 200 (in the PR's own tree) while
+	// the scan reports 200 lines of duplication. The old guard read the
+	// raised working-tree file and exited 0. The anchored guard must red,
+	// measured against the base.
+	const { gitDir } = await buildBaseGitFixture({
+		productionPairs: { count: 10, lines: 100 },
+		productionAuto: { count: 5, lines: 100 },
+		pairLines: {},
+		autoLines: {},
+	});
+
+	// The PR tree: working-tree reference "raised" to 200 (the attack) —
+	// committed state at origin/main is still 100.
+	await writeFile(
+		path.join(gitDir, 'packages/scripts-ts/src/jscpd-reference.json'),
+		JSON.stringify(
+			{
+				productionPairs: { count: 10, lines: 200 },
+				productionAuto: { count: 5, lines: 100 },
+			},
+			null,
+			'\t',
+		),
+	);
+
+	const root = await mkdtemp(path.join(os.tmpdir(), 'publyapp-jscpd-'));
+	const report = {
+		statistics: { total: { clones: 1 } },
+		duplicates: [
+			{
+				firstFile: { name: 'apps/api/SvcA.cs' },
+				secondFile: { name: 'apps/api/SvcB.cs' },
+				lines: 200,
+			},
+		],
+	};
+	await writeFile(
+		path.join(root, 'report.json'),
+		JSON.stringify(report, null, '\t'),
+	);
+
+	const verdict = verifyJscpdRatchet(
+		path.join(root, 'report.json'),
+		undefined,
+		'refs/remotes/origin/main',
+		gitDir,
+	);
+	assert.ok(verdict.errors.length > 0, 'the attack must red');
+	assert.ok(
+		verdict.errors.some((e) => e.includes('increased from 100 to 200')),
+		verdict.errors.join('\n'),
+	);
+	// The message names what it measured against — the BASE, not the raised
+	// working-tree file (which says 200 and would pass).
+	assert.ok(
+		verdict.refSource === 'git:refs/remotes/origin/main',
+		`refSource=${verdict.refSource}`,
+	);
+});
+
+test('#1890: a missing base fails loudly, naming the cause and the expected action', async () => {
+	const empty = await mkdtemp(path.join(os.tmpdir(), 'publyapp-jscpd-nogit-'));
+	gitIn(empty, 'init', '--initial-branch=main', '.');
+	gitIn(empty, 'config', 'user.email', 'test@example.com');
+	gitIn(empty, 'config', 'user.name', 'Test');
+
+	const root = await mkdtemp(path.join(os.tmpdir(), 'publyapp-jscpd-'));
+	const report = {
+		statistics: { total: { clones: 1 } },
+		duplicates: [
+			{
+				firstFile: { name: 'apps/api/SvcA.cs' },
+				secondFile: { name: 'apps/api/SvcB.cs' },
+				lines: 50,
+			},
+		],
+	};
+	await writeFile(
+		path.join(root, 'report.json'),
+		JSON.stringify(report, null, '\t'),
+	);
+
+	// No origin/develop, no fetchable origin -> the guard must fail loud.
+	const prevRemote = process.env.GITHUB_BASE_REF;
+	const prevSeam = process.env.PUBLY_JSCPD_BASE_REF;
+	try {
+		delete process.env.GITHUB_BASE_REF;
+		delete process.env.PUBLY_JSCPD_BASE_REF;
+		const verdict = verifyJscpdRatchet(
+			path.join(root, 'report.json'),
+			undefined,
+			undefined,
+			empty,
+		);
+		assert.ok(verdict.errors.length > 0);
+		const msg = verdict.errors[0];
+		assert.ok(msg.includes('unavailable from the merge base'), msg);
+		assert.ok(msg.includes('refs/remotes/origin/develop'), msg);
+		assert.ok(msg.includes('git fetch origin develop'), msg);
+		assert.ok(msg.includes('#1890'), msg);
+	} finally {
+		if (prevRemote !== undefined) {
+			process.env.GITHUB_BASE_REF = prevRemote;
+		}
+		if (prevSeam !== undefined) {
+			process.env.PUBLY_JSCPD_BASE_REF = prevSeam;
+		}
+	}
+});
+
+test('#1890: GITHUB_BASE_REF selects the CI base branch ref', async () => {
+	const { gitDir } = await buildBaseGitFixture({
+		productionPairs: { count: 10, lines: 200 },
+		productionAuto: { count: 5, lines: 100 },
+	});
+	// Name the fixture branch like a base branch.
+	gitIn(gitDir, 'branch', '-M', 'main', 'develop');
+	gitIn(gitDir, 'push', 'origin', 'develop:develop', '--force');
+	gitIn(gitDir, 'fetch', 'origin');
+
+	const root = await mkdtemp(path.join(os.tmpdir(), 'publyapp-jscpd-'));
+	const report = {
+		statistics: { total: { clones: 1 } },
+		duplicates: [
+			{
+				firstFile: { name: 'apps/api/SvcA.cs' },
+				secondFile: { name: 'apps/api/SvcB.cs' },
+				lines: 201,
+			},
+		],
+	};
+	await writeFile(
+		path.join(root, 'report.json'),
+		JSON.stringify(report, null, '\t'),
+	);
+
+	const prevRemote = process.env.GITHUB_BASE_REF;
+	const prevSeam = process.env.PUBLY_JSCPD_BASE_REF;
+	try {
+		delete process.env.PUBLY_JSCPD_BASE_REF;
+		process.env.GITHUB_BASE_REF = 'develop';
+		const verdict = verifyJscpdRatchet(
+			path.join(root, 'report.json'),
+			undefined,
+			undefined,
+			gitDir,
+		);
+		assert.ok(
+			verdict.errors.some((e) => e.includes('increased from 200 to 201')),
+			verdict.errors.join('\n'),
+		);
+		assert.ok(
+			verdict.refSource === 'git:refs/remotes/origin/develop',
+			`refSource=${verdict.refSource}`,
+		);
+	} finally {
+		if (prevRemote === undefined) {
+			delete process.env.GITHUB_BASE_REF;
+		} else {
+			process.env.GITHUB_BASE_REF = prevRemote;
+		}
+		if (prevSeam === undefined) {
+			delete process.env.PUBLY_JSCPD_BASE_REF;
+		} else {
+			process.env.PUBLY_JSCPD_BASE_REF = prevSeam;
+		}
+	}
+});
+
+test('#1890: readReferenceFromBase fails loud on a malformed base blob', async () => {
+	const remote = await mkdtemp(
+		path.join(os.tmpdir(), 'publyapp-jscpd-remote-'),
+	);
+	gitIn(remote, 'init', '--bare', '--initial-branch=main', '.');
+	const gitDir = await mkdtemp(path.join(os.tmpdir(), 'publyapp-jscpd-clone-'));
+	gitIn(gitDir, 'init', '--initial-branch=main', '.');
+	gitIn(gitDir, 'config', 'user.email', 'test@example.com');
+	gitIn(gitDir, 'config', 'user.name', 'Test');
+	const dir = path.join(gitDir, 'packages', 'scripts-ts', 'src');
+	await mkdir(dir, { recursive: true });
+	await writeFile(path.join(dir, 'jscpd-reference.json'), '{ broken');
+	gitIn(gitDir, 'add', '.');
+	gitIn(gitDir, 'commit', '-m', 'malformed');
+	gitIn(gitDir, 'remote', 'add', 'origin', remote);
+	gitIn(gitDir, 'push', 'origin', 'main');
+	gitIn(gitDir, 'fetch', 'origin');
+
+	const result = readReferenceFromBase(gitDir, 'refs/remotes/origin/main');
+	assert.equal(result.ok, false);
+	assert.ok(result.error?.includes('malformed reference JSON'), result.error);
+});
+
+test('#1890: the explicit base seam reads a reference file', async () => {
+	const { gitDir } = await buildBaseGitFixture({
+		productionPairs: { count: 1, lines: 10 },
+		productionAuto: { count: 1, lines: 5 },
+	});
+	const root = await mkdtemp(path.join(os.tmpdir(), 'publyapp-jscpd-'));
+	const refFile = path.join(root, 'seam-ref.json');
+	await writeFile(
+		refFile,
+		JSON.stringify({
+			productionPairs: { count: 10, lines: 50 },
+			productionAuto: { count: 5, lines: 20 },
+		}),
+	);
+	const report = {
+		statistics: { total: { clones: 1 } },
+		duplicates: [
+			{
+				firstFile: { name: 'apps/api/SvcA.cs' },
+				secondFile: { name: 'apps/api/SvcB.cs' },
+				lines: 60,
+			},
+		],
+	};
+	await writeFile(
+		path.join(root, 'report.json'),
+		JSON.stringify(report, null, '\t'),
+	);
+	const verdict = verifyJscpdRatchet(
+		path.join(root, 'report.json'),
+		undefined,
+		refFile,
+		gitDir,
+	);
+	assert.ok(
+		verdict.errors.some((e) => e.includes('increased from 50 to 60')),
+		verdict.errors.join('\n'),
+	);
+	assert.ok(
+		verdict.refSource === `file:${refFile}`,
+		`refSource=${verdict.refSource}`,
+	);
+});
+
+// ---------------------------------------------------------------------------
+// Real-tree tests (require a jscpd report at the default path and an
+// origin/develop remote — `just ci-jscpd` provides both before running).
+// ---------------------------------------------------------------------------
+
+test('real repository passes with the merge-base reference', () => {
 	const reportPath = path.resolve(
 		path.dirname(fileURLToPath(import.meta.url)),
 		'../../../.dump/jscpd-report.json/jscpd-report.json',
 	);
-	const refPath = path.resolve(
-		path.dirname(fileURLToPath(import.meta.url)),
-		'./jscpd-reference.json',
-	);
-	const { errors } = verifyJscpdRatchet(reportPath, refPath);
+	const { errors, refSource } = verifyJscpdRatchet(reportPath);
+	assert.ok(refSource !== null, 'the reference must come from the merge base');
+	assert.ok(refSource.startsWith('git:'), `refSource=${refSource}`);
 	assert.deepEqual(errors, [], `real-tree guard failed:\n${errors.join('\n')}`);
 });
