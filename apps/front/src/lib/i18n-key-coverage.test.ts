@@ -299,6 +299,54 @@ export const extractI18nKeyUsages = async (
 const resolvesInBundle = (key: string, bundle: Record<string, unknown>) =>
 	key in bundle || `${key}_one` in bundle || `${key}_other` in bundle;
 
+// #282/#1562: i18next resolves a plural key against `<key>_<CLDR category>`
+// (`_zero|_one|_two|_few|_many|_other`). A variant whose suffix is not a
+// category the locale's CLDR rules can EVER produce is a dead branch: no
+// `count` argument can select it, and no test or gate can see it render —
+// the tip commit of #1549 fixed exactly this shape (`range-no-total_zero`,
+// unreachable in both en and fr).
+const PLURAL_VARIANT_SUFFIX_PATTERN = /^(.+)_(zero|one|two|few|many|other)$/;
+
+// The plural categories each locale can actually resolve, per CLDR. en and fr
+// only ever select `one`/`other`; `_zero` (or `_few`/`_many`/`_two`) in either
+// is unreachable. Adding a locale with more categories (e.g. pl: few/many)
+// REQUIRES updating this map — an undeclared locale fails loudly rather than
+// silently passing the sweep.
+const VALID_PLURAL_CATEGORIES_BY_LOCALE = new Map<string, readonly string[]>([
+	['en', ['one', 'other']],
+	['fr', ['one', 'other']],
+]);
+
+const validPluralCategoriesForLocale = (locale: string): readonly string[] => {
+	const categories = VALID_PLURAL_CATEGORIES_BY_LOCALE.get(locale);
+	if (!categories) {
+		throw new Error(
+			`unknown locale '${locale}' — declare its CLDR plural categories before sweeping`,
+		);
+	}
+	return categories;
+};
+
+/** Keys of `bundle` whose plural-variant suffix is not a CLDR category the
+ * locale can ever resolve (`foo_zero` in en/fr). Returns the key exactly as
+ * written in the bundle. */
+const findInvalidPluralVariantKeys = (
+	bundle: Record<string, unknown>,
+	validCategories: readonly string[],
+): string[] => {
+	const valid = new Set(validCategories);
+	const invalid: string[] = [];
+
+	for (const key of Object.keys(bundle)) {
+		const match = key.match(PLURAL_VARIANT_SUFFIX_PATTERN);
+		if (match && !valid.has(match[2])) {
+			invalid.push(key);
+		}
+	}
+
+	return invalid;
+};
+
 // A bare string literal never touches `t()`, so the coverage test above is
 // structurally blind to it — this catches the class of defect that let it
 // (r3-shell-F2). Language self-names (LOCALE_LABELS-style
@@ -1844,5 +1892,99 @@ describe('i18n-guard-ignore suppression sites match the committed inventory', ()
 
 		expect(undocumented, 'undocumented suppression sites').toEqual([]);
 		expect(stale, 'stale inventory entries').toEqual([]);
+	});
+});
+
+describe('i18n plural variant categories', () => {
+	// #1562: a bundle variant whose suffix is not a CLDR category the locale
+	// can ever resolve is unreachable by any `count` argument — a dead branch
+	// no test and no gate can see render. This is the bundle sweep the
+	// round-1 review asked for and #1549 did not do: it walks EVERY namespace
+	// of BOTH real locale bundles (including the shared-ts zod/response-message
+	// resources). A dead `_zero`-class variant fails here with the key named.
+	test('no bundle declares a plural variant suffix the locale can never resolve (dead plural variant sweep, #1562)', () => {
+		const invalid: string[] = [];
+		for (const [locale, resource] of [
+			['en', enResource],
+			['fr', frResource],
+		] as const) {
+			const valid = validPluralCategoriesForLocale(locale);
+			for (const [namespace, bundle] of Object.entries(resource)) {
+				invalid.push(
+					...findInvalidPluralVariantKeys(
+						bundle as Record<string, unknown>,
+						valid,
+					).map((key) => `${locale}:${namespace}:${key}`),
+				);
+			}
+		}
+
+		expect(invalid, 'dead plural variant keys in locale bundles').toEqual([]);
+	});
+
+	// The exact defect #1549 fixed — `_zero` in a locale whose CLDR rules only
+	// ever select `one`/`other` — must stay a finding for both supported
+	// locales, not just the one that happened to contain it.
+	test('findInvalidPluralVariantKeys flags a _zero variant in en and fr (the #1549 shape)', () => {
+		const bundle = {
+			'range-no-total_zero': 'x',
+			'range-no-total_one': 'y',
+			'range-no-total_other': 'z',
+		};
+
+		expect(
+			findInvalidPluralVariantKeys(
+				bundle,
+				validPluralCategoriesForLocale('en'),
+			),
+		).toEqual(['range-no-total_zero']);
+		expect(
+			findInvalidPluralVariantKeys(
+				bundle,
+				validPluralCategoriesForLocale('fr'),
+			),
+		).toEqual(['range-no-total_zero']);
+	});
+
+	test('findInvalidPluralVariantKeys allows the categories a locale can resolve', () => {
+		expect(
+			findInvalidPluralVariantKeys(
+				{ count_one: '1', count_other: 'n' },
+				validPluralCategoriesForLocale('fr'),
+			),
+		).toEqual([]);
+	});
+
+	test('findInvalidPluralVariantKeys is locale-aware: _many is dead in fr, live in a locale with that category', () => {
+		const fr = findInvalidPluralVariantKeys(
+			{ count_many: 'x' },
+			validPluralCategoriesForLocale('fr'),
+		);
+		expect(fr).toEqual(['count_many']);
+
+		const pl = findInvalidPluralVariantKeys({ count_many: 'x' }, [
+			'one',
+			'few',
+			'many',
+			'other',
+		]);
+		expect(pl).toEqual([]);
+	});
+
+	test('findInvalidPluralVariantKeys ignores keys without a plural-variant suffix', () => {
+		expect(
+			findInvalidPluralVariantKeys(
+				{
+					'range-no-total': 'x',
+					'many-things': 'y',
+					'other-side': 'z',
+				},
+				validPluralCategoriesForLocale('en'),
+			),
+		).toEqual([]);
+	});
+
+	test('validPluralCategoriesForLocale fails loud on an undeclared locale', () => {
+		expect(() => validPluralCategoriesForLocale('xx')).toThrow(/'xx'/);
 	});
 });
