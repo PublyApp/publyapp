@@ -470,3 +470,78 @@ for (const file of workflowFiles) {
 		}
 	});
 }
+
+// ---------------------------------------------------------------------------
+// ROUND 5 (#1974 r2): DELEGATION — a root-level Markdown file change alone
+// triggers the docs-archive job. The pre-#1974-r2 docs-archive pattern only
+// matched `docs/...` and the guard sources, so a PR touching ONLY
+// CONTRIBUTING.md (the most prominent example: the PR that introduced it
+// was a documentation-only diff classified as relevant=false, leaving the
+// link guard unrun) was a guaranteed silent miss. The new pattern also
+// matches the navigable root Markdown (CONTRIBUTING.md, AGENTS.md,
+// DESIGN.md, CLA.md, CLA-SIGNATURES.md, README.md).
+//
+// This test is scoped to docs-archive.yml because the other workflows do
+// not run the link guard — extending their patterns to root files would
+// either waste cycles or change their semantics for no reason.
+// ---------------------------------------------------------------------------
+
+const ROOT_MD_FILES_FOR_DOCS_ARCHIVE = [
+	'CONTRIBUTING.md',
+	'AGENTS.md',
+	'DESIGN.md',
+	'CLA.md',
+	'CLA-SIGNATURES.md',
+	'README.md',
+];
+
+for (const file of ROOT_MD_FILES_FOR_DOCS_ARCHIVE) {
+	test(`docs-archive.yml: ROUND 5 (#1974 r2) — root-level Markdown '${file}' alone is enough to make the job relevant`, () => {
+		const script = extractFilterStepRun('docs-archive.yml');
+		const pattern = extractPattern(script);
+		const cwd = mkdtempSync(
+			path.join(os.tmpdir(), 'publyapp-ci-gate-bootstrap-r2-'),
+		);
+		const fakeGhDir = buildFakeGh({ total: '1\n', files: `${file}\n` });
+
+		try {
+			mkdirSync(path.join(cwd, 'base-ref/packages/scripts-ts/src'), {
+				recursive: true,
+			});
+			copyFileSync(
+				realClassifierPath,
+				path.join(cwd, 'base-ref/packages/scripts-ts/src/ci-changed-paths.ts'),
+			);
+
+			const expected = classifyRelevance({
+				eventName: 'pull_request',
+				files: [file],
+				changedFilesTotal: 1,
+				pattern,
+			});
+			assert.equal(
+				expected.relevant,
+				true,
+				`test fixture error: ${file} does not match docs-archive.yml's pattern ${pattern} — round 2 of #1974 demands root Markdown be in scope`,
+			);
+
+			const { status, stdout, output } = runInline(script, cwd, {
+				GITHUB_EVENT_NAME: 'pull_request',
+				GH_REPO: 'PublyApp/publyapp',
+				PR_NUMBER: '1974',
+				GH_TOKEN: 'test-token',
+				PATH: `${fakeGhDir}:${process.env.PATH}`,
+			});
+
+			assert.equal(status, 0, stdout);
+			assert.equal(
+				stdout,
+				`relevant=${expected.relevant} (${expected.reason})\n`,
+			);
+			assert.equal(output, 'relevant=true\n');
+		} finally {
+			rmSync(cwd, { recursive: true, force: true });
+			rmSync(fakeGhDir, { recursive: true, force: true });
+		}
+	});
+}

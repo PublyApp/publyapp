@@ -244,3 +244,84 @@ test('test fixtures are exempt: preserved historical artifacts', () => {
 	assert.equal(result.status, 0, result.stderr);
 	assert.match(result.stdout, /doc links OK/);
 });
+
+// ROUND 2 (#1974 r2): the gap on anchor verification is DECLARED loudly by
+// the guard, so a green CI run cannot be silently misread as "anchors are
+// fine". The three assertions below pin the three new behaviours:
+//
+//   1. a successful run always prints the explicit warning naming what it
+//      does NOT verify, on its own line, with a stable tag
+//      [ANCHORS-NOT-VERIFIED] that the next green-CI reader can grep;
+//   2. a link whose target file exists but whose fragment is broken is
+//      accepted (the guard does NOT verify fragments, and the warning is
+//      what tells you so);
+//   3. --strict-anchors is wired as a fail-closed seam: today the flag
+//      errors out because nothing implements fragment checking, which is
+//      the explicit-limitation guarantee. The moment someone ships a real
+//      fragment checker, they remove this assertion's expected exit-code and
+//      message — the seam itself stays.
+test('ROUND 2 (#1974 r2): every successful run prints the ANCHORS-NOT-VERIFIED warning on its own line', () => {
+	const root = makeRepo({
+		'docs/guides/live.md': 'content\n',
+	});
+	const result = runGuard(root);
+	assert.equal(result.status, 0, result.stderr);
+	assert.match(result.stdout, /doc links OK/);
+	assert.match(result.stdout, /ANCHORS-NOT-VERIFIED/);
+	assert.match(result.stdout, /NOT machine-verified\./);
+	assert.match(
+		result.stdout,
+		/WARNING \[ANCHORS-NOT-VERIFIED\]: only relative file targets are checked/,
+	);
+});
+
+test('ROUND 2 (#1974 r2): a link whose fragment is broken but whose file exists is accepted (fragments are NOT verified)', () => {
+	const root = makeRepo({
+		'CLA.md': '# Contributing on behalf of a company\n\nplaceholder\n',
+		'CONTRIBUTING.md':
+			'See [the company section](CLA.md#contributing-on-behalf-of-a-company).\n',
+	});
+	const result = runGuard(root);
+	assert.equal(
+		result.status,
+		0,
+		`a broken fragment must NOT fail the guard by construction; the warning is what tells you so — stderr was: ${result.stderr}`,
+	);
+	assert.match(result.stdout, /doc links OK/);
+
+	// And the SAME link with the fragment deliberately mutated to a
+	// non-existent heading still passes — this is the exact adversarial
+	// mutation the round-1 review named ("breaking the
+	// CLA.md#contributing-on-behalf-of-a-company anchor leaves every CI
+	// gate green").
+	const mutated = makeRepo({
+		'CLA.md': '# Contributing on behalf of a company\n\nplaceholder\n',
+		'CONTRIBUTING.md': 'See [the company section](CLA.md#no-such-heading).\n',
+	});
+	const mutatedResult = runGuard(mutated);
+	assert.equal(
+		mutatedResult.status,
+		0,
+		'pre-condition for the explicit limitation: a broken fragment must not flip the guard red; otherwise the limitation comment above is no longer accurate',
+	);
+});
+
+test('ROUND 2 (#1974 r2): --strict-anchors fails closed with a structured message until fragment checking is implemented', () => {
+	const root = makeRepo({
+		'docs/guides/live.md': 'content\n',
+	});
+	const result = spawnSync('node', [scriptPath, '--strict-anchors'], {
+		cwd: root,
+		encoding: 'utf8',
+	});
+	assert.equal(
+		result.status,
+		1,
+		`--strict-anchors is the seam the explicit-limitation block names. Today the flag must fail closed because nothing implements fragment checking; a silent success here would be exactly the silent-guard failure the comment forbids. stderr: ${result.stderr}`,
+	);
+	assert.match(result.stderr, /ANCHOR-VERIFICATION-NOT-IMPLEMENTED/);
+	assert.match(
+		result.stderr,
+		/--strict-anchors was passed but this guard does not implement fragment checking/,
+	);
+});

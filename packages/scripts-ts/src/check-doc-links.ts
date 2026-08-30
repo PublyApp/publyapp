@@ -25,6 +25,28 @@ import process from 'node:process';
 //
 // Fenced code blocks (``` / ~~~) are stripped before scanning so examples
 // cannot trip the guard.
+//
+// EXPLICIT LIMITATION — ANCHORS ARE NOT VERIFIED (#1974 r2)
+// ----------------------------------------------------------
+// `resolveRelativeLinkTarget` strips the fragment via `raw.split('#')[0]`
+// before resolving the file path, so the guard checks that
+// `AGENTS.md#contributing-on-behalf-of-a-company` points at an `AGENTS.md`
+// that exists, but it does NOT check that `contributing-on-behalf-of-a-company`
+// is a real heading inside that file. Breaking the fragment while leaving
+// the file in place would not turn the guard red — this is a known gap,
+// named here so a future reader does not have to derive it.
+//
+// A silent guard would be worse than the gap. The guard therefore
+// - prints a one-line WARNING at the end of every successful run naming
+//   exactly what it does not check (so a green CI run cannot be read as
+//   "anchors are fine");
+// - fails LOUDLY (exit 1 with a structured message) under `--strict-anchors`,
+//   reserved for the day someone decides to actually verify fragments.
+//
+// Today (2026-08-30), the only round that exercised this gap was the one
+// that wrote this comment: PR #1974's CONTRIBUTING.md links to
+// `CLA.md#contributing-on-behalf-of-a-company`, and a mutation that broke
+// only the fragment left every CI gate green.
 
 const RECORDS_DIR = 'docs/records/';
 const FIXTURES_DIR = 'packages/scripts-ts/src/fixtures/';
@@ -207,8 +229,34 @@ const main = (): void => {
 		process.exit(1);
 	}
 
+	// --strict-anchors is the only knob a future patch could use to actually
+	// verify fragments. Today (2026-08-30, #1974 r2) it fails closed by
+	// construction: nothing in the repository implements fragment checking,
+	// and silently treating the flag as a no-op would be the same
+	// silent-guard failure mode the explicit-limitation comment names.
+	// The flag's only purpose today is to keep the seam visible.
+	if (process.argv.includes('--strict-anchors')) {
+		console.error(
+			'::error::[ANCHOR-VERIFICATION-NOT-IMPLEMENTED] ' +
+				'--strict-anchors was passed but this guard does not implement fragment checking. ' +
+				'See the EXPLICIT LIMITATION block at the top of packages/scripts-ts/src/check-doc-links.ts ' +
+				'and issue #1974 round 2.',
+		);
+		process.exit(1);
+	}
+
+	// The explicit warning below is the loud declaration of the gap: every
+	// successful run of this guard prints exactly what it does NOT verify,
+	// so a green CI run cannot be misread as "anchors are fine". The message
+	// is on a single line on purpose — easy to grep, easy to silence only
+	// by addressing the gap.
 	console.log(
 		`doc links OK: ${markdownFiles.length} Markdown files scanned, ${linksChecked} relative links checked.`,
+	);
+	console.log(
+		'WARNING [ANCHORS-NOT-VERIFIED]: only relative file targets are checked; ' +
+			'fragments after `#` are stripped by resolveRelativeLinkTarget and are NOT machine-verified. ' +
+			'See the EXPLICIT LIMITATION block in packages/scripts-ts/src/check-doc-links.ts.',
 	);
 };
 
