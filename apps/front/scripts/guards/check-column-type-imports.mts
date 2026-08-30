@@ -50,6 +50,15 @@
  *     import assignment — flagged because the specifier is the root module,
  *     which gives access to all banned types).
  *
+ * KNOWN BLIND SPOT. The guard inspects the module specifier AS WRITTEN; it
+ * does not perform module resolution. A tsconfig `paths` alias mapping a
+ * local specifier (e.g. a `~/*` key) directly to `@tanstack/react-table`
+ * would hide the banned module behind an innocent-looking import and this
+ * guard could not see it. No such alias exists today
+ * (`apps/front/tsconfig.json` maps only `~/*` → `./src/*`), but if one ever
+ * lands, this guard would silently stop attending the real artifact — the
+ * alias would have to be resolved before the AST walk is trustworthy again.
+ *
  * Only imports whose module specifier is exactly `@tanstack/react-table` or
  * `@tanstack/react-table/legacy` are inspected. Imports of
  * `@tanstack/react-table/legacy` are ALWAYS flagged (the passthrough is the
