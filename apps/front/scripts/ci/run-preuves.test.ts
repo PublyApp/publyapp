@@ -99,14 +99,27 @@ describe('declaredProofTests — CI environment handling', () => {
 
 	test('a fully local run (neither variable) announces itself and is distinct from the CI no-op', () => {
 		// The sanctioned local path must be LOUD, not silent: it prints a
-		// LOCAL RUN marker to stderr, and its no-proofs conclusion carries
-		// the LOCAL RUN prefix instead of the CI sentence.
+		// LOCAL RUN marker to stderr unconditionally (before the diff runs).
+		// What stdout contains depends on the HEAD~1..HEAD diff: on a plain
+		// commit it is the LOCAL RUN no-proof message; on a CI merge-ref
+		// checkout HEAD~1..HEAD spans the whole PR and the run REPLAYS the
+		// declared proofs instead. Both are valid local modes: the stable,
+		// mode-independent guarantees are (a) the stderr announcement and
+		// (b) stdout NEVER carrying the CI no-op sentence.
 		const result = runScript(false, false);
 
 		expect(result.stderr).toContain('LOCAL RUN');
-		expect(result.stdout).toContain('LOCAL RUN');
-		expect(result.stdout).not.toContain(
-			'This PR did not declare any paired red proofs',
-		);
+		if (result.stdout.includes('This PR declared')) {
+			// HEAD~1..HEAD contained proof files: the local run replayed them.
+			expect(result.stdout).not.toContain(
+				'This PR did not declare any paired red proofs',
+			);
+		} else {
+			// No proofs in HEAD~1..HEAD: the local no-proof message is used.
+			expect(result.stdout).toContain('LOCAL RUN');
+			expect(result.stdout).not.toContain(
+				'This PR did not declare any paired red proofs',
+			);
+		}
 	});
 });
