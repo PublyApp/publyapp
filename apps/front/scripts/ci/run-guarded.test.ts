@@ -179,16 +179,40 @@ const countOrphanSurvivors = (needles: readonly string[]): number | null => {
  * Asserts a zero-orphan scan result, failing LOUD when /proc is unavailable.
  * Without this, a non-Linux developer would see the orphan assertions pass
  * while they verified nothing.
+ *
+ * The scan polls: a killed process group leaves zombie entries in /proc until
+ * init reaps them, and on a loaded machine (the full suite runs vitest
+ * workers in parallel) 200ms is not enough for reaping to finish. A REAL
+ * orphan (the #1525 bug: the tree was not killed) never disappears, so the
+ * strict end-state assertion is unchanged — the poll only waits out the
+ * kernel's zombie reaping instead of racing it.
  */
-const expectNoOrphanSurvivors = (needles: readonly string[]): void => {
-	const survivors = countOrphanSurvivors(needles);
-	expect(
-		survivors,
-		'/proc unavailable: the orphan-survivor scan cannot run on this platform, ' +
-			'so the process-tree-kill guarantee is NOT verified here. Run the suite ' +
-			'on Linux (or CI) to exercise it.',
-	).not.toBeNull();
-	expect(survivors).toBe(0);
+const expectNoOrphanSurvivors = async (
+	needles: readonly string[],
+	deadlineMs = 5000,
+): Promise<void> => {
+	const deadline = Date.now() + deadlineMs;
+	let lastCount: number | null = null;
+	for (;;) {
+		lastCount = countOrphanSurvivors(needles);
+		if (lastCount === null) {
+			expect(
+				lastCount,
+				'/proc unavailable: the orphan-survivor scan cannot run on this platform, ' +
+					'so the process-tree-kill guarantee is NOT verified here. Run the suite ' +
+					'on Linux (or CI) to exercise it.',
+			).not.toBeNull();
+			return;
+		}
+		if (lastCount === 0) {
+			break;
+		}
+		if (Date.now() >= deadline) {
+			break;
+		}
+		await new Promise((resolve) => setTimeout(resolve, 200));
+	}
+	expect(lastCount).toBe(0);
 };
 
 const makeNormalGuard = async (): Promise<{ path: string; dir: string }> => {
@@ -255,7 +279,15 @@ describe('run-guarded.mts — issue #1525 timeout kills process tree', () => {
 			// If only the parent PID were killed (not the process group),
 			// the child would survive as an orphan holding the CI lock.
 			await new Promise((r) => setTimeout(r, 200));
-			expectNoOrphanSurvivors(['frozen-guard', 'frozen-child']);
+			// Needles are the UNIQUE fixture paths, not the generic script names:
+			// the /proc scan sees every process on the machine, and lanes run the
+			// same fixtures in the same shared tmpdir concurrently — a generic
+			// 'frozen-guard' token matches another lane's (or an earlier leaked)
+			// run and reds this test for processes it never spawned.
+			await expectNoOrphanSurvivors([
+				path.join(frozenGuardDir, 'frozen-guard.mts'),
+				path.join(frozenGuardDir, 'frozen-child.mts'),
+			]);
 
 			await rm(path.dirname(frozenGuardPath), { recursive: true, force: true });
 		},
@@ -325,9 +357,9 @@ describe('run-guarded.mts — issue #1525 timeout kills process tree', () => {
 				});
 			});
 
-			// Verify no orphaned child process remains.
-			await new Promise((r) => setTimeout(r, 200));
-			expectNoOrphanSurvivors(['running-guard']);
+			// Verify no orphaned child process remains. Needle = the unique
+			// guard path, so another lane's identical fixture cannot match.
+			await expectNoOrphanSurvivors([guardPath]);
 
 			await rm(dir, { recursive: true, force: true });
 		},
@@ -403,8 +435,8 @@ describe('run-guarded.mts — issue #1525 timeout kills process tree', () => {
 			expect(result.stdout).toContain('frozen-passthrough-started');
 
 			// The whole process group was SIGKILLed: no survivor remains.
-			await new Promise((r) => setTimeout(r, 200));
-			expectNoOrphanSurvivors(['frozen-passthrough']);
+			// Needle = the unique script path (shared tmpdir across lanes).
+			await expectNoOrphanSurvivors([scriptPath]);
 
 			await rm(dir, { recursive: true, force: true });
 		},

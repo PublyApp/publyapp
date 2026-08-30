@@ -178,12 +178,24 @@ describe('run-guarded.mts process-tree kill — RED: detached:true missing from 
 		async () => {
 			const { guardPath, childToken, dir } = await makeFrozenTree();
 
-			// Give the frozen tree 3 seconds to timeout, then give the kernel
-			// 200ms to reap the killed PIDs before scanning.
+			// Give the frozen tree 3 seconds to timeout, then poll for the
+			// killed tree to be reaped. A killed process group leaves ZOMBIE
+			// entries in /proc until init reaps them — on a loaded machine
+			// that can take seconds — while a REAL orphan (the regression the
+			// proof exists to catch) never disappears. The poll waits zombies
+			// out without ever masking a true survivor; by the deadline the
+			// kept-red assertion is evaluated on the settled count.
 			await runWrapper(guardPath, '3');
-			await new Promise((r) => setTimeout(r, 200));
 
-			const survivors = countSurvivors(childToken);
+			const deadline = Date.now() + 5000;
+			let survivors = 0;
+			for (;;) {
+				survivors = countSurvivors(childToken);
+				if (survivors > 0 || Date.now() >= deadline) {
+					break;
+				}
+				await new Promise((resolve) => setTimeout(resolve, 200));
+			}
 
 			// The kept-red state: WITHOUT `detached: true`, the child is NOT
 			// in the wrapper's process group. `kill(-child.pid)` sends the
