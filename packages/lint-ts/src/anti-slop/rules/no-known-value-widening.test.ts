@@ -164,3 +164,46 @@ describe(`anti-slop/${RULE_NAME} (#1448 r2 alias-transparency fixtures)`, () => 
 		],
 	});
 });
+
+// Five visitors stream known-evidence flows into widening targets; none of them
+// had a fixture, so any one of them could be dropped without a test turning red.
+// (#1601)
+describe(`anti-slop/${RULE_NAME} (#1601 untested-visitor escape hatches)`, () => {
+	ruleTester.run(RULE_NAME, noKnownValueWideningRule, {
+		valid: [
+			// Class field annotated with a real contract stays clean.
+			v(
+				'interface Contract { key: string }\nclass C { field: Contract = { key: "x" } }',
+			),
+			// Reassignment into a genuinely-open dictionary with no evidence (stays clean).
+			v('let acc: Record<string, unknown> = {};\nacc = someSource;'),
+			// Return into an open container without evidence (stays clean).
+			v('function f(): Record<string, unknown> { return data; }'),
+			// Arrow body returning no known evidence (stays clean).
+			v('const f = (): Record<string, unknown> => data;'),
+		],
+		invalid: [
+			// ── PropertyDefinition ─────────────────────────────────────────
+			// A class field declared with an open-dictionary annotation and
+			// initialised with a known literal discards that evidence.
+			i('class C { field: Record<string, unknown> = { key: "known" } }'),
+			// ── AccessorProperty ───────────────────────────────────────────
+			// The `accessor` keyword form must report identically.
+			i(
+				'class C { accessor field: Record<string, unknown> = { key: "known" } }',
+			),
+			// ── AssignmentExpression (direct identifier reassignment) ──────
+			// Reassigning a widened binding with a known literal launders the
+			// evidence through the declared type.
+			i('let acc: Record<string, unknown> = {};\nacc = { key: "known" };'),
+			// ── ReturnStatement ────────────────────────────────────────────
+			// A function whose return type widens to an open container
+			// discards the known literal returned.
+			i('function f(): Record<string, unknown> { return { key: "known" }; }'),
+			// ── ArrowFunctionExpression (expression body) ──────────────────
+			// An arrow with a widened return type and an expression body
+			// discards the known literal returned.
+			i('const f = (): Record<string, unknown> => ({ key: "known" });'),
+		],
+	});
+});
