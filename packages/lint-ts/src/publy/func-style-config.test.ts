@@ -1561,6 +1561,32 @@ const run = () => 1;
 				assert.deepStrictEqual(violations, []);
 			});
 
+			it('does not flag a binding declared before its call inside an IIFE body', () => {
+				const violations = analyze(
+					`(() => {
+	const run = () => 1;
+	run();
+})();
+`,
+				);
+
+				assert.deepStrictEqual(violations, []);
+			});
+
+			it('does not flag a binding declared before its call inside a class static block', () => {
+				const violations = analyze(
+					`class Probe {
+	static {
+		const run = () => 1;
+		run();
+	}
+}
+`,
+				);
+
+				assert.deepStrictEqual(violations, []);
+			});
+
 			it('does not flag a getter body that is never accessed at module-eval time', () => {
 				const violations = analyze(
 					`const obj = {
