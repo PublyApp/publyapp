@@ -142,19 +142,19 @@ const REPLAYABLE_EXTENSIONS = ['.test.ts', '.test.tsx'] as const;
  * validating that each declared file is replayable.
  *
  * In CI, GITHUB_BASE_REF and GITHUB_HEAD_REF are available. We use a
- * two-dot diff (refs/remotes/origin/<base>..HEAD) to list every file that
- * differs between the base branch and the PR's HEAD. This is robust even
- * when the base ref and HEAD share no merge base (a diverged branch), where
- * a three-dot diff would fail with "no merge base". The two-dot form may
- * include base-branch changes introduced since the fork — conservatively
- * treating them as declared — but it never silently misses a proof the PR
- * actually added.
+ * three-dot diff (`git diff <mergeBase>...HEAD`) to list every file that
+ * differs between the merge base and the PR's HEAD. The three-dot form
+ * shows ONLY changes introduced by the PR branch — not base-branch changes
+ * made since the fork — so a behind-HEAD branch does not fail with spurious
+ * "declared proof" noise. Computing the merge base first also validates that
+ * the base and HEAD actually share history; a diverged branch (no merge base)
+ * fails loud naming the cause, never silently becoming "no proofs declared".
  *
  * GitHub's checkout action fetches only the PR's own ref by default — the
  * base branch's remote ref (refs/remotes/origin/<base>) is NOT available
- * until we fetch it. We fetch it explicitly before the diff so the guard
- * works on a clean CI checkout. The fetch is scoped to the single base ref
- * and is fast (a few hundred KB at most).
+ * until we fetch it. We fetch it explicitly before the merge-base check so
+ * the guard works on a clean CI checkout. The fetch is scoped to the single
+ * base ref and is fast (a few hundred KB at most).
  *
  * The workflow that runs this script (front-ci.yml) uses `fetch-depth: 0`
  * so the checkout is never shallow. But this script is also run locally and
@@ -317,8 +317,16 @@ const declaredProofTests = (): string[] => {
 				);
 			}
 
+			// Three-dot diff (`git diff <mergeBase>...HEAD`) lists ONLY files
+			// that differ between the merge base and the PR's HEAD — changes
+			// the PR branch itself introduced. The two-dot form
+			// (`<baseRef>..HEAD`) would also include base-branch changes made
+			// since the fork, spuriously treating them as declared proofs
+			// when the PR branch is behind HEAD. Computing merge-base first
+			// (above) validates shared history; a diverged branch (no merge
+			// base) fails loud above, never silently here.
 			const diffOutput = execSync(
-				`git -C "${ROOT}" diff --name-only "${baseRef}..HEAD"`,
+				`git -C "${ROOT}" diff --name-only "${mergeBase}...HEAD"`,
 				{ encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] },
 			);
 			changedFiles = diffOutput
