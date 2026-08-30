@@ -234,6 +234,7 @@ const main = (): void => {
 		for (let index = 0; index < lines.length; index++) {
 			const line = lines[index] ?? '';
 			const candidates: string[] = [];
+			const lineNum = index + 1;
 
 			// Angle-bracket inline links: `[text](<target>)`. Target may
 			// contain spaces and escaped characters but not unescaped `>`
@@ -251,13 +252,13 @@ const main = (): void => {
 			// or `<`. If the target contains unescaped parens, the guard
 			// cannot reliably determine where the target ends, so it
 			// fails closed.
+			if (hasUnescapedTargetParens(line)) {
+				failUnescapedParen(file, lineNum, line);
+			}
 			for (const match of line.matchAll(INLINE_LINK_PATTERN)) {
 				const target = match[1];
 				if (target === undefined) {
 					continue;
-				}
-				if (UNESCAPED_PAREN_TARGET_PATTERN.test(target)) {
-					failUnescapedParen(file, index + 1, target);
 				}
 				candidates.push(target);
 			}
@@ -271,7 +272,7 @@ const main = (): void => {
 				const target = refDef[1];
 				if (target !== undefined) {
 					if (UNESCAPED_PAREN_TARGET_PATTERN.test(target)) {
-						failUnescapedParen(file, index + 1, target);
+						failUnescapedParen(file, lineNum, target);
 					}
 					candidates.push(target);
 				}
@@ -295,7 +296,7 @@ const main = (): void => {
 					existingDirs.has(target) ||
 					existingSet.has(`${target}.md`);
 				if (!resolves) {
-					problems.push({ file, line: index + 1, target });
+					problems.push({ file, line: lineNum, target });
 				}
 			}
 		}
@@ -365,6 +366,23 @@ const failUnescapedParen = (
 			`See the EXPLICIT LIMITATION block in packages/scripts-ts/src/check-doc-links.ts.`,
 	);
 	process.exit(1);
+};
+
+// Detects an inline link whose target area contains unescaped parentheses.
+// The INLINE_LINK_PATTERN cannot capture these (it stops at whitespace or
+// the first `)`), so we scan the line link-by-link. Each `](...)` segment
+// is checked independently so a line with two valid links like
+// `[ok](docs) [bad](missing-dir)` is not misread as one broken target.
+const hasUnescapedTargetParens = (line: string): boolean => {
+	const linkPattern = /\]\(([^)]*?)\)/g;
+	let match: RegExpExecArray | null;
+	while ((match = linkPattern.exec(line)) !== null) {
+		const target = match[1];
+		if (target !== undefined && /(?:^|[^\\])[()]/.test(target)) {
+			return true;
+		}
+	}
+	return false;
 };
 
 // r1 MEDIUM: scans the code surfaces for `docs/...` path literals whose
