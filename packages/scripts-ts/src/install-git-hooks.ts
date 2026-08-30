@@ -24,6 +24,21 @@
  *    and the repair — a worktree that believes it is protected while it is
  *    not is worse than one that knows it is not (issue #1852 requirement 1).
  *
+ * ## Stale worktree detection (issue #1933)
+ *
+ * A worktree left on a commit from BEFORE #1907 still has `.husky/pre-commit`
+ * checked out at mode `100644`: git applies the mode bit from the INDEX, and
+ * the pre-#1907 index carries the old mode. Git then **silently ignores** a
+ * non-executable hook — there is no error, no warning, no visible difference
+ * from a protected worktree. The author believes the guard is active; it is
+ * not, and unformatted commits sail through.
+ *
+ * The mode bit cannot be repaired by a config change (it lives in the file
+ * itself), so the verification below compares the WORKING COPY's mode against
+ * the INDEX's mode: if the working copy lost the executable bit while the
+ * index still has it, the hook is silently inert and the worktree must
+ * refuse to keep working as if it were protected.
+ *
  * The root `prepare` script runs this on every `pnpm install`. No developer
  * has to remember anything: a new clone gets hooks on its first install, and
  * a new worktree inherits them from the shared config immediately.
@@ -35,8 +50,218 @@ import { execFileSync } from 'node:child_process';
 import { accessSync, constants, existsSync } from 'node:fs';
 import { join } from 'node:path';
 
-const HOOKS_DIR = '.husky';
-const HOOKS = ['pre-commit', 'pre-push'] as const;
+export const HOOKS_DIR = '.husky';
+export const HOOKS = ['pre-commit', 'pre-push'] as const;
+export type HookName = (typeof HOOKS)[number];
+
+export type HookVerification =
+	| { ok: true }
+	| { ok: false; reason: string; hook: HookName; repair: string };
+
+/**
+ * Run a git subcommand in the given working directory and return its trimmed
+ * stdout. Throws on non-zero exit — the caller is responsible for catching
+ * and reporting the cause.
+ */
+export const runGit = (
+	cwd: string,
+	args: string[],
+): string =>
+	execFileSync('git', [...args], {
+		cwd,
+		encoding: 'utf-8',
+		stdio: ['ignore', 'pipe', 'pipe'],
+	}).trim();
+
+/**
+ * The repair command to print when a hook is non-executable in the working
+ * copy. Exposed so the verification path can include the exact text a
+ * developer needs to run — a repair that requires knowing git internals is
+ * not a repair (issue #1933 acceptance).
+ */
+export const executableRepairCommand = (cwd: string, hook: HookName): string =>
+	`chmod +x "${join(cwd, HOOKS_DIR, hook)}"`;
+
+/**
+ * Read the file mode of `path` and return it in git's 6-digit octal form
+ * (e.g. "100755"). Returns null if the file does not exist.
+ *
+ * The `stat -c %a` output is the permission bits as a 3- or 4-digit octal
+ * string (e.g. "755", "0644"); `git ls-files --stage` prefixes "100" for
+ * regular files. We re-emit the working-copy mode in the same shape so the
+ * two can be compared and so the user-facing message matches what git
+ * itself prints (consistency matters when the message says "100644" and
+ * the developer runs `git ls-tree`).
+ */
+const readFileMode = (path: string): string | null => {
+	if (!existsSync(path)) {
+		return null;
+	}
+	const stat = execFileSync('stat', ['-c', '%a', path], {
+		encoding: 'utf-8',
+		stdio: ['ignore', 'pipe', 'pipe'],
+	}).trim();
+	return `100${stat.padStart(3, '0').slice(-3)}`;
+};
+
+/**
+ * Read the index mode of `path` (relative to `cwd`) as a 6-digit octal
+ * string. A file not in the index returns null.
+ */
+const readIndexMode = (cwd: string, relativePath: string): string | null => {
+	const result = execFileSync(
+		'git',
+		['ls-files', '--stage', '--', relativePath],
+		{
+			cwd,
+			encoding: 'utf-8',
+			stdio: ['ignore', 'pipe', 'pipe'],
+		},
+	).trim();
+	if (result.length === 0) {
+		return null;
+	}
+	// Format: "<mode> <stage> <hash>\t<path>" — the mode is the first token.
+	const firstToken = result.split(/\s+/, 1)[0];
+	return firstToken ?? null;
+};
+
+/**
+ * Verify that a hook file is executable in BOTH the working copy AND the
+ * index. A mode mismatch between the two means the working copy is stale
+ * relative to the committed mode bit (issue #1933: a pre-#1907 worktree
+ * checks out `.husky/pre-commit` at mode 100644 even though current develop
+ * tracks it at 100755, and git silently ignores the non-executable hook).
+ *
+ * Returns `{ ok: true }` when the hook is runnable, or
+ * `{ ok: false, reason, hook, repair }` with a user-readable cause and the
+ * exact command to repair — never a generic "hooks not active" message.
+ */
+export const verifyHook = (
+	cwd: string,
+	hook: HookName,
+): HookVerification => {
+	const hookPath = join(cwd, HOOKS_DIR, hook);
+	const relativePath = `${HOOKS_DIR}/${hook}`;
+
+	if (!existsSync(hookPath)) {
+		return {
+			ok: false,
+			hook,
+			reason: `missing tracked hook file "${relativePath}" (looked at ${hookPath}). The checkout is incomplete.`,
+			repair: `Re-run "pnpm install" (or "pnpm run prepare") to restore the tracked hooks, then check out "${relativePath}" again.`,
+		};
+	}
+
+	// Index mode: what the committed hook expects to be.
+	const indexMode = readIndexMode(cwd, relativePath);
+	const workingMode = readFileMode(hookPath);
+
+	if (indexMode !== null && workingMode !== null) {
+		const indexExecutable = (parseInt(indexMode, 8) & 0o111) !== 0;
+		const workingExecutable = (parseInt(workingMode, 8) & 0o111) !== 0;
+
+		// Both index and working copy expect the hook to be runnable: confirm
+		// the working copy honours it. (This is the common case after a
+		// fresh `git checkout` of a 100755 hook on a sane filesystem.)
+		if (indexExecutable && workingExecutable) {
+			return { ok: true };
+		}
+
+		// The index says the hook is executable, the working copy is not:
+		// this is the pre-#1907 stale-worktree scenario (#1933). Git will
+		// silently skip the hook — refuse to keep working as if the guard
+		// were active, and name the exact repair command.
+		if (indexExecutable && !workingExecutable) {
+			return {
+				ok: false,
+				hook,
+				reason:
+					`stale worktree: "${relativePath}" is committed as mode ${indexMode} ` +
+					`(executable) in the index, yet the working copy carries mode ${workingMode} ` +
+					`(non-executable). Git silently ignores a non-executable hook, so ` +
+					`this worktree's pre-commit guard is INERT — unformatted code will sail through.`,
+				repair: executableRepairCommand(cwd, hook),
+			};
+		}
+
+		// Both modes non-executable: git would also ignore the hook, so the
+		// guard is inert for the same reason. The repair is the same.
+		if (!indexExecutable && !workingExecutable) {
+			return {
+				ok: false,
+				hook,
+				reason:
+					`"${relativePath}" is not executable (mode ${workingMode}). ` +
+					`Git silently ignores a non-executable hook, so this worktree's ` +
+					`pre-commit guard is INERT.`,
+				repair: executableRepairCommand(cwd, hook),
+			};
+		}
+
+		// Working copy executable but the index expects non-executable: this
+		// would only happen after a future mode-bit regression; surface it
+		// loud rather than papering over it.
+		return {
+			ok: false,
+			hook,
+			reason:
+				`"${relativePath}" mode drift: working copy is mode ${workingMode} ` +
+				`(executable) but the index expects mode ${indexMode}. ` +
+				`The committed hook must be executable for the guard to fire.`,
+			repair: executableRepairCommand(cwd, hook),
+		};
+	}
+
+	// Fallback when the index entry is missing (untracked hook, or a fresh
+	// repo without the file yet): trust the working copy's X bit.
+	try {
+		accessSync(hookPath, constants.X_OK);
+	} catch {
+		return {
+			ok: false,
+			hook,
+			reason: `hook file "${relativePath}" exists but is not executable.`,
+			repair: executableRepairCommand(cwd, hook),
+		};
+	}
+	return { ok: true };
+};
+
+/**
+ * Verify every tracked hook under `.husky/` is runnable in this worktree.
+ * Used by the `prepare` script AND by the `pre-push` hook to catch a stale
+ * working copy at the earliest moment — before code leaves the worktree.
+ */
+export const verifyHooks = (cwd: string): HookVerification[] => {
+	const results: HookVerification[] = [];
+	for (const hook of HOOKS) {
+		results.push(verifyHook(cwd, hook));
+	}
+	return results;
+};
+
+/**
+ * Format a list of hook verifications as a single human-readable block. Used
+ * by both the installer and the pre-push hook to emit the same message,
+ * keeping the developer-facing repair text consistent across the two paths.
+ */
+export const formatVerificationReport = (
+	results: HookVerification[],
+): string => {
+	const failures = results.filter(
+		(result): result is Extract<HookVerification, { ok: false }> => !result.ok,
+	);
+	if (failures.length === 0) {
+		return '';
+	}
+	const lines: string[] = [];
+	for (const failure of failures) {
+		lines.push(`- ${failure.hook}: ${failure.reason}`);
+		lines.push(`  Repair: ${failure.repair}`);
+	}
+	return lines.join('\n');
+};
 
 const fail = (message: string): never => {
 	console.error(`\n[install-git-hooks] ${message}`);
@@ -46,56 +271,60 @@ const fail = (message: string): never => {
 	process.exit(1);
 };
 
-const runGit = (args: string[]): string =>
-	execFileSync('git', args, {
-		encoding: 'utf-8',
-		stdio: ['ignore', 'pipe', 'pipe'],
-	}).trim();
+// --- CLI entry point (runs only when executed directly, not when imported) ---
 
-let topLevel: string;
-try {
-	topLevel = runGit(['rev-parse', '--show-toplevel']);
-} catch (err) {
-	fail(
-		`not inside a git work tree (git rev-parse --show-toplevel failed: ${(err as Error).message}).`,
-	);
-}
-
-// Point core.hooksPath at the versioned hooks directory. The value is
-// intentionally RELATIVE: git resolves it inside each worktree's root, and
-// the tracked .husky/pre-commit + .husky/pre-push exist in every checkout.
-// The setting is stored in the clone's shared config, so one install wires
-// every existing and future worktree of the clone.
-try {
-	runGit(['config', 'core.hooksPath', HOOKS_DIR]);
-} catch (err) {
-	fail(
-		`could not set core.hooksPath to "${HOOKS_DIR}" (${(err as Error).message}). ` +
-			'Is the git config writable?',
-	);
-}
-
-for (const hook of HOOKS) {
-	const hookPath = join(topLevel, HOOKS_DIR, hook);
-
-	if (!existsSync(hookPath)) {
-		fail(
-			`missing tracked hook file "${HOOKS_DIR}/${hook}" (looked at ${hookPath}). ` +
-				'The checkout is incomplete.',
-		);
-	}
-
+const isMainModule = (): boolean => {
 	try {
-		accessSync(hookPath, constants.X_OK);
+		const entry = process.argv[1];
+		if (entry === undefined) {
+			return false;
+		}
+		// Resolve relative to this file's URL — works under Node 24's bare ESM.
+		const modulePath = new URL(import.meta.url).pathname;
+		return modulePath === entry || modulePath === entry.replace(/\.ts$/, '.mts');
 	} catch {
+		return false;
+	}
+};
+
+if (isMainModule()) {
+	let topLevel: string;
+	try {
+		topLevel = runGit(process.cwd(), ['rev-parse', '--show-toplevel']);
+	} catch (err) {
 		fail(
-			`hook file "${HOOKS_DIR}/${hook}" exists but is not executable. ` +
-				`Fix with: chmod +x "${hookPath}"`,
+			`not inside a git work tree (git rev-parse --show-toplevel failed: ${(err as Error).message}).`,
 		);
 	}
-}
 
-const resolved = runGit(['config', '--get', 'core.hooksPath']);
-console.log(
-	`[install-git-hooks] OK: core.hooksPath=${resolved} (versioned hooks: ${HOOKS.join(', ')}) — active in every worktree of this clone.`,
-);
+	// Point core.hooksPath at the versioned hooks directory. The value is
+	// intentionally RELATIVE: git resolves it inside each worktree's root, and
+	// the tracked .husky/pre-commit + .husky/pre-push exist in every checkout.
+	// The setting is stored in the clone's shared config, so one install wires
+	// every existing and future worktree of the clone.
+	try {
+		runGit(topLevel, ['config', 'core.hooksPath', HOOKS_DIR]);
+	} catch (err) {
+		fail(
+			`could not set core.hooksPath to "${HOOKS_DIR}" (${(err as Error).message}). ` +
+				'Is the git config writable?',
+		);
+	}
+
+	const verifications = verifyHooks(topLevel);
+	const failures = verifications.filter(
+		(result): result is Extract<HookVerification, { ok: false }> => !result.ok,
+	);
+
+	if (failures.length > 0) {
+		const report = formatVerificationReport(failures);
+		fail(
+			`hook file(s) are not executable in this worktree:\n${report}`,
+		);
+	}
+
+	const resolved = runGit(topLevel, ['config', '--get', 'core.hooksPath']);
+	console.log(
+		`[install-git-hooks] OK: core.hooksPath=${resolved} (versioned hooks: ${HOOKS.join(', ')}) — active in every worktree of this clone.`,
+	);
+}

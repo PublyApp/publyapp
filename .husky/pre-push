@@ -6,6 +6,16 @@
 # partial matches against branches like "refs/heads/maintain", and it covers
 # deletions (git push origin :main) and force-pushes because git still reports
 # the same remote_ref value for those operations.
+
+# Verify the tracked hooks are executable in THIS worktree. A worktree left
+# on a pre-#1907 commit checks out `.husky/pre-commit` at mode 100644, and
+# git silently ignores a non-executable hook — the guard would then be
+# inert while the author believes it is active (issue #1933). We run the
+# check at the top of pre-push so a stale worktree refuses to push unformatted
+# code rather than letting it leave the worktree unnoticed. The verify
+# script exits 1 with the cause and the exact `chmod +x` repair command.
+. "$(dirname "$0")/_verify-hooks.sh"
+
 protected="refs/heads/main refs/heads/develop"
 
 while read -r _local_ref _local_sha remote_ref _remote_sha; do

@@ -9,6 +9,15 @@
 # any manual step. If lint-staged cannot run, fail LOUD — a commit must never
 # slip through unformatted in silence (issue #1852).
 
+# Verify the tracked hooks are executable in THIS worktree. A worktree left
+# on a pre-#1907 commit checks out `.husky/pre-commit` at mode 100644, and
+# git silently ignores a non-executable hook — the pre-commit guard would
+# then be inert while the author believes it is active (issue #1933). Run
+# this BEFORE lint-staged so a stale worktree refuses to keep working
+# rather than producing a false sense of safety. The verify script exits 1
+# on its own with the cause and the exact `chmod +x` repair command.
+. "$(dirname "$0")/_verify-hooks.sh"
+
 # Cross-platform solution that works in both terminal and VS Code/Cursor.
 # Try pnpm first, then fallback to other package managers.
 run_lint_staged() {
