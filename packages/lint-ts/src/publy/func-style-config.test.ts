@@ -1349,6 +1349,120 @@ const run = () => 1;
 					assert.strictEqual(violation.kind, 'direct');
 				}
 			});
+
+			it('flags a call inside an IIFE body that executes at module-eval time', () => {
+				const violations = analyze(
+					`(() => run())();
+const run = () => 1;
+`,
+				);
+
+				assert.strictEqual(violations.length, 1);
+				assert.strictEqual(violations[0]!.callee, 'run');
+				assert.strictEqual(violations[0]!.kind, 'direct');
+				assert.strictEqual(violations[0]!.line, 1);
+			});
+
+			it('flags a call inside an object-literal getter body, triggered by a module-eval property access', () => {
+				const violations = analyze(
+					`const obj = {
+	get value() {
+		return run();
+	},
+};
+void obj.value;
+const run = () => 1;
+`,
+				);
+
+				assert.strictEqual(violations.length, 1);
+				assert.strictEqual(violations[0]!.callee, 'run');
+				assert.strictEqual(violations[0]!.kind, 'direct');
+				assert.strictEqual(violations[0]!.line, 3);
+			});
+
+			it('flags a call inside an object-literal getter body, triggered by a module-eval property access inside a declarator initializer', () => {
+				const violations = analyze(
+					`const obj = {
+	get value() {
+		return run();
+	},
+};
+const x = obj.value;
+const run = () => 1;
+`,
+				);
+
+				assert.strictEqual(violations.length, 1);
+				assert.strictEqual(violations[0]!.callee, 'run');
+				assert.strictEqual(violations[0]!.kind, 'direct');
+			});
+
+			it('flags a call inside a class heritage clause (decorator on class, bare identifier)', () => {
+				const violations = analyze(
+					`@run
+class Probe {}
+const run = () => 1;
+`,
+				);
+
+				assert.strictEqual(violations.length, 1);
+				assert.strictEqual(violations[0]!.callee, 'run');
+				assert.strictEqual(violations[0]!.kind, 'direct');
+				assert.strictEqual(violations[0]!.line, 1);
+			});
+
+			it('flags a call inside a class heritage clause (decorator on class, call syntax @run())', () => {
+				const violations = analyze(
+					`@run()
+class Probe {}
+const run = () => 1;
+`,
+				);
+
+				assert.strictEqual(violations.length, 1);
+				assert.strictEqual(violations[0]!.callee, 'run');
+				assert.strictEqual(violations[0]!.kind, 'direct');
+			});
+
+			it('flags a call inside a class heritage clause (decorator on member)', () => {
+				const violations = analyze(
+					`class Probe {
+	@run
+	method() {}
+}
+const run = () => 1;
+`,
+				);
+
+				assert.strictEqual(violations.length, 1);
+				assert.strictEqual(violations[0]!.callee, 'run');
+				assert.strictEqual(violations[0]!.kind, 'direct');
+			});
+
+			it('flags a call inside a tagged template at module-eval time', () => {
+				const violations = analyze(
+					'tag`template`;' + '\n' + 'const tag = () => 1;',
+				);
+
+				assert.strictEqual(violations.length, 1);
+				assert.strictEqual(violations[0]!.callee, 'tag');
+				assert.strictEqual(violations[0]!.kind, 'direct');
+				assert.strictEqual(violations[0]!.line, 1);
+			});
+
+			it('flags a call inside a top-level await at module-eval time', () => {
+				const violations = analyze(
+					`await run();
+const run = () => 1;
+`,
+				);
+
+				assert.strictEqual(violations.length, 1);
+				assert.strictEqual(violations[0]!.callee, 'run');
+				assert.strictEqual(violations[0]!.kind, 'direct');
+				assert.strictEqual(violations[0]!.line, 1);
+			});
 		});
 
 		describe('green fixtures — healthy code produces zero order violations', () => {
@@ -1431,6 +1545,52 @@ const result = engine.run();
 				const violations = analyze(
 					`const later = () => 1;
 const holder = later;
+`,
+				);
+
+				assert.deepStrictEqual(violations, []);
+			});
+
+			it('does not flag an IIFE that does not call a tracked binding', () => {
+				const violations = analyze(
+					`(() => { void 1; })();
+const run = () => 1;
+`,
+				);
+
+				assert.deepStrictEqual(violations, []);
+			});
+
+			it('does not flag a getter body that is never accessed at module-eval time', () => {
+				const violations = analyze(
+					`const obj = {
+	get value() {
+		return run();
+	},
+};
+const run = () => 1;
+`,
+				);
+
+				assert.deepStrictEqual(violations, []);
+			});
+
+			it('does not flag a non-getter property access on an object literal', () => {
+				const violations = analyze(
+					`const obj = { value: 42 };
+const x = obj.value;
+const run = () => 1;
+`,
+				);
+
+				assert.deepStrictEqual(violations, []);
+			});
+
+			it('does not flag a decorator whose expression is already defined', () => {
+				const violations = analyze(
+					`const run = () => 1;
+@run
+class Probe {}
 `,
 				);
 

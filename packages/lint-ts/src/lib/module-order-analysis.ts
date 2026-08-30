@@ -23,9 +23,13 @@
  *      call site that EXECUTES AT MODULE EVALUATION TIME (direct statements,
  *      declarator initializers, immediately-executed blocks, loop
  *      conditions, class heritage/decorators/static blocks, enum member
- *      initializers...), never descending into a deferred function body
- *      (function/arrow/method bodies, class field initializers, parameter
- *      defaults of functions that are not themselves immediately invoked).
+ *      initializers, tagged templates, top-level await...), descending into
+ *      bodies that also execute at module-evaluation time: immediately-invoked
+ *      function bodies (IIFEs, including their parameter defaults) and getter
+ *      bodies triggered by a property access at module-eval time. It never
+ *      descends into a deferred function body (function/arrow/method bodies
+ *      that are not immediately invoked, class field initializers, parameter
+ *      defaults of functions called later).
  *   4. when such a call site invokes a tracked binding, it walks that
  *      binding's body the same way, transitively: an arrow called during
  *      module evaluation runs its whole body during module evaluation, so
@@ -46,8 +50,11 @@
  * is never reported even when the body textually precedes the declaration.
  *
  * Deferred boundaries (never reported): function/arrow/method/accessor/
- * constructor bodies, class field initialisers, parameter defaults of
- * functions that are not themselves immediately invoked.
+ * constructor bodies that are not immediately invoked, class field initialisers
+ * (deferred to instantiation), getter/setter bodies (deferred to property
+ * access — only tracked when the getter is on a module-level const object
+ * that is accessed at module-eval time), parameter defaults of functions that
+ * are not themselves immediately invoked.
  *
  * Known gaps — deliberate, declared for review (see the adverse-mutation
  * section of the PR):
@@ -58,6 +65,12 @@
  *   not tracked.
  * - invocations through member/sequence callees (`obj.f()`, `(0, f)()`,
  *   `obj[f]()`) are not followed as hops.
+ * - getter bodies on class declarations, class instances, or computed
+ *   property names are not tracked (only object-literal getters on
+ *   module-level const bindings are analysed).
+ * - decorator expressions that are member-access calls (`@ns.dec`) are
+ *   not resolved to a named binding (only bare identifier decorators are
+ *   treated as calls).
  */
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -90,6 +103,14 @@ type FunctionLike =
 	| ts.ArrowFunction
 	| ts.FunctionExpression
 	| ts.FunctionDeclaration;
+
+/** A getter accessor tracked on an object literal assigned to a const binding.
+ * When the const is accessed for that property at module-eval time, the
+ * getter body runs at module-eval time. */
+interface ObjectGetter {
+	/** The GetAccessor node whose body runs when the property is read. */
+	node: ts.GetAccessorDeclaration;
+}
 
 /** A lexical binding that holds a function value (tracked by the guard). */
 interface FunctionBinding {
@@ -284,6 +305,11 @@ interface WalkContext {
 	file: string;
 	sourceFile: SourceFileWithParseDiagnostics;
 	moduleBindings: Map<string, FunctionBinding>;
+	/** For each module-level const binding whose initializer is an object
+	 * literal, maps property name → getter accessor node. When the const is
+	 * read for that property at module-eval time, the getter body runs and is
+	 * walked for TDZ violations. */
+	getterIndex: Map<string, Map<string, ObjectGetter>>;
 	violations: ModuleOrderViolation[];
 }
 
@@ -711,6 +737,23 @@ const walkImmediate = (
 		return;
 	}
 
+	if (ts.isPropertyAccessExpression(node)) {
+		// A property access can trigger a getter accessor defined on an
+		// object literal assigned to a module-level const. The getter body
+		// runs at the moment of access — module-evaluation time when the
+		// access is at module level.
+		walkGetterAccess(
+			node,
+			context,
+			scopes,
+			bodyRootIndex,
+			executionPos,
+			chain,
+			visitedBindings,
+		);
+		return;
+	}
+
 	if (ts.isCallExpression(node) || ts.isNewExpression(node)) {
 		handleInvocation(
 			node.expression,
@@ -756,6 +799,148 @@ const walkImmediate = (
 	});
 };
 
+/** Walks the getters on an object literal initializer (if any), registering
+ * them in the context's `getterIndex` keyed by the const binding name.
+ * When the const is later accessed at module-eval time, the getter body
+ * runs and is walked for TDZ violations. */
+const collectGetters = (
+	bindingName: string,
+	initializer: ts.Expression | undefined,
+	context: WalkContext,
+): void => {
+	if (initializer === undefined || !ts.isObjectLiteralExpression(initializer)) {
+		return;
+	}
+	const gettersForBinding = context.getterIndex.get(bindingName);
+	if (gettersForBinding === undefined) {
+		context.getterIndex.set(bindingName, new Map());
+	}
+	const target = context.getterIndex.get(bindingName)!;
+	for (const property of initializer.properties) {
+		if (
+			ts.isGetAccessorDeclaration(property) &&
+			property.name !== undefined &&
+			ts.isIdentifier(property.name)
+		) {
+			target.set(property.name.text, { node: property });
+		}
+	}
+};
+
+/** Walks a property access that may trigger an object-literal getter. A
+ * getter `get value() { ... }` on an object literal assigned to a module-level
+ * const runs when the property is read. If the read happens at module-eval
+ * time, the getter body runs at module-eval time and must be checked for TDZ.
+ *
+ * The getter body is a deferred function-like node, so it is pruned by
+ * `walkImmediate` — we walk it explicitly here, using the scopes surrounding
+ * the property-access site and the access position as the execution moment. */
+const walkGetterAccess = (
+	node: ts.PropertyAccessExpression,
+	context: WalkContext,
+	scopes: Scope[],
+	bodyRootIndex: number,
+	executionPos: number,
+	chain: string[],
+	visitedBindings: Set<string>,
+): void => {
+	// Only track `obj.prop` patterns where `obj` is a simple identifier that
+	// resolves to a module-level const binding with tracked getters. But we
+	// ALWAYS walk the object expression — it may contain a call (e.g.
+	// `toPosixPath(x).endsWith('y')`) whose callee needs checking.
+	if (!ts.isIdentifier(node.expression)) {
+		walkImmediate(
+			node.expression,
+			context,
+			scopes,
+			bodyRootIndex,
+			executionPos,
+			chain,
+			visitedBindings,
+		);
+		return;
+	}
+	const objectName = node.expression.text;
+	// The getterIndex only ever holds module-level const bindings whose
+	// initializer is an object literal with getter properties. A simple
+	// presence check is sufficient — if the key exists, the object was
+	// registered during module-binding collection.
+	const gettersForBinding = context.getterIndex.get(objectName);
+	if (gettersForBinding === undefined) {
+		return;
+	}
+	const property = node.name;
+	if (property === undefined || !ts.isIdentifier(property)) {
+		return;
+	}
+	const propertyName = property.text;
+	const getter = gettersForBinding.get(propertyName);
+	if (getter === undefined) {
+		// No getter on this binding/property — but the object expression
+		// (`obj`) may itself contain a call that needs checking (e.g.
+		// `toPosixPath(x).endsWith('y')` where `.endsWith` is a non-tracked
+		// member access). Walk the object expression so nested invocation
+		// callees are still analysed.
+		walkImmediate(
+			node.expression,
+			context,
+			scopes,
+			bodyRootIndex,
+			executionPos,
+			chain,
+			visitedBindings,
+		);
+		return;
+	}
+
+	// The getter body runs at the moment of property access.
+	const getterScope: Scope = { names: new Map() };
+	collectDeclarations(getter.node.parameters ?? [], getterScope);
+	scopes.push(getterScope);
+	for (const statement of getter.node.body?.statements ?? []) {
+		walkImmediate(
+			statement,
+			context,
+			scopes,
+			scopes.length,
+			executionPos,
+			chain,
+			visitedBindings,
+		);
+	}
+	scopes.pop();
+};
+
+/** Walks a decorator expression at class-definition time. A decorator
+ * `@expr` is sugar for `expr(class)` — the decorator function executes at
+ * class definition time (module-evaluation time when the class is at module
+ * level). For a bare identifier decorator, the identifier IS the callee, so
+ * `handleInvocation` resolves it against the scope chain and reports a TDZ
+ * violation when the referenced const arrow is declared after the class.
+ * For call-expression decorators (`@run()`) and member-expression decorators
+ * (`@ns.dec`), the existing `handleInvocation` machinery reaches them through
+ * the callee expression. */
+const walkDecorator = (
+	decorator: ts.Decorator,
+	context: WalkContext,
+	scopes: Scope[],
+	bodyRootIndex: number,
+	executionPos: number,
+	chain: string[],
+	visitedBindings: Set<string>,
+): void => {
+	handleInvocation(
+		decorator.expression,
+		[],
+		context,
+		scopes,
+		bodyRootIndex,
+		executionPos,
+		chain,
+		visitedBindings,
+	);
+};
+
 /** Walks the module-evaluation-time parts of a class: decorators, heritage
  * clauses, static blocks, and computed member names. Field initialisers and
  * method bodies run at instantiation/call time, never at module load. */
@@ -769,8 +954,8 @@ const walkClass = (
 	visitedBindings: Set<string>,
 ): void => {
 	for (const decorator of ts.getDecorators(node) ?? []) {
-		walkImmediate(
-			decorator.expression,
+		walkDecorator(
+			decorator,
 			context,
 			scopes,
 			bodyRootIndex,
@@ -804,7 +989,7 @@ const walkClass = (
 					statement,
 					context,
 					scopes,
-					bodyRootIndex,
+					scopes.length,
 					executionPos,
 					chain,
 					visitedBindings,
@@ -815,8 +1000,8 @@ const walkClass = (
 		}
 		if (ts.canHaveDecorators(member)) {
 			for (const decorator of ts.getDecorators(member) ?? []) {
-				walkImmediate(
-					decorator.expression,
+				walkDecorator(
+					decorator,
 					context,
 					scopes,
 					bodyRootIndex,
@@ -843,6 +1028,109 @@ const walkClass = (
 	}
 };
 
+/** Unwraps parenthesized expressions to get the inner expression. */
+const unwrapParens = (node: ts.Expression): ts.Expression => {
+	let current = node;
+	while (ts.isParenthesizedExpression(current)) {
+		current = current.expression;
+	}
+	return current;
+};
+
+/** Checks if a callee expression is a function expression or arrow function
+ * (possibly wrapped in parentheses) — i.e., the callee of an IIFE. */
+const isImmediatelyInvokedCallee = (node: ts.Node): boolean => {
+	const unwrapped = unwrapParens(node as ts.Expression);
+	return ts.isFunctionExpression(unwrapped) || ts.isArrowFunction(unwrapped);
+};
+
+/** Walks the body of an immediately-invoked anonymous function (an IIFE). The
+ * body executes at the moment the call occurs — which, when the IIFE is at
+ * module-evaluation time, is module-evaluation time. Parameter defaults and
+ * body statements are walked with the lexical scopes surrounding the IIFE's
+ * declaration site. The `executionPos` stays the outermost invocation position.
+ *
+ * This is separate from `invokeBinding` because an IIFE has no named binding
+ * to track — it is an anonymous function expression that is immediately
+ * invoked, not a const arrow resolved through the scope chain. */
+const walkIIFE = (
+	functionNode: ts.FunctionExpression | ts.ArrowFunction,
+	context: WalkContext,
+	scopes: Scope[],
+	bodyRootIndex: number,
+	executionPos: number,
+	chain: string[],
+	visitedBindings: Set<string>,
+): void => {
+	const key = `${position(functionNode)}:${executionPos}`;
+	if (visitedBindings.has(key)) {
+		return;
+	}
+	visitedBindings.add(key);
+
+	// Parameter defaults run when the function is invoked — which, for an
+	// immediately-invoked anonymous function, is module-evaluation time.
+	for (const parameter of functionNode.parameters) {
+		if (parameter.initializer !== undefined) {
+			walkImmediate(
+				parameter.initializer,
+				context,
+				scopes,
+				bodyRootIndex,
+				executionPos,
+				chain,
+				visitedBindings,
+			);
+		}
+	}
+
+	if (ts.isArrowFunction(functionNode)) {
+		if (ts.isBlock(functionNode.body)) {
+			const scope: Scope = { names: new Map() };
+			collectDeclarations(functionNode.body.statements, scope);
+			scopes.push(scope);
+			for (const statement of functionNode.body.statements) {
+				walkImmediate(
+					statement,
+					context,
+					scopes,
+					scopes.length,
+					executionPos,
+					chain,
+					visitedBindings,
+				);
+			}
+			scopes.pop();
+		} else {
+			walkImmediate(
+				functionNode.body,
+				context,
+				scopes,
+				scopes.length,
+				executionPos,
+				chain,
+				visitedBindings,
+			);
+		}
+	} else if (functionNode.body !== undefined) {
+		const scope: Scope = { names: new Map() };
+		collectDeclarations(functionNode.body.statements, scope);
+		scopes.push(scope);
+		for (const statement of functionNode.body.statements) {
+			walkImmediate(
+				statement,
+				context,
+				scopes,
+				scopes.length,
+				executionPos,
+				chain,
+				visitedBindings,
+			);
+		}
+		scopes.pop();
+	}
+};
+
 /** Handles a call/construct/tag invocation whose callee expression is
  * `calleeExpression`. Resolves a plain-identifier callee against the lexical
  * scopes, reports the violation when the binding is not yet initialised, and
@@ -861,6 +1149,20 @@ const handleInvocation = (
 		handleResolvedIdentifier(
 			calleeExpression.text,
 			position(calleeExpression),
+			context,
+			scopes,
+			bodyRootIndex,
+			executionPos,
+			chain,
+			visitedBindings,
+		);
+	} else if (isImmediatelyInvokedCallee(calleeExpression)) {
+		// IIFE: the callee is a function expression (possibly wrapped in
+		// parentheses). Its body (and parameter defaults) executes at this
+		// moment — module-evaluation time when the IIFE is at module level.
+		const fn = unwrapParens(calleeExpression);
+		walkIIFE(
+			fn,
 			context,
 			scopes,
 			bodyRootIndex,
@@ -1100,6 +1402,7 @@ export const analyzeModuleOrder = (
 		file,
 		sourceFile,
 		moduleBindings: new Map(),
+		getterIndex: new Map(),
 		violations: [],
 	};
 
@@ -1114,6 +1417,13 @@ export const analyzeModuleOrder = (
 				}
 				const fn = functionInitializer(declaration.initializer);
 				if (fn === undefined) {
+					// Still collect getters from non-function initializers (object
+					// literals with getter properties).
+					collectGetters(
+						declaration.name.text,
+						declaration.initializer,
+						context,
+					);
 					continue;
 				}
 				context.moduleBindings.set(declaration.name.text, {
@@ -1122,6 +1432,7 @@ export const analyzeModuleOrder = (
 					hoisted: false,
 					node: fn,
 				});
+				collectGetters(declaration.name.text, declaration.initializer, context);
 			}
 		} else if (
 			ts.isFunctionDeclaration(statement) &&
