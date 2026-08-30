@@ -37,10 +37,18 @@
  * finding, not a skip. A `server.mjs` that imports nothing from
  * `srvx/static` is one that has been refactored past this guard's scope
  * and the guard is then protecting nothing — it must say so, not stay
- * silent. The paired red proof under `apps/front/tests/proofs/1822/`
- * reads both this rule and the `findServerStaticImports` parser to make
- * sure a regression that drops either one turns the proof GREEN, which
- * the `Verify paired red proofs` CI step reports as CORRUPT PROOF.
+ * silent. What enforces that rule is the unit suite next to this file:
+ * the nine tests in `check-server-static-imports.test.mts` cover the
+ * zero-import throw, the missing-file throw and the parser's alias
+ * handling. The paired red proof under `apps/front/tests/proofs/1822/`
+ * does NOT read this file — it reads `server.mjs` source directly, an
+ * independent parsing path, and stays red whether or not this guard
+ * exists. That independence is the point (it survives a silent
+ * weakening of the guard) but it also means the proof cannot vouch for
+ * the fail-closed rule; only the unit tests can. An earlier version of
+ * this paragraph claimed the proof read the parser. It does not, and a
+ * comment that misnames what protects what sends the next reader to the
+ * wrong file.
  *
  * THE PAIRED RED PROOF (#1822). The bug that #1628 surfaced and #1872
  * labelled — `tenant-posts-publish-now` link never appears because the
@@ -57,11 +65,24 @@
  * silence the e2e the same way unless this guard catches the import
  * shape first. This guard is the regression tripwire.
  *
- * KNOWN LIMIT, stated rather than left to be discovered. The guard
- * inspects `server.mjs` only. A second top-level module that imports
- * from `srvx/static` would slip past. Today there is no such module;
- * if one is added, the walker below must be widened in the same commit,
- * or the guard must be replaced by one that walks a directory.
+ * KNOWN LIMITS, stated rather than left to be discovered.
+ *
+ *   1. The guard inspects `server.mjs` only. A second top-level module
+ *      that imports from `srvx/static` would slip past. Today there is
+ *      no such module; if one is added, the walker below must be
+ *      widened in the same commit, or the guard must be replaced by one
+ *      that walks a directory.
+ *   2. The guard checks that an imported NAME exists, not that its call
+ *      contract is unchanged. An `srvx` release that keeps
+ *      `staticMiddleware` but changes what it accepts or returns
+ *      defeats this guard entirely: a different startup crash, the same
+ *      e2e symptom (#1872). What bounds that case is the
+ *      `smoke:start` step and the e2e suite, which boot the real
+ *      server — not this file. Widening the guard to the call contract
+ *      would mean asserting on arity or a probe call, which is a
+ *      different and heavier design; it is deliberately not attempted
+ *      here, and the reader should not mistake a green run of this
+ *      guard for a working server.
  */
 
 import { existsSync } from 'node:fs';
