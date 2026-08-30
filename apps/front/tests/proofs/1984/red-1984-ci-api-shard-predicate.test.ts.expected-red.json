@@ -1,0 +1,15 @@
+{
+	"$schema": "../expected-red.schema.json",
+	"_comment": "Per-test kept-red expectation manifest for the CI api-tests shard predicate proof (issue #1984, round 2 of #1947). Read by apps/front/scripts/ci/run-preuves.mts BEFORE classification. Each test declared in `expectedRed` MUST fail on correct code with an AssertionError. If a declared kept-red test PASSES, the runner fails CI with verdict CORRUPT PROOF. The CONTEXT test (the third one) is not declared here because it is GREEN in both worlds — its purpose is to pin the structural facts so a stale proof is diagnosable, not to demonstrate a defect. Declaring it as expectedRed would create a permanent false positive in the classifier.",
+	"expectedRed": [
+		{
+			"testName": "DEFECT: the round-1 predicate builder still emits a TRAIT-syntax predicate (the regression shape)",
+			"why": "The proof asserts `expect(productionPredicate.startsWith('ClassName=')).toBe(true)`. On the FIXED code, the production CLI emits `FullyQualifiedName~...` (not `ClassName=...`), so the assertion fails with an AssertionError. If this test PASSES, the CLI has regressed to the round-1 shape and the workflow is back to the green-while-empty state — exactly the regression this proof exists to catch."
+		},
+		{
+			"testName": "DEFECT: the round-1 parser silently accepted the regression-marker error line as a class FQN",
+			"why": "The proof asserts `expect(productionThrew).toBe(false)`, where `productionThrew` is set when the production `classFqnFromListLine(errorLine)` call throws on the regression-marker line. The call is wrapped in a try/catch so the throw surfaces as an AssertionError (the kept-red state the runner classifies as OK), not as a raw thrown Error (which the runner would classify as CORRUPT PROOF). On the FIXED code, the production parser throws, the boolean is true, and the assertion fails with an AssertionError. If this test PASSES, the parser has regressed to silently coercing the regression-marker line into a class FQN, which would seed the predicate with garbage and quietly fail every shard."
+		}
+	],
+	"measuredAgainst": "2642bc9be8ea1fcb88498a15e18231212b0fe260"
+}
