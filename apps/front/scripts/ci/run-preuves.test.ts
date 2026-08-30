@@ -1001,12 +1001,11 @@ describe('proof replay — declared proof file is missing from the working tree 
 				'99999',
 				'stale-proof.test.ts',
 			);
-			expect(existsSync(proofFile)).toBe(
-				true,
-				'proof must exist before deletion',
-			);
+			// The proof must exist before we delete it, otherwise the deletion
+			// proves nothing and the fixture would be green for the wrong reason.
+			expect(existsSync(proofFile)).toBe(true);
 			rmSync(proofFile);
-			expect(existsSync(proofFile)).toBe(false, 'proof must be deleted');
+			expect(existsSync(proofFile)).toBe(false);
 
 			const result = runReplayFixture(root);
 
