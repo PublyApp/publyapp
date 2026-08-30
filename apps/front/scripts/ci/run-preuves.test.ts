@@ -415,13 +415,32 @@ const runReplayFixture = (root: string) => {
 	};
 };
 
-describe('proof replay — F1: the per-test manifest is mandatory, not optional', () => {
-	test('a declared proof WITHOUT its expected-red manifest fails loud naming the file and the action', () => {
-		// Before ronde 11 the runner silently fell back to the global
-		// classifier when the manifest was absent — the exact mutation
-		// the reviewer replayed (weaken the detection, `git rm` the
-		// manifest): everything stayed green. The runner must now fail
-		// loud naming the missing file and demanding the manifest.
+describe('proof replay — F1: the per-test manifest is the declaration marker', () => {
+	test('a file under tests/proofs/ WITHOUT its expected-red manifest is NOT a declared paired red proof (the CI step ignores it)', () => {
+		// The convention (docs/guides/test-conventions.md
+		// §"Paired Red/Green Proofs") defines a paired red proof by its
+		// sidecar `.expected-red.json` manifest: a test under
+		// `tests/proofs/` is in scope for the CI step ONLY if it
+		// declares the kept-red test names. A file without a manifest
+		// is a green proof, a decorative file, or an artefact that
+		// slipped into the directory — none of which belong to the
+		// paired-red-proofs guard.
+		//
+		// The runner filters at the declaration step: it does not
+		// include a manifest-less file in `declared`. This is the
+		// correct behaviour because:
+		//   - the runner cannot classify a manifest-less proof without
+		//     guessing what was supposed to stay red, and
+		//   - including it would either (a) silently classify it as
+		//     UNEXPECTED_PASS (for a green proof — wrong verdict) or
+		//     (b) fail loud for a misnamed artefact, which is
+		//     indistinguishable from a real proof author forgetting
+		//     the manifest.
+		//
+		// The pre-#1929-r3 behaviour — declare everything, then fail
+		// loud if the manifest is missing — is what produced the
+		// "passed unexpectedly" verdicts for the green proofs added
+		// by commit 3027c902c. Pin the new shape.
 		const root = buildReplayFixture({
 			declaredTestPasses: true,
 			siblingPasses: false,
@@ -430,16 +449,26 @@ describe('proof replay — F1: the per-test manifest is mandatory, not optional'
 		try {
 			const result = runReplayFixture(root);
 
-			expect(result.status).not.toBe(0);
-			expect(result.stderr).toContain('expected-red manifest is MISSING');
-			expect(result.stderr).toContain('stale-proof.test.ts.expected-red.json');
-			// The expected action is named, not just the failure.
-			expect(result.stderr).toContain('Add the manifest');
-			// The silent fallback must be gone: no OK verdict, no
-			// all-green summary.
-			expect(result.stdout).not.toContain(
-				'All declared proof tests behaved as expected.',
+			// No proof was declared, so the step is a no-op: exit 0
+			// with the explicit "no proofs declared" message.
+			// The runner does NOT raise a "missing manifest" error,
+			// because the file is not in scope in the first place.
+			expect(result.status).toBe(0);
+			// Either CI mode ("This PR did not declare any paired red
+			// proofs") or local mode ("LOCAL RUN — no proof test files
+			// changed in HEAD~1..HEAD") — both spell out the no-op
+			// loudly. The test fixture runs without
+			// GITHUB_BASE_REF/GITHUB_HEAD_REF, so we expect the
+			// local-mode message; the wording differs from CI on
+			// purpose so a local run is never mistaken for a CI
+			// verdict.
+			expect(result.stdout).toMatch(
+				/(This PR did not declare any paired red proofs|LOCAL RUN.*no proof test files changed)/s,
 			);
+			expect(result.stderr).not.toContain('expected-red manifest is MISSING');
+			// The manifest-less file must not appear in the declared
+			// list either.
+			expect(result.stdout).not.toContain('stale-proof.test.ts');
 		} finally {
 			rmSync(root, { recursive: true, force: true });
 		}

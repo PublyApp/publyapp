@@ -265,7 +265,7 @@ test(
 							code: 'typescript(no-floating-promises)',
 							severity: 'warning',
 						})),
-						number_of_files: 1000,
+						number_of_files: 1500,
 					}),
 					stderr: '',
 					error: null,
@@ -360,7 +360,7 @@ test(
 					status: 0,
 					stdout: JSON.stringify({
 						diagnostics: [],
-						number_of_files: 1000,
+						number_of_files: 1500,
 					}),
 					stderr: '',
 					error: null,
@@ -426,7 +426,7 @@ test(
 								severity: 'warning',
 							},
 						],
-						number_of_files: 1000,
+						number_of_files: 1500,
 					}),
 					stderr: '',
 					error: null,
@@ -486,7 +486,7 @@ test(
 							code: 'typescript(no-floating-promises)',
 							severity: 'warning',
 						})),
-						number_of_files: 1000,
+						number_of_files: 1500,
 					}),
 					stderr: '',
 					error: null,
@@ -718,7 +718,7 @@ test(
 							// The mutation: error, not warning.
 							severity: 'error',
 						})),
-						number_of_files: 1000,
+						number_of_files: 1500,
 					}),
 					stderr: '',
 					error: null,
@@ -791,7 +791,7 @@ test(
 							code: 'typescript(no-floating-promises)',
 							severity: 'warning',
 						})),
-						number_of_files: 1000,
+						number_of_files: 1500,
 					}),
 					stderr: '',
 					error: null,
@@ -841,7 +841,7 @@ test(
 							code: 'typescript(no-floating-promises)',
 							severity: 'warning',
 						})),
-						number_of_files: 1000,
+						number_of_files: 1500,
 					}),
 					stderr: '',
 					error: null,
@@ -899,7 +899,7 @@ test(
 							code: 'typescript(no-floating-promises)',
 							severity: 'warning',
 						})),
-						number_of_files: 1000,
+						number_of_files: 1500,
 					}),
 					stderr: '',
 					error: null,
@@ -985,7 +985,7 @@ test(
 							code: 'typescript(no-floating-promises)',
 							severity: 'warning',
 						})),
-						number_of_files: 1000,
+						number_of_files: 1500,
 					}),
 					stderr: '',
 					error: null,
@@ -1180,7 +1180,8 @@ test(
 				result.withinLimit,
 				'error',
 				'expected withinLimit="error" when files_scanned_floor=0, ' +
-					'but got withinLimit=' + `${result.withinLimit}`,
+					'but got withinLimit=' +
+					`${result.withinLimit}`,
 			);
 		} finally {
 			vi.doUnmock('node:fs/promises');
@@ -1228,7 +1229,8 @@ test(
 				result.withinLimit,
 				'error',
 				'expected withinLimit="error" when files_scanned_floor=-1, ' +
-					'but got withinLimit=' + `${result.withinLimit}`,
+					'but got withinLimit=' +
+					`${result.withinLimit}`,
 			);
 		} finally {
 			vi.doUnmock('node:fs/promises');
@@ -1273,7 +1275,8 @@ test(
 				result.withinLimit,
 				'error',
 				'expected withinLimit="error" when files_scanned_floor="ninety", ' +
-					'but got withinLimit=' + `${result.withinLimit}`,
+					'but got withinLimit=' +
+					`${result.withinLimit}`,
 			);
 		} finally {
 			vi.doUnmock('node:fs/promises');

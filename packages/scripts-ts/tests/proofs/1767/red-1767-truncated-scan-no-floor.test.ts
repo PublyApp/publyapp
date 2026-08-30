@@ -10,11 +10,11 @@
  * warnings), so a truncated scan would report "within limit" while real
  * violations hide in the unscanned files.
  *
- * The fix: the baseline pins `files_scanned_floor` (1000). If oxlint scans
+ * The fix: the baseline pins `files_scanned_floor` (1100). If oxlint scans
  * fewer files than the floor, the scan is truncated and the ratchet
  * refuses to report a count — it fails closed.
  *
- * This proof mocks oxlint to scan 300 files (vs 1122 measured) with a
+ * This proof mocks oxlint to scan 300 files (vs 1129 measured) with a
  * warning count equal to the baseline (397). The baseline JSON is mocked
  * to set `files_scanned_floor: 0` — the ADVERSE MUTATION (floor disabled).
  *

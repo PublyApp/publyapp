@@ -10,13 +10,13 @@
  * warnings), so a truncated scan would report "within limit" while real
  * violations hide in the unscanned files.
  *
- * The fix: the baseline pins `files_scanned_floor` (1000). If oxlint scans
+ * The fix: the baseline pins `files_scanned_floor` (1100). If oxlint scans
  * fewer files than the floor, the scan is truncated and the ratchet
  * refuses to report a count — it fails closed.
  *
- * This proof mocks oxlint to scan 300 files (vs 1122 measured) with a
+ * This proof mocks oxlint to scan 300 files (vs 1129 measured) with a
  * warning count equal to the baseline (397). The baseline JSON is mocked
- * to set `files_scanned_floor: 1000` — the CORRECT state.
+ * to set `files_scanned_floor: 1100` — the CORRECT state.
  *
  * ## What the proof asserts (green direction)
  *
@@ -27,7 +27,7 @@
  *   cd packages/scripts-ts && pnpm exec vitest run --config vitest.preuves.config.ts \
  *     tests/proofs/1767/green-1767-truncated-scan-with-floor.test.ts
  *
- * Expected: PASS — the floor is 1000, the scan covers 300, the ratchet
+ * Expected: PASS — the floor is 1100, the scan covers 300, the ratchet
  * fails closed.
  */
 import assert from 'node:assert/strict';

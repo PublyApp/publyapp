@@ -11,6 +11,7 @@ import { test } from 'vitest';
 import {
 	computeProductionStats,
 	findOffendingPairs,
+	isTestInfraDir,
 	readReferenceFromBase,
 	verifyJscpdRatchet,
 } from './check-jscpd.ts';
@@ -1309,4 +1310,95 @@ test('#1932: the committed jscpd-reference.json carries pairLines and autoLines 
 		Object.keys(ref.autoLines).length > 0,
 		'autoLines must be non-empty (at least one self-duplicated production file exists)',
 	);
+});
+
+// ---------------------------------------------------------------------------
+// isTestInfraDir anchor coverage (issue #1929 r3).
+//
+// The patterns are anchored to the two known test-project roots so a future
+// `Tests/` directory added anywhere else is NOT silently swallowed. These
+// tests pin the anchor: the green state recognises the two real roots and
+// rejects every other path that merely contains a `Tests` segment. If the
+// anchor is loosened back to an unanchored `/\/Tests\//` (the pre-#1929-r3
+// shape), the "rejected" test goes red — the mutation bites.
+// ---------------------------------------------------------------------------
+
+test('isTestInfraDir recognises the two anchored test-infrastructure roots', () => {
+	// Green: the two real, anchored roots must be recognised.
+	const recognised = [
+		'apps/api/Tests/SomeTest.cs',
+		'apps/api/Tests/Data/DbContext/AppDbContextAuditTrackingSpec.cs',
+		'apps/api/Lib/Testing/Helpers/TenantTestHelper.cs',
+		'apps/api/Lib/Testing/Fixtures/SomeFixture.cs',
+		'apps/api/Lib/Testing/Fakes/SomeFake.cs',
+		'apps/api/Lib/Testing/Diagnostics/SomeDiag.cs',
+	];
+	for (const file of recognised) {
+		assert.strictEqual(
+			isTestInfraDir(file),
+			true,
+			`anchor regression: ${file} must be recognised as a test-infra path`,
+		);
+	}
+});
+
+test('isTestInfraDir rejects a Tests/ directory added outside the two anchored roots', () => {
+	// Red-when-anchor-is-broken: every other location that merely has a
+	// `Tests` segment MUST be rejected. If the guard ever broadens its
+	// patterns (e.g. back to the pre-r3 unanchored `/\/Tests\//` form),
+	// these assertions fail loud and the operator sees the test name.
+	const notRecognised = [
+		// A Tests/ directory added under apps/front/src — must NOT be
+		// silently absorbed by the patterns.
+		'apps/front/src/Tests/SomeTest.tsx',
+		'apps/front/src/Tests/Nested/SomeTest.ts',
+		// A Tests/ directory added under packages/shared-ts — must NOT be
+		// silently absorbed either.
+		'packages/shared-ts/Tests/SomeTest.ts',
+		'packages/shared-ts/Tests/Sub/Dir/SomeTest.ts',
+		// A Tests/ directory added under packages/lint-cs — outside the
+		// production roots entirely, but the anchor contract says: if the
+		// file is NOT under apps/api/Tests/ or apps/api/Lib/Testing/,
+		// the pattern must NOT match. Pins the contract.
+		'packages/lint-cs/Tests/SomeTest.cs',
+		// A Lib/Testing/ segment appearing outside apps/api — same contract.
+		'apps/front/src/Lib/Testing/SomeHelper.ts',
+		'packages/shared-ts/Lib/Testing/SomeHelper.ts',
+		// A file NAMED Tests.cs that is not inside any test-infrastructure
+		// directory — must NOT be auto-classified by the patterns (the
+		// `.Tests.cs` suffix rule handles this elsewhere).
+		'apps/api/Modules/Auth/Tests.cs',
+	];
+	for (const file of notRecognised) {
+		assert.strictEqual(
+			isTestInfraDir(file),
+			false,
+			`anchor regression: ${file} must NOT be recognised as a test-infra ` +
+				`path — a new Tests/ directory outside the anchored roots must ` +
+				`require an explicit extension to TEST_INFRA_DIR_PATTERNS.`,
+		);
+	}
+});
+
+test('isTestInfraDir rejects a third Tests/ root added under apps/api (e.g. apps/api/Tests2/)', () => {
+	// The risk the anchor addresses: an exclusion pattern that names a
+	// directory can match a SIBLING that happens to share the same suffix
+	// (apps/api/Tests/ vs apps/api/Tests2/). The anchored form requires
+	// the trailing slash, so `apps/api/Tests2/...` does NOT match
+	// `^apps/api/Tests/`. This test pins that property — without the
+	// trailing slash, the patterns would over-match.
+	const tests2Paths = [
+		'apps/api/Tests2/SomeFile.cs',
+		'apps/api/Tests2/Nested/SomeFile.cs',
+	];
+	for (const file of tests2Paths) {
+		assert.strictEqual(
+			isTestInfraDir(file),
+			false,
+			`anchor regression: ${file} must NOT match — the anchored pattern ` +
+				`requires the trailing slash, so the sibling apps/api/Tests2/ ` +
+				`directory is not silently absorbed.`,
+		);
+	}
+});
 });

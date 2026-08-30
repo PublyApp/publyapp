@@ -245,18 +245,27 @@ export const classifyProof = (
 	const noTests = report.numTotalTests === 0;
 
 	// An assertion failure in vitest is reported with the error type
-	// as the first token of the failure message: "AssertionError: ...".
-	// A thrown error (Error, TypeError, ...) starts with that type
-	// instead: "Error: ...". Checking the first token distinguishes
-	// "the proof measured and the ideal is not met" (assertion
-	// failure, the expected kept-red state) from "the proof could not
-	// measure" (thrown Error — harness crash, extraction failure).
+	// as the first token of the failure message. The historical format
+	// is "AssertionError: ..." (Node <= 22), but Node 24 prepends the
+	// error code in brackets — "AssertionError [ERR_ASSERTION]: ..."
+	// — and the format is part of the same [Symbol.toStringTag] family
+	// for TypeError, RangeError, etc. We match the token (not the
+	// trailing colon) so both formats are recognised. Matching the
+	// first token still distinguishes "the proof measured and the
+	// ideal is not met" (assertion failure, the expected kept-red
+	// state) from "the proof could not measure" (thrown Error —
+	// harness crash, extraction failure).
 	const hasAssertionFailure = report.testResults.some((suite) =>
 		suite.assertionResults.some(
 			(t) =>
 				t.status === 'failed' &&
 				t.failureMessages.length > 0 &&
-				t.failureMessages[0]!.startsWith('AssertionError:'),
+				// "AssertionError:"  (Node <= 22)
+				// "AssertionError [ERR_ASSERTION]:"  (Node >= 24)
+				// Both must classify as an assertion failure, not as
+				// a thrown Error. Anchor on the first token of the
+				// message line, not on the colon.
+				/^AssertionError(?:\s*\[[^\]]+\])?:/.test(t.failureMessages[0]!),
 		),
 	);
 

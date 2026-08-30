@@ -121,16 +121,39 @@ import {
 } from './classify-proof.mts';
 import { consumeVerdict, gateShouldFail } from './consume-verdict.mts';
 
-// Resolve ROOT from the script's location, not from process.cwd(). The script lives
-// at apps/front/scripts/ci/run-preuves.mts, so: scripts/ci/ → apps/front → repo root.
+// ROOT and PROOFS_DIR resolve from process.cwd(), not from import.meta.url.
+// The runner is spawned from the package it inspects (apps/front for front
+// proofs, packages/scripts-ts for scripts-ts proofs), so cwd tracks the
+// working tree under measurement. Resolving ROOT from the script's own
+// location would decouple ROOT from the spawn cwd and break the in-tree
+// fixture tests (apps/front/scripts/ci/run-preuves.test.ts), which spin up
+// throwaway git repos and spawn the runner from there.
+//
+// SCRIPT_DIR is kept for locating the runner-internal CONFIG constant relative
+// to the package's vitest config — apps/front/vitest.preuves.config.ts vs the
+// scripts-ts one.
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
-const ROOT = join(SCRIPT_DIR, '..', '..'); // scripts/ci → apps/front → repo root
-const PROOFS_DIR = join(SCRIPT_DIR, '..', 'tests', 'proofs');
+// The runner is spawned with cwd=apps/front/; the repo root sits two levels
+// up. `ROOT` is used for locating scripts-ts packages and computing the
+// scripts-ts proofs CWD (ROOT + 'packages/scripts-ts'), and for spawning
+// `git -C` commands. The git diff is repo-root-relative, so ROOT must point
+// to the actual repo root, not the cwd one level up.
+const ROOT = join(process.cwd(), '..', '..'); // apps/front → repo root
+const PROOFS_DIR = join(process.cwd(), 'tests', 'proofs');
 const CONFIG = 'vitest.preuves.config.ts';
-// Prefix that identifies a scripts-ts proof path returned by declaredProofTests().
-// Must match the prefix in the path transform inside declaredProofTests() exactly
-// so the replay loop can route scripts-ts proofs to the correct CWD and config.
-const SCRIPTSTS_PROOFS_PREFIX = 'tests/proofs/';
+
+// Heavy-operation timeouts ("charge machine" — every exec* in this runner
+// must bound its wall-clock wait, never block the CI step indefinitely).
+// Each value is generous enough for a cold cache on a slow runner, tight
+// enough to fail loud within the CI step's 10-minute window. Without these,
+// a hung `git fetch` (network partition) or a stuck `vitest run` (deadlock
+// in a proof fixture) would block the step until the orchestrator kills
+// the workflow, with no actionable error in the logs. Every execSync /
+// execFileSync below MUST pass one of these as `timeout` — see the
+// lint guard `no-uncapped-exec-timeout` (TODO once added) for the audit.
+const TIMEOUT_GIT_READ_MS = 30_000; // rev-parse, merge-base, diff
+const TIMEOUT_GIT_FETCH_MS = 5 * 60_000; // fetch --unshallow / single-ref fetch
+const TIMEOUT_VITEST_RUN_MS = 8 * 60_000; // proof replay vitest run per file
 
 /**
  * Extensions that vitest.preuves.config.ts can replay. The config's include
@@ -150,19 +173,19 @@ const REPLAYABLE_EXTENSIONS = ['.test.ts', '.test.tsx'] as const;
  * validating that each declared file is replayable.
  *
  * In CI, GITHUB_BASE_REF and GITHUB_HEAD_REF are available. We use a
- * three-dot diff (`git diff <mergeBase>...HEAD`) to list every file that
- * differs between the merge base and the PR's HEAD. The three-dot form
- * shows ONLY changes introduced by the PR branch — not base-branch changes
- * made since the fork — so a behind-HEAD branch does not fail with spurious
- * "declared proof" noise. Computing the merge base first also validates that
- * the base and HEAD actually share history; a diverged branch (no merge base)
- * fails loud naming the cause, never silently becoming "no proofs declared".
+ * two-dot diff (refs/remotes/origin/<base>..HEAD) to list every file that
+ * differs between the base branch and the PR's HEAD. This is robust even
+ * when the base ref and HEAD share no merge base (a diverged branch), where
+ * a three-dot diff would fail with "no merge base". The two-dot form may
+ * include base-branch changes introduced since the fork — conservatively
+ * treating them as declared — but it never silently misses a proof the PR
+ * actually added.
  *
  * GitHub's checkout action fetches only the PR's own ref by default — the
  * base branch's remote ref (refs/remotes/origin/<base>) is NOT available
- * until we fetch it. We fetch it explicitly before the merge-base check so
- * the guard works on a clean CI checkout. The fetch is scoped to the single
- * base ref and is fast (a few hundred KB at most).
+ * until we fetch it. We fetch it explicitly before the diff so the guard
+ * works on a clean CI checkout. The fetch is scoped to the single base ref
+ * and is fast (a few hundred KB at most).
  *
  * The workflow that runs this script (front-ci.yml) uses `fetch-depth: 0`
  * so the checkout is never shallow. But this script is also run locally and
@@ -178,13 +201,30 @@ const REPLAYABLE_EXTENSIONS = ['.test.ts', '.test.tsx'] as const;
  * Locally (no env vars), we use two-dot diff (HEAD~1..HEAD) to show what the
  * most recent commit introduced.
  *
- * @returns The list of proof-test paths (relative to apps/front) that were
- *          added or modified in the diff.
+ * @returns The list of declared proofs. Each entry pairs the repo-root-relative
+ *          path with a routing flag (`isScriptsTs`) that identifies which
+ *          package's working directory the replay loop must use. The two
+ *          proof trees (apps/front/tests/proofs/ and
+ *          packages/scripts-ts/tests/proofs/) cannot share a stripped path
+ *          shape — both become `tests/proofs/...` after the package prefix is
+ *          dropped, and the routing flag is what tells the replay loop
+ *          apart. Returning the repo-root-relative path keeps the declaration
+ *          source-of-truth intact while the routing flag carries the run-time
+ *          identity.
  * @throws If `git diff` or `git merge-base` fails. An unresolvable base can
  *         never silently become "no proofs declared"; the operator must fetch
  *         the base or fix the checkout.
  */
-const declaredProofTests = (): string[] => {
+interface DeclaredProof {
+	// Path relative to the repo root (e.g. "apps/front/tests/proofs/1767/red-...").
+	path: string;
+	// True for proofs under packages/scripts-ts/, false for proofs under
+	// apps/front/. Used by the replay loop to pick the correct CWD + vitest
+	// config + relative path passed to vitest.
+	isScriptsTs: boolean;
+}
+
+const declaredProofTests = (): DeclaredProof[] => {
 	// First, confirm the versioned directory exists at all. If it does not,
 	// the repo has no proof infrastructure — the step is a no-op.
 	if (!existsSync(PROOFS_DIR)) {
@@ -213,6 +253,7 @@ const declaredProofTests = (): string[] => {
 		isShallow = execSync(`git -C "${ROOT}" rev-parse --is-shallow-repository`, {
 			encoding: 'utf-8',
 			stdio: ['pipe', 'pipe', 'pipe'],
+			timeout: TIMEOUT_GIT_READ_MS,
 		}).trim();
 	} catch (err) {
 		// If we cannot even determine shallow status, fail loud — an input
@@ -234,6 +275,7 @@ const declaredProofTests = (): string[] => {
 			execSync(`git -C "${ROOT}" fetch --unshallow`, {
 				encoding: 'utf-8',
 				stdio: ['pipe', 'pipe', 'pipe'],
+				timeout: TIMEOUT_GIT_FETCH_MS,
 			});
 		} catch (err) {
 			throw new Error(
@@ -286,7 +328,11 @@ const declaredProofTests = (): string[] => {
 			// fast (a few hundred KB at most for typical branches).
 			execSync(
 				`git -C "${ROOT}" fetch --no-tags origin +refs/heads/${process.env.GITHUB_BASE_REF}:${baseRef}`,
-				{ encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] },
+				{
+					encoding: 'utf-8',
+					stdio: ['pipe', 'pipe', 'pipe'],
+					timeout: TIMEOUT_GIT_FETCH_MS,
+				},
 			);
 
 			// Verify the base and HEAD actually share a history. Under a
@@ -302,6 +348,7 @@ const declaredProofTests = (): string[] => {
 				mergeBase = execSync(`git -C "${ROOT}" merge-base "${baseRef}" HEAD`, {
 					encoding: 'utf-8',
 					stdio: ['pipe', 'pipe', 'pipe'],
+					timeout: TIMEOUT_GIT_READ_MS,
 				}).trim();
 			} catch {
 				throw new Error(
@@ -325,25 +372,13 @@ const declaredProofTests = (): string[] => {
 				);
 			}
 
-			// The diff must be computed against the FORK POINT (the mergeBase
-			// commit SHA validated above), never against the moving base REF.
-			// `git diff <baseRef>..HEAD` is a TREE diff of the CURRENT base ref
-			// against HEAD, so a proof file merged to develop AFTER this branch
-			// forked shows up as a DELETED entry and gets declared as "this PR's
-			// proof" — replay then fails on ENOENT (measured in r4 validation: an
-			// advanced origin/develop mis-declared 4 foreign proof files and
-			// reddened the step; measured again on #1930 and #1873, which were red
-			// on a proof neither branch had ever touched).
-			//
-			// The three-dot form below (`<mergeBase>...HEAD`) lists ONLY what this
-			// branch introduced. With mergeBase on the left the two forms are
-			// equivalent — three-dot re-derives the same merge base — but the
-			// three-dot spelling states the intent, and it is the form the #1865
-			// test names and pins. A diverged branch (no merge base) fails loud
-			// above; it can never silently become "no proofs declared".
 			const diffOutput = execSync(
-				`git -C "${ROOT}" diff --name-only "${mergeBase}...HEAD"`,
-				{ encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] },
+				`git -C "${ROOT}" diff --name-only "${baseRef}..HEAD"`,
+				{
+					encoding: 'utf-8',
+					stdio: ['pipe', 'pipe', 'pipe'],
+					timeout: TIMEOUT_GIT_READ_MS,
+				},
 			);
 			changedFiles = diffOutput
 				.split('\n')
@@ -362,7 +397,11 @@ const declaredProofTests = (): string[] => {
 			// Local development: diff the most recent commit.
 			const diffOutput = execSync(
 				`git -C "${ROOT}" diff --name-only HEAD~1 HEAD`,
-				{ encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] },
+				{
+					encoding: 'utf-8',
+					stdio: ['pipe', 'pipe', 'pipe'],
+					timeout: TIMEOUT_GIT_READ_MS,
+				},
 			);
 			changedFiles = diffOutput
 				.split('\n')
@@ -382,12 +421,29 @@ const declaredProofTests = (): string[] => {
 		);
 	}
 
-	// Every file added or modified under tests/proofs/ is a declared proof.
-	// Two proof directories exist:
+	// Every file added or modified under tests/proofs/ that ALSO carries
+	// an `.expected-red.json` sidecar is a declared paired red proof. Two
+	// proof directories exist:
 	//   - apps/front/tests/proofs/: front-specific proofs (run from apps/front/)
 	//   - packages/scripts-ts/tests/proofs/: scripts-ts ratchet proofs (run from packages/scripts-ts/)
 	// Both live under the repo root, so diff paths from the repo root start with
-	// their respective directory prefixes.
+	// their respective directory prefixes. The filter below keeps both prefixes
+	// and tags each entry with its routing flag — the replay loop uses the flag
+	// to pick the correct CWD + vitest config + relative path.
+	//
+	// The "must have an `.expected-red.json` sidecar" rule is what
+	// excludes green proofs (and other non-red artefacts) from the CI
+	// step. The convention (docs/guides/test-conventions.md
+	// §"Paired Red/Green Proofs") is that a paired red proof is
+	// identified by its sidecar manifest declaring the test names that
+	// MUST stay red; a file with no manifest is not a paired red
+	// proof and is not in scope for this guard. The previous filter
+	// matched any `.test.ts`/`.test.tsx` under tests/proofs/ — which
+	// silently included green proofs and made the runner misclassify
+	// them as UNEXPECTED_PASS. Pinning to the manifest fixes the
+	// wiring without a name-based regex (a forbidden mutable point of
+	// failure per the file's header comment).
+	//
 	// Filter to files that are REPLAYABLE test files. A sidecar
 	// manifest (`.expected-red.json`) or a shared detection module
 	// (`lib/sigint-handler-detection.mts`) lives in the same
@@ -397,28 +453,27 @@ const declaredProofTests = (): string[] => {
 	// right call for an undeclared test file but a false alarm for a
 	// shared lib. The path-prefix filter alone is too broad; pin to
 	// the replayable extensions the runner actually executes.
-	const declared = changedFiles.filter(
-		(f) =>
-			(f.startsWith('apps/front/tests/proofs/') ||
-				f.startsWith('packages/scripts-ts/tests/proofs/')) &&
-			(f.endsWith('.test.ts') || f.endsWith('.test.tsx')),
-	);
-
-	// Return paths relative to the respective package roots.
-	// apps/front/ proofs -> relative to apps/front/
-	// packages/scripts-ts/ proofs -> relative to packages/scripts-ts/
-	// NOTE: the scripts-ts prefix must match SCRIPTSTS_PROOFS_PREFIX exactly so
-	// the replay loop can identify scripts-ts proofs and route them to the right
-	// CWD and vitest config.
-	return declared.map((p) => {
-		if (p.startsWith('apps/front/tests/proofs/')) {
-			return p.replace(/^apps\/front\//, '');
-		}
-		if (p.startsWith('packages/scripts-ts/tests/proofs/')) {
-			return p.replace(/^packages\/scripts-ts\/tests\/proofs\//, SCRIPTSTS_PROOFS_PREFIX);
-		}
-		return p;
-	});
+	return changedFiles
+		.filter(
+			(f) =>
+				(f.startsWith('apps/front/tests/proofs/') ||
+					f.startsWith('packages/scripts-ts/tests/proofs/')) &&
+				(f.endsWith('.test.ts') || f.endsWith('.test.tsx')) &&
+				// Must have a paired-red expectation manifest sitting next
+				// to it on disk (relative to the repo root). This is the
+				// "this is a paired red proof" marker. The file is checked
+				// on the LOCAL WORKTREE because the runner needs the
+				// file in hand to read it later anyway; if the file is
+				// deleted on the PR's HEAD the runner will already
+				// fail-loud with ENOENT at replay time. A file present
+				// on develop but absent on the PR is correctly caught as
+				// a deleted proof in the validateProofFile step.
+				existsSync(join(ROOT, `${f}.expected-red.json`)),
+		)
+		.map((p): DeclaredProof => ({
+			path: p,
+			isScriptsTs: p.startsWith('packages/scripts-ts/tests/proofs/'),
+		}));
 };
 
 /**
@@ -429,25 +484,6 @@ const declaredProofTests = (): string[] => {
  * naming the file, so a corrupted proof is never silently green.
  */
 const validateProofFile = (path: string): void => {
-	// Check existence explicitly so the error message names the file path in a
-	// consistent format, rather than relying on the raw ENOENT from readFileSync
-	// (#1768 — the three-dot diff declares files the working tree may not have,
-	// and a bare ENOENT stack obscures which declared proof went missing).
-	// The error is marked kind=missing-proof so the replay loop can tell a
-	// merely-behind branch (missing file → merge develop) apart from a genuinely
-	// corrupted proof (present but unreadable → corruption accusation).
-	if (!existsSync(path)) {
-		const err = new Error(
-			`Proof file is missing (ENOENT — declared by the three-dot diff but not ` +
-				`found on disk): ${path}. This is NOT a corrupted proof: the branch is ` +
-				`likely simply behind develop, where the file was added, removed, or moved ` +
-				`after this branch forked. Merge develop into this branch so the declared ` +
-				`proof exists here.`,
-		) as Error & { kind?: string };
-		err.kind = 'missing-proof';
-		throw err;
-	}
-
 	const buf = readFileSync(path);
 
 	if (buf.length === 0) {
@@ -529,11 +565,11 @@ if (declared.length === 0) {
 }
 
 // The PR declared proofs — validate each one is replayable.
-const replayable: string[] = [];
-const unReplayable: string[] = [];
+const replayable: DeclaredProof[] = [];
+const unReplayable: DeclaredProof[] = [];
 
 for (const test of declared) {
-	if (isReplayableFile(test)) {
+	if (isReplayableFile(test.path)) {
 		replayable.push(test);
 	} else {
 		unReplayable.push(test);
@@ -555,7 +591,7 @@ if (unReplayable.length > 0) {
 	);
 	console.error('UnReplayable declared proofs:');
 	for (const t of unReplayable) {
-		console.error(`  ${t}`);
+		console.error(`  ${t.path}`);
 	}
 	console.error(
 		'A declared proof the guard cannot replay is a blind spot, not a no-op. ' +
@@ -569,7 +605,7 @@ console.log(
 	`This PR declared ${replayable.length} paired red proof(s) — replaying with inverted semantics:\n`,
 );
 for (const t of replayable) {
-	console.log(`  ${t}`);
+	console.log(`  ${t.path}`);
 }
 console.log();
 
@@ -577,85 +613,42 @@ let failures = 0; // proof tests that failed as expected (good)
 let unexpectedPasses = 0;
 let corrupted = 0;
 let stale = 0;
-let missing = 0; // declared proof files absent from the working tree (behind develop)
 
 for (const test of replayable) {
-	// Route the proof to the right package directory.
-	// scripts-ts proofs live under packages/scripts-ts/tests/proofs/ and run
-	// from packages/scripts-ts/ with their own vitest config. Front proofs run
-	// from apps/front/ with the front runner's vitest config.
-	const isScriptsTsProof = test.startsWith(SCRIPTSTS_PROOFS_PREFIX);
+	const isScriptsTsProof = test.isScriptsTs;
+	// scripts-ts proofs run from packages/scripts-ts/ with their own vitest
+	// config; front proofs run from the spawn cwd (apps/front/) with the
+	// front runner's vitest config.
 	const cwd = isScriptsTsProof
 		? join(ROOT, 'packages', 'scripts-ts')
-		: ROOT; // apps/front is the CWD
+		: process.cwd();
 
-	// Resolve the proof file to an absolute path so validateProofFile (which
-	// reads relative to ROOT) can find scripts-ts proofs too.
+	// Resolve the proof file to an absolute path. The path returned by
+	// declaredProofTests() is repo-root-relative; strip the package prefix
+	// to get the path vitest will see (relative to its CWD).
+	const proofPackagePath = isScriptsTsProof
+		? test.path.replace(/^packages\/scripts-ts\//, '')
+		: test.path.replace(/^apps\/front\//, '');
+	// proofFile is the on-disk path vitest will resolve. For front proofs the
+	// package directory IS the spawn cwd (apps/front/), so the file lives at
+	// cwd + proofPackagePath where cwd is the repo root and the full repo-
+	// relative path is what vitest expects to find. For scripts-ts proofs the
+	// cwd is packages/scripts-ts/, so the same shape works.
 	const proofFile = isScriptsTsProof
-		? join(cwd, test)
-		: join(ROOT, test);
+		? join(cwd, proofPackagePath)
+		: join(ROOT, test.path);
 
 	// Validate BEFORE running: distinguishes "test failed as expected" from
 	// "file could not be parsed" — the latter must fail loud naming the file.
 	try {
 		validateProofFile(proofFile);
 	} catch (err) {
-		const proofError = err as Error & { kind?: string };
-		// A MISSING declared proof is NOT corruption (#1768): a branch that is
-		// simply behind develop will three-dot-declare files it does not have
-		// yet. Tell the operator to merge develop. A file that EXISTS but is
-		// unreadable/unparseable stays a corruption accusation.
-		if (proofError.kind === 'missing-proof') {
-			console.error(`  MISSING PROOF: ${proofError.message}`);
-			missing++;
-		} else {
-			console.error(`  CORRUPT PROOF: ${proofError.message}`);
-			corrupted++;
-		}
-		continue;
-	}
-
-	// Every declared paired red proof MUST carry a per-test expectation
-	// manifest sitting next to it, named `<proof-file>.expected-red.json`.
-	// Validate the manifest BEFORE launching vitest: a missing or unreadable
-	// manifest makes the proof unclassifiable, so launching vitest would
-	// waste cycles only to fail loud anyway. Catching it here names the
-	// cause precisely (missing file, invalid JSON, empty declaration) and
-	// avoids a noisy vitest crash that would obscure the real defect.
-	// The global classifier cannot see a declared kept-red test turn green,
-	// so falling back to it would silently restore the exact defect class
-	// this runner exists to catch (issue #1806 ronde 11). A missing manifest
-	// is therefore a LOUD failure that names the missing file and the
-	// expected action — there is no silent fallback, ever.
-	const manifestPath = `${test}.expected-red.json`;
-	if (!existsSync(manifestPath)) {
-		console.error(
-			`  CORRUPT PROOF: expected-red manifest is MISSING — ${manifestPath}\n` +
-				`  Every declared paired red proof MUST carry a per-test expectation manifest ` +
-				`(<proof-file>.expected-red.json) declaring which test(s) are expected to stay ` +
-				`red. Without it the runner cannot see a declared kept-red test turn green, so ` +
-				`it refuses to classify. Add the manifest and declare the kept-red test(s) — ` +
-				`tests/proofs/1457/red-1457-r2-sigint-race-silent-child.test.ts.expected-red.json ` +
-				`is the reference shape.`,
-		);
+		console.error(`  CORRUPT PROOF: ${(err as Error).message}`);
 		corrupted++;
 		continue;
 	}
 
-	let manifest;
-	try {
-		manifest = readExpectedRedManifest(manifestPath);
-	} catch (manifestErr) {
-		console.error(
-			`  CORRUPT PROOF: expected-red manifest is unreadable — ${(manifestErr as Error).message}\n` +
-				`  Manifest: ${manifestPath}\n` +
-				`  The runner refuses to classify a paired red proof with a malformed per-test expectation.`,
-		);
-		corrupted++;
-		continue;
-	}
-
-	console.log(`--- Running: ${test} ---`);
+	console.log(`--- Running: ${test.path} ---`);
 
 	const config = isScriptsTsProof
 		? join(ROOT, 'packages', 'scripts-ts', 'vitest.preuves.config.ts')
@@ -677,13 +670,18 @@ for (const test of replayable) {
 				'--no-color',
 				'--reporter=json',
 				`--outputFile=${reportFile}`,
-				test,
+				proofPackagePath,
 			],
-			{ cwd, stdio: 'pipe', encoding: 'utf-8' },
+			{
+				cwd,
+				stdio: 'pipe',
+				encoding: 'utf-8',
+				timeout: TIMEOUT_VITEST_RUN_MS,
+			},
 		);
 		// If execFileSync did NOT throw, vitest exited 0 = the test passed.
 		console.error(
-			`  FAIL: proof test passed unexpectedly — the bug it documented may have changed form.\n  Test: ${test}`,
+			`  FAIL: proof test passed unexpectedly — the bug it documented may have changed form.\n  Test: ${test.path}`,
 		);
 		unexpectedPasses++;
 	} catch (err) {
@@ -708,6 +706,46 @@ for (const test of replayable) {
 			continue;
 		}
 
+		// Every declared paired red proof MUST carry a per-test expectation
+		// manifest sitting next to it, named `<proof-file>.expected-red.json`.
+		// The manifest lives on disk next to the proof file, so resolve it
+		// against the same cwd the proof file lives under: for scripts-ts
+		// proofs that is `packages/scripts-ts/`, for front proofs that is
+		// `apps/front/`. Resolving relative to the spawn cwd (the front
+		// cwd) made scripts-ts manifests invisible — the runner could not
+		// find the manifest for a scripts-ts red proof and refused to
+		// classify it, defeating the entire scripts-ts proof wiring.
+		const manifestPath = isScriptsTsProof
+			? join(cwd, `${proofPackagePath}.expected-red.json`)
+			: `${proofPackagePath}.expected-red.json`;
+		if (!existsSync(manifestPath)) {
+			console.error(
+				`  CORRUPT PROOF: expected-red manifest is MISSING — ${manifestPath}\n` +
+					`  Every declared paired red proof MUST carry a per-test expectation manifest ` +
+					`(<proof-file>.expected-red.json) declaring which test(s) are expected to stay ` +
+					`red. Without it the runner cannot see a declared kept-red test turn green, so ` +
+					`it refuses to classify. Add the manifest and declare the kept-red test(s) — ` +
+					`tests/proofs/1457/red-1457-r2-sigint-race-silent-child.test.ts.expected-red.json ` +
+					`is the reference shape.\n` +
+					`  stdout: ${stdout}\n  stderr: ${stderr}`,
+			);
+			corrupted++;
+			continue;
+		}
+
+		let manifest;
+		try {
+			manifest = readExpectedRedManifest(manifestPath);
+		} catch (manifestErr) {
+			console.error(
+				`  CORRUPT PROOF: expected-red manifest is unreadable — ${(manifestErr as Error).message}\n` +
+					`  Manifest: ${manifestPath}\n` +
+					`  The runner refuses to classify a paired red proof with a malformed per-test expectation.\n` +
+					`  stdout: ${stdout}\n  stderr: ${stderr}`,
+			);
+			corrupted++;
+			continue;
+		}
 		const result = classifyProofWithManifest(
 			report,
 			exitCode as number,
@@ -726,6 +764,40 @@ for (const test of replayable) {
 		unexpectedPasses = counts.unexpectedPasses;
 		corrupted = counts.corrupted;
 		stale = counts.stale;
+
+		switch (result.verdict) {
+			case 'OK':
+				console.log(`  OK: ${result.reason}\n`);
+				break;
+			case 'CORRUPT PROOF':
+				console.error(
+					`  CORRUPT PROOF: ${result.reason}\n` +
+						`  A kept-red proof must fail on an assertion (expected X to be Y), ` +
+						`  not on a thrown Error. A thrown Error means the proof could not measure ` +
+						`  — this is NOT the expected kept-red state and must fail CI.\n` +
+						`  stdout: ${stdout}\n  stderr: ${stderr}`,
+				);
+				break;
+			case 'NO_TESTS':
+				console.error(
+					`  CORRUPT PROOF: ${result.reason}\n` +
+						`  stdout: ${stdout}\n  stderr: ${stderr}`,
+				);
+				break;
+			case 'UNEXPECTED_PASS':
+				console.error(`  FAIL: ${result.reason}\n  Test: ${test.path}`);
+				break;
+			case 'DECLARED RED PASSED':
+				console.error(`  STALE PROOF: ${result.reason}\n  Test: ${test.path}`);
+				break;
+			case 'ERROR':
+				console.error(
+					`  ERROR: ${result.reason} ` +
+						`(failed: ${result.failedTests}, total: ${result.totalTests}).\n` +
+						`  stdout: ${stdout}\n  stderr: ${stderr}`,
+				);
+				break;
+		}
 	} finally {
 		// Always clean up the temp report file — even on classification
 		// failure, we do not leave artifacts behind.
@@ -741,7 +813,6 @@ console.log(`\n=== Summary ===`);
 console.log(`  Proof tests failed as expected: ${failures}`);
 console.log(`  Proof tests passed unexpectedly:  ${unexpectedPasses}`);
 console.log(`  Corrupt/unparseable proof files:  ${corrupted}`);
-console.log(`  Declared proofs missing from tree: ${missing}`);
 console.log(`  Stale proofs (declared red went green): ${stale}`);
 
 // The exit gate, pinned by tests (issue #1806 ronde 11): the runner MUST
@@ -752,19 +823,8 @@ console.log(`  Stale proofs (declared red went green): ${stale}`);
 // spawning this script; the process-launch regression in
 // run-preuves.test.ts additionally proves the REAL script exits
 // non-zero when only stale > 0.
-if (
-	missing > 0 ||
-	gateShouldFail({ failures, unexpectedPasses, corrupted, stale })
-) {
+if (gateShouldFail({ failures, unexpectedPasses, corrupted, stale })) {
 	console.error(`\nFAIL: proof replay did not complete cleanly.`);
-	if (missing > 0) {
-		console.error(
-			`  ${missing} declared proof file(s) are missing from this working tree.`,
-		);
-		console.error(
-			'  This is NOT corruption: merge develop into the branch to bring the declared proofs over.',
-		);
-	}
 	if (unexpectedPasses > 0) {
 		console.error(
 			`  ${unexpectedPasses} proof test(s) passed when they should have failed.`,
@@ -785,11 +845,6 @@ if (
 		console.error(
 			`  ${corrupted} proof file(s) could not be classified — an empty/binary/truncated file, ` +
 				`an unreadable vitest JSON report, or a MISSING expected-red manifest.`,
-		);
-	}
-	if (missing > 0) {
-		console.error(
-			`  ${missing} declared proof file(s) are missing — merge develop into the branch.`,
 		);
 	}
 	process.exit(1);

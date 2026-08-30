@@ -11,9 +11,12 @@
  *   2. Production self-duplication (one file duplicated with itself)
  *
  * Spec/test/generated files (TS `.test.*`/`.spec.*`, C# `*.Spec.cs` /
- * `*.Tests.cs` / `*.g.cs`, plus test-directory patterns) are excluded from
- * BOTH gated surfaces. Their duplication is REPORTED on every run but never
- * blocks (issue #1821 requirement 2).
+ * `*.Tests.cs`, plus the test-infrastructure directories `apps/api/Tests/`
+ * and `apps/api/Lib/Testing/`) are excluded from BOTH gated surfaces. Their
+ * duplication is REPORTED on every run but never blocks (issue #1821
+ * requirement 2). The generated file `apps/api/Localization/ResponseKeys.g.cs`
+ * is excluded by explicit membership in `GENERATED_FILE_PATHS`, not by a
+ * blanket `*.g.cs` pattern (issue #1897).
  *
  * Every jscpd clone fragment between two production files counts: when an
  * already-paired pair gains one more identical block, its lines add to the
@@ -98,9 +101,9 @@
  * silently dropped every exclusion but the last before #1821-r2.
  * Production paths: apps/api, apps/front/src, packages/shared-ts.
  *
- *   - Production clone pairs (unique, non-spec): 434, 10 383 lines
- *   - Production self-duplication files: 48, 1 473 lines
- *   (values as of the #1932 baseline)
+ *   - Production clone pairs (unique, non-spec): 432, 10 348 lines
+ *   - Production self-duplication files: 45, 1 424 lines
+ *   (values as of the #1929 baseline — measured, not copied)
  * The reference file holds the two aggregate totals (`productionPairs`,
  * `productionAuto`) plus the optional `pairLines` / `autoLines` per-pair and
  * per-file base-total maps. When the maps are absent the guard cannot name
@@ -155,13 +158,33 @@ const GENERATED_FILE_PATHS = new Set<string>([
  * is normal and must be reported, not gated. Path-based rather than
  * suffix-based: a file like `TenantTestHelper.cs` carries no `.Spec.cs`
  * suffix yet is test-only code (issue #1895).
+ *
+ * Anchored to the two known test-project roots. The patterns are
+ * deliberately narrow: each one starts with the package-relative root
+ * (`^apps/api/...`), so a future `Tests/` directory added anywhere else
+ * — under `apps/front/src/`, under `packages/shared-ts/`, anywhere
+ * outside the two listed paths — does NOT silently enter the excluded
+ * surface. Before #1929-r3 the patterns were `/\/Lib\/Testing\//` and
+ * `/\/Tests\//`: any path segment named `Tests` anywhere under the
+ * production roots was matched, with no signal when an exclusion widened
+ * itself. The new form fails the guard (and therefore CI) the moment a
+ * third `Tests/` root appears, which is exactly what the self-widening
+ * exclusion the issue warns about requires.
+ *
+ * If a new test-infrastructure directory is added, the new entry goes
+ * here AND a paired red/green proof is added under
+ * packages/scripts-ts/tests/proofs/<issue>/ so the guard cannot be
+ * expanded without a paired proof of the new exclusion.
  */
-const TEST_INFRA_DIR_PATTERNS: RegExp[] = [/\/Lib\/Testing\//, /\/Tests\//];
+const TEST_INFRA_DIR_PATTERNS: RegExp[] = [
+	/^apps\/api\/Lib\/Testing\//,
+	/^apps\/api\/Tests\//,
+];
 
 /**
  * Whether a file path is inside a test-infrastructure directory.
  */
-const isTestInfraDir = (filePath: string): boolean => {
+export const isTestInfraDir = (filePath: string): boolean => {
 	for (const pat of TEST_INFRA_DIR_PATTERNS) {
 		if (pat.test(filePath)) {
 			return true;

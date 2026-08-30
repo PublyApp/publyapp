@@ -156,6 +156,50 @@ test('consumeVerdict: UNEXPECTED_PASS verdict (real passing test report) increme
 	});
 });
 
+// --- Node 24 AssertionError format regression (predecessor: this used to
+//     return CORRUPT PROOF because the classifier only matched the
+//     pre-Node-24 "AssertionError:" prefix. Node 24 emits
+//     "AssertionError [ERR_ASSERTION]:" — the suffix must be tolerated
+//     so an assertion failure is still classified as an assertion
+//     failure, not as a thrown Error. This is the regression the
+//     scripts-ts paired-proof wiring hit at #1929 r3: the ratchet
+//     guard exits 1 with a real AssertionError, the runner reads
+//     "AssertionError [ERR_ASSERTION]:" from the JSON report, the
+//     old classifier said CORRUPT PROOF, the proof was misclassified
+//     and the whole wiring was effectively a no-op. Pin the new shape.)
+
+test('classifyProof: Node 24 AssertionError [ERR_ASSERTION] format is an assertion failure, NOT a thrown Error', () => {
+	// The fixture was synthesised to mirror the real vitest JSON report
+	// Node 24 produces for a kept-red test that throws an assertion
+	// failure. The classifier MUST classify this as OK (assertion
+	// failure), not as CORRUPT PROOF (thrown Error).
+	const result = classifyFixture('ok-node24.json', 1);
+	expect(result.verdict).toBe('OK');
+	expect(result.failedTests).toBe(1);
+	expect(result.totalTests).toBe(1);
+});
+
+test('consumeVerdict: Node 24 AssertionError [ERR_ASSERTION] format still increments failures, not corrupted', () => {
+	// The classifier returned OK above; the consumer must therefore
+	// increment `failures` (kept-red state), not `corrupted` (broken
+	// measurement). This is the load-bearing pairing: a kept-red proof
+	// on Node 24 must never silently turn into a corrupt proof
+	// verdict at the gate.
+	const result = classifyFixture('ok-node24.json', 1);
+	expect(result.verdict).toBe('OK');
+
+	const next = consumeVerdict(
+		{ failures: 0, unexpectedPasses: 0, corrupted: 0, stale: 0 },
+		result.verdict,
+	);
+	expect(next).toEqual({
+		failures: 1,
+		unexpectedPasses: 0,
+		corrupted: 0,
+		stale: 0,
+	});
+});
+
 test('consumeVerdict: NO_TESTS verdict (real empty-suite report) increments corrupted', () => {
 	const result = classifyFixture('notests.json', 1);
 	expect(result.verdict).toBe('NO_TESTS');
