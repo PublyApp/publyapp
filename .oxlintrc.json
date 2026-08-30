@@ -59,7 +59,7 @@
 		"typescript/prefer-enum-initializers": "error",
 		"unicorn/no-array-for-each": "off",
 		"unicorn/no-array-reduce": "error",
-		"unicorn/no-document-cookie": "off",
+		"unicorn/no-document-cookie": "error",
 		"unicorn/prefer-number-properties": "error",
 		"publy/no-op": "off",
 		"publy/no-package-src-import": "error",
