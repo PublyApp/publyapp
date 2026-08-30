@@ -9,47 +9,71 @@ import { promisify } from 'node:util';
 const execFileAsync = promisify(execFile);
 
 /**
- * A reason is filler when it carries no information — a repeated block padded
- * to clear the length bar (a single repeated character like `"x".repeat(24)`,
- * a two-character cycle like `"xy".repeat(12)`, or a repeated pair like
- * `"x ".repeat(11) + "x"`). Such a string is not a reviewable justification;
- * it is a bypass of the quality bar. We reject it regardless of length. A
- * truncated final repetition still counts ("x x" is "x " twice), but any
- * deviation from the repeated block means the text is not filler.
+ * How long a single repeated block may be and still count as padding.
+ * Blocks longer than this are prose, not a repetition cycle an automated
+ * padder would use. Anything between 24 and this limit is already caught by
+ * `isFiller` when the whole string is one repetition; the limit exists to
+ * bound the scan of multi-block compositions.
+ */
+const maxFillerBlockLength = 8;
+
+/**
+ * Length of the non-repetitive residue after greedily stripping maximal
+ * repetition runs from `text`. A run is a short block (at most
+ * `maxFillerBlockLength` chars) repeated at least twice, optionally followed
+ * by a truncated final repetition of the same block. Runs are consumed
+ * longest-first at each position; scanning stops at the first position with
+ * no valid run. The residue is what remains — 0 when the whole string is
+ * padding, and close to `text.length` for ordinary prose.
+ */
+const fillerResidueLength = (text: string): number => {
+	const length = text.length;
+	let position = 0;
+	while (position < length) {
+		let bestEnd = 0;
+		const maxPeriod = Math.min(
+			maxFillerBlockLength,
+			Math.floor((length - position) / 2),
+		);
+		for (let period = 1; period <= maxPeriod; period++) {
+			// Maximal end of the prefix that repeats text[position..position+period).
+			let end = position + period;
+			while (
+				end < length &&
+				text[end] === text[position + ((end - position) % period)]
+			) {
+				end++;
+			}
+			// A run needs at least two full repetitions; the truncated tail is
+			// already included in `end`.
+			if (end - position >= 2 * period && end > bestEnd) {
+				bestEnd = end;
+			}
+		}
+		if (bestEnd === 0) {
+			break;
+		}
+		position = bestEnd;
+	}
+	return length - position;
+};
+
+/**
+ * A reason is filler when it carries no information — repeated blocks padded
+ * to clear the length bar. This covers a single repeated block (`"x".repeat(24)`,
+ * `"xy".repeat(12)`, `"x ".repeat(11) + "x"`), a multi-block composition
+ * (`"ab".repeat(6) + "cd".repeat(6)` — the r13 measured bypass), three-block
+ * stacks, and a run followed by a single stray character (`"a".repeat(23) + "b"`).
+ * Such a string is not a reviewable justification; it is a bypass of the
+ * quality bar. We reject it regardless of length when the non-repetitive
+ * residue is at most one character — a text that is (almost) entirely
+ * short-block repetition is hollow no matter how the blocks are stacked.
  */
 const isFiller = (text: string): boolean => {
 	if (text.length === 0) {
 		return false;
 	}
-	// Fast path, and the smallest period: one repeated character.
-	const first = text[0];
-	let allSameChar = true;
-	for (let i = 1; i < text.length; i++) {
-		if (text[i] !== first) {
-			allSameChar = false;
-			break;
-		}
-	}
-	if (allSameChar) {
-		return true;
-	}
-	// Wider net: an exact repetition of a short block (two-character cycles,
-	// repeated pairs). The final repetition may be truncated. Anything longer
-	// than half the string cannot repeat, so periods stop there.
-	for (let period = 2; period <= Math.floor(text.length / 2); period++) {
-		const block = text.slice(0, period);
-		let isRepetition = true;
-		for (let i = period; i < text.length; i++) {
-			if (text[i] !== block[i % period]) {
-				isRepetition = false;
-				break;
-			}
-		}
-		if (isRepetition) {
-			return true;
-		}
-	}
-	return false;
+	return fillerResidueLength(text) <= 1;
 };
 
 /**
@@ -304,7 +328,7 @@ const readRemovalsConfession = async (
 
 		if (isFiller(reason.trim())) {
 			throw new Error(
-				`Confession file ${removalsPath}: entry "${stepId}" has a reason that is filler (a repeated block — a single repeated character, a two-character cycle, or a repeated pair). A valid confession must be a reviewable justification naming what was lost and why — filler is not a reason.`,
+				`Confession file ${removalsPath}: entry "${stepId}" has a reason that is filler (repeated short blocks — a single repeated character, a cycle, a repeated pair, or a stack of them). A valid confession must be a reviewable justification naming what was lost and why — filler is not a reason.`,
 			);
 		}
 
@@ -420,14 +444,24 @@ const confession = await readRemovalsConfession(process.cwd());
 const confessedIds = new Set((confession?.steps ?? []).map((s) => s.step_id));
 
 // Validate that each confession names a step that is actually pinned and
-// vanished from the manifest. A confession for a step that still exists in
-// the manifest is a no-op (harmless). A confession for a step that was never
-// pinned is also a no-op.
+// vanished from the manifest.
+//
+// A confession naming a step that is STILL present in the manifest is a
+// contradiction, not a harmless no-op: the confession file exists only to
+// authorize REMOVING a step from the floor, so confessing a step that is
+// still covered cannot lower anything — it quietly asserts a removal that
+// did not happen. A warning nobody reads and a silence have the same value,
+// so the generator refuses loudly: the contributor must either delete the
+// confession entry (the step was not removed) or actually remove the step
+// from the manifest (and CI) if that was the real intent. Without this the
+// confession file can rot into a permanent "pre-confessed" state that
+// desensitizes the removal path.
 const newStepIds = Object.keys(steps);
+const newStepIdSet = new Set(newStepIds);
 for (const step of confession?.steps ?? []) {
-	if (step.step_id in newStepIds) {
-		console.error(
-			`Warning: confession for "${step.step_id}" names a step that still exists in the manifest. The confession is a no-op.`,
+	if (newStepIdSet.has(step.step_id)) {
+		throw new Error(
+			`Confession error in ${removalsPath}: "${step.step_id}" is confessed as removed but is still present in ci-gate-manifest.json. A confession exists ONLY to authorize removing a step from the pinned floor; a confession for a step that is still reconciled is a silent no-op that hides coverage without removing it. Delete the confession entry, or remove the step from the manifest (and CI) if removal was the intent.`,
 		);
 	}
 }
@@ -440,8 +474,8 @@ for (const step of confession?.steps ?? []) {
 const newPinnedSet = new Set([...existingPinned, ...newStepIds]);
 
 // Remove confessed IDs — but only if they are NOT in the current manifest.
-// A confession for a step that still exists in the manifest is a no-op (the
-// step is still pinned, which is fine).
+// (A confession naming a present step already threw above, so by this point
+// every confessed id is absent from the manifest and safe to drop.)
 for (const id of confessedIds) {
 	if (!newStepIds.includes(id)) {
 		newPinnedSet.delete(id);
@@ -449,6 +483,22 @@ for (const id of confessedIds) {
 }
 
 const newPinned = [...newPinnedSet].sort();
+
+// Pin completeness (#1809 r13): the floor we are about to WRITE must pin
+// every step that is currently reconciled in the manifest. The union above
+// makes this true by construction, but the invariant must be ASSERTED, not
+// incidental — a future refactor of the union logic that dropped a manifest
+// step from the pin set would otherwise regenerate a floor that leaves the
+// step covered-in-name-only, and nobody would know. The runtime counterpart
+// (check-ci-drift.ts) enforces the same invariant against the committed
+// reference; this assertion guarantees the generator never produces a file
+// that would fail it.
+const unpinnedSteps = Object.keys(steps).filter((id) => !newPinnedSet.has(id));
+if (unpinnedSteps.length > 0) {
+	throw new Error(
+		`Integrity check failed: ${unpinnedSteps.length} reconciled step(s) in ci-gate-manifest.json would be left unpinned: ${unpinnedSteps.map((id) => `"${id}"`).join(', ')}. Every step covered by the manifest must appear in pinned_step_ids — a covered step that nothing pins can vanish without the ratchet moving. Fix the generation logic (the pin set is the union of the existing floor and the manifest) and re-run.`,
+	);
+}
 
 // Check for steps that disappeared without confession. These are steps that
 // were pinned in the existing reference but are not in the new manifest and
@@ -515,6 +565,14 @@ const output = {
 		'steps{} is a floor-lowering attack. Extra steps in steps{} that exist',
 		'in ci-gate-manifest.json are legitimate growth (the ratchet absorbs',
 		'them). Extra steps NOT in the manifest are phantom steps — tampering.',
+		'',
+		'pinned_step_ids also covers every step in ci-gate-manifest.json',
+		'(completeness, #1809 r13): a step that is reconciled but not pinned is',
+		'a floor with a hole — its removal needs no confession and trips no',
+		'RATCHET. check-ci-drift.ts emits an UNPINNED finding for any such step,',
+		'and gen-reason-ref.ts asserts the generated floor is complete. This',
+		'closes the r13 defect where docs-archive.yml::docs-archive::Run',
+		'prune-inventory guard fixture tests sat covered but unpinned.',
 		'',
 		'Regenerate with: node packages/scripts-ts/src/gen-reason-ref.ts',
 		'See docs/guides/local-ci-gate.md.',

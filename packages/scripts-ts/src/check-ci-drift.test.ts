@@ -271,14 +271,20 @@ test('rejects an exemption that does not give a reviewable reason', async () => 
 // character. Two-character cycles ("ab".repeat(12)) and repeated pairs
 // ("x ".repeat(12) + "x", a truncated final repetition) are equally
 // zero-information strings that clear a 24-char length bar, and the r8 commit
-// that claimed "reject repeated-char filler" was narrower than its claim. The
-// manifest-entry validator shares the widened check with the confession
-// reader; this test locks the manifest-entry side.
+// that claimed "reject repeated-char filler" was narrower than its claim.
+// #1809 r13: a single-block check is still bypassable by a multi-block stack
+// ("ab".repeat(6) + "cd".repeat(6), the measured 24-char bypass) and by a
+// run with a single alien tail ("a".repeat(23) + "b"); the residue-based
+// detector covers both. The manifest-entry validator shares the widened check
+// with the confession reader; this test locks the manifest-entry side.
 test('rejects a reconciled step whose reason is a repeated-block filler', async () => {
 	const fillerReasons = [
 		'x'.repeat(24),
 		'ab'.repeat(12),
 		'x '.repeat(12) + 'x',
+		'ab'.repeat(6) + 'cd'.repeat(6),
+		'ab'.repeat(6) + 'cd'.repeat(6) + 'ef'.repeat(6),
+		'a'.repeat(23) + 'b',
 	];
 
 	for (const fillerReason of fillerReasons) {
@@ -305,6 +311,62 @@ test('rejects a reconciled step whose reason is a repeated-block filler', async 
 			`Expected the filler rejection for: ${fillerReason}`,
 		);
 	}
+});
+
+// #1809 r13 blocker: the ratchet floor was incomplete. The invariant actually
+// applied was pinned ⊆ steps ⊆ manifest — it forbade pinning anything, but
+// never required completeness, so a step covered by the manifest could sit
+// unpinned ("protected in name only") and vanish later without the ratchet
+// moving. check-ci-drift.ts must now emit an UNPINNED finding for any
+// manifest step missing from the CURRENT reference's pinned_step_ids.
+test('pin completeness: fails when a reconciled step is missing from pinned_step_ids', async () => {
+	const rootDir = await buildFixture({
+		manifestSteps: reconciled,
+		steps: mirroredStep,
+	});
+
+	// Manifest covers the step and the ref tracks its reason fingerprint, but
+	// pinned_step_ids does not cover it — the exact r13 defect shape.
+	const refWithoutPin = {
+		pinned_step_ids: [],
+		steps: {
+			[manifestEntry]: {
+				reason_hash: hashReason(reason),
+				reason_length: reason.length,
+				reason,
+			},
+		},
+	};
+
+	const findings = await findCiDrift({ rootDir, reasonRef: refWithoutPin });
+
+	assert.equal(findings.length, 1);
+	assert.match(findings[0], /^UNPINNED fixture\.yml::build::Run tests/);
+	// Cause: reconciled but not pinned, so removal needs no confession.
+	assert.match(findings[0], /reconciled in the manifest but not pinned/);
+	assert.match(findings[0], /needs no confession and trips no RATCHET/);
+	// Action: regenerate so every reconciled step is pinned.
+	assert.match(findings[0], /Regenerate reason-guard-ref\.json/);
+});
+
+test('pin completeness: passes when every reconciled step is pinned in the current reference', async () => {
+	const rootDir = await buildFixture({
+		manifestSteps: reconciled,
+		steps: mirroredStep,
+	});
+
+	const refWithPin = {
+		pinned_step_ids: [manifestEntry],
+		steps: {
+			[manifestEntry]: {
+				reason_hash: hashReason(reason),
+				reason_length: reason.length,
+				reason,
+			},
+		},
+	};
+
+	assert.deepEqual(await findCiDrift({ rootDir, reasonRef: refWithPin }), []);
 });
 
 test('tracks uses: steps, so a new action cannot slip in uncounted', async () => {
@@ -1868,6 +1930,65 @@ test('ratchet floor: legitimate deletion with confession turns GREEN', async () 
 		'Expected no RATCHET findings when confession is present',
 	);
 	assert.deepEqual(findings, [], 'Expected fully green when step is confessed');
+});
+
+// #1809 r13: a confession naming a step still present in the manifest used to
+// be a generator-side warning and a check-ci-drift-side silence — a warning
+// nobody reads and a silence have the same value. The contradiction must now
+// be a loud finding on the check side too.
+test('ratchet floor: a confession naming a step still present in the manifest is a loud CONTRADICTION', async () => {
+	const rootDir = await mkdtemp(
+		path.join(os.tmpdir(), 'publyapp-confession-contradiction-'),
+	);
+	await mkdir(path.join(rootDir, '.github/workflows'), { recursive: true });
+	await mkdir(path.join(rootDir, 'packages/scripts-ts/src'), {
+		recursive: true,
+	});
+
+	await writeFile(
+		path.join(rootDir, '.github/workflows/fixture.yml'),
+		workflow(mirroredStep),
+	);
+	await writeFile(
+		path.join(rootDir, 'packages/scripts-ts/src/ci-gate-manifest.json'),
+		JSON.stringify({ steps: reconciled }, null, '\t'),
+	);
+	// The confession names the very step that is STILL reconciled.
+	await writeFile(
+		path.join(rootDir, 'packages/scripts-ts/src/ci-gate-removals.json'),
+		JSON.stringify(
+			{
+				steps: [
+					{
+						step_id: manifestEntry,
+						reason:
+							'Step B was a duplicate verification step that was consolidated into Step A. The coverage is preserved.',
+						removed_at: '2026-08-29',
+					},
+				],
+			},
+			null,
+			'\t',
+		),
+	);
+
+	const findings = await findCiDrift({
+		rootDir,
+		reasonRef: buildFixtureReasonRef(reason),
+	});
+
+	const contradictionFindings = findings.filter((f) =>
+		f.startsWith('CONFESSION CONTRADICTION'),
+	);
+	assert.equal(contradictionFindings.length, 1);
+	assert.match(
+		contradictionFindings[0],
+		/CONFESSION CONTRADICTION {2}fixture\.yml::build::Run tests/,
+	);
+	// Cause: the step is still reconciled, so the confession is a no-op.
+	assert.match(contradictionFindings[0], /still reconciled in the manifest/);
+	// Action: delete the confession entry or actually remove the step.
+	assert.match(contradictionFindings[0], /Delete the confession entry/);
 });
 
 test('ratchet floor: adverse mutation — wrong step ID in confession does NOT cover the vanished step', async () => {

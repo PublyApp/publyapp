@@ -504,6 +504,10 @@ test('malformed confession: missing steps array fails loudly', async () => {
 // fixture. It proves the real file is intact and the ratchet would resist
 // tampering. Without this, the other tests only prove the detection works
 // when injected a floor, never that the real floor survives an alteration.
+// #1809 r13: it also proves pin COMPLETENESS on the real artifact — every
+// step reconciled in the real manifest is pinned in the real reference. This
+// is the standing proof that the r13 defect (a covered step sitting unpinned)
+// cannot return: the test goes red the moment a manifest step lacks a pin.
 test('reads the REAL reason-guard-ref.json from disk and verifies integrity', async () => {
 	const realRefPath = path.join(repoRoot, outputPath);
 	const raw = await readFile(realRefPath, 'utf8');
@@ -527,6 +531,18 @@ test('reads the REAL reason-guard-ref.json from disk and verifies integrity', as
 		assert.ok(
 			stepsSet.has(id),
 			`Real reference file has integrity: pinned step "${id}" must be in steps{}`,
+		);
+	}
+
+	// #1809 r13 completeness: every reconciled manifest step must be pinned.
+	const manifestRaw = await readFile(path.join(repoRoot, manifestPath), 'utf8');
+	const manifest = JSON.parse(manifestRaw) as {
+		steps?: Record<string, unknown>;
+	};
+	for (const id of Object.keys(manifest.steps ?? {})) {
+		assert.ok(
+			pinnedSet.has(id),
+			`Real reference file has pin coverage: reconciled step "${id}" must be pinned in pinned_step_ids`,
 		);
 	}
 });
@@ -562,8 +578,11 @@ test('reads the REAL reason-guard-ref.json $comment and verifies it does not cla
 // quality bar must reject filler regardless of length — and (r11) not just
 // a single repeated character: two-character cycles ("ab".repeat(12)),
 // repeated pairs ("x " with a truncated tail), and longer cycles are all
-// zero-information strings that clear a length bar. A reason that is an
-// exact repetition of a short block is a bypass in every one of those cases.
+// zero-information strings that clear a length bar. (r13) multi-block stacks
+// ("ab".repeat(6) + "cd".repeat(6)) and runs with a single alien tail
+// ("a".repeat(23) + "b") are equally hollow; the residue-based detector
+// rejects them too. A reason that is (almost) entirely short-block repetition
+// is a bypass in every one of those cases.
 test('confession quality bar: repeated-block filler is rejected', async () => {
 	const fillerCases = [
 		{ label: 'repeated single character', reason: 'x'.repeat(24) },
@@ -573,6 +592,12 @@ test('confession quality bar: repeated-block filler is rejected', async () => {
 			reason: 'x '.repeat(12) + 'x',
 		},
 		{ label: 'three-character cycle', reason: 'abc'.repeat(8) },
+		{ label: 'multi-block stack', reason: 'ab'.repeat(6) + 'cd'.repeat(6) },
+		{
+			label: 'three-block stack',
+			reason: 'ab'.repeat(6) + 'cd'.repeat(6) + 'ef'.repeat(6),
+		},
+		{ label: 'run with alien tail', reason: 'a'.repeat(23) + 'b' },
 	];
 
 	for (const { label, reason: fillerReason } of fillerCases) {
@@ -628,6 +653,57 @@ test('confession quality bar: repeated-block filler is rejected', async () => {
 		);
 	}
 });
+test('confession naming a step still present in the manifest fails loudly', async () => {
+	const rootDir = await buildRepo({
+		manifestSteps: {
+			'fixture.yml::build::Step A': {
+				hash: 'abc123',
+				mirror: 'just ci',
+				reason: 'Step A reason text.',
+			},
+		},
+		reference: {
+			pinned_step_ids: ['fixture.yml::build::Step A'],
+			steps: {
+				'fixture.yml::build::Step A': {
+					reason_hash: 'hash',
+					reason_length: 10,
+				},
+			},
+		},
+		// The confession names the very step that is still in the manifest.
+		removals: {
+			steps: [
+				{
+					step_id: 'fixture.yml::build::Step A',
+					reason:
+						'Step A was a duplicate verification step that was consolidated into Step B. The coverage is preserved.',
+				},
+			],
+		},
+	});
+
+	const result = await runScript(rootDir);
+
+	assert.notEqual(
+		result.exitCode,
+		0,
+		'Expected non-zero exit for a confession naming a present step',
+	);
+	assert.equal(
+		result.stderr.includes('present in ci-gate-manifest.json') ||
+			result.stdout.includes('present in ci-gate-manifest.json'),
+		true,
+		'Expected error naming the still-present step',
+	);
+	assert.equal(
+		result.stderr.includes('fixture.yml::build::Step A') ||
+			result.stdout.includes('fixture.yml::build::Step A'),
+		true,
+		'Expected error naming the confessed step id',
+	);
+});
+
 test('bypass 5: deleting the reference file does NOT silently reset the floor', async () => {
 	const rootDir = await buildRepo({
 		manifestSteps: {

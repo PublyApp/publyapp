@@ -43,47 +43,71 @@ const removalsPath = 'packages/scripts-ts/src/ci-gate-removals.json';
 const minimumReasonLength = 24;
 
 /**
- * A reason is filler when it carries no information — a repeated block padded
- * to clear the length bar (a single repeated character like `"x".repeat(24)`,
- * a two-character cycle like `"xy".repeat(12)`, or a repeated pair like
- * `"x ".repeat(11) + "x"`). Such a string is not a reviewable justification;
- * it is a bypass of the quality bar. We reject it regardless of length. A
- * truncated final repetition still counts ("x x" is "x " twice), but any
- * deviation from the repeated block means the text is not filler.
+ * How long a single repeated block may be and still count as padding.
+ * Blocks longer than this are prose, not a repetition cycle an automated
+ * padder would use. Anything between 24 and this limit is already caught by
+ * `isFiller` when the whole string is one repetition; the limit exists to
+ * bound the scan of multi-block compositions.
+ */
+const maxFillerBlockLength = 8;
+
+/**
+ * Length of the non-repetitive residue after greedily stripping maximal
+ * repetition runs from `text`. A run is a short block (at most
+ * `maxFillerBlockLength` chars) repeated at least twice, optionally followed
+ * by a truncated final repetition of the same block. Runs are consumed
+ * longest-first at each position; scanning stops at the first position with
+ * no valid run. The residue is what remains — 0 when the whole string is
+ * padding, and close to `text.length` for ordinary prose.
+ */
+const fillerResidueLength = (text: string): number => {
+	const length = text.length;
+	let position = 0;
+	while (position < length) {
+		let bestEnd = 0;
+		const maxPeriod = Math.min(
+			maxFillerBlockLength,
+			Math.floor((length - position) / 2),
+		);
+		for (let period = 1; period <= maxPeriod; period++) {
+			// Maximal end of the prefix that repeats text[position..position+period).
+			let end = position + period;
+			while (
+				end < length &&
+				text[end] === text[position + ((end - position) % period)]
+			) {
+				end++;
+			}
+			// A run needs at least two full repetitions; the truncated tail is
+			// already included in `end`.
+			if (end - position >= 2 * period && end > bestEnd) {
+				bestEnd = end;
+			}
+		}
+		if (bestEnd === 0) {
+			break;
+		}
+		position = bestEnd;
+	}
+	return length - position;
+};
+
+/**
+ * A reason is filler when it carries no information — repeated blocks padded
+ * to clear the length bar. This covers a single repeated block (`"x".repeat(24)`,
+ * `"xy".repeat(12)`, `"x ".repeat(11) + "x"`), a multi-block composition
+ * (`"ab".repeat(6) + "cd".repeat(6)` — the r13 measured bypass), three-block
+ * stacks, and a run followed by a single stray character (`"a".repeat(23) + "b"`).
+ * Such a string is not a reviewable justification; it is a bypass of the
+ * quality bar. We reject it regardless of length when the non-repetitive
+ * residue is at most one character — a text that is (almost) entirely
+ * short-block repetition is hollow no matter how the blocks are stacked.
  */
 const isFiller = (text: string): boolean => {
 	if (text.length === 0) {
 		return false;
 	}
-	// Fast path, and the smallest period: one repeated character.
-	const first = text[0];
-	let allSameChar = true;
-	for (let i = 1; i < text.length; i++) {
-		if (text[i] !== first) {
-			allSameChar = false;
-			break;
-		}
-	}
-	if (allSameChar) {
-		return true;
-	}
-	// Wider net: an exact repetition of a short block (two-character cycles,
-	// repeated pairs). The final repetition may be truncated. Anything longer
-	// than half the string cannot repeat, so periods stop there.
-	for (let period = 2; period <= Math.floor(text.length / 2); period++) {
-		const block = text.slice(0, period);
-		let isRepetition = true;
-		for (let i = period; i < text.length; i++) {
-			if (text[i] !== block[i % period]) {
-				isRepetition = false;
-				break;
-			}
-		}
-		if (isRepetition) {
-			return true;
-		}
-	}
-	return false;
+	return fillerResidueLength(text) <= 1;
 };
 
 const toPosixPath = (value: string) => value.split(path.sep).join('/');
@@ -405,7 +429,7 @@ const readRemovalsConfession = async (
 
 		if (isFiller(reason.trim())) {
 			throw new Error(
-				`Confession file ${removalsPath}: entry "${stepId}" has a reason that is filler (a repeated block — a single repeated character, a two-character cycle, or a repeated pair). A valid confession must be a reviewable justification naming what was lost and why — filler is not a reason.`,
+				`Confession file ${removalsPath}: entry "${stepId}" has a reason that is filler (repeated short blocks — a single repeated character, a cycle, a repeated pair, or a stack of them). A valid confession must be a reviewable justification naming what was lost and why — filler is not a reason.`,
 			);
 		}
 
@@ -439,11 +463,6 @@ const getRatchetProblems = async (
 	ref: ReasonRef,
 ): Promise<string[]> => {
 	const findings: string[] = [];
-	const pinned = ref.pinned_step_ids ?? [];
-
-	if (pinned.length === 0) {
-		return findings;
-	}
 
 	let confession: RemovalsConfession | null;
 	try {
@@ -457,7 +476,35 @@ const getRatchetProblems = async (
 		return findings;
 	}
 
+	// A confession naming a step that is STILL reconciled in the manifest is a
+	// contradiction, not a no-op: the confession file exists only to authorize
+	// REMOVING a step from the floor, so confessing a step that is still
+	// covered cannot lower anything — it quietly asserts that the step is gone
+	// while the manifest keeps protecting it. A warning nobody reads and a
+	// silence have the same value, so this is a hard finding: the contributor
+	// must either delete the confession entry (the step was not removed) or
+	// actually remove the step from CI and the manifest (if that was the real
+	// intent). Without this check the confession file can rot into a permanent
+	// "pre-confessed" state that desensitizes the removal path. It runs before
+	// the ratchet's early return because it validates the confession itself,
+	// not the floor.
 	const confessedIds = new Set(confession?.steps.map((s) => s.step_id) ?? []);
+
+	for (const id of confessedIds) {
+		if (!(id in entries)) {
+			continue;
+		}
+
+		findings.push(
+			`CONFESSION CONTRADICTION  ${id}\n    ci-gate-removals.json confesses the removal of "${id}", but the step is still reconciled in the manifest. A confession exists ONLY to authorize removing a step from the floor; a confession for a step that is still covered has no effect and quietly asserts a removal that did not happen. Delete the confession entry (the step was not removed), or actually remove the step from CI and the manifest if that was the intent.`,
+		);
+	}
+
+	const pinned = ref.pinned_step_ids ?? [];
+
+	if (pinned.length === 0) {
+		return findings;
+	}
 
 	for (const id of pinned) {
 		if (id in entries) {
@@ -676,7 +723,7 @@ const getEntryValidationProblem = (
 	}
 
 	if (isFiller(record.reason.trim())) {
-		return `${manifestPath}: entry "${id}" has a reason that is filler (a repeated block — a single repeated character, a two-character cycle, or a repeated pair). A reviewable reason must name what the mirror covers or why the step cannot run locally — filler is not a reason.`;
+		return `${manifestPath}: entry "${id}" has a reason that is filler (repeated short blocks — a single repeated character, a cycle, a repeated pair, or a stack of them). A reviewable reason must name what the mirror covers or why the step cannot run locally — filler is not a reason.`;
 	}
 
 	return null;
@@ -1049,6 +1096,30 @@ export const findCiDrift = async ({
 	// Ratchet floor check (#1709, r8): pinned_step_ids read from the
 	// merge-base commit (not HEAD) — immune to the 3-part committed attack.
 	findings.push(...(await getRatchetProblems(rootDir, entries, floor)));
+
+	// Pin completeness (#1809 r13): every step reconciled in the manifest must
+	// be pinned in the CURRENT reference (read from HEAD). The reverse
+	// direction — pinned ⊆ steps ⊆ manifest — was already enforced (integrity
+	// in gen-reason-ref.ts, RATCHET here), but completeness never was: a step
+	// covered by the manifest could sit unpinned, protected in name only. Its
+	// reason could be dropped or the step removed from the manifest later
+	// without the ratchet moving — a floor with a hole nobody knows about.
+	// Regeneration pins the union of the existing floor and the manifest, so
+	// the only fix is to regenerate. A reference from before the ratchet
+	// (no `pinned_step_ids` field) keeps the pre-ratchet meaning: the field
+	// is what activates the floor, matching the RATCHET check above.
+	if (ref.pinned_step_ids !== undefined) {
+		const pinnedAtHead = new Set(ref.pinned_step_ids);
+		for (const id of Object.keys(entries)) {
+			if (pinnedAtHead.has(id)) {
+				continue;
+			}
+
+			findings.push(
+				`UNPINNED ${id}\n    This step is reconciled in the manifest but not pinned in reason-guard-ref.json. A covered step that nothing pins can vanish without the ratchet moving — its removal needs no confession and trips no RATCHET. Regenerate reason-guard-ref.json so every reconciled step is pinned (run \`node packages/scripts-ts/src/gen-reason-ref.ts\`).`,
+			);
+		}
+	}
 
 	return findings;
 };

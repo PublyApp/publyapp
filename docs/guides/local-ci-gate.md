@@ -259,10 +259,37 @@ documented, and reviewable.
 
 The guard verifies the confession is reviewable — the reason must be at least
 24 characters and must not be filler (a repeated block like `"x".repeat(24)` or
-`"ab".repeat(12)`), in both `gen-reason-ref.ts` and `check-ci-drift.ts`. Beyond
+`"ab".repeat(12)`, a multi-block stack like `"ab".repeat(6) + "cd".repeat(6)`,
+or a run with a single stray character like `"a".repeat(23) + "b"`), in both
+`gen-reason-ref.ts` and `check-ci-drift.ts`. Beyond
 that it does not judge the quality of the argument — that is a human review
 concern. The guard verifies that the vanished step is **named**, so silent
 erasure is impossible but legitimate removal stays possible.
+
+### Pin completeness (#1809 r13)
+
+The ratchet used to enforce only `pinned ⊆ steps ⊆ manifest`: it forbade
+pinning anything, but never required every covered step to be pinned. A step
+reconciled in the manifest could therefore sit unpinned — protected in name
+only, with no pin whose disappearance would trip the ratchet. That is the
+round-13 defect: `docs-archive.yml::docs-archive::Run prune-inventory guard
+fixture tests` was covered by the manifest yet absent from `pinned_step_ids`,
+so its justification could have vanished without the floor moving.
+
+The invariant is now **complete**: every step in `ci-gate-manifest.json`
+must appear in `pinned_step_ids` of the current reference, asserted on both
+sides — `check-ci-drift.ts` emits an `UNPINNED` finding for any reconciled
+step missing from the pin set (fix: regenerate, which pins the union), and
+`gen-reason-ref.ts` refuses to write a reference whose pin set is not
+complete. A reference from before the ratchet (no `pinned_step_ids` field)
+keeps its pre-ratchet meaning: the field is what activates the floor.
+
+A confession that names a step **still present** in the manifest is no longer
+a generator-side warning or a check-side silence: it is a loud failure on both
+sides (`CONFESSION CONTRADICTION` in `check-ci-drift.ts`, a hard refusal in
+`gen-reason-ref.ts`). A confession exists only to authorize removing a step
+from the floor; confessing a step that is still reconciled quietly asserts a
+removal that did not happen, and silently desensitizes the removal path.
 
 Recorded here rather than hidden, so they can be judged:
 
