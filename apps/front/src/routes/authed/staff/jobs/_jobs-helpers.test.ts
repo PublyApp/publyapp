@@ -68,6 +68,19 @@ describe('formatFailureCause — shared decision for failure cause display', () 
 		expect(tCalls).toContain('common:no-cause');
 	});
 
+	test('returns the no-cause marker when the whitespace sits BETWEEN two invisibles', () => {
+		// The arrangement above (spaces OUTSIDE) is handled by the leading
+		// `cause.trim()` alone, so it passes with or without the strip. This
+		// one does not: `trim()` cannot touch a space enclosed by two
+		// zero-width characters, and stripping the invisibles leaves a lone
+		// space of length 1. It is the arrangement that reaches the operator
+		// as an empty cell if the trailing `.trim()` is dropped.
+		expect(formatFailureCause('\u200B \u200B', t)).toBe('No cause recorded');
+		expect(formatFailureCause('\u2800 \u2800', t)).toBe('No cause recorded');
+		expect(formatFailureCause('\u2800\u200B ', t)).toBe('No cause recorded');
+		expect(tCalls).toContain('common:no-cause');
+	});
+
 	// Issue #1931 — visually-blank characters outside Unicode category Cf
 	// (U+2800 BRAILLE PATTERN BLANK, the three Hangul fillers) used to render
 	// as a blank cell. The predicate now uses \p{Default_Ignorable_Code_Point}
