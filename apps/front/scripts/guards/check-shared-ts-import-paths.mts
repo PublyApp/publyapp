@@ -116,14 +116,29 @@ const deriveSharedTsSegments = (dir: string): string[] => {
 	let entries: string[];
 	try {
 		entries = readdirSync(dir, { withFileTypes: true })
-			// #1678 R5: isDirectory() is benign today because packages/shared-ts/src/
-			// contains only top-level directories. If a file ever exposes a first
-			// segment (e.g. a .ts barrel at packages/shared-ts/src/foo.ts making
-			// @org/shared-ts/foo resolvable), this filter would silently drop it
-			// and the guard would fail to see the exposed segment. Don't "simplify"
-			// this to readdirSync(dir) without also fixing the regex derivation.
-			.filter((entry) => entry.isDirectory() && !entry.name.startsWith('.'))
-			.map((entry) => entry.name);
+			// #1678 R5: previously filtered on isDirectory() only, which silently
+			// dropped file-type entries. A file like packages/shared-ts/src/foo.ts
+			// is resolvable as @org/shared-ts/foo (per the package's "./*" export
+			// pattern), so it must also be recognised as a segment. Directories
+			// contribute their name directly; files contribute their name with the
+			// extension stripped (.ts, .mts, .cts). Non-source files (e.g. .json)
+			// are not resolvable via the "@org/shared-ts/*" specifier and are
+			// excluded so a stray .d.ts or package.json at the root cannot widen
+			// the recognised segment set.
+			.filter((entry) => {
+				if (entry.name.startsWith('.')) {
+					return false;
+				}
+				if (entry.isDirectory()) {
+					return true;
+				}
+				return /\.(ts|mts|cts)$/.test(entry.name);
+			})
+			.map((entry) =>
+				entry.isDirectory()
+					? entry.name
+					: entry.name.replace(/\.(ts|mts|cts)$/, ''),
+			);
 	} catch (err: unknown) {
 		throw new Error(
 			`check-shared-ts-import-paths: could not enumerate ${dir}: ${err instanceof Error ? err.message : String(err)}`,

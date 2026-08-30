@@ -967,3 +967,145 @@ describe('proof replay — three-dot diff excludes base-branch changes (#1865)',
 		}
 	}, 120000);
 });
+
+// ---------------------------------------------------------------------------
+// #1768: three-point diff + clear ENOENT messaging.
+//
+// When the three-dot diff declares a proof that does NOT exist in the working
+// tree (deleted after the diff, or the diff declared a file that was never
+// checked out), the runner must FAIL LOUD — naming the missing file and its
+// resolved path — rather than crashing with an opaque ENOENT or silently
+// skipping it (which would make the gate a no-op: "no proofs to replay").
+// ---------------------------------------------------------------------------
+
+describe('proof replay — declared proof file is missing from the working tree (#1768)', () => {
+	test('a declared proof that does not exist on disk (ENOENT) is caught loud by validateProofFile before replay', () => {
+		// Build the standard healthy fixture, then DELETE the declared proof
+		// file from the working tree. The runner's `validateProofFile` must
+		// catch the missing file and fail the step naming the file path,
+		// never crashing with a raw ENOENT stack or silently skipping.
+		const root = buildReplayFixture({
+			declaredTestPasses: false,
+			siblingPasses: false,
+			withManifest: true,
+		});
+		try {
+			// Delete the proof file (the .expected-red.json sidecar stays,
+			// so the missing-file path is exercised, not the missing-manifest path).
+			const proofFile = join(
+				root,
+				'apps',
+				'front',
+				'tests',
+				'proofs',
+				'99999',
+				'stale-proof.test.ts',
+			);
+			expect(existsSync(proofFile)).toBe(
+				true,
+				'proof must exist before deletion',
+			);
+			rmSync(proofFile);
+			expect(existsSync(proofFile)).toBe(false, 'proof must be deleted');
+
+			const result = runReplayFixture(root);
+
+			// Must fail (not a false green).
+			expect(result.status).not.toBe(0);
+			// The error must NAME the missing file — not a raw ENOENT stack.
+			expect(result.stderr).toContain('stale-proof.test.ts');
+			expect(result.stderr).toContain('ENOENT');
+			expect(result.stderr).toContain('file is missing');
+			// Must not show a vitest crash traceback obscuring the cause.
+			expect(result.stderr).not.toContain('No test suite found');
+			expect(result.stderr).not.toContain('stdout:');
+		} catch (err) {
+			rmSync(root, { recursive: true, force: true });
+			throw err;
+		}
+		rmSync(root, { recursive: true, force: true });
+	}, 120000);
+
+	test('a declared proof file that is empty (0 bytes) is caught loud before replay', () => {
+		// An empty file is not a real test — vitest would crash with a
+		// parse/ENOENT error. validateProofFile must catch it first, naming
+		// the file as empty.
+		const root = buildReplayFixture({
+			declaredTestPasses: false,
+			siblingPasses: false,
+			withManifest: true,
+		});
+		try {
+			const proofFile = join(
+				root,
+				'apps',
+				'front',
+				'tests',
+				'proofs',
+				'99999',
+				'stale-proof.test.ts',
+			);
+			// Truncate to 0 bytes.
+			writeFileSync(proofFile, '');
+
+			const result = runReplayFixture(root);
+
+			expect(result.status).not.toBe(0);
+			expect(result.stderr).toContain('stale-proof.test.ts');
+			expect(result.stderr).toContain('0 bytes');
+		} catch (err) {
+			rmSync(root, { recursive: true, force: true });
+			throw err;
+		}
+		rmSync(root, { recursive: true, force: true });
+	}, 120000);
+});
+
+describe('proof replay — CI mode declared proof file missing from disk is named with the resolved path (#1768)', () => {
+	test('in CI mode (GITHUB_BASE_REF/HEAD_REF set), a declared-but-missing proof names the absolute path', () => {
+		// In CI mode the runner resolves the proof path relative to its cwd
+		// (apps/front). When the file is missing, the error message must
+		// name the resolved path so the operator can see exactly which file
+		// the three-dot diff declared but could not find — never a bare
+		// ENOENT without the path.
+		const root = buildBehindHeadFixture();
+		try {
+			// Delete the PR branch's proof from the working tree.
+			const proofFile = join(
+				root,
+				'apps',
+				'front',
+				'tests',
+				'proofs',
+				'99999',
+				'pr-proof.test.ts',
+			);
+			expect(existsSync(proofFile)).toBe(true);
+			rmSync(proofFile);
+
+			const result = spawnSync(process.execPath, [RUNNER_SCRIPT], {
+				cwd: join(root, 'apps', 'front'),
+				env: {
+					...freshEnv(),
+					GITHUB_BASE_REF: 'develop',
+					GITHUB_HEAD_REF: 'lane/pr-branch',
+				},
+				encoding: 'utf-8',
+				timeout: 120000,
+			});
+
+			if (result.error) {
+				throw result.error;
+			}
+
+			expect(result.status).not.toBe(0);
+			// Names the missing file.
+			expect(result.stderr).toContain('pr-proof.test.ts');
+			// Names the cause (ENOENT / missing file), not just a crash.
+			expect(result.stderr).toContain('ENOENT');
+			expect(result.stderr).toContain('file is missing');
+		} finally {
+			rmSync(root, { recursive: true, force: true });
+		}
+	}, 120000);
+});

@@ -404,6 +404,17 @@ const declaredProofTests = (): string[] => {
  * naming the file, so a corrupted proof is never silently green.
  */
 const validateProofFile = (path: string): void => {
+	// Check existence explicitly so the error message names the file path in a
+	// consistent format, rather than relying on the raw ENOENT from readFileSync
+	// (#1768 — the three-dot diff declares files the working tree may not have,
+	// and a bare ENOENT stack obscures which declared proof went missing).
+	if (!existsSync(path)) {
+		throw new Error(
+			`Proof file is missing (ENOENT — declared by the three-dot diff but not ` +
+				`found on disk): ${path}`,
+		);
+	}
+
 	const buf = readFileSync(path);
 
 	if (buf.length === 0) {
