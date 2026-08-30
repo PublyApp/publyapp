@@ -30,6 +30,7 @@ const getStatusText = () => screen.getByRole('status').textContent?.trim();
 afterEach(() => {
 	cleanup();
 	vi.clearAllMocks();
+	vi.restoreAllMocks();
 	vi.useRealTimers();
 });
 

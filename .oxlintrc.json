@@ -52,7 +52,7 @@
 		"typescript/no-deprecated": "error",
 		"typescript/no-explicit-any": "error",
 		"typescript/no-inferrable-types": "error",
-		"typescript/no-misused-spread": ["error", { "allow": ["string"] }],
+		"typescript/no-misused-spread": "error",
 		"typescript/unbound-method": "error",
 		"typescript/no-unnecessary-template-expression": "error",
 		"typescript/prefer-as-const": "error",
