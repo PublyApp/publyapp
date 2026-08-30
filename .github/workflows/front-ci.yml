@@ -11,6 +11,15 @@ on:
   # cannot report under a supported GitHub feature is a latent version of
   # that bug.
   merge_group:
+  # #1920: run on every push to develop so the guards that can catch a broken
+  # develop (supply-chain, test: preuves) execute there. Without this trigger,
+  # develop's push CI has no supply-chain and no suite — PRs that are green can
+  # merge into a broken develop, and every subsequent PR goes red pointing at
+  # work they did not introduce. The push event also reports under the
+  # non-required "front-ci-push-check" name so it never collides with the
+  # required "front-ci-gate" on the same SHA.
+  push:
+    branches: [develop]
 
 permissions:
   contents: read
@@ -64,6 +73,12 @@ jobs:
       - name: Checkout classifier from the base commit (not the PR's own copy)
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
+          # For pull_request: use the PR's base commit so the classifier is pinned
+          # against the correct baseline. For push/merge_group/schedule: use HEAD
+          # (github.sha) — the classifier classifies against the current tree state,
+          # and on a push the base is the commit before this one, which is what we
+          # want. Using github.sha unconditionally for non-PR events is the same
+          # pattern every other gate workflow uses.
           ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.sha }}
           sparse-checkout: |
             packages/scripts-ts/src/ci-changed-paths.ts
@@ -80,7 +95,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_NUMBER: ${{ github.event.pull_request.number || '' }}
         # Same path groups the old `pull_request.paths` filter listed, plus
         # `packages/scripts-ts/**`: #1017 also closes the gap where scripts/ had no CI
         # lint coverage at all, and its lint check now lives in this job's
