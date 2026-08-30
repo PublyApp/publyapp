@@ -16,10 +16,10 @@ public sealed class UncachedBodyGetterAnalyzer : DiagnosticAnalyzer {
 		global::System.Collections.Immutable.ImmutableHashSet.Create(
 		global::System.StringComparer.Ordinal,
 		"PatchField`1"
-		// Extend in phase-2 enforcement:
-		// - TrimmedString
-		// - ParsedDateTime
-		// - ParsedEnum
+	// Extend in phase-2 enforcement:
+	// - TrimmedString
+	// - ParsedDateTime
+	// - ParsedEnum
 	);
 
 	public override global::System.Collections.Immutable.ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics {
@@ -139,8 +139,7 @@ public sealed class UncachedBodyGetterAnalyzer : DiagnosticAnalyzer {
 		requestParameter = null;
 		getterMethod = null;
 
-		var parameterRef = invocation.Instance as IParameterReferenceOperation;
-		if (parameterRef is null) {
+		if (invocation.Instance is not IParameterReferenceOperation parameterRef) {
 			return false;
 		}
 
@@ -189,8 +188,7 @@ public sealed class UncachedBodyGetterAnalyzer : DiagnosticAnalyzer {
 	}
 
 	private static bool IsParsingSensitiveReturnType(IMethodSymbol getterMethod) {
-		var returnType = getterMethod.ReturnType as INamedTypeSymbol;
-		if (returnType is null) {
+		if (getterMethod.ReturnType is not INamedTypeSymbol returnType) {
 			return false;
 		}
 

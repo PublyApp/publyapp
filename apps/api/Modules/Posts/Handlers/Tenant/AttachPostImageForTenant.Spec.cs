@@ -609,11 +609,11 @@ public sealed class AttachPostImageForTenantSpec : IClassFixture<ApiFixture> {
 			var db =
 				baselineScope.ServiceProvider
 					.GetRequiredService<AppDbContext>();
-				baselineReferencedPaths = await (
-				from u in db.UploadAsset.AsNoTracking()
-				where !u.IsDeleted && u.ReferenceCount > 0
-				select u.RelativePath
-			).ToListAsync();
+			baselineReferencedPaths = await (
+			from u in db.UploadAsset.AsNoTracking()
+			where !u.IsDeleted && u.ReferenceCount > 0
+			select u.RelativePath
+		).ToListAsync();
 		}
 
 		const int concurrency = 8;

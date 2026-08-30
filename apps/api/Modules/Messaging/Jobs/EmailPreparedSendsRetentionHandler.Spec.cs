@@ -249,14 +249,14 @@ public sealed class EmailPreparedSendsRetentionHandlerSpec : IClassFixture<ApiFi
 
 	private const string EmptyJson = "{}";
 
-		// prepared_at = now() - (days days + secondsOffset seconds); negative secondsOffset puts
-		// the row just INSIDE (younger than) the floor.
-		private static async Task InsertPreparedSendAsync(
-		AppDbContext dbContext,
-		Guid jobId,
-		int days,
-		int secondsOffset = 0
-	) {
+	// prepared_at = now() - (days days + secondsOffset seconds); negative secondsOffset puts
+	// the row just INSIDE (younger than) the floor.
+	private static async Task InsertPreparedSendAsync(
+	AppDbContext dbContext,
+	Guid jobId,
+	int days,
+	int secondsOffset = 0
+) {
 		await dbContext.Database.ExecuteSqlAsync(
 			$"""
 				INSERT INTO email_prepared_sends

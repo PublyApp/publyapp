@@ -7,6 +7,7 @@ using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Lib.Testing.Fixtures;
 using PublyApp.Api.Modules.Permissions.Entities;
 using PublyApp.Api.Modules.Tenants.Entities;
+
 using Xunit;
 
 namespace PublyApp.Api.Tests.Data.DbContext;

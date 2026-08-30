@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
 
 using Npgsql;
+
 using NpgsqlTypes;
 
 using PublyApp.Api.Data.DbContext;

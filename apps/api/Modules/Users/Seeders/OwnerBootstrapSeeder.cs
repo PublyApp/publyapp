@@ -2,13 +2,14 @@ using System.Data;
 
 using Microsoft.EntityFrameworkCore;
 
+using Npgsql;
+
 using PublyApp.Api.Data;
 using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Lib;
 using PublyApp.Api.Lib.Utils;
 using PublyApp.Api.Modules.Auth.Utils;
 using PublyApp.Api.Modules.Users.Entities;
-using Npgsql;
 
 namespace PublyApp.Api.Modules.Users.Seeders;
 

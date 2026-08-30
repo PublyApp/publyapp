@@ -1,5 +1,4 @@
 using Microsoft.AspNetCore.Mvc;
-
 using Microsoft.EntityFrameworkCore;
 
 using Npgsql;
@@ -11,8 +10,8 @@ using PublyApp.Api.Localization;
 using PublyApp.Api.Modules.AuditLogs.Entities;
 using PublyApp.Api.Modules.AuditLogs.Services;
 using PublyApp.Api.Modules.Posts.Services;
-using PublyApp.Api.Modules.Uploads.Services;
 using PublyApp.Api.Modules.Uploads.Entities;
+using PublyApp.Api.Modules.Uploads.Services;
 
 namespace PublyApp.Api.Modules.Posts.Handlers.Tenant;
 

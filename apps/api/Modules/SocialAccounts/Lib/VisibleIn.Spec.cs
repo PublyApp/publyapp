@@ -1,5 +1,7 @@
 using FluentAssertions;
+
 using PublyApp.Api.Modules.SocialAccounts.Entities;
+
 using Xunit;
 
 namespace PublyApp.Api.Modules.SocialAccounts.Lib;

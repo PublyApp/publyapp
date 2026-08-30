@@ -372,10 +372,14 @@ public sealed class SocialAccountServiceFindSpec : IClassFixture<ApiFixture> {
 		var tenantId = await SeedTenantAsync(db);
 		var service = sp.GetRequiredService<SocialAccountService>();
 		var projectA = new Project {
-			TenantId = tenantId, Name = "Alpha", Description = null,
+			TenantId = tenantId,
+			Name = "Alpha",
+			Description = null,
 		};
 		var projectB = new Project {
-			TenantId = tenantId, Name = "Beta", Description = null,
+			TenantId = tenantId,
+			Name = "Beta",
+			Description = null,
 		};
 		db.Project.AddRange(projectA, projectB);
 		await db.SaveChangesAsync();

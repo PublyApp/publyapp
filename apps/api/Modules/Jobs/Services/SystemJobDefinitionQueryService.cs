@@ -1,12 +1,12 @@
 using Microsoft.EntityFrameworkCore;
 
-using Quartz;
-
 using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Infrastructure.Jobs;
 using PublyApp.Api.Lib;
 using PublyApp.Api.Lib.DI;
 using PublyApp.Api.Modules.Jobs.Entities;
+
+using Quartz;
 
 namespace PublyApp.Api.Modules.Jobs.Services;
 

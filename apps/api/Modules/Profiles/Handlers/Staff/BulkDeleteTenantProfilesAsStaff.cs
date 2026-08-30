@@ -1,7 +1,7 @@
-using FluentValidation;
-
 using System.ComponentModel.DataAnnotations;
 using System.Text.Json;
+
+using FluentValidation;
 
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;

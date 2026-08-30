@@ -74,13 +74,13 @@ public sealed class FindSystemNoticesCursorBehaviorSpec
 			seededOrder.Add(createdAt);
 		}
 
-			// Swap the IDs of the two equal-key rows (i=0 and i=2) so the row
-			// inserted at i=2 has the smaller Id. Without this, UUID v7 IDs are
-			// insertion-ordered, so stable OrderBy(CreatedAt) already matches
-			// ThenBy(Id) and removing the production tiebreaker leaves the test
-			// green. After the swap, the tiebreaker is actually exercised.
-			await SwapSystemNoticeIdsAsync(seededIds[0], seededIds[2]);
-			(seededIds[0], seededIds[2]) = (seededIds[2], seededIds[0]);
+		// Swap the IDs of the two equal-key rows (i=0 and i=2) so the row
+		// inserted at i=2 has the smaller Id. Without this, UUID v7 IDs are
+		// insertion-ordered, so stable OrderBy(CreatedAt) already matches
+		// ThenBy(Id) and removing the production tiebreaker leaves the test
+		// green. After the swap, the tiebreaker is actually exercised.
+		await SwapSystemNoticeIdsAsync(seededIds[0], seededIds[2]);
+		(seededIds[0], seededIds[2]) = (seededIds[2], seededIds[0]);
 
 		var visitedIds = new List<Guid>();
 		var visitedCreatedAtOrder = new List<DateTime>();
@@ -166,13 +166,13 @@ public sealed class FindSystemNoticesCursorBehaviorSpec
 		}
 
 
-			// Swap the IDs of the two equal-key rows (i=0 and i=2) so the row
-			// inserted at i=2 has the smaller Id. Without this, UUID v7 IDs are
-			// insertion-ordered, so stable OrderBy(StartsAt) already matches
-			// ThenBy(Id) and removing the production tiebreaker leaves the test
-			// green. After the swap, the tiebreaker is actually exercised.
-			await SwapSystemNoticeIdsAsync(seededIds[0], seededIds[2]);
-			(seededIds[0], seededIds[2]) = (seededIds[2], seededIds[0]);
+		// Swap the IDs of the two equal-key rows (i=0 and i=2) so the row
+		// inserted at i=2 has the smaller Id. Without this, UUID v7 IDs are
+		// insertion-ordered, so stable OrderBy(StartsAt) already matches
+		// ThenBy(Id) and removing the production tiebreaker leaves the test
+		// green. After the swap, the tiebreaker is actually exercised.
+		await SwapSystemNoticeIdsAsync(seededIds[0], seededIds[2]);
+		(seededIds[0], seededIds[2]) = (seededIds[2], seededIds[0]);
 		var visitedIds = new List<Guid>();
 		var visitedStartsAtOrder = new List<DateTime>();
 		string? cursor = null;
@@ -355,10 +355,10 @@ public sealed class FindSystemNoticesCursorBehaviorSpec
 			Severity = NoticeSeverity.Info,
 			Title = title,
 			Message = "walk seed",
-		// StartsAt is anti-correlated with CreatedAt in the test loop,
-		StartsAt = startsAt,
-		CreatedByStaffId = staffUserId,
-	};
+			// StartsAt is anti-correlated with CreatedAt in the test loop,
+			StartsAt = startsAt,
+			CreatedByStaffId = staffUserId,
+		};
 		// Insert first (interceptor stamps CreatedAt/UpdatedAt = now), then
 		// re-fetch and overwrite CreatedAt as a Modified row. On Modified the
 		// interceptor only touches UpdatedAt, so the seeded CreatedAt sticks.

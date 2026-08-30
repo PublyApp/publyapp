@@ -2054,440 +2054,440 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 				.Be(HttpStatusCode.BadRequest);
 		}
 
-			#endregion
+		#endregion
 
-			#region Multi-Page Walk
+		#region Multi-Page Walk
 
-			[Fact]
-			public async Task
-			ItShouldWalkEveryAcceptedAtPageWithoutOverlapOrGap() {
-				var staffToken =
-					await _authClient.LoginAsStaffAdminAsync();
-				var acmeTenantId =
-					await TenantTestHelper
-						.GetTenantIdByNameAsync(
-							_http,
-							staffToken,
-							SeedConstants.Tenants.AcmeName
-						);
-
-				// 3 accepted invites with distinct AcceptedAt; the walk must
-				// visit each once in ascending AcceptedAt order with no gap.
-				var baseDate = new DateTime(
-					2026, 1, 1, 0, 0, 0, DateTimeKind.Utc
-				);
-				var seededIds = new List<Guid>();
-				// Two rows share the same AcceptedAt (i=0 and i=2), one has a
-				// different value (i=1). The tiebreaker (Id ascending) must
-				// determine the order of the two equal-key rows.
-				var seededAcceptedAt = new List<DateTime>();
-				for (var i = 0; i < 3; i++) {
-					var acceptedAt = i == 1 ? baseDate.AddDays(1) : baseDate;
-					var id = await CreateTenantInvitationAsync(
+		[Fact]
+		public async Task
+		ItShouldWalkEveryAcceptedAtPageWithoutOverlapOrGap() {
+			var staffToken =
+				await _authClient.LoginAsStaffAdminAsync();
+			var acmeTenantId =
+				await TenantTestHelper
+					.GetTenantIdByNameAsync(
+						_http,
 						staffToken,
-						acmeTenantId,
-						$"tenant-inv-walk-{i}-{Guid.NewGuid():N}@example.com"
+						SeedConstants.Tenants.AcmeName
 					);
-					await SetAcceptedAtAsync(id, acceptedAt);
-					seededIds.Add(id);
-					seededAcceptedAt.Add(acceptedAt);
-				}
 
-					// Swap the IDs of the two equal-key rows (i=0 and i=2) so the row
-					// inserted at i=2 has the smaller Id. Without this, UUID v7 IDs are
-					// insertion-ordered, so stable OrderBy(AcceptedAt) already matches
-					// ThenBy(Id) and removing the production tiebreaker leaves the test
-					// green. After the swap, the tiebreaker is actually exercised.
-					await SwapInvitationIdsAsync(seededIds[0], seededIds[2]);
-					(seededIds[0], seededIds[2]) = (seededIds[2], seededIds[0]);
-
-				var visitedIds = new List<Guid>();
-				string? cursor = null;
-				var pages = 0;
-				do {
-					var url = GetFindUrl(
-						acmeTenantId,
-						cursor: cursor,
-						limit: 1,
-						sortId: "accepted_at",
-						sortOrder: "asc"
-					);
-					HttpRequestMessage request =
-						new HttpRequestMessage(
-							HttpMethod.Get, url
-						).WithSessionToken(staffToken);
-
-					using HttpResponseMessage response =
-						await _http.SendAsync(request);
-					_ = response.StatusCode.Should()
-						.Be(HttpStatusCode.OK);
-
-					var page = await response.Content
-						.ReadFromJsonAsync<FindPageResponse>();
-					page.Should().NotBeNull();
-					Assert.NotNull(page);
-					pages++;
-					visitedIds.AddRange(
-						page.Data.Select(i => i.Id)
-					);
-					cursor = page.NextCursor;
-
-					// Guard against an infinite loop if the cursor filter regresses.
-					pages.Should().BeLessOrEqualTo(100);
-				} while (cursor is not null);
-
-				// The walk covers exactly our rows, each once, in order.
-				visitedIds.Should().OnlyHaveUniqueItems();
-				visitedIds.Should().Contain(seededIds);
-
-				var visitedOrder = visitedIds
-					.Where(seededIds.Contains)
-					.ToList();
-				var acceptedAtById = seededIds
-					.Zip(seededAcceptedAt, (id, c) => (id, c))
-					.ToDictionary(x => x.id, x => x.c);
-				visitedOrder.Should().Equal(
-					seededIds.OrderBy(id => acceptedAtById[id]).ThenBy(id => id).ToList()
+			// 3 accepted invites with distinct AcceptedAt; the walk must
+			// visit each once in ascending AcceptedAt order with no gap.
+			var baseDate = new DateTime(
+				2026, 1, 1, 0, 0, 0, DateTimeKind.Utc
+			);
+			var seededIds = new List<Guid>();
+			// Two rows share the same AcceptedAt (i=0 and i=2), one has a
+			// different value (i=1). The tiebreaker (Id ascending) must
+			// determine the order of the two equal-key rows.
+			var seededAcceptedAt = new List<DateTime>();
+			for (var i = 0; i < 3; i++) {
+				var acceptedAt = i == 1 ? baseDate.AddDays(1) : baseDate;
+				var id = await CreateTenantInvitationAsync(
+					staffToken,
+					acmeTenantId,
+					$"tenant-inv-walk-{i}-{Guid.NewGuid():N}@example.com"
 				);
+				await SetAcceptedAtAsync(id, acceptedAt);
+				seededIds.Add(id);
+				seededAcceptedAt.Add(acceptedAt);
 			}
 
-			[Fact]
-			public async Task
-			ItShouldWalkEveryCreatedAtPageWithoutOverlapOrGap() {
-				var staffToken =
-					await _authClient.LoginAsStaffAdminAsync();
-				var acmeTenantId =
-					await TenantTestHelper
-						.GetTenantIdByNameAsync(
-							_http,
-							staffToken,
-							SeedConstants.Tenants.AcmeName
-						);
+			// Swap the IDs of the two equal-key rows (i=0 and i=2) so the row
+			// inserted at i=2 has the smaller Id. Without this, UUID v7 IDs are
+			// insertion-ordered, so stable OrderBy(AcceptedAt) already matches
+			// ThenBy(Id) and removing the production tiebreaker leaves the test
+			// green. After the swap, the tiebreaker is actually exercised.
+			await SwapInvitationIdsAsync(seededIds[0], seededIds[2]);
+			(seededIds[0], seededIds[2]) = (seededIds[2], seededIds[0]);
 
-				// 3 invites with distinct CreatedAt; the walk must visit each once
-				// in ascending CreatedAt order with no gap.
-				var baseDate = new DateTime(
-					2026, 1, 1, 0, 0, 0, DateTimeKind.Utc
+			var visitedIds = new List<Guid>();
+			string? cursor = null;
+			var pages = 0;
+			do {
+				var url = GetFindUrl(
+					acmeTenantId,
+					cursor: cursor,
+					limit: 1,
+					sortId: "accepted_at",
+					sortOrder: "asc"
 				);
-				var seededIds = new List<Guid>();
-				// Two rows share the same CreatedAt (i=0 and i=2), one has a
-				// different value (i=1). The tiebreaker (Id ascending) must
-				// determine the order of the two equal-key rows.
-				var seededCreatedAt = new List<DateTime>();
-				for (var i = 0; i < 3; i++) {
-					var createdAt = i == 1 ? baseDate.AddDays(1) : baseDate;
-					var id = await CreateTenantInvitationAsync(
+				HttpRequestMessage request =
+					new HttpRequestMessage(
+						HttpMethod.Get, url
+					).WithSessionToken(staffToken);
+
+				using HttpResponseMessage response =
+					await _http.SendAsync(request);
+				_ = response.StatusCode.Should()
+					.Be(HttpStatusCode.OK);
+
+				var page = await response.Content
+					.ReadFromJsonAsync<FindPageResponse>();
+				page.Should().NotBeNull();
+				Assert.NotNull(page);
+				pages++;
+				visitedIds.AddRange(
+					page.Data.Select(i => i.Id)
+				);
+				cursor = page.NextCursor;
+
+				// Guard against an infinite loop if the cursor filter regresses.
+				pages.Should().BeLessOrEqualTo(100);
+			} while (cursor is not null);
+
+			// The walk covers exactly our rows, each once, in order.
+			visitedIds.Should().OnlyHaveUniqueItems();
+			visitedIds.Should().Contain(seededIds);
+
+			var visitedOrder = visitedIds
+				.Where(seededIds.Contains)
+				.ToList();
+			var acceptedAtById = seededIds
+				.Zip(seededAcceptedAt, (id, c) => (id, c))
+				.ToDictionary(x => x.id, x => x.c);
+			visitedOrder.Should().Equal(
+				seededIds.OrderBy(id => acceptedAtById[id]).ThenBy(id => id).ToList()
+			);
+		}
+
+		[Fact]
+		public async Task
+		ItShouldWalkEveryCreatedAtPageWithoutOverlapOrGap() {
+			var staffToken =
+				await _authClient.LoginAsStaffAdminAsync();
+			var acmeTenantId =
+				await TenantTestHelper
+					.GetTenantIdByNameAsync(
+						_http,
 						staffToken,
-						acmeTenantId,
-						$"tenant-inv-created-{i}-{Guid.NewGuid():N}@example.com"
+						SeedConstants.Tenants.AcmeName
 					);
-					await SetCreatedAtAsync(id, createdAt);
-					seededIds.Add(id);
-					seededCreatedAt.Add(createdAt);
-				}
 
-
-					// Swap the IDs of the two equal-key rows (i=0 and i=2) so the row
-					// inserted at i=2 has the smaller Id. Without this, UUID v7 IDs are
-					// insertion-ordered, so stable OrderBy(CreatedAt) already matches
-					// ThenBy(Id) and removing the production tiebreaker leaves the test
-					// green. After the swap, the tiebreaker is actually exercised.
-					await SwapInvitationIdsAsync(seededIds[0], seededIds[2]);
-					(seededIds[0], seededIds[2]) = (seededIds[2], seededIds[0]);
-				var visitedIds = new List<Guid>();
-				string? cursor = null;
-				var pages = 0;
-				do {
-					var url = GetFindUrl(
-						acmeTenantId,
-						cursor: cursor,
-						limit: 1,
-						sortId: "created_at",
-						sortOrder: "asc"
-					);
-					HttpRequestMessage request =
-						new HttpRequestMessage(
-							HttpMethod.Get, url
-						).WithSessionToken(staffToken);
-
-					using HttpResponseMessage response =
-						await _http.SendAsync(request);
-					_ = response.StatusCode.Should()
-						.Be(HttpStatusCode.OK);
-
-					var page = await response.Content
-						.ReadFromJsonAsync<FindPageResponse>();
-					page.Should().NotBeNull();
-					Assert.NotNull(page);
-					pages++;
-					visitedIds.AddRange(
-						page.Data.Select(i => i.Id)
-					);
-					cursor = page.NextCursor;
-
-					pages.Should().BeLessOrEqualTo(100);
-				} while (cursor is not null);
-
-				visitedIds.Should().OnlyHaveUniqueItems();
-				visitedIds.Should().Contain(seededIds);
-
-				var visitedOrder = visitedIds
-					.Where(seededIds.Contains)
-					.ToList();
-				var createdAtById = seededIds
-					.Zip(seededCreatedAt, (id, c) => (id, c))
-					.ToDictionary(x => x.id, x => x.c);
-				visitedOrder.Should().Equal(
-					seededIds.OrderBy(id => createdAtById[id]).ThenBy(id => id).ToList()
+			// 3 invites with distinct CreatedAt; the walk must visit each once
+			// in ascending CreatedAt order with no gap.
+			var baseDate = new DateTime(
+				2026, 1, 1, 0, 0, 0, DateTimeKind.Utc
+			);
+			var seededIds = new List<Guid>();
+			// Two rows share the same CreatedAt (i=0 and i=2), one has a
+			// different value (i=1). The tiebreaker (Id ascending) must
+			// determine the order of the two equal-key rows.
+			var seededCreatedAt = new List<DateTime>();
+			for (var i = 0; i < 3; i++) {
+				var createdAt = i == 1 ? baseDate.AddDays(1) : baseDate;
+				var id = await CreateTenantInvitationAsync(
+					staffToken,
+					acmeTenantId,
+					$"tenant-inv-created-{i}-{Guid.NewGuid():N}@example.com"
 				);
+				await SetCreatedAtAsync(id, createdAt);
+				seededIds.Add(id);
+				seededCreatedAt.Add(createdAt);
 			}
 
-			[Fact]
-			public async Task
-			ItShouldWalkEveryExpiresAtPageWithoutOverlapOrGap() {
-				var staffToken =
-					await _authClient.LoginAsStaffAdminAsync();
-				var acmeTenantId =
-					await TenantTestHelper
-						.GetTenantIdByNameAsync(
-							_http,
-							staffToken,
-							SeedConstants.Tenants.AcmeName
-						);
 
-				// 3 invites with distinct ExpiresAt; the walk must visit each once
-				// in ascending ExpiresAt order with no gap.
-				var baseDate = new DateTime(
-					2026, 1, 1, 0, 0, 0, DateTimeKind.Utc
+			// Swap the IDs of the two equal-key rows (i=0 and i=2) so the row
+			// inserted at i=2 has the smaller Id. Without this, UUID v7 IDs are
+			// insertion-ordered, so stable OrderBy(CreatedAt) already matches
+			// ThenBy(Id) and removing the production tiebreaker leaves the test
+			// green. After the swap, the tiebreaker is actually exercised.
+			await SwapInvitationIdsAsync(seededIds[0], seededIds[2]);
+			(seededIds[0], seededIds[2]) = (seededIds[2], seededIds[0]);
+			var visitedIds = new List<Guid>();
+			string? cursor = null;
+			var pages = 0;
+			do {
+				var url = GetFindUrl(
+					acmeTenantId,
+					cursor: cursor,
+					limit: 1,
+					sortId: "created_at",
+					sortOrder: "asc"
 				);
-				var seededIds = new List<Guid>();
-				// Two rows share the same ExpiresAt (i=0 and i=2), one has a
-				// different value (i=1). The tiebreaker (Id ascending) must
-				// determine the order of the two equal-key rows.
-				var seededExpiresAt = new List<DateTime>();
-				for (var i = 0; i < 3; i++) {
-					var expiresAt = i == 1 ? baseDate.AddDays(1) : baseDate;
-					var id = await CreateTenantInvitationAsync(
+				HttpRequestMessage request =
+					new HttpRequestMessage(
+						HttpMethod.Get, url
+					).WithSessionToken(staffToken);
+
+				using HttpResponseMessage response =
+					await _http.SendAsync(request);
+				_ = response.StatusCode.Should()
+					.Be(HttpStatusCode.OK);
+
+				var page = await response.Content
+					.ReadFromJsonAsync<FindPageResponse>();
+				page.Should().NotBeNull();
+				Assert.NotNull(page);
+				pages++;
+				visitedIds.AddRange(
+					page.Data.Select(i => i.Id)
+				);
+				cursor = page.NextCursor;
+
+				pages.Should().BeLessOrEqualTo(100);
+			} while (cursor is not null);
+
+			visitedIds.Should().OnlyHaveUniqueItems();
+			visitedIds.Should().Contain(seededIds);
+
+			var visitedOrder = visitedIds
+				.Where(seededIds.Contains)
+				.ToList();
+			var createdAtById = seededIds
+				.Zip(seededCreatedAt, (id, c) => (id, c))
+				.ToDictionary(x => x.id, x => x.c);
+			visitedOrder.Should().Equal(
+				seededIds.OrderBy(id => createdAtById[id]).ThenBy(id => id).ToList()
+			);
+		}
+
+		[Fact]
+		public async Task
+		ItShouldWalkEveryExpiresAtPageWithoutOverlapOrGap() {
+			var staffToken =
+				await _authClient.LoginAsStaffAdminAsync();
+			var acmeTenantId =
+				await TenantTestHelper
+					.GetTenantIdByNameAsync(
+						_http,
 						staffToken,
-						acmeTenantId,
-						$"tenant-inv-expires-{i}-{Guid.NewGuid():N}@example.com"
+						SeedConstants.Tenants.AcmeName
 					);
-					await SetExpiresAtAsync(id, expiresAt);
-					seededIds.Add(id);
-					seededExpiresAt.Add(expiresAt);
-				}
 
-				var visitedIds = new List<Guid>();
-
-					// Swap the IDs of the two equal-key rows (i=0 and i=2) so the row
-					// inserted at i=2 has the smaller Id. Without this, UUID v7 IDs are
-					// insertion-ordered, so stable OrderBy(ExpiresAt) already matches
-					// ThenBy(Id) and removing the production tiebreaker leaves the test
-				// green. After the swap, the tiebreaker is actually exercised.
-					await SwapInvitationIdsAsync(seededIds[0], seededIds[2]);
-					(seededIds[0], seededIds[2]) = (seededIds[2], seededIds[0]);
-				string? cursor = null;
-				var pages = 0;
-				do {
-					var url = GetFindUrl(
-						acmeTenantId,
-						cursor: cursor,
-						limit: 1,
-						sortId: "expires_at",
-						sortOrder: "asc"
-					);
-					HttpRequestMessage request =
-						new HttpRequestMessage(
-							HttpMethod.Get, url
-						).WithSessionToken(staffToken);
-
-					using HttpResponseMessage response =
-						await _http.SendAsync(request);
-					_ = response.StatusCode.Should()
-						.Be(HttpStatusCode.OK);
-
-					var page = await response.Content
-						.ReadFromJsonAsync<FindPageResponse>();
-					page.Should().NotBeNull();
-					Assert.NotNull(page);
-					pages++;
-					visitedIds.AddRange(
-						page.Data.Select(i => i.Id)
-					);
-					cursor = page.NextCursor;
-
-					pages.Should().BeLessOrEqualTo(100);
-				} while (cursor is not null);
-
-				visitedIds.Should().OnlyHaveUniqueItems();
-				visitedIds.Should().Contain(seededIds);
-
-				var visitedOrder = visitedIds
-					.Where(seededIds.Contains)
-					.ToList();
-				var expiresAtById = seededIds
-					.Zip(seededExpiresAt, (id, e) => (id, e))
-					.ToDictionary(x => x.id, x => x.e);
-				visitedOrder.Should().Equal(
-					seededIds.OrderBy(id => expiresAtById[id]).ThenBy(id => id).ToList()
+			// 3 invites with distinct ExpiresAt; the walk must visit each once
+			// in ascending ExpiresAt order with no gap.
+			var baseDate = new DateTime(
+				2026, 1, 1, 0, 0, 0, DateTimeKind.Utc
+			);
+			var seededIds = new List<Guid>();
+			// Two rows share the same ExpiresAt (i=0 and i=2), one has a
+			// different value (i=1). The tiebreaker (Id ascending) must
+			// determine the order of the two equal-key rows.
+			var seededExpiresAt = new List<DateTime>();
+			for (var i = 0; i < 3; i++) {
+				var expiresAt = i == 1 ? baseDate.AddDays(1) : baseDate;
+				var id = await CreateTenantInvitationAsync(
+					staffToken,
+					acmeTenantId,
+					$"tenant-inv-expires-{i}-{Guid.NewGuid():N}@example.com"
 				);
+				await SetExpiresAtAsync(id, expiresAt);
+				seededIds.Add(id);
+				seededExpiresAt.Add(expiresAt);
 			}
 
-			[Fact]
-			public async Task
-			ItShouldWalkEveryEmailPageWithoutOverlapOrGap() {
-				var staffToken =
-					await _authClient.LoginAsStaffAdminAsync();
-				var acmeTenantId =
-					await TenantTestHelper
-						.GetTenantIdByNameAsync(
-							_http,
-							staffToken,
-							SeedConstants.Tenants.AcmeName
-						);
+			var visitedIds = new List<Guid>();
 
-				// 3 invites with distinct Email values, deliberately NOT in
-				// insertion order (anti-correlated). The walk must visit each once
-				// in ascending email order, so a keySelector swap to another
-				// same-type field (e.g. CreatedAt) turns this assertion RED.
-				var seededIds = new List<Guid>();
-				var seededEmails = new List<string>();
-				var emails = new[] {
+			// Swap the IDs of the two equal-key rows (i=0 and i=2) so the row
+			// inserted at i=2 has the smaller Id. Without this, UUID v7 IDs are
+			// insertion-ordered, so stable OrderBy(ExpiresAt) already matches
+			// ThenBy(Id) and removing the production tiebreaker leaves the test
+			// green. After the swap, the tiebreaker is actually exercised.
+			await SwapInvitationIdsAsync(seededIds[0], seededIds[2]);
+			(seededIds[0], seededIds[2]) = (seededIds[2], seededIds[0]);
+			string? cursor = null;
+			var pages = 0;
+			do {
+				var url = GetFindUrl(
+					acmeTenantId,
+					cursor: cursor,
+					limit: 1,
+					sortId: "expires_at",
+					sortOrder: "asc"
+				);
+				HttpRequestMessage request =
+					new HttpRequestMessage(
+						HttpMethod.Get, url
+					).WithSessionToken(staffToken);
+
+				using HttpResponseMessage response =
+					await _http.SendAsync(request);
+				_ = response.StatusCode.Should()
+					.Be(HttpStatusCode.OK);
+
+				var page = await response.Content
+					.ReadFromJsonAsync<FindPageResponse>();
+				page.Should().NotBeNull();
+				Assert.NotNull(page);
+				pages++;
+				visitedIds.AddRange(
+					page.Data.Select(i => i.Id)
+				);
+				cursor = page.NextCursor;
+
+				pages.Should().BeLessOrEqualTo(100);
+			} while (cursor is not null);
+
+			visitedIds.Should().OnlyHaveUniqueItems();
+			visitedIds.Should().Contain(seededIds);
+
+			var visitedOrder = visitedIds
+				.Where(seededIds.Contains)
+				.ToList();
+			var expiresAtById = seededIds
+				.Zip(seededExpiresAt, (id, e) => (id, e))
+				.ToDictionary(x => x.id, x => x.e);
+			visitedOrder.Should().Equal(
+				seededIds.OrderBy(id => expiresAtById[id]).ThenBy(id => id).ToList()
+			);
+		}
+
+		[Fact]
+		public async Task
+		ItShouldWalkEveryEmailPageWithoutOverlapOrGap() {
+			var staffToken =
+				await _authClient.LoginAsStaffAdminAsync();
+			var acmeTenantId =
+				await TenantTestHelper
+					.GetTenantIdByNameAsync(
+						_http,
+						staffToken,
+						SeedConstants.Tenants.AcmeName
+					);
+
+			// 3 invites with distinct Email values, deliberately NOT in
+			// insertion order (anti-correlated). The walk must visit each once
+			// in ascending email order, so a keySelector swap to another
+			// same-type field (e.g. CreatedAt) turns this assertion RED.
+			var seededIds = new List<Guid>();
+			var seededEmails = new List<string>();
+			var emails = new[] {
 					$"tenant-inv-email-c-{Guid.NewGuid():N}@example.com",
 					$"tenant-inv-email-a-{Guid.NewGuid():N}@example.com",
 					$"tenant-inv-email-b-{Guid.NewGuid():N}@example.com",
 				};
-				foreach (var email in emails) {
-					var id = await CreateTenantInvitationAsync(
-						staffToken,
-						acmeTenantId,
-						email
-					);
-					seededIds.Add(id);
-					seededEmails.Add(email);
-				}
-
-				var visitedIds = new List<Guid>();
-				var visitedEmails = new List<string>();
-				string? cursor = null;
-				var pages = 0;
-				do {
-					var url = GetFindUrl(
-						acmeTenantId,
-						cursor: cursor,
-						limit: 1,
-						sortId: "email",
-						sortOrder: "asc"
-					);
-					HttpRequestMessage request =
-						new HttpRequestMessage(
-							HttpMethod.Get, url
-						).WithSessionToken(staffToken);
-
-					using HttpResponseMessage response =
-						await _http.SendAsync(request);
-					_ = response.StatusCode.Should()
-						.Be(HttpStatusCode.OK);
-
-					var page = await response.Content
-						.ReadFromJsonAsync<FindResponse>();
-					page.Should().NotBeNull();
-					Assert.NotNull(page);
-					pages++;
-					visitedIds.AddRange(
-						page.Data.Select(i => i.Id)
-					);
-					visitedEmails.AddRange(
-						page.Data.Select(i => i.Email)
-					);
-					cursor = page.NextCursor;
-
-					pages.Should().BeLessOrEqualTo(100);
-				} while (cursor is not null);
-
-				visitedIds.Should().OnlyHaveUniqueItems();
-				visitedIds.Should().Contain(seededIds);
-
-				var visitedOrder = visitedEmails
-					.Where(e => seededEmails.Contains(e, StringComparer.OrdinalIgnoreCase))
-					.ToList();
-				var expectedOrder = seededEmails
-					.OrderBy(e => e, StringComparer.OrdinalIgnoreCase)
-					.ToList();
-				visitedOrder.Should().Equal(expectedOrder);
+			foreach (var email in emails) {
+				var id = await CreateTenantInvitationAsync(
+					staffToken,
+					acmeTenantId,
+					email
+				);
+				seededIds.Add(id);
+				seededEmails.Add(email);
 			}
 
-			private async Task SetCreatedAtAsync(
-				Guid invitationId,
-				DateTime createdAt
-			) {
-				using IServiceScope scope =
-					_fixture.Factory.Services.CreateScope();
-				AppDbContext dbContext = scope.ServiceProvider
-					.GetRequiredService<AppDbContext>();
+			var visitedIds = new List<Guid>();
+			var visitedEmails = new List<string>();
+			string? cursor = null;
+			var pages = 0;
+			do {
+				var url = GetFindUrl(
+					acmeTenantId,
+					cursor: cursor,
+					limit: 1,
+					sortId: "email",
+					sortOrder: "asc"
+				);
+				HttpRequestMessage request =
+					new HttpRequestMessage(
+						HttpMethod.Get, url
+					).WithSessionToken(staffToken);
 
-				var invitation = await dbContext.Invitation
-					.Where(i => i.Id == invitationId)
-					.FirstAsync();
-				invitation.CreatedAt = createdAt;
-				await dbContext.SaveChangesAsync();
-			}
+				using HttpResponseMessage response =
+					await _http.SendAsync(request);
+				_ = response.StatusCode.Should()
+					.Be(HttpStatusCode.OK);
 
-			private async Task SetExpiresAtAsync(
-				Guid invitationId,
-				DateTime expiresAt
-			) {
-				using IServiceScope scope =
-					_fixture.Factory.Services.CreateScope();
-				AppDbContext dbContext = scope.ServiceProvider
-					.GetRequiredService<AppDbContext>();
+				var page = await response.Content
+					.ReadFromJsonAsync<FindResponse>();
+				page.Should().NotBeNull();
+				Assert.NotNull(page);
+				pages++;
+				visitedIds.AddRange(
+					page.Data.Select(i => i.Id)
+				);
+				visitedEmails.AddRange(
+					page.Data.Select(i => i.Email)
+				);
+				cursor = page.NextCursor;
 
-				var invitation = await dbContext.Invitation
-					.Where(i => i.Id == invitationId)
-					.FirstAsync();
-				invitation.ExpiresAt = expiresAt;
-				await dbContext.SaveChangesAsync();
-			}
+				pages.Should().BeLessOrEqualTo(100);
+			} while (cursor is not null);
 
-			#endregion
+			visitedIds.Should().OnlyHaveUniqueItems();
+			visitedIds.Should().Contain(seededIds);
 
-			#region Helper Methods
+			var visitedOrder = visitedEmails
+				.Where(e => seededEmails.Contains(e, StringComparer.OrdinalIgnoreCase))
+				.ToList();
+			var expectedOrder = seededEmails
+				.OrderBy(e => e, StringComparer.OrdinalIgnoreCase)
+				.ToList();
+			visitedOrder.Should().Equal(expectedOrder);
+		}
 
-			private async Task SetAcceptedAtAsync(
-				Guid invitationId,
-				DateTime acceptedAt
-			) {
-				using IServiceScope scope =
-					_fixture.Factory.Services.CreateScope();
-				AppDbContext dbContext = scope.ServiceProvider
-					.GetRequiredService<AppDbContext>();
+		private async Task SetCreatedAtAsync(
+			Guid invitationId,
+			DateTime createdAt
+		) {
+			using IServiceScope scope =
+				_fixture.Factory.Services.CreateScope();
+			AppDbContext dbContext = scope.ServiceProvider
+				.GetRequiredService<AppDbContext>();
 
-				var invitation = await dbContext.Invitation
-					.Where(i => i.Id == invitationId)
-					.FirstAsync();
-				invitation.AcceptedAt = acceptedAt;
-				await dbContext.SaveChangesAsync();
-			}
+			var invitation = await dbContext.Invitation
+				.Where(i => i.Id == invitationId)
+				.FirstAsync();
+			invitation.CreatedAt = createdAt;
+			await dbContext.SaveChangesAsync();
+		}
 
-			private sealed record FindPageResponse {
-				public List<InvitationItem> Data { get; init; } = [];
-				public string? NextCursor { get; init; }
-			}
+		private async Task SetExpiresAtAsync(
+			Guid invitationId,
+			DateTime expiresAt
+		) {
+			using IServiceScope scope =
+				_fixture.Factory.Services.CreateScope();
+			AppDbContext dbContext = scope.ServiceProvider
+				.GetRequiredService<AppDbContext>();
 
-			private sealed record InvitationItem {
-				public Guid Id { get; init; }
-			}
+			var invitation = await dbContext.Invitation
+				.Where(i => i.Id == invitationId)
+				.FirstAsync();
+			invitation.ExpiresAt = expiresAt;
+			await dbContext.SaveChangesAsync();
+		}
 
-			private static string GetFindUrl(
-			Guid tenantId,
-			string? cursor = null,
-			int? limit = null,
-			string? sortId = null,
-				string? sortOrder = null,
-				string? status = null,
-				string? q = null,
-				string? level = null
-			) {
+		#endregion
+
+		#region Helper Methods
+
+		private async Task SetAcceptedAtAsync(
+			Guid invitationId,
+			DateTime acceptedAt
+		) {
+			using IServiceScope scope =
+				_fixture.Factory.Services.CreateScope();
+			AppDbContext dbContext = scope.ServiceProvider
+				.GetRequiredService<AppDbContext>();
+
+			var invitation = await dbContext.Invitation
+				.Where(i => i.Id == invitationId)
+				.FirstAsync();
+			invitation.AcceptedAt = acceptedAt;
+			await dbContext.SaveChangesAsync();
+		}
+
+		private sealed record FindPageResponse {
+			public List<InvitationItem> Data { get; init; } = [];
+			public string? NextCursor { get; init; }
+		}
+
+		private sealed record InvitationItem {
+			public Guid Id { get; init; }
+		}
+
+		private static string GetFindUrl(
+		Guid tenantId,
+		string? cursor = null,
+		int? limit = null,
+		string? sortId = null,
+			string? sortOrder = null,
+			string? status = null,
+			string? q = null,
+			string? level = null
+		) {
 			return GetFindUrl(
 				tenantId.ToString(),
 			cursor,

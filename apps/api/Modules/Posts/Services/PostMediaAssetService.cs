@@ -165,7 +165,8 @@ public sealed class PostMediaAssetService(AppDbContext dbContext)
 		// The CALLING HANDLER acquired the new blob's reference before this call
 		// and now releases the displaced paths returned here after the commit
 		// (#807 F5); physical deletion stays exclusively sweeper's.
-		return displacedPaths;	}
+		return displacedPaths;
+	}
 
 	public async Task<string?> RemoveAsync(
 		Guid tenantId,

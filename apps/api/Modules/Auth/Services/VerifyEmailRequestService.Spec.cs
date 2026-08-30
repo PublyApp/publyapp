@@ -8,8 +8,8 @@ using Npgsql;
 using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Infrastructure.Jobs;
 using PublyApp.Api.Lib.Testing.Fixtures;
-using PublyApp.Api.Modules.Auth.Utils;
 using PublyApp.Api.Modules.Auth.Jobs;
+using PublyApp.Api.Modules.Auth.Utils;
 using PublyApp.Api.Modules.Users.Entities;
 
 using Xunit;

@@ -1,6 +1,6 @@
-using FluentAssertions;
-
 using System.Data.Common;
+
+using FluentAssertions;
 
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;

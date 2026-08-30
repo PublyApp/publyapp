@@ -166,13 +166,13 @@ public sealed class PostsSliceMediaGuardSpec : IDisposable {
 				$"{service.Name}.ctor({parameter.Name}: {parameter.ParameterType.Name})")
 			.ToList();
 
-			_ = offenders.Should().BeEmpty(
-			"PostMediaAssetService may depend only on its DbContext (#1461 ratchet: "
-				+ "the #807 F5 reference discipline (acquire/release) moved to the "
-				+ "calling handlers; the uploads reference service moved to the calling "
-				+ "handlers); adding another domain-service dependency couples slices "
-				+ "and belongs behind a deliberate change to this pin"
-			);
+		_ = offenders.Should().BeEmpty(
+		"PostMediaAssetService may depend only on its DbContext (#1461 ratchet: "
+			+ "the #807 F5 reference discipline (acquire/release) moved to the "
+			+ "calling handlers; the uploads reference service moved to the calling "
+			+ "handlers); adding another domain-service dependency couples slices "
+			+ "and belongs behind a deliberate change to this pin"
+		);
 	}
 
 	// ── route-map facts ─────────────────────────────────────────────────

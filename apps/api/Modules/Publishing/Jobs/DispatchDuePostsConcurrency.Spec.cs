@@ -42,8 +42,7 @@ public sealed class DispatchDuePostsConcurrencySpec : IClassFixture<ApiFixture> 
 	}
 
 	[Fact]
-	public async Task ItShouldEnqueueEachPastDueRowExactlyOnceAcrossTwoConcurrentScans()
-	{
+	public async Task ItShouldEnqueueEachPastDueRowExactlyOnceAcrossTwoConcurrentScans() {
 		var connectionString = await GetConnectionStringAsync();
 		await using var seedDb = new AppDbContext(
 			new DbContextOptionsBuilder<AppDbContext>()

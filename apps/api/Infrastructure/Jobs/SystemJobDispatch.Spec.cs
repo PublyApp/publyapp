@@ -39,8 +39,8 @@ public sealed class SystemJobDispatchSpec : IClassFixture<ApiFixture> {
 			await using (var scope = host.Services.CreateAsyncScope()) {
 				var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 				var userIdQuery = from user in dbContext.User
-					where user.Email == TestConstants.StaffAdminEmail
-					select user.Id;
+													where user.Email == TestConstants.StaffAdminEmail
+													select user.Id;
 				var userId = await userIdQuery.SingleAsync();
 
 				if (userId is null) {
@@ -83,14 +83,14 @@ public sealed class SystemJobDispatchSpec : IClassFixture<ApiFixture> {
 			await using var cleanupScope = host.Services.CreateAsyncScope();
 			var cleanupContext = cleanupScope.ServiceProvider.GetRequiredService<AppDbContext>();
 			var sessions = from session in cleanupContext.Session
-				where session.Token == marker
-				select session;
+										 where session.Token == marker
+										 select session;
 			await sessions.ExecuteDeleteAsync();
 
 			if (jobId is not null) {
 				var jobs = from job in cleanupContext.JobQueue
-					where job.Id == jobId
-					select job;
+									 where job.Id == jobId
+									 select job;
 				await jobs.ExecuteDeleteAsync();
 			}
 		}

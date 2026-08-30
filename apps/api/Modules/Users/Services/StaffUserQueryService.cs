@@ -100,79 +100,79 @@ public class StaffUserQueryService : IStaffUserQueryService {
 		var effectiveSortOrder = args.SortOrder ?? SortOrder.Desc;
 		var isAsc = effectiveSortOrder == SortOrder.Asc;
 
-				var sortFieldHandlers = new Dictionary<string, CursorSortFieldHandler<UserAccount>>(
-			StringComparer.OrdinalIgnoreCase
-		) {
+		var sortFieldHandlers = new Dictionary<string, CursorSortFieldHandler<UserAccount>>(
+	StringComparer.OrdinalIgnoreCase
+) {
 			["created_at"] = CursorSortFieldHandlerFactory.Create<UserAccount, DateTime, Guid>(
-				cursorLookupQuery: () => _dbContext.UserAccount
-					.AsNoTracking()
-					.Where(ua => ua.Scope == AccountScope.Staff
-						&& !ua.IsDeleted
-						&& !ua.User.IsDeleted),
-				keySelector: ua => ua.User.CreatedAt,
-				idSelector: ua => ua.UserId,
-				cancellationToken
-			),
+		cursorLookupQuery: () => _dbContext.UserAccount
+			.AsNoTracking()
+			.Where(ua => ua.Scope == AccountScope.Staff
+				&& !ua.IsDeleted
+				&& !ua.User.IsDeleted),
+		keySelector: ua => ua.User.CreatedAt,
+		idSelector: ua => ua.UserId,
+		cancellationToken
+	),
 			["updated_at"] = CursorSortFieldHandlerFactory.Create<UserAccount, DateTime, Guid>(
-				cursorLookupQuery: () => _dbContext.UserAccount
-					.AsNoTracking()
-					.Where(ua => ua.Scope == AccountScope.Staff
-						&& !ua.IsDeleted
-						&& !ua.User.IsDeleted),
-				keySelector: ua => ua.User.UpdatedAt,
-				idSelector: ua => ua.UserId,
-				cancellationToken
-			),
+		cursorLookupQuery: () => _dbContext.UserAccount
+			.AsNoTracking()
+			.Where(ua => ua.Scope == AccountScope.Staff
+				&& !ua.IsDeleted
+				&& !ua.User.IsDeleted),
+		keySelector: ua => ua.User.UpdatedAt,
+		idSelector: ua => ua.UserId,
+		cancellationToken
+	),
 			["email"] = CursorSortFieldHandlerFactory.Create<UserAccount, string, Guid>(
-				cursorLookupQuery: () => _dbContext.UserAccount
-					.AsNoTracking()
-					.Where(ua => ua.Scope == AccountScope.Staff
-						&& !ua.IsDeleted
-						&& !ua.User.IsDeleted),
-				keySelector: ua => ua.User.Email,
-				idSelector: ua => ua.UserId,
-				cancellationToken
-			),
+		cursorLookupQuery: () => _dbContext.UserAccount
+			.AsNoTracking()
+			.Where(ua => ua.Scope == AccountScope.Staff
+				&& !ua.IsDeleted
+				&& !ua.User.IsDeleted),
+		keySelector: ua => ua.User.Email,
+		idSelector: ua => ua.UserId,
+		cancellationToken
+	),
 			["first_name"] = CursorSortFieldHandlerFactory.Create<UserAccount, string, Guid>(
-				cursorLookupQuery: () => _dbContext.UserAccount
-					.AsNoTracking()
-					.Where(ua => ua.Scope == AccountScope.Staff
-						&& !ua.IsDeleted
-						&& !ua.User.IsDeleted),
-				keySelector: ua => ua.User.FirstName ?? string.Empty,
-				idSelector: ua => ua.UserId,
-				cancellationToken
-			),
+		cursorLookupQuery: () => _dbContext.UserAccount
+			.AsNoTracking()
+			.Where(ua => ua.Scope == AccountScope.Staff
+				&& !ua.IsDeleted
+				&& !ua.User.IsDeleted),
+		keySelector: ua => ua.User.FirstName ?? string.Empty,
+		idSelector: ua => ua.UserId,
+		cancellationToken
+	),
 			["last_name"] = CursorSortFieldHandlerFactory.Create<UserAccount, string, Guid>(
-				cursorLookupQuery: () => _dbContext.UserAccount
-					.AsNoTracking()
-					.Where(ua => ua.Scope == AccountScope.Staff
-						&& !ua.IsDeleted
-						&& !ua.User.IsDeleted),
-				keySelector: ua => ua.User.LastName ?? string.Empty,
-				idSelector: ua => ua.UserId,
-				cancellationToken
-			),
+		cursorLookupQuery: () => _dbContext.UserAccount
+			.AsNoTracking()
+			.Where(ua => ua.Scope == AccountScope.Staff
+				&& !ua.IsDeleted
+				&& !ua.User.IsDeleted),
+		keySelector: ua => ua.User.LastName ?? string.Empty,
+		idSelector: ua => ua.UserId,
+		cancellationToken
+	),
 			["status"] = CursorSortFieldHandlerFactory.Create<UserAccount, UserStatus, Guid>(
-				cursorLookupQuery: () => _dbContext.UserAccount
-					.AsNoTracking()
-					.Where(ua => ua.Scope == AccountScope.Staff
-						&& !ua.IsDeleted
-						&& !ua.User.IsDeleted),
-				keySelector: ua => ua.User.Status,
-				idSelector: ua => ua.UserId,
-				cancellationToken
-			),
+		cursorLookupQuery: () => _dbContext.UserAccount
+			.AsNoTracking()
+			.Where(ua => ua.Scope == AccountScope.Staff
+				&& !ua.IsDeleted
+				&& !ua.User.IsDeleted),
+		keySelector: ua => ua.User.Status,
+		idSelector: ua => ua.UserId,
+		cancellationToken
+	),
 			["level"] = CursorSortFieldHandlerFactory.Create<UserAccount, AccountLevel, Guid>(
-				cursorLookupQuery: () => _dbContext.UserAccount
-					.AsNoTracking()
-					.Where(ua => ua.Scope == AccountScope.Staff
-						&& !ua.IsDeleted
-						&& !ua.User.IsDeleted),
-				keySelector: ua => ua.Level,
-				idSelector: ua => ua.UserId,
-				cancellationToken
-			),
+		cursorLookupQuery: () => _dbContext.UserAccount
+			.AsNoTracking()
+			.Where(ua => ua.Scope == AccountScope.Staff
+				&& !ua.IsDeleted
+				&& !ua.User.IsDeleted),
+		keySelector: ua => ua.Level,
+		idSelector: ua => ua.UserId,
+		cancellationToken
+	),
 		};
 
 		if (

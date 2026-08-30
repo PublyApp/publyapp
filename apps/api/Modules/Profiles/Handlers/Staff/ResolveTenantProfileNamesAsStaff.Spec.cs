@@ -229,11 +229,11 @@ public sealed class ResolveTenantProfileNamesAsStaffSpec : IClassFixture<ApiFixt
 	}
 
 	/// <summary>
-	 /// The uniqueness constraint ux_profiles_tenant_name is CASE-SENSITIVE, so "Editor"
-	 /// and "editor" can coexist as live profiles of one tenant. A case-insensitive
-	 /// lookup legitimately matches two rows then: the endpoint must report ambiguous
-	 /// instead of picking one arbitrarily.
-	 /// </summary>
+	/// The uniqueness constraint ux_profiles_tenant_name is CASE-SENSITIVE, so "Editor"
+	/// and "editor" can coexist as live profiles of one tenant. A case-insensitive
+	/// lookup legitimately matches two rows then: the endpoint must report ambiguous
+	/// instead of picking one arbitrarily.
+	/// </summary>
 	[Fact]
 	public async Task ItShouldReportAmbiguousWhenTwoLiveProfilesDifferOnlyByCase() {
 		var token = await _authClient.LoginAsStaffAdminAsync();
@@ -294,8 +294,8 @@ public sealed class ResolveTenantProfileNamesAsStaffSpec : IClassFixture<ApiFixt
 	}
 
 	/// <summary>
-	 /// Tenant isolation: another tenant's identically-named profile must never resolve.
-	 /// </summary>
+	/// Tenant isolation: another tenant's identically-named profile must never resolve.
+	/// </summary>
 	[Fact]
 	public async Task ItShouldNotResolveAnotherTenantsIdenticallyNamedProfile() {
 		var token = await _authClient.LoginAsStaffAdminAsync();
@@ -444,10 +444,10 @@ public sealed class ResolveTenantProfileNamesAsStaffSpec : IClassFixture<ApiFixt
 	}
 
 	/// <summary>
-	 /// Soft-deletes a tenant profile directly via the DbContext so resolution can prove it
-	 /// only ever matches live rows (the unique index filter permits a soft-deleted row to
-	 /// share a name with a live one).
-	 /// </summary>
+	/// Soft-deletes a tenant profile directly via the DbContext so resolution can prove it
+	/// only ever matches live rows (the unique index filter permits a soft-deleted row to
+	/// share a name with a live one).
+	/// </summary>
 	private async Task<Guid> CreateSoftDeletedTenantProfileAsync(Guid tenantId, string name) {
 		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();

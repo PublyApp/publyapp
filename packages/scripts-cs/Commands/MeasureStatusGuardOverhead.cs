@@ -245,10 +245,10 @@ public static partial class MeasureStatusGuardOverhead {
 		Console.WriteLine("── Guard correctness (UpdatesPublicationsStatus) ───────────");
 
 		var expectedResults = new Dictionary<string, bool> {
-			["Publication SELECT (read)"]         = false,
-			["Unrelated SELECT (fast-fail)"]      = false,
-			["Commented publication SELECT"]      = false,
-			["Status UPDATE (must detect)"]       = true,
+			["Publication SELECT (read)"] = false,
+			["Unrelated SELECT (fast-fail)"] = false,
+			["Commented publication SELECT"] = false,
+			["Status UPDATE (must detect)"] = true,
 		};
 
 		var failures = new List<string>();

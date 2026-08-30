@@ -1,7 +1,6 @@
 using PublyApp.Api.Lib;
-using PublyApp.Api.Modules.Users.Entities;
-
 using PublyApp.Api.Modules.Auth.Utils;
+using PublyApp.Api.Modules.Users.Entities;
 namespace PublyApp.Api.Infrastructure.Messaging.Email;
 
 public interface IEmailService {

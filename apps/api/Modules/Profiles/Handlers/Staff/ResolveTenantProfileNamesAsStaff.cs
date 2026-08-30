@@ -5,9 +5,9 @@ using FluentValidation;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 
-using PublyApp.Api.Localization;
 using PublyApp.Api.Lib.ProblemResults;
 using PublyApp.Api.Lib.Validation;
+using PublyApp.Api.Localization;
 using PublyApp.Api.Modules.Profiles.Services;
 using PublyApp.Api.Modules.Tenants.Services;
 

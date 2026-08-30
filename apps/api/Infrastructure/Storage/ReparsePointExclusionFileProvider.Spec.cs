@@ -1,6 +1,8 @@
 using FluentAssertions;
+
 using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Logging;
+
 using Xunit;
 
 namespace PublyApp.Api.Infrastructure.Storage;

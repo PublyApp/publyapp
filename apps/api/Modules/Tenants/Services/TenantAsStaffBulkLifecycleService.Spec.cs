@@ -9,9 +9,9 @@ using Microsoft.Extensions.Logging.Abstractions;
 
 using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Infrastructure.Messaging.Email;
-using PublyApp.Api.Modules.Uploads.Services;
 using PublyApp.Api.Lib.Testing.Fixtures;
 using PublyApp.Api.Modules.Tenants.Entities;
+using PublyApp.Api.Modules.Uploads.Services;
 
 using Xunit;
 

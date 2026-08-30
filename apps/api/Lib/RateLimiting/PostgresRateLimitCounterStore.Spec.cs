@@ -142,214 +142,214 @@ public sealed class PostgresRateLimitCounterStoreSpec
 			"once the fleet-wide budget is spent no replica may over-admit"
 		);
 	}
-		// #1546 red proof: window_started_at must come from the DB clock
-		// (floor(EXTRACT(EPOCH FROM now()) / $4) * $4), not the app clock. Two
-		// replicas whose utcNow values are a full window apart would, under the
-		// old app-clock code, compute different window_started_at values and
-		// silently split one budget into two. With the fix the DB's single clock
-		// aligns them to the same window row, so the fleet still enforces exactly
-		// permitLimit total.
-			[Fact]
-			public async Task ItShouldNotSplitBudgetWhenAppClocksAreDesynced() {
-				await using var scope = _fixture.Factory.Services
-					.CreateAsyncScope();
-				var dbContext = scope.ServiceProvider
-					.GetRequiredService<AppDbContext>();
-				await dbContext.ClearCounterRowsAsync();
+	// #1546 red proof: window_started_at must come from the DB clock
+	// (floor(EXTRACT(EPOCH FROM now()) / $4) * $4), not the app clock. Two
+	// replicas whose utcNow values are a full window apart would, under the
+	// old app-clock code, compute different window_started_at values and
+	// silently split one budget into two. With the fix the DB's single clock
+	// aligns them to the same window row, so the fleet still enforces exactly
+	// permitLimit total.
+	[Fact]
+	public async Task ItShouldNotSplitBudgetWhenAppClocksAreDesynced() {
+		await using var scope = _fixture.Factory.Services
+			.CreateAsyncScope();
+		var dbContext = scope.ServiceProvider
+			.GetRequiredService<AppDbContext>();
+		await dbContext.ClearCounterRowsAsync();
 
-				var suffix = Guid.NewGuid().ToString("N")[..8];
-				var policyName = $"spec-ntp-drift-{suffix}";
-				const string partitionKey = "desynced-replica-key";
-				const int permitLimit = 3;
-				var window = TimeSpan.FromSeconds(60);
+		var suffix = Guid.NewGuid().ToString("N")[..8];
+		var policyName = $"spec-ntp-drift-{suffix}";
+		const string partitionKey = "desynced-replica-key";
+		const int permitLimit = 3;
+		var window = TimeSpan.FromSeconds(60);
 
-				var firstStore = CreateStoreFromHost();
-				var secondStore = CreateStoreFromHost();
+		var firstStore = CreateStoreFromHost();
+		var secondStore = CreateStoreFromHost();
 
-				// Replica 1's app clock says 12:00:30; replica 2's says 12:01:31
-				// (61 s apart — a full window boundary in between under the old code).
-				var replicaOneUtcNow = BaseTime.AddSeconds(30);
-				var replicaTwoUtcNow = BaseTime.AddSeconds(91);
+		// Replica 1's app clock says 12:00:30; replica 2's says 12:01:31
+		// (61 s apart — a full window boundary in between under the old code).
+		var replicaOneUtcNow = BaseTime.AddSeconds(30);
+		var replicaTwoUtcNow = BaseTime.AddSeconds(91);
 
-				// Three acquires at the limit from replica one (drains its view of the
-				// budget in the window that starts at ~12:00:00).
-				var first = await firstStore.AcquireAsync(
+		// Three acquires at the limit from replica one (drains its view of the
+		// budget in the window that starts at ~12:00:00).
+		var first = await firstStore.AcquireAsync(
+			policyName,
+			partitionKey,
+			permitLimit,
+			window,
+			1,
+			replicaOneUtcNow
+		);
+		var second = await firstStore.AcquireAsync(
+			policyName,
+			partitionKey,
+			permitLimit,
+			window,
+			1,
+			replicaOneUtcNow
+		);
+		var third = await firstStore.AcquireAsync(
+			policyName,
+			partitionKey,
+			permitLimit,
+			window,
+			1,
+			replicaOneUtcNow
+		);
+		// Replica two (app clock 61 s ahead) tries to draw once more. Under the
+		// old code its utcNow maps to a *different* window_started_at, so it
+		// would get its own fresh budget and be granted — silently doubling the
+		// fleet-wide limit to 4. With the DB-clock fix both replicas land in the
+		// same window row and the limit holds at 3.
+		var fourth = await secondStore.AcquireAsync(
+			policyName,
+			partitionKey,
+			permitLimit,
+			window,
+			1,
+			replicaTwoUtcNow
+		);
+
+		first.Acquired.Should().BeTrue();
+		second.Acquired.Should().BeTrue();
+		third.Acquired.Should().BeTrue();
+		third.NewPermitCount.Should().Be(permitLimit);
+		fourth.Acquired.Should().BeFalse(
+			"the DB-clock window must not split the budget across desynced replicas"
+		);
+		fourth.NewPermitCount.Should().BeNull();
+
+		// Belt-and-braces: exactly one row exists for this partition,
+		// regardless of how many windows the app clocks thought they were in.
+		var rowCount = await dbContext.Database
+			.SqlQuery<int>(
+				$"""
+					SELECT COUNT(*)
+					FROM rate_limit_counters
+					WHERE policy_name = {policyName}
+					"""
+			)
+			.ToListAsync();
+		rowCount.Single().Should().Be(1);
+	}
+
+	// #1545: the whole point of a *distributed* counter is atomic concurrency
+	// safety. Launch N >= 2 * limit contenders in parallel against one shared
+	// counter row; exactly `permitLimit` must succeed — no more, no less. A
+	// non-atomic SELECT-then-UPDATE store would let all N through.
+	[Fact]
+	public async Task ItShouldGrantExactlyPermitLimitUnderConcurrency() {
+		await using var scope = _fixture.Factory.Services
+			.CreateAsyncScope();
+		var dbContext = scope.ServiceProvider
+			.GetRequiredService<AppDbContext>();
+		await dbContext.ClearCounterRowsAsync();
+
+		var suffix = Guid.NewGuid().ToString("N")[..8];
+		var policyName = $"spec-concurrency-{suffix}";
+		const string partitionKey = "concurrent-contender-key";
+		const int permitLimit = 10;
+		var window = TimeSpan.FromSeconds(3_600);
+		var contenderCount = permitLimit * 2;
+
+		await using var store = CreateStoreFromHost();
+
+		var leases = await Task.WhenAll(
+			Enumerable
+				.Range(0, contenderCount)
+				.Select(_ => store.AcquireAsync(
 					policyName,
 					partitionKey,
 					permitLimit,
 					window,
 					1,
-					replicaOneUtcNow
-				);
-				var second = await firstStore.AcquireAsync(
-					policyName,
-					partitionKey,
-					permitLimit,
-					window,
-					1,
-					replicaOneUtcNow
-				);
-				var third = await firstStore.AcquireAsync(
-					policyName,
-					partitionKey,
-					permitLimit,
-					window,
-					1,
-					replicaOneUtcNow
-				);
-				// Replica two (app clock 61 s ahead) tries to draw once more. Under the
-				// old code its utcNow maps to a *different* window_started_at, so it
-				// would get its own fresh budget and be granted — silently doubling the
-				// fleet-wide limit to 4. With the DB-clock fix both replicas land in the
-				// same window row and the limit holds at 3.
-				var fourth = await secondStore.AcquireAsync(
-					policyName,
-					partitionKey,
-					permitLimit,
-					window,
-					1,
-					replicaTwoUtcNow
-				);
+					BaseTime
+				))
+		);
 
-				first.Acquired.Should().BeTrue();
-				second.Acquired.Should().BeTrue();
-				third.Acquired.Should().BeTrue();
-				third.NewPermitCount.Should().Be(permitLimit);
-				fourth.Acquired.Should().BeFalse(
-					"the DB-clock window must not split the budget across desynced replicas"
-				);
-				fourth.NewPermitCount.Should().BeNull();
+		var acquired = leases.Count(l => l.Acquired);
+		acquired.Should().Be(
+			permitLimit,
+			"exactly the fleet-wide limit must succeed under concurrency"
+		);
+		// Each successful acquire reports the cumulative permit count;
+		// under correct atomic accounting those must be exactly 1..limit
+		// (order is non-deterministic under real concurrency).
+		leases
+			.Where(l => l.Acquired)
+			.Select(l => l.NewPermitCount)
+			.Should()
+			.BeEquivalentTo(
+				Enumerable.Range(1, permitLimit)
+			);
+	}
 
-				// Belt-and-braces: exactly one row exists for this partition,
-				// regardless of how many windows the app clocks thought they were in.
-				var rowCount = await dbContext.Database
-					.SqlQuery<int>(
-						$"""
-						SELECT COUNT(*)
-						FROM rate_limit_counters
-						WHERE policy_name = {policyName}
-						"""
-					)
-					.ToListAsync();
-				rowCount.Single().Should().Be(1);
-			}
+	// #1547: the matrix cell where the circuit breaker is OPEN and the policy
+	// is fail-CLOSED was not covered by any existing test. While the breaker
+	// is open the store never dials Postgres, so a fail-CLOSED policy must
+	// still reject — that is the entire point of failing closed during an
+	// outage.
+	[Fact]
+	public async Task ItShouldFailClosedForAbusePoliciesWhileTheBreakerIsOpen() {
+		var timeProvider = new ManualTimeProvider {
+			UtcNowValue = BaseTime,
+		};
+		var throwingFactory = new ThrowingScopeFactory();
+		await using var store = new PostgresRateLimitCounterStore(
+			throwingFactory,
+			NullLogger<PostgresRateLimitCounterStore>.Instance,
+			GetHostSettings<ApiRateLimitSettings>(),
+			GetHostSettings<AnonymousAuthRateLimitSettings>(),
+			timeProvider
+		);
 
-			// #1545: the whole point of a *distributed* counter is atomic concurrency
-			// safety. Launch N >= 2 * limit contenders in parallel against one shared
-			// counter row; exactly `permitLimit` must succeed — no more, no less. A
-			// non-atomic SELECT-then-UPDATE store would let all N through.
-			[Fact]
-			public async Task ItShouldGrantExactlyPermitLimitUnderConcurrency() {
-				await using var scope = _fixture.Factory.Services
-					.CreateAsyncScope();
-				var dbContext = scope.ServiceProvider
-					.GetRequiredService<AppDbContext>();
-				await dbContext.ClearCounterRowsAsync();
+		// Open the breaker by exceeding the failure threshold.
+		for (var attempt = 0; attempt < 5; attempt++) {
+			await store.AcquireAsync(
+				ApiRateLimitPolicies.AuthenticatedDefault,
+				"breaker-key",
+				10,
+				TimeSpan.FromSeconds(60),
+				1,
+				timeProvider.UtcNowValue
+			);
+		}
 
-				var suffix = Guid.NewGuid().ToString("N")[..8];
-				var policyName = $"spec-concurrency-{suffix}";
-				const string partitionKey = "concurrent-contender-key";
-				const int permitLimit = 10;
-				var window = TimeSpan.FromSeconds(3_600);
-				var contenderCount = permitLimit * 2;
+		throwingFactory.DialAttempts.Should().Be(5);
 
-				await using var store = CreateStoreFromHost();
+		// The breaker is now OPEN. A fail-CLOSED abuse policy must reject
+		// without dialling, while a fail-OPEN policy admits.
+		var failClosedResult = await store.AcquireAsync(
+			AnonymousAuthRateLimitPolicies.PerIp,
+			"abuse-key",
+			5,
+			TimeSpan.FromSeconds(60),
+			1,
+			timeProvider.UtcNowValue
+		);
+		var failOpenResult = await store.AcquireAsync(
+			ApiRateLimitPolicies.AuthenticatedDefault,
+			"non-abuse-key",
+			100,
+			TimeSpan.FromSeconds(60),
+			1,
+			timeProvider.UtcNowValue
+		);
 
-				var leases = await Task.WhenAll(
-					Enumerable
-						.Range(0, contenderCount)
-						.Select(_ => store.AcquireAsync(
-							policyName,
-							partitionKey,
-							permitLimit,
-							window,
-							1,
-							BaseTime
-						))
-				);
-
-				var acquired = leases.Count(l => l.Acquired);
-				acquired.Should().Be(
-					permitLimit,
-					"exactly the fleet-wide limit must succeed under concurrency"
-				);
-				// Each successful acquire reports the cumulative permit count;
-				// under correct atomic accounting those must be exactly 1..limit
-				// (order is non-deterministic under real concurrency).
-				leases
-					.Where(l => l.Acquired)
-					.Select(l => l.NewPermitCount)
-					.Should()
-					.BeEquivalentTo(
-						Enumerable.Range(1, permitLimit)
-					);
-			}
-
-			// #1547: the matrix cell where the circuit breaker is OPEN and the policy
-			// is fail-CLOSED was not covered by any existing test. While the breaker
-			// is open the store never dials Postgres, so a fail-CLOSED policy must
-			// still reject — that is the entire point of failing closed during an
-			// outage.
-			[Fact]
-			public async Task ItShouldFailClosedForAbusePoliciesWhileTheBreakerIsOpen() {
-				var timeProvider = new ManualTimeProvider {
-					UtcNowValue = BaseTime,
-				};
-				var throwingFactory = new ThrowingScopeFactory();
-				await using var store = new PostgresRateLimitCounterStore(
-					throwingFactory,
-					NullLogger<PostgresRateLimitCounterStore>.Instance,
-					GetHostSettings<ApiRateLimitSettings>(),
-					GetHostSettings<AnonymousAuthRateLimitSettings>(),
-					timeProvider
-				);
-
-				// Open the breaker by exceeding the failure threshold.
-				for (var attempt = 0; attempt < 5; attempt++) {
-					await store.AcquireAsync(
-						ApiRateLimitPolicies.AuthenticatedDefault,
-						"breaker-key",
-						10,
-						TimeSpan.FromSeconds(60),
-						1,
-						timeProvider.UtcNowValue
-					);
-				}
-
-				throwingFactory.DialAttempts.Should().Be(5);
-
-				// The breaker is now OPEN. A fail-CLOSED abuse policy must reject
-				// without dialling, while a fail-OPEN policy admits.
-				var failClosedResult = await store.AcquireAsync(
-					AnonymousAuthRateLimitPolicies.PerIp,
-					"abuse-key",
-					5,
-					TimeSpan.FromSeconds(60),
-					1,
-					timeProvider.UtcNowValue
-				);
-				var failOpenResult = await store.AcquireAsync(
-					ApiRateLimitPolicies.AuthenticatedDefault,
-					"non-abuse-key",
-					100,
-					TimeSpan.FromSeconds(60),
-					1,
-					timeProvider.UtcNowValue
-				);
-
-				throwingFactory.DialAttempts.Should()
-					.Be(5, "the open breaker must not dial Postgres");
-				failClosedResult.Acquired.Should().BeFalse(
-					"fail-CLOSED abuse policy must reject during an outage"
-				);
-				failClosedResult.StoreFailure.Should().BeFalse(
-					"the rejection is a deliberate policy decision, not a store failure"
-				);
-				failOpenResult.Acquired.Should().BeFalse();
-				failOpenResult.StoreFailure.Should().BeTrue(
-					"fail-OPEN policy signals the caller to admit"
-				);
-			}
+		throwingFactory.DialAttempts.Should()
+			.Be(5, "the open breaker must not dial Postgres");
+		failClosedResult.Acquired.Should().BeFalse(
+			"fail-CLOSED abuse policy must reject during an outage"
+		);
+		failClosedResult.StoreFailure.Should().BeFalse(
+			"the rejection is a deliberate policy decision, not a store failure"
+		);
+		failOpenResult.Acquired.Should().BeFalse();
+		failOpenResult.StoreFailure.Should().BeTrue(
+			"fail-OPEN policy signals the caller to admit"
+		);
+	}
 
 	[Fact]
 	public async Task ItShouldConsumeNothingOnRejectionAndRolloverCleanly() {

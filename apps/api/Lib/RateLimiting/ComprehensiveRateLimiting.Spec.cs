@@ -860,7 +860,7 @@ public sealed class ComprehensiveRateLimitingSpec
 				LongWindowSeconds
 			),
 			// A5 (#636): the trigger policy's own window; generous here so only
-				// tests that target SystemJobTrigger explicitly exercise its limits.
+			// tests that target SystemJobTrigger explicitly exercise its limits.
 			SystemJobTrigger: new RateLimitWindowSettings(
 				systemJobTriggerPermitLimit,
 				LongWindowSeconds

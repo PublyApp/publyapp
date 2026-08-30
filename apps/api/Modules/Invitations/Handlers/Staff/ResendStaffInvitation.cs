@@ -2,10 +2,10 @@ using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 
 using PublyApp.Api.Infrastructure.Jobs;
-using PublyApp.Api.Modules.Invitations.Jobs;
 using PublyApp.Api.Lib;
 using PublyApp.Api.Lib.ProblemResults;
 using PublyApp.Api.Localization;
+using PublyApp.Api.Modules.Invitations.Jobs;
 using PublyApp.Api.Modules.Invitations.Services;
 
 namespace PublyApp.Api.Modules.Invitations.Handlers.Staff;

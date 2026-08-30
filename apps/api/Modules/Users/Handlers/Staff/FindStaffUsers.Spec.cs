@@ -551,13 +551,13 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 			seededOrder.Add(createdAt);
 		}
 
-			// Swap the IDs of the two equal-key rows (i=0 and i=2) so the row
-			// inserted at i=2 has the smaller Id. Without this, UUID v7 IDs are
-			// insertion-ordered, so stable OrderBy(CreatedAt) already matches
-			// ThenBy(Id) and removing the production tiebreaker leaves the test
-			// green. After the swap, the tiebreaker is actually exercised.
-			await SwapStaffUserIdsAsync(seededIds[0], seededIds[2]);
-			(seededIds[0], seededIds[2]) = (seededIds[2], seededIds[0]);
+		// Swap the IDs of the two equal-key rows (i=0 and i=2) so the row
+		// inserted at i=2 has the smaller Id. Without this, UUID v7 IDs are
+		// insertion-ordered, so stable OrderBy(CreatedAt) already matches
+		// ThenBy(Id) and removing the production tiebreaker leaves the test
+		// green. After the swap, the tiebreaker is actually exercised.
+		await SwapStaffUserIdsAsync(seededIds[0], seededIds[2]);
+		(seededIds[0], seededIds[2]) = (seededIds[2], seededIds[0]);
 
 		var visitedIds = new List<Guid>();
 		string? cursor = null;
@@ -642,13 +642,13 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 		}
 
 
-			// Swap the IDs of the two equal-key rows (i=0 and i=2) so the row
-			// inserted at i=2 has the smaller Id. Without this, UUID v7 IDs are
-			// insertion-ordered, so stable OrderBy(UpdatedAt) already matches
-			// ThenBy(Id) and removing the production tiebreaker leaves the test
-			// green. After the swap, the tiebreaker is actually exercised.
-			await SwapStaffUserIdsAsync(seededIds[0], seededIds[2]);
-			(seededIds[0], seededIds[2]) = (seededIds[2], seededIds[0]);
+		// Swap the IDs of the two equal-key rows (i=0 and i=2) so the row
+		// inserted at i=2 has the smaller Id. Without this, UUID v7 IDs are
+		// insertion-ordered, so stable OrderBy(UpdatedAt) already matches
+		// ThenBy(Id) and removing the production tiebreaker leaves the test
+		// green. After the swap, the tiebreaker is actually exercised.
+		await SwapStaffUserIdsAsync(seededIds[0], seededIds[2]);
+		(seededIds[0], seededIds[2]) = (seededIds[2], seededIds[0]);
 		var visitedIds = new List<Guid>();
 		string? cursor = null;
 		var pages = 0;

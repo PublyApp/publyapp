@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Text.Json;
 
 using FluentAssertions;
+
 using Npgsql;
 
 using PublyApp.Api.Lib.Testing.Fixtures;

@@ -11,8 +11,8 @@ using PublyApp.Api.Lib.Extensions;
 using PublyApp.Api.Lib.ProblemResults;
 using PublyApp.Api.Lib.Utils;
 using PublyApp.Api.Lib.Validation;
-using PublyApp.Api.Modules.Auth.Utils;
 using PublyApp.Api.Localization;
+using PublyApp.Api.Modules.Auth.Utils;
 using PublyApp.Api.Modules.Users.Services;
 using PublyApp.Api.Modules.Users.Validation;
 

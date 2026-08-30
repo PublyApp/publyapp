@@ -8,9 +8,9 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
 using PublyApp.Api.Data.DbContext;
-using PublyApp.Api.Modules.Auth.Jobs;
 using PublyApp.Api.Lib.Routes;
 using PublyApp.Api.Lib.Testing.Fixtures;
+using PublyApp.Api.Modules.Auth.Jobs;
 using PublyApp.Api.Modules.Auth.Utils;
 using PublyApp.Api.Modules.Users.Entities;
 

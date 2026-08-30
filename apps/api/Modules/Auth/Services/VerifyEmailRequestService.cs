@@ -1,10 +1,11 @@
+using Microsoft.EntityFrameworkCore;
+
 using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Infrastructure.Jobs;
 using PublyApp.Api.Lib;
-using PublyApp.Api.Lib.Utils;
 using PublyApp.Api.Lib.DI;
+using PublyApp.Api.Lib.Utils;
 using PublyApp.Api.Modules.Auth.Jobs;
-using Microsoft.EntityFrameworkCore;
 
 namespace PublyApp.Api.Modules.Auth.Services;
 
