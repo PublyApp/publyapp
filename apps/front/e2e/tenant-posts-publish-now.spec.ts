@@ -28,6 +28,15 @@ test.describe(
 		test('publish now appears once in history with an external link', async ({
 			page,
 		}) => {
+			// The worker is single-threaded and shares the API container in the
+			// e2e stack. On a loaded CI runner the Scheduled → Published
+			// transition can exceed the 30s default test timeout — the last two
+			// failures (runs 33262675043, 33269511485) died with the row still
+			// showing `Scheduled` at T+30s, with the API byte-identical to the
+			// previous passing run. Without this override the default test
+			// timeout silently truncates the 120s poll declared below.
+			test.setTimeout(150_000);
+
 			await loginAsTenantUser(page, SINGLE_TENANT_USER_CREDENTIALS);
 
 			await page.goto('/tenant/posts/drafts');
@@ -74,7 +83,7 @@ test.describe(
 				.getByTestId('tenant-posts-history-table')
 				.locator('tr', { hasText: postBody });
 			const link = postRow.getByTestId('tenant-posts-history-link').first();
-			await expect(link).toBeVisible({ timeout: 60_000 });
+			await expect(link).toBeVisible({ timeout: 120_000 });
 			await expect(link).toHaveAttribute(
 				'href',
 				/^https:\/\/bsky\.app\/profile\//,
