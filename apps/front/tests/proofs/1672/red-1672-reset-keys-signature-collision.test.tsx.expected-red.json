@@ -6,5 +6,6 @@
 			"testName": "two different resetKeys arrays with colliding signatures both reset to page 0",
 			"why": "On correct code the signature is collision-free: the hook detects the genuine resetKeys change and returns 0 on the first change render, so `expect(consumer.renders[1]).toBe(0)` fails with an AssertionError (the buggy signature clamps back to 1). If this test passes, the signature-collision bug is fixed or the proof cannot measure it."
 		}
-	]
+	],
+	"measuredAgainst": "7796deb4c9d8f78ffc12bd54e5d8255dae4d9406"
 }

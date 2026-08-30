@@ -363,6 +363,7 @@ const buildReplayFixture = (options: ReplayFixtureOptions): string => {
 			join(proofDir, 'stale-proof.test.ts.expected-red.json'),
 			JSON.stringify(
 				{
+					measuredAgainst: '0000000000000000000000000000000000000000',
 					expectedRed: [
 						{
 							testName: 'the declared kept-red test',
@@ -463,8 +464,11 @@ describe('proof replay — F2: the exit gate is pinned by a real process launch'
 			const result = runReplayFixture(root);
 
 			expect(result.status).not.toBe(0);
-			expect(result.stderr).toContain('STALE PROOF');
-			expect(result.stderr).toContain('declared kept-red test');
+			// The switch is gone — the per-verdict log line is no
+			// longer printed. The summary carries the stale count.
+			expect(result.stderr).toContain(
+				'declared kept-red test(s) passed unexpectedly',
+			);
 			expect(result.stdout).toContain(
 				'Stale proofs (declared red went green): 1',
 			);
@@ -497,6 +501,88 @@ describe('proof replay — F2: the exit gate is pinned by a real process launch'
 			expect(result.stdout).toContain(
 				'Stale proofs (declared red went green): 0',
 			);
+		} finally {
+			rmSync(root, { recursive: true, force: true });
+		}
+	}, 120000);
+});
+
+// --- Fixture test for #1863: manifest is validated BEFORE vitest launches ---
+
+describe('proof replay — manifest is validated BEFORE vitest launches (#1863)', () => {
+	test('a declared proof WITHOUT its manifest is caught BEFORE vitest runs (message does not include vitest stderr)', () => {
+		// The defect class: the runner launches vitest, which crashes with
+		// "No test suite found" or a PARSE_ERROR, and THEN discovers the
+		// manifest is missing. The vitest crash output (stdout/stderr)
+		// appears in the error message, obscuring the real cause. The fix
+		// validates the manifest before launching vitest: the error
+		// message must NOT contain vitest crash output.
+		const root = buildReplayFixture({
+			declaredTestPasses: true,
+			siblingPasses: false,
+			withManifest: false,
+		});
+		try {
+			const result = runReplayFixture(root);
+
+			expect(result.status).not.toBe(0);
+			expect(result.stderr).toContain('expected-red manifest is MISSING');
+			// The error message must NOT include vitest crash output —
+			// the manifest is validated before vitest is launched.
+			expect(result.stderr).not.toContain('No test suite found');
+			expect(result.stderr).not.toContain('PARSE_ERROR');
+			expect(result.stderr).not.toContain('stdout:');
+			expect(result.stderr).not.toContain('stderr:');
+		} finally {
+			rmSync(root, { recursive: true, force: true });
+		}
+	}, 120000);
+
+	test('a declared proof with an INVALID measuredAgainst (non-hex) is caught BEFORE vitest runs', () => {
+		// The manifest declares measuredAgainst but the value is not a
+		// valid hex SHA. The runner must catch this BEFORE launching
+		// vitest, naming the invalid field.
+		const root = buildReplayFixture({
+			declaredTestPasses: true,
+			siblingPasses: false,
+			withManifest: true,
+		});
+		try {
+			// Overwrite the manifest with an invalid measuredAgainst.
+			const manifestPath = join(
+				root,
+				'apps',
+				'front',
+				'tests',
+				'proofs',
+				'99999',
+				'stale-proof.test.ts.expected-red.json',
+			);
+			writeFileSync(
+				manifestPath,
+				JSON.stringify(
+					{
+						measuredAgainst: 'not-a-valid-sha',
+						expectedRed: [
+							{
+								testName: 'the declared kept-red test',
+								why: 'fixture: invalid measuredAgainst',
+							},
+						],
+					},
+					null,
+					'\t',
+				) + '\n',
+			);
+
+			const result = runReplayFixture(root);
+
+			expect(result.status).not.toBe(0);
+			expect(result.stderr).toContain('measuredAgainst');
+			expect(result.stderr).toContain('40-64 character hex');
+			// Must NOT include vitest crash output.
+			expect(result.stderr).not.toContain('stdout:');
+			expect(result.stderr).not.toContain('stderr:');
 		} finally {
 			rmSync(root, { recursive: true, force: true });
 		}
@@ -548,4 +634,336 @@ describe('proof replay — every versioned proof carries its manifest (F1 invari
 		// suite, before CI's replay ever sees it.
 		expect(missing).toEqual([]);
 	});
+});
+
+// --- ERROR verdict regression (issue #1864) ---
+
+interface ErrorFixtureOptions {
+	/** Whether the proof file gets its `.expected-red.json` companion. */
+	withManifest: boolean;
+}
+
+/**
+ * Build a throwaway fixture whose proof file KILLS vitest with SIGKILL
+ * (exit code 137). The runner must classify this as ERROR →
+ * unexpectedPasses, NOT failures. This is the exact regression #1829
+ * re-introduced: a switch that mapped ERROR → failures would silently
+ * green-light a crashed vitest process.
+ */
+const buildErrorFixture = (options: ErrorFixtureOptions): string => {
+	const root = mkdtempSync(join(tmpdir(), 'preuve-error-'));
+	const appDir = join(root, 'apps', 'front');
+	const proofDir = join(appDir, 'tests', 'proofs', '99999');
+	mkdirSync(proofDir, { recursive: true });
+
+	writeFileSync(
+		join(appDir, 'package.json'),
+		'{"name":"preuve-error-fixture","private":true,"type":"module","packageManager":"pnpm@10.13.1"}\n',
+	);
+	writeFileSync(
+		join(appDir, 'vitest.preuves.config.ts'),
+		[
+			"import { defineConfig } from 'vitest/config';",
+			'',
+			'export default defineConfig({',
+			'\ttest: {',
+			"\t\tenvironment: 'node',",
+			"\t\tinclude: ['tests/proofs/**/*.{test.ts,test.tsx}'],",
+			'\t\texclude: [],',
+			'\t},',
+			'});',
+			'',
+		].join('\n'),
+	);
+	const fixtureNodeModules = join(appDir, 'node_modules');
+	const storeVitestDir = join(
+		REAL_FRONT_NODE_MODULES,
+		readlinkSync(join(REAL_FRONT_NODE_MODULES, 'vitest')),
+	);
+	const storePkgDir = basename(dirname(dirname(storeVitestDir)));
+	mkdirSync(join(fixtureNodeModules, '.pnpm', storePkgDir, 'node_modules'), {
+		recursive: true,
+	});
+	symlinkSync(
+		storeVitestDir,
+		join(fixtureNodeModules, '.pnpm', storePkgDir, 'node_modules', 'vitest'),
+		'dir',
+	);
+	symlinkSync(storeVitestDir, join(fixtureNodeModules, 'vitest'), 'dir');
+	mkdirSync(join(fixtureNodeModules, '.bin'), { recursive: true });
+	symlinkSync(
+		join(storeVitestDir, 'vitest.mjs'),
+		join(fixtureNodeModules, '.bin', 'vitest'),
+	);
+
+	// The proof file kills vitest with SIGKILL at import time. vitest exits
+	// 137 (128 + 9). The runner must classify this as ERROR →
+	// unexpectedPasses, NOT failures.
+	writeFileSync(
+		join(proofDir, 'error-proof.test.ts'),
+		[
+			"import { describe, expect, test } from 'vitest';",
+			'',
+			'// Kill vitest with SIGKILL at import time (exit 137).',
+			'process.kill(process.pid, "SIGKILL");',
+			'',
+			"describe('preuve ERROR fixture', () => {",
+			"\ttest('never runs — vitest is dead', () => {",
+			'\t\texpect(true).toBe(true);',
+			'\t});',
+			'});',
+			'',
+		].join('\n'),
+	);
+
+	if (options.withManifest) {
+		writeFileSync(
+			join(proofDir, 'error-proof.test.ts.expected-red.json'),
+			JSON.stringify(
+				{
+					measuredAgainst: '0000000000000000000000000000000000000000',
+					expectedRed: [
+						{
+							testName: 'never runs — vitest is dead',
+							why: 'fixture: vitest crashes with SIGKILL before the test runs',
+						},
+					],
+				},
+				null,
+				'\t',
+			) + '\n',
+		);
+	}
+
+	execSync('git init -q -b main', { cwd: root });
+	execSync('git config user.email preuve-fixture@example.com', { cwd: root });
+	execSync('git config user.name preuve-fixture', { cwd: root });
+	execSync(
+		'git add apps/front/package.json apps/front/vitest.preuves.config.ts',
+		{ cwd: root },
+	);
+	execSync('git commit -qm base', { cwd: root });
+	execSync('git add apps/front/tests/proofs', { cwd: root });
+	execSync('git commit -qm proof', { cwd: root });
+	return root;
+};
+
+describe('proof replay — ERROR verdict (vitest crash, issue #1864)', () => {
+	test('a vitest process that crashes with SIGKILL makes the runner exit non-zero (corrupted, not failures)', () => {
+		// The residual switch was dead code — it printed log lines but
+		// didn't affect the counter mapping (which lives in consume-verdict).
+		// Removing it eliminates the risk that a future mutation adds
+		// `failures++` to the ERROR case. This process test pins the
+		// runner's behavior against a REAL vitest crash: the runner must
+		// exit non-zero. A SIGKILL crash prevents vitest from writing a
+		// JSON report, so the runner counts it as corrupted (unreadable
+		// report), NOT failures. The consume-verdict test pins the ERROR
+		// → unexpectedPasses mapping for the theoretical case where vitest
+		// exits non-zero/non-one with a readable report.
+		const root = buildErrorFixture({ withManifest: true });
+		try {
+			const result = runReplayFixture(root);
+
+			expect(result.status).not.toBe(0);
+			// A crash prevents the report from being written → corrupted.
+			expect(result.stdout).toContain('Corrupt/unparseable proof files:  1');
+			expect(result.stdout).toContain('Proof tests failed as expected: 0');
+			expect(result.stdout).toContain('Proof tests passed unexpectedly:  0');
+		} finally {
+			rmSync(root, { recursive: true, force: true });
+		}
+	}, 120000);
+});
+
+// --- Fixture test for #1865: three-dot diff excludes base-branch changes ---
+
+/**
+ * Build a git history where the PR branch is behind the base branch.
+ *
+ * The PR branch added its own proof (pr-proof.test.ts) on top of the fork
+ * point. The base branch added a DIFFERENT proof (base-proof.test.ts) on
+ * top of the same fork point, separately. The runner must declare ONLY the
+ * PR's proof, not the base's.
+ */
+const buildBehindHeadFixture = (): string => {
+	const root = mkdtempSync(join(tmpdir(), 'preuve-behind-'));
+	const appDir = join(root, 'apps', 'front');
+	const proofDir = join(appDir, 'tests', 'proofs', '99999');
+	mkdirSync(proofDir, { recursive: true });
+
+	writeFileSync(
+		join(appDir, 'package.json'),
+		'{"name":"preuve-behind-fixture","private":true,"type":"module","packageManager":"pnpm@10.13.1"}\n',
+	);
+	writeFileSync(
+		join(appDir, 'vitest.preuves.config.ts'),
+		[
+			"import { defineConfig } from 'vitest/config';",
+			'',
+			'export default defineConfig({',
+			'\ttest: {',
+			"\t\tenvironment: 'node',",
+			"\t\tinclude: ['tests/proofs/**/*.{test.ts,test.tsx}'],",
+			'\t\texclude: [],',
+			'\t},',
+			'});',
+			'',
+		].join('\n'),
+	);
+	const fixtureNodeModules = join(appDir, 'node_modules');
+	const REAL_FRONT_NODE_MODULES = process.env.REAL_FRONT_NODE_MODULES;
+	if (REAL_FRONT_NODE_MODULES) {
+		const storeVitestDir = join(
+			REAL_FRONT_NODE_MODULES,
+			readlinkSync(join(REAL_FRONT_NODE_MODULES, 'vitest')),
+		);
+		const storePkgDir = basename(dirname(dirname(storeVitestDir)));
+		mkdirSync(join(fixtureNodeModules, '.pnpm', storePkgDir, 'node_modules'), {
+			recursive: true,
+		});
+		symlinkSync(
+			storeVitestDir,
+			join(fixtureNodeModules, '.pnpm', storePkgDir, 'node_modules', 'vitest'),
+			'dir',
+		);
+		symlinkSync(storeVitestDir, join(fixtureNodeModules, 'vitest'), 'dir');
+		mkdirSync(join(fixtureNodeModules, '.bin'), { recursive: true });
+		symlinkSync(
+			join(storeVitestDir, 'vitest.mjs'),
+			join(fixtureNodeModules, '.bin', 'vitest'),
+		);
+	}
+
+	writeFileSync(
+		join(proofDir, 'pr-proof.test.ts'),
+		[
+			"import { describe, expect, test } from 'vitest';",
+			'',
+			"describe('PR proof', () => {",
+			"\ttest('the PR proof fails on an assertion', () => {",
+			'\t\texpect(1).toBe(2);',
+			'\t});',
+			'});',
+			'',
+		].join('\n'),
+	);
+	writeFileSync(
+		join(proofDir, 'pr-proof.test.ts.expected-red.json'),
+		JSON.stringify(
+			{
+				measuredAgainst: '0000000000000000000000000000000000000000',
+				expectedRed: [
+					{
+						testName: 'the PR proof fails on an assertion',
+						why: 'fixture: PR proof must fail on correct code',
+					},
+				],
+			},
+			null,
+			'\t',
+		) + '\n',
+	);
+
+	// Git history:
+	// 1. base commit (app shell) — this is the fork point
+	// 2. pr-proof commit (PR branch adds its proof on top of fork point)
+	// 3. base-proof commit (base branch adds its proof on top of fork point, separately)
+	// The PR branch's HEAD is at step 2; the base ref is at step 3.
+	// merge-base(base, HEAD) = step 1. Three-dot diff = step 2 only.
+	execSync('git init -q -b lane/pr-branch', { cwd: root });
+	execSync('git config user.email preuve-fixture@example.com', { cwd: root });
+	execSync('git config user.name preuve-fixture', { cwd: root });
+	execSync(
+		'git add apps/front/package.json apps/front/vitest.preuves.config.ts',
+		{ cwd: root },
+	);
+	execSync('git commit -qm base', { cwd: root }); // fork point
+	execSync('git add apps/front/tests/proofs', { cwd: root });
+	execSync('git commit -qm pr-proof', { cwd: root }); // PR branch HEAD
+
+	// Switch to the fork point and create the base branch there.
+	execSync('git checkout -b develop HEAD~1', { cwd: root }); // base at fork point
+	// Add a proof that only the base branch has (not the PR branch).
+	const baseProofDir = join(appDir, 'tests', 'proofs', '88888');
+	mkdirSync(baseProofDir, { recursive: true });
+	writeFileSync(
+		join(baseProofDir, 'base-proof.test.ts'),
+		[
+			"import { describe, expect, test } from 'vitest';",
+			'',
+			"describe('base proof', () => {",
+			"\ttest('base proof fails on an assertion', () => {",
+			'\t\texpect(1).toBe(2);',
+			'\t});',
+			'});',
+			'',
+		].join('\n'),
+	);
+	writeFileSync(
+		join(baseProofDir, 'base-proof.test.ts.expected-red.json'),
+		JSON.stringify(
+			{
+				measuredAgainst: '0000000000000000000000000000000000000000',
+				expectedRed: [
+					{
+						testName: 'base proof fails on an assertion',
+						why: 'fixture: base proof must fail on correct code',
+					},
+				],
+			},
+			null,
+			'\t',
+		) + '\n',
+	);
+	execSync('git add apps/front/tests/proofs', { cwd: root });
+	execSync('git commit -qm base-proof', { cwd: root }); // base branch advances
+
+	// Switch back to the PR branch so HEAD points to the PR's own proof.
+	execSync('git checkout lane/pr-branch', { cwd: root });
+
+	// The runner fetches from "origin" remote — set it to the local repo.
+	// The runner looks for refs/remotes/origin/develop, so we need to
+	// create that ref as a remote-tracking branch.
+	execSync('git remote add origin .', { cwd: root });
+	execSync('git fetch origin develop:refs/remotes/origin/develop', {
+		cwd: root,
+	});
+
+	return root;
+};
+
+describe('proof replay — three-dot diff excludes base-branch changes (#1865)', () => {
+	test("a PR branch behind the base branch declares ONLY its own proofs, not the base branch's", () => {
+		// The defect class: a two-dot diff (`origin/develop..HEAD`) would
+		// include base-branch changes made since the fork, spuriously
+		// declaring the base branch's proof as if the PR author had added
+		// it. The three-dot diff (`mergeBase...HEAD`) shows ONLY changes
+		// the PR branch introduced.
+		const root = buildBehindHeadFixture();
+		try {
+			const result = spawnSync(process.execPath, [RUNNER_SCRIPT], {
+				cwd: join(root, 'apps', 'front'),
+				env: {
+					...freshEnv(),
+					GITHUB_BASE_REF: 'develop',
+					GITHUB_HEAD_REF: 'lane/pr-branch',
+				},
+				encoding: 'utf-8',
+				timeout: 120000,
+			});
+
+			if (result.error) {
+				throw result.error;
+			}
+
+			// The runner must NOT declare the base branch's proof.
+			expect(result.stdout).not.toContain('base-proof.test.ts');
+			// The runner MUST declare the PR branch's proof.
+			expect(result.stdout).toContain('pr-proof.test.ts');
+			// Only ONE proof is declared (the PR's own).
+			expect(result.stdout).toContain('This PR declared 1 paired red proof(s)');
+		} finally {
+			rmSync(root, { recursive: true, force: true });
+		}
+	}, 120000);
 });
