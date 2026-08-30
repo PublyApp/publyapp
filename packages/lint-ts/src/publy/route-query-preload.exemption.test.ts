@@ -39,6 +39,7 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { RuleTester } from 'oxlint/plugins-dev';
+import { ts } from 'ts-morph';
 import { describe, it } from 'vitest';
 
 import {
@@ -150,17 +151,88 @@ describe('publy/route-query-preload exemption boundary (#1589)', () => {
 		}
 	});
 
-	// Liveness pin (r4 follow-up): a route stays on the allow-list only as
-	// long as it lacks `staticData.preload`. If one of the three entries
-	// later adopts preload, the exemption becomes unnecessary — without this
-	// pin nothing would tell the maintainer, and the list would only grow.
-	// The pin reads the file source through a deliberately narrow regex
-	// (`staticData` followed by an object literal that contains `preload`)
-	// so a comment mentioning the words does NOT count. Adding
-	// `staticData: { preload: () => [] }` to one exempt route makes this
-	// test red with a message naming that file.
-	const livenessRegex = /staticData\s*:\s*\{[\s\S]*?\bpreload\s*:/;
-	it('liveness regex matches a real staticData.preload declaration (catches a weakened regex)', () => {
+	// Liveness pin (r4 follow-up, hardened in r5): a route stays on the
+	// allow-list only as long as it lacks `staticData.preload`. If one of the
+	// three entries later adopts preload, the exemption becomes unnecessary —
+	// without this pin nothing would tell the maintainer, and the list would
+	// only grow.
+	//
+	// The r4 version of the pin was a regex over the file source
+	// (`staticData\s*:\s*\{[\s\S]*?\bpreload\s*:`), which ALSO matched
+	// COMMENTS: a file carrying a commented-out
+	// `// staticData: { preload: () => [] }` would have been declared
+	// "exemption unnecessary" wrongly — the inverse defect (r5 MEDIUM
+	// finding, same family as the i18n-coverage and design-system guards).
+	// The pin now walks the real syntax tree (ts-morph's vendored compiler),
+	// where comments are not nodes: a `preload` key only counts when it is an
+	// actual object property inside an object literal that is the value of a
+	// `staticData` property. Adding a REAL `staticData: { preload: () => [] }`
+	// to one exempt route makes this test red with a message naming that
+	// file; adding only the comment keeps it green.
+	/** True when `name` is an identifier/string/numeric literal text. */
+	const propertyNameText = (
+		name: ts.PropertyName | ts.BindingName,
+	): string | null => {
+		if (
+			ts.isIdentifier(name) ||
+			ts.isStringLiteral(name) ||
+			ts.isNumericLiteral(name)
+		) {
+			return name.text;
+		}
+		return null;
+	};
+
+	/** True when an object-literal element is a property named `name`. */
+	const elementNamed = (
+		element: ts.ObjectLiteralElementLike,
+		name: string,
+	): boolean => {
+		if (!('name' in element)) {
+			return false;
+		}
+		return propertyNameText(element.name) === name;
+	};
+
+	/** True when the source contains a REAL `staticData: { preload: ... }`
+	 *  object. Parsed through the syntax tree so comments and string literals
+	 *  that merely mention the text do not count. */
+	const declaresStaticDataPreload = (source: string): boolean => {
+		const sourceFile = ts.createSourceFile(
+			'__liveness-probe.tsx',
+			source,
+			ts.ScriptTarget.Latest,
+			true,
+			ts.ScriptKind.TSX,
+		);
+		let found = false;
+		const visit = (node: ts.Node): void => {
+			if (found) {
+				return;
+			}
+			if (ts.isObjectLiteralExpression(node)) {
+				const parent = node.parent;
+				if (
+					parent !== undefined &&
+					(ts.isPropertyAssignment(parent) ||
+						ts.isShorthandPropertyAssignment(parent)) &&
+					propertyNameText(parent.name) === 'staticData'
+				) {
+					for (const element of node.properties) {
+						if (elementNamed(element, 'preload')) {
+							found = true;
+							return;
+						}
+					}
+				}
+			}
+			ts.forEachChild(node, visit);
+		};
+		visit(sourceFile);
+		return found;
+	};
+
+	it('detector recognises a real staticData.preload declaration (catches a weakened detector)', () => {
 		const fixture = [
 			'export const Route = createFileRoute("/probe")({',
 			'  staticData: {',
@@ -169,9 +241,20 @@ describe('publy/route-query-preload exemption boundary (#1589)', () => {
 			'});',
 		].join('\n');
 		assert.strictEqual(
-			livenessRegex.test(fixture),
+			declaresStaticDataPreload(fixture),
 			true,
-			'the liveness regex no longer recognises a staticData.preload declaration — a weakened regex slipped past the liveness pin',
+			'the detector no longer recognises a staticData.preload declaration — a weakened detector slipped past the liveness pin',
+		);
+	});
+	it('detector ignores a COMMENT that mentions staticData.preload (r5 MEDIUM fix)', () => {
+		const fixture = [
+			'// staticData: { preload: () => [] }',
+			'export const Route = createFileRoute("/probe")({ staticData: { crumbs: "x" } });',
+		].join('\n');
+		assert.strictEqual(
+			declaresStaticDataPreload(fixture),
+			false,
+			'a commented-out staticData.preload must not count as a declaration — a file carrying it in a comment is NOT "exemption unnecessary" (the r4 regex matched this; the r5 AST-based detector must not)',
 		);
 	});
 	it('only allows routes that still lack staticData.preload (shrink when they adopt it)', () => {
@@ -181,7 +264,7 @@ describe('publy/route-query-preload exemption boundary (#1589)', () => {
 				'utf8',
 			);
 			assert.strictEqual(
-				livenessRegex.test(source),
+				declaresStaticDataPreload(source),
 				false,
 				`exempt route ${route} declares staticData.preload — the exemption became unnecessary; shrink the allow-list (#1589)`,
 			);
