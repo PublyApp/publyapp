@@ -25,7 +25,7 @@ Every load-bearing claim below was verified against this tree at `develop` = `e1
 | Full old-front marketing inventory at retirement (routes, ~18 components, data modules, contact-form Zod schema verbatim, retired flag set) | `docs/records/2026-08-22-review-old-front-marketing-screens.md` |
 | Current front has only `/` at top level; everything else is auth/authed | `apps/front/src/routes.ts` (virtual route config; no marketing subtree), `apps/front/src/routes/` listing |
 | Marketing chrome is mounted by the ROOT shell, not by a route group | `apps/front/src/routes/__root.tsx:343-344` (`isSelfShelledPath` = exactly `/`), `:346-352` (`resolveRouteSurface` → `'marketing'` for every non-auth path), `:602-610` (non-self-shelled marketing paths wrapped in `MarketingLayout`) |
-| `MarketingLayout` is the root `shellComponent` wrapper precisely so error/not-found branches share the chrome | `apps/front/src/layouts/marketing-layout.tsx:1-24` |
+| `MarketingLayout` is the root `shellComponent` wrapper precisely so error/not-found branches share the chrome | `apps/front/src/layouts/marketing-layout.tsx` (`MarketingLayout`) |
 | Root not-found renders `View404` inside that chrome | `__root.tsx:318` (`RootNotFound`), `:751` (`notFoundComponent`) |
 | Landing `/` owns its whole shell by design (exemption, not an oversight) | `apps/front/src/routes/index.tsx:50-60` doc comment; `__root.tsx:602-606` |
 | Current flag registry: build-time frozen, `marketing.customerLogos`/`.socialProof` only, no Dockerfile ARG for marketing flags | `apps/front/src/lib/flags.ts:32-35` + module doc (:13-17) |
@@ -204,3 +204,65 @@ No local e2e stack (`just ci-e2e-front`, docker compose test stack) — CI runs 
 2. **Q2 — trailing slash.** Default: no trailing slash (TanStack norm), enforced canonically in #374 with redirects if the owner prefers slashes.
 3. **Q3 — blog authoring format.** JSX-as-content for phase 2 (parity, zero new infra); revisit MDX when #368 brings real articles.
 4. **Q4 — language switcher.** The retired `languageSwitcher` flag is not rebuilt; current front has no switcher UI and EN+FR is served by i18n negotiation. Out of scope until product asks.
+
+## Round-3 follow-up audit (per #1517)
+
+The two #1517 follow-up items were re-verified at the implementation
+start of the marketing rebuild on `lane/grp-planfollowups` against the
+current state on `develop`. The plan body already carries the
+provenance note for the deleted guide (line 35 of the original "Sources
+read" table); the round-3 note below adds the file-count verification
+that the proof file `.dump/proof-1517.md` recorded.
+
+1. **File counts re-derived.** The "measured" column in the table below is
+   re-derivable today via
+   `gh pr view <N> --json files --jq '[.files[] | select(.path | test("marketing"; "i"))] | length'`,
+   counting entries whose path contains the substring "marketing"
+   (case-insensitive). The literal command the issue requests,
+   `git show --stat <mergeCommit>`, still cannot run, but the reason is
+   narrower than an earlier wording of this note claimed. All six PRs are
+   `state: "CLOSED"` with `mergedAt: null`, so GraphQL's `mergeCommit`
+   (which `gh pr view --json mergeCommit` reads) is null. REST does expose a
+   `merge_commit_sha` for each of them — e.g. #668 →
+   `e50ea5a047e86098a04d57ef2099441e031d02fd`, a two-parent commit whose
+   message reads "Merge 39483278a... into 82baf8fc..." — but that is
+   GitHub's speculative test-merge commit, not a merge into any branch: it
+   is reachable from no ref a plain clone fetches, and `git show` on it
+   fails with "could not get object info". The `gh pr view --json files`
+   snapshot exposes the same file list and matches the "measured" column to
+   the unit:
+
+   | PR | claimed (planned) | measured (PR diff, path ~ /marketing/i) |
+   |----|-------------------|-------------------------------------|
+   | #668 | 12/13 | 9/13 |
+   | #669 | 12/13 | 9/13 |
+   | #670 | 10/12 | 7/12 |
+   | #671 | 9/13  | 8/13 |
+   | #672 | 21/28 | 18/28 |
+   | #673 | 11/13 | 1/13 |
+
+   The "claimed" column cannot be re-derived: it reproduces the
+   figures issue #1517 quotes from the citations file that was
+   deleted, and the merged plan carries no such table. It is
+   therefore a quotation, not ground truth. The "measured" column
+   is the only one a future implementer needs to re-derive, and the
+   methodology above is named.
+2. **Provenance of the deleted guide.** The plan's "Sources read"
+   table (line 35) already records the deletion commit
+   `77609e3575307c1e6b225f458f36b6e29e390d0b` and notes that the
+   only path that resolves today is
+   `git show 77609e357~1:docs/guides/marketing-surface-conventions.md`.
+   Verified by `git show 77609e357~1:docs/guides/marketing-surface-conventions.md`
+   (returns the file's content header) and
+   `git show 77609e357:docs/guides/marketing-surface-conventions.md`
+   (returns "fatal: path ... not found in tree"). `git ls-tree -r HEAD`
+   and `git ls-tree -r origin/develop` return no path matching
+   `marketing-surface-conventions`. The plan's wording now says
+   "read from history", not "read from the file" — an implementer
+   following the plan will run the git-show command, not look for
+   the file on disk.
+
+No code change is required; the corrections are already present in
+the merged plan's "Sources read" table. This round-3 note exists so
+the audit trail from #1517 is captured at the same standing-rules
+level as the round-2 corrections, not scattered across the body.
