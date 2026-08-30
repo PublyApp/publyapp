@@ -53,6 +53,7 @@
  * Restored to the three-case body: 3/3 GREEN.
  */
 import { describe, expect, test, vi } from 'vitest';
+import type { TestLabelMap } from '~/lib/testing/test-label-map';
 
 import { assertIconIsVisible } from './data-table-icon-visibility-guard';
 import type { ComputedStyleReader } from './data-table-icon-visibility-guard-reader';
@@ -66,7 +67,7 @@ import type { ComputedStyleReader } from './data-table-icon-visibility-guard-rea
 vi.mock('i18next', () => ({
 	default: {
 		t: (key: string, options?: Record<string, unknown>): string => {
-			const labels: Record<string, string> = {
+			const labels: TestLabelMap = {
 				'icon-guard-indeterminate-detached':
 					'{{context}}: icon element is not connected to the document, so its visibility cannot be measured. Expected action: attach the element to the document (render it in a live container) and re-run the guard.',
 				'icon-guard-indeterminate-unresolved':
@@ -90,6 +91,22 @@ const visibleReader: ComputedStyleReader = () => ({
 	opacity: '1',
 });
 
+const captureThrown = (
+	icon: HTMLElement,
+	context: string,
+	reader?: ComputedStyleReader,
+): string => {
+	try {
+		assertIconIsVisible(icon, context, reader);
+		return '';
+	} catch (error) {
+		if (error instanceof Error) {
+			return error.message;
+		}
+		return '';
+	}
+};
+
 describe('icon visibility guard — indeterminable input (#1899)', () => {
 	test('default reader on a DETACHED node fails loudly, naming the cause', () => {
 		// The exact input the issue describes: a node built in isolation,
@@ -106,14 +123,7 @@ describe('icon visibility guard — indeterminable input (#1899)', () => {
 		// expected action — a bare "unanalyzable" is not loud enough. The
 		// full thrown text is captured and checked as one unit so neither
 		// half can quietly disappear.
-		const thrown = (() => {
-			try {
-				assertIconIsVisible(icon, 'ctx-detached-default', undefined);
-				return '';
-			} catch (error) {
-				return error instanceof Error ? error.message : '';
-			}
-		})();
+		const thrown = captureThrown(icon, 'ctx-detached-default', undefined);
 		expect(thrown).toContain('not connected to the document');
 		expect(thrown).toContain(
 			'Expected action: attach the element to the document',
