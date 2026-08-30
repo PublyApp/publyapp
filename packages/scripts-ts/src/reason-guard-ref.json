@@ -211,6 +211,8 @@
 		"quality-gate.yml::quality::Verify complexity bounds are not drifting (#1661)",
 		"quality-gate.yml::quality::Verify deploy env doc coverage (#1798)",
 		"quality-gate.yml::quality::Verify production duplication has not increased (#1821)",
+		"quality-gate.yml::ratchet-raise::Checkout",
+		"quality-gate.yml::ratchet-raise::Verify jscpd reference raise is accompanied by a docs/records/ change (#1969)",
 		"react-doctor.yml::changes::Check whether react-doctor paths changed",
 		"react-doctor.yml::changes::Checkout classifier from the base commit (not the PR's own copy)",
 		"react-doctor.yml::changes::Setup Node",
@@ -1025,6 +1027,16 @@
 			"reason_hash": "119fd701d06941df",
 			"reason_length": 261,
 			"reason": "jscpd@4 production duplication ratchet: runs jscpd against production paths and verifies unique pair count and line count within the committed baseline. Identical to the CI step quality-gate.yml::quality::Verify production duplication has not increased (#1821)."
+		},
+		"quality-gate.yml::ratchet-raise::Checkout": {
+			"reason_hash": "c80eb5bfb322fab4",
+			"reason_length": 102,
+			"reason": "GitHub-only: clones the repo onto the runner. Locally the working tree already is the code under test."
+		},
+		"quality-gate.yml::ratchet-raise::Verify jscpd reference raise is accompanied by a docs/records/ change (#1969)": {
+			"reason_hash": "e0bf34d98bd11e2f",
+			"reason_length": 326,
+			"reason": "#1969 dedicated job: verifies that a jscpd reference raise is provably accompanied by a docs/records/ file whose diff body contains the keyword 'jscpd'. The raise is a visible, reviewed decision rather than a red gate someone waves through. Mirrors `just ci-jscpd-raise`, which runs the same vitest suite and the guard script."
 		},
 		"quality-gate.yml::quality::Verify deploy env doc coverage (#1798)": {
 			"reason_hash": "41801181f18800e2",
