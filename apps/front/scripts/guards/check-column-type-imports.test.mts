@@ -703,7 +703,7 @@ void test('R6 HOLE 1 RED: assertScanSurface fails when a core extension shrinks'
 	assert.throws(
 		() =>
 			assertScanSurface(
-				{ '.ts': 275, '.tsx': 0, '.mts': 0, '.cts': 0, '.mjs': 0, '.cjs': 1 },
+				{ '.ts': 276, '.tsx': 0, '.mts': 0, '.cts': 0, '.mjs': 0, '.cjs': 1 },
 				baselinePath,
 			),
 		/Guard #1769: scan surface has shrunk below the pinned floor/,
@@ -717,7 +717,7 @@ void test('R6 HOLE 1 RED: assertScanSurface passes when counts meet the floor', 
 	assert.doesNotThrow(
 		() =>
 			assertScanSurface(
-				{ '.ts': 275, '.tsx': 472, '.mts': 0, '.cts': 0, '.mjs': 0, '.cjs': 1 },
+				{ '.ts': 276, '.tsx': 472, '.mts': 0, '.cts': 0, '.mjs': 0, '.cjs': 1 },
 				baselinePath,
 			),
 		'expected the ratchet to pass when counts meet the floor',

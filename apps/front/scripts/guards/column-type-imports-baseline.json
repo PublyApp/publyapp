@@ -30,7 +30,7 @@
 		"runtime set against the pinned baseline and fails on any divergence."
 	],
 	"perExtension": {
-		".ts": 275,
+		".ts": 276,
 		".tsx": 472,
 		".mts": 0,
 		".cts": 0,
