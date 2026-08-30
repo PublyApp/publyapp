@@ -1,6 +1,6 @@
-import { logger } from '../lib/logger/iso-logger';
-import { isAsyncFunction, isPromise } from './any.utils';
-import { getErrorMessage } from './error.utils';
+import { logger } from '../lib/logger/iso-logger.ts';
+import { isAsyncFunction, isPromise } from './any.utils.ts';
+import { getErrorMessage } from './error.utils.ts';
 
 /**
  * Outcome of a wrapped call: the handler's own value, its awaited form,
