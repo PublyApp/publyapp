@@ -7,7 +7,6 @@ import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
 import type { ColumnDef } from '~/components/table/column-type';
 import { DataTable } from '~/components/table/data-table';
 import { DataTableRowActions } from '~/components/table/row-actions';
-import { useTableController } from '~/components/table/use-table-controller';
 import { Button } from '~/components/ui/button';
 import { ConfirmDialog } from '~/components/ui/confirm-dialog';
 import { DropdownMenuItem } from '~/components/ui/dropdown-menu';
@@ -20,18 +19,12 @@ import {
 	toTenantPostRows,
 	type TenantPostRow,
 } from '~/lib/query/tenant-posts';
-import { useResolvedWorkspaceTenantId } from '~/lib/query/tenants-for-picker';
 import type { TableSearchParamInput } from '~/lib/url-state/table-search-params';
-import {
-	parseTenantPostListSearchParams,
-	serializeTenantPostListSearchParams,
-} from '~/lib/url-state/tenant-post-list-helpers';
 
 import { shouldLogoutForFailure } from '@org/shared-ts/lib/should-logout-for-failure';
 
 import { CreatePostDrawer } from './_create-post-drawer';
-
-const DEFAULT_SORT = { id: 'updated_at', order: 'desc' as const } as const;
+import { useTenantPostList } from './_use-tenant-post-list';
 
 /**
  * Honest read-only drafts section: no posts API exists, so the page is a
@@ -40,28 +33,10 @@ const DEFAULT_SORT = { id: 'updated_at', order: 'desc' as const } as const;
 const TenantPostsDraftsPage = () => {
 	const { t, i18n } = useTranslation(['posts', 'common']);
 	const navigate = Route.useNavigate();
-	const search = parseTenantPostListSearchParams(
+	const { controller, tenantId } = useTenantPostList(
 		Route.useSearch() as TableSearchParamInput,
+		navigate,
 	);
-	const onSearchChange = (next: {
-		q?: string;
-		sortId?: string;
-		sortOrder?: 'asc' | 'desc';
-		cursor?: string;
-		size?: number;
-	}) => {
-		void navigate({
-			search: serializeTenantPostListSearchParams(next),
-			replace: true,
-		});
-	};
-	const controller = useTableController({
-		search,
-		onSearchChange,
-		defaultSort: DEFAULT_SORT,
-		defaultSize: 20,
-	});
-	const tenantId = useResolvedWorkspaceTenantId();
 	const query = useTenantPostsQuery({
 		...controller.apiVariables,
 		tenantId: tenantId ?? '',
