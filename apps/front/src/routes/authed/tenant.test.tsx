@@ -312,10 +312,20 @@ describe('TenantPortalRoute', () => {
 		expect(
 			screen.getByText('Your organizations are no longer available'),
 		).toBeTruthy();
+		expect(
+			screen.getByText(
+				/All of your organizations have been removed by their administrators/,
+			),
+		).toBeTruthy();
 		expect(screen.queryByText('No organizations found')).toBeNull();
 
 		// The deleted case carries the portal's real exit action.
 		expect(screen.getByTestId('tenant-portal-logout-button')).toBeTruthy();
+
+		// Clicking that button is the portal's real exit affordance — it
+		// logs the user out rather than retrying a doomed resolve.
+		fireEvent.click(screen.getByTestId('tenant-portal-logout-button'));
+		expect(mocks.logout).toHaveBeenCalledTimes(1);
 	});
 
 	test('the workspace root redirects to the first section once a workspace resolves', () => {
