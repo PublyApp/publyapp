@@ -24,7 +24,7 @@ namespace PublyApp.Api.Lib.Architecture;
 /// itself from the model it actually built, so a behavior removed from the source
 /// is a behavior absent from the dump.
 ///
-/// Mutation matrix (all five red, each only its named test):
+/// Mutation matrix (each red only its named test):
 ///   remove .WithDataVolume()        -> ItShouldPersistPostgresDataInANamedVolume
 ///   remove .WithHostPort(5454)      -> ItShouldPinThePostgresHostPortTo5454
 ///   drop launchProfileName: null    -> ItShouldKeepTheWorkerOffTheApiPort
@@ -34,10 +34,19 @@ namespace PublyApp.Api.Lib.Architecture;
 ///                                     the AppHost keeps running on an ephemeral port,
 ///                                     and the console never names the cause — the
 ///                                     behavioral run then times out and fails)
-///   remove the probe's SO_REUSEADDR -> ItShouldNotMistakeTheKill9ClosingResidueOn5454ForAnOccupiedPort
-///                                     (the post-crash FIN-WAIT-2 residue on
-///                                     127.0.0.1:5454 reads as "occupied" — the
-///                                     false positive on a healthy restart)
+///   probe becomes a plain bind      -> ItShouldNotMistakeTheKill9ClosingResidueOn5454ForAnOccupiedPort
+///   (loses reuse)                      (the post-crash FIN-WAIT-2 residue on 127.0.0.1:5454
+///                                     then reads as "occupied" — the false positive on a
+///                                     healthy restart — and the test's shipped half reds)
+///
+/// Honest caveat on that last entry: removing ONLY the explicit
+/// SetSocketOption(ReuseAddress) line does NOT redden today — .NET's managed
+/// Socket.Bind() sets SO_REUSEADDR by default on Linux (strace-verified), so the
+/// shipped probe keeps reuse semantics either way. The pin pins intent and
+/// protects against a runtime-default change. The mutation that reddens is the
+/// probe becoming a plain bind; the test's --plain-bind-preflight half asserts
+/// exactly that hazard (exit 1 on the residue) as its RED half. Declared
+/// rather than overclaimed.
 /// </summary>
 public sealed partial class AppHostOrchestrationGuardSpec : IDisposable {
 	private const int HostPort = 5454;
