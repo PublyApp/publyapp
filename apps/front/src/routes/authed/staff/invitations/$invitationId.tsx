@@ -27,6 +27,7 @@ import {
 	invalidateStaffInvitations,
 	selectStaffInvitationCrumbName,
 	staffInvitationCrumbQuery,
+	staffInvitationDetailsQueryOptions,
 	useRevokeStaffInvitationMutation,
 	useResendStaffInvitationMutation,
 	useStaffInvitationDetailsQuery,
@@ -427,6 +428,12 @@ export const Route = createFileRoute(
 				kind: 'entity',
 				query: staffInvitationCrumbQuery,
 				select: selectStaffInvitationCrumbName,
+			},
+		],
+		preload: ({ params }) => [
+			{
+				options: staffInvitationDetailsQueryOptions,
+				variables: { invitationId: params.invitationId },
 			},
 		],
 	},

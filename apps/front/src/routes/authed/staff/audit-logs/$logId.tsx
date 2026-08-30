@@ -15,6 +15,7 @@ import { Skeleton } from '~/components/ui/skeleton';
 import {
 	selectStaffAuditLogCrumbName,
 	staffAuditLogCrumbQuery,
+	staffAuditLogDetailsQueryOptions,
 	useStaffAuditLogDetailsQuery,
 } from '~/lib/query/staff-audit-logs';
 
@@ -155,6 +156,12 @@ export const Route = createFileRoute('/_authed-layout/staff/audit-logs/$logId')(
 					kind: 'entity',
 					query: staffAuditLogCrumbQuery,
 					select: selectStaffAuditLogCrumbName,
+				},
+			],
+			preload: ({ params }) => [
+				{
+					options: staffAuditLogDetailsQueryOptions,
+					variables: { logId: params.logId },
 				},
 			],
 		},

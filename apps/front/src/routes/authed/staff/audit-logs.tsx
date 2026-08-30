@@ -24,6 +24,7 @@ import {
 import { Input } from '~/components/ui/input';
 import { PageHeader } from '~/components/ui/product-page';
 import {
+	staffAuditLogsQueryOptions,
 	toStaffAuditLogRows,
 	useAuditLogActionsQuery,
 	useStaffAuditLogsQuery,
@@ -311,6 +312,17 @@ export const Route = createFileRoute('/_authed-layout/staff/audit-logs')({
 	staticData: {
 		i18nNamespaces: ['staff-audit-logs'],
 		crumbs: () => [{ kind: 'label', labelKey: 'nav-staff-audit-logs' }],
+		preload: () => [
+			{
+				options: staffAuditLogsQueryOptions,
+				variables: {
+					q: '',
+					sortId: 'created_at',
+					sortOrder: 'desc',
+					size: 100,
+				},
+			},
+		],
 	},
 	validateSearch: (search) =>
 		serializeAuditLogsListSearchParams(

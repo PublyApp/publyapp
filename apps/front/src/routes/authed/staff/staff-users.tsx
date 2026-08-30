@@ -22,6 +22,7 @@ import { DropdownMenuItem } from '~/components/ui/dropdown-menu';
 import { PageHeader, StatusPill } from '~/components/ui/product-page';
 import { statusPillTone } from '~/components/ui/status-tone';
 import {
+	staffUsersQueryOptions,
 	toStaffUserRows,
 	type StaffUserRow,
 	useStaffUsersQuery,
@@ -287,6 +288,17 @@ export const Route = createFileRoute('/_authed-layout/staff/staff-users')({
 	staticData: {
 		i18nNamespaces: ['staff-users'],
 		crumbs: () => [{ kind: 'label', labelKey: 'nav-staff-breadcrumb' }],
+		preload: () => [
+			{
+				options: staffUsersQueryOptions,
+				variables: {
+					q: '',
+					sortId: 'created_at',
+					sortOrder: 'desc',
+					size: 100,
+				},
+			},
+		],
 	},
 	validateSearch: (search) =>
 		validateTableSearchParams(search as TableSearchParamInput),

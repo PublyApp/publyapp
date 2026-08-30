@@ -12,6 +12,7 @@ import { ConfirmDialog } from '~/components/ui/confirm-dialog';
 import {
 	invalidateStaffUsers,
 	removeStaffUserDetails,
+	staffUserDetailsQueryOptions,
 	toAssignedStaffProfiles,
 	toStaffUserDetails,
 	useDeleteStaffUserMutation,
@@ -282,6 +283,12 @@ export const Route = createFileRoute(
 		// declare its own trail. The overview base is the correct value for
 		// this route's own path.
 		crumbs: staffUserCrumbsBase,
+		preload: ({ params }) => [
+			{
+				options: staffUserDetailsQueryOptions,
+				variables: { userId: params.userId },
+			},
+		],
 	},
 	component: StaffUserDetailsPage,
 });

@@ -13,6 +13,7 @@ import {
 	invalidateStaffTenants,
 	selectStaffTenantCrumbName,
 	staffTenantCrumbQuery,
+	staffTenantDetailsQueryOptions,
 	toStaffTenantDetails,
 	useStaffTenantDetailsQuery,
 	useUpdateStaffTenantMutation,
@@ -320,6 +321,12 @@ export const Route = createFileRoute(
 				select: selectStaffTenantCrumbName,
 			},
 			{ kind: 'label', labelKey: 'common:edit' },
+		],
+		preload: ({ params }) => [
+			{
+				options: staffTenantDetailsQueryOptions,
+				variables: { tenantId: params.tenantId },
+			},
 		],
 	},
 	component: StaffTenantEditRoute,

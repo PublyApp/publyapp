@@ -11,6 +11,7 @@ import { Input } from '~/components/ui/input';
 import { Label } from '~/components/ui/label';
 import { PageHeader } from '~/components/ui/product-page';
 import {
+	staffSystemJobDefinitionsQueryOptions,
 	toStaffSystemJobDefinitionRows,
 	useStaffTriggerSystemJobMutation,
 	useStaffUpdateSystemJobEnabledMutation,
@@ -289,6 +290,12 @@ export const Route = createFileRoute('/_authed-layout/staff/jobs/system-jobs')({
 	staticData: {
 		i18nNamespaces: ['staff-jobs'],
 		crumbs: () => [{ kind: 'label', labelKey: 'nav-staff-jobs' }],
+		preload: () => [
+			{
+				options: staffSystemJobDefinitionsQueryOptions,
+				variables: { size: 50 },
+			},
+		],
 	},
 	validateSearch: (search) =>
 		serializeStaffJobsListSearchParams(

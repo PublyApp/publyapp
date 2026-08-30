@@ -19,6 +19,7 @@ import {
 import {
 	selectStaffProfileCrumbName,
 	staffProfileCrumbQuery,
+	staffProfileDetailsQueryOptions,
 	type StaffPermissionCatalog,
 	toStaffProfileDetails,
 	useStaffPermissionCatalogQuery,
@@ -356,6 +357,12 @@ export const Route = createFileRoute(
 		// #819: the edit drawer reads its scope-neutral picker labels from the
 		// shared `staff-tenant-profiles` catalogue.
 		i18nNamespaces: ['staff-tenant-profiles'],
+		preload: ({ params }) => [
+			{
+				options: staffProfileDetailsQueryOptions,
+				variables: { profileId: params.profileId },
+			},
+		],
 	},
 	validateSearch: (search) =>
 		parseStaffProfileDetailsSearchParams(search as Record<string, unknown>),

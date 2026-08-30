@@ -1,13 +1,18 @@
 import { createFileRoute } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
-import { useStaffInvitationsQuery } from '~/lib/query/staff-invitations';
 import {
+	staffInvitationsQueryOptions,
+	useStaffInvitationsQuery,
+} from '~/lib/query/staff-invitations';
+import {
+	staffTenantsQueryOptions,
 	toStaffTenantRows,
 	useStaffTenantsQuery,
 	type StaffTenantRow,
 } from '~/lib/query/staff-tenants';
 import {
+	staffUsersQueryOptions,
 	toStaffUserRows,
 	useStaffUsersQuery,
 	type StaffUserRow,
@@ -198,6 +203,38 @@ const StaffDashboardOverviewTab = () => {
 };
 
 export const Route = createFileRoute('/_authed-layout/staff/dashboard/')({
-	staticData: { crumbs: () => [{ kind: 'label', labelKey: 'nav-dashboard' }] },
+	staticData: {
+		crumbs: () => [{ kind: 'label', labelKey: 'nav-dashboard' }],
+		preload: () => [
+			{
+				options: staffTenantsQueryOptions,
+				variables: {
+					q: '',
+					status: '',
+					sortId: 'created_at',
+					sortOrder: 'desc',
+					size: OVERVIEW_ROW_COUNT,
+				},
+			},
+			{
+				options: staffUsersQueryOptions,
+				variables: {
+					q: '',
+					sortId: 'created_at',
+					sortOrder: 'desc',
+					size: OVERVIEW_ROW_COUNT,
+				},
+			},
+			{
+				options: staffInvitationsQueryOptions,
+				variables: {
+					q: '',
+					sortId: 'created_at',
+					sortOrder: 'desc',
+					size: OVERVIEW_ROW_COUNT,
+				},
+			},
+		],
+	},
 	component: StaffDashboardOverviewTab,
 });

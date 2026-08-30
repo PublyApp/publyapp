@@ -9,6 +9,7 @@ import { useTableController } from '~/components/table/use-table-controller';
 import { PageHeader } from '~/components/ui/product-page';
 import {
 	type TenantActivityRow,
+	tenantActivityQueryOptions,
 	toTenantActivityRows,
 	useTenantActivityQuery,
 } from '~/lib/query/staff-tenant-activity';
@@ -180,6 +181,12 @@ export const Route = createFileRoute(
 				kind: 'entity',
 				query: staffTenantCrumbQuery,
 				select: selectStaffTenantCrumbName,
+			},
+		],
+		preload: ({ params }) => [
+			{
+				options: tenantActivityQueryOptions,
+				variables: { tenantId: params.tenantId },
 			},
 		],
 	},

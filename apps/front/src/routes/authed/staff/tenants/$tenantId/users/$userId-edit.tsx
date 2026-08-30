@@ -11,6 +11,7 @@ import { useLanguageKeyedZodResolver } from '~/lib/hooks/use-language-keyed-zod-
 import {
 	selectStaffTenantUserCrumbName,
 	staffTenantUserCrumbQuery,
+	staffTenantUserDetailsQueryOptions,
 	toStaffTenantUserDetails,
 	useStaffTenantUserDetailsQuery,
 	useUpdateStaffTenantUserMutation,
@@ -19,6 +20,7 @@ import {
 	invalidateAllStaffTenantScopes,
 	selectStaffTenantCrumbName,
 	staffTenantCrumbQuery,
+	staffTenantDetailsQueryOptions,
 	toStaffTenantDetails,
 	useStaffTenantDetailsQuery,
 } from '~/lib/query/staff-tenants';
@@ -295,6 +297,16 @@ export const Route = createFileRoute(
 				select: selectStaffTenantUserCrumbName,
 			},
 			{ kind: 'label', labelKey: 'common:edit' },
+		],
+		preload: ({ params }) => [
+			{
+				options: staffTenantDetailsQueryOptions,
+				variables: { tenantId: params.tenantId },
+			},
+			{
+				options: staffTenantUserDetailsQueryOptions,
+				variables: { tenantId: params.tenantId, userId: params.userId },
+			},
 		],
 	},
 	component: StaffTenantUserEditPage,

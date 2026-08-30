@@ -49,6 +49,7 @@ import {
 } from '~/lib/mutation-toast';
 import {
 	invalidateStaffTenants,
+	staffTenantsQueryOptions,
 	type StaffTenantRow,
 	toStaffTenantRows,
 	useBulkDeleteStaffTenantsMutation,
@@ -408,6 +409,18 @@ const StaffTenantsPage = () => {
 export const Route = createFileRoute('/_authed-layout/staff/tenants')({
 	staticData: {
 		crumbs: () => [{ kind: 'label', labelKey: 'nav-tenants' }],
+		preload: () => [
+			{
+				options: staffTenantsQueryOptions,
+				variables: {
+					q: '',
+					status: '',
+					sortId: 'created_at',
+					sortOrder: 'desc',
+					size: 100,
+				},
+			},
+		],
 	},
 	validateSearch: (search) =>
 		validateTenantListSearchParams(search as TenantListSearchParamInput),

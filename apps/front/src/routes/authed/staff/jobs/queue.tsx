@@ -16,6 +16,7 @@ import {
 import { PageHeader, DetailRow } from '~/components/ui/product-page';
 import { formatDateTime } from '~/lib/format-date-time';
 import {
+	staffJobQueueQueryOptions,
 	toStaffJobQueueRows,
 	useStaffJobQueueQuery,
 	type StaffJobQueueRow,
@@ -170,6 +171,12 @@ export const Route = createFileRoute('/_authed-layout/staff/jobs/')({
 	staticData: {
 		i18nNamespaces: ['staff-jobs'],
 		crumbs: () => [{ kind: 'label', labelKey: 'nav-staff-jobs' }],
+		preload: () => [
+			{
+				options: staffJobQueueQueryOptions,
+				variables: { q: '', sortId: 'created_at', sortOrder: 'desc', size: 50 },
+			},
+		],
 	},
 	validateSearch: (search) =>
 		serializeStaffJobsListSearchParams(

@@ -9,6 +9,7 @@ import { FloatingSelectionBar } from '~/components/table/floating-selection-bar'
 import { useRowSelection } from '~/components/table/use-row-selection';
 import { useTableController } from '~/components/table/use-table-controller';
 import {
+	staffTenantUserDetailsQueryOptions,
 	toStaffTenantUserRows,
 	useStaffTenantUsersQuery,
 } from '~/lib/query/staff-tenant-users';
@@ -325,6 +326,18 @@ export const Route = createFileRoute(
 				select: selectStaffTenantCrumbName,
 			},
 			{ kind: 'label', labelKey: 'common:users' },
+		],
+		preload: ({ params }) => [
+			{
+				options: staffTenantUserDetailsQueryOptions,
+				variables: {
+					tenantId: params.tenantId,
+					q: '',
+					sortId: 'created_at',
+					sortOrder: 'desc',
+					size: 50,
+				},
+			},
 		],
 	},
 	validateSearch: (search) =>

@@ -17,7 +17,10 @@ import {
 } from '~/components/ui/dropdown-menu';
 import { PageHeader } from '~/components/ui/product-page';
 import { formatDateTime } from '~/lib/format-date-time';
-import { useStaffInvitationsQuery } from '~/lib/query/staff-invitations';
+import {
+	staffInvitationsQueryOptions,
+	useStaffInvitationsQuery,
+} from '~/lib/query/staff-invitations';
 import { StaffListExportSelectedButton } from '~/routes/authed/staff/staff-list-export-selected';
 
 import type { InvitationListItem } from '@org/client-ts/models/index';
@@ -287,6 +290,17 @@ export const Route = createFileRoute('/_authed-layout/staff/invitations')({
 	staticData: {
 		i18nNamespaces: ['staff-invitations'],
 		crumbs: () => [{ kind: 'label', labelKey: 'nav-staff-invitations' }],
+		preload: () => [
+			{
+				options: staffInvitationsQueryOptions,
+				variables: {
+					q: '',
+					sortId: 'created_at',
+					sortOrder: 'desc',
+					size: 100,
+				},
+			},
+		],
 	},
 	component: StaffInvitationsPage,
 });
