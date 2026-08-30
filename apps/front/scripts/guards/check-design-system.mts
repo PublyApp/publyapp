@@ -1096,9 +1096,7 @@ const collectCommentRanges = (
 					if (
 						(token === ts.SyntaxKind.MultiLineCommentTrivia ||
 							token === ts.SyntaxKind.SingleLineCommentTrivia) &&
-						!isInsideLiteralSpan(
-							node.pos + scanner.getTokenStart(),
-						)
+						!isInsideLiteralSpan(node.pos + scanner.getTokenStart())
 					) {
 						addRange(
 							node.pos + scanner.getTokenStart(),
