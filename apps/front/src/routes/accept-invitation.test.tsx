@@ -375,7 +375,9 @@ describe('accept-invitation route', () => {
 			const originalLocation = window.location;
 			Object.defineProperty(window, 'location', {
 				configurable: true,
-				value: { ...originalLocation, reload: reloadSpy },
+				value: Object.assign(Object.create(originalLocation), {
+					reload: reloadSpy,
+				}),
 			});
 
 			try {

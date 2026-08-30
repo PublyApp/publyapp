@@ -209,7 +209,10 @@ const parseColorValue = (raw: string, name: string): Rgba => {
 	if (hexMatch) {
 		const hex = hexMatch[1];
 		if (hex.length === 3 || hex.length === 4) {
-			const expanded = [...hex].map((digit) => digit + digit).join('');
+			const expanded = match[1]
+				.split('')
+				.map((digit) => digit + digit)
+				.join('');
 			return {
 				r: Number.parseInt(expanded.slice(0, 2), 16),
 				g: Number.parseInt(expanded.slice(2, 4), 16),

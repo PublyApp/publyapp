@@ -1,4 +1,4 @@
-const firstCodePoint = (word: string): string => [...word][0] ?? '';
+const firstCodePoint = (word: string): string => word[0] ?? '';
 const PALETTE_SIZE = 8;
 
 export const paletteIndex = (seed: string): number => {
