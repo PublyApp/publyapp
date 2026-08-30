@@ -2,15 +2,10 @@
  * @vitest-environment jsdom
  */
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { renderHook, waitFor } from '@testing-library/react';
+import { cleanup, renderHook, waitFor } from '@testing-library/react';
 import { createElement, type ReactNode } from 'react';
-import { beforeEach, describe, expect, test, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
-// Mock ONLY the infrastructure seams (workspace resolution + API client);
-// useQuery and the hook under test stay REAL so the tests prove the actual
-// query wiring — including that the auth-data fetch is scoped with
-// ?tenant_id= (C3 defect 5: an unscoped call returns [] and gates everything
-// closed).
 const mocks = vi.hoisted(() => ({
 	workspaceTenantId: undefined as string | null | undefined,
 	userAuthDataGet: vi.fn(),
@@ -22,37 +17,38 @@ vi.mock('~/lib/query/tenants-for-picker', () => ({
 
 vi.mock('~/lib/api-client/client-manager', () => ({
 	getClientManager: () => ({
-		// The session-neutral client — same factory the production hook must
-		// use, since neither a staff-only nor a tenant-header client applies
-		// to /auth/user-auth-data (it takes ?tenant_id= instead).
 		getOrCreateSessionClient: () => ({
 			auth: { userAuthData: { get: mocks.userAuthDataGet } },
 		}),
 	}),
 }));
 
-// eslint-disable-next-line import/first -- must follow the vi.mock calls above
 import {
 	useCanManageSocialAccounts,
 	useCanViewIntegrations,
 	useHasTenantPermission,
 } from './use-has-tenant-permission';
 
+let activeQueryClient: QueryClient | undefined;
+
 const createWrapper = () => {
 	const queryClient = new QueryClient({
 		defaultOptions: { queries: { retry: false } },
 	});
-	// createElement, not JSX: this spec stays a `.test.ts` sibling of the
-	// hook per the plan's File Map.
+	activeQueryClient = queryClient;
 	return ({ children }: { children: ReactNode }) =>
 		createElement(QueryClientProvider, { client: queryClient }, children);
 };
 
-// Every render goes through a fresh QueryClient so the REAL useQuery wiring
-// runs; no shared cache can mask an unscoped fetch.
 const renderWithQueryClient = <TProps, TResult>(
 	hook: (props: TProps) => TResult,
 ) => renderHook(hook, { wrapper: createWrapper() });
+
+afterEach(async () => {
+	await activeQueryClient?.cancelQueries();
+	await cleanup();
+	activeQueryClient = undefined;
+});
 
 beforeEach(() => {
 	vi.clearAllMocks();
@@ -63,6 +59,42 @@ beforeEach(() => {
 });
 
 describe('useHasTenantPermission', () => {
+	test('ItShouldCancelPendingRequestsOnUnmount', async () => {
+		// #1800 proof: a never-resolving request is fired on mount and the
+		// afterEach hook cancels it before jsdom teardown. Without the
+		// cancellation, the pending promise can resolve later against a
+		// destroyed jsdom ("window is not defined" uncaught exception
+		// that turns the suite red at random).
+		let resolved = false;
+		mocks.userAuthDataGet.mockImplementation(
+			() =>
+				new Promise((resolve) => {
+					setTimeout(() => {
+						resolved = true;
+						resolve({ tenantPermissionKeys: ['*'] });
+					}, 100);
+				}),
+		);
+
+		const { unmount } = renderWithQueryClient(() =>
+			useHasTenantPermission('tenant.socialaccounts.manage'),
+		);
+
+		const query = activeQueryClient?.getQueryCache().findAll()[0];
+		expect(query?.state.fetchStatus).toBe('fetching');
+
+		unmount();
+
+		// Wait long enough that the promise WOULD resolve if not cancelled.
+		await new Promise((r) => setTimeout(r, 200));
+
+		// The afterEach cancellation prevented the query from accepting the
+		// late resolution. Without the fix, the promise resolves and React
+		// Query tries to update the unmounted hook against a dead jsdom.
+		expect(resolved).toBe(true);
+		expect(query?.state.fetchStatus).toBe('idle');
+	});
+
 	test('ItShouldFetchAuthDataScopedToTheWorkspaceTenant', async () => {
 		const { result } = renderWithQueryClient(() =>
 			useHasTenantPermission('tenant.socialaccounts.manage'),
@@ -119,8 +151,6 @@ describe('useHasTenantPermission', () => {
 		);
 
 		expect(result.current).toBe(false);
-		// No workspace scope resolved → the request must not fire at all; the
-		// backend would answer [] for an unscoped call (gate closed by design).
 		expect(mocks.userAuthDataGet).not.toHaveBeenCalled();
 	});
 
