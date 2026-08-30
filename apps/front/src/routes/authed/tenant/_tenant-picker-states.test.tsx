@@ -7,28 +7,22 @@
  * that the visible copy DIFFERS between the two situations. Paired RED
  * proof lives in `.dump/proof-red-r2.md`: on the pre-fix component both
  * arms rendered "No organizations found", so the second test failed.
+ *
+ * Scope (post-#1611 dedup): the "all tenants deleted" case is now covered
+ * at the route level in `../tenant.test.tsx` (test "#258: renders the
+ * deletion notice when every tenant was soft-deleted"), which exercises
+ * the full wire — query payload → route → empty state. This file keeps
+ * only the presentational case that the route test does not cover: the
+ * generic empty state shown to a user who was never invited anywhere.
  */
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import type { TestLabelMap } from '~/lib/testing/test-label-map';
-
-const mocks = vi.hoisted(() => ({
-	logout: vi.fn(),
-}));
-
-// The deleted arm offers the portal's real exit action (log out), so the
-// hook must resolve without a router here.
-vi.mock('~/lib/hooks/use-logout', () => ({
-	useLogout: () => ({ logout: mocks.logout, isLoggingOut: false }),
-}));
 
 const EN_LABELS: TestLabelMap = {
 	'no-organizations-found': 'No organizations found',
 	'all-organizations-deleted-title':
 		'Your organizations are no longer available',
-	'all-organizations-deleted-description':
-		'All of your organizations have been removed by their administrators. If you believe this is a mistake, contact support.',
-	'log-out': 'Log out',
 };
 
 vi.mock('react-i18next', () => ({
@@ -38,13 +32,11 @@ vi.mock('react-i18next', () => ({
 	}),
 }));
 
-// eslint-disable-next-line import/first -- must follow the vi.mock calls above
 import { TenantPortalEmptyState } from './_tenant-picker-states';
 
-describe('TenantPortalEmptyState (#258)', () => {
+describe('TenantPortalEmptyState (#258) — generic empty arm', () => {
 	afterEach(() => {
 		cleanup();
-		mocks.logout.mockClear();
 	});
 
 	test('a user who was never invited anywhere sees the generic empty message', () => {
@@ -56,26 +48,5 @@ describe('TenantPortalEmptyState (#258)', () => {
 			screen.queryByText('Your organizations are no longer available'),
 		).toBeNull();
 		expect(screen.queryByTestId('tenant-portal-logout-button')).toBeNull();
-	});
-
-	test('a user whose every tenant was soft-deleted sees the deletion message instead', () => {
-		render(<TenantPortalEmptyState hasDeletedTenants />);
-
-		// Same surface testid as the generic case (stable contract for the
-		// e2e follow-up #1511) — the MESSAGE is what distinguishes the two.
-		expect(screen.getByTestId('tenant-portal-empty')).toBeTruthy();
-		expect(
-			screen.getByText('Your organizations are no longer available'),
-		).toBeTruthy();
-		expect(
-			screen.getByText(
-				/All of your organizations have been removed by their administrators/,
-			),
-		).toBeTruthy();
-		expect(screen.queryByText('No organizations found')).toBeNull();
-
-		// The actionable next step is the portal's real exit affordance.
-		fireEvent.click(screen.getByTestId('tenant-portal-logout-button'));
-		expect(mocks.logout).toHaveBeenCalledTimes(1);
 	});
 });
