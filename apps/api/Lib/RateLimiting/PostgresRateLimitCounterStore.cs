@@ -124,7 +124,7 @@ internal sealed partial class PostgresRateLimitCounterStore
 			}
 
 			// #1546: Window start is computed by Postgres from its own clock
-			// (floor(EXTRACT(EPOCH FROM now())) truncated to the window boundary),
+			// (floor(EXTRACT(EPOCH FROM now()) / window_seconds) * window_seconds),
 			// not from the app's clock. Two replicas with NTP drift therefore land
 			// in the same aligned window and share one budget row.
 			var upsert = await UpsertCounterAsync(
@@ -213,9 +213,10 @@ internal sealed partial class PostgresRateLimitCounterStore
 		command.CommandTimeout = CommandTimeoutSeconds;
 		var windowSeconds = (long)window.TotalSeconds;
 		// #1546: window_started_at is computed by Postgres from its own clock
-		// (floor(EXTRACT(EPOCH FROM now())) truncated to the window boundary), not from the app clock. This guarantees every
-		// replica — even with NTP drift — lands in the same aligned window and
-		// shares exactly one counter row, eliminating silent budget splitting.
+		// (floor(EXTRACT(EPOCH FROM now()) / $4) * $4), not from the app clock. This
+		// guarantees every replica — even with NTP drift — lands in the same
+		// aligned window and shares exactly one counter row, eliminating silent
+		// budget splitting.
 		command.CommandText = """
 			INSERT INTO rate_limit_counters
 				(policy_name, partition_key_hash, window_started_at, permit_count)
