@@ -100,8 +100,14 @@
  *
  *   - Production clone pairs (unique, non-spec): 422, 10 213 lines
  *   - Production self-duplication files: 48, 1 473 lines
- *   (values as of the #1859 round 2 baseline; per-pair and per-file base
- *    totals live in jscpd-reference.json, populated in #1890)
+ *   (values as of the #1859 round 2 baseline)
+ * The reference file currently holds only the two aggregate totals
+ * (`productionPairs`, `productionAuto`). The optional `pairLines` /
+ * `autoLines` per-pair and per-file maps are NOT populated yet: when they are
+ * absent the guard cannot name which pair crossed its own base, so it falls
+ * back to naming the largest contributors by duplicated lines. Populating
+ * them is tracked in #1932; do not read this comment as a claim that they
+ * exist today.
  */
 
 import { execFileSync } from 'node:child_process';
