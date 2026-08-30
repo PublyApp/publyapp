@@ -222,12 +222,13 @@ builder.AddViteApp("front", "../front", "dev")
 //                            exit 0 (free) or 1 (occupied, loud message) —
 //                            the guard uses it to prove the residue reads as
 //                            FREE without booting DCP/docker. With the extra
-//                            --plain-bind-preflight flag the probe drops
-//                            SO_REUSEADDR (raw libc bind — the only faithful
-//                            "plain" variant, .NET's managed bind sets reuse
-//                            by default) so the guard can reproduce the
-//                            round-4 kernel hazard: a plain bind against the
-//                            closing residue exits 1 with errno 98.
+//                            --plain-bind-preflight flag (Linux-only, see
+//                            RawPlainBind) the probe drops SO_REUSEADDR (raw
+//                            libc bind — the only faithful "plain" variant,
+//                            .NET's managed bind sets reuse by default) so the
+//                            guard can reproduce the round-4 kernel hazard: a
+//                            plain bind against the closing residue exits 1
+//                            with errno 98.
 if (args.Contains("--dump-model")) {
 	DumpModelClaims();
 	return;
@@ -279,6 +280,16 @@ internal static partial class RawPlainBind {
 	private static extern int close(int fd);
 
 	public static bool CanBindLoopbackPort5454() {
+		if (!OperatingSystem.IsLinux()) {
+			// The guard suite (AppHostOrchestrationGuardSpec) targets the Linux
+			// CI runners like every libc-based check in this repo. Fail loudly
+			// with the cause instead of a bare DllNotFoundException.
+			throw new PlatformNotSupportedException(
+				"--plain-bind-preflight uses raw libc bind semantics and is Linux-only "
+					+ "(the AppHost guard suite targets the Linux CI runners)."
+			);
+		}
+
 		var address = new byte[16];
 		address[0] = AfInet;                // family, little-endian
 		address[1] = 0;
