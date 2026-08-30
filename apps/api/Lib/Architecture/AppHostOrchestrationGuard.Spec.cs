@@ -38,15 +38,28 @@ namespace PublyApp.Api.Lib.Architecture;
 ///   (loses reuse)                      (the post-crash FIN-WAIT-2 residue on 127.0.0.1:5454
 ///                                     then reads as "occupied" — the false positive on a
 ///                                     healthy restart — and the test's shipped half reds)
+///   Free branch of ProbeBindFault    -> ItShouldFailLoudlyWhenProbeBindFaultKindIsFree
+///   loses its loud-fail throw           (the --probe-bind-fault-kind Free drill must exit
+///                                     on its own, non-zero, with ProbeBindFreeFallback's
+///                                     OWN message — "classified the port as FREE" — naming
+///                                     the Free verdict. The post-switch defensive throw
+///                                     would also exit non-zero, so the test asserts the
+///                                     fallback's message, not just any exit code. A silent
+///                                     drill fall-through into a real boot would redden the
+///                                     exited-on-its-own assertion instead.)
 ///
-/// Honest caveat on that last entry: removing ONLY the explicit
-/// SetSocketOption(ReuseAddress) line does NOT redden today — .NET's managed
-/// Socket.Bind() sets SO_REUSEADDR by default on Linux (strace-verified), so the
-/// shipped probe keeps reuse semantics either way. The pin pins intent and
-/// protects against a runtime-default change. The mutation that reddens is the
-/// probe becoming a plain bind; the test's --plain-bind-preflight half asserts
-/// exactly that hazard (exit 1 on the residue) as its RED half. Declared
-/// rather than overclaimed.
+/// Honest caveat on that last entry — measured, issue #1954: removing ONLY the
+/// explicit SetSocketOption(ReuseAddress) line DOES redden this test today. The
+/// readback runs BEFORE Bind(), so it sees the kernel default (0), not .NET's
+/// bind-time reuse default; the probe throws before binding, and the shipped
+/// half's fixed exit-code-0 assertion fails (measured: exit 134 with the readback
+/// exception on the console). The explicit set is the guarantee the readback
+/// checks; keeping it also pins intent against a future change in the managed
+/// default. A runtime that pre-enabled reuse at socket creation would make the
+/// removal unobservable — that residual is inherently invisible to a behavioral
+/// guard and is why the explicit set stays. The test's --plain-bind-preflight
+/// half asserts the plain-bind hazard (exit 1 on the residue) as its RED half.
+/// Declared rather than overclaimed.
 /// </summary>
 public sealed partial class AppHostOrchestrationGuardSpec : IDisposable {
 	private const int HostPort = 5454;
@@ -224,6 +237,66 @@ public sealed partial class AppHostOrchestrationGuardSpec : IDisposable {
 			"synthetic AddressAlreadyInUse must trigger the SAME loud 'occupied' "
 				+ "diagnosis the real bind does, so the guard pins the production "
 				+ $"probe too. Console: {run.Console}"
+		);
+	}
+
+	// Issue #1953: the Free branch of ProbeBindFault (and the --probe-bind-fault-kind
+	// Free drill) must be a LOUD failure AT THE PROBE ITSELF — ProbeBindFreeFallback
+	// throws InvalidOperationException naming the Free verdict. The Free branch is
+	// unreachable from the production classifier today (ClassifyBindException never maps
+	// a synthetic SocketException to Free), but if a future change makes it reachable, a
+	// quiet return would fall through toward a real AppHost boot from a guard-only test
+	// hook (probe turns into a real start). This test forces the Free verdict via
+	// --probe-bind-fault-kind Free and asserts the process exits ON ITS OWN, non-zero,
+	// with ProbeBindFreeFallback's OWN message in the console.
+	//
+	// Why the message, and not just the exit code: the --probe-bind-fault-kind block ends
+	// with a defensive throw (falling through would boot the AppHost), so flattening
+	// ProbeBindFreeFallback alone — the mutation chosen against this test — still exits
+	// non-zero through that defensive throw, with its fall-through text. The message
+	// assertion pins the fallback itself: the drill must end on the fallback's loud
+	// failure naming the Free verdict, not on a masked fall-through. The mutation is
+	// replacing the throw in ProbeBindFreeFallback with `return;`: it reddens here with
+	// the defensive throw's text, showing exactly why the message assertion is stronger
+	// than the exit code.
+	//
+	// Honest disclosure: restoring the ORIGINAL pre-#1953 silent-boot defect (a plain
+	// fall-through) requires BOTH flattening the fallback AND removing the two defensive
+	// throws (after --probe-bind-fault and after --probe-bind-fault-kind). Doing so makes
+	// the drill boot Aspire, and the exited-on-its-own assertion below then reddens (the
+	// budget kills the process). No single mutation can restore the boot while keeping
+	// this test green.
+	[Fact]
+	public async Task ItShouldFailLoudlyWhenProbeBindFaultKindIsFree() {
+		await AppHostBuild.Value;
+
+		var repoRoot = FindRepoRoot();
+		var run = await RunAppHostAsync(
+			repoRoot,
+			TimeSpan.FromMinutes(5),
+			["run", "--project", "apps/apphost", "--no-build", OpenApiSkipBuildProperty,
+				"--", "--probe-bind-fault-kind", "Free"]
+		);
+
+		run.ExitedOnItsOwn.Should().BeTrue(
+			"the --probe-bind-fault-kind Free mode must finish on its own, fast — "
+				+ "not run until the budget kills it (a silent fall-through would boot Aspire "
+				+ "and the budget would kill it, masking the regression)"
+		);
+		run.ExitCode.Should().NotBe(
+			0,
+			"the Free branch must exit non-zero — ProbeBindFreeFallback throws, so "
+				+ "a zero exit means the process fell through and never failed. "
+				+ $"Actual exit: {run.ExitCode}. Console: {run.Console}"
+		);
+		run.Console.Should().Contain(
+			"classified the port as FREE",
+			"the loud failure must come from ProbeBindFreeFallback's OWN message, naming "
+				+ "the Free verdict in plain words. The post-switch defensive throw also "
+				+ "exits non-zero, so this is the assertion that distinguishes the fallback "
+				+ "from a masked fall-through: flattening ProbeBindFreeFallback (mutation) "
+				+ "reddens here with the defensive throw's text, not the fallback's. "
+				+ $"Console: {run.Console}"
 		);
 	}
 
