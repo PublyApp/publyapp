@@ -38,9 +38,10 @@
 		"smoke:start": "node scripts/ci/smoke-start-server.mts",
 		"check:front-runtime-image": "node scripts/ci/check-front-runtime-image.mts",
 		"test:runtime-env-startup": "node --test scripts/ci/validate-runtime-env-startup.test.mts",
+		"test:front-runtime-image-guard": "node --test scripts/ci/check-front-runtime-image.test.mts",
 		"test:e2e:tag": "playwright test --grep",
 		"test:design-guards": "vitest run --config vitest.design-guards.config.ts",
-		"test": "node --test scripts/ci/compose-startup.test.mts && pnpm test:e2e-compose-env && pnpm test:route-tree-guard && vitest run && pnpm test:design-guards && pnpm test:request-counter && pnpm test:search-cancel-css && pnpm test:context-chunk-isolation && pnpm test:design-system-guard && pnpm test:zindex-guard && pnpm test:react-compiler-guard && pnpm test:shared-ts-import-paths && pnpm test:e2e-shared-constants-guard && pnpm test:column-type-imports-guard && pnpm test:font-bundle && pnpm test:shared-ts-node-resolution && pnpm check:design-system && pnpm check:zindex && pnpm check:react-compiler && pnpm check:shared-ts-import-paths && pnpm check:shared-ts-node-resolution && pnpm check:e2e-shared-constants && pnpm check:column-type-imports && pnpm test:runtime-env-startup"
+		"test": "node --test scripts/ci/compose-startup.test.mts && pnpm test:e2e-compose-env && pnpm test:route-tree-guard && vitest run && pnpm test:design-guards && pnpm test:request-counter && pnpm test:search-cancel-css && pnpm test:context-chunk-isolation && pnpm test:design-system-guard && pnpm test:zindex-guard && pnpm test:react-compiler-guard && pnpm test:shared-ts-import-paths && pnpm test:e2e-shared-constants-guard && pnpm test:column-type-imports-guard && pnpm test:font-bundle && pnpm test:shared-ts-node-resolution && pnpm check:design-system && pnpm check:zindex && pnpm check:react-compiler && pnpm check:shared-ts-import-paths && pnpm check:shared-ts-node-resolution && pnpm check:e2e-shared-constants && pnpm check:column-type-imports && pnpm test:runtime-env-startup && pnpm test:front-runtime-image-guard"
 	},
 	"dependencies": {
 		"@base-ui/react": "1.7.0",
