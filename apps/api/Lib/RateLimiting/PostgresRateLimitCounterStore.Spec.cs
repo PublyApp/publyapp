@@ -17,6 +17,14 @@ namespace PublyApp.Api.Lib.RateLimiting;
 // borrowing connections from scoped AppDbContexts, atomic over-admission-proof
 // accounting, PII-free hashed partitions, and the outage contract (breaker +
 // fail CLOSED for anonymous-auth/email policies, fail OPEN elsewhere).
+//
+// #1924: the InMemoryRateLimitCounterStore used by the spec suite and the
+// MemoryRateLimitCounterStore fallback path track permits per-process only.
+// With N >= 2 replicas running in production, each replica grants the full
+// budget independently, so the effective fleet-wide limit is permitLimit * N
+// instead of permitLimit. This is only acceptable for development/development
+// scenarios and must never be used as the primary store in a multi-replica
+// deployment. The production store is PostgresRateLimitCounterStore.
 public sealed class PostgresRateLimitCounterStoreSpec
 	: IClassFixture<ApiFixture> {
 	private static readonly DateTimeOffset BaseTime =

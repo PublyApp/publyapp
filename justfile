@@ -224,9 +224,14 @@ db-reset $APP_ROLE="api":
   cd {{api_dir}} && dotnet tool run dotnet-ef database update --no-build
 
 # Add new migration: `just db-add CreateUsers`
+# dotnet format is run immediately after generation so the new migration files are
+# reformatted before commit — avoiding the gate-red trap (dotnet format skips
+# EF Core-generated files by default, so the Allman/4-space scaffold would
+# otherwise cause the next CI run to fail).
 db-add name $APP_ROLE="api":
   cd {{api_dir}} && dotnet build -property:OpenApiGenerateDocuments=false
   cd {{api_dir}} && dotnet tool run dotnet-ef migrations add {{name}} --no-build
+  dotnet format PublyApp.slnx
 
 # Remove last migration
 db-remove $APP_ROLE="api":
@@ -556,6 +561,7 @@ ci-quality-dotnet $APP_ROLE="api" $TRUSTED_PROXY_CIDRS="127.0.0.1/32" $SOCIAL_AC
   dotnet restore PublyApp.slnx
   dotnet build PublyApp.slnx --no-restore
   dotnet format PublyApp.slnx --verify-no-changes
+  bash packages/scripts-cs/src/check-csharp-format-guard.sh
 
 # openapi.json + client-ts determinism, then the OpenAPI contract spec
 ci-spec-drift:
