@@ -59,6 +59,24 @@ import { getSourceRelativePath, normalizeFilename } from './path-scopes.ts';
  *     only other reading for any of these would be the silent
  *     false-negative mode this rule is forbidden from entering (an entry it
  *     cannot decide MUST surface loudly, never quietly).
+ *   - Function-prototype reflection (`useQuery.call(...)`, `.apply(...)`,
+ *     `.bind(...)`) is followed: the callee is a `MemberExpression` whose
+ *     property is one of those three reserved names; the rule unwraps the
+ *     object side and applies the same hook-name contract. This was a
+ *     silent false-negative mode in r5 — the r6 reviewer's two-line probe
+ *     (`useQuery.call(null, {...})`) reached `getCalleeInfo` which only
+ *     handled `Identifier` and plain `MemberExpression`, returned `null`,
+ *     and the visitor bailed without inspecting the call.
+ *   - Object-literal assignments (`const obj = { fn: useQuery };`) are
+ *     followed for member reads on the declared object: a subsequent
+ *     `obj.fn({...})` is resolved to `useQuery` the same way as
+ *     `const uq = useQuery; uq({...})`. Property shorthand
+ *     (`const obj = { useQuery }`) is honoured too. If the property is
+ *     NOT a known hook binding (e.g. `const obj = { fn: someUnknownThing }`)
+ *     and the route has no other way to know whether `obj.fn` is a query
+ *     hook, the call is reported LOUDLY as `unresolvedHookCall` — the rule
+ *     never silently passes a member call it cannot resolve. This is the
+ *     r6 closure of the "object wrapping" silent false-negative.
  *   - Namespace member calls are handled TRUTHFULLY: when the object side is
  *     a namespace import (or whole-module require) from a query module,
  *     `RQ.useQuery(...)` is recognised and the diagnostic names `RQ.useQuery`
@@ -127,18 +145,50 @@ const isQueryModuleSource = (source: string): boolean =>
 const isTestFile = (filename: string): boolean =>
 	/(?:^|\/)[^/]+\.(?:test|spec)\.(?:ts|tsx|jsx|mjs|js)$/.test(filename);
 
+/** `Function.prototype.{call,apply,bind}` — the callee is the object side. */
+const REFLECTIVE_METHODS: ReadonlySet<string> = new Set([
+	'call',
+	'apply',
+	'bind',
+]);
+
 interface CalleeInfo {
 	/** The name the rule resolves (identifier name, or member property name). */
 	readonly callName: string;
 	/** For `obj.prop(...)` callees, the object's identifier name; null for
 	 *  plain identifier callees. Used to build the truthful alias text. */
 	readonly memberObject: string | null;
+	/** Original source-text form of the callee (for `unresolvableCallee` and
+	 *  for diagnostic context where the structural form matters more than the
+	 *  resolved name). */
+	readonly sourceText: string;
 }
 
-/** Extracts the resolvable name from a CallExpression's callee. */
+/**
+ * Extracts the resolvable name from a CallExpression's callee. Returns `null`
+ * when the callee shape is one the rule does not analyse at all — the
+ * `CallExpression` visitor then has to surface the call as
+ * `unresolvableCallee` (or decide to bail silently for known-non-hook
+ * indirections like `createFileRoute("/x")({...})`, where the inner call is
+ * already visited recursively). Recognised shapes (r6):
+ *   - `Identifier` (`useQuery(...)`) — direct hook call.
+ *   - `MemberExpression` with identifier property and identifier object
+ *     (`RQ.useQuery(...)`) — namespace member call. When the property is
+ *     `call`/`apply`/`bind` (the reflective trio), the rule unwraps the
+ *     object side: `useQuery.call(null, ...)` is treated as `useQuery(...)`,
+ *     `RQ.useQuery.apply(null, args)` as `RQ.useQuery(...)`.
+ *   - Anything else (`obj["fn"]()`, `a.b.c()`, an opaque call of a call
+ *     whose inner callee is not an Identifier) returns `null` and is
+ *     reported as `unresolvableCallee` — the r5 silent-drop defect, made
+ *     visible.
+ */
 const getCalleeInfo = (callee: ESTree.Expression): CalleeInfo | null => {
 	if (callee.type === 'Identifier') {
-		return { callName: callee.name, memberObject: null };
+		return {
+			callName: callee.name,
+			memberObject: null,
+			sourceText: callee.name,
+		};
 	}
 	if (
 		callee.type === 'MemberExpression' &&
@@ -146,7 +196,24 @@ const getCalleeInfo = (callee: ESTree.Expression): CalleeInfo | null => {
 		callee.property.type === 'Identifier' &&
 		callee.object.type === 'Identifier'
 	) {
-		return { callName: callee.property.name, memberObject: callee.object.name };
+		const propertyName = callee.property.name;
+		const objectName = callee.object.name;
+		// Reflective trio (`Function.prototype.{call,apply,bind}`): the
+		// callee is the receiver object, not the property. Unwrap so
+		// `useQuery.call(null, {...})` and `RQ.useQuery.apply(null, [...])`
+		// resolve like their underlying calls.
+		if (REFLECTIVE_METHODS.has(propertyName)) {
+			return {
+				callName: objectName,
+				memberObject: null,
+				sourceText: `${objectName}.${propertyName}`,
+			};
+		}
+		return {
+			callName: propertyName,
+			memberObject: objectName,
+			sourceText: `${objectName}.${propertyName}`,
+		};
 	}
 	return null;
 };
@@ -189,9 +256,18 @@ interface RouteQueryPreloadState {
 		readonly callName: string;
 		readonly binding: UnresolvedQueryBinding;
 	}>;
+	/** A callee the rule cannot analyse at all (no binding context). The
+	 *  rule must surface this LOUDLY rather than silently — the r5
+	 *  `getCalleeInfo` `return null` was the shape of the r6 false-negative
+	 *  defect. */
+	unresolvableCallees: Array<{
+		readonly node: ESTree.CallExpression;
+		readonly sourceText: string;
+	}>;
 	preloadDeclared: boolean;
 	reported: boolean;
 	unresolvedReported: boolean;
+	unresolvableReported: boolean;
 	/** local name → canonical hook/export name. Built from named-import
 	 *  aliases, assignment aliases (`const uq = useQuery`), destructuring
 	 *  (`const { useQuery: uq } = ...`), require chains
@@ -205,6 +281,18 @@ interface RouteQueryPreloadState {
 	 *  canonical hook name (default imports, whole-module requires). A call
 	 *  to one of these is an undecidable entry → loud `unresolvedHookCall`. */
 	unresolvedQueryBindings: Map<string, UnresolvedQueryBinding>;
+	/** Property aliases on an object-literal binding
+	 *  (`const obj = { fn: useQuery }`). Maps `objName.propertyName` →
+	 *  `canonicalName`. Read at member-call sites to resolve `obj.fn(...)`.
+	 *  A property whose value is NOT a known hook binding is recorded too —
+	 *  its member call becomes an `unresolvedHookCall` rather than silent
+	 *  false negative (the r6 closure of the "object wrapping" hole). */
+	objectPropertyAliases: Map<string, string>;
+	/** Inverse: `objName.propertyName` whose initialiser is NOT a known hook
+	 *  binding (default import, whole-module require, or any opaque
+	 *  expression). Member calls on these are loud `unresolvedHookCall`s,
+	 *  not silent. */
+	objectPropertyUnresolved: Map<string, UnresolvedQueryBinding>;
 }
 
 export const routeQueryPreload = {
@@ -221,6 +309,8 @@ export const routeQueryPreload = {
 				'Route file calls query hook `{{alias}}` (imported as `{{origin}}`) without declaring `staticData.preload`. Declare `staticData: { preload: ({ params }) => [ { options: <shared factory>, variables: <params> } ] }` (see docs/records/2026-08-26-plan-preload-routes.md), or add an escape comment with a reason when the query is secondary / interaction-triggered (#1589).',
 			unresolvedHookCall:
 				'Route file imports from query module `{{module}}` as `{{importName}}` and calls `{{callName}}`, which this rule cannot resolve to a known query hook. Declare `staticData.preload` (see docs/records/2026-08-26-plan-preload-routes.md), or add an escape comment with a reason when the query is secondary / interaction-triggered (#1589).',
+			unresolvableCallee:
+				'Route file has a query call whose callee this rule cannot analyse (saw `{{sourceText}}`). Declare `staticData.preload` (see docs/records/2026-08-26-plan-preload-routes.md), or add an escape comment with a reason when the call is a known non-hook indirection (#1589).',
 		},
 	},
 	create(context: Context): Visitor {
@@ -243,9 +333,11 @@ export const routeQueryPreload = {
 			queryHookCalls: [],
 			firstHookCall: null,
 			unresolvedCalls: [],
+			unresolvableCallees: [],
 			preloadDeclared: false,
 			reported: false,
 			unresolvedReported: false,
+			unresolvableReported: false,
 			// local → canonical-name resolution. Built once per file from
 			// `ImportDeclaration` / `VariableDeclarator` visitors, consumed by
 			// the `CallExpression` visitor. The pre-r3 version of the rule
@@ -259,6 +351,8 @@ export const routeQueryPreload = {
 			aliasToOrigin: new Map<string, string>(),
 			queryModuleBindings: new Map<string, string>(),
 			unresolvedQueryBindings: new Map<string, UnresolvedQueryBinding>(),
+			objectPropertyAliases: new Map<string, string>(),
+			objectPropertyUnresolved: new Map<string, UnresolvedQueryBinding>(),
 		};
 
 		return {
@@ -387,11 +481,125 @@ export const routeQueryPreload = {
 					isRouteQueryHookName(init.property.name)
 				) {
 					state.aliasToOrigin.set(local, init.property.name);
+					return;
+				}
+				// `const obj = { fn: useQuery }` (or shorthand
+				// `{ useQuery }`) — record property aliases on the declared
+				// object so subsequent `obj.fn({...})` calls resolve to
+				// `useQuery`. The original (pre-r6) rule silently dropped
+				// any member call on an object literal: a maintainer could
+				// wrap a hook in `{ fn: useQuery }`, export the object, and
+				// call `obj.fn({...})` with zero diagnostics — exactly the
+				// r6 silent-false-negative defect. r6 follows the
+				// assignment into the literal.
+				//
+				// A property whose value is NOT a known hook binding
+				// (e.g. `const obj = { fn: someUnknownThing }`) is recorded
+				// as `objectPropertyUnresolved` — its member call becomes
+				// an `unresolvedHookCall`, never silent.
+				if (init.type === 'ObjectExpression') {
+					for (const prop of init.properties) {
+						if (prop.type !== 'Property') {
+							continue;
+						}
+						if (prop.key.type !== 'Identifier' || prop.computed) {
+							continue;
+						}
+						const propertyName = prop.key.name;
+						const value = prop.value;
+						const memberKey = `${local}.${propertyName}`;
+						// Shorthand: `const obj = { useQuery }` resolves to
+						// `useQuery` via the alias map lookup.
+						if (prop.shorthand && value.type === 'Identifier') {
+							const origin = state.aliasToOrigin.get(value.name);
+							if (origin !== undefined && isRouteQueryHookName(origin)) {
+								state.objectPropertyAliases.set(memberKey, origin);
+								continue;
+							}
+							if (isRouteQueryHookName(value.name)) {
+								state.objectPropertyAliases.set(memberKey, value.name);
+								continue;
+							}
+							// Shorthand pointing at a default-import or
+							// whole-module-require binding: the member call
+							// would be unresolved, not silent.
+							const module = state.queryModuleBindings.get(value.name);
+							if (module !== undefined) {
+								state.objectPropertyUnresolved.set(memberKey, {
+									importName: value.name,
+									module,
+								});
+							}
+							continue;
+						}
+						// Full property: `const obj = { fn: <expr> }`.
+						if (value.type === 'Identifier') {
+							const origin = state.aliasToOrigin.get(value.name);
+							if (origin !== undefined && isRouteQueryHookName(origin)) {
+								state.objectPropertyAliases.set(memberKey, origin);
+								continue;
+							}
+							if (isRouteQueryHookName(value.name)) {
+								state.objectPropertyAliases.set(memberKey, value.name);
+								continue;
+							}
+							const module = state.queryModuleBindings.get(value.name);
+							if (module !== undefined) {
+								state.objectPropertyUnresolved.set(memberKey, {
+									importName: value.name,
+									module,
+								});
+							}
+							continue;
+						}
+						// Any opaque value (a function expression, a call,
+						// anything that isn't a name we recognise) is
+						// recorded as unresolved-from-an-unknown-module —
+						// the member call will be a loud
+						// `unresolvedHookCall` rather than silent.
+						state.objectPropertyUnresolved.set(memberKey, {
+							importName: local,
+							module: '<opaque expression>',
+						});
+					}
 				}
 			},
 			CallExpression(node: ESTree.CallExpression) {
+				// Capture the source text of the callee BEFORE
+				// `getCalleeInfo` — even when it returns `null` we want to
+				// tell the developer what shape we saw (`someFn()()` vs.
+				// `obj['fn']()` vs. a chained expression) rather than
+				// dropping the call silently. The shape is part of the
+				// diagnostic: it tells the maintainer what their
+				// indirection looked like.
+				// BUT: a callee that is itself a CallExpression
+				// (`createFileRoute("/x")({...})`) means the OUTER call has
+				// no hook-binding of its own — the INNER call is what
+				// matters and the AST visitor visits it recursively. Bail
+				// silently here: the rule must NOT surface this as
+				// `unresolvableCallee` (the brief's "render the null
+				// visible" call applies to genuinely opaque expressions
+				// like `obj["fn"]()` or `a.b.c()` on a non-tracked `a.b`,
+				// not to the standard `createFileRoute(...)` wrapper).
+				if (node.callee.type === 'CallExpression') {
+					return;
+				}
+				const calleeSourceText = context.sourceCode.getText(node.callee);
 				const info = getCalleeInfo(node.callee);
 				if (info === null) {
+					// The callee is a shape the rule does not analyse
+					// (call-of-call, computed member, chained member on an
+					// opaque expression, etc.). The r5 `return null` in
+					// `getCalleeInfo` silently dropped these — the r6
+					// closure of the "obj.fn / useQuery.call" defect.
+					// Surface LOUDLY: better a noisy false positive silenced
+					// by an escape comment than a silent false negative
+					// that lets a route consume query data without
+					// preload.
+					state.unresolvableCallees.push({
+						node,
+						sourceText: calleeSourceText,
+					});
 					return;
 				}
 				// Member callee (`RQ.useQuery(...)`): the property name IS the
@@ -400,9 +608,52 @@ export const routeQueryPreload = {
 				// member text written in the source — the earlier state, which
 				// named only the property, produced a misleading message for
 				// namespace imports.
+				//
+				// Two r6 nuances sit ON TOP of the namespace branch:
+				//   - Object-literal property aliases are checked FIRST, even
+				//     when the property is itself a hook name (`const obj = {
+				//     useQuery }; obj.useQuery({...})`). The user wrote a member
+				//     call; the truthful alias is the member text (`obj.useQuery`),
+				//     not just the property (`useQuery`).
+				//   - An unresolved property value (`const obj = { fn: dq };`)
+				//     becomes a loud `unresolvedHookCall` here, never silent.
+				//
+				// When none of the r6 alias entries match AND the property
+				// name is not a canonical hook name, this is a method on
+				// some non-tracked object (`client.getQueryState(...)`,
+				// `cache.findAll(...)`, etc.) and the r5 silent bail
+				// preserves that behaviour. A noisy false positive on every
+				// member call would drown the genuine signal.
 				if (info.memberObject !== null) {
 					const origin = info.callName;
+					const memberKey = `${info.memberObject}.${origin}`;
+					const aliased = state.objectPropertyAliases.get(memberKey);
+					if (aliased !== undefined) {
+						state.queryHookCalls.push({
+							alias: memberKey,
+							origin: aliased,
+							node,
+						});
+						if (state.firstHookCall === null) {
+							state.firstHookCall = node;
+						}
+						return;
+					}
+					const unresolvedPropertyBinding =
+						state.objectPropertyUnresolved.get(memberKey);
+					if (unresolvedPropertyBinding !== undefined) {
+						state.unresolvedCalls.push({
+							node,
+							callName: memberKey,
+							binding: unresolvedPropertyBinding,
+						});
+						return;
+					}
 					if (!isRouteQueryHookName(origin)) {
+						// r5 behaviour: silent bail. The r6 reviewer's
+						// "object wrapping" false-negative is closed by the
+						// two branches above, not by blanket-noisying every
+						// member call (e.g. `client.getQueryState`).
 						return;
 					}
 					const module = state.queryModuleBindings.get(info.memberObject);
@@ -499,6 +750,17 @@ export const routeQueryPreload = {
 								importName: unresolved.binding.importName,
 								module: unresolved.binding.module,
 							},
+						});
+					}
+				}
+				if (!state.unresolvableReported) {
+					const unresolvable = state.unresolvableCallees[0];
+					if (unresolvable !== undefined) {
+						state.unresolvableReported = true;
+						context.report({
+							node: unresolvable.node,
+							messageId: 'unresolvableCallee',
+							data: { sourceText: unresolvable.sourceText },
 						});
 					}
 				}

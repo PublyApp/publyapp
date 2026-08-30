@@ -296,6 +296,69 @@ const runCases = (rule, label) => {
 					].join('\n'),
 					filename: 'apps/front/src/routes/x.tsx',
 				},
+				// r6: `.call/apply/bind` reflection WITH preload — the
+				// reflective trio must stay silent when preload is
+				// declared (same GREEN half as the named-import branch).
+				{
+					code: [
+						'import { useQuery } from "@tanstack/react-query";',
+						'export const Route = createFileRoute("/x")({',
+						'  staticData: { preload: () => [] },',
+						'});',
+						'const X = () => {',
+						'  const q = useQuery.call(null, { queryKey: ["x"] });',
+						'  return <div>{String(q.data)}</div>;',
+						'};',
+					].join('\n'),
+					filename: ROUTE_FILE,
+				},
+				// r6: object-literal property alias WITH preload — the
+				// `obj.fn({...})` branch must stay silent when preload is
+				// declared.
+				{
+					code: [
+						'import { useQuery } from "@tanstack/react-query";',
+						'const obj = { fn: useQuery };',
+						'export const Route = createFileRoute("/x")({',
+						'  staticData: { preload: () => [] },',
+						'});',
+						'const X = () => {',
+						'  const q = obj.fn({ queryKey: ["x"] });',
+						'  return <div>{String(q.data)}</div>;',
+						'};',
+					].join('\n'),
+					filename: ROUTE_FILE,
+				},
+				// r6: object-literal with a NON-hook property pointing at
+				// a default-import — preload declared, the undecidable
+				// member call stays silent.
+				{
+					code: [
+						'import dq from "@tanstack/react-query";',
+						'const obj = { fn: dq };',
+						'export const Route = createFileRoute("/x")({',
+						'  staticData: { preload: () => [] },',
+						'});',
+						'const X = () => {',
+						'  const q = obj.fn({ queryKey: ["x"] });',
+						'  return <div>{String(q.data)}</div>;',
+						'};',
+					].join('\n'),
+					filename: ROUTE_FILE,
+				},
+				// r6: `createFileRoute("/x")({...})` outer call is a
+				// call-of-call, where the inner call is already visited
+				// recursively. The outer wrapper must NOT fire
+				// `unresolvableCallee` (a literal copy of the canonical
+				// TanStack Router invocation pattern — every route file
+				// in the repo uses it).
+				{
+					code: [
+						'export const Route = createFileRoute("/x")({ component: X });',
+						'const X = () => <div />;',
+					].join('\n'),
+					filename: 'apps/front/src/routes/x.tsx',
+				},
 			],
 			invalid: [
 				// The core defect: route mounts a query hook, no preload.
@@ -691,6 +754,219 @@ const runCases = (rule, label) => {
 						},
 					],
 				},
+				// r6: `.call(null, {...})` reflection — the callee is a
+				// MemberExpression whose property is `call`; the r5 rule
+				// silently dropped it (getCalleeInfo returned null on a
+				// CallExpression callee — the `if (info === null) return;`
+				// bailed without inspecting the call). r6 unwraps the
+				// reflective trio (.call/.apply/.bind) and treats the
+				// receiver as the callee.
+				{
+					code: [
+						'import { useQuery } from "@tanstack/react-query";',
+						'export const Route = createFileRoute("/x")({ component: X });',
+						'const X = () => {',
+						'  const q = useQuery.call(null, { queryKey: ["x"] });',
+						'  return <div>{String(q.data)}</div>;',
+						'};',
+					].join('\n'),
+					filename: ROUTE_FILE,
+					errors: [
+						{
+							messageId: 'missingPreload',
+							data: { alias: 'useQuery', origin: 'useQuery' },
+						},
+					],
+				},
+				// r6: `.apply(null, [args])` reflection — same coverage for
+				// the .apply branch of the reflective trio.
+				{
+					code: [
+						'import { useQuery } from "@tanstack/react-query";',
+						'export const Route = createFileRoute("/x")({ component: X });',
+						'const X = () => {',
+						'  const q = useQuery.apply(null, [{ queryKey: ["x"] }]);',
+						'  return <div>{String(q.data)}</div>;',
+						'};',
+					].join('\n'),
+					filename: ROUTE_FILE,
+					errors: [
+						{
+							messageId: 'missingPreload',
+							data: { alias: 'useQuery', origin: 'useQuery' },
+						},
+					],
+				},
+				// r6: `.bind(null, args)` reflection — same for .bind. The
+				// bound function is still a hook call site, even though no
+				// execution happens inline (we don't model `.bind`'s
+				// returned function; the call site itself is what we
+				// track, same way the original rule treats the
+				// `createFileRoute(...)` wrapper call).
+				{
+					code: [
+						'import { useQuery } from "@tanstack/react-query";',
+						'export const Route = createFileRoute("/x")({ component: X });',
+						'const X = () => {',
+						'  const q = useQuery.bind(null, { queryKey: ["x"] });',
+						'  return <div>{String(typeof q)}</div>;',
+						'};',
+					].join('\n'),
+					filename: ROUTE_FILE,
+					errors: [
+						{
+							messageId: 'missingPreload',
+							data: { alias: 'useQuery', origin: 'useQuery' },
+						},
+					],
+				},
+				// r6: reflective call on a namespace member
+				// (`RQ.useQuery.call(null, ...)`) — intentionally NOT
+				// supported. The callee is a MemberExpression whose object
+				// is itself a MemberExpression, which `getCalleeInfo` does
+				// not unwrap; the call lands in `unresolvableCallees` and
+				// is reported as `unresolvableCallee`. The maintainer can
+				// add a call-shape branch if/when this appears in real
+				// code, but the simple `.call` on a directly-bound name
+				// (`useQuery.call`) and on a local alias (`uq.call`) is
+				// covered above.
+				{
+					code: [
+						'import * as RQ from "@tanstack/react-query";',
+						'export const Route = createFileRoute("/x")({ component: X });',
+						'const X = () => {',
+						'  const q = RQ.useQuery.call(null, { queryKey: ["x"] });',
+						'  return <div>{String(q.data)}</div>;',
+						'};',
+					].join('\n'),
+					filename: ROUTE_FILE,
+					errors: [
+						{
+							messageId: 'unresolvableCallee',
+							data: { sourceText: 'RQ.useQuery.call' },
+						},
+					],
+				},
+				// r6: object-literal property alias — `const obj = { fn:
+				// useQuery }; obj.fn({...})` was a silent false negative
+				// in r5 (the member branch's `isRouteQueryHookName(origin)`
+				// rejected `fn` and the visitor bailed). r6 follows the
+				// assignment into the literal and resolves the member
+				// call to `useQuery`.
+				{
+					code: [
+						'import { useQuery } from "@tanstack/react-query";',
+						'const obj = { fn: useQuery };',
+						'export const Route = createFileRoute("/x")({ component: X });',
+						'const X = () => {',
+						'  const q = obj.fn({ queryKey: ["x"] });',
+						'  return <div>{String(q.data)}</div>;',
+						'};',
+					].join('\n'),
+					filename: ROUTE_FILE,
+					errors: [
+						{
+							messageId: 'missingPreload',
+							data: { alias: 'obj.fn', origin: 'useQuery' },
+						},
+					],
+				},
+				// r6: shorthand object-literal property — `const obj = {
+				// useQuery }; obj.useQuery({...})` resolves through the
+				// alias map (the shorthand's value is the local name
+				// itself).
+				{
+					code: [
+						'import { useQuery } from "@tanstack/react-query";',
+						'const obj = { useQuery };',
+						'export const Route = createFileRoute("/x")({ component: X });',
+						'const X = () => {',
+						'  const q = obj.useQuery({ queryKey: ["x"] });',
+						'  return <div>{String(q.data)}</div>;',
+						'};',
+					].join('\n'),
+					filename: ROUTE_FILE,
+					errors: [
+						{
+							messageId: 'missingPreload',
+							data: { alias: 'obj.useQuery', origin: 'useQuery' },
+						},
+					],
+				},
+				// r6: object-literal with a NON-hook property pointing at
+				// a default-import — the member call is undecidable
+				// (loud), not silent. The earlier r5 state passed it
+				// silently; r6 reports it with a name + module.
+				{
+					code: [
+						'import dq from "@tanstack/react-query";',
+						'const obj = { fn: dq };',
+						'export const Route = createFileRoute("/x")({ component: X });',
+						'const X = () => {',
+						'  const q = obj.fn({ queryKey: ["x"] });',
+						'  return <div>{String(q.data)}</div>;',
+						'};',
+					].join('\n'),
+					filename: ROUTE_FILE,
+					errors: [
+						{
+							messageId: 'unresolvedHookCall',
+							data: {
+								callName: 'obj.fn',
+								importName: 'dq',
+								module: '@tanstack/react-query',
+							},
+						},
+					],
+				},
+				// r6: object-literal with an opaque (non-name) value — a
+				// function expression, a call result, anything that
+				// isn't a name the rule can resolve. The member call is
+				// loud, naming the property alias.
+				{
+					code: [
+						'import { useQuery } from "@tanstack/react-query";',
+						'const makeHook = () => useQuery;',
+						'const obj = { fn: makeHook() };',
+						'export const Route = createFileRoute("/x")({ component: X });',
+						'const X = () => {',
+						'  const q = obj.fn({ queryKey: ["x"] });',
+						'  return <div>{String(q.data)}</div>;',
+						'};',
+					].join('\n'),
+					filename: ROUTE_FILE,
+					errors: [
+						{
+							messageId: 'unresolvedHookCall',
+							data: {
+								callName: 'obj.fn',
+								importName: 'obj',
+								module: '<opaque expression>',
+							},
+						},
+					],
+				},
+				// r6: a callee the rule cannot analyse at all — `obj["fn"]`
+				// computed member. The r5 `getCalleeInfo` returned null
+				// for computed members and bailed silently; r6 surfaces
+				// the unrecognised shape as `unresolvableCallee`.
+				{
+					code: [
+						'import { useQuery } from "@tanstack/react-query";',
+						'export const Route = createFileRoute("/x")({ component: X });',
+						'const X = () => {',
+						'  const q = useQuery["call"](null, { queryKey: ["x"] });',
+						'  return <div>{String(q.data)}</div>;',
+						'};',
+					].join('\n'),
+					filename: ROUTE_FILE,
+					errors: [
+						{
+							messageId: 'unresolvableCallee',
+							data: { sourceText: 'useQuery["call"]' },
+						},
+					],
+				},
 			],
 		});
 	});
@@ -948,5 +1224,111 @@ void test('CLI GREEN: an escape comment silences the undecidable default-import 
 		stdout,
 		/publy\(route-query-preload\)/,
 		`expected zero diagnostics with the escape comment on the undecidable call, got stdout: ${stdout}`,
+	);
+});
+
+void test('CLI RED: `useQuery.call(null, {...})` reports the diagnostic (r6 reflective trio)', () => {
+	const source = [
+		'import { useQuery } from "@tanstack/react-query";',
+		'export const Route = createFileRoute("/probe")({ component: Page });',
+		'const Page = () => {',
+		'  const q = useQuery.call(null, { queryKey: ["x"] });',
+		'  return <div>{String(q.data)}</div>;',
+		'};',
+	].join('\n');
+
+	const stdout = runCliWithDeniedWarnings(source);
+	assert.match(
+		stdout,
+		/publy\(route-query-preload\)/,
+		`expected the CLI to report publy/route-query-preload for .call reflection, got stdout: ${stdout}`,
+	);
+	assert.match(
+		stdout,
+		/`useQuery` \(imported as `useQuery`\)/,
+		`expected the diagnostic to name the unwrapped receiver, got stdout: ${stdout}`,
+	);
+});
+
+void test('CLI RED: `useQuery.apply(null, [{...}])` reports the diagnostic (r6 reflective trio)', () => {
+	const source = [
+		'import { useQuery } from "@tanstack/react-query";',
+		'export const Route = createFileRoute("/probe")({ component: Page });',
+		'const Page = () => {',
+		'  const q = useQuery.apply(null, [{ queryKey: ["x"] }]);',
+		'  return <div>{String(q.data)}</div>;',
+		'};',
+	].join('\n');
+
+	const stdout = runCliWithDeniedWarnings(source);
+	assert.match(
+		stdout,
+		/publy\(route-query-preload\)/,
+		`expected the CLI to report publy/route-query-preload for .apply reflection, got stdout: ${stdout}`,
+	);
+});
+
+void test('CLI RED: `const obj = { fn: useQuery }; obj.fn({...})` reports the diagnostic (r6 object wrapping)', () => {
+	const source = [
+		'import { useQuery } from "@tanstack/react-query";',
+		'const obj = { fn: useQuery };',
+		'export const Route = createFileRoute("/probe")({ component: Page });',
+		'const Page = () => {',
+		'  const q = obj.fn({ queryKey: ["x"] });',
+		'  return <div>{String(q.data)}</div>;',
+		'};',
+	].join('\n');
+
+	const stdout = runCliWithDeniedWarnings(source);
+	assert.match(
+		stdout,
+		/publy\(route-query-preload\)/,
+		`expected the CLI to report publy/route-query-preload for object-wrapped hook call, got stdout: ${stdout}`,
+	);
+	assert.match(
+		stdout,
+		/`obj\.fn` \(imported as `useQuery`\)/,
+		`expected the diagnostic to name the property alias and the origin, got stdout: ${stdout}`,
+	);
+});
+
+void test('CLI RED: `useQuery["call"](null, {...})` (computed member) reports the unresolvableCallee diagnostic (r6)', () => {
+	const source = [
+		'import { useQuery } from "@tanstack/react-query";',
+		'export const Route = createFileRoute("/probe")({ component: Page });',
+		'const Page = () => {',
+		'  const q = useQuery["call"](null, { queryKey: ["x"] });',
+		'  return <div>{String(q.data)}</div>;',
+		'};',
+	].join('\n');
+
+	const stdout = runCliWithDeniedWarnings(source);
+	assert.match(
+		stdout,
+		/publy\(route-query-preload\)/,
+		`expected the CLI to report publy/route-query-preload for a computed-member call, got stdout: ${stdout}`,
+	);
+	assert.match(
+		stdout,
+		/cannot analyse/,
+		`expected the unresolvableCallee diagnostic to fire on a computed member, got stdout: ${stdout}`,
+	);
+});
+
+void test('CLI GREEN: a vanilla `createFileRoute("/x")({...})` route reports nothing about the outer wrapper (r6 call-of-call bail)', () => {
+	// The canonical TanStack Router invocation pattern. The OUTER call
+	// (`({...})` applied to the result of `createFileRoute("/x")`) must NOT
+	// surface `unresolvableCallee` — the inner call is already visited
+	// recursively, and `createFileRoute` is not a query hook.
+	const source = [
+		'export const Route = createFileRoute("/probe")({ component: Page });',
+		'const Page = () => <div />;',
+	].join('\n');
+
+	const stdout = runCliWithDeniedWarnings(source);
+	assert.doesNotMatch(
+		stdout,
+		/publy\(route-query-preload\)/,
+		`expected zero diagnostics on a vanilla route definition, got stdout: ${stdout}`,
 	);
 });
