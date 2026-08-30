@@ -52,6 +52,16 @@
  *     only allowed swallows: they exist precisely because the files they
  *     cover are generated, vendored, or local and must never be formatted.
  *
+ *     TODAY THIS SECOND LOOP HAS AN EMPTY BODY, and it is worth saying so:
+ *     every non-wildcard `ignorePatterns` entry that currently sits inside a
+ *     glob's scope is also in `STRUCTURAL_IGNORES`, so each one is skipped.
+ *     The protection against the #1875 bypass therefore rests entirely on
+ *     check 1 today. Check 2 is not decoration: it fires the first time
+ *     someone adds a non-structural exclusion inside a formatted tree, which
+ *     is exactly the change that would otherwise pass unnoticed. It is
+ *     documented as dormant rather than left to look like coverage it does
+ *     not yet provide.
+ *
  * A change that adds a glob to one declaration without the other — or an
  * exclusion that eats a directory the globs explicitly enumerate — fails the
  * test, naming the directory that left scope.
