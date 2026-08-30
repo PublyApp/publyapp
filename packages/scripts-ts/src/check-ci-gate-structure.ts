@@ -278,10 +278,10 @@ const gateNameExpression = ({ gateName, pushCheckName }) =>
 		(event) => `github.event_name == '${event}'`,
 	).join(' || ')}) && '${gateName}' || '${pushCheckName}' }}`;
 
-/** The exact `name:` expression front-e2e.yml's sharded `test` job must carry. */
+/** Builds the `name:` expression a sharded matrix job must carry. */
 // @ts-expect-error rung-0: add proper type in later rung
-const matrixJobNameExpression = ({ key, expected }) =>
-	`front-e2e (\${{ matrix.${key} }}/${expected.length})`;
+const matrixJobNameExpression = ({ key, expected, namePrefix }) =>
+	`${namePrefix} (\${{ matrix.${key} }}/${expected.length})`;
 
 /**
  * The four #1017 aggregate-gate workflows and the job graph each one must
@@ -314,7 +314,7 @@ export const GATE_WORKFLOWS = [
 		// `[1]` (running a quarter of the suite) cannot pass silently, and
 		// so the job name / shard flag / last-shard check / artifact name
 		// cannot drift out of sync with the matrix length independently.
-		matrix: { jobId: 'test', key: 'shard', expected: [1, 2, 3, 4] },
+		matrix: { jobId: 'test', key: 'shard', expected: [1, 2, 3, 4], namePrefix: 'front-e2e' },
 	},
 	{
 		file: 'front-ci.yml',
@@ -478,12 +478,13 @@ export const GATE_WORKFLOWS = [
 		alwaysJobs: [],
 	},
 	{
-		// #1462: CI finally runs the full API test suite (`just test-api`,
-		// ~2,000 specs on real Postgres via Testcontainers) as a required PR
-		// check. The heavy job is deliberately named `suite`, NOT `api-tests`:
-		// the reserved-name rule below rejects any job whose reported name
-		// CONTAINS a reserved name, so the required context `api-tests-gate`
-		// may be reported by this workflow's gate job only.
+		// #1947: CI runs the full API test suite (`just test-api`, ~2,000 specs
+		// on real Postgres via Testcontainers) as a required PR check, sharded
+		// across a 4-way matrix partitioned by hash of the fully-qualified test
+		// class name. The heavy job is deliberately named `suite`, NOT
+		// `api-tests`: the reserved-name rule below rejects any job whose
+		// reported name CONTAINS a reserved name, so the required context
+		// `api-tests-gate` may be reported by this workflow's gate job only.
 		file: 'api-tests.yml',
 		changesJob: 'changes',
 		gateJob: 'gate',
@@ -491,6 +492,13 @@ export const GATE_WORKFLOWS = [
 		pushCheckName: 'api-tests-push-check',
 		relevanceGatedJobs: [{ id: 'suite', needs: ['changes'] }],
 		alwaysJobs: [],
+		// Pin the sharded api-tests matrix: a matrix narrowed to [1] (running
+		// a quarter of the suite) cannot pass silently, and the job name /
+		// shard flag cannot drift out of sync with the matrix length.
+		// skipPlaywrightChecks: api-tests uses `dotnet test --filter`, not
+		// Playwright — the Playwright-specific checks (shard flag, upload
+		// name) do not apply.
+		matrix: { jobId: 'suite', key: 'shard', expected: [1, 2, 3, 4], namePrefix: 'api-tests', skipPlaywrightChecks: true },
 	},
 	{
 		file: 'react-doctor.yml',
@@ -1257,7 +1265,7 @@ const checkWorkflow = async (
 	}
 
 	if (matrix !== undefined) {
-		const { jobId, key, expected } = matrix;
+		const { jobId, key, expected, skipPlaywrightChecks } = matrix;
 		const matrixJob = jobs[jobId];
 
 		if (matrixJob === undefined) {
@@ -1301,55 +1309,61 @@ const checkWorkflow = async (
 				);
 			}
 
-			const matrixSteps = Array.isArray(matrixJob.steps) ? matrixJob.steps : [];
-			const shardFlag = `--shard=\${{ matrix.${key} }}/${denominator}`;
-			const lastShardCheck = `if [ "\${{ matrix.${key} }}" = "${denominator}" ]`;
-			const testStep = matrixSteps.find(
-				// @ts-expect-error rung-0: add proper type in later rung
-				(step) => typeof step?.run === 'string' && step.run.includes(shardFlag),
-			);
-
-			if (testStep === undefined) {
-				findings.push(
-					`${file}::${jobId}: expected a step invoking Playwright with \`${shardFlag}\`, so the shard flag's denominator cannot drift from the matrix length independently.`,
+			// Playwright-specific checks (shard flag, set -euo pipefail,
+			// upload name) only apply to workflows that use Playwright
+			// (front-e2e). api-tests uses `dotnet test --filter` and skips
+			// these.
+			if (!skipPlaywrightChecks) {
+				const matrixSteps = Array.isArray(matrixJob.steps) ? matrixJob.steps : [];
+				const shardFlag = `--shard=\${{ matrix.${key} }}/${denominator}`;
+				const lastShardCheck = `if [ "\${{ matrix.${key} }}" = "${denominator}" ]`;
+				const testStep = matrixSteps.find(
+					// @ts-expect-error rung-0: add proper type in later rung
+					(step) => typeof step?.run === 'string' && step.run.includes(shardFlag),
 				);
-			} else {
-				if (!testStep.run.includes(lastShardCheck)) {
+
+				if (testStep === undefined) {
 					findings.push(
-						`${file}::${jobId}: expected the shard-flag step to also gate the hermetic-counter run on \`${lastShardCheck}\` (the last shard, pinned to the same denominator as the matrix), but it does not.`,
+						`${file}::${jobId}: expected a step invoking Playwright with \`${shardFlag}\`, so the shard flag's denominator cannot drift from the matrix length independently.`,
 					);
+				} else {
+					if (!testStep.run.includes(lastShardCheck)) {
+						findings.push(
+							`${file}::${jobId}: expected the shard-flag step to also gate the hermetic-counter run on \`${lastShardCheck}\` (the last shard, pinned to the same denominator as the matrix), but it does not.`,
+						);
+					}
+
+					// Round 5 BLOCKER: a job/workflow-level `defaults: run: shell:
+					// bash {0}` override drops bash's implicit `-e`, letting a
+					// failed `playwright test` command be followed (and its
+					// failure erased) by the shard-selection `if`'s own exit
+					// code. Requiring the step's own `run:` to start with
+					// `set -euo pipefail` makes fail-fast a property of the
+					// SCRIPT ITSELF, independent of whatever shell default is (or
+					// later becomes) in effect around it.
+					if (!testStep.run.trimStart().startsWith('set -euo pipefail')) {
+						findings.push(
+							`${file}::${jobId}: expected the Playwright step's \`run:\` to start with \`set -euo pipefail\`, so a failed verification command cannot be masked by a later command's exit code regardless of any workflow/job-level shell default, but it does not.`,
+						);
+					}
 				}
 
-				// Round 5 BLOCKER: a job/workflow-level `defaults: run: shell:
-				// bash {0}` override drops bash's implicit `-e`, letting a
-				// failed `playwright test` command be followed (and its
-				// failure erased) by the shard-selection `if`'s own exit
-				// code. Requiring the step's own `run:` to start with
-				// `set -euo pipefail` makes fail-fast a property of the
-				// SCRIPT ITSELF, independent of whatever shell default is (or
-				// later becomes) in effect around it.
-				if (!testStep.run.trimStart().startsWith('set -euo pipefail')) {
+				const expectedUploadName = `front-e2e-playwright-report-\${{ matrix.${key} }}-of-${denominator}`;
+				const uploadStep = matrixSteps.find(
+					// @ts-expect-error rung-0: add proper type in later rung
+					(step) =>
+						typeof step?.with?.name === 'string' &&
+						step.with.name.includes('playwright-report'),
+				);
+
+				if (
+					uploadStep === undefined ||
+					uploadStep.with.name !== expectedUploadName
+				) {
 					findings.push(
-						`${file}::${jobId}: expected the Playwright step's \`run:\` to start with \`set -euo pipefail\`, so a failed verification command cannot be masked by a later command's exit code regardless of any workflow/job-level shell default, but it does not.`,
+						`${file}::${jobId}: expected the Playwright report upload's \`with.name\` to be \`${expectedUploadName}\`, found ${JSON.stringify(uploadStep?.with?.name ?? null)}.`,
 					);
 				}
-			}
-
-			const expectedUploadName = `front-e2e-playwright-report-\${{ matrix.${key} }}-of-${denominator}`;
-			const uploadStep = matrixSteps.find(
-				// @ts-expect-error rung-0: add proper type in later rung
-				(step) =>
-					typeof step?.with?.name === 'string' &&
-					step.with.name.includes('playwright-report'),
-			);
-
-			if (
-				uploadStep === undefined ||
-				uploadStep.with.name !== expectedUploadName
-			) {
-				findings.push(
-					`${file}::${jobId}: expected the Playwright report upload's \`with.name\` to be \`${expectedUploadName}\`, found ${JSON.stringify(uploadStep?.with?.name ?? null)}.`,
-				);
 			}
 		}
 	}

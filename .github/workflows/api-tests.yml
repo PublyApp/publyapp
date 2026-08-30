@@ -1,15 +1,15 @@
-# Lane #1462: make CI run the FULL API test suite (`just test-api`) as a required
-# PR check. See the issue for why this lane exists: until now no workflow ran
-# `just test-api` (~2,000 specs on real Postgres, provisioned by Testcontainers
-# from Docker on the runner itself), so a green `just ci` was stronger than CI.
+# Lane #1947: split the API test suite (`just test-api`) across a 4-way job
+# matrix. See the issue for why this lane exists: the single-runner `just
+# test-api` step was 14m41 (96% of the job), and four independent runners
+# provisioning their own Testcontainers Postgres can run in parallel.
 #
 # Shape: this file follows the #1017 aggregate-gate template (changes -> heavy
 # job(s) -> gate) that front-e2e/front-ci/openapi-spec-drift/docs-archive/
 # quality-gate/react-doctor already use, and is registered in GATE_WORKFLOWS in
 # packages/scripts-ts/src/check-ci-gate-structure.ts like every other gate.
-# The required check name is `api-tests-gate` (repo convention is `<workflow>-gate`,
-# and the structure guard reserves `api-tests` — it must not appear inside any
-# non-gate job's reported name).
+# The required check name is `api-tests-gate` (repo convention is
+# `<workflow>-gate`, and the structure guard reserves `api-tests` — it must not
+# appear inside any non-gate job's reported name).
 name: api tests
 
 on:
@@ -109,14 +109,23 @@ jobs:
             echo "relevant=true" >> "$GITHUB_OUTPUT"
           fi
 
-  # The heavy job. Testcontainers provisions its own Postgres from Docker on
-  # the runner; no services: block is needed. The justfile recipe pins the
-  # APP_ROLE=all / ASPNETCORE_ENVIRONMENT=Testing contract the suite expects.
+  # The heavy job — sharded 4-way. Each shard provisions its own
+  # Testcontainers Postgres (PostgresContainerFixture is per-process, and each
+  # matrix shard runs on its own runner, so the four shards are independent).
+  # Partitioning is by hash of the fully-qualified test class name (see
+  # packages/scripts-ts/src/shard-api-tests.ts), NOT by discovery index: an
+  # index-based split re-shuffles every test the moment one is added, which
+  # makes a red shard unreproducible.
   suite:
+    name: api-tests (${{ matrix.shard }}/4)
     needs: changes
     if: needs.changes.outputs.relevant == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -151,15 +160,38 @@ jobs:
       - name: Materialize .env.development from template (CI has no gitignored env file)
         run: cp .env.example .env.development
 
-      - name: Run full API test suite
-        run: just test-api
+      # Discover tests, partition by hash of class FQN, and run only this
+      # shard's classes. The sharder emits a `ClassName="FQN"` OR-predicate
+      # that xUnit interprets as "run exactly these classes". Each shard
+      # provisions its own Postgres via Testcontainers — no shared state.
+      - name: Run API test suite (shard ${{ matrix.shard }}/4)
+        env:
+          APP_ROLE: all
+          ASPNETCORE_ENVIRONMENT: Testing
+        run: |
+          set -euo pipefail
+
+          cd apps/api
+          dotnet restore Tests/PublyApp.Api.Tests.csproj
+
+          # Discover all tests, partition, and run this shard's classes.
+          # shard-api-tests-cli prints a `ClassName=FQN1|ClassName=FQN2|...`
+          # predicate; we pass it to `dotnet test --filter`.
+          FILTER=$(dotnet test Tests/PublyApp.Api.Tests.csproj -c Test --no-restore --nologo --list-tests 2>/dev/null \
+            | node "${{ github.workspace }}/packages/scripts-ts/src/shard-api-tests-cli.ts" ${{ matrix.shard }})
+
+          echo "Shard ${{ matrix.shard }} filter: $FILTER"
+
+          dotnet test Tests/PublyApp.Api.Tests.csproj -c Test --no-restore --nologo \
+            --verbosity minimal --logger "console;verbosity=normal" \
+            --filter "$FILTER"
 
       # Failure-only log capture: get failing specs off the ephemeral runner.
       - name: Upload test results on failure
         if: failure()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: api-test-results-${{ github.run_id }}
+          name: api-test-results-${{ github.run_id }}-${{ matrix.shard }}
           path: |
             apps/api/Tests/TestResults/
             apps/api/.artifacts/logs/

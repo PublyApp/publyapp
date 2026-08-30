@@ -1,0 +1,10 @@
+{
+	"$comment": "Confessions of deliberately removed CI steps. Read by packages/scripts-ts/src/check-ci-drift.ts. Required whenever a reconciled step vanishes from a workflow — the ratchet refuses to regenerate reason-guard-ref.json without this. See docs/guides/local-ci-gate.md.",
+	"steps": [
+		{
+			"step_id": "api-tests.yml::suite::Run full API test suite",
+			"removed_at": "2026-08-30",
+			"reason": "Replaced by the sharded 'Run API test suite (shard ${{ matrix.shard }}/4)' step as part of issue #1947. The single-runner `just test-api` step took ~14m41 and was 96% of the job; it now runs as a 4-way matrix where each shard provisions its own Testcontainers Postgres and runs a deterministic subset of the suite (partitioned by SHA-1 hash of the FQN). The full suite is still exercised by `just test-api` in `just ci`, which is strictly stronger than any one shard."
+		}
+	]
+}
