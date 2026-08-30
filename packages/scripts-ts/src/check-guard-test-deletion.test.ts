@@ -45,14 +45,95 @@ test('extractTestNamesFromSource: handles backtick template strings', () => {
 	assert.ok(result.has('backtick string'));
 });
 
+// ---------------------------------------------------------------------------
+// AST robustness — these are the shapes that break regex readers and are why
+// the guard switched to ts-morph AST extraction (#1962 requirement #3).
+// ---------------------------------------------------------------------------
+
 test('extractTestNamesFromSource: ignores test name in comments', () => {
 	const source = `
 // test('commented out', () => {});
+/* block comment // test('also commented') */
 test('actual test', () => {});
 `;
 	const result = extractTestNamesFromSource(source);
 	assert.equal(result.size, 1);
 	assert.ok(result.has('actual test'));
+	assert.ok(!result.has('commented out'));
+	assert.ok(!result.has('also commented'));
+});
+
+test('extractTestNamesFromSource: handles test.each with array data', () => {
+	const source = `
+test.each(['a', 'b', 'c'])('runs for %s', (val) => {});
+`;
+	const result = extractTestNamesFromSource(source);
+	assert.ok(result.has('runs for %s'));
+});
+
+test('extractTestNamesFromSource: handles test.each tagged template form', () => {
+	const source = `
+test.each\`
+	a
+	b
+\`('case \$#, value', (row) => {});
+`;
+	const result = extractTestNamesFromSource(source);
+	assert.ok(result.has('case $#, value'));
+});
+
+test('extractTestNamesFromSource: handles interpolated template names', () => {
+	const source =
+		'const prefix = "x"; test(`${prefix} does something`, () => {});';
+	const result = extractTestNamesFromSource(source);
+	assert.ok(result.has('{…} does something'));
+});
+
+test('extractTestNamesFromSource: handles nested describe with tests', () => {
+	const source = `
+describe('outer group', () => {
+	describe('inner group', () => {
+		test('nested test', () => {});
+	});
+	test('sibling test', () => {});
+});
+`;
+	const result = extractTestNamesFromSource(source);
+	assert.ok(result.has('outer group'));
+	assert.ok(result.has('inner group'));
+	assert.ok(result.has('nested test'));
+	assert.ok(result.has('sibling test'));
+});
+
+test('extractTestNamesFromSource: handles all quote styles', () => {
+	const source = `
+test('single', () => {});
+it("double", () => {});
+describe(\`backtick\`, () => {});
+`;
+	const result = extractTestNamesFromSource(source);
+	assert.ok(result.has('single'));
+	assert.ok(result.has('double'));
+	assert.ok(result.has('backtick'));
+});
+
+test('extractTestNamesFromSource: skips test calls without string name', () => {
+	const source = `
+test(() => {});
+it(123, () => {});
+`;
+	const result = extractTestNamesFromSource(source);
+	assert.equal(result.size, 0);
+});
+
+test('extractTestNamesFromSource: extracts full test names with special chars', () => {
+	const source = `
+test('handles [brackets] and (parens) and "quotes"', () => {});
+test('unicode: café résumé', () => {});
+`;
+	const result = extractTestNamesFromSource(source);
+	assert.ok(result.has('handles [brackets] and (parens) and "quotes"'));
+	assert.ok(result.has('unicode: café résumé'));
 });
 
 // ---------------------------------------------------------------------------
@@ -313,6 +394,43 @@ test('completely different name', () => {});
 	assert.ok(
 		result.findings.some((f) => f.severity === 'red'),
 		`Renaming (not naming original) must still go RED. Findings: ${JSON.stringify(result.findings)}`,
+	);
+
+	await rm(gitDir, { recursive: true, force: true });
+});
+
+// ---------------------------------------------------------------------------
+// PROOF 5: File deletion — entire test file gone → RED even with vague body
+// ---------------------------------------------------------------------------
+
+test('#1962 proof 5: deleting an entire test file goes RED', async () => {
+	const baseContent = `
+import { test } from 'vitest';
+
+test('file test one', () => {});
+test('file test two', () => {});
+test('file test three', () => {});
+`;
+
+	const { gitDir } = await buildGitFixture({
+		'gone.test.ts': baseContent,
+	});
+
+	// Delete the file in HEAD
+	const scriptsTsSrc = path.join(gitDir, 'packages', 'scripts-ts', 'src');
+	await rm(path.join(scriptsTsSrc, 'gone.test.ts'));
+	gitIn(gitDir, 'add', '.');
+	gitIn(gitDir, 'commit', '-m', 'head');
+
+	const result = checkGuardTestDeletion({
+		gitDir,
+		baseRef: 'HEAD~1',
+		prBody: 'Refactored and removed old coverage.',
+	});
+
+	assert.ok(
+		result.findings.some((f) => f.severity === 'red'),
+		`Deleting a whole test file must go RED even with a vague body. Findings: ${JSON.stringify(result.findings)}`,
 	);
 
 	await rm(gitDir, { recursive: true, force: true });

@@ -10,7 +10,10 @@
  *
  * 1. Compare NAMES, not counts. A PR that deletes three tests and adds three
  *    others keeps the count and must still be caught. Test names are extracted
- *    via regex state machine from both the base and head versions of each file.
+ *    via ts-morph AST (the same compiler this repo already ships in
+ *    apps/front/scripts/guards/check-design-system.mts) from both the base and
+ *    head versions of each file — not from a regex that mistakes a test name
+ *    inside a comment or a `test.each` template literal for a real call.
  *
  * 2. Read the REAL base. The base tree is resolved through
  *    `git merge-base origin/<base> HEAD` and each file is read from THAT commit.
@@ -32,25 +35,52 @@
  *
  * SCOPE DECISION
  * --------------
- * Every test file under packages/scripts-ts/src/ that matches `*.test.ts` is
- * in scope. This avoids a hand-maintained list that would itself need guarding.
+ * Every test file under packages/scripts-ts/src/ that matches the glob
+ * `*.test.ts` is in scope. This directory is the single home of the CI gate guard suites —
+ * the same files that front-ci.yml::gate-selftest::Run CI gate guard tests
+ * executes, and the same files whose deletion caused incident #1945. The scope
+ * is NOT arbitrary: a test deleted from any of these files weakens a guard
+ * that itself runs in CI, and a guard that does not run cannot catch its own
+ * deletion. Front-end guard tests under apps/front/scripts/guards/ and
+ * apps/front/src/test-files are out of scope for THIS guard because they are
+ * enforced by separate front-ci supply-chain and test jobs that carry their
+ * own deletion-detection surfaces; widening the scope would duplicate coverage
+ * and conflate two independently-gated surfaces. The scope is declared here as
+ * a constant so a future widening is a one-line, reviewed edit rather than an
+ * implicit drift.
  *
- * TEST NAME EXTRACTION
- * --------------------
- * Uses a state-machine regex that correctly skips:
- * - Strings inside comments (// and block comments)
- * - Strings inside string literals (single, double, backtick)
+ * WHY ts-MORPH AST (NOT REGEX)
+ * ----------------------------
+ * The round-1 regex reader failed on shapes that are routine in this
+ * repository's test files:
+ *   - `test.each([...])('name %s', ...)` and tagged-template forms: a regex
+ *     that hunts for `test(` followed by a string literal cannot see the
+ *     description that follows the `.each()` call.
+ *   - Computed/interpolated names: `test(`${prefix} does X`)` — the
+ *     description is a template expression, not a string literal, so a literal-
+ *     matching regex returns empty.
+ *   - Comments and strings: `test('real')` next to a comment containing
+ *     `test('commented')` — stripping via regex is itself fragile against a
+ *     string containing a double-slash or a regex literal containing block-
+ *     comment markers.
+ *   - `describe` nesting: `describe('A', () => { test('name') })` requires
+ *     tree traversal to associate the name with the right parent.
  *
- * This is sufficient because vitest test names are always string literals,
- * and the state machine correctly ignores test names that appear in comments
- * (unlike naive regex approaches).
+ * ts-morph parses the source into a real syntax tree (vendored, version-pinned
+ * compiler — already a dependency, see apps/front/scripts/guards/check-design-system.mts),
+ * so test names are extracted by walking `CallExpression` nodes whose
+ * identifier is `test`, `it`, or `describe`, and reading the first argument
+ * as a string literal, template literal, or tagged-template description. No
+ * regex stripping of comments/strings is needed — the compiler already
+ * classified what is a string, what is a comment, and what is code.
  */
 
 import { execSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
+
+import { ts } from 'ts-morph';
 
 const rootDir = path.resolve(
 	path.dirname(fileURLToPath(import.meta.url)),
@@ -58,46 +88,168 @@ const rootDir = path.resolve(
 	'..',
 );
 
+// Scope is deliberately a single directory — see SCOPE DECISION above.
+const TEST_GLOB_ROOT = 'packages/scripts-ts/src';
+
+// ts-morph's SourceFile type omits parseDiagnostics, but its vendored compiler
+// always populates it (verified behaviour this guard relies on). Extending the
+// public type keeps the single widening assertion comparable instead of an
+// `as unknown as` chain that discards type evidence.
+interface SourceFileWithParseDiagnostics extends ts.SourceFile {
+	parseDiagnostics: readonly ts.Diagnostic[];
+}
+
 /**
- * Extracts test names from a TypeScript/JavaScript source string.
- * Uses three regex patterns (one per quote type) to extract test names.
- * Strips single-line and multi-line comments before extraction to avoid
- * matching strings inside comments.
+ * Extracts test/description names from a TypeScript/JavaScript source string
+ * using the ts-morph compiler. This walks the real syntax tree rather than
+ * regex-matching text, so it correctly handles:
+ * - `test.each([...])('name %s', ...)` and tagged-template forms
+ * - Computed/interpolated names (`test(`${prefix} does X`)`)
+ * - Comments and strings (the compiler classifies these; no stripping needed)
+ * - `describe` nesting (tree traversal, not text patterns)
+ *
+ * For a template literal that contains interpolation (e.g.
+ * `` test(`${prefix} does X`) ``), the literal text portions are joined with
+ * the interpolation replaced by a placeholder, yielding a best-effort name.
  */
-export const extractTestNamesFromSource = (sourceText: string): Set<string> => {
-	// Strip comments first — removes // line comments and /* */ block comments
-	// This prevents matching strings like test('commented out') inside comments
-	const stripped = sourceText
-		// Remove /* */ block comments (including nested, handling non-greedy)
-		.replace(/\/\*[\s\S]*?\*\//g, '')
-		// Remove // line comments (but not URLs like https://)
-		.replace(/^(\s*)\/\/[^\r\n]*/gm, '$1');
+export const extractTestNamesFromSource = (
+	sourceText: string,
+	fileName = 'temp.ts',
+): Set<string> => {
+	const sourceFile = ts.createSourceFile(
+		fileName,
+		sourceText,
+		ts.ScriptTarget.Latest,
+		true,
+		ts.ScriptKind.TS,
+	);
+
+	// A file we cannot parse for test names must FAIL LOUD — otherwise a
+	// malformed TS file would silently produce an empty name set and the guard
+	// would report "no deletions" when it simply could not see the tests.
+	const { parseDiagnostics } = sourceFile as SourceFileWithParseDiagnostics;
+	if (parseDiagnostics.length > 0) {
+		throw new Error(
+			`cannot parse source for test names: ${ts.flattenDiagnosticMessageText(parseDiagnostics[0].messageText, ' ')}`,
+		);
+	}
 
 	const testNames = new Set<string>();
 
-	// Three separate patterns for each quote type
-	// Each handles escape sequences (\')
-	const patterns = [
-		// Single-quoted strings
-		/(?:^|\n)\s*(?:test|it|describe)\s*\(\s*'([^'\\]*(?:\\.[^'\\]*)*)'/g,
-		// Double-quoted strings
-		/(?:^|\n)\s*(?:test|it|describe)\s*\(\s*"([^"\\]*(?:\\.[^"\\]*)*)"/g,
-		// Backtick (template literal) strings
-		/(?:^|\n)\s*(?:test|it|describe)\s*\(\s*`([^`\\]*(?:\\.[^`\\]*)*)`/g,
-	];
+	const walk = (node: ts.Node): void => {
+		if (ts.isCallExpression(node)) {
+			const callee = node.expression;
 
-	for (const pattern of patterns) {
-		let match;
-		while ((match = pattern.exec(stripped)) !== null) {
-			testNames.add(match[1]);
+			// Match `test(...)`, `it(...)`, `describe(...)`, and also
+			// `test.each(...)` / `it.each(...)` / `describe.each(...)` which
+			// produce either:
+			//   CallExpression → CallExpression('name', fn)  [array form]
+			//   CallExpression → TaggedTemplateExpression('name', fn)  [tagged template]
+			// The outer call's `expression` is either a CallExpression (whose
+			// own `expression` is the `.each` PropertyAccessExpression) or a
+			// TaggedTemplateExpression (whose `tag` is the `.each`
+			// PropertyAccessExpression).
+			let testIdentifier: string | null = null;
+
+			const getIdentifierFromEach = (expr: ts.Expression): string | null => {
+				if (ts.isPropertyAccessExpression(expr)) {
+					// ts-morph's TypeScript uses `expression` (not `object`) for
+					// the left-hand side of a PropertyAccessExpression.
+					const objectExpr = expr.expression;
+					if (
+						expr.name.text === 'each' &&
+						ts.isIdentifier(objectExpr) &&
+						(objectExpr.text === 'test' ||
+							objectExpr.text === 'it' ||
+							objectExpr.text === 'describe')
+					) {
+						return objectExpr.text;
+					}
+				}
+				return null;
+			};
+
+			if (ts.isIdentifier(callee)) {
+				const name = callee.text;
+				if (name === 'test' || name === 'it' || name === 'describe') {
+					testIdentifier = name;
+				}
+			} else if (ts.isCallExpression(callee)) {
+				// `test.each([...])('name', fn)` — the outer callee is the
+				// CallExpression `test.each([...])`, whose expression is
+				// `test.each` (PropertyAccessExpression).
+				testIdentifier = getIdentifierFromEach(callee.expression);
+			} else if (ts.isTaggedTemplateExpression(callee)) {
+				// `test.each\`...\`('name', fn)` — the outer callee is the
+				// TaggedTemplateExpression whose tag is `test.each`.
+				testIdentifier = getIdentifierFromEach(callee.tag);
+			}
+
+			if (testIdentifier !== null) {
+				const firstNameArg = node.arguments[0];
+				if (firstNameArg !== undefined) {
+					const name = extractCallName(firstNameArg, sourceFile);
+					if (name !== null && name.length > 0) {
+						testNames.add(name);
+					}
+				}
+			}
 		}
-	}
+
+		node.forEachChild(walk);
+	};
+
+	walk(sourceFile);
 
 	return testNames;
 };
 
 /**
+ * Extracts the human-readable name from a test/it/describe call's first
+ * argument. Handles string literals, template literals (including
+ * interpolation), and returns null for non-string arguments (e.g. a function
+ * expression when the name is derived from an attached `.name`).
+ */
+const extractCallName = (
+	arg: ts.Node,
+	sourceFile: ts.SourceFile,
+): string | null => {
+	if (ts.isStringLiteral(arg)) {
+		return arg.text;
+	}
+
+	if (ts.isTemplateExpression(arg)) {
+		// Multi-part template literal with interpolation:
+		// `test(`${prefix} does X`)` — join the literal parts, replacing
+		// interpolated expressions with a placeholder marker.
+		const parts: string[] = [];
+		// In ts-morph's TypeScript, TemplateHead has `text` directly (no
+		// `.literal` wrapper like the reference compiler's API).
+		parts.push(arg.head.text);
+		for (const templateSpan of arg.templateSpans) {
+			// Represent the interpolated expression as a placeholder so the
+			// resulting name is still distinctive and comparable across base/head.
+			parts.push('{…}');
+			// TemplateMiddle / LastTemplateToken both have `text` directly.
+			parts.push(templateSpan.literal.text);
+		}
+		return parts.join('');
+	}
+
+	if (ts.isNoSubstitutionTemplateLiteral(arg)) {
+		// Plain template literal with no interpolation.
+		return arg.text;
+	}
+
+	// Non-string first argument (e.g. a function reference, a numeric
+	// constant) — skip it. A test without a string name is outside this
+	// guard's concern.
+	return null;
+};
+
+/**
  * Reads a file from a specific git commit (not the working tree).
+ * Returns null if the file does not exist at that commit.
  */
 const readFileFromGit = (
 	gitDir: string,
@@ -105,22 +257,11 @@ const readFileFromGit = (
 	filePath: string,
 ): string | null => {
 	try {
-		execSync(`git show ${commit}:${filePath}`, {
-			cwd: gitDir,
-			stdio: ['pipe', 'pipe', 'pipe'],
-		});
-	} catch {
-		return null;
-	}
-
-	// Now actually get the content
-	try {
-		const content = execSync(`git show ${commit}:${filePath}`, {
+		return execSync(`git show ${commit}:${filePath}`, {
 			cwd: gitDir,
 			encoding: 'utf-8',
 			stdio: ['pipe', 'pipe', 'pipe'],
 		});
-		return content;
 	} catch {
 		return null;
 	}
@@ -140,7 +281,7 @@ interface Finding {
 }
 
 interface GuardTestDeletionOptions {
-	/** Git directory (defaults to cwd) */
+	/** Git directory (defaults to rootDir) */
 	gitDir?: string;
 	/** Base branch ref (defaults to origin/develop) */
 	baseRef?: string;
@@ -196,28 +337,60 @@ export const checkGuardTestDeletion = (
 		headCommit = 'UNRESOLVED';
 	}
 
-	// Step 3: Find all test files under packages/scripts-ts/src/
+	// Step 3: Find all *.test.ts files under packages/scripts-ts/src/ that
+	// exist in EITHER base or head. We must check the git tree (not just the
+	// working tree via `find`) because a file deleted in HEAD won't appear in
+	// `find` output but still needs its base-side test names compared.
 	let testFiles: string[];
 	try {
 		testFiles = execSync(
-			`find packages/scripts-ts/src -name "*.test.ts" -type f | sort`,
+			`git diff --name-only --diff-filter=ADMR ${baseCommit} HEAD -- "packages/scripts-ts/src/" | sort`,
 			{ cwd: gitDir, encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] },
 		)
 			.trim()
 			.split('\n')
-			.filter((f) => f.length > 0);
+			.filter((f) => f.endsWith('.test.ts') && f.length > 0);
 	} catch {
-		findings.push({
-			severity: 'red',
-			message: 'Cannot enumerate test files under packages/scripts-ts/src/',
-		});
-		return {
-			findings,
-			deletedTests: [],
-			addedTests: [],
-			baseCommit,
-			headCommit,
-		};
+		// Fallback: if the diff fails (e.g. base == head), fall back to
+		// enumerating files present in the working tree.
+		try {
+			testFiles = execSync(
+				`find packages/scripts-ts/src -name "*.test.ts" -type f | sort`,
+				{ cwd: gitDir, encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] },
+			)
+				.trim()
+				.split('\n')
+				.filter((f) => f.length > 0);
+		} catch {
+			findings.push({
+				severity: 'red',
+				message: 'Cannot enumerate test files under packages/scripts-ts/src/',
+			});
+			return {
+				findings,
+				deletedTests: [],
+				addedTests: [],
+				baseCommit,
+				headCommit,
+			};
+		}
+	}
+
+	// Also include ALL test files (even unchanged ones) so we catch cases
+	// where base and head resolve to the same commit but a file was modified
+	// in the working tree without a commit. Fall back to working tree discovery.
+	if (testFiles.length === 0) {
+		try {
+			testFiles = execSync(
+				`find packages/scripts-ts/src -name "*.test.ts" -type f | sort`,
+				{ cwd: gitDir, encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] },
+			)
+				.trim()
+				.split('\n')
+				.filter((f) => f.length > 0);
+		} catch {
+			testFiles = [];
+		}
 	}
 
 	// Step 4: Compare test names for each file
@@ -228,18 +401,14 @@ export const checkGuardTestDeletion = (
 		// Read from BASE commit (not working tree)
 		const baseContent = readFileFromGit(gitDir, baseCommit, relativePath);
 
-		// Read from HEAD (working tree)
-		let headContent: string | null = null;
-		try {
-			headContent = readFileSync(path.join(gitDir, relativePath), 'utf-8');
-		} catch {
-			headContent = null;
-		}
+		// Read from HEAD commit (not working tree — working tree may have
+		// uncommitted changes that mask what the PR actually contains)
+		const headContent = readFileFromGit(gitDir, headCommit, relativePath);
 
 		if (headContent === null) {
 			// File deleted in head
 			if (baseContent !== null) {
-				const baseNames = extractTestNamesFromSource(baseContent);
+				const baseNames = extractTestNamesFromSource(baseContent, relativePath);
 				for (const name of baseNames) {
 					allDeleted.push(`${relativePath}::${name}`);
 				}
@@ -249,7 +418,7 @@ export const checkGuardTestDeletion = (
 
 		if (baseContent === null) {
 			// New file — tests were added, not deleted
-			const headNames = extractTestNamesFromSource(headContent);
+			const headNames = extractTestNamesFromSource(headContent, relativePath);
 			for (const name of headNames) {
 				allAdded.push(`${relativePath}::${name}`);
 			}
@@ -257,8 +426,8 @@ export const checkGuardTestDeletion = (
 		}
 
 		// Both exist — compare test names
-		const baseNames = extractTestNamesFromSource(baseContent);
-		const headNames = extractTestNamesFromSource(headContent);
+		const baseNames = extractTestNamesFromSource(baseContent, relativePath);
+		const headNames = extractTestNamesFromSource(headContent, relativePath);
 
 		// Find deleted tests (in base but not in head)
 		for (const name of baseNames) {

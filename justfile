@@ -331,6 +331,9 @@ ci-drift:
   pnpm --filter scripts-ts exec vitest run src/ci-referenced-paths.test.ts
   pnpm --filter scripts-ts exec vitest run src/check-cyclomatic-bound.test.ts
   node ./packages/scripts-ts/src/check-cyclomatic-bound.ts
+  # #1962: guard against deleting tests from guard test files
+  pnpm --filter scripts-ts exec vitest run src/check-guard-test-deletion.test.ts
+  node ./packages/scripts-ts/src/check-guard-test-deletion.ts
   # #1674: bite-proof test for the production-dependency audit gate.
   # The CI gate is `pnpm audit --prod --audit-level=moderate`
   # (front-ci.yml::supply-chain), and this test pins that exact command
