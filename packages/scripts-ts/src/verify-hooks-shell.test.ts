@@ -24,7 +24,15 @@
  * restores the silent default.
  */
 import { execFileSync } from 'node:child_process';
-import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import {
+	chmodSync,
+	existsSync,
+	mkdirSync,
+	mkdtempSync,
+	readFileSync,
+	rmSync,
+	writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -45,7 +53,9 @@ const newFixtureRepo = (): string => {
 	fixtureRoots.push(root);
 
 	execFileSync('git', ['init', '-q', '-b', 'main'], { cwd: root });
-	execFileSync('git', ['config', 'user.email', 'proof@test.local'], { cwd: root });
+	execFileSync('git', ['config', 'user.email', 'proof@test.local'], {
+		cwd: root,
+	});
 	execFileSync('git', ['config', 'user.name', 'Proof Runner'], { cwd: root });
 	execFileSync('git', ['config', 'commit.gpgsign', 'false'], { cwd: root });
 
@@ -76,9 +86,17 @@ const installVerifyHooksScript = (repoRoot: string): void => {
 };
 
 const git = (cwd: string, args: string[]): string =>
-	execFileSync('git', args, { cwd, encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] }).trim();
+	execFileSync('git', args, {
+		cwd,
+		encoding: 'utf-8',
+		stdio: ['pipe', 'pipe', 'pipe'],
+	}).trim();
 
-const addExecutableHook = (repoRoot: string, hookName: string, body: string): string => {
+const addExecutableHook = (
+	repoRoot: string,
+	hookName: string,
+	body: string,
+): string => {
 	const path = join(repoRoot, '.husky', hookName);
 	writeFileSync(path, body);
 	git(repoRoot, ['add', '.husky']);
@@ -88,12 +106,18 @@ const addExecutableHook = (repoRoot: string, hookName: string, body: string): st
 	return path;
 };
 
-const runScript = (repoRoot: string): { status: number; stdout: string; stderr: string } => {
-	const result = execFileSync('sh', [join(repoRoot, '.husky', '_verify-hooks.sh')], {
-		cwd: repoRoot,
-		encoding: 'utf-8',
-		stdio: ['pipe', 'pipe', 'pipe'],
-	});
+const runScript = (
+	repoRoot: string,
+): { status: number; stdout: string; stderr: string } => {
+	const result = execFileSync(
+		'sh',
+		[join(repoRoot, '.husky', '_verify-hooks.sh')],
+		{
+			cwd: repoRoot,
+			encoding: 'utf-8',
+			stdio: ['pipe', 'pipe', 'pipe'],
+		},
+	);
 	return { status: 0, stdout: result, stderr: '' };
 };
 
@@ -101,14 +125,22 @@ const runScriptExpectingFailure = (
 	repoRoot: string,
 ): { status: number | null; stdout: string; stderr: string } => {
 	try {
-		const result = execFileSync('sh', [join(repoRoot, '.husky', '_verify-hooks.sh')], {
-			cwd: repoRoot,
-			encoding: 'utf-8',
-			stdio: ['pipe', 'pipe', 'pipe'],
-		});
+		const result = execFileSync(
+			'sh',
+			[join(repoRoot, '.husky', '_verify-hooks.sh')],
+			{
+				cwd: repoRoot,
+				encoding: 'utf-8',
+				stdio: ['pipe', 'pipe', 'pipe'],
+			},
+		);
 		return { status: 0, stdout: result, stderr: '' };
 	} catch (err) {
-		const error = err as { status?: number | null; stdout?: Buffer; stderr?: Buffer };
+		const error = err as {
+			status?: number | null;
+			stdout?: Buffer;
+			stderr?: Buffer;
+		};
 		return {
 			status: error.status ?? null,
 			stdout: error.stdout?.toString() ?? '',

@@ -36,7 +36,13 @@
  */
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import {
+	existsSync,
+	mkdirSync,
+	mkdtempSync,
+	rmSync,
+	writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -91,7 +97,11 @@ afterEach(() => {
  * afterwards so the working copy carries the same bit the index carries,
  * which is what a healthy worktree looks like after a fresh checkout.
  */
-const addExecutableHook = (root: string, hookName: string, body: string): string => {
+const addExecutableHook = (
+	root: string,
+	hookName: string,
+	body: string,
+): string => {
 	const path = join(root, '.husky', hookName);
 	writeFileSync(path, body);
 	git(root, ['add', '.husky']);

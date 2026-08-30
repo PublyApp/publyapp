@@ -63,10 +63,7 @@ export type HookVerification =
  * stdout. Throws on non-zero exit — the caller is responsible for catching
  * and reporting the cause.
  */
-export const runGit = (
-	cwd: string,
-	args: string[],
-): string =>
+export const runGit = (cwd: string, args: string[]): string =>
 	execFileSync('git', [...args], {
 		cwd,
 		encoding: 'utf-8',
@@ -137,10 +134,7 @@ const readIndexMode = (cwd: string, relativePath: string): string | null => {
  * `{ ok: false, reason, hook, repair }` with a user-readable cause and the
  * exact command to repair — never a generic "hooks not active" message.
  */
-export const verifyHook = (
-	cwd: string,
-	hook: HookName,
-): HookVerification => {
+export const verifyHook = (cwd: string, hook: HookName): HookVerification => {
 	const hookPath = join(cwd, HOOKS_DIR, hook);
 	const relativePath = `${HOOKS_DIR}/${hook}`;
 
@@ -281,7 +275,9 @@ const isMainModule = (): boolean => {
 		}
 		// Resolve relative to this file's URL — works under Node 24's bare ESM.
 		const modulePath = new URL(import.meta.url).pathname;
-		return modulePath === entry || modulePath === entry.replace(/\.ts$/, '.mts');
+		return (
+			modulePath === entry || modulePath === entry.replace(/\.ts$/, '.mts')
+		);
 	} catch {
 		return false;
 	}
@@ -318,9 +314,7 @@ if (isMainModule()) {
 
 	if (failures.length > 0) {
 		const report = formatVerificationReport(failures);
-		fail(
-			`hook file(s) are not executable in this worktree:\n${report}`,
-		);
+		fail(`hook file(s) are not executable in this worktree:\n${report}`);
 	}
 
 	const resolved = runGit(topLevel, ['config', '--get', 'core.hooksPath']);
