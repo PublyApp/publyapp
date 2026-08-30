@@ -27,7 +27,7 @@
  */
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { cleanup, render } from '@testing-library/react';
-import type { ComponentType } from 'react';
+import type { ComponentType, ReactNode } from 'react';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import type { TestLabelMap } from '~/lib/testing/test-label-map';
 
@@ -49,9 +49,13 @@ vi.mock('@tanstack/react-router', () => ({
 		...options,
 		options,
 	}),
-	Link: ({ children, className, ..._props }: Record<string, unknown>) => (
-		<span className={className as string | undefined}>{children}</span>
-	),
+	Link: ({
+		children,
+		className,
+	}: {
+		children?: ReactNode;
+		className?: string;
+	}) => <span className={className}>{children}</span>,
 }));
 
 vi.mock('~/lib/query/tenants-for-picker', async () => {
