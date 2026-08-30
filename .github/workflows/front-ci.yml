@@ -263,6 +263,20 @@ jobs:
       - name: Check front column-type imports (#1769)
         run: pnpm --filter front check:column-type-imports
 
+      # #1822: real-artifact guard — `srvx/static` renamed its `serveStatic`
+      # named export to `staticMiddleware` in 0.12.7. The pre-#1628 import
+      # `import { serveStatic } from 'srvx/static'` would throw at module
+      # load and crash the front server at startup, surfacing as the
+      # publish-now e2e timing out on a `toBeVisible` (Traefik 502 over the
+      # down upstream). This guard parses server.mjs with ts-morph, loads
+      # the real installed srvx/static, and asserts every imported name
+      # resolves — without it, a future rename would re-open the same shape
+      # behind the next dependabot srvx bump (#1628 and #1655 each surfaced
+      # it). The unit test lives under apps/front/scripts/guards/ and runs
+      # in the "Test front" step above as test:server-static-imports-guard.
+      - name: Check front srvx/static import shape (#1822)
+        run: pnpm --filter front check:server-static-imports
+
       # #1234: built-artifact guard — asserts on the dist emitted by the
       # "Build front" step above that the React Compiler actually ran (its
       # runtime chunk is present and the compiled-module count is at or

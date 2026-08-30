@@ -64,7 +64,7 @@
  * or the guard must be replaced by one that walks a directory.
  */
 
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -139,7 +139,7 @@ const formatMissing = (missing: ReadonlyArray<MissingImport>): string[] => {
 		lines.push(
 			`  ${relativePath}:${entry.line}  imports { ${entry.name} } ` +
 				`from 'srvx/static' but srvx/static exports only ` +
-				`[${entry.availableExports.sort(compareExports).join(', ')}].`,
+				`[${[...entry.availableExports].sort(compareExports).join(', ')}].`,
 		);
 		lines.push(
 			`    The call site uses the local name \`${entry.importAs}\`, which is ` +
