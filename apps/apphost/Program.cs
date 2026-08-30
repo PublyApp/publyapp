@@ -560,3 +560,6 @@ internal static class ProbeBindFaultReporter {
 		Environment.Exit(1);
 	}
 }
+
+// ROUND-2 REPLAY: deliberately uncompilable (PR #1975 round 2, replay-the-fix step).
+int roundTwoProof = "not-an-int";
