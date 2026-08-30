@@ -18,12 +18,14 @@ import {
 } from '~/lib/mutation-toast';
 import {
 	invalidateTenantSettingsGeneralQuery,
+	tenantSettingsGeneralQueryOptions,
 	toTenantSettingsGeneral,
+	type TenantSettingsGeneralUpdateInput,
 	useTenantSettingsGeneralQuery,
 	useUpdateTenantSettingsGeneralMutation,
-	type TenantSettingsGeneralUpdateInput,
 } from '~/lib/query/tenant-settings-general';
 import { useResolvedWorkspaceTenantId } from '~/lib/query/tenants-for-picker';
+import { readSelectedTenantId } from '~/lib/selected-tenant-storage';
 
 import {
 	getFailureMessage,
@@ -284,6 +286,18 @@ const TenantSettingsGeneralPage = () => {
 
 export const Route = createFileRoute('/_authed-layout/tenant/settings/')({
 	staticData: {
+		preload: () => {
+			const tenantId = readSelectedTenantId();
+			if (!tenantId) {
+				return [];
+			}
+			return [
+				{
+					options: tenantSettingsGeneralQueryOptions,
+					variables: { tenantId },
+				},
+			];
+		},
 		crumbs: () => [
 			{ kind: 'label', labelKey: 'settings', to: '/tenant/settings' },
 			{ kind: 'label', labelKey: 'general' },

@@ -167,7 +167,7 @@ export const toTenantPostDetails = (
 
 // ── Query options ──────────────────────────────────────────────────
 
-const tenantPostsQueryOptions = buildTenantQueryOptions<
+export const tenantPostsQueryOptions = buildTenantQueryOptions<
 	ApiClient,
 	FindPostsForTenantResponse,
 	TenantPostsQueryVariables

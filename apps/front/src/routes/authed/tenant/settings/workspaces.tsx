@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '~/components/ui/card';
 import { StateSurface } from '~/components/ui/state-surface';
 import {
 	resolveWorkspaceTenant,
+	tenantsForPickerQueryOptions,
 	useTenantsForPickerQuery,
 } from '~/lib/query/tenants-for-picker';
 import { readSelectedTenantId } from '~/lib/selected-tenant-storage';
@@ -116,6 +117,12 @@ export const Route = createFileRoute(
 	'/_authed-layout/tenant/settings/workspaces',
 )({
 	staticData: {
+		preload: () => [
+			{
+				options: tenantsForPickerQueryOptions,
+				variables: {},
+			},
+		],
 		crumbs: () => [
 			{ kind: 'label', labelKey: 'settings', to: '/tenant/settings' },
 			{ kind: 'label', labelKey: 'workspaces' },

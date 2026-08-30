@@ -18,16 +18,19 @@ import {
 	useTenantPostDetailsQuery,
 	savePost,
 	invalidateTenantPosts,
-	toTenantPostDetails,
+	tenantPostDetailsQueryOptions,
 	tenantPostCrumbQuery,
 	selectTenantPostCrumbName,
+	toTenantPostDetails,
 	useDeleteTenantPostMutation,
 } from '~/lib/query/tenant-posts';
 import {
-	useTenantProjectsQuery,
+	tenantProjectsQueryOptions,
 	toTenantProjectItems,
+	useTenantProjectsQuery,
 } from '~/lib/query/tenant-projects';
 import { useResolvedWorkspaceTenantId } from '~/lib/query/tenants-for-picker';
+import { readSelectedTenantId } from '~/lib/selected-tenant-storage';
 
 import { toApiFailure } from '@org/shared-ts/lib/api-failure/to-api-failure';
 import { getFailureMessage } from '@org/shared-ts/lib/api-failure/to-api-failure';
@@ -335,6 +338,22 @@ export const Route = createFileRoute(
 	'/_authed-layout/tenant/posts/$postId/edit',
 )({
 	staticData: {
+		preload: ({ params }) => {
+			const tenantId = readSelectedTenantId();
+			if (!tenantId) {
+				return [];
+			}
+			return [
+				{
+					options: tenantPostDetailsQueryOptions,
+					variables: { postId: params.postId, tenantId },
+				},
+				{
+					options: tenantProjectsQueryOptions,
+					variables: { tenantId },
+				},
+			];
+		},
 		crumbs: () => [
 			{ kind: 'label', labelKey: 'posts', to: '/tenant/posts' },
 			{ kind: 'label', labelKey: 'drafts', to: '/tenant/posts/drafts' },

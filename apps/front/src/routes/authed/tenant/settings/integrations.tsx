@@ -19,19 +19,23 @@ import { StateSurface } from '~/components/ui/state-surface';
 import { formatDateTime } from '~/lib/format-date-time';
 import { useCanManageSocialAccounts } from '~/lib/permissions/use-has-tenant-permission';
 import {
+	needsReconnectAccountsQueryOptions,
 	toNeedsReconnectAccounts,
 	useNeedsReconnectAccountsQuery,
 } from '~/lib/query/needs-reconnect-accounts';
 import {
+	socialAccountsQueryOptions,
 	toSocialAccountRows,
-	useSocialAccountsQuery,
 	type SocialAccountRow,
+	useSocialAccountsQuery,
 } from '~/lib/query/social-accounts';
 import {
+	tenantProjectsQueryOptions,
 	toTenantProjectItems,
 	useTenantProjectsQuery,
 } from '~/lib/query/tenant-projects';
 import { useResolvedWorkspaceTenantId } from '~/lib/query/tenants-for-picker';
+import { readSelectedTenantId } from '~/lib/selected-tenant-storage';
 
 import { WorkspacePageHeader, ReadOnlyBadge } from '../_workspace-page-parts';
 import { BlueskyConnectDrawer } from './_bluesky-connect-drawer';
@@ -375,6 +379,26 @@ export const Route = createFileRoute(
 	'/_authed-layout/tenant/settings/integrations',
 )({
 	staticData: {
+		preload: () => {
+			const tenantId = readSelectedTenantId();
+			if (!tenantId) {
+				return [];
+			}
+			return [
+				{
+					options: socialAccountsQueryOptions,
+					variables: { tenantId },
+				},
+				{
+					options: tenantProjectsQueryOptions,
+					variables: { tenantId },
+				},
+				{
+					options: needsReconnectAccountsQueryOptions,
+					variables: { tenantId },
+				},
+			];
+		},
 		crumbs: () => [
 			{ kind: 'label', labelKey: 'settings', to: '/tenant/settings' },
 			{ kind: 'label', labelKey: 'integrations' },

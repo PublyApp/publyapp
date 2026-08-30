@@ -10,7 +10,10 @@ import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
 import QueryDisplay from '~/components/query-display';
 import { SimpleLayout } from '~/layouts/simple-layout';
 import { useSelectedTenantId } from '~/lib/hooks/use-selected-tenant-id';
-import { useTenantsForPickerQuery } from '~/lib/query/tenants-for-picker';
+import {
+	tenantsForPickerQueryOptions,
+	useTenantsForPickerQuery,
+} from '~/lib/query/tenants-for-picker';
 import {
 	resolveWorkspaceTenant,
 	type TenantsForPickerData,
@@ -235,6 +238,14 @@ export const Route = createFileRoute('/_authed-layout/tenant')({
 	// `/staff` -> `/staff/staff-users`. Every `/tenant/*` CHILD path renders
 	// inside the AppShell; an unresolved child redirects back to `/tenant`
 	// so the bare picker stays the single unresolved surface.
-	staticData: { crumbs: () => [] },
+	staticData: {
+		preload: () => [
+			{
+				options: tenantsForPickerQueryOptions,
+				variables: {},
+			},
+		],
+		crumbs: () => [],
+	},
 	component: TenantPortalRoute,
 });

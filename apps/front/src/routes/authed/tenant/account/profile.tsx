@@ -23,13 +23,15 @@ import {
 	toastLocalMutationResult,
 } from '~/lib/mutation-toast';
 import {
+	invalidateAccountProfileQuery,
+	tenantAccountProfileQueryOptions,
 	toAccountProfile,
+	type AccountProfileUpdateInput,
 	useAccountProfileQuery,
 	useUpdateAccountProfileMutation,
-	invalidateAccountProfileQuery,
-	type AccountProfileUpdateInput,
 } from '~/lib/query/tenant-account-profile';
 import { useResolvedWorkspaceTenantId } from '~/lib/query/tenants-for-picker';
+import { readSelectedTenantId } from '~/lib/selected-tenant-storage';
 
 import {
 	getFailureMessage,
@@ -315,6 +317,18 @@ const AccountProfilePage = () => {
 
 export const Route = createFileRoute('/_authed-layout/tenant/account/')({
 	staticData: {
+		preload: () => {
+			const tenantId = readSelectedTenantId();
+			if (!tenantId) {
+				return [];
+			}
+			return [
+				{
+					options: tenantAccountProfileQueryOptions,
+					variables: { tenantId },
+				},
+			];
+		},
 		crumbs: () => [
 			{ kind: 'label', labelKey: 'account-settings', to: '/tenant/account' },
 			{ kind: 'label', labelKey: 'profile' },

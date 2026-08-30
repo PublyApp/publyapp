@@ -7,10 +7,12 @@ import {
 	toRootRelativeApiFileUrl,
 } from '~/lib/api-client/resolve-api-file-url';
 
+import type { ApiClient } from '@org/client-ts/apiClient';
 import type {
 	AccountProfileResult,
 	UpdateAccountProfileBody,
 } from '@org/client-ts/models/index';
+import { buildTenantQueryOptions } from '@org/shared-ts/lib/query/create-hooks';
 import { getUserFullName } from '@org/shared-ts/utils/user.utils';
 
 export type TenantAccountProfile = {
@@ -31,6 +33,30 @@ export type AccountProfileUpdateInput = {
 
 /** @internal Unscoped — the tenant id is appended by the hooks below. */
 const ACCOUNT_PROFILE_QUERY_KEY = ['account-profile'] as const;
+
+/**
+ * The signed-in user's tenant-scoped profile. One factory, consumed by the
+ * page hook AND the route preload (single shared fetch path, #487 §1.2).
+ */
+export const tenantAccountProfileQueryOptions = buildTenantQueryOptions<
+	ApiClient,
+	AccountProfileResult,
+	{ tenantId: string }
+>(
+	{
+		queryKeyFn: () => [...ACCOUNT_PROFILE_QUERY_KEY],
+		fetcher: async (client) => {
+			const result = await client.account.profile.get();
+
+			if (!result) {
+				throw new Error('tenant account profile result was empty');
+			}
+
+			return result;
+		},
+	},
+	{ clientAccessor: getClientManager() },
+);
 
 const normalizeString = (value: string | null | undefined): string | null => {
 	if (typeof value !== 'string') {
@@ -63,19 +89,6 @@ export const toAccountProfile = (
 		avatarUrl: normalizeNullableFileUrl(result?.avatarUrl),
 		displayName: getUserFullName({ firstName, lastName }) || null,
 	};
-};
-
-const fetchAccountProfile = async (
-	tenantId: string,
-): Promise<AccountProfileResult> => {
-	const client = getClientManager().getOrCreateClient(tenantId);
-	const result = await client.account.profile.get();
-
-	if (!result) {
-		throw new Error('tenant account profile result was empty');
-	}
-
-	return result;
 };
 
 const updateAccountProfile = async (
@@ -144,14 +157,11 @@ export const buildUpdateAccountProfileBody = (
  */
 export const useAccountProfileQuery = (tenantId: string | null) =>
 	useQuery({
-		queryKey: ['tenant', ...ACCOUNT_PROFILE_QUERY_KEY, tenantId],
-		queryFn: () => {
-			if (!tenantId) {
-				throw new Error('tenantId is required for account profile query');
-			}
-
-			return fetchAccountProfile(tenantId);
-		},
+		queryKey: tenantAccountProfileQueryOptions.queryKey({
+			tenantId: tenantId ?? '',
+		}),
+		queryFn: () =>
+			tenantAccountProfileQueryOptions.fetcher({ tenantId: tenantId ?? '' }),
 		enabled: tenantId !== null,
 	});
 

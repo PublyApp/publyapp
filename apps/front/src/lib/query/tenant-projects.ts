@@ -46,7 +46,7 @@ export const toTenantProjectItems = (
 	return items;
 };
 
-const tenantProjectsQueryOptions = buildTenantQueryOptions<
+export const tenantProjectsQueryOptions = buildTenantQueryOptions<
 	ApiClient,
 	FindProjectsForTenantResponse,
 	{ tenantId: string }

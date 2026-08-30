@@ -7,10 +7,12 @@ import {
 	toRootRelativeApiFileUrl,
 } from '~/lib/api-client/resolve-api-file-url';
 
+import type { ApiClient } from '@org/client-ts/apiClient';
 import type {
 	TenantSettingsGeneralResult,
 	UpdateTenantSettingsGeneralBody,
 } from '@org/client-ts/models/index';
+import { buildTenantQueryOptions } from '@org/shared-ts/lib/query/create-hooks';
 
 export type TenantSettingsGeneral = {
 	id: string;
@@ -41,6 +43,30 @@ export type TenantSettingsGeneralUpdateInput = {
 
 /** @internal Unscoped — the tenant id is appended by the hooks below. */
 const TENANT_SETTINGS_GENERAL_QUERY_KEY = ['tenant-settings-general'] as const;
+
+/**
+ * The tenant's general settings. One factory, consumed by the page hook AND
+ * the route preload (single shared fetch path, #487 §1.2).
+ */
+export const tenantSettingsGeneralQueryOptions = buildTenantQueryOptions<
+	ApiClient,
+	TenantSettingsGeneralResult,
+	{ tenantId: string }
+>(
+	{
+		queryKeyFn: () => [...TENANT_SETTINGS_GENERAL_QUERY_KEY],
+		fetcher: async (client) => {
+			const result = await client.settings.general.get();
+
+			if (!result) {
+				throw new Error('tenant settings general result was empty');
+			}
+
+			return result;
+		},
+	},
+	{ clientAccessor: getClientManager() },
+);
 
 const normalizeString = (value: string | null | undefined): string | null => {
 	if (typeof value !== 'string') {
@@ -75,19 +101,6 @@ export const toTenantSettingsGeneral = (
 		defaultLocale: normalizeString(result?.defaultLocale),
 		timezone: normalizeString(result?.timezone),
 	};
-};
-
-const fetchTenantSettingsGeneral = async (
-	tenantId: string,
-): Promise<TenantSettingsGeneralResult> => {
-	const client = getClientManager().getOrCreateClient(tenantId);
-	const result = await client.settings.general.get();
-
-	if (!result) {
-		throw new Error('tenant settings general result was empty');
-	}
-
-	return result;
 };
 
 const updateTenantSettingsGeneral = async (
@@ -173,16 +186,13 @@ export const buildUpdateTenantSettingsGeneralBody = (
  */
 export const useTenantSettingsGeneralQuery = (tenantId: string | null) =>
 	useQuery({
-		queryKey: ['tenant', ...TENANT_SETTINGS_GENERAL_QUERY_KEY, tenantId],
-		queryFn: () => {
-			if (!tenantId) {
-				throw new Error(
-					'tenantId is required for tenant settings general query',
-				);
-			}
-
-			return fetchTenantSettingsGeneral(tenantId);
-		},
+		queryKey: tenantSettingsGeneralQueryOptions.queryKey({
+			tenantId: tenantId ?? '',
+		}),
+		queryFn: () =>
+			tenantSettingsGeneralQueryOptions.fetcher({
+				tenantId: tenantId ?? '',
+			}),
 		enabled: tenantId !== null,
 	});
 

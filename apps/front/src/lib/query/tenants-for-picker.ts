@@ -138,13 +138,25 @@ export const toTenantsForPickerData = (
 	};
 };
 
+/**
+ * The signed-in user's tenant picker list. One factory, consumed by the page
+ * hook AND the tenant-portal route preloads (#487 §1.2). The key stays
+ * UNSCOPED (the tenant id rides the client's tenant header) —
+ * `buildTenantQueryOptions` would prefix `['tenant', …]` and desync the key
+ * from the picker invalidation targeting `TENANTS_FOR_PICKER_QUERY_KEY`.
+ */
+export const tenantsForPickerQueryOptions = {
+	queryKey: () => [...TENANTS_FOR_PICKER_QUERY_KEY],
+	fetcher: async (): Promise<TenantsForPickerData> => {
+		const client = getClientManager().getOrCreateTenantScopeClient();
+		const result = await client.auth.tenantsForPicker.get();
+		return toTenantsForPickerData(result);
+	},
+};
+
 export const useTenantsForPickerQuery = (options: { enabled?: boolean } = {}) =>
 	useQuery({
-		queryKey: [...TENANTS_FOR_PICKER_QUERY_KEY],
-		queryFn: async () => {
-			const client = getClientManager().getOrCreateTenantScopeClient();
-			const result = await client.auth.tenantsForPicker.get();
-			return toTenantsForPickerData(result);
-		},
+		queryKey: tenantsForPickerQueryOptions.queryKey(),
+		queryFn: () => tenantsForPickerQueryOptions.fetcher(),
 		enabled: options.enabled,
 	});

@@ -12,11 +12,14 @@ import { formatDateTime } from '~/lib/format-date-time';
 import {
 	invalidateTenantPublications,
 	isTenantPublicationStatus,
+	tenantPublicationsQueryOptions,
 	toTenantPublicationRows,
-	useTenantPublicationsQuery,
 	type TenantPublicationRow,
 	type TenantPublicationStatus,
+	useTenantPublicationsQuery,
 } from '~/lib/query/tenant-publications';
+import { useResolvedWorkspaceTenantId } from '~/lib/query/tenants-for-picker';
+import { readSelectedTenantId } from '~/lib/selected-tenant-storage';
 import type { TableSearchParamInput } from '~/lib/url-state/table-search-params';
 
 import { shouldLogoutForFailure } from '@org/shared-ts/lib/should-logout-for-failure';
@@ -258,6 +261,22 @@ const TenantPostsHistoryPage = () => {
 
 export const Route = createFileRoute('/_authed-layout/tenant/posts/history')({
 	staticData: {
+		preload: () => {
+			const tenantId = readSelectedTenantId();
+			if (!tenantId) {
+				return [];
+			}
+			return [
+				{
+					options: tenantPublicationsQueryOptions,
+					variables: {
+						tenantId,
+						statuses: undefined,
+						limit: 20,
+					},
+				},
+			];
+		},
 		crumbs: () => [
 			{ kind: 'label', labelKey: 'posts', to: '/tenant/posts' },
 			{ kind: 'label', labelKey: 'history' },

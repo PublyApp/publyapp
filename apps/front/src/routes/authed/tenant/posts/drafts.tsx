@@ -14,11 +14,14 @@ import { PageHeader } from '~/components/ui/product-page';
 import { formatDateTime } from '~/lib/format-date-time';
 import {
 	invalidateTenantPosts,
-	useDeleteTenantPostMutation,
-	useTenantPostsQuery,
+	tenantPostsQueryOptions,
 	toTenantPostRows,
 	type TenantPostRow,
+	useDeleteTenantPostMutation,
+	useTenantPostsQuery,
 } from '~/lib/query/tenant-posts';
+import { useResolvedWorkspaceTenantId } from '~/lib/query/tenants-for-picker';
+import { readSelectedTenantId } from '~/lib/selected-tenant-storage';
 import type { TableSearchParamInput } from '~/lib/url-state/table-search-params';
 
 import { shouldLogoutForFailure } from '@org/shared-ts/lib/should-logout-for-failure';
@@ -206,6 +209,24 @@ const TenantPostsDraftsPage = () => {
 
 export const Route = createFileRoute('/_authed-layout/tenant/posts/drafts')({
 	staticData: {
+		preload: () => {
+			const tenantId = readSelectedTenantId();
+			if (!tenantId) {
+				return [];
+			}
+			return [
+				{
+					options: tenantPostsQueryOptions,
+					variables: {
+						tenantId,
+						q: '',
+						sortId: 'updated_at',
+						sortOrder: 'desc',
+						size: 20,
+					},
+				},
+			];
+		},
 		crumbs: () => [
 			{ kind: 'label', labelKey: 'posts', to: '/tenant/posts' },
 			{ kind: 'label', labelKey: 'drafts' },

@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '~/components/ui/card';
 import { StateSurface } from '~/components/ui/state-surface';
 import {
 	resolveWorkspaceTenant,
+	tenantsForPickerQueryOptions,
 	useTenantsForPickerQuery,
 	type TenantsForPickerData,
 } from '~/lib/query/tenants-for-picker';
@@ -162,6 +163,12 @@ const TenantOrganizationsPage = () => {
 
 export const Route = createFileRoute('/_authed-layout/tenant/organizations')({
 	staticData: {
+		preload: () => [
+			{
+				options: tenantsForPickerQueryOptions,
+				variables: {},
+			},
+		],
 		crumbs: () => [{ kind: 'label', labelKey: 'organizations' }],
 		i18nNamespaces: ['organizations'],
 	},
