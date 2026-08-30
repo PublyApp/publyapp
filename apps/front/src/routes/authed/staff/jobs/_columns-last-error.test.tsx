@@ -35,8 +35,16 @@ const translations = {
 	'common:no-value': '—',
 } as const satisfies Record<string, string>;
 
-const t = (key: string): string =>
-	key in translations ? translations[key as keyof typeof translations] : key;
+// Track calls so mutations that hardcode a string (bypassing t()) are caught.
+const tCalls: string[] = [];
+const t = (key: string): string => {
+	tCalls.push(key);
+	if (key in translations) {
+		return translations[key as keyof typeof translations];
+	}
+
+	return key;
+};
 
 const buildRow = (
 	overrides: Partial<StaffDeadLetterRow> = {},
@@ -71,6 +79,7 @@ const renderCell = (row: StaffDeadLetterRow) => {
 
 afterEach(() => {
 	cleanup();
+	tCalls.length = 0;
 });
 
 describe('dead-letter last_error column on the row (brief #1720)', () => {
@@ -95,6 +104,7 @@ describe('dead-letter last_error column on the row (brief #1720)', () => {
 	});
 
 	test('a row without a cause shows the designated marker, distinct from an empty cause', () => {
+		tCalls.length = 0;
 		renderCell(buildRow({ lastError: null }));
 
 		const cell = screen.getByTestId('cell-last-error-dl-1');
@@ -102,23 +112,29 @@ describe('dead-letter last_error column on the row (brief #1720)', () => {
 		expect(cell.textContent).toBe('No cause recorded');
 		// It must NOT render as the dash (no-value) used for genuinely-empty fields.
 		expect(cell.textContent).not.toBe('—');
+		// t() must have been called with the key, not bypassed by a hardcoded literal
+		expect(tCalls).toContain('common:no-cause');
 	});
 
 	test('ronde 2: an empty-string cause shows the marker, not a blank cell', () => {
 		// RED before fix: the old `??` form let '' through, rendering a blank cell.
+		tCalls.length = 0;
 		renderCell(buildRow({ lastError: '' }));
 
 		const cell = screen.getByTestId('cell-last-error-dl-1');
 		expect(cell.textContent).toBe('No cause recorded');
 		expect(cell.textContent).not.toBe('');
+		expect(tCalls).toContain('common:no-cause');
 	});
 
 	test('ronde 2: a whitespace-only cause shows the marker, not a blank cell', () => {
 		// RED before fix: the old `??` form let '   ' through, rendering a blank cell.
+		tCalls.length = 0;
 		renderCell(buildRow({ lastError: '   ' }));
 
 		const cell = screen.getByTestId('cell-last-error-dl-1');
 		expect(cell.textContent).toBe('No cause recorded');
+		expect(tCalls).toContain('common:no-cause');
 	});
 
 	test('ronde 2: the title attribute is absent when the cause is absent', () => {
