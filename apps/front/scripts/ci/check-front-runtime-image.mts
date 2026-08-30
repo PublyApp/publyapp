@@ -115,9 +115,7 @@ const delay = (ms: number): Promise<void> =>
  * the command is missing or otherwise not executable. A non-zero exit
  * is reported via `status` so callers can branch on it without try/catch.
  */
-const docker = (
-	args: ReadonlyArray<string>,
-): DockerResult => {
+const docker = (args: ReadonlyArray<string>): DockerResult => {
 	const result = spawnSync('docker', [...args], {
 		encoding: 'utf8',
 		maxBuffer: 50 * 1024 * 1024,
@@ -149,9 +147,7 @@ const docker = (
  * unexpectedly" so the cause stays in plain words either way — never a
  * bare exit code, never a stripped status.
  */
-export const explainNodeCrash = (
-	logs: string,
-): NodeCrashExplanation => {
+export const explainNodeCrash = (logs: string): NodeCrashExplanation => {
 	const missingModuleMatch = logs.match(
 		/Error \[ERR_MODULE_NOT_FOUND\]: Cannot find module '([^']+)' imported from ([^\s]+)/,
 	);
@@ -218,7 +214,12 @@ const probeUntilAnswering = async (
 		// `--rm` removes the container on exit, so a vanished container is
 		// also "exited" — we cannot inspect what is no longer there, so we
 		// fall back to a final log read.
-		const inspect = docker(['inspect', '--format', '{{.State.Status}}', CONTAINER_NAME]);
+		const inspect = docker([
+			'inspect',
+			'--format',
+			'{{.State.Status}}',
+			CONTAINER_NAME,
+		]);
 		if (inspect.status === 0) {
 			const containerStatus = inspect.stdout.trim();
 			if (containerStatus === 'exited' || containerStatus === 'dead') {
@@ -289,22 +290,34 @@ const main = async (): Promise<void> => {
 	// `--pull never` so a missing local tag fails fast with a clear
 	// "image not found locally" message instead of trying to pull from
 	// a (possibly unauthenticated) registry.
-	const portResult = docker(['run', '-d', '--pull', 'never', '--name', CONTAINER_NAME,
-		'-p', '0:5050',
-		'-e', `PORT=${RUN_ENV.PORT}`,
-		'-e', `NODE_ENV=${RUN_ENV.NODE_ENV}`,
-		'-e', `PUBLIC_ORIGIN=${RUN_ENV.PUBLIC_ORIGIN}`,
-		'-e', `PUBLIC_API_BASE_URL=${RUN_ENV.PUBLIC_API_BASE_URL}`,
-		'-e', `SERVER_API_BASE_URL=${RUN_ENV.SERVER_API_BASE_URL}`,
-		'-e', `TRUSTED_PROXY_CIDRS=${RUN_ENV.TRUSTED_PROXY_CIDRS}`,
+	const portResult = docker([
+		'run',
+		'-d',
+		'--pull',
+		'never',
+		'--name',
+		CONTAINER_NAME,
+		'-p',
+		'0:5050',
+		'-e',
+		`PORT=${RUN_ENV.PORT}`,
+		'-e',
+		`NODE_ENV=${RUN_ENV.NODE_ENV}`,
+		'-e',
+		`PUBLIC_ORIGIN=${RUN_ENV.PUBLIC_ORIGIN}`,
+		'-e',
+		`PUBLIC_API_BASE_URL=${RUN_ENV.PUBLIC_API_BASE_URL}`,
+		'-e',
+		`SERVER_API_BASE_URL=${RUN_ENV.SERVER_API_BASE_URL}`,
+		'-e',
+		`TRUSTED_PROXY_CIDRS=${RUN_ENV.TRUSTED_PROXY_CIDRS}`,
 		image,
 	]);
 
 	if (portResult.status !== 0) {
-		await fail(
-			`docker run failed for image ${image}`,
-			[portResult.stderr.trim()],
-		);
+		await fail(`docker run failed for image ${image}`, [
+			portResult.stderr.trim(),
+		]);
 	}
 
 	// A Node.js crash at startup happens BEFORE Docker publishes the
@@ -360,7 +373,9 @@ const main = async (): Promise<void> => {
  * `docker port <name> 5050/tcp` prints `0.0.0.0:NNNN`. Returns NNNN, or
  * null on failure.
  */
-const resolveHostPort = async (containerName: string): Promise<number | null> => {
+const resolveHostPort = async (
+	containerName: string,
+): Promise<number | null> => {
 	// The container may take a beat to register the port mapping. A short
 	// retry avoids racing the publish call on slow CI runners.
 	for (let attempt = 1; attempt <= 10; attempt += 1) {
@@ -414,7 +429,9 @@ const isMainModule = (): boolean => {
 		return false;
 	}
 	try {
-		return new URL(import.meta.url).pathname === new URL(`file://${entry}`).pathname;
+		return (
+			new URL(import.meta.url).pathname === new URL(`file://${entry}`).pathname
+		);
 	} catch {
 		return false;
 	}
@@ -428,7 +445,8 @@ if (isMainModule()) {
 		// host shells; surface them with the real message and stack so the
 		// guard never reports "undefined" as its own failure.
 		const message = error instanceof Error ? error.message : String(error);
-		const stack = error instanceof Error && error.stack !== undefined ? error.stack : '';
+		const stack =
+			error instanceof Error && error.stack !== undefined ? error.stack : '';
 		console.error(`[front-runtime-image] uncaught: ${message}`);
 		if (stack !== '') {
 			console.error(stack);
