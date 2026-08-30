@@ -77,7 +77,7 @@ const HANDLER_ACCESS_PATTERN =
  * and the runner classifies it as a corrupted proof (CI red) — failing
  * loud rather than letting the evasion pass.
  */
-export function findHandlerLine(lines: string[]): number {
+export const findHandlerLine = (lines: string[]): number => {
 	const index = lines.findIndex((line) => HANDLER_ACCESS_PATTERN.test(line));
 	if (index === -1) {
 		throw new Error(
@@ -87,7 +87,7 @@ export function findHandlerLine(lines: string[]): number {
 		);
 	}
 	return index;
-}
+};
 
 /**
  * Check whether the handler line is a DIRECT `process.on(...)` call.
@@ -112,9 +112,9 @@ export function findHandlerLine(lines: string[]): number {
  * novel deferral mechanisms; a structural check catches ALL deferrals,
  * including bracket notation and future ones.
  */
-export function isHandlerDeferred(line: string): boolean {
+export const isHandlerDeferred = (line: string): boolean => {
 	return !line.trim().startsWith('process.on(');
-}
+};
 
 // Self-test: pin the detection contract at module load. See proof for
 // rationale. An adversary who weakens isHandlerDeferred or
@@ -127,7 +127,7 @@ export function isHandlerDeferred(line: string): boolean {
 // the proof's own Step 3b / 4 / 4b sanity checks, lifted into the
 // shared module so a regression is caught at IMPORT time, before
 // any test in the proof runs.
-function validateDetectionContract(): void {
+const validateDetectionContract = (): void => {
 	// isHandlerDeferred: dot-notation is direct, every other form is
 	// deferred. The four cases below pin the contract.
 	const directDot = `process.on('SIGINT', () => {});`;
@@ -193,7 +193,7 @@ function validateDetectionContract(): void {
 				`The detection mechanism has regressed, and the proof cannot measure.`,
 		);
 	}
-}
+};
 
 // Module-load invocation: the import below is the r8 fix. An
 // adversary who weakens isHandlerDeferred or findHandlerLine will

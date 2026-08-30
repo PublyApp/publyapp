@@ -32,7 +32,7 @@
  * into the local diff) and this test goes RED — the child exits 0 with the
  * CI no-op message instead of failing loud.
  */
-import { spawnSync } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
 import { describe, expect, test } from 'vitest';
@@ -41,12 +41,22 @@ import { describe, expect, test } from 'vitest';
 // relative to process.cwd()).
 const FRONT_ROOT = fileURLToPath(new URL('../../', import.meta.url));
 
-// Arrow function per the lane's coding rule (arrow everywhere except class
-// methods, #1806 ronde 10).
-const runScript = (setBaseRef: boolean, setHeadRef: boolean) => {
+interface LocalRunCapture {
+	stdout: string;
+	stderr: string;
+}
+
+const freshEnv = () => {
 	const env: NodeJS.ProcessEnv = { ...process.env };
 	delete env.GITHUB_BASE_REF;
 	delete env.GITHUB_HEAD_REF;
+	return env;
+};
+
+// Arrow function per the lane's coding rule (arrow everywhere except class
+// methods, #1806 ronde 10).
+const runScript = (setBaseRef: boolean, setHeadRef: boolean) => {
+	const env = freshEnv();
 	if (setBaseRef) {
 		env.GITHUB_BASE_REF = 'develop';
 	}
@@ -71,6 +81,81 @@ const runScript = (setBaseRef: boolean, setHeadRef: boolean) => {
 		stderr: result.stderr ?? '',
 	};
 };
+
+/**
+ * Run the script in local mode and capture its output WITHOUT waiting for the
+ * process to finish. The local branch can REPLAY declared proofs when
+ * HEAD~1..HEAD spans a develop merge (whose parent delta touches
+ * tests/proofs/) — that replay can take minutes and must not gate this test.
+ * We stop as soon as both signals are visible: the stderr announcement
+ * (printed before the diff, unconditionally) and one of the two local stdout
+ * branches (no-proofs message or the replay banner).
+ */
+const captureLocalRun = (): Promise<LocalRunCapture> =>
+	new Promise<LocalRunCapture>((resolve, reject) => {
+		const child = spawn(process.execPath, ['scripts/ci/run-preuves.mts'], {
+			cwd: FRONT_ROOT,
+			env: freshEnv(),
+			stdio: ['ignore', 'pipe', 'pipe'],
+			detached: true,
+		});
+
+		let stdout = '';
+		let stderr = '';
+		let settled = false;
+
+		const finish = (capture: LocalRunCapture) => {
+			if (settled) {
+				return;
+			}
+			settled = true;
+			// Stop the child and its descendants (the vitest replay, if any)
+			// now that the local-mode signals are captured.
+			try {
+				process.kill(-child.pid!, 'SIGKILL');
+			} catch {
+				// Already gone.
+			}
+			resolve(capture);
+		};
+
+		const timer = setTimeout(() => {
+			finish({ stdout, stderr });
+		}, 20000);
+
+		const maybeFinish = () => {
+			const decisionSeen =
+				stderr.includes('LOCAL RUN') &&
+				(stdout.includes('LOCAL RUN —') || stdout.includes('This PR declared'));
+			if (decisionSeen) {
+				clearTimeout(timer);
+				finish({ stdout, stderr });
+			}
+		};
+
+		child.stdout?.on('data', (chunk: Buffer) => {
+			stdout += chunk.toString('utf-8');
+			maybeFinish();
+		});
+		child.stderr?.on('data', (chunk: Buffer) => {
+			stderr += chunk.toString('utf-8');
+			maybeFinish();
+		});
+		child.on('error', (err) => {
+			clearTimeout(timer);
+			if (!settled) {
+				settled = true;
+				reject(err);
+			}
+		});
+		child.on('exit', () => {
+			clearTimeout(timer);
+			if (!settled) {
+				settled = true;
+				resolve({ stdout, stderr });
+			}
+		});
+	});
 
 describe('declaredProofTests — CI environment handling', () => {
 	test('a half-set CI environment (only GITHUB_BASE_REF) fails loud naming the missing variable', () => {
@@ -97,29 +182,23 @@ describe('declaredProofTests — CI environment handling', () => {
 		expect(result.stderr).toContain('incomplete CI environment');
 	});
 
-	test('a fully local run (neither variable) announces itself and is distinct from the CI no-op', () => {
-		// The sanctioned local path must be LOUD, not silent: it prints a
-		// LOCAL RUN marker to stderr unconditionally (before the diff runs).
-		// What stdout contains depends on the HEAD~1..HEAD diff: on a plain
-		// commit it is the LOCAL RUN no-proof message; on a CI merge-ref
-		// checkout HEAD~1..HEAD spans the whole PR and the run REPLAYS the
-		// declared proofs instead. Both are valid local modes: the stable,
-		// mode-independent guarantees are (a) the stderr announcement and
-		// (b) stdout NEVER carrying the CI no-op sentence.
-		const result = runScript(false, false);
+	test('a fully local run (neither variable) announces itself and is distinct from the CI no-op', async () => {
+		const { stdout, stderr } = await captureLocalRun();
 
-		expect(result.stderr).toContain('LOCAL RUN');
-		if (result.stdout.includes('This PR declared')) {
-			// HEAD~1..HEAD contained proof files: the local run replayed them.
-			expect(result.stdout).not.toContain(
-				'This PR did not declare any paired red proofs',
-			);
-		} else {
-			// No proofs in HEAD~1..HEAD: the local no-proof message is used.
-			expect(result.stdout).toContain('LOCAL RUN');
-			expect(result.stdout).not.toContain(
-				'This PR did not declare any paired red proofs',
-			);
-		}
+		// The stderr announcement is unconditional in local mode: it is
+		// printed BEFORE the diff, regardless of what HEAD~1..HEAD contains.
+		expect(stderr).toContain('LOCAL RUN');
+
+		// stdout must take one of the two local branches and NEVER the CI
+		// no-op sentence:
+		// - no proofs in HEAD~1..HEAD → 'LOCAL RUN — no proof test files...'
+		// - proofs in HEAD~1..HEAD (e.g. the head commit is a develop merge
+		//   whose parent delta spans tests/proofs/) → 'This PR declared ...'
+		const noProofMessage = stdout.includes('LOCAL RUN —');
+		const replayBanner = stdout.includes('This PR declared');
+		expect(noProofMessage || replayBanner).toBe(true);
+		expect(stdout).not.toContain(
+			'This PR did not declare any paired red proofs',
+		);
 	});
 });

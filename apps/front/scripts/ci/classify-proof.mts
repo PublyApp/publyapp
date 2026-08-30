@@ -99,7 +99,7 @@ export interface ClassificationResult {
  *   4. Wrong shape   → "missing numTotalTests/numFailedTests" or
  *                      "missing testResults array"
  */
-export function readProofReport(reportPath: string): ProofReport {
+export const readProofReport = (reportPath: string): ProofReport => {
 	if (!existsSync(reportPath)) {
 		throw new Error(
 			`vitest JSON report not found at ${reportPath} — vitest exited ` +
@@ -227,7 +227,7 @@ export function readProofReport(reportPath: string): ProofReport {
 		numFailedTests: obj.numFailedTests,
 		testResults,
 	};
-}
+};
 
 /**
  * Classify a proof test's failure mode from its vitest JSON report.
@@ -236,10 +236,10 @@ export function readProofReport(reportPath: string): ProofReport {
  * @param exitCode The exit code vitest returned.
  * @returns The classification result with verdict and evidence.
  */
-export function classifyProof(
+export const classifyProof = (
 	report: ProofReport,
 	exitCode: number,
-): ClassificationResult {
+): ClassificationResult => {
 	const ranTests = report.numFailedTests > 0;
 	const noTests = report.numTotalTests === 0;
 
@@ -331,7 +331,7 @@ export function classifyProof(
 		failedTests: report.numFailedTests,
 		totalTests: report.numTotalTests,
 	};
-}
+};
 
 /**
  * Read and validate a `.expected-red.json` per-test expectation manifest
@@ -349,9 +349,9 @@ export function classifyProof(
  *         not a non-empty string. Each error names the cause; no
  *         default-compliant value is ever returned.
  */
-export function readExpectedRedManifest(
+export const readExpectedRedManifest = (
 	manifestPath: string,
-): ExpectedRedManifest {
+): ExpectedRedManifest => {
 	if (!existsSync(manifestPath)) {
 		throw new Error(
 			`expected-red manifest not found at ${manifestPath} — the runner ` +
@@ -429,7 +429,7 @@ export function readExpectedRedManifest(
 	}
 
 	return { expectedRed };
-}
+};
 
 /**
  * Classify a proof test's failure mode using both the global failure
@@ -451,11 +451,11 @@ export function readExpectedRedManifest(
  * @param manifest The validated per-test expectation manifest.
  * @returns The classification result with verdict and evidence.
  */
-export function classifyProofWithManifest(
+export const classifyProofWithManifest = (
 	report: ProofReport,
 	exitCode: number,
 	manifest: ExpectedRedManifest,
-): ClassificationResult {
+): ClassificationResult => {
 	// Step 1: re-apply the r7 global logic so any existing CORRUPT
 	// PROOF / NO_TESTS / UNEXPECTED_PASS conditions are still caught
 	// before we layer the per-test check on top.
@@ -556,7 +556,7 @@ export function classifyProofWithManifest(
 		failedTests: report.numFailedTests,
 		totalTests: report.numTotalTests,
 	};
-}
+};
 
 /**
  * Find an assertion result by its declared testName. The declared name
@@ -567,10 +567,10 @@ export function classifyProofWithManifest(
  * is at the END of fullName, after the describe prefix + a space) so
  * the runner works regardless of where the proof is mounted.
  */
-function findAssertionByTestName(
+const findAssertionByTestName = (
 	report: ProofReport,
 	declaredName: string,
-): { fullName: string; shortName: string; status: string } | undefined {
+): { fullName: string; shortName: string; status: string } | undefined => {
 	const SEPARATOR = ' ';
 	const suffix = SEPARATOR + declaredName;
 	for (const suite of report.testResults) {
@@ -585,4 +585,4 @@ function findAssertionByTestName(
 		}
 	}
 	return undefined;
-}
+};

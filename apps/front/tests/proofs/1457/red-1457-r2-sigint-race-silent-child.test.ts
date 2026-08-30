@@ -278,7 +278,7 @@ const R2_FIXTURE_ARRAY_FOOTER = "].join('\\n'),";
  * silently-fallback script — a proof that fell back to a default could
  * not detect a re-inversion of the two lines.
  */
-function extractR2FixtureLines(): string[] {
+const extractR2FixtureLines = (): string[] => {
 	const source = readFileSync(GUARD_TEST_FILE, 'utf8');
 	const headerIndex = source.indexOf(R2_FIXTURE_ARRAY_HEADER);
 	if (headerIndex === -1) {
@@ -363,13 +363,13 @@ function extractR2FixtureLines(): string[] {
 		);
 	}
 	return lines;
-}
+};
 
 /**
  * Find the index of the handshake-write line in the extracted fixture.
  * Throws if the line is missing.
  */
-function findHandshakeLine(lines: string[]): number {
+const findHandshakeLine = (lines: string[]): number => {
 	const index = lines.findIndex((line) =>
 		line.includes('process.stdout.write(`RUNNER_PID='),
 	);
@@ -380,7 +380,7 @@ function findHandshakeLine(lines: string[]): number {
 		);
 	}
 	return index;
-}
+};
 
 describe('r2 fixture SIGINT race — RED: handler installed AFTER the handshake write (#1457)', () => {
 	test('the r2 fixture writes the handshake BEFORE installing the SIGINT handler, OR the handler is wrapped in an async deferral (the buggy ordering the fix corrected)', () => {
