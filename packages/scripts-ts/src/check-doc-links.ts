@@ -47,6 +47,27 @@ import process from 'node:process';
 // that wrote this comment: PR #1974's CONTRIBUTING.md links to
 // `CLA.md#contributing-on-behalf-of-a-company`, and a mutation that broke
 // only the fragment left every CI gate green.
+//
+// EXPLICIT LIMITATION — SHAPES NOT VERIFIED (#1974 r3)
+// ----------------------------------------------------
+// Round-3 review identified four Markdown link SHAPES this guard could not
+// silently absorb: an inline link with a title attribute (`[t](f "title")`),
+// an angle-bracket link (`[t](<f>)`), a multi-line reference-definition
+// (`[label]: f` plus a title on the next line), and a target containing
+// unescaped parentheses. Per the house rule "the guard's unanalysable input
+// must fail loudly, never be silently skipped", the guard now:
+//
+//   1. Recognises and checks the four shapes correctly (so a broken target
+//      inside any of them turns the guard red naming file:line);
+//   2. Fails closed on a target whose unescaped parenthesis balance does not
+//      match — it is impossible for a regex over a single line to know
+//      where a paren-bearing target ends, so the guard prints a structured
+//      error and exits 1 rather than guessing;
+//   3. Prints the EXPLICIT LIMITATION tag below at the end of every
+//      successful run, naming the shapes that are NOT covered (image links
+//      `[alt](./img.png)`, bare autolinks `<https://...>`, and reference
+//      LABEL USAGE without a defined target — the guard validates the
+//      definition, not the use), so a green run cannot be misread.
 
 const RECORDS_DIR = 'docs/records/';
 const FIXTURES_DIR = 'packages/scripts-ts/src/fixtures/';
@@ -82,8 +103,30 @@ const CODE_SCAN_EXEMPT_FILES = new Set([
 // Test files pin behavior with invented fixtures; they are not navigation.
 const CODE_SCAN_TEST_FILE_PATTERN = /\.(test|spec)\.[cm]?[jt]sx?$/;
 
-const INLINE_LINK_PATTERN = /\]\(([^)\s]+)\)/g;
-const REFERENCE_DEF_PATTERN = /^\s*\[[^\]]+\]:\s+(\S+)\s*$/;
+// Regular inline link: `[text](target)` or `[text](target "title")`. Target
+// must not contain whitespace or `<`. The angle-bracket variant
+// `[text](<target>)` is recognised separately so its target may contain
+// spaces and parentheses.
+const INLINE_LINK_PATTERN =
+	/\]\(\s*([^)\s<]*)(?:\s+(?:"([^"]*)"|'([^']*)'|\(([^)]*)\)))?\s*\)/g;
+// Angle-bracket inline link: `[text](<target>)`. Target may contain spaces
+// and escaped characters but not unescaped `>` or newlines. Parens are
+// allowed in angle-bracket targets, so the unescaped-paren check is not
+// applied to these.
+const ANGLE_INLINE_LINK_PATTERN = /\]\(\s*<((?:\\.|[^>\n\\])*)>\s*\)/g;
+// Reference definition head: `[label]: target` on its own line. The target
+// must be the first non-whitespace token after the colon.
+const REFERENCE_DEF_HEAD_PATTERN = /^\s{0,3}\[[^\]\n]+\]:\s+(\S+)/;
+// Multi-line reference-definition title continuation: an indented `"..."`,
+// `'...'`, or `(...)` on the line following the head.
+const REFERENCE_DEF_TITLE_PATTERN =
+	/^[ \t]+(?:"([^"]*)"|'([^']*)'|\(([^)]*)\))\s*$/;
+// A target containing an UNESCAPED `(` or `)` cannot be parsed by a single
+// regex without ambiguity: `](f (1).md)` is either `(f (1)` + `.md)` or
+// `(f ` + `(1).md)`. CommonMark requires the parens to be `\(`/`\)` to
+// disambiguate; this pattern flags the unescaped case so the guard can
+// fail closed.
+const UNESCAPED_PAREN_TARGET_PATTERN = /(?:^|[^\\])[()]/;
 const FENCE_OPEN_PATTERN = /^(\s*)(```|~~~)/;
 const CODE_SPAN_PATTERN = /`[^`\n]*`/g;
 
@@ -188,14 +231,57 @@ const main = (): void => {
 	}
 
 	for (const [file, lines] of markdownScans) {
-		for (const [index, line] of lines.entries()) {
+		for (let index = 0; index < lines.length; index++) {
+			const line = lines[index] ?? '';
 			const candidates: string[] = [];
-			for (const match of line.matchAll(INLINE_LINK_PATTERN)) {
-				candidates.push(match[1]);
+
+			// Angle-bracket inline links: `[text](<target>)`. Target may
+			// contain spaces and escaped characters but not unescaped `>`
+			// or newlines. Parens are allowed in angle-bracket targets,
+			// so the unescaped-paren check is not applied to these.
+			for (const match of line.matchAll(ANGLE_INLINE_LINK_PATTERN)) {
+				const target = match[1];
+				if (target !== undefined) {
+					candidates.push(target);
+				}
 			}
-			const refDef = REFERENCE_DEF_PATTERN.exec(line);
+
+			// Regular inline links: `[text](target)` or
+			// `[text](target "title")`. Target must not contain whitespace
+			// or `<`. If the target contains unescaped parens, the guard
+			// cannot reliably determine where the target ends, so it
+			// fails closed.
+			for (const match of line.matchAll(INLINE_LINK_PATTERN)) {
+				const target = match[1];
+				if (target === undefined) {
+					continue;
+				}
+				if (UNESCAPED_PAREN_TARGET_PATTERN.test(target)) {
+					failUnescapedParen(file, index + 1, target);
+				}
+				candidates.push(target);
+			}
+
+			// Reference definitions: `[label]: target`. The target is the
+			// first non-whitespace token after the colon. If the next
+			// line is a title continuation, skip it so it is not
+			// misinterpreted as a new definition.
+			const refDef = REFERENCE_DEF_HEAD_PATTERN.exec(line);
 			if (refDef) {
-				candidates.push(refDef[1]);
+				const target = refDef[1];
+				if (target !== undefined) {
+					if (UNESCAPED_PAREN_TARGET_PATTERN.test(target)) {
+						failUnescapedParen(file, index + 1, target);
+					}
+					candidates.push(target);
+				}
+
+				if (
+					index + 1 < lines.length &&
+					REFERENCE_DEF_TITLE_PATTERN.test(lines[index + 1] ?? '')
+				) {
+					index++;
+				}
 			}
 
 			for (const candidate of candidates) {
@@ -258,6 +344,27 @@ const main = (): void => {
 			'fragments after `#` are stripped by resolveRelativeLinkTarget and are NOT machine-verified. ' +
 			'See the EXPLICIT LIMITATION block in packages/scripts-ts/src/check-doc-links.ts.',
 	);
+	console.log(
+		'WARNING [SHAPES-NOT-COVERED]: image links ![alt](...), bare autolinks <https://...>, ' +
+			'and reference label usage without a defined target are NOT verified. ' +
+			'See the EXPLICIT LIMITATION block in packages/scripts-ts/src/check-doc-links.ts.',
+	);
+};
+
+// Fails closed on a target with unescaped parentheses. Extracted so the
+// two call sites (inline links and reference definitions) share one message.
+const failUnescapedParen = (
+	file: string,
+	line: number,
+	target: string,
+): void => {
+	console.error(
+		`::error::[UNESCAPED-PAREN-TARGET] ${file}:${line}: ` +
+			`target "${target}" contains unescaped parentheses; ` +
+			`the guard cannot reliably determine where the target ends. ` +
+			`See the EXPLICIT LIMITATION block in packages/scripts-ts/src/check-doc-links.ts.`,
+	);
+	process.exit(1);
 };
 
 // r1 MEDIUM: scans the code surfaces for `docs/...` path literals whose
