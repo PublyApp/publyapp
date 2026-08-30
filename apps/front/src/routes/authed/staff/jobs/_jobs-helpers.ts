@@ -43,14 +43,21 @@ export const formatFailureCause = (
 	// Hangul fillers (U+115F, U+1160, U+3164) and variation selectors. It is
 	// a property, not a hand-written list.
 	//
+	// The trailing `.trim()` is load-bearing, not decoration: the leading
+	// `cause.trim()` cannot remove whitespace that sits BETWEEN two invisible
+	// code points. `"\u200B \u200B"` survives the first trim intact, and
+	// stripping the invisibles leaves a lone space — visually empty, but
+	// length 1. Without the second trim that cause reaches the operator as an
+	// empty cell, which is the defect this whole predicate exists to prevent.
+	//
 	// Named exception: U+2800 BRAILLE PATTERN BLANK. It is category So
 	// (Other_Symbol), NOT default-ignorable — Unicode treats it as a
 	// printing character whose glyph happens to be empty. No property
 	// isolates "renders blank"; a runtime cannot measure glyph width, so
 	// the only honest answer is to name the code point and explain it here.
 	if (
-		trimmed.replace(/[\p{Default_Ignorable_Code_Point}\u2800]/gu, '').length ===
-		0
+		trimmed.replace(/[\p{Default_Ignorable_Code_Point}\u2800]/gu, '').trim()
+			.length === 0
 	) {
 		return t('common:no-cause');
 	}
