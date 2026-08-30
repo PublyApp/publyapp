@@ -360,10 +360,34 @@ describe('TenantSettingsIntegrationsPage', () => {
 		).toBeTruthy();
 	});
 
-	test('renders no fake catalog entries or pretend-to-work connect controls', () => {
+	test('ItShouldShowConnectButtonToViewOnlyHolders', () => {
+		socialAccountsWire = [];
+		permissionKeys = ['tenant.socialaccounts.view'];
 		render(<TenantSettingsIntegrationsPage />);
 
-		expect(screen.queryByText(/Slack|Zapier|Notion/i)).toBeNull();
+		expect(
+			screen.getByRole('button', { name: /connect bluesky/i }),
+		).toBeTruthy();
+	});
+
+	test('ItShouldShowConnectButtonToAdmins', () => {
+		socialAccountsWire = [];
+		permissionKeys = ['*'];
+		render(<TenantSettingsIntegrationsPage />);
+
+		expect(
+			screen.getByRole('button', { name: /connect bluesky/i }),
+		).toBeTruthy();
+	});
+
+	test('ItShouldHideConnectButtonWhenNoViewPermission', () => {
+		socialAccountsWire = [];
+		permissionKeys = ['tenant.posts.view'];
+		render(<TenantSettingsIntegrationsPage />);
+
+		expect(
+			screen.queryByRole('button', { name: /connect bluesky/i }),
+		).toBeNull();
 	});
 
 	test('shows the reconnect banner once the query resolves with one account', async () => {

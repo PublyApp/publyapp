@@ -17,7 +17,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '~/components/ui/card';
 import { DropdownMenuItem } from '~/components/ui/dropdown-menu';
 import { StateSurface } from '~/components/ui/state-surface';
 import { formatDateTime } from '~/lib/format-date-time';
-import { useCanManageSocialAccounts } from '~/lib/permissions/use-has-tenant-permission';
+import {
+	useCanViewIntegrations,
+	useCanManageSocialAccounts,
+} from '~/lib/permissions/use-has-tenant-permission';
 import {
 	toNeedsReconnectAccounts,
 	useNeedsReconnectAccountsQuery,
@@ -188,6 +191,7 @@ const PLACEHOLDER_ACCOUNT: SocialAccountRow = {
 const TenantSettingsIntegrationsPage = () => {
 	const { t, i18n } = useTranslation(['settings', 'common']);
 	const canManage = useCanManageSocialAccounts();
+	const canView = useCanViewIntegrations();
 	const tenantId = useResolvedWorkspaceTenantId();
 	const socialAccountsQuery = useSocialAccountsQuery({
 		tenantId: tenantId ?? '',
@@ -236,7 +240,7 @@ const TenantSettingsIntegrationsPage = () => {
 		<div className="space-y-5" data-testid="tenant-settings-integrations-page">
 			<WorkspacePageHeader titleKey="integrations" />
 
-			{canManage ? (
+			{canView ? (
 				<div className="flex justify-end">
 					<Button
 						type="button"
