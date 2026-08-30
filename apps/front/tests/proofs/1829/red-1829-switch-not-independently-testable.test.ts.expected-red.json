@@ -7,5 +7,5 @@
 			"why": "On correct code the verdict-to-counter switch has been extracted into an independently testable pure function (consume-verdict.mts), so the structural assertion that it is NOT independently testable fails with an AssertionError. If this test passes, the switch was folded back into the untestable script body."
 		}
 	],
-	"measuredAgainst": "331905f1c74b565131cf534d8e402f7b0a50c8e6"
+	"measuredAgainst": "1d425ffe7d86fea934ec4053e2d653a77d4f3c93"
 }

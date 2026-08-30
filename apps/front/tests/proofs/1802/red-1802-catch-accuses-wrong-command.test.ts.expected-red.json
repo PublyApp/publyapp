@@ -7,5 +7,5 @@
 			"why": "On correct code each command has its own try/catch, so bugPresent is false and `expect(bugPresent).toBe(true)` fails with an AssertionError. If this test passes, the structural fix regressed to a single try block whose catch names rev-parse."
 		}
 	],
-	"measuredAgainst": "331905f1c74b565131cf534d8e402f7b0a50c8e6"
+	"measuredAgainst": "1d425ffe7d86fea934ec4053e2d653a77d4f3c93"
 }
