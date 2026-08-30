@@ -22,11 +22,12 @@ const {
 	resolveSeoTranslator,
 } = await import('./server');
 
-const originalWarn = logger.warn.bind(logger);
-
+// `vi.spyOn` takes the object and a string — no `logger.warn` in value position,
+// so typescript/unbound-method has nothing to flag, and vitest keeps the spy
+// identity intact. `vi.restoreAllMocks()` in afterEach puts the real method back.
 beforeEach(() => {
 	vi.clearAllMocks();
-	logger.warn = vi.fn();
+	vi.spyOn(logger, 'warn').mockImplementation(() => {});
 	mockGetServerEnv.mockReturnValue({
 		apiBaseUrl: 'http://localhost:5000',
 		nodeEnv: 'production',
@@ -35,7 +36,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-	logger.warn = originalWarn;
+	vi.restoreAllMocks();
 });
 
 // This handler injects request-origin/locale-derived values into raw HTML —

@@ -135,6 +135,7 @@ describe('CopyButton', () => {
 		const writeText = vi.fn().mockRejectedValue(new Error('denied'));
 		Object.assign(navigator, { clipboard: { writeText } });
 		const { logger } = await import('@org/shared-ts/lib/logger/iso-logger');
+		const warnSpy = vi.spyOn(logger, 'warn').mockImplementation(() => {});
 
 		const { container } = render(<CopyButton value="secret" label="Copy" />);
 		const button = screen.getByRole('button', { name: 'Copy' });
@@ -144,18 +145,15 @@ describe('CopyButton', () => {
 		}).not.toThrow();
 
 		await vi.waitFor(() => expect(writeText).toHaveBeenCalledTimes(1));
-		await vi.waitFor(() =>
-			expect(logger.warn.bind(logger)).toHaveBeenCalledTimes(1),
-		);
+		await vi.waitFor(() => expect(warnSpy).toHaveBeenCalledTimes(1));
 		await vi.waitFor(() =>
 			expect(
 				screen.getByRole('button', { name: 'Copy' }).getAttribute('data-state'),
 			).toBe('failed'),
 		);
-		expect(logger.warn.bind(logger)).toHaveBeenCalledWith(
-			'Failed to copy value to clipboard',
-			{ error: expect.any(Error) },
-		);
+		expect(warnSpy).toHaveBeenCalledWith('Failed to copy value to clipboard', {
+			error: expect.any(Error),
+		});
 		expect(getStatusText()).toBe('copy-failed');
 
 		// No re-hover: the icon flip is the only feedback surface once the

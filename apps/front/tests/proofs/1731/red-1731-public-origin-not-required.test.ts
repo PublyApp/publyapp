@@ -18,15 +18,18 @@ vi.mock('../../../src/lib/env', async (importOriginal) => {
 const { resolveOrigin, validateRuntimeEnv } =
 	await import('../../../src/server');
 
-const originalWarn = logger.warn.bind(logger);
+// `vi.spyOn` takes the object and a string — no `logger.warn` in value position,
+// so typescript/unbound-method has nothing to flag, and vitest keeps the spy
+// identity intact. `vi.restoreAllMocks()` in afterEach puts the real method back.
+let warnSpy: ReturnType<typeof vi.spyOn>;
 
 beforeEach(() => {
 	vi.clearAllMocks();
-	logger.warn = vi.fn();
+	warnSpy = vi.spyOn(logger, 'warn').mockImplementation(() => {});
 });
 
 afterEach(() => {
-	logger.warn = originalWarn;
+	vi.restoreAllMocks();
 });
 
 describe('Paired red proof #1731 — PUBLIC_ORIGIN required in production', () => {
@@ -52,7 +55,7 @@ describe('Paired red proof #1731 — PUBLIC_ORIGIN required in production', () =
 			// VULNERABLE: the forged host is returned as-is
 			expect(origin).toBe('https://evil.example.com');
 			// The fallback path logs a warning (A5 trace)
-			expect(logger.warn.bind(logger)).toHaveBeenCalledWith(
+			expect(warnSpy).toHaveBeenCalledWith(
 				'resolveOrigin: PUBLIC_ORIGIN not set, falling back to request host (host-header injection risk)',
 			);
 		});
