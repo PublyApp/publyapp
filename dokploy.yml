@@ -257,6 +257,7 @@ services:
       - VITE_ASP_SERVER_URL=${VITE_ASP_SERVER_URL}
       - PUBLIC_ORIGIN=${PUBLIC_ORIGIN}
       - PUBLIC_POSTHOG_PROJECT_TOKEN=${PUBLIC_POSTHOG_PROJECT_TOKEN}
+      - TRUSTED_PROXY_CIDRS=${TRUSTED_PROXY_CIDRS}
     networks:
       - dokploy-network
     # HTTP routing (domains -> this service on :3000, HTTPS) is configured in Dokploy's

@@ -2,7 +2,7 @@
 	"$schema": "https://json-schema.org/draft/2020-12/schema",
 	"$id": "https://publyapp.local/schemas/expected-red.schema.json",
 	"title": "Per-test kept-red expectation manifest for a paired red proof",
-	"description": "A versioned JSON file sitting next to a paired red proof test, named <proof-file>.expected-red.json. Read by apps/front/scripts/ci/run-preuves.mts. Each test declared in `expectedRed` MUST fail on correct code. If a declared kept-red test PASSES, the runner fails CI with verdict CORRUPT PROOF. The runner refuses to classify if this file is missing, invalid JSON, or the test list is empty. EDITOR-ONLY VALUE: this schema is decoration for authoring awareness; it has no runtime consumer. Runtime validation of the manifest is performed line-by-line by readExpectedRedManifest() in apps/front/scripts/ci/classify-proof.mts, whose checks deliberately mirror this schema's assertions. There is no JSON-schema validator in the dependency tree, so wiring this file into the runtime would add ajv to the shipped front package for zero behavioral gain. Keep it in sync by hand with readExpectedRedManifest().",
+	"description": "A versioned JSON file sitting next to a paired red proof test, named <proof-file>.expected-red.json. Read by apps/front/scripts/ci/run-preuves.mts. Each test declared in `expectedRed` MUST fail on correct code. If a declared kept-red test PASSES, the runner fails CI with verdict CORRUPT PROOF. The runner refuses to classify if this file is missing, invalid JSON, the `measuredAgainst` field is missing/non-hex, or the test list is empty. EDITOR-ONLY VALUE: this schema is decoration for authoring awareness; it has no runtime consumer. Runtime validation of the manifest is performed line-by-line by readExpectedRedManifest() in apps/front/scripts/ci/classify-proof.mts, whose checks deliberately mirror this schema's assertions. There is no JSON-schema validator in the dependency tree, so wiring this file into the runtime would add ajv to the shipped front package for zero behavioral gain. Keep it in sync by hand with readExpectedRedManifest().",
 	"type": "object",
 	"required": ["measuredAgainst", "expectedRed"],
 	"additionalProperties": true,
@@ -35,5 +35,5 @@
 			}
 		}
 	},
-	"_comment": "EDITOR-ONLY SCHEMA (r10): no runtime consumer. The .expected-red.json manifest points here for editor validation while authoring. The authoritative validator is readExpectedRedManifest() in apps/front/scripts/ci/classify-proof.mts, which enforces exactly these assertions (object, non-empty expectedRed array, testName/why non-empty strings). Keep this file in sync with that function by hand."
+	"_comment": "EDITOR-ONLY SCHEMA (r10): no runtime consumer. The .expected-red.json manifest points here for editor validation while authoring. The authoritative validator is readExpectedRedManifest() in apps/front/scripts/ci/classify-proof.mts, which enforces exactly these assertions (object, non-empty expectedRed array, testName/why non-empty strings, measuredAgainst 40-64 char hex SHA). Keep this file in sync with that function by hand."
 }
