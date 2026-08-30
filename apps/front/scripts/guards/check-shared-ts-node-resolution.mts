@@ -42,7 +42,19 @@
  *   sibling at `<abs>.ts` — the #1868 signature, current message kept.
  * - `Cannot find module '<abs>'` with no such file at all — a genuinely
  *   missing module: stated as-is, never claimed as #1868.
+ * - `Directory import '<abs>' is not supported ...` (Node 24's
+ *   ERR_UNSUPPORTED_DIR_IMPORT, #1894) — the relative specifier resolves to
+ *   a directory. A directory is not a valid entry point under Node ESM; the
+ *   diagnostic names that cause and the action: point the import at the
+ *   file explicitly.
  * - anything else — reported unclassified with the raw reporter, never guessed.
+ *
+ * Node's error codes and messages are not a stable contract: they change
+ * between Node versions and platforms. Every classification branch above is
+ * written to assume it stops matching one day — and that day the behavior
+ * must fall to the loud `unclassified` report with the raw Node message,
+ * never to a neighboring category (the #1885 invariant, pinned by the
+ * unknown-code test in the paired proof).
  *
  * Run: `node scripts/guards/check-shared-ts-node-resolution.mts`
  * Paired proof: `check-shared-ts-node-resolution.test.mts` — RED when the
@@ -65,6 +77,7 @@ const RETRY_FN_RELATIVE = path.join('utils', 'retry-fn.ts');
 
 const CHILD_PREFIX = 'check-shared-ts-node-resolution: ';
 const ERR_MODULE_NOT_FOUND = 'ERR_MODULE_NOT_FOUND';
+const ERR_UNSUPPORTED_DIR_IMPORT = 'ERR_UNSUPPORTED_DIR_IMPORT';
 
 /**
  * The classified cause of a guard failure, named after the specifier Node
@@ -74,6 +87,7 @@ export type NodeLoadFailure =
 	| { kind: 'dependency-missing'; packageName: string; importer: string }
 	| { kind: 'extensionless-relative'; targetPath: string; importer: string }
 	| { kind: 'missing-relative-module'; targetPath: string; importer: string }
+	| { kind: 'directory-import'; targetPath: string; importer: string }
 	| { kind: 'unclassified' };
 
 /**
@@ -156,7 +170,9 @@ const packageFromNodeModulesPath = (target: string): string | null => {
  * #1868 signature when a real `.ts` sibling exists at `<path>.ts` (the
  * artifact's own name already carries dots, e.g. `any.utils` →
  * `any.utils.ts`, so the target's text extension is no signal), a genuinely
- * missing file otherwise. Anything unparseable (other error
+ * missing file otherwise. Node 24's `Directory import '<path>' is not
+ * supported ...` (ERR_UNSUPPORTED_DIR_IMPORT, #1894) is a directory
+ * imported as an entry point. Anything unparseable (other error
  * codes, future message formats, the custom retry-export check) is
  * `unclassified` — the guard fails on the raw reporter instead of guessing.
  */
@@ -165,10 +181,29 @@ export const classifyLoadFailure = (stderr: string): NodeLoadFailure => {
 		.split(/\r?\n/)
 		.map((line) => line.trim())
 		.find((line) => line.startsWith(CHILD_PREFIX));
-	if (
-		errorLine === undefined ||
-		!errorLine.startsWith(`${CHILD_PREFIX}${ERR_MODULE_NOT_FOUND}: `)
-	) {
+	if (errorLine === undefined) {
+		return { kind: 'unclassified' };
+	}
+	if (errorLine.startsWith(`${CHILD_PREFIX}${ERR_UNSUPPORTED_DIR_IMPORT}: `)) {
+		// Node 24's wording; if it ever changes, the parse fails and the
+		// failure falls to `unclassified` — loud, never a neighbor category.
+		const dirMessage = errorLine.slice(
+			CHILD_PREFIX.length + ERR_UNSUPPORTED_DIR_IMPORT.length + 2,
+		);
+		const dirMatch =
+			/^Directory import '([^']+)' is not supported resolving ES modules imported from (.+)$/.exec(
+				dirMessage,
+			);
+		if (dirMatch === null) {
+			return { kind: 'unclassified' };
+		}
+		return {
+			kind: 'directory-import',
+			targetPath: dirMatch[1],
+			importer: dirMatch[2],
+		};
+	}
+	if (!errorLine.startsWith(`${CHILD_PREFIX}${ERR_MODULE_NOT_FOUND}: `)) {
 		return { kind: 'unclassified' };
 	}
 	const message = errorLine.slice(
@@ -245,6 +280,11 @@ export const main = (roots?: { sharedTsSrc?: string }): void => {
 			case 'missing-relative-module':
 				console.error(
 					`check-shared-ts-node-resolution: FAILED — a relative import inside shared-ts does not resolve: ${failure.targetPath} does not exist (imported from ${failure.importer}). Not the #1868 extension defect: restore the missing file or fix the specifier.`,
+				);
+				break;
+			case 'directory-import':
+				console.error(
+					`check-shared-ts-node-resolution: FAILED — a relative import inside shared-ts points at a directory, and a directory is not a valid entry point under Node ESM: ${failure.targetPath} (imported from ${failure.importer}). Point the import at the file explicitly (#1894), e.g. import from '${failure.targetPath.replace(/\\/g, '/')}/index.ts'.`,
 				);
 				break;
 			case 'unclassified':
