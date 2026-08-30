@@ -57,7 +57,7 @@
  * ## Option (b) — declaration-scoped replay (issue #1659, ronde 6)
  *
  * A pull request DECLARES a paired red proof by adding or modifying a proof
- * test file under apps/front/tests/proofs/<issue>/. That directory is versionné
+ * test file under apps/front/tests/proofs/<issue>/. That directory is versioned
  * (committed to the repo), so CI can always see the files — unlike .dump/,
  * which is git-ignored and absent on a clean CI checkout.
  *
