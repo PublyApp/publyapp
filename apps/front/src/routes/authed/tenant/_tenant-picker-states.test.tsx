@@ -15,7 +15,9 @@
  * only the presentational case that the route test does not cover: the
  * generic empty state shown to a user who was never invited anywhere.
  */
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { cleanup, render, screen } from '@testing-library/react';
+import type { ReactNode } from 'react';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import type { TestLabelMap } from '~/lib/testing/test-label-map';
 
@@ -34,13 +36,20 @@ vi.mock('react-i18next', () => ({
 
 import { TenantPortalEmptyState } from './_tenant-picker-states';
 
+const renderWithQueryClient = (ui: ReactNode) => {
+	const queryClient = new QueryClient();
+	return render(
+		<QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>,
+	);
+};
+
 describe('TenantPortalEmptyState (#258) — generic empty arm', () => {
 	afterEach(() => {
 		cleanup();
 	});
 
 	test('a user who was never invited anywhere sees the generic empty message', () => {
-		render(<TenantPortalEmptyState />);
+		renderWithQueryClient(<TenantPortalEmptyState />);
 
 		expect(screen.getByTestId('tenant-portal-empty')).toBeTruthy();
 		expect(screen.getByText('No organizations found')).toBeTruthy();
