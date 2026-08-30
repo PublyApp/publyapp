@@ -924,12 +924,21 @@ const readReport = (reportPath: string): ReadReportResult => {
  * The second positional argument (a reference FILE) is a local seam for
  * one-off runs and unit tests; the gate (`just ci-jscpd`) invokes the
  * guard without it, which reads the reference from the merge base.
+ * PUBLY_JSCPD_GIT_DIR redirects which repository the base ref is read
+ * from (unit-test seam; CI never sets it) and is symmetric with the
+ * existing PUBLY_JSCPD_BASE_REF seam.
  */
 const main = (): void => {
 	const reportPath = process.argv[2] ?? DEFAULT_REPORT_PATH;
 	const refPath = process.argv[3];
+	const gitDir = process.env.PUBLY_JSCPD_GIT_DIR ?? repoRoot;
 
-	const { errors, stats, refSource } = verifyJscpdRatchet(reportPath, refPath);
+	const { errors, stats, refSource } = verifyJscpdRatchet(
+		reportPath,
+		refPath,
+		undefined,
+		gitDir,
+	);
 
 	if (errors.length > 0) {
 		console.error('jscpd ratchet violations:');
