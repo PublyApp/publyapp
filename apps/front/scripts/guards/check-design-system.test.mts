@@ -1557,6 +1557,627 @@ test('flags non-confirmation centered overlay wording and DialogPopup usage', as
 	);
 });
 
+// #1844 paired red/green proof — test 1 (false positive): a forbidden
+// primitive cited inside a comment must NOT trigger a violation. Before
+// the fix, `mode: 'source'` rules ran their regex over raw source text
+// comments included, so a test explaining that a `data-testid` lands on
+// `DialogPrimitive.Popup` satisfied the pattern and tripped a false
+// positive that turned supply-chain red.
+void test('#1844: a forbidden primitive cited inside a comment is not a violation (false positive proof)', async () => {
+	const root = await makeFixture({
+		'src/components/ui/dialog-popup-comment.tsx': [
+			'// spread onto DialogPrimitive.Popup) and assert the role is `dialog`.',
+			'// See: https://base-ui.com/components/dialog#popup',
+			'export const helper = true;',
+		].join('\n'),
+	});
+
+	const violations = await scanFront2DesignSystem({
+		baseDir: root,
+		sourceDir: path.join(root, 'src'),
+	});
+
+	assert.equal(
+		violations.some(
+			(violation) => violation.ruleId === 'no-dialog-popup-primitives',
+		),
+		false,
+		'a DialogPopup mention inside a comment must not be flagged as a violation',
+	);
+});
+
+// #1844 paired red/green proof — test 2 (false negative guard): a real
+// usage of a forbidden primitive on the SAME line as a URL containing
+// `//` must STILL be detected. A naive comment-stripping regex
+// (`//.*$`) would eat from the URL's `//` to end-of-line, hiding the
+// real usage that follows on the same line. The AST-based approach must
+// not mutate source text and must know the `//` sits inside a string
+// literal, not a comment.
+void test('#1844: a real DialogPopup usage on the same line as a URL containing // is still detected (false negative guard)', async () => {
+	const root = await makeFixture({
+		'src/components/ui/dialog-popup-with-url.tsx': [
+			"import { Dialog as DialogPrimitive } from '@base-ui/react/dialog';",
+			'const url = "https://base-ui.com/components/dialog#popup"; const popup = <DialogPrimitive.Popup className="x" />;',
+		].join('\n'),
+	});
+
+	const violations = await scanFront2DesignSystem({
+		baseDir: root,
+		sourceDir: path.join(root, 'src'),
+	});
+
+	assert.equal(
+		violations.some(
+			(violation) => violation.ruleId === 'no-dialog-popup-primitives',
+		),
+		true,
+		'a real DialogPrimitive.Popup usage must be detected even when a URL with // is present',
+	);
+});
+
+// #1844: a real usage inside a template literal containing /* */ must
+// still be detected — a naive `/\*[\s\S]*?\*\//` strip would eat the
+// template content and hide the violation.
+void test('#1844: a real DialogPopup usage inside a template literal with /* */ is still detected', async () => {
+	const root = await makeFixture({
+		'src/components/ui/dialog-popup-template.tsx': [
+			"import { Dialog as DialogPrimitive } from '@base-ui/react/dialog';",
+			'const markup = `/* ${DialogPrimitive.Popup.toString()} */`;',
+		].join('\n'),
+	});
+
+	const violations = await scanFront2DesignSystem({
+		baseDir: root,
+		sourceDir: path.join(root, 'src'),
+	});
+
+	assert.equal(
+		violations.some(
+			(violation) => violation.ruleId === 'no-dialog-popup-primitives',
+		),
+		true,
+		'a real DialogPopup usage inside a template literal must be detected',
+	);
+});
+
+// #1844 edge case: a regex literal containing // must not hide a real
+// usage on the next line. A naive `//.*$` strip would eat the regex and
+// the real usage with it.
+void test('#1844: a real DialogPopup usage after a regex literal with // is still detected', async () => {
+	const root = await makeFixture({
+		'src/components/ui/dialog-popup-regex.tsx': [
+			"import { Dialog as DialogPrimitive } from '@base-ui/react/dialog';",
+			'const pattern = /https:\\/\\/base-ui.com\\/dialog/g;',
+			'const popup = <DialogPrimitive.Popup className="x" />;',
+		].join('\n'),
+	});
+
+	const violations = await scanFront2DesignSystem({
+		baseDir: root,
+		sourceDir: path.join(root, 'src'),
+	});
+
+	assert.equal(
+		violations.some(
+			(violation) => violation.ruleId === 'no-dialog-popup-primitives',
+		),
+		true,
+		'a real DialogPopup usage after a regex literal must be detected',
+	);
+});
+
+// #1844 edge case: a block comment /* */ containing a forbidden primitive
+// must not trigger a violation.
+void test('#1844: a forbidden primitive inside a block comment is not a violation', async () => {
+	const root = await makeFixture({
+		'src/components/ui/dialog-popup-block-comment.tsx': [
+			'/* This component uses DialogPrimitive.Popup for modal behavior. */',
+			'export const helper = true;',
+		].join('\n'),
+	});
+
+	const violations = await scanFront2DesignSystem({
+		baseDir: root,
+		sourceDir: path.join(root, 'src'),
+	});
+
+	assert.equal(
+		violations.some(
+			(violation) => violation.ruleId === 'no-dialog-popup-primitives',
+		),
+		false,
+		'a DialogPopup mention inside a block comment must not be flagged',
+	);
+});
+
+// #1844 r3: a JSX comment {/**/} is a JSX expression container whose
+// comment is invisible to the TS trivia APIs (no child node, no leading or
+// trailing trivia), so the trivia walk cannot report it. Issue #1844
+// demands TS *and* JS comments be skipped — the original incident (#1827)
+// was exactly a JSX comment naming a primitive turning CI red. The guard
+// now scans each JsxExpression container with the compiler's own scanner
+// (trivia reporting on) and feeds those comment ranges into the same
+// skip; the match must still be fully inside ONE comment range to be
+// skipped (span-wise rule, see r3 BLOQUANT 1).
+void test('#1844: a forbidden primitive inside a JSX comment is not a violation', async () => {
+	const root = await makeFixture({
+		'src/components/ui/dialog-popup-jsx-comment.tsx': [
+			'export const Component = () => (',
+			'  <div>',
+			'    {/* TODO: use DialogPrimitive.Popup for the modal */}',
+			'    <span>Hello</span>',
+			'  </div>',
+			');',
+		].join('\n'),
+	});
+
+	const violations = await scanFront2DesignSystem({
+		baseDir: root,
+		sourceDir: path.join(root, 'src'),
+	});
+
+	assert.equal(
+		violations.some(
+			(violation) => violation.ruleId === 'no-dialog-popup-primitives',
+		),
+		false,
+		'a DialogPopup mention inside a JSX comment must not be flagged',
+	);
+});
+
+// #1844 r3 false negative guard for the JSX scanner: a real primitive usage
+// on the SAME line as a JSX comment must still be detected — the JSX
+// scanner must only flag the comment's own span, never swallow the rest of
+// the line.
+void test('#1844: a real DialogPopup usage after a JSX comment on the same line is still detected (false negative guard for JSX comments)', async () => {
+	const root = await makeFixture({
+		'src/components/ui/dialog-popup-jsx-comment-real-usage.tsx': [
+			'export const Component = () => (',
+			'  <div>',
+			'    {/* TODO: keep */}<DialogPrimitive.Popup className="x" />',
+			'  </div>',
+			');',
+		].join('\n'),
+	});
+
+	const violations = await scanFront2DesignSystem({
+		baseDir: root,
+		sourceDir: path.join(root, 'src'),
+	});
+
+	assert.equal(
+		violations.some(
+			(violation) => violation.ruleId === 'no-dialog-popup-primitives',
+		),
+		true,
+		'a real DialogPopup usage after a JSX comment must still be detected',
+	);
+});
+
+// #1844 r4 (BLOQUANT M12): a real primitive usage INSIDE THE SAME JSX
+// expression container as a JSX comment must still be detected — the JSX
+// scanner's reported comment range must cover only the comment TOKEN,
+// never the whole container (`{...}`). `{/* keep */ <DialogPrimitive.Popup
+// className="x" />}` is ONE JsxExpression node, so reporting the
+// container's whole `node.pos..node.end` span as a comment swallows the
+// real `<DialogPrimitive.Popup />` that sits right after the comment in
+// the same container. The test is RED on that mutation (container-span
+// range) and GREEN on the correct token-span range — the same-line r3
+// test cannot see it, because there the usage lives in a SEPARATE
+// container.
+void test('#1844: a real DialogPopup usage in the same JSX container as a comment is still detected (comment-token span, never the container span)', async () => {
+	const root = await makeFixture({
+		'src/components/ui/dialog-popup-jsx-container-real-usage.tsx': [
+			'export const Component = () => (',
+			'  <div>',
+			'    {/* keep */ <DialogPrimitive.Popup className="x" />}',
+			'  </div>',
+			');',
+		].join('\n'),
+	});
+
+	const violations = await scanFront2DesignSystem({
+		baseDir: root,
+		sourceDir: path.join(root, 'src'),
+	});
+
+	assert.equal(
+		violations.some(
+			(violation) => violation.ruleId === 'no-dialog-popup-primitives',
+		),
+		true,
+		'a real DialogPopup usage in the same JSX container as a comment must still be detected',
+	);
+});
+
+// #1844 r4 (BLOQUANT M9): the span-wise skip must treat a match that ends
+// EXACTLY at a comment range's `end` offset as inside that comment.
+// no-single-star-route-glob pattern 2 (`[^,)]*`) greedily consumes the
+// comment's `*/` and stops at the first `,`/`)` after the closer — when
+// that token abuts the closer, the match's end equals the comment's end
+// offset exactly. Tightening `matchEnd <= end` to `matchEnd < end`
+// un-skips it and flags a pure prose citation as a violation (the original
+// #1844 false-positive defect). The test is RED on that mutation and GREEN
+// on the correct `<=` bound.
+void test('#1844: a route glob cited in a comment whose match ends exactly at the comment closer is not a violation (comment end bound)', async () => {
+	const root = await makeFixture({
+		'e2e/specs/route-comment-end-boundary.spec.ts': [
+			'[/* page.route( users */, x];',
+			'export const helper = true;',
+		].join('\n'),
+	});
+
+	const violations = await scanFront2DesignSystem({
+		baseDir: root,
+		sourceDirs: [path.join(root, 'e2e')],
+	});
+
+	assert.equal(
+		violations.some(
+			(violation) => violation.ruleId === 'no-single-star-route-glob',
+		),
+		false,
+		'a route glob citation whose match ends exactly at the comment closer must not be flagged',
+	);
+});
+
+// #1844 r4 (THIRD mutation, found while hunting beyond M9/M12): the JSX
+// scanner pass must report the comment TOKEN's exact end. An off-by-one
+// (`scanner.getTokenEnd() - 1`) un-skips a match that ends exactly at the
+// JSX comment closer. Pattern 2's `[^,)]*` consumes the comment's `*/` and
+// stops at the first `,`/`)` after the closer; in `{fn(/* page.route(
+// users */)}` that `)` abuts the closer, so the match's end equals the JSX
+// comment token's end exactly. The trivia path (M9 test above) CANNOT see
+// this: JSX comment ranges come from the scanner, not from the trivia
+// APIs. RED on the end-1 mutation, GREEN here. (The `</div>` variant
+// without an abutting stop char is NOT used on purpose — there the lazy
+// match escapes the comment on correct code too, which would make the test
+// a false positive rather than a boundary pin.)
+void test('#1844: a route glob cited in a JSX comment whose match ends exactly at the JSX comment closer is not a violation (JSX comment end bound)', async () => {
+	const root = await makeFixture({
+		'e2e/specs/route-jsx-comment-end-boundary.spec.tsx': [
+			'export const Component = () => (',
+			'  <div>{fn(/* page.route( users */)}</div>',
+			');',
+		].join('\n'),
+	});
+
+	const violations = await scanFront2DesignSystem({
+		baseDir: root,
+		sourceDirs: [path.join(root, 'e2e')],
+	});
+
+	assert.equal(
+		violations.some(
+			(violation) => violation.ruleId === 'no-single-star-route-glob',
+		),
+		false,
+		'a route glob citation whose match ends exactly at the JSX comment closer must not be flagged',
+	);
+});
+
+// #1844 r3: a JSX container can mix a leading comment with a real
+// expression (`{/* TODO */ someValue}`). The comment part is still a JSX
+// comment and must be skipped; only the expression part is real code.
+void test('#1844: a forbidden primitive in a leading JSX comment of a mixed container is not a violation', async () => {
+	const root = await makeFixture({
+		'src/components/ui/dialog-popup-jsx-mixed-container.tsx': [
+			'export const Component = () => (',
+			'  <div>',
+			'    {/* TODO: use DialogPrimitive.Popup */ someValue}',
+			'  </div>',
+			');',
+		].join('\n'),
+	});
+
+	const violations = await scanFront2DesignSystem({
+		baseDir: root,
+		sourceDir: path.join(root, 'src'),
+	});
+
+	assert.equal(
+		violations.some(
+			(violation) => violation.ruleId === 'no-dialog-popup-primitives',
+		),
+		false,
+		'a forbidden primitive in a leading JSX comment must not be flagged',
+	);
+});
+
+// #1844 r3: the JSX scanner reports comment trivia tokens, but a `//`
+// INSIDE a template literal's `${...}` interpolation is NOT a comment (the
+// scanner does not re-enter regex context, so `/\/\//` would otherwise
+// surface as a fake `//...` token that swallows the rest of the template).
+// A real forbidden primitive later in that same template text must still
+// be detected. Guard against the literal-span filter in collectCommentRanges.
+void test('#1844: a real DialogPopup usage inside template text after a regex with // is still detected (JSX literal-span filter guard)', async () => {
+	const root = await makeFixture({
+		'src/components/ui/dialog-popup-jsx-template-regex.tsx': [
+			'export const Component = () => (',
+			'  <div>',
+			'    {`${/x\\/y\\//.source} DialogPrimitive.Popup text`}',
+			'  </div>',
+			');',
+		].join('\n'),
+	});
+
+	const violations = await scanFront2DesignSystem({
+		baseDir: root,
+		sourceDir: path.join(root, 'src'),
+	});
+
+	assert.equal(
+		violations.some(
+			(violation) => violation.ruleId === 'no-dialog-popup-primitives',
+		),
+		true,
+		'a real DialogPopup usage inside template text after a regex with // must still be detected',
+	);
+});
+
+// #1844 r3: a match may START in one comment range, cross real code, and
+// END in a DIFFERENT comment range (no-single-star-route-glob pattern 2
+// spans lazily across both). Only a match whose ENTIRE span lies inside ONE
+// comment range may be skipped — a start-in-A/end-in-B check across two
+// different ranges would mask the real call between them.
+void test('#1844: a route glob match spanning two comment ranges with real code between is still detected (single-range skip)', async () => {
+	const root = await makeFixture({
+		'e2e/specs/route-two-comments.spec.ts': [
+			'/* We call page.route( once per test to stub the API */ await page.route(usersGlob /* keep */, (route) => route.abort());',
+		].join('\n'),
+	});
+
+	const violations = await scanFront2DesignSystem({
+		baseDir: root,
+		sourceDirs: [path.join(root, 'e2e')],
+	});
+
+	assert.equal(
+		violations.some(
+			(violation) => violation.ruleId === 'no-single-star-route-glob',
+		),
+		true,
+		'a match spanning two comment ranges with real code between must not be skipped',
+	);
+});
+
+// #1844: no-raw-internal-anchor must not flag a raw anchor cited in a comment.
+void test('#1844: a raw anchor cited inside a comment is not a violation', async () => {
+	const root = await makeFixture({
+		'src/components/ui/anchor-comment.tsx': [
+			'// Use <a href="/staff/invitations"> for the back link',
+			'export const helper = true;',
+		].join('\n'),
+	});
+
+	const violations = await scanFront2DesignSystem({
+		baseDir: root,
+		sourceDir: path.join(root, 'src'),
+	});
+
+	assert.equal(
+		violations.some(
+			(violation) => violation.ruleId === 'no-raw-internal-anchor',
+		),
+		false,
+		'a raw anchor mention inside a comment must not be flagged',
+	);
+});
+
+// #1844: no-single-star-route-glob must not flag a single-star glob cited in a comment.
+void test('#1844: a single-star glob cited inside a comment is not a violation', async () => {
+	const root = await makeFixture({
+		'e2e/specs/route-comment.spec.ts': [
+			'// page.route(\"/api/users/*\") is a bad pattern',
+			'export const helper = true;',
+		].join('\n'),
+	});
+
+	const violations = await scanFront2DesignSystem({
+		baseDir: root,
+		sourceDirs: [path.join(root, 'e2e')],
+	});
+
+	assert.equal(
+		violations.some(
+			(violation) => violation.ruleId === 'no-single-star-route-glob',
+		),
+		false,
+		'a single-star glob mention inside a comment must not be flagged',
+	);
+});
+
+// #1844: a multi-line block comment containing a forbidden primitive
+// must not trigger a violation.
+void test('#1844: a forbidden primitive inside a multi-line block comment is not a violation', async () => {
+	const root = await makeFixture({
+		'src/components/ui/dialog-popup-multiline-comment.tsx': [
+			'/*',
+			' * This component uses DialogPrimitive.Popup',
+			' * for modal behavior.',
+			' */',
+			'export const helper = true;',
+		].join('\n'),
+	});
+
+	const violations = await scanFront2DesignSystem({
+		baseDir: root,
+		sourceDir: path.join(root, 'src'),
+	});
+
+	assert.equal(
+		violations.some(
+			(violation) => violation.ruleId === 'no-dialog-popup-primitives',
+		),
+		false,
+		'a DialogPopup mention inside a multi-line block comment must not be flagged',
+	);
+});
+
+// #1844: a forbidden primitive cited in an END-OF-LINE comment must not
+// trigger a violation. This exercises getTrailingCommentRanges — skipping
+// it would let a real end-of-line comment sail through unrecognized and
+// flag a false positive.
+void test('#1844: a forbidden primitive in an end-of-line comment is not a violation', async () => {
+	const root = await makeFixture({
+		'src/components/ui/dialog-popup-eol-comment.tsx': [
+			'export const helper = 1; // uses DialogPrimitive.Popup for modal behavior',
+		].join('\n'),
+	});
+
+	const violations = await scanFront2DesignSystem({
+		baseDir: root,
+		sourceDir: path.join(root, 'src'),
+	});
+
+	assert.equal(
+		violations.some(
+			(violation) => violation.ruleId === 'no-dialog-popup-primitives',
+		),
+		false,
+		'a DialogPopup mention in an end-of-line comment must not be flagged',
+	);
+});
+
+// #1844: a real raw anchor usage must STILL be detected — the false
+// negative guard for no-raw-internal-anchor. A naive comment-stripping
+// approach must not hide a genuine violation.
+void test('#1844: a real raw anchor usage is still detected (false negative guard for no-raw-internal-anchor)', async () => {
+	const root = await makeFixture({
+		'src/components/ui/real-anchor.tsx': [
+			'export const BackLink = () => <a href="/staff/invitations">Back</a>;',
+		].join('\n'),
+	});
+
+	const violations = await scanFront2DesignSystem({
+		baseDir: root,
+		sourceDir: path.join(root, 'src'),
+	});
+
+	assert.equal(
+		violations.some(
+			(violation) => violation.ruleId === 'no-raw-internal-anchor',
+		),
+		true,
+		'a real raw anchor usage must be detected',
+	);
+});
+
+// #1844: a real single-star route glob must STILL be detected — the
+// false negative guard for no-single-star-route-glob. A naive
+// comment-stripping approach must not hide a genuine violation.
+void test('#1844: a real single-star route glob is still detected (false negative guard for no-single-star-route-glob)', async () => {
+	const root = await makeFixture({
+		'e2e/specs/real-route-glob.spec.ts': [
+			'test("mock users", async ({ page }) => {',
+			'  await page.route("/api/users/*", (route) => route.fulfill({ body: "[]" }));',
+			'});',
+		].join('\n'),
+	});
+
+	const violations = await scanFront2DesignSystem({
+		baseDir: root,
+		sourceDirs: [path.join(root, 'e2e')],
+	});
+
+	assert.equal(
+		violations.some(
+			(violation) => violation.ruleId === 'no-single-star-route-glob',
+		),
+		true,
+		'a real single-star route glob usage must be detected',
+	);
+});
+
+// #1844 r3 paired red/green proof (BLOQUANT 1, relecteur round 2): the raw
+// regex match for a real `page.route(usersGlob, ...)` call can START inside a
+// comment and lazily extend into the real call — no-single-star-route-glob
+// pattern 2 (`...route\(\s*(?!['"`/])\S[^,)]*`) has no quote barrier. A skip
+// judged on match.index alone drops the WHOLE match, including the real call
+// it consumed. This test asserts the real call IS still detected; it is RED
+// on the start-index skip and GREEN once only matches whose ENTIRE span lies
+// inside a single comment range are skipped.
+void test('#1844: a real route glob call whose raw match starts inside a comment is still detected (span-wise comment skip)', async () => {
+	const root = await makeFixture({
+		'e2e/specs/route-comment-prefix.spec.ts': [
+			'/* We call page.route( once per test to stub the API */ await page.route(usersGlob, (route) => route.abort());',
+		].join('\n'),
+	});
+
+	const violations = await scanFront2DesignSystem({
+		baseDir: root,
+		sourceDirs: [path.join(root, 'e2e')],
+	});
+
+	assert.equal(
+		violations.some(
+			(violation) => violation.ruleId === 'no-single-star-route-glob',
+		),
+		true,
+		'a real page.route( call whose raw match starts inside a comment must not be masked by the comment skip',
+	);
+});
+
+// #1844 edge case: the `index >= start` boundary in the span-wise skip.
+// A regex match can never start at the comment range's `start` offset
+// because that offset is always the `/*` or `//` opener, which the
+// forbidden-primitive regex (`DialogPrimitive.Popup`, `<a href=...`,
+// `page.route(...".../*")`) never matches. So changing `>=` to `>`
+// keeps this test green — this is a documentation of that boundary,
+// not a paired red proof. The invariant holds because the match is
+// ALWAYS at `start + 2` (after the opener), not at `start`.
+void test('#1844: a match after a block comment opener is not a violation (boundary documentation)', async () => {
+	const root = await makeFixture({
+		'src/components/ui/dialog-popup-start-comment.tsx': [
+			'/*DialogPrimitive.Popup*/',
+			'export const helper = true;',
+		].join('\n'),
+	});
+
+	const violations = await scanFront2DesignSystem({
+		baseDir: root,
+		sourceDir: path.join(root, 'src'),
+	});
+
+	assert.equal(
+		violations.some(
+			(violation) => violation.ruleId === 'no-dialog-popup-primitives',
+		),
+		false,
+		'a match starting after the block comment opener must not be flagged',
+	);
+});
+
+// #1844 point 4: a malformed TypeScript file that cannot be parsed for
+// comment ranges must fail loudly — the scan records a visible
+// `comment-range-parse-failure` violation instead of crashing or silently
+// producing a partial range set.
+void test('#1844: a malformed TS file fails loudly with a comment-range-parse-failure violation', async () => {
+	const root = await makeFixture({
+		// Intentionally malformed: an unterminated string literal makes the
+		// file unparseable — the TS parser reports parseDiagnostics.
+		'src/components/ui/malformed.tsx': [
+			"export const a = 'unterminated string;",
+			'export const b = <DialogPrimitive.Popup />;',
+		].join('\n'),
+	});
+
+	const violations = await scanFront2DesignSystem({
+		baseDir: root,
+		sourceDir: path.join(root, 'src'),
+	});
+
+	const parseFailures = violations.filter(
+		(violation) => violation.ruleId === 'comment-range-parse-failure',
+	);
+
+	assert.equal(
+		parseFailures.length > 0,
+		true,
+		'a malformed TS file must produce a comment-range-parse-failure violation',
+	);
+});
+
 test('allows HeroUI imports and rules that should be exempt', async () => {
 	const root = await makeFixture({
 		'src/components/ui/confirm-dialog.tsx':

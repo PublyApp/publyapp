@@ -317,8 +317,16 @@ const declaredProofTests = (): string[] => {
 				);
 			}
 
+			// The diff must be computed against the FORK POINT (mergeBase
+			// commit SHA), never against the moving base REF: `git diff
+			// <baseRef>..HEAD` is a TREE diff of the current base ref vs HEAD,
+			// so proof files merged to develop AFTER this PR forked appear as
+			// DELETED entries and get declared as "this PR's proofs" — replay
+			// then fails on ENOENT (found r4 validation: an advanced
+			// origin/develop mis-declared 4 foreign proof files and red the
+			// step). mergeBase is already validated non-empty above.
 			const diffOutput = execSync(
-				`git -C "${ROOT}" diff --name-only "${baseRef}..HEAD"`,
+				`git -C "${ROOT}" diff --name-only "${mergeBase}..HEAD"`,
 				{ encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] },
 			);
 			changedFiles = diffOutput
