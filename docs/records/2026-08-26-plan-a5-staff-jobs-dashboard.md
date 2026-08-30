@@ -516,7 +516,7 @@ public static class Jobs {
 
 **Same-path groups are intentional (#1458 follow-up 4).** Below, `sysGroup` (HeavySearchList), `sysMutationGroup` (AuthenticatedDefault), and `triggerGroup` (SystemJobTrigger) deliberately build THREE `MapGroup`s over the SAME `/staff/jobs/system-jobs` path prefix with DIFFERENT `RequireRateLimiting` policies — each policy applies to only the routes registered through its own group variable. Do NOT "deduplicate" them into one group: merging would put the reads and the trigger into one rate-limit bucket, and the trigger must not share the general bucket (Global Constraint 4).
 
-> **Confirmé (#1458 follow-up 4) :** `JobVisibilityEndpointsForStaff` déclare bien trois variables de groupe distinctes — `sysGroup`, `sysMutationGroup`, `triggerGroup` — sur le même préfixe de chemin, chacune avec sa propre politique (`HeavySearchList`, `AuthenticatedDefault`, `SystemJobTrigger`). Aucun regroupement n'a eu lieu.
+> **Confirmed (#1458 follow-up 4):** `JobVisibilityEndpointsForStaff` does declare three distinct group variables — `sysGroup`, `sysMutationGroup`, `triggerGroup` — over the same path prefix, each with its own policy (`HeavySearchList`, `AuthenticatedDefault`, `SystemJobTrigger`). No merging took place.
 
 ```csharp
 // apps/api/Modules/Jobs/Endpoints/JobVisibilityEndpointsForStaff.cs
@@ -743,7 +743,7 @@ git commit -m "feat(jobs): A5 handlers + i18n + redaction policy (#636)"
 
 - [ ] **Step 3: `SystemJobTriggerRateLimit.Spec.cs`** — the rate-limit test: 31st trigger within 60s on the same session → 429 (the policy default is 30 / 60s, so the 31st must be refused). **Partition key (#1458 follow-up 5): the validated session fingerprint** (`ApiRateLimitPartitionKeys.GetSessionFingerprint` — the hashed validated session id stamped by session auth, falling back to `unauthenticated:<hashed client ip>` before validation). Two different staff sessions therefore have independent 30-permit budgets; the spec drives 31 requests through ONE session token and asserts the 31st is 429 while a second session's request still passes. Mirror the `ComprehensiveRateLimiting.Spec` style for constructing settings.
 
-> **Confirmé (#1458 follow-up 5) :** `ApiRateLimitPartitionKeys.GetSessionFingerprint` est bien la fonction de partitionnement. Elle hache l'identifiant de session validé (`SetValidatedSession`) et recourt à `unauthenticated:<hashed client ip>` avant validation. Le test `SystemJobTriggerRateLimit.Spec` doit donc conduire 31 requêtes via UN seul jeton de session et vérifier que la 31e est 429, tandis qu'une deuxième session conserve son budget intact.
+> **Confirmed (#1458 follow-up 5):** `ApiRateLimitPartitionKeys.GetSessionFingerprint` is indeed the partitioning function. It hashes the validated session id (`SetValidatedSession`) and falls back to `unauthenticated:<hashed client ip>` before validation. `SystemJobTriggerRateLimit.Spec` must therefore drive 31 requests through ONE session token and assert the 31st is 429, while a second session keeps its budget intact.
 
 - [ ] **Step 4: Run `dotnet test Tests/PublyApp.Api.Tests.csproj -c Test` → all green. Commit.**
 
@@ -827,9 +827,9 @@ git commit -m "feat(front): A5 staff jobs query hooks (#636)"
 
 - [ ] **Step 3.5: Per-action permission derivation (CRITICAL — verdict-r1 MINOR finding #5, corrected by #1458 follow-up 1).** There is NO `useStaffJobPermissions()` helper today. The implementer MUST derive per-action gating from a REAL auth payload — and #1458's literal replacement must itself be read carefully:
 
-  - #1458 names `client.staff.permissions.scopes.staff.get({queryParameters: {language}})` as the real front call. That endpoint EXISTS (`GET /staff/permissions/scopes/staff`, consumed by `apps/front/src/lib/query/staff-profiles.ts:509`), but its payload is the PERMISSION CATALOG: `PermissionAsStaffService.FindStaffPermissionsAsync` reflects over EVERY property of `AppPermissions.Staff` and filters only to permissions defined in the database — it lists all definable permissions for any staff session and knows nothing about who is GRANTED them. Gating UI actions on it would show every button to everyone. Do NOT use it for gating.
+  - #1458 names `client.staff.permissions.scopes.staff.get({queryParameters: {language}})` as the real front call. That endpoint EXISTS (`GET /staff/permissions/scopes/staff`, consumed by `apps/front/src/lib/query/staff-profiles.ts:521`), but its payload is the PERMISSION CATALOG: `PermissionAsStaffService.FindStaffPermissionsAsync` reflects over EVERY property of `AppPermissions.Staff` and filters only to permissions defined in the database — it lists all definable permissions for any staff session and knows nothing about who is GRANTED them. Gating UI actions on it would show every button to everyone. Do NOT use it for gating.
 
-> **Clarification (errata #1 retiré) :** la confusion entre catalogue de permissions définissables et permissions effectives du caller est un piège réel. `client.staff.permissions.scopes.staff.get` renvoie le catalogue (toutes les permissions *possibles*), tandis que `client.auth.scopeAuthData.get` renvoie les permissions *effectives* du staff connecté. Seules les effectives permettent d'adapter l'UI par caller.
+> **Clarification (errata #1 withdrawn):** confusing the catalog of *definable* permissions with the caller's *effective* permissions is a real trap. `client.staff.permissions.scopes.staff.get` returns the catalog (every *possible* permission), while `client.auth.scopeAuthData.get` returns the signed-in staff user's *effective* permissions. Only the effective ones can drive per-caller UI.
   - The payload that DOES carry the caller's effective permission keys is `GET /auth/scope-auth-data?scope=staff` (`GetScopeAuthData.cs`): it returns `GetScopeAuthDataStaff` whose `Permissions: List<string>` is flattened from the staff user's profiles at lines 119-123. In the regenerated Kiota client this is `client.auth.scopeAuthData.get({ queryParameters: { scope: 'staff' } })` (`packages/client-ts/src/auth/scopeAuthData/`). NOTE: Kiota collapses the handler's `Ok<GetScopeAuthDataStaff> | Ok<GetScopeAuthDataTenant>` union into the `GetScopeAuthDataTenant` model — that model already carries `code`, `profiles`, `accountLevel`, `isAdmin`, and `permissions?: string[]`, so the staff shape round-trips through it (check `code === 'staff'` defensively). If `just generate-client` produces a differently-shaped accessor, READ the regenerated files and adapt — do not guess.
   - A small `useStaffJobPermissions()` hook is created in `apps/front/src/routes/authed/staff/jobs/_permissions.ts` that wraps the scope-auth-data query and returns `{ canView, canRequeue, canUpdateSystemJob, canTriggerSystemJob }` booleans via `(data?.permissions ?? []).includes('staff.jobs.view')` etc. The hook is a thin adapter over the real effective-permission payload, not an invention.
   - While editing this file, verify the generated accessor names with `git grep -n "scopeAuthData" packages/client-ts/src/auth/index.ts` before writing the hook.
@@ -920,7 +920,10 @@ citations; the round-5 note below consolidates the verification evidence.
    the real client paths. Both are present in the regenerated
    `packages/client-ts/` (no `staff/auth` subpath; the surface splits
    between the auth module and the staff module). The plan's example
-   snippet at lines 825-830 reflects the real shape: read
+   snippet in the "Clarification (errata #1 withdrawn)" block above, and
+   the bullet that follows it, reflect the real shape (cited by heading
+   rather than by line number, because line numbers in this document drift
+   with every round): read
    `client.auth.scopeAuthData.get({ queryParameters: { scope: 'staff' } })`
    for the caller's effective permission keys, and the staff
    permission set is materialised server-side per request.

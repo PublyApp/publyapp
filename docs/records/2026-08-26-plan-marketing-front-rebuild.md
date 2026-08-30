@@ -218,11 +218,19 @@ that the proof file `.dump/proof-1517.md` recorded.
    re-derivable today via
    `gh pr view <N> --json files --jq '[.files[] | select(.path | test("marketing"; "i"))] | length'`,
    counting entries whose path contains the substring "marketing"
-   (case-insensitive). None of the six PRs has a mergeCommit (all are
-   `state: "CLOSED"`, `mergedAt: null`), so the literal command the
-   issue requests, `git show --stat <mergeCommit>`, cannot run; the
-   `gh pr view --json files` snapshot exposes the same file list and
-   matches the "measured" column to the unit:
+   (case-insensitive). The literal command the issue requests,
+   `git show --stat <mergeCommit>`, still cannot run, but the reason is
+   narrower than an earlier wording of this note claimed. All six PRs are
+   `state: "CLOSED"` with `mergedAt: null`, so GraphQL's `mergeCommit`
+   (which `gh pr view --json mergeCommit` reads) is null. REST does expose a
+   `merge_commit_sha` for each of them — e.g. #668 →
+   `e50ea5a047e86098a04d57ef2099441e031d02fd`, a two-parent commit whose
+   message reads "Merge 39483278a... into 82baf8fc..." — but that is
+   GitHub's speculative test-merge commit, not a merge into any branch: it
+   is reachable from no ref a plain clone fetches, and `git show` on it
+   fails with "could not get object info". The `gh pr view --json files`
+   snapshot exposes the same file list and matches the "measured" column to
+   the unit:
 
    | PR | claimed (planned) | measured (PR diff, path ~ /marketing/i) |
    |----|-------------------|-------------------------------------|
