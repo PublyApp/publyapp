@@ -935,8 +935,8 @@ const staffUsersQueryOptions = buildStaffQueryOptions<
 });
 
 /**
- * #1690 / #1691 : le classificateur lit maintenant l'AST via le TypeScript
- * vendoré par ts-morph — plus de regex sur du texte brut.
+ * #1690 / #1691 / #1925-r3 (point 1) : le classificateur lit maintenant l'AST
+ * via le TypeScript vendoré par ts-morph — plus de regex sur du texte brut.
  *
  * - #1690 (réglé) : un `>` dans un littéral de chaîne en position d'argument
  *   générique arrêtaient la regex non-greedy trop tôt → usine ignorée.
@@ -955,6 +955,12 @@ const staffUsersQueryOptions = buildStaffQueryOptions<
  * 250 Ko, 51 ms en pratique) est négligeable face au risque d'un « rien à
  * signaler » qui cache une régression. L'AST fait l'analyse de toute façon ;
  * la regex textuelle n'apportait qu'un raccourci peu fiable.
+ *
+ * Résolution d'alias (#1925-r3, point 1) : un import
+ * `import { buildStaffQueryOptions as bsq } from '...'` fait que le site
+ * d'appel utilise `bsq<…>(…)`, qui ne correspond pas au motif de nom. On
+ * construit une map des alias locaux → noms importés depuis les
+ * ImportDeclaration pour résoudre le nom avant la correspondance.
  */
 const countListQueryFactories = (source: string): number => {
 	const sf = ts.createSourceFile(
@@ -964,6 +970,30 @@ const countListQueryFactories = (source: string): number => {
 		true,
 		ts.ScriptKind.TS,
 	);
+	// Resolve aliased imports (#1925-r3, point 1): an import
+	// `import { buildStaffQueryOptions as bsq } from '...'` makes the call
+	// site use `bsq<…>(…)`, which the name regex below would not match.
+	// Build a map of local alias → imported name from ImportDeclaration
+	// nodes so call-site names can be resolved before pattern matching.
+	const importAliases = new Map<string, string>();
+	ts.forEachChild(sf, (node) => {
+		if (node.kind === ts.SyntaxKind.ImportDeclaration) {
+			const decl = node as ts.ImportDeclaration;
+			const clause = decl.importClause;
+			if (clause) {
+				const bindings = clause.namedBindings;
+				if (bindings && ts.isNamedImports(bindings)) {
+					for (const specifier of bindings.elements) {
+						const localName = specifier.name.text;
+						const importedName = specifier.propertyName
+							? specifier.propertyName.text
+							: localName;
+						importAliases.set(localName, importedName);
+					}
+				}
+			}
+		}
+	});
 	// Collecte les déclarations de types (type alias + interface) indexées par
 	// nom, pour la résolution ultérieure du type `*QueryVariables`.
 	const typeDeclarations = new Map<
@@ -1051,7 +1081,11 @@ const countListQueryFactories = (source: string): number => {
 	const visit = (node: ts.Node): void => {
 		if (node.kind === ts.SyntaxKind.CallExpression) {
 			const call = node as ts.CallExpression;
-			const expressionName = call.expression.getText(sf);
+			// Resolve through alias map: if the call site uses an imported
+			// alias, map it back to the original factory name.
+			const rawExpressionName = call.expression.getText(sf);
+			const expressionName =
+				importAliases.get(rawExpressionName) ?? rawExpressionName;
 			if (
 				/^build(?:Staff|Tenant|StaffSuspense|TenantSuspense)QueryOptions$/.test(
 					expressionName,
@@ -1214,5 +1248,67 @@ const staffUsersQueryOptions = buildStaffQueryOptions<
 );
 `;
 		expect(countListQueryFactories(withNestedGtInTypeArg)).toBe(1);
+	});
+});
+
+// ── #1925-r3, point 1 : aliased import of a factory is detected ──
+//
+// A `no-list` module that imports a factory under an alias
+// (`import { buildStaffQueryOptions as bsq } from '...'`) then calls
+// `bsq<…>(…)` must still be counted as owning a list query. The call-site
+// name `bsq` does not match the factory-name regex, so without alias
+// resolution the factory is silently skipped → the module passes the
+// no-list detector while owning a list. The fix builds an alias map from
+// ImportDeclaration nodes and resolves the call-site name before matching.
+
+describe('aliased factory import is detected (#1925-r3, point 1)', () => {
+	test('RED — old behaviour: aliased import is NOT detected (call-site name does not match factory regex)', () => {
+		// The OLD classifier (before alias resolution) used the call-site
+		// expression name directly. `bsq` does not match
+		// /^build(?:Staff|Tenant|...)/, so the factory is skipped → count 0.
+		// This test proves the defect: a no-list module that aliases the
+		// factory would pass the detector while owning a list.
+		const aliasedListQuery = [
+			"import { buildStaffQueryOptions as bsq } from '@org/shared-ts/lib/query/create-hooks';",
+			'',
+			'export type AliasedListQueryVariables = {',
+			'\tcursor?: string;',
+			'\tsize?: number;',
+			'\tsortOrder?: string;',
+			'};',
+			'',
+			'const staffAliasedListQueryOptions = bsq<',
+			'\tApiClient,',
+			'\tFindStaffUsersResponse,',
+			'\tAliasedListQueryVariables',
+			'>(',
+			'\t{',
+			"\t\tqueryKeyFn: () => ['staff-users'],",
+			'\t\tfetcher: async () => ({}),',
+			'\t},',
+			'\t{ clientAccessor: getClientManager() },',
+			');',
+		].join('\n');
+		const counted = countListQueryFactories(aliasedListQuery);
+		expect(
+			counted,
+			'The aliased factory call MUST be counted as a list query. The classifier resolves the alias back to buildStaffQueryOptions before matching.',
+		).toBe(1);
+	});
+
+	test('INVARIANT PIN — aliasing a NON-factory function does NOT create a false positive', () => {
+		// Aliasing a function that is NOT a build*QueryOptions factory must
+		// not be counted as a list query. The alias resolution must only
+		// map the local name to the imported name — the imported name is
+		// then matched against the factory regex. A non-factory import
+		// stays unmatched.
+		const aliasedNonFactory = `
+import { formatDate as fmt } from '@org/shared-ts/lib/dates';
+
+const formatted = fmt(new Date());
+
+export type SomethingElse = { cursor?: string; size?: number; };
+`;
+		expect(countListQueryFactories(aliasedNonFactory)).toBe(0);
 	});
 });
