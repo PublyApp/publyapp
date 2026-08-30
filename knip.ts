@@ -1,4 +1,32 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+
 import type { KnipConfig } from 'knip';
+
+// --- Dynamic guard extraction from apps/front/package.json ---
+// All guard scripts are invoked via run-guarded.mts (issue #1525 timeout
+// wrapper). knip traces run-guarded.mts as the entry point from package.json
+// but cannot follow the dynamic script-path argument to discover each guard
+// as a separate entry. We extract the guard paths dynamically from
+// package.json so that removing a guard from package.json and forgetting to
+// delete the file makes knip report it as unused — the paired-proof
+// requirement. A static list here would be a silent lie: knip would stay
+// green even after a guard is dropped from the scripts.
+
+const frontPkgPath = join('apps', 'front', 'package.json');
+const frontPkg = JSON.parse(readFileSync(frontPkgPath, 'utf8')) as {
+	scripts?: Record<string, string>;
+};
+
+const guardPaths = new Set<string>();
+const re = /run-guarded\.mts(?:\s+--test)?\s+([^\s&|]+)/g;
+for (const script of Object.values(frontPkg.scripts ?? {})) {
+	let m: RegExpExecArray | null;
+	while ((m = re.exec(script)) !== null) {
+		guardPaths.add(m[1]);
+	}
+}
+const dynamicGuards = [...guardPaths].sort();
 
 const config: KnipConfig = {
 	// Vendored upstream plugin code (dmmulroy/anti-slop @ 6d53855) is outside
@@ -73,6 +101,11 @@ const config: KnipConfig = {
 				// fails the step loud, never silently drops out of knip.
 				'tests/proofs/**/*.test.ts',
 				'tests/proofs/**/*.test.tsx',
+				// Dynamic guard entries extracted from apps/front/package.json.
+				// These are the scripts invoked via run-guarded.mts. Removing a
+				// guard from package.json drops it from this list, so knip
+				// reports the file as unused — the paired-proof guarantee.
+				...dynamicGuards,
 			],
 			// System binary invoked via execFileSync by the request-counter sidecar
 			// to mint its throwaway TLS cert; not an npm package.
