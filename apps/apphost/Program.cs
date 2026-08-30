@@ -73,7 +73,25 @@ var postgres = builder.AddPostgres("postgres").WithPassword(postgresPassword).Wi
 // proof lives in AppHostOrchestrationGuardSpec: the closing residue must read
 // as FREE, an active listener must still fail loudly, and --plain-bind-preflight
 // reproduces the exact kernel hazard (plain bind -> errno 98 on the residue).
-bool HostPort5454IsFree(bool plainBind = false) {
+//
+// Issue #1926 point 1: HostPort5454IsFree used to catch ANY SocketException
+// and answer "occupied". A permission error, a sandbox restriction, an absent
+// IPv4 family all produced the misleading "arrêtez le conteneur qui écoute
+// sur 5454" diagnosis — sending the user after a phantom listener. The
+// classification now distinguishes AddressAlreadyInUse (the only verdict
+// that means "occupied") from every other error: the latter throws a loud
+// exception naming the real SocketError so the user follows the actual cause.
+bool HostPort5454IsFree(bool plainBind = false, SocketError? forcedBindError = null) {
+	if (forcedBindError.HasValue) {
+		// Guard-only fault injection (--probe-bind-fault): runs the production
+		// classification path against a synthetic SocketException so the
+		// architecture guard can assert the mapping without depending on the
+		// OS reproducing a permission-denied bind at runtime.
+		var outcome = ProbeBind.ClassifyBindException(
+			new SocketException((int)forcedBindError.Value));
+		return HostPort5454IsFree_Outcome.Apply(outcome);
+	}
+
 	if (plainBind) {
 		// Guard-only variant: a TRUE plain bind (no SO_REUSEADDR) via libc.
 		// .NET has no managed switch to drop the bind-time reuse default, so
@@ -87,10 +105,37 @@ bool HostPort5454IsFree(bool plainBind = false) {
 	try {
 		probe.Bind(new IPEndPoint(IPAddress.Loopback, 5454));
 		return true;
-	} catch (SocketException) {
-		return false;
+	} catch (SocketException ex) {
+		var outcome = ProbeBind.ClassifyBindException(ex);
+		return HostPort5454IsFree_Outcome.Apply(outcome);
 	} finally {
 		probe.Dispose();
+	}
+}
+
+// Issue #1926 point 1 — the --probe-bind-fault hook's entry point. Runs the
+// production classification against a synthetic SocketException, then exits
+// with the matching loud message. Free → exit 0 (no problem); Occupied →
+// the same "arrêtez le conteneur qui écoute sur 5454" diagnosis the
+// production probe would print (so the guard can also assert that path);
+// Other → the diagnostic that names the real SocketError. Never reachable
+// from the user flow — the dispatcher in main only routes here when the
+// flag is present, and the flag is a guard-only test hook.
+void ProbeBindFault(SocketError code) {
+	var outcome = ProbeBind.ClassifyBindException(new SocketException((int)code));
+	switch (outcome.Kind) {
+		case ProbeBind.OutcomeKind.Free:
+			Console.WriteLine("host port 5454 preflight: free (probe-bind-fault)");
+			return;
+		case ProbeBind.OutcomeKind.Occupied:
+			FailLoudlyOnOccupiedPort();
+			break;
+		case ProbeBind.OutcomeKind.Other:
+			ProbeBindFaultReporter.ReportAndExit(outcome);
+			break;
+		default:
+			throw new InvalidOperationException(
+				$"ProbeBindFault: verdict inconnu ({outcome.Kind}).");
 	}
 }
 
@@ -234,6 +279,20 @@ if (args.Contains("--dump-model")) {
 	return;
 }
 
+if (args.Contains("--probe-bind-fault")) {
+	var idx = args.IndexOf("--probe-bind-fault");
+	var codeName = idx + 1 < args.Length ? args[idx + 1] : null;
+	var parsedCode = SocketError.Success;
+	if (codeName is null || !Enum.TryParse<SocketError>(codeName, ignoreCase: true, out parsedCode)) {
+		Console.Error.WriteLine(
+			"ERREUR — --probe-bind-fault attend un nom de System.Net.Sockets.SocketError "
+				+ $"(ex. AddressAlreadyInUse, AccessDenied). Reçu : {codeName ?? "<manquant>"}. "
+				+ "Mode de garde AppHostOrchestrationGuardSpec uniquement.");
+		Environment.Exit(2);
+	}
+	ProbeBindFault(parsedCode);
+}
+
 if (args.Contains("--hold-port-5454")) {
 	try {
 		HoldPort5454Forever();
@@ -312,5 +371,84 @@ internal static partial class RawPlainBind {
 		} finally {
 			close(fd);
 		}
+	}
+}
+
+// Issue #1926 point 1 — probe bind-error classification. The OLD probe caught
+// every SocketException and answered "occupied", so a permission error, a
+// sandbox restriction, or an absent address family all became the misleading
+// "arrêtez le conteneur qui écoute sur 5454" — sending the user after a
+// phantom listener. Only AddressAlreadyInUse means "occupied"; any other
+// SocketError is a real, named environment problem that the user must
+// address (sandbox capabilities, IPv4 availability, NIC policy, ...).
+//
+// The classification is a single, side-effect-free switch over the
+// SocketException so the production probe, the --probe-bind-fault guard
+// hook, and any future caller all share the same mapping. Changing the
+// mapping changes the user-visible verdict — that is what the architecture
+// guard (see AppHostOrchestrationGuardSpec) witnesses end-to-end.
+internal static partial class ProbeBind {
+	public enum OutcomeKind { Free, Occupied, Other }
+
+	public readonly record struct Outcome(OutcomeKind Kind, SocketError? Code, string Diagnostic) {
+		public static Outcome Occupied(SocketError code) {
+			return new(OutcomeKind.Occupied, code, $"SocketError.{code}");
+		}
+		public static Outcome Other(SocketError code, string message) {
+			return new(OutcomeKind.Other, code, message);
+		}
+	}
+
+	public static Outcome ClassifyBindException(SocketException ex) {
+		var code = ex.SocketErrorCode;
+		if (code == SocketError.AddressAlreadyInUse) {
+			return Outcome.Occupied(code);
+		}
+		return Outcome.Other(
+			code,
+			$"SocketError.{code} (errno natif : {ex.NativeErrorCode})");
+	}
+}
+
+// Issue #1926 point 1 — the verdict the production probe applies to a
+// classified outcome. Free and Occupied are normal; Other is the loud-fail
+// path that names the real SocketError. The top-level local function uses
+// this via static dispatch so the call site reads the same as the old
+// `return false` while the failure path actually surfaces the cause.
+internal static class HostPort5454IsFree_Outcome {
+	public static bool Apply(ProbeBind.Outcome outcome) {
+		switch (outcome.Kind) {
+			case ProbeBind.OutcomeKind.Free:
+				return true;
+			case ProbeBind.OutcomeKind.Occupied:
+				return false;
+			case ProbeBind.OutcomeKind.Other:
+				throw new InvalidOperationException(
+					"AppHost pre-flight : impossible de déterminer si127.0.0.1:5454 est libre. "
+						+ $"Cause réelle : {outcome.Diagnostic}. "
+						+ "Actions : examinez les permissions du processus (sandbox, capabilities, "
+						+ "pare-feu), la disponibilité d'IPv4 sur le loopback, et l'état du réseau "
+						+ "avant de relancer `dotnet run --project apps/apphost`.");
+			default:
+				throw new InvalidOperationException(
+					$"AppHost pre-flight : verdict inconnu ({outcome.Kind}).");
+		}
+	}
+}
+
+// Issue #1926 point 1 — the --probe-bind-fault hook's reporting path. Same
+// loud message as Apply's exception so the guard can assert against a
+// process exit (not an in-process exception). The probe classification
+// itself is the same one the production probe runs.
+internal static class ProbeBindFaultReporter {
+	public static void ReportAndExit(ProbeBind.Outcome outcome) {
+		Console.Error.WriteLine(
+			"ERREUR — pré-vol AppHost : la sonde n'a pas pu déterminer "
+				+ $"si127.0.0.1:5454 est libre. Cause réelle : {outcome.Diagnostic}. "
+				+ "Erreur de socket inattendue (ni address-already-in-use ni bind réussi). "
+				+ "Actions : examinez les permissions du processus (sandbox, capabilities, "
+				+ "pare-feu), la disponibilité d'IPv4 sur le loopback, et l'état du réseau "
+				+ "avant de relancer `dotnet run --project apps/apphost`.");
+		Environment.Exit(1);
 	}
 }

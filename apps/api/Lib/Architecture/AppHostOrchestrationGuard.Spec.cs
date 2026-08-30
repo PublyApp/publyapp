@@ -151,6 +151,82 @@ public sealed partial class AppHostOrchestrationGuardSpec : IDisposable {
 		);
 	}
 
+	// Issue #1926 point 1: the probe must distinguish AddressAlreadyInUse from
+	// other SocketErrors. The AppHost has a guard-only mode --probe-bind-fault
+	// that runs the production probe classification path with a synthetic
+	// SocketException instead of an OS bind, so the assertion observes the real
+	// mapping. AddressAlreadyInUse stays "occupied" (occupied free-side); any
+	// other SocketError must be NAMED in plain words (not misreported as
+	// "port occupied") so the user follows the real cause. Companion to the
+	// existing
+	// ItShouldFailLoudlyWhenHostPort5454IsAlreadyOccupied: that test pins the
+	// AddressAlreadyInUse half; this one pins the non-AddressAlreadyInUse half
+	// (round-4 reviewer finding — a permission-denied bind must NOT redirect
+	// the user toward a phantom container).
+	[Fact]
+	public async Task ItShouldNameNonAddressAlreadyInUseErrorsInsteadOfMisreportingThemAsOccupied() {
+		await AppHostBuild.Value;
+
+		var repoRoot = FindRepoRoot();
+		var run = await RunAppHostAsync(
+			repoRoot,
+			TimeSpan.FromMinutes(5),
+			["run", "--project", "apps/apphost", "--no-build", OpenApiSkipBuildProperty,
+				"--", "--probe-bind-fault", "AccessDenied"]
+		);
+
+		run.ExitedOnItsOwn.Should().BeTrue(
+			"the probe-bind-fault mode must finish on its own, fast — not run until "
+				+ "the budget kills it"
+		);
+		run.ExitCode.Should().Be(
+			1,
+			$"the AppHost must exit non-zero when the probe cannot determine port "
+				+ $"state — the silent 'looks free' or 'looks occupied' verdicts both "
+				+ $"fail this fix. Actual exit: {run.ExitCode}"
+		);
+		// The misleading "address already in use" / "arrêtez le conteneur qui
+		// écoute sur 5454" diagnosis is exactly what the round-4 review caught:
+		// it sends the user chasing a phantom listener. The new path MUST NOT
+		// repeat it for a non-AddressAlreadyInUse error.
+		PortGuardMessage().IsMatch(run.Console).Should().BeFalse(
+			"a non-AddressAlreadyInUse SocketError must NOT be misreported as "
+				+ "'port already in use' — that is the round-4 review finding this "
+				+ $"fix removes. Console: {run.Console}"
+		);
+		run.Console.Should().Contain(
+			"AccessDenied",
+			"the real SocketError name must appear in the diagnostic so the user "
+				+ $"follows the actual cause (permission denied here). Console: {run.Console}"
+		);
+	}
+
+	// Issue #1926 point 1 — companion to the above: the synthetic AddressAlreadyInUse
+	// fault must route through the same loud "occupied" path the real bind does.
+	// Guards against a regression where --probe-bind-fault diverges from the
+	// production probe (the fault mode would silently misclassify while the real
+	// probe still said "occupied", and this guard would never notice).
+	[Fact]
+	public async Task ItShouldKeepReportingAddressAlreadyInUseThroughTheProbeBindFaultHook() {
+		await AppHostBuild.Value;
+
+		var repoRoot = FindRepoRoot();
+		var run = await RunAppHostAsync(
+			repoRoot,
+			TimeSpan.FromMinutes(5),
+			["run", "--project", "apps/apphost", "--no-build", OpenApiSkipBuildProperty,
+				"--", "--probe-bind-fault", "AddressAlreadyInUse"]
+		);
+
+		run.ExitedOnItsOwn.Should().BeTrue();
+		run.ExitCode.Should().Be(1, $"actual: {run.ExitCode}");
+		PortGuardMessage().IsMatch(run.Console).Should().BeTrue(
+			"synthetic AddressAlreadyInUse must trigger the SAME loud 'occupied' "
+				+ "diagnosis the real bind does, so the guard pins the production "
+				+ $"probe too. Console: {run.Console}"
+		);
+	}
+
 	[Fact]
 	public async Task ItShouldFailLoudlyWhenHostPort5454IsAlreadyOccupied() {
 		// The occupied half of the port pairing: run the real AppHost against an
