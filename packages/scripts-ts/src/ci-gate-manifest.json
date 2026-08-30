@@ -696,6 +696,11 @@
 			"mirror": "just ci-quality",
 			"reason": "ci-quality-dotnet runs the identical dotnet build PublyApp.slnx --no-restore with TreatWarningsAsErrors and EnforceCodeStyleInBuild active via Directory.Build.props, so any analyzer or code-style warning fails the build the same way in CI and locally."
 		},
+		"quality-gate.yml::quality::Check formatter scope (#1875)": {
+			"hash": "5a94bdd8275b3f27",
+			"mirror": "just ci-format",
+			"reason": "ci-format now runs pnpm format AND then pnpm --filter scripts-ts exec vitest run src/check-formatter-scope.test.ts, the same vitest file this step runs. The guard asks oxfmt itself (via the real .oxfmtrc.json from the repo root) which files each package.json format glob would process, so an ignorePatterns entry that silently swallows a directory the globs enumerate fails red naming the directory instead of letting `pnpm format` exit 0."
+		},
 		"quality-gate.yml::quality::Check formatting (oxfmt --check)": {
 			"hash": "83841604495adffa",
 			"mirror": "just ci-quality",

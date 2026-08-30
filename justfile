@@ -418,8 +418,14 @@ ci-install:
   pnpm install --frozen-lockfile --ignore-scripts
   pnpm --filter @org/shared-ts run postinstall
 
-# Formatting (repo-wide oxfmt --check, exactly as both workflows run it)
+# Formatting (repo-wide oxfmt --check, exactly as both workflows run it),
+# plus the #1875 formatter-scope guard: the vitest file asks oxfmt itself
+# which files each package.json format glob would process against the real
+# .oxfmtrc.json, so an ignorePatterns entry that silently swallows a directory
+# the globs enumerate fails the gate naming the directory. Mirrors
+# quality-gate.yml::quality::Check formatter scope (#1875).
 ci-format: format
+  pnpm --filter scripts-ts exec vitest run src/check-formatter-scope.test.ts
   @echo "=== [gate] format (done) ==="
 
 # Lint exactly the scope CI lints.
