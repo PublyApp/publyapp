@@ -1629,6 +1629,22 @@ const toPosixPath = (x) => x;
 						['f', 'toPosixPath'],
 					);
 				});
+
+				it('shape 4, computed member: provider["run"](\'x\') runs its body before toPosixPath is defined', () => {
+					const violations = analyze(
+						`const provider = { run: (x) => toPosixPath(x) };
+const result = provider['run']('a');
+const toPosixPath = (x) => x;
+`,
+					);
+
+					assert.strictEqual(violations.length, 1);
+					assert.strictEqual(violations[0]!.callee, 'toPosixPath');
+					assert.strictEqual(violations[0]!.kind, 'transitive');
+					assert.deepStrictEqual(violations[0]!.chain, ['provider.run']);
+					assert.strictEqual(violations[0]!.line, 1);
+					assert.strictEqual(violations[0]!.declaredAtLine, 3);
+				});
 			});
 		});
 
@@ -1692,6 +1708,19 @@ const probe = () => 2;
 	value = run();
 }
 const run = () => 1;
+`,
+				);
+
+				assert.deepStrictEqual(violations, []);
+			});
+
+			it('does not flag a computed-member invocation whose method body makes no TDZ call', () => {
+				// #1956 shape 4: the computed form goes through the same
+				// resolver as the dotted form and stays green when the
+				// body calls nothing declared later.
+				const violations = analyze(
+					`const engine = { run: () => 1 };
+const result = engine['run']();
 `,
 				);
 

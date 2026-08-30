@@ -1001,10 +1001,11 @@ const walkGetterAccess = (
 /** Resolves an object-literal member access (`obj.run` / `obj['run']`) to
  * the function-expression property on a module-level const object literal.
  * When the member is invoked at module-eval time, that body runs at
- * module-eval time, so it is walked as an immediate invocation. Only
- * identifier/string-literal property names and function-expression values
- * are followed; computed indexes and method-definition shorthand stay
- * unresolved (declared boundary, not silently claimed as covered). */
+ * module-eval time, so it is walked as an immediate invocation. Dotted
+ * names and computed indexes with literal names (strings and
+ * no-substitution templates, #1956 shape 4) are followed; a computed
+ * IDENTIFIER index (`obj[run]`) and method-definition shorthand stay
+ * unresolved (declared boundaries, not silently claimed as covered). */
 const resolveObjectLiteralMethod = (
 	access: ts.PropertyAccessExpression | ts.ElementAccessExpression,
 	context: WalkContext,
