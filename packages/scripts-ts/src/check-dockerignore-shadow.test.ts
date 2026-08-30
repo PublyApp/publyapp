@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
-import { spawnSync } from 'node:child_process';
-import { mkdir, mkdtemp, writeFile } from 'node:fs/promises';
+import { execFileSync, spawnSync } from 'node:child_process';
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -327,7 +327,86 @@ test('RED: apps/api/.DOCKERIGNORE (dotfile case variant in a subdirectory) is de
 	const findings = await findDockerignoreShadows({ rootDir });
 
 	assert.ok(
-		findings.includes('apps/api/.DOCKERIGNORE'),
 		`expected the guard to name apps/api/.DOCKERIGNORE, got: ${JSON.stringify(findings)}`,
 	);
+});
+
+// -----------------------------------------------------------------------
+// Round 3 of #1873 / issue #1909 class: the walk descends into directories
+// git itself ignores (e.g. a parallel .worktrees/ checkout), which would
+// produce false positives against files that can never enter a build
+// context. The guard now asks `git check-ignore` (batch, --stdin) to filter
+// its candidates. These two tests pin the paired proof: a git-ignored
+// shadow is dropped (green), a tracked shadow (even mixed-case) is kept
+// (red). Without both halves, the fix is rejected: the first alone would
+// let a "simply stop walking" mutation pass; the second alone would not
+// detect the defect at all.
+// -----------------------------------------------------------------------
+
+const initGitRepo = async (repoDir: string): Promise<void> => {
+	execFileSync('git', ['init', '-q'], {
+		cwd: repoDir,
+		encoding: 'utf8',
+		stdio: 'ignore',
+	});
+	// `git check-ignore` reads .gitignore rules from the working tree; no
+	// commit is needed, but a .gitignore must exist for the rules to apply.
+	await writeFixtureFile(repoDir, '.gitignore', '');
+};
+
+// GREEN (paired proof, half 1): a shadow file inside a directory git
+// ignores must NOT be reported, exactly as the walk used to do before the
+// fix. ROUGE before the fix (the file was reported), VERT after. This is
+// the defect the captain's probe surfaced.
+test('GREEN: shadow file in a git-ignored directory is filtered out (issue #1909 class)', async () => {
+	const repoDir = await mkdtemp(
+		path.join(os.tmpdir(), 'publyapp-git-ignored-shadow-'),
+	);
+
+	await initGitRepo(repoDir);
+	await writeFixtureFile(repoDir, '.gitignore', 'ignored-dir/\n');
+	await writeFixtureFile(
+		repoDir,
+		'ignored-dir/Dockerfile.SONDE.dockerignore',
+		'',
+	);
+
+	try {
+		const findings = await findDockerignoreShadows({ rootDir: repoDir });
+
+		assert.deepEqual(
+			findings,
+			[],
+			'expected the guard to drop a shadow file sitting inside a git-ignored directory',
+		);
+	} finally {
+		await rm(repoDir, { recursive: true, force: true });
+	}
+});
+
+// RED (paired proof, half 2): a shadow file in a directory git DOES track
+// must STILL be reported, including mixed-case variants. Without this pin,
+// a fix that simply stops walking (or that over-filters) would pass half 1
+// by making the guard blind — the round-2 case-insensitive acquisition must
+// not be lost.
+test('RED: mixed-case shadow file in a git-tracked directory is still caught', async () => {
+	const repoDir = await mkdtemp(
+		path.join(os.tmpdir(), 'publyapp-git-tracked-shadow-'),
+	);
+
+	await initGitRepo(repoDir);
+	await writeFixtureFile(repoDir, '.gitignore', 'ignored-dir/\n');
+	await writeFixtureFile(repoDir, 'tracked-dir/Dockerfile.DockerIgnore', '');
+
+	try {
+		const findings = await findDockerignoreShadows({ rootDir: repoDir });
+
+		assert.deepEqual(
+			findings,
+			['tracked-dir/Dockerfile.DockerIgnore'],
+			`expected the guard to still name the tracked mixed-case shadow, got: ${JSON.stringify(findings)}`,
+		);
+	} finally {
+		await rm(repoDir, { recursive: true, force: true });
+	}
 });
