@@ -127,7 +127,10 @@ test('C# Spec.cs files are excluded from production pairs', () => {
 	assert.equal(r.specPairLines, 50);
 });
 
-test('C# Tests.cs and g.cs files are excluded from production pairs', () => {
+test('C# Tests.cs files are excluded from production pairs, but arbitrary .g.cs files are NOT', () => {
+	// #1897: the blanket `*.g.cs` pattern was removed. Only files explicitly
+	// listed in GENERATED_FILE_PATHS are excluded. An arbitrary `.g.cs` file
+	// is now counted as production — the exclusion must be deliberate.
 	const dupes = [
 		{
 			firstFile: { name: 'apps/api/A.cs' },
@@ -141,8 +144,59 @@ test('C# Tests.cs and g.cs files are excluded from production pairs', () => {
 		},
 	];
 	const r = computeProductionStats(dupes);
+	assert.equal(r.pairCount, 1);
+	assert.equal(r.pairLines, 30);
+	assert.equal(r.specPairCount, 1);
+	assert.equal(r.specPairLines, 40);
+});
+
+test('ResponseKeys.g.cs is excluded by explicit path (issue #1897)', () => {
+	// The one known generated file is excluded by path, not by pattern.
+	const dupes = [
+		{
+			firstFile: { name: 'apps/api/SomeService.cs' },
+			secondFile: { name: 'apps/api/Localization/ResponseKeys.g.cs' },
+			lines: 60,
+		},
+	];
+	const r = computeProductionStats(dupes);
 	assert.equal(r.pairCount, 0);
-	assert.equal(r.specPairCount, 2);
+	assert.equal(r.specPairCount, 1);
+	assert.equal(r.specPairLines, 60);
+});
+
+test('test-infrastructure files under Lib/Testing/ are excluded (issue #1895)', () => {
+	// A file under Lib/Testing/ has no `.Spec.cs` suffix but is test-only
+	// code compiled into the test project. It must be excluded by path.
+	const dupes = [
+		{
+			firstFile: { name: 'apps/api/Lib/Testing/Helpers/TenantTestHelper.cs' },
+			secondFile: {
+				name: 'apps/api/Lib/Testing/Helpers/StaffUserTestHelper.cs',
+			},
+			lines: 50,
+		},
+	];
+	const r = computeProductionStats(dupes);
+	assert.equal(r.pairCount, 0);
+	assert.equal(r.specPairCount, 1);
+	assert.equal(r.specPairLines, 50);
+});
+
+test('test-infrastructure files under Tests/ are excluded (issue #1895)', () => {
+	const dupes = [
+		{
+			firstFile: {
+				name: 'apps/api/Tests/Data/DbContext/AppDbContextAuditTrackingSpec.cs',
+			},
+			secondFile: { name: 'apps/api/SomeService.cs' },
+			lines: 40,
+		},
+	];
+	const r = computeProductionStats(dupes);
+	assert.equal(r.pairCount, 0);
+	assert.equal(r.specPairCount, 1);
+	assert.equal(r.specPairLines, 40);
 });
 
 test('C# spec self-duplication is reported but never gated', () => {

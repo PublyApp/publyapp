@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 
 import { test, vi } from 'vitest';
 
-import { checkNoFloatingPromises, run } from './check-no-floating-promises.ts';
+import { checkNoFloatingPromises } from './check-no-floating-promises.ts';
 import baseline from './no-floating-promises-baseline.json' with { type: 'json' };
 
 // Les tests qui simulent un DEPASSEMENT doivent produire un compte superieur a
@@ -14,6 +14,12 @@ const overBaseline = baseline.count + 1;
 // compte STRICTEMENT INFERIEUR au plancher epine — simule un nettoyage non
 // capitalise dans le plancher.
 const underBaseline = baseline.count - 1;
+// Nombre de fichiers strictement INFERIEUR au plancher epine — simule un
+// balayage tronqué (issue #1767). Un balayage qui ne couvre qu'une fraction
+// des fichiers du depot peut encore produire un compte de warnings dans les
+// limites du plancher (moins de fichiers → moins de warnings). Le cliquet
+// doit refuser un tel balayage.
+const underFloor = baseline.files_scanned_floor - 1;
 
 test(
 	'the no-floating-promises count stays within the pinned baseline',
@@ -1001,6 +1007,134 @@ test(
 			assert.strictEqual(result.actual, baseline.count);
 		} finally {
 			vi.doUnmock('node:child_process');
+		}
+	},
+);
+
+test(
+	'the ratchet FAILS CLOSED when oxlint scans fewer files than the floor',
+	{ timeout: 30_000 },
+	async () => {
+		// Issue #1767 — truncated scan detection.
+		//
+		// A scan that covers only a fraction of the repo's files can still
+		// produce a warning count within the baseline — fewer files means
+		// fewer warnings, so a truncated scan would report "within limit"
+		// while real violations hide in the unscanned files. The repo has
+		// thousands of TS/TSX files; a scan that covers, say, 300 of them is
+		// not the same measurement as the baseline, and comparing the two is
+		// meaningless.
+		//
+		// Here oxlint scans `underFloor` files (one below the pinned floor)
+		// and emits a warning count that is WITHIN the baseline. Without the
+		// floor, this would pass green — the silent false negative this
+		// ratchet exists to prevent. With the floor, the ratchet must refuse
+		// to report a count and return withinLimit="error".
+		vi.doMock('node:child_process', async (importOriginal) => {
+			const actual =
+				await importOriginal<typeof import('node:child_process')>();
+			return {
+				...actual,
+				spawnSync: () => ({
+					status: 1,
+					stdout: JSON.stringify({
+						diagnostics: Array.from({ length: baseline.count }, () => ({
+							message: 'Promises must be awaited',
+							code: 'typescript(no-floating-promises)',
+							severity: 'warning',
+						})),
+						number_of_files: underFloor,
+					}),
+					stderr: '',
+					error: null,
+				}),
+			};
+		});
+
+		const { checkNoFloatingPromises: mockedCheck } =
+			await import('./check-no-floating-promises.ts?mocked-truncated-scan');
+
+		try {
+			const result = await mockedCheck();
+
+			// MUST fail closed — never a conforming pass on a truncated scan.
+			assert.strictEqual(
+				result.withinLimit,
+				'error',
+				'expected withinLimit="error" when oxlint scans fewer files than ' +
+					`the floor (${underFloor} < ${baseline.files_scanned_floor}), ` +
+					`but got withinLimit=${result.withinLimit}`,
+			);
+			// The distinction that matters is withinLimit: the count equals
+			// the baseline, but that equality is meaningless when the scan is
+			// truncated. The bug this covers is precisely a truncated scan
+			// dressed up as a pass — assert that the pass never happens.
+			assert.notStrictEqual(
+				result.withinLimit,
+				true,
+				'a truncated scan reported as "within limit" is the silent ' +
+					'false negative this ratchet exists to prevent (issue #1767)',
+			);
+		} finally {
+			vi.doUnmock('node:child_process');
+		}
+	},
+);
+
+test(
+	'the ratchet FAILS CLOSED when the baseline has no files_scanned_floor',
+	{ timeout: 30_000 },
+	async () => {
+		// Issue #1767 — the floor must be present and valid.
+		//
+		// A baseline that omits `files_scanned_floor` (or pins a non-positive
+		// value) cannot detect a truncated scan. The ratchet must refuse to
+		// run rather than silently allow a truncated scan to pass. This
+		// guards against a regression where the floor is accidentally
+		// removed or zeroed out.
+		//
+		// We mock the baseline read by intercepting the JSON.parse result
+		// through a custom import. Since the baseline is imported as a JSON
+		// module, we instead test the production path by mocking the
+		// baseline file content through readFile.
+		vi.doMock('node:fs/promises', async (importOriginal) => {
+			const actual = await importOriginal<typeof import('node:fs/promises')>();
+			return {
+				...actual,
+				readFile: (filePath: string, encoding: string) => {
+					if (
+						typeof filePath === 'string' &&
+						filePath.includes('no-floating-promises-baseline.json')
+					) {
+						return Promise.resolve(
+							JSON.stringify({
+								rule: 'typescript(no-floating-promises)',
+								count: 397,
+								// files_scanned_floor is MISSING — the ratchet
+								// must refuse to run.
+							}),
+						);
+					}
+					return actual.readFile(filePath, encoding);
+				},
+			};
+		});
+
+		const { checkNoFloatingPromises: mockedCheck } =
+			await import('./check-no-floating-promises.ts?mocked-missing-floor');
+
+		try {
+			const result = await mockedCheck();
+
+			assert.strictEqual(
+				result.withinLimit,
+				'error',
+				'expected withinLimit="error" when the baseline has no ' +
+					'`files_scanned_floor`, but got withinLimit=' +
+					`${result.withinLimit}`,
+			);
+		} finally {
+			vi.doUnmock('node:fs/promises');
 		}
 	},
 );

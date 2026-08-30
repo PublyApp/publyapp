@@ -130,28 +130,40 @@ const runOxlint = () => {
 	};
 };
 
-// Counts warnings matching `ruleName` from oxlint's JSON output.
-//
-// Fail-closed by design: oxlint's JSON format is the only output we know how
-// to interpret. Anything else — empty output, truncated JSON, garbled text,
-// an unexpected structure — makes us THROW, and the caller converts that into
-// an `withinLimit: 'error'` result. We never fall back to "0 warnings".
-//
-// Why JSON instead of the unix format we used to parse: the unix format is
-// line-oriented text. An empty or garbled line-oriented output silently
-// produces a count of 0, which passes green. JSON is structured: if the
-// output is not valid JSON, or not the shape we expect, JSON.parse fails
-// loud. That is exactly the fail-closed behaviour the ratchet needs — a
-// garbled oxlint must never look like "0 warnings, within limit".
+/**
+ * Parse oxlint JSON output and count warnings matching `ruleName`.
+ *
+ * Fail-closed by design: oxlint's JSON format is the only output we know how
+ * to interpret. Anything else — empty output, truncated JSON, garbled text,
+ * an unexpected structure — makes us THROW, and the caller converts that into
+ * an `withinLimit: 'error'` result. We never fall back to "0 warnings".
+ *
+ * Why JSON instead of the unix format we used to parse: the unix format is
+ * line-oriented text. An empty or garbled line-oriented output silently
+ * produces a count of 0, which passes green. JSON is structured: if the
+ * output is not valid JSON, or not the shape we expect, JSON.parse fails
+ * loud. That is exactly the fail-closed behaviour the ratchet needs — a
+ * garbled oxlint must never look like "0 warnings, within limit".
+ *
+ * Issue #1767 — truncated scan detection:
+ *   A scan that covers only a fraction of the repo's files can still produce
+ *   a warning count within the baseline (fewer files → fewer warnings), so
+ *   the gate stays GREEN while real violations hide in the unscanned files.
+ *   To catch this, the baseline pins a `files_scanned_floor`. If oxlint scans
+ *   fewer files than the floor, we refuse to report a count — the scan is
+ *   truncated, not clean. The failure message names the floor and the actual
+ *   count so the reader sees the truncation.
+ */
 const countWarningsFromJson = (
 	output: string,
 	ruleName: string,
 	baselineCount: number,
+	filesScannedFloor: number,
 ): number => {
 	let parsed: unknown;
 	try {
 		parsed = JSON.parse(output);
-	} catch (_error) {
+	} catch {
 		throw new Error(
 			'oxlint output is not valid JSON — ' +
 				'expected JSON from `--format json`, but parsing failed. ' +
@@ -184,6 +196,41 @@ const countWarningsFromJson = (
 			'oxlint scanned 0 files — ' +
 				"expected to scan the repo's TS/TSX files. " +
 				'Check the oxlint config and ignore patterns.',
+		);
+	}
+
+	// Fail-closed on a truncated scan (issue #1767).
+	//
+	// A scan that covers only a fraction of the repo's files can still produce
+	// a warning count within the baseline — fewer files means fewer warnings,
+	// so a truncated scan would report "within limit" while real violations
+	// hide in the unscanned files. The repo has thousands of TS/TSX files; a
+	// scan that covers, say, 300 of them is not the same measurement as the
+	// baseline, and comparing the two is meaningless.
+	//
+	// The baseline pins `files_scanned_floor`: the smallest number of files a
+	// complete scan may cover. If oxlint scans fewer, the scan is truncated
+	// and we refuse to report a count. This is distinct from the empty-scan
+	// guard below (which catches 0 diagnostics with files scanned); a truncated
+	// scan can still emit plenty of diagnostics, it just doesn't emit enough
+	// to trust.
+	//
+	// `number_of_files` is the count oxlint itself reports. A mismatch between
+	// it and the floor means the scan missed files (config drift, ignore
+	// patterns that grew, an over-broad exclusion, or a file that became
+	// unreadable). The failure message names both numbers so the reader sees
+	// the gap.
+	const numberOfFiles =
+		typeof parsedObj.number_of_files === 'number' &&
+		Number.isFinite(parsedObj.number_of_files)
+			? parsedObj.number_of_files
+			: 0;
+	if (numberOfFiles < filesScannedFloor) {
+		throw new Error(
+			`oxlint scanned ${numberOfFiles} files, below the floor of ${filesScannedFloor} — ` +
+				'the scan is truncated. Real violations may hide in the unscanned files. ' +
+				'Check the oxlint config and ignore patterns. ' +
+				`(baseline ${baselineCount} is only meaningful for a full scan.)`,
 		);
 	}
 
@@ -274,6 +321,7 @@ export const checkNoFloatingPromises = async (): Promise<RatchetResult> => {
 		const baseline = JSON.parse(baselineContent) as {
 			rule: string;
 			count: number;
+			files_scanned_floor?: number;
 		};
 
 		// Fail closed: an invalid baseline must never silently pass. A missing
@@ -295,11 +343,30 @@ export const checkNoFloatingPromises = async (): Promise<RatchetResult> => {
 			);
 		}
 
+		// Fail closed: `files_scanned_floor` must be a positive finite number.
+		// A missing, zero, or non-numeric floor means we cannot detect a
+		// truncated scan — throwing here converts to withinLimit="error".
+		// Without the floor, a scan that covers only a fraction of the repo's
+		// files could still report "within limit" while real violations hide in
+		// the unscanned files (issue #1767).
+		if (
+			typeof baseline.files_scanned_floor !== 'number' ||
+			!Number.isFinite(baseline.files_scanned_floor) ||
+			baseline.files_scanned_floor <= 0
+		) {
+			throw new Error(
+				`baseline JSON has a missing or invalid \`files_scanned_floor\` (${String(baseline.files_scanned_floor)}) — ` +
+					'cannot detect a truncated scan without a positive floor. ' +
+					'See issue #1767.',
+			);
+		}
+
 		const { stdout } = runOxlint();
 		const actualCount = countWarningsFromJson(
 			stdout,
 			baseline.rule,
 			baseline.count,
+			baseline.files_scanned_floor,
 		);
 
 		// Three directions — see the file header for the full rationale.
