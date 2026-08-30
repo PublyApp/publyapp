@@ -537,6 +537,46 @@ for (const test of replayable) {
 		continue;
 	}
 
+	// Every declared paired red proof MUST carry a per-test expectation
+	// manifest sitting next to it, named `<proof-file>.expected-red.json`.
+	// Validate the manifest BEFORE launching vitest: a missing or unreadable
+	// manifest makes the proof unclassifiable, so launching vitest would
+	// waste cycles only to fail loud anyway. Catching it here names the
+	// cause precisely (missing file, invalid JSON, empty declaration) and
+	// avoids a noisy vitest crash that would obscure the real defect.
+	// The global classifier cannot see a declared kept-red test turn green,
+	// so falling back to it would silently restore the exact defect class
+	// this runner exists to catch (issue #1806 ronde 11). A missing manifest
+	// is therefore a LOUD failure that names the missing file and the
+	// expected action — there is no silent fallback, ever.
+	const manifestPath = `${test}.expected-red.json`;
+	if (!existsSync(manifestPath)) {
+		console.error(
+			`  CORRUPT PROOF: expected-red manifest is MISSING — ${manifestPath}\n` +
+				`  Every declared paired red proof MUST carry a per-test expectation manifest ` +
+				`(<proof-file>.expected-red.json) declaring which test(s) are expected to stay ` +
+				`red. Without it the runner cannot see a declared kept-red test turn green, so ` +
+				`it refuses to classify. Add the manifest and declare the kept-red test(s) — ` +
+				`tests/proofs/1457/red-1457-r2-sigint-race-silent-child.test.ts.expected-red.json ` +
+				`is the reference shape.`,
+		);
+		corrupted++;
+		continue;
+	}
+
+	let manifest;
+	try {
+		manifest = readExpectedRedManifest(manifestPath);
+	} catch (manifestErr) {
+		console.error(
+			`  CORRUPT PROOF: expected-red manifest is unreadable — ${(manifestErr as Error).message}\n` +
+				`  Manifest: ${manifestPath}\n` +
+				`  The runner refuses to classify a paired red proof with a malformed per-test expectation.`,
+		);
+		corrupted++;
+		continue;
+	}
+
 	console.log(`--- Running: ${test} ---`);
 
 	// Run vitest with the JSON reporter writing to a temp file. The JSON
@@ -586,46 +626,6 @@ for (const test of replayable) {
 			continue;
 		}
 
-		// Every declared paired red proof MUST carry a per-test expectation
-		// manifest sitting next to it, named `<proof-file>.expected-red.json`.
-		// The manifest declares which test(s) are expected to stay red; the
-		// per-test classifier turns a passed declared-red test into a STALE
-		// PROOF. A declared proof WITHOUT a manifest is an input the guard
-		// cannot classify: the global classifier cannot see a declared
-		// kept-red test turn green, so falling back to it would silently
-		// restore the exact defect class this runner exists to catch
-		// (issue #1806 ronde 11). A missing manifest is therefore a LOUD
-		// failure that names the missing file and the expected action —
-		// there is no silent fallback, ever.
-		const manifestPath = `${test}.expected-red.json`;
-		if (!existsSync(manifestPath)) {
-			console.error(
-				`  CORRUPT PROOF: expected-red manifest is MISSING — ${manifestPath}\n` +
-					`  Every declared paired red proof MUST carry a per-test expectation manifest ` +
-					`(<proof-file>.expected-red.json) declaring which test(s) are expected to stay ` +
-					`red. Without it the runner cannot see a declared kept-red test turn green, so ` +
-					`it refuses to classify. Add the manifest and declare the kept-red test(s) — ` +
-					`tests/proofs/1457/red-1457-r2-sigint-race-silent-child.test.ts.expected-red.json ` +
-					`is the reference shape.\n` +
-					`  stdout: ${stdout}\n  stderr: ${stderr}`,
-			);
-			corrupted++;
-			continue;
-		}
-
-		let manifest;
-		try {
-			manifest = readExpectedRedManifest(manifestPath);
-		} catch (manifestErr) {
-			console.error(
-				`  CORRUPT PROOF: expected-red manifest is unreadable — ${(manifestErr as Error).message}\n` +
-					`  Manifest: ${manifestPath}\n` +
-					`  The runner refuses to classify a paired red proof with a malformed per-test expectation.\n` +
-					`  stdout: ${stdout}\n  stderr: ${stderr}`,
-			);
-			corrupted++;
-			continue;
-		}
 		const result = classifyProofWithManifest(
 			report,
 			exitCode as number,

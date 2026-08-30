@@ -363,6 +363,7 @@ const buildReplayFixture = (options: ReplayFixtureOptions): string => {
 			join(proofDir, 'stale-proof.test.ts.expected-red.json'),
 			JSON.stringify(
 				{
+					measuredAgainst: '0000000000000000000000000000000000000000',
 					expectedRed: [
 						{
 							testName: 'the declared kept-red test',
@@ -506,6 +507,88 @@ describe('proof replay — F2: the exit gate is pinned by a real process launch'
 	}, 120000);
 });
 
+// --- Fixture test for #1863: manifest is validated BEFORE vitest launches ---
+
+describe('proof replay — manifest is validated BEFORE vitest launches (#1863)', () => {
+	test('a declared proof WITHOUT its manifest is caught BEFORE vitest runs (message does not include vitest stderr)', () => {
+		// The defect class: the runner launches vitest, which crashes with
+		// "No test suite found" or a PARSE_ERROR, and THEN discovers the
+		// manifest is missing. The vitest crash output (stdout/stderr)
+		// appears in the error message, obscuring the real cause. The fix
+		// validates the manifest before launching vitest: the error
+		// message must NOT contain vitest crash output.
+		const root = buildReplayFixture({
+			declaredTestPasses: true,
+			siblingPasses: false,
+			withManifest: false,
+		});
+		try {
+			const result = runReplayFixture(root);
+
+			expect(result.status).not.toBe(0);
+			expect(result.stderr).toContain('expected-red manifest is MISSING');
+			// The error message must NOT include vitest crash output —
+			// the manifest is validated before vitest is launched.
+			expect(result.stderr).not.toContain('No test suite found');
+			expect(result.stderr).not.toContain('PARSE_ERROR');
+			expect(result.stderr).not.toContain('stdout:');
+			expect(result.stderr).not.toContain('stderr:');
+		} finally {
+			rmSync(root, { recursive: true, force: true });
+		}
+	}, 120000);
+
+	test('a declared proof with an INVALID measuredAgainst (non-hex) is caught BEFORE vitest runs', () => {
+		// The manifest declares measuredAgainst but the value is not a
+		// valid hex SHA. The runner must catch this BEFORE launching
+		// vitest, naming the invalid field.
+		const root = buildReplayFixture({
+			declaredTestPasses: true,
+			siblingPasses: false,
+			withManifest: true,
+		});
+		try {
+			// Overwrite the manifest with an invalid measuredAgainst.
+			const manifestPath = join(
+				root,
+				'apps',
+				'front',
+				'tests',
+				'proofs',
+				'99999',
+				'stale-proof.test.ts.expected-red.json',
+			);
+			writeFileSync(
+				manifestPath,
+				JSON.stringify(
+					{
+						measuredAgainst: 'not-a-valid-sha',
+						expectedRed: [
+							{
+								testName: 'the declared kept-red test',
+								why: 'fixture: invalid measuredAgainst',
+							},
+						],
+					},
+					null,
+					'\t',
+				) + '\n',
+			);
+
+			const result = runReplayFixture(root);
+
+			expect(result.status).not.toBe(0);
+			expect(result.stderr).toContain('measuredAgainst');
+			expect(result.stderr).toContain('40-64 character hex');
+			// Must NOT include vitest crash output.
+			expect(result.stderr).not.toContain('stdout:');
+			expect(result.stderr).not.toContain('stderr:');
+		} finally {
+			rmSync(root, { recursive: true, force: true });
+		}
+	}, 120000);
+});
+
 describe('proof replay — an all-green proof file must fail the step (exit-0 lane)', () => {
 	test('the runner exits NON-ZERO when the WHOLE proof file passes (vitest exit 0)', () => {
 		// The strongest weakening of a proof: every assertion passes and
@@ -638,6 +721,7 @@ const buildErrorFixture = (options: ErrorFixtureOptions): string => {
 			join(proofDir, 'error-proof.test.ts.expected-red.json'),
 			JSON.stringify(
 				{
+					measuredAgainst: '0000000000000000000000000000000000000000',
 					expectedRed: [
 						{
 							testName: 'never runs — vitest is dead',
