@@ -14,7 +14,7 @@
  * Compute the offset in milliseconds between UTC and the given zone's
  * wall-clock at the specific date. Positive means the zone is ahead of UTC.
  */
-function zoneOffsetMs(zone: string, at: Date): number {
+const zoneOffsetMs = (zone: string, at: Date): number => {
 	const utcMs = at.getTime();
 
 	// Format the UTC instant in the zone and read back the hour/minute.
@@ -43,13 +43,13 @@ function zoneOffsetMs(zone: string, at: Date): number {
 	);
 
 	return candidate.getTime() - utcMs;
-}
+};
 
 /** Format a UTC instant as a wall-clock string in the given IANA zone. */
 export const formatInZone = (
 	utc: Date,
 	zone: string,
-	locale: string = 'en',
+	locale = 'en',
 ): string => {
 	if (!(utc instanceof Date) || Number.isNaN(utc.valueOf())) {
 		return '—';
@@ -92,8 +92,12 @@ export const parseLocalWallTime = (
 		const day = Number(dayStr);
 		const year = Number(yearStr);
 
-		if (period?.toUpperCase() === 'PM' && hour < 12) hour += 12;
-		if (period?.toUpperCase() === 'AM' && hour === 12) hour = 0;
+		if (period?.toUpperCase() === 'PM' && hour < 12) {
+			hour += 12;
+		}
+		if (period?.toUpperCase() === 'AM' && hour === 12) {
+			hour = 0;
+		}
 
 		// Build a provisional UTC Date from the parsed components to
 		// compute the correct offset for this specific date (DST-aware).
@@ -118,7 +122,9 @@ export const parseLocalWallTime = (
 		const monthIndex = months.findIndex(
 			(m) => m.toLowerCase() === monthName.toLowerCase(),
 		);
-		if (monthIndex === -1) return null;
+		if (monthIndex === -1) {
+			return null;
+		}
 		provisional.setUTCFullYear(year, monthIndex, day);
 
 		const offset = zoneOffsetMs(zone, provisional);
@@ -126,16 +132,6 @@ export const parseLocalWallTime = (
 		const result = new Date(utcMs);
 
 		// Validate: re-format and check the wall-clock hour/minute match.
-		const roundTrip = new Intl.DateTimeFormat('en', {
-			timeZone: zone,
-			hour: '2-digit',
-			hour12: true,
-			minute: '2-digit',
-			month: 'short',
-			day: 'numeric',
-			year: 'numeric',
-		}).format(result);
-		// The round-trip must still contain the same day and month.
 		// A null result from a bad parse would produce something
 		// obviously different (e.g. NaN date).
 		if (Number.isNaN(result.getTime())) {
@@ -180,7 +176,9 @@ export const parseLocalWallTime = (
 		const monthIndex = months.findIndex((m) =>
 			monthName.toLowerCase().startsWith(m.split('.')[0].toLowerCase()),
 		);
-		if (monthIndex === -1) return null;
+		if (monthIndex === -1) {
+			return null;
+		}
 
 		const provisional = new Date(
 			Date.UTC(year, monthIndex, day, hour, minute, 0, 0),

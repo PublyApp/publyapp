@@ -74,7 +74,6 @@ describe('#1531 formatInZone locale awareness', () => {
 		// Format in Paris, but parse with an unrelated zone —
 		// the wall-clock values won't correspond to a real date.
 		const formatted = formatInZone(PARIS_SUMMER, 'Europe/Paris', 'en');
-		const parsed = parseLocalWallTime(formatted, 'Pacific/Niue');
 		// Pacific/Niue is UTC-11, so 9:00 AM Paris would parse to
 		// a date whose re-formatted value doesn't match — we just
 		// verify the result differs from the correct parse.

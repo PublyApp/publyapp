@@ -18,7 +18,6 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { cleanup, render } from '@testing-library/react';
-import * as React from 'react';
 import { afterEach, describe, expect, test } from 'vitest';
 
 import { ScrollArea } from './scroll-area';
@@ -82,7 +81,6 @@ describe('ScrollArea focus-within policy (#1541 promise 2)', () => {
 
 		const host = document.querySelector('[data-simplebar="init"]');
 		const child = result.getByTestId('blur-child');
-		const scroller = host?.querySelector('[role="region"]');
 
 		child.focus();
 		expect(document.activeElement).toBe(child);
