@@ -306,7 +306,11 @@ export const Route = createFileRoute(
 		// (which propagates errors to the error boundary) followed by
 		// prefetchQuery() to trigger background revalidation of stale cached
 		// data — matching the old ensureQueryData semantics.
-		await Promise.all([
+		//
+		// prefetchQuery() is deprecated in @tanstack/react-query 5.102+; the
+		// migration per the deprecation notice is query().catch(noop). We keep
+		// the .catch() handler to log background failures as warnings.
+		const fetchTenantDetails = () =>
 			context.queryClient.query({
 				queryKey: staffTenantDetailsQueryOptions.queryKey({
 					tenantId: params.tenantId,
@@ -315,7 +319,8 @@ export const Route = createFileRoute(
 					staffTenantDetailsQueryOptions.fetcher({
 						tenantId: params.tenantId,
 					}),
-			}),
+			});
+		const fetchProfileDetails = () =>
 			context.queryClient.query({
 				queryKey: staffTenantProfileDetailsQueryOptions.queryKey({
 					tenantId: params.tenantId,
@@ -326,59 +331,35 @@ export const Route = createFileRoute(
 						tenantId: params.tenantId,
 						profileId: params.profileId,
 					}),
-			}),
-		]);
+			});
+
+		// #851 round 3 (A3 fix): the awaited initial fetch settles both keys.
+		// Errors propagate to the error boundary; only this fetch is owned by
+		// the route's errorComponent.
+		await Promise.all([fetchTenantDetails(), fetchProfileDetails()]);
 
 		// #851 round 3 (A3 fix): background revalidation of the cached data the
 		// initial query() just settled. With the default `staleTime: 0`, that
 		// data is immediately stale, so these fire-and-forget query() calls
 		// each issue a background refetch — exactly the behaviour ensureQueryData
 		// provided via prefetchQuery before the #851 migration. Errors are
-		// logged as warnings (they do not block the initial render) and the
-		// route's errorComponent only owns the awaited initial fetch's
-		// failures.
-		//
-		// prefetchQuery() is deprecated in @tanstack/react-query 5.102+; the
-		// migration per the deprecation notice is query().catch(noop). We keep
-		// the .catch() handler to log background failures as warnings.
-		void context.queryClient
-			.query({
-				queryKey: staffTenantDetailsQueryOptions.queryKey({
-					tenantId: params.tenantId,
-				}),
-				queryFn: () =>
-					staffTenantDetailsQueryOptions.fetcher({
-						tenantId: params.tenantId,
-					}),
-			})
-			.catch((error: unknown) => {
-				logger.warn(
-					'Profile details loader: background revalidation failed for tenant details fetch',
-					{ tenantId: params.tenantId, error },
-				);
-			});
-		void context.queryClient
-			.query({
-				queryKey: staffTenantProfileDetailsQueryOptions.queryKey({
+		// logged as warnings (they do not block the initial render).
+		void fetchTenantDetails().catch((error: unknown) => {
+			logger.warn(
+				'Profile details loader: background revalidation failed for tenant details fetch',
+				{ tenantId: params.tenantId, error },
+			);
+		});
+		void fetchProfileDetails().catch((error: unknown) => {
+			logger.warn(
+				'Profile details loader: background revalidation failed for profile details fetch',
+				{
 					tenantId: params.tenantId,
 					profileId: params.profileId,
-				}),
-				queryFn: () =>
-					staffTenantProfileDetailsQueryOptions.fetcher({
-						tenantId: params.tenantId,
-						profileId: params.profileId,
-					}),
-			})
-			.catch((error: unknown) => {
-				logger.warn(
-					'Profile details loader: background revalidation failed for profile details fetch',
-					{
-						tenantId: params.tenantId,
-						profileId: params.profileId,
-						error,
-					},
-				);
-			});
+					error,
+				},
+			);
+		});
 	},
 	pendingComponent: ProfileDetailsLoading,
 	errorComponent: ProfileRouteErrorBoundary,
