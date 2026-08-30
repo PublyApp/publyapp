@@ -684,7 +684,7 @@
 		"quality-gate.yml::no-dockerignore-shadow::Forbid .dockerignore shadow files (#1849)": {
 			"hash": "8fb85ac630acb929",
 			"mirror": "just ci-dockerignore-shadow",
-			"reason": "ci-dockerignore-shadow runs the identical `node packages/scripts-ts/src/check-dockerignore-shadow.ts`, which walks the REAL working tree (the same filesystem a build context is drawn from) and flags every file whose basename ends with `.dockerignore` case-insensitively but is not exactly `.dockerignore`. Git-ignored paths (e.g. parallel .worktrees/) are filtered out via a single batch `git check-ignore -v --stdin` call (issue #1909 class). See issue #1849."
+			"reason": "ci-dockerignore-shadow runs the identical `node packages/scripts-ts/src/check-dockerignore-shadow.ts`, which walks the REAL working tree (the same filesystem a build context is drawn from) and flags every file whose basename ends with `.dockerignore` case-insensitively but is not exactly `.dockerignore`. Git-ignored paths (e.g. parallel .worktrees/) are filtered out via a single batch `git check-ignore --stdin -z` call (issue #1909 class). The `-v` form is deliberately NOT used: it was the round-4 defect, because its verbose output changes the parse shape. See issue #1849."
 		},
 		"quality-gate.yml::quality::Assert exact pins": {
 			"hash": "9f0331695e45ef30",
