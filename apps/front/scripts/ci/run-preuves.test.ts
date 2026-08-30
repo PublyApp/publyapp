@@ -1015,6 +1015,13 @@ describe('proof replay — declared proof file is missing from the working tree 
 			expect(result.stderr).toContain('stale-proof.test.ts');
 			expect(result.stderr).toContain('ENOENT');
 			expect(result.stderr).toContain('file is missing');
+			// #1768: a merely-behind branch must NOT be accused of corruption.
+			// The message names the remedy (merge develop) and the label is
+			// MISSING PROOF, never CORRUPT PROOF.
+			expect(result.stderr).toContain('merge develop');
+			expect(result.stderr).toContain('MISSING PROOF');
+			expect(result.stderr).not.toContain('CORRUPT PROOF');
+			expect(result.stdout).toContain('Declared proofs missing from tree: 1');
 			// Must not show a vitest crash traceback obscuring the cause.
 			expect(result.stderr).not.toContain('No test suite found');
 			expect(result.stderr).not.toContain('stdout:');
@@ -1052,6 +1059,52 @@ describe('proof replay — declared proof file is missing from the working tree 
 			expect(result.status).not.toBe(0);
 			expect(result.stderr).toContain('stale-proof.test.ts');
 			expect(result.stderr).toContain('0 bytes');
+			// Paired correction (#1960): a file that EXISTS but is corrupt is
+			// still ACCUSED of corruption — it must never be redirected to
+			// "merge develop" (that remedy is for MISSING files only).
+			expect(result.stderr).toContain('CORRUPT PROOF');
+			expect(result.stderr).not.toContain('merge develop');
+			expect(result.stdout).toMatch(/Corrupt\/unparseable proof files:\s+1/);
+		} catch (err) {
+			rmSync(root, { recursive: true, force: true });
+			throw err;
+		}
+		rmSync(root, { recursive: true, force: true });
+	}, 120000);
+
+	test('a declared proof file that is binary (null bytes) is STILL accused of corruption, never told to merge develop', () => {
+		// The paired guard for #1768: the fix must not trade a false corruption
+		// accusation for an unjustified silence. A proof file that EXISTS but
+		// contains binary junk cannot measure anything — validateProofFile
+		// must name it CORRUPT PROOF, and the message must NOT suggest merging
+		// develop (the file is present; merging cannot repair it).
+		const root = buildReplayFixture({
+			declaredTestPasses: false,
+			siblingPasses: false,
+			withManifest: true,
+		});
+		try {
+			const proofFile = join(
+				root,
+				'apps',
+				'front',
+				'tests',
+				'proofs',
+				'99999',
+				'stale-proof.test.ts',
+			);
+			// Replace the proof with binary garbage: a null byte in the middle
+			// of an otherwise-UTF-8 file.
+			writeFileSync(proofFile, 'import x from\u0000"binary";\n');
+
+			const result = runReplayFixture(root);
+
+			expect(result.status).not.toBe(0);
+			expect(result.stderr).toContain('stale-proof.test.ts');
+			expect(result.stderr).toContain('null bytes');
+			expect(result.stderr).toContain('CORRUPT PROOF');
+			expect(result.stderr).not.toContain('merge develop');
+			expect(result.stdout).toMatch(/Corrupt\/unparseable proof files:\s+1/);
 		} catch (err) {
 			rmSync(root, { recursive: true, force: true });
 			throw err;
@@ -1103,6 +1156,10 @@ describe('proof replay — CI mode declared proof file missing from disk is name
 			// Names the cause (ENOENT / missing file), not just a crash.
 			expect(result.stderr).toContain('ENOENT');
 			expect(result.stderr).toContain('file is missing');
+			// #1768: the CI-mode remedy is the same — merge develop.
+			expect(result.stderr).toContain('merge develop');
+			expect(result.stderr).toContain('MISSING PROOF');
+			expect(result.stderr).not.toContain('CORRUPT PROOF');
 		} finally {
 			rmSync(root, { recursive: true, force: true });
 		}
