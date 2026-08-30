@@ -49,6 +49,23 @@ const WRAPPER = path.join(FRONT_ROOT, 'scripts', 'run-guarded.mts');
 // The proof itself must not hang. A valid guard at 30s timeout takes ~3 s.
 const PROOF_TIMEOUT_MS = 15_000;
 
+/**
+ * Node reports a child's exit status on `err.code`, as a number when the child
+ * exited on its own and as a string (an errno like 'ENOENT') when the spawn
+ * itself failed. Anything we cannot read as an exit status becomes -1 rather
+ * than being guessed at, so a test never mistakes a spawn failure for an exit
+ * code the child never produced.
+ */
+const exitCodeOf = (err: ExecFileException): number => {
+	if (typeof err.code === 'number') {
+		return err.code;
+	}
+	if (typeof err.code === 'string' && /^\d+$/.test(err.code)) {
+		return Number.parseInt(err.code, 10);
+	}
+	return -1;
+};
+
 const runWrapper = (
 	guardPath: string,
 	timeoutSeconds: string,
@@ -72,13 +89,7 @@ const runWrapper = (
 			(err: ExecFileException | null, _stdout: string, stderr: string) => {
 				clearTimeout(timeout);
 				if (err) {
-					const code =
-						typeof err.code === 'string' && /^\d+$/.test(err.code)
-							? Number.parseInt(err.code, 10)
-							: typeof err.code === 'number'
-								? err.code
-								: -1;
-					resolve({ code, stderr });
+					resolve({ code: exitCodeOf(err), stderr });
 				} else {
 					resolve({ code: 0, stderr });
 				}
