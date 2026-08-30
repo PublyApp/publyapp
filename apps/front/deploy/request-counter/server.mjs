@@ -16,8 +16,12 @@ const parseUpstream = () => {
 
 	try {
 		upstream = new URL(process.env.API_UPSTREAM);
-	} catch (error) {
-		throw new Error(`API_UPSTREAM must be a valid URL: ${error.message}`);
+	} catch (/** @type {unknown} */ error) {
+		throw new Error(
+			`API_UPSTREAM must be a valid URL: ${
+				error instanceof Error ? error.message : String(error)
+			}`,
+		);
 	}
 
 	if (upstream.username !== '' || upstream.password !== '') {
@@ -42,6 +46,11 @@ const parseUpstream = () => {
 const UPSTREAM = parseUpstream();
 const counts = new Map();
 
+/**
+ * @param {string | undefined} method
+ * @param {string} path
+ * @returns {string}
+ */
 const getCountKey = (method, path) => `${method} ${path}`;
 
 const createTlsOptions = () => {
@@ -77,6 +86,10 @@ const createTlsOptions = () => {
 	};
 };
 
+/**
+ * @param {import('node:http').IncomingMessage} req
+ * @param {import('node:http').ServerResponse} res
+ */
 const handleRequest = (req, res) => {
 	const controlResponse = getControlResponse(req, counts);
 	if (controlResponse) {

@@ -138,9 +138,33 @@ public sealed class ResendEmailAdapterSpec {
 	}
 
 	[Fact]
+	public async Task ItShouldRejectSameIdempotencyKeyWithDifferentPayload() {
+		// Resend's documented contract (§4.5): reusing an idempotency key with a
+		// DIFFERENT request body is a 409 invalid_idempotent_request, never a cached
+		// reply. The fake must surface the rejection so a test that reuses a key by
+		// mistake fails locally instead of passing against a lying test double.
+		var fake = new FakeResendClient {
+			EmailSendResponse = new ResendResponse<Guid>(Guid.NewGuid(), new ResendRateLimit())
+		};
+		var adapter = new ResendEmailAdapter(fake);
+
+		await adapter.SendAsync(Request(), "same-idem-key");
+		fake.ProviderCallCount.Should().Be(1);
+
+		var act = async () => await adapter.SendAsync(Request(to: "different@example.com"), "same-idem-key");
+
+		var thrown = await act.Should().ThrowAsync<EmailProviderPermanentException>();
+		thrown.Which.Code.Should().Be("provider_rejected:InvalidIdempotentRequest:409");
+		fake.ProviderCallCount.Should().Be(1);
+	}
+
+	[Fact]
 	public async Task ItShouldDedupeDuplicateIdempotencyKeys() {
 		// Idempotency key should prevent duplicate sends. First call with the key
-		// should reach the provider; second call with same key should not.
+		// should reach the provider; second call with same key should not. A THIRD
+		// call with a DIFFERENT key must reach the provider again: deduplication is
+		// scoped to the key, not to "the first call ever" (#1847 — a fake that
+		// ignores keys and caps at one provider call keeps the count at 1 here).
 		var messageId = Guid.NewGuid();
 		var fake = new FakeResendClient {
 			EmailSendResponse = new ResendResponse<Guid>(messageId, new ResendRateLimit())
@@ -154,11 +178,15 @@ public sealed class ResendEmailAdapterSpec {
 		// Second send with same idempotency key - should be deduplicated
 		await adapter.SendAsync(Request(), "same-idem-key");
 		fake.ProviderCallCount.Should().Be(1); // Still 1, not incremented
+
+		// Third send with a different idempotency key - must reach the provider again
+		await adapter.SendAsync(Request(), "other-idem-key");
+		fake.ProviderCallCount.Should().Be(2);
 	}
 
-	private static EmailRequest Request() {
+	private static EmailRequest Request(string? to = null) {
 		return new EmailRequest {
-			To = "to@example.com",
+			To = to ?? "to@example.com",
 			From = "from@example.com",
 			Subject = "subject",
 			HtmlBody = "<p>body</p>"

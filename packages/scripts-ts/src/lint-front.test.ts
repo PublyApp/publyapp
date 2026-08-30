@@ -300,3 +300,131 @@ test('normalizes Windows separators before project classification', () => {
 		'scripts/problem.ts',
 	);
 });
+
+// Issue #1909 — paired executed proof against a REAL git repo (git init'ed
+// fixture with its own .gitignore). Leg 1: the wrapper must stay GREEN while a
+// func-style violation sits inside a git-ignored directory. Adversarial leg 2:
+// the SAME violation in a NOT-ignored directory must still be caught — a fix
+// that "simply stops walking" would pass leg 1 while blinding the gate.
+const funcStyleViolation =
+	'export function hidden1909() {\n\treturn 1;\n}\nhidden1909();\n';
+
+// @ts-expect-error rung-0: add proper type in later rung
+const writeConfigFiles = async (rootDir) => {
+	await writeFixtureFile(
+		rootDir,
+		'.oxlintrc.json',
+		JSON.stringify({
+			options: { typeAware: false },
+			rules: { 'func-style': ['error', 'expression'] },
+		}),
+	);
+	await writeFixtureFile(
+		rootDir,
+		'apps/front/tsconfig.lint.json',
+		JSON.stringify({
+			compilerOptions: {
+				allowJs: false,
+				noEmit: true,
+				strict: true,
+			},
+			include: ['src/**/*.ts', 'src/**/*.tsx'],
+		}),
+	);
+	await writeFixtureFile(
+		rootDir,
+		'apps/front/tsconfig.json',
+		JSON.stringify({
+			compilerOptions: { allowJs: true, noEmit: true, strict: true },
+			include: ['**/*.ts', '**/*.tsx', '**/*.mjs'],
+		}),
+	);
+	await writeFixtureFile(
+		rootDir,
+		'packages/shared-ts/tsconfig.json',
+		JSON.stringify({ compilerOptions: { allowJs: true, noEmit: true } }),
+	);
+	await writeFixtureFile(
+		rootDir,
+		'packages/scripts-ts/tsconfig.json',
+		JSON.stringify({
+			compilerOptions: { allowJs: true, noEmit: true },
+			include: ['**/*.mjs'],
+		}),
+	);
+};
+
+const createGitIgnoreFixture = async () => {
+	const rootDir = await mkdtemp(
+		path.join(os.tmpdir(), 'publyapp-lint-front-gitignore-'),
+	);
+
+	await writeConfigFiles(rootDir);
+	await writeFixtureFile(rootDir, '.gitignore', 'ignored-output/\n');
+	await writeFixtureFile(
+		rootDir,
+		'apps/front/src/clean.ts',
+		'export const clean = (): number => 1;\nclean();\n',
+	);
+	// The planted violation: git-ignored directory, file would fail func-style.
+	await writeFixtureFile(
+		rootDir,
+		'apps/front/ignored-output/hidden.ts',
+		funcStyleViolation,
+	);
+
+	// Make the fixture a REAL git repository so the wrapper's git-ignore
+	// authority (`git check-ignore`) is exercised for real.
+	spawnSync('git', ['init', '-q'], { cwd: rootDir, encoding: 'utf8' });
+
+	return rootDir;
+};
+
+test(
+	'git-ignored directories are skipped by the walk (issue #1909)',
+	{ timeout: 30_000 },
+	async () => {
+		const rootDir = await createGitIgnoreFixture();
+
+		try {
+			const result = runLint(rootDir);
+
+			assert.equal(result.status, 0, combinedOutput(result));
+			assert.doesNotMatch(
+				combinedOutput(result),
+				/ignored-output/,
+				'the git-ignored directory must not reach oxlint',
+			);
+		} finally {
+			await rm(rootDir, { recursive: true, force: true });
+		}
+	},
+);
+
+test(
+	'adversarial: the same violation in a NON-ignored directory is still caught (issue #1909)',
+	{ timeout: 30_000 },
+	async () => {
+		const rootDir = await createGitIgnoreFixture();
+
+		try {
+			await writeFixtureFile(
+				rootDir,
+				'apps/front/not-ignored-1909/hidden.ts',
+				funcStyleViolation,
+			);
+
+			const result = runLint(rootDir);
+
+			assert.notEqual(result.status, 0, combinedOutput(result));
+			assert.match(
+				combinedOutput(result),
+				/not-ignored-1909[/\\]hidden\.ts/,
+				'the non-ignored violation must still name its file',
+			);
+			assert.match(combinedOutput(result), /func-style/);
+		} finally {
+			await rm(rootDir, { recursive: true, force: true });
+		}
+	},
+);

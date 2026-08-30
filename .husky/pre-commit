@@ -2,23 +2,37 @@
 # makes sure fnm will make npx work
 # eval "$(fnm env --use-on-cd)"
 
-# Cross-platform solution that works in both terminal and VS Code/Cursor
-# Try pnpm first, then fallback to other package managers
+# Runs lint-staged (which auto-formats staged files) on every commit in every
+# worktree. This file is TRACKED: git resolves core.hooksPath to this .husky
+# directory (wired by packages/scripts-ts/src/install-git-hooks.ts via the root
+# `prepare` script), so a freshly created worktree gets the same hook without
+# any manual step. If lint-staged cannot run, fail LOUD — a commit must never
+# slip through unformatted in silence (issue #1852).
 
-# Try to find pnpm in common locations
-if [ -x "$HOME/.local/share/pnpm/pnpm" ]; then
-    "$HOME/.local/share/pnpm/pnpm" exec lint-staged
-elif [ -x "/usr/local/bin/pnpm" ]; then
-    "/usr/local/bin/pnpm" exec lint-staged
-elif [ -x "/opt/homebrew/bin/pnpm" ]; then
-    "/opt/homebrew/bin/pnpm" exec lint-staged
-elif command -v pnpm >/dev/null 2>&1; then
-    pnpm exec lint-staged
-elif command -v bun >/dev/null 2>&1; then
-    bun exec lint-staged
-elif command -v npx >/dev/null 2>&1; then
-    npx lint-staged
-else
-    echo "❌ Neither pnpm, nor npx found. Please install pnpm, or npm."
+# Cross-platform solution that works in both terminal and VS Code/Cursor.
+# Try pnpm first, then fallback to other package managers.
+run_lint_staged() {
+    if [ -x "$HOME/.local/share/pnpm/pnpm" ]; then
+        "$HOME/.local/share/pnpm/pnpm" exec lint-staged
+    elif [ -x "/usr/local/bin/pnpm" ]; then
+        "/usr/local/bin/pnpm" exec lint-staged
+    elif [ -x "/opt/homebrew/bin/pnpm" ]; then
+        "/opt/homebrew/bin/pnpm" exec lint-staged
+    elif command -v pnpm >/dev/null 2>&1; then
+        pnpm exec lint-staged
+    elif command -v bun >/dev/null 2>&1; then
+        bun exec lint-staged
+    elif command -v npx >/dev/null 2>&1; then
+        npx lint-staged
+    else
+        echo "❌ Neither pnpm, nor npx found. Please install pnpm, or npm." >&2
+        return 127
+    fi
+    return $?
+}
+
+if ! run_lint_staged; then
+    echo "❌ lint-staged failed — staged files were not formatted." >&2
+    echo "   If lint-staged is not installed in this worktree, run 'pnpm install' here, then commit again." >&2
     exit 1
 fi
