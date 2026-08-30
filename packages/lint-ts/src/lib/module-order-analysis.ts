@@ -1,0 +1,1289 @@
+/**
+ * Module-evaluation order analysis for the func-style guard (issue #1898).
+ *
+ * `func-style: ["error", "expression"]` forces every non-method function to
+ * be an arrow (or function) EXPRESSION bound to a const/let. A `function`
+ * declaration is hoisted; a const arrow is not. A conversion that moves the
+ * declaration but not the call sites can therefore produce code where a
+ * module-level call reaches the binding BEFORE its declaration initialises:
+ * a `ReferenceError: Cannot access 'x' before initialization` at module load
+ * time — invisible to the compiler, to the typechecker, and often to tests.
+ *
+ * This module statically finds those call sites. For every source file it:
+ *
+ *   1. parses the file with ts-morph's vendored TypeScript compiler (pure
+ *      syntax analysis, no program, no type resolution — fast enough to run
+ *      over the whole production tree).
+ *   2. collects every module-level `const`/`let` binding whose initializer is
+ *      a function expression (arrow or function expression) — the exact
+ *      binding class #1834's conversions produce. Hoisted `function`
+ *      declarations are collected too, as intermediate hops only (they can
+ *      never be a TDZ target).
+ *   3. walks the module-level statements in source order and finds every
+ *      call site that EXECUTES AT MODULE EVALUATION TIME (direct statements,
+ *      declarator initializers, immediately-executed blocks, loop
+ *      conditions, class heritage/decorators/static blocks, enum member
+ *      initializers...), never descending into a deferred function body
+ *      (function/arrow/method bodies, class field initializers, parameter
+ *      defaults of functions that are not themselves immediately invoked).
+ *   4. when such a call site invokes a tracked binding, it walks that
+ *      binding's body the same way, transitively: an arrow called during
+ *      module evaluation runs its whole body during module evaluation, so
+ *      the reviewer's construction — `const isEntry = () => toPosixPath(x)`
+ *      with `isEntry()` invoked before `const toPosixPath` is initialised —
+ *      is caught too.
+ *   5. reports a violation when a call executes before the initializer of
+ *      the binding it resolves to has run, comparing positions within the
+ *      correct execution scope: a binding in the module scope or in a scope
+ *      that encloses an invoked body is compared against the OUTERMOST
+ *      invocation position (the moment the body runs during module
+ *      evaluation), a binding in a body-local scope against the local call
+ *      position.
+ *
+ * The walker is deliberately scope-aware. A block-scoped binding that
+ * shadows a later module-level name is never reported (the call resolves to
+ * the closer binding, not the module one), and a call inside a deferred body
+ * is never reported even when the body textually precedes the declaration.
+ *
+ * Deferred boundaries (never reported): function/arrow/method/accessor/
+ * constructor bodies, class field initialisers, parameter defaults of
+ * functions that are not themselves immediately invoked.
+ *
+ * Known gaps — deliberate, declared for review (see the adverse-mutation
+ * section of the PR):
+ * - plain REFERENCES before the declaration (`const x = f;` — a TDZ read,
+ *   not a call) are not reported; the guard's mandate is the call defect.
+ * - bindings whose initializer is not directly a function expression
+ *   (`const f = [() => {}][0]`, `const f = g.bind(null)`, re-exports) are
+ *   not tracked.
+ * - invocations through member/sequence callees (`obj.f()`, `(0, f)()`,
+ *   `obj[f]()`) are not followed as hops.
+ */
+import { readdirSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
+
+import { ts } from 'ts-morph';
+
+export interface ModuleOrderViolation {
+	/** Relative path of the file, as passed to `analyzeModuleOrder`. */
+	file: string;
+	/** 1-based line of the offending call site. */
+	line: number;
+	/** 1-based column of the offending call site. */
+	column: number;
+	/** Name of the binding that is called before its initialisation. */
+	callee: string;
+	/** 1-based line of the binding's declaration. */
+	declaredAtLine: number;
+	/** 1-based column of the binding's declaration. */
+	declaredAtColumn: number;
+	/** `direct` for a call directly in module-evaluation code; `transitive`
+	 * for a call reached through an immediately-invoked function body. */
+	kind: 'direct' | 'transitive';
+	/** The invocation path to the call, outermost first (e.g.
+	 * `["isEntry", "toPosixPath"]` when `isEntry()` is invoked at module
+	 * level and its body calls `toPosixPath`). */
+	chain: string[];
+}
+
+type FunctionLike =
+	| ts.ArrowFunction
+	| ts.FunctionExpression
+	| ts.FunctionDeclaration;
+
+/** A lexical binding that holds a function value (tracked by the guard). */
+interface FunctionBinding {
+	name: string;
+	/** Position of the binding name in the source file. */
+	declPos: number;
+	/** Function declarations are hoisted: never a TDZ target, but usable as
+	 * intermediate hops in an invocation chain. */
+	hoisted: boolean;
+	/** The function node whose body runs when the binding is invoked. */
+	node: FunctionLike;
+}
+
+/** A lexical binding of any kind (tracked function or shadowing name). */
+interface ScopeBinding {
+	name: string;
+	pos: number;
+	/** True when the binding is a `const`/`let` holding a function value, or
+	 * a (hoisted) function declaration. */
+	fn: boolean;
+	/** Function declarations are hoisted, const/let arrows are not. */
+	hoisted?: boolean;
+	/** The function node, when `fn` is true. */
+	node?: FunctionLike;
+}
+
+interface Scope {
+	names: Map<string, ScopeBinding>;
+}
+
+/** ts-morph's SourceFile type omits parseDiagnostics, but its vendored
+ * compiler always populates it (same widening as
+ * apps/front/scripts/guards/check-design-system.mts). */
+interface SourceFileWithParseDiagnostics extends ts.SourceFile {
+	parseDiagnostics: readonly ts.Diagnostic[];
+}
+
+/** The file extensions the module-order scan analyses (oxlint's scope). */
+type SourceFileExtension =
+	| '.ts'
+	| '.mts'
+	| '.cts'
+	| '.tsx'
+	| '.js'
+	| '.mjs'
+	| '.cjs'
+	| '.jsx';
+
+const SCRIPT_KIND_BY_EXTENSION = {
+	'.ts': ts.ScriptKind.TS,
+	'.mts': ts.ScriptKind.TS,
+	'.cts': ts.ScriptKind.TS,
+	'.tsx': ts.ScriptKind.TSX,
+	'.js': ts.ScriptKind.JS,
+	'.mjs': ts.ScriptKind.JS,
+	'.cjs': ts.ScriptKind.JS,
+	'.jsx': ts.ScriptKind.JSX,
+} satisfies Record<SourceFileExtension, ts.ScriptKind>;
+
+const scriptKindForFile = (fileName: string): ts.ScriptKind =>
+	SCRIPT_KIND_BY_EXTENSION[
+		fileName.slice(
+			fileName.lastIndexOf('.'),
+		) as keyof typeof SCRIPT_KIND_BY_EXTENSION
+	] ?? ts.ScriptKind.TS;
+
+/** Raised when the guard's input cannot be analysed — an unanalysable file
+ * must fail the guard loudly, never count as healthy by silence. */
+export class ModuleOrderAnalysisError extends Error {
+	readonly file: string;
+	readonly diagnostics: string[];
+
+	constructor(file: string, diagnostics: string[]) {
+		super(`cannot analyse module order in ${file}: ${diagnostics.join('; ')}`);
+		this.name = 'ModuleOrderAnalysisError';
+		this.file = file;
+		this.diagnostics = diagnostics;
+	}
+}
+
+const isDeclared = (node: ts.Node): boolean =>
+	ts.canHaveModifiers(node) &&
+	(ts.getModifiers(node) ?? []).some(
+		(modifier) => modifier.kind === ts.SyntaxKind.DeclareKeyword,
+	);
+
+const position = (node: ts.Node): number => node.getStart();
+
+const functionInitializer = (
+	initializer: ts.Expression | undefined,
+): FunctionLike | undefined => {
+	if (initializer === undefined) {
+		return undefined;
+	}
+	if (ts.isArrowFunction(initializer) || ts.isFunctionExpression(initializer)) {
+		return initializer;
+	}
+	return undefined;
+};
+
+const addScopeDeclaration = (
+	scope: Scope,
+	name: string,
+	namePos: number,
+	fn: FunctionLike | undefined,
+	hoisted: boolean,
+): void => {
+	scope.names.set(name, {
+		name,
+		pos: namePos,
+		fn: fn !== undefined,
+		hoisted: fn !== undefined ? hoisted : false,
+		node: fn,
+	});
+};
+
+/**
+ * Collects the direct lexical declarations of the statements in `statements`
+ * into `scope`. Bindings are collected BEFORE the statements are walked, so
+ * resolution is static (TDZ semantics: a `const` binding exists for the whole
+ * block even textually before its declaration line).
+ */
+const collectDeclarations = (
+	statements: readonly ts.Statement[],
+	scope: Scope,
+): void => {
+	for (const statement of statements) {
+		if (ts.isVariableStatement(statement)) {
+			for (const declaration of statement.declarationList.declarations) {
+				if (!ts.isIdentifier(declaration.name)) {
+					continue;
+				}
+				addScopeDeclaration(
+					scope,
+					declaration.name.text,
+					position(declaration.name),
+					functionInitializer(declaration.initializer),
+					false,
+				);
+			}
+		} else if (
+			ts.isFunctionDeclaration(statement) &&
+			statement.name !== undefined
+		) {
+			addScopeDeclaration(
+				scope,
+				statement.name.text,
+				position(statement.name),
+				statement,
+				true,
+			);
+		} else if (
+			ts.isClassDeclaration(statement) &&
+			statement.name !== undefined
+		) {
+			addScopeDeclaration(
+				scope,
+				statement.name.text,
+				position(statement.name),
+				undefined,
+				false,
+			);
+		}
+	}
+};
+
+/** The lexical context of the binding that was resolved. */
+type ResolvedBinding =
+	| { kind: 'scope'; scopeIndex: number; binding: ScopeBinding }
+	| { kind: 'module'; binding: FunctionBinding }
+	| { kind: 'none' };
+
+const resolveBinding = (
+	name: string,
+	scopes: Scope[],
+	moduleBindings: Map<string, FunctionBinding>,
+): ResolvedBinding => {
+	for (let index = scopes.length - 1; index >= 0; index--) {
+		const binding = scopes[index]!.names.get(name);
+		if (binding !== undefined) {
+			return { kind: 'scope', scopeIndex: index, binding };
+		}
+	}
+	const moduleBinding = moduleBindings.get(name);
+	if (moduleBinding !== undefined) {
+		return { kind: 'module', binding: moduleBinding };
+	}
+	return { kind: 'none' };
+};
+
+interface WalkContext {
+	file: string;
+	sourceFile: SourceFileWithParseDiagnostics;
+	moduleBindings: Map<string, FunctionBinding>;
+	violations: ModuleOrderViolation[];
+}
+
+const isFunctionLikeBodyNode = (node: ts.Node): boolean =>
+	ts.isFunctionDeclaration(node) ||
+	ts.isFunctionExpression(node) ||
+	ts.isArrowFunction(node) ||
+	ts.isMethodDeclaration(node) ||
+	ts.isGetAccessorDeclaration(node) ||
+	ts.isSetAccessorDeclaration(node) ||
+	node.kind === ts.SyntaxKind.Constructor;
+
+const walkImmediate = (
+	node: ts.Node,
+	context: WalkContext,
+	scopes: Scope[],
+	bodyRootIndex: number,
+	executionPos: number,
+	chain: string[],
+	visitedBindings: Set<string>,
+): void => {
+	// Deferred boundaries: a function-like body never runs during the
+	// current module-evaluation moment; everything nested inside it
+	// (including parameter defaults) is deferred with it.
+	if (isFunctionLikeBodyNode(node)) {
+		return;
+	}
+
+	if (ts.isVariableStatement(node)) {
+		// Each declarator's initializer executes, in order, before the
+		// binding is initialised; a later declarator in the SAME statement
+		// can therefore already see an earlier one.
+		for (const declaration of node.declarationList.declarations) {
+			if (declaration.initializer !== undefined) {
+				walkImmediate(
+					declaration.initializer,
+					context,
+					scopes,
+					bodyRootIndex,
+					executionPos,
+					chain,
+					visitedBindings,
+				);
+			}
+		}
+		return;
+	}
+
+	if (ts.isExpressionStatement(node)) {
+		walkImmediate(
+			node.expression,
+			context,
+			scopes,
+			bodyRootIndex,
+			executionPos,
+			chain,
+			visitedBindings,
+		);
+		return;
+	}
+
+	if (ts.isBlock(node)) {
+		const scope: Scope = { names: new Map() };
+		collectDeclarations(node.statements, scope);
+		scopes.push(scope);
+		for (const statement of node.statements) {
+			walkImmediate(
+				statement,
+				context,
+				scopes,
+				bodyRootIndex,
+				executionPos,
+				chain,
+				visitedBindings,
+			);
+		}
+		scopes.pop();
+		return;
+	}
+
+	if (ts.isIfStatement(node)) {
+		walkImmediate(
+			node.expression,
+			context,
+			scopes,
+			bodyRootIndex,
+			executionPos,
+			chain,
+			visitedBindings,
+		);
+		walkImmediate(
+			node.thenStatement,
+			context,
+			scopes,
+			bodyRootIndex,
+			executionPos,
+			chain,
+			visitedBindings,
+		);
+		if (node.elseStatement !== undefined) {
+			walkImmediate(
+				node.elseStatement,
+				context,
+				scopes,
+				bodyRootIndex,
+				executionPos,
+				chain,
+				visitedBindings,
+			);
+		}
+		return;
+	}
+
+	if (ts.isForStatement(node)) {
+		const scope: Scope = { names: new Map() };
+		if (
+			node.initializer !== undefined &&
+			ts.isVariableDeclarationList(node.initializer)
+		) {
+			for (const declaration of node.initializer.declarations) {
+				if (!ts.isIdentifier(declaration.name)) {
+					continue;
+				}
+				addScopeDeclaration(
+					scope,
+					declaration.name.text,
+					position(declaration.name),
+					functionInitializer(declaration.initializer),
+					false,
+				);
+			}
+		}
+		// The for-head initialiser expression evaluates immediately.
+		if (node.initializer !== undefined && ts.isExpression(node.initializer)) {
+			walkImmediate(
+				node.initializer,
+				context,
+				scopes,
+				bodyRootIndex,
+				executionPos,
+				chain,
+				visitedBindings,
+			);
+		}
+		if (node.condition !== undefined) {
+			walkImmediate(
+				node.condition,
+				context,
+				scopes,
+				bodyRootIndex,
+				executionPos,
+				chain,
+				visitedBindings,
+			);
+		}
+		if (node.incrementor !== undefined) {
+			walkImmediate(
+				node.incrementor,
+				context,
+				scopes,
+				bodyRootIndex,
+				executionPos,
+				chain,
+				visitedBindings,
+			);
+		}
+		scopes.push(scope);
+		walkImmediate(
+			node.statement,
+			context,
+			scopes,
+			bodyRootIndex,
+			executionPos,
+			chain,
+			visitedBindings,
+		);
+		scopes.pop();
+		return;
+	}
+
+	if (ts.isForInStatement(node) || ts.isForOfStatement(node)) {
+		const scope: Scope = { names: new Map() };
+		if (ts.isVariableDeclarationList(node.initializer)) {
+			for (const declaration of node.initializer.declarations) {
+				if (!ts.isIdentifier(declaration.name)) {
+					continue;
+				}
+				addScopeDeclaration(
+					scope,
+					declaration.name.text,
+					position(declaration.name),
+					functionInitializer(declaration.initializer),
+					false,
+				);
+			}
+		}
+		// The iterable expression evaluates immediately.
+		walkImmediate(
+			node.expression,
+			context,
+			scopes,
+			bodyRootIndex,
+			executionPos,
+			chain,
+			visitedBindings,
+		);
+		scopes.push(scope);
+		walkImmediate(
+			node.statement,
+			context,
+			scopes,
+			bodyRootIndex,
+			executionPos,
+			chain,
+			visitedBindings,
+		);
+		scopes.pop();
+		return;
+	}
+
+	if (ts.isWhileStatement(node) || ts.isDoStatement(node)) {
+		walkImmediate(
+			node.expression,
+			context,
+			scopes,
+			bodyRootIndex,
+			executionPos,
+			chain,
+			visitedBindings,
+		);
+		walkImmediate(
+			node.statement,
+			context,
+			scopes,
+			bodyRootIndex,
+			executionPos,
+			chain,
+			visitedBindings,
+		);
+		return;
+	}
+
+	if (ts.isSwitchStatement(node)) {
+		walkImmediate(
+			node.expression,
+			context,
+			scopes,
+			bodyRootIndex,
+			executionPos,
+			chain,
+			visitedBindings,
+		);
+		// The switch body is a single lexical scope (JS semantics).
+		const scope: Scope = { names: new Map() };
+		for (const clause of node.caseBlock.clauses) {
+			collectDeclarations(clause.statements, scope);
+		}
+		scopes.push(scope);
+		for (const clause of node.caseBlock.clauses) {
+			if (ts.isCaseClause(clause) && clause.expression !== undefined) {
+				walkImmediate(
+					clause.expression,
+					context,
+					scopes,
+					bodyRootIndex,
+					executionPos,
+					chain,
+					visitedBindings,
+				);
+			}
+			for (const statement of clause.statements) {
+				walkImmediate(
+					statement,
+					context,
+					scopes,
+					bodyRootIndex,
+					executionPos,
+					chain,
+					visitedBindings,
+				);
+			}
+		}
+		scopes.pop();
+		return;
+	}
+
+	if (ts.isTryStatement(node)) {
+		walkImmediate(
+			node.tryBlock,
+			context,
+			scopes,
+			bodyRootIndex,
+			executionPos,
+			chain,
+			visitedBindings,
+		);
+		if (node.catchClause !== undefined) {
+			const scope: Scope = { names: new Map() };
+			if (
+				node.catchClause.variableDeclaration !== undefined &&
+				ts.isIdentifier(node.catchClause.variableDeclaration.name)
+			) {
+				const name = node.catchClause.variableDeclaration.name.text;
+				scope.names.set(name, { name, pos: 0, fn: false });
+			}
+			scopes.push(scope);
+			walkImmediate(
+				node.catchClause.block,
+				context,
+				scopes,
+				bodyRootIndex,
+				executionPos,
+				chain,
+				visitedBindings,
+			);
+			scopes.pop();
+		}
+		if (node.finallyBlock !== undefined) {
+			walkImmediate(
+				node.finallyBlock,
+				context,
+				scopes,
+				bodyRootIndex,
+				executionPos,
+				chain,
+				visitedBindings,
+			);
+		}
+		return;
+	}
+
+	if (ts.isThrowStatement(node) || ts.isReturnStatement(node)) {
+		if (node.expression !== undefined) {
+			walkImmediate(
+				node.expression,
+				context,
+				scopes,
+				bodyRootIndex,
+				executionPos,
+				chain,
+				visitedBindings,
+			);
+		}
+		return;
+	}
+
+	if (ts.isLabeledStatement(node)) {
+		walkImmediate(
+			node.statement,
+			context,
+			scopes,
+			bodyRootIndex,
+			executionPos,
+			chain,
+			visitedBindings,
+		);
+		return;
+	}
+
+	if (ts.isClassDeclaration(node) || ts.isClassExpression(node)) {
+		walkClass(
+			node,
+			context,
+			scopes,
+			bodyRootIndex,
+			executionPos,
+			chain,
+			visitedBindings,
+		);
+		return;
+	}
+
+	if (ts.isEnumDeclaration(node)) {
+		for (const member of node.members) {
+			if (ts.isComputedPropertyName(member.name)) {
+				walkImmediate(
+					member.name.expression,
+					context,
+					scopes,
+					bodyRootIndex,
+					executionPos,
+					chain,
+					visitedBindings,
+				);
+			}
+			if (member.initializer !== undefined) {
+				walkImmediate(
+					member.initializer,
+					context,
+					scopes,
+					bodyRootIndex,
+					executionPos,
+					chain,
+					visitedBindings,
+				);
+			}
+		}
+		return;
+	}
+
+	if (
+		ts.isModuleDeclaration(node) &&
+		node.body !== undefined &&
+		!isDeclared(node)
+	) {
+		// A non-ambient namespace compiles to an IIFE that runs at module
+		// load: its body executes at module-evaluation time.
+		if (ts.isModuleBlock(node.body)) {
+			const scope: Scope = { names: new Map() };
+			collectDeclarations(node.body.statements, scope);
+			scopes.push(scope);
+			for (const statement of node.body.statements) {
+				walkImmediate(
+					statement,
+					context,
+					scopes,
+					bodyRootIndex,
+					executionPos,
+					chain,
+					visitedBindings,
+				);
+			}
+			scopes.pop();
+		}
+		return;
+	}
+
+	if (ts.isCallExpression(node) || ts.isNewExpression(node)) {
+		handleInvocation(
+			node.expression,
+			node.arguments === undefined ? [] : node.arguments,
+			context,
+			scopes,
+			bodyRootIndex,
+			executionPos,
+			chain,
+			visitedBindings,
+		);
+		return;
+	}
+
+	if (ts.isTaggedTemplateExpression(node)) {
+		// A tagged template is a call in the TDZ sense: the tag expression
+		// executes at this moment.
+		handleInvocation(
+			node.tag,
+			[],
+			context,
+			scopes,
+			bodyRootIndex,
+			executionPos,
+			chain,
+			visitedBindings,
+		);
+		return;
+	}
+
+	// Default: walk every child. Function-like children are pruned at the top
+	// of this function; scoped constructs are handled by their own cases.
+	node.forEachChild((child) => {
+		walkImmediate(
+			child,
+			context,
+			scopes,
+			bodyRootIndex,
+			executionPos,
+			chain,
+			visitedBindings,
+		);
+	});
+};
+
+/** Walks the module-evaluation-time parts of a class: decorators, heritage
+ * clauses, static blocks, and computed member names. Field initialisers and
+ * method bodies run at instantiation/call time, never at module load. */
+const walkClass = (
+	node: ts.ClassDeclaration | ts.ClassExpression,
+	context: WalkContext,
+	scopes: Scope[],
+	bodyRootIndex: number,
+	executionPos: number,
+	chain: string[],
+	visitedBindings: Set<string>,
+): void => {
+	for (const decorator of ts.getDecorators(node) ?? []) {
+		walkImmediate(
+			decorator.expression,
+			context,
+			scopes,
+			bodyRootIndex,
+			executionPos,
+			chain,
+			visitedBindings,
+		);
+	}
+	for (const clause of node.heritageClauses ?? []) {
+		for (const type of clause.types) {
+			walkImmediate(
+				type.expression,
+				context,
+				scopes,
+				bodyRootIndex,
+				executionPos,
+				chain,
+				visitedBindings,
+			);
+		}
+	}
+	for (const member of node.members) {
+		if (ts.isClassStaticBlockDeclaration(member)) {
+			// Static blocks run when the class definition is evaluated.
+			// Static blocks run when the class definition is evaluated.
+			const scope: Scope = { names: new Map() };
+			collectDeclarations(member.body.statements, scope);
+			scopes.push(scope);
+			for (const statement of member.body.statements) {
+				walkImmediate(
+					statement,
+					context,
+					scopes,
+					bodyRootIndex,
+					executionPos,
+					chain,
+					visitedBindings,
+				);
+			}
+			scopes.pop();
+			continue;
+		}
+		if (ts.canHaveDecorators(member)) {
+			for (const decorator of ts.getDecorators(member) ?? []) {
+				walkImmediate(
+					decorator.expression,
+					context,
+					scopes,
+					bodyRootIndex,
+					executionPos,
+					chain,
+					visitedBindings,
+				);
+			}
+		}
+		const name = member.name;
+		if (name !== undefined && ts.isComputedPropertyName(name)) {
+			walkImmediate(
+				name.expression,
+				context,
+				scopes,
+				bodyRootIndex,
+				executionPos,
+				chain,
+				visitedBindings,
+			);
+		}
+		// Field initialisers and method/accessor/constructor bodies are
+		// deferred to instantiation/call time.
+	}
+};
+
+/** Handles a call/construct/tag invocation whose callee expression is
+ * `calleeExpression`. Resolves a plain-identifier callee against the lexical
+ * scopes, reports the violation when the binding is not yet initialised, and
+ * follows the invoked binding's body (chain analysis). */
+const handleInvocation = (
+	calleeExpression: ts.Expression,
+	argumentsList: readonly ts.Expression[],
+	context: WalkContext,
+	scopes: Scope[],
+	bodyRootIndex: number,
+	executionPos: number,
+	chain: string[],
+	visitedBindings: Set<string>,
+): void => {
+	if (ts.isIdentifier(calleeExpression)) {
+		handleResolvedIdentifier(
+			calleeExpression.text,
+			position(calleeExpression),
+			context,
+			scopes,
+			bodyRootIndex,
+			executionPos,
+			chain,
+			visitedBindings,
+		);
+	} else {
+		// Member/expression callees can still carry immediately-executed
+		// parts (e.g. `obj[f()]()`); walk them, but not as a tracked
+		// invocation.
+		walkImmediate(
+			calleeExpression,
+			context,
+			scopes,
+			bodyRootIndex,
+			executionPos,
+			chain,
+			visitedBindings,
+		);
+	}
+
+	for (const argument of argumentsList) {
+		walkImmediate(
+			argument,
+			context,
+			scopes,
+			bodyRootIndex,
+			executionPos,
+			chain,
+			visitedBindings,
+		);
+	}
+};
+
+const handleResolvedIdentifier = (
+	name: string,
+	callPos: number,
+	context: WalkContext,
+	scopes: Scope[],
+	bodyRootIndex: number,
+	executionPos: number,
+	chain: string[],
+	visitedBindings: Set<string>,
+): void => {
+	const resolved = resolveBinding(name, scopes, context.moduleBindings);
+	if (resolved.kind === 'none') {
+		return;
+	}
+
+	let base: number;
+	let bindingNode: FunctionLike | undefined;
+	let bindingDeclPos: number;
+	let hoisted = false;
+	let bindingName: string;
+	if (resolved.kind === 'scope') {
+		const { scopeIndex, binding } = resolved;
+		// A binding living in a scope that encloses the currently-walked
+		// invoked body is compared against the moment the body runs (the
+		// outermost invocation position); a binding in a body-local scope
+		// against the local call position.
+		base = scopeIndex < bodyRootIndex ? executionPos : callPos;
+		bindingNode = binding.node;
+		bindingDeclPos = binding.pos;
+		hoisted = binding.hoisted === true;
+		bindingName = binding.name;
+	} else {
+		const { binding } = resolved;
+		// Module bindings: the execution moment of a DIRECT call is the call
+		// site itself (module order is textual order); inside an invoked body
+		// it is the outermost invocation position.
+		base = chain.length === 0 ? callPos : executionPos;
+		bindingNode = binding.node;
+		bindingDeclPos = binding.declPos;
+		hoisted = binding.hoisted;
+		bindingName = binding.name;
+	}
+
+	if (bindingNode !== undefined && !hoisted && bindingDeclPos > base) {
+		reportViolation(context, callPos, bindingName, bindingDeclPos, chain);
+	}
+
+	if (bindingNode !== undefined) {
+		// The body of an invoked binding runs at the outermost DIRECT call
+		// position (a direct call executes at its own textual position, even
+		// inside a module-level loop/block); deeper chain hops keep that same
+		// moment.
+		const triggerPos = chain.length === 0 ? callPos : executionPos;
+		invokeBinding(
+			bindingNode,
+			bindingName,
+			resolved.kind === 'scope' ? resolved.scopeIndex : 0,
+			context,
+			scopes,
+			triggerPos,
+			chain,
+			visitedBindings,
+		);
+	}
+};
+
+const reportViolation = (
+	context: WalkContext,
+	callPos: number,
+	callee: string,
+	declaredPos: number,
+	chain: string[],
+): void => {
+	const callLocation =
+		context.sourceFile.getLineAndCharacterOfPosition(callPos);
+	const declaredLocation =
+		context.sourceFile.getLineAndCharacterOfPosition(declaredPos);
+	context.violations.push({
+		file: context.file,
+		line: callLocation.line + 1,
+		column: callLocation.character + 1,
+		callee,
+		declaredAtLine: declaredLocation.line + 1,
+		declaredAtColumn: declaredLocation.character + 1,
+		kind: chain.length > 0 ? 'transitive' : 'direct',
+		chain: [...chain],
+	});
+};
+
+/** Walks the body of an immediately-invoked binding. The body sees the
+ * lexical scopes that surround the binding's DECLARATION, not the scopes at
+ * the call site. The execution moment stays the outermost invocation. */
+const invokeBinding = (
+	functionNode: FunctionLike,
+	name: string,
+	scopeIndex: number,
+	context: WalkContext,
+	scopes: Scope[],
+	executionPos: number,
+	chain: string[],
+	visitedBindings: Set<string>,
+): void => {
+	const key = `${scopeIndex}:${name}:${position(functionNode)}`;
+	if (visitedBindings.has(key)) {
+		return;
+	}
+	visitedBindings.add(key);
+
+	const bodyScopes = scopes.slice(0, scopeIndex + 1);
+	const nextChain = [...chain, name];
+
+	// Parameter defaults run when the binding is invoked — which, for an
+	// immediately-invoked binding, is module-evaluation time.
+	for (const parameter of functionNode.parameters) {
+		if (parameter.initializer !== undefined) {
+			walkImmediate(
+				parameter.initializer,
+				context,
+				bodyScopes,
+				bodyScopes.length,
+				executionPos,
+				nextChain,
+				visitedBindings,
+			);
+		}
+	}
+
+	// Arrow bodies can be a concise expression, and declaration bodies can be
+	// absent (overload signatures); walk whatever actually executes. The body
+	// root is itself a scope: `const inner = () => f(); inner();` inside an
+	// invoked body must resolve `inner` through it.
+	if (ts.isArrowFunction(functionNode)) {
+		if (ts.isBlock(functionNode.body)) {
+			const scope: Scope = { names: new Map() };
+			collectDeclarations(functionNode.body.statements, scope);
+			bodyScopes.push(scope);
+			for (const statement of functionNode.body.statements) {
+				walkImmediate(
+					statement,
+					context,
+					bodyScopes,
+					bodyScopes.length,
+					executionPos,
+					nextChain,
+					visitedBindings,
+				);
+			}
+			bodyScopes.pop();
+		} else {
+			walkImmediate(
+				functionNode.body,
+				context,
+				bodyScopes,
+				bodyScopes.length,
+				executionPos,
+				nextChain,
+				visitedBindings,
+			);
+		}
+	} else if (functionNode.body !== undefined) {
+		const scope: Scope = { names: new Map() };
+		collectDeclarations(functionNode.body.statements, scope);
+		bodyScopes.push(scope);
+		for (const statement of functionNode.body.statements) {
+			walkImmediate(
+				statement,
+				context,
+				bodyScopes,
+				bodyScopes.length,
+				executionPos,
+				nextChain,
+				visitedBindings,
+			);
+		}
+		bodyScopes.pop();
+	}
+};
+
+/** Parses `source` and returns the module-order call violations, or throws a
+ * `ModuleOrderAnalysisError` when the source cannot be parsed. */
+export const analyzeModuleOrder = (
+	file: string,
+	source: string,
+): ModuleOrderViolation[] => {
+	const sourceFile = ts.createSourceFile(
+		file,
+		source,
+		ts.ScriptTarget.Latest,
+		true,
+		scriptKindForFile(file),
+	) as SourceFileWithParseDiagnostics;
+	if (sourceFile.parseDiagnostics.length > 0) {
+		throw new ModuleOrderAnalysisError(
+			file,
+			sourceFile.parseDiagnostics.map((diagnostic) =>
+				ts.flattenDiagnosticMessageText(diagnostic.messageText, ' '),
+			),
+		);
+	}
+
+	const context: WalkContext = {
+		file,
+		sourceFile,
+		moduleBindings: new Map(),
+		violations: [],
+	};
+
+	// Module-level bindings are collected BEFORE the walk so resolution is
+	// static (TDZ semantics: a `const` binding exists for the whole module,
+	// even textually before its declaration line).
+	for (const statement of sourceFile.statements) {
+		if (ts.isVariableStatement(statement)) {
+			for (const declaration of statement.declarationList.declarations) {
+				if (!ts.isIdentifier(declaration.name)) {
+					continue;
+				}
+				const fn = functionInitializer(declaration.initializer);
+				if (fn === undefined) {
+					continue;
+				}
+				context.moduleBindings.set(declaration.name.text, {
+					name: declaration.name.text,
+					declPos: position(declaration.name),
+					hoisted: false,
+					node: fn,
+				});
+			}
+		} else if (
+			ts.isFunctionDeclaration(statement) &&
+			statement.name !== undefined
+		) {
+			context.moduleBindings.set(statement.name.text, {
+				name: statement.name.text,
+				declPos: position(statement.name),
+				hoisted: true,
+				node: statement,
+			});
+		}
+	}
+
+	const scopes: Scope[] = [];
+	for (const statement of sourceFile.statements) {
+		if (isDeclared(statement)) {
+			// `declare` emits nothing at runtime; nothing executes.
+			continue;
+		}
+		walkImmediate(
+			statement,
+			context,
+			scopes,
+			0,
+			position(statement),
+			[],
+			new Set(),
+		);
+	}
+
+	// Deduplicate (the same violation can be reached through several chains).
+	const seen = new Set<string>();
+	const unique: ModuleOrderViolation[] = [];
+	for (const violation of context.violations) {
+		const key = `${violation.line}:${violation.column}:${violation.callee}:${violation.chain.join('>')}`;
+		if (seen.has(key)) {
+			continue;
+		}
+		seen.add(key);
+		unique.push(violation);
+	}
+	return unique;
+};
+
+const SOURCE_EXTENSIONS = new Set<string>([
+	'.ts',
+	'.mts',
+	'.cts',
+	'.tsx',
+	'.js',
+	'.mjs',
+	'.cjs',
+	'.jsx',
+] satisfies SourceFileExtension[]);
+
+// Mirrors the `ignorePatterns` of the root .oxlintrc.json (same list the
+// suppression scanner in func-style-config.test.ts uses) so the real-tree
+// leg analyses exactly the files oxlint lints. The config leg of the guard
+// pins additions to that list, so this copy cannot silently drift: a new
+// ignorePattern would trip the baseline test before it could hide a file
+// from this scanner.
+const IGNORED_PREFIXES = [
+	'**/node_modules',
+	'**/build',
+	'**/dist',
+	'**/.turbo',
+	'**/.husky/_',
+	'**/.react-router',
+	'**/routeTree.gen.ts',
+	'packages/client-ts',
+	'apps/api/openapi',
+	'apps/api/Migrations',
+	'apps/api/bin',
+	'.config/dotnet-tools.json',
+	'apps/api/Generated',
+	'.dump',
+	'.mcp.json',
+	'.claude/settings.local.json',
+	'.agent/**',
+	'.agents/**',
+	'.claude/**',
+	'.codex/**',
+	'.continue/**',
+	'.cursor/**',
+	'.gemini/**',
+	'.opencode/**',
+	'.pi/**',
+	'.roo/**',
+	'.windsurf/**',
+	'packages/lint-ts/src/anti-slop/**',
+	'.tmp',
+];
+
+const matchIgnoredPattern = (pattern: string, path: string): boolean => {
+	const normalizedPattern = pattern.replace(/\*\*/g, '').replace(/^\//, '');
+	if (pattern.startsWith('**/')) {
+		return (
+			path.endsWith(normalizedPattern) || path.includes(normalizedPattern + '/')
+		);
+	}
+	if (pattern.endsWith('/**')) {
+		return path.startsWith(pattern.slice(0, -2));
+	}
+	if (pattern.includes('**')) {
+		return path.includes(pattern.replace(/\*\*/g, ''));
+	}
+	return path === normalizedPattern || path.endsWith('/' + normalizedPattern);
+};
+
+const isSourceIgnored = (relativePath: string): boolean =>
+	IGNORED_PREFIXES.some((pattern) =>
+		matchIgnoredPattern(pattern, relativePath),
+	);
+
+/** Enumerates the source files under `root` that oxlint lints, as relative
+ * paths (forward slashes). Skips gitignored surfaces and the generated
+ * client. A file that does not exist or cannot be read fails loudly (the
+ * caller must surface the error, never silently skip). */
+const collectSourceFiles = (root: string): string[] => {
+	const files: string[] = [];
+	const walk = (dir: string): void => {
+		for (const entry of readdirSync(dir, { withFileTypes: true })) {
+			const full = join(dir, entry.name);
+			const relative = full
+				.slice(root.length)
+				.replace(/^[/\\]/, '')
+				.replace(/\\/g, '/');
+			if (isSourceIgnored(relative)) {
+				continue;
+			}
+			if (entry.isDirectory()) {
+				walk(full);
+				continue;
+			}
+			const extension = entry.name.slice(entry.name.lastIndexOf('.'));
+			if (SOURCE_EXTENSIONS.has(extension)) {
+				files.push(relative);
+			}
+		}
+	};
+	walk(root);
+	return files;
+};
+
+export interface ModuleOrderScanResult {
+	violations: ModuleOrderViolation[];
+	scannedFileCount: number;
+}
+
+/** Scans every source file under `root` and returns the module-order
+ * violations, ordered by file then line. A file that cannot be read or
+ * parsed raises `ModuleOrderAnalysisError` naming the file — the real-tree
+ * leg must never count an unanalysable file as healthy. */
+export const scanModuleOrderViolations = (
+	root: string,
+): ModuleOrderScanResult => {
+	const files = collectSourceFiles(root);
+	const violations: ModuleOrderViolation[] = [];
+	for (const relative of files) {
+		const source = readFileSync(join(root, relative), 'utf8');
+		violations.push(...analyzeModuleOrder(relative, source));
+	}
+	return { violations, scannedFileCount: files.length };
+};
