@@ -1,7 +1,6 @@
 {
 	"$schema": "../expected-red.schema.json",
-	"_comment": "Per-test kept-red expectation manifest for issue #1628 (ronde 10 paired proof). Read by apps/front/scripts/ci/run-preuves.mts BEFORE classification. Each test declared in `expectedRed` MUST fail with an AssertionError on correct code. If a declared kept-red test PASSES, the runner fails CI with verdict CORRUPT PROOF. The `measuredAgainst` SHA points at the commit that introduced the proof itself (f915c3c1e), so the runner has an audit trail for the proof's provenance.",
-	"measuredAgainst": "f915c3c1e27d3243362a7a75cbe11615d24bb691",
+	"_comment": "Per-test kept-red expectation manifest for issue #1628 (ronde 10 paired proof). Read by apps/front/scripts/ci/run-preuves.mts BEFORE classification. Each test declared in `expectedRed` MUST fail with an AssertionError on correct code. If a declared kept-red test PASSES, the runner fails CI with verdict CORRUPT PROOF.",
 	"expectedRed": [
 		{
 			"testName": "publish-now row selector is missing the { hasText: postBody } filter (defect: postRow() matches stale rows on a shared tenant)",

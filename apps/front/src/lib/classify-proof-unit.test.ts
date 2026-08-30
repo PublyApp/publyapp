@@ -11,9 +11,16 @@
  * - readProofReport: missing file, empty file, invalid JSON, wrong shape
  * - classifyProof: OK, CORRUPT PROOF, NO_TESTS, UNEXPECTED_PASS, ERROR
  */
-import { writeFileSync, mkdirSync, rmSync } from 'node:fs';
+import {
+	writeFileSync,
+	mkdirSync,
+	rmSync,
+	readdirSync,
+	readFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 import { afterAll, beforeAll, describe, expect, test } from 'vitest';
 
@@ -368,7 +375,6 @@ describe('classifyProofWithManifest — base CORRUPT PROOF passes through', () =
 		};
 
 		const manifest: ExpectedRedManifest = {
-			measuredAgainst: '0000000000000000000000000000000000000000',
 			expectedRed: [{ testName: 'throws', why: 'must measure the bug' }],
 		};
 
@@ -406,7 +412,6 @@ describe('classifyProofWithManifest — declared kept-red test PASSED is DECLARE
 		};
 
 		const manifest: ExpectedRedManifest = {
-			measuredAgainst: '0000000000000000000000000000000000000000',
 			expectedRed: [
 				{
 					testName: 'the declared red went green',
@@ -441,7 +446,6 @@ describe('classifyProofWithManifest — manifest-driven CORRUPT PROOF cases', ()
 		};
 
 		const manifest: ExpectedRedManifest = {
-			measuredAgainst: '0000000000000000000000000000000000000000',
 			expectedRed: [{ testName: 'ghost test', why: 'declared but gone' }],
 		};
 
@@ -474,7 +478,6 @@ describe('classifyProofWithManifest — manifest-driven CORRUPT PROOF cases', ()
 		};
 
 		const manifest: ExpectedRedManifest = {
-			measuredAgainst: '0000000000000000000000000000000000000000',
 			expectedRed: [{ testName: 'skipped red', why: 'must fail, not skip' }],
 		};
 
@@ -509,7 +512,6 @@ describe('classifyProofWithManifest — all declared tests red is OK (control)',
 		};
 
 		const manifest: ExpectedRedManifest = {
-			measuredAgainst: '0000000000000000000000000000000000000000',
 			expectedRed: [
 				{ testName: 'red one', why: 'first kept-red axis' },
 				{ testName: 'red two', why: 'second kept-red axis' },
@@ -523,79 +525,59 @@ describe('classifyProofWithManifest — all declared tests red is OK (control)',
 	});
 });
 
-// --- readExpectedRedManifest: measuredAgainst validation ---
+// --- readExpectedRedManifest: measuredAgainst removed (#1963) ---
+// The field was purely decorative: the schema declared it but no runtime
+// consumer read it. It has been removed from the manifest shape, the
+// schema, and this file's validation logic. A manifest with or without
+// the key parses identically.
 
-// The brief's mandate: prove the mandatory field bites (tâche 4) and an
-// unreadable value fails loudly (tâche 5). Both proofs live here so they can
-// be executed by `pnpm --filter front test`. The brief requires the two real
-// outputs (red then green) in the same proof file — achieved by mutating the
-// temp fixture between the red assertion and the green assertion within a
-// single test.
-//
-// t4: mandatory field bites
-// t5: unreadable value fails loudly
-
-describe('readExpectedRedManifest — measuredAgainst is mandatory and validated', () => {
-	test('t4 — missing measuredAgainst throws, naming the file (red)', () => {
-		// Proof t4: remove the field → validation fails, naming the file.
-		// Restore below → green.
-		const bad = join(TMP, 't4-missing.json');
+describe('readExpectedRedManifest — measuredAgainst is removed (#1963)', () => {
+	test('a manifest without measuredAgainst parses successfully (red→green)', () => {
+		// RED: a manifest with no measuredAgainst used to be rejected.
+		// After the removal it parses fine.
+		const noMeasured = join(TMP, 'no-measured.json');
 		writeFileSync(
-			bad,
+			noMeasured,
 			JSON.stringify({ expectedRed: [{ testName: 't', why: 't' }] }),
 		);
+		expect(() => readExpectedRedManifest(noMeasured)).not.toThrow();
 
-		// RED: missing field must throw
-		expect(() => readExpectedRedManifest(bad)).toThrow(
-			/missing.*measuredAgainst.*t4-missing\.json/s,
-		);
-
-		// GREEN: restoring the field makes it pass (no throw)
-		writeFileSync(
-			bad,
-			JSON.stringify({
-				expectedRed: [{ testName: 't', why: 't' }],
-				measuredAgainst: '1d425ffe7d86fea934ec4053e2d653a77d4f3c93',
-			}),
-		);
-		expect(() => readExpectedRedManifest(bad)).not.toThrow();
+		// GREEN: the parsed manifest carries the expectedRed without complaint.
+		const manifest = readExpectedRedManifest(noMeasured);
+		expect(manifest.expectedRed).toHaveLength(1);
+		expect(manifest.expectedRed[0].testName).toBe('t');
 	});
+});
 
-	test('t5 — non-SHA measuredAgainst value throws with the actual value (red)', () => {
-		// Proof t5: a value that is not a 40-64 hex git SHA must fail loud,
-		// not silently substitute a compliant default.
-		const bad = join(TMP, 't5-bad-sha.json');
-		writeFileSync(
-			bad,
-			JSON.stringify({
-				expectedRed: [{ testName: 't', why: 't' }],
-				measuredAgainst: 'not-a-sha',
-			}),
-		);
+// #1963 chose removal over enforcement. To make the removal stick beyond the
+// manifests that existed at the time, every committed expected-red manifest
+// must be free of the field: develop-imported manifests still carried it
+// after the original removal and claimed an audit trail the runner never
+// provided. A reintroduced decoration turns this real-tree test red by
+// naming the file.
+test('no committed expected-red manifest carries the measuredAgainst field (#1963 real-tree)', () => {
+	const proofsRoot = resolve(
+		dirname(fileURLToPath(import.meta.url)),
+		'../../tests/proofs',
+	);
+	const offenders: string[] = [];
 
-		// RED: unreadable value must throw, naming BOTH the bad value and the
-		// file it came from. Asserted as two independent substrings, not one
-		// ordered regex: the contract is what the message says, not the order
-		// it says it in, and an ordered regex reddens on a harmless rewording.
-		let thrown: unknown;
-		try {
-			readExpectedRedManifest(bad);
-		} catch (error) {
-			thrown = error;
+	const walk = (dir: string): void => {
+		for (const entry of readdirSync(dir, { withFileTypes: true })) {
+			const p = join(dir, entry.name);
+			if (entry.isDirectory()) {
+				walk(p);
+			} else if (entry.name.endsWith('.expected-red.json')) {
+				const data = JSON.parse(readFileSync(p, 'utf8')) as {
+					measuredAgainst?: unknown;
+				};
+				if (data.measuredAgainst !== undefined) {
+					offenders.push(p);
+				}
+			}
 		}
-		expect(thrown).toBeInstanceOf(Error);
-		expect((thrown as Error).message).toContain('measuredAgainst');
-		expect((thrown as Error).message).toContain('not-a-sha');
-		expect((thrown as Error).message).toContain('t5-bad-sha.json');
+	};
 
-		// GREEN: valid SHA passes
-		writeFileSync(
-			bad,
-			JSON.stringify({
-				expectedRed: [{ testName: 't', why: 't' }],
-				measuredAgainst: '1d425ffe7d86fea934ec4053e2d653a77d4f3c93',
-			}),
-		);
-		expect(() => readExpectedRedManifest(bad)).not.toThrow();
-	});
+	walk(proofsRoot);
+	expect(offenders).toEqual([]);
 });
