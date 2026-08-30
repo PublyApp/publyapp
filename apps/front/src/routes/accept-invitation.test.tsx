@@ -373,11 +373,21 @@ describe('accept-invitation route', () => {
 			};
 			const reloadSpy = vi.fn();
 			const originalLocation = window.location;
+			// `Object.assign` cannot install `reload` here: Location's own
+			// `reload` is non-writable, so assigning through the prototype
+			// chain throws "Cannot assign to read only property 'reload'" in
+			// strict mode. defineProperty installs an own property regardless
+			// of what the prototype declares, and keeps the accessors
+			// (hostname, pathname, ...) working through Object.create.
+			const locationStub = Object.create(originalLocation) as Location;
+			Object.defineProperty(locationStub, 'reload', {
+				configurable: true,
+				value: reloadSpy,
+				writable: true,
+			});
 			Object.defineProperty(window, 'location', {
 				configurable: true,
-				value: Object.assign(Object.create(originalLocation), {
-					reload: reloadSpy,
-				}),
+				value: locationStub,
 			});
 
 			try {

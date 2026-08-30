@@ -1,4 +1,15 @@
-const firstCodePoint = (word: string): string => word[0] ?? '';
+// Reads a whole code point, not a UTF-16 unit. `word[0]` on an astral-plane
+// character (an emoji, most CJK extensions) returns half a surrogate pair and
+// renders as U+FFFD; `[...word][0]` was correct but spreads a string, which
+// `typescript/no-misused-spread` forbids. codePointAt + fromCodePoint is both
+// spread-free and correct.
+const firstCodePoint = (word: string): string => {
+	const code = word.codePointAt(0);
+	if (code === undefined) {
+		return '';
+	}
+	return String.fromCodePoint(code);
+};
 const PALETTE_SIZE = 8;
 
 export const paletteIndex = (seed: string): number => {
