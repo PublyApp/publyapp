@@ -48,6 +48,7 @@ import {
 	scanTreeForSharedTsReExports,
 	SHARED_TS_SEGMENTS,
 	deriveSharedTsSegments,
+	buildSharedTsModulePattern,
 	formatFinding,
 } from './check-shared-ts-import-paths.mts';
 
@@ -880,8 +881,13 @@ void test('RED: a re-export of a file-segment @org/shared-ts/foo is detected as 
 		`export { foo } from '@org/shared-ts/foo';\n`,
 	);
 
+	// Build the pattern from the sandbox's shared-ts-src so the file-level
+	// segment `foo` is recognised (the module-level pattern is derived from the
+	// real tree which does not contain foo.ts).
+	const pattern = buildSharedTsModulePattern(path.join(root, 'shared-ts-src'));
 	const findings = scanFrontSrcForSharedTsReExports(
 		path.join(root, 'front-src'),
+		pattern,
 	);
 	const hit = findings.find(
 		(f) => f.file === 'apps/front/src/lib/file-segment-shim.ts',
