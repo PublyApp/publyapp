@@ -63,9 +63,9 @@
  * name only what remains open:
  * - plain REFERENCES before the declaration (`const x = f;` — a TDZ read,
  *   not a call) are not reported; the guard's mandate is the call defect.
- * - bindings whose initializer is not directly a function expression
- *   (`const f = [() => {}][0]`, `const f = g.bind(null)`, re-exports) are
- *   not tracked.
+ * - bindings whose initializer is not directly a function expression are
+ *   not tracked (`const f = [() => {}][0]`, re-exports); the bind chain
+ *   `const f = g.bind(null)` IS tracked (#1956 shape 2).
  * - invocations through sequence callees (`(0, f)()`) are not followed as
  *   hops; member callees on module-level const object literals ARE followed
  *   (#1956 shape 1).
@@ -215,6 +215,40 @@ const functionInitializer = (
 	return undefined;
 };
 
+/** The target of a `.bind(...)` call on a plain identifier object
+ * (`g.bind(null)`): calling the bound function invokes `g`, so a call whose
+ * callee is the bind call resolves to `g` (and a binding initialised with
+ * it is a hop to `g`). Only the property-access form on an identifier is
+ * followed; computed `g['bind']` stays unresolved (declared boundary). */
+const resolveBindTarget = (call: ts.CallExpression): string | undefined => {
+	if (
+		!ts.isPropertyAccessExpression(call.expression) ||
+		!ts.isIdentifier(call.expression.name) ||
+		call.expression.name.text !== 'bind' ||
+		!ts.isIdentifier(call.expression.expression)
+	) {
+		return undefined;
+	}
+	return call.expression.expression.text;
+};
+
+/** Alias target of a module binding initializer that hops to another
+ * function binding (the binding's value is a bound copy of the target).
+ * #1956 shape 2 recognises the bind chain `const f = g.bind(null)`; the
+ * plain-identifier alias (`const g = f`) is shape 6 and lands separately. */
+const bindAliasTarget = (
+	initializer: ts.Expression | undefined,
+): string | undefined => {
+	if (initializer === undefined) {
+		return undefined;
+	}
+	const unwrapped = unwrapParens(initializer);
+	if (!ts.isCallExpression(unwrapped)) {
+		return undefined;
+	}
+	return resolveBindTarget(unwrapped);
+};
+
 const addScopeDeclaration = (
 	scope: Scope,
 	name: string,
@@ -319,7 +353,7 @@ type ResolvedBinding =
 const resolveBinding = (
 	name: string,
 	scopes: Scope[],
-	moduleBindings: Map<string, FunctionBinding>,
+	context: WalkContext,
 ): ResolvedBinding => {
 	for (let index = scopes.length - 1; index >= 0; index--) {
 		const binding = scopes[index]!.names.get(name);
@@ -327,9 +361,22 @@ const resolveBinding = (
 			return { kind: 'scope', scopeIndex: index, binding };
 		}
 	}
-	const moduleBinding = moduleBindings.get(name);
-	if (moduleBinding !== undefined) {
-		return { kind: 'module', binding: moduleBinding };
+	// Module bindings, following bind-alias hops (`const f = g.bind(null)`
+	// makes `f` a hop to `g`) with a cycle guard. The reported binding is
+	// the ultimate target; a call before its initializer ran is the defect.
+	const visited = new Set<string>();
+	let current = name;
+	while (!visited.has(current)) {
+		visited.add(current);
+		const moduleBinding = context.moduleBindings.get(current);
+		if (moduleBinding !== undefined) {
+			return { kind: 'module', binding: moduleBinding };
+		}
+		const next = context.aliasTargets.get(current);
+		if (next === undefined) {
+			return { kind: 'none' };
+		}
+		current = next;
 	}
 	return { kind: 'none' };
 };
@@ -347,6 +394,12 @@ interface WalkContext {
 	 * literal, the literal itself. Member callee resolution (`obj.run()`,
 	 * `obj['run']()`) reads the function-expression property off it. */
 	objectLiteralInitializers: Map<string, ts.ObjectLiteralExpression>;
+	/** Module bindings whose initializer is a hop to another function
+	 * binding instead of a function expression itself. The bind chain
+	 * (`const f = g.bind(null)`) records name → target; a call through
+	 * `f` resolves to `g` (shape 2). The plain-identifier alias
+	 * (`const g = f`) is shape 6 and is recorded separately there. */
+	aliasTargets: Map<string, string>;
 	violations: ModuleOrderViolation[];
 }
 
@@ -1274,6 +1327,38 @@ const handleInvocation = (
 		return;
 	}
 
+	// Bind-call callee: `g.bind(null)()` — the bound function invokes `g`
+	// when called, so the call resolves to `g`. #1956 shape 2 (inline form;
+	// the aliased form is resolved at binding-collection time).
+	const bindCallee = unwrapParens(calleeExpression);
+	if (ts.isCallExpression(bindCallee)) {
+		const boundTarget = resolveBindTarget(bindCallee);
+		if (boundTarget !== undefined) {
+			handleResolvedIdentifier(
+				boundTarget,
+				position(calleeExpression),
+				context,
+				scopes,
+				bodyRootIndex,
+				executionPos,
+				chain,
+				visitedBindings,
+			);
+			for (const argument of bindCallee.arguments) {
+				walkImmediate(
+					argument,
+					context,
+					scopes,
+					bodyRootIndex,
+					executionPos,
+					chain,
+					visitedBindings,
+				);
+			}
+			return;
+		}
+	}
+
 	// Member callee: `obj.run()` / `obj['run']()` where `obj` is a
 	// module-level const object literal and the property a
 	// function-expression value. The method body runs at the moment of the
@@ -1357,7 +1442,7 @@ const handleResolvedIdentifier = (
 	chain: string[],
 	visitedBindings: Set<string>,
 ): void => {
-	const resolved = resolveBinding(name, scopes, context.moduleBindings);
+	const resolved = resolveBinding(name, scopes, context);
 	if (resolved.kind === 'none') {
 		return;
 	}
@@ -1553,6 +1638,7 @@ export const analyzeModuleOrder = (
 		moduleBindings: new Map(),
 		getterIndex: new Map(),
 		objectLiteralInitializers: new Map(),
+		aliasTargets: new Map(),
 		violations: [],
 	};
 
@@ -1576,6 +1662,10 @@ export const analyzeModuleOrder = (
 						declaration.name.text,
 						declaration.initializer,
 					);
+				}
+				const aliasTarget = bindAliasTarget(declaration.initializer);
+				if (aliasTarget !== undefined) {
+					context.aliasTargets.set(declaration.name.text, aliasTarget);
 				}
 				if (fn === undefined) {
 					// Still collect getters from non-function initializers (object

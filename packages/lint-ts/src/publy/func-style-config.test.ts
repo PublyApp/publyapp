@@ -1571,6 +1571,35 @@ const toPosixPath = (x) => x;
 					assert.strictEqual(violations[0]!.line, 1);
 					assert.strictEqual(violations[0]!.declaredAtLine, 3);
 				});
+
+				it('shape 2, bind chain: f = g.bind(null) then f() reaches g before g is defined', () => {
+					const violations = analyze(
+						`const f = g.bind(null);
+const result = f();
+const g = () => 1;
+`,
+					);
+
+					assert.strictEqual(violations.length, 1);
+					assert.strictEqual(violations[0]!.callee, 'g');
+					assert.strictEqual(violations[0]!.kind, 'direct');
+					assert.strictEqual(violations[0]!.line, 2);
+					assert.strictEqual(violations[0]!.declaredAtLine, 3);
+				});
+
+				it('shape 2, bind chain (inline): g.bind(null)() calls g before g is defined', () => {
+					const violations = analyze(
+						`const result = g.bind(null)();
+const g = () => 1;
+`,
+					);
+
+					assert.strictEqual(violations.length, 1);
+					assert.strictEqual(violations[0]!.callee, 'g');
+					assert.strictEqual(violations[0]!.kind, 'direct');
+					assert.strictEqual(violations[0]!.line, 1);
+					assert.strictEqual(violations[0]!.declaredAtLine, 2);
+				});
 			});
 		});
 
