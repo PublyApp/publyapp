@@ -210,14 +210,18 @@ cp .env.example .env.development
 # 2. Install everything (pnpm workspaces + dotnet restore + shared postinstall)
 just install
 
-# 3. Start the full local stack: the Aspire AppHost runs a persistent Postgres
-#    (host port 5454, named data volume), the API (5000), the worker, and the
-#    front dev server.
+# 3. Start the full local stack (terminal 1, FOREVER — the AppHost runs a
+#    persistent Postgres (host port 5454, named data volume), the API (5000),
+#    the worker, and the front dev server; it never returns and keeps this
+#    terminal busy):
 just dev-db
 
-# 4. Apply database migrations
+# 4. In a SECOND terminal: apply database migrations
 just db-migrate
 ```
+
+The AppHost stays attached in terminal 1; everything else (`just db-migrate`,
+`just db-add MigrationName`, `psql`, …) runs in other terminals.
 
 Alternative without the AppHost — one terminal each: `just dev-api-migrated`
 (migrations + API, port 5000) and `just dev-front` (port 5050). Do NOT run

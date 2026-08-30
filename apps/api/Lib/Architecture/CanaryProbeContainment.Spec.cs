@@ -230,6 +230,12 @@ public sealed partial class CanaryProbeContainmentSpec {
 	// omitted — every committed file that can inject environment variables or carry a
 	// launch command must be scanned, so the detector covers every file that can carry
 	// the probe arg or its flag.
+	//
+	// docker-compose.services.yml was removed with the AppHost replacement (PR #1840,
+	// issue #1722): the file no longer exists, so a manifest that cannot be modified
+	// has nothing to scan — keeping it listed would silently claim a scan target that
+	// is gone. The AppHost (apps/apphost/Program.cs) takes over the local Postgres
+	// role the file played.
 	private static IEnumerable<string> DeployManifests() {
 		return [
 			"apps/api/Dockerfile",
