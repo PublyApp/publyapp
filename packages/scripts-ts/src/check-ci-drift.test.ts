@@ -2590,3 +2590,181 @@ test('readRefFromGit-fs: 3-part committed attack IS CAUGHT by the merge-base flo
 	assert.match(ratchetFindings[0], /silently erased/);
 	assert.match(ratchetFindings[0], /ci-gate-removals\.json/);
 });
+
+// --- Proximity contract (#1845) ---
+//
+// The order contract (cause before action) is pinned in the tests above, but
+// order alone is not enough: a message that states the cause, then inserts
+// three paragraphs of technical context, then states the action satisfies
+// the order contract while failing at its purpose — the operator no longer
+// sees the action. The proximity contract closes this gap: the cause phrase
+// and the action phrase must be within a bounded distance of each other.
+//
+// N = 120 characters between the end of the cause and the start of the action.
+// Justification: the cause and action together form the operative core of the
+// message. A connector phrase ("so you must", "therefore") takes < 20 chars.
+// A single sentence of bridging context ("the local mirror no longer covers
+// the changed inputs") takes < 80 chars. 120 leaves room for one such sentence
+// while rejecting the multi-paragraph dilution the reviewer demonstrated.
+// The repository's current messages use 1-2 chars (a period + space), so the
+// threshold does not threaten legitimate reformulations that keep cause and
+// action adjacent.
+
+const PROXIMITY_LIMIT = 120;
+
+type CauseActionPair = {
+	cause: RegExp;
+	action: RegExp;
+};
+
+const assertProximity = (
+	finding: string,
+	pair: CauseActionPair,
+	label: string,
+) => {
+	const causeMatch = pair.cause.exec(finding);
+	const actionMatch = pair.action.exec(finding);
+	assert.ok(causeMatch, `${label}: cause phrase not found in finding`);
+	assert.ok(actionMatch, `${label}: action phrase not found in finding`);
+	const gap = actionMatch!.index - (causeMatch!.index + causeMatch![0].length);
+	assert.ok(
+		gap <= PROXIMITY_LIMIT,
+		`${label}: gap between cause and action is ${gap} chars, exceeds PROXIMITY_LIMIT=${PROXIMITY_LIMIT}. ` +
+			`Cause ends at index ${causeMatch!.index + causeMatch![0].length}, ` +
+			`action starts at index ${actionMatch!.index}. ` +
+			`The operator must be able to read cause and action together.`,
+	);
+};
+
+test('proximity contract (#1845): NEW STEP cause and action are within proximity limit', async () => {
+	const rootDir = await buildFixture({
+		manifestSteps: reconciled,
+		steps: `${mirroredStep}      - name: Scan for secrets\n        run: pnpm scan:secrets\n`,
+	});
+
+	const findings = await findCiDrift({
+		rootDir,
+		reasonRef: buildFixtureReasonRef(reason),
+	});
+
+	assert.equal(findings.length, 1);
+	assertProximity(
+		findings[0],
+		{
+			cause: /CI gained a step the local gate does not account for/,
+			action: /mirror it in `just ci`/,
+		},
+		'NEW STEP',
+	);
+});
+
+test('proximity contract (#1845): CHANGED cause and action are within proximity limit', async () => {
+	const rootDir = await buildFixture({
+		manifestSteps: reconciled,
+		steps: '      - name: Run tests\n        run: pnpm test --coverage\n',
+	});
+
+	const findings = await findCiDrift({
+		rootDir,
+		reasonRef: buildFixtureReasonRef(reason),
+	});
+
+	assert.equal(findings.length, 1);
+	assertProximity(
+		findings[0],
+		{
+			cause: /changed since it was reconciled/,
+			action: /Re-check that/,
+		},
+		'CHANGED',
+	);
+});
+
+test('proximity contract (#1845): STALE cause and action are within proximity limit', async () => {
+	const rootDir = await buildFixture({
+		manifestSteps: {
+			...reconciled,
+			'fixture.yml::build::Deleted step': {
+				hash: 'abc',
+				mirror: 'just ci',
+				reason,
+			},
+		},
+		steps: mirroredStep,
+	});
+
+	const findings = await findCiDrift({
+		rootDir,
+		reasonRef: {
+			steps: {
+				[manifestEntry]: {
+					reason_hash: hashReason(reason),
+					reason_length: reason.length,
+					reason,
+				},
+				'fixture.yml::build::Deleted step': {
+					reason_hash: hashReason(reason),
+					reason_length: reason.length,
+					reason,
+				},
+			},
+		},
+	});
+
+	assert.equal(findings.length, 1);
+	assertProximity(
+		findings[0],
+		{
+			cause: /reconciles a CI step that no longer exists/,
+			action: /Delete the entry/,
+		},
+		'STALE',
+	);
+});
+
+test('proximity contract (#1845): a synthetic finding with filler between cause and action FAILS the proximity check', () => {
+	const finding =
+		'NEW STEP  fixture.yml::build::Scan for secrets\n' +
+		'    CI gained a step the local gate does not account for.\n' +
+		'    The local gate configuration lives in packages/scripts-ts/src/ci-gate-manifest.json.\n' +
+		'    When a new step is added to the workflow without a corresponding manifest entry,\n' +
+		'    the gate cannot verify it is mirrored locally. This can happen when a developer\n' +
+		'    adds a security scan or linting step without updating the gate.\n' +
+		'    See docs/guides/local-ci-gate.md for the full reconciliation procedure.\n' +
+		'    Either mirror it in `just ci` or record why it cannot run locally.';
+
+	let proximityFailed = false;
+	try {
+		assertProximity(
+			finding,
+			{
+				cause: /CI gained a step the local gate does not account for/,
+				action: /mirror it in `just ci`/,
+			},
+			'NEW STEP with filler',
+		);
+	} catch {
+		proximityFailed = true;
+	}
+	assert.ok(
+		proximityFailed,
+		'The proximity contract must REJECT a finding with multi-paragraph filler between cause and action. ' +
+			'If this assertion passes, the gap is within PROXIMITY_LIMIT and the contract is too loose.',
+	);
+});
+
+test('proximity contract (#1845): a legitimate long reformulation STAYS within the proximity limit', () => {
+	const finding =
+		'CHANGED   fixture.yml::build::Run tests\n' +
+		'    This CI step changed since it was reconciled, so the stored mirror hash is stale.\n' +
+		'    Re-check that "just ci" still covers it, then update the hash.';
+
+	assertProximity(
+		finding,
+		{
+			cause: /changed since it was reconciled/,
+			action: /Re-check that/,
+		},
+		'CHANGED with one bridging sentence',
+	);
+});
