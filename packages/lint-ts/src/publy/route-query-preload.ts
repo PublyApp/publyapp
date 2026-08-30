@@ -639,7 +639,7 @@ export const routeQueryPreload = {
 				if (
 					(init.type === 'ArrowFunctionExpression' ||
 						init.type === 'FunctionExpression') &&
-					init.body.type !== 'BlockStatement' &&
+					init.body !== null &&
 					init.body.type === 'Identifier'
 				) {
 					const bodyName = init.body.name;
@@ -655,6 +655,7 @@ export const routeQueryPreload = {
 				if (
 					(init.type === 'ArrowFunctionExpression' ||
 						init.type === 'FunctionExpression') &&
+					init.body !== null &&
 					init.body.type === 'BlockStatement' &&
 					init.body.body.length === 1 &&
 					init.body.body[0].type === 'ReturnStatement' &&
