@@ -1,4 +1,4 @@
-import { opendir, realpath, stat as statFn } from 'node:fs/promises';
+import { opendir, readFile, realpath, stat as statFn } from 'node:fs/promises';
 import path from 'node:path';
 import process from 'node:process';
 import { pathToFileURL } from 'node:url';
@@ -107,10 +107,156 @@ import { createGitIgnoreChecker } from './git-check-ignore.ts';
 // zero protection.
 const SKIP_DIRS = new Set(['.git', 'node_modules']);
 
+// Maximum depth of the recursive descent through external symlinks. Deeper
+// than this, the guard records an overflow finding rather than continuing
+// to walk an unbounded filesystem (see SYMLINKS).
+const EXTERNAL_MAX_DEPTH = 32;
+
+// Sentinel suffixed on the lexical path of a finding that triggered the
+// external-depth overflow. The shape is intentionally human-readable so the
+// CLI output names the chain in plain words.
+const DEPTH_OVERFLOW_MARKER = '«depth-overflow»';
+
+// A finding from the filesystem walk: the lexical path (how BuildKit resolves
+// the file) and the real path (deduplication key). The real path is
+// the deduplication key — the same real file can be reached via multiple
+// lexical paths (e.g., a real directory and a symlink pointing to it).
+type WalkFinding = {
+	lexical: string;
+	real: string;
+};
+
 const toPosixPath = (value: string) => value.split(path.sep).join('/');
 
 const isShadowFile = (name: string): boolean =>
 	name !== '.dockerignore' && name.toLowerCase().endsWith('.dockerignore');
+
+// Pattern characters Docker uses whose semantics the guard does not
+// implement: globs (`*`, `?`), globstar (`**`), character classes (`[`, `]`),
+// brace expansion (`{`, `}`), negation (`!`), and leading anchors (`/`,
+// `\`). A line that contains any of these is treated as "undecidable" —
+// the guard cannot prove the path is mirrored, and the round-5 captain
+// pinned silent swallowing of such lines as the exact false negative
+// #1849 exists to close. The trailing `/` is stripped (it is the
+// directory-or-file disambiguator in Docker's grammar, not a glob), and
+// inner `/` separators are kept: the canonical "exclude this dir"
+// pattern `leaked/` is exactly `leaked` after trailing-`/` strip, which
+// the guard matches segment-by-segment.
+const hasUndecidableCharacters = (pattern: string): boolean => {
+	if (pattern.length === 0) {
+		return true;
+	}
+	for (const char of pattern) {
+		if (
+			char === '*' ||
+			char === '?' ||
+			char === '[' ||
+			char === ']' ||
+			char === '{' ||
+			char === '}' ||
+			char === '!'
+		) {
+			return true;
+		}
+	}
+	return false;
+};
+
+const normalizeDockerignorePattern = (pattern: string): string[] => {
+	// Strip leading `/` (root-anchored) and trailing `/` (file/dir
+	// disambiguator); what remains is a sequence of segments joined by
+	// `/`. The guard treats each segment independently because Docker's
+	// path semantics (a leading `path/foo` matches `path/foo` anywhere
+	// in the tree, not only at the root) are out of scope for this
+	// fix: the round-5 captain pinned silent swallowing of negation
+	// and globs, not partial-segment matching.
+	const trimmed = pattern.replace(/^\/+/, '').replace(/\/+$/, '');
+	if (trimmed.length === 0) {
+		return [];
+	}
+	return trimmed.split('/');
+};
+
+const parseDockerignoreLine = (line: string) => {
+	const trimmed = line.trim();
+	if (trimmed.length === 0 || trimmed.startsWith('#')) {
+		return { kind: 'undecidable' as const, raw: line };
+	}
+	const unquoted =
+		trimmed.startsWith('"') && trimmed.endsWith('"')
+			? trimmed.slice(1, -1)
+			: trimmed;
+	if (hasUndecidableCharacters(unquoted)) {
+		return { kind: 'undecidable' as const, raw: line };
+	}
+	const segments = normalizeDockerignorePattern(unquoted);
+	if (segments.length === 0) {
+		return { kind: 'undecidable' as const, raw: line };
+	}
+	return { kind: 'exact' as const, segments };
+};
+
+const parseDockerignore = (contents: string) =>
+	contents
+		.split(/\r?\n/)
+		.map((line) => line.replace(/^\\#/, '#'))
+		.map(parseDockerignoreLine);
+
+// True when ANY contiguous slice of `lexicalPath` segments equals one of
+// the parsed `exact` segment sequences (or the pattern is a single
+// segment that matches anywhere from the root downward). The function
+// returns `false` on any path that crosses an `undecidable` line: silent
+// treatment of such a line is the false negative the guard is built to
+// prevent.
+const isMirroredByDockerignore = (
+	lexicalPath: string,
+	parsed: ReturnType<typeof parseDockerignoreLine>[],
+): boolean => {
+	const segments = lexicalPath.split('/');
+	for (let index = 0; index < segments.length; index += 1) {
+		for (const line of parsed) {
+			if (line.kind === 'undecidable') {
+				return false;
+			}
+			if (line.segments.length === 1) {
+				if (segments[index] === line.segments[0]) {
+					return true;
+				}
+				continue;
+			}
+			const tail = segments
+				.slice(index, index + line.segments.length)
+				.join('/');
+			if (tail === line.segments.join('/')) {
+				return true;
+			}
+		}
+	}
+	return false;
+};
+
+const readRootDockerignore = async (
+	rootDir: string,
+): Promise<ReturnType<typeof parseDockerignoreLine>[]> => {
+	try {
+		const contents = await readFile(
+			path.join(rootDir, '.dockerignore'),
+			'utf8',
+		);
+		return parseDockerignore(contents);
+	} catch (error) {
+		if (
+			error instanceof Error &&
+			'code' in error &&
+			(error as { code?: string }).code === 'ENOENT'
+		) {
+			// No root `.dockerignore`: nothing can be mirrored, every
+			// git-ignored finding is visible to Docker.
+			return [];
+		}
+		throw error;
+	}
+};
 
 const isRealInsideRoot = (realPath: string, realRoot: string): boolean => {
 	const relative = path.relative(realRoot, realPath);
@@ -119,28 +265,38 @@ const isRealInsideRoot = (realPath: string, realRoot: string): boolean => {
 	);
 };
 
+// Walk the tree for shadow files. Returns findings with both the lexical path
+// (how BuildKit resolves the file) and the real path (deduplication key).
+//
+// `lexicalParent` is the BUILD-KIT LEXICAL path of the directory being walked.
+// For the root walk it is undefined (no prefix). When the walk descends into a
+// subdirectory `foo/`, the recursive call receives `lexicalParent = 'foo'` and
+// a file `bar.dockerignore` inside it is reported as `foo/bar.dockerignore`.
+// This is the critical fix for external symlinks: when a symlink `linked/ ->
+// /tmp/external/` is encountered, the escape branch computes `linked/` as its
+// BUILD-KIT lexical path and passes it as `lexicalParent` to the recursive call.
+// From there, `linked/subdir/Dockerfile.dockerignore` is built by appending
+// entry names to `lexicalParent` — exactly how BuildKit would resolve it. The
+// approach of computing `path.relative(rootDir, realTarget)` cannot work here
+// because the real target may have no path relationship to the repo root at all.
 const walkForShadows = async (
 	rootDir: string,
 	currentDir: string,
-	findings: string[],
+	findings: WalkFinding[],
 	visitedRealPaths: Set<string>,
 	realRoot: string,
-): Promise<string[]> => {
+	remainingDepth: number,
+	lexicalParent: string | undefined,
+): Promise<WalkFinding[]> => {
 	const directory = await opendir(currentDir);
 
 	for await (const entry of directory) {
 		const entryAbsolute = path.join(currentDir, entry.name);
-		const lexicalRelative = toPosixPath(path.relative(rootDir, entryAbsolute));
 
 		// Dirent reports isDirectory() === false for a symlink whose target
 		// IS a directory, so the symlink branch must be handled before the
 		// plain-directory branch.
 		if (entry.isSymbolicLink()) {
-			// The symlink could point at a file (then it is itself a file
-			// candidate: a symlink whose basename ends with `.dockerignore`
-			// IS the shadow Docker would resolve) OR at a directory (then
-			// it is a transit point into more of the tree). Resolve it to
-			// tell which.
 			let realTarget: string;
 			let targetStat;
 			try {
@@ -153,10 +309,12 @@ const walkForShadows = async (
 
 			if (!targetStat.isDirectory()) {
 				// Symlink to a file. The lexically-named entry is the file
-				// BuildKit would dereference inside the build context, so it
-				// goes through the shadow test by its lexical name.
+				// BuildKit would dereference inside the build context.
 				if (isShadowFile(entry.name)) {
-					findings.push(lexicalRelative);
+					const lexical = lexicalParent
+						? `${lexicalParent}/${entry.name}`
+						: entry.name;
+					findings.push({ lexical, real: realTarget });
 				}
 				continue;
 			}
@@ -166,39 +324,61 @@ const walkForShadows = async (
 			}
 
 			if (!isRealInsideRoot(realTarget, realRoot)) {
-				// Symlink escapes the repository root. We do NOT recurse
-				// through `realpath`: descending into `/home` or `/tmp`
-				// would scan an unbounded filesystem and trade one bug for
-				// another. We DO inspect the LEXICAL root — `opendir` follows
-				// symlinks — to surface shadows sitting at the root of the
-				// external target, which is the contract of the guard for any
-				// directory in the build context. Files deeper than that root
-				// stay invisible: the external tree is outside the repo-level
-				// contract, and the lexical recursion would be unbounded.
+				// This symlink's real target sits outside the repository root.
+				// The guard descends recursively, recording what it finds under
+				// the BUILD-KIT lexical path of the symlink itself. This is
+				// the exact shape BuildKit would resolve: `linked/subdir/...`.
+				// Cycle protection and bounded depth prevent unbounded scans.
+				visitedRealPaths.add(realTarget);
+
+				// The BUILD-KIT lexical path of this symlink: `linked/` for
+				// `repo/linked -> /tmp/external/`. We derive it from
+				// `lexicalParent` (the BuildKit path of the directory we're
+				// currently in), which is the ONLY reliable source: when this
+				// symlink sits inside an external target, `entryAbsolute` is
+				// a path outside the repo and `path.relative(rootDir, ...)` is
+				// meaningless (produces `../tmp/...`). Using `lexicalParent`
+				// gives `linked/subdir/` for the sub-symlink case.
+				const symlinkLexical = lexicalParent
+					? `${lexicalParent}/${entry.name}`
+					: entry.name;
+
+				if (remainingDepth <= 0) {
+					findings.push({
+						lexical: `${symlinkLexical}/${DEPTH_OVERFLOW_MARKER}`,
+						real: realTarget,
+					});
+					continue;
+				}
+
 				try {
-					const externalDirectory = await opendir(entryAbsolute);
-					for await (const externalEntry of externalDirectory) {
-						if (externalEntry.isDirectory() || externalEntry.isSymbolicLink()) {
-							continue;
-						}
-						if (isShadowFile(externalEntry.name)) {
-							findings.push(`${lexicalRelative}/${externalEntry.name}`);
-						}
-					}
+					await walkForShadows(
+						rootDir,
+						realTarget,
+						findings,
+						visitedRealPaths,
+						realRoot,
+						remainingDepth - 1,
+						symlinkLexical,
+					);
 				} catch {
-					// Unreadable external directory: nothing to add.
+					// Unreadable external directory: recursion unwinds.
 				}
 				continue;
 			}
 
 			visitedRealPaths.add(realTarget);
 
+			// Internal symlink to a directory: descend using the same lexical
+			// parent as the current walk level.
 			await walkForShadows(
 				rootDir,
 				entryAbsolute,
 				findings,
 				visitedRealPaths,
 				realRoot,
+				remainingDepth,
+				lexicalParent,
 			);
 			continue;
 		}
@@ -214,18 +394,30 @@ const walkForShadows = async (
 			}
 			visitedRealPaths.add(realEntry);
 
+			// Build the BUILD-KIT lexical path for this subdirectory:
+			// `lexicalParent/foo/` — undefined parent means root-level `foo/`.
+			const childLexical = lexicalParent
+				? `${lexicalParent}/${entry.name}`
+				: entry.name;
+
 			await walkForShadows(
 				rootDir,
 				entryAbsolute,
 				findings,
 				visitedRealPaths,
 				realRoot,
+				remainingDepth,
+				childLexical,
 			);
 			continue;
 		}
 
+		// Plain file.
 		if (isShadowFile(entry.name)) {
-			findings.push(lexicalRelative);
+			const lexical = lexicalParent
+				? `${lexicalParent}/${entry.name}`
+				: entry.name;
+			findings.push({ lexical, real: entryAbsolute });
 		}
 	}
 
@@ -239,49 +431,66 @@ export const findDockerignoreShadows = async (
 	const realRoot = await realpath(path.resolve(rootDir));
 	const visitedRealPaths = new Set<string>([realRoot]);
 
-	const findings = await walkForShadows(
+	const rawFindings = await walkForShadows(
 		rootDir,
 		rootDir,
 		[],
 		visitedRealPaths,
 		realRoot,
+		EXTERNAL_MAX_DEPTH,
+		undefined, // no lexical prefix at the repo root level
 	);
 
+	// Deduplicate by real path, keeping the first lexical occurrence for each
+	// real file. The same file can be reached via multiple lexical paths
+	// (e.g., a real directory and a symlink pointing to it both expose the
+	// same shadow). Keeping the first prevents duplicates while preserving
+	// the canonical path BuildKit would see.
+	const seenReal = new Set<string>();
+	const uniqueFindings: WalkFinding[] = [];
+	for (const f of rawFindings) {
+		if (!seenReal.has(f.real)) {
+			seenReal.add(f.real);
+			uniqueFindings.push(f);
+		}
+	}
+
 	const checkIgnore = createGitIgnoreChecker(rootDir);
+	const dockerignoreMirror = await readRootDockerignore(rootDir);
 
 	let visible: string[];
 
 	if (checkIgnore === null) {
-		// Not inside a git work tree: nothing to consult, every finding is
-		// visible. The CI checkout and the unit-test temp trees both live
-		// inside a work tree, so this branch is exercised by source tarballs
-		// and external tooling, not by the regular path.
-		visible = findings;
+		visible = uniqueFindings.map((f) => f.lexical);
 	} else {
-		// `git check-ignore` refuses paths that escape the repository root
-		// via a symlink (status 128, "pathspec ... is beyond a symbolic
-		// link"). Separate the findings into two buckets:
-		// * askable: the real path stays inside the repo, git has a real
-		//   answer, and a positive answer hides the finding.
-		// * unanswerable: the real path leaves the repo via a symlink. Git
-		//   cannot speak to it, so we keep the finding — its lexical path
-		//   is in the build context, the shadow is real.
-		const askable: { relativePath: string; absolute: string }[] = [];
-		const unanswerable: string[] = [];
-		for (const relativePath of findings) {
-			const absolute = path.resolve(rootDir, relativePath);
-			const realAbsolute = await realpath(absolute);
-			if (isRealInsideRoot(realAbsolute, realRoot)) {
-				askable.push({ relativePath, absolute: realAbsolute });
+		const askable: WalkFinding[] = [];
+		const unanswerable: WalkFinding[] = [];
+		for (const f of uniqueFindings) {
+			if (f.lexical.endsWith(`/${DEPTH_OVERFLOW_MARKER}`)) {
+				unanswerable.push(f);
+				continue;
+			}
+			if (isRealInsideRoot(f.real, realRoot)) {
+				askable.push(f);
 			} else {
-				unanswerable.push(relativePath);
+				unanswerable.push(f);
 			}
 		}
-		const ignoredAbsolute = checkIgnore(askable.map((entry) => entry.absolute));
+		const ignoredReal = checkIgnore(askable.map((f) => f.real));
 		const visibleInRepo = askable
-			.filter((entry) => !ignoredAbsolute.has(entry.absolute))
-			.map((entry) => entry.relativePath);
-		visible = [...visibleInRepo, ...unanswerable];
+			.filter((f) => {
+				if (!ignoredReal.has(f.real)) {
+					return true;
+				}
+				// Git ignores this path. The root `.dockerignore` must
+				// also mirror it for the parallelism contract to drop it.
+				// A path git-ignored but NOT mirrored by `.dockerignore`
+				// is visible to Docker and must be reported — that is the
+				// silent false negative the round-5 captain pinned.
+				return !isMirroredByDockerignore(f.lexical, dockerignoreMirror);
+			})
+			.map((f) => f.lexical);
+		visible = [...visibleInRepo, ...unanswerable.map((f) => f.lexical)];
 	}
 
 	return visible.sort();
@@ -325,6 +534,18 @@ const run = async () => {
 		);
 		console.error(
 			'each file above so the root .dockerignore stays the single source of build-context exclusions.',
+		);
+		console.error(
+			'\nAt least one of these paths is git-ignored but NOT mirrored by the root .dockerignore —',
+		);
+		console.error(
+			'Docker still ships it in the build context. Either delete the file or add the path to',
+		);
+		console.error(
+			'the root .dockerignore so the parallelism contract holds (`.worktrees/`, `.dump/`,',
+		);
+		console.error(
+			'`.claude/`, `.agents/`, `.ai/`, `.aidesigner/`, `.superpowers/` are mirrored for this reason).',
 		);
 		process.exit(1);
 	}

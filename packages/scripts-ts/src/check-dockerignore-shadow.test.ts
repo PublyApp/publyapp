@@ -355,16 +355,25 @@ const initGitRepo = async (repoDir: string): Promise<void> => {
 };
 
 // GREEN (paired proof, half 1): a shadow file inside a directory git
-// ignores must NOT be reported, exactly as the walk used to do before the
-// fix. ROUGE before the fix (the file was reported), VERT after. This is
-// the defect the captain's probe surfaced.
-test('GREEN: shadow file in a git-ignored directory is filtered out (issue #1909 class)', async () => {
+// ignores must NOT be reported when the root `.dockerignore` ALSO mirrors
+// that directory — exactly as the walk used to do before the fix, and as
+// the round-5 fix now requires (the parallelism contract: git-ignored AND
+// mirrored by .dockerignore is dropped). ROUGE on the current code would
+// mean the parallelism detector is over-reporting on a canonical parallel
+// case. VERT after: the guard drops it. This is the defect the captain's
+// probe surfaced — and the parallel-mirror pre-condition is what the
+// round-5 fix pins.
+test('GREEN: shadow file in a git-ignored directory that IS mirrored by the root .dockerignore is filtered out (issue #1909 class)', async () => {
 	const repoDir = await mkdtemp(
 		path.join(os.tmpdir(), 'publyapp-git-ignored-shadow-'),
 	);
 
 	await initGitRepo(repoDir);
 	await writeFixtureFile(repoDir, '.gitignore', 'ignored-dir/\n');
+	// root .dockerignore mirrors `ignored-dir/` so the parallelism
+	// contract drops the shadow (this is the canonical parallel case
+	// `.worktrees/`, `.dump/`, `.claude/` belong to).
+	await writeFixtureFile(repoDir, '.dockerignore', 'ignored-dir/\n');
 	await writeFixtureFile(
 		repoDir,
 		'ignored-dir/Dockerfile.SONDE.dockerignore',
@@ -377,7 +386,7 @@ test('GREEN: shadow file in a git-ignored directory is filtered out (issue #1909
 		assert.deepEqual(
 			findings,
 			[],
-			'expected the guard to drop a shadow file sitting inside a git-ignored directory',
+			'expected the guard to drop a git-ignored-and-mirrored shadow',
 		);
 	} finally {
 		await rm(repoDir, { recursive: true, force: true });
@@ -430,11 +439,14 @@ test('RED: mixed-case shadow file in a git-tracked directory is still caught', a
 // -----------------------------------------------------------------------
 
 // GREEN (paired proof): a shadow file inside a git-ignored directory whose
-// NAME contains a tab must NOT be reported — `git check-ignore` returns the
-// path unquoted under `-z`, and the shared helper matches it against the
-// candidate. ROUGE before the delegated helper (the path came out quoted
-// and never matched), VERT after.
-test('GREEN: shadow file in a git-ignored directory whose name contains a tab is filtered out (#1873 round 4)', async () => {
+// NAME contains a tab must NOT be reported when the root `.dockerignore`
+// ALSO mirrors that directory — `git check-ignore` returns the path
+// unquoted under `-z`, the shared helper matches it against the
+// candidate, AND the `.dockerignore` mirror lines up with the parent
+// directory. ROUGE before the delegated helper (the path came out quoted
+// and never matched). VERT after both fixes (round 4 for the git side,
+// round 5 for the .dockerignore mirror side).
+test('GREEN: shadow file in a git-ignored directory whose name contains a tab AND mirrored is filtered out (#1873 round 4 + 5)', async () => {
 	const repoDir = await mkdtemp(path.join(os.tmpdir(), 'publyapp-tab-shadow-'));
 
 	const tabDirectoryName = 'ignored\tdir';
@@ -442,6 +454,9 @@ test('GREEN: shadow file in a git-ignored directory whose name contains a tab is
 	try {
 		await initGitRepo(repoDir);
 		await writeFixtureFile(repoDir, '.gitignore', 'ignored*dir/\n');
+		// Mirror the tab-named directory in .dockerignore so the
+		// parallelism contract drops the shadow.
+		await writeFixtureFile(repoDir, '.dockerignore', 'ignored\tdir/\n');
 		await mkdir(path.join(repoDir, tabDirectoryName), { recursive: true });
 		await writeFile(
 			path.join(repoDir, tabDirectoryName, 'Dockerfile.SONDE.dockerignore'),
@@ -453,7 +468,7 @@ test('GREEN: shadow file in a git-ignored directory whose name contains a tab is
 		assert.deepEqual(
 			findings,
 			[],
-			`expected the guard to drop a tab-named git-ignored shadow, got: ${JSON.stringify(findings)}`,
+			`expected the guard to drop a tab-named git-ignored-and-mirrored shadow, got: ${JSON.stringify(findings)}`,
 		);
 	} finally {
 		await rm(repoDir, { recursive: true, force: true });
@@ -642,5 +657,321 @@ test('RED: shadow at the root of a symlinked directory escaping the repository r
 	} finally {
 		await rm(repoDir, { recursive: true, force: true });
 		await rm(outsideDir, { recursive: true, force: true });
+	}
+});
+
+// -----------------------------------------------------------------------
+// Round 5 of #1873: the guard header promises a three-branch parallelism
+// between `.gitignore` and the root `.dockerignore` — a path git-ignored AND
+// mirrored by `.dockerignore` is dropped, a path git-ignored but NOT mirrored
+// by `.dockerignore` is REPORTED (Docker still sees it), a path not git-ignored
+// is always reported. The implementation never reads the root `.dockerignore`,
+// so a git-ignored path that Docker can still see produces a SILENT false
+// negative: the guard says "no shadows" while the build context contains the
+// file. Anchored on the real repo (tmpclaude* is in .gitignore but absent from
+// `.dockerignore`) so the assertion names the actual evidence, not a
+// synthetic fixture.
+// -----------------------------------------------------------------------
+
+// RED (paired proof): a shadow file inside a git-ignored directory that the
+// root `.dockerignore` does NOT also exclude must be reported, because Docker
+// will see it (the root file is the only authority for build-context
+// exclusions). ROUGE on the current code: the guard silently drops the
+// finding because git says "ignore". VERT after the fix: the guard reports
+// it, naming the path. This is the silent false negative #1849 exists to
+// close.
+test('RED: shadow in a git-ignored directory that is NOT mirrored by the root .dockerignore is reported (#1873 round 5)', async () => {
+	const repoDir = await mkdtemp(
+		path.join(os.tmpdir(), 'publyapp-r5-not-mirrored-'),
+	);
+
+	try {
+		await initGitRepo(repoDir);
+		// root .dockerignore mirrors ONLY node_modules and the dotfile dotpath
+		// patterns; the leaked directory is intentionally NOT mirrored — this
+		// is the exact shape of the real `.gitignore`/`tmpclaude*` defect.
+		await writeFixtureFile(
+			repoDir,
+			'.dockerignore',
+			'node_modules\n.dockerignore\n',
+		);
+		await writeFixtureFile(repoDir, '.gitignore', 'leaked/\n');
+		await writeFixtureFile(repoDir, 'leaked/Dockerfile.SONDE.dockerignore', '');
+
+		const findings = await findDockerignoreShadows({ rootDir: repoDir });
+
+		assert.ok(
+			findings.includes('leaked/Dockerfile.SONDE.dockerignore'),
+			`expected the guard to flag a git-ignored shadow that .dockerignore does not mirror, got: ${JSON.stringify(findings)}`,
+		);
+	} finally {
+		await rm(repoDir, { recursive: true, force: true });
+	}
+});
+
+// GREEN (paired proof): a shadow file inside a git-ignored directory that
+// the root `.dockerignore` ALSO mirrors must be dropped — the file is dead
+// to BOTH engines and reporting it would be a false positive on a parallel
+// worktree (issue #1909 class: `.worktrees/`, `.dump/`, `.claude/` are in
+// both files for this exact reason). Without this pin, a fix that simply
+// "always report git-ignored paths" would over-report.
+test('GREEN: shadow in a git-ignored directory that IS mirrored by the root .dockerignore is dropped (#1873 round 5)', async () => {
+	const repoDir = await mkdtemp(
+		path.join(os.tmpdir(), 'publyapp-r5-mirrored-'),
+	);
+
+	try {
+		await initGitRepo(repoDir);
+		// Both engines cover `leaked/` — this is the canonical parallel case
+		// the round-4 fix already handled.
+		await writeFixtureFile(
+			repoDir,
+			'.dockerignore',
+			'node_modules\n.dockerignore\nleaked/\n',
+		);
+		await writeFixtureFile(repoDir, '.gitignore', 'leaked/\n');
+		await writeFixtureFile(repoDir, 'leaked/Dockerfile.SONDE.dockerignore', '');
+
+		const findings = await findDockerignoreShadows({ rootDir: repoDir });
+
+		assert.deepEqual(
+			findings,
+			[],
+			`expected the guard to drop a mirrored git-ignored shadow, got: ${JSON.stringify(findings)}`,
+		);
+	} finally {
+		await rm(repoDir, { recursive: true, force: true });
+	}
+});
+
+// CLI RED proof, anchored on the real repo's evidence: `.gitignore` carries
+// `tmpclaude*` and `.dockerignore` does NOT mirror it, so dropping a
+// `tmpclaude_*/Dockerfile.dockerignore` shadow is a silent false negative.
+// The current guard exits 0 on that shape. With the fix the CLI exits 1
+// and names the offending path. This pins the shipped artifact, not just the
+// library, so a future regression that loses the fix in a refactor still
+// fails CI.
+test('RED: CLI exits non-zero on a git-ignored shadow that .dockerignore does not mirror (#1873 round 5)', async () => {
+	const repoDir = await mkdtemp(
+		path.join(os.tmpdir(), 'publyapp-r5-cli-not-mirrored-'),
+	);
+
+	try {
+		await initGitRepo(repoDir);
+		await writeFixtureFile(
+			repoDir,
+			'.dockerignore',
+			'node_modules\n.dockerignore\n',
+		);
+		await writeFixtureFile(repoDir, '.gitignore', 'tmpclaude_test/\n');
+		await writeFixtureFile(
+			repoDir,
+			'tmpclaude_test/Dockerfile.dockerignore',
+			'',
+		);
+
+		const result = spawnSync('node', [cliPath], {
+			cwd: repoDir,
+			encoding: 'utf8',
+		});
+
+		assert.notEqual(
+			result.status,
+			0,
+			`expected non-zero exit on a git-ignored-not-mirrored shadow, got: ${result.status}`,
+		);
+		assert.ok(
+			(result.stderr ?? '').includes('tmpclaude_test/Dockerfile.dockerignore'),
+			`expected stderr to name the offending path, got: ${result.stderr}`,
+		);
+	} finally {
+		await rm(repoDir, { recursive: true, force: true });
+	}
+});
+
+// FAIL-LOUD CONTRACT: a `.dockerignore` line whose semantics the guard
+// cannot evaluate (negation `!`, anchored globs whose meaning is not
+// exact-match, lines whose Docker pattern language the guard has not
+// implemented) must NOT be silently treated as "this path is excluded".
+// The guard's contract is "unequivocal mirror"; an entry it cannot parse
+// is the one case where it cannot make that claim, so it must report the
+// shadow as visible (fail loud) instead of dropping it (silent false
+// negative). Anchored on a real negation line: the well-known meaning
+// "re-include what the parent ignores" is the textbook case the guard
+// must NOT silently swallow.
+test('RED: shadow under a git-ignored directory with an unanalysable .dockerignore negation line is reported loud (#1873 round 5)', async () => {
+	const repoDir = await mkdtemp(
+		path.join(os.tmpdir(), 'publyapp-r5-unanalysable-'),
+	);
+
+	try {
+		await initGitRepo(repoDir);
+		// `leaked` is git-ignored. The root .dockerignore carries a negation
+		// line that the guard cannot evaluate semantically (negation syntax
+		// re-includes a path the parent ignored, which is the OPPOSITE of
+		// "exclude"). A mirror-detector that simply greps for the substring
+		// `leaked` would treat the file as mirrored and silently drop the
+		// shadow — exactly the false negative the captain flagged.
+		await writeFixtureFile(
+			repoDir,
+			'.dockerignore',
+			'node_modules\n.dockerignore\n!leaked/\n',
+		);
+		await writeFixtureFile(repoDir, '.gitignore', 'leaked/\n');
+		await writeFixtureFile(repoDir, 'leaked/Dockerfile.SONDE.dockerignore', '');
+
+		const findings = await findDockerignoreShadows({ rootDir: repoDir });
+
+		assert.ok(
+			findings.includes('leaked/Dockerfile.SONDE.dockerignore'),
+			`expected the guard to report a shadow whose .dockerignore entry is unanalysable, got: ${JSON.stringify(findings)}`,
+		);
+	} finally {
+		await rm(repoDir, { recursive: true, force: true });
+	}
+});
+
+// -----------------------------------------------------------------------
+// Round 5 of #1873: when a symlink escapes the repository root, the walk
+// inspects the LEXICAL root of the external target (via opendir, which
+// follows symlinks) but skips any entry that is itself a directory or a
+// symlink — only top-level files of the external target are checked.
+// A shadow nested deeper (e.g. external/subdir/Dockerfile.dockerignore)
+// is invisible. The fix must descend recursively into the external target
+// under its lexical path, with cycle protection (realpath set) and a
+// bounded depth whose overflow fails loud.
+// -----------------------------------------------------------------------
+
+// RED (paired proof): a shadow sitting under a SUBDIRECTORY of an external
+// symlink target must be reported, exactly as a shadow at the external root
+// is. ROUGE on the current code: the escape branch does `continue` past any
+// directory entry, so `external_link/subdir/Dockerfile.dockerignore` is
+// never seen. VERT after the fix: the walk descends recursively under the
+// lexical path.
+test('RED: shadow under a subdirectory of an external symlink target is reported (#1873 round 5)', async () => {
+	const repoDir = await mkdtemp(
+		path.join(os.tmpdir(), 'publyapp-r5-external-nested-'),
+	);
+
+	const outsideDir = await mkdtemp(
+		path.join(os.tmpdir(), 'publyapp-r5-external-nested-outside-'),
+	);
+
+	try {
+		await initGitRepo(repoDir);
+		await writeFixtureFile(repoDir, '.gitignore', '');
+		await symlink(outsideDir, path.join(repoDir, 'external_link'), 'dir');
+		await mkdir(path.join(outsideDir, 'subdir'), { recursive: true });
+		await writeFile(
+			path.join(outsideDir, 'subdir', 'Dockerfile.SONDE.dockerignore'),
+			'',
+		);
+
+		const findings = await findDockerignoreShadows({ rootDir: repoDir });
+
+		assert.ok(
+			findings.includes('external_link/subdir/Dockerfile.SONDE.dockerignore'),
+			`expected the guard to flag a nested shadow under an external symlink, got: ${JSON.stringify(findings)}`,
+		);
+	} finally {
+		await rm(repoDir, { recursive: true, force: true });
+		await rm(outsideDir, { recursive: true, force: true });
+	}
+});
+
+// CYCLE PROTECTION (paired proof): the recursive descent must not loop on a
+// cycle introduced through an external symlink. The simplest cycle is an
+// external target that links back into itself via a relative symlink
+// (e.g. `external/subdir/loop -> ../../external`). A walk without a realpath
+// cycle guard would loop forever; the test pins that the recursion
+// terminates on a clean external tree (no shadow, no findings).
+test('GREEN: a cyclic external symlink does not loop the guard (#1873 round 5)', async () => {
+	const repoDir = await mkdtemp(
+		path.join(os.tmpdir(), 'publyapp-r5-external-cycle-'),
+	);
+
+	const outsideDir = await mkdtemp(
+		path.join(os.tmpdir(), 'publyapp-r5-external-cycle-outside-'),
+	);
+
+	try {
+		await initGitRepo(repoDir);
+		await writeFixtureFile(repoDir, '.gitignore', '');
+		await symlink(outsideDir, path.join(repoDir, 'external_link'), 'dir');
+		// `outside/subdir/loop -> ../../outside` forms a cycle through the
+		// external target. Without cycle protection the recursion would loop.
+		await mkdir(path.join(outsideDir, 'subdir'), { recursive: true });
+		await symlink(outsideDir, path.join(outsideDir, 'subdir', 'loop'), 'dir');
+		// The cycle guard must NOT silently drop legitimate findings: place a
+		// shadow inside the external target and confirm the guard still
+		// reports it after the cycle is detected.
+		await writeFile(
+			path.join(outsideDir, 'subdir', 'Dockerfile.SONDE.dockerignore'),
+			'',
+		);
+
+		const findings = await findDockerignoreShadows({ rootDir: repoDir });
+
+		assert.ok(
+			findings.includes('external_link/subdir/Dockerfile.SONDE.dockerignore'),
+			`expected the guard to still report the nested shadow after detecting the cycle, got: ${JSON.stringify(findings)}`,
+		);
+	} finally {
+		await rm(repoDir, { recursive: true, force: true });
+		await rm(outsideDir, { recursive: true, force: true });
+	}
+});
+
+// FAIL-LOUD (paired proof): a chain of external symlinks that exceeds the
+// recursion depth bound must fail loud (reject), NOT silently drop the
+// walk's findings — silence on overflow is exactly the false negative the
+// captain flagged. The walk must either report the path that triggers the
+// overflow OR reject with a clear cause; the pinned behaviour here is
+// "report the shadow that triggered the overflow so the maintainer sees it".
+test('RED: a deeply nested external symlink chain is still scanned or fails loud (#1873 round 5)', async () => {
+	const repoDir = await mkdtemp(
+		path.join(os.tmpdir(), 'publyapp-r5-deep-external-'),
+	);
+
+	const outsideRoot = await mkdtemp(
+		path.join(os.tmpdir(), 'publyapp-r5-deep-external-outside-'),
+	);
+
+	try {
+		await initGitRepo(repoDir);
+		await writeFixtureFile(repoDir, '.gitignore', '');
+		// Build an external symlink chain of length 64 — deeper than any
+		// reasonable bound the guard will set. At every step except the
+		// last, the symlink points to a directory holding a NEXT symlink;
+		// the final step holds the shadow.
+		let previousDir = outsideRoot;
+		const chainLength = 64;
+		for (let index = 0; index < chainLength - 1; index += 1) {
+			const nextDir = path.join(previousDir, `step${index}`);
+			await mkdir(nextDir, { recursive: true });
+			await symlink(nextDir, path.join(previousDir, 'next'), 'dir');
+			previousDir = nextDir;
+		}
+		await writeFile(
+			path.join(previousDir, 'Dockerfile.SONDE.dockerignore'),
+			'',
+		);
+		await symlink(outsideRoot, path.join(repoDir, 'external_link'), 'dir');
+
+		const findings = await findDockerignoreShadows({ rootDir: repoDir });
+
+		// The guard either reports the shadow OR rejects the walk. Reporting
+		// nothing on a depth-exceeding external chain is exactly the false
+		// negative the captain pinned — silence is the failure mode.
+		const reported = findings.some((finding) =>
+			finding.startsWith('external_link/'),
+		);
+		assert.ok(
+			reported,
+			`expected the guard to either report the shadow at depth > 64 or reject the walk loudly, got silent ${JSON.stringify(findings)}`,
+		);
+	} finally {
+		await rm(repoDir, { recursive: true, force: true });
+		await rm(outsideRoot, { recursive: true, force: true });
 	}
 });
