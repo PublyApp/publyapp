@@ -548,6 +548,79 @@ public sealed class EmailJobHandlersSpec : IClassFixture<ApiFixture> {
 	}
 
 	[Fact]
+	public async Task ItShouldSendExactlyOnceWhenTheSameJobIsInvokedTwice() {
+		// #1557: the base step-0 short-circuit must hold FOR THIS HANDLER — a
+		// handler that composes its idempotency key from something job-specific, or
+		// that does work before the short-circuit, sends twice. Two invocations with
+		// the SAME jobId + payload yield exactly one send and one EmailLog row.
+		var userId = await SeedExistingUserAsync(UserStatus.Active);
+		var jobId = Guid.CreateVersion7();
+		var sender = new ControllableSender();
+
+		await using var db = CreateDbContext();
+		var handler = JoinedStaffHandler(db, sender);
+		var context = JoinedStaffContext(jobId, userId);
+
+		var outcome1 = await handler.HandleAsync(context, CancellationToken.None);
+		outcome1.Should().BeOfType<JobOutcome.Success>();
+		sender.Sends.Should().HaveCount(
+			1,
+			"[#1557] the first invocation of a fresh job must send exactly once"
+		);
+
+		// Second invocation: the committed Submitted row makes step 0 short-circuit.
+		var outcome2 = await handler.HandleAsync(context, CancellationToken.None);
+		outcome2.Should().BeOfType<JobOutcome.Success>();
+		sender.Sends.Should().HaveCount(
+			1,
+			"[#1557] step-0 short-circuit must prevent a second send: the same "
+				+ "jobId + payload invoked twice must yield exactly one email, or the "
+				+ "person is told twice they were added"
+		);
+
+		await using var assertDb = CreateDbContext();
+		(await assertDb.EmailLog.AsNoTracking().CountAsync(e => e.JobId == jobId))
+			.Should().Be(1, "exactly one email_log row must exist");
+		var log = await assertDb.EmailLog.AsNoTracking().SingleAsync(e => e.JobId == jobId);
+		log.Outcome.Should().Be(EmailLogOutcome.Submitted);
+		log.Kind.Should().Be(EmailKind.StaffJoinedNotification);
+	}
+
+	[Fact]
+	public async Task ItShouldReturnCancelledWithUserNotFoundWhenTheUserIsSoftDeletedBeforeTheLockedRead() {
+		// #1557: eligibility is rechecked at execution time under the lock. A user
+		// soft-deleted between enqueue and the locked read yields user_not_found — no
+		// email into the void, and no email_log row (the recipient is empty).
+		var userId = await SeedExistingUserAsync(UserStatus.Active);
+		var jobId = Guid.CreateVersion7();
+		var sender = new ControllableSender();
+
+		await using (var del = CreateDbContext()) {
+			var user = await del.User.SingleAsync(u => u.Id == userId);
+			user.IsDeleted = true;
+			user.DeletedAt = DateTime.UtcNow;
+			await del.SaveChangesAsync();
+		}
+
+		await using var db = CreateDbContext();
+		var outcome = await JoinedStaffHandler(db, sender)
+			.HandleAsync(JoinedStaffContext(jobId, userId), CancellationToken.None);
+
+		outcome.Should().BeOfType<JobOutcome.Cancelled>(
+			"[#1557] a user soft-deleted between enqueue and the locked read must "
+			+ "yield user_not_found (Cancelled), not a Success send to a recipient "
+			+ "that no longer exists"
+		);
+		sender.Sends.Should().BeEmpty(
+			"[#1557] no email may reach a user already deleted at execution time"
+		);
+
+		await using var assertDb = CreateDbContext();
+		(await assertDb.EmailLog.AsNoTracking().AnyAsync(e => e.JobId == jobId))
+			.Should().BeFalse("user_not_found has no recipient — nothing to log");
+	}
+
+	[Fact]
 	public async Task ItShouldCancelJoinedStaffNotificationWhenTheUserIsSuspendedAtLockedRead() {
 		// #291: a user suspended between enqueue and the locked read is ineligible —
 		// no send, CancelledIneligible terminal row (same contract as the password-reset
