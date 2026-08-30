@@ -555,6 +555,7 @@ ci-quality: ci-format ci-quality-dotnet test-analyzers
 ci-quality-dotnet $APP_ROLE="api" $TRUSTED_PROXY_CIDRS="127.0.0.1/32" $SOCIAL_ACCOUNTS_MASTER_KEY="AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=":
   dotnet restore PublyApp.slnx
   dotnet build PublyApp.slnx --no-restore
+  dotnet format PublyApp.slnx --verify-no-changes
 
 # openapi.json + client-ts determinism, then the OpenAPI contract spec
 ci-spec-drift:

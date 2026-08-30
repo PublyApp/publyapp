@@ -342,7 +342,7 @@
 			"reason": "Runner toolchain provisioning. Locally the Node version is pinned by .node-version / .nvmrc instead."
 		},
 		"front-ci.yml::supply-chain::Smoke start front server and verify stylesheet tag": {
-			"hash": "dfd4529ec217653c",
+			"hash": "056e04ce212f4f40",
 			"mirror": "just ci-front",
 			"reason": "ci-front runs pnpm --filter front smoke:start. The workflow does this with inline bash (background job + trap + curl + grep) which cannot run under the justfile's pwsh shell on Windows, so apps/front/scripts/ci/smoke-start-server.mts re-implements the same assertions in Node: serve the production build, GET /, require a rel=stylesheet link to a .css asset. DELIBERATE DIFFERENCE: CI hardcodes port 3000 (a fresh runner has nothing else on it); the local script binds a free ephemeral port via PORT, because probing a busy 3000 on a dev machine would assert against whatever unrelated app answered and report a false green."
 		},
@@ -425,11 +425,6 @@
 			"hash": "eb59af77b34d5680",
 			"mirror": null,
 			"reason": "GitHub-only, fork runs only (#1021): actions/upload-artifact moves the image tarballs from the build runner to the versioned artifact the shards download \u2014 the registry-free stand-in for the GHCR hop. Locally there is nothing to upload; the images are already where the stack starts."
-		},
-		"front-e2e.yml::build::Verify the built front image starts and serves HTTP": {
-			"hash": "f01891903203a11f",
-			"mirror": "pnpm --filter front check:front-runtime-image",
-			"reason": "#1628 round 10 build-artifact guard: starts the just-built front image as a container with the production env surface (NODE_ENV=production, PUBLIC_ORIGIN, SERVER_API_BASE_URL, TRUSTED_PROXY_CIDRS — the same validateRuntimeEnv() gate #1731 enforces) and waits for an actual HTTP response, not merely for 'the process is running'. A container that crashes at startup with ERR_MODULE_NOT_FOUND is the exact shape the front fell into when trust-proxy.mjs was added without a matching COPY in the Dockerfile — nine rounds of 'tests pass' missed it because every other e2e test only fails downstream with a generic 'element(s) not found'. The local mirror runs the same guard script against a freshly built image (default tag publyapp-front-runtime-guard:local), so it exercises the same COPY-surface property the CI step guards."
 		},
 		"front-e2e.yml::changes::Check whether front-e2e paths changed": {
 			"hash": "101fc4de76fb0e58",
@@ -681,16 +676,6 @@
 			"mirror": "just ci-no-ignored-tracked",
 			"reason": "ci-no-ignored-tracked runs the identical `node packages/scripts-ts/src/check-no-ignored-tracked.ts` plus its vitest test, which interrogates the REAL repo via `git ls-files -z --cached --ignored --exclude-standard`. Empty output = green, any named path = red. See issue #1513."
 		},
-		"quality-gate.yml::no-dockerignore-shadow::Checkout": {
-			"hash": "11ee605b2ca0dfd4",
-			"mirror": null,
-			"reason": "GitHub-only: clones the repo onto the runner. Locally the working tree already is the code under test."
-		},
-		"quality-gate.yml::no-dockerignore-shadow::Forbid .dockerignore shadow files (#1849)": {
-			"hash": "8fb85ac630acb929",
-			"mirror": "just ci-dockerignore-shadow",
-			"reason": "ci-dockerignore-shadow runs the identical `node packages/scripts-ts/src/check-dockerignore-shadow.ts`, which walks the REAL working tree (the same filesystem a build context is drawn from) and flags every file whose basename ends with `.dockerignore` case-insensitively but is not exactly `.dockerignore`. Git-ignored paths (e.g. parallel .worktrees/) are filtered out via a single batch `git check-ignore --stdin -z` call (issue #1909 class). The `-v` form is deliberately NOT used: it was the round-4 defect, because its verbose output changes the parse shape. See issue #1849."
-		},
 		"quality-gate.yml::quality::Assert exact pins": {
 			"hash": "9f0331695e45ef30",
 			"mirror": "just ci-install",
@@ -711,10 +696,10 @@
 			"mirror": "just ci-quality",
 			"reason": "ci-quality-dotnet runs the identical dotnet build PublyApp.slnx --no-restore with TreatWarningsAsErrors and EnforceCodeStyleInBuild active via Directory.Build.props, so any analyzer or code-style warning fails the build the same way in CI and locally."
 		},
-		"quality-gate.yml::quality::Check formatter scope (#1875)": {
-			"hash": "5a94bdd8275b3f27",
-			"mirror": "just ci-format",
-			"reason": "ci-format now runs pnpm format AND then pnpm --filter scripts-ts exec vitest run src/check-formatter-scope.test.ts, the same vitest file this step runs. The guard asks oxfmt itself (via the real .oxfmtrc.json from the repo root) which files each package.json format glob would process, so an ignorePatterns entry that silently swallows a directory the globs enumerate fails red naming the directory instead of letting `pnpm format` exit 0."
+		"quality-gate.yml::quality::Check C# formatting (dotnet format --verify-no-changes)": {
+			"hash": "93d550cb8a49f5c0",
+			"mirror": "just ci-quality-dotnet",
+			"reason": "#1924: dotnet format --verify-no-changes catches whitespace diagnostics that compile-time checks (TreatWarningsAsErrors + EnforceCodeStyleInBuild) miss: trailing spaces, brace style, blank-line spacing, tab/space indentation, and column width. ci-quality-dotnet runs the identical command as its final step. The guard was demonstrated red+green against a trailing-space mutation (exit 2) and clean tree (exit 0). Known limitation: EF Core regenerates migration .cs files in its own Allman/4-space style; the .editorconfig Migrations section exempts only IDE0005/IDE0300/CA1861, not whitespace. Fix: run `dotnet format` immediately after each `just db-add` before committing."
 		},
 		"quality-gate.yml::quality::Check formatting (oxfmt --check)": {
 			"hash": "83841604495adffa",
