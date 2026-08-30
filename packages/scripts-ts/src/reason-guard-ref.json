@@ -132,7 +132,6 @@
 		"front-e2e.yml::build::Setup Docker Buildx",
 		"front-e2e.yml::build::Setup GitHub Actions runtime",
 		"front-e2e.yml::build::Upload stack images artifact (fork runs)",
-		"front-e2e.yml::build::Verify the built front image starts and serves HTTP",
 		"front-e2e.yml::changes::Check whether front-e2e paths changed",
 		"front-e2e.yml::changes::Checkout classifier from the base commit (not the PR's own copy)",
 		"front-e2e.yml::changes::Setup Node",
@@ -181,15 +180,13 @@
 		"quality-gate.yml::changes::Setup Node",
 		"quality-gate.yml::gate::Check required jobs",
 		"quality-gate.yml::gate::Verify the required-jobs check truly succeeded (continue-on-error cannot mask this)",
-		"quality-gate.yml::no-dockerignore-shadow::Checkout",
-		"quality-gate.yml::no-dockerignore-shadow::Forbid .dockerignore shadow files (#1849)",
 		"quality-gate.yml::no-ignored-tracked::Checkout",
 		"quality-gate.yml::no-ignored-tracked::Verify no tracked file matches .gitignore (#1513)",
 		"quality-gate.yml::quality::Assert exact pins",
 		"quality-gate.yml::quality::Audit development dependencies (moderate and above)",
 		"quality-gate.yml::quality::Bind pinned action SHAs to their version comments (#1392)",
 		"quality-gate.yml::quality::Build .NET solution (warnings as errors via Directory.Build.props)",
-		"quality-gate.yml::quality::Check formatter scope (#1875)",
+		"quality-gate.yml::quality::Check C# formatting (dotnet format --verify-no-changes)",
 		"quality-gate.yml::quality::Check formatting (oxfmt --check)",
 		"quality-gate.yml::quality::Checkout",
 		"quality-gate.yml::quality::Install (frozen lockfile, no scripts)",
@@ -639,11 +636,6 @@
 			"reason_length": 283,
 			"reason": "GitHub-only, fork runs only (#1021): actions/upload-artifact moves the image tarballs from the build runner to the versioned artifact the shards download — the registry-free stand-in for the GHCR hop. Locally there is nothing to upload; the images are already where the stack starts."
 		},
-		"front-e2e.yml::build::Verify the built front image starts and serves HTTP": {
-			"reason_hash": "4b40a4b7696d01a0",
-			"reason_length": 823,
-			"reason": "#1628 round 10 build-artifact guard: starts the just-built front image as a container with the production env surface (NODE_ENV=production, PUBLIC_ORIGIN, SERVER_API_BASE_URL, TRUSTED_PROXY_CIDRS — the same validateRuntimeEnv() gate #1731 enforces) and waits for an actual HTTP response, not merely for 'the process is running'. A container that crashes at startup with ERR_MODULE_NOT_FOUND is the exact shape the front fell into when trust-proxy.mjs was added without a matching COPY in the Dockerfile — nine rounds of 'tests pass' missed it because every other e2e test only fails downstream with a generic 'element(s) not found'. The local mirror runs the same guard script against a freshly built image (default tag publyapp-front-runtime-guard:local), so it exercises the same COPY-surface property the CI step guards."
-		},
 		"front-e2e.yml::changes::Check whether front-e2e paths changed": {
 			"reason_hash": "690f348998abd4d6",
 			"reason_length": 915,
@@ -894,16 +886,6 @@
 			"reason_length": 276,
 			"reason": "ci-no-ignored-tracked runs the identical `node packages/scripts-ts/src/check-no-ignored-tracked.ts` plus its vitest test, which interrogates the REAL repo via `git ls-files -z --cached --ignored --exclude-standard`. Empty output = green, any named path = red. See issue #1513."
 		},
-		"quality-gate.yml::no-dockerignore-shadow::Checkout": {
-			"reason_hash": "c80eb5bfb322fab4",
-			"reason_length": 102,
-			"reason": "GitHub-only: clones the repo onto the runner. Locally the working tree already is the code under test."
-		},
-		"quality-gate.yml::no-dockerignore-shadow::Forbid .dockerignore shadow files (#1849)": {
-			"reason_hash": "b60edaad18888f9d",
-			"reason_length": 579,
-			"reason": "ci-dockerignore-shadow runs the identical `node packages/scripts-ts/src/check-dockerignore-shadow.ts`, which walks the REAL working tree (the same filesystem a build context is drawn from) and flags every file whose basename ends with `.dockerignore` case-insensitively but is not exactly `.dockerignore`. Git-ignored paths (e.g. parallel .worktrees/) are filtered out via a single batch `git check-ignore --stdin -z` call (issue #1909 class). The `-v` form is deliberately NOT used: it was the round-4 defect, because its verbose output changes the parse shape. See issue #1849."
-		},
 		"quality-gate.yml::quality::Assert exact pins": {
 			"reason_hash": "23640fc62c5d63d6",
 			"reason_length": 88,
@@ -924,10 +906,10 @@
 			"reason_length": 251,
 			"reason": "ci-quality-dotnet runs the identical dotnet build PublyApp.slnx --no-restore with TreatWarningsAsErrors and EnforceCodeStyleInBuild active via Directory.Build.props, so any analyzer or code-style warning fails the build the same way in CI and locally."
 		},
-		"quality-gate.yml::quality::Check formatter scope (#1875)": {
-			"reason_hash": "954284ab5e9c6631",
-			"reason_length": 439,
-			"reason": "ci-format now runs pnpm format AND then pnpm --filter scripts-ts exec vitest run src/check-formatter-scope.test.ts, the same vitest file this step runs. The guard asks oxfmt itself (via the real .oxfmtrc.json from the repo root) which files each package.json format glob would process, so an ignorePatterns entry that silently swallows a directory the globs enumerate fails red naming the directory instead of letting `pnpm format` exit 0."
+		"quality-gate.yml::quality::Check C# formatting (dotnet format --verify-no-changes)": {
+			"reason_hash": "bcb3a7e9bc2c833b",
+			"reason_length": 674,
+			"reason": "#1924: dotnet format --verify-no-changes catches whitespace diagnostics that compile-time checks (TreatWarningsAsErrors + EnforceCodeStyleInBuild) miss: trailing spaces, brace style, blank-line spacing, tab/space indentation, and column width. ci-quality-dotnet runs the identical command as its final step. The guard was demonstrated red+green against a trailing-space mutation (exit 2) and clean tree (exit 0). Known limitation: EF Core regenerates migration .cs files in its own Allman/4-space style; the .editorconfig Migrations section exempts only IDE0005/IDE0300/CA1861, not whitespace. Fix: run `dotnet format` immediately after each `just db-add` before committing."
 		},
 		"quality-gate.yml::quality::Check formatting (oxfmt --check)": {
 			"reason_hash": "6b89e3c033cf0ebc",
