@@ -39,17 +39,27 @@ import { createGitIgnoreChecker } from './git-check-ignore.ts';
 // basename ends with `.dockerignore` case-insensitively but is not exactly
 // `.dockerignore`. Files inside `.git` and `node_modules` are out of scope
 // (`node_modules` is always excluded from every build context by the root
-// `.dockerignore`, so a third-party package can never shadow it). In addition,
-// any file that git itself ignores (e.g. inside `.worktrees/`, `.dump/`, or any
-// path matched by `.gitignore`) is dropped before reporting: when a path is
-// matched by `.gitignore` AND by the root `.dockerignore`, it cannot enter a
-// Docker build context either, and flagging it would be a false positive
-// against a parallel worktree (issue #1909 class). The contract here is the
-// UNION, not an unconditional claim: a git-ignored path that the root
-// `.dockerignore` does NOT mirror is visible to Docker (false negative risk),
-// and the repo's `.gitignore` and root `.dockerignore` are curated to overlap
-// on the surfaces that matter — `.worktrees/`, `.dump/`, `.claude/`,
-// `.agents/`, `.ai/`, `.aidesigner/`, `.superpowers/` are in both.
+// `.dockerignore`, so a third-party package can never shadow it).
+//
+// GITIGNORE / DOCKERIGNORE PARALLELISM
+// -----------------------------------
+// A file that git ignores AND that the root `.dockerignore` also mirrors is
+// dead to BOTH engines and must not be reported: Docker will not package it
+// (root `.dockerignore` blocks it), and git will not stage it (`.gitignore`
+// blocks it). Reporting it would be a false positive against a parallel
+// worktree (issue #1909 class: `.worktrees/`, `.dump/`, `.claude/`,
+// `.agents/`, `.ai/`, `.aidesigner/`, `.superpowers/` are all in both files
+// for exactly this reason). The contract here is therefore:
+//
+//   * A path that is git-ignored AND mirrored by the root `.dockerignore`
+//     is dropped before reporting (parallels, no flag).
+//   * A path that is git-ignored but NOT mirrored by the root `.dockerignore`
+//     is visible to Docker and IS reported (parallelism broken, flag stays).
+//     The repo's `.gitignore` and root `.dockerignore` are curated to overlap
+//     on every surface where a future drift would be confusing, but the
+//     guard does not ASSUME that — it asks git on every candidate.
+//   * A path that is NOT git-ignored is always reported if it is a shadow
+//     (no parallelism applies, it is just a normal file in the build context).
 //
 // The git-ignored filter is delegated to the shared `createGitIgnoreChecker`
 // (packages/scripts-ts/src/git-check-ignore.ts, #1927). That helper batches
