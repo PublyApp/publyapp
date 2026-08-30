@@ -387,7 +387,7 @@ describe('r2 fixture SIGINT race — RED: handler installed AFTER the handshake 
 		// Step 1: Extract the REAL fixture lines from the production file.
 		// If extraction fails — anchor not found, footer not found, line
 		// count too low — this throws and the test fails LOUD naming the
-		// exact drift. A content illisible n'est pas un contenu conforme.
+		// exact drift. An unreadable content is not a compliant content.
 		let lines: string[];
 		try {
 			lines = extractR2FixtureLines();
