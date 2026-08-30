@@ -295,6 +295,14 @@ ci-drift:
   @echo "=== [gate] workflow drift guard ==="
   pnpm --filter scripts-ts exec vitest run src/codeowners-contract.test.ts
   pnpm test:ci-drift
+  # #1709: the ratchet-floor generator's own suite. Without this line the
+  # ratchet guarding against silent step erasure is itself unverified —
+  # exactly the #1709 finding that file-by-file enumeration left a 463-line
+  # test suite with no CI consumer. Mirrored by the gate-selftest step in
+  # front-ci.yml, and pinned structurally by
+  # packages/scripts-ts/src/check-ci-gate-structure.ts (gateSelftestTests +
+  # EXPECTED_GATE_SELFTEST_TESTS) so this line cannot silently drop.
+  pnpm --filter scripts-ts exec vitest run src/gen-reason-ref.test.ts
   pnpm --filter scripts-ts exec vitest run src/lint-front.test.ts
   # #1679: the no-floating-promises ratchet's own suite. front-ci.yml's
   # gate-selftest step runs it; without this line the local mirror would be

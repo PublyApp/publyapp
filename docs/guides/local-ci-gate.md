@@ -223,7 +223,73 @@ node packages/scripts-ts/src/gen-reason-ref.ts
 If the new reason makes the guard pass, the regen command proves the rewrite is intentional
 (not an accidental truncation). The command is cited in the guard's failure message too.
 
-## Known gaps
+### Ratchet floor (#1709)
+
+The reason guard pins each step's reason, but until #1709 it had no memory of
+**which steps had been reconciled**. A covered step could be deleted from CI,
+then from the manifest, then the reference regenerated — and the guard would
+turn green silently. The 3-step sequence looked like cleanup, not erasure.
+
+The reference file now holds a `pinned_step_ids` array that grows
+monotonically. Regeneration can only **ADD** step IDs to it — never remove
+them. This makes the set of reconciled steps a one-way ratchet: once a step
+is covered, it stays covered until a human explicitly confesses its removal.
+
+When a pinned step is missing from the manifest, the guard produces a
+`RATCHET` finding naming the step. The finding clears only one way: a
+**removals confession** in `packages/scripts-ts/src/ci-gate-removals.json`
+that names the step ID and says what was lost and why:
+
+```json
+{
+  "steps": [
+    {
+      "step_id": "front-ci.yml::supply-chain::Typecheck front",
+      "reason": "Typecheck folded into the lint step; the lint recipe now runs tsc --noEmit too.",
+      "removed_at": "2026-08-29"
+    }
+  ]
+}
+```
+
+The confession file is the **only** way to lower the floor. Without it,
+`gen-reason-ref.ts` refuses to regenerate and exits non-zero. With it, the
+regeneration succeeds and the guard turns green — the removal is deliberate,
+documented, and reviewable.
+
+The guard verifies the confession is reviewable — the reason must be at least
+24 characters and must not be filler (a repeated block like `"x".repeat(24)` or
+`"ab".repeat(12)`, a multi-block stack like `"ab".repeat(6) + "cd".repeat(6)`,
+or a run with a single stray character like `"a".repeat(23) + "b"`), in both
+`gen-reason-ref.ts` and `check-ci-drift.ts`. Beyond
+that it does not judge the quality of the argument — that is a human review
+concern. The guard verifies that the vanished step is **named**, so silent
+erasure is impossible but legitimate removal stays possible.
+
+### Pin completeness (#1809 r13)
+
+The ratchet used to enforce only `pinned ⊆ steps ⊆ manifest`: it forbade
+pinning anything, but never required every covered step to be pinned. A step
+reconciled in the manifest could therefore sit unpinned — protected in name
+only, with no pin whose disappearance would trip the ratchet. That is the
+round-13 defect: `docs-archive.yml::docs-archive::Run prune-inventory guard
+fixture tests` was covered by the manifest yet absent from `pinned_step_ids`,
+so its justification could have vanished without the floor moving.
+
+The invariant is now **complete**: every step in `ci-gate-manifest.json`
+must appear in `pinned_step_ids` of the current reference, asserted on both
+sides — `check-ci-drift.ts` emits an `UNPINNED` finding for any reconciled
+step missing from the pin set (fix: regenerate, which pins the union), and
+`gen-reason-ref.ts` refuses to write a reference whose pin set is not
+complete. A reference from before the ratchet (no `pinned_step_ids` field)
+keeps its pre-ratchet meaning: the field is what activates the floor.
+
+A confession that names a step **still present** in the manifest is no longer
+a generator-side warning or a check-side silence: it is a loud failure on both
+sides (`CONFESSION CONTRADICTION` in `check-ci-drift.ts`, a hard refusal in
+`gen-reason-ref.ts`). A confession exists only to authorize removing a step
+from the floor; confessing a step that is still reconciled quietly asserts a
+removal that did not happen, and silently desensitizes the removal path.
 
 Recorded here rather than hidden, so they can be judged:
 
