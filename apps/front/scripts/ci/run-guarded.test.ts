@@ -27,7 +27,7 @@
  * seconds, the wrapper exits non-zero, prints the guard name + duration, and
  * leaves zero orphaned child processes.
  */
-import { execFile, type ExecFileException } from 'node:child_process';
+import { execFile, spawn, type ExecFileException } from 'node:child_process';
 import { readdirSync, readFileSync } from 'node:fs';
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -241,5 +241,80 @@ describe('run-guarded.mts — issue #1525 timeout kills process tree', () => {
 			await rm(dir, { recursive: true, force: true });
 		},
 		PROOF_TIMEOUT_MS,
+	);
+
+	it(
+		'propagates SIGINT to the child process group on Ctrl-C',
+		async () => {
+			const dir = await mkdtemp(path.join(tmpdir(), 'proof-1525-sigint-'));
+			const guardPath = path.join(dir, 'running-guard.mts');
+			await writeFile(
+				guardPath,
+				[
+					"process.stdout.write('running-guard-started\\n');",
+					'// A guard that runs forever — simulates a test in progress.',
+					'setInterval(() => {}, 1000);',
+				].join('\n'),
+				'utf-8',
+			);
+
+			await new Promise<void>((resolve, reject) => {
+				const timeout = setTimeout(() => {
+					reject(new Error('SIGINT proof safety-net exceeded'));
+				}, PROOF_TIMEOUT_MS);
+
+				const wrapper = spawn(process.execPath, [WRAPPER, guardPath], {
+					env: { ...process.env, GUARD_TIMEOUT_SECONDS: '30' },
+					cwd: FRONT_ROOT,
+					stdio: ['inherit', 'inherit', 'inherit'],
+				});
+
+				// Let the guard start, then send SIGINT to the wrapper
+				// (simulating Ctrl-C in a terminal).
+				setTimeout(() => {
+					wrapper.kill('SIGINT');
+				}, 500);
+
+				wrapper.on('exit', (code) => {
+					clearTimeout(timeout);
+					// 130 = 128 + 2 (SIGINT)
+					expect(code).toBe(130);
+					resolve();
+				});
+
+				wrapper.on('error', () => {
+					clearTimeout(timeout);
+					reject(new Error('Failed to spawn wrapper'));
+				});
+			});
+
+			// Verify no orphaned child process remains.
+			let survivors = 0;
+			try {
+				const entries = readdirSync('/proc');
+				for (const entry of entries) {
+					if (!/^\d+$/.test(entry)) {
+						continue;
+					}
+					try {
+						const cmdline = readFileSync(
+							`/proc/${entry}/cmdline`,
+							'utf-8',
+						).replace(/\0/g, ' ');
+						if (cmdline.includes('running-guard')) {
+							survivors++;
+						}
+					} catch {
+						// Process may have exited — skip.
+					}
+				}
+			} catch {
+				// /proc not available — skip.
+			}
+			expect(survivors).toBe(0);
+
+			await rm(dir, { recursive: true, force: true });
+		},
+		PROOF_TIMEOUT_MS + 5000,
 	);
 });

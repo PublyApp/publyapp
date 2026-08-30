@@ -95,6 +95,8 @@ just test-api                  # Run API integration tests (requires Docker)
 pnpm --filter front test       # Run the front unit/component suite (Vitest)
 ```
 
+**Timeout protection for front guards:** all front guard test scripts (`test:*`, `check:*`, `verify:*`) route through `apps/front/scripts/run-guarded.mts`, which spawns each guard in its own process group and SIGKILLs the entire tree on timeout. This prevents a frozen guard from holding the CI lock indefinitely (issue #1525). Default timeout is 300s; override via `GUARD_TIMEOUT_SECONDS`. Vitest `vitest run` calls (the main unit suite) are not wrapped — they use Vitest's internal per-test timeouts.
+
 **Prerequisites:** Docker must be running (Testcontainers spins up Postgres automatically).
 
 ### Pre-push gate

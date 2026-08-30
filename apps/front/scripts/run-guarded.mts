@@ -120,14 +120,30 @@ const child: ChildProcess = spawn(
 
 let settled = false;
 
+// Propagate SIGINT (Ctrl-C) / SIGTERM to the child process group so the
+// entire tree dies with the wrapper — otherwise a detached child survives
+// as an orphan (issue #1525-style leak on manual interruption).
+const forwardSignal = (sig: NodeJS.Signals) => {
+	if (settled || !child.pid || child.pid <= 0) {
+		return;
+	}
+	try {
+		process.kill(-child.pid, sig);
+	} catch {
+		// Child may have exited already.
+	}
+};
+
+process.on('SIGINT', () => forwardSignal('SIGINT'));
+process.on('SIGTERM', () => forwardSignal('SIGTERM'));
+
 const failHard = (exitCode: number): never => {
 	if (settled) {
 		throw new Error('failHard called after settlement');
 	}
 	settled = true;
 	const elapsedSec = ((Date.now() - startMs) / 1000).toFixed(1);
-	const cmdPreview =
-		[...nodeFlags, guardLabel, ...scriptArgs].join(' ');
+	const cmdPreview = [...nodeFlags, guardLabel, ...scriptArgs].join(' ');
 	console.error(
 		'\n' +
 			'═'.repeat(72) +
@@ -154,16 +170,24 @@ const watchdog = setTimeout(() => {
 	failHard(1);
 }, GUARD_TIMEOUT_MS);
 
-child.on('exit', (code: number | null) => {
+child.on('exit', (code: number | null, signal: NodeJS.Signals | null) => {
 	if (settled) {
 		return;
 	}
 	clearTimeout(watchdog);
 	settled = true;
-	// Pass through the real exit code. If null (killed by signal), exit 0
-	// would be wrong — use 130 (128+SIGINT=2) for interruption, but
-	// normally the guard exits on its own with a real code.
-	process.exit(code ?? 0);
+	// Pass through the real exit code. If the child was killed by a signal
+	// (null code), mirror standard shell convention: 128 + signal number.
+	// SIGINT (2) => 130, SIGTERM (15) => 143, SIGKILL (9) => 137.
+	if (code !== null) {
+		process.exit(code);
+	}
+	const signalMap = new Map<NodeJS.Signals, number>([
+		['SIGINT', 130],
+		['SIGTERM', 143],
+		['SIGKILL', 137],
+	]);
+	process.exit(signal !== null ? (signalMap.get(signal) ?? 1) : 1);
 });
 
 child.on('error', (err: Error) => {
