@@ -23,10 +23,10 @@
 		"scan may cover. A scan that covers fewer files is truncated — real violations",
 		"may hide in the unscanned files, and the warning count is not comparable to",
 		"`count` (fewer files → fewer warnings). The ratchet refuses to report a count",
-		"when oxlint scans fewer than this floor. Measured on this tree, 2026-08-30:",
-		"oxlint scans 1122 TS/TSX files. The floor is set below that to allow for",
-		"legitimate file additions and removals while still catching a scan that",
-		"covers only a fraction of the repo."
+		"when oxlint scans fewer than this floor. Set to 1000 (measured 2026-08-30",
+		"after #1929 merged): oxlint scans ~1122 TS/TSX files. The floor is below",
+		"that to allow for legitimate file additions/removals while still catching",
+		"a scan that covers only a fraction of the repo."
 	],
 	"rule": "typescript(no-floating-promises)",
 	"count": 397,

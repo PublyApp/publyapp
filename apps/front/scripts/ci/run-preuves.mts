@@ -110,7 +110,8 @@
 import { execFileSync, execSync } from 'node:child_process';
 import { readFileSync, existsSync, unlinkSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { join, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 import {
 	classifyProofWithManifest,
@@ -120,9 +121,16 @@ import {
 } from './classify-proof.mts';
 import { consumeVerdict, gateShouldFail } from './consume-verdict.mts';
 
-const ROOT = join(process.cwd(), '..'); // apps/front → repo root
-const PROOFS_DIR = join(process.cwd(), 'tests', 'proofs');
+// Resolve ROOT from the script's location, not from process.cwd(). The script lives
+// at apps/front/scripts/ci/run-preuves.mts, so: scripts/ci/ → apps/front → repo root.
+const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
+const ROOT = join(SCRIPT_DIR, '..', '..'); // scripts/ci → apps/front → repo root
+const PROOFS_DIR = join(SCRIPT_DIR, '..', 'tests', 'proofs');
 const CONFIG = 'vitest.preuves.config.ts';
+// Prefix that identifies a scripts-ts proof path returned by declaredProofTests().
+// Must match the prefix in the path transform inside declaredProofTests() exactly
+// so the replay loop can route scripts-ts proofs to the correct CWD and config.
+const SCRIPTSTS_PROOFS_PREFIX = 'tests/proofs/';
 
 /**
  * Extensions that vitest.preuves.config.ts can replay. The config's include
@@ -375,8 +383,11 @@ const declaredProofTests = (): string[] => {
 	}
 
 	// Every file added or modified under tests/proofs/ is a declared proof.
-	// Proof files live under apps/front/tests/proofs/, so the diff paths
-	// from the repo root start with "apps/front/tests/proofs/".
+	// Two proof directories exist:
+	//   - apps/front/tests/proofs/: front-specific proofs (run from apps/front/)
+	//   - packages/scripts-ts/tests/proofs/: scripts-ts ratchet proofs (run from packages/scripts-ts/)
+	// Both live under the repo root, so diff paths from the repo root start with
+	// their respective directory prefixes.
 	// Filter to files that are REPLAYABLE test files. A sidecar
 	// manifest (`.expected-red.json`) or a shared detection module
 	// (`lib/sigint-handler-detection.mts`) lives in the same
@@ -388,12 +399,26 @@ const declaredProofTests = (): string[] => {
 	// the replayable extensions the runner actually executes.
 	const declared = changedFiles.filter(
 		(f) =>
-			f.startsWith('apps/front/tests/proofs/') &&
+			(f.startsWith('apps/front/tests/proofs/') ||
+				f.startsWith('packages/scripts-ts/tests/proofs/')) &&
 			(f.endsWith('.test.ts') || f.endsWith('.test.tsx')),
 	);
 
-	// Return paths relative to apps/front (the working directory).
-	return declared.map((p) => p.replace(/^apps\/front\//, ''));
+	// Return paths relative to the respective package roots.
+	// apps/front/ proofs -> relative to apps/front/
+	// packages/scripts-ts/ proofs -> relative to packages/scripts-ts/
+	// NOTE: the scripts-ts prefix must match SCRIPTSTS_PROOFS_PREFIX exactly so
+	// the replay loop can identify scripts-ts proofs and route them to the right
+	// CWD and vitest config.
+	return declared.map((p) => {
+		if (p.startsWith('apps/front/tests/proofs/')) {
+			return p.replace(/^apps\/front\//, '');
+		}
+		if (p.startsWith('packages/scripts-ts/tests/proofs/')) {
+			return p.replace(/^packages\/scripts-ts\/tests\/proofs\//, SCRIPTSTS_PROOFS_PREFIX);
+		}
+		return p;
+	});
 };
 
 /**
@@ -555,10 +580,25 @@ let stale = 0;
 let missing = 0; // declared proof files absent from the working tree (behind develop)
 
 for (const test of replayable) {
+	// Route the proof to the right package directory.
+	// scripts-ts proofs live under packages/scripts-ts/tests/proofs/ and run
+	// from packages/scripts-ts/ with their own vitest config. Front proofs run
+	// from apps/front/ with the front runner's vitest config.
+	const isScriptsTsProof = test.startsWith(SCRIPTSTS_PROOFS_PREFIX);
+	const cwd = isScriptsTsProof
+		? join(ROOT, 'packages', 'scripts-ts')
+		: ROOT; // apps/front is the CWD
+
+	// Resolve the proof file to an absolute path so validateProofFile (which
+	// reads relative to ROOT) can find scripts-ts proofs too.
+	const proofFile = isScriptsTsProof
+		? join(cwd, test)
+		: join(ROOT, test);
+
 	// Validate BEFORE running: distinguishes "test failed as expected" from
 	// "file could not be parsed" — the latter must fail loud naming the file.
 	try {
-		validateProofFile(test);
+		validateProofFile(proofFile);
 	} catch (err) {
 		const proofError = err as Error & { kind?: string };
 		// A MISSING declared proof is NOT corruption (#1768): a branch that is
@@ -617,6 +657,10 @@ for (const test of replayable) {
 
 	console.log(`--- Running: ${test} ---`);
 
+	const config = isScriptsTsProof
+		? join(ROOT, 'packages', 'scripts-ts', 'vitest.preuves.config.ts')
+		: join(process.cwd(), CONFIG); // apps/front/vitest.preuves.config.ts/vitest.preuves.config.ts
+
 	// Run vitest with the JSON reporter writing to a temp file. The JSON
 	// report gives us, per test, its status and the TYPE of the failure —
 	// structural signals we can classify without reading display text.
@@ -629,13 +673,13 @@ for (const test of replayable) {
 				'vitest',
 				'run',
 				'--config',
-				CONFIG,
+				config,
 				'--no-color',
 				'--reporter=json',
 				`--outputFile=${reportFile}`,
 				test,
 			],
-			{ stdio: 'pipe', encoding: 'utf-8' },
+			{ cwd, stdio: 'pipe', encoding: 'utf-8' },
 		);
 		// If execFileSync did NOT throw, vitest exited 0 = the test passed.
 		console.error(

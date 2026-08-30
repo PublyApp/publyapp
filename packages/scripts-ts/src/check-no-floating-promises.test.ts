@@ -1138,3 +1138,145 @@ test(
 		}
 	},
 );
+
+test(
+	'the ratchet FAILS CLOSED when files_scanned_floor is zero',
+	{ timeout: 30_000 },
+	async () => {
+		// Issue #1767 — the floor must be positive.
+		//
+		// A floor of 0 is logically equivalent to no floor: a truncated scan
+		// covering any number of files >= 0 will pass. The ratchet must
+		// refuse to run when the floor is not a positive number.
+		vi.doMock('node:fs/promises', async (importOriginal) => {
+			const actual = await importOriginal<typeof import('node:fs/promises')>();
+			return {
+				...actual,
+				readFile: (filePath: string, encoding: string) => {
+					if (
+						typeof filePath === 'string' &&
+						filePath.includes('no-floating-promises-baseline.json')
+					) {
+						return Promise.resolve(
+							JSON.stringify({
+								rule: 'typescript(no-floating-promises)',
+								count: 397,
+								files_scanned_floor: 0,
+							}),
+						);
+					}
+					return actual.readFile(filePath, encoding);
+				},
+			};
+		});
+
+		const { checkNoFloatingPromises: mockedCheck } =
+			await import('./check-no-floating-promises.ts?mocked-floor-zero');
+
+		try {
+			const result = await mockedCheck();
+
+			assert.strictEqual(
+				result.withinLimit,
+				'error',
+				'expected withinLimit="error" when files_scanned_floor=0, ' +
+					'but got withinLimit=' + `${result.withinLimit}`,
+			);
+		} finally {
+			vi.doUnmock('node:fs/promises');
+		}
+	},
+);
+
+test(
+	'the ratchet FAILS CLOSED when files_scanned_floor is negative',
+	{ timeout: 30_000 },
+	async () => {
+		// Issue #1767 — the floor must be positive.
+		//
+		// A negative floor is trivially satisfied by any real scan (which always
+		// covers >= 0 files). The ratchet must refuse to run.
+		vi.doMock('node:fs/promises', async (importOriginal) => {
+			const actual = await importOriginal<typeof import('node:fs/promises')>();
+			return {
+				...actual,
+				readFile: (filePath: string, encoding: string) => {
+					if (
+						typeof filePath === 'string' &&
+						filePath.includes('no-floating-promises-baseline.json')
+					) {
+						return Promise.resolve(
+							JSON.stringify({
+								rule: 'typescript(no-floating-promises)',
+								count: 397,
+								files_scanned_floor: -1,
+							}),
+						);
+					}
+					return actual.readFile(filePath, encoding);
+				},
+			};
+		});
+
+		const { checkNoFloatingPromises: mockedCheck } =
+			await import('./check-no-floating-promises.ts?mocked-floor-negative');
+
+		try {
+			const result = await mockedCheck();
+
+			assert.strictEqual(
+				result.withinLimit,
+				'error',
+				'expected withinLimit="error" when files_scanned_floor=-1, ' +
+					'but got withinLimit=' + `${result.withinLimit}`,
+			);
+		} finally {
+			vi.doUnmock('node:fs/promises');
+		}
+	},
+);
+
+test(
+	'the ratchet FAILS CLOSED when files_scanned_floor is not a number',
+	{ timeout: 30_000 },
+	async () => {
+		// Issue #1767 — the floor must be a finite number.
+		vi.doMock('node:fs/promises', async (importOriginal) => {
+			const actual = await importOriginal<typeof import('node:fs/promises')>();
+			return {
+				...actual,
+				readFile: (filePath: string, encoding: string) => {
+					if (
+						typeof filePath === 'string' &&
+						filePath.includes('no-floating-promises-baseline.json')
+					) {
+						return Promise.resolve(
+							JSON.stringify({
+								rule: 'typescript(no-floating-promises)',
+								count: 397,
+								files_scanned_floor: 'ninety',
+							}),
+						);
+					}
+					return actual.readFile(filePath, encoding);
+				},
+			};
+		});
+
+		const { checkNoFloatingPromises: mockedCheck } =
+			await import('./check-no-floating-promises.ts?mocked-floor-nan');
+
+		try {
+			const result = await mockedCheck();
+
+			assert.strictEqual(
+				result.withinLimit,
+				'error',
+				'expected withinLimit="error" when files_scanned_floor="ninety", ' +
+					'but got withinLimit=' + `${result.withinLimit}`,
+			);
+		} finally {
+			vi.doUnmock('node:fs/promises');
+		}
+	},
+);

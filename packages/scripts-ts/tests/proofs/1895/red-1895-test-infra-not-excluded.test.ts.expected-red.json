@@ -1,0 +1,10 @@
+{
+	"$schema": "../expected-red.schema.json",
+	"_comment": "Per-test kept-red expectation manifest (required since #1806 r11 — the runner fails loud when a declared proof lacks it). The declared test MUST fail with an AssertionError on correct code.",
+	"expectedRed": [
+		{
+			"testName": "RED: without directory exclusion, C# test infra files count as production",
+			"why": "On correct code isSpecFile() returns true for files under Lib/Testing/ (excluded by directory), so the assertion that it returns false fails with an AssertionError. If this test passes, the directory check was removed."
+		}
+	]
+}

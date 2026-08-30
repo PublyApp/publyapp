@@ -4,6 +4,16 @@
 	"private": true,
 	"type": "module",
 	"description": "Repo CI/review/deploy scripts as a TypeScript-only pnpm workspace package (run with bare node on Node 24).",
+	"exports": {
+		".": {
+			"types": ["./src/*.ts"],
+			"default": ["./src/*.ts"]
+		},
+		"./src/*": {
+			"types": ["./src/*.ts"],
+			"default": ["./src/*.ts"]
+		}
+	},
 	"scripts": {
 		"test": "vitest run"
 	},

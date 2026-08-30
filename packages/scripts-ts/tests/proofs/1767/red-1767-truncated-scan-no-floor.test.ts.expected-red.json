@@ -1,0 +1,10 @@
+{
+	"$schema": "../expected-red.schema.json",
+	"_comment": "Per-test kept-red expectation manifest (required since #1806 r11 — the runner fails loud when a declared proof lacks it). The declared test MUST fail with an AssertionError on correct code.",
+	"expectedRed": [
+		{
+			"testName": "RED: without the floor, a truncated scan passes green (buggy)",
+			"why": "On correct code the floor is 1000 and a 300-file scan fails closed, so the assertion that withinLimit=true fails with an AssertionError. If this test passes, the floor guard was removed or neutralised."
+		}
+	]
+}

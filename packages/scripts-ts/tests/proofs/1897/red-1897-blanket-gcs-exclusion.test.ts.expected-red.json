@@ -1,0 +1,10 @@
+{
+	"$schema": "../expected-red.schema.json",
+	"_comment": "Per-test kept-red expectation manifest (required since #1806 r11 — the runner fails loud when a declared proof lacks it). The declared test MUST fail with an AssertionError on correct code.",
+	"expectedRed": [
+		{
+			"testName": "RED: with blanket *.g.cs exclusion, non-generated .g.cs files are masked",
+			"why": "On correct code isSpecFile() returns false for arbitrary .g.cs files (only ResponseKeys.g.cs is in GENERATED_FILE_PATHS), so the assertion that it returns true fails with an AssertionError. If this test passes, the blanket *.g.cs pattern was restored."
+		}
+	]
+}
