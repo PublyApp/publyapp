@@ -164,6 +164,16 @@ jobs:
       - name: Run trusted first-party postinstall (@org/shared-ts)
         run: pnpm --filter @org/shared-ts run postinstall
 
+      # #1852: every worktree (CI checkout included) must have live Git hooks.
+      # The install above runs with --ignore-scripts, so `prepare` — which
+      # points core.hooksPath at the versioned .husky dir — never ran here.
+      # Run it explicitly: it is the exact command a developer's `pnpm install`
+      # runs, so the paired-red-proof replay below exercises the REAL pre-commit
+      # pipeline (lint-staged -> oxfmt) on a fresh worktree. Single source:
+      # `pnpm run prepare` fails loud if the prepare script is ever removed.
+      - name: Install Git hooks (mirrors prepare)
+        run: pnpm run prepare
+
       # #1644: lower the production-graph audit threshold from `high` to
       # `moderate`, aligning it with the dev-graph gate (#1631/quality-gate.yml).
       # The previous shape let a moderate advisory in a production dep slip
