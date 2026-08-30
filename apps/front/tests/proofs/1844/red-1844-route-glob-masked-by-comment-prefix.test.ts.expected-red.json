@@ -1,0 +1,10 @@
+{
+	"$schema": "../expected-red.schema.json",
+	"_comment": "Per-test kept-red expectation manifest for the comment-prefixed-match masking proof (issue #1844). Read by apps/front/scripts/ci/run-preuves.mts BEFORE classification. The single test declared here MUST fail with an AssertionError on correct code. If it PASSES, a real violation sitting after a comment on the same line is being swallowed.",
+	"expectedRed": [
+		{
+			"testName": "a real route glob call after a comment-prefixed match start is masked (issue #1844 r3)",
+			"why": "The fixture puts a comment mentioning `page.route(` on the same line as a REAL `page.route(...)` call, and the test asserts `expect(routeGlobViolations).toHaveLength(0)` — that is, it asserts the defect: the whole match, comment start plus real call, is dropped and the genuine violation is never reported. On correct code the real call is reported, the array is non-empty, and the assertion fails with an AssertionError. If this test PASSES, a real violation is again being masked by a comment that merely precedes it — the dangerous half of #1844, since it hides defects rather than inventing them."
+		}
+	]
+}

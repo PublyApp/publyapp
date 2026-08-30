@@ -1,0 +1,10 @@
+{
+	"$schema": "../expected-red.schema.json",
+	"_comment": "Per-test kept-red expectation manifest for the JSX-comment false-positive proof (issue #1844). Read by apps/front/scripts/ci/run-preuves.mts BEFORE classification. The single test declared here MUST fail with an AssertionError on correct code. If it PASSES, the design-system scanner is once again reading JSX comments as real code.",
+	"expectedRed": [
+		{
+			"testName": "a forbidden primitive inside a JSX comment is flagged (issue #1844 r3)",
+			"why": "The fixture names a forbidden primitive only inside a JSX comment (`{/* TODO: use DialogPrimitive.Popup ... */}`) and the test asserts `expect(hasPrimitiveViolation).toBe(true)` — that is, it asserts the defect: the scanner reports a comment as a real usage. On correct code the comment is skipped, no `no-dialog-popup-primitives` violation is produced, and the assertion fails with an AssertionError. If this test PASSES, the scanner has gone back to matching inside comments and will accuse code that does not exist."
+		}
+	]
+}
