@@ -19,11 +19,17 @@ const frontPkg = JSON.parse(readFileSync(frontPkgPath, 'utf8')) as {
 };
 
 const guardPaths = new Set<string>();
-const re = /run-guarded\.mts(?:\s+--test)?\s+([^\s&|]+)/g;
+// Capture every path argument after `run-guarded.mts` (optionally `--test`),
+// stopping at shell operators (&, |, ;). Some invocations pass multiple files
+// to a single run-guarded.mts call (e.g. test:route-tree-guard), so we must
+// grab them all, not just the first.
+const re = /run-guarded\.mts(?:\s+--test)?((?:\s+[^\s&|;]+)+)/g;
 for (const script of Object.values(frontPkg.scripts ?? {})) {
 	let m: RegExpExecArray | null;
 	while ((m = re.exec(script)) !== null) {
-		guardPaths.add(m[1]);
+		for (const arg of m[1].trim().split(/\s+/)) {
+			guardPaths.add(arg);
+		}
 	}
 }
 const dynamicGuards = [...guardPaths].sort();
