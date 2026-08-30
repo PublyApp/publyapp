@@ -419,8 +419,10 @@ public sealed class AppRoleCompositionSpec : IClassFixture<ApiFixture> {
 
 		unexpected.Should().BeEmpty(
 			"the api role must START ZERO job/worker hosted services (design §3.2, D1); "
-			+ "if one of these is genuinely api-safe, add it to "
-			+ nameof(ApiRoleAllowedHostedServices) + " with the reason it runs no background work"
+			+ "unexpected: " + string.Join(", ", unexpected)
+			+ " — if one of these is genuinely api-safe, add it to "
+			+ nameof(ApiRoleAllowedHostedServices)
+			+ " with the reason it runs no background work"
 		);
 	}
 

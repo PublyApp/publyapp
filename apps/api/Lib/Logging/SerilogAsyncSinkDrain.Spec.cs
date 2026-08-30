@@ -1,7 +1,12 @@
+#pragma warning disable IDE0005 // Using directive is unnecessary — false positive: IHostedService is not in any global using.
 using FluentAssertions;
 
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+
+using Serilog;
+using Serilog.Core;
+using Serilog.Events;
 
 using Xunit;
 
@@ -10,23 +15,16 @@ namespace PublyApp.Api.Lib.Logging;
 // #1708: every async Serilog sink must drain on host shutdown. AddSerilog alone
 // does not register a Log.CloseAndFlush hook on IHostApplicationLifetime, so
 // LogEvents still queued at SIGTERM/StopAsync are dropped — and the dropped events
-// are exactly the ones that explain why the process exited. The paired proof
-// (proof-1708.md): strip the flush hook from the host composition and this spec
-// goes red, naming the cause.
+// are exactly the ones that explain why the process exited.
 //
-// This spec asserts the production composition wires a hosted service that
-// calls Log.CloseAndFlush() on host stop. The concrete detection is structural:
-// the builder's IServiceCollection must contain a hosted service descriptor
-// whose implementation type lives in PublyApp.Api.Lib.Logging (the only
-// namespace the shipped flush hook can be added under, by convention) AND
-// whose type name ends in "FlushOnShutdown" (the convention
-// LoggerConfigExtensions/ConfigureLogger is expected to follow). Without the
-// hook, the collection does not contain any matching descriptor and the
-// assertion names the missing hook.
-//
-// The assertion reads the builder's service collection (not the built host),
-// so it does not need a database or a running web server. Program.CreateWebHostBuilder
-// and CreateWorkerHostBuilder compose the production service graph in-process.
+// The composition witness below pins the registration: both host roles must carry
+// THE concrete SerilogFlushOnShutdown hosted service, the only type whose StopAsync
+// drains anything. The two behavioral tests then pin the artifact itself: StopAsync
+// must drain the async queue into its wrapped sink AND swap Log.Logger for Serilog's
+// silent logger — the two observable halves of CloseAndFlush. The witness alone stays
+// green if StopAsync is neutered (the round-1 blocker), and each behavioral half alone
+// stays green under the other half's mutation, so the three tests pin the same
+// contract from three directions.
 public sealed class SerilogAsyncSinkDrainSpec {
 	[Fact]
 	public void ItShouldRegisterAHostedServiceThatFlushesTheSerilogQueueOnShutdown() {
@@ -40,28 +38,120 @@ public sealed class SerilogAsyncSinkDrainSpec {
 		AssertCarriesFlushHostedService(workerBuilder.Services);
 	}
 
-	private static void AssertCarriesFlushHostedService(IServiceCollection services) {
-		var flushHook = services
-			.Where(descriptor => descriptor.ServiceType == typeof(IHostedService))
-			.Select(descriptor => descriptor.ImplementationType)
-			.FirstOrDefault(type => type is not null
-				&& type.FullName?.StartsWith(
-					"PublyApp.Api.Lib.Logging",
-					StringComparison.Ordinal
-				) == true
-				&& type.Name.EndsWith(
-					"FlushOnShutdown",
-					StringComparison.Ordinal
-				)
+	[Fact]
+	public async Task ItShouldDrainTheQueuedEventIntoTheWrappedSinkWhenItStops() {
+		var canary = Guid.NewGuid().ToString("N");
+		var collectingSink = new CollectingSink();
+		var composed = new LoggerConfiguration()
+			.MinimumLevel.Information()
+			.WriteTo.Async(writeTo => writeTo.Sink(collectingSink))
+			.CreateLogger();
+
+		var previous = Serilog.Log.Logger;
+		try {
+			Serilog.Log.Logger = composed;
+			Serilog.Log.Information("flush-canary {Canary}", canary);
+
+			var flushHook = new SerilogFlushOnShutdown();
+			await flushHook.StopAsync(CancellationToken.None);
+
+			var canaryEvents = collectingSink.Events
+				.Where(logEvent => logEvent.Properties.TryGetValue("Canary", out var property)
+					&& property is ScalarValue scalar
+					&& canary.Equals(scalar.Value))
+				.ToList();
+
+			canaryEvents.Should().NotBeEmpty(
+				"StopAsync must drain the Serilog async queue into the wrapped sink before "
+					+ "returning: the event buffered at shutdown is exactly what #1708 exists "
+					+ "to deliver, and a stop that leaves it in the queue kills it with the "
+					+ "process"
 			);
 
+			collectingSink.Disposed.Should().BeTrue(
+				"CloseAndFlush tears the composed logger down in dependency order, so the "
+					+ "async envelope is disposed only after its worker consumed the queue — "
+					+ "an envelope that survives the stop keeps pumping on a background "
+					+ "thread and offers no drain-before-exit guarantee (#1708)"
+			);
+		} finally {
+			Serilog.Log.Logger = previous;
+		}
+	}
+
+	[Fact]
+	public async Task ItShouldSwapTheStaticLoggerForTheSilentOneWhenItStops() {
+		var sentinel = new LoggerConfiguration()
+			.MinimumLevel.Information()
+			.CreateLogger();
+		var previous = Serilog.Log.Logger;
+		try {
+			Serilog.Log.Logger = sentinel;
+
+			var flushHook = new SerilogFlushOnShutdown();
+			await flushHook.StopAsync(CancellationToken.None);
+
+			Serilog.Log.Logger.Should().NotBeSameAs(
+				sentinel,
+				"Serilog's CloseAndFlush swaps Log.Logger for the silent logger once every "
+					+ "sink drained (#1708); a StopAsync that leaves the pre-stop logger in "
+					+ "place did not flush anything, so the events buffered at shutdown still "
+					+ "die with the process"
+			);
+		} finally {
+			Serilog.Log.Logger = previous;
+		}
+	}
+
+	private static void AssertCarriesFlushHostedService(IServiceCollection services) {
+		Type? flushHook = services
+			.Where(descriptor => descriptor.ServiceType == typeof(IHostedService))
+			.Select(descriptor => descriptor.ImplementationType)
+			.FirstOrDefault(type => type is not null && type == typeof(SerilogFlushOnShutdown));
+
 		flushHook.Should().NotBeNull(
-			"the production host composition must register an IHostedService in "
-				+ "PublyApp.Api.Lib.Logging that flushes the Serilog async queue on "
-				+ "shutdown — without it, LogEvents queued at SIGTERM/StopAsync are "
-				+ "dropped, and the dropped events are exactly the ones that explain "
-				+ "why the process exited (#1708). Add the hook in ConfigureLogger or "
-				+ "in CreateWebHostBuilder/CreateWorkerHostBuilder."
+			"the production host composition must register "
+				+ nameof(SerilogFlushOnShutdown)
+				+ " as an IHostedService: only that concrete type's StopAsync drains the "
+				+ "Serilog async queue, so without it LogEvents queued at SIGTERM/StopAsync "
+				+ "are dropped, and the dropped events are exactly the ones that explain why "
+				+ "the process exited (#1708). Add the hook in ConfigureLogger or in "
+				+ "CreateWebHostBuilder/CreateWorkerHostBuilder."
 		);
+	}
+
+	private sealed class CollectingSink : ILogEventSink, IDisposable {
+		private readonly object _gate = new();
+		private readonly List<LogEvent> _events = [];
+
+		private bool _disposed;
+
+		public bool Disposed {
+			get {
+				lock (_gate) {
+					return _disposed;
+				}
+			}
+		}
+
+		public IReadOnlyList<LogEvent> Events {
+			get {
+				lock (_gate) {
+					return [.. _events];
+				}
+			}
+		}
+
+		public void Emit(LogEvent logEvent) {
+			lock (_gate) {
+				_events.Add(logEvent);
+			}
+		}
+
+		public void Dispose() {
+			lock (_gate) {
+				_disposed = true;
+			}
+		}
 	}
 }
