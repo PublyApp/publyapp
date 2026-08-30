@@ -226,6 +226,36 @@ jobs:
           E2E_IMAGE_TAG: ${{ steps.image-tag.outputs.tag }}
         run: docker compose -f apps/front/docker-compose.test.yml push migrate api request-counter front
 
+      # #1628 round 10: build-artifact guard for the front image. Runs
+      # AFTER `docker compose build` (which already loaded the front image
+      # into this runner's local daemon via compose bake, both same-repo
+      # and fork) and BEFORE any shard pulls it. The guard STARTS the
+      # image as a container and waits for an actual HTTP response from
+      # it — never just for "the process is running". A container that
+      # crashes at startup with `ERR_MODULE_NOT_FOUND: Cannot find
+      # module '/app/<file>'` is the exact shape the front fell into
+      # when `trust-proxy.mjs` was added without a matching COPY in the
+      # Dockerfile: nine rounds of "tests pass" were not enough to
+      # catch it, because every other e2e test only fails downstream
+      # with a generic "element(s) not found". This guard makes the
+      # cause visible at the build step itself.
+      #
+      # It runs in the `build` job (not the matrix), so a regression
+      # trips the build BEFORE the four shards each pay for a wasted
+      # compose up + a 40s setup timeout. The guard's cause-of-failure
+      # message names the missing module and the file that imported
+      # it, so the operator does not have to read docker logs to
+      # diagnose it.
+      - name: Verify the built front image starts and serves HTTP
+        env:
+          E2E_IMAGE_NS: ${{ steps.image-ns.outputs.root }}
+          E2E_IMAGE_TAG: ${{ steps.image-tag.outputs.tag }}
+        run: |
+          set -euo pipefail
+
+          node apps/front/scripts/ci/check-front-runtime-image.mts \
+            --image "${E2E_IMAGE_NS}-front:${E2E_IMAGE_TAG}"
+
       # #1021: shards run on separate runners, so the build job's local
       # --load cannot hand the matrix its images; the registry-free
       # equivalent of the GHCR hop is a versioned-artifact handoff — save

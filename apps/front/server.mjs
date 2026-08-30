@@ -1,7 +1,7 @@
 import { fileURLToPath } from 'node:url';
 
 import { serve } from 'srvx';
-import { staticMiddleware } from 'srvx/static';
+import { staticMiddleware as createStaticMiddleware } from 'srvx/static';
 
 // #1758: the built server bundle is imported through the `#server-build`
 // package-imports alias so the dedicated tsconfig.server.json can typecheck
@@ -15,12 +15,19 @@ validateRuntimeEnv();
 const __dirname = fileURLToPath(new URL('.', import.meta.url));
 const port = Number(process.env.PORT ?? 3000);
 
-const staticHandler = staticMiddleware({ dir: `${__dirname}/dist/client` });
+const staticFileHandler = createStaticMiddleware({
+	dir: `${__dirname}/dist/client`,
+});
+
+const { resolveTrustProxyFromEnv } = await import('./trust-proxy.mjs');
+
+const trustProxy = await resolveTrustProxyFromEnv();
 
 const server = serve({
 	port,
 	hostname: process.env.HOST ?? '0.0.0.0',
-	middleware: [staticHandler],
+	trustProxy,
+	middleware: [staticFileHandler],
 	fetch: (request) => handler.fetch(request),
 });
 

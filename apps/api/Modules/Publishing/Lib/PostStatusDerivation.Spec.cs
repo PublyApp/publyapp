@@ -72,6 +72,10 @@ public sealed class PostStatusDerivationSpec {
 	[InlineData(DerivedPostStatus.Scheduled, "scheduled")]
 	[InlineData(DerivedPostStatus.Published, "published")]
 	[InlineData(DerivedPostStatus.Partial, "partial")]
+	// Snake_case: closed switch must emit the SAME vocabulary as the status
+	// formatter (PUBLY0003: ToLower* is never a contract-conversion strategy).
+	// #1911 decision: InProgress is NOT a derived post status — Derive() never
+	// produces it; keeping the wire value would be dead product surface.
 	[InlineData(DerivedPostStatus.Failed, "failed")]
 	public void ItShouldEmitSnakeCaseWireValuesForEveryDerivedStatus(
 		DerivedPostStatus status,
@@ -83,5 +87,18 @@ public sealed class PostStatusDerivationSpec {
 		// ToLower* is never a contract-conversion strategy).
 		PostStatusDerivation.FormatPostStatus(status)
 			.Should().Be(expectedWireValue);
+	}
+
+	[Fact]
+	public void ItShouldRefuseADerivedStatusWithoutAWireValue() {
+		// #1911: the closed-switch contract (round-2 finding) is that a value
+		// with no wire mapping fails LOUDLY instead of being invented. The
+		// lowercase-the-member-name mutation that keeps every single-word table
+		// row green silently returns "999" here — this assertion is what pins
+		// the switch's closure, not its per-member strings.
+		var act = () => PostStatusDerivation.FormatPostStatus((DerivedPostStatus)999);
+
+		act.Should().Throw<ArgumentOutOfRangeException>()
+			.WithMessage("*Unhandled DerivedPostStatus*");
 	}
 }

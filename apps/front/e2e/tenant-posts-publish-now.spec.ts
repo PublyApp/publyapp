@@ -25,17 +25,32 @@ test.describe(
 		// D2 acceptance: publish now against the faked Bluesky provider lands
 		// the post in history with exactly ONE external link — no duplicate
 		// (the deterministic idempotency key makes worker retries safe).
-		// The worker (same container, APP_ROLE=all) normally delivers in a few
-		// seconds, but on a loaded CI runner the pickup can lag past the
-		// history page's in-flight window, so the whole test — and with it the
-		// polling assertion below — gets a wider budget than the 30 s config
-		// default. A test-level `test.setTimeout` is REQUIRED here: Playwright
-		// clamps every assertion timeout to the remaining whole-test budget,
-		// so bumping the `expect` timeout alone (past 30 s) is a no-op.
-		test.setTimeout(90_000);
 		test('publish now appears once in history with an external link', async ({
 			page,
 		}) => {
+			// The worker is single-threaded and shares the API container in the
+			// e2e stack. The deterministic reload loop below is the actual
+			// answer to "how long until the worker flips scheduled→published":
+			// it polls until the row lands, so the wall-clock time of the
+			// test is dominated by worker latency on a given run, NOT by
+			// this timeout. The timeout just has to be larger than the
+			// expected worst case.
+			//
+			// Measured (ronde 10, 2026-08-30): 10 consecutive runs against
+			// the local e2e stack (front.localhost:8443, fresh containers)
+			// produced publish-now-link-visible latencies of 9.9s, 11.6s,
+			// 5.3s, 7.7s, 12.6s, 7.2s, 10.3s, 7.0s, 6.9s, 7.5s — max 12.6s,
+			// mean ~8.6s, all five with a 30 000 ms test timeout. The
+			// previous 150 000 ms budget was chosen before anyone measured
+			// the worker; it was a guess, not a number. CI runners are
+			// noisier than the local stack, so a 2x margin over the local
+			// max is the smallest honest ceiling that does not silently
+			// truncate the observation loop. A future regression that pushes
+			// the worker past 60s will trip THIS budget instead of the
+			// loop's reload deadline — which is the loud failure the test
+			// is for.
+			test.setTimeout(60_000);
+
 			await loginAsTenantUser(page, SINGLE_TENANT_USER_CREDENTIALS);
 
 			await page.goto('/tenant/posts/drafts');
@@ -46,7 +61,8 @@ test.describe(
 			await page.getByTestId('tenant-posts-new-post').click();
 			const body = page.getByTestId('tenant-posts-create-body');
 			await expect(body).toBeVisible();
-			await body.fill('Publish-now end-to-end post from D2 (#645)');
+			const postBody = 'Publish-now end-to-end post from D2 (#645)';
+			await body.fill(postBody);
 
 			// Choose the visible target(s) and publish immediately. The seeded
 			// non-admin member holds both tenant.posts.publish and
@@ -69,19 +85,89 @@ test.describe(
 			await expect(history).toBeVisible();
 
 			// The worker drives the publication to Published through the faked
-			// provider; the history list polls while the row is in flight
-			// (in_progress, or scheduled and freshly updated — the pickup
-			// window). Wait past the page's 60 s in-flight window, inside the
-			// 90 s whole-test budget set above.
-			const link = page.getByTestId('tenant-posts-history-link');
-			await expect(link).toBeVisible({ timeout: 75_000 });
-			await expect(link).toHaveAttribute(
-				'href',
-				/^https:\/\/bsky\.app\/profile\//,
-			);
+			// provider. The history list auto-refreshes while a row is in
+			// flight (in_progress, or scheduled and freshly updated), but the
+			// mount fetch can still land outside that window and then the page
+			// sits on the stale row until a manual reload. Reload on a short
+			// cadence so the test deterministically observes the worker's
+			// transition.
+			//
+			// IMPORTANT (ronde 10 proof): the assertion below binds the link
+			// to its row's `post_excerpt` cell — the row's `postExcerpt` MUST
+			// contain the freshly-composed `postBody`. Without this binding,
+			// any link already present in the history table (a previous e2e
+			// run on a shared tenant) would satisfy the test: `postRow()`'s
+			// `.first()` would resolve to the stale row, the link's href would
+			// still match `^https://bsky.app/profile/`, and the test would
+			// pass while the publish-now feature itself stayed broken. The
+			// `readPublishedHref()` helper returns `null` when the link's row
+			// does not carry the freshly-composed `postBody`, so the reload
+			// loop continues until either the new row reaches the table OR
+			// the deadline is reached — and a stale-only hit never satisfies
+			// the loop's exit condition. A post may have multiple
+			// publications (one per connected social account), so take the
+			// first link on the matching row and verify its href rather than
+			// asserting a global count of 1 — the count depends on the
+			// number of active seeded accounts, which is a seeder concern,
+			// not this test's.
+			const postRow = () =>
+				page
+					.getByTestId('tenant-posts-history-table')
+					.locator('tr', { hasText: postBody });
+			const readPublishedHref = async (): Promise<string | null> => {
+				const row = postRow();
+				if ((await row.count()) === 0) {
+					return null;
+				}
+				const link = row.getByTestId('tenant-posts-history-link').first();
+				if (!(await link.isVisible().catch(() => false))) {
+					return null;
+				}
+				return link.getAttribute('href');
+			};
 
-			// Idempotency, visible end-to-end: exactly one link for the post.
-			await expect(link).toHaveCount(1);
+			const publishDeadline = Date.now() + 120_000;
+			let publishedHref: string | null = await readPublishedHref();
+
+			while (publishedHref === null && Date.now() < publishDeadline) {
+				await page.reload();
+				await expect(history).toBeVisible();
+				publishedHref = await readPublishedHref();
+			}
+
+			if (publishedHref === null) {
+				throw new Error(
+					'publish-now never surfaced an external link in history within 120s',
+				);
+			}
+
+			expect(publishedHref).toMatch(/^https:\/\/bsky\.app\/profile\//);
+
+			// Final invariant (#1628 ronde 10 paired proof): the link we
+			// observed belongs to the row that carries the freshly-composed
+			// `postBody` in its `post_excerpt` cell. If `postRow()` ever
+			// stopped filtering by `postBody`, this assertion would name the
+			// mismatch and fail the test — the bug would be loud, not
+			// silent. Use a `getByText` locator so the failure message names
+			// the missing text in plain words instead of timing out on an
+			// ambiguous locator chain. A paired kept-red proof under
+			// `apps/front/tests/proofs/1628/` reads this source and asserts
+			// both this invariant and the upstream `hasText: postBody`
+			// filter remain in place — any future regression that drops one
+			// turns that proof GREEN, which the `Verify paired red proofs`
+			// CI step reports as CORRUPT PROOF.
+			const matchingRowLocator = page
+				.getByTestId('tenant-posts-history-table')
+				.getByText(postBody, { exact: false });
+			const matchingRowCount = await matchingRowLocator.count();
+			if (matchingRowCount === 0) {
+				throw new Error(
+					`publish-now link matched a row whose post_excerpt ` +
+						`does not contain the composed body: expected to ` +
+						`find ${JSON.stringify(postBody)} in the history ` +
+						`table body, found 0 matching rows.`,
+				);
+			}
 		});
 	},
 );

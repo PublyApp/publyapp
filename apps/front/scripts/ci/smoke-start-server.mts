@@ -88,6 +88,7 @@ const server = spawn('node', ['server.mjs'], {
 		PORT: String(port),
 		PUBLIC_API_BASE_URL: `http://${host}:5000`,
 		SERVER_API_BASE_URL: `http://${host}:5000`,
+		TRUSTED_PROXY_CIDRS: '127.0.0.1/32,::1/128',
 	},
 	stdio: ['ignore', 'pipe', 'pipe'],
 });
