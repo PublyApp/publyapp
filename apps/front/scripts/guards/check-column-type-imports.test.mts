@@ -1226,3 +1226,45 @@ void test('R9 #1851 MUTATION: a hardcoded || bypass on a .mts real file is caugh
 			`got illicit: ${JSON.stringify(illicitWithCorrect)}`,
 	);
 });
+
+// ---------------------------------------------------------------------------
+// #1737 — history.tsx escaped the ColumnDef consumer scan (#1583). The
+// existing guard catches the AST pattern but had no real-tree test asserting
+// that no app file consumes the banned type names from the root
+// @tanstack/react-table. This test walks apps/front/src and fails if any
+// such file exists outside the sanctioned passthrough — same coverage the
+// original brief asked for. (#1769 ships the AST guard; this test is the
+// real-tree counterweight #1737 called out.)
+// ---------------------------------------------------------------------------
+
+void test('#1737: no app file under apps/front/src consumes ColumnDef/Row/TanStackTable from the root @tanstack/react-table', () => {
+	// Walk the REAL tree. Brief #1737: "rouge sur le vrai arbre — pas sur
+	// une fixture". The passthrough column-type.ts is the only sanctioned
+	// source.
+	const findings = scanFrontSrcForBannedImports(frontSrc);
+	const bannedConsumerFiles = findings
+		.filter((f) => !f.file.endsWith('column-type.ts'))
+		.map((f) => f.file);
+	assert.equal(
+		bannedConsumerFiles.length,
+		0,
+		`expected no app file to import the banned type names from @tanstack/react-table, ` +
+			`but found: ${JSON.stringify(bannedConsumerFiles)}`,
+	);
+	// Anti-vacuous: confirm scanFrontSrcForBannedImports actually walked a
+	// non-empty surface (otherwise an empty/no-op scan would let the test
+	// pass even if the guard broke). The passthrough is exempt by design
+	// (line 1034: `if (isExempt(normalizedPath)) continue;`), so it will
+	// never appear in `findings`; we instead assert the scan surface itself
+	// is non-empty by running the same walk() the guard uses internally.
+	const { files: scannedFiles } = walk(frontSrc);
+	const scannedNonPassthrough = scannedFiles.filter(
+		(f) => !f.endsWith('column-type.ts') && !f.endsWith('/column-type.ts'),
+	);
+	assert.ok(
+		scannedNonPassthrough.length > 0,
+		`expected the scan to visit at least one non-passthrough file under ` +
+			`'${frontSrc}'; otherwise the test would be vacuously green. ` +
+			`Got ${scannedNonPassthrough.length} non-passthrough file(s).`,
+	);
+});
