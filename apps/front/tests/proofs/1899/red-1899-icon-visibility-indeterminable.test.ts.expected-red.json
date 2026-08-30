@@ -9,5 +9,5 @@
 			"why": "The guard must raise (indeterminate) when the reader returns the engine's unresolved marker (empty strings); the defected body falls through to 'visible' — the proof asserts this defect is present."
 		}
 	],
-	"measuredAgainst": "4ff44a6cb21d82c6ebb42fa4264c13259135f9c7"
+	"measuredAgainst": "fd10befd1c059b96f16b62b10810645fe1dc1ea0"
 }

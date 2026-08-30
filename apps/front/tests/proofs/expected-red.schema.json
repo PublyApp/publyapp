@@ -12,7 +12,7 @@
 		"measuredAgainst": {
 			"type": "string",
 			"pattern": "^[0-9a-f]{40,64}$",
-			"description": "The git SHA (40-64 hex chars) of the commit this proof was measured against. Provides an audit trail for proof validity."
+			"description": "The git SHA (40-64 hex chars) of the commit that introduced this proof file. Provides an audit trail for proof provenance."
 		},
 		"expectedRed": {
 			"type": "array",
