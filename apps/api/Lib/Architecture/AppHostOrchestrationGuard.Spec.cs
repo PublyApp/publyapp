@@ -316,7 +316,31 @@ public sealed partial class AppHostOrchestrationGuardSpec : IDisposable {
 		TcpClient client = new();
 		try {
 			await ConnectToHoldPortAsync(process, client, console);
-			await accepted.Task.WaitAsync(TimeSpan.FromSeconds(15));
+			// The connect can be served by a THIRD-PARTY occupier's backlog while
+			// our child is exiting on a failed bind (an active listener on a dev
+			// machine). Discriminate by racing the accept marker against the
+			// child's exit, with an outer budget so a marker that never arrives
+			// cannot hang: unanalyzable input fails loudly, never as a bare
+			// timeout or a silent wait.
+			var childExit = process.WaitForExitAsync(CancellationToken.None);
+			var completed = await Task.WhenAny(accepted.Task, childExit)
+				.WaitAsync(TimeSpan.FromSeconds(20));
+
+			if (completed == childExit) {
+				string tail;
+				lock (console) {
+					tail = ConsoleTail(console.ToString());
+				}
+				throw new InvalidOperationException(
+					"the --hold-port-5454 child exited before accepting the connection "
+						+ $"(exit {process.ExitCode}) — an active listener probably occupies "
+						+ $"127.0.0.1:5454, so the post-crash residue cannot be reproduced on "
+						+ $"this machine. Free the port and re-run. Console tail: {tail}"
+				);
+			}
+
+			_ = completed; // the marker — the child has accepted.
+
 			// SIGKILL the whole tree (dotnet run -> the AppHost process). The
 			// accepted socket dies with the process and lingers bound as the
 			// FIN-WAIT-2 orphan — the residue a killed DCP proxy leaves behind.
@@ -326,6 +350,17 @@ public sealed partial class AppHostOrchestrationGuardSpec : IDisposable {
 			// the 5454 side parked in FIN-WAIT-2. The CLIENT STAYS OPEN: closing
 			// it would send the peer FIN that moves the orphan to TIME_WAIT.
 			await Task.Delay(TimeSpan.FromMilliseconds(800));
+		} catch (TimeoutException) {
+			string tail;
+			lock (console) {
+				tail = ConsoleTail(console.ToString());
+			}
+			client.Dispose();
+			await KillAndReapAsync(process);
+			throw new TimeoutException(
+				"the --hold-port-5454 child neither accepted nor exited within 20s — "
+					+ $"unanalysable state, refusing to guess. Console tail: {tail}"
+			);
 		} catch (Exception) {
 			client.Dispose();
 			await KillAndReapAsync(process);
