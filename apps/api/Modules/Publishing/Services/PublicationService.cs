@@ -234,13 +234,11 @@ public sealed class PublicationService : IPublicationService {
 			);
 		}
 
-		var post = await (
-			from p in _dbContext.Post
-			where p.Id == args.PostId
-				&& p.TenantId == args.TenantId
-				&& !p.IsDeleted
-			select p
-		).FirstOrDefaultAsync(cancellationToken);
+		var post = await LoadPostAsync(
+			args.PostId,
+			args.TenantId,
+			cancellationToken
+		);
 		if (post is null) {
 			return new ScheduleResult.NotFound();
 		}
@@ -306,13 +304,11 @@ public sealed class PublicationService : IPublicationService {
 		EditPostScheduleArgs args,
 		CancellationToken cancellationToken = default
 	) {
-		var post = await (
-			from p in _dbContext.Post
-			where p.Id == args.PostId
-				&& p.TenantId == args.TenantId
-				&& !p.IsDeleted
-			select p
-		).FirstOrDefaultAsync(cancellationToken);
+		var post = await LoadPostAsync(
+			args.PostId,
+			args.TenantId,
+			cancellationToken
+		);
 		if (post is null) {
 			return new EditPostScheduleResult.NotFound();
 		}
@@ -725,6 +721,20 @@ public sealed class PublicationService : IPublicationService {
 			);
 		}
 		return new FindScheduledResult.Success(page);
+	}
+
+	private async Task<Post?> LoadPostAsync(
+		Guid postId,
+		Guid tenantId,
+		CancellationToken cancellationToken
+	) {
+		return await (
+			from p in _dbContext.Post
+			where p.Id == postId
+				&& p.TenantId == tenantId
+				&& !p.IsDeleted
+			select p
+		).FirstOrDefaultAsync(cancellationToken);
 	}
 
 	private static string EncodeCursor(DateTime utcInstant, Guid id) {

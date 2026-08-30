@@ -189,6 +189,25 @@ public sealed class PublicationStatusTransitionService : IPublicationStatusTrans
 		return true;
 	}
 
+	/// <summary>
+	/// Stages the future-schedule move shared by the reschedule methods: validates
+	/// the transition, sets the new instant/zone pair, and clears the external
+	/// publish state. Callers keep their own stamp/save policy (#1446).
+	/// </summary>
+	private static void StageReschedule(
+		Publication publication,
+		DateTime scheduledAtUtc,
+		string scheduledTimeZone
+	) {
+		TransitionOrThrow(publication.Status, PublicationStatus.Scheduled);
+		publication.Status = PublicationStatus.Scheduled;
+		publication.ScheduledAtUtc = scheduledAtUtc;
+		publication.ScheduledTimeZone = scheduledTimeZone;
+		publication.LastError = null;
+		publication.ExternalRecordId = null;
+		publication.ExternalUrl = null;
+	}
+
 	public async Task<bool> RescheduleToNowAsync(
 		ReschedulePublicationToNowArgs args,
 		CancellationToken cancellationToken
@@ -198,12 +217,11 @@ public sealed class PublicationStatusTransitionService : IPublicationStatusTrans
 			return false;
 		}
 
-		TransitionOrThrow(publication.Status, PublicationStatus.Scheduled);
-		publication.Status = PublicationStatus.Scheduled;
-		publication.ScheduledAtUtc = DateTime.UtcNow;
-		publication.LastError = null;
-		publication.ExternalRecordId = null;
-		publication.ExternalUrl = null;
+		StageReschedule(
+			publication,
+			DateTime.UtcNow,
+			publication.ScheduledTimeZone
+		);
 		// IdempotencyKey is deliberately NOT regenerated: the same publication keeps
 		// its key across retries so Bluesky dedup survives a reschedule.
 		// #1446: legalise exactly this save's Status writes (one grant, one save).
@@ -255,13 +273,11 @@ public sealed class PublicationStatusTransitionService : IPublicationStatusTrans
 			return false;
 		}
 
-		TransitionOrThrow(publication.Status, PublicationStatus.Scheduled);
-		publication.Status = PublicationStatus.Scheduled;
-		publication.ScheduledAtUtc = args.Schedule.ScheduledAtUtc;
-		publication.ScheduledTimeZone = args.Schedule.ScheduledTimeZone;
-		publication.LastError = null;
-		publication.ExternalRecordId = null;
-		publication.ExternalUrl = null;
+		StageReschedule(
+			publication,
+			args.Schedule.ScheduledAtUtc,
+			args.Schedule.ScheduledTimeZone
+		);
 		// Same doctrine as RescheduleToNowAsync: IdempotencyKey is preserved so the
 		// remote dedup key survives the reschedule.
 		await _db.SaveChangesAsync(cancellationToken);
