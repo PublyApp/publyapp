@@ -971,6 +971,168 @@ const isThemeInvariantToken = (name: string): boolean =>
 const stripCssComments = (text: string): string =>
 	text.replace(/\/\*[\s\S]*?\*\//g, '');
 
+// #1844: `mode: 'source'` rules run their patterns over the whole raw source
+// text, so a forbidden name cited inside a comment (e.g. a test explaining
+// that a `data-testid` lands on `DialogPrimitive.Popup`) satisfies the
+// pattern and trips a false positive. A naive regex strip (`//.*$`,
+// `/\/\*[\s\S]*?\*\//`) breaks on a string containing `//` (a URL), a template
+// literal containing `/* */`, or a regex literal — eating real code and
+// silently hiding a genuine violation. The TypeScript compiler (vendored
+// through ts-morph, already a dependency) parses the source once and
+// reports every comment range through its trivia API, so we can recognize
+// a match whose start falls inside a comment and skip it — without ever
+// mutating the source text. Every `mode: 'source'` rule shares this one
+// filter, so stripping comments here closes the hole everywhere at once.
+// Only TypeScript files can be parsed for comment ranges — CSS and other
+// non-TS files have no TS comments to skip, so use an empty range set.
+const isTypeScriptFile = (relativePath: string): boolean =>
+	relativePath.endsWith('.ts') || relativePath.endsWith('.tsx');
+
+const scriptKindForPath = (relativePath: string): ts.ScriptKind =>
+	relativePath.endsWith('.tsx') ? ts.ScriptKind.TSX : ts.ScriptKind.TS;
+
+// Collects every comment range in a TS/TSX source file by walking the AST
+// and reading each node's leading and trailing trivia. Returns an array of
+// [start, end] pairs where `start` is the offset of the comment opener and
+// `end` is the offset just past the comment closer. Deduplicates because a
+// comment may be both trailing trivia of one node and leading trivia of
+// the next.
+const collectCommentRanges = (
+	source: string,
+	scriptKind: ts.ScriptKind,
+): Array<{ start: number; end: number }> => {
+	const sourceFile = ts.createSourceFile(
+		'temp.ts',
+		source,
+		ts.ScriptTarget.Latest,
+		true,
+		scriptKind,
+	);
+
+	// A file we cannot parse for comment ranges must fail loudly — otherwise
+	// a malformed TS file would silently produce a PARTIAL set of comment
+	// ranges, and the guard would stay green while missing real violations.
+	// Align with statusMenuViolations: a file we cannot analyze must say so.
+	// The caller catches this and records it as a visible violation rather
+	// than crashing the scan.
+	const { parseDiagnostics } = sourceFile as SourceFileWithParseDiagnostics;
+	if (parseDiagnostics.length > 0) {
+		throw new Error(
+			`cannot parse source for comment ranges: ${ts.flattenDiagnosticMessageText(parseDiagnostics[0].messageText, ' ')}`,
+		);
+	}
+
+	const rangeSet = new Set<string>();
+	const ranges: Array<{ start: number; end: number }> = [];
+	// Literal-node spans (strings, template literals, regexes). The JSX
+	// scanner pass below must not mistake a `//` INSIDE a template
+	// interpolation (or a string) for a comment token: the scanner does not
+	// re-enter regex context inside `${}`, so a regex like `/\/\//` would
+	// otherwise surface as a fake `//...` comment and mask real code.
+	const literalSpans: Array<{ start: number; end: number }> = [];
+
+	const addRange = (pos: number, end: number): void => {
+		const key = `${pos}-${end}`;
+		if (!rangeSet.has(key)) {
+			rangeSet.add(key);
+			ranges.push({ start: pos, end });
+		}
+	};
+
+	const visit = (node: ts.Node): void => {
+		if (
+			ts.isStringLiteral(node) ||
+			ts.isNoSubstitutionTemplateLiteral(node) ||
+			ts.isTemplateExpression(node) ||
+			ts.isRegularExpressionLiteral(node)
+		) {
+			literalSpans.push({ start: node.pos, end: node.end });
+		}
+
+		const leadingRanges = ts.getLeadingCommentRanges(source, node.pos);
+		if (leadingRanges) {
+			for (const range of leadingRanges) {
+				addRange(range.pos, range.end);
+			}
+		}
+
+		const trailingRanges = ts.getTrailingCommentRanges(source, node.end);
+		if (trailingRanges) {
+			for (const range of trailingRanges) {
+				addRange(range.pos, range.end);
+			}
+		}
+
+		ts.forEachChild(node, visit);
+	};
+
+	ts.forEachChild(sourceFile, visit);
+
+	// JSX comments (`{/* ... */}`, `{ /* ... */ }`) are invisible to the
+	// trivia walk above: the TypeScript trivia APIs report neither leading
+	// nor trailing comment ranges for a comment-only JSX expression
+	// container (verified empirically — the container node has no child for
+	// the comment at all). Issue #1844 demands TS *and* JS comments be
+	// skipped, so recover them by scanning each JsxExpression container
+	// with the compiler's own scanner in JSX mode with trivia reporting
+	// enabled. Only comment tokens whose start is NOT inside a literal node
+	// span are kept — a `//` inside a template interpolation or string is
+	// not a comment.
+	if (scriptKind === ts.ScriptKind.TSX) {
+		const isInsideLiteralSpan = (pos: number): boolean =>
+			literalSpans.some(({ start, end }) => pos >= start && pos < end);
+
+		const visitJsx = (node: ts.Node): void => {
+			if (ts.isJsxExpression(node)) {
+				const containerText = source.slice(node.pos, node.end);
+				const scanner = ts.createScanner(
+					ts.ScriptTarget.Latest,
+					false,
+					ts.LanguageVariant.JSX,
+					containerText,
+				);
+				let token = scanner.scan();
+				while (token !== ts.SyntaxKind.EndOfFileToken) {
+					if (
+						(token === ts.SyntaxKind.MultiLineCommentTrivia ||
+							token === ts.SyntaxKind.SingleLineCommentTrivia) &&
+						!isInsideLiteralSpan(node.pos + scanner.getTokenStart())
+					) {
+						addRange(
+							node.pos + scanner.getTokenStart(),
+							node.pos + scanner.getTokenEnd(),
+						);
+					}
+					token = scanner.scan();
+				}
+			}
+			ts.forEachChild(node, visitJsx);
+		};
+		ts.forEachChild(sourceFile, visitJsx);
+	}
+
+	return ranges;
+};
+
+// Returns true only when the match's ENTIRE span (index .. index + length)
+// falls inside ONE comment range. Judging by the start index alone lets a
+// match that begins inside a comment (e.g. no-single-star-route-glob pattern
+// 2, which has no quote barrier) lazily extend into real code and take a real
+// call down with it — skipping it would hide a genuine violation.
+const isMatchFullyInsideComment = (
+	index: number,
+	length: number,
+	commentRanges: Array<{ start: number; end: number }>,
+): boolean => {
+	const matchEnd = index + length;
+	for (const { start, end } of commentRanges) {
+		if (index >= start && matchEnd <= end) {
+			return true;
+		}
+	}
+	return false;
+};
+
 // Parses `--publy-x: value;` pairs out of a block of CSS text, tolerating
 // multi-line values (e.g. a wrapped `box-shadow` declaration) since this
 // operates on the whole block instead of scanning line-by-line.
@@ -2276,6 +2438,13 @@ export const scanFront2DesignSystem = async ({
 
 	const violations: DesignViolation[] = [];
 	const fileContentsByRelativePath = new Map<string, string>();
+	// #1844: comment ranges keyed by relativePath, computed once per file
+	// and shared across every mode:'source' rule so a match that starts
+	// inside a comment is recognized as prose, not a real usage.
+	const commentRangesByRelativePath = new Map<
+		string,
+		Array<{ start: number; end: number }>
+	>();
 
 	for (const absolutePath of files) {
 		const relativePath = path
@@ -2358,6 +2527,42 @@ export const scanFront2DesignSystem = async ({
 			}
 
 			if (rule.mode === 'source') {
+				// #1844: compute comment ranges once per file, shared by
+				// every mode:'source' rule — a match that starts inside a
+				// comment is a prose citation, not a real usage.
+				let commentRanges = commentRangesByRelativePath.get(relativePath);
+				if (!commentRanges) {
+					// Only TypeScript files can be parsed for comment
+					// ranges — CSS and other non-TS files have no TS
+					// comments to skip, so use an empty range set.
+					if (!isTypeScriptFile(relativePath)) {
+						commentRanges = [];
+					} else {
+						try {
+							commentRanges = collectCommentRanges(
+								source,
+								scriptKindForPath(relativePath),
+							);
+						} catch (error) {
+							// A file we cannot parse for comment ranges must
+							// fail loudly — record the parse failure as a
+							// visible violation rather than crashing the scan
+							// or silently producing a partial range set.
+							violations.push({
+								ruleId: 'comment-range-parse-failure',
+								message:
+									'cannot parse source for comment ranges: ' +
+									(error instanceof Error ? error.message : String(error)),
+								file: relativePath,
+								line: 1,
+								source: '',
+							});
+							commentRanges = [];
+						}
+					}
+					commentRangesByRelativePath.set(relativePath, commentRanges);
+				}
+
 				for (const pattern of rule.patterns) {
 					// Every mode-'source' rule in this file declares plain RegExp
 					// patterns; fail fast rather than widen the type if that ever
@@ -2373,6 +2578,22 @@ export const scanFront2DesignSystem = async ({
 					);
 					const matches = source.matchAll(globalPattern);
 					for (const match of matches) {
+						// #1844 (r3): skip a match only when its ENTIRE span
+						// lies inside one comment range — a forbidden name
+						// cited in prose is not a real usage. A match that
+						// merely STARTS in a comment can still be a real call
+						// (no-single-star-route-glob pattern 2 spans lazily
+						// past the comment, into the real call).
+						if (
+							isMatchFullyInsideComment(
+								match.index,
+								match[0].length,
+								commentRanges,
+							)
+						) {
+							continue;
+						}
+
 						const line = source.slice(0, match.index).split('\n').length;
 						recordViolation(
 							violations,
