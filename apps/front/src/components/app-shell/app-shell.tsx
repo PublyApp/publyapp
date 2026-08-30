@@ -15,6 +15,7 @@ import {
 	DrawerHeader,
 	DrawerTitle,
 } from '~/components/ui/drawer';
+import { usePreloadIntentQueries } from '~/lib/query/preload-intent';
 import { useResolvedWorkspaceTenantId } from '~/lib/query/tenants-for-picker';
 
 import logoSvg from '../../assets/gray-ui/logo.svg';
@@ -167,6 +168,9 @@ const AuthedWorkspaceShell = ({
 	search: AppShellSearch;
 }) => {
 	const { t } = useTranslation('common');
+	// Preloads route data on intent (hover/viewport) — mounted here once in the
+	// authed CSR shell so it fires for every authed surface without repetition.
+	usePreloadIntentQueries();
 	const sidebarOpen = useUiStore((state) => state.sidebarOpen);
 	const toggleSidebarOpen = useUiStore((state) => state.toggleSidebarOpen);
 	const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);

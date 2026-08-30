@@ -18,6 +18,7 @@ import {
 	selectStaffTenantCrumbName,
 	STAFF_TENANT_DETAILS_QUERY_KEY,
 	staffTenantCrumbQuery,
+	staffTenantDetailsQueryOptions,
 	toStaffTenantDetails,
 	useDeleteStaffTenantMutation,
 	useReactivateStaffTenantMutation,
@@ -277,6 +278,12 @@ export const Route = createFileRoute('/_authed-layout/staff/tenants/$tenantId')(
 					kind: 'entity',
 					query: staffTenantCrumbQuery,
 					select: selectStaffTenantCrumbName,
+				},
+			],
+			preload: ({ params }) => [
+				{
+					options: staffTenantDetailsQueryOptions,
+					variables: { tenantId: params.tenantId },
 				},
 			],
 		},

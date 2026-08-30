@@ -421,7 +421,7 @@ export const buildUpdateStaffProfileBody = (
 	return body;
 };
 
-const staffProfilesQueryOptions = buildStaffQueryOptions<
+export const staffProfilesQueryOptions = buildStaffQueryOptions<
 	ApiClient,
 	FindStaffProfilesResult,
 	StaffProfilesQueryVariables

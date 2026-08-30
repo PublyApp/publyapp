@@ -12,6 +12,7 @@ import { buttonVariants } from '~/components/ui/button.variants';
 import { PageHeader } from '~/components/ui/product-page';
 import {
 	toStaffProfileRows,
+	staffProfilesQueryOptions,
 	useStaffProfilesQuery,
 } from '~/lib/query/staff-profiles';
 import {
@@ -190,6 +191,17 @@ const StaffProfilesPage = () => {
 export const Route = createFileRoute('/_authed-layout/staff/profiles')({
 	staticData: {
 		crumbs: () => [{ kind: 'label', labelKey: 'nav-staff-profiles' }],
+		preload: () => [
+			{
+				options: staffProfilesQueryOptions,
+				variables: {
+					q: '',
+					sortId: 'created_at',
+					sortOrder: 'desc',
+					limit: 100,
+				},
+			},
+		],
 	},
 	validateSearch: (search) =>
 		validateTableSearchParams(search as TableSearchParamInput),
