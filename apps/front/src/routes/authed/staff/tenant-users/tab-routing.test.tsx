@@ -210,13 +210,13 @@ const buildRouter = (initialUrl: string) => {
 
 	// `.addChildren` exists at runtime on every route but is absent from the
 	// public types for file routes, so the helper names its shape once.
-	function widenOptions<T>(value: unknown): T {
+	const widenOptions = <T,>(value: unknown): T => {
 		return value as T;
-	}
-	function addChildrenOf(route: unknown) {
+	};
+	const addChildrenOf = (route: unknown) => {
 		return widenOptions<{ addChildren: (children: unknown[]) => void }>(route)
 			.addChildren;
-	}
+	};
 
 	const routeTree = addChildrenOf(rootRoute)([
 		notFoundRoute,
@@ -259,10 +259,10 @@ const renderAt = async (initialUrl: string) => {
 
 	// `.state.location` is public at runtime but only partially exposed by the
 	// generic router type; the helper names the observed shape once.
-	function routerPathnameOf(router: unknown): string {
+	const routerPathnameOf = (router: unknown): string => {
 		return (router as { state: { location: { pathname: string } } }).state
 			.location.pathname;
-	}
+	};
 
 	return Object.assign(harness, {
 		location: () => routerPathnameOf(harness.router),

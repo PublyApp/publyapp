@@ -37,11 +37,11 @@ afterAll(() => {
 	rmSync(TMP, { recursive: true, force: true });
 });
 
-function writeReport(name: string, content: string): string {
+const writeReport = (name: string, content: string): string => {
 	const path = join(TMP, name);
 	writeFileSync(path, content);
 	return path;
-}
+};
 
 // --- readProofReport: unreadable reports ---
 

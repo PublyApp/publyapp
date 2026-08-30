@@ -63,9 +63,9 @@ const extractProfiles = async (response: {
 const profileRow = (page: Page, profileName: string) =>
 	page.getByRole('row', { name: new RegExp(escapeRegExp(profileName)) });
 
-function escapeRegExp(value: string): string {
+const escapeRegExp = (value: string): string => {
 	return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-}
+};
 
 test.describe(
 	'staff profiles route',

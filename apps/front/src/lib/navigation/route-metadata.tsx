@@ -324,7 +324,7 @@ const isPathPrefix = (pathname: string, prefix: string): boolean =>
 const matchPath = (pathname: string, prefixes: string[]): boolean =>
 	prefixes.some((prefix) => isPathPrefix(pathname, prefix));
 
-export function getShellScope(pathname: string): ShellScope | undefined {
+export const getShellScope = (pathname: string): ShellScope | undefined => {
 	if (isPathPrefix(pathname, '/staff')) {
 		return 'staff';
 	}
@@ -334,14 +334,14 @@ export function getShellScope(pathname: string): ShellScope | undefined {
 	}
 
 	return undefined;
-}
+};
 
-export function getRailItems(scope: ShellScope): AppRouteMetadata[] {
+export const getRailItems = (scope: ShellScope): AppRouteMetadata[] => {
 	if (scope === 'staff') {
 		return STAFF_ROUTES;
 	}
 	return TENANT_ROUTES;
-}
+};
 
 export type RailPermissionOptions = {
 	/**
@@ -362,10 +362,10 @@ export type RailPermissionOptions = {
  * "visible by default"). This is a UI-convenience filter ONLY; the server
  * independently enforces every gate behind these keys (#142).
  */
-export function filterRailItemsByPermissions(
+export const filterRailItemsByPermissions = (
 	items: AppRouteMetadata[],
 	allowedPermissions: Set<string>,
-): AppRouteMetadata[] {
+): AppRouteMetadata[] => {
 	// "*" is the backend's Admin sentinel (materialised by user-auth-data for
 	// AccountLevel.Admin and honoured by TenantPermissionFilter): an admin
 	// passes every gate, so every rail entry stays visible.
@@ -378,12 +378,12 @@ export function filterRailItemsByPermissions(
 			(item.visibility === 'permission-gated' &&
 				item.requiredPermissions.every((key) => allowedPermissions.has(key))),
 	);
-}
+};
 
-export function getRailItemsForPath(
+export const getRailItemsForPath = (
 	pathname: string,
 	options?: RailPermissionOptions,
-): AppRouteMetadata[] {
+): AppRouteMetadata[] => {
 	const scope = getShellScope(pathname);
 	if (!scope) {
 		return [];
@@ -396,9 +396,9 @@ export function getRailItemsForPath(
 	}
 
 	return filterRailItemsByPermissions(items, allowed);
-}
+};
 
-function getActiveAppRoute(pathname: string): AppRouteMetadata | undefined {
+const getActiveAppRoute = (pathname: string): AppRouteMetadata | undefined => {
 	const scope = getShellScope(pathname);
 	if (!scope) {
 		return undefined;
@@ -407,17 +407,19 @@ function getActiveAppRoute(pathname: string): AppRouteMetadata | undefined {
 	return getRailItems(scope)
 		.filter((route) => matchPath(pathname, route.matchPrefixes))
 		.sort((a, b) => b.path.length - a.path.length)[0];
-}
+};
 
-export function getActiveRailItem(
+export const getActiveRailItem = (
 	pathname: string,
-): AppRouteMetadata | undefined {
+): AppRouteMetadata | undefined => {
 	return getActiveAppRoute(pathname);
-}
+};
 
-export function getSecondaryPanelItems(pathname: string): SecondaryPanelItem[] {
+export const getSecondaryPanelItems = (
+	pathname: string,
+): SecondaryPanelItem[] => {
 	return getActiveRailItem(pathname)?.secondaryItems ?? [];
-}
+};
 
 /**
  * A panel item is active when its pathname matches AND its declared search
@@ -426,11 +428,11 @@ export function getSecondaryPanelItems(pathname: string): SecondaryPanelItem[] {
  * `matchExact` narrows a nested row (e.g. the account Profile row) to an
  * exact pathname match so it does not stay lit on its children's routes.
  */
-export function isSecondaryPanelItemActive(
+export const isSecondaryPanelItemActive = (
 	item: SecondaryPanelItem,
 	pathname: string,
 	search: Record<string, unknown>,
-): boolean {
+): boolean => {
 	const matchesPath = item.matchExact
 		? pathname === item.path
 		: isPathPrefix(pathname, item.path);
@@ -439,18 +441,18 @@ export function isSecondaryPanelItemActive(
 		typeof search.status === 'string' ? search.status : undefined;
 
 	return matchesPath && itemStatus === currentStatus;
-}
+};
 
-export function shouldShowSecondaryPanel(
+export const shouldShowSecondaryPanel = (
 	pathname: string,
 	options?: {
 		sidebarOpen?: boolean;
 		viewportWidth?: number;
 	},
-): boolean {
+): boolean => {
 	const activeItems = getSecondaryPanelItems(pathname);
 	const viewportWidth = options?.viewportWidth ?? Number.POSITIVE_INFINITY;
 	const panelOpen = options?.sidebarOpen ?? true;
 
 	return panelOpen && viewportWidth >= 1024 && activeItems.length >= 2;
-}
+};
