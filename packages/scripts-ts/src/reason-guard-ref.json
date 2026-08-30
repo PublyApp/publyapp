@@ -181,6 +181,8 @@
 		"quality-gate.yml::changes::Setup Node",
 		"quality-gate.yml::gate::Check required jobs",
 		"quality-gate.yml::gate::Verify the required-jobs check truly succeeded (continue-on-error cannot mask this)",
+		"quality-gate.yml::no-dockerignore-shadow::Checkout",
+		"quality-gate.yml::no-dockerignore-shadow::Forbid .dockerignore shadow files (#1849)",
 		"quality-gate.yml::no-ignored-tracked::Checkout",
 		"quality-gate.yml::no-ignored-tracked::Verify no tracked file matches .gitignore (#1513)",
 		"quality-gate.yml::quality::Assert exact pins",
@@ -892,6 +894,16 @@
 			"reason_hash": "0b7b1ce1965ab1f9",
 			"reason_length": 276,
 			"reason": "ci-no-ignored-tracked runs the identical `node packages/scripts-ts/src/check-no-ignored-tracked.ts` plus its vitest test, which interrogates the REAL repo via `git ls-files -z --cached --ignored --exclude-standard`. Empty output = green, any named path = red. See issue #1513."
+		},
+		"quality-gate.yml::no-dockerignore-shadow::Checkout": {
+			"reason_hash": "c80eb5bfb322fab4",
+			"reason_length": 102,
+			"reason": "GitHub-only: clones the repo onto the runner. Locally the working tree already is the code under test."
+		},
+		"quality-gate.yml::no-dockerignore-shadow::Forbid .dockerignore shadow files (#1849)": {
+			"reason_hash": "b60edaad18888f9d",
+			"reason_length": 579,
+			"reason": "ci-dockerignore-shadow runs the identical `node packages/scripts-ts/src/check-dockerignore-shadow.ts`, which walks the REAL working tree (the same filesystem a build context is drawn from) and flags every file whose basename ends with `.dockerignore` case-insensitively but is not exactly `.dockerignore`. Git-ignored paths (e.g. parallel .worktrees/) are filtered out via a single batch `git check-ignore --stdin -z` call (issue #1909 class). The `-v` form is deliberately NOT used: it was the round-4 defect, because its verbose output changes the parse shape. See issue #1849."
 		},
 		"quality-gate.yml::quality::Assert exact pins": {
 			"reason_hash": "23640fc62c5d63d6",
