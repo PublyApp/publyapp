@@ -66,3 +66,41 @@ test('flags only disable directives that are missing reviewable reasons', async 
 		'src/without-reason.ts:1 - missing a specific rule or reviewable reason',
 	]);
 });
+
+test('ignores fixture text that merely mentions the token, still flags a real directive in the same file', async () => {
+	const rootDir = await mkdtemp(
+		path.join(os.tmpdir(), 'publyapp-oxlint-rule-fixtures-'),
+	);
+
+	await writeFixture(
+		rootDir,
+		'src/func-style-config.test.ts',
+		[
+			"import { it } from 'vitest';",
+			'',
+			"const markers = ['oxlint-disable-next-line func-style', 'oxlint-disable func-style'];",
+			'',
+			'/**',
+			' * - oxlint-disable func-style — the oxlint variant, block-start',
+			' * - oxlint-disable — bare, silences all oxlint rules',
+			' */',
+			'',
+			'// eslint-disable-next-line / oxlint-disable-next-line: extract next-line symbol',
+			"if (trimmed === 'oxlint-disable') {",
+			'\treturn true;',
+			'}',
+			'',
+			'// oxlint-disable-next-line func-style',
+			'export function probe() {}',
+		].join('\n') + '\n',
+	);
+
+	// The fixture mimics the exact shape of the real func-style spec file:
+	// every token mention is string/prose EXCEPT the real directive on line
+	// 15 (1-based). The guard must flag exactly that line and nothing else.
+	const violations = await findOxlintDirectiveViolations(rootDir);
+
+	assert.deepEqual(violations, [
+		'src/func-style-config.test.ts:15 - missing a specific rule or reviewable reason',
+	]);
+});

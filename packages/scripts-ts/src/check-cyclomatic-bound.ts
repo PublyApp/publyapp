@@ -25,15 +25,15 @@ const repoRoot = path.resolve(
 );
 
 // @ts-expect-error rung-0: add proper type in later rung
-function readJsonFile(filePath) {
+const readJsonFile = (filePath) => {
 	const content = fs.readFileSync(filePath, 'utf-8');
 
 	return JSON.parse(content);
-}
+};
 
 /** Extracts the complexity `max` from an oxlint complexity rule value. */
 // @ts-expect-error rung-0: add proper type in later rung
-function extractComplexityMax(rule) {
+const extractComplexityMax = (rule) => {
 	if (
 		Array.isArray(rule) &&
 		rule.length >= 2 &&
@@ -44,7 +44,7 @@ function extractComplexityMax(rule) {
 		return Number(rule[1].max);
 	}
 	return null;
-}
+};
 
 /**
  * Builds a Map of pattern → max from the .oxlintrc.json config.
@@ -53,7 +53,7 @@ function extractComplexityMax(rule) {
  * Every override's `files` entries are mapped to their complexity max.
  */
 // @ts-expect-error rung-0: add proper type in later rung
-function buildActualPatternMaxMap(config) {
+const buildActualPatternMaxMap = (config) => {
 	const map = new Map();
 
 	const defaultMax = extractComplexityMax(config.rules?.complexity);
@@ -71,7 +71,7 @@ function buildActualPatternMaxMap(config) {
 	}
 
 	return map;
-}
+};
 
 /**
  * Verifies that the complexity bounds in .oxlintrc.json match the reference
@@ -81,7 +81,7 @@ function buildActualPatternMaxMap(config) {
  * Throws SyntaxError if either JSON file is malformed.
  */
 // @ts-expect-error rung-0: add proper type in later rung
-export function verifyComplexityBounds(oxlintrcPath, referencePath_) {
+export const verifyComplexityBounds = (oxlintrcPath, referencePath_) => {
 	const refPath =
 		referencePath_ ??
 		path.resolve(repoRoot, 'packages/scripts-ts/src/cyclomatic-bound-ref.json');
@@ -160,10 +160,10 @@ export function verifyComplexityBounds(oxlintrcPath, referencePath_) {
 	}
 
 	return errors;
-}
+};
 
 // Main entry point
-function main() {
+const main = () => {
 	const resolvedOxlintPath = path.resolve(process.cwd(), '.oxlintrc.json');
 	const resolvedRefPath = path.resolve(
 		process.cwd(),
@@ -206,7 +206,7 @@ function main() {
 		'PASSED: Complexity bounds in .oxlintrc.json match cyclomatic-bound-ref.json.',
 	);
 	process.exit(0);
-}
+};
 
 if (import.meta.url === pathToFileURL(process.argv[1]).href) {
 	main();

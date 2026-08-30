@@ -131,9 +131,9 @@ const t = (key: string, options?: Record<string, unknown>): string => {
 // members below. The helper is the ONE widening point (a single assert
 // through a named shape), matching the repo's other real-route suites
 // (see $userId-edit.blocker.test.tsx).
-function widenFake<T>(value: unknown): T {
+const widenFake = <T,>(value: unknown): T => {
 	return value as T;
-}
+};
 
 const buildController = () =>
 	widenFake<ReturnType<typeof useTableController>>({

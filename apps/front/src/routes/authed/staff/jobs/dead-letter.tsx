@@ -310,7 +310,7 @@ const StaffJobsDeadLetterPage = () => {
 /** Detail fetch is only meaningful while a row is open — keep it disabled
  * otherwise so opening the dashboard never fans out one request per row.
  * Hooks stay top-level imports; this wrapper just pins the `enabled` flag. */
-function useStaffDeadLetterDetailQuery(deadLetterId: string | undefined) {
+const useStaffDeadLetterDetailQuery = (deadLetterId: string | undefined) => {
 	return useQuery({
 		queryKey: staffDeadLetterDetailsQueryOptions.queryKey({
 			deadLetterId: deadLetterId ?? '',
@@ -321,7 +321,7 @@ function useStaffDeadLetterDetailQuery(deadLetterId: string | undefined) {
 			}),
 		enabled: Boolean(deadLetterId),
 	});
-}
+};
 
 export const Route = createFileRoute('/_authed-layout/staff/jobs/dead-letter')({
 	staticData: {

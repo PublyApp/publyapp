@@ -202,9 +202,9 @@ const assertColumnHeaders = (page: Page) =>
 		).toBeVisible(),
 	]);
 
-function escapeRegExp(value: string): string {
+const escapeRegExp = (value: string): string => {
 	return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-}
+};
 
 test.describe(
 	'staff-users parity happy path',

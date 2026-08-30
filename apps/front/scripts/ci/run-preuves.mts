@@ -163,7 +163,7 @@ const REPLAYABLE_EXTENSIONS = ['.test.ts', '.test.tsx'] as const;
  *         never silently become "no proofs declared"; the operator must fetch
  *         the base or fix the checkout.
  */
-function declaredProofTests(): string[] {
+const declaredProofTests = (): string[] => {
 	// First, confirm the versioned directory exists at all. If it does not,
 	// the repo has no proof infrastructure — the step is a no-op.
 	if (!existsSync(PROOFS_DIR)) {
@@ -325,7 +325,7 @@ function declaredProofTests(): string[] {
 
 	// Return paths relative to apps/front (the working directory).
 	return declared.map((p) => p.replace(/^apps\/front\//, ''));
-}
+};
 
 /**
  * Validate that a proof-test file is a real, parseable test before handing it
@@ -334,7 +334,7 @@ function declaredProofTests(): string[] {
  * misread as "the test failed as expected". We catch that here and fail loud
  * naming the file, so a corrupted proof is never silently green.
  */
-function validateProofFile(path: string): void {
+const validateProofFile = (path: string): void => {
 	const buf = readFileSync(path);
 
 	if (buf.length === 0) {
@@ -356,16 +356,16 @@ function validateProofFile(path: string): void {
 			`Proof file declares no test/it/describe (truncated? not a test?): ${path}`,
 		);
 	}
-}
+};
 
 /**
  * Determine if a filename ends with one of the replayable extensions.
  * Uses exact suffix matching (not last-dot slicing) so multi-dot
  * extensions like `.test.ts` and `.test.tsx` are recognized correctly.
  */
-function isReplayableFile(filename: string): boolean {
+const isReplayableFile = (filename: string): boolean => {
 	return REPLAYABLE_EXTENSIONS.some((ext) => filename.endsWith(ext));
-}
+};
 
 // --- Main logic ---
 

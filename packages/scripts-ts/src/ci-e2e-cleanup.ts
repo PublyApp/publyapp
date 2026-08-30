@@ -596,15 +596,15 @@ export const runE2ECleanup = ({
 	return { messages, failed };
 };
 
+const toPosixPath = (value: string): string => {
+	return value.split(path.sep).join('/');
+};
+
 const isDirectRun =
 	process.argv[1] &&
 	toPosixPath(process.argv[1]).endsWith(
 		'packages/scripts-ts/src/ci-e2e-cleanup.ts',
 	);
-
-function toPosixPath(value: string): string {
-	return value.split(path.sep).join('/');
-}
 
 if (isDirectRun) {
 	const outcome = runE2ECleanup({

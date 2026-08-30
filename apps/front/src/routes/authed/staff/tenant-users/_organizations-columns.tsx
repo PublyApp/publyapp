@@ -27,11 +27,11 @@ type OrganizationRow = ReturnType<typeof toGlobalTenantUserCompanyRows>[number];
 /** Column definitions and the per-row remove confirm for the global tenant-user
  * organizations tab. Lives outside the route file so it exports only its Route
  * (react-doctor rung 2, #1417); tests import the builder directly from here. */
-export function buildOrganizationColumns(
+export const buildOrganizationColumns = (
 	t: (key: string, options?: Record<string, unknown>) => string,
 	locale: string,
 	userId: string,
-): ColumnDef<OrganizationRow>[] {
+): ColumnDef<OrganizationRow>[] => {
 	return [
 		{
 			id: 'name',
@@ -93,7 +93,7 @@ export function buildOrganizationColumns(
 			),
 		},
 	];
-}
+};
 
 const ConfirmRemoveSingleOrganization = ({
 	userId,
