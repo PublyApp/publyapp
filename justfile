@@ -331,6 +331,8 @@ ci-drift:
   pnpm --filter scripts-ts exec vitest run src/ci-referenced-paths.test.ts
   pnpm --filter scripts-ts exec vitest run src/check-cyclomatic-bound.test.ts
   node ./packages/scripts-ts/src/check-cyclomatic-bound.ts
+  pnpm --filter scripts-ts exec vitest run src/check-shallow-repo.test.ts
+  node ./packages/scripts-ts/src/check-shallow-repo.ts
   # #1674: bite-proof test for the production-dependency audit gate.
   # The CI gate is `pnpm audit --prod --audit-level=moderate`
   # (front-ci.yml::supply-chain), and this test pins that exact command
