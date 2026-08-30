@@ -277,6 +277,9 @@ importers:
       '@types/node':
         specifier: ^24.13.3
         version: 24.13.3
+      ts-morph:
+        specifier: 28.0.0
+        version: 28.0.0
       vitest:
         specifier: 4.1.11
         version: 4.1.11(@opentelemetry/api@1.9.0)(@types/node@24.13.3)(jsdom@30.0.1)(msw@2.15.0(@types/node@24.13.3)(typescript@7.0.2))(vite@8.2.2(@types/node@24.13.3)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.21.0)(yaml@2.9.0))

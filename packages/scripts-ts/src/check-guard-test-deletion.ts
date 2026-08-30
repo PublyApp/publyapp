@@ -85,7 +85,7 @@ type ExtractTestsOutcome = ExtractTestsResult | ExtractTestsError;
  * Handles: `test()`, `it()`, `test.each()`, `it.each()`, `describe()`.
  * Ignores strings inside comments.
  */
-const extractTestNamesFromSource = (
+export const extractTestNamesFromSource = (
 	sourceText: string,
 ): ExtractTestsOutcome => {
 	try {

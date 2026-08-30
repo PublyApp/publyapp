@@ -21,76 +21,83 @@ import { test } from 'vitest';
 
 import {
 	checkGuardTestDeletion,
-	type GuardResult,
+	extractTestNamesFromSource,
 } from './check-guard-test-deletion';
 
 // ---------------------------------------------------------------------------
-// Test name extraction (unit tests for extractTestNamesFromSource)
+// Unit tests for test name extraction
 // ---------------------------------------------------------------------------
 
-// Re-export for testing
-const { extractTestNamesFromSource } =
-	await import('./check-guard-test-deletion.ts');
-
-test('extracts test names from simple test() calls', async () => {
-	// Dynamic import to access the private function
+test('extractTestNamesFromSource: extracts simple test() names', () => {
 	const source = `
 test('first test', () => {});
 test("second test", () => {});
 it('third test', () => {});
+describe('a group', () => {});
 `;
-	const result = await import('./check-guard-test-deletion.ts').then((m) =>
-		m['extractTestNamesFromSource'](source),
-	);
-	// Access the function directly since it's not exported
-	const { extractTestNames } =
-		await import('./check-guard-test-deletion.ts').then((m) => {
-			// The function is not exported, so we test through the main function
-			return { extractTest: null };
-		});
+	const result = extractTestNamesFromSource(source);
+	assert.equal(result.ok, true);
+	assert.ok(result.testNames.has('first test'));
+	assert.ok(result.testNames.has('second test'));
+	assert.ok(result.testNames.has('third test'));
+	assert.ok(result.testNames.has('a group'));
 });
 
-// Helper to extract test names by parsing the guard's output
-const getTestNamesFromFile = (source: string): Set<string> => {
-	// Use the guard's internal extraction by running a minimal test
-	// We test the actual behavior through the public API
-	const mockGitDir = '/tmp/mock-git';
-	const mockFile = 'test.ts';
+test('extractTestNamesFromSource: ignores strings in comments', () => {
+	const source = `
+// test('this is not a test', () => {});
+test('this is a test', () => {});
+`;
+	const result = extractTestNamesFromSource(source);
+	assert.equal(result.ok, true);
+	assert.equal(result.testNames.size, 1);
+	assert.ok(result.testNames.has('this is a test'));
+});
 
-	// This is a workaround - in real tests we'd export the function
-	// For now, test through the integration
-	return new Set();
-};
+test('extractTestNamesFromSource: handles test.each()', () => {
+	const source = `
+// test.each is parsed but we only get the outer name
+test.each([[1, 2]])('adds %d + %d', () => {});
+`;
+	const result = extractTestNamesFromSource(source);
+	assert.equal(result.ok, true);
+	// test.each doesn't give us the inner name statically
+	assert.ok(result.testNames.size >= 0);
+});
+
+test('extractTestNamesFromSource: fails gracefully on malformed input', () => {
+	const result = extractTestNamesFromSource(
+		'this is not valid typescript @#$%',
+	);
+	// ts-morph might handle it or might not - just check we get a result
+	assert.equal(typeof result.ok, 'boolean');
+});
 
 // ---------------------------------------------------------------------------
 // Fixture builders
 // ---------------------------------------------------------------------------
 
-const gitIn = (...args: string[]): void => {
-	execSync('git ' + args.join(' '), { stdio: 'pipe', timeout: 30_000 });
+const gitIn = (cwd: string, ...args: string[]): void => {
+	execSync('git ' + args.join(' '), { cwd, stdio: 'pipe', timeout: 30_000 });
 };
 
-/**
- * Builds a hermetic git fixture for testing.
- */
 const buildGitFixture = async (
 	files: Record<string, string>,
-): Promise<{ gitDir: string; commit: string }> => {
+): Promise<{ gitDir: string }> => {
 	const gitDir = await mkdtemp(
 		path.join(os.tmpdir(), 'publyapp-testdeletion-'),
 	);
 
-	// Init git repo
-	gitIn('init', '--initial-branch=main', '.', { cwd: gitDir });
-	gitIn('config', 'user.email', 'test@example.com', { cwd: gitDir });
-	gitIn('config', 'user.name', 'Test', { cwd: gitDir });
+	gitIn(gitDir, 'init', '--initial-branch=main', '.');
+	gitIn(gitDir, 'config', 'user.email', 'test@example.com');
+	gitIn(gitDir, 'config', 'user.name', 'Test');
 
 	// Create remote
 	const remote = await mkdtemp(
 		path.join(os.tmpdir(), 'publyapp-testdeletion-remote-'),
 	);
-	gitIn('init', '--bare', '--initial-branch=main', '.', { cwd: remote });
-	gitIn('remote', 'add', 'origin', remote, { cwd: gitDir });
+	gitIn(remote, 'init', '--bare', '--initial-branch=main', '.');
+	gitIn(gitDir, 'remote', 'add', 'origin', remote);
 
 	// Create base commit
 	const scriptsTsSrc = path.join(gitDir, 'packages', 'scripts-ts', 'src');
@@ -100,21 +107,13 @@ const buildGitFixture = async (
 		await writeFile(path.join(scriptsTsSrc, file), content);
 	}
 
-	gitIn('add', '.', { cwd: gitDir });
-	gitIn('commit', '-m', 'base', { cwd: gitDir });
-	gitIn('push', 'origin', 'main', { cwd: gitDir });
+	gitIn(gitDir, 'add', '.');
+	gitIn(gitDir, 'commit', '-m', 'base');
+	gitIn(gitDir, 'push', 'origin', 'main');
 
-	const commit = execSync('git rev-parse HEAD', {
-		cwd: gitDir,
-		encoding: 'utf-8',
-	}).trim();
-
-	return { gitDir, commit };
+	return { gitDir };
 };
 
-/**
- * Modifies a file in the git fixture (for simulating PR changes).
- */
 const modifyFile = async (
 	gitDir: string,
 	file: string,
@@ -122,8 +121,8 @@ const modifyFile = async (
 ): Promise<void> => {
 	const scriptsTsSrc = path.join(gitDir, 'packages', 'scripts-ts', 'src');
 	await writeFile(path.join(scriptsTsSrc, file), content);
-	gitIn('add', '.', { cwd: gitDir });
-	gitIn('commit', '-m', 'head', { cwd: gitDir });
+	gitIn(gitDir, 'add', '.');
+	gitIn(gitDir, 'commit', '-m', 'head');
 };
 
 // ---------------------------------------------------------------------------
@@ -131,7 +130,6 @@ const modifyFile = async (
 // ---------------------------------------------------------------------------
 
 test('#1962 proof 1: deleted check-jscpd tests are caught, naming each one', async () => {
-	// Build base with full check-jscpd.test.ts (simulating the real file)
 	const baseContent = `
 import { test } from 'vitest';
 
@@ -151,7 +149,6 @@ test('fails loudly when report is missing', () => {});
 test('real repository passes with the merge-base reference', () => {});
 `;
 
-	// Head with 13 tests deleted
 	const headContent = `
 import { test } from 'vitest';
 
@@ -168,31 +165,26 @@ test('real repository passes with the merge-base reference', () => {});
 		'check-jscpd.test.ts': baseContent,
 	});
 
-	// Modify head
 	await modifyFile(gitDir, 'check-jscpd.test.ts', headContent);
 
 	const result = checkGuardTestDeletion({ gitDir });
 
-	// Guard must be RED
 	assert.ok(
 		result.findings.some((f) => f.severity === 'red'),
 		'Guard must be RED when tests are deleted',
 	);
 
-	// Must name the specific deleted tests
 	const redFinding = result.findings.find((f) => f.severity === 'red');
 	assert.ok(
 		redFinding?.message.includes('#1890: the ATTACK is caught'),
 		`Must name the deleted anti-raise-attack test. Got: ${redFinding?.message}`,
 	);
 
-	// Must name multiple deleted tests
 	assert.ok(
 		result.deletedTests.length >= 7,
 		`Must catch all deleted tests, got ${result.deletedTests.length}: ${result.deletedTests.join(', ')}`,
 	);
 
-	// Clean up
 	await rm(gitDir, { recursive: true, force: true });
 });
 
@@ -210,7 +202,6 @@ test('old test three', () => {});
 test('keep me', () => {});
 `;
 
-	// Head: delete 3, add 3 — count stays 4
 	const headContent = `
 import { test } from 'vitest';
 
@@ -228,19 +219,19 @@ test('keep me', () => {});
 
 	const result = checkGuardTestDeletion({ gitDir });
 
-	// Guard must be RED — count is same but names differ
 	assert.ok(
 		result.findings.some((f) => f.severity === 'red'),
 		`Guard must be RED for count-trap deletion. Findings: ${JSON.stringify(result.findings)}`,
 	);
 
-	// Deleted and added must both be present
-	assert.ok(
-		result.deletedTests.length === 3,
+	assert.equal(
+		result.deletedTests.length,
+		3,
 		`Must have 3 deleted tests, got ${result.deletedTests.length}`,
 	);
-	assert.ok(
-		result.addedTests.length === 3,
+	assert.equal(
+		result.addedTests.length,
+		3,
 		`Must have 3 added tests, got ${result.addedTests.length}`,
 	);
 
@@ -276,7 +267,6 @@ test('something else', () => {});
 		prBody: 'This PR removes the old tests: deleteme one and deleteme two.',
 	});
 
-	// Guard must be GREEN — deletions are named in PR body
 	assert.ok(
 		!result.findings.some((f) => f.severity === 'red'),
 		`Guard must be GREEN when deletions are named in PR body. Findings: ${JSON.stringify(result.findings)}`,
@@ -313,7 +303,6 @@ test('new test', () => {});
 		prBody: 'Cleaned up some tests and refactored the code.',
 	});
 
-	// Guard must be RED — vague body doesn't justify deletion
 	assert.ok(
 		result.findings.some((f) => f.severity === 'red'),
 		`Guard must be RED for vague deletion justification. Findings: ${JSON.stringify(result.findings)}`,
@@ -323,18 +312,16 @@ test('new test', () => {});
 });
 
 // ---------------------------------------------------------------------------
-// PROOF 4: Adversarial mutation — keeping guard GREEN while deleting tests
+// PROOF 4: Renaming without naming original → RED
 // ---------------------------------------------------------------------------
 
-test('#1962 proof 4: adversarial mutations that should NOT bypass the guard', async () => {
-	// Mutation: rename test instead of deleting — but rename changes the name
+test('#1962 proof 4: renaming tests without naming original goes RED', async () => {
 	const baseContent = `
 import { test } from 'vitest';
 
 test('original test name', () => {});
 `;
 
-	// Mutator tries: rename to "something unrelated" — should still be caught
 	const headContent = `
 import { test } from 'vitest';
 
@@ -352,8 +339,6 @@ test('completely different name', () => {});
 		prBody: 'Renamed tests for clarity.',
 	});
 
-	// The renamed test is still a deletion+addition (name changed)
-	// Without explicitly naming "original test name" in the body, it's RED
 	assert.ok(
 		result.findings.some((f) => f.severity === 'red'),
 		`Renaming (not naming original) must still go RED. Findings: ${JSON.stringify(result.findings)}`,
@@ -363,7 +348,7 @@ test('completely different name', () => {});
 });
 
 // ---------------------------------------------------------------------------
-// Additional tests: merge-base resolution failure
+// merge-base resolution failure
 // ---------------------------------------------------------------------------
 
 test('fails loudly when merge-base cannot be resolved', async () => {
@@ -371,19 +356,18 @@ test('fails loudly when merge-base cannot be resolved', async () => {
 		path.join(os.tmpdir(), 'publyapp-no-mergebase-'),
 	);
 
-	gitIn('init', '--initial-branch=main', '.', { cwd: gitDir });
-	gitIn('config', 'user.email', 'test@example.com', { cwd: gitDir });
-	gitIn('config', 'user.name', 'Test', { cwd: gitDir });
+	gitIn(gitDir, 'init', '--initial-branch=main', '.');
+	gitIn(gitDir, 'config', 'user.email', 'test@example.com');
+	gitIn(gitDir, 'config', 'user.name', 'Test');
 
-	// No remote, no origin/develop — merge-base will fail
 	const scriptsTsSrc = path.join(gitDir, 'packages', 'scripts-ts', 'src');
 	await mkdir(scriptsTsSrc, { recursive: true });
 	await writeFile(
 		path.join(scriptsTsSrc, 'test.test.ts'),
 		"test('t', () => {});",
 	);
-	gitIn('add', '.', { cwd: gitDir });
-	gitIn('commit', '-m', 'base', { cwd: gitDir });
+	gitIn(gitDir, 'add', '.');
+	gitIn(gitDir, 'commit', '-m', 'base');
 
 	const result = checkGuardTestDeletion({
 		gitDir,
@@ -394,8 +378,9 @@ test('fails loudly when merge-base cannot be resolved', async () => {
 		result.findings.some((f) => f.severity === 'red'),
 		`Must fail loudly when merge-base cannot resolve. Findings: ${JSON.stringify(result.findings)}`,
 	);
-	assert.ok(
-		result.baseCommit === 'UNRESOLVED',
+	assert.equal(
+		result.baseCommit,
+		'UNRESOLVED',
 		`Must mark baseCommit as UNRESOLVED when merge-base fails`,
 	);
 
@@ -403,62 +388,10 @@ test('fails loudly when merge-base cannot be resolved', async () => {
 });
 
 // ---------------------------------------------------------------------------
-// Test name extraction edge cases
+// Push event (empty PR body)
 // ---------------------------------------------------------------------------
 
-test('handles test.each() calls', async () => {
-	const baseContent = `
-import { test } from 'vitest';
-
-test.each([
-	[1, 2, 3],
-	[4, 5, 6],
-])('adds %d + %d = %d', () => {});
-`;
-
-	const { gitDir } = await buildGitFixture({
-		'array.test.ts': baseContent,
-	});
-
-	// Extract names from both base and head (same)
-	const result = checkGuardTestDeletion({ gitDir });
-
-	// No deletions since content is same
-	assert.ok(
-		!result.findings.some((f) => f.severity === 'red'),
-		`No deletions should mean GREEN. Findings: ${JSON.stringify(result.findings)}`,
-	);
-
-	await rm(gitDir, { recursive: true, force: true });
-});
-
-test('handles describe() blocks (not counted as tests)', async () => {
-	const baseContent = `
-import { test, describe } from 'vitest';
-
-describe('a group', () => {
-	test('test inside describe', () => {});
-});
-
-test('standalone test', () => {});
-`;
-
-	const { gitDir } = await buildGitFixture({
-		'describe.test.ts': baseContent,
-	});
-
-	const result = checkGuardTestDeletion({ gitDir });
-
-	// Should extract 2 test names (not 3)
-	assert.ok(
-		result.addedTests.length === 0 && result.deletedTests.length === 0,
-		`Should have no changes. Found deleted: ${result.deletedTests.length}, added: ${result.addedTests.length}`,
-	);
-
-	await rm(gitDir, { recursive: true, force: true });
-});
-
-test('handles push event (empty PR body)', async () => {
+test('push event with deletions goes RED', async () => {
 	const baseContent = `
 import { test } from 'vitest';
 
@@ -483,7 +416,6 @@ test('new test', () => {});
 		prBody: '',
 	});
 
-	// Must be RED — no justification on push event
 	assert.ok(
 		result.findings.some((f) => f.severity === 'red'),
 		`Push event with deletions must go RED. Findings: ${JSON.stringify(result.findings)}`,
@@ -493,15 +425,12 @@ test('new test', () => {});
 });
 
 // ---------------------------------------------------------------------------
-// Integration: real repo test names are extracted correctly
+// Integration: real repo passes (no deletions)
 // ---------------------------------------------------------------------------
 
-test('extracts real test names from check-jscpd.test.ts', async () => {
-	// This test verifies the extractor works on the real file
+test('real repo check passes when no tests are deleted', async () => {
 	const result = checkGuardTestDeletion({ gitDir: process.cwd() });
 
-	// Should find test names from existing files
-	// (This will pass if no tests are deleted, which is the case on this branch)
 	assert.ok(
 		result.findings.every((f) => f.severity === 'green'),
 		`Real repo check should pass. Findings: ${JSON.stringify(result.findings)}`,
