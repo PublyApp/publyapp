@@ -57,7 +57,7 @@
 		"typescript/no-unnecessary-template-expression": "error",
 		"typescript/prefer-as-const": "error",
 		"typescript/prefer-enum-initializers": "error",
-		"unicorn/no-array-for-each": "off",
+		"unicorn/no-array-for-each": "error",
 		"unicorn/no-array-reduce": "error",
 		"unicorn/no-document-cookie": "error",
 		"unicorn/prefer-number-properties": "error",

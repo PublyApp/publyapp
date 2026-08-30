@@ -579,8 +579,12 @@ export const walk = (dir: string): WalkResult => {
 		const st = statSync(full);
 		if (st.isDirectory()) {
 			const sub = walk(full);
-			sub.files.forEach((f) => files.push(f));
-			sub.extensions.forEach((e) => extensions.add(e));
+			for (const f of sub.files) {
+				files.push(f);
+			}
+			for (const e of sub.extensions) {
+				extensions.add(e);
+			}
 		} else {
 			const ext = path.extname(entry).toLowerCase();
 			if (ext.length > 0) {
