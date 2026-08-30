@@ -20,6 +20,14 @@ public static class LoggerConfigExtensions {
 			BuildLoggerConfiguration(loggerConfig, hostEnvironment);
 		});
 
+		// #1708: drain the Serilog async queue on host shutdown. AddSerilog
+		// alone does not register a Log.CloseAndFlush hook, so LogEvents still
+		// queued at SIGTERM/StopAsync are dropped — the very events that
+		// explain why the process exited. Registered here (not inside the
+		// AddSerilog callback) so the type name + namespace are discoverable
+		// by the structural SerilogAsyncSinkDrain spec.
+		builder.Services.AddHostedService<SerilogFlushOnShutdown>();
+
 		return builder;
 	}
 
