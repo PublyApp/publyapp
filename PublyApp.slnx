@@ -1,13 +1,19 @@
 <Solution>
+  <!-- #1584: apps/apphost is deliberately NOT in this solution. The quality
+       gate (dotnet restore + build of PublyApp.slnx) must not inherit the
+       Aspire.Hosting.* package resolution on every PR that touches apps/** or
+       the slnx itself. The AppHost is compiled on demand by its own entry
+       points (dotnet run/build with the project path apps/apphost) and pinned
+       as a real gate by AppHostOrchestrationGuardSpec, which builds the
+       AppHost inside the API test suite (api-tests.yml): breaking apphost
+       still reddens CI there. Reintroducing the project here couples the
+       gate back to Aspire, the exact coupling #1584 removes. -->
   <Configurations>
     <Platform Name="Any CPU" />
     <Platform Name="x64" />
     <Platform Name="x86" />
   </Configurations>
   <Folder Name="/apps/" />
-  <Folder Name="/apps/apphost/">
-    <Project Path="apps/apphost/PublyApp.AppHost.csproj" />
-  </Folder>
   <Folder Name="/apps/api/">
     <Project Path="apps/api/PublyApp.Api.csproj" />
     <Project Path="apps/api/Tests/PublyApp.Api.Tests.csproj" />
