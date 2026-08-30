@@ -1968,7 +1968,7 @@ void test('#1844: a raw anchor cited inside a comment is not a violation', async
 void test('#1844: a single-star glob cited inside a comment is not a violation', async () => {
 	const root = await makeFixture({
 		'e2e/specs/route-comment.spec.ts': [
-			'// page.route(\"/api/users/*\") is a bad pattern',
+			'// page.route("/api/users/*") is a bad pattern',
 			'export const helper = true;',
 		].join('\n'),
 	});

@@ -360,6 +360,23 @@ jobs:
       - name: Verify no tracked file matches .gitignore (#1513)
         run: node packages/scripts-ts/src/check-no-ignored-tracked.ts
 
+  # #1969: a dedicated job for a jscpd reference raise. The main `quality` job
+  # runs the ratchet against the BASE reference (never the PR tree — #1890
+  # anchor). A PR that raises the reference is therefore necessarily RED on
+  # `quality` by design. This separate job makes the raise VISIBLE as its own
+  # decision and verifies it is accompanied by a docs/records/ file covering
+  # the metric. It is only a required check when jscpd-reference.json changed.
+  ratchet-raise:
+    needs: changes
+    if: needs.changes.outputs.relevant == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Verify jscpd reference raise is accompanied by a docs/records/ change (#1969)
+        run: just ci-jscpd-raise
+
   # Required status check: this is the one context that should be required
   # on the branch ruleset instead of relying on the trigger. It always
   # reports (if: always()), passes when upstream jobs succeeded or were
@@ -380,7 +397,7 @@ jobs:
     # required names either.
     name: ${{ (github.event_name == 'pull_request' || github.event_name == 'merge_group') && 'quality-gate' || 'quality-gate-push-check' }}
     if: always()
-    needs: [changes, quality, no-ignored-tracked]
+    needs: [changes, quality, ratchet-raise, no-ignored-tracked]
     runs-on: ubuntu-latest
     steps:
       # Reads the `needs` context directly (via toJSON) instead of a

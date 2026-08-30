@@ -816,6 +816,11 @@
 			"mirror": "just ci-jscpd",
 			"reason": "jscpd@4 production duplication ratchet: runs jscpd against production paths and verifies unique pair count and line count within the committed baseline. Identical to the CI step quality-gate.yml::quality::Verify production duplication has not increased (#1821)."
 		},
+		"quality-gate.yml::ratchet-raise::Verify jscpd reference raise is accompanied by a docs/records/ change (#1969)": {
+			"hash": "80970dc5",
+			"mirror": "just ci-jscpd-raise",
+			"reason": "#1969 dedicated job: verifies that a jscpd reference raise is provably accompanied by a docs/records/ file whose diff body contains the keyword 'jscpd'. The raise is a visible, reviewed decision rather than a red gate someone waves through. Mirrors `just ci-jscpd-raise`, which runs the same vitest suite and the guard script."
+		},
 		"quality-gate.yml::quality::Verify deploy env doc coverage (#1798)": {
 			"hash": "7e3a5bf766524b33",
 			"mirror": "just ci-deploy-env-docs",

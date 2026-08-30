@@ -342,10 +342,7 @@ ci-drift:
 
 # #1821: production duplication ratchet. Runs jscpd against production paths and
 # verifies the unique pair count and line count are within the committed baseline.
-# NOTE: the exclusion list is a SINGLE comma-separated --ignore value. jscpd's
-# CLI keeps only the LAST repeated --ignore flag, so repeated flags silently
-# drop every exclusion but the last (measured in #1821-r2: only
-# apps/front/scripts never bound until the comma-separated form).
+# -- jscpd --
 ci-jscpd:
   @echo "=== [gate] jscpd duplication ratchet ==="
   @echo "Running jscpd scan..."
@@ -353,6 +350,17 @@ ci-jscpd:
   @echo "Verifying baseline..."
   pnpm --filter scripts-ts exec vitest run src/check-jscpd.test.ts
   node ./packages/scripts-ts/src/check-jscpd.ts
+  pnpm --filter scripts-ts exec tsc -p tsconfig.jscpd.json
+
+# -- jscpd raise --
+# #1969: verifies that a jscpd reference raise is provably accompanied by
+# a docs/records/ change covering the metric. Runs after ci-jscpd; the main
+# ratchet stays honest (always measures against the base) and this job makes
+# the raise a visible, reviewed decision rather than a red gate someone waves through.
+ci-jscpd-raise:
+  @echo "=== [gate] jscpd reference raise guard (#1969) ==="
+  pnpm --filter scripts-ts exec vitest run src/check-jscpd-raise.test.ts
+  node ./packages/scripts-ts/src/check-jscpd-raise.ts
   pnpm --filter scripts-ts exec tsc -p tsconfig.jscpd.json
 
 # Bind every pinned action SHA to the version its "# vX.Y.Z" comment claims
