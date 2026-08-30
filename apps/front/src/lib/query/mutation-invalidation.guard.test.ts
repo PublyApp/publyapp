@@ -902,13 +902,52 @@ const staffUsersQueryOptions = buildStaffQueryOptions<
 	});
 });
 
+// ── #1691 : un type *QueryVariables importé (pas déclaré dans la source)
+// provoque un échec bruyant — jamais un `continue` silencieux ──
+//
+// - #1691 : quand le type `*QueryVariables` est importé (pas déclaré dans la
+//   source), le code faisait `continue` silencieusement. C'est un faux négatif
+//   — interdit par la doctrine du repo (échec bruyant). On throw maintenant.
+
+describe('imported *QueryVariables type throws loudly (#1691)', () => {
+	test('#1691 — an imported *QueryVariables type throws instead of silently skipping', () => {
+		// BEFORE the fix: the type-block regex failed to find the imported
+		// type declaration, and the code did `continue` silently — a false
+		// negative that let a module own a list query it never invalidates.
+		// AFTER the fix: the classifier throws loudly when the type is not
+		// declared in-source, forcing the author to reconcile.
+		const importedType = `
+import { ImportedQueryVariables } from './somewhere';
+
+const staffUsersQueryOptions = buildStaffQueryOptions<
+	ApiClient,
+	FindStaffUsersResponse,
+	ImportedQueryVariables
+>(
+	{
+		queryKeyFn: () => ['staff-users'],
+		fetcher: async () => ({}),
+	},
+	{ clientAccessor: getClientManager() },
+);
+`;
+		expect(() => countListQueryFactories(importedType)).toThrow(
+			/countListQueryFactories: type 'ImportedQueryVariables' is not declared in-source/,
+		);
+	});
+});
+
 /**
- * #1690 : le classificateur lit maintenant l'AST via le TypeScript
+ * #1690 / #1691 : le classificateur lit maintenant l'AST via le TypeScript
  * vendoré par ts-morph — plus de regex sur du texte brut.
  *
  * - #1690 (réglé) : un `>` dans un littéral de chaîne en position d'argument
  *   générique arrêtaient la regex non-greedy trop tôt → usine ignorée.
  *   L'AST n'a pas ce problème.
+ * - #1691 (réglé) : quand la définition du type `*QueryVariables` est
+ *   introuvable (ex. importée, pas dans la source), le code faisait `continue`
+ *   silencieusement. C'est un faux négatif silencieux — interdit par la
+ *   doctrine du repo (échec bruyant). On throw maintenant.
  */
 const countListQueryFactories = (source: string): number => {
 	if (!LIST_QUERY_FACTORY_RE.test(source)) {
