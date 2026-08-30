@@ -1048,14 +1048,16 @@ const resolveObjectLiteralMethod = (
 	if (!ts.isIdentifier(access.expression)) {
 		return undefined;
 	}
-	const propertyName =
-		ts.isPropertyAccessExpression(access) && ts.isIdentifier(access.name)
-			? access.name.text
-			: ts.isElementAccessExpression(access) &&
-				  (ts.isStringLiteral(access.argumentExpression) ||
-						ts.isNoSubstitutionTemplateLiteral(access.argumentExpression))
-				? access.argumentExpression.text
-				: undefined;
+	let propertyName: string | undefined;
+	if (ts.isPropertyAccessExpression(access) && ts.isIdentifier(access.name)) {
+		propertyName = access.name.text;
+	} else if (
+		ts.isElementAccessExpression(access) &&
+		(ts.isStringLiteral(access.argumentExpression) ||
+			ts.isNoSubstitutionTemplateLiteral(access.argumentExpression))
+	) {
+		propertyName = access.argumentExpression.text;
+	}
 	if (propertyName === undefined) {
 		return undefined;
 	}
