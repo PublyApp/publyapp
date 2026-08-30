@@ -46,15 +46,20 @@ const renderWithQueryClient = <TProps, TResult>(
 
 afterEach(async () => {
 	await activeQueryClient?.cancelQueries();
-	// Guard: verify all queries settled — the #1800 precondition is that
-	// a pending query in the cache causes an uncaught exception when the
-	// next test's render fires (race on stale fetchStatus).
-	await activeQueryClient
-		?.getQueryCache()
-		.getAll()
-		.forEach((query) => {
-			expect(query.state.fetchStatus).not.toBe('fetching');
-		});
+	const queries = activeQueryClient?.getQueryCache().getAll() ?? [];
+
+	// useQuery registers a query object in the cache even when disabled
+	// (enabled: false → state=pending, fetchStatus=idle). The hook always
+	// registers one, so a genuinely empty cache means the hook never ran.
+	// The count makes the guard explicit: it must examine at least one
+	// query. Without it, an empty cache would let the for...of loop pass
+	// vacuously — the assertion would never execute.
+	expect(queries.length).toBeGreaterThan(0);
+
+	for (const query of queries) {
+		expect(query.state.fetchStatus).not.toBe('fetching');
+	}
+
 	await cleanup();
 	activeQueryClient = undefined;
 });
