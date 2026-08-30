@@ -935,7 +935,7 @@ const staffUsersQueryOptions = buildStaffQueryOptions<
 });
 
 /**
- * #1690 / #1691 / #1925-r3 (point 1) : le classificateur lit maintenant l'AST
+ * #1690 / #1691 / #1925-r3 (point 1 & 2) : le classificateur lit maintenant l'AST
  * via le TypeScript vendoré par ts-morph — plus de regex sur du texte brut.
  *
  * - #1690 (réglé) : un `>` dans un littéral de chaîne en position d'argument
@@ -961,15 +961,44 @@ const staffUsersQueryOptions = buildStaffQueryOptions<
  * d'appel utilise `bsq<…>(…)`, qui ne correspond pas au motif de nom. On
  * construit une map des alias locaux → noms importés depuis les
  * ImportDeclaration pour résoudre le nom avant la correspondance.
+ *
+ * Échec bruyant sur source illisible (#1925-r3, point 2) : `ts.createSourceFile`
+ * ne lève pas sur une source invalide — il produit un arbre partiel et
+ * `countListQueryFactories` retourne 0 en silence. On lève maintenant avec
+ * le nom du fichier et les diagnostics de parse.
  */
-const countListQueryFactories = (source: string): number => {
+const countListQueryFactories = (
+	source: string,
+	fileName = '__guard_virtual__.ts',
+): number => {
 	const sf = ts.createSourceFile(
-		'__guard_virtual__.ts',
+		fileName,
 		source,
 		ts.ScriptTarget.Latest,
 		true,
 		ts.ScriptKind.TS,
 	);
+	// Loud failure on unparseable source (#1925-r3, point 2): a partial AST
+	// silently returns 0, which the detector reads as "nothing to report".
+	// ts-morph's SourceFile type omits parseDiagnostics, but its vendored
+	// compiler populates it (verified behaviour this guard relies on).
+	interface SourceFileWithDiagnostics extends ts.SourceFile {
+		parseDiagnostics: readonly ts.Diagnostic[];
+	}
+	const sfWithDiagnostics = sf as SourceFileWithDiagnostics;
+	const parseDiagnostics = sfWithDiagnostics.parseDiagnostics;
+	if (parseDiagnostics && parseDiagnostics.length > 0) {
+		const messages = parseDiagnostics
+			.map((d) =>
+				typeof d.messageText === 'string'
+					? d.messageText
+					: d.messageText.messageText,
+			)
+			.join('; ');
+		throw new Error(
+			`countListQueryFactories: source '${fileName}' failed to parse (${parseDiagnostics.length} diagnostic(s): ${messages}). The classifier cannot analyze a partial AST — fix the syntax error.`,
+		);
+	}
 	// Resolve aliased imports (#1925-r3, point 1): an import
 	// `import { buildStaffQueryOptions as bsq } from '...'` makes the call
 	// site use `bsq<…>(…)`, which the name regex below would not match.
@@ -1310,5 +1339,65 @@ const formatted = fmt(new Date());
 export type SomethingElse = { cursor?: string; size?: number; };
 `;
 		expect(countListQueryFactories(aliasedNonFactory)).toBe(0);
+	});
+});
+
+// ── #1925-r3, point 2 : unparseable source fails loudly (naming the file) ──
+//
+// `ts.createSourceFile` does NOT throw on invalid input — it produces a
+// partial AST and `countListQueryFactories` returns 0 silently. The detector
+// reads 0 as "nothing to report", which is a silent false-negative. The fix
+// checks `parseDiagnostics` and throws loudly, naming the file, so the
+// author knows exactly which module broke the classifier.
+
+describe('unparseable source fails loudly, naming the file (#1925-r3, point 2)', () => {
+	test('RED — OLD behaviour: invalid source returns 0 silently (no parse, no throw)', () => {
+		// The OLD classifier (before parseDiagnostics check) returned 0 on
+		// invalid source — a silent false-negative. We demonstrate this by
+		// calling with the default fileName and expecting a throw NOW (the
+		// new behaviour). The defect it proves: the OLD code would have
+		// returned 0 here.
+		const invalidSource = 'const x = `unterminated template;';
+		let threw = false;
+		try {
+			countListQueryFactories(invalidSource);
+		} catch {
+			threw = true;
+		}
+		expect(
+			threw,
+			'The classifier MUST throw on unparseable source. A silent return of 0 would let a broken module pass the detector.',
+		).toBe(true);
+	});
+
+	test('the thrown error names the virtual file and the diagnostic', () => {
+		const invalidSource = 'const x = `unterminated template;';
+		expect(() =>
+			countListQueryFactories(invalidSource, 'broken-module.ts'),
+		).toThrow(
+			/countListQueryFactories: source 'broken-module\.ts' failed to parse/,
+		);
+	});
+
+	test('INVARIANT PIN — valid source does NOT throw', () => {
+		const validSource = `
+export type SomeQueryVariables = {
+	cursor?: string;
+	size?: number;
+};
+
+const someQueryOptions = buildStaffQueryOptions<
+	ApiClient,
+	FindSomeResponse,
+	SomeQueryVariables
+>(
+	{
+		queryKeyFn: () => ['some'],
+		fetcher: async () => ({}),
+	},
+	{ clientAccessor: getClientManager() },
+);
+`;
+		expect(() => countListQueryFactories(validSource)).not.toThrow();
 	});
 });
