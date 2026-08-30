@@ -46,6 +46,15 @@ const renderWithQueryClient = <TProps, TResult>(
 
 afterEach(async () => {
 	await activeQueryClient?.cancelQueries();
+	// Guard: verify all queries settled — the #1800 precondition is that
+	// a pending query in the cache causes an uncaught exception when the
+	// next test's render fires (race on stale fetchStatus).
+	await activeQueryClient
+		?.getQueryCache()
+		.getAll()
+		.forEach((query) => {
+			expect(query.state.fetchStatus).not.toBe('fetching');
+		});
 	await cleanup();
 	activeQueryClient = undefined;
 });
