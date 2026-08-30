@@ -35,8 +35,16 @@ const translations = {
 	'common:no-value': '—',
 } as const satisfies Record<string, string>;
 
-const t = (key: string): string =>
-	key in translations ? translations[key as keyof typeof translations] : key;
+// Track calls so mutations that hardcode a string (bypassing t()) are caught.
+const tCalls: string[] = [];
+const t = (key: string): string => {
+	tCalls.push(key);
+	if (key in translations) {
+		return translations[key as keyof typeof translations];
+	}
+
+	return key;
+};
 
 const buildRow = (
 	overrides: Partial<StaffDeadLetterRow> = {},
@@ -71,6 +79,7 @@ const renderCell = (row: StaffDeadLetterRow) => {
 
 afterEach(() => {
 	cleanup();
+	tCalls.length = 0;
 });
 
 describe('dead-letter last_error column on the row (brief #1720)', () => {
@@ -95,6 +104,7 @@ describe('dead-letter last_error column on the row (brief #1720)', () => {
 	});
 
 	test('a row without a cause shows the designated marker, distinct from an empty cause', () => {
+		tCalls.length = 0;
 		renderCell(buildRow({ lastError: null }));
 
 		const cell = screen.getByTestId('cell-last-error-dl-1');
@@ -102,23 +112,29 @@ describe('dead-letter last_error column on the row (brief #1720)', () => {
 		expect(cell.textContent).toBe('No cause recorded');
 		// It must NOT render as the dash (no-value) used for genuinely-empty fields.
 		expect(cell.textContent).not.toBe('—');
+		// t() must have been called with the key, not bypassed by a hardcoded literal
+		expect(tCalls).toContain('common:no-cause');
 	});
 
 	test('ronde 2: an empty-string cause shows the marker, not a blank cell', () => {
 		// RED before fix: the old `??` form let '' through, rendering a blank cell.
+		tCalls.length = 0;
 		renderCell(buildRow({ lastError: '' }));
 
 		const cell = screen.getByTestId('cell-last-error-dl-1');
 		expect(cell.textContent).toBe('No cause recorded');
 		expect(cell.textContent).not.toBe('');
+		expect(tCalls).toContain('common:no-cause');
 	});
 
 	test('ronde 2: a whitespace-only cause shows the marker, not a blank cell', () => {
 		// RED before fix: the old `??` form let '   ' through, rendering a blank cell.
+		tCalls.length = 0;
 		renderCell(buildRow({ lastError: '   ' }));
 
 		const cell = screen.getByTestId('cell-last-error-dl-1');
 		expect(cell.textContent).toBe('No cause recorded');
+		expect(tCalls).toContain('common:no-cause');
 	});
 
 	test('ronde 2: the title attribute is absent when the cause is absent', () => {
@@ -145,5 +161,41 @@ describe('dead-letter last_error column on the row (brief #1720)', () => {
 			'requeued_at',
 			'actions',
 		]);
+	});
+
+	test('Brief #1880: the no-cause marker is rendered via t("common:no-cause"), not a hardcoded literal', () => {
+		// Map 'common:no-cause' to a NON-English control value. If the source
+		// hardcodes the English 'No cause recorded' instead of calling t(), the
+		// rendered text will be English — the assertion against the French label
+		// fails, and the spy confirms t('common:no-cause') was actually called.
+		const CAUSE_MARKER_FR = 'Aucune cause enregistrée';
+		const t_fr = vi.fn((key: string): string => {
+			if (key === 'common:no-cause') {
+				return CAUSE_MARKER_FR;
+			}
+
+			return translations[key as keyof typeof translations] ?? key;
+		});
+
+		tCalls.length = 0;
+		const onInspect = vi.fn();
+		const onRequeue = vi.fn();
+		const columns = makeDeadLetterColumns(t_fr, 'en', onInspect, onRequeue);
+		const column = columns.find((c) => c.id === 'last_error');
+		expect(column).toBeDefined();
+		const ui = (
+			column!.cell as (ctx: {
+				row: { original: StaffDeadLetterRow };
+			}) => ReactElement
+		)({ row: { original: buildRow({ lastError: null }) } });
+		render(ui);
+
+		// The marker must be the French control value, NOT the English literal
+		const cell = screen.getByTestId('cell-last-error-dl-1');
+		expect(cell.textContent).toBe(CAUSE_MARKER_FR);
+		// The English literal must NOT appear (that would mean hardcoding)
+		expect(cell.textContent).not.toBe('No cause recorded');
+		// The spy confirms t('common:no-cause') was actually called by the source
+		expect(t_fr).toHaveBeenCalledWith('common:no-cause');
 	});
 });

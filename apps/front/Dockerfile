@@ -56,6 +56,16 @@ RUN node apps/front/scripts/guards/assert-pinned.mts
 RUN pnpm --filter @org/shared-ts run postinstall
 RUN pnpm --filter front build
 # `deploy` is the pnpm workspace deploy subcommand, not a package script.
+#
+# The root `prepare` script (packages/scripts-ts/src/install-git-hooks.ts,
+# issue #1852) wires git hooks for developer checkouts and fails LOUD when it
+# cannot — the exact behaviour the repo wants for humans. Containers are the
+# opposite: no .git, and packages/scripts-ts is not part of front's pruned
+# tree (turbo prune front copies only front's dependency closure), so prepare
+# must never run inside this image. pnpm deploy runs the root lifecycle, so
+# strip `scripts.prepare` from the pruned root manifest first — the deploy
+# design documented in docs/records/2026-07-29-spec-deployment-guide.md.
+RUN node -e "const fs=require('fs'),m=JSON.parse(fs.readFileSync('package.json','utf8'));delete m.scripts.prepare;fs.writeFileSync('package.json',JSON.stringify(m))"
 RUN pnpm --filter=front deploy --legacy --prod /workspace/deploy
 
 FROM node:24-alpine@sha256:156b55f92e98ccd5ef49578a8cea0df4679826564bad1c9d4ef04462b9f0ded6 AS runtime
