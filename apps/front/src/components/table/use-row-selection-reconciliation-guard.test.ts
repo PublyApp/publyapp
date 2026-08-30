@@ -99,98 +99,208 @@ const SELECTION_SITE_RE =
 //       canonical type.
 
 /**
- * AST-based detector (#1943 follow-up).
+ * AST-based detector (#1943 follow-up, round 2 hardening).
  *
- * This replaced a regex that required the type parameter to be exactly the
- * canonical name (no `| undefined` / `| null` suffix, no
- * indexed type alias). The AST detector inspects the useState call's type
- * argument structurally, so it catches:
+ * HOW IT ACTUALLY WORKS (this comment is the contract — see the verdict-r1
+ * finding "compares NAMES, not symbols"):
  *
- *   - `useState<RowSelectionMap>({})` — direct TypeReference.
- *   - `useState<RowSelectionMap | undefined>({})` — union with the canonical
- *     type on one side.
- *   - `useState<Record<string, boolean> | null>({})` — same shape, with a
- *     `null` suffix.
- *   - `useState<{ [id: string]: boolean }>({})` — the indexed-type literal
- *     twin.
+ * The detector is SYNTACTIC and file-local. It does NOT run the TypeScript
+ * type checker, so it cannot follow a type across modules. What it resolves
+ * within the ONE source file it scans:
  *
- * Both the direct useState and the wrapped `useState<...>(select(arg))` form
- * go through this detector.
+ *   - the canonical name itself: any `useState<RowSelectionMap>`-style
+ *     TypeReference is caught, whether or not the file imports the type;
+ *   - in-file IMPORT aliases: `import type { RowSelectionMap as RM }` binds
+ *     the LOCAL name `RM` to the canonical type, so `useState<RM>` is
+ *     caught. A different type re-exported under the canonical name from
+ *     some exotic module would fool the detector — it has no type
+ *     information — but the canonical import spells RowSelectionMap;
+ *   - in-file TYPE aliases: `type SM = Record<string, boolean>` (or
+ *     `type SM = RowSelectionMap | undefined`, chained aliases included)
+ *     is resolved recursively, so `useState<SM>` is caught;
+ *   - the Record shape: `Record<string, boolean>`, and the round-2
+ *     variants `Record<string, boolean | undefined>` (the raw map's value
+ *     type under noUncheckedIndexedAccess) and `Record<string, true>`
+ *     (the set-twin). The value slot is boolean-ish when it is ONLY
+ *     `boolean` keyword, `true`/`false` literal keywords, `undefined`,
+ *     `null`, or a union made exclusively of those — `Record<string,
+ *     string | boolean>` is NOT the selection-map shape and stays clean;
+ *   - the indexed literal `{ [id: string]: boolean }`.
+ *
+ * Everything else is not a shadow selection state. In particular a shadow
+ * type that is neither spelled RowSelectionMap in this file nor reachable
+ * through an in-file alias is OUTSIDE the detector's surface — that is the
+ * price of staying a fast, dependency-free structural check instead of
+ * shelling out to a full TypeScript program.
  */
-const isCanonicalRowSelectionMapRef = (n: ts.Node): boolean => {
-	if (ts.isTypeReferenceNode(n) && ts.isIdentifier(n.typeName)) {
-		return n.typeName.text === 'RowSelectionMap';
-	}
-	return false;
+type ReconCtx = {
+	/** Local type names bound, in this file, to the canonical RowSelectionMap. */
+	canonicalNames: Set<string>;
+	/** Local type alias name -> its RHS type node. */
+	typeAliases: Map<string, ts.TypeNode>;
+	/** Resolved shape verdict per alias name ('shadow' | 'other'). */
+	aliasVerdict: Map<string, 'shadow' | 'other'>;
+	/** Aliases currently being resolved (cycle guard). */
+	resolving: Set<string>;
 };
 
-const isCanonicalRecordStringBooleanRef = (n: ts.Node): boolean => {
+/** True when the value slot of a Record/indexed-map is boolean-ish only. */
+const isBooleanishType = (n: ts.Node): boolean => {
+	// `true` / `false` in type position are LiteralTypeNode wrappers around
+	// the keyword token — unwrap before inspecting the kind.
+	if (ts.isLiteralTypeNode(n)) {
+		return (
+			n.literal.kind === ts.SyntaxKind.TrueKeyword ||
+			n.literal.kind === ts.SyntaxKind.FalseKeyword
+		);
+	}
 	if (
-		ts.isTypeReferenceNode(n) &&
-		ts.isIdentifier(n.typeName) &&
-		n.typeName.text === 'Record' &&
-		n.typeArguments &&
-		n.typeArguments.length === 2
+		n.kind === ts.SyntaxKind.BooleanKeyword ||
+		n.kind === ts.SyntaxKind.UndefinedKeyword ||
+		n.kind === ts.SyntaxKind.NullKeyword
 	) {
-		const key = n.typeArguments[0];
-		const val = n.typeArguments[1];
-		if (key && val) {
-			// `string` / `boolean` are KeywordTypeNodes (SyntaxKind.StringKeyword /
-			// BooleanKeyword) in this TypeScript version, not TypeReferenceNodes —
-			// check by the keyword kind rather than the type shape.
-			const keyOk = key.kind === ts.SyntaxKind.StringKeyword;
-			const valOk = val.kind === ts.SyntaxKind.BooleanKeyword;
-			return keyOk && valOk;
-		}
+		return true;
+	}
+	if (ts.isUnionTypeNode(n)) {
+		return n.types.every((part) => isBooleanishType(part));
 	}
 	return false;
 };
 
-const isIndexedStringBooleanType = (n: ts.Node): boolean => {
+const isRecordStringBooleanishRef = (n: ts.Node): boolean => {
+	if (!ts.isTypeReferenceNode(n) || !ts.isIdentifier(n.typeName)) {
+		return false;
+	}
+	if (
+		n.typeName.text !== 'Record' ||
+		!n.typeArguments ||
+		n.typeArguments.length !== 2
+	) {
+		return false;
+	}
+	const key = n.typeArguments[0];
+	const val = n.typeArguments[1];
+	if (!key || !val) {
+		return false;
+	}
+	// `string` / `boolean` are KeywordTypeNodes (StringKeyword / BooleanKeyword)
+	// in this TypeScript version, not TypeReferenceNodes — check by kind.
+	return key.kind === ts.SyntaxKind.StringKeyword && isBooleanishType(val);
+};
+
+const isIndexedStringBooleanishType = (n: ts.Node): boolean => {
 	// `{ [id: string]: boolean }` — TypeLiteralNode with a single
 	// IndexSignatureDeclaration whose key type is `string` and value type is
-	// `boolean`. Any other signature (a regular property, a different value
+	// boolean-ish. Any other signature (a regular property, a different value
 	// type) is not a forbidden shadow state.
-	if (ts.isTypeLiteralNode(n) && n.members.length === 1) {
-		const m = n.members[0];
-		if (m && ts.isIndexSignatureDeclaration(m)) {
-			const keyType = m.parameters[0]?.type;
-			const valType = m.type;
-			if (!keyType || !valType) {
-				return false;
-			}
-			// `string` / `boolean` are KeywordTypeNodes here, not TypeReferenceNodes.
-			const keyOk = keyType.kind === ts.SyntaxKind.StringKeyword;
-			const valOk = valType.kind === ts.SyntaxKind.BooleanKeyword;
-			return keyOk && valOk;
-		}
+	if (!ts.isTypeLiteralNode(n) || n.members.length !== 1) {
+		return false;
 	}
-	return false;
+	const m = n.members[0];
+	if (!m || !ts.isIndexSignatureDeclaration(m)) {
+		return false;
+	}
+	const keyType = m.parameters[0]?.type;
+	const valType = m.type;
+	if (!keyType || !valType) {
+		return false;
+	}
+	return (
+		keyType.kind === ts.SyntaxKind.StringKeyword && isBooleanishType(valType)
+	);
 };
 
-const typeArgIsShadowSelectionState = (n: ts.Node): boolean => {
-	if (isCanonicalRowSelectionMapRef(n)) {
-		return true;
-	}
-	if (isCanonicalRecordStringBooleanRef(n)) {
-		return true;
-	}
-	if (isIndexedStringBooleanType(n)) {
-		return true;
-	}
-	// Union types: scan every branch. `RowSelectionMap | undefined`,
-	// `Record<string, boolean> | null`, etc. — the canonical shape sits on
-	// one side of a `|`, the optionality modifier on the other. A file
-	// that imports RowSelectionMap and writes it as the union is still
-	// hand-rolling shadow state.
-	if (ts.isUnionTypeNode(n)) {
-		for (const part of n.types) {
-			if (typeArgIsShadowSelectionState(part)) {
+/** Resolves a type node to a verdict: is it the shadow selection state? */
+const typeNodeIsShadowSelectionState = (n: ts.Node, cx: ReconCtx): boolean => {
+	// `RowSelectionMap` / `NS.RowSelectionMap` — the canonical name.
+	if (ts.isTypeReferenceNode(n)) {
+		if (ts.isIdentifier(n.typeName)) {
+			const name = n.typeName.text;
+			if (name === 'RowSelectionMap') {
+				return true;
+			}
+			// Local type alias: resolve recursively.
+			if (cx.typeAliases.has(name)) {
+				if (cx.aliasVerdict.has(name)) {
+					return cx.aliasVerdict.get(name) === 'shadow';
+				}
+				if (cx.resolving.has(name)) {
+					// Cyclic alias (`type A = B; type B = A`) — not a shadow.
+					return false;
+				}
+				cx.resolving.add(name);
+				const rhs = cx.typeAliases.get(name)!;
+				const verdict = typeNodeIsShadowSelectionState(rhs, cx)
+					? 'shadow'
+					: 'other';
+				cx.resolving.delete(name);
+				cx.aliasVerdict.set(name, verdict);
+				return verdict === 'shadow';
+			}
+			// In-file import binding: `import { RowSelectionMap as RM }`.
+			if (cx.canonicalNames.has(name)) {
+				return true;
+			}
+		} else if (ts.isQualifiedName(n.typeName)) {
+			if (n.typeName.right.text === 'RowSelectionMap') {
 				return true;
 			}
 		}
 	}
+	if (isRecordStringBooleanishRef(n) || isIndexedStringBooleanishType(n)) {
+		return true;
+	}
+	// Union types: a canonical shape on one side is a shadow state even when
+	// the other side is an optionality modifier (`RowSelectionMap | undefined`,
+	// `Record<string, boolean> | null`).
+	if (ts.isUnionTypeNode(n)) {
+		for (const part of n.types) {
+			if (typeNodeIsShadowSelectionState(part, cx)) {
+				return true;
+			}
+		}
+	}
+	if (ts.isParenthesizedTypeNode(n)) {
+		return typeNodeIsShadowSelectionState(n.type, cx);
+	}
 	return false;
+};
+
+/**
+ * Collects the in-file type bindings the syntactic resolver can follow:
+ * named imports that spell `RowSelectionMap` and local `type` aliases.
+ * Both the alias's RHS is resolved lazily (see the cycle guard above).
+ */
+const collectReconBindings = (sourceFile: ts.SourceFile): ReconCtx => {
+	const cx: ReconCtx = {
+		canonicalNames: new Set<string>(),
+		typeAliases: new Map<string, ts.TypeNode>(),
+		aliasVerdict: new Map<string, 'shadow' | 'other'>(),
+		resolving: new Set<string>(),
+	};
+	const visit = (node: ts.Node): void => {
+		if (ts.isImportDeclaration(node)) {
+			const clause = node.importClause;
+			const named = clause?.namedBindings;
+			if (named && ts.isNamedImports(named)) {
+				for (const element of named.elements) {
+					// The exported name is the canonical one: either
+					// `import { RowSelectionMap }` or
+					// `import { RowSelectionMap as RM }`.
+					const exported = element.propertyName ?? element.name;
+					if (exported.text === 'RowSelectionMap') {
+						cx.canonicalNames.add(element.name.text);
+					}
+				}
+			}
+		}
+		if (ts.isTypeAliasDeclaration(node)) {
+			cx.typeAliases.set(node.name.text, node.type);
+		}
+		node.forEachChild(visit);
+	};
+	visit(sourceFile);
+	return cx;
 };
 
 const findShadowUseStateCalls = (
@@ -204,6 +314,7 @@ const findShadowUseStateCalls = (
 		true,
 		ts.ScriptKind.TS,
 	);
+	const cx = collectReconBindings(sourceFile);
 	const offenders: string[] = [];
 	const visit = (node: ts.Node): void => {
 		if (ts.isCallExpression(node)) {
@@ -212,7 +323,7 @@ const findShadowUseStateCalls = (
 				const targs = node.typeArguments;
 				if (targs && targs.length > 0) {
 					const t = targs[0];
-					if (t && typeArgIsShadowSelectionState(t)) {
+					if (t && typeNodeIsShadowSelectionState(t, cx)) {
 						const { line } = sourceFile.getLineAndCharacterOfPosition(
 							node.getStart(sourceFile),
 						);
@@ -332,8 +443,8 @@ export const MyWidget = () => {
 		// --- #1943 follow-up: three shapes the regex misses ---
 		// The regex required the type parameter to be exactly the canonical
 		// name (no `| undefined` / `| null` suffix, no indexed type alias).
-		// The AST detector below accepts these because it inspects the
-		// type argument's symbol rather than its textual form.
+		// The AST detector below accepts these by SHAPE (keyword kinds, type
+		// literal members), not by exact name text.
 		const unionUndefined = `
 import { useState } from 'react';
 import { useRowSelection } from '~/components/table/use-row-selection';
@@ -375,6 +486,88 @@ export const C = () => {
 			findViolationsAgainstSource(indexedMap).length,
 			'#1943 follow-up: useState<{ [id: string]: boolean }> must be caught',
 		).toBeGreaterThan(0);
+
+		// --- round 2 / verdict-r1: the detector resolved NAMES, not symbols ---
+		// The four forms below stayed green. They are caught by resolving the
+		// in-file bindings (import rename, local type alias) and the Record
+		// value-shape variants (union-undefined, literal-true). This is still
+		// a syntactic, file-local resolution — a shadow type spelled under a
+		// different name that neither imports nor aliases RowSelectionMap in
+		// this file remains outside the surface (see the comment on the
+		// detector itself).
+		const renamedImport = `
+import { useState } from 'react';
+import { useRowSelection } from '~/components/table/use-row-selection';
+import type { RowSelectionMap as RM } from '~/components/table/use-row-selection';
+export const D = () => {
+	const sel = useRowSelection([]);
+	const [s, setS] = useState<RM>({});
+	return null;
+};
+`;
+		expect(
+			findViolationsAgainstSource(renamedImport).length,
+			'round 2: useState<RM> after `import { RowSelectionMap as RM }` must be caught',
+		).toBeGreaterThan(0);
+
+		const localTypeAlias = `
+import { useState } from 'react';
+import { useRowSelection } from '~/components/table/use-row-selection';
+type SM = Record<string, boolean>;
+export const E = () => {
+	const sel = useRowSelection([]);
+	const [s, setS] = useState<SM>({});
+	return null;
+};
+`;
+		expect(
+			findViolationsAgainstSource(localTypeAlias).length,
+			'round 2: useState<SM> after `type SM = Record<string, boolean>` must be caught',
+		).toBeGreaterThan(0);
+
+		const recordUnionUndefined = `
+import { useState } from 'react';
+import { useRowSelection } from '~/components/table/use-row-selection';
+export const F = () => {
+	const sel = useRowSelection([]);
+	const [s, setS] = useState<Record<string, boolean | undefined>>({});
+	return null;
+};
+`;
+		expect(
+			findViolationsAgainstSource(recordUnionUndefined).length,
+			'round 2: useState<Record<string, boolean | undefined>> must be caught',
+		).toBeGreaterThan(0);
+
+		const recordLiteralTrue = `
+import { useState } from 'react';
+import { useRowSelection } from '~/components/table/use-row-selection';
+export const G = () => {
+	const sel = useRowSelection([]);
+	const [s, setS] = useState<Record<string, true>>({});
+	return null;
+};
+`;
+		expect(
+			findViolationsAgainstSource(recordLiteralTrue).length,
+			'round 2: useState<Record<string, true>> must be caught',
+		).toBeGreaterThan(0);
+
+		// And the widened detector must NOT paint the whole tree with a
+		// single brush: a shadow state that is a different shape stays clean.
+		const mixedValueRecord = `
+import { useState } from 'react';
+import { useRowSelection } from '~/components/table/use-row-selection';
+export const H = () => {
+	const sel = useRowSelection([]);
+	const [s, setS] = useState<Record<string, string | boolean>>({});
+	return null;
+};
+`;
+		expect(
+			findViolationsAgainstSource(mixedValueRecord).length,
+			'round 2: Record<string, string | boolean> is NOT the selection-map shape and must stay clean',
+		).toBe(0);
 	});
 });
 
