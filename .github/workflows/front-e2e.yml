@@ -250,10 +250,20 @@ jobs:
         env:
           E2E_IMAGE_NS: ${{ steps.image-ns.outputs.root }}
           E2E_IMAGE_TAG: ${{ steps.image-tag.outputs.tag }}
+        # Routed through run-guarded.mts (issue #1525, round 2): the same
+        # wrapper every front guard uses. A direct `node ...` call here had no
+        # bound at all — a hung docker run or probe loop would stall the build
+        # job with no upper limit and no named cause. The wrapper bounds it to
+        # GUARD_TIMEOUT_SECONDS (default 300s) with a message naming the guard
+        # and its duration, and SIGKILLs the whole process tree, matching the
+        # local `pnpm check:front-runtime-image` behavior. A step-level
+        # `timeout-minutes` was rejected: it kills with a bare timeout, names
+        # nothing, and is not part of the enforced wrapper rule.
         run: |
           set -euo pipefail
 
-          node apps/front/scripts/ci/check-front-runtime-image.mts \
+          node apps/front/scripts/run-guarded.mts \
+            apps/front/scripts/ci/check-front-runtime-image.mts \
             --image "${E2E_IMAGE_NS}-front:${E2E_IMAGE_TAG}"
 
       # #1021: shards run on separate runners, so the build job's local

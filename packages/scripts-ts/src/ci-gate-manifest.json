@@ -427,7 +427,7 @@
 			"reason": "GitHub-only, fork runs only (#1021): actions/upload-artifact moves the image tarballs from the build runner to the versioned artifact the shards download \u2014 the registry-free stand-in for the GHCR hop. Locally there is nothing to upload; the images are already where the stack starts."
 		},
 		"front-e2e.yml::build::Verify the built front image starts and serves HTTP": {
-			"hash": "f01891903203a11f",
+			"hash": "61014760a5e4a792",
 			"mirror": "pnpm --filter front check:front-runtime-image",
 			"reason": "#1628 round 10 build-artifact guard: starts the just-built front image as a container with the production env surface (NODE_ENV=production, PUBLIC_ORIGIN, SERVER_API_BASE_URL, TRUSTED_PROXY_CIDRS — the same validateRuntimeEnv() gate #1731 enforces) and waits for an actual HTTP response, not merely for 'the process is running'. A container that crashes at startup with ERR_MODULE_NOT_FOUND is the exact shape the front fell into when trust-proxy.mjs was added without a matching COPY in the Dockerfile — nine rounds of 'tests pass' missed it because every other e2e test only fails downstream with a generic 'element(s) not found'. The local mirror runs the same guard script against a freshly built image (default tag publyapp-front-runtime-guard:local), so it exercises the same COPY-surface property the CI step guards."
 		},
