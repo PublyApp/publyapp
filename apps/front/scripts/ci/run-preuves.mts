@@ -317,14 +317,22 @@ const declaredProofTests = (): string[] => {
 				);
 			}
 
-			// Three-dot diff (`git diff <mergeBase>...HEAD`) lists ONLY files
-			// that differ between the merge base and the PR's HEAD — changes
-			// the PR branch itself introduced. The two-dot form
-			// (`<baseRef>..HEAD`) would also include base-branch changes made
-			// since the fork, spuriously treating them as declared proofs
-			// when the PR branch is behind HEAD. Computing merge-base first
-			// (above) validates shared history; a diverged branch (no merge
-			// base) fails loud above, never silently here.
+			// The diff must be computed against the FORK POINT (the mergeBase
+			// commit SHA validated above), never against the moving base REF.
+			// `git diff <baseRef>..HEAD` is a TREE diff of the CURRENT base ref
+			// against HEAD, so a proof file merged to develop AFTER this branch
+			// forked shows up as a DELETED entry and gets declared as "this PR's
+			// proof" — replay then fails on ENOENT (measured in r4 validation: an
+			// advanced origin/develop mis-declared 4 foreign proof files and
+			// reddened the step; measured again on #1930 and #1873, which were red
+			// on a proof neither branch had ever touched).
+			//
+			// The three-dot form below (`<mergeBase>...HEAD`) lists ONLY what this
+			// branch introduced. With mergeBase on the left the two forms are
+			// equivalent — three-dot re-derives the same merge base — but the
+			// three-dot spelling states the intent, and it is the form the #1865
+			// test names and pins. A diverged branch (no merge base) fails loud
+			// above; it can never silently become "no proofs declared".
 			const diffOutput = execSync(
 				`git -C "${ROOT}" diff --name-only "${mergeBase}...HEAD"`,
 				{ encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] },
