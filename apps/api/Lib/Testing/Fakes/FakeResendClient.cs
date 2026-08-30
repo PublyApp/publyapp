@@ -101,7 +101,7 @@ public sealed class FakeResendClient : IResendEmailClient {
 	}
 
 	// Canonical JSON signature of the whole payload, so the fake distinguishes payloads
-	// the same way the provider does (the request body must be byte-identical).
+	// the same way the provider does (the request body must be semantically identical).
 	private static JsonNode PayloadSignature(EmailMessage email) {
 		var node = JsonSerializer.SerializeToNode(email);
 		if (node is null) {
