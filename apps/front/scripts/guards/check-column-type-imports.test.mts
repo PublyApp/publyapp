@@ -1006,16 +1006,18 @@ void test('R7 HOLE 3 RED: current SCANNED_EXTENSIONS matches the pinned baseline
 // fabricated sandbox files does not measure the production artefact.)
 // ---------------------------------------------------------------------------
 
-void test('R8: isExempt returns false for every .ts/.tsx in apps/front/src except the sanctioned passthrough', () => {
-	// Walk the real tree and collect every .ts/.tsx file's normalized path.
+void test('R8: isExempt returns false for every scanned-extension file in apps/front/src except the sanctioned passthrough', () => {
+	// Walk the real tree and collect every scanned-extension file's
+	// normalized path. #1851: the previous version only walked .ts/.tsx,
+	// so a hardcoded bypass on .mts/.cts/.ctsx/.mjs/.cjs went undetected.
 	const { files } = walk(frontSrc);
 	const codeFiles = files.filter((f) => {
 		const ext = path.extname(f).toLowerCase();
-		return ext === '.ts' || ext === '.tsx';
+		return ext.length === 0 || SCANNED_EXTENSIONS.has(ext);
 	});
-	// Every exempted .ts/.tsx file MUST be in EXEMPT_FILES. If isExempt
-	// returns true for any file not in EXEMPT_FILES, a hardcoded bypass
-	// is active — fail.
+	// Every exempted scanned-extension file MUST be in EXEMPT_FILES. If
+	// isExempt returns true for any file not in EXEMPT_FILES, a hardcoded
+	// bypass is active — fail.
 	for (const f of codeFiles) {
 		const normalized = path.relative(frontSrc, f).split(path.sep).join('/');
 		if (isExempt(normalized)) {
@@ -1084,11 +1086,13 @@ void test('R9 MUTATION: guard catches a hardcoded || bypass in isExempt on the r
 		e.split(path.sep).join('/'),
 	);
 	const illicitExemptions: string[] = [];
-	// Walk the real tree (as the R8 assertion does)
+	// Walk the real tree (as the R8 assertion does). #1851: iterate every
+	// scanned extension, not just .ts/.tsx, so a bypass on .mts/.cts is
+	// also caught.
 	const { files } = walk(frontSrc);
 	for (const file of files) {
 		const ext = path.extname(file).toLowerCase();
-		if (ext !== '.ts' && ext !== '.tsx') {
+		if (ext.length > 0 && !SCANNED_EXTENSIONS.has(ext)) {
 			continue;
 		}
 		const normalized = path.relative(frontSrc, file).split(path.sep).join('/');
@@ -1116,10 +1120,96 @@ void test('R9 MUTATION: guard catches a hardcoded || bypass in isExempt on the r
 	const illicitWithCorrect: string[] = [];
 	for (const file of files) {
 		const ext = path.extname(file).toLowerCase();
-		if (ext !== '.ts' && ext !== '.tsx') {
+		if (ext.length > 0 && !SCANNED_EXTENSIONS.has(ext)) {
 			continue;
 		}
 		const normalized = path.relative(frontSrc, file).split(path.sep).join('/');
+		if (isExempt(normalized)) {
+			const isPinned =
+				normalizedExemptions.includes(normalized) ||
+				normalizedExemptions.some((e) => normalized.endsWith('/' + e));
+			if (!isPinned) {
+				illicitWithCorrect.push(normalized);
+			}
+		}
+	}
+	assert.equal(
+		illicitWithCorrect.length,
+		0,
+		`isExempt must not exempt any file outside EXEMPT_FILES — ` +
+			`got illicit: ${JSON.stringify(illicitWithCorrect)}`,
+	);
+});
+
+void test('R9 #1851 MUTATION: a hardcoded || bypass on a .mts real file is caught', () => {
+	// #1851: the previous R8 assertion only walked .ts/.tsx. A bypass on a
+	// `.mts` file (still in SCANNED_EXTENSIONS) went undetected. With the
+	// fix, the assertion walks every scanned extension; this test plants a
+	// `.mts` file in a sandbox and a bypass scoped to `.mts`, and proves the
+	// fixed assertion catches it. The production tree has no `.mts` files
+	// today, so a sandbox is required to exercise this branch — but the
+	// assertion logic under test is the same one that runs in production
+	// (scoped through the `files` array it walks).
+	const root = makeSandbox({
+		'src/components/table/probe-bypass.mts':
+			`import type { ColumnDef } from '@tanstack/react-table';\n` +
+			`export const x = null as ColumnDef<never>;\n`,
+	});
+	const isExemptWithMtsBypass = (normalizedPath: string): boolean => {
+		for (const exempt of EXEMPT_FILES) {
+			const suffix = exempt.split(path.sep).join('/');
+			if (normalizedPath === suffix || normalizedPath.endsWith('/' + suffix)) {
+				return true;
+			}
+		}
+		// BYPASS SCOPED TO .mts: silently exempt any .mts file. The previous
+		// R8 assertion ignored .mts so the bypass flew under the radar.
+		if (normalizedPath.endsWith('.mts')) {
+			return true;
+		}
+		return false;
+	};
+
+	const normalizedExemptions = [...EXEMPT_FILES].map((e) =>
+		e.split(path.sep).join('/'),
+	);
+	const illicitExemptions: string[] = [];
+	const { files } = walk(root);
+	for (const file of files) {
+		const ext = path.extname(file).toLowerCase();
+		// Match the production guard's filter: scanned extensions only.
+		if (ext.length > 0 && !SCANNED_EXTENSIONS.has(ext)) {
+			continue;
+		}
+		const normalized = path.relative(root, file).split(path.sep).join('/');
+		if (isExemptWithMtsBypass(normalized)) {
+			const isPinned =
+				normalizedExemptions.includes(normalized) ||
+				normalizedExemptions.some((e) => normalized.endsWith('/' + e));
+			if (!isPinned) {
+				illicitExemptions.push(normalized);
+			}
+		}
+	}
+	// The bypass must catch the .mts probe file.
+	assert.ok(
+		illicitExemptions.length > 0,
+		`expected the .mts bypass to catch at least one illicit exemption, got none — ` +
+			`the mutation was not applied correctly`,
+	);
+	assert.ok(
+		illicitExemptions.some((f) => f.endsWith('probe-bypass.mts')),
+		`expected probe-bypass.mts to be caught as illicit — ` +
+			`got: ${JSON.stringify(illicitExemptions)}`,
+	);
+	// With the CORRECT isExempt (no bypass), illicitExemptions must be EMPTY.
+	const illicitWithCorrect: string[] = [];
+	for (const file of files) {
+		const ext = path.extname(file).toLowerCase();
+		if (ext.length > 0 && !SCANNED_EXTENSIONS.has(ext)) {
+			continue;
+		}
+		const normalized = path.relative(root, file).split(path.sep).join('/');
 		if (isExempt(normalized)) {
 			const isPinned =
 				normalizedExemptions.includes(normalized) ||
