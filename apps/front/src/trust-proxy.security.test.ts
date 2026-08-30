@@ -29,7 +29,7 @@ import { injectSeoMarkup } from './server';
 
 const { resolveTrustProxyFromEnv } = await import('../trust-proxy.mjs');
 
-const originalWarn = logger.warn;
+const originalWarn = logger.warn.bind(logger);
 
 beforeEach(() => {
 	vi.clearAllMocks();
