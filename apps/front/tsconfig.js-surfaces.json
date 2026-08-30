@@ -1,0 +1,36 @@
+{
+	"extends": "../../packages/_tsconfig/tsconfig.base.json",
+	"compilerOptions": {
+		"module": "ESNext",
+		"moduleResolution": "Bundler",
+		"allowJs": true,
+		"checkJs": true,
+		"noEmit": true,
+		"target": "ES2022",
+		"lib": ["DOM", "DOM.Iterable", "ES2022"],
+		"types": ["node"]
+	},
+	// Dedicated tsconfig for the remaining first-party JS surfaces that used to
+	// escape all type checking (#1760): the deployment-time request-counter
+	// scripts and the tooling .cjs. Measured before this PR: ZERO matches for
+	// any of these paths in `tsc --listFiles`.
+	//
+	// - deploy/request-counter/*.mjs — code that runs in the Compose/e2e
+	//   deployment, where a type error costs the most (a deploy script no
+	//   static check ever saw).
+	// - src/components/ui/drawer-guard-tmp-dir.cjs — CommonJS tooling outside
+	//   any tsconfig (the SIGTERM probe in its guard suite requires a real
+	//   `node -e` child that requires THIS module, so it stays CJS).
+	//
+	// Enabled via `allowJs`/`checkJs` with the same strictness as the .ts
+	// surfaces; each file is JSDoc-typed where checkJs needs it. The guard
+	// `scripts/guards/check-typecheck-coverage.mts` asserts all four files
+	// stay in this config's program.
+	"include": [
+		"deploy/request-counter/control-routes.mjs",
+		"deploy/request-counter/control-routes.test.mjs",
+		"deploy/request-counter/server.mjs",
+		"src/components/ui/drawer-guard-tmp-dir.cjs"
+	],
+	"exclude": ["node_modules", "dist", ".output"]
+}

@@ -316,6 +316,11 @@
 			"mirror": "just ci-install",
 			"reason": "ci-install runs the identical pnpm install --frozen-lockfile --ignore-scripts."
 		},
+		"front-ci.yml::supply-chain::Install Git hooks (mirrors prepare)": {
+			"hash": "69eb644fe122dee3",
+			"mirror": "just ci-front",
+			"reason": "#1852: the supply-chain job installs with --ignore-scripts, so the root prepare never ran and core.hooksPath is unwired in the checkout. This step runs `pnpm run prepare` — the exact command a developer's pnpm install runs — which points core.hooksPath at the versioned .husky dir via packages/scripts-ts/src/install-git-hooks.ts (shared config, so fresh worktrees inherit it). The local mirror is the same command: just test-preuves (part of just ci-front) starts with `pnpm run prepare` before replaying the paired red proofs, and the installer itself fails loud when hooks cannot be wired. Using `pnpm run prepare` keeps a single source: a commit that removes the prepare script from package.json fails the step instead of silently unpinning hooks."
+		},
 		"front-ci.yml::supply-chain::Install pnpm": {
 			"hash": "8985553731d304dc",
 			"mirror": null,

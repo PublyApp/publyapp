@@ -416,5 +416,86 @@ test.describe(
 				`baseline: the real guard must report the icon visible — ${guardVerdict.message ?? 'no reason reported'}`,
 			).toBe(true);
 		});
+
+		// #1899 — the third case, indeterminate, on the lane that can truly
+		// prove it. Measured in this engine (Chromium, this spec's own
+		// `getComputedStyle`, see the probe this test pins below): a DETACHED
+		// node yields the UNRESOLVED empty string for all three properties —
+		// the engine itself cannot see it. (jsdom 30 does NOT: it resolves a
+		// plausible visible default there, which is why the pre-#1899 body
+		// answered "visible" for exactly this input, and why the jsdom lane
+		// cannot prove this case on the default reader — see
+		// `data-table-icon-visibility-guard-indeterminable.test.ts` for that
+		// lane's measured boundary.) The real guard bundle must therefore
+		// fail LOUD on a detached node, naming the cause and the expected
+		// action — and the raw engine probe must agree the node is detached
+		// and unresolvable, so the test goes red if the engine ever starts
+		// resolving defaults there and this lane silently loses its subject.
+		test('indeterminate: a detached node fails loudly, naming the cause (real engine)', async ({
+			page,
+		}) => {
+			const guardScript = await getIconGuardBrowserScript();
+			// No CSS needed: the case under test is the engine's own
+			// inability to read a node that is not in the document.
+			await page.setContent(buildPage('', '', guardScript));
+			const result = await page.evaluate((probe) => {
+				const guard = window.__iconVisibilityGuard;
+				if (guard === undefined || guard.assertIconIsVisible === undefined) {
+					throw new Error(`${probe}: guard bundle not injected`);
+				}
+				const el = document.createElement('span');
+				el.setAttribute('data-icon', 'check');
+				// Deliberately NOT appended: this is the input the issue
+				// names — a node built in isolation (a partially rendered
+				// tree, a torn-down component, a poorly isolated test).
+				const cs = window.getComputedStyle(el);
+				try {
+					guard.assertIconIsVisible(el, 'e2e icon visibility guard');
+					return {
+						ok: true as const,
+						message: '',
+						connected: el.isConnected,
+						visibility: cs.visibility,
+						display: cs.display,
+						opacity: cs.opacity,
+					};
+				} catch (error) {
+					return {
+						ok: false as const,
+						message: error instanceof Error ? error.message : String(error),
+						connected: el.isConnected,
+						visibility: cs.visibility,
+						display: cs.display,
+						opacity: cs.opacity,
+					};
+				}
+			}, PROBE_ATTR);
+
+			// Raw engine probe: the node really is detached, and Chromium
+			// really cannot resolve its style (the unresolved marker). If
+			// either changes, the input this test guards is gone — fail.
+			expect(result.connected).toBe(false);
+			expect(result.visibility).toBe('');
+			expect(result.display).toBe('');
+			expect(result.opacity).toBe('');
+
+			// The REAL guard's own code must fail loudly on that input, and
+			// the failure must NAME the cause (node not connected) AND the
+			// expected action — the issue's acceptance criterion — in the
+			// guard's production `en` text (the page bundle carries the real
+			// `en/common.json` resource, initialized by the browser entry).
+			expect(
+				result.ok,
+				`detached node: the real guard must fail loudly — ${result.message || 'no reason reported'}`,
+			).toBe(false);
+			expect(
+				result.message,
+				'the failure must NAME the cause (node not connected)',
+			).toContain('not connected to the document');
+			expect(
+				result.message,
+				'the failure must NAME the expected action',
+			).toContain('Expected action: attach the element to the document');
+		});
 	},
 );

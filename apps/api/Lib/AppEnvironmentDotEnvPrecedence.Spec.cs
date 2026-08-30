@@ -83,7 +83,7 @@ namespace PublyApp.Api.Lib;
 ///   async-read/<c>WaitForExitAsync</c> race.
 /// - The synthetic <c>POSTGRES_CONNECTION_STRING</c> every case in this file shares
 ///   (<see cref="BaseRequiredValues"/>) pointed at port 5454 — this repository's actual shared
-///   local development PostgreSQL endpoint (<c>docker-compose.services.yml</c>). The real
+///   local development PostgreSQL endpoint (Aspire AppHost, port 5454). The real
 ///   document-generation case genuinely starts the hosted-service graph when no-clobber
 ///   regresses (see below), so a permanent regression test using that port could reach a real,
 ///   shared database the moment the production fix broke. Fixed by pointing it at a closed local
@@ -179,7 +179,7 @@ public sealed class AppEnvironmentDotEnvPrecedenceSpec : IDisposable {
 		["APP_NAME"] = "PublyApp",
 		["FRONT_URL"] = "http://localhost:5050",
 		// Round-3 review: this MUST NOT be port 5454 — this repository's actual shared local
-		// development PostgreSQL endpoint (docker-compose.services.yml). The probe-based cases
+		// development PostgreSQL endpoint (Aspire AppHost). The probe-based cases
 		// below never dial it (BeValidPostgresConnectionString only parses it), but the real
 		// document-generation case DOES start the hosted-service graph when no-clobber
 		// regresses, and a permanent regression test is explicitly designed to activate that
@@ -410,7 +410,7 @@ public sealed class AppEnvironmentDotEnvPrecedenceSpec : IDisposable {
 	//    exercising a REGRESSED NoClobber is that the file wins over EVERY process value, not
 	//    just APP_ROLE — and it was caught by direct reproduction: with AppEnvironment.cs
 	//    reverted to bare Env.Load(path), that version connected to and read migration state
-	//    from this machine's real docker-compose.services.yml Postgres at :5454 (a read-only
+	//    from this machine's real Aspire AppHost Postgres at :5454 (a read-only
 	//    query — WorkerMigrationStartupGate's IDatabaseMigrationReadiness check never writes —
 	//    but a real connection to the shared local development database from a permanent
 	//    regression test is exactly the defect Finding 3 already named once). The synthetic file

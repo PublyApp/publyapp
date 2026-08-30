@@ -16,15 +16,19 @@ PublyApp is a modern full-stack multi-tenant SaaS application built with .NET 10
 ### Starting Development Servers
 
 ```bash
-# Terminal 1 - Start API with hot reload
-just dev-api
-
-# Terminal 2 - Start the frontend (front, TanStack Start dev server)
-just dev-front
-
-# Start PostgreSQL in Docker
+# Preferred: the full local stack in one command — the Aspire AppHost runs a
+# persistent Postgres (host port 5454, named data volume), the API (5000), the
+# worker, and the front dev server.
 just dev-db
+
+# Alternative, without the AppHost (each in its own terminal):
+#   just db-migrate          # or: just dev-api-migrated (migrate + start API)
+#   just dev-api             # API with hot reload (5000)
+#   just dev-front           # frontend (TanStack Start dev server, 5050)
 ```
+
+Do NOT run `just dev-api` (or `just dev-api-migrated`) alongside `just dev-db`: the
+AppHost already runs the API on port 5000, and a second API would fail to bind it.
 
 Drive `apps/front` — the app that actually ships — with `just dev-front`, `just review-front <pr-or-issue-number>`, `pnpm --filter front <script>` or the `just ci-front` gate. See also the retired-app note below.
 
@@ -68,6 +72,21 @@ just knip                              # Check for unused dependencies
 ```
 
 Dependency health (Dependabot + `pnpm audit`): [`docs/guides/dependency-health.md`](docs/guides/dependency-health.md).
+
+### Git hooks — active in every worktree, no manual step (issue #1852)
+
+The hooks are **versioned** in `.husky/`: `pre-commit` runs lint-staged
+(auto-formats staged files), `pre-push` blocks direct pushes to protected
+branches. They are wired automatically — the root `prepare` script runs
+`packages/scripts-ts/src/install-git-hooks.ts`, which points `core.hooksPath`
+at the versioned `.husky` dir in the clone's **shared** git config. Every
+existing and newly created worktree of the clone inherits that setting
+immediately, so commits are formatted in every worktree with zero per-worktree
+setup. The previous husky-generated `.husky/_` scheme silently left fresh
+worktrees with no hooks at all (three PRs went red on it); do not reintroduce a
+generated hooks directory. The installer fails loudly when it cannot wire the
+hooks. CI wires hooks explicitly via the front-ci.yml `supply-chain` job step
+"Install Git hooks (mirrors prepare)" (`pnpm run prepare`).
 
 ### Database Operations
 
