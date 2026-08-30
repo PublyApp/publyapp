@@ -594,7 +594,7 @@ describe('dead-letter drawer: cause display parity with column (brief #1720 rond
 		// Override the label map: common:no-cause maps to a NON-English
 		// control value so a hardcoded English literal is detectable.
 		const CAUSE_MARKER_FR = 'Aucune cause enregistrée';
-		const labels: Record<string, string> = {
+		const labels = {
 			'dl-page-title': 'Dead-letter jobs',
 			'dl-page-description': 'Failed jobs',
 			'detail-last-error': 'Last error',
@@ -616,10 +616,10 @@ describe('dead-letter drawer: cause display parity with column (brief #1720 rond
 			'action-permission-denied': "You don't have permission for this action.",
 			'common:no-audit-logs-yet': 'No audit logs yet',
 			'common:no-audit-logs-description': 'There are no audit logs to show.',
-		};
+		} satisfies Record<string, string>;
 		mocks.t.mockImplementation(
 			(key: string, options?: Record<string, unknown>) => {
-				let text = labels[key] ?? key;
+				let text = labels[key as keyof typeof labels] ?? key;
 				if (options) {
 					for (const [optionKey, value] of Object.entries(options)) {
 						text = text.replaceAll(`{{${optionKey}}}`, String(value));
@@ -646,5 +646,37 @@ describe('dead-letter drawer: cause display parity with column (brief #1720 rond
 		expect(marker).toBeTruthy();
 		// The English literal must NOT appear (that would mean hardcoding)
 		expect(within(drawer).queryByText('No cause recorded')).toBeNull();
+	});
+
+	// Brief #1877: the suite injects detail data directly into the useQuery mock
+	// but never asserts on the actual useQuery arguments — queryKey and enabled.
+	// A mutation setting `enabled: false` leaves all 8 tests green (the detail
+	// is never fetched; the drawer always falls back to the row cause). This
+	// test asserts useQuery is called with the inspected row's ID in the
+	// queryKey and enabled: true, so disabling the fetch turns this red.
+	test('the detail query is enabled and keyed to the inspected dead-letter row', async () => {
+		renderPage();
+
+		// Clear useQuery mock after initial render (column query only)
+		mocks.useQuery.mockClear();
+
+		const drawer = await openDrawer();
+		expect(drawer.getAttribute('role')).toBe('dialog');
+
+		// useQuery was called for the detail fetch with enabled: true
+		// and the queryKey containing the inspected row's ID ('dl-1')
+		expect(mocks.useQuery).toHaveBeenCalledTimes(1);
+		const useQueryArgs = mocks.useQuery.mock.calls[0][0] as {
+			queryKey: unknown[];
+			enabled: boolean;
+		};
+		expect(useQueryArgs.enabled).toBe(true);
+		expect(useQueryArgs.queryKey).toEqual([
+			'staff',
+			'staff-jobs',
+			'dead-letter',
+			'detail',
+			'dl-1',
+		]);
 	});
 });
