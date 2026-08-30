@@ -38,9 +38,11 @@
  *
  * THE ACCOMPANIMENT RECORD
  * ------------------------
- * Must be a file matching `docs/records/YYYY-MM-DD-*.md` whose diff body
- * contains the string `jscpd` (case-insensitive) — proving it covers this
- * metric. A record that does not match this shape does not satisfy the guard.
+ * Must be a file matching `docs/records/YYYY-MM-DD-*.md` whose added diff lines
+ * contain the RAISED KEY NAMES (e.g. `productionPairs.count`) — proving the
+ * author identified which metric moved. A record that does not name the raised
+ * keys does not satisfy the guard. The check is key-NAME presence only: it does
+ * not parse or compare the before/after numbers (a reviewer catches false numbers).
  *
  * MUTATIONS THAT STAY RED
  * ------------------------
@@ -168,102 +170,134 @@ const readBaseReference = (
 };
 
 /**
+ * Result of checking for a docs/records/ accompaniment.
+ * - hasRecord=true: a qualifying record was found.
+ * - error: the check could not run (distinct from "no record found").
+ * - skippedFiles: docs/records/ files that were rejected and why.
+ */
+interface JscpdRecordResult {
+	hasRecord: boolean;
+	recordFiles: string[];
+	error?: string;
+	skippedFiles: { file: string; reason: string }[];
+}
+
+/**
  * Check whether the diff contains a docs/records/ file whose content names the
  * specific metric keys that raised, proving the author looked at the actual numbers.
  *
- * The three-dot form (`base...HEAD`) excludes any changes that exist on `base`
+ * The three-dot form (`mergeBase...HEAD`) excludes any changes that exist on `base`
  * alone — a docs/records/ change made by develop after the fork point would not
  * appear in this diff and would not be credited to this PR.
  *
- * Falls back to two-dot diff if there is no merge base (e.g. shallow test fixture
- * where the PR repo was created independently of the base). In that case, uses
- * `base..HEAD` — a conservative fallback that may credit a base-side change,
- * but only in the test fixture, never in real CI.
+ * The merge base MUST exist. If `git merge-base` fails, the guard cannot determine
+ * its own scope and fails loud rather than substituting a vulnerable two-dot diff.
+ * A shallow checkout (default fetch-depth: 1) leaves HEAD with no common ancestor
+ * with the base — the fix is `fetch-depth: 0` on the job's checkout.
  */
 const hasJscpdRecord = (
 	gitDir: string,
 	baseBranch: string | undefined,
 	raisedKeys: string[],
-): boolean => {
+): JscpdRecordResult => {
 	const base =
 		baseBranch !== undefined && baseBranch.length > 0
 			? `origin/${baseBranch}`
 			: 'origin/develop';
 
+	if (!gitRefExists(gitDir, base)) {
+		const branch = baseBranch ?? 'develop';
+		gitFetchBaseBranch(gitDir, branch);
+	}
+
+	// The merge base MUST exist. Three dots require a common ancestor; without
+	// one the diff scope is undefined and the guard cannot run correctly.
 	try {
-		if (!gitRefExists(gitDir, base)) {
-			const branch = baseBranch ?? 'develop';
-			gitFetchBaseBranch(gitDir, branch);
-		}
+		execFileSync('git', ['merge-base', base, 'HEAD'], {
+			cwd: gitDir,
+			encoding: 'utf-8',
+			timeout: 10_000,
+		});
+	} catch (e) {
+		return {
+			hasRecord: false,
+			recordFiles: [],
+			error:
+				`Cannot compute merge base between ${base} and HEAD. ` +
+				`The checkout has no common ancestor with ${base}; ` +
+				`the job's checkout needs fetch-depth: 0. ` +
+				`Original error: ${gitError(e)}`,
+			skippedFiles: [],
+		};
+	}
 
-		// Check for merge base. Three dots require a common ancestor.
-		let diffArgs: string[];
-		try {
-			execFileSync('git', ['merge-base', base, 'HEAD'], {
-				cwd: gitDir,
-				encoding: 'utf-8',
-				timeout: 10_000,
-			});
-			diffArgs = [`${base}...HEAD`];
-		} catch {
-			// No merge base (e.g. shallow test fixture with independent repos).
-			// Fall back to two-dot diff — conservative, may over-credit.
-			diffArgs = [`${base}..HEAD`];
-		}
-
-		// Get list of docs/records/ files that are new or modified.
-		const diffOutput = execFileSync(
+	// Get list of docs/records/ files that are new or modified.
+	let diffOutput: string;
+	try {
+		diffOutput = execFileSync(
 			'git',
 			[
 				'diff',
 				'--name-only',
 				'--diff-filter=AM',
-				...diffArgs,
+				`${base}...HEAD`,
 				'--',
 				'docs/records/',
 			],
 			{ cwd: gitDir, encoding: 'utf-8', timeout: 30_000 },
 		);
-
-		const recordFiles = diffOutput
-			.split('\n')
-			.map((f) => f.trim())
-			.filter((f) => f.length > 0 && f.startsWith('docs/records/'));
-
-		if (recordFiles.length === 0) {
-			return false;
-		}
-
-		// The record must name the specific raised keys to prove the author looked.
-		for (const recordFile of recordFiles) {
-			if (!recordFile.endsWith('.md')) {
-				continue;
-			}
-			// Validate date format: YYYY-MM-DD-*.md
-			const datePattern = /^docs\/records\/\d{4}-\d{2}-\d{2}-.+\.md$/;
-			if (!datePattern.test(recordFile)) {
-				continue;
-			}
-			const diffBody = execFileSync(
-				'git',
-				['diff', ...diffArgs, '--', recordFile],
-				{ cwd: gitDir, encoding: 'utf-8', timeout: 30_000 },
-			);
-			if (recordMentionsRaise(diffBody, raisedKeys)) {
-				return true;
-			}
-		}
-
-		return false;
-	} catch {
-		return false;
+	} catch (e) {
+		return {
+			hasRecord: false,
+			recordFiles: [],
+			error: `Failed to diff docs/records/ (${base}...HEAD): ${gitError(e)}`,
+			skippedFiles: [],
+		};
 	}
+
+	const recordFiles = diffOutput
+		.split('\n')
+		.map((f) => f.trim())
+		.filter((f) => f.length > 0 && f.startsWith('docs/records/'));
+
+	if (recordFiles.length === 0) {
+		return { hasRecord: false, recordFiles: [], skippedFiles: [] };
+	}
+
+	// The record must name the specific raised keys to prove the author looked.
+	const skippedFiles: { file: string; reason: string }[] = [];
+	for (const recordFile of recordFiles) {
+		if (!recordFile.endsWith('.md')) {
+			skippedFiles.push({ file: recordFile, reason: 'not a .md file' });
+			continue;
+		}
+		// Validate date format: YYYY-MM-DD-*.md
+		const datePattern = /^docs\/records\/\d{4}-\d{2}-\d{2}-.+\.md$/;
+		if (!datePattern.test(recordFile)) {
+			skippedFiles.push({
+				file: recordFile,
+				reason: 'name must match docs/records/YYYY-MM-DD-*.md',
+			});
+			continue;
+		}
+		const diffBody = execFileSync(
+			'git',
+			['diff', `${base}...HEAD`, '--', recordFile],
+			{ cwd: gitDir, encoding: 'utf-8', timeout: 30_000 },
+		);
+		if (recordMentionsRaise(diffBody, raisedKeys)) {
+			return { hasRecord: true, recordFiles, skippedFiles };
+		}
+	}
+
+	return { hasRecord: false, recordFiles, skippedFiles };
 };
 
 /**
  * Check whether the diff body names the raised metric keys in the added content.
- * An author who writes "productionPairs.count: 10 → 12" necessarily looked at the
- * actual numbers. A document that merely contains the word "jscpd" does not.
+ * The record must contain each raised key name (e.g. `productionPairs.count`)
+ * in its added lines. This is a key-NAME presence check only — it does not parse
+ * or compare before/after numbers (a reviewer catches false numbers).
  */
 const recordMentionsRaise = (
 	diffBody: string,
@@ -376,6 +410,60 @@ export const verifyJscpdRaise = (
 		};
 	}
 
+	// Fail loudly when the base reference is missing an INNER metric key (count/lines)
+	// that the PR defines. A missing inner key makes the comparison undefined > undefined →
+	// false → silent exit 0, which is an unanalysable reference and must fail loud.
+	const baseMissingInnerKeys: string[] = [];
+	if (
+		prRef.productionPairs !== undefined &&
+		baseRef.productionPairs !== undefined
+	) {
+		if (
+			prRef.productionPairs.count !== undefined &&
+			baseRef.productionPairs.count === undefined
+		) {
+			baseMissingInnerKeys.push('productionPairs.count');
+		}
+		if (
+			prRef.productionPairs.lines !== undefined &&
+			baseRef.productionPairs.lines === undefined
+		) {
+			baseMissingInnerKeys.push('productionPairs.lines');
+		}
+	}
+	if (
+		prRef.productionAuto !== undefined &&
+		baseRef.productionAuto !== undefined
+	) {
+		if (
+			prRef.productionAuto.count !== undefined &&
+			baseRef.productionAuto.count === undefined
+		) {
+			baseMissingInnerKeys.push('productionAuto.count');
+		}
+		if (
+			prRef.productionAuto.lines !== undefined &&
+			baseRef.productionAuto.lines === undefined
+		) {
+			baseMissingInnerKeys.push('productionAuto.lines');
+		}
+	}
+	if (baseMissingInnerKeys.length > 0) {
+		return {
+			hasRaise: false,
+			raiseDetails: [],
+			hasRecord: false,
+			recordFiles: [],
+			verdict: 'fail',
+			errors: [
+				`Base reference is missing metric sub-keys that the PR defines: ${baseMissingInnerKeys.join(', ')}. ` +
+					`A raise guard requires both the base and the PR reference to define the same sub-keys ` +
+					`(each of count/lines must be present in both references for any metric that appears in both). ` +
+					`Run "git fetch origin ${baseBranch ?? 'develop'}" to ensure the base branch is available.`,
+			],
+		};
+	}
+
 	const raiseDetails: string[] = [];
 	const raisedKeys: string[] = [];
 
@@ -422,15 +510,31 @@ export const verifyJscpdRaise = (
 	}
 
 	// Raise detected. Check for accompaniment record.
-	const hasRecord = hasJscpdRecord(gitDir, baseBranch, raisedKeys);
+	const recordResult = hasJscpdRecord(gitDir, baseBranch, raisedKeys);
 
-	if (hasRecord) {
+	// hasJscpdRecord could not run (e.g. merge base unfindable). Fail loud
+	// distinguishing "check failed" from "no record found".
+	if (recordResult.error !== undefined) {
+		return {
+			hasRaise: true,
+			raiseDetails,
+			hasRecord: false,
+			recordFiles: recordResult.recordFiles,
+			verdict: 'fail',
+			errors: [
+				`jscpd reference raise detected, but the accompaniment check could not run. ` +
+					`Reason: ${recordResult.error}`,
+			],
+		};
+	}
+
+	if (recordResult.hasRecord) {
 		const raiseStr = raiseDetails.join('; ');
 		return {
 			hasRaise: true,
 			raiseDetails,
 			hasRecord: true,
-			recordFiles: [],
+			recordFiles: recordResult.recordFiles,
 			verdict: 'pass',
 			errors: [],
 			passMessage:
@@ -442,19 +546,27 @@ export const verifyJscpdRaise = (
 		};
 	}
 
-	// Raise without accompaniment.
+	// Raise without accompaniment. Name the record files we rejected (if any).
 	const raiseStr = raiseDetails.join('; ');
+	const skippedInfo =
+		recordResult.skippedFiles.length > 0
+			? ' Rejected files: ' +
+				recordResult.skippedFiles
+					.map((s) => `${s.file} (${s.reason})`)
+					.join('; ') +
+				'.'
+			: '';
 	return {
 		hasRaise: true,
 		raiseDetails,
 		hasRecord: false,
-		recordFiles: [],
+		recordFiles: recordResult.recordFiles,
 		verdict: 'fail',
 		errors: [
 			`jscpd reference raise detected without a docs/records/ accompaniment. ` +
-				`Values changed: ${raiseStr}. ` +
-				`Values changed: ${raiseStr}. ` +
-				`A raise must be accompanied by a docs/records/YYYY-MM-DD-*.md file ` +
+				`Values changed: ${raiseStr}.` +
+				skippedInfo +
+				` A raise must be accompanied by a docs/records/YYYY-MM-DD-*.md file ` +
 				`that names the raised keys (${raisedKeys.join(', ')}) in its content. ` +
 				`Write the key names with their before/after values, e.g.: ` +
 				`"productionPairs.count: ${basePairs.count} → ${prPairs.count}". ` +
@@ -465,6 +577,16 @@ export const verifyJscpdRaise = (
 
 const main = (): void => {
 	const gitDir = process.env.PUBLY_JSCPD_RAISE_GIT_DIR ?? repoRoot;
+
+	// PUBLY_JSCPD_BASE_REF has a dual-use convention inherited from its original
+	// purpose as a git directory override:
+	//   - If its value is an EXISTING FILE PATH, it is treated as PUBLY_JSCPD_RAISE_GIT_DIR
+	//     (an alternate working tree) and NOT used as a branch name.
+	//   - If its value is NOT an existing path (e.g. "develop"), it is used as the base
+	//     branch name for the comparison.
+	// This inversion is intentional: the env var was originally the git-dir override,
+	// and adding a separate branch-name meaning without a separate variable name
+	// preserves backward compatibility. GITHUB_BASE_REF takes precedence.
 	const baseBranch =
 		process.env.GITHUB_BASE_REF ??
 		(process.env.PUBLY_JSCPD_BASE_REF !== undefined &&
