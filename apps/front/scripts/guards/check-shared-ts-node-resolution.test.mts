@@ -39,6 +39,7 @@ import { spawnSync } from 'node:child_process';
 import {
 	cpSync,
 	existsSync,
+	mkdirSync,
 	mkdtempSync,
 	readFileSync,
 	rmSync,
@@ -105,6 +106,22 @@ const rewriteRetryFnImport = (root: string, specifier: string): void => {
 		'expected the retry-fn sibling import line to be rewritten',
 	);
 	writeFileSync(file, rewritten);
+};
+
+/**
+ * Makes the import target a DIRECTORY under the sandbox copy: the real
+ * `utils/any.utils.ts` file becomes `utils/any.utils/index.ts` with the same
+ * content, so `import ... from './any.utils'` hits Node's real directory
+ * import code path (ERR_UNSUPPORTED_DIR_IMPORT) against copied real source —
+ * no synthetic message, no fixture.
+ */
+const makeImportTargetADirectory = (root: string): void => {
+	const file = path.join(root, 'utils', 'any.utils.ts');
+	const content = readFileSync(file, 'utf8');
+	const dir = path.join(path.dirname(file), 'any.utils');
+	mkdirSync(dir);
+	writeFileSync(path.join(dir, 'index.ts'), content);
+	rmSync(file, { force: true });
 };
 
 /**
@@ -345,5 +362,99 @@ void test('classifyLoadFailure maps the message shapes Node v24.19.0 really emit
 			'check-shared-ts-node-resolution: ERR_MODULE_NOT_FOUND: some future wording\n',
 		),
 		{ kind: 'unclassified' },
+	);
+});
+
+// ---- #1894 directory-import classification --------------------------------
+// Node 24's ESM loader rejects a relative specifier that resolves to a
+// DIRECTORY with ERR_UNSUPPORTED_DIR_IMPORT — a code outside the
+// ERR_MODULE_NOT_FOUND family, so before #1894 it fell into `unclassified`.
+// The paired proof below recreates the case on a copy of the REAL tree (the
+// import target becomes a real directory containing real copied source),
+// and the unknown-code test pins the #1885 invariant: a code the classifier
+// does not recognize must stay unclassified + raw reporter — it must never
+// inherit a plausible-looking label in its place.
+
+void test('RED (#1894): importing a directory fails with the directory-import cause and the action, not a guessed label', () => {
+	// The sandbox copy's `utils/any.utils.ts` becomes a real directory
+	// `utils/any.utils/` with the real source as `index.ts`, so the
+	// extensionless specifier `./any.utils` hits Node's actual
+	// ERR_UNSUPPORTED_DIR_IMPORT path against real copied source.
+	const root = makeSandbox();
+	makeImportTargetADirectory(root);
+	rewriteRetryFnImport(root, './any.utils');
+
+	const result = runGuard(root);
+
+	assert.notEqual(
+		result.status,
+		0,
+		`a directory import must FAIL under real Node ESM, got exit code ${result.status}. stderr: ${result.stderr}`,
+	);
+	assert.ok(
+		result.stderr.includes('a directory is not a valid entry point'),
+		`stderr must name the cause: a directory is not a valid entry point under Node ESM, got: ${result.stderr}`,
+	);
+	assert.ok(
+		result.stderr.includes('point the import at the file explicitly'),
+		`stderr must name the next action: point the import at the file explicitly, got: ${result.stderr}`,
+	);
+	assert.ok(
+		result.stderr.includes('utils/any.utils'),
+		`stderr must name the directory Node rejected, got: ${result.stderr}`,
+	);
+	assert.ok(
+		result.stderr.includes('retry-fn.ts'),
+		`stderr must name the importing file, got: ${result.stderr}`,
+	);
+	assert.ok(
+		!result.stderr.includes('cannot be classified'),
+		`a directory import is classified since #1894 and must not fall back to the unclassified banner, got: ${result.stderr}`,
+	);
+});
+
+void test('RED (#1894): an unknown Node error code stays unclassified + raw reporter, never wearing the directory-import label', () => {
+	// The invented code ERR_NOT_A_REAL_NODE_CODE is the assumed exception of
+	// this file: it is the unknown-case probe, so its line is built by hand.
+	// If the classifier ever falls back silently onto a neighboring label
+	// for codes it does not recognize — the defect #1893 closed — this test
+	// fails.
+	const craftedStderr =
+		'check-shared-ts-node-resolution: ERR_NOT_A_REAL_NODE_CODE: some invented future wording\n';
+
+	assert.deepEqual(
+		classifyLoadFailure(craftedStderr),
+		{ kind: 'unclassified' },
+		'an error code the classifier does not recognize must stay unclassified',
+	);
+	// The full guard path for an unknown code: unclassified banner + the raw
+	// reporter + no plausible substituted cause.
+	const root = makeSandbox();
+	writeFileSync(
+		retryFnPath(root),
+		'const boom: number = "not a number";\n' +
+			'process.stderr.write(' +
+			JSON.stringify(craftedStderr) +
+			');\nprocess.exit(1);\n',
+	);
+
+	const result = runGuard(root);
+
+	assert.notEqual(
+		result.status,
+		0,
+		`an unknown-code failure must fail the guard, got exit code ${result.status}. stderr: ${result.stderr}`,
+	);
+	assert.ok(
+		result.stderr.includes('cannot be classified'),
+		`stderr must say the failure cannot be classified, got: ${result.stderr}`,
+	);
+	assert.ok(
+		result.stderr.includes('ERR_NOT_A_REAL_NODE_CODE'),
+		`stderr must carry the raw reporter, got: ${result.stderr}`,
+	);
+	assert.ok(
+		!result.stderr.includes('a directory is not a valid entry point'),
+		`stderr must not substitute the #1894 directory-import label for an unknown code, got: ${result.stderr}`,
 	);
 });
