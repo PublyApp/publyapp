@@ -11,6 +11,10 @@
 		"target": "ES2022",
 		"types": ["node"]
 	},
-	"include": ["src/check-jscpd.ts", "src/check-jscpd.test.ts"],
+	"include": [
+		"src/check-jscpd.ts",
+		"src/check-jscpd.test.ts",
+		"src/gen-jscpd-reference.ts"
+	],
 	"exclude": ["node_modules"]
 }

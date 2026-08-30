@@ -12,8 +12,16 @@ import { DetailRow } from '~/components/ui/product-page';
 
 import { formatFailureCause } from './_jobs-helpers';
 
-const t = (key: string): string =>
-	key === 'common:no-cause' ? 'No cause recorded' : key;
+// Track calls so mutations that hardcode a string (bypassing t()) are caught.
+const tCalls: string[] = [];
+const t = (key: string): string => {
+	tCalls.push(key);
+	if (key === 'common:no-cause') {
+		return 'No cause recorded';
+	}
+
+	return key;
+};
 
 const renderDetailRow = (cause: string | null | undefined) => {
 	const formattedValue = formatFailureCause(cause, t);
@@ -22,6 +30,7 @@ const renderDetailRow = (cause: string | null | undefined) => {
 
 afterEach(() => {
 	cleanup();
+	tCalls.length = 0;
 });
 
 describe('queue drawer DetailRow — parity with dead-letter drawer', () => {
@@ -39,6 +48,8 @@ describe('queue drawer DetailRow — parity with dead-letter drawer', () => {
 		expect(value.textContent).toBe('No cause recorded');
 		// NOT the dash
 		expect(screen.queryByText('—')).toBeNull();
+		// t() must have been called with the key, not bypassed by a hardcoded literal
+		expect(tCalls).toContain('common:no-cause');
 	});
 
 	test('a whitespace-only cause shows the marker', () => {
@@ -46,6 +57,7 @@ describe('queue drawer DetailRow — parity with dead-letter drawer', () => {
 
 		const value = screen.getByText('No cause recorded');
 		expect(value.textContent).toBe('No cause recorded');
+		expect(tCalls).toContain('common:no-cause');
 	});
 
 	test('a null cause shows the marker', () => {
@@ -53,6 +65,7 @@ describe('queue drawer DetailRow — parity with dead-letter drawer', () => {
 
 		const value = screen.getByText('No cause recorded');
 		expect(value.textContent).toBe('No cause recorded');
+		expect(tCalls).toContain('common:no-cause');
 	});
 
 	test('a very long cause is displayed in full (the drawer does not truncate)', () => {

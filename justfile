@@ -522,8 +522,14 @@ ci-front:
 # The developer replay path is `just test-preuves` in the lane worktree
 # (where .dump/ traces also exist). CI runs the same command on a clean
 # checkout.
+#
+# `pnpm run prepare` runs first: it wires core.hooksPath to the versioned
+# .husky dir (packages/scripts-ts/src/install-git-hooks.ts), so the replay
+# exercises the real pre-commit pipeline on real worktrees — mirroring the
+# front-ci.yml::supply-chain "Install Git hooks (mirrors prepare)" step.
 test-preuves:
   @echo "=== [gate] paired red proofs (expected to fail) ==="
+  pnpm run prepare
   pnpm --filter front test:preuves
 
 # Quality gate (issue #803): repo-wide oxlint + oxfmt check + .NET warnings-as-errors + analyzer tests.

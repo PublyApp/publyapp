@@ -69,7 +69,7 @@ export const classifyRelevance = ({
 		return {
 			relevant: true,
 			reason:
-				'non-pull_request event (e.g. push); push runs are already path-filtered at the trigger, so a push that starts this workflow is relevant by construction',
+				'non-pull_request event (e.g. push); a push run has no pull-request file list to evaluate, and a workflow may be triggered on push WITHOUT a paths: filter (front-ci.yml is, on develop, since #1920), so everything runs — failing closed rather than assuming the trigger already narrowed it',
 		};
 	}
 

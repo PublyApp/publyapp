@@ -51,7 +51,6 @@
 		"**/build",
 		"**/dist",
 		"**/.turbo",
-		"**/.husky/_",
 		"**/.react-router",
 		"**/routeTree.gen.ts",
 		"packages/client-ts",
