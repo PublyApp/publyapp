@@ -410,3 +410,84 @@ test('RED: mixed-case shadow file in a git-tracked directory is still caught', a
 		await rm(repoDir, { recursive: true, force: true });
 	}
 });
+
+// -----------------------------------------------------------------------
+// Round 4 of #1873: `git check-ignore -v` C-quotes paths containing tabs,
+// newlines, double-quotes or backslashes — wrapping them in `"` and
+// escaping inner chars. The previous local parser split on the first tab
+// and took whatever came after, so a tab in a directory name caused the
+// extracted path to be the QUOTED form, which never matches the original
+// candidate. Result: a real shadow inside a git-ignored directory whose
+// name contained a tab was reported as a false positive and blocked CI.
+// The delegated helper (`createGitIgnoreChecker`, #1927) uses
+// `git check-ignore --stdin -z` precisely to avoid this class of bug.
+//
+// PAIRED PROOF
+// ------------
+// Without the fix, this test is RED on the leg below: the guard reports
+// the shadow even though git ignores it (false positive). With the fix,
+// the guard drops it (GREEN).
+// -----------------------------------------------------------------------
+
+// GREEN (paired proof): a shadow file inside a git-ignored directory whose
+// NAME contains a tab must NOT be reported — `git check-ignore` returns the
+// path unquoted under `-z`, and the shared helper matches it against the
+// candidate. ROUGE before the delegated helper (the path came out quoted
+// and never matched), VERT after.
+test('GREEN: shadow file in a git-ignored directory whose name contains a tab is filtered out (#1873 round 4)', async () => {
+	const repoDir = await mkdtemp(path.join(os.tmpdir(), 'publyapp-tab-shadow-'));
+
+	const tabDirectoryName = 'ignored\tdir';
+
+	try {
+		await initGitRepo(repoDir);
+		await writeFixtureFile(repoDir, '.gitignore', 'ignored*dir/\n');
+		await mkdir(path.join(repoDir, tabDirectoryName), { recursive: true });
+		await writeFile(
+			path.join(repoDir, tabDirectoryName, 'Dockerfile.SONDE.dockerignore'),
+			'',
+		);
+
+		const findings = await findDockerignoreShadows({ rootDir: repoDir });
+
+		assert.deepEqual(
+			findings,
+			[],
+			`expected the guard to drop a tab-named git-ignored shadow, got: ${JSON.stringify(findings)}`,
+		);
+	} finally {
+		await rm(repoDir, { recursive: true, force: true });
+	}
+});
+
+// RED (paired proof): a shadow file in a directory git DOES track whose
+// name contains a tab must STILL be reported. Without this pin, a fix
+// that simply stops walking (or that over-filters) would pass the GREEN
+// leg by making the guard blind — the round-2 case-insensitive
+// acquisition and the round-3 walk must not be lost.
+test('RED: shadow file in a tracked directory whose name contains a tab is still caught (#1873 round 4)', async () => {
+	const repoDir = await mkdtemp(
+		path.join(os.tmpdir(), 'publyapp-tab-tracked-shadow-'),
+	);
+
+	const tabDirectoryName = 'tab\tdir';
+
+	try {
+		await initGitRepo(repoDir);
+		await mkdir(path.join(repoDir, tabDirectoryName), { recursive: true });
+		await writeFile(
+			path.join(repoDir, tabDirectoryName, 'Dockerfile.dockerignore'),
+			'',
+		);
+
+		const findings = await findDockerignoreShadows({ rootDir: repoDir });
+
+		assert.deepEqual(
+			findings,
+			[`${tabDirectoryName}/Dockerfile.dockerignore`],
+			`expected the guard to still name the tracked tab-named shadow, got: ${JSON.stringify(findings)}`,
+		);
+	} finally {
+		await rm(repoDir, { recursive: true, force: true });
+	}
+});

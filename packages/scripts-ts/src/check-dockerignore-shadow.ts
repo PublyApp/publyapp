@@ -4,6 +4,8 @@ import path from 'node:path';
 import process from 'node:process';
 import { pathToFileURL } from 'node:url';
 
+import { createGitIgnoreChecker } from './git-check-ignore.ts';
+
 // Guard: no `<Dockerfile>.dockerignore` shadow file may exist anywhere in the
 // tree (#1849).
 //
@@ -40,9 +42,24 @@ import { pathToFileURL } from 'node:url';
 // (`node_modules` is always excluded from every build context by the root
 // `.dockerignore`, so a third-party package can never shadow it). In addition,
 // any file that git itself ignores (e.g. inside `.worktrees/`, `.dump/`, or any
-// path matched by `.gitignore`) is dropped before reporting: those paths can
-// never enter a Docker build context either, and flagging them would be a
-// false positive against a parallel worktree (issue #1909 class).
+// path matched by `.gitignore`) is dropped before reporting: when a path is
+// matched by `.gitignore` AND by the root `.dockerignore`, it cannot enter a
+// Docker build context either, and flagging it would be a false positive
+// against a parallel worktree (issue #1909 class). The contract here is the
+// UNION, not an unconditional claim: a git-ignored path that the root
+// `.dockerignore` does NOT mirror is visible to Docker (false negative risk),
+// and the repo's `.gitignore` and root `.dockerignore` are curated to overlap
+// on the surfaces that matter — `.worktrees/`, `.dump/`, `.claude/`,
+// `.agents/`, `.ai/`, `.aidesigner/`, `.superpowers/` are in both.
+//
+// The git-ignored filter is delegated to the shared `createGitIgnoreChecker`
+// (packages/scripts-ts/src/git-check-ignore.ts, #1927). That helper batches
+// `git check-ignore --stdin -z` in one invocation: the null-separated output
+// avoids the C-quoting that `git check-ignore -v` applies to paths containing
+// tabs, newlines, double-quotes or backslashes (round-4 finding — a tab in a
+// directory name caused a real shadow to be reported as a false positive).
+// The shared helper also returns paths as absolute, which is what this guard
+// needs to intersect the walk's relative findings.
 //
 // FAIL-LOUD CONTRACT
 // ------------------
@@ -59,78 +76,6 @@ import { pathToFileURL } from 'node:url';
 // `.dockerignore`. Skipping both removes false-positive sources while losing
 // zero protection.
 const SKIP_DIRS = new Set(['.git', 'node_modules']);
-
-const isInsideGitRepo = (cwd: string): boolean => {
-	try {
-		execFileSync('git', ['rev-parse', '--is-inside-work-tree'], {
-			cwd,
-			encoding: 'utf8',
-			stdio: 'ignore',
-		});
-		return true;
-	} catch {
-		return false;
-	}
-};
-
-// Returns the subset of `candidates` (paths relative to `rootDir`) that git
-// ignores according to the .gitignore rules active in `rootDir`. This is the
-// single authoritative source for what is NOT part of the build context, so
-// the guard never reports a shadow file sitting inside a git-ignored tree
-// (e.g. a parallel .worktrees/ checkout). The batch call (--stdin) keeps the
-// cost to one git invocation regardless of how many findings the walk produced.
-//
-// git check-ignore exits 1 with empty output when NO candidate matches any
-// rule — that is the normal "nothing is ignored" result, not a failure.
-const findGitIgnored = (rootDir: string, candidates: string[]): Set<string> => {
-	if (candidates.length === 0 || !isInsideGitRepo(rootDir)) {
-		return new Set();
-	}
-
-	const input = candidates.join('\n');
-
-	let output: string;
-
-	try {
-		output = execFileSync('git', ['check-ignore', '-v', '--stdin'], {
-			cwd: rootDir,
-			encoding: 'utf8',
-			input,
-			maxBuffer: 10 * 1024 * 1024,
-		});
-	} catch (error) {
-		const nodeError = error as NodeJS.ErrnoException & {
-			status?: number;
-		};
-
-		if (nodeError.status === 1) {
-			return new Set();
-		}
-
-		const message = error instanceof Error ? error.message : String(error);
-		throw new Error(
-			`git check-ignore failed while filtering shadow candidates: ${message}`,
-		);
-	}
-
-	const ignored = new Set<string>();
-
-	for (const line of output.split('\n')) {
-		if (line.length === 0) {
-			continue;
-		}
-
-		const tabIndex = line.indexOf('\t');
-
-		if (tabIndex === -1) {
-			continue;
-		}
-
-		ignored.add(line.slice(tabIndex + 1));
-	}
-
-	return ignored;
-};
 
 const toPosixPath = (value: string) => value.split(path.sep).join('/');
 
@@ -174,10 +119,26 @@ export const findDockerignoreShadows = async (
 	const { rootDir = process.cwd() } = options;
 	const findings = await walkForShadows(rootDir, rootDir, []);
 
-	const ignoredByGit = findGitIgnored(rootDir, findings);
-	const visible = findings.filter(
-		(relativePath) => !ignoredByGit.has(relativePath),
-	);
+	const checkIgnore = createGitIgnoreChecker(rootDir);
+
+	let visible: string[];
+
+	if (checkIgnore === null) {
+		// Not inside a git work tree: nothing to consult, every finding is
+		// visible. The CI checkout and the unit-test temp trees both live
+		// inside a work tree, so this branch is exercised by source tarballs
+		// and external tooling, not by the regular path.
+		visible = findings;
+	} else {
+		const absoluteFindings = findings.map((relativePath) =>
+			path.resolve(rootDir, relativePath),
+		);
+		const ignoredAbsolute = checkIgnore(absoluteFindings);
+		visible = findings.filter(
+			(relativePath) =>
+				!ignoredAbsolute.has(path.resolve(rootDir, relativePath)),
+		);
+	}
 
 	return visible.sort();
 };
