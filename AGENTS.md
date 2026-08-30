@@ -73,6 +73,21 @@ just knip                              # Check for unused dependencies
 
 Dependency health (Dependabot + `pnpm audit`): [`docs/guides/dependency-health.md`](docs/guides/dependency-health.md).
 
+### Git hooks — active in every worktree, no manual step (issue #1852)
+
+The hooks are **versioned** in `.husky/`: `pre-commit` runs lint-staged
+(auto-formats staged files), `pre-push` blocks direct pushes to protected
+branches. They are wired automatically — the root `prepare` script runs
+`packages/scripts-ts/src/install-git-hooks.ts`, which points `core.hooksPath`
+at the versioned `.husky` dir in the clone's **shared** git config. Every
+existing and newly created worktree of the clone inherits that setting
+immediately, so commits are formatted in every worktree with zero per-worktree
+setup. The previous husky-generated `.husky/_` scheme silently left fresh
+worktrees with no hooks at all (three PRs went red on it); do not reintroduce a
+generated hooks directory. The installer fails loudly when it cannot wire the
+hooks. CI wires hooks explicitly via the front-ci.yml `supply-chain` job step
+"Install Git hooks (mirrors prepare)" (`pnpm run prepare`).
+
 ### Database Operations
 
 ```bash
