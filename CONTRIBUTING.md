@@ -55,9 +55,8 @@ Paid modules are delivered in a fixed order (decided 2026-08-25, tracked in
 | B | AI assist | AI-powered assistance (suggestions, autofill, content analysis) |
 | D | Enterprise | Enterprise-grade features (SSO, audit trails, advanced permissions, multi-org federation) |
 
-The delivery order is also recorded in
-[`docs/records/2026-08-22-spec-epic-d-publishing-scheduling.md`](docs/records/2026-08-22-spec-epic-d-publishing-scheduling.md)
-§5.
+The delivery order itself is recorded in #1354; this table restates it so a
+contributor can see the boundary at a glance.
 
 ### How to know which side a contribution falls on
 
@@ -135,11 +134,11 @@ contributor never has to take this file's word for it.
 
 - **Carry the transparent-cause rule.** Every failure the backend returns or
   persists must carry a transparent, human-readable cause. Backend rule in
-  [`AGENTS.md`](AGENTS.md) §"Common Conventions" (see
-  [`docs/guides/project-conventions.md`](docs/guides/project-conventions.md)
-  §"Transparent failure causes (owner product rule, 2026-08-22)") and in
+  [`AGENTS.md`](AGENTS.md) §"Project Conventions" (bullet "Transparent
+  failure causes (owner product rule, 2026-08-22)") and in
   [`docs/records/2026-08-22-spec-epic-d-publishing-scheduling.md`](docs/records/2026-08-22-spec-epic-d-publishing-scheduling.md)
-  §1.7 (decision row 7); UI rule in [`DESIGN.md`](DESIGN.md) (error states).
+  §1 (decision row 7); UI rule in [`DESIGN.md`](DESIGN.md) §"Empty / error
+  / loading states".
 
 - **Automated review artefacts** (machine reviewers only) must record the
   reviewer model alongside `REVIEWED_TIP`. **Human contributors are not
