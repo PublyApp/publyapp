@@ -138,8 +138,18 @@ void ProbeBindFault(SocketError code) {
 	var outcome = ProbeBind.ClassifyBindException(new SocketException((int)code));
 	switch (outcome.Kind) {
 		case ProbeBind.OutcomeKind.Free:
-			Console.WriteLine("host port 5454 preflight: free (probe-bind-fault)");
-			return;
+			// Issue #1953: --probe-bind-fault is a guard-only hook. Its whole job is
+			// to classify a synthetic SocketException and exit so the architecture
+			// guard (AppHostOrchestrationGuardSpec) can pin the verdict on a real
+			// process. The Free branch was a plain `return` on the assumption that
+			// `ClassifyBindException` never produced Free today — so the fall-through
+			// was unreachable. If a future change makes Free reachable, falling
+			// through boots the AppHost from a test hook (probe turns into a real
+			// start). Throw instead: Free becoming reachable must be a loud failure
+			// at the probe itself, not a silent boot. The architecture guard pins
+			// this with --probe-bind-fault-kind Free below.
+			ProbeBindFreeFallback();
+			break;
 		case ProbeBind.OutcomeKind.Occupied:
 			FailLoudlyOnOccupiedPort();
 			break;
@@ -168,6 +178,29 @@ void FailLoudlyOnOccupiedPort() {
 			+ "POSTGRES_CONNECTION_STRING in .env.development AND in the justfile "
 			+ "db-* recipes, because everything is hard-wired to 5454.");
 	Environment.Exit(1);
+}
+
+// Issue #1953: the loud-fail the Free branch of ProbeBindFault (and the
+// --probe-bind-fault-kind Free drill) must produce. The Free branch is
+// unreachable from the production classifier today — ClassifyBindException
+// only returns Free on a successful bind, and the fault hook feeds it a
+// synthetic SocketException. If a future change ever makes Free reachable,
+// falling through would boot the AppHost from a guard-only test hook (probe
+// turns into a real start). This function is the contract: Free becoming
+// reachable must be a LOUD failure at the probe itself, not a silent boot.
+// It throws — never writes to output and returns — so the process exits
+// non-zero and the architecture guard pins the verdict.
+void ProbeBindFreeFallback() {
+	throw new InvalidOperationException(
+		"--probe-bind-fault: the probe classified the port as FREE — "
+			+ "the Free branch of ProbeBindFault is unreachable from the "
+			+ "production classifier today and falling through would boot the "
+			+ "AppHost from a guard-only test hook. If this path is now "
+			+ "reachable, ClassifyBindException changed: a Free verdict from "
+			+ "a synthetic SocketException must not silently start the "
+			+ "application. Revert the classifier change, or if Free is "
+			+ "intended, make the caller exit instead of falling through."
+	);
 }
 
 // --hold-port-5454 (LOCAL DEV ORCHESTRATION ONLY, guard support): a minimal test
@@ -304,6 +337,60 @@ if (args.Contains("--probe-bind-fault")) {
 		Environment.Exit(2);
 	}
 	ProbeBindFault(parsedCode);
+	// Issue #1953: ProbeBindFault exits for Occupied/Other and throws for Free
+	// (the Free branch is the loud-fail the issue pins — see the throw inside
+	// ProbeBindFault). The function never returns. FALLING THROUGH this block
+	// (no return/throw/exit) would reach the pre-flight and boot the AppHost
+	// from a guard-only test hook; a bare `return;` would instead exit 0
+	// quietly, losing the verdict either way. Make the contract explicit: this
+	// block must terminate the process, so an unconditional throw pins every
+	// future path that forgets to.
+	throw new InvalidOperationException(
+		"--probe-bind-fault returned instead of exiting or throwing — the "
+			+ "guard-only probe path fell through. The Free branch must throw (see "
+			+ "ProbeBindFault), Occupied must call Environment.Exit(1), Other must "
+			+ "call ProbeBindFaultReporter.ReportAndExit. A fall-through here would "
+			+ "boot the AppHost from a test hook."
+	);
+}
+
+// Issue #1953: a guard-only test hook that bypasses ClassifyBindException and
+// forces the probe to emit a Free verdict. Lets the architecture guard witness
+// the loud-fail path that #1953 added to ProbeBindFault without mutating the
+// production classifier (which today never produces Free from a synthetic
+// SocketException). If a future change ever makes Free reachable from the real
+// classifier, the Free branch in ProbeBindFault already throws — so this
+// synthetic-Free mode doubles as a regression drill for that path too. Not
+// reachable from the user flow.
+if (args.Contains("--probe-bind-fault-kind")) {
+	var kindIdx = args.IndexOf("--probe-bind-fault-kind");
+	var kindName = kindIdx + 1 < args.Length ? args[kindIdx + 1] : null;
+	if (!Enum.TryParse<ProbeBind.OutcomeKind>(kindName, ignoreCase: true, out var forcedKind)) {
+		Console.Error.WriteLine(
+			"ERROR — --probe-bind-fault-kind expects Free, Occupied, or Other. "
+				+ $"Received: {kindName ?? "<missing>"}. AppHostOrchestrationGuardSpec guard mode only.");
+		Environment.Exit(2);
+	}
+	// Walk the same switch ProbeBindFault walks, but with the forced verdict, so
+	// the guard sees the same code paths.
+	switch (forcedKind) {
+		case ProbeBind.OutcomeKind.Free:
+			ProbeBindFreeFallback();
+			break;
+		case ProbeBind.OutcomeKind.Occupied:
+			ProbeBindFault(SocketError.AddressAlreadyInUse);
+			break;
+		case ProbeBind.OutcomeKind.Other:
+			ProbeBindFault(SocketError.AccessDenied);
+			break;
+		default:
+			throw new InvalidOperationException($"--probe-bind-fault-kind: unknown kind ({forcedKind}).");
+	}
+	// Defensive: same fall-through pin as above.
+	throw new InvalidOperationException(
+		"--probe-bind-fault-kind returned without exiting — the guard-only "
+			+ "Free/Occupied/Other drill path fell through."
+	);
 }
 
 // --hold-port-5454 must skip the preflight: it IS the listener and the
