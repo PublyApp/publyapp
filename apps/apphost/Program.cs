@@ -451,7 +451,7 @@ internal static class HostPort5454IsFree_Outcome {
 				return false;
 			case ProbeBind.OutcomeKind.Other:
 				throw new InvalidOperationException(
-					"AppHost pre-flight: cannot determine whether127.0.0.1:5454 is free. "
+					"AppHost pre-flight: cannot determine whether 127.0.0.1:5454 is free. "
 						+ $"Real cause: {outcome.Diagnostic}. "
 						+ "Actions: examine the process permissions (sandbox, capabilities, "
 						+ "firewall), the availability of IPv4 on the loopback, and the network "
@@ -471,7 +471,7 @@ internal static class ProbeBindFaultReporter {
 	public static void ReportAndExit(ProbeBind.Outcome outcome) {
 		Console.Error.WriteLine(
 			"ERROR — AppHost pre-flight: the probe could not determine "
-				+ $"whether127.0.0.1:5454 is free. Real cause: {outcome.Diagnostic}. "
+				+ $"whether 127.0.0.1:5454 is free. Real cause: {outcome.Diagnostic}. "
 				+ "Unexpected socket error (neither address-already-in-use nor a successful bind). "
 				+ "Actions: examine the process permissions (sandbox, capabilities, "
 				+ "firewall), the availability of IPv4 on the loopback, and the network "

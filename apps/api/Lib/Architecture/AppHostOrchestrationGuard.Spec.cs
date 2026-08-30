@@ -227,6 +227,43 @@ public sealed partial class AppHostOrchestrationGuardSpec : IDisposable {
 		);
 	}
 
+	// Issue #1926 point 2 — round-2 reviewer finding: two probe-bind-fault /
+	// preflight messages produced "whether127.0.0.1:5454" — the word and the
+	// address glued together, so a user scanning the diagnostic at the moment
+	// of the crash read it as one token. The fix is one space; the assertion
+	// below pins the invariant by detecting ANY missing space, not by pinning
+	// the wording (a rephrase of the surrounding sentence stays GREEN; an
+	// alphanumeric glued to the address stays RED).
+	[Fact]
+	public async Task ItShouldPrintHostPort5454DetachedFromPrecedingText() {
+		await AppHostBuild.Value;
+
+		var repoRoot = FindRepoRoot();
+		var run = await RunAppHostAsync(
+			repoRoot,
+			TimeSpan.FromMinutes(5),
+			["run", "--project", "apps/apphost", "--no-build", OpenApiSkipBuildProperty,
+				"--", "--probe-bind-fault", "AccessDenied"]
+		);
+
+		run.ExitedOnItsOwn.Should().BeTrue(
+			"the probe-bind-fault mode must finish on its own — not run until "
+				+ "the budget kills it"
+		);
+		run.Console.Should().Contain(
+			"127.0.0.1:5454",
+			"the Other-branch diagnostic must name the address so the user "
+				+ $"can locate the offending listener. Console: {run.Console}"
+		);
+		HostPort5454DetachedFromPrecedingText().IsMatch(run.Console).Should().BeFalse(
+			"the address must be separated from the preceding word by whitespace "
+				+ "or punctuation; an alphanumeric glued to it ('...whether127.0.0.1:5454', "
+				+ "'...if127.0.0.1:5454', ...) reads as one token at the moment "
+				+ "the user most needs the diagnostic — the round-2 reviewer "
+				+ $"finding. Console: {run.Console}"
+		);
+	}
+
 	[Fact]
 	public async Task ItShouldFailLoudlyWhenHostPort5454IsAlreadyOccupied() {
 		// The occupied half of the port pairing: run the real AppHost against an
@@ -612,6 +649,16 @@ public sealed partial class AppHostOrchestrationGuardSpec : IDisposable {
 		"5454[\\s\\S]{0,1200}address already in use[\\s\\S]{0,1200}dotnet run --project apps/apphost"
 	)]
 	private static partial Regex PortGuardMessage();
+
+	// Detects "127.0.0.1:5454" preceded by an alphanumeric — a missing space
+	// between the diagnostic word and the address. The negative assertion is
+	// "this regex must NOT match the console", not "the message must equal X":
+	// a legitimate wording rephrase ('if' -> 'whether') stays GREEN, an
+	// alphanumeric glued to the address stays RED. Word-boundary-based: a
+	// real word break between word text and "1" of the address is exactly
+	// what matters.
+	[GeneratedRegex(@"[A-Za-z0-9]127\.0\.0\.1:5454")]
+	private static partial Regex HostPort5454DetachedFromPrecedingText();
 
 	// Walk further up for the repo root containing justfile (AppHost paths are
 	// repo-root-relative). Same convention as CanaryProbeContainmentSpec.
