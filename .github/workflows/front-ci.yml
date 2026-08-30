@@ -133,7 +133,7 @@ jobs:
           CLASSIFIER=base-ref/packages/scripts-ts/src/ci-changed-paths.ts
 
           if [ -f "$CLASSIFIER" ]; then
-          node "$CLASSIFIER" '^(apps/front/|packages/shared-ts/|packages/client-ts/|packages/_tsconfig/|packages/scripts-ts/|turbo\.json$|\.github/workflows/|\.github/actions/|pnpm-lock\.yaml$|pnpm-workspace\.yaml$|package\.json$|\.npmrc$)'
+            node "$CLASSIFIER" '^(apps/front/|packages/shared-ts/|packages/client-ts/|packages/_tsconfig/|packages/scripts-ts/|turbo\.json$|\.github/workflows/|\.github/actions/|pnpm-lock\.yaml$|pnpm-workspace\.yaml$|package\.json$|\.npmrc$)'
           else
             echo "::warning::[MISSING BASE CLASSIFIER] $CLASSIFIER does not exist at the base commit. This is expected exactly once: for the pull request that introduces this classifier, or a branch cut before it existed on the base branch. Relevance cannot be determined from a classifier that is not there, so this fails closed: treating the workflow as relevant and running everything. If this keeps happening on ordinary pull requests well after the classifier has been on the base branch, something is wrong — investigate, do not silence it."
             echo "relevant=true" >> "$GITHUB_OUTPUT"
