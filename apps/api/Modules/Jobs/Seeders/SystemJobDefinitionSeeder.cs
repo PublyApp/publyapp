@@ -137,6 +137,7 @@ public class SystemJobDefinitionSeeder : IEntitySeeder {
 					.DispatchDuePostsJob.JobKey,
 				// Every minute (Epic D3): schedule latency budget. The due scan
 				// claims past-due Scheduled publications onto the publish queue.
+				IsEnabled = true,
 				CronExpression = "0 * * * * ?",
 				Description =
 					"Claim past-due Scheduled publications and enqueue their "

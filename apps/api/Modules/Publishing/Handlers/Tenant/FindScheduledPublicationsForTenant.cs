@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Mvc;
 
 using PublyApp.Api.Lib;
 using PublyApp.Api.Lib.ProblemResults;
+using PublyApp.Api.Lib.Validation;
 using PublyApp.Api.Localization;
 using PublyApp.Api.Modules.Publishing.Entities;
 using PublyApp.Api.Modules.Publishing.Services;
@@ -76,6 +77,14 @@ public sealed class FindScheduledPublicationsQueryValidator
 			.WithMessage(
 				"status must be a comma-separated list of: scheduled, "
 				+ "in_progress, published, failed, paused"
+			);
+
+		RuleFor(x => x.Limit)
+			.Must(PaginationPredicates.BeValidNullableLimit)
+			.WithMessage(
+				"limit must be a valid number "
+				+ "between 1 and "
+				+ AppEnvironment.Instance.PAGINATION_MAX_LIMIT
 			);
 	}
 

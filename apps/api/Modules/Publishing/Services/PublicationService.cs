@@ -397,7 +397,6 @@ public sealed class PublicationService : IPublicationService {
 			var targets = await (
 				from p in _dbContext.Publication
 				where p.PostId == postId
-					&& p.TenantId == args.TenantId
 					&& !p.IsDeleted
 					&& (p.Status == PublicationStatus.Scheduled
 						|| p.Status == PublicationStatus.Paused)
@@ -629,6 +628,7 @@ public sealed class PublicationService : IPublicationService {
 			var cursorExists = await (
 				from p in _dbContext.Publication.AsNoTracking()
 				where p.Id == cursorId
+					&& p.TenantId == args.TenantId
 					&& p.ScheduledAtUtc == cursorInstant
 				select p.Id
 			).AnyAsync(cancellationToken);
@@ -697,7 +697,7 @@ public sealed class PublicationService : IPublicationService {
 				PostBodyPreview = body.Length <= BodyPreviewMaxLength
 					? body
 					: body[..BodyPreviewMaxLength],
-				PostStatus = derived.ToString().ToLowerInvariant(),
+				PostStatus = PostStatusDerivation.FormatPostStatus(derived),
 				SocialAccountId = publication.SocialAccountId,
 				AccountDisplayHandle = row.AccountHandle ?? string.Empty,
 				ScheduledAtUtc = publication.ScheduledAtUtc,
@@ -710,13 +710,20 @@ public sealed class PublicationService : IPublicationService {
 			});
 		}
 
-		var last = rows[^1].Publication;
 		var page = new CursorPaginatedResult<ScheduledPublicationItem> {
 			Data = items,
-			NextCursor = hasNextPage
-				? EncodeCursor(last.ScheduledAtUtc, last.GetRequiredId())
-				: null,
+			NextCursor = null,
 		};
+		if (hasNextPage) {
+			// rows.Count > args.Limit implies at least one row: the tail index is
+			// only safe to read when a next page actually exists (round-2 finding:
+			// an empty window used to 500 on an unconditional rows[^1]).
+			var last = rows[^1].Publication;
+			page.NextCursor = EncodeCursor(
+				last.ScheduledAtUtc,
+				last.GetRequiredId()
+			);
+		}
 		return new FindScheduledResult.Success(page);
 	}
 
