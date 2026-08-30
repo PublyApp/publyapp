@@ -38,7 +38,7 @@ export const useTenantPostList = (
 		cursor?: string;
 		size?: number;
 	}) => {
-		navigate({
+		void navigate({
 			search: serializeTenantPostListSearchParams(next),
 			replace: true,
 		});
