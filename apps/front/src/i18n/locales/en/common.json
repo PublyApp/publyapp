@@ -1379,5 +1379,7 @@
 	"icon-hidden-visibility": "icon has computed visibility:hidden",
 	"icon-hidden-display": "icon has computed display:none",
 	"icon-hidden-opacity": "icon has computed opacity:0",
-	"icon-guard-context-null": "{{context}}: icon element is null"
+	"icon-guard-context-null": "{{context}}: icon element is null",
+	"icon-guard-indeterminate-detached": "{{context}}: icon element is not connected to the document, so its visibility cannot be measured. Expected action: attach the element to the document (render it in a live container) and re-run the guard.",
+	"icon-guard-indeterminate-unresolved": "{{context}}: computed style value is unresolved (empty), so the icon's visibility cannot be measured. Expected action: make sure the element's computed style can be read (connected node, resolved stylesheet), then re-run the guard."
 }

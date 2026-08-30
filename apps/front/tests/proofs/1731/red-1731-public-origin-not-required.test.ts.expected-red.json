@@ -1,0 +1,14 @@
+{
+	"$schema": "../expected-red.schema.json",
+	"_comment": "Per-test kept-red expectation manifest (required since #1806 r11 — the runner fails loud when a declared proof lacks it). Both declared tests MUST fail with AssertionErrors on correct code.",
+	"expectedRed": [
+		{
+			"testName": "without PUBLIC_ORIGIN, a forged Host header is returned as-is (host-header injection)",
+			"why": "On correct code resolveOrigin must reject the forged host in production without PUBLIC_ORIGIN, so the assertion that the forged host is returned as-is fails with an AssertionError. If this test passes, the production origin guard is missing or was removed."
+		},
+		{
+			"testName": "validateRuntimeEnv does NOT throw when PUBLIC_ORIGIN is absent in production (no guard)",
+			"why": "On correct code validateRuntimeEnv must throw when PUBLIC_ORIGIN is absent in production, so `expect(() => validateRuntimeEnv()).not.toThrow()` fails with an AssertionError. If this test passes, the startup guard is missing or was removed."
+		}
+	]
+}

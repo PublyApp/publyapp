@@ -55,6 +55,7 @@
  * in CI, so this test cannot pass under a config that CI would reject.
  */
 import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
 import {
 	mkdirSync,
 	mkdtempSync,
@@ -63,7 +64,7 @@ import {
 	writeFileSync,
 } from 'node:fs';
 import { readdir } from 'node:fs/promises';
-import { join } from 'node:path';
+import { dirname, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { afterAll, describe, it } from 'vitest';
@@ -360,6 +361,66 @@ const isFuncStyleRelevantBlockSuppression = (content: string): boolean => {
 	return false;
 };
 
+/**
+ * Git-ignore consultation for the scanner (issue #1909): the authority for
+ * what the walk skips is git itself — `git check-ignore` — united with the
+ * gate's static prefix list above. Paths are batched through a single
+ * `git check-ignore --stdin -z` call per tree level, not one spawn per file.
+ * Tracked files never match, so committed paths still reach the scanner
+ * unless the static list excludes them. Returns null when the root is not
+ * inside a git work tree (CI fixture roots), so the static list remains the
+ * only authority there — the same behavior as before the fix.
+ */
+type GitIgnoreChecker = (absolutePaths: string[]) => Set<string>;
+
+const gitIgnoreCheckerForWorkspace = (): GitIgnoreChecker | null => {
+	const probeResult = spawnSync(
+		'git',
+		['-C', WORKSPACE_ROOT, 'rev-parse', '--is-inside-work-tree'],
+		{ encoding: 'utf8' },
+	);
+
+	if (probeResult.status !== 0 || probeResult.stdout.trim() !== 'true') {
+		return null;
+	}
+
+	return (absolutePaths: string[]): Set<string> => {
+		if (absolutePaths.length === 0) {
+			return new Set();
+		}
+
+		const relativePaths = absolutePaths.map((absolutePath) =>
+			relative(WORKSPACE_ROOT, absolutePath).split(sep).join('/'),
+		);
+		const result = spawnSync('git', ['check-ignore', '--stdin', '-z'], {
+			cwd: WORKSPACE_ROOT,
+			encoding: 'utf8',
+			input: `${relativePaths.join('\0')}\0`,
+		});
+
+		if (result.error !== undefined) {
+			throw new Error(
+				`failed to run git check-ignore: ${result.error.message}`,
+			);
+		}
+		if (result.status !== 0 && result.status !== 1) {
+			throw new Error(
+				`git check-ignore failed with status ${String(result.status)}: ${result.stderr}`,
+			);
+		}
+
+		const ignored = new Set<string>();
+		if (result.stdout.length > 0) {
+			for (const relativePath of result.stdout.split('\0')) {
+				if (relativePath.length > 0) {
+					ignored.add(resolve(WORKSPACE_ROOT, relativePath));
+				}
+			}
+		}
+		return ignored;
+	};
+};
+
 // Finds every suppression comment across all text files in a directory tree.
 // This mirrors the exact paths oxlint lints: it scans the workspace root
 // and respects the same ignore patterns oxlint uses, so the inventory stays
@@ -386,7 +447,6 @@ const scanFuncStyleSuppressions = async (
 		'**/build',
 		'**/dist',
 		'**/.turbo',
-		'**/.husky/_',
 		'**/.react-router',
 		'**/routeTree.gen.ts',
 		'packages/client-ts',
@@ -427,6 +487,13 @@ const scanFuncStyleSuppressions = async (
 		return false;
 	};
 
+	// git's own ignore set is the authority for what the walk skips (issue
+	// #1909), united with the gate's static prefix list above. One batched
+	// `git check-ignore --stdin -z` per tree level, not one spawn per file.
+	// Tracked files never match, so committed paths still reach the scanner
+	// unless the static list excludes them.
+	const gitIgnoreChecker = gitIgnoreCheckerForWorkspace();
+
 	const walk = async (dir: string): Promise<void> => {
 		let dirEntries;
 		try {
@@ -435,16 +502,34 @@ const scanFuncStyleSuppressions = async (
 			return;
 		}
 
-		for (const entry of dirEntries) {
+		const visibleEntries = dirEntries.filter((entry) => {
 			const fullPath = join(dir, entry.name);
 			const relativePath = fullPath
 				.slice(rootDir.length)
 				.replace(/^[/\\]/, '')
 				.replace(/\\/g, '/');
 
-			if (isIgnored(relativePath) || isIgnored(fullPath)) {
+			return !isIgnored(relativePath) && !isIgnored(fullPath);
+		});
+
+		const gitIgnoredPaths =
+			gitIgnoreChecker === null
+				? new Set<string>()
+				: gitIgnoreChecker(
+						visibleEntries.map((entry) => join(dir, entry.name)),
+					);
+
+		for (const entry of visibleEntries) {
+			const fullPath = join(dir, entry.name);
+
+			if (gitIgnoredPaths.has(fullPath)) {
 				continue;
 			}
+
+			const relativePath = fullPath
+				.slice(rootDir.length)
+				.replace(/^[/\\]/, '')
+				.replace(/\\/g, '/');
 
 			if (entry.isDirectory()) {
 				await walk(fullPath);
@@ -616,7 +701,6 @@ describe('func-style: ["error", "expression"] (#1834 — uniform arrow form)', (
 				'**/build',
 				'**/dist',
 				'**/.turbo',
-				'**/.husky/_',
 				'**/.react-router',
 				'**/routeTree.gen.ts',
 				'packages/client-ts',
@@ -1688,6 +1772,87 @@ class Probe {}
 					);
 				},
 			);
+		});
+	});
+
+	describe('git-ignored directories are skipped by the scanner (issue #1909)', () => {
+		// Paired executed proof, leg 1 + adversarial leg 2, against the REAL
+		// workspace: `.worktrees/` is ignored by the committed root
+		// `.gitignore` (line 73), exactly the sibling-checkout scenario that
+		// reddened `just ci-lint` on a clean develop. The adversary half plants
+		// the SAME violation under `apps/front/` (not git-ignored) and asserts
+		// the scanner still sees it — a fix that "simply stops walking" would
+		// pass leg 1 while blinding the guard.
+		const plantedWorktreeFile = join(
+			WORKSPACE_ROOT,
+			'.worktrees/proof-1909/apps/front/src/viable.ts',
+		);
+		const plantedTrackedFile = join(
+			WORKSPACE_ROOT,
+			'apps/front/proof-1909-not-ignored/src/viable.ts',
+		);
+		const suppressionBody =
+			'// oxlint-disable-next-line func-style\nfunction survie1909() {\n\treturn 1;\n}\nsurvie1909();\n';
+
+		const plantSuppression = (absolutePath: string): void => {
+			mkdirSync(dirname(absolutePath), { recursive: true });
+			writeFileSync(absolutePath, suppressionBody);
+		};
+
+		const removePlanted = (): void => {
+			rmSync(join(WORKSPACE_ROOT, '.worktrees/proof-1909'), {
+				force: true,
+				recursive: true,
+			});
+			rmSync(join(WORKSPACE_ROOT, 'apps/front/proof-1909-not-ignored'), {
+				force: true,
+				recursive: true,
+			});
+		};
+
+		afterAll(removePlanted);
+
+		it('leg 1: a suppression inside a git-ignored directory is not scanned', async () => {
+			plantSuppression(plantedWorktreeFile);
+
+			try {
+				const foundEntries = await scanFuncStyleSuppressions(WORKSPACE_ROOT);
+				const worktreeEntries = foundEntries.filter((entry) =>
+					entry.file.startsWith('.worktrees/proof-1909/'),
+				);
+
+				assert.deepStrictEqual(
+					worktreeEntries,
+					[],
+					`the scanner must skip the git-ignored .worktrees/ directory; found ${worktreeEntries.map((entry) => `${entry.file}: ${entry.symbol}`).join(', ')}`,
+				);
+			} finally {
+				removePlanted();
+			}
+		});
+
+		it('adversarial leg 2: the same suppression in a NON-ignored file is still reported', async () => {
+			plantSuppression(plantedTrackedFile);
+
+			try {
+				const foundEntries = await scanFuncStyleSuppressions(WORKSPACE_ROOT);
+				const found = foundEntries.filter((entry) =>
+					entry.file.startsWith('apps/front/proof-1909-not-ignored/'),
+				);
+
+				assert.strictEqual(
+					found.length,
+					1,
+					`the scanner must still report the non-ignored suppression; got ${JSON.stringify(found)}`,
+				);
+				assert.strictEqual(
+					found[0]!.symbol,
+					'survie1909',
+					'the reported suppression must carry its symbol',
+				);
+			} finally {
+				removePlanted();
+			}
 		});
 	});
 });

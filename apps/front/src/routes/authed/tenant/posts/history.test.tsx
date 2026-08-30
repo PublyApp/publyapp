@@ -12,6 +12,9 @@ const mocks = vi.hoisted(() => ({
 	nextCursor: null as string | null,
 	queryError: null as Error | null,
 	shouldLogout: false,
+	// Client time of the last successful fetch; 0 = no data yet (the poll
+	// window stays off until a fetch lands).
+	dataUpdatedAt: 0,
 	invalidateTenantPublications: vi.fn(),
 }));
 
@@ -23,8 +26,13 @@ vi.mock('~/lib/query/tenant-publications', () => ({
 		error: mocks.queryError,
 		refetch: vi.fn(),
 		isFetching: false,
+		dataUpdatedAt: mocks.dataUpdatedAt,
 	}),
 	toTenantPublicationRows: () => mocks.rows,
+	isTenantPublicationStatus: (value: string) =>
+		['scheduled', 'in_progress', 'published', 'failed', 'paused'].includes(
+			value,
+		),
 	invalidateTenantPublications: mocks.invalidateTenantPublications,
 }));
 
@@ -103,6 +111,7 @@ afterEach(() => {
 	mocks.nextCursor = null;
 	mocks.queryError = null;
 	mocks.shouldLogout = false;
+	mocks.dataUpdatedAt = 0;
 });
 
 describe('TenantPostsHistoryPage', () => {
@@ -176,6 +185,55 @@ describe('TenantPostsHistoryPage', () => {
 		cleanup();
 		mocks.invalidateTenantPublications.mockClear();
 		mocks.rows = [row({ id: 'pub-4', status: 'published' })];
+		render(<TenantPostsHistoryPage />);
+
+		act(() => {
+			vi.advanceTimersByTime(11_000);
+		});
+		expect(mocks.invalidateTenantPublications).not.toHaveBeenCalled();
+	});
+
+	// Publish-now race (#1655 e2e): a publish-now row is `scheduled` until the
+	// worker claims its delivery job (LISTEN/NOTIFY, or the 5s queue poll). If
+	// the history list's first fetch lands in that window it sees `scheduled`,
+	// and a gate that only watches `in_progress` never starts polling — the
+	// worker publishes seconds later but the list never re-validates. Freshness
+	// is measured against the query's dataUpdatedAt (pure, data-derived), so
+	// the tests pin that value and position the row's updatedAt relative to it.
+	const DATA_UPDATED_AT = 1_000_000;
+
+	test('polls while a freshly-scheduled row is in flight (publish-now pickup race)', () => {
+		vi.useFakeTimers();
+		mocks.dataUpdatedAt = DATA_UPDATED_AT;
+		mocks.rows = [
+			row({
+				id: 'pub-5',
+				status: 'scheduled',
+				externalUrl: null,
+				updatedAt: new Date(DATA_UPDATED_AT - 5_000),
+			}),
+		];
+		render(<TenantPostsHistoryPage />);
+
+		act(() => {
+			vi.advanceTimersByTime(11_000);
+		});
+		expect(
+			mocks.invalidateTenantPublications.mock.calls.length,
+		).toBeGreaterThanOrEqual(2);
+	});
+
+	test('does not poll for a scheduled row older than the in-flight window', () => {
+		vi.useFakeTimers();
+		mocks.dataUpdatedAt = DATA_UPDATED_AT;
+		mocks.rows = [
+			row({
+				id: 'pub-6',
+				status: 'scheduled',
+				externalUrl: null,
+				updatedAt: new Date(DATA_UPDATED_AT - 2 * 60_000),
+			}),
+		];
 		render(<TenantPostsHistoryPage />);
 
 		act(() => {

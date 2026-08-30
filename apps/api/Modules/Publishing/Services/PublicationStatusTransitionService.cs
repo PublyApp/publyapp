@@ -32,6 +32,13 @@ public sealed record ReschedulePublicationToNowArgs(Guid PublicationId, Guid Ten
 
 public sealed record MarkPublicationScheduledArgs(Guid PublicationId, Guid TenantId);
 
+/// <summary>D3 Task 2: replace the schedule pair on a Scheduled/Paused publication.</summary>
+public sealed record ReschedulePublicationToFutureArgs(
+	Guid PublicationId,
+	Guid TenantId,
+	PublicationSchedule Schedule
+);
+
 /// <summary>
 /// Contract of the single legal writer of <see cref="Publication.Status"/>.
 /// </summary>
@@ -63,6 +70,11 @@ public interface IPublicationStatusTransitionService {
 
 	public Task<bool> MarkScheduledAsync(
 		MarkPublicationScheduledArgs args,
+		CancellationToken cancellationToken
+	);
+
+	public Task<bool> RescheduleToFutureAsync(
+		ReschedulePublicationToFutureArgs args,
 		CancellationToken cancellationToken
 	);
 }
@@ -177,6 +189,25 @@ public sealed class PublicationStatusTransitionService : IPublicationStatusTrans
 		return true;
 	}
 
+	/// <summary>
+	/// Stages the future-schedule move shared by the reschedule methods: validates
+	/// the transition, sets the new instant/zone pair, and clears the external
+	/// publish state. Callers keep their own stamp/save policy (#1446).
+	/// </summary>
+	private static void StageReschedule(
+		Publication publication,
+		DateTime scheduledAtUtc,
+		string scheduledTimeZone
+	) {
+		TransitionOrThrow(publication.Status, PublicationStatus.Scheduled);
+		publication.Status = PublicationStatus.Scheduled;
+		publication.ScheduledAtUtc = scheduledAtUtc;
+		publication.ScheduledTimeZone = scheduledTimeZone;
+		publication.LastError = null;
+		publication.ExternalRecordId = null;
+		publication.ExternalUrl = null;
+	}
+
 	public async Task<bool> RescheduleToNowAsync(
 		ReschedulePublicationToNowArgs args,
 		CancellationToken cancellationToken
@@ -186,12 +217,11 @@ public sealed class PublicationStatusTransitionService : IPublicationStatusTrans
 			return false;
 		}
 
-		TransitionOrThrow(publication.Status, PublicationStatus.Scheduled);
-		publication.Status = PublicationStatus.Scheduled;
-		publication.ScheduledAtUtc = DateTime.UtcNow;
-		publication.LastError = null;
-		publication.ExternalRecordId = null;
-		publication.ExternalUrl = null;
+		StageReschedule(
+			publication,
+			DateTime.UtcNow,
+			publication.ScheduledTimeZone
+		);
 		// IdempotencyKey is deliberately NOT regenerated: the same publication keeps
 		// its key across retries so Bluesky dedup survives a reschedule.
 		// #1446: legalise exactly this save's Status writes (one grant, one save).
@@ -229,6 +259,27 @@ public sealed class PublicationStatusTransitionService : IPublicationStatusTrans
 		publication.LastError = null;
 		// #1446: legalise exactly this save's Status writes (one grant, one save).
 		PublicationStatusWriteGuard.StampForStatusWrite(_db);
+		await _db.SaveChangesAsync(cancellationToken);
+		return true;
+	}
+
+	/// <summary>D3 Task 2: replace the schedule pair on a Scheduled/Paused publication.</summary>
+	public async Task<bool> RescheduleToFutureAsync(
+		ReschedulePublicationToFutureArgs args,
+		CancellationToken cancellationToken
+	) {
+		var publication = await LoadAsync(args.PublicationId, args.TenantId, cancellationToken);
+		if (publication is null) {
+			return false;
+		}
+
+		StageReschedule(
+			publication,
+			args.Schedule.ScheduledAtUtc,
+			args.Schedule.ScheduledTimeZone
+		);
+		// Same doctrine as RescheduleToNowAsync: IdempotencyKey is preserved so the
+		// remote dedup key survives the reschedule.
 		await _db.SaveChangesAsync(cancellationToken);
 		return true;
 	}

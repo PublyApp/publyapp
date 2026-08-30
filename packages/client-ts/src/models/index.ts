@@ -1079,6 +1079,24 @@ export function createDeadLetterResolvedResponseFromDiscriminatorValue(parseNode
 /**
  * Creates a new instance of the appropriate class based on discriminator value
  * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {EditPostScheduleBody}
+ */
+// @ts-ignore
+export function createEditPostScheduleBodyFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoEditPostScheduleBody;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {EditPostScheduleResponse}
+ */
+// @ts-ignore
+export function createEditPostScheduleResponseFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoEditPostScheduleResponse;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
  * @returns {FindAuditLogsResponse}
  */
 // @ts-ignore
@@ -1147,6 +1165,15 @@ export function createFindProjectsForTenantResponseFromDiscriminatorValue(parseN
 // @ts-ignore
 export function createFindPublicationsForTenantResponseFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
     return deserializeIntoFindPublicationsForTenantResponse;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {FindScheduledPublicationsResponse}
+ */
+// @ts-ignore
+export function createFindScheduledPublicationsResponseFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoFindScheduledPublicationsResponse;
 }
 /**
  * Creates a new instance of the appropriate class based on discriminator value
@@ -1819,6 +1846,42 @@ export function createResolveTenantProfileUserAssignmentsAsStaffItemFromDiscrimi
 // @ts-ignore
 export function createResolveTenantProfileUserAssignmentsAsStaffResultFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
     return deserializeIntoResolveTenantProfileUserAssignmentsAsStaffResult;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {ScheduledPublicationItem}
+ */
+// @ts-ignore
+export function createScheduledPublicationItemFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoScheduledPublicationItem;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {SchedulePostBody}
+ */
+// @ts-ignore
+export function createSchedulePostBodyFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoSchedulePostBody;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {SchedulePostCreatedItem}
+ */
+// @ts-ignore
+export function createSchedulePostCreatedItemFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoSchedulePostCreatedItem;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {SchedulePostResponse}
+ */
+// @ts-ignore
+export function createSchedulePostResponseFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoSchedulePostResponse;
 }
 /**
  * Creates a new instance of the appropriate class based on discriminator value
@@ -3532,6 +3595,31 @@ export function deserializeIntoDeadLetterResolvedResponse(deadLetterResolvedResp
 }
 /**
  * The deserialization information for the current model
+ * @param EditPostScheduleBody The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoEditPostScheduleBody(editPostScheduleBody: Partial<EditPostScheduleBody> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "body": n => { editPostScheduleBody.body = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
+        "scheduledAtLocal": n => { editPostScheduleBody.scheduledAtLocal = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
+        "timeZone": n => { editPostScheduleBody.timeZone = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
+    }
+}
+/**
+ * The deserialization information for the current model
+ * @param EditPostScheduleResponse The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoEditPostScheduleResponse(editPostScheduleResponse: Partial<EditPostScheduleResponse> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "postId": n => { editPostScheduleResponse.postId = n.getGuidValue(); },
+        "publications": n => { editPostScheduleResponse.publications = n.getCollectionOfObjectValues<SchedulePostCreatedItem>(createSchedulePostCreatedItemFromDiscriminatorValue); },
+    }
+}
+/**
+ * The deserialization information for the current model
  * @param FindAuditLogsResponse The instance to deserialize into.
  * @returns {Record<string, (node: ParseNode) => void>}
  */
@@ -3622,6 +3710,18 @@ export function deserializeIntoFindPublicationsForTenantResponse(findPublication
     return {
         "data": n => { findPublicationsForTenantResponse.data = n.getCollectionOfObjectValues<PublicationListItem>(createPublicationListItemFromDiscriminatorValue); },
         "nextCursor": n => { findPublicationsForTenantResponse.nextCursor = n.getStringValue(); },
+    }
+}
+/**
+ * The deserialization information for the current model
+ * @param FindScheduledPublicationsResponse The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoFindScheduledPublicationsResponse(findScheduledPublicationsResponse: Partial<FindScheduledPublicationsResponse> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "data": n => { findScheduledPublicationsResponse.data = n.getCollectionOfObjectValues<ScheduledPublicationItem>(createScheduledPublicationItemFromDiscriminatorValue); },
+        "nextCursor": n => { findScheduledPublicationsResponse.nextCursor = n.getStringValue(); },
     }
 }
 /**
@@ -4605,6 +4705,64 @@ export function deserializeIntoResolveTenantProfileUserAssignmentsAsStaffResult(
 }
 /**
  * The deserialization information for the current model
+ * @param ScheduledPublicationItem The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoScheduledPublicationItem(scheduledPublicationItem: Partial<ScheduledPublicationItem> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "accountDisplayHandle": n => { scheduledPublicationItem.accountDisplayHandle = n.getStringValue(); },
+        "postBodyPreview": n => { scheduledPublicationItem.postBodyPreview = n.getStringValue(); },
+        "postId": n => { scheduledPublicationItem.postId = n.getGuidValue(); },
+        "postStatus": n => { scheduledPublicationItem.postStatus = n.getStringValue(); },
+        "publicationId": n => { scheduledPublicationItem.publicationId = n.getGuidValue(); },
+        "scheduledAtLocal": n => { scheduledPublicationItem.scheduledAtLocal = n.getStringValue(); },
+        "scheduledAtUtc": n => { scheduledPublicationItem.scheduledAtUtc = n.getDateValue(); },
+        "socialAccountId": n => { scheduledPublicationItem.socialAccountId = n.getGuidValue(); },
+        "status": n => { scheduledPublicationItem.status = n.getStringValue(); },
+        "timeZone": n => { scheduledPublicationItem.timeZone = n.getStringValue(); },
+    }
+}
+/**
+ * The deserialization information for the current model
+ * @param SchedulePostBody The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoSchedulePostBody(schedulePostBody: Partial<SchedulePostBody> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "accountIds": n => { schedulePostBody.accountIds = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
+        "scheduledAtLocal": n => { schedulePostBody.scheduledAtLocal = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
+        "timeZone": n => { schedulePostBody.timeZone = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
+    }
+}
+/**
+ * The deserialization information for the current model
+ * @param SchedulePostCreatedItem The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoSchedulePostCreatedItem(schedulePostCreatedItem: Partial<SchedulePostCreatedItem> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "id": n => { schedulePostCreatedItem.id = n.getGuidValue(); },
+        "socialAccountId": n => { schedulePostCreatedItem.socialAccountId = n.getGuidValue(); },
+        "status": n => { schedulePostCreatedItem.status = n.getStringValue(); },
+    }
+}
+/**
+ * The deserialization information for the current model
+ * @param SchedulePostResponse The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoSchedulePostResponse(schedulePostResponse: Partial<SchedulePostResponse> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "postId": n => { schedulePostResponse.postId = n.getGuidValue(); },
+        "publications": n => { schedulePostResponse.publications = n.getCollectionOfObjectValues<SchedulePostCreatedItem>(createSchedulePostCreatedItemFromDiscriminatorValue); },
+    }
+}
+/**
+ * The deserialization information for the current model
  * @param SetSocialAccountProjectsBody The instance to deserialize into.
  * @returns {Record<string, (node: ParseNode) => void>}
  */
@@ -5541,6 +5699,30 @@ export function deserializeIntoVerifyEmailRequestResult(verifyEmailRequestResult
         "status": n => { verifyEmailRequestResult.status = n.getStringValue(); },
     }
 }
+export interface EditPostScheduleBody extends AdditionalDataHolder, Parsable {
+    /**
+     * The body property
+     */
+    body?: UntypedNode | null;
+    /**
+     * The scheduledAtLocal property
+     */
+    scheduledAtLocal?: UntypedNode | null;
+    /**
+     * The timeZone property
+     */
+    timeZone?: UntypedNode | null;
+}
+export interface EditPostScheduleResponse extends AdditionalDataHolder, Parsable {
+    /**
+     * The postId property
+     */
+    postId?: Guid | null;
+    /**
+     * The publications property
+     */
+    publications?: SchedulePostCreatedItem[] | null;
+}
 export interface FindAuditLogsResponse extends AdditionalDataHolder, Parsable {
     /**
      * The data property
@@ -5608,6 +5790,16 @@ export interface FindPublicationsForTenantResponse extends AdditionalDataHolder,
      * The data property
      */
     data?: PublicationListItem[] | null;
+    /**
+     * The nextCursor property
+     */
+    nextCursor?: string | null;
+}
+export interface FindScheduledPublicationsResponse extends AdditionalDataHolder, Parsable {
+    /**
+     * The data property
+     */
+    data?: ScheduledPublicationItem[] | null;
     /**
      * The nextCursor property
      */
@@ -6802,6 +6994,89 @@ export interface ResolveTenantProfileUserAssignmentsAsStaffResult extends Additi
     assignments?: ResolveTenantProfileUserAssignmentsAsStaffItem[] | null;
 }
 /**
+ * One wire row of the scheduled-publications list (D3 Task 4): the publicationplus its account/post context and the DST-aware zone-local ISO string.
+ */
+export interface ScheduledPublicationItem extends AdditionalDataHolder, Parsable {
+    /**
+     * The accountDisplayHandle property
+     */
+    accountDisplayHandle?: string | null;
+    /**
+     * The postBodyPreview property
+     */
+    postBodyPreview?: string | null;
+    /**
+     * The postId property
+     */
+    postId?: Guid | null;
+    /**
+     * The postStatus property
+     */
+    postStatus?: string | null;
+    /**
+     * The publicationId property
+     */
+    publicationId?: Guid | null;
+    /**
+     * The scheduledAtLocal property
+     */
+    scheduledAtLocal?: string | null;
+    /**
+     * The scheduledAtUtc property
+     */
+    scheduledAtUtc?: Date | null;
+    /**
+     * The socialAccountId property
+     */
+    socialAccountId?: Guid | null;
+    /**
+     * The status property
+     */
+    status?: string | null;
+    /**
+     * The timeZone property
+     */
+    timeZone?: string | null;
+}
+export interface SchedulePostBody extends AdditionalDataHolder, Parsable {
+    /**
+     * The accountIds property
+     */
+    accountIds?: UntypedNode | null;
+    /**
+     * The scheduledAtLocal property
+     */
+    scheduledAtLocal?: UntypedNode | null;
+    /**
+     * The timeZone property
+     */
+    timeZone?: UntypedNode | null;
+}
+export interface SchedulePostCreatedItem extends AdditionalDataHolder, Parsable {
+    /**
+     * The id property
+     */
+    id?: Guid | null;
+    /**
+     * The socialAccountId property
+     */
+    socialAccountId?: Guid | null;
+    /**
+     * The status property
+     */
+    status?: string | null;
+}
+export interface SchedulePostResponse extends AdditionalDataHolder, Parsable {
+    /**
+     * The postId property
+     */
+    postId?: Guid | null;
+    /**
+     * The publications property
+     */
+    publications?: SchedulePostCreatedItem[] | null;
+}
+/**
  * Serializes information the current object
  * @param AcceptInvitationBody The instance to serialize from.
  * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
@@ -7637,6 +7912,33 @@ export function serializeDeadLetterResolvedResponse(writer: SerializationWriter,
 }
 /**
  * Serializes information the current object
+ * @param EditPostScheduleBody The instance to serialize from.
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeEditPostScheduleBody(writer: SerializationWriter, editPostScheduleBody: Partial<EditPostScheduleBody> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!editPostScheduleBody || isSerializingDerivedType) { return; }
+    writer.writeObjectValue("body", editPostScheduleBody.body);
+    writer.writeObjectValue("scheduledAtLocal", editPostScheduleBody.scheduledAtLocal);
+    writer.writeObjectValue("timeZone", editPostScheduleBody.timeZone);
+    writer.writeAdditionalData(editPostScheduleBody.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param EditPostScheduleResponse The instance to serialize from.
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeEditPostScheduleResponse(writer: SerializationWriter, editPostScheduleResponse: Partial<EditPostScheduleResponse> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!editPostScheduleResponse || isSerializingDerivedType) { return; }
+    writer.writeGuidValue("postId", editPostScheduleResponse.postId);
+    writer.writeCollectionOfObjectValues<SchedulePostCreatedItem>("publications", editPostScheduleResponse.publications, serializeSchedulePostCreatedItem);
+    writer.writeAdditionalData(editPostScheduleResponse.additionalData);
+}
+/**
+ * Serializes information the current object
  * @param FindAuditLogsResponse The instance to serialize from.
  * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
  * @param writer Serialization writer to use to serialize this model
@@ -7736,6 +8038,19 @@ export function serializeFindPublicationsForTenantResponse(writer: Serialization
     writer.writeCollectionOfObjectValues<PublicationListItem>("data", findPublicationsForTenantResponse.data, serializePublicationListItem);
     writer.writeStringValue("nextCursor", findPublicationsForTenantResponse.nextCursor);
     writer.writeAdditionalData(findPublicationsForTenantResponse.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param FindScheduledPublicationsResponse The instance to serialize from.
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeFindScheduledPublicationsResponse(writer: SerializationWriter, findScheduledPublicationsResponse: Partial<FindScheduledPublicationsResponse> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!findScheduledPublicationsResponse || isSerializingDerivedType) { return; }
+    writer.writeCollectionOfObjectValues<ScheduledPublicationItem>("data", findScheduledPublicationsResponse.data, serializeScheduledPublicationItem);
+    writer.writeStringValue("nextCursor", findScheduledPublicationsResponse.nextCursor);
+    writer.writeAdditionalData(findScheduledPublicationsResponse.additionalData);
 }
 /**
  * Serializes information the current object
@@ -8785,6 +9100,68 @@ export function serializeResolveTenantProfileUserAssignmentsAsStaffResult(writer
     if (!resolveTenantProfileUserAssignmentsAsStaffResult || isSerializingDerivedType) { return; }
     writer.writeCollectionOfObjectValues<ResolveTenantProfileUserAssignmentsAsStaffItem>("assignments", resolveTenantProfileUserAssignmentsAsStaffResult.assignments, serializeResolveTenantProfileUserAssignmentsAsStaffItem);
     writer.writeAdditionalData(resolveTenantProfileUserAssignmentsAsStaffResult.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param ScheduledPublicationItem The instance to serialize from.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeScheduledPublicationItem(writer: SerializationWriter, scheduledPublicationItem: Partial<ScheduledPublicationItem> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!scheduledPublicationItem || isSerializingDerivedType) { return; }
+    writer.writeStringValue("accountDisplayHandle", scheduledPublicationItem.accountDisplayHandle);
+    writer.writeStringValue("postBodyPreview", scheduledPublicationItem.postBodyPreview);
+    writer.writeGuidValue("postId", scheduledPublicationItem.postId);
+    writer.writeStringValue("postStatus", scheduledPublicationItem.postStatus);
+    writer.writeGuidValue("publicationId", scheduledPublicationItem.publicationId);
+    writer.writeStringValue("scheduledAtLocal", scheduledPublicationItem.scheduledAtLocal);
+    writer.writeDateValue("scheduledAtUtc", scheduledPublicationItem.scheduledAtUtc);
+    writer.writeGuidValue("socialAccountId", scheduledPublicationItem.socialAccountId);
+    writer.writeStringValue("status", scheduledPublicationItem.status);
+    writer.writeStringValue("timeZone", scheduledPublicationItem.timeZone);
+    writer.writeAdditionalData(scheduledPublicationItem.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param SchedulePostBody The instance to serialize from.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeSchedulePostBody(writer: SerializationWriter, schedulePostBody: Partial<SchedulePostBody> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!schedulePostBody || isSerializingDerivedType) { return; }
+    writer.writeObjectValue("accountIds", schedulePostBody.accountIds);
+    writer.writeObjectValue("scheduledAtLocal", schedulePostBody.scheduledAtLocal);
+    writer.writeObjectValue("timeZone", schedulePostBody.timeZone);
+    writer.writeAdditionalData(schedulePostBody.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param SchedulePostCreatedItem The instance to serialize from.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeSchedulePostCreatedItem(writer: SerializationWriter, schedulePostCreatedItem: Partial<SchedulePostCreatedItem> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!schedulePostCreatedItem || isSerializingDerivedType) { return; }
+    writer.writeGuidValue("id", schedulePostCreatedItem.id);
+    writer.writeGuidValue("socialAccountId", schedulePostCreatedItem.socialAccountId);
+    writer.writeStringValue("status", schedulePostCreatedItem.status);
+    writer.writeAdditionalData(schedulePostCreatedItem.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param SchedulePostResponse The instance to serialize from.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeSchedulePostResponse(writer: SerializationWriter, schedulePostResponse: Partial<SchedulePostResponse> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!schedulePostResponse || isSerializingDerivedType) { return; }
+    writer.writeGuidValue("postId", schedulePostResponse.postId);
+    writer.writeCollectionOfObjectValues<SchedulePostCreatedItem>("publications", schedulePostResponse.publications, serializeSchedulePostCreatedItem);
+    writer.writeAdditionalData(schedulePostResponse.additionalData);
 }
 /**
  * Serializes information the current object

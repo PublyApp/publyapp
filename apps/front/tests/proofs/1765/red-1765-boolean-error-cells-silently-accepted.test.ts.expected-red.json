@@ -1,0 +1,14 @@
+{
+	"$schema": "../expected-red.schema.json",
+	"_comment": "Per-test kept-red expectation manifest (required since #1806 r11 — the runner fails loud when a declared proof lacks it). Both declared tests MUST fail with AssertionErrors on correct code.",
+	"expectedRed": [
+		{
+			"testName": "boolean cell (t=\"b\") in email column is silently accepted as text and flagged only as invalid email",
+			"why": "On correct code the cell-type check rejects the boolean cell with a structured invalidCell before email validation, so the expected `invalidEmail: '1'` shape differs and the assertion fails with an AssertionError. If this test passes, the cell-type check is missing or was weakened."
+		},
+		{
+			"testName": "formula error cell (t=\"e\") in email column is silently accepted as text and flagged only as invalid email",
+			"why": "On correct code the cell-type check rejects the formula-error cell with a structured invalidCell before email validation, so the expected `invalidEmail: '#REF!'` shape differs and the assertion fails with an AssertionError. If this test passes, the cell-type check is missing or was weakened."
+		}
+	]
+}

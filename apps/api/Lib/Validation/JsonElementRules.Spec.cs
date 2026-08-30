@@ -1322,6 +1322,111 @@ public sealed class JsonElementRulesSpec {
 		_ = result.IsValid.Should().BeFalse();
 	}
 
+	// ============= MustBeRequiredTimezone =============
+
+	private class RequiredTimezoneModel {
+		public JsonElement Value { get; set; }
+	}
+
+	private class RequiredTimezoneValidator
+		: AbstractValidator<RequiredTimezoneModel> {
+		public RequiredTimezoneValidator() {
+			RuleFor(x => x.Value)
+				.MustBeRequiredTimezone("Value");
+		}
+	}
+
+	[Fact]
+	public void ItShouldPassRequiredTimezoneWhenValidIanaId() {
+		var model = new RequiredTimezoneModel {
+			Value = JsonSerializer.SerializeToElement(
+				"Europe/Paris"
+			),
+		};
+		var result = new RequiredTimezoneValidator().Validate(model);
+		_ = result.IsValid.Should().BeTrue();
+	}
+
+	[Fact]
+	public void ItShouldPassRequiredTimezoneWhenMultiSegmentId() {
+		var model = new RequiredTimezoneModel {
+			Value = JsonSerializer.SerializeToElement(
+				"America/Argentina/Buenos_Aires"
+			),
+		};
+		var result = new RequiredTimezoneValidator().Validate(model);
+		_ = result.IsValid.Should().BeTrue();
+	}
+
+	[Fact]
+	public void ItShouldFailRequiredTimezoneWhenEmpty() {
+		var model = new RequiredTimezoneModel { Value = default };
+		var result = new RequiredTimezoneValidator().Validate(model);
+		_ = result.IsValid.Should().BeFalse();
+		_ = result.Errors.Should().Contain(
+			e => e.ErrorMessage.Contains("required")
+		);
+	}
+
+	[Fact]
+	public void ItShouldFailRequiredTimezoneWhenJsonNull() {
+		var model = new RequiredTimezoneModel {
+			Value = JsonDocument.Parse("null").RootElement,
+		};
+		var result = new RequiredTimezoneValidator().Validate(model);
+		_ = result.IsValid.Should().BeFalse();
+	}
+
+	[Fact]
+	public void ItShouldFailRequiredTimezoneWhenNotAString() {
+		var model = new RequiredTimezoneModel {
+			Value = JsonSerializer.SerializeToElement(42),
+		};
+		var result = new RequiredTimezoneValidator().Validate(model);
+		_ = result.IsValid.Should().BeFalse();
+	}
+
+	[Fact]
+	public void ItShouldFailRequiredTimezoneWhenBlankString() {
+		var model = new RequiredTimezoneModel {
+			Value = JsonSerializer.SerializeToElement("   "),
+		};
+		var result = new RequiredTimezoneValidator().Validate(model);
+		_ = result.IsValid.Should().BeFalse();
+	}
+
+	[Fact]
+	public void ItShouldFailRequiredTimezoneWhenUnknownZone() {
+		var model = new RequiredTimezoneModel {
+			Value = JsonSerializer.SerializeToElement(
+				"Mars/Olympus_Mons"
+			),
+		};
+		var result = new RequiredTimezoneValidator().Validate(model);
+		_ = result.IsValid.Should().BeFalse();
+	}
+
+	[Fact]
+	public void ItShouldFailRequiredTimezoneWhenOverMaxLength() {
+		var longZone = "Europe/" + new string('a', 64);
+		var model = new RequiredTimezoneModel {
+			Value = JsonSerializer.SerializeToElement(longZone),
+		};
+		var result = new RequiredTimezoneValidator().Validate(model);
+		_ = result.IsValid.Should().BeFalse();
+	}
+
+	[Fact]
+	public void ItShouldFailRequiredTimezoneWhenIllegalCharacters() {
+		var model = new RequiredTimezoneModel {
+			Value = JsonSerializer.SerializeToElement(
+				"Europe/../etc"
+			),
+		};
+		var result = new RequiredTimezoneValidator().Validate(model);
+		_ = result.IsValid.Should().BeFalse();
+	}
+
 	// ============= trim: true vs default (raw) on boundary values =============
 
 	private class RequiredStringLengthTrimModel {

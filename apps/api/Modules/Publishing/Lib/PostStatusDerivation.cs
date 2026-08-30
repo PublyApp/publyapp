@@ -29,6 +29,27 @@ public static class PostStatusDerivation {
 
 		return DerivedPostStatus.Partial;
 	}
+
+	/// <summary>
+	/// Wire formatting for the DERIVED post status (snake_case wire values per
+	/// repo rule). Closed switch: a new <see cref="DerivedPostStatus"/> member
+	/// without a wire value fails loudly at runtime instead of emitting a
+	/// <c>ToString().ToLowerInvariant()</c> guess (round-2 finding: the queue
+	/// contract carried a PascalCase <c>partial</c> beside the snake_case
+	/// publication <c>status</c>).
+	/// </summary>
+	public static string FormatPostStatus(DerivedPostStatus status) {
+		return status switch {
+			DerivedPostStatus.Draft => "draft",
+			DerivedPostStatus.Scheduled => "scheduled",
+			DerivedPostStatus.Published => "published",
+			DerivedPostStatus.Partial => "partial",
+			DerivedPostStatus.Failed => "failed",
+			_ => throw new ArgumentOutOfRangeException(
+				nameof(status), status, "Unhandled DerivedPostStatus"
+			),
+		};
+	}
 }
 
 public enum DerivedPostStatus {

@@ -81,6 +81,12 @@ Before triggering the stack deployment:
   Dokploy secret value: a `#` silently truncates everything from the first `#` onward — this
   deployment's first release silently truncated a secret there.
 - Confirm the migration service joins a network that resolves and reaches PostgreSQL.
+- Confirm `PUBLIC_ORIGIN` is set for `publyapp-front` — the front SSR handler refuses to start in
+  production without it, because an unset value lets the server trust the client's `Host` header
+  when building canonical and Open Graph URLs (host-header injection). Set it to the public https
+  origin with no trailing path (for example `https://app.publy.example`). Never inline a `#` in a
+  Dokploy secret value: a `#` silently truncates everything from the first `#` onward — this
+  deployment's first release silently truncated a secret there.
 - Confirm the upload budget variables (`UPLOAD_GLOBAL_MAX_BYTES`, `UPLOAD_PER_STAFF_MAX_BYTES`,
   `UPLOAD_ORPHAN_GRACE_DAYS`) are set for `api` and `worker` (safe defaults apply when omitted;
   semantics: [`guides/uploads.md`](../guides/uploads.md)).

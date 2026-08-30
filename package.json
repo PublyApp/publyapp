@@ -6,12 +6,12 @@
 	"scripts": {
 		"check:frontend-barrels": "node ./packages/scripts-ts/src/check-frontend-barrels.ts",
 		"check:doc-links": "node ./packages/scripts-ts/src/check-doc-links.ts",
-		"format": "oxfmt --check \".lintstagedrc.js\" \"knip.ts\" \"package.json\" \"turbo.json\" \".oxlintrc.json\" \".oxfmtrc.json\" \"packages/scripts-ts/**/*.{ts,mts,cts}\" \"apps/api/**/*.{js,mjs,cjs,json}\" \"apps/front/**/*.{js,jsx,ts,tsx,mjs,cjs,mts,cts,json,css}\" \"packages/_tsconfig/**/*.json\" \"packages/shared-ts/**/*.{js,jsx,ts,tsx,mjs,cjs,mts,cts,json}\" \"packages/lint-ts/**/*.{js,mjs,cjs,ts,mts,cts,json}\"",
+		"format": "oxfmt --check \".lintstagedrc.js\" \"knip.ts\" \"package.json\" \"turbo.json\" \".oxlintrc.json\" \".oxfmtrc.json\" \"packages/scripts-ts/**/*.{ts,mts,cts}\" \"apps/api/**/*.{js,mjs,cjs,json}\" \"apps/front/**/*.{js,jsx,ts,tsx,mjs,cjs,mts,cts,json,css}\" \"packages/_tsconfig/**/*.json\" \"packages/shared-ts/**/*.{js,jsx,ts,tsx,mjs,cjs,mts,cts,json}\" \"packages/lint-ts/**/*.{js,mjs,cjs,ts,mts,cts,json}\" || node -e \"console.error('Formatting check failed: the files above are not formatted. Fix with: pnpm format:write'); process.exit(1)\"",
 		"format:write": "oxfmt --write \".lintstagedrc.js\" \"knip.ts\" \"package.json\" \"turbo.json\" \".oxlintrc.json\" \".oxfmtrc.json\" \"packages/scripts-ts/**/*.{ts,mts,cts}\" \"apps/api/**/*.{js,mjs,cjs,json}\" \"apps/front/**/*.{js,jsx,ts,tsx,mjs,cjs,mts,cts,json,css}\" \"packages/_tsconfig/**/*.json\" \"packages/shared-ts/**/*.{js,jsx,ts,tsx,mjs,cjs,mts,cts,json}\" \"packages/lint-ts/**/*.{js,mjs,cjs,ts,mts,cts,json}\"",
 		"lint": "oxlint --quiet . && pnpm lint:disables && pnpm check:frontend-barrels",
 		"lint:disables": "node ./packages/scripts-ts/src/check-oxlint-disables.ts",
 		"lint:fix": "oxlint --fix --quiet . && pnpm check:frontend-barrels",
-		"prepare": "husky",
+		"prepare": "node packages/scripts-ts/src/install-git-hooks.ts",
 		"test:ci-drift": "pnpm --filter scripts-ts exec vitest run src/check-ci-drift.test.ts",
 		"test:review-worktree-resolution": "pnpm --filter scripts-ts exec vitest run src/review-worktree.resolve.test.ts",
 		"test:review-api": "pnpm --filter scripts-ts exec vitest run src/review-api.test.ts",
@@ -24,7 +24,6 @@
 	"devDependencies": {
 		"@types/node": "^24.13.3",
 		"chokidar": "^5.0.0",
-		"husky": "^9.0.11",
 		"jscpd": "^4.3.0",
 		"knip": "6.32.2",
 		"lint-staged": "^17.3.0",

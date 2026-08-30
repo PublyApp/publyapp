@@ -90,11 +90,16 @@ review-api *args:
 review-api *args:
   node packages/scripts-ts/src/review-api.ts @args
 
-# Start docker services (postgres, etc.)
+# Start Aspire AppHost (postgres + api + worker + front).
+# -property:OpenApiGenerateDocuments=false: `dotnet run`'s implicit build would
+# otherwise run the API's OpenAPI document generation, which boots the app with
+# the ambient .env.development (APP_ROLE=all) while no Postgres is up yet, and the
+# worker's migration gate retries until the build fails. This recipe only needs a
+# build; the drift gate (build-api-full) and `just generate-client` regenerate.
 dev-services:
-  docker compose -f docker-compose.services.yml up -d
+  dotnet run --project apps/apphost --property:OpenApiGenerateDocuments=false
 
-# Start database (alias for dev-services)
+# Start Aspire AppHost (alias for dev-services)
 dev-db: dev-services
 
 # =============================================================================
@@ -295,6 +300,14 @@ ci-drift:
   @echo "=== [gate] workflow drift guard ==="
   pnpm --filter scripts-ts exec vitest run src/codeowners-contract.test.ts
   pnpm test:ci-drift
+  # #1709: the ratchet-floor generator's own suite. Without this line the
+  # ratchet guarding against silent step erasure is itself unverified —
+  # exactly the #1709 finding that file-by-file enumeration left a 463-line
+  # test suite with no CI consumer. Mirrored by the gate-selftest step in
+  # front-ci.yml, and pinned structurally by
+  # packages/scripts-ts/src/check-ci-gate-structure.ts (gateSelftestTests +
+  # EXPECTED_GATE_SELFTEST_TESTS) so this line cannot silently drop.
+  pnpm --filter scripts-ts exec vitest run src/gen-reason-ref.test.ts
   pnpm --filter scripts-ts exec vitest run src/lint-front.test.ts
   # #1679: the no-floating-promises ratchet's own suite. front-ci.yml's
   # gate-selftest step runs it; without this line the local mirror would be
@@ -498,8 +511,14 @@ ci-front:
 # The developer replay path is `just test-preuves` in the lane worktree
 # (where .dump/ traces also exist). CI runs the same command on a clean
 # checkout.
+#
+# `pnpm run prepare` runs first: it wires core.hooksPath to the versioned
+# .husky dir (packages/scripts-ts/src/install-git-hooks.ts), so the replay
+# exercises the real pre-commit pipeline on real worktrees — mirroring the
+# front-ci.yml::supply-chain "Install Git hooks (mirrors prepare)" step.
 test-preuves:
   @echo "=== [gate] paired red proofs (expected to fail) ==="
+  pnpm run prepare
   pnpm --filter front test:preuves
 
 # Quality gate (issue #803): repo-wide oxlint + oxfmt check + .NET warnings-as-errors + analyzer tests.
@@ -570,22 +589,6 @@ ci-full: ci ci-e2e-front
   @echo "=== just ci-full: PASSED ==="
 
 # =============================================================================
-# Docker
-# =============================================================================
-
-# Build docker images
-docker-build:
-  docker compose -f docker-compose.services.yml build
-
-# Start docker services
-docker-up:
-  docker compose -f docker-compose.services.yml up -d
-
-# Stop docker services
-docker-down:
-  docker compose -f docker-compose.services.yml down
-
-# =============================================================================
 # Code generation
 # =============================================================================
 
@@ -643,12 +646,11 @@ env-check:
   @echo "Dotnet version: $(dotnet --version)"
   @echo "Docker version: $(docker --version)"
 
-# Convenience: setup dev env (install + db)
-dev-setup: install dev-db
+# Convenience: setup dev env (install + apphost)
+dev-setup: install dev-services
   @echo "Development environment ready!"
-  @echo "Run 'just dev-api' in one terminal and 'just dev-front' in another"
+  @echo "The Aspire AppHost is running the API, worker, and front."
 
-# Convenience: quick-start api after install+db
-quick-start: install dev-db dev-api
-  @echo "API started on http://localhost:5000"
-  @echo "Run 'just dev-front' in another terminal for the frontend"
+# Convenience: quick-start (install + apphost)
+quick-start: install dev-services
+  @echo "Aspire AppHost started — API on http://localhost:5000, front on http://localhost:5050"

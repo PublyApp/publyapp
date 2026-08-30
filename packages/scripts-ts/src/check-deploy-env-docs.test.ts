@@ -272,7 +272,32 @@ const envDefinition = {
 
 	assert.throws(
 		() => extractFrontSchemaRequirements(path.join(dir, 'env.ts')),
-		/schema identifier "someUnknownSchema" is not requiredTrimmedString or optionalTrimmedString/,
+		/schema identifier "someUnknownSchema" is not one of requiredTrimmedString, optionalTrimmedString, optionalPublicOrigin/,
+	);
+});
+
+// Paired proof: the guard must STILL fail on an identifier it does not know.
+// Adding optionalPublicOrigin must not disarm the fail-closed behavior — a
+// hypothetical future `optionalFoo` must still be rejected with its name.
+test('extractFrontSchemaRequirements: still fails on unknown optionalFoo (paired proof — guard not disarmed)', () => {
+	const dir = createFixture({
+		'env.ts': `
+const optionalFoo = z.string().optional();
+
+const envDefinition = {
+    server: {
+        bogus: {
+            processKeys: ['BOGUS'],
+            schema: optionalFoo,
+        },
+    },
+} as const;
+`,
+	});
+
+	assert.throws(
+		() => extractFrontSchemaRequirements(path.join(dir, 'env.ts')),
+		/schema identifier "optionalFoo" is not one of requiredTrimmedString, optionalTrimmedString, optionalPublicOrigin/,
 	);
 });
 

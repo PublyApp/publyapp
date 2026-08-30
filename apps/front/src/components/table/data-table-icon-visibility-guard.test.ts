@@ -51,14 +51,28 @@ const visibleReader: ComputedStyleReader = () => ({
 	opacity: '1',
 });
 
+// #1899: these fixtures are ATTACHED. The contract under test is class list
+// vs measured style; its assumed input is a healthy, connected icon whose
+// computed style the injected reader represents. A detached node is now a
+// verdict of its own (indeterminate — see
+// `data-table-icon-visibility-guard-indeterminable.test.ts`), and leaving
+// these fixtures detached would let the indeterminate gate answer before
+// the measurement the contract is about.
+const attachedIcons: HTMLElement[] = [];
+
 const makeIcon = (): HTMLElement => {
 	const icon = document.createElement('span');
 	icon.setAttribute('data-icon', 'check');
+	document.body.appendChild(icon);
+	attachedIcons.push(icon);
 	return icon;
 };
 
 describe('icon visibility guard measurement vs enumeration (#1799 r4)', () => {
 	afterEach(() => {
+		for (const icon of attachedIcons.splice(0)) {
+			icon.remove();
+		}
 		vi.clearAllMocks();
 	});
 

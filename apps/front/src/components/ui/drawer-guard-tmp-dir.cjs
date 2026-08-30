@@ -23,11 +23,15 @@ const { mkdtempSync, rmSync } = require('node:fs');
 const { tmpdir } = require('node:os');
 const path = require('node:path');
 
+/**
+ * @param {string} prefix
+ * @returns {{ dir: string, remove: () => void }}
+ */
 const createGuardTempDir = (prefix) => {
 	const dir = mkdtempSync(path.join(tmpdir(), prefix));
 	const remove = () => rmSync(dir, { recursive: true, force: true });
 	process.on('exit', remove);
-	const handleSignal = (signal) => {
+	const handleSignal = (/** @type {NodeJS.Signals} */ signal) => {
 		remove();
 		process.removeListener(signal, handleSignal);
 		process.kill(process.pid, signal);

@@ -344,6 +344,7 @@ public class Program {
 		tenantGroup.MapProjectEndpointsForTenant();
 		tenantGroup.MapSocialAccountEndpointsForTenant();
 		tenantGroup.MapPublishingEndpointsForTenant();
+		tenantGroup.MapPostPublishingEndpointsForTenant();
 
 		var readinessOptions = new HealthCheckOptions {
 			Predicate = registration => registration.Tags.Contains("ready"),

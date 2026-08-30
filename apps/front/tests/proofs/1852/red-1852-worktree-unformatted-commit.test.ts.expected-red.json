@@ -1,0 +1,10 @@
+{
+	"$schema": "../expected-red.schema.json",
+	"_comment": "Per-test kept-red expectation manifest for the fresh-worktree unformatted-commit proof (issue #1852). Read by apps/front/scripts/ci/run-preuves.mts BEFORE classification. The single test declared here MUST fail with an AssertionError on correct code. If it PASSES, a fresh worktree once again commits unformatted code, which is the defect this PR closes.",
+	"expectedRed": [
+		{
+			"testName": "a fresh worktree lets an unformatted commit through unchanged (issue #1852)",
+			"why": "The test creates a fresh worktree, commits a deliberately unformatted probe file, reads the committed blob back and asserts `expect(committed).toBe(UNFORMATTED_PROBE)` — that is, it asserts the defect: the commit went through untouched. On correct code the versioned .husky hooks are wired in that fresh worktree, lint-staged reformats the staged file, and the committed content no longer equals the unformatted probe, so the assertion fails with an AssertionError. If this test PASSES, the hooks are unwired in fresh worktrees again. The test's own preflight raises 'MESURE IMPOSSIBLE' when a tracked hook is absent or non-executable, so it can never collapse into a false 'defect absent'."
+		}
+	]
+}

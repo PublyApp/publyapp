@@ -8,6 +8,8 @@ import { ImageRequestBuilderRequestsMetadata, type ImageRequestBuilder } from '.
 // @ts-ignore
 import { PublishNowRequestBuilderRequestsMetadata, type PublishNowRequestBuilder } from './publishNow/index.js';
 // @ts-ignore
+import { ScheduleRequestBuilderRequestsMetadata, type ScheduleRequestBuilder } from './schedule/index.js';
+// @ts-ignore
 import { type BaseRequestBuilder, type KeysToExcludeForNavigationMetadata, type NavigationMetadata, type Parsable, type ParsableFactory, type RequestConfiguration, type RequestInformation, type RequestsMetadata } from '@microsoft/kiota-abstractions';
 
 /**
@@ -22,6 +24,10 @@ export interface WithPostItemRequestBuilder extends BaseRequestBuilder<WithPostI
      * The publishNow property
      */
     get publishNow(): PublishNowRequestBuilder;
+    /**
+     * The schedule property
+     */
+    get schedule(): ScheduleRequestBuilder;
     /**
      * Delete a post for the current tenant
      * @param requestConfiguration Configuration for the request such as headers, query parameters, and middleware options.
@@ -93,6 +99,9 @@ export const WithPostItemRequestBuilderNavigationMetadata: Record<Exclude<keyof 
     },
     publishNow: {
         requestsMetadata: PublishNowRequestBuilderRequestsMetadata,
+    },
+    schedule: {
+        requestsMetadata: ScheduleRequestBuilderRequestsMetadata,
     },
 };
 /**

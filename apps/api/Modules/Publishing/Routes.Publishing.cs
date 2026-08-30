@@ -5,7 +5,10 @@ namespace PublyApp.Api.Lib.Routes;
 public static partial class Routes {
 	/// <summary>
 	/// Publishing routes (tenant-scoped, root scope) — publications history and
-	/// composer targets (Epic D).
+	/// composer targets (Epic D). The D3 schedule lifecycle lives under
+	/// <see cref="Posts"/> (Posts/{postId}/schedule) — see
+	/// <c>apps/api/Modules/Publishing/Endpoints/PublishingEndpointsForTenant.cs</c>
+	/// for what stays here, and the schedule module for the rest.
 	/// </summary>
 	public static class Publishing {
 		/// <summary>Tenant-scoped publishing routes</summary>

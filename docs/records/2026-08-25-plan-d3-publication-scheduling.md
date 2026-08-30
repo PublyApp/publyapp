@@ -4,11 +4,11 @@
 
 ## Prerequisites / cross-branch dependencies (blocking)
 
-D3 consumes foundation symbols that are **NOT on `develop`** (`bfe5cf0b3` at review time; re-verify at implementation start). They live on **`origin/lane/wt-644` (D1, PR pending)**. This plan is executable **only after D1 merges into develop**. Do not start before; if any symbol below is still missing from the merged tree at implementation start, STOP and land/rebase D1 first — never replicate D1 surface here.
+D3 consumes foundation symbols that were merged into `develop` by **D1 (#1433, tip `12938d937`)** and are verified present in this working tree at implementation start. Wherever this plan said "on `lane/wt-644`", read `develop` (round-4 correction per #1440; the branch-tip citation `origin/lane/wt-644` = `565c7ecfa`, later `89c7555b4`, is historical).
 
-Consumed from `lane/wt-644` (paths verified via `git ls-tree` / `git show` on `origin/lane/wt-644` = `565c7ecfa`):
+Consumed from `develop` (merged by #1433; every path below verified in the working tree):
 
-| Symbol | Exact file (wt-644) |
+| Symbol | Exact file (wt-644 = develop) |
 |---|---|
 | `Publication` entity (+ `PublicationWire.FormatStatus`) | `apps/api/Modules/Publishing/Entities/Publication.cs` |
 | `PublicationConfiguration` | `apps/api/Modules/Publishing/Entities/PublicationConfiguration.cs` |
@@ -55,8 +55,8 @@ Branches: **[dev]** = exists on `develop` (verified `git ls-files`), modify free
 **Create (api) — all [new] unless noted**
 - `apps/api/Modules/Publishing/Routes.Publishing.cs` — constants nested under the existing `Routes.Tenant` partial (`apps/api/Lib/Routes/Routes.cs` [dev]): `Schedule = "posts/{postId}/schedule"` reused by POST/PATCH/DELETE, `Find = "publications"`.
 - `apps/api/Modules/Publishing/Endpoints/PublicationEndpointsForTenant.cs` — `MapPublicationEndpointsForTenant(this IEndpointRouteBuilder)` mirroring `MapPostEndpointsForTenant` (`apps/api/Modules/Posts/Endpoints/PostEndpointsForTenant.cs` [dev]); every route gets `.WithTenantPermission([AppPermissions.Tenant.Posts.PUBLISH])` (extension in `apps/api/Lib/Filters/TenantPermissionFilter.cs` [dev]) + `.RequireRateLimiting(ApiRateLimitPolicies.*)` (`apps/api/Lib/RateLimiting/ApiRateLimitPolicies.cs` [dev]).
-- `apps/api/Modules/Publishing/Handlers/Tenant/SchedulePostForTenant.cs` (+ `.Spec.cs`) — body `JsonElement`: `accountIds` validated with the EXISTING `JsonElementRules.MustBeRequiredGuidArray` (requires ≥ 1; `apps/api/Lib/Validation/JsonElementRules.cs` [dev]); `scheduledAtLocal` with the EXISTING `JsonElementRules.MustBeRequiredIsoDateTime` [dev] (wall time parsed Unspecified; past-drift rule enforced in the service); `timeZone` with `MustBeRequiredTimezone` **[new — see Task 1 Step 0]** bounded by `PublicationSchedule.MaxTimeZoneLength`. Returns `Results<Created<SchedulePostResponse>, AppValidationProblemHttpResult, AppNotFoundHttpResult>`.
-- `apps/api/Modules/Publishing/Handlers/Tenant/EditPostScheduleForTenant.cs` (+ `.Spec.cs`) — `PatchField<string>` body, `PatchField<DateTime>` scheduledAtLocal (`JsonElementRules.MustBePatchFieldIsoDateTime` [dev]), timeZone present only with the pair (`MustBePatchFieldTimezone` [dev] — declared in `apps/api/Modules/Tenants/Validation/TenantValidationRules.cs`, NOT in `JsonElementRules.cs`; see the Modify list below). In-progress refusal via `TypedProblems.Conflict(...)` (`apps/api/Lib/ProblemResults/TypedProblems.cs` [dev]) with translation key `publication-schedule-in-progress` (added to `packages/shared-ts/src/lib/i18n/json/response-message.en.json` + `.fr.json` [dev]; `ResponseKeys.g.cs` regenerates on build — never hand-edit it).
+- `apps/api/Modules/Publishing/Handlers/Tenant/SchedulePostForTenant.cs` (+ `.Spec.cs`) — body `JsonElement`: `accountIds` validated with the EXISTING `JsonElementRules.MustBeRequiredGuidArray` (requires ≥ 1; `apps/api/Lib/Validation/JsonElementRules.cs` [dev]); `scheduledAtLocal` with the EXISTING `JsonElementRules.MustBeRequiredIsoDateTime` [dev] — ISO 8601 WITH a UTC designator (`Z` or ±hh:mm offset; a bare wall clock is a validation error, round-4 correction), parsed to a UTC instant; past-drift rule enforced in the service); `timeZone` with `MustBeRequiredTimezone` **[new — see Task 1 Step 0]** bounded by `PublicationSchedule.MaxTimeZoneLength`. Returns `Results<Created<SchedulePostResponse>, AppValidationProblemHttpResult, AppNotFoundHttpResult>`.
+- `apps/api/Modules/Publishing/Handlers/Tenant/EditPostScheduleForTenant.cs` (+ `.Spec.cs`) — also defines `EditPostScheduleResult.InvalidSchedule(string Cause, string ErrorKey)` (round-4 correction per #1440: this D3-introduced type was not listed before). `PatchField<string>` body, `PatchField<DateTime>` scheduledAtLocal (`JsonElementRules.MustBePatchFieldIsoDateTime` [dev]), timeZone present only with the pair (`MustBePatchFieldTimezone` [dev] — declared in `apps/api/Modules/Tenants/Validation/TenantValidationRules.cs`, NOT in `JsonElementRules.cs`; see the Modify list below). In-progress refusal via `TypedProblems.Conflict(...)` (`apps/api/Lib/ProblemResults/TypedProblems.cs` [dev]) with translation key `publication-schedule-in-progress` (added to `packages/shared-ts/src/lib/i18n/json/response-message.en.json` + `.fr.json` [dev]; `ResponseKeys.g.cs` regenerates on build — never hand-edit it).
 - `apps/api/Modules/Publishing/Handlers/Tenant/CancelPostScheduleForTenant.cs` (+ `.Spec.cs`) — hard-deletes `Scheduled` rows only; `Ok<ApiResponse>` with key `post-schedule-cancelled-success` / noop key `post-schedule-cancel-noop` (same JSON mechanism).
 - `apps/api/Modules/Publishing/Handlers/Tenant/FindScheduledPublicationsForTenant.cs` (+ `.Spec.cs`) — `GET publications`, `[AsParameters]` query DTO (scalar `string?` fields, csv status parser — no `List<T>?` per OpenAPI safeguards), keyset `(scheduled_at_utc, id)`, window ≤ 31 days else 422 `publication-window-too-wide`, response extends the cursor-paginated shape (`apps/api/Lib/Validation/CursorPaginatedQueryValidator.cs` [dev] for the query validator).
 - `apps/api/Modules/Publishing/Services/IPublicationService.cs` + `PublicationService.cs` (+ `.Spec.cs`) — methods take `tenantId` always; reads join `SocialAccount.DisplayHandle` (`apps/api/Modules/SocialAccounts/Entities/SocialAccount.cs` [dev]) and visibility via `VisibleIn` (`apps/api/Modules/SocialAccounts/Lib/VisibleIn.cs` [dev]); audit via `IAuditLogService.LogAsync(CreateAuditLogArgs(UserId, Action, TargetId, Details))` (`apps/api/Modules/AuditLogs/Services/AuditLogService.cs` [dev]).
@@ -97,7 +97,7 @@ Branches: **[dev]** = exists on `develop` (verified `git ls-files`), modify free
 **Files:** service + handler + spec (Create list), `Routes.Publishing.cs`, `Program.cs`, `JsonElementRules` (timezone validator).
 
 - [ ] **Step 0:** add `JsonElementRules.MustBeRequiredTimezone` + spec cases (RED then GREEN). Commit together with Step 3.
-- [ ] **Step 1 (RED):** `SchedulePostForTenant.Spec` (Testcontainers, co-located): happy (1 active account, `scheduledAtLocal = 2099-08-26T09:00:00`, zone `Europe/Paris` → row `scheduled_at_utc = 2099-08-26T07:00:00Z`, `scheduled_time_zone = Europe/Paris`, `status = Scheduled`, `idempotency_key = PublicationIdempotencyKey.For(id)`, `TenantId` set); multi-account → N rows distinct ids; account-not-in-project → 422 key `publication-schedule-account-not-in-project`; 422 empty `accountIds`, past instant beyond drift, bad zone, malformed postId; 403 member without Posts `PUBLISH`; 404 unknown postId; cross-tenant isolation; zero `IPublishProvider` calls (fake recorder).
+- [ ] **Step 1 (RED):** `SchedulePostForTenant.Spec` (Testcontainers, co-located): happy (1 active account, `scheduledAtLocal = "2099-08-26T07:00:00Z"` — the UTC instant of 09:00 Paris summer time; the field carries an ISO instant, not a bare wall clock, round-4 correction), zone `Europe/Paris` → row `scheduled_at_utc = 2099-08-26T07:00:00Z`, `scheduled_time_zone = Europe/Paris`, `status = Scheduled`, `idempotency_key = PublicationIdempotencyKey.For(id)`, `TenantId` set); multi-account → N rows distinct ids; account-not-in-project → 422 key `publication-schedule-account-not-in-project`; 422 empty `accountIds`, past instant beyond drift, bad zone, malformed postId; 403 member without Posts `PUBLISH`; 404 unknown postId; cross-tenant isolation; zero `IPublishProvider` calls (fake recorder).
 - [ ] **Step 2 (GREEN):** `IPublicationService.ScheduleAsync(SchedulePublicationArgs(tenantId, postId, accountIds, scheduledAtLocal, timeZone, actorUserId), ct)` computes UTC via `TimeZoneInfo.FindSystemTimeZoneById` + `ConvertTimeToUtc`, validates accounts (`Active`, `VisibleIn.Visible(account, post.ProjectId)`), inserts N `Publication` rows (default `Scheduled` on insert; no transition needed), audit `AuditActions.PublicationScheduled`. Handler wires `MapPost(Routes.Tenant.Schedule, …)` + `.WithTenantPermission([AppPermissions.Tenant.Posts.PUBLISH])` + `.RequireRateLimiting(ApiRateLimitPolicies.AuthenticatedDefault)`.
 - [ ] **Step 3:** `dotnet test --filter "FullyQualifiedName~SchedulePostForTenant"` green under heavy.sh. Commit `feat(publishing): tenant schedule endpoint — date + IANA zone, one Publication per account`.
 
@@ -105,16 +105,27 @@ Branches: **[dev]** = exists on `develop` (verified `git ls-files`), modify free
 
 **Files:** `PublicationStatusTransitionService.cs` [D1→merged, extend], `PublicationService.cs`, `EditPostScheduleForTenant.cs` (+ Spec), endpoints, i18n JSON.
 
-- [ ] **Step 1 (RED):** spec asserts: happy text+instant PATCH (DST winter case: `2099-12-15T09:00 Europe/Paris → 08:00Z`), `LastError` cleared, external refs cleared, audit `PostUpdated` + `PublicationRescheduled`; text-only; schedule-only; in-progress refusal 409 key `publication-schedule-in-progress` + plain-words description, post untouched; 422 bad zone / past instant; 403; 404; cross-tenant 404; no `accountIds` in PATCH (per-publication edit is D4).
+- [ ] **Step 1 (RED):** spec asserts: happy text+instant PATCH (DST winter case: `scheduledAtLocal = "2099-12-15T08:00:00Z"` = 09:00 Europe/Paris winter time → stored `08:00Z`), `LastError` cleared, external refs cleared, audit `PostUpdated` + `PublicationRescheduled`; text-only; schedule-only; in-progress refusal 409 key `publication-schedule-in-progress` + plain-words description, post untouched; 422 bad zone / past instant; 403; 404; cross-tenant 404; no `accountIds` in PATCH (per-publication edit is D4).
 - [ ] **Step 2 (GREEN):** add `RescheduleToFutureAsync` to interface+impl [extends D1 file]; `EditScheduleAsync` refuses the WHOLE edit if any publication is `InProgress`, else updates post body via the existing post update path and calls `RescheduleToFutureAsync` per `Scheduled`/`Paused` row. Handler: `MapPatch(Routes.Tenant.Schedule, …)`, `TypedProblems.Conflict` on refusal.
 - [ ] **Step 3 (GREEN — construct the value object):** `PublicationSchedule` is a sealed record whose constructor is PRIVATE (wt-644 verified); its only entry point is `PublicationSchedule.Create(DateTime scheduledAtUtc, string timeZoneId)` — it rejects non-UTC/Unspecified kinds, blank zones, ids over `MaxTimeZoneLength` = 64 or failing `ZonePattern`, and ids unresolvable via `TimeZoneInfo.FindSystemTimeZoneById` (all `ArgumentException` with a plain-words message), and returns a UTC-normalized instance. In `EditScheduleAsync`, BEFORE any transition call: enforce the past-drift rule explicitly on the raw pair (as `ScheduleAsync` does → 422 keyed `["scheduledAtLocal"]`), then compute the instant exactly like the schedule endpoint and build the object ONCE:
 
 ```csharp
 DateTime instant;
 try {
-	instant = TimeZoneInfo.FindSystemTimeZoneById(
+	var zone = TimeZoneInfo.FindSystemTimeZoneById(
 		timeZone.Value.Trim()
-	).ConvertTimeToUtc(scheduledAtLocal.Value);
+	);
+	// The BCL conversion is STATIC (#1440 follow-up):
+	// ConvertTimeToUtc(local, zone) — there is no instance method on
+	// TimeZoneInfo. MustBeRequiredIsoDateTime parses with
+	// AssumeUniversal|AdjustToUniversal, so the value below is
+	// Kind=Utc and the two-arg overload returns it unchanged (a
+	// Local-kind value would throw here instead — the validator's
+	// kind contract is what makes this call DST-unambiguous,
+	// #1440 follow-up 4).
+	instant = TimeZoneInfo.ConvertTimeToUtc(
+		scheduledAtLocal.Value, zone
+	);
 } catch (TimeZoneNotFoundException) {
 	return EditPostScheduleResult.InvalidSchedule(
 		$"'{timeZone.Value}' is not an IANA time zone identifier.",
@@ -136,7 +147,7 @@ try {
 }
 ```
 
-`InvalidSchedule(string cause, string errorKey)` carries the cause and the stable error key (`"timeZone"` here, `"scheduledAtLocal"` for the past-drift rejection); the handler maps it to 422 `TypedProblems.ValidationProblem(cause, ResponseKeys.UnprocessableEntity, new Dictionary<string, string[]> { [errorKey] = [cause] })` — the same result-union + errors-dictionary shape as `UpdatePostForTenant` [dev]. Pass that single `schedule` instance to every `RescheduleToFutureAsync(publicationId, tenantId, schedule, ct)` call. Step 1's bad-zone / bad-instant RED cases assert these 422 bodies.
+`InvalidSchedule(string cause, string errorKey)` carries the cause and the stable error key (`"timeZone"` here, `"scheduledAtLocal"` for the past-drift rejection); the handler maps it to 422 `TypedProblems.ValidationProblem(cause, ResponseKeys.UnprocessableEntity, new Dictionary<string, string[]> { [errorKey] = [cause] })` — the same result-union + errors-dictionary shape as `UpdatePostForTenant` [dev]. Pass that single `schedule` instance to every `RescheduleToFutureAsync(new ReschedulePublicationToFutureArgs(publicationId, tenantId, schedule), ct)` call. Step 1's bad-zone / bad-instant RED cases assert these 422 bodies.
 - [ ] **Step 4:** green. Commit `feat(publishing): tenant edit endpoint — text and/or instants, refused while InProgress`.
 
 ## Task 3: Tenant cancel endpoint
@@ -200,7 +211,7 @@ try {
 
 ## Interfaces (consumed signatures copied from the real files)
 
-- **[D1]** `IPublicationStatusTransitionService` (`…/Services/PublicationStatusTransitionService.cs`, wt-644): `Task<bool> MarkInProgressAsync(Guid publicationId, Guid tenantId, CancellationToken ct)`; `MarkPublishedAsync(…, string externalRecordId, string externalUrl, CancellationToken ct)`; `MarkFailedAsync(…, string cause, …)`; `MarkPausedAsync(…, string cause, …)`; `RescheduleToNowAsync(Guid, Guid, CancellationToken)`. D3 adds `RescheduleToFutureAsync(Guid publicationId, Guid tenantId, PublicationSchedule schedule, CancellationToken ct)`; the `PublicationSchedule` argument is built once per edit via `PublicationSchedule.Create(...)` (Task 2 Step 3).
+- **[D1]** `IPublicationStatusTransitionService` (`…/Services/PublicationStatusTransitionService.cs`, merged): every operation takes an `{Action}{Domain}Args` record (`MarkPublicationInProgressArgs(Guid PublicationId, Guid TenantId)`, `MarkPublishedArgs(+ExternalRecordId, ExternalUrl)`, `MarkFailedArgs(+Cause)`, `MarkPausedArgs(+Cause)`, `ReschedulePublicationToNowArgs(Guid, Guid)`), each returning `Task<bool>`. D3 adds `Task<bool> RescheduleToFutureAsync(ReschedulePublicationToFutureArgs args, CancellationToken ct)` with `ReschedulePublicationToFutureArgs(Guid PublicationId, Guid TenantId, PublicationSchedule Schedule)` (round-4 correction per #1440: positional-id signatures were invented — the real interface is args-record based); the `PublicationSchedule` argument is built once per edit via `PublicationSchedule.Create(...)` (Task 2 Step 3).
 - **[D1]** `PublishingJobs.PublishPublicationV1 : JobDefinition<PublishPublicationPayload>`; `PublishPublicationPayload { Guid PublicationId; string IdempotencyKey; }` (`Validate` already rejects key mismatch).
 - **[dev]** `IJobEnqueuer.EnqueueAsync<TPayload>(JobDefinition<TPayload>, TPayload payload, EnqueueOptions? options = null, CancellationToken ct) → Task<Guid>`; `EnqueueOptions { string? IdempotencyKey; … }`.
 - **[dev]** `IAuditLogService.LogAsync(CreateAuditLogArgs(Guid UserId, string Action, Guid? TargetId = null, object? Details = null), ct)`.
@@ -217,6 +228,14 @@ try {
 - **D3.6** no keyless concurrent enqueue — RED transcript `.dump/mutation-dispatch-no-idempotency.md` (Task 5).
 - **D3.7** integration specs for every handler/service path (Tasks 1–4, 6).
 - **D3.8** e2e flow with real tags/testids (Task 8).
+
+## Round-4 corrections applied at implementation start (per #1440 + verification)
+
+1. Task 2 Step 3 snippet used `TimeZoneInfo.ConvertTimeToUtc` as an instance method — the BCL API is static: fixed to `TimeZoneInfo.ConvertTimeToUtc(local, zone)`.
+2. D1 reference refreshed: symbols live on `develop` since #1433 (`12938d937`); the `origin/lane/wt-644` tip citations are historical.
+3. `EditPostScheduleResult.InvalidSchedule(...)` is now listed in the Create list and defined in `EditPostScheduleForTenant.cs`.
+4. Kind check CONFIRMED WITH A CORRECTION: `MustBeRequiredIsoDateTime` does NOT yield `Unspecified` — `DateUtils.TryParseIsoUtc` parses only ISO strings carrying a `Z`/offset designator (four exact formats) with `AssumeUniversal|AdjustToUniversal`, yielding `Kind=Utc`. Consequences applied above: `scheduledAtLocal` carries an ISO INSTANT (bare wall clocks are a validation error), the RED specs' expectations were restated in instants (09:00 Paris summer ≡ 07:00Z; winter 08:00Z), and the service converts with the two-arg overload (Utc-kind input passes through unchanged, DST-unambiguous).
+5. Verification-time correction beyond #1440: D1's transition-service methods take `{Action}{Domain}Args` records, not positional ids — `RescheduleToFutureAsync` follows that real shape (Interfaces section updated).
 
 ## Anything in this brief that turned out to be wrong
 

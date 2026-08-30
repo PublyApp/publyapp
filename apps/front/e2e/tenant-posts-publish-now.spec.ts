@@ -25,6 +25,14 @@ test.describe(
 		// D2 acceptance: publish now against the faked Bluesky provider lands
 		// the post in history with exactly ONE external link — no duplicate
 		// (the deterministic idempotency key makes worker retries safe).
+		// The worker (same container, APP_ROLE=all) normally delivers in a few
+		// seconds, but on a loaded CI runner the pickup can lag past the
+		// history page's in-flight window, so the whole test — and with it the
+		// polling assertion below — gets a wider budget than the 30 s config
+		// default. A test-level `test.setTimeout` is REQUIRED here: Playwright
+		// clamps every assertion timeout to the remaining whole-test budget,
+		// so bumping the `expect` timeout alone (past 30 s) is a no-op.
+		test.setTimeout(90_000);
 		test('publish now appears once in history with an external link', async ({
 			page,
 		}) => {
@@ -61,9 +69,12 @@ test.describe(
 			await expect(history).toBeVisible();
 
 			// The worker drives the publication to Published through the faked
-			// provider; poll the list until the link shows up.
+			// provider; the history list polls while the row is in flight
+			// (in_progress, or scheduled and freshly updated — the pickup
+			// window). Wait past the page's 60 s in-flight window, inside the
+			// 90 s whole-test budget set above.
 			const link = page.getByTestId('tenant-posts-history-link');
-			await expect(link).toBeVisible({ timeout: 30_000 });
+			await expect(link).toBeVisible({ timeout: 75_000 });
 			await expect(link).toHaveAttribute(
 				'href',
 				/^https:\/\/bsky\.app\/profile\//,

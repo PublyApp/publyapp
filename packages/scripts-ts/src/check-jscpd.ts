@@ -1,5 +1,5 @@
 /**
- * Production duplication ratchet guard (#1821).
+ * Production duplication ratchet guard (#1821, re-anchored in #1890).
  *
  * WHAT THIS PROVES
  * ----------------
@@ -21,8 +21,72 @@
  * the exact accumulation pattern the issue targets (Update* handler
  * families, copied error-view files).
  *
- * THE GUARD FAILS LOUDLY when the jscpd report is absent, empty, or malformed.
- * Never silently substitutes a passing default.
+ * THE GUARD FAILS LOUDLY when the jscpd report is absent, empty, or
+ * malformed, and when the reference cannot be read from the merge base
+ * (house rule: an unreadable input is a loud failure that names the cause
+ * and the expected action — never a compliant default, never a silent
+ * fallback to the working tree).
+ *
+ * BASE ANCHOR (#1890)
+ * -------------------
+ * The reference is read from the MERGE BASE, not from this tree:
+ *
+ *   - CI (`GITHUB_BASE_REF` set): `git show <ref>:<path>` with
+ *     <ref> = refs/remotes/origin/<GITHUB_BASE_REF> (the actions/checkout
+ *     of a pull request fetches the base branch; if the ref is missing the
+ *     guard fetches it once and retries, then fails loud naming both
+ *     attempts).
+ *   - local: <ref> = refs/remotes/origin/develop (same fetch-once-then-fail
+ *     loud behaviour for air-gapped machines).
+ *
+ * This closes the measured bypass (issue #1890): a pull request that adds
+ * real duplication AND raises the committed reference in the same commit
+ * passed the old guard, because the old guard read the reference from the
+ * pull request's own tree — a guard that attests a model (the reference the
+ * PR supplies) instead of the real artifact. With the reference anchored
+ * to the base, a pull request cannot move the bar it is measured against:
+ * the reference diff stays visible in review, and the guard compares
+ * against the value the base branch has.
+ *
+ * RAISING A THRESHOLD LEGITIMATELY (a new production surface)
+ * -----------------------------------------------------------
+ * An explicit, reviewed act — never a silent raise:
+ *
+ *   1. Commit the new `jscpd-reference.json` in the pull request,
+ *      regenerated with `node packages/scripts-ts/src/gen-jscpd-reference.ts`
+ *      (keeps the four aggregate counters in sync with the stored per-pair
+ *      and per-file base totals, so the file stays internally consistent).
+ *   2. Add a `docs/records/` change record that names the surface that
+ *      moved the metric and the measured numbers.
+ *   3. The pull request's CI guard is then RED BY DESIGN: it measures the
+ *      tree against the base (pre-raise) reference and names the exact
+ *      pairs/files that crossed their base. The review question becomes
+ *      "are these pairs the legitimate new surface?" — decided by a human
+ *      with merge override, not by the guard. Once merged, the base moves
+ *      and every subsequent pull request is measured against the new
+ *      baseline.
+ *
+ * The guard itself can never approve its own loosening: any mechanism that
+ * accepted a raise declared in the pull request's own tree would reopen
+ * the exact bypass this guard exists to close.
+ *
+ * NAMING THE OFFENDER (#1890)
+ * ---------------------------
+ * A red message names the EXACT pair (or self-duplicated file) that
+ * crossed its base total, not just the top five contributors by duplicated
+ * lines — a new offender can sit below the top-5 cut:
+ *
+ *   - pairs: every production pair whose line total strictly exceeds its
+ *     base-pair total (a new pair has base total 0). Each is named with
+ *     both files, its base total, and its current total (up to 8, the
+ *     remainder counted).
+ *   - self-duplication: every self-duplicated file whose line total
+ *     strictly exceeds its base total. Same naming rule.
+ *   - legacy reference (no per-pair map): the top-5 contributor list is
+ *     printed instead, and the message says so.
+ *
+ * Every failure message states what it was measured against
+ * (`Measured against git:refs/remotes/origin/develop`, …).
  *
  * BASELINE
  * -------
@@ -36,8 +100,17 @@
  *
  *   - Production clone pairs (unique, non-spec): 422, 10 213 lines
  *   - Production self-duplication files: 48, 1 473 lines
+ *   (values as of the #1859 round 2 baseline)
+ * The reference file currently holds only the two aggregate totals
+ * (`productionPairs`, `productionAuto`). The optional `pairLines` /
+ * `autoLines` per-pair and per-file maps are NOT populated yet: when they are
+ * absent the guard cannot name which pair crossed its own base, so it falls
+ * back to naming the largest contributors by duplicated lines. Populating
+ * them is tracked in #1932; do not read this comment as a claim that they
+ * exist today.
  */
 
+import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
@@ -46,6 +119,15 @@ import { pathToFileURL } from 'node:url';
 const repoRoot = path.resolve(
 	path.dirname(new URL(import.meta.url).pathname),
 	'../../..',
+);
+
+/** Repository-relative path of the committed reference file. */
+const REFERENCE_RELATIVE_PATH = 'packages/scripts-ts/src/jscpd-reference.json';
+
+/** Default jscpd report location (the `just ci-jscpd` scan target). */
+const DEFAULT_REPORT_PATH = path.resolve(
+	repoRoot,
+	'.dump/jscpd-report.json/jscpd-report.json',
 );
 
 /** Production source path prefixes. */
@@ -141,67 +223,65 @@ export interface ProductionStats {
 	specAutoLines: number;
 	topPairs: PairInfo[];
 	topAuto: AutoInfo[];
+	/**
+	 * Raw per-pair totals, populated only when computeProductionStats is
+	 * called with { withMaps: true } — needed to name the EXACT offender
+	 * (the top-5 cut hides small new pairs).
+	 */
+	pairMaps?: Map<string, PairInfo>;
+	/** Raw per-file self-dup totals (same opt-in). */
+	autoMaps?: Map<string, number>;
 }
 
 /**
- * jscpd@4 report shape (the JSON key for clone entries is "duplicates",
- * not "statistics.clones").
+ * computeProductionStats options.
  */
-interface ReadReportResult {
-	ok: boolean;
-	error?: string;
-	data?: JscpdReport;
+export interface ComputeOptions {
+	withMaps?: boolean;
 }
 
-const readReport = (reportPath: string): ReadReportResult => {
-	if (!fs.existsSync(reportPath)) {
-		return {
-			ok: false,
-			error: `Report not found: ${reportPath}. Run jscpd first.`,
-		};
-	}
+/**
+ * Per-pair reference values: canonical "a|b" key -> base duplicated lines.
+ * Absent in the legacy four-number reference, in which case the guard falls
+ * back to the aggregate thresholds plus the top-5 contributor list.
+ */
+type PairLinesMap = Record<string, number>;
 
-	let content: string;
-	try {
-		content = fs.readFileSync(reportPath, 'utf-8');
-	} catch (e) {
-		return { ok: false, error: `Cannot read report: ${String(e)}` };
-	}
-
-	let data: JscpdReport;
-	try {
-		data = JSON.parse(content) as JscpdReport;
-	} catch (e) {
-		return { ok: false, error: `Malformed JSON: ${String(e)}` };
-	}
-
-	if (!data.statistics || !Array.isArray(data.duplicates)) {
-		return {
-			ok: false,
-			error:
-				'Report missing "statistics" or "duplicates" field. ' +
-				'Ensure jscpd was run with --reporters json.',
-		};
-	}
-
-	return { ok: true, data };
-};
+/** Per-file reference values: self-duplicated file -> base duplicated lines. */
+type AutoLinesMap = Record<string, number>;
 
 /**
  * Reference values file.
+ *
+ * Legacy shape (pre-#1890): only the aggregate counters. New shape: the
+ * aggregate counters plus a per-pair and per-file base totals map — the
+ * stored base report the guard uses to name the exact offending pair.
  */
-interface ReadReferenceResult {
+interface ReferenceValues {
+	productionPairs?: { count?: number; lines?: number };
+	productionAuto?: { count?: number; lines?: number };
+	pairLines?: PairLinesMap;
+	autoLines?: AutoLinesMap;
+}
+
+/**
+ * A reference resolved against the merge base (or an explicit seam).
+ * `source` names where the values came from so every guard message can
+ * state what it measured against — house rule: a failure must name its
+ * cause.
+ */
+export interface ResolvedReference {
+	data: ReferenceValues;
+	source: string;
+}
+
+interface ReadReferenceFileResult {
 	ok: boolean;
 	error?: string;
 	data?: ReferenceValues;
 }
 
-interface ReferenceValues {
-	productionPairs?: { count?: number; lines?: number };
-	productionAuto?: { count?: number; lines?: number };
-}
-
-const readReference = (refPath: string): ReadReferenceResult => {
+const readReferenceFile = (refPath: string): ReadReferenceFileResult => {
 	if (!fs.existsSync(refPath)) {
 		return {
 			ok: false,
@@ -220,10 +300,183 @@ const readReference = (refPath: string): ReadReferenceResult => {
 	try {
 		data = JSON.parse(content) as ReferenceValues;
 	} catch (e) {
-		return { ok: false, error: `Malformed reference JSON: ${String(e)}` };
+		return {
+			ok: false,
+			error: `Malformed reference JSON: ${String(e)}`,
+		};
 	}
 
 	return { ok: true, data };
+};
+
+interface ReadBaseResult {
+	ok: boolean;
+	error?: string;
+	data?: ResolvedReference;
+}
+
+/** git error text: stderr when git prints one, otherwise the message. */
+const gitError = (e: unknown): string => {
+	const err = e as { stderr?: string | Buffer; message?: string };
+	if (err.stderr !== undefined && String(err.stderr).trim().length > 0) {
+		return String(err.stderr).trim();
+	}
+	return String(e);
+};
+
+const gitRefExists = (gitDir: string, ref: string): boolean => {
+	try {
+		execFileSync('git', ['rev-parse', '--verify', '--quiet', ref], {
+			cwd: gitDir,
+			encoding: 'utf-8',
+			timeout: 30_000,
+		});
+		return true;
+	} catch {
+		return false;
+	}
+};
+
+const gitShowBlob = (gitDir: string, ref: string, relPath: string): string =>
+	execFileSync('git', ['show', `${ref}:${relPath}`], {
+		cwd: gitDir,
+		encoding: 'utf-8',
+		timeout: 30_000,
+	});
+
+/**
+ * Fetch the base branch once (shallow) when its remote-tracking ref is
+ * missing. Best effort: the caller retries the read and fails loud naming
+ * every attempt when the fetch does not help.
+ */
+const gitFetchBaseBranch = (gitDir: string, branch: string): string => {
+	try {
+		execFileSync('git', ['fetch', '--depth', '1', 'origin', branch], {
+			cwd: gitDir,
+			encoding: 'utf-8',
+			timeout: 120_000,
+		});
+		return '';
+	} catch (e) {
+		return gitError(e);
+	}
+};
+
+/**
+ * #1890 — read the reference from the merge base, never from this tree.
+ *
+ * Resolution order (first source that works wins):
+ *   1. explicit ref argument (unit-test seam): a reference FILE path or a
+ *      git ref name;
+ *   2. `PUBLY_JSCPD_BASE_REF` (same two forms, environment seam);
+ *   3. in CI (`GITHUB_BASE_REF` set): refs/remotes/origin/<base>, then the
+ *      local <base> branch (actions/checkout of a pull request fetches the
+ *      base branch; a direct push / merge_group checkout carries only the
+ *      local branch);
+ *   4. local: refs/remotes/origin/develop, then the local develop branch.
+ *
+ * When a git ref candidate is missing, the guard fetches the base branch
+ * once and retries, then fails loud naming every attempt. The guard NEVER
+ * substitutes a compliant default and NEVER falls back to the
+ * working-tree reference: a fallback would be exactly the bypass being
+ * closed here (a pull request that raises the threshold in the same commit
+ * that adds the duplication).
+ */
+export const readReferenceFromBase = (
+	gitDir: string = repoRoot,
+	explicitRef?: string,
+): ReadBaseResult => {
+	const explain = (cause: string): string =>
+		`jscpd reference unavailable from the merge base: ${cause}. ` +
+		`Expected action: make the base ref available — CI: GITHUB_BASE_REF=` +
+		`${process.env.GITHUB_BASE_REF ?? '(unset)'}; local: "git fetch origin develop" — ` +
+		`so it carries ${REFERENCE_RELATIVE_PATH}. ` +
+		`Refusing to fall back to the working-tree reference: a pull request ` +
+		`must not be able to set the baseline it is measured against (#1890).`;
+
+	const ref = explicitRef ?? process.env.PUBLY_JSCPD_BASE_REF;
+
+	if (ref !== undefined && fs.existsSync(ref) && fs.statSync(ref).isFile()) {
+		// Explicit seam: a reference file (unit tests, one-off runs).
+		const fileResult = readReferenceFile(ref);
+		if (!fileResult.ok || fileResult.data === undefined) {
+			return {
+				ok: false,
+				error: explain(`${ref}: ${fileResult.error ?? 'unreadable'}`),
+			};
+		}
+		return {
+			ok: true,
+			data: { data: fileResult.data, source: `file:${ref}` },
+		};
+	}
+
+	const readGitRef = (candidate: string): ReadBaseResult => {
+		if (!gitRefExists(gitDir, candidate)) {
+			// Fetch once (the base branch name is the ref without the
+			// remote-tracking prefix; bare names are already branch names).
+			const branch = candidate.replace(/^refs\/remotes\/origin\//, '');
+			const fetchErr = gitFetchBaseBranch(gitDir, branch);
+			if (!gitRefExists(gitDir, candidate)) {
+				const attempts =
+					fetchErr === ''
+						? `ref ${candidate} absent after fetch`
+						: `ref ${candidate} absent, fetch failed: ${fetchErr}`;
+				return { ok: false, error: explain(attempts) };
+			}
+		}
+		let blob: string;
+		try {
+			blob = gitShowBlob(gitDir, candidate, REFERENCE_RELATIVE_PATH);
+		} catch (e) {
+			return {
+				ok: false,
+				error: explain(
+					`git show ${candidate}:${REFERENCE_RELATIVE_PATH} failed: ` +
+						gitError(e),
+				),
+			};
+		}
+		let data: ReferenceValues;
+		try {
+			data = JSON.parse(blob) as ReferenceValues;
+		} catch (e) {
+			return {
+				ok: false,
+				error: explain(
+					`${candidate} contains malformed reference JSON: ${String(e)}`,
+				),
+			};
+		}
+		return {
+			ok: true,
+			data: { data, source: `git:${candidate}` },
+		};
+	};
+
+	if (ref !== undefined) {
+		return readGitRef(ref);
+	}
+
+	const baseBranch = process.env.GITHUB_BASE_REF;
+	const candidates =
+		baseBranch !== undefined && baseBranch.length > 0
+			? [`refs/remotes/origin/${baseBranch}`, baseBranch]
+			: ['refs/remotes/origin/develop', 'develop'];
+
+	for (const candidate of candidates) {
+		const result = readGitRef(candidate);
+		if (result.ok) {
+			return result;
+		}
+	}
+	return {
+		ok: false,
+		error: explain(
+			candidates.map((c) => `tried ${c}`).join(', then ') +
+				'; no candidate carried the reference',
+		),
+	};
 };
 
 /**
@@ -241,9 +494,13 @@ const readReference = (refPath: string): ReadReferenceResult => {
  *   metric, or accumulation inside one file stays invisible.
  * - spec* surfaces mirror the pair/auto shapes for spec/test/generated files:
  *   reported in the output, never gating (issue #1821 requirement 2).
+ *
+ * With { withMaps: true } the raw per-pair / per-file maps are returned too —
+ * the offender finders need the full maps, not the top-5 cut.
  */
 export const computeProductionStats = (
 	dupes: JscpdCloneEntry[],
+	opts?: ComputeOptions,
 ): ProductionStats => {
 	// key `${a}|${b}` -> { lines (sum of all fragments), fragments, files }
 	const pairMap = new Map<string, PairInfo>();
@@ -326,7 +583,7 @@ export const computeProductionStats = (
 		.sort((a, b) => b.lines - a.lines)
 		.slice(0, 5);
 
-	return {
+	const stats: ProductionStats = {
 		pairCount: pairMap.size,
 		pairLines: sumLines(pairMap),
 		autoCount: autoMap.size,
@@ -338,12 +595,19 @@ export const computeProductionStats = (
 		topPairs,
 		topAuto,
 	};
+	// The offender finders need the full maps, not the top-5 cut (#1890).
+	if (opts?.withMaps === true) {
+		stats.pairMaps = pairMap;
+		stats.autoMaps = autoMap;
+	}
+	return stats;
 };
 
 /**
  * Human-readable "Files: a <-> b (N lines, M fragments)" for the top pair
  * contributors, so a red guard names its cause (house rule: a failure must
- * name the file).
+ * name the file). Fallback used only when the reference carries no
+ * per-pair base totals (legacy reference).
  */
 const formatTopPairs = (pairs: PairInfo[]): string =>
 	pairs
@@ -360,26 +624,136 @@ const formatTopPairs = (pairs: PairInfo[]): string =>
 const formatTopAuto = (auto: AutoInfo[]): string =>
 	auto.map((a) => `${a.file} (${a.lines} lines)`).join('; ');
 
+/** A pair that crossed its stored base total. */
+interface OffendingPair {
+	files: [string, string];
+	lines: number;
+	baseLines: number;
+}
+
+/** A self-duplicated file that crossed its stored base total. */
+interface OffendingAuto {
+	file: string;
+	lines: number;
+	baseLines: number;
+}
+
+/** Maximum offenders named in one message before "+N more". */
+const MAX_NAMED_OFFENDERS = 8;
+
+/**
+ * #1890 — name the EXACT pairs whose duplicated lines strictly exceed the
+ * base total stored in the reference (a new pair has base total 0). This
+ * designates the pair that crossed the threshold, which can sit below the
+ * top-5 contributor cut the old message showed. Returns null when the
+ * reference has no per-pair map (legacy reference) — the caller falls back
+ * to the top-5 list and says so.
+ */
+export const findOffendingPairs = (
+	pairMap: Map<string, PairInfo>,
+	basePairLines: PairLinesMap | undefined,
+): OffendingPair[] | null => {
+	if (basePairLines === undefined || basePairLines === null) {
+		return null;
+	}
+	const offenders: OffendingPair[] = [];
+	for (const [key, info] of pairMap.entries()) {
+		const base = basePairLines[key] ?? 0;
+		if (info.lines > base) {
+			offenders.push({
+				files: info.files,
+				lines: info.lines,
+				baseLines: base,
+			});
+		}
+	}
+	offenders.sort((a, b) => b.lines - b.baseLines - (a.lines - a.baseLines));
+	return offenders;
+};
+
+/**
+ * #1890 — name the EXACT self-duplicated files whose duplicated lines
+ * strictly exceed the base total stored in the reference. Same contract as
+ * findOffendingPairs.
+ */
+export const findOffendingAuto = (
+	autoMap: Map<string, number>,
+	baseAutoLines: AutoLinesMap | undefined,
+): OffendingAuto[] | null => {
+	if (baseAutoLines === undefined || baseAutoLines === null) {
+		return null;
+	}
+	const offenders: OffendingAuto[] = [];
+	for (const [file, lines] of autoMap.entries()) {
+		const base = baseAutoLines[file] ?? 0;
+		if (lines > base) {
+			offenders.push({ file, lines, baseLines: base });
+		}
+	}
+	offenders.sort((a, b) => b.lines - b.baseLines - (a.lines - a.baseLines));
+	return offenders;
+};
+
+const formatOffendingPairs = (offenders: OffendingPair[]): string => {
+	const named = offenders.slice(0, MAX_NAMED_OFFENDERS);
+	const more = offenders.length - named.length;
+	const text = named
+		.map(
+			(o) =>
+				`${o.files[0]} <-> ${o.files[1]} ` +
+				`(${o.baseLines} -> ${o.lines} duplicated lines)`,
+		)
+		.join('; ');
+	if (more > 0) {
+		return `${text}; +${more} more`;
+	}
+	return text;
+};
+
+const formatOffendingAuto = (offenders: OffendingAuto[]): string => {
+	const named = offenders.slice(0, MAX_NAMED_OFFENDERS);
+	const more = offenders.length - named.length;
+	const text = named
+		.map((o) => `${o.file} (${o.baseLines} -> ${o.lines} duplicated lines)`)
+		.join('; ');
+	if (more > 0) {
+		return `${text}; +${more} more`;
+	}
+	return text;
+};
+
 /** Result of verifyJscpdRatchet — an empty errors array means pass. */
 export interface RatchetVerdict {
 	errors: string[];
 	stats: ProductionStats | null;
+	/** Where the reference came from (null when no reference was read). */
+	refSource: string | null;
 }
 
 /**
- * Main guard logic. Every ratchet violation names the top contributing files
- * (house rule: a failure must name its cause in plain words).
+ * #1890 — main guard logic.
+ *
+ * @param reportPath_ path to the jscpd JSON report — the artifact the guard
+ *   measures (never a model of it).
+ * @param refPath_ optional explicit reference FILE, unit-test seam only.
+ * @param baseRef_ explicit base reference for readReferenceFromBase
+ *   (a reference file path or a git ref name), unit-test seam only.
+ * @param gitDir_ explicit git directory for the base read (unit-test seam;
+ *   defaults to the repository root).
+ *
+ * The default reference source is the MERGE BASE (see readReferenceFromBase).
+ * The working-tree reference file is never read by the ratchet. Every
+ * ratchet violation names the offending pair/file (house rule: a failure
+ * must name its cause in plain words) and states what it was measured
+ * against.
  */
 export const verifyJscpdRatchet = (
 	reportPath_?: string,
 	refPath_?: string,
+	baseRef_?: string,
+	gitDir_?: string,
 ): RatchetVerdict => {
-	const reportPath =
-		reportPath_ ??
-		path.resolve(repoRoot, '.dump/jscpd-report.json/jscpd-report.json');
-	const refPath =
-		refPath_ ??
-		path.resolve(repoRoot, 'packages/scripts-ts/src/jscpd-reference.json');
+	const reportPath = reportPath_ ?? DEFAULT_REPORT_PATH;
 	const errors: string[] = [];
 
 	const reportResult = readReport(reportPath);
@@ -389,24 +763,44 @@ export const verifyJscpdRatchet = (
 				`jscpd report unavailable: ${reportResult.error ?? 'unknown error'}`,
 			],
 			stats: null,
+			refSource: null,
 		};
 	}
 	const report = reportResult.data;
 
-	const refResult = readReference(refPath);
-	if (!refResult.ok || refResult.data === undefined) {
-		return {
-			errors: [
-				`jscpd reference file unavailable: ${refResult.error ?? 'unknown error'}`,
-			],
-			stats: null,
-		};
+	let resolved: ResolvedReference | undefined;
+	if (refPath_ !== undefined) {
+		// Unit-test seam: an explicit reference file. The base-anchor
+		// contract is covered by the readReferenceFromBase tests; this seam
+		// stays file-based so fixture tests never touch the git history.
+		const fileResult = readReferenceFile(refPath_);
+		if (!fileResult.ok || fileResult.data === undefined) {
+			return {
+				errors: [
+					`jscpd reference file unavailable: ${fileResult.error ?? 'unknown error'}`,
+				],
+				stats: null,
+				refSource: null,
+			};
+		}
+		resolved = { data: fileResult.data, source: `file:${refPath_}` };
+	} else {
+		const baseResult = readReferenceFromBase(gitDir_ ?? repoRoot, baseRef_);
+		if (!baseResult.ok || baseResult.data === undefined) {
+			return {
+				errors: [baseResult.error ?? 'unknown error'],
+				stats: null,
+				refSource: null,
+			};
+		}
+		resolved = baseResult.data;
 	}
-	const ref = refResult.data;
+	const ref = resolved.data;
+	const refSource = resolved.source;
 
 	// jscpd@4 places clone entries in the "duplicates" array.
 	const dupes = report.duplicates ?? [];
-	const stats = computeProductionStats(dupes);
+	const stats = computeProductionStats(dupes, { withMaps: true });
 
 	// --- Production pairs: strict ratchet ---
 
@@ -414,20 +808,30 @@ export const verifyJscpdRatchet = (
 	const refPairsCount = refPairs.count ?? 0;
 	const refPairsLines = refPairs.lines ?? 0;
 
+	const pairOffenders =
+		stats.pairMaps !== undefined
+			? findOffendingPairs(stats.pairMaps, ref.pairLines)
+			: null;
+	const pairNaming =
+		pairOffenders !== null && pairOffenders.length > 0
+			? `Pairs that crossed their base: ${formatOffendingPairs(pairOffenders)}.`
+			: `Largest pair contributors (by duplicated lines): ${formatTopPairs(stats.topPairs)}.`;
+
 	if (stats.pairCount > refPairsCount) {
 		errors.push(
 			`Production clone pairs increased from ${refPairsCount} to ${stats.pairCount} ` +
-				`(+${stats.pairCount - refPairsCount}). Merge duplicate logic or extract shared utilities.` +
-				` Largest pair contributors (by duplicated lines): ${formatTopPairs(stats.topPairs)}.` +
-				` Full list: run jscpd and diff against the report the guard read.`,
+				`(+${stats.pairCount - refPairsCount}). Merge duplicate logic or extract shared utilities. ` +
+				pairNaming +
+				` Measured against ${refSource}.`,
 		);
 	}
 
 	if (stats.pairLines > refPairsLines) {
 		errors.push(
 			`Production duplicate lines increased from ${refPairsLines} to ${stats.pairLines} ` +
-				`(+${stats.pairLines - refPairsLines}). Remove or deduplicate the copied code.` +
-				` Largest pair contributors (by duplicated lines): ${formatTopPairs(stats.topPairs)}.`,
+				`(+${stats.pairLines - refPairsLines}). Remove or deduplicate the copied code. ` +
+				pairNaming +
+				` Measured against ${refSource}.`,
 		);
 	}
 
@@ -437,19 +841,30 @@ export const verifyJscpdRatchet = (
 	const refAutoCount = refAuto.count ?? 0;
 	const refAutoLines = refAuto.lines ?? 0;
 
+	const autoOffenders =
+		stats.autoMaps !== undefined
+			? findOffendingAuto(stats.autoMaps, ref.autoLines)
+			: null;
+	const autoNaming =
+		autoOffenders !== null && autoOffenders.length > 0
+			? `Files that crossed their base: ${formatOffendingAuto(autoOffenders)}.`
+			: `Files: ${formatTopAuto(stats.topAuto)}.`;
+
 	if (stats.autoCount > refAutoCount) {
 		errors.push(
 			`Production self-duplication files increased from ${refAutoCount} to ${stats.autoCount} ` +
-				`(+${stats.autoCount - refAutoCount}). Refactor these files to remove internal duplication.` +
-				` Files: ${formatTopAuto(stats.topAuto)}.`,
+				`(+${stats.autoCount - refAutoCount}). Refactor these files to remove internal duplication. ` +
+				autoNaming +
+				` Measured against ${refSource}.`,
 		);
 	}
 
 	if (stats.autoLines > refAutoLines) {
 		errors.push(
 			`Production self-duplication lines increased from ${refAutoLines} to ${stats.autoLines} ` +
-				`(+${stats.autoLines - refAutoLines}). Reduce the duplicated lines in these files.` +
-				` Files: ${formatTopAuto(stats.topAuto)}.`,
+				`(+${stats.autoLines - refAutoLines}). Reduce the duplicated lines in these files. ` +
+				autoNaming +
+				` Measured against ${refSource}.`,
 		);
 	}
 
@@ -463,21 +878,73 @@ export const verifyJscpdRatchet = (
 		);
 	}
 
-	return { errors, stats };
+	return { errors, stats, refSource };
+};
+
+/** jscpd report read result. */
+interface ReadReportResult {
+	ok: boolean;
+	error?: string;
+	data?: JscpdReport;
+}
+
+const readReport = (reportPath: string): ReadReportResult => {
+	if (!fs.existsSync(reportPath)) {
+		return {
+			ok: false,
+			error: `Report not found: ${reportPath}. Run jscpd first.`,
+		};
+	}
+
+	let content: string;
+	try {
+		content = fs.readFileSync(reportPath, 'utf-8');
+	} catch (e) {
+		return { ok: false, error: `Cannot read report: ${String(e)}` };
+	}
+
+	let data: JscpdReport;
+	try {
+		data = JSON.parse(content) as JscpdReport;
+	} catch (e) {
+		return { ok: false, error: `Malformed JSON: ${String(e)}` };
+	}
+
+	if (!data.statistics || !Array.isArray(data.duplicates)) {
+		return {
+			ok: false,
+			error:
+				'Report missing "statistics" or "duplicates" field. ' +
+				'Ensure jscpd was run with --reporters json.',
+		};
+	}
+
+	return { ok: true, data };
 };
 
 /**
  * CLI entry point.
+ *
+ * Usage: node check-jscpd.ts [reportPath] [referenceFilePath]
+ *
+ * The second positional argument (a reference FILE) is a local seam for
+ * one-off runs and unit tests; the gate (`just ci-jscpd`) invokes the
+ * guard without it, which reads the reference from the merge base.
+ * PUBLY_JSCPD_GIT_DIR redirects which repository the base ref is read
+ * from (unit-test seam; CI never sets it) and is symmetric with the
+ * existing PUBLY_JSCPD_BASE_REF seam.
  */
 const main = (): void => {
-	const reportPath =
-		process.argv[2] ??
-		path.resolve(repoRoot, '.dump/jscpd-report.json/jscpd-report.json');
-	const refPath =
-		process.argv[3] ??
-		path.resolve(repoRoot, 'packages/scripts-ts/src/jscpd-reference.json');
+	const reportPath = process.argv[2] ?? DEFAULT_REPORT_PATH;
+	const refPath = process.argv[3];
+	const gitDir = process.env.PUBLY_JSCPD_GIT_DIR ?? repoRoot;
 
-	const { errors, stats } = verifyJscpdRatchet(reportPath, refPath);
+	const { errors, stats, refSource } = verifyJscpdRatchet(
+		reportPath,
+		refPath,
+		undefined,
+		gitDir,
+	);
 
 	if (errors.length > 0) {
 		console.error('jscpd ratchet violations:');
@@ -491,6 +958,9 @@ const main = (): void => {
 	}
 
 	console.log('PASSED: production duplication is within baseline.');
+	if (refSource !== null) {
+		console.log(`Reference: ${refSource}`);
+	}
 	if (stats && stats.specPairCount + stats.specAutoCount > 0) {
 		// Spec/test/generated duplication is reported, never blocking (#1821).
 		console.log(
