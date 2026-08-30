@@ -1,0 +1,12 @@
+{
+	"expectedRed": [
+		{
+			"testName": "DEFECT: a detached node silently passes the guard (unanalyzable input treated as visible)",
+			"why": "The guard must raise (indeterminate) when it cannot read the style; the defected body falls through to 'visible' — the proof asserts this defect is present."
+		},
+		{
+			"testName": "DEFECT: unresolved (empty) computed values silently pass the guard (treated as 'nothing hides it')",
+			"why": "The guard must raise (indeterminate) when the reader returns the engine's unresolved marker (empty strings); the defected body falls through to 'visible' — the proof asserts this defect is present."
+		}
+	]
+}

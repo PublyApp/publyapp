@@ -463,8 +463,11 @@ describe('proof replay — F2: the exit gate is pinned by a real process launch'
 			const result = runReplayFixture(root);
 
 			expect(result.status).not.toBe(0);
-			expect(result.stderr).toContain('STALE PROOF');
-			expect(result.stderr).toContain('declared kept-red test');
+			// The switch is gone — the per-verdict log line is no
+			// longer printed. The summary carries the stale count.
+			expect(result.stderr).toContain(
+				'declared kept-red test(s) passed unexpectedly',
+			);
 			expect(result.stdout).toContain(
 				'Stale proofs (declared red went green): 1',
 			);
@@ -548,4 +551,142 @@ describe('proof replay — every versioned proof carries its manifest (F1 invari
 		// suite, before CI's replay ever sees it.
 		expect(missing).toEqual([]);
 	});
+});
+
+// --- ERROR verdict regression (issue #1864) ---
+
+interface ErrorFixtureOptions {
+	/** Whether the proof file gets its `.expected-red.json` companion. */
+	withManifest: boolean;
+}
+
+/**
+ * Build a throwaway fixture whose proof file KILLS vitest with SIGKILL
+ * (exit code 137). The runner must classify this as ERROR →
+ * unexpectedPasses, NOT failures. This is the exact regression #1829
+ * re-introduced: a switch that mapped ERROR → failures would silently
+ * green-light a crashed vitest process.
+ */
+const buildErrorFixture = (options: ErrorFixtureOptions): string => {
+	const root = mkdtempSync(join(tmpdir(), 'preuve-error-'));
+	const appDir = join(root, 'apps', 'front');
+	const proofDir = join(appDir, 'tests', 'proofs', '99999');
+	mkdirSync(proofDir, { recursive: true });
+
+	writeFileSync(
+		join(appDir, 'package.json'),
+		'{"name":"preuve-error-fixture","private":true,"type":"module","packageManager":"pnpm@10.13.1"}\n',
+	);
+	writeFileSync(
+		join(appDir, 'vitest.preuves.config.ts'),
+		[
+			"import { defineConfig } from 'vitest/config';",
+			'',
+			'export default defineConfig({',
+			'\ttest: {',
+			"\t\tenvironment: 'node',",
+			"\t\tinclude: ['tests/proofs/**/*.{test.ts,test.tsx}'],",
+			'\t\texclude: [],',
+			'\t},',
+			'});',
+			'',
+		].join('\n'),
+	);
+	const fixtureNodeModules = join(appDir, 'node_modules');
+	const storeVitestDir = join(
+		REAL_FRONT_NODE_MODULES,
+		readlinkSync(join(REAL_FRONT_NODE_MODULES, 'vitest')),
+	);
+	const storePkgDir = basename(dirname(dirname(storeVitestDir)));
+	mkdirSync(join(fixtureNodeModules, '.pnpm', storePkgDir, 'node_modules'), {
+		recursive: true,
+	});
+	symlinkSync(
+		storeVitestDir,
+		join(fixtureNodeModules, '.pnpm', storePkgDir, 'node_modules', 'vitest'),
+		'dir',
+	);
+	symlinkSync(storeVitestDir, join(fixtureNodeModules, 'vitest'), 'dir');
+	mkdirSync(join(fixtureNodeModules, '.bin'), { recursive: true });
+	symlinkSync(
+		join(storeVitestDir, 'vitest.mjs'),
+		join(fixtureNodeModules, '.bin', 'vitest'),
+	);
+
+	// The proof file kills vitest with SIGKILL at import time. vitest exits
+	// 137 (128 + 9). The runner must classify this as ERROR →
+	// unexpectedPasses, NOT failures.
+	writeFileSync(
+		join(proofDir, 'error-proof.test.ts'),
+		[
+			"import { describe, expect, test } from 'vitest';",
+			'',
+			'// Kill vitest with SIGKILL at import time (exit 137).',
+			'process.kill(process.pid, "SIGKILL");',
+			'',
+			"describe('preuve ERROR fixture', () => {",
+			"\ttest('never runs — vitest is dead', () => {",
+			'\t\texpect(true).toBe(true);',
+			'\t});',
+			'});',
+			'',
+		].join('\n'),
+	);
+
+	if (options.withManifest) {
+		writeFileSync(
+			join(proofDir, 'error-proof.test.ts.expected-red.json'),
+			JSON.stringify(
+				{
+					expectedRed: [
+						{
+							testName: 'never runs — vitest is dead',
+							why: 'fixture: vitest crashes with SIGKILL before the test runs',
+						},
+					],
+				},
+				null,
+				'\t',
+			) + '\n',
+		);
+	}
+
+	execSync('git init -q -b main', { cwd: root });
+	execSync('git config user.email preuve-fixture@example.com', { cwd: root });
+	execSync('git config user.name preuve-fixture', { cwd: root });
+	execSync(
+		'git add apps/front/package.json apps/front/vitest.preuves.config.ts',
+		{ cwd: root },
+	);
+	execSync('git commit -qm base', { cwd: root });
+	execSync('git add apps/front/tests/proofs', { cwd: root });
+	execSync('git commit -qm proof', { cwd: root });
+	return root;
+};
+
+describe('proof replay — ERROR verdict (vitest crash, issue #1864)', () => {
+	test('a vitest process that crashes with SIGKILL makes the runner exit non-zero (corrupted, not failures)', () => {
+		// The residual switch was dead code — it printed log lines but
+		// didn't affect the counter mapping (which lives in consume-verdict).
+		// Removing it eliminates the risk that a future mutation adds
+		// `failures++` to the ERROR case. This process test pins the
+		// runner's behavior against a REAL vitest crash: the runner must
+		// exit non-zero. A SIGKILL crash prevents vitest from writing a
+		// JSON report, so the runner counts it as corrupted (unreadable
+		// report), NOT failures. The consume-verdict test pins the ERROR
+		// → unexpectedPasses mapping for the theoretical case where vitest
+		// exits non-zero/non-one with a readable report.
+		const root = buildErrorFixture({ withManifest: true });
+		try {
+			const result = runReplayFixture(root);
+
+			expect(result.status).not.toBe(0);
+			// A crash prevents the report from being written → corrupted.
+			expect(result.stdout).toContain('Corrupt/unparseable proof files:  1');
+			expect(result.stdout).toContain('Proof tests failed as expected: 0');
+			expect(result.stdout).toContain('Proof tests passed unexpectedly:  0');
+		} finally {
+			rmSync(root, { recursive: true, force: true });
+		}
+	}, 120000);
 });

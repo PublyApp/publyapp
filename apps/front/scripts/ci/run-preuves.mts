@@ -636,40 +636,6 @@ for (const test of replayable) {
 		unexpectedPasses = counts.unexpectedPasses;
 		corrupted = counts.corrupted;
 		stale = counts.stale;
-
-		switch (result.verdict) {
-			case 'OK':
-				console.log(`  OK: ${result.reason}\n`);
-				break;
-			case 'CORRUPT PROOF':
-				console.error(
-					`  CORRUPT PROOF: ${result.reason}\n` +
-						`  A kept-red proof must fail on an assertion (expected X to be Y), ` +
-						`  not on a thrown Error. A thrown Error means the proof could not measure ` +
-						`  — this is NOT the expected kept-red state and must fail CI.\n` +
-						`  stdout: ${stdout}\n  stderr: ${stderr}`,
-				);
-				break;
-			case 'NO_TESTS':
-				console.error(
-					`  CORRUPT PROOF: ${result.reason}\n` +
-						`  stdout: ${stdout}\n  stderr: ${stderr}`,
-				);
-				break;
-			case 'UNEXPECTED_PASS':
-				console.error(`  FAIL: ${result.reason}\n  Test: ${test}`);
-				break;
-			case 'DECLARED RED PASSED':
-				console.error(`  STALE PROOF: ${result.reason}\n  Test: ${test}`);
-				break;
-			case 'ERROR':
-				console.error(
-					`  ERROR: ${result.reason} ` +
-						`(failed: ${result.failedTests}, total: ${result.totalTests}).\n` +
-						`  stdout: ${stdout}\n  stderr: ${stderr}`,
-				);
-				break;
-		}
 	} finally {
 		// Always clean up the temp report file — even on classification
 		// failure, we do not leave artifacts behind.
