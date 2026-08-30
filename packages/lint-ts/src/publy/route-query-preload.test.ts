@@ -843,7 +843,11 @@ const runCases = (rule, label) => {
 					errors: [
 						{
 							messageId: 'unresolvableCallee',
-							data: { sourceText: 'RQ.useQuery.call' },
+							data: {
+								sourceText: 'RQ.useQuery.call',
+								rootBinding: 'RQ',
+								module: '@tanstack/react-query',
+							},
 						},
 					],
 				},
@@ -963,7 +967,11 @@ const runCases = (rule, label) => {
 					errors: [
 						{
 							messageId: 'unresolvableCallee',
-							data: { sourceText: 'useQuery["call"]' },
+							data: {
+								sourceText: 'useQuery["call"]',
+								rootBinding: 'useQuery',
+								module: '@tanstack/react-query',
+							},
 						},
 					],
 				},
