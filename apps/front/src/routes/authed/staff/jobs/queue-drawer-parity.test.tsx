@@ -1,10 +1,10 @@
 /**
  * @vitest-environment jsdom
  *
- * Brief #1720 ronde 2 — validation supplémentaire : le tiroir queue utilise
- * le même helper `formatFailureCause`. On vérifie que le DetailRow affiche
- * la même chose pour les mêmes entrées, prouvant la parité sans dépendre
- * du portail du menu déroulant.
+ * Brief #1720 round 2 — additional validation: the queue drawer uses
+ * the same `formatFailureCause` helper. Verifies that DetailRow displays
+ * the same thing for the same entries, proving parity without depending
+ * on the dropdown portal.
  */
 import { cleanup, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, test } from 'vitest';

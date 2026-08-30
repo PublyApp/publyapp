@@ -1,11 +1,11 @@
 /**
  * @vitest-environment jsdom
  *
- * Brief #1720 ronde 2 — validation des cas limites et parité :
- * 1. La colonne montre la cause tronquée avec le titre pour le texte complet
- * 2. Le tiroir utilise le lastError de la requête de détail quand dispo
- * 3. Le helper formatFailureCause gère les cas limites (espaces, caractères spéciaux)
- * 4. La colonne et le tiroir affichent la même valeur formatée pour la même cause
+ * Brief #1720 round 2 — edge case and parity validation:
+ * 1. The column shows the truncated cause with the title for the full text
+ * 2. The drawer uses the lastError from the detail request when available
+ * 3. The formatFailureCause helper handles edge cases (spaces, special characters)
+ * 4. The column and drawer display the same formatted value for the same cause
  */
 import { cleanup, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';

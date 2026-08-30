@@ -1,11 +1,11 @@
 /**
  * @vitest-environment jsdom
  *
- * Brief #1720 ronde 2 — validation supplémentaire avancée :
- * 1. Le tiroir se ferme quand on clique sur un autre élément
- * 2. Le tiroir montre la cause complète avec le marqueur pour cause vide
- * 3. Le tiroir queue montre tous les champs (status, attempts/max, etc.)
- * 4. Ouvrir une ligne différente met à jour le contenu du tiroir
+ * Brief #1720 round 2 — advanced additional validation:
+ * 1. The drawer closes when clicking on another element
+ * 2. The drawer shows the full cause with the empty cause marker
+ * 3. The queue drawer shows all fields (status, attempts/max, etc.)
+ * 4. Opening a different row updates the drawer content
  */
 import { cleanup, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';

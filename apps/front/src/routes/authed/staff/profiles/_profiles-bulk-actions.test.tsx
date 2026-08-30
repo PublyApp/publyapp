@@ -395,9 +395,9 @@ describe('#1386 ProfilesListBulkActions', () => {
 	// profiles surface — the existing total-failure test always supplies
 	// errorEscaped, so reasons.length > 0 and the guard never falls through to
 	// filterWarning.
-	// #1811 : la description ne doit PLUS être undefined — elle doit porter la
-	// cause de repli "aucune raison fournie par le serveur" (la règle produit
-	// "toute défaillance montre sa cause en mots clairs" interdit le silence).
+	// #1811: the description must NO LONGER be undefined — it must carry the
+	// fallback cause "no reason provided by the server" (the rule
+	// "every failure shows its cause in plain words" forbids silence).
 	test('an all-failure delete without per-item reasons shows the no-reason fallback (#1811)', async () => {
 		mocks.bulkDelete.mockResolvedValue({
 			succeededCount: 0,
