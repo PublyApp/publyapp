@@ -25,7 +25,7 @@ Every load-bearing claim below was verified against this tree at `develop` = `e1
 | Full old-front marketing inventory at retirement (routes, ~18 components, data modules, contact-form Zod schema verbatim, retired flag set) | `docs/records/2026-08-22-review-old-front-marketing-screens.md` |
 | Current front has only `/` at top level; everything else is auth/authed | `apps/front/src/routes.ts` (virtual route config; no marketing subtree), `apps/front/src/routes/` listing |
 | Marketing chrome is mounted by the ROOT shell, not by a route group | `apps/front/src/routes/__root.tsx:343-344` (`isSelfShelledPath` = exactly `/`), `:346-352` (`resolveRouteSurface` → `'marketing'` for every non-auth path), `:602-610` (non-self-shelled marketing paths wrapped in `MarketingLayout`) |
-| `MarketingLayout` is the root `shellComponent` wrapper precisely so error/not-found branches share the chrome | `apps/front/src/layouts/marketing-layout.tsx:1-24` |
+| `MarketingLayout` is the root `shellComponent` wrapper precisely so error/not-found branches share the chrome | `apps/front/src/layouts/marketing-layout.tsx` (`MarketingLayout`) |
 | Root not-found renders `View404` inside that chrome | `__root.tsx:318` (`RootNotFound`), `:751` (`notFoundComponent`) |
 | Landing `/` owns its whole shell by design (exemption, not an oversight) | `apps/front/src/routes/index.tsx:50-60` doc comment; `__root.tsx:602-606` |
 | Current flag registry: build-time frozen, `marketing.customerLogos`/`.socialProof` only, no Dockerfile ARG for marketing flags | `apps/front/src/lib/flags.ts:32-35` + module doc (:13-17) |

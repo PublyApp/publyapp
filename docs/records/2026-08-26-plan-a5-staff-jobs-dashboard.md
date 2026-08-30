@@ -648,7 +648,7 @@ Wire contracts (each row = one `Handle` method's response shape). The handler ta
 
 For each query that takes CSV filters (`status`, `external_state_status`, `job_type`):
 
-- `status`: a single `JobQueueStatus` enum value (Pending=0, Processing=1); CSV allowed; validator whitelists the names — same shape as `FindStaffInvitationsQueryValidator.cs:68-84`.
+- `status`: a single `JobQueueStatus` enum value (Pending=0, Processing=1); CSV allowed; validator whitelists the names — same shape as the `FindStaffInvitationsQueryValidator` class in `apps/api/Modules/Invitations/Handlers/Staff/FindStaffInvitations.cs` (cited by symbol, not by line: the standalone `FindStaffInvitationsQueryValidator.cs` this line first named no longer exists).
 - `external_state_status`: CSV of ints 0..6 (the `ExternalStateStatus` enum from K-1).
 - `job_type`: free text (truncated to 200 chars to bound the WHERE clause).
 - `tenant_id`: nullable guid (mirror `FindAuditLogsQuery.GetUserId()` shape at `FindAuditLogs.cs:35-39`).
