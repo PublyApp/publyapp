@@ -29,12 +29,10 @@ test.describe(
 			page,
 		}) => {
 			// The worker is single-threaded and shares the API container in the
-			// e2e stack. On a loaded CI runner the Scheduled → Published
-			// transition can exceed the 30s default test timeout — the last two
-			// failures (runs 33262675043, 33269511485) died with the row still
-			// showing `Scheduled` at T+30s, with the API byte-identical to the
-			// previous passing run. Without this override the default test
-			// timeout silently truncates the 120s poll declared below.
+			// e2e stack. On a loaded CI runner the worker can take longer than
+			// a few seconds to pick the fresh `scheduled` row up, so stay well
+			// above the default 30s test timeout: the observation loop below
+			// gives the worker up to 120s to reach `published`.
 			test.setTimeout(150_000);
 
 			await loginAsTenantUser(page, SINGLE_TENANT_USER_CREDENTIALS);
@@ -71,23 +69,48 @@ test.describe(
 			await expect(history).toBeVisible();
 
 			// The worker drives the publication to Published through the faked
-			// provider; poll the list until the link shows up for THIS post.
-			// Filter the row by the post body text so we never match other
-			// published posts left over from earlier runs on a shared tenant.
-			// A post may have multiple publications (one per connected social
-			// account), so take the first link and verify its href rather than
-			// asserting a global count of 1 — the count depends on the number
-			// of active seeded accounts, which is a seeder concern, not this
-			// test's.
-			const postRow = page
-				.getByTestId('tenant-posts-history-table')
-				.locator('tr', { hasText: postBody });
-			const link = postRow.getByTestId('tenant-posts-history-link').first();
-			await expect(link).toBeVisible({ timeout: 120_000 });
-			await expect(link).toHaveAttribute(
-				'href',
-				/^https:\/\/bsky\.app\/profile\//,
-			);
+			// provider. The history list auto-refreshes only while it has
+			// observed a row `in_progress`; when the mount fetch catches the
+			// fresh publish-now row still `scheduled` (the worker is
+			// asynchronous), the page would otherwise sit on the stale row
+			// until a manual reload. Reload on a short cadence so the test
+			// deterministically observes the worker's transition. Filter the
+			// row by the post body text so we never match other published posts
+			// left over from earlier runs on a shared tenant. A post may have
+			// multiple publications (one per connected social account), so take
+			// the first link and verify its href rather than asserting a global
+			// count of 1 — the count depends on the number of active seeded
+			// accounts, which is a seeder concern, not this test's.
+			const postRow = () =>
+				page
+					.getByTestId('tenant-posts-history-table')
+					.locator('tr', { hasText: postBody });
+			const readPublishedHref = async () => {
+				const link = postRow().getByTestId('tenant-posts-history-link').first();
+
+				if (!(await link.isVisible().catch(() => false))) {
+					return null;
+				}
+
+				return link.getAttribute('href');
+			};
+
+			const publishDeadline = Date.now() + 120_000;
+			let publishedHref: string | null = await readPublishedHref();
+
+			while (publishedHref === null && Date.now() < publishDeadline) {
+				await page.reload();
+				await expect(history).toBeVisible();
+				publishedHref = await readPublishedHref();
+			}
+
+			if (publishedHref === null) {
+				throw new Error(
+					'publish-now never surfaced an external link in history within 120s',
+				);
+			}
+
+			expect(publishedHref).toMatch(/^https:\/\/bsky\.app\/profile\//);
 		});
 	},
 );
