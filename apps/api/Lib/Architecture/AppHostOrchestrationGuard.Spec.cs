@@ -151,6 +151,119 @@ public sealed partial class AppHostOrchestrationGuardSpec : IDisposable {
 		);
 	}
 
+	// Issue #1926 point 1: the probe must distinguish AddressAlreadyInUse from
+	// other SocketErrors. The AppHost has a guard-only mode --probe-bind-fault
+	// that runs the production probe classification path with a synthetic
+	// SocketException instead of an OS bind, so the assertion observes the real
+	// mapping. AddressAlreadyInUse stays "occupied" (occupied free-side); any
+	// other SocketError must be NAMED in plain words (not misreported as
+	// "port occupied") so the user follows the real cause. Companion to the
+	// existing
+	// ItShouldFailLoudlyWhenHostPort5454IsAlreadyOccupied: that test pins the
+	// AddressAlreadyInUse half; this one pins the non-AddressAlreadyInUse half
+	// (round-4 reviewer finding — a permission-denied bind must NOT redirect
+	// the user toward a phantom container).
+	[Fact]
+	public async Task ItShouldNameNonAddressAlreadyInUseErrorsInsteadOfMisreportingThemAsOccupied() {
+		await AppHostBuild.Value;
+
+		var repoRoot = FindRepoRoot();
+		var run = await RunAppHostAsync(
+			repoRoot,
+			TimeSpan.FromMinutes(5),
+			["run", "--project", "apps/apphost", "--no-build", OpenApiSkipBuildProperty,
+				"--", "--probe-bind-fault", "AccessDenied"]
+		);
+
+		run.ExitedOnItsOwn.Should().BeTrue(
+			"the probe-bind-fault mode must finish on its own, fast — not run until "
+				+ "the budget kills it"
+		);
+		run.ExitCode.Should().Be(
+			1,
+			$"the AppHost must exit non-zero when the probe cannot determine port "
+				+ $"state — the silent 'looks free' or 'looks occupied' verdicts both "
+				+ $"fail this fix. Actual exit: {run.ExitCode}"
+		);
+		// The misleading "address already in use" / "stop the container listening
+		// on 5454" diagnosis is exactly what the round-4 review caught:
+		// it sends the user chasing a phantom listener. The new path MUST NOT
+		// repeat it for a non-AddressAlreadyInUse error.
+		PortGuardMessage().IsMatch(run.Console).Should().BeFalse(
+			"a non-AddressAlreadyInUse SocketError must NOT be misreported as "
+				+ "'port already in use' — that is the round-4 review finding this "
+				+ $"fix removes. Console: {run.Console}"
+		);
+		run.Console.Should().Contain(
+			"AccessDenied",
+			"the real SocketError name must appear in the diagnostic so the user "
+				+ $"follows the actual cause (permission denied here). Console: {run.Console}"
+		);
+	}
+
+	// Issue #1926 point 1 — companion to the above: the synthetic AddressAlreadyInUse
+	// fault must route through the same loud "occupied" path the real bind does.
+	// Guards against a regression where --probe-bind-fault diverges from the
+	// production probe (the fault mode would silently misclassify while the real
+	// probe still said "occupied", and this guard would never notice).
+	[Fact]
+	public async Task ItShouldKeepReportingAddressAlreadyInUseThroughTheProbeBindFaultHook() {
+		await AppHostBuild.Value;
+
+		var repoRoot = FindRepoRoot();
+		var run = await RunAppHostAsync(
+			repoRoot,
+			TimeSpan.FromMinutes(5),
+			["run", "--project", "apps/apphost", "--no-build", OpenApiSkipBuildProperty,
+				"--", "--probe-bind-fault", "AddressAlreadyInUse"]
+		);
+
+		run.ExitedOnItsOwn.Should().BeTrue();
+		run.ExitCode.Should().Be(1, $"actual: {run.ExitCode}");
+		PortGuardMessage().IsMatch(run.Console).Should().BeTrue(
+			"synthetic AddressAlreadyInUse must trigger the SAME loud 'occupied' "
+				+ "diagnosis the real bind does, so the guard pins the production "
+				+ $"probe too. Console: {run.Console}"
+		);
+	}
+
+	// Issue #1926 point 2 — round-2 reviewer finding: two probe-bind-fault /
+	// preflight messages produced "whether127.0.0.1:5454" — the word and the
+	// address glued together, so a user scanning the diagnostic at the moment
+	// of the crash read it as one token. The fix is one space; the assertion
+	// below pins the invariant by detecting ANY missing space, not by pinning
+	// the wording (a rephrase of the surrounding sentence stays GREEN; an
+	// alphanumeric glued to the address stays RED).
+	[Fact]
+	public async Task ItShouldPrintHostPort5454DetachedFromPrecedingText() {
+		await AppHostBuild.Value;
+
+		var repoRoot = FindRepoRoot();
+		var run = await RunAppHostAsync(
+			repoRoot,
+			TimeSpan.FromMinutes(5),
+			["run", "--project", "apps/apphost", "--no-build", OpenApiSkipBuildProperty,
+				"--", "--probe-bind-fault", "AccessDenied"]
+		);
+
+		run.ExitedOnItsOwn.Should().BeTrue(
+			"the probe-bind-fault mode must finish on its own — not run until "
+				+ "the budget kills it"
+		);
+		run.Console.Should().Contain(
+			"127.0.0.1:5454",
+			"the Other-branch diagnostic must name the address so the user "
+				+ $"can locate the offending listener. Console: {run.Console}"
+		);
+		HostPort5454DetachedFromPrecedingText().IsMatch(run.Console).Should().BeFalse(
+			"the address must be separated from the preceding word by whitespace "
+				+ "or punctuation; an alphanumeric glued to it ('...whether127.0.0.1:5454', "
+				+ "'...if127.0.0.1:5454', ...) reads as one token at the moment "
+				+ "the user most needs the diagnostic — the round-2 reviewer "
+				+ $"finding. Console: {run.Console}"
+		);
+	}
+
 	[Fact]
 	public async Task ItShouldFailLoudlyWhenHostPort5454IsAlreadyOccupied() {
 		// The occupied half of the port pairing: run the real AppHost against an
@@ -159,6 +272,19 @@ public sealed partial class AppHostOrchestrationGuardSpec : IDisposable {
 		// proves the opposite direction: a CLOSING residue (no listener) must not
 		// fail. Together they pin the SO_REUSEADDR semantics: no false negative,
 		// no false positive.
+		//
+		// Issue #1926 point 2: this test used to run the AppHost in BOOT mode (no
+		// --preflight-only flag) and rely on DCP's bind error to fail loud.
+		// Removing the preflight CALL — commenting out
+		//   if (!HostPort5454IsFree()) { FailLoudlyOnOccupiedPort(); }
+		// — then compiles cleanly, but the boot path runs DCP/docker for ~5 minutes
+		// before DCP's silent 'address already in use' proxy log (internal to DCP,
+		// never on the console) ever manifests as a non-zero exit. A 5-minute guard
+		// is one the next person optimizes away. The fix exercises --preflight-only
+		// directly — that mode owns its own probe call, so removing the boot-path
+		// call OR the --preflight-only call both cause this test to fail FAST (the
+		// --preflight-only branch prints 'free' without probing, and the boot path
+		// is not reached).
 		//
 		// Occupancy: bind 127.0.0.1:5454 in-process — exactly the address DCP's
 		// postgres proxy binds (its own error says 'listen tcp 127.0.0.1:5454:
@@ -179,8 +305,9 @@ public sealed partial class AppHostOrchestrationGuardSpec : IDisposable {
 		var repoRoot = FindRepoRoot();
 		var run = await RunAppHostAsync(
 			repoRoot,
-			TimeSpan.FromMinutes(10),
-			["run", "--project", "apps/apphost", "--no-build", OpenApiSkipBuildProperty]
+			TimeSpan.FromMinutes(2),
+			["run", "--project", "apps/apphost", "--no-build", OpenApiSkipBuildProperty,
+				"--", "--preflight-only"]
 		);
 
 		run.ExitedOnItsOwn.Should().BeTrue(
@@ -516,12 +643,22 @@ public sealed partial class AppHostOrchestrationGuardSpec : IDisposable {
 	private static partial Regex NamedPostgresVolumeMount();
 
 	// The guard must name the port AND the DCP symptom AND the concrete next
-	// action (stop the occupier / pick another port). "Nommer la cause en clair".
-	// The window is wide because in the console the message is one block.
+	// action (stop the occupier / pick another port). The console message is
+	// one block, so the regex window is wide.
 	[GeneratedRegex(
 		"5454[\\s\\S]{0,1200}address already in use[\\s\\S]{0,1200}dotnet run --project apps/apphost"
 	)]
 	private static partial Regex PortGuardMessage();
+
+	// Detects "127.0.0.1:5454" preceded by an alphanumeric — a missing space
+	// between the diagnostic word and the address. The negative assertion is
+	// "this regex must NOT match the console", not "the message must equal X":
+	// a legitimate wording rephrase ('if' -> 'whether') stays GREEN, an
+	// alphanumeric glued to the address stays RED. Word-boundary-based: a
+	// real word break between word text and "1" of the address is exactly
+	// what matters.
+	[GeneratedRegex(@"[A-Za-z0-9]127\.0\.0\.1:5454")]
+	private static partial Regex HostPort5454DetachedFromPrecedingText();
 
 	// Walk further up for the repo root containing justfile (AppHost paths are
 	// repo-root-relative). Same convention as CanaryProbeContainmentSpec.

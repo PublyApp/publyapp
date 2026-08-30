@@ -27,10 +27,21 @@
 		"  - Hole 3 (extension relocation): .ctsx/.mjs/.cjs have floor 0, so",
 		"    moving them to non-code keeps the real-tree guard green.",
 		"The pin makes every one of these gestures visible: the guard compares the",
-		"runtime set against the pinned baseline and fails on any divergence."
+		"runtime set against the pinned baseline and fails on any divergence.",
+		"",
+		"R8 (round 2 #1943): the floors are PINNED BELOW the live tree. As measured",
+		"on 2026-08-30 by replicating walk() with the same exclusions (test files,",
+		".turbo, .cache, node_modules), the live tree holds .ts:297 (margin 21",
+		"above the 276 floor) and .tsx:498 (margin 26 above the 472 floor).",
+		"This is the expected behaviour of a ratchet floor (it pins a minimum, not",
+		"an equality), but it means the guard cannot catch a silent shrink until",
+		"21 .ts files (or 26 .tsx files) vanish in a single PR. The slack is a",
+		"feature, not a bug — the floor catches silent shrinkage but is not meant",
+		"to track every addition. A future tightening PR can raise these floors",
+		"to current counts if the silent-shrink blind spot becomes a concern."
 	],
 	"perExtension": {
-		".ts": 275,
+		".ts": 276,
 		".tsx": 472,
 		".mts": 0,
 		".cts": 0,

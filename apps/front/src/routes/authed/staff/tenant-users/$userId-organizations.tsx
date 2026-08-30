@@ -226,6 +226,7 @@ const OrganizationsTable = ({ userId }: { userId: string }) => {
 // react-doctor-disable-next-line react-doctor/no-multi-component-file -- pre-existing develop multi-component route file; surfaced by the #1554 merge only because it mechanically updated this file's imports. Not introduced by this lane. Follow-up: split into single-component route files.
 const OrganizationsBulkActions = ({
 	userId,
+	rows,
 	selection,
 }: {
 	userId: string;
@@ -238,11 +239,21 @@ const OrganizationsBulkActions = ({
 	const bulkUnlink = useBulkUnlinkGlobalTenantUserCompaniesMutation();
 	const [shouldLogout, setShouldLogout] = useState(false);
 
-	// Single pass (react-doctor/js-combine-iterations): no chained filter+map.
+	// #1604 — derive selectedIds from the visible rows list, not from the
+	// raw selection map. `useRowSelection`'s prune effect runs after the
+	// next render, so iterating the map directly can include ids for rows
+	// that just left the view — those would be sent as stale bulk targets.
+	// Filtering the visible rows keeps the contract tight: every id is
+	// something the user can currently see, and the prune window cannot
+	// leak a target the server no longer has on this page.
+	//
+	// Single pass (react-doctor/js-combine-iterations): no chained
+	// filter+map. The loop pushes `row.id` for every visible row that is
+	// selected, preserving both the visibility filter and the projection.
 	const selectedIds: string[] = [];
-	for (const [id, checked] of Object.entries(selection.rowSelection)) {
-		if (checked) {
-			selectedIds.push(id);
+	for (const row of rows) {
+		if (selection.rowSelection[row.id]) {
+			selectedIds.push(row.id);
 		}
 	}
 	const isOverLimit = selectedIds.length > BULK_ACTION_MAX_COUNT;
