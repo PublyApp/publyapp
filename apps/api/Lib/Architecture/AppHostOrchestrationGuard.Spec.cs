@@ -39,14 +39,18 @@ namespace PublyApp.Api.Lib.Architecture;
 ///                                     then reads as "occupied" — the false positive on a
 ///                                     healthy restart — and the test's shipped half reds)
 ///
-/// Honest caveat on that last entry: removing ONLY the explicit
-/// SetSocketOption(ReuseAddress) line does NOT redden today — .NET's managed
-/// Socket.Bind() sets SO_REUSEADDR by default on Linux (strace-verified), so the
-/// shipped probe keeps reuse semantics either way. The pin pins intent and
-/// protects against a runtime-default change. The mutation that reddens is the
-/// probe becoming a plain bind; the test's --plain-bind-preflight half asserts
-/// exactly that hazard (exit 1 on the residue) as its RED half. Declared
-/// rather than overclaimed.
+/// Honest caveat on that last entry — measured, issue #1954: removing ONLY the
+/// explicit SetSocketOption(ReuseAddress) line DOES redden this test today. The
+/// readback runs BEFORE Bind(), so it sees the kernel default (0), not .NET's
+/// bind-time reuse default; the probe throws before binding, and the shipped
+/// half's fixed exit-code-0 assertion fails (measured: exit 134 with the readback
+/// exception on the console). The explicit set is the guarantee the readback
+/// checks; keeping it also pins intent against a future change in the managed
+/// default. A runtime that pre-enabled reuse at socket creation would make the
+/// removal unobservable — that residual is inherently invisible to a behavioral
+/// guard and is why the explicit set stays. The test's --plain-bind-preflight
+/// half asserts the plain-bind hazard (exit 1 on the residue) as its RED half.
+/// Declared rather than overclaimed.
 /// </summary>
 public sealed partial class AppHostOrchestrationGuardSpec : IDisposable {
 	private const int HostPort = 5454;
