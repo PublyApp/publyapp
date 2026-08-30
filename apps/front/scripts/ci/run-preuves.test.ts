@@ -62,12 +62,13 @@ import {
 	mkdirSync,
 	mkdtempSync,
 	readdirSync,
+	readlinkSync,
 	rmSync,
 	symlinkSync,
 	writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { basename, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { describe, expect, test } from 'vitest';
@@ -274,6 +275,20 @@ const buildReplayFixture = (options: ReplayFixtureOptions): string => {
 	// ronde-11 development). Plus a minimal vitest.preuves.config.ts (the
 	// runner passes --config explicitly) and a symlink to the real front's
 	// node_modules.
+	//
+	// The runner executes the proof through `pnpm exec vitest`, and pnpm 10
+	// resolves the bin via the LOCKFILE path
+	// <project>/node_modules/.pnpm/<pkg>@<hash>/node_modules/<pkg>/<bin>
+	// (it does NOT walk the .bin symlink chain). A plain directory symlink
+	// for node_modules therefore breaks it: the computed path lands under
+	// <fixture>/node_modules/.pnpm, which does not exist (the real virtual
+	// store is hoisted to the workspace root), and pnpm crashes with
+	// "Cannot find module …/vitest.mjs". Observed under the full front
+	// suite (ronde-11 development); reproduced in isolation as variant A
+	// vs variant B below. So the fixture node_modules is a REAL directory
+	// shaped like the pnpm layout: .pnpm/<vitest@hash>/node_modules/vitest
+	// (dir symlink into the real store), a top-level vitest package link,
+	// and the .bin/vitest entry.
 	writeFileSync(
 		join(appDir, 'package.json'),
 		'{"name":"preuve-replay-fixture","private":true,"type":"module","packageManager":"pnpm@10.13.1"}\n',
@@ -293,7 +308,29 @@ const buildReplayFixture = (options: ReplayFixtureOptions): string => {
 			'',
 		].join('\n'),
 	);
-	symlinkSync(REAL_FRONT_NODE_MODULES, join(appDir, 'node_modules'), 'dir');
+	const fixtureNodeModules = join(appDir, 'node_modules');
+	// apps/front/node_modules/vitest is itself a relative symlink into the
+	// hoisted virtual store (…/node_modules/.pnpm/vitest@<hash>/node_modules/vitest).
+	// path.join normalises the relative hops, giving the REAL store path.
+	const storeVitestDir = join(
+		REAL_FRONT_NODE_MODULES,
+		readlinkSync(join(REAL_FRONT_NODE_MODULES, 'vitest')),
+	);
+	const storePkgDir = basename(dirname(dirname(storeVitestDir))); // vitest@<hash>
+	mkdirSync(join(fixtureNodeModules, '.pnpm', storePkgDir, 'node_modules'), {
+		recursive: true,
+	});
+	symlinkSync(
+		storeVitestDir,
+		join(fixtureNodeModules, '.pnpm', storePkgDir, 'node_modules', 'vitest'),
+		'dir',
+	);
+	symlinkSync(storeVitestDir, join(fixtureNodeModules, 'vitest'), 'dir');
+	mkdirSync(join(fixtureNodeModules, '.bin'), { recursive: true });
+	symlinkSync(
+		join(storeVitestDir, 'vitest.mjs'),
+		join(fixtureNodeModules, '.bin', 'vitest'),
+	);
 
 	// The proof: one test that behaves per the option, plus a sibling that
 	// fails on an assertion (FILE stays red, vitest exit 1, classification
