@@ -324,6 +324,8 @@ import { Route } from './dead-letter';
 
 const ROW_CAUSE = 'Cause from the row (list endpoint)';
 const DETAIL_CAUSE = 'Cause from the detail (per-row endpoint)';
+const PADDED_DETAIL_CAUSE = '  Cause from the detail (per-row endpoint)  ';
+const TRIMMED_DETAIL_CAUSE = 'Cause from the detail (per-row endpoint)';
 
 const DEAD_LETTER_ROWS: StaffDeadLetterRow[] = [
 	{
@@ -407,6 +409,36 @@ describe('dead-letter drawer: cause display parity with column (brief #1720 rond
 		const detailValue = within(drawer).getByText(DETAIL_CAUSE);
 		expect(detailValue).toBeTruthy();
 		expect(detailValue.textContent).toBe(DETAIL_CAUSE);
+	});
+
+	// Brief #1878: the suite never covered a cause with leading/trailing
+	// whitespace in the drawer. If `formatFailureCause` returned the untrimmed
+	// value, the drawer would render the raw padded string verbatim. This test
+	// seeds a padded detail cause and asserts the rendered textContent is trimmed
+	// — any future regression to `return cause` (instead of `return trimmed`)
+	// turns this red.
+	test('the drawer trims leading and trailing whitespace from the detail cause', async () => {
+		setDetailQuery({
+			data: {
+				lastError: PADDED_DETAIL_CAUSE,
+				attempts: 3,
+				failedAt: null,
+				payload: null,
+			},
+			isPending: false,
+		});
+
+		renderPage();
+
+		const drawer = await openDrawer();
+		expect(drawer.getAttribute('role')).toBe('dialog');
+
+		// The drawer must show the trimmed value, not the padded original
+		const detailValue = within(drawer).getByText(TRIMMED_DETAIL_CAUSE);
+		expect(detailValue).toBeTruthy();
+		expect(detailValue.textContent).toBe(TRIMMED_DETAIL_CAUSE);
+		// The padded original must NOT appear anywhere
+		expect(within(drawer).queryByText(PADDED_DETAIL_CAUSE)).toBeNull();
 	});
 
 	// Brief #1858: this is the ONE case that tells `??` from `||` apart — the
