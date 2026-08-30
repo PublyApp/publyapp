@@ -131,9 +131,9 @@ export const parseCsv = (text: string): CsvParsedRow[] => {
 			continue;
 		}
 		const record: CsvParsedRow = {};
-		headers.forEach((header, index) => {
+		for (const [index, header] of headers.entries()) {
 			record[header] = (row[index] ?? '').trim();
-		});
+		}
 		records.push(record);
 	}
 	return records;
@@ -233,15 +233,15 @@ export const mergeInitialUsers = ({
 		merged.push({ email: trimmed, accountLevel });
 	};
 
-	owners.forEach((owner) => {
+	for (const owner of owners) {
 		pushUnique(owner.email, 'Admin');
-	});
-	parsedMembers.forEach((member) => {
+	}
+	for (const member of parsedMembers) {
 		pushUnique(member.email, member.accountLevel);
-	});
-	manualMembers.forEach((member) => {
+	}
+	for (const member of manualMembers) {
 		pushUnique(member.email, member.accountLevel);
-	});
+	}
 
 	return merged;
 };
