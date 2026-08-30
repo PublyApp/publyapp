@@ -95,12 +95,14 @@ const runWrapperArgs = (
 					// execFile surfaces non-zero exits as errors. Node 24 gives
 					// `err.code` as a NUMBER for a clean non-zero exit; older
 					// Node gave a numeric STRING. Accept both.
-					const code =
-						typeof err.code === 'number'
-							? err.code
-							: typeof err.code === 'string' && /^\d+$/.test(err.code)
-								? Number.parseInt(err.code, 10)
-								: -1;
+					let code: number;
+					if (typeof err.code === 'number') {
+						code = err.code;
+					} else if (typeof err.code === 'string' && /^\d+$/.test(err.code)) {
+						code = Number.parseInt(err.code, 10);
+					} else {
+						code = -1;
+					}
 					resolve({ code, stdout, stderr });
 				} else {
 					resolve({ code: 0, stdout, stderr });
