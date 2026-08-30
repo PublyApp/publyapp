@@ -1463,7 +1463,8 @@ const run = () => 1;
 
 				assert.strictEqual(violations.length, 1);
 				assert.strictEqual(violations[0]!.callee, 'run');
-				assert.strictEqual(violations[0]!.kind, 'direct');
+				assert.strictEqual(violations[0]!.kind, 'transitive');
+				assert.deepStrictEqual(violations[0]!.chain, ['obj.value']);
 				assert.strictEqual(violations[0]!.line, 3);
 			});
 
@@ -1481,7 +1482,8 @@ const run = () => 1;
 
 				assert.strictEqual(violations.length, 1);
 				assert.strictEqual(violations[0]!.callee, 'run');
-				assert.strictEqual(violations[0]!.kind, 'direct');
+				assert.strictEqual(violations[0]!.kind, 'transitive');
+				assert.deepStrictEqual(violations[0]!.chain, ['obj.value']);
 			});
 
 			it('flags a call inside a class heritage clause (decorator on class, bare identifier)', () => {
@@ -1645,6 +1647,47 @@ const toPosixPath = (x) => x;
 					assert.strictEqual(violations[0]!.line, 1);
 					assert.strictEqual(violations[0]!.declaredAtLine, 3);
 				});
+
+				it('shape 5, class getter: new Provider().value runs its getter body before toPosixPath is defined', () => {
+					const violations = analyze(
+						`class Provider {
+	get value() {
+		return toPosixPath('a');
+	}
+}
+const result = new Provider().value;
+const toPosixPath = (x) => x;
+`,
+					);
+
+					assert.strictEqual(violations.length, 1);
+					assert.strictEqual(violations[0]!.callee, 'toPosixPath');
+					assert.strictEqual(violations[0]!.kind, 'transitive');
+					assert.deepStrictEqual(violations[0]!.chain, ['Provider.value']);
+					assert.strictEqual(violations[0]!.line, 3);
+					assert.strictEqual(violations[0]!.declaredAtLine, 7);
+				});
+
+				it('shape 5, class getter: provider.value (provider = new Provider()) runs its getter body before toPosixPath is defined', () => {
+					const violations = analyze(
+						`class Provider {
+	get value() {
+		return toPosixPath('a');
+	}
+}
+const provider = new Provider();
+const result = provider.value;
+const toPosixPath = (x) => x;
+`,
+					);
+
+					assert.strictEqual(violations.length, 1);
+					assert.strictEqual(violations[0]!.callee, 'toPosixPath');
+					assert.strictEqual(violations[0]!.kind, 'transitive');
+					assert.deepStrictEqual(violations[0]!.chain, ['Provider.value']);
+					assert.strictEqual(violations[0]!.line, 3);
+					assert.strictEqual(violations[0]!.declaredAtLine, 8);
+				});
 			});
 		});
 
@@ -1794,6 +1837,23 @@ const run = () => 1;
 	},
 };
 const run = () => 1;
+`,
+				);
+
+				assert.deepStrictEqual(violations, []);
+			});
+
+			it('does not flag a class getter body when the accessed binding is already defined', () => {
+				// #1956 shape 5: class getters ARE followed now. This stays
+				// green because toPosixPath is declared before the access.
+				const violations = analyze(
+					`class Provider {
+	get value() {
+		return toPosixPath('a');
+	}
+}
+const toPosixPath = (x) => x;
+const result = new Provider().value;
 `,
 				);
 
