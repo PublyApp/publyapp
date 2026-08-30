@@ -179,6 +179,8 @@
 		"quality-gate.yml::changes::Setup Node",
 		"quality-gate.yml::gate::Check required jobs",
 		"quality-gate.yml::gate::Verify the required-jobs check truly succeeded (continue-on-error cannot mask this)",
+		"quality-gate.yml::no-dockerignore-shadow::Checkout",
+		"quality-gate.yml::no-dockerignore-shadow::Forbid .dockerignore shadow files (#1849)",
 		"quality-gate.yml::no-ignored-tracked::Checkout",
 		"quality-gate.yml::no-ignored-tracked::Verify no tracked file matches .gitignore (#1513)",
 		"quality-gate.yml::quality::Assert exact pins",
