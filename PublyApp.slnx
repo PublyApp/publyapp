@@ -6,7 +6,9 @@
        points (dotnet run/build with the project path apps/apphost) and pinned
        as a real gate by AppHostOrchestrationGuardSpec, which builds the
        AppHost inside the API test suite (api-tests.yml): breaking apphost
-       still reddens CI there. Reintroducing the project here couples the
+       still reddens CI there — api-tests.yml wakes on apps/apphost/** (round
+       2, #1975), so an apphost-only change still runs the suite that
+       compiles the AppHost. Reintroducing the project here couples the
        gate back to Aspire, the exact coupling #1584 removes. -->
   <Configurations>
     <Platform Name="Any CPU" />
