@@ -110,6 +110,7 @@
 		"front-ci.yml::supply-chain::Check front formatting",
 		"front-ci.yml::supply-chain::Checkout",
 		"front-ci.yml::supply-chain::Install (frozen lockfile, no scripts)",
+		"front-ci.yml::supply-chain::Install Git hooks (mirrors prepare)",
 		"front-ci.yml::supply-chain::Install pnpm",
 		"front-ci.yml::supply-chain::Lint front",
 		"front-ci.yml::supply-chain::Run trusted first-party postinstall (@org/shared-ts)",
