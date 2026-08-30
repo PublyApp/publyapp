@@ -272,9 +272,9 @@
 			"reason": "GitHub-only: round-5 BLOCKER fix. Reads steps.check-required-jobs.outcome, which GitHub computes BEFORE continue-on-error is applied (only .conclusion is rewritten afterward), so a continue-on-error added to the required-jobs check step cannot mask this step's own view of whether that step actually succeeded. That `.outcome` context only exists inside a real Actions run, so this stays GitHub-only/unmirrored locally; packages/scripts-ts/src/check-ci-gate-structure.ts pins that this exact step exists."
 		},
 		"front-ci.yml::supply-chain::Assert exact pins": {
-			"hash": "9f0331695e45ef30",
+			"hash": "d9b724c399552197",
 			"mirror": "just ci-install",
-			"reason": "ci-install runs the identical command: node apps/front/scripts/guards/assert-pinned.mts."
+			"reason": "ci-install runs the identical command: node apps/front/scripts/run-guarded.mts apps/front/scripts/guards/assert-pinned.mts (wrapped #1525)."
 		},
 		"front-ci.yml::supply-chain::Audit production dependencies (moderate and above)": {
 			"hash": "8d5095ef73aba7b3",
@@ -352,14 +352,14 @@
 			"reason": "ci-front runs the identical pnpm --filter front typecheck."
 		},
 		"front-ci.yml::supply-chain::Verify front production build emits a CSS asset": {
-			"hash": "2cdea9498a1d6325",
+			"hash": "a43077611b497e64",
 			"mirror": "just ci-front",
-			"reason": "ci-front runs pnpm --filter front verify:build, whose script body is the same scripts/guards/verify-build-css-link.mts call."
+			"reason": "ci-front runs pnpm --filter front verify:build, whose script body is the same scripts/guards/verify-build-css-link.mts call (wrapped #1525). The CI step invokes node apps/front/scripts/run-guarded.mts apps/front/scripts/guards/verify-build-css-link.mts; the local run is equivalent."
 		},
 		"front-ci.yml::supply-chain::Verify front production font bundle references and unicode coverage": {
-			"hash": "cce3dbe7f24e28a4",
+			"hash": "68a8bb911e6e0195",
 			"mirror": "just ci-front",
-			"reason": "ci-front runs pnpm --filter front verify:build, whose script body now also calls scripts/guards/verify-font-bundle.mts. The CI step passes --dist apps/front/dist and --locales-dir apps/front/src/i18n/locales explicitly; the script defaults resolve to the same two paths when it runs with apps/front as the working directory, so the local run is equivalent rather than merely similar."
+			"reason": "ci-front runs pnpm --filter front verify:build, whose script body now also calls scripts/guards/verify-font-bundle.mts (wrapped #1525). The CI step invokes node apps/front/scripts/run-guarded.mts apps/front/scripts/guards/verify-font-bundle.mts --dist apps/front/dist --locales-dir apps/front/src/i18n/locales; the local run is equivalent."
 		},
 		"front-ci.yml::supply-chain::Verify paired red proofs": {
 			"hash": "84a5033fcfbeb3dd",
@@ -467,9 +467,9 @@
 			"reason": "GitHub-only: round-5 BLOCKER fix. Reads steps.check-required-jobs.outcome, which GitHub computes BEFORE continue-on-error is applied (only .conclusion is rewritten afterward), so a continue-on-error added to the required-jobs check step cannot mask this step's own view of whether that step actually succeeded. That `.outcome` context only exists inside a real Actions run, so this stays GitHub-only/unmirrored locally; packages/scripts-ts/src/check-ci-gate-structure.ts pins that this exact step exists."
 		},
 		"front-e2e.yml::test::Assert exact pins": {
-			"hash": "9f0331695e45ef30",
+			"hash": "d9b724c399552197",
 			"mirror": "just ci-install",
-			"reason": "ci-install runs the identical node apps/front/scripts/guards/assert-pinned.mts."
+			"reason": "ci-install runs the identical node apps/front/scripts/run-guarded.mts apps/front/scripts/guards/assert-pinned.mts (wrapped #1525)."
 		},
 		"front-e2e.yml::test::Cache Playwright browsers": {
 			"hash": "2a9fc7ccfef22deb",
@@ -672,9 +672,9 @@
 			"reason": "ci-no-ignored-tracked runs the identical `node packages/scripts-ts/src/check-no-ignored-tracked.ts` plus its vitest test, which interrogates the REAL repo via `git ls-files -z --cached --ignored --exclude-standard`. Empty output = green, any named path = red. See issue #1513."
 		},
 		"quality-gate.yml::quality::Assert exact pins": {
-			"hash": "9f0331695e45ef30",
+			"hash": "d9b724c399552197",
 			"mirror": "just ci-install",
-			"reason": "ci-install runs the identical command: node apps/front/scripts/guards/assert-pinned.mts."
+			"reason": "ci-install runs the identical command: node apps/front/scripts/run-guarded.mts apps/front/scripts/guards/assert-pinned.mts (wrapped #1525)."
 		},
 		"quality-gate.yml::quality::Audit development dependencies (moderate and above)": {
 			"hash": "60fbf11c313950ad",
