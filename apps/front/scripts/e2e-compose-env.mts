@@ -33,6 +33,7 @@
  * - Normalized to Compose-safe characters (lowercase, digits, dash, underscore)
  */
 
+import { execFileSync } from 'node:child_process';
 import { mkdirSync } from 'node:fs';
 import {
 	readFileSync,
@@ -68,9 +69,26 @@ const BASE_PORTS = {
 	postgres: 5454,
 };
 
+// The ports docker-compose.test.yml actually PUBLISHES on the host. The
+// Postgres service is internal-only (`Host=postgres;Port=5432` inside the
+// compose network) — `E2E_PORT_POSTGRES` is emitted for symmetry but never
+// bound, so it must NOT be probed: probing it would false-positive on any
+// machine running `just dev-db` (host 5454) and break band 0 for everyone.
+const PUBLISHED_BASE_PORTS = {
+	traefik_web: BASE_PORTS.traefik_web,
+	traefik_websecure: BASE_PORTS.traefik_websecure,
+	request_counter: BASE_PORTS.request_counter,
+	toxiproxy: BASE_PORTS.toxiproxy,
+};
+
 // Band configuration: 500 bands, 10 ports apart to avoid collisions
 const PORT_BAND = 10;
 const MAX_BANDS = 500;
+
+// How long a holder-identification probe (docker ps / ss -tlnp) may take before
+// the assignment gives up. Every external command is bounded — none may hang the
+// band acquisition forever.
+const HOLDER_PROBE_TIMEOUT_MS = 3000;
 
 // Lock directory for port band reservations
 const LOCK_DIR = pathJoin('/tmp', 'publyapp-e2e-port-locks');
@@ -132,6 +150,218 @@ const findRepoRoot = (): string => {
 const getLockFilePath = (bandIndex: number): string => {
 	const basePort = BASE_PORTS.traefik_web + bandIndex * PORT_BAND;
 	return pathJoin(LOCK_DIR, `band-${basePort}.lock`);
+};
+
+/**
+ * The host ports a band PUBLISHES (the same offsets docker-compose.test.yml
+ * binds): Web/Websecure/Request-counter/Toxiproxy. The Postgres service is
+ * internal to the compose network and never bound on the host, so it is
+ * deliberately absent — probing it would flag `just dev-db`'s host 5454 as a
+ * squatter and block band 0 on every dev machine.
+ */
+export const bandPortsFor = (basePort: number): number[] => {
+	const offset = basePort - BASE_PORTS.traefik_web;
+	return Object.values(PUBLISHED_BASE_PORTS).map((port) => port + offset);
+};
+
+/**
+ * Synchronously probes which of the band's ports are already occupied, by
+ * binding them from a short-lived child node process. Node has no synchronous
+ * listen(), so the probe is out-of-process: a tiny script tries to bind each
+ * port and prints the occupied ones. EADDRINUSE while actively LISTENing is
+ * the exact condition that makes `docker compose up` fail later — this is what
+ * the assignment must discover BEFORE claiming the band.
+ *
+ * When the probe itself fails (timeout, no node), the caller must fail loudly
+ * rather than guess: an undecidable entry is a loud failure (house rule).
+ */
+export const findOccupiedBandPorts = (basePort: number): number[] => {
+	const ports = bandPortsFor(basePort);
+
+	const probeScript = `
+		const net = require('node:net');
+		const ports = JSON.parse(process.argv[1]);
+		const occupied = [];
+		let remaining = ports.length;
+		function finish() {
+			console.log(JSON.stringify(occupied.sort((a, b) => a - b)));
+			process.exit(0);
+		}
+		for (const port of ports) {
+			const server = net.createServer();
+			server.once('error', (error) => {
+				if (error && error.code === 'EADDRINUSE') {
+					occupied.push(port);
+				}
+				server.close();
+				remaining -= 1;
+				if (remaining === 0) {
+					finish();
+				}
+			});
+			server.listen(port, () => {
+				server.close(() => {
+					remaining -= 1;
+					if (remaining === 0) {
+						finish();
+					}
+				});
+			});
+		}
+	`;
+
+	try {
+		const output = execFileSync(
+			process.execPath,
+			['-e', probeScript, JSON.stringify(ports)],
+			{
+				timeout: HOLDER_PROBE_TIMEOUT_MS,
+				encoding: 'utf8',
+				stdio: ['ignore', 'pipe', 'pipe'],
+			},
+		);
+
+		return JSON.parse(output.trim()) as number[];
+	} catch {
+		throw new Error(
+			`Could not verify band ${basePort}'s ports are free: the port probe failed. ` +
+				'Inspect the ports yourself before starting the stack: ' +
+				'docker ps ; ss -tlnp',
+		);
+	}
+};
+
+/**
+ * Best-effort human-readable identification of who occupies `port`: a docker
+ * container publishing it, or the process listening on it (via ss -tlnp), or a
+ * plain statement that no identity is visible. Empty when the port is free.
+ * Both probes are bounded; a probe failure degrades to "unknown" rather than
+ * hiding the conflict — the port occupancy itself was already proven above.
+ */
+export const describePortHolders = (port: number): string[] => {
+	const holders: string[] = [];
+
+	try {
+		const dockerOut = execFileSync(
+			'docker',
+			['ps', '--format', '{{.Names}}\t{{.Ports}}'],
+			{ timeout: HOLDER_PROBE_TIMEOUT_MS, encoding: 'utf8' },
+		);
+
+		for (const line of dockerOut.split('\n')) {
+			if (!line.includes(`:${port}->`)) {
+				continue;
+			}
+
+			const [name, ports] = line.split('\t', 2);
+			if (name) {
+				holders.push(`container \`${name}\` (${ports ?? 'port published'})`);
+			}
+		}
+	} catch {
+		// docker missing/unavailable: fall through to ss, then to "unknown".
+	}
+
+	try {
+		const ssOut = execFileSync('ss', ['-tlnp'], {
+			timeout: HOLDER_PROBE_TIMEOUT_MS,
+			encoding: 'utf8',
+		});
+		const portPattern = new RegExp(`:${port}\\s`);
+
+		for (const line of ssOut.split('\n')) {
+			if (!portPattern.test(line)) {
+				continue;
+			}
+
+			const match = line.match(/users:\s*\(\("([^"]+)",pid=(\d+)/);
+			if (match) {
+				holders.push(`process \`${match[1]}\` (pid ${match[2]})`);
+			}
+		}
+	} catch {
+		// ss missing/unavailable: degrade to "unknown" below.
+	}
+
+	if (holders.length === 0) {
+		holders.push(
+			'an unidentified holder (run `docker ps` / `ss -tlnp` as root for the process name)',
+		);
+	}
+
+	return holders;
+};
+
+/**
+ * Splits the occupied ports of a band into the ones held by a FOREIGN entity
+ * (a process, an unidentified holder, or another project's container). A port
+ * whose every holder is a container of THIS tree's own project is not foreign:
+ * those are leftovers of an interrupted run of the same tree, which the
+ * ci-e2e-front recipe removes itself. The remaining (foreign) ports are the
+ * defect #1698 must name.
+ */
+const foreignBandPorts = (occupiedPorts: number[]): number[] => {
+	const foreignPorts: number[] = [];
+
+	for (const port of occupiedPorts) {
+		const holders = describePortHolders(port);
+		const allHoldersAreOwnContainers = holders.every((holder) => {
+			const match = holder.match(/container `([^`]+)`/);
+
+			return match !== null && isOwnProjectContainer(match[1]);
+		});
+
+		if (!allHoldersAreOwnContainers) {
+			foreignPorts.push(port);
+		}
+	}
+
+	return foreignPorts;
+};
+
+/**
+ * The loud, plain-words failure the band assignment throws when a band's ports
+ * are occupied by an entity that does not participate in the lock scheme —
+ * which port, who holds it, and how to see it yourself (issue #1698). A free
+ * lock proves nothing about the ports: the lock guards band CLAIMS, not the
+ * sockets themselves.
+ */
+export const buildBandConflictMessage = (
+	basePort: number,
+	occupiedPorts: number[],
+): string => {
+	const lines: string[] = [
+		`Port band ${basePort} is NOT free for this e2e stack: ${occupiedPorts.length} ` +
+			'of its ports are already in use by an entity that holds no lock for the band:',
+	];
+
+	for (const port of occupiedPorts) {
+		for (const holder of describePortHolders(port)) {
+			lines.push(`  - port ${port} is taken by ${holder}`);
+		}
+	}
+
+	lines.push(
+		'A leftover or legacy stack (or a stray process) is squatting these ports; the ' +
+			'lock-free port conflict would otherwise surface only as a silent `docker ' +
+			'compose up` bind failure. See it yourself with:',
+		'  docker ps',
+		'  ss -tlnp',
+	);
+
+	return lines.join('\n');
+};
+
+/**
+ * Whether a container name belongs to THIS tree's e2e project. The compose
+ * container names are `{project}-{service}-{index}` with the project derived
+ * from the absolute repo path, so a leading match identifies a leftover of an
+ * interrupted run of the SAME tree — which the ci-e2e-front recipe removes
+ * with its own `down -v` before `up`. A foreign project (or a plain process)
+ * is never tolerated.
+ */
+export const isOwnProjectContainer = (containerName: string): boolean => {
+	return containerName.startsWith(`${deriveProjectName()}-`);
 };
 
 /**
@@ -250,6 +480,7 @@ const acquirePortBandInternal = (): {
 
 	for (let bandIndex = 0; bandIndex < MAX_BANDS; bandIndex++) {
 		const lockPath = getLockFilePath(bandIndex);
+		let lockAcquired = false;
 
 		try {
 			// Try to create the lock file exclusively (O_EXCL)
@@ -264,19 +495,51 @@ const acquirePortBandInternal = (): {
 
 			writeFileSync(lockPath, lockContent, 'utf8');
 			closeSync(fd);
-
-			const basePort = BASE_PORTS.traefik_web + bandIndex * PORT_BAND;
-			return { bandIndex, basePort, lockPath };
+			lockAcquired = true;
 		} catch {
 			// Lock file exists - check if it's stale and can be reclaimed
 			if (isLockStale(lockPath) && reclaimStaleLock(lockPath)) {
 				// Successfully reclaimed the stale lock
-				const basePort = BASE_PORTS.traefik_web + bandIndex * PORT_BAND;
-				return { bandIndex, basePort, lockPath };
+				lockAcquired = true;
 			}
+		}
+
+		if (!lockAcquired) {
 			// Lock exists and couldn't be reclaimed, try next band
 			continue;
 		}
+
+		const basePort = BASE_PORTS.traefik_web + bandIndex * PORT_BAND;
+
+		// Issue #1698: a lock alone proves nothing about the sockets. A stack
+		// that never joined the lock scheme (a leftover of the legacy hardcoded
+		// name, or a stray process) can occupy every port of the band while its
+		// lock file sits free. Detect it BEFORE returning the band, and name it.
+		const occupiedPorts = findOccupiedBandPorts(basePort);
+
+		if (occupiedPorts.length > 0) {
+			const foreignHolders = foreignBandPorts(occupiedPorts);
+
+			if (foreignHolders.length > 0) {
+				// Not ours to clean up: hand the lock back and fail loudly with
+				// the holder's name and the commands to inspect it yourself.
+				releasePortBandInternal(lockPath);
+				throw new Error(buildBandConflictMessage(basePort, foreignHolders));
+			}
+
+			// Every occupant is a leftover of THIS tree's own project: the
+			// ci-e2e-front recipe's `down -v` (which runs right after this
+			// eval) removes our own stack before `up`, so claiming the band is
+			// safe. Warn, do not fail — a foreign squatter is the defect, our
+			// own interrupted run is not.
+			process.stderr.write(
+				`e2e-compose-env: band ${basePort} is held by THIS tree's own leftover ` +
+					'containers; the caller is expected to `docker compose down -v` them ' +
+					'before starting the stack.\n',
+			);
+		}
+
+		return { bandIndex, basePort, lockPath };
 	}
 
 	return null;
@@ -458,4 +721,22 @@ const main = (): void => {
 	}
 };
 
-main();
+// Only run the CLI when this file IS the entry point. The tests import the
+// module to call its functions; an unconditional main() at import time acquired
+// a port band (printed export lines into the test output) and — since #1698 —
+// threw on a squatted band before the suite could even load.
+const isMainModule = (): boolean => {
+	if (process.argv[1] === undefined) {
+		return false;
+	}
+
+	try {
+		return fileURLToPath(import.meta.url) === resolve(process.argv[1]);
+	} catch {
+		return false;
+	}
+};
+
+if (isMainModule()) {
+	main();
+}

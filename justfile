@@ -525,6 +525,11 @@ ci-front:
   # front test` AND an explicit front-ci.yml::supply-chain step.
   pnpm --filter front check:react-compiler
   pnpm --filter front test
+  # #1948: the 4-way vitest shard matrix must partition the suite exactly
+  # once. Reads the REAL discovery of every shard (`vitest list --shard=i/n`)
+  # and the unsharded suite, and fails if any file is lost, duplicated, or
+  # invented by the matrix. Mirrors front-ci.yml::test-vitest-coverage.
+  pnpm --filter front test:vitest-shard-coverage
   just test-preuves
   # end of front front-ci.yml::supply-chain parallel block (Test front step)
   @echo "=== [gate] production dependency audit (mirrors front-ci.yml::supply-chain) ==="

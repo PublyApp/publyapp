@@ -9,17 +9,30 @@
 
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { mkdirSync, unlinkSync, writeFileSync, readFileSync } from 'node:fs';
+import { spawn } from 'node:child_process';
+import {
+	mkdirSync,
+	unlinkSync,
+	writeFileSync,
+	readFileSync,
+	existsSync,
+} from 'node:fs';
+import { createServer, type Server } from 'node:net';
 import { join as pathJoin } from 'node:path';
 import { describe, it } from 'node:test';
 
 import {
 	acquirePortBand,
+	bandPortsFor,
+	buildBandConflictMessage,
+	describePortHolders,
+	deriveProjectName,
+	findOccupiedBandPorts,
+	isOwnProjectContainer,
 	normalizeComposeName,
 	releasePortBand,
 	setupE2EComposeEnv,
 	teardownE2EComposeEnv,
-	deriveProjectName,
 	isLockStale,
 	reclaimStaleLock,
 	type PortBandReservation,
@@ -28,6 +41,137 @@ import {
 
 // Test lock directory (matches the one in mts)
 const LOCK_DIR = pathJoin('/tmp', 'publyapp-e2e-port-locks');
+
+// Deterministic helpers for the #1698 specs: they must not depend on what
+// stacks/locks happen to exist on the machine that runs them.
+
+/** Binds a real socket on `port` (resolving once it is actually listening). */
+const listenOn = async (port: number): Promise<Server> => {
+	const server = createServer();
+
+	await new Promise<void>((resolve, reject) => {
+		server.once('error', reject);
+		server.listen(port, () => resolve());
+	});
+
+	return server;
+};
+
+/** Closes a listener opened by listenOn, awaiting the close. */
+const closeListener = async (server: Server): Promise<void> => {
+	await new Promise<void>((resolve) => server.close(() => resolve()));
+};
+
+/** The lock file path for a band index (mirror of the module's own naming). */
+const lockPathForBandIndex = (bandIndex: number): string => {
+	const basePort = 8080 + bandIndex * 10;
+	return pathJoin(LOCK_DIR, `band-${basePort}.lock`);
+};
+
+/**
+ * Finds a band whose four published ports are all takeable RIGHT NOW, using
+ * only node:net (never the module under test, so the probe stays independent).
+ * Returns the found base port, or throws when the machine has no free band at
+ * all. Any port released by the scan is immediately closed again.
+ */
+const findFreeBandPort = async (): Promise<number> => {
+	for (let bandIndex = 0; bandIndex < 500; bandIndex++) {
+		const ports = bandPortsFor(8080 + bandIndex * 10);
+		const servers: Server[] = [];
+		let allFree = true;
+
+		for (const port of ports) {
+			try {
+				servers.push(await listenOn(port));
+			} catch {
+				allFree = false;
+				break;
+			}
+		}
+
+		for (const server of servers) {
+			await closeListener(server);
+		}
+
+		if (allFree) {
+			return ports[0];
+		}
+	}
+
+	throw new Error(
+		'No free e2e port band available on this machine for the spec.',
+	);
+};
+
+type LockHolderHandle = {
+	kill: () => void;
+};
+
+/** Holds LIVE locks for every band index before the target, so acquisition
+ * must select the target band. Returns a handle whose kill() releases them. */
+const holdLocksBeforeBand = (targetBasePort: number): LockHolderHandle => {
+	const lockPaths: string[] = [];
+
+	for (let bandIndex = 0; ; bandIndex++) {
+		const basePort = 8080 + bandIndex * 10;
+		if (basePort >= targetBasePort) {
+			break;
+		}
+
+		lockPaths.push(lockPathForBandIndex(bandIndex));
+	}
+
+	const child = spawn(
+		process.execPath,
+		[
+			'-e',
+			`
+				const fs = require('node:fs');
+				const lockPaths = JSON.parse(process.argv[1]);
+				for (const lockPath of lockPaths) {
+					fs.writeFileSync(
+						lockPath,
+						JSON.stringify({
+							pid: process.pid,
+							timestamp: Date.now(),
+							uuid: crypto.randomUUID(),
+						}),
+						'utf8',
+					);
+				}
+				setInterval(() => {}, 1 << 30);
+			`,
+			JSON.stringify(lockPaths),
+		],
+		{ stdio: 'ignore' },
+	);
+
+	// Wait until every lock file exists (the child owns them with a live PID).
+	for (const lockPath of lockPaths) {
+		const deadline = Date.now() + 5000;
+		while (!existsSync(lockPath) && Date.now() < deadline) {
+			// busy-wait on the child's writes
+		}
+
+		assert.ok(
+			existsSync(lockPath),
+			`lock holder child did not create ${lockPath} in time`,
+		);
+	}
+
+	return {
+		kill: () => {
+			child.kill('SIGKILL');
+			for (const lockPath of lockPaths) {
+				try {
+					unlinkSync(lockPath);
+				} catch {
+					// already gone
+				}
+			}
+		},
+	};
+};
 
 describe('normalizeComposeName', () => {
 	it('converts to lowercase', () => {
@@ -401,5 +545,146 @@ describe('stale lock detection (#1642)', () => {
 
 		// Clean up
 		unlinkSync(bandLockPath);
+	});
+});
+
+/** Runs a real band acquisition and returns the loud conflict message it
+ * throws, or null when it (unexpectedly) succeeds. Named function: the call
+ * site must not be an IIFE (house rule). */
+const firstBandConflictMessage = (): string | null => {
+	try {
+		acquirePortBand();
+		return null;
+	} catch (error) {
+		if (error instanceof Error) {
+			return error.message;
+		}
+
+		return String(error);
+	}
+};
+
+// `void` per the no-floating-promises ratchet convention (issue #1679): every
+// node:test statement in this repository marks its fire-and-forget intent.
+void describe('occupied port detection (#1698)', () => {
+	/**
+	 * PROOF: a band port held by an entity that does NOT participate in the lock
+	 * scheme must be detected and its holder NAMED, instead of the assignment
+	 * silently claiming the band and letting `docker compose up` fail later on
+	 * an unexplained bind conflict.
+	 *
+	 * Real artifact: a genuine listening socket, probed through the shipped
+	 * `findOccupiedBandPorts` / `describePortHolders` functions.
+	 */
+	void it('detects an occupied band port and names its holder', async () => {
+		const basePort = await findFreeBandPort();
+		const bandPort = bandPortsFor(basePort)[0];
+		const server = await listenOn(bandPort);
+
+		try {
+			const occupied = findOccupiedBandPorts(basePort);
+
+			assert.ok(
+				occupied.includes(bandPort),
+				`the occupied port ${bandPort} must be reported; got ${occupied.join(', ')}`,
+			);
+
+			const holders = describePortHolders(bandPort);
+			assert.ok(holders.length > 0, 'the holder must be described');
+			assert.match(
+				holders.join(' '),
+				/process|container|unidentified/,
+				'the holder description must name a process, a container, or say it is unidentified',
+			);
+		} finally {
+			await closeListener(server);
+		}
+	});
+
+	/**
+	 * PROOF: acquisition REFUSES the band (releasing its lock) when a foreign
+	 * squatter holds a port, and the error names the band, the port, the holder,
+	 * and the inspection commands. The lock file must not be left behind.
+	 */
+	void it('refuses to claim a band whose port is squatted by a foreign holder', async () => {
+		const basePort = await findFreeBandPort();
+		const hold = holdLocksBeforeBand(basePort);
+
+		try {
+			const bandIndex = (basePort - 8080) / 10;
+			const bandPort = bandPortsFor(basePort)[0];
+			const server = await listenOn(bandPort);
+
+			try {
+				const message = firstBandConflictMessage();
+
+				assert.ok(message, 'acquisition must throw on a squatted band');
+				assert.match(
+					message,
+					new RegExp(`band ${basePort}`),
+					'the failure must name the band',
+				);
+				assert.match(
+					message,
+					new RegExp(`${bandPort}`),
+					'the failure must name the occupied port',
+				);
+				assert.match(
+					message,
+					/docker ps/,
+					'the failure must tell the operator how to inspect it',
+				);
+				assert.match(
+					message,
+					/process|container|unidentified/,
+					'the failure must name the holder',
+				);
+
+				assert.ok(
+					!existsSync(lockPathForBandIndex(bandIndex)),
+					'the rejected band must not keep its lock',
+				);
+			} finally {
+				await closeListener(server);
+			}
+		} finally {
+			hold.kill();
+		}
+	});
+
+	/**
+	 * PROOF: a leftover of THIS tree's own project (the interrupted-run case the
+	 * ci-e2e-front recipe cleans with its own `down -v`) is NOT a foreign
+	 * squatter: its container name must be recognized as ours.
+	 */
+	void it('distinguishes our own project containers from foreign ones', () => {
+		const projectName = deriveProjectName();
+
+		assert.ok(
+			isOwnProjectContainer(`${projectName}-traefik-1`),
+			'our own project container must be recognized',
+		);
+		assert.ok(
+			!isOwnProjectContainer('publyapp-e2e-somebody_else-traefik-1'),
+			'a foreign project container must not be recognized as ours',
+		);
+		assert.ok(
+			!isOwnProjectContainer('not-even-an-e2e-container'),
+			'an unrelated container must not be recognized as ours',
+		);
+	});
+
+	/**
+	 * PROOF: the conflict message is built from the real holder description and
+	 * always carries the three required parts — which port, who holds it, and
+	 * how to see it yourself.
+	 */
+	void it('builds the loud conflict message with port, holder and inspection command', () => {
+		const message = buildBandConflictMessage(8080, [8080]);
+
+		assert.match(message, /band 8080/, 'must name the band');
+		assert.match(message, /port 8080/, 'must name the port');
+		assert.match(message, /docker ps/, 'must give the docker ps command');
+		assert.match(message, /ss -tlnp/, 'must give the ss command');
 	});
 });

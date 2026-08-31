@@ -1463,7 +1463,8 @@ const run = () => 1;
 
 				assert.strictEqual(violations.length, 1);
 				assert.strictEqual(violations[0]!.callee, 'run');
-				assert.strictEqual(violations[0]!.kind, 'direct');
+				assert.strictEqual(violations[0]!.kind, 'transitive');
+				assert.deepStrictEqual(violations[0]!.chain, ['obj.value']);
 				assert.strictEqual(violations[0]!.line, 3);
 			});
 
@@ -1481,7 +1482,8 @@ const run = () => 1;
 
 				assert.strictEqual(violations.length, 1);
 				assert.strictEqual(violations[0]!.callee, 'run');
-				assert.strictEqual(violations[0]!.kind, 'direct');
+				assert.strictEqual(violations[0]!.kind, 'transitive');
+				assert.deepStrictEqual(violations[0]!.chain, ['obj.value']);
 			});
 
 			it('flags a call inside a class heritage clause (decorator on class, bare identifier)', () => {
@@ -1548,6 +1550,175 @@ const run = () => 1;
 				assert.strictEqual(violations[0]!.callee, 'run');
 				assert.strictEqual(violations[0]!.kind, 'direct');
 				assert.strictEqual(violations[0]!.line, 1);
+			});
+
+			// #1956: the six call shapes the round-3 reviewer reproduced as
+			// real module-evaluation-order crashes the guard stayed silent on.
+			// One test per shape — this describe IS the gap list's single
+			// source of truth (the analyzer's header comment points here
+			// instead of duplicating the list).
+			describe('#1956 call shapes — one red test per declared gap', () => {
+				it('shape 1, member callee: helpers.normalise() runs its body before toPosixPath is defined', () => {
+					const violations = analyze(
+						`const helpers = { normalise: (x) => toPosixPath(x) };
+const out = helpers.normalise('a');
+const toPosixPath = (x) => x;
+`,
+					);
+
+					assert.strictEqual(violations.length, 1);
+					assert.strictEqual(violations[0]!.callee, 'toPosixPath');
+					assert.strictEqual(violations[0]!.kind, 'transitive');
+					assert.deepStrictEqual(violations[0]!.chain, ['helpers.normalise']);
+					assert.strictEqual(violations[0]!.line, 1);
+					assert.strictEqual(violations[0]!.declaredAtLine, 3);
+				});
+
+				it('shape 2, bind chain: f = g.bind(null) then f() reaches g before g is defined', () => {
+					const violations = analyze(
+						`const f = g.bind(null);
+const result = f();
+const g = () => 1;
+`,
+					);
+
+					assert.strictEqual(violations.length, 1);
+					assert.strictEqual(violations[0]!.callee, 'g');
+					assert.strictEqual(violations[0]!.kind, 'direct');
+					assert.strictEqual(violations[0]!.line, 2);
+					assert.strictEqual(violations[0]!.declaredAtLine, 3);
+				});
+
+				it('shape 2, bind chain (inline): g.bind(null)() calls g before g is defined', () => {
+					const violations = analyze(
+						`const result = g.bind(null)();
+const g = () => 1;
+`,
+					);
+
+					assert.strictEqual(violations.length, 1);
+					assert.strictEqual(violations[0]!.callee, 'g');
+					assert.strictEqual(violations[0]!.kind, 'direct');
+					assert.strictEqual(violations[0]!.line, 1);
+					assert.strictEqual(violations[0]!.declaredAtLine, 2);
+				});
+
+				it('shape 3, sequence callee: (0, f)() calls f before f is defined', () => {
+					const violations = analyze(
+						`const result = (0, f)();
+const f = () => 1;
+`,
+					);
+
+					assert.strictEqual(violations.length, 1);
+					assert.strictEqual(violations[0]!.callee, 'f');
+					assert.strictEqual(violations[0]!.kind, 'direct');
+					assert.strictEqual(violations[0]!.line, 1);
+					assert.strictEqual(violations[0]!.declaredAtLine, 2);
+				});
+
+				it('shape 3, sequence callee: discarded operands still execute immediately', () => {
+					const violations = analyze(
+						`const result = (toPosixPath('a'), f)();
+const f = () => 1;
+const toPosixPath = (x) => x;
+`,
+					);
+
+					assert.strictEqual(violations.length, 2);
+					assert.deepStrictEqual(
+						violations.map((violation) => violation.callee).sort(),
+						['f', 'toPosixPath'],
+					);
+				});
+
+				it('shape 4, computed member: provider["run"](\'x\') runs its body before toPosixPath is defined', () => {
+					const violations = analyze(
+						`const provider = { run: (x) => toPosixPath(x) };
+const result = provider['run']('a');
+const toPosixPath = (x) => x;
+`,
+					);
+
+					assert.strictEqual(violations.length, 1);
+					assert.strictEqual(violations[0]!.callee, 'toPosixPath');
+					assert.strictEqual(violations[0]!.kind, 'transitive');
+					assert.deepStrictEqual(violations[0]!.chain, ['provider.run']);
+					assert.strictEqual(violations[0]!.line, 1);
+					assert.strictEqual(violations[0]!.declaredAtLine, 3);
+				});
+
+				it('shape 5, class getter: new Provider().value runs its getter body before toPosixPath is defined', () => {
+					const violations = analyze(
+						`class Provider {
+	get value() {
+		return toPosixPath('a');
+	}
+}
+const result = new Provider().value;
+const toPosixPath = (x) => x;
+`,
+					);
+
+					assert.strictEqual(violations.length, 1);
+					assert.strictEqual(violations[0]!.callee, 'toPosixPath');
+					assert.strictEqual(violations[0]!.kind, 'transitive');
+					assert.deepStrictEqual(violations[0]!.chain, ['Provider.value']);
+					assert.strictEqual(violations[0]!.line, 3);
+					assert.strictEqual(violations[0]!.declaredAtLine, 7);
+				});
+
+				it('shape 5, class getter: provider.value (provider = new Provider()) runs its getter body before toPosixPath is defined', () => {
+					const violations = analyze(
+						`class Provider {
+	get value() {
+		return toPosixPath('a');
+	}
+}
+const provider = new Provider();
+const result = provider.value;
+const toPosixPath = (x) => x;
+`,
+					);
+
+					assert.strictEqual(violations.length, 1);
+					assert.strictEqual(violations[0]!.callee, 'toPosixPath');
+					assert.strictEqual(violations[0]!.kind, 'transitive');
+					assert.deepStrictEqual(violations[0]!.chain, ['Provider.value']);
+					assert.strictEqual(violations[0]!.line, 3);
+					assert.strictEqual(violations[0]!.declaredAtLine, 8);
+				});
+
+				it('shape 6, alias then call: const g = f; g() reaches f before f is defined', () => {
+					const violations = analyze(
+						`const g = f;
+const result = g();
+const f = () => 1;
+`,
+					);
+
+					assert.strictEqual(violations.length, 1);
+					assert.strictEqual(violations[0]!.callee, 'f');
+					assert.strictEqual(violations[0]!.kind, 'direct');
+					assert.strictEqual(violations[0]!.line, 2);
+					assert.strictEqual(violations[0]!.declaredAtLine, 3);
+				});
+
+				it('shape 6, alias chain: h = g, g = f; h() reaches f before f is defined', () => {
+					const violations = analyze(
+						`const h = g;
+const g = f;
+const result = h();
+const f = () => 1;
+`,
+					);
+
+					assert.strictEqual(violations.length, 1);
+					assert.strictEqual(violations[0]!.callee, 'f');
+					assert.strictEqual(violations[0]!.kind, 'direct');
+					assert.strictEqual(violations[0]!.line, 3);
+					assert.strictEqual(violations[0]!.declaredAtLine, 4);
+				});
 			});
 		});
 
@@ -1617,7 +1788,23 @@ const run = () => 1;
 				assert.deepStrictEqual(violations, []);
 			});
 
-			it('does not flag member invocations (declared gap: member callees are not tracked)', () => {
+			it('does not flag a computed-member invocation whose method body makes no TDZ call', () => {
+				// #1956 shape 4: the computed form goes through the same
+				// resolver as the dotted form and stays green when the
+				// body calls nothing declared later.
+				const violations = analyze(
+					`const engine = { run: () => 1 };
+const result = engine['run']();
+`,
+				);
+
+				assert.deepStrictEqual(violations, []);
+			});
+
+			it('does not flag a member invocation whose method body makes no TDZ call', () => {
+				// #1956 shape 1: member callees ARE followed now. This stays
+				// green because the resolved method body (`() => 1`) calls
+				// nothing that is declared later.
 				const violations = analyze(
 					`const engine = { run: () => 1 };
 const result = engine.run();
@@ -1627,7 +1814,10 @@ const result = engine.run();
 				assert.deepStrictEqual(violations, []);
 			});
 
-			it('does not flag plain references before the definition (declared gap: reads are not calls)', () => {
+			it('does not flag plain references before the definition (reads are not calls)', () => {
+				// #1956 shape 6: identifier aliases ARE tracked now, but this
+				// fixture has no call — a bare reference (even a healthy one
+				// reading an already-initialised binding) produces nothing.
 				const violations = analyze(
 					`const later = () => 1;
 const holder = later;
@@ -1681,6 +1871,23 @@ const run = () => 1;
 	},
 };
 const run = () => 1;
+`,
+				);
+
+				assert.deepStrictEqual(violations, []);
+			});
+
+			it('does not flag a class getter body when the accessed binding is already defined', () => {
+				// #1956 shape 5: class getters ARE followed now. This stays
+				// green because toPosixPath is declared before the access.
+				const violations = analyze(
+					`class Provider {
+	get value() {
+		return toPosixPath('a');
+	}
+}
+const toPosixPath = (x) => x;
+const result = new Provider().value;
 `,
 				);
 
