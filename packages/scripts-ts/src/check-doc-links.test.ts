@@ -412,13 +412,49 @@ test('ROUND 3 (#1974 r3): angle-bracket link — valid target passes', () => {
 });
 
 test('ROUND 3 (#1974 r3): angle-bracket link with spaces in target — valid passes', () => {
+	// The target of an angle-bracket inline link may contain spaces and
+	// unescaped parentheses; the r3 capture relied on a disk file with
+	// exactly that name to prove the resolver honours the spaces, not
+	// just that the regex matched. The prior copy of this test passed
+	// the same content as the no-spaces test, so it pinned nothing.
 	const root = makeRepo({
-		'docs/guides/a.md': '[link](<./b.md>)\n',
+		'docs/guides/a.md': '[link](<./has spaces.md>)\n',
+		'docs/guides/has spaces.md': 'content\n',
+	});
+	const result = runGuard(root);
+	assert.equal(result.status, 0, result.stderr);
+	assert.match(result.stdout, /doc links OK/);
+});
+
+test('ROUND 3 (#1974 r3): inline link with parenthesised title — valid target passes', () => {
+	// Inline-link titles may be wrapped in `"..."`, `'...'`, or `(...)`
+	// (CommonMark §6.5). The capture accepts all three but the guard
+	// validates only the destination; this pins that the third form —
+	// a parenthesised title — does not get misclassified as a target.
+	const root = makeRepo({
+		'docs/guides/a.md': '[link](./b.md (a title))\n',
 		'docs/guides/b.md': 'content\n',
 	});
 	const result = runGuard(root);
 	assert.equal(result.status, 0, result.stderr);
 	assert.match(result.stdout, /doc links OK/);
+});
+
+test('ROUND 3 (#1974 r3): inline link with parenthesised title — broken target still fails', () => {
+	// Symmetric red: a parenthesised title must not mask a broken
+	// destination, otherwise the test above only proves the green
+	// path and leaves the capture's only failure mode (a missing
+	// file) unverified.
+	const root = makeRepo({
+		'docs/guides/a.md': '[link](./missing.md (a title))\n',
+	});
+	const result = runGuard(root);
+	assert.equal(result.status, 1);
+	assert.match(result.stderr, /broken relative link/);
+	assert.match(
+		result.stderr,
+		/docs\/guides\/a\.md:1: -> docs\/guides\/missing\.md/,
+	);
 });
 
 test('ROUND 3 (#1974 r3): multi-line reference definition — broken target fails', () => {

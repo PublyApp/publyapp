@@ -145,7 +145,7 @@ const CODE_SCAN_TEST_FILE_PATTERN = /\.(test|spec)\.[cm]?[jt]sx?$/;
 // `doc\(1\)` resolves to `doc (1)`. Unescaped `(` and `)` are still caught by
 // `hasUnanalysedTargetTokens` and fail closed, preserving the r3 posture.
 const INLINE_LINK_PATTERN =
-	/\]\(\s*((?:\\.|[^)\s<])*)(?:\s+(?:"([^"]*)"|'([^']*)'|\(([^)]*)\)))?\s*\)/g;
+	/\]\(\s*((?:\\.|[^)\s])*)(?:\s+(?:"([^"]*)"|'([^']*)'|\(([^)]*)\)))?\s*\)/g;
 // Angle-bracket inline link: `[text](<target>)`. Target may contain spaces
 // and escaped characters but not unescaped `>` or newlines. Parens are
 // allowed in angle-bracket targets, so the unescaped-paren check is not
@@ -306,6 +306,13 @@ const main = (): void => {
 				if (target === undefined) {
 					continue;
 				}
+				// Angle-bracket targets (`<target>`) are captured by
+				// ANGLE_INLINE_LINK_PATTERN above; skip them here so
+				// the brackets are not included in the resolved path.
+				const trimmed = target.trimStart();
+				if (trimmed.startsWith('<') && target.trimEnd().endsWith('>')) {
+					continue;
+				}
 				candidates.push(target);
 			}
 
@@ -434,30 +441,86 @@ const failUnanalysedTarget = (
 	process.exit(1);
 };
 
-// Detects an inline link whose target area contains an UNESCAPED `(`, `)`,
-// or `<` that the regex capture cannot resolve. Each `](...)` segment is
-// checked independently so a line with two valid links like
+// Detects a link target the regex cannot reliably analyse.  Each `]...`
+// segment is checked independently so a line with two valid links like
 // `[ok](docs) [bad](missing-dir)` is not misread as one broken target.
-// `\(` and `\)` are escapes and are NOT flagged; angle-bracket-inline targets
+//
+// Three independent checks run on the raw `](...)` segment:
+//
+//   1. BARE ANGLE BRACKET — a `<` in the target (before any title
+//      delimiter) is ambiguous per CommonMark §6.5 and unparseable by the
+//      guard.  Checked against the raw segment so neither regex's capture
+//      length can hide it.
+//
+//   2. UNBALANCED PARENS (title present) — the NEW pattern's title group
+//      absorbs balanced `(...)` sequences, leaving group 1 clean.  The OLD
+//      simple pattern captures everything up to the first `)`.  When the OLD
+//      segment is LONGER than the NEW target, the difference is the absorbed
+//      title — but only if what follows the target looks like a valid
+//      CommonMark title (quoted or parenthesised).  If it does NOT look like
+//      a title, the stray `(` is part of a broken target.
+//
+//   3. UNBALANCED PARENS (no NEW match) — when the NEW pattern fails to
+//      match entirely (e.g. an escaped-paren target without a title), the OLD
+//      pattern may still capture something.  If the OLD segment contains a
+//      bare `(` that is NOT preceded by whitespace (so it is not a title), the
+//      guard cannot determine where the target ends.
+//
+// \(` and `\)` are escapes and are NOT flagged; angle-bracket-inline targets
 // are matched by ANGLE_INLINE_LINK_PATTERN and the corresponding `](<...>)`
 // segments are excluded so a normal `[t](<f>)` is not flagged here.
+const LINK_SIMPLE = /\]\(([^)]*)\)/g;
+const TITLE_AFTER_SPACE = /^\s+(?:"[^"]*"|'[^']*'|\([^)]*)/;
 const hasUnanalysedTargetTokens = (line: string): boolean => {
-	const linkPattern = /\]\(([^)]*?)\)/g;
-	let match: RegExpExecArray | null;
-	while ((match = linkPattern.exec(line)) !== null) {
-		const target = match[1];
-		if (target === undefined) {
+	const simpleMatches = [...line.matchAll(LINK_SIMPLE)];
+	const newMatches = [...line.matchAll(INLINE_LINK_PATTERN)];
+	for (let i = 0; i < simpleMatches.length; i++) {
+		const rawSegment = simpleMatches[i]?.[1];
+		if (rawSegment === undefined || rawSegment.length === 0) {
 			continue;
 		}
-		// Skip segments that are angle-bracket inline links: they match the
-		// ANGLE_INLINE_LINK_PATTERN and are analysed there. Any `<` after
-		// the opening `](` belongs to that path; if the segment starts with
-		// `<`, leave it alone.
-		if (target.trimStart().startsWith('<')) {
+		// Skip angle-bracket targets: leading `<` disambiguates per CommonMark.
+		if (rawSegment.trimStart().startsWith('<')) {
 			continue;
 		}
-		if (/(?<![\\])[()<>]/.test(target)) {
+		// Check 1: bare `<` in the raw segment (before any whitespace in
+		// the target area).
+		const beforeSpace = rawSegment.split(/\s/)[0] ?? rawSegment;
+		if (/<[^>]/.test(beforeSpace)) {
 			return true;
+		}
+		// Check 2+3: unbalanced parentheses.
+		const newTarget = newMatches[i]?.[1];
+		if (newTarget !== undefined && rawSegment.length > newTarget.length) {
+			// The OLD segment is longer — the title group absorbed the
+			// difference.  Only flag if the absorbed text does NOT look
+			// like a valid CommonMark title (quoted or parenthesised).
+			const remainder = rawSegment.slice(newTarget.length);
+			if (!TITLE_AFTER_SPACE.test(remainder)) {
+				return true;
+			}
+		} else if (newTarget === undefined) {
+			// The NEW pattern did not match.  Count parens to detect a
+			// stray `(` that has no matching `)` in the segment.  The
+			// title's own `)` always appears before the link delimiter,
+			// so a positive depth after consuming the segment means the
+			// `(` is unbalanced and the guard cannot parse the target.
+			// Escaped parens (`\(`, `\)`) are skipped.
+			let depth = 0;
+			for (let j = 0; j < rawSegment.length; j++) {
+				if (rawSegment[j] === '\\' && j + 1 < rawSegment.length) {
+					j++;
+					continue;
+				}
+				if (rawSegment[j] === '(') {
+					depth++;
+				} else if (rawSegment[j] === ')') {
+					depth--;
+				}
+			}
+			if (depth > 0) {
+				return true;
+			}
 		}
 	}
 	return false;

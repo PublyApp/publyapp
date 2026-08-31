@@ -11,28 +11,66 @@ architecture, and process rules.
 
 ## 1. Core vs. paid modules — the boundary
 
-PublyApp is an **open-core** project. This repository contains the **core** —
-the open-source Apache-2.0 application (the .NET API, the React frontend, and
-all shared packages). Paid features live in **closed-source modules** that ship
-separately as signed bundles loaded by the core at startup; they are developed
-in a private monorepo and are **not** accepted as contributions here.
+PublyApp is an **open-core** project. The architecture is defined section by
+section in
+[`docs/records/2026-08-25-spec-open-core-paid-modules.md`](docs/records/2026-08-25-spec-open-core-paid-modules.md);
+this section restates the parts a contributor must hold in mind and names
+what has shipped versus what is still planned.
 
-### What the core contains
+### What the public core owns
 
-The core is everything in this repository: `apps/api`, `apps/front`,
-`packages/`, `docs/`, and configuration files at the root. All code you write
-as a contributor targets the core.
+The public core is everything in this repository. Only the proprietary
+module implementation is private. Concretely, the core owns:
 
-### Rule of precedence — what this list is and what it is not
+- **All UI** — every screen lives in `apps/front` behind runtime feature
+  flags (spec §1, §2, §7). A paid feature renders nothing, or an
+  "available with a licence" invitation, in the core UI.
+- **The feature gate** — `IFeatureGate`, the `/api/features` endpoint, and
+  the `PUBLY_FEATURE_SOURCE` switch live in the core (spec §7).
+- **The module loader** — `apps/api/Lib/Modules/`, signed-assembly
+  verification, `CoreVersionRange`, and module registration (spec §6).
+- **The module contracts** — the `PublyApp.Modules.Abstractions` NuGet
+  package (spec §5).
+- **Module OpenAPI documents and generated clients** — per-module
+  `openapi-modules/<id>.json` and kiota clients under
+  `packages/client-ts/src/modules/<id>/` (spec §9.1).
+- **The Sample module** — `apps/api/Modules/Sample/` (spec §4).
 
-The category list below classifies what is **not** already shipped in this
-repository. **What is already shipped in this repository is core, full stop,
-regardless of which category it would fall into below.** If a contribution
-touches code that this repository already delivers — `BlueskyPublishProvider`,
-the `Publishing` module, the `SocialAccounts` module, the planning UI, the
-scheduler, the job queue — it is in core and is welcome here. The list below
-only governs contributions that would add **new** capability not already in
-core.
+The .NET assembly that implements a paid module — its endpoints, its EF
+migrations, its business logic — is built in a private monorepo, signed by
+the owner, and shipped as a `publyapp-api-pro` image layered on top of the
+public `publyapp-api` image (spec §9). That implementation is never
+accepted as a contribution here.
+
+### What has shipped vs. what is planned
+
+As of 2026-08-31, the spec is **design-validated** but **not implemented**:
+none of the rungs in spec §10 has shipped yet. The following are
+**planned, not implemented** in this repository today:
+
+- The `apps/api/Lib/Modules/` loader directory and its signature verification.
+- The `PublyApp.Modules.Abstractions` NuGet package and its API-baseline guard.
+- The `apps/api/Lib/Features/` `IFeatureGate` and the `/api/features` endpoint.
+- The `PUBLY_MODULES_DIR` and `PUBLY_FEATURE_SOURCE` environment variables.
+- The `apps/api/Modules/Sample/` open-source sample module.
+- The `apps/api/openapi-modules/` and `packages/client-ts/src/modules/`
+  bot-PR directories.
+
+Until those files and interfaces actually exist, a contribution that
+references them is targeting a planned surface, not the current core. If
+you intend to ship one of them, open the corresponding rung as its own
+issue + PR — a rungs-1-and-2-bundle change is a multi-week effort, not
+a one-line tweak.
+
+### What is already shipped is core
+
+This list governs only contributions that would add **new** capability not
+already in core. **What is already shipped in this repository is core, full
+stop, regardless of which category it would fall into below.** If a
+contribution touches code that this repository already delivers —
+`BlueskyPublishProvider`, the `Publishing` module, the `SocialAccounts`
+module, the planning UI, the scheduler, the job queue — it is in core and
+is welcome here.
 
 Concretely: a contribution that improves the publish scheduler (the job queue,
 the schedule UI, the time-zone handling, the cancel/edit behaviour, the
@@ -48,12 +86,12 @@ improving publish scheduling fall in the core or in module C?") — **core**.
 Paid modules are delivered in a fixed order (decided 2026-08-25, tracked in
 [#1354](https://github.com/PublyApp/publyapp/issues/1354)):
 
-| Order | Module | Concern |
-|---|---|---|
-| C | Publishing channels | New external publication channels (e.g. syndication to a third party **not** already wired in core) |
-| A | Analytics | Enhanced analytics beyond the core's existing metrics |
-| B | AI assist | AI-powered assistance (suggestions, autofill, content analysis) |
-| D | Enterprise | Enterprise-grade features (SSO, audit trails, advanced permissions, multi-org federation) |
+| Order | Module              | Concern                                                                                             |
+| ----- | ------------------- | --------------------------------------------------------------------------------------------------- |
+| C     | Publishing channels | New external publication channels (e.g. syndication to a third party **not** already wired in core) |
+| A     | Analytics           | Enhanced analytics beyond the core's existing metrics                                               |
+| B     | AI assist           | AI-powered assistance (suggestions, autofill, content analysis)                                     |
+| D     | Enterprise          | Enterprise-grade features (SSO, audit trails, advanced permissions, multi-org federation)           |
 
 The delivery order itself is recorded in #1354; this table restates it so a
 contributor can see the boundary at a glance.
@@ -88,10 +126,10 @@ right track before you write code than reject a contribution after the fact. See
 this boundary.
 
 > **Publishing-schedule boundary note:** the open-core split is by **module
-> category**, not by surface area. Improving the *core's* existing
+> category**, not by surface area. Improving the _core's_ existing
 > publish-now scheduling UI, the due-scan job, the calendar, or the queue is
 > core — those modules are already shipped here
-> (`apps/api/Modules/Publishing/`). Adding a *new channel* to that scheduler
+> (`apps/api/Modules/Publishing/`). Adding a _new channel_ to that scheduler
 > is module C. The feature flags that gate module C behind a subscription
 > live in the core, but the module's closed code does not.
 
@@ -122,15 +160,20 @@ contributor never has to take this file's word for it.
 - **Pass CI.** Tests, type-checking, lint, and the design-system guard all run
   as required checks. See [`AGENTS.md`](AGENTS.md) §"## Code Quality" and
   §"### Running Tests" for the local recipes (`just ci`, `pnpm --filter front
-  typecheck`).
+typecheck`).
 
 - **Pair red/green proofs** — a bug-fix must ship with a paired proof test
   that is kept red against the corrected code and replayed with inverted
-  semantics. The red test lives under
-  `apps/front/tests/proofs/<issue>/<descriptive-name>.test.ts`; the green
-  suite excludes that directory, and the proof runs only on demand. See
+  semantics. The exact path and exclusion rules are normative in
   [`docs/guides/test-conventions.md`](docs/guides/test-conventions.md)
-  §"Paired Red/Green Proofs".
+  §"Paired Red/Green Proofs" (front proofs at
+  `apps/front/tests/proofs/<issue>/<descriptive-name>.test.ts`; API proofs
+  remain on the legacy `.dump/preuves/<issue>/` path). The red test is
+  version-controlled and excluded from the green suite; CI replays it on
+  demand via the `Verify paired red proofs` step. The corresponding
+  production guard must operate on the real artefact (file, fixture, or
+  workflow step), never a restatement of its own logic — a regex that
+  mirrors the source line-for-line is not a guard.
 
 - **Carry the transparent-cause rule.** Every failure the backend returns or
   persists must carry a transparent, human-readable cause. Backend rule in
