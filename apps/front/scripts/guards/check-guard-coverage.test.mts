@@ -166,3 +166,28 @@ void test('a non-string script value is a loud throw, never a silent skip', asyn
 		await rm(dir, { recursive: true, force: true });
 	}
 });
+
+void test('a family script delegating via pnpm is a named finding', () => {
+	// The next author's most likely escape: `test:foo: pnpm other:bar` where
+	// `other:bar` is wrapped. The family script itself is not wrapped — the
+	// guard must flag it, not trace through pnpm indirections.
+	const findings = analyzeScripts({
+		'test:foo': 'pnpm other:bar',
+		'other:bar': 'node scripts/run-guarded.mts scripts/bar.mts',
+	});
+	const offender = findings.find((finding) => finding.script === 'test:foo');
+	assert.equal(offender!.script, 'test:foo');
+	assert.match(offender!.detail, /run-guarded\.mts/);
+});
+
+void test('a wrapper invocation through a ./ prefix is a bare-node finding', () => {
+	// `node ./scripts/run-guarded.mts ...` is the same wrapper — but written
+	// differently; the rule pins the exact `node scripts/run-guarded.mts`
+	// form so an alternate spelling cannot smuggle a bare runner past it.
+	const findings = analyzeScripts({
+		'test:ok': 'node ./scripts/run-guarded.mts scripts/guards/check-ok.mts',
+	});
+	const offender = findings.find((finding) => finding.script === 'test:ok');
+	assert.equal(offender!.script, 'test:ok');
+	assert.match(offender!.detail, /bare node invocation/);
+});
