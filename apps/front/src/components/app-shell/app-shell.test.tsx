@@ -86,6 +86,13 @@ vi.mock('~/lib/hooks/use-media-query', () => ({
 	useMediaQuery: () => mocks.isDesktop,
 }));
 
+// The shell mounts usePreloadIntentQueries (AuthedWorkspaceShell, #2007), which
+// calls useQueryClient. This suite has no QueryClient; the preload hook's own
+// behaviour is exercised in preload-intent.test.tsx.
+vi.mock('~/lib/query/preload-intent', () => ({
+	usePreloadIntentQueries: () => undefined,
+}));
+
 vi.mock('react-i18next', () => ({
 	useTranslation: () => ({ t: (key: string) => key }),
 }));
