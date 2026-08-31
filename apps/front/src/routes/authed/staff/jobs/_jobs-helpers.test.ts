@@ -134,6 +134,67 @@ describe('formatFailureCause — shared decision for failure cause display', () 
 		expect(tCalls).toContain('common:no-cause');
 	});
 
+	// C0/C1 control characters (U+0000–U+0008, U+000B/C, U+000E–U+001F,
+	// U+007F–U+009F) are NOT default-ignorable and NOT stripped by trim(),
+	// but browsers paint no glyph for them. A cause consisting solely of
+	// control characters must render the marker — otherwise the operator
+	// sees an empty cell. These tests pin the `\p{Cc}` addition to the
+	// predicate; if `\p{Cc}` is dropped, they go red.
+
+	test('returns the no-cause marker for U+0001 (SOH, C0 control)', () => {
+		expect(formatFailureCause('\u0001', t)).toBe('No cause recorded');
+		expect(tCalls).toContain('common:no-cause');
+	});
+
+	test('returns the no-cause marker for U+0007 (BEL, C0 control)', () => {
+		expect(formatFailureCause('\u0007', t)).toBe('No cause recorded');
+		expect(tCalls).toContain('common:no-cause');
+	});
+
+	test('returns the no-cause marker for U+007F (DEL, C0 control)', () => {
+		expect(formatFailureCause('\u007F', t)).toBe('No cause recorded');
+		expect(tCalls).toContain('common:no-cause');
+	});
+
+	test('returns the no-cause marker for U+0085 (NEL, C1 control)', () => {
+		expect(formatFailureCause('\u0085', t)).toBe('No cause recorded');
+		expect(tCalls).toContain('common:no-cause');
+	});
+
+	test('returns the no-cause marker for U+009F (APC, C1 control)', () => {
+		expect(formatFailureCause('\u009F', t)).toBe('No cause recorded');
+		expect(tCalls).toContain('common:no-cause');
+	});
+
+	// Property-only code points that would never appear in anyone's
+	// hand-written list. These pin the headline claim "a Unicode property,
+	// NOT a hand-written list": if the predicate is replaced with a
+	// hand-written list of the tested code points, these go red.
+
+	test('returns the no-cause marker for U+061C ARABIC LETTER MARK', () => {
+		// U+061C is category Cf (format) AND default-ignorable. It would
+		// never appear in a hand-written list — it's an invisible
+		// directional mark used in Arabic typesetting.
+		expect(formatFailureCause('\u061C', t)).toBe('No cause recorded');
+		expect(tCalls).toContain('common:no-cause');
+	});
+
+	test('returns the no-cause marker for U+2066 LEFT-TO-RIGHT ISOLATE', () => {
+		// U+2066 is category Cf (format) AND default-ignorable — a
+		// bidirectional isolation character. Another code point that no
+		// hand-written list would include.
+		expect(formatFailureCause('\u2066', t)).toBe('No cause recorded');
+		expect(tCalls).toContain('common:no-cause');
+	});
+
+	test('returns the no-cause marker for U+E0074 (tag character, default-ignorable)', () => {
+		// U+E0074 is a tag character (category Cf) AND default-ignorable.
+		// Tag characters are invisible metadata — the kind of code point
+		// that only a Unicode property would catch.
+		expect(formatFailureCause('\u{E0074}', t)).toBe('No cause recorded');
+		expect(tCalls).toContain('common:no-cause');
+	});
+
 	// The other half of the requirement — the widened predicate must NOT
 	// swallow real, single-glyph content. A cause that is legitimately a
 	// single visible character carries information the operator needs.
