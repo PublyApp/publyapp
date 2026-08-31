@@ -25,6 +25,11 @@ on:
     branches: [develop]
     paths:
       - 'apps/api/**'
+      # #1975 (round 2): the API suite compiles the AppHost itself via
+      # AppHostOrchestrationGuardSpec (`dotnet build apps/apphost`), so an
+      # apphost-only change must wake this workflow too — otherwise a PR
+      # touching only apps/apphost/ is compiled by nothing.
+      - 'apps/apphost/**'
       - 'packages/client-ts/**'
       - 'packages/shared-ts/**'
       - 'packages/lint-cs/**'
@@ -103,7 +108,7 @@ jobs:
           CLASSIFIER=base-ref/packages/scripts-ts/src/ci-changed-paths.ts
 
           if [ -f "$CLASSIFIER" ]; then
-            node "$CLASSIFIER" '^(\.github/workflows/api-tests\.yml$|apps/api/|packages/client-ts/|packages/shared-ts/|packages/lint-cs/|\.config/dotnet-tools\.json$|Directory\.Build\.props$|Directory\.Build\.targets$|Directory\.Packages\.props$|global\.json$|justfile$|PublyApp\.slnx$)'
+            node "$CLASSIFIER" '^(\.github/workflows/api-tests\.yml$|apps/api/|apps/apphost/|packages/client-ts/|packages/shared-ts/|packages/lint-cs/|\.config/dotnet-tools\.json$|Directory\.Build\.props$|Directory\.Build\.targets$|Directory\.Packages\.props$|global\.json$|justfile$|PublyApp\.slnx$)'
           else
             echo "::warning::[MISSING BASE CLASSIFIER] $CLASSIFIER does not exist at the base commit. This is expected exactly once: for the pull request that introduces this classifier, or a branch cut before it existed on the base branch. Relevance cannot be determined from a classifier that is not there, so this fails closed: treating the workflow as relevant and running everything. If this keeps happening on ordinary pull requests well after the classifier has been on the base branch, something is wrong — investigate, do not silence it."
             echo "relevant=true" >> "$GITHUB_OUTPUT"

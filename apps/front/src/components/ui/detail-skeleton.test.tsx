@@ -17,10 +17,10 @@ describe('FieldRowsSkeleton', () => {
 		expect(wrapper.className).toContain('space-y-4');
 		const rows = wrapper.querySelectorAll('[data-slot="skeleton"]');
 		expect(rows).toHaveLength(5);
-		rows.forEach((row) => {
+		for (const row of rows) {
 			expect(row.className).toContain('h-9');
 			expect(row.className).toContain('w-full');
-		});
+		}
 	});
 
 	test('lets the caller reshape rows and forwards props to the wrapper', () => {
@@ -36,9 +36,9 @@ describe('FieldRowsSkeleton', () => {
 		const wrapper = container.firstElementChild as HTMLElement;
 		expect(wrapper.getAttribute('data-testid')).toBe('regional-loading');
 		expect(wrapper.className).toContain('pt-2');
-		wrapper.querySelectorAll('[data-slot="skeleton"]').forEach((row) => {
+		for (const row of wrapper.querySelectorAll('[data-slot="skeleton"]')) {
 			expect(row.className).toContain('h-20');
-		});
+		}
 	});
 });
 

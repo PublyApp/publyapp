@@ -108,6 +108,7 @@
 		"front-ci.yml::supply-chain::Check front column-type imports (#1769)",
 		"front-ci.yml::supply-chain::Check front design system",
 		"front-ci.yml::supply-chain::Check front formatting",
+		"front-ci.yml::supply-chain::Check front srvx/static import shape (#1822)",
 		"front-ci.yml::supply-chain::Checkout",
 		"front-ci.yml::supply-chain::Install (frozen lockfile, no scripts)",
 		"front-ci.yml::supply-chain::Install Git hooks (mirrors prepare)",
@@ -116,11 +117,25 @@
 		"front-ci.yml::supply-chain::Run trusted first-party postinstall (@org/shared-ts)",
 		"front-ci.yml::supply-chain::Setup Node",
 		"front-ci.yml::supply-chain::Smoke start front server and verify stylesheet tag",
-		"front-ci.yml::supply-chain::Test front",
+		"front-ci.yml::supply-chain::Test front (non-vitest)",
 		"front-ci.yml::supply-chain::Typecheck front",
 		"front-ci.yml::supply-chain::Verify front production build emits a CSS asset",
 		"front-ci.yml::supply-chain::Verify front production font bundle references and unicode coverage",
 		"front-ci.yml::supply-chain::Verify paired red proofs",
+		"front-ci.yml::test-vitest-coverage::Check vitest shard coverage equality (#1948)",
+		"front-ci.yml::test-vitest-coverage::Checkout",
+		"front-ci.yml::test-vitest-coverage::Install (frozen lockfile, no scripts)",
+		"front-ci.yml::test-vitest-coverage::Install pnpm",
+		"front-ci.yml::test-vitest-coverage::Run trusted first-party postinstall (@org/shared-ts)",
+		"front-ci.yml::test-vitest-coverage::Setup Node",
+		"front-ci.yml::test-vitest::Checkout",
+		"front-ci.yml::test-vitest::Install (frozen lockfile, no scripts)",
+		"front-ci.yml::test-vitest::Install Git hooks (mirrors prepare)",
+		"front-ci.yml::test-vitest::Install pnpm",
+		"front-ci.yml::test-vitest::Run trusted first-party postinstall (@org/shared-ts)",
+		"front-ci.yml::test-vitest::Run vitest shard",
+		"front-ci.yml::test-vitest::Setup Node",
+		"front-ci.yml::test-vitest::Upload vitest report",
 		"front-e2e.yml::build::Build stack images",
 		"front-e2e.yml::build::Checkout",
 		"front-e2e.yml::build::Detect fork pull request",
@@ -189,6 +204,7 @@
 		"quality-gate.yml::quality::Audit development dependencies (moderate and above)",
 		"quality-gate.yml::quality::Bind pinned action SHAs to their version comments (#1392)",
 		"quality-gate.yml::quality::Build .NET solution (warnings as errors via Directory.Build.props)",
+		"quality-gate.yml::quality::Check formatter scope (#1875)",
 		"quality-gate.yml::quality::Check formatting (oxfmt --check)",
 		"quality-gate.yml::quality::Checkout",
 		"quality-gate.yml::quality::Install (frozen lockfile, no scripts)",
@@ -213,12 +229,6 @@
 		"quality-gate.yml::quality::Verify complexity bounds are not drifting (#1661)",
 		"quality-gate.yml::quality::Verify deploy env doc coverage (#1798)",
 		"quality-gate.yml::quality::Verify production duplication has not increased (#1821)",
-		"quality-gate.yml::ratchet-raise::Checkout",
-		"quality-gate.yml::ratchet-raise::Install (frozen lockfile, no scripts)",
-		"quality-gate.yml::ratchet-raise::Install pnpm",
-		"quality-gate.yml::ratchet-raise::Setup Node",
-		"quality-gate.yml::ratchet-raise::Setup just",
-		"quality-gate.yml::ratchet-raise::Verify jscpd reference raise is accompanied by a docs/records/ change (#1969)",
 		"react-doctor.yml::changes::Check whether react-doctor paths changed",
 		"react-doctor.yml::changes::Checkout classifier from the base commit (not the PR's own copy)",
 		"react-doctor.yml::changes::Setup Node",
@@ -504,6 +514,11 @@
 			"reason_length": 54,
 			"reason": "ci-front runs the identical pnpm --filter front build."
 		},
+		"front-ci.yml::supply-chain::Check front srvx/static import shape (#1822)": {
+			"reason_hash": "f190fa994d00657b",
+			"reason_length": 731,
+			"reason": "ci-front runs the identical pnpm --filter front check:server-static-imports (#1822). The guard parses server.mjs with ts-morph, loads the real installed srvx/static, and asserts every named import from srvx/static resolves against the live module — without it, a dependabot srvx bump that renames or removes an export re-opens the same startup crash the publish-now e2e surfaced in #1628 and #1655, but only behind the next retrigger. The unit test (apps/front/scripts/guards/check-server-static-imports.test.mts, including a real-load assertion that pinned staticMiddleware is exported and serveStatic is not) runs inside the front `test` chain as test:server-static-imports-guard, mirrored by the same `just ci-front` invocation."
+		},
 		"front-ci.yml::supply-chain::Check front React Compiler artifacts": {
 			"reason_hash": "ad9f03648bf0dfc2",
 			"reason_length": 99,
@@ -563,11 +578,6 @@
 			"reason_hash": "29e8110f0da3bfab",
 			"reason_length": 624,
 			"reason": "ci-front runs pnpm --filter front smoke:start. The workflow does this with inline bash (background job + trap + curl + grep) which cannot run under the justfile's pwsh shell on Windows, so apps/front/scripts/ci/smoke-start-server.mts re-implements the same assertions in Node: serve the production build, GET /, require a rel=stylesheet link to a .css asset. DELIBERATE DIFFERENCE: CI hardcodes port 3000 (a fresh runner has nothing else on it); the local script binds a free ephemeral port via PORT, because probing a busy 3000 on a dev machine would assert against whatever unrelated app answered and report a false green."
-		},
-		"front-ci.yml::supply-chain::Test front": {
-			"reason_hash": "367a0e99f268dd05",
-			"reason_length": 53,
-			"reason": "ci-front runs the identical pnpm --filter front test."
 		},
 		"front-ci.yml::supply-chain::Typecheck front": {
 			"reason_hash": "6ef1f2667344074b",
@@ -929,6 +939,11 @@
 			"reason_length": 251,
 			"reason": "ci-quality-dotnet runs the identical dotnet build PublyApp.slnx --no-restore with TreatWarningsAsErrors and EnforceCodeStyleInBuild active via Directory.Build.props, so any analyzer or code-style warning fails the build the same way in CI and locally."
 		},
+		"quality-gate.yml::quality::Check formatter scope (#1875)": {
+			"reason_hash": "954284ab5e9c6631",
+			"reason_length": 439,
+			"reason": "ci-format now runs pnpm format AND then pnpm --filter scripts-ts exec vitest run src/check-formatter-scope.test.ts, the same vitest file this step runs. The guard asks oxfmt itself (via the real .oxfmtrc.json from the repo root) which files each package.json format glob would process, so an ignorePatterns entry that silently swallows a directory the globs enumerate fails red naming the directory instead of letting `pnpm format` exit 0."
+		},
 		"quality-gate.yml::quality::Check formatting (oxfmt --check)": {
 			"reason_hash": "6b89e3c033cf0ebc",
 			"reason_length": 101,
@@ -1044,16 +1059,6 @@
 			"reason_length": 261,
 			"reason": "jscpd@4 production duplication ratchet: runs jscpd against production paths and verifies unique pair count and line count within the committed baseline. Identical to the CI step quality-gate.yml::quality::Verify production duplication has not increased (#1821)."
 		},
-		"quality-gate.yml::ratchet-raise::Checkout": {
-			"reason_hash": "78d299b7853b9f34",
-			"reason_length": 249,
-			"reason": "GitHub-only: clones the repo onto the runner with fetch-depth: 0 so `git merge-base` can succeed. A shallow checkout (default fetch-depth: 1) leaves HEAD with no common ancestor with the base ref, which would silently degrade the guard's diff scope."
-		},
-		"quality-gate.yml::ratchet-raise::Verify jscpd reference raise is accompanied by a docs/records/ change (#1969)": {
-			"reason_hash": "8d89e9ae4b82b90f",
-			"reason_length": 362,
-			"reason": "#1969 dedicated job: verifies that a jscpd reference raise is provably accompanied by a docs/records/ file whose added diff lines contain the raised key names (e.g. productionPairs.count). The raise is a visible, reviewed decision rather than a red gate someone waves through. Mirrors `just ci-jscpd-raise`, which runs the same vitest suite and the guard script."
-		},
 		"quality-gate.yml::quality::Verify deploy env doc coverage (#1798)": {
 			"reason_hash": "41801181f18800e2",
 			"reason_length": 483,
@@ -1123,6 +1128,91 @@
 			"reason_hash": "9f671866bb224574",
 			"reason_length": 541,
 			"reason": "Reads github.event.pull_request.body. At pre-push time there is no PR and therefore no body to check, so this gate is unreproducible locally by construction rather than by omission. The step gained a #1240 waiver that short-circuits to success for PR_AUTHOR == 'dependabot[bot]' (exact-login policy, not github.actor, not a label); the waiver's exact shape is guarded by packages/scripts-ts/src/require-linked-issue.test.ts, which just ci-drift now runs, but the step itself (which reads the live PR body) stays a GitHub-only required check."
+		},
+		"front-ci.yml::supply-chain::Test front (non-vitest)": {
+			"reason_hash": "dead675ca5c39cbd",
+			"reason_length": 386,
+			"reason": "ci-front runs the identical pnpm --filter front test:ci-non-vitest (the non-vitest half of `pnpm --filter front test`: compose-startup, route-tree-guard, design-guards, the design-system/zindex/react-compiler/shared-ts guards, etc.). The vitest shards moved out of this step into their own matrix job (#1948) so a vitest failure cannot mask the non-vitest checks and vice versa (#1699)."
+		},
+		"front-ci.yml::test-vitest::Checkout": {
+			"reason_hash": "c80eb5bfb322fab4",
+			"reason_length": 102,
+			"reason": "GitHub-only: clones the repo onto the runner. Locally the working tree already is the code under test."
+		},
+		"front-ci.yml::test-vitest::Install pnpm": {
+			"reason_hash": "1fd22cde3ad0647d",
+			"reason_length": 114,
+			"reason": "Runner toolchain provisioning. Locally pnpm is pinned by the packageManager field and is a developer prerequisite."
+		},
+		"front-ci.yml::test-vitest::Setup Node": {
+			"reason_hash": "305da4753c978917",
+			"reason_length": 100,
+			"reason": "Runner toolchain provisioning. Locally the Node version is pinned by .node-version / .nvmrc instead."
+		},
+		"front-ci.yml::test-vitest::Install (frozen lockfile, no scripts)": {
+			"reason_hash": "663389920e93e4f6",
+			"reason_length": 78,
+			"reason": "ci-install runs the identical pnpm install --frozen-lockfile --ignore-scripts."
+		},
+		"front-ci.yml::test-vitest::Run trusted first-party postinstall (@org/shared-ts)": {
+			"reason_hash": "11f4c937ecc6b38a",
+			"reason_length": 75,
+			"reason": "ci-install runs the identical pnpm --filter @org/shared-ts run postinstall."
+		},
+		"front-ci.yml::test-vitest::Install Git hooks (mirrors prepare)": {
+			"reason_hash": "654d033231771a75",
+			"reason_length": 753,
+			"reason": "#1852: the shard/coverage jobs install with --ignore-scripts, so the root prepare never ran and core.hooksPath is unwired in the checkout. This step runs `pnpm run prepare` — the exact command a developer's pnpm install runs — which points core.hooksPath at the versioned .husky dir via packages/scripts-ts/src/install-git-hooks.ts (shared config, so fresh worktrees inherit it). The local mirror is the same command: just test-preuves (part of just ci-front) starts with `pnpm run prepare` before replaying the paired red proofs, and the installer itself fails loud when hooks cannot be wired. Using `pnpm run prepare` keeps a single source: a commit that removes the prepare script from package.json fails the step instead of silently unpinning hooks."
+		},
+		"front-ci.yml::test-vitest::Run vitest shard": {
+			"reason_hash": "ceae6b67fe12d1f1",
+			"reason_length": 379,
+			"reason": "just ci-front runs the full vitest suite unsharded (pnpm --filter front test ends in `vitest run`). CI's --shard=i/4 partition is pinned separately by front-ci.yml::test-vitest-coverage, which replays the same --shard flag in list mode against the real unsharded discovery — the local mirror of that step is the identical command (pnpm --filter front test:vitest-shard-coverage)."
+		},
+		"front-ci.yml::test-vitest::Upload vitest report": {
+			"reason_hash": "529e175ce38b68cf",
+			"reason_length": 250,
+			"reason": "GitHub-only: uploads the per-shard vitest report artifact off an ephemeral runner on failure (actions/upload-artifact with a shard-specific name so the reports never collide). Locally test-results is already on disk; there is nothing to upload it to."
+		},
+		"front-ci.yml::test-vitest-coverage::Checkout": {
+			"reason_hash": "c80eb5bfb322fab4",
+			"reason_length": 102,
+			"reason": "GitHub-only: clones the repo onto the runner. Locally the working tree already is the code under test."
+		},
+		"front-ci.yml::test-vitest-coverage::Install pnpm": {
+			"reason_hash": "1fd22cde3ad0647d",
+			"reason_length": 114,
+			"reason": "Runner toolchain provisioning. Locally pnpm is pinned by the packageManager field and is a developer prerequisite."
+		},
+		"front-ci.yml::test-vitest-coverage::Setup Node": {
+			"reason_hash": "305da4753c978917",
+			"reason_length": 100,
+			"reason": "Runner toolchain provisioning. Locally the Node version is pinned by .node-version / .nvmrc instead."
+		},
+		"front-ci.yml::test-vitest-coverage::Install (frozen lockfile, no scripts)": {
+			"reason_hash": "663389920e93e4f6",
+			"reason_length": 78,
+			"reason": "ci-install runs the identical pnpm install --frozen-lockfile --ignore-scripts."
+		},
+		"front-ci.yml::test-vitest-coverage::Run trusted first-party postinstall (@org/shared-ts)": {
+			"reason_hash": "11f4c937ecc6b38a",
+			"reason_length": 75,
+			"reason": "ci-install runs the identical pnpm --filter @org/shared-ts run postinstall."
+		},
+		"front-ci.yml::test-vitest-coverage::Check vitest shard coverage equality (#1948)": {
+			"reason_hash": "a816b3acd04a3e9c",
+			"reason_length": 314,
+			"reason": "#1948: the shard matrix must partition the suite exactly once. just ci-front runs the identical `pnpm --filter front test:vitest-shard-coverage`, which reads the REAL `vitest list --shard=i/n` discovery of every shard and of the unsharded suite and fails if any file is lost, duplicated, or invented by the matrix."
+		},
+		"quality-gate.yml::ratchet-raise::Checkout": {
+			"reason_hash": "78d299b7853b9f34",
+			"reason_length": 249,
+			"reason": "GitHub-only: clones the repo onto the runner with fetch-depth: 0 so `git merge-base` can succeed. A shallow checkout (default fetch-depth: 1) leaves HEAD with no common ancestor with the base ref, which would silently degrade the guard's diff scope."
+		},
+		"quality-gate.yml::ratchet-raise::Verify jscpd reference raise is accompanied by a docs/records/ change (#1969)": {
+			"reason_hash": "8d89e9ae4b82b90f",
+			"reason_length": 362,
+			"reason": "#1969 dedicated job: verifies that a jscpd reference raise is provably accompanied by a docs/records/ file whose added diff lines contain the raised key names (e.g. productionPairs.count). The raise is a visible, reviewed decision rather than a red gate someone waves through. Mirrors `just ci-jscpd-raise`, which runs the same vitest suite and the guard script."
 		},
 		"quality-gate.yml::ratchet-raise::Install pnpm": {
 			"reason_hash": "1fd22cde3ad0647d",
