@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 import { getClientManager } from '~/lib/api-client/client-manager';
+import { normalizeString } from '~/lib/normalize-string';
 import { readSelectedTenantId } from '~/lib/selected-tenant-storage';
 
 import type { GetUserTenantsForPickerResponse } from '@org/client-ts/models/index';
@@ -96,18 +97,6 @@ export const useResolvedWorkspaceTenantId = (
 		: undefined;
 
 	return resolvedTenant?.id ?? null;
-};
-
-const normalizeString = (value: string | null | undefined): string | null => {
-	if (typeof value !== 'string') {
-		return null;
-	}
-
-	const trimmed = value.trim();
-	if (trimmed.length > 0) {
-		return trimmed;
-	}
-	return null;
 };
 
 export const toTenantsForPickerData = (

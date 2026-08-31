@@ -6,6 +6,7 @@ import {
 	normalizeNullableFileUrl,
 	toRootRelativeApiFileUrl,
 } from '~/lib/api-client/resolve-api-file-url';
+import { normalizeString } from '~/lib/normalize-string';
 
 import type { ApiClient } from '@org/client-ts/apiClient';
 import type {
@@ -57,18 +58,6 @@ export const tenantAccountProfileQueryOptions = buildTenantQueryOptions<
 	},
 	{ clientAccessor: getClientManager() },
 );
-
-const normalizeString = (value: string | null | undefined): string | null => {
-	if (typeof value !== 'string') {
-		return null;
-	}
-
-	const trimmed = value.trim();
-	if (trimmed.length > 0) {
-		return trimmed;
-	}
-	return null;
-};
 
 export const toAccountProfile = (
 	result: AccountProfileResult | null | undefined,

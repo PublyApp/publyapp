@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { getClientManager } from '~/lib/api-client/client-manager';
+import { normalizeString } from '~/lib/normalize-string';
 
 import type { FindNeedsReconnectAccountsForTenantResponse } from '@org/client-ts/models/index';
 
@@ -16,18 +17,6 @@ export type NeedsReconnectAccounts = NeedsReconnectAccount[];
 const NEEDS_RECONNECT_ACCOUNTS_QUERY_KEY = [
 	'needs-reconnect-accounts',
 ] as const;
-
-const normalizeString = (value: string | null | undefined): string | null => {
-	if (typeof value !== 'string') {
-		return null;
-	}
-
-	const trimmed = value.trim();
-	if (trimmed.length > 0) {
-		return trimmed;
-	}
-	return null;
-};
 
 /**
  * Maps the generated Kiota response onto the banner contract. `lastError` is

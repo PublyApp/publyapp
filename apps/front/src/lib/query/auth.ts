@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { getClientManager } from '~/lib/api-client/client-manager';
 import { normalizeNullableFileUrl } from '~/lib/api-client/resolve-api-file-url';
+import { normalizeString } from '~/lib/normalize-string';
 
 import type { GetUserAuthDataResult } from '@org/client-ts/models/index';
 import { getUserFullName } from '@org/shared-ts/utils/user.utils';
@@ -21,18 +22,6 @@ export type CurrentUser = {
 /** @internal Build an invalidation/removal key from this via `scopedKey()`
  * rather than hand-assembling a prefixed array at a call site. */
 export const CURRENT_USER_QUERY_KEY = ['current-user'] as const;
-
-const normalizeString = (value: string | null | undefined): string | null => {
-	if (typeof value !== 'string') {
-		return null;
-	}
-
-	const trimmed = value.trim();
-	if (trimmed.length > 0) {
-		return trimmed;
-	}
-	return null;
-};
 
 export const toCurrentUser = (
 	result: GetUserAuthDataResult | null | undefined,
