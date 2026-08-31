@@ -228,6 +228,12 @@
 		"quality-gate.yml::quality::Verify complexity bounds are not drifting (#1661)",
 		"quality-gate.yml::quality::Verify deploy env doc coverage (#1798)",
 		"quality-gate.yml::quality::Verify production duplication has not increased (#1821)",
+		"quality-gate.yml::ratchet-raise::Checkout",
+		"quality-gate.yml::ratchet-raise::Install (frozen lockfile, no scripts)",
+		"quality-gate.yml::ratchet-raise::Install pnpm",
+		"quality-gate.yml::ratchet-raise::Setup Node",
+		"quality-gate.yml::ratchet-raise::Setup just",
+		"quality-gate.yml::ratchet-raise::Verify jscpd reference raise is accompanied by a docs/records/ change (#1969)",
 		"react-doctor.yml::changes::Check whether react-doctor paths changed",
 		"react-doctor.yml::changes::Checkout classifier from the base commit (not the PR's own copy)",
 		"react-doctor.yml::changes::Setup Node",
@@ -1020,6 +1026,30 @@
 		"require-linked-issue.yml::pr-body-exhaustiveness::Verify the PR body makes no unverifiable exhaustiveness claims (#1569)": {
 			"reason_hash": "cb14d79231045eba",
 			"reason": "GitHub-only: reads the LIVE PR body via the GitHub API (gh api repos/$GH_REPO/pulls/$PR_NUMBER --jq '.body // \"\"') — never a fixture, never an author-supplied echo — and runs packages/scripts-ts/src/check-pr-body-exhaustiveness.ts against it. At pre-push time there is no PR and therefore no body to check, so this guard is unreproducible locally by construction (the same stance as the require-linked-issue step). Its logic is mirrored by the co-located unit suite; the wiring pin test extracts this exact run: block from the workflow file itself."
+		},
+		"quality-gate.yml::ratchet-raise::Checkout": {
+			"reason_hash": "78d299b7853b9f34",
+			"reason": "GitHub-only: clones the repo onto the runner with fetch-depth: 0 so `git merge-base` can succeed. A shallow checkout (default fetch-depth: 1) leaves HEAD with no common ancestor with the base ref, which would silently degrade the guard's diff scope."
+		},
+		"quality-gate.yml::ratchet-raise::Verify jscpd reference raise is accompanied by a docs/records/ change (#1969)": {
+			"reason_hash": "8d89e9ae4b82b90f",
+			"reason": "#1969 dedicated job: verifies that a jscpd reference raise is provably accompanied by a docs/records/ file whose added diff lines contain the raised key names (e.g. productionPairs.count). The raise is a visible, reviewed decision rather than a red gate someone waves through. Mirrors `just ci-jscpd-raise`, which runs the same vitest suite and the guard script."
+		},
+		"quality-gate.yml::ratchet-raise::Install pnpm": {
+			"reason_hash": "1fd22cde3ad0647d",
+			"reason": "Runner toolchain provisioning. Locally pnpm is pinned by the packageManager field and is a developer prerequisite."
+		},
+		"quality-gate.yml::ratchet-raise::Setup Node": {
+			"reason_hash": "305da4753c978917",
+			"reason": "Runner toolchain provisioning. Locally the Node version is pinned by .node-version / .nvmrc instead."
+		},
+		"quality-gate.yml::ratchet-raise::Setup just": {
+			"reason_hash": "997bb69cf1357de0",
+			"reason": "Runner toolchain provisioning: installs the just binary. Locally just is the entrypoint being run, so it is by definition already present."
+		},
+		"quality-gate.yml::ratchet-raise::Install (frozen lockfile, no scripts)": {
+			"reason_hash": "663389920e93e4f6",
+			"reason": "ci-install runs the identical pnpm install --frozen-lockfile --ignore-scripts."
 		}
 	}
 }
