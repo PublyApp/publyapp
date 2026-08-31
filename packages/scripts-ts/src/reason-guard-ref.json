@@ -204,6 +204,8 @@
 		"quality-gate.yml::quality::Audit development dependencies (moderate and above)",
 		"quality-gate.yml::quality::Bind pinned action SHAs to their version comments (#1392)",
 		"quality-gate.yml::quality::Build .NET solution (warnings as errors via Directory.Build.props)",
+		"quality-gate.yml::quality::Check C# format guard coverage (no orphaned or unknown auto-generated files)",
+		"quality-gate.yml::quality::Check C# formatting (dotnet format --verify-no-changes)",
 		"quality-gate.yml::quality::Check formatter scope (#1875)",
 		"quality-gate.yml::quality::Check formatting (oxfmt --check)",
 		"quality-gate.yml::quality::Checkout",
