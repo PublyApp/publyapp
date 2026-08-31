@@ -1,0 +1,27 @@
+{
+	"$schema": "../expected-red.schema.json",
+	"_comment": "Per-test kept-red expectation manifest for the r2 C0/C1 control character proof (issue #1931). Read by apps/front/scripts/ci/run-preuves.mts BEFORE classification. Each test declared in `expectedRed` MUST fail with an AssertionError on correct code. If a declared kept-red test PASSES, the runner fails CI with verdict CORRUPT PROOF.",
+	"measuredAgainst": "548b91095152959fa3edcd922139ff975b28c0a4",
+	"expectedRed": [
+		{
+			"testName": "U+0001 (SOH) renders blank — the bug the r1 predicate missed",
+			"why": "On corrected code, \\p{Cc} strips U+0001, the function returns the marker, and `rendered('\\u0001')` equals 'NO_CAUSE' not '\\u0001'. The assertion `expect(rendered('\\u0001')).toBe('\\u0001')` FAILS with AssertionError — the kept-red state. If this test PASSES, \\p{Cc} has been dropped from the predicate and the bug is back."
+		},
+		{
+			"testName": "U+0007 (BEL) renders blank — the bug the r1 predicate missed",
+			"why": "On corrected code, \\p{Cc} strips U+0007, the function returns the marker, and `rendered('\\u0007')` equals 'NO_CAUSE' not '\\u0007'. The assertion FAILS — kept-red. If PASSES, \\p{Cc} dropped."
+		},
+		{
+			"testName": "U+007F (DEL) renders blank — the bug the r1 predicate missed",
+			"why": "On corrected code, \\p{Cc} strips U+007F, the function returns the marker, and `rendered('\\u007F')` equals 'NO_CAUSE' not '\\u007F'. The assertion FAILS — kept-red. If PASSES, \\p{Cc} dropped."
+		},
+		{
+			"testName": "U+0085 (NEL, C1) renders blank — the bug the r1 predicate missed",
+			"why": "On corrected code, \\p{Cc} strips U+0085, the function returns the marker, and `rendered('\\u0085')` equals 'NO_CAUSE' not '\\u0085'. The assertion FAILS — kept-red. If PASSES, \\p{Cc} dropped."
+		},
+		{
+			"testName": "U+009F (APC, C1) renders blank — the bug the r1 predicate missed",
+			"why": "On corrected code, \\p{Cc} strips U+009F, the function returns the marker, and `rendered('\\u009F')` equals 'NO_CAUSE' not '\\u009F'. The assertion FAILS — kept-red. If PASSES, \\p{Cc} dropped."
+		}
+	]
+}
