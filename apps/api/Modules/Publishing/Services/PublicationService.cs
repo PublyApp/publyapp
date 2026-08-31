@@ -592,7 +592,7 @@ public sealed class PublicationService : IPublicationService {
 			);
 		}
 
-		if (args.ToUtc - args.FromUtc > TimeSpan.FromDays(31)) {
+		if (args.ToUtc - args.FromUtc > TimeSpan.FromDays(32)) {
 			return new FindScheduledResult.InvalidWindow(
 				"publication-window-too-wide"
 			);

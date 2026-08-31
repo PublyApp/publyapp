@@ -20,9 +20,8 @@ const getActiveSection = (pathname: string): PostsSection => {
 
 /**
  * The tenant posts home: section tabs over the calendar, drafts, history and
- * queue pages. Every section is read-only for now — no posts API exists, so
- * each page is an honest coming-later state, never fabricated schedule data
- * or fake post rows.
+ * queue pages. Calendar and queue expose the real publication schedule;
+ * unfinished sections remain explicit coming-later states.
  */
 const TenantPostsLayout = () => {
 	const { t } = useTranslation('common');

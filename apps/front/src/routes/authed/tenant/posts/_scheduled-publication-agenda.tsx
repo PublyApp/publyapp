@@ -5,14 +5,14 @@ import {
 	ScheduledPublicationStatus,
 	ScheduledPublicationTime,
 } from './_scheduled-publication-display';
-import { groupScheduledPublicationsByLocalDate } from './_scheduled-publication-helpers';
+import { groupScheduledPublicationsByViewerDate } from './_scheduled-publication-helpers';
 
 export const ScheduledPublicationAgenda = ({
 	rows,
 }: {
 	rows: ScheduledPublicationRow[];
 }) => {
-	const groups = groupScheduledPublicationsByLocalDate(rows);
+	const groups = groupScheduledPublicationsByViewerDate(rows);
 
 	return (
 		<div className="space-y-4">

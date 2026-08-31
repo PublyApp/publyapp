@@ -325,7 +325,7 @@ public sealed class FindScheduledPublicationsForTenantSpec : IClassFixture<
 	}
 
 	[Fact]
-	public async Task ItShouldReturnTooWideProblemWhenWindowExceeds31Days() {
+	public async Task ItShouldReturnTooWideProblemWhenWindowExceeds32Days() {
 		var tenantId = await GetAcmeIdAsync();
 		var token = await _authClient.LoginAsync(
 			TestConstants.AcmeAdminEmail,
@@ -345,6 +345,26 @@ public sealed class FindScheduledPublicationsForTenantSpec : IClassFixture<
 		var problem = await response.Content
 			.ReadFromJsonAsync<ValidationProblemDetails>();
 		problem!.Errors.Should().ContainKey("publication-window-too-wide");
+	}
+
+	[Fact]
+	public async Task ItShouldAllowA31DayMonthAcrossADaylightSavingFallback() {
+		var tenantId = await GetAcmeIdAsync();
+		var token = await _authClient.LoginAsync(
+			TestConstants.AcmeAdminEmail,
+			TestConstants.SeedPassword
+		);
+
+		using var request = new HttpRequestMessage(
+			HttpMethod.Get,
+			$"{FindUrl}?from=2099-09-30T22%3A00%3A00Z"
+				+ "&to=2099-10-31T22%3A59%3A59Z"
+		)
+			.WithSessionToken(token)
+			.WithTenantId(tenantId);
+		using var response = await _http.SendAsync(request);
+
+		response.StatusCode.Should().Be(HttpStatusCode.OK);
 	}
 
 	[Fact]

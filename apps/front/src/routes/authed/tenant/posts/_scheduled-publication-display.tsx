@@ -18,7 +18,7 @@ export const ScheduledPublicationStatus = ({
 
 	return (
 		<StatusPill tone={scheduledPublicationStatusTone(status)}>
-			{labelKey ? t(labelKey) : (status ?? '—')}
+			{labelKey ? t(labelKey) : '—'}
 		</StatusPill>
 	);
 };

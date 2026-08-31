@@ -25,8 +25,8 @@ export const buildVisibleMonthWindow = (now: Date): PublicationWindow => {
 	const year = now.getFullYear();
 	const month = now.getMonth();
 	return {
-		from: new Date(Date.UTC(year, month, 1)),
-		to: new Date(Date.UTC(year, month + 1, 1) - 1),
+		from: new Date(year, month, 1),
+		to: new Date(year, month + 1, 1, 0, 0, 0, -1),
 	};
 };
 
@@ -40,15 +40,19 @@ export const formatScheduledLocalDateTime = (
 	return `${scheduledAtLocal.slice(0, 10)} ${scheduledAtLocal.slice(11, 16)}`;
 };
 
-export const groupScheduledPublicationsByLocalDate = (
+const formatViewerCivilDate = (instant: Date): string => {
+	const year = instant.getFullYear();
+	const month = String(instant.getMonth() + 1).padStart(2, '0');
+	const day = String(instant.getDate()).padStart(2, '0');
+	return `${year}-${month}-${day}`;
+};
+
+export const groupScheduledPublicationsByViewerDate = (
 	rows: ScheduledPublicationRow[],
 ): ScheduledPublicationDateGroup[] => {
 	const groups = new Map<string, ScheduledPublicationRow[]>();
 	for (const row of rows) {
-		const date = scheduledLocalCivilDate(row.scheduledAtLocal);
-		if (!date) {
-			continue;
-		}
+		const date = formatViewerCivilDate(row.scheduledAtUtc);
 
 		const existing = groups.get(date);
 		if (existing) {

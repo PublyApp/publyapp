@@ -229,13 +229,13 @@ public sealed class FindScheduledPublicationsForTenant {
 				TypedProblems.ValidationProblem(
 					window.ErrorKey == "publication-window-invalid"
 						? "'from' must be earlier than or equal to 'to'."
-						: "The requested window spans more than 31 days.",
+						: "The requested window spans more than 32 days.",
 					ResponseKeys.UnprocessableEntity,
 					new Dictionary<string, string[]> {
 						[window.ErrorKey] = [
 							window.ErrorKey == "publication-window-invalid"
 								? "'from' must be earlier than or equal to 'to'."
-								: "The requested window spans more than 31 days."
+									: "The requested window spans more than 32 days."
 							,
 						],
 					}

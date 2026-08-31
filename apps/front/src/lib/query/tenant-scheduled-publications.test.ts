@@ -11,21 +11,8 @@ vi.mock('~/lib/api-client/client-manager', () => ({
 	resolveApiBaseUrl: () => 'https://api.example.test',
 }));
 
-type ScheduledPublicationsModule =
-	typeof import('./tenant-scheduled-publications');
-
-const loadScheduledPublicationsModule = async () => {
-	try {
-		return await import('./tenant-scheduled-publications');
-	} catch {
-		return null;
-	}
-};
-
 const requireScheduledPublicationsModule = async () => {
-	const queryModule = await loadScheduledPublicationsModule();
-	expect(queryModule).not.toBeNull();
-	return queryModule as ScheduledPublicationsModule;
+	return import('./tenant-scheduled-publications');
 };
 
 beforeEach(() => {

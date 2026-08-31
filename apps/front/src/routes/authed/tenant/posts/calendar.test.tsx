@@ -67,6 +67,7 @@ vi.mock('react-i18next', () => ({
 import { Route } from './calendar';
 
 const TenantPostsCalendarPage = Route.options.component as ComponentType;
+const ORIGINAL_TIME_ZONE = process.env.TZ;
 
 const renderPage = () => {
 	const queryClient = new QueryClient({
@@ -80,19 +81,20 @@ const renderPage = () => {
 };
 
 beforeEach(() => {
+	process.env.TZ = 'Europe/Paris';
 	vi.useFakeTimers({ toFake: ['Date'] });
-	vi.setSystemTime(new Date('2026-08-15T12:00:00.000Z'));
+	vi.setSystemTime(new Date('2026-08-01T01:00:00.000Z'));
 	mocks.get.mockResolvedValue({
 		data: [
 			{
-				publicationId: 'pub-local-august',
+				publicationId: 'pub-month-boundary',
 				postId: 'post-1',
-				postBodyPreview: 'Local date wins over the UTC date',
-				accountDisplayHandle: '@new-york.example',
+				postBodyPreview: 'First local day stays visible',
+				accountDisplayHandle: '@paris.example',
 				status: 'scheduled',
 				postStatus: 'scheduled',
-				scheduledAtUtc: new Date('2026-08-31T23:30:00.000Z'),
-				scheduledAtLocal: '2026-09-01T01:30:00+02:00',
+				scheduledAtUtc: new Date('2026-07-31T22:30:00.000Z'),
+				scheduledAtLocal: '2026-08-01T00:30:00+02:00',
 				timeZone: 'Europe/Paris',
 			},
 		],
@@ -104,27 +106,28 @@ beforeEach(() => {
 afterEach(() => {
 	cleanup();
 	vi.useRealTimers();
+	process.env.TZ = ORIGINAL_TIME_ZONE;
 	vi.clearAllMocks();
 });
 
 describe('TenantPostsCalendarPage', () => {
-	test('requests the visible month inside 31 days and groups by scheduledAtLocal civil date', async () => {
+	test('requests and groups the viewer local month across a UTC boundary', async () => {
 		renderPage();
 
 		expect(screen.getByRole('heading', { name: 'Calendar' })).toBeTruthy();
 		expect(
-			await screen.findByText('Local date wins over the UTC date'),
+			await screen.findByText('First local day stays visible'),
 		).toBeTruthy();
-		const day = screen.getByTestId('tenant-posts-calendar-day-2026-09-01');
-		expect(day.textContent).toContain('2026-09-01 01:30');
+		const day = screen.getByTestId('tenant-posts-calendar-day-2026-08-01');
+		expect(day.textContent).toContain('2026-08-01 00:30');
 		expect(day.textContent).toContain('Europe/Paris');
 		expect(
-			screen.queryByTestId('tenant-posts-calendar-day-2026-08-31'),
+			screen.queryByTestId('tenant-posts-calendar-day-2026-07-31'),
 		).toBeNull();
 		expect(mocks.get).toHaveBeenCalledWith({
 			queryParameters: expect.objectContaining({
-				from: '2026-08-01T00:00:00.000Z',
-				to: '2026-08-31T23:59:59.999Z',
+				from: '2026-07-31T22:00:00.000Z',
+				to: '2026-08-31T21:59:59.999Z',
 			}),
 		});
 		expect(screen.getByTestId('account-read-only-badge')).toBeTruthy();
