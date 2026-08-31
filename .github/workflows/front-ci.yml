@@ -171,7 +171,7 @@ jobs:
           node-version: 24
 
       - name: Assert exact pins
-        run: node apps/front/scripts/guards/assert-pinned.mts
+        run: node apps/front/scripts/run-guarded.mts apps/front/scripts/guards/assert-pinned.mts
 
       - name: Install (frozen lockfile, no scripts)
         run: pnpm install --frozen-lockfile --ignore-scripts
@@ -207,10 +207,10 @@ jobs:
         run: pnpm --filter front build
 
       - name: Verify front production build emits a CSS asset
-        run: node apps/front/scripts/guards/verify-build-css-link.mts
+        run: node apps/front/scripts/run-guarded.mts apps/front/scripts/guards/verify-build-css-link.mts
 
       - name: Verify front production font bundle references and unicode coverage
-        run: node apps/front/scripts/guards/verify-font-bundle.mts --dist apps/front/dist --locales-dir apps/front/src/i18n/locales
+        run: node apps/front/scripts/run-guarded.mts apps/front/scripts/guards/verify-font-bundle.mts --dist apps/front/dist --locales-dir apps/front/src/i18n/locales
 
       - name: Smoke start front server and verify stylesheet tag
         env:
@@ -321,14 +321,14 @@ jobs:
       # The developer replay path is the lane worktree (`just test-preuves`),
       # where .dump/ also exists for trace artifacts.
       #
-      # Issue #1782 ronde 2 — choix de la piste 2 (fetch-depth: 0) : le
-      # checkout ci-dessus utilise `fetch-depth: 0` pour que HEAD ait un
-      # historique complet. Sans ça, le checkout par défaut (fetch-depth: 1)
-      # crée une greffe `.git/shallow` : `merge-base` retourne vide, le diff
-      # devient blanc, et le script conclut « aucune preuve déclarée » en
-      # sortant 0 — un feu vert conforme qui n'a rien mesuré. Le script
-      # défend aussi contre une greffe posée par un autre contexte
-      # (`git fetch --unshallow` si `--is-shallow-repository` répond true).
+      # Issue #1782 round 2 — chose track 2 (fetch-depth: 0): the
+      # checkout above uses `fetch-depth: 0` so HEAD has a
+      # complete history. Without that, the default checkout (fetch-depth: 1)
+      # creates a `.git/shallow` graft: `merge-base` returns empty, the diff
+      # becomes blank, and the script concludes "no proof declared" by
+      # exiting 0 — a compliant green light that measured nothing. The script
+      # also defends against a graft placed by another context
+      # (`git fetch --unshallow` if `--is-shallow-repository` answers true).
       - name: Verify paired red proofs
         run: pnpm --filter front test:preuves
         # Mirrors `just test-preuves` in the local ci-front recipe.

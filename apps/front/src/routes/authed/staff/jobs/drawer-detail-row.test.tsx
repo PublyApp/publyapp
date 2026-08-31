@@ -1,10 +1,10 @@
 /**
  * @vitest-environment jsdom
  *
- * Brief #1720 ronde 2 — validation supplémentaire : vérifier que le
- * composant DetailRow (utilisé dans les tiroirs) affiche bien la cause
- * formatée pour chaque cas. Cela prouve que le tiroir montre la bonne chose
- * sans dépendre du portail du menu déroulant (qui ne marche pas bien en jsdom).
+ * Brief #1720 round 2 — additional validation: verify that the
+ * DetailRow component (used in drawers) correctly displays the formatted
+ * cause for each case. This proves the drawer shows the right thing
+ * without depending on the dropdown portal (which doesn't work well in jsdom).
  */
 import { cleanup, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, test } from 'vitest';

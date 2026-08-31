@@ -44,6 +44,12 @@ public sealed class FakeResendClient : IResendEmailClient {
 	public int ProviderCallCount { get; private set; }
 
 	/// <summary>
+	/// The last <see cref="EmailMessage"/> passed to the provider, captured for
+	/// sentinel tests that verify the exact shape of the payload contract (#1988).
+	/// </summary>
+	public EmailMessage? LastEmailMessage { get; private set; }
+
+	/// <summary>
 	/// Idempotency keys already seen by the provider, each with the payload signature
 	/// it was first used with. A key seen again with the SAME payload is deduplicated
 	/// (no provider call); a key reused with a DIFFERENT payload is rejected with
@@ -55,6 +61,8 @@ public sealed class FakeResendClient : IResendEmailClient {
 		EmailMessage email,
 		CancellationToken cancellationToken = default
 	) {
+		LastEmailMessage = email;
+
 		if (Delay > TimeSpan.Zero) {
 			await Task.Delay(Delay, cancellationToken);
 		}

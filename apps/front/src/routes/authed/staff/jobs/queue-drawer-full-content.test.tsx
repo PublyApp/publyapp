@@ -1,10 +1,10 @@
 /**
  * @vitest-environment jsdom
  *
- * Brief #1720 ronde 2 — validation supplémentaire : tester le contenu réel
- * du tiroir queue en mockant les portails pour qu'ils rendent inline (sans
- * portal). Cela vérifie que le tiroir queue montre la cause complète après
- * clic, prouvant la parité avec le tiroir dead-letter.
+ * Brief #1720 round 2 — additional validation: test the actual queue
+ * drawer content by mocking portals so they render inline (without
+ * portal). This verifies that the queue drawer shows the full cause after
+ * click, proving parity with the dead-letter drawer.
  */
 import { cleanup, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';

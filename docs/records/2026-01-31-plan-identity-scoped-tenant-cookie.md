@@ -1226,8 +1226,8 @@ Add:
 Add:
 ```json
 {
-  "select-organization": "Sélectionner une organisation",
-  "choose-organization-to-continue": "Choisissez l'organisation avec laquelle vous souhaitez continuer"
+  "select-organization": "Select an organization",
+  "choose-organization-to-continue": "Choose the organization you want to continue with",
 }
 ```
 

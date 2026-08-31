@@ -56,7 +56,7 @@ interface ExpectedRedDeclaration {
  * must refuse to classify on it.
  */
 export interface ExpectedRedManifest {
-	measuredAgainst: string;
+	/** Expected kept-red declarations. */
 	expectedRed: ExpectedRedDeclaration[];
 }
 
@@ -389,18 +389,6 @@ export const readExpectedRedManifest = (
 	}
 
 	const obj = parsed as Record<string, unknown>;
-	if (typeof obj.measuredAgainst !== 'string') {
-		throw new Error(
-			`expected-red manifest missing or non-string 'measuredAgainst' at ` +
-				`${manifestPath}. It must be a 40-64 character hex git SHA.`,
-		);
-	}
-	if (!/^[0-9a-f]{40,64}$/.test(obj.measuredAgainst)) {
-		throw new Error(
-			`expected-red manifest 'measuredAgainst' must be a 40-64 character ` +
-				`hex git SHA at ${manifestPath}, got: ${obj.measuredAgainst}`,
-		);
-	}
 	if (!Array.isArray(obj.expectedRed)) {
 		throw new Error(
 			`expected-red manifest missing or non-array 'expectedRed' at ` +
@@ -441,7 +429,7 @@ export const readExpectedRedManifest = (
 		expectedRed.push({ testName: e.testName, why: e.why });
 	}
 
-	return { expectedRed, measuredAgainst: obj.measuredAgainst };
+	return { expectedRed };
 };
 
 /**

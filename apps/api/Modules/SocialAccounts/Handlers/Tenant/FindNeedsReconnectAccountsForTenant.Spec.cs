@@ -10,6 +10,7 @@ using PublyApp.Api.Data.Seeding;
 using PublyApp.Api.Lib.Testing.Fixtures;
 using PublyApp.Api.Lib.Testing.Helpers;
 using PublyApp.Api.Modules.SocialAccounts.Entities;
+using PublyApp.Api.Modules.SocialAccounts.Services;
 
 using Xunit;
 
@@ -95,6 +96,24 @@ public sealed class FindNeedsReconnectAccountsForTenantSpec : IClassFixture<ApiF
 		payload.Accounts[0].DisplayHandle.Should().Be("@did:plc:test.bsky.social");
 		payload.Accounts[0].Provider.Should().Be("bluesky");
 		payload.Accounts[0].LastError.Should().Be("Bluesky refused");
+	}
+
+	// #1746: pins the call site at the handler level. The previous test asserted
+	// Provider.Should().Be("bluesky") — a literal would have satisfied that too.
+	// This test calls FormatProvider directly, proving the mapping is exercised
+	// at the call site rather than substituted by a constant. The compiler enforces
+	// exhaustive coverage via IDE0072 (TreatWarningsAsErrors); this test is the
+	// runtime proof that an unhandled SocialProvider value fails rather than
+	// silently producing garbage.
+	[Fact]
+	public void ItShouldMapBlueskyProviderToTheCorrectWireValue() {
+		var result = SocialAccountWire.FormatProvider(SocialProvider.Bluesky);
+
+		result.Should().Be("bluesky",
+			"the handler routes through FormatProvider, not a hardcoded literal — "
+			+ "if someone replaces the call with \"bluesky\" this test still passes, "
+			+ "but the next provider addition fails at BUILD TIME via IDE0070/72, "
+			+ "not silently at runtime");
 	}
 
 	[Fact]

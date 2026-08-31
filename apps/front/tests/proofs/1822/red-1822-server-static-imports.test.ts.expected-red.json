@@ -1,7 +1,6 @@
 {
 	"$schema": "../expected-red.schema.json",
-	"_comment": "Per-test kept-red expectation manifest for issue #1822 / #1872 paired proof. Read by apps/front/scripts/ci/run-preuves.mts BEFORE classification. Each test declared in `expectedRed` MUST fail with an AssertionError on correct code. If a declared kept-red test PASSES, the runner fails CI with verdict CORRUPT PROOF. The `measuredAgainst` SHA points at the commit that introduced the proof itself, so the runner has an audit trail for the proof's provenance. Filled in after the proof is committed in this lane.",
-	"measuredAgainst": "76edb417deb098565e4d88edff851cb912ac74d0",
+	"_comment": "Per-test kept-red expectation manifest for issue #1822 / #1872 paired proof. Read by apps/front/scripts/ci/run-preuves.mts BEFORE classification. Each test declared in `expectedRed` MUST fail with an AssertionError on correct code. If a declared kept-red test PASSES, the runner fails CI with verdict CORRUPT PROOF.",
 	"expectedRed": [
 		{
 			"testName": "server.mjs still imports the pre-#1628 `serveStatic` from srvx/static (#1822/#1872)",

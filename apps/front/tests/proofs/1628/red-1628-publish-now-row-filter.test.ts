@@ -102,6 +102,42 @@ test('publish-now row selector is missing the { hasText: postBody } filter (defe
 	expect(filterPresent).toBe(false);
 });
 
+// --- #1964 combined-mutation safety net ---
+//
+// The two single-guard tests above catch a one-at-a-time removal. A
+// refactor that drops BOTH guards at the same time (the #1964
+// mutation) leaves both individual tests green — the pair is
+// collectively vacuous. This third test catches the combined removal:
+// on correct code either guard is present, so the OR is true and the
+// kept-red inversion (expect(true).toBe(false)) fails with an
+// AssertionError. On the combined mutation, both guards are missing,
+// the OR is false, the assertion passes, and the runner turns the
+// proof CORRUPT PROOF — which is the bug catching itself.
+//
+// The replay `.dump/mutate-1964.sh` removes BOTH guards at once and
+// runs this test. On the unmutated source the test fails RED (kept
+// red). On the mutated source the test passes and the proof turns
+// CORRUPT PROOF — the proof is loud, not silent.
+test('publish-now: combined-mutation safety net — at least one guard must be present (#1964)', () => {
+	if (!existsSync(specPath)) {
+		throw new Error(
+			`MESURE IMPOSSIBLE: spec file not found at ${specPath}. ` +
+				`The proof cannot read the source.`,
+		);
+	}
+	const source = readFileSync(specPath, 'utf8');
+	const filterPresent =
+		/\.locator\(\s*['"]tr['"]\s*,\s*\{\s*hasText:\s*postBody\s*\}\s*\)/.test(
+			source,
+		);
+	const invariantPresent =
+		/\.getByText\(\s*postBody\s*,\s*\{\s*exact:\s*false\s*\}\s*\)/.test(source);
+	// Kept-red inversion: on correct code the OR is true; the assertion
+	// below fails. On the combined mutation the OR is false; the
+	// assertion passes — the proof catches the combined removal.
+	expect(filterPresent || invariantPresent).toBe(false);
+});
+
 test('publish-now final invariant is missing the getByText(postBody) check (defect: stale link could satisfy the loop without the row carrying the composed body)', () => {
 	if (!existsSync(specPath)) {
 		throw new Error(

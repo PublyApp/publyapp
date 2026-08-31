@@ -440,7 +440,7 @@ ci-no-subdir-dockerignore:
 # Install exactly as CI does (supply-chain policy: frozen + no lifecycle scripts)
 ci-install:
   @echo "=== [gate] install (frozen lockfile, no scripts) ==="
-  node apps/front/scripts/guards/assert-pinned.mts
+  node apps/front/scripts/run-guarded.mts apps/front/scripts/guards/assert-pinned.mts
   pnpm install --frozen-lockfile --ignore-scripts
   pnpm --filter @org/shared-ts run postinstall
 

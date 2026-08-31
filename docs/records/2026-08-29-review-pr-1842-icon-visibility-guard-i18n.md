@@ -47,12 +47,16 @@ still match.
 `apps/front/src/i18n/locales/fr/common.json`:
 
 ```json
-"icon-hidden-aria": "l'icône a aria-hidden=\"true\"",
-"icon-hidden-visibility": "l'icône a visibility:hidden calculé",
-"icon-hidden-display": "l'icône a display:none calculé",
-"icon-hidden-opacity": "l'icône a opacity:0 calculé",
-"icon-guard-context-null": "l'élément d'icône est nul"
+"icon-hidden-aria": "icon has aria-hidden=\"true\"",
+"icon-hidden-visibility": "icon has computed visibility:hidden",
+"icon-hidden-display": "icon has computed display:none",
+"icon-hidden-opacity": "icon has computed opacity:0",
+"icon-guard-context-null": "{{context}}: icon element is null"
 ```
+
+The live FR values in `fr/common.json` are idiomatic French translations of the
+EN copy above (same keys, same `{{context}}` interpolation); they are shown in
+English here because this record is English-only.
 
 ## Test wiring
 
