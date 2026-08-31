@@ -1340,3 +1340,76 @@ void test('CLI GREEN: a vanilla `createFileRoute("/x")({...})` route reports not
 		`expected zero diagnostics on a vanilla route definition, got stdout: ${stdout}`,
 	);
 });
+
+void test('CLI GREEN: createFileRoute with an actual query hook does not produce a spurious outer-wrapper diagnostic (r8 regression guard)', () => {
+	// A route that calls a real query hook (e.g. useQuery inside a
+	// component) should report missingPreload for the hook call, NOT
+	// for the createFileRoute wrapper. The r8 narrowing of the
+	// call-of-call bail (from blanket-bail to createFileRoute-only)
+	// must not re-introduce a false positive on the wrapper.
+	const source = [
+		'import { useStaffTenantDetailsQuery } from "~/lib/query/staff-tenants";',
+		'export const Route = createFileRoute("/staff/tenants/$tenantId")({',
+		'  component: Page,',
+		'});',
+		'const Page = () => {',
+		'  const tenant = useStaffTenantDetailsQuery({ tenantId });',
+		'  return <div>{tenant.data?.name}</div>;',
+		'};',
+	].join('\n');
+
+	const stdout = runCliWithDeniedWarnings(source);
+	// Should report exactly ONE diagnostic: missingPreload for the hook call.
+	// Must NOT report two (one for the hook, one spurious for the wrapper).
+	const matches = [...stdout.matchAll(/publy\(route-query-preload\)/g)];
+	assert.strictEqual(
+		matches.length,
+		1,
+		`expected exactly 1 diagnostic (the hook call), got ${matches.length}. stdout: ${stdout}`,
+	);
+	assert.match(
+		stdout,
+		/useStaffTenantDetailsQuery.*without declaring/,
+		`expected missingPreload for the hook call, got stdout: ${stdout}`,
+	);
+});
+
+void test('CLI RED: `const getHook = () => useQuery; getHook()({...})` reports the unresolvableCallee diagnostic (r8 function-return indirection)', () => {
+	// r8 fix: the blanket call-of-call bail (line 584 in r6) was narrowed to
+	// only `createFileRoute`. Other curried calls — `getHook()({...})` where
+	// `const getHook = () => useQuery` — must reach `calleeTracesToQueryModule`.
+	// The function-binding map IS populated by the VariableDeclarator pass; it
+	// was only consulted in `calleeTracesToQueryModule` (the unresolvableCallee
+	// path), which the blanket bail prevented from ever being reached.
+	const source = [
+		'import { useQuery } from "@tanstack/react-query";',
+		'const getHook = () => useQuery;',
+		'export const Route = createFileRoute("/probe")({ component: Page });',
+		'const Page = () => {',
+		'  const q = getHook()({ queryKey: ["x"] });',
+		'  return <div>{String(q.data)}</div>;',
+		'};',
+	].join('\n');
+
+	const stdout = runCliWithDeniedWarnings(source);
+	assert.match(
+		stdout,
+		/publy\(route-query-preload\)/,
+		`expected the CLI to report publy/route-query-preload for function-return indirection, got stdout: ${stdout}`,
+	);
+	assert.match(
+		stdout,
+		/cannot analyse/,
+		`expected unresolvableCallee (not missingPreload), got stdout: ${stdout}`,
+	);
+	assert.match(
+		stdout,
+		/`getHook`/,
+		`expected the diagnostic to name the function binding, got stdout: ${stdout}`,
+	);
+	assert.match(
+		stdout,
+		/<function returning useQuery>/,
+		`expected the diagnostic to show the function-return origin, got stdout: ${stdout}`,
+	);
+});

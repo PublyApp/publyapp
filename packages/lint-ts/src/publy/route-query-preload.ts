@@ -71,15 +71,21 @@ import { getSourceRelativePath, normalizeFilename } from './path-scopes.ts';
  *     `RQ.useQuery(...)` is recognised and the diagnostic names `RQ.useQuery`
  *     as the alias actually written in the source, with `useQuery` as the
  *     canonical export name.
- *   - `unresolvableCallee` is gated on the root identifier of the callee
- *     chain: if `getCalleeInfo` returns `null` (chained member `a.b.c()`,
+ *   - `unresolvableCallee` is gated on `calleeTracesToQueryModule`: if
+ *     `getCalleeInfo` returns `null` (chained member `a.b.c()`,
  *     computed member `obj["fn"]()`, optional chaining, call-of-call), the rule
  *     traces the root identifier. If the root traces back to a query-module
- *     binding (default import, namespace import, whole-module require, or an
+ *     binding (default import, namespace import, whole-module require, a
+ *     function-return indirection `const getHook = () => useQuery`, or an
  *     alias chain from any of those), the call MIGHT be a query hook and is
  *     reported `unresolvableCallee`. If the root is a local parameter or
  *     non-query binding (`value?.trim()`, `z.string().min(...)`, `controller.cursor...`),
  *     the call is silently ignored — it has nothing to do with a query hook.
+ *     This boundary is deliberate: a noisy false positive on a genuinely
+ *     opaque hook indirection (one a motivated escape comment silences) is
+ *     worth infinitely more than a silent false negative (the #1247 failure
+ *     mode, repo doctrine). The gate ensures only query-module-adjacent
+ *     opacity triggers the loud path; innocent non-hook chains stay silent.
  *   - "preload declared" means the file contains, anywhere, an object
  *     property named `preload` nested inside an object literal that is the
  *     value of a property named `staticData` (shorthand accepted).
@@ -239,21 +245,29 @@ const traceRootIdentifier = (node: ESTree.Expression): string | null => {
 };
 
 /**
- * Finds the `UnresolvedQueryBinding` for a callee whose root identifier
- * traces to a query-module binding. Returns the binding info for the
- * actionable `unresolvableCallee` message, or `null` if no binding is found
- * (should not happen when `calleeTracesToQueryModule` returned true, but
- * guards against ordering issues).
+ * Finds the binding info for a callee whose root identifier traces to a
+ * query-module binding. Returns the binding for the actionable
+ * `unresolvableCallee` message, or `null` if no binding is found (should not
+ * happen when `calleeTracesToQueryModule` returned true, but guards against
+ * ordering issues). Checks in order: `unresolvedQueryBindings`,
+ * `functionHookBindings`, `queryModuleBindings`.
  */
 const findQueryModuleBinding = (
 	callee: ESTree.Expression,
 	state: RouteQueryPreloadState,
-): UnresolvedQueryBinding => {
+): UnresolvedQueryBinding | null => {
 	const root = traceRootIdentifier(callee);
 	if (root !== null) {
 		const binding = state.unresolvedQueryBindings.get(root);
 		if (binding !== undefined) {
 			return binding;
+		}
+		// Function-return indirection: `const getHook = () => useQuery;
+		// getHook()({...})` — the binding is tracked in functionHookBindings
+		// as `getHook → useQuery`. The canonical hook name IS the origin.
+		const fnHook = state.functionHookBindings.get(root);
+		if (fnHook !== undefined) {
+			return { importName: root, module: `<function returning ${fnHook}>` };
 		}
 		// Query-module binding with a resolved canonical name (namespace import,
 		// alias chain) — report with the module and the local name as importName.
@@ -263,7 +277,7 @@ const findQueryModuleBinding = (
 		}
 	}
 	// Fallback: should not happen if calleeTracesToQueryModule returned true.
-	return { importName: '<unknown>', module: '<unknown>' };
+	return null;
 };
 
 /**
@@ -760,16 +774,21 @@ export const routeQueryPreload = {
 				}
 			},
 			CallExpression(node: ESTree.CallExpression) {
-				// A callee that is itself a CallExpression
-				// (`createFileRoute("/x")({...})`) means the OUTER call has
-				// no hook-binding of its own — the INNER call is what
-				// matters and the AST visitor visits it recursively. Bail
-				// silently here: the rule must NOT surface this as
-				// `unresolvableCallee` (the brief's "render the null
-				// visible" call applies to genuinely opaque expressions
-				// like `obj["fn"]()` or `a.b.c()` on a non-tracked `a.b`,
-				// not to the standard `createFileRoute(...)` wrapper).
-				if (node.callee.type === 'CallExpression') {
+				// The canonical TanStack Router wrapper: `createFileRoute("/x")({...})`.
+				// The OUTER call's callee is a CallExpression
+				// (`createFileRoute("/x")(...)`), which has no hook-binding of its
+				// own — the INNER call is what matters and the AST visitor visits it
+				// recursively. Bail silently: the rule must NOT surface this as
+				// `unresolvableCallee`. We check specifically for `createFileRoute`
+				// rather than blanket-bailing on every CallExpression callee, because
+				// OTHER curried-call shapes — such as `getHook()({...})` where
+				// `const getHook = () => useQuery` — must reach the
+				// `calleeTracesToQueryModule` gate below.
+				if (
+					node.callee.type === 'CallExpression' &&
+					node.callee.callee.type === 'Identifier' &&
+					node.callee.callee.name === 'createFileRoute'
+				) {
 					return;
 				}
 				const calleeSourceText = context.sourceCode.getText(node.callee);
@@ -788,11 +807,13 @@ export const routeQueryPreload = {
 					// risks a missing preload).
 					if (calleeTracesToQueryModule(node.callee, state)) {
 						const binding = findQueryModuleBinding(node.callee, state);
-						state.unresolvableCallees.push({
-							node,
-							sourceText: calleeSourceText,
-							rootBinding: binding,
-						});
+						if (binding !== null) {
+							state.unresolvableCallees.push({
+								node,
+								sourceText: calleeSourceText,
+								rootBinding: binding,
+							});
+						}
 					}
 					return;
 				}
