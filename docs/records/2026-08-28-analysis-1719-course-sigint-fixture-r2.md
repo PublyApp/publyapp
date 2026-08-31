@@ -271,8 +271,8 @@ FAIL: proof replay did not complete cleanly.
 1. **This proof is a two-axis static guard**, not an execution proof
    of the race. If someone refactors the fixture to call the handler via a
    helper function (e.g. `installHandler()`) declared in the same file, the
-
-   before the handshake and the function does `process.on('SIGINT', ...)`.
+   proof will **NOT detect the problem** if the `installHandler()` call is
+   placed before the handshake and the function does `process.on('SIGINT', ...)`.
    The proof only verifies the literal content of the line, not call semantics.
    
 
