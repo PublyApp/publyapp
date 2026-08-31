@@ -344,7 +344,7 @@ export const checkGuardTestDeletion = (
 	let testFiles: string[];
 	try {
 		testFiles = execSync(
-			`git diff --name-only --diff-filter=ADMR ${baseCommit} HEAD -- "packages/scripts-ts/src/" | sort`,
+			`git diff --name-only --diff-filter=ADMR ${baseCommit} HEAD -- "${TEST_GLOB_ROOT}/" | sort`,
 			{ cwd: gitDir, encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] },
 		)
 			.trim()
