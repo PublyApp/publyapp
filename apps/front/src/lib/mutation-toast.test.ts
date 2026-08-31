@@ -53,7 +53,9 @@ beforeEach(async () => {
 	mocks.sonnerImportCount = 0;
 	mocks.rejectSonnerImport = false;
 	mocks.toastDefault.mockClear();
-	Object.values(mocks.toast).forEach((method) => method.mockClear());
+	for (const method of Object.values(mocks.toast)) {
+		method.mockClear();
+	}
 	vi.doMock('sonner', async () => {
 		mocks.sonnerImportCount += 1;
 		if (mocks.rejectSonnerImport) {

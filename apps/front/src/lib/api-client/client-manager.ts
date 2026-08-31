@@ -233,14 +233,14 @@ const buildCustomFetch = (options: BuildCustomFetchOptions): FetchFunction => {
 		const headers = new Headers();
 
 		if (requestLike && input.headers) {
-			new Headers(input.headers).forEach((value, key) => {
+			for (const [key, value] of new Headers(input.headers)) {
 				headers.set(key, value);
-			});
+			}
 		}
 
-		new Headers(init?.headers).forEach((value, key) => {
+		for (const [key, value] of new Headers(init?.headers)) {
 			headers.set(key, value);
-		});
+		}
 
 		if (isSameOrigin(requestUrl, baseUrl)) {
 			const sessionToken = options.getSessionToken();

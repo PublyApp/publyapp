@@ -49,6 +49,7 @@ import { noRequireCommitOfUseOffsetPageClamp } from './publy/no-require-commit-o
 import { preferEarlyReturn } from './publy/prefer-early-return.ts';
 import { preferQueryDisplay } from './publy/prefer-query-display.ts';
 import { preferSpecificLodashImports } from './publy/prefer-specific-lodash-imports.ts';
+import { routeQueryPreload } from './publy/route-query-preload.ts';
 
 // Plugin object shape (oxlint 1.64.0): `{ meta: { name }, rules: { [name]: Rule } }`.
 const publyPlugin = {
@@ -71,6 +72,7 @@ const publyPlugin = {
 		'no-never-any-casts': noNeverAnyCasts,
 		'require-commit-of-use-offset-page-clamp':
 			noRequireCommitOfUseOffsetPageClamp,
+		'route-query-preload': routeQueryPreload,
 	},
 };
 

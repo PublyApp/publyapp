@@ -116,11 +116,25 @@
 		"front-ci.yml::supply-chain::Run trusted first-party postinstall (@org/shared-ts)",
 		"front-ci.yml::supply-chain::Setup Node",
 		"front-ci.yml::supply-chain::Smoke start front server and verify stylesheet tag",
-		"front-ci.yml::supply-chain::Test front",
+		"front-ci.yml::supply-chain::Test front (non-vitest)",
 		"front-ci.yml::supply-chain::Typecheck front",
 		"front-ci.yml::supply-chain::Verify front production build emits a CSS asset",
 		"front-ci.yml::supply-chain::Verify front production font bundle references and unicode coverage",
 		"front-ci.yml::supply-chain::Verify paired red proofs",
+		"front-ci.yml::test-vitest-coverage::Check vitest shard coverage equality (#1948)",
+		"front-ci.yml::test-vitest-coverage::Checkout",
+		"front-ci.yml::test-vitest-coverage::Install (frozen lockfile, no scripts)",
+		"front-ci.yml::test-vitest-coverage::Install pnpm",
+		"front-ci.yml::test-vitest-coverage::Run trusted first-party postinstall (@org/shared-ts)",
+		"front-ci.yml::test-vitest-coverage::Setup Node",
+		"front-ci.yml::test-vitest::Checkout",
+		"front-ci.yml::test-vitest::Install (frozen lockfile, no scripts)",
+		"front-ci.yml::test-vitest::Install Git hooks (mirrors prepare)",
+		"front-ci.yml::test-vitest::Install pnpm",
+		"front-ci.yml::test-vitest::Run trusted first-party postinstall (@org/shared-ts)",
+		"front-ci.yml::test-vitest::Run vitest shard",
+		"front-ci.yml::test-vitest::Setup Node",
+		"front-ci.yml::test-vitest::Upload vitest report",
 		"front-e2e.yml::build::Build stack images",
 		"front-e2e.yml::build::Checkout",
 		"front-e2e.yml::build::Detect fork pull request",
@@ -498,10 +512,6 @@
 		"front-ci.yml::supply-chain::Smoke start front server and verify stylesheet tag": {
 			"reason_hash": "29e8110f0da3bfab",
 			"reason": "ci-front runs pnpm --filter front smoke:start. The workflow does this with inline bash (background job + trap + curl + grep) which cannot run under the justfile's pwsh shell on Windows, so apps/front/scripts/ci/smoke-start-server.mts re-implements the same assertions in Node: serve the production build, GET /, require a rel=stylesheet link to a .css asset. DELIBERATE DIFFERENCE: CI hardcodes port 3000 (a fresh runner has nothing else on it); the local script binds a free ephemeral port via PORT, because probing a busy 3000 on a dev machine would assert against whatever unrelated app answered and report a false green."
-		},
-		"front-ci.yml::supply-chain::Test front": {
-			"reason_hash": "367a0e99f268dd05",
-			"reason": "ci-front runs the identical pnpm --filter front test."
 		},
 		"front-ci.yml::supply-chain::Typecheck front": {
 			"reason_hash": "6ef1f2667344074b",
@@ -942,6 +952,66 @@
 		"require-linked-issue.yml::require-linked-issue::Verify the PR closes an existing issue": {
 			"reason_hash": "9f671866bb224574",
 			"reason": "Reads github.event.pull_request.body. At pre-push time there is no PR and therefore no body to check, so this gate is unreproducible locally by construction rather than by omission. The step gained a #1240 waiver that short-circuits to success for PR_AUTHOR == 'dependabot[bot]' (exact-login policy, not github.actor, not a label); the waiver's exact shape is guarded by packages/scripts-ts/src/require-linked-issue.test.ts, which just ci-drift now runs, but the step itself (which reads the live PR body) stays a GitHub-only required check."
+		},
+		"front-ci.yml::supply-chain::Test front (non-vitest)": {
+			"reason_hash": "dead675ca5c39cbd",
+			"reason": "ci-front runs the identical pnpm --filter front test:ci-non-vitest (the non-vitest half of `pnpm --filter front test`: compose-startup, route-tree-guard, design-guards, the design-system/zindex/react-compiler/shared-ts guards, etc.). The vitest shards moved out of this step into their own matrix job (#1948) so a vitest failure cannot mask the non-vitest checks and vice versa (#1699)."
+		},
+		"front-ci.yml::test-vitest::Checkout": {
+			"reason_hash": "c80eb5bfb322fab4",
+			"reason": "GitHub-only: clones the repo onto the runner. Locally the working tree already is the code under test."
+		},
+		"front-ci.yml::test-vitest::Install pnpm": {
+			"reason_hash": "1fd22cde3ad0647d",
+			"reason": "Runner toolchain provisioning. Locally pnpm is pinned by the packageManager field and is a developer prerequisite."
+		},
+		"front-ci.yml::test-vitest::Setup Node": {
+			"reason_hash": "305da4753c978917",
+			"reason": "Runner toolchain provisioning. Locally the Node version is pinned by .node-version / .nvmrc instead."
+		},
+		"front-ci.yml::test-vitest::Install (frozen lockfile, no scripts)": {
+			"reason_hash": "663389920e93e4f6",
+			"reason": "ci-install runs the identical pnpm install --frozen-lockfile --ignore-scripts."
+		},
+		"front-ci.yml::test-vitest::Run trusted first-party postinstall (@org/shared-ts)": {
+			"reason_hash": "11f4c937ecc6b38a",
+			"reason": "ci-install runs the identical pnpm --filter @org/shared-ts run postinstall."
+		},
+		"front-ci.yml::test-vitest::Install Git hooks (mirrors prepare)": {
+			"reason_hash": "654d033231771a75",
+			"reason": "#1852: the shard/coverage jobs install with --ignore-scripts, so the root prepare never ran and core.hooksPath is unwired in the checkout. This step runs `pnpm run prepare` — the exact command a developer's pnpm install runs — which points core.hooksPath at the versioned .husky dir via packages/scripts-ts/src/install-git-hooks.ts (shared config, so fresh worktrees inherit it). The local mirror is the same command: just test-preuves (part of just ci-front) starts with `pnpm run prepare` before replaying the paired red proofs, and the installer itself fails loud when hooks cannot be wired. Using `pnpm run prepare` keeps a single source: a commit that removes the prepare script from package.json fails the step instead of silently unpinning hooks."
+		},
+		"front-ci.yml::test-vitest::Run vitest shard": {
+			"reason_hash": "ceae6b67fe12d1f1",
+			"reason": "just ci-front runs the full vitest suite unsharded (pnpm --filter front test ends in `vitest run`). CI's --shard=i/4 partition is pinned separately by front-ci.yml::test-vitest-coverage, which replays the same --shard flag in list mode against the real unsharded discovery — the local mirror of that step is the identical command (pnpm --filter front test:vitest-shard-coverage)."
+		},
+		"front-ci.yml::test-vitest::Upload vitest report": {
+			"reason_hash": "529e175ce38b68cf",
+			"reason": "GitHub-only: uploads the per-shard vitest report artifact off an ephemeral runner on failure (actions/upload-artifact with a shard-specific name so the reports never collide). Locally test-results is already on disk; there is nothing to upload it to."
+		},
+		"front-ci.yml::test-vitest-coverage::Checkout": {
+			"reason_hash": "c80eb5bfb322fab4",
+			"reason": "GitHub-only: clones the repo onto the runner. Locally the working tree already is the code under test."
+		},
+		"front-ci.yml::test-vitest-coverage::Install pnpm": {
+			"reason_hash": "1fd22cde3ad0647d",
+			"reason": "Runner toolchain provisioning. Locally pnpm is pinned by the packageManager field and is a developer prerequisite."
+		},
+		"front-ci.yml::test-vitest-coverage::Setup Node": {
+			"reason_hash": "305da4753c978917",
+			"reason": "Runner toolchain provisioning. Locally the Node version is pinned by .node-version / .nvmrc instead."
+		},
+		"front-ci.yml::test-vitest-coverage::Install (frozen lockfile, no scripts)": {
+			"reason_hash": "663389920e93e4f6",
+			"reason": "ci-install runs the identical pnpm install --frozen-lockfile --ignore-scripts."
+		},
+		"front-ci.yml::test-vitest-coverage::Run trusted first-party postinstall (@org/shared-ts)": {
+			"reason_hash": "11f4c937ecc6b38a",
+			"reason": "ci-install runs the identical pnpm --filter @org/shared-ts run postinstall."
+		},
+		"front-ci.yml::test-vitest-coverage::Check vitest shard coverage equality (#1948)": {
+			"reason_hash": "a816b3acd04a3e9c",
+			"reason": "#1948: the shard matrix must partition the suite exactly once. just ci-front runs the identical `pnpm --filter front test:vitest-shard-coverage`, which reads the REAL `vitest list --shard=i/n` discovery of every shard and of the unsharded suite and fails if any file is lost, duplicated, or invented by the matrix."
 		},
 		"require-linked-issue.yml::pr-body-exhaustiveness::Checkout": {
 			"reason_hash": "53bddbb8f8ed9751",

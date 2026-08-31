@@ -321,6 +321,10 @@ ci-drift:
   pnpm --filter scripts-ts exec vitest run src/ci-gate-bootstrap.test.ts
   pnpm --filter scripts-ts exec vitest run src/ci-gate-aggregation.test.ts
   pnpm --filter scripts-ts exec vitest run src/ci-e2e-rerun-guard.test.ts
+  # #1975 round 2: live-tree coverage guard — every project the API suite
+  # compiles (slnx projects + spec-referenced projects) must be reached by a
+  # workflow path filter. Mirrors the gate-selftest step in front-ci.yml.
+  pnpm --filter scripts-ts exec vitest run src/check-api-tests-path-coverage.test.ts
   pnpm --filter scripts-ts exec vitest run src/check-ci-gate-structure.test.ts
   node ./packages/scripts-ts/src/check-ci-gate-structure.ts
   pnpm --filter scripts-ts exec vitest run src/require-linked-issue.test.ts
@@ -521,6 +525,11 @@ ci-front:
   # front test` AND an explicit front-ci.yml::supply-chain step.
   pnpm --filter front check:react-compiler
   pnpm --filter front test
+  # #1948: the 4-way vitest shard matrix must partition the suite exactly
+  # once. Reads the REAL discovery of every shard (`vitest list --shard=i/n`)
+  # and the unsharded suite, and fails if any file is lost, duplicated, or
+  # invented by the matrix. Mirrors front-ci.yml::test-vitest-coverage.
+  pnpm --filter front test:vitest-shard-coverage
   just test-preuves
   # end of front front-ci.yml::supply-chain parallel block (Test front step)
   @echo "=== [gate] production dependency audit (mirrors front-ci.yml::supply-chain) ==="
