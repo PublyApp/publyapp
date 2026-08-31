@@ -363,7 +363,6 @@ const buildReplayFixture = (options: ReplayFixtureOptions): string => {
 			join(proofDir, 'stale-proof.test.ts.expected-red.json'),
 			JSON.stringify(
 				{
-					measuredAgainst: '0000000000000000000000000000000000000000',
 					expectedRed: [
 						{
 							testName: 'the declared kept-red test',
@@ -538,17 +537,18 @@ describe('proof replay — manifest is validated BEFORE vitest launches (#1863)'
 		}
 	}, 120000);
 
-	test('a declared proof with an INVALID measuredAgainst (non-hex) is caught BEFORE vitest runs', () => {
-		// The manifest declares measuredAgainst but the value is not a
-		// valid hex SHA. The runner must catch this BEFORE launching
-		// vitest, naming the invalid field.
+	// measuredAgainst was removed in #1963 — the manifest parses
+	// without it and the runner no longer validates the field.
+	test('a declared proof with any manifest shape parses successfully (#1963)', () => {
+		// The manifest declares a non-standard field alongside
+		// expectedRed. The runner must parse it without complaint,
+		// and the measuredAgainst field is ignored entirely.
 		const root = buildReplayFixture({
 			declaredTestPasses: true,
 			siblingPasses: false,
 			withManifest: true,
 		});
 		try {
-			// Overwrite the manifest with an invalid measuredAgainst.
 			const manifestPath = join(
 				root,
 				'apps',
@@ -566,7 +566,7 @@ describe('proof replay — manifest is validated BEFORE vitest launches (#1863)'
 						expectedRed: [
 							{
 								testName: 'the declared kept-red test',
-								why: 'fixture: invalid measuredAgainst',
+								why: 'fixture: manifest shape is accepted as-is',
 							},
 						],
 					},
@@ -577,12 +577,19 @@ describe('proof replay — manifest is validated BEFORE vitest launches (#1863)'
 
 			const result = runReplayFixture(root);
 
+			// The runner must NOT fail because of an unrecognised
+			// measuredAgainst field — it is decorative and ignored.
+			// The declared kept-red test passed (stale), so the
+			// runner exits non-zero — that is correct behaviour,
+			// not a measuredAgainst error.
 			expect(result.status).not.toBe(0);
-			expect(result.stderr).toContain('measuredAgainst');
-			expect(result.stderr).toContain('40-64 character hex');
-			// Must NOT include vitest crash output.
-			expect(result.stderr).not.toContain('stdout:');
-			expect(result.stderr).not.toContain('stderr:');
+			expect(result.stderr).not.toContain('measuredAgainst');
+			expect(result.stderr).not.toContain('40-64 character hex');
+			// The stale-proof log line must name the test, not the
+			// measuredAgainst field.
+			expect(result.stderr).toContain(
+				'declared kept-red test(s) passed unexpectedly',
+			);
 		} finally {
 			rmSync(root, { recursive: true, force: true });
 		}
@@ -721,7 +728,6 @@ const buildErrorFixture = (options: ErrorFixtureOptions): string => {
 			join(proofDir, 'error-proof.test.ts.expected-red.json'),
 			JSON.stringify(
 				{
-					measuredAgainst: '0000000000000000000000000000000000000000',
 					expectedRed: [
 						{
 							testName: 'never runs — vitest is dead',
@@ -851,7 +857,6 @@ const buildBehindHeadFixture = (): string => {
 		join(proofDir, 'pr-proof.test.ts.expected-red.json'),
 		JSON.stringify(
 			{
-				measuredAgainst: '0000000000000000000000000000000000000000',
 				expectedRed: [
 					{
 						testName: 'the PR proof fails on an assertion',
@@ -903,7 +908,6 @@ const buildBehindHeadFixture = (): string => {
 		join(baseProofDir, 'base-proof.test.ts.expected-red.json'),
 		JSON.stringify(
 			{
-				measuredAgainst: '0000000000000000000000000000000000000000',
 				expectedRed: [
 					{
 						testName: 'base proof fails on an assertion',

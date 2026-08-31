@@ -6,6 +6,5 @@
 			"testName": "RED: a new self-dup fragment inside an already-self-duplicated file leaves the guard green (buggy counting)",
 			"why": "On correct code the ratchet counts the fragment as new growth and fails the guard, so the assertion that the guard stays green fails with an AssertionError. If this test passes, the (buggy) counting that leaves the guard green is back."
 		}
-	],
-	"measuredAgainst": "f0bdc25e2da41cbacf9f0fc106921de4895936a1"
+	]
 }

@@ -10,6 +10,5 @@
 			"testName": "formula error cell (t=\"e\") in email column is silently accepted as text and flagged only as invalid email",
 			"why": "On correct code the cell-type check rejects the formula-error cell with a structured invalidCell before email validation, so the expected `invalidEmail: '#REF!'` shape differs and the assertion fails with an AssertionError. If this test passes, the cell-type check is missing or was weakened."
 		}
-	],
-	"measuredAgainst": "e203a34e41e598b63448eeb011be5a0dc53bd485"
+	]
 }
