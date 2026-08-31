@@ -229,14 +229,10 @@ jobs:
           # `=`-parse, and no embedded `"` characters (the sharder emits the
           # quote-free form `FullyQualifiedName~FQN1|FullyQualifiedName~FQN2|...`).
           # This is the round-5 fix for the MSB4177 quoting bug that broke
-          # all four shards in rounds 1-4 of #1984.
-          cat > "runsettings-${{ matrix.shard }}.runsettings" <<EOF
-<RunSettings>
-  <RunConfiguration>
-    <TestCaseFilter>${FILTER}</TestCaseFilter>
-  </RunConfiguration>
-</RunSettings>
-EOF
+          # all four shards in rounds 1-4 of #1984. Using `printf` (not a
+          # heredoc) because the `<RunSettings>` tag would confuse a YAML
+          # parser into treating it as an implicit key.
+          printf '<RunSettings>\n  <RunConfiguration>\n    <TestCaseFilter>%s</TestCaseFilter>\n  </RunConfiguration>\n</RunSettings>\n' "$FILTER" > "runsettings-${{ matrix.shard }}.runsettings"
 
           echo "Wrote runsettings file:"
           cat "runsettings-${{ matrix.shard }}.runsettings"
