@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { mkdir, mkdtemp, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -1039,7 +1039,7 @@ test('ROUND 4 BLOCKER: the shard flag denominator drifting from the matrix lengt
 	assert.equal(findings.length, 1);
 	assert.match(
 		findings[0],
-		/test: expected a step invoking Playwright with `--shard=\$\{\{ matrix\.shard \}\}\/4`/,
+		/test: expected a step invoking the test runner with `--shard=\$\{\{ matrix\.shard \}\}\/4`/,
 	);
 });
 
@@ -1077,7 +1077,7 @@ test('ROUND 4 BLOCKER: the uploaded report name denominator drifting from the ma
 	assert.equal(findings.length, 1);
 	assert.match(
 		findings[0],
-		/test: expected the Playwright report upload's `with\.name` to be `front-e2e-playwright-report-\$\{\{ matrix\.shard \}\}-of-4`/,
+		/test: expected the report upload's `with\.name` to be `front-e2e-playwright-report-\$\{\{ matrix\.shard \}\}-of-4`/,
 	);
 });
 
@@ -1113,7 +1113,69 @@ test('ROUND 5 BLOCKER: the Playwright step missing `set -euo pipefail` is caught
 	assert.equal(findings.length, 1);
 	assert.match(
 		findings[0],
-		/test: expected the Playwright step's `run:` to start with `set -euo pipefail`/,
+		/test: expected the shard step's `run:` to start with `set -euo pipefail`/,
+	);
+});
+
+// ---------------------------------------------------------------------------
+// #1948: the REAL front-ci.yml matrix missing a shard must make the front
+// gate go red. The matrix pin lives in the same checkMatrixJob code path the
+// e2e fixtures above exercise, but the brief demands proof against the real
+// artifact: this test mutates the ACTUAL front-ci.yml (shard 4 removed from
+// the matrix), points the REAL front-ci GATE_WORKFLOWS entry at the mutated
+// file, and asserts the structure guard — which runs as a step INSIDE the
+// outer front-ci-gate job itself — reports the narrowing. The front gate
+// therefore cannot stay green while a shard is absent.
+// ---------------------------------------------------------------------------
+
+test('#1948: the REAL front-ci matrix with one shard missing is a finding (the front gate goes red)', async () => {
+	const realFrontCi = await readFile(
+		path.join(repoRoot, '.github/workflows/front-ci.yml'),
+		'utf8',
+	);
+	const mutated = realFrontCi.replace(
+		'shard: [1, 2, 3, 4]',
+		'shard: [1, 2, 3]',
+	);
+	const rootDir = await mkdtemp(
+		path.join(os.tmpdir(), 'publyapp-front-ci-matrix-'),
+	);
+
+	await mkdir(path.join(rootDir, '.github/workflows'), { recursive: true });
+	await writeFile(
+		path.join(rootDir, '.github/workflows/front-ci.yml'),
+		mutated,
+	);
+	// The front-ci entry pins the trans-render guard's vitest discovery;
+	// give the fixture the config file AND the pinned file so the matrix
+	// finding is isolated (the fixture tree has no real src files).
+	await mkdir(path.join(rootDir, 'apps/front/src/lib/i18n'), {
+		recursive: true,
+	});
+	await writeFile(
+		path.join(rootDir, 'apps/front/vitest.config.ts'),
+		"export default { test: { include: ['src/**/*.test.tsx'] } };\n",
+	);
+	await writeFile(
+		path.join(rootDir, 'apps/front/src/lib/i18n/trans-render.guard.test.tsx'),
+		'// fixture stand-in for the pinned file\n',
+	);
+
+	const frontCiEntry = GATE_WORKFLOWS.find(
+		(workflow) => workflow.file === 'front-ci.yml',
+	);
+	assert.ok(frontCiEntry, 'GATE_WORKFLOWS must contain the front-ci entry');
+
+	const findings = await findCiGateStructureProblems({
+		rootDir,
+		// @ts-expect-error rung-0: add proper type in later rung
+		workflows: [frontCiEntry],
+	});
+
+	assert.equal(findings.length, 1);
+	assert.match(
+		findings[0],
+		/front-ci\.yml::test-vitest: expected `strategy\.matrix\.shard` to be exactly \[1,2,3,4\]/,
 	);
 });
 

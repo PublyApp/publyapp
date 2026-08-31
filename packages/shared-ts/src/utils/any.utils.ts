@@ -57,11 +57,10 @@ export const deepFreeze = <T>(o: T): DeepReadonly<T> => {
 	Object.freeze(o);
 
 	const oIsFunction = typeof o === 'function';
-	const hasOwnProp = Object.prototype.hasOwnProperty;
 
 	forEach(Object.getOwnPropertyNames(o), (prop) => {
 		if (
-			hasOwnProp.call(o, prop) &&
+			Object.prototype.hasOwnProperty.call(o, prop) &&
 			(oIsFunction
 				? prop !== 'caller' && prop !== 'callee' && prop !== 'arguments'
 				: true) &&

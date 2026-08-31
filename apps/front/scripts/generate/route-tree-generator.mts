@@ -125,17 +125,17 @@ const isCli = (): boolean =>
  * @returns absolute path of the written routeTree.gen.ts.
  */
 export const generateRouteTree = async (root?: string): Promise<string> => {
-	const { Generator, getConfig } = await loadRouteTreeGenerator();
+	const generatorModule = await loadRouteTreeGenerator();
 
 	const effectiveRoot =
 		root ?? fileURLToPath(new URL('../..', import.meta.url));
 
-	const config = await getConfig(
+	const config = await generatorModule.getConfig(
 		{ ...GENERATOR_CONFIG_OVERRIDES },
 		effectiveRoot,
 	);
 
-	const generator = new Generator({
+	const generator = new generatorModule.Generator({
 		config,
 		root: effectiveRoot,
 	});

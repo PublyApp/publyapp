@@ -56,6 +56,18 @@ public sealed class SystemJobDefinitionSeederSpec : IClassFixture<ApiFixture> {
 		_fixture = fixture;
 	}
 
+	// Issue #1912: the seeded rows must be ENABLED — this asserts the REAL artifact
+	// (the rows the seed pipeline actually wrote to the database), not an in-memory
+	// model. The per-row `IsEnabled = true` assignments were removed from the seeder
+	// because they were redundant with the entity default; deleting them left every
+	// seeder test green, which is the invisibility the review classified. The entity
+	// default is now the single place that decides, so a flip of that default must
+	// redden HERE, where the base receives it — measured: flipping the default to
+	// false fails this exact assertion on the seeded rows. The same witness exists
+	// for the code-defined restore defaults
+	// (ItShouldPinTheCodeDefinedDefaultsShapeThatProtectionRestoresFrom) and the
+	// re-inserted row
+	// (ItShouldReinsertAMissingKeyWithDefaultsWhileLeavingOperatorEditsUntouched).
 	[Fact]
 	public async Task ItShouldSeedEverySystemJobDefinitionWithAValidCron() {
 		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
@@ -66,7 +78,13 @@ public sealed class SystemJobDefinitionSeederSpec : IClassFixture<ApiFixture> {
 			.ToListAsync();
 
 		rows.Select(r => r.JobKey).Should().BeEquivalentTo(ExpectedKeys);
-		rows.Should().OnlyContain(r => r.IsEnabled, "seeded system jobs are enabled by default");
+		rows.Should().OnlyContain(
+			r => r.IsEnabled,
+			"seeded system jobs are enabled — the entity default (the seeder's single "
+				+ "source of truth for IsEnabled since #1912) must reach the rows the "
+				+ "seed pipeline writes. The mutation that flips the default to false "
+				+ "reddens here on the real DB rows."
+		);
 		rows.Should().OnlyContain(
 			r => CronExpression.IsValidExpression(r.CronExpression),
 			"every seeded cron must be a valid Quartz expression SyncSystemJobsJob can register"

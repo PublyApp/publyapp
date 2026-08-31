@@ -26,7 +26,7 @@ public sealed class DatabaseMigrationHealthCheck : IHealthCheck {
 			throw;
 		} catch (Exception ex) {
 			return HealthCheckResult.Unhealthy(
-				"Database is unreachable or its migration state could not be read.",
+				HealthCheckMessages.DatabaseUnreachable,
 				ex
 			);
 		}

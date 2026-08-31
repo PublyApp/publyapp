@@ -244,6 +244,79 @@ try {
 - Round-1 inventions replaced: `JsonElementRules.MustBeRequiredArrayOfNonEmptyGuids/MustBeLocalDateTime/MustBeRequiredIanaZone` → existing `MustBeRequiredGuidArray`/`MustBeRequiredIsoDateTime`/patch timezone validators + one new `MustBeRequiredTimezone` with tests (Task 1 Step 0); `AuditActions.PublicationScheduled/…` → Task-level addition to the `AuditActions` class in `AuditLog.cs`; `tenant.socialaccounts.publish` → real Posts permission set (`PostPermissionsForTenant`, `PUBLISH`); index name → `ux_job_queue_type_idempotency`; `PostStatusDerivation.Derive` → declared D1 dependency.
 - The seeder-based cadence replaces round 1's planned migration: repo doctrine (`SystemJobDefinitionSeeder.cs` doc comment) forbids seeding `system_job_definitions` via migrations.
 
+## Round-5 follow-up audit (per #1440)
+
+The four #1440 follow-up items were re-verified at the implementation
+start of the D3 lane on `lane/grp-planfollowups` against the current
+code on `develop`. The round-4 corrections list above names each fix;
+the round-5 audit below adds the verification evidence that the proof
+file `.dump/proof-1440.md` recorded.
+
+1. **`TimeZoneInfo.ConvertTimeToUtc` static call (plan-side).** The
+   D3 plan body at lines 115-128 quotes the implementation snippet with
+   the **two-argument static** overload
+   `TimeZoneInfo.ConvertTimeToUtc(scheduledAtLocal.Value, zone)`, with
+   an inline comment naming the #1440 follow-up. The round-4 corrections
+   list above (line 234) records the fix from the (incorrect)
+   instance-method invocation to the static one. The D3 implementation
+   file `apps/api/Modules/Publishing/Services/PublicationService.cs:219`
+   and `:349` both call the static `TimeZoneInfo.TryFindSystemTimeZoneById`
+   (zone-validity guard), and the scheduled-at-UTC is taken from
+   `args.ScheduledAtLocal` directly (`PublicationService.cs:274`, `:368`,
+   `:515`) — the validator's `Z`/offset requirement
+   (`MustBeRequiredIsoDateTime` via `DateUtils.TryParseIsoUtc`,
+   `JsonElementRules.cs:1043-1071` → `DateUtils.cs:13-34`) is what
+   makes the stored value `Kind=Utc` end-to-end, so a separate
+   `ConvertTimeToUtc` call is not needed in the implementation. The
+   plan-side fix (use the static BCL API) is what #1440 asked for, and
+   the plan body carries it.
+2. **D1 reference SHA.** Verified by reading the merged plan
+   Prerequisites paragraph: D1 merged at tip `12938d937`; the
+   `origin/lane/wt-644` citations are tagged as historical. A
+   re-implementer reads `develop`, not the historical branch tip.
+3. **`EditPostScheduleResult.InvalidSchedule` listed.** The result
+   union is defined in `apps/api/Modules/Publishing/Services/PublicationService.cs:148-162`
+   with cases `Success`, `NotFound`, `InProgressConflict`, and
+   `InvalidSchedule(string Cause, string ErrorKey)`. The handler at
+   `apps/api/Modules/Publishing/Handlers/Tenant/EditPostScheduleForTenant.cs:177-188`
+   imports the type and pattern-matches on each variant. The plan's
+   Create list entry for `EditPostScheduleForTenant.cs` at line 59 names
+   the type explicitly as a round-4 addition. (Minor deviation from the
+   brief: the type is defined in the service file rather than the
+   handler file; the union is constructed by the service, which is the
+   natural seam.)
+4. **Kind contract for the validator.** `MustBeRequiredIsoDateTime`
+   (`apps/api/Lib/Validation/JsonElementRules.cs:1043-1071`) delegates
+   to `DateUtils.TryParseIsoUtc` (`apps/api/Lib/Utils/DateUtils.cs:13-34`).
+   The helper parses only ISO strings with a `Z`/offset designator and
+   uses `DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal`,
+   yielding `DateTimeKind.Utc` (not `Unspecified` as the brief framed
+   it). The implementation stores this `Kind=Utc` value directly as
+   `ScheduledAtUtc` (`PublicationService.cs:274`, `:368`, `:515`) and
+   never re-converts it, so the `Kind=Utc` contract the validator
+   enforces is exactly what the implementation path requires — a
+   `Kind=Local` or `Kind=Unspecified` value would survive the validator
+   only if the helper had skipped the designator check, and the
+   path-dependent DST arithmetic the spec relies on would silently
+   drift. The plan body's snippet at lines 115-128 still calls the
+   two-arg static `TimeZoneInfo.ConvertTimeToUtc(local, zone)` to
+   illustrate the BCL behaviour for a future contributor (it returns a
+   `Kind=Utc` input unchanged and throws on `Kind=Local`); the
+   implementation takes the validator's guarantee as the single source
+   of truth. The summer-DST test exists at
+   `apps/api/Modules/Publishing/Handlers/Tenant/SchedulePostForTenant.Spec.cs:65-70`
+   (Paris summer 09:00 = 07:00Z). The winter-DST assertion
+   (Paris winter 09:00 = 08:00Z) lives in
+   `apps/api/Modules/Publishing/Handlers/Tenant/EditPostScheduleForTenant.Spec.cs`
+   under its own `ParisZone` constant (`FutureZone` is the equivalent
+   constant in `SchedulePostForTenant.Spec.cs`); both resolve to
+   `Europe/Paris` and run the same validator pipeline.
+
+No code change is required; the round-4 corrections list above
+already names each fix. This round-5 note exists so the audit trail
+from #1440 is captured at the same standing-rules level as the
+round-2 corrections, not scattered across the body.
+
 ## Unverified until CI
 
 - Regenerated Kiota client compiling against every new query module under `apps/front/src/lib/query/`.

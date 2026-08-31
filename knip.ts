@@ -1,4 +1,41 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+
 import type { KnipConfig } from 'knip';
+
+// --- Dynamic guard extraction from apps/front/package.json ---
+// All guard scripts are invoked via run-guarded.mts (issue #1525 timeout
+// wrapper). knip traces run-guarded.mts as the entry point from package.json
+// but cannot follow the dynamic script-path argument to discover each guard
+// as a separate entry. We extract the guard paths dynamically from
+// package.json so that removing a guard from package.json and forgetting to
+// delete the file makes knip report it as unused — the paired-proof
+// requirement. A static list here would be a silent lie: knip would stay
+// green even after a guard is dropped from the scripts.
+
+const frontPkgPath = join('apps', 'front', 'package.json');
+const frontPkg = JSON.parse(readFileSync(frontPkgPath, 'utf8')) as {
+	scripts?: Record<string, string>;
+};
+
+const guardPaths = new Set<string>();
+// Capture every path argument after `run-guarded.mts` (optionally `--test`),
+// stopping at shell operators (&, |, ;) and at the `--` passthrough marker
+// (after `run-guarded.mts -- <command>` the tokens are a wrapped non-node
+// command line — vitest/playwright — not guard paths; capturing them would
+// add `vitest`, `run`, config files etc. as bogus entries). Some invocations
+// pass multiple files to a single run-guarded.mts call (e.g.
+// test:route-tree-guard), so we must grab them all, not just the first.
+const re = /run-guarded\.mts(?:\s+--test)?((?:\s+[^\s&|;]+)+?)(?=\s+--\s|$)/g;
+for (const script of Object.values(frontPkg.scripts ?? {})) {
+	let m: RegExpExecArray | null;
+	while ((m = re.exec(script)) !== null) {
+		for (const arg of m[1].trim().split(/\s+/)) {
+			guardPaths.add(arg);
+		}
+	}
+}
+const dynamicGuards = [...guardPaths].sort();
 
 const config: KnipConfig = {
 	// Vendored upstream plugin code (dmmulroy/anti-slop @ 6d53855) is outside
@@ -55,6 +92,14 @@ const config: KnipConfig = {
 				// in #1449 (scripts/ -> tools/ move); the public type surface
 				// now flows through the source.
 				'tools/vite/check-context-chunk-isolation.mts',
+				// Compile-time-only typecheck proof for Distribute<T> (#1755):
+				// part of the main tsconfig program (`tsc --noEmit` compiles
+				// it), never imported at runtime by design — its probes are
+				// compile-time assignments, so knip can never trace usage
+				// through an import. Same class as the type-probe targets
+				// above (check-context-chunk-isolation.mts): an entry, not an
+				// ignore, so the file stays in the knip surface.
+				'src/components/table/column-distribute.typecheck.ts',
 				'src/components/ui/drawer-guard-tmp-dir.cjs', // string-keyed require() from drawer-form.test.tsx / the drawer guard, invisible to import analysis
 				// Used via CLI `--config` argument, not imported: replay config
 				// for kept red tests under apps/front/tests/proofs/ (issue #1659).
@@ -73,10 +118,19 @@ const config: KnipConfig = {
 				// fails the step loud, never silently drops out of knip.
 				'tests/proofs/**/*.test.ts',
 				'tests/proofs/**/*.test.tsx',
+				// Dynamic guard entries extracted from apps/front/package.json.
+				// These are the scripts invoked via run-guarded.mts. Removing a
+				// guard from package.json drops it from this list, so knip
+				// reports the file as unused — the paired-proof guarantee.
+				...dynamicGuards,
 			],
 			// System binary invoked via execFileSync by the request-counter sidecar
 			// to mint its throwaway TLS cert; not an npm package.
-			ignoreBinaries: ['openssl'],
+			// `ss` is a system binary invoked via execFileSync by
+			// scripts/e2e-compose-env.mts to name the holder of an occupied port
+			// (`ss -tlnp`, issue #1698); not an npm package. (`docker` resolves
+			// through the repo's existing docker usage and stays covered.)
+			ignoreBinaries: ['openssl', 'ss'],
 			// #1758: server.mjs imports the built server bundle through the
 			// `#server-build` package-imports alias so tsconfig.server.json can
 			// typecheck it without pulling build output into the program. Node

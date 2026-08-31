@@ -11,7 +11,6 @@ import { getClientManager } from '~/lib/api-client/client-manager';
 import { useResolvedWorkspaceTenantId } from '~/lib/query/tenants-for-picker';
 
 const WILDCARD_SENTINEL = '*';
-const SOCIAL_VIEW_PERMISSION = 'tenant.socialaccounts.view';
 
 /** Wire shape of GET /auth/user-auth-data (only what the gates read). */
 type TenantPermissionKeysResult = {
@@ -92,5 +91,8 @@ export const useHasTenantPermission = (key: string): boolean => {
 export const useCanManageSocialAccounts = (): boolean =>
 	useHasTenantPermission('tenant.socialaccounts.manage');
 
-export const useCanViewIntegrations = (): boolean =>
-	useHasTenantPermission(SOCIAL_VIEW_PERMISSION);
+// Deleted: useCanViewIntegrations was exported but never consumed. The Integrations
+// screen gate is `useCanManageSocialAccounts` — a view-only holder must not see
+// action affordances, and the route itself is independently protected server-side.
+// Wire it on the rail entry's `requiredPermissions` only if a secondary-panel
+// entry or rail visibility filter for Integrations is added.

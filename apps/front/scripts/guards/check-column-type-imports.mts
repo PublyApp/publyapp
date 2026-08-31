@@ -50,6 +50,15 @@
  *     import assignment — flagged because the specifier is the root module,
  *     which gives access to all banned types).
  *
+ * KNOWN BLIND SPOT. The guard inspects the module specifier AS WRITTEN; it
+ * does not perform module resolution. A tsconfig `paths` alias mapping a
+ * local specifier (e.g. a `~/*` key) directly to `@tanstack/react-table`
+ * would hide the banned module behind an innocent-looking import and this
+ * guard could not see it. No such alias exists today
+ * (`apps/front/tsconfig.json` maps only `~/*` → `./src/*`), but if one ever
+ * lands, this guard would silently stop attending the real artifact — the
+ * alias would have to be resolved before the AST walk is trustworthy again.
+ *
  * Only imports whose module specifier is exactly `@tanstack/react-table` or
  * `@tanstack/react-table/legacy` are inspected. Imports of
  * `@tanstack/react-table/legacy` are ALWAYS flagged (the passthrough is the
@@ -579,8 +588,12 @@ export const walk = (dir: string): WalkResult => {
 		const st = statSync(full);
 		if (st.isDirectory()) {
 			const sub = walk(full);
-			sub.files.forEach((f) => files.push(f));
-			sub.extensions.forEach((e) => extensions.add(e));
+			for (const f of sub.files) {
+				files.push(f);
+			}
+			for (const e of sub.extensions) {
+				extensions.add(e);
+			}
 		} else {
 			const ext = path.extname(entry).toLowerCase();
 			if (ext.length > 0) {
@@ -727,6 +740,59 @@ export const assertScanSurface = (
 				`legitimate (files were removed), lower the floor in ` +
 				`column-type-imports-baseline.json — never raise it to mask a ` +
 				`regression.`,
+		);
+	}
+};
+
+/**
+ * R10 (round 2 #1943 / verdict-r1): asserts that every pinned floor EQUALS
+ * the live count of the same extension in the tree being scanned.
+ *
+ * The floor check alone (`assertScanSurface`) reads the floors FROM the
+ * baseline, so a commit that LOWERS a floor in the baseline and DELETES the
+ * matching files in the same commit stays green — and so does a commit that
+ * lowers floors while the tree is untouched (the reviewer's probe: 65 tests
+ * green with `.ts: 100, .tsx: 160` against a 298/498 tree). "Raise-only" was
+ * prose in the baseline `$comment`, not enforcement.
+ *
+ * This helper is the enforcement, and the live walk IS the independent
+ * snapshot: the floor for an extension must equal what the real tree holds
+ * at the reviewed commit. Consequences:
+ *   - lowering a floor while the tree still holds the files → fails, naming
+ *     extension, floor and live count;
+ *   - raising a floor above the live tree → fails the same way;
+ *   - deleting files in the same commit that lowers the floor to match → the
+ *     accompanied, diff-visible workflow the baseline documents;
+ *   - a scanned extension present in the tree but absent from the baseline →
+ *     fails (a file count with no pinned floor is a silent un-pin).
+ */
+export const assertFloorsPinned = (
+	liveCounts: Record<string, number>,
+	baseline: ScanBaseline,
+): void => {
+	const diverged: string[] = [];
+	for (const [ext, floor] of Object.entries(baseline.perExtension)) {
+		const live = liveCounts[ext] ?? 0;
+		if (live !== floor) {
+			diverged.push(`${ext}: floor ${floor}, live tree ${live}`);
+		}
+	}
+	for (const [ext, live] of Object.entries(liveCounts)) {
+		if (!(ext in baseline.perExtension)) {
+			diverged.push(`${ext}: no pinned floor, live tree ${live}`);
+		}
+	}
+	if (diverged.length > 0) {
+		throw new Error(
+			`Guard #1769: floor values are not anchored to the live tree —\n  ` +
+				diverged.sort().join('\n  ') +
+				`\nEvery floor must equal the live count at the reviewed commit: ` +
+				`a floor is raised in the same commit that adds files and lowered ` +
+				`in the same commit that removes them. A lowered floor against a ` +
+				`full tree silently un-pins the analyzed surface; a raised floor ` +
+				`above the tree cannot even be met. Edit ` +
+				`column-type-imports-baseline.json so the floors match the tree — ` +
+				`the diff then shows exactly which counts moved.`,
 		);
 	}
 };
@@ -973,6 +1039,11 @@ export const scanFrontSrcForBannedImports = (
 			);
 		}
 		assertScanSurface(perExtensionCounts, baselinePath);
+		// R10: the floors are not just a floor — they are pinned to the live
+		// counts. Any divergence (lowered floor against a full tree, raised
+		// floor above the tree, scanned extension with no pinned floor)
+		// fails loudly. See assertFloorsPinned.
+		assertFloorsPinned(perExtensionCounts, baseline);
 		assertScannedExtensionsPinned(SCANNED_EXTENSIONS, baseline);
 		assertNonCodeExtensionsPinned(NON_CODE_EXTENSIONS, baseline);
 		assertExemptionsPinned(EXEMPT_FILES, baseline);
