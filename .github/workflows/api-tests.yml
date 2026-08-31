@@ -173,15 +173,25 @@ jobs:
       #    the shard exits green with no work done. `FullyQualifiedName~X`
       #    is xUnit's substring match on the method's FQN — every method
       #    in class X has an FQN starting with X, so the predicate matches
-      #    exactly X's tests. The `~` operator is not `=`, which also
-      #    dodges MSBuild's `--filter X=Y`-as-property-assignment parse.
-      # 2. The CI step parses the test summary line and ASSERTS that
+      #    exactly X's tests.
+      # 2. ROUND 5 FIX (#1984): the predicate is written to a `.runsettings`
+      #    file and passed via `--settings`, NOT via `--filter "$FILTER"`.
+      #    An earlier attempt passed the predicate on the command line with
+      #    embedded double quotes (`FullyQualifiedName~"FQN"`). MSBuild
+      #    parses `--filter` tokens split on `=`, and an embedded `"` lets
+      #    it misread a `~` predicate fragment as a property name, producing
+      #    `MSB4177: Invalid property. The name "FQN|..." contains an invalid
+      #    character "."`. Writing the predicate to a runsettings file and
+      #    using `--settings` sidesteps shell quoting entirely: the predicate
+      #    reaches the driver verbatim, with no `"` characters at all
+      #    (the sharder now emits the quote-free form `FullyQualifiedName~FQN`).
+      # 3. The CI step parses the test summary line and ASSERTS that
       #    tests actually ran. An exit code of 0 from `dotnet test` does
       #    NOT prove tests ran — `dotnet test --filter ...` exits 0 with
       #    no test executions when the predicate matches nothing (and
       #    used to leave the matrix step green). The grep below catches
       #    that and fails the step, naming the shard.
-      # 3. The shard writes a `shard-summary.json` artifact carrying
+      # 4. The shard writes a `shard-summary.json` artifact carrying
       #    `executed` (parsed from the summary line) and `partitionTotal`
       #    (from the partition manifest). The `gate` job downloads all
       #    four artifacts and asserts sum(executed) == partitionTotal —
@@ -196,10 +206,13 @@ jobs:
           cd apps/api
           dotnet restore Tests/PublyApp.Api.Tests.csproj
 
-          # Discover all tests, partition, and run this shard's classes.
-          # Capture both the predicate and the partition manifest: the
-          # predicate runs `dotnet test`, the manifest carries the
-          # total-discovered figure for the gate's sum-vs-total check.
+          # Discover all tests, partition, and capture both the predicate
+          # and the partition manifest. The predicate is written to a
+          # `.runsettings` file (runsettings-${{ matrix.shard }}.runsettings)
+          # and passed to `dotnet test` via `--settings`, which avoids all
+          # shell-quoting and MSBuild `=`-parse ambiguity. The manifest
+          # carries the total-discovered figure for the gate's sum-vs-total
+          # check.
           FILTER=$(dotnet test Tests/PublyApp.Api.Tests.csproj -c Test --no-restore --nologo --list-tests 2>/dev/null \
             | node "${{ github.workspace }}/packages/scripts-ts/src/shard-api-tests-cli.ts" ${{ matrix.shard }})
 
@@ -210,15 +223,31 @@ jobs:
 
           echo "Shard ${{ matrix.shard }} filter: $FILTER"
 
-          # Run with the predicate interpolated. Double quotes are safe
-          # here: the predicate uses `~` (FullyQualifiedName~"FQN"|...),
-          # not `=`, so MSBuild does not interpret any token as a
-          # property assignment. Single quotes would skip interpolation
-          # (round 1's regression — `dotnet test --filter '$FILTER'`
-          # passed the literal `$FILTER` and matched zero tests).
+          # Write the predicate to a runsettings file. The `<TestCaseFilter>`
+          # element is the documented `dotnet test` channel for a test-case
+          # filter — it is read verbatim, with no shell quoting, no MSBuild
+          # `=`-parse, and no embedded `"` characters (the sharder emits the
+          # quote-free form `FullyQualifiedName~FQN1|FullyQualifiedName~FQN2|...`).
+          # This is the round-5 fix for the MSB4177 quoting bug that broke
+          # all four shards in rounds 1-4 of #1984.
+          cat > "runsettings-${{ matrix.shard }}.runsettings" <<EOF
+<RunSettings>
+  <RunConfiguration>
+    <TestCaseFilter>${FILTER}</TestCaseFilter>
+  </RunConfiguration>
+</RunSettings>
+EOF
+
+          echo "Wrote runsettings file:"
+          cat "runsettings-${{ matrix.shard }}.runsettings"
+
+          # Run with the predicate from the runsettings file via --settings.
+          # This is the round-5 fix: no `--filter "$FILTER"` on the command
+          # line, so no embedded double quotes reach MSBuild's argument parser.
           dotnet test Tests/PublyApp.Api.Tests.csproj -c Test --no-restore --nologo \
+            --settings "runsettings-${{ matrix.shard }}.runsettings" \
             --verbosity normal --logger "console;verbosity=normal" \
-            --filter "$FILTER" 2>&1 | tee shard-${{ matrix.shard }}-run.log
+            2>&1 | tee shard-${{ matrix.shard }}-run.log
 
           # ASSERTS that real tests ran (round 2 fix #2). A clean exit
           # from `dotnet test` does not prove work was done; the
