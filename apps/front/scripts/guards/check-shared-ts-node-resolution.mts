@@ -73,7 +73,40 @@ const sharedTsSrc = path.resolve(
 	'../../../../packages/shared-ts/src',
 );
 
-const RETRY_FN_RELATIVE = path.join('utils', 'retry-fn.ts');
+/**
+ * Real artifacts the guard loads through `node --experimental-strip-types` to
+ * close the #1868 class, not just the #1868 instance (#1882). Each entry is
+ * `{ relativePath, expectedExport }` — the relative path inside the shared-ts
+ * source root, and a name the loaded module MUST export (so a successful
+ * import + a missing export is still caught). A regression that drops the
+ * `.ts` suffix on a relative import inside any of these files makes the
+ * corresponding child fail with `ERR_MODULE_NOT_FOUND` and the guard goes
+ * RED with the same diagnostic as the retry-fn case.
+ *
+ * The list is hand-curated from a real `node --experimental-strip-types`
+ * probe: only files whose load graph is clean TODAY. Adding a file here is
+ * a STATEMENT that its import chain is currently clean; the next regression
+ * on that file will be caught.
+ */
+export const DEFAULT_TARGETS: ReadonlyArray<{
+	readonly relativePath: string;
+	readonly expectedExport: string;
+}> = [
+	{ relativePath: path.join('utils', 'retry-fn.ts'), expectedExport: 'retry' },
+	{ relativePath: path.join('utils', 'any.utils.ts'), expectedExport: 'delay' },
+	{
+		relativePath: path.join('utils', 'env.utils.ts'),
+		expectedExport: 'checkIsServer',
+	},
+	{
+		relativePath: path.join('utils', 'error.utils.ts'),
+		expectedExport: 'getErrorMessage',
+	},
+	{
+		relativePath: path.join('utils', 'validation.utils.ts'),
+		expectedExport: 'getListParamsSchema',
+	},
+];
 
 const CHILD_PREFIX = 'check-shared-ts-node-resolution: ';
 const ERR_MODULE_NOT_FOUND = 'ERR_MODULE_NOT_FOUND';
@@ -91,14 +124,37 @@ export type NodeLoadFailure =
 	| { kind: 'unclassified' };
 
 /**
- * Spawns a real `node --experimental-strip-types` process and imports
- * `retry-fn.ts` (the artifact fixed by #1868) by absolute file URL, so Node's
- * ESM loader resolves every relative specifier inside the real file. The child
- * exits non-zero when the import fails (ERR_MODULE_NOT_FOUND) or when `retry`
- * is not exported. The env var only carries the absolute target URL — quoting
- * a path inside `-e` would be fragile on Windows-style paths.
+ * #1882 test instrumentation. A monotonically increasing counter the paired
+ * proof reads after a guard run to assert the iteration walked every
+ * `DEFAULT_TARGETS` entry. Exported (not just module-private) so the test
+ * can import it; the `__testOnly` prefix signals it is not part of the
+ * guard's public contract. The reset function is also exported so the test
+ * can start from a known baseline.
  */
-export const resolveRetryFnViaNode = (retryFnUrl: string) => {
+let __testOnly_resolveCallCount = 0;
+export const __testOnly_incrementResolveCallCount = (): void => {
+	__testOnly_resolveCallCount += 1;
+};
+export const __testOnly_resetResolveCallCount = (): void => {
+	__testOnly_resolveCallCount = 0;
+};
+export const __testOnly_getResolveCallCount = (): number =>
+	__testOnly_resolveCallCount;
+
+/**
+ * Spawns a real `node --experimental-strip-types` process and imports a real
+ * shared-ts source file by absolute file URL, so Node's ESM loader resolves
+ * every relative specifier inside the real file (#1868, #1882). The child
+ * exits non-zero when the import fails (ERR_MODULE_NOT_FOUND) or when
+ * `expectedExport` is not a function. The env var only carries the absolute
+ * target URL + the expected export name — quoting paths inside `-e` would be
+ * fragile on Windows-style paths.
+ */
+export const resolveModuleViaNode = (
+	moduleUrl: string,
+	expectedExport: string,
+): { status: number; stderr: string } => {
+	__testOnly_incrementResolveCallCount();
 	const result = spawnSync(
 		process.execPath,
 		[
@@ -106,13 +162,14 @@ export const resolveRetryFnViaNode = (retryFnUrl: string) => {
 			'--input-type=module',
 			'-e',
 			`
-import(process.env.PUBLY_CHECK_SHARED_TS_RETRY_FN_URL)
+import(process.env.PUBLY_CHECK_SHARED_TS_MODULE_URL)
   .then((mod) => {
-    if (typeof mod.retry !== 'function') {
-      console.error('check-shared-ts-node-resolution: retry is not exported by retry-fn.ts');
+    const name = process.env.PUBLY_CHECK_SHARED_TS_EXPECTED_EXPORT;
+    if (typeof mod[name] !== 'function') {
+      console.error('check-shared-ts-node-resolution: ' + name + ' is not exported by ' + process.env.PUBLY_CHECK_SHARED_TS_MODULE_URL);
       process.exit(1);
     }
-    console.log('check-shared-ts-node-resolution: retry-fn.ts resolved under node --experimental-strip-types [OK]');
+    console.log('check-shared-ts-node-resolution: ' + process.env.PUBLY_CHECK_SHARED_TS_MODULE_URL + ' resolved under node --experimental-strip-types [OK]');
   })
   .catch((err) => {
     const code = err && err.code ? String(err.code) : 'UNKNOWN';
@@ -125,12 +182,22 @@ import(process.env.PUBLY_CHECK_SHARED_TS_RETRY_FN_URL)
 			encoding: 'utf8',
 			env: {
 				...process.env,
-				PUBLY_CHECK_SHARED_TS_RETRY_FN_URL: retryFnUrl,
+				PUBLY_CHECK_SHARED_TS_MODULE_URL: moduleUrl,
+				PUBLY_CHECK_SHARED_TS_EXPECTED_EXPORT: expectedExport,
 			},
 		},
 	);
 	return { status: result.status ?? 1, stderr: result.stderr ?? '' };
 };
+
+/**
+ * Back-compat wrapper for the #1868 single-target API. Loads retry-fn.ts
+ * through `resolveModuleViaNode` so the existing tests (and any external
+ * caller) keep working without modification. New code should use
+ * `resolveModuleViaNode` directly with a target from `DEFAULT_TARGETS`.
+ */
+export const resolveRetryFnViaNode = (retryFnUrl: string) =>
+	resolveModuleViaNode(retryFnUrl, 'retry');
 
 /**
  * Extracts `<target> imported from <importer>` from a `Cannot find module`
@@ -246,57 +313,82 @@ export const classifyLoadFailure = (stderr: string): NodeLoadFailure => {
 
 /**
  * Runs the guard against a shared-ts source root (the real tree by default,
- * an override for the paired RED/GREEN proof in the test file). Exits non-zero
- * when the artifact cannot be resolved by real Node ESM.
+ * an override for the paired RED/GREEN proof in the test file). Iterates
+ * over every entry in `targets` (default: `DEFAULT_TARGETS`, one per real
+ * artifact) so a regression on any of them is caught — closing the #1868
+ * class, not just the #1868 instance (#1882). Exits non-zero on the first
+ * target that fails to resolve under real Node ESM, with the diagnostic for
+ * the failure classified per #1885.
  */
-export const main = (roots?: { sharedTsSrc?: string }): void => {
+export const main = (
+	roots?: {
+		sharedTsSrc?: string;
+		targets?: ReadonlyArray<{
+			readonly relativePath: string;
+			readonly expectedExport: string;
+		}>;
+	},
+): void => {
 	const root = path.resolve(roots?.sharedTsSrc ?? sharedTsSrc);
-	const retryFnPath = path.join(root, RETRY_FN_RELATIVE);
-	if (!existsSync(retryFnPath)) {
+	const targets = roots?.targets ?? DEFAULT_TARGETS;
+	if (targets.length === 0) {
 		console.error(
-			`check-shared-ts-node-resolution: ${retryFnPath} does not exist — ` +
-				'cannot exercise Node ESM resolution on the real artifact.',
+			'check-shared-ts-node-resolution: no targets configured — refusing to run a no-op guard.',
 		);
 		process.exit(1);
 	}
-	const { status, stderr } = resolveRetryFnViaNode(
-		pathToFileURL(retryFnPath).href,
-	);
-	if (status !== 0) {
-		const failure = classifyLoadFailure(stderr);
-		switch (failure.kind) {
-			case 'dependency-missing':
-				console.error(
-					`check-shared-ts-node-resolution: ENVIRONMENT — package '${failure.packageName}' is not installed, so shared-ts does not load under node --experimental-strip-types. Install the workspace dependencies (pnpm install) and re-run. This is NOT the #1868 import-extension defect: the source is not at fault.`,
-				);
-				break;
-			case 'extensionless-relative':
-				console.error(
-					'check-shared-ts-node-resolution: FAILED — shared-ts source does not ' +
-						'load under node --experimental-strip-types. Every relative import ' +
-						'inside packages/shared-ts must carry the real file extension (#1868).',
-				);
-				break;
-			case 'missing-relative-module':
-				console.error(
-					`check-shared-ts-node-resolution: FAILED — a relative import inside shared-ts does not resolve: ${failure.targetPath} does not exist (imported from ${failure.importer}). Not the #1868 extension defect: restore the missing file or fix the specifier.`,
-				);
-				break;
-			case 'directory-import':
-				console.error(
-					`check-shared-ts-node-resolution: FAILED — a relative import inside shared-ts points at a directory, and a directory is not a valid entry point under Node ESM: ${failure.targetPath} (imported from ${failure.importer}). Point the import at the file explicitly (#1894), e.g. import from '${failure.targetPath.replace(/\\/g, '/')}/index.ts'.`,
-				);
-				break;
-			case 'unclassified':
-				console.error(
-					'check-shared-ts-node-resolution: FAILED — shared-ts source does not load under node --experimental-strip-types, and this failure cannot be classified: it is not claimed as the #1868 import-extension defect. The raw reporter follows:',
-				);
-				break;
+	for (const target of targets) {
+		const targetPath = path.join(root, target.relativePath);
+		if (!existsSync(targetPath)) {
+			console.error(
+				`check-shared-ts-node-resolution: ${targetPath} does not exist — ` +
+					'cannot exercise Node ESM resolution on the real artifact.',
+			);
+			process.exit(1);
 		}
-		if (stderr.trim() !== '') {
-			console.error(stderr.trimEnd());
+		const { status, stderr } = resolveModuleViaNode(
+			pathToFileURL(targetPath).href,
+			target.expectedExport,
+		);
+		if (status !== 0) {
+			const failure = classifyLoadFailure(stderr);
+			console.error(
+				`check-shared-ts-node-resolution: target '${target.relativePath}' did not load under node --experimental-strip-types.`,
+			);
+			switch (failure.kind) {
+				case 'dependency-missing':
+					console.error(
+						`check-shared-ts-node-resolution: ENVIRONMENT — package '${failure.packageName}' is not installed, so shared-ts does not load under node --experimental-strip-types. Install the workspace dependencies (pnpm install) and re-run. This is NOT the #1868 import-extension defect: the source is not at fault.`,
+					);
+					break;
+				case 'extensionless-relative':
+					console.error(
+						'check-shared-ts-node-resolution: FAILED — shared-ts source does not ' +
+							'load under node --experimental-strip-types. Every relative import ' +
+							'inside packages/shared-ts must carry the real file extension (#1868).',
+					);
+					break;
+				case 'missing-relative-module':
+					console.error(
+						`check-shared-ts-node-resolution: FAILED — a relative import inside shared-ts does not resolve: ${failure.targetPath} does not exist (imported from ${failure.importer}). Not the #1868 extension defect: restore the missing file or fix the specifier.`,
+					);
+					break;
+				case 'directory-import':
+					console.error(
+						`check-shared-ts-node-resolution: FAILED — a relative import inside shared-ts points at a directory, and a directory is not a valid entry point under Node ESM: ${failure.targetPath} (imported from ${failure.importer}). Point the import at the file explicitly (#1894), e.g. import from '${failure.targetPath.replace(/\\/g, '/')}/index.ts'.`,
+					);
+					break;
+				case 'unclassified':
+					console.error(
+						'check-shared-ts-node-resolution: FAILED — shared-ts source does not load under node --experimental-strip-types, and this failure cannot be classified: it is not claimed as the #1868 import-extension defect. The raw reporter follows:',
+					);
+					break;
+			}
+			if (stderr.trim() !== '') {
+				console.error(stderr.trimEnd());
+			}
+			process.exit(1);
 		}
-		process.exit(1);
 	}
 };
 

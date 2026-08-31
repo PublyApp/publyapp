@@ -53,6 +53,11 @@ import { fileURLToPath } from 'node:url';
 
 import {
 	classifyLoadFailure,
+	DEFAULT_TARGETS,
+	main,
+	__testOnly_getResolveCallCount,
+	__testOnly_resetResolveCallCount,
+	resolveModuleViaNode,
 	resolveRetryFnViaNode,
 } from './check-shared-ts-node-resolution.mts';
 
@@ -126,9 +131,16 @@ const makeImportTargetADirectory = (root: string): void => {
 
 /**
  * Runs the guard as CI runs it — a real `node --experimental-strip-types`
- * process — against the given shared-ts root.
+ * process — against the given shared-ts root. The default target set is
+ * `DEFAULT_TARGETS` (one per real artifact the guard must keep loadable);
+ * pass a custom `targets` to scope the run to a single file (used by the
+ * #1882 paired proof so a regression on try-catch is observed without the
+ * other targets pre-empting the failure).
  */
-const runGuard = (root: string) => {
+const runGuard = (
+	root: string,
+	targets: ReadonlyArray<{ readonly relativePath: string; readonly expectedExport: string }> = DEFAULT_TARGETS,
+) => {
 	const result = spawnSync(
 		'node',
 		[
@@ -136,7 +148,8 @@ const runGuard = (root: string) => {
 			'-e',
 			`
 import { main } from '${path.resolve(here, './check-shared-ts-node-resolution.mts').replace(/\\/g, '/')}';
-main({ sharedTsSrc: '${root.replace(/\\/g, '/')}' });
+const targets = ${JSON.stringify(targets)};
+main({ sharedTsSrc: '${root.replace(/\\/g, '/')}', targets });
 `,
 		],
 		{ encoding: 'utf8' },
@@ -468,5 +481,166 @@ void test('RED (#1894): an unknown Node error code stays unclassified + raw repo
 	assert.ok(
 		!result.stderr.includes('a directory is not a valid entry point'),
 		`stderr must not substitute the #1894 directory-import label for an unknown code, got: ${result.stderr}`,
+	);
+});
+
+// ---- #1882 paired proof: the class, not just the instance ----------------
+// The #1868 guard originally iterated over exactly one target
+// (`retry-fn.ts`). A regression on a DIFFERENT file shipping the same
+// extensionless-relative shape — e.g. `error.utils.ts` re-introducing
+// `./any.utils` — would sail through silently. These tests pin the class:
+// dropping the suffix on a sibling import inside error.utils (RED) is caught
+// the same way the original retry-fn regression is, and the restored suffix
+// (GREEN) is accepted. A third test passes a single-element targets list so
+// a future regression on error.utils is observed directly, without the other
+// DEFAULT_TARGETS targets pre-empting the failure.
+//
+// Why `error.utils.ts` and not `try-catch.ts`? The brief named try-catch.ts
+// as the example, but its real load graph already contains an unrelated
+// #1868 defect inside `lib/logger/iso-logger.ts` (which imports
+// `'../constants'` without the `.ts` suffix). That latent defect makes
+// try-catch.ts unloadable under `node --experimental-strip-types` even when
+// try-catch.ts itself is clean — so the GREEN arm of the paired proof
+// would fail today, not because the proof is wrong but because the source
+// already violates the #1868 rule. error.utils.ts has a clean load graph
+// (its only extensionless import is an `import type`, which TypeScript
+// erases before Node sees the file), so the proof runs there. The latent
+// iso-logger defect is reported separately in the rapport — it is an
+// instance of the same class the guard now closes, and #1882's extended
+// guard is the tool that surfaces it.
+
+const errorUtilsPath = (root: string): string =>
+	path.join(root, 'utils', 'error.utils.ts');
+
+/**
+ * Rewrites the single sibling-import line of error.utils.ts inside a sandbox
+ * copy to the given specifier. Mirrors `rewriteRetryFnImport` but on the
+ * error.utils artifact: the real source ships
+ * `import { getErrorMessage } from './any.utils.ts';` — wait, that line
+ * does not exist in error.utils.ts today. error.utils.ts only imports
+ * `'../lib/i18n/resources'` (an `import type`, erased before Node sees the
+ * file). For the paired proof we INJECT a sibling-style import of
+ * `./any.utils` (any function from any.utils — the import shape is what
+ * matters, not whether the function is actually called) so the test can
+ * regress the suffix and observe the guard catching it. Every other byte
+ * of error.utils.ts is the real source.
+ */
+const injectErrorUtilsSiblingImport = (
+	root: string,
+	specifier: string,
+): void => {
+	const file = errorUtilsPath(root);
+	const source = readFileSync(file, 'utf8');
+	const importLine = `import { delay as anyUtilsDelay } from '${specifier}';\n`;
+	// Insert after the first existing import line so the injected line
+	// participates in Node's real resolution order.
+	const rewritten = source.replace(
+		/^(import [^\n]+\n)/m,
+		`$1${importLine}`,
+	);
+	assert.notEqual(
+		rewritten,
+		source,
+		'expected the error.utils first import line to be augmented with a sibling import',
+	);
+	writeFileSync(file, rewritten);
+};
+
+const ERROR_UTILS_TARGET = [
+	{
+		relativePath: path.join('utils', 'error.utils.ts'),
+		expectedExport: 'getErrorMessage',
+	},
+] as const;
+
+void test('RED (#1882): error.utils.ts importing a sibling extensionless fails the guard with the same diagnostic as the retry-fn case', () => {
+	const root = makeSandbox();
+	injectErrorUtilsSiblingImport(root, './any.utils');
+
+	const result = runGuard(root, ERROR_UTILS_TARGET);
+
+	assert.notEqual(
+		result.status,
+		0,
+		`extensionless sibling import in error.utils must FAIL the guard, got exit code ${result.status}. stderr: ${result.stderr}`,
+	);
+	assert.ok(
+		result.stderr.includes('must carry the real file extension (#1868)'),
+		`stderr must name the #1868 extension defect so the class — not just the retry-fn instance — is reported, got: ${result.stderr}`,
+	);
+	assert.ok(
+		result.stderr.includes("'utils/error.utils.ts'"),
+		`stderr must name the failing target, got: ${result.stderr}`,
+	);
+	assert.ok(
+		result.stderr.includes('utils/any.utils'),
+		`stderr must name the failing module, got: ${result.stderr}`,
+	);
+});
+
+void test('GREEN (#1882): error.utils.ts importing a sibling with the .ts suffix passes the guard', () => {
+	const root = makeSandbox();
+	injectErrorUtilsSiblingImport(root, './any.utils.ts');
+
+	const result = runGuard(root, ERROR_UTILS_TARGET);
+
+	assert.equal(
+		result.status,
+		0,
+		`.ts-suffixed error.utils import must resolve under real Node ESM, got exit code ${result.status}. stderr: ${result.stderr}`,
+	);
+});
+
+// ---- #1882 anti-mutation: the iteration actually walks the class ---------
+// The guard's invariant is that EVERY entry in DEFAULT_TARGETS is exercised.
+// A future change that drops a target (e.g. "retry-fn is enough") would
+// close the class back open without anyone noticing: a single-target guard
+// is the exact pre-#1882 shape. This test fails if `resolveModuleViaNode`
+// is called fewer times than `DEFAULT_TARGETS.length` against the real
+// shared-ts tree, pinning the iteration.
+
+void test('#1882 invariant: the guard iterates over every DEFAULT_TARGETS entry against the real shared-ts tree', () => {
+	// The guard's invariant is that EVERY entry in DEFAULT_TARGETS is
+	// exercised (#1882). A future change that drops a target (e.g. "retry-fn
+	// is enough") would close the class back open without anyone noticing:
+	// a single-target guard is the exact pre-#1882 shape, and a regression
+	// on any non-retry-fn artifact would sail through.
+	//
+	// We pin the iteration by importing the test-instrumentation counter
+	// the guard increments inside `resolveModuleViaNode`. Running the guard
+	// via the same `spawnSync` helper the test already uses, the counter
+	// accumulates once per call to `resolveModuleViaNode` inside the child
+	// process. But the child is a fresh `node` process — the parent's
+	// counter is the only one we can read directly. So we run the guard
+	// IN-PROCESS: importing `main` directly (no spawn) executes the loop
+	// in this very test process, where the counter is observable.
+	//
+	// Catches the mutation: `for (const target of targets.slice(0, 1))` — the
+	// loop only walks the first target, the rest of DEFAULT_TARGETS is
+	// silently ignored, and a regression on any other entry sails through.
+	__testOnly_resetResolveCallCount();
+	const baseline = __testOnly_getResolveCallCount();
+	assert.equal(
+		baseline,
+		0,
+		'counter must start at 0 after a reset (test isolation)',
+	);
+
+	// Run the guard IN-PROCESS against a sandbox copy of the real tree.
+	const sandbox = makeSandbox();
+	main({ sharedTsSrc: sandbox });
+
+	const observed = __testOnly_getResolveCallCount();
+	assert.equal(
+		observed,
+		DEFAULT_TARGETS.length,
+		`the guard must call resolveModuleViaNode exactly DEFAULT_TARGETS.length times (${DEFAULT_TARGETS.length}); observed ${observed}. A smaller count means the iteration was truncated — the pre-#1882 single-target shape is back.`,
+	);
+	// Pin the constant the test pins: a future PR shrinking the list must
+	// update this assertion, surfacing the class-shrinking decision.
+	assert.equal(
+		DEFAULT_TARGETS.length,
+		5,
+		`DEFAULT_TARGETS must cover at least 5 artifacts to close the class, got ${DEFAULT_TARGETS.length}`,
 	);
 });
