@@ -28,12 +28,12 @@
  *
  * Round 2 fixes the predicate to
  *
- *     FullyQualifiedName~"FQN1"|FullyQualifiedName~"FQN2"|...
+ *     FullyQualifiedName~FQN1|FullyQualifiedName~FQN2|...
  *
- * (xUnit's substring-on-FQN operator), double-quotes the workflow's
- * `--filter` arg, hardens the parser, and adds explicit "tests actually
- * ran" assertions in the workflow and a gate-level
- * `sum(executed) == partitionTotal` check. The proofs in this file
+ * (xUnit's substring-on-FQN operator), writes the predicate to a
+ * `.runsettings` file passed via `--settings` (round-5 fix), hardens the
+ * parser, and adds explicit "tests actually ran" assertions in the
+ * workflow and a gate-level `sum(executed) == partitionTotal` check. The proofs in this file
  * assert that the round-1 SHAPE would have produced the regression;
  * against the fixed code the round-1 shape is gone, so the proof goes
  * red — that is the proof doing its job.
@@ -258,7 +258,7 @@ describe('CI api-tests shard predicate (#1984) — kept red proof: round-1 shape
 		// dupes. Some shards may be empty (the hash distribution does
 		// not guarantee 100% coverage for a 6-class suite across 4
 		// shards; the round-2 CLI handles empty shards with the
-		// `FullyQualifiedName~"\u0000never-matches"` predicate, which
+		// `FullyQualifiedName~\u0000never-matches` predicate, which
 		// the workflow's `if [ -z "$TOTAL" ] || [ "$TOTAL" -eq 0 ]`
 		// assertion accepts only on shards that truly have no classes —
 		// and the gate's `sum(executed) == partitionTotal` check
