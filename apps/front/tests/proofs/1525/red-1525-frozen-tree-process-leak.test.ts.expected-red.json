@@ -10,6 +10,5 @@
 			"testName": "prints the guard path and timeout duration on timeout",
 			"why": "On correct code, the wrapper prints 'GUARD TIMEOUT: <path> did not finish within 3s'. The assertion `expect(result.stderr).toContain(guardPath)` fails because the error message format was stripped (replaced with bare `console.error` or removed). If this test passes, the clear error message was restored — the #1525 requirement is met."
 		}
-	],
-	"measuredAgainst": "7facf2df70e8a89682a61ce873334d687c2a0637"
+	]
 }

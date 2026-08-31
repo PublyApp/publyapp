@@ -975,6 +975,16 @@
 			"hash": "b6cda534fa95e476",
 			"mirror": "just ci-front",
 			"reason": "#1948: the shard matrix must partition the suite exactly once. just ci-front runs the identical `pnpm --filter front test:vitest-shard-coverage`, which reads the REAL `vitest list --shard=i/n` discovery of every shard and of the unsharded suite and fails if any file is lost, duplicated, or invented by the matrix."
+		},
+		"require-linked-issue.yml::pr-body-exhaustiveness::Checkout": {
+			"hash": "11ee605b2ca0dfd4",
+			"mirror": null,
+			"reason": "GitHub-only: clones the repo onto the runner so the #1569 body guard script exists. Locally the working tree already is the code under test."
+		},
+		"require-linked-issue.yml::pr-body-exhaustiveness::Verify the PR body makes no unverifiable exhaustiveness claims (#1569)": {
+			"hash": "7b6357ce345532b1",
+			"mirror": null,
+			"reason": "GitHub-only: reads the LIVE PR body via the GitHub API (gh api repos/$GH_REPO/pulls/$PR_NUMBER --jq '.body // \"\"') \u2014 never a fixture, never an author-supplied echo \u2014 and runs packages/scripts-ts/src/check-pr-body-exhaustiveness.ts against it. At pre-push time there is no PR and therefore no body to check, so this guard is unreproducible locally by construction (the same stance as the require-linked-issue step). Its logic is mirrored by the co-located unit suite; the wiring pin test extracts this exact run: block from the workflow file itself."
 		}
 	}
 }
