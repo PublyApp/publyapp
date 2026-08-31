@@ -20,9 +20,9 @@ export const redactHeaders = (headers: HeaderInput | undefined) => {
 
 	const normalized = new Headers();
 	if (headers instanceof Headers) {
-		headers.forEach((value, key) => {
+		for (const [key, value] of headers) {
 			normalized.set(key, value);
-		});
+		}
 	} else if (Array.isArray(headers)) {
 		for (const [name, value] of headers) {
 			normalized.set(name, value);
@@ -35,9 +35,9 @@ export const redactHeaders = (headers: HeaderInput | undefined) => {
 		return output;
 	}
 
-	normalized.forEach((value, key) => {
+	for (const [key, value] of normalized) {
 		output[key] = shouldRedactHeader(key) ? REDACTED_SESSION_TOKEN : value;
-	});
+	}
 
 	return output;
 };

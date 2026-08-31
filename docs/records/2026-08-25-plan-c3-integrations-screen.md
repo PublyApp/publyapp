@@ -1532,3 +1532,49 @@ Expected: FAIL before Tasks 4–5 exist; PASS after.
 - [ ] **Type consistency pass:** every interface block's names match their task's code snippets exactly (`SocialAccountRow`, `useHasTenantPermission`, mutation input types, key names).
 - [ ] **Gates on the branch:** `just check-write && pnpm --filter front typecheck && pnpm --filter front exec vitest run src/lib/query/social-accounts.test.ts src/lib/i18n-key-coverage.test.ts && just knip`
 - [ ] **PR body finalisation:** adversarial-mutation table completed for Tasks 1–9; open questions kept explicit; keep draft until owner review.
+
+## Round-3 follow-up audit (per #1447)
+
+The three #1447 follow-up items were re-verified at the implementation
+start of the C3 lane on `lane/grp-planfollowups` against the current
+code on `develop`. The plan body already carries the corrections; the
+round-3 note below adds the verification evidence that the proof file
+`.dump/proof-1447.md` recorded.
+
+1. **Global Constraints "zero backend" corrected.** The plan at line 15
+   now reads "the only backend code this plan writes is Task 2's Auth
+   touch" rather than "this plan writes zero backend code". The
+   Architecture paragraph at line 7 carries the same correction. The
+   Open Questions section's question 1 already records "RESOLVED as
+   Task 2: auth-data payload gains `tenantPermissionKeys`". The
+   provenance of the edit is the C3 implementation commit
+   `198a6e4b7` (`C3: Integrations settings screen (connected Bluesky
+   accounts) - closes #642 (#1451)`), whose `git log -p -S "zero backend"`
+   diff shows the literal removal of the "zero backend" phrase.
+2. **RED testids declared in GREEN snippet.** The plan body at
+   line 800 shows `<DataTable testId="tenant-settings-social-accounts-table" ... />`
+   and at line 808 shows `testId="tenant-settings-connected-integrations-empty"`.
+   The plan body explains the *why* at the lines above the snippets
+   (DataTable forwards `testId` to its own shell; state-surface forwards
+   it verbatim). The implemented code at
+   `apps/front/src/routes/authed/tenant/settings/integrations.tsx:283, 287`
+   mirrors both testids. The test file at
+   `apps/front/src/routes/authed/tenant/settings/integrations.test.tsx:229, 251, 349`
+   uses both testids for RED assertions (line 275 asserts a third,
+   `tenant-settings-social-accounts-table-loading`, which the plan body
+   does not declare). RED/GREEN cannot desync.
+3. **Private helpers copied VERBATIM.** The plan body at line ~239
+   contains the verbatim body of `CreateTenantProfileWithPermissionsAsync`,
+   `AssignProfileToTenantUserAsync`, and `CleanupTenantProfileArtifactsAsync`
+   (the three private helpers in `TenantPermissionFilter.Spec.cs` that
+   Task 2 cannot reuse). The implemented spec at
+   `apps/api/Modules/Auth/Handlers/GetUserAuthData.Spec.cs:152, 187, ~230`
+   contains matching private helpers, called from
+   `ItShouldExposeWildcardSentinelForSeededTenantAdmin` (line 46) and
+   `ItShouldExposeProfileDerivedKeysWithoutWildcardForNonAdminHolder`
+   (line 81). The spec compiles.
+
+No code change is required; the corrections are already present in the
+merged plan. This round-3 note exists so the audit trail from #1447 is
+captured at the same standing-rules level as the round-2 corrections,
+not scattered across the body.

@@ -134,9 +134,9 @@ export const createCSPDirectives = ({
 export const directivesToString = (directives: CSPDirectives): string => {
 	const parts: string[] = [];
 
-	entries(directives).forEach(([key, value]) => {
+	for (const [key, value] of entries(directives)) {
 		if (value === undefined) {
-			return;
+			continue;
 		}
 
 		const directiveName = key.replace(/([A-Z])/g, '-$1').toLowerCase();
@@ -148,7 +148,7 @@ export const directivesToString = (directives: CSPDirectives): string => {
 		} else if (Array.isArray(value)) {
 			parts.push(`${directiveName} ${value.join(' ')}`);
 		}
-	});
+	}
 
 	return parts.join('; ');
 };
@@ -166,13 +166,13 @@ export const createCSPHeader = ({
 
 	// Convert Helmet format back to string format for Vite
 	const parts: string[] = [];
-	entries(directives).forEach(([directive, values]) => {
+	for (const [directive, values] of entries(directives)) {
 		if (values && Array.from(values).length > 0) {
 			parts.push(`${directive} ${Array.from(values).join(' ')}`);
 		} else {
 			parts.push(directive);
 		}
-	});
+	}
 
 	return parts.join('; ');
 };
