@@ -67,7 +67,24 @@ jobs:
           fi
 
           for n in $numbers; do
-            # gh issue view succeeds only for real issues (errors on PRs / missing).
+            # #2003: `gh issue view <PR-number>` SUCCEEDS and returns the PR's
+            # state, so a body like "Closes #<any-PR>" satisfies this gate
+            # falsely. The captain's note is explicit: excluding only "the
+            # current PR's number" is NOT enough — `Closes #<another-PR>` passes
+            # just as falsely. We must exclude EVERY pull request, not just
+            # this one. The discriminator is the `pull_request` key on the
+            # issue-object endpoint: present (non-null) for PRs, absent for
+            # real issues. We fetch that single field and skip any number whose
+            # object is a PR. A real issue has no `pull_request` key, so its
+            # value is `null` and jq -e returns exit code 0 with `false`; a PR
+            # has a non-null `pull_request` object, so jq -e returns exit code
+            # 1 (the assertion `== false` fails) and we skip it.
+            is_pr=$(gh api "repos/${GH_REPO}/issues/${n}" --jq '.pull_request != null' 2>/dev/null) || is_pr="true"
+            if [ "$is_pr" = "true" ]; then
+              echo "  #$n is a pull request, not an issue — skipping (#2003)."
+              continue
+            fi
+
             if state=$(gh issue view "$n" --json state --jq '.state' 2>/dev/null); then
               echo "✓ PR closes issue #$n (state: $state)."
               exit 0

@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
+import { mkdtempSync, writeFileSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
+import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -112,6 +114,51 @@ const assertExactlyDependabotBot = (runBody) => {
 };
 
 /**
+ * Known PR numbers for the mock `gh`. The test treats these as pull requests
+ * (the `pull_request` discriminator returns `true`); every other number is a
+ * real issue. The mock simulates the real GitHub API so the step's `run:`
+ * block can be exercised end-to-end without a live token.
+ */
+const MOCK_PRS = new Set([2032, 2003]);
+
+/**
+ * Creates a mock `gh` script in a temp directory and returns that directory's
+ * path. Prepend it to PATH so the step's `run:` block calls our mock instead
+ * of the real `gh`.
+ */
+const createMockGhDir = () => {
+	const dir = mkdtempSync(path.join(os.tmpdir(), 'require-linked-issue-'));
+	const prPattern = [...MOCK_PRS].join('|');
+	const mockGh = `#!/usr/bin/env bash
+# Mock gh for require-linked-issue tests.
+# Simulates the two API shapes the step calls:
+#   gh api repos/OWNER/REPO/issues/N --jq '.pull_request != null'
+#   gh issue view N --json state --jq '.state'
+
+# Shape 1: pull_request discriminator. Returns "true" for known PRs, "false"
+# for real issues.
+if [[ "$1" == "api" && "$2" == repos/*/issues/* && "$3" == "--jq" ]]; then
+  num="$(echo "$2" | grep -oE '[0-9]+$')"
+  case "$num" in
+    ${prPattern}) echo "true" ;;
+    *) echo "false" ;;
+  esac
+  exit 0
+fi
+
+# Shape 2: issue view. Succeeds for any number (simulates an existing issue).
+if [[ "$1" == "issue" && "$2" == "view" && "$4" == "--json" && "$5" == "state" ]]; then
+  echo "OPEN"
+  exit 0
+fi
+
+exit 0
+`;
+	writeFileSync(path.join(dir, 'gh'), mockGh, { mode: 0o755 });
+	return dir;
+};
+
+/**
  * Executes the step's `run:` shell under a faked environment, overriding the
  * PR author login and body. Returns the exit code and captured stdout.
  */
@@ -124,6 +171,8 @@ const runStep = (runBody, { author, body }) => {
 		`PR_AUTHOR="${author}"`,
 	);
 
+	const mockGhDir = createMockGhDir();
+
 	const result = spawnSync('bash', ['-s'], {
 		input: script,
 		env: {
@@ -132,6 +181,7 @@ const runStep = (runBody, { author, body }) => {
 			PR_BODY: body,
 			GH_TOKEN: 'x',
 			GH_REPO: 'PublyApp/publyapp',
+			PATH: `${mockGhDir}:${process.env.PATH ?? ''}`,
 		},
 		encoding: 'utf8',
 	});
@@ -281,5 +331,97 @@ test('a non-dependabot author still falls through to the existing linked-issue c
 		runBody.indexOf('dependabot PR — linked-issue requirement waived') <
 			runBody.indexOf('if [ -z "${PR_BODY'),
 		'the waiver short-circuit must come before the existing linked-issue checks',
+	);
+});
+
+// #2003: `gh issue view <PR-number>` succeeds and returns the PR's state,
+// so a body like "Closes #<any-PR>" satisfies the gate falsely. The fix
+// uses the `pull_request` discriminator from the issue-object endpoint to
+// skip PRs. These tests prove the fix works both ways.
+
+test('the real workflow FAILS (exit 1) for a body that closes only a PR (#2003 regression)', async () => {
+	const runBody = await readRunBody();
+
+	const { code, stdout } = runStep(runBody, {
+		author: 'octocat',
+		body: 'Closes #2032',
+	});
+
+	assert.equal(
+		code,
+		1,
+		'a body closing only a PR must fail the gate — gh issue view succeeds on PRs, so without the discriminator this would falsely pass',
+	);
+	assert.match(
+		stdout,
+		/pull request/,
+		'the gate must name that the referenced number is a pull request, not an issue',
+	);
+});
+
+test('the real workflow PASSES (exit 0) for a body that closes a real issue', async () => {
+	const runBody = await readRunBody();
+
+	const { code } = runStep(runBody, {
+		author: 'octocat',
+		body: 'Closes #1458',
+	});
+
+	assert.equal(code, 0, 'a body closing a real issue must pass the gate');
+});
+
+test('the real workflow PASSES (exit 0) for a body closing both a PR and a real issue', async () => {
+	const runBody = await readRunBody();
+
+	const { code } = runStep(runBody, {
+		author: 'octocat',
+		body: 'Closes #2032 and Closes #1458',
+	});
+
+	assert.equal(
+		code,
+		0,
+		'a body closing both a PR and a real issue must pass — the real issue satisfies the gate',
+	);
+});
+
+test('the real workflow FAILS (exit 1) for a body closing two PRs and no real issue', async () => {
+	const runBody = await readRunBody();
+
+	const { code } = runStep(runBody, {
+		author: 'octocat',
+		body: 'Closes #2032 and Closes #2003',
+	});
+
+	assert.equal(
+		code,
+		1,
+		'a body closing only PRs (even multiple) must fail — no real issue to satisfy the gate',
+	);
+});
+
+test('mutation: removing the PR discriminator check restores the false-positive (body with only a PR passes)', async () => {
+	const runBody = await readRunBody();
+
+	// Remove the entire PR discriminator block: the comment, the is_pr check,
+	// and the if/continue/fi block. The match runs from the #2003 comment
+	// through the fi of the is_pr block (including trailing blank line).
+	const mutated = runBody.replace(/# #2003:[\s\S]+?fi\n\s*\n?/, '');
+
+	assert.notEqual(
+		mutated,
+		runBody,
+		'test setup: the mutation must actually change the run body',
+	);
+
+	const { code } = runStep(mutated, {
+		author: 'octocat',
+		body: 'Closes #2032',
+	});
+
+	assert.equal(
+		code,
+		0,
+		'removing the PR discriminator must restore the false-positive — proving the guard catches it',
 	);
 });
