@@ -101,8 +101,8 @@ const main = (): void => {
 	}
 	const autoLines: Record<string, number> = {};
 	if (stats.autoMaps !== undefined) {
-		for (const [file, lines] of stats.autoMaps.entries()) {
-			autoLines[file] = lines;
+		for (const [file, info] of stats.autoMaps.entries()) {
+			autoLines[file] = info.lines;
 		}
 	}
 

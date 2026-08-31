@@ -70,20 +70,27 @@
  * accepted a raise declared in the pull request's own tree would reopen
  * the exact bypass this guard exists to close.
  *
- * NAMING THE OFFENDER (#1890)
- * ---------------------------
+ * NAMING THE OFFENDER (#1890, #1896)
+ * ---------------------------------
  * A red message names the EXACT pair (or self-duplicated file) that
  * crossed its base total, not just the top five contributors by duplicated
  * lines — a new offender can sit below the top-5 cut:
  *
  *   - pairs: every production pair whose line total strictly exceeds its
  *     base-pair total (a new pair has base total 0). Each is named with
- *     both files, its base total, and its current total (up to 8, the
- *     remainder counted).
+ *     both files, the real jscpd line positions of every fragment
+ *     (`file.cs:12-34 <-> file2.cs:56-78`), its base total, and its current
+ *     total (up to 8 offenders, up to 4 fragments each, remainder counted).
  *   - self-duplication: every self-duplicated file whose line total
- *     strictly exceeds its base total. Same naming rule.
+ *     strictly exceeds its base total. Same naming rule, real line
+ *     positions included.
  *   - legacy reference (no per-pair map): the top-5 contributor list is
  *     printed instead, and the message says so.
+ *
+ * A report entry that cannot be analyzed (missing file names, line counts,
+ * or line positions on a gated surface) FAILS LOUD with its own message
+ * instead of being silently skipped — an unreadable artifact must never
+ * produce an empty or partial red message (#1896).
  *
  * Every failure message states what it was measured against
  * (`Measured against git:refs/remotes/origin/develop`, …).
@@ -180,8 +187,8 @@ const isSpecFile = (filePath: string): boolean => {
 
 /** jscpd@4 clone entry shape (the subset the guard reads). */
 export interface JscpdCloneEntry {
-	firstFile?: { name?: string };
-	secondFile?: { name?: string };
+	firstFile?: { name?: string; start?: number; end?: number };
+	secondFile?: { name?: string; start?: number; end?: number };
 	lines?: number;
 }
 
@@ -191,11 +198,22 @@ export interface JscpdReport {
 	duplicates?: JscpdCloneEntry[];
 }
 
+/**
+ * A single jscpd fragment's real line positions inside its two paired files
+ * (start/end come straight from the jscpd report, never reconstructed).
+ */
+export interface PairSpan {
+	first: { start: number; end: number };
+	second: { start: number; end: number };
+}
+
 /** Per-pair bookkeeping (production surface). */
 interface PairInfo {
 	lines: number;
 	fragments: number;
 	files: [string, string];
+	/** Real line positions of every fragment, index-aligned with `files`. */
+	spans: PairSpan[];
 }
 
 /** Per-pair bookkeeping (spec surface). */
@@ -208,6 +226,8 @@ interface SpecPairInfo {
 interface AutoInfo {
 	file: string;
 	lines: number;
+	/** Real line positions of every self-dup fragment in the file. */
+	spans: { start: number; end: number }[];
 }
 
 /** The stats computed by computeProductionStats. */
@@ -229,7 +249,14 @@ export interface ProductionStats {
 	 */
 	pairMaps?: Map<string, PairInfo>;
 	/** Raw per-file self-dup totals (same opt-in). */
-	autoMaps?: Map<string, number>;
+	autoMaps?: Map<string, AutoInfo>;
+	/**
+	 * Loud problems found while parsing the report: gated clone entries that
+	 * cannot be audited (missing file names, missing line counts, or missing
+	 * line positions). The ratchet surfaces each problem as a failure — an
+	 * unanalyzable entry must never silently lower the aggregates (#1896).
+	 */
+	problems: string[];
 }
 
 /**
@@ -479,6 +506,57 @@ export const readReferenceFromBase = (
 };
 
 /**
+ * #1896 — a gated clone entry must carry what the guard needs to count and
+ * name it: a positive duplicated-line count and real line positions in both
+ * files (jscpd always emits them). Returns the validated numbers, or a loud
+ * problem message when any datum is missing — the guard must fail loud
+ * rather than emit an empty or partial message.
+ */
+const analyzableFragment = (
+	f0: string,
+	f1: string,
+	lines: number | undefined,
+	start0: number | undefined,
+	end0: number | undefined,
+	start1: number | undefined,
+	end1: number | undefined,
+):
+	| {
+			ok: true;
+			lines: number;
+			start0: number;
+			end0: number;
+			start1: number;
+			end1: number;
+	  }
+	| { ok: false; problem: string } => {
+	if (typeof lines !== 'number' || !Number.isFinite(lines) || lines <= 0) {
+		return {
+			ok: false,
+			problem:
+				`Unanalyzable jscpd clone entry ${f0} <-> ${f1}: no line count. ` +
+				'Every jscpd fragment carries its duplicated-line count; a fragment ' +
+				'without it cannot be audited for production duplication (#1896).',
+		};
+	}
+	if (
+		typeof start0 !== 'number' ||
+		typeof end0 !== 'number' ||
+		typeof start1 !== 'number' ||
+		typeof end1 !== 'number'
+	) {
+		return {
+			ok: false,
+			problem:
+				`Unanalyzable jscpd clone entry ${f0} <-> ${f1}: no line positions. ` +
+				'Every jscpd fragment names the exact line range in both files; a ' +
+				'fragment without it cannot name what to fix (#1896).',
+		};
+	}
+	return { ok: true, lines, start0, end0, start1, end1 };
+};
+
+/**
  * Computes production duplication statistics from the jscpd report.
  *
  * - productionPairs: unique (a,b) pairs where both files are production and
@@ -501,39 +579,83 @@ export const computeProductionStats = (
 	dupes: JscpdCloneEntry[],
 	opts?: ComputeOptions,
 ): ProductionStats => {
-	// key `${a}|${b}` -> { lines (sum of all fragments), fragments, files }
+	// key `${a}|${b}` -> { lines (sum of all fragments), fragments, files, spans }
 	const pairMap = new Map<string, PairInfo>();
-	// file -> max duplicate-lines value
-	const autoMap = new Map<string, number>();
+	// file -> { total duplicate lines, every fragment's real line positions }
+	const autoMap = new Map<string, AutoInfo>();
 	// same shapes for the spec/test/generated surface (reported, not gated)
 	const specPairMap = new Map<string, SpecPairInfo>();
 	const specAutoMap = new Map<string, number>();
 
+	const problems: string[] = [];
+
 	for (const dupe of dupes) {
 		const f0 = dupe.firstFile?.name ?? '';
 		const f1 = dupe.secondFile?.name ?? '';
-		const lines = dupe.lines ?? 0;
 
+		// #1896: a fragment without both file names cannot be audited. jscpd
+		// always names both sides, so a nameless entry means malformed output
+		// — the old silent skip could hide production duplication behind an
+		// undercount. Loud failure instead.
 		if (!f0 || !f1) {
+			problems.push(
+				`Unanalyzable jscpd clone entry (firstFile "${f0}", secondFile "${f1}"): ` +
+					'one side has no file name. Every jscpd fragment names both files; ' +
+					'an unnamed fragment cannot be audited for production duplication (#1896). ' +
+					'Fix the report generation.',
+			);
 			continue;
 		}
+
+		const rawLines = dupe.lines;
+		const start0 = dupe.firstFile?.start;
+		const end0 = dupe.firstFile?.end;
+		const start1 = dupe.secondFile?.start;
+		const end1 = dupe.secondFile?.end;
 
 		if (f0 === f1) {
 			const inProduction = isProductionPath(f0);
 			const spec = isSpecFile(f0);
-			let target: Map<string, number> | null = null;
-			if (inProduction) {
-				target = spec ? specAutoMap : autoMap;
-			}
-			if (target) {
+			if (inProduction && !spec) {
+				const fragment = analyzableFragment(
+					f0,
+					f1,
+					rawLines,
+					start0,
+					end0,
+					start1,
+					end1,
+				);
+				if (!fragment.ok) {
+					problems.push(fragment.problem);
+					continue;
+				}
 				// SUM every self-dup fragment in the file. A "max fragment wins"
 				// count made an additional identical block in an already
 				// self-duplicated file invisible (create-hooks.ts: 15 fragments
 				// [13,10,49,14,15,34,15,23,40,21,23,12,40,21,8] = 338 dup lines,
 				// of which the max fragment is only 49). The ratchet must see
 				// the file's TOTAL duplicated lines grow.
-				const prev = target.get(f0) ?? 0;
-				target.set(f0, prev + lines);
+				const prev = autoMap.get(f0);
+				if (prev) {
+					prev.lines += fragment.lines;
+					// Both jscpd regions of a self-dup fragment live in the same
+					// file; keep both so the message names every duplicated span.
+					prev.spans.push({ start: fragment.start0, end: fragment.end0 });
+					prev.spans.push({ start: fragment.start1, end: fragment.end1 });
+				} else {
+					autoMap.set(f0, {
+						file: f0,
+						lines: fragment.lines,
+						spans: [
+							{ start: fragment.start0, end: fragment.end0 },
+							{ start: fragment.start1, end: fragment.end1 },
+						],
+					});
+				}
+			} else if (inProduction && spec) {
+				const prev = specAutoMap.get(f0) ?? 0;
+				specAutoMap.set(f0, prev + (rawLines ?? 0));
 			}
 		} else {
 			const p0 = isProductionPath(f0);
@@ -548,24 +670,51 @@ export const computeProductionStats = (
 			if (isSpecFile(f0) || isSpecFile(f1)) {
 				const prev = specPairMap.get(key);
 				if (prev) {
-					prev.lines += lines;
+					prev.lines += rawLines ?? 0;
 				} else {
-					specPairMap.set(key, { lines, files: [f0, f1] });
+					specPairMap.set(key, { lines: rawLines ?? 0, files: [f0, f1] });
 				}
 			} else {
+				const fragment = analyzableFragment(
+					f0,
+					f1,
+					rawLines,
+					start0,
+					end0,
+					start1,
+					end1,
+				);
+				if (!fragment.ok) {
+					problems.push(fragment.problem);
+					continue;
+				}
 				const prev = pairMap.get(key);
 				if (prev) {
-					prev.lines += lines;
+					prev.lines += fragment.lines;
 					prev.fragments += 1;
+					prev.spans.push({
+						first: { start: fragment.start0, end: fragment.end0 },
+						second: { start: fragment.start1, end: fragment.end1 },
+					});
 				} else {
-					pairMap.set(key, { lines, fragments: 1, files: [f0, f1] });
+					pairMap.set(key, {
+						lines: fragment.lines,
+						fragments: 1,
+						files: [f0, f1],
+						spans: [
+							{
+								first: { start: fragment.start0, end: fragment.end0 },
+								second: { start: fragment.start1, end: fragment.end1 },
+							},
+						],
+					});
 				}
 			}
 		}
 	}
 
 	const sumLines = (
-		map: Map<string, number | PairInfo | SpecPairInfo>,
+		map: Map<string, number | PairInfo | SpecPairInfo | AutoInfo>,
 	): number => {
 		let total = 0;
 		for (const v of map.values()) {
@@ -577,8 +726,8 @@ export const computeProductionStats = (
 	const topPairs: PairInfo[] = [...pairMap.values()]
 		.sort((a, b) => b.lines - a.lines)
 		.slice(0, 5);
-	const topAuto: AutoInfo[] = [...autoMap.entries()]
-		.map(([file, fileLines]) => ({ file, lines: fileLines }))
+	const topAuto: AutoInfo[] = [...autoMap.values()]
+		.map((a) => ({ file: a.file, lines: a.lines, spans: a.spans }))
 		.sort((a, b) => b.lines - a.lines)
 		.slice(0, 5);
 
@@ -593,6 +742,7 @@ export const computeProductionStats = (
 		specAutoLines: sumLines(specAutoMap),
 		topPairs,
 		topAuto,
+		problems,
 	};
 	// The offender finders need the full maps, not the top-5 cut (#1890).
 	if (opts?.withMaps === true) {
@@ -608,11 +758,35 @@ export const computeProductionStats = (
  * name the file). Fallback used only when the reference carries no
  * per-pair base totals (legacy reference).
  */
+const formatPairFragment = (
+	files: readonly [string, string],
+	span: PairSpan,
+): string =>
+	`${files[0]}:${span.first.start}-${span.first.end} <-> ` +
+	`${files[1]}:${span.second.start}-${span.second.end}`;
+
+/**
+ * All line positions of one pair (real jscpd output), capped at a readable
+ * width, with the remainder counted.
+ */
+const formatPairSpans = (
+	files: readonly [string, string],
+	spans: PairSpan[],
+): string => {
+	const shown = spans.slice(0, MAX_NAMED_FRAGMENTS);
+	const text = shown.map((s) => formatPairFragment(files, s)).join('; ');
+	const extra =
+		spans.length > shown.length
+			? `; +${spans.length - shown.length} more fragments`
+			: '';
+	return text + extra;
+};
+
 const formatTopPairs = (pairs: PairInfo[]): string =>
 	pairs
 		.map(
 			(p) =>
-				`${p.files[0]} <-> ${p.files[1]}` +
+				formatPairSpans(p.files, p.spans) +
 				` (${p.lines} lines, ${p.fragments} fragment${p.fragments === 1 ? '' : 's'})`,
 		)
 		.join('; ');
@@ -620,14 +794,40 @@ const formatTopPairs = (pairs: PairInfo[]): string =>
 /**
  * Human-readable "File: x (N lines)" for the top self-duplicated files.
  */
+const formatAutoFragment = (
+	file: string,
+	span: { start: number; end: number },
+): string => `${file}:${span.start}-${span.end}`;
+
+/**
+ * All line positions of one self-duplicated file (real jscpd output), capped,
+ * with the remainder counted.
+ */
+const formatAutoSpans = (
+	file: string,
+	spans: { start: number; end: number }[],
+): string => {
+	const shown = spans.slice(0, MAX_NAMED_FRAGMENTS);
+	const text = shown.map((s) => formatAutoFragment(file, s)).join(', ');
+	const extra =
+		spans.length > shown.length
+			? `, +${spans.length - shown.length} more fragments`
+			: '';
+	return text + extra;
+};
+
 const formatTopAuto = (auto: AutoInfo[]): string =>
-	auto.map((a) => `${a.file} (${a.lines} lines)`).join('; ');
+	auto
+		.map((a) => `${formatAutoSpans(a.file, a.spans)} (${a.lines} lines)`)
+		.join('; ');
 
 /** A pair that crossed its stored base total. */
 interface OffendingPair {
 	files: [string, string];
 	lines: number;
 	baseLines: number;
+	/** Real line positions of the fragments that make up the current total. */
+	spans: PairSpan[];
 }
 
 /** A self-duplicated file that crossed its stored base total. */
@@ -635,10 +835,15 @@ interface OffendingAuto {
 	file: string;
 	lines: number;
 	baseLines: number;
+	/** Real line positions of the self-dup fragments in the current report. */
+	spans: { start: number; end: number }[];
 }
 
 /** Maximum offenders named in one message before "+N more". */
 const MAX_NAMED_OFFENDERS = 8;
+
+/** Maximum line positions shown per offender before "+N more fragments". */
+const MAX_NAMED_FRAGMENTS = 4;
 
 /**
  * #1890 — name the EXACT pairs whose duplicated lines strictly exceed the
@@ -663,6 +868,7 @@ export const findOffendingPairs = (
 				files: info.files,
 				lines: info.lines,
 				baseLines: base,
+				spans: info.spans,
 			});
 		}
 	}
@@ -676,17 +882,22 @@ export const findOffendingPairs = (
  * findOffendingPairs.
  */
 export const findOffendingAuto = (
-	autoMap: Map<string, number>,
+	autoMap: Map<string, AutoInfo>,
 	baseAutoLines: AutoLinesMap | undefined,
 ): OffendingAuto[] | null => {
 	if (baseAutoLines === undefined || baseAutoLines === null) {
 		return null;
 	}
 	const offenders: OffendingAuto[] = [];
-	for (const [file, lines] of autoMap.entries()) {
+	for (const [file, info] of autoMap.entries()) {
 		const base = baseAutoLines[file] ?? 0;
-		if (lines > base) {
-			offenders.push({ file, lines, baseLines: base });
+		if (info.lines > base) {
+			offenders.push({
+				file,
+				lines: info.lines,
+				baseLines: base,
+				spans: info.spans,
+			});
 		}
 	}
 	offenders.sort((a, b) => b.lines - b.baseLines - (a.lines - a.baseLines));
@@ -699,7 +910,7 @@ const formatOffendingPairs = (offenders: OffendingPair[]): string => {
 	const text = named
 		.map(
 			(o) =>
-				`${o.files[0]} <-> ${o.files[1]} ` +
+				`${formatPairSpans(o.files, o.spans)} ` +
 				`(${o.baseLines} -> ${o.lines} duplicated lines)`,
 		)
 		.join('; ');
@@ -713,7 +924,11 @@ const formatOffendingAuto = (offenders: OffendingAuto[]): string => {
 	const named = offenders.slice(0, MAX_NAMED_OFFENDERS);
 	const more = offenders.length - named.length;
 	const text = named
-		.map((o) => `${o.file} (${o.baseLines} -> ${o.lines} duplicated lines)`)
+		.map(
+			(o) =>
+				`${formatAutoSpans(o.file, o.spans)} ` +
+				`(${o.baseLines} -> ${o.lines} duplicated lines)`,
+		)
 		.join('; ');
 	if (more > 0) {
 		return `${text}; +${more} more`;
@@ -800,6 +1015,13 @@ export const verifyJscpdRatchet = (
 	// jscpd@4 places clone entries in the "duplicates" array.
 	const dupes = report.duplicates ?? [];
 	const stats = computeProductionStats(dupes, { withMaps: true });
+
+	// #1896: an unanalyzable gated entry is a loud failure, never a silent
+	// skip — a fragment the guard cannot read could hide production
+	// duplication, and the red message would have no offender to name.
+	for (const problem of stats.problems) {
+		errors.push(problem);
+	}
 
 	// --- Production pairs: strict ratchet ---
 

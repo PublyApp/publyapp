@@ -297,10 +297,7 @@ const getReasonGuardProblem = (
 	id: string,
 	entry: { hash: string; mirror: string | null; reason: string },
 	ref: {
-		steps: Record<
-			string,
-			{ reason_hash: string; reason_length: number; reason: string }
-		>;
+		steps: Record<string, { reason_hash: string; reason: string }>;
 	},
 ): string | null => {
 	const stepRef = ref.steps[id];
@@ -317,9 +314,14 @@ const getReasonGuardProblem = (
 	// missing the `reason` text field (e.g. a pre-#1736 ref format, or a
 	// manually edited ref) must fail LOUDLY by naming the problem — never
 	// crash inside hashReason with TypeError, never fall back to a compliant
-	// default. A malformed entry is a finding, not an exception.
-	if (typeof stepRef.reason !== 'string' || stepRef.reason.length === 0) {
+	// default. A malformed entry is a finding, not an exception. The empty
+	// string is a distinct case: it passes the typeof check but pins nothing,
+	// so it gets its own wording (#1870) instead of the generic "missing".
+	if (stepRef.reason === undefined || typeof stepRef.reason !== 'string') {
 		return `${manifestPath}: entry "${id}" reason-guard-ref.json is missing the \`reason\` text field (got ${stepRef.reason === undefined ? 'undefined' : typeof stepRef.reason}). The reference must store the full reason text so regeneration is visible in the diff; regenerate it with \`node packages/scripts-ts/src/gen-reason-ref.ts\`.`;
+	}
+	if (stepRef.reason.length === 0) {
+		return `${manifestPath}: entry "${id}" reason-guard-ref.json has an EMPTY \`reason\` text field (length 0). An empty reason pins nothing; the reference must store the full reason text so regeneration is visible in the diff; regenerate it with \`node packages/scripts-ts/src/gen-reason-ref.ts\`.`;
 	}
 
 	// (B) Internal consistency check: the stored reason text must match its own
@@ -342,7 +344,10 @@ const getReasonGuardProblem = (
 	}
 
 	const currentLength = entry.reason.length;
-	const expectedLength = stepRef.reason_length;
+	// The stored reason TEXT is the baseline — a separately stored
+	// `reason_length` echo would be checked by no downstream code and could
+	// only lie about the SHRINK/CHANGED numbers (#1870).
+	const expectedLength = stepRef.reason.length;
 
 	if (currentLength < expectedLength) {
 		return `${manifestPath}: entry "${id}" reason SHRINK from ${expectedLength} to ${currentLength} characters while the step hash is unchanged (expected reason hash ${stepRef.reason_hash}, got ${currentHash}). Truncation is not a rewrite — restore the original reason, or regenerate reason-guard-ref.json in the same commit if the rewrite is deliberate (run \`node packages/scripts-ts/src/gen-reason-ref.ts\`).`;
@@ -891,10 +896,7 @@ interface ReasonRef {
 	// the boundary: `undefined` = pre-ratchet file (field absent), `null` or
 	// a non-array = malformed/tampered (a named finding, never a silent skip).
 	pinned_step_ids?: string[] | null;
-	steps: Record<
-		string,
-		{ reason_hash: string; reason_length: number; reason: string }
-	>;
+	steps: Record<string, { reason_hash: string; reason: string }>;
 }
 
 interface RemovalsConfession {

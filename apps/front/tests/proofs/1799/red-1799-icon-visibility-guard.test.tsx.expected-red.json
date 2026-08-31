@@ -10,6 +10,5 @@
 			"testName": "aria-hidden=\"true\" on the icon is NOT caught — the bug the old enumeration missed",
 			"why": "On correct code the guard reads aria-hidden directly and raises, so `expect(...).not.toThrow()` fails with an AssertionError. If this test passes, the guard regressed to the old classList enumeration that misses aria-hidden."
 		}
-	],
-	"measuredAgainst": "0924167c380f718c9f4243eacaeca0f66f01d9dc"
+	]
 }
