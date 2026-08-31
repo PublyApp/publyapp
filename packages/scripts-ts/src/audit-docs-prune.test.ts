@@ -336,29 +336,33 @@ const makePostPruneRepo = (mutateLane: (root: string) => void): string => {
 	return root;
 };
 
-test('a lane cut from the post-prune tip still passes --check (rev walked back to the pre-prune tree)', () => {
-	const root = makePostPruneRepo((repoRoot) => {
-		// Commit the prune mutations first: the generator's fidelity check
-		// reads `git diff -M rev..HEAD`, which only sees committed renames.
-		git(repoRoot, 'add', '-A');
-		git(repoRoot, 'commit', '-qm', 'prune');
-		// Inventory generated from the pre-prune merge-base.
-		runAudit(repoRoot);
-		git(repoRoot, 'add', '-A');
-		git(repoRoot, 'commit', '-qm', 'inventory');
-		// origin/develop now points at the ALREADY-pruned tip.
-		git(repoRoot, 'update-ref', 'refs/remotes/origin/develop', 'develop');
-		// Lane branches from the ALREADY-pruned tip: its merge-base with
-		// origin/develop is the pruned tree itself.
-		git(repoRoot, 'checkout', '-qb', 'lane');
-		// An ordinary unrelated pull-request mutation.
-		writeFileSync(path.join(repoRoot, 'AGENTS.md'), 'now points elsewhere\n');
-		git(repoRoot, 'add', '-A');
-		git(repoRoot, 'commit', '-qm', 'mutation');
-	});
-	const checked = runAudit(root, '--check'); // must NOT die on non-candidates
-	assert.match(checked, /matches a fresh regeneration/);
-});
+test(
+	'a lane cut from the post-prune tip still passes --check (rev walked back to the pre-prune tree)',
+	{ timeout: 30_000 },
+	() => {
+		const root = makePostPruneRepo((repoRoot) => {
+			// Commit the prune mutations first: the generator's fidelity check
+			// reads `git diff -M rev..HEAD`, which only sees committed renames.
+			git(repoRoot, 'add', '-A');
+			git(repoRoot, 'commit', '-qm', 'prune');
+			// Inventory generated from the pre-prune merge-base.
+			runAudit(repoRoot);
+			git(repoRoot, 'add', '-A');
+			git(repoRoot, 'commit', '-qm', 'inventory');
+			// origin/develop now points at the ALREADY-pruned tip.
+			git(repoRoot, 'update-ref', 'refs/remotes/origin/develop', 'develop');
+			// Lane branches from the ALREADY-pruned tip: its merge-base with
+			// origin/develop is the pruned tree itself.
+			git(repoRoot, 'checkout', '-qb', 'lane');
+			// An ordinary unrelated pull-request mutation.
+			writeFileSync(path.join(repoRoot, 'AGENTS.md'), 'now points elsewhere\n');
+			git(repoRoot, 'add', '-A');
+			git(repoRoot, 'commit', '-qm', 'mutation');
+		});
+		const checked = runAudit(root, '--check'); // must NOT die on non-candidates
+		assert.match(checked, /matches a fresh regeneration/);
+	},
+);
 
 test('walking the rev back does not weaken freshness: a tampered record still fails --check', () => {
 	const root = makePostPruneRepo((repoRoot) => {
