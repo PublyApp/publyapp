@@ -147,8 +147,11 @@ for (const language of supportedLanguages) {
 			commonPrefixLength(sExpA, sRecC),
 			commonPrefixLength(sRecB, sRecC),
 		);
-		// Invariant text after the received token (empty in English, " reçu"
-		// — French for "received" — in French). Derived structurally — never assumed.
+		// Invariant text after the received token: empty in English, " reçu"
+		// in French. The French fragment is quoted verbatim on purpose — it is
+		// the string this script actually sees when it probes the `fr` locale,
+		// and translating it would make the comment describe an input that
+		// never occurs. Derived structurally — never assumed.
 		const recPost = Math.min(
 			commonSuffixLength(sExpA, sRecB),
 			commonSuffixLength(sExpA, sRecC),
