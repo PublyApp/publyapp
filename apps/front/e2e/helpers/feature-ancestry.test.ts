@@ -265,9 +265,7 @@ const repoRoot = path.resolve(
 // packages/scripts-ts (check-ci-drift.ts); here the point is to assert REAL
 // lines of the REAL file, so a structural change breaks extraction loudly
 // instead of being silently accepted.
-const extractTestJobStepBlocks = (
-	workflowText: string,
-): Record<string, string> => {
+const extractTestJobStepBlocks = (workflowText: string) => {
 	const lines = workflowText.split('\n');
 	const isJobHeader = (line: string) =>
 		/^  [a-zA-Z][a-zA-Z0-9_-]*:\s*$/.test(line);

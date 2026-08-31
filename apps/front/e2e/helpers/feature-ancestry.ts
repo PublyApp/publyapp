@@ -44,12 +44,16 @@ const runGit = (cwd: string, args: string[]): GitRun => {
 			stderr?: Buffer | string;
 		};
 		const status = typeof err.status === 'number' ? err.status : -1;
-		const stderr =
-			typeof err.stderr === 'string'
-				? err.stderr
-				: err.stderr instanceof Buffer
-					? err.stderr.toString('utf8')
-					: String(error);
+
+		let stderr: string;
+		if (typeof err.stderr === 'string') {
+			stderr = err.stderr;
+		} else if (err.stderr instanceof Buffer) {
+			stderr = err.stderr.toString('utf8');
+		} else {
+			stderr = String(error);
+		}
+
 		return { status, stdout: '', stderr };
 	}
 };
