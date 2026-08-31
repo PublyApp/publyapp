@@ -1,6 +1,6 @@
 using System.Collections.Specialized;
-
 using System.Diagnostics;
+using System.Globalization;
 
 using FluentAssertions;
 
@@ -278,26 +278,30 @@ public sealed class LiveSystemJobTriggerSpec : IClassFixture<ApiFixture> {
 	public async Task ItShouldRecoverMisfiredTriggerOnSchedulerStart() {
 		// The trigger built by SyncOneAsync uses WithCronSchedule without a misfire
 		// policy — Quartz defaults to SmartPolicy, which fires the next missed
-		// occurrence IMMEDIATELY on scheduler start (within ~200 ms). With
-		// DoNothing, the trigger skips the missed ones and waits for the NEXT
-		// scheduled fire (~10 s from restart). Using a Stopwatch to measure
-		// elapsed time from scheduler start to first fire distinguishes the two:
-		// < 3 s → SmartPolicy recovered the miss; > 9 s → DoNothing silently
-		// dropped it. A regression that silenced misfires would fail this test.
+		// occurrence IMMEDIATELY on scheduler start. With DoNothing the trigger
+		// skips missed ones and waits for the NEXT scheduled fire (~10 s from
+		// restart).  A Stopwatch tracks elapsed time from scheduler start to
+		// first fire — the probe (MisfireProbeSpec round 2) proved that with
+		// misfireThreshold=1000 ms and a 2.5 s miss: SmartPolicy fires
+		// immediately (≤25 ms), DoNothing waits ~10 s.  The gap is unambiguous.
+		//
 		// The PAIRED MUTATION: apply WithMisfireHandlingInstructionDoNothing() in
-		// SyncOneAsync (line 294) — the test ROUGE with "the trigger must fire
-		// within 3 seconds of scheduler start" — proving the guard catches the
-		// silent-drop regression.
+		// SyncOneAsync (line 291) — the test ROUGE with "elapsed time must be
+		// under 3 s" — proving the guard catches the silent-drop regression.
+		//
+		// NOTE: the 12 s threshold used before this commit was wrong — it
+		// widened the assertion boundary to hide the DoNothing case.  The
+		// misfireThreshold=1 s setting ensures the acquire path applies the
+		// misfire instruction at all, which is what the probe validated.
 		var jobKeyName = $"misfire-{Guid.NewGuid():N}";
 		var epoch = Guid.NewGuid();
 		await using var dbContext = await CreateDbContextAsync();
-		var scheduler = await CreateRamSchedulerAsync();
+		var scheduler = await CreateRamSchedulerAsync(misfireThresholdMs: 1000);
 		var listener = new TimedFireSignalListener();
 
 		try {
-			// Every 10 s: SmartPolicy fires immediately after restart (< 1 s); DoNothing
-			// waits ~10 s for the next scheduled instant. The gap is large enough to
-			// make a 3 s threshold unambiguous.
+			// Every 10 s: SmartPolicy fires immediately (≤25 ms measured in probe);
+			// DoNothing waits ~10 s for the next scheduled instant.
 			var every10Seconds = "0/10 * * * * ?";
 			await dbContext.SystemJobDefinition.AddAsync(new SystemJobDefinition {
 				JobKey = jobKeyName,
@@ -342,20 +346,21 @@ public sealed class LiveSystemJobTriggerSpec : IClassFixture<ApiFixture> {
 			listener.RestartStopwatch();
 			await scheduler.Start(CancellationToken.None);
 
-			// SmartPolicy fires immediately (~2 s in-process, ~8 s in slow CI); DoNothing
-			// waits ~10 s for the next scheduled instant. The 15 s deadline covers SmartPolicy
-			// recovery comfortably in both environments.
+			// The 3 s assertion window cleanly separates the two policies:
+			// SmartPolicy  ≤ 25 ms (probe measurement)
+			// DoNothing     ~10 000 ms
+			// A regression that applies DoNothing in production ROUGEs this test.
 			listener.Fired.Wait(TimeSpan.FromSeconds(15)).Should().BeTrue(
 				"the trigger must fire within 15 seconds of scheduler start"
 			);
 
 			listener.ElapsedSinceRestart.Should().BeLessThan(
-				TimeSpan.FromSeconds(12),
-				"after standby, SmartPolicy fires the next missed occurrence immediately "
-					+ "(~2 s in-process, ~8 s in slow CI); DoNothing silently skips it and "
-					+ "waits for the next scheduled instant (~10 s). If this elapsed time is "
-					+ "over 12 s, the trigger was configured with a silent misfire policy "
-					+ "and this test should ROUGE (#1706)"
+				TimeSpan.FromSeconds(3),
+				"after standby with misfireThreshold=1 s, SmartPolicy fires the "
+					+ "next missed occurrence immediately (≤25 ms per probe); "
+					+ "DoNothing silently skips it and waits ~10 s.  If this "
+					+ "elapsed time is 3 s or more, the trigger was configured "
+					+ "with a silent misfire policy and this test should ROUGE (#1706)"
 			);
 		} finally {
 			await scheduler.Standby(CancellationToken.None);
@@ -465,7 +470,9 @@ public sealed class LiveSystemJobTriggerSpec : IClassFixture<ApiFixture> {
 		}
 	}
 
-	private static async Task<IScheduler> CreateRamSchedulerAsync() {
+	private static async Task<IScheduler> CreateRamSchedulerAsync(
+		int? misfireThresholdMs = null
+	) {
 		var properties = new NameValueCollection {
 			["quartz.scheduler.instanceName"] = $"live-spec-{Guid.NewGuid():N}",
 			["quartz.scheduler.instanceId"] = "AUTO",
@@ -473,6 +480,11 @@ public sealed class LiveSystemJobTriggerSpec : IClassFixture<ApiFixture> {
 			["quartz.threadPool.type"] = "Quartz.Simpl.DefaultThreadPool, Quartz",
 			["quartz.threadPool.maxConcurrency"] = "1",
 		};
+
+		if (misfireThresholdMs.HasValue) {
+			properties["quartz.jobStore.misfireThreshold"] =
+				misfireThresholdMs.Value.ToString(CultureInfo.InvariantCulture);
+		}
 
 		return await new StdSchedulerFactory(properties).GetScheduler();
 	}
