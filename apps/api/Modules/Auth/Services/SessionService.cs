@@ -18,6 +18,7 @@ public class SessionData {
 public interface ISessionService {
 	Task<Session> CreateSessionForUser(UserNs.User user, CancellationToken cancellationToken = default);
 	Task<SessionData?> GetSessionByToken(string token, CancellationToken cancellationToken = default);
+	Task<bool> RevokeSessionForTokenAsync(string token, CancellationToken cancellationToken = default);
 }
 
 [Service(ServiceLifetime.Scoped)]
@@ -77,5 +78,24 @@ public class SessionService : ISessionService {
 			Session = result.Session,
 			User = result.User,
 		};
+	}
+
+	public async Task<bool> RevokeSessionForTokenAsync(string token, CancellationToken cancellationToken = default) {
+		var session = await _dbContext.Session
+			.Where(s => s.Token == token)
+			.FirstOrDefaultAsync(cancellationToken);
+
+		if (session is null) {
+			return false;
+		}
+
+		// Physically delete the session row — revocation is permanent
+		// and must invalidate the token immediately. This applies to
+		// both regular and impersonation sessions, as each session has
+		// its own token and revocation targets exactly one session.
+		_dbContext.Session.Remove(session);
+		await _dbContext.SaveChangesAsync(cancellationToken);
+
+		return true;
 	}
 }

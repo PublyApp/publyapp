@@ -21,5 +21,6 @@ public static partial class Routes {
 		public const string RequestPasswordReset = $"{Root}/request-password-reset";
 		public const string ResetPassword = $"{Root}/reset-password";
 		public const string GetUserTenantsForPicker = $"{Root}/tenants-for-picker";
+		public const string RevokeSession = $"{Root}/revoke-session";
 	}
 }

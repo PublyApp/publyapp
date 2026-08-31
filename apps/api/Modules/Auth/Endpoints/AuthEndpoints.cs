@@ -165,6 +165,18 @@ public static class AuthEndpoints {
 			.WithCheckSessionHeader()
 			.WithSessionAuthentication();
 
+		group.MapPost(
+			PathUtils.GetLastSegment(Routes.Auth.RevokeSession),
+			RevokeSession.Handle
+		)
+			.WithName("RevokeSession")
+			.WithSummary("Revoke the current session")
+			.RequireRateLimiting(
+				ApiRateLimitPolicies.AuthenticatedDefault
+			)
+			.WithCheckSessionHeader()
+			.WithSessionAuthentication();
+
 		return group;
 	}
 }

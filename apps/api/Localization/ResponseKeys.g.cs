@@ -380,6 +380,11 @@ public static partial class ResponseKeys {
 	public static readonly TranslationKey ServiceUnavailable = new("service-unavailable");
 
 	/// <summary>
+	/// Session revoked successfully
+	/// </summary>
+	public static readonly TranslationKey SessionRevoked = new("session-revoked");
+
+	/// <summary>
 	/// Bluesky account connected
 	/// </summary>
 	public static readonly TranslationKey SocialAccountConnected = new("social-account-connected");

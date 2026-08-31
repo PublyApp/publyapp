@@ -1374,5 +1374,12 @@ public sealed class ComprehensiveRateLimitingSpec
 			LookupCount++;
 			return Task.FromResult<SessionData?>(null);
 		}
+
+		public Task<bool> RevokeSessionForTokenAsync(
+			string token,
+			CancellationToken cancellationToken = default
+		) {
+			throw new NotSupportedException();
+		}
 	}
 }
