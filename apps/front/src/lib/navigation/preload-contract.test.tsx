@@ -96,11 +96,11 @@ const NON_RENDERABLE_ROUTES: Record<string, string> = {
 describe('preload-contract', () => {
 	test('vacuity — real route tree and virtual route config agree on count', () => {
 		// Walk the real generated tree
-		const realRoutes = walkRealRouteTree(routeTree as unknown as RouteLike);
+		const realRoutes = walkRealRouteTree(routeTree satisfies RouteLike);
 
 		// Count the virtual route config entries (one per route file)
 		const virtualCount = countVirtualRouteNodes(
-			routes as unknown as VirtualRootRoute,
+			routes satisfies VirtualRootRoute,
 		);
 
 		// The real tree MUST have at least as many routes as the virtual config
@@ -112,7 +112,7 @@ describe('preload-contract', () => {
 	});
 
 	test('every route with staticData.preload has a corresponding page import', async () => {
-		const allRoutes = walkRealRouteTree(routeTree as unknown as RouteLike);
+		const allRoutes = walkRealRouteTree(routeTree satisfies RouteLike);
 		const routesWithPreload = allRoutes.filter(
 			(r) => typeof r.options?.staticData?.preload === 'function',
 		);
