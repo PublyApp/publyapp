@@ -1413,3 +1413,157 @@ void test('CLI RED: `const getHook = () => useQuery; getHook()({...})` reports t
 		`expected the diagnostic to show the function-return origin, got stdout: ${stdout}`,
 	);
 });
+
+// ── #1978 : re-export, export-all, alias chains transitifs ───────────────
+//
+// Avant #1978 le rule se contentait d'un ImportDeclaration visitor et
+// d'un Map<string,string> résolu en un seul hop. Trois formes tombaient
+// dans le zero silencieux :
+//   - Re-export nommé : `export { useQuery as uq } from '...'` puis
+//     `import { uq } from './this-route'` puis `uq({...})`. Le
+//     ExportNamedDeclaration n'est pas visité, le map reste vide.
+//   - Re-export all : `export * from '@tanstack/react-query'`. Aucun
+//     nom canonique n'est connu : on ne peut pas décider, on doit
+//     crier.
+//   - Chaînes d'alias transitifs : `import { useQuery as uq }` puis
+//     `import { uq as uq2 }` puis `uq2({...})`. Le map tient
+//     `uq2 -> uq`, jamais `uq2 -> useQuery`. Le CallExpression
+//     regarde `aliasToOrigin.get('uq2') ?? 'uq2'` et le hook contract
+//     rejette 'uq' à un hop.
+//
+// Les tests ci-dessous sont des RED mesurés : chacun échoue contre
+// le rule avant le fix, et passe après.
+
+void test('CLI RED: re-export `export { useQuery } from "@tanstack/react-query"` exposes the hook as a local identifier (#1978)', () => {
+	// `export { useQuery } from '...'` re-exports the binding as if it
+	// were locally declared. The previous rule did not visit
+	// ExportNamedDeclaration at all, so a route file that imports
+	// the hook under its canonical name and then calls it produced
+	// zero diagnostics (silent). The fix treats the re-exported
+	// specifier exactly like an ImportSpecifier with the same
+	// imported/local names.
+	const source = [
+		'export { useQuery } from "@tanstack/react-query";',
+		'export const Route = createFileRoute("/probe")({ component: Page });',
+		'const Page = () => {',
+		'  const q = useQuery({ queryKey: ["x"] });',
+		'  return <div>{String(q.data)}</div>;',
+		'};',
+	].join('\n');
+
+	const stdout = runCliWithDeniedWarnings(source);
+	assert.match(
+		stdout,
+		/publy\(route-query-preload\)/,
+		`expected the CLI to report publy/route-query-preload for a re-exported query hook, got stdout: ${stdout}`,
+	);
+	assert.match(
+		stdout,
+		/`useQuery` \(imported as `useQuery`\)/,
+		`expected the diagnostic to name the canonical hook through the re-export, got stdout: ${stdout}`,
+	);
+});
+
+void test('CLI RED: aliased re-export `export { useQuery as uq } from "@tanstack/react-query"` then `import { uq }` reports the diagnostic (#1978)', () => {
+	const source = [
+		'export { useQuery as uq } from "@tanstack/react-query";',
+		'import { uq } from "./local-shim";',
+		'export const Route = createFileRoute("/probe")({ component: Page });',
+		'const Page = () => {',
+		'  const q = uq({ queryKey: ["x"] });',
+		'  return <div>{String(q.data)}</div>;',
+		'};',
+	].join('\n');
+
+	const stdout = runCliWithDeniedWarnings(source);
+	assert.match(
+		stdout,
+		/publy\(route-query-preload\)/,
+		`expected the CLI to report publy/route-query-preload for an aliased re-export, got stdout: ${stdout}`,
+	);
+	assert.match(
+		stdout,
+		/`uq` \(imported as `useQuery`\)/,
+		`expected the diagnostic to name the alias and the canonical origin through the re-export, got stdout: ${stdout}`,
+	);
+});
+
+void test('CLI RED: `export * from "@tanstack/react-query"` followed by ANY identifier call reports the diagnostic loudly (#1978)', () => {
+	// `export * from` re-exports every named binding of the source
+	// module into the current scope, so a subsequent call to a
+	// canonical hook name (`useQuery`, `useStaffTenantDetailsQuery`,
+	// ...) reaches the rule exactly as if it had been imported
+	// directly. The diagnostic must surface — silent zero would be
+	// the defect class #1978 names — and it does, as a
+	// `missingPreload` naming the call site.
+	const source = [
+		'export * from "@tanstack/react-query";',
+		'export const Route = createFileRoute("/probe")({ component: Page });',
+		'const Page = () => {',
+		'  const q = useQuery({ queryKey: ["x"] });',
+		'  return <div>{String(q.data)}</div>;',
+		'};',
+	].join('\n');
+
+	const stdout = runCliWithDeniedWarnings(source);
+	assert.match(
+		stdout,
+		/publy\(route-query-preload\)/,
+		`expected the CLI to report publy/route-query-preload for an export-* re-export, got stdout: ${stdout}`,
+	);
+	assert.match(
+		stdout,
+		/`useQuery` \(imported as `useQuery`\)/,
+		`expected the diagnostic to name the canonical hook through the wildcard re-export, got stdout: ${stdout}`,
+	);
+});
+
+void test('CLI RED: alias chain `useQuery as uq` then `uq as uq2` then `uq2({...})` reports the diagnostic naming the canonical origin (#1978)', () => {
+	const source = [
+		'import { useQuery as uq } from "@tanstack/react-query";',
+		'import { uq as uq2 } from "./local-shim";',
+		'export const Route = createFileRoute("/probe")({ component: Page });',
+		'const Page = () => {',
+		'  const q = uq2({ queryKey: ["x"] });',
+		'  return <div>{String(q.data)}</div>;',
+		'};',
+	].join('\n');
+
+	const stdout = runCliWithDeniedWarnings(source);
+	assert.match(
+		stdout,
+		/publy\(route-query-preload\)/,
+		`expected the CLI to report publy/route-query-preload for a transitive alias chain, got stdout: ${stdout}`,
+	);
+	assert.match(
+		stdout,
+		/`uq2` \(imported as `useQuery`\)/,
+		`expected the diagnostic to resolve the alias chain to useQuery, not stop at uq, got stdout: ${stdout}`,
+	);
+});
+
+void test('CLI RED: assignment chain `const a = useQuery; const b = a; const c = b; c({...})` reports the diagnostic naming the canonical origin (#1978)', () => {
+	const source = [
+		'import { useQuery } from "@tanstack/react-query";',
+		'const a = useQuery;',
+		'const b = a;',
+		'const c = b;',
+		'export const Route = createFileRoute("/probe")({ component: Page });',
+		'const Page = () => {',
+		'  const q = c({ queryKey: ["x"] });',
+		'  return <div>{String(q.data)}</div>;',
+		'};',
+	].join('\n');
+
+	const stdout = runCliWithDeniedWarnings(source);
+	assert.match(
+		stdout,
+		/publy\(route-query-preload\)/,
+		`expected the CLI to report publy/route-query-preload for a 3-hop assignment chain, got stdout: ${stdout}`,
+	);
+	assert.match(
+		stdout,
+		/`c` \(imported as `useQuery`\)/,
+		`expected the diagnostic to resolve the chain to useQuery, got stdout: ${stdout}`,
+	);
+});

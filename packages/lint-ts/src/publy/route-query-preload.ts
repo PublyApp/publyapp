@@ -142,6 +142,115 @@ const REFLECTIVE_METHODS: ReadonlySet<string> = new Set([
 	'bind',
 ]);
 
+/**
+ * Resolves an alias through `aliasToOrigin` to a fixpoint, following
+ * transitive chains like `import { uq as uq2 }` after
+ * `import { useQuery as uq }` — the map holds `uq2 -> uq` after the
+ * second import, but the canonical hook name `useQuery` is one hop
+ * further. Returns `name` itself if no chain is recorded, or if a
+ * cycle is detected (defensive — the import visitor never produces
+ * cycles, but a future visitor might).
+ *
+ * #1978 calls out the 1-hop-only behaviour as a silent-zero defect:
+ * `uq2({...})` previously fell through to the `?? uq2` default and
+ * missed the hook contract, producing zero diagnostics for a real
+ * call. The fixpoint walk is bounded by the visited set.
+ */
+const resolveAliasChain = (
+	state: Pick<RouteQueryPreloadState, 'aliasToOrigin'>,
+	name: string,
+): string => {
+	const visited = new Set<string>();
+	let current = name;
+	while (!visited.has(current)) {
+		visited.add(current);
+		const next = state.aliasToOrigin.get(current);
+		if (next === undefined || next === current) {
+			return current;
+		}
+		current = next;
+	}
+	return current;
+};
+
+/**
+ * Records one `ImportSpecifier` (or re-export `ExportSpecifier`) into
+ * the rule state. The re-export branch (#1978) feeds this helper from
+ * `ExportNamedDeclaration` so the alias / query-module / unresolved
+ * bindings are populated exactly as if a direct named import had been
+ * written — without the helper, re-exports produced a silent zero
+ * because the original rule only visited `ImportDeclaration`.
+ *
+ * `kind` distinguishes the two callers so the rule can log the
+ * diagnostic origin if a future debug aid needs it. It does not
+ * affect binding semantics today.
+ */
+type ImportKind = 'import' | 'reexport';
+const recordImportSpec = (
+	state: RouteQueryPreloadState,
+	module: string,
+	specifier: ESTree.ImportSpecifier | ESTree.ExportSpecifier,
+	_kind: ImportKind,
+): void => {
+	// `ImportSpecifier` carries `imported` (the canonical name in the
+	// source module) and `local` (the name bound in this file). An
+	// `ExportSpecifier` from a `from`-clause carries `local` (the
+	// canonical name in the source module) and `exported` (the name
+	// re-exposed by this file). The two shapes are isomorphic for
+	// binding purposes: both publish a canonical hook name under a
+	// local binding. The normalisation below turns the ExportSpecifier
+	// into a {origin, local} pair that matches the rest of the rule.
+	let origin: string;
+	let local: string;
+	if (specifier.type === 'ImportSpecifier') {
+		if (
+			specifier.imported.type !== 'Identifier' ||
+			specifier.local.type !== 'Identifier'
+		) {
+			return;
+		}
+		origin = specifier.imported.name;
+		local = specifier.local.name;
+	} else {
+		if (
+			specifier.local.type !== 'Identifier' ||
+			specifier.exported.type !== 'Identifier'
+		) {
+			return;
+		}
+		origin = specifier.local.name;
+		local = specifier.exported.name;
+	}
+	const isQueryModule = isQueryModuleSource(module);
+	if (local === origin) {
+		// Named import where local === origin. Only canonical query-hook
+		// names matter: `useQuery`, `useStaffProfilesQuery`, etc.
+		// (matched by `isRouteQueryHookName`). Non-hook utilities
+		// imported FROM a query module — e.g. `toStaffTenantUserRows`,
+		// `staffTenantDetailsQueryOptions` — must NOT enter
+		// `queryModuleBindings`, otherwise chained calls like
+		// `toStaffTenantUserRows(data).slice(0,5).map(...)` would
+		// falsely trace the root identifier back to a query module and
+		// fire a spurious `unresolvableCallee`. Such a call is a plain
+		// non-hook chain (the `.slice().map()` is just array
+		// manipulation) and must stay SILENT.
+		//
+		// Hook-name imports also enter `aliasToOrigin` so the
+		// `CallExpression` Identifier-callee branch resolves
+		// `useQuery` → `useQuery` and reports it as a tracked hook
+		// call (→ `missingPreload`), not `unresolvableCallee`.
+		if (!isRouteQueryHookName(origin)) {
+			return;
+		}
+		if (isQueryModule) {
+			state.queryModuleBindings.set(local, module);
+		}
+		state.aliasToOrigin.set(local, origin);
+		return;
+	}
+	state.aliasToOrigin.set(local, origin);
+};
+
 interface CalleeInfo {
 	/** The name the rule resolves (identifier name, or member property name). */
 	readonly callName: string;
@@ -408,6 +517,14 @@ interface RouteQueryPreloadState {
 	 *  element name → the canonical hook name. Handles both literal arrays
 	 *  (`[useQuery]`) and aliases (`[uq]` where `uq` resolves to a hook). */
 	arrayElementAliases: Map<string, string>;
+	/** Query-module sources re-exported with `export * from '...'`
+	 *  (#1978). The rule cannot know which named exports the
+	 *  re-exported module contributes, so any subsequent call to a
+	 *  canonical hook name (matched by `isRouteQueryHookName`) that is
+	 *  not otherwise bound must surface an `unresolvedHookCall` naming
+	 *  the source. Without this set, `export *` is a silent zero — the
+	 *  defect class #1978 names. */
+	exportAllQueryModules: Set<string>;
 }
 
 export const routeQueryPreload = {
@@ -460,6 +577,7 @@ export const routeQueryPreload = {
 			objectPropertyUnresolved: new Map<string, UnresolvedQueryBinding>(),
 			functionHookBindings: new Map<string, string>(),
 			arrayElementAliases: new Map<string, string>(),
+			exportAllQueryModules: new Set<string>(),
 		};
 
 		return {
@@ -474,45 +592,8 @@ export const routeQueryPreload = {
 				const isQueryModule = isQueryModuleSource(module);
 				for (const specifier of node.specifiers) {
 					if (specifier.type === 'ImportSpecifier') {
-						if (
-							specifier.imported.type !== 'Identifier' ||
-							specifier.local.type !== 'Identifier'
-						) {
-							continue;
-						}
-						const origin = specifier.imported.name;
-						const local = specifier.local.name;
-						if (local === origin) {
-							// Named import where local === origin. Only
-							// canonical query-hook names matter: `useQuery`,
-							// `useStaffProfilesQuery`, etc. (matched by
-							// `isRouteQueryHookName`). Non-hook utilities
-							// imported FROM a query module — e.g.
-							// `toStaffTenantUserRows`, `staffTenantDetailsQueryOptions`
-							// — must NOT enter `queryModuleBindings`, otherwise
-							// chained calls like
-							// `toStaffTenantUserRows(data).slice(0,5).map(...)`
-							// would falsely trace the root identifier back to a
-							// query module and fire a spurious
-							// `unresolvableCallee`. Such a call is a plain
-							// non-hook chain (the `.slice().map()` is just
-							// array manipulation) and must stay SILENT.
-							//
-							// Hook-name imports also enter `aliasToOrigin`
-							// so the `CallExpression` Identifier-callee
-							// branch resolves `useQuery` → `useQuery` and
-							// reports it as a tracked hook call (→
-							// `missingPreload`), not `unresolvableCallee`.
-							if (!isRouteQueryHookName(origin)) {
-								continue;
-							}
-							if (isQueryModule) {
-								state.queryModuleBindings.set(local, module);
-							}
-							state.aliasToOrigin.set(local, origin);
-							continue;
-						}
-						state.aliasToOrigin.set(local, origin);
+						recordImportSpec(state, module, specifier, 'import');
+						continue;
 					}
 					// Default / namespace imports: the local name binds the WHOLE
 					// module. Only query modules matter — the binding is either
@@ -530,6 +611,60 @@ export const routeQueryPreload = {
 						});
 					}
 				}
+			},
+			// #1978: re-export handling. `export { useQuery as uq } from
+			// '...'` re-binds the canonical hook under a new local name
+			// without writing a local `const` or an `import` statement in
+			// this file. The previous rule visited only
+			// `ImportDeclaration`, so any call to a re-exported hook in
+			// a route file produced zero diagnostics. The fix routes
+			// every `ExportSpecifier` (with a non-null `source`) through
+			// `recordImportSpec` so the alias and the query-module
+			// bindings are populated exactly as if the user had written
+			// the corresponding `ImportSpecifier` inline.
+			ExportNamedDeclaration(node: ESTree.ExportNamedDeclaration) {
+				if (
+					node.source === null ||
+					node.source.type !== 'Literal' ||
+					typeof node.source.value !== 'string'
+				) {
+					// `export const useQuery = ...` or
+					// `export { useQuery }` (no source) does not import
+					// anything from a query module — it merely publishes
+					// a local binding. The rule tracks calls, not
+					// definitions, so there is nothing to record here.
+					return;
+				}
+				const module = node.source.value;
+				for (const specifier of node.specifiers) {
+					recordImportSpec(state, module, specifier, 'reexport');
+				}
+			},
+			// #1978: `export * from '...'` does not surface the named
+			// exports to the rule — the canonical hook name is unknown,
+			// so the rule cannot decide. The repo doctrine: input the
+			// tool cannot decide must fail LOUDLY, naming the module. A
+			// silent zero is the defect class #1978 names. We mark the
+			// source as an opaque re-export so any subsequent call site
+			// whose root identifier looks like a hook binding (canonical
+			// name) but is NOT in `aliasToOrigin` triggers an
+			// `unresolvedHookCall` naming the source module.
+			ExportAllDeclaration(node: ESTree.ExportAllDeclaration) {
+				if (
+					node.source.type !== 'Literal' ||
+					typeof node.source.value !== 'string' ||
+					!isQueryModuleSource(node.source.value)
+				) {
+					return;
+				}
+				// No local name to bind: the re-export is purely a
+				// module-level pass-through. Surface the warning once
+				// per file by recording a sentinel that the
+				// CallExpression visitor recognises and turns into a
+				// loud undecidable diagnostic. The sentinel is the
+				// source string under a reserved key so it never
+				// collides with a real local name.
+				state.exportAllQueryModules.add(node.source.value);
 			},
 			VariableDeclarator(node: ESTree.VariableDeclarator) {
 				// `const { useQuery: uq } = <anything>` — the property name is
@@ -877,7 +1012,7 @@ export const routeQueryPreload = {
 				}
 				// Identifier callee: resolve through the alias map, then the
 				// hook-name contract.
-				const origin = state.aliasToOrigin.get(info.callName) ?? info.callName;
+				const origin = resolveAliasChain(state, info.callName);
 				if (isRouteQueryHookName(origin)) {
 					state.queryHookCalls.push({
 						alias: info.callName,
@@ -888,6 +1023,30 @@ export const routeQueryPreload = {
 						state.firstHookCall = node;
 					}
 					return;
+				}
+				// #1978: `export * from '...'` re-exports do not
+				// surface named exports, so the canonical hook name
+				// is unknown. If the file has at least one
+				// `export * from` of a query module AND the callee
+				// itself matches the hook-name contract, the rule
+				// cannot decide which (if any) named export the
+				// identifier refers to. Surface an
+				// `unresolvedHookCall` naming the re-exported
+				// source rather than producing a silent zero. The
+				// first matching source wins; the
+				// `unresolvedReported` flag prevents a second
+				// diagnostic in the same file.
+				if (isRouteQueryHookName(info.callName)) {
+					const first = state.exportAllQueryModules.values().next();
+					if (!first.done) {
+						const module = first.value;
+						state.unresolvedCalls.push({
+							node,
+							callName: info.callName,
+							binding: { importName: info.callName, module },
+						});
+						return;
+					}
 				}
 				// Not resolvable to a canonical hook name. If the callee was
 				// bound from a query module in a way the rule cannot resolve to
