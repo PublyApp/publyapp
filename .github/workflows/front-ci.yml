@@ -501,6 +501,11 @@ jobs:
           # public actions/* repos' tags; no elevated scope is needed, matching
           # quality-gate.yml's own pins-guard step.
           GH_TOKEN: ${{ github.token }}
+          # #1962: the guard test deletion guard reads the PR body from this
+          # environment variable to decide whether a named deletion is
+          # justified. Without it, the escape hatch never runs server-side
+          # and every deletion fails in CI even when legitimately named.
+          PR_BODY: ${{ github.event.pull_request.body || '' }}
         run: |
           pnpm --filter scripts-ts exec vitest run src/codeowners-contract.test.ts
           pnpm --filter scripts-ts exec vitest run src/check-ci-drift.test.ts

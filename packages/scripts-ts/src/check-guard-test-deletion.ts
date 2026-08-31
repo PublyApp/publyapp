@@ -73,9 +73,23 @@
  * as a string literal, template literal, or tagged-template description. No
  * regex stripping of comments/strings is needed — the compiler already
  * classified what is a string, what is a comment, and what is code.
- */
+ *
+ * KNOWN LIMITATIONS
+ * ----------------
+ * This guard compares TEST NAMES only. It cannot detect:
+ * - A test whose body is replaced with a stub (e.g. `expect(true).toBe(true)`)
+ *   while keeping the original name. The name is unchanged, so the guard stays
+ *   green. This is inherent to a names-only design: the guard can only ratchet
+ *   what it can see, and a body swap is invisible to name comparison.
+ * - A test that is commented out rather than deleted. Commented code still
+ *   parses, so the name is still extracted. A lane that comments out tests
+ *   instead of deleting them bypasses this guard entirely.
+ *
+ * A green run means "no test names were removed" — it does NOT mean "no test
+ * coverage was lost". Do not misread a green run as proof that the guard test
+ * files are intact.
 
-import { execSync } from 'node:child_process';
+import { execFileSync } from 'node:child_process';
 import path from 'node:path';
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
@@ -84,6 +98,7 @@ import { ts } from 'ts-morph';
 
 const rootDir = path.resolve(
 	path.dirname(fileURLToPath(import.meta.url)),
+	'..',
 	'..',
 	'..',
 );
@@ -257,7 +272,7 @@ const readFileFromGit = (
 	filePath: string,
 ): string | null => {
 	try {
-		return execSync(`git show ${commit}:${filePath}`, {
+		return execFileSync('git', ['show', `${commit}:${filePath}`], {
 			cwd: gitDir,
 			encoding: 'utf-8',
 			stdio: ['pipe', 'pipe', 'pipe'],
@@ -304,7 +319,7 @@ export const checkGuardTestDeletion = (
 
 	// Step 1: Resolve merge base (the real base, not HEAD)
 	try {
-		baseCommit = execSync(`git merge-base ${baseRef} HEAD`, {
+		baseCommit = execFileSync('git', ['merge-base', baseRef, 'HEAD'], {
 			cwd: gitDir,
 			encoding: 'utf-8',
 			stdio: ['pipe', 'pipe', 'pipe'],
@@ -328,7 +343,7 @@ export const checkGuardTestDeletion = (
 
 	// Step 2: Get HEAD commit
 	try {
-		headCommit = execSync('git rev-parse HEAD', {
+		headCommit = execFileSync('git', ['rev-parse', 'HEAD'], {
 			cwd: gitDir,
 			encoding: 'utf-8',
 			stdio: ['pipe', 'pipe', 'pipe'],
@@ -341,21 +356,61 @@ export const checkGuardTestDeletion = (
 	// exist in EITHER base or head. We must check the git tree (not just the
 	// working tree via `find`) because a file deleted in HEAD won't appear in
 	// `find` output but still needs its base-side test names compared.
+	//
+	// Use --name-status (not --name-only) so renames (R) report BOTH the old
+	// and new path. With --name-only, an R entry shows only the new path, the
+	// base blob is read at the new path (null), and the file is misclassified
+	// as "new" — all names "added", zero deleted. That is a one-command bypass
+	// of the whole guard. --name-status gives us the old path for base reads.
 	let testFiles: string[];
 	try {
-		testFiles = execSync(
-			`git diff --name-only --diff-filter=ADMR ${baseCommit} HEAD -- "${TEST_GLOB_ROOT}/" | sort`,
+		const nameStatusOutput = execFileSync(
+			'git',
+			[
+				'diff',
+				'--name-status',
+				'--diff-filter=ADMR',
+				baseCommit,
+				'HEAD',
+				'--',
+				`${TEST_GLOB_ROOT}/`,
+			],
 			{ cwd: gitDir, encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] },
-		)
-			.trim()
-			.split('\n')
-			.filter((f) => f.endsWith('.test.ts') && f.length > 0);
+		);
+
+		// Parse --name-status output:
+		//   A<tab>packages/scripts-ts/src/foo.test.ts
+		//   D<tab>packages/scripts-ts/src/foo.test.ts
+		//   M<tab>packages/scripts-ts/src/foo.test.ts
+		//   R100<tab>packages/scripts-ts/src/old.test.ts<tab>packages/scripts-ts/src/new.test.ts
+		// For renames, we need the OLD path (base) and NEW path (head).
+		// We collect both: the old path for base reads, the new path for head reads.
+		const seenFiles = new Set<string>();
+		for (const line of nameStatusOutput.trim().split('\n')) {
+			if (line.length === 0) continue;
+			const parts = line.split('\t');
+			if (parts.length >= 2) {
+				const status = parts[0];
+				if (status.startsWith('R')) {
+					// Rename: parts[1] is old path, parts[2] is new path
+					const oldPath = parts[1];
+					const newPath = parts[2];
+					if (oldPath.endsWith('.test.ts')) seenFiles.add(oldPath);
+					if (newPath.endsWith('.test.ts')) seenFiles.add(newPath);
+				} else {
+					const filePath = parts[1];
+					if (filePath.endsWith('.test.ts')) seenFiles.add(filePath);
+				}
+			}
+		}
+		testFiles = [...seenFiles].sort();
 	} catch {
 		// Fallback: if the diff fails (e.g. base == head), fall back to
 		// enumerating files present in the working tree.
 		try {
-			testFiles = execSync(
-				`find packages/scripts-ts/src -name "*.test.ts" -type f | sort`,
+			testFiles = execFileSync(
+				'find',
+				['packages/scripts-ts/src', '-name', '*.test.ts', '-type', 'f'],
 				{ cwd: gitDir, encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] },
 			)
 				.trim()
@@ -381,8 +436,9 @@ export const checkGuardTestDeletion = (
 	// in the working tree without a commit. Fall back to working tree discovery.
 	if (testFiles.length === 0) {
 		try {
-			testFiles = execSync(
-				`find packages/scripts-ts/src -name "*.test.ts" -type f | sort`,
+			testFiles = execFileSync(
+				'find',
+				['packages/scripts-ts/src', '-name', '*.test.ts', '-type', 'f'],
 				{ cwd: gitDir, encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] },
 			)
 				.trim()
@@ -391,6 +447,30 @@ export const checkGuardTestDeletion = (
 		} catch {
 			testFiles = [];
 		}
+	}
+
+	// Fail loud on an empty candidate set. A run that finds zero guard test
+	// files is a finding, not a pass — the same rule
+	// check-server-static-imports.mts applies to zero imports. Today's silence
+	// is exactly how this shipped: rootDir was wrong, the pathspec matched
+	// nothing, and the guard exited 0 unconditionally.
+	if (testFiles.length === 0) {
+		findings.push({
+			severity: 'red',
+			message:
+				`Guard test deletion guard found ZERO candidate test files under ${TEST_GLOB_ROOT}/. ` +
+				`This is a finding, not a pass. The guard cannot protect what it cannot see. ` +
+				`Check that the git directory is correct and that the scope path exists. ` +
+				`If this is a legitimate empty state, the guard must be explicitly disabled — ` +
+				`a silent pass on zero files is how this shipped broken.`,
+		});
+		return {
+			findings,
+			deletedTests: [],
+			addedTests: [],
+			baseCommit,
+			headCommit,
+		};
 	}
 
 	// Step 4: Compare test names for each file
@@ -461,9 +541,22 @@ export const checkGuardTestDeletion = (
 			for (const deleted of allDeleted) {
 				const testName = deleted.split('::').slice(1).join('::');
 
-				// Check various quoting styles
+				// Match on a whole line, not a bare substring. A bare substring
+				// match (prBody.includes(testName)) accepts a PR body that names
+				// a DIFFERENT, surviving test whose name merely contains the
+				// deleted one as a prefix. Real prefix pairs exist in this repo
+				// (e.g. "fails loudly when report is missing" / "fails loudly
+				// when report is malformed JSON"). Match on a whole line, or
+				// require an exact quoted name, and add the prefix-pair case as
+				// a test.
 				const isJustified =
-					prBody.includes(testName) ||
+					prBody.includes(`\n${testName}\n`) ||
+					prBody.includes(`\n${testName}.`) ||
+					prBody.includes(`\n${testName},`) ||
+					prBody.startsWith(`${testName}\n`) ||
+					prBody.startsWith(`${testName}.`) ||
+					prBody.startsWith(`${testName},`) ||
+					prBody === testName ||
 					prBody.includes(`"${testName}"`) ||
 					prBody.includes(`'${testName}'`) ||
 					prBody.includes(`\`${testName}\``);
