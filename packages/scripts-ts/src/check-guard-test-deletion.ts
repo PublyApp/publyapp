@@ -591,8 +591,7 @@ export const checkGuardTestDeletion = (
  * CLI entrypoint.
  */
 const isDirectRun =
-	process.argv[1] &&
-	path.basename(process.argv[1]) === 'check-guard-test-deletion.ts';
+	process.argv[1] && process.argv[1].endsWith('check-guard-test-deletion.ts');
 
 if (isDirectRun) {
 	// Read PR body from environment (set by the CI job)
