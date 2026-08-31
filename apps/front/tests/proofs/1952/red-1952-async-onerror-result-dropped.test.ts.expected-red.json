@@ -1,7 +1,6 @@
 {
 	"$schema": "../expected-red.schema.json",
-	"_comment": "Per-test kept-red expectation manifest for the #1952 async-onError result-dropped proof (counter-fix of PR #2047). Read by apps/front/scripts/ci/run-preuves.mts. The declared test MUST fail with an AssertionError on correct code; the runner refuses to classify if this file is missing or malformed. measuredAgainst = the branch HEAD the proof was authored and replayed against (f2e94566e, the grp-lintts lane head).",
-	"measuredAgainst": "f2e94566e4ce345a26b515376f059d8168bc6cba",
+	"_comment": "Per-test kept-red expectation manifest for the #1952 async-onError result-dropped proof (counter-fix of PR #2047). Read by apps/front/scripts/ci/run-preuves.mts. The declared test MUST fail with an AssertionError on correct code; the runner refuses to classify if this file is missing or malformed.",
 	"expectedRed": [
 		{
 			"testName": "RED: the async-onError resolved value is dropped from the wrapped result (issue #1952)",
