@@ -242,6 +242,21 @@ describe('TenantPostsHistoryPage', () => {
 		expect(mocks.invalidateTenantPublications).not.toHaveBeenCalled();
 	});
 
+	test('unknown wire status renders the raw value with neutral fallback', () => {
+		mocks.rows = [
+			row({
+				id: 'pub-unknown',
+				status: 'revoked',
+				externalUrl: null,
+			}),
+		];
+		render(<TenantPostsHistoryPage />);
+
+		// Unknown wire status falls through to the neutral label key (null),
+		// so the raw status value is rendered verbatim.
+		expect(screen.getByText(/revoked/)).toBeTruthy();
+	});
+
 	test('fatal error logs out only through shouldLogoutForFailure (401-only rule)', () => {
 		mocks.queryError = new Error('401 unauthorized');
 		mocks.shouldLogout = true;

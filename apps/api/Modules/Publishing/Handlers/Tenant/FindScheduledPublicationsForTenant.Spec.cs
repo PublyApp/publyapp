@@ -714,4 +714,115 @@ public sealed class FindScheduledPublicationsForTenantSpec : IClassFixture<
 			.ReadFromJsonAsync<ValidationProblemDetails>();
 		problem!.Errors.Should().ContainKey("limit");
 	}
+
+	[Fact]
+	public async Task ItShouldReturn400ForCursorOutsideWindow() {
+		var tenantId = await GetAcmeIdAsync();
+		var token = await _authClient.LoginAsync(
+			TestConstants.AcmeAdminEmail,
+			TestConstants.SeedPassword
+		);
+
+		var seeded = await CreateScheduledRowAsync(
+			tenantId,
+			"cross-window cursor target",
+			new DateTime(2099, 6, 15, 8, 0, 0, DateTimeKind.Utc)
+		);
+
+		// Build a valid cursor for the seeded row but query a DIFFERENT
+		// window that does not include it.
+		var cursor = Uri.EscapeDataString(Convert.ToBase64String(
+			System.Text.Encoding.UTF8.GetBytes(
+				$"{new DateTime(2099, 6, 15, 8, 0, 0, DateTimeKind.Utc):O}|{seeded.PublicationId}"
+			)
+		));
+
+		using var request = new HttpRequestMessage(
+			HttpMethod.Get,
+			$"{FindUrl}?from=2099-07-01T00%3A00%3A00Z"
+			+ $"&to=2099-08-01T00%3A00%3A00Z&cursor={cursor}"
+		)
+			.WithSessionToken(token)
+			.WithTenantId(tenantId);
+		using var response = await _http.SendAsync(request);
+
+		response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+	}
+
+	[Fact]
+	public async Task ItShouldReturn400ForCursorWithExcludedStatus() {
+		var tenantId = await GetAcmeIdAsync();
+		var token = await _authClient.LoginAsync(
+			TestConstants.AcmeAdminEmail,
+			TestConstants.SeedPassword
+		);
+
+		var seeded = await CreateScheduledRowAsync(
+			tenantId,
+			"cross-status cursor target",
+			new DateTime(2099, 6, 18, 8, 0, 0, DateTimeKind.Utc),
+			seedStatus: PublicationStatus.Failed
+		);
+
+		// Build a valid cursor for the seeded row but query with a status
+		// filter that excludes the row's actual status.
+		var cursor = Uri.EscapeDataString(Convert.ToBase64String(
+			System.Text.Encoding.UTF8.GetBytes(
+				$"{new DateTime(2099, 6, 18, 8, 0, 0, DateTimeKind.Utc):O}|{seeded.PublicationId}"
+			)
+		));
+
+		using var request = new HttpRequestMessage(
+			HttpMethod.Get,
+			$"{FindUrl}?from=2099-05-31T00%3A00%3A00Z"
+			+ $"&to=2099-07-01T00%3A00%3A00Z&status=scheduled&cursor={cursor}"
+		)
+			.WithSessionToken(token)
+			.WithTenantId(tenantId);
+		using var response = await _http.SendAsync(request);
+
+		response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+	}
+
+	[Fact]
+	public async Task ItShouldReturn400ForCursorPointingToDeletedPublication() {
+		var tenantId = await GetAcmeIdAsync();
+		var token = await _authClient.LoginAsync(
+			TestConstants.AcmeAdminEmail,
+			TestConstants.SeedPassword
+		);
+
+		var seeded = await CreateScheduledRowAsync(
+			tenantId,
+			"deleted cursor target",
+			new DateTime(2099, 6, 22, 8, 0, 0, DateTimeKind.Utc)
+		);
+
+		// Soft-delete the seeded publication.
+		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		_ = await db.Publication
+			.Where(p => p.Id == seeded.PublicationId)
+			.ExecuteUpdateAsync(setters => setters
+				.SetProperty(p => p.IsDeleted, true)
+				.SetProperty(p => p.DeletedAt, DateTime.UtcNow));
+
+		// Build a valid cursor for the deleted row.
+		var cursor = Uri.EscapeDataString(Convert.ToBase64String(
+			System.Text.Encoding.UTF8.GetBytes(
+				$"{new DateTime(2099, 6, 22, 8, 0, 0, DateTimeKind.Utc):O}|{seeded.PublicationId}"
+			)
+		));
+
+		using var request = new HttpRequestMessage(
+			HttpMethod.Get,
+			$"{FindUrl}?from=2099-05-31T00%3A00%3A00Z"
+			+ $"&to=2099-07-01T00%3A00%3A00Z&cursor={cursor}"
+		)
+			.WithSessionToken(token)
+			.WithTenantId(tenantId);
+		using var response = await _http.SendAsync(request);
+
+		response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+	}
 }

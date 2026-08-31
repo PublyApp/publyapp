@@ -12,19 +12,15 @@ export const TENANT_SCHEDULED_PUBLICATIONS_QUERY_KEY = [
 	'tenant-scheduled-publications',
 ] as const;
 
-const SCHEDULED_PUBLICATION_STATUSES = [
-	'scheduled',
-	'in_progress',
-	'published',
-	'failed',
-	'paused',
-] as const;
+import {
+	isPublicationWireStatus,
+	type PublicationWireStatus,
+} from '~/lib/publication-status';
 
 const LOCAL_DATE_TIME_PATTERN =
 	/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]\d{2}:\d{2})?$/;
 
-export type ScheduledPublicationStatus =
-	(typeof SCHEDULED_PUBLICATION_STATUSES)[number];
+export type ScheduledPublicationStatus = PublicationWireStatus;
 
 export type ScheduledPublicationsQueryVariables = {
 	from: Date;
@@ -46,11 +42,6 @@ export type ScheduledPublicationRow = {
 	scheduledAtLocal: string;
 	timeZone: string | null;
 };
-
-const isScheduledPublicationStatus = (
-	value: string,
-): value is ScheduledPublicationStatus =>
-	(SCHEDULED_PUBLICATION_STATUSES as readonly string[]).includes(value);
 
 const normalizeString = (
 	value: string | null | undefined,
@@ -78,7 +69,7 @@ const normalizeStatuses = (
 	const seen = new Set<string>();
 	for (const status of statuses) {
 		const trimmed = status.trim();
-		if (!isScheduledPublicationStatus(trimmed) || seen.has(trimmed)) {
+		if (!isPublicationWireStatus(trimmed) || seen.has(trimmed)) {
 			continue;
 		}
 

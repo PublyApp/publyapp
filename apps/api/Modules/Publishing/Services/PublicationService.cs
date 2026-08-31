@@ -621,11 +621,21 @@ public sealed class PublicationService : IPublicationService {
 				return new FindScheduledResult.CursorNotFound();
 			}
 
+			// The cursor row must exist, belong to the same tenant, not be
+			// deleted, fall inside the requested window, and match the
+			// requested status filter — all in one guard so a cross-window,
+			// cross-status, or deleted-row cursor returns the same 400 as
+			// a completely bogus one.
 			var cursorExists = await (
 				from p in _dbContext.Publication.AsNoTracking()
 				where p.Id == cursorId
 					&& p.TenantId == args.TenantId
-					&& p.ScheduledAtUtc == cursorInstant
+					&& !p.IsDeleted
+					&& p.ScheduledAtUtc >= args.FromUtc
+					&& p.ScheduledAtUtc <= args.ToUtc
+					&& (args.Statuses == null
+						|| args.Statuses.Count == 0
+						|| args.Statuses.Contains(p.Status))
 				select p.Id
 			).AnyAsync(cancellationToken);
 			if (!cursorExists) {

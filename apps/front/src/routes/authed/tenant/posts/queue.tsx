@@ -1,10 +1,9 @@
 import { createFileRoute } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
-import { Card, CardContent, CardHeader, CardTitle } from '~/components/ui/card';
 import { useResolvedWorkspaceTenantId } from '~/lib/query/tenants-for-picker';
 
-import { ReadOnlyBadge, WorkspacePageHeader } from '../_workspace-page-parts';
+import { WorkspacePageHeader } from '../_workspace-page-parts';
 import { buildUpcomingPublicationWindow } from './_scheduled-publication-helpers';
 import { ScheduledPublicationQueueTable } from './_scheduled-publication-queue-table';
 import { useScheduledPublicationPage } from './_use-scheduled-publication-page';
@@ -25,25 +24,15 @@ const TenantPostsQueuePage = () => {
 	}
 
 	return (
-		<div className="space-y-5" data-testid="tenant-posts-queue-page">
+		<div className="publy-page-fill" data-testid="tenant-posts-queue-page">
 			<WorkspacePageHeader titleKey="queue" />
 
-			<Card>
-				<CardHeader>
-					<CardTitle>{t('common:queue')}</CardTitle>
-					<ReadOnlyBadge />
-				</CardHeader>
-				<CardContent>
-					<p className="mb-4 text-sm text-muted-foreground">
-						{t('queue-description')}
-					</p>
-					<ScheduledPublicationQueueTable
-						query={page.query}
-						rows={page.rows}
-						pagination={page.pagination}
-					/>
-				</CardContent>
-			</Card>
+			<p className="text-sm text-muted-foreground">{t('queue-description')}</p>
+			<ScheduledPublicationQueueTable
+				query={page.query}
+				rows={page.rows}
+				pagination={page.pagination}
+			/>
 		</div>
 	);
 };

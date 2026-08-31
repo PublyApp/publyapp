@@ -131,8 +131,18 @@ describe('TenantPostsQueuePage', () => {
 		expect(screen.getByText('Paused')).toBeTruthy();
 		expect(screen.getByText(/2026-08-31 20:30/)).toBeTruthy();
 		expect(screen.getAllByText('Europe/Paris').length).toBeGreaterThan(0);
-		expect(screen.getByTestId('account-read-only-badge')).toBeTruthy();
 		expect(screen.queryByText(/coming later/i)).toBeNull();
+	});
+
+	test('owns scrolling inside the publy-page-fill chain', async () => {
+		renderPage();
+		await screen.findByText('A real scheduled post');
+
+		const pageRoot = screen.getByTestId('tenant-posts-queue-page');
+		expect(pageRoot.className).toContain('publy-page-fill');
+
+		const tableShell = screen.getByTestId('tenant-posts-queue-table');
+		expect(pageRoot.contains(tableShell)).toBe(true);
 	});
 
 	test('uses the standard empty table state instead of the placeholder', async () => {

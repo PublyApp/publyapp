@@ -1,4 +1,7 @@
-import type { StatusPillTone } from '~/components/ui/status-tone';
+import {
+	publicationStatusTone,
+	publicationStatusLabelKey,
+} from '~/lib/publication-status';
 import {
 	scheduledLocalCivilDate,
 	type ScheduledPublicationRow,
@@ -68,41 +71,6 @@ export const groupScheduledPublicationsByViewerDate = (
 	}));
 };
 
-export const scheduledPublicationStatusTone = (
-	status: string | null,
-): StatusPillTone => {
-	if (status === 'in_progress') {
-		return 'info';
-	}
-	if (status === 'paused') {
-		return 'warning';
-	}
-	if (status === 'published') {
-		return 'success';
-	}
-	if (status === 'failed') {
-		return 'danger';
-	}
-	return 'neutral';
-};
-
-export const scheduledPublicationStatusLabelKey = (
-	status: string | null,
-): string | null => {
-	if (status === 'scheduled') {
-		return 'publish-status-scheduled';
-	}
-	if (status === 'in_progress') {
-		return 'publish-status-in-progress';
-	}
-	if (status === 'paused') {
-		return 'publish-status-paused';
-	}
-	if (status === 'published') {
-		return 'publish-status-published';
-	}
-	if (status === 'failed') {
-		return 'publish-status-failed';
-	}
-	return null;
-};
+/** Re-export the shared publication-status display metadata for backward compat. */
+export const scheduledPublicationStatusTone = publicationStatusTone;
+export const scheduledPublicationStatusLabelKey = publicationStatusLabelKey;

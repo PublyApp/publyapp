@@ -9,13 +9,12 @@ import { Badge } from '~/components/ui/badge';
 import { Button } from '~/components/ui/button';
 import { PageHeader } from '~/components/ui/product-page';
 import { formatDateTime } from '~/lib/format-date-time';
+import { publicationStatusLabelKey } from '~/lib/publication-status';
 import {
 	invalidateTenantPublications,
-	isTenantPublicationStatus,
 	toTenantPublicationRows,
 	useTenantPublicationsQuery,
 	type TenantPublicationRow,
-	type TenantPublicationStatus,
 } from '~/lib/query/tenant-publications';
 import type { TableSearchParamInput } from '~/lib/url-state/table-search-params';
 
@@ -44,15 +43,6 @@ const IN_PROGRESS_POLL_MS = 5_000;
  * during render, and each poll's refetch advances it so the window expires once
  * the row stops being touched. */
 const SCHEDULED_IN_FLIGHT_WINDOW_MS = 60_000;
-
-/** Terminal statuses with a dedicated label — anything else renders raw. */
-const STATUS_LABEL_KEYS = {
-	published: 'posts:publish-status-published',
-	scheduled: 'posts:publish-status-scheduled',
-	in_progress: 'posts:publish-status-in-progress',
-	failed: 'posts:publish-status-failed',
-	paused: 'posts:publish-status-paused',
-} as const satisfies Record<TenantPublicationStatus, string>;
 
 const PublicationStatusCell = ({
 	publication,
@@ -104,13 +94,14 @@ const PublicationStatusCell = ({
 		);
 	}
 
+	const sharedLabelKey =
+		publication.status !== null
+			? publicationStatusLabelKey(publication.status)
+			: null;
 	let statusLabel: string = publication.status ?? '\u2014';
 
-	if (
-		publication.status !== null &&
-		isTenantPublicationStatus(publication.status)
-	) {
-		statusLabel = t(STATUS_LABEL_KEYS[publication.status]);
+	if (sharedLabelKey !== null) {
+		statusLabel = t(`posts:${sharedLabelKey}`);
 	}
 
 	return <span className="text-muted-foreground">{statusLabel}</span>;

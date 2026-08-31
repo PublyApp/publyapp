@@ -1,9 +1,8 @@
 import { IconCalendarEvent } from '@tabler/icons-react';
 import { createFileRoute } from '@tanstack/react-router';
+import type React from 'react';
 import { useTranslation } from 'react-i18next';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
-import QueryDisplay from '~/components/query-display';
-import { DataTableCursorFooter } from '~/components/table/data-table';
 import { Card, CardContent, CardHeader, CardTitle } from '~/components/ui/card';
 import { StateSurface } from '~/components/ui/state-surface';
 import { useResolvedWorkspaceTenantId } from '~/lib/query/tenants-for-picker';
@@ -15,18 +14,57 @@ import {
 import { ReadOnlyBadge, WorkspacePageHeader } from '../_workspace-page-parts';
 import { ScheduledPublicationAgenda } from './_scheduled-publication-agenda';
 import { buildVisibleMonthWindow } from './_scheduled-publication-helpers';
-import { useScheduledPublicationPage } from './_use-scheduled-publication-page';
+import { useScheduledPublicationAllPages } from './_use-scheduled-publication-all-pages';
 
 const TenantPostsCalendarPage = () => {
 	const { t } = useTranslation(['posts', 'common']);
 	const tenantId = useResolvedWorkspaceTenantId();
-	const page = useScheduledPublicationPage({
-		tenantId: tenantId ?? '',
-		createWindow: () => buildVisibleMonthWindow(new Date()),
-		initialSize: 100,
-	});
-	if (page.shouldLogout) {
+	const window_ = buildVisibleMonthWindow(new Date());
+	const { rows, isAggregating, shouldLogout, error } =
+		useScheduledPublicationAllPages({
+			tenantId: tenantId ?? '',
+			window: window_,
+			initialSize: 100,
+		});
+	if (shouldLogout) {
 		return <LogoutRedirect />;
+	}
+
+	const isPending = isAggregating && rows.length === 0;
+	const isError = error !== null && !isAggregating;
+
+	let calendarBody: React.ReactNode;
+	if (isPending) {
+		calendarBody = (
+			<TenantReadOnlyCardSkeleton testId="tenant-posts-calendar-loading" />
+		);
+	} else if (isError) {
+		calendarBody = (
+			<TenantReadOnlyCardError
+				query={{
+					refetch: async () =>
+						({}) as Awaited<
+							ReturnType<
+								import('@tanstack/react-query').UseQueryResult['refetch']
+							>
+						>,
+				}}
+				titleKey="common:list-unavailable-title"
+				descriptionKey="common:list-error-default-description"
+				testId="tenant-posts-calendar-error"
+			/>
+		);
+	} else if (rows.length > 0) {
+		calendarBody = <ScheduledPublicationAgenda rows={rows} />;
+	} else {
+		calendarBody = (
+			<StateSurface
+				icon={IconCalendarEvent}
+				title={t('calendar-empty-title')}
+				description={t('calendar-empty-description')}
+				testId="tenant-posts-calendar-empty"
+			/>
+		);
 	}
 
 	return (
@@ -42,48 +80,7 @@ const TenantPostsCalendarPage = () => {
 					<p className="mb-4 text-sm text-muted-foreground">
 						{t('calendar-description')}
 					</p>
-					<QueryDisplay
-						query={page.query}
-						LoadingSlot={
-							<TenantReadOnlyCardSkeleton testId="tenant-posts-calendar-loading" />
-						}
-						ErrorSlot={
-							<TenantReadOnlyCardError
-								query={page.query}
-								titleKey="common:list-unavailable-title"
-								descriptionKey="common:list-error-default-description"
-								testId="tenant-posts-calendar-error"
-							/>
-						}
-					>
-						{() =>
-							page.rows.length > 0 ? (
-								<div className="space-y-4">
-									<ScheduledPublicationAgenda rows={page.rows} />
-									<DataTableCursorFooter
-										testId="tenant-posts-calendar"
-										pageIndex={page.pagination.pageIndex}
-										size={page.pagination.size}
-										onSizeChange={page.pagination.onSizeChange}
-										pageRowCount={page.rows.length}
-										hasPreviousPage={page.pagination.hasPreviousPage}
-										hasNextPage={page.pagination.hasNextPage}
-										isPaginationPending={page.pagination.isPaginationPending}
-										onNextPage={page.pagination.onNextPage}
-										onPreviousPage={page.pagination.onPreviousPage}
-										variant="flat"
-									/>
-								</div>
-							) : (
-								<StateSurface
-									icon={IconCalendarEvent}
-									title={t('calendar-empty-title')}
-									description={t('calendar-empty-description')}
-									testId="tenant-posts-calendar-empty"
-								/>
-							)
-						}
-					</QueryDisplay>
+					{calendarBody}
 				</CardContent>
 			</Card>
 		</div>
