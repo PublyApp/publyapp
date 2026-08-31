@@ -26,8 +26,8 @@ import process from 'node:process';
 // Fenced code blocks (``` / ~~~) are stripped before scanning so examples
 // cannot trip the guard.
 //
-// EXPLICIT LIMITATION — ANCHORS ARE NOT VERIFIED (#1974 r2)
-// ----------------------------------------------------------
+// EXPLICIT LIMITATION — ANCHORS ARE NOT VERIFIED (#1974 r2, #1974 r4)
+// ---------------------------------------------------------------------
 // `resolveRelativeLinkTarget` strips the fragment via `raw.split('#')[0]`
 // before resolving the file path, so the guard checks that
 // `AGENTS.md#contributing-on-behalf-of-a-company` points at an `AGENTS.md`
@@ -37,16 +37,46 @@ import process from 'node:process';
 // named here so a future reader does not have to derive it.
 //
 // A silent guard would be worse than the gap. The guard therefore
-// - prints a one-line WARNING at the end of every successful run naming
-//   exactly what it does not check (so a green CI run cannot be read as
-//   "anchors are fine");
+// - prints, at the end of every successful run, a WARNING
+//   [FRAGMENTS-NOT-VERIFIED] line followed by every `file:line#fragment`
+//   it stripped, so a green CI run cannot be read as "anchors are fine" and
+//   a reader can grep for the exact anchors the guard did not check
+//   (e.g. `CLA.md#contributing-on-behalf-of-a-company`,
+//   `AGENTS.md#contributing`);
 // - fails LOUDLY (exit 1 with a structured message) under `--strict-anchors`,
 //   reserved for the day someone decides to actually verify fragments.
 //
-// Today (2026-08-30), the only round that exercised this gap was the one
-// that wrote this comment: PR #1974's CONTRIBUTING.md links to
-// `CLA.md#contributing-on-behalf-of-a-company`, and a mutation that broke
-// only the fragment left every CI gate green.
+// Today (2026-08-30, refreshed 2026-08-31 by r4), the only round that
+// exercised this gap was the one that wrote this comment: PR #1974's
+// CONTRIBUTING.md links to `CLA.md#contributing-on-behalf-of-a-company`,
+// and a mutation that broke only the fragment left every CI gate green.
+// The r4 fix turns the previously silent limitation into a green-run
+// discharge: the warning now NAMES the anchors it did not check.
+//
+// EXPLICIT LIMITATION — TARGETS THE GUARD CANNOT PARSE (#1974 r4)
+// ---------------------------------------------------------------
+// Round-4 review identified two cases the r3 regex capture absorbed
+// silently and reported wrongly:
+//   - an escaped-paren target like `[t](./doc\(1\)/file.md)` — the
+//     r3 capture stopped at the first `)` (literal or escaped alike), so
+//     the guard reported `doc\(1\` as a missing file even when
+//     `doc (1)/file.md` was present;
+//   - a target with a bare `<` like `[t](a<b.md)` — the r3 capture
+//     dropped at `<` and left 0 links checked with EXIT 0, a total
+//     coverage hole.
+// The guard now:
+//   1. Lets `INLINE_LINK_PATTERN` swallow `\<any>` so escaped parens no
+//      longer terminate the target prematurely;
+//   2. Runs every captured target through `unescapeTarget` before resolving
+//      against the working tree, so `doc\(1\)/file.md` resolves to the
+//      on-disk `doc (1)/file.md`;
+//   3. Fails closed with `[UNANALYSED-TARGET]` when the capture sees an
+//      UNESCAPED `(`, `)`, or `<` in a non-angle-bracket link — input the
+//      guard cannot analyse is loud, by the house rule;
+//   4. Treats the angle-bracket inline link `[t](<...>)` the same way it
+//      always did: the capture may contain spaces, parens, and other
+//      special characters, and is NOT subject to the unescaped-paren
+//      check (CommonMark disambiguates it by the surrounding `<` and `>`).
 //
 // EXPLICIT LIMITATION — SHAPES NOT VERIFIED (#1974 r3)
 // ----------------------------------------------------
@@ -107,8 +137,15 @@ const CODE_SCAN_TEST_FILE_PATTERN = /\.(test|spec)\.[cm]?[jt]sx?$/;
 // must not contain whitespace or `<`. The angle-bracket variant
 // `[text](<target>)` is recognised separately so its target may contain
 // spaces and parentheses.
+//
+// Escape handling: CommonMark allows `\<sp>` and `\(` / `\)` inside a link
+// target. The character class below lets the capture swallow `\` followed by
+// ANY character (so `\)` no longer terminates the target prematurely), then
+// the candidate is run through `unescapeTarget` before resolution so that
+// `doc\(1\)` resolves to `doc (1)`. Unescaped `(` and `)` are still caught by
+// `hasUnanalysedTargetTokens` and fail closed, preserving the r3 posture.
 const INLINE_LINK_PATTERN =
-	/\]\(\s*([^)\s<]*)(?:\s+(?:"([^"]*)"|'([^']*)'|\(([^)]*)\)))?\s*\)/g;
+	/\]\(\s*((?:\\.|[^)\s<])*)(?:\s+(?:"([^"]*)"|'([^']*)'|\(([^)]*)\)))?\s*\)/g;
 // Angle-bracket inline link: `[text](<target>)`. Target may contain spaces
 // and escaped characters but not unescaped `>` or newlines. Parens are
 // allowed in angle-bracket targets, so the unescaped-paren check is not
@@ -125,8 +162,10 @@ const REFERENCE_DEF_TITLE_PATTERN =
 // regex without ambiguity: `](f (1).md)` is either `(f (1)` + `.md)` or
 // `(f ` + `(1).md)`. CommonMark requires the parens to be `\(`/`\)` to
 // disambiguate; this pattern flags the unescaped case so the guard can
-// fail closed.
-const UNESCAPED_PAREN_TARGET_PATTERN = /(?:^|[^\\])[()]/;
+// fail closed. The `<` case is identical in spirit — `](a<b.md)` cannot be
+// distinguished from `](<...)` plus residue — so the same token list catches
+// it and the same fail-closed path applies.
+const UNANALYSED_TARGET_TOKEN = /(?<![\\<])[()<>]/;
 const FENCE_OPEN_PATTERN = /^(\s*)(```|~~~)/;
 const CODE_SPAN_PATTERN = /`[^`\n]*`/g;
 
@@ -213,6 +252,13 @@ const main = (): void => {
 	const markdownFiles = allFiles.filter((file) => file.endsWith('.md'));
 	const problems: Problem[] = [];
 	let linksChecked = 0;
+	// List of stripped fragment links, accumulated as `file:line#fragment` strings.
+	// Printed at the end of a successful run alongside the
+	// FRAGMENTS-NOT-VERIFIED warning so a green run names exactly what it did
+	// not check, by anchor. The list lives only for the end-of-run summary —
+	// it is intentionally NOT added to `problems` (a green run must remain
+	// green; this is discharge of a known gap, not a new failure mode).
+	const strippedFragments: string[] = [];
 
 	// Pre-strip fences once per Markdown file so both the link loop below and
 	// the literal scanner see identical, example-free line arrays.
@@ -248,12 +294,12 @@ const main = (): void => {
 			}
 
 			// Regular inline links: `[text](target)` or
-			// `[text](target "title")`. Target must not contain whitespace
-			// or `<`. If the target contains unescaped parens, the guard
-			// cannot reliably determine where the target ends, so it
-			// fails closed.
-			if (hasUnescapedTargetParens(line)) {
-				failUnescapedParen(file, lineNum, line);
+			// `[text](target "title")`. The capture swallows `\<any>` so
+			// an escaped `\)` no longer terminates the target prematurely;
+			// `hasUnanalysedTargetTokens` then fails closed on targets the
+			// capture cannot resolve (unescaped parens, bare `<`).
+			if (hasUnanalysedTargetTokens(line)) {
+				failUnanalysedTarget(file, lineNum, line);
 			}
 			for (const match of line.matchAll(INLINE_LINK_PATTERN)) {
 				const target = match[1];
@@ -271,8 +317,8 @@ const main = (): void => {
 			if (refDef) {
 				const target = refDef[1];
 				if (target !== undefined) {
-					if (UNESCAPED_PAREN_TARGET_PATTERN.test(target)) {
-						failUnescapedParen(file, lineNum, target);
+					if (UNANALYSED_TARGET_TOKEN.test(target)) {
+						failUnanalysedTarget(file, lineNum, target);
 					}
 					candidates.push(target);
 				}
@@ -286,11 +332,16 @@ const main = (): void => {
 			}
 
 			for (const candidate of candidates) {
-				const target = resolveRelativeLinkTarget(file, candidate);
+				const fragmentMatch = /#(.+)$/.exec(candidate);
+				const unescaped = unescapeTarget(candidate);
+				const target = resolveRelativeLinkTarget(file, unescaped);
 				if (target === undefined) {
 					continue;
 				}
 				linksChecked += 1;
+				if (fragmentMatch !== null) {
+					strippedFragments.push(`${file}:${lineNum}#${fragmentMatch[1]}`);
+				}
 				const resolves =
 					existingSet.has(target) ||
 					existingDirs.has(target) ||
@@ -340,11 +391,24 @@ const main = (): void => {
 	console.log(
 		`doc links OK: ${markdownFiles.length} Markdown files scanned, ${linksChecked} relative links checked.`,
 	);
-	console.log(
-		'WARNING [ANCHORS-NOT-VERIFIED]: only relative file targets are checked; ' +
-			'fragments after `#` are stripped by resolveRelativeLinkTarget and are NOT machine-verified. ' +
+	if (strippedFragments.length === 0) {
+		console.log(
+			'WARNING [FRAGMENTS-NOT-VERIFIED]: no fragment links were observed in this run. ' +
+				'Only relative file targets are checked; fragments after `#` would be stripped by ' +
+				'resolveRelativeLinkTarget if any were present, and are NOT machine-verified. ' +
+				'See the EXPLICIT LIMITATION block in packages/scripts-ts/src/check-doc-links.ts.',
+		);
+	} else {
+		console.log(
+			`WARNING [FRAGMENTS-NOT-VERIFIED]: ${strippedFragments.length} fragment link(s) were observed and stripped; the anchor half is NOT machine-verified:`,
+		);
+		for (const entry of strippedFragments) {
+			console.log(`  ${entry}`);
+		}
+		console.log(
 			'See the EXPLICIT LIMITATION block in packages/scripts-ts/src/check-doc-links.ts.',
-	);
+		);
+	}
 	console.log(
 		'WARNING [SHAPES-NOT-COVERED]: image links ![alt](...), bare autolinks <https://...>, ' +
 			'and reference label usage without a defined target are NOT verified. ' +
@@ -352,38 +416,61 @@ const main = (): void => {
 	);
 };
 
-// Fails closed on a target with unescaped parentheses. Extracted so the
-// two call sites (inline links and reference definitions) share one message.
-const failUnescapedParen = (
+// Fails closed on a target the regex capture cannot reliably analyse.
+// Extracted so the two call sites (inline links and reference definitions)
+// share one message naming the file:line and the offending line text.
+const failUnanalysedTarget = (
 	file: string,
 	line: number,
 	target: string,
 ): void => {
 	console.error(
-		`::error::[UNESCAPED-PAREN-TARGET] ${file}:${line}: ` +
-			`target "${target}" contains unescaped parentheses; ` +
+		`::error::[UNANALYSED-TARGET] ${file}:${line}: ` +
+			`target contains unescaped parentheses or angle brackets; ` +
 			`the guard cannot reliably determine where the target ends. ` +
-			`See the EXPLICIT LIMITATION block in packages/scripts-ts/src/check-doc-links.ts.`,
+			`See the EXPLICIT LIMITATION block in packages/scripts-ts/src/check-doc-links.ts. ` +
+			`Line: ${target}`,
 	);
 	process.exit(1);
 };
 
-// Detects an inline link whose target area contains unescaped parentheses.
-// The INLINE_LINK_PATTERN cannot capture these (it stops at whitespace or
-// the first `)`), so we scan the line link-by-link. Each `](...)` segment
-// is checked independently so a line with two valid links like
+// Detects an inline link whose target area contains an UNESCAPED `(`, `)`,
+// or `<` that the regex capture cannot resolve. Each `](...)` segment is
+// checked independently so a line with two valid links like
 // `[ok](docs) [bad](missing-dir)` is not misread as one broken target.
-const hasUnescapedTargetParens = (line: string): boolean => {
+// `\(` and `\)` are escapes and are NOT flagged; angle-bracket-inline targets
+// are matched by ANGLE_INLINE_LINK_PATTERN and the corresponding `](<...>)`
+// segments are excluded so a normal `[t](<f>)` is not flagged here.
+const hasUnanalysedTargetTokens = (line: string): boolean => {
 	const linkPattern = /\]\(([^)]*?)\)/g;
 	let match: RegExpExecArray | null;
 	while ((match = linkPattern.exec(line)) !== null) {
 		const target = match[1];
-		if (target !== undefined && /(?:^|[^\\])[()]/.test(target)) {
+		if (target === undefined) {
+			continue;
+		}
+		// Skip segments that are angle-bracket inline links: they match the
+		// ANGLE_INLINE_LINK_PATTERN and are analysed there. Any `<` after
+		// the opening `](` belongs to that path; if the segment starts with
+		// `<`, leave it alone.
+		if (target.trimStart().startsWith('<')) {
+			continue;
+		}
+		if (/(?<![\\])[()<>]/.test(target)) {
 			return true;
 		}
 	}
 	return false;
 };
+
+// Strips CommonMark backslash escapes from a captured link target. Only
+// `\<sp>`-style escapes on `(` and `)` matter for path resolution — every
+// other backslash sequence passes through unchanged. The replacement runs on
+// the raw captured text BEFORE the path is normalised and joined to the
+// surface file's directory, so a target `doc\(1\)/file.md` resolves against
+// a file `doc (1)/file.md` on disk.
+export const unescapeTarget = (raw: string): string =>
+	raw.replace(/\\([()])/g, '$1');
 
 // r1 MEDIUM: scans the code surfaces for `docs/...` path literals whose
 // target does not exist in the working tree. Same existence model as the
