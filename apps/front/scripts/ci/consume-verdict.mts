@@ -100,6 +100,8 @@ export type ProofCounts = {
 	unexpectedPasses: number;
 	corrupted: number;
 	stale: number;
+	/** Declared proof files missing from the working tree (#1768). */
+	missing: number;
 };
 
 export const consumeVerdict = (
@@ -113,6 +115,7 @@ export const consumeVerdict = (
 			counts.unexpectedPasses + (counter === 'unexpectedPasses' ? 1 : 0),
 		corrupted: counts.corrupted + (counter === 'corrupted' ? 1 : 0),
 		stale: counts.stale + (counter === 'stale' ? 1 : 0),
+		missing: counts.missing,
 	};
 };
 
@@ -134,4 +137,7 @@ export const consumeVerdict = (
  * @returns True when the runner must exit non-zero.
  */
 export const gateShouldFail = (counts: ProofCounts): boolean =>
-	counts.unexpectedPasses > 0 || counts.stale > 0 || counts.corrupted > 0;
+	counts.unexpectedPasses > 0 ||
+	counts.stale > 0 ||
+	counts.corrupted > 0 ||
+	counts.missing > 0;

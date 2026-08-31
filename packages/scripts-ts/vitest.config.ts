@@ -9,9 +9,6 @@ export default defineConfig({
 		// proof tests are NOT included here — they are EXPECTED TO FAIL and are
 		// replayed by the paired-red-proofs step via run-preuves.mts with inverted
 		// semantics.
-		include: [
-			'src/**/*.test.ts',
-			'tests/proofs/**/green-*.test.ts',
-		],
+		include: ['src/**/*.test.ts', 'tests/proofs/**/green-*.test.ts'],
 	},
 });

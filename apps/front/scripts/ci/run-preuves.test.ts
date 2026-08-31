@@ -251,6 +251,13 @@ interface ReplayFixtureOptions {
 	siblingPasses: boolean;
 	/** Whether the proof file gets its `.expected-red.json` companion. */
 	withManifest: boolean;
+	/**
+	 * Whether the proof file carries the `red-` filename prefix. The prefix is
+	 * the explicit-in-the-tree marker that declares a file as a paired red
+	 * proof (#1929-r2). Without it, the file is NOT declared regardless of
+	 * whether it has a manifest.
+	 */
+	withRedPrefix: boolean;
 }
 
 /**
@@ -341,8 +348,12 @@ const buildReplayFixture = (options: ReplayFixtureOptions): string => {
 	const siblingBody = options.siblingPasses
 		? '\t\t\texpect(true).toBe(true);'
 		: '\t\t\texpect(1).toBe(2);';
+	const proofFileName = options.withRedPrefix
+		? 'red-stale-proof.test.ts'
+		: 'stale-proof.test.ts';
+	const manifestFileName = `${proofFileName}.expected-red.json`;
 	writeFileSync(
-		join(proofDir, 'stale-proof.test.ts'),
+		join(proofDir, proofFileName),
 		[
 			"import { describe, expect, test } from 'vitest';",
 			'',
@@ -360,7 +371,7 @@ const buildReplayFixture = (options: ReplayFixtureOptions): string => {
 
 	if (options.withManifest) {
 		writeFileSync(
-			join(proofDir, 'stale-proof.test.ts.expected-red.json'),
+			join(proofDir, manifestFileName),
 			JSON.stringify(
 				{
 					measuredAgainst: '0000000000000000000000000000000000000000',
@@ -445,6 +456,7 @@ describe('proof replay — F1: the per-test manifest is the declaration marker',
 			declaredTestPasses: true,
 			siblingPasses: false,
 			withManifest: false,
+			withRedPrefix: false,
 		});
 		try {
 			const result = runReplayFixture(root);
@@ -454,16 +466,16 @@ describe('proof replay — F1: the per-test manifest is the declaration marker',
 			// The runner does NOT raise a "missing manifest" error,
 			// because the file is not in scope in the first place.
 			expect(result.status).toBe(0);
-			// Either CI mode ("This PR did not declare any paired red
-			// proofs") or local mode ("LOCAL RUN — no proof test files
-			// changed in HEAD~1..HEAD") — both spell out the no-op
-			// loudly. The test fixture runs without
-			// GITHUB_BASE_REF/GITHUB_HEAD_REF, so we expect the
-			// local-mode message; the wording differs from CI on
-			// purpose so a local run is never mistaken for a CI
-			// verdict.
-			expect(result.stdout).toMatch(
-				/(This PR did not declare any paired red proofs|LOCAL RUN.*no proof test files changed)/s,
+			// The fixture runs in LOCAL mode (no GITHUB_BASE_REF/GITHUB_HEAD_REF),
+			// so the verdict MUST be the local-mode message — never the CI
+			// "This PR did not declare any paired red proofs" sentence, which
+			// is reserved for CI scope. The two messages are intentionally
+			// distinct so a local run is never mistaken for a CI verdict.
+			expect(result.stdout).toContain(
+				'LOCAL RUN — no proof test files changed',
+			);
+			expect(result.stdout).not.toContain(
+				'This PR did not declare any paired red proofs',
 			);
 			expect(result.stderr).not.toContain('expected-red manifest is MISSING');
 			// The manifest-less file must not appear in the declared
@@ -488,6 +500,7 @@ describe('proof replay — F2: the exit gate is pinned by a real process launch'
 			declaredTestPasses: true,
 			siblingPasses: false,
 			withManifest: true,
+			withRedPrefix: true,
 		});
 		try {
 			const result = runReplayFixture(root);
@@ -518,6 +531,7 @@ describe('proof replay — F2: the exit gate is pinned by a real process launch'
 			declaredTestPasses: false,
 			siblingPasses: false,
 			withManifest: true,
+			withRedPrefix: true,
 		});
 		try {
 			const result = runReplayFixture(root);
@@ -550,6 +564,7 @@ describe('proof replay — manifest is validated BEFORE vitest launches (#1863)'
 			declaredTestPasses: true,
 			siblingPasses: false,
 			withManifest: false,
+			withRedPrefix: true,
 		});
 		try {
 			const result = runReplayFixture(root);
@@ -575,6 +590,7 @@ describe('proof replay — manifest is validated BEFORE vitest launches (#1863)'
 			declaredTestPasses: true,
 			siblingPasses: false,
 			withManifest: true,
+			withRedPrefix: true,
 		});
 		try {
 			// Overwrite the manifest with an invalid measuredAgainst.
@@ -585,7 +601,7 @@ describe('proof replay — manifest is validated BEFORE vitest launches (#1863)'
 				'tests',
 				'proofs',
 				'99999',
-				'stale-proof.test.ts.expected-red.json',
+				'red-stale-proof.test.ts.expected-red.json',
 			);
 			writeFileSync(
 				manifestPath,
@@ -631,6 +647,7 @@ describe('proof replay — an all-green proof file must fail the step (exit-0 la
 			declaredTestPasses: true,
 			siblingPasses: true,
 			withManifest: true,
+			withRedPrefix: true,
 		});
 		try {
 			const result = runReplayFixture(root);
@@ -729,7 +746,7 @@ const buildErrorFixture = (options: ErrorFixtureOptions): string => {
 	// 137 (128 + 9). The runner must classify this as ERROR →
 	// unexpectedPasses, NOT failures.
 	writeFileSync(
-		join(proofDir, 'error-proof.test.ts'),
+		join(proofDir, 'red-error-proof.test.ts'),
 		[
 			"import { describe, expect, test } from 'vitest';",
 			'',
@@ -864,7 +881,7 @@ const buildBehindHeadFixture = (): string => {
 	}
 
 	writeFileSync(
-		join(proofDir, 'pr-proof.test.ts'),
+		join(proofDir, 'red-pr-proof.test.ts'),
 		[
 			"import { describe, expect, test } from 'vitest';",
 			'',
@@ -877,7 +894,7 @@ const buildBehindHeadFixture = (): string => {
 		].join('\n'),
 	);
 	writeFileSync(
-		join(proofDir, 'pr-proof.test.ts.expected-red.json'),
+		join(proofDir, 'red-pr-proof.test.ts.expected-red.json'),
 		JSON.stringify(
 			{
 				measuredAgainst: '0000000000000000000000000000000000000000',
@@ -916,7 +933,7 @@ const buildBehindHeadFixture = (): string => {
 	const baseProofDir = join(appDir, 'tests', 'proofs', '88888');
 	mkdirSync(baseProofDir, { recursive: true });
 	writeFileSync(
-		join(baseProofDir, 'base-proof.test.ts'),
+		join(baseProofDir, 'red-base-proof.test.ts'),
 		[
 			"import { describe, expect, test } from 'vitest';",
 			'',
@@ -929,7 +946,7 @@ const buildBehindHeadFixture = (): string => {
 		].join('\n'),
 	);
 	writeFileSync(
-		join(baseProofDir, 'base-proof.test.ts.expected-red.json'),
+		join(baseProofDir, 'red-base-proof.test.ts.expected-red.json'),
 		JSON.stringify(
 			{
 				measuredAgainst: '0000000000000000000000000000000000000000',
@@ -986,9 +1003,9 @@ describe('proof replay — three-dot diff excludes base-branch changes (#1865)',
 			}
 
 			// The runner must NOT declare the base branch's proof.
-			expect(result.stdout).not.toContain('base-proof.test.ts');
+			expect(result.stdout).not.toContain('red-base-proof.test.ts');
 			// The runner MUST declare the PR branch's proof.
-			expect(result.stdout).toContain('pr-proof.test.ts');
+			expect(result.stdout).toContain('red-pr-proof.test.ts');
 			// Only ONE proof is declared (the PR's own).
 			expect(result.stdout).toContain('This PR declared 1 paired red proof(s)');
 		} finally {
@@ -1017,6 +1034,7 @@ describe('proof replay — declared proof file is missing from the working tree 
 			declaredTestPasses: false,
 			siblingPasses: false,
 			withManifest: true,
+			withRedPrefix: true,
 		});
 		try {
 			// Delete the proof file (the .expected-red.json sidecar stays,
@@ -1028,7 +1046,7 @@ describe('proof replay — declared proof file is missing from the working tree 
 				'tests',
 				'proofs',
 				'99999',
-				'stale-proof.test.ts',
+				'red-stale-proof.test.ts',
 			);
 			// The proof must exist before we delete it, otherwise the deletion
 			// proves nothing and the fixture would be green for the wrong reason.
@@ -1041,9 +1059,8 @@ describe('proof replay — declared proof file is missing from the working tree 
 			// Must fail (not a false green).
 			expect(result.status).not.toBe(0);
 			// The error must NAME the missing file — not a raw ENOENT stack.
-			expect(result.stderr).toContain('stale-proof.test.ts');
-			expect(result.stderr).toContain('ENOENT');
-			expect(result.stderr).toContain('file is missing');
+			expect(result.stderr).toContain('red-stale-proof.test.ts');
+			expect(result.stderr).toContain('not on disk');
 			// #1768: a merely-behind branch must NOT be accused of corruption.
 			// The message names the remedy (merge develop) and the label is
 			// MISSING PROOF, never CORRUPT PROOF.
@@ -1069,6 +1086,7 @@ describe('proof replay — declared proof file is missing from the working tree 
 			declaredTestPasses: false,
 			siblingPasses: false,
 			withManifest: true,
+			withRedPrefix: true,
 		});
 		try {
 			const proofFile = join(
@@ -1078,7 +1096,7 @@ describe('proof replay — declared proof file is missing from the working tree 
 				'tests',
 				'proofs',
 				'99999',
-				'stale-proof.test.ts',
+				'red-stale-proof.test.ts',
 			);
 			// Truncate to 0 bytes.
 			writeFileSync(proofFile, '');
@@ -1086,7 +1104,7 @@ describe('proof replay — declared proof file is missing from the working tree 
 			const result = runReplayFixture(root);
 
 			expect(result.status).not.toBe(0);
-			expect(result.stderr).toContain('stale-proof.test.ts');
+			expect(result.stderr).toContain('red-stale-proof.test.ts');
 			expect(result.stderr).toContain('0 bytes');
 			// Paired correction (#1960): a file that EXISTS but is corrupt is
 			// still ACCUSED of corruption — it must never be redirected to
@@ -1111,6 +1129,7 @@ describe('proof replay — declared proof file is missing from the working tree 
 			declaredTestPasses: false,
 			siblingPasses: false,
 			withManifest: true,
+			withRedPrefix: true,
 		});
 		try {
 			const proofFile = join(
@@ -1120,7 +1139,7 @@ describe('proof replay — declared proof file is missing from the working tree 
 				'tests',
 				'proofs',
 				'99999',
-				'stale-proof.test.ts',
+				'red-stale-proof.test.ts',
 			);
 			// Replace the proof with binary garbage: a null byte in the middle
 			// of an otherwise-UTF-8 file.
@@ -1129,7 +1148,7 @@ describe('proof replay — declared proof file is missing from the working tree 
 			const result = runReplayFixture(root);
 
 			expect(result.status).not.toBe(0);
-			expect(result.stderr).toContain('stale-proof.test.ts');
+			expect(result.stderr).toContain('red-stale-proof.test.ts');
 			expect(result.stderr).toContain('null bytes');
 			expect(result.stderr).toContain('CORRUPT PROOF');
 			expect(result.stderr).not.toContain('merge develop');
@@ -1159,7 +1178,7 @@ describe('proof replay — CI mode declared proof file missing from disk is name
 				'tests',
 				'proofs',
 				'99999',
-				'pr-proof.test.ts',
+				'red-pr-proof.test.ts',
 			);
 			expect(existsSync(proofFile)).toBe(true);
 			rmSync(proofFile);
@@ -1182,9 +1201,8 @@ describe('proof replay — CI mode declared proof file missing from disk is name
 			expect(result.status).not.toBe(0);
 			// Names the missing file.
 			expect(result.stderr).toContain('pr-proof.test.ts');
-			// Names the cause (ENOENT / missing file), not just a crash.
-			expect(result.stderr).toContain('ENOENT');
-			expect(result.stderr).toContain('file is missing');
+			// Names the cause (missing file), not just a crash.
+			expect(result.stderr).toContain('not on disk');
 			// #1768: the CI-mode remedy is the same — merge develop.
 			expect(result.stderr).toContain('merge develop');
 			expect(result.stderr).toContain('MISSING PROOF');

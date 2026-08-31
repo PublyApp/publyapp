@@ -113,7 +113,7 @@ test('consumeVerdict: OK verdict (real assertion-failure report) increments fail
 	expect(result.verdict).toBe('OK');
 
 	const next = consumeVerdict(
-		{ failures: 0, unexpectedPasses: 0, corrupted: 0, stale: 0 },
+		{ failures: 0, unexpectedPasses: 0, corrupted: 0, stale: 0, missing: 0 },
 		result.verdict,
 	);
 	expect(next).toEqual({
@@ -121,6 +121,7 @@ test('consumeVerdict: OK verdict (real assertion-failure report) increments fail
 		unexpectedPasses: 0,
 		corrupted: 0,
 		stale: 0,
+		missing: 0,
 	});
 });
 
@@ -129,7 +130,7 @@ test('consumeVerdict: CORRUPT PROOF verdict (real thrown-Error report) increment
 	expect(result.verdict).toBe('CORRUPT PROOF');
 
 	const next = consumeVerdict(
-		{ failures: 0, unexpectedPasses: 0, corrupted: 0, stale: 0 },
+		{ failures: 0, unexpectedPasses: 0, corrupted: 0, stale: 0, missing: 0 },
 		result.verdict,
 	);
 	expect(next).toEqual({
@@ -137,6 +138,7 @@ test('consumeVerdict: CORRUPT PROOF verdict (real thrown-Error report) increment
 		unexpectedPasses: 0,
 		corrupted: 1,
 		stale: 0,
+		missing: 0,
 	});
 });
 
@@ -145,7 +147,7 @@ test('consumeVerdict: UNEXPECTED_PASS verdict (real passing test report) increme
 	expect(result.verdict).toBe('UNEXPECTED_PASS');
 
 	const next = consumeVerdict(
-		{ failures: 0, unexpectedPasses: 0, corrupted: 0, stale: 0 },
+		{ failures: 0, unexpectedPasses: 0, corrupted: 0, stale: 0, missing: 0 },
 		result.verdict,
 	);
 	expect(next).toEqual({
@@ -153,6 +155,7 @@ test('consumeVerdict: UNEXPECTED_PASS verdict (real passing test report) increme
 		unexpectedPasses: 1,
 		corrupted: 0,
 		stale: 0,
+		missing: 0,
 	});
 });
 
@@ -189,7 +192,7 @@ test('consumeVerdict: Node 24 AssertionError [ERR_ASSERTION] format still increm
 	expect(result.verdict).toBe('OK');
 
 	const next = consumeVerdict(
-		{ failures: 0, unexpectedPasses: 0, corrupted: 0, stale: 0 },
+		{ failures: 0, unexpectedPasses: 0, corrupted: 0, stale: 0, missing: 0 },
 		result.verdict,
 	);
 	expect(next).toEqual({
@@ -197,6 +200,7 @@ test('consumeVerdict: Node 24 AssertionError [ERR_ASSERTION] format still increm
 		unexpectedPasses: 0,
 		corrupted: 0,
 		stale: 0,
+		missing: 0,
 	});
 });
 
@@ -205,7 +209,7 @@ test('consumeVerdict: NO_TESTS verdict (real empty-suite report) increments corr
 	expect(result.verdict).toBe('NO_TESTS');
 
 	const next = consumeVerdict(
-		{ failures: 0, unexpectedPasses: 0, corrupted: 0, stale: 0 },
+		{ failures: 0, unexpectedPasses: 0, corrupted: 0, stale: 0, missing: 0 },
 		result.verdict,
 	);
 	expect(next).toEqual({
@@ -213,6 +217,7 @@ test('consumeVerdict: NO_TESTS verdict (real empty-suite report) increments corr
 		unexpectedPasses: 0,
 		corrupted: 1,
 		stale: 0,
+		missing: 0,
 	});
 });
 
@@ -227,7 +232,7 @@ test('consumeVerdict: ERROR verdict (simulated crash, non-zero/non-one exit) inc
 	expect(result.verdict).toBe('ERROR');
 
 	const next = consumeVerdict(
-		{ failures: 0, unexpectedPasses: 0, corrupted: 0, stale: 0 },
+		{ failures: 0, unexpectedPasses: 0, corrupted: 0, stale: 0, missing: 0 },
 		result.verdict,
 	);
 	expect(next).toEqual({
@@ -235,6 +240,7 @@ test('consumeVerdict: ERROR verdict (simulated crash, non-zero/non-one exit) inc
 		unexpectedPasses: 1,
 		corrupted: 0,
 		stale: 0,
+		missing: 0,
 	});
 });
 
@@ -244,7 +250,7 @@ test('consumeVerdict: DECLARED RED PASSED verdict increments stale (not corrupte
 	// NOT the `corrupted` counter. Folding it back into `corrupted` is the
 	// exact regression #1806 ronde 9 demands we catch.
 	const next = consumeVerdict(
-		{ failures: 0, unexpectedPasses: 0, corrupted: 0, stale: 0 },
+		{ failures: 0, unexpectedPasses: 0, corrupted: 0, stale: 0, missing: 0 },
 		'DECLARED RED PASSED',
 	);
 	expect(next).toEqual({
@@ -252,13 +258,20 @@ test('consumeVerdict: DECLARED RED PASSED verdict increments stale (not corrupte
 		unexpectedPasses: 0,
 		corrupted: 0,
 		stale: 1,
+		missing: 0,
 	});
 });
 
 // --- Accumulation tests (multiple verdicts in sequence) ---
 
 test('consumeVerdict: accumulates multiple verdicts without mutating input', () => {
-	const initial = { failures: 0, unexpectedPasses: 0, corrupted: 0, stale: 0 };
+	const initial = {
+		failures: 0,
+		unexpectedPasses: 0,
+		corrupted: 0,
+		stale: 0,
+		missing: 0,
+	};
 
 	const r1 = consumeVerdict(initial, 'OK');
 	const r2 = consumeVerdict(r1, 'OK');
@@ -272,6 +285,7 @@ test('consumeVerdict: accumulates multiple verdicts without mutating input', () 
 		unexpectedPasses: 2,
 		corrupted: 1,
 		stale: 1,
+		missing: 0,
 	});
 
 	// Input must never be mutated — pure function contract.
@@ -280,12 +294,13 @@ test('consumeVerdict: accumulates multiple verdicts without mutating input', () 
 		unexpectedPasses: 0,
 		corrupted: 0,
 		stale: 0,
+		missing: 0,
 	});
 });
 
 test('consumeVerdict: a single OK verdict does NOT increment unexpectedPasses (catches OK↔ERROR swap)', () => {
 	const result = consumeVerdict(
-		{ failures: 0, unexpectedPasses: 0, corrupted: 0, stale: 0 },
+		{ failures: 0, unexpectedPasses: 0, corrupted: 0, stale: 0, missing: 0 },
 		'OK',
 	);
 	expect(result.unexpectedPasses).toBe(0);
@@ -293,7 +308,7 @@ test('consumeVerdict: a single OK verdict does NOT increment unexpectedPasses (c
 
 test('consumeVerdict: a single ERROR verdict does NOT increment failures (catches OK↔ERROR swap)', () => {
 	const result = consumeVerdict(
-		{ failures: 0, unexpectedPasses: 0, corrupted: 0, stale: 0 },
+		{ failures: 0, unexpectedPasses: 0, corrupted: 0, stale: 0, missing: 0 },
 		'ERROR',
 	);
 	expect(result.failures).toBe(0);
@@ -301,7 +316,7 @@ test('consumeVerdict: a single ERROR verdict does NOT increment failures (catche
 
 test('consumeVerdict: a single CORRUPT PROOF verdict does NOT increment unexpectedPasses (catches CORRUPT PROOF↔ERROR swap)', () => {
 	const result = consumeVerdict(
-		{ failures: 0, unexpectedPasses: 0, corrupted: 0, stale: 0 },
+		{ failures: 0, unexpectedPasses: 0, corrupted: 0, stale: 0, missing: 0 },
 		'CORRUPT PROOF',
 	);
 	expect(result.unexpectedPasses).toBe(0);
@@ -309,7 +324,7 @@ test('consumeVerdict: a single CORRUPT PROOF verdict does NOT increment unexpect
 
 test('consumeVerdict: a single UNEXPECTED_PASS verdict does NOT increment corrupted (catches UNEXPECTED_PASS↔NO_TESTS swap)', () => {
 	const result = consumeVerdict(
-		{ failures: 0, unexpectedPasses: 0, corrupted: 0, stale: 0 },
+		{ failures: 0, unexpectedPasses: 0, corrupted: 0, stale: 0, missing: 0 },
 		'UNEXPECTED_PASS',
 	);
 	expect(result.corrupted).toBe(0);
@@ -322,7 +337,7 @@ test('consumeVerdict: a single CORRUPT PROOF verdict does NOT increment stale (c
 	// switch is broken. This test pins the boundary: CORRUPT PROOF must hit
 	// `corrupted`, never `stale`.
 	const result = consumeVerdict(
-		{ failures: 0, unexpectedPasses: 0, corrupted: 0, stale: 0 },
+		{ failures: 0, unexpectedPasses: 0, corrupted: 0, stale: 0, missing: 0 },
 		'CORRUPT PROOF',
 	);
 	expect(result.stale).toBe(0);
@@ -333,7 +348,7 @@ test('consumeVerdict: a single DECLARED RED PASSED verdict does NOT increment co
 	// CORRUPT PROOF would increment stale instead of corrupted. This test pins
 	// the boundary: DECLARED RED PASSED must hit `stale`, never `corrupted`.
 	const result = consumeVerdict(
-		{ failures: 0, unexpectedPasses: 0, corrupted: 0, stale: 0 },
+		{ failures: 0, unexpectedPasses: 0, corrupted: 0, stale: 0, missing: 0 },
 		'DECLARED RED PASSED',
 	);
 	expect(result.corrupted).toBe(0);
@@ -353,6 +368,7 @@ test('gateShouldFail: a stale proof ALONE (stale=1, unexpectedPasses=0, corrupte
 			unexpectedPasses: 0,
 			corrupted: 0,
 			stale: 1,
+			missing: 0,
 		}),
 	).toBe(true);
 });
@@ -364,6 +380,7 @@ test('gateShouldFail: unexpectedPasses alone trips the gate', () => {
 			unexpectedPasses: 1,
 			corrupted: 0,
 			stale: 0,
+			missing: 0,
 		}),
 	).toBe(true);
 });
@@ -375,6 +392,7 @@ test('gateShouldFail: corrupted alone trips the gate', () => {
 			unexpectedPasses: 0,
 			corrupted: 1,
 			stale: 0,
+			missing: 0,
 		}),
 	).toBe(true);
 });
@@ -388,6 +406,7 @@ test('gateShouldFail: kept-red failure counts alone do NOT trip the gate', () =>
 			unexpectedPasses: 0,
 			corrupted: 0,
 			stale: 0,
+			missing: 0,
 		}),
 	).toBe(false);
 });
@@ -399,6 +418,7 @@ test('gateShouldFail: all-zero counts pass the gate', () => {
 			unexpectedPasses: 0,
 			corrupted: 0,
 			stale: 0,
+			missing: 0,
 		}),
 	).toBe(false);
 });
@@ -413,6 +433,7 @@ test('gateShouldFail: a stale proof alongside expected failures still fails the 
 			unexpectedPasses: 0,
 			corrupted: 0,
 			stale: 1,
+			missing: 0,
 		}),
 	).toBe(true);
 });

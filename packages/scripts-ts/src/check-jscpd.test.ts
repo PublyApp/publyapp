@@ -1237,9 +1237,7 @@ test('#1932: with pairLines in the reference, the exact crossing pair is named, 
 	const ref = {
 		productionPairs: { count: 5, lines: 500 },
 		productionAuto: { count: 0, lines: 0 },
-		pairLines: {
-			...Object.fromEntries(big.map(([a, b]) => [`${a}|${b}`, 100])),
-		},
+		pairLines: Object.fromEntries(big.map(([a, b]) => [`${a}|${b}`, 100])),
 		autoLines: {},
 	};
 
@@ -1400,5 +1398,4 @@ test('isTestInfraDir rejects a third Tests/ root added under apps/api (e.g. apps
 				`directory is not silently absorbed.`,
 		);
 	}
-});
 });
