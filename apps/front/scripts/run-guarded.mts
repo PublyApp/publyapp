@@ -127,12 +127,18 @@ const guardScript = scriptIndex >= 0 ? rawArgs[scriptIndex]! : null;
 const scriptArgs = scriptIndex >= 0 ? rawArgs.slice(scriptIndex + 1) : [];
 
 // Derive a human-readable guard label for the error message.
-const guardLabel =
-	passthroughCommand !== null
-		? passthroughCommand
-		: guardScript!.includes('apps/front/')
-			? guardScript!.split('apps/front/').pop()!
-			: guardScript!;
+const resolveGuardLabel = (): string => {
+	if (passthroughCommand !== null) {
+		return passthroughCommand;
+	}
+	const script = guardScript!;
+	if (script.includes('apps/front/')) {
+		return script.split('apps/front/').pop()!;
+	}
+	return script;
+};
+
+const guardLabel = resolveGuardLabel();
 
 const startMs = Date.now();
 

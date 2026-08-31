@@ -60,10 +60,10 @@ export type GuardCoverageFinding = {
  * timeout (the wrapper would SIGKILL them mid-session). Each entry names its
  * reason; the guard prints the list on every green run so it stays visible.
  */
-export const LONG_RUNNING_EXEMPTIONS: Readonly<Record<string, string>> = {
+export const LONG_RUNNING_EXEMPTIONS = {
 	start:
 		'production server (`node server.mjs`): runs until stopped; a 300s bound would kill it mid-session',
-};
+} as const satisfies Readonly<Record<string, string>>;
 
 const FAMILY_PREFIXES = ['test:', 'check:', 'verify:'] as const;
 
