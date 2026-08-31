@@ -1375,7 +1375,7 @@ public sealed class ComprehensiveRateLimitingSpec
 			return Task.FromResult<SessionData?>(null);
 		}
 
-		public Task<bool> RevokeSessionForTokenAsync(
+		public Task<bool> RevokeRegularSessionForTokenAsync(
 			string token,
 			CancellationToken cancellationToken = default
 		) {

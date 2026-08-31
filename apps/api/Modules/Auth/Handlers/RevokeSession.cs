@@ -11,7 +11,8 @@ namespace PublyApp.Api.Modules.Auth.Handlers;
 public sealed class RevokeSession {
 	public static async Task<Results<
 		Ok<ApiResponse>,
-		AppUnauthorizedHttpResult
+		AppUnauthorizedHttpResult,
+		AppForbiddenHttpResult
 	>> Handle(
 		[FromServices] IRequestAuthContext authContext,
 		[FromServices] ISessionService sessionService,
@@ -24,10 +25,25 @@ public sealed class RevokeSession {
 			);
 		}
 
-		await sessionService.RevokeSessionForTokenAsync(
+		// Delegates to the service method that performs an atomic delete
+		// constrained by token AND IsImpersonation == false. A return value
+		// of false means no ordinary session matched the token — the token
+		// may be an impersonation session, or the session was already
+		// consumed by a concurrent request. Either way this is an
+		// authenticated (non-401) failure: the ordinary session cannot be
+		// revoked. A valid impersonation token remains usable and no
+		// `impersonation.ended` audit action is emitted from here.
+		var revoked = await sessionService.RevokeRegularSessionForTokenAsync(
 			token,
 			cancellationToken
 		);
+
+		if (!revoked) {
+			return TypedProblems.Forbidden(
+				"Session is not an ordinary session, or has already been revoked",
+				ResponseKeys.SessionNotRegular
+			);
+		}
 
 		return TypedResults.Ok(
 			ApiResponse.Create(

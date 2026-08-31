@@ -137,5 +137,6 @@
 	"system-job-disable-protected": "This system job cannot be disabled because its retention cadence is a privacy control",
 	"system-job-trigger-success": "System job enqueued",
 	"system-job-trigger-noop": "System job is disabled and was not enqueued",
-	"session-revoked": "Session revoked successfully"
+	"session-revoked": "Session revoked successfully",
+	"session-not-regular": "The session is not an ordinary session, or has already been revoked; impersonation sessions cannot be ended here"
 }

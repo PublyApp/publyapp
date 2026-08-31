@@ -18,7 +18,18 @@ public class SessionData {
 public interface ISessionService {
 	Task<Session> CreateSessionForUser(UserNs.User user, CancellationToken cancellationToken = default);
 	Task<SessionData?> GetSessionByToken(string token, CancellationToken cancellationToken = default);
-	Task<bool> RevokeSessionForTokenAsync(string token, CancellationToken cancellationToken = default);
+
+	/// <summary>
+	/// Physically deletes the ordinary (non-impersonation) session row
+	/// matching the given token. Returns <c>true</c> when a row was deleted,
+	/// <c>false</c> when no ordinary session matched (the token may be an
+	/// impersonation session, or the session was already consumed).
+	///
+	/// The delete is constrained by token AND <c>IsImpersonation == false</c>
+	/// in a single atomic statement — no SELECT+DELETE race and never touches
+	/// impersonation sessions.
+	/// </summary>
+	Task<bool> RevokeRegularSessionForTokenAsync(string token, CancellationToken cancellationToken = default);
 }
 
 [Service(ServiceLifetime.Scoped)]
@@ -80,22 +91,21 @@ public class SessionService : ISessionService {
 		};
 	}
 
-	public async Task<bool> RevokeSessionForTokenAsync(string token, CancellationToken cancellationToken = default) {
-		var session = await _dbContext.Session
-			.Where(s => s.Token == token)
-			.FirstOrDefaultAsync(cancellationToken);
+	/// <inheritdoc />
+	public async Task<bool> RevokeRegularSessionForTokenAsync(
+		string token,
+		CancellationToken cancellationToken = default
+	) {
+		// Single atomic delete constrained by token AND ordinary-session
+		// type. This is free of the SELECT+DELETE race (two concurrent
+		// revocations can't collide on a tracked entity) and never touches
+		// impersonation sessions — a valid impersonation token remains usable
+		// after this operation and no `impersonation.ended` audit action is
+		// emitted (that is handled elsewhere, not here).
+		var affectedRows = await _dbContext.Session
+			.Where(s => s.Token == token && !s.IsImpersonation)
+			.ExecuteDeleteAsync(cancellationToken);
 
-		if (session is null) {
-			return false;
-		}
-
-		// Physically delete the session row — revocation is permanent
-		// and must invalidate the token immediately. This applies to
-		// both regular and impersonation sessions, as each session has
-		// its own token and revocation targets exactly one session.
-		_dbContext.Session.Remove(session);
-		await _dbContext.SaveChangesAsync(cancellationToken);
-
-		return true;
+		return affectedRows > 0;
 	}
 }
