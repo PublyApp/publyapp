@@ -1254,7 +1254,11 @@ describe('func-style: ["error", "expression"] (#1834 — uniform arrow form)', (
 			// packages/scripts-ts/ is linted by oxlint, so suppressions there must
 			// also be tracked.
 			const scriptsRoot = join(WORKSPACE_ROOT, 'packages/scripts-ts/src');
-			const foundEntries = await scanFuncStyleSuppressions(scriptsRoot);
+			const { entries: foundEntries } = await withLoudTimeout(
+				'scripts-ts-scan',
+				30_000,
+				() => scanFuncStyleSuppressions(scriptsRoot),
+			);
 
 			// This test just verifies the scanner can process packages/scripts-ts/
 			// without error. The real drift test (below) uses the workspace root.
@@ -1264,67 +1268,69 @@ describe('func-style: ["error", "expression"] (#1834 — uniform arrow form)', (
 			);
 		});
 
-			it(
-				'the real production tree has zero drift against the committed suppression inventory',
-				{ timeout: 30_000 },
-				async () => {
-					// Scan the FULL workspace root (not just apps/front/) so the scanner
-					// scope matches what oxlint lints — issue #1834 point 3.
-					const { entries: foundEntries } = await withLoudTimeout(
-						'real-tree-drift',
-						30_000,
-						() => scanFuncStyleSuppressions(WORKSPACE_ROOT),
+		it(
+			'the real production tree has zero drift against the committed suppression inventory',
+			{ timeout: 30_000 },
+			async () => {
+				// Scan the FULL workspace root (not just apps/front/) so the scanner
+				// scope matches what oxlint lints — issue #1834 point 3.
+				const { entries: foundEntries } = await withLoudTimeout(
+					'real-tree-drift',
+					30_000,
+					() => scanFuncStyleSuppressions(WORKSPACE_ROOT),
+				);
+
+				// Compare against the committed inventory using multiset diff.
+				const foundCounts = countByFileAndSymbol(foundEntries);
+				const inventoryCounts = countByFileAndSymbol(SUPPRESSION_INVENTORY);
+
+				// Undocumented: more found than in inventory.
+				const undocumented: Array<{ file: string; symbol: string }> = [];
+				for (const [key, count] of foundCounts) {
+					const inventoryCount = inventoryCounts.get(key) ?? 0;
+					if (count > inventoryCount) {
+						const [file, ...rest] = key.split('\x00');
+						const symbol = rest.join('\x00');
+						undocumented.push({ file, symbol });
+					}
+				}
+
+				// Stale: more in inventory than found.
+				const stale: Array<{ file: string; symbol: string }> = [];
+				for (const entry of SUPPRESSION_INVENTORY) {
+					const key = funcStyleInventoryKey(entry);
+					const foundCount = foundCounts.get(key) ?? 0;
+					if (foundCount === 0) {
+						stale.push({ file: entry.file, symbol: entry.symbol });
+					}
+				}
+
+				if (undocumented.length > 0) {
+					const names = undocumented
+						.map((e) => `${e.file}: ${e.symbol || '(file-level suppression)'}`)
+						.join('\n  ');
+					assert.fail(
+						`undocumented func-style suppressions found:\n  ${names}`,
 					);
+				}
 
-					// Compare against the committed inventory using multiset diff.
-					const foundCounts = countByFileAndSymbol(foundEntries);
-					const inventoryCounts = countByFileAndSymbol(SUPPRESSION_INVENTORY);
-
-					// Undocumented: more found than in inventory.
-					const undocumented: Array<{ file: string; symbol: string }> = [];
-					for (const [key, count] of foundCounts) {
-						const inventoryCount = inventoryCounts.get(key) ?? 0;
-						if (count > inventoryCount) {
-							const [file, ...rest] = key.split('\x00');
-							const symbol = rest.join('\x00');
-							undocumented.push({ file, symbol });
-						}
-					}
-
-					// Stale: more in inventory than found.
-					const stale: Array<{ file: string; symbol: string }> = [];
-					for (const entry of SUPPRESSION_INVENTORY) {
-						const key = funcStyleInventoryKey(entry);
-						const foundCount = foundCounts.get(key) ?? 0;
-						if (foundCount === 0) {
-							stale.push({ file: entry.file, symbol: entry.symbol });
-						}
-					}
-
-					if (undocumented.length > 0) {
-						const names = undocumented
-							.map((e) => `${e.file}: ${e.symbol || '(file-level suppression)'}`)
-							.join('\n  ');
-						assert.fail(`undocumented func-style suppressions found:\n  ${names}`);
-					}
-
-					if (stale.length > 0) {
-						const names = stale
-							.map((e) => `${e.file}: ${e.symbol || '(file-level suppression)'}`)
-							.join('\n  ');
-						assert.fail(
-							`stale suppression inventory entries (suppression no longer exists in code):\n  ${names}`,
-						);
-					}
-
-					assert.deepStrictEqual(
-						undocumented,
-						[],
-						'no undocumented func-style suppressions',
+				if (stale.length > 0) {
+					const names = stale
+						.map((e) => `${e.file}: ${e.symbol || '(file-level suppression)'}`)
+						.join('\n  ');
+					assert.fail(
+						`stale suppression inventory entries (suppression no longer exists in code):\n  ${names}`,
 					);
-					assert.deepStrictEqual(stale, [], 'no stale inventory entries');
-				},
-			);
+				}
+
+				assert.deepStrictEqual(
+					undocumented,
+					[],
+					'no undocumented func-style suppressions',
+				);
+				assert.deepStrictEqual(stale, [], 'no stale inventory entries');
+			},
+		);
 	});
 
 	describe('order leg — no arrow constant is called during module evaluation before its definition (#1898)', () => {
@@ -2059,7 +2065,10 @@ class Probe {}
 					// and deterministic (no git-check-ignore batch under load).
 					// The planted path is NOT in any IGNORED_PREFIXES entry and
 					// is not git-ignored, so the scanner must see it.
-					const plantedDir = join(WORKSPACE_ROOT, 'apps/front/proof-1909-not-ignored');
+					const plantedDir = join(
+						WORKSPACE_ROOT,
+						'apps/front/proof-1909-not-ignored',
+					);
 					const { entries: foundEntries, elapsedMs } = await withLoudTimeout(
 						'leg 2',
 						30_000,
