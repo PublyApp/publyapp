@@ -66,11 +66,28 @@ index_mode() {
 # when its execute bit is set. `100755` → `755` → 7 and 5 are odd → executable.
 # `100644` → `644` → all even → not executable.
 # For 3-digit modes (from `stat -c '%a'`), check directly without stripping.
+# Non-regular file modes (symlinks: 120000, submodules: 160000, etc.) are
+# rejected loudly with the mode name — a guard that cannot analyse its input
+# must fail by naming the cause, never by silently substituting a default.
 is_executable() {
 	local mode="$1"
-	# Only strip 100 prefix for 6-digit git modes (100XXX), not 3-digit modes
 	case "$mode" in
-		100???) mode="${mode#100}" ;;
+		100???)
+			# 6-digit git mode for a regular file: strip the 100 prefix and
+			# check the 3-digit permission triplet.
+			mode="${mode#100}" ;;
+		??????)
+			# 6-digit mode that is NOT a regular file (120000 symlink,
+			# 160000 submodule, etc.): reject loudly by naming the mode.
+			echo "[verify-hooks] is_executable: unexpected non-regular file mode: $mode" >&2
+			return 1 ;;
+		???)
+			# 3-digit mode (755, 644): direct permission triplet — accept.
+			;;
+		*)
+			# Any other length: reject.
+			echo "[verify-hooks] is_executable: unexpected mode length: $mode" >&2
+			return 1 ;;
 	esac
 	case "$mode" in
 		*1*|*3*|*5*|*7*) return 0 ;;

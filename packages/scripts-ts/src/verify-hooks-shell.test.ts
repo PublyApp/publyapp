@@ -207,4 +207,82 @@ describe('.husky/_verify-hooks.sh — issue #1933 shell-side guard', () => {
 		expect(combined).toContain('.husky/pre-commit');
 		expect(combined).toContain('pnpm install');
 	});
+
+	test('RED: a non-regular git index mode (120000 symlink) is rejected loudly by is_executable', () => {
+		// `is_executable` only knows how to handle regular file modes (100XXX).
+		// A symlink carries mode 120000 in the index — it does not match `100???`,
+		// so the function must reject it by naming the mode, never by silently
+		// substituting a default. This is not reachable today (git hooks are
+		// never symlinks), but the function must not over-claim its domain.
+		// We embed the function directly (not sourced) to test it in isolation.
+		const result = execFileSync(
+			'sh',
+			[
+				'-c',
+				'is_executable() {\n' +
+				'	local mode="$1"\n' +
+				'	case "$mode" in\n' +
+				'		100???)\n' +
+				'			mode="${mode#100}" ;;\n' +
+				'		??????)\n' +
+				'			echo "[verify-hooks] is_executable: unexpected non-regular file mode: $mode" >&2\n' +
+				'			return 1 ;;\n' +
+				'		???)\n' +
+				'			;;\n' +
+				'		*)\n' +
+				'			echo "[verify-hooks] is_executable: unexpected mode length: $mode" >&2\n' +
+				'			return 1 ;;\n' +
+				'	esac\n' +
+				'	case "$mode" in\n' +
+				'		*1*|*3*|*5*|*7*) return 0 ;;\n' +
+				'	esac\n' +
+				'	return 1\n' +
+				'}\n' +
+				'is_executable 120000 2>&1\n' +
+				'echo "exit:$?"',
+			],
+			{ encoding: 'utf-8' },
+		);
+		const output = result.trim();
+		// is_executable must print the error message and exit 1 for mode 120000
+		expect(output).toContain('unexpected non-regular file mode: 120000');
+		expect(output).toContain('exit:1');
+	});
+
+	test('RED: a non-regular git index mode (160000 submodule) is rejected loudly by is_executable', () => {
+		// Same as above: submodules carry mode 160000 in the index. The function
+		// must name the mode rather than silently returning a default.
+		const result = execFileSync(
+			'sh',
+			[
+				'-c',
+				'is_executable() {\n' +
+				'	local mode="$1"\n' +
+				'	case "$mode" in\n' +
+				'		100???)\n' +
+				'			mode="${mode#100}" ;;\n' +
+				'		??????)\n' +
+				'			echo "[verify-hooks] is_executable: unexpected non-regular file mode: $mode" >&2\n' +
+				'			return 1 ;;\n' +
+				'		???)\n' +
+				'			;;\n' +
+				'		*)\n' +
+				'			echo "[verify-hooks] is_executable: unexpected mode length: $mode" >&2\n' +
+				'			return 1 ;;\n' +
+				'	esac\n' +
+				'	case "$mode" in\n' +
+				'		*1*|*3*|*5*|*7*) return 0 ;;\n' +
+				'	esac\n' +
+				'	return 1\n' +
+				'}\n' +
+				'is_executable 160000 2>&1\n' +
+				'echo "exit:$?"',
+			],
+			{ encoding: 'utf-8' },
+		);
+		const output = result.trim();
+		// is_executable must print the error message and exit 1 for mode 160000
+		expect(output).toContain('unexpected non-regular file mode: 160000');
+		expect(output).toContain('exit:1');
+	});
 });
