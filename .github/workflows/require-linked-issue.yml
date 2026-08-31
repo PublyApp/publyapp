@@ -56,15 +56,17 @@ jobs:
             exit 1
           fi
 
-          # Match a closing relationship or an explicit non-closing relationship.
-          # Arbitrary bare issue mentions do not satisfy the gate.
+          # Match a closing or non-closing relationship declared at the start
+          # of its own line (an optional Markdown list marker is allowed).
+          # Anchoring avoids treating negated prose such as "does not close
+          # #123" as a relationship. Arbitrary bare mentions do not satisfy it.
           numbers=$(printf '%s' "$PR_BODY" \
-            | grep -ioE '(close[sd]?|fix(e[sd])?|resolve[sd]?|part[[:space:]]+of|refs?|references?)[[:space:]:]+#[0-9]+' \
+            | grep -ioE '^[[:space:]]*(-[[:space:]]*)?(close[sd]?|fix(e[sd])?|resolve[sd]?|part[[:space:]]+of|refs?|references?)[[:space:]:]+#[0-9]+' \
             | grep -oE '[0-9]+' \
             | sort -u)
 
           if [ -z "$numbers" ]; then
-            echo "::error::This PR has no explicit issue relationship. Add \"Closes #123\" for complete work or \"Part of #123\"/\"Refs #123\" for a partial slice."
+            echo "::error::This PR has no explicit issue relationship on its own line. Add \"Closes #123\" for complete work or \"Part of #123\"/\"Refs #123\" for a partial slice."
             exit 1
           fi
 

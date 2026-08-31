@@ -414,6 +414,20 @@ test('the real workflow still FAILS for an unqualified bare issue number', async
 	);
 });
 
+test('the real workflow does not turn a negated closing claim into a link', async () => {
+	const runBody = await readRunBody();
+	const { code } = runStep(runBody, {
+		author: 'octocat',
+		body: 'This deliberately does not claim to close #647.',
+	});
+
+	assert.equal(
+		code,
+		1,
+		'prose explaining that an issue stays open must not satisfy the gate',
+	);
+});
+
 test('the real workflow rejects a non-closing link to a pull request', async () => {
 	const runBody = await readRunBody();
 	const { code } = runStep(runBody, {
@@ -433,7 +447,7 @@ test('the real workflow PASSES (exit 0) for a body closing both a PR and a real 
 
 	const { code } = runStep(runBody, {
 		author: 'octocat',
-		body: 'Closes #2032 and Closes #1458',
+		body: 'Closes #2032\nCloses #1458',
 	});
 
 	assert.equal(
@@ -448,7 +462,7 @@ test('the real workflow FAILS (exit 1) for a body closing two PRs and no real is
 
 	const { code } = runStep(runBody, {
 		author: 'octocat',
-		body: 'Closes #2032 and Closes #2003',
+		body: 'Closes #2032\nCloses #2003',
 	});
 
 	assert.equal(
