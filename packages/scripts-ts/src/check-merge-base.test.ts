@@ -167,45 +167,62 @@ test('GREEN: merge-base resolves for branches with common ancestor', async () =>
 	await rm(rootDir, { recursive: true, force: true });
 });
 
+// Real git artifact work (clone + fetch of file:// sources, then full
+// unshallows) on a busy machine routinely exceeds vitest's 5000ms default
+// per-test budget — observed on 2026-08-31: a full-file run timed out two of
+// the graft-building tests at 6.4s and 7.3s respectively while each passed
+// alone in ~3s. The assertions are unchanged; these tests only get a REAL
+// time budget instead of a clock-dependent one (same shape as the front
+// suite's W6-FLAKE budget policy).
+const GIT_ARTIFACT_TEST_TIMEOUT = 30_000;
+
 // RED: the #1771 lie — a REAL grafted shallow clone (same repository, shared
 // history) makes merge-base return empty.
-test('RED: merge-base returns empty on a real grafted shallow clone', async () => {
-	const { source, clone } = await buildRealGraftedClone();
+test(
+	'RED: merge-base returns empty on a real grafted shallow clone',
+	async () => {
+		const { source, clone } = await buildRealGraftedClone();
 
-	const result = findMergeBase({
-		cwd: clone,
-		ref1: 'origin/main',
-		ref2: 'origin/develop',
-	});
+		const result = findMergeBase({
+			cwd: clone,
+			ref1: 'origin/main',
+			ref2: 'origin/develop',
+		});
 
-	assert.equal(
-		result.ok,
-		false,
-		'a grafted shallow clone must return empty merge-base (the #1771 lie)',
-	);
+		assert.equal(
+			result.ok,
+			false,
+			'a grafted shallow clone must return empty merge-base (the #1771 lie)',
+		);
 
-	await rm(source, { recursive: true, force: true });
-	await rm(clone, { recursive: true, force: true });
-});
+		await rm(source, { recursive: true, force: true });
+		await rm(clone, { recursive: true, force: true });
+	},
+	GIT_ARTIFACT_TEST_TIMEOUT,
+);
 
 // RED: two genuinely unrelated shallow tips also return empty.
-test('RED: merge-base returns empty for genuinely unrelated shallow refs', async () => {
-	const { clone, cleanup } = await buildUnrelatedShallowClone();
+test(
+	'RED: merge-base returns empty for genuinely unrelated shallow refs',
+	async () => {
+		const { clone, cleanup } = await buildUnrelatedShallowClone();
 
-	const result = findMergeBase({
-		cwd: clone,
-		ref1: 'origin/main',
-		ref2: 'other/main',
-	});
+		const result = findMergeBase({
+			cwd: clone,
+			ref1: 'origin/main',
+			ref2: 'other/main',
+		});
 
-	assert.equal(
-		result.ok,
-		false,
-		'unrelated shallow refs must return empty merge-base',
-	);
+		assert.equal(
+			result.ok,
+			false,
+			'unrelated shallow refs must return empty merge-base',
+		);
 
-	await cleanup();
-});
+		await cleanup();
+	},
+	GIT_ARTIFACT_TEST_TIMEOUT,
+);
 
 // IDEMPOTENCY of the READ-ONLY guard: running it twice produces the same result.
 test('GREEN: merge-base guard is idempotent (same result on second run)', async () => {
@@ -256,39 +273,43 @@ test('RED: an absent reference fails loud instead of defaulting green', async ()
 
 // REPAIR: removes the graft and VERIFIES the end state — merge-base resolves,
 // the repository no longer reports shallow, and .git/shallow is gone.
-test('REPAIR: unshallow removes the graft and merge-base resolves again', async () => {
-	const { source, clone } = await buildRealGraftedClone();
+test(
+	'REPAIR: unshallow removes the graft and merge-base resolves again',
+	async () => {
+		const { source, clone } = await buildRealGraftedClone();
 
-	const before = findMergeBase({
-		cwd: clone,
-		ref1: 'origin/main',
-		ref2: 'origin/develop',
-	});
-	assert.equal(before.ok, false, 'fixture must start grafted');
+		const before = findMergeBase({
+			cwd: clone,
+			ref1: 'origin/main',
+			ref2: 'origin/develop',
+		});
+		assert.equal(before.ok, false, 'fixture must start grafted');
 
-	const repair = repairShallowGraft({ cwd: clone });
-	assert.equal(repair.ok, true, repair.ok ? '' : repair.reason);
+		const repair = repairShallowGraft({ cwd: clone });
+		assert.equal(repair.ok, true, repair.ok ? '' : repair.reason);
 
-	assert.equal(isShallow(clone), false, 'repo must no longer report shallow');
-	assert.equal(
-		await cloneHasShallowFile(clone),
-		false,
-		'.git/shallow must be gone after the repair',
-	);
+		assert.equal(isShallow(clone), false, 'repo must no longer report shallow');
+		assert.equal(
+			await cloneHasShallowFile(clone),
+			false,
+			'.git/shallow must be gone after the repair',
+		);
 
-	const after = findMergeBase({
-		cwd: clone,
-		ref1: 'origin/main',
-		ref2: 'origin/develop',
-	});
-	assert.equal(after.ok, true, 'merge-base must resolve after the repair');
-	if (after.ok) {
-		assert.match(after.sha, /^[0-9a-f]{40}$/);
-	}
+		const after = findMergeBase({
+			cwd: clone,
+			ref1: 'origin/main',
+			ref2: 'origin/develop',
+		});
+		assert.equal(after.ok, true, 'merge-base must resolve after the repair');
+		if (after.ok) {
+			assert.match(after.sha, /^[0-9a-f]{40}$/);
+		}
 
-	await rm(source, { recursive: true, force: true });
-	await rm(clone, { recursive: true, force: true });
-});
+		await rm(source, { recursive: true, force: true });
+		await rm(clone, { recursive: true, force: true });
+	},
+	GIT_ARTIFACT_TEST_TIMEOUT,
+);
 
 // IDEMPOTENT REPAIR (#1773): run the repair TWICE and require the SAME final
 // state. The #1773 defect was exactly that a second invocation restored the
@@ -296,74 +317,82 @@ test('REPAIR: unshallow removes the graft and merge-base resolves again', async 
 // A mutation that re-implements the repair with --deepen leaves the repo
 // shallow and fails the post-verification in the previous test on its very
 // first run — red before the second invocation ever happens.
-test('REPAIR: running the repair twice yields the identical final state', async () => {
-	const { source, clone } = await buildRealGraftedClone();
+test(
+	'REPAIR: running the repair twice yields the identical final state',
+	async () => {
+		const { source, clone } = await buildRealGraftedClone();
 
-	const first = repairShallowGraft({ cwd: clone });
-	assert.equal(first.ok, true, first.ok ? '' : first.reason);
-	const stateAfterFirst = {
-		shallow: isShallow(clone),
-		shallowFile: await cloneHasShallowFile(clone),
-		mergeBase: findMergeBase({
-			cwd: clone,
-			ref1: 'origin/main',
-			ref2: 'origin/develop',
-		}),
-	};
+		const first = repairShallowGraft({ cwd: clone });
+		assert.equal(first.ok, true, first.ok ? '' : first.reason);
+		const stateAfterFirst = {
+			shallow: isShallow(clone),
+			shallowFile: await cloneHasShallowFile(clone),
+			mergeBase: findMergeBase({
+				cwd: clone,
+				ref1: 'origin/main',
+				ref2: 'origin/develop',
+			}),
+		};
 
-	const second = repairShallowGraft({ cwd: clone });
-	assert.equal(second.ok, true, second.ok ? '' : second.reason);
-	const stateAfterSecond = {
-		shallow: isShallow(clone),
-		shallowFile: await cloneHasShallowFile(clone),
-		mergeBase: findMergeBase({
-			cwd: clone,
-			ref1: 'origin/main',
-			ref2: 'origin/develop',
-		}),
-	};
+		const second = repairShallowGraft({ cwd: clone });
+		assert.equal(second.ok, true, second.ok ? '' : second.reason);
+		const stateAfterSecond = {
+			shallow: isShallow(clone),
+			shallowFile: await cloneHasShallowFile(clone),
+			mergeBase: findMergeBase({
+				cwd: clone,
+				ref1: 'origin/main',
+				ref2: 'origin/develop',
+			}),
+		};
 
-	assert.deepEqual(
-		stateAfterSecond,
-		stateAfterFirst,
-		'a second repair must not change the state — the #1773 re-seeding defect must not come back',
-	);
-	assert.equal(stateAfterSecond.shallow, false);
-	assert.equal(stateAfterSecond.shallowFile, false);
-	assert.equal(stateAfterSecond.mergeBase.ok, true);
+		assert.deepEqual(
+			stateAfterSecond,
+			stateAfterFirst,
+			'a second repair must not change the state — the #1773 re-seeding defect must not come back',
+		);
+		assert.equal(stateAfterSecond.shallow, false);
+		assert.equal(stateAfterSecond.shallowFile, false);
+		assert.equal(stateAfterSecond.mergeBase.ok, true);
 
-	await rm(source, { recursive: true, force: true });
-	await rm(clone, { recursive: true, force: true });
-});
+		await rm(source, { recursive: true, force: true });
+		await rm(clone, { recursive: true, force: true });
+	},
+	GIT_ARTIFACT_TEST_TIMEOUT,
+);
 
 // The CLI exits 1 when merge-base returns empty, naming the cause.
-test('RED: CLI exits 1 on empty merge-base', async () => {
-	const { source, clone } = await buildRealGraftedClone();
+test(
+	'RED: CLI exits 1 on empty merge-base',
+	async () => {
+		const { source, clone } = await buildRealGraftedClone();
 
-	const result = spawnSync(
-		'node',
-		[SCRIPT_PATH, 'origin/main', 'origin/develop'],
-		{
-			cwd: clone,
-			encoding: 'utf8',
-			env: process.env,
-		},
-	);
+		const result = spawnSync(
+			'node',
+			[SCRIPT_PATH, 'origin/main', 'origin/develop'],
+			{
+				cwd: clone,
+				encoding: 'utf8',
+				env: process.env,
+			},
+		);
 
-	assert.equal(
-		result.status,
-		1,
-		`expected CLI exit 1 on empty merge-base, got ${result.status}`,
-	);
-	assert.match(
-		result.stdout + result.stderr,
-		/merge-base/,
-		'the failure message must name the merge-base cause',
-	);
+		assert.equal(
+			result.status,
+			1,
+			`expected CLI exit 1 on empty merge-base, got ${result.status}`,
+		);
+		assert.match(
+			result.stdout + result.stderr,
+			/merge-base/,
+			'the failure message must name the merge-base cause',
+		);
 
-	await rm(source, { recursive: true, force: true });
-	await rm(clone, { recursive: true, force: true });
-});
+		await rm(source, { recursive: true, force: true });
+		await rm(clone, { recursive: true, force: true });
+	},
+	GIT_ARTIFACT_TEST_TIMEOUT,
+);
 
 // The CLI exits 0 when merge-base resolves.
 test('GREEN: CLI exits 0 on resolved merge-base', async () => {
@@ -388,21 +417,25 @@ test('GREEN: CLI exits 0 on resolved merge-base', async () => {
 // merge-base (the original silent-green) is caught by the RED test above;
 // a mutation that re-implements the repair with --deepen is caught by the
 // repair post-verification. This test pins the read path explicitly.
-test('RED: mutation check — guard does not fake ok: true on empty merge-base', async () => {
-	const { source, clone } = await buildRealGraftedClone();
+test(
+	'RED: mutation check — guard does not fake ok: true on empty merge-base',
+	async () => {
+		const { source, clone } = await buildRealGraftedClone();
 
-	const result = findMergeBase({
-		cwd: clone,
-		ref1: 'origin/main',
-		ref2: 'origin/develop',
-	});
+		const result = findMergeBase({
+			cwd: clone,
+			ref1: 'origin/main',
+			ref2: 'origin/develop',
+		});
 
-	assert.equal(
-		result.ok,
-		false,
-		'a mutation that fakes ok: true on empty merge-base would be caught by this test',
-	);
+		assert.equal(
+			result.ok,
+			false,
+			'a mutation that fakes ok: true on empty merge-base would be caught by this test',
+		);
 
-	await rm(source, { recursive: true, force: true });
-	await rm(clone, { recursive: true, force: true });
-});
+		await rm(source, { recursive: true, force: true });
+		await rm(clone, { recursive: true, force: true });
+	},
+	GIT_ARTIFACT_TEST_TIMEOUT,
+);
