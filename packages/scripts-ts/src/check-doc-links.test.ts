@@ -260,18 +260,71 @@ test('test fixtures are exempt: preserved historical artifacts', () => {
 //      the explicit-limitation guarantee. The moment someone ships a real
 //      fragment checker, they remove this assertion's expected exit-code and
 //      message — the seam itself stays.
-test('ROUND 2 (#1974 r2): every successful run prints the ANCHORS-NOT-VERIFIED warning on its own line', () => {
+// ROUND 4 (#1974 r4): the fragment-list discharge and the escaped-paren /
+// bare-`<` fix each get paired red/green tests below. The end-of-run warning
+// tag was renamed from ANCHORS-NOT-VERIFIED to FRAGMENTS-NOT-VERIFIED to
+// name what it discharges; the unescaped-paren error tag was widened to
+// UNANALYSED-TARGET because the same fail-closed posture now covers bare
+// `<` in a non-angle-bracket target.
+//
+// Each new test pins one r4 behaviour:
+//
+//   - escape handling: `[t](./doc\(1\)/file.md)` resolves to the on-disk
+//     `doc (1)/file.md` (green) and to the correct missing-file message
+//     when the file is absent (red, naming the unescaped path);
+//   - inline-with-title escapes: same as above with a `"title"` attribute
+//     so the title regex does not eat the captured target;
+//   - bare `<` in a non-angle-bracket target: fails closed with
+//     [UNANALYSED-TARGET] (red) so the silent-green hole the r4 review
+//     named is plugged;
+//   - fragment list: the FRAGMENTS-NOT-VERIFIED warning lists every
+//     `file:line#fragment` it stripped (green), and stays green overall
+//     even when the underlying anchor is wrong (red-mutation proof
+//     preserved).
+
+test('ROUND 4 (#1974 r4): every successful run prints FRAGMENTS-NOT-VERIFIED on its own line', () => {
 	const root = makeRepo({
 		'docs/guides/live.md': 'content\n',
 	});
 	const result = runGuard(root);
 	assert.equal(result.status, 0, result.stderr);
 	assert.match(result.stdout, /doc links OK/);
-	assert.match(result.stdout, /ANCHORS-NOT-VERIFIED/);
-	assert.match(result.stdout, /NOT machine-verified\./);
+	assert.match(result.stdout, /FRAGMENTS-NOT-VERIFIED/);
+	assert.match(result.stdout, /NOT machine-verified/);
 	assert.match(
 		result.stdout,
-		/WARNING \[ANCHORS-NOT-VERIFIED\]: only relative file targets are checked/,
+		/WARNING \[FRAGMENTS-NOT-VERIFIED\]: (no fragment links were observed|\d+ fragment link\(s\) were observed)/,
+	);
+});
+
+test('ROUND 2 (#1974 r2): a link whose fragment is broken but whose file exists is accepted (fragments are NOT verified)', () => {
+	const root = makeRepo({
+		'CLA.md': '# Contributing on behalf of a company\n\nplaceholder\n',
+		'CONTRIBUTING.md':
+			'See [the company section](CLA.md#contributing-on-behalf-of-a-company).\n',
+	});
+	const result = runGuard(root);
+	assert.equal(
+		result.status,
+		0,
+		`a broken fragment must NOT fail the guard by construction; the warning is what tells you so — stderr was: ${result.stderr}`,
+	);
+	assert.match(result.stdout, /doc links OK/);
+
+	// And the SAME link with the fragment deliberately mutated to a
+	// non-existent heading still passes — this is the exact adversarial
+	// mutation the round-1 review named ("breaking the
+	// CLA.md#contributing-on-behalf-of-a-company anchor leaves every CI
+	// gate green").
+	const mutated = makeRepo({
+		'CLA.md': '# Contributing on behalf of a company\n\nplaceholder\n',
+		'CONTRIBUTING.md': 'See [the company section](CLA.md#no-such-heading).\n',
+	});
+	const mutatedResult = runGuard(mutated);
+	assert.equal(
+		mutatedResult.status,
+		0,
+		'pre-condition for the explicit limitation: a broken fragment must not flip the guard red; otherwise the limitation comment above is no longer accurate',
 	);
 });
 
@@ -396,8 +449,96 @@ test('ROUND 3 (#1974 r3): unescaped parentheses in target — fails closed namin
 	});
 	const result = runGuard(root);
 	assert.equal(result.status, 1);
-	assert.match(result.stderr, /UNESCAPED-PAREN-TARGET/);
+	assert.match(result.stderr, /UNANALYSED-TARGET/);
 	assert.match(result.stderr, /docs\/guides\/a\.md:1/);
+});
+
+// ROUND 4 (#1974 r4): the fragment-list discharge and the escaped-paren /
+// bare-`<` fix each get paired red/green tests below. The end-of-run warning
+// tag was renamed from ANCHORS-NOT-VERIFIED to FRAGMENTS-NOT-VERIFIED to
+// name what it discharges; the unescaped-paren error tag was widened to
+// UNANALYSED-TARGET because the same fail-closed posture now covers bare
+// `<` in a non-angle-bracket target.
+
+test('ROUND 4 (#1974 r4): escaped-paren target resolves to the on-disk file (green)', () => {
+	const root = makeRepo({
+		'docs/guides/doc(1)/file.md': 'real content\n',
+		'docs/guides/a.md': '[link](./doc\\(1\\)/file.md)\n',
+	});
+	const result = runGuard(root);
+	assert.equal(result.status, 0, result.stderr);
+	assert.match(result.stdout, /doc links OK/);
+	assert.match(result.stdout, /1 relative links checked/);
+});
+
+test('ROUND 4 (#1974 r4): escaped-paren target with the file absent names the unescaped missing path (red, true positive)', () => {
+	const root = makeRepo({
+		'docs/guides/a.md': '[link](./doc\\(1\\)/file.md)\n',
+	});
+	const result = runGuard(root);
+	assert.equal(result.status, 1);
+	assert.match(result.stderr, /broken relative link/);
+	// The unescaped path `docs/guides/doc(1)/file.md` is the real on-disk
+	// target the guard was asked to verify; the r3 capture would have
+	// reported the broken `doc\(1\` text instead.
+	assert.match(
+		result.stderr,
+		/docs\/guides\/a\.md:1: -> docs\/guides\/doc\(1\)\/file\.md/,
+	);
+});
+
+test('ROUND 4 (#1974 r4): escaped-paren target with a title attribute resolves (green)', () => {
+	const root = makeRepo({
+		'docs/guides/doc(1)/file.md': 'real content\n',
+		'docs/guides/a.md': '[link](./doc\\(1\\)/file.md "title")\n',
+	});
+	const result = runGuard(root);
+	assert.equal(result.status, 0, result.stderr);
+	assert.match(result.stdout, /doc links OK/);
+});
+
+test('ROUND 4 (#1974 r4): bare `<` in a non-angle-bracket target fails closed (red, no silent green)', () => {
+	const root = makeRepo({
+		'docs/guides/a.md': '[link](a<b.md)\n',
+	});
+	const result = runGuard(root);
+	assert.equal(result.status, 1);
+	assert.match(result.stderr, /UNANALYSED-TARGET/);
+	assert.match(result.stderr, /docs\/guides\/a\.md:1/);
+});
+
+test('ROUND 4 (#1974 r4): angle-bracket inline link is unaffected by the bare-`<` fail-closed check (green)', () => {
+	const root = makeRepo({
+		'docs/guides/a.md': '[link](<./b.md>)\n',
+		'docs/guides/b.md': 'content\n',
+	});
+	const result = runGuard(root);
+	assert.equal(result.status, 0, result.stderr);
+	assert.match(result.stdout, /doc links OK/);
+});
+
+test('ROUND 4 (#1974 r4): the FRAGMENTS-NOT-VERIFIED warning lists every stripped anchor by file:line#fragment', () => {
+	const root = makeRepo({
+		'AGENTS.md': '# Top\n\n## Section A\n\n## Section B\n',
+		'CLA.md': '# CLA\n\nplaceholder\n',
+		'CONTRIBUTING.md': [
+			'See [A](AGENTS.md#section-a).',
+			'See [company](CLA.md#contributing-on-behalf-of-a-company).',
+			'',
+		].join('\n'),
+	});
+	const result = runGuard(root);
+	assert.equal(result.status, 0, result.stderr);
+	assert.match(result.stdout, /doc links OK/);
+	assert.match(
+		result.stdout,
+		/WARNING \[FRAGMENTS-NOT-VERIFIED\]: 2 fragment link\(s\) were observed/,
+	);
+	assert.match(result.stdout, /CONTRIBUTING\.md:1#section-a/);
+	assert.match(
+		result.stdout,
+		/CONTRIBUTING\.md:2#contributing-on-behalf-of-a-company/,
+	);
 });
 
 test('ROUND 3 (#1974 r3): end-of-run warning lists SHAPES-NOT-COVERED', () => {
