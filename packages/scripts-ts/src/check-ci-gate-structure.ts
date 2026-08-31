@@ -280,8 +280,10 @@ const gateNameExpression = ({ gateName, pushCheckName }) =>
 
 /** The exact `name:` expression front-e2e.yml's sharded `test` job must carry. */
 // @ts-expect-error rung-0: add proper type in later rung
-const matrixJobNameExpression = ({ key, expected }) =>
-	`front-e2e (\${{ matrix.${key} }}/${expected.length})`;
+const matrixJobNameExpression = ({ key, expected, file }) =>
+	file === 'front-ci.yml'
+		? `front-ci (\${{ matrix.${key} }}/${expected.length})`
+		: `front-e2e (\${{ matrix.${key} }}/${expected.length})`;
 
 /**
  * The four #1017 aggregate-gate workflows and the job graph each one must
@@ -325,8 +327,22 @@ export const GATE_WORKFLOWS = [
 		relevanceGatedJobs: [
 			{ id: 'supply-chain', needs: ['changes'] },
 			{ id: 'gate-selftest', needs: ['changes'] },
+			// #1948: the shard matrix and its coverage proof are both
+			// gated on the changes classifier like their siblings. Being in
+			// this list gives them the same hard protections as the other
+			// verification jobs: required `if:`, required `needs`,
+			// no job- or step-level `continue-on-error`, and no
+			// `defaults:` shell override (which could drop `-e` and mask a
+			// shard failure).
+			{ id: 'test-vitest', needs: ['changes'] },
+			{ id: 'test-vitest-coverage', needs: ['changes'] },
 		],
 		alwaysJobs: [],
+		// #1948: pins the 4-way vitest shard matrix for front-ci.yml, same
+		// pattern as front-e2e.yml's matrix pin above. The matrix must
+		// declare exactly [1, 2, 3, 4] — narrowing it silently runs a
+		// fraction of the suite while every other guard stays green.
+		matrix: { jobId: 'test-vitest', key: 'shard', expected: [1, 2, 3, 4] },
 		// IMPORTANT fix: the four #1017 gate test suites and this very CLI
 		// were reachable only through local `just ci-drift` — no workflow ran
 		// them. `gate-selftest` above runs them server-side, but that is only
@@ -433,6 +449,7 @@ export const GATE_WORKFLOWS = [
 			'packages/scripts-ts/src/artifact-version-compat.test.ts',
 			'packages/scripts-ts/src/check-actions-pinned.test.ts',
 			'packages/scripts-ts/src/check-actions-pins.test.ts',
+			'packages/scripts-ts/src/check-api-tests-path-coverage.test.ts',
 			'packages/scripts-ts/src/check-ci-drift.test.ts',
 			'packages/scripts-ts/src/check-ci-gate-structure.test.ts',
 			'packages/scripts-ts/src/check-cyclomatic-bound.test.ts',
@@ -550,6 +567,7 @@ export const EXPECTED_GATE_SELFTEST_TESTS = [
 	'packages/scripts-ts/src/artifact-version-compat.test.ts',
 	'packages/scripts-ts/src/check-actions-pinned.test.ts',
 	'packages/scripts-ts/src/check-actions-pins.test.ts',
+	'packages/scripts-ts/src/check-api-tests-path-coverage.test.ts',
 	'packages/scripts-ts/src/check-ci-drift.test.ts',
 	'packages/scripts-ts/src/check-ci-gate-structure.test.ts',
 	'packages/scripts-ts/src/check-cyclomatic-bound.test.ts',
@@ -983,6 +1001,115 @@ const setsEqual = (a, b) => {
 };
 
 /**
+ * Checks the sharded matrix job against the expected shard configuration.
+ * Extracted from checkWorkflow to keep its complexity under the lint budget.
+ */
+// @ts-expect-error rung-0: add proper type in later rung
+const checkMatrixJob = (matrix, matrixJob, file, findings) => {
+	const { jobId, key, expected } = matrix;
+	const denominator = expected.length;
+	const actual = matrixJob.strategy?.matrix?.[key];
+	const actualIsEqual =
+		Array.isArray(actual) &&
+		actual.length === expected.length &&
+		actual.every((value, index) => value === expected[index]);
+
+	if (!actualIsEqual) {
+		findings.push(
+			`${file}::${jobId}: expected \`strategy.matrix.${key}\` to be exactly ${JSON.stringify(expected)} (all ${denominator} shards), found ${JSON.stringify(actual ?? null)}. Narrowing this matrix silently runs a fraction of the suite while every other guard stays green.`,
+		);
+	}
+
+	// Round 5 BLOCKER: pinning the `shard` array's values is not enough —
+	// `matrix.exclude` (or `include`, or any other key GitHub's matrix
+	// strategy accepts) can remove or redefine shard combinations while
+	// `shard: [1, 2, 3, 4]` itself stays untouched. Proven: `exclude:
+	// [{shard: 2}, {shard: 3}, {shard: 4}]` leaves only shard 1/4 running
+	// while every other guard stayed green. `strategy.matrix` is required
+	// to declare EXACTLY the one pinned axis key, nothing else.
+	const matrixKeys = Object.keys(matrixJob.strategy?.matrix ?? {});
+
+	if (matrixKeys.length !== 1 || matrixKeys[0] !== key) {
+		findings.push(
+			`${file}::${jobId}: expected \`strategy.matrix\` to declare EXACTLY the one key \`${key}\` (no \`exclude\`, \`include\`, or any other key that could remove or redefine shard combinations independently of the pinned array), found keys ${JSON.stringify(matrixKeys)}.`,
+		);
+	}
+
+	const expectedJobName = matrixJobNameExpression({ ...matrix, file });
+
+	if (matrixJob.name !== expectedJobName) {
+		findings.push(
+			`${file}::${jobId}: expected \`name: ${expectedJobName}\`, found ${JSON.stringify(matrixJob.name ?? null)}. The job name's denominator must match the matrix length, or the two can drift out of sync independently.`,
+		);
+	}
+
+	const matrixSteps = Array.isArray(matrixJob.steps) ? matrixJob.steps : [];
+	const shardFlag = `--shard=\${{ matrix.${key} }}/${denominator}`;
+	const lastShardCheck = `if [ "\${{ matrix.${key} }}" = "${denominator}" ]`;
+	const testStep = matrixSteps.find(
+		// @ts-expect-error rung-0: add proper type in later rung
+		(step) => typeof step?.run === 'string' && step.run.includes(shardFlag),
+	);
+
+	if (testStep === undefined) {
+		findings.push(
+			`${file}::${jobId}: expected a step invoking the test runner with \`${shardFlag}\`, so the shard flag's denominator cannot drift from the matrix length independently.`,
+		);
+	} else {
+		// Any step that gates on `if [ "${{ matrix.<key> }}" = "<n>" ]`
+		// (front-e2e.yml's hermetic-counter + drawer contrast runs)
+		// must pin <n> to the matrix denominator — detect the pattern
+		// rather than the file name, so the guard fires for any file
+		// that carries such a check (and stays silent on front-ci.yml,
+		// whose vitest shard has none).
+		const hasAnyShardCheck = testStep.run.includes(
+			`if [ "\${{ matrix.${key} }}" = "`,
+		);
+
+		if (hasAnyShardCheck && !testStep.run.includes(lastShardCheck)) {
+			findings.push(
+				`${file}::${jobId}: expected the shard-flag step to also gate the hermetic-counter run on \`${lastShardCheck}\` (the last shard, pinned to the same denominator as the matrix), but it does not.`,
+			);
+		}
+
+		// Round 5 BLOCKER: a job/workflow-level `defaults: run: shell:
+		// bash {0}` override drops bash's implicit `-e`, letting a failed
+		// test command be followed (and its failure erased) by the
+		// shard-selection `if`'s own exit code. Requiring the step's own
+		// `run:` to start with `set -euo pipefail` makes fail-fast a
+		// property of the SCRIPT ITSELF, independent of whatever shell
+		// default is (or later becomes) in effect around it.
+		if (!testStep.run.trimStart().startsWith('set -euo pipefail')) {
+			findings.push(
+				`${file}::${jobId}: expected the shard step's \`run:\` to start with \`set -euo pipefail\`, so a failed verification command cannot be masked by a later command's exit code regardless of any workflow/job-level shell default, but it does not.`,
+			);
+		}
+	}
+
+	// front-e2e.yml uploads Playwright reports on failure; front-ci.yml
+	// uploads vitest reports. Both must carry a per-shard artifact name
+	// pinned to the matrix denominator.
+	const expectedUploadName =
+		file === 'front-ci.yml'
+			? `front-ci-vitest-report-\${{ matrix.${key} }}-of-${denominator}`
+			: `front-e2e-playwright-report-\${{ matrix.${key} }}-of-${denominator}`;
+	const uploadStep = matrixSteps.find(
+		// @ts-expect-error rung-0: add proper type in later rung
+		(step) =>
+			typeof step?.with?.name === 'string' &&
+			step.with.name.includes(
+				file === 'front-ci.yml' ? 'vitest-report' : 'playwright-report',
+			),
+	);
+
+	if (uploadStep === undefined || uploadStep.with.name !== expectedUploadName) {
+		findings.push(
+			`${file}::${jobId}: expected the report upload's \`with.name\` to be \`${expectedUploadName}\`, found ${JSON.stringify(uploadStep?.with?.name ?? null)}.`,
+		);
+	}
+};
+
+/**
  * Checks one workflow's job graph against its expected shape. Returns an
  * array of human-readable findings (empty when the graph matches).
  */
@@ -1262,101 +1389,13 @@ const checkWorkflow = async (
 		}
 	}
 
+	// #1948: the matrix job is checked by the extracted helper to keep
+	// checkWorkflow's complexity under the lint budget.
 	if (matrix !== undefined) {
-		const { jobId, key, expected } = matrix;
-		const matrixJob = jobs[jobId];
+		const matrixJob = jobs[matrix.jobId];
 
-		if (matrixJob === undefined) {
-			// Already reported above (matrixJob is always a relevanceGatedJobs
-			// entry), so nothing further to add here.
-		} else {
-			const denominator = expected.length;
-			const actual = matrixJob.strategy?.matrix?.[key];
-			const actualIsEqual =
-				Array.isArray(actual) &&
-				actual.length === expected.length &&
-				actual.every((value, index) => value === expected[index]);
-
-			if (!actualIsEqual) {
-				findings.push(
-					`${file}::${jobId}: expected \`strategy.matrix.${key}\` to be exactly ${JSON.stringify(expected)} (all ${denominator} shards), found ${JSON.stringify(actual ?? null)}. Narrowing this matrix silently runs a fraction of the suite while every other guard stays green.`,
-				);
-			}
-
-			// Round 5 BLOCKER: pinning the `shard` array's values is not
-			// enough — `matrix.exclude` (or `include`, or any other key
-			// GitHub's matrix strategy accepts) can remove or redefine shard
-			// combinations while `shard: [1, 2, 3, 4]` itself stays untouched.
-			// Proven: `exclude: [{shard: 2}, {shard: 3}, {shard: 4}]` leaves
-			// only shard 1/4 running while every other guard stayed green.
-			// `strategy.matrix` is required to declare EXACTLY the one pinned
-			// axis key, nothing else.
-			const matrixKeys = Object.keys(matrixJob.strategy?.matrix ?? {});
-
-			if (matrixKeys.length !== 1 || matrixKeys[0] !== key) {
-				findings.push(
-					`${file}::${jobId}: expected \`strategy.matrix\` to declare EXACTLY the one key \`${key}\` (no \`exclude\`, \`include\`, or any other key that could remove or redefine shard combinations independently of the pinned array), found keys ${JSON.stringify(matrixKeys)}.`,
-				);
-			}
-
-			const expectedJobName = matrixJobNameExpression(matrix);
-
-			if (matrixJob.name !== expectedJobName) {
-				findings.push(
-					`${file}::${jobId}: expected \`name: ${expectedJobName}\`, found ${JSON.stringify(matrixJob.name ?? null)}. The job name's denominator must match the matrix length, or the two can drift out of sync independently.`,
-				);
-			}
-
-			const matrixSteps = Array.isArray(matrixJob.steps) ? matrixJob.steps : [];
-			const shardFlag = `--shard=\${{ matrix.${key} }}/${denominator}`;
-			const lastShardCheck = `if [ "\${{ matrix.${key} }}" = "${denominator}" ]`;
-			const testStep = matrixSteps.find(
-				// @ts-expect-error rung-0: add proper type in later rung
-				(step) => typeof step?.run === 'string' && step.run.includes(shardFlag),
-			);
-
-			if (testStep === undefined) {
-				findings.push(
-					`${file}::${jobId}: expected a step invoking Playwright with \`${shardFlag}\`, so the shard flag's denominator cannot drift from the matrix length independently.`,
-				);
-			} else {
-				if (!testStep.run.includes(lastShardCheck)) {
-					findings.push(
-						`${file}::${jobId}: expected the shard-flag step to also gate the hermetic-counter run on \`${lastShardCheck}\` (the last shard, pinned to the same denominator as the matrix), but it does not.`,
-					);
-				}
-
-				// Round 5 BLOCKER: a job/workflow-level `defaults: run: shell:
-				// bash {0}` override drops bash's implicit `-e`, letting a
-				// failed `playwright test` command be followed (and its
-				// failure erased) by the shard-selection `if`'s own exit
-				// code. Requiring the step's own `run:` to start with
-				// `set -euo pipefail` makes fail-fast a property of the
-				// SCRIPT ITSELF, independent of whatever shell default is (or
-				// later becomes) in effect around it.
-				if (!testStep.run.trimStart().startsWith('set -euo pipefail')) {
-					findings.push(
-						`${file}::${jobId}: expected the Playwright step's \`run:\` to start with \`set -euo pipefail\`, so a failed verification command cannot be masked by a later command's exit code regardless of any workflow/job-level shell default, but it does not.`,
-					);
-				}
-			}
-
-			const expectedUploadName = `front-e2e-playwright-report-\${{ matrix.${key} }}-of-${denominator}`;
-			const uploadStep = matrixSteps.find(
-				// @ts-expect-error rung-0: add proper type in later rung
-				(step) =>
-					typeof step?.with?.name === 'string' &&
-					step.with.name.includes('playwright-report'),
-			);
-
-			if (
-				uploadStep === undefined ||
-				uploadStep.with.name !== expectedUploadName
-			) {
-				findings.push(
-					`${file}::${jobId}: expected the Playwright report upload's \`with.name\` to be \`${expectedUploadName}\`, found ${JSON.stringify(uploadStep?.with?.name ?? null)}.`,
-				);
-			}
+		if (matrixJob !== undefined) {
+			checkMatrixJob(matrix, matrixJob, file, findings);
 		}
 	}
 
@@ -1811,7 +1850,7 @@ export const findRequiredContextCollisionProblems = async ({
 		if (workflow.matrix !== undefined) {
 			authorizedExpressionNames.set(
 				`${workflow.file}::${workflow.matrix.jobId}`,
-				matrixJobNameExpression(workflow.matrix),
+				matrixJobNameExpression({ ...workflow.matrix, file: workflow.file }),
 			);
 		}
 	}
