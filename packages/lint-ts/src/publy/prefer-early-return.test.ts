@@ -11,19 +11,18 @@
  *   at the same rule object exported from the rule module.
  * - `valid`: ternaries in argument/property position, ternaries assigned to
  *   a variable that is NOT immediately returned, ternaries in nested
- *   expressions, arrow function expression bodies — must NOT fire.
- * - `invalid`: `return a ? b : c;` (direct return),
- *   `const x = a ? b : c; return x;` (assigned then returned),
- *   `() => { return cond ? a : b; }` (arrow with block body returning ternary),
- *   and `() => { const x = cond ? a : b; return x; }` (arrow with block body assigned then returned) — each report with
- *   `messageId: 'preferEarlyReturn'`.
+ *   expressions, arrow function expression bodies, and — since the paired
+ *   fix for #1714 — every *single-line* ternary returned directly or
+ *   assigned-then-returned (the readable sort comparator
+ *   `return a < b ? -1 : 1;` must NOT fire).
+ * - `invalid`: only multi-line ternaries returned directly or
+ *   assigned-then-returned — the complex form that justifies a guard clause.
  *
- * Nesting coverage (r2 fix): the visitor reaches every `ReturnStatement` and
- * `BlockStatement` at any depth, so ternary-returns nested inside `if`/`else`,
- * `try`/`catch`/`finally`, `for`, `for...of`, `while`, `switch`/`case`, bare
- * blocks, and multi-level nesting are all detected. This suite proves it with
- * an `invalid` case for every nesting form — each would pass if the rule only
- * descended one level.
+ * Paired correction for #1714: the valid array carries the single-line
+ * comparator (was a false positive) and the invalid array carries the
+ * multi-line ternary (still red). A rule that cries wolf on readable
+ * single-line ternaries gets disabled everywhere; this pair pins the
+ * boundary.
  */
 import assert from 'node:assert/strict';
 
@@ -107,86 +106,97 @@ const runCases = (rule: typeof preferEarlyReturn, label: string) => {
 				v('function f() { return [cond ? a : b]; }'),
 				// `??` nullish coalescing is NOT a ternary — out of scope.
 				v('function f() { return value ?? fallback; }'),
-			],
-			invalid: [
-				// ---- Top-level (already covered in r1) -------------------------
-				// Direct return of a ternary.
-				i('function f() { return cond ? a : b; }'),
-				// Direct return with typed values.
-				i('function f(): string { return cond ? "yes" : "no"; }'),
-				// Ternary assigned then immediately returned.
-				i('function f() { const x = cond ? a : b;\nreturn x; }'),
-				// Direct return of a ternary with function calls.
-				i('function f() { return isReady ? compute() : fallback(); }'),
-				// Function expression returning a ternary.
-				i('const f = function() { return cond ? a : b; }'),
-				// Anonymous function expression assigned then returned.
-				i('const f = function() { const x = cond ? a : b;\nreturn x; }'),
-				// Arrow function with block body returning a ternary.
-				i('const f = () => { return cond ? a : b; }'),
-				// Arrow function with block body assigned then returned.
-				i('const f = () => { const x = cond ? a : b;\nreturn x; }'),
 
-				// ---- Nesting: if / else --------------------------------------
-				// Ternary returned inside an `if` block.
-				i('function f() { if (cond) { return a ? b : c; } }'),
-				// Ternary returned inside an `else` block.
-				i('function f() { if (cond) { return; } else { return a ? b : c; } }'),
-				// Ternary assigned-then-returned inside an `if` block.
-				i('function f() { if (cond) { const x = a ? b : c;\nreturn x; } }'),
-
-				// ---- Nesting: try / catch / finally ---------------------------
-				// Ternary returned inside a `try` block.
-				i('function f() { try { return a ? b : c; } catch { return null; } }'),
-				// Ternary returned inside a `catch` block.
-				i('function f() { try { return null; } catch { return a ? b : c; } }'),
-				// Ternary returned inside a `finally` block.
-				i(
+				// ---- Paired green for #1714: single-line ternaries returned ----
+				// directly or assigned-then-returned are perfectly readable and
+				// must NOT fire. The rule used to flag every one of these; the
+				// paired red case below keeps the complex form caught.
+				// Direct return of a single-line ternary (sort-comparator shape).
+				v('function f() { return cond ? a : b; }'),
+				// Direct return with typed values, single line.
+				v('function f(): string { return cond ? "yes" : "no"; }'),
+				// Direct return with function calls, single line.
+				v('function f() { return isReady ? compute() : fallback(); }'),
+				// Function expression returning a single-line ternary.
+				v('const f = function() { return cond ? a : b; }'),
+				// Anonymous function expression assigned then returned, single line.
+				v('const f = function() { const x = cond ? a : b;\nreturn x; }'),
+				// Arrow function with block body returning a single-line ternary.
+				v('const f = () => { return cond ? a : b; }'),
+				// Arrow function with block body assigned then returned, single line.
+				v('const f = () => { const x = cond ? a : b;\nreturn x; }'),
+				// Single-line ternary inside an `if` block.
+				v('function f() { if (cond) { return a ? b : c; } }'),
+				// Single-line ternary inside an `if`/`else`.
+				v('function f() { if (cond) { return; } else { return a ? b : c; } }'),
+				// Single-line ternary assigned-then-returned inside an `if` block.
+				v('function f() { if (cond) { const x = a ? b : c;\nreturn x; } }'),
+				// Single-line ternary inside a `try` block.
+				v('function f() { try { return a ? b : c; } catch { return null; } }'),
+				// Single-line ternary inside a `catch` block.
+				v('function f() { try { return null; } catch { return a ? b : c; } }'),
+				// Single-line ternary inside a `finally` block.
+				v(
 					'function f() { try { return null; } finally { return a ? b : c; } }',
 				),
-
-				// ---- Nesting: loops -------------------------------------------
-				// Ternary returned inside a `for` loop.
-				i(
+				// Single-line ternary inside a `for` loop.
+				v(
 					'function f() { for (let i = 0; i < 10; i++) { return a ? b : c; } }',
 				),
-				// Ternary returned inside a `for...of` loop.
-				i('function f() { for (const x of xs) { return a ? b : c; } }'),
-				// Ternary returned inside a `while` loop.
-				i('function f() { while (cond) { return a ? b : c; } }'),
-
-				// ---- Nesting: switch / case -----------------------------------
-				// Ternary returned inside a `case` clause.
-				i(
+				// Single-line ternary inside a `for...of` loop.
+				v('function f() { for (const x of xs) { return a ? b : c; } }'),
+				// Single-line ternary inside a `while` loop.
+				v('function f() { while (cond) { return a ? b : c; } }'),
+				// Single-line ternary inside a `case` clause.
+				v(
 					'function f(x) { switch (x) { case 1: return a ? b : c; default: return null; } }',
 				),
-				// Ternary assigned-then-returned inside a `case` clause (Case 2).
-				// The `SwitchCase` visitor is the ONLY mechanism that catches this
-				// pattern, since `SwitchCase.consequent` is not a `BlockStatement`.
-				i(
+				// Single-line ternary assigned-then-returned inside a `case` clause.
+				v(
 					'function f(x) { switch (x) { case 1: const v = a ? b : c; return v; default: return null; } }',
 				),
-
-				// ---- Statement between assignment and return --------------------
-				// Ternary assigned-then-returned, where a preceding statement breaks
-				// the adjacency at index 0. This proves `checkBodyStatements`
-				// iterates over ALL statement pairs, not just the first one.
-				i(
+				// Single-line ternary assigned-then-returned, preceding statement breaks adjacency.
+				v(
 					'function f() { declare function log(): void; log(); const v = a ? b : c; return v; }',
 				),
-
-				// ---- Nesting: bare block --------------------------------------
-				// Ternary returned inside a bare block.
-				i('function f() { { return a ? b : c; } }'),
-
-				// ---- Two-level nesting ----------------------------------------
-				// Ternary returned inside an `if` inside a `try`.
-				i(
+				// Single-line ternary inside a bare block.
+				v('function f() { { return a ? b : c; } }'),
+				// Single-line ternary inside an `if` inside a `try`.
+				v(
 					'function f() { try { if (cond) { return a ? b : c; } } catch { return null; } }',
 				),
-				// Ternary returned inside a `for` inside an `if`.
-				i(
+				// Single-line ternary inside a `for` inside an `if`.
+				v(
 					'function f() { if (cond) { for (const x of xs) { return a ? b : c; } } }',
+				),
+			],
+			invalid: [
+				// ---- Paired red for #1714: multi-line ternaries must still fire ----
+				// The ternary spans multiple lines — the complex form that justifies
+				// a guard clause. The single-line cases above are the paired green.
+				i(
+					'function f() {\n' +
+						'  return cond\n' +
+						'    ? a\n' +
+						'    : b;\n' +
+						'}',
+				),
+				// Multi-line direct return with typed values.
+				i(
+					'function f(): string {\n' +
+						'  return cond\n' +
+						'    ? "yes"\n' +
+						'    : "no";\n' +
+						'}',
+				),
+				// Multi-line assign-then-return.
+				i(
+					'function f() {\n' +
+						'  const x = cond\n' +
+						'    ? a\n' +
+						'    : b;\n' +
+						'  return x;\n' +
+						'}',
 				),
 			],
 		});
