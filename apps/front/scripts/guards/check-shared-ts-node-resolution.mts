@@ -142,6 +142,17 @@ export const __testOnly_getResolveCallCount = (): number =>
 	__testOnly_resolveCallCount;
 
 /**
+ * Outcome of a real `node --experimental-strip-types` resolution attempt
+ * (#1868). Named (not anonymous) so the `no-known-value-widening` guard does
+ * not read the return type as a broad target that discards evidence — the
+ * rule fires on inline anonymous object types on return positions.
+ */
+export type NodeResolutionResult = {
+	readonly status: number;
+	readonly stderr: string;
+};
+
+/**
  * Spawns a real `node --experimental-strip-types` process and imports a real
  * shared-ts source file by absolute file URL, so Node's ESM loader resolves
  * every relative specifier inside the real file (#1868, #1882). The child
@@ -153,7 +164,7 @@ export const __testOnly_getResolveCallCount = (): number =>
 export const resolveModuleViaNode = (
 	moduleUrl: string,
 	expectedExport: string,
-): { status: number; stderr: string } => {
+): NodeResolutionResult => {
 	__testOnly_incrementResolveCallCount();
 	const result = spawnSync(
 		process.execPath,
