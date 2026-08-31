@@ -950,8 +950,8 @@
 			"reason": "GitHub-only Node setup. Locally the Node version is pinned by .node-version / .nvmrc."
 		},
 		"require-linked-issue.yml::require-linked-issue::Verify the PR links an existing issue": {
-			"reason_hash": "cb99d029aa535425",
-			"reason": "Reads github.event.pull_request.body. At pre-push time there is no PR and therefore no body to check, so the live step is unreproducible locally by construction. Its shell body is nevertheless executed against a mocked GitHub CLI by packages/scripts-ts/src/require-linked-issue.test.ts, which pins exact Dependabot waiver semantics, closing and non-closing issue relationships, rejection of arbitrary bare mentions, and rejection of references to pull requests."
+			"reason_hash": "24dc047c05de119d",
+			"reason": "Reads github.event.pull_request.body and number. At pre-push time there is no PR and therefore no live body to check, so the live step is unreproducible locally by construction. Its shell body is nevertheless executed against a mocked GitHub CLI by packages/scripts-ts/src/require-linked-issue.test.ts, which pins exact Dependabot waiver semantics, closing and non-closing issue relationships, explicit self-reference diagnosis, rejection of arbitrary bare mentions, and rejection of references to other pull requests."
 		},
 		"front-ci.yml::supply-chain::Test front (non-vitest)": {
 			"reason_hash": "dead675ca5c39cbd",

@@ -37,6 +37,7 @@ jobs:
           PR_BODY: ${{ github.event.pull_request.body }}
         run: |
           PR_AUTHOR="${{ github.event.pull_request.user.login }}"
+          PR_NUMBER="${{ github.event.pull_request.number }}"
 
           # Policy #1240 (owner decision 2026-08-22): bot-generated dependency
           # bumps (dependabot[bot]) are merged on green CI alone and need not
@@ -68,6 +69,11 @@ jobs:
           fi
 
           for n in $numbers; do
+            if [ "$n" = "$PR_NUMBER" ]; then
+              echo "  #$n references itself — a pull request cannot satisfy its own issue-link requirement."
+              continue
+            fi
+
             # #2003: `gh issue view <PR-number>` SUCCEEDS and returns the PR's
             # state, so a body like "Closes #<any-PR>" satisfies this gate
             # falsely. The captain's note is explicit: excluding only "the

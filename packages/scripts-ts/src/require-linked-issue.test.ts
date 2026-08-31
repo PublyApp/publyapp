@@ -169,7 +169,7 @@ const runStep = (runBody, { author, body }) => {
 	const script = runBody.replace(
 		/^PR_AUTHOR="[^"]*"\s*$/m,
 		`PR_AUTHOR="${author}"`,
-	);
+	).replace(/^PR_NUMBER="[^"]*"\s*$/m, 'PR_NUMBER="2032"');
 
 	const mockGhDir = createMockGhDir();
 
@@ -359,6 +359,22 @@ test('the real workflow FAILS (exit 1) for a body that closes only a PR (#2003 r
 	);
 });
 
+test('the real workflow names a self-reference explicitly', async () => {
+	const runBody = await readRunBody();
+
+	const { code, stdout } = runStep(runBody, {
+		author: 'octocat',
+		body: 'Closes #2032',
+	});
+
+	assert.equal(code, 1);
+	assert.match(
+		stdout,
+		/references itself/,
+		'a self-reference must be diagnosed directly instead of looking like a generic PR reference',
+	);
+});
+
 test('the real workflow PASSES (exit 0) for a body that closes a real issue', async () => {
 	const runBody = await readRunBody();
 
@@ -458,7 +474,7 @@ test('mutation: removing the PR discriminator check restores the false-positive 
 
 	const { code } = runStep(mutated, {
 		author: 'octocat',
-		body: 'Closes #2032',
+		body: 'Closes #2003',
 	});
 
 	assert.equal(
