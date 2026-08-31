@@ -426,6 +426,17 @@ ci-dockerignore-shadow:
   pnpm --filter scripts-ts exec vitest run src/check-dockerignore-shadow.test.ts
   node ./packages/scripts-ts/src/check-dockerignore-shadow.ts
 
+# #1891: a `.dockerignore` placed anywhere other than the repository root
+# creates the same context divergence as the shadow file #1849 names — it is
+# INERT when context = repo root, ACTIVE when context = the subdirectory
+# itself (BuildKit additive sub-context feature). Walks the real working
+# tree and names every `.dockerignore` not at the root. Mirrors
+# quality-gate.yml::no-subdir-dockerignore (unconditioned job, same binary).
+ci-no-subdir-dockerignore:
+  @echo "=== [gate] no .dockerignore outside the repo root (#1891) ==="
+  pnpm --filter scripts-ts exec vitest run src/check-no-subdir-dockerignore.test.ts
+  node ./packages/scripts-ts/src/check-no-subdir-dockerignore.ts
+
 # Install exactly as CI does (supply-chain policy: frozen + no lifecycle scripts)
 ci-install:
   @echo "=== [gate] install (frozen lockfile, no scripts) ==="

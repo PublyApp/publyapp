@@ -399,6 +399,26 @@ jobs:
       - name: Forbid .dockerignore shadow files (#1849)
         run: node packages/scripts-ts/src/check-dockerignore-shadow.ts
 
+  # #1891: a `.dockerignore` placed anywhere other than the repository root
+  # creates the same context divergence as the shadow file #1849 names — INERT
+  # when context = repo root, ACTIVE when context = the subdirectory itself
+  # (BuildKit additive sub-context feature). Same rationale for an
+  # unconditional job as no-dockerignore-shadow above: the guard scans every
+  # subdirectory and the changed-paths classifier cannot enumerate them all.
+  # Mirrors `just ci-no-subdir-dockerignore` (which runs the same script plus
+  # its fixture suite).
+  no-subdir-dockerignore:
+    name: Forbid .dockerignore outside the repo root (#1891)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Forbid .dockerignore outside the repo root (#1891)
+        run: node packages/scripts-ts/src/check-no-subdir-dockerignore.ts
+
   # Required status check: this is the one context that should be required
   # on the branch ruleset instead of relying on the trigger. It always
   # reports (if: always()), passes when upstream jobs succeeded or were
@@ -419,7 +439,7 @@ jobs:
     # required names either.
     name: ${{ (github.event_name == 'pull_request' || github.event_name == 'merge_group') && 'quality-gate' || 'quality-gate-push-check' }}
     if: always()
-    needs: [changes, quality, no-ignored-tracked, no-dockerignore-shadow]
+    needs: [changes, quality, no-ignored-tracked, no-dockerignore-shadow, no-subdir-dockerignore]
     runs-on: ubuntu-latest
     steps:
       # Reads the `needs` context directly (via toJSON) instead of a

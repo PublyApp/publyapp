@@ -691,6 +691,16 @@
 			"mirror": "just ci-dockerignore-shadow",
 			"reason": "ci-dockerignore-shadow runs the identical `node packages/scripts-ts/src/check-dockerignore-shadow.ts`, which walks the REAL working tree (the same filesystem a build context is drawn from) and flags every file whose basename ends with `.dockerignore` case-insensitively but is not exactly `.dockerignore`. Git-ignored paths (e.g. parallel .worktrees/) are filtered out via a single batch `git check-ignore --stdin -z` call (issue #1909 class). The `-v` form is deliberately NOT used: it was the round-4 defect, because its verbose output changes the parse shape. See issue #1849."
 		},
+		"quality-gate.yml::no-subdir-dockerignore::Checkout": {
+			"hash": "11ee605b2ca0dfd4",
+			"mirror": null,
+			"reason": "GitHub-only: clones the repo onto the runner. Locally the working tree already is the code under test."
+		},
+		"quality-gate.yml::no-subdir-dockerignore::Forbid .dockerignore outside the repo root (#1891)": {
+			"hash": "4ddbdaa0bb632971",
+			"mirror": "just ci-no-subdir-dockerignore",
+			"reason": "ci-no-subdir-dockerignore runs the identical `node packages/scripts-ts/src/check-no-subdir-dockerignore.ts`, which walks the REAL working tree and flags every `.dockerignore` file whose lexical path is NOT the repository root. The guard skips `.git/` and `node_modules/` (out of scope: tool metadata and excluded from every build context by the root .dockerignore). A subdirectory `.dockerignore` is INERT when context = repo root, ACTIVE when context = the subdirectory itself (BuildKit additive sub-context feature), so two build contexts of the same source produce two different exclusion sets — the same divergence as `<Dockerfile>.dockerignore` shadows (#1849). See issue #1891."
+		},
 		"quality-gate.yml::quality::Assert exact pins": {
 			"hash": "9f0331695e45ef30",
 			"mirror": "just ci-install",
