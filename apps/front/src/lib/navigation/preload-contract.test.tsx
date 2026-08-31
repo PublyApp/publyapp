@@ -35,28 +35,40 @@ import { describe, expect, test } from 'vitest';
 import { routes } from '../../routes';
 import { routeTree } from '../../routeTree.gen';
 
+// `children` is typed `unknown` so the walker can narrow on each step —
+// the generated `routeTree` has a strict `RootRouteChildren` shape that is
+// NOT structurally compatible with a `Record<string, RouteLike>` index
+// signature, and the walker only needs the named children to behave as
+// `RouteLike` entries.
 type RouteLike = {
 	id: string;
 	fullPath: string;
 	options?: {
 		staticData?: {
 			preload?: (args: { params: Record<string, string> }) => readonly {
-				options: { queryKey: (vars: Record<string, unknown>) => string[] };
+				options: {
+					queryKey: (vars: Record<string, unknown>) => readonly unknown[];
+				};
 				variables: Record<string, unknown>;
 			}[];
 		};
 	};
-	children?: RouteLike[] | Record<string, RouteLike>;
+	children?: unknown;
 };
 
-const childRoutesOf = (route: RouteLike): RouteLike[] => {
-	if (!route.children) {
+// Narrowing helper — `unknown` is precise here because the generated
+// routeTree types its children as a strict named-object shape that lacks
+// an index signature. Each step walks into a value that has the
+// `RouteLike` structural shape we need.
+const childRoutesOf = (route: RouteLike): readonly RouteLike[] => {
+	const children = route.children;
+	if (children === undefined || children === null) {
 		return [];
 	}
-	if (Array.isArray(route.children)) {
-		return route.children;
+	if (Array.isArray(children)) {
+		return children as readonly RouteLike[];
 	}
-	return Object.values(route.children);
+	return Object.values(children as Record<string, RouteLike>);
 };
 
 const walkRealRouteTree = (

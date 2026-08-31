@@ -13,8 +13,8 @@ import {
 	createRootRoute,
 	createRoute,
 	createRouter,
+	type AnyRouter,
 } from '@tanstack/react-router';
-import type { AnyRouter } from '@tanstack/router-core';
 import { render, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import type { RoutePreloadFactory } from '~/lib/navigation/route-preload';
@@ -42,9 +42,13 @@ type FakeFactory<TVariables extends Record<string, unknown>> = {
 const makeFakeFactory = <TVariables extends Record<string, unknown>>(
 	opts: FakeFactoryOptions<TVariables> = {},
 ): FakeFactory<TVariables> => {
+	const fallbackFetcher = async (vars: TVariables): Promise<FakePayload> => ({
+		ok: true,
+		id: String(vars.id),
+	});
 	const factory: FakeFactory<TVariables> = {
 		queryKey: opts.queryKey ?? ((vars) => ['fake', vars]),
-		fetcher: opts.fetcher ?? (async (vars) => ({ ok: true, id: vars.id })),
+		fetcher: opts.fetcher ?? fallbackFetcher,
 	};
 	if ('staleTime' in opts) {
 		factory.staleTime = opts.staleTime;
@@ -90,12 +94,14 @@ const mountHarness = async (
 	// hook in the authed CSR shell (`AppShell`, `ssr: false`); the root
 	// route's component is the equivalent location for the test router.
 	const rootRoute = createRootRoute({
+		staticData: { crumbs: 'shell' },
 		component: HookMountingRoot,
 	});
 
 	const indexRoute = createRoute({
 		getParentRoute: () => rootRoute,
 		path: '/',
+		staticData: { crumbs: 'shell' },
 		component: () => <div>index</div>,
 	});
 
@@ -103,6 +109,7 @@ const mountHarness = async (
 		getParentRoute: () => rootRoute,
 		path: '/test',
 		staticData: {
+			crumbs: 'shell',
 			preload: () => [
 				{
 					options: asRoutePreloadFactory(factory),
