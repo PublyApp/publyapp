@@ -373,9 +373,10 @@ jobs:
   # #1969: a dedicated job for a jscpd reference raise. The main `quality` job
   # runs the ratchet against the BASE reference (never the PR tree — #1890
   # anchor). A PR that raises the reference is therefore necessarily RED on
-  # `quality` by design. This separate job makes the raise VISIBLE as its own
-  # decision and verifies it is accompanied by a docs/records/ file covering
-  # the metric. It is only a required check when jscpd-reference.json changed.
+  # `quality` by design. This separate job runs for every relevant modification
+  # (the `relevant` classifier), but the guard exits silently 0 when no raise
+  # occurred. When a raise IS present, it verifies it is accompanied by a
+  # docs/records/ file covering the metric.
   ratchet-raise:
     needs: changes
     if: needs.changes.outputs.relevant == 'true'
