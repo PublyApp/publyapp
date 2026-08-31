@@ -1141,7 +1141,7 @@ describe('staff tenant users route', () => {
 		expect(mocks.invalidateAllStaffTenantScopes).toHaveBeenCalled();
 	});
 
-	(test('reports a failure message when every bulk-removed user fails', async () => {
+	test('reports a failure message when every bulk-removed user fails', async () => {
 		mocks.bulkRemoveMutation.mockResolvedValue({
 			succeededCount: 0,
 			failedCount: 1,
@@ -1171,36 +1171,37 @@ describe('staff tenant users route', () => {
 		expect(mocks.toastError.mock.calls[0]).toHaveLength(2);
 		expect(mocks.displayLocalMutationFailure).not.toHaveBeenCalled();
 		expect(mocks.invalidateAllStaffTenantScopes).toHaveBeenCalled();
-	}),
-		// #1442: the bulk-remove catch block consults the REAL
-		// shouldLogoutForFailure helper (not mocked in this suite), so a 401
-		// rejection drives the route into its logout redirect.
-		test('logs out through the real failure helper when bulk removal rejects with 401', async () => {
-			mocks.bulkRemoveMutation.mockRejectedValue({
-				status: 401,
-				responseStatusCode: 401,
-				title: 'Unauthorized',
-				detail: 'Session expired',
-			});
+	});
 
-			renderPage();
+	// #1442: the bulk-remove catch block consults the REAL
+	// shouldLogoutForFailure helper (not mocked in this suite), so a 401
+	// rejection drives the route into its logout redirect.
+	test('logs out through the real failure helper when bulk removal rejects with 401', async () => {
+		mocks.bulkRemoveMutation.mockRejectedValue({
+			status: 401,
+			responseStatusCode: 401,
+			title: 'Unauthorized',
+			detail: 'Session expired',
+		});
 
-			fireEvent.click(screen.getByLabelText('Select Alex Johnson'));
-			await chooseBulkAction('Remove selected from tenant', 'Bulk actions');
-			await screen.findByRole('heading', {
-				name: 'Remove selected from tenant',
-			});
-			fireEvent.click(screen.getByRole('button', { name: 'Remove' }));
+		renderPage();
 
-			await waitFor(() =>
-				expect(mocks.bulkRemoveMutation).toHaveBeenCalledOnce(),
-			);
-			await waitFor(() =>
-				expect(screen.getByTestId('logout-redirect')).toBeTruthy(),
-			);
-			expect(mocks.displayLocalMutationFailure).not.toHaveBeenCalled();
-			expect(mocks.toastError).not.toHaveBeenCalled();
-		}));
+		fireEvent.click(screen.getByLabelText('Select Alex Johnson'));
+		await chooseBulkAction('Remove selected from tenant', 'Bulk actions');
+		await screen.findByRole('heading', {
+			name: 'Remove selected from tenant',
+		});
+		fireEvent.click(screen.getByRole('button', { name: 'Remove' }));
+
+		await waitFor(() =>
+			expect(mocks.bulkRemoveMutation).toHaveBeenCalledOnce(),
+		);
+		await waitFor(() =>
+			expect(screen.getByTestId('logout-redirect')).toBeTruthy(),
+		);
+		expect(mocks.displayLocalMutationFailure).not.toHaveBeenCalled();
+		expect(mocks.toastError).not.toHaveBeenCalled();
+	});
 
 	// Same path, non-auth status: the real helper classifies 403 as a stay-
 	// logged-in failure and the route keeps local feedback ownership.

@@ -23,6 +23,8 @@ export const retry = async <F extends GenericFunction>({
 		// The initial call above always runs, even when attempts=0 ("never
 		// retry"). On failure we retry while attempts > 1, decrementing each
 		// round, so the total number of calls is max(1, attempts).
+		// This contract is pinned by retry-fn.test.ts for attempts 0, 1, 2, 3, 4,
+		// and 5 — the call count for each is exact, not bounded.
 		if (attempts <= 1) {
 			throw error;
 		}

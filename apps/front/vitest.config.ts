@@ -24,6 +24,7 @@ const maxWorkers = Math.max(2, Math.floor(cpus().length / 2));
 const DESIGN_GUARD_TEST_FILES = [
 	'src/lib/i18n-key-coverage.test.ts',
 	'src/lib/mutation-feedback-architecture.test.ts',
+	'src/lib/route-loader-query-key-guard.test.ts',
 ];
 
 export default defineConfig({
