@@ -112,7 +112,7 @@ const assertVitestRunArgs = (shardCount: number): void => {
 		);
 	}
 
-	const expected = `--shard=\$\{{ matrix.shard }}/${shardCount}`;
+	const expected = `--shard=$\{{ matrix.shard }}/${shardCount}`;
 	const actual = invocation[1].trim();
 
 	if (actual !== expected) {

@@ -220,26 +220,26 @@ describe('.husky/_verify-hooks.sh — issue #1933 shell-side guard', () => {
 			[
 				'-c',
 				'is_executable() {\n' +
-				'	local mode="$1"\n' +
-				'	case "$mode" in\n' +
-				'		100???)\n' +
-				'			mode="${mode#100}" ;;\n' +
-				'		??????)\n' +
-				'			echo "[verify-hooks] is_executable: unexpected non-regular file mode: $mode" >&2\n' +
-				'			return 1 ;;\n' +
-				'		???)\n' +
-				'			;;\n' +
-				'		*)\n' +
-				'			echo "[verify-hooks] is_executable: unexpected mode length: $mode" >&2\n' +
-				'			return 1 ;;\n' +
-				'	esac\n' +
-				'	case "$mode" in\n' +
-				'		*1*|*3*|*5*|*7*) return 0 ;;\n' +
-				'	esac\n' +
-				'	return 1\n' +
-				'}\n' +
-				'is_executable 120000 2>&1\n' +
-				'echo "exit:$?"',
+					'	local mode="$1"\n' +
+					'	case "$mode" in\n' +
+					'		100???)\n' +
+					'			mode="${mode#100}" ;;\n' +
+					'		??????)\n' +
+					'			echo "[verify-hooks] is_executable: unexpected non-regular file mode: $mode" >&2\n' +
+					'			return 1 ;;\n' +
+					'		???)\n' +
+					'			;;\n' +
+					'		*)\n' +
+					'			echo "[verify-hooks] is_executable: unexpected mode length: $mode" >&2\n' +
+					'			return 1 ;;\n' +
+					'	esac\n' +
+					'	case "$mode" in\n' +
+					'		*1*|*3*|*5*|*7*) return 0 ;;\n' +
+					'	esac\n' +
+					'	return 1\n' +
+					'}\n' +
+					'is_executable 120000 2>&1\n' +
+					'echo "exit:$?"',
 			],
 			{ encoding: 'utf-8' },
 		);
@@ -257,26 +257,26 @@ describe('.husky/_verify-hooks.sh — issue #1933 shell-side guard', () => {
 			[
 				'-c',
 				'is_executable() {\n' +
-				'	local mode="$1"\n' +
-				'	case "$mode" in\n' +
-				'		100???)\n' +
-				'			mode="${mode#100}" ;;\n' +
-				'		??????)\n' +
-				'			echo "[verify-hooks] is_executable: unexpected non-regular file mode: $mode" >&2\n' +
-				'			return 1 ;;\n' +
-				'		???)\n' +
-				'			;;\n' +
-				'		*)\n' +
-				'			echo "[verify-hooks] is_executable: unexpected mode length: $mode" >&2\n' +
-				'			return 1 ;;\n' +
-				'	esac\n' +
-				'	case "$mode" in\n' +
-				'		*1*|*3*|*5*|*7*) return 0 ;;\n' +
-				'	esac\n' +
-				'	return 1\n' +
-				'}\n' +
-				'is_executable 160000 2>&1\n' +
-				'echo "exit:$?"',
+					'	local mode="$1"\n' +
+					'	case "$mode" in\n' +
+					'		100???)\n' +
+					'			mode="${mode#100}" ;;\n' +
+					'		??????)\n' +
+					'			echo "[verify-hooks] is_executable: unexpected non-regular file mode: $mode" >&2\n' +
+					'			return 1 ;;\n' +
+					'		???)\n' +
+					'			;;\n' +
+					'		*)\n' +
+					'			echo "[verify-hooks] is_executable: unexpected mode length: $mode" >&2\n' +
+					'			return 1 ;;\n' +
+					'	esac\n' +
+					'	case "$mode" in\n' +
+					'		*1*|*3*|*5*|*7*) return 0 ;;\n' +
+					'	esac\n' +
+					'	return 1\n' +
+					'}\n' +
+					'is_executable 160000 2>&1\n' +
+					'echo "exit:$?"',
 			],
 			{ encoding: 'utf-8' },
 		);
