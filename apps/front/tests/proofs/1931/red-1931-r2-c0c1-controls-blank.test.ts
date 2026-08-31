@@ -1,5 +1,5 @@
 /**
- * @vitest-environment jsdom *
+ * @vitest-environment node
  * KEPT RED TEST — issue #1931 (r2, C0/C1 control character gap).
  *
  * ## Context
