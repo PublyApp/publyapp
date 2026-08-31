@@ -141,8 +141,19 @@ public static class ServiceRegistration {
 			)
 			.AddCheck<JobQueueDrainHealthCheck>(
 				"job_queue_drain",
+				// Deliberately NOT on the "ready" tag. Readiness gates ROUTING
+				// (dokploy.yml probes /health/ready for the api service), and a
+				// stalled job queue lives in the WORKER process — the api can
+				// still serve every request while the worker is down. Tagging
+				// the drain check "ready" turned a background publishing delay
+				// into a TOTAL API OUTAGE: a due job past the stall threshold
+				// flipped /health/ready to 503 and Traefik withheld ALL routing
+				// to the api (issue #1716, review round 2). The check sits on
+				// its own "drain" tag, surfaced at /health/drain, so an
+				// operator or monitor can see the stall and its cause without
+				// routing ever depending on it.
 				failureStatus: Microsoft.Extensions.Diagnostics.HealthChecks.HealthStatus.Unhealthy,
-				tags: ["ready"]
+				tags: ["drain"]
 			);
 
 		// Register scoped DbContext (for per-request instances)

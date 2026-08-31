@@ -8,15 +8,23 @@ using PublyApp.Api.Modules.Jobs.Entities;
 namespace PublyApp.Api.Infrastructure.Health;
 
 /// <summary>
-/// Readiness guard for the deployed api/worker split (issue #1716): the api
+/// Drain guard for the deployed api/worker split (issue #1716): the api
 /// process has NO job consumer, so a "publish now" enqueues into job_queue and
 /// the publication stays <c>Scheduled</c> until a SEPARATE worker
 /// (<c>APP_ROLE=worker</c>) claims the row. When no worker is draining the
-/// queue, that failure used to be silent. This check makes it loud: once a DUE
+/// queue, that failure used to be silent. This check makes it loud once a DUE
 /// job (the exact predicate the claim path uses — <c>status = Pending</c> and
 /// <c>next_attempt_at &lt;= now()</c>) has sat unclaimed for longer than
-/// <c>JOB_QUEUE_DRAIN_STALL_SECONDS</c>, the api readiness endpoint refuses to
-/// declare itself healthy and the response names the cause and the next action.
+/// <c>JOB_QUEUE_DRAIN_STALL_SECONDS</c>.
+/// <para>
+/// The check lives on the NON-ROUTING <c>/health/drain</c> surface only.
+/// Readiness probes decide ROUTING, and the api can serve every request while
+/// the worker is down — only background drain stalls, and only the worker can
+/// fix that. A probe that answers "is a dependency healthy" must never be
+/// allowed to take the api offline (review round 2): the drain surface names
+/// the cause (503 + plain words) for an operator or monitor, while
+/// <c>/health/ready</c> keeps returning 200.
+/// </para>
 /// </summary>
 public sealed class JobQueueDrainHealthCheck : IHealthCheck {
 	private readonly AppDbContext _dbContext;
@@ -80,12 +88,13 @@ public sealed class JobQueueDrainHealthCheck : IHealthCheck {
 		} catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) {
 			throw;
 		} catch (Exception ex) {
-			// The queue cannot be judged, so the api must not declare itself ready:
-			// the readiness answer is "I cannot tell", which is a loud failure by
-			// itself (house rule: an undecidable entry fails loudly).
+			// The queue cannot be judged, so the drain surface must not declare
+			// itself healthy: "I cannot tell" is a loud failure by itself (house
+			// rule: an undecidable entry fails loudly). The sentence is the SAME
+			// one database_migrations reports for the same root cause, so an
+			// operator sees one wording for one problem on every surface.
 			return HealthCheckResult.Unhealthy(
-				"The job queue could not be inspected: the database is unreachable or the "
-					+ "drain state could not be read.",
+				HealthCheckMessages.DatabaseUnreachable,
 				ex
 			);
 		}

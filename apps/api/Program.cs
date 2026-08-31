@@ -349,9 +349,23 @@ public class Program {
 
 		var readinessOptions = new HealthCheckOptions {
 			Predicate = registration => registration.Tags.Contains("ready"),
-			// Issue #1716: render the cause, not just the word "Unhealthy", so the
-			// readiness refusal names what is wrong (e.g. a worker that stopped
-			// draining the job queue) in the state an operator actually reads.
+			// Issue #1716: render the cause, not just the word "Unhealthy", so a
+			// refused surface names what is wrong in the state an operator reads.
+			ResponseWriter = HealthResponseWriter.WriteAsync,
+		};
+
+		// The job-queue drain guard lives on its own surface, deliberately
+		// OUTSIDE readiness. Readiness gates routing (dokploy.yml probes
+		// /health/ready), and the api can keep serving every request while the
+		// worker is down — only background drain stalls, and only the worker can
+		// fix that. /health/drain answers "is the queue being drained?" for
+		// operators and monitors: 503 with the cause when it is not. Nothing
+		// routes on it, so a stalled queue can never take routing down — not in
+		// steady state, and not during a deploy where the api starts before the
+		// worker (a job enqueued in the grace window may go stale, but the drain
+		// surface is the only place that says so).
+		var drainOptions = new HealthCheckOptions {
+			Predicate = registration => registration.Tags.Contains("drain"),
 			ResponseWriter = HealthResponseWriter.WriteAsync,
 		};
 		app.MapHealthChecks("/health/live", new HealthCheckOptions {
@@ -366,6 +380,10 @@ public class Program {
 		app.MapHealthChecks("/health", readinessOptions)
 			.WithRateLimitOptOut(
 				"Health probes must remain available during request bursts"
+			);
+		app.MapHealthChecks("/health/drain", drainOptions)
+			.WithRateLimitOptOut(
+				"Drain probes must remain available during request bursts"
 			);
 		app.MapNotFoundRoute();
 		app.ValidateEndpointRateLimitCoverage();
