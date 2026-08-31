@@ -1,11 +1,11 @@
 /**
  * @vitest-environment jsdom
  *
- * Brief #1720 ronde 2 — validation des cas limites et parité :
- * 1. La colonne montre la cause tronquée avec le titre pour le texte complet
- * 2. Le tiroir utilise le lastError de la requête de détail quand dispo
- * 3. Le helper formatFailureCause gère les cas limites (espaces, caractères spéciaux)
- * 4. La colonne et le tiroir affichent la même valeur formatée pour la même cause
+ * Brief #1720 round 2 — edge case and parity validation:
+ * 1. The column shows the truncated cause with the title for the full text
+ * 2. The drawer uses the lastError from the detail request when available
+ * 3. The formatFailureCause helper handles edge cases (spaces, special characters)
+ * 4. The column and drawer display the same formatted value for the same cause
  */
 import { cleanup, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -15,18 +15,18 @@ import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import type { StaffDeadLetterRow } from '~/lib/query/staff-jobs';
 import type { TestLabelMap } from '~/lib/testing/test-label-map';
 
-/** Pilote la vraie couture (`useQuery`) en plus du mock de module, qui est inerte
- * pour le hook local. Sans cela un test « le tiroir montre la cause du detail »
- * passerait a tort en lisant la cause de la ligne. */
+/** Drives the real seam (`useQuery`) on top of the module mock, which is inert
+ * for the local hook. Without this, a test named "the drawer shows the detail's
+ * cause" would pass for the wrong reason, by reading the row's cause instead. */
 const NO_DETAIL = { data: null, isPending: false, isError: false } as const;
 
 const mocks = vi.hoisted(() => ({
 	navigate: vi.fn(),
 	useStaffDeadLettersQuery: vi.fn(),
 	useStaffDeadLetterDetailQuery: vi.fn(),
-	// `useStaffDeadLetterDetailQuery` est defini LOCALEMENT dans dead-letter.tsx :
-	// le mock de module ci-dessus ne l'atteint pas. La seule couture reelle est le
-	// `useQuery` qu'il enveloppe, et c'est le seul appel a useQuery du fichier.
+	// `useStaffDeadLetterDetailQuery` is defined LOCALLY in dead-letter.tsx, so
+	// the module mock above never reaches it. The only real seam is the
+	// `useQuery` it wraps, and that is the file's only useQuery call.
 	useQuery: vi.fn(),
 	shouldLogoutForFailure: vi.fn<(error: unknown) => boolean>(() => false),
 }));

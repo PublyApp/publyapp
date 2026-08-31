@@ -74,9 +74,9 @@ describe('ScrollArea (client)', () => {
 	});
 
 	test('mounts without effects throwing (hydration smoke test)', () => {
-		// #1750 Limite 1: renderToStaticMarkup n'exécute pas les effets.
-		// Ce test vérifie que le montage (qui déclenche les effets) ne lève
-		// pas d'erreur — un accès `window` dans un effet casserait ici.
+		// #1750 Limit 1: renderToStaticMarkup does not run effects.
+		// This test verifies that mounting (which triggers effects) does not
+		// throw an error — a `window` access in an effect would break here.
 		expect(() => {
 			render(
 				<ScrollArea scrollAreaLabel="Hydratation">

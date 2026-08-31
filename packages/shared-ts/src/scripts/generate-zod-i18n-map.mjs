@@ -85,7 +85,7 @@ for (const language of supportedLanguages) {
 		// token, so boundaries come from controlled pairs instead:
 		//  1. Same input, different expected kinds -> the common prefix ends
 		//     where the expected token starts and the common suffix spans
-		//     everything after it (" attendu, nombre reçu" etc.).
+		//     everything after it (" expected, received number" etc.).
 		//  2. Same expected, different input kinds -> the minimum common
 		//     prefix across pairs lands on the received token's first letter;
 		//     the token itself is validated against its KNOWN name because
@@ -106,7 +106,7 @@ for (const language of supportedLanguages) {
 			input: 42,
 		});
 		// Minimum across all pairs defeats coincidental letter overlaps in
-		// any single pair ("chaîne"/"booléen" both end before " attendu").
+		// any single pair ("string"/"boolean" both end before " expected").
 		const expStart = Math.min(
 			commonPrefixLength(sExpA, sExpB),
 			commonPrefixLength(sExpA, sExpC),
@@ -147,8 +147,11 @@ for (const language of supportedLanguages) {
 			commonPrefixLength(sExpA, sRecC),
 			commonPrefixLength(sRecB, sRecC),
 		);
-		// Invariant text after the received token (empty in English, " reçu"
-		// in French). Derived structurally — never assumed.
+		// Invariant text after the received token: empty in English, " reçu"
+		// in French. The French fragment is quoted verbatim on purpose — it is
+		// the string this script actually sees when it probes the `fr` locale,
+		// and translating it would make the comment describe an input that
+		// never occurs. Derived structurally — never assumed.
 		const recPost = Math.min(
 			commonSuffixLength(sExpA, sRecB),
 			commonSuffixLength(sExpA, sRecC),

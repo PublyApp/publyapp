@@ -1,9 +1,9 @@
 /**
  * @vitest-environment jsdom
  *
- * Brief #1720 ronde 2 — validation supplémentaire : tester le contenu réel
- * du tiroir en mockant les portails pour qu'ils rendent inline (sans portal).
- * Cela permet de vérifier que le tiroir montre la cause complète après clic.
+ * Brief #1720 round 2 — additional validation: test the actual drawer
+ * content by mocking portals so they render inline (without portal).
+ * This verifies that the drawer shows the full cause after click.
  */
 import { cleanup, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';

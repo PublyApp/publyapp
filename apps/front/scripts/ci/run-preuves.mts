@@ -57,7 +57,7 @@
  * ## Option (b) — declaration-scoped replay (issue #1659, ronde 6)
  *
  * A pull request DECLARES a paired red proof by adding or modifying a proof
- * test file under apps/front/tests/proofs/<issue>/. That directory is versionné
+ * test file under apps/front/tests/proofs/<issue>/. That directory is versioned
  * (committed to the repo), so CI can always see the files — unlike .dump/,
  * which is git-ignored and absent on a clean CI checkout.
  *
@@ -670,10 +670,10 @@ for (const test of replayable) {
 			manifest,
 		);
 
-		// Le comptage vit dans consume-verdict.mts (extrait par #1843) : fonction
-		// pure, testable seule. Ici on n'applique que l'effet de bord. Decision
-		// porteuse : un vitest qui plante -> verdict ERROR -> doit incrementer
-		// unexpectedPasses, PAS failures.
+		// The counting lives in consume-verdict.mts (extracted by #1843): a pure
+		// function, testable on its own. Here we only apply the side effect. Load-
+		// bearing decision: a vitest that crashes -> ERROR verdict -> must increment
+		// unexpectedPasses, NOT failures.
 		const counts = consumeVerdict(
 			{ failures, unexpectedPasses, corrupted, stale },
 			result.verdict,

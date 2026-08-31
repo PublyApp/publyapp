@@ -30,8 +30,16 @@ test('empty array gives zero stats', () => {
 test('production pair is counted and lines summed', () => {
 	const dupes = [
 		{
-			firstFile: { name: 'apps/api/Modules/Auth/Services/Svc.cs' },
-			secondFile: { name: 'apps/api/Modules/Users/Services/Svc.cs' },
+			firstFile: {
+				name: 'apps/api/Modules/Auth/Services/Svc.cs',
+				start: 1,
+				end: 50,
+			},
+			secondFile: {
+				name: 'apps/api/Modules/Users/Services/Svc.cs',
+				start: 1,
+				end: 50,
+			},
 			lines: 50,
 		},
 	];
@@ -43,13 +51,13 @@ test('production pair is counted and lines summed', () => {
 test('same pair reported twice is one pair but every fragment counts', () => {
 	const dupes = [
 		{
-			firstFile: { name: 'apps/api/SvcA.cs' },
-			secondFile: { name: 'apps/api/SvcB.cs' },
+			firstFile: { name: 'apps/api/SvcA.cs', start: 1, end: 30 },
+			secondFile: { name: 'apps/api/SvcB.cs', start: 1, end: 30 },
 			lines: 30,
 		},
 		{
-			firstFile: { name: 'apps/api/SvcB.cs' },
-			secondFile: { name: 'apps/api/SvcA.cs' },
+			firstFile: { name: 'apps/api/SvcB.cs', start: 50, end: 89 },
+			secondFile: { name: 'apps/api/SvcA.cs', start: 50, end: 89 },
 			lines: 40,
 		},
 	];
@@ -66,8 +74,16 @@ test('same pair reported twice is one pair but every fragment counts', () => {
 test('production self-duplication is counted', () => {
 	const dupes = [
 		{
-			firstFile: { name: 'apps/api/Modules/Invitations/Services/InvSvc.cs' },
-			secondFile: { name: 'apps/api/Modules/Invitations/Services/InvSvc.cs' },
+			firstFile: {
+				name: 'apps/api/Modules/Invitations/Services/InvSvc.cs',
+				start: 1,
+				end: 60,
+			},
+			secondFile: {
+				name: 'apps/api/Modules/Invitations/Services/InvSvc.cs',
+				start: 101,
+				end: 160,
+			},
 			lines: 60,
 		},
 	];
@@ -79,13 +95,13 @@ test('production self-duplication is counted', () => {
 test('self-duplication fragments sum per file (growth stays visible)', () => {
 	const dupes = [
 		{
-			firstFile: { name: 'apps/api/Module/Svc.cs' },
-			secondFile: { name: 'apps/api/Module/Svc.cs' },
+			firstFile: { name: 'apps/api/Module/Svc.cs', start: 1, end: 20 },
+			secondFile: { name: 'apps/api/Module/Svc.cs', start: 31, end: 50 },
 			lines: 20,
 		},
 		{
-			firstFile: { name: 'apps/api/Module/Svc.cs' },
-			secondFile: { name: 'apps/api/Module/Svc.cs' },
+			firstFile: { name: 'apps/api/Module/Svc.cs', start: 61, end: 140 },
+			secondFile: { name: 'apps/api/Module/Svc.cs', start: 151, end: 230 },
 			lines: 80,
 		},
 	];
@@ -186,18 +202,51 @@ test('non-production pair is not counted', () => {
 	assert.equal(r.pairCount, 0);
 });
 
-test('entry without files field is skipped', () => {
+test('#1896: an entry without file names is unanalyzable and fails loud, never a silent skip', () => {
 	const dupes = [
 		{ lines: 50, firstFile: { name: '' }, secondFile: { name: '' } },
 		{
-			firstFile: { name: 'apps/api/Svc.cs' },
-			secondFile: { name: 'apps/api/Svc2.cs' },
+			firstFile: { name: 'apps/api/Svc.cs', start: 1, end: 30 },
+			secondFile: { name: 'apps/api/Svc2.cs', start: 1, end: 30 },
 			lines: 30,
 		},
 	];
 	const r = computeProductionStats(dupes);
+	// The named pair is still counted...
 	assert.equal(r.pairCount, 1);
 	assert.equal(r.pairLines, 30);
+	// ...but the nameless fragment is a loud problem, not a silent skip: it
+	// could hide a production pair behind an undercount (#1896).
+	assert.deepEqual(r.problems, [
+		'Unanalyzable jscpd clone entry (firstFile "", secondFile ""): one side has no file name. Every jscpd fragment names both files; an unnamed fragment cannot be audited for production duplication (#1896). Fix the report generation.',
+	]);
+});
+
+test('#1896: a gated entry without a line count or line positions is unanalyzable and fails loud', () => {
+	const noCount = computeProductionStats([
+		{
+			firstFile: { name: 'apps/api/SvcA.cs', start: 1, end: 9 },
+			secondFile: { name: 'apps/api/SvcB.cs', start: 1, end: 9 },
+		},
+	]);
+	assert.equal(noCount.pairCount, 0);
+	assert.ok(
+		noCount.problems.some((p) => p.includes('no line count')),
+		noCount.problems.join('\n'),
+	);
+
+	const noPositions = computeProductionStats([
+		{
+			firstFile: { name: 'apps/api/SvcA.cs' },
+			secondFile: { name: 'apps/api/SvcB.cs' },
+			lines: 9,
+		},
+	]);
+	assert.equal(noPositions.pairCount, 0);
+	assert.ok(
+		noPositions.problems.some((p) => p.includes('no line positions')),
+		noPositions.problems.join('\n'),
+	);
 });
 
 // ---------------------------------------------------------------------------
@@ -246,8 +295,8 @@ test('passes when all values are at or below baseline', async () => {
 		},
 		dupes: [
 			{
-				firstFile: { name: 'apps/api/SvcA.cs' },
-				secondFile: { name: 'apps/api/SvcB.cs' },
+				firstFile: { name: 'apps/api/SvcA.cs', start: 1, end: 200 },
+				secondFile: { name: 'apps/api/SvcB.cs', start: 1, end: 200 },
 				lines: 200,
 			},
 		],
@@ -282,8 +331,8 @@ test('fails when production pair count increases, naming the files', async () =>
 	const { root } = await buildFixture({
 		ref: { productionPairs: { count: 10, lines: 200 } },
 		dupes: Array.from({ length: 11 }, (_, i) => ({
-			firstFile: { name: `apps/api/SvcA${i}.cs` },
-			secondFile: { name: `apps/api/SvcB${i}.cs` },
+			firstFile: { name: `apps/api/SvcA${i}.cs`, start: 1, end: 10 },
+			secondFile: { name: `apps/api/SvcB${i}.cs`, start: 1, end: 10 },
 			lines: 10,
 		})),
 		cloneCount: 11,
@@ -308,8 +357,8 @@ test('fails when production pair lines increase, naming the files', async () => 
 		ref: { productionPairs: { count: 10, lines: 200 } },
 		dupes: [
 			{
-				firstFile: { name: 'apps/api/SvcA.cs' },
-				secondFile: { name: 'apps/api/SvcB.cs' },
+				firstFile: { name: 'apps/api/SvcA.cs', start: 1, end: 201 },
+				secondFile: { name: 'apps/api/SvcB.cs', start: 1, end: 201 },
 				lines: 201,
 			},
 		],
@@ -333,8 +382,8 @@ test('fails when production auto file count increases, naming the files', async 
 	const { root } = await buildFixture({
 		ref: { productionAuto: { count: 5, lines: 100 } },
 		dupes: Array.from({ length: 6 }, (_, i) => ({
-			firstFile: { name: `apps/api/Svc${i}.cs` },
-			secondFile: { name: `apps/api/Svc${i}.cs` },
+			firstFile: { name: `apps/api/Svc${i}.cs`, start: 1, end: 10 },
+			secondFile: { name: `apps/api/Svc${i}.cs`, start: 21, end: 30 },
 			lines: 10,
 		})),
 		cloneCount: 6,
@@ -358,8 +407,8 @@ test('fails when production auto lines increase, naming the files', async () => 
 		ref: { productionAuto: { count: 5, lines: 100 } },
 		dupes: [
 			{
-				firstFile: { name: 'apps/api/Svc.cs' },
-				secondFile: { name: 'apps/api/Svc.cs' },
+				firstFile: { name: 'apps/api/Svc.cs', start: 1, end: 101 },
+				secondFile: { name: 'apps/api/Svc.cs', start: 201, end: 301 },
 				lines: 101,
 			},
 		],
@@ -420,6 +469,29 @@ test('fails loudly when both report and duplicates are empty', async () => {
 	);
 });
 
+test('#1896: verifyJscpdRatchet fails loud when a gated entry is unanalyzable', async () => {
+	const { root } = await buildFixture({
+		dupes: [
+			{
+				firstFile: { name: 'apps/api/SvcA.cs', start: 1, end: 9 },
+				secondFile: { name: 'apps/api/SvcB.cs', start: 1, end: 9 },
+			},
+		],
+		cloneCount: 1,
+	});
+	const { errors } = verifyJscpdRatchet(
+		path.join(root, 'report.json'),
+		path.join(root, 'ref.json'),
+	);
+	// The entry is unanalyzable (no line count) — the guard must RED even
+	// though the aggregates alone would pass: an unreadable fragment must
+	// never stay silent (#1896).
+	assert.ok(
+		errors.some((e) => e.includes('no line count')),
+		errors.join('\n'),
+	);
+});
+
 // ---------------------------------------------------------------------------
 // #1890 — offender naming against the stored base report
 // ---------------------------------------------------------------------------
@@ -434,13 +506,13 @@ test('names the exact pair that crossed its base (offender below the top-5 cut)'
 	]);
 	const dupes = [
 		...big.map(([a, b]) => ({
-			firstFile: { name: a },
-			secondFile: { name: b },
+			firstFile: { name: a, start: 1, end: 100 },
+			secondFile: { name: b, start: 1, end: 100 },
 			lines: 100,
 		})),
 		{
-			firstFile: { name: 'apps/api/NewA.cs' },
-			secondFile: { name: 'apps/api/NewB.cs' },
+			firstFile: { name: 'apps/api/NewA.cs', start: 12, end: 16 },
+			secondFile: { name: 'apps/api/NewB.cs', start: 40, end: 44 },
 			lines: 5,
 		},
 	];
@@ -461,12 +533,12 @@ test('names the exact pair that crossed its base (offender below the top-5 cut)'
 		errors.some((e) => e.includes('increased from 5 to 6')),
 		errors.join('\n'),
 	);
-	// The exact offender, named with its base -> current totals — even though
-	// it is NOT in the top-5 contributors.
+	// The exact offender, named with its real line positions and its base ->
+	// current totals — even though it is NOT in the top-5 contributors.
 	assert.ok(
 		errors.some(
 			(e) =>
-				e.includes('apps/api/NewA.cs <-> apps/api/NewB.cs') &&
+				e.includes('apps/api/NewA.cs:12-16 <-> apps/api/NewB.cs:40-44') &&
 				e.includes('(0 -> 5 duplicated lines)'),
 		),
 		errors.join('\n'),
@@ -487,13 +559,13 @@ test('names the self-duplicated file that crossed its base', async () => {
 		},
 		dupes: [
 			{
-				firstFile: { name: 'apps/api/A.cs' },
-				secondFile: { name: 'apps/api/A.cs' },
+				firstFile: { name: 'apps/api/A.cs', start: 10, end: 24 },
+				secondFile: { name: 'apps/api/A.cs', start: 40, end: 54 },
 				lines: 15,
 			},
 			{
-				firstFile: { name: 'apps/api/B.cs' },
-				secondFile: { name: 'apps/api/B.cs' },
+				firstFile: { name: 'apps/api/B.cs', start: 5, end: 14 },
+				secondFile: { name: 'apps/api/B.cs', start: 30, end: 39 },
 				lines: 10,
 			},
 		],
@@ -508,11 +580,14 @@ test('names the self-duplicated file that crossed its base', async () => {
 		errors.join('\n'),
 	);
 	// Only A grew (10 -> 15); B is at its base (10) and must NOT be named.
+	// The message cites A's real line positions from the report.
 	assert.ok(
 		errors.some(
 			(e) =>
 				e.includes('Files that crossed their base') &&
-				e.includes('apps/api/A.cs (10 -> 15 duplicated lines)'),
+				e.includes(
+					'apps/api/A.cs:10-24, apps/api/A.cs:40-54 (10 -> 15 duplicated lines)',
+				),
 		),
 		errors.join('\n'),
 	);
@@ -527,8 +602,8 @@ test('legacy reference (no per-pair map) falls back to the top-5 list and says s
 		ref: { productionPairs: { count: 1, lines: 40 } },
 		dupes: [
 			{
-				firstFile: { name: 'apps/api/NewA.cs' },
-				secondFile: { name: 'apps/api/NewB.cs' },
+				firstFile: { name: 'apps/api/NewA.cs', start: 1, end: 50 },
+				secondFile: { name: 'apps/api/NewB.cs', start: 1, end: 50 },
 				lines: 50,
 			},
 		],
@@ -563,13 +638,13 @@ test('a pair at its base total is not an offender (equal is not a violation)', a
 		},
 		dupes: [
 			{
-				firstFile: { name: 'apps/api/A.cs' },
-				secondFile: { name: 'apps/api/B.cs' },
+				firstFile: { name: 'apps/api/A.cs', start: 1, end: 20 },
+				secondFile: { name: 'apps/api/B.cs', start: 1, end: 20 },
 				lines: 20,
 			},
 			{
-				firstFile: { name: 'apps/api/C.cs' },
-				secondFile: { name: 'apps/api/D.cs' },
+				firstFile: { name: 'apps/api/C.cs', start: 1, end: 20 },
+				secondFile: { name: 'apps/api/D.cs', start: 1, end: 20 },
 				lines: 20,
 			},
 		],
@@ -586,8 +661,8 @@ test('findOffendingPairs returns null for a legacy reference (no pairLines map)'
 	const stats = computeProductionStats(
 		[
 			{
-				firstFile: { name: 'apps/api/A.cs' },
-				secondFile: { name: 'apps/api/B.cs' },
+				firstFile: { name: 'apps/api/A.cs', start: 1, end: 10 },
+				secondFile: { name: 'apps/api/B.cs', start: 20, end: 29 },
 				lines: 10,
 			},
 		],
@@ -600,7 +675,12 @@ test('findOffendingPairs returns null for a legacy reference (no pairLines map)'
 	const offenders = findOffendingPairs(stats.pairMaps, {});
 	assert.ok(offenders !== null);
 	assert.deepEqual(offenders, [
-		{ files: ['apps/api/A.cs', 'apps/api/B.cs'], lines: 10, baseLines: 0 },
+		{
+			files: ['apps/api/A.cs', 'apps/api/B.cs'],
+			lines: 10,
+			baseLines: 0,
+			spans: [{ first: { start: 1, end: 10 }, second: { start: 20, end: 29 } }],
+		},
 	]);
 });
 
@@ -655,8 +735,8 @@ test('#1890: the ratchet reads the reference from the base, not from this tree',
 		statistics: { total: { clones: 1 } },
 		duplicates: [
 			{
-				firstFile: { name: 'apps/api/SvcA.cs' },
-				secondFile: { name: 'apps/api/SvcB.cs' },
+				firstFile: { name: 'apps/api/SvcA.cs', start: 1, end: 200 },
+				secondFile: { name: 'apps/api/SvcB.cs', start: 1, end: 200 },
 				lines: 200,
 			},
 		],
@@ -750,8 +830,8 @@ test('#1890: the ATTACK is caught — a raised working-tree reference does not l
 		statistics: { total: { clones: 1 } },
 		duplicates: [
 			{
-				firstFile: { name: 'apps/api/SvcA.cs' },
-				secondFile: { name: 'apps/api/SvcB.cs' },
+				firstFile: { name: 'apps/api/SvcA.cs', start: 1, end: 200 },
+				secondFile: { name: 'apps/api/SvcB.cs', start: 1, end: 200 },
 				lines: 200,
 			},
 		],
@@ -845,8 +925,8 @@ test('#1890: GITHUB_BASE_REF selects the CI base branch ref', async () => {
 		statistics: { total: { clones: 1 } },
 		duplicates: [
 			{
-				firstFile: { name: 'apps/api/SvcA.cs' },
-				secondFile: { name: 'apps/api/SvcB.cs' },
+				firstFile: { name: 'apps/api/SvcA.cs', start: 1, end: 201 },
+				secondFile: { name: 'apps/api/SvcB.cs', start: 1, end: 201 },
 				lines: 201,
 			},
 		],
@@ -930,8 +1010,8 @@ test('#1890: the explicit base seam reads a reference file', async () => {
 		statistics: { total: { clones: 1 } },
 		duplicates: [
 			{
-				firstFile: { name: 'apps/api/SvcA.cs' },
-				secondFile: { name: 'apps/api/SvcB.cs' },
+				firstFile: { name: 'apps/api/SvcA.cs', start: 1, end: 60 },
+				secondFile: { name: 'apps/api/SvcB.cs', start: 1, end: 60 },
 				lines: 60,
 			},
 		],
@@ -1023,8 +1103,8 @@ test('#1890: the CLI default resolves the reference from the base (a working-tre
 		statistics: { total: { clones: 1 } },
 		duplicates: [
 			{
-				firstFile: { name: 'apps/api/SvcA.cs' },
-				secondFile: { name: 'apps/api/SvcB.cs' },
+				firstFile: { name: 'apps/api/SvcA.cs', start: 1, end: 200 },
+				secondFile: { name: 'apps/api/SvcB.cs', start: 1, end: 200 },
 				lines: 200,
 			},
 		],
@@ -1036,7 +1116,7 @@ test('#1890: the CLI default resolves the reference from the base (a working-tre
 	assert.equal(attack.code, 1, attack.stderr);
 	assert.ok(attack.stderr.includes('increased from 100 to 200'), attack.stderr);
 	assert.ok(
-		attack.stderr.includes('apps/api/SvcA.cs <-> apps/api/SvcB.cs'),
+		attack.stderr.includes('apps/api/SvcA.cs:1-200 <-> apps/api/SvcB.cs:1-200'),
 		attack.stderr,
 	);
 	assert.ok(
@@ -1049,8 +1129,8 @@ test('#1890: the CLI default resolves the reference from the base (a working-tre
 		statistics: { total: { clones: 1 } },
 		duplicates: [
 			{
-				firstFile: { name: 'apps/api/SvcA.cs' },
-				secondFile: { name: 'apps/api/SvcB.cs' },
+				firstFile: { name: 'apps/api/SvcA.cs', start: 1, end: 100 },
+				secondFile: { name: 'apps/api/SvcB.cs', start: 1, end: 100 },
 				lines: 100,
 			},
 		],
@@ -1130,6 +1210,173 @@ test('#1890: a missing base fails loud even when a decoy reference sits in the w
 });
 
 // ---------------------------------------------------------------------------
+// #1896 — paired red proof: the legacy reference cannot name the offender
+// ---------------------------------------------------------------------------
+//
+// Naming the exact offending pair requires per-pair base totals in the
+// reference (`pairLines` / `autoLines`). #1890 wired the mechanism into the
+// ratchet; #1932 (merged on develop) has since populated the committed
+// `jscpd-reference.json` with those maps — the reference this lane's commits
+// were rebased onto. This lane did NOT touch and does NOT regenerate the
+// reference file.
+//
+// RED proof: a legacy reference (no `pairLines`) cannot name a new offender
+// below the top-5 cut — the message falls back to "Largest pair
+// contributors" and the offender (with its real line positions) is
+// invisible to the human reviewer.
+// GREEN proof: with a regenerated reference (with `pairLines`), the same
+// report reddens with the offender named in plain words, including the real
+// jscpd line positions: `apps/api/HiddenOffenderA.cs:12-16 <->
+// apps/api/HiddenOffenderB.cs:40-44 (0 -> 5 duplicated lines)`.
+
+test('#1896 RED: legacy reference (no pairLines) cannot name the offender below the top-5 cut', async () => {
+	// Five big pairs fill the top-5 contributor list; the NEW offender lands
+	// sixth by size and carries real jscpd line positions.
+	const big = Array.from({ length: 5 }, (_, i) => [
+		`apps/api/Large${i}A.cs`,
+		`apps/api/Large${i}B.cs`,
+	]);
+	const dupes = [
+		...big.map(([a, b]) => ({
+			firstFile: { name: a, start: 1, end: 100 },
+			secondFile: { name: b, start: 1, end: 100 },
+			lines: 100,
+		})),
+		{
+			firstFile: { name: 'apps/api/HiddenOffenderA.cs', start: 12, end: 16 },
+			secondFile: { name: 'apps/api/HiddenOffenderB.cs', start: 40, end: 44 },
+			lines: 5,
+		},
+	];
+	// Legacy reference — aggregates only, NO `pairLines` map.
+	const { root } = await buildFixture({
+		ref: {
+			productionPairs: { count: 5, lines: 500 },
+			productionAuto: { count: 5, lines: 100 },
+		},
+		dupes,
+		cloneCount: 6,
+	});
+	const { errors } = verifyJscpdRatchet(
+		path.join(root, 'report.json'),
+		path.join(root, 'ref.json'),
+	);
+	// The ratchet MUST red (pair count grew from 5 to 6).
+	assert.ok(
+		errors.some((e) => e.includes('increased from 5 to 6')),
+		`ratchet must red:\n${errors.join('\n')}`,
+	);
+	// RED PROOF: the message falls back to the top-5 contributors and never
+	// names the new offender — the engineer sees a red wall but not the code
+	// they just wrote.
+	assert.ok(
+		errors.some((e) => e.includes('Largest pair contributors')),
+		`legacy reference must fall back to top-5 contributors:\n${errors.join('\n')}`,
+	);
+	assert.ok(
+		!errors.some((e) => e.includes('HiddenOffenderA.cs')),
+		`legacy reference must NOT name the offender (the defect #1896 names):\n${errors.join('\n')}`,
+	);
+});
+
+test('#1896 GREEN: regenerated reference (with pairLines) names the offender with its real line positions', async () => {
+	const big = Array.from({ length: 5 }, (_, i) => [
+		`apps/api/Large${i}A.cs`,
+		`apps/api/Large${i}B.cs`,
+	]);
+	const dupes = [
+		...big.map(([a, b]) => ({
+			firstFile: { name: a, start: 1, end: 100 },
+			secondFile: { name: b, start: 1, end: 100 },
+			lines: 100,
+		})),
+		{
+			firstFile: { name: 'apps/api/HiddenOffenderA.cs', start: 12, end: 16 },
+			secondFile: { name: 'apps/api/HiddenOffenderB.cs', start: 40, end: 44 },
+			lines: 5,
+		},
+	];
+	// Regenerated reference — aggregates PLUS the per-pair map keyed `a|b`
+	// to the base total in lines. A new pair has base total 0.
+	const { root } = await buildFixture({
+		ref: {
+			productionPairs: { count: 5, lines: 500 },
+			productionAuto: { count: 5, lines: 100 },
+			pairLines: Object.fromEntries(big.map(([a, b]) => [`${a}|${b}`, 100])),
+		},
+		dupes,
+		cloneCount: 6,
+	});
+	const { errors } = verifyJscpdRatchet(
+		path.join(root, 'report.json'),
+		path.join(root, 'ref.json'),
+	);
+	// GREEN PROOF: per-pair data makes the ratchet name the offender that
+	// ranks below the top-5 cut, citing BOTH files AND their real jscpd line
+	// positions (read from the report, never reconstructed):
+	//   `Pairs that crossed their base: apps/api/HiddenOffenderA.cs:12-16
+	//    <-> apps/api/HiddenOffenderB.cs:40-44 (0 -> 5 duplicated lines).`
+	assert.ok(
+		errors.some(
+			(e) =>
+				e.includes('Pairs that crossed their base:') &&
+				e.includes(
+					'apps/api/HiddenOffenderA.cs:12-16 <-> apps/api/HiddenOffenderB.cs:40-44 (0 -> 5 duplicated lines)',
+				),
+		),
+		`regenerated reference must name the offender in plain words:\n${errors.join('\n')}`,
+	);
+	// And the legacy top-5 fallback MUST NOT appear — per-pair data wins.
+	assert.ok(
+		!errors.some((e) => e.includes('Largest pair contributors')),
+		`regenerated reference must NOT fall back to top-5:\n${errors.join('\n')}`,
+	);
+});
+
+test('#1896: an offender with more fragments than the cap cites 4 and counts the rest', async () => {
+	// One pair that crossed its base with 5 fragments: the message must cite
+	// the first 4 real line positions and name the 5th as "+1 more fragments"
+	// — a mutation that drops the cap's remainder count stays red.
+	const { root } = await buildFixture({
+		ref: {
+			productionPairs: { count: 1, lines: 60 },
+			productionAuto: { count: 0, lines: 0 },
+			pairLines: { 'apps/api/A.cs|apps/api/B.cs': 60 },
+		},
+		dupes: Array.from({ length: 5 }, (_, i) => ({
+			firstFile: {
+				name: 'apps/api/A.cs',
+				start: i * 20 + 1,
+				end: i * 20 + 20,
+			},
+			secondFile: {
+				name: 'apps/api/B.cs',
+				start: i * 20 + 1,
+				end: i * 20 + 20,
+			},
+			lines: 20,
+		})),
+		cloneCount: 5,
+	});
+	const { errors } = verifyJscpdRatchet(
+		path.join(root, 'report.json'),
+		path.join(root, 'ref.json'),
+	);
+	// The offender reds (100 lines > base 60).
+	assert.ok(
+		errors.some((e) => e.includes('(60 -> 100 duplicated lines)')),
+		errors.join('\n'),
+	);
+	// Exactly 4 of the 5 fragments are cited, the 5th is counted.
+	const joined = errors.join('\n');
+	assert.equal(joined.split('apps/api/A.cs:').length - 1, 4, joined);
+	assert.ok(
+		joined.includes('+1 more fragments (60 -> 100 duplicated lines)'),
+		joined,
+	);
+});
+
+// ---------------------------------------------------------------------------
 // Real-tree tests (require a jscpd report at the default path and an
 // origin/develop remote — `just ci-jscpd` provides both before running).
 // ---------------------------------------------------------------------------
@@ -1166,13 +1413,13 @@ test('#1932: with pairLines in the reference, the exact crossing pair is named, 
 	]);
 	const dupes = [
 		...big.map(([a, b]) => ({
-			firstFile: { name: a },
-			secondFile: { name: b },
+			firstFile: { name: a, start: 1, end: 100 },
+			secondFile: { name: b, start: 1, end: 100 },
 			lines: 100,
 		})),
 		{
-			firstFile: { name: 'apps/api/NewA.cs' },
-			secondFile: { name: 'apps/api/NewB.cs' },
+			firstFile: { name: 'apps/api/NewA.cs', start: 12, end: 16 },
+			secondFile: { name: 'apps/api/NewB.cs', start: 40, end: 44 },
 			lines: 5,
 		},
 	];
@@ -1205,11 +1452,12 @@ test('#1932: with pairLines in the reference, the exact crossing pair is named, 
 	const { errors } = verifyJscpdRatchet(reportPath, refPath);
 	assert.ok(errors.length > 0, 'the new pair must red the guard');
 
-	// The EXACT crossing pair must be named (not the top-5 list).
+	// The EXACT crossing pair must be named (not the top-5 list), with its
+	// real line positions (#1896).
 	assert.ok(
 		errors.some(
 			(e) =>
-				e.includes('apps/api/NewA.cs <-> apps/api/NewB.cs') &&
+				e.includes('apps/api/NewA.cs:12-16 <-> apps/api/NewB.cs:40-44') &&
 				e.includes('(0 -> 5 duplicated lines)'),
 		),
 		`guard must name the exact crossing pair, got: ${errors.join('\n')}`,

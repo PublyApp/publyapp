@@ -10,6 +10,5 @@
 			"testName": "DEFECT: unresolved (empty) computed values silently pass the guard (treated as \"nothing hides it\")",
 			"why": "The test attaches the icon and injects a reader returning the engine's unresolved marker (empty strings for visibility, display and opacity), then asserts `.not.toThrow()`. On correct code the guard raises because the style is unresolved, so the assertion fails with an AssertionError. If this test PASSES, the guard has gone back to scanning empty strings for `hidden`, `none` and `0`, finding none, and concluding \"visible\" — substituting a compliant default for a value it cannot read."
 		}
-	],
-	"measuredAgainst": "331905f1c74b565131cf534d8e402f7b0a50c8e6"
+	]
 }

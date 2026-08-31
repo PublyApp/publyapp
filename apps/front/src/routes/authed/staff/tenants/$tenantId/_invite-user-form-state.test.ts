@@ -410,12 +410,12 @@ describe('parseInviteWorkbook', () => {
 		});
 	});
 
-	// La relecture adverse de la ronde 2 a trouvé une mutation qui restaure le
-	// défaut en laissant les trois tests `<rPh>` au vert : retirer le drapeau `/g`
-	// du motif de retrait. Seul le PREMIER `<rPh>` serait alors retiré, et un
-	// second bloc — Excel en écrit un par segment de texte annoté — polluerait de
-	// nouveau la valeur. Les trois tests existants ne portent qu'un seul `<rPh>`,
-	// donc aucun ne rougissait. Ce test épingle la répétition.
+	// The adversarial round-2 review found a mutation that restores the
+	// default while leaving the three `<rPh>` tests green: removing the `/g` flag
+	// from the removal pattern. Only the FIRST `<rPh>` would then be removed, and a
+	// second block — Excel writes one per annotated text segment — would pollute the
+	// value again. The three existing tests each carry only a single `<rPh>`,
+	// so none turned red. This test pins the repetition.
 	test('excludes EVERY <rPh> block, not just the first (the /g flag)', () => {
 		const bytes = buildWorkbook({
 			sharedStrings: [],

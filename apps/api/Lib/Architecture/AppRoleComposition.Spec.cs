@@ -300,6 +300,36 @@ public sealed class AppRoleCompositionSpec : IClassFixture<ApiFixture> {
 			+ "(design §3.2, D1); unexpected: " + string.Join(", ", unexpected));
 	}
 
+	// The deployed worker topology's fidelity mirror of the api test above (issue #1716):
+	// the api/worker split is only exercised if a REAL Production worker process starts the
+	// full job-consumer graph — every queue hosted-service present, and NO HTTP server
+	// anywhere (a Generic Host: not even an IServer type exists in its graph, so nothing can
+	// bind a port). This asserts the manifest of an isolated Production worker process.
+	[Fact]
+	public void ItShouldStartJobHostedServicesAndNoHttpServerForTheWorkerRoleInAProductionProcess() {
+		var resolved = RunHostedServiceManifestInProductionProcess(appRole: "worker");
+
+		foreach (var hostedServiceType in JobHostedServiceTypes) {
+			if (hostedServiceType.FullName is null) {
+				throw new InvalidOperationException(
+					$"{hostedServiceType.Name} has no full name"
+				);
+			}
+
+			resolved.Should().Contain(
+				hostedServiceType.FullName,
+				$"a REAL Production worker process must start {hostedServiceType.Name} "
+				+ "(the deployed api/worker split is exercised, issue #1716)"
+			);
+		}
+
+		resolved.Should().NotContain(
+			"Microsoft.AspNetCore.Hosting.GenericWebHostService",
+			"a REAL Production worker process is a Generic Host: the deployed worker "
+			+ "must never start Kestrel (no HTTP surface, issue #1716)"
+		);
+	}
+
 	// --- helpers ------------------------------------------------------------------
 
 	// Composes the api-role builder with the host environment pinned to Production via the
