@@ -17,12 +17,14 @@ namespace PublyApp.Api.Lib.Logging;
 // LogEvents still queued at SIGTERM/StopAsync are dropped — and the dropped events
 // are exactly the ones that explain why the process exited.
 //
-// DEPENDENCY: xUnit runs test classes serially by default (collection execution
-// order is non-parallel unless [CollectionDefinition] enables parallelism). These
-// tests mutate the static Serilog.Log.Logger without a lock; enabling parallel
-// class execution would require either a collection-level lock or a [Collection]
-// attribute isolating this class to serial execution. The current behaviour is
-// correct because xUnit's default serial class execution is the implicit contract.
+// DEPENDENCY: these tests mutate the process-global static Serilog.Log.Logger
+// without a lock, and xUnit DOES run classes in parallel in this assembly
+// (Tests/AssemblyInfo.cs sets [assembly: CollectionBehavior(MaxParallelThreads = 4)]
+// and classes in different collections run concurrently even without that
+// attribute). The named collection below with DisableParallelization = true
+// serializes this class against every OTHER class that joins the same collection;
+// any spec that also touches the static Log.Logger must join it rather than
+// relying on cross-collection guarantees, which do not exist.
 //
 // The composition witness below pins the registration: both host roles must carry
 // THE concrete SerilogFlushOnShutdown hosted service, the only type whose StopAsync
@@ -32,6 +34,10 @@ namespace PublyApp.Api.Lib.Logging;
 // green if StopAsync is neutered (the round-1 blocker), and each behavioral half alone
 // stays green under the other half's mutation, so the three tests pin the same
 // contract from three directions.
+[CollectionDefinition("SerilogGlobalLogger", DisableParallelization = true)]
+public sealed class SerilogGlobalLoggerCollection;
+
+[Collection("SerilogGlobalLogger")]
 public sealed class SerilogAsyncSinkDrainSpec {
 	[Fact]
 	public void ItShouldRegisterAHostedServiceThatFlushesTheSerilogQueueOnShutdown() {
