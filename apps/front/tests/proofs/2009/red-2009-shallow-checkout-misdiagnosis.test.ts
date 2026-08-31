@@ -88,10 +88,12 @@ const git = (cwd: string, args: string[]): string =>
 		stdio: ['pipe', 'pipe', 'pipe'],
 	});
 
-const gitMayFail = (
-	cwd: string,
-	args: string[],
-): { status: number; stderr: string } => {
+interface GitResult {
+	status: number;
+	stderr: string;
+}
+
+const gitMayFail = (cwd: string, args: string[]): GitResult => {
 	try {
 		execFileSync('git', args, {
 			cwd,
@@ -102,12 +104,14 @@ const gitMayFail = (
 	} catch (error) {
 		const err = error as { status?: unknown; stderr?: Buffer | string };
 		const status = typeof err.status === 'number' ? err.status : -1;
-		const stderr =
-			typeof err.stderr === 'string'
-				? err.stderr
-				: err.stderr instanceof Buffer
-					? err.stderr.toString('utf8')
-					: String(error);
+		let stderr: string;
+		if (typeof err.stderr === 'string') {
+			stderr = err.stderr;
+		} else if (err.stderr instanceof Buffer) {
+			stderr = err.stderr.toString('utf8');
+		} else {
+			stderr = String(error);
+		}
 		return { status, stderr: stderr.trim() };
 	}
 };

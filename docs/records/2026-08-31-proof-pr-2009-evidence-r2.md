@@ -89,6 +89,30 @@ Run with:
 node .dump/paired-proof-2009.mjs
 ```
 
+## Validation
+
+### Mutation testing (bug reintroduction)
+
+To confirm the proof actually catches the regression, the fix in `feature-ancestry.ts`
+was temporarily reverted to the pre-#2009 version (from commit `5f9e41ad8`):
+
+- **Against buggy code**: both tests PASS (proof is stale — bug present)
+- **Against fixed code**: DEFECT test FAILS with AssertionError (kept-red — bug fixed),
+  CONTEXT test PASSES (no regression)
+
+This confirms the proof discriminates the two states correctly.
+
+### Lint and type checks
+
+- `npx oxlint apps/front/tests/proofs/2009/` → clean (0 errors)
+- `npx tsc --noEmit` → no errors for the proof file
+- oxfmt ran via lint-staged on commit (both `.ts` and `.json` files)
+
+### CI workflow pinning
+
+`front-e2e.yml` test job confirmed to have `fetch-depth: 0` (pinned by the GREEN
+workflow test in `feature-ancestry.test.ts` line 315+).
+
 ## Conclusion
 
 The `cat-file -e` pre-check correctly distinguishes:
