@@ -1,10 +1,43 @@
 /**
  * @vitest-environment jsdom
  */
-import { cleanup, render, screen } from '@testing-library/react';
-import type { ComponentType } from 'react';
-import { afterEach, describe, expect, test, vi } from 'vitest';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import {
+	cleanup,
+	fireEvent,
+	render,
+	screen,
+	waitFor,
+} from '@testing-library/react';
+import type { ComponentType, ReactNode } from 'react';
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import type { TestLabelMap } from '~/lib/testing/test-label-map';
+
+const mocks = vi.hoisted(() => ({
+	get: vi.fn(),
+	shouldLogout: false,
+}));
+
+vi.mock('~/lib/api-client/client-manager', () => ({
+	getClientManager: () => ({
+		getOrCreateClient: () => ({
+			posts: { publications: { get: mocks.get } },
+		}),
+	}),
+	resolveApiBaseUrl: () => 'https://api.example.test',
+}));
+
+vi.mock('~/lib/query/tenants-for-picker', () => ({
+	useResolvedWorkspaceTenantId: () => 'tenant-1',
+}));
+
+vi.mock('@org/shared-ts/lib/should-logout-for-failure', () => ({
+	shouldLogoutForFailure: () => mocks.shouldLogout,
+}));
+
+vi.mock('~/components/error-views/LogoutRedirect', () => ({
+	LogoutRedirect: () => <div data-testid="logout-redirect" />,
+}));
 
 vi.mock('@tanstack/react-router', () => ({
 	createFileRoute: () => (options: Record<string, unknown>) => ({
@@ -15,9 +48,10 @@ vi.mock('@tanstack/react-router', () => ({
 
 const EN_LABELS: TestLabelMap = {
 	calendar: 'Calendar',
-	'calendar-coming-later-title': 'The calendar is coming later',
-	'calendar-coming-later-description':
-		'Scheduled posts across your connected profiles will appear here once the posts API ships.',
+	'calendar-description': 'Scheduled publications grouped by local date.',
+	'calendar-empty-title': 'No publications this month',
+	'calendar-empty-description': 'Scheduled publications will appear here.',
+	'publish-status-scheduled': 'Scheduled',
 	'common:calendar': 'Calendar',
 	'read-only': 'Read only',
 };
@@ -34,24 +68,126 @@ import { Route } from './calendar';
 
 const TenantPostsCalendarPage = Route.options.component as ComponentType;
 
+const renderPage = () => {
+	const queryClient = new QueryClient({
+		defaultOptions: { queries: { retry: false } },
+	});
+	const Wrapper = ({ children }: { children: ReactNode }) => (
+		<QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+	);
+
+	return render(<TenantPostsCalendarPage />, { wrapper: Wrapper });
+};
+
+beforeEach(() => {
+	vi.useFakeTimers({ toFake: ['Date'] });
+	vi.setSystemTime(new Date('2026-08-15T12:00:00.000Z'));
+	mocks.get.mockResolvedValue({
+		data: [
+			{
+				publicationId: 'pub-local-august',
+				postId: 'post-1',
+				postBodyPreview: 'Local date wins over the UTC date',
+				accountDisplayHandle: '@new-york.example',
+				status: 'scheduled',
+				postStatus: 'scheduled',
+				scheduledAtUtc: new Date('2026-08-31T23:30:00.000Z'),
+				scheduledAtLocal: '2026-09-01T01:30:00+02:00',
+				timeZone: 'Europe/Paris',
+			},
+		],
+		nextCursor: null,
+	});
+	mocks.shouldLogout = false;
+});
+
 afterEach(() => {
 	cleanup();
+	vi.useRealTimers();
 	vi.clearAllMocks();
 });
 
 describe('TenantPostsCalendarPage', () => {
-	test('renders the section heading and the honest coming-later state', () => {
-		render(<TenantPostsCalendarPage />);
+	test('requests the visible month inside 31 days and groups by scheduledAtLocal civil date', async () => {
+		renderPage();
 
 		expect(screen.getByRole('heading', { name: 'Calendar' })).toBeTruthy();
-		expect(screen.getByText('The calendar is coming later')).toBeTruthy();
-		expect(screen.getByTestId('tenant-posts-calendar-empty')).toBeTruthy();
+		expect(
+			await screen.findByText('Local date wins over the UTC date'),
+		).toBeTruthy();
+		const day = screen.getByTestId('tenant-posts-calendar-day-2026-09-01');
+		expect(day.textContent).toContain('2026-09-01 01:30');
+		expect(day.textContent).toContain('Europe/Paris');
+		expect(
+			screen.queryByTestId('tenant-posts-calendar-day-2026-08-31'),
+		).toBeNull();
+		expect(mocks.get).toHaveBeenCalledWith({
+			queryParameters: expect.objectContaining({
+				from: '2026-08-01T00:00:00.000Z',
+				to: '2026-08-31T23:59:59.999Z',
+			}),
+		});
+		expect(screen.getByTestId('account-read-only-badge')).toBeTruthy();
+		expect(screen.queryByText(/coming later/i)).toBeNull();
 	});
 
-	test('shows the read-only badge and no fake scheduling controls', () => {
-		render(<TenantPostsCalendarPage />);
+	test('uses the standard empty state for a month without rows', async () => {
+		mocks.get.mockResolvedValue({ data: [], nextCursor: null });
+		renderPage();
 
-		expect(screen.getByTestId('account-read-only-badge')).toBeTruthy();
-		expect(screen.queryAllByRole('button').length).toBe(0);
+		expect(
+			await screen.findByTestId('tenant-posts-calendar-empty'),
+		).toBeTruthy();
+		expect(screen.getByText('No publications this month')).toBeTruthy();
+	});
+
+	test('follows the backend cursor instead of hiding later month rows', async () => {
+		mocks.get.mockResolvedValueOnce({
+			data: [
+				{
+					publicationId: 'pub-page-1',
+					postBodyPreview: 'First calendar page',
+					status: 'scheduled',
+					scheduledAtUtc: new Date('2026-08-10T10:00:00.000Z'),
+					scheduledAtLocal: '2026-08-10T12:00:00+02:00',
+					timeZone: 'Europe/Paris',
+				},
+			],
+			nextCursor: 'calendar-cursor-2',
+		});
+		mocks.get.mockResolvedValueOnce({
+			data: [
+				{
+					publicationId: 'pub-page-2',
+					postBodyPreview: 'Second calendar page',
+					status: 'paused',
+					scheduledAtUtc: new Date('2026-08-20T10:00:00.000Z'),
+					scheduledAtLocal: '2026-08-20T12:00:00+02:00',
+					timeZone: 'Europe/Paris',
+				},
+			],
+			nextCursor: null,
+		});
+		renderPage();
+
+		expect(await screen.findByText('First calendar page')).toBeTruthy();
+		fireEvent.click(screen.getByTestId('tenant-posts-calendar-next-page'));
+
+		expect(await screen.findByText('Second calendar page')).toBeTruthy();
+		expect(mocks.get).toHaveBeenLastCalledWith({
+			queryParameters: expect.objectContaining({
+				cursor: 'calendar-cursor-2',
+			}),
+		});
+	});
+
+	test('logs out only when the centralized failure classifier selects the error', async () => {
+		mocks.get.mockRejectedValue(new Error('invalid session'));
+		mocks.shouldLogout = true;
+		renderPage();
+
+		await waitFor(() => {
+			expect(screen.getByTestId('logout-redirect')).toBeTruthy();
+		});
 	});
 });
