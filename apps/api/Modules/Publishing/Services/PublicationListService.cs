@@ -19,7 +19,7 @@ public record PublicationListItem {
 	public required Guid Id { get; init; }
 	public required Guid PostId { get; init; }
 	public required string PostExcerpt { get; init; }
-	public required string Status { get; init; }
+	public required PublicationContractStatus Status { get; init; }
 	public required Guid SocialAccountId { get; init; }
 	public required string AccountLabel { get; init; }
 	public string? ExternalUrl { get; init; }
@@ -130,7 +130,7 @@ public sealed class PublicationListService : IPublicationListService {
 			PostExcerpt = row.PostBody.Length <= ExcerptLength
 				? row.PostBody
 				: row.PostBody[..ExcerptLength],
-			Status = PublicationWire.FormatStatus(row.Publication.Status),
+			Status = PublicationWire.ToContract(row.Publication.Status),
 			SocialAccountId = row.Publication.SocialAccountId,
 			AccountLabel = row.AccountHandle,
 			ExternalUrl = row.Publication.ExternalUrl,

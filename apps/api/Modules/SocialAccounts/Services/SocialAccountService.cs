@@ -72,7 +72,7 @@ public record SocialAccountListItem {
 	public required string Provider { get; init; }
 	public required string ExternalAccountId { get; init; }
 	public required string DisplayHandle { get; init; }
-	public required string Status { get; init; }
+	public required SocialAccountContractStatus Status { get; init; }
 	public required string CredentialType { get; init; }
 	public required DateTime? LastSuccessAt { get; init; }
 	public required string? LastError { get; init; }
@@ -101,6 +101,20 @@ public static class SocialAccountWire {
 			SocialAccountStatus.Active => "active",
 			SocialAccountStatus.NeedsReconnect => "needs_reconnect",
 			SocialAccountStatus.Revoked => "revoked",
+			_ => throw new ArgumentOutOfRangeException(nameof(status), status, "Unhandled SocialAccountStatus"),
+		};
+	}
+
+	/// <summary>
+	/// Maps a domain <see cref="SocialAccountStatus"/> to its contract enum shape.
+	/// The contract enum's C# member names match the wire snake_case values exactly,
+	/// so the per-enum JsonStringEnumConverter serializes them correctly (#1521).
+	/// </summary>
+	public static SocialAccountContractStatus ToContract(SocialAccountStatus status) {
+		return status switch {
+			SocialAccountStatus.Active => SocialAccountContractStatus.active,
+			SocialAccountStatus.NeedsReconnect => SocialAccountContractStatus.needs_reconnect,
+			SocialAccountStatus.Revoked => SocialAccountContractStatus.revoked,
 			_ => throw new ArgumentOutOfRangeException(nameof(status), status, "Unhandled SocialAccountStatus"),
 		};
 	}
@@ -536,7 +550,7 @@ public sealed class SocialAccountService {
 			Provider = SocialAccountWire.FormatProvider(account.Provider),
 			ExternalAccountId = account.ExternalAccountId,
 			DisplayHandle = account.DisplayHandle,
-			Status = SocialAccountWire.FormatStatus(account.Status),
+			Status = SocialAccountWire.ToContract(account.Status),
 			CredentialType = SocialAccountWire.FormatCredentialType(
 				account.CredentialType
 			),

@@ -15745,6 +15745,16 @@
           }
         }
       },
+      "DerivedPostContractStatus": {
+        "enum": [
+          "draft",
+          "scheduled",
+          "published",
+          "partial",
+          "failed"
+        ],
+        "description": "Contract enum for the derived post status wire vocabulary. C# member names\nmatch the snake_case wire values exactly so the per-enum\nJsonStringEnumConverter&lt;TEnum&gt; serializes them to the correct\ncontract strings without a second mapping. The domain\nDerivedPostStatus enum stays the single source of truth for\nstored values; this enum is the wire contract shape (#1521)."
+      },
       "EditPostScheduleBody": {
         "type": "object",
         "properties": {
@@ -17366,6 +17376,16 @@
           }
         }
       },
+      "PublicationContractStatus": {
+        "enum": [
+          "scheduled",
+          "in_progress",
+          "published",
+          "failed",
+          "paused"
+        ],
+        "description": "Contract enum for the publication status wire vocabulary. C# member names\nmatch the snake_case wire values exactly so the per-enum\nJsonStringEnumConverter&lt;TEnum&gt; serializes them to the correct\ncontract strings without a second mapping. The domain\nPublicationStatus enum stays the single source of truth for\nstored values; this enum is the wire contract shape (#1521)."
+      },
       "PublicationListItem": {
         "required": [
           "id",
@@ -17390,7 +17410,8 @@
             "type": "string"
           },
           "status": {
-            "type": "string"
+            "description": "Contract enum for the publication status wire vocabulary. C# member names\nmatch the snake_case wire values exactly so the per-enum\nJsonStringEnumConverter&lt;TEnum&gt; serializes them to the correct\ncontract strings without a second mapping. The domain\nPublicationStatus enum stays the single source of truth for\nstored values; this enum is the wire contract shape (#1521).",
+            "$ref": "#/components/schemas/PublicationContractStatus"
           },
           "socialAccountId": {
             "type": "string",
@@ -17728,7 +17749,8 @@
             "type": "string"
           },
           "postStatus": {
-            "type": "string"
+            "description": "Contract enum for the derived post status wire vocabulary. C# member names\nmatch the snake_case wire values exactly so the per-enum\nJsonStringEnumConverter&lt;TEnum&gt; serializes them to the correct\ncontract strings without a second mapping. The domain\nDerivedPostStatus enum stays the single source of truth for\nstored values; this enum is the wire contract shape (#1521).",
+            "$ref": "#/components/schemas/DerivedPostContractStatus"
           },
           "socialAccountId": {
             "type": "string",
@@ -17748,7 +17770,8 @@
             "type": "string"
           },
           "status": {
-            "type": "string"
+            "description": "Contract enum for the publication status wire vocabulary. C# member names\nmatch the snake_case wire values exactly so the per-enum\nJsonStringEnumConverter&lt;TEnum&gt; serializes them to the correct\ncontract strings without a second mapping. The domain\nPublicationStatus enum stays the single source of truth for\nstored values; this enum is the wire contract shape (#1521).",
+            "$ref": "#/components/schemas/PublicationContractStatus"
           }
         },
         "description": "One wire row of the scheduled-publications list (D3 Task 4): the publication\nplus its account/post context and the DST-aware zone-local ISO string."
@@ -17823,6 +17846,14 @@
           }
         }
       },
+      "SocialAccountContractStatus": {
+        "enum": [
+          "active",
+          "needs_reconnect",
+          "revoked"
+        ],
+        "description": "Contract enum for the social-account status wire vocabulary. C# member names\nmatch the snake_case wire values exactly so the per-enum\nJsonStringEnumConverter&lt;TEnum&gt; serializes them to the correct\ncontract strings without a second mapping. The domain\nSocialAccountStatus enum stays the single source of truth for\nstored values; this enum is the wire contract shape (#1521)."
+      },
       "SocialAccountCreated": {
         "required": [
           "id",
@@ -17851,7 +17882,8 @@
             "type": "string"
           },
           "status": {
-            "type": "string"
+            "description": "Contract enum for the social-account status wire vocabulary. C# member names\nmatch the snake_case wire values exactly so the per-enum\nJsonStringEnumConverter&lt;TEnum&gt; serializes them to the correct\ncontract strings without a second mapping. The domain\nSocialAccountStatus enum stays the single source of truth for\nstored values; this enum is the wire contract shape (#1521).",
+            "$ref": "#/components/schemas/SocialAccountContractStatus"
           },
           "credentialType": {
             "type": "string"
@@ -17906,7 +17938,8 @@
             "type": "string"
           },
           "status": {
-            "type": "string"
+            "description": "Contract enum for the social-account status wire vocabulary. C# member names\nmatch the snake_case wire values exactly so the per-enum\nJsonStringEnumConverter&lt;TEnum&gt; serializes them to the correct\ncontract strings without a second mapping. The domain\nSocialAccountStatus enum stays the single source of truth for\nstored values; this enum is the wire contract shape (#1521).",
+            "$ref": "#/components/schemas/SocialAccountContractStatus"
           },
           "credentialType": {
             "type": "string"

@@ -63,7 +63,11 @@ public sealed class FindPublicationsForTenantSpec : IClassFixture<ApiFixture> {
 			previous = item.UpdatedAt;
 
 			item.Status.Should().BeOneOf(
-				"scheduled", "in_progress", "published", "failed", "paused"
+				PublicationContractStatus.scheduled,
+				PublicationContractStatus.in_progress,
+				PublicationContractStatus.published,
+				PublicationContractStatus.failed,
+				PublicationContractStatus.paused
 			);
 			item.PostExcerpt.Length.Should().BeLessThanOrEqualTo(280);
 			item.PostId.Should().NotBeEmpty();
@@ -88,14 +92,14 @@ public sealed class FindPublicationsForTenantSpec : IClassFixture<ApiFixture> {
 			.ReadFromJsonAsync<FindPublicationsForTenantResponse>();
 		Assert.NotNull(payload);
 
-		var failed = payload.Data.Single(item => item.Status == "failed");
+		var failed = payload.Data.Single(item => item.Status == PublicationContractStatus.failed);
 		failed.LastError.Should().Be(
 			"Bluesky refused the record: rate limit exceeded",
 			"the sanitised cause is surfaced verbatim"
 		);
 		failed.ExternalUrl.Should().BeNull("a failed row never went out");
 
-		var published = payload.Data.Single(item => item.Status == "published");
+		var published = payload.Data.Single(item => item.Status == PublicationContractStatus.published);
 		published.ExternalUrl.Should()
 			.Contain("bsky.app", "the published row links to Bluesky");
 	}

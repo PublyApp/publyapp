@@ -2816,6 +2816,7 @@ export interface DeadLetterResolvedResponse extends AdditionalDataHolder, Parsab
      */
     message?: string | null;
 }
+export type DerivedPostContractStatus = (typeof DerivedPostContractStatusObject)[keyof typeof DerivedPostContractStatusObject];
 /**
  * The deserialization information for the current model
  * @param AcceptInvitationBody The instance to deserialize into.
@@ -4474,7 +4475,7 @@ export function deserializeIntoPublicationListItem(publicationListItem: Partial<
         "postExcerpt": n => { publicationListItem.postExcerpt = n.getStringValue(); },
         "postId": n => { publicationListItem.postId = n.getGuidValue(); },
         "socialAccountId": n => { publicationListItem.socialAccountId = n.getGuidValue(); },
-        "status": n => { publicationListItem.status = n.getStringValue(); },
+        "status": n => { publicationListItem.status = n.getEnumValue<PublicationContractStatus>(PublicationContractStatusObject); },
         "updatedAt": n => { publicationListItem.updatedAt = n.getDateValue(); },
     }
 }
@@ -4714,12 +4715,12 @@ export function deserializeIntoScheduledPublicationItem(scheduledPublicationItem
         "accountDisplayHandle": n => { scheduledPublicationItem.accountDisplayHandle = n.getStringValue(); },
         "postBodyPreview": n => { scheduledPublicationItem.postBodyPreview = n.getStringValue(); },
         "postId": n => { scheduledPublicationItem.postId = n.getGuidValue(); },
-        "postStatus": n => { scheduledPublicationItem.postStatus = n.getStringValue(); },
+        "postStatus": n => { scheduledPublicationItem.postStatus = n.getEnumValue<DerivedPostContractStatus>(DerivedPostContractStatusObject); },
         "publicationId": n => { scheduledPublicationItem.publicationId = n.getGuidValue(); },
         "scheduledAtLocal": n => { scheduledPublicationItem.scheduledAtLocal = n.getStringValue(); },
         "scheduledAtUtc": n => { scheduledPublicationItem.scheduledAtUtc = n.getDateValue(); },
         "socialAccountId": n => { scheduledPublicationItem.socialAccountId = n.getGuidValue(); },
-        "status": n => { scheduledPublicationItem.status = n.getStringValue(); },
+        "status": n => { scheduledPublicationItem.status = n.getEnumValue<PublicationContractStatus>(PublicationContractStatusObject); },
         "timeZone": n => { scheduledPublicationItem.timeZone = n.getStringValue(); },
     }
 }
@@ -4788,7 +4789,7 @@ export function deserializeIntoSocialAccountCreated(socialAccountCreated: Partia
         "lastSuccessAt": n => { socialAccountCreated.lastSuccessAt = n.getDateValue(); },
         "projectIds": n => { socialAccountCreated.projectIds = n.getCollectionOfPrimitiveValues<Guid>("string"); },
         "provider": n => { socialAccountCreated.provider = n.getStringValue(); },
-        "status": n => { socialAccountCreated.status = n.getStringValue(); },
+        "status": n => { socialAccountCreated.status = n.getEnumValue<SocialAccountContractStatus>(SocialAccountContractStatusObject); },
     }
 }
 /**
@@ -4807,7 +4808,7 @@ export function deserializeIntoSocialAccountListItem(socialAccountListItem: Part
         "lastSuccessAt": n => { socialAccountListItem.lastSuccessAt = n.getDateValue(); },
         "projectIds": n => { socialAccountListItem.projectIds = n.getCollectionOfPrimitiveValues<Guid>("string"); },
         "provider": n => { socialAccountListItem.provider = n.getStringValue(); },
-        "status": n => { socialAccountListItem.status = n.getStringValue(); },
+        "status": n => { socialAccountListItem.status = n.getEnumValue<SocialAccountContractStatus>(SocialAccountContractStatusObject); },
     }
 }
 /**
@@ -6768,6 +6769,7 @@ export interface ProjectListItem extends AdditionalDataHolder, Parsable {
      */
     name?: string | null;
 }
+export type PublicationContractStatus = (typeof PublicationContractStatusObject)[keyof typeof PublicationContractStatusObject];
 /**
  * History row: one publication with the context History renders.
  */
@@ -6801,9 +6803,9 @@ export interface PublicationListItem extends AdditionalDataHolder, Parsable {
      */
     socialAccountId?: Guid | null;
     /**
-     * The status property
+     * Contract enum for the publication status wire vocabulary. C# member namesmatch the snake_case wire values exactly so the per-enumJsonStringEnumConverter&lt;TEnum&gt; serializes them to the correctcontract strings without a second mapping. The domainPublicationStatus enum stays the single source of truth forstored values; this enum is the wire contract shape (#1521).
      */
-    status?: string | null;
+    status?: PublicationContractStatus | null;
     /**
      * The updatedAt property
      */
@@ -7010,9 +7012,9 @@ export interface ScheduledPublicationItem extends AdditionalDataHolder, Parsable
      */
     postId?: Guid | null;
     /**
-     * The postStatus property
+     * Contract enum for the derived post status wire vocabulary. C# member namesmatch the snake_case wire values exactly so the per-enumJsonStringEnumConverter&lt;TEnum&gt; serializes them to the correctcontract strings without a second mapping. The domainDerivedPostStatus enum stays the single source of truth forstored values; this enum is the wire contract shape (#1521).
      */
-    postStatus?: string | null;
+    postStatus?: DerivedPostContractStatus | null;
     /**
      * The publicationId property
      */
@@ -7030,9 +7032,9 @@ export interface ScheduledPublicationItem extends AdditionalDataHolder, Parsable
      */
     socialAccountId?: Guid | null;
     /**
-     * The status property
+     * Contract enum for the publication status wire vocabulary. C# member namesmatch the snake_case wire values exactly so the per-enumJsonStringEnumConverter&lt;TEnum&gt; serializes them to the correctcontract strings without a second mapping. The domainPublicationStatus enum stays the single source of truth forstored values; this enum is the wire contract shape (#1521).
      */
-    status?: string | null;
+    status?: PublicationContractStatus | null;
     /**
      * The timeZone property
      */
@@ -8853,7 +8855,7 @@ export function serializePublicationListItem(writer: SerializationWriter, public
     writer.writeStringValue("postExcerpt", publicationListItem.postExcerpt);
     writer.writeGuidValue("postId", publicationListItem.postId);
     writer.writeGuidValue("socialAccountId", publicationListItem.socialAccountId);
-    writer.writeStringValue("status", publicationListItem.status);
+    writer.writeEnumValue<PublicationContractStatus>("status", publicationListItem.status);
     writer.writeDateValue("updatedAt", publicationListItem.updatedAt);
     writer.writeAdditionalData(publicationListItem.additionalData);
 }
@@ -9113,12 +9115,12 @@ export function serializeScheduledPublicationItem(writer: SerializationWriter, s
     writer.writeStringValue("accountDisplayHandle", scheduledPublicationItem.accountDisplayHandle);
     writer.writeStringValue("postBodyPreview", scheduledPublicationItem.postBodyPreview);
     writer.writeGuidValue("postId", scheduledPublicationItem.postId);
-    writer.writeStringValue("postStatus", scheduledPublicationItem.postStatus);
+    writer.writeEnumValue<DerivedPostContractStatus>("postStatus", scheduledPublicationItem.postStatus);
     writer.writeGuidValue("publicationId", scheduledPublicationItem.publicationId);
     writer.writeStringValue("scheduledAtLocal", scheduledPublicationItem.scheduledAtLocal);
     writer.writeDateValue("scheduledAtUtc", scheduledPublicationItem.scheduledAtUtc);
     writer.writeGuidValue("socialAccountId", scheduledPublicationItem.socialAccountId);
-    writer.writeStringValue("status", scheduledPublicationItem.status);
+    writer.writeEnumValue<PublicationContractStatus>("status", scheduledPublicationItem.status);
     writer.writeStringValue("timeZone", scheduledPublicationItem.timeZone);
     writer.writeAdditionalData(scheduledPublicationItem.additionalData);
 }
@@ -9192,7 +9194,7 @@ export function serializeSocialAccountCreated(writer: SerializationWriter, socia
     writer.writeDateValue("lastSuccessAt", socialAccountCreated.lastSuccessAt);
     writer.writeCollectionOfPrimitiveValues<Guid>("projectIds", socialAccountCreated.projectIds);
     writer.writeStringValue("provider", socialAccountCreated.provider);
-    writer.writeStringValue("status", socialAccountCreated.status);
+    writer.writeEnumValue<SocialAccountContractStatus>("status", socialAccountCreated.status);
     writer.writeAdditionalData(socialAccountCreated.additionalData);
 }
 /**
@@ -9212,7 +9214,7 @@ export function serializeSocialAccountListItem(writer: SerializationWriter, soci
     writer.writeDateValue("lastSuccessAt", socialAccountListItem.lastSuccessAt);
     writer.writeCollectionOfPrimitiveValues<Guid>("projectIds", socialAccountListItem.projectIds);
     writer.writeStringValue("provider", socialAccountListItem.provider);
-    writer.writeStringValue("status", socialAccountListItem.status);
+    writer.writeEnumValue<SocialAccountContractStatus>("status", socialAccountListItem.status);
     writer.writeAdditionalData(socialAccountListItem.additionalData);
 }
 /**
@@ -10170,6 +10172,7 @@ export interface SetSocialAccountProjectsBody extends AdditionalDataHolder, Pars
      */
     projectIds?: UntypedNode | null;
 }
+export type SocialAccountContractStatus = (typeof SocialAccountContractStatusObject)[keyof typeof SocialAccountContractStatusObject];
 export interface SocialAccountCreated extends AdditionalDataHolder, Parsable {
     /**
      * The credentialType property
@@ -10204,9 +10207,9 @@ export interface SocialAccountCreated extends AdditionalDataHolder, Parsable {
      */
     provider?: string | null;
     /**
-     * The status property
+     * Contract enum for the social-account status wire vocabulary. C# member namesmatch the snake_case wire values exactly so the per-enumJsonStringEnumConverter&lt;TEnum&gt; serializes them to the correctcontract strings without a second mapping. The domainSocialAccountStatus enum stays the single source of truth forstored values; this enum is the wire contract shape (#1521).
      */
-    status?: string | null;
+    status?: SocialAccountContractStatus | null;
 }
 export interface SocialAccountListItem extends AdditionalDataHolder, Parsable {
     /**
@@ -10242,9 +10245,9 @@ export interface SocialAccountListItem extends AdditionalDataHolder, Parsable {
      */
     provider?: string | null;
     /**
-     * The status property
+     * Contract enum for the social-account status wire vocabulary. C# member namesmatch the snake_case wire values exactly so the per-enumJsonStringEnumConverter&lt;TEnum&gt; serializes them to the correctcontract strings without a second mapping. The domainSocialAccountStatus enum stays the single source of truth forstored values; this enum is the wire contract shape (#1521).
      */
-    status?: string | null;
+    status?: SocialAccountContractStatus | null;
 }
 export interface StaffInvitationDetails extends AdditionalDataHolder, Parsable {
     /**
@@ -11544,11 +11547,39 @@ export const AccountLevelObject = {
     User: "User",
     Admin: "Admin",
 } as const;
+/**
+ * Contract enum for the derived post status wire vocabulary. C# member namesmatch the snake_case wire values exactly so the per-enumJsonStringEnumConverter&lt;TEnum&gt; serializes them to the correctcontract strings without a second mapping. The domainDerivedPostStatus enum stays the single source of truth forstored values; this enum is the wire contract shape (#1521).
+ */
+export const DerivedPostContractStatusObject = {
+    Draft: "draft",
+    Scheduled: "scheduled",
+    Published: "published",
+    Partial: "partial",
+    Failed: "failed",
+} as const;
 export const InvitationEffectiveStatusObject = {
     Pending: "Pending",
     Accepted: "Accepted",
     Expired: "Expired",
     Revoked: "Revoked",
+} as const;
+/**
+ * Contract enum for the publication status wire vocabulary. C# member namesmatch the snake_case wire values exactly so the per-enumJsonStringEnumConverter&lt;TEnum&gt; serializes them to the correctcontract strings without a second mapping. The domainPublicationStatus enum stays the single source of truth forstored values; this enum is the wire contract shape (#1521).
+ */
+export const PublicationContractStatusObject = {
+    Scheduled: "scheduled",
+    In_progress: "in_progress",
+    Published: "published",
+    Failed: "failed",
+    Paused: "paused",
+} as const;
+/**
+ * Contract enum for the social-account status wire vocabulary. C# member namesmatch the snake_case wire values exactly so the per-enumJsonStringEnumConverter&lt;TEnum&gt; serializes them to the correctcontract strings without a second mapping. The domainSocialAccountStatus enum stays the single source of truth forstored values; this enum is the wire contract shape (#1521).
+ */
+export const SocialAccountContractStatusObject = {
+    Active: "active",
+    Needs_reconnect: "needs_reconnect",
+    Revoked: "revoked",
 } as const;
 export const TenantStatusObject = {
     Pending: "Pending",

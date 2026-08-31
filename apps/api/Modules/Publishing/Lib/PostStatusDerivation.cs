@@ -50,6 +50,24 @@ public static class PostStatusDerivation {
 			),
 		};
 	}
+
+	/// <summary>
+	/// Maps a domain <see cref="DerivedPostStatus"/> to its contract enum shape.
+	/// The contract enum's C# member names match the wire snake_case values exactly,
+	/// so the per-enum JsonStringEnumConverter serializes them correctly (#1521).
+	/// </summary>
+	public static DerivedPostContractStatus ToContract(DerivedPostStatus status) {
+		return status switch {
+			DerivedPostStatus.Draft => DerivedPostContractStatus.draft,
+			DerivedPostStatus.Scheduled => DerivedPostContractStatus.scheduled,
+			DerivedPostStatus.Published => DerivedPostContractStatus.published,
+			DerivedPostStatus.Partial => DerivedPostContractStatus.partial,
+			DerivedPostStatus.Failed => DerivedPostContractStatus.failed,
+			_ => throw new ArgumentOutOfRangeException(
+				nameof(status), status, "Unhandled DerivedPostStatus"
+			),
+		};
+	}
 }
 
 public enum DerivedPostStatus {

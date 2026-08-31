@@ -72,13 +72,13 @@ public sealed class ScheduledPublicationItem {
 	public required Guid PublicationId { get; init; }
 	public required Guid PostId { get; init; }
 	public required string PostBodyPreview { get; init; }
-	public required string PostStatus { get; init; }
+	public required DerivedPostContractStatus PostStatus { get; init; }
 	public required Guid SocialAccountId { get; init; }
 	public required string AccountDisplayHandle { get; init; }
 	public required DateTime ScheduledAtUtc { get; init; }
 	public required string ScheduledAtLocal { get; init; }
 	public required string TimeZone { get; init; }
-	public required string Status { get; init; }
+	public required PublicationContractStatus Status { get; init; }
 }
 
 /// <summary>Arguments for the queue/calendar list (D3 Task 4).</summary>
@@ -693,7 +693,7 @@ public sealed class PublicationService : IPublicationService {
 				PostBodyPreview = body.Length <= BodyPreviewMaxLength
 					? body
 					: body[..BodyPreviewMaxLength],
-				PostStatus = PostStatusDerivation.FormatPostStatus(derived),
+				PostStatus = PostStatusDerivation.ToContract(derived),
 				SocialAccountId = publication.SocialAccountId,
 				AccountDisplayHandle = row.AccountHandle ?? string.Empty,
 				ScheduledAtUtc = publication.ScheduledAtUtc,
@@ -702,7 +702,7 @@ public sealed class PublicationService : IPublicationService {
 					publication.ScheduledTimeZone
 				),
 				TimeZone = publication.ScheduledTimeZone,
-				Status = PublicationWire.FormatStatus(publication.Status),
+				Status = PublicationWire.ToContract(publication.Status),
 			});
 		}
 

@@ -12,6 +12,7 @@ using PublyApp.Api.Lib.Validation;
 using PublyApp.Api.Localization;
 using PublyApp.Api.Modules.AuditLogs.Entities;
 using PublyApp.Api.Modules.AuditLogs.Services;
+using PublyApp.Api.Modules.SocialAccounts.Entities;
 using PublyApp.Api.Modules.SocialAccounts.Services;
 
 namespace PublyApp.Api.Modules.SocialAccounts.Handlers.Tenant;
@@ -51,7 +52,7 @@ public record SocialAccountCreated {
 	public required string Provider { get; init; }
 	public required string ExternalAccountId { get; init; }
 	public required string DisplayHandle { get; init; }
-	public required string Status { get; init; }
+	public required SocialAccountContractStatus Status { get; init; }
 	public required string CredentialType { get; init; }
 	public required DateTime? LastSuccessAt { get; init; }
 	public required string? LastError { get; init; }

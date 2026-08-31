@@ -85,6 +85,24 @@ public class Publication : BaseAttributes, ITenantEntity {
 /// Wire formatting for publication status (snake_case wire values per repo rule).
 /// </summary>
 public static class PublicationWire {
+	/// <summary>
+	/// Maps a domain <see cref="PublicationStatus"/> to its contract enum shape.
+	/// The contract enum's C# member names match the wire snake_case values exactly,
+	/// so the per-enum JsonStringEnumConverter serializes them correctly (#1521).
+	/// </summary>
+	public static PublicationContractStatus ToContract(PublicationStatus status) {
+		return status switch {
+			PublicationStatus.Scheduled => PublicationContractStatus.scheduled,
+			PublicationStatus.InProgress => PublicationContractStatus.in_progress,
+			PublicationStatus.Published => PublicationContractStatus.published,
+			PublicationStatus.Failed => PublicationContractStatus.failed,
+			PublicationStatus.Paused => PublicationContractStatus.paused,
+			_ => throw new ArgumentOutOfRangeException(
+				nameof(status), status, "Unhandled PublicationStatus"
+			),
+		};
+	}
+
 	public static string FormatStatus(PublicationStatus status) {
 		return status switch {
 			PublicationStatus.Scheduled => "scheduled",
