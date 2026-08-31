@@ -243,6 +243,30 @@ void test('allows import from the passthrough via ~/ alias', () => {
 	assert.equal(findings.length, 0);
 });
 
+void test('RED #1737: the exact consumer that escaped the #1583 scan — history.tsx importing ColumnDef from the banned root is now SEEN', () => {
+	// #1737: at the top of PR #1583, `history.tsx` still imported
+	// `ColumnDef` from `@tanstack/react-table` (the v9 root) while the PR
+	// announced "26 consumers routed through the passthrough" — the 27th was
+	// invisible to that scan because the scan counted passthrough consumers
+	// and was structurally blind to direct imports. This test hides a
+	// consumer at the EXACT spot the defect made invisible and asserts the
+	// guard (which scans the banned module instead of the passthrough) sees
+	// it. The defect class is closed by construction, not by an allowlist.
+	const root = makeSandbox({
+		'src/routes/authed/tenant/posts/history.tsx':
+			`import type { ColumnDef } from '@tanstack/react-table';\n` +
+			`export const columns = [] as ColumnDef<never>[];\n`,
+	});
+	const findings = scanFrontSrcForBannedImports(root);
+	assert.equal(findings.length, 1, 'expected exactly one finding');
+	assert.match(findings[0].file, /history\.tsx$/);
+	assert.equal(findings[0].specifier, '@tanstack/react-table');
+	assert.ok(
+		findings[0].bindings.includes('ColumnDef'),
+		`expected ColumnDef in bindings, got ${JSON.stringify(findings[0].bindings)}`,
+	);
+});
+
 void test('allows module augmentation (declare module)', () => {
 	const root = makeSandbox({
 		'src/components/table/column-display-meta.ts':
