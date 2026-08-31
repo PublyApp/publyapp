@@ -61,13 +61,18 @@ index_mode() {
 
 # Returns 0 if the 3- or 6-digit mode string represents an executable file
 # (any of the owner/group/other execute bits set). Git prefixes regular
-# files with `100`, so strip that first, then check if any of the three
-# permission digits is odd — an octal digit is odd exactly when its
-# execute bit is set. `100755` → `755` → 7 and 5 are odd → executable.
+# files with `100`, so strip that prefix for 6-digit modes, then check if
+# any of the three permission digits is odd — an octal digit is odd exactly
+# when its execute bit is set. `100755` → `755` → 7 and 5 are odd → executable.
 # `100644` → `644` → all even → not executable.
+# For 3-digit modes (from `stat -c '%a'`), check directly without stripping.
 is_executable() {
-	local trimmed=${1#100}
-	case $trimmed in
+	local mode="$1"
+	# Only strip 100 prefix for 6-digit git modes (100XXX), not 3-digit modes
+	case "$mode" in
+		100???) mode="${mode#100}" ;;
+	esac
+	case "$mode" in
 		*1*|*3*|*5*|*7*) return 0 ;;
 	esac
 	return 1
