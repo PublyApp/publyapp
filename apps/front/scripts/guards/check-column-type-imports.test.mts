@@ -52,6 +52,8 @@ import {
 	assertExemptionsPinned,
 	assertNonCodeExtensionsPinned,
 	assertScannedExtensionsPinned,
+	assertFloorsPinned,
+	type ScanBaseline,
 } from './check-column-type-imports.mts';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -694,20 +696,54 @@ void test('R5 NON-REGRESSION: .cts/.cjs/.mjs/.ctsx still scanned', () => {
 // R6: the three holes from the brief — each must now fail loudly.
 // ---------------------------------------------------------------------------
 
+// Both boundary tests below read their counts FROM the baseline file instead
+// of restating them as literals. The first version wrote `.ts: 276, .tsx: 472`
+// — the floors as they stood the day it was written — and CI went red the
+// moment the tree grew and the floors were raised to 298/498. A boundary test
+// that hard-codes the boundary stops testing the boundary as soon as it moves.
+const baselineFloors = (): Record<string, number> => {
+	const baselinePath = path.resolve(here, 'column-type-imports-baseline.json');
+	const parsed = JSON.parse(readFileSync(baselinePath, 'utf8')) as {
+		perExtension?: Record<string, number>;
+	};
+	const floors = parsed.perExtension;
+	if (floors === undefined || Object.keys(floors).length === 0) {
+		throw new Error(
+			`column-type-imports-baseline.json carries no perExtension floors; ` +
+				`the boundary tests cannot run against a baseline they cannot read.`,
+		);
+	}
+	return floors;
+};
+
 void test('R6 HOLE 1 RED: assertScanSurface fails when a core extension shrinks', () => {
 	// The captain's mutation: moving .tsx from SCANNED_EXTENSIONS into
 	// NON_CODE_EXTENSIONS silently disables its analysis. The ratchet
 	// must fail loudly naming the extension and the gap. We test the
 	// helper directly with a synthetic count that drops .tsx below floor.
 	const baselinePath = path.resolve(here, 'column-type-imports-baseline.json');
-	assert.throws(
-		() =>
-			assertScanSurface(
-				{ '.ts': 276, '.tsx': 0, '.mts': 0, '.cts': 0, '.mjs': 0, '.cjs': 1 },
-				baselinePath,
-			),
-		/Guard #1769: scan surface has shrunk below the pinned floor/,
+	const tsxFloor = baselineFloors()['.tsx'];
+	let err: unknown;
+	try {
+		assertScanSurface({ ...baselineFloors(), '.tsx': 0 }, baselinePath);
+	} catch (e) {
+		err = e;
+	}
+	assert.ok(
+		err instanceof Error,
 		'expected the ratchet to fail when .tsx drops below floor',
+	);
+	// The headline AND the extension + gap naming are both pinned (the
+	// gap is derived from the baseline floor, not hard-coded).
+	assert.match(
+		err.message,
+		/Guard #1769: scan surface has shrunk below the pinned floor/,
+		'expected the headline to survive a below-floor drop',
+	);
+	assert.match(
+		err.message,
+		new RegExp(`\\.tsx: scanned 0, floor ${tsxFloor} \\(gap of ${tsxFloor}\\)`),
+		'expected the message to name the extension AND the exact gap',
 	);
 });
 
@@ -715,11 +751,7 @@ void test('R6 HOLE 1 RED: assertScanSurface passes when counts meet the floor', 
 	// Boundary: counts exactly at the floor must pass.
 	const baselinePath = path.resolve(here, 'column-type-imports-baseline.json');
 	assert.doesNotThrow(
-		() =>
-			assertScanSurface(
-				{ '.ts': 276, '.tsx': 472, '.mts': 0, '.cts': 0, '.mjs': 0, '.cjs': 1 },
-				baselinePath,
-			),
+		() => assertScanSurface(baselineFloors(), baselinePath),
 		'expected the ratchet to pass when counts meet the floor',
 	);
 });
@@ -1267,4 +1299,49 @@ void test('#1737: no app file under apps/front/src consumes ColumnDef/Row/TanSta
 			`'${frontSrc}'; otherwise the test would be vacuously green. ` +
 			`Got ${scannedNonPassthrough.length} non-passthrough file(s).`,
 	);
+});
+
+// ---------------------------------------------------------------------------
+// R10: assertFloorsPinned — floors must equal live tree counts.
+// (Not just "at or above"; the floor IS the count, or the guard fails.)
+// ---------------------------------------------------------------------------
+
+const makeBaseline = (perExtension: Record<string, number>): ScanBaseline => ({
+	perExtension,
+	scannedExtensions: Object.keys(perExtension),
+	nonCodeExtensions: {},
+	exemptFiles: [],
+});
+
+void test('R10 RED: assertFloorsPinned fails when a floor is lowered below live tree', () => {
+	const liveCounts = { '.ts': 10, '.tsx': 5 };
+	const baseline = makeBaseline({ '.ts': 8, '.tsx': 5 });
+	assert.throws(
+		() => assertFloorsPinned(liveCounts, baseline),
+		/Guard #1769: floor values are not anchored to the live tree/,
+	);
+});
+
+void test('R10 RED: assertFloorsPinned fails when a floor is raised above live tree', () => {
+	const liveCounts = { '.ts': 10, '.tsx': 5 };
+	const baseline = makeBaseline({ '.ts': 12, '.tsx': 5 });
+	assert.throws(
+		() => assertFloorsPinned(liveCounts, baseline),
+		/Guard #1769: floor values are not anchored to the live tree/,
+	);
+});
+
+void test('R10 RED: assertFloorsPinned fails when a scanned extension has no pinned floor', () => {
+	const liveCounts = { '.ts': 10, '.tsx': 5, '.mts': 3 };
+	const baseline = makeBaseline({ '.ts': 10, '.tsx': 5 });
+	assert.throws(
+		() => assertFloorsPinned(liveCounts, baseline),
+		/Guard #1769: floor values are not anchored to the live tree/,
+	);
+});
+
+void test('R10 GREEN: assertFloorsPinned passes when every floor equals the live count', () => {
+	const liveCounts = { '.ts': 10, '.tsx': 5, '.cjs': 1 };
+	const baseline = makeBaseline({ '.ts': 10, '.tsx': 5, '.cjs': 1 });
+	assert.doesNotThrow(() => assertFloorsPinned(liveCounts, baseline));
 });

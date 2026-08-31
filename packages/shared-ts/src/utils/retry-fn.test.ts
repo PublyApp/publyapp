@@ -66,3 +66,32 @@ test('retry with attempts: 0 should call fn exactly once then throw on error', a
 	// attempts=0 should mean: exactly 1 call (the initial call, no retries)
 	expect(fn).toHaveBeenCalledTimes(1);
 });
+
+// --- Pin call counts for attempts >= 3 (#1951 follow-up, part of #1883) ---
+// The contract is max(1, attempts). These tests pin the exact total call count
+// for attempts=3, 4, and 5 so a decrement-step mutation (one fewer call than
+// expected) is caught rather than masked by the attempts:0 or attempts:2 tests.
+
+test('retry with attempts: 3 calls fn exactly 3 times (1 initial + 2 retries)', async () => {
+	const fn = vi.fn().mockRejectedValue(new Error('fail'));
+
+	await expect(retry({ fn, attempts: 3, delay: 1 })).rejects.toThrow('fail');
+
+	expect(fn).toHaveBeenCalledTimes(3);
+});
+
+test('retry with attempts: 4 calls fn exactly 4 times (1 initial + 3 retries)', async () => {
+	const fn = vi.fn().mockRejectedValue(new Error('fail'));
+
+	await expect(retry({ fn, attempts: 4, delay: 1 })).rejects.toThrow('fail');
+
+	expect(fn).toHaveBeenCalledTimes(4);
+});
+
+test('retry with attempts: 5 calls fn exactly 5 times (1 initial + 4 retries)', async () => {
+	const fn = vi.fn().mockRejectedValue(new Error('fail'));
+
+	await expect(retry({ fn, attempts: 5, delay: 1 })).rejects.toThrow('fail');
+
+	expect(fn).toHaveBeenCalledTimes(5);
+});
