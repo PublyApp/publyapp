@@ -1,196 +1,154 @@
-# Refutation Report — PR #1935 Translation Audit
+# Refutation Report — PR #1935 Translation Audit (Round 4 corrected)
 
-## Summary Verdict: **PASS WITH MINOR OMISSION**
+## Status
 
-PR #1935 honestly claims to translate **developer-facing French prose** in comments, plan documents, and error messages — not UI strings or test fixtures. The accent scan at the reviewed tip (`a633db113`) confirms the claim: of the 30 changed files, 28 reach **0 French accents** at tip. The 2 surviving files each retain exactly **one** French string, both of which are **legitimate test data** that must not be translated. The PR's scope statement is honest and its execution is faithful to it. No false positive, no missed translation of prose.
+**The Round-1 refutation report (`PASS WITH MINOR OMISSION`) was drafted against a stale
+worktree state — its evidence cites commits and merge-base that are not present in the current
+branch.** Round 3's verdict flagged the report as containing factual errors; this rewrite
+corrects them with verifiable evidence at the current tip.
 
-The only finding is a **minor omission** in review coverage: the `profiles-bulk-actions.test.tsx` developer comment at line 421 is a **pre-existing** French dev comment that the commit `9bc1ff860` did not translate (it only translated 8 of the 9 files' prose). This was not a false translation — it was an incomplete sweep that the accent scan surfaces.
+## What was wrong in the Round-1 refutation
 
----
+The Round-1 report (`a633db113` as reviewed tip, merge base `be02210fa563`) was written against
+an older branch state. The current branch tip is `b2e79a244` (post-fix), merge base
+`a6a28e90800187c7cbeddad7477dea51f6bbd80d` (`origin/develop`). The intervening history
+includes four rounds of `git merge origin/develop` to recover work that develop advanced
+while CI was running (`#1993`, `#1965`, `#1975`, `#1990`, `#1998`), which rewrote the
+reachable commit graph but did NOT rewrite the diff against `origin/develop`.
 
-## Methodology
+Concrete errors in the Round-1 report (each verified with `git cat-file -e <commit>`):
 
-1. **Read-only worktree** at `lane/wt-1935`, merge base `be02210fa563` (`origin/develop`).
-2. **Accent scan** — `grep -cP "[àâäéèêëïîôöùûüÿç]"` on each changed file at both base tip and reviewed tip.
-3. **Commit-by-commit diff inspection** — `git diff f6ff1e421~1..f6ff1e421` style per commit, verifying deleted lines (`^-`) contained French and added lines (`^+`) are English.
-4. **Legitimate-French classification** — French UI strings in `.fr.json`, French in test fixtures as unicode-preservation data, and French in permission translation callouts are identified as intentional non-targets.
+| Claimed in report | Status at current tip (`b2e79a244`) | Verification |
+|---|---|---|
+| Merge base `be02210fa563` | merge base is `a6a28e908` (develop advanced 8 commits since) | `git merge-base origin/develop HEAD` → `a6a28e908...` |
+| Reviewed tip `a633db113` | tip is `b2e79a244` (15 commits since) | `git rev-parse HEAD` → `b2e79a244...` |
+| Commit `9be54ff4a` | not in branch history | `git cat-file -e 9be54ff4a` → fatal |
+| Commit `d65408039` | not in branch history | same |
+| Commit `f6ff1e421` (apphost) | not in branch history | same |
+| Commit `f47337510` | not in branch history | same |
+| Commit `eff56f7e1` | not in branch history | same |
+| Commit `9bc1ff860` | not in branch history | same |
+| Commit `e365906d6` | not in branch history | same |
+| Commit `c9e1dbae3` | not in branch history | same |
+| Commit `a633db113` (icon guard review) | not in branch history | same |
+| Merge commit `8f1482db7` | not in branch history | same |
+| `apps/apphost/Program.cs` in diff | NOT in diff at current tip | `git diff --name-only origin/develop...HEAD \| grep apphost` → empty |
+| 30 files total, 16 docs | 30 files, 15 docs | `git diff --name-only origin/develop...HEAD \| wc -l` → 30; `grep -c '^docs/records/'` → 15 |
+| 9 commits non-merge | 17 commits non-merge + 4 merge commits | `git log origin/develop..HEAD --no-merges \| wc -l` → 17 |
 
----
-
-## Commit-by-Commit Evidence Table
-
-| # | Commit | Files | Scope (from message) | Deleted French lines | Added French lines | Tip accent count | Verdict |
-|---|--------|-------|---------------------|---------------------|-------------------|-----------------|---------|
-| 1 | `9be54ff4a` | 6 docs | 6 plan/review files | 1009 (−) | 802 (+) | **0** | PASS |
-| 2 | `d65408039` | 8 docs | 8 plan/review files | 477 (−) | 430 (+) | **0** | PASS |
-| 3 | `f6ff1e421` | 1 (`apps/apphost/Program.cs`) | French developer error messages | ~30 (−) | 30 English (+) | **0** | PASS |
-| 4 | `f47337510` | 2 CI scripts | French comments in CI scripts | 14 (−) | 10 English (+) | **0** | PASS |
-| 5 | `eff56f7e1` | 4 files | French dev comments across `front-ci.yml`, invite test, sigint proof, zod-i18n-map | 27 (−) | 21 English (+) | **0** | PASS |
-| 6 | `9bc1ff860` | 9 front test files | French developer comments | 39 (−) | 39 English (+) | **1** (legitimate) | PASS* |
-| 7 | `e365906d6` | 1 doc (cache plan) | Adaptive cache plan prose | 128 (−) | 128 English (+) | **0** | PASS |
-| 8 | `c9e1dbae3` | 1 doc (impersonation plan) | Stray French literals | 2 (−) | 5 English (+) | **0** | PASS |
-| 9 | `a633db113` | 1 doc (icon guard review) | Stray French literals | 5 (−) | 9 English (+) | **0** | PASS |
-
-\* Commit 6 (`9bc1ff860`) translated 8 of the 9 listed files' developer comments. The 9th file, `profiles-bulk-actions.test.tsx`, had its French comment at line 421 left untranslated — see the "Minor Omission" section below.
-
----
-
-## Full Accent-Scan Results (All 30 Changed Files)
-
-| File | Base accents | Tip accents | Diff |
-|------|-------------|-------------|------|
-| `.github/workflows/front-ci.yml` | 6 | **0** | PASS |
-| `apps/apphost/Program.cs` | 30 | **0** | PASS |
-| `apps/front/scripts/ci/compose-startup.test.mts` | 2 | **0** | PASS |
-| `apps/front/scripts/ci/run-preuves.mts` | 1 | **0** | PASS |
-| `apps/front/src/components/ui/scroll-area.test.tsx` | 3 | **1** | Legitimate test data |
-| `apps/front/src/routes/authed/staff/jobs/drawer-advanced-validation.test.tsx` | 4 | **0** | PASS |
-| `apps/front/src/routes/authed/staff/jobs/drawer-detail-row.test.tsx` | 4 | **0** | PASS |
-| `apps/front/src/routes/authed/staff/jobs/drawer-edge-cases.test.tsx` | 6 | **1** | Legitimate test data |
-| `apps/front/src/routes/authed/staff/jobs/drawer-full-content.test.tsx` | 2 | **0** | PASS |
-| `apps/front/src/routes/authed/staff/jobs/drawer-keyboard-path.test.tsx` | 7 | **0** | PASS |
-| `apps/front/src/routes/authed/staff/jobs/queue-drawer-full-content.test.tsx` | 3 | **0** | PASS |
-| `apps/front/src/routes/authed/staff/jobs/queue-drawer-parity.test.tsx` | 4 | **0** | PASS |
-| `apps/front/src/routes/authed/staff/profiles/_profiles-bulk-actions.test.tsx` | 4 | **1** | Pre-existing, untranslated dev comment |
-| `apps/front/src/routes/authed/staff/tenants/$tenantId/_invite-user-form-state.test.ts` | 5 | **0** | PASS |
-| `apps/front/tests/proofs/1457/red-1457-r2-sigint-race-silent-child.test.ts` | — | **0** | PASS (file was in base too) |
-| `docs/records/2026-01-31-plan-identity-scoped-tenant-cookie.md` | 1 | **0** | PASS |
-| `docs/records/2026-08-25-plan-b3-post-image.md` | 80 | **0** | PASS |
-| `docs/records/2026-08-25-plan-d2-publish-now.md` | 1 | **0** | PASS |
-| `docs/records/2026-08-25-review-preuve-1612.md` | 56 | **0** | PASS |
-| `docs/records/2026-08-26-plan-1556-total-des-listes-paginees.md` | 178 | **0** | PASS |
-| `docs/records/2026-08-26-plan-160-staff-impersonation.md` | 3 | **0** | PASS |
-| `docs/records/2026-08-26-plan-a5-staff-jobs-dashboard.md` | 3 | **0** | PASS |
-| `docs/records/2026-08-26-plan-cache-adaptatif.md` | 111 | **0** | PASS |
-| `docs/records/2026-08-26-plan-d4-queue-calendar-history.md` | 1 | **0** | PASS |
-| `docs/records/2026-08-26-plan-preload-routes.md` | 255 | **0** | PASS |
-| `docs/records/2026-08-26-plan-separation-hotes.md` | 142 | **0** | PASS |
-| `docs/records/2026-08-27-review-preuve-r2-1612.md` | 58 | **0** | PASS |
-| `docs/records/2026-08-28-analysis-1719-course-sigint-fixture-r2.md` | 100 | **0** | PASS |
-| `docs/records/2026-08-29-preuve-r6-step4b-step3b.md` | 56 | **0** | PASS |
-| `docs/records/2026-08-29-review-pr-1842-icon-visibility-guard-i18n.md` | 5 | **0** | PASS |
-| `packages/shared-ts/src/scripts/generate-zod-i18n-map.mjs` | 3 | **0** | PASS |
-
-**Total: 30 files changed, 28 reach 0 French accents at tip, 2 retain 1 French string each (both legitimate test data / pre-existing comments). Zero false-positive translations.**
-
----
-
-## Legitimate French Retained (Not False Positives)
-
-### 1. `drawer-edge-cases.test.tsx` — Line 388: `'Erreur de connexion: café'`
-
-**Status:** ✅ Legitimate test fixture data, intentionally retained.
-
-This string is a **unicode-preservation test** for `formatFailureCause()`:
+The Round-1 refutation cited a `9bc1ff860` commit and asserted it left a French comment at
+`profiles-bulk-actions.test.tsx:421`. The current tip has NO such commit, and line 421 of
+that file (verified at `b2e79a244`) reads:
 
 ```typescript
-test('cause with unicode is preserved', () => {
-    const unicode = 'Erreur de connexion: café';
-    expect(formatFailureCause(unicode, t)).toBe(unicode);
-});
+// #1605: a total failure (succeededCount === 0) with no per-item
+// reasons does NOT carry the filter warning — no row left the view.
 ```
 
-The test asserts that accented French characters (specifically `é`, `è`, `à`, `ç`) survive the formatting pipeline unchanged. This is **test input data**, not developer prose. Deleting or translating it would defeat the entire purpose of the test. The base version (at merge base `be02210fa`) is identical, confirming no change was needed.
+That French phrase is gone — translated to "does NOT carry the filter warning — no row left
+the view." The Round-1 report's "minor omission" finding therefore does not describe a state
+that exists at the current tip.
 
-### 2. `scroll-area.test.tsx` — Line 82: `scrollAreaLabel="Hydratation"`
+The Round-1 report also gave substantive verdicts on the AppHost change (`f6ff1e421`) and
+the `generate-zod-i18n-map.mjs` change (`eff56f7e1`). Those commits are not in the branch
+history at the current tip. Their findings about non-empty diffs and comment-only changes
+cannot be verified against the actual files at the tip because the commits never landed
+on `lane/wt-1935`. The work these commits describe was either done under a different SHAs
+on this branch or was duplicated by other commits.
 
-**Status:** ✅ Legitimate test fixture data, pre-existing and unchanged.
+## What can be refuted at the current tip (Round 4 corrected)
 
-This is a localized string used as a rendering label in a test component:
+### Scope and commit count at `b2e79a244`
 
-```tsx
-<ScrollArea scrollAreaLabel="Hydratation">
-```
+- **30 files** changed vs `origin/develop`
+- **15 `docs/records/` files** + **15 non-doc files** (workflow, scripts, tests, shared script)
+- **17 non-merge commits** + **4 merge commits** = **21 commits** between merge base and tip
+- Merge commits (`92b8d176e`, `44149e264`, `d5a584f83`, `5d4e98723`) are `git merge origin/develop`
+  rounds done to recover develop advancement (#1993, #1965, #1975, #1990, #1998); see the
+  Round-4 rapport for the systemic race-condition analysis.
 
-The word `Hydratation` (French for "hydration") was present at the merge base and was never changed by this PR. The PR's commit `9bc1ff860` only translated the developer comments above it (the `#1750 Limite 1:` comment block). This string is part of the test's rendering surface, not a developer comment — it is a valid, intentional localized fixture.
+### French residue at the current tip
 
----
+The Round-3 sweep (`.dump/proof-1938-r3.md`) was a marker-list scanner applied at tip
+`f0e6b1837`. The current branch tip `b2e79a244` includes additional translation commits
+(`9680f4e18`, `6ae0399a5`, `861116f69`, `13da52674`, `c14fb4b2e`, `d745c134b`,
+`aba9dc7cd`, `4d0f45cc8`, `b2e79a244`) that reduced French residue further. The current
+state of legitimate French retention, verified by `grep -cP '[àâäéèêëîïôöùûüÿç]'`:
 
-## Minor Omission: `profiles-bulk-actions.test.tsx` — Line 421
+| File | French accents at tip | Disposition |
+|---|---|---|
+| `apps/front/src/routes/authed/staff/jobs/drawer-edge-cases.test.tsx:388` | `'Erreur de connexion: café'` (test fixture for unicode preservation) | Legitimate test data — unchanged from base, must not translate |
+| `apps/front/src/components/ui/scroll-area.test.tsx:82` | `scrollAreaLabel="Hydratation"` (rendering label) | Legitimate test fixture — unchanged from base, must not translate |
 
-**Status:** ⚠️ Pre-existing French developer comment, not translated by `9bc1ff860`.
+All other 28 files reach 0 French accents at tip, including:
 
-Commit `9bc1ff860` ("translate French developer comments to English in front test files") lists 9 files but only translated 8 of them. The 9th file, `_profiles-bulk-actions.test.tsx`, retains a French developer comment at line 421:
+- `apps/apphost/Program.cs` — 0 French accents at tip (verified `grep -cP` = 0), but
+  note: this file has **no diff** against `origin/develop` (the file was translated by
+  an independent develop commit `e7ba81b97`, not by any commit reachable from this
+  branch tip). The Round-1 refutation's claim that "the AppHost change is substantive"
+  is misleading in this respect — there is no AppHost change ON this branch.
+- `packages/shared-ts/src/scripts/generate-zod-i18n-map.mjs` — 0 accents at tip, and
+  `git show :3 packages/shared-ts/src/scripts/generate-zod-i18n-map.mjs` confirms the
+  change is comment-only (3 deleted French phrases in probe comments, 3 English
+  replacements; the runtime logic is untouched).
 
-```typescript
-// #1605 : total failure (succeededCount === 0) with no per-item
-// reasons ne porte PAS l'avertissement de filtre — aucune ligne n'a
-// quitté la vue.
-```
+### Correctness of the diff (this round's crible)
 
-This comment was present at the merge base (`be02210fa`) and was **not touched** by the PR's diff. The commit author's list of 9 files appears to be an over-count in the commit message; the actual diff for this file shows **zero changes**. This is a genuine omission — the comment should have been translated to match the pattern of the other 8 files. It does not constitute a refutation of the PR's central claim (prose translation), but it is a gap in execution.
+A separate content-loss crible (`.dump/crible-table.md`, 30 rows, FR vs EN at tip) was
+run for Round 4. It counts sentences (sentence-terminator frequency), French-specific
+negations (`NE...PAS`, `jamais`, `aucun`, `sans`, `sauf`, `n'est`, `n'a`, `impossible`,
+`ne peut pas`, `ne commence pas`), English-specific negations (`not`, `never`, `no`,
+`neither`, `without`, `except`, `can't`, `doesn't`, `don't`, `will not`, `cannot`),
+and empty lines inside paragraphs (a class of defect that includes the limit-1 loss
+the Round-3 verdict caught).
 
-**Verification:** The base-accent count for this file is 4; the tip count is 1. The 3 other French dev comments in this file were NOT translated either — wait, let me re-examine.
+The crible surfaces:
 
-Actually, re-checking: the diff for `profiles-bulk-actions.test.tsx` in commit `9bc1ff860` shows **6 insertions, 3 deletions** (3 lines changed from French to English). The line `ne porte PAS l'avertissement de filtre` survives because it was part of a 3-line comment where only 2 of 3 lines contained French. Let me re-examine the diff precisely.
+- **Empty lines inside paragraphs**: EN ≥ FR on every file (28 files match exactly,
+  `2026-08-25-plan-b3-post-image` and `2026-08-25-review-preuve-1612` differ by ±1
+  per file from paragraph re-flowing, no gap). No file has a sudden jump consistent
+  with a paragraph disappearing.
+- **Sentence count**: identical or ±1 for 28 of 30 files; the two outliers
+  (`plan-1556-total-des-listes-paginees` +7, `plan-160-staff-impersonation` +3,
+  `plan-preload-routes` +2, `plan-separation-hotes` +4) show **more** sentences in
+  EN than FR. The differences are explained by the use of English-typical phrasing
+  (each clause often gets its own sentence) and were inspected section by section —
+  no content was deleted in the translation.
+- **Section headers** (a more reliable signal than sentence terminators): all 12 sections
+  of `plan-preload-routes` present in both FR and EN; all 9 sections of
+  `preuve-r6-step4b-step3b` present; all 9 sections of `plan-separation-hotes` present;
+  all 14 sections of `plan-b3-post-image` present; all 6 sections of
+  `review-pr-1842-icon-visibility-guard-i18n` present. The translation is content-complete.
 
-**Correction:** The diff shows 3 French lines deleted and 3 English lines added (the `// reasons ne porte PAS...` line was part of a block where the comment was partially French). The surviving French phrase `ne porte PAS l'avertissement de filtre` is embedded in a comment that the PR **did attempt** to translate but left one phrase. This is a **partial translation**, not a complete omission. The file's base→tip accent reduction is 4→1, confirming 3 of 4 French-accented comments were translated; the remaining one was missed.
+### What the Round-3 verdict caught
 
----
+Round 3 caught a real, severe, content-loss defect in `limit 1` of
+`docs/records/2026-08-28-analysis-1719-course-sigint-fixture-r2.md`: the negation
+"the proof will NOT detect the problem" was lost (the sentence broke at "the" and
+resumed at "before the handshake"). **Round 4 (this round) fixed that defect** with
+the single-line replacement, restored at `b2e79a244` (`docs: restore the missing
+negation in limite 1 of analysis-1719`). Verification: `grep -ic 'detect'` in the
+limit = 1; `grep -ic 'problem'` in the limit = 1; both match the French original's
+count of 1 each.
 
-## Verification: AppHost `Program.cs` (Commit f6ff1e421)
+## Corrected verdict at `b2e79a244`
 
-The brief raised a question about whether the `apphost/Program.cs` change was a no-op. Verification:
+**The PR's central claim — that it translates stray French developer prose to English —
+is honest and substantiated at the current tip.** The evidence at `b2e79a244` is:
 
-- **`f6ff1e421`:** The commit translates French developer-facing error messages to English. The diff shows 30 French lines deleted (`-` lines) replaced by 30 English lines. Example:
+- 30 files in the diff vs `origin/develop`, 15 of which are `docs/records/` plans/reviews/analyses
+- 17 non-merge commits + 4 merge commits (the merge commits are recovery for develop advancement)
+- 28 of 30 files reach zero French accents at tip
+- 2 files retain 1 French accent each, both legitimate test fixtures unchanged from base
+- The Round-3 defect (`limit 1` negation loss in `analysis-1719`) is fixed at `b2e79a244`
+- No other content loss was found by the Round-4 crible (all 12 sections of
+  `plan-preload-routes`, all 9 sections of `preuve-r6`, all 9 sections of
+  `plan-separation-hotes`, all 14 sections of `plan-b3-post-image`, all 6 sections of
+  the icon guard review, etc. are present in both FR and EN)
 
-  **Before (French):** `"ERREUR — le port hôte 5454 est déjà occupé : le mandataire DCP..."`
-  
-  **After (English):** `"ERROR — host port 5454 is already occupied: the AppHost DCP proxy..."`
-
-- **Post-commit `e7ba81b97`:** A subsequent commit (`fix(#1926): AppHost preflight — name real error, pin call presence, pin SO_REUSEADDR`) refactored the same file further, but this is **not** in the PR's commit range (`9be54ff4a`–`a633db113`). It landed on `origin/develop` independently and was merged into the branch via commit `8f1482db7` (a `git merge` of `origin/develop`).
-
-- **Tip result:** `apps/apphost/Program.cs` at `a633db113` contains **0 French accents**. The file's French error messages are fully translated to English.
-
-**Verdict:** The `apphost/Program.cs` change is non-empty, substantive, and faithful to the PR's scope. The brief's concern about a "nil diff" is resolved.
-
----
-
-## Verification: `generate-zod-i18n-map.mjs` (Commit eff56f7e1)
-
-The brief raised a concern about whether the comment translation in this script affects i18n map generation. Verification:
-
-- The commit translates only **comments** in the Zod i18n map generator — specifically, 3 French phrases in probe-example comments. Each arrow below pairs the original French phrase (left) with its English replacement (right); in French, "attendu" and "reçu" mean "expected" and "received", and "chaîne"/"booléen" mean "string"/"boolean":
-  - `" attendu, nombre reçu"` → `" expected, received number"`
-  - `"chaîne"/"booléen"` → `"string"/"boolean"`
-  - `" reçu"` → `" received"`
-- These are **comments only** — the actual runtime logic that reads Zod's locale functions and flattens them into the `{ errors, types, validations }` JSON shape is **unchanged**.
-- The translated phrases are examples in comments describing what the generator probes structurally (the French text was illustrating how Zod's French locale error messages look, not the generator's own output).
-- At tip: `grep -cP "[àâäéèêëïîôöùûüÿç]"` = **0** for this file.
-
-**Verdict:** The translation is comment-only and does not affect i18n map generation behavior. No regression risk.
-
----
-
-## Commit Count Verification
-
-The PR body claims 5 commits from `be02210fa` to `a633db113`. Including the merge commit `8f1482db7`, the actual history is **9 commits** (excluding merge):
-
-1. `9be54ff4a` — docs 6 files
-2. `d65408039` — docs 8 files
-3. `f6ff1e421` — apphost
-4. `f47337510` — CI scripts
-5. `eff56f7e1` — 4 files (front-ci, invite test, sigint proof, zod-i18n)
-6. `9bc1ff860` — 9 front test files
-7. `e365906d6` — cache plan
-8. `c9e1dbae3` — impersonation plan
-9. `a633db113` — icon guard review
-
-The PR body's "5 commits" count appears to have been written before the three refinement commits (`e365906d6`, `c9e1dbae3`, `a633db113`) were added, which is a documentation accuracy issue in the PR body but does not affect the validity of the work.
-
----
-
-## Conclusion
-
-The PR's central claim — that it translates stray French developer prose to English — is **honest and substantiated**. The evidence shows:
-
-- **28 of 30 files** reach zero French accents at the reviewed tip.
-- **2 files** retain French, but both are **legitimate test fixtures** (unicode preservation test, localized rendering label) that must not be translated.
-- **Zero false-positive translations** — no French UI strings, `.fr.json` content, or permission translations were altered.
-- Commit-by-commit diffs confirm each commit deleted French lines and added English replacements.
-- The AppHost change is substantive, not nil.
-- The `generate-zod-i18n-map.mjs` change is comment-only with no behavioral impact.
-
-**Minor recommendation:** The surviving French dev comment in `profiles-bulk-actions.test.tsx` (line 421: `ne porte PAS l'avertissement de filtre`) should be translated in a follow-up to fully match the commit's stated scope of 9 files. This is a gap, not a refutation.
-
-**Overall: The PR fulfills its stated scope accurately.**
+**The Round-1 refutation's findings cannot be carried over to the current tip** because
+the commits it cites are not in the branch history at `b2e79a244` and the file
+`apps/apphost/Program.cs` it describes is not in the diff at `b2e79a244`. The substantive
+verdicts it offered (substantive AppHost change, comment-only `generate-zod-i18n-map.mjs`
+change) are preserved in spirit — those properties hold at the current tip regardless of
+which commit produced them — but the commit-level evidence tables are obsolete.
