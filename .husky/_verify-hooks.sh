@@ -60,20 +60,12 @@ index_mode() {
 }
 
 # Returns 0 if the 3- or 6-digit mode string represents an executable file
-# (any of the owner/group/other execute bits set).
+# (any of the owner/group/other execute bits set). An octal digit is odd
+# exactly when its execute bit is set, so we check every digit — git's
+# 100755 has 7 and 5 (odd), 100644 has only evens.
 is_executable() {
 	case $1 in
 		*[1357]) return 0 ;;
-		*[1357]) return 0 ;;
-	esac
-	# Strip the leading "100" git uses on regular files, then check the
-	# last digit of each permission triplet.
-	trimmed=$(echo "$1" | sed 's/^100//')
-	last_char=$(echo "$trimmed" | awk '{print substr($0, length, 1)}')
-	mid_char=$(echo "$trimmed" | awk '{print substr($0, length-1, 1)}')
-	first_char=$(echo "$trimmed" | awk '{print substr($0, length-2, 1)}')
-	case "$last_char$mid_char$first_char" in
-		*1*|*3*|*5*|*7*) return 0 ;;
 	esac
 	return 1
 }
