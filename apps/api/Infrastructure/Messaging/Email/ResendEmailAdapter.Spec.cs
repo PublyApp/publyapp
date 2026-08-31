@@ -184,12 +184,83 @@ public sealed class ResendEmailAdapterSpec {
 		fake.ProviderCallCount.Should().Be(2);
 	}
 
-	private static EmailRequest Request(string? to = null) {
+	[Fact]
+	public async Task ItShouldRejectSameIdempotencyKeyWithDifferentSubject() {
+		// The payload comparison must cover the whole body, not just the recipient:
+		// a key reused with the same To but a different Subject is a different email
+		// and the provider rejects it (409 invalid_idempotent_request), never serving
+		// the cached reply for a body it has not seen. A fake that only watched `to`
+		// would stay green on the To-variation test while accepting this silently.
+		var fake = new FakeResendClient {
+			EmailSendResponse = new ResendResponse<Guid>(Guid.NewGuid(), new ResendRateLimit())
+		};
+		var adapter = new ResendEmailAdapter(fake);
+
+		await adapter.SendAsync(Request(), "same-idem-key");
+		fake.ProviderCallCount.Should().Be(1);
+
+		var act = async () => await adapter.SendAsync(Request(subject: "different subject"), "same-idem-key");
+
+		var thrown = await act.Should().ThrowAsync<EmailProviderPermanentException>(
+			because: "the Subject field differs between the first send and the reuse of this key"
+		);
+		thrown.Which.Code.Should().Be("provider_rejected:InvalidIdempotentRequest:409");
+		fake.ProviderCallCount.Should().Be(1);
+	}
+
+	[Fact]
+	public async Task ItShouldRejectSameIdempotencyKeyWithDifferentHtmlBody() {
+		var fake = new FakeResendClient {
+			EmailSendResponse = new ResendResponse<Guid>(Guid.NewGuid(), new ResendRateLimit())
+		};
+		var adapter = new ResendEmailAdapter(fake);
+
+		await adapter.SendAsync(Request(), "same-idem-key");
+		fake.ProviderCallCount.Should().Be(1);
+
+		var act = async () => await adapter.SendAsync(Request(htmlBody: "<p>different body</p>"), "same-idem-key");
+
+		var thrown = await act.Should().ThrowAsync<EmailProviderPermanentException>(
+			because: "the HtmlBody field differs between the first send and the reuse of this key"
+		);
+		thrown.Which.Code.Should().Be("provider_rejected:InvalidIdempotentRequest:409");
+		fake.ProviderCallCount.Should().Be(1);
+	}
+
+	[Fact]
+	public async Task ItShouldRejectSameIdempotencyKeyWithDifferentFrom() {
+		// Same To, same Subject, same HtmlBody, different From: still a different
+		// email. This closes the last field of the adapter's payload (the whole
+		// body is exactly from/to/subject/html) so a comparison that silently
+		// drops ANY single field is caught red, not left as a green mutation.
+		var fake = new FakeResendClient {
+			EmailSendResponse = new ResendResponse<Guid>(Guid.NewGuid(), new ResendRateLimit())
+		};
+		var adapter = new ResendEmailAdapter(fake);
+
+		await adapter.SendAsync(Request(), "same-idem-key");
+		fake.ProviderCallCount.Should().Be(1);
+
+		var act = async () => await adapter.SendAsync(Request(from: "different@example.com"), "same-idem-key");
+
+		var thrown = await act.Should().ThrowAsync<EmailProviderPermanentException>(
+			because: "the From field differs between the first send and the reuse of this key"
+		);
+		thrown.Which.Code.Should().Be("provider_rejected:InvalidIdempotentRequest:409");
+		fake.ProviderCallCount.Should().Be(1);
+	}
+
+	private static EmailRequest Request(
+		string? to = null,
+		string? from = null,
+		string? subject = null,
+		string? htmlBody = null
+	) {
 		return new EmailRequest {
 			To = to ?? "to@example.com",
-			From = "from@example.com",
-			Subject = "subject",
-			HtmlBody = "<p>body</p>"
+			From = from ?? "from@example.com",
+			Subject = subject ?? "subject",
+			HtmlBody = htmlBody ?? "<p>body</p>"
 		};
 	}
 }

@@ -92,6 +92,14 @@ const config: KnipConfig = {
 				// in #1449 (scripts/ -> tools/ move); the public type surface
 				// now flows through the source.
 				'tools/vite/check-context-chunk-isolation.mts',
+				// Compile-time-only typecheck proof for Distribute<T> (#1755):
+				// part of the main tsconfig program (`tsc --noEmit` compiles
+				// it), never imported at runtime by design — its probes are
+				// compile-time assignments, so knip can never trace usage
+				// through an import. Same class as the type-probe targets
+				// above (check-context-chunk-isolation.mts): an entry, not an
+				// ignore, so the file stays in the knip surface.
+				'src/components/table/column-distribute.typecheck.ts',
 				'src/components/ui/drawer-guard-tmp-dir.cjs', // string-keyed require() from drawer-form.test.tsx / the drawer guard, invisible to import analysis
 				// Used via CLI `--config` argument, not imported: replay config
 				// for kept red tests under apps/front/tests/proofs/ (issue #1659).

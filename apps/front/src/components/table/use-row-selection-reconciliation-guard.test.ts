@@ -110,11 +110,11 @@ const findViolations = (file: string): string[] => {
 	}
 	const lines = source.split('\n');
 	const offenders: string[] = [];
-	lines.forEach((line, i) => {
+	for (const [i, line] of lines.entries()) {
 		if (HAND_ROLLED_STATE_RE.test(line)) {
 			offenders.push(`line ${i + 1}: ${line.trim()}`);
 		}
-	});
+	}
 	return offenders;
 };
 
@@ -226,10 +226,10 @@ export const findViolationsAgainstSource = (source: string): string[] => {
 	}
 	const lines = source.split('\n');
 	const offenders: string[] = [];
-	lines.forEach((line, i) => {
+	for (const [i, line] of lines.entries()) {
 		if (HAND_ROLLED_STATE_RE.test(line)) {
 			offenders.push(`line ${i + 1}: ${line.trim()}`);
 		}
-	});
+	}
 	return offenders;
 };

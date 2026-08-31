@@ -321,6 +321,10 @@ ci-drift:
   pnpm --filter scripts-ts exec vitest run src/ci-gate-bootstrap.test.ts
   pnpm --filter scripts-ts exec vitest run src/ci-gate-aggregation.test.ts
   pnpm --filter scripts-ts exec vitest run src/ci-e2e-rerun-guard.test.ts
+  # #1975 round 2: live-tree coverage guard — every project the API suite
+  # compiles (slnx projects + spec-referenced projects) must be reached by a
+  # workflow path filter. Mirrors the gate-selftest step in front-ci.yml.
+  pnpm --filter scripts-ts exec vitest run src/check-api-tests-path-coverage.test.ts
   pnpm --filter scripts-ts exec vitest run src/check-ci-gate-structure.test.ts
   node ./packages/scripts-ts/src/check-ci-gate-structure.ts
   pnpm --filter scripts-ts exec vitest run src/require-linked-issue.test.ts
@@ -411,6 +415,17 @@ ci-no-ignored-tracked:
   pnpm --filter scripts-ts exec vitest run src/check-no-ignored-tracked.test.ts
   node ./packages/scripts-ts/src/check-no-ignored-tracked.ts
 
+# #1849: no `<Dockerfile>.dockerignore` shadow file may exist anywhere in the
+# tree — Docker REPLACES (not merges) the root .dockerignore when one sits next
+# to a Dockerfile, silently re-including node_modules, dist, .turbo and
+# .worktrees in every build context (see #1832/#1836). Walks the real working
+# tree and names every offending path. Mirrors
+# quality-gate.yml::no-dockerignore-shadow (unconditioned job, same binary).
+ci-dockerignore-shadow:
+  @echo "=== [gate] no .dockerignore shadow files (#1849) ==="
+  pnpm --filter scripts-ts exec vitest run src/check-dockerignore-shadow.test.ts
+  node ./packages/scripts-ts/src/check-dockerignore-shadow.ts
+
 # Install exactly as CI does (supply-chain policy: frozen + no lifecycle scripts)
 ci-install:
   @echo "=== [gate] install (frozen lockfile, no scripts) ==="
@@ -418,8 +433,14 @@ ci-install:
   pnpm install --frozen-lockfile --ignore-scripts
   pnpm --filter @org/shared-ts run postinstall
 
-# Formatting (repo-wide oxfmt --check, exactly as both workflows run it)
+# Formatting (repo-wide oxfmt --check, exactly as both workflows run it),
+# plus the #1875 formatter-scope guard: the vitest file asks oxfmt itself
+# which files each package.json format glob would process against the real
+# .oxfmtrc.json, so an ignorePatterns entry that silently swallows a directory
+# the globs enumerate fails the gate naming the directory. Mirrors
+# quality-gate.yml::quality::Check formatter scope (#1875).
 ci-format: format
+  pnpm --filter scripts-ts exec vitest run src/check-formatter-scope.test.ts
   @echo "=== [gate] format (done) ==="
 
 # Lint exactly the scope CI lints.
@@ -487,12 +508,28 @@ ci-front:
   # of the passthrough gets twenty TS7031 errors very far from the cause
   # (this is the third occurrence: #1627, #1737).
   pnpm --filter front check:column-type-imports
+  # #1822: real-artifact guard — `srvx/static` renamed its `serveStatic`
+  # named export to `staticMiddleware` in 0.12.7. The pre-#1628 import
+  # `import { serveStatic } from 'srvx/static'` would throw at module
+  # load and crash the front server at startup, surfacing as the
+  # publish-now e2e timing out on a `toBeVisible` (Traefik 502 over the
+  # down upstream). This guard parses server.mjs with ts-morph, loads
+  # the real installed srvx/static, and asserts every imported name
+  # resolves — without it, a future rename would re-open the same
+  # shape behind the next dependabot srvx bump.
+  pnpm --filter front check:server-static-imports
+  pnpm --filter front test:server-static-imports-guard
   # Built-artifact guard (#1234): proves the React Compiler actually ran on
   # the dist produced above (runtime chunk present, compiled-module count
   # >= floor). Same pattern as check:design-system: a step of `pnpm --filter
   # front test` AND an explicit front-ci.yml::supply-chain step.
   pnpm --filter front check:react-compiler
   pnpm --filter front test
+  # #1948: the 4-way vitest shard matrix must partition the suite exactly
+  # once. Reads the REAL discovery of every shard (`vitest list --shard=i/n`)
+  # and the unsharded suite, and fails if any file is lost, duplicated, or
+  # invented by the matrix. Mirrors front-ci.yml::test-vitest-coverage.
+  pnpm --filter front test:vitest-shard-coverage
   just test-preuves
   # end of front front-ci.yml::supply-chain parallel block (Test front step)
   @echo "=== [gate] production dependency audit (mirrors front-ci.yml::supply-chain) ==="
@@ -578,7 +615,7 @@ ci-e2e-front:
 
 
 # Everyday pre-push gate (no e2e). Fails on the first red sub-gate.
-ci: ci-drift ci-migration-expand-contract ci-review-worktree-resolution ci-doc-links ci-jscpd ci-deploy-env-docs ci-project-closure-adapter ci-no-ignored-tracked ci-install ci-format ci-lint ci-lint-ts ci-knip ci-shared-ts ci-quality ci-front ci-spec-drift nuget-audit test-api
+ci: ci-drift ci-migration-expand-contract ci-review-worktree-resolution ci-doc-links ci-jscpd ci-deploy-env-docs ci-project-closure-adapter ci-no-ignored-tracked ci-dockerignore-shadow ci-install ci-format ci-lint ci-lint-ts ci-knip ci-shared-ts ci-quality ci-front ci-spec-drift nuget-audit test-api
   @echo ""
   @echo "=== just ci: PASSED ==="
   @echo "Not covered here: the two e2e suites (run 'just ci-full')."

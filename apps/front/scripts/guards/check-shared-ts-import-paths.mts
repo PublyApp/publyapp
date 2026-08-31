@@ -116,14 +116,29 @@ const deriveSharedTsSegments = (dir: string): string[] => {
 	let entries: string[];
 	try {
 		entries = readdirSync(dir, { withFileTypes: true })
-			// #1678 R5: isDirectory() is benign today because packages/shared-ts/src/
-			// contains only top-level directories. If a file ever exposes a first
-			// segment (e.g. a .ts barrel at packages/shared-ts/src/foo.ts making
-			// @org/shared-ts/foo resolvable), this filter would silently drop it
-			// and the guard would fail to see the exposed segment. Don't "simplify"
-			// this to readdirSync(dir) without also fixing the regex derivation.
-			.filter((entry) => entry.isDirectory() && !entry.name.startsWith('.'))
-			.map((entry) => entry.name);
+			// #1678 R5: previously filtered on isDirectory() only, which silently
+			// dropped file-type entries. A file like packages/shared-ts/src/foo.ts
+			// is resolvable as @org/shared-ts/foo (per the package's "./*" export
+			// pattern), so it must also be recognised as a segment. Directories
+			// contribute their name directly; files contribute their name with the
+			// extension stripped (.ts, .mts, .cts). Non-source files (e.g. .json)
+			// are not resolvable via the "@org/shared-ts/*" specifier and are
+			// excluded so a stray .d.ts or package.json at the root cannot widen
+			// the recognised segment set.
+			.filter((entry) => {
+				if (entry.name.startsWith('.')) {
+					return false;
+				}
+				if (entry.isDirectory()) {
+					return true;
+				}
+				return /\.(ts|mts|cts)$/.test(entry.name);
+			})
+			.map((entry) =>
+				entry.isDirectory()
+					? entry.name
+					: entry.name.replace(/\.(ts|mts|cts)$/, ''),
+			);
 	} catch (err: unknown) {
 		throw new Error(
 			`check-shared-ts-import-paths: could not enumerate ${dir}: ${err instanceof Error ? err.message : String(err)}`,
@@ -141,9 +156,19 @@ export { SHARED_TS_SEGMENTS, deriveSharedTsSegments };
  * first segment is treated as unknown — see `SHARED_TS_PREFIX` and the
  * fail-loudly check in `scanSourceFile` (#1678).
  */
-const SHARED_TS_MODULE_PATTERN = new RegExp(
-	`^@org/shared-ts/(${SHARED_TS_SEGMENTS.map(escapeRegExp).join('|')})(?:/.*)?$`,
-);
+/**
+ * Builds the module-specifier regex for `@org/shared-ts/<segment>/**` from a
+ * directory listing, so tests can derive a pattern from a sandbox tree rather
+ * than the module-level real-tree constant.
+ */
+export const buildSharedTsModulePattern = (dir: string): RegExp => {
+	const segments = deriveSharedTsSegments(dir);
+	return new RegExp(
+		`^@org/shared-ts/(${segments.map(escapeRegExp).join('|')})(?:/.*)?$`,
+	);
+};
+
+const SHARED_TS_MODULE_PATTERN = buildSharedTsModulePattern(sharedTsSrc);
 
 /**
  * Prefix that identifies any specifier targeting the `@org/shared-ts` package.
@@ -283,7 +308,11 @@ const moduleSpecifierText = (
  * re-EXPORTS create a second path and are violations. Dynamic `import('...')`
  * calls are inspected too, per the R2 requirement list.
  */
-const scanSourceFile = (relativePath: string, source: string): Finding[] => {
+const scanSourceFile = (
+	relativePath: string,
+	source: string,
+	modulePattern: RegExp = SHARED_TS_MODULE_PATTERN,
+): Finding[] => {
 	const findings: Finding[] = [];
 
 	const sourceFile = ts.createSourceFile(
@@ -299,7 +328,7 @@ const scanSourceFile = (relativePath: string, source: string): Finding[] => {
 			const specifier = moduleSpecifierText(node);
 			if (specifier !== null && specifier.startsWith(SHARED_TS_PREFIX)) {
 				const nodeText = node.getText(sourceFile).trim().replace(/\s+/g, ' ');
-				if (SHARED_TS_MODULE_PATTERN.test(specifier)) {
+				if (modulePattern.test(specifier)) {
 					findings.push({
 						file: relativePath,
 						line: lineOf(sourceFile, node),
@@ -381,30 +410,39 @@ const scriptKindForPath = (relativePath: string): ts.ScriptKind => {
 
 export const scanTreeForSharedTsReExports = (
 	tree: ScannedTree = FRONT_SRC_TREE,
+	modulePattern?: RegExp,
 ): Finding[] => {
 	const base = path.resolve(tree.root);
 	const findings: Finding[] = [];
 	for (const file of walk(base)) {
 		const relativePath = `${tree.label}/${path.relative(base, file)}`;
 		const source = readFileSync(file, 'utf8');
-		findings.push(...scanSourceFile(relativePath, source));
+		findings.push(...scanSourceFile(relativePath, source, modulePattern));
 	}
 	return findings;
 };
 
 export const scanFrontSrcForSharedTsReExports = (
 	root = frontSrc,
+	modulePattern?: RegExp,
 ): Finding[] => {
-	return scanTreeForSharedTsReExports({ label: 'apps/front/src', root });
+	return scanTreeForSharedTsReExports(
+		{ label: 'apps/front/src', root },
+		modulePattern,
+	);
 };
 
 export const scanSharedTsSrcForSharedTsReExports = (
 	root = sharedTsSrc,
+	modulePattern?: RegExp,
 ): Finding[] => {
-	return scanTreeForSharedTsReExports({
-		label: 'packages/shared-ts/src',
-		root,
-	});
+	return scanTreeForSharedTsReExports(
+		{
+			label: 'packages/shared-ts/src',
+			root,
+		},
+		modulePattern,
+	);
 };
 
 /**
@@ -464,9 +502,13 @@ export const main = (roots?: {
 		);
 		process.exit(1);
 	}
+	// Build the module-specifier pattern from the resolved sharedTsSrc path so
+	// that test sandboxes with extra file-level segments (e.g. foo.ts → @org/shared-ts/foo)
+	// are recognised as DUAL_PATH rather than UNKNOWN_SEGMENT.
+	const modulePattern = buildSharedTsModulePattern(sharedTsSrcPath);
 	const findings = [
-		...scanFrontSrcForSharedTsReExports(roots?.frontSrc),
-		...scanSharedTsSrcForSharedTsReExports(roots?.sharedTsSrc),
+		...scanFrontSrcForSharedTsReExports(roots?.frontSrc, modulePattern),
+		...scanSharedTsSrcForSharedTsReExports(roots?.sharedTsSrc, modulePattern),
 	];
 	if (findings.length) {
 		console.error(

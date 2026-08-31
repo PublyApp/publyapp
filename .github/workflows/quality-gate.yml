@@ -193,6 +193,16 @@ jobs:
       - name: Check formatting (oxfmt --check)
         run: pnpm format
 
+      # #1875: the formatter-scope guard. `pnpm format` above runs oxfmt with
+      # the globs declared in package.json against the ignorePatterns in
+      # .oxfmtrc.json. The guard asks OXFMT ITSELF which files each glob would
+      # process, so an ignorePatterns entry that swallows a directory the globs
+      # explicitly enumerate (the #1875 bypass) turns this step red naming the
+      # directory, instead of silently skipping the files. Mirrored by
+      # `just ci-format` (the same vitest file runs inside the recipe).
+      - name: Check formatter scope (#1875)
+        run: pnpm --filter scripts-ts exec vitest run src/check-formatter-scope.test.ts
+
       - name: Lint (oxlint repo-wide)
         run: pnpm lint
 
@@ -360,6 +370,35 @@ jobs:
       - name: Verify no tracked file matches .gitignore (#1513)
         run: node packages/scripts-ts/src/check-no-ignored-tracked.ts
 
+  # #1849: no `<Dockerfile>.dockerignore` shadow file may exist anywhere in
+  # the tree — Docker REPLACES (not merges) the root .dockerignore when one
+  # sits next to a Dockerfile, silently re-including node_modules, dist,
+  # .turbo and .worktrees in every build context (see #1832/#1836).
+  #
+  # WHY THIS IS A SEPARATE, UNCONDITIONED JOB
+  # -----------------------------------------
+  # Same argument as no-ignored-tracked above: the guard scans for files that
+  # could arrive on ANY path (`Dockerfile.dockerignore` next to any current or
+  # future Dockerfile), and the changed-paths classifier only enumerates the
+  # paths it knows today. A shadow file placed on an unclassified path
+  # (repo root, docs/, ...) would declare the PR "not relevant", skip the
+  # heavy job, and never run the one guard whose reason to exist is to catch
+  # exactly that. The local `just ci` gate catches it; this unconditioned job
+  # runs the real binary on the real checkout in CI too. Mirrors
+  # `just ci-dockerignore-shadow` (which runs the same script plus its
+  # fixture suite).
+  no-dockerignore-shadow:
+    name: Forbid .dockerignore shadow files (#1849)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Forbid .dockerignore shadow files (#1849)
+        run: node packages/scripts-ts/src/check-dockerignore-shadow.ts
+
   # Required status check: this is the one context that should be required
   # on the branch ruleset instead of relying on the trigger. It always
   # reports (if: always()), passes when upstream jobs succeeded or were
@@ -380,7 +419,7 @@ jobs:
     # required names either.
     name: ${{ (github.event_name == 'pull_request' || github.event_name == 'merge_group') && 'quality-gate' || 'quality-gate-push-check' }}
     if: always()
-    needs: [changes, quality, no-ignored-tracked]
+    needs: [changes, quality, no-ignored-tracked, no-dockerignore-shadow]
     runs-on: ubuntu-latest
     steps:
       # Reads the `needs` context directly (via toJSON) instead of a
