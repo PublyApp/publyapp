@@ -70,9 +70,12 @@ jobs:
             exit 1
           fi
 
+          invalid_relationship=false
+          linked_issue=false
           for n in $numbers; do
             if [ "$n" = "$PR_NUMBER" ]; then
               echo "  #$n references itself — a pull request cannot satisfy its own issue-link requirement."
+              invalid_relationship=true
               continue
             fi
 
@@ -83,23 +86,35 @@ jobs:
             # just as falsely. We must exclude EVERY pull request, not just
             # this one. The discriminator is the `pull_request` key on the
             # issue-object endpoint: present (non-null) for PRs, absent for
-            # real issues. We fetch that single field and skip any number whose
-            # object is a PR. A real issue has no `pull_request` key, so its
-            # value is `null` and jq -e returns exit code 0 with `false`; a PR
-            # has a non-null `pull_request` object, so jq -e returns exit code
-            # 1 (the assertion `== false` fails) and we skip it.
+            # real issues. We fetch that single field and reject any declaration
+            # containing a PR; a later valid issue must not hide a misleading link.
+            # A real issue has no `pull_request` key, so the expression prints
+            # `false`; a PR has a non-null object and prints `true`.
             is_pr=$(gh api "repos/${GH_REPO}/issues/${n}" --jq '.pull_request != null' 2>/dev/null) || is_pr="true"
             if [ "$is_pr" = "true" ]; then
-              echo "  #$n is a pull request, not an issue — skipping (#2003)."
+              echo "  #$n is a pull request, not an issue — rejecting the declaration (#2003)."
+              invalid_relationship=true
               continue
             fi
 
             if state=$(gh issue view "$n" --json state --jq '.state' 2>/dev/null); then
               echo "✓ PR links issue #$n (state: $state)."
-              exit 0
+              linked_issue=true
+              continue
             fi
-            echo "  #$n is not an existing issue — skipping."
+            echo "  #$n is not an existing issue — rejecting the declaration."
+            invalid_relationship=true
           done
+
+
+          if [ "$invalid_relationship" = "true" ]; then
+            echo "::error::Every declared relationship must reference a real issue; a PR, self-reference, or missing number invalidates the whole declaration."
+            exit 1
+          fi
+
+          if [ "$linked_issue" = "true" ]; then
+            exit 0
+          fi
 
           echo "::error::The relationship keyword(s) reference no existing issue: $(echo "$numbers" | tr '\n' ' '). Link a real issue with \"Closes #N\" or \"Part of #N\"."
           exit 1

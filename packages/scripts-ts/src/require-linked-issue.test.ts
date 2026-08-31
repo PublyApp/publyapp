@@ -121,6 +121,29 @@ const assertExactlyDependabotBot = (runBody) => {
  */
 const MOCK_PRS = new Set([2032, 2003]);
 
+test.runIf(process.env.GITHUB_ACTIONS === 'true')(
+	'#2003 live boundary: GitHub exposes known PR #1987 through the issues endpoint',
+	() => {
+		const result = spawnSync(
+			'gh',
+			[
+				'api',
+				'repos/PublyApp/publyapp/issues/1987',
+				'--jq',
+				'.pull_request != null',
+			],
+			{ encoding: 'utf8' },
+		);
+
+		assert.equal(result.status, 0, result.stderr);
+		assert.equal(
+			result.stdout.trim(),
+			'true',
+			'the live API must identify the known PR as a pull request',
+		);
+	},
+);
+
 /**
  * Creates a mock `gh` script in a temp directory and returns that directory's
  * path. Prepend it to PATH so the step's `run:` block calls our mock instead
@@ -166,10 +189,9 @@ exit 0
 const runStep = (runBody, { author, body }) => {
 	// The real step reads PR_AUTHOR from `${{ github... }}`; substitute that
 	// literal so plain `bash` can run the body under our faked author.
-	const script = runBody.replace(
-		/^PR_AUTHOR="[^"]*"\s*$/m,
-		`PR_AUTHOR="${author}"`,
-	).replace(/^PR_NUMBER="[^"]*"\s*$/m, 'PR_NUMBER="2032"');
+	const script = runBody
+		.replace(/^PR_AUTHOR="[^"]*"\s*$/m, `PR_AUTHOR="${author}"`)
+		.replace(/^PR_NUMBER="[^"]*"\s*$/m, 'PR_NUMBER="2032"');
 
 	const mockGhDir = createMockGhDir();
 
@@ -442,7 +464,7 @@ test('the real workflow rejects a non-closing link to a pull request', async () 
 	);
 });
 
-test('the real workflow PASSES (exit 0) for a body closing both a PR and a real issue', async () => {
+test('the real workflow FAILS the whole declaration when it mixes a PR and a real issue', async () => {
 	const runBody = await readRunBody();
 
 	const { code } = runStep(runBody, {
@@ -452,8 +474,8 @@ test('the real workflow PASSES (exit 0) for a body closing both a PR and a real 
 
 	assert.equal(
 		code,
-		0,
-		'a body closing both a PR and a real issue must pass — the real issue satisfies the gate',
+		1,
+		'a valid issue must not hide a misleading pull-request relationship',
 	);
 });
 

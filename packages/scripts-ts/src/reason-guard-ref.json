@@ -950,8 +950,8 @@
 			"reason": "GitHub-only Node setup. Locally the Node version is pinned by .node-version / .nvmrc."
 		},
 		"require-linked-issue.yml::require-linked-issue::Verify the PR links an existing issue": {
-			"reason_hash": "96a45fdcde1fc698",
-			"reason": "Reads github.event.pull_request.body and number. At pre-push time there is no PR and therefore no live body to check, so the live step is unreproducible locally by construction. Its shell body is nevertheless executed against a mocked GitHub CLI by packages/scripts-ts/src/require-linked-issue.test.ts, which pins exact Dependabot waiver semantics, line-anchored closing and non-closing relationships, rejection of negated prose and arbitrary bare mentions, explicit self-reference diagnosis, and rejection of references to other pull requests."
+			"reason_hash": "c21cedc95325f230",
+			"reason": "Reads github.event.pull_request.body and number. At pre-push time there is no PR and therefore no live body to check, so the live step is unreproducible locally by construction. Its shell body is nevertheless executed against a mocked GitHub CLI by packages/scripts-ts/src/require-linked-issue.test.ts, which pins exact Dependabot waiver semantics, line-anchored closing and non-closing relationships, rejection of negated prose and arbitrary bare mentions, explicit self-reference diagnosis, and all-or-nothing rejection when any declared relationship targets a pull request or missing number. On GitHub Actions the same suite also calls the live issues endpoint for known PR #1987, so the external API discriminator is verified rather than only modeled."
 		},
 		"front-ci.yml::supply-chain::Test front (non-vitest)": {
 			"reason_hash": "dead675ca5c39cbd",
