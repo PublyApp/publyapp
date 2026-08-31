@@ -20,7 +20,6 @@ import {
 	useDeleteTenantPostMutation,
 	useTenantPostsQuery,
 } from '~/lib/query/tenant-posts';
-import { useResolvedWorkspaceTenantId } from '~/lib/query/tenants-for-picker';
 import { readSelectedTenantId } from '~/lib/selected-tenant-storage';
 import type { TableSearchParamInput } from '~/lib/url-state/table-search-params';
 

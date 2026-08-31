@@ -18,7 +18,6 @@ import {
 	type TenantPublicationStatus,
 	useTenantPublicationsQuery,
 } from '~/lib/query/tenant-publications';
-import { useResolvedWorkspaceTenantId } from '~/lib/query/tenants-for-picker';
 import { readSelectedTenantId } from '~/lib/selected-tenant-storage';
 import type { TableSearchParamInput } from '~/lib/url-state/table-search-params';
 

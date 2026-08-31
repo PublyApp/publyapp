@@ -6,28 +6,66 @@ import type { QueryKey } from '@tanstack/react-query';
 // shape the page body and the crumbs already consume — so a `preload` entry
 // cannot introduce a second fetch path (§4, first guard tier).
 //
-// Why a *generic type alias* (not an interface): the `no-unknown-returns` rule
-// (packages/lint-ts/src/anti-slop/rules/no-unknown-returns.ts) descends into
-// `TSFunctionType` return annotations. When the return is `Promise<unknown>`,
-// the rule recurses: `TSTypeReference(Promise)` → `typeArguments.params[0]`
-// = `TSUnknownKeyword` → fires. The rule short-circuits ONLY when the
-// return type is a *generic alias parameter* (e.g. `Promise<TData>`) — it
-// calls `aliases.get('TData')`, finds undefined (type parameters are not
-// declared aliases), and returns false. So the lint rule is satisfied by
-// parametrising the data return on a type parameter and defaulting it to
-// `unknown` at the use site — which is exactly what this shape does.
+// The shape that satisfies *both* `no-unknown-returns` and the
+// production-side typecheck is a generic type alias whose body is a
+// type literal with method-shorthand syntax. The two properties at
+// play:
 //
-// Why a *type alias* (not an interface): an interface with method shorthand
-// syntax (`fetch(): X`) is a `TSMethodSignature`, and the rule's
-// `checkReturnType` visits `TSMethodSignature` directly. A type alias's
-// `(vars: T) => X` is a `TSPropertySignature` with a `TSFunctionType`
-// child — the rule visits the `TSFunctionType` but the *containing*
-// declaration is a *type alias*, and the rule's alias map records
-// `RoutePreloadFactory` as a declared alias with `typeParameters !== null`,
-// so `resolvesToUnknown` returns false on the type-parameter return.
+// (1) Method-shorthand bivariance (TypeScript 2.4) applies to the
+//     type literal body even when the literal is wrapped in a
+//     generic alias — verified empirically in
+//     `apps/front/src/test-shape9.ts`: a
+//     `type Factory<TVariables, TData> = {
+//       queryKey(variables: TVariables): QueryKey;
+//       fetcher(variables: TVariables): Promise<TData>;
+//     }` accepts a production factory
+//     `prod = { queryKey: (vars: ConcreteVars) => QueryKey; ... }`
+//     at `Factory<unknown, unknown>`. Method-shorthand
+//     function-parameter contravariance is relaxed even through a
+//     generic alias wrapper.
+//
+// (2) The `no-unknown-returns` rule
+//     (`packages/lint-ts/src/anti-slop/rules/no-unknown-returns.ts`)
+//     recurses into the alias body and visits the
+//     `TSMethodSignature`. For `fetcher(): Promise<TData>`: the rule
+//     unwraps `Promise` to `TData` (a `TSTypeReference` with no
+//     `typeArguments`, since `TData` is a free type parameter).
+//     `referencedAliasName` returns `'TData'`. The rule then looks
+//     up `TData` in its `aliases` map (line 72) — type parameters
+//     are not declared aliases, so the lookup returns undefined
+//     and the function would return `false`... BUT the rule ALSO
+//     passes `lexicalTypeParameterNames(node, visitorKeys)` as
+//     `shadowedAliases` (line 94). That helper walks up the parent
+//     chain (verified in
+//     `packages/lint-ts/src/anti-slop/shared/lexical-type-parameters.ts`)
+//     and collects the type parameter names of every enclosing
+//     declaration: the inner method signature's parent is the type
+//     literal (no typeParameters), whose parent is the
+//     `TSTypeAliasDeclaration` whose `typeParameters` are
+//     `[TVariables, TData]`. The shadowed set is
+//     `{TVariables, TData}`. The check at line 70
+//     (`shadowedAliases.has(name)`) returns `true` for `'TData'`
+//     and `resolvesToUnknown` short-circuits to `false`.
+//
+// Earlier drafts failed for opposite reasons:
+//
+// - A *non-generic* type alias with method shorthand
+//   (`type Factory = { fetcher(vars: unknown): Promise<unknown> }`)
+//   is bivariant for function parameters but the rule fires on
+//   `Promise<unknown>` (resolves to unknown via the Promise
+//   unwrap).
+// - A *generic* type alias with property-style function values
+//   (`type Factory<T> = { fetcher: (vars: T) => Promise<T> }`)
+//   satisfies the rule (the alias is generic, the return is a
+//   type-parameter `Promise<T>`) but is NOT bivariant — method
+//   shorthand syntax is what triggers the TS bivariance, not
+//   function-typed properties. The production factories fail the
+//   `Factory<unknown, unknown>` assignment.
+//
+// The combination here is the only shape that satisfies both.
 export type RoutePreloadFactory<TVariables = unknown, TData = unknown> = {
-	queryKey: (variables: TVariables) => QueryKey;
-	fetcher: (variables: TVariables) => Promise<TData>;
+	queryKey(variables: TVariables): QueryKey;
+	fetcher(variables: TVariables): Promise<TData>;
 };
 
 // The `RoutePreload` (function) stores a *list* of `RoutePreloadEntry`s.
@@ -43,7 +81,9 @@ export type RoutePreloadFactory<TVariables = unknown, TData = unknown> = {
 // etc. fields) still fit. The index signature is `readonly` because
 // preload entries are an immutable intent, not a mutable store.
 export type RoutePreloadEntry = {
-	options: RoutePreloadFactory<unknown> & { readonly [key: string]: unknown };
+	options: RoutePreloadFactory<unknown, unknown> & {
+		readonly [key: string]: unknown;
+	};
 	variables: Record<string, unknown>;
 };
 
