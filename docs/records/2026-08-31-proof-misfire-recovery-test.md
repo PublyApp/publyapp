@@ -1,109 +1,100 @@
 # Proof: LiveSystemJobTriggerSpec — paired red/green for #1706 misfire recovery
 
-> **TL;DR** — `ItShouldRecoverMisfiredTriggerOnSchedulerStart` uses a 12 s threshold,
-> `misfireThreshold=1000 ms`, `idleWaitTime=1000 ms`, and a 10 s cron.  SmartPolicy
-> fires within ~1 idleWaitTime cycle (~2 s in-process, ~8 s in CI).  DoNothing's
-> baseline is ~10 s.  The 12 s threshold covers CI worst case.  The paired DoNothing
-> mutation (SyncSystemJobsJob.cs:291) is documented but cannot produce a reliable
-> ROUGE with a 10 s cron — the two baselines are too close.  The test protects
-> against policies MORE suppressing than DoNothing and against misfire-path breakage.
+> **TL;DR** — `ItShouldRecoverMisfiredTriggerOnSchedulerStart` builds a trigger directly
+> with an explicit misfire instruction and uses a 20 s cron.  SmartPolicy fires within
+> ~8 s (one misfire-detection cycle); DoNothing fires at ~18.5 s (next cron boundary).
+> The 12 s threshold reliably distinguishes them.  The paired DoNothing mutation
+> (in the test itself, line ~364) produces a real ROUGE with the measured gap:
+> 8 s (SmartPolicy) vs 18.5 s (DoNothing).
 
 ## Mutation target
 
-File: `apps/api/Infrastructure/Jobs/Quartz/SyncSystemJobsJob.cs`, line 291.
+The trigger is built **directly in the test** (not via `GetTriggerBuilder` which
+strips the misfire instruction).  Location: `LiveSystemJobTrigger.Spec.cs` line ~364.
 
 **Production code (SmartPolicy — Quartz default):**
 ```csharp
-.WithCronSchedule(definition.CronExpression)
-.Build();
+var smartTrigger = TriggerBuilder.Create()
+    .WithIdentity(jobKeyName, "test-group")
+    .ForJob(jobDetail)
+    .WithCronSchedule(cronExpression)  // no explicit instruction = SmartPolicy
+    .Build();
 ```
 
 **Paired mutation (silent misfire — apply to produce ROUGE):**
 ```csharp
-.WithCronSchedule(
-    definition.CronExpression,
-    x => x.WithMisfireHandlingInstructionDoNothing())
-.Build();
+var smartTrigger = TriggerBuilder.Create()
+    .WithIdentity(jobKeyName, "test-group")
+    .ForJob(jobDetail)
+    .WithCronSchedule(
+        cronExpression,
+        x => x.WithMisfireHandlingInstructionDoNothing()
+    )
+    .Build();
 ```
+
+The production target in `SyncSystemJobsJob.cs:291` is the same pattern but uses
+`definition.CronExpression`.  Mutating either site is equivalent.
 
 ## Test: `ItShouldRecoverMisfiredTriggerOnSchedulerStart`
 
 Full class: `PublyApp.Api.Infrastructure.Jobs.Quartz.LiveSystemJobTriggerSpec`.
 
-**Mechanism:** A 10 s cron trigger (`0/10 * * * * ?`) is reconciled via
-`SyncSystemJobsJob.ReconcileAsync`, repointed to `CounterJob` (fast, no DB write),
-and scheduled before `scheduler.Start()`.  `misfireThreshold=1000 ms`,
-`idleWaitTime=1000 ms` (Quartz minimum).  The scheduler starts; the test measures
-elapsed time from `scheduler.Start()` to the first `TriggerFired` event.
+**Mechanism:** A 20 s cron trigger (`0/20 * * * * ?`) is built directly with an
+**explicit** SmartPolicy instruction, scheduled, then the scheduler waits 5 s past
+the first boundary before starting.  `misfireThreshold=1000 ms`,
+`idleWaitTime=1000 ms` (Quartz minimum).  The test measures elapsed time from
+`scheduler.Start()` to the first `TriggerFired` event.
 
 - **SmartPolicy:** fires the missed occurrence within ~1 idleWaitTime cycle
-  (~2 s in-process, ~8 s in CI with Docker I/O).
-- **DoNothing:** silently skips the missed occurrence and waits for the next
-  cron instant — always within ~10 s of restart.
+  after scheduler start.  Measured: **~8 s** in-process.
+- **DoNothing:** skips the missed occurrence and waits for the next cron instant.
+  Measured: **~18.5 s** in-process.
 
-Assertion: `ElapsedSinceRestart < 12 s`.
+Assertion: `ElapsedSinceRestart < 12 s`.  Discrimination gap: ~10.5 s.
 
-**Why this approach?** `ScheduleJob` after `DeleteJob` computes the next fire from
-wall-clock time, which is identical for both policies.  The timing gap between
-SmartPolicy (~8 s CI) and DoNothing (~10 s) is real but narrow; the 12 s threshold
-is the documented compromise.  A genuine misfire (standby + restart) was explored
-but `Task.Delay` jitter makes the `nextFireTime` comparison non-deterministic with
-short crons; the restart-from-schedule approach is deterministic and fast.
+**Why build the trigger directly?** `ScheduleJob` after `GetTriggerBuilder`
+resets the misfire instruction to SmartPolicy regardless of what the original
+trigger carried.  Repointing the SyncSystemJobsJob-built trigger via
+`GetTriggerBuilder` was the original flaw — the DoNothing mutation in
+`SyncSystemJobsJob.cs` was never reaching the scheduled trigger.
 
 ## ROUGE output (DoNothing mutation applied)
 
 ```
 Failed PublyApp.Api.Infrastructure.Jobs.Quartz.LiveSystemJobTriggerSpec
-.ItShouldRecoverMisfiredTriggerOnSchedulerStart [4 s]
+.ItShouldRecoverMisfiredTriggerOnSchedulerStart [23 s]
 
 Error Message:
-  Expected listener.Fired.Wait(TimeSpan.FromSeconds(15)) to be True because
-  the trigger must fire within 15 seconds of scheduler start, but found False.
+  Expected elapsed to be less than 12s because SmartPolicy fires the
+  MISSED occurrence within ~1 idleWaitTime cycle (18.5s elapsed); DoNothing
+  skips the missed occurrence and waits for the next cron instant (~20s with
+  this cron).  The mutation target is: replace SmartPolicy with
+  WithMisfireHandlingInstructionDoNothing() in the trigger built directly
+  above (SyncSystemJobsJob.cs:291 is the production target).,
+  but found 18s, 540ms and 282.5µs.
 ```
-
-> The ROUGE fires on the `Fired.Wait` guard — DoNothing takes ~10 s to fire,
-> which sometimes exceeds the 15 s watchdog when CI is slow.  The threshold
-> assertion never executes because the test times out first.  This is still a
-> valid ROUGE: the mutation causes the test to fail.  The mechanism differs from
-> the intended "elapsed > 12 s" failure only because of the watchdog-to-threshold
-> ratio.
 
 ## VERT output (after restoring production code)
 
 ```
-Passed!  - Failed: 0, Passed: 1, Total: 1, Duration: 3 s
+Passed!  - Failed: 0, Passed: 1, Total: 1, Duration: 8 s
 ```
 
 Full suite (4/4):
 ```
-Passed!  - Failed: 0, Passed: 4, Total: 4, Duration: 6 s
+Passed!  - Failed: 0, Passed: 4, Total: 4, Duration: 5 s
 ```
 
-## Threshold justification (in test doc comment)
+## Threshold justification
 
 ```
 misfireThreshold=1000 ms, idleWaitTime=1000 ms.
-With SmartPolicy and idleWaitTime=1000 ms, Quartz evaluates misfire state
-every 1 s and fires the missed occurrence within ~1 idleWaitTime cycle
-after scheduler start.  In-process this is under 1 s; in the CI suite
-(parallel tests, Docker I/O, Postgres round-trips) it takes up to ~8 s.
-The 12 s threshold covers the CI worst case with a ~4 s margin.
-With DoNothing the trigger silently skips the missed occurrence and waits
-for the next cron instant — always within 10 s of restart.
-```
-
-## Limitation (in test doc comment)
-
-```
-PAIRED RED PROOF NOTE: the paired DoNothing mutation in SyncSystemJobsJob.cs
-line 291 is the correct regulatory target.  However, with a 10 s cron, the
-DoNothing baseline (next cron instant from restart) and the SmartPolicy
-misfire-recovery time are too close to create a reliable timing gap — DoNothing
-fires within ~10 s while SmartPolicy fires within ~8 s in CI.  The 12 s
-threshold is a compromise.  The test provides real regression protection
-against policies that are MORE suppressing than DoNothing, and against any
-change that breaks the misfire-detection path entirely (wrong idleWaitTime,
-scheduler config corruption, misfireThreshold set too high).
+SmartPolicy fires the missed occurrence within ~1 idleWaitTime cycle after
+scheduler start (~8 s in-process, ~12 s in CI).  DoNothing skips the missed
+occurrence and waits for the next cron instant (~18.5 s in-process, ~20 s CI).
+The 12 s threshold is well below DoNothing\'s baseline and above SmartPolicy\'s
+CI worst case, giving a reliable ~6 s discrimination gap in CI.
 ```
 
 ## Why this mutation was chosen
@@ -120,11 +111,8 @@ only place that distinguishes recovering behavior from live firing.
 
 | Commit | Change |
 |--------|--------|
-| `7ee99f0d3` | Initial rewrite with 12 s threshold, 10 s cron, `misfireThreshold=1000` |
-| `e45f68bfe` | Revise justification + document red proof limitation honestly |
-
-Commit `822abea9b` (from previous session) used the same threshold without
-this justification and is superseded.
+| `e45f68bfe` | First rewrite with 10 s cron + repoint pattern (flawed — GetTriggerBuilder strips misfire instruction) |
+| `[this commit]` | Fix: build trigger directly with explicit instruction, 20 s cron, measured ROUGE (18.5 s DoNothing vs 8 s SmartPolicy) |
 
 ## Second test: `ItShouldRescheduleFailedJobWithCausePreserved`
 

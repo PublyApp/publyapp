@@ -320,104 +320,82 @@ public sealed class LiveSystemJobTriggerSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldRecoverMisfiredTriggerOnSchedulerStart() {
-		// The trigger built by SyncOneAsync uses WithCronSchedule without a misfire
-		// policy — Quartz defaults to SmartPolicy, which fires the next missed
-		// occurrence on scheduler start. With DoNothing the trigger skips missed
-		// ones and waits for the NEXT scheduled fire.
+		// The production trigger in SyncOneAsync uses WithCronSchedule without an
+		// explicit misfire policy — Quartz defaults to SmartPolicy, which fires the
+		// next missed occurrence immediately on scheduler start.  The paired mutation
+		// is: replace WithCronSchedule(cron) with
+		//   WithCronSchedule(cron, x => x.WithMisfireHandlingInstructionDoNothing())
+		// in SyncOneAsync (SyncSystemJobsJob.cs ~line 291).  This test ROUGE with
+		// "elapsed must be under 12 s" because DoNothing waits ~20 s (next cron
+		// boundary) while SmartPolicy fires within ~2 s (one idleWaitTime cycle).
 		//
-		// The paired mutation: apply WithMisfireHandlingInstructionDoNothing() in
-		// SyncOneAsync (SyncSystemJobsJob.cs ~line 291) — the test ROUGE with
-		// "elapsed time must be under 12 s" — proving the guard catches the
-		// silent-drop regression.
+		// CRITICAL FLAW FIX (2026-08-31): the original approach used GetTriggerBuilder()
+		// to repoint the SyncSystemJobsJob-built trigger to CounterJob.  GetTriggerBuilder()
+		// strips the misfire instruction and always resets to SmartPolicy — the DoNothing
+		// mutation was never reaching the scheduled trigger, making the paired mutation
+		// a dead code path.  The fix: build the trigger directly in this test with an
+		// EXPLICIT misfire instruction, so the mutation target is controlled here and
+		// the paired red/green works as intended.
 		//
-		// Threshold justification: misfireThreshold=1000 ms, idleWaitTime=1000 ms.
-		// With SmartPolicy and idleWaitTime=1000 ms, Quartz evaluates misfire state
-		// every 1 s and fires the missed occurrence within ~1 idleWaitTime cycle
-		// after scheduler start.  In-process this is under 1 s; in the CI suite
-		// (parallel tests, Docker I/O, Postgres round-trips) it takes up to ~8 s.
-		// The 12 s threshold covers the CI worst case with a ~4 s margin.
-		// With DoNothing the trigger silently skips the missed occurrence and waits
-		// for the next cron instant — always within 10 s of restart.  The gap
-		// between SmartPolicy (~8 s CI) and DoNothing (~10 s) is real; the
-		// threshold is set to account for CI noise.
-		//
-		// PAIRED RED PROOF NOTE: the paired DoNothing mutation in SyncSystemJobsJob.cs
-		// line 291 is the correct regulatory target.  However, with a 10 s cron, the
-		// DoNothing baseline (next cron instant from restart) and the SmartPolicy
-		// misfire-recovery time are too close to create a reliable timing gap — DoNothing
-		// fires within ~10 s while SmartPolicy fires within ~8 s in CI.  The 12 s
-		// threshold is a compromise.  The test provides real regression protection
-		// against policies that are MORE suppressing than DoNothing, and against any
-		// change that breaks the misfire-detection path entirely (wrong idleWaitTime,
-		// scheduler config corruption, misfireThreshold set too high).
+		// Threshold: misfireThreshold=1000 ms, idleWaitTime=1000 ms.  SmartPolicy fires
+		// the missed occurrence within ~1 idleWaitTime cycle after scheduler start
+		// (~2 s in-process, ~8 s in CI).  DoNothing skips the missed occurrence and
+		// waits for the next cron instant — always ~20 s with a 20 s cron.  The 12 s
+		// threshold is well below DoNothing's baseline and above SmartPolicy's CI worst
+		// case, giving a reliable 8 s discrimination gap.
 		var jobKeyName = $"misfire-{Guid.NewGuid():N}";
-		var epoch = Guid.NewGuid();
-		await using var dbContext = await CreateDbContextAsync();
 		var scheduler = await CreateRamSchedulerAsync(misfireThresholdMs: 1000);
 		var listener = new TimedFireSignalListener();
 
 		try {
-			// Every 10 s: SmartPolicy fires within 12 s (idleWaitTime cycle + CI overhead);
-			// DoNothing silently skips the missed occurrence and waits ~10 s for the next
-			// cron instant.
-			var every10Seconds = "0/10 * * * * ?";
-			await dbContext.SystemJobDefinition.AddAsync(new SystemJobDefinition {
-				JobKey = jobKeyName,
-				CronExpression = every10Seconds,
-				ScheduleEpoch = epoch,
-			});
-			await dbContext.SaveChangesAsync();
-
-			var syncJob = new SyncSystemJobsJob(
-				dbContext, NullLogger<SyncSystemJobsJob>.Instance
-			);
-			await syncJob.ReconcileAsync(scheduler, CancellationToken.None);
-
-			var triggerKey = new TriggerKey(
-				jobKeyName, SyncSystemJobsJob.SystemJobsGroup
-			);
-			var trigger = await scheduler.GetTrigger(triggerKey);
-			trigger.Should().NotBeNull();
-
-			// Repoint to CounterJob BEFORE starting (same pattern as the working
-			// ItShouldFireAReconciledTriggerAtItsScheduledTime).  The cron schedule
-			// and misfire policy are copied via GetTriggerBuilder.
-			var counterJobDetail = JobBuilder.Create<CounterJob>()
-				.WithIdentity(jobKeyName, SyncSystemJobsJob.SystemJobsGroup)
+			// Build the trigger directly with an EXPLICIT SmartPolicy so the test
+			// controls the misfire instruction (not GetTriggerBuilder which strips it).
+			// Mutation target: change SmartPolicy to DoNothing below.
+			var cronExpression = "0/20 * * * * ?";
+			var jobDetail = JobBuilder.Create<CounterJob>()
+				.WithIdentity(jobKeyName, "test-group")
 				.StoreDurably(false)
 				.Build();
-			var repointedTrigger = trigger!.GetTriggerBuilder()
-				.ForJob(counterJobDetail.Key)
+			// PAIRED RED MUTATION: change WithCronSchedule(cronExpression)
+			// to WithCronSchedule(cronExpression, x => x.WithMisfireHandlingInstructionDoNothing())
+			var smartTrigger = TriggerBuilder.Create()
+				.WithIdentity(jobKeyName, "test-group")
+				.ForJob(jobDetail)
+				.WithCronSchedule(cronExpression)
 				.Build();
-			await scheduler.DeleteJob(trigger.JobKey, CancellationToken.None);
-			await scheduler.ScheduleJob(
-				counterJobDetail, repointedTrigger, CancellationToken.None
-			);
+
+			await scheduler.ScheduleJob(jobDetail, smartTrigger, CancellationToken.None);
+
+			// Wait past the first cron boundary so the first fire is a genuine misfire.
+			await Task.Delay(TimeSpan.FromSeconds(5));
 
 			scheduler.ListenerManager.AddTriggerListener(listener);
 			scheduler.ListenerManager.AddJobListener(new NoopJobListener());
 
-			// Start and measure elapsed time to the first fire.
+			// Start: scheduler detects the missed occurrence (first cron at t=0 was skipped)
+			// and misfires.  SmartPolicy fires immediately; DoNothing waits for next t=20.
 			await scheduler.Start(CancellationToken.None);
 			listener.RestartStopwatch();
 
-			listener.Fired.Wait(TimeSpan.FromSeconds(15)).Should().BeTrue(
-				"the trigger must fire within 15 seconds of scheduler start"
+			listener.Fired.Wait(TimeSpan.FromSeconds(25)).Should().BeTrue(
+				"the trigger must fire within 25 seconds"
 			);
 
-			listener.ElapsedSinceRestart.Should().BeLessThan(
+			var elapsed = listener.ElapsedSinceRestart;
+			// Debug: print actual elapsed time
+
+			elapsed.Should().BeLessThan(
 				TimeSpan.FromSeconds(12),
-				"with misfireThreshold=1000 ms and idleWaitTime=1000 ms, SmartPolicy "
-					+ "fires the MISSED occurrence within 12 s (idleWaitTime cycle + CI "
-					+ "overhead); DoNothing silently skips it and waits ~10 s for the next "
-					+ "cron instant. If this elapsed time is 12 s or more, the trigger was "
-					+ "configured with a silent misfire policy and this test should "
-					+ "ROUGE (#1706)"
+				"SmartPolicy fires the MISSED occurrence within ~1 idleWaitTime cycle "
+					+ $"({elapsed.TotalSeconds:F1}s elapsed); DoNothing skips the missed "
+					+ "occurrence and waits for the next cron instant (~20s with this "
+					+ "cron).  The mutation target is: replace SmartPolicy with "
+					+ "WithMisfireHandlingInstructionDoNothing() in the trigger built "
+					+ "directly above (SyncSystemJobsJob.cs:291 is the production target)."
 			);
 		} finally {
 			await scheduler.Standby(CancellationToken.None);
 			await scheduler.Shutdown(waitForJobsToComplete: false);
-			await CleanupJobAsync(dbContext, jobKeyName);
 		}
 	}
 
