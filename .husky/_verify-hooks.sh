@@ -60,12 +60,15 @@ index_mode() {
 }
 
 # Returns 0 if the 3- or 6-digit mode string represents an executable file
-# (any of the owner/group/other execute bits set). An octal digit is odd
-# exactly when its execute bit is set, so we check every digit — git's
-# 100755 has 7 and 5 (odd), 100644 has only evens.
+# (any of the owner/group/other execute bits set). Git prefixes regular
+# files with `100`, so strip that first, then check if any of the three
+# permission digits is odd — an octal digit is odd exactly when its
+# execute bit is set. `100755` → `755` → 7 and 5 are odd → executable.
+# `100644` → `644` → all even → not executable.
 is_executable() {
-	case $1 in
-		*[1357]) return 0 ;;
+	local trimmed=${1#100}
+	case $trimmed in
+		*1*|*3*|*5*|*7*) return 0 ;;
 	esac
 	return 1
 }
