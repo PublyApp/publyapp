@@ -272,9 +272,9 @@
 			"reason": "GitHub-only: round-5 BLOCKER fix. Reads steps.check-required-jobs.outcome, which GitHub computes BEFORE continue-on-error is applied (only .conclusion is rewritten afterward), so a continue-on-error added to the required-jobs check step cannot mask this step's own view of whether that step actually succeeded. That `.outcome` context only exists inside a real Actions run, so this stays GitHub-only/unmirrored locally; packages/scripts-ts/src/check-ci-gate-structure.ts pins that this exact step exists."
 		},
 		"front-ci.yml::supply-chain::Assert exact pins": {
-			"hash": "9f0331695e45ef30",
+			"hash": "d9b724c399552197",
 			"mirror": "just ci-install",
-			"reason": "ci-install runs the identical command: node apps/front/scripts/guards/assert-pinned.mts."
+			"reason": "ci-install runs the identical command: node apps/front/scripts/run-guarded.mts apps/front/scripts/guards/assert-pinned.mts (wrapped #1525)."
 		},
 		"front-ci.yml::supply-chain::Audit production dependencies (moderate and above)": {
 			"hash": "8d5095ef73aba7b3",
@@ -357,14 +357,14 @@
 			"reason": "ci-front runs the identical pnpm --filter front typecheck."
 		},
 		"front-ci.yml::supply-chain::Verify front production build emits a CSS asset": {
-			"hash": "2cdea9498a1d6325",
+			"hash": "a43077611b497e64",
 			"mirror": "just ci-front",
-			"reason": "ci-front runs pnpm --filter front verify:build, whose script body is the same scripts/guards/verify-build-css-link.mts call."
+			"reason": "ci-front runs pnpm --filter front verify:build, whose script body is the same scripts/guards/verify-build-css-link.mts call (wrapped #1525). The CI step invokes node apps/front/scripts/run-guarded.mts apps/front/scripts/guards/verify-build-css-link.mts; the local run is equivalent."
 		},
 		"front-ci.yml::supply-chain::Verify front production font bundle references and unicode coverage": {
-			"hash": "cce3dbe7f24e28a4",
+			"hash": "68a8bb911e6e0195",
 			"mirror": "just ci-front",
-			"reason": "ci-front runs pnpm --filter front verify:build, whose script body now also calls scripts/guards/verify-font-bundle.mts. The CI step passes --dist apps/front/dist and --locales-dir apps/front/src/i18n/locales explicitly; the script defaults resolve to the same two paths when it runs with apps/front as the working directory, so the local run is equivalent rather than merely similar."
+			"reason": "ci-front runs pnpm --filter front verify:build, whose script body now also calls scripts/guards/verify-font-bundle.mts (wrapped #1525). The CI step invokes node apps/front/scripts/run-guarded.mts apps/front/scripts/guards/verify-font-bundle.mts --dist apps/front/dist --locales-dir apps/front/src/i18n/locales; the local run is equivalent."
 		},
 		"front-ci.yml::supply-chain::Verify paired red proofs": {
 			"hash": "84a5033fcfbeb3dd",
@@ -427,7 +427,7 @@
 			"reason": "GitHub-only, fork runs only (#1021): actions/upload-artifact moves the image tarballs from the build runner to the versioned artifact the shards download \u2014 the registry-free stand-in for the GHCR hop. Locally there is nothing to upload; the images are already where the stack starts."
 		},
 		"front-e2e.yml::build::Verify the built front image starts and serves HTTP": {
-			"hash": "f01891903203a11f",
+			"hash": "61014760a5e4a792",
 			"mirror": "pnpm --filter front check:front-runtime-image",
 			"reason": "#1628 round 10 build-artifact guard: starts the just-built front image as a container with the production env surface (NODE_ENV=production, PUBLIC_ORIGIN, SERVER_API_BASE_URL, TRUSTED_PROXY_CIDRS \u2014 the same validateRuntimeEnv() gate #1731 enforces) and waits for an actual HTTP response, not merely for 'the process is running'. A container that crashes at startup with ERR_MODULE_NOT_FOUND is the exact shape the front fell into when trust-proxy.mjs was added without a matching COPY in the Dockerfile \u2014 nine rounds of 'tests pass' missed it because every other e2e test only fails downstream with a generic 'element(s) not found'. The local mirror runs the same guard script against a freshly built image (default tag publyapp-front-runtime-guard:local), so it exercises the same COPY-surface property the CI step guards."
 		},
@@ -477,9 +477,9 @@
 			"reason": "GitHub-only: round-5 BLOCKER fix. Reads steps.check-required-jobs.outcome, which GitHub computes BEFORE continue-on-error is applied (only .conclusion is rewritten afterward), so a continue-on-error added to the required-jobs check step cannot mask this step's own view of whether that step actually succeeded. That `.outcome` context only exists inside a real Actions run, so this stays GitHub-only/unmirrored locally; packages/scripts-ts/src/check-ci-gate-structure.ts pins that this exact step exists."
 		},
 		"front-e2e.yml::test::Assert exact pins": {
-			"hash": "9f0331695e45ef30",
+			"hash": "d9b724c399552197",
 			"mirror": "just ci-install",
-			"reason": "ci-install runs the identical node apps/front/scripts/guards/assert-pinned.mts."
+			"reason": "ci-install runs the identical node apps/front/scripts/run-guarded.mts apps/front/scripts/guards/assert-pinned.mts (wrapped #1525)."
 		},
 		"front-e2e.yml::test::Cache Playwright browsers": {
 			"hash": "2a9fc7ccfef22deb",
@@ -692,9 +692,9 @@
 			"reason": "ci-dockerignore-shadow runs the identical `node packages/scripts-ts/src/check-dockerignore-shadow.ts`, which walks the REAL working tree (the same filesystem a build context is drawn from) and flags every file whose basename ends with `.dockerignore` case-insensitively but is not exactly `.dockerignore`. Git-ignored paths (e.g. parallel .worktrees/) are filtered out via a single batch `git check-ignore --stdin -z` call (issue #1909 class). The `-v` form is deliberately NOT used: it was the round-4 defect, because its verbose output changes the parse shape. See issue #1849."
 		},
 		"quality-gate.yml::quality::Assert exact pins": {
-			"hash": "9f0331695e45ef30",
+			"hash": "d9b724c399552197",
 			"mirror": "just ci-install",
-			"reason": "ci-install runs the identical command: node apps/front/scripts/guards/assert-pinned.mts."
+			"reason": "ci-install runs the identical command: node apps/front/scripts/run-guarded.mts apps/front/scripts/guards/assert-pinned.mts (wrapped #1525)."
 		},
 		"quality-gate.yml::quality::Audit development dependencies (moderate and above)": {
 			"hash": "60fbf11c313950ad",
