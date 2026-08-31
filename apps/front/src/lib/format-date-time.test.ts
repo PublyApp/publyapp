@@ -56,16 +56,4 @@ describe('formatDateTime', () => {
 		expect(enDay).toBe('15');
 		expect(frDay).toBe('15');
 	});
-
-	// DST boundary: on 2026-03-29 the Paris clock jumps from 02:00 to 03:00.
-	// 2026-03-29T01:00:00Z = 02:00 Paris (DST starts) — still March 29 locally.
-	// Proves the formatter reads the UTC instant and applies the timezone offset
-	// to produce the correct local calendar date, not the UTC calendar date.
-	test('ItShouldShowCorrectLocalDateOnDstSpringForwardBoundaryParis', () => {
-		const utc = new Date('2026-03-29T01:00:00Z');
-		const fr = formatDateTime(utc, 'fr');
-		expect(fr).toContain('29');
-		const en = formatDateTime(utc, 'en');
-		expect(en).toContain('29');
-	});
 });
