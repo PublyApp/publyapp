@@ -1,0 +1,11 @@
+{
+	"$schema": "../expected-red.schema.json",
+	"_comment": "Per-test kept-red expectation manifest (required since #1806 r11 — the runner fails loud when a declared proof lacks it). The declared test MUST fail with an AssertionError on correct code.",
+	"expectedRed": [
+		{
+			"testName": "RED: a shadow under a git-ignored AND mirrored path is falsely reported when the .dockerignore opens with blank/comment lines and globs (issue #1977)",
+			"why": "On correct code the mirror check skips blank/comment/glob lines and the exact .dump/ line matches, so the guard drops the shadow and exits 0; the assertion that the guard exits 1 fails with an AssertionError. If this test passes, the false positive (comment/undecidable lines vetoing a later exact mirror line) is back."
+		}
+	],
+	"measuredAgainst": "f53ecf7dc7b9cc91b0c986f756edf0aa96a3afa1"
+}

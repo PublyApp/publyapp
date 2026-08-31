@@ -1,0 +1,11 @@
+{
+	"$schema": "../expected-red.schema.json",
+	"_comment": "Per-test kept-red expectation manifest (required since #1806 r11 — the runner fails loud when a declared proof lacks it). The declared test MUST fail with an AssertionError on correct code.",
+	"expectedRed": [
+		{
+			"testName": "RED: a subdirectory .dockerignore is not detected by any guard (undetected, issue #1891)",
+			"why": "On correct code the guard names apps/api/.dockerignore and exits 1; the assertion that the guard exits 0 fails with an AssertionError. If this test passes, the subdirectory .dockerignore silence (no guard detecting it at all) is back."
+		}
+	],
+	"measuredAgainst": "f53ecf7dc7b9cc91b0c986f756edf0aa96a3afa1"
+}
