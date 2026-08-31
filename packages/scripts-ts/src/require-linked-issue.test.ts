@@ -370,6 +370,48 @@ test('the real workflow PASSES (exit 0) for a body that closes a real issue', as
 	assert.equal(code, 0, 'a body closing a real issue must pass the gate');
 });
 
+test.each(['Part of #647', 'Refs #647', 'References #647'])(
+	'the real workflow PASSES for an honest non-closing issue link: %s',
+	async (body) => {
+		const runBody = await readRunBody();
+		const { code } = runStep(runBody, { author: 'octocat', body });
+
+		assert.equal(
+			code,
+			0,
+			'a partial slice must be allowed to link its parent without falsely closing it',
+		);
+	},
+);
+
+test('the real workflow still FAILS for an unqualified bare issue number', async () => {
+	const runBody = await readRunBody();
+	const { code } = runStep(runBody, {
+		author: 'octocat',
+		body: 'Touches #647',
+	});
+
+	assert.equal(
+		code,
+		1,
+		'an arbitrary bare issue mention must not satisfy the gate',
+	);
+});
+
+test('the real workflow rejects a non-closing link to a pull request', async () => {
+	const runBody = await readRunBody();
+	const { code } = runStep(runBody, {
+		author: 'octocat',
+		body: 'Part of #2032',
+	});
+
+	assert.equal(
+		code,
+		1,
+		'a non-closing link must still resolve to a real issue',
+	);
+});
+
 test('the real workflow PASSES (exit 0) for a body closing both a PR and a real issue', async () => {
 	const runBody = await readRunBody();
 

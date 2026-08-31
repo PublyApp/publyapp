@@ -242,7 +242,7 @@
 		"react-doctor.yml::react-doctor::Setup Node",
 		"require-linked-issue.yml::pr-body-exhaustiveness::Checkout",
 		"require-linked-issue.yml::pr-body-exhaustiveness::Verify the PR body makes no unverifiable exhaustiveness claims (#1569)",
-		"require-linked-issue.yml::require-linked-issue::Verify the PR closes an existing issue"
+		"require-linked-issue.yml::require-linked-issue::Verify the PR links an existing issue"
 	],
 	"steps": {
 		"api-tests.yml::changes::Check whether api-tests paths changed": {
@@ -949,9 +949,9 @@
 			"reason_hash": "c741d8e30523ae13",
 			"reason": "GitHub-only Node setup. Locally the Node version is pinned by .node-version / .nvmrc."
 		},
-		"require-linked-issue.yml::require-linked-issue::Verify the PR closes an existing issue": {
-			"reason_hash": "9f671866bb224574",
-			"reason": "Reads github.event.pull_request.body. At pre-push time there is no PR and therefore no body to check, so this gate is unreproducible locally by construction rather than by omission. The step gained a #1240 waiver that short-circuits to success for PR_AUTHOR == 'dependabot[bot]' (exact-login policy, not github.actor, not a label); the waiver's exact shape is guarded by packages/scripts-ts/src/require-linked-issue.test.ts, which just ci-drift now runs, but the step itself (which reads the live PR body) stays a GitHub-only required check."
+		"require-linked-issue.yml::require-linked-issue::Verify the PR links an existing issue": {
+			"reason_hash": "cb99d029aa535425",
+			"reason": "Reads github.event.pull_request.body. At pre-push time there is no PR and therefore no body to check, so the live step is unreproducible locally by construction. Its shell body is nevertheless executed against a mocked GitHub CLI by packages/scripts-ts/src/require-linked-issue.test.ts, which pins exact Dependabot waiver semantics, closing and non-closing issue relationships, rejection of arbitrary bare mentions, and rejection of references to pull requests."
 		},
 		"front-ci.yml::supply-chain::Test front (non-vitest)": {
 			"reason_hash": "dead675ca5c39cbd",
