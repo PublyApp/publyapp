@@ -236,7 +236,7 @@ export const classFqnFromListLine = (line: string): string | null => {
  * entries. Preserves the original line text on every emitted entry, so
  * the consumer can reuse xUnit's filter syntax directly: a shard's
  * `entries` joined by `|` produces a `--filter` predicate of
- * `FullyQualifiedName~"name1"|FullyQualifiedName~"name2"|...` that
+ * `FullyQualifiedName~name1|FullyQualifiedName~name2|...` that
  * matches exactly the methods the runner would have discovered.
  *
  * @param {string} listOutput - the entire stdout of

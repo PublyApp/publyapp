@@ -13,7 +13,8 @@ import {
 // Usage:
 //   shard-api-tests-cli <shard>              # 1..SHARD_COUNT; print
 //                                            #   FullyQualifiedName~FQN1|FullyQualifiedName~FQN2|...
-//                                            #   for `dotnet test --filter`
+//                                            #   for `dotnet test --filter` (NO double quotes
+//                                            #   around the class names — see MSB4177 below)
 //   shard-api-tests-cli --count <shard>      # print "shard <N> tests: K of T"
 //                                            #   (K = entries in shard, T = total)
 //   shard-api-tests-cli --manifest           # print JSON manifest with
@@ -88,12 +89,28 @@ const predicateForClasses = (classNames: string[]): string => {
 		// character and short-circuits to "no test matches", which is
 		// what we want for an empty shard: a fast green run, not an
 		// error.
-		return 'FullyQualifiedName~"\u0000never-matches"';
+		//
+		// NO DOUBLE QUOTES: MSBuild parses `--filter X=Y` as a property
+		// assignment (MSB4177). The `~` operator is not `=` so it is
+		// not misread as a property — but an embedded `"` in the
+		// predicate still lets MSBuild try to parse the fragment as a
+		// property name (the predicate is split on `=`, not just `~`).
+		// The NUL byte alone is sufficient to make xUnit match nothing;
+		// quoting it invites the same parse that broke rounds 1-4 of
+		// #1984.
+		return 'FullyQualifiedName~\u0000never-matches';
 	}
 
-	return classNames
-		.map((name) => `FullyQualifiedName~"${name.replace(/"/g, '\\"')}"`)
-		.join('|');
+	// NO DOUBLE QUOTES around the class name: a fully-qualified .NET
+	// test class name contains no spaces, so the unquoted form
+	// `FullyQualifiedName~ClassName` is unambiguous to xUnit and, more
+	// importantly, carries no `"` character that MSBuild could misread
+	// as a property-assignment boundary. The embedded-double-quote form
+	// (`FullyQualifiedName~"ClassName"`) is what produced
+	// MSB4177 in rounds 1-4 of #1984: once the shell strips the outer
+	// `"$FILTER"` pair, the inner quotes reach dotnet's argument parser
+	// and MSBuild chokes on them.
+	return classNames.map((name) => `FullyQualifiedName~${name}`).join('|');
 };
 
 const printFilter = (classNames: string[]) => {
@@ -146,7 +163,7 @@ const runDotnetTest = (
 		// --filter with an unreachable value makes xUnit short-circuit
 		// out of the test loop with zero discovered tests, which is what
 		// we want for an empty shard: a fast green run, not an error.
-		args.push('--filter', 'FullyQualifiedName~"\u0000never-matches"');
+		args.push('--filter', 'FullyQualifiedName~\u0000never-matches');
 	} else {
 		args.push('--filter', filter);
 	}
