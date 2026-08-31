@@ -45,7 +45,7 @@ import { describe, expect, test } from 'vitest';
 import {
 	type LoudTimeoutResult,
 	withLoudTimeout,
-} from './func-style-config.test.ts';
+} from '../lib/with-loud-timeout.ts';
 
 describe('#1968 — withLoudTimeout throws loud when the budget is exceeded', () => {
 	test('reports the actual elapsed time, the configured budget, and the most likely cause', async () => {

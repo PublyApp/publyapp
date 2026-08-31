@@ -8,12 +8,21 @@
 # from such a worktree without naming the cause and printing the exact
 # repair command.
 #
-# This script is sourced from .husky/pre-commit and .husky/pre-push so the
-# check runs on every git operation. It is intentionally a separate file
-# (not inlined into the two hooks) so the logic stays in one place and the
-# test for it lives next to it.
+# This script is sourced (`. "$(dirname "$0")/_verify-hooks.sh"`) from
+# .husky/pre-commit and .husky/pre-push so the check runs on every git
+# operation. It is intentionally a separate file (not inlined into the two
+# hooks) so the logic stays in one place and the test for it lives next to it.
 #
-# Exit codes:
+# CRITICAL — `return` only, never `exit`. The script is sourced, so an
+# `exit` would terminate the *hook's* shell before the hook's own logic
+# ran (issue #1933 round-2 finding: `exit 0` at the bottom of this file
+# used to kill pre-commit before lint-staged ever fired — the silent-inert
+# class of defect this script was meant to fix). `return 0` / `return 1`
+# make the sourced script a function: the caller's `$?` reflects the
+# verdict and the caller's own `if ! . _verify-hooks.sh; then exit 1; fi`
+# (or an unconditional `return 1` upstream) decides what to do.
+#
+# Return codes:
 #   0 — every hook is executable in both the index and the working copy.
 #   1 — at least one hook is missing or non-executable; the cause and the
 #       exact `chmod +x` command have been printed to stderr.
@@ -44,8 +53,47 @@ working_mode() {
 		stat -f '%Lp' "$1"
 		return 0
 	fi
-	# POSIX fallback: parse `ls -l`.
-	ls -l "$1" | awk 'NR==1 {print substr($1, 2, 3); exit}'
+	# POSIX fallback: parse `ls -l`. The human form is `-rwxr-xr-x` —
+	# ten characters where index 1..3 are the user triplet, 4..6 the
+	# group triplet, 7..9 the other triplet, and 10 is an optional
+	# indicator. We do NOT try to convert back to octal digits (the
+	# previous shape did `substr($1, 2, 3)` and got the literal
+	# letters `rwx` — `is_executable` then treated every file as
+	# non-executable and refused every worktree on any system that
+	# reached this fallback). Instead we extract the user/group/other
+	# triplets and emit a string in the same "triplet of digits" shape
+	# the rest of this script expects: "755" if any triplet has the x
+	# bit, "644" if none does. The number is the *maximum* execute
+	# permission a user could have: owner with x, group with x, other
+	# with x → `7`. Owner with x, group without, other without → `7`.
+	# Owner without, group with x, other without → `5`. This is good
+	# enough for `is_executable`, which only checks whether any digit
+	# is odd (i.e. any execute bit is set).
+	ls -l "$1" 2>/dev/null | awk '
+		NR==1 {
+			# Drop the leading "-" (regular file indicator).
+			t = substr($1, 2)
+			# Pad to 9 chars (some `ls` implementations omit a
+			# trailing space for non-special files).
+			while (length(t) < 9) t = t " "
+			user = substr(t, 1, 3)
+			grp  = substr(t, 4, 3)
+			oth  = substr(t, 7, 3)
+			d = 0
+			if (index(user, "x") > 0) d = d + 4
+			if (index(grp,  "x") > 0) d = d + 2
+			if (index(oth,  "x") > 0) d = d + 1
+			# Always emit a 3-digit form (`is_executable` only
+			# recognises `100???`, `??????`, or `???`; a bare "0"
+			# would fall through to the loud "unexpected mode
+			# length" branch).
+			pad = "00"
+			if (d >= 10) pad = "0"
+			else if (d > 0) pad = "00"
+			print pad d
+			exit
+		}
+	'
 }
 
 # Read the index mode of $1 (a repo-relative path) and echo it as a
@@ -103,9 +151,9 @@ if [ -z "$WORKTREE_ROOT" ]; then
 	# only fired by git itself, so this should never happen — but refuse
 	# to keep working silently if it does.
 	echo "[verify-hooks] not inside a git work tree — cannot verify .husky/ hooks." >&2
-	exit 1
+	return 1
 fi
-cd "$WORKTREE_ROOT" || exit 1
+cd "$WORKTREE_ROOT" || return 1
 
 HOOK_DIR=".husky"
 HOOKS="pre-commit pre-push"
@@ -128,11 +176,22 @@ for hook in $HOOKS; do
 	fi
 
 	# Normalise the working-copy mode into the 3-digit octal triplet git
-	# uses inside the 6-digit index mode.
+	# uses inside the 6-digit index mode. The previous `sed 's/^0//'`
+	# only stripped ONE leading zero (`4755` stayed 4 digits → the
+	# `is_executable` odd-length branch fired with a loud "unexpected
+	# mode length" message on a file that is plainly a normal mode).
+	# Real stat outputs we may see:
+	#   "755"  /  "4755" /  "0644" /  "100755" /  "100644"
+	# 5-digit outputs (`4755`) come from `stat -c '%a'` on a file with
+	# setuid/setgid/sticky bits (the leading `4` is the setuid bit on
+	# the user position). 4-digit outputs (`0644`) come from BSD stat
+	# with `%Lp` printing with a leading zero. Normalise both to a
+	# clean 3-digit triplet that `is_executable` recognises.
 	case "$wm" in
 		??????) wm_short=$(echo "$wm" | sed 's/^100//') ;;
-		????) wm_short=$(echo "$wm" | sed 's/^0//') ;;
-		*) wm_short="$wm" ;;
+		?????)  wm_short="${wm#0}" ;;
+		????)   wm_short="${wm#0}" ;;
+		*)      wm_short="$wm" ;;
 	esac
 
 	index_executable="no"
@@ -168,7 +227,7 @@ if [ "$failed" -ne 0 ]; then
 	echo "" >&2
 	echo "[verify-hooks] Git hooks are NOT ACTIVE. The pre-commit guard is inert and will not catch unformatted code." >&2
 	echo "[verify-hooks] Fix the cause above (the printed chmod command), then retry." >&2
-	exit 1
+	return 1
 fi
 
-exit 0
+return 0

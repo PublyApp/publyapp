@@ -13,8 +13,14 @@
 # inert while the author believes it is active (issue #1933). We run the
 # check at the top of pre-push so a stale worktree refuses to push unformatted
 # code rather than letting it leave the worktree unnoticed. The verify
-# script exits 1 with the cause and the exact `chmod +x` repair command.
+# script returns 1 with the cause and the exact `chmod +x` repair command
+# — `return`, not `exit`, because the script is sourced. We propagate the
+# return code into a hard `exit 1` so git records a failed push.
 . "$(dirname "$0")/_verify-hooks.sh"
+verify_rc=$?
+if [ "$verify_rc" -ne 0 ]; then
+	exit "$verify_rc"
+fi
 
 protected="refs/heads/main refs/heads/develop"
 

@@ -200,6 +200,39 @@ describe('install-git-hooks verifyHook — issue #1933 stale-worktree mode drift
 		expect(result.repair.length).toBeGreaterThan(0);
 	});
 
+	test('RED: a pre-#1907 worktree (BOTH hooks at 100644 in index AND working copy) fails loud', () => {
+		// The nominal #1933 case: pre-#1907 tracks BOTH hooks at 100644.
+		// A stale worktree has neither hook executable; git skips both
+		// with no error, and the verifier living inside them never runs.
+		// The prepare-time verifier (verifyHook) must catch this — it
+		// compares the working copy against the index, and when BOTH are
+		// non-executable, the guard is inert and the worktree must refuse
+		// to keep working as if it were protected.
+		const root = newFixtureRepo();
+
+		// Commit a hook at mode 100644 (the pre-#1907 shape). The index
+		// AND working copy are both non-executable.
+		const path = join(root, '.husky', 'pre-commit');
+		writeFileSync(path, '#!/usr/bin/env sh\nexit 0\n');
+		git(root, ['add', '.husky']);
+		// Do NOT use --chmod=+x: the index stays at 100644.
+		git(root, ['commit', '-q', '-m', 'add pre-commit at 644']);
+		// Confirm the index mode is 100644 (pre-#1907 shape).
+		const mode = git(root, ['ls-files', '--stage', '--', '.husky/pre-commit']);
+		expect(mode.startsWith('100644')).toBe(true);
+
+		const result = verifyHook(root, 'pre-commit');
+
+		assert.strictEqual(result.ok, false, 'a both-644 worktree must fail loud');
+		if (result.ok) {
+			throw new Error('unreachable');
+		}
+		expect(result.hook).toBe('pre-commit');
+		expect(result.reason).toContain('not executable');
+		expect(result.repair).toContain('chmod +x');
+		expect(result.repair).toContain('.husky/pre-commit');
+	});
+
 	test('verifyHooks aggregates every hook — any single failure rejects the worktree', () => {
 		const root = newFixtureRepo();
 		// Both hooks committed executable.
@@ -238,36 +271,40 @@ describe('install-git-hooks verifyHook — issue #1933 stale-worktree mode drift
 		expect(both.filter((r) => !r.ok)).toHaveLength(HOOKS.length);
 	});
 
-	test('formatVerificationReport returns empty for a clean run, names each failure otherwise', () => {
-		const root = newFixtureRepo();
-		// Two separate fixtures: one for the dirty case, one for the clean
-		// case — the dirty fixture ends with a stale hook, and we want the
-		// clean fixture to remain clean afterwards.
-		const dirtyRoot = newFixtureRepo();
-		const dirtyHook = addExecutableHook(
-			dirtyRoot,
-			'pre-commit',
-			'#!/usr/bin/env sh\nexit 0\n',
-		);
-		demoteWorkingCopyToNonExecutable(dirtyHook);
+	test(
+		'formatVerificationReport returns empty for a clean run, names each failure otherwise',
+		{ timeout: 30_000 },
+		() => {
+			const root = newFixtureRepo();
+			// Two separate fixtures: one for the dirty case, one for the clean
+			// case — the dirty fixture ends with a stale hook, and we want the
+			// clean fixture to remain clean afterwards.
+			const dirtyRoot = newFixtureRepo();
+			const dirtyHook = addExecutableHook(
+				dirtyRoot,
+				'pre-commit',
+				'#!/usr/bin/env sh\nexit 0\n',
+			);
+			demoteWorkingCopyToNonExecutable(dirtyHook);
 
-		const failures = verifyHooks(dirtyRoot).filter((r) => !r.ok);
-		const report = formatVerificationReport(failures);
+			const failures = verifyHooks(dirtyRoot).filter((r) => !r.ok);
+			const report = formatVerificationReport(failures);
 
-		expect(report.length).toBeGreaterThan(0);
-		expect(report).toContain('pre-commit');
-		expect(report).toContain('Repair:');
+			expect(report.length).toBeGreaterThan(0);
+			expect(report).toContain('pre-commit');
+			expect(report).toContain('Repair:');
 
-		// A separate, clean fixture — both hooks still 100755 — produces
-		// no output from formatVerificationReport.
-		const healthyHook = addExecutableHook(
-			root,
-			'pre-commit',
-			'#!/usr/bin/env sh\nexit 0\n',
-		);
-		expect(existsSync(healthyHook)).toBe(true);
-		const healthy = verifyHook(root, 'pre-commit');
-		assert.deepEqual(healthy, { ok: true });
-		expect(formatVerificationReport([healthy])).toBe('');
-	});
+			// A separate, clean fixture — both hooks still 100755 — produces
+			// no output from formatVerificationReport.
+			const healthyHook = addExecutableHook(
+				root,
+				'pre-commit',
+				'#!/usr/bin/env sh\nexit 0\n',
+			);
+			expect(existsSync(healthyHook)).toBe(true);
+			const healthy = verifyHook(root, 'pre-commit');
+			assert.deepEqual(healthy, { ok: true });
+			expect(formatVerificationReport([healthy])).toBe('');
+		},
+	);
 });

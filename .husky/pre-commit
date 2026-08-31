@@ -16,7 +16,17 @@
 # this BEFORE lint-staged so a stale worktree refuses to keep working
 # rather than producing a false sense of safety. The verify script exits 1
 # on its own with the cause and the exact `chmod +x` repair command.
+# Sourced, not executed: `return` (not `exit`) inside `_verify-hooks.sh`
+# lets the verifier act as a function returning a verdict. If the verifier
+# refused the worktree (rc=1) the sourcing line below propagates that
+# failure into `$?`, and we explicitly `exit 1` here so git records a
+# failed commit. Without this guard, the hook would silently continue into
+# `run_lint_staged` despite an inert #1852 gate.
 . "$(dirname "$0")/_verify-hooks.sh"
+verify_rc=$?
+if [ "$verify_rc" -ne 0 ]; then
+	exit "$verify_rc"
+fi
 
 # Cross-platform solution that works in both terminal and VS Code/Cursor.
 # Try pnpm first, then fallback to other package managers.
