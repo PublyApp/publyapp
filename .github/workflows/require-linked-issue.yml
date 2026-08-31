@@ -30,10 +30,9 @@ jobs:
           # No checkout step runs, so gh has no local repo to infer; GH_REPO
           # gives `gh issue view` its repository context.
           GH_REPO: ${{ github.repository }}
-          # GitHub's own closingIssuesReferences is computed lazily and is not
-          # reliably visible to the Actions GITHUB_TOKEN, so parse the PR body
-          # sufficient for partial slices, so parse the explicit relationship
-          # keywords directly and confirm each target is a real issue.
+          # Parse explicit relationship keywords so honest partial slices can
+          # link their parent without falsely closing it. Confirm closing
+          # targets are issues rather than pull requests (#2003).
           PR_BODY: ${{ github.event.pull_request.body }}
         run: |
           PR_AUTHOR="${{ github.event.pull_request.user.login }}"
@@ -60,19 +59,24 @@ jobs:
           # of its own line (an optional Markdown list marker is allowed).
           # Anchoring avoids treating negated prose such as "does not close
           # #123" as a relationship. Arbitrary bare mentions do not satisfy it.
-          numbers=$(printf '%s' "$PR_BODY" \
+          relationships=$(printf '%s' "$PR_BODY" \
             | grep -ioE '^[[:space:]]*(-[[:space:]]*)?(close[sd]?|fix(e[sd])?|resolve[sd]?|part[[:space:]]+of|refs?|references?)[[:space:]:]+#[0-9]+' \
-            | grep -oE '[0-9]+' \
             | sort -u)
 
-          if [ -z "$numbers" ]; then
+          if [ -z "$relationships" ]; then
             echo "::error::This PR has no explicit issue relationship on its own line. Add \"Closes #123\" for complete work or \"Part of #123\"/\"Refs #123\" for a partial slice."
             exit 1
           fi
 
           invalid_relationship=false
           linked_issue=false
-          for n in $numbers; do
+          while IFS= read -r relationship; do
+            n=$(printf '%s' "$relationship" | grep -oE '[0-9]+$')
+            is_closing=false
+            if printf '%s' "$relationship" | grep -qiE '^[[:space:]]*(-[[:space:]]*)?(close[sd]?|fix(e[sd])?|resolve[sd]?)[[:space:]:]+'; then
+              is_closing=true
+            fi
+
             if [ "$n" = "$PR_NUMBER" ]; then
               echo "  #$n references itself — a pull request cannot satisfy its own issue-link requirement."
               invalid_relationship=true
@@ -86,14 +90,22 @@ jobs:
             # just as falsely. We must exclude EVERY pull request, not just
             # this one. The discriminator is the `pull_request` key on the
             # issue-object endpoint: present (non-null) for PRs, absent for
-            # real issues. We fetch that single field and reject any declaration
-            # containing a PR; a later valid issue must not hide a misleading link.
+            # real issues. A closing PR target invalidates the declaration;
+            # a non-closing PR reference is allowed but cannot satisfy the gate.
             # A real issue has no `pull_request` key, so the expression prints
             # `false`; a PR has a non-null object and prints `true`.
-            is_pr=$(gh api "repos/${GH_REPO}/issues/${n}" --jq '.pull_request != null' 2>/dev/null) || is_pr="true"
-            if [ "$is_pr" = "true" ]; then
-              echo "  #$n is a pull request, not an issue — rejecting the declaration (#2003)."
+            if ! is_pr=$(gh api "repos/${GH_REPO}/issues/${n}" --jq '.pull_request != null' 2>/dev/null); then
+              echo "  #$n could not be verified as an existing issue — rejecting the declaration."
               invalid_relationship=true
+              continue
+            fi
+            if [ "$is_pr" = "true" ]; then
+              if [ "$is_closing" = "true" ]; then
+                echo "  #$n is a pull request, not an issue — rejecting the closing declaration (#2003)."
+                invalid_relationship=true
+              else
+                echo "  #$n is a non-closing pull-request reference — it does not satisfy the issue requirement."
+              fi
               continue
             fi
 
@@ -104,11 +116,11 @@ jobs:
             fi
             echo "  #$n is not an existing issue — rejecting the declaration."
             invalid_relationship=true
-          done
+          done <<< "$relationships"
 
 
           if [ "$invalid_relationship" = "true" ]; then
-            echo "::error::Every declared relationship must reference a real issue; a PR, self-reference, or missing number invalidates the whole declaration."
+            echo "::error::A closing relationship to a PR, a self-reference, or an unverifiable number invalidates the declaration."
             exit 1
           fi
 
@@ -116,7 +128,7 @@ jobs:
             exit 0
           fi
 
-          echo "::error::The relationship keyword(s) reference no existing issue: $(echo "$numbers" | tr '\n' ' '). Link a real issue with \"Closes #N\" or \"Part of #N\"."
+          echo "::error::The relationship keyword(s) reference no existing issue. Link a real issue with \"Closes #N\" or \"Part of #N\"."
           exit 1
 
   # #1569: prohibit unverifiable exhaustiveness claims in PR bodies ("N

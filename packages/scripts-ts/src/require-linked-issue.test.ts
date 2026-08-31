@@ -120,6 +120,7 @@ const assertExactlyDependabotBot = (runBody) => {
  * block can be exercised end-to-end without a live token.
  */
 const MOCK_PRS = new Set([2032, 2003]);
+const MOCK_MISSING_NUMBERS = new Set([9001]);
 
 test.runIf(process.env.GITHUB_ACTIONS === 'true')(
 	'#2003 live boundary: GitHub exposes known PR #1987 through the issues endpoint',
@@ -152,6 +153,7 @@ test.runIf(process.env.GITHUB_ACTIONS === 'true')(
 const createMockGhDir = () => {
 	const dir = mkdtempSync(path.join(os.tmpdir(), 'require-linked-issue-'));
 	const prPattern = [...MOCK_PRS].join('|');
+	const missingPattern = [...MOCK_MISSING_NUMBERS].join('|');
 	const mockGh = `#!/usr/bin/env bash
 # Mock gh for require-linked-issue tests.
 # Simulates the two API shapes the step calls:
@@ -164,6 +166,7 @@ if [[ "$1" == "api" && "$2" == repos/*/issues/* && "$3" == "--jq" ]]; then
   num="$(echo "$2" | grep -oE '[0-9]+$')"
   case "$num" in
     ${prPattern}) echo "true" ;;
+    ${missingPattern}) exit 1 ;;
     *) echo "false" ;;
   esac
   exit 0
@@ -185,26 +188,42 @@ exit 0
  * Executes the step's `run:` shell under a faked environment, overriding the
  * PR author login and body. Returns the exit code and captured stdout.
  */
-// @ts-expect-error rung-0: add proper type in later rung
-const runStep = (runBody, { author, body }) => {
+type RunStepOptions = {
+	author: string;
+	body: string;
+	prNumber?: string;
+	useRealGh?: boolean;
+};
+
+const runStep = (
+	runBody: string,
+	{ author, body, prNumber = '2032', useRealGh = false }: RunStepOptions,
+) => {
 	// The real step reads PR_AUTHOR from `${{ github... }}`; substitute that
 	// literal so plain `bash` can run the body under our faked author.
 	const script = runBody
 		.replace(/^PR_AUTHOR="[^"]*"\s*$/m, `PR_AUTHOR="${author}"`)
-		.replace(/^PR_NUMBER="[^"]*"\s*$/m, 'PR_NUMBER="2032"');
+		.replace(/^PR_NUMBER="[^"]*"\s*$/m, `PR_NUMBER="${prNumber}"`);
 
-	const mockGhDir = createMockGhDir();
+	const mockGhDir = useRealGh ? null : createMockGhDir();
+	const commandPath =
+		mockGhDir === null
+			? (process.env.PATH ?? '')
+			: `${mockGhDir}:${process.env.PATH ?? ''}`;
+	const commandEnvironment = {
+		...process.env,
+		PR_AUTHOR: author,
+		PR_BODY: body,
+		GH_REPO: 'PublyApp/publyapp',
+		PATH: commandPath,
+	};
+	if (!useRealGh) {
+		commandEnvironment.GH_TOKEN = 'x';
+	}
 
 	const result = spawnSync('bash', ['-s'], {
 		input: script,
-		env: {
-			...process.env,
-			PR_AUTHOR: author,
-			PR_BODY: body,
-			GH_TOKEN: 'x',
-			GH_REPO: 'PublyApp/publyapp',
-			PATH: `${mockGhDir}:${process.env.PATH ?? ''}`,
-		},
+		env: commandEnvironment,
 		encoding: 'utf8',
 	});
 
@@ -213,6 +232,22 @@ const runStep = (runBody, { author, body }) => {
 		stdout: result.stdout ?? '',
 	};
 };
+
+test.runIf(process.env.GITHUB_ACTIONS === 'true')(
+	'#2003 live boundary: the real workflow rejects a known PR number',
+	async () => {
+		const runBody = await readRunBody();
+		const { code, stdout } = runStep(runBody, {
+			author: 'octocat',
+			body: 'Closes #1987',
+			prNumber: '9999',
+			useRealGh: true,
+		});
+
+		assert.equal(code, 1);
+		assert.match(stdout, /pull request/);
+	},
+);
 
 test('the real workflow waives EXACTLY dependabot[bot] and no other author', async () => {
 	const runBody = await readRunBody();
@@ -367,6 +402,7 @@ test('the real workflow FAILS (exit 1) for a body that closes only a PR (#2003 r
 	const { code, stdout } = runStep(runBody, {
 		author: 'octocat',
 		body: 'Closes #2032',
+		prNumber: '9999',
 	});
 
 	assert.equal(
@@ -455,6 +491,7 @@ test('the real workflow rejects a non-closing link to a pull request', async () 
 	const { code } = runStep(runBody, {
 		author: 'octocat',
 		body: 'Part of #2032',
+		prNumber: '9999',
 	});
 
 	assert.equal(
@@ -464,12 +501,41 @@ test('the real workflow rejects a non-closing link to a pull request', async () 
 	);
 });
 
+test('the real workflow allows a non-closing PR citation beside a real issue', async () => {
+	const runBody = await readRunBody();
+	const { code } = runStep(runBody, {
+		author: 'octocat',
+		body: 'Closes #1458\nRefs #2032',
+		prNumber: '9999',
+	});
+
+	assert.equal(
+		code,
+		0,
+		'a sibling PR citation must not invalidate a genuine issue relationship',
+	);
+});
+
+test('the real workflow diagnoses an unverifiable number without calling it a PR', async () => {
+	const runBody = await readRunBody();
+	const { code, stdout } = runStep(runBody, {
+		author: 'octocat',
+		body: 'Closes #9001',
+		prNumber: '9999',
+	});
+
+	assert.equal(code, 1);
+	assert.match(stdout, /could not be verified as an existing issue/);
+	assert.doesNotMatch(stdout, /is a pull request/);
+});
+
 test('the real workflow FAILS the whole declaration when it mixes a PR and a real issue', async () => {
 	const runBody = await readRunBody();
 
 	const { code } = runStep(runBody, {
 		author: 'octocat',
 		body: 'Closes #2032\nCloses #1458',
+		prNumber: '9999',
 	});
 
 	assert.equal(
@@ -485,6 +551,7 @@ test('the real workflow FAILS (exit 1) for a body closing two PRs and no real is
 	const { code } = runStep(runBody, {
 		author: 'octocat',
 		body: 'Closes #2032\nCloses #2003',
+		prNumber: '9999',
 	});
 
 	assert.equal(
@@ -494,7 +561,7 @@ test('the real workflow FAILS (exit 1) for a body closing two PRs and no real is
 	);
 });
 
-test('mutation: removing the PR discriminator check restores the false-positive (body with only a PR passes)', async () => {
+test('mutation: removing the PR discriminator lets a PR hide beside a real issue', async () => {
 	const runBody = await readRunBody();
 
 	// Remove the entire PR discriminator block: the comment, the is_pr check,
@@ -510,12 +577,13 @@ test('mutation: removing the PR discriminator check restores the false-positive 
 
 	const { code } = runStep(mutated, {
 		author: 'octocat',
-		body: 'Closes #2003',
+		body: 'Closes #2003\nCloses #1458',
+		prNumber: '9999',
 	});
 
 	assert.equal(
 		code,
 		0,
-		'removing the PR discriminator must restore the false-positive — proving the guard catches it',
+		'removing the PR discriminator must let the valid issue hide the PR target',
 	);
 });
