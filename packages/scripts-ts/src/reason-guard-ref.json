@@ -502,9 +502,9 @@
 			"reason": "GitHub-only: round-5 BLOCKER fix. Reads steps.check-required-jobs.outcome, which GitHub computes BEFORE continue-on-error is applied (only .conclusion is rewritten afterward), so a continue-on-error added to the required-jobs check step cannot mask this step's own view of whether that step actually succeeded. That `.outcome` context only exists inside a real Actions run, so this stays GitHub-only/unmirrored locally; packages/scripts-ts/src/check-ci-gate-structure.ts pins that this exact step exists."
 		},
 		"front-ci.yml::supply-chain::Assert exact pins": {
-			"reason_hash": "23640fc62c5d63d6",
-			"reason_length": 88,
-			"reason": "ci-install runs the identical command: node apps/front/scripts/guards/assert-pinned.mts."
+			"reason_hash": "9c467ba291a82e56",
+			"reason_length": 139,
+			"reason": "ci-install runs the identical command: node apps/front/scripts/run-guarded.mts apps/front/scripts/guards/assert-pinned.mts (wrapped #1525)."
 		},
 		"front-ci.yml::supply-chain::Audit production dependencies (moderate and above)": {
 			"reason_hash": "b7c22d4996cc4f08",
@@ -587,14 +587,14 @@
 			"reason": "ci-front runs the identical pnpm --filter front typecheck."
 		},
 		"front-ci.yml::supply-chain::Verify front production build emits a CSS asset": {
-			"reason_hash": "9e935ee850ff3f34",
-			"reason_length": 124,
-			"reason": "ci-front runs pnpm --filter front verify:build, whose script body is the same scripts/guards/verify-build-css-link.mts call."
+			"reason_hash": "13d81190ca0c66e8",
+			"reason_length": 282,
+			"reason": "ci-front runs pnpm --filter front verify:build, whose script body is the same scripts/guards/verify-build-css-link.mts call (wrapped #1525). The CI step invokes node apps/front/scripts/run-guarded.mts apps/front/scripts/guards/verify-build-css-link.mts; the local run is equivalent."
 		},
 		"front-ci.yml::supply-chain::Verify front production font bundle references and unicode coverage": {
-			"reason_hash": "487cb5388bdce2cf",
-			"reason_length": 383,
-			"reason": "ci-front runs pnpm --filter front verify:build, whose script body now also calls scripts/guards/verify-font-bundle.mts. The CI step passes --dist apps/front/dist and --locales-dir apps/front/src/i18n/locales explicitly; the script defaults resolve to the same two paths when it runs with apps/front as the working directory, so the local run is equivalent rather than merely similar."
+			"reason_hash": "f8df83df7478a004",
+			"reason_length": 339,
+			"reason": "ci-front runs pnpm --filter front verify:build, whose script body now also calls scripts/guards/verify-font-bundle.mts (wrapped #1525). The CI step invokes node apps/front/scripts/run-guarded.mts apps/front/scripts/guards/verify-font-bundle.mts --dist apps/front/dist --locales-dir apps/front/src/i18n/locales; the local run is equivalent."
 		},
 		"front-ci.yml::supply-chain::Verify paired red proofs": {
 			"reason_hash": "60a54c847e815705",
@@ -707,9 +707,9 @@
 			"reason": "GitHub-only: round-5 BLOCKER fix. Reads steps.check-required-jobs.outcome, which GitHub computes BEFORE continue-on-error is applied (only .conclusion is rewritten afterward), so a continue-on-error added to the required-jobs check step cannot mask this step's own view of whether that step actually succeeded. That `.outcome` context only exists inside a real Actions run, so this stays GitHub-only/unmirrored locally; packages/scripts-ts/src/check-ci-gate-structure.ts pins that this exact step exists."
 		},
 		"front-e2e.yml::test::Assert exact pins": {
-			"reason_hash": "6cb9e97134a9d8da",
-			"reason_length": 79,
-			"reason": "ci-install runs the identical node apps/front/scripts/guards/assert-pinned.mts."
+			"reason_hash": "1c3448c3ea91339f",
+			"reason_length": 130,
+			"reason": "ci-install runs the identical node apps/front/scripts/run-guarded.mts apps/front/scripts/guards/assert-pinned.mts (wrapped #1525)."
 		},
 		"front-e2e.yml::test::Cache Playwright browsers": {
 			"reason_hash": "b5a6c9a7abe634b0",
@@ -922,9 +922,9 @@
 			"reason": "ci-dockerignore-shadow runs the identical `node packages/scripts-ts/src/check-dockerignore-shadow.ts`, which walks the REAL working tree (the same filesystem a build context is drawn from) and flags every file whose basename ends with `.dockerignore` case-insensitively but is not exactly `.dockerignore`. Git-ignored paths (e.g. parallel .worktrees/) are filtered out via a single batch `git check-ignore --stdin -z` call (issue #1909 class). The `-v` form is deliberately NOT used: it was the round-4 defect, because its verbose output changes the parse shape. See issue #1849."
 		},
 		"quality-gate.yml::quality::Assert exact pins": {
-			"reason_hash": "23640fc62c5d63d6",
-			"reason_length": 88,
-			"reason": "ci-install runs the identical command: node apps/front/scripts/guards/assert-pinned.mts."
+			"reason_hash": "9c467ba291a82e56",
+			"reason_length": 139,
+			"reason": "ci-install runs the identical command: node apps/front/scripts/run-guarded.mts apps/front/scripts/guards/assert-pinned.mts (wrapped #1525)."
 		},
 		"quality-gate.yml::quality::Audit development dependencies (moderate and above)": {
 			"reason_hash": "01df57e4a1a2b377",

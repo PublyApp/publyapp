@@ -74,6 +74,7 @@
 		"publy/no-never-any-casts": "error",
 		"publy/require-commit-of-use-offset-page-clamp": "error",
 		"publy/prefer-early-return": "error",
+		"publy/route-query-preload": "warn",
 		"anti-slop/no-chained-type-assertions": "error",
 		"anti-slop/no-conditional-empty-object-spread": "error",
 		"anti-slop/no-known-value-widening": "error",

@@ -65,6 +65,23 @@ public sealed class ApiFixture : IAsyncLifetime {
 	}
 
 	/// <summary>
+	/// Creates a second, fully independent host against the SAME test
+	/// database: a separate <see cref="ApiFactory"/> (WebApplicationFactory)
+	/// with its own service provider and Npgsql connection pool, and no
+	/// shared in-process state with <see cref="Factory"/>. Specs that pin
+	/// the deployed fleet shape — several replicas, one database — use this
+	/// alongside <see cref="Factory"/> (#1970).
+	/// </summary>
+	public ApiFactory CreateSecondHost() {
+		var factory = new ApiFactory(
+			_testDbConnectionString,
+			_storageRoot
+		);
+		_additionalFactories.Add(factory);
+		return factory;
+	}
+
+	/// <summary>
 	/// Creates a fresh HttpClient (no shared headers,
 	/// cookies disabled by default).
 	/// </summary>

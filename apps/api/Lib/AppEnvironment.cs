@@ -146,6 +146,10 @@ public class AppEnvironment {
 	// Max continuous drain per wake before the processor yields one loop iteration
 	// (design §3.1, F10; consumed by 2A-R's drain loop).
 	public int JOB_QUEUE_DRAIN_BUDGET_SECONDS { get; }
+	// How long a DUE job (next_attempt_at <= now()) may sit unclaimed before the
+	// api readiness /health check declares Unhealthy (issue #1716): the signature
+	// of a worker that is not draining the queue. Consumed by JobQueueDrainHealthCheck.
+	public int JOB_QUEUE_DRAIN_STALL_SECONDS { get; }
 	// Retention sweep window for email_log rows (design §3.1, F20/O7; consumed by the
 	// Phase-3 retention system jobs).
 	public int EMAIL_LOG_RETENTION_DAYS { get; }
@@ -387,6 +391,7 @@ public class AppEnvironment {
 		int jobQueuePollSeconds,
 		int jobLeaseSeconds,
 		int jobQueueDrainBudgetSeconds,
+		int jobQueueDrainStallSeconds,
 		int emailLogRetentionDays,
 		int jobDeadLetterRetentionDays,
 		int emailPreparedSendRetentionDays,
@@ -482,6 +487,7 @@ public class AppEnvironment {
 		JOB_QUEUE_POLL_SECONDS = jobQueuePollSeconds;
 		JOB_LEASE_SECONDS = jobLeaseSeconds;
 		JOB_QUEUE_DRAIN_BUDGET_SECONDS = jobQueueDrainBudgetSeconds;
+		JOB_QUEUE_DRAIN_STALL_SECONDS = jobQueueDrainStallSeconds;
 		EMAIL_LOG_RETENTION_DAYS = emailLogRetentionDays;
 		JOB_DEAD_LETTER_RETENTION_DAYS = jobDeadLetterRetentionDays;
 		EMAIL_PREPARED_SEND_RETENTION_DAYS = emailPreparedSendRetentionDays;
@@ -716,6 +722,8 @@ public class AppEnvironment {
 				jobLeaseSeconds: GetOptionalInt(nameof(JOB_LEASE_SECONDS), 300),
 				jobQueueDrainBudgetSeconds: GetOptionalInt(
 					nameof(JOB_QUEUE_DRAIN_BUDGET_SECONDS), 60),
+				jobQueueDrainStallSeconds: GetOptionalInt(
+					nameof(JOB_QUEUE_DRAIN_STALL_SECONDS), 120),
 				emailLogRetentionDays: GetOptionalInt(nameof(EMAIL_LOG_RETENTION_DAYS), 180),
 				jobDeadLetterRetentionDays: GetOptionalInt(
 					nameof(JOB_DEAD_LETTER_RETENTION_DAYS), 90),

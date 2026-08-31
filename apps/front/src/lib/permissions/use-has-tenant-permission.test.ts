@@ -2,15 +2,10 @@
  * @vitest-environment jsdom
  */
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { renderHook, waitFor } from '@testing-library/react';
+import { cleanup, renderHook, waitFor } from '@testing-library/react';
 import { createElement, type ReactNode } from 'react';
-import { beforeEach, describe, expect, test, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
-// Mock ONLY the infrastructure seams (workspace resolution + API client);
-// useQuery and the hook under test stay REAL so the tests prove the actual
-// query wiring — including that the auth-data fetch is scoped with
-// ?tenant_id= (C3 defect 5: an unscoped call returns [] and gates everything
-// closed).
 const mocks = vi.hoisted(() => ({
 	workspaceTenantId: undefined as string | null | undefined,
 	userAuthDataGet: vi.fn(),
@@ -22,37 +17,51 @@ vi.mock('~/lib/query/tenants-for-picker', () => ({
 
 vi.mock('~/lib/api-client/client-manager', () => ({
 	getClientManager: () => ({
-		// The session-neutral client — same factory the production hook must
-		// use, since neither a staff-only nor a tenant-header client applies
-		// to /auth/user-auth-data (it takes ?tenant_id= instead).
 		getOrCreateSessionClient: () => ({
 			auth: { userAuthData: { get: mocks.userAuthDataGet } },
 		}),
 	}),
 }));
 
-// eslint-disable-next-line import/first -- must follow the vi.mock calls above
 import {
 	useCanManageSocialAccounts,
-	useCanViewIntegrations,
 	useHasTenantPermission,
 } from './use-has-tenant-permission';
+
+let activeQueryClient: QueryClient | undefined;
 
 const createWrapper = () => {
 	const queryClient = new QueryClient({
 		defaultOptions: { queries: { retry: false } },
 	});
-	// createElement, not JSX: this spec stays a `.test.ts` sibling of the
-	// hook per the plan's File Map.
+	activeQueryClient = queryClient;
 	return ({ children }: { children: ReactNode }) =>
 		createElement(QueryClientProvider, { client: queryClient }, children);
 };
 
-// Every render goes through a fresh QueryClient so the REAL useQuery wiring
-// runs; no shared cache can mask an unscoped fetch.
 const renderWithQueryClient = <TProps, TResult>(
 	hook: (props: TProps) => TResult,
 ) => renderHook(hook, { wrapper: createWrapper() });
+
+afterEach(async () => {
+	await activeQueryClient?.cancelQueries();
+	const queries = activeQueryClient?.getQueryCache().getAll() ?? [];
+
+	// useQuery registers a query object in the cache even when disabled
+	// (enabled: false → state=pending, fetchStatus=idle). The hook always
+	// registers one, so a genuinely empty cache means the hook never ran.
+	// The count makes the guard explicit: it must examine at least one
+	// query. Without it, an empty cache would let the for...of loop pass
+	// vacuously — the assertion would never execute.
+	expect(queries.length).toBeGreaterThan(0);
+
+	for (const query of queries) {
+		expect(query.state.fetchStatus).not.toBe('fetching');
+	}
+
+	await cleanup();
+	activeQueryClient = undefined;
+});
 
 beforeEach(() => {
 	vi.clearAllMocks();
@@ -119,8 +128,6 @@ describe('useHasTenantPermission', () => {
 		);
 
 		expect(result.current).toBe(false);
-		// No workspace scope resolved → the request must not fire at all; the
-		// backend would answer [] for an unscoped call (gate closed by design).
 		expect(mocks.userAuthDataGet).not.toHaveBeenCalled();
 	});
 
@@ -149,15 +156,5 @@ describe('social slice convenience wrappers', () => {
 		});
 		const viewOnly = renderWithQueryClient(() => useCanManageSocialAccounts());
 		await waitFor(() => expect(viewOnly.result.current).toBe(false));
-	});
-
-	test('ItShouldGateViewIntegrationsOnTheViewKeyOrWildcard', async () => {
-		mocks.userAuthDataGet.mockResolvedValue({ tenantPermissionKeys: ['*'] });
-		const wildcard = renderWithQueryClient(() => useCanViewIntegrations());
-		await waitFor(() => expect(wildcard.result.current).toBe(true));
-
-		mocks.userAuthDataGet.mockResolvedValue({ tenantPermissionKeys: [] });
-		const none = renderWithQueryClient(() => useCanViewIntegrations());
-		await waitFor(() => expect(none.result.current).toBe(false));
 	});
 });

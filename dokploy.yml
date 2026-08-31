@@ -76,6 +76,7 @@ services:
       - JOB_QUEUE_POLL_SECONDS=${JOB_QUEUE_POLL_SECONDS}
       - JOB_LEASE_SECONDS=${JOB_LEASE_SECONDS}
       - JOB_QUEUE_DRAIN_BUDGET_SECONDS=${JOB_QUEUE_DRAIN_BUDGET_SECONDS}
+      - JOB_QUEUE_DRAIN_STALL_SECONDS=${JOB_QUEUE_DRAIN_STALL_SECONDS}
       - EMAIL_LOG_RETENTION_DAYS=${EMAIL_LOG_RETENTION_DAYS}
       - JOB_DEAD_LETTER_RETENTION_DAYS=${JOB_DEAD_LETTER_RETENTION_DAYS}
       - EMAIL_PREPARED_SEND_RETENTION_DAYS=${EMAIL_PREPARED_SEND_RETENTION_DAYS}
@@ -103,6 +104,10 @@ services:
       # budget, so pending migrations keep the API alive-but-unrouted throughout the start
       # period: plain Compose does not kill an unhealthy container, so the healthcheck failing
       # during the wait does not take the container down (Traefik simply withholds routing).
+      # The job-queue drain guard deliberately does NOT sit on this endpoint: /health/drain
+      # (its own non-routing surface, 503 + cause when the worker stops draining) never
+      # influences routing, so a stalled queue — including one that goes stale inside this
+      # start window when the api starts before the worker — can never take the api offline.
       test:
         [
           'CMD',
@@ -159,6 +164,7 @@ services:
       - JOB_QUEUE_POLL_SECONDS=${JOB_QUEUE_POLL_SECONDS}
       - JOB_LEASE_SECONDS=${JOB_LEASE_SECONDS}
       - JOB_QUEUE_DRAIN_BUDGET_SECONDS=${JOB_QUEUE_DRAIN_BUDGET_SECONDS}
+      - JOB_QUEUE_DRAIN_STALL_SECONDS=${JOB_QUEUE_DRAIN_STALL_SECONDS}
       - EMAIL_LOG_RETENTION_DAYS=${EMAIL_LOG_RETENTION_DAYS}
       - JOB_DEAD_LETTER_RETENTION_DAYS=${JOB_DEAD_LETTER_RETENTION_DAYS}
       - EMAIL_PREPARED_SEND_RETENTION_DAYS=${EMAIL_PREPARED_SEND_RETENTION_DAYS}
@@ -235,6 +241,7 @@ services:
       - JOB_QUEUE_POLL_SECONDS=${JOB_QUEUE_POLL_SECONDS}
       - JOB_LEASE_SECONDS=${JOB_LEASE_SECONDS}
       - JOB_QUEUE_DRAIN_BUDGET_SECONDS=${JOB_QUEUE_DRAIN_BUDGET_SECONDS}
+      - JOB_QUEUE_DRAIN_STALL_SECONDS=${JOB_QUEUE_DRAIN_STALL_SECONDS}
       - EMAIL_LOG_RETENTION_DAYS=${EMAIL_LOG_RETENTION_DAYS}
       - JOB_DEAD_LETTER_RETENTION_DAYS=${JOB_DEAD_LETTER_RETENTION_DAYS}
       - EMAIL_PREPARED_SEND_RETENTION_DAYS=${EMAIL_PREPARED_SEND_RETENTION_DAYS}

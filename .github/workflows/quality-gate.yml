@@ -172,7 +172,7 @@ jobs:
         uses: extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3 # v4.0.0
 
       - name: Assert exact pins
-        run: node apps/front/scripts/guards/assert-pinned.mts
+        run: node apps/front/scripts/run-guarded.mts apps/front/scripts/guards/assert-pinned.mts
 
       - name: Install (frozen lockfile, no scripts)
         run: pnpm install --frozen-lockfile --ignore-scripts

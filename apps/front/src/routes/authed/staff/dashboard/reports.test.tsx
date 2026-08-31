@@ -115,6 +115,31 @@ describe('StaffDashboardReportsTab', () => {
 		});
 	});
 
+	test('drives the export with the format the user actually selected (catches M3: frozen format)', async () => {
+		render(<StaffDashboardReportsTab />);
+
+		// Select JSON from the format selector — the user's choice must reach
+		// the export call, not be overridden by a frozen default.
+		fireEvent.click(screen.getByTestId('staff-dashboard-reports-format'));
+
+		const jsonOption = await screen.findByRole('option', { name: 'JSON' });
+		const jsonRow = jsonOption.closest('[data-slot="select-item"]');
+		expect(jsonRow).not.toBeNull();
+
+		fireEvent.mouseMove(jsonRow as HTMLElement);
+		fireEvent.mouseDown(jsonRow as HTMLElement);
+		fireEvent.click(jsonRow as HTMLElement);
+
+		mocks.exportMutation.mutateAsync.mockResolvedValue(new ArrayBuffer(8));
+		fireEvent.click(screen.getByTestId('staff-dashboard-reports-download'));
+
+		await waitFor(() => {
+			expect(mocks.exportMutation.mutateAsync).toHaveBeenCalledWith({
+				format: 'json',
+			});
+		});
+	});
+
 	test('shows the honest coming-later state for analytics reports (no fabricated charts)', () => {
 		render(<StaffDashboardReportsTab />);
 

@@ -757,6 +757,7 @@ public sealed class ComprehensiveRateLimitingSpec
 	[InlineData("/health")]
 	[InlineData("/health/live")]
 	[InlineData("/health/ready")]
+	[InlineData("/health/drain")]
 	public async Task
 	ItShouldNeverLimitHealthEndpointBursts(
 		string path

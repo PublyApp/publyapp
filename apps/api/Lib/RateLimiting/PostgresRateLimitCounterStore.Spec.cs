@@ -17,14 +17,6 @@ namespace PublyApp.Api.Lib.RateLimiting;
 // borrowing connections from scoped AppDbContexts, atomic over-admission-proof
 // accounting, PII-free hashed partitions, and the outage contract (breaker +
 // fail CLOSED for anonymous-auth/email policies, fail OPEN elsewhere).
-//
-// #1924: the InMemoryRateLimitCounterStore used by the spec suite and the
-// MemoryRateLimitCounterStore fallback path track permits per-process only.
-// With N >= 2 replicas running in production, each replica grants the full
-// budget independently, so the effective fleet-wide limit is permitLimit * N
-// instead of permitLimit. This is only acceptable for development/development
-// scenarios and must never be used as the primary store in a multi-replica
-// deployment. The production store is PostgresRateLimitCounterStore.
 public sealed class PostgresRateLimitCounterStoreSpec
 	: IClassFixture<ApiFixture> {
 	private static readonly DateTimeOffset BaseTime =
@@ -150,13 +142,12 @@ public sealed class PostgresRateLimitCounterStoreSpec
 			"once the fleet-wide budget is spent no replica may over-admit"
 		);
 	}
-	// #1546 red proof: window_started_at must come from the DB clock
-	// (floor(EXTRACT(EPOCH FROM now()) / $4) * $4), not the app clock. Two
-	// replicas whose utcNow values are a full window apart would, under the
-	// old app-clock code, compute different window_started_at values and
-	// silently split one budget into two. With the fix the DB's single clock
-	// aligns them to the same window row, so the fleet still enforces exactly
-	// permitLimit total.
+	// #1546 red proof: window_started_at must come from the DB clock (date_trunc
+	// on now()), not the app clock. Two replicas whose utcNow values are a full
+	// window apart would, under the old app-clock code, compute different
+	// window_started_at values and silently split one budget into two. With the
+	// fix the DB's single clock aligns them to the same window row, so the fleet
+	// still enforces exactly permitLimit total.
 	[Fact]
 	public async Task ItShouldNotSplitBudgetWhenAppClocksAreDesynced() {
 		await using var scope = _fixture.Factory.Services
@@ -233,10 +224,10 @@ public sealed class PostgresRateLimitCounterStoreSpec
 		var rowCount = await dbContext.Database
 			.SqlQuery<int>(
 				$"""
-					SELECT COUNT(*)
-					FROM rate_limit_counters
-					WHERE policy_name = {policyName}
-					"""
+						SELECT COUNT(*)
+						FROM rate_limit_counters
+						WHERE policy_name = {policyName}
+						"""
 			)
 			.ToListAsync();
 		rowCount.Single().Should().Be(1);
@@ -246,6 +237,13 @@ public sealed class PostgresRateLimitCounterStoreSpec
 	// safety. Launch N >= 2 * limit contenders in parallel against one shared
 	// counter row; exactly `permitLimit` must succeed — no more, no less. A
 	// non-atomic SELECT-then-UPDATE store would let all N through.
+	//
+	// #1970: what this proves is atomicity INSIDE ONE PROCESS — a single
+	// store instance, one connection pool. It cannot see a change that keeps
+	// single-host atomicity but splits the budget per replica (each host
+	// caching the counter locally, for instance). The fleet-wide guarantee
+	// across independent hosts is pinned by
+	// ItShouldGrantExactlyPermitLimitAcrossTwoHosts below.
 	[Fact]
 	public async Task ItShouldGrantExactlyPermitLimitUnderConcurrency() {
 		await using var scope = _fixture.Factory.Services
@@ -290,6 +288,71 @@ public sealed class PostgresRateLimitCounterStoreSpec
 			.Should()
 			.BeEquivalentTo(
 				Enumerable.Range(1, permitLimit)
+			);
+	}
+
+	// #1970: the deployed limiter runs on several replicas, so the guarantee
+	// that matters is the budget holding ACROSS independent hosts, not just
+	// inside one. Two WebApplicationFactory hosts — separate service
+	// providers, separate Npgsql connection pools, no shared in-process
+	// state — contend against the SAME database; exactly `permitLimit` must
+	// succeed across both. A per-host cache, a lowered isolation level or a
+	// removed serialization guarantee that the single-process spec cannot
+	// see splits the budget here.
+	[Fact]
+	public async Task ItShouldGrantExactlyPermitLimitAcrossTwoHosts() {
+		await using var scope = _fixture.Factory.Services
+			.CreateAsyncScope();
+		var dbContext = scope.ServiceProvider
+			.GetRequiredService<AppDbContext>();
+		await dbContext.ClearCounterRowsAsync();
+
+		var suffix = Guid.NewGuid().ToString("N")[..8];
+		var policyName = $"spec-two-hosts-{suffix}";
+		const string partitionKey = "two-host-concurrent-key";
+		const int permitLimit = 10;
+		var window = TimeSpan.FromSeconds(3_600);
+		var contenderCount = permitLimit * 2;
+
+		// Host A is the fixture's own factory; host B is a second,
+		// independent WebApplicationFactory against the same database.
+		var firstHostStore = CreateStoreFromHost();
+		await using var secondHost = _fixture.CreateSecondHost();
+		var secondHostStore = CreateStoreFrom(secondHost);
+
+		var leases = await Task.WhenAll(
+			Enumerable
+				.Range(0, contenderCount)
+				.Select(contender => (contender % 2 == 0
+					? firstHostStore
+					: secondHostStore
+				).AcquireAsync(
+					policyName,
+					partitionKey,
+					permitLimit,
+					window,
+					1,
+					BaseTime
+				))
+		);
+
+		var acquired = leases.Count(l => l.Acquired);
+		acquired.Should().Be(
+			permitLimit,
+			$"two independent hosts must share ONE fleet-wide budget; "
+				+ $"observed {acquired} acquisitions across both hosts, "
+				+ $"expected exactly {permitLimit}"
+		);
+		// Each successful acquire reports the cumulative permit count from
+		// the shared row; under correct cross-host accounting those must be
+		// exactly 1..limit (order is non-deterministic under concurrency).
+		leases
+			.Where(l => l.Acquired)
+			.Select(l => l.NewPermitCount)
+			.Should()
+			.BeEquivalentTo(
+				Enumerable.Range(1, permitLimit),
+				"the shared row must count every host's draws sequentially"
 			);
 	}
 
@@ -371,8 +434,8 @@ public sealed class PostgresRateLimitCounterStoreSpec
 		var policyName = $"spec-rollover-{suffix}";
 		const string partitionKey = "rejection-does-not-consume";
 		const int permitLimit = 2;
-		// A 1-second window so the DB clock (floor(EXTRACT(EPOCH FROM now())
-		// / $4) * $4) rolls over within the test — the app's utcNow parameter
+		// A 1-second window so the DB clock (date_trunc on now())
+		// rolls over within the test — the app's utcNow parameter
 		// no longer drives window alignment (#1546).
 		var window = TimeSpan.FromSeconds(1);
 
@@ -661,13 +724,19 @@ public sealed class PostgresRateLimitCounterStoreSpec
 
 	private PostgresRateLimitCounterStore
 		CreateStoreFromHost() {
+		return CreateStoreFrom(_fixture.Factory);
+	}
+
+	private static PostgresRateLimitCounterStore
+		CreateStoreFrom(ApiFactory factory) {
 		return new PostgresRateLimitCounterStore(
-			_fixture.Factory.Services
+			factory.Services
 				.GetRequiredService<IServiceScopeFactory>(),
-			_fixture.Factory.Services.GetRequiredService<
+			factory.Services.GetRequiredService<
 				ILogger<PostgresRateLimitCounterStore>>(),
-			GetHostSettings<ApiRateLimitSettings>(),
-			GetHostSettings<AnonymousAuthRateLimitSettings>()
+			factory.Services.GetRequiredService<ApiRateLimitSettings>(),
+			factory.Services.GetRequiredService<
+				AnonymousAuthRateLimitSettings>()
 		);
 	}
 
