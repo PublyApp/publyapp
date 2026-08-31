@@ -1,7 +1,6 @@
 {
 	"$schema": "../expected-red.schema.json",
 	"_comment": "Per-test kept-red expectation manifest for the r2 C0/C1 control character proof (issue #1931). Read by apps/front/scripts/ci/run-preuves.mts BEFORE classification. Each test declared in `expectedRed` MUST fail with an AssertionError on correct code. If a declared kept-red test PASSES, the runner fails CI with verdict CORRUPT PROOF.",
-	"measuredAgainst": "614dd03d4bc5563960512ee669eb4a63ebf009e9",
 	"expectedRed": [
 		{
 			"testName": "U+0001 (SOH) renders blank \u2014 the bug the r1 predicate missed",
