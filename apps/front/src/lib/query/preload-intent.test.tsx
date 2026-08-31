@@ -93,8 +93,8 @@ type Harness = {
 	router: HarnessRouter;
 };
 
-const mountHarness = async (
-	factory: FakeFactory<{ id: string }>,
+const mountHarness = async <TData,>(
+	factory: FakeFactory<{ id: string }, TData>,
 	queryCacheConfig?: { onError: (error: unknown, query: unknown) => void },
 ): Promise<Harness> => {
 	const queryClient = new QueryClient({
