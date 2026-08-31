@@ -27,26 +27,27 @@ import { usePreloadIntentQueries } from './preload-intent';
 
 type FakePayload = { ok: boolean; id: string };
 
-type FakeFactoryOptions<TVariables extends Record<string, unknown>> = {
+type FakeFactoryOptions<TVariables extends Record<string, unknown>, TData> = {
 	queryKey?: (vars: TVariables) => readonly unknown[];
-	fetcher?: (vars: TVariables) => Promise<FakePayload>;
+	fetcher?: (vars: TVariables) => Promise<TData>;
 	staleTime?: number;
 };
 
-type FakeFactory<TVariables extends Record<string, unknown>> = {
+type FakeFactory<TVariables extends Record<string, unknown>, TData> = {
 	queryKey: (variables: TVariables) => readonly unknown[];
-	fetcher: (variables: TVariables) => Promise<FakePayload>;
+	fetcher: (variables: TVariables) => Promise<TData>;
 	staleTime?: number;
 };
 
-const makeFakeFactory = <TVariables extends Record<string, unknown>>(
-	opts: FakeFactoryOptions<TVariables> = {},
-): FakeFactory<TVariables> => {
-	const fallbackFetcher = async (vars: TVariables): Promise<FakePayload> => ({
-		ok: true,
-		id: String(vars.id),
-	});
-	const factory: FakeFactory<TVariables> = {
+const makeFakeFactory = <
+	TVariables extends Record<string, unknown>,
+	TData = FakePayload,
+>(
+	opts: FakeFactoryOptions<TVariables, TData> = {},
+): FakeFactory<TVariables, TData> => {
+	const fallbackFetcher = async (vars: TVariables): Promise<TData> =>
+		({ ok: true, id: String(vars.id) }) as TData;
+	const factory: FakeFactory<TVariables, TData> = {
 		queryKey: opts.queryKey ?? ((vars) => ['fake', vars]),
 		fetcher: opts.fetcher ?? fallbackFetcher,
 	};
@@ -56,13 +57,24 @@ const makeFakeFactory = <TVariables extends Record<string, unknown>>(
 	return factory;
 };
 
-// Adapt the test factory to the production `RoutePreloadFactory<TVariables>`
+// Adapt the test factory to the production `RoutePreloadFactory<TVariables, TData>`
 // contract. The production shape is the source of truth (§1.2 / plan §3); the
 // test factory uses a precise return type locally and widens it at this single
-// boundary so the test is not a fiction.
-const asRoutePreloadFactory = <TVariables extends Record<string, unknown>>(
-	factory: FakeFactory<TVariables>,
-): RoutePreloadFactory<TVariables> & { staleTime?: number } => factory;
+// boundary so the test is not a fiction. Both generic slots are forwarded:
+// `TVariables` keeps the test fetcher's typed input, `TData` keeps the
+// test fetcher's typed output — so the `no-unknown-returns` rule stays
+// quiet on the produced factory (it has generic return types, verified
+// at packages/lint-ts/src/anti-slop/rules/no-unknown-returns.ts: the
+// rule short-circuits on `alias.typeParameters !== null`). The
+// intersection with `{ staleTime?: number }` extends the production
+// shape with the test-only `staleTime` field used by tests (b) and
+// (c) to assert cache-freshness behavior.
+const asRoutePreloadFactory = <
+	TVariables extends Record<string, unknown>,
+	TData,
+>(
+	factory: FakeFactory<TVariables, TData>,
+): RoutePreloadFactory<TVariables, TData> & { staleTime?: number } => factory;
 
 // ---------------------------------------------------------------------------
 // Router harness — mount the hook inside a real React component, so the
