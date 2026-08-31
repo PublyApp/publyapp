@@ -487,9 +487,9 @@
 			"reason": "GitHub-only actions/cache step; the local recipe has no separate browser-cache action or equivalent cache backend."
 		},
 		"front-e2e.yml::test::Checkout": {
-			"hash": "11ee605b2ca0dfd4",
+			"hash": "f6bbd86f711cad8c",
 			"mirror": null,
-			"reason": "GitHub-only: clones the repo onto the runner. Locally the working tree already is the code under test."
+			"reason": "GitHub-only: the e2e test job clones the repo at fetch-depth: 0 so checkFeatureAncestry can resolve ef8a43d83 (publish-now #1457) in the checkout; the depth-1 default made the guard misreport a fresh branch as stale and front-e2e went red 4/4 (#2009). Locally the working tree already is the code under test."
 		},
 		"front-e2e.yml::test::Detect partial re-run before pull": {
 			"hash": "1e549d69381e2ec7",

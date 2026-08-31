@@ -316,8 +316,23 @@ jobs:
       # volumes as initial state (#1642 Constat 5).
       COMPOSE_PROJECT_NAME: publyapp-e2e-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.shard }}
     steps:
+      # #2009/#2000: fetch-depth: 0 — full history for the shard checkout,
+      # exactly like front-ci.yml's supply-chain and gate-selftest jobs (see
+      # the #1782/#1795 comment block there). The publish-now e2e spec runs
+      # checkFeatureAncestry('ef8a43d83', ...) at module load: it needs that
+      # commit PRESENT in this checkout to tell "branch predates the merge"
+      # from "commit not fetched". The default checkout (fetch-depth: 1)
+      # contains neither ef8a43d83 nor its merge-base, git rejects the sha
+      # with exit 128, and the guard (before #2009) read that as "older than
+      # the merge" — front-e2e went red 4/4 on a branch that had just merged
+      # develop. Fetching full history here makes the ancestry probe able to
+      # answer. The pairing is pinned by the #2000 guard test, which reads
+      # THIS file and fails if this depth is removed or set back to 1 while
+      # the spec still invokes the guard.
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
 
       - name: Install pnpm
         uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
