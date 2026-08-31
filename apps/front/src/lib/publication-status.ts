@@ -4,7 +4,7 @@
  * MUST import from here — never define a local copy.
  */
 
-export const PUBLICATION_WIRE_STATUSES = [
+const PUBLICATION_WIRE_STATUSES = [
 	'scheduled',
 	'in_progress',
 	'published',

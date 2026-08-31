@@ -27,9 +27,6 @@ import {
 	type PublicationWireStatus,
 } from '~/lib/publication-status';
 
-/** Backward-compat alias — prefer PublicationWireStatus from the shared module. */
-export type TenantPublicationStatus = PublicationWireStatus;
-
 export type TenantPublicationsQueryVariables = {
 	/** Raw values (URL state arrives as strings); validated against the
 	 * `TENANT_PUBLICATION_STATUSES` vocabulary at build time — unknown entries
