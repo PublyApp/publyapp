@@ -1,0 +1,11 @@
+{
+	"$schema": "../expected-red.schema.json",
+	"_comment": "Per-test kept-red expectation manifest for the paired red proof of issue #2009. Read by apps/front/scripts/ci/run-preuves.mts BEFORE classification. Each test declared in `expectedRed` MUST fail on correct code with an AssertionError. If a declared kept-red test PASSES, the runner fails CI with verdict CORRUPT PROOF. The second test ('CONTEXT') is intentionally NOT declared here — it must PASS on both buggy and fixed code as a regression-boundary pin; if it goes red, the fix swallowed the not-an-ancestor case.",
+	"expectedRed": [
+		{
+			"testName": "DEFECT: shallow checkout without the commit is misreported as \"older than the merge — Rebase\" (issue #2009)",
+			"why": "On correct code (#2009 fix), checkFeatureAncestry throws a message about 'no history' + 'fetch' + 'shallow checkout', NOT 'older than' + 'Rebase'. The proof asserts the BUG (message contains 'older than' + 'Rebase'), so the expect() calls fail with AssertionError. If this test passes, the bug has been reintroduced — the cat-file -e pre-check was removed and the guard fell back to merge-base-only."
+		}
+	],
+	"measuredAgainst": "e2b16fb58ba2bb3b75169326e53bc14d903d4f9e"
+}
