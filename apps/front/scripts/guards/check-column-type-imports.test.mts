@@ -975,7 +975,7 @@ void test('R7 HOLE 3 RED: removing .ctsx from SCANNED_EXTENSIONS fails assertSca
 		nonCodeExtensions: Record<string, string>;
 		exemptFiles: string[];
 	};
-	const reducedScanned = new Set([...SCANNED_EXTENSIONS]);
+	const reducedScanned = new Set(SCANNED_EXTENSIONS);
 	reducedScanned.delete('.ctsx');
 	assert.throws(
 		() => assertScannedExtensionsPinned(reducedScanned, baseline),
