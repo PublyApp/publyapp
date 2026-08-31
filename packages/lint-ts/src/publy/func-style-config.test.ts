@@ -2120,47 +2120,78 @@ class Probe {}
 
 		afterAll(removePlanted);
 
-		it('leg 1: a suppression inside a git-ignored directory is not scanned', async () => {
-			plantSuppression(plantedWorktreeFile);
+		// Issue #1968: under sustained load (23 sibling lanes on the host on
+		// 2026-08-30), leg 2 repeatedly hit the 5000 ms vitest default and
+		// failed as `Test timed out in 5000ms`. Measured concurrently with
+		// six sibling vitest workers (load average 13 at the time of
+		// measurement, comparable to the host state the issue names):
+		//   leg 1 observed: 2.4 s, 2.6 s, 2.6 s, 2.7 s, 2.7 s, 2.8 s
+		//   leg 2 observed: 4.6 s, 5.0 s, 5.0 s, 5.0 s, 5.0 s, 5.0 s
+		// A 20-second budget covers the observed 5.0 s maximum with 4x
+		// headroom and stays well under any plausible worst case (a single
+		// `git check-ignore --stdin -z` against the workspace tree is the
+		// load-bearing cost — verified at <1 s even under load). The budget
+		// is NOT just an inflated fudge factor: a regression that genuinely
+		// regresses `git check-ignore` handling would still go red here,
+		// because the timeout is set per-leg and both legs sit under 5 s
+		// when the scanner is correct. Do NOT lower this without re-measuring
+		// under load — a quiet-machine measurement is not a measurement.
+		it(
+			'leg 1: a suppression inside a git-ignored directory is not scanned',
+			{ timeout: 20_000 },
+			async () => {
+				plantSuppression(plantedWorktreeFile);
 
-			try {
-				const foundEntries = await scanFuncStyleSuppressions(WORKSPACE_ROOT);
-				const worktreeEntries = foundEntries.filter((entry) =>
-					entry.file.startsWith('.worktrees/proof-1909/'),
-				);
+				try {
+					const foundEntries = await scanFuncStyleSuppressions(WORKSPACE_ROOT);
+					const worktreeEntries = foundEntries.filter((entry) =>
+						entry.file.startsWith('.worktrees/proof-1909/'),
+					);
 
-				assert.deepStrictEqual(
-					worktreeEntries,
-					[],
-					`the scanner must skip the git-ignored .worktrees/ directory; found ${worktreeEntries.map((entry) => `${entry.file}: ${entry.symbol}`).join(', ')}`,
-				);
-			} finally {
-				removePlanted();
-			}
-		});
+					assert.deepStrictEqual(
+						worktreeEntries,
+						[],
+						`the scanner must skip the git-ignored .worktrees/ directory; found ${worktreeEntries.map((entry) => `${entry.file}: ${entry.symbol}`).join(', ')}`,
+					);
+				} finally {
+					removePlanted();
+				}
+			},
+		);
 
-		it('adversarial leg 2: the same suppression in a NON-ignored file is still reported', async () => {
-			plantSuppression(plantedTrackedFile);
+		// Same #1968 budget as leg 1 — leg 2 is the test that actually
+		// reddened under load (5.04 s observed max). See leg 1 for the
+		// measurement and the rationale for 20 s. Leg 2 is the adversarial
+		// half: it plants the SAME suppression in a non-ignored file and
+		// asserts the scanner still sees it. A retry loop would defeat its
+		// purpose (a real regression would pass on the second attempt), so
+		// the budget stays fixed — measured, not flaked.
+		it(
+			'adversarial leg 2: the same suppression in a NON-ignored file is still reported',
+			{ timeout: 20_000 },
+			async () => {
+				plantSuppression(plantedTrackedFile);
 
-			try {
-				const foundEntries = await scanFuncStyleSuppressions(WORKSPACE_ROOT);
-				const found = foundEntries.filter((entry) =>
-					entry.file.startsWith('apps/front/proof-1909-not-ignored/'),
-				);
+				try {
+					const foundEntries = await scanFuncStyleSuppressions(WORKSPACE_ROOT);
+					const found = foundEntries.filter((entry) =>
+						entry.file.startsWith('apps/front/proof-1909-not-ignored/'),
+					);
 
-				assert.strictEqual(
-					found.length,
-					1,
-					`the scanner must still report the non-ignored suppression; got ${JSON.stringify(found)}`,
-				);
-				assert.strictEqual(
-					found[0]!.symbol,
-					'survie1909',
-					'the reported suppression must carry its symbol',
-				);
-			} finally {
-				removePlanted();
-			}
-		});
+					assert.strictEqual(
+						found.length,
+						1,
+						`the scanner must still report the non-ignored suppression; got ${JSON.stringify(found)}`,
+					);
+					assert.strictEqual(
+						found[0]!.symbol,
+						'survie1909',
+						'the reported suppression must carry its symbol',
+					);
+				} finally {
+					removePlanted();
+				}
+			},
+		);
 	});
 });
