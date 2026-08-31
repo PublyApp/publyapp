@@ -15,8 +15,10 @@ using PublyApp.Api.Lib.ProblemResults;
 using PublyApp.Api.Lib.Testing.Fixtures;
 using PublyApp.Api.Lib.Testing.Helpers;
 using PublyApp.Api.Lib.Utils;
+using PublyApp.Api.Modules.Auth.Utils;
 using PublyApp.Api.Modules.Tenants.Entities;
 using PublyApp.Api.Modules.Tenants.Services;
+using PublyApp.Api.Modules.Users.Entities;
 
 using Xunit;
 
@@ -329,6 +331,66 @@ public sealed class TenantAuthFilterSpec
 
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.Unauthorized);
+	}
+
+	[Fact]
+	public async Task
+	ItShouldReturn403ForMemberOfSoftDeletedTenant() {
+		// #365 R5 / #1510: a soft-deleted tenant's members cannot act in tenant
+		// scope. TenantAuthFilter resolves the tenant through
+		// GetTenantByIdIncludingSuspendedAsync, which excludes IsDeleted rows, so
+		// membership alone must NOT reopen access after deletion. Prior to this
+		// spec nothing exercised the deleted path (only suspended/reactivated),
+		// leaving the boundary a promise.
+		var (tenantId, memberUserId, memberEmail) =
+			await SeedMemberOfFreshTenantAsync();
+
+		try {
+			var memberToken = await _authClient.LoginAsync(
+				memberEmail, TestConstants.SeedPassword
+			);
+
+			// Sanity: before deletion the member can reach the tenant-scope surface.
+			using (var beforeRequest = new HttpRequestMessage(
+				HttpMethod.Get, GetTestEndpoint()
+			)
+				.WithSessionToken(memberToken)
+				.WithTenantId(tenantId)) {
+				using var beforeResponse =
+					await _http.SendAsync(beforeRequest);
+				beforeResponse.StatusCode.Should()
+					.Be(HttpStatusCode.OK);
+			}
+
+			// Delete the tenant (soft) directly: the same row state
+			// CleanupExpiredSessions-style sweeps operate on.
+			await using (var deleteScope =
+				_fixture.Factory.Services.CreateAsyncScope()) {
+				var dbContext = deleteScope.ServiceProvider
+					.GetRequiredService<AppDbContext>();
+				await dbContext.Tenant
+					.Where(t => t.Id == tenantId)
+					.ExecuteUpdateAsync(setters => setters
+						.SetProperty(t => t.IsDeleted, true)
+						.SetProperty(t => t.DeletedAt, DateTime.UtcNow));
+			}
+
+			using var request = new HttpRequestMessage(
+				HttpMethod.Get, GetTestEndpoint()
+			)
+				.WithSessionToken(memberToken)
+				.WithTenantId(tenantId);
+
+			using var response =
+				await _http.SendAsync(request);
+
+			response.StatusCode.Should()
+				.Be(HttpStatusCode.Forbidden,
+					"[#1510] a member of a soft-deleted tenant must lose tenant-scope "
+					+ "access — the deleted-tenant boundary is not a promise");
+		} finally {
+			await HardDeleteMemberOfFreshTenantAsync(tenantId, memberUserId);
+		}
 	}
 
 	[Fact]
@@ -671,5 +733,78 @@ public sealed class TenantAuthFilterSpec
 			.Where(t => t.Id == tenantId)
 			.Select(t => t.LastActivityAt)
 			.SingleAsync();
+	}
+
+	// Seeds a fresh tenant + one member user (with a real password, so the member
+	// can log in through the HTTP surface like production). Returns the tenant id,
+	// the user id, and the email — the caller owns cleanup via
+	// <see cref="HardDeleteMemberOfFreshTenantAsync"/>.
+	private async Task<(Guid tenantId, Guid userId, string email)>
+		SeedMemberOfFreshTenantAsync() {
+		var email = $"deleted-tenant-member-{Guid.NewGuid():N}@example.com";
+
+		await using var dbContext =
+			_fixture.Factory.Services.CreateAsyncScope()
+				.ServiceProvider.GetRequiredService<AppDbContext>();
+
+		var tenant = new Tenant {
+			Code = $"deleted-probe-{Guid.NewGuid():N}",
+			Name = "Deleted Probe Tenant",
+			Status = TenantStatus.Active,
+			MaxUsers = 10
+		};
+		dbContext.Tenant.Add(tenant);
+
+		var member = new User {
+			Email = email,
+			Password = PasswordUtils.HashPassword(TestConstants.SeedPassword),
+			FirstName = "Deleted",
+			LastName = "Probe",
+			Status = UserStatus.Active,
+			IsVerified = true
+		};
+		dbContext.User.Add(member);
+		await dbContext.SaveChangesAsync();
+
+		dbContext.UserAccount.Add(UserAccount.CreateTenantAccount(
+			member.GetRequiredId(), tenant.GetRequiredId()
+		));
+		await dbContext.SaveChangesAsync();
+
+		return (tenant.GetRequiredId(), member.GetRequiredId(), email);
+	}
+
+	// Hard-deletes the probe tenant + member + account so the spec leaves no
+	// soft-deleted rows behind (the point of the spec is the boundary, not
+	// retention-sweep behavior).
+	private async Task HardDeleteMemberOfFreshTenantAsync(
+		Guid tenantId,
+		Guid userId
+	) {
+		await using var scope =
+			_fixture.Factory.Services.CreateAsyncScope();
+		var dbContext = scope.ServiceProvider
+			.GetRequiredService<AppDbContext>();
+
+		var accounts = await dbContext.UserAccount
+			.Where(a => a.TenantId == tenantId || a.UserId == userId)
+			.ToListAsync();
+		dbContext.UserAccount.RemoveRange(accounts);
+
+		var tenant = await dbContext.Tenant
+			.IgnoreQueryFilters()
+			.FirstOrDefaultAsync(t => t.Id == tenantId);
+		if (tenant is not null) {
+			dbContext.Tenant.Remove(tenant);
+		}
+
+		var member = await dbContext.User
+			.IgnoreQueryFilters()
+			.FirstOrDefaultAsync(u => u.Id == userId);
+		if (member is not null) {
+			dbContext.User.Remove(member);
+		}
+
+		await dbContext.SaveChangesAsync();
 	}
 }
