@@ -5,7 +5,6 @@ import { useTranslation } from 'react-i18next';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
 import type { ColumnDef } from '~/components/table/column-type';
 import { DataTable } from '~/components/table/data-table';
-import { useTableController } from '~/components/table/use-table-controller';
 import { Badge } from '~/components/ui/badge';
 import { Button } from '~/components/ui/button';
 import { PageHeader } from '~/components/ui/product-page';
@@ -18,16 +17,11 @@ import {
 	type TenantPublicationRow,
 	type TenantPublicationStatus,
 } from '~/lib/query/tenant-publications';
-import { useResolvedWorkspaceTenantId } from '~/lib/query/tenants-for-picker';
 import type { TableSearchParamInput } from '~/lib/url-state/table-search-params';
-import {
-	parseTenantPostListSearchParams,
-	serializeTenantPostListSearchParams,
-} from '~/lib/url-state/tenant-post-list-helpers';
 
 import { shouldLogoutForFailure } from '@org/shared-ts/lib/should-logout-for-failure';
 
-const DEFAULT_SORT = { id: 'updated_at', order: 'desc' as const } as const;
+import { useTenantPostList } from './_use-tenant-post-list';
 
 /** While any publication is in progress the list refreshes itself on this
  * cadence (query invalidation, so the worker-driven transitions surface
@@ -123,30 +117,12 @@ const PublicationStatusCell = ({
 };
 
 const TenantPostsHistoryPage = () => {
-	const { t } = useTranslation(['posts', 'common']);
+	const { t, i18n } = useTranslation(['posts', 'common']);
 	const navigate = Route.useNavigate();
-	const search = parseTenantPostListSearchParams(
+	const { controller, tenantId } = useTenantPostList(
 		Route.useSearch() as TableSearchParamInput,
+		navigate,
 	);
-	const onSearchChange = (next: {
-		q?: string;
-		sortId?: string;
-		sortOrder?: 'asc' | 'desc';
-		cursor?: string;
-		size?: number;
-	}) => {
-		void navigate({
-			search: serializeTenantPostListSearchParams(next),
-			replace: true,
-		});
-	};
-	const controller = useTableController({
-		search,
-		onSearchChange,
-		defaultSort: DEFAULT_SORT,
-		defaultSize: 20,
-	});
-	const tenantId = useResolvedWorkspaceTenantId();
 	const query = useTenantPublicationsQuery({
 		...controller.apiVariables,
 		limit: controller.apiVariables.size,
@@ -222,11 +198,11 @@ const TenantPostsHistoryPage = () => {
 				meta: { width: '132px' },
 				cell: ({ row }) =>
 					row.original.updatedAt
-						? formatDateTime(row.original.updatedAt, 'en')
+						? formatDateTime(row.original.updatedAt, i18n.language)
 						: '\u2014',
 			},
 		],
-		[t],
+		[t, i18n.language],
 	);
 
 	// Hoisted so the fatal-error gate reads a plain local, not a query flag —

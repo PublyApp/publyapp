@@ -47,6 +47,7 @@ internal sealed class GlobalRateLimitMiddleware {
 		return context.Request.Path == "/health"
 			|| context.Request.Path == "/health/live"
 			|| context.Request.Path == "/health/ready"
+			|| context.Request.Path == "/health/drain"
 			|| context.Request.Path.StartsWithSegments(
 				"/files"
 			);

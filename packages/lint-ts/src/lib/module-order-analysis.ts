@@ -57,17 +57,20 @@
  * are not themselves immediately invoked.
  *
  * Known gaps — deliberate, declared for review (see the adverse-mutation
- * section of the PR):
+ * section of the PR). The #1956 call shapes describe block in
+ * func-style-config.test.ts ("one red test per declared gap") is the single
+ * source of truth for which call shapes the guard follows; the bullets below
+ * name only what remains open:
  * - plain REFERENCES before the declaration (`const x = f;` — a TDZ read,
  *   not a call) are not reported; the guard's mandate is the call defect.
- * - bindings whose initializer is not directly a function expression
- *   (`const f = [() => {}][0]`, `const f = g.bind(null)`, re-exports) are
- *   not tracked.
- * - invocations through member/sequence callees (`obj.f()`, `(0, f)()`,
- *   `obj[f]()`) are not followed as hops.
- * - getter bodies on class declarations, class instances, or computed
- *   property names are not tracked (only object-literal getters on
- *   module-level const bindings are analysed).
+ * - bindings whose initializer is not directly a function expression are
+ *   not tracked (`const f = [() => {}][0]`, re-exports); the bind chain
+ *   `const f = g.bind(null)` and the identifier alias `const g = f` are
+ *   tracked (shapes 2 and 6).
+ * - getter bodies on class instances are tracked when the property access
+ *   goes through `new Cls().prop` or a module const holding `new Cls()`
+ *   (shape 5); `Cls.prototype.prop`, computed property names and static
+ *   access through the class name itself are not resolved.
  * - decorator expressions that are member-access calls (`@ns.dec`) are
  *   not resolved to a named binding (only bare identifier decorators are
  *   treated as calls).
@@ -211,6 +214,46 @@ const functionInitializer = (
 	return undefined;
 };
 
+/** The target of a `.bind(...)` call on a plain identifier object
+ * (`g.bind(null)`): calling the bound function invokes `g`, so a call whose
+ * callee is the bind call resolves to `g` (and a binding initialised with
+ * it is a hop to `g`). Only the property-access form on an identifier is
+ * followed; computed `g['bind']` stays unresolved (declared boundary). */
+const resolveBindTarget = (call: ts.CallExpression): string | undefined => {
+	if (
+		!ts.isPropertyAccessExpression(call.expression) ||
+		!ts.isIdentifier(call.expression.name) ||
+		call.expression.name.text !== 'bind' ||
+		!ts.isIdentifier(call.expression.expression)
+	) {
+		return undefined;
+	}
+	return call.expression.expression.text;
+};
+
+/** Alias target of a module binding initializer that hops to another
+ * function binding instead of holding a function expression itself.
+ * #1956 shape 2 recognises the bind chain `const f = g.bind(null)`;
+ * shape 6 recognises the plain-identifier alias `const g = f`. Only
+ * identifier and bind-call initializers are followed; indexed reads and
+ * member reads (`const g = helpers.run`) stay unresolved (declared
+ * boundaries). */
+const aliasReferenceTarget = (
+	initializer: ts.Expression | undefined,
+): string | undefined => {
+	if (initializer === undefined) {
+		return undefined;
+	}
+	const unwrapped = unwrapParens(initializer);
+	if (ts.isIdentifier(unwrapped)) {
+		return unwrapped.text;
+	}
+	if (ts.isCallExpression(unwrapped)) {
+		return resolveBindTarget(unwrapped);
+	}
+	return undefined;
+};
+
 const addScopeDeclaration = (
 	scope: Scope,
 	name: string,
@@ -315,7 +358,7 @@ type ResolvedBinding =
 const resolveBinding = (
 	name: string,
 	scopes: Scope[],
-	moduleBindings: Map<string, FunctionBinding>,
+	context: WalkContext,
 ): ResolvedBinding => {
 	for (let index = scopes.length - 1; index >= 0; index--) {
 		const binding = scopes[index]!.names.get(name);
@@ -323,9 +366,23 @@ const resolveBinding = (
 			return { kind: 'scope', scopeIndex: index, binding };
 		}
 	}
-	const moduleBinding = moduleBindings.get(name);
-	if (moduleBinding !== undefined) {
-		return { kind: 'module', binding: moduleBinding };
+	// Module bindings, following alias hops (`const f = g.bind(null)` and
+	// `const g = f` make the left name a hop to the right one) with a cycle
+	// guard. The reported binding is the ultimate target; a call before its
+	// initializer ran is the defect.
+	const visited = new Set<string>();
+	let current = name;
+	while (!visited.has(current)) {
+		visited.add(current);
+		const moduleBinding = context.moduleBindings.get(current);
+		if (moduleBinding !== undefined) {
+			return { kind: 'module', binding: moduleBinding };
+		}
+		const next = context.aliasTargets.get(current);
+		if (next === undefined) {
+			return { kind: 'none' };
+		}
+		current = next;
 	}
 	return { kind: 'none' };
 };
@@ -339,6 +396,25 @@ interface WalkContext {
 	 * read for that property at module-eval time, the getter body runs and is
 	 * walked for TDZ violations. */
 	getterIndex: Map<string, Map<string, ObjectGetter>>;
+	/** For each module-level const/let binding whose initializer is an object
+	 * literal, the literal itself. Member callee resolution (`obj.run()`,
+	 * `obj['run']()`) reads the function-expression property off it. */
+	objectLiteralInitializers: Map<string, ts.ObjectLiteralExpression>;
+	/** Module bindings whose initializer is a hop to another function
+	 * binding instead of a function expression itself. The bind chain
+	 * (`const f = g.bind(null)`) and the plain-identifier alias
+	 * (`const g = f`) both record name → target (shapes 2 and 6); a call
+	 * through the aliased name resolves to the ultimate target. */
+	aliasTargets: Map<string, string>;
+	/** Module-level class declarations and class-expression consts, by
+	 * binding name. Class-instance getter access (`new Cls().prop` or a
+	 * module const holding `new Cls()`) resolves the getter body through
+	 * this index (shape 5). */
+	classBindings: Map<string, ts.ClassDeclaration | ts.ClassExpression>;
+	/** Every module-level const/let initializer expression, by binding name.
+	 * Class getter and alias resolution need to see what a const holds even
+	 * when it is not a function value. */
+	constInitializers: Map<string, ts.Expression>;
 	violations: ModuleOrderViolation[];
 }
 
@@ -768,9 +844,10 @@ const walkImmediate = (
 
 	if (ts.isPropertyAccessExpression(node)) {
 		// A property access can trigger a getter accessor defined on an
-		// object literal assigned to a module-level const. The getter body
-		// runs at the moment of access — module-evaluation time when the
-		// access is at module level.
+		// object literal assigned to a module-level const, or on a class
+		// instance constructed at module level. The getter body runs at
+		// the moment of access — module-evaluation time when the access is
+		// at module level.
 		walkGetterAccess(
 			node,
 			context,
@@ -780,6 +857,18 @@ const walkImmediate = (
 			chain,
 			visitedBindings,
 		);
+		const classGetter = resolveClassGetterAccess(node, context);
+		if (classGetter !== undefined) {
+			walkClassGetterBody(
+				classGetter.getter,
+				classGetter.className,
+				context,
+				scopes,
+				executionPos,
+				chain,
+				visitedBindings,
+			);
+		}
 		return;
 	}
 
@@ -922,7 +1011,11 @@ const walkGetterAccess = (
 		return;
 	}
 
-	// The getter body runs at the moment of property access.
+	// The getter body runs at the moment of property access. The chain is
+	// extended with the getter name so an inner call to a module binding is
+	// compared against the ACCESS time (executionPos), not the getter body's
+	// textual position — a getter textually above a later binding is safe
+	// when the access happens after the binding initialised.
 	const getterScope: Scope = { names: new Map() };
 	collectParameterDeclarations(getter.node.parameters, getterScope);
 	scopes.push(getterScope);
@@ -933,7 +1026,160 @@ const walkGetterAccess = (
 			scopes,
 			scopes.length,
 			executionPos,
-			chain,
+			[...chain, `${objectName}.${propertyName}`],
+			visitedBindings,
+		);
+	}
+	scopes.pop();
+};
+
+/** Resolves an object-literal member access (`obj.run` / `obj['run']`) to
+ * the function-expression property on a module-level const object literal.
+ * When the member is invoked at module-eval time, that body runs at
+ * module-eval time, so it is walked as an immediate invocation. Dotted
+ * names and computed indexes with literal names (strings and
+ * no-substitution templates, #1956 shape 4) are followed; a computed
+ * IDENTIFIER index (`obj[run]`) and method-definition shorthand stay
+ * unresolved (declared boundaries, not silently claimed as covered). */
+const resolveObjectLiteralMethod = (
+	access: ts.PropertyAccessExpression | ts.ElementAccessExpression,
+	context: WalkContext,
+): { name: string; fn: FunctionLike } | undefined => {
+	if (!ts.isIdentifier(access.expression)) {
+		return undefined;
+	}
+	let propertyName: string | undefined;
+	if (ts.isPropertyAccessExpression(access) && ts.isIdentifier(access.name)) {
+		propertyName = access.name.text;
+	} else if (
+		ts.isElementAccessExpression(access) &&
+		(ts.isStringLiteral(access.argumentExpression) ||
+			ts.isNoSubstitutionTemplateLiteral(access.argumentExpression))
+	) {
+		propertyName = access.argumentExpression.text;
+	}
+	if (propertyName === undefined) {
+		return undefined;
+	}
+	const objectLiteral = context.objectLiteralInitializers.get(
+		access.expression.text,
+	);
+	if (objectLiteral === undefined) {
+		return undefined;
+	}
+	for (const property of objectLiteral.properties) {
+		if (!ts.isPropertyAssignment(property)) {
+			continue;
+		}
+		const matches =
+			(ts.isIdentifier(property.name) && property.name.text === propertyName) ||
+			(ts.isStringLiteral(property.name) &&
+				property.name.text === propertyName);
+		if (!matches) {
+			continue;
+		}
+		const fn = functionInitializer(property.initializer);
+		if (fn === undefined) {
+			return undefined;
+		}
+		return {
+			name: `${access.expression.text}.${propertyName}`,
+			fn,
+		};
+	}
+	return undefined;
+};
+
+/** Finds a getter accessor with the given identifier name on a class
+ * node, instance or static (the guard does not distinguish the two: a
+ * property access runs whichever the receiver selects, and the body is
+ * what is analysed). */
+const findClassGetter = (
+	classNode: ts.ClassDeclaration | ts.ClassExpression,
+	propertyName: string,
+): ts.GetAccessorDeclaration | undefined => {
+	for (const member of classNode.members) {
+		if (
+			ts.isGetAccessorDeclaration(member) &&
+			member.name !== undefined &&
+			ts.isIdentifier(member.name) &&
+			member.name.text === propertyName
+		) {
+			return member;
+		}
+	}
+	return undefined;
+};
+
+/** Resolves a property access whose object is a class instance constructed
+ * at module level (`new Cls().prop`, or a module const holding `new Cls()`
+ * read as `provider.prop`) to the getter accessor that runs when the
+ * property is read. #1956 shape 5. */
+const resolveClassGetterAccess = (
+	access: ts.PropertyAccessExpression,
+	context: WalkContext,
+): { className: string; getter: ts.GetAccessorDeclaration } | undefined => {
+	if (!ts.isIdentifier(access.name)) {
+		return undefined;
+	}
+	const propertyName = access.name.text;
+	let className: string | undefined;
+	const objectExpression = unwrapParens(access.expression);
+	if (
+		ts.isNewExpression(objectExpression) &&
+		ts.isIdentifier(objectExpression.expression)
+	) {
+		className = objectExpression.expression.text;
+	} else if (ts.isIdentifier(objectExpression)) {
+		const initializer = context.constInitializers.get(objectExpression.text);
+		const unwrapped =
+			initializer === undefined ? undefined : unwrapParens(initializer);
+		if (
+			unwrapped !== undefined &&
+			ts.isNewExpression(unwrapped) &&
+			ts.isIdentifier(unwrapped.expression)
+		) {
+			className = unwrapped.expression.text;
+		}
+	}
+	if (className === undefined) {
+		return undefined;
+	}
+	const classNode = context.classBindings.get(className);
+	if (classNode === undefined) {
+		return undefined;
+	}
+	const getter = findClassGetter(classNode, propertyName);
+	if (getter === undefined) {
+		return undefined;
+	}
+	return { className, getter };
+};
+
+/** Walks a class getter accessor's body at the moment of a module-eval
+ * property access. Mirrors the object-literal getter walk (`walkGetterAccess`):
+ * the body is deferred at declaration, but the read runs it now, so inner
+ * calls to later bindings are reported with the incoming chain unchanged. */
+const walkClassGetterBody = (
+	getter: ts.GetAccessorDeclaration,
+	className: string,
+	context: WalkContext,
+	scopes: Scope[],
+	executionPos: number,
+	chain: string[],
+	visitedBindings: Set<string>,
+): void => {
+	const getterScope: Scope = { names: new Map() };
+	collectParameterDeclarations(getter.parameters, getterScope);
+	scopes.push(getterScope);
+	for (const statement of getter.body?.statements ?? []) {
+		walkImmediate(
+			statement,
+			context,
+			scopes,
+			scopes.length,
+			executionPos,
+			[...chain, `${className}.${getter.name.getText()}`],
 			visitedBindings,
 		);
 	}
@@ -1179,6 +1425,49 @@ const handleInvocation = (
 	chain: string[],
 	visitedBindings: Set<string>,
 ): void => {
+	const unwrappedCallee = unwrapParens(calleeExpression);
+	// Sequence callee: `(0, f)()` — a comma expression in callee position.
+	// The rightmost operand is the actual callee; every discarded operand
+	// still evaluates immediately (it may hold calls of its own). Comma is
+	// left-associative, so the parsed tree is ((a, b), c): the left spine
+	// owns all discarded operands.
+	if (
+		ts.isBinaryExpression(unwrappedCallee) &&
+		unwrappedCallee.operatorToken.kind === ts.SyntaxKind.CommaToken
+	) {
+		const discardedOperands: ts.Expression[] = [];
+		let valueOperand: ts.Expression = unwrappedCallee;
+		while (
+			ts.isBinaryExpression(valueOperand) &&
+			valueOperand.operatorToken.kind === ts.SyntaxKind.CommaToken
+		) {
+			discardedOperands.push(valueOperand.left);
+			valueOperand = unwrapParens(valueOperand.right);
+		}
+		handleInvocation(
+			valueOperand,
+			argumentsList,
+			context,
+			scopes,
+			bodyRootIndex,
+			executionPos,
+			chain,
+			visitedBindings,
+		);
+		for (const operand of discardedOperands) {
+			walkImmediate(
+				operand,
+				context,
+				scopes,
+				bodyRootIndex,
+				executionPos,
+				chain,
+				visitedBindings,
+			);
+		}
+		return;
+	}
+
 	if (ts.isIdentifier(calleeExpression)) {
 		handleResolvedIdentifier(
 			calleeExpression.text,
@@ -1210,6 +1499,85 @@ const handleInvocation = (
 			visitedBindings,
 		);
 		return;
+	}
+
+	// Bind-call callee: `g.bind(null)()` — the bound function invokes `g`
+	// when called, so the call resolves to `g`. #1956 shape 2 (inline form;
+	// the aliased form is resolved at binding-collection time).
+	const bindCallee = unwrapParens(calleeExpression);
+	if (ts.isCallExpression(bindCallee)) {
+		const boundTarget = resolveBindTarget(bindCallee);
+		if (boundTarget !== undefined) {
+			handleResolvedIdentifier(
+				boundTarget,
+				position(calleeExpression),
+				context,
+				scopes,
+				bodyRootIndex,
+				executionPos,
+				chain,
+				visitedBindings,
+			);
+			for (const argument of bindCallee.arguments) {
+				walkImmediate(
+					argument,
+					context,
+					scopes,
+					bodyRootIndex,
+					executionPos,
+					chain,
+					visitedBindings,
+				);
+			}
+			return;
+		}
+	}
+
+	// Member callee: `obj.run()` / `obj['run']()` where `obj` is a
+	// module-level const object literal and the property a
+	// function-expression value. The method body runs at the moment of the
+	// call — module-evaluation time when the call is at module level — so
+	// it is walked as an immediate invocation (inner calls to later
+	// bindings are reported transitively).
+	const memberCallee = unwrapParens(calleeExpression);
+	if (
+		ts.isPropertyAccessExpression(memberCallee) ||
+		ts.isElementAccessExpression(memberCallee)
+	) {
+		const method = resolveObjectLiteralMethod(memberCallee, context);
+		if (method !== undefined) {
+			invokeBinding(
+				method.fn,
+				method.name,
+				0,
+				context,
+				scopes,
+				position(calleeExpression),
+				chain,
+				visitedBindings,
+			);
+			walkImmediate(
+				memberCallee.expression,
+				context,
+				scopes,
+				bodyRootIndex,
+				executionPos,
+				chain,
+				visitedBindings,
+			);
+			for (const argument of argumentsList) {
+				walkImmediate(
+					argument,
+					context,
+					scopes,
+					bodyRootIndex,
+					executionPos,
+					chain,
+					visitedBindings,
+				);
+			}
+			return;
+		}
 	}
 
 	// Member/expression callees can still carry immediately-executed
@@ -1248,7 +1616,7 @@ const handleResolvedIdentifier = (
 	chain: string[],
 	visitedBindings: Set<string>,
 ): void => {
-	const resolved = resolveBinding(name, scopes, context.moduleBindings);
+	const resolved = resolveBinding(name, scopes, context);
 	if (resolved.kind === 'none') {
 		return;
 	}
@@ -1443,6 +1811,10 @@ export const analyzeModuleOrder = (
 		sourceFile,
 		moduleBindings: new Map(),
 		getterIndex: new Map(),
+		objectLiteralInitializers: new Map(),
+		aliasTargets: new Map(),
+		classBindings: new Map(),
+		constInitializers: new Map(),
 		violations: [],
 	};
 
@@ -1456,6 +1828,36 @@ export const analyzeModuleOrder = (
 					continue;
 				}
 				const fn = functionInitializer(declaration.initializer);
+				if (
+					declaration.initializer !== undefined &&
+					ts.isObjectLiteralExpression(declaration.initializer)
+				) {
+					// Object literals are not function bindings, but member
+					// callee resolution (`obj.run()`) needs the literal.
+					context.objectLiteralInitializers.set(
+						declaration.name.text,
+						declaration.initializer,
+					);
+				}
+				const aliasTarget = aliasReferenceTarget(declaration.initializer);
+				if (aliasTarget !== undefined) {
+					context.aliasTargets.set(declaration.name.text, aliasTarget);
+				}
+				if (
+					declaration.initializer !== undefined &&
+					ts.isClassExpression(declaration.initializer)
+				) {
+					context.classBindings.set(
+						declaration.name.text,
+						declaration.initializer,
+					);
+				}
+				if (declaration.initializer !== undefined) {
+					context.constInitializers.set(
+						declaration.name.text,
+						declaration.initializer,
+					);
+				}
 				if (fn === undefined) {
 					// Still collect getters from non-function initializers (object
 					// literals with getter properties).
@@ -1484,6 +1886,11 @@ export const analyzeModuleOrder = (
 				hoisted: true,
 				node: statement,
 			});
+		} else if (
+			ts.isClassDeclaration(statement) &&
+			statement.name !== undefined
+		) {
+			context.classBindings.set(statement.name.text, statement);
 		}
 	}
 

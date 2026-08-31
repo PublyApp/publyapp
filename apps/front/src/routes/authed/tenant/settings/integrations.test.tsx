@@ -88,9 +88,6 @@ vi.mock('~/lib/permissions/use-has-tenant-permission', () => ({
 	useCanManageSocialAccounts: () =>
 		permissionKeys.includes('*') ||
 		permissionKeys.includes('tenant.socialaccounts.manage'),
-	useCanViewIntegrations: () =>
-		permissionKeys.includes('*') ||
-		permissionKeys.includes('tenant.socialaccounts.view'),
 }));
 
 // Wiring tests stop at this seam: the drawer/dialog own their behaviour in
@@ -288,6 +285,19 @@ describe('TenantSettingsIntegrationsPage', () => {
 		cleanup();
 		render(<TenantSettingsIntegrationsPage />);
 		expect(screen.getAllByTestId(/^social-account-actions-/).length).toBe(1);
+	});
+
+	test('ItShouldHideConnectButtonForViewOnlyHolders', () => {
+		socialAccountsWire = [];
+		// tenant.socialaccounts.view only — no manage permission.
+		permissionKeys = ['tenant.socialaccounts.view'];
+		render(<TenantSettingsIntegrationsPage />);
+
+		// The Connect trigger must not appear for a read-only holder.
+		// Offering a command the server will refuse is a lying interface.
+		expect(
+			screen.queryByRole('button', { name: /connect bluesky/i }),
+		).toBeNull();
 	});
 
 	// Wiring proof: the Connect trigger opens the drawer in connect mode.

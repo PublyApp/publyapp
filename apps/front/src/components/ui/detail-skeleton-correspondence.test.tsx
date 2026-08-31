@@ -27,7 +27,7 @@
  */
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { cleanup, render } from '@testing-library/react';
-import type { ComponentType } from 'react';
+import type { ComponentType, ReactNode } from 'react';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import type { TestLabelMap } from '~/lib/testing/test-label-map';
 
@@ -49,6 +49,13 @@ vi.mock('@tanstack/react-router', () => ({
 		...options,
 		options,
 	}),
+	Link: ({
+		children,
+		className,
+	}: {
+		children?: ReactNode;
+		className?: string;
+	}) => <span className={className}>{children}</span>,
 }));
 
 vi.mock('~/lib/query/tenants-for-picker', async () => {
@@ -405,68 +412,70 @@ describe('detail skeleton ↔ content correspondence (#1558)', () => {
 	});
 
 	describe('ProfileCardGridSkeleton ↔ ProfileCard', () => {
-		test('stacked header lines per card match the card content structure', () => {
+		test('stacked header lines per card match the card content structure', async () => {
 			// Surface 3 is structured as a grid of cards, not a single form.
 			// The skeleton paints 6 cards; the loaded state paints one card
 			// per row. The structural correspondence is per-card: the
 			// stacked EntityHeaderSkeleton has 3 lines, and each loaded
 			// card has 3 text blocks (name + description + member/permission
 			// meta) plus a chip and an actions button.
-			void import('~/components/ui/detail-skeleton').then(
-				({ EntityHeaderSkeleton }) => {
-					const { container } = render(
-						<EntityHeaderSkeleton
-							orientation="stacked"
-							tileClassName="size-10 rounded-[10px]"
-							lines={['h-3 w-2/3', 'h-3 w-full', 'h-3 w-1/3']}
-						/>,
-					);
-					const fp = captureLoadingFingerprint(container);
-					expect(fp.headers).toHaveLength(1);
-					expect(fp.headers[0]).toEqual({
-						lines: 3,
-						orientation: 'stacked',
-					});
-				},
+			//
+			// We render the REAL ProfileCardGridSkeleton (not a local
+			// EntityHeaderSkeleton with copied props) so a mutation to the
+			// real component's `lines` array is caught by this test.
+			const { ProfileCardGridSkeleton } =
+				await import('~/routes/authed/staff/tenants/$tenantId/profiles/_profile-card');
+
+			const { container } = render(
+				<ProfileCardGridSkeleton testId="profiles-grid" />,
 			);
+			const fp = captureLoadingFingerprint(container);
+
+			// 6 skeleton cards, each with a 3-line stacked EntityHeaderSkeleton.
+			expect(fp.headers).toHaveLength(6);
+			expect(fp.headers[0]).toEqual({
+				lines: 3,
+				orientation: 'stacked',
+			});
+			for (let i = 1; i < fp.headers.length; i++) {
+				expect(fp.headers[i]).toEqual(fp.headers[0]);
+			}
 
 			// Loaded side: the real ProfileCard component (the consumer
 			// referenced by the third surface) renders exactly the
 			// corresponding content blocks per card.
-			void import('~/routes/authed/staff/tenants/$tenantId/profiles/_profile-card').then(
-				({ ProfileCard }) => {
-					const sampleProfile = {
-						id: 'profile-1',
-						name: 'Approvers',
-						description: 'Can review approvals',
-						icon: undefined,
-						tone: undefined,
-						isDefault: true,
-						userAccountCount: 7,
-						permissionsCount: 12,
-					};
-					const { container } = render(
-						<ProfileCard
-							tenantId="tenant-1"
-							profile={sampleProfile}
-							onEditRequest={vi.fn()}
-							onDeleteRequest={vi.fn()}
-							isSelected={false}
-							isSelectionMode={false}
-							onToggleSelect={vi.fn()}
-						/>,
-					);
-					// 3 text blocks (name + description + member/permission meta)
-					// + 1 chip (system/custom) + 1 actions button = 5 visual
-					// blocks. The skeleton's 3 lines correspond to the 3 text
-					// blocks; chip and actions button are supplementary controls
-					// that don't need a 1:1 skeleton line.
-					const textBlocks = container.querySelectorAll(
-						'.publy-record-link, .truncate.text-xs, .text-\\[11px\\]',
-					);
-					expect(textBlocks.length).toBe(3);
-				},
+			const { ProfileCard } =
+				await import('~/routes/authed/staff/tenants/$tenantId/profiles/_profile-card');
+			const sampleProfile = {
+				id: 'profile-1',
+				name: 'Approvers',
+				description: 'Can review approvals',
+				icon: undefined,
+				tone: undefined,
+				isDefault: true,
+				userAccountCount: 7,
+				permissionsCount: 12,
+			};
+			const { container: loadedContainer } = render(
+				<ProfileCard
+					tenantId="tenant-1"
+					profile={sampleProfile}
+					onEditRequest={vi.fn()}
+					onDeleteRequest={vi.fn()}
+					isSelected={false}
+					isSelectionMode={false}
+					onToggleSelect={vi.fn()}
+				/>,
 			);
+			// 3 text blocks (name + description + member/permission meta)
+			// + 1 chip (system/custom) + 1 actions button = 5 visual
+			// blocks. The skeleton's 3 lines correspond to the 3 text
+			// blocks; chip and actions button are supplementary controls
+			// that don't need a 1:1 skeleton line.
+			const textBlocks = loadedContainer.querySelectorAll(
+				'.publy-record-link, .truncate.text-xs, .text-\\[11px\\]',
+			);
+			expect(textBlocks.length).toBe(3);
 		});
 	});
 });

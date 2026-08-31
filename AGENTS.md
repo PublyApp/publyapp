@@ -114,6 +114,8 @@ just test-api                  # Run API integration tests (requires Docker)
 pnpm --filter front test       # Run the front unit/component suite (Vitest)
 ```
 
+**Timeout protection for front guards:** front guard tests and check scripts route through `apps/front/scripts/run-guarded.mts` — every `test:*`/`check:*`/`verify:*` script, the check-script invocations inside `preinstall`, `typecheck` and `generate:route-tree`, and the front image runtime check step in `front-e2e.yml`. The wrapper spawns each guard in its own process group and SIGKILLs the entire tree on timeout, replacing an indefinite gate-lock (issue #1525) with a failure that names the guard and its duration. The coverage gate `apps/front/scripts/guards/check-guard-coverage.mts` runs inside `pnpm --filter front test` and fails naming any `test:*`/`check:*`/`verify:*` script or bare `node` invocation that bypasses the wrapper. Exempt by design: the long-running `dev` and `start` servers (a 300s bound would kill them mid-session). Vitest `vitest run` calls (the main unit suite) are likewise not wrapped — they use Vitest's internal per-test timeouts. Default timeout is 300s (measured durations: `docs/records/2026-08-30-analysis-front-guard-durations.md`); override via `GUARD_TIMEOUT_SECONDS`.
+
 **Prerequisites:** Docker must be running (Testcontainers spins up Postgres automatically).
 
 ### Pre-push gate
