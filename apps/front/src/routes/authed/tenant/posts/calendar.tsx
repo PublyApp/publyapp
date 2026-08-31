@@ -1,19 +1,12 @@
 import { IconCalendarEvent } from '@tabler/icons-react';
 import { createFileRoute } from '@tanstack/react-router';
-import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
 import QueryDisplay from '~/components/query-display';
 import { DataTableCursorFooter } from '~/components/table/data-table';
 import { Card, CardContent, CardHeader, CardTitle } from '~/components/ui/card';
 import { StateSurface } from '~/components/ui/state-surface';
-import {
-	toScheduledPublicationRows,
-	useScheduledPublicationsQuery,
-} from '~/lib/query/tenant-scheduled-publications';
 import { useResolvedWorkspaceTenantId } from '~/lib/query/tenants-for-picker';
-
-import { shouldLogoutForFailure } from '@org/shared-ts/lib/should-logout-for-failure';
 
 import {
 	TenantReadOnlyCardError,
@@ -22,25 +15,17 @@ import {
 import { ReadOnlyBadge, WorkspacePageHeader } from '../_workspace-page-parts';
 import { ScheduledPublicationAgenda } from './_scheduled-publication-agenda';
 import { buildVisibleMonthWindow } from './_scheduled-publication-helpers';
+import { useScheduledPublicationPage } from './_use-scheduled-publication-page';
 
 const TenantPostsCalendarPage = () => {
 	const { t } = useTranslation(['posts', 'common']);
 	const tenantId = useResolvedWorkspaceTenantId();
-	const [window] = useState(() => buildVisibleMonthWindow(new Date()));
-	const [cursorHistory, setCursorHistory] = useState<string[]>([]);
-	const [size, setSize] = useState(100);
-	const cursor = cursorHistory.at(-1);
-	const query = useScheduledPublicationsQuery({
+	const page = useScheduledPublicationPage({
 		tenantId: tenantId ?? '',
-		from: window.from,
-		to: window.to,
-		cursor,
-		limit: size,
+		createWindow: () => buildVisibleMonthWindow(new Date()),
+		initialSize: 100,
 	});
-	const rows = toScheduledPublicationRows(query.data);
-	const nextCursor = query.data?.nextCursor ?? null;
-	const queryError = query.error;
-	if (queryError !== null && shouldLogoutForFailure(queryError)) {
+	if (page.shouldLogout) {
 		return <LogoutRedirect />;
 	}
 
@@ -58,13 +43,13 @@ const TenantPostsCalendarPage = () => {
 						{t('calendar-description')}
 					</p>
 					<QueryDisplay
-						query={query}
+						query={page.query}
 						LoadingSlot={
 							<TenantReadOnlyCardSkeleton testId="tenant-posts-calendar-loading" />
 						}
 						ErrorSlot={
 							<TenantReadOnlyCardError
-								query={query}
+								query={page.query}
 								titleKey="common:list-unavailable-title"
 								descriptionKey="common:list-error-default-description"
 								testId="tenant-posts-calendar-error"
@@ -72,32 +57,20 @@ const TenantPostsCalendarPage = () => {
 						}
 					>
 						{() =>
-							rows.length > 0 ? (
+							page.rows.length > 0 ? (
 								<div className="space-y-4">
-									<ScheduledPublicationAgenda rows={rows} />
+									<ScheduledPublicationAgenda rows={page.rows} />
 									<DataTableCursorFooter
 										testId="tenant-posts-calendar"
-										pageIndex={cursorHistory.length}
-										size={size}
-										onSizeChange={(nextSize) => {
-											setSize(nextSize);
-											setCursorHistory([]);
-										}}
-										pageRowCount={rows.length}
-										hasPreviousPage={cursorHistory.length > 0}
-										hasNextPage={nextCursor !== null}
-										isPaginationPending={query.isFetching}
-										onNextPage={() => {
-											if (nextCursor) {
-												setCursorHistory((previous) => [
-													...previous,
-													nextCursor,
-												]);
-											}
-										}}
-										onPreviousPage={() =>
-											setCursorHistory((previous) => previous.slice(0, -1))
-										}
+										pageIndex={page.pagination.pageIndex}
+										size={page.pagination.size}
+										onSizeChange={page.pagination.onSizeChange}
+										pageRowCount={page.rows.length}
+										hasPreviousPage={page.pagination.hasPreviousPage}
+										hasNextPage={page.pagination.hasNextPage}
+										isPaginationPending={page.pagination.isPaginationPending}
+										onNextPage={page.pagination.onNextPage}
+										onPreviousPage={page.pagination.onPreviousPage}
 										variant="flat"
 									/>
 								</div>

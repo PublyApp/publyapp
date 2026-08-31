@@ -1,41 +1,26 @@
 import { createFileRoute } from '@tanstack/react-router';
-import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
 import { Card, CardContent, CardHeader, CardTitle } from '~/components/ui/card';
-import {
-	toScheduledPublicationRows,
-	useScheduledPublicationsQuery,
-} from '~/lib/query/tenant-scheduled-publications';
 import { useResolvedWorkspaceTenantId } from '~/lib/query/tenants-for-picker';
-
-import { shouldLogoutForFailure } from '@org/shared-ts/lib/should-logout-for-failure';
 
 import { ReadOnlyBadge, WorkspacePageHeader } from '../_workspace-page-parts';
 import { buildUpcomingPublicationWindow } from './_scheduled-publication-helpers';
 import { ScheduledPublicationQueueTable } from './_scheduled-publication-queue-table';
+import { useScheduledPublicationPage } from './_use-scheduled-publication-page';
 
 const QUEUE_STATUSES = ['scheduled', 'in_progress', 'paused'] as const;
 
 const TenantPostsQueuePage = () => {
 	const { t } = useTranslation(['posts', 'common']);
 	const tenantId = useResolvedWorkspaceTenantId();
-	const [window] = useState(() => buildUpcomingPublicationWindow(new Date()));
-	const [cursorHistory, setCursorHistory] = useState<string[]>([]);
-	const [size, setSize] = useState(20);
-	const cursor = cursorHistory.at(-1);
-	const query = useScheduledPublicationsQuery({
+	const page = useScheduledPublicationPage({
 		tenantId: tenantId ?? '',
-		from: window.from,
-		to: window.to,
+		createWindow: () => buildUpcomingPublicationWindow(new Date()),
+		initialSize: 20,
 		statuses: [...QUEUE_STATUSES],
-		cursor,
-		limit: size,
 	});
-	const rows = toScheduledPublicationRows(query.data);
-	const nextCursor = query.data?.nextCursor ?? null;
-	const queryError = query.error;
-	if (queryError !== null && shouldLogoutForFailure(queryError)) {
+	if (page.shouldLogout) {
 		return <LogoutRedirect />;
 	}
 
@@ -53,26 +38,9 @@ const TenantPostsQueuePage = () => {
 						{t('queue-description')}
 					</p>
 					<ScheduledPublicationQueueTable
-						query={query}
-						rows={rows}
-						pagination={{
-							pageIndex: cursorHistory.length,
-							size,
-							hasPreviousPage: cursorHistory.length > 0,
-							hasNextPage: nextCursor !== null,
-							isPaginationPending: query.isFetching,
-							onNextPage: () => {
-								if (nextCursor) {
-									setCursorHistory((previous) => [...previous, nextCursor]);
-								}
-							},
-							onPreviousPage: () =>
-								setCursorHistory((previous) => previous.slice(0, -1)),
-							onSizeChange: (nextSize) => {
-								setSize(nextSize);
-								setCursorHistory([]);
-							},
-						}}
+						query={page.query}
+						rows={page.rows}
+						pagination={page.pagination}
 					/>
 				</CardContent>
 			</Card>
