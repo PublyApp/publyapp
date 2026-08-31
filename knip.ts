@@ -84,7 +84,11 @@ const config: KnipConfig = {
 			],
 			// System binary invoked via execFileSync by the request-counter sidecar
 			// to mint its throwaway TLS cert; not an npm package.
-			ignoreBinaries: ['openssl'],
+			// `ss` is a system binary invoked via execFileSync by
+			// scripts/e2e-compose-env.mts to name the holder of an occupied port
+			// (`ss -tlnp`, issue #1698); not an npm package. (`docker` resolves
+			// through the repo's existing docker usage and stays covered.)
+			ignoreBinaries: ['openssl', 'ss'],
 			// #1758: server.mjs imports the built server bundle through the
 			// `#server-build` package-imports alias so tsconfig.server.json can
 			// typecheck it without pulling build output into the program. Node
