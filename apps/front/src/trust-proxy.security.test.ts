@@ -29,11 +29,15 @@ import { injectSeoMarkup } from './server';
 
 const { resolveTrustProxyFromEnv } = await import('../trust-proxy.mjs');
 
-const originalWarn = logger.warn;
-
+// `logger.warn` is silenced through vi.spyOn rather than by saving the
+// original and reassigning it. Two reasons: the saved reference tripped
+// typescript/unbound-method (this PR re-enables that rule), and binding it to
+// silence the rule strips the spy identity vitest needs, so the restore left
+// a plain function behind and later assertions failed with "is not a spy".
+// vi.restoreAllMocks() in afterEach puts the real method back.
 beforeEach(() => {
 	vi.clearAllMocks();
-	logger.warn = vi.fn();
+	vi.spyOn(logger, 'warn').mockImplementation(() => {});
 	mockGetServerEnv.mockReturnValue({
 		apiBaseUrl: 'http://localhost:5000',
 		nodeEnv: 'production',
@@ -110,7 +114,7 @@ const extractOgUrl = (html: string): string | null => {
 
 describe('trust-proxy security (r2-shell-F10)', () => {
 	afterEach(() => {
-		logger.warn = originalWarn;
+		vi.restoreAllMocks();
 	});
 
 	afterAll(() => {

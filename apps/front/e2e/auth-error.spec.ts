@@ -34,12 +34,17 @@ test.setTimeout(90_000);
 
 const setSessionCookie = async (page: Page) => {
 	await page.goto('/');
-	await page.evaluate(
-		({ cookieName, value }) => {
-			document.cookie = `${cookieName}=${value}; path=/`;
+	const url = new URL(page.url());
+	await page.context().addCookies([
+		{
+			name: SESSION_TOKEN_COOKIE_KEY,
+			value: TENANT_TOKEN_VALUE,
+			domain: url.hostname,
+			path: '/',
+			secure: true,
+			sameSite: 'Lax',
 		},
-		{ cookieName: SESSION_TOKEN_COOKIE_KEY, value: TENANT_TOKEN_VALUE },
-	);
+	]);
 };
 
 /** Returns a hit counter alongside the route registration so the test can

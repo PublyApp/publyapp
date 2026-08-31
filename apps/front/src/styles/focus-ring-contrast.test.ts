@@ -21,7 +21,10 @@ const parseHex = (hex: string): Rgb => {
 	}
 	let value = match[1];
 	if (value.length === 3) {
-		value = [...value].map((c) => c + c).join('');
+		value = match[1]
+			.split('')
+			.map((c) => c + c)
+			.join('');
 	}
 	const r = Number.parseInt(value.slice(0, 2), 16);
 	const g = Number.parseInt(value.slice(2, 4), 16);

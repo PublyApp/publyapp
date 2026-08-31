@@ -220,7 +220,7 @@ describe('marketing landing route', () => {
 		const tabs = screen.getAllByRole('tab');
 		expect(tabs).toHaveLength(TOUR_TAB_IDS.length);
 
-		tabs.forEach((tab, index) => {
+		for (const [index, tab] of tabs.entries()) {
 			expect(tab.getAttribute('id')).toBe(`tour-tab-${TOUR_TAB_IDS[index]}`);
 			expect(tab.getAttribute('aria-controls')).toBe(
 				`tour-panel-${TOUR_TAB_IDS[index]}`,
@@ -229,14 +229,14 @@ describe('marketing landing route', () => {
 				index === 0 ? 'true' : 'false',
 			);
 			expect(tab.getAttribute('tabindex')).toBe(index === 0 ? '0' : '-1');
-		});
+		}
 
-		TOUR_TAB_IDS.forEach((id, index) => {
+		for (const [index, id] of TOUR_TAB_IDS.entries()) {
 			const panel = getTourPanel(container, id);
 			expect(panel.getAttribute('role')).toBe('tabpanel');
 			expect(panel.getAttribute('aria-labelledby')).toBe(`tour-tab-${id}`);
 			expect(panel).toHaveProperty('hidden', index !== 0);
-		});
+		}
 
 		expect(screen.getAllByRole('tabpanel', { hidden: true })).toHaveLength(
 			TOUR_TAB_IDS.length,

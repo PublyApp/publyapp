@@ -509,3 +509,102 @@ test('a file moved into protected docs/records never renders as a delete row', (
 	const checked = runAudit(root, '--check');
 	assert.match(checked, /matches a fresh regeneration/);
 });
+
+// ---------------------------------------------------------------------------
+// #1887: deriveTopic() in audit-docs-prune.ts strips a leading ISO date and
+// a trailing `-design` (case-sensitive) and lowercases the basename. Every
+// existing fixture uses an EXPLICIT topic string in the MOVES table, so the
+// derivation branch is never exercised — a regression that, say, removed the
+// `-design` strip would render destination names like `2026-08-25-spec-widget-design.md`
+// instead of `2026-08-25-spec-widget.md`, and every fixture would still pass
+// green because the table short-circuits before the derivation runs.
+//
+// Paired proof: a fixture whose move entry has NO explicit topic AND whose
+// source name exercises the three derivation steps (date strip, -design
+// strip, lowercase). The destination the generator names must match the
+// derivation rule exactly. RED if the rule is mutated (e.g., drop the
+// `.replace(/-design$/, '')` line); GREEN when the rule is intact.
+//
+// The source name is `2026-08-25-widgethub-design.md` on purpose: with the
+// date prefix, the `-design` suffix, and a multi-word lowercase basename,
+// every derivation step is load-bearing. The expected destination is
+// `2026-08-25-spec-widgethub.md` — date kept, `-design` stripped, base
+// lowercased (no-op here). The explicit-topic path would have produced
+// `2026-08-25-spec-widgethub-design.md` (or whatever the explicit string
+// named), so a fixture that maps the move WITHOUT a topic is the only
+// way the derivation runs end-to-end through the same code path
+// --check ultimately exercises.
+//
+// Note on case sensitivity: deriveTopic()'s `-design` strip is
+// case-sensitive (lowercase only). The first cut of this fixture used
+// `WidgetHub-Design` (capital D) and proved the case-sensitivity IS a
+// real gap that the explicit-topic path also bypasses — but that is a
+// separate latent defect to be filed in its own right, not the one #1887
+// asks to surface. This fixture pins the documented rule (lowercase
+// `-design`) end-to-end; an extended fixture covering the capital-D
+// case would belong in a follow-up alongside its dedicated fix.
+// ---------------------------------------------------------------------------
+test('#1887: a move entry without an explicit topic derives its destination from the source basename (date strip, -design strip, lowercase)', () => {
+	const LOWERCASE_SOURCE =
+		'docs/superpowers/specs/2026-08-25-widgethub-design.md';
+	const DERIVED_DESTINATION = 'docs/records/2026-08-25-spec-widgethub.md';
+	const moveWithoutTopic = `\t'${LOWERCASE_SOURCE}': { action: 'move', type: 'spec' },\n`;
+	// The candidate must be in the BASE commit, not the lane HEAD: the
+	// audit walks ancestors of HEAD to find a tree still carrying every
+	// decision-table source. The makeRepo helper hard-codes a WIDGET_SOURCE
+	// candidate; the plantBase hook (runs after makeRepo writes the widget
+	// and BEFORE git add) lets us swap it out for the lowercase source the
+	// table names, so the base commit carries the derivation-load-bearing
+	// source instead.
+	const root = makeRepo(
+		(repo) => {
+			plantGenerator(repo, scriptWithTable(moveWithoutTopic));
+			mkdirSync(path.join(repo, 'docs/records'), { recursive: true });
+			execFileSync('git', ['mv', LOWERCASE_SOURCE, DERIVED_DESTINATION], {
+				cwd: repo,
+				stdio: ['ignore', 'ignore', 'pipe'],
+			});
+		},
+		(baseRoot) => {
+			rmSync(path.join(baseRoot, WIDGET_SOURCE));
+			mkdirSync(path.dirname(path.join(baseRoot, LOWERCASE_SOURCE)), {
+				recursive: true,
+			});
+			writeFileSync(
+				path.join(baseRoot, LOWERCASE_SOURCE),
+				'# WidgetHub design\n',
+			);
+		},
+	);
+
+	// The git mv moves the lowercase source into the destination the
+	// DERIVATION must reproduce. If the rule is intact, the regenerated
+	// record renders a row pointing at DERIVED_DESTINATION and --check
+	// goes green. If the rule regresses (date kept but -design NOT
+	// stripped, or lowercase NOT applied), the regenerated destination
+	// is `2026-08-25-spec-widgethub-design.md` or a path that includes
+	// the date prefix, and --check dies on `disagrees with git diff -M:
+	// ... names ${regenerated} as the destination, but git renamed it
+	// to ${DERIVED_DESTINATION}.` — the same structural diff the existing
+	// 'destination mismatch' fixture relies on.
+	runAudit(root);
+	const record = readFileSync(
+		path.join(root, 'docs/records/2026-08-25-audit-docs-prune.md'),
+		'utf8',
+	);
+	assert.match(
+		record,
+		new RegExp(
+			`move → \`${DERIVED_DESTINATION.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\``,
+		),
+		`#1887: deriveTopic() must produce 'widgethub' from '${path.basename(LOWERCASE_SOURCE, '.md')}' (date strip, -design strip, lowercase). The regenerated record named a different destination, so a derivation step regressed. Got record:\n${record}`,
+	);
+	git(root, 'add', '-A');
+	git(root, 'commit', '-qm', 'record');
+	const checked = runAudit(root, '--check');
+	assert.match(
+		checked,
+		/matches a fresh regeneration/,
+		'#1887 fixture: --check must go green on the derived destination — if it fails, deriveTopic() no longer matches the source name rule the rest of the repo relies on.',
+	);
+});

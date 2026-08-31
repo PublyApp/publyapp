@@ -124,7 +124,7 @@ const main = (): void => {
 	const next = {
 		$comment:
 			'jscpd@4 --min-tokens 50 baseline (regenerated with ' +
-			'packages/scripts-ts/src/gen-jscpd-reference.ts, #1890). The ' +
+			'packages/scripts-ts/src/gen-jscpd-reference.ts, #1932). The ' +
 			'aggregate counters gate the ratchet; pairLines/autoLines store ' +
 			'the per-pair and per-file base totals so a red guard names the ' +
 			'exact pair that crossed its base (not just the top-5 ' +

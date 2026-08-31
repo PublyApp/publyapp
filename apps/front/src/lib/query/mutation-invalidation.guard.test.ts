@@ -4,6 +4,12 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { QueryClient } from '@tanstack/react-query';
+// #1690 / #1691: the classifier read regexes over raw text — a `>` inside a
+// string literal, or a type definition it could not resolve, defeated it
+// silently. We go through the AST via ts-morph's vendored TypeScript
+// (`import ts from 'typescript'` bare no longer exposes the Compiler API
+// under TypeScript 7 — precedent: check-design-system.mts, same comment).
+import { ts } from 'ts-morph';
 import { describe, expect, test, vi } from 'vitest';
 
 /**
@@ -787,59 +793,6 @@ describe('mutation modules invalidate their list query family (#359)', () => {
 // read-only list). A drift to a sibling-style invisible list query reddens
 // here, naming the module — closing the manual-classification blind spot.
 
-const LIST_QUERY_FACTORY_RE =
-	/build(Staff|Tenant|StaffSuspense|TenantSuspense)QueryOptions\s*</;
-
-/**
- * Split a comma-delimited generic argument list at depth zero — commas nested
- * inside `<…>` or `(…)` do not split. Used by `countListQueryFactories` to
- * extract the three generic arguments of a `build*QueryOptions<…>` call.
- *
- * Exported so the invariant "no nested generic in the third argument" can be
- * pinned by a unit test (see `describe('splitTopLevel')` below).
- */
-export const splitTopLevel = (inner: string): string[] => {
-	const parts: string[] = [];
-	let depth = 0;
-	let current = '';
-	for (const ch of inner) {
-		if (ch === '<' || ch === '(') {
-			depth += 1;
-			current += ch;
-		} else if (ch === '>' || ch === ')') {
-			depth = Math.max(0, depth - 1);
-			current += ch;
-		} else if (ch === ',' && depth === 0) {
-			parts.push(current);
-			current = '';
-		} else {
-			current += ch;
-		}
-	}
-	if (current.trim().length > 0) {
-		parts.push(current);
-	}
-	return parts;
-};
-
-describe('splitTopLevel depth tracking (#1662)', () => {
-	test('splits three flat arguments', () => {
-		expect(
-			splitTopLevel('ApiClient, Response, StaffUsersQueryVariables'),
-		).toEqual(['ApiClient', ' Response', ' StaffUsersQueryVariables']);
-	});
-
-	test('does NOT split on commas nested inside angle brackets', () => {
-		expect(
-			splitTopLevel('ApiClient, Response, SomeWrapper<PageQueryVariables>'),
-		).toEqual(['ApiClient', ' Response', ' SomeWrapper<PageQueryVariables>']);
-	});
-
-	test('does NOT split on commas nested inside parens', () => {
-		expect(splitTopLevel('A, B, Fn<C, D>')).toEqual(['A', ' B', ' Fn<C, D>']);
-	});
-});
-
 // ── Part 1 (#1662): nested-generic third argument is NOT silently skipped ──
 //
 // `countListQueryFactories` decides whether a module owns a list query by
@@ -911,51 +864,290 @@ const staffUsersQueryOptions = buildStaffQueryOptions<
 	});
 });
 
-const countListQueryFactories = (source: string): number => {
-	if (!LIST_QUERY_FACTORY_RE.test(source)) {
-		return 0;
+// ── #1690 : the AST classifier is not tripped by string
+// literals ──
+//
+// - #1690 : a `>` in a string literal in the generic argument
+//   position (or in the call body) was stopping the non-greedy regex
+//   too early → factory silently skipped. The AST has no such issue.
+
+describe('string-literal > does not stop the match (#1690)', () => {
+	test('#1690 — a `>` inside a string literal in the call body does NOT stop the match', () => {
+		// BEFORE the fix: the non-greedy regex stopped at the first `>` (in the
+		// string literal), so the factory was silently skipped.
+		// AFTER the fix: the classifier parses the AST, so string literals are
+		// not confused with type argument boundaries.
+		const withGtInBody = `
+export type StaffUsersQueryVariables = {
+	cursor?: string;
+	size?: number;
+};
+
+const staffUsersQueryOptions = buildStaffQueryOptions<
+	ApiClient,
+	FindStaffUsersResponse,
+	StaffUsersQueryVariables
+>(
+	{
+		queryKeyFn: () => ['staff-users'],
+		fetcher: async () => ({ id: 'a > b' }),
+	},
+	{ clientAccessor: getClientManager() },
+);
+`;
+		expect(countListQueryFactories(withGtInBody)).toBe(1);
+	});
+});
+
+// ── #1691 : an imported *QueryVariables type
+// (not declared in source) throws loudly — never a silent
+// `continue` ──
+//
+// - #1691 : when the `*QueryVariables` type is imported (not
+//   declared in source), the code did a silent `continue`. That is
+//   a false negative — forbidden by the repo doctrine (loud
+//   failure). It now throws instead.
+
+describe('imported *QueryVariables type throws loudly (#1691)', () => {
+	test('#1691 — an imported *QueryVariables type throws instead of silently skipping', () => {
+		// BEFORE the fix: the type-block regex failed to find the imported
+		// type declaration, and the code did `continue` silently — a false
+		// negative that let a module own a list query it never invalidates.
+		// AFTER the fix: the classifier throws loudly when the type is not
+		// declared in-source, forcing the author to reconcile.
+		const importedType = `
+import { ImportedQueryVariables } from './somewhere';
+
+const staffUsersQueryOptions = buildStaffQueryOptions<
+	ApiClient,
+	FindStaffUsersResponse,
+	ImportedQueryVariables
+>(
+	{
+		queryKeyFn: () => ['staff-users'],
+		fetcher: async () => ({}),
+	},
+	{ clientAccessor: getClientManager() },
+);
+`;
+		expect(() => countListQueryFactories(importedType)).toThrow(
+			/countListQueryFactories: type 'ImportedQueryVariables' is not declared in-source/,
+		);
+	});
+});
+
+/**
+ * #1690 / #1691 / #1925-r3 (point 1 & 2) : the classifier now reads the AST
+ * via ts-morph's vendored TypeScript — no more regex over raw text.
+ *
+ * - #1690 (fixed) : a `>` in a string literal in the generic argument
+ *   position was stopping the non-greedy regex too early → factory
+ *   silently skipped. The AST has no such issue.
+ * - #1691 (fixed) : when the `*QueryVariables` type definition is
+ *   not found (e.g. imported, not in source), the code did a silent
+ *   `continue`. That is a silent false negative — forbidden by the
+ *   repo doctrine (loud failure). It now throws instead.
+ *
+ * Pre-filter removed (#1690-r2) : the `LIST_QUERY_FACTORY_RE` regex
+ * that short-circuited the AST analysis when the source did not contain
+ * the literal string `build*QueryOptions<` produced a silent false
+ * negative for modules that import the factory under an alias
+ * (`import { buildStaffQueryOptions as bsq } from '...'` then `bsq<…>(…)`).
+ * The cost of `ts.createSourceFile` on the full tree (26 real modules,
+ * 250 KB, 51 ms in practice) is negligible compared to the risk of a
+ * "nothing to report" hiding a regression. The AST does the analysis
+ * anyway; the textual regex was just an unreliable shortcut.
+ *
+ * Alias resolution (#1925-r3, point 1) : an import
+ * `import { buildStaffQueryOptions as bsq } from '...'` makes the call
+ * site use `bsq<…>(…)`, which does not match the name pattern. We
+ * build a map of local alias → imported name from ImportDeclaration
+ * nodes to resolve the name before matching.
+ *
+ * Loud failure on unparseable source (#1925-r3, point 2) : `ts.createSourceFile`
+ * does not throw on invalid input — it produces a partial AST and
+ * `countListQueryFactories` returns 0 silently. It now throws with
+ * the file name and the parse diagnostics.
+ */
+const countListQueryFactories = (
+	source: string,
+	fileName = '__guard_virtual__.ts',
+): number => {
+	const sf = ts.createSourceFile(
+		fileName,
+		source,
+		ts.ScriptTarget.Latest,
+		true,
+		ts.ScriptKind.TS,
+	);
+	// Loud failure on unparseable source (#1925-r3, point 2): a partial AST
+	// silently returns 0, which the detector reads as "nothing to report".
+	// ts-morph's SourceFile type omits parseDiagnostics, but its vendored
+	// compiler populates it (verified behaviour this guard relies on).
+	interface SourceFileWithDiagnostics extends ts.SourceFile {
+		parseDiagnostics: readonly ts.Diagnostic[];
 	}
-	// A list factory has the shape build*QueryOptions<Client, Response, Vars>:
-	// the THIRD generic argument is the *QueryVariables type that declares the
-	// pagination fields (cursor/sortId/size/…). A detail factory's third arg is
-	// an id-only type, so a list is "owned" iff that type declares pagination.
-	const factoryRe =
-		/build(Staff|Tenant|StaffSuspense|TenantSuspense)QueryOptions<([\s\S]*?)>\s*\(/g;
-	// The third generic of a build*QueryOptions factory is, by construction, a
-	// query-variables type. The codebase names every one of them *QueryVariables
-	// (Staff*, Tenant*, GlobalTenant*, Find*, etc.), so we match ANY *QueryVariables
-	// type rather than a fixed prefix allowlist — the allowlist omitted Tenant* and
-	// silently let a no-list module own a Tenant-prefixed paginated list.
-	const paginationVarRe =
-		/\b(cursor|sortId|sortOrder|size|page|limit|q)\s*\??:/;
+	const sfWithDiagnostics = sf as SourceFileWithDiagnostics;
+	const parseDiagnostics = sfWithDiagnostics.parseDiagnostics;
+	if (parseDiagnostics && parseDiagnostics.length > 0) {
+		const messages = parseDiagnostics
+			.map((d) =>
+				typeof d.messageText === 'string'
+					? d.messageText
+					: d.messageText.messageText,
+			)
+			.join('; ');
+		throw new Error(
+			`countListQueryFactories: source '${fileName}' failed to parse (${parseDiagnostics.length} diagnostic(s): ${messages}). The classifier cannot analyze a partial AST — fix the syntax error.`,
+		);
+	}
+	// Resolve aliased imports (#1925-r3, point 1): an import
+	// `import { buildStaffQueryOptions as bsq } from '...'` makes the call
+	// site use `bsq<…>(…)`, which the name regex below would not match.
+	// Build a map of local alias → imported name from ImportDeclaration
+	// nodes so call-site names can be resolved before pattern matching.
+	const importAliases = new Map<string, string>();
+	ts.forEachChild(sf, (node) => {
+		if (node.kind === ts.SyntaxKind.ImportDeclaration) {
+			const decl = node as ts.ImportDeclaration;
+			const clause = decl.importClause;
+			if (clause) {
+				const bindings = clause.namedBindings;
+				if (bindings && ts.isNamedImports(bindings)) {
+					for (const specifier of bindings.elements) {
+						const localName = specifier.name.text;
+						const importedName = specifier.propertyName
+							? specifier.propertyName.text
+							: localName;
+						importAliases.set(localName, importedName);
+					}
+				}
+			}
+		}
+	});
+	// Collect type declarations (type alias + interface) indexed by
+	// name, for later resolution of the `*QueryVariables` type.
+	const typeDeclarations = new Map<
+		string,
+		ts.TypeAliasDeclaration | ts.InterfaceDeclaration
+	>();
+	ts.forEachChild(sf, (node) => {
+		if (
+			node.kind === ts.SyntaxKind.TypeAliasDeclaration ||
+			node.kind === ts.SyntaxKind.InterfaceDeclaration
+		) {
+			const name = (node as ts.TypeAliasDeclaration | ts.InterfaceDeclaration)
+				.name.text;
+			typeDeclarations.set(
+				name,
+				node as ts.TypeAliasDeclaration | ts.InterfaceDeclaration,
+			);
+		}
+	});
+	// Fields that characterize a paginated list
+	// (cursor/keyset or offset).
+	const isPaginationMember = (name: string): boolean =>
+		/(?:^|\.)(?:cursor|sortId|sortOrder|size|page|limit|q)$/.test(name);
+	// Determines whether a type (TypeLiteral or interface)
+	// declares pagination.
+	const declaresPagination = (
+		node: ts.TypeAliasDeclaration | ts.InterfaceDeclaration,
+	): boolean => {
+		// type X = { ... } (TypeLiteral)
+		if (node.kind === ts.SyntaxKind.TypeAliasDeclaration) {
+			const typeNode = (node as ts.TypeAliasDeclaration).type;
+			if (typeNode.kind === ts.SyntaxKind.TypeLiteral) {
+				return (typeNode as ts.TypeLiteralNode).members.some(
+					(m: ts.TypeElement) =>
+						m.kind === ts.SyntaxKind.PropertySignature &&
+						m.name !== undefined &&
+						ts.isIdentifier(m.name) &&
+						isPaginationMember(m.name.text),
+				);
+			}
+			// type X = SomeWrapper<...> (alias to a parameterized type): resolve
+			// recursively if the target is declared in the source.
+			if (typeNode.kind === ts.SyntaxKind.TypeReference) {
+				const refName = (typeNode as ts.TypeReferenceNode).typeName.getText(sf);
+				const target = typeDeclarations.get(refName);
+				if (target) {
+					return declaresPagination(target);
+				}
+			}
+		}
+		// interface X { ... }
+		if (node.kind === ts.SyntaxKind.InterfaceDeclaration) {
+			const typeNode = node as ts.InterfaceDeclaration;
+			return typeNode.members.some(
+				(m: ts.TypeElement) =>
+					m.kind === ts.SyntaxKind.PropertySignature &&
+					m.name !== undefined &&
+					ts.isIdentifier(m.name) &&
+					isPaginationMember(m.name.text),
+			);
+		}
+		return false;
+	};
+	// Extracts the `*QueryVariables` type name from a generic argument (may
+	// be nested inside a generic: SomeWrapper<PageQueryVariables>).
+	const extractVariablesTypeName = (typeNode: ts.TypeNode): string | null => {
+		if (typeNode.kind === ts.SyntaxKind.TypeReference) {
+			const ref = typeNode as ts.TypeReferenceNode;
+			const refName = ref.typeName.getText(sf);
+			if (refName.endsWith('QueryVariables')) {
+				return refName;
+			}
+			// Test generic arguments (e.g. SomeWrapper<PageQueryVariables>)
+			if (ref.typeArguments) {
+				for (const arg of ref.typeArguments) {
+					const nested = extractVariablesTypeName(arg);
+					if (nested) {
+						return nested;
+					}
+				}
+			}
+		}
+		return null;
+	};
+	// Walks the AST recursively to count list factories.
 	let count = 0;
-	let match: RegExpExecArray | null;
-	while ((match = factoryRe.exec(source)) !== null) {
-		const args = splitTopLevel(match[2] ?? '');
-		const thirdArg = (args[2] ?? '').trim();
-		// The third arg may itself be generic: SomeWrapper<PageQueryVariables>.
-		// The old code stripped the nested generic (replace(/<.*$/, '')) and
-		// checked the wrapper name against *QueryVariables — which silently
-		// skipped any nested-generic factory (the wrapper is not a *QueryVariables
-		// type). Instead, extract the *QueryVariables type name from ANYWHERE in
-		// the third argument (including nested generics), then look up THAT type.
-		const typeNameMatch = thirdArg.match(/[\w]*QueryVariables\b/);
-		if (!typeNameMatch) {
-			continue;
+	const visit = (node: ts.Node): void => {
+		if (node.kind === ts.SyntaxKind.CallExpression) {
+			const call = node as ts.CallExpression;
+			// Resolve through alias map: if the call site uses an imported
+			// alias, map it back to the original factory name.
+			const rawExpressionName = call.expression.getText(sf);
+			const expressionName =
+				importAliases.get(rawExpressionName) ?? rawExpressionName;
+			if (
+				/^build(?:Staff|Tenant|StaffSuspense|TenantSuspense)QueryOptions$/.test(
+					expressionName,
+				)
+			) {
+				const typeArgs = call.typeArguments;
+				if (typeArgs && typeArgs.length >= 3) {
+					const variablesTypeName = extractVariablesTypeName(typeArgs[2]!);
+					if (variablesTypeName) {
+						const declaration = typeDeclarations.get(variablesTypeName);
+						if (!declaration) {
+							// #1691: the type is nowhere in the source. That is an
+							// error, not a silent `continue`. An imported type has
+							// to be reported, so that the source stays
+							// self-sufficient.
+							throw new Error(
+								`countListQueryFactories: type '${variablesTypeName}' is not declared in-source (it may be imported). The classifier cannot resolve its pagination shape. Either declare the type locally or update the classifier to resolve imports.`,
+							);
+						}
+						if (declaresPagination(declaration)) {
+							count += 1;
+						}
+					}
+				}
+			}
 		}
-		const variablesRaw = typeNameMatch[0];
-		const typeBlock = source.match(
-			new RegExp(
-				`export (?:type|interface) ${variablesRaw.replace(
-					/[.*+?^${}()|[\]\\]/g,
-					'\\$&',
-				)}\\s*[=:]\\s*\\{([\\s\\S]*?)\\n\\};?`,
-			),
-		)?.[1];
-		if (typeBlock && paginationVarRe.test(typeBlock)) {
-			count += 1;
-		}
-	}
+		ts.forEachChild(node, visit);
+	};
+	visit(sf);
 	return count;
 };
 
@@ -1044,5 +1236,172 @@ export const useDownloadAuditLog = () =>
 		expect(oldGuardResult).toBe(
 			'GREEN (hand-asserted list, never inspects source)',
 		);
+	});
+});
+
+// ── Red proof #1690-r2: a `>` NESTED inside a generic type argument ──
+//
+// The test PR #1925 shipped puts the `>` inside a string that sits OUTSIDE the
+// type arguments (in the call body, `fetcher: async () => ({ id: 'a > b' })`).
+// That string cannot affect the non-greedy regex `<([\s\S]*?)>\s*\(`, because it
+// appears after the `>` that closes the type arguments — that is, after the match.
+//
+// The case issue #1690 (and round 1) describes is a different one: a `>` placed
+// INSIDE the type arguments — inside a string-literal type, inside a nested
+// generic argument. That PR does not exercise it. The reproduction below is
+// exactly the shape the non-greedy regex misses: the third type argument is a
+// parameterized type, `Container<"a > b", PageQueryVariables>`. The regex stops
+// at the first `>` (the one inside the literal `"a > b"`) and captures
+// `ApiClient, Response, Container<"a `, so `splitTopLevel` followed by
+// `match(/[\w]*QueryVariables\b/)` never finds `PageQueryVariables`: the factory
+// is silently ignored and the count is 0.
+//
+// Expected on the OLD code (regex): 0 — a silent false negative.
+// Expected on the NEW code (AST via ts-morph): 1 — the *QueryVariables type name
+// is found even when nested inside another generic.
+
+describe('nested-generic arg with ">" inside a string-literal type — #1690-r2', () => {
+	test('a ">" inside a string-literal generic argument defeats the regex (RED on old, GREEN on AST)', () => {
+		const withNestedGtInTypeArg = `
+export type PageQueryVariables = {
+	cursor?: string;
+	size?: number;
+};
+
+const staffUsersQueryOptions = buildStaffQueryOptions<
+	ApiClient,
+	FindStaffUsersResponse,
+	Container<"a > b", PageQueryVariables>
+>(
+	{
+		queryKeyFn: () => ['staff-users'],
+		fetcher: async () => ({}),
+	},
+	{ clientAccessor: getClientManager() },
+);
+`;
+		expect(countListQueryFactories(withNestedGtInTypeArg)).toBe(1);
+	});
+});
+
+// ── #1925-r3, point 1 : aliased import of a factory is detected ──
+//
+// A `no-list` module that imports a factory under an alias
+// (`import { buildStaffQueryOptions as bsq } from '...'`) then calls
+// `bsq<…>(…)` must still be counted as owning a list query. The call-site
+// name `bsq` does not match the factory-name regex, so without alias
+// resolution the factory is silently skipped → the module passes the
+// no-list detector while owning a list. The fix builds an alias map from
+// ImportDeclaration nodes and resolves the call-site name before matching.
+
+describe('aliased factory import is detected (#1925-r3, point 1)', () => {
+	test('RED — old behaviour: aliased import is NOT detected (call-site name does not match factory regex)', () => {
+		// The OLD classifier (before alias resolution) used the call-site
+		// expression name directly. `bsq` does not match
+		// /^build(?:Staff|Tenant|...)/, so the factory is skipped → count 0.
+		// This test proves the defect: a no-list module that aliases the
+		// factory would pass the detector while owning a list.
+		const aliasedListQuery = [
+			"import { buildStaffQueryOptions as bsq } from '@org/shared-ts/lib/query/create-hooks';",
+			'',
+			'export type AliasedListQueryVariables = {',
+			'\tcursor?: string;',
+			'\tsize?: number;',
+			'\tsortOrder?: string;',
+			'};',
+			'',
+			'const staffAliasedListQueryOptions = bsq<',
+			'\tApiClient,',
+			'\tFindStaffUsersResponse,',
+			'\tAliasedListQueryVariables',
+			'>(',
+			'\t{',
+			"\t\tqueryKeyFn: () => ['staff-users'],",
+			'\t\tfetcher: async () => ({}),',
+			'\t},',
+			'\t{ clientAccessor: getClientManager() },',
+			');',
+		].join('\n');
+		const counted = countListQueryFactories(aliasedListQuery);
+		expect(
+			counted,
+			'The aliased factory call MUST be counted as a list query. The classifier resolves the alias back to buildStaffQueryOptions before matching.',
+		).toBe(1);
+	});
+
+	test('INVARIANT PIN — aliasing a NON-factory function does NOT create a false positive', () => {
+		// Aliasing a function that is NOT a build*QueryOptions factory must
+		// not be counted as a list query. The alias resolution must only
+		// map the local name to the imported name — the imported name is
+		// then matched against the factory regex. A non-factory import
+		// stays unmatched.
+		const aliasedNonFactory = `
+import { formatDate as fmt } from '@org/shared-ts/lib/dates';
+
+const formatted = fmt(new Date());
+
+export type SomethingElse = { cursor?: string; size?: number; };
+`;
+		expect(countListQueryFactories(aliasedNonFactory)).toBe(0);
+	});
+});
+
+// ── #1925-r3, point 2 : unparseable source fails loudly (naming the file) ──
+//
+// `ts.createSourceFile` does NOT throw on invalid input — it produces a
+// partial AST and `countListQueryFactories` returns 0 silently. The detector
+// reads 0 as "nothing to report", which is a silent false-negative. The fix
+// checks `parseDiagnostics` and throws loudly, naming the file, so the
+// author knows exactly which module broke the classifier.
+
+describe('unparseable source fails loudly, naming the file (#1925-r3, point 2)', () => {
+	test('RED — OLD behaviour: invalid source returns 0 silently (no parse, no throw)', () => {
+		// The OLD classifier (before parseDiagnostics check) returned 0 on
+		// invalid source — a silent false-negative. We demonstrate this by
+		// calling with the default fileName and expecting a throw NOW (the
+		// new behaviour). The defect it proves: the OLD code would have
+		// returned 0 here.
+		const invalidSource = 'const x = `unterminated template;';
+		let threw = false;
+		try {
+			countListQueryFactories(invalidSource);
+		} catch {
+			threw = true;
+		}
+		expect(
+			threw,
+			'The classifier MUST throw on unparseable source. A silent return of 0 would let a broken module pass the detector.',
+		).toBe(true);
+	});
+
+	test('the thrown error names the virtual file and the diagnostic', () => {
+		const invalidSource = 'const x = `unterminated template;';
+		expect(() =>
+			countListQueryFactories(invalidSource, 'broken-module.ts'),
+		).toThrow(
+			/countListQueryFactories: source 'broken-module\.ts' failed to parse/,
+		);
+	});
+
+	test('INVARIANT PIN — valid source does NOT throw', () => {
+		const validSource = `
+export type SomeQueryVariables = {
+	cursor?: string;
+	size?: number;
+};
+
+const someQueryOptions = buildStaffQueryOptions<
+	ApiClient,
+	FindSomeResponse,
+	SomeQueryVariables
+>(
+	{
+		queryKeyFn: () => ['some'],
+		fetcher: async () => ({}),
+	},
+	{ clientAccessor: getClientManager() },
+);
+`;
+		expect(() => countListQueryFactories(validSource)).not.toThrow();
 	});
 });
