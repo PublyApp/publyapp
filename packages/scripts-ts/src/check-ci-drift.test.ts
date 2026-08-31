@@ -219,12 +219,10 @@ test('fails when the manifest reconciles a step that no longer exists', async ()
 			steps: {
 				[manifestEntry]: {
 					reason_hash: hashReason(reason),
-					reason_length: reason.length,
 					reason,
 				},
 				'fixture.yml::build::Deleted step': {
 					reason_hash: hashReason(reason),
-					reason_length: reason.length,
 					reason,
 				},
 			},
@@ -332,7 +330,6 @@ test('pin completeness: fails when a reconciled step is missing from pinned_step
 		steps: {
 			[manifestEntry]: {
 				reason_hash: hashReason(reason),
-				reason_length: reason.length,
 				reason,
 			},
 		},
@@ -360,7 +357,6 @@ test('pin completeness: passes when every reconciled step is pinned in the curre
 		steps: {
 			[manifestEntry]: {
 				reason_hash: hashReason(reason),
-				reason_length: reason.length,
 				reason,
 			},
 		},
@@ -385,7 +381,6 @@ test('pin completeness: a malformed pinned_step_ids is a named finding, never a 
 		steps: {
 			[manifestEntry]: {
 				reason_hash: hashReason(reason),
-				reason_length: reason.length,
 				reason,
 			},
 		},
@@ -608,7 +603,6 @@ const buildFixtureReasonRef = (originalReason: string) => ({
 	steps: {
 		'fixture.yml::build::Run tests': {
 			reason_hash: hashReason(originalReason),
-			reason_length: originalReason.length,
 			reason: originalReason,
 		},
 	},
@@ -810,12 +804,10 @@ test('reason guard: warns when a reference entry is absent from the manifest (st
 		steps: {
 			'fixture.yml::build::Run tests': {
 				reason_hash: hashReason(reason),
-				reason_length: reason.length,
 				reason,
 			},
 			[staleId]: {
 				reason_hash: hashReason(staleReason),
-				reason_length: staleReason.length,
 				reason: staleReason,
 			},
 		},
@@ -895,12 +887,10 @@ test('reason guard: passes when manifest and reference are fully aligned (Case 3
 			steps: {
 				'fixture.yml::build::Run tests': {
 					reason_hash: hashReason(reason),
-					reason_length: reason.length,
 					reason,
 				},
 				[newEntryId]: {
 					reason_hash: hashReason(newReason),
-					reason_length: newReason.length,
 					reason: newReason,
 				},
 			},
@@ -930,10 +920,7 @@ test('reason guard #1736: ref format includes reason text for diff visibility', 
 		'utf-8',
 	);
 	const ref = JSON.parse(refRaw) as {
-		steps: Record<
-			string,
-			{ reason_hash: string; reason_length: number; reason: string }
-		>;
+		steps: Record<string, { reason_hash: string; reason: string }>;
 	};
 
 	for (const [id, entry] of Object.entries(ref.steps)) {
@@ -945,11 +932,6 @@ test('reason guard #1736: ref format includes reason text for diff visibility', 
 			entry.reason_hash,
 			hashReason(entry.reason),
 			`reason-guard-ref.json entry "${id}" reason_hash must match the hash of the stored reason text`,
-		);
-		assert.equal(
-			entry.reason_length,
-			entry.reason.length,
-			`reason-guard-ref.json entry "${id}" reason_length must match the stored reason text length`,
 		);
 	}
 });
@@ -979,7 +961,6 @@ test('reason guard #1736: fails when ref reason text does not match manifest rea
 			steps: {
 				'fixture.yml::build::Run tests': {
 					reason_hash: hashReason(bogusReason),
-					reason_length: bogusReason.length,
 					reason: bogusReason,
 				},
 			},
@@ -1012,22 +993,17 @@ test('reason guard #1736: bypass reproduction — 24-char bogus reason with rege
 		steps: {
 			'fixture.yml::build::Bogus step': {
 				reason_hash: hashReason(bogusReason),
-				reason_length: bogusReason.length,
 				reason: bogusReason,
 			},
 		},
 	};
 
 	// The key assertion: the reason text is present in the ref, not just its
-	// hash and length. A reviewer reading the diff of this ref would see
+	// hash. A reviewer reading the diff of this ref would see
 	// "xxxxxxxxxxxxxxxxxxxxxxxx" — immediately suspicious.
 	assert.equal(
 		newRefFormat.steps['fixture.yml::build::Bogus step'].reason,
 		bogusReason,
-	);
-	assert.equal(
-		newRefFormat.steps['fixture.yml::build::Bogus step'].reason_length,
-		bogusReason.length,
 	);
 });
 
@@ -1052,7 +1028,6 @@ test('reason guard #1841 r3: detects an internally inconsistent ref via check (B
 			steps: {
 				'fixture.yml::build::Run tests': {
 					reason_hash: hashReason(bogusReason), // bogus hash
-					reason_length: bogusReason.length, // bogus length
 					reason: originalReason, // but original text!
 				},
 			},
@@ -1114,7 +1089,6 @@ test('reason guard #1841 r3: THE BYPASS — manifest reason B, ref text A, ref h
 			steps: {
 				'fixture.yml::build::Run tests': {
 					reason_hash: hashReason(bogusReason), // hashReason(B)
-					reason_length: bogusReason.length,
 					reason: originalReason, // ORIGINAL text A — NOT updated
 				},
 			},
@@ -1172,10 +1146,7 @@ test('reason guard #1841: fails loudly when ref entry has no `reason` text field
 	// otherwise malformed — parse it at the boundary as a loose shape,
 	// then narrow inside the guard itself (the guard's job, not the test's).
 	type StrictReasonRef = {
-		steps: Record<
-			string,
-			{ reason_hash: string; reason_length: number; reason: string }
-		>;
+		steps: Record<string, { reason_hash: string; reason: string }>;
 	};
 
 	// Cast through the named StrictReasonRef: the guard narrows the field
@@ -1186,7 +1157,6 @@ test('reason guard #1841: fails loudly when ref entry has no `reason` text field
 			steps: {
 				'fixture.yml::build::Run tests': {
 					reason_hash: hashReason(originalReason),
-					reason_length: originalReason.length,
 					// reason is intentionally missing
 				},
 			},
@@ -1195,6 +1165,37 @@ test('reason guard #1841: fails loudly when ref entry has no `reason` text field
 
 	assert.equal(findings.length, 1);
 	assert.match(findings[0], /is missing the `reason` text field/);
+	assert.match(findings[0], /gen-reason-ref\.ts/);
+});
+
+test('reason guard #1870: an EMPTY reason string is a loud finding naming the empty field', async () => {
+	// The old shape check collapsed absent and empty into one generic
+	// "missing" message, and no dedicated test covered the empty string —
+	// a future tightening to `=== undefined` would have regressed silently.
+	// An empty reason passes the typeof check but pins nothing, so it gets
+	// its own finding wording (#1870).
+	const rootDir = await buildFixture({
+		manifestSteps: reconciled,
+		steps: mirroredStep,
+	});
+
+	const findings = await findCiDrift({
+		rootDir,
+		reasonRef: {
+			steps: {
+				'fixture.yml::build::Run tests': {
+					reason_hash: hashReason(
+						reconciled['fixture.yml::build::Run tests'].reason,
+					),
+					reason: '',
+				},
+			},
+		},
+	});
+
+	assert.equal(findings.length, 1);
+	assert.match(findings[0], /EMPTY `reason` text field/);
+	assert.match(findings[0], /length 0/);
 	assert.match(findings[0], /gen-reason-ref\.ts/);
 });
 
@@ -1861,7 +1862,6 @@ test('ratchet floor: 3-step sequence (delete from CI + manifest) turns RED — t
 				reason_hash: hashReason(
 					'Mirrored locally by the fixture gate for testing purposes.',
 				),
-				reason_length: reason.length,
 				reason,
 			},
 		},
@@ -1947,7 +1947,6 @@ test('ratchet floor: legitimate deletion with confession turns GREEN', async () 
 				reason_hash: hashReason(
 					'Mirrored locally by the fixture gate for testing purposes.',
 				),
-				reason_length: reason.length,
 				reason,
 			},
 		},
@@ -2085,7 +2084,6 @@ test('ratchet floor: adverse mutation — wrong step ID in confession does NOT c
 				reason_hash: hashReason(
 					'Mirrored locally by the fixture gate for testing purposes.',
 				),
-				reason_length: reason.length,
 				reason,
 			},
 		},
@@ -2116,7 +2114,6 @@ test('ratchet floor: no pinned_step_ids means no ratchet check (backward compati
 		steps: {
 			'fixture.yml::build::Run tests': {
 				reason_hash: hashReason(reason),
-				reason_length: reason.length,
 				reason,
 			},
 		},
@@ -2294,7 +2291,6 @@ test('readRefFromGit-fs: reads committed floor from merge-base, ignoring working
 				reason_hash: hashReason(
 					'Mirrored locally by the fixture gate for testing purposes.',
 				),
-				reason_length: reason.length,
 				reason,
 			},
 		},
@@ -2487,12 +2483,10 @@ test('readRefFromGit-fs: 3-part committed attack IS CAUGHT by the merge-base flo
 		steps: {
 			'fixture.yml::build::Step A': {
 				reason_hash: hashReason(reasonA),
-				reason_length: reasonA.length,
 				reason: reasonA,
 			},
 			'fixture.yml::build::Step B': {
 				reason_hash: hashReason(reasonB),
-				reason_length: reasonB.length,
 				reason: reasonB,
 			},
 		},
@@ -2546,7 +2540,6 @@ test('readRefFromGit-fs: 3-part committed attack IS CAUGHT by the merge-base flo
 				steps: {
 					'fixture.yml::build::Step A': {
 						reason_hash: hashReason(reasonA),
-						reason_length: reasonA.length,
 						reason: reasonA,
 					},
 				},

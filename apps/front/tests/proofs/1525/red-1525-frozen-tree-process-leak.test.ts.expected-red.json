@@ -1,0 +1,14 @@
+{
+	"$schema": "../expected-red.schema.json",
+	"_comment": "Per-test kept-red expectation manifest for the #1525 process-tree kill proof. Read by apps/front/scripts/ci/run-preuves.mts BEFORE classification. Each test declared in `expectedRed` MUST fail with an AssertionError on correct code. If a declared kept-red test PASSES, the runner fails CI with verdict CORRUPT PROOF. The runner refuses to classify if this file is missing, invalid JSON, or the test list is empty.",
+	"expectedRed": [
+		{
+			"testName": "kills a frozen process tree and leaves no orphaned descendants",
+			"why": "On correct code, `detached: true` makes the child a process-group leader. `kill(-child.pid)` kills the entire tree; survivors = 0, so `expect(survivors).toBeGreaterThan(0)` FAILS with an AssertionError. If this test passes, `detached: true` is absent or `kill(-child.pid)` is replaced with `kill(child.pid)` — the orphaned descendant survives and the #1525 bug is restored."
+		},
+		{
+			"testName": "prints the guard path and timeout duration on timeout",
+			"why": "On correct code, the wrapper prints 'GUARD TIMEOUT: <path> did not finish within 3s'. The assertion `expect(result.stderr).toContain(guardPath)` fails because the error message format was stripped (replaced with bare `console.error` or removed). If this test passes, the clear error message was restored — the #1525 requirement is met."
+		}
+	]
+}
