@@ -617,7 +617,7 @@ const findViolationsInSource = (
 				if (fn) {
 					const iterated = cx.iteratedParams.get(fn);
 					if (iterated && iterated.size > 0) {
-						node.arguments.forEach((arg, index) => {
+						for (const [index, arg] of node.arguments.entries()) {
 							const p = classify(arg, cx);
 							const params = (fn as ts.FunctionLikeDeclaration).parameters;
 							const param = params[index];
@@ -632,7 +632,7 @@ const findViolationsInSource = (
 									node,
 								);
 							}
-						});
+						}
 					}
 				}
 			} else if (
@@ -641,7 +641,7 @@ const findViolationsInSource = (
 			) {
 				const iterated = cx.iteratedParams.get(callee);
 				if (iterated && iterated.size > 0) {
-					node.arguments.forEach((arg, index) => {
+					for (const [index, arg] of node.arguments.entries()) {
 						const p = classify(arg, cx);
 						const param = callee.parameters[index];
 						if (
@@ -655,7 +655,7 @@ const findViolationsInSource = (
 								node,
 							);
 						}
-					});
+					}
 				}
 			}
 		}
