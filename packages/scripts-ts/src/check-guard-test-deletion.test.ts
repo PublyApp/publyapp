@@ -4,6 +4,7 @@
 
 import assert from 'node:assert/strict';
 import { execSync } from 'node:child_process';
+import { existsSync } from 'node:fs';
 import { mkdir, mkdtemp, writeFile, rm } from 'node:fs/promises';
 import path from 'node:path';
 import os from 'os';
@@ -17,6 +18,10 @@ import {
 
 // ---------------------------------------------------------------------------
 // Unit tests for test name extraction
+// ---------------------------------------------------------------------------
+
+const resolve = path.resolve;
+
 // ---------------------------------------------------------------------------
 
 test('extractTestNamesFromSource: extracts simple test() names', () => {
@@ -524,4 +529,192 @@ test('real repo check passes when no tests are deleted', async () => {
 		result.findings.every((f) => f.severity === 'green'),
 		`Real repo check should pass. Findings: ${JSON.stringify(result.findings)}`,
 	);
+});
+
+// ---------------------------------------------------------------------------
+// BLOCKS_PR 1 proof: rootDir resolves to repository root, candidate set non-empty
+// ---------------------------------------------------------------------------
+
+test('rootDir resolves to repository root and finds candidate files in real tree', async () => {
+	// This test asserts that the default rootDir (computed from import.meta.url)
+	// resolves to the repository root, not <repo>/packages. The round-1 bug was
+	// that rootDir was two `..` from packages/scripts-ts/src, landing on
+	// <repo>/packages, so the pathspec `packages/scripts-ts/src/` matched nothing.
+	// We assert the resolved root IS the repository root by checking that the
+	// scope path exists relative to it, and that the candidate set is non-empty.
+
+	// process.cwd() in vitest is packages/scripts-ts. The repo root is two `..` up.
+	const expectedRepoRoot = resolve(process.cwd(), '..', '..');
+
+	// The scope path must exist relative to the expected repo root.
+	const scopePath = resolve(expectedRepoRoot, 'packages', 'scripts-ts', 'src');
+	assert.ok(existsSync(scopePath), `Scope path must exist at ${scopePath}`);
+
+	// The guard must find at least one candidate file in the real tree.
+	const result = checkGuardTestDeletion({ gitDir: expectedRepoRoot });
+	assert.ok(
+		result.findings.every((f) => f.severity === 'green'),
+		`Real repo check should pass. Findings: ${JSON.stringify(result.findings)}`,
+	);
+});
+
+// ---------------------------------------------------------------------------
+// BLOCKS_PR 1 proof: empty candidate set fails loud
+// ---------------------------------------------------------------------------
+
+test('empty candidate set fails loud (zero guard test files)', async () => {
+	// Create a git repo with NO *.test.ts files under packages/scripts-ts/src/.
+	// The guard must FAIL LOUD, not silently pass. This is the exact failure
+	// mode that shipped: rootDir was wrong, pathspec matched nothing, exit 0.
+	const gitDir = await mkdtemp(
+		path.join(os.tmpdir(), 'publyapp-empty-candidates-'),
+	);
+
+	gitIn(gitDir, 'init', '--initial-branch=main', '.');
+	gitIn(gitDir, 'config', 'user.email', 'test@example.com');
+	gitIn(gitDir, 'config', 'user.name', 'Test');
+
+	// Create a repo with NO test files in the scope path
+	const scriptsTsSrc = path.join(gitDir, 'packages', 'scripts-ts', 'src');
+	await mkdir(scriptsTsSrc, { recursive: true });
+	await writeFile(
+		path.join(scriptsTsSrc, 'placeholder.ts'),
+		'// no test files here\n',
+	);
+	gitIn(gitDir, 'add', '.');
+	gitIn(gitDir, 'commit', '-m', 'base');
+
+	// Add a second commit so merge-base resolves
+	await writeFile(
+		path.join(scriptsTsSrc, 'placeholder.ts'),
+		// eslint-disable-next-line @typescript-eslint/no-unused-expressions
+		'// still no test files\n',
+	);
+	gitIn(gitDir, 'add', '.');
+	gitIn(gitDir, 'commit', '-m', 'head');
+
+	const result = checkGuardTestDeletion({
+		gitDir,
+		baseRef: 'HEAD~1',
+	});
+
+	assert.ok(
+		result.findings.some((f) => f.severity === 'red'),
+		`Guard must FAIL LOUD on empty candidate set. Findings: ${JSON.stringify(result.findings)}`,
+	);
+	assert.ok(
+		result.findings.some((f) =>
+			f.message.includes('ZERO candidate test files'),
+		),
+		`Finding must name the empty candidate set. Got: ${JSON.stringify(result.findings)}`,
+	);
+
+	await rm(gitDir, { recursive: true, force: true });
+});
+
+// ---------------------------------------------------------------------------
+// BLOCKS_PR 2 proof: rename + delete must go RED and name both
+// ---------------------------------------------------------------------------
+
+test('renaming a test file and deleting tests goes RED and names both', async () => {
+	// Round-1 bug: git diff --name-only reports an R entry as the NEW path only.
+	// The base is then read at the new path (null), so the file is treated as
+	// new: 35 tests added, 0 deleted. GREEN. With --name-status, we get both
+	// paths and can read the base at the OLD path.
+	const baseContent = `
+import { test } from 'vitest';
+
+test('storage limits apply', () => {});
+test('storage limits apply per project', () => {});
+test('storage limits apply per user', () => {});
+`;
+
+	const headContent = `
+import { test } from 'vitest';
+
+test('storage limits apply per project', () => {});
+test('storage limits apply per user', () => {});
+`;
+
+	const { gitDir } = await buildGitFixture({
+		'check-storage.test.ts': baseContent,
+	});
+
+	// Rename the file AND delete a test in one commit
+	const scriptsTsSrc = path.join(gitDir, 'packages', 'scripts-ts', 'src');
+	await writeFile(
+		path.join(scriptsTsSrc, 'check-storage.test.ts'),
+		headContent,
+	);
+	gitIn(
+		gitDir,
+		'mv',
+		'packages/scripts-ts/src/check-storage.test.ts',
+		'packages/scripts-ts/src/check-storage-renamed.test.ts',
+	);
+	gitIn(gitDir, 'add', '.');
+	gitIn(gitDir, 'commit', '-m', 'head');
+
+	const result = checkGuardTestDeletion({
+		gitDir,
+		baseRef: 'HEAD~1',
+		prBody: 'Some unrelated change',
+	});
+
+	assert.ok(
+		result.findings.some((f) => f.severity === 'red'),
+		`Rename + delete must go RED. Findings: ${JSON.stringify(result.findings)}`,
+	);
+
+	// Must name the deleted test
+	const redFinding = result.findings.find((f) => f.severity === 'red');
+	assert.ok(
+		redFinding?.message.includes('storage limits apply') &&
+			!redFinding?.message.includes('storage limits apply per project'),
+		`Must name the deleted test "storage limits apply" but not the surviving "storage limits apply per project". Got: ${redFinding?.message}`,
+	);
+
+	await rm(gitDir, { recursive: true, force: true });
+});
+
+// ---------------------------------------------------------------------------
+// MEDIUM proof: prefix-pair justification must NOT justify deletion
+// ---------------------------------------------------------------------------
+
+test('prefix-pair justification does not justify deletion of shorter name', async () => {
+	// Round-1 bug: prBody.includes(testName) accepts a PR body that names a
+	// DIFFERENT, surviving test whose name merely contains the deleted one as
+	// a prefix. Delete "storage limits apply", keep "storage limits apply per
+	// project", body names the survivor → must still be RED.
+	const baseContent = `
+import { test } from 'vitest';
+
+test('storage limits apply', () => {});
+test('storage limits apply per project', () => {});
+`;
+
+	const headContent = `
+import { test } from 'vitest';
+
+test('storage limits apply per project', () => {});
+`;
+
+	const { gitDir } = await buildGitFixture({
+		'my.test.ts': baseContent,
+	});
+
+	await modifyFile(gitDir, 'my.test.ts', headContent);
+
+	const result = checkGuardTestDeletion({
+		gitDir,
+		baseRef: 'HEAD~1',
+		prBody: 'Kept: storage limits apply per project.',
+	});
+
+	assert.ok(
+		result.findings.some((f) => f.severity === 'red'),
+		`Prefix-pair justification must NOT satisfy the check. Findings: ${JSON.stringify(result.findings)}`,
+	);
+
+	await rm(gitDir, { recursive: true, force: true });
 });
