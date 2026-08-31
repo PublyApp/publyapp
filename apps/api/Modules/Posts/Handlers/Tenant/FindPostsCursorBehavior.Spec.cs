@@ -352,6 +352,73 @@ public sealed class FindPostsCursorBehaviorSpec : IClassFixture<ApiFixture> {
 		return id;
 	}
 
+	[Fact]
+	public async Task ItShouldReturnBadRequestWhenCursorRowIsDeletedDuringWalk() {
+		// Pins the cursor-walk contract: when the cursor row is deleted between
+		// pages, the walk returns 400 (cursor not found) rather than skipping or
+		// returning wrong results.
+		var (tenantId, token) = await LoginAsAcmeAdminAsync();
+		var userId = await GetAcmeAdminUserIdAsync();
+
+		// Seed 3 posts with distinct created_at
+		var baseDate = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+		for (var i = 0; i < 3; i++) {
+			_ = await SeedPostAtAsync(
+				tenantId,
+				userId,
+				$"del-walk-{i}-{Guid.NewGuid():N}",
+				baseDate.AddDays(i)
+			);
+		}
+
+		// Page 1 (limit=1): returns the first post
+		var page1 = await FetchPage(token, tenantId, limit: 1, sortId: "created_at", sortOrder: "asc");
+		page1.Data.Should().HaveCount(1);
+		page1.NextCursor.Should().NotBeNullOrEmpty();
+
+		// Delete the cursor row between pages
+		var cursorId = page1.Data[0].Id;
+		await DeletePostAsync(cursorId);
+
+		// Page 2: cursor row is gone → 400 BadRequest
+		using var request = new HttpRequestMessage(HttpMethod.Get,
+			PostsUrl + $"?limit=1&sort_id=created_at&sort_order=asc&cursor={page1.NextCursor}")
+			.WithSessionToken(token).WithTenantId(tenantId);
+		using var response = await _http.SendAsync(request);
+		response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+	}
+
+	private async Task<FindPostsResponse> FetchPage(
+		string token,
+		Guid tenantId,
+		int limit,
+		string sortId,
+		string sortOrder,
+		string? cursor = null
+	) {
+		var url = PostsUrl + $"?limit={limit}&sort_id={sortId}&sort_order={sortOrder}";
+		if (cursor is not null) {
+			url += $"&cursor={Uri.EscapeDataString(cursor)}";
+		}
+		using var request = new HttpRequestMessage(HttpMethod.Get, url)
+			.WithSessionToken(token).WithTenantId(tenantId);
+		using var response = await _http.SendAsync(request);
+		response.StatusCode.Should().Be(HttpStatusCode.OK);
+		var page = await response.Content.ReadFromJsonAsync<FindPostsResponse>();
+		page.Should().NotBeNull();
+		Assert.NotNull(page);
+		return page;
+	}
+
+	private async Task DeletePostAsync(Guid postId) {
+		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		var post = await db.Post.Where(p => p.Id == postId).FirstAsync();
+		post.IsDeleted = true;
+		post.DeletedAt = DateTime.UtcNow;
+		await db.SaveChangesAsync();
+	}
+
 	private async Task OverrideUpdatedAtAsync(Guid postId, DateTime updatedAt) {
 		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider

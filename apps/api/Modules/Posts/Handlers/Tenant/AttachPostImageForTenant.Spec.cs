@@ -16,6 +16,8 @@ using PublyApp.Api.Lib.Testing.Fixtures;
 using PublyApp.Api.Lib.Testing.Helpers;
 using PublyApp.Api.Lib.Utils;
 
+using PublyApp.Api.Modules.Uploads.Entities;
+
 using Xunit;
 
 namespace PublyApp.Api.Modules.Posts.Handlers.Tenant;
@@ -609,11 +611,11 @@ public sealed class AttachPostImageForTenantSpec : IClassFixture<ApiFixture> {
 			var db =
 				baselineScope.ServiceProvider
 					.GetRequiredService<AppDbContext>();
-				baselineReferencedPaths = await (
-				from u in db.UploadAsset.AsNoTracking()
-				where !u.IsDeleted && u.ReferenceCount > 0
-				select u.RelativePath
-			).ToListAsync();
+			baselineReferencedPaths = await (
+			from u in db.UploadAsset.AsNoTracking()
+			where !u.IsDeleted && u.ReferenceCount > 0
+			select u.RelativePath
+		).ToListAsync();
 		}
 
 		const int concurrency = 8;
@@ -1008,6 +1010,119 @@ public sealed class AttachPostImageForTenantSpec : IClassFixture<ApiFixture> {
 		).SingleAsync();
 		loserRefCount.Should().Be(0,
 			"the loser must have released its blob reference (#1616)");
+	}
+
+	[Fact]
+	public async Task ItShouldAcquireReferenceBeforeEntityWriteCommits() {
+		// Pins acquire-before-write ordering (#1466): the handler MUST acquire
+		// the new blob's reference BEFORE the entity write commits. If the
+		// entity write committed first, a concurrent read could observe the
+		// live image URL while its asset still reads zero references — the
+		// blob could then be swept while displayed.
+		var (tenantId, token) = await LoginAsAcmeAdminAsync();
+		var postId = await CreatePostAsync(tenantId, token);
+		var postIdGuid = Guid.Parse(postId);
+
+		// Pre-attach a seed image so the handler's AttachAsync has a row to
+		// replace (hard-delete + insert). The new blob's reference is acquired
+		// AFTER the admission commit but BEFORE the AttachAsync entity write.
+		string seedPath;
+		using (var seedRequest = new HttpRequestMessage(
+			HttpMethod.Post,
+			AttachImageUrl(postId)
+		)
+			.WithSessionToken(token)
+			.WithTenantId(tenantId)) {
+			seedRequest.Content =
+				BuildFileContent(PngBytes(width: 64, height: 32));
+			using var seedResponse = await _http.SendAsync(seedRequest);
+			seedResponse.EnsureSuccessStatusCode();
+			var seed = await seedResponse.Content
+				.ReadFromJsonAsync<PostImageAttached>();
+			Assert.NotNull(seed);
+			seedPath = seed.Path;
+		}
+
+		// Barrier: lock the seed asset row the handler's AttachAsync will
+		// hard-delete. This parks the handler inside AttachAsync's SaveChanges
+		// DELETE step — AFTER the new blob's reference was acquired (line 219)
+		// but BEFORE the entity write commits. The acquire-before-write
+		// invariant: the new blob's reference is already 1 while the handler
+		// is parked inside the uncommitted entity write.
+		await using var barrierScope =
+			_fixture.Factory.Services.CreateAsyncScope();
+		var barrierDb = barrierScope.ServiceProvider
+			.GetRequiredService<AppDbContext>();
+		await using var barrierTx = await barrierDb.Database
+			.BeginTransactionAsync();
+
+		_ = await barrierDb.Database.ExecuteSqlAsync(
+			$"""
+			SELECT 1 FROM post_media_assets
+			WHERE post_id = {postIdGuid}
+			  AND tenant_id = {tenantId}
+			  AND is_deleted = false
+			FOR UPDATE
+			"""
+		);
+		var barrierPid =
+			await PostgresLockBarrier.GetBackendPidAsync(barrierDb);
+
+		// Fire the attach request. The handler acquires the new blob's
+		// reference, then parks inside AttachAsync on the seed row lock.
+		var attachRequest = new HttpRequestMessage(
+			HttpMethod.Post,
+			AttachImageUrl(postId)
+		)
+			.WithSessionToken(token)
+			.WithTenantId(tenantId);
+		attachRequest.Content = BuildFileContent(PngBytes(width: 96, height: 48));
+		var attachTask = _http.SendAsync(attachRequest);
+
+		// Wait until the handler is parked on the seed row lock
+		await PostgresLockBarrier.WaitUntilSettledAsync(
+			_fixture.Factory.Services,
+			attachTask,
+			barrierPid,
+			expectedWaitersIfBlocked: 1
+		);
+
+		// While parked: the new blob's reference is ALREADY acquired (1),
+		// even though the entity write has NOT committed yet. This is the
+		// acquire-before-write invariant.
+		await using (var probeScope =
+			_fixture.Factory.Services.CreateAsyncScope()) {
+			var probeDb = probeScope.ServiceProvider
+				.GetRequiredService<AppDbContext>();
+
+			// The seed row is still live (handler parked before hard-delete)
+			var liveAsset = await (
+				from a in probeDb.PostMediaAsset.AsNoTracking()
+				where a.PostId == postIdGuid && !a.IsDeleted
+				select a
+			).SingleOrDefaultAsync();
+			Assert.NotNull(liveAsset);
+			liveAsset.RelativePath.Should().Be(seedPath,
+				"the handler is parked inside AttachAsync before the hard-delete");
+
+			// The new blob's reference is already acquired
+			var newBlobs = await (
+				from u in probeDb.UploadAsset.AsNoTracking()
+				where u.RelativePath != seedPath
+					&& !u.IsDeleted
+					&& u.State == UploadAssetState.Referenced
+				select u.RelativePath
+			).ToListAsync();
+			newBlobs.Should().HaveCount(1,
+				"exactly one new blob must be in Referenced state while parked");
+		}
+
+		// Release the barrier: the handler's AttachAsync proceeds.
+		await barrierTx.CommitAsync();
+
+		var attachResponse = await attachTask;
+		attachRequest.Dispose();
+		attachResponse.StatusCode.Should().Be(HttpStatusCode.Created);
 	}
 
 	[Fact]

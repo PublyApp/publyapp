@@ -100,6 +100,105 @@ public sealed class RemovePostImageForTenantSpec : IClassFixture<ApiFixture> {
 	}
 
 	[Fact]
+	public async Task ItShouldReleaseReferenceOnlyAfterAssetRowCommitted() {
+		// Pins release-after-commit ordering (#1466): the handler MUST release
+		// the blob reference only AFTER the asset row hard-delete commits. If it
+		// released before commit, a concurrent acquire could observe zero
+		// references and hand a displayed blob to the sweeper.
+		var (tenantId, token) = await LoginAsAcmeAdminAsync();
+		var postId = await CreatePostAsync(tenantId, token);
+		var attachedPath = await AttachImageAsync(tenantId, token, postId);
+
+		// Barrier: lock the upload asset row the handler will release. This
+		// makes the handler's TryReleaseReferenceAsync park AFTER RemoveAsync
+		// commits the asset row hard-delete — the exact ordering under test.
+		await using var barrierScope =
+			_fixture.Factory.Services.CreateAsyncScope();
+		var barrierDb = barrierScope.ServiceProvider
+			.GetRequiredService<AppDbContext>();
+		await using var barrierTx = await barrierDb.Database
+			.BeginTransactionAsync();
+
+		_ = await barrierDb.Database.ExecuteSqlAsync(
+			$"""
+			SELECT 1 FROM upload_assets
+			WHERE relative_path = {attachedPath}
+			  AND is_deleted = false
+			FOR UPDATE
+			"""
+		);
+		var barrierPid =
+			await PostgresLockBarrier.GetBackendPidAsync(barrierDb);
+
+		// Fire the remove request. The handler commits the asset hard-delete
+		// (RemoveAsync) before reaching the locked release, so it parks on
+		// TryReleaseReferenceAsync.
+		var removeRequest = new HttpRequestMessage(
+			HttpMethod.Delete,
+			ImageUrl(postId)
+		)
+			.WithSessionToken(token)
+			.WithTenantId(tenantId);
+		var removeTask = _http.SendAsync(removeRequest);
+
+		// Wait until the handler is parked on the release lock
+		await PostgresLockBarrier.WaitUntilSettledAsync(
+			_fixture.Factory.Services,
+			removeTask,
+			barrierPid,
+			expectedWaitersIfBlocked: 1
+		);
+
+		// While parked: the asset row hard-delete is COMMITTED (RemoveAsync
+		// finished before the handler reached the release), but the reference
+		// is STILL at 1 (not yet released). This is the release-after-commit
+		// invariant.
+		var postIdGuid = Guid.Parse(postId);
+		await using (var probeScope =
+			_fixture.Factory.Services.CreateAsyncScope()) {
+			var probeDb = probeScope.ServiceProvider
+				.GetRequiredService<AppDbContext>();
+
+			var liveAsset = await (
+				from a in probeDb.PostMediaAsset.AsNoTracking()
+				where a.PostId == postIdGuid && !a.IsDeleted
+				select a
+			).AnyAsync();
+			liveAsset.Should().BeFalse(
+				"the asset row hard-delete must commit before the release");
+
+			var refCount = await (
+				from u in probeDb.UploadAsset.AsNoTracking()
+				where u.RelativePath == attachedPath && !u.IsDeleted
+				select (int?)u.ReferenceCount
+			).SingleOrDefaultAsync();
+			refCount.Should().Be(1,
+				"while parked on the release lock, the reference must still be held");
+		}
+
+		// Release the barrier: the handler's TryReleaseReferenceAsync proceeds.
+		await barrierTx.CommitAsync();
+
+		var removeResponse = await removeTask;
+		removeRequest.Dispose();
+		removeResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+
+		// After release: the reference drops to zero.
+		await using (var finalScope =
+			_fixture.Factory.Services.CreateAsyncScope()) {
+			var finalDb = finalScope.ServiceProvider
+				.GetRequiredService<AppDbContext>();
+			var refCount = await (
+				from u in finalDb.UploadAsset.AsNoTracking()
+				where u.RelativePath == attachedPath && !u.IsDeleted
+				select (int?)u.ReferenceCount
+			).SingleOrDefaultAsync();
+			refCount.Should().Be(0,
+				"after the handler proceeds past the release lock, the reference must be released");
+		}
+	}
+
+	[Fact]
 	public async Task ItShouldReturn404WhenRemovingWithoutImage() {
 		var (tenantId, token) = await LoginAsAcmeAdminAsync();
 		var postId = await CreatePostAsync(tenantId, token);
