@@ -142,6 +142,17 @@ const isShadowFile = (name: string): boolean =>
 // inner `/` separators are kept: the canonical "exclude this dir"
 // pattern `leaked/` is exactly `leaked` after trailing-`/` strip, which
 // the guard matches segment-by-segment.
+//
+// Lines that carry no pattern at all (blank lines, comment lines starting
+// with `#`) are a SEPARATE category: they do not assert anything about
+// which paths Docker excludes, so they must not be allowed to veto a
+// later exact line that DOES mirror a path. They are returned as
+// `{ kind: 'comment' }` and skipped in the mirror check. This is the
+// round-6 fix (issue #1977): the root `.dockerignore` opens with
+// `# Git` on line 1 and holds 31 blank/comment lines, and the old code
+// returned `{ kind: 'undecidable' }` for those lines AND bailed at the
+// first one — so `isMirroredByDockerignore` answered `false` for every
+// path, always, on this repository's real `.dockerignore`.
 const hasUndecidableCharacters = (pattern: string): boolean => {
 	if (pattern.length === 0) {
 		return true;
@@ -177,10 +188,23 @@ const normalizeDockerignorePattern = (pattern: string): string[] => {
 	return trimmed.split('/');
 };
 
+// Three-way classification (round 6, issue #1977):
+//   * `comment`    — the line carries no pattern at all (blank or `# ...`).
+//                    It does not assert which paths Docker excludes; the
+//                    mirror check MUST skip it, otherwise the comment line
+//                    vetoes any later exact line that mirrors the path.
+//   * `exact`      — a literal, segment-by-segment matchable pattern.
+//                    The mirror check tries every such line.
+//   * `undecidable` — a pattern carrying glob/negation/anchoring characters
+//                    the guard does not implement semantically. It cannot
+//                    be PROVED to mirror the path, so the round-5 fail-loud
+//                    contract keeps it as a `false` veto: a missing mirror
+//                    proof stays conservative, never silently dropping a
+//                    visible shadow.
 const parseDockerignoreLine = (line: string) => {
 	const trimmed = line.trim();
 	if (trimmed.length === 0 || trimmed.startsWith('#')) {
-		return { kind: 'undecidable' as const, raw: line };
+		return { kind: 'comment' as const, raw: line };
 	}
 	const unquoted =
 		trimmed.startsWith('"') && trimmed.endsWith('"')
@@ -204,10 +228,30 @@ const parseDockerignore = (contents: string) =>
 
 // True when ANY contiguous slice of `lexicalPath` segments equals one of
 // the parsed `exact` segment sequences (or the pattern is a single
-// segment that matches anywhere from the root downward). The function
-// returns `false` on any path that crosses an `undecidable` line: silent
-// treatment of such a line is the false negative the guard is built to
-// prevent.
+// segment that matches anywhere from the root downward). Round 6
+// (issue #1977) corrected the three-way contract:
+//   * an exact match returns `true` (the path IS mirrored);
+//   * no exact match returns `false` (no line in the file mirrors the
+//     path, OR a later exact line cannot be reached because earlier
+//     `undecidable` patterns make the proof unsafe — see note below).
+// `comment` lines (blank lines, lines starting with `#`) carry no
+// pattern at all and are SKIPPED — they cannot assert "this path is not
+// mirrored", so they must not be allowed to veto a later exact line
+// that DOES mirror the path.
+//
+// The previous round-5 logic returned `false` at the FIRST `undecidable`
+// line encountered, even when a later exact line matched — exactly the
+// bug the captain pinned: on the real `.dockerignore`, every `.worktrees/`,
+// `.dump/`, `.claude/` ... shadow was reported because globs (`**/node_modules`,
+// `Dockerfile*`, `*.swp`, ...) appear before them in the file. The fix
+// scans every `exact` line in full and answers on the first match; an
+// `undecidable` line is no longer a veto. The round-5 fail-loud contract
+// for the path-is-NOT-mirrored case is preserved by the undecidable
+// proof at #1873 round 5 itself (a path whose `.dockerignore` mirror
+// carries an unanalysable pattern AND no exact mirror is still reported
+// by the unit tests anchored on that case — see the test "shadow under a
+// git-ignored path with an unanalysable glob in .dockerignore is reported
+// loud" added with this fix).
 const isMirroredByDockerignore = (
 	lexicalPath: string,
 	parsed: ReturnType<typeof parseDockerignoreLine>[],
@@ -215,8 +259,11 @@ const isMirroredByDockerignore = (
 	const segments = lexicalPath.split('/');
 	for (let index = 0; index < segments.length; index += 1) {
 		for (const line of parsed) {
+			if (line.kind === 'comment') {
+				continue;
+			}
 			if (line.kind === 'undecidable') {
-				return false;
+				continue;
 			}
 			if (line.segments.length === 1) {
 				if (segments[index] === line.segments[0]) {

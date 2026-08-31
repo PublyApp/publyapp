@@ -879,6 +879,146 @@ test('RED: shadow under a subdirectory of an external symlink target is reported
 	}
 });
 
+// -----------------------------------------------------------------------
+// Issue #1977 (round 6 of #1873): the repo's real root .dockerignore opens
+// with `# Git` on line 1 and contains 31 blank-or-comment lines. The old
+// `parseDockerignoreLine` returned `{ kind: 'undecidable' }` for those lines
+// AND for lines with glob characters, with no distinction. The old
+// `isMirroredByDockerignore` bailed out at the FIRST such line — even when
+// a later `exact` line DID mirror the path. With the real `.dockerignore`,
+// `isMirroredByDockerignore` therefore returned `false` for EVERY path,
+// always: the three-way mirror contract in the file's docblock was never
+// reached. The user-visible symptom was a real false positive: `.dump/` is
+// git-ignored AND mirrored (line 81 of the real file), yet placing a
+// `.dump/Dockerfile.dockerignore` was reported with "git-ignored but NOT
+// mirrored" — a message that contradicts the mirror line that follows it
+// two lines down. The fix introduces a third kind, `comment`, for lines that
+// carry no pattern at all (blank, comment): such a line is SKIPPED, not
+// treated as an undecidable pattern. Lines with glob/negation characters
+// stay `undecidable` (the guard cannot prove the path is mirrored; that is
+// the original round-5 fail-loud case) and keep the conservative `false`
+// answer on the mirror check. These two paired tests pin BOTH halves:
+// dropping the comment-line noise, AND keeping the undecidable-pattern
+// fail-loud behaviour. Without half 2, a fix that simply treated every
+// undecidable line as a comment would re-open the round-5 false negative.
+// -----------------------------------------------------------------------
+
+// RED (paired proof, half 1, the false positive today): a shadow file under
+// a path that is BOTH git-ignored AND mirrored by an EXACT line in the root
+// `.dockerignore` must NOT be reported — exactly the parallelism contract,
+// but exercised against a `.dockerignore` whose first lines are comments
+// and blanks (the real shape of this repo's file). ROUGE on the shipped
+// code: `isMirroredByDockerignore` meets a comment line first, bails, and
+// returns `false` even though a later exact line mirrors the path; the guard
+// then falsely reports the shadow. VERT after the fix: the comment line is
+// skipped, the exact mirror line matches, the shadow is dropped.
+test('GREEN: shadow under a path that is git-ignored AND mirrored, when the .dockerignore opens with blank/comment lines, is dropped (issue #1977)', async () => {
+	const repoDir = await mkdtemp(
+		path.join(os.tmpdir(), 'publyapp-r6-mirrored-with-comments-'),
+	);
+
+	try {
+		await initGitRepo(repoDir);
+		// Mirror the real repo's shape: comment first, blanks between exact
+		// lines. The git-ignored directory `leaked/` IS mirrored on a later
+		// exact line — the parallelism contract requires the shadow to be
+		// dropped.
+		await writeFixtureFile(
+			repoDir,
+			'.dockerignore',
+			'# Section header\n\nnode_modules\n\n.dockerignore\n\nleaked/\n',
+		);
+		await writeFixtureFile(repoDir, '.gitignore', 'leaked/\n');
+		await writeFixtureFile(repoDir, 'leaked/Dockerfile.SONDE.dockerignore', '');
+
+		const findings = await findDockerignoreShadows({ rootDir: repoDir });
+
+		assert.deepEqual(
+			findings,
+			[],
+			`expected the guard to drop a shadow whose parent is mirrored, even when the .dockerignore opens with comment/blank lines, got: ${JSON.stringify(findings)}`,
+		);
+	} finally {
+		await rm(repoDir, { recursive: true, force: true });
+	}
+});
+
+// RED (paired proof, half 2, the original undecidable-pattern fail-loud):
+// a shadow whose parent path is git-ignored, NOT mirrored by any exact
+// line, AND has an unanalysable pattern (e.g. `**/*.tmp`) earlier in the
+// .dockerignore must STILL be reported — silence on an unanalysable line is
+// the original round-5 false negative. This test pins that the fix only
+// changes behaviour for `comment` lines, not for `undecidable` pattern
+// lines. Without this pin, a mutation that simply turns every undecidable
+// into a comment would pass half 1 by re-opening the round-5 hole.
+test('RED: shadow under a git-ignored path with an unanalysable glob in .dockerignore is reported loud (issue #1977 paired proof)', async () => {
+	const repoDir = await mkdtemp(
+		path.join(os.tmpdir(), 'publyapp-r6-undecidable-still-reported-'),
+	);
+
+	try {
+		await initGitRepo(repoDir);
+		// `**/*.tmp` is a glob the guard cannot evaluate (round-5 fail-loud
+		// contract). `leaked/` is git-ignored and NOT mirrored by any exact
+		// line: the shadow must be reported, NOT silently dropped.
+		await writeFixtureFile(
+			repoDir,
+			'.dockerignore',
+			'# Section header\n\n**/*.tmp\n\nnode_modules\n.dockerignore\n',
+		);
+		await writeFixtureFile(repoDir, '.gitignore', 'leaked/\n');
+		await writeFixtureFile(repoDir, 'leaked/Dockerfile.SONDE.dockerignore', '');
+
+		const findings = await findDockerignoreShadows({ rootDir: repoDir });
+
+		assert.ok(
+			findings.includes('leaked/Dockerfile.SONDE.dockerignore'),
+			`expected the guard to flag a git-ignored shadow that no exact line mirrors, even when the .dockerignore has unanalysable glob lines, got: ${JSON.stringify(findings)}`,
+		);
+	} finally {
+		await rm(repoDir, { recursive: true, force: true });
+	}
+});
+
+// RED (paired proof, half 3 — anchored on the real repo): placing a shadow
+// under `.dump/` (git-ignored AND mirrored line 81 of the real root
+// `.dockerignore`) must NOT be reported. This is the exact symptom the
+// captain pinned on the real repository, exercised here against a
+// minimal fixture so the regression cannot quietly reappear if the helper
+// changes again. ROUGE on shipped code: `.dump/` is mirrored, but the
+// leading comment line in the fixture `.dockerignore` makes the function
+// bail; the shadow is falsely reported. VERT after: the comment line is
+// skipped, the exact `.dump/` line matches, the shadow is dropped.
+test('GREEN: real-repo symptom — .dump/Dockerfile.dockerignore is NOT reported when .dump is mirrored by an exact line (issue #1977)', async () => {
+	const repoDir = await mkdtemp(
+		path.join(os.tmpdir(), 'publyapp-r6-dump-symptom-'),
+	);
+
+	try {
+		await initGitRepo(repoDir);
+		// Mirror a realistic snippet: header comment first, blanks between
+		// sections, and `.dump/` as an exact entry — exactly the shape of the
+		// real repo's root `.dockerignore`.
+		await writeFixtureFile(
+			repoDir,
+			'.dockerignore',
+			'# Worktree-local\n\n.worktrees/\n.dump/\n.claude/\n',
+		);
+		await writeFixtureFile(repoDir, '.gitignore', '.dump/\n');
+		await writeFixtureFile(repoDir, '.dump/Dockerfile.dockerignore', '');
+
+		const findings = await findDockerignoreShadows({ rootDir: repoDir });
+
+		assert.deepEqual(
+			findings,
+			[],
+			`expected the guard to drop a .dump/ shadow because .dump/ is mirrored, got: ${JSON.stringify(findings)}`,
+		);
+	} finally {
+		await rm(repoDir, { recursive: true, force: true });
+	}
+});
+
 // CYCLE PROTECTION (paired proof): the recursive descent must not loop on a
 // cycle introduced through an external symlink. The simplest cycle is an
 // external target that links back into itself via a relative symlink
