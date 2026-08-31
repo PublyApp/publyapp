@@ -142,12 +142,13 @@ public sealed class PostgresRateLimitCounterStoreSpec
 			"once the fleet-wide budget is spent no replica may over-admit"
 		);
 	}
-	// #1546 red proof: window_started_at must come from the DB clock (date_trunc
-	// on now()), not the app clock. Two replicas whose utcNow values are a full
-	// window apart would, under the old app-clock code, compute different
-	// window_started_at values and silently split one budget into two. With the
-	// fix the DB's single clock aligns them to the same window row, so the fleet
-	// still enforces exactly permitLimit total.
+	// #1546 red proof: window_started_at must come from the DB clock
+	// (floor(EXTRACT(EPOCH FROM now()) / windowSeconds) * windowSeconds), not
+	// the app clock. Two replicas whose utcNow values are a full window apart
+	// would, under the old app-clock code, compute different window_started_at
+	// values and silently split one budget into two. With the fix the DB's
+	// single clock aligns them to the same window row, so the fleet still
+	// enforces exactly permitLimit total.
 	[Fact]
 	public async Task ItShouldNotSplitBudgetWhenAppClocksAreDesynced() {
 		await using var scope = _fixture.Factory.Services
@@ -434,9 +435,9 @@ public sealed class PostgresRateLimitCounterStoreSpec
 		var policyName = $"spec-rollover-{suffix}";
 		const string partitionKey = "rejection-does-not-consume";
 		const int permitLimit = 2;
-		// A 1-second window so the DB clock (date_trunc on now())
-		// rolls over within the test — the app's utcNow parameter
-		// no longer drives window alignment (#1546).
+		// A 1-second window so the DB clock
+		// (floor(EXTRACT(EPOCH FROM now()) / 1) * 1) rolls over within the test —
+		// the app's utcNow parameter no longer drives window alignment (#1546).
 		var window = TimeSpan.FromSeconds(1);
 
 		await using var store = CreateStoreFromHost();
