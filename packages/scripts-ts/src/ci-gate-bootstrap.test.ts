@@ -472,14 +472,17 @@ for (const file of workflowFiles) {
 }
 
 // ---------------------------------------------------------------------------
-// ROUND 5 (#1974 r2): DELEGATION — a root-level Markdown file change alone
-// triggers the docs-archive job. The pre-#1974-r2 docs-archive pattern only
-// matched `docs/...` and the guard sources, so a PR touching ONLY
-// CONTRIBUTING.md (the most prominent example: the PR that introduced it
-// was a documentation-only diff classified as relevant=false, leaving the
-// link guard unrun) was a guaranteed silent miss. The new pattern also
-// matches the navigable root Markdown (CONTRIBUTING.md, AGENTS.md,
-// DESIGN.md, CLA.md, CLA-SIGNATURES.md, README.md).
+// ROUND 5 (#1974 r2, refreshed 2026-08-31 by r4): DELEGATION — a
+// root-level Markdown file change alone triggers the docs-archive job.
+// The pre-#1974-r2 docs-archive pattern only matched `docs/...` and the
+// guard sources, so a PR touching ONLY CONTRIBUTING.md (the most
+// prominent example: the PR that introduced it was a documentation-only
+// diff classified as relevant=false, leaving the link guard unrun) was
+// a guaranteed silent miss. The new pattern also matches the navigable
+// root Markdown (CONTRIBUTING.md, CLAUDE.md, AGENTS.md, DESIGN.md,
+// CLA.md, CLA-SIGNATURES.md, README.md). CLAUDE.md is the r4 addition:
+// the root file exists, carries `@AGENTS.md` (no relative links today),
+// and was a gate-coverage gap the r4 review named.
 //
 // This test is scoped to docs-archive.yml because the other workflows do
 // not run the link guard — extending their patterns to root files would
@@ -488,6 +491,7 @@ for (const file of workflowFiles) {
 
 const ROOT_MD_FILES_FOR_DOCS_ARCHIVE = [
 	'CONTRIBUTING.md',
+	'CLAUDE.md',
 	'AGENTS.md',
 	'DESIGN.md',
 	'CLA.md',

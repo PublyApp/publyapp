@@ -355,9 +355,9 @@
 			"reason": "Local pre-push checks do not run a GitHub container registry publish flow that requires runner buildx service setup."
 		},
 		"docs-archive.yml::changes::Check whether docs-archive paths changed": {
-			"reason_hash": "1af259ff2bf36411",
-			"reason_length": 1257,
-			"reason": "Round 2 of PR #1974 widened the inline regex from `^(docs/|packages/scripts-ts/src/check-doc-links\\.ts$|packages/scripts-ts/src/check-doc-links\\.test\\.ts$|packages/scripts-ts/src/audit-docs-prune\\.ts$|packages/scripts-ts/src/audit-docs-prune\\.test\\.ts$|\\.github/workflows/docs-archive\\.yml$)` to add the navigable root Markdown files (CONTRIBUTING.md, AGENTS.md, DESIGN.md, CLA.md, CLA-SIGNATURES.md, README.md). Round 1 of that same PR had demonstrated that a PR touching only CONTRIBUTING.md was classified as relevant=false (the link guard was therefore skipped, every CI gate stayed green on a dead `AGENTS.md` link). The inline-rationale comment block above the `run:` was rewritten to name the new path groups. The classifier itself, the inline script's logic, and the bootstrap test set are unchanged in shape — bootstrap gained six new ROUND 5 cases (`docs-archive.yml: ROUND 5 (#1974 r2) — root-level Markdown '<file>' alone is enough to make the job relevant`), one per root Markdown file, all asserting exact relevant=true. The fallback to `relevant=true` on a missing base classifier is unchanged. #1357 round-1 fix (audit-docs-prune.ts as an alternative in the regex) remains in force. The live `gh api` calls remain GitHub-only and unmirrored."
+			"reason_hash": "af2be8c53516c191",
+			"reason_length": 743,
+			"reason": "Round 4 of PR #1974 added CLAUDE.md to the inline regex so the root-level `@AGENTS.md` proxy file is covered by the docs-archive classifier — the r3 regex omits it as a gate-coverage gap. The r2 widening of round 2 added the navigable root Markdown (CONTRIBUTING.md, AGENTS.md, DESIGN.md, CLA.md, CLA-SIGNATURES.md, README.md). The bootstrap test gained a corresponding entry in the ROOT_MD_FILES_FOR_DOCS_ARCHIVE list (so a PR touching only CLAUDE.md is now relevant=true). The classifier itself, the inline script's logic, the fallback to `relevant=true` on a missing base classifier, and the live `gh api` calls are unchanged in shape. The inline-rationale comment block above the `run:` was extended to name CLAUDE.md alongside the r2 set."
 		},
 		"docs-archive.yml::changes::Checkout classifier from the base commit (not the PR's own copy)": {
 			"reason_hash": "68e36b1ac0a34432",
