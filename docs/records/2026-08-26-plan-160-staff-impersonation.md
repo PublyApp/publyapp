@@ -180,12 +180,15 @@ public class ImpersonationsPermissionsForStaff : ISlicePermissions {
 		START = Permission
 			.CreateStaffPermission(string.Join(Permission.KeySeparator, new[] { KeyPrefix, "start" }))
 			.SetTranslation(SupportedLanguage.English, new PermissionTranslation { Name = "Start impersonation", Description = "Start impersonating a tenant user as a staff member" })
-			.SetTranslation(SupportedLanguage.French, new PermissionTranslation { Name = "Démarrer une usurpation d'identité", Description = "Usurper l'identité d'un utilisateur locataire en tant que membre du personnel" });
+			// The live FR copy is idiomatic French mirroring this EN value (house pattern:
+			// SystemNoticePermissionsForStaff.cs) — not quoted here, records are English-only.
+			.SetTranslation(SupportedLanguage.French, new PermissionTranslation { Name = "Start impersonation", Description = "Start impersonating a tenant user as a staff member" });
 
 		END = Permission
 			.CreateStaffPermission(string.Join(Permission.KeySeparator, new[] { KeyPrefix, "end" }))
 			.SetTranslation(SupportedLanguage.English, new PermissionTranslation { Name = "End impersonation", Description = "Revoke a running impersonation session" })
-			.SetTranslation(SupportedLanguage.French, new PermissionTranslation { Name = "Terminer une usurpation d'identité", Description = "Révoquer une session d'usurpation d'identité en cours" });
+			// Live FR copy mirrors the EN value in idiomatic French (same note as START).
+			.SetTranslation(SupportedLanguage.French, new PermissionTranslation { Name = "End impersonation", Description = "Revoke a running impersonation session" });
 	}
 }
 ```
@@ -663,7 +666,7 @@ public async Task<ImpersonationEndResult> EndImpersonationSessionForStaffAsync(
 "impersonation-ended-success": "Impersonation ended successfully"
 ```
 
-FR translations mirror the same shape ("Session d'usurpation d'identité démarrée", etc.). Run `just generate-response-keys` and commit the regenerated `ResponseKeys.g.cs`.
+FR translations mirror the same shape ("Identity impersonation session started", etc.). Run `just generate-response-keys` and commit the regenerated `ResponseKeys.g.cs`.
 
 - [ ] **Step 5: GREEN check + commit.**
 

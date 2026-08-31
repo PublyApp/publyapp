@@ -1,14 +1,14 @@
 /**
  * @vitest-environment jsdom
  *
- * Brief #1720 ronde 2 — validation du chemin clavier : vérifier que les
- * éléments d'action sont focusables et activables au clavier. On ne peut pas
- * simuler la navigation réelle à travers les portails en jsdom, mais on vérifie
- * les garanties structurelles qui rendent cette navigation possible :
- * - Le déclencheur est un bouton (focusable naturellement)
- * - Les éléments du menu sont des boutons (focusables naturellement)
- * - Le déclencheur a un aria-label
- * - Les éléments ont des labels textuels
+ * Brief #1720 round 2 — keyboard path validation: verify that action
+ * elements are focusable and activatable via keyboard. Cannot simulate
+ * real navigation through portals in jsdom, but verifies the structural
+ * guarantees that make this navigation possible:
+ * - The trigger is a button (naturally focusable)
+ * - Menu items are buttons (naturally focusable)
+ * - The trigger has an aria-label
+ * - Items have text labels
  */
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';

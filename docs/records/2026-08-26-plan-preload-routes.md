@@ -1,119 +1,61 @@
-# Plan d'implémentation — #487 : préchargement des requêtes de route (`staticData.preload`)
+# Implementation plan — #487: route query preloading (`staticData.preload`)
 
-**Type** : record `plan` (écrit une fois, périmé plutôt que rétroédité). **Issue** : #487.
-**Précédent technique** : issue ouverte #1527 (loader client du détail profil) — sa règle
-« aucun second chemin de fetch par construction » est la contrainte n°3 de ce plan. L'arbitrage
-du propriétaire du 2026-08-26 (commentaire d'issue) fait autorité et est appliqué tel quel :
-`staticData.preload` par route, échec de préchargement silencieux, garde obligatoire sur le vrai
-artefact, articulation explicite avec `staleTime` et les loaders client, mesure chiffrée.
+**Type**: record `plan` (written once, superseded rather than retro-edited). **Issue**: #487.
+**Technical predecessor**: open issue #1527 (client loader for profile detail) — its rule "no second fetch path by construction" is constraint #3 of this plan. The owner arbitration of 2026-08-26 (issue comment) is authoritative and applied as-is: `staticData.preload` per route, silent preloading failure, mandatory guard on the real artifact, explicit articulation with `staleTime` and client loaders, quantified measurement.
 
-## 0. État des lieux, vérifié sur `origin/develop` = `198a6e4b7`
+## 0. State of the art, verified on `origin/develop` = `198a6e4b7`
 
-Chaque affirmation est prouvée dans `.dump/citations-r1.md` (PASS/FAIL par ligne, sorties collées).
+Each assertion is proven in `.dump/citations-r1.md` (PASS/FAIL per line, outputs pasted).
 
-1. `apps/front/src/router.tsx:176` : `defaultPreload: 'intent'`. Le routeur précharge donc déjà
-   le **composant** de route au survol d'un `<Link>` ; ses données partent au montage. Le gain
-   JS est consommé, le gain réseau ne l'est pas.
-2. Zéro `ensureQueryData` / `prefetchQuery` / `clientLoader` dans `apps/front/src/`
-   (comptages `git grep` = 0). L'issue #1527 est **ouverte, non fusionnée** : son loader client
-   n'est pas dans cet arbre. Ce plan s'articule avec elle (§5), il ne la suppose pas fusionnée.
-3. Les 3 fichiers de route qui déclarent un `loader:` (`verify-email.tsx`, `accept-invitation.tsx`,
-   `reset-password.tsx`) sont des surfaces SSR dont les loaders appellent des actions importées de
-   `~/lib/server/*` (ex. `checkEmailVerificationToken` dans `auth-actions.ts`), ces actions étant
-   elles-mêmes définies via `createServerFn` (non appelé directement dans le fichier de route) :
-   hors périmètre TanStack Query, intouchés par ce plan.
-4. Le mécanisme co-localisé existe : chaque route étend `StaticDataRouteOption`
-   (`breadcrumbs.ts:75`, `i18n.namespaces.ts:35`) et déclare `staticData.crumbs` à côté de son
-   composant (`$profileId.tsx:219-226`). `staticData.preload` suit exactement la même forme.
-5. Les données passent par des factories partagées `{ queryKey(vars), fetcher(vars) }`
-   (`buildStaffQueryOptions`, `create-hooks.ts:415`) que les pages consomment via leurs hooks
-   (`useStaffProfilesQuery` dans `staff-profiles.ts:525`, `useStaffTenantDetailsQuery` dans
-   `staff-tenants.ts:559`) et que les crumbs réutilisent déjà (`staffTenantCrumbQuery`,
-   `staffTenantProfileCrumbQuery`). Un préchargement qui pointe vers ces mêmes factories est
-   dedupliqué par TanStack Query par clé : il ne peut pas devenir un second chemin de fetch.
+1. `apps/front/src/router.tsx:176`: `defaultPreload: 'intent'`. The router therefore already preloads the route **component** on `<Link>` hover; its data leaves on mount. The JS gain is consumed, the network gain is not.
+2. Zero `ensureQueryData` / `prefetchQuery` / `clientLoader` in `apps/front/src/` (`git grep` counts = 0). Issue #1527 is **open, not merged**: its client loader is not in this tree. This plan articulates with it (§5), it does not assume it merged.
+3. The 3 route files declaring a `loader:` (`verify-email.tsx`, `accept-invitation.tsx`, `reset-password.tsx`) are SSR surfaces whose loaders call actions imported from `~/lib/server/*` (e.g. `checkEmailVerificationToken` in `auth-actions.ts`), these actions themselves being defined via `createServerFn` (not called directly in the route file): out of TanStack Query scope, untouched by this plan.
+4. The co-localized mechanism exists: each route extends `StaticDataRouteOption` (`breadcrumbs.ts:75`, `i18n.namespaces.ts:35`) and declares `staticData.crumbs` next to its component (`$profileId.tsx:219-226`). `staticData.preload` follows exactly the same shape.
+5. Data passes through shared factories `{ queryKey(vars), fetcher(vars) }` (`buildStaffQueryOptions`, `create-hooks.ts:415`) that pages consume via their hooks (`useStaffProfilesQuery` in `staff-profiles.ts:525`, `useStaffTenantDetailsQuery` in `staff-tenants.ts:559`) and that crumbs already reuse (`staffTenantCrumbQuery`, `staffTenantProfileCrumbQuery`). A preload pointing at these same factories is deduplicated by TanStack Query per key: it cannot become a second fetch path.
 
-## 0b. Écart assumé vis-à-vis de #487 (déviation silencieuse corrigée)
+## 0b. Assumed deviation from #487 (silent deviation corrected)
 
-Sur les 12 critères d'acceptation de l'issue #487, quatre sont **modifiés ou abandonnés**
-dans ce plan. Ils ne l'étaient pas dans la r1 ; la relecture r2 (verdict `CHANGES_REQUIRED`)
-a tranché : une déviation de périmètre non nommée est un défaut. Chacun est ici assumé,
-justifié, et suivi par une issue de suivi `follow-up lv1` citée. Le corps de PR reprend ce
-résumé (voir `.dump/pr-body.md`). Le plan reste fidèle à l'arbitrage propriétaire du
-2026-08-26, qui prime sur la forme initiale de l'issue.
+Of the 12 acceptance criteria of issue #487, four are **modified or abandoned** in this plan. They were not in r1; the r2 re-read (verdict `CHANGES_REQUIRED`) decided: an unnamed scope deviation is a defect. Each is here assumed, justified, and tracked by a `follow-up lv1` issue cited. The PR body recaps this summary (see `.dump/pr-body.md`). The plan remains faithful to the owner arbitration of 2026-08-26, which takes precedence over the initial form of the issue.
 
-| # | Critère #487 abandonné/modifié | Forme retenue ici | Pourquoi (tranché) | Suivi |
+| # | #487 criterion abandoned/modified | Form retained here | Why (decided) | Follow-up |
 |---|---|---|---|---|
-| 1 | Helper impératif `routeQueries(...)` + `criticalRouteQuery`/`secondaryRouteQuery`/`interactionRouteQuery`/`blockingRouteQuery` (Slice 1) | Déclaratif `staticData.preload` co-localisé avec `staticData.crumbs` (§1) | L'arbitrage impose `staticData.preload` par route comme surface unique ; un helper impératif est une seconde API et un second registre. La forme déclarative réutilise le mécanisme `crumbs` et les factories partagées (règle « pas de second chemin de fetch » de #1527). | #1588 |
-| 2 | Règle Oxlint `publy/route-query-preload` testée, commentaires d'échappement, démarrée en warning (Slice 5) | **Absente** du plan ; remplacée par la garde contractuelle vitest §4 sur le VRAI artefact | La garde §4 confronte les clés préchargées aux clés réellement consommées par la page (impossible à faire par une règle de forme sur le source seul). La règle Oxlint reste utile comme garde *bon marché* préalable ; elle est suivie séparément. | #1589 |
-| 3 | Pilote sur la mise en page authentifiée `authed/_layout/authed-layout.tsx` (Slice 3) | Pilotes `authed/staff/tenants/$tenantId.tsx` (T2) + `authed/staff/profiles.tsx` (T4) | Le hook unique `usePreloadIntentQueries()` (§1.1) couvre DÉJÀ l'intent-preload du layout auth globalement ; un pilote de layout dupliquerait le mécanisme. Les deux pilotes retenus exercent les cas durs (paramètre dérivé `$tenantId`, variables URL par défaut) et deviennent les premières routes couvertes par la garde (§10). | #1590 |
-| 4 | Doc dédiée `docs/guides/frontend-route-query-preloading.md` (Slice 2) | Repliée dans la sous-section « Route query preloading (#487) » de `docs/guides/front/conventions.md` (T5) | `conventions.md` est la source de vérité enforceée des standards front (gardes design-system/lint) ; y tenir le contrat évite un doc qui dérive. Un guide narratif compagnon pourra être ajouté ultérieurement. | #1591 |
+| 1 | Imperative helper `routeQueries(...)` + `criticalRouteQuery`/`secondaryRouteQuery`/`interactionRouteQuery`/`blockingRouteQuery` (Slice 1) | Declarative `staticData.preload` co-localized with `staticData.crumbs` (§1) | The arbitration imposes `staticData.preload` per route as the single surface; an imperative helper is a second API and a second registry. The declarative form reuses the `crumbs` mechanism and shared factories (rule "no second fetch path" of #1527). | #1588 |
+| 2 | Oxlint rule `publy/route-query-preload` tested, escape comments, started as warning (Slice 5) | **Absent** from the plan; replaced by the vitest contract guard §4 on the REAL artifact | The §4 guard confronts preloaded keys with keys actually consumed by the page (impossible to do by a form rule on source alone). The Oxlint rule remains useful as a cheap pre-guard; it is tracked separately. | #1589 |
+| 3 | Pilot on the authenticated layout `authed/_layout/authed-layout.tsx` (Slice 3) | Pilots `authed/staff/tenants/$tenantId.tsx` (T2) + `authed/staff/profiles.tsx` (T4) | The single hook `usePreloadIntentQueries()` (§1.1) ALREADY covers the intent-preload of the auth layout globally; a layout pilot would duplicate the mechanism. The two retained pilots exercise the hard cases (derived parameter `$tenantId`, default URL variables) and become the first routes covered by the guard (§10). | #1590 |
+| 4 | Dedicated doc `docs/guides/frontend-route-query-preloading.md` (Slice 2) | Folded into the "Route query preloading (#487)" sub-section of `docs/guides/front/conventions.md` (T5) | `conventions.md` is the enforced source of truth of front standards (design-system/lint guards); holding the contract there avoids a drifting doc. A narrative companion guide may be added later. | #1591 |
 
-Aucun des quatre n'est une régression de l'arbitrage propriétaire : tous les points
-obligatoires (preload par route, échec silencieux, garde sur artefact réel, articulation
-`staleTime`/loaders, mesure chiffrée) sont intégralement livrés. Les criteres 1, 2, 3, 4 de
-l'issue sont soit reformulés (1, 3, 4), soit déplacés en suivi (2) ; le reste des 12 criteres
-est inchangé.
+None of the four is a regression of the owner arbitration: all mandatory points (preload per route, silent failure, guard on real artifact, `staleTime`/loader articulation, quantified measurement) are fully delivered. Criteria 1, 2, 3, 4 of the issue are either reformulated (1, 3, 4) or moved to follow-up (2); the rest of the 12 criteria are unchanged.
 
-## 1. Forme retenue : `staticData.preload` déclaré par route
+## 1. Retained form: `staticData.preload` declared per route
 
 ```ts
 export const Route = createFileRoute(...)({
-	staticData: {
-		crumbs: staffTenantProfileCrumbsBase,            // déjà là (#973/#1033)
-		preload: ({ params }) => [                       // nouveau, même mécanisme
-			{ options: staffTenantDetailsQueryOptions, variables: { tenantId: params.tenantId } },
-			{ options: staffTenantProfileDetailsQueryOptions, variables: { tenantId: params.tenantId, profileId: params.profileId } },
-		],
-	},
+    staticData: {
+        crumbs: staffTenantProfileCrumbsBase,            // already there (#973/#1033)
+        preload: ({ params }) => [                       // new, same mechanism
+            { options: staffTenantDetailsQueryOptions, variables: { tenantId: params.tenantId } },
+            { options: staffTenantProfileDetailsQueryOptions, variables: { tenantId: params.tenantId, profileId: params.profileId } },
+        ],
+    },
 });
 ```
 
-Pas de registre central. Une route sans préchargement n'ajoute pas la clé. La valeur est un tableau
-d'entrées `{ options, variables }` où `options` est une factory exportée de `lib/query/*` — jamais
-un littéral `{ queryKey, queryFn }` écrit en ligne dans la route : écrire un littéral serait créer
-le second chemin de fetch que le garde traque (§4).
+No central registry. A route without preloading does not add the key. The value is an array of `{ options, variables }` entries where `options` is an exported factory from `lib/query/*` — never a `{ queryKey, queryFn }` literal written inline in the route: writing a literal would create the second fetch path the guard tracks (§4).
 
-### 1.1 Qui exécute le preload (tranché explicitement)
+### 1.1 Who executes the preload (explicitly decided)
 
-Le champ `staticData` est une extension maison (`declare module '@tanstack/react-router'
-{ interface StaticDataRouteOption { … } }`), pas une option du routeur : quelque chose doit lire ce
-champ au moment du preload d'intention. Deux candidats ont été tranchés :
+The `staticData` field is a house extension (`declare module '@tanstack/react-router' { interface StaticDataRouteOption { … } }`), not a router option: something must read this field at the moment of intent preload. Two candidates were decided:
 
-* **Retenu — hook de branchement unique** : `usePreloadIntentQueries()` dans
-  `apps/front/src/lib/query/preload-intent.ts`. Monté UNE fois dans le shell authentifié
-  CSR (`apps/front/src/components/app-shell/app-shell.tsx`, l'emplacement qui héberge déjà les effets
-  globaux du shell). **Montage CSR uniquement** : le shell authentifié est `ssr: false`
-  (`docs/guides/front/conventions.md`, l.281 — « Authenticated application surfaces are CSR with
-  `ssr: false` ») ; le hook doit de plus être enveloppé par le primitif CSR du repo
-  `createClientOnlyFn` (de `@tanstack/react-start`, déjà utilisé dans `routes/__root.tsx` l.14)
-  pour qu'un montage accidentel dans un shell universel n'exécute jamais l'effet côté serveur —
-  `isServer` n'étant pas un export direct consommé par le front (qui expose plutôt la fonction
-  locale `isServerRuntime()` dans `lib/api-client/client-manager.ts`). Il s'abonne au routeur via `router.subscribe('onBeforeLoad', …)`
-  et, pour chaque entrée `staticData.preload` de la destination, résout d'abord les matches lui-même
-  : l'événement `NavigationEventInfo` **ne porte pas** de `matches` (forme vérifiée dans le
-  lockfile, `@tanstack/router-core@1.171.26/dist/esm/router.d.ts` l.419-426 :
-  `{ fromLocation?, toLocation, pathChanged, hrefChanged, hashChanged }`). Le hook appelle donc
-  `router.matchRoute(event.toLocation)` puis parcourt les matches résolus pour lire chaque
-  `staticData.preload`. Fondement vérifié dans le même fichier : `RouterEvents` expose `onBeforeLoad`
-  (l.430) et `SubscribeFn` retourne une fonction de désabonnement (l.452), et `Router` expose
-  `matchRoute: MatchRouteFn` (l.750).
-  Pourquoi ici et pas ailleurs : c'est le seul point où l'on capte TOUT preload d'intention
-  (survol ET viewport ET navigation) sans modifier chaque route ni dépendre d'une option
-  inexistante dans cette version du routeur.
-* **Rejeté — loader partagé ajouté à chaque route** : un `loader` par route qui ferait le même
-  travail. Rejeté car il duplique le mécanisme 60 fois, se confond avec le futur loader client
-  sanctionné de #1527 (qui, lui, DOIT bloquer), et transforme une déclaration déclarative en
-  plomberie répétée.
-* **Rejeté — `beforeLoad({ cause })`** : tourne aussi pour `cause: 'preload'`, mais ajoute une
-  phase asynchrone au cycle de vie de chaque route pour un besoin global, et mélange « déclarer »
-  et « exécuter » alors que la décision du propriétaire veut la déclaration seule dans la route.
+* **Retained — single branching hook**: `usePreloadIntentQueries()` in `apps/front/src/lib/query/preload-intent.ts`. Mounted ONCE in the CSR authenticated shell (`apps/front/src/components/app-shell/app-shell.tsx`, the location already hosting the shell's global effects). **CSR mount only**: the authenticated shell is `ssr: false` (`docs/guides/front/conventions.md`, l.281 — "Authenticated application surfaces are CSR with `ssr: false`"); the hook must further be wrapped by the repo's CSR primitive `createClientOnlyFn` (from `@tanstack/react-start`, already used in `routes/__root.tsx` l.14) so that an accidental mount in a universal shell never runs the effect server-side — `isServer` not being a direct export consumed by the front (which rather exposes the local function `isServerRuntime()` in `lib/api-client/client-manager.ts`). It subscribes to the router via `router.subscribe('onBeforeLoad', …)` and, for each `staticData.preload` entry of the destination, first resolves the matches itself: the `NavigationEventInfo` event **does not** carry `matches` (form verified in the lockfile, `@tanstack/router-core@1.171.26/dist/esm/router.d.ts` l.419-426: `{ fromLocation?, toLocation, pathChanged, hrefChanged, hashChanged }`). The hook therefore calls `router.matchRoute(event.toLocation)` then walks the resolved matches to read each `staticData.preload`. Verified foundation in the same file: `RouterEvents` exposes `onBeforeLoad` (l.430) and `SubscribeFn` returns an unsubscribe function (l.452), and `Router` exposes `matchRoute: MatchRouteFn` (l.750).
+  Why here and not elsewhere: it is the only point that captures ALL intent preload (hover AND viewport AND navigation) without modifying each route or depending on an option nonexistent in this router version.
+* **Rejected — shared loader added to each route**: a per-route `loader` doing the same work. Rejected because it duplicates the mechanism 60 times, confuses itself with the future client loader sanctioned by #1527 (which MUST block), and turns a declarative declaration into repeated plumbing.
+* **Rejected — `beforeLoad({ cause })`**: also runs for `cause: 'preload'`, but adds an async phase to each route's lifecycle for a global need, and mixes "declare" and "execute" whereas the owner decision wants the declaration alone in the route.
 
-Le hook ignore silencieusement toute erreur (§2). Il ne fait rien quand `event` provient d'un
-preload déjà satisfait : `ensureQueryData` est idempotent par clé fraîche (staleTime, §6).
+The hook silently ignores any error (§2). It does nothing when `event` originates from an already-satisfied preload: `ensureQueryData` is idempotent per fresh key (staleTime, §6).
 
 ### 1.2 Types
 
-Extension dans un nouveau module typé (même pattern que `breadcrumbs.ts`) :
+Extension in a new typed module (same pattern as `breadcrumbs.ts`):
 
 ```ts
 // apps/front/src/lib/navigation/route-preload.ts
@@ -126,15 +68,15 @@ import type { QueryKey } from '@tanstack/react-query';
 // and the crumbs already consume — so a `preload` entry cannot introduce a
 // second fetch path (§4, first guard tier).
 export type RoutePreloadFactory<
-	TVariables extends Record<string, unknown> = Record<string, unknown>,
+    TVariables extends Record<string, unknown> = Record<string, unknown>,
 > = {
-	queryKey: (variables: TVariables) => QueryKey;
-	fetcher: (variables: TVariables) => Promise<unknown>;
+    queryKey: (variables: TVariables) => QueryKey;
+    fetcher: (variables: TVariables) => Promise<unknown>;
 };
 
 export type RoutePreloadEntry = {
-	options: RoutePreloadFactory<any>;
-	variables: Record<string, unknown>;
+    options: RoutePreloadFactory<any>;
+    variables: Record<string, unknown>;
 };
 
 // The generic lives on the FUNCTION: `preload` is `(args) => readonly
@@ -146,267 +88,121 @@ export type RoutePreloadEntry = {
 // through. Verified to compile against the real `staffTenantDetailsQueryOptions`
 // / `staffTenantProfileDetailsQueryOptions` factories (proof in `.dump/citations-r2.md`, B1).
 export type RoutePreload = (args: {
-	params: Record<string, string>;
+    params: Record<string, string>;
 }) => readonly RoutePreloadEntry[];
 
-// declaration merging :
+// declaration merging:
 declare module '@tanstack/react-router' {
-	interface StaticDataRouteOption {
-		preload?: RoutePreload;
-	}
+    interface StaticDataRouteOption {
+        preload?: RoutePreload;
+    }
 }
 ```
 
-La contrainte de forme (`options.queryKey` + `options.fetcher`, tous deux
-`(variables) => …`) rend IMPOSSIBLE de compiler une entrée qui ne vient pas d'une
-factory partagée : TypeScript rejette un littéral ad hoc qui ne porte pas
-exactement ces membres signés par la factory. C'est le premier étage de la garde
-(§4). Le couplage exact `variables ↔ factory` (type de `tenantId` dérivé de la
-factory précise) n'est PAS porté statiquement ici — il est vérifié dynamiquement
-par la garde T3 (§4) qui lit la clé concrète `options.queryKey(variables)` et la
-confronte aux clés consommées par la page.
+The shape constraint (`options.queryKey` + `options.fetcher`, both `(variables) => …`) makes it IMPOSSIBLE to compile an entry that does not come from a shared factory: TypeScript rejects an ad hoc literal that does not carry exactly these factory-signed members. This is the first tier of the guard (§4). The exact `variables ↔ factory` coupling (type of `tenantId` derived from the precise factory) is NOT statically carried here — it is dynamically verified by the T3 guard (§4) which reads the concrete key `options.queryKey(variables)` and confronts it with the keys consumed by the page.
 
-## 2. Échec de préchargement : silencieux, rien à l'écran (arbitrage appliqué)
+## 2. Preloading failure: silent, nothing on screen (arbitration applied)
 
-* `ensureQueryData` est invoqué sous `.catch(() => undefined)` côté hook : aucun toast, aucun
-  état d'erreur, aucune entrée de log en niveau error. Raison : un préchargement est spéculatif ;
-  l'utilisateur n'a peut-être jamais cliqué. La vraie requête partira au montage et c'est ELLE
-  qui dira sa cause via `QueryDisplay` si elle échoue à son tour. La règle « toute panne dit sa
-  cause » vaut pour la requête que l'utilisateur attend, pas pour une tentative qu'il ignore.
-* Conséquence non négociable : un échec de préchargement NE marque PAS l'entrée comme chargée.
-  TanStack Query gère cela seul (une promesse rejetée n'alimente pas le cache en data) ; le plan
-  interdit explicitement tout code qui transformerait l'échec en donnée (pas de `data: null`
-  synthétique, pas de flag « already attempted »).
-* Le backstop 401→logout central (`handleAuthedQueryError`, `router.tsx:104`) ne doit PAS se
-  déclencher depuis un préchargement avorté : le plan vérifie ce comportement dans la tâche T3
-  (cas de test dédié : préchargement 401 sur une session expirée pendant le survol ne logout PAS,
-  puisque la requête au montage fera son travail).
+* `ensureQueryData` is invoked under `.catch(() => undefined)` on the hook side: no toast, no error state, no log entry at error level. Reason: a preload is speculative; the user may never have clicked. The real query will leave on mount and it is the one that will say its cause via `QueryDisplay` if it fails in turn. The rule "every failure says its cause" applies to the query the user expects, not to an attempt they ignore.
+* Non-negotiable consequence: a preloading failure does NOT mark the entry as loaded. TanStack Query handles this alone (a rejected promise does not feed data into the cache); the plan explicitly forbids any code that would turn the failure into data (no synthetic `data: null`, no "already attempted" flag).
+* The centralized 401→logout backstop (`handleAuthedQueryError`, `router.tsx:104`) must NOT trigger from an aborted preload: the plan verifies this behavior in task T3 (dedicated test case: 401 preload on an expired session during hover does NOT logout, since the mount query will do its job).
 
-## 3. Articulation tranchée avec les loaders client (§Rendering Strategy)
+## 3. Articulation decided with client loaders (§Rendering Strategy)
 
-État : les conventions (`docs/guides/front/conventions.md`, §Rendering Strategy, ligne 277)
-n'autorisent pas encore de loader client ; l'issue #1527 propose la première exception (détail
-profil, `await ensureQueryData` AVANT premier rendu, pairée à un `pendingComponent`).
+State: the conventions (`docs/guides/front/conventions.md`, §Rendering Strategy, line 277) do not yet allow a client loader; issue #1527 proposes the first exception (profile detail, `await ensureQueryData` BEFORE first render, paired with a `pendingComponent`).
 
-Tranché dans ce plan, les deux mécanismes sont complémentaires et leur frontière est :
+Decided in this plan, the two mechanisms are complementary and their boundary is:
 
-* **`staticData.preload` = spéculatif, non bloquant, toujours silencieux.** Déclenché par une
-  intention (survol). Ne participe jamais au rendu de la page courante.
-* **loader client (#1527) = obligatoire, bloquant, pairé à `pendingComponent`.** Résout une
-  exigence de rendu (« ces données doivent être en cache avant la première image », ex. noms de
-  crumbs). Une route peut avoir LES DEUX : le `staticData.preload` réchauffe tôt au survol ; si
-  l'utilisateur clique malgré un échec de préchargement, le loader client repart et bloque
-  proprement derrière son `pendingComponent`.
-* Même factory, deux temporalités. Aucune route ne doit porter un loader client qui redonde avec
-  une entrée `preload` pour la même donnée SANS raison de blocage documentée ; le cas légitime
-  (crumbs avant peinture) est celui de #1527 et reste son unique sanction jusqu'à fusion puis
-  revue des conventions.
+* **`staticData.preload` = speculative, non-blocking, always silent.** Triggered by an intention (hover). Never participates in the current page's render.
+* **client loader (#1527) = mandatory, blocking, paired with `pendingComponent`.** Resolves a render requirement ("these data must be in cache before the first paint", e.g. crumb names). A route can have BOTH: the `staticData.preload` warms early on hover; if the user clicks despite a preloading failure, the client loader re-fires and blocks properly behind its `pendingComponent`.
+* Same factory, two temporalities. No route must carry a client loader that duplicates a `preload` entry for the same data WITHOUT a documented blocking reason; the legitimate case (crumbs before paint) is #1527's and remains its sole sanction until merge then conventions review.
 
-## 4. Garde obligatoire — sur le VRAI artefact
+## 4. Mandatory guard — on the REAL artifact
 
-**Défaut à détecter** : une route dont `staticData.preload` référence des query options que le
-corps de la page n'utilise pas. C'est un second chemin de fetch installé — précisément ce que
-#1527 a évité par construction en réutilisant les mêmes factories. Un garde qui vérifie une forme
-au lieu d'un contenu est un faux négatif installé ; celui-ci vérifie un contenu.
+**Defect to detect**: a route whose `staticData.preload` references query options the page body does not use. This is a second fetch path installed — exactly what #1527 avoided by construction by reusing the same factories. A guard that checks a form instead of content is an installed false negative; this one checks content.
 
-**Assujettissement : le vrai artefact**, pas un modèle :
+**Subjection: the real artifact**, not a model:
 
-* Source de vérité n°1 : le VRAI arbre généré `apps/front/src/routeTree.gen.ts` importé au test
-  (même choix que le contrat de crumbs, `breadcrumb-contract.test.tsx:20-33` : « walks the REAL
-  generated route tree … does not construct a fixture route tree and does not regex-scan source »),
-  avec le même auto-contrôle de vacuité (les counts doivent diverger si la marche visite 0 route).
-* Source de vérité n°2 : le module de route RÉEL importé dynamiquement
-  (`import('~/routes/…/$route')`) — on lit `Route.options.staticData.preload` exécuté sur les
-  params du chemin réel, puis on inspecte le fichier de route et son hook de page.
+* Source of truth #1: the REAL generated tree `apps/front/src/routeTree.gen.ts` imported in the test (same choice as the crumbs contract, `breadcrumb-contract.test.tsx:20-33`: "walks the REAL generated route tree … does not construct a fixture route tree and does not regex-scan source"), with the same emptiness self-check (counts must diverge if the walk visits 0 routes).
+* Source of truth #2: the REAL route module dynamically imported (`import('~/routes/…/$route')`) — we read `Route.options.staticData.preload` executed on the real path's params, then inspect the route file and its page hook.
 
-**Algorithme du garde** (nouveau spec vitest
-`apps/front/src/lib/navigation/preload-contract.test.tsx`, piné comme le contrat crumbs) :
+**Guard algorithm** (new vitest spec `apps/front/src/lib/navigation/preload-contract.test.tsx`, pinned like the crumbs contract):
 
-1. Marcher `routeTree.gen` ; collecter chaque route dont `staticData.preload` existe.
-2. Pour chacune, importer le fichier de route réel, exécuter `preload({ params: <params du
-   chemin> })`, récupérer les clés concrètes `options.queryKey(variables)` (valeurs, pas symboles).
-3. Collecter les clés utilisées par la PAGE : importer le module de hook d'état de la page
-   (convention repo : `_use-*-state.ts` co-localisé ou hook inline du fichier de route ; pour les
-   routes sans hook dédié, le corps du fichier de route lui-même) et intercepter les `useQuery`/
-   `useSuspenseQuery` montés lors d'un rendu de test de la page avec ses vraies factories
-   (technique éprouvée dans `$profileId.test.tsx` : mocks alignés sur le contrat réel
-   `{queryKey(vars), fetcher(vars)}` des factories).
-4. Échouer si une clé préchargée n'apparaît pas dans les clés consommées (message nommant
-   `fichier:routeId` + la clé orpheline + la factory fautive). Tolérance assumée : une clé
-   préchargée consommée uniquement par un enfant direct monté systématiquement par cette page
-   (onglet index, drawer racine) compte comme consommée — la liste des enfants acceptés est
-   déclarée dans le test, pas devinée.
-5. **Limite connue (mutation adverse — « mauvaise factory, bonne clé »)** : le garde ne confronte
-   QUE la clé concrète `options.queryKey(variables)` ; il n'identifie PAS la factory par son
-   identité de module. Une entrée `preload` pourrait pointer vers une factory *différente* qui,
-   par hasard, calcule la *même* clé avec un `fetcher` différent — le garde la laisserait passer
-   (faux négatif de factory, pas de clé). Mitigations (plan-level, à traiter dans T1/T3 de
-   l'implémentation, pas bloquant pour CE plan) : (a) resserrer le type §1.2 pour exiger que la
-   factory provienne de `lib/query/*` via un type nominal « branded » ; (b) faire lire au garde le
-   chemin du module de la factory préchargée et exiger qu'il soit le MÊME module que celui que la
-   page importe. Le test unitaire T1 ne court-circuite pas cette mutation (il moque le routeur, pas
-   l'unicité de la factory) ; un cas de test dédié « factory différente, clé identique → garde
-   ROUGE (ou toléré par marqueur d'échappement documenté) » doit l'accompagner.
+1. Walk `routeTree.gen`; collect each route whose `staticData.preload` exists.
+2. For each, import the real route file, execute `preload({ params: <path params> })`, recover the concrete keys `options.queryKey(variables)` (values, not symbols).
+3. Collect the keys used by the PAGE: import the page's state hook module (repo convention: co-localized `_use-*-state.ts` or inline hook of the route file; for routes without a dedicated hook, the route file body itself) and intercept the `useQuery`/`useSuspenseQuery` mounted during a test render of the page with its real factories (proven technique in `$profileId.test.tsx`: mocks aligned on the real contract `{queryKey(vars), fetcher(vars)}` of the factories).
+4. Fail if a preloaded key does not appear in the consumed keys (message naming `file:routeId` + the orphan key + the faulty factory). Assumed tolerance: a preloaded key consumed only by a direct child systematically mounted by this page (index tab, root drawer) counts as consumed — the list of accepted children is declared in the test, not guessed.
+5. **Known limit (adversarial mutation — "wrong factory, right key")**: the guard confronts ONLY the concrete key `options.queryKey(variables)`; it does NOT identify the factory by its module identity. A `preload` entry could point at a *different* factory that, by chance, computes the *same* key with a different `fetcher` — the guard would let it pass (factory false negative, not key). Mitigations (plan-level, to be handled in T1/T3 of the implementation, not blocking for THIS plan): (a) tighten the §1.2 type to require the factory to come from `lib/query/*` via a "branded" nominal type; (b) have the guard read the module path of the preloaded factory and require it to be the SAME module the page imports. The T1 unit test does not short-circuit this mutation (it mocks the router, not factory uniqueness); a dedicated test case "different factory, identical key → guard RED (or tolerated by documented escape marker)" must accompany it.
 
-**Portée d'exécution** : suite vitest front existante (`pnpm --filter front test`), aucun nouvel
-outil. Le garde est rouge-par-défaut pour toute NOUVELLE entrée `preload` incorrecte dès la tâche
-T4 ; les pilotes T2/T3 doivent le passer vert.
+**Execution scope**: existing front vitest suite (`pnpm --filter front test`), no new tool. The guard is red-by-default for any NEW incorrect `preload` entry from task T4; the T2/T3 pilots must pass it green.
 
-## 5. Articulation tranchée avec #1527 (ouverte, non fusionnée)
+## 5. Articulation decided with #1527 (open, not merged)
 
-* Ce plan n'édite PAS le code de la route détail profil tant que #1527 est ouverte : sa tâche
-  pilote porte sur `$tenantId.tsx` (détail tenant) et `profiles.tsx` (liste profils), sans
-  chevauchement de fichiers de code avec #1527 hormis `docs/guides/front/conventions.md` (voir
-  §8 conflit assumé).
-* À la fusion de #1527 : son loader client reste LA voie bloquante ; les entrées `preload` du détail
-  profil sont ajoutées dans une tâche de suivi séparée (T7), après rebase, en gardant les deux
-  mécanismes sur les mêmes factories (aucune collision de clés possible : mêmes `variables`,
-  mêmes factories, donc même clé de cache).
+* This plan does NOT edit the profile detail route code as long as #1527 is open: its pilot task bears on `$tenantId.tsx` (tenant detail) and `profiles.tsx` (profiles list), with no code file overlap with #1527 except `docs/guides/front/conventions.md` (see §8 assumed conflict).
+* At #1527's merge: its client loader remains the blocking path; the profile detail `preload` entries are added in a separate follow-up task (T7), after rebase, keeping both mechanisms on the same factories (no key collision possible: same `variables`, same factories, therefore same cache key).
 
-## 6. Articulation tranchée avec `DEFAULT_QUERY_STALE_TIME_MS` (30 s, `router.tsx:27`)
+## 6. Articulation decided with `DEFAULT_QUERY_STALE_TIME_MS` (30 s, `router.tsx:27`)
 
-* Au survol d'un lien, `ensureQueryData` ne refetch PAS une donnée fraîche (< 30 s) : le
-  préchargement est donc gratuit sur les allers-retours rapides (liste ↔ détail) et ne double
-  jamais la requête que le montage va faire (dedup par clé identique, factories partagées).
-* Après 30 s de staleness, le survol refetch en arrière-plan : voulu. C'est exactement la
-  sémantique « fresh enough » que le staleTime encode déjà pour le refocus d'onglet ; le
-  préchargement hérite de la même politique plutôt que d'en inventer une troisième.
-* Les factories qui fixent leur propre `staleTime` (`auth.ts:106` : `Infinity`,
-  `needs-reconnect-accounts.ts:82` : `Infinity`, `staff-tenants.ts:569` et `tenant-posts.ts:223` :
-  `30_000`) gardent leur valeur : `ensureQueryData` lit les options PAR requête, le comportement
-  reste cohérent sans configuration supplémentaire.
-* Interdit par ce plan : surcharger `staleTime`/`gcTime` au niveau des entrées de préchargement.
-  Une entrée de preload n'est qu'une paire (factory, variables) — aucune option de cache neuve.
-  Toute exception devra être tranchée dans une future record, pas absorbée ici.
+* On link hover, `ensureQueryData` does NOT refetch fresh data (< 30 s): preloading is therefore free on fast round-trips (list ↔ detail) and never doubles the query the mount will make (dedup by identical key, shared factories).
+* After 30 s of staleness, the hover refetches in the background: wanted. This is exactly the "fresh enough" semantics the staleTime already encodes for tab refocus; preloading inherits the same policy rather than inventing a third.
+- Factories that set their own `staleTime` (`auth.ts:106`: `Infinity`, `needs-reconnect-accounts.ts:82`: `Infinity`, `staff-tenants.ts:569` and `tenant-posts.ts:223`: `30_000`) keep their value: `ensureQueryData` reads options PER query, the behavior stays consistent without additional configuration.
+- Forbidden by this plan: overriding `staleTime`/`gcTime` at the preloading entry level. A preload entry is just a (factory, variables) pair — no fresh cache option. Any exception must be decided in a future record, not absorbed here.
 
-## 7. Tâches (réduites, chacune livrable et testable seule)
+## 7. Tasks (reduced, each deliverable and testable alone)
 
-Chemins exacts. Pas de TBD, pas de « gestion d'erreur appropriée ». Chaque tâche finit verte sur
-ses portes nommées avant la suivante.
+Exact paths. No TBD, no "appropriate error handling". Each task ends green on its named gates before the next.
 
-### T1 — Types + hook de branchement
-* Fichiers créés : `apps/front/src/lib/navigation/route-preload.ts` (types §1.2 +
-  `declare module '@tanstack/react-router' { interface StaticDataRouteOption { preload?: RoutePreload } }`),
-  `apps/front/src/lib/query/preload-intent.ts` (`usePreloadIntentQueries()`, abonnement
-  `onBeforeLoad`, `.catch(() => undefined)` silencieux, §1.1).
-* Fichier modifié : `apps/front/src/components/app-shell/app-shell.tsx` (montage du hook, 1 ligne).
-* Tests : `apps/front/src/lib/query/preload-intent.test.tsx` — (a) survol simulé →
-  `ensureQueryData` appelé une fois par entrée avec la clé exacte de la factory ; (b) entrée déjà
-  fraîche → zéro appel réseau (fetcher mocké qui compterait 2) ; (c) rejet de promesse → aucun
-  toast/log/error, aucun state muté ; (d) 401 au préchargement → `triggerSessionInvalidated` NON
-  appelé ; (e) désabonnement au démontage du shell.
-* Portes : `pnpm --filter front exec vitest run src/lib/query/preload-intent.test.tsx` ;
-  `pnpm --filter front typecheck`.
+### T1 — Types + branching hook
+* Files created: `apps/front/src/lib/navigation/route-preload.ts` (types §1.2 + `declare module '@tanstack/react-router' { interface StaticDataRouteOption { preload?: RoutePreload } }`), `apps/front/src/lib/query/preload-intent.ts` (`usePreloadIntentQueries()`, `onBeforeLoad` subscription, `.catch(() => undefined)` silent, §1.1).
+* File modified: `apps/front/src/components/app-shell/app-shell.tsx` (hook mount, 1 line).
+* Tests: `apps/front/src/lib/query/preload-intent.test.tsx` — (a) simulated hover → `ensureQueryData` called once per entry with the factory's exact key; (b) already-fresh entry → zero network calls (mocked fetcher that would count 2); (c) promise rejection → no toast/log/error, no state mutated; (d) 401 on preload → `triggerSessionInvalidated` NOT called; (e) unsubscribe on shell unmount.
+* Gates: `pnpm --filter front exec vitest run src/lib/query/preload-intent.test.tsx`; `pnpm --filter front typecheck`.
 
-### T2 — Pilote détail tenant
-* Fichier modifié : `apps/front/src/routes/authed/staff/tenants/$tenantId.tsx` — ajout
-  `staticData.preload` retournant l'entrée unique `{ options: staffTenantDetailsQueryOptions,
-  variables: { tenantId } }` (la factory déjà utilisée par la page via
-  `useStaffTenantDetailsQuery` ET par son crumb entité).
-* Tests : extension de `apps/front/src/routes/authed/staff/tenants/$tenantId.test.tsx` — la clé
-  préchargée égale la clé consommée par la page (extraction des deux depuis les modules réels) ;
-  e2e non requis (critère 2 absent : une régression du warming resterait visible au montage via
-  QueryDisplay, cf. §9 mesure).
-* Portes : vitest ciblé ; typecheck.
+### T2 — Tenant detail pilot
+* File modified: `apps/front/src/routes/authed/staff/tenants/$tenantId.tsx` — add `staticData.preload` returning the single entry `{ options: staffTenantDetailsQueryOptions, variables: { tenantId } }` (the factory already used by the page via `useStaffTenantDetailsQuery` AND by its entity crumb).
+* Tests: extension of `apps/front/src/routes/authed/staff/tenants/$tenantId.test.tsx` — the preloaded key equals the key consumed by the page (extraction of both from the real modules); e2e not required (criterion 2 absent: a warming regression would remain visible on mount via QueryDisplay, cf. §9 measurement).
+* Gates: targeted vitest; typecheck.
 
-### T3 — Garde contractuel (rouge-par-défaut)
-* Fichier créé : `apps/front/src/lib/navigation/preload-contract.test.tsx` (algorithme §4 complet,
-  vacuité self-check inclus).
-* Auto-prouve qu'il échoue : armature de test temporaire dans la PR (commit de démonstration
-  revert avant push final) ajoutant une entrée `preload` fantôme sur une route pilote → le garde
-  doit être ROUGE en nommant `fichier:routeId` + clé orpheline ; revert → vert.
-* Portes : `pnpm --filter front exec vitest run src/lib/navigation/preload-contract.test.tsx` ;
-  `pnpm --filter front typecheck`.
+### T3 — Contract guard (red-by-default)
+* File created: `apps/front/src/lib/navigation/preload-contract.test.tsx` (full §4 algorithm, emptiness self-check included).
+* Self-proves it fails: temporary test scaffolding in the PR (demonstration commit reverted before final push) adding a phantom `preload` entry on a pilot route → the guard must be RED naming `file:routeId` + orphan key; revert → green.
+* Gates: `pnpm --filter front exec vitest run src/lib/navigation/preload-contract.test.tsx`; `pnpm --filter front typecheck`.
 
-### T4 — Pilote liste profils (variables dérivées de l'URL)
-* Fichier modifié : `apps/front/src/routes/authed/staff/profiles.tsx` — `staticData.preload`
-  retournant `{ options: staffProfilesQueryOptions, variables: <variables API par défaut extraits
-  de parseTableSearchParams(searchStr vide)> }`. Préchargé UNIQUEMENT la vue par défaut (q='',
-  tri par défaut, taille par défaut) : jamais les curseurs/filtres non demandés.
-* Test : le garde T3 reste vert (la clé par défaut préchargée est bien celle consommée au montage
-  sans search params) ; cas de test dédié « search params présents → le montage consomme une autre
-  clé, aucune requête supplémentaire déclenchée par le préchargement ».
-* Portes : vitest ciblé ; typecheck.
+### T4 — Profiles list pilot (URL-derived variables)
+* File modified: `apps/front/src/routes/authed/staff/profiles.tsx` — `staticData.preload` returning `{ options: staffProfilesQueryOptions, variables: <default API variables extracted from parseTableSearchParams(empty searchStr)> }`. Preloaded ONLY the default view (q='', default sort, default size): never the cursors/filters not requested.
+* Test: the T3 guard stays green (the preloaded default key is indeed the one consumed on mount without search params); dedicated test case "search params present → the mount consumes another key, no additional query triggered by the preload".
+* Gates: targeted vitest; typecheck.
 
-### T5 — Conventions mises à jour
-* Fichier modifié : `docs/guides/front/conventions.md`, nouvelle sous-section « Route query
-  preloading (#487) » dans §Rendering Strategy : forme `staticData.preload`, silence des échecs,
-  frontière avec les loaders client (§3), règle staleTime (§6), obligation du garde T3, exemple
-  copié de T2/T4.
-* Porte : relecture humaine (doc), rien d'exécutable.
+### T5 — Updated conventions
+* File modified: `docs/guides/front/conventions.md`, new "Route query preloading (#487)" sub-section in §Rendering Strategy: `staticData.preload` form, silence of failures, boundary with client loaders (§3), staleTime rule (§6), T3 guard obligation, example copied from T2/T4.
+* Gate: human re-read (doc), nothing executable.
 
-### T6 — Mesure avant/après (§9)
-* Fichiers créés : `apps/front/e2e/preload-waterfall.spec.ts` (@shell @487) + section Mesure dans
-  le corps de PR (chiffres réels collés).
-* Contenu précis en §9.
+### T6 — Before/after measurement (§9)
+* Files created: `apps/front/e2e/preload-waterfall.spec.ts` (@shell @487) + Measurement section in the PR body (real figures pasted).
+* Precise content in §9.
 
-### T7 — Suivi post-fusion #1527 (hors périmètre de CETTE PR, listé pour séquence)
-* Après fusion de #1527 et rebase : ajouter les entrées `preload` du détail profil
-  (`$profileId.tsx`) sur `staffTenantDetailsQueryOptions` + `staffTenantProfileDetailsQueryOptions`
-  ; le loader bloquant de #1527 reste ; vérifier dedup (une seule requête réseau au parcours
-  survol→clic froid).
+### T7 — Post-#1527 follow-up (out of scope of THIS PR, listed for sequencing)
+* After #1527 merge and rebase: add the profile detail `preload` entries (`$profileId.tsx`) on `staffTenantDetailsQueryOptions` + `staffTenantProfileDetailsQueryOptions`; the #1527 blocking loader remains; verify dedup (only one network request on the hover→cold-click traversal).
 
-## 8. Ordre, risques, STOP-and-report
+## 8. Order, risks, STOP-and-report
 
-* Ordre : T1 → T2 → T3 → T4 → T5 → T6. T3 peut être écrite dès T1 mais doit être verte sur les
-  pilotes T2/T4 avant tout commit final.
-* Conflit assumé : T5 touche `docs/guides/front/conventions.md` aussi modifié par #1527 (sa
-  sous-section « Route query preloading (#487) » immédiatement après la section « Rendering Strategy »
-  de `conventions.md` (§277), en parallèle de la sémantique du loader client portée par l'issue #1527
-  qui Closes #851 — car le préchargement spéculatif (#487) est la contrepartie non bloquante du
-  loader bloquant (#1527/#851) ; le texte de #487 doit contenir un renvoi explicite « voir le loader
-  client (#1527, qui Closes #851) » et inversement la description de #1527/#851 un renvoi « voir Route
-  query preloading (#487) ». Note : `conventions.md` ne contient pas encore de sous-section dédiée au
-  loader client (#851) ; #1527 la crée à sa fusion. Si #1527 n'est pas encore fusionnée à
-  l'exécution de T5, la sous-section #487 est insérée à la fin de §Rendering Strategy avec une note
-  « à replacer après la section du loader client (#1527, qui Closes #851) à la fusion de #1527 ». Fichier dans la liste
-  additive du repo.
-* STOP-and-report si : `onBeforeLoad` ne se déclenche pas lors d'un preload d'intention dans
-  l'environnement de test réel (l'hypothèse §1.1 serait fausse, basculer sur l'événement suivant
-  viable exige une re-décision) ; si un match de destination n'expose pas ses `staticData` au
-  moment de l'abonnement ; si le garde T3 s'avère incapable d'importer un module de route réel
-  (effets de bord SSR) — dans ce cas proposer le repli documenté (inspection du hook d'état de la
-  page seul) plutôt que d'affaiblir le garde en silence.
+* Order: T1 → T2 → T3 → T4 → T5 → T6. T3 can be written from T1 but must be green on the T2/T4 pilots before any final commit.
+* Assumed conflict: T5 touches `docs/guides/front/conventions.md` also modified by #1527 (its "Route query preloading (#487)" sub-section immediately after the "Rendering Strategy" section of `conventions.md` (§277), in parallel with the client loader semantics carried by issue #1527 which Closes #851 — because speculative preloading (#487) is the non-blocking counterpart of the blocking loader (#1527/#851); the #487 text must contain an explicit cross-reference "see client loader (#1527, which Closes #851)" and conversely the #1527/#851 description a cross-reference "see Route query preloading (#487)". Note: `conventions.md` does not yet contain a dedicated sub-section for the client loader (#851); #1527 creates it at its merge. If #1527 is not yet merged at T5 execution, the #487 sub-section is inserted at the end of §Rendering Strategy with a note "to be moved after the client loader section (#1527, which Closes #851) at the merge of #1527". File in the repo's additive list.
+* STOP-and-report if: `onBeforeLoad` does not fire during an intent preload in the real test environment (the §1.1 hypothesis would be false, switching to the next viable event requires a re-decision); if a destination match does not expose its `staticData` at the moment of subscription; if the T3 guard proves incapable of importing a real route module (SSR side effects) — in that case propose the documented fallback (inspection of the page state hook alone) rather than silently weakening the guard.
 
-## 9. Mesure — quoi et comment (pas « on mesurera »)
+## 9. Measurement — what and how (not "we will measure")
 
-**Métrique unique** : temps entre le début de la navigation effective (clic) et la résolution de
-la requête principale de la page, mesuré côté réseau Playwright. Secondaire : nombre de requêtes
-réseau émises pour cette ressource (doit rester 1, preuve anti-double-fetch).
+**Single metric**: time between the start of effective navigation (click) and the resolution of the page's main query, measured on the Playwright network side. Secondary: number of network requests emitted for this resource (must remain 1, anti-double-fetch proof).
 
-**Avant (tip develop, sans preload)** et **après (branche, avec)**, même protocole :
+**Before (develop tip, without preload)** and **after (branch, with)**, same protocol:
 
-1. Spec Playwright `apps/front/e2e/preload-waterfall.spec.ts` : (a) mock API qui répond avec un
-   délai fixe injectable (500 ms) sur `GET /staff/tenants/{id}` ; (b) scénario A : aller sur la
-   liste tenants, HOVER le lien détail pendant > `preloadDelay` (défaut bibliothèque : 50 ms, non
-   surchargé dans `router.tsx`), attendre que la requête
-   mockée parte AVANT le clic (assertion `page.waitForResponse` pendant le hover), cliquer,
-   chronométrer jusqu'à la réponse ; (c) scénario B (contrôle, même session, cache vidé) : clic
-   sans hover préalable, même chronomètre.
-2. Chiffres attendus et seuils : en A, la réponse arrive ≤ 50 ms après le clic (requête déjà en
-   vol ou résolue) ; en B, ≈ délai mocké (≥ 500 ms). Nombre de requêtes GET pour la ressource :
-   exactement 1 dans les deux scénarios (le dedup est prouvé, pas supposé).
-3. Les deux nombres (A vs B) sont collés dans le corps de PR, avec les versions de commit. CI
-   exécute la spec (shard front-e2e) : la mesure devient un garde permanent de non-régression du
-   waterfall (si quelqu'un coupe le branchement, A dégénère en B et la spec échoue).
-4. Hors e2e, mesure manuelle de complétude (DevTools, onglet Network, colonne Waterfall) sur
-   `just dev-front` : capture collée dans la PR pour la route liste profils (T4), même protocole
-   hover vs clic direct.
+1. Playwright spec `apps/front/e2e/preload-waterfall.spec.ts`: (a) mock API responding with an injectable fixed delay (500 ms) on `GET /staff/tenants/{id}`; (b) scenario A: go to the tenants list, HOVER the detail link for > `preloadDelay` (library default: 50 ms, not overridden in `router.tsx`), wait for the mocked request to leave BEFORE the click (assertion `page.waitForResponse` during hover), click, time to response; (c) scenario B (control, same session, cache cleared): click without prior hover, same stopwatch.
+2. Expected figures and thresholds: in A, the response arrives ≤ 50 ms after the click (request already in flight or resolved); in B, ≈ mocked delay (≥ 500 ms). Number of GET requests for the resource: exactly 1 in both scenarios (the dedup is proven, not assumed).
+3. Both figures (A vs B) are pasted in the PR body, with commit versions. CI runs the spec (shard front-e2e): the measurement becomes a permanent non-regression guard of the waterfall (if someone cuts the branching, A degenerates into B and the spec fails).
+4. Outside e2e, manual completeness measurement (DevTools, Network tab, Waterfall column) on `just dev-front`: capture pasted in the PR for the profiles list route (T4), same protocol hover vs direct click.
 
-## 10. Non-vérifié / hypothèses restantes (honnêteté)
+## 10. Unverified / remaining assumptions (honesty)
 
-* Le timing exact `onBeforeLoad`-pendant-intent-preload est vérifié au niveau des types et de la
-  doc du paquet, PAS encore exécuté dans le harnais vitest de ce repo : T1 contient le cas de test
-  qui tranche ; l'échec déclenche le STOP-and-report §8.
-* Le garde T3 suppose que chaque page pilote monte ses hooks de requête dans un rendu de test
-  isolé sans stack serveur ; vrai pour les deux pilotes choisis, non généralisé à toutes les 63
-  routes de contenu authed (64 ids sous `/_authed-layout` dans `routeTree.gen.ts`, dont 1 nœud de
-  layout pathless `/_authed-layout` et 63 routes de contenu). **Couverture réelle
-  du garde : seules les routes dont la page se rend sous vitest sans la pile serveur sont
-  assujetties — aujourd'hui les deux pilotes, et toute route future ajoutant une entrée
-  `preload` est aussitôt attrapée en rouge ; les ~61 routes restantes (page non rendable en test
-  isolé) sont hors assujettissement jusqu'à leur migration par le même pattern pilote, suivie par
-  #1592. Ce n'est pas une couverture « silencieuse » de toutes les 63 routes — c'est une
-  couverture explicite des seules routes rendables, le reste étant un plan de migration nommé.**
-* Les chiffres de mesure §9 sont des seuils ATTENDUS (mock 500 ms), pas des mesures relevées :
-  ils le seront dans T6 et collés dans la PR.
+* The exact `onBeforeLoad`-during-intent-preload timing is verified at the type and package-doc level, NOT yet executed in this repo's vitest harness: T1 contains the test case that decides; failure triggers the STOP-and-report §8.
+* The T3 guard assumes each pilot page mounts its query hooks in an isolated test render without a server stack; true for the two chosen pilots, not generalized to all 63 authed content routes (64 ids under `/_authed-layout` in `routeTree.gen.ts`, including 1 pathless layout node `/_authed-layout` and 63 content routes). **Real guard coverage: only the routes whose page renders under vitest without the server stack are subject — today the two pilots, and any future route adding a `preload` entry is immediately caught red; the remaining ~61 routes (page not renderable in isolated test) are out of subjection until their migration by the same pilot pattern, tracked by #1592. This is not "silent" coverage of all 63 routes — it is explicit coverage of the only renderable routes, the rest being a named migration plan.**
+* The §9 measurement figures are EXPECTED thresholds (mock 500 ms), not measured figures: they will be in T6 and pasted in the PR.

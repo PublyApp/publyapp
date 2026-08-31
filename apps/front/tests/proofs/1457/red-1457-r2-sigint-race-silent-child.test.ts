@@ -135,15 +135,15 @@
  *
  * ## Three-state discrimination
  *
- * - BUGUE PRÉSENT (bug present): either the handler line comes AFTER the
+ * - BUG PRESENT (bug present): either the handler line comes AFTER the
  *   handshake line, OR the handler line is wrapped/deferred. The assertion
  *   PASSES. The CI step *Verify paired red proofs* then turns RED.
  *
- * - BUGUE ABSENT (bug absent): handler line is a direct `process.on(`
+ * - BUG ABSENT (bug absent): handler line is a direct `process.on(`
  *   call AND it comes BEFORE the handshake. The assertion FAILS — the
  *   kept-red state the CI step demands.
  *
- * - MESURE IMPOSSIBLE (measurement impossible): the extraction could not
+ * - MEASUREMENT IMPOSSIBLE (measurement impossible): the extraction could not
  *   locate the r2 fixture array, the header/footer anchors drifted, or one
  *   of the two critical lines is missing from the extracted fixture. This
  *   state FAILS LOUD with a named reason — it NEVER silently collapses to
@@ -387,7 +387,7 @@ describe('r2 fixture SIGINT race — RED: handler installed AFTER the handshake 
 		// Step 1: Extract the REAL fixture lines from the production file.
 		// If extraction fails — anchor not found, footer not found, line
 		// count too low — this throws and the test fails LOUD naming the
-		// exact drift. A content illisible n'est pas un contenu conforme.
+		// exact drift. An unreadable content is not a compliant content.
 		let lines: string[];
 		try {
 			lines = extractR2FixtureLines();
