@@ -459,9 +459,9 @@ export const getHasInteractiveTerminal = () => hasInteractiveTerminal;
 export const askChoice = async (title, rows) => {
 	console.log(title);
 	// @ts-expect-error rung-0: add proper type in later rung
-	rows.forEach((row, index) => {
+	for (const [index, row] of rows.entries()) {
 		console.log(`${index + 1}. ${row}`);
-	});
+	}
 
 	if (!hasInteractiveTerminal) {
 		err('Interactive selection required but terminal is not interactive.');

@@ -400,7 +400,7 @@ describe('front locale manifests', () => {
 			expect(group.length, `${label}: one sample list per pattern`).toBe(
 				samples.length,
 			);
-			samples.forEach((patternSamples, index) => {
+			for (const [index, patternSamples] of samples.entries()) {
 				expect(
 					patternSamples.length,
 					`${label}[${index}] must face at least two varied phrasings`,
@@ -423,7 +423,7 @@ describe('front locale manifests', () => {
 						`${label}[${index}] "${sample.text}" must be an unhedged promise`,
 					).toBe(false);
 				}
-			});
+			}
 		}
 	});
 

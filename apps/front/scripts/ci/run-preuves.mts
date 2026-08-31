@@ -404,6 +404,25 @@ const declaredProofTests = (): string[] => {
  * naming the file, so a corrupted proof is never silently green.
  */
 const validateProofFile = (path: string): void => {
+	// Check existence explicitly so the error message names the file path in a
+	// consistent format, rather than relying on the raw ENOENT from readFileSync
+	// (#1768 — the three-dot diff declares files the working tree may not have,
+	// and a bare ENOENT stack obscures which declared proof went missing).
+	// The error is marked kind=missing-proof so the replay loop can tell a
+	// merely-behind branch (missing file → merge develop) apart from a genuinely
+	// corrupted proof (present but unreadable → corruption accusation).
+	if (!existsSync(path)) {
+		const err = new Error(
+			`Proof file is missing (ENOENT — declared by the three-dot diff but not ` +
+				`found on disk): ${path}. This is NOT a corrupted proof: the branch is ` +
+				`likely simply behind develop, where the file was added, removed, or moved ` +
+				`after this branch forked. Merge develop into this branch so the declared ` +
+				`proof exists here.`,
+		) as Error & { kind?: string };
+		err.kind = 'missing-proof';
+		throw err;
+	}
+
 	const buf = readFileSync(path);
 
 	if (buf.length === 0) {
@@ -533,6 +552,7 @@ let failures = 0; // proof tests that failed as expected (good)
 let unexpectedPasses = 0;
 let corrupted = 0;
 let stale = 0;
+let missing = 0; // declared proof files absent from the working tree (behind develop)
 
 for (const test of replayable) {
 	// Validate BEFORE running: distinguishes "test failed as expected" from
@@ -540,8 +560,18 @@ for (const test of replayable) {
 	try {
 		validateProofFile(test);
 	} catch (err) {
-		console.error(`  CORRUPT PROOF: ${(err as Error).message}`);
-		corrupted++;
+		const proofError = err as Error & { kind?: string };
+		// A MISSING declared proof is NOT corruption (#1768): a branch that is
+		// simply behind develop will three-dot-declare files it does not have
+		// yet. Tell the operator to merge develop. A file that EXISTS but is
+		// unreadable/unparseable stays a corruption accusation.
+		if (proofError.kind === 'missing-proof') {
+			console.error(`  MISSING PROOF: ${proofError.message}`);
+			missing++;
+		} else {
+			console.error(`  CORRUPT PROOF: ${proofError.message}`);
+			corrupted++;
+		}
 		continue;
 	}
 
@@ -667,6 +697,7 @@ console.log(`\n=== Summary ===`);
 console.log(`  Proof tests failed as expected: ${failures}`);
 console.log(`  Proof tests passed unexpectedly:  ${unexpectedPasses}`);
 console.log(`  Corrupt/unparseable proof files:  ${corrupted}`);
+console.log(`  Declared proofs missing from tree: ${missing}`);
 console.log(`  Stale proofs (declared red went green): ${stale}`);
 
 // The exit gate, pinned by tests (issue #1806 ronde 11): the runner MUST
@@ -677,8 +708,19 @@ console.log(`  Stale proofs (declared red went green): ${stale}`);
 // spawning this script; the process-launch regression in
 // run-preuves.test.ts additionally proves the REAL script exits
 // non-zero when only stale > 0.
-if (gateShouldFail({ failures, unexpectedPasses, corrupted, stale })) {
+if (
+	missing > 0 ||
+	gateShouldFail({ failures, unexpectedPasses, corrupted, stale })
+) {
 	console.error(`\nFAIL: proof replay did not complete cleanly.`);
+	if (missing > 0) {
+		console.error(
+			`  ${missing} declared proof file(s) are missing from this working tree.`,
+		);
+		console.error(
+			'  This is NOT corruption: merge develop into the branch to bring the declared proofs over.',
+		);
+	}
 	if (unexpectedPasses > 0) {
 		console.error(
 			`  ${unexpectedPasses} proof test(s) passed when they should have failed.`,
@@ -699,6 +741,11 @@ if (gateShouldFail({ failures, unexpectedPasses, corrupted, stale })) {
 		console.error(
 			`  ${corrupted} proof file(s) could not be classified — an empty/binary/truncated file, ` +
 				`an unreadable vitest JSON report, or a MISSING expected-red manifest.`,
+		);
+	}
+	if (missing > 0) {
+		console.error(
+			`  ${missing} declared proof file(s) are missing — merge develop into the branch.`,
 		);
 	}
 	process.exit(1);

@@ -56,3 +56,13 @@ test('retry exhausts attempts and throws last error', async () => {
 	// attempts=2 means: 2 total calls (1 initial + 1 retry)
 	expect(fn).toHaveBeenCalledTimes(2);
 });
+
+test('retry with attempts: 0 should call fn exactly once then throw on error', async () => {
+	const error = new Error('boom');
+	const fn = vi.fn().mockRejectedValue(error);
+
+	await expect(retry({ fn, attempts: 0, delay: 1 })).rejects.toThrow('boom');
+
+	// attempts=0 should mean: exactly 1 call (the initial call, no retries)
+	expect(fn).toHaveBeenCalledTimes(1);
+});

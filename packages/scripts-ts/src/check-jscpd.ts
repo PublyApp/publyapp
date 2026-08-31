@@ -98,16 +98,15 @@
  * silently dropped every exclusion but the last before #1821-r2.
  * Production paths: apps/api, apps/front/src, packages/shared-ts.
  *
- *   - Production clone pairs (unique, non-spec): 422, 10 213 lines
+ *   - Production clone pairs (unique, non-spec): 434, 10 383 lines
  *   - Production self-duplication files: 48, 1 473 lines
- *   (values as of the #1859 round 2 baseline)
- * The reference file currently holds only the two aggregate totals
- * (`productionPairs`, `productionAuto`). The optional `pairLines` /
- * `autoLines` per-pair and per-file maps are NOT populated yet: when they are
- * absent the guard cannot name which pair crossed its own base, so it falls
- * back to naming the largest contributors by duplicated lines. Populating
- * them is tracked in #1932; do not read this comment as a claim that they
- * exist today.
+ *   (values as of the #1932 baseline)
+ * The reference file holds the two aggregate totals (`productionPairs`,
+ * `productionAuto`) plus the optional `pairLines` / `autoLines` per-pair and
+ * per-file base-total maps. When the maps are absent the guard cannot name
+ * which pair crossed its own base, so it falls back to naming the largest
+ * contributors by duplicated lines (and says so in its message). The maps are
+ * populated by `gen-jscpd-reference.ts` (#1932).
  */
 
 import { execFileSync } from 'node:child_process';

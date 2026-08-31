@@ -2620,7 +2620,7 @@ test('e2e (round 11 B2): module-scope const aliases of a raw binding reach a sty
 	for (const [name, aliasLines, sink] of [
 		['alias', ['const aliased = rawCss;'], 'aliased'],
 		['chain', ['const first = rawCss;', 'const second = first;'], 'second'],
-	]) {
+	] as Array<[string, string[], string]>) {
 		const { violations } = await runFixtureGuard(
 			{
 				'probe.tsx': [
@@ -4864,8 +4864,8 @@ test('e2e (round 13 B1): const-object alias chains resolve to a fixpoint at any 
 		"  '.probe { z-index: 2147483614; }',",
 		'} };',
 	];
-	const chains = [
-		['direct', [], 'payload'],
+	const chains: Array<[string, string[], string]> = [
+		['direct', [] as string[], 'payload'],
 		['one hop', ['const last = payload;'], 'last'],
 		['two hops', ['const second = payload;', 'const last = second;'], 'last'],
 		[
@@ -4912,7 +4912,7 @@ test('e2e (round 13 B1): a spread const cycle terminates as an opaque named diag
 			['const a = { ...b };', 'const b = { ...a };'],
 			'a',
 		],
-	]) {
+	] as Array<[string, string[], string]>) {
 		const { violations } = await runFixtureGuard(
 			{
 				'probe.tsx': [
