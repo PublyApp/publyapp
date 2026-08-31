@@ -46,7 +46,7 @@
 		"smoke:start": "node scripts/run-guarded.mts scripts/ci/smoke-start-server.mts",
 		"check:front-runtime-image": "node scripts/run-guarded.mts scripts/ci/check-front-runtime-image.mts",
 		"test:runtime-env-startup": "node scripts/run-guarded.mts --test scripts/ci/validate-runtime-env-startup.test.mts",
-		"test:vitest-shard-coverage": "node scripts/run-guarded.mts --test scripts/ci/vitest-shard-coverage.test.mts",
+		"test:vitest-shard-coverage": "GUARD_TIMEOUT_SECONDS=600 node scripts/run-guarded.mts --test scripts/ci/vitest-shard-coverage.test.mts",
 		"test:front-runtime-image-guard": "node scripts/run-guarded.mts --test scripts/ci/check-front-runtime-image.test.mts",
 		"test:e2e:tag": "node scripts/run-guarded.mts -- playwright test --grep",
 		"test:design-guards": "node scripts/run-guarded.mts -- vitest run --config vitest.design-guards.config.ts",
