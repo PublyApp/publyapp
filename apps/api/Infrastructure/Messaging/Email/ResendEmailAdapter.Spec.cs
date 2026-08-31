@@ -1,4 +1,5 @@
 using System.Net;
+using System.Text.Json;
 
 using FluentAssertions;
 
@@ -206,6 +207,52 @@ public sealed class ResendEmailAdapterSpec {
 		);
 		thrown.Which.Code.Should().Be("provider_rejected:InvalidIdempotentRequest:409");
 		fake.ProviderCallCount.Should().Be(1);
+	}
+
+	[Fact]
+	public async Task ItShouldOnlyMapTheFourKnownPayloadFields() {
+		// #1988: the adapter maps exactly four fields onto Resend.EmailMessage.
+		// Ten more properties exist on the SDK type (cc, bcc, reply_to, text, headers,
+		// attachments, tags, template, scheduled_at, created_at), each [JsonIgnore(WhenWritingNull)].
+		// Adding any of them to the adapter silently widens the idempotency payload contract —
+		// the same key with the new field set would be a different email, and Resend would
+		// serve the first send's cached response for the second. This test fails loudly when
+		// the contract widens, naming the unexpected field and pointing at #1988.
+		//
+		// Mutation: add `TextBody = "..."` to SendAsync body → this test names "TextBody"
+		// and fails. Either add a rejection spec for the new field, or state why it is exempt.
+		var fake = new FakeResendClient {
+			EmailSendResponse = new ResendResponse<Guid>(Guid.NewGuid(), new ResendRateLimit())
+		};
+		var adapter = new ResendEmailAdapter(fake);
+
+		await adapter.SendAsync(Request(), "idem-key");
+
+		var message = fake.LastEmailMessage;
+		message.Should().NotBeNull("the adapter must have called EmailSendAsync with a message");
+
+		// Serialize to JSON exactly as the Resend SDK would: this is what reaches the wire.
+		// Count the fields that would actually be sent (non-null, non-empty collections).
+		var json = JsonSerializer.Serialize(message);
+		using var doc = JsonDocument.Parse(json);
+		var payloadFields = doc.RootElement.EnumerateObject().Select(p => p.Name).ToList();
+
+		// The SDK serialises with camelCase: HtmlBody → "html", not "html_body".
+		var knownWireFields = new HashSet<string> { "from", "html", "subject", "to" };
+		var payloadFieldsSet = payloadFields.ToHashSet();
+
+		payloadFieldsSet.Should()
+			.BeSubsetOf(knownWireFields,
+				$"the payload contract is exactly [{string.Join(", ", knownWireFields)}]. "
+					+ $"Found: [{string.Join(", ", payloadFields.OrderBy(f => f))}]. "
+					+ "Either add a rejection spec for the new field, or state why it is exempt (see #1988)."
+			);
+
+		var missingFields = knownWireFields.Except(payloadFieldsSet).ToList();
+		missingFields.Should().BeEmpty(
+			$"the payload must include all four fields. Missing: [{string.Join(", ", missingFields)}]. "
+				+ "(see #1988)"
+		);
 	}
 
 	[Fact]
