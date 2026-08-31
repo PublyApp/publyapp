@@ -595,6 +595,13 @@ test('#1888: docs-archive push.paths filter covers every path the pull_request c
 	// classifier regex matches the literal string `docs/` are covered
 	// separately below by the `docs/**` glob.
 	const literalClassifierPaths = [
+		'CONTRIBUTING.md',
+		'CLAUDE.md',
+		'AGENTS.md',
+		'DESIGN.md',
+		'CLA.md',
+		'CLA-SIGNATURES.md',
+		'README.md',
 		'packages/scripts-ts/src/check-doc-links.ts',
 		'packages/scripts-ts/src/check-doc-links.test.ts',
 		'packages/scripts-ts/src/audit-docs-prune.ts',

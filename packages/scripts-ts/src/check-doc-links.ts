@@ -150,7 +150,8 @@ const INLINE_LINK_PATTERN =
 // and escaped characters but not unescaped `>` or newlines. Parens are
 // allowed in angle-bracket targets, so the unescaped-paren check is not
 // applied to these.
-const ANGLE_INLINE_LINK_PATTERN = /\]\(\s*<((?:\\.|[^>\n\\])*)>\s*\)/g;
+const ANGLE_INLINE_LINK_PATTERN =
+	/\]\(\s*<((?:\\.|[^>\n\\])*)>\s*(?:"[^"]*"|'[^']*'|\([^)]*\))?\s*\)/g;
 // Reference definition head: `[label]: target` on its own line. The target
 // must be the first non-whitespace token after the colon.
 const REFERENCE_DEF_HEAD_PATTERN = /^\s{0,3}\[[^\]\n]+\]:\s+(\S+)/;

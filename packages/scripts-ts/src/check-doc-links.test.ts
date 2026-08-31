@@ -328,37 +328,6 @@ test('ROUND 2 (#1974 r2): a link whose fragment is broken but whose file exists 
 	);
 });
 
-test('ROUND 2 (#1974 r2): a link whose fragment is broken but whose file exists is accepted (fragments are NOT verified)', () => {
-	const root = makeRepo({
-		'CLA.md': '# Contributing on behalf of a company\n\nplaceholder\n',
-		'CONTRIBUTING.md':
-			'See [the company section](CLA.md#contributing-on-behalf-of-a-company).\n',
-	});
-	const result = runGuard(root);
-	assert.equal(
-		result.status,
-		0,
-		`a broken fragment must NOT fail the guard by construction; the warning is what tells you so — stderr was: ${result.stderr}`,
-	);
-	assert.match(result.stdout, /doc links OK/);
-
-	// And the SAME link with the fragment deliberately mutated to a
-	// non-existent heading still passes — this is the exact adversarial
-	// mutation the round-1 review named ("breaking the
-	// CLA.md#contributing-on-behalf-of-a-company anchor leaves every CI
-	// gate green").
-	const mutated = makeRepo({
-		'CLA.md': '# Contributing on behalf of a company\n\nplaceholder\n',
-		'CONTRIBUTING.md': 'See [the company section](CLA.md#no-such-heading).\n',
-	});
-	const mutatedResult = runGuard(mutated);
-	assert.equal(
-		mutatedResult.status,
-		0,
-		'pre-condition for the explicit limitation: a broken fragment must not flip the guard red; otherwise the limitation comment above is no longer accurate',
-	);
-});
-
 // ROUND 3 (#1974 r3): the four link shapes identified by the review are now
 // recognised and checked. Each shape gets a paired red/green test: a broken
 // target inside the shape fails naming file:line, and a valid target inside
@@ -424,6 +393,19 @@ test('ROUND 3 (#1974 r3): angle-bracket link with spaces in target — valid pas
 	const result = runGuard(root);
 	assert.equal(result.status, 0, result.stderr);
 	assert.match(result.stdout, /doc links OK/);
+});
+
+test('ROUND 4 (#1974 r4): angle-bracket link with a title — broken target fails', () => {
+	const root = makeRepo({
+		'docs/guides/a.md': '[link](<./missing.md> "a title")\n',
+	});
+	const result = runGuard(root);
+	assert.equal(result.status, 1);
+	assert.match(result.stderr, /broken relative link/);
+	assert.match(
+		result.stderr,
+		/docs\/guides\/a\.md:1: -> docs\/guides\/missing\.md/,
+	);
 });
 
 test('ROUND 3 (#1974 r3): inline link with parenthesised title — valid target passes', () => {

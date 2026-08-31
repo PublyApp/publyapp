@@ -158,22 +158,22 @@ points at the committed document and section that carries the full rule, so a
 contributor never has to take this file's word for it.
 
 - **Pass CI.** Tests, type-checking, lint, and the design-system guard all run
-  as required checks. See [`AGENTS.md`](AGENTS.md) §"## Code Quality" and
+  as required checks. See [`AGENTS.md`](AGENTS.md) §"### Code Quality" and
   §"### Running Tests" for the local recipes (`just ci`, `pnpm --filter front
 typecheck`).
 
 - **Pair red/green proofs** — a bug-fix must ship with a paired proof test
   that is kept red against the corrected code and replayed with inverted
-  semantics. The exact path and exclusion rules are normative in
+  semantics. The exact rules are in
   [`docs/guides/test-conventions.md`](docs/guides/test-conventions.md)
-  §"Paired Red/Green Proofs" (front proofs at
-  `apps/front/tests/proofs/<issue>/<descriptive-name>.test.ts`; API proofs
-  remain on the legacy `.dump/preuves/<issue>/` path). The red test is
-  version-controlled and excluded from the green suite; CI replays it on
-  demand via the `Verify paired red proofs` step. The corresponding
-  production guard must operate on the real artefact (file, fixture, or
-  workflow step), never a restatement of its own logic — a regex that
-  mirrors the source line-for-line is not a guard.
+  §"Paired Red/Green Proofs". They differ by surface:
+  front proofs live under `apps/front/tests/proofs/<issue>/`, are
+  version-controlled, and are replayed on demand by the `Verify paired red
+  proofs` CI step; API proofs remain on the legacy gitignored
+  `.dump/preuves/<issue>/` path and are **not** version-controlled or replayed
+  by that CI step. The corresponding production guard must operate on the
+  real artefact (file, fixture, or workflow step), never a restatement of its
+  own logic — a regex that mirrors the source line-for-line is not a guard.
 
 - **Carry the transparent-cause rule.** Every failure the backend returns or
   persists must carry a transparent, human-readable cause. Backend rule in
@@ -248,8 +248,15 @@ on `localhost:5050`). For the API or the front in isolation, see
 
 ### Local CI gate
 
-Before pushing, run the **fast pre-push barrier** — about 80 seconds total,
-and the same checks the CI will re-execute:
+Before pushing, run the full gate:
+
+```bash
+just ci
+```
+
+For a quick loop while you are iterating on a docs-only or front-only change,
+you can run a **fast subset** — about 80 seconds total — that exercises the
+checks most likely to fail first. It is **not** a substitute for `just ci`:
 
 ```
 just ci-format              # ~2 s
@@ -261,8 +268,8 @@ pnpm --filter front typecheck   # ~5 s, if you touched the front
 ```
 
 These commands **verify**, they do not repair. `just ci-format` failing means
-"files are misformatted" — run `pnpm format:write` to repair. Then
-`git push` and read the CI.
+"files are misformatted" — run `pnpm format:write` to repair. Run `just ci`
+before you push; then read the CI.
 
 For the full set of recipes, including the slower gates (`just ci-front`,
 `just ci-quality-dotnet`, `just test-api`), see
@@ -300,7 +307,7 @@ cases warrant a local `just ci` instead of pushing.
    `just build-api && just generate-client` so `packages/client-ts` stays
    in sync. Never edit the generated client by hand.
 5. **Run the local CI gate** before pushing — see §5 above for the fast
-   pre-push barrier; see
+   pre-push barrier (`just ci`); see
    [`docs/guides/local-ci-gate.md`](docs/guides/local-ci-gate.md) for the
    full set of recipes.
 
