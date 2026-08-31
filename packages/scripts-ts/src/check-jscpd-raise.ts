@@ -108,65 +108,25 @@ const gitShowBlob = (gitDir: string, ref: string, relPath: string): string =>
 		timeout: 30_000,
 	});
 
-const gitRefExists = (gitDir: string, ref: string): boolean => {
-	try {
-		execFileSync('git', ['rev-parse', '--verify', '--quiet', ref], {
-			cwd: gitDir,
-			encoding: 'utf-8',
-			timeout: 30_000,
-		});
-		return true;
-	} catch {
-		return false;
-	}
-};
-
-const gitFetchBaseBranch = (gitDir: string, branch: string): string => {
-	try {
-		execFileSync('git', ['fetch', '--depth', '1', 'origin', branch], {
-			cwd: gitDir,
-			encoding: 'utf-8',
-			timeout: 120_000,
-		});
-		return '';
-	} catch (e) {
-		return gitError(e);
-	}
-};
-
-/** Read the base reference from the merge base. */
-const readBaseReference = (
+/** Read the base reference blob at a specific commit SHA.
+ * Fails loudly if the blob is unreadable — a guard that substitutes a compliant
+ * default for a blob it cannot read installs a silent false negative. */
+const readBaseReferenceAtCommit = (
 	gitDir: string,
-	baseBranch: string | undefined,
+	mergeBaseSha: string,
 ): ReadResult<ReferenceValues> => {
-	const candidates =
-		baseBranch !== undefined && baseBranch.length > 0
-			? [`refs/remotes/origin/${baseBranch}`, baseBranch]
-			: ['refs/remotes/origin/develop', 'develop'];
-
-	for (const candidate of candidates) {
-		if (!gitRefExists(gitDir, candidate)) {
-			const branch = candidate.replace(/^refs\/remotes\/origin\//, '');
-			gitFetchBaseBranch(gitDir, branch);
-			if (!gitRefExists(gitDir, candidate)) {
-				continue;
-			}
-		}
-		try {
-			const blob = gitShowBlob(gitDir, candidate, REFERENCE_RELATIVE_PATH);
-			const data = JSON.parse(blob) as ReferenceValues;
-			return { ok: true, data };
-		} catch {
-			continue;
-		}
+	try {
+		const blob = gitShowBlob(gitDir, mergeBaseSha, REFERENCE_RELATIVE_PATH);
+		const data = JSON.parse(blob) as ReferenceValues;
+		return { ok: true, data };
+	} catch (e) {
+		return {
+			ok: false,
+			error:
+				`Cannot read jscpd-reference.json at merge-base ${mergeBaseSha}: ${gitError(e)}. ` +
+				`The job's checkout needs fetch-depth: 0 to have the merge-base commit available.`,
+		};
 	}
-
-	return {
-		ok: false,
-		error:
-			`Could not read base reference from any candidate: ${candidates.join(', ')}. ` +
-			`Run "git fetch origin ${baseBranch ?? 'develop'}" to ensure the base branch is available.`,
-	};
 };
 
 /**
@@ -183,54 +143,48 @@ interface JscpdRecordResult {
 }
 
 /**
- * Check whether the diff contains a docs/records/ file whose content names the
- * specific metric keys that raised, proving the author looked at the actual numbers.
- *
- * The three-dot form (`mergeBase...HEAD`) excludes any changes that exist on `base`
- * alone — a docs/records/ change made by develop after the fork point would not
- * appear in this diff and would not be credited to this PR.
- *
- * The merge base MUST exist. If `git merge-base` fails, the guard cannot determine
- * its own scope and fails loud rather than substituting a vulnerable two-dot diff.
- * A shallow checkout (default fetch-depth: 1) leaves HEAD with no common ancestor
- * with the base — the fix is `fetch-depth: 0` on the job's checkout.
- */
-const hasJscpdRecord = (
+ * Compute the merge-base SHA between baseRef and HEAD.
+ * Fails loudly if no common ancestor exists — the guard cannot determine its own
+ * diff scope without it. */
+const getMergeBaseSha = (
 	gitDir: string,
-	baseBranch: string | undefined,
-	raisedKeys: string[],
-): JscpdRecordResult => {
-	const base =
-		baseBranch !== undefined && baseBranch.length > 0
-			? `origin/${baseBranch}`
-			: 'origin/develop';
-
-	if (!gitRefExists(gitDir, base)) {
-		const branch = baseBranch ?? 'develop';
-		gitFetchBaseBranch(gitDir, branch);
-	}
-
-	// The merge base MUST exist. Three dots require a common ancestor; without
-	// one the diff scope is undefined and the guard cannot run correctly.
+	baseRef: string,
+): ReadResult<string> => {
 	try {
-		execFileSync('git', ['merge-base', base, 'HEAD'], {
+		const sha = execFileSync('git', ['merge-base', baseRef, 'HEAD'], {
 			cwd: gitDir,
 			encoding: 'utf-8',
 			timeout: 10_000,
-		});
+		}).trim();
+		return { ok: true, data: sha };
 	} catch (e) {
 		return {
-			hasRecord: false,
-			recordFiles: [],
+			ok: false,
 			error:
-				`Cannot compute merge base between ${base} and HEAD. ` +
-				`The checkout has no common ancestor with ${base}; ` +
+				`Cannot compute merge base between ${baseRef} and HEAD. ` +
+				`The checkout has no common ancestor with ${baseRef}; ` +
 				`the job's checkout needs fetch-depth: 0. ` +
 				`Original error: ${gitError(e)}`,
-			skippedFiles: [],
 		};
 	}
-
+};
+/**
+ * Check whether the diff contains a docs/records/ file whose added lines name the
+ * specific metric keys that raised. The check is key-NAME presence only — it does
+ * not parse or compare before/after numbers (a reviewer catches false numbers).
+ *
+ * The three-dot form (`mergeBaseSha...HEAD`) excludes any changes that exist on
+ * `base` alone — a docs/records/ change made by develop after the fork point would
+ * not appear in this diff and would not be credited to this PR.
+ *
+ * mergeBaseSha MUST be a valid commit SHA. The caller is responsible for computing
+ * it once and validating it before calling this function.
+ */
+const hasJscpdRecord = (
+	gitDir: string,
+	mergeBaseSha: string,
+	raisedKeys: string[],
+): JscpdRecordResult => {
 	// Get list of docs/records/ files that are new or modified.
 	let diffOutput: string;
 	try {
@@ -240,7 +194,7 @@ const hasJscpdRecord = (
 				'diff',
 				'--name-only',
 				'--diff-filter=AM',
-				`${base}...HEAD`,
+				`${mergeBaseSha}...HEAD`,
 				'--',
 				'docs/records/',
 			],
@@ -250,7 +204,7 @@ const hasJscpdRecord = (
 		return {
 			hasRecord: false,
 			recordFiles: [],
-			error: `Failed to diff docs/records/ (${base}...HEAD): ${gitError(e)}`,
+			error: `Failed to diff docs/records/ (${mergeBaseSha}...HEAD): ${gitError(e)}`,
 			skippedFiles: [],
 		};
 	}
@@ -282,7 +236,7 @@ const hasJscpdRecord = (
 		}
 		const diffBody = execFileSync(
 			'git',
-			['diff', `${base}...HEAD`, '--', recordFile],
+			['diff', `${mergeBaseSha}...HEAD`, '--', recordFile],
 			{ cwd: gitDir, encoding: 'utf-8', timeout: 30_000 },
 		);
 		if (recordMentionsRaise(diffBody, raisedKeys)) {
@@ -334,11 +288,22 @@ export interface RaiseVerdict {
 /**
  * Main guard: determines whether a jscpd reference raise is provably accompanied
  * by a docs/records/ change that covers the jscpd metric.
+ *
+ * The raise is measured against the MERGE BASE commit (not the branch tip), so
+ * that a PR cannot pass by raising a reference that develop already carries.
+ * The merge-base SHA is computed ONCE and used for both the reference comparison
+ * and the record-scope check.
  */
 export const verifyJscpdRaise = (
 	gitDir: string = repoRoot,
 	baseBranch?: string,
 ): RaiseVerdict => {
+	// Resolve base ref string (e.g. "origin/develop" or "origin/<branch>").
+	const baseRefName =
+		baseBranch !== undefined && baseBranch.length > 0
+			? `origin/${baseBranch}`
+			: 'origin/develop';
+
 	// Read the PR's committed reference (the potentially raised one).
 	const prRefPath = path.join(gitDir, REFERENCE_RELATIVE_PATH);
 	const prRefResult = readJsonFile<ReferenceValues>(prRefPath);
@@ -357,8 +322,25 @@ export const verifyJscpdRaise = (
 	}
 	const prRef = prRefResult.data;
 
-	// Read the base reference.
-	const baseRefResult = readBaseReference(gitDir, baseBranch);
+	// Compute merge-base SHA. Fails loud if no common ancestor exists.
+	// This anchor is shared by both the reference comparison and the record check.
+	const mergeBaseResult = getMergeBaseSha(gitDir, baseRefName);
+	if (!mergeBaseResult.ok || mergeBaseResult.data === undefined) {
+		// Merge base unfindable: the guard cannot determine its own diff scope.
+		// Return fail — hasRaise is undefined in this case, not false.
+		return {
+			hasRaise: false,
+			raiseDetails: [],
+			hasRecord: false,
+			recordFiles: [],
+			verdict: 'fail',
+			errors: [mergeBaseResult.error ?? 'Cannot compute merge base.'],
+		};
+	}
+	const mergeBaseSha = mergeBaseResult.data;
+
+	// Read the base reference at the merge-base SHA. Fails loudly if unreadable.
+	const baseRefResult = readBaseReferenceAtCommit(gitDir, mergeBaseSha);
 	if (!baseRefResult.ok || baseRefResult.data === undefined) {
 		return {
 			hasRaise: false,
@@ -367,8 +349,7 @@ export const verifyJscpdRaise = (
 			recordFiles: [],
 			verdict: 'fail',
 			errors: [
-				`Cannot read base reference: ${baseRefResult.error ?? 'unknown'}. ` +
-					`A raise guard requires the base reference to be available.`,
+				baseRefResult.error ?? 'Cannot read base reference at merge base.',
 			],
 		};
 	}
@@ -404,8 +385,7 @@ export const verifyJscpdRaise = (
 			verdict: 'fail',
 			errors: [
 				`Base reference is missing metric keys that the PR defines: ${baseMissingKeys.join(', ')}. ` +
-					`A raise guard requires both the base and the PR reference to define the same keys. ` +
-					`Run "git fetch origin ${baseBranch ?? 'develop'}" to ensure the base branch is available.`,
+					`A raise guard requires both the base and the PR reference to define the same keys.`,
 			],
 		};
 	}
@@ -458,8 +438,7 @@ export const verifyJscpdRaise = (
 			errors: [
 				`Base reference is missing metric sub-keys that the PR defines: ${baseMissingInnerKeys.join(', ')}. ` +
 					`A raise guard requires both the base and the PR reference to define the same sub-keys ` +
-					`(each of count/lines must be present in both references for any metric that appears in both). ` +
-					`Run "git fetch origin ${baseBranch ?? 'develop'}" to ensure the base branch is available.`,
+					`(each of count/lines must be present in both references for any metric that appears in both).`,
 			],
 		};
 	}
@@ -510,7 +489,7 @@ export const verifyJscpdRaise = (
 	}
 
 	// Raise detected. Check for accompaniment record.
-	const recordResult = hasJscpdRecord(gitDir, baseBranch, raisedKeys);
+	const recordResult = hasJscpdRecord(gitDir, mergeBaseSha, raisedKeys);
 
 	// hasJscpdRecord could not run (e.g. merge base unfindable). Fail loud
 	// distinguishing "check failed" from "no record found".

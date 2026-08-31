@@ -99,6 +99,110 @@ const buildFixture = async (opts: {
 	return { prDir };
 };
 
+/**
+ * Build a two-commit-develop fixture: reproduces the shape where develop ADVANCES
+ * after the fork point, and the PR raises the reference against the fork point
+ * (not against develop's new tip).
+ *
+ * This is the ANGLE 6 mutation: the OLD code compared against origin/<branch>
+ * TIP, so a PR raising from 10/200 to 12/250 would verdict='none' if develop
+ * already carried 15/300. The refactored code uses the MERGE BASE (10/200), so
+ * the same PR correctly verdict='pass' with a record.
+ */
+const buildTwoCommitDevelopFixture = async (opts: {
+	recordContent?: string;
+}): Promise<{ prDir: string }> => {
+	const tmpRoot = await mkdtemp(
+		path.join(os.tmpdir(), 'publyapp-raise-2cdev-'),
+	);
+
+	// Bare remote.
+	const remoteDir = path.join(tmpRoot, 'remote.git');
+	await mkdir(remoteDir, { recursive: true });
+	gitIn(remoteDir, 'init', '--bare', '--initial-branch=main', '.');
+	gitIn(remoteDir, 'config', 'user.email', 'test@example.com');
+	gitIn(remoteDir, 'config', 'user.name', 'Test');
+
+	// Base commit (fork point): count=10, lines=200.
+	const baseDir = path.join(tmpRoot, 'base');
+	await mkdir(baseDir, { recursive: true });
+	gitIn(baseDir, 'init', '--initial-branch=main', '.');
+	gitIn(baseDir, 'config', 'user.email', 'test@example.com');
+	gitIn(baseDir, 'config', 'user.name', 'Test');
+	await mkdir(path.join(baseDir, 'packages', 'scripts-ts', 'src'), {
+		recursive: true,
+	});
+	await mkdir(path.join(baseDir, 'docs', 'records'), { recursive: true });
+	await writeFile(
+		path.join(baseDir, 'packages', 'scripts-ts', 'src', 'jscpd-reference.json'),
+		JSON.stringify(
+			{
+				productionPairs: { count: 10, lines: 200 },
+				productionAuto: { count: 5, lines: 100 },
+			},
+			null,
+			'\t',
+		) + '\n',
+	);
+	gitIn(baseDir, 'add', '.');
+	gitIn(baseDir, 'commit', '-m', 'fork point reference');
+	gitIn(baseDir, 'remote', 'add', 'origin', remoteDir);
+	gitIn(baseDir, 'push', 'origin', 'main');
+
+	// Clone to PR directory.
+	const prDir = path.join(tmpRoot, 'pr');
+	gitIn(tmpRoot, 'clone', remoteDir, 'pr');
+	gitIn(prDir, 'config', 'user.email', 'test@example.com');
+	gitIn(prDir, 'config', 'user.name', 'Test');
+	await mkdir(path.join(prDir, 'packages', 'scripts-ts', 'src'), {
+		recursive: true,
+	});
+	await mkdir(path.join(prDir, 'docs', 'records'), { recursive: true });
+
+	// PR raises to count=12, lines=250 (above fork-point 10/200, below develop-tip 15/300).
+	await writeFile(
+		path.join(prDir, 'packages', 'scripts-ts', 'src', 'jscpd-reference.json'),
+		JSON.stringify(
+			{
+				productionPairs: { count: 12, lines: 250 },
+				productionAuto: { count: 5, lines: 100 },
+			},
+			null,
+			'\t',
+		) + '\n',
+	);
+
+	if (opts.recordContent !== undefined) {
+		await writeFile(
+			path.join(prDir, 'docs', 'records', '2026-08-31-analysis-jscpd-raise.md'),
+			opts.recordContent,
+		);
+	}
+
+	gitIn(prDir, 'add', '.');
+	gitIn(prDir, 'commit', '-m', 'pr: raise reference vs fork point');
+
+	// NOW advance develop on the remote: second commit carries count=15, lines=300.
+	// This simulates develop moving AFTER the fork point.
+	gitIn(baseDir, 'checkout', '-b', 'develop');
+	await writeFile(
+		path.join(baseDir, 'packages', 'scripts-ts', 'src', 'jscpd-reference.json'),
+		JSON.stringify(
+			{
+				productionPairs: { count: 15, lines: 300 },
+				productionAuto: { count: 5, lines: 100 },
+			},
+			null,
+			'\t',
+		) + '\n',
+	);
+	gitIn(baseDir, 'add', '.');
+	gitIn(baseDir, 'commit', '-m', 'develop: advance reference after fork point');
+	gitIn(baseDir, 'push', '--force', 'origin', 'develop');
+
+	return { prDir };
+};
+
 // ---------------------------------------------------------------------------
 // Core behaviour
 // ---------------------------------------------------------------------------
@@ -124,7 +228,7 @@ test('no raise: verdict is none (caller exits 0)', async () => {
 
 	assert.equal(verdict.hasRaise, false);
 	assert.equal(verdict.verdict, 'none');
-});
+}, 30_000);
 
 test('raise WITHOUT docs/records/ accompaniment: verdict is fail', async () => {
 	const { prDir } = await buildFixture({
@@ -154,7 +258,7 @@ test('raise WITHOUT docs/records/ accompaniment: verdict is fail', async () => {
 		verdict.errors.some((e) => e.includes('docs/records/')),
 		verdict.errors.join('\n'),
 	);
-});
+}, 30_000);
 
 test('raise WITH docs/records/ file containing "jscpd": verdict is pass', async () => {
 	const { prDir } = await buildFixture({
@@ -185,7 +289,7 @@ Surface: C# using directive blocks across handler files.
 		verdict.passMessage?.includes('accompanied by a docs/records/'),
 		verdict.passMessage,
 	);
-});
+}, 30_000);
 
 test('raise WITH docs/records/ file NOT containing "jscpd": verdict is fail', async () => {
 	const { prDir } = await buildFixture({
@@ -209,7 +313,7 @@ Updated the CI pipeline configuration.
 	assert.equal(verdict.verdict, 'fail');
 	assert.equal(verdict.hasRaise, true);
 	assert.equal(verdict.hasRecord, false);
-});
+}, 30_000);
 
 test('raise of only productionAuto.count: passes with record', async () => {
 	const { prDir } = await buildFixture({
@@ -235,7 +339,7 @@ Raising productionAuto.count from 5 to 7 due to new C# self-duplications.
 		verdict.raiseDetails.some((d) => d.includes('productionAuto.count')),
 		verdict.raiseDetails.join('\n'),
 	);
-});
+}, 30_000);
 
 test('raise of only productionAuto.lines: passes with record', async () => {
 	const { prDir } = await buildFixture({
@@ -261,7 +365,7 @@ Raising productionAuto.lines from 100 to 120 due to additional C# using directiv
 		verdict.raiseDetails.some((d) => d.includes('productionAuto.lines')),
 		verdict.raiseDetails.join('\n'),
 	);
-});
+}, 30_000);
 
 // ---------------------------------------------------------------------------
 // Error paths
@@ -287,11 +391,13 @@ test('base reference unreadable: verdict is fail with error', async () => {
 	const verdict = verifyJscpdRaise(prDir, 'nonexistent-branch');
 
 	assert.equal(verdict.verdict, 'fail');
+	// The error names the merge base as the cause — not "Cannot read base reference"
+	// (that error only fires when the merge base is found but the blob is missing).
 	assert.ok(
-		verdict.errors.some((e) => e.includes('Cannot read base reference')),
+		verdict.errors.some((e) => e.includes('merge base')),
 		verdict.errors.join('\n'),
 	);
-});
+}, 30_000);
 
 test('PR reference unreadable: verdict is fail', async () => {
 	const { prDir } = await buildFixture({
@@ -314,7 +420,7 @@ test('PR reference unreadable: verdict is fail', async () => {
 		verdict.errors.some((e) => e.includes('Cannot read PR reference')),
 		verdict.errors.join('\n'),
 	);
-});
+}, 30_000);
 
 // ---------------------------------------------------------------------------
 // Mutations that stay red
@@ -345,7 +451,7 @@ The duplication scanner was also touched but this record is about the pipeline.
 	assert.equal(verdict.verdict, 'fail');
 	assert.equal(verdict.hasRecord, false);
 	assert.equal(verdict.hasRaise, true);
-});
+}, 30_000);
 
 test('mutations stay red: docs/records/ file without .md extension', async () => {
 	const { prDir } = await buildFixture({
@@ -373,7 +479,7 @@ test('mutations stay red: docs/records/ file without .md extension', async () =>
 	// .txt files are not matched by the guard's endsWith('.md') check.
 	assert.equal(verdict.verdict, 'fail');
 	assert.equal(verdict.hasRecord, false);
-});
+}, 30_000);
 
 test('mutations stay red: no docs/records/ change in the diff', async () => {
 	// The PR has a raise but no docs/records/ change at all.
@@ -394,7 +500,7 @@ test('mutations stay red: no docs/records/ change in the diff', async () => {
 
 	assert.equal(verdict.verdict, 'fail');
 	assert.equal(verdict.hasRecord, false);
-});
+}, 30_000);
 
 // ---------------------------------------------------------------------------
 // Lowering only — no raise, silent exit 0
@@ -416,7 +522,7 @@ test('lowering only: verdict is none (silent exit 0)', async () => {
 
 	assert.equal(verdict.verdict, 'none');
 	assert.equal(verdict.hasRaise, false);
-});
+}, 30_000);
 
 // ---------------------------------------------------------------------------
 // Mixed: pairs-up + auto-down — raise detected, record required
@@ -443,7 +549,7 @@ test('mixed raise pairs-up + auto-down: verdict is fail without record', async (
 		verdict.raiseDetails.some((d) => d.includes('productionPairs')),
 		verdict.raiseDetails.join('\n'),
 	);
-});
+}, 30_000);
 
 test('mixed raise pairs-up + auto-down: verdict is pass with correct record', async () => {
 	const { prDir } = await buildFixture({
@@ -466,7 +572,7 @@ productionAuto went down (cleanup of duplicate C# helpers).
 
 	assert.equal(verdict.verdict, 'pass');
 	assert.equal(verdict.hasRecord, true);
-});
+}, 30_000);
 
 // ---------------------------------------------------------------------------
 // Date format enforcement
@@ -497,7 +603,7 @@ test('record without date prefix: verdict is fail', async () => {
 
 	assert.equal(verdict.verdict, 'fail');
 	assert.equal(verdict.hasRecord, false);
-});
+}, 30_000);
 
 // ---------------------------------------------------------------------------
 // Missing base key — loud failure
@@ -523,7 +629,7 @@ test('base missing productionAuto key: verdict is fail', async () => {
 		verdict.errors.some((e) => e.includes('productionAuto')),
 		verdict.errors.join('\n'),
 	);
-});
+}, 30_000);
 
 // ---------------------------------------------------------------------------
 // Key-name verification
@@ -550,7 +656,7 @@ Raising productionAuto.count from 5 to 7.
 	// The record names productionAuto.count but productionPairs.count/lines raised.
 	assert.equal(verdict.verdict, 'fail');
 	assert.equal(verdict.hasRecord, false);
-});
+}, 30_000);
 
 test('record names correct key with wrong numbers: verdict is pass', async () => {
 	const { prDir } = await buildFixture({
@@ -575,7 +681,7 @@ Raising productionPairs.count from 10 to 99 (wrong numbers).
 	// A reviewer would catch the wrong numbers; the guard checks for key coverage.
 	assert.equal(verdict.verdict, 'pass');
 	assert.equal(verdict.hasRecord, true);
-});
+}, 30_000);
 
 test('record names correct keys: verdict is pass', async () => {
 	const { prDir } = await buildFixture({
@@ -597,7 +703,7 @@ Raising productionPairs.count from 10 to 12 and productionPairs.lines from 200 t
 
 	assert.equal(verdict.verdict, 'pass');
 	assert.equal(verdict.hasRecord, true);
-});
+}, 30_000);
 
 // ---------------------------------------------------------------------------
 // Test timeout calibration (30s per git call, total ~120s for multi-repo fixture)
@@ -765,8 +871,11 @@ test('depth-1 CI-shape fixture (no common ancestor): guard fails loud naming mer
 	const verdict = verifyJscpdRaise(prDir, 'main');
 
 	// Must fail loud, NOT silently pass or silently fall back to two-dot diff.
+	// With the refactored code, merge-base failure is caught early (before hasRaise
+	// is computed), so hasRaise=false is the correct verdict — the guard cannot
+	// determine its own diff scope and correctly reports failure.
 	assert.equal(verdict.verdict, 'fail');
-	assert.equal(verdict.hasRaise, true);
+	assert.equal(verdict.hasRaise, false);
 	assert.ok(
 		verdict.errors.some(
 			(e) =>
@@ -849,4 +958,98 @@ test('depth-1 fixture without fail-loud branch: would silently pass (paired red 
 		verdict.errors.some((e) => e.includes('merge base')),
 		`MUTATION TARGET: if the fail-loud branch were removed, this test would go RED. Got: ${verdict.errors.join('\n')}`,
 	);
+}, 30_000);
+
+// ---------------------------------------------------------------------------
+// Paired proofs: these catch mutations against the refactor
+// ---------------------------------------------------------------------------
+
+test('two-commit-develop: unaccompanied raise vs fork point FAILS (refactor catches it)', async () => {
+	// The PR raises from 10/200 (fork point) to 12/250. Develop has ADVANCED to
+	// 15/300 after the fork. The old code would compare against develop TIP (15/300)
+	// and report no raise, silently passing. The refactored code uses the MERGE BASE
+	// (10/200) and correctly detects a raise without accompaniment.
+	const { prDir } = await buildTwoCommitDevelopFixture({
+		// No record — guard must fail.
+	});
+
+	const verdict = verifyJscpdRaise(prDir, 'main');
+
+	// Must detect the raise and fail on missing accompaniment.
+	assert.equal(verdict.verdict, 'fail', verdict.errors.join('\n'));
+	assert.equal(verdict.hasRaise, true, 'should detect raise vs merge base');
+	assert.equal(verdict.hasRecord, false);
+	assert.ok(
+		verdict.errors.some((e) => e.includes('productionPairs.count')),
+		verdict.errors.join('\n'),
+	);
+}, 30_000);
+
+test('two-commit-develop: accompanied raise vs fork point PASSES (key-NAME presence check)', async () => {
+	// Same shape as above but WITH a correct record. The record names the raised
+	// keys so the guard passes.
+	const { prDir } = await buildTwoCommitDevelopFixture({
+		recordContent: `## jscpd Raise
+
+Raising productionPairs.count from 10 to 12 and productionPairs.lines from 200 to 250
+due to new C# handler duplications after the dot format changes.
+
+Surface: C# using directive blocks across handler files.
+`,
+	});
+
+	const verdict = verifyJscpdRaise(prDir, 'main');
+
+	assert.equal(verdict.verdict, 'pass', verdict.errors.join('\n'));
+	assert.equal(verdict.hasRaise, true);
+	assert.equal(verdict.hasRecord, true);
+}, 30_000);
+
+test('two-commit-develop: record names only one of two raised keys FAILS', async () => {
+	// ProductionPairs.count and lines BOTH raised. Record names only one — half-record.
+	const { prDir } = await buildTwoCommitDevelopFixture({
+		recordContent: `## jscpd Raise
+
+Raising productionPairs.count from 10 to 12 only.
+`,
+	});
+
+	const verdict = verifyJscpdRaise(prDir, 'main');
+
+	// Guard must catch the half-record.
+	assert.equal(verdict.verdict, 'fail', verdict.errors.join('\n'));
+	assert.equal(verdict.hasRecord, false);
+}, 30_000);
+
+test('key-NAME presence: record with raised keys only inside a code fence PASSES', async () => {
+	// The brief documents that incidental mentions satisfy the guard (key-NAME presence only).
+	// This test proves it — the raised key names appear inside a JSON code fence.
+	const { prDir } = await buildFixture({
+		baseRef: {
+			productionPairs: { count: 10, lines: 200 },
+			productionAuto: { count: 5, lines: 100 },
+		},
+		prRef: {
+			productionPairs: { count: 12, lines: 250 },
+			productionAuto: { count: 5, lines: 100 },
+		},
+		recordContent: `## jscpd Raise
+
+\`\`\`json
+{
+  "surface": "C# using directive blocks",
+  "metrics": {
+    "productionPairs.count": 12,
+    "productionPairs.lines": 250
+  }
+}
+\`\`\`
+`,
+	});
+
+	const verdict = verifyJscpdRaise(prDir, 'main');
+
+	// The key names appear in added lines — even inside a code fence — so this passes.
+	assert.equal(verdict.verdict, 'pass', verdict.errors.join('\n'));
+	assert.equal(verdict.hasRecord, true);
 }, 30_000);
