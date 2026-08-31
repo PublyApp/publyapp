@@ -226,7 +226,9 @@ test('tryCatchWrapper async branch surfaces onError rejection as the wrapped pro
 	// with that same error — silently swallowing it would be a worse bug
 	// than the original handler throwing. A "swallow the rejection" mutation
 	// would return undefined here and the test would fail.
-	const onError = vi.fn().mockRejectedValue(new Error('on-error-itself-blew-up'));
+	const onError = vi
+		.fn()
+		.mockRejectedValue(new Error('on-error-itself-blew-up'));
 	const handler = async () => {
 		throw new Error('handler-boom');
 	};

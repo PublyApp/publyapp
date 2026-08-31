@@ -57,7 +57,6 @@ import {
 	main,
 	__testOnly_getResolveCallCount,
 	__testOnly_resetResolveCallCount,
-	resolveModuleViaNode,
 	resolveRetryFnViaNode,
 } from './check-shared-ts-node-resolution.mts';
 
@@ -139,7 +138,10 @@ const makeImportTargetADirectory = (root: string): void => {
  */
 const runGuard = (
 	root: string,
-	targets: ReadonlyArray<{ readonly relativePath: string; readonly expectedExport: string }> = DEFAULT_TARGETS,
+	targets: ReadonlyArray<{
+		readonly relativePath: string;
+		readonly expectedExport: string;
+	}> = DEFAULT_TARGETS,
 ) => {
 	const result = spawnSync(
 		'node',
@@ -534,10 +536,7 @@ const injectErrorUtilsSiblingImport = (
 	const importLine = `import { delay as anyUtilsDelay } from '${specifier}';\n`;
 	// Insert after the first existing import line so the injected line
 	// participates in Node's real resolution order.
-	const rewritten = source.replace(
-		/^(import [^\n]+\n)/m,
-		`$1${importLine}`,
-	);
+	const rewritten = source.replace(/^(import [^\n]+\n)/m, `$1${importLine}`);
 	assert.notEqual(
 		rewritten,
 		source,

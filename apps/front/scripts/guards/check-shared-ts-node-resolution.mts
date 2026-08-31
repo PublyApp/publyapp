@@ -320,15 +320,13 @@ export const classifyLoadFailure = (stderr: string): NodeLoadFailure => {
  * target that fails to resolve under real Node ESM, with the diagnostic for
  * the failure classified per #1885.
  */
-export const main = (
-	roots?: {
-		sharedTsSrc?: string;
-		targets?: ReadonlyArray<{
-			readonly relativePath: string;
-			readonly expectedExport: string;
-		}>;
-	},
-): void => {
+export const main = (roots?: {
+	sharedTsSrc?: string;
+	targets?: ReadonlyArray<{
+		readonly relativePath: string;
+		readonly expectedExport: string;
+	}>;
+}): void => {
 	const root = path.resolve(roots?.sharedTsSrc ?? sharedTsSrc);
 	const targets = roots?.targets ?? DEFAULT_TARGETS;
 	if (targets.length === 0) {
