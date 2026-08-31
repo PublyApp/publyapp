@@ -7,5 +7,5 @@
 			"why": "On correct code (#2009 fix), checkFeatureAncestry throws a message about 'no history' + 'fetch' + 'shallow checkout', NOT 'older than' + 'Rebase'. The proof asserts the BUG (message contains 'older than' + 'Rebase'), so the expect() calls fail with AssertionError. If this test passes, the bug has been reintroduced — the cat-file -e pre-check was removed and the guard fell back to merge-base-only."
 		}
 	],
-	"measuredAgainst": "e2b16fb58ba2bb3b75169326e53bc14d903d4f9e"
+	"measuredAgainst": "108449d991536b58e2fad4d59575c52c475637a3"
 }
