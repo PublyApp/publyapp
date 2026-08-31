@@ -1048,8 +1048,25 @@ const countListQueryFactories = (
 	// (cursor/keyset or offset).
 	const isPaginationMember = (name: string): boolean =>
 		/(?:^|\.)(?:cursor|sortId|sortOrder|size|page|limit|q)$/.test(name);
-	// Determines whether a type (TypeLiteral or interface)
-	// declares pagination.
+	// Determines whether a type (TypeLiteral, IntersectionType,
+	// TypeReference alias, or interface) declares pagination. The cases
+	// #1979 calls out:
+	//   - IntersectionType (`type V = A & Pagination`): the intersection
+	//     carries every member of every operand, so it is paginated iff ANY
+	//     operand is paginated. We recurse through operands and OR their
+	//     verdicts.
+	//   - UnionType (`type V = A | Pagination`): a value of the union may or
+	//     may not carry pagination depending on which variant. The
+	//     classifier cannot decide — some variants paginate, others do not.
+	//     Repo doctrine: input the tool cannot decide must fail LOUDLY.
+	//     Returning false here would silently mark a paginated union as
+	//     non-paginated, exactly the bug class #1979 names. We throw
+	//     instead, naming the union, so the author reconciles (split the
+	//     union, name a paginated variant explicitly, or document the
+	//     non-pagination through a dedicated type).
+	//   - TypeReference aliases: already recursed, but the loop below
+	//     follows the alias chain to its fixpoint — `type V = W` where
+	//     `W = X` where `X = { cursor?: string }` now resolves.
 	const declaresPagination = (
 		node: ts.TypeAliasDeclaration | ts.InterfaceDeclaration,
 	): boolean => {
@@ -1065,13 +1082,80 @@ const countListQueryFactories = (
 						isPaginationMember(m.name.text),
 				);
 			}
-			// type X = SomeWrapper<...> (alias to a parameterized type): resolve
-			// recursively if the target is declared in the source.
+			// type X = A & B (IntersectionType): every value carries the
+			// union of members, so the intersection is paginated iff any
+			// operand is. Recurse through every operand and OR their
+			// verdicts — a TypeLiteral operand is read in place, an alias
+			// operand follows the chain to its declaration.
+			if (typeNode.kind === ts.SyntaxKind.IntersectionType) {
+				const operands = (typeNode as ts.IntersectionTypeNode).types;
+				return operands.some((operand) => operandDeclaresPagination(operand));
+			}
+			// type X = A | B (UnionType): the verdict depends on which
+			// variant. Repo doctrine forbids a silent `false` here — throw
+			// with the union so the author reconciles.
+			if (typeNode.kind === ts.SyntaxKind.UnionType) {
+				throw new Error(
+					`declaresPagination: union type '${node.name.text}' cannot be decided — pagination is variant-specific. Split the union or name the paginated variant explicitly.`,
+				);
+			}
+			// type X = SomeWrapper<...> (alias to a parameterized type):
+			// resolve recursively if the target is declared in the source.
+			// Follow alias chains to the fixpoint — `type V = W` where
+			// `W = X` where `X = { cursor?: string }` resolves all the way.
 			if (typeNode.kind === ts.SyntaxKind.TypeReference) {
 				const refName = (typeNode as ts.TypeReferenceNode).typeName.getText(sf);
-				const target = typeDeclarations.get(refName);
-				if (target) {
-					return declaresPagination(target);
+				const visited = new Set<string>();
+				let current: string | null = refName;
+				while (current !== null) {
+					if (visited.has(current)) {
+						break;
+					}
+					visited.add(current);
+					const target = typeDeclarations.get(current);
+					if (!target) {
+						break;
+					}
+					if (target.kind === ts.SyntaxKind.TypeAliasDeclaration) {
+						const aliasDecl = target as ts.TypeAliasDeclaration;
+						const innerType = aliasDecl.type;
+						if (innerType.kind === ts.SyntaxKind.TypeLiteral) {
+							const typeLiteral = innerType as ts.TypeLiteralNode;
+							return typeLiteral.members.some(
+								(m: ts.TypeElement) =>
+									m.kind === ts.SyntaxKind.PropertySignature &&
+									m.name !== undefined &&
+									ts.isIdentifier(m.name) &&
+									isPaginationMember(m.name.text),
+							);
+						}
+						if (innerType.kind === ts.SyntaxKind.IntersectionType) {
+							return (innerType as ts.IntersectionTypeNode).types.some(
+								(operand) => operandDeclaresPagination(operand),
+							);
+						}
+						if (innerType.kind === ts.SyntaxKind.UnionType) {
+							throw new Error(
+								`declaresPagination: union type '${aliasDecl.name.text}' cannot be decided — pagination is variant-specific. (Resolved through alias chain starting at '${refName}'.) Split the union or name the paginated variant explicitly.`,
+							);
+						}
+						if (innerType.kind === ts.SyntaxKind.TypeReference) {
+							current = (innerType as ts.TypeReferenceNode).typeName.getText(
+								sf,
+							);
+							continue;
+						}
+					}
+					if (target.kind === ts.SyntaxKind.InterfaceDeclaration) {
+						return (target as ts.InterfaceDeclaration).members.some(
+							(m: ts.TypeElement) =>
+								m.kind === ts.SyntaxKind.PropertySignature &&
+								m.name !== undefined &&
+								ts.isIdentifier(m.name) &&
+								isPaginationMember(m.name.text),
+						);
+					}
+					break;
 				}
 			}
 		}
@@ -1085,6 +1169,32 @@ const countListQueryFactories = (
 					ts.isIdentifier(m.name) &&
 					isPaginationMember(m.name.text),
 			);
+		}
+		return false;
+	};
+	// Decides pagination for a single operand of an intersection type.
+	// Inlined so declaresPagination itself stays a closed form over the
+	// top-level node, while this operator handles the cases an operand can
+	// take: a TypeLiteral (read inline), a TypeReference alias (resolved
+	// through the declarations map, following alias chains to a fixpoint),
+	// or anything else (a type expression the classifier does not read —
+	// returns false, since no evidence of pagination).
+	const operandDeclaresPagination = (operand: ts.TypeNode): boolean => {
+		if (operand.kind === ts.SyntaxKind.TypeLiteral) {
+			return (operand as ts.TypeLiteralNode).members.some(
+				(m: ts.TypeElement) =>
+					m.kind === ts.SyntaxKind.PropertySignature &&
+					m.name !== undefined &&
+					ts.isIdentifier(m.name) &&
+					isPaginationMember(m.name.text),
+			);
+		}
+		if (operand.kind === ts.SyntaxKind.TypeReference) {
+			const refName = (operand as ts.TypeReferenceNode).typeName.getText(sf);
+			const target = typeDeclarations.get(refName);
+			if (target) {
+				return declaresPagination(target);
+			}
 		}
 		return false;
 	};
@@ -1403,5 +1513,274 @@ const someQueryOptions = buildStaffQueryOptions<
 );
 `;
 		expect(() => countListQueryFactories(validSource)).not.toThrow();
+	});
+});
+
+// ── #1979 : intersection / union / alias-chain pagination ─────────────────
+//
+// `declaresPagination` used to handle only TypeLiteral, InterfaceDeclaration
+// and a single-hop TypeReference alias. Three forms slipped through:
+//   - `type V = A & Pagination` — intersection; a paginated operand paginates
+//     the whole intersection.
+//   - `type V = A | Pagination` — union; the verdict depends on which
+//     variant is selected at the call site. Indécidable. The repo doctrine
+//     forbids a silent `false` — the classifier must throw, naming the union.
+//   - `type V = W; type W = X; type X = { cursor?: string }` — alias chain.
+//     The previous resolver followed ONE hop, then bailed out silently.
+//
+// The paired proof below constructs each form in isolation AND in mixed
+// combinations, with the relevant mutation named for each RED test.
+
+describe('declaresPagination handles intersection, union and alias chains (#1979)', () => {
+	test('RED — old behaviour: a paginated intersection is silently uncounted (returns 0)', () => {
+		// The OLD classifier returned 0 for `type V = BaseVariables & { cursor?: string }`
+		// — it did not descend into IntersectionType operands, so the paginated
+		// operand was invisible. A paginated variables type under that name
+		// would silently fail the no-list detector. This test fails against
+		// the OLD code; it passes against the NEW one (counted = 1).
+		const intersectionSource = `
+export type BaseVariables = { tenantId?: string; };
+
+export type ProfilesQueryVariables = BaseVariables & {
+	cursor?: string;
+	size?: number;
+};
+
+const profilesQueryOptions = buildStaffQueryOptions<
+	ApiClient,
+	FindProfilesResponse,
+	ProfilesQueryVariables
+>(
+	{
+		queryKeyFn: () => ['profiles'],
+		fetcher: async () => ({}),
+	},
+	{ clientAccessor: getClientManager() },
+);
+`;
+		expect(countListQueryFactories(intersectionSource)).toBe(1);
+	});
+
+	test('GREEN — paginated TypeLiteral operand of an intersection paginates the whole type', () => {
+		// The same construction as above, but with a TypeLiteral operand
+		// (no outer alias) — the intersection branch must still recognise
+		// pagination. This pins that the operand handler works on a literal.
+		const inlineOperandSource = `
+export type ProfilesQueryVariables = { tenantId?: string } & {
+	cursor?: string;
+};
+
+const profilesQueryOptions = buildStaffQueryOptions<
+	ApiClient,
+	FindProfilesResponse,
+	ProfilesQueryVariables
+>(
+	{
+		queryKeyFn: () => ['profiles'],
+		fetcher: async () => ({}),
+	},
+	{ clientAccessor: getClientManager() },
+);
+`;
+		expect(countListQueryFactories(inlineOperandSource)).toBe(1);
+	});
+
+	test('GREEN — paginated variables nested at the END of a multi-operand intersection still paginate', () => {
+		// The classifier must scan EVERY operand of the intersection, not
+		// just the first. With three operands where only the third carries
+		// pagination, the verdict is still paginated.
+		const deepOperandSource = `
+export type A = { tenantId?: string; };
+export type B = { filter?: string; };
+
+export type ProfilesQueryVariables = A & B & {
+	cursor?: string;
+};
+
+const profilesQueryOptions = buildStaffQueryOptions<
+	ApiClient,
+	FindProfilesResponse,
+	ProfilesQueryVariables
+>(
+	{
+		queryKeyFn: () => ['profiles'],
+		fetcher: async () => ({}),
+	},
+	{ clientAccessor: getClientManager() },
+);
+`;
+		expect(countListQueryFactories(deepOperandSource)).toBe(1);
+	});
+
+	test('RED — old behaviour: a paginated union is silently uncounted AND must fail loud, not silently false', () => {
+		// The repo doctrine is clear: input the tool cannot decide must fail
+		// LOUDLY. A union's pagination depends on the selected variant. The
+		// OLD classifier would have returned 0 silently (a silent false
+		// negative — exactly the bug class #1979 names). The NEW classifier
+		// throws with the union's name so the author reconciles.
+		const unionSource = `
+export type BaseVariables = { tenantId?: string; };
+export type PaginatedVariables = { cursor?: string; };
+
+export type ProfilesQueryVariables = BaseVariables | PaginatedVariables;
+
+const profilesQueryOptions = buildStaffQueryOptions<
+	ApiClient,
+	FindProfilesResponse,
+	ProfilesQueryVariables
+>(
+	{
+		queryKeyFn: () => ['profiles'],
+		fetcher: async () => ({}),
+	},
+	{ clientAccessor: getClientManager() },
+);
+`;
+		expect(() => countListQueryFactories(unionSource)).toThrow(
+			/declaresPagination: union type 'ProfilesQueryVariables' cannot be decided/,
+		);
+	});
+
+	test('GREEN — an alias that points at another alias that points at a TypeLiteral is now resolved to fixpoint', () => {
+		// The OLD classifier followed ONE hop on TypeReference aliases and
+		// bailed out at the second hop. `type V = W; type W = X; type X = { ... }`
+		// would have returned 0 — a paginated variables type masquerading
+		// as a non-paginated one through two layers of aliasing. The fix
+		// follows the chain to its fixpoint.
+		const aliasChainSource = `
+export type InnerQueryVariables = {
+	cursor?: string;
+	size?: number;
+};
+
+export type MiddleQueryVariables = InnerQueryVariables;
+
+export type OuterQueryVariables = MiddleQueryVariables;
+
+const outerQueryOptions = buildStaffQueryOptions<
+	ApiClient,
+	FindOuterResponse,
+	OuterQueryVariables
+>(
+	{
+		queryKeyFn: () => ['outer'],
+		fetcher: async () => ({}),
+	},
+	{ clientAccessor: getClientManager() },
+);
+`;
+		expect(countListQueryFactories(aliasChainSource)).toBe(1);
+	});
+
+	test('INVARIANT PIN — alias chain that resolves to a non-paginated type still returns 0', () => {
+		// The alias-chain fix must not regress the common case. A chain
+		// that ultimately resolves to a TypeLiteral without pagination
+		// members must still return 0.
+		const nonPaginatedChainSource = `
+export type InnerQueryVariables = { tenantId?: string; };
+
+export type MiddleQueryVariables = InnerQueryVariables;
+
+export type OuterQueryVariables = MiddleQueryVariables;
+
+const outerQueryOptions = buildStaffQueryOptions<
+	ApiClient,
+	FindOuterResponse,
+	OuterQueryVariables
+>(
+	{
+		queryKeyFn: () => ['outer'],
+		fetcher: async () => ({}),
+	},
+	{ clientAccessor: getClientManager() },
+);
+`;
+		expect(countListQueryFactories(nonPaginatedChainSource)).toBe(0);
+	});
+
+	test('INVARIANT PIN — intersection with no paginated operand still returns 0', () => {
+		// No operand declares pagination — the intersection must NOT be
+		// counted as a list query. This pins that the intersection branch
+		// does not over-count by reading ANY property name.
+		const nonPaginatedIntersectionSource = `
+export type BaseVariables = { tenantId?: string; };
+export type FilterVariables = { filter?: string; };
+
+export type ProfilesQueryVariables = BaseVariables & FilterVariables;
+
+const profilesQueryOptions = buildStaffQueryOptions<
+	ApiClient,
+	FindProfilesResponse,
+	ProfilesQueryVariables
+>(
+	{
+		queryKeyFn: () => ['profiles'],
+		fetcher: async () => ({}),
+	},
+	{ clientAccessor: getClientManager() },
+);
+`;
+		expect(countListQueryFactories(nonPaginatedIntersectionSource)).toBe(0);
+	});
+
+	test('RED — old behaviour: a paginated intersection nested behind two alias hops is uncounted (no IntersectionType handling in chain)', () => {
+		// The OLD resolver followed alias chains via recursive
+		// `declaresPagination`, but it did NOT handle IntersectionType.
+		// `type Outer = Middle; type Middle = Pagination & Filter` would
+		// have resolved to an IntersectionType at the second hop and
+		// returned false silently — a paginated variables type
+		// masquerading as a non-paginated one through two layers of
+		// aliasing, with pagination hidden in the intersection operand.
+		// The fix walks the chain to a fixpoint AND descends into
+		// IntersectionType operands at every hop.
+		const intersectionAliasSource = `
+export type Filter = { tenantId?: string; };
+export type Pagination = { cursor?: string; size?: number; };
+export type Middle = Filter & Pagination;
+export type OuterQueryVariables = Middle;
+
+const outerQueryOptions = buildStaffQueryOptions<
+	ApiClient,
+	FindOuterResponse,
+	OuterQueryVariables
+>(
+	{
+		queryKeyFn: () => ['outer'],
+		fetcher: async () => ({}),
+	},
+	{ clientAccessor: getClientManager() },
+);
+`;
+		expect(countListQueryFactories(intersectionAliasSource)).toBe(1);
+	});
+
+	test('RED — old behaviour: a paginated union nested behind one alias hop is uncounted AND must fail loud, not silently false', () => {
+		// Same doctrine as the top-level union test: a paginated union
+		// is indécidable, and the OLD resolver would have returned false
+		// silently (or, after #1979, throws). With the alias hop
+		// `type V = W; type W = Pagination | Filter`, the OLD code that
+		// followed aliases but did not handle UnionType would have
+		// returned false silently — exactly the bug class #1979 names.
+		const unionAliasSource = `
+export type Filter = { tenantId?: string; };
+export type PaginatedOnly = { cursor?: string; size?: number; };
+export type Middle = PaginatedOnly | Filter;
+export type OuterQueryVariables = Middle;
+
+const outerQueryOptions = buildStaffQueryOptions<
+	ApiClient,
+	FindOuterResponse,
+	OuterQueryVariables
+>(
+	{
+		queryKeyFn: () => ['outer'],
+		fetcher: async () => ({}),
+	},
+	{ clientAccessor: getClientManager() },
+);
+`;
+		expect(() => countListQueryFactories(unionAliasSource)).toThrow(
+			/declaresPagination: union type 'Middle' cannot be decided.*alias chain starting at 'Middle'/,
+		);
 	});
 });
