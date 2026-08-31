@@ -100,7 +100,7 @@ export const analyzeScripts = (
 				if (WRAPPER_INVOCATION.test(command)) {
 					continue;
 				}
-				if (LONG_RUNNING_EXEMPTIONS[name] !== undefined) {
+				if (Object.hasOwn(LONG_RUNNING_EXEMPTIONS, name)) {
 					continue;
 				}
 				findings.push({
