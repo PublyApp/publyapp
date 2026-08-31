@@ -123,6 +123,13 @@ const ROUND_1_BROKEN_PREDICATE = (classNames: string[]): string =>
 // shape). The proof asserts the production builder does NOT emit
 // `ClassName=`. If a future refactor regresses the CLI to the round-1
 // shape, the assertion fails and the proof catches it.
+//
+// ROUND 5 FIX (#1984): the round-2 builder no longer wraps the class name
+// in double quotes. The `FullyQualifiedName~"FQN"` form embedded a `"`
+// that MSBuild misread as a property-assignment boundary (MSB4177) once
+// the shell stripped the outer `"$FILTER"` pair. Since .NET test class
+// FQNs contain no spaces, the quote-free form `FullyQualifiedName~FQN`
+// is unambiguous to xUnit and carries no `"` for MSBuild to choke on.
 const ROUND_2_FIXED_PREDICATE = (classNames: string[]): string => {
 	if (classNames.length === 0) {
 		// Empty shard: emit a predicate that matches nothing rather
@@ -130,12 +137,11 @@ const ROUND_2_FIXED_PREDICATE = (classNames: string[]): string => {
 		// everything". The NUL byte is unparseable by xUnit's filter
 		// parser, which short-circuits to "no test matches" — what we
 		// want for an empty shard: a fast green run, not an error.
-		return 'FullyQualifiedName~"\u0000never-matches"';
+		// NO DOUBLE QUOTES: see the round-5 fix note above.
+		return 'FullyQualifiedName~\u0000never-matches';
 	}
 
-	return classNames
-		.map((name) => `FullyQualifiedName~"${name.replace(/"/g, '\\"')}"`)
-		.join('|');
+	return classNames.map((name) => `FullyQualifiedName~${name}`).join('|');
 };
 
 // Re-implementation of the round-1 parser. Round 1 took any line that
