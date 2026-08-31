@@ -47,8 +47,8 @@
 		"floors here are .ts:302/.tsx:500, measured against develop at that point."
 	],
 	"perExtension": {
-		".ts": 302,
-		".tsx": 500,
+		".ts": 305,
+		".tsx": 502,
 		".mts": 0,
 		".cts": 0,
 		".ctsx": 0,
