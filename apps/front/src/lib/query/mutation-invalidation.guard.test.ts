@@ -1091,12 +1091,25 @@ const countListQueryFactories = (
 				const operands = (typeNode as ts.IntersectionTypeNode).types;
 				return operands.some((operand) => operandDeclaresPagination(operand));
 			}
-			// type X = A | B (UnionType): the verdict depends on which
-			// variant. Repo doctrine forbids a silent `false` here — throw
-			// with the union so the author reconciles.
+			// type X = A | B (UnionType): recurse through operands. If ALL
+			// operands declare pagination, the union is paginated. If NONE
+			// do, the union is non-paginated. If some do and some don't
+			// (or an operand cannot be classified), the union is ambiguous
+			// and the classifier must throw — repo doctrine forbids a
+			// silent `false` for an indeterminate union.
 			if (typeNode.kind === ts.SyntaxKind.UnionType) {
+				const operands = (typeNode as ts.UnionTypeNode).types;
+				const classifications = operands.map((op) =>
+					operandDeclaresPagination(op),
+				);
+				if (classifications.every((c) => c)) {
+					return true;
+				}
+				if (classifications.every((c) => !c)) {
+					return false;
+				}
 				throw new Error(
-					`declaresPagination: union type '${node.name.text}' cannot be decided — pagination is variant-specific. Split the union or name the paginated variant explicitly.`,
+					`declaresPagination: union type '${node.name.text}' has mixed pagination across variants — cannot be decided. Split the union or name the paginated variant explicitly.`,
 				);
 			}
 			// type X = SomeWrapper<...> (alias to a parameterized type):
@@ -1135,8 +1148,18 @@ const countListQueryFactories = (
 							);
 						}
 						if (innerType.kind === ts.SyntaxKind.UnionType) {
+							const innerOperands = (innerType as ts.UnionTypeNode).types;
+							const innerClassifications = innerOperands.map((op) =>
+								operandDeclaresPagination(op),
+							);
+							if (innerClassifications.every((c) => c)) {
+								return true;
+							}
+							if (innerClassifications.every((c) => !c)) {
+								return false;
+							}
 							throw new Error(
-								`declaresPagination: union type '${aliasDecl.name.text}' cannot be decided — pagination is variant-specific. (Resolved through alias chain starting at '${refName}'.) Split the union or name the paginated variant explicitly.`,
+								`declaresPagination: union type '${aliasDecl.name.text}' has mixed pagination across variants — cannot be decided. (Resolved through alias chain starting at '${refName}'.) Split the union or name the paginated variant explicitly.`,
 							);
 						}
 						if (innerType.kind === ts.SyntaxKind.TypeReference) {
@@ -1637,7 +1660,85 @@ const profilesQueryOptions = buildStaffQueryOptions<
 );
 `;
 		expect(() => countListQueryFactories(unionSource)).toThrow(
-			/declaresPagination: union type 'ProfilesQueryVariables' cannot be decided/,
+			/declaresPagination: union type 'ProfilesQueryVariables' has mixed pagination/,
+		);
+	});
+
+	test('GREEN — a union of two non-paginated types is non-paginated (returns 0)', () => {
+		// A union where NO variant declares pagination must be classified as
+		// non-paginated. The classifier recurses through operands and ANDs
+		// their verdicts: all non-paginated → non-paginated.
+		const allNonPaginatedSource = `
+export type A = { tenantId?: string; };
+export type B = { filter?: string; };
+
+export type ProfilesQueryVariables = A | B;
+
+const profilesQueryOptions = buildStaffQueryOptions<
+	ApiClient,
+	FindProfilesResponse,
+	ProfilesQueryVariables
+>(
+	{
+		queryKeyFn: () => ['profiles'],
+		fetcher: async () => ({}),
+	},
+	{ clientAccessor: getClientManager() },
+);
+`;
+		expect(countListQueryFactories(allNonPaginatedSource)).toBe(0);
+	});
+
+	test('GREEN — a union of two paginated types is paginated (returns 1)', () => {
+		// A union where EVERY variant declares pagination must be classified
+		// as paginated. The classifier recurses through operands and ANDs
+		// their verdicts: all paginated → paginated.
+		const allPaginatedSource = `
+export type A = { cursor?: string; };
+export type B = { size?: number; };
+
+export type ProfilesQueryVariables = A | B;
+
+const profilesQueryOptions = buildStaffQueryOptions<
+	ApiClient,
+	FindProfilesResponse,
+	ProfilesQueryVariables
+>(
+	{
+		queryKeyFn: () => ['profiles'],
+		fetcher: async () => ({}),
+	},
+	{ clientAccessor: getClientManager() },
+);
+`;
+		expect(countListQueryFactories(allPaginatedSource)).toBe(1);
+	});
+
+	test('RED — a union of one paginated and one non-paginated type is mixed and must throw', () => {
+		// A union where SOME variants paginate and SOME do not is ambiguous.
+		// The classifier must throw — a silent `false` would mark a
+		// paginated union as non-paginated, exactly the bug class #1979
+		// names.
+		const mixedUnionSource = `
+export type A = { cursor?: string; };
+export type B = { tenantId?: string; };
+
+export type ProfilesQueryVariables = A | B;
+
+const profilesQueryOptions = buildStaffQueryOptions<
+	ApiClient,
+	FindProfilesResponse,
+	ProfilesQueryVariables
+>(
+	{
+		queryKeyFn: () => ['profiles'],
+		fetcher: async () => ({}),
+	},
+	{ clientAccessor: getClientManager() },
+);
+`;
+		expect(() => countListQueryFactories(mixedUnionSource)).toThrow(
+			/declaresPagination: union type 'ProfilesQueryVariables' has mixed pagination/,
 		);
 	});
 
@@ -1780,7 +1881,33 @@ const outerQueryOptions = buildStaffQueryOptions<
 );
 `;
 		expect(() => countListQueryFactories(unionAliasSource)).toThrow(
-			/declaresPagination: union type 'Middle' cannot be decided.*alias chain starting at 'Middle'/,
+			/declaresPagination: union type 'Middle' has mixed pagination.*alias chain starting at 'Middle'/,
 		);
+	});
+
+	test('GREEN — an all-paginated union behind one alias hop is paginated (alias-chain union recursion)', () => {
+		// The alias-chain union path recurses through operands exactly like
+		// the top-level union path: EVERY variant paginated → paginated. This
+		// pins the `innerClassifications.every` branch that the mixed alias
+		// union test cannot reach (it throws before the every-check).
+		const allPaginatedUnionAliasSource = `
+export type A = { cursor?: string; };
+export type B = { size?: number; };
+export type Middle = A | B;
+export type OuterQueryVariables = Middle;
+
+const outerQueryOptions = buildStaffQueryOptions<
+	ApiClient,
+	FindOuterResponse,
+	OuterQueryVariables
+>(
+	{
+		queryKeyFn: () => ['outer'],
+		fetcher: async () => ({}),
+	},
+	{ clientAccessor: getClientManager() },
+);
+`;
+		expect(countListQueryFactories(allPaginatedUnionAliasSource)).toBe(1);
 	});
 });

@@ -1,8 +1,8 @@
 import type winston from 'winston';
 
-import { isServer } from '../constants';
+import { isServer } from '../constants.ts';
 import type { ILogger } from './logger.types';
-import { type LogLevel, logLevelHierarchy } from './logger.utils';
+import { type LogLevel, logLevelHierarchy } from './logger.utils.ts';
 
 let winstonLogger: winston.Logger;
 let serverConsoleTransport: typeof winston.transports.Console;

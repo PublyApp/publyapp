@@ -208,8 +208,17 @@ test('tryCatchWrapper default handler logs a structured error (the first argumen
 	expect(secondArg).toEqual({ error: expect.any(Error) });
 });
 
-test('tryCatchWrapper async branch awaits onError when onError itself is async, and returns its resolved value', async () => {
-	const onError = vi.fn().mockResolvedValue('async-on-error-ok');
+test('tryCatchWrapper async branch returns the resolved value of an async onError', async () => {
+	// The onError MUST be a genuine async function: `isAsyncFunction` keys on
+	// `constructor.name === 'AsyncFunction'`, so a `vi.fn().mockResolvedValue`
+	// mock would silently route through the SYNC `return handleError(error)`
+	// branch and the async branch (lines with `await handleError`) would stay
+	// untested. This test enters the async-onError branch for real.
+	const onErrorCalls: unknown[] = [];
+	const onError = async (error: unknown) => {
+		onErrorCalls.push(error);
+		return 'async-on-error-ok';
+	};
 	const handler = async () => {
 		throw new Error('async-on-error-boom');
 	};
@@ -217,7 +226,7 @@ test('tryCatchWrapper async branch awaits onError when onError itself is async, 
 	const wrapped = tryCatchWrapper({ handler, onError });
 	const result = await wrapped();
 
-	expect(onError).toHaveBeenCalledTimes(1);
+	expect(onErrorCalls).toHaveLength(1);
 	expect(result).toBe('async-on-error-ok');
 });
 
@@ -225,17 +234,17 @@ test('tryCatchWrapper async branch surfaces onError rejection as the wrapped pro
 	// If onError itself rejects, the wrapper's returned promise MUST reject
 	// with that same error — silently swallowing it would be a worse bug
 	// than the original handler throwing. A "swallow the rejection" mutation
-	// would return undefined here and the test would fail.
-	const onError = vi
-		.fn()
-		.mockRejectedValue(new Error('on-error-itself-blew-up'));
+	// would return undefined here and the test would fail. onError is a real
+	// async function so `isAsyncFunction` routes it through the async branch.
+	const onError = async () => {
+		throw new Error('on-error-itself-blew-up');
+	};
 	const handler = async () => {
 		throw new Error('handler-boom');
 	};
 
 	const wrapped = tryCatchWrapper({ handler, onError });
 	await expect(wrapped()).rejects.toThrow('on-error-itself-blew-up');
-	expect(onError).toHaveBeenCalledTimes(1);
 });
 
 test('tryCatchWrapper sync branch with a non-Error throwable (null) routes through the default handler and returns undefined', () => {

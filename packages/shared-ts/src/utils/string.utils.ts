@@ -1,6 +1,6 @@
-import forEach from 'lodash/forEach';
-import kebabCase from 'lodash/kebabCase';
-import takeRight from 'lodash/takeRight';
+import forEach from 'lodash/forEach.js';
+import kebabCase from 'lodash/kebabCase.js';
+import takeRight from 'lodash/takeRight.js';
 
 export const slugify = (str?: string) => {
 	return kebabCase(str);

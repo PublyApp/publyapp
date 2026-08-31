@@ -612,33 +612,24 @@ export const routeQueryPreload = {
 					}
 				}
 			},
-			// #1978: re-export handling. `export { useQuery as uq } from
-			// '...'` re-binds the canonical hook under a new local name
-			// without writing a local `const` or an `import` statement in
-			// this file. The previous rule visited only
-			// `ImportDeclaration`, so any call to a re-exported hook in
-			// a route file produced zero diagnostics. The fix routes
-			// every `ExportSpecifier` (with a non-null `source`) through
-			// `recordImportSpec` so the alias and the query-module
-			// bindings are populated exactly as if the user had written
-			// the corresponding `ImportSpecifier` inline.
-			ExportNamedDeclaration(node: ESTree.ExportNamedDeclaration) {
-				if (
-					node.source === null ||
-					node.source.type !== 'Literal' ||
-					typeof node.source.value !== 'string'
-				) {
-					// `export const useQuery = ...` or
-					// `export { useQuery }` (no source) does not import
-					// anything from a query module — it merely publishes
-					// a local binding. The rule tracks calls, not
-					// definitions, so there is nothing to record here.
-					return;
-				}
-				const module = node.source.value;
-				for (const specifier of node.specifiers) {
-					recordImportSpec(state, module, specifier, 'reexport');
-				}
+			// #1978 note (superseded by #2047): the previous code called
+			// `recordImportSpec` for re-exports, which invented false local
+			// bindings. Re-exports do not create local bindings — see the
+			// ExportNamedDeclaration visitor below.
+			ExportNamedDeclaration(_node: ESTree.ExportNamedDeclaration) {
+				// `export { useQuery } from '...'` (a re-export with a `from`
+				// clause) does NOT create a local binding in the current file.
+				// The exported name is only visible to downstream importers. A
+				// route file that re-exports a query hook but never imports it
+				// locally cannot call it, so the rule must NOT treat the
+				// re-exported name as a local binding. Previous code called
+				// `recordImportSpec` here, which invented false local bindings
+				// from re-exports — a false-positive source for blocker #2047.
+				//
+				// `export { useQuery }` (no `from` clause) publishes a local
+				// binding but does not introduce one — it merely re-exports a
+				// name already bound in the file. There is nothing to record.
+				return;
 			},
 			// #1978: `export * from '...'` does not surface the named
 			// exports to the rule — the canonical hook name is unknown,

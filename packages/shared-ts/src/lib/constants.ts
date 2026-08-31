@@ -1,4 +1,4 @@
-import { makePath, toPascalCase } from '../utils/string.utils';
+import { makePath, toPascalCase } from '../utils/string.utils.ts';
 import type { NameSpace } from './i18n/resources';
 
 export const APP_ID = 'publyapp';

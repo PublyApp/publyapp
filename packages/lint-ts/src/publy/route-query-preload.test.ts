@@ -1434,16 +1434,102 @@ void test('CLI RED: `const getHook = () => useQuery; getHook()({...})` reports t
 // Les tests ci-dessous sont des RED mesurés : chacun échoue contre
 // le rule avant le fix, et passe après.
 
-void test('CLI RED: re-export `export { useQuery } from "@tanstack/react-query"` exposes the hook as a local identifier (#1978)', () => {
-	// `export { useQuery } from '...'` re-exports the binding as if it
-	// were locally declared. The previous rule did not visit
-	// ExportNamedDeclaration at all, so a route file that imports
-	// the hook under its canonical name and then calls it produced
-	// zero diagnostics (silent). The fix treats the re-exported
-	// specifier exactly like an ImportSpecifier with the same
-	// imported/local names.
+void test('CLI GREEN: re-export `export { useQuery } from "@tanstack/react-query"` does NOT create a local binding (#2047)', () => {
+	// `export { useQuery } from '...'` re-exports the binding for downstream
+	// importers but does NOT create a local binding in the current file.
+	// The file cannot call `useQuery()` unless it also imports it, so the
+	// rule must NOT treat the re-exported name as a local binding. Previous
+	// code called `recordImportSpec` here, which invented false local
+	// bindings from re-exports — a false-positive source for blocker #2047.
 	const source = [
 		'export { useQuery } from "@tanstack/react-query";',
+		'export const Route = createFileRoute("/probe")({ component: Page });',
+		'const Page = () => <div />;',
+	].join('\n');
+
+	const stdout = runCliWithDeniedWarnings(source);
+	assert.doesNotMatch(
+		stdout,
+		/publy\(route-query-preload\)/,
+		`expected zero diagnostics: a re-export does not create a local binding, so useQuery is NOT callable here, got stdout: ${stdout}`,
+	);
+});
+
+void test('CLI GREEN: re-export of a query hook from a non-query module does not create a binding (#2047)', () => {
+	// A re-export from a module the rule does not classify as a query
+	// module must never create a binding. Even if the exported name
+	// happens to match a hook-name pattern, the source is not a query
+	// module so the rule must stay silent.
+	const source = [
+		'export { useQuery } from "./local-shim";',
+		'export const Route = createFileRoute("/probe")({ component: Page });',
+		'const Page = () => <div />;',
+	].join('\n');
+
+	const stdout = runCliWithDeniedWarnings(source);
+	assert.doesNotMatch(
+		stdout,
+		/publy\(route-query-preload\)/,
+		`expected zero diagnostics: a re-export from a non-query module does not create a binding, got stdout: ${stdout}`,
+	);
+});
+
+void test('CLI GREEN: unrelated named import alongside a re-export does not trigger the rule (#2047)', () => {
+	// An unrelated import (not from a query module) must not interact
+	// with the re-export handling. The rule must stay silent when the
+	// file has no local query-hook call.
+	const source = [
+		'export { useQuery } from "@tanstack/react-query";',
+		'import { format } from "date-fns";',
+		'export const Route = createFileRoute("/probe")({ component: Page });',
+		'const Page = () => <div>{format(new Date(), "yyyy")}</div>;',
+	].join('\n');
+
+	const stdout = runCliWithDeniedWarnings(source);
+	assert.doesNotMatch(
+		stdout,
+		/publy\(route-query-preload\)/,
+		`expected zero diagnostics: unrelated imports alongside a re-export must not trigger the rule, got stdout: ${stdout}`,
+	);
+});
+
+void test('CLI GREEN mutation: aliased re-export `export { useQuery as uq } from "@tanstack/react-query"` then a CALL `uq({...})` reports nothing, because the re-export creates no local binding (#2047)', () => {
+	// This is the fixture that UNIQUELY exercises the removed branch. The
+	// previous code called `recordImportSpec` for re-exports, so `uq` was
+	// recorded as an alias of `useQuery` and the call `uq({...})` produced a
+	// diagnostic naming `uq (imported as useQuery)`. A re-export does NOT
+	// create a local binding: `uq` is not bound in this file (a real caller
+	// would ReferenceError), so the fixed rule resolves `uq` to itself, the
+	// hook-name contract rejects it, and the file stays silent. Against the
+	// pre-fix rule this fixture went RED; against the fixed rule it is GREEN.
+	// The no-call variants cannot discriminate (nothing calls the hook), so
+	// this mutation fixture is the load-bearing one.
+	const source = [
+		'export { useQuery as uq } from "@tanstack/react-query";',
+		'export const Route = createFileRoute("/probe")({ component: Page });',
+		'const Page = () => {',
+		'  const q = uq({ queryKey: ["x"] });',
+		'  return <div>{String(q.data)}</div>;',
+		'};',
+	].join('\n');
+
+	const stdout = runCliWithDeniedWarnings(source);
+	assert.doesNotMatch(
+		stdout,
+		/publy\(route-query-preload\)/,
+		`expected zero diagnostics: an aliased re-export does not create a local binding, so uq is unresolvable here and the call must stay silent, got stdout: ${stdout}`,
+	);
+});
+
+void test('CLI RED: aliased re-export combined with a local hook-name import reports the diagnostic (#2047 mutation)', () => {
+	// A re-export that aliases (`export { useQuery as uq }`) does NOT
+	// create a binding, but a SEPARATE local import of a hook-name
+	// identifier DOES. This mutation test uniquely exercises the branch
+	// where the re-export is present but the diagnostic fires because of
+	// the local import, not the re-export.
+	const source = [
+		'export { useQuery as uq } from "@tanstack/react-query";',
+		"import { useQuery } from '@tanstack/react-query';",
 		'export const Route = createFileRoute("/probe")({ component: Page });',
 		'const Page = () => {',
 		'  const q = useQuery({ queryKey: ["x"] });',
@@ -1455,36 +1541,12 @@ void test('CLI RED: re-export `export { useQuery } from "@tanstack/react-query"`
 	assert.match(
 		stdout,
 		/publy\(route-query-preload\)/,
-		`expected the CLI to report publy/route-query-preload for a re-exported query hook, got stdout: ${stdout}`,
+		`expected the CLI to report publy/route-query-preload for the local import, not the re-export, got stdout: ${stdout}`,
 	);
 	assert.match(
 		stdout,
 		/`useQuery` \(imported as `useQuery`\)/,
-		`expected the diagnostic to name the canonical hook through the re-export, got stdout: ${stdout}`,
-	);
-});
-
-void test('CLI RED: aliased re-export `export { useQuery as uq } from "@tanstack/react-query"` then `import { uq }` reports the diagnostic (#1978)', () => {
-	const source = [
-		'export { useQuery as uq } from "@tanstack/react-query";',
-		'import { uq } from "./local-shim";',
-		'export const Route = createFileRoute("/probe")({ component: Page });',
-		'const Page = () => {',
-		'  const q = uq({ queryKey: ["x"] });',
-		'  return <div>{String(q.data)}</div>;',
-		'};',
-	].join('\n');
-
-	const stdout = runCliWithDeniedWarnings(source);
-	assert.match(
-		stdout,
-		/publy\(route-query-preload\)/,
-		`expected the CLI to report publy/route-query-preload for an aliased re-export, got stdout: ${stdout}`,
-	);
-	assert.match(
-		stdout,
-		/`uq` \(imported as `useQuery`\)/,
-		`expected the diagnostic to name the alias and the canonical origin through the re-export, got stdout: ${stdout}`,
+		`expected the diagnostic to name the local import binding, got stdout: ${stdout}`,
 	);
 });
 

@@ -106,6 +106,37 @@ export const DEFAULT_TARGETS: ReadonlyArray<{
 		relativePath: path.join('utils', 'validation.utils.ts'),
 		expectedExport: 'getListParamsSchema',
 	},
+	// lib/logger/iso-logger.ts is the lib/-tree representative (#2047 blocker
+	// 3). Its load graph carried two #1868-class extensionless imports —
+	// iso-logger.ts → './logger.utils' (a value import of logLevelHierarchy)
+	// and constants.ts → '../utils/string.utils' — both now carry the real
+	// `.ts` suffix (this fix), so the whole graph loads under
+	// node --experimental-strip-types and the module is pinned below. Nothing
+	// transitive can regress without the guard going RED.
+	{
+		relativePath: path.join('lib', 'logger', 'iso-logger.ts'),
+		expectedExport: 'IsoLogger',
+	},
+	// utils/string.utils.ts is the leaf constants.ts depends on; pinning it
+	// keeps the iso-logger graph's farthest edge loadable on its own.
+	{
+		relativePath: path.join('utils', 'string.utils.ts'),
+		expectedExport: 'makePath',
+	},
+	// BASELINE (narrowed claim, #2047): this list is REPRESENTATIVE, not the
+	// complete packages/shared-ts surface. Runtime (non-type, non-test)
+	// extensionless relative imports still exist in lib/api-failure/index.ts,
+	// lib/query/create-hooks.ts, lib/zod/InterZod.ts, lib/analytics/
+	// iso-analytics.ts, lib/redaction.ts, lib/i18n/resources.ts,
+	// lib/session/index.ts and the validations/ modules; and the bare
+	// lodash/... subpaths without `.js` in utilities/utils/{user,duration,
+	// array}.utils.ts and lib/csp.ts (the same #1868-class form string.utils
+	// used to carry — fixed here). None of those files is a target, so a
+	// suffix/subpath regression inside them is NOT caught by this guard today.
+	// Closing that gap first requires fixing those specifiers (the same #1868
+	// fix, inside packages/shared-ts), a separate change; until then #1882's
+	// full-surface ask is not fulfilled and any claim to the contrary is
+	// false. Revisit this list when those imports are fixed.
 ];
 
 const CHILD_PREFIX = 'check-shared-ts-node-resolution: ';

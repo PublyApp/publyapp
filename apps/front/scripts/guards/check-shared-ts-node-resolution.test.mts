@@ -639,7 +639,7 @@ void test('#1882 invariant: the guard iterates over every DEFAULT_TARGETS entry 
 	// update this assertion, surfacing the class-shrinking decision.
 	assert.equal(
 		DEFAULT_TARGETS.length,
-		5,
-		`DEFAULT_TARGETS must cover at least 5 artifacts to close the class, got ${DEFAULT_TARGETS.length}`,
+		7,
+		`DEFAULT_TARGETS must cover at least 7 artifacts to close the class, got ${DEFAULT_TARGETS.length}`,
 	);
 });
