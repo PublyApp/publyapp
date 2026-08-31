@@ -109,6 +109,7 @@
 		"front-ci.yml::supply-chain::Check front design system",
 		"front-ci.yml::supply-chain::Check front formatting",
 		"front-ci.yml::supply-chain::Check front srvx/static import shape (#1822)",
+		"front-ci.yml::supply-chain::Check route tree freshness (#1808)",
 		"front-ci.yml::supply-chain::Checkout",
 		"front-ci.yml::supply-chain::Install (frozen lockfile, no scripts)",
 		"front-ci.yml::supply-chain::Install Git hooks (mirrors prepare)",
