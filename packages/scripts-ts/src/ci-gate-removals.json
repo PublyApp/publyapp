@@ -12,12 +12,12 @@
 		},
 		{
 			"step_id": "require-linked-issue.yml::pr-body-exhaustiveness::Checkout",
-			"reason": "#2049 pruning: the PR-body prose parser is removed after a verified false positive on quoted and retracted claims. This checkout existed only to run that non-critical parser; the separate require-linked-issue job remains intact.",
+			"reason": "#2049 / owner-approved guard-pruning policy tracked by #2068: the PR-body prose parser, its tests, and this checkout are retired. A sound replacement would require a Markdown and natural-language analyzer disproportionate to this non-runtime policy, so the guard is dropped rather than rebuilt. Honest disclosure: genuine unenumerated or quantified PR-body claims will no longer be rejected automatically — human review owns this check after retirement. The separate require-linked-issue job remains intact and unaffected.",
 			"removed_at": "2026-09-01"
 		},
 		{
 			"step_id": "require-linked-issue.yml::pr-body-exhaustiveness::Verify the PR body makes no unverifiable exhaustiveness claims (#1569)",
-			"reason": "#2049 pruning: this lexical PR-prose check cannot distinguish an assertion from a quotation, retraction, result, or hypothesis. Removing it avoids growing a Markdown and natural-language analyzer; no runtime, security, data, API, supply-chain, or CI-integrity invariant is lost.",
+			"reason": "#2049 / owner-approved guard-pruning policy tracked by #2068: this lexical PR-prose check cannot distinguish an assertion from a quotation, retraction, result, or hypothesis; rebuilding it correctly would require a Markdown and natural-language analyzer disproportionate to this non-runtime policy, so the guard is retired instead of patched. Honest disclosure: the automatic enforcement of evidence-backed, exhaustive PR-body claims is lost — genuine unenumerated or quantified claims will no longer be rejected automatically, and human review owns this check after retirement. No runtime, security, data, API, supply-chain, or CI-integrity invariant is lost; the lost invariant is review-process policy only.",
 			"removed_at": "2026-09-01"
 		}
 	]

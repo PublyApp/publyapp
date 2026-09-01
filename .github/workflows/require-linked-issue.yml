@@ -11,7 +11,6 @@ on:
 permissions:
   contents: read
   issues: read
-  pull-requests: read
 
 # Supersede in-flight runs for the same PR. This job is cheap, but it retriggers
 # on every body edit, so a burst of edits would otherwise queue a run each and
