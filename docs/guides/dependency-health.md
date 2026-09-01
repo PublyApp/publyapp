@@ -121,7 +121,7 @@ above; #880's closure adds the proof, not a new pin.
     remaining `nanoid` in the tree is the transitive `3.3.18` under `postcss`, so
     the 4.x/5.x cap had nothing left to lift and was correctly dropped.
 
-  **Verifiable removal condition for the `<3.3.18` cap** (judged on the *declared*
+  **Verifiable removal condition for the `<3.3.18` cap** (judged on the _declared_
   range, not the resolved version): remove it only when **every** consumer that
   can reach `nanoid@3.x` declares a range whose lower bound is `>=3.3.18` (i.e. no
   declared range can resolve `3.3.16`/`3.3.17`) **and** the CI audit covers the
