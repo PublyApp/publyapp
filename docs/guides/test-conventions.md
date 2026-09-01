@@ -209,9 +209,9 @@ This repo uses **form (3)**. Rationale:
 - Form (3) keeps the test executable as-is and keeps the suite green. The reviewer does:
 
   ```
-  # from the branch that produced the proof, in the worktree that has .dump/
+  # from the branch that produced the proof
   cd apps/front && pnpm exec vitest run --config vitest.preuves.config.ts \
-      .dump/preuves/<issue>/<name>.test.ts
+      tests/proofs/<issue>/<name>.test.ts
   ```
 
   The test runs the same source that produced the original red; the failure message is the
