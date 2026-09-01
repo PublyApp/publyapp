@@ -426,6 +426,12 @@ For writing and debugging integration tests, see:
 
 **Key rules:** `*.Spec.cs` suffix, `ItShould{Expected}{Connector}{Scenario}` method names (connector = `When`/`With`/`Without`/`For`), specs co-located with source, test infra in `Lib/Testing/{Fixtures,Helpers,Fakes}/`
 
+**Bespoke guard admission (hard rule):** new repository-specific executable policy guards are
+forbidden by default. An exception is admissible only when every criterion in
+[`docs/guides/test-conventions.md`](docs/guides/test-conventions.md#bespoke-guard-admission-hard-rule)
+is proved in the proposing PR. Reviewers must reject guards that do not qualify; do not automate
+this admission rule with another guard or meta-guard.
+
 **Paired red/green proofs:** the test that proves a bug is present cannot stay in the suite — by
 construction it FAILS against the corrected code. The convention is to keep it under
 `apps/front/tests/proofs/<issue>/` (versionned, committed) and have the trace name the path plus the

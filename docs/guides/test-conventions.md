@@ -85,15 +85,43 @@ IDE/build-time feedback — e.g. forbidding `?? throw`, the null-forgiving `!`, 
 `TypedResults.Forbid()` at a call site. Issue #357 owns the full classification
 and backlog; analyzer-backed rules wait on the #350 framework.
 
-### Adding a new guard
+### Bespoke guard admission (hard rule)
+
+A bespoke guard is a repository-specific executable policy check, such as a source scanner,
+reference snapshot, ratchet, manifest verifier, architecture scan, or meta-guard. An ordinary test
+of product behaviour, or enabling an existing built-in compiler or linter rule, is not a bespoke
+guard. A custom compiler or linter extension written for this repository is bespoke.
+
+New bespoke guards are **forbidden by default**. A proposing PR must prove every condition below;
+missing one condition means the guard is rejected:
+
+1. A current, reproducible failure demonstrates the problem. A hypothetical risk is not evidence.
+2. The guard protects a critical security, data-integrity, public-contract, build, or release
+   invariant. A style preference or isolated low-impact mistake is not enough.
+3. An ordinary behavioural/unit/integration test, type system, compiler, or existing linter cannot
+   cover the invariant more simply.
+4. The proposed implementation is the smallest viable mechanism and needs no complex parser,
+   reference snapshot, maintenance allowlist, auxiliary manifest, or guard-of-a-guard.
+5. The PR contains a reproducible red/green proof: the defect escapes before the guard and is
+   caught after it.
+6. The PR names the concrete condition that will retire the guard or replace it with a standard
+   tool. A guard with no retirement condition is permanent maintenance debt and is rejected.
+
+A guard gap introduced by a PR must be fixed or removed in that same PR; it does not justify a
+follow-up issue. A separate issue is allowed only for a pre-existing, independently reproducible
+defect with material product, security, data, contract, build, or release impact. Reviewers enforce
+this admission rule directly. Do not add a script, analyzer, manifest, snapshot, or meta-guard to
+enforce the admission rule itself.
+
+If and only if a guard is admitted:
 
 1. Add a `*.Spec.cs` in `Lib/Architecture/` (namespace `PublyApp.Api.Lib.Architecture`).
 2. Discover the types/constants via `ArchitectureDiscoveryHelper` (extend it if a
    new category is needed).
 3. Assert there are no offenders, listing concrete names in the failure message.
 4. Add a vacuity check so the guard can't pass on an empty scan.
-5. If current code isn't clean yet, baseline/allowlist the known violations and
-   ratchet toward zero rather than weakening the rule.
+5. Fix every current violation in the same PR. Do not introduce a baseline, allowlist, or ratchet
+   for a newly admitted guard.
 
 ## Test Using Statements
 
