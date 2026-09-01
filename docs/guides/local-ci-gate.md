@@ -212,19 +212,45 @@ Beyond step reconciliation, the drift guard runs two structural checks that asse
 invariants no single-step hash can capture:
 
 **`SMOKE ENV`** — Any step whose `run:` starts the front standalone server (the
-`pnpm --filter front start` family or `node server.mjs`) must set `NODE_ENV=production`
-in its `env:` block. Without it, `validateRuntimeEnv()` is never exercised on the CI smoke
-path, and removing it from `server.mjs` would pass CI silently. The recognized command
-forms include `pnpm start` with `working-directory: apps/front` — a form that bypassed
-this check before #1941.
+`pnpm --filter front start` / `pnpm --dir apps/front start` family, or
+`node [./]apps/front/server.mjs`) must set **both** `NODE_ENV=production` and a
+non-empty `PUBLIC_ORIGIN` in its `env:` block. Without `NODE_ENV=production`,
+`validateRuntimeEnv()` is never exercised on the CI smoke path, and removing
+it from `server.mjs` would pass CI silently. Without `PUBLIC_ORIGIN`,
+`validateRuntimeEnv()` refuses to start the server at all (otherwise it would
+trust the client's `Host` header when building canonical and Open Graph URLs),
+so the step's smoke probe would never run against a real production server.
+The recognized command forms include `pnpm start` with
+`working-directory: apps/front` — a form that bypassed this check before
+#1941.
 
-**`UPLOAD ARTIFACT`** — Any workflow that uses `actions/upload-artifact` must have at
-least one upload step whose `if:` is unconditional or mentions `success()`/`always()`
-(success-path), and whose enclosing job is not failure-gated. This closes the #1693 gap
-where an upload that only ran on `failure()` satisfied the step-reconciliation manifest
-while the upload/download round-trip stayed unexercised on green runs. The action is
-matched by its exact repo path `^actions/upload-artifact@` — a vendor fork like
-`vendor/actions/upload-artifact-helper@<sha>` does not count.
+**`UPLOAD ARTIFACT`** — Any workflow that uses `actions/upload-artifact` must
+have at least one upload step whose `if:` is unconditional, mentions
+`success()`/`always()` alone, or is the narrow eligibility form
+`needs.<job>.outputs.<key> == '<literal>'` (the matrix-shard pattern), and
+whose enclosing job is not failure-gated. This closes the #1693 gap where an
+upload that only ran on `failure()` satisfied the step-reconciliation manifest
+while the upload/download round-trip stayed unexercised on green runs. The
+guard now treats the following as failure-only (must be named, never
+success-capable):
+
+- `failure()` and `cancelled()` as a bare token (a job whose `if:` is
+  `cancelled()` gates every upload to red; before #1941 round-2 the
+  classifier missed `cancelled()` and the gate turned silently green).
+- Compound expressions that mix success-path and failure-only tokens
+  (e.g. `success() && false`, `always() && cancelled()`) — the guard
+  cannot statically evaluate these and surfaces a named `Unrecognized
+  \`if:\`` finding listing the literal expression rather than guessing.
+- Any other step-derived dynamic guard (`steps.<id>.outputs.<key> == '...'`,
+  fork-rename patterns, custom boolean expressions). The matrix-shard
+  privilege is the *only* dynamic form recognized; a guard that pretended
+  to evaluate GitHub expressions would produce confident green on a mirror
+  that had quietly stopped matching — exactly the failure mode this file
+  exists to prevent.
+
+The action is matched by its exact repo path `^actions/upload-artifact@` —
+a vendor fork like `vendor/actions/upload-artifact-helper@<sha>` does not
+count.
 
 ### Reason guard
 

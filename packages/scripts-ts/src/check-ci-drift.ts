@@ -1191,36 +1191,104 @@ const listWorkflowFiles = async (
 };
 
 /**
- * Classifies a step's `if:` condition into one of three buckets:
- *   - "success-path": runs on green (no `if:`, or mentions `success()` /
- *     `always()` and not `failure()`).
- *   - "failure-only": only on red (the `if:` expression mentions the token
- *     `failure()` in any form).
- *   - "uncertain": anything else — a fork variable rename, a custom boolean
- *     expression, anything the guard does not recognize.
+ * Classifies a step or job `if:` condition into one of three buckets:
+ *   - "success-path": runs on green (no `if:`, or the expression is
+ *     unambiguously success-capable).
+ *   - "failure-only": only on red (the `if:` expression mentions
+ *     `failure()` or `cancelled()` in any form, OR mentions the cancelled
+ *     status as a conjunction operand).
+ *   - "uncertain": anything else — a fork variable, a custom boolean
+ *     expression, a `steps.*` derived dynamic guard, a compound expression
+ *     that the guard cannot statically evaluate (e.g. `success() && false`,
+ *     `always() && cancelled()`).
+ *
+ * #1941 round-2: the classifier must integrate the enclosing JOB's `if:`
+ * as well as the step's, and recognize `cancelled()` as failure-only
+ * (the previous shape classified `cancelled()` as uncertain, then ignored
+ * it because no `failure()` was present — turning the whole
+ * checkUploadArtifactSuccessPath guard false green).
+ *
+ * The classifier also recognizes ONE narrow dynamic guard as success-capable:
+ * the exact form `needs.<job>.outputs.<key> == '<literal>'`. This is the
+ * matrix-shard eligibility pattern front-ci.yml uses (one job per shard whose
+ * `if:` is `needs.changes.outputs.relevant == 'true'`). The privilege is
+ * NOT extended to `steps.<id>.outputs.<key>` (a step-output-derived dynamic
+ * guard that the guard cannot statically evaluate), nor to any other
+ * expression form — a guard that pretends to evaluate GitHub expressions
+ * would produce confident green on a mirror that had quietly stopped
+ * matching, exactly the failure mode this file exists to prevent.
  */
 const classifyIfCondition = (
-	stepIf: string,
+	condition: string,
 ): 'success-path' | 'failure-only' | 'uncertain' => {
-	const text = stepIf.trim();
+	const text = condition.trim();
 	if (text === '') {
 		return 'success-path';
 	}
-	if (/(?:^|[^A-Za-z0-9_])failure\s*\(\s*\)/.test(text)) {
+
+	// Failure-only when the WHOLE expression is a single token from
+	// {failure(), cancelled()}. A compound expression that mentions
+	// `failure()` or `cancelled()` alongside another operand (e.g.
+	// `always() && cancelled()`, `success() || failure()`) is a
+	// contradiction the guard cannot statically evaluate; classify it
+	// uncertain and surface a named finding rather than silently
+	// counting it as failure-only. The bare-token check uses a strict
+	// anchor at both ends so leading/trailing whitespace and parens are
+	// allowed but compound operators are not.
+	const bareFailureOnly = /^(?:\s*(?:failure|cancelled)\s*\(\s*\)\s*)$/.test(
+		text,
+	);
+	if (bareFailureOnly) {
 		return 'failure-only';
 	}
+
+	// THE NARROW PRIVILEGE: the exact eligibility form
+	// `needs.<job>.outputs.<key> == '<literal>'` is recognized as
+	// success-capable. This is the matrix-shard eligibility pattern
+	// front-ci.yml uses (one job per shard whose `if:` gates on
+	// needs.changes.outputs.relevant == 'true'). The privilege is NOT
+	// extended to `steps.<id>.outputs.<key>` (a step-output-derived dynamic
+	// guard) nor to any other dynamic expression — a guard that pretended
+	// to evaluate GitHub expressions would produce confident green on a
+	// mirror that had quietly stopped matching, exactly the failure mode
+	// this file exists to prevent.
 	if (
-		/(?:^|[^A-Za-z0-9_])success\s*\(\s*\)/.test(text) ||
-		/(?:^|[^A-Za-z0-9_])always\s*\(\s*\)/.test(text)
+		/^\s*needs\.[A-Za-z0-9_-]+\.outputs\.[A-Za-z0-9_-]+\s*==\s*['"][^'"]+['"]\s*$/.test(
+			text,
+		)
 	) {
 		return 'success-path';
 	}
+
+	// success() and always() alone — but ONLY when they are the WHOLE
+	// expression. A compound expression like `success() && false` or
+	// `always() && cancelled()` is a contradiction that the guard cannot
+	// statically evaluate; classify it uncertain and surface a named finding
+	// rather than silently counting it as success-capable.
+	const trimmed = text.replace(/\s+/g, '');
+	if (
+		trimmed === 'success()' ||
+		trimmed === 'always()' ||
+		/^(?:success\(\)|always\(\))$/.test(text)
+	) {
+		return 'success-path';
+	}
+
 	return 'uncertain';
 };
 
+// #1941 round-2: equivalent front-start command forms. The previous shape
+// only recognized `pnpm --filter front start` and bare `node server.mjs`,
+// missing the GitHub-recommended `pnpm --dir apps/front start` form and the
+// relative-path `node ./apps/front/server.mjs` form. Both must trigger the
+// NODE_ENV=production + PUBLIC_ORIGIN guard. The bare `pnpm start` family is
+// retained only for the form running under `working-directory: apps/front`
+// (out of scope for a guard that reads run: text — see the guide note).
 const frontStartCommandPatterns: RegExp[] = [
 	/\bpnpm\s+--filter\s+front\s+(?:run\s+)?start(?![\w:-])/,
-	/node\s+(?:apps\/front\/)?server\.mjs\b/,
+	/\bpnpm\s+--dir\s+apps\/front\s+(?:run\s+)?start(?![\w:-])/,
+	/\bnode\s+(?:\.\/)?apps\/front\/server\.mjs\b/,
+	/\bnode\s+server\.mjs\b/,
 	/\bpnpm\s+(?:run\s+)?start(?![\w:-])/,
 ];
 
@@ -1233,6 +1301,17 @@ const isUploadArtifactStep = (uses: string): boolean =>
 /**
  * #1914: The front-ci.yml smoke-start step must run with NODE_ENV=production
  * in its env block.
+ *
+ * #1941 round-2: the step must ALSO set a non-empty PUBLIC_ORIGIN. Without
+ * it, validateRuntimeEnv() refuses to start the server (otherwise the
+ * server would trust the client's Host header when building canonical and
+ * Open Graph URLs), so removing PUBLIC_ORIGIN from the smoke step silently
+ * breaks the production contract — every other env var can be set and the
+ * step still fails to start the server. The PUBLIC_ORIGIN value just has to
+ * be a non-empty string; we do not validate it as a URL because the step's
+ * own curl probe (to whatever origin this step actually curls) is what
+ * makes the value meaningful, and the guard cannot evaluate GitHub
+ * expressions.
  */
 export const checkSmokeStepProductionEnv = async (
 	rootDir: string,
@@ -1264,11 +1343,19 @@ export const checkSmokeStepProductionEnv = async (
 				}
 
 				const env = step.env ?? {};
+				const stepName = step.name ?? '';
+				const loc = `${file}::${jobId}::${stepName}`;
+
 				if (env.NODE_ENV !== 'production') {
-					const stepName = step.name ?? '';
-					const loc = `${file}::${jobId}::${stepName}`;
 					findings.push(
-						`SMOKE ENV  ${loc}\n    This step starts the front standalone server (its \`run:\` matches the front \`start\` command — \`pnpm --filter front start\` family or \`node server.mjs\`), so it must set NODE_ENV=production in its \`env:\` block to exercise validateRuntimeEnv() on the CI smoke path. Currently NODE_ENV is absent or not "production". Without it, removing validateRuntimeEnv() from server.mjs would pass CI silently.`,
+						`SMOKE ENV  ${loc}\n    This step starts the front standalone server (its \`run:\` matches the front \`start\` command — \`pnpm --filter front start\`, \`pnpm --dir apps/front start\`, or \`node [./]apps/front/server.mjs\`), so it must set NODE_ENV=production in its \`env:\` block to exercise validateRuntimeEnv() on the CI smoke path. Currently NODE_ENV is absent or not "production". Without it, removing validateRuntimeEnv() from server.mjs would pass CI silently.`,
+					);
+				}
+
+				const publicOrigin = env.PUBLIC_ORIGIN;
+				if (typeof publicOrigin !== 'string' || publicOrigin.trim() === '') {
+					findings.push(
+						`SMOKE ENV  ${loc}\n    This step starts the front standalone server with NODE_ENV=production but its \`env:\` block is missing a non-empty PUBLIC_ORIGIN. validateRuntimeEnv() refuses to start the server without it (otherwise the server would trust the client's Host header when building canonical and Open Graph URLs), so this step's smoke probe would never run against a real production server. Set PUBLIC_ORIGIN to the origin this step actually curls so resolveOrigin's configured origin and the request host agree.`,
 					);
 				}
 			}
