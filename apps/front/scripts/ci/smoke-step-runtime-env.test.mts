@@ -175,7 +175,7 @@ void test('smoke step actually starts the production server and serves a stylesh
 
 	const stylesheetPattern = /rel="stylesheet"[^>]*href="[^"]+\.css"/;
 	const deadline = Date.now() + 20_000;
-	let lastError: unknown = null;
+	let lastError: Error | null = null;
 	let html: string | null = null;
 
 	try {
@@ -192,7 +192,7 @@ void test('smoke step actually starts the production server and serves a stylesh
 					break;
 				}
 			} catch (error) {
-				lastError = error;
+				lastError = error instanceof Error ? error : new Error(String(error));
 			}
 			await new Promise((resolve) => setTimeout(resolve, 500));
 		}
