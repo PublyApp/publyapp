@@ -84,27 +84,53 @@ export const usePreloadIntentQueries = () => {
 					// it sets one) is honored so a fresh cache entry stays
 					// untouched (§6).
 					//
+					// When the factory does NOT define `staleTime`, the
+					// property is OMITTED from the preload call: an explicit
+					// `staleTime: undefined` overwrites the QueryClient
+					// `defaultOptions.queries.staleTime` of 30s and collapses
+					// the freshness window to zero, causing the destination
+					// mount to refetch the same payload (JS spread semantics
+					// lock the later `undefined` as the final value). This
+					// is the exact correction for the freshness contract that
+					// invitation E2E caught: a fresh preload must satisfy
+					// mount without a duplicate GET.
+					//
 					// Preload is speculative: a 401 from a hovered link means
 					// "the real request at mount will explain itself", never
 					// "log out now" (plan §2). `handleAuthedQueryError` skips
 					// queries whose options carry
 					// `meta.skipAuthedErrorBackstop`, so the preload fetch is
 					// marked; every rejection is still swallowed below.
+					//
+					// Read `staleTime` against the supported TanStack contract
+					// (`StaleTime = number | 'static'`, types.ts:108 of
+					// @tanstack/query-core@5.102.3 — verified). `'static'`
+					// makes the query never considered stale and is the
+					// canonical preload-mode value (see `isStaleByTime('static')`,
+					// hydration-DFwTM9vM.d.ts:137). Narrowing the test to
+					// `typeof === 'number'` would silently drop `'static'` and
+					// regress the freshness contract for any caller that
+					// explicitly opts into a never-stale preload. Only
+					// `undefined` (factory silent on freshness) triggers the
+					// omit-the-property branch, so the QueryClient's
+					// `defaultOptions.queries.staleTime` of 30s is honored.
 					const { staleTime } = entry.options as {
-						staleTime?: number;
+						staleTime?: number | 'static';
 					};
-					void queryClient
-						.query({
-							queryKey,
-							queryFn: () => entry.options.fetcher(variables),
-							staleTime,
-							meta: { skipAuthedErrorBackstop: true },
-						})
-						.catch(() => {
-							// Intentionally swallowed: preload failures are
-							// silent by design. The mount-time query owns any
-							// error display.
-						});
+					const baseOptions = {
+						queryKey,
+						queryFn: () => entry.options.fetcher(variables),
+						meta: { skipAuthedErrorBackstop: true },
+					};
+					const queryOptions =
+						staleTime === undefined
+							? baseOptions
+							: { ...baseOptions, staleTime };
+					void queryClient.query(queryOptions).catch(() => {
+						// Intentionally swallowed: preload failures are
+						// silent by design. The mount-time query owns any
+						// error display.
+					});
 				}
 			}
 		});

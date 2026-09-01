@@ -30,13 +30,13 @@ type FakePayload = { ok: boolean; id: string };
 type FakeFactoryOptions<TVariables extends Record<string, unknown>, TData> = {
 	queryKey?: (vars: TVariables) => readonly unknown[];
 	fetcher?: (vars: TVariables) => Promise<TData>;
-	staleTime?: number;
+	staleTime?: number | 'static';
 };
 
 type FakeFactory<TVariables extends Record<string, unknown>, TData> = {
 	queryKey: (variables: TVariables) => readonly unknown[];
 	fetcher: (variables: TVariables) => Promise<TData>;
-	staleTime?: number;
+	staleTime?: number | 'static';
 };
 
 const makeFakeFactory = <
@@ -66,15 +66,18 @@ const makeFakeFactory = <
 // quiet on the produced factory (it has generic return types, verified
 // at packages/lint-ts/src/anti-slop/rules/no-unknown-returns.ts: the
 // rule short-circuits on `alias.typeParameters !== null`). The
-// intersection with `{ staleTime?: number }` extends the production
-// shape with the test-only `staleTime` field used by tests (b) and
-// (c) to assert cache-freshness behavior.
+// intersection with `{ staleTime?: number | 'static' }` extends the production
+// shape with the test-only `staleTime` field used by tests (b), (c), and
+// (f) to assert cache-freshness behavior. `'static'` is part of the
+// supported TanStack `StaleTime` contract (number | 'static', verified at
+// @tanstack/query-core@5.102.3 types.ts:108).
 const asRoutePreloadFactory = <
 	TVariables extends Record<string, unknown>,
 	TData,
 >(
 	factory: FakeFactory<TVariables, TData>,
-): RoutePreloadFactory<TVariables, TData> & { staleTime?: number } => factory;
+): RoutePreloadFactory<TVariables, TData> & { staleTime?: number | 'static' } =>
+	factory;
 
 // ---------------------------------------------------------------------------
 // Router harness — mount the hook inside a real React component, so the
@@ -98,6 +101,11 @@ const mountHarness = async <TData,>(
 	queryCacheConfig?: { onError: (error: unknown, query: unknown) => void },
 ): Promise<Harness> => {
 	const queryClient = new QueryClient({
+		// Mirror the production `defaultOptions.queries.staleTime` of 30s
+		// (router.tsx) so the harness exercises the same freshness contract
+		// the real app relies on — without it, the `staleTime` correction in
+		// `preload-intent.ts` is untestable as a contract.
+		defaultOptions: { queries: { staleTime: 30_000 } },
 		queryCache: queryCacheConfig ? new QueryCache(queryCacheConfig) : undefined,
 	});
 
@@ -277,5 +285,108 @@ describe('usePreloadIntentQueries', () => {
 		expect(cached).toBeDefined();
 		expect(cached?.state.status).toBe('error');
 		expect(cached?.options.meta).toEqual({ skipAuthedErrorBackstop: true });
+	});
+
+	// ---------------------------------------------------------------------------
+	// Conditional-spread freshness contract — the exact correction for the
+	// `staleTime: undefined` regression. An explicit `staleTime: undefined`
+	// in the preload call would overwrite the QueryClient
+	// `defaultOptions.queries.staleTime` of 30s and collapse the freshness
+	// window to zero, so the destination mount refetches the same payload.
+	// The fix omits `staleTime` from the preload call when the factory does
+	// not define one; an explicitly supplied `staleTime` (numeric or the
+	// TanStack-supported `'static'` literal) is preserved verbatim.
+	// ---------------------------------------------------------------------------
+
+	test('d — factory without staleTime inherits QueryClient default and avoids a second fetch on mount', async () => {
+		const fetcher = vi.fn().mockResolvedValue({ ok: true, id: 'x' });
+		const factory = makeFakeFactory<{ id: string }>({
+			queryKey: (vars) => ['test', vars.id],
+			fetcher,
+			// NOTE: no staleTime — the factory is silent on it.
+		});
+		const harness = await mountHarness(factory);
+		const defaultStaleTime =
+			harness.queryClient.getDefaultOptions().queries?.staleTime;
+		expect(defaultStaleTime).toBe(30_000);
+
+		await harness.router.navigate({ to: '/test' });
+		await waitFor(() => {
+			expect(fetcher).toHaveBeenCalledTimes(1);
+		});
+
+		// Re-navigate while the cache entry is still fresh: the default 30s
+		// window must hold, so the mount-time query serves the cache and the
+		// fetcher is NOT called again. This is the exact regression the
+		// invitation E2E caught when an explicit `staleTime: undefined` was
+		// overwriting the default to zero.
+		await harness.router.navigate({ to: '/' });
+		await harness.router.navigate({ to: '/test' });
+		await new Promise((resolve) => setTimeout(resolve, 0));
+		expect(fetcher).toHaveBeenCalledTimes(1);
+	});
+
+	test('e — explicitly supplied factory staleTime is preserved on the preload call', async () => {
+		const fetcher = vi.fn().mockResolvedValue({ ok: true, id: 'x' });
+		const factory = makeFakeFactory<{ id: string }>({
+			queryKey: (vars) => ['test', vars.id],
+			fetcher,
+			staleTime: 60_000,
+		});
+		const { queryClient, router } = await mountHarness(factory);
+
+		await router.navigate({ to: '/test' });
+		await waitFor(() => {
+			expect(fetcher).toHaveBeenCalledTimes(1);
+		});
+
+		// The cached entry must carry the factory's explicit staleTime,
+		// proving the conditional spread only injects `staleTime` when the
+		// factory actually defines one. `Query.options` is typed as
+		// `QueryOptions` (which lacks `staleTime` — the field lives on the
+		// `QueryExecuteOptions` we pass to `queryClient.query`), so we
+		// narrow through the supported `StaleTime = number | 'static'`
+		// contract the implementation honors.
+		const cached = queryClient
+			.getQueryCache()
+			.find({ queryKey: ['test', 'x'] });
+		expect(cached).toBeDefined();
+		const cachedStaleTime = (
+			cached?.options as { staleTime?: number | 'static' }
+		).staleTime;
+		expect(cachedStaleTime).toBe(60_000);
+	});
+
+	test("f — explicitly supplied 'static' staleTime is preserved on the preload call", async () => {
+		// `'static'` is part of the supported TanStack `StaleTime` contract
+		// (number | 'static', @tanstack/query-core@5.102.3 types.ts:108) and
+		// the canonical preload-mode value: `isStaleByTime('static')` always
+		// returns false (hydration-DFwTM9vM.d.ts:137), so the cached entry
+		// is never considered stale. The conditional-spread fix must NOT
+		// silently drop `'static'`: if it did, this test would observe
+		// `undefined` on the cached entry's `options.staleTime` (the
+		// default 30s would still apply at runtime, but the documented
+		// contract the caller asked for would be lost on the call site).
+		const fetcher = vi.fn().mockResolvedValue({ ok: true, id: 'x' });
+		const factory = makeFakeFactory<{ id: string }>({
+			queryKey: (vars) => ['test', vars.id],
+			fetcher,
+			staleTime: 'static',
+		});
+		const { queryClient, router } = await mountHarness(factory);
+
+		await router.navigate({ to: '/test' });
+		await waitFor(() => {
+			expect(fetcher).toHaveBeenCalledTimes(1);
+		});
+
+		const cached = queryClient
+			.getQueryCache()
+			.find({ queryKey: ['test', 'x'] });
+		expect(cached).toBeDefined();
+		const cachedStaleTime = (
+			cached?.options as { staleTime?: number | 'static' }
+		).staleTime;
+		expect(cachedStaleTime).toBe('static');
 	});
 });
