@@ -76,6 +76,7 @@ vi.mock('@tanstack/react-router', () => ({
 				pathname: mocks.resolvedPathname ?? mocks.pathname,
 			},
 		}),
+	useQueryClient: () => ({}),
 	useNavigate: () => mocks.navigate,
 	// The portal's redirects are declarative `<Navigate>` elements now; the
 	// stub funnels them through the same `mocks.navigate` spy the assertions
@@ -95,6 +96,13 @@ vi.mock('@tanstack/react-query', () => ({
 		error: undefined,
 		status: 'success' as const,
 	}),
+	useQueryClient: () => ({}),
+}));
+
+// usePreloadIntentQueries is mounted in AuthedWorkspaceShell (#2007); this suite
+// has no QueryClient. The hook's own behaviour is tested in preload-intent.test.tsx.
+vi.mock('~/lib/query/preload-intent', () => ({
+	usePreloadIntentQueries: () => undefined,
 }));
 
 vi.mock('~/lib/hooks/use-hydrated', () => ({

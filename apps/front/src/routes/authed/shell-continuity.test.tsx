@@ -29,6 +29,12 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('@tanstack/react-query', () => ({
 	useQuery: () => mocks.sessionQueryState,
+	useQueryClient: () => ({}),
+}));
+// usePreloadIntentQueries is mounted in AuthedWorkspaceShell (#2007); this suite
+// has no QueryClient. The hook's own behaviour is tested in preload-intent.test.tsx.
+vi.mock('~/lib/query/preload-intent', () => ({
+	usePreloadIntentQueries: () => undefined,
 }));
 
 vi.mock('@tanstack/react-router', async (importOriginal) => {
