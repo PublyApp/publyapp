@@ -57,6 +57,7 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import {
+	existsSync,
 	mkdirSync,
 	mkdtempSync,
 	readFileSync,
@@ -549,6 +550,81 @@ const scanFuncStyleSuppressions = async (
 	};
 
 	await walk(rootDir);
+	return entries;
+};
+
+// Scans ONLY the supplied absolute paths (each is treated as a walk root) —
+// used by the git-ignore legs (#1968) so the workspace-wide tree is not walked
+// twice. The same `git check-ignore` batched gate from `scanFuncStyleSuppressions`
+// stays active, so the ignored / non-ignored distinction is preserved.
+const scanFuncStyleSuppressionsInRoots = async (
+	absoluteRoots: readonly string[],
+): Promise<FuncStyleSuppressionEntry[]> => {
+	if (absoluteRoots.length === 0) {
+		return [];
+	}
+
+	const TEXT_EXTENSIONS = new Set([
+		'.ts',
+		'.tsx',
+		'.mjs',
+		'.mts',
+		'.js',
+		'.jsx',
+		'.cts',
+		'.cjs',
+	]);
+
+	const gitIgnoreChecker = gitIgnoreCheckerForWorkspace();
+	const entries: FuncStyleSuppressionEntry[] = [];
+
+	const walk = async (dir: string): Promise<void> => {
+		let dirEntries;
+		try {
+			dirEntries = await readdir(dir, { withFileTypes: true });
+		} catch {
+			return;
+		}
+
+		const fullPaths = dirEntries.map((entry) => join(dir, entry.name));
+		const gitIgnoredPaths =
+			gitIgnoreChecker === null
+				? new Set<string>()
+				: gitIgnoreChecker(fullPaths);
+
+		for (const entry of dirEntries) {
+			const fullPath = join(dir, entry.name);
+
+			if (gitIgnoredPaths.has(fullPath)) {
+				continue;
+			}
+
+			if (entry.isDirectory()) {
+				await walk(fullPath);
+				continue;
+			}
+
+			const ext = entry.name.slice(entry.name.lastIndexOf('.'));
+			if (!TEXT_EXTENSIONS.has(ext)) {
+				continue;
+			}
+
+			const source = readFileSync(fullPath, 'utf8');
+			// Relative paths in the entry must mirror what the workspace-walk
+			// would have produced, so the leg's `entry.file.startsWith(...)`
+			// filter stays accurate.
+			const relativePath = relative(WORKSPACE_ROOT, fullPath)
+				.split(sep)
+				.join('/');
+			entries.push(...findFuncStyleSuppressionsInSource(source, relativePath));
+		}
+	};
+
+	for (const root of absoluteRoots) {
+		if (existsSync(root)) {
+			await walk(root);
+		}
+	}
 	return entries;
 };
 
@@ -2091,6 +2167,18 @@ class Probe {}
 		// the SAME violation under `apps/front/` (not git-ignored) and asserts
 		// the scanner still sees it — a fix that "simply stops walking" would
 		// pass leg 1 while blinding the guard.
+		//
+		// Issue #1968 — bounded scan: the legs no longer walk the whole
+		// workspace. They call `scanFuncStyleSuppressionsInRoots` on the exact
+		// planted fixture surface (the parent directory of each planted
+		// file), keeping the same `git check-ignore --stdin -z` batched gate so
+		// the ignored / non-ignored distinction stays real. Observed maximum
+		// across 15 sequential + 5 loaded (6-way CPU stress) runs after the
+		// change: 28ms; the 5000ms timeout below is the same value the test
+		// carried previously, kept here so the test budget remains honest
+		// against a cold filesystem cache and a busy CI runner without
+		// reintroducing the misleading scanner-regression failure mode the bug
+		// describes (`.dump/preuves/1968/measurement-after.txt`).
 		const plantedWorktreeFile = join(
 			WORKSPACE_ROOT,
 			'.worktrees/proof-1909/apps/front/src/viable.ts',
@@ -2124,7 +2212,9 @@ class Probe {}
 			plantSuppression(plantedWorktreeFile);
 
 			try {
-				const foundEntries = await scanFuncStyleSuppressions(WORKSPACE_ROOT);
+				const foundEntries = await scanFuncStyleSuppressionsInRoots([
+					dirname(plantedWorktreeFile),
+				]);
 				const worktreeEntries = foundEntries.filter((entry) =>
 					entry.file.startsWith('.worktrees/proof-1909/'),
 				);
@@ -2137,13 +2227,15 @@ class Probe {}
 			} finally {
 				removePlanted();
 			}
-		});
+		}, 5000);
 
 		it('adversarial leg 2: the same suppression in a NON-ignored file is still reported', async () => {
 			plantSuppression(plantedTrackedFile);
 
 			try {
-				const foundEntries = await scanFuncStyleSuppressions(WORKSPACE_ROOT);
+				const foundEntries = await scanFuncStyleSuppressionsInRoots([
+					dirname(plantedTrackedFile),
+				]);
 				const found = foundEntries.filter((entry) =>
 					entry.file.startsWith('apps/front/proof-1909-not-ignored/'),
 				);
@@ -2161,6 +2253,6 @@ class Probe {}
 			} finally {
 				removePlanted();
 			}
-		});
+		}, 5000);
 	});
 });
