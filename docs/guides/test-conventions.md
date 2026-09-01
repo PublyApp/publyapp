@@ -169,8 +169,9 @@ For the complete guide on writing and debugging integration tests, see:
 
 ## Paired Red/Green Proofs — keeping the red test alive (issue #1659)
 
-In this repo, the **paired red-then-green proof** is the criterion that distinguishes a real test
-from a decorative one. The red side is the harder half: a test that proves a bug *is* present
+When a PR claims a **paired red-then-green proof**, that proof distinguishes a regression test
+that catches the stated defect from a decorative one. The red side is the harder half: a test that
+proves a bug *is* present
 must, by construction, **fail** against the corrected code. Leaving it in the suite would make
 the suite permanently red, so the historical pattern has been to capture the red, paste the output
 into a trace, and **delete the test**. Issue #1659 names what that costs: a pasted output is not
@@ -178,9 +179,12 @@ replayable, so the reviewer either trusts the trace or rebuilds the test from sc
 got away with it because the case was small; a concurrency or rendering proof cannot be
 reconstructed cheaply, and at that point the proof stops being reviewed at all.
 
-This section is the convention. It is normative for any new **paired bug/regression proof** produced
-in this repo. A bespoke guard's admission evidence follows the technology-neutral fixture/mutation
-rule above and does not create a kept-red test unless the PR separately claims a bug/regression proof.
+This section is normative for a new **paired bug/regression proof** declared under the supported
+front path below, and documents the legacy API trace form. It does not require every bug fix in every
+repository surface to create a kept-red proof: no repo-wide runner or location exists for other
+surfaces. Those changes use ordinary regression tests and review evidence. A bespoke guard's
+admission evidence follows the technology-neutral fixture/mutation rule above and does not create a
+kept-red test unless the PR separately declares a supported paired bug/regression proof.
 
 ### The form: keep the test, in a dedicated location, named by the trace
 
@@ -305,6 +309,10 @@ explain why each still falls short.
 
 ### Proof-of-limitation cases (no mutation)
 
+This is an optional evidence category, not a bug/regression proof and not required by the bug-fix
+scope below. If a front PR deliberately declares one, the same kept-red path and replay mechanics
+apply.
+
 Some paired proofs are **proofs of limitation**, not proofs of a bug. The red test asserts an
 *ideal* behavior the correct code deliberately does not satisfy (a known trade-off, not a defect),
 so the red is produced by the **correct code as committed** — there is no mutation to apply.
@@ -347,7 +355,12 @@ proofs to run, not *what* they prove.
 
 ### When this convention does not apply
 
-A kept-red paired proof is required for **bug fixes** and regression tests that pin a known loss.
+A PR opts into this convention by declaring a supported front proof under
+`apps/front/tests/proofs/<issue>/`. Once declared, every kept-red and replay requirement in this
+section is mandatory. The legacy API trace form remains documented above; this section does not
+create a universal kept-red requirement for API, Node/CI, generators, custom linters, or other
+repository surfaces that have no supported runner and versioned proof location.
+
 An admitted executable guard still requires red/green admission evidence, but supplies it through a
 co-located violating fixture or documented temporary mutation as defined above, not a permanently
 red test. A kept-red paired proof is **not** required for:
