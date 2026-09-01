@@ -1169,3 +1169,193 @@ describe('proof replay — CI mode declared proof file missing from disk is name
 		}
 	}, 120000);
 });
+
+// ---------------------------------------------------------------------------
+// #1940: a wholly deleted tests/proofs/<X>/ directory and a renamed/moved
+// proof file out of the subtree must be refused loud by the runner.
+//
+// The pre-#1940 code used `git diff --name-only` and filtered to the
+// `.test.ts` / `.test.tsx` extensions. A wholly-deleted subtree produced
+// zero entries (the diff filter dropped them — but more importantly the
+// runner then hit the working-tree existsSync check, which already
+// short-circuited to "no proofs declared"), and the rename case removed
+// the file from the declared set silently. The fix must classify the
+// entry from git's name-status data and refuse the deletion/rename loud,
+// naming the lexical path.
+// ---------------------------------------------------------------------------
+
+/**
+ * Build a throwaway git repo where the PR commit DELETES or RENAMES proof
+ * files under `apps/front/tests/proofs/`. Commit 1 = app shell + a doomed
+ * proof file under tests/proofs/1940/. Commit 2 = the deletion or rename.
+ * The repo shape mirrors `buildReplayFixture` so the runner's local-mode
+ * diff (HEAD~1..HEAD) sees exactly the destructive change the test wants
+ * it to refuse.
+ */
+const buildDeletionFixture = (mode: 'subtree' | 'rename'): string => {
+	const root = mkdtempSync(join(tmpdir(), 'preuve-deletion-'));
+	const appDir = join(root, 'apps', 'front');
+	const proofDir = join(appDir, 'tests', 'proofs', '1940');
+	mkdirSync(proofDir, { recursive: true });
+
+	writeFileSync(
+		join(appDir, 'package.json'),
+		'{"name":"preuve-deletion-fixture","private":true,"type":"module","packageManager":"pnpm@10.13.1"}\n',
+	);
+	writeFileSync(
+		join(appDir, 'vitest.preuves.config.ts'),
+		[
+			"import { defineConfig } from 'vitest/config';",
+			'',
+			'export default defineConfig({',
+			'\ttest: {',
+			"\t\tenvironment: 'node',",
+			"\t\tinclude: ['tests/proofs/**/*.{test.ts,test.tsx}'],",
+			'\t\texclude: [],',
+			'\t},',
+			'});',
+			'',
+		].join('\n'),
+	);
+	const fixtureNodeModules = join(appDir, 'node_modules');
+	const storeVitestDir = join(
+		REAL_FRONT_NODE_MODULES,
+		readlinkSync(join(REAL_FRONT_NODE_MODULES, 'vitest')),
+	);
+	const storePkgDir = basename(dirname(dirname(storeVitestDir)));
+	mkdirSync(join(fixtureNodeModules, '.pnpm', storePkgDir, 'node_modules'), {
+		recursive: true,
+	});
+	symlinkSync(
+		storeVitestDir,
+		join(fixtureNodeModules, '.pnpm', storePkgDir, 'node_modules', 'vitest'),
+		'dir',
+	);
+	symlinkSync(storeVitestDir, join(fixtureNodeModules, 'vitest'), 'dir');
+	mkdirSync(join(fixtureNodeModules, '.bin'), { recursive: true });
+	symlinkSync(
+		join(storeVitestDir, 'vitest.mjs'),
+		join(fixtureNodeModules, '.bin', 'vitest'),
+	);
+
+	// Commit 1: app shell + a doomed proof file under tests/proofs/1940/.
+	writeFileSync(
+		join(proofDir, 'doomed.test.ts'),
+		[
+			"import { describe, expect, test } from 'vitest';",
+			'',
+			"describe('1940 deletion fixture', () => {",
+			"\ttest('fails on an assertion (would be replayed as a kept-red proof)', () => {",
+			'\t\texpect(1).toBe(2);',
+			'\t});',
+			'});',
+			'',
+		].join('\n'),
+	);
+	execSync('git init -q -b main', { cwd: root });
+	execSync('git config user.email preuve-fixture@example.com', { cwd: root });
+	execSync('git config user.name preuve-fixture', { cwd: root });
+	execSync(
+		'git add apps/front/package.json apps/front/vitest.preuves.config.ts apps/front/tests/proofs',
+		{ cwd: root },
+	);
+	execSync('git commit -qm base-with-proof', { cwd: root });
+
+	if (mode === 'subtree') {
+		// `git rm -r` the entire tests/proofs/1940 subtree. The
+		// runner's diff filter previously dropped these entries
+		// (the path-prefix filter matched no remaining file), the
+		// declared list was empty, and the runner exited 0 with
+		// "no proofs declared" — a silent false-green that
+		// verified nothing.
+		execSync('git rm -rq apps/front/tests/proofs/1940', { cwd: root });
+	} else {
+		// `git mv` the proof OUT of tests/proofs/. The new path
+		// does NOT start with `apps/front/tests/proofs/`, so the
+		// pre-#1940 path-prefix filter silently dropped it — the
+		// runner saw zero declared proofs and exited 0 even though
+		// the proof had been moved out of the protected subtree.
+		execSync('mkdir -p apps/front/tests/elsewhere', { cwd: root });
+		execSync(
+			'git mv apps/front/tests/proofs/1940/doomed.test.ts apps/front/tests/elsewhere/moved.test.ts',
+			{ cwd: root },
+		);
+	}
+	execSync('git commit -qm destructive-change', { cwd: root });
+	return root;
+};
+
+describe('proof replay — wholly deleted tests/proofs/<X>/ subtree is refused loud (#1940)', () => {
+	test('a wholly-deleted tests/proofs/<X>/ subtree fails loud naming the directory, never exits 0 silently', () => {
+		// The defect class: the runner used `git diff --name-only`,
+		// the path-prefix filter, and the working-tree existsSync
+		// check. A wholly-deleted subtree produced an empty declared
+		// list and the runner exited 0 — a silent green that
+		// verified nothing. The fix must inspect git name-status,
+		// detect the deletion, and refuse it loud naming the path.
+		const root = buildDeletionFixture('subtree');
+		try {
+			const result = runReplayFixture(root);
+
+			// Must NOT be a silent green.
+			expect(result.status).not.toBe(0);
+			// The error must name the deleted subtree so the
+			// operator can find it. The directory lexical path
+			// (tests/proofs/1940/) is the most useful signal.
+			expect(result.stderr).toContain('tests/proofs/1940/');
+			// The deleted file's lexical path must also be named.
+			expect(result.stderr).toContain('doomed.test.ts');
+			// The silent false-green messages must be gone: no
+			// "no proofs declared" message, no all-green summary.
+			expect(result.stdout).not.toContain(
+				'This PR did not declare any paired red proofs',
+			);
+			expect(result.stdout).not.toContain(
+				'All declared proof tests behaved as expected.',
+			);
+			// The cause must read as a deletion, not corruption.
+			expect(result.stderr).not.toContain('CORRUPT PROOF');
+		} finally {
+			rmSync(root, { recursive: true, force: true });
+		}
+	}, 120000);
+});
+
+describe('proof replay — a proof renamed/moved OUT of tests/proofs/ is refused loud (#1940)', () => {
+	test('a renamed proof whose new path is outside tests/proofs/ fails loud naming both old and new paths', () => {
+		// Adversarial bypass: a delete-and-add-replacement pair would
+		// still leave the original proof intact, but a MOVE out of
+		// the subtree silently removes protection without deleting
+		// the file. The pre-#1940 path-prefix filter dropped any
+		// entry whose path was not under apps/front/tests/proofs/,
+		// so a renamed-out file showed up as zero declared proofs
+		// and the runner exited 0 — a silent green. The fix must
+		// read git name-status, see the rename, and refuse it loud
+		// naming both old and new paths.
+		const root = buildDeletionFixture('rename');
+		try {
+			const result = runReplayFixture(root);
+
+			expect(result.status).not.toBe(0);
+			// The old path (where the proof used to live) must be named.
+			expect(result.stderr).toContain(
+				'apps/front/tests/proofs/1940/doomed.test.ts',
+			);
+			// The new path (where it was moved to) must be named.
+			expect(result.stderr).toContain(
+				'apps/front/tests/elsewhere/moved.test.ts',
+			);
+			// The silent false-green must be gone.
+			expect(result.stdout).not.toContain(
+				'This PR did not declare any paired red proofs',
+			);
+			expect(result.stdout).not.toContain(
+				'All declared proof tests behaved as expected.',
+			);
+			// The cause must read as a rename/move, not a clean pass.
+			expect(result.stderr).not.toContain('CORRUPT PROOF');
+		} finally {
+			rmSync(root, { recursive: true, force: true });
+		}
+	}, 120000);
+});

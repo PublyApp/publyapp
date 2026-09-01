@@ -64,7 +64,7 @@
  * The script answers two questions:
  *
  * 1. Has THIS PR declared any proofs?
- *    Uses `git diff --name-only <base> HEAD` to find files under tests/proofs/
+ *    Uses `git diff --name-status <base> HEAD` to find files under tests/proofs/
  *    that were added or modified by this PR. If none, the step is an explicit
  *    no-op: it prints a clear "no proofs declared" message and exits 0. This
  *    is NOT a silent green — it states exactly what was checked and why the
@@ -134,6 +134,117 @@ const CONFIG = 'vitest.preuves.config.ts';
 const REPLAYABLE_EXTENSIONS = ['.test.ts', '.test.tsx'] as const;
 
 /**
+ * Issue #1940 — refuse destructive changes to tracked proof files /
+ * directories by inspecting git's NAME-STATUS data, NOT just paths.
+ *
+ * `git diff --name-only` (the previous shape) cannot distinguish a
+ * deletion from a creation: a wholly-deleted `tests/proofs/<X>/`
+ * directory shows up as ZERO entries after the extension filter (the
+ * path is gone) and the working-tree `existsSync(PROOFS_DIR)` no-op
+ * check then fires — the runner exits 0 with "no proofs declared",
+ * a silent false-green that verified nothing. A rename OUT of the
+ * subtree is the same defect through a different door: the new
+ * path does not start with `apps/front/tests/proofs/`, so the
+ * path-prefix filter drops it silently.
+ *
+ * The fix inspects the raw name-status output BEFORE the rest of
+ * the runner sees it: any tracked deletion (status `D`) of a
+ * replayable file or directory under `apps/front/tests/proofs/`, or
+ * any tracked rename (status `R`) whose old path is a replayable
+ * proof file under the same subtree, is REFUSED LOUD naming the
+ * lexical path. There is no env-var opt-in, no manifest, no
+ * archive, no registry — a silent green is the defect, and the
+ * only acceptable answer is to fail loud and name the path so the
+ * operator can decide what to do (revert the deletion, split the
+ * commit, etc.).
+ *
+ * Returns null when no destructive change touches the protected
+ * subtree; otherwise returns the human-readable refusal message.
+ * The caller throws with this message so the process exits non-zero.
+ */
+const refuseDestructiveProofChanges = (
+	rawNameStatus: string,
+): string | null => {
+	for (const line of rawNameStatus.split('\n')) {
+		const trimmed = line.trim();
+		if (trimmed.length === 0) {
+			continue;
+		}
+		// Each line is "<status>\t<path>" for A/M/D, or
+		// "<status>\t<old>\t<new>" for R/C. An unparseable line
+		// (no tab) cannot be classified — fall through and let
+		// the existing runner surface its own error. The status
+		// column is the first character; similarity scores on
+		// renames ("R100") are tolerated by reading only the
+		// leading character.
+		const firstTab = trimmed.indexOf('\t');
+		if (firstTab < 0) {
+			continue;
+		}
+		const statusChar = trimmed[0];
+		const rest = trimmed.substring(firstTab + 1);
+		if (statusChar === 'D') {
+			// The deleted path is the single token after the
+			// status. A directory deletion appears as one D entry
+			// per file under the directory in git's output; the
+			// first hit is enough to refuse the whole subtree —
+			// the path carries the directory name as its prefix
+			// so the operator can find it.
+			if (!rest.startsWith('apps/front/tests/proofs/')) {
+				continue;
+			}
+			const isReplayable =
+				REPLAYABLE_EXTENSIONS.some((ext) => rest.endsWith(ext)) ||
+				// A pure-directory deletion also carries the
+				// subtree path (no extension). Refuse it too:
+				// the whole tests/proofs/<X>/ directory is gone.
+				!rest.endsWith('.expected-red.json');
+			if (!isReplayable) {
+				continue;
+			}
+			return (
+				`The PR deletes a tracked proof file or directory under ` +
+				`tests/proofs/ — lexical path: ${rest}. The runner cannot ` +
+				`verify a deleted proof (no path on disk), so the deletion is ` +
+				`REFUSED. Restore the file or directory, or split the deletion ` +
+				`into a separate, explicitly justified PR.`
+			);
+		}
+		if (statusChar === 'R' || statusChar === 'C') {
+			// Two paths: the first tab separates <old> from <new>.
+			// A rename OUT of the subtree (old under proofs, new
+			// elsewhere) silently drops protection — the new path
+			// would no longer be picked up by the proof-discovery
+			// filter. A rename WITHIN the subtree would change the
+			// path the manifest sits next to, but the manifest
+			// cannot follow a rename, so it is refused too.
+			const secondTab = rest.indexOf('\t');
+			if (secondTab < 0) {
+				continue;
+			}
+			const oldPath = rest.substring(0, secondTab);
+			const newPath = rest.substring(secondTab + 1);
+			if (!oldPath.startsWith('apps/front/tests/proofs/')) {
+				continue;
+			}
+			if (!REPLAYABLE_EXTENSIONS.some((ext) => oldPath.endsWith(ext))) {
+				continue;
+			}
+			return (
+				`The PR renames or moves a tracked proof out of ` +
+				`tests/proofs/ — lexical path: ${oldPath} → ${newPath}. ` +
+				`The runner cannot verify a renamed/moved proof (its ` +
+				`manifest cannot follow the new path), so the change is ` +
+				`REFUSED. Restore the original path or split the rename into ` +
+				`an explicit delete+add pair.`
+			);
+		}
+		// A and M are handled by the existing replay path below.
+	}
+	return null;
+};
+
+/**
  * Determine which proof files were declared by the current PR.
  *
  * The PR's `git diff` is the single source of truth — no regex filter is
@@ -177,11 +288,15 @@ const REPLAYABLE_EXTENSIONS = ['.test.ts', '.test.tsx'] as const;
  *         the base or fix the checkout.
  */
 const declaredProofTests = (): string[] => {
-	// First, confirm the versioned directory exists at all. If it does not,
-	// the repo has no proof infrastructure — the step is a no-op.
-	if (!existsSync(PROOFS_DIR)) {
-		return [];
-	}
+	// #1940 — DO NOT short-circuit on a missing PROOFS_DIR here. A
+	// wholly-deleted tests/proofs/<X>/ directory leaves the working
+	// tree without the subtree: the previous early return here let the
+	// runner fall through to "no proofs declared" and exit 0 — a silent
+	// false-green that verified nothing. The git scan below reads
+	// committed history, not the working tree, and detects destructive
+	// changes even when the directory no longer exists locally. The
+	// no-op on a genuinely-empty repo is enforced BELOW, after the
+	// diff scan confirms there is nothing to refuse.
 
 	// If the repository is shallow at entry (graft left by a previous
 	// --depth=1 fetch in a shared worktree, a developer's shallow clone,
@@ -330,13 +445,21 @@ const declaredProofTests = (): string[] => {
 			// The three-dot form below (`<mergeBase>...HEAD`) lists ONLY what this
 			// branch introduced. With mergeBase on the left the two forms are
 			// equivalent — three-dot re-derives the same merge base — but the
-			// three-dot spelling states the intent, and it is the form the #1865
-			// test names and pins. A diverged branch (no merge base) fails loud
 			// above; it can never silently become "no proofs declared".
 			const diffOutput = execSync(
-				`git -C "${ROOT}" diff --name-only "${mergeBase}...HEAD"`,
+				`git -C "${ROOT}" diff --name-status "${mergeBase}...HEAD"`,
 				{ encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] },
 			);
+			// #1940 — refuse deletions and renames of tracked proof
+			// files BEFORE the rest of the runner sees the diff. The
+			// status column is what distinguishes a deletion (status
+			// D) from a creation (status A): `--name-only` lost that
+			// information, which is why the runner previously exited
+			// 0 on a wholly-deleted tests/proofs/<X>/ subtree.
+			const refusal = refuseDestructiveProofChanges(diffOutput);
+			if (refusal !== null) {
+				throw new Error(refusal);
+			}
 			changedFiles = diffOutput
 				.split('\n')
 				.map((f) => f.trim())
@@ -353,9 +476,17 @@ const declaredProofTests = (): string[] => {
 			);
 			// Local development: diff the most recent commit.
 			const diffOutput = execSync(
-				`git -C "${ROOT}" diff --name-only HEAD~1 HEAD`,
+				`git -C "${ROOT}" diff --name-status HEAD~1 HEAD`,
 				{ encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] },
 			);
+			// #1940 — same destructive-change scan as the CI branch
+			// (a developer's local replay must catch a wholly-
+			// deleted subtree the same way the CI run will, so the
+			// failure mode is consistent across environments).
+			const refusal = refuseDestructiveProofChanges(diffOutput);
+			if (refusal !== null) {
+				throw new Error(refusal);
+			}
 			changedFiles = diffOutput
 				.split('\n')
 				.map((f) => f.trim())
@@ -383,14 +514,25 @@ const declaredProofTests = (): string[] => {
 	// directory tree but is not itself a proof — it is supporting
 	// infrastructure. Including non-test files in `declared` would
 	// make the runner's un-replayable check fail loud, which is the
-	// right call for an undeclared test file but a false alarm for a
 	// shared lib. The path-prefix filter alone is too broad; pin to
 	// the replayable extensions the runner actually executes.
-	const declared = changedFiles.filter(
-		(f) =>
-			f.startsWith('apps/front/tests/proofs/') &&
-			(f.endsWith('.test.ts') || f.endsWith('.test.tsx')),
-	);
+	const declared = changedFiles
+		// #1940 — `git diff --name-status` (the shape this function
+		// now reads) prepends a `<status>\t` column to every line,
+		// and R/C lines carry two tab-separated paths. Strip the
+		// status column here so the rest of the runner keeps its
+		// single-path contract. D and R lines have already been
+		// refused loud above by refuseDestructiveProofChanges,
+		// so any surviving entry is A or M and a single path.
+		.map((line) => {
+			const tabIdx = line.indexOf('\t');
+			return tabIdx >= 0 ? line.substring(tabIdx + 1) : line;
+		})
+		.filter(
+			(f) =>
+				f.startsWith('apps/front/tests/proofs/') &&
+				(f.endsWith('.test.ts') || f.endsWith('.test.tsx')),
+		);
 
 	// Return paths relative to apps/front (the working directory).
 	return declared.map((p) => p.replace(/^apps\/front\//, ''));
@@ -456,9 +598,24 @@ const isReplayableFile = (filename: string): boolean => {
 };
 
 // --- Main logic ---
-
-// Confirm the versioned directory exists. If it does not, the repo has no
-// proof infrastructure — the step is a no-op.
+// #1940 — determine what this PR declared BEFORE the working-tree
+// no-op check below. A wholly-deleted tests/proofs/<X>/ directory
+// leaves the working tree without that directory: the previous order
+// (existsSync(PROOFS_DIR) first) short-circuited the runner to "no
+// proofs declared" and exited 0 — a silent false-green that
+// verified nothing. The declaration step inspects git history, not
+// the working tree, so it can detect a deletion even when the
+// directory no longer exists locally. refuseDestructiveProofChanges
+// inside the call below throws loud for any D or R entry touching
+// the protected subtree; the throw propagates as the step's loud
+// failure. Any other git error also propagates — let it.
+const declared = declaredProofTests();
+// Confirm the versioned directory exists on the WORKING TREE. This
+// runs AFTER declaredProofTests() so a wholly-deleted subtree is
+// refused loud by the destructive-change scan above; the runner
+// never falls through to this branch with a deletion in flight.
+// If the directory simply does not exist AND the diff declared
+// nothing, the step is a no-op.
 if (!existsSync(PROOFS_DIR)) {
 	console.log('No paired red proof tests found in tests/proofs/.');
 	console.log(
@@ -469,11 +626,6 @@ if (!existsSync(PROOFS_DIR)) {
 	);
 	process.exit(0);
 }
-
-// Determine what this PR declared. This can throw if git diff fails — let it
-// propagate so the step fails loud rather than silently turning green.
-const declared = declaredProofTests();
-
 if (declared.length === 0) {
 	// Proofs exist in the repo, but no proof files changed in scope.
 	// The message must distinguish a LOCAL diff-scope check from the CI
