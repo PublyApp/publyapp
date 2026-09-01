@@ -121,7 +121,7 @@ above; #880's closure adds the proof, not a new pin.
     remaining `nanoid` in the tree is the transitive `3.3.18` under `postcss`, so
     the 4.x/5.x cap had nothing left to lift and was correctly dropped.
 
-  **Verifiable removal condition for the `<3.3.18` cap** (judged on the *declared*
+  **Verifiable removal condition for the `<3.3.18` cap** (judged on the _declared_
   range, not the resolved version): remove it only when **every** consumer that
   can reach `nanoid@3.x` declares a range whose lower bound is `>=3.3.18` (i.e. no
   declared range can resolve `3.3.16`/`3.3.17`) **and** the CI audit covers the
@@ -132,6 +132,22 @@ above; #880's closure adds the proof, not a new pin.
 
 CI's audit step (`pnpm audit --prod --audit-level=high`) stays the standing tripwire; run the
 full-graph `pnpm audit --audit-level=moderate` when triaging Dependabot alerts.
+
+## How the `browserslist@<=4.28.6` cap was added
+
+Two advisories cover `browserslist` with affected range `<=4.28.6`, patched in
+`4.28.7`: `GHSA-c83g-rgw3-j3cx` and `GHSA-73wf-gq98-2v4g`. `browserslist` is
+transitive under `apps/front`'s build toolchain and no workspace package
+imports it, so the fix lands via a root override:
+
+```
+"browserslist@<=4.28.6": "^4.28.7"
+```
+
+**Verifiable removal condition** (judged on the _declared_ range, not the
+resolved version): remove the override only when **every** reachable parent's
+declared lower bound is `>=4.28.7` **and** both the production-graph and
+full-graph audits stay green without it. Today the cap stays.
 
 ## How to run locally
 
