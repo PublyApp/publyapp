@@ -1039,3 +1039,40 @@ test(
 		});
 	},
 );
+
+test('local review ready commands run front build before front test', async () => {
+	const config = JSON.parse(await readFile(configPath, 'utf8'));
+	const commands = config.local_review_ready_commands;
+	assert.ok(Array.isArray(commands) && commands.length >= 1);
+
+	// There must be a command that builds front before running front tests.
+	const hasFrontBuild = commands.some((cmd) =>
+		cmd.includes('--filter front build'),
+	);
+	assert.ok(
+		hasFrontBuild,
+		'local_review_ready_commands must build front before tests',
+	);
+
+	// Build and test must be in the same command for single Node 24 init + fail-fast.
+	const combined = commands.find(
+		(cmd) =>
+			cmd.includes('--filter front build') &&
+			cmd.includes('--filter front test'),
+	);
+	assert.ok(
+		combined,
+		'local_review_ready_commands must combine build and test in one command',
+	);
+	assert.ok(
+		combined.includes('fnm use 24'),
+		'combined build+test command must initialise Node 24',
+	);
+	// Build must come before test within the command string (fail-fast).
+	const buildPos = combined.indexOf('--filter front build');
+	const testPos = combined.indexOf('--filter front test');
+	assert.ok(
+		buildPos < testPos,
+		'front build must precede front test within the combined command',
+	);
+});

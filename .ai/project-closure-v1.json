@@ -8,7 +8,7 @@
 	"local_review_ready_commands": [
 		"pnpm test:project-closure-adapter",
 		"eval \"$(fnm env)\" && fnm use 24 && pnpm --filter front typecheck",
-		"eval \"$(fnm env)\" && fnm use 24 && pnpm --filter front test"
+		"eval \"$(fnm env)\" && fnm use 24 && pnpm --filter front build && pnpm --filter front test"
 	],
 	"closure_acceptance_commands": [
 		"pnpm test:project-closure-adapter",
