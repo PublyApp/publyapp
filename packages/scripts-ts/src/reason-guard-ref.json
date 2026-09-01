@@ -62,7 +62,7 @@
 		"api-tests.yml::suite::Set up Node",
 		"api-tests.yml::suite::Set up just",
 		"api-tests.yml::suite::Set up pnpm",
-		"api-tests.yml::suite::Upload test results on failure",
+		"api-tests.yml::suite::Upload test results",
 		"deploy-images.yml::publish::Build and push API migrate image",
 		"deploy-images.yml::publish::Build and push API runtime image",
 		"deploy-images.yml::publish::Build and push Front image",
@@ -135,6 +135,8 @@
 		"front-ci.yml::test-vitest::Run vitest shard",
 		"front-ci.yml::test-vitest::Setup Node",
 		"front-ci.yml::test-vitest::Upload vitest report",
+		"front-ci.yml::verify-vitest-reports::Download all vitest reports",
+		"front-ci.yml::verify-vitest-reports::Verify report content",
 		"front-e2e.yml::build::Build stack images",
 		"front-e2e.yml::build::Checkout",
 		"front-e2e.yml::build::Detect fork pull request",
@@ -296,10 +298,6 @@
 		"api-tests.yml::suite::Set up pnpm": {
 			"reason_hash": "1fd22cde3ad0647d",
 			"reason": "Runner toolchain provisioning. Locally pnpm is pinned by the packageManager field and is a developer prerequisite."
-		},
-		"api-tests.yml::suite::Upload test results on failure": {
-			"reason_hash": "50c4c42df69e5537",
-			"reason": "GitHub-only failure-only log capture: gets failing-spec output off an ephemeral runner. Locally the reports are already on disk."
 		},
 		"deploy-images.yml::publish::Build and push API migrate image": {
 			"reason_hash": "83411d8a82349d27",
@@ -986,8 +984,8 @@
 			"reason": "just ci-front runs the full vitest suite unsharded (pnpm --filter front test ends in `vitest run`). CI's --shard=i/4 partition is pinned separately by front-ci.yml::test-vitest-coverage, which replays the same --shard flag in list mode against the real unsharded discovery — the local mirror of that step is the identical command (pnpm --filter front test:vitest-shard-coverage)."
 		},
 		"front-ci.yml::test-vitest::Upload vitest report": {
-			"reason_hash": "529e175ce38b68cf",
-			"reason": "GitHub-only: uploads the per-shard vitest report artifact off an ephemeral runner on failure (actions/upload-artifact with a shard-specific name so the reports never collide). Locally test-results is already on disk; there is nothing to upload it to."
+			"reason_hash": "169cdbf7e7527e84",
+			"reason": "GitHub-only: uploads the per-shard JUnit XML vitest report artifact on every attempt (success and failure, via if: always()), with a shard-specific name so the reports never collide. This ensures the upload/download/content round-trip (#1693) is exercised on green runs, not only on red. Locally vitest-results is already on disk; there is nothing to upload it to."
 		},
 		"front-ci.yml::test-vitest-coverage::Checkout": {
 			"reason_hash": "c80eb5bfb322fab4",
@@ -1013,6 +1011,14 @@
 			"reason_hash": "a816b3acd04a3e9c",
 			"reason": "#1948: the shard matrix must partition the suite exactly once. just ci-front runs the identical `pnpm --filter front test:vitest-shard-coverage`, which reads the REAL `vitest list --shard=i/n` discovery of every shard and of the unsharded suite and fails if any file is lost, duplicated, or invented by the matrix."
 		},
+		"front-ci.yml::verify-vitest-reports::Download all vitest reports": {
+			"reason_hash": "336754a0bc259922",
+			"reason": "GitHub-only: downloads the per-shard JUnit XML reports from the test-vitest job to verify the upload/download round-trip (#1693). Locally there are no shard artifacts to download; the vitest-results directory is written directly."
+		},
+		"front-ci.yml::verify-vitest-reports::Verify report content": {
+			"reason_hash": "755595983ea998de",
+			"reason": "GitHub-only: asserts every downloaded shard report is real JUnit XML (non-empty, has <testsuites> root). Locally the vitest JUnit reporter writes directly to disk; there is no download step to verify."
+		},
 		"require-linked-issue.yml::pr-body-exhaustiveness::Checkout": {
 			"reason_hash": "53bddbb8f8ed9751",
 			"reason": "GitHub-only: clones the repo onto the runner so the #1569 body guard script exists. Locally the working tree already is the code under test."
@@ -1020,6 +1026,10 @@
 		"require-linked-issue.yml::pr-body-exhaustiveness::Verify the PR body makes no unverifiable exhaustiveness claims (#1569)": {
 			"reason_hash": "cb14d79231045eba",
 			"reason": "GitHub-only: reads the LIVE PR body via the GitHub API (gh api repos/$GH_REPO/pulls/$PR_NUMBER --jq '.body // \"\"') — never a fixture, never an author-supplied echo — and runs packages/scripts-ts/src/check-pr-body-exhaustiveness.ts against it. At pre-push time there is no PR and therefore no body to check, so this guard is unreproducible locally by construction (the same stance as the require-linked-issue step). Its logic is mirrored by the co-located unit suite; the wiring pin test extracts this exact run: block from the workflow file itself."
+		},
+		"api-tests.yml::suite::Upload test results": {
+			"reason_hash": "b5428960c686b0aa",
+			"reason": "GitHub-only artifact upload that runs on every attempt (success and failure) to preserve test output off the ephemeral runner. Locally the reports are already on disk."
 		}
 	}
 }

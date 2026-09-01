@@ -168,15 +168,23 @@ The gate fails on:
 | `CHANGED`   | A reconciled step's command, inputs, env, condition, or continue-on-error flag changed. |
 | `STALE`     | The manifest reconciles a step that no longer exists.                                   |
 | shape error | An entry with no `mirror`, or a `reason` under 24 characters.                           |
+| `SMOKE ENV` | A step starts the front standalone server but doesn't set NODE_ENV=production.          |
+| `UPLOAD ARTIFACT` | A workflow uses actions/upload-artifact but no upload runs on the success path.    |
+| `CONFESSION CONTRADICTION` | A confession names a step still present in the manifest.                      |
+| `RATCHET`   | A pinned step vanished from the manifest without a confession.                          |
+| `UNPINNED`  | A reconciled step is not pinned in the reference floor.                                 |
 
 It also fails closed when two steps in a job share an identity, since one could otherwise
 hide behind the other's entry forever.
 
 ### What it proves — and what it does not
 
-It proves exactly one thing, mechanically: **every CI step has been consciously reconciled
-against this gate, and any change forces that judgement to be made again.** Silent drift
-becomes loud drift.
+It proves a handful of things, mechanically:
+
+1. **Every CI step has been consciously reconciled** against this gate, and any change forces that judgement to be made again. Silent drift becomes loud drift.
+2. **Every front-start step sets `NODE_ENV=production`** — so `validateRuntimeEnv()` is actually exercised on the CI smoke path (#1914).
+3. **Every workflow that uploads artifacts has at least one success-path upload** — so the upload/download round-trip is exercised on green runs, not only on red (#1693).
+4. **The ratchet floor is honest** — a covered step cannot vanish without a confession, and every reconciled step is pinned.
 
 It does **not** prove that `mirror` is semantically equivalent to the CI step. That is a
 human assertion, reviewed like any other code. No parser can decide whether `just test-api`
@@ -197,6 +205,26 @@ always returns green.
    and set `hash` to the value in the failure message.
 
 Do not bump the hash without doing step 1. The hash is only meaningful if someone looked.
+
+### Structural checks (#1693, #1914)
+
+Beyond step reconciliation, the drift guard runs two structural checks that assert
+invariants no single-step hash can capture:
+
+**`SMOKE ENV`** — Any step whose `run:` starts the front standalone server (the
+`pnpm --filter front start` family or `node server.mjs`) must set `NODE_ENV=production`
+in its `env:` block. Without it, `validateRuntimeEnv()` is never exercised on the CI smoke
+path, and removing it from `server.mjs` would pass CI silently. The recognized command
+forms include `pnpm start` with `working-directory: apps/front` — a form that bypassed
+this check before #1941.
+
+**`UPLOAD ARTIFACT`** — Any workflow that uses `actions/upload-artifact` must have at
+least one upload step whose `if:` is unconditional or mentions `success()`/`always()`
+(success-path), and whose enclosing job is not failure-gated. This closes the #1693 gap
+where an upload that only ran on `failure()` satisfied the step-reconciliation manifest
+while the upload/download round-trip stayed unexercised on green runs. The action is
+matched by its exact repo path `^actions/upload-artifact@` — a vendor fork like
+`vendor/actions/upload-artifact-helper@<sha>` does not count.
 
 ### Reason guard
 

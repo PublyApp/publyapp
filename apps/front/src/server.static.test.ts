@@ -1,13 +1,23 @@
 /**
  * @vitest-environment node
  */
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { afterEach, beforeEach, describe, expect, test } from 'vitest';
+import {
+	afterAll,
+	afterEach,
+	beforeEach,
+	describe,
+	expect,
+	test,
+} from 'vitest';
 
-// Create a temp dir for static assets
-const tmpDir = join(process.cwd(), '.test-static-assets');
+// Each run gets its own disposable temp dir (mkdtemp, not a fixed name):
+// concurrent executions across worktrees must not clobber each other's
+// fixtures mid-test (round-4 review of #1941).
+const tmpDir = mkdtempSync(join(tmpdir(), 'publyapp-test-static-assets-'));
 
 const createFixtureFiles = (): void => {
 	mkdirSync(tmpDir, { recursive: true });
@@ -24,13 +34,15 @@ const createFixtureFiles = (): void => {
 };
 
 const cleanupFixtureFiles = (): void => {
-	const { rmSync } = require('node:fs');
 	try {
 		rmSync(tmpDir, { recursive: true, force: true });
 	} catch {
-		// ignore cleanup errors
+		// best effort
 	}
 };
+
+// Remove the per-run temp dir once the suite is done.
+afterAll(cleanupFixtureFiles);
 
 describe('staticMiddleware — path traversal and dotfile guard (A2)', () => {
 	beforeEach(() => {
@@ -57,9 +69,13 @@ describe('staticMiddleware — path traversal and dotfile guard (A2)', () => {
 			() => new Response('not found', { status: 404 }),
 		);
 
-		// If the middleware handles the request, it returns a Response
-		// If not, it calls next() and returns that result
+		// #1915: assert the EXACT body, not just ok — a 200 with an
+		// arbitrary body would pass the weaker assertion. The served file
+		// must contain the fixture content the test wrote.
+		expect(response?.ok).toBe(true);
 		expect(response).toBeDefined();
+		const body = await response!.text();
+		expect(body).toBe('<html><body>OK</body></html>');
 	});
 
 	test('path traversal with ../ is refused', async () => {
@@ -95,8 +111,14 @@ describe('staticMiddleware — path traversal and dotfile guard (A2)', () => {
 		);
 
 		// The middleware should not serve .env files (dotfiles default to [".well-known"])
-		// If response is ok, it means the file was served - that's a failure
+		// #1915: assert exact refusal — ok must be false AND the body must
+		// not contain the secret, covering both the fall-through (undefined)
+		// and explicit 404 shapes.
 		expect(response?.ok).toBe(false);
+		if (response && response.ok) {
+			const text = await response.text();
+			expect(text).not.toContain('SECRET_KEY=abc123');
+		}
 	});
 
 	test('dotfile .git/config is not served', async () => {
@@ -111,6 +133,9 @@ describe('staticMiddleware — path traversal and dotfile guard (A2)', () => {
 		);
 
 		// The middleware should not serve .git files
+		// #1915: assert exact refusal — ok must be false AND body must not
+		// contain the git config content.
+		expect(response?.ok).toBe(false);
 		if (response && response.ok) {
 			const text = await response.text();
 			expect(text).not.toContain('[core]');
@@ -131,10 +156,10 @@ describe('staticMiddleware — path traversal and dotfile guard (A2)', () => {
 		);
 
 		// .well-known is the default allowlisted dotfile
+		// #1915: assert the EXACT body, not just ok.
+		expect(response?.ok).toBe(true);
 		expect(response).toBeDefined();
-		if (response && response.ok) {
-			const text = await response.text();
-			expect(text).toContain('Contact: security@example.com');
-		}
+		const body = await response!.text();
+		expect(body).toBe('Contact: security@example.com');
 	});
 });

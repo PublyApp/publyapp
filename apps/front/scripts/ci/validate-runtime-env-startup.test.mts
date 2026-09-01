@@ -36,7 +36,10 @@ const getFreePort = (): Promise<number> => {
 // is ever removed, serve() starts and the process hangs; the test's timeout
 // then kills it (signal set, status null), failing loud.
 //
-// The paired RED/GREEN proof lives in .dump/preuve-r4-demarrage.md.
+// #1915: the paired red/green proof for this behavior is captured by this
+// test itself — removing validateRuntimeEnv() from server.mjs makes this
+// test fail (the process hangs and is killed by timeout, signal set). No
+// separate .dump/ artifact is needed; the test IS the durable proof.
 void test('startup: NODE_ENV=production without PUBLIC_ORIGIN exits non-zero and names PUBLIC_ORIGIN', async (t) => {
 	if (!existsSync(DIST_SERVER_JS)) {
 		t.skip(
