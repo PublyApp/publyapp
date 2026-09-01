@@ -19,6 +19,14 @@ import { sleep } from '@org/shared-ts/utils/any.utils';
 // returns HTML that links a built CSS asset. That catches the class of bug
 // where the build succeeds but the stylesheet never reaches the browser.
 //
+// Production runtime contract (#1914): the env block below mirrors the
+// `env:` block of the matching workflow step. It must declare
+// `NODE_ENV=production` so the production `validateRuntimeEnv()` guard
+// in `server.mjs` actually runs, and a valid `PUBLIC_ORIGIN` so the
+// guard accepts the start. Both facts are pinned by
+// `apps/front/scripts/ci/smoke-step-runtime-env.test.mts`; if you change
+// the env block here, update the workflow step and re-run the proof.
+//
 // Difference from CI, on purpose: CI hardcodes port 3000 because a fresh runner
 // has nothing else on it. A developer machine very often does, and probing a
 // busy 3000 would test whatever unrelated app happened to answer — a false
@@ -85,6 +93,13 @@ const logs: string[] = [];
 const server = spawn('node', ['server.mjs'], {
 	env: {
 		...process.env,
+		// #1914: mirror the production env block of the matching workflow
+		// step (apps/front/scripts/ci/smoke-step-runtime-env.test.mts pins
+		// both keys). NODE_ENV=production makes the production
+		// validateRuntimeEnv() guard actually run; PUBLIC_ORIGIN is the
+		// value the guard requires to accept the start.
+		NODE_ENV: 'production',
+		PUBLIC_ORIGIN: `http://${host}:3000`,
 		PORT: String(port),
 		PUBLIC_API_BASE_URL: `http://${host}:5000`,
 		SERVER_API_BASE_URL: `http://${host}:5000`,

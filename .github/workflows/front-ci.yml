@@ -213,7 +213,16 @@ jobs:
         run: node apps/front/scripts/run-guarded.mts apps/front/scripts/guards/verify-font-bundle.mts --dist apps/front/dist --locales-dir apps/front/src/i18n/locales
 
       - name: Smoke start front server and verify stylesheet tag
+        # #1914: this step must run the production build with the same
+        # production env the runtime image ships with, so it actually
+        # exercises the validateRuntimeEnv() guard in server.mjs. Without
+        # NODE_ENV=production the guard never runs; without a valid
+        # PUBLIC_ORIGIN the production server refuses to start (the guard
+        # is the same one that blocks host-header injection in #1754).
+        # Both facts are pinned by apps/front/scripts/ci/smoke-step-runtime-env.test.mts.
         env:
+          NODE_ENV: production
+          PUBLIC_ORIGIN: 'https://front-ci.localhost:3000'
           PUBLIC_API_BASE_URL: 'http://127.0.0.1:5000'
           SERVER_API_BASE_URL: 'http://127.0.0.1:5000'
           TRUSTED_PROXY_CIDRS: '127.0.0.1/32,::1/128'
