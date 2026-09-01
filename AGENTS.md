@@ -426,8 +426,9 @@ For writing and debugging integration tests, see:
 
 **Key rules:** `*.Spec.cs` suffix, `ItShould{Expected}{Connector}{Scenario}` method names (connector = `When`/`With`/`Without`/`For`), specs co-located with source, test infra in `Lib/Testing/{Fixtures,Helpers,Fakes}/`
 
-**Bespoke guard admission (hard rule):** new repository-specific executable policy guards are
-forbidden by default. An exception is admissible only when every criterion in
+**Bespoke guard admission (hard rule):** new repository-specific executable policy assertions —
+including material extensions to existing guards — are forbidden by default. An exception is
+admissible only when every criterion in
 [`docs/guides/test-conventions.md`](docs/guides/test-conventions.md#bespoke-guard-admission-hard-rule)
 is proved in the proposing PR. Reviewers must reject guards that do not qualify; do not automate
 this admission rule with another guard or meta-guard.

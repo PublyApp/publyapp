@@ -1,6 +1,6 @@
 # Test Conventions
 
-> Extracted from `AGENTS.md` — testing conventions for the PublyApp API.
+> Extracted from `AGENTS.md` — testing and executable-guard conventions for PublyApp.
 
 ## Test File Naming
 
@@ -44,10 +44,10 @@ failure.
 They live in `Lib/Architecture/` and follow the standard spec conventions:
 
 - `*.Spec.cs` suffix; namespace `PublyApp.Api.Lib.Architecture`.
-- A shared reflection helper, `Lib/Testing/Helpers/ArchitectureDiscoveryHelper`,
+- The shared reflection helper, `Lib/Architecture/ArchitectureDiscovery`,
   enumerates handler types, HTTP wire DTO records, service types, and route
-  constants while excluding generated/build artifacts. New guards reuse it rather
-  than re-scanning the assembly ad hoc.
+  constants while excluding generated/build artifacts. Admitted backend reflection
+  guards reuse it rather than re-scanning the assembly ad hoc.
 - Every guard includes a **vacuity check** (assert discovery is non-empty) so a
   broken filter can't make the guard pass for the wrong reason.
 
@@ -87,41 +87,68 @@ and backlog; analyzer-backed rules wait on the #350 framework.
 
 ### Bespoke guard admission (hard rule)
 
-A bespoke guard is a repository-specific executable policy check, such as a source scanner,
-reference snapshot, ratchet, manifest verifier, architecture scan, or meta-guard. An ordinary test
-of product behaviour, or enabling an existing built-in compiler or linter rule, is not a bespoke
-guard. A custom compiler or linter extension written for this repository is bespoke.
+A bespoke guard is an executable assertion whose primary purpose is to police a repository-specific
+policy or convention. Examples include a source scanner, reference snapshot, ratchet, manifest
+verifier, architecture scan, custom compiler/linter extension, or meta-guard.
 
-New bespoke guards are **forbidden by default**. A proposing PR must prove every condition below;
-missing one condition means the guard is rejected:
+The admission unit is a **new executable policy assertion**, not a new file. Adding a new forbidden
+condition, matcher, protected inventory, reference rule, ratchet, or materially broader scope to an
+existing guard counts as new. Renaming or mechanically refactoring an existing guard without
+changing its decisions does not. Neither does fixing it so it once again enforces its already
+documented scope, adding fixtures for that scope, or adding expected data to an existing closed
+inventory without changing the policy.
+
+Ordinary behavioural tests are not bespoke guards, whether they exercise product code, repository
+tooling, generators, deployment scripts, migrations, or an admitted guard's implementation. Directly
+enabling or configuring an existing off-the-shelf compiler, linter, security scanner, schema
+validator, or similar tool is also not bespoke. A repository-specific wrapper or policy layer around
+that tool is bespoke.
+
+New executable policy assertions are **forbidden by default**. A proposing PR must prove every
+condition below; missing one condition means the assertion is rejected:
 
 1. A current, reproducible failure demonstrates the problem. A hypothetical risk is not evidence.
 2. The guard protects a critical security, data-integrity, public-contract, build, or release
    invariant. A style preference or isolated low-impact mistake is not enough.
-3. An ordinary behavioural/unit/integration test, type system, compiler, or existing linter cannot
-   cover the invariant more simply.
-4. The proposed implementation is the smallest viable mechanism and needs no complex parser,
-   reference snapshot, maintenance allowlist, auxiliary manifest, or guard-of-a-guard.
+3. An ordinary behavioural/unit/integration test, type system, or direct use of an existing standard
+   tool cannot cover the invariant more simply.
+4. The proposed implementation is the smallest viable mechanism. Any parser, snapshot, manifest,
+   allowlist, or ratchet must be indispensable to that mechanism, have one source of truth, and
+   carry an explicit maintenance cost in the proposal. A guard-of-a-guard is never admissible.
 5. The PR contains a reproducible red/green proof: the defect escapes before the guard and is
    caught after it.
 6. The PR names the concrete condition that will retire the guard or replace it with a standard
    tool. A guard with no retirement condition is permanent maintenance debt and is rejected.
 
-A guard gap introduced by a PR must be fixed or removed in that same PR; it does not justify a
-follow-up issue. A separate issue is allowed only for a pre-existing, independently reproducible
-defect with material product, security, data, contract, build, or release impact. Reviewers enforce
-this admission rule directly. Do not add a script, analyzer, manifest, snapshot, or meta-guard to
-enforce the admission rule itself.
+A PR introduces a guard gap when its changed product/tooling surface violates an existing guard's
+documented policy, or when its guard change creates a new bypass. The PR must fix that changed
+surface or drop the change that created the gap before merge; it must not create a follow-up
+guard-gap issue. Merely discovering an independently reproducible pre-existing gap is not
+"introducing" it. Such a gap gets a separate issue only when its product, security, data, contract,
+build, or release impact is material. This restriction does not apply to ordinary non-guard
+follow-ups.
+
+Reviewers enforce this admission rule directly. Do not add a script, analyzer, manifest, snapshot,
+or meta-guard to enforce the admission rule itself.
 
 If and only if a guard is admitted:
 
-1. Add a `*.Spec.cs` in `Lib/Architecture/` (namespace `PublyApp.Api.Lib.Architecture`).
-2. Discover the types/constants via `ArchitectureDiscoveryHelper` (extend it if a
-   new category is needed).
-3. Assert there are no offenders, listing concrete names in the failure message.
-4. Add a vacuity check so the guard can't pass on an empty scan.
-5. Fix every current violation in the same PR. Do not introduce a baseline, allowlist, or ratchet
-   for a newly admitted guard.
+1. Put it in the narrowest existing tool surface that owns the invariant; do not create a new guard
+   framework for it.
+2. Add focused tests with both a violating case and a conforming case. Tests assert behaviour; they
+   do not need admission of their own.
+3. Make failures name the concrete offender and required correction.
+4. Fail loudly on an empty, unknown, or unparseable scan rather than passing vacuously.
+5. Fix every current violation in the same PR. Do not use a baseline, allowlist, or ratchet merely to
+   stage adoption. If cleanup cannot land safely in that PR, do not ship the guard yet.
+6. Keep proof technology-neutral: the PR records the exact command and either a violating fixture or
+   a temporary mutation that the candidate catches. A real-tree mutation is restored before commit;
+   no new permanent proof framework is required.
+
+For an admitted backend reflection guard specifically, add a `*.Spec.cs` under
+`apps/api/Lib/Architecture/`, use `ArchitectureDiscovery` for shared discovery, and keep the
+namespace `PublyApp.Api.Lib.Architecture`. Other guard categories follow their existing tool's
+co-located test convention; they do not imitate the C# layout.
 
 ## Test Using Statements
 

@@ -127,11 +127,14 @@ gate the executor could run:
    so the request escapes to the real API *and the spec still passes*.
 
 **Rules that follow:**
-- When you add a guard, **prove it fails**: plant the defect it targets and watch it fire. A guard
-  without a demonstrated failure is decoration. Require the failing transcript in the packet report,
-  not a passing fixture suite.
-- A defect that recurs after being documented must become a **control**, not a louder paragraph
-  (`no-single-star-route-glob`, `no-icon-font-classes`, `check:context-chunk-isolation`).
+- When an executable guard has passed the hard admission policy in
+  [`../docs/guides/test-conventions.md`](../docs/guides/test-conventions.md#bespoke-guard-admission-hard-rule),
+  **prove it fails**: plant the defect it targets and watch it fire. A guard without a demonstrated
+  failure is decoration. Require the failing transcript in the packet report, not a passing fixture
+  suite.
+- A recurring defect becomes an executable control only if it satisfies every admission criterion.
+  Otherwise fix the root cause or strengthen an ordinary behavioural test; repetition alone does not
+  justify another guard.
 - Ask what a passing test would look like if the feature were broken. If the answer is "the same",
   the test is worthless.
 - **Executors cannot run Playwright** (the captain owns the single Docker stack). They therefore write
