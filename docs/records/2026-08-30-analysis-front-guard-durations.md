@@ -48,25 +48,36 @@ unless noted):
 | `scripts/guards/check-zindex-guard.test.mts` (full suite, 181-182 tests) | 40.7 s / 44.2 s | 216.5 s | 0 |
 | `scripts/ci/run-guarded.test.ts` (+ env-var suite, vitest) | ~11.5 s | — | 0 |
 
-The slowest guard under load is `check-context-chunk-isolation.test.mts` at
-~165 s (matching the ~157 s figure the round-1 header quoted); for zindex the
-loaded run was 5.3x the idle run. The heaviest single zindex test
+The slowest guard sampled under load is `check-zindex-guard.test.mts` at
+216.5 s, ahead of `check-context-chunk-isolation.test.mts` at 164.7 s; for
+zindex the loaded run was 5.3x the idle run. The heaviest single zindex test
 (`unmodified repository passes with zero violations`) builds the ENTIRE real
 app through `vite.createBuilder` and measured 118 s alone under load.
 
 ## What the numbers justify
 
-- A 300 s ceiling is ~1.8x the slowest measured guard under load (164.7 s) —
-  a **modest** margin, deliberately not called "ample" anywhere in the code.
-  A loaded machine with the same profile as this one stays under the ceiling;
-  a machine that routinely exceeds it is expected to set
-  `GUARD_TIMEOUT_SECONDS` (documented in the wrapper header).
+- The slowest guard measured under load in this sample was `check-zindex-guard.test.mts`
+  at 216.5 s, ahead of `check-context-chunk-isolation.test.mts` at 164.7 s. A 300 s
+  ceiling is ~1.4x that 216.5 s figure — a **modest** margin, deliberately not called
+  "ample" anywhere in the code. Only the sampled runs on this machine, on this date,
+  stayed under the ceiling; this does not generalize to other machines, other guards,
+  or later points in time.
 - The margin is NOT evidence against a genuine hang: the #1525 failures
   (16 min at 5% CPU) are consistent with the measured load-sensitivity of
   this class of suite (zindex: 40 s idle → 216 s+ loaded) magnified by a
   serialized verification queue, but a true freeze remains possible and the
   wrapper bounds it either way. The dedicated investigation of the zindex
   stall is tracked in #2001.
+
+## Limitation (added 2026-09-02)
+
+This record is dated historical context, not live or exhaustive. As of
+2026-09-02, `vitest-shard-coverage` carries an explicit 600 s
+`GUARD_TIMEOUT_SECONDS` override and was absent from the original 2026-08-30
+sample above — no duration for it is backfilled or fabricated here. Guards
+added, removed, or changed since 2026-08-30 are not reflected in this record;
+treat the table above as a snapshot of what was measured on that date, not as
+the current state of the suite.
 
 ## Raw evidence
 
