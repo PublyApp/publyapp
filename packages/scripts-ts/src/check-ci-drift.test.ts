@@ -2795,11 +2795,12 @@ test('#1914: smoke step without NODE_ENV=production in env is flagged', async ()
 	const smokeFindings = findings.filter((f) => f.startsWith('SMOKE ENV'));
 	assert.equal(
 		smokeFindings.length,
-		1,
-		'Expected a SMOKE ENV finding for smoke step missing NODE_ENV=production, got: ' +
+		2,
+		'Expected TWO SMOKE ENV findings (NODE_ENV missing AND PUBLIC_ORIGIN missing), got: ' +
 			JSON.stringify(findings, null, 2),
 	);
 	assert.match(smokeFindings[0], /NODE_ENV=production/);
+	assert.match(smokeFindings[1], /PUBLIC_ORIGIN/);
 });
 
 test('#1914: smoke step WITH NODE_ENV=production passes the guard', async () => {
@@ -2814,7 +2815,7 @@ test('#1914: smoke step WITH NODE_ENV=production passes the guard', async () => 
 	await writeFile(
 		path.join(rootDir, '.github/workflows/fixture.yml'),
 		workflow(
-			'      - name: Smoke start front server\n        env:\n          NODE_ENV: production\n          PUBLIC_API_BASE_URL: http://127.0.0.1:5000\n          SERVER_API_BASE_URL: http://127.0.0.1:5000\n        run: node server.mjs\n',
+			'      - name: Smoke start front server\n        env:\n          NODE_ENV: production\n          PUBLIC_ORIGIN: http://127.0.0.1:5050\n          PUBLIC_API_BASE_URL: http://127.0.0.1:5000\n          SERVER_API_BASE_URL: http://127.0.0.1:5000\n        run: node server.mjs\n',
 		),
 	);
 
@@ -3197,4 +3198,601 @@ test('proximity contract (#1845): a legitimate long reformulation STAYS within t
 		},
 		'CHANGED with one bridging sentence',
 	);
+});
+
+// --- SOL blockers 1 (conditions) and 2 (smoke step identity) ---
+//
+// Round-2 review (#1941) proved five condition-classifier holes that turned
+// uploads under failure-only/fork/contradictory gates into a green success-path
+// upload, and three smoke-step identity holes that bypassed the
+// NODE_ENV=production + PUBLIC_ORIGIN requirement on equivalent front-start
+// forms. The tests below are the named adversarial probes for every hole.
+
+// === Blocker 1: condition classifier must integrate the job's `if:` ===
+
+// A job-level `if: cancelled()` makes EVERY step under it failure-only: no
+// step succeeds because the job was cancelled.
+test('#1941 blocker 1: job-level `if: cancelled()` gates every upload as failure-only', async () => {
+	const rootDir = await mkdtemp(
+		path.join(os.tmpdir(), 'publyapp-cancelled-job-'),
+	);
+	await mkdir(path.join(rootDir, '.github/workflows'), { recursive: true });
+	await mkdir(path.join(rootDir, 'packages/scripts-ts/src'), {
+		recursive: true,
+	});
+
+	const workflowYaml = [
+		'name: fixture',
+		'on:',
+		'  pull_request:',
+		'jobs:',
+		'  build:',
+		'    runs-on: ubuntu-latest',
+		'    if: cancelled()',
+		'    steps:',
+		'      - name: Upload test results',
+		'        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a',
+		'        with:',
+		'          name: test-results',
+		'          path: test-results/',
+		'',
+	].join('\n');
+
+	await writeFile(
+		path.join(rootDir, '.github/workflows/fixture.yml'),
+		workflowYaml,
+	);
+	await writeFile(
+		path.join(rootDir, 'packages/scripts-ts/src/ci-gate-manifest.json'),
+		JSON.stringify({
+			steps: {
+				'fixture.yml::build::Upload test results': {
+					hash: 'placeholder',
+					mirror: null,
+					reason,
+				},
+			},
+		}),
+	);
+
+	const findings = await findCiDrift({
+		rootDir,
+		reasonRef: {
+			pinned_step_ids: ['fixture.yml::build::Upload test results'],
+			steps: {},
+		},
+	});
+
+	const uploadFindings = findings.filter((f) =>
+		f.startsWith('UPLOAD ARTIFACT'),
+	);
+	assert.ok(
+		uploadFindings.length >= 1,
+		'Job-level `if: cancelled()` must flag every upload as failure-only, got: ' +
+			JSON.stringify(findings, null, 2),
+	);
+	assert.match(
+		uploadFindings[0],
+		/no upload step is classified as success-path/,
+	);
+	assert.match(uploadFindings[0], /Failure-gated jobs/);
+	assert.match(uploadFindings[0], /cancelled\(\)/);
+});
+
+// Step-level `if: cancelled()` is failure-only.
+test('#1941 blocker 1: step-level `if: cancelled()` is failure-only, not success-path', async () => {
+	const rootDir = await mkdtemp(
+		path.join(os.tmpdir(), 'publyapp-cancelled-step-'),
+	);
+	await mkdir(path.join(rootDir, '.github/workflows'), { recursive: true });
+	await mkdir(path.join(rootDir, 'packages/scripts-ts/src'), {
+		recursive: true,
+	});
+
+	const workflowYaml = [
+		'name: fixture',
+		'on:',
+		'  pull_request:',
+		'jobs:',
+		'  build:',
+		'    runs-on: ubuntu-latest',
+		'    steps:',
+		'      - name: Upload test results',
+		'        if: cancelled()',
+		'        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a',
+		'        with:',
+		'          name: test-results',
+		'          path: test-results/',
+		'',
+	].join('\n');
+
+	await writeFile(
+		path.join(rootDir, '.github/workflows/fixture.yml'),
+		workflowYaml,
+	);
+	await writeFile(
+		path.join(rootDir, 'packages/scripts-ts/src/ci-gate-manifest.json'),
+		JSON.stringify({
+			steps: {
+				'fixture.yml::build::Upload test results': {
+					hash: 'placeholder',
+					mirror: null,
+					reason,
+				},
+			},
+		}),
+	);
+
+	const findings = await findCiDrift({
+		rootDir,
+		reasonRef: {
+			pinned_step_ids: ['fixture.yml::build::Upload test results'],
+			steps: {},
+		},
+	});
+
+	const uploadFindings = findings.filter((f) =>
+		f.startsWith('UPLOAD ARTIFACT'),
+	);
+	assert.ok(
+		uploadFindings.length >= 1,
+		'Step-level `if: cancelled()` must be classified as failure-only, got: ' +
+			JSON.stringify(findings, null, 2),
+	);
+});
+
+// `success() && false` contradiction.
+test('#1941 blocker 1: step-level `if: success() && false` is uncertain (contradiction)', async () => {
+	const rootDir = await mkdtemp(
+		path.join(os.tmpdir(), 'publyapp-contradiction-success-false-'),
+	);
+	await mkdir(path.join(rootDir, '.github/workflows'), { recursive: true });
+	await mkdir(path.join(rootDir, 'packages/scripts-ts/src'), {
+		recursive: true,
+	});
+
+	const workflowYaml = [
+		'name: fixture',
+		'on:',
+		'  pull_request:',
+		'jobs:',
+		'  build:',
+		'    runs-on: ubuntu-latest',
+		'    steps:',
+		'      - name: Upload test results',
+		'        if: success() && false',
+		'        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a',
+		'        with:',
+		'          name: test-results',
+		'          path: test-results/',
+		'',
+	].join('\n');
+
+	await writeFile(
+		path.join(rootDir, '.github/workflows/fixture.yml'),
+		workflowYaml,
+	);
+	await writeFile(
+		path.join(rootDir, 'packages/scripts-ts/src/ci-gate-manifest.json'),
+		JSON.stringify({
+			steps: {
+				'fixture.yml::build::Upload test results': {
+					hash: 'placeholder',
+					mirror: null,
+					reason,
+				},
+			},
+		}),
+	);
+
+	const findings = await findCiDrift({
+		rootDir,
+		reasonRef: {
+			pinned_step_ids: ['fixture.yml::build::Upload test results'],
+			steps: {},
+		},
+	});
+
+	const uploadFindings = findings.filter((f) =>
+		f.startsWith('UPLOAD ARTIFACT'),
+	);
+	assert.ok(
+		uploadFindings.length >= 1,
+		'A contradictory `success() && false` step condition must NOT satisfy the success-path requirement, got: ' +
+			JSON.stringify(findings, null, 2),
+	);
+	assert.match(uploadFindings[0], /Unrecognized `if:`/);
+	assert.match(uploadFindings[0], /success\(\) && false/);
+});
+
+// `always() && cancelled()` contradiction.
+test('#1941 blocker 1: step-level `if: always() && cancelled()` is uncertain (contradiction)', async () => {
+	const rootDir = await mkdtemp(
+		path.join(os.tmpdir(), 'publyapp-contradiction-always-cancelled-'),
+	);
+	await mkdir(path.join(rootDir, '.github/workflows'), { recursive: true });
+	await mkdir(path.join(rootDir, 'packages/scripts-ts/src'), {
+		recursive: true,
+	});
+
+	const workflowYaml = [
+		'name: fixture',
+		'on:',
+		'  pull_request:',
+		'jobs:',
+		'  build:',
+		'    runs-on: ubuntu-latest',
+		'    steps:',
+		'      - name: Upload test results',
+		'        if: always() && cancelled()',
+		'        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a',
+		'        with:',
+		'          name: test-results',
+		'          path: test-results/',
+		'',
+	].join('\n');
+
+	await writeFile(
+		path.join(rootDir, '.github/workflows/fixture.yml'),
+		workflowYaml,
+	);
+	await writeFile(
+		path.join(rootDir, 'packages/scripts-ts/src/ci-gate-manifest.json'),
+		JSON.stringify({
+			steps: {
+				'fixture.yml::build::Upload test results': {
+					hash: 'placeholder',
+					mirror: null,
+					reason,
+				},
+			},
+		}),
+	);
+
+	const findings = await findCiDrift({
+		rootDir,
+		reasonRef: {
+			pinned_step_ids: ['fixture.yml::build::Upload test results'],
+			steps: {},
+		},
+	});
+
+	const uploadFindings = findings.filter((f) =>
+		f.startsWith('UPLOAD ARTIFACT'),
+	);
+	assert.ok(
+		uploadFindings.length >= 1,
+		'A contradictory `always() && cancelled()` step condition must NOT satisfy the success-path requirement, got: ' +
+			JSON.stringify(findings, null, 2),
+	);
+	assert.match(uploadFindings[0], /Unrecognized `if:`/);
+	assert.match(uploadFindings[0], /always\(\) && cancelled\(\)/);
+});
+
+// Fork-only step conditions.
+test('#1941 blocker 1: step-level `if: steps.fork.outputs.fork == true` is fork-only, not success-path', async () => {
+	const rootDir = await mkdtemp(
+		path.join(os.tmpdir(), 'publyapp-fork-only-step-'),
+	);
+	await mkdir(path.join(rootDir, '.github/workflows'), { recursive: true });
+	await mkdir(path.join(rootDir, 'packages/scripts-ts/src'), {
+		recursive: true,
+	});
+
+	const workflowYaml = [
+		'name: fixture',
+		'on:',
+		'  pull_request:',
+		'jobs:',
+		'  build:',
+		'    runs-on: ubuntu-latest',
+		'    steps:',
+		'      - name: Upload test results',
+		'        if: steps.fork.outputs.fork == true',
+		'        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a',
+		'        with:',
+		'          name: test-results',
+		'          path: test-results/',
+		'',
+	].join('\n');
+
+	await writeFile(
+		path.join(rootDir, '.github/workflows/fixture.yml'),
+		workflowYaml,
+	);
+	await writeFile(
+		path.join(rootDir, 'packages/scripts-ts/src/ci-gate-manifest.json'),
+		JSON.stringify({
+			steps: {
+				'fixture.yml::build::Upload test results': {
+					hash: 'placeholder',
+					mirror: null,
+					reason,
+				},
+			},
+		}),
+	);
+
+	const findings = await findCiDrift({
+		rootDir,
+		reasonRef: {
+			pinned_step_ids: ['fixture.yml::build::Upload test results'],
+			steps: {},
+		},
+	});
+
+	const uploadFindings = findings.filter((f) =>
+		f.startsWith('UPLOAD ARTIFACT'),
+	);
+	assert.ok(
+		uploadFindings.length >= 1,
+		'A fork-only step condition must NOT satisfy the success-path requirement, got: ' +
+			JSON.stringify(findings, null, 2),
+	);
+	assert.match(uploadFindings[0], /Unrecognized `if:`/);
+	assert.match(uploadFindings[0], /steps\.fork\.outputs\.fork/);
+});
+
+// THE NARROW PRIVILEGE — needs.<job>.outputs.<key> == '<literal>'.
+test("#1941 blocker 1: needs.<job>.outputs.<key> == 'literal' IS recognized as success-capable", async () => {
+	const rootDir = await mkdtemp(
+		path.join(os.tmpdir(), 'publyapp-needs-outputs-ok-'),
+	);
+	await mkdir(path.join(rootDir, '.github/workflows'), { recursive: true });
+	await mkdir(path.join(rootDir, 'packages/scripts-ts/src'), {
+		recursive: true,
+	});
+
+	const workflowYaml = [
+		'name: fixture',
+		'on:',
+		'  pull_request:',
+		'jobs:',
+		'  build:',
+		'    runs-on: ubuntu-latest',
+		'    steps:',
+		'      - name: Upload test results',
+		"        if: needs.classifier.outputs.eligible == 'true'",
+		'        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a',
+		'        with:',
+		'          name: test-results',
+		'          path: test-results/',
+		'',
+	].join('\n');
+
+	await writeFile(
+		path.join(rootDir, '.github/workflows/fixture.yml'),
+		workflowYaml,
+	);
+	await writeFile(
+		path.join(rootDir, 'packages/scripts-ts/src/ci-gate-manifest.json'),
+		JSON.stringify({
+			steps: {
+				'fixture.yml::build::Upload test results': {
+					hash: 'placeholder',
+					mirror: null,
+					reason,
+				},
+			},
+		}),
+	);
+
+	const findings = await findCiDrift({
+		rootDir,
+		reasonRef: {
+			pinned_step_ids: ['fixture.yml::build::Upload test results'],
+			steps: {},
+		},
+	});
+
+	const uploadFindings = findings.filter((f) =>
+		f.startsWith('UPLOAD ARTIFACT'),
+	);
+	assert.equal(
+		uploadFindings.length,
+		0,
+		"A `needs.<job>.outputs.<key> == '<literal>'` eligibility guard IS recognized as success-capable; got: " +
+			JSON.stringify(findings, null, 2),
+	);
+});
+
+// The `steps.*` privilege is NOT extended.
+test("#1941 blocker 1: steps.<id>.outputs.<key> == 'literal' is NOT extended the privilege", async () => {
+	const rootDir = await mkdtemp(
+		path.join(os.tmpdir(), 'publyapp-steps-outputs-uncertain-'),
+	);
+	await mkdir(path.join(rootDir, '.github/workflows'), { recursive: true });
+	await mkdir(path.join(rootDir, 'packages/scripts-ts/src'), {
+		recursive: true,
+	});
+
+	const workflowYaml = [
+		'name: fixture',
+		'on:',
+		'  pull_request:',
+		'jobs:',
+		'  build:',
+		'    runs-on: ubuntu-latest',
+		'    steps:',
+		'      - name: Upload test results',
+		"        if: steps.precheck.outputs.passed == 'true'",
+		'        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a',
+		'        with:',
+		'          name: test-results',
+		'          path: test-results/',
+		'',
+	].join('\n');
+
+	await writeFile(
+		path.join(rootDir, '.github/workflows/fixture.yml'),
+		workflowYaml,
+	);
+	await writeFile(
+		path.join(rootDir, 'packages/scripts-ts/src/ci-gate-manifest.json'),
+		JSON.stringify({
+			steps: {
+				'fixture.yml::build::Upload test results': {
+					hash: 'placeholder',
+					mirror: null,
+					reason,
+				},
+			},
+		}),
+	);
+
+	const findings = await findCiDrift({
+		rootDir,
+		reasonRef: {
+			pinned_step_ids: ['fixture.yml::build::Upload test results'],
+			steps: {},
+		},
+	});
+
+	const uploadFindings = findings.filter((f) =>
+		f.startsWith('UPLOAD ARTIFACT'),
+	);
+	assert.ok(
+		uploadFindings.length >= 1,
+		'A steps.<id>.outputs.<key> literal guard is NOT extended the success-capable privilege; got: ' +
+			JSON.stringify(findings, null, 2),
+	);
+	assert.match(uploadFindings[0], /Unrecognized `if:`/);
+});
+
+// === Blocker 2: smoke step must recognize equivalent front-start commands
+// and require BOTH NODE_ENV=production AND PUBLIC_ORIGIN ===
+
+// `pnpm --dir apps/front start` (the GitHub-recommended working-directory form)
+// was not recognized as a front-start command. Without recognition, the
+// NODE_ENV=production + PUBLIC_ORIGIN guard never applied and a future edit
+// could quietly drop both env vars.
+test('#1941 blocker 2: `pnpm --dir apps/front start` without NODE_ENV is flagged', async () => {
+	const rootDir = await mkdtemp(
+		path.join(os.tmpdir(), 'publyapp-smoke-dir-start-'),
+	);
+	await mkdir(path.join(rootDir, '.github/workflows'), { recursive: true });
+	await mkdir(path.join(rootDir, 'packages/scripts-ts/src'), {
+		recursive: true,
+	});
+
+	await writeFile(
+		path.join(rootDir, '.github/workflows/fixture.yml'),
+		workflow(
+			'      - name: Smoke start front server\n        env:\n          PUBLIC_API_BASE_URL: http://127.0.0.1:5000\n          SERVER_API_BASE_URL: http://127.0.0.1:5000\n        run: pnpm --dir apps/front start\n',
+		),
+	);
+
+	const findings = await checkSmokeStepProductionEnv(rootDir);
+	const smokeFindings = findings.filter((f) => f.startsWith('SMOKE ENV'));
+	assert.ok(
+		smokeFindings.length >= 1,
+		'`pnpm --dir apps/front start` must be recognized and flagged, got: ' +
+			JSON.stringify(findings, null, 2),
+	);
+	assert.match(
+		smokeFindings.find((f) => f.includes('NODE_ENV=production')) ?? '',
+		/NODE_ENV=production/,
+	);
+});
+
+// `node ./apps/front/server.mjs` (relative-path form) was not recognized as a
+// front-start command. The path prefix `./` was not stripped before matching.
+test('#1941 blocker 2: `node ./apps/front/server.mjs` without NODE_ENV is flagged', async () => {
+	const rootDir = await mkdtemp(
+		path.join(os.tmpdir(), 'publyapp-smoke-node-dot-'),
+	);
+	await mkdir(path.join(rootDir, '.github/workflows'), { recursive: true });
+	await mkdir(path.join(rootDir, 'packages/scripts-ts/src'), {
+		recursive: true,
+	});
+
+	await writeFile(
+		path.join(rootDir, '.github/workflows/fixture.yml'),
+		workflow(
+			'      - name: Smoke start front server\n        env:\n          PUBLIC_API_BASE_URL: http://127.0.0.1:5000\n          SERVER_API_BASE_URL: http://127.0.0.1:5000\n        run: node ./apps/front/server.mjs\n',
+		),
+	);
+
+	const findings = await checkSmokeStepProductionEnv(rootDir);
+	const smokeFindings = findings.filter((f) => f.startsWith('SMOKE ENV'));
+	assert.ok(
+		smokeFindings.length >= 1,
+		'`node ./apps/front/server.mjs` must be recognized and flagged, got: ' +
+			JSON.stringify(findings, null, 2),
+	);
+	assert.match(
+		smokeFindings.find((f) => f.includes('NODE_ENV=production')) ?? '',
+		/NODE_ENV=production/,
+	);
+});
+
+// Recognized `node server.mjs` form WITH NODE_ENV=production but no PUBLIC_ORIGIN
+// must still be flagged: PUBLIC_ORIGIN is part of the production-env contract.
+test('#1941 blocker 2: smoke step with NODE_ENV but missing PUBLIC_ORIGIN is flagged', async () => {
+	const rootDir = await mkdtemp(
+		path.join(os.tmpdir(), 'publyapp-smoke-missing-origin-'),
+	);
+	await mkdir(path.join(rootDir, '.github/workflows'), { recursive: true });
+	await mkdir(path.join(rootDir, 'packages/scripts-ts/src'), {
+		recursive: true,
+	});
+
+	await writeFile(
+		path.join(rootDir, '.github/workflows/fixture.yml'),
+		workflow(
+			'      - name: Smoke start front server\n        env:\n          NODE_ENV: production\n          PUBLIC_API_BASE_URL: http://127.0.0.1:5000\n          SERVER_API_BASE_URL: http://127.0.0.1:5000\n        run: node server.mjs\n',
+		),
+	);
+
+	const findings = await checkSmokeStepProductionEnv(rootDir);
+	const smokeFindings = findings.filter((f) => f.startsWith('SMOKE ENV'));
+	assert.equal(
+		smokeFindings.length,
+		1,
+		'Missing PUBLIC_ORIGIN must be flagged even when NODE_ENV=production is set, got: ' +
+			JSON.stringify(findings, null, 2),
+	);
+	assert.match(smokeFindings[0], /PUBLIC_ORIGIN/);
+});
+
+// Positive control: all equivalent forms with both NODE_ENV=production AND a
+// non-empty PUBLIC_ORIGIN stay green.
+test('#1941 blocker 2: equivalent start forms WITH both NODE_ENV and PUBLIC_ORIGIN stay green', async () => {
+	const startForms = [
+		'pnpm --dir apps/front start',
+		'node ./apps/front/server.mjs',
+		'node server.mjs',
+		'pnpm --filter front start',
+	];
+
+	for (const run of startForms) {
+		const rootDir = await mkdtemp(path.join(os.tmpdir(), 'publyapp-smoke-ok-'));
+		await mkdir(path.join(rootDir, '.github/workflows'), {
+			recursive: true,
+		});
+		await mkdir(path.join(rootDir, 'packages/scripts-ts/src'), {
+			recursive: true,
+		});
+
+		const stepBlock = `      - name: Smoke start front server
+        env:
+          NODE_ENV: production
+          PUBLIC_ORIGIN: http://127.0.0.1:3000
+          PUBLIC_API_BASE_URL: http://127.0.0.1:5000
+          SERVER_API_BASE_URL: http://127.0.0.1:5000
+        run: ${run}
+`;
+		await writeFile(
+			path.join(rootDir, '.github/workflows/fixture.yml'),
+			workflow(stepBlock),
+		);
+
+		const findings = await checkSmokeStepProductionEnv(rootDir);
+		const smokeFindings = findings.filter((f) => f.startsWith('SMOKE ENV'));
+		assert.equal(
+			smokeFindings.length,
+			0,
+			`Smoke step with run="${run}" must not be flagged, got: ${JSON.stringify(findings, null, 2)}`,
+		);
+	}
 });
