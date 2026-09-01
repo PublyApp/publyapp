@@ -380,6 +380,16 @@ public static partial class ResponseKeys {
 	public static readonly TranslationKey ServiceUnavailable = new("service-unavailable");
 
 	/// <summary>
+	/// The session is not an ordinary session, or has already been revoked; impersonation sessions cannot be ended here
+	/// </summary>
+	public static readonly TranslationKey SessionNotRegular = new("session-not-regular");
+
+	/// <summary>
+	/// Session revoked successfully
+	/// </summary>
+	public static readonly TranslationKey SessionRevoked = new("session-revoked");
+
+	/// <summary>
 	/// Bluesky account connected
 	/// </summary>
 	public static readonly TranslationKey SocialAccountConnected = new("social-account-connected");

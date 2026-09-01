@@ -136,5 +136,7 @@
 	"system-job-cron-invalid": "L'expression cron est invalide",
 	"system-job-disable-protected": "Ce job système ne peut pas être désactivé car sa cadence de rétention est un contrôle de confidentialité",
 	"system-job-trigger-success": "Job système mis en file",
-	"system-job-trigger-noop": "Le job système est désactivé et n'a pas été mis en file"
+	"system-job-trigger-noop": "Le job système est désactivé et n'a pas été mis en file",
+	"session-revoked": "Session révoquée avec succès",
+	"session-not-regular": "La session n'est pas une session ordinaire, ou a déjà été révoquée ; les sessions d'emprunt ne peuvent pas être terminées ici"
 }
