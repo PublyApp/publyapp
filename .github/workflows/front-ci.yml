@@ -654,7 +654,7 @@ jobs:
     # report one of the four required names either.
     name: ${{ (github.event_name == 'pull_request' || github.event_name == 'merge_group') && 'front-ci-gate' || 'front-ci-push-check' }}
     if: always()
-needs:
+    needs:
       [changes, supply-chain, gate-selftest, test-vitest, verify-vitest-reports, test-vitest-coverage]
     runs-on: ubuntu-latest
     steps:

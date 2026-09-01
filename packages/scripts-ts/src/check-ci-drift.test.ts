@@ -1150,10 +1150,13 @@ test('reason guard #1841: fails loudly when ref entry has no `reason` text field
 		steps: Record<string, { reason_hash: string; reason: string }>;
 	};
 
-	// Cast through the named StrictReasonRef: the guard narrows the field
-	// itself, the test only asserts that a malformed ref is tolerated.
+	// Deliberately violates the declared `ReasonRef` shape: `reason` is missing.
+	// The guard is the layer that must tolerate this, not the type system;
+	// the @ts-expect-error directive documents the boundary bypass
+	// (anti-slop/no-chained-type-assertions forbids `as unknown as T`).
 	const findings = await findCiDrift({
 		rootDir,
+		// @ts-expect-error - test fixture deliberately lacks the `reason` field.
 		reasonRef: {
 			steps: {
 				'fixture.yml::build::Run tests': {
@@ -3130,12 +3133,10 @@ test('proximity contract (#1845): STALE cause and action are within proximity li
 			steps: {
 				[manifestEntry]: {
 					reason_hash: hashReason(reason),
-					reason_length: reason.length,
 					reason,
 				},
 				'fixture.yml::build::Deleted step': {
 					reason_hash: hashReason(reason),
-					reason_length: reason.length,
 					reason,
 				},
 			},
