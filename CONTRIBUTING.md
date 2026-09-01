@@ -153,9 +153,7 @@ of an employer, your employer may need to sign separately — see the
 ## 3. Quality expectations
 
 The engineering standards live in [`AGENTS.md`](AGENTS.md) and the
-normative guides it links — that is the single source of truth. Every
-contribution must pass CI, follow the code and test conventions documented
-there, and carry transparent failure causes per the project conventions.
+normative guides it links — that is the single source of truth.
 
 ---
 
