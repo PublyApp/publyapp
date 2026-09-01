@@ -9,6 +9,11 @@
 			"step_id": "require-linked-issue.yml::require-linked-issue::Verify the PR closes an existing issue",
 			"reason": "#2003: renamed to \"Verify the PR links an existing issue\" because the guard now accepts explicit non-closing relationships for honest partial slices as well as closing keywords. The replacement step keeps real-issue validation and pull-request rejection; no verification was removed.",
 			"removed_at": "2026-08-31"
+		},
+		{
+			"step_id": "api-tests.yml::suite::Upload test results on failure",
+			"reason": "#1941: the step was renamed to \"Upload test results\" and its condition changed from `if: failure()` to `if: always()` so test artifacts are uploaded on every attempt, not only on failure. The replacement step is reconciled as a new manifest entry in the same commit.",
+			"removed_at": "2026-09-01"
 		}
 	]
 }

@@ -8,3 +8,6 @@ playwright/.auth/
 
 # TanStack Start build scratch — never commit
 .tanstack/
+
+# Vitest JUnit reports (CI artifact)
+vitest-results/

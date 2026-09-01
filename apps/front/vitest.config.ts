@@ -90,5 +90,26 @@ export default defineConfig({
 		// with headroom for a still-resolving re-render under load.
 		testTimeout: 30000,
 		maxWorkers,
+		// #1693: emit a JUnit XML report so the CI upload/download/content
+		// round-trip actually carries real data. The output file is shard-aware
+		// via VITEST_JUNIT_OUTPUT (set in front-ci.yml) so each shard writes a
+		// unique file. Local runs skip junit to keep output human-readable.
+		//
+		// Vitest 4.1.11 does NOT support the `test.junit.outputFile` form
+		// (the value is silently ignored and XML goes to stdout). The tuple
+		// form `['junit', { outputFile }]` IS supported and writes the file.
+		reporters:
+			process.env.CI === 'true'
+				? [
+						'default',
+						[
+							'junit',
+							{
+								outputFile:
+									process.env.VITEST_JUNIT_OUTPUT ?? 'vitest-results/junit.xml',
+							},
+						],
+					]
+				: ['default'],
 	},
 });

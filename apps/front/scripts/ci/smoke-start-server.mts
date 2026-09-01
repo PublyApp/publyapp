@@ -15,14 +15,20 @@ import { sleep } from '@org/shared-ts/utils/any.utils';
 // hash and will fail the gate if the CI side changes without this script being
 // re-checked.
 //
-// What it proves: a production build, served by the real standalone server,
-// returns HTML that links a built CSS asset. That catches the class of bug
-// where the build succeeds but the stylesheet never reaches the browser.
+// What it proves: a production build, served by the real standalone server
+// in PRODUCTION runtime mode, returns HTML that links a built CSS asset. That
+// catches the class of bug where the build succeeds but the stylesheet never
+// reaches the browser, and — like the CI step — exercises validateRuntimeEnv()'s
+// production branch: NODE_ENV=production below makes the server require
+// PUBLIC_ORIGIN, exactly as the deployed configuration does.
 //
 // Difference from CI, on purpose: CI hardcodes port 3000 because a fresh runner
 // has nothing else on it. A developer machine very often does, and probing a
 // busy 3000 would test whatever unrelated app happened to answer — a false
-// green. So this picks a free port and tells the server to use it.
+// green. So this picks a free port and tells the server to use it. The port
+// also flows into PUBLIC_ORIGIN: production mode refuses to start without it
+// (validateRuntimeEnv throws), and the value must be the origin the probe
+// actually requests so resolveOrigin sees no mismatch.
 
 const host = '127.0.0.1';
 const attempts = 20;
@@ -80,16 +86,28 @@ const fetchHomeWithRetry = async (origin: string): Promise<string | null> => {
 
 const port = await getFreePort();
 const origin = `http://${host}:${port}/`;
+const serverOrigin = `http://${host}:${port}`;
 const logs: string[] = [];
 
+const env = {
+	...process.env,
+	// #1914: production runtime mode is the whole point. The CI smoke step
+	// sets NODE_ENV=production in its env: block; the local mirror must do
+	// the same or validateRuntimeEnv()'s production branch (and the
+	// PUBLIC_ORIGIN requirement) is silently skipped here while the CI
+	// step asserts them.
+	NODE_ENV: 'production',
+	// validateRuntimeEnv throws in production without PUBLIC_ORIGIN.
+	// CI hardcodes 127.0.0.1:3000; the mirror binds an ephemeral port, so
+	// it must set the origin it actually probes.
+	PUBLIC_ORIGIN: serverOrigin,
+	PORT: String(port),
+	PUBLIC_API_BASE_URL: `http://${host}:5000`,
+	SERVER_API_BASE_URL: `http://${host}:5000`,
+	TRUSTED_PROXY_CIDRS: '127.0.0.1/32,::1/128',
+};
 const server = spawn('node', ['server.mjs'], {
-	env: {
-		...process.env,
-		PORT: String(port),
-		PUBLIC_API_BASE_URL: `http://${host}:5000`,
-		SERVER_API_BASE_URL: `http://${host}:5000`,
-		TRUSTED_PROXY_CIDRS: '127.0.0.1/32,::1/128',
-	},
+	env,
 	stdio: ['ignore', 'pipe', 'pipe'],
 });
 

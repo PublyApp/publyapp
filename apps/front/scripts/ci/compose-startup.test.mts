@@ -100,12 +100,12 @@ export const assertComposeStartupContract = (
 		condition: 'service_completed_successfully',
 	});
 
-	// Root cause of the 4 red e2e shards (see .dump/cause-e2e.md): the
-	// front service runs with NODE_ENV=production, and validateRuntimeEnv()
-	// refuses to start if PUBLIC_ORIGIN is absent. Absent, the container
-	// front stops immediately, the e2e health check times out, and the 4
-	// shards + the gate are red. This assertion is RED if
-	// PUBLIC_ORIGIN is absent/invalid, GREEN with the fix.
+	// Root cause of the e2e red shards (#1915): the front service runs with
+	// NODE_ENV=production, and validateRuntimeEnv() refuses to start if
+	// PUBLIC_ORIGIN is absent. Absent, the front container stops immediately,
+	// the e2e health check times out, and the 4 shards + the gate turn red.
+	// This assertion is RED if PUBLIC_ORIGIN is absent/invalid, GREEN with the
+	// fix.
 	const frontEnv = services.front.environment;
 	assert.ok(
 		frontEnv !== undefined,

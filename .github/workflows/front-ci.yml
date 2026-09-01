@@ -214,6 +214,17 @@ jobs:
 
       - name: Smoke start front server and verify stylesheet tag
         env:
+          NODE_ENV: production
+          # #1914: NODE_ENV=production above is the whole point of this step —
+          # without it validateRuntimeEnv() never runs its production branch and
+          # the smoke path proves nothing about the deployed configuration.
+          # Turning it on immediately exposed that PUBLIC_ORIGIN was missing:
+          # the server refuses to start in production without it, because
+          # otherwise it would trust the client's Host header when building
+          # canonical and Open Graph URLs. It is set to the origin this step
+          # actually curls, so resolveOrigin's configured origin and the request
+          # host agree and no mismatch warning is emitted.
+          PUBLIC_ORIGIN: 'http://127.0.0.1:3000'
           PUBLIC_API_BASE_URL: 'http://127.0.0.1:5000'
           SERVER_API_BASE_URL: 'http://127.0.0.1:5000'
           TRUSTED_PROXY_CIDRS: '127.0.0.1/32,::1/128'
@@ -389,18 +400,74 @@ jobs:
       # additionally hard-rejects a `defaults:` override on this job/
       # workflow directly, as a second, independent layer.
       - name: Run vitest shard
+        env:
+          # #1693: vitest.config.ts's junit reporter reads VITEST_JUNIT_OUTPUT
+          # for the per-shard XML path; each shard writes a unique file so
+          # the upload step below transfers real content.
+          VITEST_JUNIT_OUTPUT: vitest-results/junit-${{ matrix.shard }}.xml
         run: |
           set -euo pipefail
 
+          mkdir -p apps/front/vitest-results
           pnpm --filter front exec vitest run --shard=${{ matrix.shard }}/4
 
       - name: Upload vitest report
-        if: failure()
+        # #1693: transfers the real JUnit XML the vitest reporter just wrote.
+        # `if-no-files-found: error` makes a missing report loud — the
+        # previous `ignore` silently greened an empty transfer.
+        if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: front-ci-vitest-report-${{ matrix.shard }}-of-4
-          path: apps/front/test-results
-          if-no-files-found: ignore
+          path: apps/front/vitest-results/junit-${{ matrix.shard }}.xml
+          if-no-files-found: error
+
+  # #1693: the vitest shards upload a per-shard JUnit XML report. This job
+  # downloads every shard's report and asserts the content is real JUnit XML
+  # (not empty, not an error page). This closes the upload/download/content
+  # round-trip that was previously unexercised: before this PR, the upload
+  # step transferred NOTHING (the path pointed at Playwright's output dir,
+  # and vitest wrote no file). The reporter + upload path changes above
+  # make the transfer real; this job proves it.
+  verify-vitest-reports:
+    name: front-ci verify vitest reports
+    needs: [changes, test-vitest]
+    if: needs.changes.outputs.relevant == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all vitest reports
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          pattern: front-ci-vitest-report-*-of-4
+          path: apps/front/vitest-results
+          merge-multiple: true
+
+      - name: Verify report content
+        run: |
+          set -euo pipefail
+
+          for shard in 1 2 3 4; do
+            report="apps/front/vitest-results/junit-${shard}.xml"
+            if [ ! -f "$report" ]; then
+              echo "Shard ${shard}: MISSING report at ${report}"
+              exit 1
+            fi
+
+            size=$(stat -c %s "$report")
+            if [ "$size" -eq 0 ]; then
+              echo "Shard ${shard}: EMPTY report at ${report}"
+              exit 1
+            fi
+
+            if ! grep -q '<testsuites' "$report"; then
+              echo "Shard ${shard}: report at ${report} is not JUnit XML (no <testsuites> root element)"
+              exit 1
+            fi
+
+            echo "Shard ${shard}: OK (${size} bytes, valid JUnit XML)"
+          done
+
+          echo "All 4 vitest reports verified: real content, round-trip exercised."
 
   # #1948 equality proof: the shard matrix must partition the suite exactly
   # once. Runs the REAL discovery of every shard (`vitest list --shard=i/n`
@@ -587,8 +654,8 @@ jobs:
     # report one of the four required names either.
     name: ${{ (github.event_name == 'pull_request' || github.event_name == 'merge_group') && 'front-ci-gate' || 'front-ci-push-check' }}
     if: always()
-    needs:
-      [changes, supply-chain, gate-selftest, test-vitest, test-vitest-coverage]
+needs:
+      [changes, supply-chain, gate-selftest, test-vitest, verify-vitest-reports, test-vitest-coverage]
     runs-on: ubuntu-latest
     steps:
       # BLOCKER fix (round 5): `gate-selftest` above runs

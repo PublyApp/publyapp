@@ -575,6 +575,7 @@ interface YamlStep {
 
 interface YamlJob {
 	steps?: YamlStep[];
+	if?: string;
 }
 
 interface YamlDocument {
@@ -641,22 +642,20 @@ const getStepLabel = (step: YamlStep, index: number): string => {
  * ignore it by category.
  */
 const collectWorkflowSteps = async (rootDir: string) => {
-	const directory = path.join(rootDir, workflowsDirectory);
-	const entries = await readdir(directory, { withFileTypes: true });
 	const steps: { hash: string; id: string; kind: 'run' | 'uses' }[] = [];
 	const problems: string[] = [];
 
-	const files = entries
-		.filter(
-			(entry) =>
-				entry.isFile() &&
-				(entry.name.endsWith('.yml') || entry.name.endsWith('.yaml')),
-		)
-		.map((entry) => entry.name)
-		.sort();
+	const { files, errorFinding } = await listWorkflowFiles(rootDir);
+	if (errorFinding !== null) {
+		problems.push(errorFinding);
+		return { problems, steps };
+	}
 
 	for (const file of files) {
-		const raw = await readFile(path.join(directory, file), 'utf8');
+		const raw = await readFile(
+			path.join(rootDir, workflowsDirectory, file),
+			'utf8',
+		);
 		const document = parse(raw) as YamlDocument | null;
 		const jobs = document?.jobs ?? {};
 
@@ -1137,6 +1136,234 @@ export const findCiDrift = async ({
 					`UNPINNED ${id}\n    This step is reconciled in the manifest but not pinned in reason-guard-ref.json. A covered step that nothing pins can vanish without the ratchet moving — its removal needs no confession and trips no RATCHET. Regenerate reason-guard-ref.json so every reconciled step is pinned (run \`node packages/scripts-ts/src/gen-reason-ref.ts\`).`,
 				);
 			}
+		}
+	}
+
+	// Structural checks (#1914, #1693): hard invariants that hash-pinning
+	// cannot express. They scan the parsed workflow documents directly.
+	findings.push(...(await checkSmokeStepProductionEnv(rootDir)));
+	findings.push(...(await checkUploadArtifactSuccessPath(rootDir)));
+
+	return findings;
+};
+
+/**
+ * Lists the workflow files in `.github/workflows`, or returns a named finding
+ * naming the directory when it cannot be read. Both `checkSmokeStepProductionEnv`
+ * and `checkUploadArtifactSuccessPath` rely on this; a missing, renamed, or
+ * permission-denied workflows directory MUST surface a finding that names the
+ * path — never silently lower the gate to "nothing to report" (the round-1
+ * defect). The shape of the finding is `{ files, errorFinding }` so callers
+ * can either iterate the files or push the finding.
+ */
+const listWorkflowFiles = async (
+	rootDir: string,
+): Promise<{ files: string[]; errorFinding: string | null }> => {
+	const directory = path.join(rootDir, workflowsDirectory);
+	try {
+		const entries = await readdir(directory, { withFileTypes: true });
+		const files = entries
+			.filter(
+				(entry) =>
+					entry.isFile() &&
+					(entry.name.endsWith('.yml') || entry.name.endsWith('.yaml')),
+			)
+			.map((entry) => entry.name)
+			.sort();
+		return { files, errorFinding: null };
+	} catch (error) {
+		const code = (error as NodeJS.ErrnoException).code;
+		let reason: string;
+		if (code === 'ENOENT') {
+			reason = 'directory not found (missing or renamed)';
+		} else if (code === 'EACCES') {
+			reason = 'permission denied';
+		} else if (error instanceof Error) {
+			reason = error.message;
+		} else {
+			reason = String(error);
+		}
+		return {
+			files: [],
+			errorFinding: `${workflowsDirectory}: could not read workflows directory at \`${directory}\` — ${reason}. The structural guards (smoke NODE_ENV=production, upload-artifact success-path) cannot analyze anything they cannot list; fix the directory access and re-run.`,
+		};
+	}
+};
+
+/**
+ * Classifies a step's `if:` condition into one of three buckets:
+ *   - "success-path": runs on green (no `if:`, or mentions `success()` /
+ *     `always()` and not `failure()`).
+ *   - "failure-only": only on red (the `if:` expression mentions the token
+ *     `failure()` in any form).
+ *   - "uncertain": anything else — a fork variable rename, a custom boolean
+ *     expression, anything the guard does not recognize.
+ */
+const classifyIfCondition = (
+	stepIf: string,
+): 'success-path' | 'failure-only' | 'uncertain' => {
+	const text = stepIf.trim();
+	if (text === '') {
+		return 'success-path';
+	}
+	if (/(?:^|[^A-Za-z0-9_])failure\s*\(\s*\)/.test(text)) {
+		return 'failure-only';
+	}
+	if (
+		/(?:^|[^A-Za-z0-9_])success\s*\(\s*\)/.test(text) ||
+		/(?:^|[^A-Za-z0-9_])always\s*\(\s*\)/.test(text)
+	) {
+		return 'success-path';
+	}
+	return 'uncertain';
+};
+
+const frontStartCommandPatterns: RegExp[] = [
+	/\bpnpm\s+--filter\s+front\s+(?:run\s+)?start(?![\w:-])/,
+	/node\s+(?:apps\/front\/)?server\.mjs\b/,
+	/\bpnpm\s+(?:run\s+)?start(?![\w:-])/,
+];
+
+const isFrontStartStep = (run: string): boolean =>
+	frontStartCommandPatterns.some((pattern) => pattern.test(run));
+
+const isUploadArtifactStep = (uses: string): boolean =>
+	uses.startsWith('actions/upload-artifact@');
+
+/**
+ * #1914: The front-ci.yml smoke-start step must run with NODE_ENV=production
+ * in its env block.
+ */
+export const checkSmokeStepProductionEnv = async (
+	rootDir: string,
+): Promise<string[]> => {
+	const findings: string[] = [];
+	const { files, errorFinding } = await listWorkflowFiles(rootDir);
+
+	if (errorFinding !== null) {
+		findings.push(errorFinding);
+		return findings;
+	}
+
+	for (const file of files) {
+		const raw = await readFile(
+			path.join(rootDir, workflowsDirectory, file),
+			'utf8',
+		);
+		const document = parse(raw) as YamlDocument | null;
+		const jobs = document?.jobs ?? {};
+
+		for (const jobId of Object.keys(jobs)) {
+			const job = jobs[jobId];
+			const jobSteps: YamlStep[] = job?.steps ?? [];
+
+			for (const step of jobSteps) {
+				const run = typeof step.run === 'string' ? step.run : '';
+				if (!isFrontStartStep(run)) {
+					continue;
+				}
+
+				const env = step.env ?? {};
+				if (env.NODE_ENV !== 'production') {
+					const stepName = step.name ?? '';
+					const loc = `${file}::${jobId}::${stepName}`;
+					findings.push(
+						`SMOKE ENV  ${loc}\n    This step starts the front standalone server (its \`run:\` matches the front \`start\` command — \`pnpm --filter front start\` family or \`node server.mjs\`), so it must set NODE_ENV=production in its \`env:\` block to exercise validateRuntimeEnv() on the CI smoke path. Currently NODE_ENV is absent or not "production". Without it, removing validateRuntimeEnv() from server.mjs would pass CI silently.`,
+					);
+				}
+			}
+		}
+	}
+
+	return findings;
+};
+
+/**
+ * #1693: Every workflow that uses actions/upload-artifact must have at least
+ * one upload step that runs on the SUCCESS path (not only on failure()).
+ */
+export const checkUploadArtifactSuccessPath = async (
+	rootDir: string,
+): Promise<string[]> => {
+	const findings: string[] = [];
+	const { files, errorFinding } = await listWorkflowFiles(rootDir);
+
+	if (errorFinding !== null) {
+		findings.push(errorFinding);
+		return findings;
+	}
+
+	for (const file of files) {
+		const raw = await readFile(
+			path.join(rootDir, workflowsDirectory, file),
+			'utf8',
+		);
+		const document = parse(raw) as YamlDocument | null;
+		const jobs = document?.jobs ?? {};
+
+		let hasUploadArtifact = false;
+		let hasSuccessPathUpload = false;
+		const uncertainConditions: string[] = [];
+		const failureGatedJobs: string[] = [];
+
+		for (const jobId of Object.keys(jobs)) {
+			const job = jobs[jobId];
+			const jobSteps: YamlStep[] = job?.steps ?? [];
+			const jobIf = job.if ?? '';
+			const jobCondition = classifyIfCondition(jobIf);
+			const jobGatesEveryUpload = jobCondition === 'failure-only';
+
+			let jobHasUpload = false;
+			for (const step of jobSteps) {
+				const uses = (step.uses ?? '') as string;
+				if (!isUploadArtifactStep(uses)) {
+					continue;
+				}
+
+				hasUploadArtifact = true;
+				jobHasUpload = true;
+
+				const stepClassification = classifyIfCondition(
+					(step.if ?? '') as string,
+				);
+				const classification = jobGatesEveryUpload
+					? 'failure-only'
+					: stepClassification;
+
+				if (classification === 'success-path') {
+					hasSuccessPathUpload = true;
+				} else if (classification === 'uncertain') {
+					uncertainConditions.push(
+						`${step.name ?? '(unnamed)'}\n        if: ${step.if ?? ''}`,
+					);
+				}
+			}
+
+			if (jobHasUpload && jobGatesEveryUpload) {
+				failureGatedJobs.push(
+					`${file}::${jobId} (job \`if:\` is failure-only: \`${jobIf}\`)`,
+				);
+			}
+		}
+
+		if (hasUploadArtifact && !hasSuccessPathUpload) {
+			const jobGateBlock =
+				failureGatedJobs.length > 0
+					? `\n    Failure-gated jobs: ${failureGatedJobs.join(
+							', ',
+						)} — every upload step under a failure-only job runs only on red, so it cannot satisfy the success-path requirement.`
+					: '';
+			const uncertainBlock =
+				uncertainConditions.length > 0
+					? `\n    Unrecognized \`if:\` conditions on upload steps (cannot tell whether they are success-path or failure-only — the guard must not silently decide):\n${uncertainConditions
+							.map((c) => `      - ${c}`)
+							.join(
+								'\n',
+							)}\n    Either rewrite the condition to mention \`success()\` or \`always()\` (success-path), or \`failure()\` (failure-only), or remove the condition entirely; otherwise the guard has no way to assert that the upload/download round-trip is exercised on a green run.`
+					: '';
+			findings.push(
+				`UPLOAD ARTIFACT  ${file}\n    This workflow uses actions/upload-artifact but no upload step is classified as success-path. Add at least one upload step whose \`if:\` is unconditional or mentions \`success()\` / \`always()\` (and whose JOB is not failure-gated) so the upload/download round-trip is exercised on a green, non-fork run.${jobGateBlock}${uncertainBlock}`,
+			);
 		}
 	}
 

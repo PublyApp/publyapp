@@ -9,6 +9,7 @@ import { test } from 'vitest';
 import { parse } from 'yaml';
 
 import {
+	checkSmokeStepProductionEnv,
 	findCiDrift,
 	findDuplicateKeys,
 	hashReason,
@@ -2582,6 +2583,442 @@ test('readRefFromGit-fs: 3-part committed attack IS CAUGHT by the merge-base flo
 	assert.match(ratchetFindings[0], /RATCHET\s+fixture\.yml::build::Step B/);
 	assert.match(ratchetFindings[0], /silently erased/);
 	assert.match(ratchetFindings[0], /ci-gate-removals\.json/);
+});
+
+// #1913: the confession reader's filler-reason check is tested end-to-end.
+test('#1913: confession with a filler reason is rejected end-to-end via readRemovalsConfession', async () => {
+	const rootDir = await mkdtemp(
+		path.join(os.tmpdir(), 'publyapp-confession-filler-'),
+	);
+	await mkdir(path.join(rootDir, '.github/workflows'), { recursive: true });
+	await mkdir(path.join(rootDir, 'packages/scripts-ts/src'), {
+		recursive: true,
+	});
+
+	await writeFile(
+		path.join(rootDir, '.github/workflows/fixture.yml'),
+		workflow('      - name: Step A\n        run: echo a\n'),
+	);
+
+	await writeFile(
+		path.join(rootDir, 'packages/scripts-ts/src/ci-gate-manifest.json'),
+		JSON.stringify(
+			{
+				steps: {
+					'fixture.yml::build::Step A': {
+						hash: 'b0ea35b0641c92e6',
+						mirror: 'just ci',
+						reason:
+							'Mirrored locally by the fixture gate for testing purposes.',
+					},
+				},
+			},
+			null,
+			'\t',
+		),
+	);
+
+	await writeFile(
+		path.join(rootDir, 'packages/scripts-ts/src/ci-gate-removals.json'),
+		JSON.stringify(
+			{
+				steps: [
+					{
+						step_id: 'fixture.yml::build::Step B',
+						reason: 'x'.repeat(24),
+					},
+				],
+			},
+			null,
+			'\t',
+		),
+	);
+
+	const ref = {
+		pinned_step_ids: [
+			'fixture.yml::build::Step A',
+			'fixture.yml::build::Step B',
+		],
+		steps: {
+			'fixture.yml::build::Step A': {
+				reason_hash: hashReason(
+					'Mirrored locally by the fixture gate for testing purposes.',
+				),
+				reason_length: reason.length,
+				reason,
+			},
+		},
+	};
+
+	const findings = await findCiDrift({ rootDir, reasonRef: ref });
+
+	const confessionFindings = findings.filter((f) =>
+		f.startsWith('CONFESSION ERROR'),
+	);
+
+	assert.equal(
+		confessionFindings.length,
+		1,
+		'Expected a CONFESSION ERROR for the filler reason, got: ' +
+			JSON.stringify(findings, null, 2),
+	);
+	assert.match(
+		confessionFindings[0],
+		/filler/,
+		'The finding must name filler as the cause',
+	);
+	assert.match(
+		confessionFindings[0],
+		/ci-gate-removals\.json/,
+		'The finding must name the confession file',
+	);
+});
+
+test('#1913: confession with a multi-block filler reason is also rejected', async () => {
+	const rootDir = await mkdtemp(
+		path.join(os.tmpdir(), 'publyapp-confession-filler-multi-'),
+	);
+	await mkdir(path.join(rootDir, '.github/workflows'), { recursive: true });
+	await mkdir(path.join(rootDir, 'packages/scripts-ts/src'), {
+		recursive: true,
+	});
+
+	await writeFile(
+		path.join(rootDir, '.github/workflows/fixture.yml'),
+		workflow('      - name: Step A\n        run: echo a\n'),
+	);
+
+	await writeFile(
+		path.join(rootDir, 'packages/scripts-ts/src/ci-gate-manifest.json'),
+		JSON.stringify(
+			{
+				steps: {
+					'fixture.yml::build::Step A': {
+						hash: 'b0ea35b0641c92e6',
+						mirror: 'just ci',
+						reason:
+							'Mirrored locally by the fixture gate for testing purposes.',
+					},
+				},
+			},
+			null,
+			'\t',
+		),
+	);
+
+	await writeFile(
+		path.join(rootDir, 'packages/scripts-ts/src/ci-gate-removals.json'),
+		JSON.stringify(
+			{
+				steps: [
+					{
+						step_id: 'fixture.yml::build::Step B',
+						reason: 'ab'.repeat(6) + 'cd'.repeat(6),
+					},
+				],
+			},
+			null,
+			'\t',
+		),
+	);
+
+	const ref = {
+		pinned_step_ids: [
+			'fixture.yml::build::Step A',
+			'fixture.yml::build::Step B',
+		],
+		steps: {
+			'fixture.yml::build::Step A': {
+				reason_hash: hashReason(
+					'Mirrored locally by the fixture gate for testing purposes.',
+				),
+				reason_length: reason.length,
+				reason,
+			},
+		},
+	};
+
+	const findings = await findCiDrift({ rootDir, reasonRef: ref });
+
+	const confessionFindings = findings.filter((f) =>
+		f.startsWith('CONFESSION ERROR'),
+	);
+
+	assert.equal(
+		confessionFindings.length,
+		1,
+		'Expected a CONFESSION ERROR for the multi-block filler reason, got: ' +
+			JSON.stringify(findings, null, 2),
+	);
+	assert.match(confessionFindings[0], /filler/);
+});
+
+// #1914: structural check that the CI smoke-start step sets NODE_ENV=production.
+test('#1914: smoke step without NODE_ENV=production in env is flagged', async () => {
+	const rootDir = await mkdtemp(path.join(os.tmpdir(), 'publyapp-smoke-env-'));
+	await mkdir(path.join(rootDir, '.github/workflows'), { recursive: true });
+	await mkdir(path.join(rootDir, 'packages/scripts-ts/src'), {
+		recursive: true,
+	});
+
+	await writeFile(
+		path.join(rootDir, '.github/workflows/fixture.yml'),
+		workflow(
+			'      - name: Smoke start front server\n        env:\n          PUBLIC_API_BASE_URL: http://127.0.0.1:5000\n          SERVER_API_BASE_URL: http://127.0.0.1:5000\n        run: node server.mjs\n',
+		),
+	);
+
+	await writeFile(
+		path.join(rootDir, 'packages/scripts-ts/src/ci-gate-manifest.json'),
+		JSON.stringify(
+			{
+				steps: {
+					'fixture.yml::build::Smoke start front server': {
+						hash: 'placeholder',
+						mirror: 'just dev-front',
+						reason,
+					},
+				},
+			},
+			null,
+			'\t',
+		),
+	);
+
+	const ref = {
+		pinned_step_ids: ['fixture.yml::build::Smoke start front server'],
+		steps: {},
+	};
+
+	const findings = await findCiDrift({ rootDir, reasonRef: ref });
+
+	const smokeFindings = findings.filter((f) => f.startsWith('SMOKE ENV'));
+	assert.equal(
+		smokeFindings.length,
+		1,
+		'Expected a SMOKE ENV finding for smoke step missing NODE_ENV=production, got: ' +
+			JSON.stringify(findings, null, 2),
+	);
+	assert.match(smokeFindings[0], /NODE_ENV=production/);
+});
+
+test('#1914: smoke step WITH NODE_ENV=production passes the guard', async () => {
+	const rootDir = await mkdtemp(
+		path.join(os.tmpdir(), 'publyapp-smoke-env-ok-'),
+	);
+	await mkdir(path.join(rootDir, '.github/workflows'), { recursive: true });
+	await mkdir(path.join(rootDir, 'packages/scripts-ts/src'), {
+		recursive: true,
+	});
+
+	await writeFile(
+		path.join(rootDir, '.github/workflows/fixture.yml'),
+		workflow(
+			'      - name: Smoke start front server\n        env:\n          NODE_ENV: production\n          PUBLIC_API_BASE_URL: http://127.0.0.1:5000\n          SERVER_API_BASE_URL: http://127.0.0.1:5000\n        run: node server.mjs\n',
+		),
+	);
+
+	const findings = await checkSmokeStepProductionEnv(rootDir);
+	const smokeFindings = findings.filter((f) => f.startsWith('SMOKE ENV'));
+	assert.equal(
+		smokeFindings.length,
+		0,
+		'Smoke step with NODE_ENV=production must not be flagged, got: ' +
+			JSON.stringify(findings, null, 2),
+	);
+});
+
+// #1693: structural check that every workflow using upload-artifact has at
+// least one success-path upload.
+test('#1693: workflow with only failure-guarded upload-artifact is flagged', async () => {
+	const rootDir = await mkdtemp(
+		path.join(os.tmpdir(), 'publyapp-upload-artifact-'),
+	);
+	await mkdir(path.join(rootDir, '.github/workflows'), { recursive: true });
+	await mkdir(path.join(rootDir, 'packages/scripts-ts/src'), {
+		recursive: true,
+	});
+
+	await writeFile(
+		path.join(rootDir, '.github/workflows/fixture.yml'),
+		workflow(
+			'      - name: Run tests\n        run: pnpm test\n      - name: Upload test results on failure\n        if: failure()\n        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a\n        with:\n          name: test-results\n          path: test-results/\n',
+		),
+	);
+
+	await writeFile(
+		path.join(rootDir, 'packages/scripts-ts/src/ci-gate-manifest.json'),
+		JSON.stringify(
+			{
+				steps: {
+					'fixture.yml::build::Run tests': {
+						hash: 'placeholder',
+						mirror: 'pnpm test',
+						reason,
+					},
+					'fixture.yml::build::Upload test results on failure': {
+						hash: 'placeholder',
+						mirror: null,
+						reason,
+					},
+				},
+			},
+			null,
+			'\t',
+		),
+	);
+
+	const ref = {
+		pinned_step_ids: [
+			'fixture.yml::build::Run tests',
+			'fixture.yml::build::Upload test results on failure',
+		],
+		steps: {},
+	};
+
+	const findings = await findCiDrift({ rootDir, reasonRef: ref });
+	const uploadFindings = findings.filter((f) =>
+		f.startsWith('UPLOAD ARTIFACT'),
+	);
+	assert.equal(
+		uploadFindings.length,
+		1,
+		'Expected an UPLOAD ARTIFACT finding for failure-only uploads, got: ' +
+			JSON.stringify(findings, null, 2),
+	);
+	assert.match(
+		uploadFindings[0],
+		/no upload step is classified as success-path/,
+	);
+});
+
+test('#1693: workflow with a success-path upload-artifact is NOT flagged', async () => {
+	const rootDir = await mkdtemp(
+		path.join(os.tmpdir(), 'publyapp-upload-artifact-ok-'),
+	);
+	await mkdir(path.join(rootDir, '.github/workflows'), { recursive: true });
+	await mkdir(path.join(rootDir, 'packages/scripts-ts/src'), {
+		recursive: true,
+	});
+
+	await writeFile(
+		path.join(rootDir, '.github/workflows/fixture.yml'),
+		workflow(
+			'      - name: Run tests\n        run: pnpm test\n      - name: Upload test results\n        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a\n        with:\n          name: test-results\n          path: test-results/\n',
+		),
+	);
+
+	await writeFile(
+		path.join(rootDir, 'packages/scripts-ts/src/ci-gate-manifest.json'),
+		JSON.stringify(
+			{
+				steps: {
+					'fixture.yml::build::Run tests': {
+						hash: 'placeholder',
+						mirror: 'pnpm test',
+						reason,
+					},
+					'fixture.yml::build::Upload test results': {
+						hash: 'placeholder',
+						mirror: null,
+						reason,
+					},
+				},
+			},
+			null,
+			'\t',
+		),
+	);
+
+	const ref = {
+		pinned_step_ids: [
+			'fixture.yml::build::Run tests',
+			'fixture.yml::build::Upload test results',
+		],
+		steps: {},
+	};
+
+	const findings = await findCiDrift({ rootDir, reasonRef: ref });
+	const uploadFindings = findings.filter((f) =>
+		f.startsWith('UPLOAD ARTIFACT'),
+	);
+	assert.equal(
+		uploadFindings.length,
+		0,
+		'Workflow with a success-path upload must not be flagged, got: ' +
+			JSON.stringify(findings, null, 2),
+	);
+});
+
+// #1941: the structural checks must refuse to stay silent when .github/workflows
+// is unreadable.
+test('#1941: smoke guard refuses to stay silent when .github/workflows is unreadable', async () => {
+	const rootDir = await mkdtemp(
+		path.join(os.tmpdir(), 'publyapp-smoke-unreadable-'),
+	);
+	await mkdir(path.join(rootDir, '.github/workflows'), { recursive: true });
+	await mkdir(path.join(rootDir, 'packages/scripts-ts/src'), {
+		recursive: true,
+	});
+
+	await chmod(path.join(rootDir, '.github/workflows'), 0o000);
+
+	try {
+		const findings = await findCiDrift({
+			rootDir,
+			reasonRef: { steps: {} },
+		});
+
+		const unreadableFindings = findings.filter(
+			(f) =>
+				/(?:SMOKE ENV|UPLOAD ARTIFACT)/.test(f) === false &&
+				/.github\/workflows/.test(f),
+		);
+		assert.ok(
+			unreadableFindings.length > 0,
+			'Refusing-to-run must surface a finding that names the unreadable workflows directory; got: ' +
+				JSON.stringify(findings, null, 2),
+		);
+		assert.match(
+			unreadableFindings[0],
+			/.github\/workflows/,
+			'The finding must name the directory it could not read.',
+		);
+	} finally {
+		await chmod(path.join(rootDir, '.github/workflows'), 0o755);
+	}
+});
+
+test('#1941: upload guard refuses to stay silent when .github/workflows is unreadable', async () => {
+	const rootDir = await mkdtemp(
+		path.join(os.tmpdir(), 'publyapp-upload-unreadable-'),
+	);
+	await mkdir(path.join(rootDir, '.github/workflows'), { recursive: true });
+	await mkdir(path.join(rootDir, 'packages/scripts-ts/src'), {
+		recursive: true,
+	});
+
+	await chmod(path.join(rootDir, '.github/workflows'), 0o000);
+
+	try {
+		const findings = await findCiDrift({
+			rootDir,
+			reasonRef: { steps: {} },
+		});
+
+		const unreadableFindings = findings.filter(
+			(f) =>
+				/(?:SMOKE ENV|UPLOAD ARTIFACT)/.test(f) === false &&
+				/.github\/workflows/.test(f),
+		);
+		assert.ok(
+			unreadableFindings.length > 0,
+			'Upload guard refusing-to-run must surface a finding that names the unreadable workflows directory; got: ' +
+				JSON.stringify(findings, null, 2),
+		);
+	} finally {
+		await chmod(path.join(rootDir, '.github/workflows'), 0o755);
+	}
 });
 
 // --- Proximity contract (#1845) ---
