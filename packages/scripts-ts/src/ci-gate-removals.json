@@ -9,6 +9,16 @@
 			"step_id": "require-linked-issue.yml::require-linked-issue::Verify the PR closes an existing issue",
 			"reason": "#2003: renamed to \"Verify the PR links an existing issue\" because the guard now accepts explicit non-closing relationships for honest partial slices as well as closing keywords. The replacement step keeps real-issue validation and pull-request rejection; no verification was removed.",
 			"removed_at": "2026-08-31"
+		},
+		{
+			"step_id": "require-linked-issue.yml::pr-body-exhaustiveness::Checkout",
+			"reason": "#2049 pruning: the PR-body prose parser is removed after a verified false positive on quoted and retracted claims. This checkout existed only to run that non-critical parser; the separate require-linked-issue job remains intact.",
+			"removed_at": "2026-09-01"
+		},
+		{
+			"step_id": "require-linked-issue.yml::pr-body-exhaustiveness::Verify the PR body makes no unverifiable exhaustiveness claims (#1569)",
+			"reason": "#2049 pruning: this lexical PR-prose check cannot distinguish an assertion from a quotation, retraction, result, or hypothesis. Removing it avoids growing a Markdown and natural-language analyzer; no runtime, security, data, API, supply-chain, or CI-integrity invariant is lost.",
+			"removed_at": "2026-09-01"
 		}
 	]
 }
