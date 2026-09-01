@@ -84,3 +84,6 @@ No production code, CI workflow, package script, reference data, or generated ar
 - [x] Define introduced guard gaps and preserve unrelated follow-up issues.
 - [x] Reconcile the lint-rule and orchestration procedures with the admission policy.
 - [x] Correct the stale backend reflection helper name in the touched guide.
+- [x] Cover newly added but currently conforming surfaces that escape required guard coverage.
+- [x] Remove the remaining unconditional recurring-trap instruction from adapter metadata.
+- [x] Distinguish technology-neutral guard admission evidence from kept-red bug/regression proofs.

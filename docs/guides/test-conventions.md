@@ -120,13 +120,14 @@ condition below; missing one condition means the assertion is rejected:
 6. The PR names the concrete condition that will retire the guard or replace it with a standard
    tool. A guard with no retirement condition is permanent maintenance debt and is rejected.
 
-A PR introduces a guard gap when its changed product/tooling surface violates an existing guard's
-documented policy, or when its guard change creates a new bypass. The PR must fix that changed
-surface or drop the change that created the gap before merge; it must not create a follow-up
-guard-gap issue. Merely discovering an independently reproducible pre-existing gap is not
-"introducing" it. Such a gap gets a separate issue only when its product, security, data, contract,
-build, or release impact is material. This restriction does not apply to ordinary non-guard
-follow-ups.
+A PR introduces a guard gap when its changed product/tooling surface escapes coverage that the
+existing guard's documented policy requires, even if the new instance is currently conforming; when
+that surface already violates the policy; or when its guard change creates a new bypass. The PR must
+bring the changed surface under the existing coverage, fix the violation, or drop the change that
+created the gap before merge. It must not create a follow-up guard-gap issue. Merely discovering an
+independently reproducible pre-existing gap is not "introducing" it. Such a gap gets a separate issue
+only when its product, security, data, contract, build, or release impact is material. This
+restriction does not apply to ordinary non-guard follow-ups.
 
 Reviewers enforce this admission rule directly. Do not add a script, analyzer, manifest, snapshot,
 or meta-guard to enforce the admission rule itself.
@@ -141,9 +142,10 @@ If and only if a guard is admitted:
 4. Fail loudly on an empty, unknown, or unparseable scan rather than passing vacuously.
 5. Fix every current violation in the same PR. Do not use a baseline, allowlist, or ratchet merely to
    stage adoption. If cleanup cannot land safely in that PR, do not ship the guard yet.
-6. Keep proof technology-neutral: the PR records the exact command and either a violating fixture or
-   a temporary mutation that the candidate catches. A real-tree mutation is restored before commit;
-   no new permanent proof framework is required.
+6. Keep admission evidence technology-neutral: the PR records the exact command and either a
+   violating fixture or a temporary mutation that the candidate catches, plus the conforming/restored
+   green run. A real-tree mutation is restored before commit; no new permanent proof framework is
+   required. This admission evidence is not the kept-red paired bug proof defined below.
 
 For an admitted backend reflection guard specifically, add a `*.Spec.cs` under
 `apps/api/Lib/Architecture/`, use `ArchitectureDiscovery` for shared discovery, and keep the
@@ -176,7 +178,9 @@ replayable, so the reviewer either trusts the trace or rebuilds the test from sc
 got away with it because the case was small; a concurrency or rendering proof cannot be
 reconstructed cheaply, and at that point the proof stops being reviewed at all.
 
-This section is the convention. It is normative for any new paired proof produced in this repo.
+This section is the convention. It is normative for any new **paired bug/regression proof** produced
+in this repo. A bespoke guard's admission evidence follows the technology-neutral fixture/mutation
+rule above and does not create a kept-red test unless the PR separately claims a bug/regression proof.
 
 ### The form: keep the test, in a dedicated location, named by the trace
 
@@ -343,16 +347,17 @@ proofs to run, not *what* they prove.
 
 ### When this convention does not apply
 
-A paired red/green proof is required for **bug fixes** and **guard rails** (a guard that
-turns red when a forbidden pattern is reintroduced; a regression test that pins a known loss).
-It is **not** required for:
+A kept-red paired proof is required for **bug fixes** and regression tests that pin a known loss.
+An admitted executable guard still requires red/green admission evidence, but supplies it through a
+co-located violating fixture or documented temporary mutation as defined above, not a permanently
+red test. A kept-red paired proof is **not** required for:
 
 - pure refactors with no behavior change;
 - new features that do not regress an existing behavior;
 - doc-only and config-only changes.
 
-A guard rail produced without a paired red proof is vacuous and will be rejected in review
-regardless of this convention.
+An executable guard produced without the admission evidence above is vacuous and will be rejected in
+review regardless of this convention.
 
 ### Why no automated guard (yet)
 
