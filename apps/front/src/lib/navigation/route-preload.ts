@@ -94,7 +94,7 @@ export type RoutePreloadEntry = {
 // function returns a plain `readonly RoutePreloadEntry[]`; each literal entry's
 // `options` is checked against the factory *shape* and its `variables` flows
 // through.
-export type RoutePreload = (args: {
+type RoutePreload = (args: {
 	params: Record<string, string>;
 }) => readonly RoutePreloadEntry[];
 
