@@ -1139,6 +1139,42 @@ test('RED #1977: a later undecidable negation cannot green-light a parallel cand
 	}
 });
 
+// #2061: two distinct BuildKit-visible lexical routes reach the same real
+// subtree (`a_real/` vs. `b_linked -> a_real`). Plain directories inside an
+// alias walk must consult/update the route-local set, or the canonical
+// real visit silently collapses the symlinked lexical route. Nesting the
+// shadow at `a_real/sub/Dockerfile.DockerIgnore` pins the per-route invariant.
+test('b_linked/sub/ lexical route is reported while a_real/sub/ is dropped', async () => {
+	const repoDir = await mkdtemp(
+		path.join(os.tmpdir(), 'publyapp-pr2061-nested-'),
+	);
+
+	try {
+		await initGitRepo(repoDir);
+		await writeFixtureFile(repoDir, '.gitignore', 'a_real/\n');
+		await writeFixtureFile(repoDir, '.dockerignore', 'a_real/\n');
+		await mkdir(path.join(repoDir, 'a_real', 'sub'), { recursive: true });
+		await writeFile(
+			path.join(repoDir, 'a_real', 'sub', 'Dockerfile.DockerIgnore'),
+			'',
+		);
+		await symlink('a_real', path.join(repoDir, 'b_linked'), 'dir');
+
+		const findings = await findDockerignoreShadows({ rootDir: repoDir });
+
+		assert.ok(
+			findings.includes('b_linked/sub/Dockerfile.DockerIgnore'),
+			`expected the guard to flag the nested lexical symlink route, got: ${JSON.stringify(findings)}`,
+		);
+		assert.ok(
+			!findings.includes('a_real/sub/Dockerfile.DockerIgnore'),
+			`expected the parallelism contract to drop the mirrored real route, got: ${JSON.stringify(findings)}`,
+		);
+	} finally {
+		await rm(repoDir, { recursive: true, force: true });
+	}
+});
+
 // FAIL-LOUD (paired proof): a deeply nested external symlink chain that exceeds the
 // recursion depth bound must fail loud (reject), NOT silently drop the
 // walk's findings — silence on overflow is exactly the false negative the

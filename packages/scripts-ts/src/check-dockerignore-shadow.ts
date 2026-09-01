@@ -336,6 +336,17 @@ const isRealInsideRoot = (realPath: string, realRoot: string): boolean => {
 // entry names to `lexicalParent` — exactly how BuildKit would resolve it. The
 // approach of computing `path.relative(rootDir, realTarget)` cannot work here
 // because the real target may have no path relationship to the repo root at all.
+//
+// LEXICAL ALIAS WALKS (#2061)
+// --------------------------
+// An internal directory symlink exposes a real subtree through a distinct
+// BuildKit-visible lexical path. Each lexical alias route gets its own
+// realpath-visited set (`aliasVisited`), so the canonical real visit cannot
+// collapse a sibling lexical route to the same physical file. Nested
+// internal symlinks inside an alias walk REUSE the route's `aliasVisited`
+// rather than starting a fresh set; external symlink traversal keeps the
+// global `visitedRealPaths` set unchanged so its depth/dedup contract is
+// untouched.
 const walkForShadows = async (
 	rootDir: string,
 	currentDir: string,
@@ -344,6 +355,7 @@ const walkForShadows = async (
 	realRoot: string,
 	remainingDepth: number,
 	lexicalParent: string | undefined,
+	aliasVisited: Set<string> | null,
 ): Promise<WalkFinding[]> => {
 	const directory = await opendir(currentDir);
 
@@ -376,26 +388,14 @@ const walkForShadows = async (
 				continue;
 			}
 
-			if (visitedRealPaths.has(realTarget)) {
-				continue;
-			}
-
 			if (!isRealInsideRoot(realTarget, realRoot)) {
-				// This symlink's real target sits outside the repository root.
-				// The guard descends recursively, recording what it finds under
-				// the BUILD-KIT lexical path of the symlink itself. This is
-				// the exact shape BuildKit would resolve: `linked/subdir/...`.
-				// Cycle protection and bounded depth prevent unbounded scans.
+				// EXTERNAL symlink: depth-bound, global-visited. The existing
+				// 63-level external-chain test must remain fast and green.
+				if (visitedRealPaths.has(realTarget)) {
+					continue;
+				}
 				visitedRealPaths.add(realTarget);
 
-				// The BUILD-KIT lexical path of this symlink: `linked/` for
-				// `repo/linked -> /tmp/external/`. We derive it from
-				// `lexicalParent` (the BuildKit path of the directory we're
-				// currently in), which is the ONLY reliable source: when this
-				// symlink sits inside an external target, `entryAbsolute` is
-				// a path outside the repo and `path.relative(rootDir, ...)` is
-				// meaningless (produces `../tmp/...`). Using `lexicalParent`
-				// gives `linked/subdir/` for the sub-symlink case.
 				const symlinkLexical = lexicalParent
 					? `${lexicalParent}/${entry.name}`
 					: entry.name;
@@ -417,6 +417,7 @@ const walkForShadows = async (
 						realRoot,
 						remainingDepth - 1,
 						symlinkLexical,
+						aliasVisited,
 					);
 				} catch {
 					// Unreadable external directory: recursion unwinds.
@@ -424,10 +425,19 @@ const walkForShadows = async (
 				continue;
 			}
 
-			visitedRealPaths.add(realTarget);
+			// INTERNAL symlink to a directory: lexical alias walk. The alias
+			// target is added AFTER the cycle check so the entering symlink
+			// is not skipped on its own first encounter; nested cycles (a
+			// sibling alias back to the same target, or one resolving to
+			// `realRoot`) are caught by the `has()` check. Nested internal
+			// symlinks inside an alias walk reuse the route's `aliasVisited`
+			// rather than starting fresh sets.
+			const nextAliasVisited = aliasVisited ?? new Set<string>([realRoot]);
+			if (nextAliasVisited.has(realTarget)) {
+				continue;
+			}
+			nextAliasVisited.add(realTarget);
 
-			// Internal symlink to a directory: preserve the symlink segment in
-			// the BuildKit-visible path while consulting the resolved target.
 			const symlinkLexical = lexicalParent
 				? `${lexicalParent}/${entry.name}`
 				: entry.name;
@@ -439,6 +449,7 @@ const walkForShadows = async (
 				realRoot,
 				remainingDepth,
 				symlinkLexical,
+				nextAliasVisited,
 			);
 			continue;
 		}
@@ -449,10 +460,14 @@ const walkForShadows = async (
 			}
 
 			const realEntry = await realpath(entryAbsolute);
-			if (visitedRealPaths.has(realEntry)) {
+			// Inside an alias walk, dedup against the route-local set so the
+			// canonical real visit cannot collapse a sibling lexical route.
+			// Outside an alias walk, keep the existing global behaviour.
+			const visitedSet = aliasVisited ?? visitedRealPaths;
+			if (visitedSet.has(realEntry)) {
 				continue;
 			}
-			visitedRealPaths.add(realEntry);
+			visitedSet.add(realEntry);
 
 			// Build the BUILD-KIT lexical path for this subdirectory:
 			// `lexicalParent/foo/` — undefined parent means root-level `foo/`.
@@ -468,6 +483,7 @@ const walkForShadows = async (
 				realRoot,
 				remainingDepth,
 				childLexical,
+				aliasVisited,
 			);
 			continue;
 		}
@@ -499,21 +515,15 @@ export const findDockerignoreShadows = async (
 		realRoot,
 		EXTERNAL_MAX_DEPTH,
 		undefined, // no lexical prefix at the repo root level
+		null, // alias walk starts inside the walk on internal symlink encounters
 	);
 
-	// Deduplicate by real path, keeping the first lexical occurrence for each
-	// real file. The same file can be reached via multiple lexical paths
-	// (e.g., a real directory and a symlink pointing to it both expose the
-	// same shadow). Keeping the first prevents duplicates while preserving
-	// the canonical path BuildKit would see.
-	const seenReal = new Set<string>();
-	const uniqueFindings: WalkFinding[] = [];
-	for (const f of rawFindings) {
-		if (!seenReal.has(f.real)) {
-			seenReal.add(f.real);
-			uniqueFindings.push(f);
-		}
-	}
+	// #2061: do NOT deduplicate findings by real path. The same physical
+	// file reachable via distinct lexical routes emits distinct BuildKit-
+	// visible paths, and the `.dockerignore` mirror check operates on the
+	// LEXICAL path — the asymmetric routing (gitignored-mirrored under
+	// one route, not the other) is the contract. The final dedupe uses
+	// lexical string, the only portable identity here.
 
 	const checkIgnore = createGitIgnoreChecker(rootDir);
 	const dockerignoreMirror = await readRootDockerignore(rootDir);
@@ -521,11 +531,11 @@ export const findDockerignoreShadows = async (
 	let visible: string[];
 
 	if (checkIgnore === null) {
-		visible = uniqueFindings.map((f) => f.lexical);
+		visible = rawFindings.map((f) => f.lexical);
 	} else {
 		const askable: WalkFinding[] = [];
 		const unanswerable: WalkFinding[] = [];
-		for (const f of uniqueFindings) {
+		for (const f of rawFindings) {
 			if (f.lexical.endsWith(`/${DEPTH_OVERFLOW_MARKER}`)) {
 				unanswerable.push(f);
 				continue;
