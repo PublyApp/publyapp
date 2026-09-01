@@ -426,8 +426,11 @@ const walkForShadows = async (
 
 			visitedRealPaths.add(realTarget);
 
-			// Internal symlink to a directory: descend using the same lexical
-			// parent as the current walk level.
+			// Internal symlink to a directory: preserve the symlink segment in
+			// the BuildKit-visible path while consulting the resolved target.
+			const symlinkLexical = lexicalParent
+				? `${lexicalParent}/${entry.name}`
+				: entry.name;
 			await walkForShadows(
 				rootDir,
 				entryAbsolute,
@@ -435,7 +438,7 @@ const walkForShadows = async (
 				visitedRealPaths,
 				realRoot,
 				remainingDepth,
-				lexicalParent,
+				symlinkLexical,
 			);
 			continue;
 		}
@@ -474,7 +477,7 @@ const walkForShadows = async (
 			const lexical = lexicalParent
 				? `${lexicalParent}/${entry.name}`
 				: entry.name;
-			findings.push({ lexical, real: entryAbsolute });
+			findings.push({ lexical, real: await realpath(entryAbsolute) });
 		}
 	}
 
