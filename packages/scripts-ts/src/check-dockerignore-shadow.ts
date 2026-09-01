@@ -1,3 +1,4 @@
+import { spawnSync } from 'node:child_process';
 import { opendir, readFile, realpath, stat as statFn } from 'node:fs/promises';
 import path from 'node:path';
 import process from 'node:process';
@@ -177,23 +178,46 @@ const normalizeDockerignorePattern = (pattern: string): string[] => {
 	return trimmed.split('/');
 };
 
-const parseDockerignoreLine = (line: string) => {
+// A parsed `.dockerignore` line is one of three kinds:
+//
+//   * `noop` — a blank line or a comment. It is not a rule and cannot
+//     re-include a candidate the parent excluded. The tri-state mirror
+//     check must NOT let a trailing blank line downgrade a clean
+//     `mirrored` verdict to `cannot_decide`; the file's effective rules
+//     are unaffected. This is the difference between "an undecidable rule
+//     I cannot reason about" and "no rule at all".
+//   * `exact` — a decidable segment sequence (no globs, no negation).
+//     This is the kind of rule the mirror check can match against a
+//     candidate path.
+//   * `undecidable` — a rule whose semantics the guard has not
+//     implemented (negation `!`, globs `*` `?`, globstar `**`,
+//     character classes `[`, `]`, brace expansion `{`, `}`). The
+//     mirror check cannot prove exclusion, and a later undecidable line
+//     can flip a parent's `mirrored` verdict back to "included" because
+//     Docker reads `.dockerignore` top-to-bottom and the LAST matching
+//     rule controls inclusion.
+type ParsedLine =
+	| { kind: 'noop'; raw: string }
+	| { kind: 'exact'; segments: string[] }
+	| { kind: 'undecidable'; raw: string };
+
+const parseDockerignoreLine = (line: string): ParsedLine => {
 	const trimmed = line.trim();
 	if (trimmed.length === 0 || trimmed.startsWith('#')) {
-		return { kind: 'undecidable' as const, raw: line };
+		return { kind: 'noop', raw: line };
 	}
 	const unquoted =
 		trimmed.startsWith('"') && trimmed.endsWith('"')
 			? trimmed.slice(1, -1)
 			: trimmed;
 	if (hasUndecidableCharacters(unquoted)) {
-		return { kind: 'undecidable' as const, raw: line };
+		return { kind: 'undecidable', raw: line };
 	}
 	const segments = normalizeDockerignorePattern(unquoted);
 	if (segments.length === 0) {
-		return { kind: 'undecidable' as const, raw: line };
+		return { kind: 'noop', raw: line };
 	}
-	return { kind: 'exact' as const, segments };
+	return { kind: 'exact', segments };
 };
 
 const parseDockerignore = (contents: string) =>
@@ -204,23 +228,51 @@ const parseDockerignore = (contents: string) =>
 
 // True when ANY contiguous slice of `lexicalPath` segments equals one of
 // the parsed `exact` segment sequences (or the pattern is a single
-// segment that matches anywhere from the root downward). The function
-// returns `false` on any path that crosses an `undecidable` line: silent
-// treatment of such a line is the false negative the guard is built to
-// prevent.
+// segment that matches anywhere from the root downward).
+//
+// TRI-STATE RESULT (issue #1977, round 6)
+// ---------------------------------------
+// Docker reads `.dockerignore` top-to-bottom and the LAST matching rule
+// controls inclusion: a later negation `!leaked/Dockerfile.dockerignore`
+// re-includes the file a parent `leaked/` excluded. The mirror check
+// therefore needs three answers, not two:
+//
+//   * `mirrored` — every decidable line that matches the path excludes
+//     it AND no later undecidable line could re-include it.
+//   * `not_mirrored` — no line in the file matches the path AND no
+//     undecidable line could either.
+//   * `cannot_decide` — no decidable line excludes the path (or only
+//     partial coverage applies), AND at least one later line is
+//     undecidable. The guard cannot prove exclusion, so it fails loud
+//     and names the candidate and rule context instead of silently
+//     dropping it.
+//
+// The previous boolean implementation returned `false` the moment it
+// met an undecidable line and silently dropped git-ignored paths whose
+// `.dockerignore` carried a later negation — the exact false negative
+// #1977 exists to close.
+type MirrorResult = 'mirrored' | 'not_mirrored' | 'cannot_decide';
+
 const isMirroredByDockerignore = (
 	lexicalPath: string,
-	parsed: ReturnType<typeof parseDockerignoreLine>[],
-): boolean => {
+	parsed: ParsedLine[],
+): MirrorResult => {
 	const segments = lexicalPath.split('/');
+	let matchedExact = false;
+	let sawUndecidable = false;
+
 	for (let index = 0; index < segments.length; index += 1) {
 		for (const line of parsed) {
+			if (line.kind === 'noop') {
+				continue;
+			}
 			if (line.kind === 'undecidable') {
-				return false;
+				sawUndecidable = true;
+				continue;
 			}
 			if (line.segments.length === 1) {
 				if (segments[index] === line.segments[0]) {
-					return true;
+					matchedExact = true;
 				}
 				continue;
 			}
@@ -228,16 +280,21 @@ const isMirroredByDockerignore = (
 				.slice(index, index + line.segments.length)
 				.join('/');
 			if (tail === line.segments.join('/')) {
-				return true;
+				matchedExact = true;
 			}
 		}
 	}
-	return false;
+
+	if (!matchedExact) {
+		return sawUndecidable ? 'cannot_decide' : 'not_mirrored';
+	}
+	// Every decidable line that matches the path excludes it; a later
+	// undecidable line could still re-include it, so the safe answer is
+	// `cannot_decide`.
+	return sawUndecidable ? 'cannot_decide' : 'mirrored';
 };
 
-const readRootDockerignore = async (
-	rootDir: string,
-): Promise<ReturnType<typeof parseDockerignoreLine>[]> => {
+const readRootDockerignore = async (rootDir: string): Promise<ParsedLine[]> => {
 	try {
 		const contents = await readFile(
 			path.join(rootDir, '.dockerignore'),
@@ -477,23 +534,89 @@ export const findDockerignoreShadows = async (
 			}
 		}
 		const ignoredReal = checkIgnore(askable.map((f) => f.real));
+		// TRI-STATE (issue #1977): a git-ignored shadow is dropped only when
+		// the mirror check can prove exclusion (`mirrored`). `cannot_decide`
+		// means a later undecidable line could re-include the candidate, so
+		// the guard fails loud and names it instead of swallowing it. `not_mirrored`
+		// means Docker still sees the file and the existing round-5 contract
+		// surfaces it as a finding.
 		const visibleInRepo = askable
 			.filter((f) => {
 				if (!ignoredReal.has(f.real)) {
 					return true;
 				}
-				// Git ignores this path. The root `.dockerignore` must
-				// also mirror it for the parallelism contract to drop it.
-				// A path git-ignored but NOT mirrored by `.dockerignore`
-				// is visible to Docker and must be reported — that is the
-				// silent false negative the round-5 captain pinned.
-				return !isMirroredByDockerignore(f.lexical, dockerignoreMirror);
+				const verdict = isMirroredByDockerignore(f.lexical, dockerignoreMirror);
+				return verdict !== 'mirrored';
 			})
 			.map((f) => f.lexical);
 		visible = [...visibleInRepo, ...unanswerable.map((f) => f.lexical)];
 	}
 
-	return visible.sort();
+	// TRACKED LEXICAL `.dockerignore` (issue #1891, round 6)
+	// ------------------------------------------------------
+	// A TRACKED path whose basename is exactly `.dockerignore` and is NOT
+	// the repository-root file is the same context divergence the
+	// `<Dockerfile>.dockerignore` shadows cause — `docker build <subdir>`
+	// opens `<subdir>/.dockerignore` and re-includes everything the root
+	// file would have excluded. The filesystem walk only catches files
+	// whose basename is NOT exactly `.dockerignore`, so a literal
+	// `apps/api/.dockerignore` is invisible there. We ask git's tracked-file
+	// inventory instead: `git ls-files` returns only what git stages or
+	// commits, so git-ignored worktrees (`.worktrees/`, `.dump/`, `.claude/`)
+	// are naturally excluded. A tracked symlink is a tracked path in
+	// `git ls-files` — BuildKit dereferences it, so the lexical
+	// `apps/api/.dockerignore` is what the guard must name. The reporting
+	// list is the union of the walk findings and the tracked-subdir
+	// findings; duplicates are de-duplicated by lexical path.
+	const trackedFindings = await findTrackedSubdirDockerignores(rootDir);
+
+	const combined = [...visible, ...trackedFindings];
+	const deduped = Array.from(new Set(combined));
+
+	return deduped.sort();
+};
+
+// Return every tracked lexical path whose basename is exactly
+// `.dockerignore` and which is NOT the repository-root file. `git ls-files`
+// lists only what git tracks, so `.worktrees/`, `.dump/`, `.claude/`, and
+// any other git-ignored directory are naturally excluded. The output is
+// posix-normalised so it concatenates cleanly with the walk's findings.
+const findTrackedSubdirDockerignores = async (
+	rootDir: string,
+): Promise<string[]> => {
+	const probe = spawnSync(
+		'git',
+		['-C', rootDir, 'rev-parse', '--is-inside-work-tree'],
+		{ encoding: 'utf8' },
+	);
+	if (probe.status !== 0 || probe.stdout.trim() !== 'true') {
+		return [];
+	}
+	const result = spawnSync('git', ['-C', rootDir, 'ls-files', '-z'], {
+		encoding: 'utf8',
+	});
+	if (result.status !== 0) {
+		throw new Error(
+			`git ls-files failed with status ${String(result.status)}: ${result.stderr}`,
+		);
+	}
+	if (result.stdout.length === 0) {
+		return [];
+	}
+	const out: string[] = [];
+	for (const rawPath of result.stdout.split('\0')) {
+		if (rawPath.length === 0) {
+			continue;
+		}
+		const normalised = toPosixPath(rawPath);
+		if (normalised === '.dockerignore') {
+			continue;
+		}
+		if (normalised.endsWith('/.dockerignore')) {
+			out.push(normalised);
+		}
+	}
+	return out;
 };
 
 const run = async () => {

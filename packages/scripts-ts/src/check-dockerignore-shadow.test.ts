@@ -922,7 +922,224 @@ test('GREEN: a cyclic external symlink does not loop the guard (#1873 round 5)',
 	}
 });
 
-// FAIL-LOUD (paired proof): a chain of external symlinks that exceeds the
+// Commit helper for fixtures that need tracked files (`git ls-files` only sees
+// what is staged or committed). Used by the #1891 paired proofs: the guard must
+// ask git's tracked-file inventory, not the filesystem walk, so a regular
+// tracked `.dockerignore` and a tracked symlink with the same name both have
+// to be tested through `git add` + `git commit`.
+const commitTracked = (repoDir: string, relativePaths: string[]): void => {
+	for (const relativePath of relativePaths) {
+		execFileSync('git', ['add', '--', relativePath], {
+			cwd: repoDir,
+			encoding: 'utf8',
+			stdio: 'ignore',
+		});
+	}
+	execFileSync(
+		'git',
+		[
+			'-c',
+			'user.email=test@example.com',
+			'-c',
+			'user.name=test',
+			'commit',
+			'-q',
+			'-m',
+			'fixture',
+		],
+		{ cwd: repoDir, encoding: 'utf8', stdio: 'ignore' },
+	);
+};
+
+// -----------------------------------------------------------------------
+// Round 6 / issue #1891: a TRACKED lexical path named `.dockerignore` other
+// than the repository-root one creates exactly the same context divergence
+// as the `<Dockerfile>.dockerignore` shadow it replaces. A future
+// `docker build apps/api` would open `apps/api/.dockerignore` instead of the
+// root file and re-include node_modules, dist, .worktrees, .dump and
+// .claude. The guard must reject every such tracked file by its lexical path
+// and ask git (`git ls-files`), not the filesystem walk, because `.worktrees/`
+// is git-ignored and contains its own legitimate root `.dockerignore` per
+// worktree.
+//
+// PAIRED PROOF
+// ------------
+// RED leg: a tracked regular `apps/api/.dockerignore` is rejected and named.
+// RED leg: a tracked symlink with the same lexical path is also rejected
+// (BuildKit dereferences symlinks, so a symlink `apps/api/.dockerignore`
+// would open the target and still shadow the root file).
+// GREEN leg: an untracked `apps/api/.dockerignore` and a
+// `.worktrees/example/.dockerignore` are not findings — they are not in
+// `git ls-files`. (Without this pin, a fix that simply walked the filesystem
+// would false-positive on every worktree.)
+// -----------------------------------------------------------------------
+
+// RED (paired proof, leg 1): a tracked regular `.dockerignore` in a
+// subdirectory is rejected and named.
+test('RED #1891: tracked regular apps/api/.dockerignore is rejected and named', async () => {
+	const repoDir = await mkdtemp(
+		path.join(os.tmpdir(), 'publyapp-r6-tracked-regular-'),
+	);
+
+	try {
+		await initGitRepo(repoDir);
+		await writeFixtureFile(
+			repoDir,
+			'.gitignore',
+			'node_modules\n.worktrees/\n',
+		);
+		await writeFixtureFile(repoDir, '.dockerignore', 'node_modules\n');
+		await writeFixtureFile(repoDir, 'apps/api/.dockerignore', '');
+		commitTracked(repoDir, [
+			'.gitignore',
+			'.dockerignore',
+			'apps/api/.dockerignore',
+		]);
+
+		const findings = await findDockerignoreShadows({ rootDir: repoDir });
+
+		assert.ok(
+			findings.includes('apps/api/.dockerignore'),
+			`expected the guard to name apps/api/.dockerignore, got: ${JSON.stringify(findings)}`,
+		);
+	} finally {
+		await rm(repoDir, { recursive: true, force: true });
+	}
+});
+
+// RED (paired proof, leg 2): a tracked symlink `apps/api/.dockerignore` is
+// rejected by its lexical path. BuildKit dereferences the symlink, so the
+// build context opens the target and re-includes everything the root
+// `.dockerignore` would have excluded.
+test('RED #1891: tracked symlink apps/api/.dockerignore is rejected by its lexical path', async () => {
+	const repoDir = await mkdtemp(
+		path.join(os.tmpdir(), 'publyapp-r6-tracked-symlink-'),
+	);
+
+	try {
+		await initGitRepo(repoDir);
+		await writeFixtureFile(
+			repoDir,
+			'.gitignore',
+			'node_modules\n.worktrees/\n',
+		);
+		await writeFixtureFile(repoDir, '.dockerignore', 'node_modules\n');
+		await writeFixtureFile(repoDir, 'real.dockerignore', '');
+		await mkdir(path.join(repoDir, 'apps', 'api'), { recursive: true });
+		await symlink(
+			path.join('..', '..', 'real.dockerignore'),
+			path.join(repoDir, 'apps', 'api', '.dockerignore'),
+		);
+		commitTracked(repoDir, [
+			'.gitignore',
+			'.dockerignore',
+			'real.dockerignore',
+			'apps/api/.dockerignore',
+		]);
+
+		const findings = await findDockerignoreShadows({ rootDir: repoDir });
+
+		assert.ok(
+			findings.includes('apps/api/.dockerignore'),
+			`expected the guard to name apps/api/.dockerignore even when it is a tracked symlink, got: ${JSON.stringify(findings)}`,
+		);
+	} finally {
+		await rm(repoDir, { recursive: true, force: true });
+	}
+});
+
+// GREEN (paired proof, leg 3): a `.worktrees/example/.dockerignore` is
+// git-ignored, so `git ls-files` does not return it, and the guard must not
+// report it. Without this pin, a filesystem-walk mutation would false-positive
+// on every worktree (the issue the round-6 fix exists to close).
+test('GREEN #1891: ignored/untracked .worktrees/example/.dockerignore is not a finding', async () => {
+	const repoDir = await mkdtemp(path.join(os.tmpdir(), 'publyapp-r6-ignored-'));
+
+	try {
+		await initGitRepo(repoDir);
+		await writeFixtureFile(
+			repoDir,
+			'.gitignore',
+			'node_modules\n.worktrees/\n',
+		);
+		await writeFixtureFile(repoDir, '.dockerignore', 'node_modules\n');
+		// Place a `.dockerignore` inside .worktrees/ as if it were a
+		// parallel worktree's root file. It is NOT tracked, and the guard
+		// must not flag it.
+		await mkdir(path.join(repoDir, '.worktrees', 'example'), {
+			recursive: true,
+		});
+		await writeFixtureFile(
+			repoDir,
+			'.worktrees/example/.dockerignore',
+			'node_modules\n',
+		);
+		commitTracked(repoDir, ['.gitignore', '.dockerignore']);
+
+		const findings = await findDockerignoreShadows({ rootDir: repoDir });
+
+		assert.ok(
+			!findings.some((finding) => finding.startsWith('.worktrees/example/')),
+			`expected the guard not to flag an ignored .worktrees/ .dockerignore, got: ${JSON.stringify(findings)}`,
+		);
+	} finally {
+		await rm(repoDir, { recursive: true, force: true });
+	}
+});
+
+// -----------------------------------------------------------------------
+// Round 6 / issue #1977: a `.dockerignore` line that the guard cannot
+// evaluate semantically (a negation `!foo`, an undecidable glob, ...) must
+// NOT silently downgrade a parallel `.gitignore` mirror into "not mirrored".
+// The mirror check needs three answers, not two: `mirrored`, `not mirrored`,
+// and `cannot decide`. The third is the one a future reviewer cannot afford
+// to swallow — a later undecidable line (here, a negation that re-includes
+// what the parent ignored) can flip the verdict from "excluded" back to
+// "included", so the guard must report the candidate as undecidable rather
+// than either dropping or asserting it.
+//
+// PAIRED PROOF
+// ------------
+// RED leg: a `.dockerignore` carrying `leaked/` followed by
+// `!leaked/Dockerfile.dockerignore` cannot green-light a
+// `leaked/Dockerfile.dockerignore` candidate the way the round-5 code did
+// (it met the negation first, returned `false`, and dropped the path
+// silently even though the parent exact rule excluded it).
+// -----------------------------------------------------------------------
+
+// RED (paired proof): a `.dockerignore` with `leaked/` (exact, excludes the
+// directory) followed by `!leaked/Dockerfile.dockerignore` (negation, may
+// re-include a specific file) cannot green-light the candidate — the mirror
+// check returns `cannot decide`, so the guard reports the candidate loud
+// with the rule context. Anchored on a git-ignored shadow so the round-5
+// parallel filter is exercised end-to-end.
+test('RED #1977: a later undecidable negation cannot green-light a parallel candidate', async () => {
+	const repoDir = await mkdtemp(
+		path.join(os.tmpdir(), 'publyapp-r6-negation-'),
+	);
+
+	try {
+		await initGitRepo(repoDir);
+		await writeFixtureFile(repoDir, '.gitignore', 'leaked/\n');
+		await writeFixtureFile(
+			repoDir,
+			'.dockerignore',
+			'node_modules\nleaked/\n!leaked/Dockerfile.dockerignore\n',
+		);
+		await writeFixtureFile(repoDir, 'leaked/Dockerfile.dockerignore', '');
+
+		const findings = await findDockerignoreShadows({ rootDir: repoDir });
+
+		assert.ok(
+			findings.includes('leaked/Dockerfile.dockerignore'),
+			`expected the guard to flag a candidate whose .dockerignore mixes an exact ignore with a later undecidable negation, got: ${JSON.stringify(findings)}`,
+		);
+	} finally {
+		await rm(repoDir, { recursive: true, force: true });
+	}
+});
+
+// FAIL-LOUD (paired proof): a deeply nested external symlink chain that exceeds the
 // recursion depth bound must fail loud (reject), NOT silently drop the
 // walk's findings — silence on overflow is exactly the false negative the
 // captain flagged. The walk must either report the path that triggers the
