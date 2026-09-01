@@ -220,6 +220,48 @@ describe('preload-contract', () => {
 		expect(profilesEntries[0]).toHaveProperty('options.queryKey');
 		expect(profilesEntries[0]).toHaveProperty('variables.q', '');
 	});
+
+	// Regression for PR #2007 — the staff invitations route's static preload
+	// must produce the SAME queryKey the page consumes when the URL has no
+	// search params (i.e. `q` is `undefined`). The first-mount path issues
+	// `useStaffInvitationsQuery({...controller.apiVariables, status: undefined})`
+	// where `controller.apiVariables.q` is `undefined` (parseTableSearchParams
+	// returns `q: undefined` for an absent input), but the preload entry
+	// previously declared `q: ''`. `buildStaffQueryOptions.queryKey` runs
+	// variables through `stripUndefinedVariables`, which keeps `''` and
+	// drops `undefined` — so the two paths produced different cache entries
+	// and a client-side revisit observed an extra GET on the freshly-cached
+	// page (request-counter.spec.ts).
+	test('staff invitations route preload key matches the page default (q: undefined, sort created_at/desc, size 100)', async () => {
+		const { Route } = await import(
+			/* @vite-ignore */ '~/routes/authed/staff/invitations'
+		);
+		const { staffInvitationsQueryOptions } =
+			await import('~/lib/query/staff-invitations');
+
+		const preload = Route.options.staticData.preload;
+		expect(typeof preload).toBe('function');
+		void preload; // type guard
+
+		const entries = preload!({ params: {} });
+		expect(entries).toHaveLength(1);
+		const entry = entries[0];
+
+		// The page calls `useStaffInvitationsQuery` with `q` and `status`
+		// undefined (controller.apiVariables + `status: search.status`,
+		// where `search.status` is undefined on a fresh URL). Sort defaults
+		// to `created_at/desc` and size to `100`. The preload's variables
+		// must reduce to the SAME `staffInvitationsQueryOptions.queryKey`
+		// the hook will compute.
+		const pageKey = staffInvitationsQueryOptions.queryKey({
+			sortId: 'created_at',
+			sortOrder: 'desc',
+			size: 100,
+		});
+		const preloadKey = entry.options.queryKey(entry.variables);
+
+		expect(preloadKey).toEqual(pageKey);
+	});
 });
 
 // ---------------------------------------------------------------------------

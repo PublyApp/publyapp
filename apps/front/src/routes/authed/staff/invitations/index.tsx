@@ -294,7 +294,6 @@ export const Route = createFileRoute('/_authed-layout/staff/invitations')({
 			{
 				options: staffInvitationsQueryOptions,
 				variables: {
-					q: '',
 					sortId: 'created_at',
 					sortOrder: 'desc',
 					size: 100,
