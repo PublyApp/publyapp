@@ -152,41 +152,10 @@ of an employer, your employer may need to sign separately — see the
 
 ## 3. Quality expectations
 
-The engineering standards are documented in full in [`AGENTS.md`](AGENTS.md).
-This section names the four expectations a contribution must meet; each one
-points at the committed document and section that carries the full rule, so a
-contributor never has to take this file's word for it.
-
-- **Pass CI.** Tests, type-checking, lint, and the design-system guard all run
-  as required checks. See [`AGENTS.md`](AGENTS.md) §"### Code Quality" and
-  §"### Running Tests" for the local recipes (`just ci`, `pnpm --filter front
-typecheck`).
-
-- **Pair red/green proofs** — a bug-fix must ship with a paired proof test
-  that is kept red against the corrected code and replayed with inverted
-  semantics. The exact rules are in
-  [`docs/guides/test-conventions.md`](docs/guides/test-conventions.md)
-  §"Paired Red/Green Proofs". They differ by surface:
-  front proofs live under `apps/front/tests/proofs/<issue>/`, are
-  version-controlled, and are replayed on demand by the `Verify paired red
-  proofs` CI step; API proofs remain on the legacy gitignored
-  `.dump/preuves/<issue>/` path and are **not** version-controlled or replayed
-  by that CI step. The corresponding production guard must operate on the
-  real artefact (file, fixture, or workflow step), never a restatement of its
-  own logic — a regex that mirrors the source line-for-line is not a guard.
-
-- **Carry the transparent-cause rule.** Every failure the backend returns or
-  persists must carry a transparent, human-readable cause. Backend rule in
-  [`AGENTS.md`](AGENTS.md) §"Project Conventions" (bullet "Transparent
-  failure causes (owner product rule, 2026-08-22)") and in
-  [`docs/records/2026-08-22-spec-epic-d-publishing-scheduling.md`](docs/records/2026-08-22-spec-epic-d-publishing-scheduling.md)
-  §1 (decision row 7); UI rule in [`DESIGN.md`](DESIGN.md) §"Empty / error
-  / loading states".
-
-- **Automated review artefacts** (machine reviewers only) must record the
-  reviewer model alongside `REVIEWED_TIP`. **Human contributors are not
-  expected to name a reviewer model** — this is internal orchestration
-  vocabulary used by automated review lanes, not a public expectation.
+The engineering standards live in [`AGENTS.md`](AGENTS.md) and the
+normative guides it links — that is the single source of truth. Every
+contribution must pass CI, follow the code and test conventions documented
+there, and carry transparent failure causes per the project conventions.
 
 ---
 
@@ -306,8 +275,8 @@ cases warrant a local `just ci` instead of pushing.
 4. **Update the OpenAPI client** if you change the API contract — run
    `just build-api && just generate-client` so `packages/client-ts` stays
    in sync. Never edit the generated client by hand.
-5. **Run the local CI gate** before pushing — see §5 above for the fast
-   pre-push barrier (`just ci`); see
+5. **Run the local CI gate** before pushing — see §5 above for the
+   full/local CI gate (`just ci`); see
    [`docs/guides/local-ci-gate.md`](docs/guides/local-ci-gate.md) for the
    full set of recipes.
 
