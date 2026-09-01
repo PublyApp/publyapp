@@ -42,8 +42,7 @@ public sealed class DispatchDuePostsConcurrencySpec : IClassFixture<ApiFixture> 
 	}
 
 	[Fact]
-	public async Task ItShouldEnqueueEachPastDueRowExactlyOnceAcrossTwoConcurrentScans()
-	{
+	public async Task ItShouldEnqueueEachPastDueRowExactlyOnceAcrossTwoConcurrentScans() {
 		var connectionString = await GetConnectionStringAsync();
 		await using var seedDb = new AppDbContext(
 			new DbContextOptionsBuilder<AppDbContext>()
@@ -53,12 +52,9 @@ public sealed class DispatchDuePostsConcurrencySpec : IClassFixture<ApiFixture> 
 
 		var seededIds = await SeedFiftyPastDueRowsAsync(seedDb);
 
-		async Task NewScopeWithJobAsync(
-			TaskCompletionSource<bool> gate,
-			List<string> sink
-		) {
-			// Each scan runs from its OWN DI scope: its own DbContext and the
-			// REAL scoped IJobEnqueuer, exactly like two competing workers.
+		// Each scan runs from its OWN DI scope: its own DbContext and the
+		// REAL scoped IJobEnqueuer, exactly like two competing workers.
+		async Task NewScopeWithJobAsync() {
 			var scope = _fixture.Factory.Services.CreateAsyncScope();
 			var db =
 				scope.ServiceProvider.GetRequiredService<AppDbContext>();
@@ -80,53 +76,57 @@ public sealed class DispatchDuePostsConcurrencySpec : IClassFixture<ApiFixture> 
 			};
 
 			await job.HandleAsync(context, CancellationToken.None);
-
-			// Record what THIS scope's own queue rows look like afterwards.
-			await using var probe = new AppDbContext(
-				new DbContextOptionsBuilder<AppDbContext>()
-					.UseNpgsql(connectionString)
-					.Options
-			);
-			var enqueuedKeys = await (
-				from row in probe.JobQueue.AsNoTracking()
-				where row.JobType == PublishingJobs.PublishPublicationV1.JobType
-					&& row.IdempotencyKey != null
-				select row.IdempotencyKey
-			).ToListAsync();
-			sink.AddRange(enqueuedKeys);
-
-			gate.TrySetResult(true);
 		}
 
-		var keysWorkerOne = new List<string>();
-		var keysWorkerTwo = new List<string>();
+		// Snapshot the keyed row count BEFORE the scans so we can count what the
+		// two scans actually added. The previous per-scope probe read the whole
+		// JobQueue table for the publishing job type after its own scan, which
+		// (a) double-counted any row the other worker had already committed and
+		// (b) inherited every stale keyed row a prior run of this spec left in
+		// the shared template — so the count assertion could pass with 0 new
+		// rows or fail with N+stale under scheduling pressure. The fix measures
+		// the delta on the SAME filtered set; the equivalence check still
+		// guarantees no duplicates among the new keys.
+		await using var snapshotDb = new AppDbContext(
+			new DbContextOptionsBuilder<AppDbContext>()
+				.UseNpgsql(connectionString)
+				.Options
+		);
+		var beforeCount = await (
+			from row in snapshotDb.JobQueue.AsNoTracking()
+			where row.JobType == PublishingJobs.PublishPublicationV1.JobType
+				&& row.IdempotencyKey != null
+			select row.Id
+		).CountAsync();
+
 		var scopeTasks = new List<Task> {
-			Task.Run(() => NewScopeWithJobAsync(
-				new TaskCompletionSource<bool>(),
-				keysWorkerOne)),
-			Task.Run(() => NewScopeWithJobAsync(
-				new TaskCompletionSource<bool>(),
-				keysWorkerTwo)),
+			Task.Run(() => NewScopeWithJobAsync()),
+			Task.Run(() => NewScopeWithJobAsync()),
 		};
 		await Task.WhenAll(scopeTasks);
 
 		var expectedKeys = seededIds
 			.Select(PublicationIdempotencyKey.For)
-			.OrderBy(key => key, StringComparer.Ordinal)
 			.ToList();
-		var actualKeys = keysWorkerOne
-			.Concat(keysWorkerTwo)
-			.Distinct(StringComparer.Ordinal)
-			.OrderBy(key => key, StringComparer.Ordinal)
+		// Re-read the queue with the same filter as the snapshot, then diff
+		// against the pre-scan count and assert the set of new keys covers
+		// every past-due row exactly once — the same proof, measured correctly.
+		var afterKeys = await (
+			from row in snapshotDb.JobQueue.AsNoTracking()
+			where row.JobType == PublishingJobs.PublishPublicationV1.JobType
+				&& row.IdempotencyKey != null
+			select row.IdempotencyKey
+		).ToListAsync();
+		var newKeysForThisRun = afterKeys
+			.Where(key => expectedKeys.Contains(key, StringComparer.Ordinal))
 			.ToList();
-
-		actualKeys.Should().BeEquivalentTo(
+		newKeysForThisRun.Should().BeEquivalentTo(
 			expectedKeys,
-			"the union of both scans must cover every past-due row exactly once"
+			"the two concurrent scans together must enqueue every past-due row exactly once"
 		);
-		(keysWorkerOne.Count + keysWorkerTwo.Count).Should().Be(
+		(afterKeys.Count - beforeCount).Should().Be(
 			RowCount,
-			"job_queue holds exactly one keyed row per publication "
+			"the union of both scans added exactly one keyed row per publication "
 				+ "(duplicates are impossible via ux_job_queue_type_idempotency)"
 		);
 
