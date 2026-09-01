@@ -4,6 +4,11 @@
 			"step_id": "front-ci.yml::supply-chain::Test front",
 			"reason": "#1948: the monolithic \"Test front\" step was renamed to \"Test front (non-vitest)\" and now runs only the non-vitest checks (pnpm --filter front test:ci-non-vitest). The vitest suite moved out into its own 4-way shard matrix job (test-vitest, run via --shard=i/4) plus a parallel coverage-equality job (test-vitest-coverage), so no verification work was dropped — the split is what makes shard failures report independently instead of masking later steps (#1699). The replacement steps are reconciled as new manifest entries in the same commit.",
 			"removed_at": "2026-08-30"
+		},
+		{
+			"step_id": "require-linked-issue.yml::require-linked-issue::Verify the PR closes an existing issue",
+			"reason": "#2003: renamed to \"Verify the PR links an existing issue\" because the guard now accepts explicit non-closing relationships for honest partial slices as well as closing keywords. The replacement step keeps real-issue validation and pull-request rejection; no verification was removed.",
+			"removed_at": "2026-08-31"
 		}
 	]
 }

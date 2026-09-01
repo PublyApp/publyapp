@@ -455,6 +455,10 @@ jobs:
     needs: changes
     if: needs.changes.outputs.relevant == 'true'
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: read
+      pull-requests: read
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -583,7 +587,8 @@ jobs:
     # report one of the four required names either.
     name: ${{ (github.event_name == 'pull_request' || github.event_name == 'merge_group') && 'front-ci-gate' || 'front-ci-push-check' }}
     if: always()
-    needs: [changes, supply-chain, gate-selftest, test-vitest, test-vitest-coverage]
+    needs:
+      [changes, supply-chain, gate-selftest, test-vitest, test-vitest-coverage]
     runs-on: ubuntu-latest
     steps:
       # BLOCKER fix (round 5): `gate-selftest` above runs

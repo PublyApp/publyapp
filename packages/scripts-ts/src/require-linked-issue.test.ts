@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
+import { mkdtempSync, writeFileSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
+import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -112,27 +114,116 @@ const assertExactlyDependabotBot = (runBody) => {
 };
 
 /**
+ * Known PR numbers for the mock `gh`. The test treats these as pull requests
+ * (the `pull_request` discriminator returns `true`); every other number is a
+ * real issue. The mock simulates the real GitHub API so the step's `run:`
+ * block can be exercised end-to-end without a live token.
+ */
+const MOCK_PRS = new Set([2032, 2003]);
+const MOCK_MISSING_NUMBERS = new Set([9001]);
+
+test.runIf(process.env.GITHUB_ACTIONS === 'true')(
+	'#2003 live boundary: GitHub exposes known PR #1987 through the issues endpoint',
+	() => {
+		const result = spawnSync(
+			'gh',
+			[
+				'api',
+				'repos/PublyApp/publyapp/issues/1987',
+				'--jq',
+				'.pull_request != null',
+			],
+			{ encoding: 'utf8' },
+		);
+
+		assert.equal(result.status, 0, result.stderr);
+		assert.equal(
+			result.stdout.trim(),
+			'true',
+			'the live API must identify the known PR as a pull request',
+		);
+	},
+);
+
+/**
+ * Creates a mock `gh` script in a temp directory and returns that directory's
+ * path. Prepend it to PATH so the step's `run:` block calls our mock instead
+ * of the real `gh`.
+ */
+const createMockGhDir = () => {
+	const dir = mkdtempSync(path.join(os.tmpdir(), 'require-linked-issue-'));
+	const prPattern = [...MOCK_PRS].join('|');
+	const missingPattern = [...MOCK_MISSING_NUMBERS].join('|');
+	const mockGh = `#!/usr/bin/env bash
+# Mock gh for require-linked-issue tests.
+# Simulates the two API shapes the step calls:
+#   gh api repos/OWNER/REPO/issues/N --jq '.pull_request != null'
+#   gh issue view N --json state --jq '.state'
+
+# Shape 1: pull_request discriminator. Returns "true" for known PRs, "false"
+# for real issues.
+if [[ "$1" == "api" && "$2" == repos/*/issues/* && "$3" == "--jq" ]]; then
+  num="$(echo "$2" | grep -oE '[0-9]+$')"
+  case "$num" in
+    ${prPattern}) echo "true" ;;
+    ${missingPattern}) exit 1 ;;
+    *) echo "false" ;;
+  esac
+  exit 0
+fi
+
+# Shape 2: issue view. Succeeds for any number (simulates an existing issue).
+if [[ "$1" == "issue" && "$2" == "view" && "$4" == "--json" && "$5" == "state" ]]; then
+  echo "OPEN"
+  exit 0
+fi
+
+exit 0
+`;
+	writeFileSync(path.join(dir, 'gh'), mockGh, { mode: 0o755 });
+	return dir;
+};
+
+/**
  * Executes the step's `run:` shell under a faked environment, overriding the
  * PR author login and body. Returns the exit code and captured stdout.
  */
-// @ts-expect-error rung-0: add proper type in later rung
-const runStep = (runBody, { author, body }) => {
+type RunStepOptions = {
+	author: string;
+	body: string;
+	prNumber?: string;
+	useRealGh?: boolean;
+};
+
+const runStep = (
+	runBody: string,
+	{ author, body, prNumber = '2032', useRealGh = false }: RunStepOptions,
+) => {
 	// The real step reads PR_AUTHOR from `${{ github... }}`; substitute that
 	// literal so plain `bash` can run the body under our faked author.
-	const script = runBody.replace(
-		/^PR_AUTHOR="[^"]*"\s*$/m,
-		`PR_AUTHOR="${author}"`,
-	);
+	const script = runBody
+		.replace(/^PR_AUTHOR="[^"]*"\s*$/m, `PR_AUTHOR="${author}"`)
+		.replace(/^PR_NUMBER="[^"]*"\s*$/m, `PR_NUMBER="${prNumber}"`);
+
+	const mockGhDir = useRealGh ? null : createMockGhDir();
+	const commandPath =
+		mockGhDir === null
+			? (process.env.PATH ?? '')
+			: `${mockGhDir}:${process.env.PATH ?? ''}`;
+	const commandEnvironment = {
+		...process.env,
+		PR_AUTHOR: author,
+		PR_BODY: body,
+		GH_REPO: 'PublyApp/publyapp',
+		PATH: commandPath,
+	};
+	if (!useRealGh) {
+		commandEnvironment.GH_TOKEN = 'x';
+	}
 
 	const result = spawnSync('bash', ['-s'], {
 		input: script,
-		env: {
-			...process.env,
-			PR_AUTHOR: author,
-			PR_BODY: body,
-			GH_TOKEN: 'x',
-			GH_REPO: 'PublyApp/publyapp',
-		},
+		env: commandEnvironment,
 		encoding: 'utf8',
 	});
 
@@ -141,6 +232,22 @@ const runStep = (runBody, { author, body }) => {
 		stdout: result.stdout ?? '',
 	};
 };
+
+test.runIf(process.env.GITHUB_ACTIONS === 'true')(
+	'#2003 live boundary: the real workflow rejects a known PR number',
+	async () => {
+		const runBody = await readRunBody();
+		const { code, stdout } = runStep(runBody, {
+			author: 'octocat',
+			body: 'Closes #1987',
+			prNumber: '9999',
+			useRealGh: true,
+		});
+
+		assert.equal(code, 1);
+		assert.match(stdout, /pull request/);
+	},
+);
 
 test('the real workflow waives EXACTLY dependabot[bot] and no other author', async () => {
 	const runBody = await readRunBody();
@@ -281,5 +388,202 @@ test('a non-dependabot author still falls through to the existing linked-issue c
 		runBody.indexOf('dependabot PR — linked-issue requirement waived') <
 			runBody.indexOf('if [ -z "${PR_BODY'),
 		'the waiver short-circuit must come before the existing linked-issue checks',
+	);
+});
+
+// #2003: `gh issue view <PR-number>` succeeds and returns the PR's state,
+// so a body like "Closes #<any-PR>" satisfies the gate falsely. The fix
+// uses the `pull_request` discriminator from the issue-object endpoint to
+// skip PRs. These tests prove the fix works both ways.
+
+test('the real workflow FAILS (exit 1) for a body that closes only a PR (#2003 regression)', async () => {
+	const runBody = await readRunBody();
+
+	const { code, stdout } = runStep(runBody, {
+		author: 'octocat',
+		body: 'Closes #2032',
+		prNumber: '9999',
+	});
+
+	assert.equal(
+		code,
+		1,
+		'a body closing only a PR must fail the gate — gh issue view succeeds on PRs, so without the discriminator this would falsely pass',
+	);
+	assert.match(
+		stdout,
+		/pull request/,
+		'the gate must name that the referenced number is a pull request, not an issue',
+	);
+});
+
+test('the real workflow names a self-reference explicitly', async () => {
+	const runBody = await readRunBody();
+
+	const { code, stdout } = runStep(runBody, {
+		author: 'octocat',
+		body: 'Closes #2032',
+	});
+
+	assert.equal(code, 1);
+	assert.match(
+		stdout,
+		/references itself/,
+		'a self-reference must be diagnosed directly instead of looking like a generic PR reference',
+	);
+});
+
+test('the real workflow PASSES (exit 0) for a body that closes a real issue', async () => {
+	const runBody = await readRunBody();
+
+	const { code } = runStep(runBody, {
+		author: 'octocat',
+		body: 'Closes #1458',
+	});
+
+	assert.equal(code, 0, 'a body closing a real issue must pass the gate');
+});
+
+test.each(['Part of #647', 'Refs #647', 'References #647'])(
+	'the real workflow PASSES for an honest non-closing issue link: %s',
+	async (body) => {
+		const runBody = await readRunBody();
+		const { code } = runStep(runBody, { author: 'octocat', body });
+
+		assert.equal(
+			code,
+			0,
+			'a partial slice must be allowed to link its parent without falsely closing it',
+		);
+	},
+);
+
+test('the real workflow still FAILS for an unqualified bare issue number', async () => {
+	const runBody = await readRunBody();
+	const { code } = runStep(runBody, {
+		author: 'octocat',
+		body: 'Touches #647',
+	});
+
+	assert.equal(
+		code,
+		1,
+		'an arbitrary bare issue mention must not satisfy the gate',
+	);
+});
+
+test('the real workflow does not turn a negated closing claim into a link', async () => {
+	const runBody = await readRunBody();
+	const { code } = runStep(runBody, {
+		author: 'octocat',
+		body: 'This deliberately does not claim to close #647.',
+	});
+
+	assert.equal(
+		code,
+		1,
+		'prose explaining that an issue stays open must not satisfy the gate',
+	);
+});
+
+test('the real workflow rejects a non-closing link to a pull request', async () => {
+	const runBody = await readRunBody();
+	const { code } = runStep(runBody, {
+		author: 'octocat',
+		body: 'Part of #2032',
+		prNumber: '9999',
+	});
+
+	assert.equal(
+		code,
+		1,
+		'a non-closing link must still resolve to a real issue',
+	);
+});
+
+test('the real workflow allows a non-closing PR citation beside a real issue', async () => {
+	const runBody = await readRunBody();
+	const { code } = runStep(runBody, {
+		author: 'octocat',
+		body: 'Closes #1458\nRefs #2032',
+		prNumber: '9999',
+	});
+
+	assert.equal(
+		code,
+		0,
+		'a sibling PR citation must not invalidate a genuine issue relationship',
+	);
+});
+
+test('the real workflow diagnoses an unverifiable number without calling it a PR', async () => {
+	const runBody = await readRunBody();
+	const { code, stdout } = runStep(runBody, {
+		author: 'octocat',
+		body: 'Closes #9001',
+		prNumber: '9999',
+	});
+
+	assert.equal(code, 1);
+	assert.match(stdout, /could not be verified as an existing issue/);
+	assert.doesNotMatch(stdout, /is a pull request/);
+});
+
+test('the real workflow FAILS the whole declaration when it mixes a PR and a real issue', async () => {
+	const runBody = await readRunBody();
+
+	const { code } = runStep(runBody, {
+		author: 'octocat',
+		body: 'Closes #2032\nCloses #1458',
+		prNumber: '9999',
+	});
+
+	assert.equal(
+		code,
+		1,
+		'a valid issue must not hide a misleading pull-request relationship',
+	);
+});
+
+test('the real workflow FAILS (exit 1) for a body closing two PRs and no real issue', async () => {
+	const runBody = await readRunBody();
+
+	const { code } = runStep(runBody, {
+		author: 'octocat',
+		body: 'Closes #2032\nCloses #2003',
+		prNumber: '9999',
+	});
+
+	assert.equal(
+		code,
+		1,
+		'a body closing only PRs (even multiple) must fail — no real issue to satisfy the gate',
+	);
+});
+
+test('mutation: removing the PR discriminator lets a PR hide beside a real issue', async () => {
+	const runBody = await readRunBody();
+
+	// Remove the entire PR discriminator block: the comment, the is_pr check,
+	// and the if/continue/fi block. The match runs from the #2003 comment
+	// through the fi of the is_pr block (including trailing blank line).
+	const mutated = runBody.replace(/# #2003:[\s\S]+?fi\n\s*\n?/, '');
+
+	assert.notEqual(
+		mutated,
+		runBody,
+		'test setup: the mutation must actually change the run body',
+	);
+
+	const { code } = runStep(mutated, {
+		author: 'octocat',
+		body: 'Closes #2003\nCloses #1458',
+		prNumber: '9999',
+	});
+
+	assert.equal(
+		code,
+		0,
+		'removing the PR discriminator must let the valid issue hide the PR target',
 	);
 });
