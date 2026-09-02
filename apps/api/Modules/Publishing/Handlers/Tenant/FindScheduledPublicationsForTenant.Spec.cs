@@ -784,38 +784,72 @@ public sealed class FindScheduledPublicationsForTenantSpec : IClassFixture<
 	}
 
 	[Fact]
-	public async Task ItShouldReturn400ForCursorWithExcludedStatus() {
+	public async Task ItShouldKeepACursorUsableWhenTheAnchorMovedToAStatusOutsideTheFilter() {
 		var tenantId = await GetAcmeIdAsync();
 		var token = await _authClient.LoginAsync(
 			TestConstants.AcmeAdminEmail,
 			TestConstants.SeedPassword
 		);
 
+		// Anchor row sits BEFORE the window's FromUtc and is already Failed
+		// (it was scheduled by an older run that has since been picked up).
+		// The stored ScheduledAtUtc and Id are unchanged; only Status moved
+		// out of the caller's filter. With carryover opted in, the cursor
+		// must remain usable so the keyset walk can return the rows that
+		// come AFTER the anchor — re-applying the FromUtc gate on the
+		// anchor here would break the cursor as soon as the worker mutates
+		// the anchor's status out of InProgress/Paused.
+		var anchorInstant = new DateTime(2099, 5, 20, 8, 0, 0, DateTimeKind.Utc);
 		var seeded = await CreateScheduledRowAsync(
 			tenantId,
 			"cross-status cursor target",
-			new DateTime(2099, 6, 18, 8, 0, 0, DateTimeKind.Utc),
+			anchorInstant,
 			seedStatus: PublicationStatus.Failed
 		);
 
-		// Build a valid cursor for the seeded row but query with a status
-		// filter that excludes the row's actual status.
+		// Seed a row INSIDE the window so the keyset walk past the anchor
+		// returns a non-empty page. The follow-up is at +1 day relative to
+		// the window's FromUtc and would be skipped if the cursor were
+		// misinterpreted as FromUtc.
+		var followUp = await CreateScheduledRowAsync(
+			tenantId,
+			"page 1 carryover",
+			new DateTime(2099, 6, 1, 10, 0, 0, DateTimeKind.Utc)
+		);
+
+		// The cursor probe matches the STORED ScheduledAtUtc and Id and does
+		// NOT re-apply the FromUtc gate when the caller opted into carryover
+		// (InProgress/Paused in `Statuses`): the keyset filter that follows
+		// only relies on (ScheduledAtUtc, Id), and the anchor's status has
+		// no bearing on which rows come after it.
 		var cursor = Uri.EscapeDataString(Convert.ToBase64String(
 			System.Text.Encoding.UTF8.GetBytes(
-				$"{new DateTime(2099, 6, 18, 8, 0, 0, DateTimeKind.Utc):O}|{seeded.PublicationId}"
+				$"{anchorInstant:O}|{seeded.PublicationId}"
 			)
 		));
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
 			$"{FindUrl}?from=2099-05-31T00%3A00%3A00Z"
-			+ $"&to=2099-07-01T00%3A00%3A00Z&status=scheduled&cursor={cursor}"
+			+ $"&to=2099-07-01T00%3A00%3A00Z"
+			+ $"&status=scheduled,in_progress&cursor={cursor}"
 		)
 			.WithSessionToken(token)
 			.WithTenantId(tenantId);
 		using var response = await _http.SendAsync(request);
 
-		response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+		response.StatusCode.Should().Be(HttpStatusCode.OK);
+		var doc = await GetJsonAsync(response);
+		var data = doc.GetProperty("data");
+		data.ValueKind.Should().Be(JsonValueKind.Array);
+
+		var followUpId = followUp.PublicationId.ToString();
+		var anchorId = seeded.PublicationId.ToString();
+		var returnedIds = data.EnumerateArray()
+			.Select(row => row.GetProperty("publicationId").GetString())
+			.ToList();
+		returnedIds.Should().Contain(followUpId);
+		returnedIds.Should().NotContain(anchorId);
 	}
 
 	[Fact]

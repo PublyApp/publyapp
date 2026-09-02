@@ -598,14 +598,24 @@ public sealed class PublicationService : IPublicationService {
 			);
 		}
 
+		// Carryover is opt-in: InProgress/Paused rows that sit before FromUtc
+		// stay visible only when the caller explicitly asked for them via
+		// `Statuses`. The queue (scheduled,in_progress,paused) opts in so the
+		// worker-not-done / reconnect-pending rows keep their place in the
+		// queue; the calendar (no filter) stays strictly bounded.
+		var carryoverAllowed = args.Statuses is { Count: > 0 } carryoverStatuses
+			&& (carryoverStatuses.Contains(PublicationStatus.InProgress)
+				|| carryoverStatuses.Contains(PublicationStatus.Paused));
+
 		var baseQuery =
 			from publication in _dbContext.Publication.AsNoTracking()
 			where publication.TenantId == args.TenantId
 				&& !publication.IsDeleted
 				&& publication.ScheduledAtUtc <= args.ToUtc
-				&& (publication.Status == PublicationStatus.InProgress
-					|| publication.Status == PublicationStatus.Paused
-					|| publication.ScheduledAtUtc >= args.FromUtc)
+				&& (publication.ScheduledAtUtc >= args.FromUtc
+					|| (carryoverAllowed
+						&& (publication.Status == PublicationStatus.InProgress
+							|| publication.Status == PublicationStatus.Paused)))
 				&& (args.Statuses == null
 					|| args.Statuses.Count == 0
 					|| args.Statuses.Contains(publication.Status))
@@ -623,8 +633,19 @@ public sealed class PublicationService : IPublicationService {
 				return new FindScheduledResult.CursorNotFound();
 			}
 
-			// Cursor eligibility mirrors the page query and binds the supplied
-			// timestamp to the stored row.
+			// Cursor eligibility binds the supplied timestamp to the STORED row
+			// (forged timestamp guard, kept) and mirrors the FromUtc gate. The
+			// mutable `Statuses` filter is NOT re-applied to the anchor: a row
+			// that legitimately transitioned between pages (Scheduled →
+			// Published by the worker, Scheduled → Failed, etc.) must remain a
+			// usable cursor — the keyset filter that follows only relies on
+			// (ScheduledAtUtc, Id), and the anchor's current status has no
+			// bearing on which rows come after it in the keyset walk. When the
+			// caller opted into carryover (InProgress/Paused in `Statuses`),
+			// the FromUtc gate on the anchor itself is also waived: the caller
+			// already accepted that pre-FromUtc rows participate, so re-applying
+			// the window here would re-break the cursor as soon as the worker
+			// mutates the anchor's status out of InProgress/Paused.
 			var cursorExists = await (
 				from p in _dbContext.Publication.AsNoTracking()
 				where p.Id == cursorId
@@ -632,12 +653,8 @@ public sealed class PublicationService : IPublicationService {
 					&& !p.IsDeleted
 					&& p.ScheduledAtUtc == cursorInstant
 					&& p.ScheduledAtUtc <= args.ToUtc
-					&& (p.Status == PublicationStatus.InProgress
-						|| p.Status == PublicationStatus.Paused
-						|| p.ScheduledAtUtc >= args.FromUtc)
-					&& (args.Statuses == null
-						|| args.Statuses.Count == 0
-						|| args.Statuses.Contains(p.Status))
+					&& (p.ScheduledAtUtc >= args.FromUtc
+						|| carryoverAllowed)
 				select p.Id
 			).AnyAsync(cancellationToken);
 			if (!cursorExists) {
