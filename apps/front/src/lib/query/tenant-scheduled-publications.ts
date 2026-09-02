@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
+import type { QueryClient } from '@tanstack/react-query';
 import { getClientManager } from '~/lib/api-client/client-manager';
 
 import type { ApiClient } from '@org/client-ts/apiClient';
@@ -6,7 +7,10 @@ import type {
 	FindScheduledPublicationsResponse,
 	ScheduledPublicationItem,
 } from '@org/client-ts/models/index';
-import { buildTenantQueryOptions } from '@org/shared-ts/lib/query/create-hooks';
+import {
+	buildTenantQueryOptions,
+	scopedKey,
+} from '@org/shared-ts/lib/query/create-hooks';
 
 export const TENANT_SCHEDULED_PUBLICATIONS_QUERY_KEY = [
 	'tenant-scheduled-publications',
@@ -207,4 +211,24 @@ export const useScheduledPublicationsQuery = (
 	useQuery({
 		queryKey: scheduledPublicationsQueryOptions.queryKey(variables),
 		queryFn: () => scheduledPublicationsQueryOptions.fetcher(variables),
+	});
+
+// ── Invalidation ───────────────────────────────────────────────────
+
+/**
+ * Coherence invalidation for the scheduled-publications list (any mutation
+ * that removes or inserts a scheduled row — publish-now creates a new
+ * `scheduled` row, deleting the source post cascades it away — must invalidate
+ * the queue and calendar surfaces). The prefix reaches every status/window/
+ * cursor variant of the list via TanStack's matching.
+ */
+export const invalidateTenantScheduledPublications = (
+	qc: QueryClient,
+	tenantId: string,
+) =>
+	qc.invalidateQueries({
+		queryKey: [
+			...scopedKey('tenant', TENANT_SCHEDULED_PUBLICATIONS_QUERY_KEY),
+			tenantId,
+		],
 	});

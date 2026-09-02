@@ -202,7 +202,14 @@ describe('TenantPostsHistoryPage', () => {
 	// the tests pin that value and position the row's updatedAt relative to it.
 	const DATA_UPDATED_AT = 1_000_000;
 
-	test('polls while a freshly-scheduled row is in flight (publish-now pickup race)', () => {
+	test('does not poll for a scheduled row, however recent (publish-now pickup race is owned by the worker poll)', () => {
+		// Polling once for `in_progress` is enough: a row whose worker pickup is
+		// still pending surfaces as `scheduled` for a few seconds, but the worker
+		// poll covers that race on the queue surface — the history list does NOT
+		// carry that responsibility. Driving the history page poll on scheduled
+		// rows is what made #1655's pickup race observable here in the first
+		// place: it produced constant invalidation traffic and stale renders
+		// before the worker had even claimed the row.
 		vi.useFakeTimers();
 		mocks.dataUpdatedAt = DATA_UPDATED_AT;
 		mocks.rows = [
@@ -218,31 +225,10 @@ describe('TenantPostsHistoryPage', () => {
 		act(() => {
 			vi.advanceTimersByTime(11_000);
 		});
-		expect(
-			mocks.invalidateTenantPublications.mock.calls.length,
-		).toBeGreaterThanOrEqual(2);
-	});
-
-	test('does not poll for a scheduled row older than the in-flight window', () => {
-		vi.useFakeTimers();
-		mocks.dataUpdatedAt = DATA_UPDATED_AT;
-		mocks.rows = [
-			row({
-				id: 'pub-6',
-				status: 'scheduled',
-				externalUrl: null,
-				updatedAt: new Date(DATA_UPDATED_AT - 2 * 60_000),
-			}),
-		];
-		render(<TenantPostsHistoryPage />);
-
-		act(() => {
-			vi.advanceTimersByTime(11_000);
-		});
 		expect(mocks.invalidateTenantPublications).not.toHaveBeenCalled();
 	});
 
-	test('unknown wire status renders the raw value with neutral fallback', () => {
+	test('unknown wire status renders the neutral em-dash (raw value is never shown)', () => {
 		mocks.rows = [
 			row({
 				id: 'pub-unknown',
@@ -252,9 +238,12 @@ describe('TenantPostsHistoryPage', () => {
 		];
 		render(<TenantPostsHistoryPage />);
 
-		// Unknown wire status falls through to the neutral label key (null),
-		// so the raw status value is rendered verbatim.
-		expect(screen.getByText(/revoked/)).toBeTruthy();
+		// Unknown wire statuses fall through the i18n label lookup (no key for
+		// them), and the cell must not leak the wire string into the UI either:
+		// the surface carries a neutral em-dash so the row stays readable while
+		// the backend mapping decision is in flight.
+		expect(screen.getAllByText('\u2014').length).toBeGreaterThan(0);
+		expect(screen.queryByText(/revoked/)).toBeNull();
 	});
 
 	test('fatal error logs out only through shouldLogoutForFailure (401-only rule)', () => {

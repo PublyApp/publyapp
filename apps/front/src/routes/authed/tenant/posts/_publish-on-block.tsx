@@ -17,6 +17,7 @@ import {
 	useTenantPublishTargetsQuery,
 	toTenantPublishTargets,
 } from '~/lib/query/tenant-publish-targets';
+import { invalidateTenantScheduledPublications } from '~/lib/query/tenant-scheduled-publications';
 import { useResolvedWorkspaceTenantId } from '~/lib/query/tenants-for-picker';
 
 import { toApiFailure } from '@org/shared-ts/lib/api-failure/to-api-failure';
@@ -100,7 +101,11 @@ export const PublishOnBlock = ({
 				accountIds: selectedIds,
 				tenantId,
 			});
+			// Publish-now turns each checked target into a brand-new scheduled
+			// row, so the queue and calendar surfaces must invalidate alongside
+			// the history list to stay coherent.
 			await invalidateTenantPublications(queryClient, tenantId);
+			await invalidateTenantScheduledPublications(queryClient, tenantId);
 			void navigate({ to: '/tenant/posts/history' });
 		} catch (error) {
 			setFailureMessage(

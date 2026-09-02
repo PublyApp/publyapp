@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { getClientManager } from '~/lib/api-client/client-manager';
 import { toTenantPostImage } from '~/lib/query/tenant-post-images';
 import type { TenantPostImage } from '~/lib/query/tenant-post-images';
+import { invalidateTenantScheduledPublications } from '~/lib/query/tenant-scheduled-publications';
 import type { SortOrder } from '~/lib/url-state/table-search-params';
 
 import type { ApiClient } from '@org/client-ts/apiClient';
@@ -354,7 +355,13 @@ export const useDeleteTenantPostMutation = () => {
 			await client.posts.byPostId(postId).delete();
 		},
 		onSuccess: (_data, variables) => {
+			// Deleting a post cascades to its scheduled publications, so the
+			// queue and calendar must invalidate alongside the post list.
 			void invalidateTenantPosts(queryClient, variables.tenantId);
+			void invalidateTenantScheduledPublications(
+				queryClient,
+				variables.tenantId,
+			);
 		},
 		meta: { successMessage: 'post-deleted-success' },
 	});

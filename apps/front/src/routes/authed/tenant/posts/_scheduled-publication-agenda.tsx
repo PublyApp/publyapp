@@ -1,3 +1,4 @@
+import { Link } from '@tanstack/react-router';
 import { Card, CardContent, CardHeader, CardTitle } from '~/components/ui/card';
 import type { ScheduledPublicationRow } from '~/lib/query/tenant-scheduled-publications';
 
@@ -28,23 +29,44 @@ export const ScheduledPublicationAgenda = ({
 						</CardTitle>
 					</CardHeader>
 					<CardContent className="divide-y divide-border">
-						{group.rows.map((row) => (
-							<article
-								key={row.id}
-								className="grid gap-3 py-3 first:pt-0 last:pb-0 sm:grid-cols-[minmax(0,1fr)_auto_auto] sm:items-center"
-							>
-								<div className="min-w-0">
-									<p className="truncate font-medium">
-										{row.postBodyPreview ?? '—'}
-									</p>
-									<p className="truncate text-xs text-muted-foreground">
-										{row.accountDisplayHandle ?? '—'}
-									</p>
-								</div>
-								<ScheduledPublicationStatus status={row.status} />
-								<ScheduledPublicationTime row={row} />
-							</article>
-						))}
+						{group.rows.map((row) => {
+							const postHref = row.postId
+								? `/tenant/posts/${row.postId}/edit`
+								: null;
+							return (
+								<article
+									key={row.id}
+									className="grid gap-3 py-3 first:pt-0 last:pb-0 sm:grid-cols-[minmax(0,1fr)_auto_auto] sm:items-center"
+								>
+									{postHref ? (
+										<Link
+											to={postHref}
+											className="publy-record-link flex min-w-0 no-underline"
+										>
+											<div className="min-w-0">
+												<p className="truncate font-medium">
+													{row.postBodyPreview ?? '—'}
+												</p>
+												<p className="truncate text-xs text-muted-foreground">
+													{row.accountDisplayHandle ?? '—'}
+												</p>
+											</div>
+										</Link>
+									) : (
+										<div className="min-w-0">
+											<p className="truncate font-medium">
+												{row.postBodyPreview ?? '—'}
+											</p>
+											<p className="truncate text-xs text-muted-foreground">
+												{row.accountDisplayHandle ?? '—'}
+											</p>
+										</div>
+									)}
+									<ScheduledPublicationStatus status={row.status} />
+									<ScheduledPublicationTime row={row} />
+								</article>
+							);
+						})}
 					</CardContent>
 				</Card>
 			))}

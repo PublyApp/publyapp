@@ -27,23 +27,6 @@ import { useTenantPostList } from './_use-tenant-post-list';
  * without a manual reload); it stops once nothing is in flight. */
 const IN_PROGRESS_POLL_MS = 5_000;
 
-/** A publish-now row is `scheduled` until the worker claims its delivery job
- * (LISTEN/NOTIFY wake, or the 5 s queue poll at the latest). If the history
- * list's first fetch lands in that window it sees `scheduled`, and a gate that
- * only watches `in_progress` would never start polling — the worker publishes a
- * few seconds later, but the list never re-validates and the external link is
- * missing until a manual reload. A row whose `updatedAt` is recent is therefore
- * in flight for the same poll cadence; the window is far longer than any
- * realistic worker pickup and far shorter than a deliberate future schedule, so
- * scheduled posts stay quiet.
- *
- * Freshness is measured against the query's `dataUpdatedAt` (the client time of
- * the last successful fetch) rather than the wall clock: it is a pure function
- * of the data the render is already holding, so no impure `Date.now()` runs
- * during render, and each poll's refetch advances it so the window expires once
- * the row stops being touched. */
-const SCHEDULED_IN_FLIGHT_WINDOW_MS = 60_000;
-
 const PublicationStatusCell = ({
 	publication,
 }: {
@@ -94,17 +77,24 @@ const PublicationStatusCell = ({
 		);
 	}
 
-	const sharedLabelKey =
-		publication.status !== null
-			? publicationStatusLabelKey(publication.status)
-			: null;
-	let statusLabel: string = publication.status ?? '\u2014';
-
-	if (sharedLabelKey !== null) {
-		statusLabel = t(`posts:${sharedLabelKey}`);
+	// Unknown wire statuses (anything outside the i18n vocabulary) MUST NOT
+	// leak into the UI: the cell renders a neutral em-dash so the row stays
+	// readable while the backend mapping decision is in flight. The raw
+	// string would surface a future vocabulary drift as broken text.
+	if (publication.status === null || publication.status === '') {
+		return <span className="text-muted-foreground">{'\u2014'}</span>;
 	}
 
-	return <span className="text-muted-foreground">{statusLabel}</span>;
+	const sharedLabelKey = publicationStatusLabelKey(publication.status);
+	if (sharedLabelKey === null) {
+		return <span className="text-muted-foreground">{'\u2014'}</span>;
+	}
+
+	return (
+		<span className="text-muted-foreground">
+			{t(`posts:${sharedLabelKey}`)}
+		</span>
+	);
 };
 
 const TenantPostsHistoryPage = () => {
@@ -121,23 +111,16 @@ const TenantPostsHistoryPage = () => {
 	});
 	const rows = toTenantPublicationRows(query.data);
 	const qc = useQueryClient();
+	// Polling drives on `in_progress` only. A freshly-scheduled publish-now row
+	// is `scheduled` until the worker claims the delivery job, but the queue
+	// surface already polls for that race — driving history on it as well would
+	// multiply the invalidation traffic without changing what the operator sees.
 	const hasInProgress = rows.some(
 		(publication) => publication.status === 'in_progress',
 	);
-	const dataUpdatedAt = query.dataUpdatedAt;
-	const hasInFlightScheduled =
-		dataUpdatedAt > 0 &&
-		rows.some(
-			(publication) =>
-				publication.status === 'scheduled' &&
-				publication.updatedAt !== null &&
-				dataUpdatedAt - publication.updatedAt.getTime() <=
-					SCHEDULED_IN_FLIGHT_WINDOW_MS,
-		);
-	const hasInFlight = hasInProgress || hasInFlightScheduled;
 
 	useEffect(() => {
-		if (!hasInFlight || !tenantId) {
+		if (!hasInProgress || !tenantId) {
 			return;
 		}
 
@@ -146,7 +129,7 @@ const TenantPostsHistoryPage = () => {
 		}, IN_PROGRESS_POLL_MS);
 
 		return () => clearInterval(interval);
-	}, [hasInFlight, tenantId, qc]);
+	}, [hasInProgress, tenantId, qc]);
 
 	const columns = useMemo<ColumnDef<TenantPublicationRow>[]>(
 		() => [

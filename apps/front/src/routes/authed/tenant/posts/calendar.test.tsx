@@ -44,6 +44,26 @@ vi.mock('@tanstack/react-router', () => ({
 		...options,
 		options,
 	}),
+	Link: ({
+		children,
+		to,
+		params,
+		...props
+	}: {
+		children: ReactNode;
+		to: string;
+		params?: Record<string, string>;
+	}) => {
+		let href = to;
+		for (const [key, value] of Object.entries(params ?? {})) {
+			href = href.replace(`$${key}`, value);
+		}
+		return (
+			<a href={href} {...props}>
+				{children}
+			</a>
+		);
+	},
 }));
 
 // Default all-pages mock: single-page result, overridden per test.
@@ -191,6 +211,37 @@ describe('TenantPostsCalendarPage', () => {
 		expect(day1.textContent).toContain('First calendar page');
 		const day2 = screen.getByTestId('tenant-posts-calendar-day-2026-08-20');
 		expect(day2.textContent).toContain('Second calendar page');
+	});
+
+	test('agenda rows link to the post edit page so the operator can resolve them', async () => {
+		// Each calendar row should be a Link to the post edit page, not a dead
+		// display surface: a publish-now/paused post that surfaces on the
+		// calendar must be one click away from the editor (the only place the
+		// status can actually change). The Link is the operator's escape hatch
+		// from a stuck publication.
+		allPagesMock.rows = [
+			{
+				id: 'pub-link',
+				publicationId: 'pub-link',
+				postId: 'post-link',
+				postBodyPreview: 'Linked calendar entry',
+				accountDisplayHandle: '@link.example',
+				status: 'paused',
+				postStatus: 'scheduled',
+				scheduledAtUtc: new Date('2026-08-12T09:00:00.000Z'),
+				scheduledAtLocal: '2026-08-12T11:00:00+02:00',
+				timeZone: 'Europe/Paris',
+			},
+		];
+		renderPage();
+
+		const day = await screen.findByTestId(
+			'tenant-posts-calendar-day-2026-08-12',
+		);
+		const link = day.querySelector('a');
+		expect(link).not.toBeNull();
+		expect(link?.getAttribute('href')).toBe('/tenant/posts/post-link/edit');
+		expect(link?.textContent).toContain('Linked calendar entry');
 	});
 
 	test('groups by scheduledAtUtc in the viewer zone, not the publication zone', async () => {
