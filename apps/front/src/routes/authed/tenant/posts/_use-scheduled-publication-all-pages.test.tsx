@@ -187,6 +187,15 @@ afterEach(() => {
 });
 
 describe('useScheduledPublicationAllPages (#2053)', () => {
+	test('stays aggregating while the first page is still pending', () => {
+		mocks.get.mockImplementationOnce(() => new Promise(() => {}));
+
+		const probe = mountProbe({ tenantId: 'tenant-A' });
+
+		expect(probe.readProbe().rows).toEqual([]);
+		expect(probe.readProbe().isAggregating).toBe(true);
+	});
+
 	test('clears the aggregation synchronously when the tenant switches — no paint can observe the previous tenant rows', async () => {
 		// First tenant: populate rows from page 1.
 		mocks.get.mockResolvedValueOnce(page([rowOf('tenantA-pub-1', 'A1')], null));
@@ -353,5 +362,183 @@ describe('useScheduledPublicationAllPages (#2053)', () => {
 		expect(result.shouldLogout).toBe(false);
 		// ensure the test does not silently skip its real assertion
 		expect(screen.getByTestId('probe-error')).toBeTruthy();
+	});
+
+	test('invalidate() refetches every page so the walk stays complete after data changes mid-session', async () => {
+		// Page 1 then page 2 = complete walk (cursor null on last page).
+		mocks.get
+			.mockResolvedValueOnce(page([rowOf('pub-1', 'first')], 'cursor-2'))
+			.mockResolvedValueOnce(page([rowOf('pub-2', 'second')], null));
+
+		const probe = mountProbe({ tenantId: 'tenant-A' });
+
+		// Wait for the full walk to land.
+		await waitFor(() => {
+			expect(probe.readProbe().rows.map((r) => r.publicationId)).toEqual([
+				'pub-1',
+				'pub-2',
+			]);
+		});
+		await waitFor(() => {
+			expect(probe.readProbe().isAggregating).toBe(false);
+		});
+
+		// Data has changed server-side. Provide a fresh set of pages so
+		// invalidate() has something new to return — the in-memory copy that
+		// the current implementation keeps in React state CANNOT update
+		// without a real refetch.
+		mocks.get
+			.mockResolvedValueOnce(
+				page(
+					[rowOf('pub-1', 'first-updated'), rowOf('pub-3', 'third')],
+					'cursor-2',
+				),
+			)
+			.mockResolvedValueOnce(page([rowOf('pub-4', 'fourth')], null));
+
+		await act(async () => {
+			await probe.queryClient.invalidateQueries();
+			// Let the refetch settle.
+			await Promise.resolve();
+		});
+
+		// After invalidate, every page must be re-walked, deduped, flattened.
+		// The updated server payload has pub-1, pub-3, pub-4 — the old
+		// in-memory `rows` array (held in useState by the previous
+		// implementation) would still show pub-1 + pub-2 here.
+		await waitFor(() => {
+			expect(probe.readProbe().rows.map((r) => r.publicationId)).toEqual([
+				'pub-1',
+				'pub-3',
+				'pub-4',
+			]);
+		});
+		expect(probe.readProbe().isAggregating).toBe(false);
+		// Walk restarted from page 1, not appended.
+		expect(mocks.get).toHaveBeenCalledTimes(4);
+	});
+
+	test('late-page failure then restart restarts the walk from page 1 and completes it', async () => {
+		// Page 1 ok, page 2 fails terminally.
+		mocks.get
+			.mockResolvedValueOnce(page([rowOf('pub-1', 'first')], 'cursor-2'))
+			.mockRejectedValueOnce(problemError(503, 'Service Unavailable'));
+
+		const probe = mountProbe({ tenantId: 'tenant-A' });
+
+		await waitFor(() => {
+			expect(probe.readProbe().error).not.toBeNull();
+		});
+
+		// Recovery: page 1 + page 2 succeed.
+		mocks.get
+			.mockResolvedValueOnce(
+				page([rowOf('pub-1', 'first'), rowOf('pub-2', 'second')], 'cursor-2'),
+			)
+			.mockResolvedValueOnce(page([rowOf('pub-3', 'third')], null));
+
+		act(() => {
+			probe.readProbe().restart();
+		});
+
+		// After restart, the walk must be complete with every row visible —
+		// page 1 AND page 2. The current implementation keeps page 1's rows
+		// in React state across the restart and skips the new page 1 request,
+		// so it would re-show only [pub-1, pub-2] and never reach pub-3.
+		await waitFor(() => {
+			expect(probe.readProbe().rows.map((r) => r.publicationId)).toEqual([
+				'pub-1',
+				'pub-2',
+				'pub-3',
+			]);
+		});
+
+		const result = probe.readProbe();
+		expect(result.error).toBeNull();
+		expect(result.isAggregating).toBe(false);
+		// 2 prior pages + 2 restart pages.
+		expect(mocks.get).toHaveBeenCalledTimes(4);
+		// The very first request of the restarted walk MUST be page 1 (no
+		// cursor) — the previous implementation reuses the carried-over
+		// cursor and would skip straight to the old page 2.
+		const restartRequests = mocks.get.mock.calls.slice(2);
+		expect(
+			(
+				restartRequests[0]?.[0] as
+					| { queryParameters?: { cursor?: string } }
+					| undefined
+			)?.queryParameters?.cursor,
+		).toBeUndefined();
+	});
+
+	test('in-flight A does not leak rows into B when the tenant switches mid-walk', async () => {
+		// Tenant A: page 1 returns a row, page 2 will be in-flight when the
+		// switch happens. We must NOT resolve those late responses against
+		// the new tenant B.
+		let resolvePage1A: ((value: unknown) => void) | undefined;
+		let resolvePage2A: ((value: unknown) => void) | undefined;
+		mocks.get
+			.mockImplementationOnce(
+				() =>
+					new Promise((resolve) => {
+						resolvePage1A = resolve;
+					}),
+			)
+			.mockImplementationOnce(
+				() =>
+					new Promise((resolve) => {
+						resolvePage2A = resolve;
+					}),
+			);
+
+		const probe = mountProbe({ tenantId: 'tenant-A' });
+
+		// Resolve A's page 1; the hook must auto-schedule page 2 (in
+		// flight, still pending). Wait for the second call to actually
+		// land before we switch tenants — otherwise we cannot be sure
+		// the hook even tried to advance.
+		await act(async () => {
+			resolvePage1A?.(page([rowOf('A-pub-1', 'a1')], 'cursor-A2'));
+			await Promise.resolve();
+		});
+		await waitFor(() => {
+			expect(mocks.get).toHaveBeenCalledTimes(2);
+		});
+
+		// Tenant B: server returns a different page 1.
+		mocks.get.mockResolvedValueOnce(page([rowOf('B-pub-1', 'b1')], null));
+
+		await act(async () => {
+			probe.rerender({ tenantId: 'tenant-B' });
+		});
+
+		// Synchronous reset — the very next paint after the rerender must NOT
+		// show tenant-A rows.
+		expect(probe.readProbe().rows.map((r) => r.publicationId)).toEqual([]);
+
+		// Wait for B's walk to complete.
+		await waitFor(() => {
+			expect(probe.readProbe().rows.map((r) => r.publicationId)).toEqual([
+				'B-pub-1',
+			]);
+		});
+
+		// Now tenant A's late page 2 resolves — its row must NOT appear in
+		// the calendar under tenant B. The previous implementation
+		// accumulates into React state with a setState callback that
+		// ignores the tenant switch, leaking the late A-pub-2 row.
+		await act(async () => {
+			resolvePage2A?.(page([rowOf('A-pub-2', 'a2-late')], null));
+			await Promise.resolve();
+		});
+
+		// Settle any subsequent renders.
+		await act(async () => {
+			await Promise.resolve();
+		});
+
+		expect(probe.readProbe().rows.map((r) => r.publicationId)).toEqual([
+			'B-pub-1',
+		]);
 	});
 });

@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query';
+import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import type { QueryClient } from '@tanstack/react-query';
 import { getClientManager } from '~/lib/api-client/client-manager';
 
@@ -212,6 +212,89 @@ export const useScheduledPublicationsQuery = (
 		queryKey: scheduledPublicationsQueryOptions.queryKey(variables),
 		queryFn: () => scheduledPublicationsQueryOptions.fetcher(variables),
 	});
+
+export type ScheduledPublicationsInfiniteVariables = {
+	from: Date;
+	to: Date;
+	statuses?: string[];
+	limit?: number;
+};
+
+const buildInfiniteVariablesPayload = (
+	variables: ScheduledPublicationsInfiniteVariables & { tenantId: string },
+) => ({
+	from: variables.from.toISOString(),
+	to: variables.to.toISOString(),
+	status: normalizeStatuses(variables.statuses)?.join(','),
+	limit: isPositiveSafeInteger(variables.limit)
+		? String(variables.limit)
+		: undefined,
+});
+
+/**
+ * Tenant-scoped infinite walk for one bounded window.
+ *
+ * The query key encodes `tenant` + `tenant-scheduled-publications` + the
+ * tenant id + the window/status/limit payload + the `restartKey`. The cursor
+ * lives only inside `pageParam`, so an `invalidateQueries` against the
+ * tenant scope (the contract `invalidateTenantScheduledPublications` already
+ * honours) reaches every page of the walk and forces a full refetch — no
+ * React state shadows the cached data.
+ *
+ * The cursor-cycle guard uses `allPageParams` (the pageParams TanStack Query
+ * passes back to `getNextPageParam`): if a server hands back a `nextCursor`
+ * we've already requested on any prior page, the walk terminates instead of
+ * looping forever. A well-behaved backend returns `null`/`''` to mark the end;
+ * a malicious or buggy backend that recycles a cursor is short-circuited here.
+ */
+export const useScheduledPublicationsInfiniteQuery = (
+	variables: ScheduledPublicationsInfiniteVariables & {
+		tenantId: string;
+		restartKey?: number;
+	},
+) => {
+	const { tenantId, from, to, statuses, limit, restartKey } = variables;
+	const clientManager = getClientManager();
+	const baseQueryKey = [
+		'tenant',
+		...TENANT_SCHEDULED_PUBLICATIONS_QUERY_KEY,
+		tenantId,
+		buildInfiniteVariablesPayload({ tenantId, from, to, statuses, limit }),
+		restartKey ?? 0,
+	] as const;
+
+	return useInfiniteQuery({
+		queryKey: baseQueryKey,
+		initialPageParam: undefined as string | undefined,
+		queryFn: async ({ pageParam, signal }) => {
+			const client = clientManager.getOrCreateClient(tenantId);
+			const result = await client.posts.publications.get({
+				queryParameters: buildFindScheduledPublicationsQueryParameters({
+					from,
+					to,
+					statuses,
+					cursor: pageParam,
+					limit,
+				}),
+			});
+			if (!result) {
+				throw new Error('scheduled publications result was empty');
+			}
+			void signal;
+			return result;
+		},
+		getNextPageParam: (lastPage, _allPages, _lastPageParam, allPageParams) => {
+			const next = lastPage.nextCursor;
+			if (typeof next !== 'string' || next.length === 0) {
+				return undefined;
+			}
+			if (allPageParams.includes(next)) {
+				return undefined;
+			}
+			return next;
+		},
+	});
+};
 
 /** Invalidates every scheduled-publication window for one tenant. */
 export const invalidateTenantScheduledPublications = (

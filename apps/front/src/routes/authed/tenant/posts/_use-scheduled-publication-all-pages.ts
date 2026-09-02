@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
 	toScheduledPublicationRows,
-	useScheduledPublicationsQuery,
+	useScheduledPublicationsInfiniteQuery,
 	type ScheduledPublicationRow,
 } from '~/lib/query/tenant-scheduled-publications';
 
@@ -16,31 +16,30 @@ type ScheduledPublicationAllPagesOptions = {
 	statuses?: string[];
 };
 
-type AggregationState = {
-	/** Rows collected across every page so far, deduplicated by id. */
-	rows: ScheduledPublicationRow[];
-	/** Cursor of the page being fetched, if any. */
-	cursor: string | undefined;
-	/** Publication IDs already collected, for deduplication. */
-	seenIds: Set<string>;
-	/** Cursors already requested, for cycle detection. */
-	seenCursors: Set<string>;
-	/** Set when the walk ends or stops on an error. */
-	completed: boolean;
-};
-
-const createAggregation = (): AggregationState => ({
-	rows: [],
-	cursor: undefined,
-	seenIds: new Set(),
-	seenCursors: new Set(),
-	completed: false,
-});
-
 /**
- * Fetches and aggregates every cursor page for a bounded window.
- * Used by the calendar to show the complete visible month. Queue keeps
- * interactive page replacement via `useScheduledPublicationPage`.
+ * Walks every cursor page of `posts.publications.get` for one bounded window
+ * via TanStack's `useInfiniteQuery`. The rows live in the query cache
+ * (key = `tenant / tenant-scheduled-publications / tenantId /
+ * window+status+limit payload / restartKey`); `invalidateQueries` against
+ * the tenant scope refetches every page, so the calendar's view of the
+ * walk stays complete after server-side changes — there is no React-state
+ * shadow to drift.
+ *
+ * Per-page dedupe happens in `flattenPages`, which preserves backend order
+ * across the flattened list. The cursor-cycle guard lives inside the
+ * infinite query's `getNextPageParam`: a server that hands back a
+ * `nextCursor` we've already requested terminates the walk instead of
+ * looping. A terminal error on any page also stops the walk because
+ * `fetchNextPage` is never called for an errored query.
+ *
+ * Tenant isolation is preserved by encoding `tenantId` in the cache key —
+ * switching tenants remounts a fresh query and the previous tenant's
+ * pending pages cannot land in the new tenant's walk.
+ *
+ * `restart()` bumps `restartKey` so the `useInfiniteQuery` cache slot is
+ * rebuilt from scratch — `refetch()` on an errored infinite query can leave
+ * stale partial pages in the cache, so remounting is the deterministic way
+ * to start a clean walk.
  */
 export const useScheduledPublicationAllPages = ({
 	tenantId,
@@ -48,110 +47,76 @@ export const useScheduledPublicationAllPages = ({
 	initialSize,
 	statuses,
 }: ScheduledPublicationAllPagesOptions) => {
-	const [aggregation, setAggregation] =
-		useState<AggregationState>(createAggregation);
-
 	const [restartKey, setRestartKey] = useState(0);
 
-	// Tenant identity belongs to the walk, so a tenant switch clears rows
-	// synchronously instead of briefly painting the previous tenant's data.
-	const scopeKey = `${tenantId}:${pubWindow.from.toISOString()}:${pubWindow.to.toISOString()}:${statuses?.join(',') ?? ''}`;
-
-	// Reset during render so no frame can observe stale rows or cursor state.
-	const [prevScopeKey, setPrevScopeKey] = useState(scopeKey);
-	if (prevScopeKey !== scopeKey) {
-		setPrevScopeKey(scopeKey);
-		setAggregation(createAggregation());
-	}
-
-	const queryVariables = {
+	const {
+		error,
+		hasNextPage,
+		isPending,
+		isFetchingNextPage,
+		fetchNextPage,
+		data,
+	} = useScheduledPublicationsInfiniteQuery({
 		tenantId,
 		from: pubWindow.from,
 		to: pubWindow.to,
 		statuses,
-		cursor: aggregation.cursor,
 		limit: initialSize,
 		restartKey,
-	} satisfies Parameters<typeof useScheduledPublicationsQuery>[0] & {
-		restartKey: number;
-	};
-	const query = useScheduledPublicationsQuery(queryVariables);
+	});
 
-	// An error terminates the cursor walk so the error surface can render.
+	// Drive the cursor walk forward until the server stops handing back
+	// `nextCursor`. We only `fetchNextPage` when there IS a next page
+	// (`hasNextPage`) and the current attempt is idle, so a successful
+	// resolution of page N naturally schedules page N+1; a failure stops
+	// the walk because `fetchNextPage` is never called for an errored
+	// `isFetchingNextPage` attempt. The effect depends only on the
+	// stable primitives so the `infinite` object reference can change
+	// without retriggering the walk.
 	useEffect(() => {
-		if (!query.error) {
+		if (error !== null || !hasNextPage || isFetchingNextPage) {
 			return;
 		}
-		setAggregation((prev) =>
-			prev.completed ? prev : { ...prev, completed: true },
-		);
-	}, [query.error]);
+		void fetchNextPage();
+	}, [error, hasNextPage, isFetchingNextPage, fetchNextPage]);
 
-	// Process each resolved page: collect new rows, advance the cursor, and
-	// mark the walk complete when the page ends it (cursor-cycle detection
-	// stops an infinite loop). The updater stays pure — dedupe and cursor
-	// memory travel inside the state instead of a mutable ref.
-	useEffect(() => {
-		if (query.error || !query.data || query.isFetching || query.isPending) {
-			return;
-		}
-
-		const pageRows = toScheduledPublicationRows(query.data);
-		const nextCursor = query.data.nextCursor;
-
-		setAggregation((prev) => {
-			if (prev.completed) {
-				return prev;
-			}
-
-			const seenIds = new Set(prev.seenIds);
-			const newRows: ScheduledPublicationRow[] = [];
-			for (const row of pageRows) {
+	// Flatten + dedupe across the cached pages. Memoised on the pages
+	// array reference so consumers can read a stable row list per render.
+	const rows = useMemo(() => {
+		const pages = data?.pages ?? [];
+		const seenIds = new Set<string>();
+		const accumulator: ScheduledPublicationRow[] = [];
+		for (const page of pages) {
+			for (const row of toScheduledPublicationRows(page)) {
 				if (!seenIds.has(row.publicationId)) {
 					seenIds.add(row.publicationId);
-					newRows.push(row);
+					accumulator.push(row);
 				}
 			}
-
-			const cursorIsUnseen =
-				nextCursor != null &&
-				nextCursor !== '' &&
-				!prev.seenCursors.has(nextCursor);
-			const completed = !cursorIsUnseen;
-			const seenCursors =
-				cursorIsUnseen && nextCursor !== null
-					? new Set(prev.seenCursors).add(nextCursor)
-					: prev.seenCursors;
-
-			return {
-				rows: [...prev.rows, ...newRows],
-				cursor: cursorIsUnseen ? nextCursor : prev.cursor,
-				seenIds,
-				seenCursors,
-				completed,
-			};
-		});
-	}, [query.data, query.error, query.isFetching, query.isPending]);
+		}
+		return accumulator;
+	}, [data?.pages]);
 
 	const restart = useCallback(() => {
-		setAggregation(createAggregation());
 		setRestartKey((tick) => tick + 1);
 	}, []);
 
-	// Derived loading flag — computed during render, never synchronized in
-	// an effect. Aggregation is ongoing while the current page is pending
-	// or being fetched, or while the walk has not yet reached its end.
+	// Derived loading flag — the walk is ongoing while the first page has
+	// not landed, while a subsequent page is being fetched, or while the
+	// server has indicated another page is available. A terminal error
+	// stops the walk even when `hasNextPage` is technically still true
+	// (the next-page signal was computed before the failure landed), so
+	// the page's error surface can take over the render.
 	const isAggregating =
-		query.isPending || query.isFetching || !aggregation.completed;
+		error === null && (isPending || hasNextPage || isFetchingNextPage);
 
-	const shouldLogout =
-		query.error !== null && shouldLogoutForFailure(query.error);
+	const shouldLogout = error !== null && shouldLogoutForFailure(error);
 
 	return {
-		rows: aggregation.rows,
+		rows,
 		isAggregating,
 		shouldLogout,
-		error: query.error,
+		error,
 		restart,
 	};
 };
