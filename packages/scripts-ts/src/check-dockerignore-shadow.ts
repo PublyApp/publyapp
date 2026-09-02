@@ -115,8 +115,8 @@ const isRealInsideRoot = (realPath: string, realRoot: string): boolean => {
 	);
 };
 
-// Walk the tree for shadow files. Returns findings named by their lexical
-// path — how BuildKit resolves the file inside the build context.
+// Walk the tree for shadow entries. Returns findings named by their lexical
+// path — how BuildKit resolves the entry inside the build context.
 //
 // `lexicalParent` is the BUILD-KIT LEXICAL path of the directory being walked.
 // For the root walk it is undefined (no prefix). When the walk descends into a
@@ -150,6 +150,16 @@ const walkForShadows = async (
 
 	for await (const entry of directory) {
 		const entryAbsolute = path.join(currentDir, entry.name);
+		const entryLexical = lexicalParent
+			? `${lexicalParent}/${entry.name}`
+			: entry.name;
+
+		// Classify the lexical entry before inspecting its type. Directories,
+		// directory symlinks and broken symlinks are forbidden by the same
+		// basename invariant as regular files.
+		if (isShadowFile(entry.name, lexicalParent)) {
+			findings.push({ lexical: entryLexical });
+		}
 
 		// Dirent reports isDirectory() === false for a symlink whose target
 		// IS a directory, so the symlink branch must be handled before the
@@ -166,14 +176,10 @@ const walkForShadows = async (
 			}
 
 			if (!targetStat.isDirectory()) {
-				// Symlink to a file. The lexically-named entry is the file
-				// BuildKit would dereference inside the build context.
-				if (isShadowFile(entry.name, lexicalParent)) {
-					const lexical = lexicalParent
-						? `${lexicalParent}/${entry.name}`
-						: entry.name;
-					findings.push({ lexical });
-				}
+				continue;
+			}
+
+			if (SKIP_DIRS.has(entry.name)) {
 				continue;
 			}
 
@@ -185,13 +191,9 @@ const walkForShadows = async (
 				}
 				visitedRealPaths.add(realTarget);
 
-				const symlinkLexical = lexicalParent
-					? `${lexicalParent}/${entry.name}`
-					: entry.name;
-
 				if (remainingDepth <= 0) {
 					findings.push({
-						lexical: `${symlinkLexical}/${DEPTH_OVERFLOW_MARKER}`,
+						lexical: `${entryLexical}/${DEPTH_OVERFLOW_MARKER}`,
 					});
 					continue;
 				}
@@ -203,7 +205,7 @@ const walkForShadows = async (
 						visitedRealPaths,
 						realRoot,
 						remainingDepth - 1,
-						symlinkLexical,
+						entryLexical,
 						aliasVisited,
 					);
 				} catch {
@@ -221,16 +223,13 @@ const walkForShadows = async (
 			const nextAliasVisited = new Set(baseAncestry);
 			nextAliasVisited.add(realTarget);
 
-			const symlinkLexical = lexicalParent
-				? `${lexicalParent}/${entry.name}`
-				: entry.name;
 			await walkForShadows(
 				entryAbsolute,
 				findings,
 				visitedRealPaths,
 				realRoot,
 				remainingDepth,
-				symlinkLexical,
+				entryLexical,
 				nextAliasVisited,
 			);
 			continue;
@@ -242,12 +241,6 @@ const walkForShadows = async (
 			}
 
 			const realEntry = await realpath(entryAbsolute);
-
-			// Build the BUILD-KIT lexical path for this subdirectory:
-			// `lexicalParent/foo/` — undefined parent means root-level `foo/`.
-			const childLexical = lexicalParent
-				? `${lexicalParent}/${entry.name}`
-				: entry.name;
 
 			if (aliasVisited === null) {
 				// Canonical (non-alias) walk: a real filesystem tree cannot
@@ -263,7 +256,7 @@ const walkForShadows = async (
 					visitedRealPaths,
 					realRoot,
 					remainingDepth,
-					childLexical,
+					entryLexical,
 					null,
 				);
 				continue;
@@ -282,18 +275,10 @@ const walkForShadows = async (
 				visitedRealPaths,
 				realRoot,
 				remainingDepth,
-				childLexical,
+				entryLexical,
 				childAliasVisited,
 			);
 			continue;
-		}
-
-		// Plain file.
-		if (isShadowFile(entry.name, lexicalParent)) {
-			const lexical = lexicalParent
-				? `${lexicalParent}/${entry.name}`
-				: entry.name;
-			findings.push({ lexical });
 		}
 	}
 
@@ -380,52 +365,52 @@ const run = async () => {
 	}
 
 	if (findings.length > 0) {
-		console.error('Found .dockerignore shadow file(s):');
+		console.error('Found .dockerignore shadow entry(s):');
 
 		const exactSubdirFindings = findings.filter(
-			(file) =>
-				!file.endsWith(`/${DEPTH_OVERFLOW_MARKER}`) &&
-				file.endsWith('/.dockerignore'),
+			(entry) =>
+				!entry.endsWith(`/${DEPTH_OVERFLOW_MARKER}`) &&
+				entry.endsWith('/.dockerignore'),
 		);
-		const overflowFindings = findings.filter((file) =>
-			file.endsWith(`/${DEPTH_OVERFLOW_MARKER}`),
+		const overflowFindings = findings.filter((entry) =>
+			entry.endsWith(`/${DEPTH_OVERFLOW_MARKER}`),
 		);
 		const replacementFindings = findings.filter(
-			(file) =>
-				!exactSubdirFindings.includes(file) && !overflowFindings.includes(file),
+			(entry) =>
+				!exactSubdirFindings.includes(entry) &&
+				!overflowFindings.includes(entry),
 		);
 
-		for (const file of findings) {
-			console.error(`  - ${file}`);
+		for (const entry of findings) {
+			console.error(`  - ${entry}`);
 		}
 
 		if (replacementFindings.length > 0) {
 			console.error(
-				'\nDocker does NOT add exclusion files together: when a file named like <Dockerfile>.dockerignore',
+				'\nDocker reserves names like <Dockerfile>.dockerignore for per-Dockerfile exclusions.',
 			);
 			console.error(
-				'or a case variant of .dockerignore exists in the tree, it REPLACES the root .dockerignore for',
+				'When such an entry is or resolves to a file used by a build, it REPLACES the root',
 			);
 			console.error(
-				'that build entirely, silently re-introducing node_modules, dist, .turbo, .worktrees and other',
+				'.dockerignore rather than adding to it, silently re-introducing node_modules, dist,',
 			);
 			console.error(
-				'excluded paths into the build context (see #1832/#1836: the api image context grew from',
+				'.turbo, .worktrees and other excluded paths into the build context (see #1832/#1836:',
 			);
-			console.error('15.9 MB to 21.2 MB).');
+			console.error('the api image context grew from 15.9 MB to 21.2 MB).');
 		}
 
 		if (exactSubdirFindings.length > 0) {
 			console.error(
-				"\nAn exact subdirectory .dockerignore is authoritative for that subdirectory's own build",
+				'\nAn exact subdirectory entry named .dockerignore violates the single-root contract.',
 			);
 			console.error(
-				'context (`docker build <subdir>` opens it instead of the root file) and re-includes',
+				'When it is or resolves to a file, `docker build <subdir>` opens it instead of the root',
 			);
 			console.error(
-				'everything the root .dockerignore would have excluded. The repository contract is a single',
+				'.dockerignore and re-includes everything the root file would have excluded.',
 			);
-			console.error('root .dockerignore only.');
 		}
 
 		if (overflowFindings.length > 0) {
@@ -438,7 +423,7 @@ const run = async () => {
 		}
 
 		console.error(
-			'\nDelete each file above: the repository contract allows only the root .dockerignore, so no',
+			'\nDelete each entry above: the repository contract allows only the root .dockerignore, so no',
 		);
 		console.error(
 			'subdirectory .dockerignore is ever legitimate — it stays the single source of build-context',
@@ -448,7 +433,7 @@ const run = async () => {
 	}
 
 	console.log(
-		'No .dockerignore shadow files: the root .dockerignore is the only one in the tree. [OK]',
+		'No .dockerignore shadow entries: the root .dockerignore is the only one in the tree. [OK]',
 	);
 };
 

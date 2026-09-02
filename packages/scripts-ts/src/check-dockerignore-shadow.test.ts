@@ -132,6 +132,49 @@ test('subdirectory `.dockerignore` (exact basename) is a finding', async () => {
 	);
 });
 
+test('subdirectory directory named .dockerignore is a finding', async () => {
+	const rootDir = await buildFixtureTree();
+
+	await mkdir(path.join(rootDir, 'apps/api/.dockerignore'), {
+		recursive: true,
+	});
+
+	const findings = await findDockerignoreShadows({ rootDir });
+
+	assert.ok(findings.includes('apps/api/.dockerignore'));
+});
+
+test('subdirectory symlink to a directory named .dockerignore is a finding', async () => {
+	const rootDir = await buildFixtureTree();
+
+	await mkdir(path.join(rootDir, 'target'), { recursive: true });
+	await mkdir(path.join(rootDir, 'apps/api'), { recursive: true });
+	await symlink(
+		path.join(rootDir, 'target'),
+		path.join(rootDir, 'apps/api/.dockerignore'),
+		'dir',
+	);
+
+	const findings = await findDockerignoreShadows({ rootDir });
+
+	assert.ok(findings.includes('apps/api/.dockerignore'));
+});
+
+test('broken subdirectory symlink named .dockerignore is a finding', async () => {
+	const rootDir = await buildFixtureTree();
+
+	await mkdir(path.join(rootDir, 'apps/api'), { recursive: true });
+	await symlink(
+		'missing-target',
+		path.join(rootDir, 'apps/api/.dockerignore'),
+		'dir',
+	);
+
+	const findings = await findDockerignoreShadows({ rootDir });
+
+	assert.ok(findings.includes('apps/api/.dockerignore'));
+});
+
 // A shadow file inside node_modules cannot reach a build context (the root
 // .dockerignore excludes node_modules from every context), so flagging it
 // would be a false positive on third-party packages. This pins the
@@ -167,6 +210,24 @@ test('shadow file inside .git is out of scope', async () => {
 		[],
 		'expected .git to be skipped (tool metadata, never in a context)',
 	);
+});
+
+test('directory symlink named .worktrees stays outside the scan boundary', async () => {
+	const rootDir = await buildFixtureTree();
+	const outsideDir = await mkdtemp(
+		path.join(os.tmpdir(), 'publyapp-tooling-symlink-'),
+	);
+
+	try {
+		await writeFile(path.join(outsideDir, 'Dockerfile.dockerignore'), '');
+		await symlink(outsideDir, path.join(rootDir, '.worktrees'), 'dir');
+
+		const findings = await findDockerignoreShadows({ rootDir });
+
+		assert.deepEqual(findings, []);
+	} finally {
+		await rm(outsideDir, { recursive: true, force: true });
+	}
 });
 
 // An unreadable/missing root must reject, never report a silent "nothing to
@@ -231,7 +292,17 @@ test('a root .dockerignore that is a directory is rejected, not treated as canon
 
 		await assert.rejects(
 			findDockerignoreShadows({ rootDir }),
-			/canonical root .dockerignore/,
+			/must be a regular file, found a directory/,
+		);
+
+		const result = spawnSync('node', [cliPath], {
+			cwd: rootDir,
+			encoding: 'utf8',
+		});
+		assert.equal(result.status, 1);
+		assert.match(
+			result.stderr ?? '',
+			/must be a regular file, found a directory/,
 		);
 	} finally {
 		await rm(rootDir, { recursive: true, force: true });
@@ -249,7 +320,17 @@ test('a root .dockerignore that is a symlink is rejected, not treated as canonic
 
 		await assert.rejects(
 			findDockerignoreShadows({ rootDir }),
-			/canonical root .dockerignore/,
+			/must be a regular file, found a symlink/,
+		);
+
+		const result = spawnSync('node', [cliPath], {
+			cwd: rootDir,
+			encoding: 'utf8',
+		});
+		assert.equal(result.status, 1);
+		assert.match(
+			result.stderr ?? '',
+			/must be a regular file, found a symlink/,
 		);
 	} finally {
 		await rm(rootDir, { recursive: true, force: true });

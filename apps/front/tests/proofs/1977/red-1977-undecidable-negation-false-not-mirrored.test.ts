@@ -228,9 +228,12 @@ test('RED #1977: a git-ignored candidate mirrored by a later decidable line is f
 			`MESURE IMPOSSIBLE: stderr does not name the shadow path 'leaked/Dockerfile.dockerignore' — the guard did not report the fixture's finding at all, so no diagnosis (false or otherwise) could have been reached. stderr: ${stderr}`,
 		);
 	}
-	if (!stderr.includes('Found .dockerignore shadow file(s):')) {
+	const hasGuardHeader =
+		stderr.includes('Found .dockerignore shadow entry(s):') ||
+		stderr.includes('Found .dockerignore shadow file(s):');
+	if (!hasGuardHeader) {
 		throw new Error(
-			`MESURE IMPOSSIBLE: stderr is missing the guard's ordinary header 'Found .dockerignore shadow file(s):' — this is not the guard's normal output shape, so the fixture did not exercise the guard as intended. stderr: ${stderr}`,
+			`MESURE IMPOSSIBLE: stderr is missing the guard's ordinary shadow-entry header — this is not the guard's normal output shape, so the fixture did not exercise the guard as intended. stderr: ${stderr}`,
 		);
 	}
 
