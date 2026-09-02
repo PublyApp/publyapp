@@ -1,7 +1,26 @@
 /**
  * @vitest-environment jsdom
  */
-import { describe, expect, test } from 'vitest';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { cleanup, renderHook, waitFor } from '@testing-library/react';
+import { createElement, type ReactNode } from 'react';
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
+
+const mocks = vi.hoisted(() => ({
+	patch: vi.fn(),
+}));
+
+vi.mock('~/lib/api-client/client-manager', () => ({
+	getClientManager: () => ({
+		getOrCreateClient: () => ({
+			posts: {
+				byPostId: () => ({ patch: mocks.patch }),
+				post: mocks.patch,
+			},
+		}),
+	}),
+	resolveApiBaseUrl: () => 'https://api.example.test',
+}));
 
 import type {
 	FindPostsForTenantResponse,
@@ -12,7 +31,39 @@ import {
 	buildFindTenantPostsQueryParameters,
 	toTenantPostRows,
 	toTenantPostDetails,
+	useSavePostMutation,
 } from './tenant-posts';
+import { TENANT_SCHEDULED_PUBLICATIONS_QUERY_KEY } from './tenant-scheduled-publications';
+
+let activeQueryClient: QueryClient | undefined;
+
+const createWrapper = () => {
+	const queryClient = new QueryClient({
+		defaultOptions: { queries: { retry: false } },
+	});
+	activeQueryClient = queryClient;
+	return ({ children }: { children: ReactNode }) =>
+		createElement(QueryClientProvider, { client: queryClient }, children);
+};
+
+afterEach(async () => {
+	await activeQueryClient?.cancelQueries();
+	await cleanup();
+	activeQueryClient = undefined;
+});
+
+beforeEach(() => {
+	vi.clearAllMocks();
+	mocks.patch.mockResolvedValue({
+		id: '11111111-1111-7111-8111-111111111111',
+		body: 'Updated body',
+		projectId: null,
+		status: 'draft',
+		createdByUserId: '22222222-2222-7222-8222-222222222222',
+		createdAt: new Date('2026-01-01T00:00:00Z'),
+		updatedAt: new Date('2026-01-02T00:00:00Z'),
+	});
+});
 
 describe('tenant-posts helpers', () => {
 	test('drops empty q and maps size to limit', () => {
@@ -115,5 +166,78 @@ describe('tenant-posts helpers', () => {
 		expect(details!.body).toBe('Test body');
 		expect(details!.projectId).toBe('22222222-2222-7222-8222-222222222222');
 		expect(details!.status).toBe('draft');
+	});
+});
+
+describe('useSavePostMutation invalidation coherence', () => {
+	test('invalidates scheduled-publication windows for the saved tenant', async () => {
+		createWrapper();
+		const queryClient = activeQueryClient as QueryClient;
+		const invalidateQueriesSpy = vi
+			.spyOn(queryClient, 'invalidateQueries')
+			.mockResolvedValue(undefined);
+
+		const { result } = renderHook(() => useSavePostMutation(), {
+			wrapper: ({ children }) =>
+				createElement(QueryClientProvider, { client: queryClient }, children),
+		});
+
+		await result.current.mutateAsync({
+			postId: '11111111-1111-7111-8111-111111111111',
+			body: 'Updated body',
+			projectId: null,
+			tenantId: 'tenant-1',
+		});
+
+		await waitFor(() => {
+			const calls = invalidateQueriesSpy.mock.calls;
+			const scheduledCall = calls.find(([arg]) => {
+				const key = (arg as { queryKey?: unknown[] })?.queryKey;
+				return (
+					Array.isArray(key) &&
+					key.includes(TENANT_SCHEDULED_PUBLICATIONS_QUERY_KEY[0])
+				);
+			});
+			expect(scheduledCall).toBeDefined();
+		});
+	});
+
+	test('keeps invalidating the existing tenant-posts list and detail families', async () => {
+		createWrapper();
+		const queryClient = activeQueryClient as QueryClient;
+		const invalidateQueriesSpy = vi
+			.spyOn(queryClient, 'invalidateQueries')
+			.mockResolvedValue(undefined);
+
+		const { result } = renderHook(() => useSavePostMutation(), {
+			wrapper: ({ children }) =>
+				createElement(QueryClientProvider, { client: queryClient }, children),
+		});
+
+		await result.current.mutateAsync({
+			postId: '11111111-1111-7111-8111-111111111111',
+			body: 'Updated body',
+			projectId: null,
+			tenantId: 'tenant-1',
+		});
+
+		await waitFor(() => {
+			const calls = invalidateQueriesSpy.mock.calls;
+			const postsCall = calls.find(([arg]) => {
+				const key = (arg as { queryKey?: unknown[] })?.queryKey;
+				return (
+					Array.isArray(key) &&
+					key.includes('tenant-posts') &&
+					!key.includes('detail') &&
+					!key.includes(TENANT_SCHEDULED_PUBLICATIONS_QUERY_KEY[0])
+				);
+			});
+			const detailCall = calls.find(([arg]) => {
+				const key = (arg as { queryKey?: unknown[] })?.queryKey;
+				return Array.isArray(key) && key.includes('detail');
+			});
+			expect(postsCall).toBeDefined();
+			expect(detailCall).toBeDefined();
+		});
 	});
 });

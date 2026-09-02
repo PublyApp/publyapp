@@ -331,6 +331,14 @@ export const useSavePostMutation = () => {
 		mutationFn: savePost,
 		onSuccess: (_data, variables) => {
 			void invalidateTenantPosts(queryClient, variables.tenantId);
+			// Editing a post mutates its body preview in any scheduled-publication
+			// window (queue/calendar/history). Refresh every window for the tenant
+			// so the cached `postBodyPreview` no longer carries the stale text
+			// (#2053 coherence).
+			void invalidateTenantScheduledPublications(
+				queryClient,
+				variables.tenantId,
+			);
 		},
 		meta: {
 			successMessage: 'post-saved-success',

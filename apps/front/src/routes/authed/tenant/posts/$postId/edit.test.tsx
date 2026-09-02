@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  */
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import type { ComponentType, ReactNode } from 'react';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import type { TestLabelMap } from '~/lib/testing/test-label-map';
@@ -41,6 +41,7 @@ const mocks = vi.hoisted(() => ({
 	})),
 	savePost: vi.fn().mockResolvedValue({}),
 	invalidateTenantPosts: vi.fn().mockResolvedValue(undefined),
+	invalidateTenantScheduledPublications: vi.fn().mockResolvedValue(undefined),
 }));
 
 vi.mock('@tanstack/react-query', () => ({
@@ -155,6 +156,11 @@ vi.mock('~/lib/query/tenant-projects', () => ({
 
 vi.mock('~/lib/query/tenants-for-picker', () => ({
 	useResolvedWorkspaceTenantId: () => '11111111-1111-1111-1111-111111111111',
+}));
+
+vi.mock('~/lib/query/tenant-scheduled-publications', () => ({
+	invalidateTenantScheduledPublications:
+		mocks.invalidateTenantScheduledPublications,
 }));
 
 vi.mock('../_publish-on-block', () => ({
@@ -307,5 +313,54 @@ describe('TenantPostEditPage', () => {
 		render(<TenantPostEditPage />);
 
 		expect(screen.getByTestId('publish-on-block-stub')).toBeTruthy();
+	});
+
+	test('save submission refreshes the post list and scheduled-publication surfaces for the tenant', async () => {
+		mocks.useTenantPostDetailsQuery.mockReturnValue({
+			data: {
+				id: 'aaaaaaaa-aaaa-7aaa-8aaa-aaaaaaaaaaaa',
+				body: 'Hello world',
+				projectId: null,
+			},
+			isPending: false,
+			isSuccess: true,
+			isError: false,
+			error: null,
+			refetch: vi.fn(),
+			isFetching: false,
+		});
+		mocks.savePost.mockResolvedValue({
+			id: 'aaaaaaaa-aaaa-7aaa-8aaa-aaaaaaaaaaaa',
+			body: 'Hello world updated',
+			projectId: null,
+		});
+		mocks.invalidateTenantPosts.mockClear();
+
+		render(<TenantPostEditPage />);
+
+		const form = screen.getByTestId('form-stub') as HTMLFormElement;
+		fireEvent.submit(form);
+
+		// Wait for the async savePost + invalidate chain to complete.
+		await new Promise((resolve) => {
+			setTimeout(resolve, 0);
+		});
+
+		expect(mocks.savePost).toHaveBeenCalledWith(
+			expect.objectContaining({
+				postId: 'aaaaaaaa-aaaa-7aaa-8aaa-aaaaaaaaaaaa',
+				tenantId: '11111111-1111-1111-1111-111111111111',
+			}),
+		);
+		expect(mocks.invalidateTenantPosts).toHaveBeenCalledWith(
+			expect.anything(),
+			'11111111-1111-1111-1111-111111111111',
+		);
+		// Scheduled-publication windows MUST also be invalidated so calendar
+		// and queue surfaces reflect the edited post body (#2053 coherence).
+		expect(mocks.invalidateTenantScheduledPublications).toHaveBeenCalledWith(
+			expect.anything(),
+			'11111111-1111-1111-1111-111111111111',
+		);
 	});
 });
