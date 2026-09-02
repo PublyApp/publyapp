@@ -601,7 +601,8 @@ public sealed class EmailJobHandlersSpec : IClassFixture<ApiFixture> {
 	}
 
 	[Fact]
-	public async Task ItShouldReturnCancelledWithUserNotFoundWhenTheUserIsSoftDeletedBeforeTheLockedRead() {
+	public async Task
+	ItShouldReturnCancelledWithUserNotFoundWhenTheUserIsSoftDeletedBeforeTheLockedRead() {
 		// #1557: the joined-staff handler's locked eligibility recheck is the
 		// linearization point (#811); a user soft-deleted between enqueue and the
 		// locked read yields `user_not_found` — no send, no EmailLog row, AND a
