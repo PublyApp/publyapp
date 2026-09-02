@@ -24,7 +24,7 @@
 	"devDependencies": {
 		"@types/node": "^24.13.3",
 		"chokidar": "^5.0.0",
-		"jscpd": "^4.3.0",
+		"jscpd": "^5.1.0",
 		"knip": "6.32.2",
 		"lint-staged": "^17.3.0",
 		"oxfmt": "0.65.0",
