@@ -28,10 +28,10 @@ Rule of thumb: green-and-boring (minor/patch, no generated code, no CI config) �
 `front supply-chain` (`supply-chain` job in `.github/workflows/front-ci.yml`) runs
 
 ```
-pnpm audit --prod --audit-level=high
+pnpm audit --prod --audit-level=moderate
 ```
 
-after `pnpm install --frozen-lockfile --ignore-scripts` + trusted `@org/shared-ts` postinstall. It **fails** on any `high` or `critical` in the production graph and **passes** otherwise. Rung 1 of #1187 (PR #1198) cleared the 4 high alerts that were open on `develop`, so the step is green from the day it lands; it fails loud on an unreachable registry as well (no silent pass).
+after `pnpm install --frozen-lockfile --ignore-scripts` + trusted `@org/shared-ts` postinstall. It **fails** on any `moderate`, `high`, or `critical` advisory in the production graph and **passes** otherwise. Rung 1 of #1187 (PR #1198) cleared the 4 high alerts that were open on `develop`, so the step is green from the day it lands; it fails loud on an unreachable registry as well (no silent pass).
 
 The .NET side is audited by **Scan .NET packages for known vulnerabilities**
 (`quality-gate.yml::quality`, mirrored locally by `just nuget-audit`, script
@@ -107,13 +107,11 @@ above; #880's closure adds the proof, not a new pin.
     `postcss@8.5.25` declares `nanoid: ^3.3.16` (a range that **includes**
     `3.3.16`/`3.3.17`, which are vulnerable; the fix is `3.3.18`). Today the lock
     resolves `3.3.18` only because of this cap — without it a lockfile
-    regeneration could drop back to `3.3.16`. The cap is the **only** protection
-    for this range: the validation audit is `pnpm audit --prod --audit-level=high`,
-    and `postcss` is a **devDependency** of `apps/front`, so `--prod` does not
-    inspect that graph at all. A vulnerable resolution would pass CI unseen. **Two
-    reasons it stays:** (1) `postcss`'s declared range can still resolve a
-    vulnerable version, and (2) the CI audit does not cover the dev graph. Either
-    reason alone is sufficient; both are true today.
+    regeneration could drop back to `3.3.16`. The cap proactively holds the safe
+    floor because `postcss`'s declared range can still resolve a vulnerable
+    version. The production audit does not inspect this dev-scoped graph, but
+    CI's separate `pnpm audit --dev --audit-level=moderate` gate would detect a
+    vulnerable resolution after the fact.
   - **`nanoid@>=4.0.0 <5.0.9 → ^5.1.16` REMOVED** (commit `ec7089c99`, issue
     #1623). The only direct declaration, `packages/shared-ts` `^5.1.16`, was also
     removed and no workspace source ever imported `nanoid`. After that removal,
@@ -124,14 +122,15 @@ above; #880's closure adds the proof, not a new pin.
   **Verifiable removal condition for the `<3.3.18` cap** (judged on the _declared_
   range, not the resolved version): remove it only when **every** consumer that
   can reach `nanoid@3.x` declares a range whose lower bound is `>=3.3.18` (i.e. no
-  declared range can resolve `3.3.16`/`3.3.17`) **and** the CI audit covers the
-  graph that consumer lives in. `postcss` still declares `^3.3.16`, and `postcss`
-  is dev-scoped, so neither condition holds — the cap stays. Judging on the
+  declared range can resolve `3.3.16`/`3.3.17`) and the relevant CI audit still
+  covers that graph. The dev audit already provides the detection backstop, but
+  `postcss` still declares `^3.3.16`, so the range condition does not hold and
+  the cap stays. Judging on the
   resolved version (`3.3.18` today) instead of the declared range is what caused
   the round-1 regression; do not repeat that mistake.
 
-CI's audit step (`pnpm audit --prod --audit-level=high`) stays the standing tripwire; run the
-full-graph `pnpm audit --audit-level=moderate` when triaging Dependabot alerts.
+CI's production and development audit steps stay the standing tripwires; run
+`pnpm audit --audit-level=moderate` when triaging Dependabot alerts.
 
 ## How the `browserslist@<=4.28.6` cap was added
 
@@ -212,9 +211,9 @@ there `qs` is reached by more than one branch:
 
 Both declared ranges — `^6.14.0` and `^6.15.2` — are wide enough to resolve a
 vulnerable release, so pinning only one parent would not hold the floor. Because
-the whole graph is dev-scoped, the CI production audit
-(`pnpm audit --prod --audit-level=high`) does not inspect it at all; the
-override, not the gate, is what holds the floor here.
+the whole graph is dev-scoped, the CI production audit does not inspect it. The
+separate `pnpm audit --dev --audit-level=moderate` gate detects a vulnerable
+resolution, while the override proactively holds the safe floor.
 
 A direct bump is not available: `express@5.2.1` is the latest published release
 and still declares `^6.14.0`, and its `body-parser@2.3.0` still declares
@@ -241,7 +240,8 @@ override is the only reason it does.
 ## How to run locally
 
 ```bash
-pnpm audit --prod --audit-level=high   # what CI gates (fail on high+)
+pnpm audit --prod --audit-level=moderate  # what CI gates (fail on moderate+)
+pnpm audit --dev --audit-level=moderate   # CI's dev-graph gate
 pnpm audit --prod --audit-level=critical  # today: passes (no critical in prod)
 pnpm audit                              # full graph including dev
 
