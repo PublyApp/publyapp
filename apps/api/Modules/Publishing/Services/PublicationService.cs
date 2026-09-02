@@ -623,13 +623,8 @@ public sealed class PublicationService : IPublicationService {
 				return new FindScheduledResult.CursorNotFound();
 			}
 
-			// #2053 — eligibility mirrors the main query: InProgress and Paused
-			// rows are not bounded by FromUtc (the queue keeps showing them
-			// until they are done / reconnected), but the cursor must still
-			// encode the EXACT stored ScheduledAtUtc. A forged timestamp on a
-			// real id would otherwise let a stale page anchor a phantom
-			// instant — the equality check closes that door with a 400
-			// CursorNotFound.
+			// Cursor eligibility mirrors the page query and binds the supplied
+			// timestamp to the stored row.
 			var cursorExists = await (
 				from p in _dbContext.Publication.AsNoTracking()
 				where p.Id == cursorId

@@ -716,6 +716,40 @@ public sealed class FindScheduledPublicationsForTenantSpec : IClassFixture<
 	}
 
 	[Fact]
+	public async Task ItShouldReturn400ForCursorWithForgedTimestamp() {
+		var tenantId = await GetAcmeIdAsync();
+		var token = await _authClient.LoginAsync(
+			TestConstants.AcmeAdminEmail,
+			TestConstants.SeedPassword
+		);
+		var storedInstant = new DateTime(
+			2099, 6, 15, 8, 0, 0, DateTimeKind.Utc
+		);
+		var seeded = await CreateScheduledRowAsync(
+			tenantId,
+			"forged timestamp cursor target",
+			storedInstant
+		);
+		var forgedInstant = storedInstant.AddHours(-1);
+		var cursor = Uri.EscapeDataString(Convert.ToBase64String(
+			System.Text.Encoding.UTF8.GetBytes(
+				$"{forgedInstant:O}|{seeded.PublicationId}"
+			)
+		));
+
+		using var request = new HttpRequestMessage(
+			HttpMethod.Get,
+			$"{FindUrl}?from=2099-05-31T00%3A00%3A00Z"
+			+ $"&to=2099-07-01T00%3A00%3A00Z&cursor={cursor}"
+		)
+			.WithSessionToken(token)
+			.WithTenantId(tenantId);
+		using var response = await _http.SendAsync(request);
+
+		response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+	}
+
+	[Fact]
 	public async Task ItShouldReturn400ForCursorOutsideWindow() {
 		var tenantId = await GetAcmeIdAsync();
 		var token = await _authClient.LoginAsync(
