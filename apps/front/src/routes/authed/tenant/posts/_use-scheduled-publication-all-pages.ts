@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
 	toScheduledPublicationRows,
 	useScheduledPublicationsQuery,
@@ -25,8 +25,7 @@ type AggregationState = {
 	seenIds: Set<string>;
 	/** Cursors already requested, for cycle detection. */
 	seenCursors: Set<string>;
-	/** Set when the last processed page ends the walk (no next cursor, or an
-	 * already-seen cursor). */
+	/** Set when the walk ends or stops on an error. */
 	completed: boolean;
 };
 
@@ -52,38 +51,48 @@ export const useScheduledPublicationAllPages = ({
 	const [aggregation, setAggregation] =
 		useState<AggregationState>(createAggregation);
 
-	// Window identity (ISO instants + statuses) of the aggregation currently
-	// in flight.
-	const windowKey = `${pubWindow.from.toISOString()}:${pubWindow.to.toISOString()}:${statuses?.join(',') ?? ''}`;
+	const [restartKey, setRestartKey] = useState(0);
 
-	// Reset aggregation when the window or statuses change. This is the
-	// canonical "adjusting some state when a prop changes" pattern
-	// (react.dev/learn/you-might-not-need-an-effect): compare the current
-	// window identity against the one the previous render committed, and
-	// reset state during render instead of inside an effect. React re-renders
-	// immediately, so no frame can observe stale rows, cursors, or dedupe
-	// memory from the previous window.
-	const [prevWindowKey, setPrevWindowKey] = useState(windowKey);
-	if (prevWindowKey !== windowKey) {
-		setPrevWindowKey(windowKey);
+	// Tenant identity belongs to the walk, so a tenant switch clears rows
+	// synchronously instead of briefly painting the previous tenant's data.
+	const scopeKey = `${tenantId}:${pubWindow.from.toISOString()}:${pubWindow.to.toISOString()}:${statuses?.join(',') ?? ''}`;
+
+	// Reset during render so no frame can observe stale rows or cursor state.
+	const [prevScopeKey, setPrevScopeKey] = useState(scopeKey);
+	if (prevScopeKey !== scopeKey) {
+		setPrevScopeKey(scopeKey);
 		setAggregation(createAggregation());
 	}
 
-	const query = useScheduledPublicationsQuery({
+	const queryVariables = {
 		tenantId,
 		from: pubWindow.from,
 		to: pubWindow.to,
 		statuses,
 		cursor: aggregation.cursor,
 		limit: initialSize,
-	});
+		restartKey,
+	} satisfies Parameters<typeof useScheduledPublicationsQuery>[0] & {
+		restartKey: number;
+	};
+	const query = useScheduledPublicationsQuery(queryVariables);
+
+	// An error terminates the cursor walk so the error surface can render.
+	useEffect(() => {
+		if (!query.error) {
+			return;
+		}
+		setAggregation((prev) =>
+			prev.completed ? prev : { ...prev, completed: true },
+		);
+	}, [query.error]);
 
 	// Process each resolved page: collect new rows, advance the cursor, and
 	// mark the walk complete when the page ends it (cursor-cycle detection
 	// stops an infinite loop). The updater stays pure — dedupe and cursor
 	// memory travel inside the state instead of a mutable ref.
 	useEffect(() => {
-		if (!query.data || query.isFetching || query.isPending) {
+		if (query.error || !query.data || query.isFetching || query.isPending) {
 			return;
 		}
 
@@ -122,11 +131,16 @@ export const useScheduledPublicationAllPages = ({
 				completed,
 			};
 		});
-	}, [query.data, query.isFetching, query.isPending]);
+	}, [query.data, query.error, query.isFetching, query.isPending]);
 
-	// Derived loading flag — computed during render, never synchronized in an
-	// effect. Aggregation is ongoing while the current page is pending or
-	// being fetched, or while the walk has not yet reached its end.
+	const restart = useCallback(() => {
+		setAggregation(createAggregation());
+		setRestartKey((tick) => tick + 1);
+	}, []);
+
+	// Derived loading flag — computed during render, never synchronized in
+	// an effect. Aggregation is ongoing while the current page is pending
+	// or being fetched, or while the walk has not yet reached its end.
 	const isAggregating =
 		query.isPending || query.isFetching || !aggregation.completed;
 
@@ -138,5 +152,6 @@ export const useScheduledPublicationAllPages = ({
 		isAggregating,
 		shouldLogout,
 		error: query.error,
+		restart,
 	};
 };

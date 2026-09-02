@@ -2,7 +2,13 @@
  * @vitest-environment jsdom
  */
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { cleanup, render, screen, waitFor } from '@testing-library/react';
+import {
+	cleanup,
+	fireEvent,
+	render,
+	screen,
+	waitFor,
+} from '@testing-library/react';
 import type { ComponentType, ReactNode } from 'react';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import type { ScheduledPublicationRow } from '~/lib/query/tenant-scheduled-publications';
@@ -46,6 +52,7 @@ const allPagesMock = vi.hoisted(() => ({
 	isAggregating: false,
 	shouldLogout: false,
 	error: null as Error | null,
+	restart: vi.fn(),
 }));
 
 vi.mock('./_use-scheduled-publication-all-pages', () => ({
@@ -97,6 +104,7 @@ beforeEach(() => {
 	allPagesMock.isAggregating = false;
 	allPagesMock.shouldLogout = false;
 	allPagesMock.error = null;
+	allPagesMock.restart.mockReset();
 });
 
 afterEach(() => {
@@ -224,5 +232,16 @@ describe('TenantPostsCalendarPage', () => {
 		await waitFor(() => {
 			expect(screen.getByTestId('logout-redirect')).toBeTruthy();
 		});
+	});
+
+	test('restarts the complete cursor walk from the error view', async () => {
+		allPagesMock.error = new Error('request failed');
+		renderPage();
+
+		fireEvent.click(
+			await screen.findByRole('button', { name: 'common:retry' }),
+		);
+
+		expect(allPagesMock.restart).toHaveBeenCalledOnce();
 	});
 });

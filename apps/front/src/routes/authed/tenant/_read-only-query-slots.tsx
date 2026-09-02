@@ -37,16 +37,26 @@ export const TenantReadOnlyCardSkeleton = ({
 
 export const TenantReadOnlyCardError = <TData, TError = Error>({
 	query,
+	onRetry,
 	titleKey,
 	descriptionKey,
 	testId,
 }: {
-	query: Pick<UseQueryResult<TData, TError>, 'refetch'>;
 	titleKey: string;
 	descriptionKey: string;
 	testId?: string;
-}) => {
+} & (
+	| {
+			query: Pick<UseQueryResult<TData, TError>, 'refetch'>;
+			onRetry?: never;
+	  }
+	| {
+			query?: never;
+			onRetry: () => void | Promise<void>;
+	  }
+)) => {
 	const { t } = useTranslation(['common']);
+	const retry = onRetry ?? (() => query.refetch());
 
 	return (
 		<ErrorStateSurface
@@ -55,11 +65,7 @@ export const TenantReadOnlyCardError = <TData, TError = Error>({
 			description={t(descriptionKey)}
 			testId={testId}
 			actions={
-				<Button
-					variant="default"
-					type="button"
-					onClick={() => void query.refetch()}
-				>
+				<Button variant="default" type="button" onClick={() => void retry()}>
 					{t('common:retry')}
 				</Button>
 			}

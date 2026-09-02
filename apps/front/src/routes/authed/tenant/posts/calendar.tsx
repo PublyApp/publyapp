@@ -20,7 +20,7 @@ const TenantPostsCalendarPage = () => {
 	const { t } = useTranslation(['posts', 'common']);
 	const tenantId = useResolvedWorkspaceTenantId();
 	const window_ = buildVisibleMonthWindow(new Date());
-	const { rows, isAggregating, shouldLogout, error } =
+	const { rows, isAggregating, shouldLogout, error, restart } =
 		useScheduledPublicationAllPages({
 			tenantId: tenantId ?? '',
 			window: window_,
@@ -41,14 +41,7 @@ const TenantPostsCalendarPage = () => {
 	} else if (isError) {
 		calendarBody = (
 			<TenantReadOnlyCardError
-				query={{
-					refetch: async () =>
-						({}) as Awaited<
-							ReturnType<
-								import('@tanstack/react-query').UseQueryResult['refetch']
-							>
-						>,
-				}}
+				onRetry={restart}
 				titleKey="common:list-unavailable-title"
 				descriptionKey="common:list-error-default-description"
 				testId="tenant-posts-calendar-error"
