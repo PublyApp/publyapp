@@ -149,6 +149,42 @@ resolved version): remove the override only when **every** reachable parent's
 declared lower bound is `>=4.28.7` **and** both the production-graph and
 full-graph audits stay green without it. Today the cap stays.
 
+## How the `fast-uri@<3.1.6` cap was added
+
+Four high-severity advisories affect `fast-uri`: `GHSA-5jgf-p345-68v8` (host
+confusion via skipped IDN canonicalization on scheme-relative references),
+`GHSA-fph4-wmhf-6fwf` (SSRF via repeated hostname percent-decoding),
+`GHSA-f65p-4m7j-42xc` (SSRF via malformed IPv6 normalization), and
+`GHSA-jqff-g426-hqxp` (host confusion via percent-encoded scheme
+normalization). All four affect the `fast-uri` 3.x line below `3.1.6`; `3.1.6`
+is the first version that fixes all four.
+
+`fast-uri` is transitive under `apps/front`'s `@hookform/resolvers@5.9.1`
+(optional peer `ajv`) → `ajv-formats@2.1.1` (peer `ajv: ^8.0.0`) →
+`ajv@8.20.0`, whose own manifest depends on `fast-uri: ^3.0.1` — a range wide
+enough to resolve any of the four vulnerable releases. No workspace package
+imports `fast-uri` directly.
+
+A direct bump is not available: `ajv@8.20.0` is already the latest published
+release on the 8.x line, and its own declared dependency stays `^3.0.1` —
+there is no newer `ajv` to bump to that raises the `fast-uri` floor. The fix
+goes through a root override:
+
+```
+"fast-uri": "^3.1.6"
+```
+
+The lockfile resolves `3.1.7` (published immediately after `3.1.6` and
+covering the same four advisories); `3.1.6` is the first common patched
+version cited by the audit.
+
+**Verifiable removal condition** (judged on the _declared_ range, not the
+resolved version): remove the override only when `ajv`'s own published
+manifest raises its `fast-uri` dependency floor to `>=3.1.6` (so the chain
+resolves a patched version unaided) **and** the production-graph audit stays
+green without it. Today `ajv@8.20.0` still declares `^3.0.1`, so the cap
+stays.
+
 ## How to run locally
 
 ```bash
