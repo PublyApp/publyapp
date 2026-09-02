@@ -23,9 +23,9 @@ import { sleep } from '@org/shared-ts/utils/any.utils';
 // `env:` block of the matching workflow step. It must declare
 // `NODE_ENV=production` so the production `validateRuntimeEnv()` guard
 // in `server.mjs` actually runs, and a valid `PUBLIC_ORIGIN` so the
-// guard accepts the start. Both facts are pinned by
-// `apps/front/scripts/ci/smoke-step-runtime-env.test.mts`; if you change
-// the env block here, update the workflow step and re-run the proof.
+// guard accepts the start. A `validateRuntimeEnv()` bypass is caught by
+// the existing `apps/front/scripts/ci/validate-runtime-env-startup.test.mts`;
+// if you change the env block here, update the workflow step to match.
 //
 // Difference from CI, on purpose: CI hardcodes port 3000 because a fresh runner
 // has nothing else on it. A developer machine very often does, and probing a
@@ -94,8 +94,7 @@ const server = spawn('node', ['server.mjs'], {
 	env: {
 		...process.env,
 		// #1914: mirror the production env block of the matching workflow
-		// step (apps/front/scripts/ci/smoke-step-runtime-env.test.mts pins
-		// both keys). NODE_ENV=production makes the production
+		// step. NODE_ENV=production makes the production
 		// validateRuntimeEnv() guard actually run; PUBLIC_ORIGIN is the
 		// value the guard requires to accept the start.
 		NODE_ENV: 'production',

@@ -219,7 +219,13 @@ jobs:
         # NODE_ENV=production the guard never runs; without a valid
         # PUBLIC_ORIGIN the production server refuses to start (the guard
         # is the same one that blocks host-header injection in #1754).
-        # Both facts are pinned by apps/front/scripts/ci/smoke-step-runtime-env.test.mts.
+        # apps/front/scripts/ci/validate-runtime-env-startup.test.mts already
+        # catches a validateRuntimeEnv() bypass by spawning the real server
+        # with NODE_ENV=production and no PUBLIC_ORIGIN and asserting it
+        # crashes naming PUBLIC_ORIGIN. This step's own env block has no
+        # separate proof beyond that negative case and this workflow's CI
+        # drift hash (packages/scripts-ts/src/ci-gate-manifest.json), which
+        # forces a manifest reconciliation if either env key here changes.
         env:
           NODE_ENV: production
           PUBLIC_ORIGIN: 'https://front-ci.localhost:3000'
