@@ -229,6 +229,16 @@ apps/front/tests/proofs/<issue-number>/<descriptive-name>.test.ts   # front
   checkout. A PR declares a paired red proof by adding or modifying a file under that directory;
   the CI step `Verify paired red proofs` uses `git diff` to detect declared proofs and replays
   only those. If none are declared, the step prints an explicit no-op message and exits 0.
+- Every declared front proof test MUST carry a sibling per-test expectation manifest named
+  `<proof-file>.expected-red.json`, shaped per `apps/front/tests/proofs/expected-red.schema.json`.
+  See `apps/front/tests/proofs/1457/red-1457-r2-sigint-race-silent-child.test.ts.expected-red.json`
+  for a reference. Each entry under `expectedRed` MUST declare a non-empty `testName` (matched
+  against vitest's reported test name by equality or suffix) and a non-empty `why` (the
+  justification for why that test must fail). Add the manifest when you add a proof test; update
+  it only when the declared test names or reasons change — an already-correct manifest untouched
+  by the edit needs no mechanical bump. A missing, malformed, unreadable, or otherwise invalid
+  manifest fails CI, as does a declared kept-red test that unexpectedly passes on the current code
+  — see "What the CI guard checks" below.
 - API preuve traces continue to use `.dump/preuves/<issue>/` (the API proof convention is legacy
   and not part of the #1659 front-side fix).
 - The file name carries the issue number and a short, hyphen-separated name (`red-1613-negligent-caller-no-reset`).
@@ -372,26 +382,28 @@ red test. A kept-red paired proof is **not** required for:
 An executable guard produced without the admission evidence above is vacuous and will be rejected in
 review regardless of this convention.
 
-### Why no automated guard (yet)
+### What the CI guard checks — and what remains review-only
 
-Issue #1659 explicitly asks whether to add a CI guard that refuses a PR whose trace cites a
-kept red test that is stale or absent. We considered three and rejected all of them at this stage:
+The CI step `Verify paired red proofs` (`apps/front/scripts/ci/run-preuves.mts`) runs in the
+path-gated `supply-chain` job of the front supply-chain CI workflow
+(`.github/workflows/front-ci.yml`), for PRs whose changed paths match that job's front-relevant
+filter — which `apps/front/tests/proofs/<issue>/` falls under. When that job runs, the step
+detects, via `git diff` against the merge-base, which `.test.ts`/`.test.tsx` files under
+`apps/front/tests/proofs/<issue>/` the PR added or modified, and replays only those with inverted
+semantics: a declared test that fails as expected passes the step; a declared test that
+unexpectedly passes, or a manifest that is missing/malformed/unreadable, fails the step loudly
+naming the file and the cause. A PR that declares no proofs prints an explicit no-op message and
+exits 0. This closes the gap issue #1659 raised, for front proofs entering that job.
 
-- A guard that scans `.dump/` traces for test paths and verifies the file exists would never
-  fire: by the convention's own design, the kept red test lives under `.dump/` (API) or
-  `apps/front/tests/proofs/` (front), and `.dump/` is git-ignored and never reaches CI. The front
-  proofs directory is versionned, but the guard would still need to verify that the proof is
-  genuinely red (the mutation still produces a failure), which requires replaying it.
-- A guard that requires the test path to exist in the suite contradicts the convention: the
-  whole point is that the red test is **excluded** from the suite.
-- A guard that asks the PR body to declare the kept-test path and the mutation is feasible
-  but premature: it would add a new required section to every PR body for a problem we have
-  not yet seen at scale. The first wave is "convention, written and applied"; the second
-  wave, after we have a few examples in `tests/proofs/`, can decide whether the convention
-  is reliably followed enough to enforce.
-
-The convention is the right first step. If a future lane produces a paired proof without a
-kept red test, the right response is a review comment naming this section, not a CI failure.
+What remains a review responsibility, not an automated one: `.dump/` API trace claims and PR-body
+prose (e.g. a trace that names a test path without the mutation, the adverse-mutation search, or
+the green run summary — checked against §"What the trace must contain" and §"Mutation adverse"),
+since `.dump/` is git-ignored and absent on a clean CI checkout; and whether a PR ought to declare
+a proof at all, since declaration stays voluntary (see §"When this convention does not apply"). No
+meta-scanner over `.dump/` or PR prose is added, for the reasons issue #1659 already raised:
+`.dump/` never reaches CI, and requiring the test path to exist in the suite would contradict the
+convention. If a future lane produces a paired proof without following the trace requirements, the
+right response is a review comment naming the relevant section, not a CI failure.
 
 ### Worked example: #1613 / #1651 (negligent caller of `useOffsetPageClamp`)
 
