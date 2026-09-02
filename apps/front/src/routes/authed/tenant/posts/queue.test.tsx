@@ -197,12 +197,149 @@ describe('TenantPostsQueuePage', () => {
 
 	test('does not poll while every publication is stable', async () => {
 		vi.useFakeTimers({ shouldAdvanceTime: true });
+		mocks.get.mockResolvedValue({
+			data: [
+				{
+					publicationId: 'pub-paused',
+					postId: 'post-paused',
+					postBodyPreview: 'Paused after account disconnect',
+					accountDisplayHandle: '@paused.example',
+					status: 'paused',
+					postStatus: 'scheduled',
+					scheduledAtUtc: new Date('2026-09-01T18:30:00.000Z'),
+					scheduledAtLocal: '2026-09-01T20:30:00+02:00',
+					timeZone: 'Europe/Paris',
+				},
+			],
+			nextCursor: null,
+		});
 		renderPage();
-		await screen.findByText('A real scheduled post');
+		await screen.findByText('Paused after account disconnect');
 		const initialCalls = mocks.get.mock.calls.length;
 
 		await act(() => vi.advanceTimersByTime(6_000));
 
 		expect(mocks.get).toHaveBeenCalledTimes(initialCalls);
+	});
+
+	test('walks through scheduled -> in_progress -> published and stops polling afterwards', async () => {
+		vi.useFakeTimers({ shouldAdvanceTime: true });
+		vi.setSystemTime(new Date('2026-08-31T18:30:00.000Z'));
+		mocks.get
+			.mockResolvedValueOnce({
+				data: [
+					{
+						publicationId: 'pub-walk',
+						postId: 'post-walk',
+						postBodyPreview: 'Walk me through',
+						accountDisplayHandle: '@publy.example',
+						status: 'scheduled',
+						postStatus: 'scheduled',
+						scheduledAtUtc: new Date('2026-08-31T18:30:00.000Z'),
+						scheduledAtLocal: '2026-08-31T20:30:00+02:00',
+						timeZone: 'Europe/Paris',
+					},
+				],
+				nextCursor: null,
+			})
+			.mockResolvedValueOnce({
+				data: [
+					{
+						publicationId: 'pub-walk',
+						postId: 'post-walk',
+						postBodyPreview: 'Walk me through',
+						accountDisplayHandle: '@publy.example',
+						status: 'in_progress',
+						postStatus: 'scheduled',
+						scheduledAtUtc: new Date('2026-08-31T18:30:00.000Z'),
+						scheduledAtLocal: '2026-08-31T20:30:00+02:00',
+						timeZone: 'Europe/Paris',
+					},
+				],
+				nextCursor: null,
+			})
+			.mockResolvedValueOnce({
+				data: [
+					{
+						publicationId: 'pub-walk',
+						postId: 'post-walk',
+						postBodyPreview: 'Walk me through',
+						accountDisplayHandle: '@publy.example',
+						status: 'published',
+						postStatus: 'published',
+						scheduledAtUtc: new Date('2026-08-31T18:30:00.000Z'),
+						scheduledAtLocal: '2026-08-31T20:30:00+02:00',
+						timeZone: 'Europe/Paris',
+					},
+				],
+				nextCursor: null,
+			})
+			.mockResolvedValue({
+				data: [],
+				nextCursor: null,
+			});
+		renderPage();
+		await screen.findByText('Walk me through');
+		const initialCalls = mocks.get.mock.calls.length;
+		expect(initialCalls).toBe(1);
+
+		await act(async () => {
+			await vi.advanceTimersByTimeAsync(5_000);
+		});
+		await act(async () => {
+			await vi.advanceTimersByTimeAsync(5_000);
+		});
+		await act(async () => {
+			await vi.advanceTimersByTimeAsync(5_000);
+		});
+
+		await waitFor(() => {
+			expect(mocks.get.mock.calls.length).toBe(3);
+		});
+
+		const callsAfterStop = mocks.get.mock.calls.length;
+		await act(async () => {
+			await vi.advanceTimersByTimeAsync(10_000);
+		});
+		expect(mocks.get.mock.calls.length).toBe(callsAfterStop);
+	});
+
+	test('waits until the next scheduled instant before refetching', async () => {
+		vi.useFakeTimers({ shouldAdvanceTime: true });
+		vi.setSystemTime(new Date('2026-08-31T18:00:00.000Z'));
+		mocks.get.mockResolvedValueOnce({
+			data: [
+				{
+					publicationId: 'pub-future',
+					postId: 'post-future',
+					postBodyPreview: 'Future scheduled',
+					accountDisplayHandle: '@publy.example',
+					status: 'scheduled',
+					postStatus: 'scheduled',
+					scheduledAtUtc: new Date('2026-08-31T18:00:12.000Z'),
+					scheduledAtLocal: '2026-08-31T20:00:12+02:00',
+					timeZone: 'Europe/Paris',
+				},
+			],
+			nextCursor: null,
+		});
+		mocks.get.mockResolvedValue({
+			data: [],
+			nextCursor: null,
+		});
+		renderPage();
+		await screen.findByText('Future scheduled');
+		const initialCalls = mocks.get.mock.calls.length;
+		expect(initialCalls).toBe(1);
+
+		await act(async () => {
+			await vi.advanceTimersByTimeAsync(6_000);
+		});
+		expect(mocks.get.mock.calls.length).toBe(initialCalls);
+
+		await act(async () => {
+			await vi.advanceTimersByTimeAsync(6_000);
+		});
+		expect(mocks.get.mock.calls.length).toBeGreaterThan(initialCalls);
 	});
 });

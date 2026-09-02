@@ -5,12 +5,14 @@ import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
 import { useResolvedWorkspaceTenantId } from '~/lib/query/tenants-for-picker';
 
 import { WorkspacePageHeader } from '../_workspace-page-parts';
-import { buildUpcomingPublicationWindow } from './_scheduled-publication-helpers';
+import {
+	buildUpcomingPublicationWindow,
+	nextPollingDelayMs,
+} from './_scheduled-publication-helpers';
 import { ScheduledPublicationQueueTable } from './_scheduled-publication-queue-table';
 import { useScheduledPublicationPage } from './_use-scheduled-publication-page';
 
 const QUEUE_STATUSES = ['scheduled', 'in_progress', 'paused'] as const;
-const IN_PROGRESS_POLL_MS = 5_000;
 
 const TenantPostsQueuePage = () => {
 	const { t } = useTranslation(['posts', 'common']);
@@ -21,16 +23,22 @@ const TenantPostsQueuePage = () => {
 		initialSize: 20,
 		statuses: [...QUEUE_STATUSES],
 	});
-	const hasInProgress = page.rows.some((row) => row.status === 'in_progress');
-	const refetch = page.query.refetch;
+	const { rows, query } = page;
+	const { refetch, dataUpdatedAt } = query;
 	useEffect(() => {
-		if (!hasInProgress) {
+		const delay = nextPollingDelayMs({ rows, now: new Date() });
+		if (delay === null) {
 			return;
 		}
 
-		const interval = setInterval(() => void refetch(), IN_PROGRESS_POLL_MS);
-		return () => clearInterval(interval);
-	}, [hasInProgress, refetch]);
+		const timeoutId = setTimeout(() => {
+			void refetch();
+		}, delay);
+
+		return () => {
+			clearTimeout(timeoutId);
+		};
+	}, [rows, refetch, dataUpdatedAt]);
 
 	if (page.shouldLogout) {
 		return <LogoutRedirect />;

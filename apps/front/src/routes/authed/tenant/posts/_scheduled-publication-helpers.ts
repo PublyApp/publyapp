@@ -74,3 +74,63 @@ export const groupScheduledPublicationsByViewerDate = (
 /** Re-export the shared publication-status display metadata for backward compat. */
 export const scheduledPublicationStatusTone = publicationStatusTone;
 export const scheduledPublicationStatusLabelKey = publicationStatusLabelKey;
+
+/** Polling cadence used while at least one publication is in progress or already due. */
+export const ACTIVE_PUBLICATION_POLL_MS = 5_000;
+
+type NextPollingDelayArgs = {
+	rows: ScheduledPublicationRow[];
+	now: Date;
+};
+
+/**
+ * Decides how long the queue page should wait before its next refetch.
+ *
+ * Returns:
+ * - `ACTIVE_PUBLICATION_POLL_MS` when any row is in progress or already due
+ * - the minimum positive delay until the next scheduled instant
+ * - `null` when nothing in the page is worth polling for (no in-progress,
+ *   no scheduled rows, or only paused/published rows)
+ */
+export const nextPollingDelayMs = ({
+	rows,
+	now,
+}: NextPollingDelayArgs): number | null => {
+	let hasActiveOrDue = false;
+	let nextDueAt: number | null = null;
+
+	for (const row of rows) {
+		if (row.status === 'in_progress') {
+			hasActiveOrDue = true;
+			continue;
+		}
+
+		if (row.status !== 'scheduled') {
+			continue;
+		}
+
+		const dueAt = row.scheduledAtUtc.valueOf();
+		if (!Number.isFinite(dueAt)) {
+			continue;
+		}
+
+		if (dueAt <= now.valueOf()) {
+			hasActiveOrDue = true;
+			continue;
+		}
+
+		if (nextDueAt === null || dueAt < nextDueAt) {
+			nextDueAt = dueAt;
+		}
+	}
+
+	if (hasActiveOrDue) {
+		return ACTIVE_PUBLICATION_POLL_MS;
+	}
+
+	if (nextDueAt === null) {
+		return null;
+	}
+
+	return nextDueAt - now.valueOf();
+};
