@@ -1,0 +1,10 @@
+{
+	"$schema": "../expected-red.schema.json",
+	"_comment": "Per-test kept-red expectation manifest (required since #1806 r11 — the runner fails loud when a declared proof lacks it). The declared test MUST fail with an AssertionError on correct code.",
+	"expectedRed": [
+		{
+			"testName": "RED #1977: a git-ignored candidate mirrored by a later decidable line is falsely diagnosed as NOT mirrored",
+			"why": "On correct code the mirror parser and the git-ignore consultation it depended on were deleted entirely — the CLI never parses .dockerignore contents or checks git-ignore status, so its stderr never contains 'NOT mirrored by the root .dockerignore'. The expect(...).toContain(...) assertion fails with an AssertionError. If this test passes, the #1977 short-circuit-on-undecidable-line mirror parser has been reintroduced."
+		}
+	]
+}

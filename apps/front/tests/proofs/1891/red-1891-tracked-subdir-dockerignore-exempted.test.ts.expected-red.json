@@ -1,0 +1,10 @@
+{
+	"$schema": "../expected-red.schema.json",
+	"_comment": "Per-test kept-red expectation manifest (required since #1806 r11 — the runner fails loud when a declared proof lacks it). The declared test MUST fail with an AssertionError on correct code.",
+	"expectedRed": [
+		{
+			"testName": "RED #1891: exact subdirectory apps/api/.dockerignore is absent from findings (old defect)",
+			"why": "On correct code isShadowFile only exempts the ROOT .dockerignore (lexicalParent === undefined), so apps/api/.dockerignore is reported and findings.includes('apps/api/.dockerignore') is true, failing the expect(...).toBe(false) check with an AssertionError. If this test passes, the #1891 subdirectory-.dockerignore exemption defect has been reintroduced."
+		}
+	]
+}
