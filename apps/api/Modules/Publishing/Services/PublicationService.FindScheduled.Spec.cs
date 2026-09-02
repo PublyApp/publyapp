@@ -87,7 +87,8 @@ public sealed class PublicationServiceFindScheduledSpec : IClassFixture<ApiFixtu
 		Guid tenantId,
 		Guid accountId,
 		Guid userId,
-		DateTime scheduledAtUtc
+		DateTime scheduledAtUtc,
+		PublicationStatus seedStatus = PublicationStatus.Scheduled
 	) {
 		var post = new Post {
 			TenantId = tenantId,
@@ -101,7 +102,7 @@ public sealed class PublicationServiceFindScheduledSpec : IClassFixture<ApiFixtu
 			TenantId = tenantId,
 			PostId = post.GetRequiredId(),
 			SocialAccountId = accountId,
-			Status = PublicationStatus.Scheduled,
+			Status = seedStatus,
 			ScheduledAtUtc = scheduledAtUtc,
 			ScheduledTimeZone = "Europe/Paris",
 			IdempotencyKey = $"find-service-spec-{Guid.NewGuid():N}",
@@ -115,6 +116,139 @@ public sealed class PublicationServiceFindScheduledSpec : IClassFixture<ApiFixtu
 		return Convert.ToBase64String(
 			Encoding.UTF8.GetBytes($"{utcInstant:O}|{id}")
 		);
+	}
+
+	// #2053 — an InProgress row whose ScheduledAtUtc is BEFORE the window's
+	// FromUtc must still appear in the page. The Queue shows work the worker
+	// has not yet finished; the time bound only filters rows whose schedule
+	// the user has not seen (Scheduled is bounded on both sides because the
+	// queue is a forward-looking calendar). Status filter omitted to mirror
+	// the calendar view (the worker fetches InProgress + Scheduled + Paused).
+	[Fact]
+	public async Task ItShouldIncludeInProgressRowsEvenWhenScheduledAtUtcIsBeforeFromUtc() {
+		await using var db = await NewDbAsync();
+		var (tenantId, accountId, userId) = await SeedTenantAndAccountAsync(db);
+		_ = await SeedPublicationAsync(
+			db, tenantId, accountId, userId,
+			new DateTime(2099, 6, 1, 10, 0, 0, DateTimeKind.Utc),
+			seedStatus: PublicationStatus.InProgress
+		);
+		var service = NewService(db);
+
+		var result = await service.FindScheduledAsync(
+			new FindScheduledPublicationsArgs(
+				TenantId: tenantId,
+				FromUtc: new DateTime(2100, 1, 1, 0, 0, 0, DateTimeKind.Utc),
+				ToUtc: new DateTime(2100, 1, 31, 0, 0, 0, DateTimeKind.Utc),
+				Statuses: null,
+				Cursor: null,
+				Limit: 50
+			)
+		);
+
+		result.Should().BeOfType<FindScheduledResult.Success>();
+		var page = ((FindScheduledResult.Success)result).Page;
+		page.Data.Should().HaveCount(1);
+		page.Data[0].Status.Should().Be("in_progress");
+	}
+
+	// #2053 — same as above for Paused (Epic C reconnect path: a paused row
+	// keeps its old ScheduledAtUtc; the queue must keep showing it until the
+	// account is reconnected, even after the schedule instant has passed).
+	[Fact]
+	public async Task ItShouldIncludePausedRowsEvenWhenScheduledAtUtcIsBeforeFromUtc() {
+		await using var db = await NewDbAsync();
+		var (tenantId, accountId, userId) = await SeedTenantAndAccountAsync(db);
+		_ = await SeedPublicationAsync(
+			db, tenantId, accountId, userId,
+			new DateTime(2099, 6, 1, 10, 0, 0, DateTimeKind.Utc),
+			seedStatus: PublicationStatus.Paused
+		);
+		var service = NewService(db);
+
+		var result = await service.FindScheduledAsync(
+			new FindScheduledPublicationsArgs(
+				TenantId: tenantId,
+				FromUtc: new DateTime(2100, 1, 1, 0, 0, 0, DateTimeKind.Utc),
+				ToUtc: new DateTime(2100, 1, 31, 0, 0, 0, DateTimeKind.Utc),
+				Statuses: null,
+				Cursor: null,
+				Limit: 50
+			)
+		);
+
+		result.Should().BeOfType<FindScheduledResult.Success>();
+		var page = ((FindScheduledResult.Success)result).Page;
+		page.Data.Should().HaveCount(1);
+		page.Data[0].Status.Should().Be("paused");
+	}
+
+	// #2053 — Scheduled rows remain bounded on both sides (control: the queue
+	// is a forward-looking calendar; a past Scheduled row is a stale row that
+	// the worker did not pick up and must not flood the page).
+	[Fact]
+	public async Task ItShouldExcludeScheduledRowsWhenScheduledAtUtcIsBeforeFromUtc() {
+		await using var db = await NewDbAsync();
+		var (tenantId, accountId, userId) = await SeedTenantAndAccountAsync(db);
+		_ = await SeedPublicationAsync(
+			db, tenantId, accountId, userId,
+			new DateTime(2099, 6, 1, 10, 0, 0, DateTimeKind.Utc),
+			seedStatus: PublicationStatus.Scheduled
+		);
+		var service = NewService(db);
+
+		var result = await service.FindScheduledAsync(
+			new FindScheduledPublicationsArgs(
+				TenantId: tenantId,
+				FromUtc: new DateTime(2100, 1, 1, 0, 0, 0, DateTimeKind.Utc),
+				ToUtc: new DateTime(2100, 1, 31, 0, 0, 0, DateTimeKind.Utc),
+				Statuses: null,
+				Cursor: null,
+				Limit: 50
+			)
+		);
+
+		result.Should().BeOfType<FindScheduledResult.Success>();
+		var page = ((FindScheduledResult.Success)result).Page;
+		page.Data.Should().BeEmpty();
+	}
+
+	// #2053 — a cursor that names a real publication id (the eligibility probe
+	// finds the row by id alone) but FORGES the ScheduledAtUtc is rejected.
+	// Loosening the window probe so the InProgress/Paused cursor rows stay
+	// eligible opens the door to a forged timestamp scanning other rows of
+	// the same tenant: the cursor must encode BOTH the id AND the exact
+	// stored ScheduledAtUtc, otherwise an attacker (or a stale page) could
+	// anchor a keyset page on a row that does not exist at the claimed
+	// instant — a 400 CursorNotFound closes the door.
+	[Fact]
+	public async Task ItShouldRejectACursorWhoseForgedTimestampMismatchesTheStoredScheduledAtUtc() {
+		await using var db = await NewDbAsync();
+		var (tenantId, accountId, userId) = await SeedTenantAndAccountAsync(db);
+		var eligibleRow = await SeedPublicationAsync(
+			db, tenantId, accountId, userId,
+			new DateTime(2099, 6, 1, 10, 0, 0, DateTimeKind.Utc),
+			seedStatus: PublicationStatus.InProgress
+		);
+		var service = NewService(db);
+
+		// The id matches the eligible row; the timestamp is FORGED to a
+		// different instant than the row's stored ScheduledAtUtc. Without the
+		// stored-ScheduledAtUtc equality check the probe accepts the id and
+		// anchors the page on a phantom instant.
+		var forgedInstant = new DateTime(2099, 6, 1, 9, 0, 0, DateTimeKind.Utc);
+		var result = await service.FindScheduledAsync(
+			new FindScheduledPublicationsArgs(
+				TenantId: tenantId,
+				FromUtc: new DateTime(2099, 6, 1, 0, 0, 0, DateTimeKind.Utc),
+				ToUtc: new DateTime(2099, 7, 1, 0, 0, 0, DateTimeKind.Utc),
+				Statuses: null,
+				Cursor: EncodeCursor(forgedInstant, eligibleRow.GetRequiredId()),
+				Limit: 50
+			)
+		);
+
+		result.Should().BeOfType<FindScheduledResult.CursorNotFound>();
 	}
 
 	[Fact]

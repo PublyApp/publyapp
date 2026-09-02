@@ -602,8 +602,10 @@ public sealed class PublicationService : IPublicationService {
 			from publication in _dbContext.Publication.AsNoTracking()
 			where publication.TenantId == args.TenantId
 				&& !publication.IsDeleted
-				&& publication.ScheduledAtUtc >= args.FromUtc
 				&& publication.ScheduledAtUtc <= args.ToUtc
+				&& (publication.Status == PublicationStatus.InProgress
+					|| publication.Status == PublicationStatus.Paused
+					|| publication.ScheduledAtUtc >= args.FromUtc)
 				&& (args.Statuses == null
 					|| args.Statuses.Count == 0
 					|| args.Statuses.Contains(publication.Status))
@@ -621,18 +623,23 @@ public sealed class PublicationService : IPublicationService {
 				return new FindScheduledResult.CursorNotFound();
 			}
 
-			// The cursor row must exist, belong to the same tenant, not be
-			// deleted, fall inside the requested window, and match the
-			// requested status filter — all in one guard so a cross-window,
-			// cross-status, or deleted-row cursor returns the same 400 as
-			// a completely bogus one.
+			// #2053 — eligibility mirrors the main query: InProgress and Paused
+			// rows are not bounded by FromUtc (the queue keeps showing them
+			// until they are done / reconnected), but the cursor must still
+			// encode the EXACT stored ScheduledAtUtc. A forged timestamp on a
+			// real id would otherwise let a stale page anchor a phantom
+			// instant — the equality check closes that door with a 400
+			// CursorNotFound.
 			var cursorExists = await (
 				from p in _dbContext.Publication.AsNoTracking()
 				where p.Id == cursorId
 					&& p.TenantId == args.TenantId
 					&& !p.IsDeleted
-					&& p.ScheduledAtUtc >= args.FromUtc
+					&& p.ScheduledAtUtc == cursorInstant
 					&& p.ScheduledAtUtc <= args.ToUtc
+					&& (p.Status == PublicationStatus.InProgress
+						|| p.Status == PublicationStatus.Paused
+						|| p.ScheduledAtUtc >= args.FromUtc)
 					&& (args.Statuses == null
 						|| args.Statuses.Count == 0
 						|| args.Statuses.Contains(p.Status))
