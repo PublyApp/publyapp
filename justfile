@@ -415,12 +415,19 @@ ci-no-ignored-tracked:
   pnpm --filter scripts-ts exec vitest run src/check-no-ignored-tracked.test.ts
   node ./packages/scripts-ts/src/check-no-ignored-tracked.ts
 
-# #1849: no `<Dockerfile>.dockerignore` shadow file may exist anywhere in the
-# tree — Docker REPLACES (not merges) the root .dockerignore when one sits next
-# to a Dockerfile, silently re-including node_modules, dist, .turbo and
-# .worktrees in every build context (see #1832/#1836). Walks the real working
-# tree and names every offending path. Mirrors
-# quality-gate.yml::no-dockerignore-shadow (unconditioned job, same binary).
+# #1849/#1891/#1977: the repository must contain exactly one `.dockerignore`,
+# at the root. Outside explicit tooling directories, any other basename ending
+# `.dockerignore` case-insensitively is rejected: a `<Dockerfile>.dockerignore`
+# shadow, a case variant of the dotfile (`.DockerIgnore`,
+# `Dockerfile.DOCKERIGNORE`), or an EXACT subdirectory `.dockerignore` (e.g.
+# `apps/api/.dockerignore`, authoritative for `docker build apps/api`). Docker
+# REPLACES (not merges) the root .dockerignore when a build resolves a
+# different file, silently re-including node_modules, dist, .turbo and
+# .worktrees in that build context (see #1832/#1836). Walks the real working
+# tree — git tracked/untracked status is irrelevant to what a Docker build
+# context sees, and `.dockerignore` contents are never parsed — and names
+# every offending path. Mirrors quality-gate.yml::no-dockerignore-shadow
+# (unconditioned job, same binary).
 ci-dockerignore-shadow:
   @echo "=== [gate] no .dockerignore shadow files (#1849) ==="
   pnpm --filter scripts-ts exec vitest run src/check-dockerignore-shadow.test.ts

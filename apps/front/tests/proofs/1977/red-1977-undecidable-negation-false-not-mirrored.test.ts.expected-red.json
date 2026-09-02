@@ -1,0 +1,10 @@
+{
+	"$schema": "../expected-red.schema.json",
+	"_comment": "Per-test kept-red expectation manifest (required since #1806 r11 — the runner fails loud when a declared proof lacks it). The declared test MUST fail with an AssertionError on correct code.",
+	"expectedRed": [
+		{
+			"testName": "RED #1977: a git-ignored candidate mirrored by a later decidable line is falsely diagnosed as NOT mirrored",
+			"why": "The fixture setup, CLI status, ordinary guard header, and named finding are non-assertion measurement preconditions: failures there throw Error and are classified CORRUPT. On correct code the deleted mirror parser cannot emit 'NOT mirrored by the root .dockerignore', so only the final expect(...).toContain(...) fails with the intended AssertionError. If this test passes, the false #1977 diagnosis has returned."
+		}
+	]
+}
