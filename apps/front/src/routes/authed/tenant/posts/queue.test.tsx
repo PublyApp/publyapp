@@ -2,7 +2,7 @@
  * @vitest-environment jsdom
  */
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { cleanup, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, render, screen, waitFor } from '@testing-library/react';
 import type { ComponentType, ReactNode } from 'react';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import type { TestLabelMap } from '~/lib/testing/test-label-map';
@@ -112,6 +112,7 @@ beforeEach(() => {
 
 afterEach(() => {
 	cleanup();
+	vi.useRealTimers();
 	vi.clearAllMocks();
 });
 
@@ -163,5 +164,45 @@ describe('TenantPostsQueuePage', () => {
 		await waitFor(() => {
 			expect(screen.getByTestId('logout-redirect')).toBeTruthy();
 		});
+	});
+
+	test('polls while a publication is in progress', async () => {
+		vi.useFakeTimers({ shouldAdvanceTime: true });
+		mocks.get.mockResolvedValue({
+			data: [
+				{
+					publicationId: 'pub-progress',
+					postId: 'post-progress',
+					postBodyPreview: 'Publishing now',
+					accountDisplayHandle: '@publy.example',
+					status: 'in_progress',
+					postStatus: 'scheduled',
+					scheduledAtUtc: new Date('2026-08-31T18:30:00.000Z'),
+					scheduledAtLocal: '2026-08-31T20:30:00+02:00',
+					timeZone: 'Europe/Paris',
+				},
+			],
+			nextCursor: null,
+		});
+		renderPage();
+		await screen.findByText('Publishing now');
+		const initialCalls = mocks.get.mock.calls.length;
+
+		act(() => vi.advanceTimersByTime(5_000));
+
+		await waitFor(() => {
+			expect(mocks.get.mock.calls.length).toBeGreaterThan(initialCalls);
+		});
+	});
+
+	test('does not poll while every publication is stable', async () => {
+		vi.useFakeTimers({ shouldAdvanceTime: true });
+		renderPage();
+		await screen.findByText('A real scheduled post');
+		const initialCalls = mocks.get.mock.calls.length;
+
+		act(() => vi.advanceTimersByTime(6_000));
+
+		expect(mocks.get).toHaveBeenCalledTimes(initialCalls);
 	});
 });

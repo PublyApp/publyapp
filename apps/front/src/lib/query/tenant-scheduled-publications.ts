@@ -213,15 +213,7 @@ export const useScheduledPublicationsQuery = (
 		queryFn: () => scheduledPublicationsQueryOptions.fetcher(variables),
 	});
 
-// ── Invalidation ───────────────────────────────────────────────────
-
-/**
- * Coherence invalidation for the scheduled-publications list (any mutation
- * that removes or inserts a scheduled row — publish-now creates a new
- * `scheduled` row, deleting the source post cascades it away — must invalidate
- * the queue and calendar surfaces). The prefix reaches every status/window/
- * cursor variant of the list via TanStack's matching.
- */
+/** Invalidates every scheduled-publication window for one tenant. */
 export const invalidateTenantScheduledPublications = (
 	qc: QueryClient,
 	tenantId: string,

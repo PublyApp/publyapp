@@ -30,17 +30,15 @@ export const ScheduledPublicationAgenda = ({
 					</CardHeader>
 					<CardContent className="divide-y divide-border">
 						{group.rows.map((row) => {
-							const postHref = row.postId
-								? `/tenant/posts/${row.postId}/edit`
-								: null;
 							return (
 								<article
 									key={row.id}
 									className="grid gap-3 py-3 first:pt-0 last:pb-0 sm:grid-cols-[minmax(0,1fr)_auto_auto] sm:items-center"
 								>
-									{postHref ? (
+									{row.postId ? (
 										<Link
-											to={postHref}
+											to="/tenant/posts/$postId/edit"
+											params={{ postId: row.postId }}
 											className="publy-record-link flex min-w-0 no-underline"
 										>
 											<div className="min-w-0">

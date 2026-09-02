@@ -355,8 +355,6 @@ export const useDeleteTenantPostMutation = () => {
 			await client.posts.byPostId(postId).delete();
 		},
 		onSuccess: (_data, variables) => {
-			// Deleting a post cascades to its scheduled publications, so the
-			// queue and calendar must invalidate alongside the post list.
 			void invalidateTenantPosts(queryClient, variables.tenantId);
 			void invalidateTenantScheduledPublications(
 				queryClient,

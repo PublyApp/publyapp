@@ -101,9 +101,6 @@ export const PublishOnBlock = ({
 				accountIds: selectedIds,
 				tenantId,
 			});
-			// Publish-now turns each checked target into a brand-new scheduled
-			// row, so the queue and calendar surfaces must invalidate alongside
-			// the history list to stay coherent.
 			await invalidateTenantPublications(queryClient, tenantId);
 			await invalidateTenantScheduledPublications(queryClient, tenantId);
 			void navigate({ to: '/tenant/posts/history' });

@@ -1,4 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router';
+import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
 import { useResolvedWorkspaceTenantId } from '~/lib/query/tenants-for-picker';
@@ -9,6 +10,7 @@ import { ScheduledPublicationQueueTable } from './_scheduled-publication-queue-t
 import { useScheduledPublicationPage } from './_use-scheduled-publication-page';
 
 const QUEUE_STATUSES = ['scheduled', 'in_progress', 'paused'] as const;
+const IN_PROGRESS_POLL_MS = 5_000;
 
 const TenantPostsQueuePage = () => {
 	const { t } = useTranslation(['posts', 'common']);
@@ -19,6 +21,17 @@ const TenantPostsQueuePage = () => {
 		initialSize: 20,
 		statuses: [...QUEUE_STATUSES],
 	});
+	const hasInProgress = page.rows.some((row) => row.status === 'in_progress');
+	const refetch = page.query.refetch;
+	useEffect(() => {
+		if (!hasInProgress) {
+			return;
+		}
+
+		const interval = setInterval(() => void refetch(), IN_PROGRESS_POLL_MS);
+		return () => clearInterval(interval);
+	}, [hasInProgress, refetch]);
+
 	if (page.shouldLogout) {
 		return <LogoutRedirect />;
 	}

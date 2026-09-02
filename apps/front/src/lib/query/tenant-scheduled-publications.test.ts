@@ -1,3 +1,4 @@
+import { QueryClient } from '@tanstack/react-query';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
@@ -38,6 +39,29 @@ describe('scheduled-publications query parameters', () => {
 			status: 'scheduled,in_progress',
 			cursor: 'cursor-2',
 			limit: '50',
+		});
+	});
+});
+
+describe('invalidateTenantScheduledPublications', () => {
+	test('invalidates every window for one tenant', async () => {
+		const {
+			invalidateTenantScheduledPublications,
+			TENANT_SCHEDULED_PUBLICATIONS_QUERY_KEY,
+		} = await requireScheduledPublicationsModule();
+		const queryClient = new QueryClient();
+		const invalidateQueries = vi
+			.spyOn(queryClient, 'invalidateQueries')
+			.mockResolvedValue(undefined);
+
+		await invalidateTenantScheduledPublications(queryClient, 'tenant-1');
+
+		expect(invalidateQueries).toHaveBeenCalledWith({
+			queryKey: expect.arrayContaining([
+				'tenant',
+				TENANT_SCHEDULED_PUBLICATIONS_QUERY_KEY[0],
+				'tenant-1',
+			]),
 		});
 	});
 });

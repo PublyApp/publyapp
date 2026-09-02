@@ -27,6 +27,9 @@ import { useTenantPostList } from './_use-tenant-post-list';
  * without a manual reload); it stops once nothing is in flight. */
 const IN_PROGRESS_POLL_MS = 5_000;
 
+/** Keep polling briefly while publish-now waits for worker pickup. */
+const SCHEDULED_IN_FLIGHT_WINDOW_MS = 60_000;
+
 const PublicationStatusCell = ({
 	publication,
 }: {
@@ -77,10 +80,6 @@ const PublicationStatusCell = ({
 		);
 	}
 
-	// Unknown wire statuses (anything outside the i18n vocabulary) MUST NOT
-	// leak into the UI: the cell renders a neutral em-dash so the row stays
-	// readable while the backend mapping decision is in flight. The raw
-	// string would surface a future vocabulary drift as broken text.
 	if (publication.status === null || publication.status === '') {
 		return <span className="text-muted-foreground">{'\u2014'}</span>;
 	}
@@ -111,16 +110,23 @@ const TenantPostsHistoryPage = () => {
 	});
 	const rows = toTenantPublicationRows(query.data);
 	const qc = useQueryClient();
-	// Polling drives on `in_progress` only. A freshly-scheduled publish-now row
-	// is `scheduled` until the worker claims the delivery job, but the queue
-	// surface already polls for that race — driving history on it as well would
-	// multiply the invalidation traffic without changing what the operator sees.
 	const hasInProgress = rows.some(
 		(publication) => publication.status === 'in_progress',
 	);
+	const dataUpdatedAt = query.dataUpdatedAt;
+	const hasInFlightScheduled =
+		dataUpdatedAt > 0 &&
+		rows.some(
+			(publication) =>
+				publication.status === 'scheduled' &&
+				publication.updatedAt !== null &&
+				dataUpdatedAt - publication.updatedAt.getTime() <=
+					SCHEDULED_IN_FLIGHT_WINDOW_MS,
+		);
+	const hasInFlight = hasInProgress || hasInFlightScheduled;
 
 	useEffect(() => {
-		if (!hasInProgress || !tenantId) {
+		if (!hasInFlight || !tenantId) {
 			return;
 		}
 
@@ -129,7 +135,7 @@ const TenantPostsHistoryPage = () => {
 		}, IN_PROGRESS_POLL_MS);
 
 		return () => clearInterval(interval);
-	}, [hasInProgress, tenantId, qc]);
+	}, [hasInFlight, tenantId, qc]);
 
 	const columns = useMemo<ColumnDef<TenantPublicationRow>[]>(
 		() => [

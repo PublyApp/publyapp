@@ -214,11 +214,6 @@ describe('TenantPostsCalendarPage', () => {
 	});
 
 	test('agenda rows link to the post edit page so the operator can resolve them', async () => {
-		// Each calendar row should be a Link to the post edit page, not a dead
-		// display surface: a publish-now/paused post that surfaces on the
-		// calendar must be one click away from the editor (the only place the
-		// status can actually change). The Link is the operator's escape hatch
-		// from a stuck publication.
 		allPagesMock.rows = [
 			{
 				id: 'pub-link',
