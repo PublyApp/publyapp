@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
 	toScheduledPublicationRows,
 	useScheduledPublicationsInfiniteQuery,
@@ -80,26 +80,23 @@ export const useScheduledPublicationAllPages = ({
 		void fetchNextPage();
 	}, [error, hasNextPage, isFetchingNextPage, fetchNextPage]);
 
-	// Flatten + dedupe across the cached pages. Memoised on the pages
-	// array reference so consumers can read a stable row list per render.
-	const rows = useMemo(() => {
-		const pages = data?.pages ?? [];
-		const seenIds = new Set<string>();
-		const accumulator: ScheduledPublicationRow[] = [];
-		for (const page of pages) {
-			for (const row of toScheduledPublicationRows(page)) {
-				if (!seenIds.has(row.publicationId)) {
-					seenIds.add(row.publicationId);
-					accumulator.push(row);
-				}
+	// Flatten + dedupe across the cached pages. React Compiler handles
+	// memoisation, so this stays as a direct computation.
+	const pages = data?.pages ?? [];
+	const seenIds = new Set<string>();
+	const rows: ScheduledPublicationRow[] = [];
+	for (const page of pages) {
+		for (const row of toScheduledPublicationRows(page)) {
+			if (!seenIds.has(row.publicationId)) {
+				seenIds.add(row.publicationId);
+				rows.push(row);
 			}
 		}
-		return accumulator;
-	}, [data?.pages]);
+	}
 
-	const restart = useCallback(() => {
+	const restart = () => {
 		setRestartKey((tick) => tick + 1);
-	}, []);
+	};
 
 	// Derived loading flag — the walk is ongoing while the first page has
 	// not landed, while a subsequent page is being fetched, or while the
