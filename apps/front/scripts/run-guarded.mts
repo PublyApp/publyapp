@@ -43,14 +43,15 @@
  *
  * The timeout is read from GUARD_TIMEOUT_SECONDS env (default 300s).
  *
- * Justified default of 300s: measured durations of every front guard are
- * recorded in `docs/records/2026-08-30-analysis-front-guard-durations.md`
- * (raw timings of bounded runs, methodology included; slowest guard measured
- * ~165s loaded, next-slowest ~15s). 300s is ~1.8x the slowest measured guard
- * on the loaded recording machine — a modest margin, deliberately not
- * "ample": guards that routinely exceed it on a given machine can override
- * via `GUARD_TIMEOUT_SECONDS`, and the guard suite is re-measured whenever a
- * guard grows heavy (see the record).
+ * Historical timing context for the 300s default: `docs/records/2026-08-30-analysis-front-guard-durations.md`
+ * records durations measured for a SAMPLE of front guards, on one machine,
+ * on 2026-08-30 (raw timings of bounded runs, methodology included). That
+ * record is dated historical context for the guards it sampled — it is NOT
+ * exhaustive (guards added or changed since are not covered) and NOT a live
+ * source of truth for the current suite. Before changing the 300s default,
+ * or leaning on the record to justify a `GUARD_TIMEOUT_SECONDS` override,
+ * remeasure the current guard suite rather than trusting the record's
+ * numbers as current.
  *
  * The `apps/front/scripts/guards/check-guard-coverage.mts` gate makes sure
  * every test:/check:/verify: script and every bare node invocation routes

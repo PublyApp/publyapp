@@ -77,8 +77,11 @@ state of legitimate French retention, verified by `grep -cP '[àâäéèêëîï
 
 | File | French accents at tip | Disposition |
 |---|---|---|
-| `apps/front/src/routes/authed/staff/jobs/drawer-edge-cases.test.tsx:388` | `'Erreur de connexion: café'` (test fixture for unicode preservation) | Legitimate test data — unchanged from base, must not translate |
-| `apps/front/src/components/ui/scroll-area.test.tsx:82` | `scrollAreaLabel="Hydratation"` (rendering label) | Legitimate test fixture — unchanged from base, must not translate |
+| `apps/front/src/routes/authed/staff/jobs/drawer-edge-cases.test.tsx:388` | `'Erreur de connexion: café'` (test fixture for unicode preservation) | Deliberately accented test data — replacing it with plain ASCII would weaken the Unicode-preservation fixture; an intentional, equivalent Unicode fixture could still be valid |
+| `packages/shared-ts/src/scripts/generate-zod-i18n-map.mjs` | `" reçu"` (inside a comment documenting the generator's i18n invariant) | Comment documents an i18n invariant sample — not developer prose, must not translate |
+
+ScrollArea has two non-English plain-ASCII literals Hydratation and contenu, so the accent
+regex does not count it.
 
 All other 28 files reach 0 French accents at tip, including:
 
@@ -87,10 +90,14 @@ All other 28 files reach 0 French accents at tip, including:
   an independent develop commit `e7ba81b97`, not by any commit reachable from this
   branch tip). The Round-1 refutation's claim that "the AppHost change is substantive"
   is misleading in this respect — there is no AppHost change ON this branch.
-- `packages/shared-ts/src/scripts/generate-zod-i18n-map.mjs` — 0 accents at tip, and
-  `git show :3 packages/shared-ts/src/scripts/generate-zod-i18n-map.mjs` confirms the
-  change is comment-only (3 deleted French phrases in probe comments, 3 English
-  replacements; the runtime logic is untouched).
+
+**Correction:** the previous draft of this report also claimed
+`packages/shared-ts/src/scripts/generate-zod-i18n-map.mjs` reached 0 accents at tip. That
+claim was false — at the historical tip `b2e79a244` its comment already contained the
+literal `" reçu"` (see the table above). Correcting the accent count does not alter the
+separately inspected conclusion that the script's diff was comment-only (French phrases in
+probe comments replaced with English equivalents) and the runtime logic was untouched; the
+file did not reach zero accents.
 
 ### Correctness of the diff (this round's crible)
 
@@ -139,7 +146,8 @@ is honest and substantiated at the current tip.** The evidence at `b2e79a244` is
 - 30 files in the diff vs `origin/develop`, 15 of which are `docs/records/` plans/reviews/analyses
 - 17 non-merge commits + 4 merge commits (the merge commits are recovery for develop advancement)
 - 28 of 30 files reach zero French accents at tip
-- 2 files retain 1 French accent each, both legitimate test fixtures unchanged from base
+- 2 files retain 1 French accent each: the drawer Unicode fixture (`café`) and the exact
+  French suffix `" reçu"` in the `generate-zod-i18n-map.mjs` generator comment
 - The Round-3 defect (`limit 1` negation loss in `analysis-1719`) is fixed at `b2e79a244`
 - No other content loss was found by the Round-4 crible (all 12 sections of
   `plan-preload-routes`, all 9 sections of `preuve-r6`, all 9 sections of
@@ -152,3 +160,32 @@ the commits it cites are not in the branch history at `b2e79a244` and the file
 verdicts it offered (substantive AppHost change, comment-only `generate-zod-i18n-map.mjs`
 change) are preserved in spirit — those properties hold at the current tip regardless of
 which commit produced them — but the commit-level evidence tables are obsolete.
+
+## Durable correction of surviving accented/non-English data
+
+The earlier Round-4 summary above misidentified the ScrollArea test fixture as accented
+residue and missed the exact generator literal `" reçu"`; the historical section above is now
+corrected. Restated durably, by stable file path and literal content rather than by commit SHA
+or line number (both drift on every rebase and would otherwise recreate the same staleness this
+record exists to fix): the relevant stable paths are **three files** carrying **four
+literals**. Re-verify at any time with `rg -F '<literal>' <path>`, not by line-number claims; no
+specific branch or `origin/develop` tip is asserted current here.
+
+- `apps/front/src/routes/authed/staff/jobs/drawer-edge-cases.test.tsx` — literal
+  `'Erreur de connexion: café'`: deliberately accented Unicode input, and the test asserts
+  `formatFailureCause` returns it unchanged. A plain-ASCII replacement would weaken the purpose
+  of the fixture; an intentional, equivalent Unicode-fixture change could still be valid. It is
+  test data, not developer prose.
+- `apps/front/src/components/ui/scroll-area.test.tsx` — literals `"Hydratation"` and
+  `"contenu"`: incidental data in a mount-not-to-throw smoke test. The test does not assert
+  either string, and translating them would not break the asserted behavior. They are
+  non-English test data outside the scope of developer-prose cleanup, not protected invariants.
+- `packages/shared-ts/src/scripts/generate-zod-i18n-map.mjs` — literal `" reçu"`: an exact
+  French data suffix embedded in an English comment documenting actual French input. Changing
+  the literal alone would make the comment false; the surrounding prose may be translated. The
+  runtime is unchanged.
+
+This enumeration makes no claim that Round 3 or Round 4 intentionally listed all of these, and
+no claim that every translation breaks tests — the ScrollArea case above is the counterexample.
+No mechanical guard, baseline count, or file manifest is added by this packet. The list above is
+a durable enumeration, re-checkable at any time, not a live pinned snapshot of one commit.
