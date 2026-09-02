@@ -1,7 +1,7 @@
 # README Open-Core Revamp Design
 
 **Date:** 2026-09-02  
-**Status:** Approved direction; implementation pending specification review
+**Status:** Approved; implementation in review
 
 ## Purpose
 
@@ -38,11 +38,10 @@ README must not imply that this repository itself is proprietary.
 2. **What ships today**
    - Summarize the concrete platform capabilities present in the repository:
      tenancy, authentication and permissions, users and invitations, staff and
-     tenant surfaces, auditability, generated API client, and deployment
-     topology.
-   - Keep social scheduling and publishing ambitions in a clearly labelled
-     product-direction paragraph rather than presenting unfinished work as
-     delivered.
+     tenant surfaces, post drafting and publishing, social accounts,
+     auditability, generated API client, and deployment topology.
+   - Distinguish the working post/publishing pipeline from the richer calendar,
+     queue, multi-network, and review experience that remains product direction.
 3. **Quick start**
    - Move the shortest supported local path near the top.
    - State prerequisites and use the repository's canonical commands.
