@@ -227,7 +227,7 @@ public sealed class FindScheduledPublicationsForTenantSpec : IClassFixture<
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
 			$"{FindUrl}?from=2099-05-31T00%3A00%3A00Z"
-			+ "&to=2099-07-01T00%3A00%3A00Z&status=failed,published"
+			+ "&to=2099-07-01T00%3A00%3A00Z&status=failed,PUBLISHED"
 		)
 			.WithSessionToken(token)
 			.WithTenantId(tenantId);

@@ -76,7 +76,7 @@ export const scheduledPublicationStatusTone = publicationStatusTone;
 export const scheduledPublicationStatusLabelKey = publicationStatusLabelKey;
 
 /** Polling cadence used while at least one publication is in progress or already due. */
-export const ACTIVE_PUBLICATION_POLL_MS = 5_000;
+const ACTIVE_PUBLICATION_POLL_MS = 5_000;
 
 type NextPollingDelayArgs = {
 	rows: ScheduledPublicationRow[];
