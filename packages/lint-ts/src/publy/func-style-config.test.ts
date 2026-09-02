@@ -57,7 +57,6 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import {
-	existsSync,
 	mkdirSync,
 	mkdtempSync,
 	readFileSync,
@@ -428,8 +427,16 @@ const gitIgnoreCheckerForWorkspace = (): GitIgnoreChecker | null => {
 // This mirrors the exact paths oxlint lints: it scans the workspace root
 // and respects the same ignore patterns oxlint uses, so the inventory stays
 // in sync with the linting scope.
+//
+// `walkRoots` (issue #1968) lets a caller bound the walk to a subset of
+// directories while keeping `rootDir` as the relative-path/ignore anchor —
+// used by the git-ignore legs so a planted fixture's parent directory is
+// walked instead of the whole workspace, without changing how paths are
+// made relative or how the static/git ignore checks are applied. Defaults
+// to `[rootDir]`, so every existing single-argument caller is unchanged.
 const scanFuncStyleSuppressions = async (
 	rootDir: string,
+	walkRoots: readonly string[] = [rootDir],
 ): Promise<FuncStyleSuppressionEntry[]> => {
 	const entries: FuncStyleSuppressionEntry[] = [];
 	const TEXT_EXTENSIONS = new Set([
@@ -549,81 +556,8 @@ const scanFuncStyleSuppressions = async (
 		}
 	};
 
-	await walk(rootDir);
-	return entries;
-};
-
-// Scans ONLY the supplied absolute paths (each is treated as a walk root) —
-// used by the git-ignore legs (#1968) so the workspace-wide tree is not walked
-// twice. The same `git check-ignore` batched gate from `scanFuncStyleSuppressions`
-// stays active, so the ignored / non-ignored distinction is preserved.
-const scanFuncStyleSuppressionsInRoots = async (
-	absoluteRoots: readonly string[],
-): Promise<FuncStyleSuppressionEntry[]> => {
-	if (absoluteRoots.length === 0) {
-		return [];
-	}
-
-	const TEXT_EXTENSIONS = new Set([
-		'.ts',
-		'.tsx',
-		'.mjs',
-		'.mts',
-		'.js',
-		'.jsx',
-		'.cts',
-		'.cjs',
-	]);
-
-	const gitIgnoreChecker = gitIgnoreCheckerForWorkspace();
-	const entries: FuncStyleSuppressionEntry[] = [];
-
-	const walk = async (dir: string): Promise<void> => {
-		let dirEntries;
-		try {
-			dirEntries = await readdir(dir, { withFileTypes: true });
-		} catch {
-			return;
-		}
-
-		const fullPaths = dirEntries.map((entry) => join(dir, entry.name));
-		const gitIgnoredPaths =
-			gitIgnoreChecker === null
-				? new Set<string>()
-				: gitIgnoreChecker(fullPaths);
-
-		for (const entry of dirEntries) {
-			const fullPath = join(dir, entry.name);
-
-			if (gitIgnoredPaths.has(fullPath)) {
-				continue;
-			}
-
-			if (entry.isDirectory()) {
-				await walk(fullPath);
-				continue;
-			}
-
-			const ext = entry.name.slice(entry.name.lastIndexOf('.'));
-			if (!TEXT_EXTENSIONS.has(ext)) {
-				continue;
-			}
-
-			const source = readFileSync(fullPath, 'utf8');
-			// Relative paths in the entry must mirror what the workspace-walk
-			// would have produced, so the leg's `entry.file.startsWith(...)`
-			// filter stays accurate.
-			const relativePath = relative(WORKSPACE_ROOT, fullPath)
-				.split(sep)
-				.join('/');
-			entries.push(...findFuncStyleSuppressionsInSource(source, relativePath));
-		}
-	};
-
-	for (const root of absoluteRoots) {
-		if (existsSync(root)) {
-			await walk(root);
-		}
+	for (const walkRoot of walkRoots) {
+		await walk(walkRoot);
 	}
 	return entries;
 };
@@ -2169,8 +2103,9 @@ class Probe {}
 		// pass leg 1 while blinding the guard.
 		//
 		// Issue #1968 — bounded scan: the legs no longer walk the whole
-		// workspace. They call `scanFuncStyleSuppressionsInRoots` on the exact
-		// planted fixture surface (the parent directory of each planted
+		// workspace. They call `scanFuncStyleSuppressions` with `WORKSPACE_ROOT`
+		// as the relative-path/ignore anchor and a `walkRoots` bounded to the
+		// exact planted fixture surface (the parent directory of each planted
 		// file), keeping the same `git check-ignore --stdin -z` batched gate so
 		// the ignored / non-ignored distinction stays real. Observed maximum
 		// across 15 sequential + 5 loaded (6-way CPU stress) runs after the
@@ -2212,7 +2147,7 @@ class Probe {}
 			plantSuppression(plantedWorktreeFile);
 
 			try {
-				const foundEntries = await scanFuncStyleSuppressionsInRoots([
+				const foundEntries = await scanFuncStyleSuppressions(WORKSPACE_ROOT, [
 					dirname(plantedWorktreeFile),
 				]);
 				const worktreeEntries = foundEntries.filter((entry) =>
@@ -2233,7 +2168,7 @@ class Probe {}
 			plantSuppression(plantedTrackedFile);
 
 			try {
-				const foundEntries = await scanFuncStyleSuppressionsInRoots([
+				const foundEntries = await scanFuncStyleSuppressions(WORKSPACE_ROOT, [
 					dirname(plantedTrackedFile),
 				]);
 				const found = foundEntries.filter((entry) =>
