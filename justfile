@@ -608,33 +608,7 @@ ci-spec-drift:
 # independent stacks simultaneously. CI sets COMPOSE_PROJECT_NAME explicitly
 # (via E2E_IMAGE_TAG, which is unique per run) so CI stacks never collide either.
 ci-e2e-front:
-  #!/usr/bin/env bash
-  set -euo pipefail
-  echo "=== [gate] front e2e (docker + playwright) ==="
-  compose_env="$(node apps/front/scripts/e2e-compose-env.mts)" || {
-    status=$?
-    echo "Failed to derive e2e compose environment" >&2
-    exit "$status"
-  }
-  eval "$compose_env"
-  cleanup() {
-    status=$?
-    if [[ "$status" -eq 0 ]]; then
-      docker compose -f apps/front/docker-compose.test.yml down -v
-    else
-      echo "E2E stack left running for inspection after failure." >&2
-    fi
-    return "$status"
-  }
-  trap cleanup EXIT
-  docker compose -f apps/front/docker-compose.test.yml down -v --remove-orphans
-  docker compose -f apps/front/docker-compose.test.yml up -d --build --wait --wait-timeout 180
-  pnpm --filter front exec playwright install chromium
-  E2E_BASE_URL="$E2E_BASE_URL" E2E_API_BASE_URL="$E2E_API_BASE_URL" pnpm --filter front exec playwright test
-  # Round 19 I3: the drawer-description contrast source guard launches
-  # Chromium itself, so it runs in this browser-provisioned lane exactly as CI
-  # runs it (front-e2e.yml shard 4) — through the same package script.
-  pnpm --filter front test:drawer-contrast
+  @node apps/front/scripts/run-e2e-front.mts
 
 
 # Everyday pre-push gate (no e2e). Fails on the first red sub-gate.
