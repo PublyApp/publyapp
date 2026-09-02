@@ -42,8 +42,8 @@ import {
 // Test lock directory (matches the one in mts)
 const LOCK_DIR = pathJoin('/tmp', 'publyapp-e2e-port-locks');
 
-describe('ci-e2e-front recipe', () => {
-	it('keeps the derived environment and E2E lifecycle in one strict shell', () => {
+void describe('ci-e2e-front recipe', () => {
+	void it('keeps the derived environment and E2E lifecycle in one strict shell', () => {
 		const justfile = readFileSync(
 			pathJoin(import.meta.dirname, '../../../justfile'),
 			'utf8',
