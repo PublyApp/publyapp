@@ -40,6 +40,13 @@ describe('nextPollingDelayMs', () => {
 		expect(nextPollingDelayMs({ rows, now: NOW })).toBe(12 * 60 * 1000);
 	});
 
+	test('rechecks daily when the next scheduled instant exceeds the browser timer limit', () => {
+		const dueAt = new Date(NOW.valueOf() + 31 * 24 * 60 * 60 * 1000);
+		const rows = [ROW('scheduled', dueAt)];
+
+		expect(nextPollingDelayMs({ rows, now: NOW })).toBe(24 * 60 * 60 * 1000);
+	});
+
 	test('falls back to the active poll cadence when a scheduled instant is already due', () => {
 		const pastDue = new Date(NOW.valueOf() - 30 * 1000);
 		const rows = [ROW('scheduled', pastDue)];

@@ -77,6 +77,8 @@ export const scheduledPublicationStatusLabelKey = publicationStatusLabelKey;
 
 /** Polling cadence used while at least one publication is in progress or already due. */
 const ACTIVE_PUBLICATION_POLL_MS = 5_000;
+/** Recheck long waits daily, safely below browsers' signed 32-bit timer limit. */
+const MAX_PUBLICATION_POLL_WAIT_MS = 24 * 60 * 60 * 1_000;
 
 type NextPollingDelayArgs = {
 	rows: ScheduledPublicationRow[];
@@ -88,7 +90,7 @@ type NextPollingDelayArgs = {
  *
  * Returns:
  * - `ACTIVE_PUBLICATION_POLL_MS` when any row is in progress or already due
- * - the minimum positive delay until the next scheduled instant
+ * - the minimum positive delay until the next scheduled instant, capped at one day
  * - `null` when nothing in the page is worth polling for (no in-progress,
  *   no scheduled rows, or only paused/published rows)
  */
@@ -132,5 +134,5 @@ export const nextPollingDelayMs = ({
 		return null;
 	}
 
-	return nextDueAt - now.valueOf();
+	return Math.min(nextDueAt - now.valueOf(), MAX_PUBLICATION_POLL_WAIT_MS);
 };
