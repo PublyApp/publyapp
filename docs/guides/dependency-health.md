@@ -187,6 +187,57 @@ depends on `fast-uri` at all, **or** every reachable parent declares a
 production-graph and full-graph audits stay green without it. Today
 `ajv@8.20.0` still declares `^3.0.1`, so the override stays.
 
+## How the `qs` override was raised to `^6.16.0`
+
+Two moderate advisories affect `qs`, both named by the full-graph audit:
+`GHSA-4mjr-xmp4-gh2g` (denial of service via an attacker-controlled `isBuffer`;
+vulnerable `>=2.2.5 <6.16.0`) and `GHSA-x5fp-wj9c-mxmx` (array-limit bypass via
+bracket-key comma parsing; vulnerable `>=6.14.2 <=6.15.3`). The version the
+lockfile resolved under the previous `^6.15.2` override, `6.15.3`, was affected
+by both, and `6.16.0` is the first version patched against both.
+
+`qs` is **entirely transitive** and **dev-scoped**: no workspace package
+declares or imports it. `pnpm -r why qs` shows a single dev entry point —
+`apps/front` → `shadcn@4.19.0` → `@modelcontextprotocol/sdk@1.29.0` — but from
+there `qs` is reached by more than one branch:
+
+- `@modelcontextprotocol/sdk` → `express@5.2.1` → `qs` directly
+  (`express` declares `qs: ^6.14.0`), **and**
+- `@modelcontextprotocol/sdk` → `express@5.2.1` → `body-parser@2.3.0` → `qs`
+  (`express` declares `body-parser: ^2.2.1`; `body-parser` declares
+  `qs: ^6.15.2`),
+- with `@modelcontextprotocol/sdk` → `express-rate-limit@8.5.2` re-entering the
+  same `express@5.2.1` as a peer (`express: >= 4.11`), so both branches above
+  appear again under it.
+
+Both declared ranges — `^6.14.0` and `^6.15.2` — are wide enough to resolve a
+vulnerable release, so pinning only one parent would not hold the floor. Because
+the whole graph is dev-scoped, the CI production audit
+(`pnpm audit --prod --audit-level=high`) does not inspect it at all; the
+override, not the gate, is what holds the floor here.
+
+A direct bump is not available: `express@5.2.1` is the latest published release
+and still declares `^6.14.0`, and its `body-parser@2.3.0` still declares
+`^6.15.2`, so there is no parent upgrade that raises the `qs` floor to a patched
+version. The fix is the package-wide root override, raised from `^6.15.2` to:
+
+```
+"qs": "^6.16.0"
+```
+
+**Verifiable removal condition** (judged on the _declared_ range, not the
+resolved version): remove the override only when **no** reachable parent
+depends on `qs` at all — for instance if `shadcn` stops pulling
+`@modelcontextprotocol/sdk`/`express` — **or** **every** reachable parent
+(`express` **and** `body-parser`, on each branch above) declares a `qs` floor of
+`>=6.16.0`, and, in either case, both
+`pnpm audit --prod --audit-level=moderate` and
+`pnpm audit --dev --audit-level=moderate` stay green without it. Today
+`express@5.2.1` still declares `^6.14.0` and `body-parser@2.3.0` still declares
+`^6.15.2`, so the override stays. Judge this on
+the declared range: the lock resolving a patched `qs` proves nothing while the
+override is the only reason it does.
+
 ## How to run locally
 
 ```bash
