@@ -360,9 +360,18 @@ Each rule has an ID, descriptor in `DiagnosticCatalog.cs`, and is referenced in 
 
 See the Phase-2 PRs (#463 for the JS scaffold pattern, #464 for the Roslyn scaffold pattern). The short version:
 
+First, a custom rule must pass the hard bespoke-guard admission policy in
+[`test-conventions.md`](test-conventions.md#bespoke-guard-admission-hard-rule). Without that proof,
+do not scaffold the rule.
+
 1. Pick an ID — `publy/<kebab-name>` for JS or `PUBLY00XX` for .NET.
 2. Mirror an existing rule's structure file-for-file.
 3. Write a co-located spec (oxlint test file or `*.Spec.cs`).
-4. Register in `packages/lint-ts/src/index.ts` + `.oxlintrc.json` (JS) or `packages/lint-cs/DiagnosticCatalog.cs` + `DiagnosticIds.cs` + `AnalyzerReleases.Unshipped.md` (.NET).
-5. Ship **dormant** (`"off"` / `isEnabledByDefault: false`).
-6. Open a follow-up enforcement PR that refactors all existing offenders and flips the rule on.
+4. Register in `packages/lint-ts/src/index.ts` + `.oxlintrc.json` (JS) or
+   `packages/lint-cs/DiagnosticCatalog.cs` + `DiagnosticIds.cs` +
+   `AnalyzerReleases.Unshipped.md` (.NET).
+5. Fix all current offenders and enable the rule in the same PR. Do not ship a new rule dormant and
+   create an enforcement follow-up.
+
+If the cleanup is too broad to land safely with the rule, stop. Land the independently justified
+code cleanup first, then propose the guard only after the tree is clean.

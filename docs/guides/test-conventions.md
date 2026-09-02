@@ -1,6 +1,6 @@
 # Test Conventions
 
-> Extracted from `AGENTS.md` — testing conventions for the PublyApp API.
+> Extracted from `AGENTS.md` — testing and executable-guard conventions for PublyApp.
 
 ## Test File Naming
 
@@ -44,10 +44,10 @@ failure.
 They live in `Lib/Architecture/` and follow the standard spec conventions:
 
 - `*.Spec.cs` suffix; namespace `PublyApp.Api.Lib.Architecture`.
-- A shared reflection helper, `Lib/Testing/Helpers/ArchitectureDiscoveryHelper`,
+- The shared reflection helper, `Lib/Architecture/ArchitectureDiscovery`,
   enumerates handler types, HTTP wire DTO records, service types, and route
-  constants while excluding generated/build artifacts. New guards reuse it rather
-  than re-scanning the assembly ad hoc.
+  constants while excluding generated/build artifacts. Admitted backend reflection
+  guards reuse it rather than re-scanning the assembly ad hoc.
 - Every guard includes a **vacuity check** (assert discovery is non-empty) so a
   broken filter can't make the guard pass for the wrong reason.
 
@@ -85,15 +85,72 @@ IDE/build-time feedback — e.g. forbidding `?? throw`, the null-forgiving `!`, 
 `TypedResults.Forbid()` at a call site. Issue #357 owns the full classification
 and backlog; analyzer-backed rules wait on the #350 framework.
 
-### Adding a new guard
+### Bespoke guard admission (hard rule)
 
-1. Add a `*.Spec.cs` in `Lib/Architecture/` (namespace `PublyApp.Api.Lib.Architecture`).
-2. Discover the types/constants via `ArchitectureDiscoveryHelper` (extend it if a
-   new category is needed).
-3. Assert there are no offenders, listing concrete names in the failure message.
-4. Add a vacuity check so the guard can't pass on an empty scan.
-5. If current code isn't clean yet, baseline/allowlist the known violations and
-   ratchet toward zero rather than weakening the rule.
+A bespoke guard is an executable assertion whose primary purpose is to police a repository-specific
+policy or convention. Examples include a source scanner, reference snapshot, ratchet, manifest
+verifier, architecture scan, custom compiler/linter extension, or meta-guard.
+
+The admission unit is a **new executable policy assertion**, not a new file. Adding a new forbidden
+condition, matcher, protected inventory, reference rule, ratchet, or materially broader scope to an
+existing guard counts as new. Renaming or mechanically refactoring an existing guard without
+changing its decisions does not. Neither does fixing it so it once again enforces its already
+documented scope, adding fixtures for that scope, or adding expected data to an existing closed
+inventory without changing the policy.
+
+Ordinary behavioural tests are not bespoke guards, whether they exercise product code, repository
+tooling, generators, deployment scripts, migrations, or an admitted guard's implementation. Directly
+enabling or configuring an existing off-the-shelf compiler, linter, security scanner, schema
+validator, or similar tool is also not bespoke. A repository-specific wrapper or policy layer around
+that tool is bespoke.
+
+New executable policy assertions are **forbidden by default**. A proposing PR must prove every
+condition below; missing one condition means the assertion is rejected:
+
+1. A current, reproducible failure demonstrates the problem. A hypothetical risk is not evidence.
+2. The guard protects a critical security, data-integrity, public-contract, build, or release
+   invariant. A style preference or isolated low-impact mistake is not enough.
+3. An ordinary behavioural/unit/integration test, type system, or direct use of an existing standard
+   tool cannot cover the invariant more simply.
+4. The proposed implementation is the smallest viable mechanism. Any parser, snapshot, manifest,
+   allowlist, or ratchet must be indispensable to that mechanism, have one source of truth, and
+   carry an explicit maintenance cost in the proposal. A guard-of-a-guard is never admissible.
+5. The PR contains a reproducible red/green proof: the defect escapes before the guard and is
+   caught after it.
+6. The PR names the concrete condition that will retire the guard or replace it with a standard
+   tool. A guard with no retirement condition is permanent maintenance debt and is rejected.
+
+A PR introduces a guard gap when its changed product/tooling surface escapes coverage that the
+existing guard's documented policy requires, even if the new instance is currently conforming; when
+that surface already violates the policy; or when its guard change creates a new bypass. The PR must
+bring the changed surface under the existing coverage, fix the violation, or drop the change that
+created the gap before merge. It must not create a follow-up guard-gap issue. Merely discovering an
+independently reproducible pre-existing gap is not "introducing" it. Such a gap gets a separate issue
+only when its product, security, data, contract, build, or release impact is material. This
+restriction does not apply to ordinary non-guard follow-ups.
+
+Reviewers enforce this admission rule directly. Do not add a script, analyzer, manifest, snapshot,
+or meta-guard to enforce the admission rule itself.
+
+If and only if a guard is admitted:
+
+1. Put it in the narrowest existing tool surface that owns the invariant; do not create a new guard
+   framework for it.
+2. Add focused tests with both a violating case and a conforming case. Tests assert behaviour; they
+   do not need admission of their own.
+3. Make failures name the concrete offender and required correction.
+4. Fail loudly on an empty, unknown, or unparseable scan rather than passing vacuously.
+5. Fix every current violation in the same PR. Do not use a baseline, allowlist, or ratchet merely to
+   stage adoption. If cleanup cannot land safely in that PR, do not ship the guard yet.
+6. Keep admission evidence technology-neutral: the PR records the exact command and either a
+   violating fixture or a temporary mutation that the candidate catches, plus the conforming/restored
+   green run. A real-tree mutation is restored before commit; no new permanent proof framework is
+   required. This admission evidence is not the kept-red paired bug proof defined below.
+
+For an admitted backend reflection guard specifically, add a `*.Spec.cs` under
+`apps/api/Lib/Architecture/`, use `ArchitectureDiscovery` for shared discovery, and keep the
+namespace `PublyApp.Api.Lib.Architecture`. Other guard categories follow their existing tool's
+co-located test convention; they do not imitate the C# layout.
 
 ## Test Using Statements
 
@@ -112,8 +169,9 @@ For the complete guide on writing and debugging integration tests, see:
 
 ## Paired Red/Green Proofs — keeping the red test alive (issue #1659)
 
-In this repo, the **paired red-then-green proof** is the criterion that distinguishes a real test
-from a decorative one. The red side is the harder half: a test that proves a bug *is* present
+When a PR claims a **paired red-then-green proof**, that proof distinguishes a regression test
+that catches the stated defect from a decorative one. The red side is the harder half: a test that
+proves a bug *is* present
 must, by construction, **fail** against the corrected code. Leaving it in the suite would make
 the suite permanently red, so the historical pattern has been to capture the red, paste the output
 into a trace, and **delete the test**. Issue #1659 names what that costs: a pasted output is not
@@ -121,7 +179,12 @@ replayable, so the reviewer either trusts the trace or rebuilds the test from sc
 got away with it because the case was small; a concurrency or rendering proof cannot be
 reconstructed cheaply, and at that point the proof stops being reviewed at all.
 
-This section is the convention. It is normative for any new paired proof produced in this repo.
+This section is normative for a new **paired bug/regression proof** declared under the supported
+front path below, and documents the legacy API trace form. It does not require every bug fix in every
+repository surface to create a kept-red proof: no repo-wide runner or location exists for other
+surfaces. Those changes use ordinary regression tests and review evidence. A bespoke guard's
+admission evidence follows the technology-neutral fixture/mutation rule above and does not create a
+kept-red test unless the PR separately declares a supported paired bug/regression proof.
 
 ### The form: keep the test, in a dedicated location, named by the trace
 
@@ -146,9 +209,9 @@ This repo uses **form (3)**. Rationale:
 - Form (3) keeps the test executable as-is and keeps the suite green. The reviewer does:
 
   ```
-  # from the branch that produced the proof, in the worktree that has .dump/
+  # from the branch that produced the proof
   cd apps/front && pnpm exec vitest run --config vitest.preuves.config.ts \
-      .dump/preuves/<issue>/<name>.test.ts
+      tests/proofs/<issue>/<name>.test.ts
   ```
 
   The test runs the same source that produced the original red; the failure message is the
@@ -166,6 +229,16 @@ apps/front/tests/proofs/<issue-number>/<descriptive-name>.test.ts   # front
   checkout. A PR declares a paired red proof by adding or modifying a file under that directory;
   the CI step `Verify paired red proofs` uses `git diff` to detect declared proofs and replays
   only those. If none are declared, the step prints an explicit no-op message and exits 0.
+- Every declared front proof test MUST carry a sibling per-test expectation manifest named
+  `<proof-file>.expected-red.json`, shaped per `apps/front/tests/proofs/expected-red.schema.json`.
+  See `apps/front/tests/proofs/1457/red-1457-r2-sigint-race-silent-child.test.ts.expected-red.json`
+  for a reference. Each entry under `expectedRed` MUST declare a non-empty `testName` (matched
+  against vitest's reported test name by equality or suffix) and a non-empty `why` (the
+  justification for why that test must fail). Add the manifest when you add a proof test; update
+  it only when the declared test names or reasons change — an already-correct manifest untouched
+  by the edit needs no mechanical bump. A missing, malformed, unreadable, or otherwise invalid
+  manifest fails CI, as does a declared kept-red test that unexpectedly passes on the current code
+  — see "What the CI guard checks" below.
 - API preuve traces continue to use `.dump/preuves/<issue>/` (the API proof convention is legacy
   and not part of the #1659 front-side fix).
 - The file name carries the issue number and a short, hyphen-separated name (`red-1613-negligent-caller-no-reset`).
@@ -246,6 +319,10 @@ explain why each still falls short.
 
 ### Proof-of-limitation cases (no mutation)
 
+This is an optional evidence category, not a bug/regression proof and not required by the bug-fix
+scope below. If a front PR deliberately declares one, the same kept-red path and replay mechanics
+apply.
+
 Some paired proofs are **proofs of limitation**, not proofs of a bug. The red test asserts an
 *ideal* behavior the correct code deliberately does not satisfy (a known trade-off, not a defect),
 so the red is produced by the **correct code as committed** — there is no mutation to apply.
@@ -288,37 +365,45 @@ proofs to run, not *what* they prove.
 
 ### When this convention does not apply
 
-A paired red/green proof is required for **bug fixes** and **guard rails** (a guard that
-turns red when a forbidden pattern is reintroduced; a regression test that pins a known loss).
-It is **not** required for:
+A PR opts into this convention by declaring a supported front proof under
+`apps/front/tests/proofs/<issue>/`. Once declared, every kept-red and replay requirement in this
+section is mandatory. The legacy API trace form remains documented above; this section does not
+create a universal kept-red requirement for API, Node/CI, generators, custom linters, or other
+repository surfaces that have no supported runner and versioned proof location.
+
+An admitted executable guard still requires red/green admission evidence, but supplies it through a
+co-located violating fixture or documented temporary mutation as defined above, not a permanently
+red test. A kept-red paired proof is **not** required for:
 
 - pure refactors with no behavior change;
 - new features that do not regress an existing behavior;
 - doc-only and config-only changes.
 
-A guard rail produced without a paired red proof is vacuous and will be rejected in review
-regardless of this convention.
+An executable guard produced without the admission evidence above is vacuous and will be rejected in
+review regardless of this convention.
 
-### Why no automated guard (yet)
+### What the CI guard checks — and what remains review-only
 
-Issue #1659 explicitly asks whether to add a CI guard that refuses a PR whose trace cites a
-kept red test that is stale or absent. We considered three and rejected all of them at this stage:
+The CI step `Verify paired red proofs` (`apps/front/scripts/ci/run-preuves.mts`) runs in the
+path-gated `supply-chain` job of the front supply-chain CI workflow
+(`.github/workflows/front-ci.yml`), for PRs whose changed paths match that job's front-relevant
+filter — which `apps/front/tests/proofs/<issue>/` falls under. When that job runs, the step
+detects, via `git diff` against the merge-base, which `.test.ts`/`.test.tsx` files under
+`apps/front/tests/proofs/<issue>/` the PR added or modified, and replays only those with inverted
+semantics: a declared test that fails as expected passes the step; a declared test that
+unexpectedly passes, or a manifest that is missing/malformed/unreadable, fails the step loudly
+naming the file and the cause. A PR that declares no proofs prints an explicit no-op message and
+exits 0. This closes the gap issue #1659 raised, for front proofs entering that job.
 
-- A guard that scans `.dump/` traces for test paths and verifies the file exists would never
-  fire: by the convention's own design, the kept red test lives under `.dump/` (API) or
-  `apps/front/tests/proofs/` (front), and `.dump/` is git-ignored and never reaches CI. The front
-  proofs directory is versionned, but the guard would still need to verify that the proof is
-  genuinely red (the mutation still produces a failure), which requires replaying it.
-- A guard that requires the test path to exist in the suite contradicts the convention: the
-  whole point is that the red test is **excluded** from the suite.
-- A guard that asks the PR body to declare the kept-test path and the mutation is feasible
-  but premature: it would add a new required section to every PR body for a problem we have
-  not yet seen at scale. The first wave is "convention, written and applied"; the second
-  wave, after we have a few examples in `tests/proofs/`, can decide whether the convention
-  is reliably followed enough to enforce.
-
-The convention is the right first step. If a future lane produces a paired proof without a
-kept red test, the right response is a review comment naming this section, not a CI failure.
+What remains a review responsibility, not an automated one: `.dump/` API trace claims and PR-body
+prose (e.g. a trace that names a test path without the mutation, the adverse-mutation search, or
+the green run summary — checked against §"What the trace must contain" and §"Mutation adverse"),
+since `.dump/` is git-ignored and absent on a clean CI checkout; and whether a PR ought to declare
+a proof at all, since declaration stays voluntary (see §"When this convention does not apply"). No
+meta-scanner over `.dump/` or PR prose is added, for the reasons issue #1659 already raised:
+`.dump/` never reaches CI, and requiring the test path to exist in the suite would contradict the
+convention. If a future lane produces a paired proof without following the trace requirements, the
+right response is a review comment naming the relevant section, not a CI failure.
 
 ### Worked example: #1613 / #1651 (negligent caller of `useOffsetPageClamp`)
 
