@@ -42,6 +42,27 @@ import {
 // Test lock directory (matches the one in mts)
 const LOCK_DIR = pathJoin('/tmp', 'publyapp-e2e-port-locks');
 
+describe('ci-e2e-front recipe', () => {
+	it('keeps the derived environment and E2E lifecycle in one strict shell', () => {
+		const justfile = readFileSync(
+			pathJoin(import.meta.dirname, '../../../justfile'),
+			'utf8',
+		);
+		const recipe = justfile.match(/^ci-e2e-front:\n(?<body>(?:  .*\n|\n)*)/m)
+			?.groups?.body;
+
+		assert.ok(recipe, 'ci-e2e-front recipe should exist');
+		assert.match(recipe, /^  #!\/usr\/bin\/env bash\n  set -euo pipefail/m);
+		assert.match(
+			recipe,
+			/compose_env="\$\(node apps\/front\/scripts\/e2e-compose-env\.mts\)"/,
+		);
+		assert.match(recipe, /eval "\$compose_env"/);
+		assert.match(recipe, /trap cleanup EXIT/);
+		assert.doesNotMatch(recipe, /eval "\$\(node /);
+	});
+});
+
 // Deterministic helpers for the #1698 specs: they must not depend on what
 // stacks/locks happen to exist on the machine that runs them.
 
