@@ -36,14 +36,27 @@ import {
 	isLockStale,
 	reclaimStaleLock,
 	type PortBandReservation,
+	type E2eComposeEnv,
 	type E2EComposeEnv,
 } from './e2e-compose-env.mts';
+import { runE2EFront, type RunCommand } from './run-e2e-front.mts';
 
 // Test lock directory (matches the one in mts)
 const LOCK_DIR = pathJoin('/tmp', 'publyapp-e2e-port-locks');
+const DERIVED_ENV_PROOF: E2eComposeEnv = {
+	COMPOSE_PROJECT_NAME: 'publyapp-e2e-proof',
+	E2E_PORT_TRAEFIK_WEB: '9080',
+	E2E_PORT_TRAEFIK_WEBSECURE: '9443',
+	E2E_PORT_REQUEST_COUNTER: '9800',
+	E2E_PORT_TOXIPROXY: '9474',
+	E2E_PORT_POSTGRES: '6454',
+	E2E_BASE_URL: 'https://front.localhost:9443',
+	E2E_API_BASE_URL: 'https://api.front.localhost:9443',
+	E2E_LOCK_PATH: '/tmp/publyapp-e2e-port-locks/band-9080.lock',
+};
 
 void describe('ci-e2e-front recipe', () => {
-	void it('keeps the derived environment and E2E lifecycle in one strict shell', () => {
+	void it('delegates the complete lifecycle to the cross-platform runner', () => {
 		const justfile = readFileSync(
 			pathJoin(import.meta.dirname, '../../../justfile'),
 			'utf8',
@@ -52,14 +65,185 @@ void describe('ci-e2e-front recipe', () => {
 			?.groups?.body;
 
 		assert.ok(recipe, 'ci-e2e-front recipe should exist');
-		assert.match(recipe, /^  #!\/usr\/bin\/env bash\n  set -euo pipefail/m);
-		assert.match(
-			recipe,
-			/compose_env="\$\(node apps\/front\/scripts\/e2e-compose-env\.mts\)"/,
+		const executableLines = recipe
+			.split('\n')
+			.map((line) => line.trim())
+			.filter((line) => line.length > 0 && !line.startsWith('#'));
+
+		assert.deepEqual(executableLines, [
+			'@node apps/front/scripts/run-e2e-front.mts',
+		]);
+	});
+
+	void it('passes one derived environment through the complete lifecycle', async () => {
+		const invocations: Parameters<RunCommand>[] = [];
+		let releasedLock = '';
+
+		await runE2EFront({
+			computeEnv: () => DERIVED_ENV_PROOF,
+			runCommand: async (...args) => {
+				invocations.push(args);
+			},
+			releasePortBand: (lockPath) => {
+				releasedLock = lockPath;
+				return true;
+			},
+			writeError: () => {},
+		});
+
+		assert.deepEqual(
+			invocations.map(([command, args]) => [command, args]),
+			[
+				[
+					'docker',
+					[
+						'compose',
+						'-f',
+						'apps/front/docker-compose.test.yml',
+						'down',
+						'-v',
+						'--remove-orphans',
+					],
+				],
+				[
+					'docker',
+					[
+						'compose',
+						'-f',
+						'apps/front/docker-compose.test.yml',
+						'up',
+						'-d',
+						'--build',
+						'--wait',
+						'--wait-timeout',
+						'180',
+					],
+				],
+				[
+					'pnpm',
+					['--filter', 'front', 'exec', 'playwright', 'install', 'chromium'],
+				],
+				['pnpm', ['--filter', 'front', 'exec', 'playwright', 'test']],
+				['pnpm', ['--filter', 'front', 'test:drawer-contrast']],
+				[
+					'docker',
+					['compose', '-f', 'apps/front/docker-compose.test.yml', 'down', '-v'],
+				],
+			],
 		);
-		assert.match(recipe, /eval "\$compose_env"/);
-		assert.match(recipe, /trap cleanup EXIT/);
-		assert.doesNotMatch(recipe, /eval "\$\(node /);
+		for (const [, , commandEnv] of invocations) {
+			assert.equal(
+				commandEnv.COMPOSE_PROJECT_NAME,
+				DERIVED_ENV_PROOF.COMPOSE_PROJECT_NAME,
+			);
+			assert.equal(commandEnv.E2E_BASE_URL, DERIVED_ENV_PROOF.E2E_BASE_URL);
+			assert.equal(
+				commandEnv.E2E_API_BASE_URL,
+				DERIVED_ENV_PROOF.E2E_API_BASE_URL,
+			);
+		}
+		assert.equal(releasedLock, DERIVED_ENV_PROOF.E2E_LOCK_PATH);
+	});
+
+	// The bash recipe exported only E2E_BASE_URL/E2E_API_BASE_URL onto the
+	// playwright call; the ports and project name reached compose through the
+	// shell's own environment. The runner must give EVERY command the complete
+	// derived set, and must not drop the ambient environment while doing it.
+	void it('gives every command all derived fields and preserves ambient variables', async () => {
+		const invocations: Parameters<RunCommand>[] = [];
+		const ambientKey = 'PUBLYAPP_E2E_AMBIENT_PROOF';
+		process.env[ambientKey] = 'ambient-value';
+
+		try {
+			await runE2EFront({
+				computeEnv: () => DERIVED_ENV_PROOF,
+				runCommand: async (...args) => {
+					invocations.push(args);
+				},
+				releasePortBand: () => true,
+				writeError: () => {},
+			});
+		} finally {
+			delete process.env[ambientKey];
+		}
+
+		assert.equal(invocations.length, 6);
+		for (const [command, args, commandEnv] of invocations) {
+			const where = `${command} ${args.join(' ')}`;
+
+			for (const [key, value] of Object.entries(DERIVED_ENV_PROOF)) {
+				assert.equal(
+					commandEnv[key],
+					value,
+					`${where} must receive ${key}=${value}`,
+				);
+			}
+
+			assert.equal(
+				commandEnv[ambientKey],
+				'ambient-value',
+				`${where} must keep the ambient environment`,
+			);
+			assert.equal(
+				commandEnv.PATH,
+				process.env.PATH,
+				`${where} must keep PATH so docker/pnpm resolve`,
+			);
+		}
+	});
+
+	// The bash recipe's EXIT trap kept the stack alive on failure. The runner
+	// must reproduce all four behaviours: propagate, skip the final teardown,
+	// print the inspection notice, and still release the band lock.
+	void it('propagates a failing playwright run without tearing the stack down', async () => {
+		const invocations: Parameters<RunCommand>[] = [];
+		const failure = new Error('playwright test failed with exit 1');
+		const errors: string[] = [];
+		let releasedLock = '';
+
+		await assert.rejects(
+			runE2EFront({
+				computeEnv: () => DERIVED_ENV_PROOF,
+				runCommand: async (command, args, env) => {
+					invocations.push([command, args, env]);
+
+					if (args.at(-1) === 'test' && args.includes('playwright')) {
+						throw failure;
+					}
+				},
+				releasePortBand: (lockPath) => {
+					releasedLock = lockPath;
+					return true;
+				},
+				writeError: (message) => errors.push(message),
+			}),
+			(error: unknown) => error === failure,
+		);
+
+		// The failure aborts the lifecycle: drawer-contrast never runs, and no
+		// command after the failing one is issued.
+		assert.deepEqual(
+			invocations.map(([command, args]) => `${command} ${args.join(' ')}`),
+			[
+				'docker compose -f apps/front/docker-compose.test.yml down -v --remove-orphans',
+				'docker compose -f apps/front/docker-compose.test.yml up -d --build --wait --wait-timeout 180',
+				'pnpm --filter front exec playwright install chromium',
+				'pnpm --filter front exec playwright test',
+			],
+		);
+		assert.equal(
+			invocations.filter(([, args]) => args.at(-1) === '-v').length,
+			0,
+			'the final `down -v` teardown must NOT run after a failure',
+		);
+		assert.deepEqual(errors, [
+			'E2E stack left running for inspection after failure.\n',
+		]);
+		assert.equal(
+			releasedLock,
+			DERIVED_ENV_PROOF.E2E_LOCK_PATH,
+			'the port band lock must be released even when the lifecycle fails',
+		);
 	});
 });
 
