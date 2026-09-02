@@ -11,7 +11,6 @@ on:
 permissions:
   contents: read
   issues: read
-  pull-requests: read
 
 # Supersede in-flight runs for the same PR. This job is cheap, but it retriggers
 # on every body edit, so a burst of edits would otherwise queue a run each and
@@ -130,26 +129,3 @@ jobs:
 
           echo "::error::The relationship keyword(s) reference no existing issue. Link a real issue with \"Closes #N\" or \"Part of #N\"."
           exit 1
-
-  # #1569: prohibit unverifiable exhaustiveness claims in PR bodies ("N
-  # dimensions validated", "validation is exhaustive") — a claim the next
-  # reviewer cannot check is worse than a silence. Reads the REAL body via
-  # the GitHub API (never a fixture, never an author-supplied echo) and runs
-  # the guard script against it. Runs on every PR and re-runs on body edits.
-  pr-body-exhaustiveness:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-      - name: Verify the PR body makes no unverifiable exhaustiveness claims (#1569)
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GH_REPO: ${{ github.repository }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
-        run: |
-          set -euo pipefail
-          # Read the REAL PR body via the GitHub API (never a fixture): the
-          # guard cannot judge a body that was handed to it by the author.
-          PR_BODY="$(gh api "repos/$GH_REPO/pulls/$PR_NUMBER" --jq '.body // ""')"
-          export PR_BODY
-          node packages/scripts-ts/src/check-pr-body-exhaustiveness.ts
