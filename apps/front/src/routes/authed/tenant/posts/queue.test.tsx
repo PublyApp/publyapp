@@ -188,7 +188,7 @@ describe('TenantPostsQueuePage', () => {
 		await screen.findByText('Publishing now');
 		const initialCalls = mocks.get.mock.calls.length;
 
-		act(() => vi.advanceTimersByTime(5_000));
+		await act(() => vi.advanceTimersByTime(5_000));
 
 		await waitFor(() => {
 			expect(mocks.get.mock.calls.length).toBeGreaterThan(initialCalls);
@@ -201,7 +201,7 @@ describe('TenantPostsQueuePage', () => {
 		await screen.findByText('A real scheduled post');
 		const initialCalls = mocks.get.mock.calls.length;
 
-		act(() => vi.advanceTimersByTime(6_000));
+		await act(() => vi.advanceTimersByTime(6_000));
 
 		expect(mocks.get).toHaveBeenCalledTimes(initialCalls);
 	});

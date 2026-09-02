@@ -8,6 +8,21 @@ import {
 } from './_scheduled-publication-display';
 import { groupScheduledPublicationsByViewerDate } from './_scheduled-publication-helpers';
 
+const ScheduledPublicationIdentity = ({
+	row,
+}: {
+	row: ScheduledPublicationRow;
+}) => {
+	return (
+		<div className="min-w-0">
+			<p className="truncate font-medium">{row.postBodyPreview ?? '—'}</p>
+			<p className="truncate text-xs text-muted-foreground">
+				{row.accountDisplayHandle ?? '—'}
+			</p>
+		</div>
+	);
+};
+
 export const ScheduledPublicationAgenda = ({
 	rows,
 }: {
@@ -41,24 +56,10 @@ export const ScheduledPublicationAgenda = ({
 											params={{ postId: row.postId }}
 											className="publy-record-link flex min-w-0 no-underline"
 										>
-											<div className="min-w-0">
-												<p className="truncate font-medium">
-													{row.postBodyPreview ?? '—'}
-												</p>
-												<p className="truncate text-xs text-muted-foreground">
-													{row.accountDisplayHandle ?? '—'}
-												</p>
-											</div>
+											<ScheduledPublicationIdentity row={row} />
 										</Link>
 									) : (
-										<div className="min-w-0">
-											<p className="truncate font-medium">
-												{row.postBodyPreview ?? '—'}
-											</p>
-											<p className="truncate text-xs text-muted-foreground">
-												{row.accountDisplayHandle ?? '—'}
-											</p>
-										</div>
+										<ScheduledPublicationIdentity row={row} />
 									)}
 									<ScheduledPublicationStatus status={row.status} />
 									<ScheduledPublicationTime row={row} />
