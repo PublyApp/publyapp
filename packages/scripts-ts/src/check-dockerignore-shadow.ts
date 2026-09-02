@@ -1,4 +1,4 @@
-import { opendir, realpath, stat as statFn } from 'node:fs/promises';
+import { lstat, opendir, realpath, stat as statFn } from 'node:fs/promises';
 import path from 'node:path';
 import process from 'node:process';
 import { pathToFileURL } from 'node:url';
@@ -133,13 +133,10 @@ const isRealInsideRoot = (realPath: string, realRoot: string): boolean => {
 // LEXICAL ALIAS WALKS (#2061)
 // --------------------------
 // An internal directory symlink exposes a real subtree through a distinct
-// BuildKit-visible lexical path. Each lexical alias route gets its own
-// realpath-visited set (`aliasVisited`), so the canonical real visit cannot
-// collapse a sibling lexical route to the same physical file. Nested
-// internal symlinks inside an alias walk REUSE the route's `aliasVisited`
-// rather than starting a fresh set; external symlink traversal keeps the
-// global `visitedRealPaths` set unchanged so its depth/dedup contract is
-// untouched.
+// BuildKit-visible lexical path. Alias walks carry path-local realpath
+// ancestry: copying it per child terminates cycles without collapsing sibling
+// lexical routes to the same target. External traversal retains its separate
+// global depth/dedup contract.
 const walkForShadows = async (
 	currentDir: string,
 	findings: WalkFinding[],
@@ -215,17 +212,13 @@ const walkForShadows = async (
 				continue;
 			}
 
-			// INTERNAL symlink to a directory: lexical alias walk. The alias
-			// target is added AFTER the cycle check so the entering symlink
-			// is not skipped on its own first encounter; nested cycles (a
-			// sibling alias back to the same target, or one resolving to
-			// `realRoot`) are caught by the `has()` check. Nested internal
-			// symlinks inside an alias walk reuse the route's `aliasVisited`
-			// rather than starting fresh sets.
-			const nextAliasVisited = aliasVisited ?? new Set<string>([realRoot]);
-			if (nextAliasVisited.has(realTarget)) {
+			// Copy ancestry per internal alias route. Siblings remain distinct;
+			// targets already on this route are cycles and stay skipped.
+			const baseAncestry = aliasVisited ?? new Set<string>([realRoot]);
+			if (baseAncestry.has(realTarget)) {
 				continue;
 			}
+			const nextAliasVisited = new Set(baseAncestry);
 			nextAliasVisited.add(realTarget);
 
 			const symlinkLexical = lexicalParent
@@ -249,20 +242,39 @@ const walkForShadows = async (
 			}
 
 			const realEntry = await realpath(entryAbsolute);
-			// Inside an alias walk, dedup against the route-local set so the
-			// canonical real visit cannot collapse a sibling lexical route.
-			// Outside an alias walk, keep the existing global behaviour.
-			const visitedSet = aliasVisited ?? visitedRealPaths;
-			if (visitedSet.has(realEntry)) {
-				continue;
-			}
-			visitedSet.add(realEntry);
 
 			// Build the BUILD-KIT lexical path for this subdirectory:
 			// `lexicalParent/foo/` — undefined parent means root-level `foo/`.
 			const childLexical = lexicalParent
 				? `${lexicalParent}/${entry.name}`
 				: entry.name;
+
+			if (aliasVisited === null) {
+				// Canonical (non-alias) walk: a real filesystem tree cannot
+				// revisit the same real directory without a symlink, so the
+				// global set only ever matters as a defensive backstop here.
+				if (visitedRealPaths.has(realEntry)) {
+					continue;
+				}
+				visitedRealPaths.add(realEntry);
+				await walkForShadows(
+					entryAbsolute,
+					findings,
+					visitedRealPaths,
+					realRoot,
+					remainingDepth,
+					childLexical,
+					null,
+				);
+				continue;
+			}
+
+			// Extend only this route's ancestry, never its siblings' ancestry.
+			if (aliasVisited.has(realEntry)) {
+				continue;
+			}
+			const childAliasVisited = new Set(aliasVisited);
+			childAliasVisited.add(realEntry);
 
 			await walkForShadows(
 				entryAbsolute,
@@ -271,7 +283,7 @@ const walkForShadows = async (
 				realRoot,
 				remainingDepth,
 				childLexical,
-				aliasVisited,
+				childAliasVisited,
 			);
 			continue;
 		}
@@ -288,10 +300,46 @@ const walkForShadows = async (
 	return findings;
 };
 
+// Finding extras does not prove the canonical root file exists. Use `lstat`
+// so a symlink or directory cannot masquerade as that regular file.
+const assertCanonicalRootDockerignore = async (
+	rootDir: string,
+): Promise<void> => {
+	const rootDockerignorePath = path.join(rootDir, '.dockerignore');
+	const rootLstat = await lstat(rootDockerignorePath).catch(
+		(error: unknown) => {
+			const message = error instanceof Error ? error.message : String(error);
+			const code =
+				error instanceof Error && 'code' in error ? error.code : undefined;
+			if (code === 'ENOENT') {
+				throw new Error(
+					`missing canonical root .dockerignore at ${rootDockerignorePath} (ENOENT)`,
+				);
+			}
+			throw new Error(
+				`could not inspect canonical root .dockerignore at ${rootDockerignorePath}: ${message}`,
+			);
+		},
+	);
+
+	if (!rootLstat.isFile()) {
+		let found = 'neither a regular file nor a directory';
+		if (rootLstat.isDirectory()) {
+			found = 'a directory';
+		} else if (rootLstat.isSymbolicLink()) {
+			found = 'a symlink';
+		}
+		throw new Error(
+			`canonical root .dockerignore at ${rootDockerignorePath} must be a regular file, found ${found}`,
+		);
+	}
+};
+
 export const findDockerignoreShadows = async (
 	options: { rootDir?: string } = {},
 ): Promise<string[]> => {
 	const { rootDir = process.cwd() } = options;
+	await assertCanonicalRootDockerignore(rootDir);
 	const realRoot = await realpath(path.resolve(rootDir));
 	const visitedRealPaths = new Set<string>([realRoot]);
 

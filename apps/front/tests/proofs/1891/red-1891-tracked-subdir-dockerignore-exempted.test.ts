@@ -1,9 +1,9 @@
 /**
  * KEPT RED PROOF — issue #1891.
  *
- * ## Old defect (merge-base ef354df24)
+ * ## Old defect (merge-base b23125271)
  *
- * At the branch's merge-base with `develop` (commit `ef354df24`),
+ * At the branch's merge-base with `develop` (commit `b23125271`),
  * `isShadowFile` in `packages/scripts-ts/src/check-dockerignore-shadow.ts`
  * was:
  *
@@ -125,7 +125,7 @@ test('RED #1891: exact subdirectory apps/api/.dockerignore is absent from findin
 
 	const findings = await findDockerignoreShadows({ rootDir });
 
-	// OLD DEFECT (merge-base ef354df24): the subdirectory `.dockerignore`
+	// OLD DEFECT (merge-base b23125271): the subdirectory `.dockerignore`
 	// is exempted by exact basename, so it never reaches the findings
 	// array. This assertion is the ideal the merge-base guard produced; on
 	// the corrected current code the finding IS present, so this fails.

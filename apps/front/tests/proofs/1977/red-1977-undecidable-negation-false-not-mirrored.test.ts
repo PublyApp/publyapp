@@ -1,9 +1,9 @@
 /**
  * KEPT RED PROOF — issue #1977.
  *
- * ## Old defect (merge-base ef354df24)
+ * ## Old defect (merge-base b23125271)
  *
- * At the branch's merge-base with `develop` (commit `ef354df24`),
+ * At the branch's merge-base with `develop` (commit `b23125271`),
  * `isMirroredByDockerignore` in
  * `packages/scripts-ts/src/check-dockerignore-shadow.ts` scanned a
  * candidate's path segments against the parsed root `.dockerignore` lines
@@ -49,11 +49,20 @@
  *   - `leaked/Dockerfile.dockerignore` (the shadow file itself)
  *
  * This test runs the real CLI binary (`node check-dockerignore-shadow.ts`)
- * against the fixture and asserts stderr contains the false diagnosis text
- * "NOT mirrored by the root .dockerignore".
+ * against the fixture. Before the kept-red assertion, it checks a chain of
+ * MEASUREMENT PRECONDITIONS as non-assertion facts (spawn succeeded, the
+ * guard's fail-loud exit code 1 was observed, the fixture's shadow path is
+ * named in stderr, the guard's ordinary header is present) — any gap there
+ * throws a plain `Error` carrying the `MESURE IMPOSSIBLE` marker so
+ * `classifyProof()` (`apps/front/scripts/ci/classify-proof.mts`) reports
+ * CORRUPT PROOF rather than a false "kept red". Only once every
+ * precondition holds does the test assert that stderr contains the false
+ * diagnosis text "NOT mirrored by the root .dockerignore" — the ONE
+ * `expect(...)` call in this test, and the only line allowed to fail with
+ * an `AssertionError`.
  *
  * - On the merge-base implementation, this assertion PASSES (verified
- *   directly against a `git show ef354df24:...` extraction of the file in
+ *   directly against a `git show b23125271:...` extraction of the file in
  *   the accompanying trace `.dump/preuve-1977.md`): the CLI prints exactly
  *   that diagnosis.
  * - On the CURRENT (corrected) production module, this assertion FAILS:
@@ -67,13 +76,18 @@
  *   cd apps/front && pnpm exec vitest run --config vitest.preuves.config.ts \
  *     tests/proofs/1977/red-1977-undecidable-negation-false-not-mirrored.test.ts
  *
- * Expected on the current worktree: FAIL — stderr does not contain
- * "NOT mirrored by the root .dockerignore".
+ * Expected on the current worktree: FAIL with an `AssertionError` on the
+ * final `expect(stderr).toContain(...)` call — every measurement
+ * precondition holds (the guard still reports the fixture's shadow with
+ * its ordinary exit-1 header), but stderr does not contain "NOT mirrored
+ * by the root .dockerignore". A silent exit 0, a crashed spawn, or a
+ * changed guard output shape would instead throw `MESURE IMPOSSIBLE` and
+ * classify as CORRUPT PROOF, not a healthy kept-red.
  *
  * ## Mutation to restore the red (re-introduce the #1977 defect)
  *   Restore, in `packages/scripts-ts/src/check-dockerignore-shadow.ts`:
  *   the `parseDockerignoreLine`/`isMirroredByDockerignore` boolean mirror
- *   parser from merge-base `ef354df24` (short-circuiting to `false` on the
+ *   parser from merge-base `b23125271` (short-circuiting to `false` on the
  *   first `undecidable` line encountered, in file order, regardless of
  *   later decidable lines), the `createGitIgnoreChecker` consultation in
  *   `findDockerignoreShadows`, and the CLI's
@@ -88,19 +102,23 @@
  *   as the ideal round-6 tri-state design does) but leave the CLI stderr
  *   string literal "NOT mirrored by the root .dockerignore" printed
  *   unconditionally whenever ANY finding exists, regardless of git-ignore
- *   or mirror status. CAUGHT: this reintroduces the false-cause text for
- *   THIS fixture (it would pass this proof), but it also prints the same
- *   false diagnosis for the untracked, non-ignored fixtures in
- *   `check-dockerignore-shadow.test.ts` (e.g. "apps/api/Dockerfile.dockerignore
- *   (empty) is detected and named" — a plain untracked file, never
- *   git-ignored). Those tests assert on other stderr substrings only, so
- *   they would not directly fail, but the CLI would now claim a
- *   git-ignore/mirror relationship that provably cannot exist without
- *   consulting git-ignore or the root file at all — reviewable as
- *   nonsensical on its face, and the accompanying trace requires
- *   demonstrating the diagnosis is actually computed, not hardcoded; a
- *   hand read of the diff shows the string is unconditional and is
- *   rejected in review, not silently accepted.
+ *   or mirror status. This reintroduces the false-cause text for THIS
+ *   fixture, so THIS proof's kept-red assertion would unexpectedly PASS
+ *   (the bug it documents would look present again while every measurement
+ *   precondition above it also holds). CAUGHT AUTOMATICALLY, not by manual
+ *   review: this test is declared in
+ *   `red-1977-undecidable-negation-false-not-mirrored.test.ts.expected-red.json`
+ *   as a test that MUST fail on correct code. `classifyProofWithManifest()`
+ *   (`apps/front/scripts/ci/classify-proof.mts`) reads that declaration and
+ *   reports `DECLARED RED PASSED` — a stale/corrupt proof — the moment the
+ *   declared test passes, independent of any other test in the file. The
+ *   same unconditional string also prints the same false diagnosis for the
+ *   untracked, non-ignored fixtures in `check-dockerignore-shadow.test.ts`
+ *   (e.g. "apps/api/Dockerfile.dockerignore (empty) is detected and named"
+ *   — a plain untracked file, never git-ignored), which is independently
+ *   reviewable as nonsensical (a claimed git-ignore/mirror relationship
+ *   that cannot exist without consulting git-ignore or the root file at
+ *   all) but is not the mechanism this proof relies on to catch A1.
  * - A2: change the ASSERTION instead of production code — e.g. assert
  *   stderr contains the generic "REPLACES" text instead of the specific
  *   "NOT mirrored" phrase. CAUGHT: the current corrected CLI DOES print
@@ -141,8 +159,14 @@ const cliPath = fileURLToPath(
 
 let repoDir: string;
 
-const git = (args: string[]) =>
-	spawnSync('git', args, { cwd: repoDir, encoding: 'utf8' });
+const git = (args: string[]): void => {
+	const result = spawnSync('git', args, { cwd: repoDir, encoding: 'utf8' });
+	if (result.error || result.status !== 0) {
+		throw new Error(
+			`MESURE IMPOSSIBLE: git ${args[0] ?? '<missing command>'} failed while preparing the fixture: ${result.error?.message ?? result.stderr ?? `status ${String(result.status)}`}`,
+		);
+	}
+};
 
 beforeEach(async () => {
 	repoDir = await mkdtemp(path.join(os.tmpdir(), 'publyapp-proof-1977-'));
@@ -179,14 +203,45 @@ test('RED #1977: a git-ignored candidate mirrored by a later decidable line is f
 		encoding: 'utf8',
 	});
 
-	expect(result.status).not.toBe(0);
-	// OLD DEFECT (merge-base ef354df24): the guard's mirror scan
-	// short-circuits on the first undecidable line and blames "NOT
-	// mirrored" even though a later decidable line in the same file would
-	// have mirrored the candidate. On corrected current code this specific
-	// diagnosis text is never printed (the mirror parser and the git-ignore
-	// consultation it depends on were deleted).
-	expect(result.stderr ?? '').toContain(
-		'NOT mirrored by the root .dockerignore',
-	);
+	// MEASUREMENT PRECONDITIONS (non-assertion): each of these confirms the
+	// harness actually exercised the guard against the intended fixture
+	// before the kept-red assertion runs. A failure here is a broken
+	// measurement, not a "defect absent" result, so it throws a plain
+	// `Error` carrying the `MESURE IMPOSSIBLE` marker — `classifyProof()` in
+	// `apps/front/scripts/ci/classify-proof.mts` reads the first token of
+	// the failure message to tell an `AssertionError` (kept-red, OK) apart
+	// from a thrown `Error` (measurement impossible, CORRUPT PROOF). Only
+	// the FINAL check below is allowed to be an `expect(...)` assertion.
+	if (result.error) {
+		throw new Error(
+			`MESURE IMPOSSIBLE: spawning the CLI failed: ${result.error.message}`,
+		);
+	}
+	if (result.status !== 1) {
+		throw new Error(
+			`MESURE IMPOSSIBLE: CLI exited with status ${JSON.stringify(result.status)}, expected the guard's fail-loud rejection (status 1) — the fixture no longer produces a shadow finding to diagnose. stdout: ${result.stdout ?? ''} stderr: ${result.stderr ?? ''}`,
+		);
+	}
+	const stderr = result.stderr ?? '';
+	if (!stderr.includes('leaked/Dockerfile.dockerignore')) {
+		throw new Error(
+			`MESURE IMPOSSIBLE: stderr does not name the shadow path 'leaked/Dockerfile.dockerignore' — the guard did not report the fixture's finding at all, so no diagnosis (false or otherwise) could have been reached. stderr: ${stderr}`,
+		);
+	}
+	if (!stderr.includes('Found .dockerignore shadow file(s):')) {
+		throw new Error(
+			`MESURE IMPOSSIBLE: stderr is missing the guard's ordinary header 'Found .dockerignore shadow file(s):' — this is not the guard's normal output shape, so the fixture did not exercise the guard as intended. stderr: ${stderr}`,
+		);
+	}
+
+	// KEPT-RED ASSERTION (the only permitted AssertionError in this test):
+	// OLD DEFECT (the #1977 short-circuit-on-undecidable-line mirror
+	// parser, present at the branch's merge-base with `develop`,
+	// `b23125271`, before this branch's #1891/#1977 fix commits): the
+	// guard's mirror scan short-circuited on the first undecidable line and
+	// blamed "NOT mirrored" even though a later decidable line in the same
+	// file would have mirrored the candidate. On corrected current code
+	// this specific diagnosis text is never printed (the mirror parser and
+	// the git-ignore consultation it depended on were deleted).
+	expect(stderr).toContain('NOT mirrored by the root .dockerignore');
 });

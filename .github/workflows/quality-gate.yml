@@ -371,9 +371,12 @@ jobs:
         run: node packages/scripts-ts/src/check-no-ignored-tracked.ts
 
   # #1849/#1891/#1977: the repository must contain exactly one `.dockerignore`,
-  # at the root. The guard rejects, anywhere else in the real working tree
-  # (case-insensitively): a `<Dockerfile>.dockerignore` shadow (e.g.
-  # `Dockerfile.dockerignore`, `Dockerfile.prod.dockerignore`), any case
+  # at the root. Outside the explicit tooling-directory boundary (`.git`,
+  # `node_modules`, `.worktrees`, `.dump`, `.claude`, `.agents`, `.ai`,
+  # `.aidesigner`, `.superpowers` — see the TOOLING-DIRECTORY BOUNDARY note in
+  # check-dockerignore-shadow.ts), the guard rejects, anywhere else in the real
+  # working tree (case-insensitively): a `<Dockerfile>.dockerignore` shadow
+  # (e.g. `Dockerfile.dockerignore`, `Dockerfile.prod.dockerignore`), any case
   # variant of the dotfile itself (`.DockerIgnore`, `Dockerfile.DOCKERIGNORE`),
   # and an EXACT subdirectory `.dockerignore` (e.g. `apps/api/.dockerignore`)
   # — `docker build apps/api` would open that file instead of the root one.

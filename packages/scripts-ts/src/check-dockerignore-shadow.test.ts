@@ -180,6 +180,82 @@ test('missing root directory fails loud (rejects)', async () => {
 	);
 });
 
+// Finding no shadows is green only when the canonical root file exists.
+test('missing canonical root .dockerignore rejects with a clear cause', async () => {
+	const rootDir = await mkdtemp(
+		path.join(os.tmpdir(), 'publyapp-r7-missing-root-'),
+	);
+
+	try {
+		await assert.rejects(
+			findDockerignoreShadows({ rootDir }),
+			/canonical root .dockerignore/,
+		);
+	} finally {
+		await rm(rootDir, { recursive: true, force: true });
+	}
+});
+
+test('CLI exits non-zero and names the missing canonical root when the root .dockerignore is absent', async () => {
+	const rootDir = await mkdtemp(
+		path.join(os.tmpdir(), 'publyapp-r7-missing-root-cli-'),
+	);
+
+	try {
+		const result = spawnSync('node', [cliPath], {
+			cwd: rootDir,
+			encoding: 'utf8',
+		});
+
+		assert.notEqual(
+			result.status,
+			0,
+			`expected non-zero exit on a missing canonical root, got ${result.status}`,
+		);
+		assert.ok(
+			(result.stderr ?? '').includes('canonical root .dockerignore'),
+			`expected stderr to name the missing canonical root, got: ${result.stderr}`,
+		);
+	} finally {
+		await rm(rootDir, { recursive: true, force: true });
+	}
+});
+
+test('a root .dockerignore that is a directory is rejected, not treated as canonical', async () => {
+	const rootDir = await mkdtemp(
+		path.join(os.tmpdir(), 'publyapp-r7-root-is-dir-'),
+	);
+
+	try {
+		await mkdir(path.join(rootDir, '.dockerignore'));
+
+		await assert.rejects(
+			findDockerignoreShadows({ rootDir }),
+			/canonical root .dockerignore/,
+		);
+	} finally {
+		await rm(rootDir, { recursive: true, force: true });
+	}
+});
+
+test('a root .dockerignore that is a symlink is rejected, not treated as canonical', async () => {
+	const rootDir = await mkdtemp(
+		path.join(os.tmpdir(), 'publyapp-r7-root-is-symlink-'),
+	);
+
+	try {
+		await writeFile(path.join(rootDir, 'real.dockerignore'), 'node_modules\n');
+		await symlink('real.dockerignore', path.join(rootDir, '.dockerignore'));
+
+		await assert.rejects(
+			findDockerignoreShadows({ rootDir }),
+			/canonical root .dockerignore/,
+		);
+	} finally {
+		await rm(rootDir, { recursive: true, force: true });
+	}
+});
+
 // The real CLI exits 1, names the offending path and states the replacement
 // semantics in plain words.
 test('CLI exits non-zero, names the file and explains REPLACES', async () => {
@@ -341,6 +417,7 @@ test('shadow file under a symlinked directory pointing outside the repo root is 
 	);
 
 	try {
+		await writeFile(path.join(repoDir, '.dockerignore'), 'node_modules\n');
 		// Empty target outside the repo so the walk only sees the shadow
 		// via the lexical path through the symlink.
 		const outsideDir = await mkdtemp(
@@ -380,6 +457,7 @@ test('mixed-case shadow behind a symlinked directory is reported', async () => {
 	);
 
 	try {
+		await writeFile(path.join(repoDir, '.dockerignore'), 'node_modules\n');
 		await mkdir(path.join(repoDir, 'real'), { recursive: true });
 		await writeFile(path.join(repoDir, 'real', 'Dockerfile.DockerIgnore'), '');
 		await symlink('real', path.join(repoDir, 'linked'), 'dir');
@@ -408,6 +486,7 @@ test('a self-referential symlinked directory does not loop', async () => {
 	);
 
 	try {
+		await writeFile(path.join(repoDir, '.dockerignore'), 'node_modules\n');
 		await mkdir(path.join(repoDir, 'a'), { recursive: true });
 		await symlink('.', path.join(repoDir, 'a', 'loop'), 'dir');
 
@@ -436,6 +515,7 @@ test('shadow at the root of a symlinked directory escaping the repository root i
 	);
 
 	try {
+		await writeFile(path.join(repoDir, '.dockerignore'), 'node_modules\n');
 		await symlink(outsideDir, path.join(repoDir, 'escape'), 'dir');
 		await writeFile(path.join(outsideDir, 'Dockerfile.SONDE.dockerignore'), '');
 
@@ -469,6 +549,7 @@ test('shadow under a subdirectory of an external symlink target is reported', as
 	);
 
 	try {
+		await writeFile(path.join(repoDir, '.dockerignore'), 'node_modules\n');
 		await symlink(outsideDir, path.join(repoDir, 'external_link'), 'dir');
 		await mkdir(path.join(outsideDir, 'subdir'), { recursive: true });
 		await writeFile(
@@ -504,6 +585,7 @@ test('a cyclic external symlink does not loop the guard', async () => {
 	);
 
 	try {
+		await writeFile(path.join(repoDir, '.dockerignore'), 'node_modules\n');
 		await symlink(outsideDir, path.join(repoDir, 'external_link'), 'dir');
 		// `outside/subdir/loop -> ../../outside` forms a cycle through the
 		// external target. Without cycle protection the recursion would loop.
@@ -683,6 +765,49 @@ test('a_real/sub/ and b_linked/sub/ are both reported as distinct lexical routes
 	}
 });
 
+// Sibling lexical routes inside an alias walk stay independent:
+//   alias -> base
+//   base/target/Dockerfile.dockerignore
+//   base/x -> target
+//   base/y -> target
+test('sibling symlinks x and y inside an alias walk do not collapse each other (#2061)', async () => {
+	const repoDir = await mkdtemp(
+		path.join(os.tmpdir(), 'publyapp-pr2061-sibling-alias-'),
+	);
+
+	try {
+		await writeFixtureFile(repoDir, '.dockerignore', 'node_modules\n');
+		await mkdir(path.join(repoDir, 'base', 'target'), { recursive: true });
+		await writeFile(
+			path.join(repoDir, 'base', 'target', 'Dockerfile.dockerignore'),
+			'',
+		);
+		await symlink('target', path.join(repoDir, 'base', 'x'), 'dir');
+		await symlink('target', path.join(repoDir, 'base', 'y'), 'dir');
+		await symlink('base', path.join(repoDir, 'alias'), 'dir');
+
+		const findings = await findDockerignoreShadows({ rootDir: repoDir });
+
+		const expectedRoutes = [
+			'base/target/Dockerfile.dockerignore',
+			'base/x/Dockerfile.dockerignore',
+			'base/y/Dockerfile.dockerignore',
+			'alias/target/Dockerfile.dockerignore',
+			'alias/x/Dockerfile.dockerignore',
+			'alias/y/Dockerfile.dockerignore',
+		];
+
+		for (const route of expectedRoutes) {
+			assert.ok(
+				findings.includes(route),
+				`expected every BuildKit-visible lexical route to be reported, missing ${route}, got: ${JSON.stringify(findings)}`,
+			);
+		}
+	} finally {
+		await rm(repoDir, { recursive: true, force: true });
+	}
+});
+
 // A deeply nested external symlink chain that exceeds the recursion depth
 // bound must fail loud (reject), NOT silently drop the walk's findings. The
 // walk must either report the path that triggers the overflow OR reject
@@ -698,6 +823,7 @@ test('a deeply nested external symlink chain is still scanned or fails loud', as
 	);
 
 	try {
+		await writeFile(path.join(repoDir, '.dockerignore'), 'node_modules\n');
 		// Build an external symlink chain of length 64 — deeper than any
 		// reasonable bound the guard will set. At every step except the
 		// last, the symlink points to a directory holding a NEXT symlink;
