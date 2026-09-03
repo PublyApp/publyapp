@@ -91,7 +91,7 @@ export type RunCommand = (
 type RunE2EFrontDependencies = {
 	computeEnv?: () => E2eComposeEnv;
 	runCommand?: RunCommand;
-	releasePortBand?: (lockPath: string) => boolean;
+	releasePortBand?: (lockPath: string, token: string) => boolean;
 	writeError?: (message: string) => void;
 };
 
@@ -269,7 +269,6 @@ export const runE2EFront = async (
 		((message: string) => process.stderr.write(message));
 	const derivedEnv = computeEnv();
 	const commandEnv = { ...process.env, ...derivedEnv };
-	let lifecyclePassed = false;
 
 	// A received signal must not kill the runner outright: the default
 	// disposition would skip the `finally` below, leaking the port-band lock
@@ -289,6 +288,8 @@ export const runE2EFront = async (
 	const step = (command: string, args: string[]): Promise<void> =>
 		execute(command, args, commandEnv, abortSignal);
 
+	let lifecycleError: unknown;
+
 	try {
 		await step('docker', composeArgs('down', '-v', '--remove-orphans'));
 		await step(
@@ -301,19 +302,67 @@ export const runE2EFront = async (
 		);
 		await step(PNPM_COMMAND, playwrightArgs('exec', 'playwright', 'test'));
 		await step(PNPM_COMMAND, playwrightArgs('test:drawer-contrast'));
-		lifecyclePassed = true;
+	} catch (error) {
+		lifecycleError = error;
+	}
+
+	// The stack is torn down on EVERY outcome — success, ordinary failure, and
+	// signal alike. Leaving it up on failure looked like a debugging courtesy,
+	// but it strands containers and holds the band's ports, so the next run of
+	// this tree collides with the corpse of the previous one.
+	//
+	// The signal handlers stay installed for this teardown. Removing them here
+	// would restore the default disposition, and a Ctrl-C arriving mid-cleanup
+	// would kill the runner outright: teardown orphaned, lock leaked. Instead a
+	// signal during cleanup is recorded (latching the exit code the caller
+	// asked for) and the cleanup is allowed to finish.
+	let cleanupSignal: NodeJS.Signals | undefined;
+	const onCleanupSignal = (signal: NodeJS.Signals) => {
+		cleanupSignal ??= signal;
+		writeError(
+			`Received ${signal} during cleanup; finishing teardown before exiting.\n`,
+		);
+	};
+
+	process.removeListener('SIGINT', onSigint);
+	process.removeListener('SIGTERM', onSigterm);
+	process.on('SIGINT', onCleanupSignal);
+	process.on('SIGTERM', onCleanupSignal);
+
+	let cleanupError: unknown;
+	try {
+		// Deliberately NOT passed `abortSignal`: it is already aborted after a
+		// signalled run, and an aborted teardown is no teardown at all.
+		await execute(
+			'docker',
+			composeArgs('down', '-v', '--remove-orphans'),
+			commandEnv,
+		);
+	} catch (error) {
+		cleanupError = error;
+		writeError(
+			`E2E stack teardown failed: ${
+				error instanceof Error ? error.message : String(error)
+			}\n`,
+		);
 	} finally {
-		process.removeListener('SIGINT', onSigint);
-		process.removeListener('SIGTERM', onSigterm);
-		try {
-			if (lifecyclePassed) {
-				await execute('docker', composeArgs('down', '-v'), commandEnv);
-			} else {
-				writeError('E2E stack left running for inspection after failure.\n');
-			}
-		} finally {
-			releasePortBand(derivedEnv.E2E_LOCK_PATH);
-		}
+		// The band stays reserved until teardown has finished: releasing earlier
+		// would let another run claim ports this stack is still unbinding.
+		releasePortBand(derivedEnv.E2E_LOCK_PATH, derivedEnv.E2E_LOCK_TOKEN);
+		process.removeListener('SIGINT', onCleanupSignal);
+		process.removeListener('SIGTERM', onCleanupSignal);
+	}
+
+	// The primary failure is what the operator must see; a cleanup failure is
+	// surfaced above but never masks the cause of the run's failure.
+	if (lifecycleError !== undefined) {
+		throw lifecycleError;
+	}
+	if (cleanupSignal !== undefined) {
+		throw new E2ESignalAbortError(cleanupSignal);
+	}
+	if (cleanupError !== undefined) {
+		throw cleanupError;
 	}
 };
 

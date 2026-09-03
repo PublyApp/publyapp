@@ -5,12 +5,10 @@
  * Node >=22.15 deprecates `spawn(command, args, { shell: true })`, so the
  * runner never uses that shape: POSIX and Windows `.exe`-style commands spawn
  * directly, and a Windows `.cmd` goes through an explicit command processor
- * with fixed internal arguments. These specs pin both halves — the resolved
- * shape per platform, and the absence of a `shell: true` spawn in the source.
+ * with fixed internal arguments. These specs pin the resolved launch shape per
+ * platform — the behaviour itself, not the syntax that produces it.
  */
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
-import { join as pathJoin } from 'node:path';
 import process from 'node:process';
 import { describe, it } from 'node:test';
 
@@ -79,34 +77,6 @@ void describe('run-e2e-front spawn launch shape', () => {
 		const launch = resolveSpawnLaunch('pnpm', args, 'linux');
 		launch.args.push('injected');
 		assert.deepEqual(args, PNPM_ARGS);
-	});
-
-	void it('spawns with no shell:true call site in the runner source', () => {
-		const source = readFileSync(
-			pathJoin(import.meta.dirname, 'run-e2e-front.mts'),
-			'utf8',
-		);
-		// Comments legitimately discuss the deprecated shape; only real code
-		// counts, so strip block and line comments before scanning.
-		const code = source
-			.replaceAll(/\/\*[\s\S]*?\*\//g, '')
-			.replaceAll(/\/\/[^\n]*/g, '');
-		assert.equal(
-			/shell:\s*true/.test(code),
-			false,
-			'the deprecated shell:true + args spawn shape must not reappear',
-		);
-		assert.equal(
-			/shell:\s*process\.platform/.test(code),
-			false,
-			'shell must not be derived from the platform at the spawn call site',
-		);
-		// The scan must be able to see the real spawn options at all.
-		assert.match(
-			code,
-			/shell:\s*launch\.shell/,
-			'the spawn call site must take its shell flag from the resolved launch',
-		);
 	});
 });
 

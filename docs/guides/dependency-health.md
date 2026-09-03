@@ -170,13 +170,32 @@ confusion via skipped IDN canonicalization on scheme-relative references),
 normalization). The version the lockfile resolved, `3.1.5`, was affected by all
 four, and `3.1.6` is the first version patched against all four.
 
-`fast-uri` is transitive under `apps/front`'s `@hookform/resolvers@5.9.1`, which
-declares two independent optional peers, `ajv` and `ajv-formats`. The vulnerable
-path is the direct one: `@hookform/resolvers` → `ajv@8.20.0` → `fast-uri`,
-where `ajv`'s own manifest depends on `fast-uri: ^3.0.1` — a range wide enough
-to resolve a vulnerable release. `ajv-formats@2.1.1` (peer `ajv: ^8.0.0`) adds
-no separate path; it reuses that same peer `ajv`. No workspace package imports
-`fast-uri` directly.
+`fast-uri` is transitive only; no workspace package imports it directly. Every
+path `pnpm -r why fast-uri` reports today reaches it through `ajv@8.20.0`,
+whose own manifest declares `fast-uri: ^3.0.1` — a range wide enough to
+resolve a vulnerable release. The complete set, production first:
+
+**Production graph** (`apps/front` → `@hookform/resolvers@5.9.1`, which
+declares two independent optional peers, `ajv` and `ajv-formats`):
+
+- `@hookform/resolvers` → `ajv@8.20.0` (peer) → `fast-uri`
+- `@hookform/resolvers` → `ajv-formats@2.1.1` (peer) → `ajv@8.20.0` (peer) →
+  `fast-uri` — the same peer `ajv`, so it adds no distinct resolution
+
+**Development graph** (`apps/front` → `shadcn@4.19.0`), which the production
+audit does not inspect and which the round-1 documentation omitted entirely:
+
+- `shadcn` → `@dotenvx/dotenvx@1.75.1` → `conf@10.2.0` → `ajv@8.20.0` →
+  `fast-uri`
+- `shadcn` → `@dotenvx/dotenvx` → `conf` → `ajv-formats@2.1.1` →
+  `ajv@8.20.0` (peer) → `fast-uri`
+- `shadcn` → `@modelcontextprotocol/sdk@1.29.0` → `ajv@8.20.0` → `fast-uri`
+- `shadcn` → `@modelcontextprotocol/sdk` → `ajv-formats@3.0.1` →
+  `ajv@8.20.0` (peer) → `fast-uri`
+
+Because the vulnerable dependency sits under `ajv` on **every** one of those
+branches, pinning any single parent would not hold the floor — which is why
+the fix is package-wide rather than range-scoped.
 
 A direct bump is not available: `ajv@8.20.0` is already the latest published
 release on the 8.x line, and its own declared dependency stays `^3.0.1` —
