@@ -28,6 +28,12 @@
  * moves to slot 1. No files, no PIDs, no timestamps, no recovery protocol, and
  * nothing to clean up if a process dies: the kernel closes the descriptor and
  * the slot is free again. It is the production design, applied to the specs.
+ *
+ * What the claim does NOT do is reserve the usable block. Those ports are
+ * probed and released, so unrelated software on the machine can still take one
+ * between the probe and a spec's bind. That is why the specs read the band and
+ * lease port they were actually granted out of the returned environment
+ * instead of assuming they got the first one they asked for.
  */
 import { createServer, type Server } from 'node:net';
 
@@ -36,27 +42,45 @@ export const LEASE_HOST = '127.0.0.1';
 /** Ports a claim makes available to one spec. */
 const LEASE_BLOCK_SIZE = 8;
 
-// Above the production lease range (14000+) and every published service port,
-// and below the lowest ephemeral range any supported platform uses (Linux
-// 32768+, Windows and macOS 49152+), so a claim never collides with an
-// OS-assigned outbound port. Slots span 20000-20899.
+// Above the production lease range (14000+) and every published service port.
+// It is also below the DEFAULT ephemeral range on the platforms this repo runs
+// on (Linux 32768+, Windows and macOS 49152+), which makes a collision with an
+// OS-assigned outbound port unlikely — but that range is configurable and this
+// code does not depend on it: a taken slot is simply skipped. Slots span
+// 20000-20899.
 const LEASE_CLAIM_BASE = 20_000;
 const LEASE_CLAIM_SLOTS = 100;
 const LEASE_CLAIM_STRIDE = LEASE_BLOCK_SIZE + 1;
 
 /** A held claim: the ports it grants, and the release of the claim socket. */
 export type LeaseWindow = {
+	/** The port whose binding IS the claim. Not part of the usable block. */
+	claimPort: number;
 	/** First usable port. The block runs to `basePort + LEASE_BLOCK_SIZE - 1`. */
 	basePort: number;
 	release: () => Promise<void>;
 };
 
-/** Binds `port` on loopback, resolving once it is actually listening. */
+/**
+ * Binds `port` on loopback, resolving once it is actually listening.
+ *
+ * Accepted connections are destroyed on arrival, exactly as the production
+ * lease does. `Server.close()` waits for every socket it has already accepted
+ * to end, so a listener that kept its connections could not be closed while
+ * anything was connected to it — and these listeners get closed on the
+ * cleanup path of every spec. A single stray connection to a claim port would
+ * hang the release, and with it the suite.
+ */
 export const listenOnPort = async (
 	port: number,
 	host: string = LEASE_HOST,
 ): Promise<Server> => {
-	const server = createServer();
+	const server = createServer((socket) => {
+		// The no-op error listener comes first: destroying can surface
+		// ECONNRESET, and an 'error' event with no listener is a fatal throw.
+		socket.on('error', () => {});
+		socket.destroy();
+	});
 
 	await new Promise<void>((resolveListen, rejectListen) => {
 		const onError = (error: Error) => {
@@ -84,10 +108,13 @@ export const closeListener = async (server: Server): Promise<void> => {
 /**
  * Whether every port of a block can be bound right now.
  *
- * This is a probe, with all a probe's weakness — but it is only asked about
- * software OUTSIDE this suite, which is not racing us for these ports. The
- * claim above already settles the race that actually happens: two copies of
- * this suite.
+ * This is a probe, with all a probe's weakness: it reports the past. The claim
+ * settles the race between copies of this suite, which is the one that
+ * actually bites, but it cannot stop unrelated software from taking a port in
+ * the block a moment later. So this check is a filter for slots that are
+ * already dirty — NOT a guarantee that `basePort` will still be free when a
+ * spec binds it. Specs must therefore read the port they were actually granted
+ * rather than assume they got the one they asked for.
  */
 const blockIsFree = async (basePort: number): Promise<boolean> => {
 	const held: Server[] = [];
@@ -127,7 +154,11 @@ export const claimLeaseWindow = async (): Promise<LeaseWindow> => {
 
 		const basePort = claimPort + 1;
 		if (await blockIsFree(basePort)) {
-			return { basePort, release: async () => await closeListener(claim) };
+			return {
+				claimPort,
+				basePort,
+				release: async () => await closeListener(claim),
+			};
 		}
 
 		// The slot is ours but something outside the suite is sitting in its

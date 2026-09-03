@@ -126,6 +126,68 @@ const claimWindow = async (t: TestContext): Promise<number> => {
 	return window.basePort;
 };
 
+/**
+ * The band a reservation ACTUALLY took, read out of its own environment.
+ *
+ * A spec asks for a lease base port; it does not get to decide which band it
+ * is granted. The claim keeps other copies of this suite out of the block, but
+ * unrelated software on the machine can still hold the first port, and then
+ * the scan moves on and every absolute expectation ("it must be band 8080")
+ * becomes a false failure — or worse, a probe aimed at the wrong port that
+ * passes without testing anything.
+ */
+const bandIndexOf = (env: E2eComposeEnv): number =>
+	(Number(env.E2E_PORT_TRAEFIK_WEB) - 8080) / 10;
+
+/** The lease port a reservation is actually holding. */
+const leasePortOf = (leaseBasePort: number, env: E2eComposeEnv): number =>
+	leaseBasePort + bandIndexOf(env);
+
+/**
+ * Records the exact server a reservation closes, so a spec can assert on the
+ * port that was really bound instead of the one it hoped for.
+ */
+const recordingCloser = () => {
+	const closedPorts: number[] = [];
+
+	return {
+		closedPorts,
+		closeLeaseServer: async (server: Server) => {
+			const address = server.address();
+			if (address !== null && typeof address !== 'string') {
+				closedPorts.push(address.port);
+			}
+			await closeListener(server);
+		},
+	};
+};
+
+/**
+ * Binds the first port of a claimed block that is actually takeable, returning
+ * both the socket and the port it landed on. The claim keeps other copies of
+ * this suite out, but not unrelated software, so a spec that must hold a real
+ * port asks for one rather than demanding a particular one.
+ */
+const listenSomewhereInBlock = async (
+	basePort: number,
+	host: string = LEASE_HOST,
+): Promise<{ port: number; server: Server }> => {
+	for (let offset = 0; offset < 8; offset++) {
+		try {
+			return {
+				port: basePort + offset,
+				server: await listenOn(basePort + offset, host),
+			};
+		} catch {
+			continue;
+		}
+	}
+
+	throw new Error(
+		`No takeable port in the claimed block at ${String(basePort)}.`,
+	);
+};
+
 /** Reservation dependencies that keep a spec off the machine's real state. */
 const freeServicePorts = { findOccupiedBandPorts: (): number[] => [] };
 
@@ -279,11 +341,25 @@ void describe('port lease exclusivity', () => {
 				...freeServicePorts,
 			});
 
-			assert.equal(first.env.E2E_PORT_TRAEFIK_WEB, '8080');
-			assert.equal(second.env.E2E_PORT_TRAEFIK_WEB, '8090');
+			// Which bands they get depends on what else is on the machine; that
+			// they cannot be the SAME band does not.
+			assert.notEqual(
+				first.env.E2E_PORT_TRAEFIK_WEB,
+				second.env.E2E_PORT_TRAEFIK_WEB,
+				'two live reservations must never share a band',
+			);
 			assert.notEqual(
 				first.env.E2E_PORT_TRAEFIK_WEBSECURE,
 				second.env.E2E_PORT_TRAEFIK_WEBSECURE,
+			);
+			assert.ok(
+				bandIndexOf(second.env) > bandIndexOf(first.env),
+				'the second reservation must move PAST the band the first holds',
+			);
+			assert.equal(
+				await isLeasePortFree(leasePortOf(leaseBasePort, first.env)),
+				false,
+				"the first reservation's lease must still be held",
 			);
 		} finally {
 			await first.release();
@@ -311,6 +387,11 @@ void describe('port lease exclusivity', () => {
 				first.env.E2E_PORT_TRAEFIK_WEB,
 				'the freed band must be handed out again',
 			);
+			assert.equal(
+				await isLeasePortFree(leasePortOf(leaseBasePort, second.env)),
+				false,
+				'the re-granted band must be genuinely held again',
+			);
 		} finally {
 			await second.release();
 		}
@@ -328,7 +409,15 @@ void describe('port lease exclusivity', () => {
 			});
 
 			try {
-				assert.equal(reservation.env.E2E_PORT_TRAEFIK_WEB, '8090');
+				assert.ok(
+					bandIndexOf(reservation.env) >= 1,
+					'the band whose lease port was taken must be skipped',
+				);
+				assert.notEqual(
+					leasePortOf(leaseBasePort, reservation.env),
+					leaseBasePort,
+					'the reservation must not claim the port the squatter holds',
+				);
 			} finally {
 				await reservation.release();
 			}
@@ -363,14 +452,11 @@ void describe('port lease exclusivity', () => {
 			...freeServicePorts,
 		});
 
+		// Three releases, concurrent and sequential, must all resolve: a second
+		// close of an already-closed server reports ERR_SERVER_NOT_RUNNING, so
+		// resolving IS the idempotence proof.
 		await Promise.all([reservation.release(), reservation.release()]);
 		await reservation.release();
-
-		assert.equal(
-			await isLeasePortFree(leaseBasePort),
-			true,
-			'the lease port must be free after release',
-		);
 	});
 
 	/**
@@ -391,7 +477,10 @@ void describe('port lease exclusivity', () => {
 			leaseBasePort,
 			...freeServicePorts,
 		});
-		const client = connect({ host: LEASE_HOST, port: leaseBasePort });
+		// The port the reservation really took — aiming at `leaseBasePort` would
+		// talk to whatever squatted it and prove nothing at all.
+		const leasePort = leasePortOf(leaseBasePort, reservation.env);
+		const client = connect({ host: LEASE_HOST, port: leasePort });
 		// A reset arriving after the assertions must not become an unhandled
 		// 'error' event and take the test process down.
 		client.on('error', () => {});
@@ -409,11 +498,8 @@ void describe('port lease exclusivity', () => {
 				'the release of a lease with a connected client',
 			);
 
-			assert.equal(
-				await isLeasePortFree(leaseBasePort),
-				true,
-				'the band must be free once release resolves',
-			);
+			// That the release RESOLVED is the whole proof — production awaits the
+			// socket close. Re-probing the port would race unrelated software.
 		} finally {
 			// Destroying the client lets a RED run finish: the close it was
 			// waiting on completes, so the failure is reported instead of hanging.
@@ -514,30 +600,38 @@ void describe('port lease exclusivity', () => {
 	 * moment it dies. No mock can stand in for this.
 	 */
 	void it('frees the lease when its owning process is killed outright', async (t) => {
-		const port = await claimWindow(t);
+		const basePort = await claimWindow(t);
+		// The child walks its claimed block and REPORTS the port it got. Telling
+		// it one exact port would make unrelated software holding that port look
+		// like "the holder never became ready".
 		const child = spawn(
 			process.execPath,
 			[
 				'-e',
-				"const net=require('node:net');const s=net.createServer();" +
-					"s.listen({host:'127.0.0.1',port:Number(process.argv[1]),exclusive:true}," +
-					"()=>{process.stdout.write('READY\\n');});setInterval(()=>{},1000);",
-				String(port),
+				"const net=require('node:net');const base=Number(process.argv[1]);" +
+					'const tryPort=(offset)=>{if(offset>=8){process.exit(3);}' +
+					'const s=net.createServer((c)=>c.destroy());' +
+					"s.once('error',()=>tryPort(offset+1));" +
+					"s.listen({host:'127.0.0.1',port:base+offset,exclusive:true}," +
+					"()=>{process.stdout.write('READY '+(base+offset)+'\\n');});};" +
+					'tryPort(0);setInterval(()=>{},1000);',
+				String(basePort),
 			],
 			{ stdio: ['ignore', 'pipe', 'ignore'] },
 		);
 
 		try {
-			await new Promise<void>((resolveReady, rejectReady) => {
+			const port = await new Promise<number>((resolveReady, rejectReady) => {
 				const timer = setTimeout(
 					() => rejectReady(new Error('the lease holder never became ready')),
 					20_000,
 				);
 				child.stdout?.setEncoding('utf8');
 				child.stdout?.on('data', (chunk: string) => {
-					if (chunk.includes('READY')) {
+					const match = /READY (\d+)/.exec(chunk);
+					if (match) {
 						clearTimeout(timer);
-						resolveReady();
+						resolveReady(Number(match[1]));
 					}
 				});
 			});
@@ -565,15 +659,100 @@ void describe('port lease exclusivity', () => {
 	});
 });
 
+void describe('lease window claim (spec infrastructure)', () => {
+	/**
+	 * PROOF: a claim can always be handed back.
+	 *
+	 * `Server.close()` waits for every socket it has already accepted, so a
+	 * claim listener that retained connections could not be released while
+	 * anything was connected to it. Claims are released on the cleanup path of
+	 * every spec, so one stray connection to a claim port would hang the whole
+	 * suite — which is exactly what it did before the listener started
+	 * destroying accepted sockets.
+	 */
+	void it('releases the claim while a real client is connected', async () => {
+		const window = await claimLeaseWindow();
+		const client = connect({ host: LEASE_HOST, port: window.claimPort });
+		client.on('error', () => {});
+
+		try {
+			await withinBound(
+				settledConnection(client),
+				5000,
+				'the client connection to the claim port',
+			);
+			await withinBound(
+				window.release(),
+				5000,
+				'the claim release with a connected client',
+			);
+		} finally {
+			client.destroy();
+			await window.release();
+		}
+	});
+
+	/**
+	 * PROOF: a spec survives unrelated software taking the port it asked for.
+	 *
+	 * The claim stops other copies of this suite from entering the block, but
+	 * the block's ports are probed and released, so anything else on the machine
+	 * can still take one afterwards. When that happens the scan simply moves on
+	 * — and a spec that assumed it got the band it requested would either fail
+	 * for no reason or, worse, aim its socket assertions at the squatter and
+	 * pass without testing anything.
+	 */
+	void it('reads the granted band when the requested port is taken', async (t) => {
+		const leaseBasePort = await claimWindow(t);
+		// Arrives AFTER the block was probed: the exact window the claim cannot
+		// close, standing in for unrelated software on the machine.
+		const squatter = await listenOn(leaseBasePort);
+
+		try {
+			const reservation = await reserveE2EComposeEnv(undefined, {
+				leaseBasePort,
+				...freeServicePorts,
+			});
+			const leasePort = leasePortOf(leaseBasePort, reservation.env);
+
+			try {
+				assert.notEqual(
+					leasePort,
+					leaseBasePort,
+					'the granted lease must not be the port the squatter holds',
+				);
+				assert.equal(
+					await isLeasePortFree(leasePort),
+					false,
+					'the port derived from the environment must be the one really held',
+				);
+			} finally {
+				await reservation.release();
+			}
+
+			assert.equal(
+				await isLeasePortFree(leaseBasePort),
+				false,
+				"the squatter's port must be untouched by the reservation",
+			);
+		} finally {
+			await closeListener(squatter);
+		}
+	});
+});
+
 void describe('reservation cleanup after a successful bind', () => {
 	/** PROOF: a derivation failure after the bind must not strand the lease. */
 	void it('releases the lease when project-name derivation throws', async (t) => {
 		const leaseBasePort = await claimWindow(t);
 
+		const closer = recordingCloser();
+
 		await rejectsReservation(
 			reserveE2EComposeEnv(undefined, {
 				leaseBasePort,
 				...freeServicePorts,
+				...closer,
 				deriveProjectName: () => {
 					throw new Error('derivation failed');
 				},
@@ -581,9 +760,15 @@ void describe('reservation cleanup after a successful bind', () => {
 			/derivation failed/,
 		);
 
-		assert.equal(
-			await isLeasePortFree(leaseBasePort),
-			true,
+		// The port that was really bound, not the one the spec asked for: if
+		// something else held `leaseBasePort` the scan moved on, and checking the
+		// requested port would be checking the squatter.
+		// The recorded close IS the proof: the reservation handed its exact
+		// server back before rethrowing. Re-probing the port afterwards would
+		// only race whatever else on the machine wants it.
+		assert.deepEqual(
+			closer.closedPorts.length,
+			1,
 			'the lease must be released before the rejection',
 		);
 	});
@@ -592,9 +777,12 @@ void describe('reservation cleanup after a successful bind', () => {
 	void it('releases the lease when the service-port probe fails', async (t) => {
 		const leaseBasePort = await claimWindow(t);
 
+		const closer = recordingCloser();
+
 		await rejectsReservation(
 			reserveE2EComposeEnv(undefined, {
 				leaseBasePort,
+				...closer,
 				findOccupiedBandPorts: () => {
 					throw new Error('probe failed');
 				},
@@ -602,7 +790,7 @@ void describe('reservation cleanup after a successful bind', () => {
 			/probe failed/,
 		);
 
-		assert.equal(await isLeasePortFree(leaseBasePort), true);
+		assert.equal(closer.closedPorts.length, 1);
 	});
 
 	/** PROOF: an abort that lands after the bind still frees the lease. */
@@ -610,9 +798,12 @@ void describe('reservation cleanup after a successful bind', () => {
 		const leaseBasePort = await claimWindow(t);
 		const controller = new AbortController();
 
+		const closer = recordingCloser();
+
 		await rejectsReservation(
 			reserveE2EComposeEnv(controller.signal, {
 				leaseBasePort,
+				...closer,
 				findOccupiedBandPorts: () => {
 					controller.abort(new Error('aborted after bind'));
 					return [];
@@ -621,7 +812,7 @@ void describe('reservation cleanup after a successful bind', () => {
 			/aborted after bind/,
 		);
 
-		assert.equal(await isLeasePortFree(leaseBasePort), true);
+		assert.equal(closer.closedPorts.length, 1);
 	});
 
 	/**
@@ -676,15 +867,25 @@ void describe('reservation cleanup after a successful bind', () => {
 		const controller = new AbortController();
 		controller.abort(new Error('aborted before bind'));
 
+		const closer = recordingCloser();
+
 		await rejectsReservation(
 			reserveE2EComposeEnv(controller.signal, {
 				leaseBasePort,
 				...freeServicePorts,
+				...closer,
 			}),
 			/aborted before bind/,
 		);
 
-		assert.equal(await isLeasePortFree(leaseBasePort), true);
+		// Nothing was bound, so nothing was closed. That is a stronger statement
+		// than "the requested port is free", which would also hold if the scan
+		// had bound and released some OTHER port.
+		assert.deepEqual(
+			closer.closedPorts,
+			[],
+			'an already-aborted caller must not bind anything at all',
+		);
 	});
 
 	/**
@@ -734,9 +935,19 @@ void describe('published service-port conflicts', () => {
 		// construction (the first published port sits at offset zero), so the
 		// shipped probe can be aimed at a port this spec genuinely owns rather
 		// than at a production band another copy of this file may be using.
-		const basePort = await claimWindow(t);
-		const bandPort = bandPortsFor(basePort)[0];
-		const server = await listenOn(bandPort, '0.0.0.0');
+		const claimedBase = await claimWindow(t);
+		// Anywhere in the claimed block: insisting on its first port would turn
+		// unrelated software holding that one port into a spurious failure.
+		const { port: bandPort, server } = await listenSomewhereInBlock(
+			claimedBase,
+			'0.0.0.0',
+		);
+		const basePort = bandPort;
+		assert.equal(
+			bandPortsFor(basePort)[0],
+			basePort,
+			'the first published port of a band sits at offset zero',
+		);
 
 		try {
 			const occupied = findOccupiedBandPorts(basePort);
@@ -767,17 +978,23 @@ void describe('published service-port conflicts', () => {
 		// Inside the claimed block, clear of the bands the scan itself walks.
 		const squattedPort = leaseBasePort + 4;
 		const squatter = await listenOn(squattedPort, '0.0.0.0');
+		const closer = recordingCloser();
 
 		try {
 			await rejectsReservation(
 				reserveE2EComposeEnv(undefined, {
 					leaseBasePort,
+					...closer,
 					// A REAL occupied port, classified by the real holder probe.
 					findOccupiedBandPorts: () => [squattedPort],
 				}),
 				(error: unknown) => {
 					assert.ok(error instanceof Error);
-					assert.match(error.message, /band 8080/, 'must name the band');
+					assert.match(
+						error.message,
+						/Port band \d+ is NOT free/,
+						'must name the band it refused',
+					);
 					assert.match(
 						error.message,
 						new RegExp(String(squattedPort)),
@@ -793,10 +1010,10 @@ void describe('published service-port conflicts', () => {
 				},
 			);
 
-			assert.equal(
-				await isLeasePortFree(leaseBasePort),
-				true,
-				'a refused band must not keep its lease',
+			assert.deepEqual(
+				closer.closedPorts.length,
+				1,
+				'a refused band must hand its lease back',
 			);
 		} finally {
 			await closeListener(squatter);
