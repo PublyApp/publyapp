@@ -589,18 +589,19 @@ ci-spec-drift:
 
 # front e2e: docker stack + playwright (e2e only; `just ci-full` runs this)
 #
-# The stack is reset up front rather than only torn down at the end. CI tears
-# down with `if: always()`, which a justfile cannot express — `just` stops at the
-# first failing line, so a Playwright failure would skip the teardown. Resetting
-# first makes the recipe idempotent regardless of how the last run ended, and
-# leaving a failed stack up is what you want locally anyway: you can inspect it.
+# The whole lifecycle is one Node invocation because a justfile cannot express
+# `if: always()`: `just` stops at the first failing line, so a recipe of separate
+# lines would skip its own teardown after a Playwright failure. The runner tears
+# the stack down on EVERY outcome — success, failure, and handled signals (130
+# SIGINT / 143 SIGTERM) alike — and resets it up front too, so the recipe is
+# idempotent regardless of how the last run ended.
 #
 # Per-worktree isolation (#1642): docker compose indexes on the project name,
 # not the file path. Without a per-worktree name, `down -v` from one tree
-# destroys another tree's stack. The e2e-compose-env script derives a stable,
-# worktree-specific project name and port offsets so multiple trees can run
-# independent stacks simultaneously. CI sets COMPOSE_PROJECT_NAME explicitly
-# (via E2E_IMAGE_TAG, which is unique per run) so CI stacks never collide either.
+# destroys another tree's stack. The runner derives a stable, worktree-specific
+# project name and reserves an isolated port band for the run, so multiple trees
+# can run independent stacks simultaneously. CI sets COMPOSE_PROJECT_NAME
+# explicitly (via E2E_IMAGE_TAG, unique per run) so CI stacks never collide.
 ci-e2e-front:
   @node apps/front/scripts/run-e2e-front.mts
 

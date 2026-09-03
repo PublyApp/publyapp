@@ -5,9 +5,8 @@ import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import {
-	computeEnv as computeComposeEnv,
-	releasePortBand as releaseComposePortBand,
-	type E2eComposeEnv,
+	reserveE2EComposeEnv,
+	type E2eComposeReservation,
 } from './e2e-compose-env.mts';
 
 const COMPOSE_FILE = 'apps/front/docker-compose.test.yml';
@@ -89,11 +88,13 @@ export type RunCommand = (
 ) => Promise<void>;
 
 type RunE2EFrontDependencies = {
-	computeEnv?: () => E2eComposeEnv;
+	reserveEnv?: (abortSignal: AbortSignal) => Promise<E2eComposeReservation>;
 	runCommand?: RunCommand;
-	releasePortBand?: (lockPath: string, token: string) => boolean;
 	writeError?: (message: string) => void;
 };
+
+const describeError = (error: unknown): string =>
+	error instanceof Error ? error.message : String(error);
 
 const abortReasonSignal = (abortSignal: AbortSignal): NodeJS.Signals => {
 	const reason: unknown = abortSignal.reason;
@@ -260,19 +261,20 @@ const playwrightArgs = (...args: string[]): string[] => [
 export const runE2EFront = async (
 	dependencies: RunE2EFrontDependencies = {},
 ): Promise<void> => {
-	const computeEnv = dependencies.computeEnv ?? computeComposeEnv;
+	const reserveEnv =
+		dependencies.reserveEnv ??
+		((abortSignal: AbortSignal) => reserveE2EComposeEnv(abortSignal));
 	const execute = dependencies.runCommand ?? runCommand;
-	const releasePortBand =
-		dependencies.releasePortBand ?? releaseComposePortBand;
 	const writeError =
 		dependencies.writeError ??
 		((message: string) => process.stderr.write(message));
-	const derivedEnv = computeEnv();
-	const commandEnv = { ...process.env, ...derivedEnv };
 
 	// A received signal must not kill the runner outright: the default
-	// disposition would skip the `finally` below, leaking the port-band lock
-	// and orphaning the active child. Handle it, forward it, then reject.
+	// disposition would skip the cleanup below, orphaning the active child and
+	// the acquisition in flight. The handlers are therefore installed BEFORE
+	// the reservation is awaited — the lease scan is itself an interruptible
+	// window, and a signal landing inside it must reach the helper's abort
+	// path rather than the process's default one.
 	const abortController = new AbortController();
 	const abortSignal = abortController.signal;
 	const onSignal = (signal: NodeJS.Signals) => {
@@ -285,12 +287,15 @@ export const runE2EFront = async (
 	process.on('SIGINT', onSigint);
 	process.on('SIGTERM', onSigterm);
 
-	const step = (command: string, args: string[]): Promise<void> =>
-		execute(command, args, commandEnv, abortSignal);
-
+	let reservation: E2eComposeReservation | undefined;
 	let lifecycleError: unknown;
 
 	try {
+		reservation = await reserveEnv(abortSignal);
+		const commandEnv = { ...process.env, ...reservation.env };
+		const step = (command: string, args: string[]): Promise<void> =>
+			execute(command, args, commandEnv, abortSignal);
+
 		await step('docker', composeArgs('down', '-v', '--remove-orphans'));
 		await step(
 			'docker',
@@ -306,6 +311,14 @@ export const runE2EFront = async (
 		lifecycleError = error;
 	}
 
+	// A failed acquisition owns nothing: there is no stack to tear down and no
+	// lease to release, so the runner reports the failure and stops.
+	if (reservation === undefined) {
+		process.removeListener('SIGINT', onSigint);
+		process.removeListener('SIGTERM', onSigterm);
+		throw lifecycleError;
+	}
+
 	// The stack is torn down on EVERY outcome — success, ordinary failure, and
 	// signal alike. Leaving it up on failure looked like a debugging courtesy,
 	// but it strands containers and holds the band's ports, so the next run of
@@ -313,9 +326,9 @@ export const runE2EFront = async (
 	//
 	// The signal handlers stay installed for this teardown. Removing them here
 	// would restore the default disposition, and a Ctrl-C arriving mid-cleanup
-	// would kill the runner outright: teardown orphaned, lock leaked. Instead a
-	// signal during cleanup is recorded (latching the exit code the caller
-	// asked for) and the cleanup is allowed to finish.
+	// would kill the runner outright: teardown orphaned, lease stranded until
+	// the process died anyway. Instead a signal during cleanup is recorded
+	// (latching the exit code the caller asked for) and the cleanup finishes.
 	let cleanupSignal: NodeJS.Signals | undefined;
 	const onCleanupSignal = (signal: NodeJS.Signals) => {
 		cleanupSignal ??= signal;
@@ -330,31 +343,33 @@ export const runE2EFront = async (
 	process.on('SIGTERM', onCleanupSignal);
 
 	let cleanupError: unknown;
+	let releaseError: unknown;
 	try {
 		// Deliberately NOT passed `abortSignal`: it is already aborted after a
 		// signalled run, and an aborted teardown is no teardown at all.
-		await execute(
-			'docker',
-			composeArgs('down', '-v', '--remove-orphans'),
-			commandEnv,
-		);
+		await execute('docker', composeArgs('down', '-v', '--remove-orphans'), {
+			...process.env,
+			...reservation.env,
+		});
 	} catch (error) {
 		cleanupError = error;
-		writeError(
-			`E2E stack teardown failed: ${
-				error instanceof Error ? error.message : String(error)
-			}\n`,
-		);
+		writeError(`E2E stack teardown failed: ${describeError(error)}\n`);
 	} finally {
-		// The band stays reserved until teardown has finished: releasing earlier
+		// The band stays leased until teardown has finished: releasing earlier
 		// would let another run claim ports this stack is still unbinding.
-		releasePortBand(derivedEnv.E2E_LOCK_PATH, derivedEnv.E2E_LOCK_TOKEN);
+		try {
+			await reservation.release();
+		} catch (error) {
+			releaseError = error;
+			writeError(`E2E port lease release failed: ${describeError(error)}\n`);
+		}
 		process.removeListener('SIGINT', onCleanupSignal);
 		process.removeListener('SIGTERM', onCleanupSignal);
 	}
 
-	// The primary failure is what the operator must see; a cleanup failure is
-	// surfaced above but never masks the cause of the run's failure.
+	// The primary failure is what the operator must see; every lower-priority
+	// cleanup failure was already written out above, so nothing is swallowed —
+	// but a run whose lease would not close is not a successful run either.
 	if (lifecycleError !== undefined) {
 		throw lifecycleError;
 	}
@@ -363,6 +378,9 @@ export const runE2EFront = async (
 	}
 	if (cleanupError !== undefined) {
 		throw cleanupError;
+	}
+	if (releaseError !== undefined) {
+		throw releaseError;
 	}
 };
 
