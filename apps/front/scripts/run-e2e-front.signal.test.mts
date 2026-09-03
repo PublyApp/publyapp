@@ -198,8 +198,14 @@ type SignalProof = {
 	 * Whether the whole tree was already dead BEFORE the spec's fallback
 	 * cleanup ran. Recorded inside the run, because killing the PIDs before the
 	 * assertion would manufacture the very result being asserted.
+	 *
+	 * `null` means there was no tree to kill BY CONSTRUCTION: in the acquisition
+	 * window the reservation never resolves, so the runner never launches a
+	 * lifecycle command. That is a distinct fact from "the tree survived", and
+	 * conflating the two would have the spec wait ten seconds for a process that
+	 * cannot exist.
 	 */
-	treeDeadBeforeCleanup: boolean;
+	treeDeadBeforeCleanup: boolean | null;
 };
 
 /**
@@ -228,7 +234,7 @@ const runHarnessAndSignal = async (
 	// inside the polling closures stay visible to the type checker (a plain
 	// `let` narrowed to `never` after its initialiser).
 	const published: PublishedChildTree = { tree: null };
-	let treeDeadBeforeCleanup = false;
+	let treeDeadBeforeCleanup: boolean | null = false;
 
 	try {
 		// The runner must be fully engaged before the signal lands. In the
@@ -268,23 +274,31 @@ const runHarnessAndSignal = async (
 
 		// Record the liveness verdict BEFORE the `finally` cleanup below runs:
 		// the whole point is that the signal killed the tree, not the spec.
-		try {
-			await waitUntil(
-				() => {
-					const tree = published.tree;
+		//
+		// The acquisition window is exempt: it publishes no child tree because it
+		// never gets far enough to run a command, so polling for one would just
+		// burn the whole timeout and then report a failure that means nothing.
+		if (mode === 'acquiring') {
+			treeDeadBeforeCleanup = null;
+		} else {
+			try {
+				await waitUntil(
+					() => {
+						const tree = published.tree;
 
-					return (
-						tree !== null &&
-						!isPidAlive(tree.child) &&
-						!isPidAlive(tree.grandchild)
-					);
-				},
-				10_000,
-				'the child and grandchild to be terminated by the forwarded signal',
-			);
-			treeDeadBeforeCleanup = true;
-		} catch {
-			treeDeadBeforeCleanup = false;
+						return (
+							tree !== null &&
+							!isPidAlive(tree.child) &&
+							!isPidAlive(tree.grandchild)
+						);
+					},
+					10_000,
+					'the child and grandchild to be terminated by the forwarded signal',
+				);
+				treeDeadBeforeCleanup = true;
+			} catch {
+				treeDeadBeforeCleanup = false;
+			}
 		}
 
 		return {
@@ -452,8 +466,18 @@ void describe(
 		 * than held to the end of a process that is about to die anyway.
 		 */
 		void it('releases a lease bound during acquisition and exits 130 on SIGINT', async () => {
-			const { outcome, leaseHeldBeforeSignal, leaseReleased } =
-				await runHarnessAndSignal('SIGINT', 'acquiring');
+			const {
+				outcome,
+				leaseHeldBeforeSignal,
+				leaseReleased,
+				treeDeadBeforeCleanup,
+			} = await runHarnessAndSignal('SIGINT', 'acquiring');
+
+			assert.equal(
+				treeDeadBeforeCleanup,
+				null,
+				'an interrupted acquisition must never have launched a child at all',
+			);
 
 			assert.equal(
 				leaseHeldBeforeSignal,
