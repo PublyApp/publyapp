@@ -26,12 +26,12 @@ import { join as pathJoin } from 'node:path';
 import process from 'node:process';
 import { describe, it } from 'node:test';
 
+import { claimLeaseWindow, LEASE_HOST } from './e2e-lease-window.mts';
+
 const HARNESS = pathJoin(
 	import.meta.dirname,
 	'run-e2e-front.signal-harness.mts',
 );
-
-const LEASE_HOST = '127.0.0.1';
 
 const delay = (ms: number): Promise<void> =>
 	new Promise((resolveDelay) => setTimeout(resolveDelay, ms));
@@ -60,29 +60,6 @@ const readChildTree = (readyFile: string): ChildTree | null => {
 	} catch {
 		return null;
 	}
-};
-
-/**
- * An ephemeral port that is free right now, used as the harness's lease port.
- * Nothing else in the suite touches it, and it is well clear of the production
- * lease range (14000+), so a spec can never disturb a real e2e run.
- */
-const findFreeLeasePort = async (): Promise<number> => {
-	const server = createServer();
-	const port = await new Promise<number>((resolvePort, rejectPort) => {
-		server.once('error', rejectPort);
-		server.listen({ host: LEASE_HOST, port: 0 }, () => {
-			const address = server.address();
-			if (address === null || typeof address === 'string') {
-				rejectPort(new Error('no ephemeral port available'));
-				return;
-			}
-			resolvePort(address.port);
-		});
-	});
-	await new Promise<void>((resolveClose) => server.close(() => resolveClose()));
-
-	return port;
 };
 
 /**
@@ -218,7 +195,12 @@ const runHarnessAndSignal = async (
 ): Promise<SignalProof> => {
 	const workDir = mkdtempSync(pathJoin(tmpdir(), 'publyapp-e2e-signal-'));
 	const readyFile = pathJoin(workDir, 'child-tree.json');
-	const leasePort = await findFreeLeasePort();
+	// A held claim, not a probe: the harness binds this port a moment from now,
+	// and a port that was merely free when we looked can be gone by then — a
+	// concurrent copy of this file would take it and the harness would time out
+	// waiting for a readiness it could never reach.
+	const leaseWindow = await claimLeaseWindow();
+	const leasePort = leaseWindow.basePort;
 
 	const harness = spawn(
 		process.execPath,
@@ -318,6 +300,7 @@ const runHarnessAndSignal = async (
 			killPid(published.tree.child);
 		}
 		rmSync(workDir, { recursive: true, force: true });
+		await leaseWindow.release();
 	}
 };
 
