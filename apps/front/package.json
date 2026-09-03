@@ -20,7 +20,7 @@
 		"start": "node server.mjs",
 		"typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.server.json && tsc --noEmit -p tsconfig.js-surfaces.json && node scripts/run-guarded.mts scripts/guards/check-typecheck-coverage.mts",
 		"test:request-counter": "node scripts/run-guarded.mts --test deploy/request-counter/control-routes.test.mjs",
-		"test:e2e-compose-env": "node scripts/run-guarded.mts --test scripts/e2e-compose-env.test.mts",
+		"test:e2e-compose-env": "node scripts/run-guarded.mts --test scripts/e2e-compose-env.test.mts scripts/run-e2e-front.signal.test.mts scripts/run-e2e-front.launch.test.mts",
 		"test:route-tree-guard": "node scripts/run-guarded.mts --test scripts/generate/check-route-tree-freshness.test.mts scripts/generate/route-tree-generator.test.mts && pnpm check:route-tree",
 		"test:search-cancel-css": "node scripts/run-guarded.mts --test scripts/guards/search-cancel-css-policy.test.mts && node scripts/run-guarded.mts scripts/guards/check-search-cancel-css.mts",
 		"test:context-chunk-isolation": "node scripts/run-guarded.mts --test tools/vite/check-context-chunk-isolation.test.mts",
