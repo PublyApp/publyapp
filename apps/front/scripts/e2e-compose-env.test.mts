@@ -9,7 +9,7 @@
 
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { spawn } from 'node:child_process';
+import { randomUUID } from 'node:crypto';
 import {
 	mkdirSync,
 	unlinkSync,
@@ -312,66 +312,57 @@ type LockHolderHandle = {
 	kill: () => void;
 };
 
-/** Holds LIVE locks for every band index before the target, so acquisition
- * must select the target band. Returns a handle whose kill() releases them. */
+/**
+ * Holds LIVE locks for every band index before the target, so acquisition must
+ * select the target band. Returns a handle whose kill() releases them.
+ *
+ * The lock directory is GLOBAL and shared with real E2E runs, so this helper
+ * must never clobber a lock it does not own: it writes synchronously with the
+ * exclusive `wx` flag, stamps what it creates with a unique ownership marker,
+ * and unlinks only files still bearing that marker. The test process itself is
+ * the live lock owner.
+ */
 const holdLocksBeforeBand = (targetBasePort: number): LockHolderHandle => {
 	const lockPaths: string[] = [];
+	const marker = `holdLocksBeforeBand-${randomUUID()}`;
 
-	for (let bandIndex = 0; ; bandIndex++) {
-		const basePort = 8080 + bandIndex * 10;
-		if (basePort >= targetBasePort) {
-			break;
+	for (let bandIndex = 0; 8080 + bandIndex * 10 < targetBasePort; bandIndex++) {
+		const lockPath = lockPathForBandIndex(bandIndex);
+		lockPaths.push(lockPath);
+
+		try {
+			writeFileSync(
+				lockPath,
+				JSON.stringify({
+					pid: process.pid,
+					timestamp: Date.now(),
+					uuid: randomUUID(),
+					helperMarker: marker,
+				}),
+				{ encoding: 'utf8', flag: 'wx' },
+			);
+		} catch (error) {
+			if ((error as NodeJS.ErrnoException).code !== 'EEXIST') {
+				throw error;
+			}
+			// A foreign owner already holds this band; leave its lock untouched.
 		}
-
-		lockPaths.push(lockPathForBandIndex(bandIndex));
-	}
-
-	const child = spawn(
-		process.execPath,
-		[
-			'-e',
-			`
-				const fs = require('node:fs');
-				const lockPaths = JSON.parse(process.argv[1]);
-				for (const lockPath of lockPaths) {
-					fs.writeFileSync(
-						lockPath,
-						JSON.stringify({
-							pid: process.pid,
-							timestamp: Date.now(),
-							uuid: crypto.randomUUID(),
-						}),
-						'utf8',
-					);
-				}
-				setInterval(() => {}, 1 << 30);
-			`,
-			JSON.stringify(lockPaths),
-		],
-		{ stdio: 'ignore' },
-	);
-
-	// Wait until every lock file exists (the child owns them with a live PID).
-	for (const lockPath of lockPaths) {
-		const deadline = Date.now() + 5000;
-		while (!existsSync(lockPath) && Date.now() < deadline) {
-			// busy-wait on the child's writes
-		}
-
-		assert.ok(
-			existsSync(lockPath),
-			`lock holder child did not create ${lockPath} in time`,
-		);
 	}
 
 	return {
 		kill: () => {
-			child.kill('SIGKILL');
 			for (const lockPath of lockPaths) {
 				try {
-					unlinkSync(lockPath);
+					const parsed: unknown = JSON.parse(readFileSync(lockPath, 'utf8'));
+					if (
+						typeof parsed === 'object' &&
+						parsed !== null &&
+						(parsed as { helperMarker?: unknown }).helperMarker === marker
+					) {
+						unlinkSync(lockPath);
+					}
 				} catch {
-					// already gone
+					// already gone, or unreadable/unparseable: not ours to delete
 				}
 			}
 		},
@@ -854,6 +845,52 @@ void describe('occupied port detection (#1698)', () => {
 			}
 		} finally {
 			hold.kill();
+		}
+	});
+
+	/**
+	 * PROOF (regression): the lock directory is shared with real E2E runs, so the
+	 * test helper must not touch a lock it does not own. A live foreign lock that
+	 * exists BEFORE the helper runs must survive the helper's cleanup
+	 * byte-for-byte: never overwritten, never unlinked.
+	 */
+	void it('leaves a pre-existing foreign lock untouched across helper cleanup', () => {
+		mkdirSync(LOCK_DIR, { recursive: true });
+
+		let foreignBandIndex = 0;
+		while (
+			foreignBandIndex < 500 &&
+			existsSync(lockPathForBandIndex(foreignBandIndex))
+		) {
+			foreignBandIndex++;
+		}
+		assert.ok(foreignBandIndex < 500, 'the proof needs one unused lock path');
+
+		const foreignLockPath = lockPathForBandIndex(foreignBandIndex);
+		const foreignContents = JSON.stringify({
+			pid: process.pid,
+			timestamp: Date.now(),
+			uuid: randomUUID(),
+			owner: 'foreign-live-e2e-run',
+		});
+
+		writeFileSync(foreignLockPath, foreignContents, 'utf8');
+
+		try {
+			const hold = holdLocksBeforeBand(8080 + (foreignBandIndex + 1) * 10);
+			hold.kill();
+
+			assert.ok(
+				existsSync(foreignLockPath),
+				'the foreign lock must survive the helper cleanup',
+			);
+			assert.equal(
+				readFileSync(foreignLockPath, 'utf8'),
+				foreignContents,
+				'the foreign lock must be byte-for-byte unchanged',
+			);
+		} finally {
+			unlinkSync(foreignLockPath);
 		}
 	});
 
