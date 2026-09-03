@@ -397,6 +397,12 @@ export type E2eComposeReservation = {
 export type ReservationDependencies = {
 	leaseHost?: string;
 	leaseBasePort?: number;
+	/**
+	 * How many bands the scan may walk. Production always walks every band; a
+	 * spec narrows it so a FULLY contended scan costs three binds instead of
+	 * five hundred.
+	 */
+	maxBands?: number;
 	deriveProjectName?: () => string;
 	findOccupiedBandPorts?: (basePort: number) => number[];
 	closeLeaseServer?: (server: Server) => Promise<void>;
@@ -414,7 +420,22 @@ export type ReservationDependencies = {
  */
 const bindLease = async (host: string, port: number): Promise<Server | null> =>
 	await new Promise<Server | null>((resolveBind, rejectBind) => {
-		const server = createServer();
+		// A lease is a claim on a port, never a service. `Server.close()` stops
+		// accepting and then waits for every ALREADY accepted socket to end, so a
+		// listener that retained its connections would let any stranger who
+		// happened to connect — a port scanner, a stray curl, a health check —
+		// block release for as long as it stayed connected. The runner awaits
+		// release inside its teardown, so that stranger would hang the e2e gate.
+		//
+		// The handler is passed to `createServer` rather than attached
+		// afterwards: that leaves no window in which a connection could be
+		// accepted and retained before the destroyer exists. The no-op error
+		// listener comes first because destroying a socket can surface ECONNRESET,
+		// and an 'error' event with no listener is a fatal throw.
+		const server = createServer((socket) => {
+			socket.on('error', () => {});
+			socket.destroy();
+		});
 
 		const onError = (error: NodeJS.ErrnoException) => {
 			server.removeListener('listening', onListening);
@@ -520,6 +541,7 @@ export const reserveE2EComposeEnv = async (
 ): Promise<E2eComposeReservation> => {
 	const leaseHost = dependencies.leaseHost ?? LEASE_HOST;
 	const leaseBasePort = dependencies.leaseBasePort ?? LEASE_BASE_PORT;
+	const bandCount = dependencies.maxBands ?? MAX_BANDS;
 	const projectNameOf = dependencies.deriveProjectName ?? deriveProjectName;
 	const findOccupied =
 		dependencies.findOccupiedBandPorts ?? findOccupiedBandPorts;
@@ -532,11 +554,19 @@ export const reserveE2EComposeEnv = async (
 		throw abortError(abortSignal);
 	}
 
-	for (let bandIndex = 0; bandIndex < MAX_BANDS; bandIndex++) {
+	for (let bandIndex = 0; bandIndex < bandCount; bandIndex++) {
 		const server = await bindLease(leaseHost, leaseBasePort + bandIndex);
 
-		// Somebody else holds this band's lease; the next one may be free.
+		// Somebody else holds this band's lease; the next one may be free — but
+		// only if the caller still wants a band at all. A skipped band is a real
+		// interruption point: under full contention the scan does nothing BUT
+		// skip, so without this recheck an abort would be noticed only after
+		// every candidate had been tried, and the exhaustion error below would
+		// bury the reason the run actually stopped.
 		if (server === null) {
+			if (abortSignal !== undefined && isAborted(abortSignal)) {
+				throw abortError(abortSignal);
+			}
 			continue;
 		}
 
@@ -608,8 +638,14 @@ export const reserveE2EComposeEnv = async (
 		}
 	}
 
+	// An abort that landed on the very last skipped band must still win: what
+	// stopped the run was the interrupt, not a machine that ran out of bands.
+	if (abortSignal !== undefined && isAborted(abortSignal)) {
+		throw abortError(abortSignal);
+	}
+
 	throw new Error(
-		`Could not acquire port band. All ${MAX_BANDS} bands are in use. ` +
+		`Could not acquire port band. All ${bandCount} bands are in use. ` +
 			'Start another instance of the e2e stack? Or wait and retry.',
 	);
 };
