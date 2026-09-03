@@ -20,13 +20,55 @@
 import assert from 'node:assert/strict';
 import { spawn, type ChildProcess } from 'node:child_process';
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
-import { createServer } from 'node:net';
+import { connect, type Socket } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join as pathJoin } from 'node:path';
 import process from 'node:process';
 import { describe, it } from 'node:test';
 
-import { claimLeaseWindow, LEASE_HOST } from './e2e-lease-window.mts';
+import {
+	claimLeaseWindow,
+	closeListener,
+	LEASE_HOST,
+	listenOnPort,
+} from './e2e-lease-window.mts';
+
+/** The lease port the harness announced, or null before it has bound one. */
+const announcedLeasePort = (stdout: string): number | null => {
+	const match = /"event":"leased","leasePort":(\d+)/.exec(stdout);
+	return match === null ? null : Number(match[1]);
+};
+
+/**
+ * Opens a client to `port` and resolves ONLY on a genuine established
+ * connection.
+ *
+ * Resolving on 'error' or 'close' too would make the proof vacuous: a refused
+ * connection would count as "a client was connected", and the release it is
+ * supposed to stress would never have had a socket to retain.
+ */
+const connectForReal = async (port: number): Promise<Socket> =>
+	await new Promise<Socket>((resolveConnected, rejectConnected) => {
+		const client = connect({ host: LEASE_HOST, port });
+		const timer = setTimeout(() => {
+			client.destroy();
+			rejectConnected(
+				new Error(`no connection to the harness lease on ${String(port)}`),
+			);
+		}, 5000);
+
+		client.once('connect', () => {
+			clearTimeout(timer);
+			// Past this point a reset from the destroying listener is expected and
+			// must not become an unhandled 'error'.
+			client.on('error', () => {});
+			resolveConnected(client);
+		});
+		client.once('error', (error) => {
+			clearTimeout(timer);
+			rejectConnected(error);
+		});
+	});
 
 const HARNESS = pathJoin(
 	import.meta.dirname,
@@ -68,20 +110,20 @@ const readChildTree = (readyFile: string): ChildTree | null => {
  * that is NOT EADDRINUSE is a defect in the spec's own environment and is
  * raised rather than reported as "held".
  */
-const isLeaseHeld = async (port: number): Promise<boolean> =>
-	await new Promise<boolean>((resolveHeld, rejectHeld) => {
-		const server = createServer();
-		server.once('error', (error: NodeJS.ErrnoException) => {
-			if (error.code === 'EADDRINUSE') {
-				resolveHeld(true);
-				return;
-			}
-			rejectHeld(error);
-		});
-		server.listen({ host: LEASE_HOST, port, exclusive: true }, () => {
-			server.close(() => resolveHeld(false));
-		});
-	});
+const isLeaseHeld = async (port: number): Promise<boolean> => {
+	try {
+		// The shared helper destroys anything that connects, so this probe cannot
+		// be wedged open by a client the way a bare listener could.
+		const server = await listenOnPort(port);
+		await closeListener(server);
+		return false;
+	} catch (error) {
+		if ((error as NodeJS.ErrnoException).code === 'EADDRINUSE') {
+			return true;
+		}
+		throw error;
+	}
+};
 
 /**
  * Whether an exact PID is still alive, via `process.kill(pid, 0)` — Node's
@@ -192,6 +234,7 @@ type SignalProof = {
 const runHarnessAndSignal = async (
 	signal: NodeJS.Signals,
 	mode: HarnessMode = 'lifecycle-signal',
+	connectClient = false,
 ): Promise<SignalProof> => {
 	const workDir = mkdtempSync(pathJoin(tmpdir(), 'publyapp-e2e-signal-'));
 	const readyFile = pathJoin(workDir, 'child-tree.json');
@@ -200,11 +243,11 @@ const runHarnessAndSignal = async (
 	// concurrent copy of this file would take it and the harness would time out
 	// waiting for a readiness it could never reach.
 	const leaseWindow = await claimLeaseWindow();
-	const leasePort = leaseWindow.basePort;
+	const requestedLeasePort = leaseWindow.basePort;
 
 	const harness = spawn(
 		process.execPath,
-		[HARNESS, String(leasePort), readyFile, mode],
+		[HARNESS, String(requestedLeasePort), readyFile, mode],
 		{
 			cwd: pathJoin(import.meta.dirname, '..'),
 			stdio: ['ignore', 'pipe', 'pipe'],
@@ -217,8 +260,22 @@ const runHarnessAndSignal = async (
 	// `let` narrowed to `never` after its initialiser).
 	const published: PublishedChildTree = { tree: null };
 	let treeDeadBeforeCleanup: boolean | null = false;
+	let client: Socket | undefined;
 
 	try {
+		// The port the harness's socket really landed on, announced by the
+		// harness itself rather than assumed from what it was asked for.
+		await waitUntil(
+			() => announcedLeasePort(stdoutSoFar()) !== null,
+			20_000,
+			'the harness to announce the lease port it bound',
+		);
+		const leasePort = announcedLeasePort(stdoutSoFar());
+		assert.notEqual(leasePort, null, 'the harness must announce its lease');
+		if (leasePort === null) {
+			throw new Error('unreachable: the lease port was just asserted');
+		}
+
 		// The runner must be fully engaged before the signal lands. In the
 		// acquisition window there is no child yet by construction — the
 		// reservation has not resolved — so readiness is the announced bind.
@@ -250,9 +307,27 @@ const runHarnessAndSignal = async (
 
 		const leaseHeldBeforeSignal = await isLeaseHeld(leasePort);
 
+		// A REAL established connection to the harness's lease, held open across
+		// the signal. A listener that retained it could never finish closing, so
+		// the runner's awaited release would hang and the harness would never
+		// exit.
+		if (connectClient) {
+			client = await connectForReal(leasePort);
+		}
+
 		harness.kill(signal);
 
-		const outcome = await exited;
+		// Bounded: a runner whose release cannot complete never exits, and an
+		// unbounded await here would inherit that hang instead of reporting it.
+		const outcome = await Promise.race([
+			exited,
+			delay(30_000).then((): never => {
+				throw new Error(
+					`the harness did not exit within 30000ms of ${signal}; ` +
+						'its cleanup is stuck',
+				);
+			}),
+		]);
 
 		// Record the liveness verdict BEFORE the `finally` cleanup below runs:
 		// the whole point is that the signal killed the tree, not the spec.
@@ -295,6 +370,7 @@ const runHarnessAndSignal = async (
 		if (harness.exitCode === null && harness.signalCode === null) {
 			harness.kill('SIGKILL');
 		}
+		client?.destroy();
 		if (published.tree !== null) {
 			killPid(published.tree.grandchild);
 			killPid(published.tree.child);
@@ -438,6 +514,47 @@ void describe(
 				treeDeadBeforeCleanup,
 				true,
 				'the cleanup command tree must not be orphaned by the signal',
+			);
+		});
+
+		/**
+		 * PROOF: a client connected to the lease cannot stop the runner exiting.
+		 *
+		 * `Server.close()` waits for every socket it has already accepted, so a
+		 * lease listener that retained connections could not finish closing while
+		 * anything was connected — and the runner AWAITS its release inside
+		 * teardown. One stray connection (a port scanner, a curl, a health check)
+		 * would therefore hang the whole e2e gate after a Ctrl-C, with the stack
+		 * half torn down.
+		 *
+		 * The client here is a genuine established connection to the port the
+		 * harness announced, held open across the signal.
+		 */
+		void it('releases the lease and exits 130 with a client connected to it', async () => {
+			const { outcome, leaseHeldBeforeSignal, leaseReleased } =
+				await runHarnessAndSignal('SIGINT', 'lifecycle-signal', true);
+
+			assert.equal(
+				leaseHeldBeforeSignal,
+				true,
+				'the harness must own the lease the client connected to',
+			);
+			assert.equal(
+				outcome.code,
+				130,
+				`a connected client must not change the exit status (got code ${String(
+					outcome.code,
+				)} / signal ${String(outcome.signal)}); stderr: ${outcome.stderr}`,
+			);
+			assert.match(
+				outcome.stdout,
+				/"event":"released"/,
+				'the release must complete even with a client attached',
+			);
+			assert.equal(
+				leaseReleased,
+				true,
+				'the lease must be free once the runner has exited',
 			);
 		});
 

@@ -26,10 +26,11 @@
  * harness's own command line, which is precisely why the token approach could
  * never return a meaningful verdict).
  *
- * Each stdout line is one JSON event: `acquiring` once the lease is bound but
- * the reservation has not yet resolved, `child-started` once the pending child
- * is spawned, `cleanup-started` when the final teardown command begins, and
- * `released` once the lease socket is closed. On a signal the harness exits
+ * Each stdout line is one JSON event: `leased` once the lease socket is bound
+ * (carrying the port it actually landed on), `acquiring` once the lease is
+ * bound but the reservation has not yet resolved, `child-started` once the
+ * pending child is spawned, `cleanup-started` when the final teardown command
+ * begins, and `released` once the lease socket is closed. On a signal the harness exits
  * with the runner's semantic code (130 SIGINT, 143 SIGTERM).
  *
  * Modes:
@@ -80,10 +81,23 @@ const emit = (payload: Record<string, unknown>): void => {
 	process.stdout.write(`${JSON.stringify(payload)}\n`);
 };
 
-/** Binds the harness's lease port exclusively, the way production does. */
+/**
+ * Binds the harness's lease port exclusively, the way production does —
+ * including destroying accepted connections on arrival.
+ *
+ * `Server.close()` waits for every socket it has already accepted, so a lease
+ * listener that kept its connections could not finish closing while anything
+ * was connected to it. The runner AWAITS this release inside its teardown, so
+ * a single stray connection would hang the runner after a signal instead of
+ * letting it exit 130. The no-op error listener comes first because destroying
+ * can surface ECONNRESET, and an 'error' event with no listener is fatal.
+ */
 const bindLease = async (port: number): Promise<Server> =>
 	await new Promise<Server>((resolveBind, rejectBind) => {
-		const server = createServer();
+		const server = createServer((socket) => {
+			socket.on('error', () => {});
+			socket.destroy();
+		});
 		server.once('error', rejectBind);
 		server.listen({ host: '127.0.0.1', port, exclusive: true }, () => {
 			resolveBind(server);
@@ -111,16 +125,24 @@ const reserveEnv = async (
 	abortSignal: AbortSignal,
 ): Promise<E2eComposeReservation> => {
 	const server = await bindLease(leasePort);
+	// Announce the port the socket ACTUALLY landed on, read back off the server
+	// itself. The parent then probes and connects to the real lease instead of
+	// the one it asked for.
+	const address = server.address();
+	const boundPort =
+		address !== null && typeof address !== 'string' ? address.port : leasePort;
+	emit({ event: 'leased', leasePort: boundPort });
+
 	const release = async (): Promise<void> => {
 		await closeLease(server);
-		emit({ event: 'released', leasePort });
+		emit({ event: 'released', leasePort: boundPort });
 	};
 
 	if (mode === 'acquiring') {
 		// The runner's handlers are installed and the lease is bound, but the
 		// reservation has not resolved: the runner owns a socket it does not yet
 		// know about. A signal landing here must still free it.
-		emit({ event: 'acquiring', leasePort });
+		emit({ event: 'acquiring', leasePort: boundPort });
 
 		const reason = await new Promise<unknown>((resolveAbort) => {
 			abortSignal.addEventListener(
