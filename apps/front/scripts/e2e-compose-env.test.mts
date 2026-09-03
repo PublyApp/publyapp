@@ -6,20 +6,22 @@
  * persistent state at all, so these specs assert the only things that can
  * still be true or false — real sockets, real cleanup, real precedence.
  *
- * Every lease-level spec claims a freshly verified, randomized window of ports
- * (`claimLeaseWindow`), so a spec can never take or free a band a real e2e run
- * is holding on the production range, and two concurrent copies of this file
- * are not each other's squatter.
+ * Every lease-level spec holds a real cross-process CLAIM on the block of
+ * ports it uses (see e2e-lease-window.mts) for as long as it runs. So a spec
+ * can never take or free a band a real e2e run is holding on the production
+ * range, and two concurrent copies of this file cannot become each other's
+ * squatter — the kernel decides who owns a block, exactly as it does for the
+ * lease under test.
  */
 
 import assert from 'node:assert/strict';
 import { spawn, type ChildProcess } from 'node:child_process';
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import { connect, createServer, type Server, type Socket } from 'node:net';
+import { connect, type Server, type Socket } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join as pathJoin } from 'node:path';
 import process from 'node:process';
-import { describe, it } from 'node:test';
+import { describe, it, type TestContext } from 'node:test';
 
 import {
 	bandPortsFor,
@@ -33,9 +35,13 @@ import {
 	type E2eComposeEnv,
 	type E2eComposeReservation,
 } from './e2e-compose-env.mts';
+import {
+	claimLeaseWindow,
+	closeListener,
+	LEASE_HOST,
+	listenOnPort as listenOn,
+} from './e2e-lease-window.mts';
 import { runE2EFront, type RunCommand } from './run-e2e-front.mts';
-
-const LEASE_HOST = '127.0.0.1';
 
 /** The repository justfile, relative to this spec. */
 const JUSTFILE_PATH = pathJoin(import.meta.dirname, '../../../justfile');
@@ -92,26 +98,6 @@ const readAnnouncement = async (
 		});
 	});
 
-/** Binds a real socket on `port` (resolving once it is actually listening). */
-const listenOn = async (
-	port: number,
-	host: string = LEASE_HOST,
-): Promise<Server> => {
-	const server = createServer();
-
-	await new Promise<void>((resolveListen, rejectListen) => {
-		server.once('error', rejectListen);
-		server.listen({ host, port, exclusive: true }, () => resolveListen());
-	});
-
-	return server;
-};
-
-/** Closes a listener opened by listenOn, awaiting the close. */
-const closeListener = async (server: Server): Promise<void> => {
-	await new Promise<void>((resolveClose) => server.close(() => resolveClose()));
-};
-
 /** Whether `port` can be bound right now — the only observable a lease has. */
 const isLeasePortFree = async (port: number): Promise<boolean> => {
 	try {
@@ -124,63 +110,20 @@ const isLeasePortFree = async (port: number): Promise<boolean> => {
 };
 
 /**
- * The window a spec claims: four consecutive ports covers the widest scan any
- * spec performs.
- */
-const LEASE_WINDOW_SIZE = 4;
-
-// Well above the production lease range (14000+) and the published service
-// ports, and BELOW the usual ephemeral range (Linux starts at 32768), so a
-// window is not competing with every outbound socket on the machine.
-const LEASE_SEARCH_MIN = 20_000;
-const LEASE_SEARCH_SPAN = 12_000;
-
-/**
- * A base port whose next `size` ports were all bindable a moment ago.
+ * Claims a block of loopback ports for ONE spec and holds the claim until that
+ * spec is over.
  *
- * The window is randomized PER CALL rather than being a fixed global range.
- * Two copies of this file can run at the same time — a reviewer ran exactly
- * that — and a hardcoded range made the two processes each other's squatter,
- * shifting one of them onto the next band and failing an assertion that had
- * nothing to do with the code under test. A fresh window per spec means
- * concurrent runs do not share a range, every port is verified free
- * immediately before use, and a window somebody else already holds is retried
- * rather than asserted against.
- *
- * This isolates SPECS from each other; it does not mask production
- * concurrency. The reservation under test still competes for real sockets, and
- * the exclusivity proofs below still turn on the kernel's answer to a bind.
+ * The claim is registered with `t.after`, so it is handed back whether the
+ * spec passes, fails, or throws — a spec that failed while still holding a
+ * slot would starve every later spec and every concurrent copy of this file.
  */
-const claimLeaseWindow = async (
-	size: number = LEASE_WINDOW_SIZE,
-): Promise<number> => {
-	for (let attempt = 0; attempt < 100; attempt++) {
-		const base =
-			LEASE_SEARCH_MIN + Math.floor(Math.random() * LEASE_SEARCH_SPAN);
-		const held: Server[] = [];
-		let windowIsFree = true;
+const claimWindow = async (t: TestContext): Promise<number> => {
+	const window = await claimLeaseWindow();
+	t.after(async () => {
+		await window.release();
+	});
 
-		for (let offset = 0; offset < size; offset++) {
-			try {
-				held.push(await listenOn(base + offset));
-			} catch {
-				windowIsFree = false;
-				break;
-			}
-		}
-
-		for (const server of held) {
-			await closeListener(server);
-		}
-
-		if (windowIsFree) {
-			return base;
-		}
-	}
-
-	throw new Error(
-		`No free lease window of ${String(size)} ports on this machine for the spec.`,
-	);
+	return window.basePort;
 };
 
 /** Reservation dependencies that keep a spec off the machine's real state. */
@@ -322,8 +265,8 @@ void describe('port lease exclusivity', () => {
 	 * lease socket for the whole spec, so the second must move on — there is no
 	 * bookkeeping to consult, only the kernel's answer to a bind.
 	 */
-	void it('gives two live reservations different bands', async () => {
-		const leaseBasePort = await claimLeaseWindow();
+	void it('gives two live reservations different bands', async (t) => {
+		const leaseBasePort = await claimWindow(t);
 		const first = await reserveE2EComposeEnv(undefined, {
 			leaseBasePort,
 			...freeServicePorts,
@@ -349,8 +292,8 @@ void describe('port lease exclusivity', () => {
 	});
 
 	/** PROOF: releasing the lease hands the band straight back. */
-	void it('reuses a band once its lease is released', async () => {
-		const leaseBasePort = await claimLeaseWindow();
+	void it('reuses a band once its lease is released', async (t) => {
+		const leaseBasePort = await claimWindow(t);
 		const first = await reserveE2EComposeEnv(undefined, {
 			leaseBasePort,
 			...freeServicePorts,
@@ -374,8 +317,8 @@ void describe('port lease exclusivity', () => {
 	});
 
 	/** PROOF: a lease port held by anything at all skips that band. */
-	void it('skips a band whose lease port is already occupied', async () => {
-		const leaseBasePort = await claimLeaseWindow();
+	void it('skips a band whose lease port is already occupied', async (t) => {
+		const leaseBasePort = await claimWindow(t);
 		const squatter = await listenOn(leaseBasePort);
 
 		try {
@@ -399,10 +342,10 @@ void describe('port lease exclusivity', () => {
 	 * band to skip. Binding an address the host does not own fails with
 	 * EADDRNOTAVAIL, and that must surface instead of silently walking 500 bands.
 	 */
-	void it('fails loudly on a bind error that is not EADDRINUSE', async () => {
+	void it('fails loudly on a bind error that is not EADDRINUSE', async (t) => {
 		await rejectsReservation(
 			reserveE2EComposeEnv(undefined, {
-				leaseBasePort: await claimLeaseWindow(),
+				leaseBasePort: await claimWindow(t),
 				// TEST-NET-3: never assigned to a host interface.
 				leaseHost: '203.0.113.1',
 				...freeServicePorts,
@@ -413,8 +356,8 @@ void describe('port lease exclusivity', () => {
 	});
 
 	/** PROOF: release is idempotent, sequentially and concurrently. */
-	void it('releases idempotently when called twice and in parallel', async () => {
-		const leaseBasePort = await claimLeaseWindow();
+	void it('releases idempotently when called twice and in parallel', async (t) => {
+		const leaseBasePort = await claimWindow(t);
 		const reservation = await reserveE2EComposeEnv(undefined, {
 			leaseBasePort,
 			...freeServicePorts,
@@ -442,8 +385,8 @@ void describe('port lease exclusivity', () => {
 	 * e2e gate. The lease exists to be bound, never to serve, so an accepted
 	 * socket is destroyed the moment it arrives.
 	 */
-	void it('releases promptly while a real client is connected', async () => {
-		const leaseBasePort = await claimLeaseWindow();
+	void it('releases promptly while a real client is connected', async (t) => {
+		const leaseBasePort = await claimWindow(t);
 		const reservation = await reserveE2EComposeEnv(undefined, {
 			leaseBasePort,
 			...freeServicePorts,
@@ -491,10 +434,10 @@ void describe('port lease exclusivity', () => {
 	 * compared, which is what makes the bands genuinely simultaneous rather than
 	 * merely consecutive.
 	 */
-	void it('never gives two independent processes the same band', async () => {
+	void it('never gives two independent processes the same band', async (t) => {
 		const contenders = 2;
 		const maxBands = 4;
-		const leaseBasePort = await claimLeaseWindow(maxBands);
+		const leaseBasePort = await claimWindow(t);
 		const barrierDir = mkdtempSync(
 			pathJoin(tmpdir(), 'publyapp-e2e-contention-'),
 		);
@@ -570,8 +513,8 @@ void describe('port lease exclusivity', () => {
 	 * killed with SIGKILL runs no cleanup whatsoever, and its band is free the
 	 * moment it dies. No mock can stand in for this.
 	 */
-	void it('frees the lease when its owning process is killed outright', async () => {
-		const port = await claimLeaseWindow();
+	void it('frees the lease when its owning process is killed outright', async (t) => {
+		const port = await claimWindow(t);
 		const child = spawn(
 			process.execPath,
 			[
@@ -624,8 +567,8 @@ void describe('port lease exclusivity', () => {
 
 void describe('reservation cleanup after a successful bind', () => {
 	/** PROOF: a derivation failure after the bind must not strand the lease. */
-	void it('releases the lease when project-name derivation throws', async () => {
-		const leaseBasePort = await claimLeaseWindow();
+	void it('releases the lease when project-name derivation throws', async (t) => {
+		const leaseBasePort = await claimWindow(t);
 
 		await rejectsReservation(
 			reserveE2EComposeEnv(undefined, {
@@ -646,8 +589,8 @@ void describe('reservation cleanup after a successful bind', () => {
 	});
 
 	/** PROOF: the same holds for a service-port probe that cannot decide. */
-	void it('releases the lease when the service-port probe fails', async () => {
-		const leaseBasePort = await claimLeaseWindow();
+	void it('releases the lease when the service-port probe fails', async (t) => {
+		const leaseBasePort = await claimWindow(t);
 
 		await rejectsReservation(
 			reserveE2EComposeEnv(undefined, {
@@ -663,8 +606,8 @@ void describe('reservation cleanup after a successful bind', () => {
 	});
 
 	/** PROOF: an abort that lands after the bind still frees the lease. */
-	void it('releases the lease when the abort lands after the bind', async () => {
-		const leaseBasePort = await claimLeaseWindow();
+	void it('releases the lease when the abort lands after the bind', async (t) => {
+		const leaseBasePort = await claimWindow(t);
 		const controller = new AbortController();
 
 		await rejectsReservation(
@@ -696,9 +639,9 @@ void describe('reservation cleanup after a successful bind', () => {
 	 * and that cannot settle before real I/O. So the pre-scan check has already
 	 * passed and the abort genuinely lands INSIDE the scan.
 	 */
-	void it('reports the abort reason when every candidate band is occupied', async () => {
+	void it('reports the abort reason when every candidate band is occupied', async (t) => {
 		const maxBands = 3;
-		const leaseBasePort = await claimLeaseWindow(maxBands);
+		const leaseBasePort = await claimWindow(t);
 		const squatters: Server[] = [];
 		const controller = new AbortController();
 
@@ -728,8 +671,8 @@ void describe('reservation cleanup after a successful bind', () => {
 	});
 
 	/** PROOF: an abort requested before the scan never binds anything. */
-	void it('rejects without binding when the abort is already requested', async () => {
-		const leaseBasePort = await claimLeaseWindow();
+	void it('rejects without binding when the abort is already requested', async (t) => {
+		const leaseBasePort = await claimWindow(t);
 		const controller = new AbortController();
 		controller.abort(new Error('aborted before bind'));
 
@@ -749,12 +692,12 @@ void describe('reservation cleanup after a successful bind', () => {
 	 * operator sees, and the cleanup failure is still reported rather than
 	 * swallowed.
 	 */
-	void it('keeps the primary error and reports a failing cleanup', async () => {
+	void it('keeps the primary error and reports a failing cleanup', async (t) => {
 		const messages: string[] = [];
 
 		await rejectsReservation(
 			reserveE2EComposeEnv(undefined, {
-				leaseBasePort: await claimLeaseWindow(),
+				leaseBasePort: await claimWindow(t),
 				...freeServicePorts,
 				deriveProjectName: () => {
 					throw new Error('primary derivation failure');
@@ -786,8 +729,12 @@ void describe('published service-port conflicts', () => {
 	 * PROOF: a real listening socket on a band port is detected through the
 	 * shipped probe, and its holder is named.
 	 */
-	void it('detects an occupied band port and names its holder', async () => {
-		const basePort = await findFreeBandPort();
+	void it('detects an occupied band port and names its holder', async (t) => {
+		// A claimed port, not a hunted one. `bandPortsFor(base)[0] === base` by
+		// construction (the first published port sits at offset zero), so the
+		// shipped probe can be aimed at a port this spec genuinely owns rather
+		// than at a production band another copy of this file may be using.
+		const basePort = await claimWindow(t);
 		const bandPort = bandPortsFor(basePort)[0];
 		const server = await listenOn(bandPort, '0.0.0.0');
 
@@ -815,9 +762,10 @@ void describe('published service-port conflicts', () => {
 	 * unusable — the reservation refuses it, names the holder, and hands its
 	 * lease back instead of stranding it.
 	 */
-	void it('refuses a band whose service port a foreign holder squats', async () => {
-		const leaseBasePort = await claimLeaseWindow();
-		const squattedPort = await findFreePort();
+	void it('refuses a band whose service port a foreign holder squats', async (t) => {
+		const leaseBasePort = await claimWindow(t);
+		// Inside the claimed block, clear of the bands the scan itself walks.
+		const squattedPort = leaseBasePort + 4;
 		const squatter = await listenOn(squattedPort, '0.0.0.0');
 
 		try {
@@ -881,58 +829,6 @@ void describe('published service-port conflicts', () => {
 		assert.match(message, /ss -tlnp/, 'must give the ss command');
 	});
 });
-
-/** An ephemeral port that is free right now, used as a deterministic squatter. */
-const findFreePort = async (): Promise<number> => {
-	const server = createServer();
-	const port = await new Promise<number>((resolvePort, rejectPort) => {
-		server.once('error', rejectPort);
-		server.listen({ host: '0.0.0.0', port: 0 }, () => {
-			const address = server.address();
-			if (address === null || typeof address === 'string') {
-				rejectPort(new Error('no ephemeral port available'));
-				return;
-			}
-			resolvePort(address.port);
-		});
-	});
-	await closeListener(server);
-
-	return port;
-};
-
-/**
- * A band whose four published ports are all takeable right now, found with
- * node:net only so the probe stays independent of the module under test.
- */
-const findFreeBandPort = async (): Promise<number> => {
-	for (let bandIndex = 0; bandIndex < 500; bandIndex++) {
-		const ports = bandPortsFor(8080 + bandIndex * 10);
-		const servers: Server[] = [];
-		let allFree = true;
-
-		for (const port of ports) {
-			try {
-				servers.push(await listenOn(port, '0.0.0.0'));
-			} catch {
-				allFree = false;
-				break;
-			}
-		}
-
-		for (const server of servers) {
-			await closeListener(server);
-		}
-
-		if (allFree) {
-			return ports[0];
-		}
-	}
-
-	throw new Error(
-		'No free e2e port band available on this machine for the spec.',
-	);
-};
 
 const DERIVED_ENV_PROOF: E2eComposeEnv = {
 	COMPOSE_PROJECT_NAME: 'publyapp-e2e-proof',
