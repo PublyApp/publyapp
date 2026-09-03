@@ -20,5 +20,5 @@
 		"for node:test, and `void` documents the intentional fire-and-forget."
 	],
 	"rule": "typescript(no-floating-promises)",
-	"count": 397
+	"count": 371
 }
