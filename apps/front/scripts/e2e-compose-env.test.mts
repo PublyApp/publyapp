@@ -13,7 +13,7 @@
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { readFileSync } from 'node:fs';
-import { createServer, type Server } from 'node:net';
+import { connect, createServer, type Server, type Socket } from 'node:net';
 import { join as pathJoin } from 'node:path';
 import { describe, it } from 'node:test';
 
@@ -75,6 +75,57 @@ const leaseRange = (offset: number): number => 15000 + offset;
 
 /** Reservation dependencies that keep a spec off the machine's real state. */
 const freeServicePorts = { findOccupiedBandPorts: (): number[] => [] };
+
+/**
+ * Awaits `work`, failing instead of hanging if it takes longer than
+ * `timeoutMs`.
+ *
+ * A spec that proves something COMPLETES has to bound the wait itself: the
+ * node:test runner is configured without a per-test timeout, so an unbounded
+ * await on a promise that never settles hangs the whole suite silently rather
+ * than reporting the defect it was written to catch.
+ */
+// The trailing comma in `<T,>` is required: in a .mts file a bare `<T>` on an
+// arrow function is reserved syntax (TS7060).
+const withinBound = async <T,>(
+	work: Promise<T>,
+	timeoutMs: number,
+	what: string,
+): Promise<T> => {
+	let timer: NodeJS.Timeout | undefined;
+
+	try {
+		return await Promise.race([
+			work,
+			new Promise<never>((_resolveNever, rejectSlow) => {
+				timer = setTimeout(
+					() =>
+						rejectSlow(
+							new Error(`${what} did not finish within ${String(timeoutMs)}ms`),
+						),
+					timeoutMs,
+				);
+			}),
+		]);
+	} finally {
+		if (timer !== undefined) {
+			clearTimeout(timer);
+		}
+	}
+};
+
+/**
+ * Resolves once a client socket has finished its attempt, whether that ended
+ * in a connection, a reset, or an immediate close. A lease that destroys its
+ * accepted sockets produces any of the three depending on scheduling, and the
+ * spec cares only that the attempt reached the listener.
+ */
+const settledConnection = async (client: Socket): Promise<void> =>
+	await new Promise<void>((resolveSettled) => {
+		client.once('connect', () => resolveSettled());
+		client.once('close', () => resolveSettled());
+		client.once('error', () => resolveSettled());
+	});
 
 /**
  * Awaits a reservation attempt that must REJECT, releasing the reservation if
@@ -270,6 +321,54 @@ void describe('port lease exclusivity', () => {
 	});
 
 	/**
+	 * PROOF (real client): a stranger connecting to a lease port cannot hold the
+	 * band hostage.
+	 *
+	 * `net.Server.close()` stops accepting and then waits for every socket it
+	 * has already accepted to end. A lease listener that kept its connections
+	 * would therefore block release for as long as some client stayed connected
+	 * — and the runner AWAITS release inside its teardown, so one stray
+	 * connection (a port scanner, a curl, a health check) would hang the whole
+	 * e2e gate. The lease exists to be bound, never to serve, so an accepted
+	 * socket is destroyed the moment it arrives.
+	 */
+	void it('releases promptly while a real client is connected', async () => {
+		const leaseBasePort = leaseRange(120);
+		const reservation = await reserveE2EComposeEnv(undefined, {
+			leaseBasePort,
+			...freeServicePorts,
+		});
+		const client = connect({ host: LEASE_HOST, port: leaseBasePort });
+		// A reset arriving after the assertions must not become an unhandled
+		// 'error' event and take the test process down.
+		client.on('error', () => {});
+
+		try {
+			await withinBound(
+				settledConnection(client),
+				5000,
+				'the client connection attempt',
+			);
+
+			await withinBound(
+				reservation.release(),
+				5000,
+				'the release of a lease with a connected client',
+			);
+
+			assert.equal(
+				await isLeasePortFree(leaseBasePort),
+				true,
+				'the band must be free once release resolves',
+			);
+		} finally {
+			// Destroying the client lets a RED run finish: the close it was
+			// waiting on completes, so the failure is reported instead of hanging.
+			client.destroy();
+		}
+	});
+
+	/**
 	 * PROOF (real crash): the operating system is the release mechanism. A child
 	 * killed with SIGKILL runs no cleanup whatsoever, and its band is free the
 	 * moment it dies. No mock can stand in for this.
@@ -383,6 +482,52 @@ void describe('reservation cleanup after a successful bind', () => {
 		);
 
 		assert.equal(await isLeasePortFree(leaseBasePort), true);
+	});
+
+	/**
+	 * PROOF: an abort that lands mid-scan beats exhaustion.
+	 *
+	 * Every candidate band is occupied here, so the scan skips all of them and
+	 * falls through to the "all bands are in use" error. That message is the
+	 * wrong answer for an interrupted run: the caller pressed Ctrl-C, and the
+	 * runner keys its exit status off the abort reason, so reporting exhaustion
+	 * instead loses the 130. The abort is therefore rechecked after every bind
+	 * result and once more before exhaustion is declared.
+	 *
+	 * The abort is requested after exactly one microtask, which is deterministic:
+	 * the reservation runs synchronously up to its first `await bindLease(...)`,
+	 * and that cannot settle before real I/O. So the pre-scan check has already
+	 * passed and the abort genuinely lands INSIDE the scan.
+	 */
+	void it('reports the abort reason when every candidate band is occupied', async () => {
+		const leaseBasePort = leaseRange(130);
+		const maxBands = 3;
+		const squatters: Server[] = [];
+		const controller = new AbortController();
+
+		try {
+			for (let index = 0; index < maxBands; index++) {
+				squatters.push(await listenOn(leaseBasePort + index));
+			}
+
+			const attempt = reserveE2EComposeEnv(controller.signal, {
+				leaseBasePort,
+				maxBands,
+				...freeServicePorts,
+			});
+
+			await Promise.resolve();
+			controller.abort(new Error('aborted during a fully contended scan'));
+
+			await rejectsReservation(
+				attempt,
+				/aborted during a fully contended scan/,
+			);
+		} finally {
+			for (const squatter of squatters) {
+				await closeListener(squatter);
+			}
+		}
 	});
 
 	/** PROOF: an abort requested before the scan never binds anything. */
