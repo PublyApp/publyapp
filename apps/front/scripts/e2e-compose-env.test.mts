@@ -38,6 +38,7 @@ import {
 import {
 	claimLeaseWindow,
 	closeListener,
+	LEASE_BLOCK_SIZE,
 	LEASE_HOST,
 	listenOnPort as listenOn,
 } from './e2e-lease-window.mts';
@@ -188,8 +189,17 @@ const listenSomewhereInBlock = async (
 	);
 };
 
-/** Reservation dependencies that keep a spec off the machine's real state. */
-const freeServicePorts = { findOccupiedBandPorts: (): number[] => [] };
+/**
+ * Reservation dependencies that keep a spec off the machine's real state.
+ *
+ * `maxBands` is capped at one claim block: a fully occupied block must not
+ * spill into the next claim's window (that squats another spec). Narrower
+ * tests override `maxBands` after the spread so they keep the scan bounded.
+ */
+const freeServicePorts = {
+	findOccupiedBandPorts: (): number[] => [],
+	maxBands: LEASE_BLOCK_SIZE,
+};
 
 /**
  * Awaits `work`, failing instead of hanging if it takes longer than
@@ -326,6 +336,12 @@ void describe('port lease exclusivity', () => {
 	 * PROOF: two LIVE reservations can never share a band. The first holds its
 	 * lease socket for the whole spec, so the second must move on — there is no
 	 * bookkeeping to consult, only the kernel's answer to a bind.
+	 *
+	 * Distinct bands plus a live lease is the whole proof. The second band has
+	 * no obligation to be GREATER than the first: a band held for the first
+	 * reservation may be released and the second reservation handed the SAME
+	 * (smaller) offset on a different base — what matters is that the two
+	 * environments do not name the same port.
 	 */
 	void it('gives two live reservations different bands', async (t) => {
 		const leaseBasePort = await claimWindow(t);
@@ -352,14 +368,15 @@ void describe('port lease exclusivity', () => {
 				first.env.E2E_PORT_TRAEFIK_WEBSECURE,
 				second.env.E2E_PORT_TRAEFIK_WEBSECURE,
 			);
-			assert.ok(
-				bandIndexOf(second.env) > bandIndexOf(first.env),
-				'the second reservation must move PAST the band the first holds',
-			);
 			assert.equal(
 				await isLeasePortFree(leasePortOf(leaseBasePort, first.env)),
 				false,
 				"the first reservation's lease must still be held",
+			);
+			assert.equal(
+				await isLeasePortFree(leasePortOf(leaseBasePort, second.env)),
+				false,
+				"the second reservation's lease must still be held",
 			);
 		} finally {
 			await first.release();
@@ -739,6 +756,68 @@ void describe('lease window claim (spec infrastructure)', () => {
 			await closeListener(squatter);
 		}
 	});
+
+	/**
+	 * PROOF: a fully blocked scan stays inside its own claim window.
+	 *
+	 * `first` holds band 0 of window1 and late squatters take its other seven
+	 * ports, so a second reservation scoped to the same base must exhaust
+	 * within the block (`maxBands` is capped at `LEASE_BLOCK_SIZE`). Without
+	 * the cap the scan walks the whole lease range and binds the first free
+	 * band — which can sit inside another claim's window, letting two specs
+	 * squat each other. So window2's block must stay untouched afterwards; the
+	 * exhaustion rejection catches a regression either way.
+	 */
+	void it('does not spill a fully blocked scan into the next claim window', async (t) => {
+		const firstWindow = await claimLeaseWindow();
+		const secondWindow = await claimLeaseWindow();
+		t.after(async () => {
+			await firstWindow.release();
+			await secondWindow.release();
+		});
+
+		const first = await reserveE2EComposeEnv(undefined, {
+			leaseBasePort: firstWindow.basePort,
+			...freeServicePorts,
+		});
+
+		// Squat the remaining seven ports of window1 (band 0 is `first`'s).
+		const squatters: Server[] = [];
+		for (let offset = 1; offset < LEASE_BLOCK_SIZE; offset++) {
+			squatters.push(await listenOn(firstWindow.basePort + offset));
+		}
+
+		try {
+			await rejectsReservation(
+				reserveE2EComposeEnv(undefined, {
+					leaseBasePort: firstWindow.basePort,
+					...freeServicePorts,
+				}),
+				/All \d+ bands are in use/,
+			);
+
+			// Window2 must be untouched: the spill the cap prevents would have
+			// bound its base port. No adjacency is assumed — the exhaustion
+			// rejection is the primary proof, these checks the secondary one.
+			assert.equal(
+				await isLeasePortFree(secondWindow.basePort),
+				true,
+				"the second reservation must not bind window2's base port",
+			);
+			for (let offset = 0; offset < LEASE_BLOCK_SIZE; offset++) {
+				assert.equal(
+					await isLeasePortFree(secondWindow.basePort + offset),
+					true,
+					`window2 port ${String(secondWindow.basePort + offset)} must stay free`,
+				);
+			}
+		} finally {
+			for (const squatter of squatters) {
+				await closeListener(squatter);
+			}
+			await first.release();
+		}
+	});
 });
 
 void describe('reservation cleanup after a successful bind', () => {
@@ -843,8 +922,8 @@ void describe('reservation cleanup after a successful bind', () => {
 
 			const attempt = reserveE2EComposeEnv(controller.signal, {
 				leaseBasePort,
-				maxBands,
 				...freeServicePorts,
+				maxBands,
 			});
 
 			await Promise.resolve();
