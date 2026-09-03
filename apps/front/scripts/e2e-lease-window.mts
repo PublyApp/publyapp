@@ -40,7 +40,7 @@ import { createServer, type Server } from 'node:net';
 export const LEASE_HOST = '127.0.0.1';
 
 /** Ports a claim makes available to one spec. */
-const LEASE_BLOCK_SIZE = 8;
+export const LEASE_BLOCK_SIZE = 8;
 
 // Above the production lease range (14000+) and every published service port.
 // It is also below the DEFAULT ephemeral range on the platforms this repo runs
