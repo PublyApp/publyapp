@@ -9,14 +9,20 @@
  * and a `down -v` from one tree destroyed another tree's stack (volumes
  * included).
  *
- * Solution (voie A — isolation garantie): uses file-based locks to ensure
+ * Solution (voie A — isolation garantie): uses lock DIRECTORIES to ensure
  * that no two stacks can obtain the same port band, even when launched
- * simultaneously. A lock file is created atomically using O_EXCL.
+ * simultaneously. See `acquireLockDir` for the protocol: a fully populated
+ * staging directory is `rename`d into place, so a lock never exists in a
+ * half-written state and its owner record is readable the instant it is
+ * visible.
  *
  * Stale lock recovery: a lock whose owning process has died (crash, kill,
- * host reboot) is detected via PID liveness check and age threshold, then
- * reclaimed atomically — the reclaimer deletes the stale lock and recreates
- * it with O_EXCL, so two simultaneous reclaimers cannot both succeed.
+ * host reboot) is detected by a PID liveness check — and by that alone. Age
+ * is never an override: a lock whose owner is ALIVE is never reclaimable, no
+ * matter how long the run has taken. Reclamation is serialised by a
+ * transition marker created inside the observed lock directory, so a late
+ * reclaimer can never rename a FRESH owner's lock aside (see
+ * `reclaimStaleLock`).
  *
  * This script emits shell `export` lines that can be `eval`'d, or sets
  * environment variables when invoked with `--set`.
@@ -34,15 +40,16 @@
  */
 
 import { execFileSync } from 'node:child_process';
-import { mkdirSync } from 'node:fs';
+import { randomUUID } from 'node:crypto';
 import {
+	mkdirSync,
 	readFileSync,
-	writeFileSync,
-	unlinkSync,
+	renameSync,
+	rmSync,
 	statSync,
-	openSync,
-	closeSync,
+	writeFileSync,
 } from 'node:fs';
+import { tmpdir } from 'node:os';
 import {
 	dirname,
 	join as pathJoin,
@@ -90,17 +97,30 @@ const MAX_BANDS = 500;
 // band acquisition forever.
 const HOLDER_PROBE_TIMEOUT_MS = 3000;
 
-// Lock directory for port band reservations
-const LOCK_DIR = pathJoin('/tmp', 'publyapp-e2e-port-locks');
+// Lock directory for port band reservations. Every lock-aware function takes
+// the root as an argument so a test can point at its own private root and
+// never write (or unlink) inside the shared production one.
+export const DEFAULT_LOCK_ROOT = pathJoin(tmpdir(), 'publyapp-e2e-port-locks');
 
-// Stale lock detection: a lock older than this is considered stale regardless of PID
-const STALE_LOCK_THRESHOLD_MS = 2 * 60 * 60 * 1000; // 2 hours
-
-type LockContent = {
-	pid?: number;
-	timestamp?: number;
-	uuid?: string;
+/**
+ * The owner record written inside a lock directory. `token` is the ownership
+ * proof: only the holder of that exact value may release the lock, so a
+ * process can never unlink a lock that a later owner has since acquired.
+ */
+export type LockOwner = {
+	pid: number;
+	timestamp: number;
+	token: string;
 };
+
+/** The file, inside a lock directory, that carries the owner record. */
+const OWNER_FILE = 'owner.json';
+
+/**
+ * The directory, created INSIDE an observed stale lock, that elects the single
+ * reclaimer allowed to rename that lock aside. See `reclaimStaleLock`.
+ */
+const TRANSITION_MARKER = 'reclaiming';
 
 /**
  * Normalizes a string to be Compose-safe:
@@ -145,11 +165,15 @@ const findRepoRoot = (): string => {
 };
 
 /**
- * Get the lock file path for a given port band
+ * The lock path for a band, inside `lockRoot`. The `.lock` suffix is kept for
+ * continuity, but the entry is a DIRECTORY (see `acquireLockDir`).
  */
-const getLockFilePath = (bandIndex: number): string => {
+export const getLockFilePath = (
+	bandIndex: number,
+	lockRoot: string = DEFAULT_LOCK_ROOT,
+): string => {
 	const basePort = BASE_PORTS.traefik_web + bandIndex * PORT_BAND;
-	return pathJoin(LOCK_DIR, `band-${basePort}.lock`);
+	return pathJoin(lockRoot, `band-${basePort}.lock`);
 };
 
 /**
@@ -363,7 +387,6 @@ export const buildBandConflictMessage = (
 export const isOwnProjectContainer = (containerName: string): boolean => {
 	return containerName.startsWith(`${deriveProjectName()}-`);
 };
-
 /**
  * Check if a PID is still alive.
  * Uses process.kill(pid, 0) which checks existence without sending a signal.
@@ -381,130 +404,228 @@ const isPidAlive = (pid: number): boolean => {
 };
 
 /**
- * Parse lock file content.
+ * Reads the owner record of a lock directory, or null when the lock does not
+ * exist (or carries no readable record). Because the record is written into a
+ * staging directory BEFORE that directory is renamed into place, a visible
+ * lock always has a complete record: there is no empty-file window in which a
+ * concurrent reader would mistake a lock being created for a corrupt one.
  */
-const readLockContent = (lockPath: string): LockContent | null => {
+export const readLockOwner = (lockPath: string): LockOwner | null => {
 	try {
-		const content = readFileSync(lockPath, 'utf8');
-		return JSON.parse(content) as LockContent;
+		const parsed: unknown = JSON.parse(
+			readFileSync(pathJoin(lockPath, OWNER_FILE), 'utf8'),
+		);
+
+		if (typeof parsed !== 'object' || parsed === null) {
+			return null;
+		}
+
+		const { pid, timestamp, token } = parsed as Partial<LockOwner>;
+		if (
+			typeof pid !== 'number' ||
+			typeof timestamp !== 'number' ||
+			typeof token !== 'string'
+		) {
+			return null;
+		}
+
+		return { pid, timestamp, token };
 	} catch {
 		return null;
 	}
 };
 
 /**
- * Check if a lock is stale (owner dead or too old).
- * Exported for testing.
+ * Builds a fully populated staging directory and atomically moves it to
+ * `lockPath`. `rename` onto an existing DIRECTORY fails with ENOTEMPTY/EEXIST
+ * on every supported platform, so exactly one of N concurrent contenders can
+ * win — and the winner's lock is complete from the instant it becomes visible.
+ *
+ * Returns the ownership token on success, or null when another contender got
+ * there first. The token, not the path, is what authorises a later release.
+ */
+export const acquireLockDir = (lockPath: string): string | null => {
+	const token = randomUUID();
+	// The staging directory is a sibling, so the rename stays on one filesystem
+	// (a cross-device rename is not atomic and would fall back to a copy).
+	const staging = `${lockPath}.staging-${String(process.pid)}-${token}`;
+
+	try {
+		mkdirSync(staging, { recursive: true });
+		const owner: LockOwner = { pid: process.pid, timestamp: Date.now(), token };
+		writeFileSync(pathJoin(staging, OWNER_FILE), JSON.stringify(owner), 'utf8');
+	} catch {
+		rmSync(staging, { recursive: true, force: true });
+		return null;
+	}
+
+	try {
+		renameSync(staging, lockPath);
+		return token;
+	} catch {
+		// Someone else holds the band; never leave the staging directory behind.
+		rmSync(staging, { recursive: true, force: true });
+		return null;
+	}
+};
+
+/**
+ * Whether a lock may be reclaimed: its owner record is unreadable, or the
+ * recorded PID is dead. Staleness is a LIVENESS question only.
+ *
+ * There is deliberately no age override. A "a lock older than N hours is
+ * stale regardless of PID" rule makes a LIVE owner reclaimable: a long e2e
+ * run (or a machine suspended overnight) would have its band stolen while it
+ * is still using the ports, and its own later release would then be racing a
+ * successor's lock. Wall-clock time is not evidence about a process.
  */
 export const isLockStale = (lockPath: string): boolean => {
-	const data = readLockContent(lockPath);
-	if (!data) {
-		// Can't read lock content - consider it stale
+	const owner = readLockOwner(lockPath);
+	if (owner === null) {
+		// A lock we cannot identify cannot be proven live: treat it as stale so a
+		// corrupt entry can never consume a band forever.
 		return true;
 	}
 
-	// Check age first - if too old, definitely stale (handles PID reuse)
-	if (data.timestamp) {
-		const age = Date.now() - data.timestamp;
-		if (age > STALE_LOCK_THRESHOLD_MS) {
-			return true;
-		}
+	return !isPidAlive(owner.pid);
+};
+
+/**
+ * Reclaim a stale lock, returning the new ownership token or null.
+ *
+ * Renaming the observed lock aside is NOT safe on its own. Two reclaimers, A
+ * and B, can both observe the same dead owner; A renames it aside and a fresh
+ * contender C acquires the now-free path; B's rename then lands on C's brand
+ * new lock and destroys a live reservation.
+ *
+ * The fix is to make the right to rename belong to the observed lock DIRECTORY
+ * rather than to the path:
+ *
+ *  1. `mkdir` a fixed transition marker INSIDE the observed lock. `mkdir` is
+ *     atomic and exclusive, so exactly one reclaimer wins it; losers stop.
+ *  2. Re-read the owner after winning. If it is no longer the token we judged
+ *     stale, or that owner is alive again, the directory is not the one we
+ *     observed: abandon the reclamation.
+ *  3. Only then rename the directory aside and acquire the band afresh.
+ *
+ * A late reclaimer whose observed lock was already renamed aside by the winner
+ * creates its marker inside the RENAMED-ASIDE directory (its `mkdir` follows
+ * the same inode), not inside whatever fresh lock now sits at the path — so it
+ * can never rename a new owner's lock away. The marker winner may itself lose
+ * the fresh acquisition in step 3, which is correct: losing a band is safe,
+ * deleting somebody's live lock is not.
+ *
+ * Residual, stated rather than papered over: a reclaimer that dies between
+ * winning the marker and renaming aside leaves that ONE band unreclaimable.
+ * The acquisition loop simply moves to the next of 500 bands, and the lock
+ * root is disposable state under the system temp dir (`rm -rf` it to reset).
+ * A "take the marker over when its holder looks dead" step would reintroduce
+ * exactly the multiple-winner race this marker exists to remove, so it is
+ * deliberately absent.
+ */
+export const reclaimStaleLock = (lockPath: string): string | null => {
+	const observed = readLockOwner(lockPath);
+
+	try {
+		// Exclusive by construction: mkdir without `recursive` fails with EEXIST
+		// when the marker is already there, so only one reclaimer proceeds.
+		mkdirSync(pathJoin(lockPath, TRANSITION_MARKER));
+	} catch {
+		// Another reclaimer owns the transition, or the lock vanished.
+		return null;
 	}
 
-	// Check PID liveness
-	if (data.pid && isPidAlive(data.pid)) {
-		return false; // Owner is alive
+	// Re-read through the marker we now hold: the directory cannot have been
+	// renamed aside by anyone else, because that right is what the marker is.
+	const confirmed = readLockOwner(lockPath);
+	const stillTheObservedLock =
+		(observed === null && confirmed === null) ||
+		(observed !== null &&
+			confirmed !== null &&
+			confirmed.token === observed.token);
+
+	const confirmedIsAlive = confirmed !== null && isPidAlive(confirmed.pid);
+
+	if (!stillTheObservedLock || confirmedIsAlive) {
+		// Not the entry we judged stale (or its owner is alive after all): leave
+		// it strictly alone, marker and all.
+		return null;
 	}
 
-	// PID is dead or missing
+	const asidePath = `${lockPath}.stale-${String(process.pid)}-${randomUUID()}`;
+	try {
+		renameSync(lockPath, asidePath);
+	} catch {
+		return null;
+	}
+
+	rmSync(asidePath, { recursive: true, force: true });
+
+	// The band is now free, but a third party may claim it before we do — so
+	// the fresh acquisition still goes through the same atomic protocol.
+	return acquireLockDir(lockPath);
+};
+
+/**
+ * Releases a lock ONLY when `token` still matches the recorded owner.
+ *
+ * Ownership verification is what stops a slow process from deleting a lock a
+ * later owner acquired after its own was reclaimed as stale: the token changes
+ * on every acquisition, so a stale holder's release is a no-op that returns
+ * false instead of silently freeing a live band.
+ */
+const releaseLockDir = (lockPath: string, token: string): boolean => {
+	const owner = readLockOwner(lockPath);
+	if (owner === null || owner.token !== token) {
+		return false;
+	}
+
+	// Rename-then-remove: the entry disappears from the band path in one atomic
+	// step, so no contender can observe a partially removed lock directory.
+	const asidePath = `${lockPath}.released-${String(process.pid)}-${randomUUID()}`;
+	try {
+		renameSync(lockPath, asidePath);
+	} catch {
+		return false;
+	}
+
+	rmSync(asidePath, { recursive: true, force: true });
 	return true;
 };
 
 /**
- * Reclaim a stale lock atomically.
- *
- * Strategy: delete the stale lock, then immediately recreate it with O_EXCL.
- * If another process also reclaims the same lock, only one O_EXCL succeeds;
- * the other gets EEXIST and must move on.
- *
- * Returns true if the lock was successfully reclaimed.
- * Exported for testing.
+ * Ensure the lock root exists
  */
-export const reclaimStaleLock = (lockPath: string): boolean => {
+const ensureLockDirExists = (lockRoot: string): void => {
 	try {
-		// Delete the stale lock
-		unlinkSync(lockPath);
-	} catch {
-		// Already deleted by another process
-		return false;
-	}
-
-	try {
-		// Immediately recreate atomically
-		const fd = openSync(lockPath, 'wx');
-		const lockContent = JSON.stringify({
-			pid: process.pid,
-			timestamp: Date.now(),
-			uuid: crypto.randomUUID(),
-		});
-		writeFileSync(lockPath, lockContent, 'utf8');
-		closeSync(fd);
-		return true;
-	} catch {
-		// Another process created the file first
-		return false;
-	}
-};
-
-/**
- * Ensure lock directory exists
- */
-const ensureLockDirExists = (): void => {
-	try {
-		mkdirSync(LOCK_DIR, { recursive: true });
+		mkdirSync(lockRoot, { recursive: true });
 	} catch {
 		// Directory already exists or couldn't create
 	}
 };
 
 /**
- * Acquire a port band atomically using exclusive file creation
- * Returns lockPath as part of the result
+ * Acquires a port band, returning the reservation INCLUDING its ownership
+ * token. The token travels with the reservation all the way to the release:
+ * releasing a band requires proving you still own it (see `releaseLockDir`).
  */
-const acquirePortBandInternal = (): {
-	bandIndex: number;
-	basePort: number;
-	lockPath: string;
-} | null => {
-	ensureLockDirExists();
+const acquirePortBandInternal = (
+	lockRoot: string = DEFAULT_LOCK_ROOT,
+): PortBandReservation | null => {
+	ensureLockDirExists(lockRoot);
 
 	for (let bandIndex = 0; bandIndex < MAX_BANDS; bandIndex++) {
-		const lockPath = getLockFilePath(bandIndex);
-		let lockAcquired = false;
+		const lockPath = getLockFilePath(bandIndex, lockRoot);
 
-		try {
-			// Try to create the lock file exclusively (O_EXCL)
-			const fd = openSync(lockPath, 'wx');
+		// One atomic attempt; on failure the band may be held by a live owner or
+		// by a dead one, and only the latter may be reclaimed.
+		let token = acquireLockDir(lockPath);
 
-			// Write a unique identifier to the lock
-			const lockContent = JSON.stringify({
-				pid: process.pid,
-				timestamp: Date.now(),
-				uuid: crypto.randomUUID(),
-			});
-
-			writeFileSync(lockPath, lockContent, 'utf8');
-			closeSync(fd);
-			lockAcquired = true;
-		} catch {
-			// Lock file exists - check if it's stale and can be reclaimed
-			if (isLockStale(lockPath) && reclaimStaleLock(lockPath)) {
-				// Successfully reclaimed the stale lock
-				lockAcquired = true;
-			}
+		if (token === null && isLockStale(lockPath)) {
+			token = reclaimStaleLock(lockPath);
 		}
 
-		if (!lockAcquired) {
+		if (token === null) {
 			// Lock exists and couldn't be reclaimed, try next band
 			continue;
 		}
@@ -523,7 +644,7 @@ const acquirePortBandInternal = (): {
 			if (foreignHolders.length > 0) {
 				// Not ours to clean up: hand the lock back and fail loudly with
 				// the holder's name and the commands to inspect it yourself.
-				releasePortBandInternal(lockPath);
+				releaseLockDir(lockPath, token);
 				throw new Error(buildBandConflictMessage(basePort, foreignHolders));
 			}
 
@@ -539,22 +660,10 @@ const acquirePortBandInternal = (): {
 			);
 		}
 
-		return { bandIndex, basePort, lockPath };
+		return { bandIndex, basePort, lockPath, token };
 	}
 
 	return null;
-};
-
-/**
- * Release a port band lock
- */
-const releasePortBandInternal = (lockPath: string): boolean => {
-	try {
-		unlinkSync(lockPath);
-		return true;
-	} catch {
-		return false;
-	}
 };
 
 /**
@@ -582,11 +691,19 @@ export type E2eComposeEnv = {
 	E2E_BASE_URL: string;
 	E2E_API_BASE_URL: string;
 	E2E_LOCK_PATH: string;
+	/**
+	 * The ownership proof for `E2E_LOCK_PATH`. It must be handed back to the
+	 * release: a release without the current token is refused, so a run whose
+	 * lock was reclaimed as stale can never free the band its successor holds.
+	 */
+	E2E_LOCK_TOKEN: string;
 };
 
-export const computeEnv = (): E2eComposeEnv => {
+export const computeEnv = (
+	lockRoot: string = DEFAULT_LOCK_ROOT,
+): E2eComposeEnv => {
 	// Acquire a port band
-	const band = acquirePortBandInternal();
+	const band = acquirePortBandInternal(lockRoot);
 
 	if (!band) {
 		throw new Error(
@@ -595,7 +712,7 @@ export const computeEnv = (): E2eComposeEnv => {
 		);
 	}
 
-	const { basePort, lockPath } = band;
+	const { basePort, lockPath, token } = band;
 	const offset = basePort - BASE_PORTS.traefik_web;
 	const projectName = deriveProjectName();
 
@@ -609,27 +726,34 @@ export const computeEnv = (): E2eComposeEnv => {
 		E2E_BASE_URL: `https://${E2E_FRONT_HOST}:${BASE_PORTS.traefik_websecure + offset}`,
 		E2E_API_BASE_URL: `https://${E2E_API_HOST}:${BASE_PORTS.traefik_websecure + offset}`,
 		E2E_LOCK_PATH: lockPath,
+		E2E_LOCK_TOKEN: token,
 	};
 };
 
 /**
- * Release the port band lock (for cleanup)
+ * Release the port band lock (for cleanup). Both the path AND the ownership
+ * token must be present: without the token there is no way to prove the lock
+ * still belongs to this process, and an unverified unlink is the bug this
+ * protocol exists to prevent.
  */
-export const releaseLock = (): void => {
-	// Read lock path from env if set
+export const releaseLock = (): boolean => {
 	const lockPath = process.env.E2E_LOCK_PATH;
-	if (lockPath) {
-		releasePortBandInternal(lockPath);
+	const token = process.env.E2E_LOCK_TOKEN;
+	if (!lockPath || !token) {
+		return false;
 	}
+
+	return releaseLockDir(lockPath, token);
 };
 
 /**
- * Types exported for testing
+ * A held band: where the lock lives, and the token proving we hold it.
  */
 export type PortBandReservation = {
 	bandIndex: number;
 	basePort: number;
 	lockPath: string;
+	token: string;
 };
 
 export type E2EComposeEnv = {
@@ -641,28 +765,34 @@ export type E2EComposeEnv = {
 		requestCounter: number;
 	};
 	lockPath: string;
+	token: string;
 	bandIndex: number;
 };
 
 /**
- * Acquire a port band atomically using exclusive file creation
- * Exported for testing
+ * Acquire a port band. `lockRoot` defaults to the shared production root; a
+ * test passes its own so it can never write into (or unlink from) that one.
  */
-export const acquirePortBand: () => PortBandReservation | null =
-	acquirePortBandInternal;
+export const acquirePortBand: (
+	lockRoot?: string,
+) => PortBandReservation | null = acquirePortBandInternal;
 
 /**
- * Release port band
- * Exported for testing
+ * Release a port band, proving ownership with the token from its acquisition.
+ * This is the single exported name for the release; `releaseLockDir` above is
+ * its internal implementation, not a second public alias for the same
+ * function.
  */
-export const releasePortBand: (lockPath: string) => boolean =
-	releasePortBandInternal;
+export const releasePortBand: (lockPath: string, token: string) => boolean =
+	releaseLockDir;
 
 /**
  * Setup complete e2e environment (exported for testing)
  */
-export const setupE2EComposeEnv = (): E2EComposeEnv => {
-	const env = computeEnv();
+export const setupE2EComposeEnv = (
+	lockRoot: string = DEFAULT_LOCK_ROOT,
+): E2EComposeEnv => {
+	const env = computeEnv(lockRoot);
 
 	// Extract values from environment
 	const httpPort = Number.parseInt(env.E2E_PORT_TRAEFIK_WEB, 10);
@@ -686,6 +816,7 @@ export const setupE2EComposeEnv = (): E2EComposeEnv => {
 			requestCounter: requestCounterPort,
 		},
 		lockPath: lockPath,
+		token: env.E2E_LOCK_TOKEN,
 		bandIndex: bandIndex,
 	};
 };
@@ -693,10 +824,12 @@ export const setupE2EComposeEnv = (): E2EComposeEnv => {
 /**
  * Teardown e2e environment (exported for testing)
  */
-export const teardownE2EComposeEnv = (env: E2EComposeEnv): void => {
-	if (env.lockPath) {
-		releasePortBandInternal(env.lockPath);
+export const teardownE2EComposeEnv = (env: E2EComposeEnv): boolean => {
+	if (!env.lockPath || !env.token) {
+		return false;
 	}
+
+	return releaseLockDir(env.lockPath, env.token);
 };
 
 const main = (): void => {
