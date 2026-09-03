@@ -80,6 +80,10 @@ const config: KnipConfig = {
 				// project name and port band; knip cannot trace a justfile shell-out.
 				// Its co-located e2e-compose-env.test.mts runs via `pnpm test:e2e-compose-env`.
 				'scripts/e2e-compose-env.mts',
+				// Spawned by path from run-e2e-front.signal.test.mts so the real
+				// runner can be interrupted from a parent process; not imported because
+				// importing it would execute the test harness in-process.
+				'scripts/run-e2e-front.signal-harness.mts',
 				'scripts/generate/generate-route-tree.mts', // documented shim kept after #1300 moved the implementation to route-tree-generator.mts
 				'scripts/generate/generate-suppression-inventory.mts', // manual generator; check-design-system.mts tells humans to run it when the inventory drifts
 				'tools/ci/node-24-type-stripping.mts', // manual proof runner; its sibling node-24-type-stripping.test.mts pins it
@@ -130,7 +134,9 @@ const config: KnipConfig = {
 			// scripts/e2e-compose-env.mts to name the holder of an occupied port
 			// (`ss -tlnp`, issue #1698); not an npm package. (`docker` resolves
 			// through the repo's existing docker usage and stays covered.)
-			ignoreBinaries: ['openssl', 'ss'],
+			// `pgrep` and `pkill` are system binaries used by the real-process E2E
+			// runner signal spec to detect and clean up its uniquely tagged child.
+			ignoreBinaries: ['openssl', 'ss', 'pgrep', 'pkill'],
 			// #1758: server.mjs imports the built server bundle through the
 			// `#server-build` package-imports alias so tsconfig.server.json can
 			// typecheck it without pulling build output into the program. Node
