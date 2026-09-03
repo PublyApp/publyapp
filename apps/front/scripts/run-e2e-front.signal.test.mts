@@ -33,6 +33,44 @@ import {
 	listenOnPort,
 } from './e2e-lease-window.mts';
 
+/**
+ * Awaits `work`, failing rather than hanging past `timeoutMs`, and always
+ * clearing its timer.
+ *
+ * The `finally` is the point. A bare `Promise.race` against a `setTimeout`
+ * leaves that timer referenced once the race is decided, so the process sits
+ * idle until it fires: this suite reported green in ~6s and then took 35s to
+ * exit, because a 30s exit guard was still pending.
+ */
+// The trailing comma in `<T,>` is required: in a .mts file a bare `<T>` on an
+// arrow function is reserved syntax (TS7060).
+const withinBound = async <T,>(
+	work: Promise<T>,
+	timeoutMs: number,
+	what: string,
+): Promise<T> => {
+	let timer: NodeJS.Timeout | undefined;
+
+	try {
+		return await Promise.race([
+			work,
+			new Promise<never>((_resolveNever, rejectSlow) => {
+				timer = setTimeout(
+					() =>
+						rejectSlow(
+							new Error(`${what} did not finish within ${String(timeoutMs)}ms`),
+						),
+					timeoutMs,
+				);
+			}),
+		]);
+	} finally {
+		if (timer !== undefined) {
+			clearTimeout(timer);
+		}
+	}
+};
+
 /** The lease port the harness announced, or null before it has bound one. */
 const announcedLeasePort = (stdout: string): number | null => {
 	const match = /"event":"leased","leasePort":(\d+)/.exec(stdout);
@@ -47,28 +85,32 @@ const announcedLeasePort = (stdout: string): number | null => {
  * connection would count as "a client was connected", and the release it is
  * supposed to stress would never have had a socket to retain.
  */
-const connectForReal = async (port: number): Promise<Socket> =>
-	await new Promise<Socket>((resolveConnected, rejectConnected) => {
-		const client = connect({ host: LEASE_HOST, port });
-		const timer = setTimeout(() => {
-			client.destroy();
-			rejectConnected(
-				new Error(`no connection to the harness lease on ${String(port)}`),
-			);
-		}, 5000);
+const connectForReal = async (port: number): Promise<Socket> => {
+	const client = connect({ host: LEASE_HOST, port });
 
-		client.once('connect', () => {
-			clearTimeout(timer);
-			// Past this point a reset from the destroying listener is expected and
-			// must not become an unhandled 'error'.
-			client.on('error', () => {});
-			resolveConnected(client);
-		});
-		client.once('error', (error) => {
-			clearTimeout(timer);
-			rejectConnected(error);
-		});
-	});
+	try {
+		await withinBound(
+			new Promise<void>((resolveConnected, rejectConnected) => {
+				client.once('connect', () => resolveConnected());
+				client.once('error', rejectConnected);
+			}),
+			5000,
+			`a connection to the harness lease on ${String(port)}`,
+		);
+	} catch (error) {
+		client.removeAllListeners('error');
+		client.on('error', () => {});
+		client.destroy();
+		throw error;
+	}
+
+	// Connected. Drop the pre-connect rejector so it cannot linger, and swallow
+	// the reset the destroying listener is about to send.
+	client.removeAllListeners('error');
+	client.on('error', () => {});
+
+	return client;
+};
 
 const HARNESS = pathJoin(
 	import.meta.dirname,
@@ -319,15 +361,11 @@ const runHarnessAndSignal = async (
 
 		// Bounded: a runner whose release cannot complete never exits, and an
 		// unbounded await here would inherit that hang instead of reporting it.
-		const outcome = await Promise.race([
+		const outcome = await withinBound(
 			exited,
-			delay(30_000).then((): never => {
-				throw new Error(
-					`the harness did not exit within 30000ms of ${signal}; ` +
-						'its cleanup is stuck',
-				);
-			}),
-		]);
+			30_000,
+			`the harness exiting after ${signal} (its cleanup may be stuck)`,
+		);
 
 		// Record the liveness verdict BEFORE the `finally` cleanup below runs:
 		// the whole point is that the signal killed the tree, not the spec.
