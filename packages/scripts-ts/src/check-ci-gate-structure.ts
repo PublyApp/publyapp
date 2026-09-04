@@ -326,6 +326,7 @@ export const GATE_WORKFLOWS = [
 		pushCheckName: 'front-ci-push-check',
 		relevanceGatedJobs: [
 			{ id: 'supply-chain', needs: ['changes'] },
+			{ id: 'audit-production', needs: ['changes'] },
 			{ id: 'gate-selftest', needs: ['changes'] },
 			// #1948: the shard matrix and its coverage proof are both
 			// gated on the changes classifier like their siblings. Being in
@@ -491,7 +492,10 @@ export const GATE_WORKFLOWS = [
 		gateJob: 'gate',
 		gateName: 'quality-gate',
 		pushCheckName: 'quality-gate-push-check',
-		relevanceGatedJobs: [{ id: 'quality', needs: ['changes'] }],
+		relevanceGatedJobs: [
+			{ id: 'quality', needs: ['changes'] },
+			{ id: 'audit-development', needs: ['changes'] },
+		],
 		alwaysJobs: [],
 	},
 	{

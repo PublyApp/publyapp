@@ -25,13 +25,25 @@ Rule of thumb: green-and-boring (minor/patch, no generated code, no CI config) â
 
 ## What CI audits
 
-`front supply-chain` (`supply-chain` job in `.github/workflows/front-ci.yml`) runs
+Dedicated required jobs run each npm graph once: `front-ci.yml::audit-production`
+audits production dependencies and `quality-gate.yml::audit-development` audits
+development dependencies. Both use `packages/scripts-ts/src/npm-audit-runner.ts`:
+it keeps pnpm's output, fails closed for findings and service errors, and bounds
+an unavailable audit service at 40 seconds rather than letting pnpm retries hold
+an unrelated job. Their local mirrors are `just ci-npm-audit-production` and
+`just ci-npm-audit-development`.
+
+The production job runs
 
 ```
-pnpm audit --prod --audit-level=moderate
+node packages/scripts-ts/src/npm-audit-runner.ts prod moderate
 ```
 
-after `pnpm install --frozen-lockfile --ignore-scripts` + trusted `@org/shared-ts` postinstall. It **fails** on any `moderate`, `high`, or `critical` advisory in the production graph and **passes** otherwise. Rung 1 of #1187 (PR #1198) cleared the 4 high alerts that were open on `develop`, so the step is green from the day it lands; it fails loud on an unreachable registry as well (no silent pass).
+It **fails** on any `moderate`, `high`, or `critical` advisory in the production
+graph and **passes** otherwise. The development job runs the same runner with
+`dev moderate`. Rung 1 of #1187 (PR #1198) cleared the 4 high alerts that were
+open on `develop`, so the jobs are green from the day they land; an unreachable
+registry fails loud rather than passing silently.
 
 The .NET side is audited by **Scan .NET packages for known vulnerabilities**
 (`quality-gate.yml::quality`, mirrored locally by `just nuget-audit`, script
@@ -129,8 +141,8 @@ above; #880's closure adds the proof, not a new pin.
   resolved version (`3.3.18` today) instead of the declared range is what caused
   the round-1 regression; do not repeat that mistake.
 
-CI's production and development audit steps stay the standing tripwires; run
-`pnpm audit --audit-level=moderate` when triaging Dependabot alerts.
+CI's production and development audit jobs stay the standing tripwires; run the
+matching `just ci-npm-audit-*` recipe when triaging Dependabot alerts.
 
 ## How the `browserslist@<=4.28.6` cap was added
 

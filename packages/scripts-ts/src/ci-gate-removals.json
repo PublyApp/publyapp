@@ -1,6 +1,16 @@
 {
 	"steps": [
 		{
+			"step_id": "front-ci.yml::supply-chain::Audit production dependencies (moderate and above)",
+			"reason": "#1699 moves this audit into the dedicated audit-production required job. The same production graph and moderate threshold remain fail-closed, while an outage no longer blocks unrelated supply-chain work.",
+			"removed_at": "2026-09-04"
+		},
+		{
+			"step_id": "quality-gate.yml::quality::Audit development dependencies (moderate and above)",
+			"reason": "#1699 moves this audit into the dedicated audit-development required job. The same development graph and moderate threshold remain fail-closed, while an outage no longer blocks unrelated quality work.",
+			"removed_at": "2026-09-04"
+		},
+		{
 			"step_id": "front-ci.yml::supply-chain::Test front",
 			"reason": "#1948: the monolithic \"Test front\" step was renamed to \"Test front (non-vitest)\" and now runs only the non-vitest checks (pnpm --filter front test:ci-non-vitest). The vitest suite moved out into its own 4-way shard matrix job (test-vitest, run via --shard=i/4) plus a parallel coverage-equality job (test-vitest-coverage), so no verification work was dropped — the split is what makes shard failures report independently instead of masking later steps (#1699). The replacement steps are reconciled as new manifest entries in the same commit.",
 			"removed_at": "2026-08-30"

@@ -276,19 +276,6 @@ jobs:
           TRUSTED_PROXY_CIDRS: "127.0.0.1/32"
         run: node packages/scripts-ts/src/nuget-audit.ts
 
-      # #1631: the production-only `pnpm audit --prod --audit-level=high`
-      # (front-ci.yml::supply-chain) never inspects the development dependency
-      # graph, so a vulnerable dev-only transitive (e.g. nanoid via the dev
-      # dependency postcss) resolves green while the repo stays exposed behind a
-      # hand-written pnpm.overrides. This scans the dev-only graph repo-wide (no
-      # --filter, so every package.json's dev deps count) at `moderate` — stricter
-      # than production's `high`, because a moderate dev-graph advisory must turn
-      # the gate red rather than be silently skipped. The graph is currently clean
-      # at every threshold (0 advisories at critical/high/moderate/low — see
-      # .dump/preuve-1631.md), so no named exception list is needed yet.
-      - name: Audit development dependencies (moderate and above)
-        run: pnpm audit --dev --audit-level=moderate
-
       - name: Run NuGet audit fixture tests
         env:
           APP_ROLE: api
@@ -370,6 +357,29 @@ jobs:
       - name: Verify no tracked file matches .gitignore (#1513)
         run: node packages/scripts-ts/src/check-no-ignored-tracked.ts
 
+  # #1699: a registry outage is isolated from lint and .NET quality work.
+  audit-development:
+    name: Audit development dependencies
+    needs: changes
+    if: needs.changes.outputs.relevant == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+        with:
+          version: 10.13.1
+
+      - name: Setup Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: 24
+
+      - name: Audit development dependencies (moderate and above)
+        run: node packages/scripts-ts/src/npm-audit-runner.ts dev moderate
+
   # #1849/#1891/#1977: the repository must contain exactly one `.dockerignore`,
   # at the root. Outside the explicit tooling-directory boundary (`.git`,
   # `node_modules`, `.worktrees`, `.dump`, `.claude`, `.agents`, `.ai`,
@@ -430,7 +440,7 @@ jobs:
     # required names either.
     name: ${{ (github.event_name == 'pull_request' || github.event_name == 'merge_group') && 'quality-gate' || 'quality-gate-push-check' }}
     if: always()
-    needs: [changes, quality, no-ignored-tracked, no-dockerignore-shadow]
+    needs: [changes, quality, no-ignored-tracked, no-dockerignore-shadow, audit-development]
     runs-on: ubuntu-latest
     steps:
       # Reads the `needs` context directly (via toJSON) instead of a

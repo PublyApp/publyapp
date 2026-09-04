@@ -89,6 +89,7 @@ revert → green. Changing only the comment version must equally fail.
 | Lint (oxlint scope CI uses, disables audit, barrel check)                                         | yes       | yes            |
 | shared-ts typecheck + vitest suite (#1270)                                                        | yes       | yes            |
 | front build, CSS-asset check, bundle isolation, smoke start, typecheck, design system, unit tests | yes       | yes            |
+| production and development npm audits (bounded, fail-closed)                                      | yes       | yes            |
 | ~~old-front unit characterization + typecheck~~ (deleted 2026-08-22, archived) | — | — |
 | `openapi.json` / `client-ts` drift + OpenAPI contract spec                                        | yes       | yes            |
 | NuGet vulnerability audit (`just nuget-audit` / `node packages/scripts-ts/src/nuget-audit.ts`)      | yes       | yes            |

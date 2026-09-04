@@ -276,10 +276,25 @@
 			"mirror": "just ci-install",
 			"reason": "ci-install runs the identical command: node apps/front/scripts/run-guarded.mts apps/front/scripts/guards/assert-pinned.mts (wrapped #1525)."
 		},
-		"front-ci.yml::supply-chain::Audit production dependencies (moderate and above)": {
-			"hash": "8d5095ef73aba7b3",
-			"mirror": "pnpm audit --prod --audit-level=moderate",
-			"reason": "#1644: production-graph threshold lowered from high to moderate to align with the dev-graph gate (quality-gate.yml::quality::Audit development dependencies). The previous shape let a moderate advisory in a production dep slip through both audits: --prod excludes the dev graph, and --audit-level=high excludes moderate. The same command reproduces it locally without Docker or CI; the production graph is clean at every threshold today, so the cost is zero and the safety is immediate (no exception list needed). #1674: the bite-proof test (packages/scripts-ts/src/prod-audit-bites.test.ts) parses this step's `run:` body to pin the exact command string and runs `pnpm audit --prod --audit-level=moderate` against a controlled fixture carrying ejs@3.1.7 \u2192 GHSA-ghr5-ch3p-vcr6 (a stable moderate advisory) so a regression that reverts the threshold to `high`, drops `--prod`, or removes the step turns the suite red before the audit step itself runs."
+		"front-ci.yml::audit-production::Audit production dependencies (moderate and above)": {
+			"hash": "0399f484b7c473e1",
+			"mirror": "just ci-npm-audit-production",
+			"reason": "#1699 isolates the production graph in its own required job. The 40-second runner bound preserves pnpm output and fails closed for advisories or a known unavailable audit service; the local recipe invokes that identical runner command."
+		},
+		"front-ci.yml::audit-production::Checkout": {
+			"hash": "11ee605b2ca0dfd4",
+			"mirror": null,
+			"reason": "GitHub-only: clones the repository onto the isolated audit runner. Locally the checked-out working tree already supplies the lockfile and runner source."
+		},
+		"front-ci.yml::audit-production::Install pnpm": {
+			"hash": "8985553731d304dc",
+			"mirror": null,
+			"reason": "GitHub-only pnpm provisioning for the isolated audit job. Local verification already uses the repository-pinned pnpm toolchain."
+		},
+		"front-ci.yml::audit-production::Setup Node": {
+			"hash": "6c699edc403fc068",
+			"mirror": null,
+			"reason": "GitHub-only Node provisioning for the isolated audit job. Local verification already runs with the repository-pinned Node version."
 		},
 		"front-ci.yml::supply-chain::Build front": {
 			"hash": "cbd03bead5b114fa",
@@ -696,10 +711,25 @@
 			"mirror": "just ci-install",
 			"reason": "ci-install runs the identical command: node apps/front/scripts/run-guarded.mts apps/front/scripts/guards/assert-pinned.mts (wrapped #1525)."
 		},
-		"quality-gate.yml::quality::Audit development dependencies (moderate and above)": {
-			"hash": "60fbf11c313950ad",
-			"mirror": "pnpm audit --dev --audit-level=moderate",
-			"reason": "#1631 closes the dev-graph blind spot the prod-only `pnpm audit --prod --audit-level=high` left open: this scans the development-only dependency graph repo-wide (every package.json's dev deps, no --filter) at moderate so a moderate dev advisory (the nanoid-via-postcss class) turns the gate red instead of passing silently. Locally the identical `pnpm audit --dev --audit-level=moderate` reproduces it without Docker or CI; the graph is clean today at every threshold, so no exception list is carried."
+		"quality-gate.yml::audit-development::Audit development dependencies (moderate and above)": {
+			"hash": "4e713a0e94b7694c",
+			"mirror": "just ci-npm-audit-development",
+			"reason": "#1699 isolates the development graph in its own required job. The 40-second runner bound preserves pnpm output and fails closed for advisories or a known unavailable audit service; the local recipe invokes that identical runner command."
+		},
+		"quality-gate.yml::audit-development::Checkout": {
+			"hash": "11ee605b2ca0dfd4",
+			"mirror": null,
+			"reason": "GitHub-only: clones the repository onto the isolated audit runner. Locally the checked-out working tree already supplies the lockfile and runner source."
+		},
+		"quality-gate.yml::audit-development::Install pnpm": {
+			"hash": "8985553731d304dc",
+			"mirror": null,
+			"reason": "GitHub-only pnpm provisioning for the isolated audit job. Local verification already uses the repository-pinned pnpm toolchain."
+		},
+		"quality-gate.yml::audit-development::Setup Node": {
+			"hash": "6c699edc403fc068",
+			"mirror": null,
+			"reason": "GitHub-only Node provisioning for the isolated audit job. Local verification already runs with the repository-pinned Node version."
 		},
 		"quality-gate.yml::quality::Bind pinned action SHAs to their version comments (#1392)": {
 			"hash": "a049d6a6ead6e452",
