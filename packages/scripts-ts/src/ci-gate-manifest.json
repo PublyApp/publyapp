@@ -279,7 +279,7 @@
 		"front-ci.yml::audit-production::Audit production dependencies (moderate and above)": {
 			"hash": "0399f484b7c473e1",
 			"mirror": "just ci-npm-audit-production",
-			"reason": "#1699 isolates the production graph in its own required job. The 40-second runner bound preserves pnpm output and fails closed for advisories or a known unavailable audit service; the local recipe invokes that identical runner command."
+			"reason": "#1699 isolates the production graph in its own required job. The 40-second production runner bound preserves pnpm output and fails closed for advisories or a known unavailable audit service; the local recipe invokes that identical runner command."
 		},
 		"front-ci.yml::audit-production::Checkout": {
 			"hash": "11ee605b2ca0dfd4",
@@ -714,7 +714,7 @@
 		"quality-gate.yml::audit-development::Audit development dependencies (moderate and above)": {
 			"hash": "4e713a0e94b7694c",
 			"mirror": "just ci-npm-audit-development",
-			"reason": "#1699 isolates the development graph in its own required job. The 40-second runner bound preserves pnpm output and fails closed for advisories or a known unavailable audit service; the local recipe invokes that identical runner command."
+			"reason": "#1699 isolates the development graph in its own required job. The 120-second development runner bound preserves pnpm output and fails closed for advisories or a known unavailable audit service; the local recipe invokes that identical runner command."
 		},
 		"quality-gate.yml::audit-development::Checkout": {
 			"hash": "11ee605b2ca0dfd4",

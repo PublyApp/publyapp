@@ -525,9 +525,9 @@ ci-front:
   just test-preuves
 
 # #1699: the two npm dependency graphs are isolated from build/lint work,
-# matching their dedicated required CI jobs. The runner bounds pnpm's retry
-# behavior at 40 seconds and preserves a non-zero result for a vulnerability
-# or unavailable audit service.
+# matching their dedicated required CI jobs. The runner keeps production at
+# 40 seconds and gives development a finite 120-second bound, preserving a
+# non-zero result for a vulnerability or unavailable audit service.
 ci-npm-audit-production:
   @echo "=== [gate] production dependency audit ==="
   node packages/scripts-ts/src/npm-audit-runner.ts prod moderate

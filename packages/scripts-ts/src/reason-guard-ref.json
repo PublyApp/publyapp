@@ -457,8 +457,8 @@
 			"reason": "ci-install runs the identical command: node apps/front/scripts/run-guarded.mts apps/front/scripts/guards/assert-pinned.mts (wrapped #1525)."
 		},
 		"front-ci.yml::audit-production::Audit production dependencies (moderate and above)": {
-			"reason_hash": "08cf6719c7d53bc2",
-			"reason": "#1699 isolates the production graph in its own required job. The 40-second runner bound preserves pnpm output and fails closed for advisories or a known unavailable audit service; the local recipe invokes that identical runner command."
+			"reason_hash": "e9be8d177601e23c",
+			"reason": "#1699 isolates the production graph in its own required job. The 40-second production runner bound preserves pnpm output and fails closed for advisories or a known unavailable audit service; the local recipe invokes that identical runner command."
 		},
 		"front-ci.yml::audit-production::Checkout": {
 			"reason_hash": "7d216c1ebbd926ec",
@@ -805,8 +805,8 @@
 			"reason": "ci-install runs the identical command: node apps/front/scripts/run-guarded.mts apps/front/scripts/guards/assert-pinned.mts (wrapped #1525)."
 		},
 		"quality-gate.yml::audit-development::Audit development dependencies (moderate and above)": {
-			"reason_hash": "54bcc17393ba537b",
-			"reason": "#1699 isolates the development graph in its own required job. The 40-second runner bound preserves pnpm output and fails closed for advisories or a known unavailable audit service; the local recipe invokes that identical runner command."
+			"reason_hash": "01ea4124505781f2",
+			"reason": "#1699 isolates the development graph in its own required job. The 120-second development runner bound preserves pnpm output and fails closed for advisories or a known unavailable audit service; the local recipe invokes that identical runner command."
 		},
 		"quality-gate.yml::audit-development::Checkout": {
 			"reason_hash": "7d216c1ebbd926ec",
