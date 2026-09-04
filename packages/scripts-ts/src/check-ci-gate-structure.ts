@@ -326,6 +326,7 @@ export const GATE_WORKFLOWS = [
 		pushCheckName: 'front-ci-push-check',
 		relevanceGatedJobs: [
 			{ id: 'supply-chain', needs: ['changes'] },
+			{ id: 'audit-production', needs: ['changes'] },
 			{ id: 'gate-selftest', needs: ['changes'] },
 			// #1948: the shard matrix and its coverage proof are both
 			// gated on the changes classifier like their siblings. Being in
@@ -463,6 +464,7 @@ export const GATE_WORKFLOWS = [
 			// that were never run on the server.
 			'packages/scripts-ts/src/gen-reason-ref.test.ts',
 			'packages/scripts-ts/src/lint-front.test.ts',
+			'packages/scripts-ts/src/npm-audit-runner.test.ts',
 			'packages/scripts-ts/src/prod-audit-bites.test.ts',
 			'packages/scripts-ts/src/require-linked-issue.test.ts',
 		],
@@ -491,7 +493,10 @@ export const GATE_WORKFLOWS = [
 		gateJob: 'gate',
 		gateName: 'quality-gate',
 		pushCheckName: 'quality-gate-push-check',
-		relevanceGatedJobs: [{ id: 'quality', needs: ['changes'] }],
+		relevanceGatedJobs: [
+			{ id: 'quality', needs: ['changes'] },
+			{ id: 'audit-development', needs: ['changes'] },
+		],
 		alwaysJobs: [],
 	},
 	{
@@ -582,6 +587,7 @@ export const EXPECTED_GATE_SELFTEST_TESTS = [
 	// without also updating the expectation here.
 	'packages/scripts-ts/src/gen-reason-ref.test.ts',
 	'packages/scripts-ts/src/lint-front.test.ts',
+	'packages/scripts-ts/src/npm-audit-runner.test.ts',
 	'packages/scripts-ts/src/prod-audit-bites.test.ts',
 	'packages/scripts-ts/src/require-linked-issue.test.ts',
 ];

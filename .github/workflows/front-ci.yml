@@ -189,17 +189,6 @@ jobs:
       - name: Install Git hooks (mirrors prepare)
         run: pnpm run prepare
 
-      # #1644: lower the production-graph audit threshold from `high` to
-      # `moderate`, aligning it with the dev-graph gate (#1631/quality-gate.yml).
-      # The previous shape let a moderate advisory in a production dep slip
-      # through both audits: --prod excludes the dev graph, and --audit-level=high
-      # excludes moderate. The production graph is clean at every threshold
-      # today (0 advisories at critical/high/moderate/low — reproduce with
-      # `pnpm audit --prod --audit-level=low`), so the cost is zero and the
-      # safety is immediate.
-      - name: Audit production dependencies (moderate and above)
-        run: pnpm audit --prod --audit-level=moderate
-
       - name: Check front formatting
         run: pnpm format
 
@@ -453,6 +442,29 @@ jobs:
       - name: Check vitest shard coverage equality (#1948)
         run: pnpm --filter front test:vitest-shard-coverage
 
+  # #1699: a registry outage must not block unrelated front supply-chain work.
+  audit-production:
+    name: Audit production dependencies
+    needs: changes
+    if: needs.changes.outputs.relevant == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+        with:
+          version: 10.13.1
+
+      - name: Setup Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: 24
+
+      - name: Audit production dependencies (moderate and above)
+        run: node packages/scripts-ts/src/npm-audit-runner.ts prod moderate
+
   # IMPORTANT fix: the four #1017 aggregate-gate test suites and the
   # packages/scripts-ts/src/check-ci-gate-structure.ts CLI were reachable only through local
   # `just ci-drift` — no workflow invoked them. A review confirmed against a
@@ -551,13 +563,14 @@ jobs:
           pnpm --filter scripts-ts exec vitest run src/ci-referenced-paths.test.ts
           pnpm --filter scripts-ts exec vitest run src/check-cyclomatic-bound.test.ts
           node ./packages/scripts-ts/src/check-cyclomatic-bound.ts
-          # #1674: bite-proof test for the production-dependency audit
-          # gate. Runs the real pnpm audit on a controlled fixture
+          # #1674/#1699: bite-proof test for the bounded production-audit runner.
+          # It drives real pnpm through the runner against a controlled fixture
           # carrying a known-stable moderate advisory (ejs@3.1.7 →
           # GHSA-ghr5-ch3p-vcr6) so the gate's threshold regression
           # (e.g. reverting to `--audit-level=high`) is caught before
           # the audit step itself runs.
           pnpm --filter scripts-ts exec vitest run src/prod-audit-bites.test.ts
+          pnpm --filter scripts-ts exec vitest run src/npm-audit-runner.test.ts
 
       # This must run in a required-check dependency, not only locally: the
       # projection protects closure evidence and Trello delivery-card updates.
@@ -603,7 +616,7 @@ jobs:
     name: ${{ (github.event_name == 'pull_request' || github.event_name == 'merge_group') && 'front-ci-gate' || 'front-ci-push-check' }}
     if: always()
     needs:
-      [changes, supply-chain, gate-selftest, test-vitest, test-vitest-coverage]
+      [changes, supply-chain, gate-selftest, test-vitest, test-vitest-coverage, audit-production]
     runs-on: ubuntu-latest
     steps:
       # BLOCKER fix (round 5): `gate-selftest` above runs

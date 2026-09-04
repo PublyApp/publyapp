@@ -335,14 +335,14 @@ ci-drift:
   pnpm --filter scripts-ts exec vitest run src/ci-referenced-paths.test.ts
   pnpm --filter scripts-ts exec vitest run src/check-cyclomatic-bound.test.ts
   node ./packages/scripts-ts/src/check-cyclomatic-bound.ts
-  # #1674: bite-proof test for the production-dependency audit gate.
-  # The CI gate is `pnpm audit --prod --audit-level=moderate`
-  # (front-ci.yml::supply-chain), and this test pins that exact command
-  # string and runs the real pnpm audit against a controlled fixture
+  # #1674/#1699: bite-proof tests for the bounded production-audit runner.
+  # The CI gate invokes its production graph through that runner, and the
+  # localhost fixture drives real pnpm through it against a controlled response
   # carrying ejs@3.1.7 → GHSA-ghr5-ch3p-vcr6 (a stable moderate advisory)
   # so a regression that reverts the threshold to `high`, drops `--prod`,
   # or removes the step is caught locally as well as in CI.
   pnpm --filter scripts-ts exec vitest run src/prod-audit-bites.test.ts
+  pnpm --filter scripts-ts exec vitest run src/npm-audit-runner.test.ts
 
 # #1821: production duplication ratchet. Runs jscpd against production paths and
 # verifies the unique pair count and line count are within the committed baseline.
@@ -538,9 +538,18 @@ ci-front:
   # invented by the matrix. Mirrors front-ci.yml::test-vitest-coverage.
   pnpm --filter front test:vitest-shard-coverage
   just test-preuves
-  # end of front front-ci.yml::supply-chain parallel block (Test front step)
-  @echo "=== [gate] production dependency audit (mirrors front-ci.yml::supply-chain) ==="
-  pnpm audit --prod --audit-level=moderate
+
+# #1699: the two npm dependency graphs are isolated from build/lint work,
+# matching their dedicated required CI jobs. The runner bounds pnpm's retry
+# behavior at 40 seconds and preserves a non-zero result for a vulnerability
+# or unavailable audit service.
+ci-npm-audit-production:
+  @echo "=== [gate] production dependency audit ==="
+  node packages/scripts-ts/src/npm-audit-runner.ts prod moderate
+
+ci-npm-audit-development:
+  @echo "=== [gate] development dependency audit ==="
+  node packages/scripts-ts/src/npm-audit-runner.ts dev moderate
 
 # Run paired preuve red tests via vitest.preuves.config.ts.
 #
@@ -622,7 +631,7 @@ ci-e2e-front:
 
 
 # Everyday pre-push gate (no e2e). Fails on the first red sub-gate.
-ci: ci-drift ci-migration-expand-contract ci-review-worktree-resolution ci-doc-links ci-jscpd ci-deploy-env-docs ci-project-closure-adapter ci-no-ignored-tracked ci-dockerignore-shadow ci-install ci-format ci-lint ci-lint-ts ci-knip ci-shared-ts ci-quality ci-front ci-spec-drift nuget-audit test-api
+ci: ci-drift ci-migration-expand-contract ci-review-worktree-resolution ci-doc-links ci-jscpd ci-deploy-env-docs ci-project-closure-adapter ci-no-ignored-tracked ci-dockerignore-shadow ci-install ci-format ci-lint ci-lint-ts ci-knip ci-shared-ts ci-quality ci-front ci-npm-audit-production ci-npm-audit-development ci-spec-drift nuget-audit test-api
   @echo ""
   @echo "=== just ci: PASSED ==="
   @echo "Not covered here: the two e2e suites (run 'just ci-full')."
