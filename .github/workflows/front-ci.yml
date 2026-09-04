@@ -563,13 +563,14 @@ jobs:
           pnpm --filter scripts-ts exec vitest run src/ci-referenced-paths.test.ts
           pnpm --filter scripts-ts exec vitest run src/check-cyclomatic-bound.test.ts
           node ./packages/scripts-ts/src/check-cyclomatic-bound.ts
-          # #1674: bite-proof test for the production-dependency audit
-          # gate. Runs the real pnpm audit on a controlled fixture
+          # #1674/#1699: bite-proof test for the bounded production-audit runner.
+          # It drives real pnpm through the runner against a controlled fixture
           # carrying a known-stable moderate advisory (ejs@3.1.7 →
           # GHSA-ghr5-ch3p-vcr6) so the gate's threshold regression
           # (e.g. reverting to `--audit-level=high`) is caught before
           # the audit step itself runs.
           pnpm --filter scripts-ts exec vitest run src/prod-audit-bites.test.ts
+          pnpm --filter scripts-ts exec vitest run src/npm-audit-runner.test.ts
 
       # This must run in a required-check dependency, not only locally: the
       # projection protects closure evidence and Trello delivery-card updates.

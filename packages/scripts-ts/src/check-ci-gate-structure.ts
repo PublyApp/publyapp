@@ -464,6 +464,7 @@ export const GATE_WORKFLOWS = [
 			// that were never run on the server.
 			'packages/scripts-ts/src/gen-reason-ref.test.ts',
 			'packages/scripts-ts/src/lint-front.test.ts',
+			'packages/scripts-ts/src/npm-audit-runner.test.ts',
 			'packages/scripts-ts/src/prod-audit-bites.test.ts',
 			'packages/scripts-ts/src/require-linked-issue.test.ts',
 		],
@@ -586,6 +587,7 @@ export const EXPECTED_GATE_SELFTEST_TESTS = [
 	// without also updating the expectation here.
 	'packages/scripts-ts/src/gen-reason-ref.test.ts',
 	'packages/scripts-ts/src/lint-front.test.ts',
+	'packages/scripts-ts/src/npm-audit-runner.test.ts',
 	'packages/scripts-ts/src/prod-audit-bites.test.ts',
 	'packages/scripts-ts/src/require-linked-issue.test.ts',
 ];

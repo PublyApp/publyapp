@@ -122,7 +122,7 @@ above; #880's closure adds the proof, not a new pin.
     regeneration could drop back to `3.3.16`. The cap proactively holds the safe
     floor because `postcss`'s declared range can still resolve a vulnerable
     version. The production audit does not inspect this dev-scoped graph, but
-    CI's separate `pnpm audit --dev --audit-level=moderate` gate would detect a
+    CI's separate bounded development-graph audit gate would detect a
     vulnerable resolution after the fact.
   - **`nanoid@>=4.0.0 <5.0.9 → ^5.1.16` REMOVED** (commit `ec7089c99`, issue
     #1623). The only direct declaration, `packages/shared-ts` `^5.1.16`, was also
@@ -224,7 +224,7 @@ there `qs` is reached by more than one branch:
 Both declared ranges — `^6.14.0` and `^6.15.2` — are wide enough to resolve a
 vulnerable release, so pinning only one parent would not hold the floor. Because
 the whole graph is dev-scoped, the CI production audit does not inspect it. The
-separate `pnpm audit --dev --audit-level=moderate` gate detects a vulnerable
+separate bounded development-graph audit gate detects a vulnerable
 resolution, while the override proactively holds the safe floor.
 
 A direct bump is not available: `express@5.2.1` is the latest published release
@@ -242,8 +242,7 @@ depends on `qs` at all — for instance if `shadcn` stops pulling
 `@modelcontextprotocol/sdk`/`express` — **or** **every** reachable parent
 (`express` **and** `body-parser`, on each branch above) declares a `qs` floor of
 `>=6.16.0`, and, in either case, both
-`pnpm audit --prod --audit-level=moderate` and
-`pnpm audit --dev --audit-level=moderate` stay green without it. Today
+the bounded production and development audit gates stay green without it. Today
 `express@5.2.1` still declares `^6.14.0` and `body-parser@2.3.0` still declares
 `^6.15.2`, so the override stays. Judge this on
 the declared range: the lock resolving a patched `qs` proves nothing while the
@@ -252,8 +251,8 @@ override is the only reason it does.
 ## How to run locally
 
 ```bash
-pnpm audit --prod --audit-level=moderate  # what CI gates (fail on moderate+)
-pnpm audit --dev --audit-level=moderate   # CI's dev-graph gate
+node packages/scripts-ts/src/npm-audit-runner.ts prod moderate  # bounded CI prod gate
+node packages/scripts-ts/src/npm-audit-runner.ts dev moderate   # bounded CI dev gate
 pnpm audit --prod --audit-level=critical  # today: passes (no critical in prod)
 pnpm audit                              # full graph including dev
 

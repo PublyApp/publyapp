@@ -1,8 +1,14 @@
-import { spawn } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
+import { resolve } from 'node:path';
 import process from 'node:process';
+import { pathToFileURL } from 'node:url';
 
 const defaultTimeoutMs = 40_000;
 const killGraceMs = 2_000;
+const taskkillOptions = { stdio: 'ignore' as const, windowsHide: true };
+const unavailablePattern =
+	/\b(?:ECONNREFUSED|ENOTFOUND|ETIMEDOUT|ECONNRESET|EAI_AGAIN)\b|ERR_PNPM_META_FETCH_FAIL|ERR_PNPM_AUDIT_BAD_RESPONSE[\s\S]*(?:\b408\b|\b429\b|\b5\d{2}\b)|TimeoutError: The operation was aborted due to timeout/i;
+const lockfilePattern = /ERR_PNPM_AUDIT_NO_LOCKFILE|No pnpm-lock\.yaml found/i;
 
 export type AuditGraph = 'prod' | 'dev';
 export type AuditLevel = 'info' | 'low' | 'moderate' | 'high' | 'critical';
@@ -13,33 +19,20 @@ export type AuditResult = {
 	stderr: string;
 };
 
-const isLockfileMissing = (output: string): boolean =>
-	/ERR_PNPM_AUDIT_NO_LOCKFILE|No pnpm-lock\.yaml found/i.test(output);
-
-const isUnavailable = (output: string): boolean =>
-	/ECONNREFUSED|ENOTFOUND|ETIMEDOUT|fetch failed|operation was aborted due to timeout|ERR_PNPM_META_FETCH_FAIL/i.test(
-		output,
-	);
-
 const classify = (
 	exitCode: number,
 	stdout: string,
 	stderr: string,
 	timedOut: boolean,
 ): AuditResult => {
-	const output = `${stdout}\n${stderr}`;
-	if (timedOut || isUnavailable(output)) {
+	if (timedOut || unavailablePattern.test(`${stdout}\n${stderr}`)) {
 		return { status: 'unavailable', exitCode, stdout, stderr };
 	}
-	if (isLockfileMissing(output)) {
+	if (lockfilePattern.test(`${stdout}\n${stderr}`)) {
 		return { status: 'lockfile-missing', exitCode, stdout, stderr };
 	}
-	return {
-		status: exitCode === 0 ? 'clean' : 'failure',
-		exitCode,
-		stdout,
-		stderr,
-	};
+	const status = exitCode === 0 ? 'clean' : 'failure';
+	return { status, exitCode, stdout, stderr };
 };
 
 export const runAudit = async (options: {
@@ -64,14 +57,19 @@ export const runAudit = async (options: {
 			args.push(`--registry=${options.registry}`);
 		}
 		args.push(options.graph === 'prod' ? '--prod' : '--dev');
-		const child = spawn('pnpm', args, {
-			cwd: options.cwd,
-			env,
-			detached: process.platform !== 'win32',
-			stdio: ['ignore', 'pipe', 'pipe'],
-		});
-		let stdout = '';
-		let stderr = '';
+		const child = spawn(
+			process.platform === 'win32' ? 'pnpm.cmd' : 'pnpm',
+			args,
+			{
+				cwd: options.cwd,
+				env,
+				detached: process.platform !== 'win32',
+				shell: process.platform === 'win32',
+				stdio: ['ignore', 'pipe', 'pipe'],
+			},
+		);
+		let stdout = '',
+			stderr = '';
 		let timedOut = false;
 		let killTimer: NodeJS.Timeout | undefined;
 		const stop = (signal: NodeJS.Signals): void => {
@@ -80,14 +78,23 @@ export const runAudit = async (options: {
 			}
 			try {
 				if (process.platform === 'win32') {
-					child.kill(signal);
-				} else {
-					process.kill(-child.pid, signal);
+					const taskkill = ['/PID', String(child.pid), '/T'];
+					const graceful =
+						signal === 'SIGKILL'
+							? null
+							: spawnSync('taskkill', taskkill, taskkillOptions);
+					if (signal === 'SIGKILL' || graceful?.status !== 0) {
+						spawnSync('taskkill', [...taskkill, '/F'], taskkillOptions);
+					}
+					return;
 				}
-			} catch {
-				// The process exited between the timeout and termination attempt.
-			}
+				process.kill(-child.pid, signal);
+			} catch {}
 		};
+		const forwardSigint = (): void => stop('SIGINT');
+		const forwardSigterm = (): void => stop('SIGTERM');
+		process.once('SIGINT', forwardSigint);
+		process.once('SIGTERM', forwardSigterm);
 		const timeout = setTimeout(() => {
 			timedOut = true;
 			stop('SIGTERM');
@@ -101,13 +108,18 @@ export const runAudit = async (options: {
 		child.stderr.on('data', (chunk: string) => {
 			stderr += chunk;
 		});
+		let spawnFailed = false;
 		child.on('error', (error) => {
+			spawnFailed = true;
 			stderr += `\nspawn error: ${error.message}`;
 		});
 		child.on('close', (code) => {
 			clearTimeout(timeout);
 			clearTimeout(killTimer);
-			resolve(classify(code ?? 1, stdout, stderr, timedOut));
+			process.removeListener('SIGINT', forwardSigint);
+			process.removeListener('SIGTERM', forwardSigterm);
+			const exitCode = spawnFailed || code === null || code < 0 ? 1 : code;
+			resolve(classify(exitCode, stdout, stderr, timedOut));
 		});
 	});
 
@@ -133,9 +145,13 @@ const main = async (): Promise<void> => {
 	if (result.status === 'unavailable') {
 		process.stderr.write('\nnpm audit service unavailable\n');
 	}
-	process.exitCode = result.status === 'clean' ? 0 : 1;
+	process.exitCode =
+		result.status === 'clean' ? 0 : result.exitCode > 0 ? result.exitCode : 1;
 };
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (
+	process.argv[1] !== undefined &&
+	import.meta.url === pathToFileURL(resolve(process.argv[1])).href
+) {
 	void main();
 }
