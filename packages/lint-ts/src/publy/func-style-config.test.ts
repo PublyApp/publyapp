@@ -2109,11 +2109,12 @@ class Probe {}
 		// file), keeping the same `git check-ignore --stdin -z` batched gate so
 		// the ignored / non-ignored distinction stays real. Observed maximum
 		// across 15 sequential + 5 loaded (6-way CPU stress) runs after the
-		// change: 28ms; the 5000ms timeout below is the same value the test
-		// carried previously, kept here so the test budget remains honest
-		// against a cold filesystem cache and a busy CI runner without
-		// reintroducing the misleading scanner-regression failure mode the bug
-		// describes (`.dump/preuves/1968/measurement-after.txt`).
+		// change: 28ms (`.dump/preuves/1968/measurement-after.txt`). 10s is
+		// over 350x that measured maximum — more than enough headroom against a
+		// cold filesystem cache or a busy CI runner while still bounding a real
+		// hang, so the test budget stays honest without reintroducing the
+		// misleading scanner-regression failure mode the bug describes.
+		const GIT_IGNORE_LEG_TIMEOUT_MS = 10_000;
 		const plantedWorktreeFile = join(
 			WORKSPACE_ROOT,
 			'.worktrees/proof-1909/apps/front/src/viable.ts',
@@ -2143,51 +2144,59 @@ class Probe {}
 
 		afterAll(removePlanted);
 
-		it('leg 1: a suppression inside a git-ignored directory is not scanned', async () => {
-			plantSuppression(plantedWorktreeFile);
+		it(
+			'leg 1: a suppression inside a git-ignored directory is not scanned',
+			async () => {
+				plantSuppression(plantedWorktreeFile);
 
-			try {
-				const foundEntries = await scanFuncStyleSuppressions(WORKSPACE_ROOT, [
-					dirname(plantedWorktreeFile),
-				]);
-				const worktreeEntries = foundEntries.filter((entry) =>
-					entry.file.startsWith('.worktrees/proof-1909/'),
-				);
+				try {
+					const foundEntries = await scanFuncStyleSuppressions(WORKSPACE_ROOT, [
+						dirname(plantedWorktreeFile),
+					]);
+					const worktreeEntries = foundEntries.filter((entry) =>
+						entry.file.startsWith('.worktrees/proof-1909/'),
+					);
 
-				assert.deepStrictEqual(
-					worktreeEntries,
-					[],
-					`the scanner must skip the git-ignored .worktrees/ directory; found ${worktreeEntries.map((entry) => `${entry.file}: ${entry.symbol}`).join(', ')}`,
-				);
-			} finally {
-				removePlanted();
-			}
-		}, 5000);
+					assert.deepStrictEqual(
+						worktreeEntries,
+						[],
+						`the scanner must skip the git-ignored .worktrees/ directory; found ${worktreeEntries.map((entry) => `${entry.file}: ${entry.symbol}`).join(', ')}`,
+					);
+				} finally {
+					removePlanted();
+				}
+			},
+			GIT_IGNORE_LEG_TIMEOUT_MS,
+		);
 
-		it('adversarial leg 2: the same suppression in a NON-ignored file is still reported', async () => {
-			plantSuppression(plantedTrackedFile);
+		it(
+			'adversarial leg 2: the same suppression in a NON-ignored file is still reported',
+			async () => {
+				plantSuppression(plantedTrackedFile);
 
-			try {
-				const foundEntries = await scanFuncStyleSuppressions(WORKSPACE_ROOT, [
-					dirname(plantedTrackedFile),
-				]);
-				const found = foundEntries.filter((entry) =>
-					entry.file.startsWith('apps/front/proof-1909-not-ignored/'),
-				);
+				try {
+					const foundEntries = await scanFuncStyleSuppressions(WORKSPACE_ROOT, [
+						dirname(plantedTrackedFile),
+					]);
+					const found = foundEntries.filter((entry) =>
+						entry.file.startsWith('apps/front/proof-1909-not-ignored/'),
+					);
 
-				assert.strictEqual(
-					found.length,
-					1,
-					`the scanner must still report the non-ignored suppression; got ${JSON.stringify(found)}`,
-				);
-				assert.strictEqual(
-					found[0]!.symbol,
-					'survie1909',
-					'the reported suppression must carry its symbol',
-				);
-			} finally {
-				removePlanted();
-			}
-		}, 5000);
+					assert.strictEqual(
+						found.length,
+						1,
+						`the scanner must still report the non-ignored suppression; got ${JSON.stringify(found)}`,
+					);
+					assert.strictEqual(
+						found[0]!.symbol,
+						'survie1909',
+						'the reported suppression must carry its symbol',
+					);
+				} finally {
+					removePlanted();
+				}
+			},
+			GIT_IGNORE_LEG_TIMEOUT_MS,
+		);
 	});
 });
