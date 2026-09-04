@@ -337,11 +337,9 @@ void describe('port lease exclusivity', () => {
 	 * lease socket for the whole spec, so the second must move on — there is no
 	 * bookkeeping to consult, only the kernel's answer to a bind.
 	 *
-	 * Distinct bands plus a live lease is the whole proof. The second band has
-	 * no obligation to be GREATER than the first: a band held for the first
-	 * reservation may be released and the second reservation handed the SAME
-	 * (smaller) offset on a different base — what matters is that the two
-	 * environments do not name the same port.
+	 * Both reservations scan the same base port.
+	 * Unrelated, lower occupancy can change between the two scans, so distinct
+	 * bands from a live lease is the invariant — numeric order is not.
 	 */
 	void it('gives two live reservations different bands', async (t) => {
 		const leaseBasePort = await claimWindow(t);
@@ -776,18 +774,27 @@ void describe('lease window claim (spec infrastructure)', () => {
 			await secondWindow.release();
 		});
 
-		const first = await reserveE2EComposeEnv(undefined, {
-			leaseBasePort: firstWindow.basePort,
-			...freeServicePorts,
-		});
-
-		// Squat the remaining seven ports of window1 (band 0 is `first`'s).
-		const squatters: Server[] = [];
-		for (let offset = 1; offset < LEASE_BLOCK_SIZE; offset++) {
-			squatters.push(await listenOn(firstWindow.basePort + offset));
-		}
+		// Offset 0 is squatted BEFORE the first reservation, so `first` is forced
+		// onto some other offset instead of always landing on band 0 itself.
+		const squatters: Server[] = [await listenOn(firstWindow.basePort)];
+		let first: E2eComposeReservation | undefined;
 
 		try {
+			first = await reserveE2EComposeEnv(undefined, {
+				leaseBasePort: firstWindow.basePort,
+				...freeServicePorts,
+			});
+			const actualOffset = bandIndexOf(first.env);
+
+			// Squat every remaining offset of window1 except the one the offset-0
+			// squatter already covers and the one `first` actually took.
+			for (let offset = 1; offset < LEASE_BLOCK_SIZE; offset++) {
+				if (offset === actualOffset) {
+					continue;
+				}
+				squatters.push(await listenOn(firstWindow.basePort + offset));
+			}
+
 			await rejectsReservation(
 				reserveE2EComposeEnv(undefined, {
 					leaseBasePort: firstWindow.basePort,
@@ -815,7 +822,7 @@ void describe('lease window claim (spec infrastructure)', () => {
 			for (const squatter of squatters) {
 				await closeListener(squatter);
 			}
-			await first.release();
+			await first?.release();
 		}
 	});
 });
