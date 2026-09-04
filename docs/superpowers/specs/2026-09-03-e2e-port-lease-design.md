@@ -1,6 +1,6 @@
 # E2E Port-Band Lease Design
 
-**Date:** 2026-09-03  
+**Date:** 2026-09-03<br>
 **Status:** Approved design; awaiting written-spec review
 
 ## Purpose

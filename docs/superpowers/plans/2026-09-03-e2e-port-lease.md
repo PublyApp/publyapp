@@ -387,4 +387,3 @@ Use GPT-5.6 Sol High for separate Spec and Standards reviews bound to the exact 
 - [ ] **Step 9: Merge through the closure state machine**
 
 Merge only when the shared transition check allows it at the reviewed head. Then close the security-only PR transparently as superseded and remove the merged worktree and local/remote feature branch under repository cleanup rules.
-
