@@ -52,8 +52,8 @@ export const runAudit = async (options: {
 		const env: NodeJS.ProcessEnv = {
 			...process.env,
 			npm_config_fetch_retries: '0',
-			npm_config_fetch_timeout: '3000',
 		};
+		delete env.npm_config_fetch_timeout;
 		if (options.registry !== undefined) {
 			env.npm_config_registry = options.registry;
 		}

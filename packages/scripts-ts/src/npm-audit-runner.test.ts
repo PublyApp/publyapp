@@ -122,6 +122,25 @@ test('a known pnpm fetch error on stderr is unavailable', async () => {
 	);
 });
 
+test('the runner disables retries without imposing a per-request timeout', async () => {
+	await withFakePnpm(
+		'process.stdout.write(JSON.stringify({ retries: process.env.npm_config_fetch_retries, timeout: process.env.npm_config_fetch_timeout ?? null }));',
+		async (env) => {
+			env.npm_config_fetch_timeout = '3000';
+			const result = await run(
+				process.execPath,
+				[runnerPath, 'prod', 'moderate'],
+				env,
+			);
+			assert.equal(result.status, 0, result.stderr);
+			assert.deepEqual(JSON.parse(result.stdout), {
+				retries: '0',
+				timeout: null,
+			});
+		},
+	);
+});
+
 const waitFor = async (
 	condition: () => boolean,
 	timeoutMs = 2_000,
