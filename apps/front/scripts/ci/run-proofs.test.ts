@@ -273,7 +273,7 @@ const buildReplayFixture = (options: ReplayFixtureOptions): string => {
 	// and corepack resolves the SAME pinned pnpm as the workspace (without
 	// the pin, corepack falls forward to its default pnpm and trigger an
 	// implicit install — network + >30s on a cold cache, observed in
-	// ronde-11 development). Plus a minimal vitest.preuves.config.ts (the
+	// ronde-11 development). Plus a minimal vitest.proofs.config.ts (the
 	// runner passes --config explicitly) and a symlink to the real front's
 	// node_modules.
 	//
@@ -295,7 +295,7 @@ const buildReplayFixture = (options: ReplayFixtureOptions): string => {
 		'{"name":"preuve-replay-fixture","private":true,"type":"module","packageManager":"pnpm@10.13.1"}\n',
 	);
 	writeFileSync(
-		join(appDir, 'vitest.preuves.config.ts'),
+		join(appDir, 'vitest.proofs.config.ts'),
 		[
 			"import { defineConfig } from 'vitest/config';",
 			'',
@@ -387,7 +387,7 @@ const buildReplayFixture = (options: ReplayFixtureOptions): string => {
 	execSync('git config user.email preuve-fixture@example.com', { cwd: root });
 	execSync('git config user.name preuve-fixture', { cwd: root });
 	execSync(
-		'git add apps/front/package.json apps/front/vitest.preuves.config.ts apps/front/tests/proofs/expected-red.schema.json',
+		'git add apps/front/package.json apps/front/vitest.proofs.config.ts apps/front/tests/proofs/expected-red.schema.json',
 		{ cwd: root },
 	);
 	execSync('git commit -qm base', { cwd: root });
@@ -831,7 +831,7 @@ const buildErrorFixture = (options: ErrorFixtureOptions): string => {
 		'{"name":"preuve-error-fixture","private":true,"type":"module","packageManager":"pnpm@10.13.1"}\n',
 	);
 	writeFileSync(
-		join(appDir, 'vitest.preuves.config.ts'),
+		join(appDir, 'vitest.proofs.config.ts'),
 		[
 			"import { defineConfig } from 'vitest/config';",
 			'',
@@ -908,7 +908,7 @@ const buildErrorFixture = (options: ErrorFixtureOptions): string => {
 	execSync('git config user.email preuve-fixture@example.com', { cwd: root });
 	execSync('git config user.name preuve-fixture', { cwd: root });
 	execSync(
-		'git add apps/front/package.json apps/front/vitest.preuves.config.ts',
+		'git add apps/front/package.json apps/front/vitest.proofs.config.ts',
 		{ cwd: root },
 	);
 	execSync('git commit -qm base', { cwd: root });
@@ -965,7 +965,7 @@ const buildBehindHeadFixture = (): string => {
 		'{"name":"preuve-behind-fixture","private":true,"type":"module","packageManager":"pnpm@10.13.1"}\n',
 	);
 	writeFileSync(
-		join(appDir, 'vitest.preuves.config.ts'),
+		join(appDir, 'vitest.proofs.config.ts'),
 		[
 			"import { defineConfig } from 'vitest/config';",
 			'',
@@ -1042,7 +1042,7 @@ const buildBehindHeadFixture = (): string => {
 	execSync('git config user.email preuve-fixture@example.com', { cwd: root });
 	execSync('git config user.name preuve-fixture', { cwd: root });
 	execSync(
-		'git add apps/front/package.json apps/front/vitest.preuves.config.ts',
+		'git add apps/front/package.json apps/front/vitest.proofs.config.ts',
 		{ cwd: root },
 	);
 	execSync('git commit -qm base', { cwd: root }); // fork point

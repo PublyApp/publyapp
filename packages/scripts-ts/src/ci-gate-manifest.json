@@ -329,7 +329,7 @@
 		"front-ci.yml::supply-chain::Checkout": {
 			"hash": "f6bbd86f711cad8c",
 			"mirror": null,
-			"reason": "GitHub-only: clones the repo onto the runner with fetch-depth:0 (full history) so scripts/ci/run-preuves.mts can run git merge-base between the base ref and HEAD. A shallow checkout (default fetch-depth:1) would leave HEAD with no common ancestor with the base ref, making merge-base return empty and the diff go blank \u2014 the script would fail loud or silently exit 0. Locally the working tree already is the code under test."
+			"reason": "GitHub-only: clones the repo onto the runner with fetch-depth:0 (full history) so scripts/ci/run-proofs.mts can run git merge-base between the base ref and HEAD. A shallow checkout (default fetch-depth:1) would leave HEAD with no common ancestor with the base ref, making merge-base return empty and the diff go blank \u2014 the script would fail loud or silently exit 0. Locally the working tree already is the code under test."
 		},
 		"front-ci.yml::supply-chain::Install (frozen lockfile, no scripts)": {
 			"hash": "2fd5cf518bdeb323",
@@ -384,7 +384,7 @@
 		"front-ci.yml::supply-chain::Verify paired red proofs": {
 			"hash": "84a5033fcfbeb3dd",
 			"mirror": "just ci-front",
-			"reason": "ci-front runs `just test-preuves`, which delegates to the same scripts/ci/run-preuves.mts script invoked by `pnpm --filter front test:preuves`. Option (b) of issue #1659 ronde 5: a PR declares a paired red proof by adding/modifying proof test files under apps/front/tests/proofs/<issue>/. The runner uses `git diff` to detect whether the current PR touched any proof files. If proofs were declared, it replays them with inverted semantics (fail = proof intact, pass = proof stale). If no proofs were declared, it prints an explicit no-op message and exits 0. Proof files are versionned (committed), unlike .dump/ which is git-ignored. The developer replay path is the lane worktree where .dump/ traces also exist."
+			"reason": "ci-front runs `just test-preuves`, which delegates to the same scripts/ci/run-proofs.mts script invoked by `pnpm --filter front test:preuves`. Option (b) of issue #1659 ronde 5: a PR declares a paired red proof by adding/modifying proof test files under apps/front/tests/proofs/<issue>/. The runner uses `git diff` to detect whether the current PR touched any proof files. If proofs were declared, it replays them with inverted semantics (fail = proof intact, pass = proof stale). If no proofs were declared, it prints an explicit no-op message and exits 0. Proof files are versionned (committed), unlike .dump/ which is git-ignored. The developer replay path is the lane worktree where .dump/ traces also exist."
 		},
 		"front-e2e.yml::build::Build stack images": {
 			"hash": "8a525f944e9edfab",

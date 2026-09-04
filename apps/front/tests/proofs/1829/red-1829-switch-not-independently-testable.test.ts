@@ -37,7 +37,7 @@ import { fileURLToPath } from 'node:url';
  *   present → FAILS (kept-red, the expected state).
  *
  * ## Replay
- *   cd apps/front && pnpm exec vitest run --config vitest.preuves.config.ts \
+ *   cd apps/front && pnpm exec vitest run --config vitest.proofs.config.ts \
  *     tests/proofs/1829/red-1829-switch-not-independently-testable.test.ts
  *
  * Expected: FAIL — on corrected code, the switch IS independently testable.

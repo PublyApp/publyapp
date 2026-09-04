@@ -60,7 +60,7 @@ The r2 proof is a **two-axis static guard** that:
 ## 1. Red proof — against the corrected code (develop)
 
 ```
-$ pnpm exec vitest run --config vitest.preuves.config.ts \
+$ pnpm exec vitest run --config vitest.proofs.config.ts \
     tests/proofs/1457/red-1457-r2-sigint-race-silent-child.test.ts \
     --reporter=verbose
 

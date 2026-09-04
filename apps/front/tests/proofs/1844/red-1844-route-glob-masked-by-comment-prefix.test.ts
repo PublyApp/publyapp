@@ -32,7 +32,7 @@ import path from 'node:path';
  *   one violation → `expect(zero).toBe(true)` FAILS. Kept red.
  *
  * ## Replay
- *   cd apps/front && pnpm exec vitest run --config vitest.preuves.config.ts \
+ *   cd apps/front && pnpm exec vitest run --config vitest.proofs.config.ts \
  *     tests/proofs/1844/red-1844-route-glob-masked-by-comment-prefix.test.ts
  *
  * Expected: FAIL — on corrected code, the real call is detected.

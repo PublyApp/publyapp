@@ -74,7 +74,7 @@
  *   collapses to "bug absent".
  *
  * ## Replay:
- *   cd apps/front && pnpm exec vitest run --config vitest.preuves.config.ts \
+ *   cd apps/front && pnpm exec vitest run --config vitest.proofs.config.ts \
  *     tests/proofs/1802/red-1802-catch-accuses-wrong-command.test.ts
  *
  * Expected: FAIL — on correct code, each command has its own try/catch,

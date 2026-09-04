@@ -9,11 +9,11 @@
  * the page to display but never writes into the caller's state — so a caller
  * that discards the returned 0 is silently stranded on a non-zero page. That
  * failure is the proof; it is why this test lives under tests/proofs/ (excluded
- * from the main suite via vitest.preuves.config.ts) rather than in the suite
+ * from the main suite via vitest.proofs.config.ts) rather than in the suite
  * (it would be permanently red).
  *
  * Replay:
- *   pnpm --filter front exec vitest run --config vitest.preuves.config.ts \
+ *   pnpm --filter front exec vitest run --config vitest.proofs.config.ts \
  *     tests/proofs/1613/red-1613-negligent-caller-no-reset.test.ts
  *
  * Expected: FAIL — `expected 1 to be 0`. See .dump/preuve-1613-convention.md.

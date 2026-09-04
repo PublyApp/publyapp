@@ -210,7 +210,7 @@ This repo uses **form (3)**. Rationale:
 
   ```
   # from the branch that produced the proof
-  cd apps/front && pnpm exec vitest run --config vitest.preuves.config.ts \
+  cd apps/front && pnpm exec vitest run --config vitest.proofs.config.ts \
       tests/proofs/<issue>/<name>.test.ts
   ```
 
@@ -249,7 +249,7 @@ apps/front/tests/proofs/<issue-number>/<descriptive-name>.test.ts   # front
   config's `include` patterns and module resolution require the test to be inside the vitest
   root (`apps/front/`) for vite to resolve `react` and the production imports. The default
   `vitest.config.ts` excludes `tests/proofs/**` so red tests never leak into the green suite; the
-  companion `vitest.preuves.config.ts` adds them back so the red test can be replayed on demand.
+  companion `vitest.proofs.config.ts` adds them back so the red test can be replayed on demand.
 
 ### What the trace must contain
 
@@ -350,7 +350,7 @@ so any worktree that checks out the branch — including a detached worktree —
 A reviewer working from `develop` (without checking out the lane branch) can run them directly:
 
 ```
-cd apps/front && pnpm exec vitest run --config vitest.preuves.config.ts \
+cd apps/front && pnpm exec vitest run --config vitest.proofs.config.ts \
     tests/proofs/<issue>/<name>.test.ts
 ```
 
@@ -414,7 +414,7 @@ with the mutation and the red/green transcripts in
 this branch and running:
 
 ```
-cd apps/front && pnpm exec vitest run --config vitest.preuves.config.ts \
+cd apps/front && pnpm exec vitest run --config vitest.proofs.config.ts \
     tests/proofs/1613/red-1613-negligent-caller-no-reset.test.ts
 ```
 

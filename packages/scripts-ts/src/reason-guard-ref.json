@@ -497,8 +497,8 @@
 			"reason": "just format runs pnpm format, the identical oxfmt --check invocation over the repo's configured globs."
 		},
 		"front-ci.yml::supply-chain::Checkout": {
-			"reason_hash": "a931cf2242417aad",
-			"reason": "GitHub-only: clones the repo onto the runner with fetch-depth:0 (full history) so scripts/ci/run-preuves.mts can run git merge-base between the base ref and HEAD. A shallow checkout (default fetch-depth:1) would leave HEAD with no common ancestor with the base ref, making merge-base return empty and the diff go blank — the script would fail loud or silently exit 0. Locally the working tree already is the code under test."
+			"reason_hash": "ef11b8560855c6d8",
+			"reason": "GitHub-only: clones the repo onto the runner with fetch-depth:0 (full history) so scripts/ci/run-proofs.mts can run git merge-base between the base ref and HEAD. A shallow checkout (default fetch-depth:1) would leave HEAD with no common ancestor with the base ref, making merge-base return empty and the diff go blank — the script would fail loud or silently exit 0. Locally the working tree already is the code under test."
 		},
 		"front-ci.yml::supply-chain::Install (frozen lockfile, no scripts)": {
 			"reason_hash": "663389920e93e4f6",
@@ -541,8 +541,8 @@
 			"reason": "ci-front runs pnpm --filter front verify:build, whose script body now also calls scripts/guards/verify-font-bundle.mts (wrapped #1525). The CI step invokes node apps/front/scripts/run-guarded.mts apps/front/scripts/guards/verify-font-bundle.mts --dist apps/front/dist --locales-dir apps/front/src/i18n/locales; the local run is equivalent."
 		},
 		"front-ci.yml::supply-chain::Verify paired red proofs": {
-			"reason_hash": "60a54c847e815705",
-			"reason": "ci-front runs `just test-preuves`, which delegates to the same scripts/ci/run-preuves.mts script invoked by `pnpm --filter front test:preuves`. Option (b) of issue #1659 ronde 5: a PR declares a paired red proof by adding/modifying proof test files under apps/front/tests/proofs/<issue>/. The runner uses `git diff` to detect whether the current PR touched any proof files. If proofs were declared, it replays them with inverted semantics (fail = proof intact, pass = proof stale). If no proofs were declared, it prints an explicit no-op message and exits 0. Proof files are versionned (committed), unlike .dump/ which is git-ignored. The developer replay path is the lane worktree where .dump/ traces also exist."
+			"reason_hash": "0ab39c939776a967",
+			"reason": "ci-front runs `just test-preuves`, which delegates to the same scripts/ci/run-proofs.mts script invoked by `pnpm --filter front test:preuves`. Option (b) of issue #1659 ronde 5: a PR declares a paired red proof by adding/modifying proof test files under apps/front/tests/proofs/<issue>/. The runner uses `git diff` to detect whether the current PR touched any proof files. If proofs were declared, it replays them with inverted semantics (fail = proof intact, pass = proof stale). If no proofs were declared, it prints an explicit no-op message and exits 0. Proof files are versionned (committed), unlike .dump/ which is git-ignored. The developer replay path is the lane worktree where .dump/ traces also exist."
 		},
 		"front-e2e.yml::build::Build stack images": {
 			"reason_hash": "eb77e1d7609dd410",

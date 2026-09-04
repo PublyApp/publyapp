@@ -536,7 +536,7 @@ ci-npm-audit-development:
   @echo "=== [gate] development dependency audit ==="
   node packages/scripts-ts/src/npm-audit-runner.ts dev moderate
 
-# Run paired preuve red tests via vitest.preuves.config.ts.
+# Run paired preuve red tests via vitest.proofs.config.ts.
 #
 # These tests are EXPECTED TO FAIL — each proves a bug is present by failing
 # against the corrected code. This recipe runs ONLY the proof tests that the

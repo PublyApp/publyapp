@@ -16,7 +16,7 @@
  * thinks nothing changed and returns the stale clamped page (1) instead of 0.
  *
  * Replay:
- *   pnpm --filter front exec vitest run --config vitest.preuves.config.ts \
+ *   pnpm --filter front exec vitest run --config vitest.proofs.config.ts \
  *     tests/proofs/1672/red-1672-reset-keys-signature-collision.test.tsx
  *
  * Expected: FAIL — `expected 1 to be 0` on the change render.

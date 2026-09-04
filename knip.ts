@@ -109,9 +109,9 @@ const config: KnipConfig = {
 				// `pnpm --filter front test:preuves` → scripts/ci/run-proofs.mts.
 				// When no PRs declare proofs (no files added/modified under tests/proofs/),
 				// the runner prints an explicit no-op message and exits 0.
-				'vitest.preuves.config.ts',
+				'vitest.proofs.config.ts',
 				// Versioned kept-red proof test files (issue #1659). These are
-				// replayed by vitest.preuves.config.ts as explicit file arguments,
+				// replayed by vitest.proofs.config.ts as explicit file arguments,
 				// not via the include glob, so knip cannot trace them. Declared
 				// as a glob pattern so future proof files are covered without
 				// updating this list — a proof file the guard cannot replay

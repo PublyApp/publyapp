@@ -122,10 +122,10 @@ import { consumeVerdict, gateShouldFail } from './consume-verdict.mts';
 
 const ROOT = join(process.cwd(), '..'); // apps/front → repo root
 const PROOFS_DIR = join(process.cwd(), 'tests', 'proofs');
-const CONFIG = 'vitest.preuves.config.ts';
+const CONFIG = 'vitest.proofs.config.ts';
 
 /**
- * Extensions that vitest.preuves.config.ts can replay. The config's include
+ * Extensions that vitest.proofs.config.ts can replay. The config's include
  * pattern matches only .test.ts and .test.tsx files under tests/proofs/ — any
  * file with a different extension is declared by the PR but cannot be
  * replayed by the runner, which means the guard cannot verify it. Such a

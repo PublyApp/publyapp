@@ -69,7 +69,7 @@ export default defineConfig({
 		// tests/proofs/ holds EXPECTED-TO-FAIL red proof tests (issue #1659).
 		// They must never run in the green suite — a leaked red proof would
 		// make the suite permanently red. They are replayed by
-		// vitest.preuves.config.ts + run-proofs.mts instead.
+		// vitest.proofs.config.ts + run-proofs.mts instead.
 		//
 		// scripts/ci/__fixtures__ holds test files that PRODUCE the JSON reports
 		// the consume-verdict tests read. They are inputs to the test, not tests

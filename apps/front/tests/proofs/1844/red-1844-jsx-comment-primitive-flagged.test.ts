@@ -35,7 +35,7 @@ import path from 'node:path';
  *   `expect(hasViolation).toBe(true)` FAILS. Kept red.
  *
  * ## Replay
- *   cd apps/front && pnpm exec vitest run --config vitest.preuves.config.ts \
+ *   cd apps/front && pnpm exec vitest run --config vitest.proofs.config.ts \
  *     tests/proofs/1844/red-1844-jsx-comment-primitive-flagged.test.ts
  *
  * Expected: FAIL — on corrected code, the JSX comment is a comment.
