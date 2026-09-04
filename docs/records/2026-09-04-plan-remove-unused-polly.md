@@ -9,7 +9,7 @@ runtime behaviour.
 
 **Architecture:** Preserve the existing hexagonal boundaries: provider adapters classify external
 failures, while the job engine owns retry and backoff. This change removes dependency metadata and
-documentation only.
+records the approved design and implementation plan.
 
 **Tech Stack:** .NET 10, NuGet central package management, Markdown
 
@@ -114,12 +114,20 @@ Expected: no diff-check errors and a clean worktree.
 
 - [ ] **Step 2: Push and open the pull request**
 
+Prepare the ignored `.dump/remove-unused-polly-pr.md` deliverable with the summary, fresh
+verification evidence, the explicit no-replacement scope, and `Closes #2087` on its own line.
+
 ```bash
 git push -u origin chore/remove-unused-polly
 gh pr create --base develop --head chore/remove-unused-polly \
   --title "build(api): remove unused Polly dependency" \
-  --body-file /tmp/remove-unused-polly-pr.md
+  --body-file .dump/remove-unused-polly-pr.md
 ```
 
-The PR body must describe the unused direct dependency, state that no replacement was added, link
-the existing lean-maintenance portfolio with `Part of #1160`, and list the fresh verification.
+The PR body must describe the unused direct dependency, state that no replacement was added, close
+the exact scoped issue with `Closes #2087`, and list the fresh verification. After GitHub assigns the
+PR number, move the provisional worktree from the main checkout:
+
+```bash
+git worktree move .worktrees/remove-unused-polly .worktrees/pr2086
+```
