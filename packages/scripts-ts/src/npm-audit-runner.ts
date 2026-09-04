@@ -29,9 +29,8 @@ const classify = (
 	}
 	if (
 		unavailablePattern.test(stderr) ||
-		/ERR_SOCKET_TIMEOUT|TimeoutError: The operation was aborted due to timeout/i.test(
-			stdout,
-		)
+		stdout.includes('ERR_SOCKET_TIMEOUT') ||
+		stdout.includes('TimeoutError: The operation was aborted due to timeout')
 	) {
 		return { status: 'unavailable', exitCode, stdout, stderr };
 	}
