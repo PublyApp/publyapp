@@ -419,6 +419,29 @@ const runReplayFixture = (root: string) => {
 	};
 };
 
+const runCiReplayFixture = (root: string, headRef: string) => {
+	const result = spawnSync(process.execPath, [RUNNER_SCRIPT], {
+		cwd: join(root, 'apps', 'front'),
+		env: {
+			...freshEnv(),
+			GITHUB_BASE_REF: 'develop',
+			GITHUB_HEAD_REF: headRef,
+		},
+		encoding: 'utf-8',
+		timeout: 120000,
+	});
+
+	if (result.error) {
+		throw result.error;
+	}
+
+	return {
+		status: result.status,
+		stdout: result.stdout ?? '',
+		stderr: result.stderr ?? '',
+	};
+};
+
 describe('proof replay — F1: the per-test manifest is mandatory, not optional', () => {
 	test('a declared proof WITHOUT its expected-red manifest fails loud naming the file and the action', () => {
 		// Before ronde 11 the runner silently fell back to the global
@@ -530,6 +553,34 @@ describe('proof replay — declaration is limited to additions and modifications
 			expect(result.status).toBe(0);
 			expect(result.stdout).toContain(
 				'LOCAL RUN — no proof test files changed in HEAD~1..HEAD',
+			);
+			expect(result.stderr).not.toContain('MISSING PROOF');
+		} finally {
+			rmSync(root, { recursive: true, force: true });
+		}
+	}, 120000);
+
+	test('a PR deletion is an explicit CI no-op in the three-dot diff', () => {
+		const root = buildReplayFixture({
+			declaredTestPasses: false,
+			siblingPasses: false,
+			withManifest: true,
+		});
+		try {
+			execSync('git branch develop', { cwd: root });
+			execSync('git checkout -qb lane/delete-proof', { cwd: root });
+			execSync(
+				'git rm apps/front/tests/proofs/99999/stale-proof.test.ts apps/front/tests/proofs/99999/stale-proof.test.ts.expected-red.json',
+				{ cwd: root },
+			);
+			execSync('git commit -qm "delete retired proof"', { cwd: root });
+			execSync('git remote add origin .', { cwd: root });
+
+			const result = runCiReplayFixture(root, 'lane/delete-proof');
+
+			expect(result.status).toBe(0);
+			expect(result.stdout).toContain(
+				'This PR did not declare any paired red proofs',
 			);
 			expect(result.stderr).not.toContain('MISSING PROOF');
 		} finally {
