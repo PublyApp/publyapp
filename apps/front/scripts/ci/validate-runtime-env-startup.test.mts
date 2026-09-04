@@ -33,10 +33,13 @@ const getFreePort = (): Promise<number> => {
 // This test exercises the REAL startup path of server.mjs — not a model of it.
 // When validateRuntimeEnv() is wired into server.mjs, the production server
 // crashes on its own (exit code 1) when PUBLIC_ORIGIN is missing. If that call
-// is ever removed, serve() starts and the process hangs; the test's timeout
-// then kills it (signal set, status null), failing loud.
+// is ever removed, serve() starts and hangs; spawnSync's timeout then fires
+// with result.error.code === 'ETIMEDOUT', result.status === 1, and
+// result.signal === null on this Node/platform combination — so the first two
+// assertions below still pass, and the third (output must name PUBLIC_ORIGIN)
+// fails loud because the guard that would have written it never ran.
 //
-// The paired RED/GREEN proof lives in .dump/preuve-r4-demarrage.md.
+// The paired RED/GREEN proof lives in .dump/preuves/1914/03-mutations.md.
 void test('startup: NODE_ENV=production without PUBLIC_ORIGIN exits non-zero and names PUBLIC_ORIGIN', async (t) => {
 	if (!existsSync(DIST_SERVER_JS)) {
 		t.skip(
@@ -61,8 +64,10 @@ void test('startup: NODE_ENV=production without PUBLIC_ORIGIN exits non-zero and
 
 	// When validateRuntimeEnv() is present, the process crashes before opening a
 	// socket: `signal` is null, `status` is non-zero. If the call is removed,
-	// serve() runs and hangs — spawnSync's timeout SIGTERMs it, leaving
-	// `signal` set and `status` null.
+	// serve() runs and hangs — spawnSync's timeout then reports
+	// `result.error.code === 'ETIMEDOUT'` with `signal` still null and
+	// `status` still 1, so the failure surfaces at the output assertion below
+	// instead of here.
 	assert.equal(
 		result.signal,
 		null,
