@@ -334,7 +334,7 @@ const declaredProofTests = (): string[] => {
 			// test names and pins. A diverged branch (no merge base) fails loud
 			// above; it can never silently become "no proofs declared".
 			const diffOutput = execSync(
-				`git -C "${ROOT}" diff --diff-filter=AM --name-only "${mergeBase}...HEAD"`,
+				`git -C "${ROOT}" diff --find-renames --diff-filter=AMR --name-only "${mergeBase}...HEAD"`,
 				{ encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] },
 			);
 			changedFiles = diffOutput
@@ -353,7 +353,7 @@ const declaredProofTests = (): string[] => {
 			);
 			// Local development: diff the most recent commit.
 			const diffOutput = execSync(
-				`git -C "${ROOT}" diff --diff-filter=AM --name-only HEAD~1 HEAD`,
+				`git -C "${ROOT}" diff --find-renames --diff-filter=AMR --name-only HEAD~1 HEAD`,
 				{ encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] },
 			);
 			changedFiles = diffOutput

@@ -588,6 +588,52 @@ describe('proof replay — declaration is limited to additions and modifications
 		}
 	}, 120000);
 
+	test('a renamed and edited proof is replayed from its destination in the CI three-dot diff', () => {
+		const root = buildReplayFixture({
+			declaredTestPasses: false,
+			siblingPasses: false,
+			withManifest: true,
+		});
+		try {
+			execSync('git branch develop', { cwd: root });
+			execSync('git checkout -qb lane/rename-proof', { cwd: root });
+			execSync(
+				'git mv apps/front/tests/proofs/99999/stale-proof.test.ts apps/front/tests/proofs/99999/renamed-proof.test.ts && git mv apps/front/tests/proofs/99999/stale-proof.test.ts.expected-red.json apps/front/tests/proofs/99999/renamed-proof.test.ts.expected-red.json',
+				{ cwd: root },
+			);
+			const renamedProof = join(
+				root,
+				'apps',
+				'front',
+				'tests',
+				'proofs',
+				'99999',
+				'renamed-proof.test.ts',
+			);
+			writeFileSync(
+				renamedProof,
+				`${readFileSync(renamedProof, 'utf-8')}\n// rename edit\n`,
+			);
+			execSync('git add apps/front/tests/proofs/99999', {
+				cwd: root,
+			});
+			execSync('git commit -qm "rename and edit retained proof"', {
+				cwd: root,
+			});
+			execSync('git remote add origin .', { cwd: root });
+
+			const result = runCiReplayFixture(root, 'lane/rename-proof');
+
+			expect(result.status).toBe(0);
+			expect(result.stdout).toContain('renamed-proof.test.ts');
+			expect(result.stdout).toContain('This PR declared 1 paired red proof(s)');
+			expect(result.stderr).not.toContain('stale-proof.test.ts');
+			expect(result.stderr).not.toContain('MISSING PROOF');
+		} finally {
+			rmSync(root, { recursive: true, force: true });
+		}
+	}, 120000);
+
 	test('a committed modification remains declared and replayed', () => {
 		const root = buildReplayFixture({
 			declaredTestPasses: false,
