@@ -28,10 +28,10 @@ Rule of thumb: green-and-boring (minor/patch, no generated code, no CI config) �
 `front supply-chain` (`supply-chain` job in `.github/workflows/front-ci.yml`) runs
 
 ```
-pnpm audit --prod --audit-level=high
+pnpm audit --prod --audit-level=moderate
 ```
 
-after `pnpm install --frozen-lockfile --ignore-scripts` + trusted `@org/shared-ts` postinstall. It **fails** on any `high` or `critical` in the production graph and **passes** otherwise. Rung 1 of #1187 (PR #1198) cleared the 4 high alerts that were open on `develop`, so the step is green from the day it lands; it fails loud on an unreachable registry as well (no silent pass).
+after `pnpm install --frozen-lockfile --ignore-scripts` + trusted `@org/shared-ts` postinstall. It **fails** on any `moderate`, `high`, or `critical` advisory in the production graph and **passes** otherwise. Rung 1 of #1187 (PR #1198) cleared the 4 high alerts that were open on `develop`, so the step is green from the day it lands; it fails loud on an unreachable registry as well (no silent pass).
 
 The .NET side is audited by **Scan .NET packages for known vulnerabilities**
 (`quality-gate.yml::quality`, mirrored locally by `just nuget-audit`, script
@@ -107,13 +107,11 @@ above; #880's closure adds the proof, not a new pin.
     `postcss@8.5.25` declares `nanoid: ^3.3.16` (a range that **includes**
     `3.3.16`/`3.3.17`, which are vulnerable; the fix is `3.3.18`). Today the lock
     resolves `3.3.18` only because of this cap — without it a lockfile
-    regeneration could drop back to `3.3.16`. The cap is the **only** protection
-    for this range: the validation audit is `pnpm audit --prod --audit-level=high`,
-    and `postcss` is a **devDependency** of `apps/front`, so `--prod` does not
-    inspect that graph at all. A vulnerable resolution would pass CI unseen. **Two
-    reasons it stays:** (1) `postcss`'s declared range can still resolve a
-    vulnerable version, and (2) the CI audit does not cover the dev graph. Either
-    reason alone is sufficient; both are true today.
+    regeneration could drop back to `3.3.16`. The cap proactively holds the safe
+    floor because `postcss`'s declared range can still resolve a vulnerable
+    version. The production audit does not inspect this dev-scoped graph, but
+    CI's separate `pnpm audit --dev --audit-level=moderate` gate would detect a
+    vulnerable resolution after the fact.
   - **`nanoid@>=4.0.0 <5.0.9 → ^5.1.16` REMOVED** (commit `ec7089c99`, issue
     #1623). The only direct declaration, `packages/shared-ts` `^5.1.16`, was also
     removed and no workspace source ever imported `nanoid`. After that removal,
@@ -124,14 +122,15 @@ above; #880's closure adds the proof, not a new pin.
   **Verifiable removal condition for the `<3.3.18` cap** (judged on the _declared_
   range, not the resolved version): remove it only when **every** consumer that
   can reach `nanoid@3.x` declares a range whose lower bound is `>=3.3.18` (i.e. no
-  declared range can resolve `3.3.16`/`3.3.17`) **and** the CI audit covers the
-  graph that consumer lives in. `postcss` still declares `^3.3.16`, and `postcss`
-  is dev-scoped, so neither condition holds — the cap stays. Judging on the
+  declared range can resolve `3.3.16`/`3.3.17`) and the relevant CI audit still
+  covers that graph. The dev audit already provides the detection backstop, but
+  `postcss` still declares `^3.3.16`, so the range condition does not hold and
+  the cap stays. Judging on the
   resolved version (`3.3.18` today) instead of the declared range is what caused
   the round-1 regression; do not repeat that mistake.
 
-CI's audit step (`pnpm audit --prod --audit-level=high`) stays the standing tripwire; run the
-full-graph `pnpm audit --audit-level=moderate` when triaging Dependabot alerts.
+CI's production and development audit steps stay the standing tripwires; run
+`pnpm audit --audit-level=moderate` when triaging Dependabot alerts.
 
 ## How the `browserslist@<=4.28.6` cap was added
 
@@ -149,10 +148,100 @@ resolved version): remove the override only when **every** reachable parent's
 declared lower bound is `>=4.28.7` **and** both the production-graph and
 full-graph audits stay green without it. Today the cap stays.
 
+## How the package-wide `fast-uri` override was added
+
+Four high-severity advisories affect `fast-uri`: `GHSA-5jgf-p345-68v8` (host
+confusion via skipped IDN canonicalization on scheme-relative references),
+`GHSA-fph4-wmhf-6fwf` (SSRF via repeated hostname percent-decoding),
+`GHSA-f65p-4m7j-42xc` (SSRF via malformed IPv6 normalization), and
+`GHSA-jqff-g426-hqxp` (host confusion via percent-encoded scheme
+normalization). The version the lockfile resolved, `3.1.5`, was affected by all
+four, and `3.1.6` is the first version patched against all four.
+
+`fast-uri` is transitive under `apps/front`'s `@hookform/resolvers@5.9.1`, which
+declares two independent optional peers, `ajv` and `ajv-formats`. The vulnerable
+path is the direct one: `@hookform/resolvers` → `ajv@8.20.0` → `fast-uri`,
+where `ajv`'s own manifest depends on `fast-uri: ^3.0.1` — a range wide enough
+to resolve a vulnerable release. `ajv-formats@2.1.1` (peer `ajv: ^8.0.0`) adds
+no separate path; it reuses that same peer `ajv`. No workspace package imports
+`fast-uri` directly.
+
+A direct bump is not available: `ajv@8.20.0` is already the latest published
+release on the 8.x line, and its own declared dependency stays `^3.0.1` —
+there is no newer `ajv` to bump to that raises the `fast-uri` floor. The fix
+goes through a package-wide root override (it pins every `fast-uri` resolution
+in the tree, not just a vulnerable range):
+
+```
+"fast-uri": "^3.1.6"
+```
+
+The lockfile resolves `3.1.7`, which covers the same four advisories; `3.1.6`
+is the first common patched version cited by the audit.
+
+**Verifiable removal condition** (judged on the _declared_ range, not the
+resolved version): remove the override only when **no** reachable parent
+depends on `fast-uri` at all, **or** every reachable parent declares a
+`fast-uri` floor of `>=3.1.6` — and, in either case, both the
+production-graph and full-graph audits stay green without it. Today
+`ajv@8.20.0` still declares `^3.0.1`, so the override stays.
+
+## How the `qs` override was raised to `^6.16.0`
+
+Two moderate advisories affect `qs`, both named by the full-graph audit:
+`GHSA-4mjr-xmp4-gh2g` (denial of service via an attacker-controlled `isBuffer`;
+vulnerable `>=2.2.5 <6.16.0`) and `GHSA-x5fp-wj9c-mxmx` (array-limit bypass via
+bracket-key comma parsing; vulnerable `>=6.14.2 <=6.15.3`). The version the
+lockfile resolved under the previous `^6.15.2` override, `6.15.3`, was affected
+by both, and `6.16.0` is the first version patched against both.
+
+`qs` is **entirely transitive** and **dev-scoped**: no workspace package
+declares or imports it. `pnpm -r why qs` shows a single dev entry point —
+`apps/front` → `shadcn@4.19.0` → `@modelcontextprotocol/sdk@1.29.0` — but from
+there `qs` is reached by more than one branch:
+
+- `@modelcontextprotocol/sdk` → `express@5.2.1` → `qs` directly
+  (`express` declares `qs: ^6.14.0`), **and**
+- `@modelcontextprotocol/sdk` → `express@5.2.1` → `body-parser@2.3.0` → `qs`
+  (`express` declares `body-parser: ^2.2.1`; `body-parser` declares
+  `qs: ^6.15.2`),
+- with `@modelcontextprotocol/sdk` → `express-rate-limit@8.5.2` re-entering the
+  same `express@5.2.1` as a peer (`express: >= 4.11`), so both branches above
+  appear again under it.
+
+Both declared ranges — `^6.14.0` and `^6.15.2` — are wide enough to resolve a
+vulnerable release, so pinning only one parent would not hold the floor. Because
+the whole graph is dev-scoped, the CI production audit does not inspect it. The
+separate `pnpm audit --dev --audit-level=moderate` gate detects a vulnerable
+resolution, while the override proactively holds the safe floor.
+
+A direct bump is not available: `express@5.2.1` is the latest published release
+and still declares `^6.14.0`, and its `body-parser@2.3.0` still declares
+`^6.15.2`, so there is no parent upgrade that raises the `qs` floor to a patched
+version. The fix is the package-wide root override, raised from `^6.15.2` to:
+
+```
+"qs": "^6.16.0"
+```
+
+**Verifiable removal condition** (judged on the _declared_ range, not the
+resolved version): remove the override only when **no** reachable parent
+depends on `qs` at all — for instance if `shadcn` stops pulling
+`@modelcontextprotocol/sdk`/`express` — **or** **every** reachable parent
+(`express` **and** `body-parser`, on each branch above) declares a `qs` floor of
+`>=6.16.0`, and, in either case, both
+`pnpm audit --prod --audit-level=moderate` and
+`pnpm audit --dev --audit-level=moderate` stay green without it. Today
+`express@5.2.1` still declares `^6.14.0` and `body-parser@2.3.0` still declares
+`^6.15.2`, so the override stays. Judge this on
+the declared range: the lock resolving a patched `qs` proves nothing while the
+override is the only reason it does.
+
 ## How to run locally
 
 ```bash
-pnpm audit --prod --audit-level=high   # what CI gates (fail on high+)
+pnpm audit --prod --audit-level=moderate  # what CI gates (fail on moderate+)
+pnpm audit --dev --audit-level=moderate   # CI's dev-graph gate
 pnpm audit --prod --audit-level=critical  # today: passes (no critical in prod)
 pnpm audit                              # full graph including dev
 
