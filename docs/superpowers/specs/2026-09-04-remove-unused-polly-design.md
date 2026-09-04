@@ -2,14 +2,15 @@
 
 ## Context
 
-The API declares Polly as a direct dependency, and the README presents it as part of the backend
-stack, but tracked application code does not use Polly APIs. PublyApp already owns the resilience
-behaviour it needs through typed job outcomes, job retry/backoff policy, and provider adapters.
+The API declares Polly as a direct dependency, but tracked application code does not use Polly
+APIs. PublyApp already owns the resilience behaviour it needs through typed job outcomes, job
+retry/backoff policy, and provider adapters.
 
 ## Decision
 
-Remove the centrally pinned Polly version, the API package reference, and the README stack mention.
-Do not add a replacement package, a generic resilience facade, or a new guard.
+Remove the centrally pinned Polly version and the API package reference. Do not add a replacement
+package, a generic resilience facade, or a new guard. The current README already has no Polly
+mention, so it remains unchanged.
 
 ## Boundaries
 

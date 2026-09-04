@@ -20,7 +20,6 @@ documentation only.
 **Files:**
 - Modify: `Directory.Packages.props:31`
 - Modify: `apps/api/PublyApp.Api.csproj:50`
-- Modify: `README.md:143`
 
 - [ ] **Step 1: Reconfirm that no application source uses Polly**
 
@@ -32,7 +31,7 @@ git grep -nE 'using Polly|Polly\.|ResiliencePipeline' -- '*.cs' ':!*.Spec.cs'
 
 Expected: no matches and exit code 1.
 
-- [ ] **Step 2: Remove all three active declarations**
+- [ ] **Step 2: Remove both active declarations**
 
 Delete exactly:
 
@@ -44,16 +43,13 @@ Delete exactly:
 <PackageReference Include="Polly" />
 ```
 
-Remove `Polly` from the backend technology cell in `README.md`; do not replace it with another
-resilience package.
-
 - [ ] **Step 3: Verify formatting and the declared surface**
 
 Run:
 
 ```bash
 git diff --check
-git grep -n Polly -- Directory.Packages.props apps/api/PublyApp.Api.csproj README.md
+git grep -n Polly -- Directory.Packages.props apps/api/PublyApp.Api.csproj
 ```
 
 Expected: `git diff --check` succeeds; the Polly search has no matches and exits 1.
@@ -96,7 +92,7 @@ Expected: `Build succeeded.`, zero warnings, and zero errors.
 - [ ] **Step 4: Commit the implementation**
 
 ```bash
-git add Directory.Packages.props apps/api/PublyApp.Api.csproj README.md
+git add Directory.Packages.props apps/api/PublyApp.Api.csproj
 git commit -m "build(api): remove unused Polly dependency"
 ```
 
