@@ -264,7 +264,7 @@ interface ReplayFixtureOptions {
  * <root>/apps/front).
  */
 const buildReplayFixture = (options: ReplayFixtureOptions): string => {
-	const root = mkdtempSync(join(tmpdir(), 'preuve-replay-'));
+	const root = mkdtempSync(join(tmpdir(), 'proof-replay-'));
 	const appDir = join(root, 'apps', 'front');
 	const proofDir = join(appDir, 'tests', 'proofs', '99999');
 	mkdirSync(proofDir, { recursive: true });
@@ -292,7 +292,7 @@ const buildReplayFixture = (options: ReplayFixtureOptions): string => {
 	// and the .bin/vitest entry.
 	writeFileSync(
 		join(appDir, 'package.json'),
-		'{"name":"preuve-replay-fixture","private":true,"type":"module","packageManager":"pnpm@10.13.1"}\n',
+		'{"name":"proof-replay-fixture","private":true,"type":"module","packageManager":"pnpm@10.13.1"}\n',
 	);
 	writeFileSync(
 		join(appDir, 'vitest.proofs.config.ts'),
@@ -351,7 +351,7 @@ const buildReplayFixture = (options: ReplayFixtureOptions): string => {
 		[
 			"import { describe, expect, test } from 'vitest';",
 			'',
-			"describe('preuve replay fixture', () => {",
+			"describe('proof replay fixture', () => {",
 			"\t\ttest('the declared kept-red test', () => {",
 			declaredBody,
 			'\t\t});',
@@ -384,8 +384,8 @@ const buildReplayFixture = (options: ReplayFixtureOptions): string => {
 	// Two commits: base (app shell only) then proof. The node_modules symlink
 	// is deliberately NOT committed — the work tree provides it for pnpm.
 	execSync('git init -q -b main', { cwd: root });
-	execSync('git config user.email preuve-fixture@example.com', { cwd: root });
-	execSync('git config user.name preuve-fixture', { cwd: root });
+	execSync('git config user.email proof-fixture@example.com', { cwd: root });
+	execSync('git config user.name proof-fixture', { cwd: root });
 	execSync(
 		'git add apps/front/package.json apps/front/vitest.proofs.config.ts apps/front/tests/proofs/expected-red.schema.json',
 		{ cwd: root },
@@ -821,14 +821,14 @@ interface ErrorFixtureOptions {
  * green-light a crashed vitest process.
  */
 const buildErrorFixture = (options: ErrorFixtureOptions): string => {
-	const root = mkdtempSync(join(tmpdir(), 'preuve-error-'));
+	const root = mkdtempSync(join(tmpdir(), 'proof-error-'));
 	const appDir = join(root, 'apps', 'front');
 	const proofDir = join(appDir, 'tests', 'proofs', '99999');
 	mkdirSync(proofDir, { recursive: true });
 
 	writeFileSync(
 		join(appDir, 'package.json'),
-		'{"name":"preuve-error-fixture","private":true,"type":"module","packageManager":"pnpm@10.13.1"}\n',
+		'{"name":"proof-error-fixture","private":true,"type":"module","packageManager":"pnpm@10.13.1"}\n',
 	);
 	writeFileSync(
 		join(appDir, 'vitest.proofs.config.ts'),
@@ -877,7 +877,7 @@ const buildErrorFixture = (options: ErrorFixtureOptions): string => {
 			'// Kill vitest with SIGKILL at import time (exit 137).',
 			'process.kill(process.pid, "SIGKILL");',
 			'',
-			"describe('preuve ERROR fixture', () => {",
+			"describe('proof ERROR fixture', () => {",
 			"\ttest('never runs — vitest is dead', () => {",
 			'\t\texpect(true).toBe(true);',
 			'\t});',
@@ -905,8 +905,8 @@ const buildErrorFixture = (options: ErrorFixtureOptions): string => {
 	}
 
 	execSync('git init -q -b main', { cwd: root });
-	execSync('git config user.email preuve-fixture@example.com', { cwd: root });
-	execSync('git config user.name preuve-fixture', { cwd: root });
+	execSync('git config user.email proof-fixture@example.com', { cwd: root });
+	execSync('git config user.name proof-fixture', { cwd: root });
 	execSync(
 		'git add apps/front/package.json apps/front/vitest.proofs.config.ts',
 		{ cwd: root },
@@ -955,14 +955,14 @@ describe('proof replay — ERROR verdict (vitest crash, issue #1864)', () => {
  * PR's proof, not the base's.
  */
 const buildBehindHeadFixture = (): string => {
-	const root = mkdtempSync(join(tmpdir(), 'preuve-behind-'));
+	const root = mkdtempSync(join(tmpdir(), 'proof-behind-'));
 	const appDir = join(root, 'apps', 'front');
 	const proofDir = join(appDir, 'tests', 'proofs', '99999');
 	mkdirSync(proofDir, { recursive: true });
 
 	writeFileSync(
 		join(appDir, 'package.json'),
-		'{"name":"preuve-behind-fixture","private":true,"type":"module","packageManager":"pnpm@10.13.1"}\n',
+		'{"name":"proof-behind-fixture","private":true,"type":"module","packageManager":"pnpm@10.13.1"}\n',
 	);
 	writeFileSync(
 		join(appDir, 'vitest.proofs.config.ts'),
@@ -1039,8 +1039,8 @@ const buildBehindHeadFixture = (): string => {
 	// The PR branch's HEAD is at step 2; the base ref is at step 3.
 	// merge-base(base, HEAD) = step 1. Three-dot diff = step 2 only.
 	execSync('git init -q -b lane/pr-branch', { cwd: root });
-	execSync('git config user.email preuve-fixture@example.com', { cwd: root });
-	execSync('git config user.name preuve-fixture', { cwd: root });
+	execSync('git config user.email proof-fixture@example.com', { cwd: root });
+	execSync('git config user.name proof-fixture', { cwd: root });
 	execSync(
 		'git add apps/front/package.json apps/front/vitest.proofs.config.ts',
 		{ cwd: root },

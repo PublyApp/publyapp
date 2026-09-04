@@ -143,7 +143,7 @@ import { describe, expect, test } from 'vitest';
 // The real production script. Reading the source out of THIS file is the
 // load-bearing part: a proof that copied the lines into its own file
 // would stay green even if the production file changed.
-const RUN_PREUVES_FILE = fileURLToPath(
+const RUN_PROOFS_FILE = fileURLToPath(
 	new URL('../../../scripts/ci/run-proofs.mts', import.meta.url),
 );
 
@@ -165,12 +165,12 @@ const FUNCTION_FOOTER =
  * parsed is not a conformant content.
  */
 const extractFunctionBody = (): string => {
-	const source = readFileSync(RUN_PREUVES_FILE, 'utf8');
+	const source = readFileSync(RUN_PROOFS_FILE, 'utf8');
 	const headerIndex = source.indexOf(FUNCTION_HEADER);
 	if (headerIndex === -1) {
 		throw new Error(
 			`MESURE IMPOSSIBLE — could not locate the declaredProofTests ` +
-				`function header in ${RUN_PREUVES_FILE}. The production file ` +
+				`function header in ${RUN_PROOFS_FILE}. The production file ` +
 				`drifted from the shape this proof was written against.`,
 		);
 	}
@@ -178,7 +178,7 @@ const extractFunctionBody = (): string => {
 	if (footerIndex === -1) {
 		throw new Error(
 			`MESURE IMPOSSIBLE — could not locate the declaredProofTests ` +
-				`function footer in ${RUN_PREUVES_FILE}. The production file ` +
+				`function footer in ${RUN_PROOFS_FILE}. The production file ` +
 				`drifted from the shape this proof was written against.`,
 		);
 	}
@@ -376,7 +376,7 @@ describe('shallow-repair catch attribution — RED: catch names git rev-parse ev
 		} catch (err) {
 			throw new Error(
 				`MESURE IMPOSSIBLE — could not extract declaredProofTests ` +
-					`from ${RUN_PREUVES_FILE}. ${(err as Error).message}`,
+					`from ${RUN_PROOFS_FILE}. ${(err as Error).message}`,
 			);
 		}
 

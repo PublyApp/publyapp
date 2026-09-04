@@ -620,7 +620,7 @@ for (const test of replayable) {
 	// Run vitest with the JSON reporter writing to a temp file. The JSON
 	// report gives us, per test, its status and the TYPE of the failure —
 	// structural signals we can classify without reading display text.
-	const reportFile = join(tmpdir(), `preuve-${process.pid}-${Date.now()}.json`);
+	const reportFile = join(tmpdir(), `proof-${process.pid}-${Date.now()}.json`);
 	try {
 		execFileSync(
 			'pnpm',
