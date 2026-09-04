@@ -61,6 +61,7 @@ import {
 	existsSync,
 	mkdirSync,
 	mkdtempSync,
+	readFileSync,
 	readdirSync,
 	readlinkSync,
 	rmSync,
@@ -308,6 +309,10 @@ const buildReplayFixture = (options: ReplayFixtureOptions): string => {
 			'',
 		].join('\n'),
 	);
+	writeFileSync(
+		join(appDir, 'tests', 'proofs', 'expected-red.schema.json'),
+		'{}\n',
+	);
 	const fixtureNodeModules = join(appDir, 'node_modules');
 	// apps/front/node_modules/vitest is itself a relative symlink into the
 	// hoisted virtual store (…/node_modules/.pnpm/vitest@<hash>/node_modules/vitest).
@@ -382,7 +387,7 @@ const buildReplayFixture = (options: ReplayFixtureOptions): string => {
 	execSync('git config user.email preuve-fixture@example.com', { cwd: root });
 	execSync('git config user.name preuve-fixture', { cwd: root });
 	execSync(
-		'git add apps/front/package.json apps/front/vitest.preuves.config.ts',
+		'git add apps/front/package.json apps/front/vitest.preuves.config.ts apps/front/tests/proofs/expected-red.schema.json',
 		{ cwd: root },
 	);
 	execSync('git commit -qm base', { cwd: root });
@@ -500,6 +505,67 @@ describe('proof replay — F2: the exit gate is pinned by a real process launch'
 			expect(result.stdout).toContain(
 				'Stale proofs (declared red went green): 0',
 			);
+		} finally {
+			rmSync(root, { recursive: true, force: true });
+		}
+	}, 120000);
+});
+
+describe('proof replay — declaration is limited to additions and modifications (#1962)', () => {
+	test('a committed deletion of a proof and its manifest is an explicit local no-op', () => {
+		const root = buildReplayFixture({
+			declaredTestPasses: false,
+			siblingPasses: false,
+			withManifest: true,
+		});
+		try {
+			execSync(
+				'git rm apps/front/tests/proofs/99999/stale-proof.test.ts apps/front/tests/proofs/99999/stale-proof.test.ts.expected-red.json',
+				{ cwd: root },
+			);
+			execSync('git commit -qm "delete retired proof"', { cwd: root });
+
+			const result = runReplayFixture(root);
+
+			expect(result.status).toBe(0);
+			expect(result.stdout).toContain(
+				'LOCAL RUN — no proof test files changed in HEAD~1..HEAD',
+			);
+			expect(result.stderr).not.toContain('MISSING PROOF');
+		} finally {
+			rmSync(root, { recursive: true, force: true });
+		}
+	}, 120000);
+
+	test('a committed modification remains declared and replayed', () => {
+		const root = buildReplayFixture({
+			declaredTestPasses: false,
+			siblingPasses: false,
+			withManifest: true,
+		});
+		try {
+			const proofFile = join(
+				root,
+				'apps',
+				'front',
+				'tests',
+				'proofs',
+				'99999',
+				'stale-proof.test.ts',
+			);
+			writeFileSync(
+				proofFile,
+				`${readFileSync(proofFile, 'utf-8')}\n// update\n`,
+			);
+			execSync('git add apps/front/tests/proofs/99999/stale-proof.test.ts', {
+				cwd: root,
+			});
+			execSync('git commit -qm "modify retained proof"', { cwd: root });
+
+			const result = runReplayFixture(root);
+
+			expect(result.status).toBe(0);
+			expect(result.stdout).toContain('This PR declared 1 paired red proof(s)');
 		} finally {
 			rmSync(root, { recursive: true, force: true });
 		}
