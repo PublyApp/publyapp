@@ -1,6 +1,6 @@
 {
 	"$schema": "../expected-red.schema.json",
-	"_comment": "Per-test kept-red expectation manifest for the r2 SIGINT race proof (issue #1457 / #1783). Read by apps/front/scripts/ci/run-preuves.mts BEFORE classification. Each test declared in `expectedRed` MUST fail with an AssertionError on correct code. If a declared kept-red test PASSES, the runner fails CI with verdict CORRUPT PROOF — even if other tests in the file still fail with assertion errors. This is the r8 fix for the angle mort identified in #1863, scoped to this proof file. Generalization to the rest of the repo lives in #1863.",
+	"_comment": "Per-test kept-red expectation manifest for the r2 SIGINT race proof (issue #1457 / #1783). Read by apps/front/scripts/ci/run-proofs.mts BEFORE classification. Each test declared in `expectedRed` MUST fail with an AssertionError on correct code. If a declared kept-red test PASSES, the runner fails CI with verdict CORRUPT PROOF — even if other tests in the file still fail with assertion errors. This is the r8 fix for the angle mort identified in #1863, scoped to this proof file. Generalization to the rest of the repo lives in #1863.",
 	"expectedRed": [
 		{
 			"testName": "the r2 fixture writes the handshake BEFORE installing the SIGINT handler, OR the handler is wrapped in an async deferral (the buggy ordering the fix corrected)",

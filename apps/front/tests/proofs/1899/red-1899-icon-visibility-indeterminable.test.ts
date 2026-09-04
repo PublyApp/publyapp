@@ -50,7 +50,7 @@
  * Executed both directions during #1899:
  *
  * - defect body (guard at 0924167c3, the pre-#1899 measurement body):
- *   `pnpm exec vitest run --config vitest.preuves.config.ts
+ *   `pnpm exec vitest run --config vitest.proofs.config.ts
  *   tests/proofs/1899/` → 3/3 GREEN (defect present).
  * - fixed body (three-case): same command → 2/3 RED (the two defect tests
  *   fail on assertion — "expected not to throw"), 1/3 green (context).

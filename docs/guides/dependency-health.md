@@ -29,8 +29,8 @@ Dedicated required jobs run each npm graph once: `front-ci.yml::audit-production
 audits production dependencies and `quality-gate.yml::audit-development` audits
 development dependencies. Both use `packages/scripts-ts/src/npm-audit-runner.ts`:
 it keeps pnpm's output, fails closed for findings and service errors, and bounds
-an unavailable audit service at 40 seconds rather than letting pnpm retries hold
-an unrelated job. Their local mirrors are `just ci-npm-audit-production` and
+an unavailable audit service at 40 seconds for production or 120 seconds for
+development rather than letting pnpm retries hold an unrelated job. Their local mirrors are `just ci-npm-audit-production` and
 `just ci-npm-audit-development`.
 
 The production job runs

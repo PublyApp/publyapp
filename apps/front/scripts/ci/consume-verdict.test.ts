@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url';
 /**
  * consume-verdict.test.mts — unit tests for the verdict-to-counter mapping.
  *
- * The `switch` in run-preuves.mts that consumes classifyProof's verdict and
+ * The `switch` in run-proofs.mts that consumes classifyProof's verdict and
  * decides which counter to increment is the load-bearing decision point of the
  * guard. This test exercises that mapping with REAL vitest JSON reports (not
  * hand-crafted ClassificationResult objects) — the brief's requirement.
@@ -73,7 +73,7 @@ const fixturesDir = fileURLToPath(
  * Load a real vitest JSON report and classify it with the given exit code.
  * This is the load-bearing pattern: a test that hand-crafted a ClassificationResult
  * would verify the switch against a model, not against reality. We feed the chain
- * a real vitest JSON report, exactly as run-preuves.mts does.
+ * a real vitest JSON report, exactly as run-proofs.mts does.
  */
 const classifyFixture = (file: string, exitCode: number) => {
 	const report = readProofReport(join(fixturesDir, file));

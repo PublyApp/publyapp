@@ -61,7 +61,7 @@
  *   absent".
  *
  * ## Replay:
- *   cd apps/front && pnpm exec vitest run --config vitest.preuves.config.ts \
+ *   cd apps/front && pnpm exec vitest run --config vitest.proofs.config.ts \
  *     tests/proofs/1628/red-1628-publish-now-row-filter.test.ts
  *
  * Expected: FAIL — on correct code both guards are present, so the

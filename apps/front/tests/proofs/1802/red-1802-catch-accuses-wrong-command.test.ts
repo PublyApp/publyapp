@@ -5,7 +5,7 @@
  *
  * ## Context
  *
- * In `apps/front/scripts/ci/run-preuves.mts`, the shallow-repair block used a
+ * In `apps/front/scripts/ci/run-proofs.mts`, the shallow-repair block used a
  * SINGLE `try` to cover TWO commands, and its `catch` named the FIRST command
  * (`git rev-parse --is-shallow-repository`) even when the SECOND
  * (`git fetch --unshallow`) was the one that failed:
@@ -47,7 +47,7 @@
  *
  * ## What the proof asserts
  *
- * The proof reads the REAL `run-preuves.mts` source and asserts the BUG is
+ * The proof reads the REAL `run-proofs.mts` source and asserts the BUG is
  * present:
  *
  * > There exists a `try` block whose body contains BOTH
@@ -74,7 +74,7 @@
  *   collapses to "bug absent".
  *
  * ## Replay:
- *   cd apps/front && pnpm exec vitest run --config vitest.preuves.config.ts \
+ *   cd apps/front && pnpm exec vitest run --config vitest.proofs.config.ts \
  *     tests/proofs/1802/red-1802-catch-accuses-wrong-command.test.ts
  *
  * Expected: FAIL — on correct code, each command has its own try/catch,
@@ -143,8 +143,8 @@ import { describe, expect, test } from 'vitest';
 // The real production script. Reading the source out of THIS file is the
 // load-bearing part: a proof that copied the lines into its own file
 // would stay green even if the production file changed.
-const RUN_PREUVES_FILE = fileURLToPath(
-	new URL('../../../scripts/ci/run-preuves.mts', import.meta.url),
+const RUN_PROOFS_FILE = fileURLToPath(
+	new URL('../../../scripts/ci/run-proofs.mts', import.meta.url),
 );
 
 // Anchors that delimit the `declaredProofTests` function body. If these
@@ -152,7 +152,7 @@ const RUN_PREUVES_FILE = fileURLToPath(
 // it must fail loud naming the drift.
 //
 // The production function is a const arrow (func-style #1834 turned every
-// top-level function in run-preuves.mts into `const x = (): T => {`), so the
+// top-level function in run-proofs.mts into `const x = (): T => {`), so the
 // header anchor matches the arrow form exactly; a revert to a `function`
 // declaration would re-drift the anchor and the proof fails loud.
 const FUNCTION_HEADER = 'const declaredProofTests = (): string[] => {';
@@ -165,12 +165,12 @@ const FUNCTION_FOOTER =
  * parsed is not a conformant content.
  */
 const extractFunctionBody = (): string => {
-	const source = readFileSync(RUN_PREUVES_FILE, 'utf8');
+	const source = readFileSync(RUN_PROOFS_FILE, 'utf8');
 	const headerIndex = source.indexOf(FUNCTION_HEADER);
 	if (headerIndex === -1) {
 		throw new Error(
 			`MESURE IMPOSSIBLE — could not locate the declaredProofTests ` +
-				`function header in ${RUN_PREUVES_FILE}. The production file ` +
+				`function header in ${RUN_PROOFS_FILE}. The production file ` +
 				`drifted from the shape this proof was written against.`,
 		);
 	}
@@ -178,7 +178,7 @@ const extractFunctionBody = (): string => {
 	if (footerIndex === -1) {
 		throw new Error(
 			`MESURE IMPOSSIBLE — could not locate the declaredProofTests ` +
-				`function footer in ${RUN_PREUVES_FILE}. The production file ` +
+				`function footer in ${RUN_PROOFS_FILE}. The production file ` +
 				`drifted from the shape this proof was written against.`,
 		);
 	}
@@ -376,7 +376,7 @@ describe('shallow-repair catch attribution — RED: catch names git rev-parse ev
 		} catch (err) {
 			throw new Error(
 				`MESURE IMPOSSIBLE — could not extract declaredProofTests ` +
-					`from ${RUN_PREUVES_FILE}. ${(err as Error).message}`,
+					`from ${RUN_PROOFS_FILE}. ${(err as Error).message}`,
 			);
 		}
 

@@ -1,6 +1,6 @@
 {
 	"$schema": "../expected-red.schema.json",
-	"_comment": "Per-test kept-red expectation manifest for the JSX-comment false-positive proof (issue #1844). Read by apps/front/scripts/ci/run-preuves.mts BEFORE classification. The single test declared here MUST fail with an AssertionError on correct code. If it PASSES, the design-system scanner is once again reading JSX comments as real code.",
+	"_comment": "Per-test kept-red expectation manifest for the JSX-comment false-positive proof (issue #1844). Read by apps/front/scripts/ci/run-proofs.mts BEFORE classification. The single test declared here MUST fail with an AssertionError on correct code. If it PASSES, the design-system scanner is once again reading JSX comments as real code.",
 	"expectedRed": [
 		{
 			"testName": "a forbidden primitive inside a JSX comment is flagged (issue #1844 r3)",

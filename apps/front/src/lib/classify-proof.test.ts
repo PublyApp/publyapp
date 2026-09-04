@@ -33,7 +33,7 @@ import {
 
 const FIXTURE_PATH =
 	'tests/fixtures/1784/_repro-1784-throws-assertion-error.test.ts';
-const CONFIG = 'vitest.preuves.config.ts';
+const CONFIG = 'vitest.proofs.config.ts';
 
 describe('Proof classifier — thrown Error containing AssertionError is CORRUPT PROOF', () => {
 	test('classifies a thrown Error whose message contains AssertionError as CORRUPT PROOF', () => {

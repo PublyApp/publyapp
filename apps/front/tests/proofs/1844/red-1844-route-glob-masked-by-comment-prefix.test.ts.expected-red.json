@@ -1,6 +1,6 @@
 {
 	"$schema": "../expected-red.schema.json",
-	"_comment": "Per-test kept-red expectation manifest for the comment-prefixed-match masking proof (issue #1844). Read by apps/front/scripts/ci/run-preuves.mts BEFORE classification. The single test declared here MUST fail with an AssertionError on correct code. If it PASSES, a real violation sitting after a comment on the same line is being swallowed.",
+	"_comment": "Per-test kept-red expectation manifest for the comment-prefixed-match masking proof (issue #1844). Read by apps/front/scripts/ci/run-proofs.mts BEFORE classification. The single test declared here MUST fail with an AssertionError on correct code. If it PASSES, a real violation sitting after a comment on the same line is being swallowed.",
 	"expectedRed": [
 		{
 			"testName": "a real route glob call after a comment-prefixed match start is masked (issue #1844 r3)",

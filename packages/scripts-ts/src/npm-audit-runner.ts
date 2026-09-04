@@ -3,8 +3,7 @@ import { resolve } from 'node:path';
 import process from 'node:process';
 import { pathToFileURL } from 'node:url';
 
-const defaultTimeoutMs = 40_000,
-	killGraceMs = 2_000;
+const killGraceMs = 2_000;
 const taskkillOptions = { stdio: 'ignore' as const, windowsHide: true };
 const unavailablePattern =
 	/\b(?:ECONNREFUSED|ENOTFOUND|ETIMEDOUT|ECONNRESET|EAI_AGAIN)\b|ERR_PNPM_META_FETCH_FAIL|ERR_PNPM_AUDIT_BAD_RESPONSE[\s\S]*(?:\b408\b|\b429\b|\b5\d{2}\b)|TimeoutError: The operation was aborted due to timeout/i;
@@ -20,6 +19,8 @@ export type AuditResult = {
 	stdout: string;
 	stderr: string;
 };
+export const defaultAuditTimeoutMs = (graph: AuditGraph): number =>
+	graph === 'dev' ? 120_000 : 40_000;
 const classify = (
 	exitCode: number,
 	stdout: string,
@@ -104,10 +105,13 @@ export const runAudit = async (options: {
 		const forwardSigterm = (): void => scheduleStop('SIGTERM');
 		process.once('SIGINT', forwardSigint);
 		process.once('SIGTERM', forwardSigterm);
-		const timeout = setTimeout(() => {
-			timedOut = true;
-			scheduleStop('SIGTERM');
-		}, options.timeoutMs ?? defaultTimeoutMs);
+		const timeout = setTimeout(
+			() => {
+				timedOut = true;
+				scheduleStop('SIGTERM');
+			},
+			options.timeoutMs ?? defaultAuditTimeoutMs(options.graph),
+		);
 		child.stdout.setEncoding('utf8');
 		child.stdout.on('data', (chunk: string) => {
 			stdout += chunk;

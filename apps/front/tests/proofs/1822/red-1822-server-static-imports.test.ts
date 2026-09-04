@@ -70,7 +70,7 @@
  * red → CI's `Verify paired red proofs` step reports CORRUPT PROOF.
  *
  * ## Replay
- *   cd apps/front && pnpm exec vitest run --config vitest.preuves.config.ts \
+ *   cd apps/front && pnpm exec vitest run --config vitest.proofs.config.ts \
  *     tests/proofs/1822/red-1822-server-static-imports.test.ts
  *
  * Expected: FAIL — on correct code the import line is `staticMiddleware`

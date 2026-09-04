@@ -34,7 +34,7 @@
  *   `expect(...).toBe(false)` throws an AssertionError.
  *
  * ## Replay
- *   cd apps/front && pnpm exec vitest run --config vitest.preuves.config.ts \
+ *   cd apps/front && pnpm exec vitest run --config vitest.proofs.config.ts \
  *     tests/proofs/1891/red-1891-tracked-subdir-dockerignore-exempted.test.ts
  *
  * Expected on the current worktree: FAIL — the assertion that

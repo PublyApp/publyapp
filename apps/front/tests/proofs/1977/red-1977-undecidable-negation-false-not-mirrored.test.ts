@@ -73,7 +73,7 @@
  *   filesystem walk alone), but the false-cause diagnostic is gone.
  *
  * ## Replay
- *   cd apps/front && pnpm exec vitest run --config vitest.preuves.config.ts \
+ *   cd apps/front && pnpm exec vitest run --config vitest.proofs.config.ts \
  *     tests/proofs/1977/red-1977-undecidable-negation-false-not-mirrored.test.ts
  *
  * Expected on the current worktree: FAIL with an `AssertionError` on the

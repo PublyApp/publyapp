@@ -16,11 +16,11 @@ const maxWorkers = Math.max(2, Math.floor(cpus().length / 2));
 // versioned tests/proofs/ directory.
 //
 // Usage (replay a specific proof):
-//   cd apps/front && pnpm exec vitest run --config vitest.preuves.config.ts \
+//   cd apps/front && pnpm exec vitest run --config vitest.proofs.config.ts \
 //     tests/proofs/<issue>/<name>.test.ts
 //
 // Usage (all proofs):
-//   cd apps/front && pnpm.exec vitest run --config vitest.preuves.config.ts \
+//   cd apps/front && pnpm.exec vitest run --config vitest.proofs.config.ts \
 //     tests/proofs/
 export default defineConfig({
 	resolve: {

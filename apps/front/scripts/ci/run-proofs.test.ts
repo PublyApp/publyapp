@@ -1,7 +1,7 @@
 /**
  * @vitest-environment node
  *
- * Unit tests for the CI-environment handling in run-preuves.mts.
+ * Unit tests for the CI-environment handling in run-proofs.mts.
  *
  * ## The regression this file guards (#1806, ronde 10)
  *
@@ -19,7 +19,7 @@
  *
  * ## Why spawn the real script instead of importing it
  *
- * run-preuves.mts is a top-level script: importing it executes the main
+ * run-proofs.mts is a top-level script: importing it executes the main
  * logic, which calls process.exit() — it cannot be imported as a module.
  * These tests spawn the REAL script through the REAL entrypoint with a
  * controlled environment, which is exactly how CI and `just test-preuves`
@@ -61,6 +61,7 @@ import {
 	existsSync,
 	mkdirSync,
 	mkdtempSync,
+	readFileSync,
 	readdirSync,
 	readlinkSync,
 	rmSync,
@@ -100,7 +101,7 @@ const runScript = (setBaseRef: boolean, setHeadRef: boolean) => {
 		env.GITHUB_HEAD_REF = 'lane/wt-1783';
 	}
 
-	const result = spawnSync(process.execPath, ['scripts/ci/run-preuves.mts'], {
+	const result = spawnSync(process.execPath, ['scripts/ci/run-proofs.mts'], {
 		cwd: FRONT_ROOT,
 		env,
 		encoding: 'utf-8',
@@ -129,7 +130,7 @@ const runScript = (setBaseRef: boolean, setHeadRef: boolean) => {
  */
 const captureLocalRun = (): Promise<LocalRunCapture> =>
 	new Promise<LocalRunCapture>((resolve, reject) => {
-		const child = spawn(process.execPath, ['scripts/ci/run-preuves.mts'], {
+		const child = spawn(process.execPath, ['scripts/ci/run-proofs.mts'], {
 			cwd: FRONT_ROOT,
 			env: freshEnv(),
 			stdio: ['ignore', 'pipe', 'pipe'],
@@ -241,7 +242,7 @@ describe('declaredProofTests — CI environment handling', () => {
 
 // --- Fixture-based replay regressions (issue #1806, ronde 11) ---
 
-const RUNNER_SCRIPT = join(FRONT_ROOT, 'scripts', 'ci', 'run-preuves.mts');
+const RUNNER_SCRIPT = join(FRONT_ROOT, 'scripts', 'ci', 'run-proofs.mts');
 const REAL_FRONT_NODE_MODULES = join(FRONT_ROOT, 'node_modules');
 
 interface ReplayFixtureOptions {
@@ -263,7 +264,7 @@ interface ReplayFixtureOptions {
  * <root>/apps/front).
  */
 const buildReplayFixture = (options: ReplayFixtureOptions): string => {
-	const root = mkdtempSync(join(tmpdir(), 'preuve-replay-'));
+	const root = mkdtempSync(join(tmpdir(), 'proof-replay-'));
 	const appDir = join(root, 'apps', 'front');
 	const proofDir = join(appDir, 'tests', 'proofs', '99999');
 	mkdirSync(proofDir, { recursive: true });
@@ -272,7 +273,7 @@ const buildReplayFixture = (options: ReplayFixtureOptions): string => {
 	// and corepack resolves the SAME pinned pnpm as the workspace (without
 	// the pin, corepack falls forward to its default pnpm and trigger an
 	// implicit install — network + >30s on a cold cache, observed in
-	// ronde-11 development). Plus a minimal vitest.preuves.config.ts (the
+	// ronde-11 development). Plus a minimal vitest.proofs.config.ts (the
 	// runner passes --config explicitly) and a symlink to the real front's
 	// node_modules.
 	//
@@ -291,10 +292,10 @@ const buildReplayFixture = (options: ReplayFixtureOptions): string => {
 	// and the .bin/vitest entry.
 	writeFileSync(
 		join(appDir, 'package.json'),
-		'{"name":"preuve-replay-fixture","private":true,"type":"module","packageManager":"pnpm@10.13.1"}\n',
+		'{"name":"proof-replay-fixture","private":true,"type":"module","packageManager":"pnpm@10.13.1"}\n',
 	);
 	writeFileSync(
-		join(appDir, 'vitest.preuves.config.ts'),
+		join(appDir, 'vitest.proofs.config.ts'),
 		[
 			"import { defineConfig } from 'vitest/config';",
 			'',
@@ -307,6 +308,10 @@ const buildReplayFixture = (options: ReplayFixtureOptions): string => {
 			'});',
 			'',
 		].join('\n'),
+	);
+	writeFileSync(
+		join(appDir, 'tests', 'proofs', 'expected-red.schema.json'),
+		'{}\n',
 	);
 	const fixtureNodeModules = join(appDir, 'node_modules');
 	// apps/front/node_modules/vitest is itself a relative symlink into the
@@ -346,7 +351,7 @@ const buildReplayFixture = (options: ReplayFixtureOptions): string => {
 		[
 			"import { describe, expect, test } from 'vitest';",
 			'',
-			"describe('preuve replay fixture', () => {",
+			"describe('proof replay fixture', () => {",
 			"\t\ttest('the declared kept-red test', () => {",
 			declaredBody,
 			'\t\t});',
@@ -379,10 +384,10 @@ const buildReplayFixture = (options: ReplayFixtureOptions): string => {
 	// Two commits: base (app shell only) then proof. The node_modules symlink
 	// is deliberately NOT committed — the work tree provides it for pnpm.
 	execSync('git init -q -b main', { cwd: root });
-	execSync('git config user.email preuve-fixture@example.com', { cwd: root });
-	execSync('git config user.name preuve-fixture', { cwd: root });
+	execSync('git config user.email proof-fixture@example.com', { cwd: root });
+	execSync('git config user.name proof-fixture', { cwd: root });
 	execSync(
-		'git add apps/front/package.json apps/front/vitest.preuves.config.ts',
+		'git add apps/front/package.json apps/front/vitest.proofs.config.ts apps/front/tests/proofs/expected-red.schema.json',
 		{ cwd: root },
 	);
 	execSync('git commit -qm base', { cwd: root });
@@ -399,6 +404,29 @@ const runReplayFixture = (root: string) => {
 	const result = spawnSync(process.execPath, [RUNNER_SCRIPT], {
 		cwd: join(root, 'apps', 'front'),
 		env: freshEnv(),
+		encoding: 'utf-8',
+		timeout: 120000,
+	});
+
+	if (result.error) {
+		throw result.error;
+	}
+
+	return {
+		status: result.status,
+		stdout: result.stdout ?? '',
+		stderr: result.stderr ?? '',
+	};
+};
+
+const runCiReplayFixture = (root: string, headRef: string) => {
+	const result = spawnSync(process.execPath, [RUNNER_SCRIPT], {
+		cwd: join(root, 'apps', 'front'),
+		env: {
+			...freshEnv(),
+			GITHUB_BASE_REF: 'develop',
+			GITHUB_HEAD_REF: headRef,
+		},
 		encoding: 'utf-8',
 		timeout: 120000,
 	});
@@ -500,6 +528,141 @@ describe('proof replay — F2: the exit gate is pinned by a real process launch'
 			expect(result.stdout).toContain(
 				'Stale proofs (declared red went green): 0',
 			);
+		} finally {
+			rmSync(root, { recursive: true, force: true });
+		}
+	}, 120000);
+});
+
+describe('proof replay — declaration is limited to additions and modifications (#1962)', () => {
+	test('a committed deletion of a proof and its manifest is an explicit local no-op', () => {
+		const root = buildReplayFixture({
+			declaredTestPasses: false,
+			siblingPasses: false,
+			withManifest: true,
+		});
+		try {
+			execSync(
+				'git rm apps/front/tests/proofs/99999/stale-proof.test.ts apps/front/tests/proofs/99999/stale-proof.test.ts.expected-red.json',
+				{ cwd: root },
+			);
+			execSync('git commit -qm "delete retired proof"', { cwd: root });
+
+			const result = runReplayFixture(root);
+
+			expect(result.status).toBe(0);
+			expect(result.stdout).toContain(
+				'LOCAL RUN — no proof test files changed in HEAD~1..HEAD',
+			);
+			expect(result.stderr).not.toContain('MISSING PROOF');
+		} finally {
+			rmSync(root, { recursive: true, force: true });
+		}
+	}, 120000);
+
+	test('a PR deletion is an explicit CI no-op in the three-dot diff', () => {
+		const root = buildReplayFixture({
+			declaredTestPasses: false,
+			siblingPasses: false,
+			withManifest: true,
+		});
+		try {
+			execSync('git branch develop', { cwd: root });
+			execSync('git checkout -qb lane/delete-proof', { cwd: root });
+			execSync(
+				'git rm apps/front/tests/proofs/99999/stale-proof.test.ts apps/front/tests/proofs/99999/stale-proof.test.ts.expected-red.json',
+				{ cwd: root },
+			);
+			execSync('git commit -qm "delete retired proof"', { cwd: root });
+			execSync('git remote add origin .', { cwd: root });
+
+			const result = runCiReplayFixture(root, 'lane/delete-proof');
+
+			expect(result.status).toBe(0);
+			expect(result.stdout).toContain(
+				'This PR did not declare any paired red proofs',
+			);
+			expect(result.stderr).not.toContain('MISSING PROOF');
+		} finally {
+			rmSync(root, { recursive: true, force: true });
+		}
+	}, 120000);
+
+	test('a renamed and edited proof is replayed from its destination in the CI three-dot diff', () => {
+		const root = buildReplayFixture({
+			declaredTestPasses: false,
+			siblingPasses: false,
+			withManifest: true,
+		});
+		try {
+			execSync('git branch develop', { cwd: root });
+			execSync('git checkout -qb lane/rename-proof', { cwd: root });
+			execSync(
+				'git mv apps/front/tests/proofs/99999/stale-proof.test.ts apps/front/tests/proofs/99999/renamed-proof.test.ts && git mv apps/front/tests/proofs/99999/stale-proof.test.ts.expected-red.json apps/front/tests/proofs/99999/renamed-proof.test.ts.expected-red.json',
+				{ cwd: root },
+			);
+			const renamedProof = join(
+				root,
+				'apps',
+				'front',
+				'tests',
+				'proofs',
+				'99999',
+				'renamed-proof.test.ts',
+			);
+			writeFileSync(
+				renamedProof,
+				`${readFileSync(renamedProof, 'utf-8')}\n// rename edit\n`,
+			);
+			execSync('git add apps/front/tests/proofs/99999', {
+				cwd: root,
+			});
+			execSync('git commit -qm "rename and edit retained proof"', {
+				cwd: root,
+			});
+			execSync('git remote add origin .', { cwd: root });
+
+			const result = runCiReplayFixture(root, 'lane/rename-proof');
+
+			expect(result.status).toBe(0);
+			expect(result.stdout).toContain('renamed-proof.test.ts');
+			expect(result.stdout).toContain('This PR declared 1 paired red proof(s)');
+			expect(result.stderr).not.toContain('stale-proof.test.ts');
+			expect(result.stderr).not.toContain('MISSING PROOF');
+		} finally {
+			rmSync(root, { recursive: true, force: true });
+		}
+	}, 120000);
+
+	test('a committed modification remains declared and replayed', () => {
+		const root = buildReplayFixture({
+			declaredTestPasses: false,
+			siblingPasses: false,
+			withManifest: true,
+		});
+		try {
+			const proofFile = join(
+				root,
+				'apps',
+				'front',
+				'tests',
+				'proofs',
+				'99999',
+				'stale-proof.test.ts',
+			);
+			writeFileSync(
+				proofFile,
+				`${readFileSync(proofFile, 'utf-8')}\n// update\n`,
+			);
+			execSync('git add apps/front/tests/proofs/99999/stale-proof.test.ts', {
+				cwd: root,
+			});
+			execSync('git commit -qm "modify retained proof"', { cwd: root });
+
+			const result = runReplayFixture(root);
+
+			expect(result.status).toBe(0);
+			expect(result.stdout).toContain('This PR declared 1 paired red proof(s)');
 		} finally {
 			rmSync(root, { recursive: true, force: true });
 		}
@@ -658,17 +821,17 @@ interface ErrorFixtureOptions {
  * green-light a crashed vitest process.
  */
 const buildErrorFixture = (options: ErrorFixtureOptions): string => {
-	const root = mkdtempSync(join(tmpdir(), 'preuve-error-'));
+	const root = mkdtempSync(join(tmpdir(), 'proof-error-'));
 	const appDir = join(root, 'apps', 'front');
 	const proofDir = join(appDir, 'tests', 'proofs', '99999');
 	mkdirSync(proofDir, { recursive: true });
 
 	writeFileSync(
 		join(appDir, 'package.json'),
-		'{"name":"preuve-error-fixture","private":true,"type":"module","packageManager":"pnpm@10.13.1"}\n',
+		'{"name":"proof-error-fixture","private":true,"type":"module","packageManager":"pnpm@10.13.1"}\n',
 	);
 	writeFileSync(
-		join(appDir, 'vitest.preuves.config.ts'),
+		join(appDir, 'vitest.proofs.config.ts'),
 		[
 			"import { defineConfig } from 'vitest/config';",
 			'',
@@ -714,7 +877,7 @@ const buildErrorFixture = (options: ErrorFixtureOptions): string => {
 			'// Kill vitest with SIGKILL at import time (exit 137).',
 			'process.kill(process.pid, "SIGKILL");',
 			'',
-			"describe('preuve ERROR fixture', () => {",
+			"describe('proof ERROR fixture', () => {",
 			"\ttest('never runs — vitest is dead', () => {",
 			'\t\texpect(true).toBe(true);',
 			'\t});',
@@ -742,10 +905,10 @@ const buildErrorFixture = (options: ErrorFixtureOptions): string => {
 	}
 
 	execSync('git init -q -b main', { cwd: root });
-	execSync('git config user.email preuve-fixture@example.com', { cwd: root });
-	execSync('git config user.name preuve-fixture', { cwd: root });
+	execSync('git config user.email proof-fixture@example.com', { cwd: root });
+	execSync('git config user.name proof-fixture', { cwd: root });
 	execSync(
-		'git add apps/front/package.json apps/front/vitest.preuves.config.ts',
+		'git add apps/front/package.json apps/front/vitest.proofs.config.ts',
 		{ cwd: root },
 	);
 	execSync('git commit -qm base', { cwd: root });
@@ -792,17 +955,17 @@ describe('proof replay — ERROR verdict (vitest crash, issue #1864)', () => {
  * PR's proof, not the base's.
  */
 const buildBehindHeadFixture = (): string => {
-	const root = mkdtempSync(join(tmpdir(), 'preuve-behind-'));
+	const root = mkdtempSync(join(tmpdir(), 'proof-behind-'));
 	const appDir = join(root, 'apps', 'front');
 	const proofDir = join(appDir, 'tests', 'proofs', '99999');
 	mkdirSync(proofDir, { recursive: true });
 
 	writeFileSync(
 		join(appDir, 'package.json'),
-		'{"name":"preuve-behind-fixture","private":true,"type":"module","packageManager":"pnpm@10.13.1"}\n',
+		'{"name":"proof-behind-fixture","private":true,"type":"module","packageManager":"pnpm@10.13.1"}\n',
 	);
 	writeFileSync(
-		join(appDir, 'vitest.preuves.config.ts'),
+		join(appDir, 'vitest.proofs.config.ts'),
 		[
 			"import { defineConfig } from 'vitest/config';",
 			'',
@@ -876,10 +1039,10 @@ const buildBehindHeadFixture = (): string => {
 	// The PR branch's HEAD is at step 2; the base ref is at step 3.
 	// merge-base(base, HEAD) = step 1. Three-dot diff = step 2 only.
 	execSync('git init -q -b lane/pr-branch', { cwd: root });
-	execSync('git config user.email preuve-fixture@example.com', { cwd: root });
-	execSync('git config user.name preuve-fixture', { cwd: root });
+	execSync('git config user.email proof-fixture@example.com', { cwd: root });
+	execSync('git config user.name proof-fixture', { cwd: root });
 	execSync(
-		'git add apps/front/package.json apps/front/vitest.preuves.config.ts',
+		'git add apps/front/package.json apps/front/vitest.proofs.config.ts',
 		{ cwd: root },
 	);
 	execSync('git commit -qm base', { cwd: root }); // fork point

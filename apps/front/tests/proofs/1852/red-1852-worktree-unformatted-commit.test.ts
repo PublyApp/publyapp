@@ -57,7 +57,7 @@
  *   never silently collapses to "bug absent".
  *
  * ## Replay
- *   cd apps/front && pnpm exec vitest run --config vitest.preuves.config.ts \
+ *   cd apps/front && pnpm exec vitest run --config vitest.proofs.config.ts \
  *     tests/proofs/1852/red-1852-worktree-unformatted-commit.test.ts
  *
  * Expected: FAIL — on correct code the fresh worktree's pre-commit hook

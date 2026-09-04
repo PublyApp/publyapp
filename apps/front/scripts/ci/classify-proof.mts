@@ -1,7 +1,7 @@
 /**
  * classify-proof.mts — structural classification of a proof test's failure mode.
  *
- * This module extracts the classification logic from run-preuves.mts so it can
+ * This module extracts the classification logic from run-proofs.mts so it can
  * be unit-tested independently. The logic is unchanged — it is only factored
  * out so a test can feed it a real vitest JSON report and assert the verdict.
  *

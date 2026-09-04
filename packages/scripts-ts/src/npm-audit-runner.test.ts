@@ -13,8 +13,15 @@ import { fileURLToPath } from 'node:url';
 
 import { test } from 'vitest';
 
+import { defaultAuditTimeoutMs } from './npm-audit-runner.ts';
+
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const runnerPath = path.join(scriptDir, 'npm-audit-runner.ts');
+
+test('production and development graphs keep distinct finite default bounds', () => {
+	assert.equal(defaultAuditTimeoutMs('prod'), 40_000);
+	assert.equal(defaultAuditTimeoutMs('dev'), 120_000);
+});
 
 const run = async (
 	command: string,

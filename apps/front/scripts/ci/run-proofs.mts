@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /*
- * run-preuves.mts — executes kept-red proof tests declared by the current pull
+ * run-proofs.mts — executes kept-red proof tests declared by the current pull
  * request under apps/front/tests/proofs/.
  *
  * Each proof test in this repo is EXPECTED TO FAIL. It proves a bug is present
@@ -122,10 +122,10 @@ import { consumeVerdict, gateShouldFail } from './consume-verdict.mts';
 
 const ROOT = join(process.cwd(), '..'); // apps/front → repo root
 const PROOFS_DIR = join(process.cwd(), 'tests', 'proofs');
-const CONFIG = 'vitest.preuves.config.ts';
+const CONFIG = 'vitest.proofs.config.ts';
 
 /**
- * Extensions that vitest.preuves.config.ts can replay. The config's include
+ * Extensions that vitest.proofs.config.ts can replay. The config's include
  * pattern matches only .test.ts and .test.tsx files under tests/proofs/ — any
  * file with a different extension is declared by the PR but cannot be
  * replayed by the runner, which means the guard cannot verify it. Such a
@@ -334,7 +334,7 @@ const declaredProofTests = (): string[] => {
 			// test names and pins. A diverged branch (no merge base) fails loud
 			// above; it can never silently become "no proofs declared".
 			const diffOutput = execSync(
-				`git -C "${ROOT}" diff --name-only "${mergeBase}...HEAD"`,
+				`git -C "${ROOT}" diff --find-renames --diff-filter=AMR --name-only "${mergeBase}...HEAD"`,
 				{ encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] },
 			);
 			changedFiles = diffOutput
@@ -353,7 +353,7 @@ const declaredProofTests = (): string[] => {
 			);
 			// Local development: diff the most recent commit.
 			const diffOutput = execSync(
-				`git -C "${ROOT}" diff --name-only HEAD~1 HEAD`,
+				`git -C "${ROOT}" diff --find-renames --diff-filter=AMR --name-only HEAD~1 HEAD`,
 				{ encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] },
 			);
 			changedFiles = diffOutput
@@ -620,7 +620,7 @@ for (const test of replayable) {
 	// Run vitest with the JSON reporter writing to a temp file. The JSON
 	// report gives us, per test, its status and the TYPE of the failure —
 	// structural signals we can classify without reading display text.
-	const reportFile = join(tmpdir(), `preuve-${process.pid}-${Date.now()}.json`);
+	const reportFile = join(tmpdir(), `proof-${process.pid}-${Date.now()}.json`);
 	try {
 		execFileSync(
 			'pnpm',
@@ -706,7 +706,7 @@ console.log(`  Stale proofs (declared red went green): ${stale}`);
 // unexpectedPasses == 0 and corrupted == 0) fails CI. The predicate
 // lives in consume-verdict.mts so the exit condition is testable without
 // spawning this script; the process-launch regression in
-// run-preuves.test.ts additionally proves the REAL script exits
+// run-proofs.test.ts additionally proves the REAL script exits
 // non-zero when only stale > 0.
 if (
 	missing > 0 ||
