@@ -145,8 +145,8 @@ const main = async (): Promise<void> => {
 	if (result.status === 'unavailable') {
 		process.stderr.write('\nnpm audit service unavailable\n');
 	}
-	process.exitCode =
-		result.status === 'clean' ? 0 : result.exitCode > 0 ? result.exitCode : 1;
+	const auditExitCode = result.exitCode > 0 ? result.exitCode : 1;
+	process.exitCode = result.status === 'clean' ? 0 : auditExitCode;
 };
 
 if (

@@ -40,7 +40,7 @@ const run = async (
 		child.on('close', (status) => resolve({ status, stdout, stderr }));
 	});
 
-const fakePnpm = (source: string): { bin: string; remove: () => void } => {
+const fakePnpm = (source: string) => {
 	const bin = mkdtempSync(path.join(os.tmpdir(), 'publy-1699-pnpm-bin-'));
 	const executable = path.join(bin, 'pnpm');
 	writeFileSync(executable, `#!/usr/bin/env node\n${source}`);
