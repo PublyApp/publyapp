@@ -59,7 +59,7 @@
 	"dependencies": {
 		"@base-ui/react": "1.7.0",
 		"@hookform/resolvers": "5.9.1",
-		"@microsoft/kiota-abstractions": "1.0.0-preview.103",
+		"@microsoft/kiota-abstractions": "1.0.0-preview.106",
 		"@microsoft/kiota-http-fetchlibrary": "1.0.0-preview.103",
 		"@org/client-ts": "workspace:*",
 		"@org/shared-ts": "workspace:*",
