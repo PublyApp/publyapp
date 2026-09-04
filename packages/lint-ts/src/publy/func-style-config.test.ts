@@ -427,8 +427,16 @@ const gitIgnoreCheckerForWorkspace = (): GitIgnoreChecker | null => {
 // This mirrors the exact paths oxlint lints: it scans the workspace root
 // and respects the same ignore patterns oxlint uses, so the inventory stays
 // in sync with the linting scope.
+//
+// `walkRoots` (issue #1968) lets a caller bound the walk to a subset of
+// directories while keeping `rootDir` as the relative-path/ignore anchor —
+// used by the git-ignore legs so a planted fixture's parent directory is
+// walked instead of the whole workspace, without changing how paths are
+// made relative or how the static/git ignore checks are applied. Defaults
+// to `[rootDir]`, so every existing single-argument caller is unchanged.
 const scanFuncStyleSuppressions = async (
 	rootDir: string,
+	walkRoots: readonly string[] = [rootDir],
 ): Promise<FuncStyleSuppressionEntry[]> => {
 	const entries: FuncStyleSuppressionEntry[] = [];
 	const TEXT_EXTENSIONS = new Set([
@@ -548,7 +556,9 @@ const scanFuncStyleSuppressions = async (
 		}
 	};
 
-	await walk(rootDir);
+	for (const walkRoot of walkRoots) {
+		await walk(walkRoot);
+	}
 	return entries;
 };
 
@@ -2091,6 +2101,20 @@ class Probe {}
 		// the SAME violation under `apps/front/` (not git-ignored) and asserts
 		// the scanner still sees it — a fix that "simply stops walking" would
 		// pass leg 1 while blinding the guard.
+		//
+		// Issue #1968 — bounded scan: the legs no longer walk the whole
+		// workspace. They call `scanFuncStyleSuppressions` with `WORKSPACE_ROOT`
+		// as the relative-path/ignore anchor and a `walkRoots` bounded to the
+		// exact planted fixture surface (the parent directory of each planted
+		// file), keeping the same `git check-ignore --stdin -z` batched gate so
+		// the ignored / non-ignored distinction stays real. Observed maximum
+		// across 15 sequential + 5 loaded (6-way CPU stress) runs after the
+		// change: 28ms (`.dump/preuves/1968/measurement-after.txt`). 10s is
+		// over 350x that measured maximum — more than enough headroom against a
+		// cold filesystem cache or a busy CI runner while still bounding a real
+		// hang, so the test budget stays honest without reintroducing the
+		// misleading scanner-regression failure mode the bug describes.
+		const GIT_IGNORE_LEG_TIMEOUT_MS = 10_000;
 		const plantedWorktreeFile = join(
 			WORKSPACE_ROOT,
 			'.worktrees/proof-1909/apps/front/src/viable.ts',
@@ -2120,47 +2144,59 @@ class Probe {}
 
 		afterAll(removePlanted);
 
-		it('leg 1: a suppression inside a git-ignored directory is not scanned', async () => {
-			plantSuppression(plantedWorktreeFile);
+		it(
+			'leg 1: a suppression inside a git-ignored directory is not scanned',
+			async () => {
+				plantSuppression(plantedWorktreeFile);
 
-			try {
-				const foundEntries = await scanFuncStyleSuppressions(WORKSPACE_ROOT);
-				const worktreeEntries = foundEntries.filter((entry) =>
-					entry.file.startsWith('.worktrees/proof-1909/'),
-				);
+				try {
+					const foundEntries = await scanFuncStyleSuppressions(WORKSPACE_ROOT, [
+						dirname(plantedWorktreeFile),
+					]);
+					const worktreeEntries = foundEntries.filter((entry) =>
+						entry.file.startsWith('.worktrees/proof-1909/'),
+					);
 
-				assert.deepStrictEqual(
-					worktreeEntries,
-					[],
-					`the scanner must skip the git-ignored .worktrees/ directory; found ${worktreeEntries.map((entry) => `${entry.file}: ${entry.symbol}`).join(', ')}`,
-				);
-			} finally {
-				removePlanted();
-			}
-		});
+					assert.deepStrictEqual(
+						worktreeEntries,
+						[],
+						`the scanner must skip the git-ignored .worktrees/ directory; found ${worktreeEntries.map((entry) => `${entry.file}: ${entry.symbol}`).join(', ')}`,
+					);
+				} finally {
+					removePlanted();
+				}
+			},
+			GIT_IGNORE_LEG_TIMEOUT_MS,
+		);
 
-		it('adversarial leg 2: the same suppression in a NON-ignored file is still reported', async () => {
-			plantSuppression(plantedTrackedFile);
+		it(
+			'adversarial leg 2: the same suppression in a NON-ignored file is still reported',
+			async () => {
+				plantSuppression(plantedTrackedFile);
 
-			try {
-				const foundEntries = await scanFuncStyleSuppressions(WORKSPACE_ROOT);
-				const found = foundEntries.filter((entry) =>
-					entry.file.startsWith('apps/front/proof-1909-not-ignored/'),
-				);
+				try {
+					const foundEntries = await scanFuncStyleSuppressions(WORKSPACE_ROOT, [
+						dirname(plantedTrackedFile),
+					]);
+					const found = foundEntries.filter((entry) =>
+						entry.file.startsWith('apps/front/proof-1909-not-ignored/'),
+					);
 
-				assert.strictEqual(
-					found.length,
-					1,
-					`the scanner must still report the non-ignored suppression; got ${JSON.stringify(found)}`,
-				);
-				assert.strictEqual(
-					found[0]!.symbol,
-					'survie1909',
-					'the reported suppression must carry its symbol',
-				);
-			} finally {
-				removePlanted();
-			}
-		});
+					assert.strictEqual(
+						found.length,
+						1,
+						`the scanner must still report the non-ignored suppression; got ${JSON.stringify(found)}`,
+					);
+					assert.strictEqual(
+						found[0]!.symbol,
+						'survie1909',
+						'the reported suppression must carry its symbol',
+					);
+				} finally {
+					removePlanted();
+				}
+			},
+			GIT_IGNORE_LEG_TIMEOUT_MS,
+		);
 	});
 });
