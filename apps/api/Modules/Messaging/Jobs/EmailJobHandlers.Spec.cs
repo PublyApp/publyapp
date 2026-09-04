@@ -568,6 +568,69 @@ public sealed class EmailJobHandlersSpec : IClassFixture<ApiFixture> {
 		log.Outcome.Should().Be(EmailLogOutcome.CancelledIneligible);
 	}
 
+	[Fact]
+	public async Task ItShouldSendExactlyOnceWhenTheSameJoinedStaffJobIsInvokedTwice() {
+		// #1557: the base step-0 short-circuit must hold FOR THIS HANDLER — a handler
+		// that composes its idempotency key from something job-specific, or that does
+		// work before the short-circuit, sends twice and the user is told twice they
+		// were added. Two invocations with the SAME jobId + payload yield exactly one
+		// send and one EmailLog(Submitted) row.
+		var userId = await SeedExistingUserAsync(UserStatus.Active);
+		var jobId = Guid.CreateVersion7();
+		var sender = new ControllableSender();
+
+		await using (var db = CreateDbContext()) {
+			await JoinedStaffHandler(db, sender)
+				.HandleAsync(JoinedStaffContext(jobId, userId), CancellationToken.None);
+		}
+		await using (var db = CreateDbContext()) {
+			await JoinedStaffHandler(db, sender)
+				.HandleAsync(JoinedStaffContext(jobId, userId), CancellationToken.None);
+		}
+
+		sender.Sends.Should().HaveCount(
+			1,
+			"[#1557] step-0 short-circuit must prevent a second send: the same " +
+				"jobId + payload invoked twice must yield exactly one email, or the user is told " +
+				"twice they were added."
+		);
+
+		await using var assertDb = CreateDbContext();
+		(await assertDb.EmailLog.AsNoTracking().CountAsync(e => e.JobId == jobId))
+			.Should().Be(1);
+	}
+
+	[Fact]
+	public async Task
+	ItShouldReturnCancelledWithUserNotFoundWhenTheUserIsSoftDeletedBeforeTheLockedRead() {
+		// #1557: the joined-staff handler's locked eligibility recheck is the
+		// linearization point (#811); a user soft-deleted between enqueue and the
+		// locked read yields `user_not_found` — no send, no EmailLog row, AND a
+		// stable `Reason` on the JobOutcome (owner transparent-failure rule).
+		var userId = await SeedExistingUserAsync(UserStatus.Active);
+		await SoftDeleteUserAsync(userId);
+
+		var jobId = Guid.CreateVersion7();
+		var sender = new ControllableSender();
+
+		await using var db = CreateDbContext();
+		var outcome = await JoinedStaffHandler(db, sender)
+			.HandleAsync(JoinedStaffContext(jobId, userId), CancellationToken.None);
+
+		var cancelled = outcome.Should().BeOfType<JobOutcome.Cancelled>().Subject;
+		cancelled.Reason.Should().Be(
+			"user_not_found",
+			"[#1557] the deleted-user branch must carry the exact stable cause; " +
+				"JobOutcome.Cancelled.Reason is the public channel through which handlers " +
+				"communicate why a no-op happened."
+		);
+		sender.Sends.Should().BeEmpty();
+
+		await using var assertDb = CreateDbContext();
+		(await assertDb.EmailLog.AsNoTracking().AnyAsync(e => e.JobId == jobId))
+			.Should().BeFalse();
+	}
+
 	// --- construction helpers -----------------------------------------------------
 
 	private static StaffInvitationEmailJobHandler StaffHandler(AppDbContext db, IEmailSender sender) {
@@ -624,6 +687,13 @@ public sealed class EmailJobHandlersSpec : IClassFixture<ApiFixture> {
 		db.User.Add(user);
 		await db.SaveChangesAsync();
 		return user.GetRequiredId();
+	}
+
+	private async Task SoftDeleteUserAsync(Guid userId) {
+		await using var db = CreateDbContext();
+		await db.Database.ExecuteSqlAsync(
+			$"UPDATE users SET is_deleted = TRUE, deleted_at = now(), updated_at = now() WHERE id = {userId}"
+		);
 	}
 
 	private async Task<(Guid InvitationId, string Token)> SeedStaffInvitationAsync() {
