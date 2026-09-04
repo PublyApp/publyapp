@@ -29,6 +29,11 @@
 			"step_id": "require-linked-issue.yml::pr-body-exhaustiveness::Verify the PR body makes no unverifiable exhaustiveness claims (#1569)",
 			"reason": "#2049 / owner-approved guard-pruning policy tracked by #2068: this lexical PR-prose check cannot distinguish an assertion from a quotation, retraction, result, or hypothesis; rebuilding it correctly would require a Markdown and natural-language analyzer disproportionate to this non-runtime policy, so the guard is retired instead of patched. Honest disclosure: the automatic enforcement of evidence-backed, exhaustive PR-body claims is lost — genuine unenumerated or quantified claims will no longer be rejected automatically, and human review owns this check after retirement. No runtime, security, data, API, supply-chain, or CI-integrity invariant is lost; the lost invariant is review-process policy only.",
 			"removed_at": "2026-09-01"
+		},
+		{
+			"step_id": "quality-gate.yml::quality::Verify production duplication has not increased (#1821)",
+			"removed_at": "2026-09-01",
+			"reason": "The bespoke jscpd production-duplication ratchet (custom parser, committed reference baseline, co-located paired-red-proof tests) caused recurrent maintenance defects across #1895, #1897, and #1969 and is intentionally pruned in this change. Ordinary review, lint, and the existing test suites remain; no equivalent automated duplication coverage is claimed."
 		}
 	]
 }

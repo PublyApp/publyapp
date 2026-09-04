@@ -233,7 +233,6 @@
 		"quality-gate.yml::quality::Typecheck shared-ts",
 		"quality-gate.yml::quality::Verify complexity bounds are not drifting (#1661)",
 		"quality-gate.yml::quality::Verify deploy env doc coverage (#1798)",
-		"quality-gate.yml::quality::Verify production duplication has not increased (#1821)",
 		"react-doctor.yml::changes::Check whether react-doctor paths changed",
 		"react-doctor.yml::changes::Checkout classifier from the base commit (not the PR's own copy)",
 		"react-doctor.yml::changes::Setup Node",
@@ -920,10 +919,6 @@
 		"quality-gate.yml::quality::Verify complexity bounds are not drifting (#1661)": {
 			"reason_hash": "1cbb6db7d59ba3f0",
 			"reason": "The check-cyclomatic-bound guard verifies that complexity ceilings in .oxlintrc.json are not drifting. It reads the TRUE values from .oxlintrc.json and ensures they match the committed expected configuration in packages/scripts-ts/src/cyclomatic-bound-ref.json (apps/front/src/**: 60, test files: 90, default: 125). CI runs this guard to provide actual protection against bound drift."
-		},
-		"quality-gate.yml::quality::Verify production duplication has not increased (#1821)": {
-			"reason_hash": "119fd701d06941df",
-			"reason": "jscpd@4 production duplication ratchet: runs jscpd against production paths and verifies unique pair count and line count within the committed baseline. Identical to the CI step quality-gate.yml::quality::Verify production duplication has not increased (#1821)."
 		},
 		"quality-gate.yml::quality::Verify deploy env doc coverage (#1798)": {
 			"reason_hash": "41801181f18800e2",
