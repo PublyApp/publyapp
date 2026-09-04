@@ -38,6 +38,8 @@
  * - `cleanup-signal`: the lifecycle succeeds instantly and the final teardown
  *   blocks — the window in which a signal used to default-kill the runner,
  *   orphaning teardown and stranding the reservation.
+ * - `lifecycle-resistant-grandchild`: the direct lifecycle child exits on the
+ *   forwarded signal while its grandchild ignores SIGTERM until escalation.
  * - `acquiring`: the reservation binds its lease and then never resolves, so
  *   the signal lands while acquisition is still in flight.
  */
@@ -171,21 +173,38 @@ const reserveEnv = async (
  */
 const PENDING_CHILD_SOURCE = `
 	const { spawn } = require('node:child_process');
-	const { renameSync, writeFileSync } = require('node:fs');
+	const { existsSync, renameSync, writeFileSync } = require('node:fs');
 	const readyFile = process.argv[1];
 	const durationMs = Number(process.argv[2]);
+	const ignoreSigterm = process.argv[3] === 'ignore-sigterm';
+	const grandchildReadyFile = readyFile + '.grandchild-ready';
+	const grandchildSource = ignoreSigterm
+		? "const { writeFileSync } = require('node:fs'); process.on('SIGTERM', () => {}); writeFileSync(process.argv[2], 'ready'); setInterval(() => {}, 1000);"
+		: 'setTimeout(() => {}, Number(process.argv[1]));';
 	const grandchild = spawn(
 		process.execPath,
-		['-e', 'setTimeout(() => {}, Number(process.argv[1]));', String(durationMs)],
+		['-e', grandchildSource, String(durationMs), grandchildReadyFile],
 		{ stdio: 'ignore' },
 	);
 	const staging = readyFile + '.staging';
-	writeFileSync(
-		staging,
-		JSON.stringify({ child: process.pid, grandchild: grandchild.pid }),
-		'utf8',
-	);
-	renameSync(staging, readyFile);
+	const publish = () => {
+		writeFileSync(
+			staging,
+			JSON.stringify({ child: process.pid, grandchild: grandchild.pid }),
+			'utf8',
+		);
+		renameSync(staging, readyFile);
+	};
+	if (ignoreSigterm) {
+		const publishWhenReady = setInterval(() => {
+			if (existsSync(grandchildReadyFile)) {
+				clearInterval(publishWhenReady);
+				publish();
+			}
+		}, 5);
+	} else {
+		publish();
+	}
 	setTimeout(() => {}, durationMs);
 `;
 
@@ -202,10 +221,17 @@ const pendingChild = async (
 	abortSignal: AbortSignal | undefined,
 	event: string,
 	durationMs: number,
+	resistantGrandchild = false,
 ): Promise<void> => {
 	const pending = runCommand(
 		process.execPath,
-		['-e', PENDING_CHILD_SOURCE, readyFile, String(durationMs)],
+		[
+			'-e',
+			PENDING_CHILD_SOURCE,
+			readyFile,
+			String(durationMs),
+			...(resistantGrandchild ? ['ignore-sigterm'] : []),
+		],
 		env,
 		abortSignal,
 	);
@@ -248,7 +274,13 @@ try {
 				return;
 			}
 
-			await pendingChild(env, abortSignal, 'child-started', LIFECYCLE_CHILD_MS);
+			await pendingChild(
+				env,
+				abortSignal,
+				'child-started',
+				LIFECYCLE_CHILD_MS,
+				mode === 'lifecycle-resistant-grandchild',
+			);
 		},
 		writeError: (message) => process.stderr.write(message),
 	});

@@ -42,7 +42,11 @@ import {
 	LEASE_HOST,
 	listenOnPort as listenOn,
 } from './e2e-lease-window.mts';
-import { runE2EFront, type RunCommand } from './run-e2e-front.mts';
+import {
+	E2ESignalAbortError,
+	runE2EFront,
+	type RunCommand,
+} from './run-e2e-front.mts';
 
 /** The repository justfile, relative to this spec. */
 const JUSTFILE_PATH = pathJoin(import.meta.dirname, '../../../justfile');
@@ -1435,5 +1439,44 @@ void describe('runner release precedence', () => {
 		);
 
 		assert.match(messages.join(''), /release failed/);
+	});
+
+	/**
+	 * PROOF: the lifecycle's last command can finish and queue a signal before
+	 * the runner replaces its lifecycle handler with the cleanup handler. That
+	 * first signal is already latched in the abort controller, so teardown must
+	 * still run and the caller must receive its semantic signal failure rather
+	 * than a false success.
+	 */
+	void it('latches a signal queued after the final lifecycle command through teardown', async () => {
+		let lifecycleCommands = 0;
+		let teardownCommands = 0;
+		let released = 0;
+
+		await assert.rejects(
+			runE2EFront({
+				reserveEnv: async () =>
+					stubReservation(async () => {
+						released += 1;
+					}),
+				runCommand: async (_command, _args, _env, abortSignal) => {
+					if (abortSignal === undefined) {
+						teardownCommands += 1;
+						return;
+					}
+
+					lifecycleCommands += 1;
+					if (lifecycleCommands === 5) {
+						queueMicrotask(() => process.emit('SIGTERM'));
+					}
+				},
+				writeError: () => {},
+			}),
+			(error: unknown) =>
+				error instanceof E2ESignalAbortError && error.exitCode === 143,
+		);
+
+		assert.equal(teardownCommands, 1, 'the stack must still be torn down');
+		assert.equal(released, 1, 'the lease must still be released');
 	});
 });

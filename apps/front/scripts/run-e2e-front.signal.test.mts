@@ -247,7 +247,11 @@ const watchHarness = (child: ChildProcess): HarnessRun => {
 	};
 };
 
-type HarnessMode = 'lifecycle-signal' | 'cleanup-signal' | 'acquiring';
+type HarnessMode =
+	| 'lifecycle-signal'
+	| 'lifecycle-resistant-grandchild'
+	| 'cleanup-signal'
+	| 'acquiring';
 
 type SignalProof = {
 	outcome: HarnessOutcome;
@@ -277,6 +281,7 @@ const runHarnessAndSignal = async (
 	signal: NodeJS.Signals,
 	mode: HarnessMode = 'lifecycle-signal',
 	connectClient = false,
+	graceMs?: number,
 ): Promise<SignalProof> => {
 	const workDir = mkdtempSync(pathJoin(tmpdir(), 'publyapp-e2e-signal-'));
 	const readyFile = pathJoin(workDir, 'child-tree.json');
@@ -292,6 +297,10 @@ const runHarnessAndSignal = async (
 		[HARNESS, String(requestedLeasePort), readyFile, mode],
 		{
 			cwd: pathJoin(import.meta.dirname, '..'),
+			env:
+				graceMs === undefined
+					? process.env
+					: { ...process.env, E2E_SIGNAL_GRACE_MS: String(graceMs) },
 			stdio: ['ignore', 'pipe', 'pipe'],
 		},
 	);
@@ -503,6 +512,22 @@ void describe(
 
 		void it('releases the lease, kills the child, and exits 143 on SIGTERM', async () => {
 			await assertSignalContract('SIGTERM', 143);
+		});
+
+		void it('escalates after the direct child exits but its grandchild ignores SIGTERM', async () => {
+			const { outcome, treeDeadBeforeCleanup } = await runHarnessAndSignal(
+				'SIGTERM',
+				'lifecycle-resistant-grandchild',
+				false,
+				1_000,
+			);
+
+			assert.equal(outcome.code, 143, `stderr: ${outcome.stderr}`);
+			assert.equal(
+				treeDeadBeforeCleanup,
+				true,
+				'the SIGKILL escalation must kill the TERM-resistant grandchild after its direct parent has exited',
+			);
 		});
 
 		/**

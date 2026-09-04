@@ -171,6 +171,21 @@ export const signalChildTree = (
 	}
 };
 
+/** Whether a POSIX process group still has a member after its leader exits. */
+const processGroupStillExists = (pid: number | undefined): boolean => {
+	if (process.platform === 'win32' || pid === undefined || pid <= 0) {
+		return true;
+	}
+	try {
+		process.kill(-pid, 0);
+		return true;
+	} catch (error) {
+		// Only ESRCH proves the group disappeared; EPERM and every other
+		// failure leave uncertainty, so the fail-closed escalation stays armed.
+		return (error as NodeJS.ErrnoException).code !== 'ESRCH';
+	}
+};
+
 export const runCommand: RunCommand = async (
 	command,
 	args,
@@ -203,8 +218,9 @@ export const runCommand: RunCommand = async (
 			// Bounded wait: if the tree ignores the forwarded signal, escalate.
 			escalation = setTimeout(() => {
 				signalChildTree(child, 'SIGKILL');
+				cleanup(false);
+				rejectCommand(new E2ESignalAbortError(abortReasonSignal(abortSignal)));
 			}, SIGNAL_GRACE_MS);
-			escalation.unref();
 		};
 
 		abortSignal?.addEventListener('abort', onAbort, { once: true });
@@ -212,24 +228,33 @@ export const runCommand: RunCommand = async (
 			onAbort();
 		}
 
-		const cleanup = () => {
-			if (escalation !== undefined) {
+		const cleanup = (clearEscalation = true) => {
+			if (clearEscalation && escalation !== undefined) {
 				clearTimeout(escalation);
 			}
 			abortSignal?.removeEventListener('abort', onAbort);
 		};
 
 		child.once('error', (error) => {
+			if (abortedWith !== undefined) {
+				return;
+			}
 			cleanup();
 			rejectCommand(error);
 		});
 		child.once('exit', (code, signal) => {
-			cleanup();
-
 			if (abortedWith !== undefined) {
+				// The direct child can exit before a TERM-resistant descendant.
+				// Keep the referenced escalation timer alive until it sends SIGKILL to
+				// the whole group, unless a POSIX group probe proves it is gone.
+				if (processGroupStillExists(child.pid)) {
+					return;
+				}
+				cleanup();
 				rejectCommand(new E2ESignalAbortError(abortedWith));
 				return;
 			}
+			cleanup();
 
 			if (code === 0) {
 				resolveCommand();
@@ -309,6 +334,9 @@ export const runE2EFront = async (
 		await step(PNPM_COMMAND, playwrightArgs('test:drawer-contrast'));
 	} catch (error) {
 		lifecycleError = error;
+	}
+	if (lifecycleError === undefined && abortSignal.aborted) {
+		lifecycleError = abortSignal.reason;
 	}
 
 	// A failed acquisition owns nothing: there is no stack to tear down and no
