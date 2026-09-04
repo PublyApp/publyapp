@@ -75,11 +75,22 @@ const config: KnipConfig = {
 				'e2e/helpers/render-focus-ring-target.tsx', // loaded via vite.ssrLoadModule() by URL from e2e/helpers/render-focus-ring.ts, never imported
 				'e2e/helpers/data-table-icon-guard-target.tsx', // loaded via vite.ssrLoadModule() by URL from e2e/helpers/render-data-table-icon-guard.ts (real DataTable SSR markup for the #1799 spec), never imported
 				'e2e/helpers/icon-guard-browser-entry.ts', // bundled by esbuild (string entryPoints path) from e2e/helpers/render-data-table-icon-guard.ts for the #1799 spec's in-page real guard, never imported
-				// Invoked by the justfile (`node apps/front/scripts/e2e-compose-env.mts`
-				// in the e2e recipes, #1642) to derive the per-worktree Compose
-				// project name and port band; knip cannot trace a justfile shell-out.
-				// Its co-located e2e-compose-env.test.mts runs via `pnpm test:e2e-compose-env`.
+				// Derives the per-worktree Compose project name and reserves the port
+				// band (#1642). It has no CLI of its own: the justfile shells out to
+				// `node apps/front/scripts/run-e2e-front.mts`, which imports this
+				// module. Its co-located e2e-compose-env.test.mts runs via
+				// `pnpm test:e2e-compose-env`.
 				'scripts/e2e-compose-env.mts',
+				// Spawned by path from run-e2e-front.signal.test.mts so the real
+				// runner can be interrupted from a parent process; not imported because
+				// importing it would execute the test harness in-process.
+				'scripts/run-e2e-front.signal-harness.mts',
+				// Spawned by path (one OS process per contender) from
+				// e2e-compose-env.test.mts's contention proof, so two real processes
+				// collide inside the shipped reservation helper and hold their leases
+				// at the same time. Not imported: importing it would run the
+				// contention in-process, which is exactly what the proof must avoid.
+				'scripts/e2e-compose-env.contention-harness.mts',
 				'scripts/generate/generate-route-tree.mts', // documented shim kept after #1300 moved the implementation to route-tree-generator.mts
 				'scripts/generate/generate-suppression-inventory.mts', // manual generator; check-design-system.mts tells humans to run it when the inventory drifts
 				'tools/ci/node-24-type-stripping.mts', // manual proof runner; its sibling node-24-type-stripping.test.mts pins it
@@ -130,6 +141,9 @@ const config: KnipConfig = {
 			// scripts/e2e-compose-env.mts to name the holder of an occupied port
 			// (`ss -tlnp`, issue #1698); not an npm package. (`docker` resolves
 			// through the repo's existing docker usage and stays covered.)
+			// `pgrep`/`pkill` are gone: the E2E signal spec now identifies its
+			// child tree by exact PID (a ready file plus process.kill(pid, 0))
+			// instead of matching argv text across the whole host.
 			ignoreBinaries: ['openssl', 'ss'],
 			// #1758: server.mjs imports the built server bundle through the
 			// `#server-build` package-imports alias so tsconfig.server.json can

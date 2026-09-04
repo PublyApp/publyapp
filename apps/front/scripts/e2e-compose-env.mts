@@ -9,23 +9,19 @@
  * and a `down -v` from one tree destroyed another tree's stack (volumes
  * included).
  *
- * Solution (voie A — isolation garantie): uses file-based locks to ensure
- * that no two stacks can obtain the same port band, even when launched
- * simultaneously. A lock file is created atomically using O_EXCL.
- *
- * Stale lock recovery: a lock whose owning process has died (crash, kill,
- * host reboot) is detected via PID liveness check and age threshold, then
- * reclaimed atomically — the reclaimer deletes the stale lock and recreates
- * it with O_EXCL, so two simultaneous reclaimers cannot both succeed.
- *
- * This script emits shell `export` lines that can be `eval`'d, or sets
- * environment variables when invoked with `--set`.
+ * Exclusivity is owned by the OPERATING SYSTEM, not by this program. Band `n`
+ * is held by binding a `net.Server` on 127.0.0.1:14000+n with
+ * `exclusive: true`. A successful bind IS the reservation; EADDRINUSE means
+ * somebody else holds that band, so the scan moves on. Releasing means closing
+ * that socket, and a crash releases it just as well — the kernel closes the
+ * descriptor. There are therefore no lock files, owner records, PIDs,
+ * timestamps, tokens, staleness heuristics or reclamation paths to get wrong:
+ * a reservation cannot outlive the process that made it.
  *
  * PORT BANDS:
  * - Each band provides ports for all services: HTTP, HTTPS, DB, Request Counter, Toxiproxy
  * - Bands are allocated sequentially starting from 8080
  * - 500 bands available (8080 to 13070 for the base HTTP port)
- * - Probability of collision: 0% (vs 8.7% with hashed approach at 10 trees)
  *
  * PROJECT NAME:
  * - Derived from the absolute path of the repository root
@@ -34,15 +30,8 @@
  */
 
 import { execFileSync } from 'node:child_process';
-import { mkdirSync } from 'node:fs';
-import {
-	readFileSync,
-	writeFileSync,
-	unlinkSync,
-	statSync,
-	openSync,
-	closeSync,
-} from 'node:fs';
+import { statSync } from 'node:fs';
+import { createServer, type Server } from 'node:net';
 import {
 	dirname,
 	join as pathJoin,
@@ -85,22 +74,29 @@ const PUBLISHED_BASE_PORTS = {
 const PORT_BAND = 10;
 const MAX_BANDS = 500;
 
+// The lease range: band `n` is leased by binding 127.0.0.1:14000+n.
+const LEASE_HOST = '127.0.0.1';
+const LEASE_BASE_PORT = 14000;
+
+// The lease range must sit ABOVE every port the stack publishes, or a lease
+// would squat a service port of some higher band. This is ordinary module
+// arithmetic, checked once at load: the two ranges are both derived from the
+// constants right above, and nothing may quietly grow one into the other.
+const HIGHEST_PUBLISHED_PORT =
+	Math.max(...Object.values(PUBLISHED_BASE_PORTS)) +
+	(MAX_BANDS - 1) * PORT_BAND;
+if (LEASE_BASE_PORT <= HIGHEST_PUBLISHED_PORT) {
+	throw new Error(
+		`e2e-compose-env: the lease range ${LEASE_BASE_PORT}-${
+			LEASE_BASE_PORT + MAX_BANDS - 1
+		} overlaps the published service ports (highest ${HIGHEST_PUBLISHED_PORT}).`,
+	);
+}
+
 // How long a holder-identification probe (docker ps / ss -tlnp) may take before
 // the assignment gives up. Every external command is bounded — none may hang the
 // band acquisition forever.
 const HOLDER_PROBE_TIMEOUT_MS = 3000;
-
-// Lock directory for port band reservations
-const LOCK_DIR = pathJoin('/tmp', 'publyapp-e2e-port-locks');
-
-// Stale lock detection: a lock older than this is considered stale regardless of PID
-const STALE_LOCK_THRESHOLD_MS = 2 * 60 * 60 * 1000; // 2 hours
-
-type LockContent = {
-	pid?: number;
-	timestamp?: number;
-	uuid?: string;
-};
 
 /**
  * Normalizes a string to be Compose-safe:
@@ -142,14 +138,6 @@ const findRepoRoot = (): string => {
 	}
 
 	return REPO_ROOT;
-};
-
-/**
- * Get the lock file path for a given port band
- */
-const getLockFilePath = (bandIndex: number): string => {
-	const basePort = BASE_PORTS.traefik_web + bandIndex * PORT_BAND;
-	return pathJoin(LOCK_DIR, `band-${basePort}.lock`);
 };
 
 /**
@@ -300,7 +288,10 @@ export const describePortHolders = (port: number): string[] => {
  * ci-e2e-front recipe removes itself. The remaining (foreign) ports are the
  * defect #1698 must name.
  */
-const foreignBandPorts = (occupiedPorts: number[]): number[] => {
+const foreignBandPorts = (
+	occupiedPorts: number[],
+	projectName: string,
+): number[] => {
 	const foreignPorts: number[] = [];
 
 	for (const port of occupiedPorts) {
@@ -308,7 +299,7 @@ const foreignBandPorts = (occupiedPorts: number[]): number[] => {
 		const allHoldersAreOwnContainers = holders.every((holder) => {
 			const match = holder.match(/container `([^`]+)`/);
 
-			return match !== null && isOwnProjectContainer(match[1]);
+			return match !== null && match[1].startsWith(`${projectName}-`);
 		});
 
 		if (!allHoldersAreOwnContainers) {
@@ -321,10 +312,10 @@ const foreignBandPorts = (occupiedPorts: number[]): number[] => {
 
 /**
  * The loud, plain-words failure the band assignment throws when a band's ports
- * are occupied by an entity that does not participate in the lock scheme —
- * which port, who holds it, and how to see it yourself (issue #1698). A free
- * lock proves nothing about the ports: the lock guards band CLAIMS, not the
- * sockets themselves.
+ * are occupied by an entity outside this scheme — which port, who holds it,
+ * and how to see it yourself (issue #1698). Holding the band's LEASE proves
+ * nothing about its service ports: the lease guards band selection, not the
+ * published sockets themselves.
  */
 export const buildBandConflictMessage = (
 	basePort: number,
@@ -332,7 +323,7 @@ export const buildBandConflictMessage = (
 ): string => {
 	const lines: string[] = [
 		`Port band ${basePort} is NOT free for this e2e stack: ${occupiedPorts.length} ` +
-			'of its ports are already in use by an entity that holds no lock for the band:',
+			'of its ports are already in use by an entity outside this scheme:',
 	];
 
 	for (const port of occupiedPorts) {
@@ -343,7 +334,7 @@ export const buildBandConflictMessage = (
 
 	lines.push(
 		'A leftover or legacy stack (or a stray process) is squatting these ports; the ' +
-			'lock-free port conflict would otherwise surface only as a silent `docker ' +
+			'port conflict would otherwise surface only as a silent `docker ' +
 			'compose up` bind failure. See it yourself with:',
 		'  docker ps',
 		'  ss -tlnp',
@@ -365,199 +356,6 @@ export const isOwnProjectContainer = (containerName: string): boolean => {
 };
 
 /**
- * Check if a PID is still alive.
- * Uses process.kill(pid, 0) which checks existence without sending a signal.
- */
-const isPidAlive = (pid: number): boolean => {
-	try {
-		process.kill(pid, 0);
-		return true;
-	} catch (e) {
-		// ESRCH = no such process (dead)
-		// EPERM = exists but no permission (alive)
-		const code = (e as NodeJS.ErrnoException).code;
-		return code === 'EPERM';
-	}
-};
-
-/**
- * Parse lock file content.
- */
-const readLockContent = (lockPath: string): LockContent | null => {
-	try {
-		const content = readFileSync(lockPath, 'utf8');
-		return JSON.parse(content) as LockContent;
-	} catch {
-		return null;
-	}
-};
-
-/**
- * Check if a lock is stale (owner dead or too old).
- * Exported for testing.
- */
-export const isLockStale = (lockPath: string): boolean => {
-	const data = readLockContent(lockPath);
-	if (!data) {
-		// Can't read lock content - consider it stale
-		return true;
-	}
-
-	// Check age first - if too old, definitely stale (handles PID reuse)
-	if (data.timestamp) {
-		const age = Date.now() - data.timestamp;
-		if (age > STALE_LOCK_THRESHOLD_MS) {
-			return true;
-		}
-	}
-
-	// Check PID liveness
-	if (data.pid && isPidAlive(data.pid)) {
-		return false; // Owner is alive
-	}
-
-	// PID is dead or missing
-	return true;
-};
-
-/**
- * Reclaim a stale lock atomically.
- *
- * Strategy: delete the stale lock, then immediately recreate it with O_EXCL.
- * If another process also reclaims the same lock, only one O_EXCL succeeds;
- * the other gets EEXIST and must move on.
- *
- * Returns true if the lock was successfully reclaimed.
- * Exported for testing.
- */
-export const reclaimStaleLock = (lockPath: string): boolean => {
-	try {
-		// Delete the stale lock
-		unlinkSync(lockPath);
-	} catch {
-		// Already deleted by another process
-		return false;
-	}
-
-	try {
-		// Immediately recreate atomically
-		const fd = openSync(lockPath, 'wx');
-		const lockContent = JSON.stringify({
-			pid: process.pid,
-			timestamp: Date.now(),
-			uuid: crypto.randomUUID(),
-		});
-		writeFileSync(lockPath, lockContent, 'utf8');
-		closeSync(fd);
-		return true;
-	} catch {
-		// Another process created the file first
-		return false;
-	}
-};
-
-/**
- * Ensure lock directory exists
- */
-const ensureLockDirExists = (): void => {
-	try {
-		mkdirSync(LOCK_DIR, { recursive: true });
-	} catch {
-		// Directory already exists or couldn't create
-	}
-};
-
-/**
- * Acquire a port band atomically using exclusive file creation
- * Returns lockPath as part of the result
- */
-const acquirePortBandInternal = (): {
-	bandIndex: number;
-	basePort: number;
-	lockPath: string;
-} | null => {
-	ensureLockDirExists();
-
-	for (let bandIndex = 0; bandIndex < MAX_BANDS; bandIndex++) {
-		const lockPath = getLockFilePath(bandIndex);
-		let lockAcquired = false;
-
-		try {
-			// Try to create the lock file exclusively (O_EXCL)
-			const fd = openSync(lockPath, 'wx');
-
-			// Write a unique identifier to the lock
-			const lockContent = JSON.stringify({
-				pid: process.pid,
-				timestamp: Date.now(),
-				uuid: crypto.randomUUID(),
-			});
-
-			writeFileSync(lockPath, lockContent, 'utf8');
-			closeSync(fd);
-			lockAcquired = true;
-		} catch {
-			// Lock file exists - check if it's stale and can be reclaimed
-			if (isLockStale(lockPath) && reclaimStaleLock(lockPath)) {
-				// Successfully reclaimed the stale lock
-				lockAcquired = true;
-			}
-		}
-
-		if (!lockAcquired) {
-			// Lock exists and couldn't be reclaimed, try next band
-			continue;
-		}
-
-		const basePort = BASE_PORTS.traefik_web + bandIndex * PORT_BAND;
-
-		// Issue #1698: a lock alone proves nothing about the sockets. A stack
-		// that never joined the lock scheme (a leftover of the legacy hardcoded
-		// name, or a stray process) can occupy every port of the band while its
-		// lock file sits free. Detect it BEFORE returning the band, and name it.
-		const occupiedPorts = findOccupiedBandPorts(basePort);
-
-		if (occupiedPorts.length > 0) {
-			const foreignHolders = foreignBandPorts(occupiedPorts);
-
-			if (foreignHolders.length > 0) {
-				// Not ours to clean up: hand the lock back and fail loudly with
-				// the holder's name and the commands to inspect it yourself.
-				releasePortBandInternal(lockPath);
-				throw new Error(buildBandConflictMessage(basePort, foreignHolders));
-			}
-
-			// Every occupant is a leftover of THIS tree's own project: the
-			// ci-e2e-front recipe's `down -v` (which runs right after this
-			// eval) removes our own stack before `up`, so claiming the band is
-			// safe. Warn, do not fail — a foreign squatter is the defect, our
-			// own interrupted run is not.
-			process.stderr.write(
-				`e2e-compose-env: band ${basePort} is held by THIS tree's own leftover ` +
-					'containers; the caller is expected to `docker compose down -v` them ' +
-					'before starting the stack.\n',
-			);
-		}
-
-		return { bandIndex, basePort, lockPath };
-	}
-
-	return null;
-};
-
-/**
- * Release a port band lock
- */
-const releasePortBandInternal = (lockPath: string): boolean => {
-	try {
-		unlinkSync(lockPath);
-		return true;
-	} catch {
-		return false;
-	}
-};
-
-/**
  * Derives a unique project name from the repository root path
  * (NOT from the worktree name which causes collisions)
  */
@@ -567,9 +365,6 @@ export const deriveProjectName = (): string => {
 	return `publyapp-e2e-${normalized}`;
 };
 
-/**
- * Compute environment variables for the e2e stack
- */
 /** The exact set of environment variables the e2e stack needs. Closed on purpose:
  * an open dictionary would let a typo introduce a variable nothing consumes. */
 export type E2eComposeEnv = {
@@ -581,162 +376,276 @@ export type E2eComposeEnv = {
 	E2E_PORT_POSTGRES: string;
 	E2E_BASE_URL: string;
 	E2E_API_BASE_URL: string;
-	E2E_LOCK_PATH: string;
 };
 
-export const computeEnv = (): E2eComposeEnv => {
-	// Acquire a port band
-	const band = acquirePortBandInternal();
+/**
+ * A held band: the environment it grants, and the release of the lease socket
+ * that holds it. `release` is asynchronous because closing a listening socket
+ * is: returning before the close completes would let the next run bind a port
+ * this one has not finished unbinding.
+ */
+export type E2eComposeReservation = {
+	env: E2eComposeEnv;
+	release: () => Promise<void>;
+};
 
-	if (!band) {
-		throw new Error(
-			`Could not acquire port band. All ${MAX_BANDS} bands are in use. ` +
-				`Start another instance of the e2e stack? Or wait and retry.`,
-		);
-	}
+/**
+ * The seams a spec replaces. Production passes none of them: the defaults are
+ * the real project-name derivation, the real port probe, the real lease range,
+ * and stderr.
+ */
+export type ReservationDependencies = {
+	leaseHost?: string;
+	leaseBasePort?: number;
+	/**
+	 * How many bands the scan may walk. Production always walks every band; a
+	 * spec narrows it so a FULLY contended scan costs three binds instead of
+	 * five hundred.
+	 */
+	maxBands?: number;
+	deriveProjectName?: () => string;
+	findOccupiedBandPorts?: (basePort: number) => number[];
+	closeLeaseServer?: (server: Server) => Promise<void>;
+	writeError?: (message: string) => void;
+};
 
-	const { basePort, lockPath } = band;
+/**
+ * Binds one lease port, resolving the live server on success and `null` when
+ * somebody else already holds it. Any other bind error rejects: an
+ * undiagnosed failure must not be mistaken for a busy band and silently
+ * repeated 500 times.
+ *
+ * Settles exactly once — the losing listener is removed, and a server that
+ * somehow ends up listening on an error path is closed rather than leaked.
+ */
+const bindLease = async (host: string, port: number): Promise<Server | null> =>
+	await new Promise<Server | null>((resolveBind, rejectBind) => {
+		// A lease is a claim on a port, never a service. `Server.close()` stops
+		// accepting and then waits for every ALREADY accepted socket to end, so a
+		// listener that retained its connections would let any stranger who
+		// happened to connect — a port scanner, a stray curl, a health check —
+		// block release for as long as it stayed connected. The runner awaits
+		// release inside its teardown, so that stranger would hang the e2e gate.
+		//
+		// The handler is passed to `createServer` rather than attached
+		// afterwards: that leaves no window in which a connection could be
+		// accepted and retained before the destroyer exists. The no-op error
+		// listener comes first because destroying a socket can surface ECONNRESET,
+		// and an 'error' event with no listener is a fatal throw.
+		const server = createServer((socket) => {
+			socket.on('error', () => {});
+			socket.destroy();
+		});
+
+		const onError = (error: NodeJS.ErrnoException) => {
+			server.removeListener('listening', onListening);
+			if (server.listening) {
+				server.close();
+			}
+
+			if (error.code === 'EADDRINUSE') {
+				resolveBind(null);
+				return;
+			}
+			rejectBind(error);
+		};
+
+		const onListening = () => {
+			server.removeListener('error', onError);
+			resolveBind(server);
+		};
+
+		server.once('error', onError);
+		server.once('listening', onListening);
+		server.listen({ host, port, exclusive: true });
+	});
+
+/** Closes a lease server, awaiting the close and surfacing its failure. */
+const closeLeaseServerDefault = async (server: Server): Promise<void> =>
+	await new Promise<void>((resolveClose, rejectClose) => {
+		server.close((error) => {
+			if (error) {
+				rejectClose(error);
+				return;
+			}
+			resolveClose();
+		});
+	});
+
+/**
+ * An idempotent release: the first call performs the close, and every later
+ * call — sequential or concurrent — awaits that same outcome instead of
+ * closing an already-closed server (which reports ERR_SERVER_NOT_RUNNING).
+ */
+const createRelease = (
+	server: Server,
+	closeServer: (server: Server) => Promise<void>,
+): (() => Promise<void>) => {
+	let releasePromise: Promise<void> | undefined;
+
+	return () => {
+		releasePromise ??= closeServer(server);
+		return releasePromise;
+	};
+};
+
+/**
+ * Whether the caller has asked to stop.
+ *
+ * Read through a call rather than inline: `AbortSignal.aborted` is a readonly
+ * boolean, so TypeScript narrows it to `false` for the rest of the scope after
+ * the first check and reports every later one as dead code. The value really
+ * does change underneath us — rechecking it after each slow step is the whole
+ * point — so the check must be opaque to that narrowing.
+ */
+const isAborted = (abortSignal?: AbortSignal): boolean =>
+	abortSignal?.aborted === true;
+
+const abortError = (abortSignal: AbortSignal): Error => {
+	const reason: unknown = abortSignal.reason;
+	return reason instanceof Error ? reason : new Error(String(reason));
+};
+
+/** Builds the closed environment for a band's base port. */
+const buildEnv = (basePort: number, projectName: string): E2eComposeEnv => {
 	const offset = basePort - BASE_PORTS.traefik_web;
-	const projectName = deriveProjectName();
+	const httpsPort = BASE_PORTS.traefik_websecure + offset;
 
 	return {
 		COMPOSE_PROJECT_NAME: projectName,
 		E2E_PORT_TRAEFIK_WEB: String(BASE_PORTS.traefik_web + offset),
-		E2E_PORT_TRAEFIK_WEBSECURE: String(BASE_PORTS.traefik_websecure + offset),
+		E2E_PORT_TRAEFIK_WEBSECURE: String(httpsPort),
 		E2E_PORT_REQUEST_COUNTER: String(BASE_PORTS.request_counter + offset),
 		E2E_PORT_TOXIPROXY: String(BASE_PORTS.toxiproxy + offset),
 		E2E_PORT_POSTGRES: String(BASE_PORTS.postgres + offset),
-		E2E_BASE_URL: `https://${E2E_FRONT_HOST}:${BASE_PORTS.traefik_websecure + offset}`,
-		E2E_API_BASE_URL: `https://${E2E_API_HOST}:${BASE_PORTS.traefik_websecure + offset}`,
-		E2E_LOCK_PATH: lockPath,
+		E2E_BASE_URL: `https://${E2E_FRONT_HOST}:${httpsPort}`,
+		E2E_API_BASE_URL: `https://${E2E_API_HOST}:${httpsPort}`,
 	};
 };
 
 /**
- * Release the port band lock (for cleanup)
+ * Reserves a port band for this process and returns its Compose environment
+ * plus the release of the lease that holds it.
+ *
+ * Everything after a successful bind — the abort recheck, the service-port
+ * probe, the holder classification, the name derivation, the environment
+ * construction — runs under a release that already exists, so no failure path
+ * can strand a bound socket. When the cleanup ALSO fails, the original cause
+ * still propagates and the cleanup failure is written out rather than lost:
+ * a swallowed cleanup failure is how a machine ends up with a band nothing
+ * can explain.
  */
-export const releaseLock = (): void => {
-	// Read lock path from env if set
-	const lockPath = process.env.E2E_LOCK_PATH;
-	if (lockPath) {
-		releasePortBandInternal(lockPath);
+export const reserveE2EComposeEnv = async (
+	abortSignal?: AbortSignal,
+	dependencies: ReservationDependencies = {},
+): Promise<E2eComposeReservation> => {
+	const leaseHost = dependencies.leaseHost ?? LEASE_HOST;
+	const leaseBasePort = dependencies.leaseBasePort ?? LEASE_BASE_PORT;
+	const bandCount = dependencies.maxBands ?? MAX_BANDS;
+	const projectNameOf = dependencies.deriveProjectName ?? deriveProjectName;
+	const findOccupied =
+		dependencies.findOccupiedBandPorts ?? findOccupiedBandPorts;
+	const closeServer = dependencies.closeLeaseServer ?? closeLeaseServerDefault;
+	const writeError =
+		dependencies.writeError ??
+		((message: string) => process.stderr.write(message));
+
+	if (abortSignal !== undefined && isAborted(abortSignal)) {
+		throw abortError(abortSignal);
 	}
-};
 
-/**
- * Types exported for testing
- */
-export type PortBandReservation = {
-	bandIndex: number;
-	basePort: number;
-	lockPath: string;
-};
+	for (let bandIndex = 0; bandIndex < bandCount; bandIndex++) {
+		const server = await bindLease(leaseHost, leaseBasePort + bandIndex);
 
-export type E2EComposeEnv = {
-	projectName: string;
-	ports: {
-		http: number;
-		https: number;
-		db: number;
-		requestCounter: number;
-	};
-	lockPath: string;
-	bandIndex: number;
-};
-
-/**
- * Acquire a port band atomically using exclusive file creation
- * Exported for testing
- */
-export const acquirePortBand: () => PortBandReservation | null =
-	acquirePortBandInternal;
-
-/**
- * Release port band
- * Exported for testing
- */
-export const releasePortBand: (lockPath: string) => boolean =
-	releasePortBandInternal;
-
-/**
- * Setup complete e2e environment (exported for testing)
- */
-export const setupE2EComposeEnv = (): E2EComposeEnv => {
-	const env = computeEnv();
-
-	// Extract values from environment
-	const httpPort = Number.parseInt(env.E2E_PORT_TRAEFIK_WEB, 10);
-	const httpsPort = Number.parseInt(env.E2E_PORT_TRAEFIK_WEBSECURE, 10);
-	const dbPort = Number.parseInt(env.E2E_PORT_POSTGRES, 10);
-	const requestCounterPort = Number.parseInt(env.E2E_PORT_REQUEST_COUNTER, 10);
-
-	// Calculate band index from lock path
-	const lockPath = env.E2E_LOCK_PATH;
-	const match = lockPath.match(/band-(\d+)\.lock$/);
-	const bandIndex = match
-		? (Number.parseInt(match[1], 10) - BASE_PORTS.traefik_web) / PORT_BAND
-		: 0;
-
-	return {
-		projectName: env.COMPOSE_PROJECT_NAME,
-		ports: {
-			http: httpPort,
-			https: httpsPort,
-			db: dbPort,
-			requestCounter: requestCounterPort,
-		},
-		lockPath: lockPath,
-		bandIndex: bandIndex,
-	};
-};
-
-/**
- * Teardown e2e environment (exported for testing)
- */
-export const teardownE2EComposeEnv = (env: E2EComposeEnv): void => {
-	if (env.lockPath) {
-		releasePortBandInternal(env.lockPath);
-	}
-};
-
-const main = (): void => {
-	const env = computeEnv();
-	const isSet = process.argv.includes('--set');
-
-	if (isSet) {
-		// Print as export statements for shell eval
-		for (const [key, value] of Object.entries(env)) {
-			process.stdout.write(`${key}=${value}\n`);
-		}
-	} else {
-		// Print as shell export lines
-		for (const [key, value] of Object.entries(env)) {
-			// Quote if contains special chars
-			if (/[^a-zA-Z0-9_]/.test(value)) {
-				process.stdout.write(`export ${key}="${value}"\n`);
-			} else {
-				process.stdout.write(`export ${key}=${value}\n`);
+		// Somebody else holds this band's lease; the next one may be free — but
+		// only if the caller still wants a band at all. A skipped band is a real
+		// interruption point: under full contention the scan does nothing BUT
+		// skip, so without this recheck an abort would be noticed only after
+		// every candidate had been tried, and the exhaustion error below would
+		// bury the reason the run actually stopped.
+		if (server === null) {
+			if (abortSignal !== undefined && isAborted(abortSignal)) {
+				throw abortError(abortSignal);
 			}
+			continue;
+		}
+
+		const release = createRelease(server, closeServer);
+
+		try {
+			// A signal that arrived while this bind was in flight must not leave
+			// the freshly bound lease behind.
+			if (abortSignal !== undefined && isAborted(abortSignal)) {
+				throw abortError(abortSignal);
+			}
+
+			const basePort = BASE_PORTS.traefik_web + bandIndex * PORT_BAND;
+			const projectName = projectNameOf();
+
+			// Issue #1698: the lease proves nothing about the SERVICE sockets. A
+			// stack that never joined this scheme (a leftover of the legacy
+			// hardcoded name, or a stray process) can occupy every port of the
+			// band. Detect it BEFORE returning the band, and name it.
+			const occupiedPorts = findOccupied(basePort);
+
+			if (occupiedPorts.length > 0) {
+				const foreignPorts = foreignBandPorts(occupiedPorts, projectName);
+
+				if (foreignPorts.length > 0) {
+					throw new Error(buildBandConflictMessage(basePort, foreignPorts));
+				}
+
+				// Every occupant is a leftover of THIS tree's own project: the
+				// runner's `down -v` removes our own stack before `up`, so claiming
+				// the band is safe. Warn, do not fail — a foreign squatter is the
+				// defect, our own interrupted run is not.
+				writeError(
+					`e2e-compose-env: band ${basePort} is held by THIS tree's own leftover ` +
+						'containers; the caller is expected to `docker compose down -v` them ' +
+						'before starting the stack.\n',
+				);
+			}
+
+			// The work above is not instantaneous — the service-port probe is a
+			// real out-of-process bind attempt with a multi-second bound — so an
+			// interrupt can land anywhere inside it. Handing a live reservation to
+			// a caller that is already aborting would have it tear down a stack it
+			// never started; the abort is rechecked here so the lease goes back
+			// through the catch below instead.
+			if (abortSignal !== undefined && isAborted(abortSignal)) {
+				throw abortError(abortSignal);
+			}
+
+			return { env: buildEnv(basePort, projectName), release };
+		} catch (error) {
+			try {
+				await release();
+			} catch (releaseError) {
+				// The primary cause is what the operator must act on, but a lease
+				// that would not close is a real defect of its own: say so.
+				writeError(
+					`e2e-compose-env: releasing the lease for band ${String(
+						bandIndex,
+					)} also failed: ${
+						releaseError instanceof Error
+							? releaseError.message
+							: String(releaseError)
+					}\n`,
+				);
+			}
+
+			throw error;
 		}
 	}
-};
 
-// Only run the CLI when this file IS the entry point. The tests import the
-// module to call its functions; an unconditional main() at import time acquired
-// a port band (printed export lines into the test output) and — since #1698 —
-// threw on a squatted band before the suite could even load.
-const isMainModule = (): boolean => {
-	if (process.argv[1] === undefined) {
-		return false;
+	// An abort that landed on the very last skipped band must still win: what
+	// stopped the run was the interrupt, not a machine that ran out of bands.
+	if (abortSignal !== undefined && isAborted(abortSignal)) {
+		throw abortError(abortSignal);
 	}
 
-	try {
-		return fileURLToPath(import.meta.url) === resolve(process.argv[1]);
-	} catch {
-		return false;
-	}
+	throw new Error(
+		`Could not acquire port band. All ${bandCount} bands are in use. ` +
+			'Start another instance of the e2e stack? Or wait and retry.',
+	);
 };
-
-if (isMainModule()) {
-	main();
-}
