@@ -8,16 +8,24 @@ const defaultTimeoutMs = 40_000,
 const taskkillOptions = { stdio: 'ignore' as const, windowsHide: true };
 const unavailablePattern =
 	/\b(?:ECONNREFUSED|ENOTFOUND|ETIMEDOUT|ECONNRESET|EAI_AGAIN)\b|ERR_PNPM_META_FETCH_FAIL|ERR_PNPM_AUDIT_BAD_RESPONSE[\s\S]*(?:\b408\b|\b429\b|\b5\d{2}\b)|TimeoutError: The operation was aborted due to timeout/i;
+const stdoutNetworkRecord =
+	/(?:^|\n)\s*(?:ECONNREFUSED|ENOTFOUND|ETIMEDOUT|ECONNRESET|EAI_AGAIN|ERR_SOCKET_TIMEOUT)\s+request to https?:\/\/[^\s]+\/-\/npm\/v1\/security\/audits failed\b/i;
 const lockfilePattern = /ERR_PNPM_AUDIT_NO_LOCKFILE|No pnpm-lock\.yaml found/i;
 
 export type AuditGraph = 'prod' | 'dev';
 export type AuditLevel = 'info' | 'low' | 'moderate' | 'high' | 'critical';
+export type AuditResult = {
+	status: 'clean' | 'unavailable' | 'lockfile-missing' | 'failure';
+	exitCode: number;
+	stdout: string;
+	stderr: string;
+};
 const classify = (
 	exitCode: number,
 	stdout: string,
 	stderr: string,
 	timedOut: boolean,
-) => {
+): AuditResult => {
 	if (timedOut) {
 		return { status: 'unavailable', exitCode, stdout, stderr };
 	}
@@ -27,11 +35,7 @@ const classify = (
 	if (lockfilePattern.test(`${stdout}\n${stderr}`)) {
 		return { status: 'lockfile-missing', exitCode, stdout, stderr };
 	}
-	if (
-		unavailablePattern.test(stderr) ||
-		stdout.includes('ERR_SOCKET_TIMEOUT') ||
-		stdout.includes('TimeoutError: The operation was aborted due to timeout')
-	) {
+	if (unavailablePattern.test(stderr) || stdoutNetworkRecord.test(stdout)) {
 		return { status: 'unavailable', exitCode, stdout, stderr };
 	}
 	return { status: 'failure', exitCode, stdout, stderr };
@@ -45,7 +49,7 @@ export const runAudit = async (options: {
 	timeoutMs?: number;
 }): Promise<AuditResult> =>
 	new Promise((resolve) => {
-		const env = {
+		const env: NodeJS.ProcessEnv = {
 			...process.env,
 			npm_config_fetch_retries: '0',
 			npm_config_fetch_timeout: '3000',

@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { spawn } from 'node:child_process';
 import { mkdtempSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:http';
 import os from 'node:os';
@@ -107,6 +108,30 @@ const buildFixture = (): string => {
 	return cwd;
 };
 
+const runCli = async (cwd: string, registry: string) =>
+	new Promise<{ status: number | null; stderr: string }>((resolve, reject) => {
+		const child = spawn(
+			process.execPath,
+			[
+				path.resolve(process.cwd(), 'src/npm-audit-runner.ts'),
+				'prod',
+				'moderate',
+			],
+			{
+				cwd,
+				env: { ...process.env, npm_config_registry: registry },
+				stdio: ['ignore', 'ignore', 'pipe'],
+			},
+		);
+		let stderr = '';
+		child.stderr.setEncoding('utf8');
+		child.stderr.on('data', (chunk: string) => {
+			stderr += chunk;
+		});
+		child.on('error', reject);
+		child.on('close', (status) => resolve({ status, stderr }));
+	});
+
 const withFixture = async (
 	mode: ServerMode,
 	assertion: (input: { cwd: string; registry: string }) => Promise<void>,
@@ -201,4 +226,28 @@ test('a slow local audit endpoint is unavailable in under eight seconds', async 
 		);
 		assert.ok(Date.now() - started < 8_000);
 	});
+}, 10_000);
+
+test('a refused pinned-pnpm audit is unavailable and names the CLI diagnostic', async () => {
+	const cwd = buildFixture();
+	try {
+		const registry = 'http://127.0.0.1:1';
+		const audit = await runAudit({
+			graph: 'prod',
+			auditLevel: 'moderate',
+			cwd,
+			registry,
+			timeoutMs: 5_000,
+		});
+		assert.equal(
+			audit.status,
+			'unavailable',
+			`${audit.stdout}\n${audit.stderr}`,
+		);
+		const cli = await runCli(cwd, registry);
+		assert.equal(cli.status, 1, cli.stderr);
+		assert.match(cli.stderr, /npm audit service unavailable/);
+	} finally {
+		rmSync(cwd, { recursive: true, force: true });
+	}
 }, 10_000);
