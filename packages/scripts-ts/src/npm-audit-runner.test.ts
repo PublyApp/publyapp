@@ -77,9 +77,9 @@ test('the CLI preserves pnpm’s usable nonzero exit status', async () => {
 	});
 });
 
-test('an advisory message containing fetch failed remains a generic failure', async () => {
+test('a nonzero advisory stdout containing ENOTFOUND remains a generic failure', async () => {
 	await withFakePnpm(
-		"process.stdout.write('GHSA-demo: fetch failed in an advisory title\\n'); process.exit(9);",
+		"process.stdout.write('GHSA-demo: ENOTFOUND in an advisory title\\n'); process.exit(9);",
 		async (env) => {
 			const result = await run(
 				process.execPath,
@@ -87,6 +87,21 @@ test('an advisory message containing fetch failed remains a generic failure', as
 				env,
 			);
 			assert.equal(result.status, 9, result.stderr);
+			assert.doesNotMatch(result.stderr, /service unavailable/);
+		},
+	);
+});
+
+test('a clean stdout containing ENOTFOUND remains clean', async () => {
+	await withFakePnpm(
+		"process.stdout.write('ENOTFOUND in an advisory title\\n');",
+		async (env) => {
+			const result = await run(
+				process.execPath,
+				[runnerPath, 'prod', 'moderate'],
+				env,
+			);
+			assert.equal(result.status, 0, result.stderr);
 			assert.doesNotMatch(result.stderr, /service unavailable/);
 		},
 	);
@@ -107,8 +122,11 @@ test('a known pnpm fetch error on stderr is unavailable', async () => {
 	);
 });
 
-const waitFor = async (condition: () => boolean): Promise<void> => {
-	const deadline = Date.now() + 2_000;
+const waitFor = async (
+	condition: () => boolean,
+	timeoutMs = 2_000,
+): Promise<void> => {
+	const deadline = Date.now() + timeoutMs;
 	while (!condition()) {
 		if (Date.now() > deadline) {
 			throw new Error('timed out waiting for audit fixture');
@@ -117,19 +135,23 @@ const waitFor = async (condition: () => boolean): Promise<void> => {
 	}
 };
 
-test('SIGINT forwards to the detached audit process group', async () => {
+const ignoresSigtermGrandchild =
+	"const { spawn } = require('node:child_process'); const { writeFileSync } = require('node:fs'); const child = spawn(process.execPath, ['-e', \"process.on('SIGTERM', () => {}); setInterval(() => {}, 1000)\"], { stdio: 'ignore' }); writeFileSync(process.env.PUBLY_AUDIT_PIDS, JSON.stringify({ parent: process.pid, child: child.pid })); setInterval(() => {}, 1000);";
+
+const assertEscalationKillsGrandchild = async (
+	timeoutMs: number,
+	signal?: NodeJS.Signals,
+): Promise<void> => {
 	if (process.platform === 'win32') {
 		return;
 	}
 	const directory = mkdtempSync(path.join(os.tmpdir(), 'publy-1699-signal-'));
 	const pidFile = path.join(directory, 'pids.json');
 	const driver = path.join(directory, 'driver.ts');
-	const fake = fakePnpm(
-		"const { spawn } = require('node:child_process'); const { writeFileSync } = require('node:fs'); const child = spawn(process.execPath, ['-e', 'setInterval(() => {}, 1000)'], { stdio: 'ignore' }); writeFileSync(process.env.PUBLY_AUDIT_PIDS, JSON.stringify({ parent: process.pid, child: child.pid })); setInterval(() => {}, 1000);",
-	);
+	const fake = fakePnpm(ignoresSigtermGrandchild);
 	writeFileSync(
 		driver,
-		`import { runAudit } from ${JSON.stringify(runnerPath)};\nawait runAudit({ graph: 'prod', auditLevel: 'moderate', cwd: process.cwd(), timeoutMs: 5_000 });\n`,
+		`import { runAudit } from ${JSON.stringify(runnerPath)};\nawait runAudit({ graph: 'prod', auditLevel: 'moderate', cwd: process.cwd(), timeoutMs: ${String(timeoutMs)} });\n`,
 	);
 	const env = {
 		...process.env,
@@ -149,7 +171,9 @@ test('SIGINT forwards to the detached audit process group', async () => {
 			parent: number;
 			child: number;
 		};
-		audit.kill('SIGINT');
+		if (signal !== undefined) {
+			audit.kill(signal);
+		}
 		await waitFor(() => {
 			try {
 				process.kill(pids.child, 0);
@@ -157,7 +181,7 @@ test('SIGINT forwards to the detached audit process group', async () => {
 			} catch {
 				return true;
 			}
-		});
+		}, 4_000);
 	} finally {
 		try {
 			const pids = JSON.parse(readFileSync(pidFile, 'utf8')) as {
@@ -170,4 +194,12 @@ test('SIGINT forwards to the detached audit process group', async () => {
 		fake.remove();
 		rmSync(directory, { recursive: true, force: true });
 	}
+};
+
+test('a timeout escalates after its pnpm child exits but its grandchild ignores SIGTERM', async () => {
+	await assertEscalationKillsGrandchild(100);
+}, 5_000);
+
+test('forwarded SIGTERM escalates after its pnpm child exits but its grandchild ignores SIGTERM', async () => {
+	await assertEscalationKillsGrandchild(5_000, 'SIGTERM');
 }, 5_000);

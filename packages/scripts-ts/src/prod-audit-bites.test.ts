@@ -15,6 +15,7 @@ const packageJson = JSON.stringify({
 	name: 'publy-1699-audit-probe',
 	version: '0.0.0',
 	private: true,
+	packageManager: 'pnpm@10.13.1',
 	dependencies: { ejs: '3.1.7' },
 });
 
@@ -40,29 +41,46 @@ snapshots:
 `;
 
 const payload = {
-	ejs: [
-		{
+	actions: [],
+	advisories: {
+		ejs: {
 			id: 1304,
 			url: `https://github.com/advisories/${advisoryId}`,
 			title: advisoryTitle,
+			module_name: 'ejs',
 			severity: 'moderate',
 			vulnerable_versions: '<3.1.10',
+			patched_versions: '>=3.1.10',
+			findings: [{ version: '3.1.7', paths: ['ejs'] }],
 		},
-	],
+	},
+	metadata: {
+		vulnerabilities: { info: 0, low: 0, moderate: 1, high: 0, critical: 0 },
+	},
+};
+
+const cleanPayload = {
+	actions: [],
+	advisories: {},
+	metadata: {
+		vulnerabilities: { info: 0, low: 0, moderate: 0, high: 0, critical: 0 },
+	},
 };
 
 type ServerMode = 'advisory' | 'slow';
 
 const startAuditServer = async (mode: ServerMode) => {
 	const server = createServer(async (request, response) => {
-		for await (const _chunk of request) {
+		let body = '';
+		for await (const chunk of request) {
+			body += chunk;
 			// Consume the complete audit request before responding or hanging.
 		}
 		if (mode === 'slow') {
 			return;
 		}
 		response.writeHead(200, { 'content-type': 'application/json' });
-		response.end(JSON.stringify(payload));
+		response.end(JSON.stringify(body.includes('ejs') ? payload : cleanPayload));
 	});
 	const port = await new Promise<number>((resolve) => {
 		server.listen(0, '127.0.0.1', () => {

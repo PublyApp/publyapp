@@ -3,8 +3,8 @@ import { resolve } from 'node:path';
 import process from 'node:process';
 import { pathToFileURL } from 'node:url';
 
-const defaultTimeoutMs = 40_000;
-const killGraceMs = 2_000;
+const defaultTimeoutMs = 40_000,
+	killGraceMs = 2_000;
 const taskkillOptions = { stdio: 'ignore' as const, windowsHide: true };
 const unavailablePattern =
 	/\b(?:ECONNREFUSED|ENOTFOUND|ETIMEDOUT|ECONNRESET|EAI_AGAIN)\b|ERR_PNPM_META_FETCH_FAIL|ERR_PNPM_AUDIT_BAD_RESPONSE[\s\S]*(?:\b408\b|\b429\b|\b5\d{2}\b)|TimeoutError: The operation was aborted due to timeout/i;
@@ -12,27 +12,30 @@ const lockfilePattern = /ERR_PNPM_AUDIT_NO_LOCKFILE|No pnpm-lock\.yaml found/i;
 
 export type AuditGraph = 'prod' | 'dev';
 export type AuditLevel = 'info' | 'low' | 'moderate' | 'high' | 'critical';
-export type AuditResult = {
-	status: 'clean' | 'unavailable' | 'lockfile-missing' | 'failure';
-	exitCode: number;
-	stdout: string;
-	stderr: string;
-};
-
 const classify = (
 	exitCode: number,
 	stdout: string,
 	stderr: string,
 	timedOut: boolean,
-): AuditResult => {
-	if (timedOut || unavailablePattern.test(`${stdout}\n${stderr}`)) {
+) => {
+	if (timedOut) {
 		return { status: 'unavailable', exitCode, stdout, stderr };
+	}
+	if (exitCode === 0) {
+		return { status: 'clean', exitCode, stdout, stderr };
 	}
 	if (lockfilePattern.test(`${stdout}\n${stderr}`)) {
 		return { status: 'lockfile-missing', exitCode, stdout, stderr };
 	}
-	const status = exitCode === 0 ? 'clean' : 'failure';
-	return { status, exitCode, stdout, stderr };
+	if (
+		unavailablePattern.test(stderr) ||
+		/ERR_SOCKET_TIMEOUT|TimeoutError: The operation was aborted due to timeout/i.test(
+			stdout,
+		)
+	) {
+		return { status: 'unavailable', exitCode, stdout, stderr };
+	}
+	return { status: 'failure', exitCode, stdout, stderr };
 };
 
 export const runAudit = async (options: {
@@ -43,16 +46,15 @@ export const runAudit = async (options: {
 	timeoutMs?: number;
 }): Promise<AuditResult> =>
 	new Promise((resolve) => {
-		const env = { ...process.env };
+		const env = {
+			...process.env,
+			npm_config_fetch_retries: '0',
+			npm_config_fetch_timeout: '3000',
+		};
 		if (options.registry !== undefined) {
 			env.npm_config_registry = options.registry;
 		}
-		const args = [
-			'audit',
-			`--audit-level=${options.auditLevel}`,
-			'--fetch-retries=0',
-			'--fetch-timeout=3000',
-		];
+		const args = ['audit', `--audit-level=${options.auditLevel}`];
 		if (options.registry !== undefined) {
 			args.push(`--registry=${options.registry}`);
 		}
@@ -91,14 +93,17 @@ export const runAudit = async (options: {
 				process.kill(-child.pid, signal);
 			} catch {}
 		};
-		const forwardSigint = (): void => stop('SIGINT');
-		const forwardSigterm = (): void => stop('SIGTERM');
+		const scheduleStop = (signal: NodeJS.Signals): void => {
+			stop(signal);
+			killTimer ??= setTimeout(() => stop('SIGKILL'), killGraceMs);
+		};
+		const forwardSigint = (): void => scheduleStop('SIGINT');
+		const forwardSigterm = (): void => scheduleStop('SIGTERM');
 		process.once('SIGINT', forwardSigint);
 		process.once('SIGTERM', forwardSigterm);
 		const timeout = setTimeout(() => {
 			timedOut = true;
-			stop('SIGTERM');
-			killTimer = setTimeout(() => stop('SIGKILL'), killGraceMs);
+			scheduleStop('SIGTERM');
 		}, options.timeoutMs ?? defaultTimeoutMs);
 		child.stdout.setEncoding('utf8');
 		child.stdout.on('data', (chunk: string) => {
@@ -115,7 +120,6 @@ export const runAudit = async (options: {
 		});
 		child.on('close', (code) => {
 			clearTimeout(timeout);
-			clearTimeout(killTimer);
 			process.removeListener('SIGINT', forwardSigint);
 			process.removeListener('SIGTERM', forwardSigterm);
 			const exitCode = spawnFailed || code === null || code < 0 ? 1 : code;
