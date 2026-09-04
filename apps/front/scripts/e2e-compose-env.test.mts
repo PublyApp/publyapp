@@ -758,19 +758,22 @@ void describe('lease window claim (spec infrastructure)', () => {
 	/**
 	 * PROOF: a fully blocked scan stays inside its own claim window.
 	 *
-	 * `first` holds band 0 of window1 and late squatters take its other seven
-	 * ports, so a second reservation scoped to the same base must exhaust
-	 * within the block (`maxBands` is capped at `LEASE_BLOCK_SIZE`). Without
-	 * the cap the scan walks the whole lease range and binds the first free
-	 * band — which can sit inside another claim's window, letting two specs
-	 * squat each other. So window2's block must stay untouched afterwards; the
-	 * exhaustion rejection catches a regression either way.
+	 * Offset 0 is squatted first, `first` takes whatever offset the scan hands
+	 * it, and late squatters take every other port, so a second reservation
+	 * scoped to the same base must exhaust within the block (`maxBands` is
+	 * capped at `LEASE_BLOCK_SIZE`). Without the cap the scan walks the whole
+	 * lease range and binds the first free band — which can sit inside another
+	 * claim's window, letting two specs squat each other. So window2's block
+	 * must stay untouched afterwards; the exhaustion rejection catches a
+	 * regression either way.
 	 */
 	void it('does not spill a fully blocked scan into the next claim window', async (t) => {
 		const firstWindow = await claimLeaseWindow();
-		const secondWindow = await claimLeaseWindow();
 		t.after(async () => {
 			await firstWindow.release();
+		});
+		const secondWindow = await claimLeaseWindow();
+		t.after(async () => {
 			await secondWindow.release();
 		});
 
