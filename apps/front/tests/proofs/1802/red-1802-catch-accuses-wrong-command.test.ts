@@ -5,7 +5,7 @@
  *
  * ## Context
  *
- * In `apps/front/scripts/ci/run-preuves.mts`, the shallow-repair block used a
+ * In `apps/front/scripts/ci/run-proofs.mts`, the shallow-repair block used a
  * SINGLE `try` to cover TWO commands, and its `catch` named the FIRST command
  * (`git rev-parse --is-shallow-repository`) even when the SECOND
  * (`git fetch --unshallow`) was the one that failed:
@@ -47,7 +47,7 @@
  *
  * ## What the proof asserts
  *
- * The proof reads the REAL `run-preuves.mts` source and asserts the BUG is
+ * The proof reads the REAL `run-proofs.mts` source and asserts the BUG is
  * present:
  *
  * > There exists a `try` block whose body contains BOTH
@@ -144,7 +144,7 @@ import { describe, expect, test } from 'vitest';
 // load-bearing part: a proof that copied the lines into its own file
 // would stay green even if the production file changed.
 const RUN_PREUVES_FILE = fileURLToPath(
-	new URL('../../../scripts/ci/run-preuves.mts', import.meta.url),
+	new URL('../../../scripts/ci/run-proofs.mts', import.meta.url),
 );
 
 // Anchors that delimit the `declaredProofTests` function body. If these
@@ -152,7 +152,7 @@ const RUN_PREUVES_FILE = fileURLToPath(
 // it must fail loud naming the drift.
 //
 // The production function is a const arrow (func-style #1834 turned every
-// top-level function in run-preuves.mts into `const x = (): T => {`), so the
+// top-level function in run-proofs.mts into `const x = (): T => {`), so the
 // header anchor matches the arrow form exactly; a revert to a `function`
 // declaration would re-drift the anchor and the proof fails loud.
 const FUNCTION_HEADER = 'const declaredProofTests = (): string[] => {';

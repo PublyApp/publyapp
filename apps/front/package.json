@@ -35,7 +35,7 @@
 		"test:design-system-guard": "node scripts/run-guarded.mts --test scripts/guards/check-design-system.test.mts",
 		"test:drawer-contrast": "node scripts/run-guarded.mts -- vitest run --config vitest.drawer.config.ts",
 		"test:zindex-guard": "node scripts/run-guarded.mts --test scripts/guards/check-zindex-guard.test.mts",
-		"test:preuves": "node scripts/run-guarded.mts scripts/ci/run-preuves.mts",
+		"test:preuves": "node scripts/run-guarded.mts scripts/ci/run-proofs.mts",
 		"test:react-compiler-guard": "node scripts/run-guarded.mts --test scripts/guards/check-react-compiler.test.mts",
 		"test:shared-ts-import-paths": "node scripts/run-guarded.mts --test scripts/guards/check-shared-ts-import-paths.test.mts",
 		"test:shared-ts-node-resolution": "node scripts/run-guarded.mts --test scripts/guards/check-shared-ts-node-resolution.test.mts",

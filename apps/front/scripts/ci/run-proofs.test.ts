@@ -1,7 +1,7 @@
 /**
  * @vitest-environment node
  *
- * Unit tests for the CI-environment handling in run-preuves.mts.
+ * Unit tests for the CI-environment handling in run-proofs.mts.
  *
  * ## The regression this file guards (#1806, ronde 10)
  *
@@ -19,7 +19,7 @@
  *
  * ## Why spawn the real script instead of importing it
  *
- * run-preuves.mts is a top-level script: importing it executes the main
+ * run-proofs.mts is a top-level script: importing it executes the main
  * logic, which calls process.exit() — it cannot be imported as a module.
  * These tests spawn the REAL script through the REAL entrypoint with a
  * controlled environment, which is exactly how CI and `just test-preuves`
@@ -101,7 +101,7 @@ const runScript = (setBaseRef: boolean, setHeadRef: boolean) => {
 		env.GITHUB_HEAD_REF = 'lane/wt-1783';
 	}
 
-	const result = spawnSync(process.execPath, ['scripts/ci/run-preuves.mts'], {
+	const result = spawnSync(process.execPath, ['scripts/ci/run-proofs.mts'], {
 		cwd: FRONT_ROOT,
 		env,
 		encoding: 'utf-8',
@@ -130,7 +130,7 @@ const runScript = (setBaseRef: boolean, setHeadRef: boolean) => {
  */
 const captureLocalRun = (): Promise<LocalRunCapture> =>
 	new Promise<LocalRunCapture>((resolve, reject) => {
-		const child = spawn(process.execPath, ['scripts/ci/run-preuves.mts'], {
+		const child = spawn(process.execPath, ['scripts/ci/run-proofs.mts'], {
 			cwd: FRONT_ROOT,
 			env: freshEnv(),
 			stdio: ['ignore', 'pipe', 'pipe'],
@@ -242,7 +242,7 @@ describe('declaredProofTests — CI environment handling', () => {
 
 // --- Fixture-based replay regressions (issue #1806, ronde 11) ---
 
-const RUNNER_SCRIPT = join(FRONT_ROOT, 'scripts', 'ci', 'run-preuves.mts');
+const RUNNER_SCRIPT = join(FRONT_ROOT, 'scripts', 'ci', 'run-proofs.mts');
 const REAL_FRONT_NODE_MODULES = join(FRONT_ROOT, 'node_modules');
 
 interface ReplayFixtureOptions {

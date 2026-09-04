@@ -1,6 +1,6 @@
 {
 	"$schema": "../expected-red.schema.json",
-	"_comment": "Per-test kept-red expectation manifest for the icon-visibility indeterminate-input proof (issue #1899). Read by apps/front/scripts/ci/run-preuves.mts BEFORE classification. Each test declared in `expectedRed` MUST fail with an AssertionError on correct code. If a declared kept-red test PASSES, the runner fails CI with verdict CORRUPT PROOF. This manifest was missing when #1910 merged: the F1 invariant test that requires it did not exist on that branch, so the PR was green, and the omission only surfaced on branches cut from the develop that carries both.",
+	"_comment": "Per-test kept-red expectation manifest for the icon-visibility indeterminate-input proof (issue #1899). Read by apps/front/scripts/ci/run-proofs.mts BEFORE classification. Each test declared in `expectedRed` MUST fail with an AssertionError on correct code. If a declared kept-red test PASSES, the runner fails CI with verdict CORRUPT PROOF. This manifest was missing when #1910 merged: the F1 invariant test that requires it did not exist on that branch, so the PR was green, and the omission only surfaced on branches cut from the develop that carries both.",
 	"expectedRed": [
 		{
 			"testName": "DEFECT: a detached node silently passes the guard (unanalyzable input treated as visible)",

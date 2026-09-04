@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /*
- * run-preuves.mts — executes kept-red proof tests declared by the current pull
+ * run-proofs.mts — executes kept-red proof tests declared by the current pull
  * request under apps/front/tests/proofs/.
  *
  * Each proof test in this repo is EXPECTED TO FAIL. It proves a bug is present
@@ -706,7 +706,7 @@ console.log(`  Stale proofs (declared red went green): ${stale}`);
 // unexpectedPasses == 0 and corrupted == 0) fails CI. The predicate
 // lives in consume-verdict.mts so the exit condition is testable without
 // spawning this script; the process-launch regression in
-// run-preuves.test.ts additionally proves the REAL script exits
+// run-proofs.test.ts additionally proves the REAL script exits
 // non-zero when only stale > 0.
 if (
 	missing > 0 ||

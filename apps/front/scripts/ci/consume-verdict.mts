@@ -2,7 +2,7 @@
  * consume-verdict.mts — pure dispatch of a classification verdict onto the
  * four counters the runner maintains.
  *
- * The `switch` in run-preuves.mts that consumes `classifyProof`'s verdict and
+ * The `switch` in run-proofs.mts that consumes `classifyProof`'s verdict and
  * decides which counter to increment is the load-bearing decision point of the
  * guard: misclassifying a verdict here is exactly the defect class #1784 was
  * designed to eliminate (a crashed vitest process → `ERROR` verdict → counted
@@ -12,7 +12,7 @@
  * tested independently — the same extraction that classifyProof itself
  * underwent in #1813. The function returns the counter to increment; the caller
  * applies the side effect (the increment itself and the log line). Keeping the
- * decision pure and the effect in run-preuves.mts means a test can feed a real
+ * decision pure and the effect in run-proofs.mts means a test can feed a real
  * `ClassificationResult` and assert the counter — no mocking, no stdout capture.
  *
  * ## Separating stale proofs from corrupt files (#1806, ronde 9)
@@ -57,7 +57,7 @@ export type Counter = 'failures' | 'unexpectedPasses' | 'corrupted' | 'stale';
 /**
  * Map a classification verdict to the counter it must increment.
  *
- * This is the pure decision the `switch` in run-preuves.mts makes. Extracted
+ * This is the pure decision the `switch` in run-proofs.mts makes. Extracted
  * here so a test can assert each mapping directly, and so the adverse mutation
  * the brief demands — swapping two branches — turns a named test red.
  *
@@ -124,7 +124,7 @@ export const consumeVerdict = (
  * `stale` term is the only carrier of the declared-red-passed signal, so it
  * must be pinned by a named test: this predicate is unit-tested in
  * consume-verdict.test.ts, and the process-launch regression in
- * run-preuves.test.ts proves the REAL script exits non-zero when only
+ * run-proofs.test.ts proves the REAL script exits non-zero when only
  * `stale > 0`.
  *
  * `failures` (kept-red proofs that failed as expected) is NOT a failure:

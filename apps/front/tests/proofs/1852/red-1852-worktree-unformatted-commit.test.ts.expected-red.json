@@ -1,6 +1,6 @@
 {
 	"$schema": "../expected-red.schema.json",
-	"_comment": "Per-test kept-red expectation manifest for the fresh-worktree unformatted-commit proof (issue #1852). Read by apps/front/scripts/ci/run-preuves.mts BEFORE classification. The single test declared here MUST fail with an AssertionError on correct code. If it PASSES, a fresh worktree once again commits unformatted code, which is the defect this PR closes.",
+	"_comment": "Per-test kept-red expectation manifest for the fresh-worktree unformatted-commit proof (issue #1852). Read by apps/front/scripts/ci/run-proofs.mts BEFORE classification. The single test declared here MUST fail with an AssertionError on correct code. If it PASSES, a fresh worktree once again commits unformatted code, which is the defect this PR closes.",
 	"expectedRed": [
 		{
 			"testName": "a fresh worktree lets an unformatted commit through unchanged (issue #1852)",

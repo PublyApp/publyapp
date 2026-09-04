@@ -106,7 +106,7 @@ const config: KnipConfig = {
 				// Knip cannot trace CLI-argument usage. Now wired: `just test-preuves`
 				// (recipe in justfile) and the `Verify paired red proofs` step in
 				// front-ci.yml::supply-chain both invoke it through
-				// `pnpm --filter front test:preuves` → scripts/ci/run-preuves.mts.
+				// `pnpm --filter front test:preuves` → scripts/ci/run-proofs.mts.
 				// When no PRs declare proofs (no files added/modified under tests/proofs/),
 				// the runner prints an explicit no-op message and exits 0.
 				'vitest.preuves.config.ts',
