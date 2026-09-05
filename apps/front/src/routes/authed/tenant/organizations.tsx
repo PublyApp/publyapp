@@ -132,15 +132,16 @@ const TenantOrganizationsPage = () => {
 						<OrganizationsComingLaterCards />
 					</>
 				}
-				ErrorSlot={
+				ErrorSlot={({ query: errorQuery }) => (
 					<TenantReadOnlyCardErrorInCard
-						query={query}
+						query={errorQuery}
 						cardTitleKey="common:organization-details"
 						titleKey="failed-to-load-organization"
 						descriptionKey="failed-to-load-organization-description"
+						error={errorQuery.error}
 						testId="tenant-organizations-error"
 					/>
-				}
+				)}
 			>
 				{({ data }) => (
 					<>

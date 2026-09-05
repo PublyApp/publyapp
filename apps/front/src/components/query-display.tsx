@@ -1,6 +1,10 @@
 import type { UseQueryResult } from '@tanstack/react-query';
 import { isValidElement, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
+import {
+	resolveQueryError,
+	type ResolvedQueryError,
+} from '~/lib/server/query-error-resolver';
 
 import { checkIfEmptyQueryData } from '@org/shared-ts/lib/query/query-state';
 
@@ -67,11 +71,34 @@ const LoadingSpinner = ({
 	/>
 );
 
+const renderDefaultError = (resolved: ResolvedQueryError) => (
+	// The loading branch already announces itself with `role="status"`
+	// `aria-live="polite"` (see LoadingSpinner above); the error branch used a
+	// bare `<span>`, so a screen reader user heard "Loading…" when the fetch
+	// started and nothing when it failed. Mirror the same live region so the
+	// resolved title/description reaches assistive tech (issue #2043).
+	<span
+		role="status"
+		aria-live="polite"
+		className="inline-flex flex-col gap-1 text-sm"
+	>
+		{resolved.code ? (
+			<span className="text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">
+				{resolved.code}
+			</span>
+		) : null}
+		<span className="font-medium text-foreground">{resolved.title}</span>
+		{resolved.description ? (
+			<span className="text-muted-foreground">{resolved.description}</span>
+		) : null}
+	</span>
+);
+
 const renderError = <TData, TError>(
 	error: unknown,
 	query: UseQueryResult<TData, TError>,
 	ErrorSlot: Props<TData, TError>['ErrorSlot'],
-	errorMessage: string,
+	t: (key: string) => string,
 ) => {
 	if (typeof ErrorSlot === 'function') {
 		const Slot = ErrorSlot;
@@ -80,7 +107,12 @@ const renderError = <TData, TError>(
 	if (isValidElement(ErrorSlot)) {
 		return ErrorSlot;
 	}
-	return <span>{errorMessage}</span>;
+	// Issue #2043: the default error branch used to discard the real error
+	// and show one generic sentence for every cause (server unreachable, 403,
+	// 404, a malformed payload, the browser offline). Resolve whatever the
+	// caller threw through the shared status→copy matcher; the fallback
+	// branch inside the resolver covers the bare-Error case explicitly.
+	return renderDefaultError(resolveQueryError(error, t));
 };
 
 const renderEmpty = (EmptySlot?: Props['EmptySlot']) => {
@@ -135,7 +167,7 @@ const QueryDisplay = <TData = unknown, TError = Error>({
 					query.error ?? new Error('forced error'),
 					query,
 					ErrorSlot,
-					t('query-display-error-default'),
+					t,
 				);
 			case 'empty':
 				return renderEmpty(EmptySlot);
@@ -156,12 +188,7 @@ const QueryDisplay = <TData = unknown, TError = Error>({
 	}
 
 	if (query.isError) {
-		return renderError(
-			query.error,
-			query,
-			ErrorSlot,
-			t('query-display-error-default'),
-		);
+		return renderError(query.error, query, ErrorSlot, t);
 	}
 
 	if (checkIfEmptyQueryData(query)) {

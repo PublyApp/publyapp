@@ -1030,6 +1030,7 @@
 	"select-all-rows": "Select all rows",
 	"select-row-named": "Select {{name}}",
 	"query-display-error-default": "An error occurred while loading data.",
+	"query-display-error-cause-unknown": "We couldn't determine what went wrong. Try again in a moment.",
 	"error-401-code": "401 — Unauthorized",
 	"sign-in-required-description": "You are not signed in. Please log in again.",
 	"session-no-longer-valid-description": "Your session is no longer valid.",

@@ -62,14 +62,15 @@ const TenantSettingsWorkspacesPage = () => {
 						LoadingSlot={
 							<TenantReadOnlyCardSkeleton testId="tenant-settings-workspaces-skeleton" />
 						}
-						ErrorSlot={
+						ErrorSlot={({ query: errorQuery }) => (
 							<TenantReadOnlyCardError
-								query={query}
+								query={errorQuery}
 								titleKey="failed-to-load-organization"
 								descriptionKey="failed-to-load-organization-description"
+								error={errorQuery.error}
 								testId="tenant-settings-workspaces-error"
 							/>
-						}
+						)}
 					>
 						{({ data }) => {
 							const tenant = resolveWorkspaceTenant(data, selectedTenantId);
