@@ -1,0 +1,10 @@
+{
+	"$schema": "../expected-red.schema.json",
+	"_comment": "Per-test kept-red expectation manifest for the #1484 filesystem race proof. The proof reads the real translation scanner and MUST fail with an AssertionError on corrected code. If it passes, the ENOENT recovery contract is absent or the proof is stale.",
+	"expectedRed": [
+		{
+			"testName": "keeps red while the real scanner still lacks narrow ENOENT recovery",
+			"why": "On corrected code the real scanner contains an ENOENT-only recovery around readSourceFile(absolutePath), so bugPresent is false and expect(bugPresent).toBe(true) fails with an AssertionError. If this test passes, the production scanner has lost the recovery contract or the proof no longer measures the real code, so the paired proof must fail loudly."
+		}
+	]
+}
