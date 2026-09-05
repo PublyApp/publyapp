@@ -1,0 +1,10 @@
+{
+	"$schema": "../expected-red.schema.json",
+	"_comment": "The declared proof must fail with an AssertionError after the exact temporary mutation collapses the all-deleted branch into the generic empty branch.",
+	"expectedRed": [
+		{
+			"testName": "the real #1611 journey rejects collapsed all-deleted copy",
+			"why": "The proof temporarily makes the all-deleted branch render the generic empty state, then runs the same @1611 Playwright journey. The journey must fail its visible 'Your organizations are no longer available' assertion; if the proof passes, the real journey no longer distinguishes all-deleted from never-invited or the mutation was not measured."
+		}
+	]
+}
