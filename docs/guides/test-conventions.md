@@ -251,35 +251,23 @@ apps/front/tests/proofs/<issue-number>/<descriptive-name>.test.ts   # front
   `vitest.config.ts` excludes `tests/proofs/**` so red tests never leak into the green suite; the
   companion `vitest.proofs.config.ts` adds them back so the red test can be replayed on demand.
 
-### What the committed front proof record must contain
+### What the trace must contain
 
-For **front** proofs, the committed proof docblock and its sibling
-`<proof-file>.expected-red.json` manifest are the durable record. No tracked front source, test,
-or documentation may point to a local git-ignored `.dump` trace as the proof's source of truth.
-A local `.dump` file may be optional review scratch, but it is never required for replay and must
-not be the only place where the evidence exists.
+Every paired-proof trace (the `.dump/preuve-<issue>.md` file the lane already produces) MUST,
+in addition to the red and green outputs, name:
 
-Together, the committed docblock and manifest MUST carry:
+- the **kept red test** by its path under `apps/front/tests/proofs/<issue>/` (front) or
+  `.dump/preuves/<issue>/` (api),
+- the **mutation** that produces the red (the exact code change applied to the production code,
+  including the line and the diff), so a reviewer who cannot reach `.dump/` can re-apply it
+  against the current code state, and
+- the **green run** command and the summary line (`Tests N passed / N total`) for the
+  corrected state.
 
-- the **replay** command and the kept-red test path under `apps/front/tests/proofs/<issue>/`,
-- the **exact current expected failure** text (for example,
-  `AssertionError: expected false to be true // Object.is equality`), without requiring the
-  runner to match that display text,
-- the primary **mutation** that produces the red, including the production assertion or behavior
-  it changes,
-- at least three **adverse-mutation attempts** against a different mechanism, naming the exact
-  red test(s) that rejected each attempt or declaring a surviving mutation invalid, and
-- the **green run** command plus its summary line (`Tests N passed / N total`) for the corrected
-  state.
+A trace that does not name the kept red test is incomplete: a pasted output without a path
+cannot be replayed, which is exactly the failure mode #1659 names.
 
-This is a lean documentation requirement, not a new scanner, guard, or meta-guard. The proof
-runner continues to validate only the replayable test and its `expectedRed` entries.
-
-The **API** convention remains legacy and separate: API preuve traces continue to use
-`.dump/preuves/<issue>/` and retain the existing trace requirements. The front no-local-trace rule
-does not rewrite that API scope.
-
-### Mutation adverse — the committed proof record must survive an alternate fix
+### Mutation adverse — the trace must survive an alternate fix
 
 The paired red proof distinguishes a real test from a decorative one, but only if the
 red test is **sensitive to the defect it claims to catch** — not to a coincidence
@@ -294,8 +282,7 @@ error message text rather than the classification field, and production code nev
 read that field. **The convention as previously written would have accepted that
 flawed PR as a valid proof.**
 
-The committed front proof record MUST therefore include, alongside the primary mutation. For the
-legacy API form, the same evidence remains in its `.dump/preuves/<issue>/` trace:
+The trace MUST therefore include, alongside the primary mutation:
 
 1. **A mutation adverse search** — an attempt to find a change that restores the
    defect (re-introduces the bug) while keeping the red test green. The goal is to
@@ -312,14 +299,14 @@ legacy API form, the same evidence remains in its `.dump/preuves/<issue>/` trace
 
 3. **A declaration of the search result** — if a surviving mutation is found (one
    that restores the defect while keeping the red test green), the proof is
-   **invalid**: the test does not actually guard the defect, and the committed record must
-   say so. If no surviving mutation is found, the committed front record MUST record the at least
+   **invalid**: the test does not actually guard the defect, and the trace must
+   say so. If no surviving mutation is found, the trace MUST record the at least
    three adverse mutations attempted and why each failed to keep the red test
    green ("I tried X, Y, Z; X was caught because the test asserts on field F which
    X modifies, Y was caught because the test exercises path P which Y alters, Z was
    caught because the test checks message M which Z changes").
 
-4. **Named red tests, not a count** — the committed front record must name the exact test(s) that
+4. **Named red tests, not a count** — the trace must name the exact test(s) that
    go red under each adverse mutation, never a bare "3 tests fail." A proof that
    says "3 tests fail" without naming them cannot be acted on; the reviewer cannot
    verify the claim against specific assertions.
@@ -327,9 +314,8 @@ legacy API form, the same evidence remains in its `.dump/preuves/<issue>/` trace
 For proof-of-limitation cases (§"Proof-of-limitation cases"), the adverse search
 applies equally: attempt to construct a production-code change that satisfies the
 ideal the test asserts, and declare the result. If the ideal is genuinely
-unattainable (as by design), the committed front record must name the three attempted changes and
-explain why each still falls short. The legacy API trace keeps the same evidence in its existing
-location.
+unattainable (as by design), the trace must name the three attempted changes and
+explain why each still falls short.
 
 ### Proof-of-limitation cases (no mutation)
 
@@ -344,14 +330,13 @@ The worked example for #1613/#1651 in this section is one: the hook is a pure de
 cannot force a caller to commit its return, so a negligent-caller test that asserts the ideal
 ("the reset sticks even without a commit") fails against the correct code.
 
-For front proof-of-limitation cases, the committed record MUST still name the kept red test and the
-green summary, and MUST replace the mutation with the ideal/trade-off evidence below. The legacy API
-trace keeps the same requirement in its existing location:
+For these cases, the trace MUST still name the kept red test and the green summary, and MUST
+replace the mutation with:
 
 - the **ideal behavior** the test asserts,
 - the **reason the correct code does not satisfy it** (the trade-off that makes the ideal
   unattainable), and
-- the **expected failure message**, so a reviewer without local scratch files can reconstruct
+- the **expected failure message**, so a reviewer who cannot reach `.dump/` can reconstruct
   the red by writing a test that asserts the ideal against the current code.
 
 The convention's goal is unchanged: a reviewer must be able to obtain the red in one named
@@ -369,15 +354,14 @@ cd apps/front && pnpm exec vitest run --config vitest.proofs.config.ts \
     tests/proofs/<issue>/<name>.test.ts
 ```
 
-A reviewer who cannot or will not run the test can also rely on the committed record being self-sufficient:
+A reviewer who cannot or will not run the test can also rely on the trace being self-sufficient:
 it names the kept red test's path, the mutation to apply (or, for proof-of-limitation cases, the
 ideal behavior and the reason the correct code does not satisfy it), and the expected failure
 message, so the red can be reconstructed by hand against the current code.
 
-The committed front record must also carry the mutation (or the ideal/trade-off for proof-of-
-limitation cases), not a local scratch artifact, because `git diff`-based detection in CI only
-identifies *which* proofs to run, not *what* they prove. The legacy API trace remains in its
-existing `.dump/preuves/<issue>/` location.
+The trace must also carry the mutation (or the ideal/trade-off for proof-of-limitation cases) —
+not by versioning `.dump/` — because `git diff`-based detection in CI only identifies *which*
+proofs to run, not *what* they prove.
 
 ### When this convention does not apply
 
@@ -411,12 +395,12 @@ unexpectedly passes, or a manifest that is missing/malformed/unreadable, fails t
 naming the file and the cause. A PR that declares no proofs prints an explicit no-op message and
 exits 0. This closes the gap issue #1659 raised, for front proofs entering that job.
 
-What remains a review responsibility, not an automated one: committed front-proof evidence and
-PR-body prose (for example, whether the mutation, adverse-mutation search, and green run summary
-are honest), plus `.dump/` API trace claims, since `.dump/` is git-ignored and absent on a clean CI
-checkout; and whether a PR ought to declare a proof at all, since declaration stays voluntary (see
-§"When this convention does not apply"). No meta-scanner over `.dump/` or PR prose is added, for
-the reasons issue #1659 already raised:
+What remains a review responsibility, not an automated one: `.dump/` API trace claims and PR-body
+prose (e.g. a trace that names a test path without the mutation, the adverse-mutation search, or
+the green run summary — checked against §"What the trace must contain" and §"Mutation adverse"),
+since `.dump/` is git-ignored and absent on a clean CI checkout; and whether a PR ought to declare
+a proof at all, since declaration stays voluntary (see §"When this convention does not apply"). No
+meta-scanner over `.dump/` or PR prose is added, for the reasons issue #1659 already raised:
 `.dump/` never reaches CI, and requiring the test path to exist in the suite would contradict the
 convention. If a future lane produces a paired proof without following the trace requirements, the
 right response is a review comment naming the relevant section, not a CI failure.
@@ -425,8 +409,9 @@ right response is a review comment naming the relevant section, not a CI failure
 
 The red test that PR #1651 deleted is kept at
 `apps/front/tests/proofs/1613/red-1613-negligent-caller-no-reset.test.ts` in this branch,
-with the mutation and red/green evidence in its committed proof docblock and manifest. A reviewer
-replays the red by checking out this branch and running:
+with the mutation and the red/green transcripts in
+`apps/front/.dump/preuve-1613-convention.md`. A reviewer replays the red by checking out
+this branch and running:
 
 ```
 cd apps/front && pnpm exec vitest run --config vitest.proofs.config.ts \
