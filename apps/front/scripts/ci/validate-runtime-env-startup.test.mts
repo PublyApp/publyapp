@@ -31,15 +31,12 @@ const getFreePort = (): Promise<number> => {
 };
 
 // This test exercises the REAL startup path of server.mjs — not a model of it.
-// When validateRuntimeEnv() is wired into server.mjs, the production server
-// crashes on its own (exit code 1) when PUBLIC_ORIGIN is missing. If that call
-// is ever removed, serve() starts and hangs; spawnSync's timeout then fires
-// with result.error.code === 'ETIMEDOUT', result.status === 1, and
-// result.signal === null on this Node/platform combination — so the first two
-// assertions below still pass, and the third (output must name PUBLIC_ORIGIN)
-// fails loud because the guard that would have written it never ran.
-//
-// The paired RED/GREEN proof lives in .dump/preuves/1914/03-mutations.md.
+// GREEN with validateRuntimeEnv(): the production server exits on its own with
+// a non-zero code and names PUBLIC_ORIGIN when the variable is missing. RED if
+// that call is removed: serve() starts and hangs; spawnSync's timeout then
+// reports ETIMEDOUT, and the output assertion fails because the guard never ran.
+// This inline RED/GREEN explanation is the durable non-vacuity record; no local
+// trace is required.
 void test('startup: NODE_ENV=production without PUBLIC_ORIGIN exits non-zero and names PUBLIC_ORIGIN', async (t) => {
 	if (!existsSync(DIST_SERVER_JS)) {
 		t.skip(
