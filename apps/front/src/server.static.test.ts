@@ -1,17 +1,22 @@
 /**
  * @vitest-environment node
  */
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
 
-// Create a temp dir for static assets
+import {
+	assertNormalStaticFileResponse,
+	INDEX_HTML_BODY,
+} from '../tests/helpers/static-file-assertions';
+import { executeStaticFileScenario } from '../tests/helpers/static-file-scenario';
+
 const tmpDir = join(process.cwd(), '.test-static-assets');
 
 const createFixtureFiles = (): void => {
 	mkdirSync(tmpDir, { recursive: true });
-	writeFileSync(join(tmpDir, 'index.html'), '<html><body>OK</body></html>');
+	writeFileSync(join(tmpDir, 'index.html'), INDEX_HTML_BODY);
 	// .env at root - this IS a dot segment (starts with dot)
 	writeFileSync(join(tmpDir, '.env'), 'SECRET_KEY=abc123');
 	mkdirSync(join(tmpDir, '.git'), { recursive: true });
@@ -24,11 +29,10 @@ const createFixtureFiles = (): void => {
 };
 
 const cleanupFixtureFiles = (): void => {
-	const { rmSync } = require('node:fs');
 	try {
 		rmSync(tmpDir, { recursive: true, force: true });
 	} catch {
-		// ignore cleanup errors
+		// Test fixture cleanup is best effort.
 	}
 };
 
@@ -46,20 +50,18 @@ describe('staticMiddleware — path traversal and dotfile guard (A2)', () => {
 		const { staticMiddleware } = await import('srvx/static');
 		const handler = staticMiddleware({ dir: tmpDir });
 
-		// Create a mock request for index.html
-		const request = new Request('http://localhost:3000/index.html');
+		const response = await executeStaticFileScenario({
+			directory: tmpDir,
+			handler,
+		});
 
-		// The middleware returns a Response or undefined (to fall through)
-		// We need to call it with the srvx middleware signature
-		// Since srvx middleware signature is complex, we test the behavior indirectly
-		const response = await handler(
-			request,
-			() => new Response('not found', { status: 404 }),
+		await assertNormalStaticFileResponse(response);
+	});
+
+	test('reports a missing static-file response clearly', async () => {
+		await expect(assertNormalStaticFileResponse(undefined)).rejects.toThrow(
+			'Expected static middleware to return a response for index.html',
 		);
-
-		// If the middleware handles the request, it returns a Response
-		// If not, it calls next() and returns that result
-		expect(response).toBeDefined();
 	});
 
 	test('path traversal with ../ is refused', async () => {

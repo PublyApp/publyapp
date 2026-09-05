@@ -1,0 +1,30 @@
+{
+	"$schema": "../expected-red.schema.json",
+	"_comment": "Per-test kept-red expectation manifest for issue #1915. Both declared tests MUST fail with AssertionErrors on the corrected assertions. If either declared test passes, classifyProofWithManifest returns DECLARED RED PASSED and the runner marks the corresponding proof stale and exits non-zero.",
+	"expectedRed": [
+		{
+			"testName": "normal static-file assertions accept a broken 500 response (#1915 status axis)",
+			"why": "The proof executes the real srvx/static handler with its production-supported renderHTML path producing a 500 response before the normal assertions observe it. The corrected status assertion rejects that handler response, so the kept-red test fails with AssertionError. If this test passes, status validation was removed or weakened and the paired proof must be rejected as stale."
+		},
+		{
+			"testName": "normal static-file assertions accept a successful empty body (#1915 body axis)",
+			"why": "The proof executes the real srvx/static handler with its production-supported renderHTML path producing an empty body before the normal assertions observe it. The corrected exact-body assertion rejects that handler response, so the kept-red test fails with AssertionError. If this test passes, exact body validation was removed or weakened and the paired proof must be rejected as stale."
+		}
+	],
+	"_evidence": {
+		"replay": "cd apps/front && pnpm exec vitest run --config vitest.proofs.config.ts tests/proofs/1915/red-1915-weak-static-assertion.test.ts",
+		"expectedFailure": "AssertionError: expected false to be true // Object.is equality",
+		"green": "pnpm --filter front exec vitest run src/server.static.test.ts (Test Files 1 passed; Tests 6 passed.)",
+		"mutations": [
+			"Production mutation, apps/front/node_modules/srvx/dist/static.mjs:253: change new FastResponse(stream, { headers }) to new FastResponse(stream, { status: 500, headers }). The real src/server.static.test.ts became 5 passed / 1 failed at assertNormalStaticFileResponse(response.ok); the dependency mutation was restored.",
+			"The kept-red status axis uses the same production handler's renderHTML hook to emit status 500 before assertion; its direct replay stayed red with AssertionError: expected false to be true // Object.is equality.",
+			"The kept-red body axis uses the same production handler's renderHTML hook to emit an empty body before assertion; its direct replay stayed red with AssertionError: expected false to be true // Object.is equality."
+		],
+		"adverseSearch": [
+			"Replace the status assertion with response.status === 200: both named tests remained red with AssertionError: expected false to be true // Object.is equality.",
+			"Replace the exact-body assertion with body.length > 0: the empty-body-axis test remained red with AssertionError: expected false to be true // Object.is equality.",
+			"Change the proof fixture bytes to a different non-empty body while retaining the exact-body assertion: both named tests remained red with AssertionError: expected false to be true // Object.is equality.",
+			"Production-path adverse mutation, apps/front/node_modules/srvx/dist/static.mjs:253: change new FastResponse(stream, { headers }) to new FastResponse(null, { headers }). The real src/server.static.test.ts became 4 passed / 2 failed: the normal index body assertion and the .well-known/security.txt body assertion; the dependency mutation was restored."
+		]
+	}
+}
