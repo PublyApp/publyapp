@@ -144,6 +144,7 @@ const TenantPostsHistoryPage = () => {
 		return () => clearInterval(interval);
 	}, [hasInFlight, tenantId, qc]);
 
+	const language = i18n.resolvedLanguage ?? i18n.language;
 	const columns = useMemo<ColumnDef<TenantPublicationRow>[]>(
 		() => [
 			{
@@ -185,15 +186,11 @@ const TenantPostsHistoryPage = () => {
 				meta: { width: '132px' },
 				cell: ({ row }) =>
 					row.original.updatedAt
-						? formatInZone(
-								row.original.updatedAt,
-								undefined,
-								i18n.resolvedLanguage ?? i18n.language,
-							)
+						? formatInZone(row.original.updatedAt, undefined, language)
 						: '\u2014',
 			},
 		],
-		[t, i18n.language],
+		[t, language],
 	);
 
 	// Hoisted so the fatal-error gate reads a plain local, not a query flag —
