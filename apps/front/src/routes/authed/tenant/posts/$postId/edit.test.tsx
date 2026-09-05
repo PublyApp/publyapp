@@ -42,6 +42,7 @@ const mocks = vi.hoisted(() => ({
 	savePost: vi.fn().mockResolvedValue({}),
 	invalidateTenantPosts: vi.fn().mockResolvedValue(undefined),
 	invalidateTenantScheduledPublications: vi.fn().mockResolvedValue(undefined),
+	invalidateTenantPublications: vi.fn().mockResolvedValue(undefined),
 }));
 
 vi.mock('@tanstack/react-query', () => ({
@@ -161,6 +162,10 @@ vi.mock('~/lib/query/tenants-for-picker', () => ({
 vi.mock('~/lib/query/tenant-scheduled-publications', () => ({
 	invalidateTenantScheduledPublications:
 		mocks.invalidateTenantScheduledPublications,
+}));
+
+vi.mock('~/lib/query/tenant-publications', () => ({
+	invalidateTenantPublications: mocks.invalidateTenantPublications,
 }));
 
 vi.mock('../_publish-on-block', () => ({
@@ -359,6 +364,10 @@ describe('TenantPostEditPage', () => {
 		// Scheduled-publication windows MUST also be invalidated so calendar
 		// and queue surfaces reflect the edited post body (#2053 coherence).
 		expect(mocks.invalidateTenantScheduledPublications).toHaveBeenCalledWith(
+			expect.anything(),
+			'11111111-1111-1111-1111-111111111111',
+		);
+		expect(mocks.invalidateTenantPublications).toHaveBeenCalledWith(
 			expect.anything(),
 			'11111111-1111-1111-1111-111111111111',
 		);

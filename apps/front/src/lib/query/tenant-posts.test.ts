@@ -8,18 +8,27 @@ import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
 	patch: vi.fn(),
+	delete: vi.fn(),
+	invalidateTenantPublications: vi.fn(),
 }));
 
 vi.mock('~/lib/api-client/client-manager', () => ({
 	getClientManager: () => ({
 		getOrCreateClient: () => ({
 			posts: {
-				byPostId: () => ({ patch: mocks.patch }),
+				byPostId: () => ({
+					patch: mocks.patch,
+					delete: mocks.delete,
+				}),
 				post: mocks.patch,
 			},
 		}),
 	}),
 	resolveApiBaseUrl: () => 'https://api.example.test',
+}));
+
+vi.mock('~/lib/query/tenant-publications', () => ({
+	invalidateTenantPublications: mocks.invalidateTenantPublications,
 }));
 
 import type {
@@ -32,6 +41,7 @@ import {
 	toTenantPostRows,
 	toTenantPostDetails,
 	useSavePostMutation,
+	useDeleteTenantPostMutation,
 } from './tenant-posts';
 import { TENANT_SCHEDULED_PUBLICATIONS_QUERY_KEY } from './tenant-scheduled-publications';
 
@@ -63,6 +73,8 @@ beforeEach(() => {
 		createdAt: new Date('2026-01-01T00:00:00Z'),
 		updatedAt: new Date('2026-01-02T00:00:00Z'),
 	});
+	mocks.delete.mockResolvedValue(undefined);
+	mocks.invalidateTenantPublications.mockResolvedValue(undefined);
 });
 
 describe('tenant-posts helpers', () => {
@@ -202,6 +214,30 @@ describe('useSavePostMutation invalidation coherence', () => {
 		});
 	});
 
+	test('invalidates the tenant-publications history for the saved tenant', async () => {
+		createWrapper();
+		const queryClient = activeQueryClient as QueryClient;
+
+		const { result } = renderHook(() => useSavePostMutation(), {
+			wrapper: ({ children }) =>
+				createElement(QueryClientProvider, { client: queryClient }, children),
+		});
+
+		await result.current.mutateAsync({
+			postId: '11111111-1111-1111-1111-111111111111',
+			body: 'Updated body',
+			projectId: null,
+			tenantId: 'tenant-1',
+		});
+
+		await waitFor(() => {
+			expect(mocks.invalidateTenantPublications).toHaveBeenCalledWith(
+				queryClient,
+				'tenant-1',
+			);
+		});
+	});
+
 	test('keeps invalidating the existing tenant-posts list and detail families', async () => {
 		createWrapper();
 		const queryClient = activeQueryClient as QueryClient;
@@ -238,6 +274,57 @@ describe('useSavePostMutation invalidation coherence', () => {
 			});
 			expect(postsCall).toBeDefined();
 			expect(detailCall).toBeDefined();
+		});
+	});
+
+	test('invalidates the tenant-publications history for the deleted tenant', async () => {
+		createWrapper();
+		const queryClient = activeQueryClient as QueryClient;
+
+		const { result } = renderHook(() => useDeleteTenantPostMutation(), {
+			wrapper: ({ children }) =>
+				createElement(QueryClientProvider, { client: queryClient }, children),
+		});
+
+		await result.current.mutateAsync({
+			postId: '11111111-1111-1111-1111-111111111111',
+			tenantId: 'tenant-1',
+		});
+
+		await waitFor(() => {
+			expect(mocks.invalidateTenantPublications).toHaveBeenCalledWith(
+				queryClient,
+				'tenant-1',
+			);
+		});
+	});
+
+	test('keeps invalidating scheduled-publication windows for the deleted tenant', async () => {
+		createWrapper();
+		const queryClient = activeQueryClient as QueryClient;
+		const invalidateQueriesSpy = vi
+			.spyOn(queryClient, 'invalidateQueries')
+			.mockResolvedValue(undefined);
+
+		const { result } = renderHook(() => useDeleteTenantPostMutation(), {
+			wrapper: ({ children }) =>
+				createElement(QueryClientProvider, { client: queryClient }, children),
+		});
+
+		await result.current.mutateAsync({
+			postId: '11111111-1111-1111-1111-111111111111',
+			tenantId: 'tenant-1',
+		});
+
+		await waitFor(() => {
+			const scheduledCall = invalidateQueriesSpy.mock.calls.find(([arg]) => {
+				const key = (arg as { queryKey?: unknown[] })?.queryKey;
+				return (
+					Array.isArray(key) &&
+					key.includes(TENANT_SCHEDULED_PUBLICATIONS_QUERY_KEY[0])
+				);
+			});
+			expect(scheduledCall).toBeDefined();
 		});
 	});
 });
