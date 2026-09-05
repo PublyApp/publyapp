@@ -99,15 +99,11 @@
  * Run: `node scripts/guards/check-column-type-imports.mts`
  * Tests: `node --test scripts/guards/check-column-type-imports.test.mts`
  */
+import { execFileSync } from 'node:child_process';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
-// R6: the baseline lives next to the guard. assertScanSurface reads it at
-// runtime. Importing JSON via `with { type: 'json' }` is not used here
-// because this script runs under `node --test` with the tsx loader, which
-// does not support import attributes. readFileSync + JSON.parse keeps a
-// single, predictable loading path.
 
 // chore/908 (TypeScript 7): see the same-named comment in
 // check-design-system.mts — the classic Compiler API is no longer reachable
@@ -173,30 +169,34 @@ export const SCANNED_EXTENSIONS = new Set([
  */
 export const CORE_EXTENSIONS = new Set(['.ts', '.tsx', '.mts', '.cts']);
 
+/** Preserve captured Git stderr when Node's process error omits it. */
+export const formatGitCommandError = (error: unknown): string => {
+	if (!(error instanceof Error)) {
+		return String(error);
+	}
+	const stderrValue = 'stderr' in error ? error.stderr : undefined;
+	const stderr = typeof stderrValue === 'string' ? stderrValue.trim() : '';
+	if (stderr.length === 0 || error.message.includes(stderr)) {
+		return error.message;
+	}
+	return `${error.message} stderr: ${stderr}`;
+};
+
 /**
- * R6 (Hole 1): the minimum number of files the guard must scan, per
- * extension. A drop below any floor fails the guard loudly, naming the
- * extension and the gap. This closes the class of gestures that silently
- * reduce the analyzed surface — not just the specific "move .tsx to
- * non-code" mutation the captain found, but any shrinking of the scan set.
- *
- * The floor is loaded from column-type-imports-baseline.json at runtime.
- * See that file's $comment for when and how to lower a floor.
- *
- * R7: the baseline also pins the exact contents of SCANNED_EXTENSIONS,
- * NON_CODE_EXTENSIONS, and EXEMPT_FILES. Any divergence from the pinned
- * baseline fails the guard loudly — this is what makes the three r6 bypasses
- * (exemption expansion, justification padding, extension relocation)
- * visible at the guard level, not just at the test level.
+ * R11 (#2033): the baseline pins scan policy, while the scan surface itself is
+ * derived from the merge-base tree. A grow is accepted; a shrink fails unless
+ * each removed code file is declared exactly and remains present in the
+ * integration reference while the deletion branch is waiting to integrate.
  */
 export interface ScanBaseline {
-	perExtension: Record<string, number>;
 	/** Pinned SCANNED_EXTENSIONS — any addition or removal fails. */
 	scannedExtensions: string[];
 	/** Pinned NON_CODE_EXTENSIONS — any addition, removal, or justification change fails. */
 	nonCodeExtensions: Record<string, string>;
 	/** Pinned EXEMPT_FILES — any addition or removal fails. */
 	exemptFiles: string[];
+	/** Exact repo-relative code files deliberately deleted in this PR. */
+	intentionalDeletions: string[];
 }
 
 /**
@@ -686,115 +686,254 @@ export const assertCoreExtensionsScanned = (
 };
 
 /**
- * R6 (Hole 1): asserts that the number of files scanned per extension has
- * not dropped below the pinned floor. Reads column-type-imports-baseline.json
- * and compares each extension's actual count against the baseline. A drop
- * fails the guard loudly, naming the extension, the floor, and the actual
- * count. This closes the class of gestures that silently reduce the analyzed
- * surface — not just the specific "move .tsx to non-code" mutation, but any
- * shrinking of the scan set.
- *
- * Extensions absent from the baseline are not checked (the baseline only
- * pins what exists today). Extensions in the baseline but absent from the
- * tree count as 0, which fails — so removing the last .cjs file requires
- * lowering the floor first.
+ * R11 (#2033): compares the live scan surface with its merge-base reference.
+ * Fails loudly when `liveCounts` drops below `mergeBaseCounts` on any
+ * extension; passes silently on a grow. The signature is split (live vs
+ * merge-base count) so the helper is unit-testable without `git`, and the
+ * integration layer (`scanFrontSrcForBannedImports`) is the only place that
+ * talks to `git merge-base` / `git ls-tree`. See the helper-level JSDoc
+ * for the full design rationale and the two scenarios it closes.
  */
-export const assertScanSurface = (
-	perExtensionCounts: Record<string, number>,
-	baselinePath: string,
+export const assertNoShrinkVsMergeBase = (
+	liveCounts: Record<string, number>,
+	mergeBaseCounts: Record<string, number>,
 ): void => {
-	let raw: string;
-	try {
-		raw = readFileSync(baselinePath, 'utf8');
-	} catch (err) {
-		throw new Error(
-			`Guard #1769: cannot read scan-surface baseline '${baselinePath}'. ` +
-				`The guard cannot verify the scan surface without it.`,
-			{ cause: err },
-		);
-	}
-	let baseline: ScanBaseline;
-	try {
-		baseline = JSON.parse(raw) as ScanBaseline;
-	} catch (err) {
-		throw new Error(
-			`Guard #1769: scan-surface baseline '${baselinePath}' is not valid JSON. ` +
-				`The guard cannot verify the scan surface without a valid baseline.`,
-			{ cause: err },
-		);
-	}
 	const violations: string[] = [];
-	for (const [ext, floor] of Object.entries(baseline.perExtension)) {
-		const actual = perExtensionCounts[ext] ?? 0;
-		if (actual < floor) {
+	for (const [ext, base] of Object.entries(mergeBaseCounts)) {
+		const live = liveCounts[ext] ?? 0;
+		if (live < base) {
 			violations.push(
-				`${ext}: scanned ${actual}, floor ${floor} (gap of ${floor - actual})`,
+				`${ext}: base ${base}, live ${live} (gap of ${base - live})`,
 			);
 		}
 	}
 	if (violations.length > 0) {
 		throw new Error(
-			`Guard #1769: scan surface has shrunk below the pinned floor —\n  ` +
-				violations.join('\n  ') +
-				`\nThe analyzed surface has silently shrunk. If the drop is ` +
-				`legitimate (files were removed), lower the floor in ` +
-				`column-type-imports-baseline.json — never raise it to mask a ` +
-				`regression.`,
+			`Guard #1769: scan surface has shrunk below the merge-base count —\n  ` +
+				violations.sort().join('\n  ') +
+				`\nThe analyzed surface has silently shrunk against the merge ` +
+				`base. The merge-base count is the file count at the common ` +
+				`ancestor of HEAD and origin/develop; a live count below it ` +
+				`indicates files were removed between the merge base and the ` +
+				`PR tip. If a code file was intentionally deleted, declare that ` +
+				`exact repo-relative path in the baseline; counts never accept slack.`,
 		);
 	}
 };
 
 /**
- * R10 (round 2 #1943 / verdict-r1): asserts that every pinned floor EQUALS
- * the live count of the same extension in the tree being scanned.
- *
- * The floor check alone (`assertScanSurface`) reads the floors FROM the
- * baseline, so a commit that LOWERS a floor in the baseline and DELETES the
- * matching files in the same commit stays green — and so does a commit that
- * lowers floors while the tree is untouched (the reviewer's probe: 65 tests
- * green with `.ts: 100, .tsx: 160` against a 298/498 tree). "Raise-only" was
- * prose in the baseline `$comment`, not enforcement.
- *
- * This helper is the enforcement, and the live walk IS the independent
- * snapshot: the floor for an extension must equal what the real tree holds
- * at the reviewed commit. Consequences:
- *   - lowering a floor while the tree still holds the files → fails, naming
- *     extension, floor and live count;
- *   - raising a floor above the live tree → fails the same way;
- *   - deleting files in the same commit that lowers the floor to match → the
- *     accompanied, diff-visible workflow the baseline documents;
- *   - a scanned extension present in the tree but absent from the baseline →
- *     fails (a file count with no pinned floor is a silent un-pin).
+ * R11 (#2033): returns the common-ancestor commit of `HEAD` and the given
+ * integration branch (default `origin/develop`). Throws if the merge base
+ * cannot be computed — the shrink-only check requires an authoritative
+ * reference, and a missing one would silently pass regressions.
  */
-export const assertFloorsPinned = (
-	liveCounts: Record<string, number>,
-	baseline: ScanBaseline,
-): void => {
-	const diverged: string[] = [];
-	for (const [ext, floor] of Object.entries(baseline.perExtension)) {
-		const live = liveCounts[ext] ?? 0;
-		if (live !== floor) {
-			diverged.push(`${ext}: floor ${floor}, live tree ${live}`);
-		}
-	}
-	for (const [ext, live] of Object.entries(liveCounts)) {
-		if (!(ext in baseline.perExtension)) {
-			diverged.push(`${ext}: no pinned floor, live tree ${live}`);
-		}
-	}
-	if (diverged.length > 0) {
+export const resolveMergeBase = (
+	cwd: string,
+	integrationBranch = 'origin/develop',
+): string => {
+	if (integrationBranch.trim().length === 0) {
 		throw new Error(
-			`Guard #1769: floor values are not anchored to the live tree —\n  ` +
-				diverged.sort().join('\n  ') +
-				`\nEvery floor must equal the live count at the reviewed commit: ` +
-				`a floor is raised in the same commit that adds files and lowered ` +
-				`in the same commit that removes them. A lowered floor against a ` +
-				`full tree silently un-pins the analyzed surface; a raised floor ` +
-				`above the tree cannot even be met. Edit ` +
-				`column-type-imports-baseline.json so the floors match the tree — ` +
-				`the diff then shows exactly which counts moved.`,
+			`Guard #1769: cannot resolve a merge base with an empty integration ` +
+				`branch reference. Supply a fetched branch such as 'origin/develop'.`,
 		);
 	}
+	try {
+		const out = execFileSync('git', ['merge-base', 'HEAD', integrationBranch], {
+			cwd: path.resolve(cwd),
+			encoding: 'utf8',
+			stdio: ['ignore', 'pipe', 'pipe'],
+		});
+		const sha = out.trim();
+		if (sha.length === 0) {
+			throw new Error('empty merge-base SHA');
+		}
+		return sha;
+	} catch (err) {
+		throw new Error(
+			`Guard #1769: cannot resolve the merge base between HEAD and ` +
+				`'${integrationBranch}'. The shrink-only check requires an ` +
+				`authoritative reference; a missing merge base would silently ` +
+				`pass regressions. Verify that '${integrationBranch}' is fetched ` +
+				`and reachable from HEAD. (${formatGitCommandError(err)})`,
+		);
+	}
+};
+
+/**
+ * R11 (#2033): list files under `<ref>:<scannedSubtree>` from an explicitly
+ * anchored repository. An empty reference or an empty tree is a hard failure,
+ * never an empty successful result that could make a shrink look like a grow.
+ */
+export const listFilesAtRef = (
+	ref: string,
+	scannedSubtree: string,
+	cwd: string,
+): string[] => {
+	if (ref.trim().length === 0) {
+		throw new Error(
+			`Guard #1769: cannot list files with an empty Git reference. ` +
+				`The shrink-only check requires a non-empty merge-base SHA.`,
+		);
+	}
+	if (scannedSubtree.trim().length === 0) {
+		throw new Error(
+			`Guard #1769: cannot list files for an empty scanned subtree. ` +
+				`The Git scan must be anchored to a concrete source directory.`,
+		);
+	}
+	let out: string;
+	try {
+		out = execFileSync(
+			'git',
+			['ls-tree', '-r', '-z', '--name-only', ref, '--', scannedSubtree],
+			{
+				cwd: path.resolve(cwd),
+				encoding: 'utf8',
+				stdio: ['ignore', 'pipe', 'pipe'],
+			},
+		);
+	} catch (err) {
+		throw new Error(
+			`Guard #1769: cannot list files at '${ref}' under '${scannedSubtree}'. ` +
+				`The shrink-only check requires a readable tree at the merge ` +
+				`base; a missing tree would silently pass regressions. ` +
+				`(${formatGitCommandError(err)})`,
+		);
+	}
+	const files = out
+		.split('\0')
+		.filter((file) => file.length > 0)
+		.map((file) => file.split(path.sep).join('/'));
+	if (files.length === 0) {
+		throw new Error(
+			`Guard #1769: Git reference '${ref}' has no files under ` +
+				`'${scannedSubtree}'. The reference tree is empty or the scan path ` +
+				`is wrong; refusing to treat that as a verified no-shrink result.`,
+		);
+	}
+	return files;
+};
+
+/** Counts files per extension in an anchored committed tree. */
+export const countExtensionsAtRef = (
+	ref: string,
+	scannedSubtree: string,
+	cwd: string,
+) => {
+	const files = listFilesAtRef(ref, scannedSubtree, cwd);
+	const counts: Record<string, number> = {};
+	for (const file of files) {
+		const ext = path.extname(file).toLowerCase();
+		if (ext.length === 0) {
+			continue;
+		}
+		counts[ext] = (counts[ext] ?? 0) + 1;
+	}
+	return counts;
+};
+
+const normalizedGitPath = (value: string): string =>
+	value.split(path.sep).join('/');
+
+const isScannedCodePath = (file: string): boolean => {
+	const ext = path.extname(file).toLowerCase();
+	return ext.length === 0 || SCANNED_EXTENSIONS.has(ext);
+};
+
+/**
+ * Allows only exact, repo-relative declarations for code files that are
+ * actually present at the merge base and absent from the live tree. The same
+ * file must still be present in the integration reference, otherwise the
+ * declaration has outlived the integration it was temporary evidence for. A
+ * count, directory, glob, stale path, or duplicate declaration is never
+ * accepted.
+ */
+export const assertIntentionalDeletions = (
+	mergeBaseFiles: string[],
+	liveFiles: string[],
+	declaredDeletions: string[],
+	scannedSubtree: string,
+	integrationFiles: string[],
+): string[] => {
+	const normalizedSubtree = normalizedGitPath(scannedSubtree).replace(
+		/\/$/,
+		'',
+	);
+	const mergeBaseCodeFiles = new Set(
+		mergeBaseFiles.map(normalizedGitPath).filter(isScannedCodePath),
+	);
+	const liveCodeFiles = new Set(
+		liveFiles.map(normalizedGitPath).filter(isScannedCodePath),
+	);
+	const integrationCodeFiles = new Set(
+		integrationFiles.map(normalizedGitPath).filter(isScannedCodePath),
+	);
+	const actualDeletions = [...mergeBaseCodeFiles].filter(
+		(file) => !liveCodeFiles.has(file),
+	);
+	const declared = new Set<string>();
+	const duplicates: string[] = [];
+	const invalid: string[] = [];
+	for (const raw of declaredDeletions) {
+		const file = normalizedGitPath(raw);
+		if (declared.has(file)) {
+			duplicates.push(file);
+			continue;
+		}
+		declared.add(file);
+		const isInSubtree =
+			file === normalizedSubtree || file.startsWith(`${normalizedSubtree}/`);
+		if (
+			file.length === 0 ||
+			file.startsWith('/') ||
+			file.includes('/../') ||
+			file === '..' ||
+			file.startsWith('../') ||
+			!isInSubtree ||
+			!isScannedCodePath(file) ||
+			!mergeBaseCodeFiles.has(file)
+		) {
+			invalid.push(file);
+		}
+	}
+	const undeclared = actualDeletions.filter((file) => !declared.has(file));
+	const stale = [...declared].filter((file) => !actualDeletions.includes(file));
+	const expired = [...declared].filter(
+		(file) => !integrationCodeFiles.has(file),
+	);
+	if (
+		duplicates.length > 0 ||
+		invalid.length > 0 ||
+		undeclared.length > 0 ||
+		stale.length > 0 ||
+		expired.length > 0
+	) {
+		const parts: string[] = [];
+		if (duplicates.length > 0) {
+			parts.push(`duplicate: ${duplicates.sort().join(', ')}`);
+		}
+		if (invalid.length > 0) {
+			parts.push(`invalid: ${invalid.sort().join(', ')}`);
+		}
+		if (undeclared.length > 0) {
+			parts.push(`undeclared: ${undeclared.sort().join(', ')}`);
+		}
+		if (stale.length > 0) {
+			parts.push(`stale: ${stale.sort().join(', ')}`);
+		}
+		if (expired.length > 0) {
+			parts.push(
+				`stale against integration reference: ${expired.sort().join(', ')}`,
+			);
+		}
+		throw new Error(
+			`Guard #1769: intentional deletion declaration does not exactly ` +
+				`match code files removed from the merge-base tree — ${parts.join('; ')}. ` +
+				`Declare each deleted file by its exact repo-relative path; do not use ` +
+				`counts, directories, globs, or slack.`,
+		);
+	}
+	return actualDeletions;
 };
 
 /**
@@ -882,11 +1021,9 @@ export const assertNonCodeExtensionsPinned = (
 
 /**
  * R7 (Hole 3): asserts that the runtime SCANNED_EXTENSIONS set matches the
- * pinned baseline exactly. The r6 reviewer showed that for .ctsx, .mjs, .cjs
- * (floor 0 in baseline), removing the extension from SCANNED_EXTENSIONS and
- * adding it to NON_CODE_EXTENSIONS keeps the real-tree guard green — no floor
- * to bite, no core-extensions check to fail. Tests catch the removal, but the
- * real-tree guard itself silently passes.
+ * pinned baseline exactly. Removing an extension from SCANNED_EXTENSIONS and
+ * adding it to NON_CODE_EXTENSIONS must never silently pass the real-tree
+ * guard.
  *
  * Pinning the scanned set makes this gesture visible at the guard level: any
  * addition or removal fails loudly, naming the diverging extension(s).
@@ -916,13 +1053,96 @@ export const assertScannedExtensionsPinned = (
 	}
 };
 
+export interface ScanOptions {
+	/**
+	 * Repository root used as `cwd` for every Git subprocess. Test-only
+	 * off-switch: when `scanFrontSrcForBannedImports` receives a sandbox root
+	 * other than `frontSrc` and this is omitted, Git reference validation is
+	 * intentionally disabled. Tests that exercise Git must pass this explicitly.
+	 */
+	gitCwd?: string;
+	/** Integration branch or ref used to find the merge base. */
+	integrationBranch?: string;
+	/** Baseline path override used only by isolated integration tests. */
+	baselinePath?: string;
+}
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+	typeof value === 'object' && value !== null && !Array.isArray(value);
+
+const readScanBaseline = (baselinePath: string): ScanBaseline => {
+	let parsed: unknown;
+	try {
+		parsed = JSON.parse(readFileSync(baselinePath, 'utf8')) as unknown;
+	} catch (err) {
+		throw new Error(
+			`Guard #1769: cannot read scan-surface baseline '${baselinePath}'. ` +
+				`The guard cannot verify the scan surface without valid JSON.`,
+			{ cause: err },
+		);
+	}
+	if (!isRecord(parsed)) {
+		throw new Error(
+			`Guard #1769: scan-surface baseline '${baselinePath}' must be a JSON object.`,
+		);
+	}
+	if ('perExtension' in parsed) {
+		throw new Error(
+			`Guard #1769: scan-surface baseline '${baselinePath}' still contains ` +
+				`obsolete authored perExtension floors. Remove them; the reference is ` +
+				`derived from the anchored merge-base tree.`,
+		);
+	}
+	if (
+		!Array.isArray(parsed.scannedExtensions) ||
+		!Array.isArray(parsed.exemptFiles) ||
+		!Array.isArray(parsed.intentionalDeletions) ||
+		!isRecord(parsed.nonCodeExtensions)
+	) {
+		throw new Error(
+			`Guard #1769: scan-surface baseline '${baselinePath}' has an invalid ` +
+				`shape. It must declare scannedExtensions, nonCodeExtensions, ` +
+				`exemptFiles, and intentionalDeletions.`,
+		);
+	}
+	const stringArrays = [
+		parsed.scannedExtensions,
+		parsed.exemptFiles,
+		parsed.intentionalDeletions,
+	];
+	for (const values of stringArrays) {
+		if (values.some((value) => typeof value !== 'string')) {
+			throw new Error(
+				`Guard #1769: scan-surface baseline '${baselinePath}' contains ` +
+					`a non-string path or extension.`,
+			);
+		}
+	}
+	for (const value of Object.values(parsed.nonCodeExtensions)) {
+		if (typeof value !== 'string') {
+			throw new Error(
+				`Guard #1769: scan-surface baseline '${baselinePath}' contains a ` +
+					`non-string non-code justification.`,
+			);
+		}
+	}
+	return {
+		scannedExtensions: parsed.scannedExtensions as string[],
+		nonCodeExtensions: parsed.nonCodeExtensions as Record<string, string>,
+		exemptFiles: parsed.exemptFiles as string[],
+		intentionalDeletions: parsed.intentionalDeletions as string[],
+	};
+};
+
 /**
  * Scans the front source tree for banned imports.
  * @param root Override the root directory (used by tests).
  */
 export const scanFrontSrcForBannedImports = (
-	root: string = frontSrc,
+	rootPath: string = frontSrc,
+	options: ScanOptions = {},
 ): Finding[] => {
+	const root = path.resolve(rootPath);
 	// Verify the scan root exists and is a directory. A missing root is a
 	// different failure from an empty root — the messages say which.
 	let isReadableDir = false;
@@ -1005,45 +1225,88 @@ export const scanFrontSrcForBannedImports = (
 		);
 	}
 
-	// R6 (Hole 1): count files per extension and assert the scan surface has
-	// not shrunk below the pinned floor. This closes the class of gestures
-	// that silently reduce the analyzed surface — not just the specific
-	// "move .tsx to non-code" mutation, but any shrinking of the scan set.
-	// Only enforced on the production root: test sandboxes are partial trees
-	// and would always fall below the floor.
+	// R11 (#2033): the production scan-surface check is anchored to the merge
+	// base of HEAD and `origin/develop`. The reference is read from Git, not
+	// from the working tree or an authored count. A grow is silent; a shrink
+	// below the reference fails loudly. Test sandboxes opt into this path only
+	// when they provide an explicit Git repository.
 	//
-	// R7: the three mutable sets (SCANNED_EXTENSIONS, NON_CODE_EXTENSIONS,
-	// EXEMPT_FILES) are also pinned in the baseline. Any divergence from the
-	// pinned baseline fails the guard loudly — this is what makes the three
-	// r6 bypasses visible at the guard level, not just at the test level.
-	if (root === frontSrc) {
-		const perExtensionCounts: Record<string, number> = {};
+	// R7 (kept): the three mutable sets (SCANNED_EXTENSIONS,
+	// NON_CODE_EXTENSIONS, EXEMPT_FILES) remain pinned in the baseline
+	// so that any change to them is a visible, reviewable commit.
+	// The baseline's intentionalDeletions list is checked against exact Git
+	// paths before its files are removed from the reference count. This permits
+	// a deliberate deletion without introducing count slack or a bypass.
+	const defaultGitCwd = path.resolve(frontSrc, '../../..');
+	const gitCwd =
+		options.gitCwd === undefined && root !== frontSrc
+			? undefined
+			: path.resolve(options.gitCwd ?? defaultGitCwd);
+	if (gitCwd !== undefined) {
+		const scannedSubtree = normalizedGitPath(path.relative(gitCwd, root));
+		if (
+			scannedSubtree.length === 0 ||
+			scannedSubtree === '..' ||
+			scannedSubtree.startsWith('../') ||
+			scannedSubtree.includes('/../')
+		) {
+			throw new Error(
+				`Guard #1769: scan root '${root}' is outside the anchored Git ` +
+					`repository '${gitCwd}'. The reference scan must use one repository ` +
+					`and one concrete subtree.`,
+			);
+		}
+		const liveCounts: Record<string, number> = {};
 		for (const file of files) {
 			const ext = path.extname(file).toLowerCase();
 			if (ext.length > 0) {
-				perExtensionCounts[ext] = (perExtensionCounts[ext] ?? 0) + 1;
+				liveCounts[ext] = (liveCounts[ext] ?? 0) + 1;
 			}
 		}
 		const baselinePath = path.resolve(
-			scriptDir,
-			'column-type-imports-baseline.json',
+			options.baselinePath ??
+				path.resolve(scriptDir, 'column-type-imports-baseline.json'),
 		);
-		let baseline: ScanBaseline;
-		try {
-			baseline = JSON.parse(readFileSync(baselinePath, 'utf8')) as ScanBaseline;
-		} catch (err) {
+		const baseline = readScanBaseline(baselinePath);
+		const integrationBranch = options.integrationBranch ?? 'origin/develop';
+		const mergeBase = resolveMergeBase(gitCwd, integrationBranch);
+		const mergeBaseFiles = listFilesAtRef(mergeBase, scannedSubtree, gitCwd);
+		const integrationFiles = listFilesAtRef(
+			integrationBranch,
+			scannedSubtree,
+			gitCwd,
+		);
+		if (!mergeBaseFiles.some(isScannedCodePath)) {
 			throw new Error(
-				`Guard #1769: cannot read scan-surface baseline '${baselinePath}'. ` +
-					`The guard cannot verify the scan surface without it.`,
-				{ cause: err },
+				`Guard #1769: Git reference '${mergeBase}' has no scanned code files ` +
+					`under '${scannedSubtree}'. Refusing to treat a non-code-only ` +
+					`reference as a verified no-shrink result.`,
 			);
 		}
-		assertScanSurface(perExtensionCounts, baselinePath);
-		// R10: the floors are not just a floor — they are pinned to the live
-		// counts. Any divergence (lowered floor against a full tree, raised
-		// floor above the tree, scanned extension with no pinned floor)
-		// fails loudly. See assertFloorsPinned.
-		assertFloorsPinned(perExtensionCounts, baseline);
+		const liveFiles = files.map((file) =>
+			normalizedGitPath(path.relative(gitCwd, file)),
+		);
+		assertIntentionalDeletions(
+			mergeBaseFiles,
+			liveFiles,
+			baseline.intentionalDeletions,
+			scannedSubtree,
+			integrationFiles,
+		);
+		const declaredDeletions = new Set(
+			baseline.intentionalDeletions.map(normalizedGitPath),
+		);
+		const scannedMergeBaseCounts: Record<string, number> = {};
+		for (const file of mergeBaseFiles) {
+			if (!isScannedCodePath(file) || declaredDeletions.has(file)) {
+				continue;
+			}
+			const ext = path.extname(file).toLowerCase();
+			if (ext.length > 0) {
+				scannedMergeBaseCounts[ext] = (scannedMergeBaseCounts[ext] ?? 0) + 1;
+			}
+		}
+		assertNoShrinkVsMergeBase(liveCounts, scannedMergeBaseCounts);
 		assertScannedExtensionsPinned(SCANNED_EXTENSIONS, baseline);
 		assertNonCodeExtensionsPinned(NON_CODE_EXTENSIONS, baseline);
 		assertExemptionsPinned(EXEMPT_FILES, baseline);
