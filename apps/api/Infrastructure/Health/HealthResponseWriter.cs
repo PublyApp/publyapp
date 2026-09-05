@@ -1,4 +1,3 @@
-using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
@@ -12,12 +11,19 @@ namespace PublyApp.Api.Infrastructure.Health;
 /// without a cause. The api/worker readiness guard (issue #1716) must NAME the
 /// cause in the rendered state: the JSON carries the overall status and, per
 /// check, the status and the plain-words description of what is wrong.
+/// <para>
+/// Issue #2037: every endpoint served here is unauthenticated and rate-limit
+/// exempt. The writer therefore renders only what is safe for the PUBLIC
+/// surface — the failing check name, its status, and a product-language
+/// description. Operational detail that the underlying
+/// <see cref="HealthCheckResult"/> carries in its <c>Data</c> dictionary
+/// (job types, queue depths, ages, thresholds) is NOT serialized: that detail
+/// lives on the protected logger so an operator can read it from the durable
+/// log stream, not from the JSON returned to anyone.
+/// </para>
 /// </summary>
 public static class HealthResponseWriter {
 	private static readonly JsonSerializerOptions SerializerOptions = new() {
-		// HealthCheckResult descriptions contain backticks and quotes for
-		// container/process names; the encoder must not mangle them.
-		Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
 		PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
 		WriteIndented = false,
 		DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
@@ -37,10 +43,18 @@ public static class HealthResponseWriter {
 
 		var payload = new {
 			status = healthReport.Status.ToString(),
-			checks = healthReport.Entries.Select(entry => new {
-				name = entry.Key,
-				status = entry.Value.Status.ToString(),
-				description = entry.Value.Description,
+			checks = healthReport.Entries.Select(entry => {
+				var summary = HealthCheckMessages.GetPublicSummary(
+					entry.Key,
+					entry.Value.Status,
+					entry.Value.Description
+				);
+
+				return new {
+					name = summary.Name,
+					status = entry.Value.Status.ToString(),
+					description = summary.Description,
+				};
 			}),
 		};
 

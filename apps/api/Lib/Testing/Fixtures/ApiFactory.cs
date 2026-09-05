@@ -34,15 +34,18 @@ public sealed class ApiFactory
 	private readonly string _dbConnectionString;
 	private readonly string _storageRoot;
 	private readonly IUploadAdmissionService? _uploadAdmissionService;
+	private readonly ILoggerProvider? _loggerProvider;
 
 	public ApiFactory(
 		string dbConnectionString,
 		string storageRoot,
-		IUploadAdmissionService? uploadAdmissionService = null
+		IUploadAdmissionService? uploadAdmissionService = null,
+		ILoggerProvider? loggerProvider = null
 	) {
 		_dbConnectionString = dbConnectionString;
 		_storageRoot = storageRoot;
 		_uploadAdmissionService = uploadAdmissionService;
+		_loggerProvider = loggerProvider;
 	}
 
 	protected override void ConfigureWebHost(
@@ -108,7 +111,14 @@ public sealed class ApiFactory
 
 			// 3) Register ILogger for handlers that use non-generic ILogger
 			//    (needed because Serilog doesn't register ILogger by default)
-			services.AddSingleton<ILoggerFactory>(new LoggerFactory());
+			services.AddSingleton<ILoggerFactory>(_ => {
+				var loggerFactory = new LoggerFactory();
+				if (_loggerProvider is not null) {
+					loggerFactory.AddProvider(_loggerProvider);
+				}
+
+				return loggerFactory;
+			});
 			services.AddSingleton(typeof(ILogger<>), typeof(Logger<>));
 			services.AddSingleton<ILogger>(sp =>
 				sp.GetRequiredService<ILoggerFactory>().CreateLogger("Default"));
