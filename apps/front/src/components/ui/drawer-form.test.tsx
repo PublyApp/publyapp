@@ -164,6 +164,7 @@
 import { spawn } from 'node:child_process';
 import {
 	existsSync,
+	mkdirSync,
 	readFileSync,
 	readdirSync,
 	rmSync,
@@ -5080,8 +5081,37 @@ type ModuleResolution = {
 	host: ts.ModuleResolutionHost;
 };
 
+type BeforeSourceFileAction = (filePath: string) => void;
+type BeforeDirectoryRead = (directory: string) => void;
+
+type DrawerScanOptions = {
+	beforeDirectoryRead?: BeforeDirectoryRead;
+	beforeReadSourceFile?: BeforeSourceFileAction;
+	beforeRefresh?: BeforeSourceFileAction;
+	beforeStat?: BeforeSourceFileAction;
+};
+
 const toPortableSourcePath = (filePath: string): string =>
 	path.relative(FRONT_ROOT, filePath).split(path.sep).join('/');
+
+const isEnoent = (error: unknown): boolean =>
+	error instanceof Error && 'code' in error && error.code === 'ENOENT';
+
+const readDirectoryEntries = (
+	directory: string,
+	allowMissing: boolean,
+	beforeRead?: BeforeDirectoryRead,
+) => {
+	try {
+		beforeRead?.(directory);
+		return readdirSync(directory, { withFileTypes: true });
+	} catch (error) {
+		if (allowMissing && isEnoent(error)) {
+			return [];
+		}
+		throw error;
+	}
+};
 
 // The scan's ts-morph Project is expensive to construct (tsconfig parse,
 // module-resolution host, TypeScript checker) and the per-file ASTs dominate
@@ -5100,13 +5130,23 @@ const toPortableSourcePath = (filePath: string): string =>
 // the checker once (~2s) — only the "rewritten between scans" test pays it.
 let sharedScanProject: Project | null = null;
 
-const allScannableFilePaths = (): string[] => {
+const allScannableFilePaths = (
+	beforeDirectoryRead?: BeforeDirectoryRead,
+): string[] => {
 	const results: string[] = [];
-	const walk = (dir: string, extension: string | null): void => {
-		for (const entry of readdirSync(dir, { withFileTypes: true })) {
+	const walk = (
+		dir: string,
+		extension: string | null,
+		isRoot: boolean,
+	): void => {
+		for (const entry of readDirectoryEntries(
+			dir,
+			!isRoot,
+			beforeDirectoryRead,
+		)) {
 			const fullPath = path.join(dir, entry.name);
 			if (entry.isDirectory()) {
-				walk(fullPath, extension);
+				walk(fullPath, extension, false);
 			} else if (
 				entry.isFile() &&
 				(extension === null || entry.name.endsWith(extension))
@@ -5115,12 +5155,12 @@ const allScannableFilePaths = (): string[] => {
 			}
 		}
 	};
-	walk(path.join(FRONT_ROOT, 'src'), '.tsx');
-	walk(path.join(FRONT_ROOT, 'src'), '.ts');
+	walk(path.join(FRONT_ROOT, 'src'), '.tsx', true);
+	walk(path.join(FRONT_ROOT, 'src'), '.ts', true);
 	// Fixtures live in a per-run temp directory outside src (round 11's
 	// IMPORTANT 3 — see FIXTURE_TMP_DIR). Every file in it — including the
 	// `.ts` re-export barrels — is loaded up front.
-	walk(FIXTURE_TMP_DIR, null);
+	walk(FIXTURE_TMP_DIR, null, true);
 	return results;
 };
 
@@ -5138,19 +5178,25 @@ const getScanProject = (): Project => {
 	return sharedScanProject;
 };
 
-const walkCurrentFixtureFiles = (): string[] => {
+const walkCurrentFixtureFiles = (
+	beforeDirectoryRead?: BeforeDirectoryRead,
+): string[] => {
 	const results: string[] = [];
-	const walk = (dir: string): void => {
-		for (const entry of readdirSync(dir, { withFileTypes: true })) {
+	const walk = (dir: string, isRoot: boolean): void => {
+		for (const entry of readDirectoryEntries(
+			dir,
+			!isRoot,
+			beforeDirectoryRead,
+		)) {
 			const fullPath = path.join(dir, entry.name);
 			if (entry.isDirectory()) {
-				walk(fullPath);
+				walk(fullPath, false);
 			} else if (entry.isFile()) {
 				results.push(fullPath);
 			}
 		}
 	};
-	walk(FIXTURE_TMP_DIR);
+	walk(FIXTURE_TMP_DIR, true);
 	return results;
 };
 
@@ -5193,8 +5239,15 @@ const sharedModuleResolutionCache = new Map<string, string | null>();
 const refreshChangedSourceFiles = (
 	project: Project,
 	desiredFilePaths: Set<string>,
+	options: DrawerScanOptions = {},
 ): void => {
 	let refreshedAny = false;
+	const skipMissingFile = (filePath: string): void => {
+		desiredFilePaths.delete(filePath);
+		sourceFileFreshness.delete(filePath);
+		refreshedAny = true;
+	};
+
 	for (const filePath of desiredFilePaths) {
 		// Other tree-walking guards plant transient fixtures under src/ and
 		// unlink them in their own `finally` blocks; when suites run
@@ -5203,14 +5256,12 @@ const refreshChangedSourceFiles = (
 		// it instead of failing the whole guard on someone else's cleanup.
 		let stamp: string;
 		try {
+			options.beforeStat?.(filePath);
 			const fresh = statSync(filePath, { bigint: true });
 			stamp = `${fresh.size}:${fresh.mtimeNs}`;
 		} catch (error) {
-			if (
-				error instanceof Error &&
-				'code' in error &&
-				(error as NodeJS.ErrnoException).code === 'ENOENT'
-			) {
+			if (isEnoent(error)) {
+				skipMissingFile(filePath);
 				continue;
 			}
 			throw error;
@@ -5221,13 +5272,11 @@ const refreshChangedSourceFiles = (
 		}
 		let diskText: string;
 		try {
+			options.beforeReadSourceFile?.(filePath);
 			diskText = readFileSync(filePath, 'utf8');
 		} catch (error) {
-			if (
-				error instanceof Error &&
-				'code' in error &&
-				(error as NodeJS.ErrnoException).code === 'ENOENT'
-			) {
+			if (isEnoent(error)) {
+				skipMissingFile(filePath);
 				continue;
 			}
 			throw error;
@@ -5238,7 +5287,16 @@ const refreshChangedSourceFiles = (
 			continue;
 		}
 		if (existing) {
-			existing.refreshFromFileSystemSync();
+			try {
+				options.beforeRefresh?.(filePath);
+				existing.refreshFromFileSystemSync();
+			} catch (error) {
+				if (isEnoent(error)) {
+					skipMissingFile(filePath);
+					continue;
+				}
+				throw error;
+			}
 		} else {
 			project.addSourceFileAtPathIfExists(filePath);
 		}
@@ -9137,7 +9195,7 @@ const walkTag = (
 	}
 };
 
-const scanDrawerSurfaces = () => {
+const scanDrawerSurfaces = (options: DrawerScanOptions = {}) => {
 	const project = getScanProject();
 	// The project is loaded once (round 16 — see getScanProject) and the
 	// scan only refreshes files whose CONTENT changed: a fixture rewritten
@@ -9147,12 +9205,12 @@ const scanDrawerSurfaces = () => {
 	// the shared TypeScript checker). Only the current on-disk file set is
 	// iterated below.
 	const desiredFilePaths = new Set([
-		...allScannableFilePaths().filter(
+		...allScannableFilePaths(options.beforeDirectoryRead).filter(
 			(filePath) => !filePath.startsWith(FIXTURE_TMP_DIR),
 		),
-		...walkCurrentFixtureFiles(),
+		...walkCurrentFixtureFiles(options.beforeDirectoryRead),
 	]);
-	refreshChangedSourceFiles(project, desiredFilePaths);
+	refreshChangedSourceFiles(project, desiredFilePaths, options);
 	const moduleResolution: ModuleResolution = {
 		compilerOptions: project.getCompilerOptions(),
 		host: project.getModuleResolutionHost(),
@@ -9989,6 +10047,195 @@ describe('drawer surface flex chain guard (#990)', () => {
 			);
 		} finally {
 			unlinkSync(TEMPORARY_NEW_DRAWER_PATH);
+		}
+	});
+
+	test('ignores a fixture deleted after enumeration and before stat (#1484)', () => {
+		writeFileSync(TEMPORARY_NEW_DRAWER_PATH, TEMPORARY_NEW_DRAWER_SOURCE);
+		let deletedDuringScan = false;
+
+		try {
+			const scan = scanDrawerSurfaces({
+				beforeStat: (filePath) => {
+					if (filePath !== TEMPORARY_NEW_DRAWER_PATH) {
+						return;
+					}
+					unlinkSync(TEMPORARY_NEW_DRAWER_PATH);
+					deletedDuringScan = true;
+				},
+			});
+
+			expect(deletedDuringScan).toBe(true);
+			expect(scan.discovered).not.toContain(
+				fixtureRel(TEMPORARY_NEW_DRAWER_FILE),
+			);
+		} finally {
+			if (existsSync(TEMPORARY_NEW_DRAWER_PATH)) {
+				unlinkSync(TEMPORARY_NEW_DRAWER_PATH);
+			}
+		}
+	});
+
+	test('ignores an already-tracked fixture deleted before refreshFromFileSystemSync (#1484)', () => {
+		const originalSource = TEMPORARY_NEW_DRAWER_SOURCE;
+		const changedSource = `${originalSource}\n// force a refresh before the race\n`;
+		let deletedDuringRefresh = false;
+
+		try {
+			writeFileSync(TEMPORARY_NEW_DRAWER_PATH, originalSource);
+			const initialScan = scanDrawerSurfaces();
+			expect(initialScan.discovered).toContain(
+				fixtureRel(TEMPORARY_NEW_DRAWER_FILE),
+			);
+
+			writeFileSync(TEMPORARY_NEW_DRAWER_PATH, changedSource);
+			const scan = scanDrawerSurfaces({
+				beforeRefresh: (filePath) => {
+					if (filePath !== TEMPORARY_NEW_DRAWER_PATH) {
+						return;
+					}
+					unlinkSync(TEMPORARY_NEW_DRAWER_PATH);
+					deletedDuringRefresh = true;
+				},
+			});
+
+			expect(deletedDuringRefresh).toBe(true);
+			expect(scan.discovered).not.toContain(
+				fixtureRel(TEMPORARY_NEW_DRAWER_FILE),
+			);
+		} finally {
+			writeFileSync(TEMPORARY_NEW_DRAWER_PATH, originalSource);
+		}
+	});
+
+	test('skips a fixture directory deleted before recursive readdir (#1484)', () => {
+		const relativeDirectory =
+			'src/components/ui/_drawer-disappearing-directory-proof';
+		const directoryPath = fixturePath(relativeDirectory);
+		const relativeFile = `${relativeDirectory}/fixture.tsx`;
+		const filePath = fixturePath(relativeFile);
+		let deletedDuringScan = false;
+		mkdirSync(directoryPath, { recursive: true });
+		writeFileSync(
+			filePath,
+			'export function DisappearingDrawerDirectory() {}\n',
+		);
+
+		try {
+			const scan = scanDrawerSurfaces({
+				beforeDirectoryRead: (directory) => {
+					if (directory !== directoryPath) {
+						return;
+					}
+					rmSync(directoryPath, { recursive: true, force: true });
+					deletedDuringScan = true;
+				},
+			});
+
+			expect(deletedDuringScan).toBe(true);
+			expect(scan.discovered).not.toContain(fixtureRel(relativeFile));
+		} finally {
+			rmSync(directoryPath, { recursive: true, force: true });
+		}
+	});
+
+	test('rethrows non-ENOENT drawer directory read failures (#1484)', () => {
+		const relativeDirectory =
+			'src/components/ui/_drawer-directory-read-failure-proof';
+		const directoryPath = fixturePath(relativeDirectory);
+		const expectedError = Object.assign(
+			new Error('synthetic drawer directory permission failure'),
+			{ code: 'EACCES' },
+		);
+		mkdirSync(directoryPath, { recursive: true });
+
+		try {
+			expect(() =>
+				scanDrawerSurfaces({
+					beforeDirectoryRead: (directory) => {
+						if (directory === directoryPath) {
+							throw expectedError;
+						}
+					},
+				}),
+			).toThrow('synthetic drawer directory permission failure');
+		} finally {
+			rmSync(directoryPath, { recursive: true, force: true });
+		}
+	});
+
+	test('rethrows non-ENOENT stat failures (#1484)', () => {
+		const relativeFile = 'src/components/ui/_drawer-stat-failure-proof.tsx';
+		const filePath = fixturePath(relativeFile);
+		const expectedError = Object.assign(
+			new Error('synthetic drawer stat permission failure'),
+			{ code: 'EACCES' },
+		);
+		writeFileSync(filePath, 'export function DrawerStatFailureProof() {}\n');
+
+		try {
+			expect(() =>
+				scanDrawerSurfaces({
+					beforeStat: (scannedPath) => {
+						if (scannedPath === filePath) {
+							throw expectedError;
+						}
+					},
+				}),
+			).toThrow('synthetic drawer stat permission failure');
+		} finally {
+			unlinkSync(filePath);
+		}
+	});
+
+	test('rethrows non-ENOENT source read failures (#1484)', () => {
+		const relativeFile = 'src/components/ui/_drawer-read-failure-proof.tsx';
+		const filePath = fixturePath(relativeFile);
+		const expectedError = Object.assign(
+			new Error('synthetic drawer source permission failure'),
+			{ code: 'EACCES' },
+		);
+		writeFileSync(filePath, 'export function DrawerReadFailureProof() {}\n');
+
+		try {
+			expect(() =>
+				scanDrawerSurfaces({
+					beforeReadSourceFile: (scannedPath) => {
+						if (scannedPath === filePath) {
+							throw expectedError;
+						}
+					},
+				}),
+			).toThrow('synthetic drawer source permission failure');
+		} finally {
+			unlinkSync(filePath);
+		}
+	});
+
+	test('rethrows non-ENOENT refresh failures for an already-tracked source (#1484)', () => {
+		const originalSource = TEMPORARY_NEW_DRAWER_SOURCE;
+		const changedSource = `${originalSource}\n// force a refresh before the failure\n`;
+		const expectedError = Object.assign(
+			new Error('synthetic drawer refresh permission failure'),
+			{ code: 'EACCES' },
+		);
+
+		try {
+			writeFileSync(TEMPORARY_NEW_DRAWER_PATH, originalSource);
+			scanDrawerSurfaces();
+			writeFileSync(TEMPORARY_NEW_DRAWER_PATH, changedSource);
+
+			expect(() =>
+				scanDrawerSurfaces({
+					beforeRefresh: (filePath) => {
+						if (filePath === TEMPORARY_NEW_DRAWER_PATH) {
+							throw expectedError;
+						}
+					},
+				}),
+			).toThrow('synthetic drawer refresh permission failure');
+		} finally {
+			writeFileSync(TEMPORARY_NEW_DRAWER_PATH, originalSource);
 		}
 	});
 
