@@ -17,16 +17,10 @@
 		"grow is silent; a shrink below the merge-base count fails loudly.",
 		"There are no authored per-extension floors and no slack to maintain.",
 		"",
-		"A legitimate code-file deletion is the only exception: declare every",
-		"deleted file by its exact repo-relative path in intentionalDeletions.",
-		"The guard verifies that each declaration is a merge-base file actually",
-		"absent from the live tree and still present in the integration reference.",
-		"It rejects stale or duplicate paths and never accepts a count, directory,",
-		"glob, or other form of slack.",
-		"",
-		"The declaration is normally empty. It is temporary review evidence for a",
-		"feature-branch deletion and self-expires once the integration branch",
-		"contains that deletion."
+		"A legitimate code-file deletion is the only exception. The guard derives",
+		"each exact path from the committed merge-base..HEAD Git diff and verifies",
+		"that it matches the live disappearance. It never accepts authored deletion",
+		"state, counts, directories, globs, or any other form of slack."
 	],
 	"scannedExtensions": [".ts", ".tsx", ".mts", ".cts", ".ctsx", ".mjs", ".cjs"],
 	"nonCodeExtensions": {
@@ -34,6 +28,5 @@
 		".css": "style declarations, never imports code",
 		".svg": "vector graphics, never imports code"
 	},
-	"exemptFiles": ["components/table/column-type.ts"],
-	"intentionalDeletions": []
+	"exemptFiles": ["components/table/column-type.ts"]
 }
