@@ -56,4 +56,27 @@ describe('formatDateTime', () => {
 		expect(enDay).toBe('15');
 		expect(frDay).toBe('15');
 	});
+
+	// Locale-across-DST proof, rebuilt deterministically (#2025). The instant chosen is
+	// exactly the 2026-03-29 spring-forward moment in Europe/Paris: at 01:00Z the clock
+	// jumps 02:00 CET -> 03:00 CEST, so the calendar day must STAY on the 29th. Without
+	// pinning the zone, this assertion is runner-flaky (e.g. America/Los_Angeles renders
+	// the same instant on the 28th) and can only be green in UTC/positive-offset runners.
+	// Pinning process.env.TZ makes it pass or fail on the code, not on where CI runs. The
+	// original zone is restored afterward so the setting never leaks to sibling tests.
+	test('ItShouldRenderSpringForwardInstantInEuropeParisAcrossLocales', () => {
+		const originalTz = process.env.TZ;
+		process.env.TZ = 'Europe/Paris';
+		try {
+			const springForward = new Date('2026-03-29T01:00:00Z');
+			expect(formatDateTime(springForward, 'en')).toBe('Mar 29, 2026, 3:00 AM');
+			expect(formatDateTime(springForward, 'fr')).toBe('29 mars 2026, 03:00');
+		} finally {
+			if (originalTz === undefined) {
+				delete process.env.TZ;
+			} else {
+				process.env.TZ = originalTz;
+			}
+		}
+	});
 });
