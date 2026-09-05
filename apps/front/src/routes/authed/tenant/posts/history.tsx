@@ -47,7 +47,7 @@ const PublicationStatusCell = ({
 			tone={presentation.tone}
 			testId="tenant-posts-history-status-pill"
 		>
-			{t(`posts:${presentation.labelKey}`)}
+			{t(presentation.labelKey)}
 		</StatusPill>
 	);
 

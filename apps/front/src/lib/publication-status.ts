@@ -6,8 +6,9 @@
 
 /** i18n label key + StatusPill tone for a wire status. Tone matches the
  * StatusPill props (`danger | info | neutral | primary | success | warning`);
- * labelKey is the resource key under the `posts:` namespace. Unknown statuses
- * return null so the call site can render the neutral em-dash fallback. */
+ * labelKey is the namespace-qualified resource key under the `posts:` namespace.
+ * Unknown statuses return null so the call site can render the neutral em-dash
+ * fallback. */
 export type PublicationStatusPresentation = {
 	tone: 'danger' | 'info' | 'neutral' | 'primary' | 'success' | 'warning';
 	labelKey: string;
@@ -35,11 +36,14 @@ export const isPublicationWireStatus = (
  * status, and a new status only needs one entry.
  */
 const PUBLICATION_STATUS_PRESENTATION = {
-	scheduled: { tone: 'neutral', labelKey: 'publish-status-scheduled' },
-	in_progress: { tone: 'info', labelKey: 'publish-status-in-progress' },
-	paused: { tone: 'warning', labelKey: 'publish-status-paused' },
-	published: { tone: 'success', labelKey: 'publish-status-published' },
-	failed: { tone: 'danger', labelKey: 'publish-status-failed' },
+	scheduled: { tone: 'neutral', labelKey: 'posts:publish-status-scheduled' },
+	in_progress: {
+		tone: 'info',
+		labelKey: 'posts:publish-status-in-progress',
+	},
+	paused: { tone: 'warning', labelKey: 'posts:publish-status-paused' },
+	published: { tone: 'success', labelKey: 'posts:publish-status-published' },
+	failed: { tone: 'danger', labelKey: 'posts:publish-status-failed' },
 } satisfies Record<PublicationWireStatus, PublicationStatusPresentation>;
 
 /** Returns the `{tone, labelKey}` metadata for a wire status, or null for

@@ -16,7 +16,7 @@ export const ScheduledPublicationStatus = ({
 
 	return (
 		<StatusPill tone={presentation?.tone ?? 'neutral'}>
-			{presentation ? t(`posts:${presentation.labelKey}`) : '—'}
+			{presentation ? t(presentation.labelKey) : '—'}
 		</StatusPill>
 	);
 };
