@@ -4,11 +4,11 @@
 	"expectedRed": [
 		{
 			"testName": "normal static-file assertions accept a broken 500 response (#1915 status axis)",
-			"why": "The proof executes the real static handler, replaces its successful response with a 500 response carrying the exact body, and passes it to the normal assertions. The corrected status assertion rejects it, so the kept-red test fails with AssertionError. If this test passes, the status validation was removed or weakened and the paired proof must be rejected as stale."
+			"why": "The proof executes the real srvx/static handler with its production-supported renderHTML path producing a 500 response before the normal assertions observe it. The corrected status assertion rejects that handler response, so the kept-red test fails with AssertionError. If this test passes, status validation was removed or weakened and the paired proof must be rejected as stale."
 		},
 		{
 			"testName": "normal static-file assertions accept a successful empty body (#1915 body axis)",
-			"why": "The proof executes the real static handler, replaces its successful response body with an empty body while retaining a successful status, and passes it to the normal assertions. The corrected exact-body assertion rejects it, so the kept-red test fails with AssertionError. If this test passes, the exact body validation was removed or weakened and the paired proof must be rejected as stale."
+			"why": "The proof executes the real srvx/static handler with its production-supported renderHTML path producing an empty body before the normal assertions observe it. The corrected exact-body assertion rejects that handler response, so the kept-red test fails with AssertionError. If this test passes, exact body validation was removed or weakened and the paired proof must be rejected as stale."
 		}
 	],
 	"_evidence": {
@@ -16,14 +16,15 @@
 		"expectedFailure": "AssertionError: expected false to be true // Object.is equality",
 		"green": "pnpm --filter front exec vitest run src/server.static.test.ts (Test Files 1 passed; Tests 6 passed.)",
 		"mutations": [
-			"Remove expect(response.ok).toBe(true): the named status-axis test becomes green.",
-			"Remove expect(body).toBe(INDEX_HTML_BODY): the named body-axis test becomes green.",
-			"Remove the outer expect(...).toBe(true): the caught AssertionError is no longer reasserted and both named tests become green."
+			"Production mutation, apps/front/node_modules/srvx/dist/static.mjs:253: change new FastResponse(stream, { headers }) to new FastResponse(stream, { status: 500, headers }). The real src/server.static.test.ts became 5 passed / 1 failed at assertNormalStaticFileResponse(response.ok); the dependency mutation was restored.",
+			"The kept-red status axis uses the same production handler's renderHTML hook to emit status 500 before assertion; its direct replay stayed red with AssertionError: expected false to be true // Object.is equality.",
+			"The kept-red body axis uses the same production handler's renderHTML hook to emit an empty body before assertion; its direct replay stayed red with AssertionError: expected false to be true // Object.is equality."
 		],
 		"adverseSearch": [
-			"Replace the status assertion with response.status === 200: the status-axis test remains red.",
-			"Replace the exact-body assertion with a non-empty-body check: the body-axis test remains red for the empty-body variant.",
-			"Change the response body to another non-empty value while retaining the exact-body assertion: both named tests remain red."
+			"Replace the status assertion with response.status === 200: both named tests remained red with AssertionError: expected false to be true // Object.is equality.",
+			"Replace the exact-body assertion with body.length > 0: the empty-body-axis test remained red with AssertionError: expected false to be true // Object.is equality.",
+			"Change the proof fixture bytes to a different non-empty body while retaining the exact-body assertion: both named tests remained red with AssertionError: expected false to be true // Object.is equality.",
+			"Production-path adverse mutation, apps/front/node_modules/srvx/dist/static.mjs:253: change new FastResponse(stream, { headers }) to new FastResponse(null, { headers }). The real src/server.static.test.ts became 4 passed / 2 failed: the normal index body assertion and the .well-known/security.txt body assertion; the dependency mutation was restored."
 		]
 	}
 }

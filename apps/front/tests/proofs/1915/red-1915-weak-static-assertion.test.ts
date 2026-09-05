@@ -4,10 +4,10 @@
  * KEPT RED TEST — issue #1915 (paired red proof).
  *
  * The normal static-file test must reject a bad status and an empty body. This
- * proof executes the real `srvx/static` handler against a real fixture, then
- * applies one broken response variant at a time. Each variant is passed to the
- * normal static-file assertions and is expected to be accepted only when that
- * assertion is weak.
+ * proof executes the real `srvx/static` handler against a real fixture while
+ * its production-supported `renderHTML` hook emits one broken response at a
+ * time. The response is therefore broken inside the handler path, before the
+ * normal static-file assertions observe it.
  *
  * The two axes are deliberately separate:
  *
@@ -17,7 +17,8 @@
  * - A successful response carries an empty body. Removing only the exact body
  *   assertion makes this proof test pass and the manifest marks it stale.
  *
- * On the corrected code, the normal assertions reject each broken response,
+ * On the corrected code, the normal assertions reject each response emitted by
+ * the broken handler,
  * their helper catches the AssertionError and returns false, and the outer
  * expectation then fails with AssertionError. That is the expected kept-red
  * state. A thrown `MESURE IMPOSSIBLE` error means the real handler could not be
@@ -31,16 +32,22 @@
  * Current corrected-code failure for both declared tests:
  *   AssertionError: expected false to be true // Object.is equality
  *
- * Mutation and adverse evidence:
- * - Removing `expect(response.ok).toBe(true)` makes the named status-axis test
- *   green; removing `expect(body).toBe(INDEX_HTML_BODY)` makes the named
- *   body-axis test green; removing either outer `expect(...).toBe(true)` makes
- *   the corresponding caught AssertionError disappear and is therefore a
- *   non-vacuity failure.
- * - Adverse attempts used equivalent status validation (`response.status ===
- *   200`), a non-empty-body check, and a changed fixture body. The status-axis
- *   test, body-axis test, and both tests respectively remained red, so none
- *   provided a surviving alternate mutation.
+ * Production mutation evidence (replayed against the installed production
+ * handler used by `server.mjs`): changing
+ * `apps/front/node_modules/srvx/dist/static.mjs:253` from
+ * `new FastResponse(stream, { headers })` to
+ * `new FastResponse(stream, { status: 500, headers })` made the real
+ * `src/server.static.test.ts` run fail 1 test (5 passed / 1 failed), at the
+ * strengthened `response.ok` assertion. The dependency mutation was restored.
+ *
+ * Adverse search (all temporary edits were restored): an equivalent status
+ * assertion (`response.status === 200`), a non-empty-body assertion, and a
+ * changed non-empty fixture body each left both named kept-red tests red with
+ * `AssertionError: expected false to be true // Object.is equality`. A second
+ * production-path mutation, returning `new FastResponse(null, { headers })`
+ * from the same srvx handler line, made the real static test fail its exact
+ * body assertion (and the allowlisted `.well-known` body assertion). No
+ * surviving alternate mutation was found.
  *
  * Green run:
  *   pnpm --filter front exec vitest run src/server.static.test.ts
@@ -50,6 +57,7 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
+import type { StaticMiddlewareOptions } from 'srvx/static';
 import { staticMiddleware } from 'srvx/static';
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
 
@@ -57,10 +65,7 @@ import {
 	assertNormalStaticFileResponse,
 	INDEX_HTML_BODY,
 } from '../../helpers/static-file-assertions';
-import {
-	executeStaticFileScenario,
-	type StaticFileResponseVariant,
-} from '../../helpers/static-file-scenario';
+import { executeStaticFileScenario } from '../../helpers/static-file-scenario';
 
 let tmpDir: string | undefined;
 
@@ -88,13 +93,12 @@ const getFixtureDirectory = (): string => {
 };
 
 const executeStaticHandler = async (
-	variant: StaticFileResponseVariant,
+	renderHTML: NonNullable<StaticMiddlewareOptions['renderHTML']>,
 ): Promise<Response> => {
 	const directory = getFixtureDirectory();
 	return executeStaticFileScenario({
 		directory,
-		handler: staticMiddleware({ dir: directory }),
-		variant,
+		handler: staticMiddleware({ dir: directory, renderHTML }),
 	});
 };
 
@@ -125,10 +129,9 @@ describe('issue #1915 behavioral paired proof', () => {
 
 	test('normal static-file assertions accept a broken 500 response (#1915 status axis)', async () => {
 		const brokenResponse = await executeStaticHandler(
-			(body, response) =>
-				new Response(body, {
+			({ html }) =>
+				new Response(html, {
 					status: 500,
-					headers: response.headers,
 				}),
 		);
 
@@ -137,10 +140,9 @@ describe('issue #1915 behavioral paired proof', () => {
 
 	test('normal static-file assertions accept a successful empty body (#1915 body axis)', async () => {
 		const brokenResponse = await executeStaticHandler(
-			(_body, response) =>
+			() =>
 				new Response('', {
-					status: response.status,
-					headers: response.headers,
+					status: 200,
 				}),
 		);
 
