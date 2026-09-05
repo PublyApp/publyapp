@@ -7,8 +7,10 @@ import { defineConfig, loadEnv } from 'vite';
 
 import { contextChunkIsolationPlugin } from './tools/vite/check-context-chunk-isolation.mts';
 import { contextChunkIsolationInventory } from './tools/vite/context-chunk-isolation.inventory.mts';
+import { transformSimplebarUpstreamCssPlugin } from './tools/vite/transform-simplebar-upstream-css.mts';
 
 const workspaceRootDir = fileURLToPath(new URL('../..', import.meta.url));
+const frontDirectory = fileURLToPath(new URL('.', import.meta.url));
 
 export default defineConfig(({ mode }) => {
 	const rootEnv = loadEnv(mode, workspaceRootDir, '');
@@ -64,6 +66,7 @@ export default defineConfig(({ mode }) => {
 			],
 		},
 		plugins: [
+			transformSimplebarUpstreamCssPlugin({ frontDirectory }),
 			contextChunkIsolationPlugin({
 				contextInventory: contextChunkIsolationInventory,
 				tsconfigPath: fileURLToPath(

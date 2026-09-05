@@ -20,12 +20,17 @@ import { logger } from '@org/shared-ts/lib/logger/iso-logger';
  * emits `scroll` events. This keeps programmatic scrolling working for
  * callers that used to hold a ref to a plain `overflow-auto` div.
  *
- * The stock simplebar stylesheet is vendored into app.css (`.simplebar-*`
- * rules) because its raw literals (hex colours, numeric z-indexes, un-tokened
- * durations) violate this repo's design-token and z-index guards; the vendored
- * copy routes everything through publy tokens and adds the auto-hide policy:
- * reveal on hover/wheel/touch/focus-within/drag, reduced-motion kills the
- * fade, forced-colors mode forces the scrollbar visible.
+ * The simplebar-core stylesheet is imported from `node_modules` at build time
+ * via `simplebar-core/dist/simplebar.css`. The Vite plugin
+ * `publy:transform-simplebar-upstream-css` (see
+ * apps/front/tools/vite/transform-simplebar-upstream-css.mts) reads the
+ * installed artifact, retokenizes the raw literals upstream ships (`black`,
+ * `7px`, and the stock transition timing), removes the four known upstream
+ * stacking declarations under the explicit DOM-order stacking decision, and
+ * layers the auto-hide policy on top — reveal on
+ * hover/wheel/touch/focus-within/drag, reduced-motion kills the fade,
+ * forced-colors mode forces the scrollbar visible. The vendored copy that
+ * used to live in app.css is gone (#1540); the source of truth is upstream.
  */
 
 const CLASS_NAMES = {
