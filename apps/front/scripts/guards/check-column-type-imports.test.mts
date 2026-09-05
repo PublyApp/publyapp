@@ -24,6 +24,7 @@
  * disabling the rule for the entire file.
  */
 import assert from 'node:assert/strict';
+import { execFileSync } from 'node:child_process';
 import {
 	mkdtempSync,
 	rmSync,
@@ -31,6 +32,7 @@ import {
 	mkdirSync,
 	readFileSync,
 } from 'node:fs';
+import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { after, test } from 'node:test';
 import { fileURLToPath } from 'node:url';
@@ -48,12 +50,14 @@ import {
 	assertNoOverlap,
 	assertAllJustified,
 	assertCoreExtensionsScanned,
-	assertScanSurface,
 	assertExemptionsPinned,
 	assertNonCodeExtensionsPinned,
 	assertScannedExtensionsPinned,
-	assertFloorsPinned,
-	type ScanBaseline,
+	assertNoShrinkVsMergeBase,
+	assertIntentionalDeletions,
+	countExtensionsAtRef,
+	listFilesAtRef,
+	resolveMergeBase,
 } from './check-column-type-imports.mts';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -66,13 +70,9 @@ after(() => {
 	}
 });
 
-/**
- * Creates a throwaway front source tree, writes `files` into it, and returns
- * the root directory. The tree lives under `scripts/` so ts-morph resolves
- * the same way it does in the real guard.
- */
+/** Creates a throwaway source tree for AST and extension-policy tests. */
 const makeSandbox = (files: Record<string, string>): string => {
-	const dir = mkdtempSync(path.join(here, 'column-type-guard-'));
+	const dir = mkdtempSync(path.join(tmpdir(), 'column-type-guard-'));
 	sandboxes.push(dir);
 	for (const [relative, content] of Object.entries(files)) {
 		const full = path.join(dir, relative);
@@ -80,6 +80,19 @@ const makeSandbox = (files: Record<string, string>): string => {
 		writeFileSync(full, content);
 	}
 	return dir;
+};
+
+const runGit = (cwd: string, args: string[]): string =>
+	execFileSync('git', args, {
+		cwd,
+		encoding: 'utf8',
+		stdio: ['ignore', 'pipe', 'pipe'],
+	});
+
+const commitGitTree = (cwd: string, message: string): string => {
+	runGit(cwd, ['add', '--', '.']);
+	runGit(cwd, ['commit', '-qm', message]);
+	return runGit(cwd, ['rev-parse', 'HEAD']).trim();
 };
 
 // ---------------------------------------------------------------------------
@@ -720,66 +733,6 @@ void test('R5 NON-REGRESSION: .cts/.cjs/.mjs/.ctsx still scanned', () => {
 // R6: the three holes from the brief — each must now fail loudly.
 // ---------------------------------------------------------------------------
 
-// Both boundary tests below read their counts FROM the baseline file instead
-// of restating them as literals. The first version wrote `.ts: 276, .tsx: 472`
-// — the floors as they stood the day it was written — and CI went red the
-// moment the tree grew and the floors were raised to 298/498. A boundary test
-// that hard-codes the boundary stops testing the boundary as soon as it moves.
-const baselineFloors = (): Record<string, number> => {
-	const baselinePath = path.resolve(here, 'column-type-imports-baseline.json');
-	const parsed = JSON.parse(readFileSync(baselinePath, 'utf8')) as {
-		perExtension?: Record<string, number>;
-	};
-	const floors = parsed.perExtension;
-	if (floors === undefined || Object.keys(floors).length === 0) {
-		throw new Error(
-			`column-type-imports-baseline.json carries no perExtension floors; ` +
-				`the boundary tests cannot run against a baseline they cannot read.`,
-		);
-	}
-	return floors;
-};
-
-void test('R6 HOLE 1 RED: assertScanSurface fails when a core extension shrinks', () => {
-	// The captain's mutation: moving .tsx from SCANNED_EXTENSIONS into
-	// NON_CODE_EXTENSIONS silently disables its analysis. The ratchet
-	// must fail loudly naming the extension and the gap. We test the
-	// helper directly with a synthetic count that drops .tsx below floor.
-	const baselinePath = path.resolve(here, 'column-type-imports-baseline.json');
-	const tsxFloor = baselineFloors()['.tsx'];
-	let err: unknown;
-	try {
-		assertScanSurface({ ...baselineFloors(), '.tsx': 0 }, baselinePath);
-	} catch (e) {
-		err = e;
-	}
-	assert.ok(
-		err instanceof Error,
-		'expected the ratchet to fail when .tsx drops below floor',
-	);
-	// The headline AND the extension + gap naming are both pinned (the
-	// gap is derived from the baseline floor, not hard-coded).
-	assert.match(
-		err.message,
-		/Guard #1769: scan surface has shrunk below the pinned floor/,
-		'expected the headline to survive a below-floor drop',
-	);
-	assert.match(
-		err.message,
-		new RegExp(`\\.tsx: scanned 0, floor ${tsxFloor} \\(gap of ${tsxFloor}\\)`),
-		'expected the message to name the extension AND the exact gap',
-	);
-});
-
-void test('R6 HOLE 1 RED: assertScanSurface passes when counts meet the floor', () => {
-	// Boundary: counts exactly at the floor must pass.
-	const baselinePath = path.resolve(here, 'column-type-imports-baseline.json');
-	assert.doesNotThrow(
-		() => assertScanSurface(baselineFloors(), baselinePath),
-		'expected the ratchet to pass when counts meet the floor',
-	);
-});
-
 void test('R6 HOLE 2 RED: assertCoreExtensionsScanned fails when a core extension is missing', () => {
 	// The reviewer's mutation: removing .mts from SCANNED_EXTENSIONS. The
 	// core-extension check must fail loudly naming the missing core
@@ -875,28 +828,26 @@ void test('R6: .mts file importing banned type is caught (dedicated .mts test)',
 	assert.ok(findings[0].bindings.includes('ColumnDef'));
 });
 
-void test('R6: baseline file is valid JSON with the expected shape', () => {
-	// The baseline must be a valid JSON object with a perExtension record.
+void test('R6: baseline file is valid JSON without authored floors', () => {
+	// The baseline pins policy sets and exact deletion declarations, never
+	// authored per-extension counts.
 	const baselinePath = path.resolve(here, 'column-type-imports-baseline.json');
 	const raw = readFileSync(baselinePath, 'utf8');
 	let parsed: unknown;
 	assert.doesNotThrow(() => {
 		parsed = JSON.parse(raw);
 	}, 'baseline must be valid JSON');
-	const baseline = parsed as { perExtension: Record<string, number> };
-	assert.ok(baseline.perExtension, 'baseline must have a perExtension field');
+	const baseline = parsed as Record<string, unknown>;
 	assert.equal(
-		typeof baseline.perExtension,
-		'object',
-		'perExtension must be an object',
+		'perExtension' in baseline,
+		false,
+		'baseline must not carry obsolete authored perExtension floors',
 	);
-	// Every core extension must have a floor in the baseline.
-	for (const ext of CORE_EXTENSIONS) {
-		assert.ok(
-			ext in baseline.perExtension,
-			`baseline must pin a floor for core extension ${ext}`,
-		);
-	}
+	assert.deepEqual(
+		baseline.intentionalDeletions,
+		[],
+		'baseline must declare an empty exact-deletion list when no deletion is active',
+	);
 });
 
 void test('R6 ADVERSE: a fourth gesture — emptying SCANNED_EXTENSIONS fails core check', () => {
@@ -936,7 +887,7 @@ void test('R7 HOLE 1 RED: adding a file to EXEMPT_FILES fails assertExemptionsPi
 	const baselinePath = path.resolve(here, 'column-type-imports-baseline.json');
 	const raw = readFileSync(baselinePath, 'utf8');
 	const baseline = JSON.parse(raw) as {
-		perExtension: Record<string, number>;
+		intentionalDeletions: string[];
 		scannedExtensions: string[];
 		nonCodeExtensions: Record<string, string>;
 		exemptFiles: string[];
@@ -956,7 +907,7 @@ void test('R7 HOLE 1 RED: current EXEMPT_FILES matches the pinned baseline', () 
 	const baselinePath = path.resolve(here, 'column-type-imports-baseline.json');
 	const raw = readFileSync(baselinePath, 'utf8');
 	const baseline = JSON.parse(raw) as {
-		perExtension: Record<string, number>;
+		intentionalDeletions: string[];
 		scannedExtensions: string[];
 		nonCodeExtensions: Record<string, string>;
 		exemptFiles: string[];
@@ -973,7 +924,7 @@ void test('R7 HOLE 2 RED: adding a non-code extension with 24-char padding fails
 	const baselinePath = path.resolve(here, 'column-type-imports-baseline.json');
 	const raw = readFileSync(baselinePath, 'utf8');
 	const baseline = JSON.parse(raw) as {
-		perExtension: Record<string, number>;
+		intentionalDeletions: string[];
 		scannedExtensions: string[];
 		nonCodeExtensions: Record<string, string>;
 		exemptFiles: string[];
@@ -991,7 +942,7 @@ void test('R7 HOLE 2 RED: changing a justification fails assertNonCodeExtensions
 	const baselinePath = path.resolve(here, 'column-type-imports-baseline.json');
 	const raw = readFileSync(baselinePath, 'utf8');
 	const baseline = JSON.parse(raw) as {
-		perExtension: Record<string, number>;
+		intentionalDeletions: string[];
 		scannedExtensions: string[];
 		nonCodeExtensions: Record<string, string>;
 		exemptFiles: string[];
@@ -1009,7 +960,7 @@ void test('R7 HOLE 2 RED: current NON_CODE_EXTENSIONS matches the pinned baselin
 	const baselinePath = path.resolve(here, 'column-type-imports-baseline.json');
 	const raw = readFileSync(baselinePath, 'utf8');
 	const baseline = JSON.parse(raw) as {
-		perExtension: Record<string, number>;
+		intentionalDeletions: string[];
 		scannedExtensions: string[];
 		nonCodeExtensions: Record<string, string>;
 		exemptFiles: string[];
@@ -1026,7 +977,7 @@ void test('R7 HOLE 3 RED: removing .ctsx from SCANNED_EXTENSIONS fails assertSca
 	const baselinePath = path.resolve(here, 'column-type-imports-baseline.json');
 	const raw = readFileSync(baselinePath, 'utf8');
 	const baseline = JSON.parse(raw) as {
-		perExtension: Record<string, number>;
+		intentionalDeletions: string[];
 		scannedExtensions: string[];
 		nonCodeExtensions: Record<string, string>;
 		exemptFiles: string[];
@@ -1044,7 +995,7 @@ void test('R7 HOLE 3 RED: current SCANNED_EXTENSIONS matches the pinned baseline
 	const baselinePath = path.resolve(here, 'column-type-imports-baseline.json');
 	const raw = readFileSync(baselinePath, 'utf8');
 	const baseline = JSON.parse(raw) as {
-		perExtension: Record<string, number>;
+		intentionalDeletions: string[];
 		scannedExtensions: string[];
 		nonCodeExtensions: Record<string, string>;
 		exemptFiles: string[];
@@ -1325,47 +1276,414 @@ void test('#1737: no app file under apps/front/src consumes ColumnDef/Row/TanSta
 	);
 });
 
-// ---------------------------------------------------------------------------
-// R10: assertFloorsPinned — floors must equal live tree counts.
-// (Not just "at or above"; the floor IS the count, or the guard fails.)
-// ---------------------------------------------------------------------------
-
-const makeBaseline = (perExtension: Record<string, number>): ScanBaseline => ({
-	perExtension,
-	scannedExtensions: Object.keys(perExtension),
-	nonCodeExtensions: {},
-	exemptFiles: [],
-});
-
-void test('R10 RED: assertFloorsPinned fails when a floor is lowered below live tree', () => {
-	const liveCounts = { '.ts': 10, '.tsx': 5 };
-	const baseline = makeBaseline({ '.ts': 8, '.tsx': 5 });
-	assert.throws(
-		() => assertFloorsPinned(liveCounts, baseline),
-		/Guard #1769: floor values are not anchored to the live tree/,
+void test('#2033 SCENARIO 1: a branch remains green when the integration branch advances first', () => {
+	// Replay of 2026-08-31 with counts derived from the merge-base tree.
+	//   mergeBase: .ts=302, .tsx=500
+	//   PR A:      .ts=302, .tsx=500
+	//   PR B:      .ts=304, .tsx=500
+	// PR B merges first. Develop now has .ts=304, .tsx=500. PR A's tip still
+	// has .ts=302, .tsx=500. Under the old equality check, A is red
+	// (live=302, baseline=304 → live < baseline). Under the
+	// new shrink-only check, A is green because the live count at A's tip
+	// (302) is still >= the merge-base count (302) — A did not shrink the
+	// surface, it just did not grow with B.
+	const mergeBase = { '.ts': 302, '.tsx': 500 };
+	const aLive = { '.ts': 302, '.tsx': 500 };
+	const bLive = { '.ts': 304, '.tsx': 500 };
+	assert.doesNotThrow(
+		() => assertNoShrinkVsMergeBase(aLive, mergeBase),
+		`scenario 1: PR A's tip must not fail the guard after PR B added files — ` +
+			`the live count at A's tip is still >= the merge-base count. ` +
+			`Live=${JSON.stringify(aLive)} vs mergeBase=${JSON.stringify(mergeBase)}.`,
+	);
+	assert.doesNotThrow(
+		() => assertNoShrinkVsMergeBase(bLive, mergeBase),
+		`scenario 1: PR B's tip must pass the guard on its own — adding files ` +
+			`must be a silent grow. Live=${JSON.stringify(bLive)} vs ` +
+			`mergeBase=${JSON.stringify(mergeBase)}.`,
+	);
+	// The merge result (.ts=304, .tsx=500) also passes — develop's push CI
+	// after the merge of B sees live == mergeBase + 2 and does not fail.
+	assert.doesNotThrow(
+		() => assertNoShrinkVsMergeBase({ '.ts': 304, '.tsx': 500 }, mergeBase),
+		`scenario 1: develop's push CI after merging B must not fail the guard — ` +
+			`live (304, 500) is still >= mergeBase (302, 500).`,
 	);
 });
 
-void test('R10 RED: assertFloorsPinned fails when a floor is raised above live tree', () => {
-	const liveCounts = { '.ts': 10, '.tsx': 5 };
-	const baseline = makeBaseline({ '.ts': 12, '.tsx': 5 });
-	assert.throws(
-		() => assertFloorsPinned(liveCounts, baseline),
-		/Guard #1769: floor values are not anchored to the live tree/,
+void test('#2033 SCENARIO 2: two branches adding front files need no baseline edit', () => {
+	// The old contract made every front-file PR edit the same authored count.
+	// The new contract reads only the merge-base tree, so both branches can
+	// add files independently.
+	//
+	// The new contract: neither PR touches the baseline. The merge base
+	// count is the only reference. Both branches' tips and the merged
+	// develop tip all pass.
+	const mergeBase = { '.ts': 500, '.tsx': 498 };
+	const aLive = { '.ts': 501, '.tsx': 498 };
+	const bLive = { '.ts': 501, '.tsx': 498 };
+	const mergedDevelop = { '.ts': 502, '.tsx': 498 };
+	assert.doesNotThrow(
+		() => assertNoShrinkVsMergeBase(aLive, mergeBase),
+		`scenario 2: PR A's tip (+1 .ts) must pass without editing the baseline.`,
+	);
+	assert.doesNotThrow(
+		() => assertNoShrinkVsMergeBase(bLive, mergeBase),
+		`scenario 2: PR B's tip (+1 .ts) must pass without editing the baseline.`,
+	);
+	assert.doesNotThrow(
+		() => assertNoShrinkVsMergeBase(mergedDevelop, mergeBase),
+		`scenario 2: develop's push CI after merging both must pass.`,
 	);
 });
 
-void test('R10 RED: assertFloorsPinned fails when a scanned extension has no pinned floor', () => {
-	const liveCounts = { '.ts': 10, '.tsx': 5, '.mts': 3 };
-	const baseline = makeBaseline({ '.ts': 10, '.tsx': 5 });
+void test('#2033 RED: assertNoShrinkVsMergeBase fails when live shrinks below the merge-base count', () => {
+	// A regression that removes a .tsx file between the merge base and the
+	// PR tip must be loud, naming the extension and the gap.
+	const mergeBase = { '.ts': 10, '.tsx': 20 };
+	const live = { '.ts': 10, '.tsx': 18 };
 	assert.throws(
-		() => assertFloorsPinned(liveCounts, baseline),
-		/Guard #1769: floor values are not anchored to the live tree/,
+		() => assertNoShrinkVsMergeBase(live, mergeBase),
+		/Guard #1769: scan surface has shrunk below the merge-base count.*\.tsx.*base 20.*live 18/s,
+		'expected the guard to fail loudly naming the shrunk extension and the gap',
 	);
 });
 
-void test('R10 GREEN: assertFloorsPinned passes when every floor equals the live count', () => {
-	const liveCounts = { '.ts': 10, '.tsx': 5, '.cjs': 1 };
-	const baseline = makeBaseline({ '.ts': 10, '.tsx': 5, '.cjs': 1 });
-	assert.doesNotThrow(() => assertFloorsPinned(liveCounts, baseline));
+void test('#2033 RED: assertNoShrinkVsMergeBase fails on a zero-from-nonzero shrink', () => {
+	// The captain's exact mutation: a developer declares .tsx non-code and
+	// walks away. The live count of .tsx drops to 0. Under the old
+	// ratchet, the floor (300/498) caught this. Under the new shrink-only
+	// check, the merge-base count (500) catches it instead.
+	const mergeBase = { '.tsx': 500 };
+	const live = { '.tsx': 0 };
+	assert.throws(
+		() => assertNoShrinkVsMergeBase(live, mergeBase),
+		/Guard #1769: scan surface has shrunk below the merge-base count.*\.tsx/s,
+	);
+});
+
+void test('#2033 GREEN: a new code extension absent from the merge base is a grow', () => {
+	// A scanned extension present in the live tree but absent at the merge
+	// base is a *grow*, not a shrink — it must pass. The shrink-only check
+	// ignores the live set except for the merge-base set: a grow on any
+	// extension is silent. This test pins the asymmetry: silent grow,
+	// loud shrink.
+	const mergeBase = { '.ts': 10, '.tsx': 20 };
+	const live = { '.ts': 10, '.tsx': 20, '.mts': 3 };
+	assert.doesNotThrow(
+		() => assertNoShrinkVsMergeBase(live, mergeBase),
+		`growing a new extension is a silent win, not a violation`,
+	);
+});
+
+void test('#2033 GREEN: assertNoShrinkVsMergeBase passes when live equals the merge-base count exactly', () => {
+	// A no-op PR (no file adds, no file removes) must pass.
+	const mergeBase = { '.ts': 100, '.tsx': 200, '.cjs': 1 };
+	const live = { '.ts': 100, '.tsx': 200, '.cjs': 1 };
+	assert.doesNotThrow(() => assertNoShrinkVsMergeBase(live, mergeBase));
+});
+
+void test('#2033 GREEN: assertNoShrinkVsMergeBase passes when live grows above the merge-base count on every extension', () => {
+	// A pure file-add PR must pass.
+	const mergeBase = { '.ts': 100, '.tsx': 200 };
+	const live = { '.ts': 110, '.tsx': 220 };
+	assert.doesNotThrow(() => assertNoShrinkVsMergeBase(live, mergeBase));
+});
+
+void test('#2033 integration: anchored Git scans follow concurrent branches without baseline conflicts', () => {
+	const repo = mkdtempSync(path.join(tmpdir(), 'column-type-git-'));
+	sandboxes.push(repo);
+	const sourceRoot = path.join(repo, 'apps', 'front', 'src');
+	mkdirSync(sourceRoot, { recursive: true });
+	writeFileSync(
+		path.join(sourceRoot, 'base.ts'),
+		'export const base = true;\n',
+	);
+	writeFileSync(
+		path.join(sourceRoot, 'base.tsx'),
+		'export const Base = () => null;\n',
+	);
+	runGit(repo, ['init', '-q', '-b', 'develop']);
+	runGit(repo, ['config', 'user.email', 'column-type-guard@example.com']);
+	runGit(repo, ['config', 'user.name', 'column-type-guard']);
+	const base = commitGitTree(repo, 'base');
+
+	runGit(repo, ['checkout', '-qb', 'lane/a']);
+	writeFileSync(path.join(sourceRoot, 'a.ts'), 'export const a = true;\n');
+	commitGitTree(repo, 'branch a');
+
+	runGit(repo, ['checkout', 'develop']);
+	runGit(repo, ['checkout', '-qb', 'lane/b']);
+	writeFileSync(path.join(sourceRoot, 'b.ts'), 'export const b = true;\n');
+	commitGitTree(repo, 'branch b');
+
+	assert.deepEqual(
+		runGit(repo, ['diff', '--name-only', base, 'lane/a']).trim().split('\n'),
+		['apps/front/src/a.ts'],
+		'branch A must not edit a shared baseline file',
+	);
+	assert.deepEqual(
+		runGit(repo, ['diff', '--name-only', base, 'lane/b']).trim().split('\n'),
+		['apps/front/src/b.ts'],
+		'branch B must not edit a shared baseline file',
+	);
+
+	runGit(repo, ['checkout', 'lane/a']);
+	const mergeBase = resolveMergeBase(repo, 'develop');
+	assert.equal(
+		mergeBase,
+		base,
+		'the Git scan must use the true common ancestor',
+	);
+	assert.deepEqual(countExtensionsAtRef(mergeBase, 'apps/front/src', repo), {
+		'.ts': 1,
+		'.tsx': 1,
+	});
+	assert.deepEqual(
+		new Set(listFilesAtRef(mergeBase, 'apps/front/src', repo)),
+		new Set(['apps/front/src/base.ts', 'apps/front/src/base.tsx']),
+	);
+	assert.deepEqual(
+		scanFrontSrcForBannedImports(sourceRoot, {
+			gitCwd: repo,
+			integrationBranch: 'develop',
+		}),
+		[],
+		'branch A must pass while branch B is already ahead on develop',
+	);
+
+	runGit(repo, ['merge', '--no-ff', '-qm', 'merge branch b', 'lane/b']);
+	assert.deepEqual(
+		scanFrontSrcForBannedImports(sourceRoot, {
+			gitCwd: repo,
+			integrationBranch: 'develop',
+		}),
+		[],
+		'the merged branch must pass against its anchored integration branch',
+	);
+});
+
+void test('#2033: empty Git references and empty reference trees fail closed', () => {
+	const repo = mkdtempSync(path.join(tmpdir(), 'column-type-empty-git-'));
+	sandboxes.push(repo);
+	mkdirSync(path.join(repo, 'apps', 'front', 'src'), { recursive: true });
+	writeFileSync(
+		path.join(repo, 'apps', 'front', 'src', 'base.ts'),
+		'export const base = true;\n',
+	);
+	runGit(repo, ['init', '-q', '-b', 'develop']);
+	runGit(repo, ['config', 'user.email', 'column-type-guard@example.com']);
+	runGit(repo, ['config', 'user.name', 'column-type-guard']);
+	const base = commitGitTree(repo, 'base');
+
+	assert.throws(
+		() => resolveMergeBase(repo, ''),
+		/empty integration branch reference/,
+	);
+	assert.throws(
+		() => listFilesAtRef('', 'apps/front/src', repo),
+		/empty Git reference/,
+	);
+	assert.throws(
+		() => listFilesAtRef(base, 'apps/front/missing', repo),
+		/has no files under/,
+	);
+	assert.throws(
+		() => resolveMergeBase(repo, 'missing-integration'),
+		(error: unknown) =>
+			error instanceof Error &&
+			/cannot resolve the merge base/.test(error.message) &&
+			/fatal:/.test(error.message) &&
+			/missing-integration/.test(error.message),
+		'Git merge-base failures must retain actionable stderr',
+	);
+	assert.throws(
+		() => listFilesAtRef('missing-reference', 'apps/front/src', repo),
+		(error: unknown) =>
+			error instanceof Error &&
+			/cannot list files/.test(error.message) &&
+			/fatal:/.test(error.message) &&
+			/missing-reference/.test(error.message),
+		'Git ls-tree failures must retain actionable stderr',
+	);
+	runGit(repo, ['checkout', '--orphan', 'unrelated']);
+	runGit(repo, ['rm', '-rf', '--', '.']);
+	writeFileSync(path.join(repo, 'unrelated.txt'), 'unrelated\n');
+	commitGitTree(repo, 'unrelated history');
+	assert.throws(
+		() => resolveMergeBase(repo, 'develop'),
+		/cannot resolve the merge base/,
+		'an unrelated history must not produce an empty successful reference',
+	);
+});
+
+void test('#2033: Git error formatting preserves captured stderr', async () => {
+	const guard = (await import('./check-column-type-imports.mts')) as {
+		formatGitCommandError?: (error: unknown) => string;
+	};
+	assert.equal(
+		typeof guard.formatGitCommandError,
+		'function',
+		'Git command error formatting must be an explicit production helper',
+	);
+	const error = Object.assign(new Error('Command failed'), {
+		stderr: 'fatal: missing object',
+	});
+	assert.match(
+		guard.formatGitCommandError?.(error) ?? '',
+		/fatal: missing object/,
+	);
+});
+
+void test('#2033: an exact active code-file deletion declaration is accepted', () => {
+	const deleted = 'apps/front/src/retired.ts';
+	assert.deepEqual(
+		assertIntentionalDeletions(
+			['apps/front/src/keep.ts', deleted],
+			['apps/front/src/keep.ts'],
+			[deleted],
+			'apps/front/src',
+			['apps/front/src/keep.ts', deleted],
+		),
+		[deleted],
+	);
+});
+
+void test('#2033: an undeclared or stale deletion declaration is rejected', () => {
+	const deleted = 'apps/front/src/retired.ts';
+	assert.throws(
+		() =>
+			assertIntentionalDeletions(
+				['apps/front/src/keep.ts', deleted],
+				['apps/front/src/keep.ts'],
+				[],
+				'apps/front/src',
+				['apps/front/src/keep.ts', deleted],
+			),
+		/undeclared: apps\/front\/src\/retired\.ts/,
+	);
+	assert.throws(
+		() =>
+			assertIntentionalDeletions(
+				['apps/front/src/keep.ts', deleted],
+				['apps/front/src/keep.ts'],
+				['apps/front/src/other.ts'],
+				'apps/front/src',
+				['apps/front/src/keep.ts', deleted],
+			),
+		/invalid: apps\/front\/src\/other\.ts.*stale: apps\/front\/src\/other\.ts/s,
+	);
+});
+
+void test('#2033: deletion declarations cannot use directories, globs, or duplicates', () => {
+	const deleted = 'apps/front/src/retired.ts';
+	assert.throws(
+		() =>
+			assertIntentionalDeletions(
+				[deleted],
+				[],
+				['apps/front/src'],
+				'apps/front/src',
+				[deleted],
+			),
+		/invalid: apps\/front\/src/,
+	);
+	assert.throws(
+		() =>
+			assertIntentionalDeletions(
+				[deleted],
+				[],
+				[deleted, deleted],
+				'apps/front/src',
+				[deleted],
+			),
+		/duplicate: apps\/front\/src\/retired\.ts/,
+	);
+});
+
+void test('#2033: an exact deletion declaration expires after integration contains the deletion', () => {
+	const deleted = 'apps/front/src/retired.ts';
+	assert.throws(
+		() =>
+			assertIntentionalDeletions(
+				['apps/front/src/keep.ts', deleted],
+				['apps/front/src/keep.ts'],
+				[deleted],
+				'apps/front/src',
+				['apps/front/src/keep.ts'],
+			),
+		/integration reference.*apps\/front\/src\/retired\.ts/,
+		'an intentional deletion must not remain an escape after integration has the deletion',
+	);
+});
+
+void test('#2033 integration: an active exact deletion declaration is honored by the Git scan', () => {
+	const repo = mkdtempSync(path.join(tmpdir(), 'column-type-delete-git-'));
+	sandboxes.push(repo);
+	const sourceRoot = path.join(repo, 'apps', 'front', 'src');
+	const deleted = 'apps/front/src/retired.ts';
+	mkdirSync(sourceRoot, { recursive: true });
+	writeFileSync(
+		path.join(sourceRoot, 'keep.ts'),
+		'export const keep = true;\n',
+	);
+	writeFileSync(
+		path.join(sourceRoot, 'retired.ts'),
+		'export const retired = true;\n',
+	);
+	runGit(repo, ['init', '-q', '-b', 'develop']);
+	runGit(repo, ['config', 'user.email', 'column-type-guard@example.com']);
+	runGit(repo, ['config', 'user.name', 'column-type-guard']);
+	commitGitTree(repo, 'base');
+	runGit(repo, ['checkout', '-qb', 'lane/delete']);
+	runGit(repo, ['rm', '--', 'apps/front/src/retired.ts']);
+	commitGitTree(repo, 'delete one code file');
+
+	const baseline = JSON.parse(
+		readFileSync(
+			path.resolve(here, 'column-type-imports-baseline.json'),
+			'utf8',
+		),
+	) as Record<string, unknown>;
+	const baselinePath = path.join(repo, 'column-type-imports-baseline.json');
+	baseline.intentionalDeletions = [deleted];
+	writeFileSync(baselinePath, JSON.stringify(baseline));
+	assert.deepEqual(
+		scanFrontSrcForBannedImports(sourceRoot, {
+			baselinePath,
+			gitCwd: repo,
+			integrationBranch: 'develop',
+		}),
+		[],
+		'exactly declared deletion should be removed from the reference count',
+	);
+
+	runGit(repo, ['checkout', 'develop']);
+	runGit(repo, ['rm', '--', 'apps/front/src/retired.ts']);
+	commitGitTree(repo, 'integrate deletion');
+	runGit(repo, ['checkout', 'lane/delete']);
+	writeFileSync(baselinePath, JSON.stringify(baseline));
+	assert.throws(
+		() =>
+			scanFrontSrcForBannedImports(sourceRoot, {
+				baselinePath,
+				gitCwd: repo,
+				integrationBranch: 'develop',
+			}),
+		/integration reference.*apps\/front\/src\/retired\.ts/,
+		'an integrated deletion must make the temporary declaration stale',
+	);
+
+	baseline.intentionalDeletions = [];
+	writeFileSync(baselinePath, JSON.stringify(baseline));
+	assert.throws(
+		() =>
+			scanFrontSrcForBannedImports(sourceRoot, {
+				baselinePath,
+				gitCwd: repo,
+				integrationBranch: 'develop',
+			}),
+		/undeclared: apps\/front\/src\/retired\.ts/,
+		'without the declaration the real scan must expose the deletion',
+	);
 });
