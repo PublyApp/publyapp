@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
+	registerPost: vi.fn(),
 	requestPasswordResetPost: vi.fn(),
 	requestEmailVerificationPost: vi.fn(),
 	checkEmailVerificationTokenGet: vi.fn(),
@@ -10,6 +11,7 @@ const mocks = vi.hoisted(() => ({
 vi.mock('../api-client/client-manager', () => ({
 	createClient: () => ({
 		auth: {
+			register: { post: mocks.registerPost },
 			requestPasswordReset: { post: mocks.requestPasswordResetPost },
 			verifyEmailRequest: { post: mocks.requestEmailVerificationPost },
 			checkEmailVerificationToken: {
@@ -63,6 +65,7 @@ import {
 	checkEmailVerificationToken,
 	checkResetPasswordToken,
 	RegisterInputSchema,
+	registerAndRequestEmailVerification,
 	requestEmailVerification,
 	requestPasswordReset,
 } from './auth-actions';
@@ -153,10 +156,97 @@ describe('requestEmailVerification', () => {
 	test('still calls verify-email-request, unaffected by the reset-password split', async () => {
 		mocks.requestEmailVerificationPost.mockResolvedValue({ status: 'success' });
 
-		await requestEmailVerification({ data: { email: 'rui@latticecloud.com' } });
+		await expect(
+			requestEmailVerification({ data: { email: 'rui@latticecloud.com' } }),
+		).resolves.toEqual({ status: 'sent' });
 
 		expect(mocks.requestEmailVerificationPost).toHaveBeenCalledTimes(1);
 		expect(mocks.requestPasswordResetPost).not.toHaveBeenCalled();
+	});
+
+	const failures: Array<[string, unknown]> = [
+		['404', { responseStatusCode: 404, detail: 'User not found' }],
+		['400', { responseStatusCode: 400, detail: 'Email already verified' }],
+		['5xx', { responseStatusCode: 503, detail: 'Mail provider unavailable' }],
+		['network', new TypeError('Failed to fetch')],
+	];
+
+	test.each(failures)(
+		'returns the same success-shaped result for a %s failure',
+		async (_label, error) => {
+			mocks.requestEmailVerificationPost.mockRejectedValue(error);
+
+			await expect(
+				requestEmailVerification({ data: { email: 'rui@latticecloud.com' } }),
+			).resolves.toEqual({ status: 'sent' });
+		},
+	);
+
+	test('does not include a delivery failure cause in the anonymous result', async () => {
+		mocks.requestEmailVerificationPost.mockRejectedValue({
+			responseStatusCode: 503,
+			detail: 'Mail provider unavailable',
+		});
+
+		const result = await requestEmailVerification({
+			data: { email: 'rui@latticecloud.com' },
+		});
+
+		expect(result).toEqual({ status: 'sent' });
+		expect(result).not.toHaveProperty('cause');
+	});
+});
+
+describe('registerAndRequestEmailVerification', () => {
+	beforeEach(() => {
+		vi.clearAllMocks();
+	});
+
+	const data = {
+		firstName: 'Rui',
+		lastName: 'Matsuda',
+		email: 'rui@latticecloud.com',
+		password: 'correct horse battery staple',
+	};
+
+	test('registers and requests verification before returning the sent result', async () => {
+		mocks.registerPost.mockResolvedValue({ id: 'user-1', email: data.email });
+		mocks.requestEmailVerificationPost.mockResolvedValue({ status: 'success' });
+
+		await expect(
+			registerAndRequestEmailVerification({ data }),
+		).resolves.toEqual({
+			status: 'sent',
+			email: data.email,
+		});
+
+		expect(mocks.registerPost).toHaveBeenCalledTimes(1);
+		expect(mocks.requestEmailVerificationPost).toHaveBeenCalledTimes(1);
+	});
+
+	test('returns a serialized delivery cause only after registration succeeds', async () => {
+		mocks.registerPost.mockResolvedValue({ id: 'user-1', email: data.email });
+		mocks.requestEmailVerificationPost.mockRejectedValue({
+			responseStatusCode: 503,
+			detail: 'Mail provider unavailable',
+			title: 'Service unavailable',
+		});
+
+		await expect(
+			registerAndRequestEmailVerification({ data }),
+		).resolves.toEqual({
+			status: 'failed',
+			email: data.email,
+			cause: {
+				kind: 'problem',
+				status: 503,
+				detail: 'Mail provider unavailable',
+				title: 'Service unavailable',
+			},
+		});
+
+		expect(mocks.registerPost).toHaveBeenCalledTimes(1);
+		expect(mocks.requestEmailVerificationPost).toHaveBeenCalledTimes(1);
 	});
 });
 

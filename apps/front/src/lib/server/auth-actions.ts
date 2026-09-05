@@ -2,6 +2,7 @@ import { createUntypedString } from '@microsoft/kiota-abstractions';
 import { createServerFn } from '@tanstack/react-start';
 import { z } from 'zod';
 
+import { toApiFailure } from '@org/shared-ts/lib/api-failure/to-api-failure';
 import { PASSWORD_MIN_LENGTH } from '@org/shared-ts/lib/auth-password-policy';
 import InterZod, {
 	type InterZodTranslator,
@@ -23,6 +24,16 @@ type RegisterResult = {
 	id: string;
 	email: string;
 };
+
+export type SerializedDeliveryFailure =
+	| {
+			kind: 'problem';
+			status: number;
+			title?: string;
+			detail?: string;
+	  }
+	| { kind: 'network' }
+	| { kind: 'unknown' };
 
 /**
  * This validator never renders its messages to the user — a thrown
@@ -50,27 +61,27 @@ export const RegisterInputSchema = getRegisterSchema(structuralZod)
 	.omit({ password: true })
 	.extend({ password: z.string().min(PASSWORD_MIN_LENGTH).max(64) });
 
-export const register = createServerFn({ method: 'POST' })
-	.validator((data): RegisterInput => RegisterInputSchema.parse(data))
-	.handler(async ({ data }): Promise<RegisterResult> => {
-		const client = createClient({ getSessionToken: () => undefined });
-		const body = {
-			firstName: createUntypedString(data.firstName),
-			lastName: createUntypedString(data.lastName),
-			email: createUntypedString(data.email),
-			password: createUntypedString(data.password),
-		} as Parameters<typeof client.auth.register.post>[0];
+const registerWithClient = async (
+	client: ReturnType<typeof createClient>,
+	data: RegisterInput,
+): Promise<RegisterResult> => {
+	const body = {
+		firstName: createUntypedString(data.firstName),
+		lastName: createUntypedString(data.lastName),
+		email: createUntypedString(data.email),
+		password: createUntypedString(data.password),
+	} as Parameters<typeof client.auth.register.post>[0];
 
-		try {
-			const result = await client.auth.register.post(body);
-			return {
-				id: result?.id ?? '',
-				email: result?.email ?? data.email,
-			};
-		} catch (error) {
-			return throwServerFailure(error, 'registration failed');
-		}
-	});
+	try {
+		const result = await client.auth.register.post(body);
+		return {
+			id: result?.id ?? '',
+			email: result?.email ?? data.email,
+		};
+	} catch (error) {
+		return throwServerFailure(error, 'registration failed');
+	}
+};
 
 type EmailInput = {
 	email: string;
@@ -80,31 +91,81 @@ const EmailInputSchema = z.object({
 	email: z.email().min(1).max(120),
 });
 
+const requestEmailVerificationWithClient = async (
+	client: ReturnType<typeof createClient>,
+	data: EmailInput,
+): Promise<void> => {
+	const body = {
+		email: createUntypedString(data.email),
+	} as Parameters<typeof client.auth.verifyEmailRequest.post>[0];
+
+	await client.auth.verifyEmailRequest.post(body);
+};
+
 /**
- * Backs the verify-email request/resend screen and the signup confirmation
- * step. The reset-password request screen uses the dedicated
- * `requestPasswordReset` below — this action only ever sends a
- * verification email, never a reset link.
- *
- * The underlying API call's outcome is deliberately swallowed (success or
- * 404-user-not-found alike) so a submitted email can never be used to probe
- * whether an account exists (old-front verify-email action was archived in `docs/archive/old-front`).
+ * The anonymous resend intentionally has one result for every API and
+ * transport outcome. It must not reveal whether an account exists.
  */
 export const requestEmailVerification = createServerFn({ method: 'POST' })
 	.validator((data): EmailInput => EmailInputSchema.parse(data))
 	.handler(async ({ data }) => {
 		const client = createClient({ getSessionToken: () => undefined });
-		const body = {
-			email: createUntypedString(data.email),
-		} as Parameters<typeof client.auth.verifyEmailRequest.post>[0];
 
 		try {
-			await client.auth.verifyEmailRequest.post(body);
+			await requestEmailVerificationWithClient(client, data);
 		} catch {
-			// Intentionally swallowed — see doc comment above.
+			return { status: 'sent' } as const;
 		}
 
 		return { status: 'sent' } as const;
+	});
+
+const serializeDeliveryFailure = (
+	error: unknown,
+): SerializedDeliveryFailure => {
+	const failure = toApiFailure(error);
+
+	if (failure.kind === 'problem' || failure.kind === 'validation') {
+		const serialized: Extract<SerializedDeliveryFailure, { kind: 'problem' }> =
+			{
+				kind: 'problem',
+				status: failure.status,
+			};
+		if (failure.title) {
+			serialized.title = failure.title;
+		}
+		if (failure.detail) {
+			serialized.detail = failure.detail;
+		}
+		return serialized;
+	}
+
+	if (failure.kind === 'network') {
+		return { kind: 'network' };
+	}
+
+	return { kind: 'unknown' };
+};
+
+export const registerAndRequestEmailVerification = createServerFn({
+	method: 'POST',
+})
+	.validator((data): RegisterInput => RegisterInputSchema.parse(data))
+	.handler(async ({ data }) => {
+		const client = createClient({ getSessionToken: () => undefined });
+		const result = await registerWithClient(client, data);
+
+		try {
+			await requestEmailVerificationWithClient(client, { email: result.email });
+		} catch (error) {
+			return {
+				status: 'failed',
+				email: result.email,
+				cause: serializeDeliveryFailure(error),
+			} as const;
+		}
+
+		return { status: 'sent', email: result.email } as const;
 	});
 
 /**
