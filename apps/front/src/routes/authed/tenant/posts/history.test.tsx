@@ -85,11 +85,11 @@ const EN_LABELS: TestLabelMap = {
 	'posts:publication-failed-cause': 'Failed: {{cause}}',
 	'posts:publication-paused-cause': 'Paused: {{cause}}',
 	'posts:publication-paused-next-action':
-		'Reconnect the account in Settings → Integrations to resume.',
+		'Reconnect the account in Settings under Integrations to resume.',
 	'posts:publication-paused-next-action-aria':
 		'Reconnect paused account to resume',
 	'posts:publication-paused-next-action-link':
-		'Reconnect account in Settings → Integrations',
+		'Reconnect account in Settings under Integrations',
 	'common:updated-at': 'Updated at',
 };
 
@@ -233,7 +233,7 @@ describe('TenantPostsHistoryPage', () => {
 		const cause = screen.getByTestId('tenant-posts-publication-cause');
 		expect(cause.textContent).toContain('Paused: account disconnected');
 		expect(cause.getAttribute('title')).toBe(
-			'Reconnect the account in Settings → Integrations to resume.',
+			'Reconnect the account in Settings under Integrations to resume.',
 		);
 		const recoveryLink = screen.getByRole('link', {
 			name: 'Reconnect paused account to resume',

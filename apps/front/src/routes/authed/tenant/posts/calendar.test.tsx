@@ -88,11 +88,11 @@ const EN_LABELS: TestLabelMap = {
 	'publish-status-paused': 'Paused',
 	'posts:publication-paused-cause': 'Paused: {{cause}}',
 	'posts:publication-paused-next-action':
-		'Reconnect the account in Settings → Integrations to resume.',
+		'Reconnect the account in Settings under Integrations to resume.',
 	'posts:publication-paused-next-action-aria':
 		'Reconnect paused account to resume',
 	'posts:publication-paused-next-action-link':
-		'Reconnect account in Settings → Integrations',
+		'Reconnect account in Settings under Integrations',
 	'common:calendar': 'Calendar',
 	'common:list-unavailable-title': 'List unavailable',
 	'common:list-error-default-description': 'An error occurred.',
@@ -277,7 +277,7 @@ describe('TenantPostsCalendarPage', () => {
 		const cause = screen.getByTestId('tenant-posts-publication-cause');
 		expect(cause.textContent).toContain('Paused: account disconnected');
 		expect(cause.getAttribute('title')).toBe(
-			'Reconnect the account in Settings → Integrations to resume.',
+			'Reconnect the account in Settings under Integrations to resume.',
 		);
 		const recoveryLink = screen.getByRole('link', {
 			name: 'Reconnect paused account to resume',

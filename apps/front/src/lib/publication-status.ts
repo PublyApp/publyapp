@@ -55,21 +55,3 @@ export const publicationStatusPresentation = (
 	}
 	return PUBLICATION_STATUS_PRESENTATION[status];
 };
-
-/** Maps a publication wire status to a StatusPillTone. Unknown/null statuses
- * map to 'neutral' (the explicit fallback). Kept as a thin wrapper for
- * existing call sites; new code should prefer `publicationStatusPresentation`. */
-export const publicationStatusTone = (
-	status: string | null,
-): 'danger' | 'info' | 'neutral' | 'primary' | 'success' | 'warning' =>
-	publicationStatusPresentation(status)?.tone ?? 'neutral';
-
-/**
- * Returns the i18n label key for a publication wire status, or null for
- * unknown statuses (the neutral fallback renders '—' at the call site).
- * Thin wrapper kept for existing call sites; new code should prefer
- * `publicationStatusPresentation`.
- */
-export const publicationStatusLabelKey = (
-	status: string | null,
-): string | null => publicationStatusPresentation(status)?.labelKey ?? null;
