@@ -11,6 +11,11 @@ import { join, resolve } from 'node:path';
 
 import { expect, test } from 'vitest';
 
+import {
+	processGroupStillExists,
+	signalChildTree,
+} from '../../../scripts/run-e2e-front.mts';
+
 /**
  * KEPT RED PROOF — issue #1611.
  *
@@ -80,21 +85,6 @@ const readChildOutput = (current: string, chunk: Buffer | string): string => {
 
 	const remaining = MAX_OUTPUT_LENGTH - current.length;
 	return current + chunk.toString().slice(0, remaining);
-};
-
-const terminateProcessTree = (
-	child: { pid?: number; kill: (signal: NodeJS.Signals) => boolean },
-	signal: NodeJS.Signals,
-): void => {
-	if (child.pid === undefined || child.pid <= 0) {
-		return;
-	}
-
-	try {
-		process.kill(-child.pid, signal);
-	} catch {
-		child.kill(signal);
-	}
 };
 
 const runGit = (args: string[]): GitResult => {
@@ -188,6 +178,8 @@ const runBoundedE2E = (worktreePath: string): Promise<JourneyResult> =>
 		let timedOut = false;
 		let settled = false;
 		let killTimer: NodeJS.Timeout | undefined;
+		let groupPollTimer: NodeJS.Timeout | undefined;
+		let postKillTimer: NodeJS.Timeout | undefined;
 
 		const finish = (result: JourneyResult): void => {
 			if (settled) {
@@ -198,29 +190,74 @@ const runBoundedE2E = (worktreePath: string): Promise<JourneyResult> =>
 			if (killTimer !== undefined) {
 				clearTimeout(killTimer);
 			}
+			if (groupPollTimer !== undefined) {
+				clearTimeout(groupPollTimer);
+			}
+			if (postKillTimer !== undefined) {
+				clearTimeout(postKillTimer);
+			}
 			process.removeListener('SIGINT', onSignal);
 			process.removeListener('SIGTERM', onSignal);
 			resolveResult(result);
 		};
 
-		const onSignal = (): void => {
-			if (settled) {
+		const finishTimedOut = (): void => {
+			stderr += `\nE2E proof child exceeded ${CHILD_TIMEOUT_MS}ms and was terminated.`;
+			finish({ status: 124, stdout, stderr });
+		};
+
+		const waitForTreeTermination = (): void => {
+			postKillTimer = setTimeout(() => {
+				if (
+					process.platform !== 'win32' &&
+					processGroupStillExists(child.pid)
+				) {
+					// Keep the wrapper bounded even if the platform probe cannot
+					// prove that an already SIGKILLed group has disappeared.
+					stderr +=
+						'\nMESURE IMPOSSIBLE: forced proof child group termination was not observed.';
+					signalChildTree(child, 'SIGKILL');
+				}
+				finishTimedOut();
+			}, CHILD_TERM_GRACE_MS);
+
+			if (process.platform === 'win32') {
+				// taskkill /T /F has no process-group probe on Windows. Give the
+				// tree a bounded settling window after the forced kill.
+				return;
+			}
+
+			const poll = (): void => {
+				if (!processGroupStillExists(child.pid)) {
+					finishTimedOut();
+					return;
+				}
+				groupPollTimer = setTimeout(poll, 50);
+			};
+
+			poll();
+		};
+
+		const requestTermination = (): void => {
+			if (settled || timedOut) {
 				return;
 			}
 			timedOut = true;
-			terminateProcessTree(child, 'SIGTERM');
+			signalChildTree(child, 'SIGTERM');
 			killTimer = setTimeout(() => {
-				terminateProcessTree(child, 'SIGKILL');
+				if (settled) {
+					return;
+				}
+				signalChildTree(child, 'SIGKILL');
+				waitForTreeTermination();
 			}, CHILD_TERM_GRACE_MS);
 		};
 
-		const timeoutTimer = setTimeout(() => {
-			timedOut = true;
-			terminateProcessTree(child, 'SIGTERM');
-			killTimer = setTimeout(() => {
-				terminateProcessTree(child, 'SIGKILL');
-			}, CHILD_TERM_GRACE_MS);
-		}, CHILD_TIMEOUT_MS);
+		const onSignal = (): void => {
+			requestTermination();
+		};
+
+		const timeoutTimer = setTimeout(requestTermination, CHILD_TIMEOUT_MS);
 
 		child.stdout?.on('data', (chunk: Buffer | string) => {
 			stdout = readChildOutput(stdout, chunk);
@@ -229,12 +266,21 @@ const runBoundedE2E = (worktreePath: string): Promise<JourneyResult> =>
 			stderr = readChildOutput(stderr, chunk);
 		});
 		child.once('error', (error) => {
+			if (timedOut) {
+				stderr += `\nE2E proof child error during termination: ${errorText(error)}`;
+				return;
+			}
 			finish({ status: null, stdout, stderr, error });
 		});
 		child.once('exit', (status, signal) => {
 			if (timedOut) {
-				stderr += `\nE2E proof child exceeded ${CHILD_TIMEOUT_MS}ms and was terminated.`;
-				finish({ status: 124, stdout, stderr });
+				// The leader can exit while a TERM-resistant descendant keeps the
+				// detached group alive. Leave the escalation armed until the group
+				// probe proves that the whole tree is gone.
+				if (processGroupStillExists(child.pid)) {
+					return;
+				}
+				finishTimedOut();
 				return;
 			}
 

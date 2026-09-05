@@ -172,12 +172,18 @@ export const signalChildTree = (
 };
 
 /** Whether a POSIX process group still has a member after its leader exits. */
-const processGroupStillExists = (pid: number | undefined): boolean => {
-	if (process.platform === 'win32' || pid === undefined || pid <= 0) {
+export const processGroupStillExists = (
+	pid: number | undefined,
+	platform: NodeJS.Platform = process.platform,
+	probe: (groupPid: number) => void = (groupPid) => {
+		process.kill(-groupPid, 0);
+	},
+): boolean => {
+	if (platform === 'win32' || pid === undefined || pid <= 0) {
 		return true;
 	}
 	try {
-		process.kill(-pid, 0);
+		probe(pid);
 		return true;
 	} catch (error) {
 		// Only ESRCH proves the group disappeared; EPERM and every other
