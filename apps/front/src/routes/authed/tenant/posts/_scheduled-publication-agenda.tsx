@@ -8,7 +8,10 @@ import {
 	ScheduledPublicationStatus,
 	ScheduledPublicationTime,
 } from './_scheduled-publication-display';
-import { groupScheduledPublicationsByViewerDate } from './_scheduled-publication-helpers';
+import {
+	formatCalendarDay,
+	groupScheduledPublicationsByViewerDate,
+} from './_scheduled-publication-helpers';
 
 const ScheduledPublicationIdentity = ({
 	row,
@@ -47,6 +50,8 @@ export const ScheduledPublicationAgenda = ({
 }: {
 	rows: ScheduledPublicationRow[];
 }) => {
+	const { i18n } = useTranslation('posts');
+	const language = i18n.resolvedLanguage ?? i18n.language;
 	const groups = groupScheduledPublicationsByViewerDate(rows);
 
 	return (
@@ -59,7 +64,9 @@ export const ScheduledPublicationAgenda = ({
 				>
 					<CardHeader>
 						<CardTitle>
-							<time dateTime={group.date}>{group.date}</time>
+							<time dateTime={group.date}>
+								{formatCalendarDay(group.date, language)}
+							</time>
 						</CardTitle>
 					</CardHeader>
 					<CardContent className="divide-y divide-border">

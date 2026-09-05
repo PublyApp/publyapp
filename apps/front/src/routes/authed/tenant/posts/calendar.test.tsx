@@ -16,6 +16,7 @@ import type { TestLabelMap } from '~/lib/testing/test-label-map';
 
 const mocks = vi.hoisted(() => ({
 	shouldLogout: false,
+	language: 'en',
 }));
 
 vi.mock('~/lib/api-client/client-manager', () => ({
@@ -106,7 +107,7 @@ vi.mock('react-i18next', () => ({
 				EN_LABELS[key] ?? EN_LABELS[key.replace(/^posts:/, '')] ?? key;
 			return options?.cause ? value.replace('{{cause}}', options.cause) : value;
 		},
-		i18n: { resolvedLanguage: 'en', language: 'en' },
+		i18n: { resolvedLanguage: mocks.language, language: mocks.language },
 	}),
 }));
 
@@ -128,6 +129,7 @@ const renderPage = () => {
 };
 
 beforeEach(() => {
+	mocks.language = 'en';
 	process.env.TZ = 'Europe/Paris';
 	vi.useFakeTimers({ toFake: ['Date'] });
 	vi.setSystemTime(new Date('2026-08-01T01:00:00.000Z'));
@@ -170,12 +172,38 @@ describe('TenantPostsCalendarPage', () => {
 			await screen.findByText('First local day stays visible'),
 		).toBeTruthy();
 		const day = screen.getByTestId('tenant-posts-calendar-day-2026-08-01');
-		expect(day.textContent).toContain('2026-08-01 00:30');
+		expect(day.textContent).toContain('Sat, Aug 1, 2026, 12:30 AM');
 		expect(day.textContent).toContain('Europe/Paris');
 		expect(
 			screen.queryByTestId('tenant-posts-calendar-day-2026-07-31'),
 		).toBeNull();
 		expect(screen.queryByText(/coming later/i)).toBeNull();
+	});
+
+	test('renders calendar dates in the active French locale', async () => {
+		mocks.language = 'fr';
+		allPagesMock.rows = [
+			{
+				id: 'pub-french-calendar',
+				publicationId: 'pub-french-calendar',
+				postId: 'post-french-calendar',
+				postBodyPreview: 'French calendar entry',
+				accountDisplayHandle: '@paris.example',
+				status: 'scheduled',
+				postStatus: 'scheduled',
+				lastError: null,
+				scheduledAtUtc: new Date('2026-07-31T22:30:00.000Z'),
+				scheduledAtLocal: '2026-08-01T00:30:00+02:00',
+				timeZone: 'Europe/Paris',
+			},
+		];
+		renderPage();
+
+		const day = await screen.findByTestId(
+			'tenant-posts-calendar-day-2026-08-01',
+		);
+		expect(day.textContent).toContain('sam. 1 août 2026');
+		expect(day.textContent).toContain('sam. 1 août 2026, 0:30');
 	});
 
 	test('uses the standard empty state for a month without rows', async () => {
