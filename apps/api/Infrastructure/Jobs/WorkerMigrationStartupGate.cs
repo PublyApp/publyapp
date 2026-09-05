@@ -16,8 +16,9 @@ public sealed record WorkerMigrationStartupGateOptions {
 /// log reported `Compose Type: docker-compose`), and the committed `dokploy.yml` declares no
 /// `depends_on` between services. Compose therefore offers no ordering or completion guarantee,
 /// so the one-shot `publyapp-migrate` task can still be applying migrations while the api and
-/// worker containers come up. The worker must not process jobs (or, under `FailFastWhenMigrationsPending`,
-/// even finish host startup) until migrations are applied, hence this gate runs first and waits
+/// worker containers come up. The worker must not process jobs or, under
+/// `FailFastWhenMigrationsPending`, even finish host startup until migrations are applied, hence
+/// this gate runs first and waits
 /// up to <see cref="WorkerMigrationStartupGateOptions.Timeout"/>, keeping its liveness heartbeat
 /// fresh the whole time.
 /// </summary>
@@ -61,7 +62,8 @@ public sealed class WorkerMigrationStartupGate : IHostedService {
 					DateTime.UtcNow,
 					waitToken
 				);
-				if (await _migrationReadiness.IsReadyAsync(waitToken)) {
+				var readiness = await _migrationReadiness.IsReadyAsync(waitToken);
+				if (readiness.IsReady) {
 					_logger.LogInformation(
 						"Database migrations are applied; worker startup may continue"
 					);
