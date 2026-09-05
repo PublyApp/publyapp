@@ -81,7 +81,16 @@
 /**
  * @vitest-environment jsdom
  */
-import { readFileSync, readdirSync, unlinkSync, writeFileSync } from 'node:fs';
+import {
+	existsSync,
+	mkdirSync,
+	readFileSync,
+	readdirSync,
+	rmSync,
+	unlinkSync,
+	writeFileSync,
+} from 'node:fs';
+import { createRequire } from 'node:module';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -90,7 +99,7 @@ import type { i18n as I18nInstance } from 'i18next';
 import { createElement, type ReactElement, type ReactNode } from 'react';
 import { I18nextProvider, initReactI18next, Trans } from 'react-i18next';
 import { ts } from 'ts-morph';
-import { beforeEach, afterEach, describe, expect, test, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
 import resourceEN from '../../i18n/locales/en';
 import resourceFR from '../../i18n/locales/fr';
@@ -627,27 +636,77 @@ const THIS_FILE = import.meta.url.startsWith('file:')
 	? fileURLToPath(import.meta.url)
 	: import.meta.url;
 const SRC_ROOT = path.resolve(THIS_FILE, '..', '..', '..');
+const guardTempDirRequire = createRequire(import.meta.url);
+const { createGuardTempDir } = guardTempDirRequire(
+	'../../components/ui/drawer-guard-tmp-dir.cjs',
+) as {
+	createGuardTempDir: (prefix: string) => {
+		dir: string;
+		remove: () => void;
+	};
+};
+const TRANS_FIXTURE_TMP_DIR = createGuardTempDir('publy-trans-guard-').dir;
+
+const fixturePath = (relative: string): string => {
+	const filePath = path.join(TRANS_FIXTURE_TMP_DIR, relative);
+	mkdirSync(path.dirname(filePath), { recursive: true });
+	return filePath;
+};
+
 const readSource = (relative: string): string =>
 	readFileSync(path.join(SRC_ROOT, relative), 'utf8');
 
-/**
- * Lists every source file under src, excluding the suite/spec/stories/d.ts
- * shapes listed above.
- */
-const listSourceFiles = (): string[] => {
-	const files: string[] = [];
+const isEnoent = (error: unknown): boolean =>
+	error instanceof Error && 'code' in error && error.code === 'ENOENT';
 
-	const walk = (relative: string): void => {
-		for (const entry of readdirSync(path.join(SRC_ROOT, relative), {
-			withFileTypes: true,
-		})) {
+type BeforeDirectoryRead = (directory: string) => void;
+
+const readDirectoryEntries = (
+	directory: string,
+	allowMissing: boolean,
+	beforeRead?: BeforeDirectoryRead,
+) => {
+	try {
+		beforeRead?.(directory);
+		return readdirSync(directory, { withFileTypes: true });
+	} catch (error) {
+		if (allowMissing && isEnoent(error)) {
+			return [];
+		}
+		throw error;
+	}
+};
+
+/**
+ * Lists every source file under src and any explicitly supplied fixture root,
+ * excluding the suite/spec/stories/d.ts shapes listed above.
+ */
+type ScannedSourcePath = {
+	absolutePath: string;
+	relativePath: string;
+};
+
+const listSourceFiles = (
+	additionalRoots: readonly string[] = [],
+	beforeDirectoryRead?: BeforeDirectoryRead,
+): ScannedSourcePath[] => {
+	const files: ScannedSourcePath[] = [];
+
+	const walk = (root: string, relative: string, isRoot: boolean): void => {
+		const entries = readDirectoryEntries(
+			path.join(root, relative),
+			!isRoot,
+			beforeDirectoryRead,
+		);
+
+		for (const entry of entries) {
 			const child = `${relative}${relative === '' ? '' : '/'}${entry.name}`;
 
 			if (entry.isDirectory()) {
-				if (child === 'e2e') {
+				if (root === SRC_ROOT && child === 'e2e') {
 					continue;
 				}
-				walk(child);
+				walk(root, child, false);
 				continue;
 			}
 
@@ -666,13 +725,23 @@ const listSourceFiles = (): string[] => {
 			if (child.endsWith('.stories.tsx')) {
 				continue;
 			}
-			files.push(child);
+			files.push({
+				absolutePath: path.join(root, child),
+				relativePath: child,
+			});
 		}
 	};
 
-	walk('');
+	walk(SRC_ROOT, '', true);
+	for (const root of additionalRoots) {
+		walk(root, '', true);
+	}
 
-	return files.sort();
+	return files.sort(
+		(left, right) =>
+			left.relativePath.localeCompare(right.relativePath) ||
+			left.absolutePath.localeCompare(right.absolutePath),
+	);
 };
 
 type SourceFileWithParseDiagnostics = ts.SourceFile & {
@@ -732,18 +801,40 @@ export type DiscoveredTransSite = {
  * tag name is exactly `Trans`, with its static `i18nKey` / `ns` attributes
  * when present.
  */
-const discoverTransCallSites = (): DiscoveredTransSite[] => {
+type SourceReader = (filePath: string) => string;
+
+const discoverTransCallSites = (
+	options: {
+		additionalRoots?: readonly string[];
+		beforeDirectoryRead?: BeforeDirectoryRead;
+		readSourceFile?: SourceReader;
+	} = {},
+): DiscoveredTransSite[] => {
 	const sites: DiscoveredTransSite[] = [];
 	let sawTransImport = false;
+	const readSourceFile =
+		options.readSourceFile ??
+		((filePath: string) => readFileSync(filePath, 'utf8'));
 
-	for (const relative of listSourceFiles()) {
-		const source = readFileSync(path.join(SRC_ROOT, relative), 'utf8');
+	for (const { absolutePath, relativePath } of listSourceFiles(
+		options.additionalRoots,
+		options.beforeDirectoryRead,
+	)) {
+		let source: string;
+		try {
+			source = readSourceFile(absolutePath);
+		} catch (error) {
+			if (isEnoent(error)) {
+				continue;
+			}
+			throw error;
+		}
 
 		if (!source.includes('react-i18next')) {
 			continue;
 		}
 
-		const sourceFile = createScannedSourceFile(source, relative);
+		const sourceFile = createScannedSourceFile(source, relativePath);
 
 		// Every LOCAL name this file binds to react-i18next's `Trans`
 		// (#1312 round 2): a named import binds "Trans", an aliased named
@@ -837,7 +928,11 @@ const discoverTransCallSites = (): DiscoveredTransSite[] => {
 			if (isTransTag(node) && ts.isJsxElement(node)) {
 				sawTransImport = true;
 				sites.push(
-					describeSite(relative, sourceFile, node.openingElement.attributes),
+					describeSite(
+						relativePath,
+						sourceFile,
+						node.openingElement.attributes,
+					),
 				);
 				// Nested <Trans> inside <Trans> children would double-count the
 				// outer element's own text; react-i18next does not nest them and
@@ -845,7 +940,7 @@ const discoverTransCallSites = (): DiscoveredTransSite[] => {
 				// still discovered as its own site.
 			} else if (isTransTag(node) && ts.isJsxSelfClosingElement(node)) {
 				sawTransImport = true;
-				sites.push(describeSite(relative, sourceFile, node.attributes));
+				sites.push(describeSite(relativePath, sourceFile, node.attributes));
 			}
 
 			node.forEachChild(visit);
@@ -1007,7 +1102,7 @@ describe('real-<Trans> render guard over the real route files (#1285)', () => {
 	});
 
 	// Scratch-route proof cases (#1312 rounds 1–2; #1333): the scanner walks
-	// real files under src at module-eval time, so each proof plants a
+	// the real src tree plus a per-run fixture root, so each proof plants a
 	// scratch source file (the `_` prefix keeps it out of routing and out of
 	// barrels), asserts what discovery must do with it, and removes it in a
 	// finally so no other test sees it.
@@ -1101,10 +1196,12 @@ describe('real-<Trans> render guard over the real route files (#1285)', () => {
 	} of proofCases) {
 		test(title, () => {
 			const relative = `routes/${fileName}`;
-			writeFileSync(path.join(SRC_ROOT, relative), `${body}\n`);
+			writeFileSync(fixturePath(relative), `${body}\n`);
 
 			try {
-				const sites = discoverTransCallSites();
+				const sites = discoverTransCallSites({
+					additionalRoots: [TRANS_FIXTURE_TMP_DIR],
+				});
 				const found = sites.filter((site) => site.file === relative);
 
 				if (!expectDiscovered) {
@@ -1141,7 +1238,7 @@ describe('real-<Trans> render guard over the real route files (#1285)', () => {
 					'red must name a real line number',
 				).toBeGreaterThan(0);
 			} finally {
-				unlinkSync(path.join(SRC_ROOT, relative));
+				unlinkSync(fixturePath(relative));
 			}
 		});
 	}
@@ -1153,7 +1250,7 @@ describe('real-<Trans> render guard over the real route files (#1285)', () => {
 		// the standing discovery test permanently red.
 		const relative = 'routes/_trans-excluded-suite-shape.test.tsx';
 		writeFileSync(
-			path.join(SRC_ROOT, relative),
+			fixturePath(relative),
 			`${[
 				"import { render } from '@testing-library/react';",
 				"import { Trans } from 'react-i18next';",
@@ -1165,10 +1262,132 @@ describe('real-<Trans> render guard over the real route files (#1285)', () => {
 		);
 
 		try {
-			const sites = discoverTransCallSites();
+			const sites = discoverTransCallSites({
+				additionalRoots: [TRANS_FIXTURE_TMP_DIR],
+			});
 			expect(sites.filter((site) => site.file === relative)).toEqual([]);
 		} finally {
-			unlinkSync(path.join(SRC_ROOT, relative));
+			unlinkSync(fixturePath(relative));
+		}
+	});
+
+	test('skips a source file deleted after discovery and before read (#1484)', () => {
+		const relative = 'routes/_trans-disappearing-mid-scan-proof.tsx';
+		const filePath = fixturePath(relative);
+		let deletedDuringScan = false;
+		writeFileSync(
+			filePath,
+			[
+				"import { Trans } from 'react-i18next';",
+				'',
+				'export function DisappearingMidScanProof() {',
+				'\treturn <Trans i18nKey="auth.proof" ns="auth">x</Trans>;',
+				'}',
+			].join('\n') + '\n',
+		);
+
+		try {
+			expect(() =>
+				discoverTransCallSites({
+					additionalRoots: [TRANS_FIXTURE_TMP_DIR],
+					readSourceFile: (scannedPath) => {
+						if (scannedPath === filePath) {
+							unlinkSync(filePath);
+							deletedDuringScan = true;
+						}
+						return readFileSync(scannedPath, 'utf8');
+					},
+				}),
+			).not.toThrow();
+			expect(deletedDuringScan).toBe(true);
+		} finally {
+			if (existsSync(filePath)) {
+				unlinkSync(filePath);
+			}
+		}
+	});
+
+	test('rethrows non-ENOENT source read failures (#1484)', () => {
+		const relative = 'routes/_trans-read-failure-proof.tsx';
+		const filePath = fixturePath(relative);
+		writeFileSync(filePath, 'export function ReadFailureProof() {}\n');
+		const expectedError = Object.assign(
+			new Error('synthetic permission failure'),
+			{ code: 'EACCES' },
+		);
+
+		try {
+			expect(() =>
+				discoverTransCallSites({
+					additionalRoots: [TRANS_FIXTURE_TMP_DIR],
+					readSourceFile: (scannedPath) => {
+						if (scannedPath === filePath) {
+							throw expectedError;
+						}
+						return readFileSync(scannedPath, 'utf8');
+					},
+				}),
+			).toThrow('synthetic permission failure');
+		} finally {
+			if (existsSync(filePath)) {
+				unlinkSync(filePath);
+			}
+		}
+	});
+
+	test('skips a source directory deleted before recursive read (#1484)', () => {
+		const relativeDirectory = 'routes/_trans-disappearing-directory-proof';
+		const directoryPath = fixturePath(relativeDirectory);
+		const relativeFile = `${relativeDirectory}/fixture.tsx`;
+		const filePath = fixturePath(relativeFile);
+		let deletedDuringScan = false;
+		mkdirSync(directoryPath, { recursive: true });
+		writeFileSync(
+			filePath,
+			'export function DisappearingDirectoryProof() {}\n',
+		);
+
+		try {
+			expect(() =>
+				discoverTransCallSites({
+					additionalRoots: [TRANS_FIXTURE_TMP_DIR],
+					beforeDirectoryRead: (directory) => {
+						if (directory !== directoryPath) {
+							return;
+						}
+						rmSync(directoryPath, { recursive: true, force: true });
+						deletedDuringScan = true;
+					},
+				}),
+			).not.toThrow();
+			expect(deletedDuringScan).toBe(true);
+		} finally {
+			rmSync(directoryPath, { recursive: true, force: true });
+		}
+	});
+
+	test('rethrows non-ENOENT directory read failures (#1484)', () => {
+		const relativeDirectory = 'routes/_trans-directory-read-failure-proof';
+		const directoryPath = fixturePath(relativeDirectory);
+		const expectedError = Object.assign(
+			new Error('synthetic directory permission failure'),
+			{ code: 'EACCES' },
+		);
+		mkdirSync(directoryPath, { recursive: true });
+
+		try {
+			expect(() =>
+				discoverTransCallSites({
+					additionalRoots: [TRANS_FIXTURE_TMP_DIR],
+					beforeDirectoryRead: (directory) => {
+						if (directory === directoryPath) {
+							throw expectedError;
+						}
+					},
+				}),
+			).toThrow('synthetic directory permission failure');
+		} finally {
+			rmSync(directoryPath, { recursive: true, force: true });
 		}
 	});
 
@@ -1187,11 +1406,11 @@ describe('real-<Trans> render guard over the real route files (#1285)', () => {
 		const reExportFile = 'lib/i18n/_trans-re-export-residual.ts';
 		const routeFile = 'routes/_trans-indirect-binding-residual.tsx';
 		writeFileSync(
-			path.join(SRC_ROOT, reExportFile),
+			fixturePath(reExportFile),
 			`${["export { Trans } from 'react-i18next';"].join('\n')}\n`,
 		);
 		writeFileSync(
-			path.join(SRC_ROOT, routeFile),
+			fixturePath(routeFile),
 			`${[
 				"import { Trans } from '../lib/i18n/_trans-re-export-residual';",
 				'',
@@ -1202,11 +1421,13 @@ describe('real-<Trans> render guard over the real route files (#1285)', () => {
 		);
 
 		try {
-			const sites = discoverTransCallSites();
+			const sites = discoverTransCallSites({
+				additionalRoots: [TRANS_FIXTURE_TMP_DIR],
+			});
 			expect(sites.filter((site) => site.file === routeFile)).toEqual([]);
 		} finally {
-			unlinkSync(path.join(SRC_ROOT, reExportFile));
-			unlinkSync(path.join(SRC_ROOT, routeFile));
+			unlinkSync(fixturePath(reExportFile));
+			unlinkSync(fixturePath(routeFile));
 		}
 	});
 
