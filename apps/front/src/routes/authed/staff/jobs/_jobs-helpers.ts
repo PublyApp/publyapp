@@ -10,30 +10,71 @@
  * Never returns the dash (`no-value`) — that key is for genuinely-empty
  * non-cause fields (e.g. a missing job type), not for a missing failure cause.
  *
- * Uses a whitespace predicate wider than `String.prototype.trim` so that
- * zero-width spaces (U+200B), Hangul fillers (U+115F / U+1160 / U+3164),
- * C0/C1 control characters and other "visually empty" code points that
- * `trim()` leaves behind are treated as absent — see brief #1879 (Cf) and
- * issue #1931 (the rest).
+ * Uses a deterministic Unicode blank contract wider than
+ * `String.prototype.trim` so that zero-width spaces, Hangul fillers, C0/C1
+ * controls and other visually empty code points that `trim()` leaves behind
+ * are treated as absent — see brief #1879 (Cf) and issue #1931 (the rest).
  *
- * The predicate is NOT a hand-written list. It combines:
- * - `\p{Default_Ignorable_Code_Point}` — Cf (U+200B, U+FEFF, …), Hangul
- *   fillers (U+115F, U+1160, U+3164), variation selectors, the BOM, etc.
- * - `\p{Cc}` — C0 and C1 control characters (U+0000–U+0008, U+000B/C,
- *   U+000E–U+001F, U+007F–U+009F) — browsers paint no glyph for them.
- * - One NAMED exception: U+2800 BRAILLE PATTERN BLANK, a printing character
- *   (category So) that happens to render as blank and is NOT default-ignorable.
+ * The contract is total — every string maps to either the trimmed cause or
+ * the marker — and it is decided by Unicode properties plus a structural
+ * property of the Braille encoding, not by a hand-written code-point list:
+ * 1. `trim()` strips the ECMAScript whitespace set at the cause boundaries.
+ * 2. `\p{White_Space}` catches whitespace between other blank characters.
+ * 3. `\p{Default_Ignorable_Code_Point}` catches the default-ignorable subset
+ *    of Cf (U+200B, U+FEFF, U+2066, …), Hangul fillers, variation selectors,
+ *    the BOM, tag characters, …
+ * 4. `\p{Cc}` catches C0 and C1 controls, which paint no glyph.
+ * 5. `\p{Script=Braille}` identifies Braille patterns. Their low eight bits
+ *    are the raised-dot mask, so a zero mask identifies the blank pattern;
+ *    every dotted pattern remains visible.
+ *
+ * `\p{Default_Ignorable_Code_Point}` is NOT a synonym for `\p{Cf}`: it
+ * covers the default-ignorable subset of Cf. Format characters that Unicode
+ * deliberately does NOT mark default-ignorable — the Arabic number signs
+ * (U+0600–U+0605), the Syriac abbreviation mark (U+070F), the interlinear
+ * annotation anchors (U+FFF9–U+FFFB) — are Cf but not default-ignorable;
+ * the contract leaves them alone (pinned by a test).
  *
  * What is deliberately NOT covered and why — these paint a visible glyph
  * and are correctly left alone:
  * - A lone combining acute (U+0301) paints an accent.
  * - An unassigned code point (U+0378) paints tofu (.notdef box).
  * - A lone surrogate (U+D800) paints the replacement character (U+FFFD).
+ * - A dotted Braille pattern has raised dots and remains a real cause.
  *
- * No Unicode property isolates "renders blank" — only a font measure could
- * — so U+2800 is named, justified, and the reason lives next to it.
+ * This avoids a font-dependent canvas/layout measurement while still
+ * classifying the empty Braille pattern from the encoding property itself.
  * See issue #1931.
  */
+const BLANK_CODE_POINT =
+	/^[\p{White_Space}\p{Default_Ignorable_Code_Point}\p{Cc}]$/u;
+const BRAILLE_PATTERN = /^\p{Script=Braille}$/u;
+
+/**
+ * Whether every code point in a string belongs to the deterministic blank
+ * contract used by `formatFailureCause`.
+ */
+export const isVisuallyBlank = (value: string): boolean => {
+	for (const character of value) {
+		if (BLANK_CODE_POINT.test(character)) {
+			continue;
+		}
+
+		const codePoint = character.codePointAt(0);
+		if (
+			codePoint !== undefined &&
+			BRAILLE_PATTERN.test(character) &&
+			codePoint % 0x100 === 0
+		) {
+			continue;
+		}
+
+		return false;
+	}
+
+	return true;
+};
+
 export const formatFailureCause = (
 	cause: string | null | undefined,
 	t: (key: string) => string,
@@ -43,36 +84,7 @@ export const formatFailureCause = (
 	}
 
 	const trimmed = cause.trim();
-	// `String.prototype.trim` strips ASCII whitespace + `Zs` (including U+00A0),
-	// but leaves Cf (e.g. U+200B ZWSP), Cc controls and other "visually empty"
-	// code points intact. A cause that is visually empty — only those code
-	// points — must still show the marker.
-	//
-	// `\p{Default_Ignorable_Code_Point}` is the Unicode property the spec
-	// defines for "should not render" — it covers Cf (U+200B, U+FEFF, …) AND
-	// Hangul fillers (U+115F, U+1160, U+3164) and variation selectors. It is
-	// a property, not a hand-written list.
-	//
-	// `\p{Cc}` adds C0/C1 control characters — browsers paint no glyph for
-	// them. Tab, newline and carriage return are already stripped by `trim()`.
-	//
-	// The trailing `.trim()` is load-bearing, not decoration: the leading
-	// `cause.trim()` cannot remove whitespace that sits BETWEEN two invisible
-	// code points. `"\u200B \u200B"` survives the first trim intact, and
-	// stripping the invisibles leaves a lone space — visually empty, but
-	// length 1. Without the second trim that cause reaches the operator as an
-	// empty cell, which is the defect this whole predicate exists to prevent.
-	//
-	// Named exception: U+2800 BRAILLE PATTERN BLANK. It is category So
-	// (Other_Symbol), NOT default-ignorable — Unicode treats it as a
-	// printing character whose glyph happens to be empty. No property
-	// isolates "renders blank"; a runtime cannot measure glyph width, so
-	// the only honest answer is to name the code point and explain it here.
-	if (
-		trimmed
-			.replace(/[\p{Default_Ignorable_Code_Point}\p{Cc}\u2800]/gu, '')
-			.trim().length === 0
-	) {
+	if (isVisuallyBlank(trimmed)) {
 		return t('common:no-cause');
 	}
 

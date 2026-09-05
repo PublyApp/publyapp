@@ -2,7 +2,7 @@
 import { cleanup } from '@testing-library/react';
 import { afterEach, describe, expect, test } from 'vitest';
 
-import { formatFailureCause } from './_jobs-helpers';
+import { formatFailureCause, isVisuallyBlank } from './_jobs-helpers';
 
 // Track calls so mutations that hardcode a string (bypassing t()) are caught.
 const tCalls: string[] = [];
@@ -83,17 +83,29 @@ describe('formatFailureCause — shared decision for failure cause display', () 
 
 	// Issue #1931 — visually-blank characters outside Unicode category Cf
 	// (U+2800 BRAILLE PATTERN BLANK, the three Hangul fillers) used to render
-	// as a blank cell. The predicate now uses \p{Default_Ignorable_Code_Point}
-	// (covers U+115F, U+1160, U+3164 alongside Cf) plus a named exception for
-	// U+2800.
+	// as a blank cell. The classifier now uses \p{White_Space},
+	// \p{Default_Ignorable_Code_Point}, \p{Cc}, and the Braille script's
+	// structural dot mask.
 
 	test('returns the no-cause marker for U+2800 BRAILLE PATTERN BLANK', () => {
-		// U+2800 is category So (printing) — Unicode does NOT flag it as
-		// default-ignorable. The named exception in the predicate is what
-		// catches it; if a future refactor drops U+2800 from the exception,
-		// this test goes red.
+		// U+2800 is category So (printing) and is not default-ignorable. The
+		// classifier identifies its Braille script and zero dot mask instead of
+		// maintaining a code-point exception.
 		expect(formatFailureCause('\u2800', t)).toBe('No cause recorded');
 		expect(tCalls).toContain('common:no-cause');
+	});
+
+	test('classifies Braille patterns by script and dot mask', () => {
+		// Every Braille pattern is in the same Unicode Script block. Its low
+		// eight bits encode the raised-dot mask, so only the zero-dot pattern
+		// is blank. This checks the property-based classifier across the whole
+		// domain and ensures dotted Braille remains visible.
+		for (let codePoint = 0x2800; codePoint <= 0x28ff; codePoint += 1) {
+			const hasRaisedDots = (codePoint & 0xff) !== 0;
+			expect(isVisuallyBlank(String.fromCodePoint(codePoint))).toBe(
+				!hasRaisedDots,
+			);
+		}
 	});
 
 	test('returns the no-cause marker for U+3164 HANGUL FILLER', () => {
@@ -195,6 +207,20 @@ describe('formatFailureCause — shared decision for failure cause display', () 
 		expect(tCalls).toContain('common:no-cause');
 	});
 
+	test('preserves Cf format characters that are NOT default-ignorable (contract boundary)', () => {
+		// `\p{Default_Ignorable_Code_Point}` is the default-ignorable
+		// SUBSET of Cf, not all of Cf. U+0600 ARABIC NUMBER SIGN and
+		// U+070F SYRIAC ABBREVIATION MARK are category Cf but NOT
+		// default-ignorable — Unicode gives them a rendering role, so the
+		// contract deliberately leaves them alone. Widening the predicate
+		// to strip all of Cf would swallow them and this test would go red.
+		for (const cause of ['\u0600', '\u070F']) {
+			tCalls.length = 0;
+			expect(formatFailureCause(cause, t)).toBe(cause);
+			expect(tCalls).not.toContain('common:no-cause');
+		}
+	});
+
 	// The other half of the requirement — the widened predicate must NOT
 	// swallow real, single-glyph content. A cause that is legitimately a
 	// single visible character carries information the operator needs.
@@ -240,6 +266,13 @@ describe('formatFailureCause — shared decision for failure cause display', () 
 		// A real character surrounded by an "invisible" one: the real
 		// character must survive, not the marker.
 		expect(formatFailureCause('a\u2800', t)).toBe('a\u2800');
+		expect(tCalls).not.toContain('common:no-cause');
+	});
+
+	test('preserves a dotted Braille pattern as a real cause', () => {
+		// The classifier must not treat the whole Braille script as blank. A
+		// raised dot is visible content, unlike the zero-dot pattern.
+		expect(formatFailureCause('\u2801', t)).toBe('\u2801');
 		expect(tCalls).not.toContain('common:no-cause');
 	});
 
