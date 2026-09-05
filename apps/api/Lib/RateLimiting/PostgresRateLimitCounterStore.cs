@@ -21,11 +21,13 @@ namespace PublyApp.Api.Lib.RateLimiting;
 /// directly) so integration-test hosts automatically see their per-class test
 /// database.
 ///
-/// Failure handling: five consecutive store failures open a circuit breaker for
-/// 30 s; while open, acquisitions do not dial Postgres at all (no timeout
-/// amplification during an outage); after the cooldown a single probe request is
-/// let through (half-open): a success closes the breaker, a failure re-opens it
-/// immediately. Every failed acquisition applies its policy's fail mode —
+/// Failure handling: five consecutive store failures for one policy open its
+/// circuit breaker for 30 s; while open, acquisitions for that policy do not dial
+/// Postgres at all (no timeout amplification during an outage). Partitions within
+/// one policy share its breaker, while unrelated policies have independent
+/// breakers. After the cooldown a single probe request is let through (half-open):
+/// a success closes the breaker, a failure re-opens it immediately. Every failed
+/// acquisition applies its policy's fail mode —
 /// <see cref="CounterFailModes.MustFailClosed"/> policies reject, the rest admit.
 ///
 /// Housekeeping: touching a key deletes that key's superseded window rows; a
@@ -47,15 +49,23 @@ internal sealed partial class PostgresRateLimitCounterStore
 		HalfOpen,
 	}
 
+	private sealed class BreakerStateData {
+		public BreakerState State { get; set; } = BreakerState.Closed;
+		public int ConsecutiveFailures { get; set; }
+		public DateTimeOffset OpenedAt { get; set; }
+	}
+
 	private readonly IServiceScopeFactory _scopeFactory;
 	private readonly TimeProvider _timeProvider;
 	private readonly ILogger<PostgresRateLimitCounterStore> _logger;
 	private readonly TimeSpan _maxWindow;
 
 	private readonly object _guard = new();
-	private BreakerState _breakerState = BreakerState.Closed;
-	private int _consecutiveFailures;
-	private DateTimeOffset _breakerOpenedAt;
+	// Policy names are route-owned and finite. Deliberately do not key breaker
+	// state by attacker-controlled partition keys, which could grow this map
+	// without bound and weaken the outage protection net.
+	private readonly Dictionary<string, BreakerStateData> _breakerStates =
+		new(StringComparer.Ordinal);
 	private DateTimeOffset _lastSweepAt;
 
 	public PostgresRateLimitCounterStore(
@@ -98,7 +108,7 @@ internal sealed partial class PostgresRateLimitCounterStore
 		int permitCount,
 		DateTimeOffset utcNow
 	) {
-		if (!TryEnterClosedBreaker()) {
+		if (!TryEnterClosedBreaker(policyName)) {
 			return ApplyFailMode(policyName);
 		}
 
@@ -146,7 +156,7 @@ internal sealed partial class PostgresRateLimitCounterStore
 			}
 			await MaybeSweepExpiredAsync(connection, utcNow);
 
-			RecordSuccess();
+			RecordSuccess(policyName);
 			return upsert is not null
 				? CounterLeaseResult.Granted(upsert.Value.PermitCount)
 				: CounterLeaseResult.Rejected();
@@ -156,7 +166,7 @@ internal sealed partial class PostgresRateLimitCounterStore
 				or InvalidOperationException
 				or NotSupportedException
 		) {
-			RecordFailure();
+			RecordFailure(policyName);
 			LogAcquisitionFailed(exception, policyName);
 			return ApplyFailMode(policyName);
 		}
@@ -316,9 +326,14 @@ internal sealed partial class PostgresRateLimitCounterStore
 			: CounterLeaseResult.FailedStore();
 	}
 
-	private bool TryEnterClosedBreaker() {
+	private bool TryEnterClosedBreaker(string policyName) {
 		lock (_guard) {
-			switch (_breakerState) {
+			if (!_breakerStates.TryGetValue(policyName, out var breaker)) {
+				breaker = new BreakerStateData();
+				_breakerStates.Add(policyName, breaker);
+			}
+
+			switch (breaker.State) {
 				case BreakerState.Closed:
 					return true;
 				case BreakerState.HalfOpen:
@@ -330,36 +345,44 @@ internal sealed partial class PostgresRateLimitCounterStore
 			}
 
 			if (
-				_timeProvider.GetUtcNow() - _breakerOpenedAt
+				_timeProvider.GetUtcNow() - breaker.OpenedAt
 				< BreakerCooldown
 			) {
 				return false;
 			}
 
-			_breakerState = BreakerState.HalfOpen;
-			LogBreakerProbing();
+			breaker.State = BreakerState.HalfOpen;
+			LogBreakerProbing(policyName);
 			return true;
 		}
 	}
 
-	private void RecordSuccess() {
+	private void RecordSuccess(string policyName) {
 		lock (_guard) {
-			_breakerState = BreakerState.Closed;
-			_consecutiveFailures = 0;
+			if (_breakerStates.TryGetValue(policyName, out var breaker)) {
+				breaker.State = BreakerState.Closed;
+				breaker.ConsecutiveFailures = 0;
+			}
 		}
 	}
 
-	private void RecordFailure() {
+	private void RecordFailure(string policyName) {
 		lock (_guard) {
-			_consecutiveFailures++;
+			if (!_breakerStates.TryGetValue(policyName, out var breaker)) {
+				breaker = new BreakerStateData();
+				_breakerStates.Add(policyName, breaker);
+			}
+
+			breaker.ConsecutiveFailures++;
 			if (
-				_breakerState == BreakerState.HalfOpen
-				|| _consecutiveFailures >= BreakerFailureThreshold
+				breaker.State == BreakerState.HalfOpen
+				|| breaker.ConsecutiveFailures >= BreakerFailureThreshold
 			) {
-				_breakerState = BreakerState.Open;
-				_breakerOpenedAt = _timeProvider.GetUtcNow();
+				breaker.State = BreakerState.Open;
+				breaker.OpenedAt = _timeProvider.GetUtcNow();
 				LogBreakerOpened(
-					_consecutiveFailures,
+					policyName,
+					breaker.ConsecutiveFailures,
 					(int)BreakerCooldown.TotalSeconds
 				);
 			}
@@ -377,18 +400,19 @@ internal sealed partial class PostgresRateLimitCounterStore
 
 	[LoggerMessage(
 		Level = LogLevel.Warning,
-		Message = "Rate-limit counter store circuit breaker opened after {FailureCount} consecutive failures; acquisitions stop dialling Postgres for {CooldownSeconds}s"
+		Message = "Rate-limit counter store circuit breaker opened for {PolicyName} after {FailureCount} consecutive failures; acquisitions stop dialling Postgres for {CooldownSeconds}s"
 	)]
 	private partial void LogBreakerOpened(
+		string policyName,
 		int failureCount,
 		int cooldownSeconds
 	);
 
 	[LoggerMessage(
 		Level = LogLevel.Information,
-		Message = "Rate-limit counter store breaker cooldown elapsed; probing with one request"
+		Message = "Rate-limit counter store breaker cooldown elapsed for {PolicyName}; probing with one request"
 	)]
-	private partial void LogBreakerProbing();
+	private partial void LogBreakerProbing(string policyName);
 
 	[LoggerMessage(
 		Level = LogLevel.Warning,
