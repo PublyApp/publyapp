@@ -85,6 +85,14 @@ const EN_LABELS: TestLabelMap = {
 	'calendar-empty-title': 'No publications this month',
 	'calendar-empty-description': 'Scheduled publications will appear here.',
 	'publish-status-scheduled': 'Scheduled',
+	'publish-status-paused': 'Paused',
+	'posts:publication-paused-cause': 'Paused: {{cause}}',
+	'posts:publication-paused-next-action':
+		'Reconnect the account in Settings → Integrations to resume.',
+	'posts:publication-paused-next-action-aria':
+		'Reconnect paused account to resume',
+	'posts:publication-paused-next-action-link':
+		'Reconnect account in Settings → Integrations',
 	'common:calendar': 'Calendar',
 	'common:list-unavailable-title': 'List unavailable',
 	'common:list-error-default-description': 'An error occurred.',
@@ -93,7 +101,11 @@ const EN_LABELS: TestLabelMap = {
 
 vi.mock('react-i18next', () => ({
 	useTranslation: () => ({
-		t: (key: string) => EN_LABELS[key] ?? key,
+		t: (key: string, options?: { cause?: string }) => {
+			const value =
+				EN_LABELS[key] ?? EN_LABELS[key.replace(/^posts:/, '')] ?? key;
+			return options?.cause ? value.replace('{{cause}}', options.cause) : value;
+		},
 		i18n: { resolvedLanguage: 'en', language: 'en' },
 	}),
 }));
@@ -145,6 +157,7 @@ describe('TenantPostsCalendarPage', () => {
 				accountDisplayHandle: '@paris.example',
 				status: 'scheduled',
 				postStatus: 'scheduled',
+				lastError: null,
 				scheduledAtUtc: new Date('2026-07-31T22:30:00.000Z'),
 				scheduledAtLocal: '2026-08-01T00:30:00+02:00',
 				timeZone: 'Europe/Paris',
@@ -185,6 +198,7 @@ describe('TenantPostsCalendarPage', () => {
 				accountDisplayHandle: null,
 				status: 'scheduled',
 				postStatus: 'scheduled',
+				lastError: null,
 				scheduledAtUtc: new Date('2026-08-10T10:00:00.000Z'),
 				scheduledAtLocal: '2026-08-10T12:00:00+02:00',
 				timeZone: 'Europe/Paris',
@@ -197,6 +211,7 @@ describe('TenantPostsCalendarPage', () => {
 				accountDisplayHandle: null,
 				status: 'paused',
 				postStatus: 'scheduled',
+				lastError: null,
 				scheduledAtUtc: new Date('2026-08-20T10:00:00.000Z'),
 				scheduledAtLocal: '2026-08-20T12:00:00+02:00',
 				timeZone: 'Europe/Paris',
@@ -223,6 +238,7 @@ describe('TenantPostsCalendarPage', () => {
 				accountDisplayHandle: '@link.example',
 				status: 'paused',
 				postStatus: 'scheduled',
+				lastError: null,
 				scheduledAtUtc: new Date('2026-08-12T09:00:00.000Z'),
 				scheduledAtLocal: '2026-08-12T11:00:00+02:00',
 				timeZone: 'Europe/Paris',
@@ -237,6 +253,38 @@ describe('TenantPostsCalendarPage', () => {
 		expect(link).not.toBeNull();
 		expect(link?.getAttribute('href')).toBe('/tenant/posts/post-link/edit');
 		expect(link?.textContent).toContain('Linked calendar entry');
+	});
+
+	test('agenda row renders the transparent pause cause with a reconnect next action', async () => {
+		allPagesMock.rows = [
+			{
+				id: 'pub-paused-cause',
+				publicationId: 'pub-paused-cause',
+				postId: 'post-paused-cause',
+				postBodyPreview: 'Paused with a stored cause',
+				accountDisplayHandle: '@paused.example',
+				status: 'paused',
+				postStatus: 'scheduled',
+				lastError: 'account disconnected',
+				scheduledAtUtc: new Date('2026-08-12T09:00:00.000Z'),
+				scheduledAtLocal: '2026-08-12T11:00:00+02:00',
+				timeZone: 'Europe/Paris',
+			},
+		];
+		renderPage();
+
+		await screen.findByText('Paused with a stored cause');
+		const cause = screen.getByTestId('tenant-posts-publication-cause');
+		expect(cause.textContent).toContain('Paused: account disconnected');
+		expect(cause.getAttribute('title')).toBe(
+			'Reconnect the account in Settings → Integrations to resume.',
+		);
+		const recoveryLink = screen.getByRole('link', {
+			name: 'Reconnect paused account to resume',
+		});
+		expect(recoveryLink.getAttribute('href')).toBe(
+			'/tenant/settings/integrations',
+		);
 	});
 
 	test('groups by scheduledAtUtc in the viewer zone, not the publication zone', async () => {
@@ -254,6 +302,7 @@ describe('TenantPostsCalendarPage', () => {
 				accountDisplayHandle: '@zone.example',
 				status: 'scheduled',
 				postStatus: 'scheduled',
+				lastError: null,
 				scheduledAtUtc: new Date('2026-07-31T22:30:00.000Z'),
 				scheduledAtLocal: '2026-07-31T18:30:00-04:00',
 				timeZone: 'America/New_York',

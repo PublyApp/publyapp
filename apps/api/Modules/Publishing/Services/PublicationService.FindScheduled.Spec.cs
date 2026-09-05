@@ -225,6 +225,43 @@ public sealed class PublicationServiceFindScheduledSpec : IClassFixture<ApiFixtu
 	}
 
 	[Fact]
+	public async Task ItShouldHideStaleLastErrorForNonFailureRows() {
+		await using var db = await NewDbAsync();
+		var (tenantId, accountId, userId) = await SeedTenantAndAccountAsync(db);
+		var scheduledAt = new DateTime(2100, 1, 10, 10, 0, 0, DateTimeKind.Utc);
+		var publication = await SeedPublicationAsync(
+			db,
+			tenantId,
+			accountId,
+			userId,
+			scheduledAt,
+			seedStatus: PublicationStatus.InProgress
+		);
+		publication.LastError = "stale pause cause";
+		await db.SaveChangesAsync();
+		var service = NewService(db);
+
+		var result = await service.FindScheduledAsync(
+			new FindScheduledPublicationsArgs(
+				TenantId: tenantId,
+				FromUtc: new DateTime(2100, 1, 1, 0, 0, 0, DateTimeKind.Utc),
+				ToUtc: new DateTime(2100, 1, 31, 0, 0, 0, DateTimeKind.Utc),
+				Statuses: null,
+				Cursor: null,
+				Limit: 50
+			)
+		);
+
+		result.Should().BeOfType<FindScheduledResult.Success>();
+		var page = ((FindScheduledResult.Success)result).Page;
+		page.Data.Should().ContainSingle();
+		page.Data[0].Status.Should().Be("in_progress");
+		page.Data[0].LastError.Should().BeNull(
+			"LastError is only a failure cause for failed or paused rows"
+		);
+	}
+
+	[Fact]
 	public async Task ItShouldKeepCarryoverPausedRowsWhenStatusFilterIncludesThem() {
 		await using var db = await NewDbAsync();
 		var (tenantId, accountId, userId) = await SeedTenantAndAccountAsync(db);
@@ -314,6 +351,85 @@ public sealed class PublicationServiceFindScheduledSpec : IClassFixture<ApiFixtu
 		result.Should().BeOfType<FindScheduledResult.Success>();
 		var page = ((FindScheduledResult.Success)result).Page;
 		page.Data.Should().BeEmpty();
+	}
+
+	[Fact]
+	public async Task ItShouldRespectTheTwentyFourHourPastGraceOnTheQueueWindow() {
+		// The queue page (tenant/posts/queue) sends a window with a 24-hour past
+		// grace on FromUtc and a 31-day future horizon on ToUtc (exactly the
+		// 32-day API maximum, which the service only rejects when strictly
+		// wider). This pins the service-level symmetry on both sides of the
+		// FromUtc boundary for a row that races the page open:
+		//   - row due seconds before the page opens, FromUtc = now      => excluded
+		//   - row due seconds before the page opens, FromUtc = now - 24h => included
+		await using var db = await NewDbAsync();
+		var (tenantId, accountId, userId) = await SeedTenantAndAccountAsync(db);
+		var pageOpen = new DateTime(2099, 6, 15, 12, 0, 0, DateTimeKind.Utc);
+		var dueSecondsBeforePageOpen = pageOpen.AddSeconds(-5);
+
+		_ = await SeedPublicationAsync(
+			db, tenantId, accountId, userId,
+			dueSecondsBeforePageOpen,
+			seedStatus: PublicationStatus.Scheduled
+		);
+		var service = NewService(db);
+
+		// Strict window anchored at the page open instant: the row is just
+		// BEFORE FromUtc, so it stays out (the queue used to render empty
+		// here, hiding a due-now publication from the operator).
+		var strictResult = await service.FindScheduledAsync(
+			new FindScheduledPublicationsArgs(
+				TenantId: tenantId,
+				FromUtc: pageOpen,
+				ToUtc: pageOpen.AddDays(31),
+				Statuses: null,
+				Cursor: null,
+				Limit: 50
+			)
+		);
+		var strictPage = ((FindScheduledResult.Success)strictResult).Page;
+		strictPage.Data.Should().BeEmpty();
+
+		// Twenty-four-hour past-grace shift: FromUtc moves back 24h, the same
+		// row now sits inside the window and surfaces so the queue can start
+		// polling for its in-flight transition.
+		var graceResult = await service.FindScheduledAsync(
+			new FindScheduledPublicationsArgs(
+				TenantId: tenantId,
+				FromUtc: pageOpen.AddHours(-24),
+				ToUtc: pageOpen.AddDays(31).AddHours(-24),
+				Statuses: null,
+				Cursor: null,
+				Limit: 50
+			)
+		);
+		var gracePage = ((FindScheduledResult.Success)graceResult).Page;
+		gracePage.Data.Should().HaveCount(1);
+		gracePage.Data[0].ScheduledAtUtc.Should().Be(dueSecondsBeforePageOpen);
+	}
+
+	[Fact]
+	public async Task ItShouldAcceptAWindowThatSpansExactlyThirtyTwoDays() {
+		// The queue sends exactly the 32-day API maximum (24h past + 31d future).
+		// The service rejects only strictly-wider windows; the exact-32-day
+		// boundary must answer Success, not InvalidWindow.
+		await using var db = await NewDbAsync();
+		var (tenantId, accountId, userId) = await SeedTenantAndAccountAsync(db);
+		var from = new DateTime(2099, 6, 1, 0, 0, 0, DateTimeKind.Utc);
+		var service = NewService(db);
+
+		var result = await service.FindScheduledAsync(
+			new FindScheduledPublicationsArgs(
+				TenantId: tenantId,
+				FromUtc: from,
+				ToUtc: from.AddDays(32),
+				Statuses: null,
+				Cursor: null,
+				Limit: 50
+			)
+		);
+
+		result.Should().BeOfType<FindScheduledResult.Success>();
 	}
 
 	[Fact]

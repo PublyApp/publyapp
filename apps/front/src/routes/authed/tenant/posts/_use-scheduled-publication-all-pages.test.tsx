@@ -166,6 +166,7 @@ const rowOf = (
 	scheduledAtUtc: new Date('2026-08-10T10:00:00.000Z'),
 	scheduledAtLocal: '2026-08-10T12:00:00+02:00',
 	timeZone: 'Europe/Paris',
+	lastError: null,
 });
 
 const page = (data: ScheduledPublicationRow[], nextCursor: string | null) => ({

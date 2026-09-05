@@ -4,7 +4,10 @@
 import { describe, expect, test } from 'vitest';
 import type { ScheduledPublicationRow } from '~/lib/query/tenant-scheduled-publications';
 
-import { nextPollingDelayMs } from './_scheduled-publication-helpers';
+import {
+	buildUpcomingPublicationWindow,
+	nextPollingDelayMs,
+} from './_scheduled-publication-helpers';
 
 const ROW = (
 	status: string | null,
@@ -21,6 +24,7 @@ const ROW = (
 	scheduledAtUtc,
 	scheduledAtLocal: overrides.scheduledAtLocal ?? '2026-08-31T20:30:00+02:00',
 	timeZone: overrides.timeZone ?? 'Europe/Paris',
+	lastError: overrides.lastError ?? null,
 });
 
 describe('nextPollingDelayMs', () => {
@@ -90,5 +94,38 @@ describe('nextPollingDelayMs', () => {
 		];
 
 		expect(nextPollingDelayMs({ rows, now: NOW })).toBe(7 * 60 * 1000);
+	});
+});
+
+describe('buildUpcomingPublicationWindow', () => {
+	// API maximum window = 32 days (PublicationService.FindScheduledAsync). The
+	// queue window must respect it: future horizon + past grace combined must
+	// stay strictly <= 32 days so the server never 422s.
+	const API_MAX_WINDOW_MS = 32 * 24 * 60 * 60 * 1_000;
+	const PAST_GRACE_MS = 24 * 60 * 60 * 1_000;
+	const NOW = new Date('2026-08-31T18:00:00.000Z');
+
+	test('starts 24 hours in the past so a row due seconds before page open is visible', () => {
+		const window = buildUpcomingPublicationWindow(NOW);
+
+		// 24-hour past grace: a row due seconds before the page opens must fall
+		// inside FromUtc so the API filter `ScheduledAtUtc >= FromUtc` keeps it;
+		// 24h is bounded enough that old scheduled rows cannot bleed in.
+		expect(NOW.valueOf() - window.from.valueOf()).toBe(PAST_GRACE_MS);
+	});
+
+	test('keeps the future horizon at 31 days so the window equals the 32-day API maximum', () => {
+		const window = buildUpcomingPublicationWindow(NOW);
+
+		const spanMs = window.to.valueOf() - window.from.valueOf();
+		expect(spanMs).toBe(API_MAX_WINDOW_MS);
+	});
+
+	test('returns a fresh Date instance on each call so the caller can mutate it safely', () => {
+		const first = buildUpcomingPublicationWindow(NOW);
+		const second = buildUpcomingPublicationWindow(NOW);
+
+		expect(first.from).not.toBe(second.from);
+		expect(first.to).not.toBe(second.to);
 	});
 });

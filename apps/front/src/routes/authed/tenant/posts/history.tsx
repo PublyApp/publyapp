@@ -5,11 +5,10 @@ import { useTranslation } from 'react-i18next';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
 import type { ColumnDef } from '~/components/table/column-type';
 import { DataTable } from '~/components/table/data-table';
-import { Badge } from '~/components/ui/badge';
 import { Button } from '~/components/ui/button';
-import { PageHeader } from '~/components/ui/product-page';
+import { PageHeader, StatusPill } from '~/components/ui/product-page';
 import { formatDateTime } from '~/lib/format-date-time';
-import { publicationStatusLabelKey } from '~/lib/publication-status';
+import { publicationStatusPresentation } from '~/lib/publication-status';
 import {
 	invalidateTenantPublications,
 	toTenantPublicationRows,
@@ -20,6 +19,7 @@ import type { TableSearchParamInput } from '~/lib/url-state/table-search-params'
 
 import { shouldLogoutForFailure } from '@org/shared-ts/lib/should-logout-for-failure';
 
+import { ScheduledPublicationCause } from './_scheduled-publication-display';
 import { useTenantPostList } from './_use-tenant-post-list';
 
 /** While any publication is in progress the list refreshes itself on this
@@ -37,23 +37,45 @@ const PublicationStatusCell = ({
 }) => {
 	const { t } = useTranslation(['posts', 'common']);
 
-	if (publication.status === 'in_progress') {
+	const presentation = publicationStatusPresentation(publication.status);
+	if (presentation === null) {
+		return <span className="text-muted-foreground">{'\u2014'}</span>;
+	}
+
+	const pill = (
+		<StatusPill
+			tone={presentation.tone}
+			testId="tenant-posts-history-status-pill"
+		>
+			{t(`posts:${presentation.labelKey}`)}
+		</StatusPill>
+	);
+
+	if (publication.status === 'published' && publication.externalUrl) {
 		return (
-			<Badge variant="outline" data-testid="tenant-posts-publish-in-progress">
-				{t('posts:publish-status-in-progress')}
-			</Badge>
+			<div className="flex items-center gap-2">
+				{pill}
+				<a
+					className="publy-record-link"
+					data-testid="tenant-posts-history-link"
+					href={publication.externalUrl}
+					rel="noopener noreferrer"
+					target="_blank"
+				>
+					{t('posts:view-on-bluesky')}
+				</a>
+			</div>
 		);
 	}
 
 	if (publication.status === 'failed') {
 		return (
 			<div className="flex max-w-xs flex-col items-start gap-1">
-				<span
-					className="text-muted-foreground text-sm"
-					data-testid="tenant-posts-history-cause"
-				>
-					{publication.lastError ?? t('common:an-error-occurred')}
-				</span>
+				{pill}
+				<ScheduledPublicationCause
+					status={publication.status}
+					cause={publication.lastError}
+				/>
 				<Button
 					variant="outline"
 					size="sm"
@@ -66,34 +88,19 @@ const PublicationStatusCell = ({
 		);
 	}
 
-	if (publication.status === 'published' && publication.externalUrl) {
+	if (publication.status === 'paused') {
 		return (
-			<a
-				className="publy-record-link"
-				data-testid="tenant-posts-history-link"
-				href={publication.externalUrl}
-				rel="noopener noreferrer"
-				target="_blank"
-			>
-				{t('posts:view-on-bluesky')}
-			</a>
+			<div className="flex flex-col items-start gap-1">
+				{pill}
+				<ScheduledPublicationCause
+					status={publication.status}
+					cause={publication.lastError}
+				/>
+			</div>
 		);
 	}
 
-	if (publication.status === null || publication.status === '') {
-		return <span className="text-muted-foreground">{'\u2014'}</span>;
-	}
-
-	const sharedLabelKey = publicationStatusLabelKey(publication.status);
-	if (sharedLabelKey === null) {
-		return <span className="text-muted-foreground">{'\u2014'}</span>;
-	}
-
-	return (
-		<span className="text-muted-foreground">
-			{t(`posts:${sharedLabelKey}`)}
-		</span>
-	);
+	return pill;
 };
 
 const TenantPostsHistoryPage = () => {

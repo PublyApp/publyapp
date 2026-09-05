@@ -45,6 +45,11 @@ export type ScheduledPublicationRow = {
 	scheduledAtUtc: Date;
 	scheduledAtLocal: string;
 	timeZone: string | null;
+	/** Sanitised, ≤ 2 KB failure cause for Failed/Paused rows; null otherwise
+	 * (the entity invariant clears it on every non-failure transition). The
+	 * queue/calendar/history surfaces it verbatim to render a truthful next
+	 * action (transparent failure cause — owner product rule). */
+	lastError: string | null;
 };
 
 const normalizeString = (
@@ -166,6 +171,7 @@ const toScheduledPublicationRow = (
 		scheduledAtUtc,
 		scheduledAtLocal,
 		timeZone: normalizeNullableString(item.timeZone),
+		lastError: normalizeNullableString(item.lastError),
 	};
 };
 

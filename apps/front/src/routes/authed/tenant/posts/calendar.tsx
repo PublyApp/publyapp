@@ -1,10 +1,12 @@
 import { IconCalendarEvent } from '@tabler/icons-react';
+import type { UseQueryResult } from '@tanstack/react-query';
 import { createFileRoute } from '@tanstack/react-router';
-import type React from 'react';
 import { useTranslation } from 'react-i18next';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
+import QueryDisplay from '~/components/query-display';
 import { Card, CardContent, CardHeader, CardTitle } from '~/components/ui/card';
 import { StateSurface } from '~/components/ui/state-surface';
+import type { ScheduledPublicationRow } from '~/lib/query/tenant-scheduled-publications';
 import { useResolvedWorkspaceTenantId } from '~/lib/query/tenants-for-picker';
 
 import {
@@ -30,35 +32,23 @@ const TenantPostsCalendarPage = () => {
 		return <LogoutRedirect />;
 	}
 
-	const isPending = isAggregating && rows.length === 0;
-	const isError = error !== null && !isAggregating;
-
-	let calendarBody: React.ReactNode;
-	if (isPending) {
-		calendarBody = (
-			<TenantReadOnlyCardSkeleton testId="tenant-posts-calendar-loading" />
-		);
-	} else if (isError) {
-		calendarBody = (
-			<TenantReadOnlyCardError
-				onRetry={restart}
-				titleKey="common:list-unavailable-title"
-				descriptionKey="common:list-error-default-description"
-				testId="tenant-posts-calendar-error"
-			/>
-		);
-	} else if (rows.length > 0) {
-		calendarBody = <ScheduledPublicationAgenda rows={rows} />;
-	} else {
-		calendarBody = (
-			<StateSurface
-				icon={IconCalendarEvent}
-				title={t('calendar-empty-title')}
-				description={t('calendar-empty-description')}
-				testId="tenant-posts-calendar-empty"
-			/>
-		);
-	}
+	// QueryDisplay owns the calendar body's loading/error/empty/data slots
+	// (#1250 PR 2 migration), reusing the shared read-only-card skeleton and
+	// error surface. The all-pages walk exposes derived state rather than a raw
+	// UseQueryResult, so we adapt it into the shape QueryDisplay reads: isPending
+	// while the walk is aggregating with nothing to show yet, isError once the
+	// walk stops on a terminal failure. QueryDisplay intentionally gives that
+	// terminal error precedence over partial rows, so retry restarts the complete
+	// cursor walk rather than presenting a view that looks complete.
+	const readQuery = {
+		data: rows,
+		isPending: isAggregating && rows.length === 0,
+		isLoading: isAggregating && rows.length === 0,
+		isFetching: isAggregating,
+		isError: error !== null,
+		error,
+		refetch: () => restart(),
+	} as UseQueryResult<ScheduledPublicationRow[], Error>;
 
 	return (
 		<div className="space-y-5" data-testid="tenant-posts-calendar-page">
@@ -73,7 +63,30 @@ const TenantPostsCalendarPage = () => {
 					<p className="mb-4 text-sm text-muted-foreground">
 						{t('calendar-description')}
 					</p>
-					{calendarBody}
+					<QueryDisplay
+						query={readQuery}
+						LoadingSlot={
+							<TenantReadOnlyCardSkeleton testId="tenant-posts-calendar-loading" />
+						}
+						ErrorSlot={
+							<TenantReadOnlyCardError
+								onRetry={restart}
+								titleKey="common:list-unavailable-title"
+								descriptionKey="common:list-error-default-description"
+								testId="tenant-posts-calendar-error"
+							/>
+						}
+						EmptySlot={
+							<StateSurface
+								icon={IconCalendarEvent}
+								title={t('calendar-empty-title')}
+								description={t('calendar-empty-description')}
+								testId="tenant-posts-calendar-empty"
+							/>
+						}
+					>
+						{({ data }) => <ScheduledPublicationAgenda rows={data} />}
+					</QueryDisplay>
 				</CardContent>
 			</Card>
 		</div>

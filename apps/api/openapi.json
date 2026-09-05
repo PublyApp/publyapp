@@ -17810,6 +17810,13 @@
           },
           "status": {
             "type": "string"
+          },
+          "lastError": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Sanitised, ≤ 2 KB, human-readable failure cause for Failed/Paused rows.\nSurfaces verbatim through the wire so the queue/calendar/history UI can\nshow a plain-words reason plus a truthful next action (transparent\nfailure cause). Null on every other status — the entity invariant\nclears the stored LastError on every non-failure transition. Already\nsanitised by LastErrorSanitiser before storage."
           }
         },
         "description": "One wire row of the scheduled-publications list (D3 Task 4): the publication\nplus its account/post context and the DST-aware zone-local ISO string."

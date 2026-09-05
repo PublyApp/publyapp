@@ -1,8 +1,4 @@
 import {
-	publicationStatusTone,
-	publicationStatusLabelKey,
-} from '~/lib/publication-status';
-import {
 	scheduledLocalCivilDate,
 	type ScheduledPublicationRow,
 } from '~/lib/query/tenant-scheduled-publications';
@@ -17,12 +13,27 @@ export type ScheduledPublicationDateGroup = {
 	rows: ScheduledPublicationRow[];
 };
 
+/** API maximum window = 32 days (PublicationService.FindScheduledAsync). The
+ * queue window must respect it: past grace + future horizon combined must stay
+ * strictly <= 32 days so the server never 422s. */
+const PAST_GRACE_MS = 24 * 60 * 60 * 1_000;
+const FUTURE_HORIZON_MS = 31 * 24 * 60 * 60 * 1_000;
+
 export const buildUpcomingPublicationWindow = (
 	now: Date,
-): PublicationWindow => ({
-	from: new Date(now.valueOf()),
-	to: new Date(now.valueOf() + 31 * 24 * 60 * 60 * 1000),
-});
+): PublicationWindow => {
+	// 24 hours of past visibility so a publication whose worker pickup window
+	// races the page open still surfaces and the queue can start polling for
+	// its in-flight transition. A full 31-day future horizon means every
+	// scheduled publication in the coming month shows, and the window totals
+	// 32 days — the API rejects only `> 32` days, never `== 32`. A row due
+	// seconds before the page opens sits inside FromUtc; an old scheduled row
+	// more than 24h in the past stays out.
+	return {
+		from: new Date(now.valueOf() - PAST_GRACE_MS),
+		to: new Date(now.valueOf() + FUTURE_HORIZON_MS),
+	};
+};
 
 export const buildVisibleMonthWindow = (now: Date): PublicationWindow => {
 	const year = now.getFullYear();
@@ -70,10 +81,6 @@ export const groupScheduledPublicationsByViewerDate = (
 		rows: groupedRows,
 	}));
 };
-
-/** Re-export the shared publication-status display metadata for backward compat. */
-export const scheduledPublicationStatusTone = publicationStatusTone;
-export const scheduledPublicationStatusLabelKey = publicationStatusLabelKey;
 
 /** Polling cadence used while at least one publication is in progress or already due. */
 const ACTIVE_PUBLICATION_POLL_MS = 5_000;

@@ -127,6 +127,7 @@ public sealed class PublicationStatusTransitionService : IPublicationStatusTrans
 		TransitionOrThrow(publication.Status, PublicationStatus.InProgress);
 		publication.Attempts += 1;
 		publication.Status = PublicationStatus.InProgress;
+		publication.LastError = null;
 		// #1446: legalise exactly this save's Status writes (one grant, one save).
 		PublicationStatusWriteGuard.StampForStatusWrite(_db);
 		await _db.SaveChangesAsync(cancellationToken);

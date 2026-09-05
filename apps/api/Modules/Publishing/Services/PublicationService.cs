@@ -79,6 +79,15 @@ public sealed class ScheduledPublicationItem {
 	public required string ScheduledAtLocal { get; init; }
 	public required string TimeZone { get; init; }
 	public required string Status { get; init; }
+	/// <summary>
+	/// Sanitised, ≤ 2 KB, human-readable failure cause for Failed/Paused rows.
+	/// Surfaces verbatim through the wire so the queue/calendar/history UI can
+	/// show a plain-words reason plus a truthful next action (transparent
+	/// failure cause). Null on every other status — the entity invariant
+	/// clears the stored LastError on every non-failure transition. Already
+	/// sanitised by LastErrorSanitiser before storage.
+	/// </summary>
+	public string? LastError { get; init; }
 }
 
 /// <summary>Arguments for the queue/calendar list (D3 Task 4).</summary>
@@ -732,6 +741,14 @@ public sealed class PublicationService : IPublicationService {
 				),
 				TimeZone = publication.ScheduledTimeZone,
 				Status = PublicationWire.FormatStatus(publication.Status),
+				// LastError is sanitised on write by PublicationStatusTransitionService
+				// through LastErrorSanitiser.Sanitize (transparent-failure rule). Keep
+				// stale data off the wire even if an old row predates the transition
+				// service's clear-on-resume invariant.
+				LastError = publication.Status is PublicationStatus.Failed
+					or PublicationStatus.Paused
+					? publication.LastError
+					: null,
 			});
 		}
 

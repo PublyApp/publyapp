@@ -33,11 +33,16 @@ export const PageHeader = ({
 export const StatusPill = ({
 	children,
 	tone = 'neutral',
+	testId,
 }: {
 	children: ReactNode;
 	tone?: 'danger' | 'info' | 'neutral' | 'primary' | 'success' | 'warning';
+	/** Optional test-id passthrough so consumers can pin a stable selector
+	 * without wrapping the pill (mirrors the pattern used by other product
+	 * primitives such as PageHeader). */
+	testId?: string;
 }) => (
-	<span className="publy-status-pill" data-tone={tone}>
+	<span className="publy-status-pill" data-tone={tone} data-testid={testId}>
 		{children}
 	</span>
 );

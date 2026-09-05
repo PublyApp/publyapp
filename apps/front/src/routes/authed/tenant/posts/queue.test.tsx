@@ -38,6 +38,26 @@ vi.mock('@tanstack/react-router', () => ({
 		...options,
 		options,
 	}),
+	Link: ({
+		children,
+		to,
+		params,
+		...props
+	}: {
+		children: ReactNode;
+		to: string;
+		params?: Record<string, string>;
+	}) => {
+		let href = to;
+		for (const [key, value] of Object.entries(params ?? {})) {
+			href = href.replace(`$${key}`, value);
+		}
+		return (
+			<a href={href} {...props}>
+				{children}
+			</a>
+		);
+	},
 }));
 
 const EN_LABELS: TestLabelMap = {
@@ -52,13 +72,26 @@ const EN_LABELS: TestLabelMap = {
 	'publish-status-scheduled': 'Scheduled',
 	'publish-status-in-progress': 'In progress…',
 	'publish-status-paused': 'Paused',
+	'posts:publication-open-post': 'Open post',
+	'posts:publication-failed-cause': 'Failed: {{cause}}',
+	'posts:publication-paused-cause': 'Paused: {{cause}}',
+	'posts:publication-paused-next-action':
+		'Reconnect the account in Settings → Integrations to resume.',
+	'posts:publication-paused-next-action-aria':
+		'Reconnect paused account to resume',
+	'posts:publication-paused-next-action-link':
+		'Reconnect account in Settings → Integrations',
 	'common:queue': 'Queue',
 	'read-only': 'Read only',
 };
 
 vi.mock('react-i18next', () => ({
 	useTranslation: () => ({
-		t: (key: string) => EN_LABELS[key] ?? key,
+		t: (key: string, options?: { cause?: string }) => {
+			const value =
+				EN_LABELS[key] ?? EN_LABELS[key.replace(/^posts:/, '')] ?? key;
+			return options?.cause ? value.replace('{{cause}}', options.cause) : value;
+		},
 		i18n: { resolvedLanguage: 'en', language: 'en' },
 	}),
 }));
@@ -100,6 +133,7 @@ beforeEach(() => {
 				accountDisplayHandle: '@paused.example',
 				status: 'paused',
 				postStatus: 'scheduled',
+				lastError: 'account disconnected',
 				scheduledAtUtc: new Date('2026-09-01T18:30:00.000Z'),
 				scheduledAtLocal: '2026-09-01T20:30:00+02:00',
 				timeZone: 'Europe/Paris',
@@ -130,6 +164,14 @@ describe('TenantPostsQueuePage', () => {
 		).toBeGreaterThan(-1);
 		expect(screen.getByText('Scheduled')).toBeTruthy();
 		expect(screen.getByText('Paused')).toBeTruthy();
+		expect(screen.getByText('Paused: account disconnected')).toBeTruthy();
+		expect(
+			screen
+				.getByRole('link', {
+					name: 'Reconnect paused account to resume',
+				})
+				.getAttribute('href'),
+		).toBe('/tenant/settings/integrations');
 		expect(screen.getByText(/2026-08-31 20:30/)).toBeTruthy();
 		expect(screen.getAllByText('Europe/Paris').length).toBeGreaterThan(0);
 		expect(screen.queryByText(/coming later/i)).toBeNull();
@@ -206,6 +248,7 @@ describe('TenantPostsQueuePage', () => {
 					accountDisplayHandle: '@paused.example',
 					status: 'paused',
 					postStatus: 'scheduled',
+					lastError: 'account disconnected',
 					scheduledAtUtc: new Date('2026-09-01T18:30:00.000Z'),
 					scheduledAtLocal: '2026-09-01T20:30:00+02:00',
 					timeZone: 'Europe/Paris',
@@ -341,5 +384,84 @@ describe('TenantPostsQueuePage', () => {
 			await vi.advanceTimersByTimeAsync(6_000);
 		});
 		expect(mocks.get.mock.calls.length).toBeGreaterThan(initialCalls);
+	});
+
+	test("links a queue row's post to its edit page so the operator can open it", async () => {
+		renderPage();
+		await screen.findByText('A real scheduled post');
+
+		const link = screen.getByRole('link', { name: 'A real scheduled post' });
+		expect(link.getAttribute('href')).toBe('/tenant/posts/post-1/edit');
+		// The link carries the shared "Open post" affordance label.
+		expect(link.getAttribute('title')).toBe('Open post');
+	});
+
+	test('shows the transparent pause cause with a reconnect next action under the status', async () => {
+		mocks.get.mockResolvedValue({
+			data: [
+				{
+					publicationId: 'pub-paused-cause',
+					postId: 'post-paused-cause',
+					postBodyPreview: 'Paused row with a stored cause',
+					accountDisplayHandle: '@paused.example',
+					status: 'paused',
+					postStatus: 'scheduled',
+					lastError: 'token expired',
+					scheduledAtUtc: new Date('2026-09-01T18:30:00.000Z'),
+					scheduledAtLocal: '2026-09-01T20:30:00+02:00',
+					timeZone: 'Europe/Paris',
+				},
+			],
+			nextCursor: null,
+		});
+		renderPage();
+		await screen.findByText('Paused row with a stored cause');
+
+		const cause = screen.getByTestId('tenant-posts-publication-cause');
+		expect(cause.textContent).toContain('Paused: token expired');
+		expect(cause.getAttribute('title')).toBe(
+			'Reconnect the account in Settings → Integrations to resume.',
+		);
+		const recoveryLink = screen.getByRole('link', {
+			name: 'Reconnect paused account to resume',
+		});
+		expect(recoveryLink.getAttribute('href')).toBe(
+			'/tenant/settings/integrations',
+		);
+	});
+
+	test('sends a from query parameter 24 hours in the past so a row due seconds before page open is visible', async () => {
+		// The queue page opens, an operator navigates to /tenant/posts/queue,
+		// the page fetches with `from = now - 24h`. The API filter
+		// `ScheduledAtUtc >= FromUtc` would otherwise exclude any row due
+		// seconds before the page opens — leaving the page empty even though
+		// the worker has not yet picked the row up. The page therefore uses a
+		// 24-hour past grace on the queue window, kept narrow enough that
+		// ancient scheduled rows cannot bleed in. The grace is verified here
+		// by inspecting the query parameters the page sends to the API client.
+		vi.useFakeTimers({ shouldAdvanceTime: true });
+		vi.setSystemTime(new Date('2026-08-31T18:30:00.000Z'));
+		mocks.get.mockResolvedValue({
+			data: [],
+			nextCursor: null,
+		});
+		renderPage();
+		await screen.findByTestId('tenant-posts-queue-page');
+
+		expect(mocks.get).toHaveBeenCalledTimes(1);
+		const args = mocks.get.mock.calls[0]?.[0] as {
+			queryParameters?: { from?: string; to?: string };
+		};
+		const fromIso = args?.queryParameters?.from;
+		const toIso = args?.queryParameters?.to;
+		expect(fromIso).toBeDefined();
+		expect(toIso).toBeDefined();
+		const fromMs = new Date(fromIso!).valueOf();
+		const toMs = new Date(toIso!).valueOf();
+		const nowMs = new Date('2026-08-31T18:30:00.000Z').valueOf();
+		// 24h past grace (bounded) + 31d future horizon, exactly the 32d
+		// API maximum window — anything wider than that 422s.
+		expect(nowMs - fromMs).toBe(24 * 60 * 60 * 1000);
+		expect(toMs - fromMs).toBe(32 * 24 * 60 * 60 * 1000);
 	});
 });

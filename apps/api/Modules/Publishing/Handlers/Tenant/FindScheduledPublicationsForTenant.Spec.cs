@@ -218,10 +218,10 @@ public sealed class FindScheduledPublicationsForTenantSpec : IClassFixture<
 		// permits — only raw/unstamped Status writes are rejected.
 		await using var errScope = _fixture.Factory.Services.CreateAsyncScope();
 		var errDb = errScope.ServiceProvider.GetRequiredService<AppDbContext>();
-		var failedRow = await errDb.Publication.SingleAsync(
+		var failedPublication = await errDb.Publication.SingleAsync(
 			p => p.Id == failing.PublicationId
 		);
-		failedRow.LastError = "provider rejected the media";
+		failedPublication.LastError = "provider rejected the media";
 		await errDb.SaveChangesAsync();
 
 		using var request = new HttpRequestMessage(
@@ -242,6 +242,15 @@ public sealed class FindScheduledPublicationsForTenantSpec : IClassFixture<
 		statuses.Should().NotContain("scheduled");
 		statuses.Should().Contain("failed");
 		statuses.Where(s => s == "failed").Should().OnlyHaveUniqueItems();
+
+		// LastError is part of the wire contract: queue/calendar surfaces the
+		// plain-words cause so the operator gets a truthful next action
+		// (transparent failure causes — owner product rule).
+		var failedItem = doc.GetProperty("data")
+			.EnumerateArray()
+			.Single(row => row.GetProperty("status").GetString() == "failed");
+		failedItem.GetProperty("lastError").GetString()
+			.Should().Be("provider rejected the media");
 	}
 
 	[Fact]
