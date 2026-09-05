@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
 import { readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -6,52 +7,38 @@ import { fileURLToPath } from 'node:url';
 import { test } from 'vitest';
 import { parse } from 'yaml';
 
-// Guard for the API-test barrier's path-filter coverage (PR #1975 round 2).
+import {
+	entryCoversDir,
+	extractPushPaths,
+	findPathCoverageProblems,
+	findSpecReferencedProjectDirs,
+	readApiTestsGateSurfaces,
+} from './check-api-tests-path-coverage.ts';
+
+// Guard for the API-test barrier's path-filter coverage (PR #1975 round 2) and
+// its REACHABILITY (issue #2005).
 //
-// WHY THIS EXISTS
-// ---------------
-// Round 2 of #1975 removed apps/apphost from PublyApp.slnx so the quality
-// gate's `dotnet build PublyApp.slnx` no longer resolves Aspire.Hosting.* on
-// every PR. That left `apps/apphost/Program.cs`, which is only COMPILED by
-// AppHostOrchestrationGuardSpec inside the API test suite, covered by no
-// workflow path filter: a PR touching ONLY apps/apphost/ triggered api-tests
-// (its classifier had no apps/apphost/ group) and the slnx build no longer
-// compiled the AppHost, so a broken AppHost passed the whole barrier. Round-2
-// proof (measured on real CI): an apphost-only PR with an uncompilable
-// Program.cs kept api-tests-gate green while the suite was skipped.
+// WHY THE REACHABILITY TEST EXISTS
+// --------------------------------
+// The original #1975 guard shipped only as this vitest file, executed by
+// front-ci.yml::gate-selftest, which is gated on front-ci's OWN relevance
+// classifier. A PR that added a project to PublyApp.slnx -- the exact change
+// that breaks the guard's invariant -- classified as IRRELEVANT to front-ci, so
+// gate-selftest was SKIPPED and the guard never ran (the #2005 hole).
 //
-// This guard closes the CLASS: every project the barrier actually compiles
-// (the slnx projects built by quality-gate, and any project built or run by
-// an API-test spec) must be reached by at least one path filter of the
-// workflow that runs that compilation. It reads the REAL workflow files, the
-// REAL PublyApp.slnx and the REAL spec sources — no hand-maintained model of
-// any of them.
-//
-// WHAT THIS PROVES
-// ----------------
-//  1. Every project dir that an API-test spec builds or runs (`--project
-//     apps/<d>` or `"build", "apps/<d>"` argv forms) is covered by BOTH
-//     api-tests.yml path-filter surfaces: the `push.paths` list AND the
-//     changed-paths classifier regex. Losing either surface for a compiled
-//     project goes RED naming the project.
-//  2. The two api-tests.yml surfaces carry the SAME `apps/<seg>` groups
-//     (the file's own comment promises they are deliberately identical).
-//  3. Every project in the real PublyApp.slnx is covered by at least one
-//     path filter of the .NET barrier workflows (quality-gate.yml or
-//     api-tests.yml), so a project the quality gate compiles cannot be
-//     silently dropped from every trigger, either.
-//
-// WHAT THIS DOES NOT PROVE
-// ------------------------
-// That the api-tests workflow's gate logic itself is sound (that is
-// check-ci-gate-structure.ts's job), or that AppHostOrchestrationGuardSpec
-// still compiles what it claims (its own mutation matrix witnesses that).
-// A spec that deletes its own compile invocation while leaving a project
-// unreachable by tests is a DIFFERENT degradation: this guard only
-// guarantees that the filter surfaces keep the existing references covered.
-// The guard's inputs fail LOUD when missing or unanalyzable: an absent
-// classifier invocation, an empty slnx, or zero project references in the
-// spec tree are all RED, never a vacuous green.
+// The fix is two layers, both proved here:
+//   1. The coverage logic now lives in a PURE-NODE runnable script
+//      (check-api-tests-path-coverage.ts) run by an UNCONDITIONED job
+//      api-tests.yml::path-coverage on every PR. That job is the reachability
+//      guarantee: slnx / apps/api spec / apps/apphost / csproj changes wake it
+//      regardless of any classifier. `findPathCoverageProblems()` below is the
+//      SAME function that script runs, so the vitest coverage assertion and the
+//      unconditioned job share one implementation and cannot drift.
+//   2. `the guard's job is unconditionally reachable` (the last test) parses
+//      the REAL api-tests.yml and pins the unconditioned job's shape, so the
+//      design cannot silently regress back to a relevance-gated job. Playing
+//      only the guard's logic (the #1975 behavior) would leave the #2005 hole
+//      open a second time; this test closes reachability itself.
 
 const repoRoot = path.resolve(
 	path.dirname(fileURLToPath(import.meta.url)),
@@ -79,222 +66,22 @@ const walkFiles = (dir, suffix, acc = []) => {
 	return acc;
 };
 
-/**
- * GitHub-style glob match over a path (the semantics GitHub Actions uses for
- * `push.paths`: `*` matches any chars except `/`, `**` matches any chars
- * including `/`). Implemented as a small converter to a real RegExp so the
- * matcher itself is a faithful, testable translation of the documented rules.
- */
-const globToRegExp = (pattern) => {
-	const segments = pattern.split('/');
-	const converted = segments
-		.map((segment) => {
-			if (segment === '**') {
-				return '.*';
-			}
-			if (segment === '*') {
-				return '[^/]*';
-			}
-			return segment.replace(/[.+?^${}()|[\]\\]/g, '\\$&');
-		})
-		.join('/');
-	return new RegExp(`^${converted}$`);
-};
-
-/** True when a `push.paths` entry matches at least one file under the dir. */
-const entryCoversDir = (entry, dir) =>
-	globToRegExp(entry).test(`${dir}/Program.cs`);
-
-const coveredByAnyEntry = (dir, entries) =>
-	entries.some((entry) => entryCoversDir(entry, dir));
-
-/** Extracts the `apps/<seg>` groups from a classifier regex's alternation text. */
-const appsGroupsFromRegex = (regexText) => {
-	const groups = new Set();
-	for (const match of regexText.matchAll(/apps\/[A-Za-z0-9._-]+\//g)) {
-		groups.add(match[0].slice(0, -1));
+const compareStrings = (a: string, b: string): number => {
+	if (a < b) {
+		return -1;
 	}
-	return groups;
-};
-
-/** Extracts the `apps/<seg>` groups from a `push.paths` entry list. */
-const appsGroupsFromPathEntries = (entries) => {
-	const groups = new Set();
-	for (const entry of entries) {
-		const match = entry.match(/^apps\/([A-Za-z0-9._-]+)(?:\/|\*\*|$)/);
-		if (match !== null) {
-			groups.add(`apps/${match[1]}`);
-		}
+	if (a > b) {
+		return 1;
 	}
-	return groups;
+	return 0;
 };
 
-/**
- * Parses the real api-tests.yml into the two path-filter surfaces: the
- * `push.paths` list and the classifier regex from the `changes` job's filter
- * step. Both must exist and be analyzable; any absence throws and fails the
- * test loudly (never a silent pass).
- */
-const readApiTestsGateSurfaces = () => {
-	const workflow = parse(read('.github/workflows/api-tests.yml'));
-
-	const pushPaths = workflow?.on?.push?.paths;
-	assert.ok(
-		Array.isArray(pushPaths) && pushPaths.length > 0,
-		'api-tests.yml has no on.push.paths list (or it is empty). The path-filter coverage guard cannot evaluate the push trigger — this must never pass silently.',
-	);
-
-	const changesJob = workflow?.jobs?.changes;
-	assert.ok(changesJob !== undefined, 'api-tests.yml has no changes job.');
-	const filterStep = (changesJob.steps ?? []).find(
-		(step) => step?.id === 'filter',
-	);
-	assert.ok(
-		filterStep !== undefined && typeof filterStep.run === 'string',
-		'api-tests.yml changes job has no step with id "filter" carrying a run script.',
-	);
-
-	const classifierMatch = filterStep.run.match(/node "\$CLASSIFIER" '([^']+)'/);
-	assert.ok(
-		classifierMatch !== null,
-		'api-tests.yml changes job filter step no longer invokes `node "$CLASSIFIER" \'<regex>\'`. The guard cannot read the PR-trigger path filter — investigate before silencing.',
-	);
-
-	const classifierPattern = classifierMatch[1];
-	let compiled;
-	try {
-		compiled = new RegExp(classifierPattern);
-	} catch (error) {
-		assert.fail(
-			`api-tests.yml classifier regex does not compile: ${String(error)}`,
-		);
-	}
-
-	return { pushPaths, classifierPattern, compiled };
-};
-
-/** Project dirs referenced by real API-test specs via build/run argv forms. */
-const findSpecReferencedProjectDirs = () => {
-	const specFiles = walkFiles('apps/api', '.Spec.cs');
-	assert.ok(
-		specFiles.length > 0,
-		"No *.Spec.cs files found under apps/api. The spec tree is the barrier's evidence — an empty tree must fail loud, not pass vacuously.",
-	);
-
-	// The argv forms as they appear in the REAL specs: a C# string[] like
-	// ["run", "--project", "apps/apphost", ...] spells the project path as
-	// `--project", "apps/<d>` (comma + quote + space), while the guard's
-	// printed advice and prose use `--project apps/<d>`. A row that appears in
-	// NEITHER argv form is a mention, not a compile reference, and stays out.
-	const argvProjectRef =
-		/--project[",\s]+apps\/([A-Za-z0-9._-]+)|"build",\s*"apps\/([A-Za-z0-9._-]+)"/g;
-	const dirs = new Set();
-	for (const file of specFiles) {
-		const contents = read(file);
-		for (const match of contents.matchAll(argvProjectRef)) {
-			dirs.add(`apps/${match[1] ?? match[2]}`);
-		}
-	}
-
-	assert.ok(
-		dirs.size > 0,
-		`No project dir built or run by any API-test spec was found across ${specFiles.length} spec files (no \`--project apps/<d>\` or ["build", "apps/<d>"] argv forms). The coverage guard is blind to an empty reference set — investigate, do not silence.`,
-	);
-
-	return [...dirs].sort();
-};
-
-/** csproj-owning dirs from the real PublyApp.slnx. */
-const readSlnxProjectDirs = () => {
-	const slnx = read('PublyApp.slnx');
-	const projectPaths = [
-		...slnx.matchAll(/<Project\s+Path="([^"]+\.csproj)"/g),
-	].map((match) => match[1]);
-
-	assert.ok(
-		projectPaths.length > 0,
-		'PublyApp.slnx declares no <Project Path="..."> entries. The solution file is unreadable or empty of projects — fail loud, never pass vacuously.',
-	);
-
-	return projectPaths
-		.map((projectPath) => path.posix.dirname(projectPath))
-		.filter((dir) => dir !== '.' && dir !== '')
-		.sort();
-};
-
-const barrierPushPathSurfaces = () => {
-	const collect = (workflowFile) => {
-		const parsed = parse(read(workflowFile));
-		const paths = parsed?.on?.push?.paths;
-		assert.ok(
-			Array.isArray(paths) && paths.length > 0,
-			`${workflowFile} has no on.push.paths list for the .NET barrier coverage check.`,
-		);
-		return paths;
-	};
-
-	return {
-		qualityGatePushPaths: collect('.github/workflows/quality-gate.yml'),
-		apiTestsPushPaths: readApiTestsGateSurfaces().pushPaths,
-	};
-};
-
-test('every project built or run by an API-test spec is covered by api-tests path filters', () => {
-	const { pushPaths, classifierPattern, compiled } = readApiTestsGateSurfaces();
-	const referencedDirs = findSpecReferencedProjectDirs();
-
-	const missingFromPushPaths = referencedDirs.filter(
-		(dir) => !coveredByAnyEntry(dir, pushPaths),
-	);
-	const missingFromClassifier = referencedDirs.filter(
-		(dir) => !compiled.test(`${dir}/Program.cs`),
-	);
-
-	const pushPathAppsGroups = appsGroupsFromPathEntries(pushPaths);
-	assert.deepEqual(
-		missingFromPushPaths,
-		[],
-		'The API suite compiles these projects, but api-tests.yml `push.paths` covers none of them: ' +
-			`${missingFromPushPaths.join(', ')}. An apphost-style gap: changes to ONLY that project ` +
-			'would never wake the workflow that compiles it. Add an `apps/<dir>/**` entry covering ' +
-			'each, in BOTH api-tests.yml surfaces.',
-	);
-	assert.deepEqual(
-		missingFromClassifier,
-		[],
-		'The API suite compiles these projects, but the api-tests.yml changed-paths classifier ' +
-			`regex matches none of them: ${missingFromClassifier.join(', ')}. A PR touching ONLY ` +
-			'their files would skip the suite. Add an `apps/<dir>/` group to the classifier regex.',
-	);
-
-	// The classifier surfaces may not silently gain or lose an `apps/<seg>`
-	// group relative to the push.paths list — the workflow's own comment
-	// promises the two groups are deliberately identical.
-	const classifierAppsGroups = appsGroupsFromRegex(classifierPattern);
-	assert.deepEqual(
-		[...pushPathAppsGroups].sort(),
-		[...classifierAppsGroups].sort(),
-		'The api-tests.yml `push.paths` list and its classifier regex carry different `apps/<seg>` groups. The file states they are deliberately identical — a mutation touching only one surface recreates a half-closed gate. Keep them in lock-step.',
-	);
-});
-
-test('every project in the real PublyApp.slnx is covered by a .NET barrier path filter', () => {
-	const { qualityGatePushPaths, apiTestsPushPaths } = barrierPushPathSurfaces();
-	const slnxDirs = readSlnxProjectDirs();
-
-	const uncovered = slnxDirs.filter(
-		(dir) =>
-			!coveredByAnyEntry(dir, qualityGatePushPaths) &&
-			!coveredByAnyEntry(dir, apiTestsPushPaths),
-	);
-
-	assert.deepEqual(
-		uncovered,
-		[],
-		'These projects are compiled by the quality gate (they are in PublyApp.slnx) but no .NET ' +
-			`barrier workflow's push.paths covers them: ${uncovered.join(', ')}. A change touching ` +
-			'only such a project would never trigger the workflow that compiles it.',
-	);
+test('every project built or run by an API-test spec is covered by api-tests path filters, and every slnx project by a .NET barrier filter', () => {
+	// Runs the same pure-node function the unconditioned api-tests.yml
+	// path-coverage job executes. It reads the REAL workflow files, the REAL
+	// PublyApp.slnx and the REAL spec sources, and throws/returns findings on
+	// any gap or unanalyzable input.
+	assert.deepEqual(findPathCoverageProblems(), []);
 });
 
 // The GitHub glob semantics the coverage check relies on, pinned against the
@@ -367,8 +154,266 @@ test('findSpecReferencedProjectDirs extracts argv forms, not prose mentions', ()
 		if (token !== 'apps/api' && token !== 'apps/apphost') {
 			assert.ok(
 				!referencedDirs.includes(token),
-				`${token} is mentioned in spec prose but must not be treated as a barrier-compiled project.`,
+				`${String(token)} is mentioned in spec prose but must not be treated as a barrier-compiled project.`,
 			);
 		}
 	}
+});
+
+// The pure-node YAML-subset reader (extractPushPaths) is the one piece of the
+// unconditioned job that parses workflow YAML without the `yaml` package.
+// Pin it against the two real gate workflows' trigger shapes AND the
+// adversarial shapes (a nested machine, a flow-list sibling) a mutation could
+// try, so a silent mis-parse cannot vacate the coverage the job certifies.
+test('extractPushPaths reads on.push.paths from the real gate workflows and fails loud otherwise', () => {
+	// The two workflows this guard certifies coverage FOR carry a push trigger.
+	const apiTestsPaths = extractPushPaths(
+		read('.github/workflows/api-tests.yml'),
+	);
+	const qualityGatePaths = extractPushPaths(
+		read('.github/workflows/quality-gate.yml'),
+	);
+
+	// The quality gate's push filter must cover PublyApp.slnx too — the slnx
+	// coverage half of this guard relies on it.
+	assert.ok(
+		qualityGatePaths.includes('PublyApp.slnx'),
+		'quality-gate.yml push.paths must cover PublyApp.slnx — the slnx-coverage half of the guard reads this exact list.',
+	);
+
+	// The api-tests barrier must wake for the suite's own inputs.
+	assert.ok(
+		apiTestsPaths.includes('apps/api/**'),
+		'api-tests.yml push.paths must cover apps/api — the guard reads this exact list.',
+	);
+	assert.ok(
+		apiTestsPaths.includes('apps/apphost/**'),
+		'api-tests.yml push.paths must cover apps/apphost — the guard reads this exact list.',
+	);
+	assert.ok(
+		apiTestsPaths.includes('PublyApp.slnx'),
+		'api-tests.yml push.paths must cover PublyApp.slnx — the guard reads this exact list.',
+	);
+
+	// A machine-shaped positive control: the extractor must resolve the same
+	// list the `yaml` package resolves for the real file (single source of
+	// truth drift check).
+	const parsed = parse(read('.github/workflows/api-tests.yml'));
+	assert.deepEqual(
+		[...apiTestsPaths].sort(compareStrings),
+		[...parsed.on.push.paths].sort(compareStrings),
+		'extractPushPaths diverged from the yaml-parsed on.push.paths — the pure-node reader is no longer faithful to the real YAML.',
+	);
+
+	// Fail-loud on adversarial / unanalyzable input — never a vacuous pass.
+	assert.throws(
+		() => extractPushPaths('name: x\njobs: {}\n'),
+		/no top-level `on:`/,
+	);
+
+	// Positive control for the indentation walker over a compress-`on` shape:
+	// siblings (pull_request, merge_group) and a nested push.paths resolve.
+	const compressOn =
+		'on:\n  pull_request:\n  merge_group:\n  push:\n    paths:\n      - "a"\n';
+	assert.deepEqual(extractPushPaths(compressOn), ['a']);
+
+	// A workflow with `on` but no `push` child (only pull_request +
+	// workflow_dispatch) must fail loud, not return nothing.
+	assert.throws(
+		() =>
+			extractPushPaths(
+				'name: x\non:\n  pull_request:\n  workflow_dispatch:\njobs:\n  a:\n    steps:\n      - run: echo\n',
+			),
+		/no `push:` child/,
+	);
+});
+
+const readSurfacesFromText = (fileText: string) =>
+	readApiTestsGateSurfaces(fileText);
+
+const classifierFixture = (filterStep: string) => `
+name: fixture
+on:
+  push:
+    paths:
+      - 'apps/api/**'
+jobs:
+  unrelated:
+    steps:
+      - run: |
+          node "$CLASSIFIER" 'wrong'
+  changes:
+    steps:
+      - name: Filter decoy
+        run: |
+          node "$CLASSIFIER" 'wrong'
+      - name: Check paths
+        id: filter
+${filterStep}
+`;
+
+test('reads the exact executable changes filter command and ignores decoys', () => {
+	const expectedPattern = '^(apps/api/|PublyApp\\.slnx$)';
+	const surfaces = readSurfacesFromText(
+		classifierFixture(
+			`        run: |\n          node "$CLASSIFIER" '${expectedPattern}'`,
+		),
+	);
+
+	assert.equal(
+		surfaces.classifierCommand,
+		`node "$CLASSIFIER" '${expectedPattern}'`,
+	);
+	assert.equal(surfaces.classifierPattern, expectedPattern);
+});
+
+test('rejects classifier commands that are commented, echoed, conditionally disabled, tolerated, or replaced by a no-op', () => {
+	const expectedPattern = '^(apps/api/)';
+	const mutations = [
+		[
+			'commented',
+			`        run: |\n          # node "$CLASSIFIER" '${expectedPattern}'`,
+		],
+		[
+			'echoed',
+			`        run: |\n          echo node "$CLASSIFIER" '${expectedPattern}'`,
+		],
+		[
+			'if-false',
+			`        if: false\n        run: |\n          node "$CLASSIFIER" '${expectedPattern}'`,
+		],
+		[
+			'continue-on-error',
+			`        continue-on-error: true\n        run: |\n          node "$CLASSIFIER" '${expectedPattern}'`,
+		],
+		['no-op', '        run: |\n          :'],
+	];
+
+	for (const [name, filterStep] of mutations) {
+		assert.throws(
+			() => readSurfacesFromText(classifierFixture(filterStep)),
+			/changes.*filter|classifier command|effective command/i,
+			`${name} filter must not certify the guard as executable`,
+		);
+	}
+});
+
+test('the standalone path-coverage CLI executes successfully against the real tree', () => {
+	const result = spawnSync(
+		process.execPath,
+		[
+			path.join(
+				repoRoot,
+				'packages/scripts-ts/src/check-api-tests-path-coverage.ts',
+			),
+		],
+		{
+			cwd: repoRoot,
+			encoding: 'utf8',
+		},
+	);
+
+	assert.equal(result.error, undefined, result.error?.message);
+	assert.equal(result.status, 0, result.stderr);
+	assert.match(result.stdout, /\[api-tests-path-coverage\].*\[OK\]/);
+	assert.equal(result.stderr, '');
+});
+
+// #2005: the reachability half. The coverage guard is only worth anything if
+// the job that runs it is REACHED by the change that breaks it. This test
+// parses the real api-tests.yml and pins the unconditioned path-coverage job.
+//
+// If any of these stop holding — the job gains a `if: needs.changes...` gate,
+// it is dropped from gate.needs, the PR trigger gains a `paths:` filter, or the
+// step stops invoking the pure-node script — this test FAILS naming the drift,
+// refusing to leave the #2005 hole open a second time.
+test('the api-tests path-coverage guard job is unconditionally reachable from every input (#2005)', () => {
+	const workflow = parse(read('.github/workflows/api-tests.yml'));
+
+	// The workflow must subscribe to pull_request without a paths filter, so it
+	// always starts for ANY PR and the unconditioned job always reports on it.
+	const on = workflow.on ?? {};
+	assert.ok(
+		on.pull_request !== undefined,
+		'api-tests.yml must subscribe to `on.pull_request` so the guard is reachable on pull requests.',
+	);
+	assert.ok(
+		on.pull_request === null ||
+			on.pull_request === undefined ||
+			on.pull_request.paths === undefined,
+		'api-tests.yml `on.pull_request` must have NO `paths:` filter. A filter would skip the whole workflow (and therefore the path-coverage job) for PRs touching only slnx/spec/csproj — the exact #2005 hole.',
+	);
+
+	// The guard's own inputs are the things that break its invariant. Because
+	// `on.pull_request` is unfiltered (asserted above), a PR touching ONLY any
+	// one of them still starts this workflow and reaches the unconditioned job.
+	// Naming them here makes the intent explicit and reviewable — the reachability
+	// contract is that none of these inputs may ever become a worthless green.
+	const guardInputs = [
+		'PublyApp.slnx',
+		'apps/api/PublyApp.Api.csproj',
+		'apps/apphost/Program.cs',
+		'.github/workflows/api-tests.yml',
+	];
+	for (const input of guardInputs) {
+		assert.ok(
+			on.pull_request === null ||
+				on.pull_request === undefined ||
+				on.pull_request.paths === undefined,
+			`A PR touching ONLY ${input} must reach the path-coverage guard. The pull_request trigger must stay unfiltered so every real input reaches it — the exact #2005 hole.`,
+		);
+	}
+
+	// The unconditioned job must exist, NOT be relevance-gated, and be wired
+	// into the required gate.
+	const jobs = workflow.jobs ?? {};
+	const job = jobs['path-coverage'];
+	assert.ok(
+		job !== undefined,
+		'api-tests.yml must define a `path-coverage` job running the pure-node coverage script. Without it the #2005 guard has no unconditioned executor.',
+	);
+	assert.ok(
+		job.if === undefined,
+		`api-tests.yml::path-coverage must have NO job-level \`if:\` (found ${JSON.stringify(job.if ?? null)}). Gating it on the changes classifier would skip it for slnx/spec-only changes — the exact #2005 hole.`,
+	);
+	assert.ok(
+		job.needs === undefined,
+		'api-tests.yml::path-coverage must declare no `needs` (it is standalone and unconditional; a `needs` could let an upstream skip cascade to it).',
+	);
+
+	const invokeScript = (job.steps ?? []).some(
+		(step) =>
+			typeof step?.run === 'string' &&
+			step.run.trim() ===
+				'node packages/scripts-ts/src/check-api-tests-path-coverage.ts',
+	);
+	assert.ok(
+		invokeScript,
+		'api-tests.yml::path-coverage must run `node packages/scripts-ts/src/check-api-tests-path-coverage.ts` directly. If it stops invoking the pure-node script, the unconditioned job no longer enforces the coverage invariant.',
+	);
+
+	// The job must be part of the required gate so a failure fails the PR, and
+	// the gate must always report so a skipped guard is never silently accepted.
+	const gateNeeds = Array.isArray(jobs.gate?.needs) ? jobs.gate.needs : [];
+	assert.ok(
+		gateNeeds.includes('path-coverage'),
+		`api-tests.yml::gate.needs must include path-coverage so a guard failure fails the required check (found: [${gateNeeds.join(', ')}]).`,
+	);
+	assert.ok(
+		jobs.gate?.if === 'always()',
+		`api-tests.yml::gate must set \`if: always()\` (found ${JSON.stringify(jobs.gate?.if ?? null)}) so it always reports rather than treating a skipped guard as "not applicable".`,
+	);
+
+	const setupNode = (job.steps ?? []).find(
+		(step) => step?.name === 'Set up Node',
+	);
+	assert.deepEqual(
+		setupNode,
+		{
+			name: 'Set up Node',
+			uses: 'actions/setup-node@820762786026740c76f36085b0efc47a31fe5020',
+			with: { 'node-version': '24' },
+		},
+		'api-tests.yml::path-coverage must pin Node 24 before running the standalone TypeScript CLI.',
+	);
 });

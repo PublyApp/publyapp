@@ -171,6 +171,50 @@ jobs:
           if-no-files-found: ignore
           retention-days: 5
 
+  # #2005: unconditioned guard — the API-tests path-filter coverage invariant.
+  #
+  # WHY THIS IS A SEPARATE, UNCONDITIONED JOB
+  # -----------------------------------------
+  # check-api-tests-path-coverage.ts (a pure-node script; see #1975 round 2)
+  # asserts that every project the API suite compiles — the projects in
+  # PublyApp.slnx AND the projects built/run by API-test specs — is reached by
+  # at least one workflow path filter. Its real inputs are PublyApp.slnx,
+  # apps/api/** spec sources, apps/apphost/** (compiled only by an API-test
+  # spec) and the path filters in .github/workflows/{api-tests,quality-gate}.yml.
+  #
+  # The guard originally executed only inside front-ci.yml's relevance-gated
+  # `gate-selftest` job, so a PR that added a project to PublyApp.slnx without
+  # a matching path filter — THE change that breaks the invariant — was
+  # classified as irrelevant to front-ci and SKIPPED the guard. A classifier of
+  # front-known paths can never recognize the arrival of a slnx/spec/csproj edit
+  # on a path it does not enumerate today; a guard that only runs when the thing
+  # it guards is "relevant" by that narrow reckoning protects nothing. This is
+  # the same argument the unconditioned `no-ignored-tracked` (#1513) and
+  # `no-dockerignore-shadow` (#1849) guards make in quality-gate.yml.
+  #
+  # So this job runs UNCONDITIONALLY (no `if:`), no `needs`, on every pull
+  # request — this workflow's `pull_request:` trigger is deliberately
+  # unfiltered — and outside the relevance gate. It runs only `node` against a
+  # pure-node script: no install, no build, so it is cheap and fast. Mirrors
+  # `just ci-drift` (which runs the same guard's vitest suite, including the
+  # reachability test that pins THIS job's unconditioned shape).
+  path-coverage:
+    name: API path-filter coverage guard is reachable (#2005)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Set up Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: "24"
+
+      - name: Verify every API-suite-compiled project is reached by a path filter (#2005)
+        run: node packages/scripts-ts/src/check-api-tests-path-coverage.ts
+
   # Required status check: this is the one context that should be required
   # on the branch ruleset instead of relying on the trigger. It always
   # reports (if: always()), passes when upstream jobs succeeded or were
@@ -184,7 +228,7 @@ jobs:
     # merge_group resolve to the required name.
     name: ${{ (github.event_name == 'pull_request' || github.event_name == 'merge_group') && 'api-tests-gate' || 'api-tests-push-check' }}
     if: always()
-    needs: [changes, suite]
+    needs: [changes, suite, path-coverage]
     runs-on: ubuntu-latest
     steps:
       # Reads the `needs` context directly (via toJSON) instead of a

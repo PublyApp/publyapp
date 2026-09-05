@@ -41,6 +41,21 @@
 			"mirror": null,
 			"reason": "GitHub-only: round-5 BLOCKER fix. Reads steps.check-required-jobs.outcome, which GitHub computes BEFORE continue-on-error is applied (only .conclusion is rewritten afterward), so a continue-on-error added to the required-jobs check step cannot mask this step's own view of whether that step actually succeeded. That `.outcome` context only exists inside a real Actions run, so this stays GitHub-only/unmirrored locally; packages/scripts-ts/src/check-ci-gate-structure.ts pins that this exact step exists."
 		},
+		"api-tests.yml::path-coverage::Checkout": {
+			"hash": "11ee605b2ca0dfd4",
+			"mirror": null,
+			"reason": "GitHub-only: clones the repo onto the runner. Locally the working tree already is the code under test; there is no checkout step to mirror."
+		},
+		"api-tests.yml::path-coverage::Set up Node": {
+			"hash": "61358e0a341c087e",
+			"mirror": null,
+			"reason": "GitHub-only Node 24 setup for the standalone guard. Locally the repository's Node requirement is already enforced by the package manager and the active developer toolchain."
+		},
+		"api-tests.yml::path-coverage::Verify every API-suite-compiled project is reached by a path filter (#2005)": {
+			"hash": "36270a663e1662f5",
+			"mirror": "just ci-drift",
+			"reason": "just ci-drift runs the same guard's vitest suite (check-api-tests-path-coverage.test.ts), which imports this script's findPathCoverageProblems() as the single coverage implementation AND pins (via the #2005 reachability test) that this path-coverage job stays unconditioned and in gate.needs. So the local mirror covers both the coverage invariant and the job's reachability shape the pure-node `run:` enforces on the server."
+		},
 		"api-tests.yml::suite::Checkout": {
 			"hash": "11ee605b2ca0dfd4",
 			"mirror": null,
