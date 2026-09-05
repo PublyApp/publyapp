@@ -96,10 +96,27 @@ const executeStaticHandler = async (
 	renderHTML: NonNullable<StaticMiddlewareOptions['renderHTML']>,
 ): Promise<Response> => {
 	const directory = getFixtureDirectory();
-	return executeStaticFileScenario({
-		directory,
-		handler: staticMiddleware({ dir: directory, renderHTML }),
+	let renderHTMLObserved = false;
+	const handler = staticMiddleware({
+		dir: directory,
+		renderHTML: (context) => {
+			renderHTMLObserved = true;
+			return renderHTML(context);
+		},
 	});
+	const response = await executeStaticFileScenario({
+		directory,
+		handler,
+	});
+
+	if (!renderHTMLObserved) {
+		throw new Error(
+			'MESURE IMPOSSIBLE: staticMiddleware did not execute its production ' +
+				'renderHTML path for the fixture file.',
+		);
+	}
+
+	return response;
 };
 
 const normalStaticAssertionsAccepted = async (
