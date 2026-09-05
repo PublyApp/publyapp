@@ -54,6 +54,9 @@
 		"api-tests.yml::changes::Setup Node",
 		"api-tests.yml::gate::Check required jobs",
 		"api-tests.yml::gate::Verify the required-jobs check truly succeeded (continue-on-error cannot mask this)",
+		"api-tests.yml::path-coverage::Checkout",
+		"api-tests.yml::path-coverage::Set up Node",
+		"api-tests.yml::path-coverage::Verify every API-suite-compiled project is reached by a path filter (#2005)",
 		"api-tests.yml::suite::Checkout",
 		"api-tests.yml::suite::Install workspace dependencies",
 		"api-tests.yml::suite::Materialize .env.development from template (CI has no gitignored env file)",
@@ -267,6 +270,18 @@
 		"api-tests.yml::gate::Verify the required-jobs check truly succeeded (continue-on-error cannot mask this)": {
 			"reason_hash": "270aa0820881ca9d",
 			"reason": "GitHub-only: round-5 BLOCKER fix. Reads steps.check-required-jobs.outcome, which GitHub computes BEFORE continue-on-error is applied (only .conclusion is rewritten afterward), so a continue-on-error added to the required-jobs check step cannot mask this step's own view of whether that step actually succeeded. That `.outcome` context only exists inside a real Actions run, so this stays GitHub-only/unmirrored locally; packages/scripts-ts/src/check-ci-gate-structure.ts pins that this exact step exists."
+		},
+		"api-tests.yml::path-coverage::Checkout": {
+			"reason_hash": "5937ffddccc89c9c",
+			"reason": "GitHub-only: clones the repo onto the runner. Locally the working tree already is the code under test; there is no checkout step to mirror."
+		},
+		"api-tests.yml::path-coverage::Set up Node": {
+			"reason_hash": "048128b8f83b6e6c",
+			"reason": "GitHub-only Node 24 setup for the standalone guard. Locally the repository's Node requirement is already enforced by the package manager and the active developer toolchain."
+		},
+		"api-tests.yml::path-coverage::Verify every API-suite-compiled project is reached by a path filter (#2005)": {
+			"reason_hash": "f39f4fca8d6c2d01",
+			"reason": "just ci-drift runs the same guard's vitest suite (check-api-tests-path-coverage.test.ts), which imports this script's findPathCoverageProblems() as the single coverage implementation AND pins (via the #2005 reachability test) that this path-coverage job stays unconditioned and in gate.needs. So the local mirror covers both the coverage invariant and the job's reachability shape the pure-node `run:` enforces on the server."
 		},
 		"api-tests.yml::suite::Checkout": {
 			"reason_hash": "c80eb5bfb322fab4",
