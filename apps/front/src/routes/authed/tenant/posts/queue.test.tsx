@@ -10,6 +10,7 @@ import type { TestLabelMap } from '~/lib/testing/test-label-map';
 const mocks = vi.hoisted(() => ({
 	get: vi.fn(),
 	shouldLogout: false,
+	language: 'en',
 }));
 
 vi.mock('~/lib/api-client/client-manager', () => ({
@@ -92,7 +93,7 @@ vi.mock('react-i18next', () => ({
 				EN_LABELS[key] ?? EN_LABELS[key.replace(/^posts:/, '')] ?? key;
 			return options?.cause ? value.replace('{{cause}}', options.cause) : value;
 		},
-		i18n: { resolvedLanguage: 'en', language: 'en' },
+		i18n: { resolvedLanguage: mocks.language, language: mocks.language },
 	}),
 }));
 
@@ -113,6 +114,7 @@ const renderPage = () => {
 };
 
 beforeEach(() => {
+	mocks.language = 'en';
 	mocks.get.mockResolvedValue({
 		data: [
 			{
@@ -172,9 +174,17 @@ describe('TenantPostsQueuePage', () => {
 				})
 				.getAttribute('href'),
 		).toBe('/tenant/settings/integrations');
-		expect(screen.getByText(/2026-08-31 20:30/)).toBeTruthy();
+		expect(screen.getByText('Mon, Aug 31, 2026, 8:30 PM')).toBeTruthy();
 		expect(screen.getAllByText('Europe/Paris').length).toBeGreaterThan(0);
 		expect(screen.queryByText(/coming later/i)).toBeNull();
+	});
+
+	test('renders queued publication times in the active French locale', async () => {
+		mocks.language = 'fr';
+		renderPage();
+
+		expect(await screen.findByText('A real scheduled post')).toBeTruthy();
+		expect(screen.getByText('lun. 31 août 2026, 20:30')).toBeTruthy();
 	});
 
 	test('owns scrolling inside the publy-page-fill chain', async () => {

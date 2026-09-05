@@ -7,7 +7,7 @@ import type { ColumnDef } from '~/components/table/column-type';
 import { DataTable } from '~/components/table/data-table';
 import { Button } from '~/components/ui/button';
 import { PageHeader, StatusPill } from '~/components/ui/product-page';
-import { formatDateTime } from '~/lib/format-date-time';
+import { formatInZone } from '~/lib/format/zone-date-time';
 import { publicationStatusPresentation } from '~/lib/publication-status';
 import {
 	invalidateTenantPublications,
@@ -185,7 +185,11 @@ const TenantPostsHistoryPage = () => {
 				meta: { width: '132px' },
 				cell: ({ row }) =>
 					row.original.updatedAt
-						? formatDateTime(row.original.updatedAt, i18n.language)
+						? formatInZone(
+								row.original.updatedAt,
+								undefined,
+								i18n.resolvedLanguage ?? i18n.language,
+							)
 						: '\u2014',
 			},
 		],
