@@ -937,9 +937,9 @@
 			"reason": "GitHub-only Node setup. Locally the Node version is pinned by .node-version / .nvmrc."
 		},
 		"require-linked-issue.yml::require-linked-issue::Verify the PR links an existing issue": {
-			"hash": "07e8143e2263f046",
+			"hash": "57e04eb52acc347a",
 			"mirror": null,
-			"reason": "Reads github.event.pull_request.body and number. At pre-push time there is no PR and therefore no live body to check, so the event-bound step is not reproducible locally. Its exact shell body is executed against a mocked GitHub CLI by packages/scripts-ts/src/require-linked-issue.test.ts, which pins the Dependabot waiver, line-anchored relationships, negated-prose rejection, self-reference diagnosis, failure when any closing relationship targets a pull request or unverifiable number, and allowance of a non-closing sibling-PR citation only when a real issue also satisfies the gate. In GitHub Actions, gate-selftest has issues and pull-requests read permissions and executes both the live issues-endpoint discriminator and the real workflow body against known PR #1987."
+			"reason": "Reads github.event.pull_request.body and number. At pre-push time there is no PR and therefore no live body to check, so the event-bound step is not reproducible locally. Its exact shell body is executed against a mocked GitHub CLI by packages/scripts-ts/src/require-linked-issue.test.ts, which pins the Dependabot waiver, line-anchored relationships, negated-prose rejection, explicit self-reference diagnosis, failure when a closing relationship targets any pull request, a self-reference, an unverifiable number, or a failed/missing GraphQL closingIssuesReferences entry, and allowance of a non-closing sibling-PR citation only when a real issue also satisfies the gate. The hermetic mock covers the GraphQL call and can force it to fail, so the focused suite exercises the real workflow body rather than a model of it. In GitHub Actions, gate-selftest has issues and pull-requests read permissions and executes the live issues-endpoint discriminator and the real workflow body against known PR #1987."
 		},
 		"front-ci.yml::supply-chain::Test front (non-vitest)": {
 			"hash": "510926b827d71f04",
