@@ -1,0 +1,14 @@
+{
+	"$schema": "../expected-red.schema.json",
+	"_comment": "Per-test kept-red expectation manifest for issue #1915. Both declared tests MUST fail with AssertionErrors on the corrected assertions. If either declared test passes, classifyProofWithManifest returns DECLARED RED PASSED and the runner marks the corresponding proof stale and exits non-zero.",
+	"expectedRed": [
+		{
+			"testName": "normal static-file assertions accept a broken 500 response (#1915 status axis)",
+			"why": "The proof executes the real static handler, replaces its successful response with a 500 response carrying the exact body, and passes it to the normal assertions. The corrected status assertion rejects it, so the kept-red test fails with AssertionError. If this test passes, the status validation was removed or weakened and the paired proof must be rejected as stale."
+		},
+		{
+			"testName": "normal static-file assertions accept a successful empty body (#1915 body axis)",
+			"why": "The proof executes the real static handler, replaces its successful response body with an empty body while retaining a successful status, and passes it to the normal assertions. The corrected exact-body assertion rejects it, so the kept-red test fails with AssertionError. If this test passes, the exact body validation was removed or weakened and the paired proof must be rejected as stale."
+		}
+	]
+}
