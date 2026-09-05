@@ -10,6 +10,7 @@ import {
 	assertNormalStaticFileResponse,
 	INDEX_HTML_BODY,
 } from '../tests/helpers/static-file-assertions';
+import { executeStaticFileScenario } from '../tests/helpers/static-file-scenario';
 
 const tmpDir = join(process.cwd(), '.test-static-assets');
 
@@ -49,17 +50,18 @@ describe('staticMiddleware — path traversal and dotfile guard (A2)', () => {
 		const { staticMiddleware } = await import('srvx/static');
 		const handler = staticMiddleware({ dir: tmpDir });
 
-		// Request the known-good fixture through the real middleware.
-		const request = new Request('http://localhost:3000/index.html');
-
-		// srvx returns the next handler's response when it falls through.
-		// This fixture's next handler returns a 404.
-		const response = await handler(
-			request,
-			() => new Response('not found', { status: 404 }),
-		);
+		const response = await executeStaticFileScenario({
+			directory: tmpDir,
+			handler,
+		});
 
 		await assertNormalStaticFileResponse(response);
+	});
+
+	test('reports a missing static-file response clearly', async () => {
+		await expect(assertNormalStaticFileResponse(undefined)).rejects.toThrow(
+			'Expected static middleware to return a response for index.html',
+		);
 	});
 
 	test('path traversal with ../ is refused', async () => {

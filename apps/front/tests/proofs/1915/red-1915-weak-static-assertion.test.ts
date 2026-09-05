@@ -27,8 +27,27 @@
  * Replay:
  *   cd apps/front && pnpm exec vitest run --config vitest.proofs.config.ts \
  *     tests/proofs/1915/red-1915-weak-static-assertion.test.ts
+ *
+ * Current corrected-code failure for both declared tests:
+ *   AssertionError: expected false to be true // Object.is equality
+ *
+ * Mutation and adverse evidence:
+ * - Removing `expect(response.ok).toBe(true)` makes the named status-axis test
+ *   green; removing `expect(body).toBe(INDEX_HTML_BODY)` makes the named
+ *   body-axis test green; removing either outer `expect(...).toBe(true)` makes
+ *   the corresponding caught AssertionError disappear and is therefore a
+ *   non-vacuity failure.
+ * - Adverse attempts used equivalent status validation (`response.status ===
+ *   200`), a non-empty-body check, and a changed fixture body. The status-axis
+ *   test, body-axis test, and both tests respectively remained red, so none
+ *   provided a surviving alternate mutation.
+ *
+ * Green run:
+ *   pnpm --filter front exec vitest run src/server.static.test.ts
+ *   Test Files 1 passed; Tests 6 passed.
  */
-import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { staticMiddleware } from 'srvx/static';
@@ -38,49 +57,45 @@ import {
 	assertNormalStaticFileResponse,
 	INDEX_HTML_BODY,
 } from '../../helpers/static-file-assertions';
+import {
+	executeStaticFileScenario,
+	type StaticFileResponseVariant,
+} from '../../helpers/static-file-scenario';
 
-const tmpDir = join(process.cwd(), '.test-static-proof-assets-1915');
-
-type ResponseVariant = (body: string, response: Response) => Response;
+let tmpDir: string | undefined;
 
 const createFixtureFiles = (): void => {
-	mkdirSync(tmpDir, { recursive: true });
-	writeFileSync(join(tmpDir, 'index.html'), INDEX_HTML_BODY);
+	const directory = mkdtempSync(join(tmpdir(), 'publy-static-proof-1915-'));
+	tmpDir = directory;
+	writeFileSync(join(directory, 'index.html'), INDEX_HTML_BODY);
 };
 
 const cleanupFixtureFiles = (): void => {
+	if (tmpDir === undefined) {
+		return;
+	}
+
 	rmSync(tmpDir, { recursive: true, force: true });
+	tmpDir = undefined;
+};
+
+const getFixtureDirectory = (): string => {
+	if (tmpDir === undefined) {
+		throw new Error('MESURE IMPOSSIBLE: proof fixture was not created.');
+	}
+
+	return tmpDir;
 };
 
 const executeStaticHandler = async (
-	variant: ResponseVariant,
+	variant: StaticFileResponseVariant,
 ): Promise<Response> => {
-	const handler = staticMiddleware({ dir: tmpDir });
-	const request = new Request('http://localhost:3000/index.html');
-	const response = await handler(
-		request,
-		() => new Response('not found', { status: 404 }),
-	);
-
-	if (response === undefined) {
-		throw new Error(
-			`MESURE IMPOSSIBLE: staticMiddleware did not return a response for ` +
-				`the fixture file ${join(tmpDir, 'index.html')}.`,
-		);
-	}
-
-	const body = await response.text();
-	if (
-		!response.ok ||
-		body !== readFileSync(join(tmpDir, 'index.html'), 'utf8')
-	) {
-		throw new Error(
-			`MESURE IMPOSSIBLE: staticMiddleware did not serve the known-good ` +
-				`fixture before applying the broken-response mutation.`,
-		);
-	}
-
-	return variant(body, response);
+	const directory = getFixtureDirectory();
+	return executeStaticFileScenario({
+		directory,
+		handler: staticMiddleware({ dir: directory }),
+		variant,
+	});
 };
 
 const normalStaticAssertionsAccepted = async (
