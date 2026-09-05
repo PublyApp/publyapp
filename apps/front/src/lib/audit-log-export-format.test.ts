@@ -1,8 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import {
-	AUDIT_LOG_EXPORT_DOWNLOAD_DESCRIPTORS,
-	auditLogExportDownloadDescriptor,
-} from '~/lib/audit-log-export-format';
+import { auditLogExportDownloadDescriptor } from '~/lib/audit-log-export-format';
 
 describe('auditLogExportDownloadDescriptor', () => {
 	test('returns csv extension and text/csv MIME for the CSV format', () => {
@@ -19,10 +16,15 @@ describe('auditLogExportDownloadDescriptor', () => {
 		});
 	});
 
-	test('exposes the full mapping table so no format can ship without both fields declared', () => {
-		expect(AUDIT_LOG_EXPORT_DOWNLOAD_DESCRIPTORS).toStrictEqual({
-			csv: { extension: 'csv', mimeType: 'text/csv' },
-			json: { extension: 'json', mimeType: 'application/json' },
+	test('does not let runtime mutation affect later descriptors', () => {
+		const descriptor = auditLogExportDownloadDescriptor('json');
+
+		Reflect.set(descriptor, 'extension', 'csv');
+		Reflect.set(descriptor, 'mimeType', 'text/csv');
+
+		expect(auditLogExportDownloadDescriptor('json')).toStrictEqual({
+			extension: 'json',
+			mimeType: 'application/json',
 		});
 	});
 });

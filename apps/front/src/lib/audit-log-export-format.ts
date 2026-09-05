@@ -1,3 +1,5 @@
+import type { StaffAuditLogExportFormat } from '~/lib/query/staff-audit-logs';
+
 /**
  * Maps a {@link StaffAuditLogExportFormat} to the file extension and MIME
  * type used when the user actually downloads the export. The download call
@@ -10,21 +12,26 @@
  * report and the audit-log drawer that let one of them drift out of test
  * coverage.
  */
-export type AuditLogExportDownloadDescriptor = {
+export type AuditLogExportDownloadDescriptor = Readonly<{
 	extension: 'csv' | 'json';
 	mimeType: 'text/csv' | 'application/json';
-};
+}>;
 
-export const AUDIT_LOG_EXPORT_DOWNLOAD_DESCRIPTORS = {
+const AUDIT_LOG_EXPORT_DOWNLOAD_DESCRIPTORS = {
 	csv: { extension: 'csv', mimeType: 'text/csv' },
 	json: { extension: 'json', mimeType: 'application/json' },
-} as const satisfies Record<string, AuditLogExportDownloadDescriptor>;
+} as const satisfies Record<
+	StaffAuditLogExportFormat,
+	AuditLogExportDownloadDescriptor
+>;
 
 /** Resolves the (extension, MIME) pair for a format. Exhaustive — the return
  * type is the literal descriptor, so a future format added here without
  * listing both fields fails type-checking instead of silently shipping a
- * frozen default. */
+ * default. A fresh object prevents a caller's runtime mutation from changing
+ * the shared mapping used by later calls. */
 export const auditLogExportDownloadDescriptor = (
-	format: 'csv' | 'json',
-): AuditLogExportDownloadDescriptor =>
-	AUDIT_LOG_EXPORT_DOWNLOAD_DESCRIPTORS[format];
+	format: StaffAuditLogExportFormat,
+): AuditLogExportDownloadDescriptor => ({
+	...AUDIT_LOG_EXPORT_DOWNLOAD_DESCRIPTORS[format],
+});
