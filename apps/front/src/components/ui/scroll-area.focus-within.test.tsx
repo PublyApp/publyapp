@@ -1,13 +1,18 @@
 /**
  * @vitest-environment jsdom
  *
- * #1541 (promise 2): the vendored SimpleBar CSS keeps the scrollbar thumb
- * visible while focus sits anywhere inside the scroller. The contract is a
- * single `[data-simplebar]:focus-within .simplebar-scrollbar::before { … }`
- * rule that targets the pseudo-element produced by SimpleBar's track. We
- * prove it against the REAL stylesheet that ships in `app.css`, not a
- * fixture: a synthetic stylesheet could agree with itself forever and tell
- * us nothing about whether the runtime CSS still does the job.
+ * #1541 (promise 2): the SimpleBar CSS keeps the scrollbar thumb visible while
+ * focus sits anywhere inside the scroller. The contract is a single
+ * `[data-simplebar]:focus-within .simplebar-scrollbar::before { … }` rule that
+ * targets the pseudo-element produced by SimpleBar's track. We prove it
+ * against the REAL emitted stylesheet, not a fixture: since #1540 the vendored
+ * copy that used to live in app.css is gone, so this rule now ships via the
+ * `publy:transform-simplebar-upstream-css` Vite plugin, which reads the real
+ * installed `simplebar-core/dist/simplebar.css`, retokenizes it, and layers
+ * the publy policy rules (including this focus-within rule) on top. We run
+ * the transformer against the real upstream and assert the rule is present
+ * with the exact auto-hide semantics the promise requires — proving the
+ * runtime bundle still does the job.
  *
  * The previous test suite (`scroll-area.test.tsx`) only covered that the
  * ancestor of the focused option was the SimpleBar wrapper — never that
@@ -15,32 +20,45 @@
  * rule that reveals the thumb. This is that proof.
  */
 import { readFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
 import { join } from 'node:path';
 
 import { cleanup, render } from '@testing-library/react';
 import { afterEach, describe, expect, test } from 'vitest';
 
+import { transformSimplebarUpstreamCssOrThrow } from '../../../tools/vite/transform-simplebar-upstream-css.mts';
 import { ScrollArea } from './scroll-area';
 
-const APP_CSS_PATH = join(__dirname, '..', '..', 'styles', 'app.css');
+/** Load the REAL installed upstream and run it through the production transformer. */
+const transformedUpstreamCss = (): string => {
+	const requireFromFront = createRequire(
+		join(__dirname, '..', '..', '..', 'package.json'),
+	);
+	const upstreamPath = requireFromFront.resolve(
+		'simplebar-core/dist/simplebar.css',
+	);
+	return transformSimplebarUpstreamCssOrThrow(
+		readFileSync(upstreamPath, 'utf8'),
+	);
+};
 
 afterEach(cleanup);
 
 describe('ScrollArea focus-within policy (#1541 promise 2)', () => {
-	test('the real app.css carries the [data-simplebar]:focus-within rule that reveals the thumb', () => {
-		const css = readFileSync(APP_CSS_PATH, 'utf8');
+	test('the transformed stylesheet carries the [data-simplebar]:focus-within rule that reveals the thumb', () => {
+		const css = transformedUpstreamCss();
 		// Pull the rule whose selector is [data-simplebar]:focus-within and
-		// whose body targets .simplebar-scrollbar::before. We slice the file
+		// whose body targets .simplebar-scrollbar::before. We slice the text
 		// rather than rely on a regex-with-capture because the rule body also
 		// contains `transition-delay: 0s;` and `transition-duration: 0s;` —
-		// pinning the body exactly guards against a future "let me just
-		// fade it in slower" rewrite that silently undoes the promise.
+		// pinning the body exactly guards against a future "let me just fade
+		// it in slower" rewrite that silently undoes the promise.
 		const focusWithinRule =
 			/\[data-simplebar\]:focus-within\s+\.simplebar-scrollbar::before\s*\{([^}]*)\}/u;
 		const match = css.match(focusWithinRule);
 		expect(
 			match,
-			'the focus-within reveal rule must exist in app.css',
+			'the focus-within reveal rule must exist in the transformed stylesheet',
 		).not.toBeNull();
 		expect(match?.[1]).toMatch(/opacity\s*:\s*0\.6\b/);
 		expect(match?.[1]).toMatch(/transition-delay\s*:\s*0s\b/);

@@ -35,5 +35,7 @@
 		".svg": "vector graphics, never imports code"
 	},
 	"exemptFiles": ["components/table/column-type.ts"],
-	"intentionalDeletions": []
+	"intentionalDeletions": [
+		"apps/front/src/components/ui/scroll-area.upstream-css.test.tsx"
+	]
 }

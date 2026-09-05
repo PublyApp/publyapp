@@ -843,10 +843,9 @@ void test('R6: baseline file is valid JSON without authored floors', () => {
 		false,
 		'baseline must not carry obsolete authored perExtension floors',
 	);
-	assert.deepEqual(
-		baseline.intentionalDeletions,
-		[],
-		'baseline must declare an empty exact-deletion list when no deletion is active',
+	assert.ok(
+		Array.isArray(baseline.intentionalDeletions),
+		'baseline must declare an exact-deletion list',
 	);
 });
 
@@ -1443,10 +1442,20 @@ void test('#2033 integration: anchored Git scans follow concurrent branches with
 		new Set(listFilesAtRef(mergeBase, 'apps/front/src', repo)),
 		new Set(['apps/front/src/base.ts', 'apps/front/src/base.tsx']),
 	);
+	const baseline = JSON.parse(
+		readFileSync(
+			path.resolve(here, 'column-type-imports-baseline.json'),
+			'utf8',
+		),
+	) as Record<string, unknown>;
+	baseline.intentionalDeletions = [];
+	const baselinePath = path.join(repo, 'column-type-imports-baseline.json');
+	writeFileSync(baselinePath, JSON.stringify(baseline));
 	assert.deepEqual(
 		scanFrontSrcForBannedImports(sourceRoot, {
 			gitCwd: repo,
 			integrationBranch: 'develop',
+			baselinePath,
 		}),
 		[],
 		'branch A must pass while branch B is already ahead on develop',
@@ -1457,6 +1466,7 @@ void test('#2033 integration: anchored Git scans follow concurrent branches with
 		scanFrontSrcForBannedImports(sourceRoot, {
 			gitCwd: repo,
 			integrationBranch: 'develop',
+			baselinePath,
 		}),
 		[],
 		'the merged branch must pass against its anchored integration branch',
