@@ -29,6 +29,16 @@ public sealed class PostgresRateLimitCounterStoreSpec
 	}
 
 	[Fact]
+	public void ItShouldResolveTheCounterStoreAsTheSameSingletonInstance() {
+		var first = _fixture.Factory.Services
+			.GetRequiredService<IRateLimitCounterStore>();
+		var second = _fixture.Factory.Services
+			.GetRequiredService<IRateLimitCounterStore>();
+
+		first.Should().BeSameAs(second);
+	}
+
+	[Fact]
 	public void ItShouldAlignWindowsToWholeWindowMultiplesAcrossReplicas() {
 		var window = TimeSpan.FromSeconds(60);
 
@@ -363,7 +373,7 @@ public sealed class PostgresRateLimitCounterStoreSpec
 	// still reject — that is the entire point of failing closed during an
 	// outage.
 	[Fact]
-	public async Task ItShouldFailClosedForAbusePoliciesWhileTheBreakerIsOpen() {
+	public async Task ItShouldFailClosedForAbusePoliciesWhileTheirPolicyBreakerIsOpen() {
 		var timeProvider = new ManualTimeProvider {
 			UtcNowValue = BaseTime,
 		};
@@ -376,10 +386,10 @@ public sealed class PostgresRateLimitCounterStoreSpec
 			timeProvider
 		);
 
-		// Open the breaker by exceeding the failure threshold.
+		// Open the abuse policy's breaker by exceeding the failure threshold.
 		for (var attempt = 0; attempt < 5; attempt++) {
 			await store.AcquireAsync(
-				ApiRateLimitPolicies.AuthenticatedDefault,
+				AnonymousAuthRateLimitPolicies.PerIp,
 				"breaker-key",
 				10,
 				TimeSpan.FromSeconds(60),
@@ -390,8 +400,8 @@ public sealed class PostgresRateLimitCounterStoreSpec
 
 		throwingFactory.DialAttempts.Should().Be(5);
 
-		// The breaker is now OPEN. A fail-CLOSED abuse policy must reject
-		// without dialling, while a fail-OPEN policy admits.
+		// The abuse-policy breaker is now OPEN. It must reject without dialling,
+		// while an unrelated fail-OPEN policy gets its own database attempt.
 		var failClosedResult = await store.AcquireAsync(
 			AnonymousAuthRateLimitPolicies.PerIp,
 			"abuse-key",
@@ -410,7 +420,7 @@ public sealed class PostgresRateLimitCounterStoreSpec
 		);
 
 		throwingFactory.DialAttempts.Should()
-			.Be(5, "the open breaker must not dial Postgres");
+			.Be(6, "only the abuse policy's open breaker must not dial Postgres");
 		failClosedResult.Acquired.Should().BeFalse(
 			"fail-CLOSED abuse policy must reject during an outage"
 		);
@@ -421,6 +431,104 @@ public sealed class PostgresRateLimitCounterStoreSpec
 		failOpenResult.StoreFailure.Should().BeTrue(
 			"fail-OPEN policy signals the caller to admit"
 		);
+	}
+
+	[Fact]
+	public async Task ItShouldIsolateBreakerStateAcrossUnrelatedPolicies() {
+		var timeProvider = new ManualTimeProvider {
+			UtcNowValue = BaseTime,
+		};
+		var throwingFactory = new ThrowingScopeFactory();
+		await using var store = new PostgresRateLimitCounterStore(
+			throwingFactory,
+			NullLogger<PostgresRateLimitCounterStore>.Instance,
+			GetHostSettings<ApiRateLimitSettings>(),
+			GetHostSettings<AnonymousAuthRateLimitSettings>(),
+			timeProvider
+		);
+
+		for (
+			var attempt = 0;
+			attempt < PostgresRateLimitCounterStore.BreakerFailureThreshold;
+			attempt++
+		) {
+			var failed = await store.AcquireAsync(
+				ApiRateLimitPolicies.AuthenticatedDefault,
+				"authenticated-partition",
+				10,
+				TimeSpan.FromSeconds(60),
+				1,
+				timeProvider.UtcNowValue
+			);
+
+			failed.StoreFailure.Should().BeTrue();
+		}
+
+		throwingFactory.DialAttempts.Should()
+			.Be(PostgresRateLimitCounterStore.BreakerFailureThreshold);
+
+		var unrelatedPolicyResult = await store.AcquireAsync(
+			AnonymousAuthRateLimitPolicies.PerIp,
+			"anonymous-partition",
+			10,
+			TimeSpan.FromSeconds(60),
+			1,
+			timeProvider.UtcNowValue
+		);
+
+		throwingFactory.DialAttempts.Should().Be(
+			PostgresRateLimitCounterStore.BreakerFailureThreshold + 1,
+			"a failure in one policy must not suppress an unrelated policy's database attempt"
+		);
+		unrelatedPolicyResult.Acquired.Should().BeFalse();
+		unrelatedPolicyResult.StoreFailure.Should().BeFalse(
+			"the unrelated policy reached the store and applied its own fail mode"
+		);
+	}
+
+	[Fact]
+	public async Task ItShouldShareBreakerStateAcrossPartitionsWithinOnePolicy() {
+		var timeProvider = new ManualTimeProvider {
+			UtcNowValue = BaseTime,
+		};
+		var throwingFactory = new ThrowingScopeFactory();
+		await using var store = new PostgresRateLimitCounterStore(
+			throwingFactory,
+			NullLogger<PostgresRateLimitCounterStore>.Instance,
+			GetHostSettings<ApiRateLimitSettings>(),
+			GetHostSettings<AnonymousAuthRateLimitSettings>(),
+			timeProvider
+		);
+
+		for (
+			var attempt = 0;
+			attempt < PostgresRateLimitCounterStore.BreakerFailureThreshold;
+			attempt++
+		) {
+			await store.AcquireAsync(
+				ApiRateLimitPolicies.AuthenticatedDefault,
+				$"authenticated-partition-{attempt}",
+				10,
+				TimeSpan.FromSeconds(60),
+				1,
+				timeProvider.UtcNowValue
+			);
+		}
+
+		var anotherPartitionResult = await store.AcquireAsync(
+			ApiRateLimitPolicies.AuthenticatedDefault,
+			"another-authenticated-partition",
+			10,
+			TimeSpan.FromSeconds(60),
+			1,
+			timeProvider.UtcNowValue
+		);
+
+		throwingFactory.DialAttempts.Should().Be(
+			PostgresRateLimitCounterStore.BreakerFailureThreshold,
+			"partitions of one policy share a bounded dependency breaker"
+		);
+		anotherPartitionResult.StoreFailure.Should().BeTrue();
 	}
 
 	[Fact]

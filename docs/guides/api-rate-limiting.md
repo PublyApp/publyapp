@@ -170,15 +170,17 @@ fingerprints, tenant IDs) are never persisted raw — only the 32-hex-char SHA-2
 same no-PII stance as throttle logs. Housekeeping deletes each touched key's superseded window
 rows inline and sweeps rows older than the largest configured window at most once a minute.
 
-Outage behaviour: five consecutive store failures open a circuit breaker for 30 s — while open,
-acquisitions do not dial Postgres at all — then one half-open probe decides between recovery and
-re-open. While the store is unreachable, policies apply their fail mode: anonymous-auth per-IP,
-per-email and password-reset-per-email plus the email-producing `email-operation` /
-`tenant-email-operation` fail **CLOSED** (a rejection during an incident is safer than handing
-unlimited login-guess or email-bomb budgets to whoever arrives); every other policy fails open,
-because domain work already requires Postgres and rejecting more traffic converts degradation
-into outage without buying protection. Failed acquisitions surface as failed leases carrying
-`Retry-After` = remaining window, keeping the 429 contract unchanged.
+Outage behaviour: five consecutive store failures for one named policy open that policy's circuit
+breaker for 30 s — while open, acquisitions for that policy do not dial Postgres at all — then
+one half-open probe decides between recovery and re-open. Partitions within a policy share its
+breaker; unrelated policies have independent breakers, so one policy's failure cannot suppress
+another policy's database attempts. While the store is unreachable, policies apply their fail
+mode: anonymous-auth per-IP, per-email and password-reset-per-email plus the email-producing
+`email-operation` / `tenant-email-operation` fail **CLOSED** (a rejection during an incident is
+safer than handing unlimited login-guess or email-bomb budgets to whoever arrives); every other
+policy fails open, because domain work already requires Postgres and rejecting more traffic
+converts degradation into outage without buying protection. Failed acquisitions surface as
+failed leases carrying `Retry-After` = remaining window, keeping the 429 contract unchanged.
 
 `RATE_LIMIT_COUNTER_STORE` selects the implementation: `postgres` (default — scaling to a second
 replica without reading docs still yields one shared budget) or `memory` (pre-#953 per-process
