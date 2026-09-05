@@ -7,7 +7,7 @@ import type { ColumnDef } from '~/components/table/column-type';
 import { DataTable } from '~/components/table/data-table';
 import { Button } from '~/components/ui/button';
 import { PageHeader, StatusPill } from '~/components/ui/product-page';
-import { formatDateTime } from '~/lib/format-date-time';
+import { formatInZone } from '~/lib/format/zone-date-time';
 import { publicationStatusPresentation } from '~/lib/publication-status';
 import {
 	invalidateTenantPublications,
@@ -144,6 +144,7 @@ const TenantPostsHistoryPage = () => {
 		return () => clearInterval(interval);
 	}, [hasInFlight, tenantId, qc]);
 
+	const language = i18n.resolvedLanguage ?? i18n.language;
 	const columns = useMemo<ColumnDef<TenantPublicationRow>[]>(
 		() => [
 			{
@@ -185,11 +186,11 @@ const TenantPostsHistoryPage = () => {
 				meta: { width: '132px' },
 				cell: ({ row }) =>
 					row.original.updatedAt
-						? formatDateTime(row.original.updatedAt, i18n.language)
+						? formatInZone(row.original.updatedAt, undefined, language)
 						: '\u2014',
 			},
 		],
-		[t, i18n.language],
+		[t, language],
 	);
 
 	// Hoisted so the fatal-error gate reads a plain local, not a query flag —
