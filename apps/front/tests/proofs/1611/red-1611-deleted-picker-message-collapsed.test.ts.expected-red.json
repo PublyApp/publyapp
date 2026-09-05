@@ -1,10 +1,10 @@
 {
 	"$schema": "../expected-red.schema.json",
-	"_comment": "The declared proof must fail with an AssertionError after the exact temporary mutation collapses the all-deleted branch into the generic empty branch.",
+	"_comment": "The declared proof must fail with an AssertionError after the exact mutation in an isolated worktree collapses the all-deleted branch into the generic empty branch. The unmutated green replay is a separate E2E invocation, never a second stack inside this Vitest test.",
 	"expectedRed": [
 		{
 			"testName": "the real @1611 Playwright journey rejects collapsed all-deleted copy",
-			"why": "The proof temporarily changes the production all-deleted branch from `if (hasDeletedTenants) {` to `if (false) {`, rebuilds the Docker front runtime, and runs `e2e/tenant-portal-picker.spec.ts --grep @1611 --project chromium`. The journey must fail its visible 'Your organizations are no longer available' assertion; the restored source must pass the same journey."
+			"why": "The proof changes the production source from `if (hasDeletedTenants) {` to `if (false) {` in an isolated worktree, rebuilds one Docker front runtime, and runs `e2e/tenant-portal-picker.spec.ts --grep @1611 --project chromium`. The journey must fail its visible 'Your organizations are no longer available' assertion. The source worktree stays untouched; the unmutated green replay is run separately by the captain."
 		}
 	]
 }
