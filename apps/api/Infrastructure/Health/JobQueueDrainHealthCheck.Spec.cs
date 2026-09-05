@@ -5,6 +5,8 @@ using FluentAssertions;
 
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
+using Microsoft.Extensions.Logging;
 
 using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Lib;
@@ -53,14 +55,18 @@ public sealed class JobQueueDrainHealthCheckSpec : IClassFixture<ApiFixture> {
 				HttpStatusCode.ServiceUnavailable,
 				"the drain surface must refuse while a due job sits unclaimed past the threshold"
 			);
-			body.Should().Contain("job_queue_drain", "the failing check is named");
+			// Issue #2037: the public body names the failing check and the
+			// product-language cause ("scheduled publications are not being sent"),
+			// never the internal naming — no job type, table name, APP_ROLE, or
+			// docker command. The operational detail is asserted in
+			// HealthEndpointPublicSurfaceSpec as the negative of the same shape.
 			body.Should().Contain(
-				"worker",
-				"the cause must say a worker is not draining the queue"
+				"scheduled publication delivery",
+				"the public check is named in product language"
 			);
 			body.Should().Contain(
-				"Scheduled",
-				"the cause must say what stays stuck (publications stay Scheduled)"
+				"publications",
+				"the cause names the product consequence in plain words"
 			);
 		} finally {
 			await db.JobQueue.ExecuteDeleteAsync();
@@ -226,6 +232,49 @@ public sealed class JobQueueDrainHealthCheckSpec : IClassFixture<ApiFixture> {
 	}
 
 	[Fact]
+	public async Task ItShouldCaptureOneStructuredWarningForRepeatedDrainFailures() {
+		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		var logger = new CapturingLogger<JobQueueDrainHealthCheck>();
+		var logGate = new HealthCheckLogGate();
+		var check = new JobQueueDrainHealthCheck(db, logger, logGate);
+		var stallThreshold = AppEnvironment.Instance.JOB_QUEUE_DRAIN_STALL_SECONDS;
+
+		try {
+			await InsertStalledPendingJobAsync(db, stallThreshold);
+
+			var first = await check.CheckHealthAsync(new HealthCheckContext());
+			var second = await check.CheckHealthAsync(new HealthCheckContext());
+
+			first.Status.Should().Be(HealthStatus.Unhealthy);
+			second.Status.Should().Be(HealthStatus.Unhealthy);
+			var warning = logger.Warnings.Should().ContainSingle(
+				"repeated unauthenticated drain probes must not amplify warnings"
+			).Subject;
+			warning.State.Should().Contain(pair =>
+				pair.Key == "HealthCheck" && Equals(pair.Value, "scheduled publication delivery")
+			);
+			warning.State.Should().Contain(pair =>
+				pair.Key == "StalledJobCount" && Equals(pair.Value, 1)
+			);
+			var oldestAge = warning.State.Single(
+				pair => pair.Key == "OldestJobAgeSeconds"
+			).Value;
+			oldestAge.Should().BeOfType<int>();
+			if (oldestAge is not int oldestAgeValue) {
+				throw new InvalidOperationException("The oldest age log field was not an integer.");
+			}
+			oldestAgeValue.Should().BeGreaterThanOrEqualTo(stallThreshold);
+			warning.State.Should().Contain(pair =>
+				pair.Key == "SampleJobTypes"
+					&& Equals(pair.Value, PublishingJobs.PublishPublicationV1JobType)
+			);
+		} finally {
+			await db.JobQueue.ExecuteDeleteAsync();
+		}
+	}
+
+	[Fact]
 	public async Task ItShouldExposeTheStallReasonOnTheDrainBody() {
 		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
 		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
@@ -241,16 +290,17 @@ public sealed class JobQueueDrainHealthCheckSpec : IClassFixture<ApiFixture> {
 			Assert.NotNull(report);
 			report.Status.Should().Be("Unhealthy");
 			var drainCheck = report.Checks?.FirstOrDefault(check =>
-				check.Name == "job_queue_drain");
+				check.Name == "scheduled publication delivery");
 			drainCheck.Should().NotBeNull("the failing check is present in the report");
 			Assert.NotNull(drainCheck);
+			// Issue #2037: the description on the public surface names the
+			// product consequence ("scheduled publications are not being sent").
+			// Internal naming (job type, APP_ROLE=worker) is asserted absent in
+			// HealthEndpointPublicSurfaceSpec and reaches the operator through
+			// the protected log instead.
 			drainCheck.Description.Should().Contain(
-				PublishingJobs.PublishPublicationV1JobType,
-				"the stuck job type is named in the rendered state"
-			);
-			drainCheck.Description.Should().Contain(
-				"APP_ROLE=worker",
-				"the next action is named in plain words"
+				"publications",
+				"the cause names the product consequence in plain words"
 			);
 		} finally {
 			await db.JobQueue.ExecuteDeleteAsync();
@@ -283,5 +333,49 @@ public sealed class JobQueueDrainHealthCheckSpec : IClassFixture<ApiFixture> {
 		public string? Name { get; set; }
 		public string? Status { get; set; }
 		public string? Description { get; set; }
+	}
+
+	private sealed class CapturingLogger<T> : ILogger<T> {
+		public sealed record Entry(
+			LogLevel Level,
+			string Message,
+			IReadOnlyList<KeyValuePair<string, object?>> State
+		);
+
+		public List<Entry> Entries { get; } = [];
+
+		public IReadOnlyList<Entry> Warnings {
+			get {
+				return Entries.Where(entry => entry.Level == LogLevel.Warning).ToList();
+			}
+		}
+
+		public IDisposable BeginScope<TState>(TState state) where TState : notnull {
+			return NullScope.Instance;
+		}
+
+		public bool IsEnabled(LogLevel logLevel) {
+			return true;
+		}
+
+		public void Log<TState>(
+			LogLevel logLevel,
+			EventId eventId,
+			TState state,
+			Exception? exception,
+			Func<TState, Exception?, string> formatter
+		) {
+			var structuredState = state is IEnumerable<KeyValuePair<string, object?>> values
+				? values.ToList()
+				: [];
+			Entries.Add(new Entry(logLevel, formatter(state, exception), structuredState));
+		}
+
+		private sealed class NullScope : IDisposable {
+			public static readonly NullScope Instance = new();
+
+			public void Dispose() {
+			}
+		}
 	}
 }
