@@ -15,7 +15,11 @@ import type { TestLabelMap } from '~/lib/testing/test-label-map';
 type VerifyEmailLoaderData =
 	| { view: 'invalid' }
 	| { view: 'sent'; email: string }
-	| { view: 'request' };
+	| {
+			view: 'request';
+			email?: string;
+			deliveryFailure?: { cause?: string };
+	  };
 
 const mocks = vi.hoisted(() => ({
 	loaderData: { view: 'request' } as VerifyEmailLoaderData,
@@ -65,6 +69,8 @@ const EN_LABELS: TestLabelMap = {
 		"<strong>{{email}}</strong> is valid, you'll receive an email with a link to verify your account.",
 	'verify-email-sent-hint':
 		"Didn't get it? Check your spam folder, or try again in a minute.",
+	'verification-email-request-failed':
+		"We couldn't send the verification email. Please try again.",
 	'go-to-home': 'Go to home',
 	'invalid-link-title': 'This link is invalid or expired',
 	'invalid-verification-link-description':
@@ -166,6 +172,48 @@ describe('verify-email route', () => {
 		).toBeTruthy();
 	});
 
+	test('renders a prefilled retry form with the serialized signup failure cause', async () => {
+		mocks.loaderData = {
+			view: 'request',
+			email: 'alex@brightwave.io',
+			deliveryFailure: { cause: 'Mail provider unavailable' },
+		};
+
+		renderVerifyEmailRoute();
+
+		expect(screen.getByLabelText('Email address')).toHaveProperty(
+			'value',
+			'alex@brightwave.io',
+		);
+		await waitFor(() =>
+			expect(screen.getByTestId('verify-email-error-alert')).toBeTruthy(),
+		);
+		expect(screen.getByText('Mail provider unavailable')).toBeTruthy();
+		expect(screen.queryByTestId('verify-email-sent')).toBeNull();
+	});
+
+	test('retries from the failed-delivery state and renders the sent view', async () => {
+		mocks.loaderData = {
+			view: 'request',
+			email: 'alex@brightwave.io',
+			deliveryFailure: { cause: 'Mail provider unavailable' },
+		};
+		mocks.requestEmailVerification.mockResolvedValue({ status: 'sent' });
+
+		renderVerifyEmailRoute();
+		fireEvent.click(screen.getByRole('button', { name: 'Verify email' }));
+
+		await waitFor(() =>
+			expect(mocks.requestEmailVerification).toHaveBeenCalledWith({
+				data: { email: 'alex@brightwave.io' },
+			}),
+		);
+		await waitFor(() =>
+			expect(screen.getByTestId('verify-email-sent')).toBeTruthy(),
+		);
+		expect(screen.queryByTestId('verify-email-error-alert')).toBeNull();
+	});
+
 	test('renders the sent state directly when loader data arrives from a signup redirect', () => {
 		mocks.loaderData = { view: 'sent', email: 'mara@northwind.co' };
 
@@ -182,8 +230,7 @@ describe('verify-email route', () => {
 		expect(screen.getByTestId('verify-email-sent')).toBeTruthy();
 
 		// Simulate navigating back to bare /verify-email: the loader re-runs
-		// and returns the request view — a fresh object, which is what the
-		// component keys its locally-submitted-email reset off of.
+		// and returns the request view, replacing the confirmation with the form.
 		mocks.loaderData = { view: 'request' };
 		const Component = Route.options.component as () => ReturnType<
 			typeof createElement
@@ -213,9 +260,13 @@ describe('verify-email route', () => {
 
 describe('verify-email loader', () => {
 	type VerifyEmailLoaderResult =
-		| { view: 'request' }
 		| { view: 'sent'; email: string }
-		| { view: 'invalid' };
+		| { view: 'invalid' }
+		| {
+				view: 'request';
+				email?: string;
+				deliveryFailure?: { cause?: string };
+		  };
 
 	const loader = (
 		Route.options as {
@@ -239,6 +290,21 @@ describe('verify-email loader', () => {
 		await expect(
 			loader({ location: { searchStr: '?email=mara%40northwind.co' } }),
 		).resolves.toEqual({ view: 'sent', email: 'mara@northwind.co' });
+	});
+
+	test('returns a retry view for a failed signup delivery handoff', async () => {
+		await expect(
+			loader({
+				location: {
+					searchStr:
+						'?email=mara%40northwind.co&delivery_status=failed&delivery_cause=Mail%20provider%20unavailable',
+				},
+			}),
+		).resolves.toEqual({
+			view: 'request',
+			email: 'mara@northwind.co',
+			deliveryFailure: { cause: 'Mail provider unavailable' },
+		});
 	});
 
 	test('returns the invalid view when the token check fails', async () => {

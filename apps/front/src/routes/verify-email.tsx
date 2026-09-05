@@ -7,7 +7,7 @@ import {
 	useLoaderData,
 } from '@tanstack/react-router';
 import { useServerFn } from '@tanstack/react-start';
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Trans, useTranslation } from 'react-i18next';
 import { z } from 'zod';
@@ -36,7 +36,13 @@ type VerifyEmailLoaderData =
 	| { view: 'invalid' }
 	| { view: 'unavailable' }
 	| { view: 'sent'; email: string }
-	| { view: 'request' };
+	| {
+			view: 'request';
+			email?: string;
+			deliveryFailure?: { cause?: string };
+	  };
+
+const MAX_DELIVERY_CAUSE_LENGTH = 240;
 
 const verifyEmailLoader = async ({
 	location,
@@ -63,6 +69,21 @@ const verifyEmailLoader = async ({
 	}
 
 	const email = params.get(queryParamKey.login_page.email);
+	const deliveryStatus = params.get(queryParamKey.signup_page.delivery_status);
+	if (email && deliveryStatus === 'failed') {
+		const deliveryCause = params
+			.get(queryParamKey.signup_page.delivery_cause)
+			?.trim();
+
+		return {
+			view: 'request',
+			email,
+			deliveryFailure: deliveryCause
+				? { cause: deliveryCause.slice(0, MAX_DELIVERY_CAUSE_LENGTH) }
+				: {},
+		};
+	}
+
 	if (email) {
 		return { view: 'sent', email };
 	}
@@ -84,29 +105,29 @@ const getVerifyEmailFormSchema = (t: Translate) =>
 			.pipe(z.email(t('enter-valid-email-address'))),
 	});
 
-const VerifyEmailRoute = () => {
-	const loaderData = useLoaderData({
-		from: '/verify-email',
-	}) as VerifyEmailLoaderData;
+type VerifyEmailRequestLoaderData = Extract<
+	VerifyEmailLoaderData,
+	{ view: 'request' }
+>;
+
+const VerifyEmailRequestForm = ({
+	loaderData,
+}: {
+	loaderData: VerifyEmailRequestLoaderData;
+}) => {
 	const { t } = useTranslation(['auth', 'common']);
-	// Only records a submit-triggered "sent" transition — the loader-derived
-	// view is the source of truth otherwise, so a same-route navigation (the
-	// loader re-running with a different search) isn't stuck showing a stale
-	// confirmation for an email the user never actually just submitted (the
-	// same never-resyncs shape F3 fixed in reset-password.tsx).
 	const [locallySubmittedEmail, setLocallySubmittedEmail] = useState<
 		string | null
 	>(null);
-	const [errorMessage, setErrorMessage] = useState('');
+	const [submissionErrorMessage, setSubmissionErrorMessage] = useState('');
 	const isHydrated = useHydrated();
+	const deliveryFailureMessage = loaderData.deliveryFailure
+		? (loaderData.deliveryFailure.cause ??
+			t('verification-email-request-failed'))
+		: '';
+	const errorMessage = submissionErrorMessage || deliveryFailureMessage;
 
-	useEffect(() => {
-		setLocallySubmittedEmail(null);
-	}, [loaderData]);
-
-	const submittedEmail =
-		locallySubmittedEmail ??
-		(loaderData.view === 'sent' ? loaderData.email : null);
+	const submittedEmail = locallySubmittedEmail;
 
 	const requestEmailVerificationAction = useServerFn(requestEmailVerification);
 	const formSchema = useMemo(() => getVerifyEmailFormSchema(t), [t]);
@@ -117,24 +138,26 @@ const VerifyEmailRoute = () => {
 		formState: { isSubmitting, errors },
 	} = useForm<VerifyEmailFormValues>({
 		resolver: zodResolver(formSchema),
-		defaultValues: { email: '' },
+		defaultValues: {
+			email: loaderData.email ?? '',
+		},
 	});
 
-	if (loaderData.view === 'unavailable') {
-		return (
-			<PrecheckUnavailableView testId="verify-email-precheck-unavailable-view" />
-		);
-	}
+	const onSubmit = async (values: VerifyEmailFormValues) => {
+		setSubmissionErrorMessage('');
 
-	if (loaderData.view === 'invalid') {
-		return (
-			<InvalidLinkView
-				description={t('invalid-verification-link-description')}
-				requestNewLinkHref="/verify-email"
-				testId="verify-email-invalid-link-view"
-			/>
-		);
-	}
+		try {
+			await requestEmailVerificationAction({ data: { email: values.email } });
+			setLocallySubmittedEmail(values.email);
+		} catch (error) {
+			const failure = toApiFailure(error);
+			setSubmissionErrorMessage(
+				getFailureMessage(failure, {
+					fallback: t('common:an-error-occurred'),
+				}),
+			);
+		}
+	};
 
 	if (submittedEmail) {
 		return (
@@ -153,22 +176,6 @@ const VerifyEmailRoute = () => {
 			/>
 		);
 	}
-
-	const onSubmit = async (values: VerifyEmailFormValues) => {
-		setErrorMessage('');
-
-		try {
-			await requestEmailVerificationAction({ data: { email: values.email } });
-			setLocallySubmittedEmail(values.email);
-		} catch (error) {
-			const failure = toApiFailure(error);
-			setErrorMessage(
-				getFailureMessage(failure, {
-					fallback: t('common:an-error-occurred'),
-				}),
-			);
-		}
-	};
 
 	return (
 		<div className="space-y-6">
@@ -240,6 +247,52 @@ const VerifyEmailRoute = () => {
 				</Link>
 			</div>
 		</div>
+	);
+};
+
+const VerifyEmailRoute = () => {
+	const loaderData = useLoaderData({
+		from: '/verify-email',
+	}) as VerifyEmailLoaderData;
+	const { t } = useTranslation(['auth', 'common']);
+
+	if (loaderData.view === 'unavailable') {
+		return (
+			<PrecheckUnavailableView testId="verify-email-precheck-unavailable-view" />
+		);
+	}
+
+	if (loaderData.view === 'invalid') {
+		return (
+			<InvalidLinkView
+				description={t('invalid-verification-link-description')}
+				requestNewLinkHref="/verify-email"
+				testId="verify-email-invalid-link-view"
+			/>
+		);
+	}
+
+	if (loaderData.view === 'sent') {
+		return (
+			<EmailSentConfirmation
+				title={t('verification-email-sent')}
+				description={
+					<Trans
+						i18nKey="verify-email-sent-description"
+						ns="auth"
+						values={{ email: loaderData.email }}
+						components={{ strong: <strong className="text-foreground" /> }}
+					/>
+				}
+				hint={t('verify-email-sent-hint')}
+				testId="verify-email-sent"
+			/>
+		);
+	}
+
+	const requestViewKey = `${loaderData.email ?? ''}:${loaderData.deliveryFailure?.cause ?? ''}`;
+	return (
+		<VerifyEmailRequestForm key={requestViewKey} loaderData={loaderData} />
 	);
 };
 

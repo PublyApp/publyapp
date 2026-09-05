@@ -352,6 +352,10 @@ export const queryParamKey = {
 		encoded_email: 'id',
 		token: 'token',
 	},
+	signup_page: {
+		delivery_status: 'delivery_status',
+		delivery_cause: 'delivery_cause',
+	},
 } as const;
 
 /**

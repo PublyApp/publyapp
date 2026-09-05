@@ -276,6 +276,7 @@ const RESET_REQUEST_EMAIL = 'ada@example.com';
 const SET_NEW_EMAIL = 'grace@example.com';
 const INVITED_EMAIL = 'invited@example.com';
 const CURRENT_USER_EMAIL = 'other@example.com';
+const VERIFY_REQUEST_EMAIL = 'mara@example.com';
 const VERIFY_SENT_EMAIL = 'linus@example.com';
 
 /**
@@ -300,7 +301,7 @@ type CallSiteSpec = {
 		| ResetPasswordLoaderData
 		| VerifyEmailLoaderData
 		| InvitationLoaderData;
-	flow?: 'submit-reset-request';
+	flow?: 'submit-reset-request' | 'submit-verify-email-request';
 	scopeTestId?: string;
 	key: AuthTranslationKey;
 	/** The `ns` attribute on the real `<Trans>` element (all pinned sites use "auth"). */
@@ -380,6 +381,19 @@ const CALL_SITES: CallSiteSpec[] = [
 		},
 		en: 'This invitation is for invited@example.com, but you are signed in as other@example.com. Log out to continue creating the invited account.',
 		fr: 'Cette invitation est destinée à invited@example.com, mais vous êtes actuellement connecté en tant que other@example.com. Déconnectez-vous pour continuer la création du compte invité.',
+	},
+	{
+		site: 'routes/verify-email.tsx (request form -> sent confirmation)',
+		file: 'routes/verify-email.tsx',
+		route: 'verify-email',
+		loaderData: { view: 'request' },
+		flow: 'submit-verify-email-request',
+		scopeTestId: 'verify-email-sent',
+		key: 'verify-email-sent-description',
+		ns: 'auth',
+		values: { email: VERIFY_REQUEST_EMAIL },
+		en: "mara@example.com is valid, you'll receive an email with a link to verify your account.",
+		fr: 'Si mara@example.com est valide, vous recevrez un email avec un lien pour vérifier votre compte.',
 	},
 	{
 		site: 'routes/verify-email.tsx (verification email sent)',
@@ -477,6 +491,29 @@ const renderCallSite = async (
 		);
 		if (form === null) {
 			throw new Error('request form');
+		}
+		fireEvent.submit(form);
+
+		await waitFor(() =>
+			expect(
+				rendered.container.querySelector(`[data-testid="${spec.scopeTestId}"]`),
+			).toBeTruthy(),
+		);
+	} else if (spec.flow === 'submit-verify-email-request') {
+		const emailInput = rendered.container.querySelector<HTMLInputElement>(
+			'#verify-email-email',
+		);
+		if (emailInput === null) {
+			throw new Error('verify-email request form email input');
+		}
+		fireEvent.change(emailInput, {
+			target: { value: VERIFY_REQUEST_EMAIL },
+		});
+		const form = rendered.container.querySelector(
+			'[data-testid="verify-email-request-form"]',
+		);
+		if (form === null) {
+			throw new Error('verify-email request form');
 		}
 		fireEvent.submit(form);
 

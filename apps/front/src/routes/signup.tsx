@@ -14,13 +14,14 @@ import { Input } from '~/components/ui/input';
 import { redirectAuthenticatedUserAwayFromAuthPage } from '~/lib/auth-route-guard';
 import { FEATURES } from '~/lib/flags';
 import { useHydrated } from '~/lib/hooks/use-hydrated';
-import { register, requestEmailVerification } from '~/lib/server/auth-actions';
+import { registerAndRequestEmailVerification } from '~/lib/server/auth-actions';
 
 import {
 	getFailureMessage,
 	toApiFailure,
 } from '@org/shared-ts/lib/api-failure/to-api-failure';
 import { PASSWORD_MIN_LENGTH } from '@org/shared-ts/lib/auth-password-policy';
+import { queryParamKey } from '@org/shared-ts/lib/constants';
 
 type SignUpFormValues = {
 	firstName: string;
@@ -71,8 +72,9 @@ const SignUpRoute = () => {
 	const signupsEnabled = FEATURES.auth.signupsEnabled;
 	const isHydrated = useHydrated();
 
-	const registerAction = useServerFn(register);
-	const requestEmailVerificationAction = useServerFn(requestEmailVerification);
+	const registerAndRequestEmailVerificationAction = useServerFn(
+		registerAndRequestEmailVerification,
+	);
 	const formSchema = useMemo(() => getSignUpFormSchema(t), [t]);
 
 	const {
@@ -89,7 +91,7 @@ const SignUpRoute = () => {
 		setErrorMessage('');
 
 		try {
-			const result = await registerAction({
+			const result = await registerAndRequestEmailVerificationAction({
 				data: {
 					firstName: values.firstName,
 					lastName: values.lastName,
@@ -98,13 +100,30 @@ const SignUpRoute = () => {
 				},
 			});
 
-			try {
-				await requestEmailVerificationAction({ data: { email: result.email } });
-			} catch {
-				// Best-effort — the account is already created, don't block on this.
-			}
+			if (result.status === 'sent') {
+				await navigate({
+					to: '/verify-email',
+					search: { email: result.email },
+				});
+			} else {
+				const cause = result.cause;
+				const causeMessage =
+					cause.kind === 'problem' ? (cause.detail ?? cause.title) : undefined;
+				const search = {
+					email: result.email,
+					[queryParamKey.signup_page.delivery_status]: 'failed' as const,
+					[queryParamKey.signup_page.delivery_cause]: causeMessage,
+				} satisfies {
+					email: string;
+					delivery_status: 'failed';
+					delivery_cause?: string;
+				};
 
-			await navigate({ to: '/verify-email', search: { email: result.email } });
+				await navigate({
+					to: '/verify-email',
+					search,
+				});
+			}
 		} catch (error) {
 			const failure = toApiFailure(error);
 

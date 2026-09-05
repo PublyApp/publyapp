@@ -14,8 +14,7 @@ import type { TestLabelMap } from '~/lib/testing/test-label-map';
 
 const mocks = vi.hoisted(() => ({
 	navigate: vi.fn(),
-	register: vi.fn(),
-	requestEmailVerification: vi.fn(),
+	registerAndRequestEmailVerification: vi.fn(),
 	guard: vi.fn(),
 	signupsEnabled: false,
 }));
@@ -35,8 +34,8 @@ vi.mock('@tanstack/react-start', () => ({
 }));
 
 vi.mock('~/lib/server/auth-actions', () => ({
-	register: mocks.register,
-	requestEmailVerification: mocks.requestEmailVerification,
+	registerAndRequestEmailVerification:
+		mocks.registerAndRequestEmailVerification,
 }));
 
 vi.mock('~/lib/auth-route-guard', () => ({
@@ -154,11 +153,10 @@ describe('signup route', () => {
 
 	test('registers, requests email verification, and redirects to /verify-email on submit', async () => {
 		mocks.signupsEnabled = true;
-		mocks.register.mockResolvedValue({
-			id: 'user-1',
+		mocks.registerAndRequestEmailVerification.mockResolvedValue({
+			status: 'sent',
 			email: 'mara@northwind.co',
 		});
-		mocks.requestEmailVerification.mockResolvedValue({ status: 'sent' });
 
 		renderSignUpRoute();
 
@@ -177,18 +175,13 @@ describe('signup route', () => {
 		fireEvent.click(screen.getByRole('button', { name: 'Create account' }));
 
 		await waitFor(() =>
-			expect(mocks.register).toHaveBeenCalledWith({
+			expect(mocks.registerAndRequestEmailVerification).toHaveBeenCalledWith({
 				data: {
 					firstName: 'Mara',
 					lastName: 'Okonkwo',
 					email: 'mara@northwind.co',
 					password: 'aurora-441789',
 				},
-			}),
-		);
-		await waitFor(() =>
-			expect(mocks.requestEmailVerification).toHaveBeenCalledWith({
-				data: { email: 'mara@northwind.co' },
 			}),
 		);
 		await waitFor(() =>
@@ -199,9 +192,61 @@ describe('signup route', () => {
 		);
 	});
 
+	test('handles failed email verification - still creates account and navigates to retry', async () => {
+		mocks.signupsEnabled = true;
+		mocks.registerAndRequestEmailVerification.mockResolvedValue({
+			status: 'failed',
+			email: 'test@example.com',
+			cause: {
+				kind: 'problem',
+				status: 503,
+				detail: 'Mail provider unavailable',
+			},
+		});
+
+		renderSignUpRoute();
+
+		fireEvent.change(screen.getByLabelText('First name'), {
+			target: { value: 'Test' },
+		});
+		fireEvent.change(screen.getByLabelText('Last name'), {
+			target: { value: 'User' },
+		});
+		fireEvent.change(screen.getByLabelText('Email address'), {
+			target: { value: 'test@example.com' },
+		});
+		fireEvent.change(screen.getByLabelText('Password'), {
+			target: { value: 'aurora-441789' },
+		});
+		fireEvent.click(screen.getByRole('button', { name: 'Create account' }));
+
+		await waitFor(() =>
+			expect(mocks.registerAndRequestEmailVerification).toHaveBeenCalledWith({
+				data: {
+					firstName: 'Test',
+					lastName: 'User',
+					email: 'test@example.com',
+					password: 'aurora-441789',
+				},
+			}),
+		);
+		await waitFor(() =>
+			expect(mocks.navigate).toHaveBeenCalledWith({
+				to: '/verify-email',
+				search: {
+					email: 'test@example.com',
+					delivery_status: 'failed',
+					delivery_cause: 'Mail provider unavailable',
+				},
+			}),
+		);
+	});
+
 	test('shows an inline error and does not navigate when register fails', async () => {
 		mocks.signupsEnabled = true;
-		mocks.register.mockRejectedValue({ status: 400 });
+		mocks.registerAndRequestEmailVerification.mockRejectedValue({
+			status: 400,
+		});
 
 		renderSignUpRoute();
 
@@ -247,7 +292,7 @@ describe('signup route', () => {
 		await waitFor(() =>
 			expect(screen.getByText('Use at least 12 characters.')).toBeTruthy(),
 		);
-		expect(mocks.register).not.toHaveBeenCalled();
+		expect(mocks.registerAndRequestEmailVerification).not.toHaveBeenCalled();
 	});
 
 	test('shows validation errors and does not submit when names are blank or whitespace-only', async () => {
@@ -276,7 +321,7 @@ describe('signup route', () => {
 			expect(screen.getByText('First name is required')).toBeTruthy(),
 		);
 		expect(screen.getByText('Last name is required')).toBeTruthy();
-		expect(mocks.register).not.toHaveBeenCalled();
+		expect(mocks.registerAndRequestEmailVerification).not.toHaveBeenCalled();
 	});
 
 	test('maps a 422 password validation failure onto the password field', async () => {
@@ -284,7 +329,7 @@ describe('signup route', () => {
 		// The API's ValidationResult.ToDictionary() keys errors by the rule's
 		// PascalCase PropertyName (ReqBodyValidationFilter.cs), never camelCase —
 		// pin the real wire shape so this doesn't regress silently (r3-F2).
-		mocks.register.mockRejectedValue({
+		mocks.registerAndRequestEmailVerification.mockRejectedValue({
 			status: 422,
 			errors: { Password: ['Password is too common.'] },
 		});
@@ -313,7 +358,7 @@ describe('signup route', () => {
 
 	test('maps a 422 email validation failure onto the email field, not the password field', async () => {
 		mocks.signupsEnabled = true;
-		mocks.register.mockRejectedValue({
+		mocks.registerAndRequestEmailVerification.mockRejectedValue({
 			status: 422,
 			errors: { Email: ['Email is already registered.'] },
 		});
