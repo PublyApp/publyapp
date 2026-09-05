@@ -4,10 +4,10 @@ using System.Text.Json;
 using FluentAssertions;
 
 using Microsoft.AspNetCore.Mvc.Testing;
-using Microsoft.Extensions.Logging;
 
+using PublyApp.Api.Lib.Testing.Fakes;
 using PublyApp.Api.Lib.Testing.Fixtures;
-using PublyApp.Api.Modules.Publishing.Jobs;
+using PublyApp.Api.Lib.Testing.Helpers;
 
 using Xunit;
 
@@ -44,11 +44,14 @@ public sealed class HealthEndpointDependencyFailureSpec {
 				var body = await response.Content.ReadAsStringAsync();
 
 				response.StatusCode.Should().Be(HttpStatusCode.ServiceUnavailable);
-				AssertPublicHealthBody(body);
+				HealthTestHelper.AssertPublicHealthBody(body);
 				body.Should().Contain(
 					"The application cannot read or write the database right now."
 				);
-				var report = JsonSerializer.Deserialize<HealthReportJson>(body, JsonOptions);
+				var report = JsonSerializer.Deserialize<HealthTestHelper.HealthReportJson>(
+					body,
+					HealthTestHelper.JsonOptions
+				);
 				report.Should().NotBeNull();
 				Assert.NotNull(report);
 				report.Checks.Should().ContainSingle(check =>
@@ -75,127 +78,4 @@ public sealed class HealthEndpointDependencyFailureSpec {
 			}
 		}
 	}
-
-	private static readonly string[] ForbiddenPublicBodySubstrings = [
-		"database_migrations",
-		"job_queue_drain",
-		"internal_registration_name",
-		"internal exception",
-		"job_queue",
-		"APP_ROLE=worker",
-		"worker process",
-		"docker compose ps",
-		"ss -tlnp",
-		PublishingJobs.PublishPublicationV1JobType,
-		"PublishPublicationV1",
-		"\"stalledJobCount\"",
-		"\"oldestJobType\"",
-		"\"oldestJobAgeSeconds\"",
-		"\"stallThresholdSeconds\"",
-		"next_attempt_at",
-		"last_error",
-		"\"data\"",
-		"\"exception\"",
-		"\"count\"",
-		"\"age\"",
-	];
-	private static readonly JsonSerializerOptions JsonOptions = new() {
-		PropertyNameCaseInsensitive = true,
-	};
-
-	private static void AssertPublicHealthBody(string body) {
-		foreach (var forbidden in ForbiddenPublicBodySubstrings) {
-			body.Contains(forbidden, StringComparison.OrdinalIgnoreCase).Should().BeFalse(
-				$"the complete public health body must not leak '{forbidden}'"
-			);
-		}
-
-		using var document = JsonDocument.Parse(body);
-		var rootProperties = document.RootElement.EnumerateObject()
-			.Select(property => property.Name)
-			.ToList();
-		rootProperties.Should().BeEquivalentTo(["status", "checks"]);
-
-		foreach (var check in document.RootElement.GetProperty("checks").EnumerateArray()) {
-			var checkProperties = check.EnumerateObject()
-				.Select(property => property.Name)
-				.ToList();
-			checkProperties.Should().BeEquivalentTo(["name", "status", "description"]);
-		}
-	}
-
-	private sealed class HealthReportJson {
-		public string? Status { get; set; }
-		public IReadOnlyList<HealthCheckJson>? Checks { get; set; }
-	}
-
-	private sealed class HealthCheckJson {
-		public string? Name { get; set; }
-		public string? Status { get; set; }
-		public string? Description { get; set; }
-	}
-
-	private sealed class CapturingLoggerProvider : ILoggerProvider {
-		public List<CapturedLog> Entries { get; } = [];
-
-		public IReadOnlyList<CapturedLog> Warnings {
-			get {
-				return Entries.Where(entry => entry.Level == LogLevel.Warning).ToList();
-			}
-		}
-
-		public ILogger CreateLogger(string categoryName) {
-			return new CapturingLogger(this, categoryName);
-		}
-
-		public void Dispose() {
-		}
-
-		private sealed class CapturingLogger(
-			CapturingLoggerProvider provider,
-			string categoryName
-		) : ILogger {
-			public IDisposable BeginScope<TState>(TState state) where TState : notnull {
-				return NullScope.Instance;
-			}
-
-			public bool IsEnabled(LogLevel logLevel) {
-				return true;
-			}
-
-			public void Log<TState>(
-				LogLevel logLevel,
-				EventId eventId,
-				TState state,
-				Exception? exception,
-				Func<TState, Exception?, string> formatter
-			) {
-				var structuredState = state is IEnumerable<KeyValuePair<string, object?>> values
-					? values.ToList()
-					: [];
-				provider.Entries.Add(new CapturedLog(
-					logLevel,
-					categoryName,
-					formatter(state, exception),
-					structuredState,
-					exception
-				));
-			}
-		}
-
-		private sealed class NullScope : IDisposable {
-			public static readonly NullScope Instance = new();
-
-			public void Dispose() {
-			}
-		}
-	}
-
-	private sealed record CapturedLog(
-		LogLevel Level,
-		string Category,
-		string Message,
-		IReadOnlyList<KeyValuePair<string, object?>> State,
-		Exception? Exception
-	);
 }

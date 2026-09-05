@@ -13,6 +13,7 @@ using Microsoft.Extensions.Diagnostics.HealthChecks;
 using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Lib;
 using PublyApp.Api.Lib.Testing.Fixtures;
+using PublyApp.Api.Lib.Testing.Helpers;
 using PublyApp.Api.Modules.Jobs.Entities;
 using PublyApp.Api.Modules.Publishing.Jobs;
 
@@ -50,39 +51,9 @@ public sealed class HealthEndpointPublicSurfaceSpec : IClassFixture<ApiFixture> 
 			var body = await response.Content.ReadAsStringAsync();
 
 			response.StatusCode.Should().Be(HttpStatusCode.OK);
-			AssertPublicHealthBody(body);
+			HealthTestHelper.AssertPublicHealthBody(body);
 		}
 	}
-
-	// Strings that an attacker reading the complete public body must NEVER see.
-	// This intentionally covers names, operational data, and serialization keys,
-	// not only the per-check description.
-	private static readonly string[] ForbiddenPublicBodySubstrings = [
-		"database_migrations",
-		"job_queue_drain",
-		"internal_registration_name",
-		"internal exception",
-		"job_queue",
-		"APP_ROLE=worker",
-		"worker process",
-		"docker compose ps",
-		"ss -tlnp",
-		PublishingJobs.PublishPublicationV1JobType, // internal job type string
-		"PublishPublicationV1",
-		"\"stalledJobCount\"",
-		"\"oldestJobType\"",
-		"\"oldestJobAgeSeconds\"",
-		"\"stallThresholdSeconds\"",
-		"next_attempt_at",
-		"last_error",
-		"\"data\"",
-		"\"exception\"",
-		"\"count\"",
-		"\"age\"",
-	];
-	private static readonly JsonSerializerOptions JsonOptions = new() {
-		PropertyNameCaseInsensitive = true,
-	};
 
 	[Fact]
 	public async Task ItShouldRefuseDrainButPublishNoInternalNamingWhenDueJobsStayUnclaimed() {
@@ -95,8 +66,11 @@ public sealed class HealthEndpointPublicSurfaceSpec : IClassFixture<ApiFixture> 
 
 			using var response = await _http.GetAsync("/health/drain");
 			var body = await response.Content.ReadAsStringAsync();
-			AssertPublicHealthBody(body);
-			var report = JsonSerializer.Deserialize<HealthReportJson>(body, JsonOptions);
+			HealthTestHelper.AssertPublicHealthBody(body);
+			var report = JsonSerializer.Deserialize<HealthTestHelper.HealthReportJson>(
+				body,
+				HealthTestHelper.JsonOptions
+			);
 
 			response.StatusCode.Should().Be(
 				HttpStatusCode.ServiceUnavailable,
@@ -155,10 +129,16 @@ public sealed class HealthEndpointPublicSurfaceSpec : IClassFixture<ApiFixture> 
 
 			var readyBody = await ready.Content.ReadAsStringAsync();
 			var aggregateBody = await aggregate.Content.ReadAsStringAsync();
-			AssertPublicHealthBody(readyBody);
-			AssertPublicHealthBody(aggregateBody);
-			var readyReport = JsonSerializer.Deserialize<HealthReportJson>(readyBody, JsonOptions);
-			var aggregateReport = JsonSerializer.Deserialize<HealthReportJson>(aggregateBody, JsonOptions);
+			HealthTestHelper.AssertPublicHealthBody(readyBody);
+			HealthTestHelper.AssertPublicHealthBody(aggregateBody);
+			var readyReport = JsonSerializer.Deserialize<HealthTestHelper.HealthReportJson>(
+				readyBody,
+				HealthTestHelper.JsonOptions
+			);
+			var aggregateReport = JsonSerializer.Deserialize<HealthTestHelper.HealthReportJson>(
+				aggregateBody,
+				HealthTestHelper.JsonOptions
+			);
 
 			Assert.NotNull(readyReport);
 			Assert.NotNull(aggregateReport);
@@ -212,29 +192,19 @@ public sealed class HealthEndpointPublicSurfaceSpec : IClassFixture<ApiFixture> 
 		context.Response.Body.Position = 0;
 		var body = await new StreamReader(context.Response.Body).ReadToEndAsync();
 
-		AssertPublicHealthBody(body);
-		body.Should().Contain("The application health status is unavailable.");
-	}
-
-	private static void AssertPublicHealthBody(string body) {
-		foreach (var forbidden in ForbiddenPublicBodySubstrings) {
-			body.Contains(forbidden, StringComparison.OrdinalIgnoreCase).Should().BeFalse(
-				$"the complete public health body must not leak '{forbidden}'"
-			);
-		}
-
+		HealthTestHelper.AssertPublicHealthBody(body);
 		using var document = JsonDocument.Parse(body);
-		var rootProperties = document.RootElement.EnumerateObject()
-			.Select(property => property.Name)
-			.ToList();
-		rootProperties.Should().BeEquivalentTo(["status", "checks"]);
-
-		foreach (var check in document.RootElement.GetProperty("checks").EnumerateArray()) {
-			var checkProperties = check.EnumerateObject()
-				.Select(property => property.Name)
-				.ToList();
-			checkProperties.Should().BeEquivalentTo(["name", "status", "description"]);
-		}
+		var descriptions = document.RootElement
+			.GetProperty("checks")
+			.EnumerateArray()
+			.Select(check => check.GetProperty("description").GetString())
+			.ToArray();
+		descriptions
+			.Should()
+			.HaveCount(2)
+			.And.OnlyContain(
+				description => description == "The application health status is unavailable."
+			);
 	}
 
 	private static async Task InsertStalledPendingJobAsync(
@@ -251,16 +221,4 @@ public sealed class HealthEndpointPublicSurfaceSpec : IClassFixture<ApiFixture> 
 		db.JobQueue.Add(stalled);
 		await db.SaveChangesAsync();
 	}
-
-	private sealed class HealthReportJson {
-		public string? Status { get; set; }
-		public IReadOnlyList<HealthCheckJson>? Checks { get; set; }
-	}
-
-	private sealed class HealthCheckJson {
-		public string? Name { get; set; }
-		public string? Status { get; set; }
-		public string? Description { get; set; }
-	}
-
 }

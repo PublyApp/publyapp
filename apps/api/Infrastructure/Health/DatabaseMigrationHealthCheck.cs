@@ -11,8 +11,7 @@ namespace PublyApp.Api.Infrastructure.Health;
 /// The wording therefore states the product consequence ("the application is
 /// not ready to serve traffic yet") instead of advertising the implementation
 /// detail that an EF migration is pending. Operators read the protected log
-/// for the structured probe state and failure reason; this check intentionally
-/// does not promise migration-level diagnostics.
+/// for the structured probe state, failure reason, and bounded migration context.
 /// </para>
 /// </summary>
 public sealed class DatabaseMigrationHealthCheck : IHealthCheck {
@@ -35,8 +34,8 @@ public sealed class DatabaseMigrationHealthCheck : IHealthCheck {
 		CancellationToken cancellationToken = default
 	) {
 		try {
-			var isReady = await _migrationReadiness.IsReadyAsync(cancellationToken);
-			if (isReady) {
+			var readiness = await _migrationReadiness.IsReadyAsync(cancellationToken);
+			if (readiness.IsReady) {
 				var shouldLogRecovery = _logGate.ShouldLog(
 					HealthCheckMessages.DatabaseMigrationRegistrationName,
 					HealthStatus.Healthy,
@@ -54,6 +53,10 @@ public sealed class DatabaseMigrationHealthCheck : IHealthCheck {
 				return HealthCheckResult.Healthy(HealthCheckMessages.ApplicationReady);
 			}
 
+			var pendingMigrationNames = string.Join(
+				", ",
+				readiness.PendingMigrationNames
+			);
 			if (
 				_logGate.ShouldLog(
 					HealthCheckMessages.DatabaseMigrationRegistrationName,
@@ -63,15 +66,19 @@ public sealed class DatabaseMigrationHealthCheck : IHealthCheck {
 				)
 			) {
 				_logger.LogWarning(
-					"Health check {HealthCheck} is unhealthy: {FailureReason}.",
+					"Health check {HealthCheck} is unhealthy: {FailureReason}. "
+						+ "{PendingMigrationCount} pending database migration(s). "
+						+ "Sample names: {PendingMigrationNames}. "
+						+ "Names truncated: {PendingMigrationNamesTruncated}.",
 					HealthCheckMessages.ApplicationReadinessName,
-					"pending_migrations"
+					"pending_migrations",
+					readiness.PendingMigrationCount,
+					pendingMigrationNames,
+					readiness.PendingMigrationNamesTruncated
 				);
 			}
 
-			return HealthCheckResult.Unhealthy(
-				HealthCheckMessages.ApplicationNotReady
-			);
+			return HealthCheckResult.Unhealthy(HealthCheckMessages.ApplicationNotReady);
 		} catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) {
 			throw;
 		} catch (Exception ex) {
