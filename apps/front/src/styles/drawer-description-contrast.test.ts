@@ -10,6 +10,7 @@ import {
 	symlinkSync,
 	writeFileSync,
 } from 'node:fs';
+import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -63,6 +64,9 @@ import {
 } from './drawer-description-inventory';
 
 const appCssPath = path.resolve(process.cwd(), 'src/styles/app.css');
+const requireFromFront = createRequire(
+	path.resolve(path.dirname(appCssPath), '../../package.json'),
+);
 // Comments are stripped before token extraction so a token name mentioned in
 // prose cannot masquerade as a real declaration.
 const appCssSource = readFileSync(appCssPath, 'utf8').replace(
@@ -1810,6 +1814,21 @@ const resolveAppStylesheetImport = (
 		} catch {
 			// Missing, broken, or unreadable paths fail through to the explicit
 			// contrast-guard error below.
+		}
+	}
+
+	// Use the same package-relative Node resolution seam as the Vite plugin and
+	// the production SimpleBar tests. This keeps the guard's CSS graph aligned
+	// with the app's installed dependency graph without hardcoding package paths.
+	if (!id.startsWith('.')) {
+		try {
+			const candidate = realpathSync(requireFromFront.resolve(id));
+			if (path.extname(candidate) === '.css' && statSync(candidate).isFile()) {
+				return candidate;
+			}
+		} catch {
+			// Missing, broken, unreadable, or non-CSS package imports fail through
+			// to the explicit contrast-guard error below.
 		}
 	}
 
@@ -4527,6 +4546,22 @@ describe('drawer description text contrast (#1043)', () => {
 	test('resolves the local landing stylesheet from app.css', () => {
 		expect(resolveAppStylesheetImport('./landing.css')).toBe(
 			path.resolve(path.dirname(appCssPath), 'landing.css'),
+		);
+	});
+
+	test('resolves a package stylesheet subpath through the front Node resolver', () => {
+		const specifier = 'simplebar-core/dist/simplebar.css';
+		const resolved = resolveAppStylesheetImport(specifier);
+
+		expect(resolved).toBe(requireFromFront.resolve(specifier));
+		expect(readFileSync(resolved, 'utf8')).toContain('[data-simplebar]');
+	});
+
+	test('fails loudly when a package stylesheet subpath is absent', () => {
+		expect(() =>
+			resolveAppStylesheetImport('simplebar-core/dist/missing.css'),
+		).toThrow(
+			'Contrast guard cannot resolve stylesheet import simplebar-core/dist/missing.css in app.css',
 		);
 	});
 
