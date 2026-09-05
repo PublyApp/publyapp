@@ -18,6 +18,7 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from '~/components/ui/select';
+import { auditLogExportDownloadDescriptor } from '~/lib/audit-log-export-format';
 import { downloadFile, formatExportDateStamp } from '~/lib/download-file';
 import {
 	displayLocalMutationFailure,
@@ -83,10 +84,11 @@ export const AuditLogExportDrawer = ({
 		}
 
 		try {
+			const descriptor = auditLogExportDownloadDescriptor(format);
 			downloadFile({
 				data,
-				fileName: `audit-logs-${formatExportDateStamp(new Date())}.${format}`,
-				mimeType: format === 'csv' ? 'text/csv' : 'application/json',
+				fileName: `audit-logs-${formatExportDateStamp(new Date())}.${descriptor.extension}`,
+				mimeType: descriptor.mimeType,
 			});
 		} catch {
 			toastLocalMutationResult.error(t('common:export-failed'));

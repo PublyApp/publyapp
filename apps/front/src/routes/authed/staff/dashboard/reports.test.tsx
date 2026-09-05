@@ -18,6 +18,7 @@ const mocks = vi.hoisted(() => ({
 		mutateAsync: vi.fn(),
 	},
 	shouldLogoutForFailure: vi.fn(() => false),
+	downloadFile: vi.fn(),
 }));
 
 vi.mock('~/lib/query/staff-audit-logs', async (importOriginal) => {
@@ -32,6 +33,11 @@ vi.mock('~/lib/query/staff-audit-logs', async (importOriginal) => {
 
 vi.mock('@org/shared-ts/lib/should-logout-for-failure', () => ({
 	shouldLogoutForFailure: mocks.shouldLogoutForFailure,
+}));
+
+vi.mock('~/lib/download-file', () => ({
+	downloadFile: mocks.downloadFile,
+	formatExportDateStamp: (_date: Date) => '2026-08-31',
 }));
 
 vi.mock('~/lib/mutation-toast', () => ({
@@ -112,6 +118,11 @@ describe('StaffDashboardReportsTab', () => {
 			expect(mocks.exportMutation.mutateAsync).toHaveBeenCalledWith({
 				format: 'csv',
 			});
+			expect(mocks.downloadFile).toHaveBeenCalledWith({
+				data: expect.any(ArrayBuffer),
+				fileName: 'audit-logs-2026-08-31.csv',
+				mimeType: 'text/csv',
+			});
 		});
 	});
 
@@ -136,6 +147,15 @@ describe('StaffDashboardReportsTab', () => {
 		await waitFor(() => {
 			expect(mocks.exportMutation.mutateAsync).toHaveBeenCalledWith({
 				format: 'json',
+			});
+			// Issue #2035: prove the JSON path actually downloads with
+			// .json extension and application/json MIME — a frozen
+			// extension OR a frozen MIME here is the failure mode the
+			// pre-fix code shipped.
+			expect(mocks.downloadFile).toHaveBeenCalledWith({
+				data: expect.any(ArrayBuffer),
+				fileName: 'audit-logs-2026-08-31.json',
+				mimeType: 'application/json',
 			});
 		});
 	});
