@@ -1,4 +1,4 @@
-import { spawn, spawnSync } from 'node:child_process';
+import { spawnSync } from 'node:child_process';
 import {
 	mkdtempSync,
 	rmSync,
@@ -12,9 +12,9 @@ import { join, resolve } from 'node:path';
 import { expect, test } from 'vitest';
 
 import {
-	processGroupStillExists,
-	signalChildTree,
-} from '../../../scripts/run-e2e-front.mts';
+	runBoundedProcessTree,
+	type BoundedProcessResult,
+} from '../../../scripts/run-proof-child.mts';
 
 /**
  * KEPT RED PROOF — issue #1611.
@@ -54,14 +54,6 @@ const PLAYWRIGHT_GREP = '@1611';
 const PLAYWRIGHT_PROJECT = 'chromium';
 const CHILD_TIMEOUT_MS = 240_000;
 const CHILD_TERM_GRACE_MS = 5_000;
-const MAX_OUTPUT_LENGTH = 16 * 1024 * 1024;
-
-type JourneyResult = {
-	status: number | null;
-	stdout: string;
-	stderr: string;
-	error?: Error;
-};
 
 type GitResult = {
 	status: number | null;
@@ -77,15 +69,6 @@ type TemporaryWorktree = {
 
 const errorText = (error: unknown): string =>
 	error instanceof Error ? `${error.name}: ${error.message}` : String(error);
-
-const readChildOutput = (current: string, chunk: Buffer | string): string => {
-	if (current.length >= MAX_OUTPUT_LENGTH) {
-		return current;
-	}
-
-	const remaining = MAX_OUTPUT_LENGTH - current.length;
-	return current + chunk.toString().slice(0, remaining);
-};
 
 const runGit = (args: string[]): GitResult => {
 	const result = spawnSync('git', args, {
@@ -155,149 +138,25 @@ const createTemporaryWorktree = (): TemporaryWorktree => {
 	return { parentPath, worktreePath };
 };
 
-const runBoundedE2E = (worktreePath: string): Promise<JourneyResult> =>
-	new Promise((resolveResult) => {
-		const child = spawn(
-			process.execPath,
-			[join(worktreePath, E2E_RUNNER_RELATIVE_PATH)],
-			{
-				cwd: worktreePath,
-				detached: true,
-				env: {
-					...process.env,
-					E2E_PLAYWRIGHT_SPEC: PLAYWRIGHT_SPEC,
-					E2E_PLAYWRIGHT_GREP: PLAYWRIGHT_GREP,
-					E2E_PLAYWRIGHT_PROJECT: PLAYWRIGHT_PROJECT,
-				},
-				stdio: ['ignore', 'pipe', 'pipe'],
-			},
-		);
-
-		let stdout = '';
-		let stderr = '';
-		let timedOut = false;
-		let settled = false;
-		let killTimer: NodeJS.Timeout | undefined;
-		let groupPollTimer: NodeJS.Timeout | undefined;
-		let postKillTimer: NodeJS.Timeout | undefined;
-
-		const finish = (result: JourneyResult): void => {
-			if (settled) {
-				return;
-			}
-			settled = true;
-			clearTimeout(timeoutTimer);
-			if (killTimer !== undefined) {
-				clearTimeout(killTimer);
-			}
-			if (groupPollTimer !== undefined) {
-				clearTimeout(groupPollTimer);
-			}
-			if (postKillTimer !== undefined) {
-				clearTimeout(postKillTimer);
-			}
-			process.removeListener('SIGINT', onSignal);
-			process.removeListener('SIGTERM', onSignal);
-			resolveResult(result);
-		};
-
-		const finishTimedOut = (): void => {
-			stderr += `\nE2E proof child exceeded ${CHILD_TIMEOUT_MS}ms and was terminated.`;
-			finish({ status: 124, stdout, stderr });
-		};
-
-		const waitForTreeTermination = (): void => {
-			postKillTimer = setTimeout(() => {
-				if (
-					process.platform !== 'win32' &&
-					processGroupStillExists(child.pid)
-				) {
-					// Keep the wrapper bounded even if the platform probe cannot
-					// prove that an already SIGKILLed group has disappeared.
-					stderr +=
-						'\nMESURE IMPOSSIBLE: forced proof child group termination was not observed.';
-					signalChildTree(child, 'SIGKILL');
-				}
-				finishTimedOut();
-			}, CHILD_TERM_GRACE_MS);
-
-			if (process.platform === 'win32') {
-				// taskkill /T /F has no process-group probe on Windows. Give the
-				// tree a bounded settling window after the forced kill.
-				return;
-			}
-
-			const poll = (): void => {
-				if (!processGroupStillExists(child.pid)) {
-					finishTimedOut();
-					return;
-				}
-				groupPollTimer = setTimeout(poll, 50);
-			};
-
-			poll();
-		};
-
-		const requestTermination = (): void => {
-			if (settled || timedOut) {
-				return;
-			}
-			timedOut = true;
-			signalChildTree(child, 'SIGTERM');
-			killTimer = setTimeout(() => {
-				if (settled) {
-					return;
-				}
-				signalChildTree(child, 'SIGKILL');
-				waitForTreeTermination();
-			}, CHILD_TERM_GRACE_MS);
-		};
-
-		const onSignal = (): void => {
-			requestTermination();
-		};
-
-		const timeoutTimer = setTimeout(requestTermination, CHILD_TIMEOUT_MS);
-
-		child.stdout?.on('data', (chunk: Buffer | string) => {
-			stdout = readChildOutput(stdout, chunk);
-		});
-		child.stderr?.on('data', (chunk: Buffer | string) => {
-			stderr = readChildOutput(stderr, chunk);
-		});
-		child.once('error', (error) => {
-			if (timedOut) {
-				stderr += `\nE2E proof child error during termination: ${errorText(error)}`;
-				return;
-			}
-			finish({ status: null, stdout, stderr, error });
-		});
-		child.once('exit', (status, signal) => {
-			if (timedOut) {
-				// The leader can exit while a TERM-resistant descendant keeps the
-				// detached group alive. Leave the escalation armed until the group
-				// probe proves that the whole tree is gone.
-				if (processGroupStillExists(child.pid)) {
-					return;
-				}
-				finishTimedOut();
-				return;
-			}
-
-			finish({
-				status: status ?? 1,
-				stdout,
-				stderr: signal === null ? stderr : `${stderr}\nchild signal: ${signal}`,
-			});
-		});
-
-		process.once('SIGINT', onSignal);
-		process.once('SIGTERM', onSignal);
+const runBoundedE2E = (worktreePath: string): Promise<BoundedProcessResult> =>
+	runBoundedProcessTree({
+		file: process.execPath,
+		args: [join(worktreePath, E2E_RUNNER_RELATIVE_PATH)],
+		cwd: worktreePath,
+		env: {
+			...process.env,
+			E2E_PLAYWRIGHT_SPEC: PLAYWRIGHT_SPEC,
+			E2E_PLAYWRIGHT_GREP: PLAYWRIGHT_GREP,
+			E2E_PLAYWRIGHT_PROJECT: PLAYWRIGHT_PROJECT,
+		},
+		timeoutMs: CHILD_TIMEOUT_MS,
+		termGraceMs: CHILD_TERM_GRACE_MS,
+		maxOutputLength: 16 * 1024 * 1024,
 	});
 
 const runMutatedJourneyInIsolation = async (
 	originalSource: string,
-): Promise<JourneyResult> => {
+): Promise<BoundedProcessResult> => {
 	const mutationCount = originalSource.split(MUTATION_FROM).length - 1;
 	if (mutationCount !== 1) {
 		throw new Error(
