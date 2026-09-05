@@ -185,8 +185,7 @@ export const formatGitCommandError = (error: unknown): string => {
 /**
  * R11 (#2033): the baseline pins scan policy, while the scan surface itself is
  * derived from the merge-base tree. A grow is accepted; a shrink fails unless
- * each removed code file is declared exactly and remains present in the
- * integration reference while the deletion branch is waiting to integrate.
+ * each removed code file is an exact deletion in the committed Git diff.
  */
 export interface ScanBaseline {
 	/** Pinned SCANNED_EXTENSIONS — any addition or removal fails. */
@@ -195,8 +194,6 @@ export interface ScanBaseline {
 	nonCodeExtensions: Record<string, string>;
 	/** Pinned EXEMPT_FILES — any addition or removal fails. */
 	exemptFiles: string[];
-	/** Exact repo-relative code files deliberately deleted in this PR. */
-	intentionalDeletions: string[];
 }
 
 /**
@@ -715,8 +712,8 @@ export const assertNoShrinkVsMergeBase = (
 				`base. The merge-base count is the file count at the common ` +
 				`ancestor of HEAD and origin/develop; a live count below it ` +
 				`indicates files were removed between the merge base and the ` +
-				`PR tip. If a code file was intentionally deleted, declare that ` +
-				`exact repo-relative path in the baseline; counts never accept slack.`,
+				`PR tip without matching exact committed Git deletions. Commit ` +
+				`legitimate file deletions; counts and authored allowlists never accept slack.`,
 		);
 	}
 };
@@ -814,6 +811,63 @@ export const listFilesAtRef = (
 	return files;
 };
 
+/**
+ * Lists exact paths committed as deletions between two refs. Rename detection
+ * is disabled deliberately: moving a code file is a real deletion plus a real
+ * addition, and both sides remain visible to the scan-surface comparison.
+ */
+export const listDeletedFilesBetweenRefs = (
+	baseRef: string,
+	headRef: string,
+	scannedSubtree: string,
+	cwd: string,
+): string[] => {
+	if (baseRef.trim().length === 0 || headRef.trim().length === 0) {
+		throw new Error(
+			`Guard #1769: cannot derive committed deletions from an empty Git ` +
+				`reference. Both the merge base and head must be concrete refs.`,
+		);
+	}
+	if (scannedSubtree.trim().length === 0) {
+		throw new Error(
+			`Guard #1769: cannot derive committed deletions for an empty scanned ` +
+				`subtree.`,
+		);
+	}
+	try {
+		const out = execFileSync(
+			'git',
+			[
+				'diff',
+				'--no-renames',
+				'--diff-filter=D',
+				'--name-only',
+				'-z',
+				baseRef,
+				headRef,
+				'--',
+				scannedSubtree,
+			],
+			{
+				cwd: path.resolve(cwd),
+				encoding: 'utf8',
+				stdio: ['ignore', 'pipe', 'pipe'],
+			},
+		);
+		return out
+			.split('\0')
+			.filter((file) => file.length > 0)
+			.map(normalizedGitPath);
+	} catch (err) {
+		throw new Error(
+			`Guard #1769: cannot derive committed deletions between '${baseRef}' ` +
+				`and '${headRef}' under '${scannedSubtree}'. The shrink check must not ` +
+				`guess whether a missing file was intentional. ` +
+				`(${formatGitCommandError(err)})`,
+		);
+	}
+};
+
 /** Counts files per extension in an anchored committed tree. */
 export const countExtensionsAtRef = (
 	ref: string,
@@ -841,19 +895,16 @@ const isScannedCodePath = (file: string): boolean => {
 };
 
 /**
- * Allows only exact, repo-relative declarations for code files that are
- * actually present at the merge base and absent from the live tree. The same
- * file must still be present in the integration reference, otherwise the
- * declaration has outlived the integration it was temporary evidence for. A
- * count, directory, glob, stale path, or duplicate declaration is never
- * accepted.
+ * Allows only exact, repo-relative code files that Git records as deleted
+ * between the merge base and HEAD. This distinguishes an intentional committed
+ * deletion from an uncommitted disappearance or a scanner regression without
+ * creating authored state that becomes stale immediately after merge.
  */
-export const assertIntentionalDeletions = (
+export const assertOnlyCommittedDeletions = (
 	mergeBaseFiles: string[],
 	liveFiles: string[],
-	declaredDeletions: string[],
+	committedDeletions: string[],
 	scannedSubtree: string,
-	integrationFiles: string[],
 ): string[] => {
 	const normalizedSubtree = normalizedGitPath(scannedSubtree).replace(
 		/\/$/,
@@ -865,22 +916,14 @@ export const assertIntentionalDeletions = (
 	const liveCodeFiles = new Set(
 		liveFiles.map(normalizedGitPath).filter(isScannedCodePath),
 	);
-	const integrationCodeFiles = new Set(
-		integrationFiles.map(normalizedGitPath).filter(isScannedCodePath),
-	);
 	const actualDeletions = [...mergeBaseCodeFiles].filter(
 		(file) => !liveCodeFiles.has(file),
 	);
-	const declared = new Set<string>();
-	const duplicates: string[] = [];
+	const committed = new Set<string>();
 	const invalid: string[] = [];
-	for (const raw of declaredDeletions) {
+	for (const raw of committedDeletions) {
 		const file = normalizedGitPath(raw);
-		if (declared.has(file)) {
-			duplicates.push(file);
-			continue;
-		}
-		declared.add(file);
+		committed.add(file);
 		const isInSubtree =
 			file === normalizedSubtree || file.startsWith(`${normalizedSubtree}/`);
 		if (
@@ -896,41 +939,30 @@ export const assertIntentionalDeletions = (
 			invalid.push(file);
 		}
 	}
-	const undeclared = actualDeletions.filter((file) => !declared.has(file));
-	const stale = [...declared].filter((file) => !actualDeletions.includes(file));
-	const expired = [...declared].filter(
-		(file) => !integrationCodeFiles.has(file),
+	const uncommitted = actualDeletions.filter((file) => !committed.has(file));
+	const stillPresent = [...committed].filter(
+		(file) => !actualDeletions.includes(file),
 	);
-	if (
-		duplicates.length > 0 ||
-		invalid.length > 0 ||
-		undeclared.length > 0 ||
-		stale.length > 0 ||
-		expired.length > 0
-	) {
+	if (invalid.length > 0 || uncommitted.length > 0 || stillPresent.length > 0) {
 		const parts: string[] = [];
-		if (duplicates.length > 0) {
-			parts.push(`duplicate: ${duplicates.sort().join(', ')}`);
-		}
 		if (invalid.length > 0) {
-			parts.push(`invalid: ${invalid.sort().join(', ')}`);
+			parts.push(`invalid committed deletion: ${invalid.sort().join(', ')}`);
 		}
-		if (undeclared.length > 0) {
-			parts.push(`undeclared: ${undeclared.sort().join(', ')}`);
-		}
-		if (stale.length > 0) {
-			parts.push(`stale: ${stale.sort().join(', ')}`);
-		}
-		if (expired.length > 0) {
+		if (uncommitted.length > 0) {
 			parts.push(
-				`stale against integration reference: ${expired.sort().join(', ')}`,
+				`not committed as a deletion: ${uncommitted.sort().join(', ')}`,
+			);
+		}
+		if (stillPresent.length > 0) {
+			parts.push(
+				`committed deletion still present in live scan: ${stillPresent.sort().join(', ')}`,
 			);
 		}
 		throw new Error(
-			`Guard #1769: intentional deletion declaration does not exactly ` +
-				`match code files removed from the merge-base tree — ${parts.join('; ')}. ` +
-				`Declare each deleted file by its exact repo-relative path; do not use ` +
-				`counts, directories, globs, or slack.`,
+			`Guard #1769: committed Git deletions do not exactly match code files ` +
+				`removed from the live scan — ${parts.join('; ')}. Commit each legitimate ` +
+				`file deletion; counts, authored allowlists, directories, globs, and ` +
+				`slack are never accepted.`,
 		);
 	}
 	return actualDeletions;
@@ -1086,30 +1118,27 @@ const readScanBaseline = (baselinePath: string): ScanBaseline => {
 			`Guard #1769: scan-surface baseline '${baselinePath}' must be a JSON object.`,
 		);
 	}
-	if ('perExtension' in parsed) {
+	if ('perExtension' in parsed || 'intentionalDeletions' in parsed) {
+		const obsoleteField =
+			'perExtension' in parsed ? 'perExtension floors' : 'intentionalDeletions';
 		throw new Error(
 			`Guard #1769: scan-surface baseline '${baselinePath}' still contains ` +
-				`obsolete authored perExtension floors. Remove them; the reference is ` +
-				`derived from the anchored merge-base tree.`,
+				`obsolete authored ${obsoleteField}. Remove it; scan-surface and ` +
+				`deletion evidence are derived from Git.`,
 		);
 	}
 	if (
 		!Array.isArray(parsed.scannedExtensions) ||
 		!Array.isArray(parsed.exemptFiles) ||
-		!Array.isArray(parsed.intentionalDeletions) ||
 		!isRecord(parsed.nonCodeExtensions)
 	) {
 		throw new Error(
 			`Guard #1769: scan-surface baseline '${baselinePath}' has an invalid ` +
-				`shape. It must declare scannedExtensions, nonCodeExtensions, ` +
-				`exemptFiles, and intentionalDeletions.`,
+				`shape. It must declare scannedExtensions, nonCodeExtensions, and ` +
+				`exemptFiles.`,
 		);
 	}
-	const stringArrays = [
-		parsed.scannedExtensions,
-		parsed.exemptFiles,
-		parsed.intentionalDeletions,
-	];
+	const stringArrays = [parsed.scannedExtensions, parsed.exemptFiles];
 	for (const values of stringArrays) {
 		if (values.some((value) => typeof value !== 'string')) {
 			throw new Error(
@@ -1130,7 +1159,6 @@ const readScanBaseline = (baselinePath: string): ScanBaseline => {
 		scannedExtensions: parsed.scannedExtensions as string[],
 		nonCodeExtensions: parsed.nonCodeExtensions as Record<string, string>,
 		exemptFiles: parsed.exemptFiles as string[],
-		intentionalDeletions: parsed.intentionalDeletions as string[],
 	};
 };
 
@@ -1234,9 +1262,9 @@ export const scanFrontSrcForBannedImports = (
 	// R7 (kept): the three mutable sets (SCANNED_EXTENSIONS,
 	// NON_CODE_EXTENSIONS, EXEMPT_FILES) remain pinned in the baseline
 	// so that any change to them is a visible, reviewable commit.
-	// The baseline's intentionalDeletions list is checked against exact Git
-	// paths before its files are removed from the reference count. This permits
-	// a deliberate deletion without introducing count slack or a bypass.
+	// Exact deletions are derived from the committed merge-base..HEAD diff before
+	// their files are removed from the reference count. This permits a deliberate
+	// deletion without authored cleanup state, count slack, or a bypass.
 	const defaultGitCwd = path.resolve(frontSrc, '../../..');
 	const gitCwd =
 		options.gitCwd === undefined && root !== frontSrc
@@ -1271,11 +1299,6 @@ export const scanFrontSrcForBannedImports = (
 		const integrationBranch = options.integrationBranch ?? 'origin/develop';
 		const mergeBase = resolveMergeBase(gitCwd, integrationBranch);
 		const mergeBaseFiles = listFilesAtRef(mergeBase, scannedSubtree, gitCwd);
-		const integrationFiles = listFilesAtRef(
-			integrationBranch,
-			scannedSubtree,
-			gitCwd,
-		);
 		if (!mergeBaseFiles.some(isScannedCodePath)) {
 			throw new Error(
 				`Guard #1769: Git reference '${mergeBase}' has no scanned code files ` +
@@ -1286,19 +1309,24 @@ export const scanFrontSrcForBannedImports = (
 		const liveFiles = files.map((file) =>
 			normalizedGitPath(path.relative(gitCwd, file)),
 		);
-		assertIntentionalDeletions(
+		const committedDeletions = listDeletedFilesBetweenRefs(
+			mergeBase,
+			'HEAD',
+			scannedSubtree,
+			gitCwd,
+		);
+		assertOnlyCommittedDeletions(
 			mergeBaseFiles,
 			liveFiles,
-			baseline.intentionalDeletions,
+			committedDeletions,
 			scannedSubtree,
-			integrationFiles,
 		);
-		const declaredDeletions = new Set(
-			baseline.intentionalDeletions.map(normalizedGitPath),
+		const committedDeletionSet = new Set(
+			committedDeletions.map(normalizedGitPath),
 		);
 		const scannedMergeBaseCounts: Record<string, number> = {};
 		for (const file of mergeBaseFiles) {
-			if (!isScannedCodePath(file) || declaredDeletions.has(file)) {
+			if (!isScannedCodePath(file) || committedDeletionSet.has(file)) {
 				continue;
 			}
 			const ext = path.extname(file).toLowerCase();

@@ -54,8 +54,9 @@ import {
 	assertNonCodeExtensionsPinned,
 	assertScannedExtensionsPinned,
 	assertNoShrinkVsMergeBase,
-	assertIntentionalDeletions,
+	assertOnlyCommittedDeletions,
 	countExtensionsAtRef,
+	listDeletedFilesBetweenRefs,
 	listFilesAtRef,
 	resolveMergeBase,
 } from './check-column-type-imports.mts';
@@ -828,9 +829,10 @@ void test('R6: .mts file importing banned type is caught (dedicated .mts test)',
 	assert.ok(findings[0].bindings.includes('ColumnDef'));
 });
 
-void test('R6: baseline file is valid JSON without authored floors', () => {
-	// The baseline pins policy sets and exact deletion declarations, never
-	// authored per-extension counts.
+void test('R6: baseline file is valid JSON without authored floors or deletion debt', () => {
+	// The baseline pins policy sets only. Counts come from Git, and legitimate
+	// deletions come from the exact committed diff rather than an authored list
+	// that becomes stale as soon as its PR merges.
 	const baselinePath = path.resolve(here, 'column-type-imports-baseline.json');
 	const raw = readFileSync(baselinePath, 'utf8');
 	let parsed: unknown;
@@ -843,9 +845,10 @@ void test('R6: baseline file is valid JSON without authored floors', () => {
 		false,
 		'baseline must not carry obsolete authored perExtension floors',
 	);
-	assert.ok(
-		Array.isArray(baseline.intentionalDeletions),
-		'baseline must declare an exact-deletion list',
+	assert.equal(
+		'intentionalDeletions' in baseline,
+		false,
+		'baseline must not carry temporary deletion declarations',
 	);
 });
 
@@ -886,7 +889,6 @@ void test('R7 HOLE 1 RED: adding a file to EXEMPT_FILES fails assertExemptionsPi
 	const baselinePath = path.resolve(here, 'column-type-imports-baseline.json');
 	const raw = readFileSync(baselinePath, 'utf8');
 	const baseline = JSON.parse(raw) as {
-		intentionalDeletions: string[];
 		scannedExtensions: string[];
 		nonCodeExtensions: Record<string, string>;
 		exemptFiles: string[];
@@ -906,7 +908,6 @@ void test('R7 HOLE 1 RED: current EXEMPT_FILES matches the pinned baseline', () 
 	const baselinePath = path.resolve(here, 'column-type-imports-baseline.json');
 	const raw = readFileSync(baselinePath, 'utf8');
 	const baseline = JSON.parse(raw) as {
-		intentionalDeletions: string[];
 		scannedExtensions: string[];
 		nonCodeExtensions: Record<string, string>;
 		exemptFiles: string[];
@@ -923,7 +924,6 @@ void test('R7 HOLE 2 RED: adding a non-code extension with 24-char padding fails
 	const baselinePath = path.resolve(here, 'column-type-imports-baseline.json');
 	const raw = readFileSync(baselinePath, 'utf8');
 	const baseline = JSON.parse(raw) as {
-		intentionalDeletions: string[];
 		scannedExtensions: string[];
 		nonCodeExtensions: Record<string, string>;
 		exemptFiles: string[];
@@ -941,7 +941,6 @@ void test('R7 HOLE 2 RED: changing a justification fails assertNonCodeExtensions
 	const baselinePath = path.resolve(here, 'column-type-imports-baseline.json');
 	const raw = readFileSync(baselinePath, 'utf8');
 	const baseline = JSON.parse(raw) as {
-		intentionalDeletions: string[];
 		scannedExtensions: string[];
 		nonCodeExtensions: Record<string, string>;
 		exemptFiles: string[];
@@ -959,7 +958,6 @@ void test('R7 HOLE 2 RED: current NON_CODE_EXTENSIONS matches the pinned baselin
 	const baselinePath = path.resolve(here, 'column-type-imports-baseline.json');
 	const raw = readFileSync(baselinePath, 'utf8');
 	const baseline = JSON.parse(raw) as {
-		intentionalDeletions: string[];
 		scannedExtensions: string[];
 		nonCodeExtensions: Record<string, string>;
 		exemptFiles: string[];
@@ -976,7 +974,6 @@ void test('R7 HOLE 3 RED: removing .ctsx from SCANNED_EXTENSIONS fails assertSca
 	const baselinePath = path.resolve(here, 'column-type-imports-baseline.json');
 	const raw = readFileSync(baselinePath, 'utf8');
 	const baseline = JSON.parse(raw) as {
-		intentionalDeletions: string[];
 		scannedExtensions: string[];
 		nonCodeExtensions: Record<string, string>;
 		exemptFiles: string[];
@@ -994,7 +991,6 @@ void test('R7 HOLE 3 RED: current SCANNED_EXTENSIONS matches the pinned baseline
 	const baselinePath = path.resolve(here, 'column-type-imports-baseline.json');
 	const raw = readFileSync(baselinePath, 'utf8');
 	const baseline = JSON.parse(raw) as {
-		intentionalDeletions: string[];
 		scannedExtensions: string[];
 		nonCodeExtensions: Record<string, string>;
 		exemptFiles: string[];
@@ -1448,7 +1444,6 @@ void test('#2033 integration: anchored Git scans follow concurrent branches with
 			'utf8',
 		),
 	) as Record<string, unknown>;
-	baseline.intentionalDeletions = [];
 	const baselinePath = path.join(repo, 'column-type-imports-baseline.json');
 	writeFileSync(baselinePath, JSON.stringify(baseline));
 	assert.deepEqual(
@@ -1545,89 +1540,58 @@ void test('#2033: Git error formatting preserves captured stderr', async () => {
 	);
 });
 
-void test('#2033: an exact active code-file deletion declaration is accepted', () => {
+void test('#2033: an exact committed code-file deletion is accepted without authored state', () => {
 	const deleted = 'apps/front/src/retired.ts';
 	assert.deepEqual(
-		assertIntentionalDeletions(
+		assertOnlyCommittedDeletions(
 			['apps/front/src/keep.ts', deleted],
 			['apps/front/src/keep.ts'],
 			[deleted],
 			'apps/front/src',
-			['apps/front/src/keep.ts', deleted],
 		),
 		[deleted],
 	);
 });
 
-void test('#2033: an undeclared or stale deletion declaration is rejected', () => {
+void test('#2033: an uncommitted disappearance or stale committed deletion is rejected', () => {
 	const deleted = 'apps/front/src/retired.ts';
 	assert.throws(
 		() =>
-			assertIntentionalDeletions(
+			assertOnlyCommittedDeletions(
 				['apps/front/src/keep.ts', deleted],
 				['apps/front/src/keep.ts'],
 				[],
 				'apps/front/src',
-				['apps/front/src/keep.ts', deleted],
 			),
-		/undeclared: apps\/front\/src\/retired\.ts/,
+		/not committed as a deletion: apps\/front\/src\/retired\.ts/,
 	);
 	assert.throws(
 		() =>
-			assertIntentionalDeletions(
+			assertOnlyCommittedDeletions(
 				['apps/front/src/keep.ts', deleted],
-				['apps/front/src/keep.ts'],
-				['apps/front/src/other.ts'],
+				['apps/front/src/keep.ts', deleted],
+				[deleted],
 				'apps/front/src',
-				['apps/front/src/keep.ts', deleted],
 			),
-		/invalid: apps\/front\/src\/other\.ts.*stale: apps\/front\/src\/other\.ts/s,
+		/committed deletion still present in live scan: apps\/front\/src\/retired\.ts/,
 	);
 });
 
-void test('#2033: deletion declarations cannot use directories, globs, or duplicates', () => {
+void test('#2033: committed deletion evidence rejects paths outside the scan surface', () => {
 	const deleted = 'apps/front/src/retired.ts';
 	assert.throws(
 		() =>
-			assertIntentionalDeletions(
+			assertOnlyCommittedDeletions(
 				[deleted],
 				[],
-				['apps/front/src'],
+				['apps/elsewhere/retired.ts'],
 				'apps/front/src',
-				[deleted],
 			),
-		/invalid: apps\/front\/src/,
-	);
-	assert.throws(
-		() =>
-			assertIntentionalDeletions(
-				[deleted],
-				[],
-				[deleted, deleted],
-				'apps/front/src',
-				[deleted],
-			),
-		/duplicate: apps\/front\/src\/retired\.ts/,
+		/invalid committed deletion: apps\/elsewhere\/retired\.ts/,
 	);
 });
 
-void test('#2033: an exact deletion declaration expires after integration contains the deletion', () => {
-	const deleted = 'apps/front/src/retired.ts';
-	assert.throws(
-		() =>
-			assertIntentionalDeletions(
-				['apps/front/src/keep.ts', deleted],
-				['apps/front/src/keep.ts'],
-				[deleted],
-				'apps/front/src',
-				['apps/front/src/keep.ts'],
-			),
-		/integration reference.*apps\/front\/src\/retired\.ts/,
-		'an intentional deletion must not remain an escape after integration has the deletion',
-	);
-});
-
-void test('#2033 integration: an active exact deletion declaration is honored by the Git scan', () => {
+void test('#2033 integration: a committed deletion needs no temporary baseline entry before or after merge', () => {
 	const repo = mkdtempSync(path.join(tmpdir(), 'column-type-delete-git-'));
 	sandboxes.push(repo);
 	const sourceRoot = path.join(repo, 'apps', 'front', 'src');
@@ -1645,19 +1609,45 @@ void test('#2033 integration: an active exact deletion declaration is honored by
 	runGit(repo, ['config', 'user.email', 'column-type-guard@example.com']);
 	runGit(repo, ['config', 'user.name', 'column-type-guard']);
 	commitGitTree(repo, 'base');
-	runGit(repo, ['checkout', '-qb', 'lane/delete']);
-	runGit(repo, ['rm', '--', 'apps/front/src/retired.ts']);
-	commitGitTree(repo, 'delete one code file');
-
-	const baseline = JSON.parse(
+	const baselinePath = path.join(repo, 'column-type-imports-baseline.json');
+	writeFileSync(
+		baselinePath,
 		readFileSync(
 			path.resolve(here, 'column-type-imports-baseline.json'),
 			'utf8',
 		),
-	) as Record<string, unknown>;
-	const baselinePath = path.join(repo, 'column-type-imports-baseline.json');
-	baseline.intentionalDeletions = [deleted];
-	writeFileSync(baselinePath, JSON.stringify(baseline));
+	);
+
+	rmSync(path.join(sourceRoot, 'retired.ts'));
+	assert.throws(
+		() =>
+			scanFrontSrcForBannedImports(sourceRoot, {
+				baselinePath,
+				gitCwd: repo,
+				integrationBranch: 'develop',
+			}),
+		/not committed as a deletion: apps\/front\/src\/retired\.ts/,
+		'an uncommitted disappearance must remain red in the production Git path',
+	);
+	writeFileSync(
+		path.join(sourceRoot, 'retired.ts'),
+		'export const retired = true;\n',
+	);
+
+	runGit(repo, ['checkout', '-qb', 'lane/delete']);
+	runGit(repo, ['rm', '--', 'apps/front/src/retired.ts']);
+	commitGitTree(repo, 'delete one code file');
+
+	assert.deepEqual(
+		listDeletedFilesBetweenRefs(
+			resolveMergeBase(repo, 'develop'),
+			'HEAD',
+			'apps/front/src',
+			repo,
+		),
+		[deleted],
+		'the exact committed Git deletion is the only exception evidence',
+	);
 	assert.deepEqual(
 		scanFrontSrcForBannedImports(sourceRoot, {
 			baselinePath,
@@ -1665,35 +1655,24 @@ void test('#2033 integration: an active exact deletion declaration is honored by
 			integrationBranch: 'develop',
 		}),
 		[],
-		'exactly declared deletion should be removed from the reference count',
+		'exactly committed deletion should be removed from the reference count',
 	);
 
 	runGit(repo, ['checkout', 'develop']);
-	runGit(repo, ['rm', '--', 'apps/front/src/retired.ts']);
-	commitGitTree(repo, 'integrate deletion');
-	runGit(repo, ['checkout', 'lane/delete']);
-	writeFileSync(baselinePath, JSON.stringify(baseline));
-	assert.throws(
-		() =>
-			scanFrontSrcForBannedImports(sourceRoot, {
-				baselinePath,
-				gitCwd: repo,
-				integrationBranch: 'develop',
-			}),
-		/integration reference.*apps\/front\/src\/retired\.ts/,
-		'an integrated deletion must make the temporary declaration stale',
-	);
-
-	baseline.intentionalDeletions = [];
-	writeFileSync(baselinePath, JSON.stringify(baseline));
-	assert.throws(
-		() =>
-			scanFrontSrcForBannedImports(sourceRoot, {
-				baselinePath,
-				gitCwd: repo,
-				integrationBranch: 'develop',
-			}),
-		/undeclared: apps\/front\/src\/retired\.ts/,
-		'without the declaration the real scan must expose the deletion',
+	runGit(repo, [
+		'merge',
+		'--no-ff',
+		'-qm',
+		'merge deletion branch',
+		'lane/delete',
+	]);
+	assert.deepEqual(
+		scanFrontSrcForBannedImports(sourceRoot, {
+			baselinePath,
+			gitCwd: repo,
+			integrationBranch: 'develop',
+		}),
+		[],
+		'develop must stay green after merging the deletion without cleanup debt',
 	);
 });
