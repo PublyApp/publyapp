@@ -17,6 +17,7 @@ import {
 	useTenantPublishTargetsQuery,
 	toTenantPublishTargets,
 } from '~/lib/query/tenant-publish-targets';
+import { invalidateTenantScheduledPublications } from '~/lib/query/tenant-scheduled-publications';
 import { useResolvedWorkspaceTenantId } from '~/lib/query/tenants-for-picker';
 
 import { toApiFailure } from '@org/shared-ts/lib/api-failure/to-api-failure';
@@ -101,6 +102,7 @@ export const PublishOnBlock = ({
 				tenantId,
 			});
 			await invalidateTenantPublications(queryClient, tenantId);
+			await invalidateTenantScheduledPublications(queryClient, tenantId);
 			void navigate({ to: '/tenant/posts/history' });
 		} catch (error) {
 			setFailureMessage(

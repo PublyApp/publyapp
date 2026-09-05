@@ -1,36 +1,59 @@
-import { IconListCheck } from '@tabler/icons-react';
 import { createFileRoute } from '@tanstack/react-router';
+import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Card, CardContent, CardHeader, CardTitle } from '~/components/ui/card';
-import { StateSurface } from '~/components/ui/state-surface';
+import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
+import { useResolvedWorkspaceTenantId } from '~/lib/query/tenants-for-picker';
 
-import { WorkspacePageHeader, ReadOnlyBadge } from '../_workspace-page-parts';
+import { WorkspacePageHeader } from '../_workspace-page-parts';
+import {
+	buildUpcomingPublicationWindow,
+	nextPollingDelayMs,
+} from './_scheduled-publication-helpers';
+import { ScheduledPublicationQueueTable } from './_scheduled-publication-queue-table';
+import { useScheduledPublicationPage } from './_use-scheduled-publication-page';
 
-/**
- * Honest read-only queue section: no posts API exists, so the page is a
- * coming-later state — never fabricated queued-post rows.
- */
+const QUEUE_STATUSES = ['scheduled', 'in_progress', 'paused'] as const;
+
 const TenantPostsQueuePage = () => {
 	const { t } = useTranslation(['posts', 'common']);
+	const tenantId = useResolvedWorkspaceTenantId();
+	const page = useScheduledPublicationPage({
+		tenantId: tenantId ?? '',
+		createWindow: () => buildUpcomingPublicationWindow(new Date()),
+		initialSize: 20,
+		statuses: [...QUEUE_STATUSES],
+	});
+	const { rows, query } = page;
+	const { refetch, dataUpdatedAt } = query;
+	useEffect(() => {
+		const delay = nextPollingDelayMs({ rows, now: new Date() });
+		if (delay === null) {
+			return;
+		}
+
+		const timeoutId = setTimeout(() => {
+			void refetch();
+		}, delay);
+
+		return () => {
+			clearTimeout(timeoutId);
+		};
+	}, [rows, refetch, dataUpdatedAt]);
+
+	if (page.shouldLogout) {
+		return <LogoutRedirect />;
+	}
 
 	return (
-		<div className="space-y-5" data-testid="tenant-posts-queue-page">
+		<div className="publy-page-fill" data-testid="tenant-posts-queue-page">
 			<WorkspacePageHeader titleKey="queue" />
 
-			<Card>
-				<CardHeader>
-					<CardTitle>{t('common:queue')}</CardTitle>
-					<ReadOnlyBadge />
-				</CardHeader>
-				<CardContent>
-					<StateSurface
-						icon={IconListCheck}
-						title={t('queue-coming-later-title')}
-						description={t('queue-coming-later-description')}
-						testId="tenant-posts-queue-empty"
-					/>
-				</CardContent>
-			</Card>
+			<p className="text-sm text-muted-foreground">{t('queue-description')}</p>
+			<ScheduledPublicationQueueTable
+				query={page.query}
+				rows={page.rows}
+				pagination={page.pagination}
+			/>
 		</div>
 	);
 };

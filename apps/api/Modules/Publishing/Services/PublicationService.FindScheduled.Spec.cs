@@ -18,11 +18,23 @@ using Xunit;
 namespace PublyApp.Api.Modules.Publishing.Services;
 
 // Direct-invocation integration spec for PublicationService.FindScheduledAsync
-// (real ephemeral Postgres, no HTTP surface). Pins the round-3 fixes at the
-// service boundary: an empty window is a normal empty page (not a crash), and
-// the cursor-existence probe is tenant-scoped like the main query. The context
-// is built WITHOUT the tenant model filter, so these cases exercise the code's
-// OWN tenant predicates and cannot be masked by first-tenant model caching.
+// (real ephemeral Postgres, no HTTP surface). Pins the contract at the service
+// boundary:
+//
+//   - The FromUtc bound is absolute unless the caller explicitly opts into the
+//     InProgress/Paused carryover by including those statuses in `Statuses`.
+//     The calendar sends no filter (strict window), the queue sends
+//     scheduled,in_progress,paused (keep carryover until the worker is done or
+//     the account reconnects).
+//   - The cursor anchor is matched on the STORED ScheduledAtUtc and is not
+//     re-evaluated against the mutable status filter: an anchor that
+//     transitioned between pages must remain a usable cursor.
+//   - A forged timestamp, a cross-tenant id, and a real out-of-window cursor
+//     still surface as CursorNotFound.
+//
+// The context is built WITHOUT the tenant model filter, so these cases
+// exercise the code's OWN tenant predicates and cannot be masked by
+// first-tenant model caching.
 public sealed class PublicationServiceFindScheduledSpec : IClassFixture<ApiFixture> {
 	private readonly ApiFixture _fixture;
 
@@ -87,7 +99,8 @@ public sealed class PublicationServiceFindScheduledSpec : IClassFixture<ApiFixtu
 		Guid tenantId,
 		Guid accountId,
 		Guid userId,
-		DateTime scheduledAtUtc
+		DateTime scheduledAtUtc,
+		PublicationStatus seedStatus = PublicationStatus.Scheduled
 	) {
 		var post = new Post {
 			TenantId = tenantId,
@@ -101,7 +114,7 @@ public sealed class PublicationServiceFindScheduledSpec : IClassFixture<ApiFixtu
 			TenantId = tenantId,
 			PostId = post.GetRequiredId(),
 			SocialAccountId = accountId,
-			Status = PublicationStatus.Scheduled,
+			Status = seedStatus,
 			ScheduledAtUtc = scheduledAtUtc,
 			ScheduledTimeZone = "Europe/Paris",
 			IdempotencyKey = $"find-service-spec-{Guid.NewGuid():N}",
@@ -115,6 +128,334 @@ public sealed class PublicationServiceFindScheduledSpec : IClassFixture<ApiFixtu
 		return Convert.ToBase64String(
 			Encoding.UTF8.GetBytes($"{utcInstant:O}|{id}")
 		);
+	}
+
+	[Fact]
+	public async Task ItShouldExcludeOldPausedRowsWhenNoStatusFilterIsSent() {
+		await using var db = await NewDbAsync();
+		var (tenantId, accountId, userId) = await SeedTenantAndAccountAsync(db);
+		// Carryover is opt-in: a Paused row scheduled months before FromUtc must
+		// NOT bleed into a window that did not ask for it. The calendar sends no
+		// filter, so its view stays strict.
+		_ = await SeedPublicationAsync(
+			db, tenantId, accountId, userId,
+			new DateTime(2099, 6, 1, 10, 0, 0, DateTimeKind.Utc),
+			seedStatus: PublicationStatus.Paused
+		);
+		var service = NewService(db);
+
+		var result = await service.FindScheduledAsync(
+			new FindScheduledPublicationsArgs(
+				TenantId: tenantId,
+				FromUtc: new DateTime(2100, 1, 1, 0, 0, 0, DateTimeKind.Utc),
+				ToUtc: new DateTime(2100, 1, 31, 0, 0, 0, DateTimeKind.Utc),
+				Statuses: null,
+				Cursor: null,
+				Limit: 50
+			)
+		);
+
+		result.Should().BeOfType<FindScheduledResult.Success>();
+		var page = ((FindScheduledResult.Success)result).Page;
+		page.Data.Should().BeEmpty();
+	}
+
+	[Fact]
+	public async Task ItShouldExcludeOldInProgressRowsWhenNoStatusFilterIsSent() {
+		await using var db = await NewDbAsync();
+		var (tenantId, accountId, userId) = await SeedTenantAndAccountAsync(db);
+		// Same carryover rule: the InProgress row is not opted in when the
+		// caller sends no status filter, so it stays out of the strict window.
+		_ = await SeedPublicationAsync(
+			db, tenantId, accountId, userId,
+			new DateTime(2099, 6, 1, 10, 0, 0, DateTimeKind.Utc),
+			seedStatus: PublicationStatus.InProgress
+		);
+		var service = NewService(db);
+
+		var result = await service.FindScheduledAsync(
+			new FindScheduledPublicationsArgs(
+				TenantId: tenantId,
+				FromUtc: new DateTime(2100, 1, 1, 0, 0, 0, DateTimeKind.Utc),
+				ToUtc: new DateTime(2100, 1, 31, 0, 0, 0, DateTimeKind.Utc),
+				Statuses: null,
+				Cursor: null,
+				Limit: 50
+			)
+		);
+
+		result.Should().BeOfType<FindScheduledResult.Success>();
+		var page = ((FindScheduledResult.Success)result).Page;
+		page.Data.Should().BeEmpty();
+	}
+
+	[Fact]
+	public async Task ItShouldKeepCarryoverInProgressRowsWhenStatusFilterIncludesThem() {
+		await using var db = await NewDbAsync();
+		var (tenantId, accountId, userId) = await SeedTenantAndAccountAsync(db);
+		// The queue filter asks for in_progress; carryover must therefore apply
+		// and the row the worker has not finished yet must stay visible past
+		// FromUtc.
+		_ = await SeedPublicationAsync(
+			db, tenantId, accountId, userId,
+			new DateTime(2099, 6, 1, 10, 0, 0, DateTimeKind.Utc),
+			seedStatus: PublicationStatus.InProgress
+		);
+		var service = NewService(db);
+
+		var result = await service.FindScheduledAsync(
+			new FindScheduledPublicationsArgs(
+				TenantId: tenantId,
+				FromUtc: new DateTime(2100, 1, 1, 0, 0, 0, DateTimeKind.Utc),
+				ToUtc: new DateTime(2100, 1, 31, 0, 0, 0, DateTimeKind.Utc),
+				Statuses: [
+					PublicationStatus.Scheduled,
+					PublicationStatus.InProgress,
+					PublicationStatus.Paused,
+				],
+				Cursor: null,
+				Limit: 50
+			)
+		);
+
+		result.Should().BeOfType<FindScheduledResult.Success>();
+		var page = ((FindScheduledResult.Success)result).Page;
+		page.Data.Should().HaveCount(1);
+		page.Data[0].Status.Should().Be("in_progress");
+	}
+
+	[Fact]
+	public async Task ItShouldHideStaleLastErrorForNonFailureRows() {
+		await using var db = await NewDbAsync();
+		var (tenantId, accountId, userId) = await SeedTenantAndAccountAsync(db);
+		var scheduledAt = new DateTime(2100, 1, 10, 10, 0, 0, DateTimeKind.Utc);
+		var publication = await SeedPublicationAsync(
+			db,
+			tenantId,
+			accountId,
+			userId,
+			scheduledAt,
+			seedStatus: PublicationStatus.InProgress
+		);
+		publication.LastError = "stale pause cause";
+		await db.SaveChangesAsync();
+		var service = NewService(db);
+
+		var result = await service.FindScheduledAsync(
+			new FindScheduledPublicationsArgs(
+				TenantId: tenantId,
+				FromUtc: new DateTime(2100, 1, 1, 0, 0, 0, DateTimeKind.Utc),
+				ToUtc: new DateTime(2100, 1, 31, 0, 0, 0, DateTimeKind.Utc),
+				Statuses: null,
+				Cursor: null,
+				Limit: 50
+			)
+		);
+
+		result.Should().BeOfType<FindScheduledResult.Success>();
+		var page = ((FindScheduledResult.Success)result).Page;
+		page.Data.Should().ContainSingle();
+		page.Data[0].Status.Should().Be("in_progress");
+		page.Data[0].LastError.Should().BeNull(
+			"LastError is only a failure cause for failed or paused rows"
+		);
+	}
+
+	[Fact]
+	public async Task ItShouldKeepCarryoverPausedRowsWhenStatusFilterIncludesThem() {
+		await using var db = await NewDbAsync();
+		var (tenantId, accountId, userId) = await SeedTenantAndAccountAsync(db);
+		// Mirror of the InProgress case: Paused carryover requires the caller to
+		// include Paused in `Statuses`. The queue filter does; the calendar
+		// does not.
+		_ = await SeedPublicationAsync(
+			db, tenantId, accountId, userId,
+			new DateTime(2099, 6, 1, 10, 0, 0, DateTimeKind.Utc),
+			seedStatus: PublicationStatus.Paused
+		);
+		var service = NewService(db);
+
+		var result = await service.FindScheduledAsync(
+			new FindScheduledPublicationsArgs(
+				TenantId: tenantId,
+				FromUtc: new DateTime(2100, 1, 1, 0, 0, 0, DateTimeKind.Utc),
+				ToUtc: new DateTime(2100, 1, 31, 0, 0, 0, DateTimeKind.Utc),
+				Statuses: [
+					PublicationStatus.Scheduled,
+					PublicationStatus.InProgress,
+					PublicationStatus.Paused,
+				],
+				Cursor: null,
+				Limit: 50
+			)
+		);
+
+		result.Should().BeOfType<FindScheduledResult.Success>();
+		var page = ((FindScheduledResult.Success)result).Page;
+		page.Data.Should().HaveCount(1);
+		page.Data[0].Status.Should().Be("paused");
+	}
+
+	[Fact]
+	public async Task ItShouldExcludeCarryoverInProgressRowsWhenStatusFilterOmitsThem() {
+		await using var db = await NewDbAsync();
+		var (tenantId, accountId, userId) = await SeedTenantAndAccountAsync(db);
+		// Opt-out path: a caller that filters on Scheduled only must NOT receive
+		// old InProgress rows even though they are temporally before FromUtc.
+		// The carryover branch is gated on the filter, not on the row's status.
+		_ = await SeedPublicationAsync(
+			db, tenantId, accountId, userId,
+			new DateTime(2099, 6, 1, 10, 0, 0, DateTimeKind.Utc),
+			seedStatus: PublicationStatus.InProgress
+		);
+		var service = NewService(db);
+
+		var result = await service.FindScheduledAsync(
+			new FindScheduledPublicationsArgs(
+				TenantId: tenantId,
+				FromUtc: new DateTime(2100, 1, 1, 0, 0, 0, DateTimeKind.Utc),
+				ToUtc: new DateTime(2100, 1, 31, 0, 0, 0, DateTimeKind.Utc),
+				Statuses: [PublicationStatus.Scheduled],
+				Cursor: null,
+				Limit: 50
+			)
+		);
+
+		result.Should().BeOfType<FindScheduledResult.Success>();
+		var page = ((FindScheduledResult.Success)result).Page;
+		page.Data.Should().BeEmpty();
+	}
+
+	[Fact]
+	public async Task ItShouldExcludeScheduledRowsWhenScheduledAtUtcIsBeforeFromUtc() {
+		await using var db = await NewDbAsync();
+		var (tenantId, accountId, userId) = await SeedTenantAndAccountAsync(db);
+		_ = await SeedPublicationAsync(
+			db, tenantId, accountId, userId,
+			new DateTime(2099, 6, 1, 10, 0, 0, DateTimeKind.Utc),
+			seedStatus: PublicationStatus.Scheduled
+		);
+		var service = NewService(db);
+
+		var result = await service.FindScheduledAsync(
+			new FindScheduledPublicationsArgs(
+				TenantId: tenantId,
+				FromUtc: new DateTime(2100, 1, 1, 0, 0, 0, DateTimeKind.Utc),
+				ToUtc: new DateTime(2100, 1, 31, 0, 0, 0, DateTimeKind.Utc),
+				Statuses: null,
+				Cursor: null,
+				Limit: 50
+			)
+		);
+
+		result.Should().BeOfType<FindScheduledResult.Success>();
+		var page = ((FindScheduledResult.Success)result).Page;
+		page.Data.Should().BeEmpty();
+	}
+
+	[Fact]
+	public async Task ItShouldRespectTheTwentyFourHourPastGraceOnTheQueueWindow() {
+		// The queue page (tenant/posts/queue) sends a window with a 24-hour past
+		// grace on FromUtc and a 31-day future horizon on ToUtc (exactly the
+		// 32-day API maximum, which the service only rejects when strictly
+		// wider). This pins the service-level symmetry on both sides of the
+		// FromUtc boundary for a row that races the page open:
+		//   - row due seconds before the page opens, FromUtc = now      => excluded
+		//   - row due seconds before the page opens, FromUtc = now - 24h => included
+		await using var db = await NewDbAsync();
+		var (tenantId, accountId, userId) = await SeedTenantAndAccountAsync(db);
+		var pageOpen = new DateTime(2099, 6, 15, 12, 0, 0, DateTimeKind.Utc);
+		var dueSecondsBeforePageOpen = pageOpen.AddSeconds(-5);
+
+		_ = await SeedPublicationAsync(
+			db, tenantId, accountId, userId,
+			dueSecondsBeforePageOpen,
+			seedStatus: PublicationStatus.Scheduled
+		);
+		var service = NewService(db);
+
+		// Strict window anchored at the page open instant: the row is just
+		// BEFORE FromUtc, so it stays out (the queue used to render empty
+		// here, hiding a due-now publication from the operator).
+		var strictResult = await service.FindScheduledAsync(
+			new FindScheduledPublicationsArgs(
+				TenantId: tenantId,
+				FromUtc: pageOpen,
+				ToUtc: pageOpen.AddDays(31),
+				Statuses: null,
+				Cursor: null,
+				Limit: 50
+			)
+		);
+		var strictPage = ((FindScheduledResult.Success)strictResult).Page;
+		strictPage.Data.Should().BeEmpty();
+
+		// Twenty-four-hour past-grace shift: FromUtc moves back 24h, the same
+		// row now sits inside the window and surfaces so the queue can start
+		// polling for its in-flight transition.
+		var graceResult = await service.FindScheduledAsync(
+			new FindScheduledPublicationsArgs(
+				TenantId: tenantId,
+				FromUtc: pageOpen.AddHours(-24),
+				ToUtc: pageOpen.AddDays(31).AddHours(-24),
+				Statuses: null,
+				Cursor: null,
+				Limit: 50
+			)
+		);
+		var gracePage = ((FindScheduledResult.Success)graceResult).Page;
+		gracePage.Data.Should().HaveCount(1);
+		gracePage.Data[0].ScheduledAtUtc.Should().Be(dueSecondsBeforePageOpen);
+	}
+
+	[Fact]
+	public async Task ItShouldAcceptAWindowThatSpansExactlyThirtyTwoDays() {
+		// The queue sends exactly the 32-day API maximum (24h past + 31d future).
+		// The service rejects only strictly-wider windows; the exact-32-day
+		// boundary must answer Success, not InvalidWindow.
+		await using var db = await NewDbAsync();
+		var (tenantId, accountId, userId) = await SeedTenantAndAccountAsync(db);
+		var from = new DateTime(2099, 6, 1, 0, 0, 0, DateTimeKind.Utc);
+		var service = NewService(db);
+
+		var result = await service.FindScheduledAsync(
+			new FindScheduledPublicationsArgs(
+				TenantId: tenantId,
+				FromUtc: from,
+				ToUtc: from.AddDays(32),
+				Statuses: null,
+				Cursor: null,
+				Limit: 50
+			)
+		);
+
+		result.Should().BeOfType<FindScheduledResult.Success>();
+	}
+
+	[Fact]
+	public async Task ItShouldRejectACursorWhoseForgedTimestampMismatchesTheStoredScheduledAtUtc() {
+		await using var db = await NewDbAsync();
+		var (tenantId, accountId, userId) = await SeedTenantAndAccountAsync(db);
+		var eligibleRow = await SeedPublicationAsync(
+			db, tenantId, accountId, userId,
+			new DateTime(2099, 6, 1, 10, 0, 0, DateTimeKind.Utc),
+			seedStatus: PublicationStatus.InProgress
+		);
+		var service = NewService(db);
+
+		var forgedInstant = new DateTime(2099, 6, 1, 9, 0, 0, DateTimeKind.Utc);
+		var result = await service.FindScheduledAsync(
+			new FindScheduledPublicationsArgs(
+				TenantId: tenantId,
+				FromUtc: new DateTime(2099, 6, 1, 0, 0, 0, DateTimeKind.Utc),
+				ToUtc: new DateTime(2099, 7, 1, 0, 0, 0, DateTimeKind.Utc),
+				Statuses: null,
+				Cursor: EncodeCursor(forgedInstant, eligibleRow.GetRequiredId()),
+				Limit: 50
+			)
+		);
+
+		result.Should().BeOfType<FindScheduledResult.CursorNotFound>();
 	}
 
 	[Fact]
@@ -177,5 +518,89 @@ public sealed class PublicationServiceFindScheduledSpec : IClassFixture<ApiFixtu
 		);
 
 		result.Should().BeOfType<FindScheduledResult.CursorNotFound>();
+	}
+
+	[Fact]
+	public async Task ItShouldKeepACursorUsableWhenTheAnchorTransitionsBetweenPages() {
+		await using var db = await NewDbAsync();
+		var (tenantId, accountId, userId) = await SeedTenantAndAccountAsync(db);
+
+		// Anchor row sits BEFORE the window's FromUtc and starts as InProgress
+		// (the worker has claimed it but not finished yet — this is the only
+		// case where a row scheduled earlier than the window still legitimately
+		// belongs to the page: the queue filter asked for InProgress, so the
+		// pre-window carryover is on). With Limit=1, page 1 returns the
+		// anchor and the NextCursor encodes (its ScheduledAtUtc, its Id).
+		// That row IS the cursor anchor for page 2.
+		var anchorRow = await SeedPublicationAsync(
+			db, tenantId, accountId, userId,
+			new DateTime(2099, 12, 25, 10, 0, 0, DateTimeKind.Utc),
+			seedStatus: PublicationStatus.InProgress
+		);
+		var followUpRow = await SeedPublicationAsync(
+			db, tenantId, accountId, userId,
+			new DateTime(2100, 1, 20, 10, 0, 0, DateTimeKind.Utc),
+			seedStatus: PublicationStatus.Scheduled
+		);
+		var service = NewService(db);
+
+		var statuses = new List<PublicationStatus> {
+			PublicationStatus.Scheduled,
+			PublicationStatus.InProgress,
+			PublicationStatus.Paused,
+		};
+
+		var page1 = await service.FindScheduledAsync(
+			new FindScheduledPublicationsArgs(
+				TenantId: tenantId,
+				FromUtc: new DateTime(2100, 1, 1, 0, 0, 0, DateTimeKind.Utc),
+				ToUtc: new DateTime(2100, 2, 1, 0, 0, 0, DateTimeKind.Utc),
+				Statuses: statuses,
+				Cursor: null,
+				Limit: 1
+			)
+		);
+		var firstPage = ((FindScheduledResult.Success)page1).Page;
+		firstPage.Data.Should().HaveCount(1);
+		firstPage.Data[0].PublicationId.Should().Be(anchorRow.GetRequiredId());
+		firstPage.NextCursor.Should().NotBeNullOrEmpty();
+
+		// Between pages 1 and 2 the worker finishes the anchor: InProgress →
+		// Published via the single legal writer of Status (#1446). The anchor's
+		// ScheduledAtUtc and Id are unchanged; only Status moves out of the
+		// requested filter AND out of the InProgress/Paused set, so the
+		// previous (status-checked) FromUtc gate would have rejected the
+		// cursor as CursorNotFound.
+		var transitions = new PublicationStatusTransitionService(db);
+		await transitions.MarkPublishedAsync(
+			new MarkPublicationPublishedArgs(
+				anchorRow.GetRequiredId(),
+				tenantId,
+				ExternalRecordId: "at://did:plc:test/app.bsky.feed.post/test",
+				ExternalUrl: "https://bsky.app/profile/test/post/test"
+			),
+			CancellationToken.None
+		);
+
+		// Page 2 with the SAME cursor. The cursor probe must keep the anchor
+		// valid: re-applying the FromUtc gate (or the Statuses filter) on the
+		// anchor itself would re-break the cursor as soon as the worker
+		// mutates the anchor's status out of InProgress/Paused. The keyset
+		// filter that follows only relies on (ScheduledAtUtc, Id), so the
+		// anchor's mutated status is irrelevant.
+		var page2 = await service.FindScheduledAsync(
+			new FindScheduledPublicationsArgs(
+				TenantId: tenantId,
+				FromUtc: new DateTime(2100, 1, 1, 0, 0, 0, DateTimeKind.Utc),
+				ToUtc: new DateTime(2100, 2, 1, 0, 0, 0, DateTimeKind.Utc),
+				Statuses: statuses,
+				Cursor: firstPage.NextCursor,
+				Limit: 1
+			)
+		);
+
+		var secondPage = ((FindScheduledResult.Success)page2).Page;
+		secondPage.Data.Should().HaveCount(1);
+		secondPage.Data[0].PublicationId.Should().Be(followUpRow.GetRequiredId());
 	}
 }

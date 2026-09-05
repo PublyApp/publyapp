@@ -22,19 +22,10 @@ import {
  * build an invalidation/removal key from this. */
 export const TENANT_PUBLICATIONS_QUERY_KEY = ['tenant-publications'] as const;
 
-/** The exact wire vocabulary `PublicationWire.FormatStatus` emits — the CSV
- * `status` filter accepts nothing else (backend answers 422 on drift).
- * Module-private: consumers go through `isTenantPublicationStatus`. */
-const TENANT_PUBLICATION_STATUSES = [
-	'scheduled',
-	'in_progress',
-	'published',
-	'failed',
-	'paused',
-] as const;
-
-export type TenantPublicationStatus =
-	(typeof TENANT_PUBLICATION_STATUSES)[number];
+import {
+	isPublicationWireStatus,
+	type PublicationWireStatus,
+} from '~/lib/publication-status';
 
 export type TenantPublicationsQueryVariables = {
 	/** Raw values (URL state arrives as strings); validated against the
@@ -60,25 +51,23 @@ export type TenantPublicationRow = {
 
 // ── Status vocabulary guard ────────────────────────────────────────
 
-export const isTenantPublicationStatus = (
-	value: string,
-): value is TenantPublicationStatus =>
-	(TENANT_PUBLICATION_STATUSES as readonly string[]).includes(value);
+/** Backward-compat re-export — prefer isPublicationWireStatus. */
+export const isTenantPublicationStatus = isPublicationWireStatus;
 
 const normalizeStatuses = (
 	statuses: string[] | undefined,
-): TenantPublicationStatus[] | undefined => {
+): PublicationWireStatus[] | undefined => {
 	if (!statuses || statuses.length === 0) {
 		return undefined;
 	}
 
-	const normalized: TenantPublicationStatus[] = [];
+	const normalized: PublicationWireStatus[] = [];
 	const seen = new Set<string>();
 
 	for (const status of statuses ?? []) {
 		const trimmed = status.trim();
 
-		if (!isTenantPublicationStatus(trimmed) || seen.has(trimmed)) {
+		if (!isPublicationWireStatus(trimmed) || seen.has(trimmed)) {
 			continue;
 		}
 

@@ -4,6 +4,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { getClientManager } from '~/lib/api-client/client-manager';
 import { toTenantPostImage } from '~/lib/query/tenant-post-images';
 import type { TenantPostImage } from '~/lib/query/tenant-post-images';
+import { invalidateTenantPublications } from '~/lib/query/tenant-publications';
+import { invalidateTenantScheduledPublications } from '~/lib/query/tenant-scheduled-publications';
 import type { SortOrder } from '~/lib/url-state/table-search-params';
 
 import type { ApiClient } from '@org/client-ts/apiClient';
@@ -330,6 +332,15 @@ export const useSavePostMutation = () => {
 		mutationFn: savePost,
 		onSuccess: (_data, variables) => {
 			void invalidateTenantPosts(queryClient, variables.tenantId);
+			// Editing a post mutates its body preview in any scheduled-publication
+			// window (queue/calendar). Refresh every window for the tenant
+			// so the cached `postBodyPreview` no longer carries the stale text
+			// (#2053 coherence). History uses a separate publications cache.
+			void invalidateTenantScheduledPublications(
+				queryClient,
+				variables.tenantId,
+			);
+			void invalidateTenantPublications(queryClient, variables.tenantId);
 		},
 		meta: {
 			successMessage: 'post-saved-success',
@@ -355,6 +366,11 @@ export const useDeleteTenantPostMutation = () => {
 		},
 		onSuccess: (_data, variables) => {
 			void invalidateTenantPosts(queryClient, variables.tenantId);
+			void invalidateTenantScheduledPublications(
+				queryClient,
+				variables.tenantId,
+			);
+			void invalidateTenantPublications(queryClient, variables.tenantId);
 		},
 		meta: { successMessage: 'post-deleted-success' },
 	});

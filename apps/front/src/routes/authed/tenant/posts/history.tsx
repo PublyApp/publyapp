@@ -5,22 +5,21 @@ import { useTranslation } from 'react-i18next';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
 import type { ColumnDef } from '~/components/table/column-type';
 import { DataTable } from '~/components/table/data-table';
-import { Badge } from '~/components/ui/badge';
 import { Button } from '~/components/ui/button';
-import { PageHeader } from '~/components/ui/product-page';
+import { PageHeader, StatusPill } from '~/components/ui/product-page';
 import { formatDateTime } from '~/lib/format-date-time';
+import { publicationStatusPresentation } from '~/lib/publication-status';
 import {
 	invalidateTenantPublications,
-	isTenantPublicationStatus,
 	toTenantPublicationRows,
 	useTenantPublicationsQuery,
 	type TenantPublicationRow,
-	type TenantPublicationStatus,
 } from '~/lib/query/tenant-publications';
 import type { TableSearchParamInput } from '~/lib/url-state/table-search-params';
 
 import { shouldLogoutForFailure } from '@org/shared-ts/lib/should-logout-for-failure';
 
+import { ScheduledPublicationCause } from './_scheduled-publication-display';
 import { useTenantPostList } from './_use-tenant-post-list';
 
 /** While any publication is in progress the list refreshes itself on this
@@ -28,31 +27,8 @@ import { useTenantPostList } from './_use-tenant-post-list';
  * without a manual reload); it stops once nothing is in flight. */
 const IN_PROGRESS_POLL_MS = 5_000;
 
-/** A publish-now row is `scheduled` until the worker claims its delivery job
- * (LISTEN/NOTIFY wake, or the 5 s queue poll at the latest). If the history
- * list's first fetch lands in that window it sees `scheduled`, and a gate that
- * only watches `in_progress` would never start polling — the worker publishes a
- * few seconds later, but the list never re-validates and the external link is
- * missing until a manual reload. A row whose `updatedAt` is recent is therefore
- * in flight for the same poll cadence; the window is far longer than any
- * realistic worker pickup and far shorter than a deliberate future schedule, so
- * scheduled posts stay quiet.
- *
- * Freshness is measured against the query's `dataUpdatedAt` (the client time of
- * the last successful fetch) rather than the wall clock: it is a pure function
- * of the data the render is already holding, so no impure `Date.now()` runs
- * during render, and each poll's refetch advances it so the window expires once
- * the row stops being touched. */
+/** Keep polling briefly while publish-now waits for worker pickup. */
 const SCHEDULED_IN_FLIGHT_WINDOW_MS = 60_000;
-
-/** Terminal statuses with a dedicated label — anything else renders raw. */
-const STATUS_LABEL_KEYS = {
-	published: 'posts:publish-status-published',
-	scheduled: 'posts:publish-status-scheduled',
-	in_progress: 'posts:publish-status-in-progress',
-	failed: 'posts:publish-status-failed',
-	paused: 'posts:publish-status-paused',
-} as const satisfies Record<TenantPublicationStatus, string>;
 
 const PublicationStatusCell = ({
 	publication,
@@ -61,23 +37,45 @@ const PublicationStatusCell = ({
 }) => {
 	const { t } = useTranslation(['posts', 'common']);
 
-	if (publication.status === 'in_progress') {
+	const presentation = publicationStatusPresentation(publication.status);
+	if (presentation === null) {
+		return <span className="text-muted-foreground">{'\u2014'}</span>;
+	}
+
+	const pill = (
+		<StatusPill
+			tone={presentation.tone}
+			testId="tenant-posts-history-status-pill"
+		>
+			{t(presentation.labelKey)}
+		</StatusPill>
+	);
+
+	if (publication.status === 'published' && publication.externalUrl) {
 		return (
-			<Badge variant="outline" data-testid="tenant-posts-publish-in-progress">
-				{t('posts:publish-status-in-progress')}
-			</Badge>
+			<div className="flex items-center gap-2">
+				{pill}
+				<a
+					className="publy-record-link"
+					data-testid="tenant-posts-history-link"
+					href={publication.externalUrl}
+					rel="noopener noreferrer"
+					target="_blank"
+				>
+					{t('posts:view-on-bluesky')}
+				</a>
+			</div>
 		);
 	}
 
 	if (publication.status === 'failed') {
 		return (
 			<div className="flex max-w-xs flex-col items-start gap-1">
-				<span
-					className="text-muted-foreground text-sm"
-					data-testid="tenant-posts-history-cause"
-				>
-					{publication.lastError ?? t('common:an-error-occurred')}
-				</span>
+				{pill}
+				<ScheduledPublicationCause
+					status={publication.status}
+					cause={publication.lastError}
+				/>
 				<Button
 					variant="outline"
 					size="sm"
@@ -90,30 +88,19 @@ const PublicationStatusCell = ({
 		);
 	}
 
-	if (publication.status === 'published' && publication.externalUrl) {
+	if (publication.status === 'paused') {
 		return (
-			<a
-				className="publy-record-link"
-				data-testid="tenant-posts-history-link"
-				href={publication.externalUrl}
-				rel="noopener noreferrer"
-				target="_blank"
-			>
-				{t('posts:view-on-bluesky')}
-			</a>
+			<div className="flex flex-col items-start gap-1">
+				{pill}
+				<ScheduledPublicationCause
+					status={publication.status}
+					cause={publication.lastError}
+				/>
+			</div>
 		);
 	}
 
-	let statusLabel: string = publication.status ?? '\u2014';
-
-	if (
-		publication.status !== null &&
-		isTenantPublicationStatus(publication.status)
-	) {
-		statusLabel = t(STATUS_LABEL_KEYS[publication.status]);
-	}
-
-	return <span className="text-muted-foreground">{statusLabel}</span>;
+	return pill;
 };
 
 const TenantPostsHistoryPage = () => {

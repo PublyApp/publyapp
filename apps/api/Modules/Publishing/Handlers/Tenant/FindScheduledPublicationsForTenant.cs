@@ -129,21 +129,31 @@ public static class FindScheduledPublicationsParser {
 		}
 
 		foreach (var raw in trimmed.Split(',')) {
-			var token = raw.Trim().ToLowerInvariant();
+			var token = raw.Trim();
 			switch (token) {
-				case "scheduled":
+				case var _ when string.Equals(
+					token, "scheduled", StringComparison.OrdinalIgnoreCase
+				):
 					statuses.Add(PublicationStatus.Scheduled);
 					break;
-				case "in_progress":
+				case var _ when string.Equals(
+					token, "in_progress", StringComparison.OrdinalIgnoreCase
+				):
 					statuses.Add(PublicationStatus.InProgress);
 					break;
-				case "published":
+				case var _ when string.Equals(
+					token, "published", StringComparison.OrdinalIgnoreCase
+				):
 					statuses.Add(PublicationStatus.Published);
 					break;
-				case "failed":
+				case var _ when string.Equals(
+					token, "failed", StringComparison.OrdinalIgnoreCase
+				):
 					statuses.Add(PublicationStatus.Failed);
 					break;
-				case "paused":
+				case var _ when string.Equals(
+					token, "paused", StringComparison.OrdinalIgnoreCase
+				):
 					statuses.Add(PublicationStatus.Paused);
 					break;
 				default:
@@ -229,13 +239,13 @@ public sealed class FindScheduledPublicationsForTenant {
 				TypedProblems.ValidationProblem(
 					window.ErrorKey == "publication-window-invalid"
 						? "'from' must be earlier than or equal to 'to'."
-						: "The requested window spans more than 31 days.",
+						: "The requested window spans more than 32 days.",
 					ResponseKeys.UnprocessableEntity,
 					new Dictionary<string, string[]> {
 						[window.ErrorKey] = [
 							window.ErrorKey == "publication-window-invalid"
 								? "'from' must be earlier than or equal to 'to'."
-								: "The requested window spans more than 31 days."
+									: "The requested window spans more than 32 days."
 							,
 						],
 					}

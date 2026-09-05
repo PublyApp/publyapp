@@ -115,6 +115,25 @@ public sealed class PublicationStatusTransitionServiceSpec : IClassFixture<ApiFi
 	}
 
 	[Fact]
+	public async Task ItShouldClearThePauseCauseWhenResumingToInProgress() {
+		using var db = await NewDbAsync();
+		var seeded = await SeedAsync(db, PublicationStatus.Paused);
+		seeded.LastError = "account disconnected";
+		await db.SaveChangesAsync();
+		var service = NewService(db);
+
+		var moved = await service.MarkInProgressAsync(
+			new MarkPublicationInProgressArgs(seeded.GetRequiredId(), seeded.TenantId),
+			CancellationToken.None
+		);
+
+		moved.Should().BeTrue();
+		await db.Entry(seeded).ReloadAsync();
+		seeded.Status.Should().Be(PublicationStatus.InProgress);
+		seeded.LastError.Should().BeNull("a resumed publication no longer has the pause cause");
+	}
+
+	[Fact]
 	public async Task ItShouldPublishWithRecordIdentityAndClearTheCause() {
 		using var db = await NewDbAsync();
 		var seeded = await SeedAsync(db, PublicationStatus.InProgress);

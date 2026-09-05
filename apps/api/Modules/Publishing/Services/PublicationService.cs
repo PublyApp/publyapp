@@ -79,6 +79,15 @@ public sealed class ScheduledPublicationItem {
 	public required string ScheduledAtLocal { get; init; }
 	public required string TimeZone { get; init; }
 	public required string Status { get; init; }
+	/// <summary>
+	/// Sanitised, ≤ 2 KB, human-readable failure cause for Failed/Paused rows.
+	/// Surfaces verbatim through the wire so the queue/calendar/history UI can
+	/// show a plain-words reason plus a truthful next action (transparent
+	/// failure cause). Null on every other status — the entity invariant
+	/// clears the stored LastError on every non-failure transition. Already
+	/// sanitised by LastErrorSanitiser before storage.
+	/// </summary>
+	public string? LastError { get; init; }
 }
 
 /// <summary>Arguments for the queue/calendar list (D3 Task 4).</summary>
@@ -592,18 +601,30 @@ public sealed class PublicationService : IPublicationService {
 			);
 		}
 
-		if (args.ToUtc - args.FromUtc > TimeSpan.FromDays(31)) {
+		if (args.ToUtc - args.FromUtc > TimeSpan.FromDays(32)) {
 			return new FindScheduledResult.InvalidWindow(
 				"publication-window-too-wide"
 			);
 		}
 
+		// Carryover is opt-in: InProgress/Paused rows that sit before FromUtc
+		// stay visible only when the caller explicitly asked for them via
+		// `Statuses`. The queue (scheduled,in_progress,paused) opts in so the
+		// worker-not-done / reconnect-pending rows keep their place in the
+		// queue; the calendar (no filter) stays strictly bounded.
+		var carryoverAllowed = args.Statuses is { Count: > 0 } carryoverStatuses
+			&& (carryoverStatuses.Contains(PublicationStatus.InProgress)
+				|| carryoverStatuses.Contains(PublicationStatus.Paused));
+
 		var baseQuery =
 			from publication in _dbContext.Publication.AsNoTracking()
 			where publication.TenantId == args.TenantId
 				&& !publication.IsDeleted
-				&& publication.ScheduledAtUtc >= args.FromUtc
 				&& publication.ScheduledAtUtc <= args.ToUtc
+				&& (publication.ScheduledAtUtc >= args.FromUtc
+					|| (carryoverAllowed
+						&& (publication.Status == PublicationStatus.InProgress
+							|| publication.Status == PublicationStatus.Paused)))
 				&& (args.Statuses == null
 					|| args.Statuses.Count == 0
 					|| args.Statuses.Contains(publication.Status))
@@ -621,11 +642,28 @@ public sealed class PublicationService : IPublicationService {
 				return new FindScheduledResult.CursorNotFound();
 			}
 
+			// Cursor eligibility binds the supplied timestamp to the STORED row
+			// (forged timestamp guard, kept) and mirrors the FromUtc gate. The
+			// mutable `Statuses` filter is NOT re-applied to the anchor: a row
+			// that legitimately transitioned between pages (Scheduled →
+			// Published by the worker, Scheduled → Failed, etc.) must remain a
+			// usable cursor — the keyset filter that follows only relies on
+			// (ScheduledAtUtc, Id), and the anchor's current status has no
+			// bearing on which rows come after it in the keyset walk. When the
+			// caller opted into carryover (InProgress/Paused in `Statuses`),
+			// the FromUtc gate on the anchor itself is also waived: the caller
+			// already accepted that pre-FromUtc rows participate, so re-applying
+			// the window here would re-break the cursor as soon as the worker
+			// mutates the anchor's status out of InProgress/Paused.
 			var cursorExists = await (
 				from p in _dbContext.Publication.AsNoTracking()
 				where p.Id == cursorId
 					&& p.TenantId == args.TenantId
+					&& !p.IsDeleted
 					&& p.ScheduledAtUtc == cursorInstant
+					&& p.ScheduledAtUtc <= args.ToUtc
+					&& (p.ScheduledAtUtc >= args.FromUtc
+						|| carryoverAllowed)
 				select p.Id
 			).AnyAsync(cancellationToken);
 			if (!cursorExists) {
@@ -703,6 +741,14 @@ public sealed class PublicationService : IPublicationService {
 				),
 				TimeZone = publication.ScheduledTimeZone,
 				Status = PublicationWire.FormatStatus(publication.Status),
+				// LastError is sanitised on write by PublicationStatusTransitionService
+				// through LastErrorSanitiser.Sanitize (transparent-failure rule). Keep
+				// stale data off the wire even if an old row predates the transition
+				// service's clear-on-resume invariant.
+				LastError = publication.Status is PublicationStatus.Failed
+					or PublicationStatus.Paused
+					? publication.LastError
+					: null,
 			});
 		}
 

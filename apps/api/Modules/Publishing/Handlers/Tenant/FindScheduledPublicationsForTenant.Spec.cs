@@ -218,16 +218,16 @@ public sealed class FindScheduledPublicationsForTenantSpec : IClassFixture<
 		// permits — only raw/unstamped Status writes are rejected.
 		await using var errScope = _fixture.Factory.Services.CreateAsyncScope();
 		var errDb = errScope.ServiceProvider.GetRequiredService<AppDbContext>();
-		var failedRow = await errDb.Publication.SingleAsync(
+		var failedPublication = await errDb.Publication.SingleAsync(
 			p => p.Id == failing.PublicationId
 		);
-		failedRow.LastError = "provider rejected the media";
+		failedPublication.LastError = "provider rejected the media";
 		await errDb.SaveChangesAsync();
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
 			$"{FindUrl}?from=2099-05-31T00%3A00%3A00Z"
-			+ "&to=2099-07-01T00%3A00%3A00Z&status=failed,published"
+			+ "&to=2099-07-01T00%3A00%3A00Z&status=failed,PUBLISHED"
 		)
 			.WithSessionToken(token)
 			.WithTenantId(tenantId);
@@ -242,6 +242,15 @@ public sealed class FindScheduledPublicationsForTenantSpec : IClassFixture<
 		statuses.Should().NotContain("scheduled");
 		statuses.Should().Contain("failed");
 		statuses.Where(s => s == "failed").Should().OnlyHaveUniqueItems();
+
+		// LastError is part of the wire contract: queue/calendar surfaces the
+		// plain-words cause so the operator gets a truthful next action
+		// (transparent failure causes — owner product rule).
+		var failedItem = doc.GetProperty("data")
+			.EnumerateArray()
+			.Single(row => row.GetProperty("status").GetString() == "failed");
+		failedItem.GetProperty("lastError").GetString()
+			.Should().Be("provider rejected the media");
 	}
 
 	[Fact]
@@ -325,7 +334,7 @@ public sealed class FindScheduledPublicationsForTenantSpec : IClassFixture<
 	}
 
 	[Fact]
-	public async Task ItShouldReturnTooWideProblemWhenWindowExceeds31Days() {
+	public async Task ItShouldReturnTooWideProblemWhenWindowExceeds32Days() {
 		var tenantId = await GetAcmeIdAsync();
 		var token = await _authClient.LoginAsync(
 			TestConstants.AcmeAdminEmail,
@@ -345,6 +354,26 @@ public sealed class FindScheduledPublicationsForTenantSpec : IClassFixture<
 		var problem = await response.Content
 			.ReadFromJsonAsync<ValidationProblemDetails>();
 		problem!.Errors.Should().ContainKey("publication-window-too-wide");
+	}
+
+	[Fact]
+	public async Task ItShouldAllowA31DayMonthAcrossADaylightSavingFallback() {
+		var tenantId = await GetAcmeIdAsync();
+		var token = await _authClient.LoginAsync(
+			TestConstants.AcmeAdminEmail,
+			TestConstants.SeedPassword
+		);
+
+		using var request = new HttpRequestMessage(
+			HttpMethod.Get,
+			$"{FindUrl}?from=2099-09-30T22%3A00%3A00Z"
+				+ "&to=2099-10-31T22%3A59%3A59Z"
+		)
+			.WithSessionToken(token)
+			.WithTenantId(tenantId);
+		using var response = await _http.SendAsync(request);
+
+		response.StatusCode.Should().Be(HttpStatusCode.OK);
 	}
 
 	[Fact]
@@ -693,5 +722,184 @@ public sealed class FindScheduledPublicationsForTenantSpec : IClassFixture<
 		var problem = await response.Content
 			.ReadFromJsonAsync<ValidationProblemDetails>();
 		problem!.Errors.Should().ContainKey("limit");
+	}
+
+	[Fact]
+	public async Task ItShouldReturn400ForCursorWithForgedTimestamp() {
+		var tenantId = await GetAcmeIdAsync();
+		var token = await _authClient.LoginAsync(
+			TestConstants.AcmeAdminEmail,
+			TestConstants.SeedPassword
+		);
+		var storedInstant = new DateTime(
+			2099, 6, 15, 8, 0, 0, DateTimeKind.Utc
+		);
+		var seeded = await CreateScheduledRowAsync(
+			tenantId,
+			"forged timestamp cursor target",
+			storedInstant
+		);
+		var forgedInstant = storedInstant.AddHours(-1);
+		var cursor = Uri.EscapeDataString(Convert.ToBase64String(
+			System.Text.Encoding.UTF8.GetBytes(
+				$"{forgedInstant:O}|{seeded.PublicationId}"
+			)
+		));
+
+		using var request = new HttpRequestMessage(
+			HttpMethod.Get,
+			$"{FindUrl}?from=2099-05-31T00%3A00%3A00Z"
+			+ $"&to=2099-07-01T00%3A00%3A00Z&cursor={cursor}"
+		)
+			.WithSessionToken(token)
+			.WithTenantId(tenantId);
+		using var response = await _http.SendAsync(request);
+
+		response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+	}
+
+	[Fact]
+	public async Task ItShouldReturn400ForCursorOutsideWindow() {
+		var tenantId = await GetAcmeIdAsync();
+		var token = await _authClient.LoginAsync(
+			TestConstants.AcmeAdminEmail,
+			TestConstants.SeedPassword
+		);
+
+		var seeded = await CreateScheduledRowAsync(
+			tenantId,
+			"cross-window cursor target",
+			new DateTime(2099, 6, 15, 8, 0, 0, DateTimeKind.Utc)
+		);
+
+		// Build a valid cursor for the seeded row but query a DIFFERENT
+		// window that does not include it.
+		var cursor = Uri.EscapeDataString(Convert.ToBase64String(
+			System.Text.Encoding.UTF8.GetBytes(
+				$"{new DateTime(2099, 6, 15, 8, 0, 0, DateTimeKind.Utc):O}|{seeded.PublicationId}"
+			)
+		));
+
+		using var request = new HttpRequestMessage(
+			HttpMethod.Get,
+			$"{FindUrl}?from=2099-07-01T00%3A00%3A00Z"
+			+ $"&to=2099-08-01T00%3A00%3A00Z&cursor={cursor}"
+		)
+			.WithSessionToken(token)
+			.WithTenantId(tenantId);
+		using var response = await _http.SendAsync(request);
+
+		response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+	}
+
+	[Fact]
+	public async Task ItShouldKeepACursorUsableWhenTheAnchorMovedToAStatusOutsideTheFilter() {
+		var tenantId = await GetAcmeIdAsync();
+		var token = await _authClient.LoginAsync(
+			TestConstants.AcmeAdminEmail,
+			TestConstants.SeedPassword
+		);
+
+		// Anchor row sits BEFORE the window's FromUtc and is already Failed
+		// (it was scheduled by an older run that has since been picked up).
+		// The stored ScheduledAtUtc and Id are unchanged; only Status moved
+		// out of the caller's filter. With carryover opted in, the cursor
+		// must remain usable so the keyset walk can return the rows that
+		// come AFTER the anchor — re-applying the FromUtc gate on the
+		// anchor here would break the cursor as soon as the worker mutates
+		// the anchor's status out of InProgress/Paused.
+		var anchorInstant = new DateTime(2099, 5, 20, 8, 0, 0, DateTimeKind.Utc);
+		var seeded = await CreateScheduledRowAsync(
+			tenantId,
+			"cross-status cursor target",
+			anchorInstant,
+			seedStatus: PublicationStatus.Failed
+		);
+
+		// Seed a row INSIDE the window so the keyset walk past the anchor
+		// returns a non-empty page. The follow-up is at +1 day relative to
+		// the window's FromUtc and would be skipped if the cursor were
+		// misinterpreted as FromUtc.
+		var followUp = await CreateScheduledRowAsync(
+			tenantId,
+			"page 1 carryover",
+			new DateTime(2099, 6, 1, 10, 0, 0, DateTimeKind.Utc)
+		);
+
+		// The cursor probe matches the STORED ScheduledAtUtc and Id and does
+		// NOT re-apply the FromUtc gate when the caller opted into carryover
+		// (InProgress/Paused in `Statuses`): the keyset filter that follows
+		// only relies on (ScheduledAtUtc, Id), and the anchor's status has
+		// no bearing on which rows come after it.
+		var cursor = Uri.EscapeDataString(Convert.ToBase64String(
+			System.Text.Encoding.UTF8.GetBytes(
+				$"{anchorInstant:O}|{seeded.PublicationId}"
+			)
+		));
+
+		using var request = new HttpRequestMessage(
+			HttpMethod.Get,
+			$"{FindUrl}?from=2099-05-31T00%3A00%3A00Z"
+			+ $"&to=2099-07-01T00%3A00%3A00Z"
+			+ $"&status=scheduled,in_progress&cursor={cursor}"
+		)
+			.WithSessionToken(token)
+			.WithTenantId(tenantId);
+		using var response = await _http.SendAsync(request);
+
+		response.StatusCode.Should().Be(HttpStatusCode.OK);
+		var doc = await GetJsonAsync(response);
+		var data = doc.GetProperty("data");
+		data.ValueKind.Should().Be(JsonValueKind.Array);
+
+		var followUpId = followUp.PublicationId.ToString();
+		var anchorId = seeded.PublicationId.ToString();
+		var returnedIds = data.EnumerateArray()
+			.Select(row => row.GetProperty("publicationId").GetString())
+			.ToList();
+		returnedIds.Should().Contain(followUpId);
+		returnedIds.Should().NotContain(anchorId);
+	}
+
+	[Fact]
+	public async Task ItShouldReturn400ForCursorPointingToDeletedPublication() {
+		var tenantId = await GetAcmeIdAsync();
+		var token = await _authClient.LoginAsync(
+			TestConstants.AcmeAdminEmail,
+			TestConstants.SeedPassword
+		);
+
+		var seeded = await CreateScheduledRowAsync(
+			tenantId,
+			"deleted cursor target",
+			new DateTime(2099, 6, 22, 8, 0, 0, DateTimeKind.Utc)
+		);
+
+		// Soft-delete the seeded publication.
+		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		_ = await db.Publication
+			.Where(p => p.Id == seeded.PublicationId)
+			.ExecuteUpdateAsync(setters => setters
+				.SetProperty(p => p.IsDeleted, true)
+				.SetProperty(p => p.DeletedAt, DateTime.UtcNow));
+
+		// Build a valid cursor for the deleted row.
+		var cursor = Uri.EscapeDataString(Convert.ToBase64String(
+			System.Text.Encoding.UTF8.GetBytes(
+				$"{new DateTime(2099, 6, 22, 8, 0, 0, DateTimeKind.Utc):O}|{seeded.PublicationId}"
+			)
+		));
+
+		using var request = new HttpRequestMessage(
+			HttpMethod.Get,
+			$"{FindUrl}?from=2099-05-31T00%3A00%3A00Z"
+			+ $"&to=2099-07-01T00%3A00%3A00Z&cursor={cursor}"
+		)
+			.WithSessionToken(token)
+			.WithTenantId(tenantId);
+		using var response = await _http.SendAsync(request);
+
+		response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
 	}
 }

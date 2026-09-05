@@ -4712,6 +4712,7 @@ export function deserializeIntoResolveTenantProfileUserAssignmentsAsStaffResult(
 export function deserializeIntoScheduledPublicationItem(scheduledPublicationItem: Partial<ScheduledPublicationItem> | undefined = {}) : Record<string, (node: ParseNode) => void> {
     return {
         "accountDisplayHandle": n => { scheduledPublicationItem.accountDisplayHandle = n.getStringValue(); },
+        "lastError": n => { scheduledPublicationItem.lastError = n.getStringValue(); },
         "postBodyPreview": n => { scheduledPublicationItem.postBodyPreview = n.getStringValue(); },
         "postId": n => { scheduledPublicationItem.postId = n.getGuidValue(); },
         "postStatus": n => { scheduledPublicationItem.postStatus = n.getStringValue(); },
@@ -7002,6 +7003,10 @@ export interface ScheduledPublicationItem extends AdditionalDataHolder, Parsable
      */
     accountDisplayHandle?: string | null;
     /**
+     * Sanitised, ≤ 2 KB, human-readable failure cause for Failed/Paused rows.Surfaces verbatim through the wire so the queue/calendar/history UI canshow a plain-words reason plus a truthful next action (transparentfailure cause). Null on every other status — the entity invariantclears the stored LastError on every non-failure transition. Alreadysanitised by LastErrorSanitiser before storage.
+     */
+    lastError?: string | null;
+    /**
      * The postBodyPreview property
      */
     postBodyPreview?: string | null;
@@ -9111,6 +9116,7 @@ export function serializeResolveTenantProfileUserAssignmentsAsStaffResult(writer
 export function serializeScheduledPublicationItem(writer: SerializationWriter, scheduledPublicationItem: Partial<ScheduledPublicationItem> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
     if (!scheduledPublicationItem || isSerializingDerivedType) { return; }
     writer.writeStringValue("accountDisplayHandle", scheduledPublicationItem.accountDisplayHandle);
+    writer.writeStringValue("lastError", scheduledPublicationItem.lastError);
     writer.writeStringValue("postBodyPreview", scheduledPublicationItem.postBodyPreview);
     writer.writeGuidValue("postId", scheduledPublicationItem.postId);
     writer.writeStringValue("postStatus", scheduledPublicationItem.postStatus);

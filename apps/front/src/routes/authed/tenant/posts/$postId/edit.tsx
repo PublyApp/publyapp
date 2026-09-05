@@ -27,6 +27,8 @@ import {
 	useTenantProjectsQuery,
 	toTenantProjectItems,
 } from '~/lib/query/tenant-projects';
+import { invalidateTenantPublications } from '~/lib/query/tenant-publications';
+import { invalidateTenantScheduledPublications } from '~/lib/query/tenant-scheduled-publications';
 import { useResolvedWorkspaceTenantId } from '~/lib/query/tenants-for-picker';
 
 import { toApiFailure } from '@org/shared-ts/lib/api-failure/to-api-failure';
@@ -104,6 +106,12 @@ const TenantPostEditPage = () => {
 				tenantId: tenantId ?? '',
 			});
 			await invalidateTenantPosts(qc, tenantId ?? '');
+			// Refresh every scheduled-publication window for the tenant so the
+			// queue/calendar surfaces pick up the edited body preview
+			// (#2053 coherence). History uses a separate tenant-publications cache
+			// and is invalidated separately below.
+			await invalidateTenantScheduledPublications(qc, tenantId ?? '');
+			await invalidateTenantPublications(qc, tenantId ?? '');
 			if (window.history.length > 1) {
 				window.history.back();
 			} else {

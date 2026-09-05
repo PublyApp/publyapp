@@ -2,7 +2,7 @@
  * @vitest-environment jsdom
  */
 import { act, cleanup, render, screen } from '@testing-library/react';
-import type { ComponentType } from 'react';
+import type { ComponentType, ReactNode } from 'react';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import type { TenantPublicationRow } from '~/lib/query/tenant-publications';
 import type { TestLabelMap } from '~/lib/testing/test-label-map';
@@ -47,6 +47,11 @@ vi.mock('@tanstack/react-router', () => ({
 		useNavigate: () => () => undefined,
 		useSearch: () => ({}),
 	}),
+	Link: ({ children, to, ...props }: { children: ReactNode; to: string }) => (
+		<a href={to} {...props}>
+			{children}
+		</a>
+	),
 }));
 
 vi.mock('~/lib/query/tenants-for-picker', () => ({
@@ -74,13 +79,27 @@ const EN_LABELS: TestLabelMap = {
 		'Retrying a failed publication arrives with scheduling (D4).',
 	'posts:publish-status-in-progress': 'In progress…',
 	'posts:publish-status-published': 'Published',
+	'posts:publish-status-paused': 'Paused',
+	'posts:publish-status-scheduled': 'Scheduled',
 	'posts:publish-status-failed': 'Failed',
+	'posts:publication-failed-cause': 'Failed: {{cause}}',
+	'posts:publication-paused-cause': 'Paused: {{cause}}',
+	'posts:publication-paused-next-action':
+		'Reconnect the account in Settings under Integrations to resume.',
+	'posts:publication-paused-next-action-aria':
+		'Reconnect paused account to resume',
+	'posts:publication-paused-next-action-link':
+		'Reconnect account in Settings under Integrations',
 	'common:updated-at': 'Updated at',
 };
 
 vi.mock('react-i18next', () => ({
 	useTranslation: () => ({
-		t: (key: string) => EN_LABELS[key] ?? key,
+		t: (key: string, options?: { cause?: string }) => {
+			const value =
+				EN_LABELS[key] ?? EN_LABELS[key.replace(/^posts:/, '')] ?? key;
+			return options?.cause ? value.replace('{{cause}}', options.cause) : value;
+		},
 		i18n: { resolvedLanguage: 'en', language: 'en' },
 	}),
 }));
@@ -134,7 +153,7 @@ describe('TenantPostsHistoryPage', () => {
 		expect(link.getAttribute('rel')).toContain('noopener');
 	});
 
-	test('failed row shows its plain-word cause and a disabled Retry stub explaining D4', () => {
+	test('failed row shows its status pill, plain-word cause, and disabled Retry stub', () => {
 		mocks.rows = [
 			row({
 				id: 'pub-2',
@@ -145,9 +164,9 @@ describe('TenantPostsHistoryPage', () => {
 		];
 		render(<TenantPostsHistoryPage />);
 
-		expect(screen.getByTestId('tenant-posts-history-cause').textContent).toBe(
-			'Bluesky refused the credentials',
-		);
+		expect(
+			screen.getByTestId('tenant-posts-publication-cause').textContent,
+		).toBe('Failed: Bluesky refused the credentials');
 		const retry = screen.getByRole('button', { name: 'Retry' });
 		expect(retry.hasAttribute('disabled')).toBe(true);
 		expect(retry.getAttribute('title')).toBe(
@@ -165,7 +184,81 @@ describe('TenantPostsHistoryPage', () => {
 		];
 		render(<TenantPostsHistoryPage />);
 
-		expect(screen.getByTestId('tenant-posts-publish-in-progress')).toBeTruthy();
+		const pill = screen.getByTestId('tenant-posts-history-status-pill');
+		expect(pill.getAttribute('data-tone')).toBe('info');
+		expect(pill.textContent).toBe('In progress…');
+	});
+
+	test('scheduled row shows the shared publication status pill (Scheduled, neutral tone)', () => {
+		mocks.rows = [
+			row({
+				id: 'pub-scheduled',
+				status: 'scheduled',
+				externalUrl: null,
+			}),
+		];
+		render(<TenantPostsHistoryPage />);
+
+		const pill = screen.getByTestId('tenant-posts-history-status-pill');
+		expect(pill.getAttribute('data-tone')).toBe('neutral');
+		expect(pill.textContent).toBe('Scheduled');
+	});
+
+	test('paused row shows the shared publication status pill (Paused, warning tone)', () => {
+		mocks.rows = [
+			row({
+				id: 'pub-paused',
+				status: 'paused',
+				externalUrl: null,
+			}),
+		];
+		render(<TenantPostsHistoryPage />);
+
+		const pill = screen.getByTestId('tenant-posts-history-status-pill');
+		expect(pill.getAttribute('data-tone')).toBe('warning');
+		expect(pill.textContent).toBe('Paused');
+	});
+
+	test('paused row renders its transparent failure cause and a reconnect next action', () => {
+		mocks.rows = [
+			row({
+				id: 'pub-paused-cause',
+				status: 'paused',
+				externalUrl: null,
+				lastError: 'account disconnected',
+			}),
+		];
+		render(<TenantPostsHistoryPage />);
+
+		const cause = screen.getByTestId('tenant-posts-publication-cause');
+		expect(cause.textContent).toContain('Paused: account disconnected');
+		expect(cause.getAttribute('title')).toBe(
+			'Reconnect the account in Settings under Integrations to resume.',
+		);
+		const recoveryLink = screen.getByRole('link', {
+			name: 'Reconnect paused account to resume',
+		});
+		expect(recoveryLink.getAttribute('href')).toBe(
+			'/tenant/settings/integrations',
+		);
+	});
+
+	test('published row keeps the external link AND renders the shared Published pill (success tone)', () => {
+		mocks.rows = [row({})];
+		render(<TenantPostsHistoryPage />);
+
+		// External link is preserved (#647): the operator still navigates to
+		// the live post from the history row.
+		const link = screen.getByTestId('tenant-posts-history-link');
+		expect(link.getAttribute('href')).toBe(
+			'https://bsky.app/profile/team.publyapp.dev/post/1',
+		);
+		expect(link.getAttribute('target')).toBe('_blank');
+
+		// Every recognized status also carries a pill (queue/calendar parity).
+		const pill = screen.getByTestId('tenant-posts-history-status-pill');
+		expect(pill.getAttribute('data-tone')).toBe('success');
+		expect(pill.textContent).toBe('Published');
 	});
 
 	test('invalidates the publications query every ~5s while any row is in progress, then stops', () => {
@@ -202,7 +295,7 @@ describe('TenantPostsHistoryPage', () => {
 	// the tests pin that value and position the row's updatedAt relative to it.
 	const DATA_UPDATED_AT = 1_000_000;
 
-	test('polls while a freshly-scheduled row is in flight (publish-now pickup race)', () => {
+	test('polls while a freshly-scheduled row is in flight', () => {
 		vi.useFakeTimers();
 		mocks.dataUpdatedAt = DATA_UPDATED_AT;
 		mocks.rows = [
@@ -240,6 +333,20 @@ describe('TenantPostsHistoryPage', () => {
 			vi.advanceTimersByTime(11_000);
 		});
 		expect(mocks.invalidateTenantPublications).not.toHaveBeenCalled();
+	});
+
+	test('unknown wire status renders the neutral em-dash (raw value is never shown)', () => {
+		mocks.rows = [
+			row({
+				id: 'pub-unknown',
+				status: 'revoked',
+				externalUrl: null,
+			}),
+		];
+		render(<TenantPostsHistoryPage />);
+
+		expect(screen.getAllByText('\u2014').length).toBeGreaterThan(0);
+		expect(screen.queryByText(/revoked/)).toBeNull();
 	});
 
 	test('fatal error logs out only through shouldLogoutForFailure (401-only rule)', () => {
