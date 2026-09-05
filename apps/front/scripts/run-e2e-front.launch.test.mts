@@ -14,6 +14,7 @@ import { describe, it } from 'node:test';
 
 import {
 	planWindowsTaskkill,
+	resolvePlaywrightTestArgs,
 	resolveSpawnLaunch,
 	signalChildTree,
 } from './run-e2e-front.mts';
@@ -107,6 +108,36 @@ void describe('run-e2e-front command processor resolution', () => {
 				process.env.COMSPEC = original;
 			}
 		}
+	});
+});
+
+void describe('run-e2e-front Playwright selection', () => {
+	void it('can replay one tagged real journey in one browser project', () => {
+		assert.deepEqual(
+			resolvePlaywrightTestArgs({
+				spec: 'e2e/tenant-portal-picker.spec.ts',
+				grep: '@1611',
+				project: 'chromium',
+			}),
+			[
+				'exec',
+				'playwright',
+				'test',
+				'e2e/tenant-portal-picker.spec.ts',
+				'--grep',
+				'@1611',
+				'--project',
+				'chromium',
+			],
+		);
+	});
+
+	void it('keeps the default full Playwright selection unchanged', () => {
+		assert.deepEqual(resolvePlaywrightTestArgs({}), [
+			'exec',
+			'playwright',
+			'test',
+		]);
 	});
 });
 

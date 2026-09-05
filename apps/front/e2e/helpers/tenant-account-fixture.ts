@@ -28,16 +28,28 @@ type CommandResult = {
 	stderr: string;
 };
 
-type CommandRunner = (
+export type CommandRunner = (
 	command: string,
 	args: readonly string[],
 ) => CommandResult;
+
+export type PersistedTenantIdLookup = {
+	composeFile: string;
+	composeProjectName: string;
+	email: string;
+};
+
+export type TenantFixtureCleanupOptions = {
+	tenantAlreadyDeleted?: boolean;
+	commandRunner?: CommandRunner;
+};
 
 const UUID_PATTERN =
 	/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const TENANT_INVITATION_SCOPE = 1;
 const PENDING_INVITATION_STATUS = 0;
+const TENANT_FIXTURE_DATABASE_CLEANUP_TIMEOUT_MS = 10_000;
 
 const sqlStringLiteral = (value: string): string =>
 	`'${value.replaceAll("'", "''")}'`;
@@ -101,10 +113,35 @@ COMMIT;
 `;
 };
 
+const buildPersistedTenantIdLookupSql = (email: string): string => {
+	const invitedEmail = sqlStringLiteral(email.trim().toLowerCase());
+
+	return `
+SELECT DISTINCT tenant_id::text
+FROM (
+  SELECT tenant_id
+  FROM invitations
+  WHERE lower(email) = lower(${invitedEmail})
+    AND scope = ${TENANT_INVITATION_SCOPE}
+    AND project_id IS NULL
+    AND tenant_id IS NOT NULL
+    AND is_deleted = false
+  UNION
+  SELECT tenant_id
+  FROM user_accounts
+  WHERE tenant_id IS NOT NULL
+    AND user_id IN (
+      SELECT id FROM users WHERE lower(email) = lower(${invitedEmail})
+    )
+) AS fixture_tenants;
+`;
+};
+
 const runComposePsql: CommandRunner = (_command, args) => {
 	const result = spawnSync('docker', args, {
 		encoding: 'utf8',
 		stdio: ['ignore', 'pipe', 'pipe'],
+		timeout: TENANT_FIXTURE_DATABASE_CLEANUP_TIMEOUT_MS,
 	});
 
 	return {
@@ -180,6 +217,29 @@ export const buildTenantFixtureCleanupArgs = ({
 	buildCleanupSql(tenantId, email),
 ];
 
+export const buildPersistedTenantIdLookupArgs = ({
+	composeFile,
+	composeProjectName,
+	email,
+}: PersistedTenantIdLookup): string[] => [
+	'compose',
+	'--project-name',
+	composeProjectName,
+	'-f',
+	composeFile,
+	'exec',
+	'-T',
+	'postgres',
+	'psql',
+	'-U',
+	'postgres',
+	'-d',
+	'publyapp_db',
+	'-At',
+	'-c',
+	buildPersistedTenantIdLookupSql(email),
+];
+
 export const parseInvitationTokenLookupOutput = (output: string): string => {
 	const tokens = output
 		.split(/\r?\n/)
@@ -215,6 +275,45 @@ export const readPendingTenantInvitationToken = (
 			'Fixture could not read the invitation token: expected exactly one pending tenant invitation',
 		);
 	}
+};
+
+export const parsePersistedTenantIdLookupOutput = (
+	output: string,
+): string | undefined => {
+	const tenantIds = output
+		.split(/\r?\n/)
+		.map((line) => line.trim())
+		.filter((line) => line.length > 0);
+
+	if (tenantIds.length === 0) {
+		return undefined;
+	}
+	if (tenantIds.length !== 1 || !UUID_PATTERN.test(tenantIds[0] ?? '')) {
+		throw new Error(
+			'Compose query did not return exactly one persisted tenant id',
+		);
+	}
+
+	return tenantIds[0];
+};
+
+export const readPersistedTenantIdByFixtureEmail = (
+	lookup: PersistedTenantIdLookup,
+	runner: CommandRunner = runComposePsql,
+): string | undefined => {
+	const normalizedEmail = lookup.email.trim().toLowerCase();
+	if (!EMAIL_PATTERN.test(normalizedEmail)) {
+		throw new Error('Tenant fixture generated an invalid invited email');
+	}
+
+	const result = runner('docker', buildPersistedTenantIdLookupArgs(lookup));
+	if (result.status !== 0) {
+		throw new Error(
+			'Fixture could not look up the persisted tenant by invited email',
+		);
+	}
+
+	return parsePersistedTenantIdLookupOutput(result.stdout);
 };
 
 type JsonObject = Record<string, unknown>;
@@ -265,9 +364,29 @@ const assertStatus = (
 };
 
 const assertCleanupStatus = (actual: number, operation: string): void => {
-	if (actual !== 200 && actual !== 400 && actual !== 404) {
+	if (actual !== 200 && actual !== 400 && actual !== 404 && actual !== 409) {
 		throw new Error(`Tenant account fixture ${operation} failed`);
 	}
+};
+
+export const TENANT_FIXTURE_CLEANUP_REQUEST_TIMEOUT_MS = 5_000;
+
+export const buildTenantFixtureCleanupRequestOptions = (
+	staffToken: string,
+	includeEmptyBody = false,
+) => {
+	const headers = { 'X-Session-Token': staffToken };
+	if (includeEmptyBody) {
+		return {
+			headers,
+			data: {},
+			timeout: TENANT_FIXTURE_CLEANUP_REQUEST_TIMEOUT_MS,
+		};
+	}
+	return {
+		headers,
+		timeout: TENANT_FIXTURE_CLEANUP_REQUEST_TIMEOUT_MS,
+	};
 };
 
 const staffEmail =
@@ -285,6 +404,7 @@ export const createTenantAccountFixture = async (
 	const password = `E2E-1611-${randomUUID()}-Aa1!`;
 	let staffToken: string | undefined;
 	let tenantId: string | undefined;
+	let tenantCreationAccepted = false;
 
 	try {
 		const loginResponse = await page.request.post(
@@ -314,15 +434,17 @@ export const createTenantAccountFixture = async (
 				},
 			},
 		);
+		tenantCreationAccepted = tenantResponse.status() === 201;
 		assertStatus(tenantResponse.status(), 201, 'tenant creation');
 		const tenantPayload = await readJson(tenantResponse);
-		tenantId = readStringField(tenantPayload, 'id');
-		if (!tenantId) {
+		const returnedTenantId = readStringField(tenantPayload, 'id');
+		if (!returnedTenantId) {
 			throw new Error(
 				'Tenant account fixture tenant creation returned no tenant id',
 			);
 		}
-		validateTenantAccountFixtureInput(tenantId, email);
+		validateTenantAccountFixtureInput(returnedTenantId, email);
+		tenantId = returnedTenantId;
 
 		const invitationToken = readPendingTenantInvitationToken({
 			composeFile: process.env.E2E_COMPOSE_FILE ?? defaultComposeFile,
@@ -345,7 +467,31 @@ export const createTenantAccountFixture = async (
 
 		return { tenantId, email, password, staffToken };
 	} catch (error) {
-		if (!tenantId || !staffToken) {
+		if (!staffToken) {
+			throw error;
+		}
+
+		let lookupError: unknown;
+		if (!tenantId && tenantCreationAccepted) {
+			try {
+				tenantId = readPersistedTenantIdByFixtureEmail({
+					composeFile: process.env.E2E_COMPOSE_FILE ?? defaultComposeFile,
+					composeProjectName:
+						process.env.COMPOSE_PROJECT_NAME ?? 'publyapp-e2e',
+					email,
+				});
+			} catch (lookupFailure) {
+				lookupError = lookupFailure;
+			}
+		}
+
+		if (!tenantId) {
+			if (lookupError) {
+				throw new AggregateError(
+					[error, lookupError],
+					'Tenant account fixture setup and persisted-tenant lookup failed',
+				);
+			}
 			throw error;
 		}
 
@@ -357,9 +503,18 @@ export const createTenantAccountFixture = async (
 				staffToken,
 			});
 		} catch (cleanupError) {
+			const errors = lookupError
+				? [error, lookupError, cleanupError]
+				: [error, cleanupError];
 			throw new AggregateError(
-				[error, cleanupError],
+				errors,
 				'Tenant account fixture setup and cleanup failed',
+			);
+		}
+		if (lookupError) {
+			throw new AggregateError(
+				[error, lookupError],
+				'Tenant account fixture setup and persisted-tenant lookup failed',
 			);
 		}
 
@@ -378,30 +533,35 @@ export const createTenantAccountFixture = async (
 export const cleanupTenantAccountFixture = async (
 	page: Page,
 	fixture: TenantAccountFixture,
+	options: TenantFixtureCleanupOptions = {},
 ): Promise<void> => {
 	validateTenantAccountFixtureInput(fixture.tenantId, fixture.email);
 
 	let apiError: unknown;
-	try {
-		const headers = { 'X-Session-Token': fixture.staffToken };
-		const suspendResponse = await page.request.post(
-			`${API_BASE_URL}/staff/tenants/${fixture.tenantId}/suspend`,
-			{ headers, data: {} },
-		);
-		assertCleanupStatus(suspendResponse.status(), 'tenant suspension cleanup');
+	if (!options.tenantAlreadyDeleted) {
+		try {
+			const suspendResponse = await page.request.post(
+				`${API_BASE_URL}/staff/tenants/${fixture.tenantId}/suspend`,
+				buildTenantFixtureCleanupRequestOptions(fixture.staffToken, true),
+			);
+			assertCleanupStatus(
+				suspendResponse.status(),
+				'tenant suspension cleanup',
+			);
 
-		const deleteResponse = await page.request.delete(
-			`${API_BASE_URL}/staff/tenants/${fixture.tenantId}`,
-			{ headers },
-		);
-		assertCleanupStatus(deleteResponse.status(), 'tenant deletion cleanup');
-	} catch (error) {
-		apiError = error;
+			const deleteResponse = await page.request.delete(
+				`${API_BASE_URL}/staff/tenants/${fixture.tenantId}`,
+				buildTenantFixtureCleanupRequestOptions(fixture.staffToken),
+			);
+			assertCleanupStatus(deleteResponse.status(), 'tenant deletion cleanup');
+		} catch (error) {
+			apiError = error;
+		}
 	}
 
 	let databaseError: Error | undefined;
 	try {
-		const result = runComposePsql(
+		const result = (options.commandRunner ?? runComposePsql)(
 			'docker',
 			buildTenantFixtureCleanupArgs({
 				composeFile: process.env.E2E_COMPOSE_FILE ?? defaultComposeFile,

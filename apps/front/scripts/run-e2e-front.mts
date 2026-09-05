@@ -283,6 +283,30 @@ const playwrightArgs = (...args: string[]): string[] => [
 	...args,
 ];
 
+export type PlaywrightTestSelection = {
+	spec?: string;
+	grep?: string;
+	project?: string;
+};
+
+export const resolvePlaywrightTestArgs = ({
+	spec,
+	grep,
+	project,
+}: PlaywrightTestSelection): string[] => {
+	const args = ['exec', 'playwright', 'test'];
+	if (spec !== undefined) {
+		args.push(spec);
+	}
+	if (grep !== undefined) {
+		args.push('--grep', grep);
+	}
+	if (project !== undefined) {
+		args.push('--project', project);
+	}
+	return args;
+};
+
 export const runE2EFront = async (
 	dependencies: RunE2EFrontDependencies = {},
 ): Promise<void> => {
@@ -330,7 +354,16 @@ export const runE2EFront = async (
 			PNPM_COMMAND,
 			playwrightArgs('exec', 'playwright', 'install', 'chromium'),
 		);
-		await step(PNPM_COMMAND, playwrightArgs('exec', 'playwright', 'test'));
+		await step(
+			PNPM_COMMAND,
+			playwrightArgs(
+				...resolvePlaywrightTestArgs({
+					spec: process.env.E2E_PLAYWRIGHT_SPEC,
+					grep: process.env.E2E_PLAYWRIGHT_GREP,
+					project: process.env.E2E_PLAYWRIGHT_PROJECT,
+				}),
+			),
+		);
 		await step(PNPM_COMMAND, playwrightArgs('test:drawer-contrast'));
 	} catch (error) {
 		lifecycleError = error;

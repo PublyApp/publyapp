@@ -81,16 +81,17 @@ const deleteTenantForPickerJourney = async (
 	page: Page,
 	fixture: TenantAccountFixture,
 ): Promise<void> => {
+	const requestTimeout = 10_000;
 	const headers = { 'X-Session-Token': fixture.staffToken };
 	const suspendResponse = await page.request.post(
 		`${API_BASE_URL}/staff/tenants/${fixture.tenantId}/suspend`,
-		{ headers, data: {} },
+		{ headers, data: {}, timeout: requestTimeout },
 	);
 	expect(suspendResponse.status(), 'suspend throwaway tenant').toBe(200);
 
 	const deleteResponse = await page.request.delete(
 		`${API_BASE_URL}/staff/tenants/${fixture.tenantId}`,
-		{ headers },
+		{ headers, timeout: requestTimeout },
 	);
 	expect(deleteResponse.status(), 'delete throwaway tenant').toBe(200);
 };
@@ -103,6 +104,9 @@ test.describe(
 			page,
 		}) => {
 			let fixture: TenantAccountFixture | undefined;
+			let tenantDeleted = false;
+			let journeyError: unknown;
+			let cleanupError: unknown;
 			try {
 				fixture = await createTenantAccountFixture(page);
 				await loginAsTenantUser(page, {
@@ -112,6 +116,7 @@ test.describe(
 				await expect(page.getByTestId('tenant-workspace-shell')).toBeVisible();
 
 				await deleteTenantForPickerJourney(page, fixture);
+				tenantDeleted = true;
 
 				const pickerResponsePromise = page.waitForResponse((response) => {
 					const url = new URL(response.url());
@@ -146,10 +151,31 @@ test.describe(
 					page.getByTestId('tenant-portal-logout-button'),
 				).toBeVisible();
 				await expect(page.getByText('No organizations found')).toHaveCount(0);
+			} catch (error) {
+				journeyError = error;
 			} finally {
 				if (fixture) {
-					await cleanupTenantAccountFixture(page, fixture);
+					try {
+						await cleanupTenantAccountFixture(page, fixture, {
+							tenantAlreadyDeleted: tenantDeleted,
+						});
+					} catch (error) {
+						cleanupError = error;
+					}
 				}
+			}
+
+			if (journeyError && cleanupError) {
+				throw new AggregateError(
+					[journeyError, cleanupError],
+					'Issue #1611 journey and fixture cleanup both failed',
+				);
+			}
+			if (journeyError) {
+				throw journeyError;
+			}
+			if (cleanupError) {
+				throw cleanupError;
 			}
 		});
 	},

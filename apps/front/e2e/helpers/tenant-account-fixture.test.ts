@@ -2,9 +2,14 @@ import { describe, expect, test } from 'vitest';
 
 import {
 	buildInvitationTokenLookupArgs,
+	buildPersistedTenantIdLookupArgs,
+	buildTenantFixtureCleanupRequestOptions,
 	buildTenantFixtureCleanupArgs,
+	parsePersistedTenantIdLookupOutput,
 	parseInvitationTokenLookupOutput,
+	readPersistedTenantIdByFixtureEmail,
 	readPendingTenantInvitationToken,
+	TENANT_FIXTURE_CLEANUP_REQUEST_TIMEOUT_MS,
 	validateTenantAccountFixtureInput,
 } from './tenant-account-fixture';
 
@@ -83,6 +88,45 @@ describe('tenant account fixture', () => {
 		).toThrow('exactly one pending tenant invitation token');
 	});
 
+	test('looks up exactly one persisted tenant by the known fixture email', () => {
+		const args = buildPersistedTenantIdLookupArgs({
+			composeFile: 'apps/front/docker-compose.test.yml',
+			composeProjectName: 'publyapp-e2e-1611',
+			email: `  ${EMAIL.toUpperCase()}  `,
+		});
+
+		expect(args.at(-1)).toEqual(
+			expect.stringContaining(`lower(email) = lower('${EMAIL}')`),
+		);
+		expect(args.at(-1)).toEqual(
+			expect.stringContaining('SELECT DISTINCT tenant_id::text'),
+		);
+		expect(args.at(-1)).toEqual(expect.stringContaining('FROM user_accounts'));
+		expect(parsePersistedTenantIdLookupOutput(`${TENANT_ID}\n`)).toBe(
+			TENANT_ID,
+		);
+		expect(parsePersistedTenantIdLookupOutput('')).toBeUndefined();
+		expect(() =>
+			parsePersistedTenantIdLookupOutput(`${TENANT_ID}\n${TENANT_ID}`),
+		).toThrow('exactly one persisted tenant id');
+
+		let commandArgs: readonly string[] = [];
+		expect(
+			readPersistedTenantIdByFixtureEmail(
+				{
+					composeFile: 'apps/front/docker-compose.test.yml',
+					composeProjectName: 'publyapp-e2e-1611',
+					email: EMAIL,
+				},
+				(_command, args) => {
+					commandArgs = args;
+					return { status: 0, stdout: `${TENANT_ID}\n`, stderr: '' };
+				},
+			),
+		).toBe(TENANT_ID);
+		expect(commandArgs).toContain('apps/front/docker-compose.test.yml');
+	});
+
 	test('builds cleanup SQL scoped to the throwaway tenant and invited user', () => {
 		const args = buildTenantFixtureCleanupArgs({
 			composeFile: 'apps/front/docker-compose.test.yml',
@@ -145,5 +189,19 @@ describe('tenant account fixture', () => {
 		}
 		expect(thrown?.message).toContain('could not read the invitation token');
 		expect(thrown?.message).not.toContain(secretToken);
+	});
+
+	test('bounds API teardown request options', () => {
+		expect(
+			buildTenantFixtureCleanupRequestOptions('staff-token', true),
+		).toEqual({
+			headers: { 'X-Session-Token': 'staff-token' },
+			data: {},
+			timeout: TENANT_FIXTURE_CLEANUP_REQUEST_TIMEOUT_MS,
+		});
+		expect(buildTenantFixtureCleanupRequestOptions('staff-token')).toEqual({
+			headers: { 'X-Session-Token': 'staff-token' },
+			timeout: TENANT_FIXTURE_CLEANUP_REQUEST_TIMEOUT_MS,
+		});
 	});
 });
