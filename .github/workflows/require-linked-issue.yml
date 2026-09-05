@@ -11,6 +11,7 @@ on:
 permissions:
   contents: read
   issues: read
+  pull-requests: read
 
 # Supersede in-flight runs for the same PR. This job is cheap, but it retriggers
 # on every body edit, so a burst of edits would otherwise queue a run each and
@@ -26,8 +27,9 @@ jobs:
       - name: Verify the PR links an existing issue
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # No checkout step runs, so gh has no local repo to infer; GH_REPO
-          # gives `gh issue view` its repository context.
+          # No checkout step runs, so gh has no local repo to infer. GH_REPO gives
+          # the API calls their repository context; `gh issue view` treats PRs as
+          # issues, so the discriminator below must run before it.
           GH_REPO: ${{ github.repository }}
           # Parse explicit relationship keywords so honest partial slices can
           # link their parent without falsely closing it. Confirm closing
@@ -67,6 +69,32 @@ jobs:
             exit 1
           fi
 
+          closing_issue_numbers=''
+          closing_issues_verified=false
+          verify_closing_issue() {
+            if [ "$closing_issues_verified" = "false" ]; then
+              repo_owner="${GH_REPO%%/*}"
+              repo_name="${GH_REPO#*/}"
+              if ! closing_issue_numbers=$(gh api graphql \
+                -f query='query($owner:String!,$name:String!,$number:Int!){repository(owner:$owner,name:$name){pullRequest(number:$number){closingIssuesReferences(first:100){nodes{number}}}}}' \
+                -F owner="$repo_owner" \
+                -F name="$repo_name" \
+                -F number="$PR_NUMBER" \
+                --jq '.data.repository.pullRequest.closingIssuesReferences.nodes[].number' \
+                2>/dev/null
+              ); then
+                echo "  could not verify GitHub closingIssuesReferences for PR #$PR_NUMBER — rejecting the closing declaration."
+                return 1
+              fi
+              closing_issues_verified=true
+            fi
+
+            if ! printf '%s\n' "$closing_issue_numbers" | grep -Fxq "$1"; then
+              echo "  #$1 is not present in GitHub closingIssuesReferences — rejecting the closing declaration."
+              return 1
+            fi
+          }
+
           invalid_relationship=false
           linked_issue=false
           while IFS= read -r relationship; do
@@ -89,8 +117,8 @@ jobs:
             # just as falsely. We must exclude EVERY pull request, not just
             # this one. The discriminator is the `pull_request` key on the
             # issue-object endpoint: present (non-null) for PRs, absent for
-            # real issues. A closing PR target invalidates the declaration;
-            # a non-closing PR reference is allowed but cannot satisfy the gate.
+            # real issues. A closing PR target invalidates the declaration; a
+            # non-closing PR reference is allowed but cannot satisfy the gate.
             # A real issue has no `pull_request` key, so the expression prints
             # `false`; a PR has a non-null object and prints `true`.
             if ! is_pr=$(gh api "repos/${GH_REPO}/issues/${n}" --jq '.pull_request != null' 2>/dev/null); then
@@ -108,6 +136,11 @@ jobs:
               continue
             fi
 
+            if [ "$is_closing" = "true" ] && ! verify_closing_issue "$n"; then
+              invalid_relationship=true
+              continue
+            fi
+
             if state=$(gh issue view "$n" --json state --jq '.state' 2>/dev/null); then
               echo "✓ PR links issue #$n (state: $state)."
               linked_issue=true
@@ -119,7 +152,7 @@ jobs:
 
 
           if [ "$invalid_relationship" = "true" ]; then
-            echo "::error::A closing relationship to a PR, a self-reference, or an unverifiable number invalidates the declaration."
+            echo "::error::A closing relationship to a PR, a self-reference, an unverifiable number, or a failed closing-reference lookup invalidates the declaration."
             exit 1
           fi
 

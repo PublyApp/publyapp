@@ -156,9 +156,35 @@ const createMockGhDir = () => {
 	const missingPattern = [...MOCK_MISSING_NUMBERS].join('|');
 	const mockGh = `#!/usr/bin/env bash
 # Mock gh for require-linked-issue tests.
-# Simulates the two API shapes the step calls:
+# Simulates the three API shapes the step calls:
+#   gh api graphql -F query=... -F number=N --jq '...nodes[].number'
 #   gh api repos/OWNER/REPO/issues/N --jq '.pull_request != null'
 #   gh issue view N --json state --jq '.state'
+
+# Shape 0: closing issue references for the current PR. The real gh command
+# applies --jq before returning, so this mock emits the projected issue numbers
+# one per line. PR #2032 closes #1458; synthetic PR #9999 closes both #1458 and
+# #2003 so the discriminator mutation test reaches the rest of the workflow.
+if [[ "$1" == "api" && "$2" == "graphql" ]]; then
+  if [[ "$MOCK_GRAPHQL_FAILURE" == "true" ]]; then
+    echo "mock GraphQL failure" >&2
+    exit 1
+  fi
+
+  pr_number=""
+  for argument in "$@"; do
+    case "$argument" in
+      number=*) pr_number="\${argument#number=}" ;;
+    esac
+  done
+
+  case "$pr_number" in
+    2032) printf '1458\n' ;;
+    9999) printf '1458\n2003\n' ;;
+    *) : ;;
+  esac
+  exit 0
+fi
 
 # Shape 1: pull_request discriminator. Returns "true" for known PRs, "false"
 # for real issues.
@@ -191,13 +217,20 @@ exit 0
 type RunStepOptions = {
 	author: string;
 	body: string;
+	graphqlFailure?: boolean;
 	prNumber?: string;
 	useRealGh?: boolean;
 };
 
 const runStep = (
 	runBody: string,
-	{ author, body, prNumber = '2032', useRealGh = false }: RunStepOptions,
+	{
+		author,
+		body,
+		graphqlFailure = false,
+		prNumber = '2032',
+		useRealGh = false,
+	}: RunStepOptions,
 ) => {
 	// The real step reads PR_AUTHOR from `${{ github... }}`; substitute that
 	// literal so plain `bash` can run the body under our faked author.
@@ -215,6 +248,7 @@ const runStep = (
 		PR_AUTHOR: author,
 		PR_BODY: body,
 		GH_REPO: 'PublyApp/publyapp',
+		MOCK_GRAPHQL_FAILURE: graphqlFailure ? 'true' : 'false',
 		PATH: commandPath,
 	};
 	if (!useRealGh) {
@@ -394,7 +428,8 @@ test('a non-dependabot author still falls through to the existing linked-issue c
 // #2003: `gh issue view <PR-number>` succeeds and returns the PR's state,
 // so a body like "Closes #<any-PR>" satisfies the gate falsely. The fix
 // uses the `pull_request` discriminator from the issue-object endpoint to
-// skip PRs. These tests prove the fix works both ways.
+// reject closing PR targets while allowing non-closing citations without
+// letting them satisfy the gate. These tests prove the fix works both ways.
 
 test('the real workflow FAILS (exit 1) for a body that closes only a PR (#2003 regression)', async () => {
 	const runBody = await readRunBody();
@@ -444,6 +479,44 @@ test('the real workflow PASSES (exit 0) for a body that closes a real issue', as
 	assert.equal(code, 0, 'a body closing a real issue must pass the gate');
 });
 
+test('the real workflow fails loud when GraphQL closing-reference verification fails', async () => {
+	const runBody = await readRunBody();
+
+	const { code, stdout } = runStep(runBody, {
+		author: 'octocat',
+		body: 'Closes #1458',
+		graphqlFailure: true,
+	});
+
+	assert.equal(code, 1, 'a failed closing-reference lookup must fail the gate');
+	assert.match(
+		stdout,
+		/could not verify GitHub closingIssuesReferences/,
+		'the gate must explain that closing-reference verification failed',
+	);
+});
+
+test('the real workflow rejects an existing issue absent from successful closing references', async () => {
+	const runBody = await readRunBody();
+
+	const { code, stdout } = runStep(runBody, {
+		author: 'octocat',
+		body: 'Closes #647',
+		prNumber: '2032',
+	});
+
+	assert.equal(
+		code,
+		1,
+		'an existing issue must fail when GitHub does not report it as a closing reference',
+	);
+	assert.match(
+		stdout,
+		/#647 is not present in GitHub closingIssuesReferences — rejecting the closing declaration\./,
+		'the gate must explain that the issue is absent from the successful closing-reference response',
+	);
+});
+
 test.each(['Part of #647', 'Refs #647', 'References #647'])(
 	'the real workflow PASSES for an honest non-closing issue link: %s',
 	async (body) => {
@@ -486,9 +559,9 @@ test('the real workflow does not turn a negated closing claim into a link', asyn
 	);
 });
 
-test('the real workflow rejects a non-closing link to a pull request', async () => {
+test('the real workflow rejects a non-closing PR citation when it is the only relationship', async () => {
 	const runBody = await readRunBody();
-	const { code } = runStep(runBody, {
+	const { code, stdout } = runStep(runBody, {
 		author: 'octocat',
 		body: 'Part of #2032',
 		prNumber: '9999',
@@ -498,6 +571,11 @@ test('the real workflow rejects a non-closing link to a pull request', async () 
 		code,
 		1,
 		'a non-closing link must still resolve to a real issue',
+	);
+	assert.match(
+		stdout,
+		/does not satisfy the issue requirement/,
+		'a sibling PR citation may be mentioned but cannot satisfy the gate alone',
 	);
 });
 
