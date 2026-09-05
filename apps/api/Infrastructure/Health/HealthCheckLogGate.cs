@@ -54,14 +54,6 @@ public sealed class HealthCheckLogGate {
 		}
 	}
 
-	public bool ShouldLog(
-		string checkName,
-		HealthStatus status,
-		DateTimeOffset now
-	) {
-		return ShouldLog(checkName, status, failureReason: null, now);
-	}
-
 	private sealed class LogState {
 		public HealthStatus? LastStatus { get; set; }
 		public string? LastFailureReason { get; set; }

@@ -6,11 +6,12 @@ using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
-using Microsoft.Extensions.Logging;
 
 using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Lib;
+using PublyApp.Api.Lib.Testing.Fakes;
 using PublyApp.Api.Lib.Testing.Fixtures;
+using PublyApp.Api.Lib.Testing.Helpers;
 using PublyApp.Api.Modules.Jobs.Entities;
 using PublyApp.Api.Modules.Publishing.Jobs;
 
@@ -141,7 +142,7 @@ public sealed class JobQueueDrainHealthCheckSpec : IClassFixture<ApiFixture> {
 
 			using var drained = await _http.GetAsync("/health/drain");
 			drained.StatusCode.Should().Be(HttpStatusCode.OK);
-			var report = await drained.Content.ReadFromJsonAsync<HealthReportJson>();
+			var report = await drained.Content.ReadFromJsonAsync<HealthTestHelper.HealthReportJson>();
 			report.Should().NotBeNull();
 			Assert.NotNull(report);
 			report.Status.Should().Be("Healthy");
@@ -284,7 +285,7 @@ public sealed class JobQueueDrainHealthCheckSpec : IClassFixture<ApiFixture> {
 			await InsertStalledPendingJobAsync(db, stallThreshold);
 
 			using var response = await _http.GetAsync("/health/drain");
-			var report = await response.Content.ReadFromJsonAsync<HealthReportJson>();
+			var report = await response.Content.ReadFromJsonAsync<HealthTestHelper.HealthReportJson>();
 
 			report.Should().NotBeNull();
 			Assert.NotNull(report);
@@ -324,58 +325,4 @@ public sealed class JobQueueDrainHealthCheckSpec : IClassFixture<ApiFixture> {
 		await db.SaveChangesAsync();
 	}
 
-	private sealed class HealthReportJson {
-		public string? Status { get; set; }
-		public IReadOnlyList<HealthCheckJson>? Checks { get; set; }
-	}
-
-	private sealed class HealthCheckJson {
-		public string? Name { get; set; }
-		public string? Status { get; set; }
-		public string? Description { get; set; }
-	}
-
-	private sealed class CapturingLogger<T> : ILogger<T> {
-		public sealed record Entry(
-			LogLevel Level,
-			string Message,
-			IReadOnlyList<KeyValuePair<string, object?>> State
-		);
-
-		public List<Entry> Entries { get; } = [];
-
-		public IReadOnlyList<Entry> Warnings {
-			get {
-				return Entries.Where(entry => entry.Level == LogLevel.Warning).ToList();
-			}
-		}
-
-		public IDisposable BeginScope<TState>(TState state) where TState : notnull {
-			return NullScope.Instance;
-		}
-
-		public bool IsEnabled(LogLevel logLevel) {
-			return true;
-		}
-
-		public void Log<TState>(
-			LogLevel logLevel,
-			EventId eventId,
-			TState state,
-			Exception? exception,
-			Func<TState, Exception?, string> formatter
-		) {
-			var structuredState = state is IEnumerable<KeyValuePair<string, object?>> values
-				? values.ToList()
-				: [];
-			Entries.Add(new Entry(logLevel, formatter(state, exception), structuredState));
-		}
-
-		private sealed class NullScope : IDisposable {
-			public static readonly NullScope Instance = new();
-
-			public void Dispose() {
-			}
-		}
-	}
 }

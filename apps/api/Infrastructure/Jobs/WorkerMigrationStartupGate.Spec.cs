@@ -4,6 +4,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 
 using PublyApp.Api.Infrastructure.Health;
+using PublyApp.Api.Lib.Testing.Fakes;
 
 using Xunit;
 
@@ -173,7 +174,9 @@ public sealed class WorkerMigrationStartupGateSpec {
 			_lastResult = _results.Last();
 		}
 
-		public Task<bool> IsReadyAsync(CancellationToken cancellationToken) {
+		public Task<DatabaseMigrationReadinessResult> IsReadyAsync(
+			CancellationToken cancellationToken
+		) {
 			cancellationToken.ThrowIfCancellationRequested();
 			CallCount++;
 
@@ -181,7 +184,11 @@ public sealed class WorkerMigrationStartupGateSpec {
 				_lastResult = result;
 			}
 
-			return Task.FromResult(_lastResult);
+			return Task.FromResult(
+				_lastResult
+					? DatabaseMigrationReadinessResult.FromPendingMigrations([])
+					: DatabaseMigrationReadinessResult.FromPendingMigrations(["pending_migration"])
+			);
 		}
 	}
 
@@ -194,7 +201,9 @@ public sealed class WorkerMigrationStartupGateSpec {
 			_failureCount = failureCount;
 		}
 
-		public Task<bool> IsReadyAsync(CancellationToken cancellationToken) {
+		public Task<DatabaseMigrationReadinessResult> IsReadyAsync(
+			CancellationToken cancellationToken
+		) {
 			cancellationToken.ThrowIfCancellationRequested();
 			CallCount++;
 
@@ -202,7 +211,7 @@ public sealed class WorkerMigrationStartupGateSpec {
 				throw new InvalidOperationException("Database is still starting.");
 			}
 
-			return Task.FromResult(true);
+			return Task.FromResult(DatabaseMigrationReadinessResult.FromPendingMigrations([]));
 		}
 	}
 
@@ -214,10 +223,12 @@ public sealed class WorkerMigrationStartupGateSpec {
 			TaskCreationOptions.RunContinuationsAsynchronously
 		);
 
-		public async Task<bool> IsReadyAsync(CancellationToken cancellationToken) {
+		public async Task<DatabaseMigrationReadinessResult> IsReadyAsync(
+			CancellationToken cancellationToken
+		) {
 			_checked.TrySetResult();
 			await _ready.Task.WaitAsync(cancellationToken);
-			return true;
+			return DatabaseMigrationReadinessResult.FromPendingMigrations([]);
 		}
 
 		public Task WaitUntilCheckedAsync() {
@@ -229,34 +240,4 @@ public sealed class WorkerMigrationStartupGateSpec {
 		}
 	}
 
-	private sealed class CapturingLogger<T> : ILogger<T> {
-		public sealed record Entry(LogLevel Level, string Message);
-
-		public List<Entry> Entries { get; } = [];
-
-		public IDisposable BeginScope<TState>(TState state) where TState : notnull {
-			return NullScope.Instance;
-		}
-
-		public bool IsEnabled(LogLevel logLevel) {
-			return true;
-		}
-
-		public void Log<TState>(
-			LogLevel logLevel,
-			EventId eventId,
-			TState state,
-			Exception? exception,
-			Func<TState, Exception?, string> formatter
-		) {
-			Entries.Add(new Entry(logLevel, formatter(state, exception)));
-		}
-
-		private sealed class NullScope : IDisposable {
-			public static readonly NullScope Instance = new();
-
-			public void Dispose() {
-			}
-		}
-	}
 }
