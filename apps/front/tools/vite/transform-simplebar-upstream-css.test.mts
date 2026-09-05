@@ -69,7 +69,7 @@ const UPSTREAM_SELECTORS = [
 	'.simplebar-hide-scrollbar',
 ];
 
-test('#1540 upstream CSS resolves from the installed simplebar-core package', () => {
+void test('#1540 upstream CSS resolves from the installed simplebar-core package', () => {
 	const upstreamPath = resolveUpstreamPath();
 	const css = readFileSync(upstreamPath, 'utf8');
 	assert.ok(
@@ -78,7 +78,7 @@ test('#1540 upstream CSS resolves from the installed simplebar-core package', ()
 	);
 });
 
-test('#1540 upstream CSS contains every structural selector the engine expects', () => {
+void test('#1540 upstream CSS contains every structural selector the engine expects', () => {
 	const css = readFileSync(resolveUpstreamPath(), 'utf8');
 	const missing = UPSTREAM_SELECTORS.filter(
 		(selector) => !css.includes(selector),
@@ -90,7 +90,7 @@ test('#1540 upstream CSS contains every structural selector the engine expects',
 	);
 });
 
-test('#1540 transformer (loud) throws when given an empty upstream payload', () => {
+void test('#1540 transformer (loud) throws when given an empty upstream payload', () => {
 	assert.throws(
 		() => transformSimplebarUpstreamCssOrThrow(''),
 		/missing|empty|unparseable/i,
@@ -98,7 +98,7 @@ test('#1540 transformer (loud) throws when given an empty upstream payload', () 
 	);
 });
 
-test('#1540 transformer (loud) throws when given an upstream without the contract selectors', () => {
+void test('#1540 transformer (loud) throws when given an upstream without the contract selectors', () => {
 	const fakeUpstream = `
 		.simplebar-track { position: absolute; }
 		.simplebar-scrollbar { position: absolute; }
@@ -110,7 +110,7 @@ test('#1540 transformer (loud) throws when given an upstream without the contrac
 	);
 });
 
-test('#1540 transformer rejects malformed upstream CSS with an explicit reason', () => {
+void test('#1540 transformer rejects malformed upstream CSS with an explicit reason', () => {
 	const upstream = readFileSync(resolveUpstreamPath(), 'utf8');
 	const malformedUpstream = upstream.replace(/\n\}\s*$/u, '\n');
 	assert.notEqual(
@@ -126,7 +126,7 @@ test('#1540 transformer rejects malformed upstream CSS with an explicit reason',
 	);
 });
 
-test('#1540 transformer (loud) accepts the real installed upstream end-to-end', () => {
+void test('#1540 transformer (loud) accepts the real installed upstream end-to-end', () => {
 	const upstreamPath = resolveUpstreamPath();
 	const css = readFileSync(upstreamPath, 'utf8');
 	const out = transformSimplebarUpstreamCssOrThrow(css);
@@ -193,7 +193,7 @@ test('#1540 transformer (loud) accepts the real installed upstream end-to-end', 
 	);
 });
 
-test('#1540 transformed output preserves changed and newly added upstream rules', () => {
+void test('#1540 transformed output preserves changed and newly added upstream rules', () => {
 	const upstream = readFileSync(resolveUpstreamPath(), 'utf8');
 	const changedUpstream = upstream.replace(
 		'  width: auto !important;',
@@ -220,7 +220,7 @@ test('#1540 transformed output preserves changed and newly added upstream rules'
 	);
 });
 
-test('#1540 transformer (loud) rejects an unexpected upstream z-index change', () => {
+void test('#1540 transformer (loud) rejects an unexpected upstream z-index change', () => {
 	const upstream = readFileSync(resolveUpstreamPath(), 'utf8');
 	const changedUpstream = upstream.replace('  z-index: 1;', '  z-index: 2;');
 	assert.notEqual(
@@ -236,7 +236,7 @@ test('#1540 transformer (loud) rejects an unexpected upstream z-index change', (
 	);
 });
 
-test('#1540 the require.resolve specifier still resolves from the production runtime graph', () => {
+void test('#1540 the require.resolve specifier still resolves from the production runtime graph', () => {
 	// Sanity guard: if SIMPLEBAR_UPSTREAM_REQUIRE_SPECIFIER drifts (typo,
 	// path-style change), this fails before Vite ever tries to load it.
 	const resolved = resolveUpstreamPath();
