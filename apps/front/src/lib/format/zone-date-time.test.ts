@@ -29,4 +29,22 @@ describe('formatInZone', () => {
 			),
 		).toBe('—');
 	});
+
+	test('keeps viewer-local undefined distinct from an unavailable null zone', () => {
+		const originalTz = process.env.TZ;
+		process.env.TZ = 'America/New_York';
+		try {
+			const instant = new Date('2026-03-29T08:00:00.000Z');
+			expect(formatInZone(instant, undefined, 'en')).toBe(
+				'Sun, Mar 29, 2026, 4:00 AM',
+			);
+			expect(formatInZone(instant, null, 'en')).toBe('—');
+		} finally {
+			if (originalTz === undefined) {
+				delete process.env.TZ;
+			} else {
+				process.env.TZ = originalTz;
+			}
+		}
+	});
 });

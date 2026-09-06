@@ -31,11 +31,14 @@ export const formatInZone = (
 	if (date === null) {
 		return '—';
 	}
+	if (zone === null) {
+		return '—';
+	}
 
 	try {
 		return new Intl.DateTimeFormat(language, {
 			...FORMAT_OPTIONS,
-			timeZone: zone ?? undefined,
+			timeZone: zone,
 		}).format(date);
 	} catch {
 		return '—';
