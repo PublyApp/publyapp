@@ -27,6 +27,10 @@ import {
 // than silently certifying an incomplete list as "not relevant". See #1017.
 
 const pattern = '^(apps/front/|packages/shared-ts/)';
+const classifierPath = path.join(
+	path.resolve(new URL('../../..', import.meta.url).pathname),
+	'packages/scripts-ts/src/ci-changed-paths.ts',
+);
 
 test('central classifier emits the exact six literal lane outputs', () => {
 	const files = [
@@ -45,6 +49,30 @@ test('central classifier emits the exact six literal lane outputs', () => {
 	assert.deepEqual(Object.keys(result.outputs), LANE_OUTPUTS);
 	for (const lane of LANE_OUTPUTS) {
 		assert.equal(result.outputs[lane], 'true');
+	}
+});
+
+test('classifier --lanes CLI writes exactly the six lane outputs', () => {
+	const cwd = mkdtempSync(path.join(os.tmpdir(), 'publyapp-classifier-cli-'));
+	const githubOutput = path.join(cwd, 'github-output.txt');
+	writeFileSync(githubOutput, '');
+	try {
+		const result = spawnSync(process.execPath, [classifierPath, '--lanes'], {
+			cwd,
+			encoding: 'utf8',
+			env: {
+				...process.env,
+				GITHUB_EVENT_NAME: 'push',
+				GITHUB_OUTPUT: githubOutput,
+			},
+		});
+		assert.equal(result.status, 0, result.stderr);
+		assert.equal(
+			readFileSync(githubOutput, 'utf8'),
+			'quality=true\nfront=true\napi=true\ne2e=true\ndocs=true\nreact=true\n',
+		);
+	} finally {
+		rmSync(cwd, { recursive: true, force: true });
 	}
 });
 
@@ -78,6 +106,37 @@ test('merge-group and push classify every lane as relevant', () => {
 
 test('lane patterns expose the single classifier source of truth', () => {
 	assert.deepEqual(Object.keys(LANE_PATTERNS), LANE_OUTPUTS);
+});
+
+test('lane patterns cover the complete central trigger classes', () => {
+	const cases = [
+		['apps/front/src/routes/example.tsx', 'e2e'],
+		['apps/api/Modules/Users/Example.cs', 'e2e'],
+		['apps/front/vite.config.ts', 'e2e'],
+		['apps/front/docker-compose.fork-overlay.yml', 'e2e'],
+		['.oxlintrc.json', 'quality'],
+		['.oxfmtrc.json', 'quality'],
+		['.gitignore', 'quality'],
+		['knip.ts', 'quality'],
+		['docs/guides/dependency-health.md', 'quality'],
+		['docs/deployment/first-deploy-runbook.md', 'quality'],
+		['.gitattributes', 'api'],
+		['.github/workflows/ci.yml', 'react'],
+	] as const;
+
+	for (const [file, lane] of cases) {
+		const result = classifyLanes({
+			eventName: 'pull_request',
+			files: [file],
+			changedFilesTotal: 1,
+		});
+
+		assert.equal(
+			result.outputs[lane],
+			'true',
+			`${file} must select the ${lane} lane`,
+		);
+	}
 });
 
 test('push runs are relevant by construction, without needing file evidence', () => {

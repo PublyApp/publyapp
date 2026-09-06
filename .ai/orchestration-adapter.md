@@ -31,7 +31,7 @@ Fielded adapter for `/home/radan/ai-orchestration-playbook/PLAYBOOK.md`.
 | `closure_config` | `/home/radan/Projects/PublyApp/publyapp/.ai/project-closure-v1.json` |
 | `closure_gate` | `/home/radan/ai-orchestration-playbook/tools/pr-closure` (shared dependency; PublyApp does not reimplement the state machine) |
 | `review_schema` | `1`; schema file: `/home/radan/ai-orchestration-playbook/tools/schemas/review-record-v1.json` |
-| `ci_status_cmd` | `gh pr view <pr-number> --repo PublyApp/publyapp --json headRefOid,statusCheckRollup,baseRefName,headRefName,potentialMergeCommit,body,state,isDraft,mergeable,mergeStateStatus,url`; PR closure resolves `ci_required_checks` from the exact candidate tip (`headRefOid`) for pull requests and from the event tip for merge groups/pushes, with live `.github/workflows/ci.yml` `pull_request` provenance and `ci-final-gate` snapshot evidence. |
+| `ci_status_cmd` | `gh pr view <pr-number> --repo PublyApp/publyapp --json headRefOid,statusCheckRollup,baseRefName,headRefName,potentialMergeCommit,body,state,isDraft,mergeable,mergeStateStatus,url` |
 | `ci_rerun_cmd` | `gh run rerun <run-id> --failed --repo PublyApp/publyapp` (only for a proven infrastructure failure; bounded by `closure_config.infra_retry_budget`) |
 | `local_review_ready_commands` | `closure_config.local_review_ready_commands` (all commands must pass at the exact pushed tip) |
 | `closure_acceptance_commands` | `closure_config.closure_acceptance_commands` (run one heavy command at a time) |
@@ -54,6 +54,14 @@ must first pass `check-transition` against the same pushed commit; projection fa
 changes authoritative evidence. The projection adapter verifies the delivery-card sections
 `Objective`, `Current state`, `Scope`, `Links`, and `How to test` before it can plan or apply a
 list move, and it has no operation that can create approval evidence.
+
+## Deferred CI closure prerequisite
+
+TODO for the follow-up shared playbook change: the active `pr-closure` schema and reader do not
+yet accept candidate-tip/live-PR check provenance. PR-A therefore keeps the local closure config
+limited to its currently accepted fields and required-check list. Re-enable the candidate-tip
+source, live-PR workflow/check claims, and ruleset cutover only after the shared reader validates
+the canonical candidate tip and its bound workflow evidence.
 
 ## M1 Run Binding
 

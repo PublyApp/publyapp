@@ -12,6 +12,9 @@ export type LaneResultOptions = {
 	runId: number;
 	runAttempt: number;
 	eventSha: string;
+	workflowPath?: string;
+	workflowId?: string;
+	workflowEvent?: string;
 	stepResults: Record<string, StepResult>;
 };
 
@@ -36,14 +39,37 @@ export type StepEvidence = StepResult & {
 };
 
 const isPrerequisiteStep = (id: string): boolean =>
-	/\.(checkout|install_pnpm|setup_node|setup_dotnet)$/.test(id);
+	/\.(checkout|install_pnpm|setup_node|setup_dotnet|setup_just)$/.test(id);
 
 const laneSucceeded = (
 	mode: LaneResultMode,
 	steps: StepEvidence[],
 ): boolean => {
 	if (mode === 'relevant') {
-		return steps.every((step) => step.outcome === 'success');
+		for (const step of steps) {
+			if (step.id.endsWith('.not-applicable')) {
+				if (step.execution !== 'skipped' || step.outcome !== 'skipped') {
+					return false;
+				}
+				continue;
+			}
+			if (
+				step.id.endsWith('.report_upload') ||
+				step.id.endsWith('.test_results')
+			) {
+				if (step.execution === 'skipped' && step.outcome === 'skipped') {
+					continue;
+				}
+				if (step.execution !== 'executed' || step.outcome !== 'success') {
+					return false;
+				}
+				continue;
+			}
+			if (step.outcome !== 'success') {
+				return false;
+			}
+		}
+		return true;
 	}
 
 	const sentinel = steps.find((step) => step.id.endsWith('.not-applicable'));
@@ -59,7 +85,10 @@ const laneSucceeded = (
 			continue;
 		}
 		if (isPrerequisiteStep(step.id)) {
-			if (step.outcome !== 'success') {
+			if (step.execution === 'skipped' && step.outcome === 'skipped') {
+				continue;
+			}
+			if (step.execution !== 'executed' || step.outcome !== 'success') {
 				return false;
 			}
 			continue;
@@ -80,6 +109,9 @@ export const createCiLaneResult = ({
 	runId,
 	runAttempt,
 	eventSha,
+	workflowPath,
+	workflowId,
+	workflowEvent,
 	stepResults,
 	report,
 }: LaneResultOptions & { report?: LaneResultReport }) => {
@@ -105,6 +137,11 @@ export const createCiLaneResult = ({
 		run_id: runId,
 		run_attempt: runAttempt,
 		event_sha: eventSha,
+		workflow_path: workflowPath ?? '',
+		workflow_id: workflowId ?? '',
+		workflow_event: workflowEvent ?? '',
+		artifact_name: `ci-lane-result-${runId}-${runAttempt}-${jobKey.replace('/', '-')}`,
+		artifact_filename: `${jobKey.replace('/', '-')}.json`,
 		job: {
 			key: jobKey,
 			id: jobKey.split('/')[0],
@@ -127,8 +164,22 @@ export const createCiLaneResult = ({
 	return job;
 };
 
-const parseMode = (value: string): LaneResultMode =>
-	value === 'not_applicable' ? 'not_applicable' : 'relevant';
+export const parseClassifierMode = (value: unknown): LaneResultMode => {
+	if (value === 'true') {
+		return 'relevant';
+	}
+	if (value === 'false') {
+		return 'not_applicable';
+	}
+	throw new Error('classifier lane mode must be the literal true or false');
+};
+
+const parseExplicitMode = (value: unknown): LaneResultMode => {
+	if (value === 'relevant' || value === 'not_applicable') {
+		return value;
+	}
+	throw new Error('explicit lane mode must be relevant or not_applicable');
+};
 
 const isDirectRun =
 	process.argv[1]
@@ -156,13 +207,22 @@ if (isDirectRun) {
 	) as Record<string, string>;
 	const explicitModes = JSON.parse(process.env.CI_LANE_MODES ?? '{}') as Record<
 		string,
-		LaneResultMode
+		unknown
 	>;
-	const reportPath = process.env.CI_NESTED_REPORT_PATH;
-	const report = reportPath
-		? JSON.parse(await readFile(reportPath, 'utf8'))
-		: undefined;
 	const lanes = Object.entries(laneSpecs);
+	const modes = new Map(
+		lanes.map(([laneName]) => [
+			laneName,
+			explicitModes[laneName] === undefined
+				? parseClassifierMode(classifierOutputs[laneName])
+				: parseExplicitMode(explicitModes[laneName]),
+		]),
+	);
+	const reportPath = process.env.CI_NESTED_REPORT_PATH;
+	const report =
+		reportPath && modes.get('front') === 'relevant'
+			? JSON.parse(await readFile(reportPath, 'utf8'))
+			: undefined;
 	const first = lanes[0];
 	if (first === undefined) {
 		throw new Error('CI_LANE_SPECS must contain at least one lane');
@@ -171,12 +231,13 @@ if (isDirectRun) {
 		jobKey,
 		lane: first[0],
 		expectedSteps: first[1],
-		mode:
-			explicitModes[first[0]] ??
-			parseMode(classifierOutputs[first[0]] ?? 'true'),
+		mode: modes.get(first[0]) ?? parseClassifierMode(undefined),
 		runId,
 		runAttempt,
 		eventSha,
+		workflowPath: process.env.CI_WORKFLOW_PATH,
+		workflowId: process.env.CI_WORKFLOW_ID,
+		workflowEvent: process.env.CI_WORKFLOW_EVENT,
 		stepResults,
 		report,
 	});
@@ -185,12 +246,13 @@ if (isDirectRun) {
 			jobKey,
 			lane: laneName,
 			expectedSteps,
-			mode:
-				explicitModes[laneName] ??
-				parseMode(classifierOutputs[laneName] ?? 'true'),
+			mode: modes.get(laneName) ?? parseClassifierMode(undefined),
 			runId,
 			runAttempt,
 			eventSha,
+			workflowPath: process.env.CI_WORKFLOW_PATH,
+			workflowId: process.env.CI_WORKFLOW_ID,
+			workflowEvent: process.env.CI_WORKFLOW_EVENT,
 			stepResults,
 			report,
 		});

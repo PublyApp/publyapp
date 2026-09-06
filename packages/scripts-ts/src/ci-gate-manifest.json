@@ -101,10 +101,20 @@
 			"mirror": null,
 			"reason": "GitHub-only failure-only log capture: gets failing-spec output off an ephemeral runner. Locally the reports are already on disk."
 		},
-		"ci.yml::api::API contract and suite": {
-			"hash": "a8796ef8eb40e396",
+		"ci.yml::api::Build API and OpenAPI document": {
+			"hash": "fb833bdcf95c6304",
 			"mirror": null,
-			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
+			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+		},
+		"ci.yml::api::Check generated client drift": {
+			"hash": "81ad4949a2213aad",
+			"mirror": null,
+			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+		},
+		"ci.yml::api::Check OpenAPI drift": {
+			"hash": "89e13aa17d20dcf7",
+			"mirror": null,
+			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
 		},
 		"ci.yml::api::Checkout": {
 			"hash": "11ee605b2ca0dfd4",
@@ -117,12 +127,42 @@
 			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
 		},
 		"ci.yml::api::Collect ci-lane-result": {
-			"hash": "cc3e48e450a9c007",
+			"hash": "58535c0030c5336d",
 			"mirror": null,
 			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
 		},
+		"ci.yml::api::Install workspace dependencies": {
+			"hash": "cc78b83b6441fd9d",
+			"mirror": null,
+			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+		},
+		"ci.yml::api::Materialize .env.development": {
+			"hash": "ed8c72b7d49605b1",
+			"mirror": null,
+			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+		},
+		"ci.yml::api::Regenerate TypeScript client": {
+			"hash": "41877248e7126753",
+			"mirror": null,
+			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+		},
+		"ci.yml::api::Restore .NET tools": {
+			"hash": "a254348cef2786ce",
+			"mirror": null,
+			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+		},
+		"ci.yml::api::Run full API test suite": {
+			"hash": "0b0267aef4d7c6ab",
+			"mirror": null,
+			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+		},
+		"ci.yml::api::Run OpenAPI contract spec": {
+			"hash": "c23dc2038d031325",
+			"mirror": null,
+			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+		},
 		"ci.yml::api::Set up .NET": {
-			"hash": "ff233b34c5904173",
+			"hash": "5475ce7713504202",
 			"mirror": null,
 			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
 		},
@@ -131,10 +171,20 @@
 			"mirror": null,
 			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
 		},
+		"ci.yml::api::Setup just": {
+			"hash": "17b73e0220816c76",
+			"mirror": null,
+			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+		},
 		"ci.yml::api::Setup Node": {
 			"hash": "6c699edc403fc068",
 			"mirror": null,
 			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
+		},
+		"ci.yml::api::Upload API test results": {
+			"hash": "dd121479f9cac55d",
+			"mirror": null,
+			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
 		},
 		"ci.yml::api::Upload ci-lane-result": {
 			"hash": "395b75faa354eeda",
@@ -157,7 +207,7 @@
 			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
 		},
 		"ci.yml::audit-development::Collect ci-lane-result": {
-			"hash": "18a258f8be1d0b46",
+			"hash": "50a222ccb1191577",
 			"mirror": null,
 			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
 		},
@@ -197,7 +247,7 @@
 			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
 		},
 		"ci.yml::audit-production::Collect ci-lane-result": {
-			"hash": "c76e60a363ce8bbb",
+			"hash": "14cf61aaa0cf5a32",
 			"mirror": null,
 			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
 		},
@@ -222,7 +272,7 @@
 			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
 		},
 		"ci.yml::classify::Checkout": {
-			"hash": "11ee605b2ca0dfd4",
+			"hash": "f6bbd86f711cad8c",
 			"mirror": null,
 			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
 		},
@@ -232,12 +282,12 @@
 			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
 		},
 		"ci.yml::classify::Classify changed paths once": {
-			"hash": "e057a034196f81b0",
+			"hash": "00f09105546e548c",
 			"mirror": null,
 			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
 		},
 		"ci.yml::classify::Collect ci-lane-result": {
-			"hash": "b28a0f306f7e2e09",
+			"hash": "db75f5708a13c44a",
 			"mirror": null,
 			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
 		},
@@ -267,7 +317,7 @@
 			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
 		},
 		"ci.yml::e2e-build::Collect ci-lane-result": {
-			"hash": "c1fad51d0e6688e7",
+			"hash": "23c54f5b902a7d90",
 			"mirror": null,
 			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
 		},
@@ -322,7 +372,7 @@
 			"reason": "Central CI workflow step is reconciled by the central artifact-backed gate; the exact command or action is reviewed here and remains covered by the focused CI contract tests."
 		},
 		"ci.yml::e2e-cleanup::CI lane not applicable": {
-			"hash": "75053bbfcdcbc158",
+			"hash": "aa970f255c733092",
 			"mirror": null,
 			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
 		},
@@ -332,7 +382,7 @@
 			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
 		},
 		"ci.yml::e2e-cleanup::Collect ci-lane-result": {
-			"hash": "fd4b4506b1244721",
+			"hash": "4d48d257c7a1f09e",
 			"mirror": null,
 			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
 		},
@@ -341,18 +391,28 @@
 			"mirror": null,
 			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
 		},
+		"ci.yml::e2e-test::Assert exact pins": {
+			"hash": "0a06539db489c0d2",
+			"mirror": null,
+			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+		},
+		"ci.yml::e2e-test::Cache Playwright browsers": {
+			"hash": "f9f488c926adb3c3",
+			"mirror": null,
+			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+		},
 		"ci.yml::e2e-test::Checkout": {
 			"hash": "11ee605b2ca0dfd4",
 			"mirror": null,
 			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
 		},
 		"ci.yml::e2e-test::CI lane not applicable": {
-			"hash": "a996f38bc2c53c06",
+			"hash": "0a6f8efc55f7f966",
 			"mirror": null,
 			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
 		},
 		"ci.yml::e2e-test::Collect ci-lane-result": {
-			"hash": "b1d3642e3add7420",
+			"hash": "453d125ccfe97c69",
 			"mirror": null,
 			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
 		},
@@ -392,7 +452,7 @@
 			"reason": "Central CI workflow step is reconciled by the central artifact-backed gate; the exact command or action is reviewed here and remains covered by the focused CI contract tests."
 		},
 		"ci.yml::e2e-test::Run Playwright shard": {
-			"hash": "7fb55bb7ea76848a",
+			"hash": "3b6ad46fafad4e05",
 			"mirror": null,
 			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
 		},
@@ -406,13 +466,23 @@
 			"mirror": null,
 			"reason": "Central CI workflow step is reconciled by the central artifact-backed gate; the exact command or action is reviewed here and remains covered by the focused CI contract tests."
 		},
+		"ci.yml::e2e-test::Tear down e2e stack": {
+			"hash": "5f9173a0cd96b192",
+			"mirror": null,
+			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+		},
 		"ci.yml::e2e-test::Upload ci-lane-result": {
 			"hash": "315afc632da008c3",
 			"mirror": null,
 			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
 		},
+		"ci.yml::e2e-test::Upload Playwright report": {
+			"hash": "cd2d0ee1a88907e2",
+			"mirror": null,
+			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+		},
 		"ci.yml::e2e-test::Wait for e2e stack health": {
-			"hash": "b9802185abeabe08",
+			"hash": "844893a2675c63fd",
 			"mirror": null,
 			"reason": "Central CI workflow step is reconciled by the central artifact-backed gate; the exact command or action is reviewed here and remains covered by the focused CI contract tests."
 		},
@@ -427,7 +497,7 @@
 			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
 		},
 		"ci.yml::front-vitest::Collect ci-lane-result": {
-			"hash": "98727beffff62ae0",
+			"hash": "7a17a9198f842dbc",
 			"mirror": null,
 			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
 		},
@@ -436,10 +506,20 @@
 			"mirror": null,
 			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
 		},
+		"ci.yml::front-vitest::Install Git hooks": {
+			"hash": "310a8e360507854c",
+			"mirror": null,
+			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+		},
 		"ci.yml::front-vitest::Install pnpm": {
 			"hash": "8985553731d304dc",
 			"mirror": null,
 			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
+		},
+		"ci.yml::front-vitest::Run trusted first-party postinstall": {
+			"hash": "6923850a26324a40",
+			"mirror": null,
+			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
 		},
 		"ci.yml::front-vitest::Run vitest shard": {
 			"hash": "9a4161b5f7e318d8",
@@ -456,13 +536,18 @@
 			"mirror": null,
 			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
 		},
+		"ci.yml::front-vitest::Upload Vitest report": {
+			"hash": "9c6e7107db705d56",
+			"mirror": null,
+			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+		},
 		"ci.yml::gate::Aggregate upstream artifacts": {
-			"hash": "7b84e8f5260603ca",
+			"hash": "e845ac19f2009a58",
 			"mirror": null,
 			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
 		},
 		"ci.yml::gate::Checkout": {
-			"hash": "11ee605b2ca0dfd4",
+			"hash": "f6bbd86f711cad8c",
 			"mirror": null,
 			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
 		},
@@ -482,7 +567,7 @@
 			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
 		},
 		"ci.yml::gate::Read live PR snapshot": {
-			"hash": "2f0640ef3a14dbc2",
+			"hash": "1aa318d772bab607",
 			"mirror": null,
 			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
 		},
@@ -502,17 +587,127 @@
 			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
 		},
 		"ci.yml::gate::Verify linked issue relationship": {
-			"hash": "1e192f4cd4d37c7b",
+			"hash": "ea75032915acfb47",
 			"mirror": null,
 			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
 		},
 		"ci.yml::gate::Write live PR snapshot": {
-			"hash": "325018eb662185f4",
+			"hash": "937ac29d482d4ae4",
 			"mirror": null,
 			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
 		},
+		"ci.yml::verification::Assert exact pins": {
+			"hash": "183deb18d0de2176",
+			"mirror": null,
+			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+		},
+		"ci.yml::verification::Audit .NET packages": {
+			"hash": "b6c510e5934bad14",
+			"mirror": null,
+			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+		},
+		"ci.yml::verification::Build .NET solution": {
+			"hash": "e889e79245c80abe",
+			"mirror": null,
+			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+		},
+		"ci.yml::verification::Build front": {
+			"hash": "fabde19aca7da08f",
+			"mirror": null,
+			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+		},
+		"ci.yml::verification::Check action SHA bindings": {
+			"hash": "a21af95c873ad98d",
+			"mirror": null,
+			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+		},
+		"ci.yml::verification::Check action versions": {
+			"hash": "5c6d586ce9b1d03e",
+			"mirror": null,
+			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+		},
+		"ci.yml::verification::Check CI drift": {
+			"hash": "d08ef5e6dbeda008",
+			"mirror": null,
+			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+		},
+		"ci.yml::verification::Check complexity bounds": {
+			"hash": "fa7ba7a25fd2fb88",
+			"mirror": null,
+			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+		},
+		"ci.yml::verification::Check dependency health contract": {
+			"hash": "ae523a953f522ad9",
+			"mirror": null,
+			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+		},
+		"ci.yml::verification::Check deploy environment documentation": {
+			"hash": "7a939f735e6c0008",
+			"mirror": null,
+			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+		},
+		"ci.yml::verification::Check doc links": {
+			"hash": "3fa00ed5dd403508",
+			"mirror": null,
+			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+		},
+		"ci.yml::verification::Check docs prune inventory": {
+			"hash": "c64bc5e45cba84b8",
+			"mirror": null,
+			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+		},
+		"ci.yml::verification::Check formatter scope": {
+			"hash": "93712b3a7b0b0097",
+			"mirror": null,
+			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+		},
+		"ci.yml::verification::Check formatting": {
+			"hash": "cb9f1e39f601b392",
+			"mirror": null,
+			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+		},
+		"ci.yml::verification::Check front column-type imports": {
+			"hash": "3b868ea1d3970b82",
+			"mirror": null,
+			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+		},
+		"ci.yml::verification::Check front design system": {
+			"hash": "e99b5c46facfd210",
+			"mirror": null,
+			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+		},
+		"ci.yml::verification::Check front React Compiler artifacts": {
+			"hash": "ee9148bdedd9e05e",
+			"mirror": null,
+			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+		},
+		"ci.yml::verification::Check front static imports": {
+			"hash": "606f4c9010b655e6",
+			"mirror": null,
+			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+		},
+		"ci.yml::verification::Check no dockerignore shadow files": {
+			"hash": "3a0b622c125bc416",
+			"mirror": null,
+			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+		},
+		"ci.yml::verification::Check no ignored tracked files": {
+			"hash": "92df18c0b7ab35cc",
+			"mirror": null,
+			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+		},
+		"ci.yml::verification::Check unused exports and dependencies": {
+			"hash": "2016ff898fdc8bc7",
+			"mirror": null,
+			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+		},
+		"ci.yml::verification::Check Vitest shard coverage": {
+			"hash": "994dd3b291894e83",
+			"mirror": null,
+			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+		},
 		"ci.yml::verification::Checkout": {
-			"hash": "11ee605b2ca0dfd4",
+			"hash": "f6bbd86f711cad8c",
 			"mirror": null,
 			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
 		},
@@ -537,9 +732,14 @@
 			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
 		},
 		"ci.yml::verification::Collect ci-lane-result": {
-			"hash": "604485b89a28ebad",
+			"hash": "a7f9a8ebf6fc77ad",
 			"mirror": null,
 			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
+		},
+		"ci.yml::verification::Install Git hooks": {
+			"hash": "738bc5b430f8034e",
+			"mirror": null,
+			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
 		},
 		"ci.yml::verification::Install pnpm": {
 			"hash": "8985553731d304dc",
@@ -551,30 +751,175 @@
 			"mirror": null,
 			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
 		},
-		"ci.yml::verification::Run docs verification": {
-			"hash": "f0343f132558565e",
+		"ci.yml::verification::Lint front": {
+			"hash": "c45b649d8c677ba1",
 			"mirror": null,
-			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
+			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
 		},
-		"ci.yml::verification::Run front verification and report-all checks": {
-			"hash": "9ec31c000751294b",
+		"ci.yml::verification::Lint repository": {
+			"hash": "e20cf5df73096c67",
 			"mirror": null,
-			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
+			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
 		},
-		"ci.yml::verification::Run quality verification": {
-			"hash": "84838a132ef41460",
+		"ci.yml::verification::Materialize .env.development": {
+			"hash": "4b70dd3afc7ce47b",
 			"mirror": null,
-			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
+			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+		},
+		"ci.yml::verification::Resolve React Doctor base": {
+			"hash": "cb6b53ad731e58a5",
+			"mirror": null,
+			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+		},
+		"ci.yml::verification::Restore .NET solution": {
+			"hash": "5eb86b60a88959b2",
+			"mirror": null,
+			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+		},
+		"ci.yml::verification::Run analyzer tests": {
+			"hash": "04dde312e33983c7",
+			"mirror": null,
+			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
 		},
 		"ci.yml::verification::Run React Doctor": {
-			"hash": "0c3533749cb59ef8",
+			"hash": "4161d502d06cfd4e",
 			"mirror": null,
 			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
+		},
+		"ci.yml::verification::Run trusted first-party postinstall": {
+			"hash": "0ff3f6744ab67c09",
+			"mirror": null,
+			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+		},
+		"ci.yml::verification::Setup .NET": {
+			"hash": "5475ce7713504202",
+			"mirror": null,
+			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+		},
+		"ci.yml::verification::Setup just": {
+			"hash": "17b73e0220816c76",
+			"mirror": null,
+			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
 		},
 		"ci.yml::verification::Setup Node": {
 			"hash": "6c699edc403fc068",
 			"mirror": null,
 			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
+		},
+		"ci.yml::verification::Smoke front production server": {
+			"hash": "946f61944280dd08",
+			"mirror": null,
+			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+		},
+		"ci.yml::verification::Test .NET audit fixtures": {
+			"hash": "7a3863bc0b50792f",
+			"mirror": null,
+			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+		},
+		"ci.yml::verification::Test action version guard": {
+			"hash": "bd55b62ad6e31b5b",
+			"mirror": null,
+			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+		},
+		"ci.yml::verification::Test API path-filter coverage": {
+			"hash": "eb6aa3294d0ab1b4",
+			"mirror": null,
+			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+		},
+		"ci.yml::verification::Test CI changed-path classifier": {
+			"hash": "5f26d63f0076b615",
+			"mirror": null,
+			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+		},
+		"ci.yml::verification::Test CI contracts": {
+			"hash": "85f0e2af2313db09",
+			"mirror": null,
+			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+		},
+		"ci.yml::verification::Test CI drift contracts": {
+			"hash": "c675f002939278ea",
+			"mirror": null,
+			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+		},
+		"ci.yml::verification::Test CI guard fixtures": {
+			"hash": "8a972db39c7de967",
+			"mirror": null,
+			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+		},
+		"ci.yml::verification::Test CI referenced paths": {
+			"hash": "f0cf2dc2a327fba5",
+			"mirror": null,
+			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+		},
+		"ci.yml::verification::Test complexity guard": {
+			"hash": "a88dfa11bbf38ed8",
+			"mirror": null,
+			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+		},
+		"ci.yml::verification::Test doc-links guard": {
+			"hash": "a9f8043567edf669",
+			"mirror": null,
+			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+		},
+		"ci.yml::verification::Test docs prune guard": {
+			"hash": "0912253449ced9e3",
+			"mirror": null,
+			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+		},
+		"ci.yml::verification::Test front (non-vitest report-all)": {
+			"hash": "9ec31c000751294b",
+			"mirror": null,
+			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+		},
+		"ci.yml::verification::Test front lint guard": {
+			"hash": "a2d213250edb8ea1",
+			"mirror": null,
+			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+		},
+		"ci.yml::verification::Test lint plugin": {
+			"hash": "f7167232786cdfb3",
+			"mirror": null,
+			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+		},
+		"ci.yml::verification::Test npm audit runner": {
+			"hash": "4b4f843e55fc03c6",
+			"mirror": null,
+			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+		},
+		"ci.yml::verification::Test production audit threshold": {
+			"hash": "85a60c5313006750",
+			"mirror": null,
+			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+		},
+		"ci.yml::verification::Test project closure adapter": {
+			"hash": "e6b18b1440189c6d",
+			"mirror": null,
+			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+		},
+		"ci.yml::verification::Test shared TypeScript": {
+			"hash": "d9d9473cb3b78fe4",
+			"mirror": null,
+			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+		},
+		"ci.yml::verification::Typecheck front": {
+			"hash": "3b75bd5e81a31db0",
+			"mirror": null,
+			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+		},
+		"ci.yml::verification::Typecheck generated client": {
+			"hash": "cb5fadab90b119ef",
+			"mirror": null,
+			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+		},
+		"ci.yml::verification::Typecheck lint plugin": {
+			"hash": "b95f7c351664f778",
+			"mirror": null,
+			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+		},
+		"ci.yml::verification::Typecheck shared TypeScript": {
+			"hash": "ee768c1bf151cba4",
+			"mirror": null,
+			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
 		},
 		"ci.yml::verification::Upload ci-lane-result": {
 			"hash": "75325d79271d5565",
@@ -585,6 +930,21 @@
 			"hash": "96841940dba766ac",
 			"mirror": null,
 			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
+		},
+		"ci.yml::verification::Verify front CSS asset": {
+			"hash": "ec4cc246d4e7a58a",
+			"mirror": null,
+			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+		},
+		"ci.yml::verification::Verify front font bundle": {
+			"hash": "384e8f1992cad86a",
+			"mirror": null,
+			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+		},
+		"ci.yml::verification::Verify paired red proofs": {
+			"hash": "ea689907fb4fa84d",
+			"mirror": null,
+			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
 		},
 		"deploy-images.yml::publish::Build and push API migrate image": {
 			"hash": "e4dc88bbd1b1946a",

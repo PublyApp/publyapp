@@ -27,7 +27,7 @@
 		"react-doctor-gate",
 		"ci-final-gate"
 	],
-		"ci_live_pr_checks": ["ci-final-gate"],
+	"ci_live_pr_checks": ["ci-final-gate"],
 	"ci_required_checks_source": {
 		"pull_request": "candidate_tip",
 		"merge_group": "event_tip",

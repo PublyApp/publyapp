@@ -2025,6 +2025,7 @@ type CentralStep = {
 	uses?: unknown;
 	env?: Record<string, unknown>;
 	with?: Record<string, unknown>;
+	'working-directory'?: unknown;
 	'continue-on-error'?: unknown;
 };
 
@@ -2104,20 +2105,10 @@ const readLaneSpecs = (
 	}
 };
 
-export const findCentralCiStructureProblems = async ({
-	rootDir,
-}: {
-	rootDir: string;
-}): Promise<string[]> => {
-	const file = path.join(rootDir, '.github/workflows/ci.yml');
-	const findings: string[] = [];
-	let document: CentralDocument;
-	try {
-		document = parse(await readFile(file, 'utf8')) as CentralDocument;
-	} catch (error) {
-		return [`${file}: unable to parse central workflow: ${String(error)}`];
-	}
-
+const checkCentralHeaderInvariants = (
+	document: CentralDocument,
+	findings: string[],
+): void => {
 	if (!deepEqualJson(document.permissions, {})) {
 		findings.push('ci.yml: workflow permissions must be exactly {}');
 	}
@@ -2148,11 +2139,13 @@ export const findCentralCiStructureProblems = async ({
 	) {
 		findings.push('ci.yml: push must be unfiltered and limited to develop');
 	}
+};
 
-	const jobs = document.jobs;
-	if (!jobs || typeof jobs !== 'object') {
-		return [...findings, 'ci.yml: jobs is missing'];
-	}
+const checkCentralTopologyInvariants = (
+	document: CentralDocument,
+	jobs: CentralJobs,
+	findings: string[],
+): void => {
 	const jobIds = Object.keys(jobs);
 	if (!deepEqualJson(jobIds, CENTRAL_JOB_IDS)) {
 		findings.push(
@@ -2243,9 +2236,13 @@ export const findCentralCiStructureProblems = async ({
 			'ci.yml must aggregate downloaded artifacts, not toJSON(needs) matrix members',
 		);
 	}
+};
 
-	const allJobs = Object.values(jobs);
-	const upstreamJobs = allJobs.filter((job) => job !== jobs.gate);
+const checkCentralLaneEvidence = (
+	jobs: CentralJobs,
+	findings: string[],
+): void => {
+	const upstreamJobs = Object.values(jobs).filter((job) => job !== jobs.gate);
 	for (const job of upstreamJobs) {
 		const steps = Array.isArray(job.steps) ? job.steps : [];
 		if (
@@ -2287,26 +2284,76 @@ export const findCentralCiStructureProblems = async ({
 				`${String(job.name)}: collector must record actual CI step outcomes`,
 			);
 		}
+
 		const jobId = CENTRAL_JOB_IDS.find((id) => jobs[id] === job);
-		if (jobId !== undefined) {
-			const key = centralJobKey(jobId);
+		if (jobId === undefined) {
+			continue;
+		}
+		const key = centralJobKey(jobId);
+		if (
+			!EXPECTED_UPSTREAM_JOB_KEYS.includes(
+				key as (typeof EXPECTED_UPSTREAM_JOB_KEYS)[number],
+			)
+		) {
+			continue;
+		}
+		const actual = readLaneSpecs(job);
+		const expected = Object.fromEntries(
+			EXPECTED_JOB_LANES[key].map((lane) => [lane.lane, lane.expectedSteps]),
+		);
+		if (JSON.stringify(actual) !== JSON.stringify(expected)) {
+			findings.push(
+				`${jobId}: CI_LANE_SPECS do not match the exact artifact contract`,
+			);
+		}
+		const collector = steps.find((step) =>
+			String(step.name).includes('Collect ci-lane-result'),
+		);
+		let stepResults: Record<string, unknown> | undefined;
+		try {
+			const parsed = JSON.parse(String(collector?.env?.CI_STEP_RESULTS));
 			if (
-				EXPECTED_UPSTREAM_JOB_KEYS.includes(
-					key as (typeof EXPECTED_UPSTREAM_JOB_KEYS)[number],
-				)
+				parsed !== null &&
+				typeof parsed === 'object' &&
+				!Array.isArray(parsed)
 			) {
-				const actual = readLaneSpecs(job);
-				const expected = Object.fromEntries(
-					EXPECTED_JOB_LANES[key].map((lane) => [
-						lane.lane,
-						lane.expectedSteps,
-					]),
+				stepResults = parsed as Record<string, unknown>;
+			}
+		} catch {
+			// The missing/invalid shape is reported below as a dataflow failure.
+		}
+		const expectedStepIds = Object.values(actual ?? {}).flat();
+		const observedStepIds = Object.keys(stepResults ?? {});
+		if (
+			stepResults === undefined ||
+			JSON.stringify([...new Set(observedStepIds)].sort()) !==
+				JSON.stringify([...new Set(expectedStepIds)].sort()) ||
+			new Set(observedStepIds).size !== observedStepIds.length
+		) {
+			findings.push(
+				`${jobId}: CI_STEP_RESULTS must equal the ordered lane step set`,
+			);
+		}
+		const actualStepIds = new Set(
+			steps
+				.map((step) => (typeof step.id === 'string' ? step.id : ''))
+				.filter((id) => id.length > 0),
+		);
+		for (const expectedStepId of expectedStepIds) {
+			if (expectedStepId.endsWith('.not-applicable')) {
+				continue;
+			}
+			const separator = expectedStepId.indexOf('.');
+			const suffix = expectedStepId.slice(separator + 1);
+			const stepCandidates = [
+				suffix,
+				suffix.replaceAll('_', '-'),
+				...(expectedStepId === 'classify.run' ? ['classifier'] : []),
+			];
+			if (!stepCandidates.some((candidate) => actualStepIds.has(candidate))) {
+				findings.push(
+					`${jobId}: workflow step for ${expectedStepId} is not bound to the collector`,
 				);
-				if (JSON.stringify(actual) !== JSON.stringify(expected)) {
-					findings.push(
-						`${jobId}: CI_LANE_SPECS do not match the exact artifact contract`,
-					);
-				}
 			}
 		}
 	}
@@ -2323,6 +2370,13 @@ export const findCentralCiStructureProblems = async ({
 			'ci.yml: ci-lane-result collectors may not use continue-on-error',
 		);
 	}
+};
+
+const checkCentralVerificationSpecifics = (
+	document: CentralDocument,
+	jobs: CentralJobs,
+	findings: string[],
+): void => {
 	if (JSON.stringify(jobs.gate ?? {}).includes('continue-on-error')) {
 		findings.push('gate: final reducer may not use continue-on-error');
 	}
@@ -2336,14 +2390,97 @@ export const findCentralCiStructureProblems = async ({
 			'ci.yml: legacy CI_EXPECTED_STEPS artifact contract is not allowed',
 		);
 	}
-	const frontReportStep = (jobs.verification?.steps ?? []).find((step) =>
-		String(step.name).includes('front verification'),
+	const verificationSteps = jobs.verification?.steps ?? [];
+	const frontReportStep = verificationSteps.find((step) =>
+		String(step.run).includes('run-non-vitest-report-all.mts'),
 	);
 	if (frontReportStep?.['working-directory'] !== 'apps/front') {
 		findings.push(
 			'verification: report-all runner must execute with apps/front as its working directory',
 		);
 	}
+	const verificationCheckout = verificationSteps.find(
+		(step) => step.id === 'checkout',
+	);
+	if (verificationCheckout?.with?.['fetch-depth'] !== 0) {
+		findings.push(
+			'verification: React Doctor checkout must fetch full history',
+		);
+	}
+	for (const step of verificationSteps) {
+		if (step['continue-on-error'] !== true) {
+			continue;
+		}
+		if (step.if !== 'always()' && !String(step.if).startsWith('always() &&')) {
+			findings.push(
+				`verification: independent step ${String(step.name)} must have an always() condition`,
+			);
+		}
+	}
+	for (const name of [
+		'Check no ignored tracked files',
+		'Check no dockerignore shadow files',
+	]) {
+		const step = verificationSteps.find((candidate) => candidate.name === name);
+		if (
+			step === undefined ||
+			step.if !== 'always()' ||
+			step['continue-on-error'] !== true
+		) {
+			findings.push(
+				`${name}: tracked-file guard must be an unconditional independent step`,
+			);
+		}
+	}
+
+	const classifierRun = (jobs.classify?.steps ?? []).find(
+		(step) => step.id === 'classifier',
+	);
+	if (
+		!String(classifierRun?.run).includes('CI_CLASSIFIER_ABI_VERSION = 2') ||
+		!String(classifierRun?.run).includes('node "$classifier" --lanes')
+	) {
+		findings.push(
+			'classify: base classifier ABI detection and --lanes invocation are not pinned',
+		);
+	}
+	if (!String(classifierRun?.run).includes('failing closed to every lane')) {
+		findings.push(
+			'classify: incompatible base classifier must fail closed to all lanes',
+		);
+	}
+
+	const resolveReactBase = verificationSteps.find(
+		(step) => step.id === 'resolve_react_base',
+	);
+	const reactDoctor = verificationSteps.find(
+		(step) => step.id === 'react_doctor',
+	);
+	const resolveReactRun = String(resolveReactBase?.run);
+	if (
+		!resolveReactRun.includes('pull_request') ||
+		!resolveReactRun.includes('merge_group') ||
+		!resolveReactRun.includes('CI_PUSH_BEFORE') ||
+		!resolveReactRun.includes('0000000000000000000000000000000000000000') ||
+		!resolveReactRun.includes('HEAD~1') ||
+		!resolveReactRun.includes('git rev-parse --verify') ||
+		!resolveReactRun.includes('GITHUB_OUTPUT') ||
+		resolveReactBase?.env?.CI_EVENT_NAME !== '${{ github.event_name }}'
+	) {
+		findings.push(
+			'verification: React Doctor base resolution must validate PR, merge-group, push, and zero-before events',
+		);
+	}
+	if (
+		reactDoctor?.env?.CI_REACT_DOCTOR_BASE !==
+			'${{ steps.resolve_react_base.outputs.base }}' ||
+		!String(reactDoctor?.run).includes('--base "$CI_REACT_DOCTOR_BASE"')
+	) {
+		findings.push(
+			'verification: React Doctor must use the one validated resolved base value',
+		);
+	}
+
 	const classifyCheckout = (jobs.classify?.steps ?? []).find(
 		(step) => step.id === 'checkout',
 	);
@@ -2355,6 +2492,93 @@ export const findCentralCiStructureProblems = async ({
 			'classify: a full current-revision checkout is required for collector execution',
 		);
 	}
+};
+
+const checkCentralProvenance = (
+	jobs: CentralJobs,
+	findings: string[],
+): void => {
+	const upstreamJobs = Object.values(jobs).filter((job) => job !== jobs.gate);
+	for (const job of upstreamJobs) {
+		const collector = (Array.isArray(job.steps) ? job.steps : []).find((step) =>
+			String(step.name).includes('Collect ci-lane-result'),
+		);
+		if (
+			collector?.env?.CI_WORKFLOW_PATH !== '.github/workflows/ci.yml' ||
+			collector?.env?.CI_WORKFLOW_ID !== 'central ci' ||
+			collector?.env?.CI_WORKFLOW_EVENT !== '${{ github.event_name }}'
+		) {
+			findings.push(
+				`${String(job.name)}: collector workflow provenance is not pinned`,
+			);
+		}
+		for (const step of Array.isArray(job.steps) ? job.steps : []) {
+			if (!String(step.name).includes('CI lane not applicable')) {
+				continue;
+			}
+			const condition = String(step.if);
+			if (!condition.includes("needs.classify.result == 'success'")) {
+				findings.push(
+					`${String(job.name)}: classifier failure must never run a not-applicable sentinel`,
+				);
+			}
+		}
+	}
+};
+
+const checkCentralArtifacts = (jobs: CentralJobs, findings: string[]): void => {
+	type ArtifactContract = { name: string; path: string };
+	const expectedArtifactFor = (jobId: string): ArtifactContract => {
+		const suffix =
+			jobId === 'front-vitest' || jobId === 'e2e-test'
+				? `${jobId}-\${{ matrix.shard }}`
+				: jobId;
+		return {
+			name: `ci-lane-result-\${{ github.run_id }}-\${{ github.run_attempt }}-${suffix}`,
+			path: `ci-results/${suffix}.json`,
+		};
+	};
+	for (const jobId of CENTRAL_JOB_IDS.filter((id) => id !== 'gate')) {
+		const job = jobs[jobId];
+		const artifact = (job?.steps ?? []).find(
+			(step) =>
+				String(step.uses).startsWith('actions/upload-artifact@') &&
+				String(step.with?.name).startsWith('ci-lane-result-'),
+		);
+		const expected = expectedArtifactFor(jobId);
+		if (
+			artifact?.if !== 'always()' ||
+			artifact?.with?.name !== expected.name ||
+			artifact?.with?.path !== expected.path ||
+			artifact?.with?.['if-no-files-found'] !== 'error'
+		) {
+			findings.push(
+				`${jobId}: result artifact name/path/always contract is not exact`,
+			);
+		}
+	}
+};
+
+const checkCentralLivePrAndE2e = (
+	jobs: CentralJobs,
+	findings: string[],
+): void => {
+	const gateSteps = jobs.gate?.steps ?? [];
+	const readLive = gateSteps.find(
+		(step) => step.name === 'Read live PR snapshot',
+	);
+	const linkedIssue = gateSteps.find(
+		(step) => step.name === 'Verify linked issue relationship',
+	);
+	const writeLive = gateSteps.find(
+		(step) => step.name === 'Write live PR snapshot',
+	);
+	const uploadSnapshotIndex = gateSteps.findIndex(
+		(step) => step.name === 'Upload live PR snapshot',
+	);
+	const writeSnapshotIndex = gateSteps.findIndex(
+		(step) => step.name === 'Write live PR snapshot',
+	);
 	if (
 		!JSON.stringify(jobs.gate ?? {}).includes('closingIssuesReferences') &&
 		!JSON.stringify(jobs.gate ?? {}).includes('gh issue view')
@@ -2363,6 +2587,82 @@ export const findCentralCiStructureProblems = async ({
 			'gate: linked-issue verification must use the live GitHub relationship policy',
 		);
 	}
+	if (
+		!String(readLive?.run).includes('ci-pr-snapshot.ts') ||
+		readLive?.env?.CI_PR_PHASE !== 'read' ||
+		readLive?.env?.CI_LIVE_PR_RECORD_PATH !== 'ci-live-pr-record.json' ||
+		readLive?.env?.GITHUB_SHA !== '${{ github.sha }}' ||
+		readLive?.env?.GITHUB_EVENT_NAME !== '${{ github.event_name }}' ||
+		!String(linkedIssue?.run).includes('CI_LIVE_PR_RECORD_PATH') ||
+		!String(linkedIssue?.run).includes("jq -r '.pr_number'") ||
+		!String(linkedIssue?.run).includes("jq -r '.pr.author_login'") ||
+		!String(linkedIssue?.run).includes("jq -r '.pr.body'") ||
+		String(linkedIssue?.run).includes('github.event.pull_request.body') ||
+		String(linkedIssue?.env?.PR_BODY ?? '').includes(
+			'github.event.pull_request.body',
+		) ||
+		!String(writeLive?.run).includes('ci-pr-snapshot.ts') ||
+		writeLive?.env?.CI_PR_PHASE !== 'snapshot' ||
+		writeLive?.env?.CI_LIVE_PR_RECORD_PATH !== 'ci-live-pr-record.json' ||
+		writeLive?.env?.GITHUB_SHA !== '${{ github.sha }}' ||
+		writeLive?.env?.GITHUB_EVENT_NAME !== '${{ github.event_name }}' ||
+		writeSnapshotIndex !== uploadSnapshotIndex - 1
+	) {
+		findings.push(
+			'gate: one canonical live PR record must feed policy and immediate snapshot upload',
+		);
+	}
+
+	const e2eTestText = JSON.stringify(jobs['e2e-test'] ?? {});
+	if (
+		!e2eTestText.includes(
+			'front api request-counter traefik toxiproxy postgres',
+		) ||
+		!e2eTestText.includes('chromium-hermetic-source') ||
+		!e2eTestText.includes('drawer-contrast') ||
+		!e2eTestText.includes('Upload Playwright report') ||
+		!e2eTestText.includes(
+			'docker compose -f apps/front/docker-compose.test.yml down -v',
+		)
+	) {
+		findings.push(
+			'e2e-test: all-service health, shard-4 guards, failure report, and teardown are not pinned',
+		);
+	}
+};
+
+export const findCentralCiStructureProblems = async ({
+	rootDir,
+}: {
+	rootDir: string;
+}): Promise<string[]> => {
+	const file = path.join(rootDir, '.github/workflows/ci.yml');
+	const findings: string[] = [];
+	let document: CentralDocument;
+	try {
+		document = parse(await readFile(file, 'utf8')) as CentralDocument;
+	} catch (error) {
+		return [`${file}: unable to parse central workflow: ${String(error)}`];
+	}
+
+	checkCentralHeaderInvariants(document, findings);
+
+	const jobs = document.jobs;
+	if (!jobs || typeof jobs !== 'object') {
+		return [...findings, 'ci.yml: jobs is missing'];
+	}
+	checkCentralTopologyInvariants(document, jobs, findings);
+
+	checkCentralLaneEvidence(jobs, findings);
+	/*
+		The lane evidence helper owns the collector, sentinel, and step-result
+		dataflow checks for every upstream job.
+	*/
+	/* old lane-evidence implementation removed; helper above owns this check */
+	checkCentralVerificationSpecifics(document, jobs, findings);
+	checkCentralProvenance(jobs, findings);
+	checkCentralArtifacts(jobs, findings);
+	checkCentralLivePrAndE2e(jobs, findings);
 	return findings;
 };
 

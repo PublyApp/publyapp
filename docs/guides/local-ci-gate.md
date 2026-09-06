@@ -26,6 +26,19 @@ pnpm --filter scripts-ts exec vitest run src/ci-central-workflow.test.ts src/ci-
 node packages/scripts-ts/src/check-ci-gate-structure.ts
 ```
 
+Central ownership is explicit: `CI verification` executes the repository quality,
+front build/CSS/font/smoke/typecheck/lint/design/static-import/compiler/proof,
+docs, React Doctor, API path-coverage, analyzer, dependency, action-pin, deploy-env,
+CI-contract, project-closure, and unconditional tracked-file checks; the `api` lane
+executes API/OpenAPI/client generation and drift checks, the OpenAPI contract spec,
+and `just test-api`; the four `front-ci` shards execute install/postinstall/hooks and
+Vitest; and the E2E build/test/cleanup jobs execute the run-scoped image, all-service
+health, Playwright, shard-4 hermetic/drawer guards, failure-report, teardown, and
+cleanup steps. The nested front report records the complete ordered 30-command
+non-Vitest chain. The unchanged predecessor workflows still execute their existing
+checks during PR A for the external ruleset's dual-authority interval; no check is
+claimed here unless it is run by either that predecessor or the named central owner.
+
 This matters more than it normally would: the repo is on a Free plan with a private
 repo (2,000 Actions minutes/month), and July 2026 burned 2,202. Until the allowance
 resets and stays under budget, **this gate is the pre-merge net** — see issue #869.

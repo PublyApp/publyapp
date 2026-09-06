@@ -66,13 +66,23 @@
 		"api-tests.yml::suite::Set up just",
 		"api-tests.yml::suite::Set up pnpm",
 		"api-tests.yml::suite::Upload test results on failure",
-		"ci.yml::api::API contract and suite",
+		"ci.yml::api::Build API and OpenAPI document",
 		"ci.yml::api::CI lane not applicable",
+		"ci.yml::api::Check OpenAPI drift",
+		"ci.yml::api::Check generated client drift",
 		"ci.yml::api::Checkout",
 		"ci.yml::api::Collect ci-lane-result",
+		"ci.yml::api::Install workspace dependencies",
+		"ci.yml::api::Materialize .env.development",
+		"ci.yml::api::Regenerate TypeScript client",
+		"ci.yml::api::Restore .NET tools",
+		"ci.yml::api::Run OpenAPI contract spec",
+		"ci.yml::api::Run full API test suite",
 		"ci.yml::api::Set up .NET",
 		"ci.yml::api::Set up pnpm",
 		"ci.yml::api::Setup Node",
+		"ci.yml::api::Setup just",
+		"ci.yml::api::Upload API test results",
 		"ci.yml::api::Upload ci-lane-result",
 		"ci.yml::audit-development::Audit development dependencies",
 		"ci.yml::audit-development::CI lane not applicable",
@@ -114,7 +124,9 @@
 		"ci.yml::e2e-cleanup::Cleanup e2e images",
 		"ci.yml::e2e-cleanup::Collect ci-lane-result",
 		"ci.yml::e2e-cleanup::Upload ci-lane-result",
+		"ci.yml::e2e-test::Assert exact pins",
 		"ci.yml::e2e-test::CI lane not applicable",
+		"ci.yml::e2e-test::Cache Playwright browsers",
 		"ci.yml::e2e-test::Checkout",
 		"ci.yml::e2e-test::Collect ci-lane-result",
 		"ci.yml::e2e-test::Detect partial rerun",
@@ -127,15 +139,20 @@
 		"ci.yml::e2e-test::Run Playwright shard",
 		"ci.yml::e2e-test::Setup Node",
 		"ci.yml::e2e-test::Start e2e stack",
+		"ci.yml::e2e-test::Tear down e2e stack",
+		"ci.yml::e2e-test::Upload Playwright report",
 		"ci.yml::e2e-test::Upload ci-lane-result",
 		"ci.yml::e2e-test::Wait for e2e stack health",
 		"ci.yml::front-vitest::CI lane not applicable",
 		"ci.yml::front-vitest::Checkout",
 		"ci.yml::front-vitest::Collect ci-lane-result",
+		"ci.yml::front-vitest::Install Git hooks",
 		"ci.yml::front-vitest::Install dependencies",
 		"ci.yml::front-vitest::Install pnpm",
+		"ci.yml::front-vitest::Run trusted first-party postinstall",
 		"ci.yml::front-vitest::Run vitest shard",
 		"ci.yml::front-vitest::Setup Node",
+		"ci.yml::front-vitest::Upload Vitest report",
 		"ci.yml::front-vitest::Upload ci-lane-result",
 		"ci.yml::gate::Aggregate upstream artifacts",
 		"ci.yml::gate::Checkout",
@@ -148,21 +165,76 @@
 		"ci.yml::gate::Upload live PR snapshot",
 		"ci.yml::gate::Verify linked issue relationship",
 		"ci.yml::gate::Write live PR snapshot",
+		"ci.yml::verification::Assert exact pins",
+		"ci.yml::verification::Audit .NET packages",
+		"ci.yml::verification::Build .NET solution",
+		"ci.yml::verification::Build front",
 		"ci.yml::verification::CI lane not applicable (docs)",
 		"ci.yml::verification::CI lane not applicable (front)",
 		"ci.yml::verification::CI lane not applicable (quality)",
 		"ci.yml::verification::CI lane not applicable (react)",
+		"ci.yml::verification::Check CI drift",
+		"ci.yml::verification::Check Vitest shard coverage",
+		"ci.yml::verification::Check action SHA bindings",
+		"ci.yml::verification::Check action versions",
+		"ci.yml::verification::Check complexity bounds",
+		"ci.yml::verification::Check dependency health contract",
+		"ci.yml::verification::Check deploy environment documentation",
+		"ci.yml::verification::Check doc links",
+		"ci.yml::verification::Check docs prune inventory",
+		"ci.yml::verification::Check formatter scope",
+		"ci.yml::verification::Check formatting",
+		"ci.yml::verification::Check front React Compiler artifacts",
+		"ci.yml::verification::Check front column-type imports",
+		"ci.yml::verification::Check front design system",
+		"ci.yml::verification::Check front static imports",
+		"ci.yml::verification::Check no dockerignore shadow files",
+		"ci.yml::verification::Check no ignored tracked files",
+		"ci.yml::verification::Check unused exports and dependencies",
 		"ci.yml::verification::Checkout",
 		"ci.yml::verification::Collect ci-lane-result",
+		"ci.yml::verification::Install Git hooks",
 		"ci.yml::verification::Install pnpm",
 		"ci.yml::verification::Install workspace dependencies",
+		"ci.yml::verification::Lint front",
+		"ci.yml::verification::Lint repository",
+		"ci.yml::verification::Materialize .env.development",
+		"ci.yml::verification::Resolve React Doctor base",
+		"ci.yml::verification::Restore .NET solution",
 		"ci.yml::verification::Run React Doctor",
-		"ci.yml::verification::Run docs verification",
-		"ci.yml::verification::Run front verification and report-all checks",
-		"ci.yml::verification::Run quality verification",
+		"ci.yml::verification::Run analyzer tests",
+		"ci.yml::verification::Run trusted first-party postinstall",
+		"ci.yml::verification::Setup .NET",
 		"ci.yml::verification::Setup Node",
+		"ci.yml::verification::Setup just",
+		"ci.yml::verification::Smoke front production server",
+		"ci.yml::verification::Test .NET audit fixtures",
+		"ci.yml::verification::Test API path-filter coverage",
+		"ci.yml::verification::Test CI changed-path classifier",
+		"ci.yml::verification::Test CI contracts",
+		"ci.yml::verification::Test CI drift contracts",
+		"ci.yml::verification::Test CI guard fixtures",
+		"ci.yml::verification::Test CI referenced paths",
+		"ci.yml::verification::Test action version guard",
+		"ci.yml::verification::Test complexity guard",
+		"ci.yml::verification::Test doc-links guard",
+		"ci.yml::verification::Test docs prune guard",
+		"ci.yml::verification::Test front (non-vitest report-all)",
+		"ci.yml::verification::Test front lint guard",
+		"ci.yml::verification::Test lint plugin",
+		"ci.yml::verification::Test npm audit runner",
+		"ci.yml::verification::Test production audit threshold",
+		"ci.yml::verification::Test project closure adapter",
+		"ci.yml::verification::Test shared TypeScript",
+		"ci.yml::verification::Typecheck front",
+		"ci.yml::verification::Typecheck generated client",
+		"ci.yml::verification::Typecheck lint plugin",
+		"ci.yml::verification::Typecheck shared TypeScript",
 		"ci.yml::verification::Upload ci-lane-result",
 		"ci.yml::verification::Verify API path-filter coverage",
+		"ci.yml::verification::Verify front CSS asset",
+		"ci.yml::verification::Verify front font bundle",
+		"ci.yml::verification::Verify paired red proofs",
 		"deploy-images.yml::publish::Build and push API migrate image",
 		"deploy-images.yml::publish::Build and push API runtime image",
 		"deploy-images.yml::publish::Build and push Front image",
@@ -416,9 +488,17 @@
 			"reason_hash": "50c4c42df69e5537",
 			"reason": "GitHub-only failure-only log capture: gets failing-spec output off an ephemeral runner. Locally the reports are already on disk."
 		},
-		"ci.yml::api::API contract and suite": {
-			"reason_hash": "55ea1441881589c8",
-			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
+		"ci.yml::api::Build API and OpenAPI document": {
+			"reason_hash": "cad90aeae089aaa5",
+			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+		},
+		"ci.yml::api::Check generated client drift": {
+			"reason_hash": "cad90aeae089aaa5",
+			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+		},
+		"ci.yml::api::Check OpenAPI drift": {
+			"reason_hash": "cad90aeae089aaa5",
+			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
 		},
 		"ci.yml::api::Checkout": {
 			"reason_hash": "55ea1441881589c8",
@@ -432,6 +512,30 @@
 			"reason_hash": "55ea1441881589c8",
 			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
 		},
+		"ci.yml::api::Install workspace dependencies": {
+			"reason_hash": "cad90aeae089aaa5",
+			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+		},
+		"ci.yml::api::Materialize .env.development": {
+			"reason_hash": "cad90aeae089aaa5",
+			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+		},
+		"ci.yml::api::Regenerate TypeScript client": {
+			"reason_hash": "cad90aeae089aaa5",
+			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+		},
+		"ci.yml::api::Restore .NET tools": {
+			"reason_hash": "cad90aeae089aaa5",
+			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+		},
+		"ci.yml::api::Run full API test suite": {
+			"reason_hash": "cad90aeae089aaa5",
+			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+		},
+		"ci.yml::api::Run OpenAPI contract spec": {
+			"reason_hash": "cad90aeae089aaa5",
+			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+		},
 		"ci.yml::api::Set up .NET": {
 			"reason_hash": "55ea1441881589c8",
 			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
@@ -440,9 +544,17 @@
 			"reason_hash": "55ea1441881589c8",
 			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
 		},
+		"ci.yml::api::Setup just": {
+			"reason_hash": "cad90aeae089aaa5",
+			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+		},
 		"ci.yml::api::Setup Node": {
 			"reason_hash": "55ea1441881589c8",
 			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
+		},
+		"ci.yml::api::Upload API test results": {
+			"reason_hash": "cad90aeae089aaa5",
+			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
 		},
 		"ci.yml::api::Upload ci-lane-result": {
 			"reason_hash": "55ea1441881589c8",
@@ -608,6 +720,14 @@
 			"reason_hash": "55ea1441881589c8",
 			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
 		},
+		"ci.yml::e2e-test::Assert exact pins": {
+			"reason_hash": "cad90aeae089aaa5",
+			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+		},
+		"ci.yml::e2e-test::Cache Playwright browsers": {
+			"reason_hash": "cad90aeae089aaa5",
+			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+		},
 		"ci.yml::e2e-test::Checkout": {
 			"reason_hash": "55ea1441881589c8",
 			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
@@ -660,9 +780,17 @@
 			"reason_hash": "1644596db7219f6b",
 			"reason": "Central CI workflow step is reconciled by the central artifact-backed gate; the exact command or action is reviewed here and remains covered by the focused CI contract tests."
 		},
+		"ci.yml::e2e-test::Tear down e2e stack": {
+			"reason_hash": "cad90aeae089aaa5",
+			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+		},
 		"ci.yml::e2e-test::Upload ci-lane-result": {
 			"reason_hash": "55ea1441881589c8",
 			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
+		},
+		"ci.yml::e2e-test::Upload Playwright report": {
+			"reason_hash": "cad90aeae089aaa5",
+			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
 		},
 		"ci.yml::e2e-test::Wait for e2e stack health": {
 			"reason_hash": "1644596db7219f6b",
@@ -684,9 +812,17 @@
 			"reason_hash": "55ea1441881589c8",
 			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
 		},
+		"ci.yml::front-vitest::Install Git hooks": {
+			"reason_hash": "cad90aeae089aaa5",
+			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+		},
 		"ci.yml::front-vitest::Install pnpm": {
 			"reason_hash": "55ea1441881589c8",
 			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
+		},
+		"ci.yml::front-vitest::Run trusted first-party postinstall": {
+			"reason_hash": "cad90aeae089aaa5",
+			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
 		},
 		"ci.yml::front-vitest::Run vitest shard": {
 			"reason_hash": "55ea1441881589c8",
@@ -699,6 +835,10 @@
 		"ci.yml::front-vitest::Upload ci-lane-result": {
 			"reason_hash": "55ea1441881589c8",
 			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
+		},
+		"ci.yml::front-vitest::Upload Vitest report": {
+			"reason_hash": "cad90aeae089aaa5",
+			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
 		},
 		"ci.yml::gate::Aggregate upstream artifacts": {
 			"reason_hash": "55ea1441881589c8",
@@ -744,6 +884,94 @@
 			"reason_hash": "55ea1441881589c8",
 			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
 		},
+		"ci.yml::verification::Assert exact pins": {
+			"reason_hash": "cad90aeae089aaa5",
+			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+		},
+		"ci.yml::verification::Audit .NET packages": {
+			"reason_hash": "cad90aeae089aaa5",
+			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+		},
+		"ci.yml::verification::Build .NET solution": {
+			"reason_hash": "cad90aeae089aaa5",
+			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+		},
+		"ci.yml::verification::Build front": {
+			"reason_hash": "cad90aeae089aaa5",
+			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+		},
+		"ci.yml::verification::Check action SHA bindings": {
+			"reason_hash": "cad90aeae089aaa5",
+			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+		},
+		"ci.yml::verification::Check action versions": {
+			"reason_hash": "cad90aeae089aaa5",
+			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+		},
+		"ci.yml::verification::Check CI drift": {
+			"reason_hash": "cad90aeae089aaa5",
+			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+		},
+		"ci.yml::verification::Check complexity bounds": {
+			"reason_hash": "cad90aeae089aaa5",
+			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+		},
+		"ci.yml::verification::Check dependency health contract": {
+			"reason_hash": "cad90aeae089aaa5",
+			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+		},
+		"ci.yml::verification::Check deploy environment documentation": {
+			"reason_hash": "cad90aeae089aaa5",
+			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+		},
+		"ci.yml::verification::Check doc links": {
+			"reason_hash": "cad90aeae089aaa5",
+			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+		},
+		"ci.yml::verification::Check docs prune inventory": {
+			"reason_hash": "cad90aeae089aaa5",
+			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+		},
+		"ci.yml::verification::Check formatter scope": {
+			"reason_hash": "cad90aeae089aaa5",
+			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+		},
+		"ci.yml::verification::Check formatting": {
+			"reason_hash": "cad90aeae089aaa5",
+			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+		},
+		"ci.yml::verification::Check front column-type imports": {
+			"reason_hash": "cad90aeae089aaa5",
+			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+		},
+		"ci.yml::verification::Check front design system": {
+			"reason_hash": "cad90aeae089aaa5",
+			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+		},
+		"ci.yml::verification::Check front React Compiler artifacts": {
+			"reason_hash": "cad90aeae089aaa5",
+			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+		},
+		"ci.yml::verification::Check front static imports": {
+			"reason_hash": "cad90aeae089aaa5",
+			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+		},
+		"ci.yml::verification::Check no dockerignore shadow files": {
+			"reason_hash": "cad90aeae089aaa5",
+			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+		},
+		"ci.yml::verification::Check no ignored tracked files": {
+			"reason_hash": "cad90aeae089aaa5",
+			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+		},
+		"ci.yml::verification::Check unused exports and dependencies": {
+			"reason_hash": "cad90aeae089aaa5",
+			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+		},
+		"ci.yml::verification::Check Vitest shard coverage": {
+			"reason_hash": "cad90aeae089aaa5",
+			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+		},
 		"ci.yml::verification::Checkout": {
 			"reason_hash": "55ea1441881589c8",
 			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
@@ -768,6 +996,10 @@
 			"reason_hash": "55ea1441881589c8",
 			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
 		},
+		"ci.yml::verification::Install Git hooks": {
+			"reason_hash": "cad90aeae089aaa5",
+			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+		},
 		"ci.yml::verification::Install pnpm": {
 			"reason_hash": "55ea1441881589c8",
 			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
@@ -776,25 +1008,141 @@
 			"reason_hash": "55ea1441881589c8",
 			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
 		},
-		"ci.yml::verification::Run docs verification": {
-			"reason_hash": "55ea1441881589c8",
-			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
+		"ci.yml::verification::Lint front": {
+			"reason_hash": "cad90aeae089aaa5",
+			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
 		},
-		"ci.yml::verification::Run front verification and report-all checks": {
-			"reason_hash": "55ea1441881589c8",
-			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
+		"ci.yml::verification::Lint repository": {
+			"reason_hash": "cad90aeae089aaa5",
+			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
 		},
-		"ci.yml::verification::Run quality verification": {
-			"reason_hash": "55ea1441881589c8",
-			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
+		"ci.yml::verification::Materialize .env.development": {
+			"reason_hash": "cad90aeae089aaa5",
+			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+		},
+		"ci.yml::verification::Resolve React Doctor base": {
+			"reason_hash": "cad90aeae089aaa5",
+			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+		},
+		"ci.yml::verification::Restore .NET solution": {
+			"reason_hash": "cad90aeae089aaa5",
+			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+		},
+		"ci.yml::verification::Run analyzer tests": {
+			"reason_hash": "cad90aeae089aaa5",
+			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
 		},
 		"ci.yml::verification::Run React Doctor": {
 			"reason_hash": "55ea1441881589c8",
 			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
 		},
+		"ci.yml::verification::Run trusted first-party postinstall": {
+			"reason_hash": "cad90aeae089aaa5",
+			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+		},
+		"ci.yml::verification::Setup .NET": {
+			"reason_hash": "cad90aeae089aaa5",
+			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+		},
+		"ci.yml::verification::Setup just": {
+			"reason_hash": "cad90aeae089aaa5",
+			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+		},
 		"ci.yml::verification::Setup Node": {
 			"reason_hash": "55ea1441881589c8",
 			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
+		},
+		"ci.yml::verification::Smoke front production server": {
+			"reason_hash": "cad90aeae089aaa5",
+			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+		},
+		"ci.yml::verification::Test .NET audit fixtures": {
+			"reason_hash": "cad90aeae089aaa5",
+			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+		},
+		"ci.yml::verification::Test action version guard": {
+			"reason_hash": "cad90aeae089aaa5",
+			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+		},
+		"ci.yml::verification::Test API path-filter coverage": {
+			"reason_hash": "cad90aeae089aaa5",
+			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+		},
+		"ci.yml::verification::Test CI changed-path classifier": {
+			"reason_hash": "cad90aeae089aaa5",
+			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+		},
+		"ci.yml::verification::Test CI contracts": {
+			"reason_hash": "cad90aeae089aaa5",
+			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+		},
+		"ci.yml::verification::Test CI drift contracts": {
+			"reason_hash": "cad90aeae089aaa5",
+			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+		},
+		"ci.yml::verification::Test CI guard fixtures": {
+			"reason_hash": "cad90aeae089aaa5",
+			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+		},
+		"ci.yml::verification::Test CI referenced paths": {
+			"reason_hash": "cad90aeae089aaa5",
+			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+		},
+		"ci.yml::verification::Test complexity guard": {
+			"reason_hash": "cad90aeae089aaa5",
+			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+		},
+		"ci.yml::verification::Test doc-links guard": {
+			"reason_hash": "cad90aeae089aaa5",
+			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+		},
+		"ci.yml::verification::Test docs prune guard": {
+			"reason_hash": "cad90aeae089aaa5",
+			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+		},
+		"ci.yml::verification::Test front (non-vitest report-all)": {
+			"reason_hash": "cad90aeae089aaa5",
+			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+		},
+		"ci.yml::verification::Test front lint guard": {
+			"reason_hash": "cad90aeae089aaa5",
+			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+		},
+		"ci.yml::verification::Test lint plugin": {
+			"reason_hash": "cad90aeae089aaa5",
+			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+		},
+		"ci.yml::verification::Test npm audit runner": {
+			"reason_hash": "cad90aeae089aaa5",
+			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+		},
+		"ci.yml::verification::Test production audit threshold": {
+			"reason_hash": "cad90aeae089aaa5",
+			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+		},
+		"ci.yml::verification::Test project closure adapter": {
+			"reason_hash": "cad90aeae089aaa5",
+			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+		},
+		"ci.yml::verification::Test shared TypeScript": {
+			"reason_hash": "cad90aeae089aaa5",
+			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+		},
+		"ci.yml::verification::Typecheck front": {
+			"reason_hash": "cad90aeae089aaa5",
+			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+		},
+		"ci.yml::verification::Typecheck generated client": {
+			"reason_hash": "cad90aeae089aaa5",
+			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+		},
+		"ci.yml::verification::Typecheck lint plugin": {
+			"reason_hash": "cad90aeae089aaa5",
+			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+		},
+		"ci.yml::verification::Typecheck shared TypeScript": {
+			"reason_hash": "cad90aeae089aaa5",
+			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
 		},
 		"ci.yml::verification::Upload ci-lane-result": {
 			"reason_hash": "55ea1441881589c8",
@@ -803,6 +1151,18 @@
 		"ci.yml::verification::Verify API path-filter coverage": {
 			"reason_hash": "55ea1441881589c8",
 			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
+		},
+		"ci.yml::verification::Verify front CSS asset": {
+			"reason_hash": "cad90aeae089aaa5",
+			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+		},
+		"ci.yml::verification::Verify front font bundle": {
+			"reason_hash": "cad90aeae089aaa5",
+			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+		},
+		"ci.yml::verification::Verify paired red proofs": {
+			"reason_hash": "cad90aeae089aaa5",
+			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
 		},
 		"deploy-images.yml::publish::Build and push API migrate image": {
 			"reason_hash": "83411d8a82349d27",

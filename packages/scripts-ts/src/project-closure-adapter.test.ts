@@ -326,16 +326,11 @@ const localBranchAndHead = async () => {
 	// @ts-expect-error rung-0: TS18046
 	const branch = branchResult.stdout.trim();
 	// @ts-expect-error rung-0: TS18046
-	if (branchResult.code !== 0 || !branch) {
-		return null;
-	}
-	const remoteResult = await run('git', ['rev-parse', `origin/${branch}`]);
-	// @ts-expect-error rung-0: TS18046
-	if (remoteResult.code !== 0) {
+	if (branchResult.code !== 0 || commitResult.code !== 0) {
 		return null;
 	}
 	return {
-		branch,
+		branch: branch || 'detached-head',
 		// @ts-expect-error rung-0: TS18046
 		headOid: commitResult.stdout.trim(),
 	};
@@ -1003,15 +998,31 @@ test(
 		const config = JSON.parse(await readFile(configPath, 'utf8'));
 		const sharedPr = process.env.PR_CLOSURE_TEST_PR ?? '1106';
 		const branchInfo = await localBranchAndHead();
-		if (branchInfo === null) {
-			test.skip(
-				'detached HEAD or missing remote branch prevents sync protocol test',
-			);
-		}
+		assert.ok(branchInfo, 'git HEAD is required for the shared sync fixture');
 		// @ts-expect-error rung-0: add proper type in later rung
 		await withTempDirectory(async (directory) => {
 			const fakeBin = join(directory, 'bin');
 			await mkdir(fakeBin);
+			const configFixture = join(directory, 'config.json');
+			await writeFile(
+				configFixture,
+				JSON.stringify({
+					...config,
+					closure_state_dir: join(repo, '.ci-project-closure-test-state'),
+				}),
+			);
+			const fakeGit = join(fakeBin, 'git');
+			await writeFile(
+				fakeGit,
+				`#!/bin/sh
+if [ "$1" = "-C" ] && [ "$3" = "rev-parse" ] && [ "$4" = "origin/${branchInfo.branch}" ]; then
+  printf '%s\\n' '${branchInfo.headOid}'
+  exit 0
+fi
+exec /usr/bin/git "$@"
+`,
+			);
+			await chmod(fakeGit, 0o755);
 			const fakeGh = join(fakeBin, 'gh');
 			await writeFile(
 				fakeGh,
@@ -1035,7 +1046,7 @@ test(
 				[
 					'sync',
 					'--config',
-					configPath,
+					configFixture,
 					'--pr',
 					sharedPr,
 					'--projection-adapter',
@@ -1048,7 +1059,7 @@ test(
 				},
 			);
 			// @ts-expect-error rung-0: TS18046
-			assert.equal(result.code, 0, result.stderr);
+			assert.equal(result.code, 0, `${result.stderr}\n${result.stdout}`);
 			// @ts-expect-error rung-0: TS18046
 			assert.match(result.stdout, /state=/);
 			// @ts-expect-error rung-0: TS18046
