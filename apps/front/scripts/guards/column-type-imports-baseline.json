@@ -13,14 +13,10 @@
 		"runtime set against the pinned baseline and fails on any divergence.",
 		"",
 		"R11 (#2033): the production guard derives its reference from the",
-		"anchored merge-base tree with `git merge-base` and `git ls-tree -r`. A",
-		"grow is silent; a shrink below the merge-base count fails loudly.",
-		"There are no authored per-extension floors and no slack to maintain.",
-		"",
-		"A legitimate code-file deletion is the only exception. The guard derives",
-		"each exact path from the committed merge-base..HEAD Git diff and verifies",
-		"that it matches the live disappearance. It never accepts authored deletion",
-		"state, counts, directories, globs, or any other form of slack."
+		"exact committed HEAD tree with `git ls-tree -r`. Every committed code",
+		"path must appear in the live scan; additional live paths are accepted",
+		"and scanned. A committed deletion is naturally absent from HEAD, so it",
+		"needs no authored declaration, count, directory, glob, or other slack."
 	],
 	"scannedExtensions": [".ts", ".tsx", ".mts", ".cts", ".ctsx", ".mjs", ".cjs"],
 	"nonCodeExtensions": {
