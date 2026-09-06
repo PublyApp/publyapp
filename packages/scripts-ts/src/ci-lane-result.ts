@@ -13,7 +13,7 @@ export type LaneResultOptions = {
 	runAttempt: number;
 	eventSha: string;
 	workflowPath?: string;
-	workflowId?: string;
+	workflowRef?: string;
 	workflowEvent?: string;
 	stepResults: Record<string, StepResult>;
 };
@@ -21,7 +21,7 @@ export type LaneResultOptions = {
 export type StepResult = {
 	outcome: 'success' | 'failure' | 'cancelled' | 'skipped';
 	exit_code?: number;
-	signal?: string;
+	signal?: string | null;
 };
 
 export type LaneResultReport = {
@@ -110,7 +110,7 @@ export const createCiLaneResult = ({
 	runAttempt,
 	eventSha,
 	workflowPath,
-	workflowId,
+	workflowRef,
 	workflowEvent,
 	stepResults,
 	report,
@@ -138,7 +138,7 @@ export const createCiLaneResult = ({
 		run_attempt: runAttempt,
 		event_sha: eventSha,
 		workflow_path: workflowPath ?? '',
-		workflow_id: workflowId ?? '',
+		workflow_ref: workflowRef ?? '',
 		workflow_event: workflowEvent ?? '',
 		artifact_name: `ci-lane-result-${runId}-${runAttempt}-${jobKey.replace('/', '-')}`,
 		artifact_filename: `${jobKey.replace('/', '-')}.json`,
@@ -236,7 +236,7 @@ if (isDirectRun) {
 		runAttempt,
 		eventSha,
 		workflowPath: process.env.CI_WORKFLOW_PATH,
-		workflowId: process.env.CI_WORKFLOW_ID,
+		workflowRef: process.env.CI_WORKFLOW_REF,
 		workflowEvent: process.env.CI_WORKFLOW_EVENT,
 		stepResults,
 		report,
@@ -251,7 +251,7 @@ if (isDirectRun) {
 			runAttempt,
 			eventSha,
 			workflowPath: process.env.CI_WORKFLOW_PATH,
-			workflowId: process.env.CI_WORKFLOW_ID,
+			workflowRef: process.env.CI_WORKFLOW_REF,
 			workflowEvent: process.env.CI_WORKFLOW_EVENT,
 			stepResults,
 			report,

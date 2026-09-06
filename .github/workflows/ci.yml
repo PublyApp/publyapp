@@ -68,7 +68,7 @@ jobs:
         env:
           CI_JOB_KEY: classify
           CI_WORKFLOW_PATH: .github/workflows/ci.yml
-          CI_WORKFLOW_ID: central ci
+          CI_WORKFLOW_REF: ${{ github.workflow_ref }}
           CI_WORKFLOW_EVENT: ${{ github.event_name }}
           CI_LANE_SPECS: '{"classifier":["classify.checkout","classify.base_checkout","classify.setup_node","classify.run"]}'
           CI_LANE_MODES: '{"classifier":"relevant"}'
@@ -495,7 +495,7 @@ jobs:
           CI_LANE_MODES: '{"setup":"relevant","tracked-guards":"relevant","api-paths":"relevant"}'
           CI_NESTED_REPORT_PATH: apps/front/test-results/non-vitest-report.json
           CI_WORKFLOW_PATH: .github/workflows/ci.yml
-          CI_WORKFLOW_ID: central ci
+          CI_WORKFLOW_REF: ${{ github.workflow_ref }}
           CI_WORKFLOW_EVENT: ${{ github.event_name }}
           CI_STEP_RESULTS: '{"verification.checkout":{"outcome":"${{ steps.checkout.outcome }}"},"verification.install_pnpm":{"outcome":"${{ steps.install_pnpm.outcome }}"},"verification.setup_node":{"outcome":"${{ steps.setup_node.outcome }}"},"verification.setup_dotnet":{"outcome":"${{ steps.setup_dotnet.outcome }}"},"verification.setup_just":{"outcome":"${{ steps.setup_just.outcome }}"},"verification.install_workspace":{"outcome":"${{ steps.install_workspace.outcome }}"},"verification.trusted_postinstall":{"outcome":"${{ steps.trusted_postinstall.outcome }}"},"verification.prepare_hooks":{"outcome":"${{ steps.prepare_hooks.outcome }}"},"verification.materialize_env":{"outcome":"${{ steps.materialize_env.outcome }}"},"verification.assert_pins":{"outcome":"${{ steps.assert_pins.outcome }}"},"verification.format":{"outcome":"${{ steps.format.outcome }}"},"verification.formatter_scope":{"outcome":"${{ steps.formatter_scope.outcome }}"},"verification.lint":{"outcome":"${{ steps.lint.outcome }}"},"verification.complexity":{"outcome":"${{ steps.complexity.outcome }}"},"verification.lint_ts_test":{"outcome":"${{ steps.lint_ts_test.outcome }}"},"verification.lint_ts_typecheck":{"outcome":"${{ steps.lint_ts_typecheck.outcome }}"},"verification.client_typecheck":{"outcome":"${{ steps.client_typecheck.outcome }}"},"verification.knip":{"outcome":"${{ steps.knip.outcome }}"},"verification.shared_typecheck":{"outcome":"${{ steps.shared_typecheck.outcome }}"},"verification.shared_test":{"outcome":"${{ steps.shared_test.outcome }}"},"verification.dotnet_restore":{"outcome":"${{ steps.dotnet_restore.outcome }}"},"verification.dotnet_build":{"outcome":"${{ steps.dotnet_build.outcome }}"},"verification.nuget_audit":{"outcome":"${{ steps.nuget_audit.outcome }}"},"verification.nuget_fixtures":{"outcome":"${{ steps.nuget_fixtures.outcome }}"},"verification.dependency_health":{"outcome":"${{ steps.dependency_health.outcome }}"},"verification.action_pins":{"outcome":"${{ steps.action_pins.outcome }}"},"verification.deploy_env_docs":{"outcome":"${{ steps.deploy_env_docs.outcome }}"},"verification.analyzers":{"outcome":"${{ steps.analyzers.outcome }}"},"verification.ci_contract_tests":{"outcome":"${{ steps.ci_contract_tests.outcome }}"},"verification.ci_drift_tests":{"outcome":"${{ steps.ci_drift_tests.outcome }}"},"verification.ci_drift":{"outcome":"${{ steps.ci_drift.outcome }}"},"verification.ci_changed_paths_test":{"outcome":"${{ steps.ci_changed_paths_test.outcome }}"},"verification.ci_referenced_paths_test":{"outcome":"${{ steps.ci_referenced_paths_test.outcome }}"},"verification.ci_guard_tests":{"outcome":"${{ steps.ci_guard_tests.outcome }}"},"verification.front_lint_test":{"outcome":"${{ steps.front_lint_test.outcome }}"},"verification.complexity_test":{"outcome":"${{ steps.complexity_test.outcome }}"},"verification.action_versions_test":{"outcome":"${{ steps.action_versions_test.outcome }}"},"verification.action_versions":{"outcome":"${{ steps.action_versions.outcome }}"},"verification.production_audit_test":{"outcome":"${{ steps.production_audit_test.outcome }}"},"verification.npm_audit_test":{"outcome":"${{ steps.npm_audit_test.outcome }}"},"verification.project_closure":{"outcome":"${{ steps.project_closure.outcome }}"},"verification.no_ignored_tracked":{"outcome":"${{ steps.no_ignored_tracked.outcome }}"},"verification.no_dockerignore_shadow":{"outcome":"${{ steps.no_dockerignore_shadow.outcome }}"},"verification.quality.not-applicable":{"outcome":"${{ steps.quality-sentinel.outcome }}"},"verification.front_build":{"outcome":"${{ steps.front_build.outcome }}"},"verification.front_css":{"outcome":"${{ steps.front_css.outcome }}"},"verification.front_font":{"outcome":"${{ steps.front_font.outcome }}"},"verification.front_smoke":{"outcome":"${{ steps.front_smoke.outcome }}"},"verification.front_typecheck":{"outcome":"${{ steps.front_typecheck.outcome }}"},"verification.front_lint":{"outcome":"${{ steps.front_lint.outcome }}"},"verification.front_design":{"outcome":"${{ steps.front_design.outcome }}"},"verification.front_column":{"outcome":"${{ steps.front_column.outcome }}"},"verification.front_static":{"outcome":"${{ steps.front_static.outcome }}"},"verification.front_react_compiler":{"outcome":"${{ steps.front_react_compiler.outcome }}"},"verification.front":{"outcome":"${{ steps.front.outcome }}"},"verification.front_proofs":{"outcome":"${{ steps.front_proofs.outcome }}"},"verification.front_vitest_coverage":{"outcome":"${{ steps.front_vitest_coverage.outcome }}"},"verification.front.not-applicable":{"outcome":"${{ steps.front-sentinel.outcome }}"},"verification.docs_links_test":{"outcome":"${{ steps.docs_links_test.outcome }}"},"verification.docs_prune_test":{"outcome":"${{ steps.docs_prune_test.outcome }}"},"verification.docs_links":{"outcome":"${{ steps.docs_links.outcome }}"},"verification.docs_prune":{"outcome":"${{ steps.docs_prune.outcome }}"},"verification.docs.not-applicable":{"outcome":"${{ steps.docs-sentinel.outcome }}"},"verification.resolve_react_base":{"outcome":"${{ steps.resolve_react_base.outcome }}"},"verification.react_doctor":{"outcome":"${{ steps.react_doctor.outcome }}"},"verification.react.not-applicable":{"outcome":"${{ steps.react-sentinel.outcome }}"},"verification.api-paths-tests":{"outcome":"${{ steps.api-paths-tests.outcome }}"},"verification.api-paths":{"outcome":"${{ steps.api-paths.outcome }}"}}'
         run: node packages/scripts-ts/src/ci-lane-result.ts
@@ -547,7 +547,7 @@ jobs:
         env:
           CI_JOB_KEY: audit-development
           CI_WORKFLOW_PATH: .github/workflows/ci.yml
-          CI_WORKFLOW_ID: central ci
+          CI_WORKFLOW_REF: ${{ github.workflow_ref }}
           CI_WORKFLOW_EVENT: ${{ github.event_name }}
           CI_LANE_SPECS: '{"audit":["audit-development.checkout","audit-development.install_pnpm","audit-development.setup_node","audit-development.audit","audit-development.fixtures","audit-development.not-applicable"]}'
           CI_CLASSIFIER_OUTPUTS: '{"audit":"${{ needs.classify.outputs.quality }}"}'
@@ -601,7 +601,7 @@ jobs:
         env:
           CI_JOB_KEY: audit-production
           CI_WORKFLOW_PATH: .github/workflows/ci.yml
-          CI_WORKFLOW_ID: central ci
+          CI_WORKFLOW_REF: ${{ github.workflow_ref }}
           CI_WORKFLOW_EVENT: ${{ github.event_name }}
           CI_LANE_SPECS: '{"audit":["audit-production.checkout","audit-production.install_pnpm","audit-production.setup_node","audit-production.audit","audit-production.fixtures","audit-production.not-applicable"]}'
           CI_CLASSIFIER_OUTPUTS: '{"audit":"${{ needs.classify.outputs.quality }}"}'
@@ -696,7 +696,7 @@ jobs:
         run: just test-api
       - name: Upload API test results
         id: test-results
-        if: failure()
+        if: always() && (steps.suite.outcome == 'failure' || steps.suite.outcome == 'cancelled')
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: api-test-results-${{ github.run_id }}
@@ -714,7 +714,7 @@ jobs:
         env:
           CI_JOB_KEY: api
           CI_WORKFLOW_PATH: .github/workflows/ci.yml
-          CI_WORKFLOW_ID: central ci
+          CI_WORKFLOW_REF: ${{ github.workflow_ref }}
           CI_WORKFLOW_EVENT: ${{ github.event_name }}
           CI_LANE_SPECS: '{"api":["api.checkout","api.setup_dotnet","api.install_pnpm","api.setup_node","api.setup_just","api.install_workspace","api.materialize_env","api.restore_tools","api.build_api","api.openapi_drift","api.generate_client","api.client_drift","api.openapi_contract","api.suite","api.test_results","api.not-applicable"]}'
           CI_CLASSIFIER_OUTPUTS: '{"api":"${{ needs.classify.outputs.api }}"}'
@@ -775,7 +775,7 @@ jobs:
         run: pnpm --filter front exec vitest run --shard=${{ matrix.shard }}/4
       - name: Upload Vitest report
         id: report-upload
-        if: failure()
+        if: always() && (steps.vitest.outcome == 'failure' || steps.vitest.outcome == 'cancelled')
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: front-ci-vitest-report-${{ matrix.shard }}-of-4
@@ -790,7 +790,7 @@ jobs:
         env:
           CI_JOB_KEY: front-vitest/${{ matrix.shard }}
           CI_WORKFLOW_PATH: .github/workflows/ci.yml
-          CI_WORKFLOW_ID: central ci
+          CI_WORKFLOW_REF: ${{ github.workflow_ref }}
           CI_WORKFLOW_EVENT: ${{ github.event_name }}
           CI_LANE_SPECS: '{"front":["front-vitest.checkout","front-vitest.install_pnpm","front-vitest.setup_node","front-vitest.install_dependencies","front-vitest.trusted_postinstall","front-vitest.prepare_hooks","front-vitest.vitest","front-vitest.report_upload","front-vitest.not-applicable"]}'
           CI_CLASSIFIER_OUTPUTS: '{"front":"${{ needs.classify.outputs.front }}"}'
@@ -898,7 +898,7 @@ jobs:
         env:
           CI_JOB_KEY: e2e-build
           CI_WORKFLOW_PATH: .github/workflows/ci.yml
-          CI_WORKFLOW_ID: central ci
+          CI_WORKFLOW_REF: ${{ github.workflow_ref }}
           CI_WORKFLOW_EVENT: ${{ github.event_name }}
           CI_LANE_SPECS: '{"e2e":["e2e-build.checkout","e2e-build.image_tag","e2e-build.image_root","e2e-build.image_fork","e2e-build.setup_buildx","e2e-build.setup_runtime","e2e-build.login","e2e-build.images","e2e-build.runtime_guard","e2e-build.upload_images","e2e-build.not-applicable"]}'
           CI_CLASSIFIER_OUTPUTS: '{"e2e":"${{ needs.classify.outputs.e2e }}"}'
@@ -1042,7 +1042,7 @@ jobs:
           fi
       - name: Upload Playwright report
         id: report-upload
-        if: failure()
+        if: always() && (steps.playwright.outcome == 'failure' || steps.playwright.outcome == 'cancelled')
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: front-e2e-playwright-report-${{ matrix.shard }}-of-4
@@ -1064,7 +1064,7 @@ jobs:
         env:
           CI_JOB_KEY: e2e-test/${{ matrix.shard }}
           CI_WORKFLOW_PATH: .github/workflows/ci.yml
-          CI_WORKFLOW_ID: central ci
+          CI_WORKFLOW_REF: ${{ github.workflow_ref }}
           CI_WORKFLOW_EVENT: ${{ github.event_name }}
           CI_LANE_SPECS: '{"e2e":["e2e-test.checkout","e2e-test.install_pnpm","e2e-test.setup_node","e2e-test.assert_pins","e2e-test.install_dependencies","e2e-test.login","e2e-test.rerun_guard","e2e-test.pull_stack","e2e-test.download_images","e2e-test.load_images","e2e-test.cache_playwright","e2e-test.up_stack","e2e-test.wait_health","e2e-test.playwright","e2e-test.report_upload","e2e-test.teardown","e2e-test.not-applicable"]}'
           CI_CLASSIFIER_OUTPUTS: '{"e2e":"${{ needs.classify.outputs.e2e }}"}'
@@ -1108,7 +1108,7 @@ jobs:
         env:
           CI_JOB_KEY: e2e-cleanup
           CI_WORKFLOW_PATH: .github/workflows/ci.yml
-          CI_WORKFLOW_ID: central ci
+          CI_WORKFLOW_REF: ${{ github.workflow_ref }}
           CI_WORKFLOW_EVENT: ${{ github.event_name }}
           CI_LANE_SPECS: '{"e2e":["e2e-cleanup.checkout","e2e-cleanup.cleanup","e2e-cleanup.not-applicable"]}'
           CI_CLASSIFIER_OUTPUTS: '{"e2e":"${{ needs.classify.outputs.e2e }}"}'
@@ -1152,7 +1152,6 @@ jobs:
         with:
           pattern: ci-lane-result-${{ github.run_id }}-${{ github.run_attempt }}-*
           path: ci-results
-          merge-multiple: true
       - name: Read live PR snapshot
         if: github.event_name == 'pull_request'
         env:
@@ -1294,7 +1293,7 @@ jobs:
           GITHUB_SHA: ${{ github.sha }}
           GITHUB_EVENT_NAME: ${{ github.event_name }}
           CI_WORKFLOW_PATH: .github/workflows/ci.yml
-          CI_WORKFLOW_ID: central ci
+          CI_WORKFLOW_REF: ${{ github.workflow_ref }}
           CI_ARTIFACT_DIRECTORY: ci-results
           CI_CLASSIFIER_OUTPUTS: '{"quality":"${{ needs.classify.outputs.quality }}","front":"${{ needs.classify.outputs.front }}","api":"${{ needs.classify.outputs.api }}","e2e":"${{ needs.classify.outputs.e2e }}","docs":"${{ needs.classify.outputs.docs }}","react":"${{ needs.classify.outputs.react }}"}'
           CI_CENTRAL_RESULTS: '{"verification":"${{ needs.verification.result }}","audit-development":"${{ needs.audit-development.result }}","audit-production":"${{ needs.audit-production.result }}","api":"${{ needs.api.result }}","front-vitest":"${{ needs.front-vitest.result }}","e2e-build":"${{ needs.e2e-build.result }}","e2e-test":"${{ needs.e2e-test.result }}","e2e-cleanup":"${{ needs.e2e-cleanup.result }}"}'

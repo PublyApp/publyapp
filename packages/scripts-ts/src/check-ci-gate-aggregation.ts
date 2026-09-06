@@ -40,7 +40,7 @@ export type StepEvidence = {
 	execution: 'executed' | 'skipped';
 	outcome: 'success' | 'failure' | 'cancelled' | 'skipped';
 	exit_code?: number;
-	signal?: string;
+	signal?: string | null;
 };
 
 export type LaneEvidence = {
@@ -55,7 +55,7 @@ export type CiLaneResult = {
 	run_attempt: number;
 	event_sha: string;
 	workflow_path: string;
-	workflow_id: string;
+	workflow_ref: string;
 	workflow_event: string;
 	artifact_name: string;
 	artifact_filename: string;
@@ -74,7 +74,7 @@ export type AggregateInput = {
 	event_sha?: string;
 	event_name?: string;
 	workflow_path?: string;
-	workflow_id?: string;
+	workflow_ref?: string;
 	classifier: {
 		result: string;
 		outputs: Record<string, unknown>;
@@ -82,6 +82,14 @@ export type AggregateInput = {
 	records: unknown[];
 	central_results?: Record<string, string>;
 	artifact_filenames?: string[];
+	observed_artifacts?: ObservedArtifact[];
+};
+
+export type ObservedArtifact = {
+	container: string;
+	filename: string;
+	file_path: string;
+	record: unknown;
 };
 
 export type CiLaneResultContext = {
@@ -90,7 +98,7 @@ export type CiLaneResultContext = {
 	eventSha: string;
 	eventName: string;
 	workflowPath: string;
-	workflowId: string;
+	workflowRef: string;
 };
 
 const CENTRAL_PARENT_KEYS = [
@@ -401,6 +409,11 @@ export const EXPECTED_JOB_LANES = {
 	...matrixJobLaneContracts,
 } satisfies JobLaneContracts;
 
+export const getExpectedJobLanes = (
+	jobKey: string,
+): JobContract[] | undefined =>
+	EXPECTED_JOB_LANES[jobKey as keyof typeof EXPECTED_JOB_LANES];
+
 const expectedJobLaneContractCount = 7 + 2 * 4;
 if (Object.keys(EXPECTED_JOB_LANES).length !== expectedJobLaneContractCount) {
 	throw new Error('CI job lane contract table has an unexpected job count');
@@ -414,6 +427,12 @@ const push = (failures: string[], message: string): void => {
 		failures.push(message);
 	}
 };
+
+const isValidExitCode = (value: unknown): value is number =>
+	typeof value === 'number' && Number.isInteger(value) && value >= 0;
+
+const isValidSignal = (value: unknown): value is string | null =>
+	value === null || typeof value === 'string';
 
 const isPrerequisiteStep = (id: string): boolean =>
 	/\.(checkout|install_pnpm|setup_node|setup_dotnet|setup_just)$/.test(id);
@@ -492,13 +511,10 @@ const validateSteps = (
 				`${jobKey}/${laneName}/${step.id}: executed step must not have skipped outcome`,
 			);
 		}
-		if (
-			step.exit_code !== undefined &&
-			(!Number.isInteger(step.exit_code) || step.exit_code < 0)
-		) {
+		if (step.exit_code !== undefined && !isValidExitCode(step.exit_code)) {
 			push(failures, `${jobKey}/${laneName}/${step.id}: invalid exit_code`);
 		}
-		if (step.signal !== undefined && typeof step.signal !== 'string') {
+		if (step.signal !== undefined && !isValidSignal(step.signal)) {
 			push(failures, `${jobKey}/${laneName}/${step.id}: invalid signal`);
 		}
 	}
@@ -602,6 +618,15 @@ const validateFrontReport = (
 		) {
 			push(failures, `${jobKey}: malformed front report command ${index + 1}`);
 		}
+		if (
+			rawCommand.exit_code !== undefined &&
+			!isValidExitCode(rawCommand.exit_code)
+		) {
+			push(failures, `${jobKey}: invalid front report exit_code ${index + 1}`);
+		}
+		if (rawCommand.signal !== undefined && !isValidSignal(rawCommand.signal)) {
+			push(failures, `${jobKey}: invalid front report signal ${index + 1}`);
+		}
 		if (rawCommand.outcome !== 'success') {
 			allSucceeded = false;
 		}
@@ -610,6 +635,12 @@ const validateFrontReport = (
 		push(
 			failures,
 			`${jobKey}: front report ok does not match command outcomes`,
+		);
+	}
+	if (nonVitest.ok !== true) {
+		push(
+			failures,
+			`${jobKey}: relevant front non-Vitest report must declare ok: true`,
 		);
 	}
 };
@@ -641,7 +672,7 @@ export function validateCiLaneResult(
 				eventSha: '',
 				eventName: '',
 				workflowPath: '',
-				workflowId: '',
+				workflowRef: '',
 			};
 	const failures = Array.isArray(runAttemptOrFailures)
 		? runAttemptOrFailures
@@ -659,7 +690,7 @@ export function validateCiLaneResult(
 				'run_attempt',
 				'event_sha',
 				'workflow_path',
-				'workflow_id',
+				'workflow_ref',
 				'workflow_event',
 				'artifact_name',
 				'artifact_filename',
@@ -673,19 +704,20 @@ export function validateCiLaneResult(
 	if (value.schema_version !== 1) {
 		push(failures, 'result artifact has an unsupported schema version');
 	}
+	const runId = value.run_id;
+	const runAttempt = value.run_attempt;
 	if (
 		strict &&
-		(!Number.isInteger(value.run_id) ||
-			value.run_id < 1 ||
-			!Number.isInteger(value.run_attempt) ||
-			value.run_attempt < 1)
+		(typeof runId !== 'number' ||
+			!Number.isInteger(runId) ||
+			runId < 1 ||
+			typeof runAttempt !== 'number' ||
+			!Number.isInteger(runAttempt) ||
+			runAttempt < 1)
 	) {
 		push(failures, 'result artifact has malformed run identity');
 	}
-	if (
-		value.run_id !== context.runId ||
-		value.run_attempt !== context.runAttempt
-	) {
+	if (runId !== context.runId || runAttempt !== context.runAttempt) {
 		push(failures, 'result artifact belongs to another run or attempt');
 	}
 	if (
@@ -698,7 +730,7 @@ export function validateCiLaneResult(
 	if (strict) {
 		for (const field of [
 			'workflow_path',
-			'workflow_id',
+			'workflow_ref',
 			'workflow_event',
 			'artifact_name',
 			'artifact_filename',
@@ -710,8 +742,8 @@ export function validateCiLaneResult(
 		if (value.workflow_path !== context.workflowPath) {
 			push(failures, 'result artifact workflow path does not match');
 		}
-		if (value.workflow_id !== context.workflowId) {
-			push(failures, 'result artifact workflow id does not match');
+		if (value.workflow_ref !== context.workflowRef) {
+			push(failures, 'result artifact workflow ref does not match');
 		}
 		if (value.workflow_event !== context.eventName) {
 			push(failures, 'result artifact workflow event does not match');
@@ -774,7 +806,7 @@ export function validateCiLaneResult(
 		return false;
 	}
 	if (strict) {
-		const contracts = EXPECTED_JOB_LANES[job.key];
+		const contracts = getExpectedJobLanes(job.key);
 		if (contracts === undefined) {
 			push(failures, `${job.key}: unknown job key`);
 		} else {
@@ -808,6 +840,7 @@ export function validateCiLaneResult(
 		}
 		if (strict) {
 			if (
+				typeof lane.mode !== 'string' ||
 				!['relevant', 'not_applicable'].includes(lane.mode) ||
 				lane.expected_steps.some((step) => typeof step !== 'string')
 			) {
@@ -933,7 +966,7 @@ const validateLaneMode = (
 };
 
 const contractFor = (jobKey: string): JobContract[] => {
-	const contracts = EXPECTED_JOB_LANES[jobKey];
+	const contracts = getExpectedJobLanes(jobKey);
 	return contracts ?? [];
 };
 
@@ -941,19 +974,20 @@ export const aggregateCiGate = (input: AggregateInput): AggregateResult => {
 	const failures: string[] = [];
 	const expectedKeys = [...EXPECTED_UPSTREAM_JOB_KEYS];
 	const records = input.records;
+	const observations = input.observed_artifacts;
 	const observedKeys: string[] = [];
 	const strictContext =
 		input.event_sha !== undefined &&
 		input.event_name !== undefined &&
 		input.workflow_path !== undefined &&
-		input.workflow_id !== undefined
+		input.workflow_ref !== undefined
 			? {
 					runId: input.run_id,
 					runAttempt: input.run_attempt,
 					eventSha: input.event_sha,
 					eventName: input.event_name,
 					workflowPath: input.workflow_path,
-					workflowId: input.workflow_id,
+					workflowRef: input.workflow_ref,
 				}
 			: undefined;
 	if (strictContext && input.artifact_filenames !== undefined) {
@@ -974,6 +1008,57 @@ export const aggregateCiGate = (input: AggregateInput): AggregateResult => {
 			push(
 				failures,
 				'exact result artifact filename set is missing, renamed, duplicated, or unknown',
+			);
+		}
+	}
+	if (strictContext && observations === undefined) {
+		push(
+			failures,
+			'observed artifact container/filename/path associations are required',
+		);
+	}
+	if (strictContext && observations !== undefined) {
+		const seenContainers = new Set<string>();
+		const seenPaths = new Set<string>();
+		for (const observation of observations) {
+			if (
+				!isRecord(observation) ||
+				typeof observation.container !== 'string' ||
+				typeof observation.filename !== 'string' ||
+				typeof observation.file_path !== 'string' ||
+				!('record' in observation)
+			) {
+				push(failures, 'malformed observed artifact association');
+				continue;
+			}
+			if (seenContainers.has(observation.container)) {
+				push(
+					failures,
+					`duplicate observed artifact container ${observation.container}`,
+				);
+			}
+			seenContainers.add(observation.container);
+			if (seenPaths.has(observation.file_path)) {
+				push(
+					failures,
+					`duplicate observed artifact path ${observation.file_path}`,
+				);
+			}
+			seenPaths.add(observation.file_path);
+			if (
+				observation.file_path !==
+				`${observation.container}/${observation.filename}`
+			) {
+				push(
+					failures,
+					`observed artifact path does not bind container and filename: ${observation.file_path}`,
+				);
+			}
+		}
+		if (observations.length !== expectedKeys.length) {
+			push(
+				failures,
+				`expected exactly ${expectedKeys.length} observed artifacts`,
 			);
 		}
 	}
@@ -1011,7 +1096,14 @@ export const aggregateCiGate = (input: AggregateInput): AggregateResult => {
 			push(failures, `classifier output ${lane} must be literal true or false`);
 		}
 	}
-	if (!Array.isArray(records) || records.length !== expectedKeys.length) {
+	const inputRecords =
+		observations === undefined
+			? records
+			: observations.map((observation) => observation.record);
+	if (
+		!Array.isArray(inputRecords) ||
+		inputRecords.length !== expectedKeys.length
+	) {
 		push(
 			failures,
 			`expected exactly ${expectedKeys.length} upstream result artifacts`,
@@ -1019,7 +1111,7 @@ export const aggregateCiGate = (input: AggregateInput): AggregateResult => {
 	}
 
 	const seen = new Set<string>();
-	for (const raw of records) {
+	for (const [index, raw] of inputRecords.entries()) {
 		const recordFailures: string[] = [];
 		const valid = strictContext
 			? validateCiLaneResult(raw, strictContext, recordFailures)
@@ -1035,7 +1127,27 @@ export const aggregateCiGate = (input: AggregateInput): AggregateResult => {
 			}
 			continue;
 		}
-		const key = raw.job.key;
+		const record = raw as CiLaneResult;
+		if (strictContext && observations !== undefined) {
+			const observation = observations[index];
+			if (observation === undefined) {
+				push(failures, 'missing observed artifact association');
+			} else {
+				if (observation.container !== record.artifact_name) {
+					push(
+						failures,
+						`${record.job.key}: observed artifact container does not match record identity`,
+					);
+				}
+				if (observation.filename !== record.artifact_filename) {
+					push(
+						failures,
+						`${record.job.key}: observed artifact filename does not match record identity`,
+					);
+				}
+			}
+		}
+		const key = record.job.key;
 		observedKeys.push(key);
 		if (seen.has(key)) {
 			push(failures, `duplicate upstream result ${key}`);
@@ -1046,33 +1158,33 @@ export const aggregateCiGate = (input: AggregateInput): AggregateResult => {
 			continue;
 		}
 		const expectedId = key.split('/')[0];
-		if (raw.job.id !== expectedId) {
+		if (record.job.id !== expectedId) {
 			push(failures, `${key}: job id must be ${expectedId}`);
 		}
 		if (key.includes('/')) {
 			const expectedShard = Number(key.split('/')[1]);
 			if (
-				!isRecord(raw.job.matrix) ||
-				raw.job.matrix.shard !== expectedShard ||
-				Object.keys(raw.job.matrix).length !== 1
+				!isRecord(record.job.matrix) ||
+				record.job.matrix.shard !== expectedShard ||
+				Object.keys(record.job.matrix).length !== 1
 			) {
 				push(
 					failures,
 					`${key}: matrix identity does not match the expected shard`,
 				);
 			}
-		} else if (raw.job.matrix !== undefined) {
+		} else if (record.job.matrix !== undefined) {
 			push(failures, `${key}: non-matrix job must not carry matrix identity`);
 		}
 		const contracts = contractFor(key);
 		const expectedLaneNames = new Set(contracts.map((item) => item.lane));
-		for (const laneName of Object.keys(raw.job.lanes)) {
+		for (const laneName of Object.keys(record.job.lanes)) {
 			if (!expectedLaneNames.has(laneName)) {
 				push(failures, `${key}: unknown lane ${laneName}`);
 			}
 		}
 		for (const laneContract of contracts) {
-			const lane = raw.job.lanes[laneContract.lane];
+			const lane = record.job.lanes[laneContract.lane];
 			if (lane === undefined) {
 				push(failures, `${key}: missing lane ${laneContract.lane}`);
 				continue;
@@ -1093,7 +1205,7 @@ export const aggregateCiGate = (input: AggregateInput): AggregateResult => {
 			}
 		}
 		const result =
-			input.central_results?.[key] ?? raw.job.conclusion ?? 'success';
+			input.central_results?.[key] ?? record.job.conclusion ?? 'success';
 		if (result !== 'success') {
 			push(failures, `${key}: central result is ${result}`);
 		}
@@ -1116,12 +1228,14 @@ export const aggregateCiGate = (input: AggregateInput): AggregateResult => {
 type ArtifactRead = {
 	records: unknown[];
 	filenames: string[];
+	observed_artifacts: ObservedArtifact[];
 	failures: string[];
 };
 
 const readRecords = (directory: string): ArtifactRead => {
 	const records: unknown[] = [];
 	const filenames: string[] = [];
+	const observed_artifacts: ObservedArtifact[] = [];
 	const failures: string[] = [];
 	let entries;
 	try {
@@ -1130,23 +1244,47 @@ const readRecords = (directory: string): ArtifactRead => {
 		return {
 			records,
 			filenames,
+			observed_artifacts,
 			failures: [`unable to read result artifact directory: ${String(error)}`],
 		};
 	}
 	for (const entry of entries) {
-		if (!entry.isFile() || !entry.name.endsWith('.json')) {
+		if (!entry.isDirectory()) {
+			if (entry.isFile() && entry.name.endsWith('.json')) {
+				failures.push(
+					`${entry.name}: result artifacts must retain container directories`,
+				);
+			}
 			continue;
 		}
-		filenames.push(entry.name);
+		const container = entry.name;
+		const artifactDirectory = path.join(directory, container);
+		const files = readdirSync(artifactDirectory, {
+			withFileTypes: true,
+		}).filter((child) => child.isFile() && child.name.endsWith('.json'));
+		if (files.length !== 1) {
+			failures.push(`${container}: expected exactly one JSON artifact file`);
+			continue;
+		}
+		const filename = files[0].name;
+		const filePath = `${container}/${filename}`;
+		filenames.push(filename);
 		try {
-			records.push(
-				JSON.parse(readFileSync(path.join(directory, entry.name), 'utf8')),
+			const record = JSON.parse(
+				readFileSync(path.join(artifactDirectory, filename), 'utf8'),
 			);
+			records.push(record);
+			observed_artifacts.push({
+				container,
+				filename,
+				file_path: filePath,
+				record,
+			});
 		} catch (error) {
-			failures.push(`${entry.name}: malformed JSON artifact: ${String(error)}`);
+			failures.push(`${filePath}: malformed JSON artifact: ${String(error)}`);
 		}
 	}
-	return { records, filenames, failures };
+	return { records, filenames, observed_artifacts, failures };
 };
 
 const isDirectRun =
@@ -1163,13 +1301,14 @@ if (isDirectRun) {
 		event_sha: process.env.GITHUB_SHA ?? '',
 		event_name: process.env.GITHUB_EVENT_NAME ?? '',
 		workflow_path: process.env.CI_WORKFLOW_PATH ?? '',
-		workflow_id: process.env.CI_WORKFLOW_ID ?? '',
+		workflow_ref: process.env.CI_WORKFLOW_REF ?? '',
 		classifier: {
 			result: process.env.CI_CLASSIFIER_RESULT ?? 'success',
 			outputs: JSON.parse(process.env.CI_CLASSIFIER_OUTPUTS ?? '{}'),
 		},
 		records: read.records,
 		artifact_filenames: read.filenames,
+		observed_artifacts: read.observed_artifacts,
 	} satisfies AggregateInput;
 	const result =
 		process.env.CI_CENTRAL_RESULTS === undefined

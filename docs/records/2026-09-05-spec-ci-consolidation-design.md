@@ -317,6 +317,21 @@ The final gate runs `check-ci-gate-structure.ts` directly as one of its own step
 
 The API suite remains one visible job in this 16-check topology. A four-way API matrix would add four visible checks and produce a 19-check topology before any other isolation changes; stable class-hash sharding from #1947 is therefore a separate performance change after this check-surface consolidation, with its own count decision and union proof.
 
+### Bespoke assertion admission analysis
+
+This is a clarification of the already owner-ratified full CI consolidation design, not a new topology decision. The existing design names the exact 16-check topology, permissions, trigger contract, artifact contract, fail-closed reducer, and ordered 30-command front inventory. The central structural/artifact/manifest assertions make those already-approved invariants executable. No fresh owner signature is inferred from this clarification.
+
+The six admission conditions for retaining that existing assertion set are:
+
+1. **Exact prohibited defect:** drift may remove a central job or matrix member, add a second producer, widen permissions, filter a stable trigger, merge artifact containers, detach an observed filename from its record, weaken the reducer or tolerated diagnostics, or omit/reorder one of the 30 front report-all commands while ordinary tests still pass.
+2. **Why standard tools and ordinary behavior tests are insufficient:** YAML/schema validation accepts valid but unsafe topology, permissions, trigger filters, matrices, and step conditions. Ordinary command tests do not observe GitHub job instantiation, required-check reporting, hosted artifact container boundaries, producer identity, or whether an unrelated workflow can claim the same context. A local command runner also cannot prove the workflow's hosted provenance and event wiring.
+3. **Meaningful failure demonstrated:** the reviewed counterexamples include 41 visible checks instead of 16, 3 of 39 topology mutations escaping the earlier guard, swapped valid API/verification artifact contents passing, flat `ci-e2e-*` inputs missing from classification, failure-only diagnostics becoming unreachable after tolerated failures, filtered triggers suppressing a stable gate, and the 30-command inventory losing coverage without an ordinary test failure.
+4. **Smallest scope:** keep the assertions in the existing `check-ci-gate-structure.ts`, the existing artifact/reducer/classifier/drift/report tests, and the existing central workflow manifest. They inspect only the central workflow, its owned contracts, and the already-required local mirrors; no new workflow job or unrelated repository-wide policy is introduced.
+5. **Maintenance cost and owner:** the CI consolidation/local-gate maintainers own the guard and its pinned tables. A workflow topology, permission, trigger, artifact, reducer, diagnostic, classifier, or front-command change must update the corresponding expectation, fixture, manifest mirror/reason, and focused mutation test in the same review. This is an explicit review cost, bounded by the 16 jobs, 15 upstream artifact records, and 30-command manifest.
+6. **Retirement/replacement condition:** do not retire these assertions in PR A. They may be removed or narrowed only after PR B completes the old-producer removal and ruleset cutover, and an owner-authorized replacement proves the same stable required-context, producer-identity, permission, trigger, artifact-boundary, fail-closed reducer, diagnostic, and command-inventory invariants with equivalent hosted and local evidence. A future replacement must be recorded as a new design decision rather than silently weakening this one.
+
+The manifest's per-step mirror/reason reconciliation is part of the existing drift-manifest contract, not a second bespoke policy assertion: local commands are named when they actually cover the hosted execution, and GitHub-only orchestration receives a specific reason for its exemption.
+
 ## Workflow migration
 
 The consolidated workflow eventually replaces these PR workflows:

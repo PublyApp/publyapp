@@ -114,6 +114,9 @@ test('lane patterns cover the complete central trigger classes', () => {
 		['apps/api/Modules/Users/Example.cs', 'e2e'],
 		['apps/front/vite.config.ts', 'e2e'],
 		['apps/front/docker-compose.fork-overlay.yml', 'e2e'],
+		['packages/scripts-ts/src/ci-e2e-cleanup.ts', 'e2e'],
+		['packages/scripts-ts/src/ci-e2e-cleanup.test.ts', 'e2e'],
+		['packages/scripts-ts/src/ci-e2e-rerun-guard.test.ts', 'e2e'],
 		['.oxlintrc.json', 'quality'],
 		['.oxfmtrc.json', 'quality'],
 		['.gitignore', 'quality'],
@@ -135,6 +138,38 @@ test('lane patterns cover the complete central trigger classes', () => {
 			result.outputs[lane],
 			'true',
 			`${file} must select the ${lane} lane`,
+		);
+	}
+});
+
+test('e2e pattern includes flat ci-e2e runtime files without nearby false positives', () => {
+	for (const file of [
+		'packages/scripts-ts/src/ci-e2e-cleanup.ts',
+		'packages/scripts-ts/src/ci-e2e-rerun-guard.test.ts',
+	]) {
+		assert.equal(
+			classifyLanes({
+				eventName: 'pull_request',
+				files: [file],
+				changedFilesTotal: 1,
+			}).outputs.e2e,
+			'true',
+			`${file} must select e2e`,
+		);
+	}
+
+	for (const file of [
+		'packages/scripts-ts/src/ci-e2e-cleanup.ts.bak',
+		'packages/scripts-ts/src/ci-e2e/cleanup.ts',
+	]) {
+		assert.equal(
+			classifyLanes({
+				eventName: 'pull_request',
+				files: [file],
+				changedFilesTotal: 1,
+			}).outputs.e2e,
+			'false',
+			`${file} must not select e2e`,
 		);
 	}
 });

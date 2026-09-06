@@ -489,680 +489,680 @@
 			"reason": "GitHub-only failure-only log capture: gets failing-spec output off an ephemeral runner. Locally the reports are already on disk."
 		},
 		"ci.yml::api::Build API and OpenAPI document": {
-			"reason_hash": "cad90aeae089aaa5",
-			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+			"reason_hash": "bdaa2d28f21b64fe",
+			"reason": "Local mirror just ci-spec-drift exercises the same repository command or lifecycle owned by api::Build API and OpenAPI document; the hosted step remains separately pinned for CI wiring."
 		},
 		"ci.yml::api::Check generated client drift": {
-			"reason_hash": "cad90aeae089aaa5",
-			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+			"reason_hash": "7eb479f336e39314",
+			"reason": "Local mirror just ci-spec-drift exercises the same repository command or lifecycle owned by api::Check generated client drift; the hosted step remains separately pinned for CI wiring."
 		},
 		"ci.yml::api::Check OpenAPI drift": {
-			"reason_hash": "cad90aeae089aaa5",
-			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+			"reason_hash": "f813e99ebd629735",
+			"reason": "Local mirror just ci-spec-drift exercises the same repository command or lifecycle owned by api::Check OpenAPI drift; the hosted step remains separately pinned for CI wiring."
 		},
 		"ci.yml::api::Checkout": {
-			"reason_hash": "55ea1441881589c8",
-			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
+			"reason_hash": "384a54657da6f15b",
+			"reason": "GitHub-only setup for api::Checkout: the hosted runner provisions its checkout/toolchain or hook state before the lane command, while local setup is composed by the selected just recipe."
 		},
 		"ci.yml::api::CI lane not applicable": {
-			"reason_hash": "55ea1441881589c8",
-			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
+			"reason_hash": "5ccfebf526cfd946",
+			"reason": "GitHub-only evidence transport for api::CI lane not applicable: it preserves hosted artifacts, lane provenance, or classifier sentinel state consumed by the central reducer and has no local equivalent."
 		},
 		"ci.yml::api::Collect ci-lane-result": {
-			"reason_hash": "55ea1441881589c8",
-			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
+			"reason_hash": "5c9778f0ccd3351f",
+			"reason": "GitHub-only evidence transport for api::Collect ci-lane-result: it preserves hosted artifacts, lane provenance, or classifier sentinel state consumed by the central reducer and has no local equivalent."
 		},
 		"ci.yml::api::Install workspace dependencies": {
-			"reason_hash": "cad90aeae089aaa5",
-			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+			"reason_hash": "0d05c2a087a51576",
+			"reason": "Local mirror just ci-install exercises the same repository command or lifecycle owned by api::Install workspace dependencies; the hosted step remains separately pinned for CI wiring."
 		},
 		"ci.yml::api::Materialize .env.development": {
-			"reason_hash": "cad90aeae089aaa5",
-			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+			"reason_hash": "11ae04b8ff6a8917",
+			"reason": "GitHub-only orchestration for api::Materialize .env.development: it uses hosted credentials, fork/image metadata, live pull-request state, or artifact-backed gate context unavailable to the local command surface."
 		},
 		"ci.yml::api::Regenerate TypeScript client": {
-			"reason_hash": "cad90aeae089aaa5",
-			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+			"reason_hash": "28dbc2b98e1d95ea",
+			"reason": "Local mirror just ci-spec-drift exercises the same repository command or lifecycle owned by api::Regenerate TypeScript client; the hosted step remains separately pinned for CI wiring."
 		},
 		"ci.yml::api::Restore .NET tools": {
-			"reason_hash": "cad90aeae089aaa5",
-			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+			"reason_hash": "b5f84b0247ae8c5b",
+			"reason": "Local mirror just ci-spec-drift exercises the same repository command or lifecycle owned by api::Restore .NET tools; the hosted step remains separately pinned for CI wiring."
 		},
 		"ci.yml::api::Run full API test suite": {
-			"reason_hash": "cad90aeae089aaa5",
-			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+			"reason_hash": "48c7f80a06a92459",
+			"reason": "Local mirror just test-api exercises the same repository command or lifecycle owned by api::Run full API test suite; the hosted step remains separately pinned for CI wiring."
 		},
 		"ci.yml::api::Run OpenAPI contract spec": {
-			"reason_hash": "cad90aeae089aaa5",
-			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+			"reason_hash": "450dfbbf9940681b",
+			"reason": "Local mirror just ci-spec-drift exercises the same repository command or lifecycle owned by api::Run OpenAPI contract spec; the hosted step remains separately pinned for CI wiring."
 		},
 		"ci.yml::api::Set up .NET": {
-			"reason_hash": "55ea1441881589c8",
-			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
+			"reason_hash": "505aa4329a06f21e",
+			"reason": "GitHub-only setup for api::Set up .NET: the hosted runner provisions its checkout/toolchain or hook state before the lane command, while local setup is composed by the selected just recipe."
 		},
 		"ci.yml::api::Set up pnpm": {
-			"reason_hash": "55ea1441881589c8",
-			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
+			"reason_hash": "858fc9c6ccf77589",
+			"reason": "GitHub-only setup for api::Set up pnpm: the hosted runner provisions its checkout/toolchain or hook state before the lane command, while local setup is composed by the selected just recipe."
 		},
 		"ci.yml::api::Setup just": {
-			"reason_hash": "cad90aeae089aaa5",
-			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+			"reason_hash": "9d34bf091dcef408",
+			"reason": "GitHub-only setup for api::Setup just: the hosted runner provisions its checkout/toolchain or hook state before the lane command, while local setup is composed by the selected just recipe."
 		},
 		"ci.yml::api::Setup Node": {
-			"reason_hash": "55ea1441881589c8",
-			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
+			"reason_hash": "5d25de396ba2eb4e",
+			"reason": "GitHub-only setup for api::Setup Node: the hosted runner provisions its checkout/toolchain or hook state before the lane command, while local setup is composed by the selected just recipe."
 		},
 		"ci.yml::api::Upload API test results": {
-			"reason_hash": "cad90aeae089aaa5",
-			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+			"reason_hash": "ec07195ad1888b12",
+			"reason": "GitHub-only evidence transport for api::Upload API test results: it preserves hosted artifacts, lane provenance, or classifier sentinel state consumed by the central reducer and has no local equivalent."
 		},
 		"ci.yml::api::Upload ci-lane-result": {
-			"reason_hash": "55ea1441881589c8",
-			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
+			"reason_hash": "75322a46627a3df2",
+			"reason": "GitHub-only evidence transport for api::Upload ci-lane-result: it preserves hosted artifacts, lane provenance, or classifier sentinel state consumed by the central reducer and has no local equivalent."
 		},
 		"ci.yml::audit-development::Audit development dependencies": {
-			"reason_hash": "55ea1441881589c8",
-			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
+			"reason_hash": "4a9a4dce8cb1aa9f",
+			"reason": "Local mirror just ci-npm-audit-development exercises the same repository command or lifecycle owned by audit-development::Audit development dependencies; the hosted step remains separately pinned for CI wiring."
 		},
 		"ci.yml::audit-development::Checkout": {
-			"reason_hash": "55ea1441881589c8",
-			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
+			"reason_hash": "0acd4b929e09933d",
+			"reason": "GitHub-only setup for audit-development::Checkout: the hosted runner provisions its checkout/toolchain or hook state before the lane command, while local setup is composed by the selected just recipe."
 		},
 		"ci.yml::audit-development::CI lane not applicable": {
-			"reason_hash": "55ea1441881589c8",
-			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
+			"reason_hash": "dd8cee356836200a",
+			"reason": "GitHub-only evidence transport for audit-development::CI lane not applicable: it preserves hosted artifacts, lane provenance, or classifier sentinel state consumed by the central reducer and has no local equivalent."
 		},
 		"ci.yml::audit-development::Collect ci-lane-result": {
-			"reason_hash": "55ea1441881589c8",
-			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
+			"reason_hash": "28ee13de211e875d",
+			"reason": "GitHub-only evidence transport for audit-development::Collect ci-lane-result: it preserves hosted artifacts, lane provenance, or classifier sentinel state consumed by the central reducer and has no local equivalent."
 		},
 		"ci.yml::audit-development::Install pnpm": {
-			"reason_hash": "55ea1441881589c8",
-			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
+			"reason_hash": "7bcf1fc61af49e74",
+			"reason": "GitHub-only setup for audit-development::Install pnpm: the hosted runner provisions its checkout/toolchain or hook state before the lane command, while local setup is composed by the selected just recipe."
 		},
 		"ci.yml::audit-development::Run deterministic audit fixtures": {
-			"reason_hash": "55ea1441881589c8",
-			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
+			"reason_hash": "6e17642b8bd19fc3",
+			"reason": "Central-workflow-only control for audit-development::Run deterministic audit fixtures: its value is the hosted dependency, permission, provenance, or required-check wiring around the lane rather than an independently runnable repository command."
 		},
 		"ci.yml::audit-development::Setup Node": {
-			"reason_hash": "55ea1441881589c8",
-			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
+			"reason_hash": "5b40661a1e90a379",
+			"reason": "GitHub-only setup for audit-development::Setup Node: the hosted runner provisions its checkout/toolchain or hook state before the lane command, while local setup is composed by the selected just recipe."
 		},
 		"ci.yml::audit-development::Upload ci-lane-result": {
-			"reason_hash": "55ea1441881589c8",
-			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
+			"reason_hash": "697af89194f1fb81",
+			"reason": "GitHub-only evidence transport for audit-development::Upload ci-lane-result: it preserves hosted artifacts, lane provenance, or classifier sentinel state consumed by the central reducer and has no local equivalent."
 		},
 		"ci.yml::audit-production::Audit production dependencies": {
-			"reason_hash": "55ea1441881589c8",
-			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
+			"reason_hash": "00f24086b2f8f92d",
+			"reason": "Local mirror just ci-npm-audit-production exercises the same repository command or lifecycle owned by audit-production::Audit production dependencies; the hosted step remains separately pinned for CI wiring."
 		},
 		"ci.yml::audit-production::Checkout": {
-			"reason_hash": "55ea1441881589c8",
-			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
+			"reason_hash": "a800a73b6c1ee5ef",
+			"reason": "GitHub-only setup for audit-production::Checkout: the hosted runner provisions its checkout/toolchain or hook state before the lane command, while local setup is composed by the selected just recipe."
 		},
 		"ci.yml::audit-production::CI lane not applicable": {
-			"reason_hash": "55ea1441881589c8",
-			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
+			"reason_hash": "917314695fb85c58",
+			"reason": "GitHub-only evidence transport for audit-production::CI lane not applicable: it preserves hosted artifacts, lane provenance, or classifier sentinel state consumed by the central reducer and has no local equivalent."
 		},
 		"ci.yml::audit-production::Collect ci-lane-result": {
-			"reason_hash": "55ea1441881589c8",
-			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
+			"reason_hash": "d297ff077bce6523",
+			"reason": "GitHub-only evidence transport for audit-production::Collect ci-lane-result: it preserves hosted artifacts, lane provenance, or classifier sentinel state consumed by the central reducer and has no local equivalent."
 		},
 		"ci.yml::audit-production::Install pnpm": {
-			"reason_hash": "55ea1441881589c8",
-			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
+			"reason_hash": "a3b97d079bd2f781",
+			"reason": "GitHub-only setup for audit-production::Install pnpm: the hosted runner provisions its checkout/toolchain or hook state before the lane command, while local setup is composed by the selected just recipe."
 		},
 		"ci.yml::audit-production::Run deterministic audit fixtures": {
-			"reason_hash": "55ea1441881589c8",
-			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
+			"reason_hash": "92551abc6e41d77c",
+			"reason": "Central-workflow-only control for audit-production::Run deterministic audit fixtures: its value is the hosted dependency, permission, provenance, or required-check wiring around the lane rather than an independently runnable repository command."
 		},
 		"ci.yml::audit-production::Setup Node": {
-			"reason_hash": "55ea1441881589c8",
-			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
+			"reason_hash": "8df107fa132b4827",
+			"reason": "GitHub-only setup for audit-production::Setup Node: the hosted runner provisions its checkout/toolchain or hook state before the lane command, while local setup is composed by the selected just recipe."
 		},
 		"ci.yml::audit-production::Upload ci-lane-result": {
-			"reason_hash": "55ea1441881589c8",
-			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
+			"reason_hash": "fffb514672546728",
+			"reason": "GitHub-only evidence transport for audit-production::Upload ci-lane-result: it preserves hosted artifacts, lane provenance, or classifier sentinel state consumed by the central reducer and has no local equivalent."
 		},
 		"ci.yml::classify::Checkout": {
-			"reason_hash": "55ea1441881589c8",
-			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
+			"reason_hash": "9507d4c3a8a3de9d",
+			"reason": "GitHub-only setup for classify::Checkout: the hosted runner provisions its checkout/toolchain or hook state before the lane command, while local setup is composed by the selected just recipe."
 		},
 		"ci.yml::classify::Checkout classifier from the base commit": {
-			"reason_hash": "55ea1441881589c8",
-			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
+			"reason_hash": "dd7a3ea96da6dc71",
+			"reason": "GitHub-only setup for classify::Checkout classifier from the base commit: the hosted runner provisions its checkout/toolchain or hook state before the lane command, while local setup is composed by the selected just recipe."
 		},
 		"ci.yml::classify::Classify changed paths once": {
-			"reason_hash": "55ea1441881589c8",
-			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
+			"reason_hash": "bbdcb86eff47cb1e",
+			"reason": "Central-workflow-only control for classify::Classify changed paths once: its value is the hosted dependency, permission, provenance, or required-check wiring around the lane rather than an independently runnable repository command."
 		},
 		"ci.yml::classify::Collect ci-lane-result": {
-			"reason_hash": "55ea1441881589c8",
-			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
+			"reason_hash": "a4cdd9b86f696c81",
+			"reason": "GitHub-only evidence transport for classify::Collect ci-lane-result: it preserves hosted artifacts, lane provenance, or classifier sentinel state consumed by the central reducer and has no local equivalent."
 		},
 		"ci.yml::classify::Setup Node": {
-			"reason_hash": "55ea1441881589c8",
-			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
+			"reason_hash": "777303574483f1f9",
+			"reason": "GitHub-only setup for classify::Setup Node: the hosted runner provisions its checkout/toolchain or hook state before the lane command, while local setup is composed by the selected just recipe."
 		},
 		"ci.yml::classify::Upload ci-lane-result": {
-			"reason_hash": "55ea1441881589c8",
-			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
+			"reason_hash": "3bba2bcde06189cc",
+			"reason": "GitHub-only evidence transport for classify::Upload ci-lane-result: it preserves hosted artifacts, lane provenance, or classifier sentinel state consumed by the central reducer and has no local equivalent."
 		},
 		"ci.yml::e2e-build::Build and push e2e images": {
-			"reason_hash": "55ea1441881589c8",
-			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
+			"reason_hash": "42175d407f151d6f",
+			"reason": "GitHub-only orchestration for e2e-build::Build and push e2e images: it uses hosted credentials, fork/image metadata, live pull-request state, or artifact-backed gate context unavailable to the local command surface."
 		},
 		"ci.yml::e2e-build::Checkout": {
-			"reason_hash": "55ea1441881589c8",
-			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
+			"reason_hash": "4448a739babd81cd",
+			"reason": "GitHub-only setup for e2e-build::Checkout: the hosted runner provisions its checkout/toolchain or hook state before the lane command, while local setup is composed by the selected just recipe."
 		},
 		"ci.yml::e2e-build::CI lane not applicable": {
-			"reason_hash": "55ea1441881589c8",
-			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
+			"reason_hash": "6fbe5531ba554d72",
+			"reason": "GitHub-only evidence transport for e2e-build::CI lane not applicable: it preserves hosted artifacts, lane provenance, or classifier sentinel state consumed by the central reducer and has no local equivalent."
 		},
 		"ci.yml::e2e-build::Collect ci-lane-result": {
-			"reason_hash": "55ea1441881589c8",
-			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
+			"reason_hash": "6aef6bdf273fd6c7",
+			"reason": "GitHub-only evidence transport for e2e-build::Collect ci-lane-result: it preserves hosted artifacts, lane provenance, or classifier sentinel state consumed by the central reducer and has no local equivalent."
 		},
 		"ci.yml::e2e-build::Login to GHCR": {
-			"reason_hash": "1644596db7219f6b",
-			"reason": "Central CI workflow step is reconciled by the central artifact-backed gate; the exact command or action is reviewed here and remains covered by the focused CI contract tests."
+			"reason_hash": "1a37bead9e1d1392",
+			"reason": "GitHub-only orchestration for e2e-build::Login to GHCR: it uses hosted credentials, fork/image metadata, live pull-request state, or artifact-backed gate context unavailable to the local command surface."
 		},
 		"ci.yml::e2e-build::Resolve fork state": {
-			"reason_hash": "55ea1441881589c8",
-			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
+			"reason_hash": "c936e174c80959f0",
+			"reason": "GitHub-only orchestration for e2e-build::Resolve fork state: it uses hosted credentials, fork/image metadata, live pull-request state, or artifact-backed gate context unavailable to the local command surface."
 		},
 		"ci.yml::e2e-build::Resolve image root": {
-			"reason_hash": "55ea1441881589c8",
-			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
+			"reason_hash": "8d2501cb4bf740bb",
+			"reason": "GitHub-only orchestration for e2e-build::Resolve image root: it uses hosted credentials, fork/image metadata, live pull-request state, or artifact-backed gate context unavailable to the local command surface."
 		},
 		"ci.yml::e2e-build::Resolve image tag": {
-			"reason_hash": "55ea1441881589c8",
-			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
+			"reason_hash": "0ca1999633b4a596",
+			"reason": "GitHub-only orchestration for e2e-build::Resolve image tag: it uses hosted credentials, fork/image metadata, live pull-request state, or artifact-backed gate context unavailable to the local command surface."
 		},
 		"ci.yml::e2e-build::Setup Docker Buildx": {
-			"reason_hash": "1644596db7219f6b",
-			"reason": "Central CI workflow step is reconciled by the central artifact-backed gate; the exact command or action is reviewed here and remains covered by the focused CI contract tests."
+			"reason_hash": "a47e6df9645395c4",
+			"reason": "GitHub-only setup for e2e-build::Setup Docker Buildx: the hosted runner provisions its checkout/toolchain or hook state before the lane command, while local setup is composed by the selected just recipe."
 		},
 		"ci.yml::e2e-build::Setup GitHub Actions runtime": {
-			"reason_hash": "1644596db7219f6b",
-			"reason": "Central CI workflow step is reconciled by the central artifact-backed gate; the exact command or action is reviewed here and remains covered by the focused CI contract tests."
+			"reason_hash": "283c6cb2f11640a3",
+			"reason": "GitHub-only setup for e2e-build::Setup GitHub Actions runtime: the hosted runner provisions its checkout/toolchain or hook state before the lane command, while local setup is composed by the selected just recipe."
 		},
 		"ci.yml::e2e-build::Upload ci-lane-result": {
-			"reason_hash": "55ea1441881589c8",
-			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
+			"reason_hash": "dd1c3570c35674b3",
+			"reason": "GitHub-only evidence transport for e2e-build::Upload ci-lane-result: it preserves hosted artifacts, lane provenance, or classifier sentinel state consumed by the central reducer and has no local equivalent."
 		},
 		"ci.yml::e2e-build::Upload fork e2e images": {
-			"reason_hash": "1644596db7219f6b",
-			"reason": "Central CI workflow step is reconciled by the central artifact-backed gate; the exact command or action is reviewed here and remains covered by the focused CI contract tests."
+			"reason_hash": "97d2f3cf54c0bdb5",
+			"reason": "GitHub-only evidence transport for e2e-build::Upload fork e2e images: it preserves hosted artifacts, lane provenance, or classifier sentinel state consumed by the central reducer and has no local equivalent."
 		},
 		"ci.yml::e2e-build::Verify built front image": {
-			"reason_hash": "1644596db7219f6b",
-			"reason": "Central CI workflow step is reconciled by the central artifact-backed gate; the exact command or action is reviewed here and remains covered by the focused CI contract tests."
+			"reason_hash": "141f3815576d4f8a",
+			"reason": "GitHub-only orchestration for e2e-build::Verify built front image: it uses hosted credentials, fork/image metadata, live pull-request state, or artifact-backed gate context unavailable to the local command surface."
 		},
 		"ci.yml::e2e-cleanup::Checkout": {
-			"reason_hash": "1644596db7219f6b",
-			"reason": "Central CI workflow step is reconciled by the central artifact-backed gate; the exact command or action is reviewed here and remains covered by the focused CI contract tests."
+			"reason_hash": "f4303bbeda1fcdcb",
+			"reason": "GitHub-only setup for e2e-cleanup::Checkout: the hosted runner provisions its checkout/toolchain or hook state before the lane command, while local setup is composed by the selected just recipe."
 		},
 		"ci.yml::e2e-cleanup::CI lane not applicable": {
-			"reason_hash": "55ea1441881589c8",
-			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
+			"reason_hash": "12732565d71a9e6c",
+			"reason": "GitHub-only evidence transport for e2e-cleanup::CI lane not applicable: it preserves hosted artifacts, lane provenance, or classifier sentinel state consumed by the central reducer and has no local equivalent."
 		},
 		"ci.yml::e2e-cleanup::Cleanup e2e images": {
-			"reason_hash": "55ea1441881589c8",
-			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
+			"reason_hash": "822ca979612048c6",
+			"reason": "Local mirror pnpm --filter scripts-ts exec vitest run src/ci-e2e-cleanup.test.ts exercises the same repository command or lifecycle owned by e2e-cleanup::Cleanup e2e images; the hosted step remains separately pinned for CI wiring."
 		},
 		"ci.yml::e2e-cleanup::Collect ci-lane-result": {
-			"reason_hash": "55ea1441881589c8",
-			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
+			"reason_hash": "fae2c913c8af679a",
+			"reason": "GitHub-only evidence transport for e2e-cleanup::Collect ci-lane-result: it preserves hosted artifacts, lane provenance, or classifier sentinel state consumed by the central reducer and has no local equivalent."
 		},
 		"ci.yml::e2e-cleanup::Upload ci-lane-result": {
-			"reason_hash": "55ea1441881589c8",
-			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
+			"reason_hash": "3357c473db16a7c8",
+			"reason": "GitHub-only evidence transport for e2e-cleanup::Upload ci-lane-result: it preserves hosted artifacts, lane provenance, or classifier sentinel state consumed by the central reducer and has no local equivalent."
 		},
 		"ci.yml::e2e-test::Assert exact pins": {
-			"reason_hash": "cad90aeae089aaa5",
-			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+			"reason_hash": "1c508877ee2c2e8f",
+			"reason": "GitHub-only orchestration for e2e-test::Assert exact pins: it uses hosted credentials, fork/image metadata, live pull-request state, or artifact-backed gate context unavailable to the local command surface."
 		},
 		"ci.yml::e2e-test::Cache Playwright browsers": {
-			"reason_hash": "cad90aeae089aaa5",
-			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+			"reason_hash": "66618c00c3fd104d",
+			"reason": "GitHub-only orchestration for e2e-test::Cache Playwright browsers: it uses hosted credentials, fork/image metadata, live pull-request state, or artifact-backed gate context unavailable to the local command surface."
 		},
 		"ci.yml::e2e-test::Checkout": {
-			"reason_hash": "55ea1441881589c8",
-			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
+			"reason_hash": "701885f853307ce0",
+			"reason": "GitHub-only setup for e2e-test::Checkout: the hosted runner provisions its checkout/toolchain or hook state before the lane command, while local setup is composed by the selected just recipe."
 		},
 		"ci.yml::e2e-test::CI lane not applicable": {
-			"reason_hash": "55ea1441881589c8",
-			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
+			"reason_hash": "746294d1796b6881",
+			"reason": "GitHub-only evidence transport for e2e-test::CI lane not applicable: it preserves hosted artifacts, lane provenance, or classifier sentinel state consumed by the central reducer and has no local equivalent."
 		},
 		"ci.yml::e2e-test::Collect ci-lane-result": {
-			"reason_hash": "55ea1441881589c8",
-			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
+			"reason_hash": "81d91fe91db9c22e",
+			"reason": "GitHub-only evidence transport for e2e-test::Collect ci-lane-result: it preserves hosted artifacts, lane provenance, or classifier sentinel state consumed by the central reducer and has no local equivalent."
 		},
 		"ci.yml::e2e-test::Detect partial rerun": {
-			"reason_hash": "1644596db7219f6b",
-			"reason": "Central CI workflow step is reconciled by the central artifact-backed gate; the exact command or action is reviewed here and remains covered by the focused CI contract tests."
+			"reason_hash": "875715a248950da8",
+			"reason": "Local mirror just ci-drift exercises the same repository command or lifecycle owned by e2e-test::Detect partial rerun; the hosted step remains separately pinned for CI wiring."
 		},
 		"ci.yml::e2e-test::Download fork e2e images": {
-			"reason_hash": "1644596db7219f6b",
-			"reason": "Central CI workflow step is reconciled by the central artifact-backed gate; the exact command or action is reviewed here and remains covered by the focused CI contract tests."
+			"reason_hash": "86469e3787a6cb06",
+			"reason": "GitHub-only evidence transport for e2e-test::Download fork e2e images: it preserves hosted artifacts, lane provenance, or classifier sentinel state consumed by the central reducer and has no local equivalent."
 		},
 		"ci.yml::e2e-test::Install dependencies": {
-			"reason_hash": "1644596db7219f6b",
-			"reason": "Central CI workflow step is reconciled by the central artifact-backed gate; the exact command or action is reviewed here and remains covered by the focused CI contract tests."
+			"reason_hash": "2654f3463987c980",
+			"reason": "GitHub-only setup for e2e-test::Install dependencies: the hosted runner provisions its checkout/toolchain or hook state before the lane command, while local setup is composed by the selected just recipe."
 		},
 		"ci.yml::e2e-test::Install pnpm": {
-			"reason_hash": "1644596db7219f6b",
-			"reason": "Central CI workflow step is reconciled by the central artifact-backed gate; the exact command or action is reviewed here and remains covered by the focused CI contract tests."
+			"reason_hash": "df92304ec2b27adb",
+			"reason": "GitHub-only setup for e2e-test::Install pnpm: the hosted runner provisions its checkout/toolchain or hook state before the lane command, while local setup is composed by the selected just recipe."
 		},
 		"ci.yml::e2e-test::Load fork e2e images": {
-			"reason_hash": "1644596db7219f6b",
-			"reason": "Central CI workflow step is reconciled by the central artifact-backed gate; the exact command or action is reviewed here and remains covered by the focused CI contract tests."
+			"reason_hash": "4b4d2b218897cec1",
+			"reason": "GitHub-only orchestration for e2e-test::Load fork e2e images: it uses hosted credentials, fork/image metadata, live pull-request state, or artifact-backed gate context unavailable to the local command surface."
 		},
 		"ci.yml::e2e-test::Login to GHCR": {
-			"reason_hash": "1644596db7219f6b",
-			"reason": "Central CI workflow step is reconciled by the central artifact-backed gate; the exact command or action is reviewed here and remains covered by the focused CI contract tests."
+			"reason_hash": "8563fe13c37d3620",
+			"reason": "GitHub-only orchestration for e2e-test::Login to GHCR: it uses hosted credentials, fork/image metadata, live pull-request state, or artifact-backed gate context unavailable to the local command surface."
 		},
 		"ci.yml::e2e-test::Pull stack images": {
-			"reason_hash": "1644596db7219f6b",
-			"reason": "Central CI workflow step is reconciled by the central artifact-backed gate; the exact command or action is reviewed here and remains covered by the focused CI contract tests."
+			"reason_hash": "762fcf67d769a3f5",
+			"reason": "Local mirror just ci-e2e-front exercises the same repository command or lifecycle owned by e2e-test::Pull stack images; the hosted step remains separately pinned for CI wiring."
 		},
 		"ci.yml::e2e-test::Run Playwright shard": {
-			"reason_hash": "55ea1441881589c8",
-			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
+			"reason_hash": "dbafff94c44f5144",
+			"reason": "Local mirror just ci-e2e-front exercises the same repository command or lifecycle owned by e2e-test::Run Playwright shard; the hosted step remains separately pinned for CI wiring."
 		},
 		"ci.yml::e2e-test::Setup Node": {
-			"reason_hash": "1644596db7219f6b",
-			"reason": "Central CI workflow step is reconciled by the central artifact-backed gate; the exact command or action is reviewed here and remains covered by the focused CI contract tests."
+			"reason_hash": "d00c435e55e7704e",
+			"reason": "GitHub-only setup for e2e-test::Setup Node: the hosted runner provisions its checkout/toolchain or hook state before the lane command, while local setup is composed by the selected just recipe."
 		},
 		"ci.yml::e2e-test::Start e2e stack": {
-			"reason_hash": "1644596db7219f6b",
-			"reason": "Central CI workflow step is reconciled by the central artifact-backed gate; the exact command or action is reviewed here and remains covered by the focused CI contract tests."
+			"reason_hash": "a1a9ae00fa4d090a",
+			"reason": "Local mirror just ci-e2e-front exercises the same repository command or lifecycle owned by e2e-test::Start e2e stack; the hosted step remains separately pinned for CI wiring."
 		},
 		"ci.yml::e2e-test::Tear down e2e stack": {
-			"reason_hash": "cad90aeae089aaa5",
-			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+			"reason_hash": "687ea2617485e529",
+			"reason": "Local mirror just ci-e2e-front exercises the same repository command or lifecycle owned by e2e-test::Tear down e2e stack; the hosted step remains separately pinned for CI wiring."
 		},
 		"ci.yml::e2e-test::Upload ci-lane-result": {
-			"reason_hash": "55ea1441881589c8",
-			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
+			"reason_hash": "6f130b9d70b065c6",
+			"reason": "GitHub-only evidence transport for e2e-test::Upload ci-lane-result: it preserves hosted artifacts, lane provenance, or classifier sentinel state consumed by the central reducer and has no local equivalent."
 		},
 		"ci.yml::e2e-test::Upload Playwright report": {
-			"reason_hash": "cad90aeae089aaa5",
-			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+			"reason_hash": "8fb8e2ecda4be7f5",
+			"reason": "GitHub-only evidence transport for e2e-test::Upload Playwright report: it preserves hosted artifacts, lane provenance, or classifier sentinel state consumed by the central reducer and has no local equivalent."
 		},
 		"ci.yml::e2e-test::Wait for e2e stack health": {
-			"reason_hash": "1644596db7219f6b",
-			"reason": "Central CI workflow step is reconciled by the central artifact-backed gate; the exact command or action is reviewed here and remains covered by the focused CI contract tests."
+			"reason_hash": "2e60fee270faa01f",
+			"reason": "Local mirror just ci-e2e-front exercises the same repository command or lifecycle owned by e2e-test::Wait for e2e stack health; the hosted step remains separately pinned for CI wiring."
 		},
 		"ci.yml::front-vitest::Checkout": {
-			"reason_hash": "55ea1441881589c8",
-			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
+			"reason_hash": "1161f235420a6b1b",
+			"reason": "GitHub-only setup for front-vitest::Checkout: the hosted runner provisions its checkout/toolchain or hook state before the lane command, while local setup is composed by the selected just recipe."
 		},
 		"ci.yml::front-vitest::CI lane not applicable": {
-			"reason_hash": "55ea1441881589c8",
-			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
+			"reason_hash": "ece7e7ae2ab8cdc9",
+			"reason": "GitHub-only evidence transport for front-vitest::CI lane not applicable: it preserves hosted artifacts, lane provenance, or classifier sentinel state consumed by the central reducer and has no local equivalent."
 		},
 		"ci.yml::front-vitest::Collect ci-lane-result": {
-			"reason_hash": "55ea1441881589c8",
-			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
+			"reason_hash": "d5de0be0325c4f9a",
+			"reason": "GitHub-only evidence transport for front-vitest::Collect ci-lane-result: it preserves hosted artifacts, lane provenance, or classifier sentinel state consumed by the central reducer and has no local equivalent."
 		},
 		"ci.yml::front-vitest::Install dependencies": {
-			"reason_hash": "55ea1441881589c8",
-			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
+			"reason_hash": "bd792292ae9b6a99",
+			"reason": "GitHub-only setup for front-vitest::Install dependencies: the hosted runner provisions its checkout/toolchain or hook state before the lane command, while local setup is composed by the selected just recipe."
 		},
 		"ci.yml::front-vitest::Install Git hooks": {
-			"reason_hash": "cad90aeae089aaa5",
-			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+			"reason_hash": "517660e8dfe4e6e6",
+			"reason": "GitHub-only setup for front-vitest::Install Git hooks: the hosted runner provisions its checkout/toolchain or hook state before the lane command, while local setup is composed by the selected just recipe."
 		},
 		"ci.yml::front-vitest::Install pnpm": {
-			"reason_hash": "55ea1441881589c8",
-			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
+			"reason_hash": "fd94f43d7a481ae7",
+			"reason": "GitHub-only setup for front-vitest::Install pnpm: the hosted runner provisions its checkout/toolchain or hook state before the lane command, while local setup is composed by the selected just recipe."
 		},
 		"ci.yml::front-vitest::Run trusted first-party postinstall": {
-			"reason_hash": "cad90aeae089aaa5",
-			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+			"reason_hash": "5e29abf340210c69",
+			"reason": "GitHub-only setup for front-vitest::Run trusted first-party postinstall: the hosted runner provisions its checkout/toolchain or hook state before the lane command, while local setup is composed by the selected just recipe."
 		},
 		"ci.yml::front-vitest::Run vitest shard": {
-			"reason_hash": "55ea1441881589c8",
-			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
+			"reason_hash": "a159293d9754f505",
+			"reason": "Local mirror just ci-front exercises the same repository command or lifecycle owned by front-vitest::Run vitest shard; the hosted step remains separately pinned for CI wiring."
 		},
 		"ci.yml::front-vitest::Setup Node": {
-			"reason_hash": "55ea1441881589c8",
-			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
+			"reason_hash": "1de3294f351419ba",
+			"reason": "GitHub-only setup for front-vitest::Setup Node: the hosted runner provisions its checkout/toolchain or hook state before the lane command, while local setup is composed by the selected just recipe."
 		},
 		"ci.yml::front-vitest::Upload ci-lane-result": {
-			"reason_hash": "55ea1441881589c8",
-			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
+			"reason_hash": "eebcb66e1bf40378",
+			"reason": "GitHub-only evidence transport for front-vitest::Upload ci-lane-result: it preserves hosted artifacts, lane provenance, or classifier sentinel state consumed by the central reducer and has no local equivalent."
 		},
 		"ci.yml::front-vitest::Upload Vitest report": {
-			"reason_hash": "cad90aeae089aaa5",
-			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+			"reason_hash": "85620bd19c0a2a67",
+			"reason": "GitHub-only evidence transport for front-vitest::Upload Vitest report: it preserves hosted artifacts, lane provenance, or classifier sentinel state consumed by the central reducer and has no local equivalent."
 		},
 		"ci.yml::gate::Aggregate upstream artifacts": {
-			"reason_hash": "55ea1441881589c8",
-			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
+			"reason_hash": "efd6e7efb17cfc4f",
+			"reason": "GitHub-only orchestration for gate::Aggregate upstream artifacts: it uses hosted credentials, fork/image metadata, live pull-request state, or artifact-backed gate context unavailable to the local command surface."
 		},
 		"ci.yml::gate::Checkout": {
-			"reason_hash": "55ea1441881589c8",
-			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
+			"reason_hash": "45c29d4713c64053",
+			"reason": "GitHub-only setup for gate::Checkout: the hosted runner provisions its checkout/toolchain or hook state before the lane command, while local setup is composed by the selected just recipe."
 		},
 		"ci.yml::gate::Download exact upstream result artifacts": {
-			"reason_hash": "55ea1441881589c8",
-			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
+			"reason_hash": "c8c09c1aedc14451",
+			"reason": "GitHub-only evidence transport for gate::Download exact upstream result artifacts: it preserves hosted artifacts, lane provenance, or classifier sentinel state consumed by the central reducer and has no local equivalent."
 		},
 		"ci.yml::gate::Install pnpm": {
-			"reason_hash": "55ea1441881589c8",
-			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
+			"reason_hash": "b411a83d2904d9ab",
+			"reason": "GitHub-only setup for gate::Install pnpm: the hosted runner provisions its checkout/toolchain or hook state before the lane command, while local setup is composed by the selected just recipe."
 		},
 		"ci.yml::gate::Install workspace dependencies": {
-			"reason_hash": "55ea1441881589c8",
-			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
+			"reason_hash": "8357948c994b7348",
+			"reason": "GitHub-only setup for gate::Install workspace dependencies: the hosted runner provisions its checkout/toolchain or hook state before the lane command, while local setup is composed by the selected just recipe."
 		},
 		"ci.yml::gate::Read live PR snapshot": {
-			"reason_hash": "55ea1441881589c8",
-			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
+			"reason_hash": "be2236e19e90568e",
+			"reason": "GitHub-only orchestration for gate::Read live PR snapshot: it uses hosted credentials, fork/image metadata, live pull-request state, or artifact-backed gate context unavailable to the local command surface."
 		},
 		"ci.yml::gate::Run central structural self-check": {
-			"reason_hash": "55ea1441881589c8",
-			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
+			"reason_hash": "21624092ae4e110f",
+			"reason": "GitHub-only orchestration for gate::Run central structural self-check: it uses hosted credentials, fork/image metadata, live pull-request state, or artifact-backed gate context unavailable to the local command surface."
 		},
 		"ci.yml::gate::Setup Node": {
-			"reason_hash": "55ea1441881589c8",
-			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
+			"reason_hash": "f5924414e1129457",
+			"reason": "GitHub-only setup for gate::Setup Node: the hosted runner provisions its checkout/toolchain or hook state before the lane command, while local setup is composed by the selected just recipe."
 		},
 		"ci.yml::gate::Upload live PR snapshot": {
-			"reason_hash": "55ea1441881589c8",
-			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
+			"reason_hash": "d0e8dd268cf8dbc5",
+			"reason": "GitHub-only evidence transport for gate::Upload live PR snapshot: it preserves hosted artifacts, lane provenance, or classifier sentinel state consumed by the central reducer and has no local equivalent."
 		},
 		"ci.yml::gate::Verify linked issue relationship": {
-			"reason_hash": "55ea1441881589c8",
-			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
+			"reason_hash": "5df9183af42230d1",
+			"reason": "GitHub-only orchestration for gate::Verify linked issue relationship: it uses hosted credentials, fork/image metadata, live pull-request state, or artifact-backed gate context unavailable to the local command surface."
 		},
 		"ci.yml::gate::Write live PR snapshot": {
-			"reason_hash": "55ea1441881589c8",
-			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
+			"reason_hash": "b5856d40a0a354a3",
+			"reason": "GitHub-only orchestration for gate::Write live PR snapshot: it uses hosted credentials, fork/image metadata, live pull-request state, or artifact-backed gate context unavailable to the local command surface."
 		},
 		"ci.yml::verification::Assert exact pins": {
-			"reason_hash": "cad90aeae089aaa5",
-			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+			"reason_hash": "a50033e0200a162e",
+			"reason": "GitHub-only orchestration for verification::Assert exact pins: it uses hosted credentials, fork/image metadata, live pull-request state, or artifact-backed gate context unavailable to the local command surface."
 		},
 		"ci.yml::verification::Audit .NET packages": {
-			"reason_hash": "cad90aeae089aaa5",
-			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+			"reason_hash": "131c09aecce939ee",
+			"reason": "Local mirror just nuget-audit exercises the same repository command or lifecycle owned by verification::Audit .NET packages; the hosted step remains separately pinned for CI wiring."
 		},
 		"ci.yml::verification::Build .NET solution": {
-			"reason_hash": "cad90aeae089aaa5",
-			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+			"reason_hash": "fce5caa50b6fc12c",
+			"reason": "Local mirror just ci-quality-dotnet exercises the same repository command or lifecycle owned by verification::Build .NET solution; the hosted step remains separately pinned for CI wiring."
 		},
 		"ci.yml::verification::Build front": {
-			"reason_hash": "cad90aeae089aaa5",
-			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+			"reason_hash": "13f2f27e77f00b67",
+			"reason": "Local mirror just ci-front exercises the same repository command or lifecycle owned by verification::Build front; the hosted step remains separately pinned for CI wiring."
 		},
 		"ci.yml::verification::Check action SHA bindings": {
-			"reason_hash": "cad90aeae089aaa5",
-			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+			"reason_hash": "1c58161cba51996e",
+			"reason": "Local mirror just ci-actions-pins exercises the same repository command or lifecycle owned by verification::Check action SHA bindings; the hosted step remains separately pinned for CI wiring."
 		},
 		"ci.yml::verification::Check action versions": {
-			"reason_hash": "cad90aeae089aaa5",
-			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+			"reason_hash": "b1ca502423385814",
+			"reason": "Central-workflow-only control for verification::Check action versions: its value is the hosted dependency, permission, provenance, or required-check wiring around the lane rather than an independently runnable repository command."
 		},
 		"ci.yml::verification::Check CI drift": {
-			"reason_hash": "cad90aeae089aaa5",
-			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+			"reason_hash": "6c2e002efa9c1273",
+			"reason": "Local mirror just ci-drift exercises the same repository command or lifecycle owned by verification::Check CI drift; the hosted step remains separately pinned for CI wiring."
 		},
 		"ci.yml::verification::Check complexity bounds": {
-			"reason_hash": "cad90aeae089aaa5",
-			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+			"reason_hash": "e1f2c226acc776cd",
+			"reason": "Central-workflow-only control for verification::Check complexity bounds: its value is the hosted dependency, permission, provenance, or required-check wiring around the lane rather than an independently runnable repository command."
 		},
 		"ci.yml::verification::Check dependency health contract": {
-			"reason_hash": "cad90aeae089aaa5",
-			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+			"reason_hash": "9f09f34827cd549c",
+			"reason": "Local mirror just ci-drift exercises the same repository command or lifecycle owned by verification::Check dependency health contract; the hosted step remains separately pinned for CI wiring."
 		},
 		"ci.yml::verification::Check deploy environment documentation": {
-			"reason_hash": "cad90aeae089aaa5",
-			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+			"reason_hash": "770d5d7754be3151",
+			"reason": "Local mirror just ci-deploy-env-docs exercises the same repository command or lifecycle owned by verification::Check deploy environment documentation; the hosted step remains separately pinned for CI wiring."
 		},
 		"ci.yml::verification::Check doc links": {
-			"reason_hash": "cad90aeae089aaa5",
-			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+			"reason_hash": "eefccd7c88f0191e",
+			"reason": "Local mirror just ci-doc-links exercises the same repository command or lifecycle owned by verification::Check doc links; the hosted step remains separately pinned for CI wiring."
 		},
 		"ci.yml::verification::Check docs prune inventory": {
-			"reason_hash": "cad90aeae089aaa5",
-			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+			"reason_hash": "b88fdd77ffcc1425",
+			"reason": "Local mirror just ci-doc-links exercises the same repository command or lifecycle owned by verification::Check docs prune inventory; the hosted step remains separately pinned for CI wiring."
 		},
 		"ci.yml::verification::Check formatter scope": {
-			"reason_hash": "cad90aeae089aaa5",
-			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+			"reason_hash": "1a097be8a480dec9",
+			"reason": "Local mirror just ci-format exercises the same repository command or lifecycle owned by verification::Check formatter scope; the hosted step remains separately pinned for CI wiring."
 		},
 		"ci.yml::verification::Check formatting": {
-			"reason_hash": "cad90aeae089aaa5",
-			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+			"reason_hash": "03283f7ca6e91230",
+			"reason": "Local mirror just format exercises the same repository command or lifecycle owned by verification::Check formatting; the hosted step remains separately pinned for CI wiring."
 		},
 		"ci.yml::verification::Check front column-type imports": {
-			"reason_hash": "cad90aeae089aaa5",
-			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+			"reason_hash": "a45f202f36606165",
+			"reason": "Central-workflow-only control for verification::Check front column-type imports: its value is the hosted dependency, permission, provenance, or required-check wiring around the lane rather than an independently runnable repository command."
 		},
 		"ci.yml::verification::Check front design system": {
-			"reason_hash": "cad90aeae089aaa5",
-			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+			"reason_hash": "f846632140f07366",
+			"reason": "Central-workflow-only control for verification::Check front design system: its value is the hosted dependency, permission, provenance, or required-check wiring around the lane rather than an independently runnable repository command."
 		},
 		"ci.yml::verification::Check front React Compiler artifacts": {
-			"reason_hash": "cad90aeae089aaa5",
-			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+			"reason_hash": "585c03676c614955",
+			"reason": "Central-workflow-only control for verification::Check front React Compiler artifacts: its value is the hosted dependency, permission, provenance, or required-check wiring around the lane rather than an independently runnable repository command."
 		},
 		"ci.yml::verification::Check front static imports": {
-			"reason_hash": "cad90aeae089aaa5",
-			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+			"reason_hash": "1d0ccb4464906677",
+			"reason": "Central-workflow-only control for verification::Check front static imports: its value is the hosted dependency, permission, provenance, or required-check wiring around the lane rather than an independently runnable repository command."
 		},
 		"ci.yml::verification::Check no dockerignore shadow files": {
-			"reason_hash": "cad90aeae089aaa5",
-			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+			"reason_hash": "1cc72c30f66cb313",
+			"reason": "Local mirror just ci-dockerignore-shadow exercises the same repository command or lifecycle owned by verification::Check no dockerignore shadow files; the hosted step remains separately pinned for CI wiring."
 		},
 		"ci.yml::verification::Check no ignored tracked files": {
-			"reason_hash": "cad90aeae089aaa5",
-			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+			"reason_hash": "e84756c28102c28e",
+			"reason": "Local mirror just ci-no-ignored-tracked exercises the same repository command or lifecycle owned by verification::Check no ignored tracked files; the hosted step remains separately pinned for CI wiring."
 		},
 		"ci.yml::verification::Check unused exports and dependencies": {
-			"reason_hash": "cad90aeae089aaa5",
-			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+			"reason_hash": "1a6bf345e7ea0fd5",
+			"reason": "Local mirror just ci-knip exercises the same repository command or lifecycle owned by verification::Check unused exports and dependencies; the hosted step remains separately pinned for CI wiring."
 		},
 		"ci.yml::verification::Check Vitest shard coverage": {
-			"reason_hash": "cad90aeae089aaa5",
-			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+			"reason_hash": "d148e47087b925e2",
+			"reason": "Local mirror just ci-front exercises the same repository command or lifecycle owned by verification::Check Vitest shard coverage; the hosted step remains separately pinned for CI wiring."
 		},
 		"ci.yml::verification::Checkout": {
-			"reason_hash": "55ea1441881589c8",
-			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
+			"reason_hash": "c0c20010cc45f7c6",
+			"reason": "GitHub-only setup for verification::Checkout: the hosted runner provisions its checkout/toolchain or hook state before the lane command, while local setup is composed by the selected just recipe."
 		},
 		"ci.yml::verification::CI lane not applicable (docs)": {
-			"reason_hash": "55ea1441881589c8",
-			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
+			"reason_hash": "48faeb8bb893f8a1",
+			"reason": "GitHub-only evidence transport for verification::CI lane not applicable (docs): it preserves hosted artifacts, lane provenance, or classifier sentinel state consumed by the central reducer and has no local equivalent."
 		},
 		"ci.yml::verification::CI lane not applicable (front)": {
-			"reason_hash": "55ea1441881589c8",
-			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
+			"reason_hash": "5598b76d89378b1c",
+			"reason": "GitHub-only evidence transport for verification::CI lane not applicable (front): it preserves hosted artifacts, lane provenance, or classifier sentinel state consumed by the central reducer and has no local equivalent."
 		},
 		"ci.yml::verification::CI lane not applicable (quality)": {
-			"reason_hash": "55ea1441881589c8",
-			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
+			"reason_hash": "27e423ed5692132a",
+			"reason": "GitHub-only evidence transport for verification::CI lane not applicable (quality): it preserves hosted artifacts, lane provenance, or classifier sentinel state consumed by the central reducer and has no local equivalent."
 		},
 		"ci.yml::verification::CI lane not applicable (react)": {
-			"reason_hash": "55ea1441881589c8",
-			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
+			"reason_hash": "faec122befb4076c",
+			"reason": "GitHub-only evidence transport for verification::CI lane not applicable (react): it preserves hosted artifacts, lane provenance, or classifier sentinel state consumed by the central reducer and has no local equivalent."
 		},
 		"ci.yml::verification::Collect ci-lane-result": {
-			"reason_hash": "55ea1441881589c8",
-			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
+			"reason_hash": "fa62fbbec4ac3224",
+			"reason": "GitHub-only evidence transport for verification::Collect ci-lane-result: it preserves hosted artifacts, lane provenance, or classifier sentinel state consumed by the central reducer and has no local equivalent."
 		},
 		"ci.yml::verification::Install Git hooks": {
-			"reason_hash": "cad90aeae089aaa5",
-			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+			"reason_hash": "b58458ba4adaf761",
+			"reason": "GitHub-only setup for verification::Install Git hooks: the hosted runner provisions its checkout/toolchain or hook state before the lane command, while local setup is composed by the selected just recipe."
 		},
 		"ci.yml::verification::Install pnpm": {
-			"reason_hash": "55ea1441881589c8",
-			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
+			"reason_hash": "04407766847cad03",
+			"reason": "GitHub-only setup for verification::Install pnpm: the hosted runner provisions its checkout/toolchain or hook state before the lane command, while local setup is composed by the selected just recipe."
 		},
 		"ci.yml::verification::Install workspace dependencies": {
-			"reason_hash": "55ea1441881589c8",
-			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
+			"reason_hash": "40cc942045efced1",
+			"reason": "GitHub-only setup for verification::Install workspace dependencies: the hosted runner provisions its checkout/toolchain or hook state before the lane command, while local setup is composed by the selected just recipe."
 		},
 		"ci.yml::verification::Lint front": {
-			"reason_hash": "cad90aeae089aaa5",
-			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+			"reason_hash": "537ff0864aa8fda4",
+			"reason": "Local mirror just ci-lint exercises the same repository command or lifecycle owned by verification::Lint front; the hosted step remains separately pinned for CI wiring."
 		},
 		"ci.yml::verification::Lint repository": {
-			"reason_hash": "cad90aeae089aaa5",
-			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+			"reason_hash": "55c7b39f2f3de8c7",
+			"reason": "Local mirror just lint exercises the same repository command or lifecycle owned by verification::Lint repository; the hosted step remains separately pinned for CI wiring."
 		},
 		"ci.yml::verification::Materialize .env.development": {
-			"reason_hash": "cad90aeae089aaa5",
-			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+			"reason_hash": "dadbcf8a6d00b526",
+			"reason": "GitHub-only orchestration for verification::Materialize .env.development: it uses hosted credentials, fork/image metadata, live pull-request state, or artifact-backed gate context unavailable to the local command surface."
 		},
 		"ci.yml::verification::Resolve React Doctor base": {
-			"reason_hash": "cad90aeae089aaa5",
-			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+			"reason_hash": "8b996ecb14d7daef",
+			"reason": "Central-workflow-only control for verification::Resolve React Doctor base: its value is the hosted dependency, permission, provenance, or required-check wiring around the lane rather than an independently runnable repository command."
 		},
 		"ci.yml::verification::Restore .NET solution": {
-			"reason_hash": "cad90aeae089aaa5",
-			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+			"reason_hash": "02cce260fc7a1aeb",
+			"reason": "Local mirror just ci-quality-dotnet exercises the same repository command or lifecycle owned by verification::Restore .NET solution; the hosted step remains separately pinned for CI wiring."
 		},
 		"ci.yml::verification::Run analyzer tests": {
-			"reason_hash": "cad90aeae089aaa5",
-			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+			"reason_hash": "cba82429b835b114",
+			"reason": "Local mirror just test-analyzers exercises the same repository command or lifecycle owned by verification::Run analyzer tests; the hosted step remains separately pinned for CI wiring."
 		},
 		"ci.yml::verification::Run React Doctor": {
-			"reason_hash": "55ea1441881589c8",
-			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
+			"reason_hash": "3f9d01d1686e5698",
+			"reason": "Local mirror just react-doctor exercises the same repository command or lifecycle owned by verification::Run React Doctor; the hosted step remains separately pinned for CI wiring."
 		},
 		"ci.yml::verification::Run trusted first-party postinstall": {
-			"reason_hash": "cad90aeae089aaa5",
-			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+			"reason_hash": "f585fa40aa7771b2",
+			"reason": "GitHub-only setup for verification::Run trusted first-party postinstall: the hosted runner provisions its checkout/toolchain or hook state before the lane command, while local setup is composed by the selected just recipe."
 		},
 		"ci.yml::verification::Setup .NET": {
-			"reason_hash": "cad90aeae089aaa5",
-			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+			"reason_hash": "a72f8508c78b0eec",
+			"reason": "GitHub-only setup for verification::Setup .NET: the hosted runner provisions its checkout/toolchain or hook state before the lane command, while local setup is composed by the selected just recipe."
 		},
 		"ci.yml::verification::Setup just": {
-			"reason_hash": "cad90aeae089aaa5",
-			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+			"reason_hash": "f163d72ffc20e500",
+			"reason": "GitHub-only setup for verification::Setup just: the hosted runner provisions its checkout/toolchain or hook state before the lane command, while local setup is composed by the selected just recipe."
 		},
 		"ci.yml::verification::Setup Node": {
-			"reason_hash": "55ea1441881589c8",
-			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
+			"reason_hash": "7743c4018b1ce00d",
+			"reason": "GitHub-only setup for verification::Setup Node: the hosted runner provisions its checkout/toolchain or hook state before the lane command, while local setup is composed by the selected just recipe."
 		},
 		"ci.yml::verification::Smoke front production server": {
-			"reason_hash": "cad90aeae089aaa5",
-			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+			"reason_hash": "9ac19b7f61dcf13a",
+			"reason": "Central-workflow-only control for verification::Smoke front production server: its value is the hosted dependency, permission, provenance, or required-check wiring around the lane rather than an independently runnable repository command."
 		},
 		"ci.yml::verification::Test .NET audit fixtures": {
-			"reason_hash": "cad90aeae089aaa5",
-			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+			"reason_hash": "96000df7845e7401",
+			"reason": "Local mirror just nuget-audit exercises the same repository command or lifecycle owned by verification::Test .NET audit fixtures; the hosted step remains separately pinned for CI wiring."
 		},
 		"ci.yml::verification::Test action version guard": {
-			"reason_hash": "cad90aeae089aaa5",
-			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+			"reason_hash": "925b7f6e9b6e598c",
+			"reason": "Local mirror just ci-actions-pins exercises the same repository command or lifecycle owned by verification::Test action version guard; the hosted step remains separately pinned for CI wiring."
 		},
 		"ci.yml::verification::Test API path-filter coverage": {
-			"reason_hash": "cad90aeae089aaa5",
-			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+			"reason_hash": "37552bfe93b00d3b",
+			"reason": "Local mirror just ci-drift exercises the same repository command or lifecycle owned by verification::Test API path-filter coverage; the hosted step remains separately pinned for CI wiring."
 		},
 		"ci.yml::verification::Test CI changed-path classifier": {
-			"reason_hash": "cad90aeae089aaa5",
-			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+			"reason_hash": "6942e2e78719fcc7",
+			"reason": "Local mirror just ci-drift exercises the same repository command or lifecycle owned by verification::Test CI changed-path classifier; the hosted step remains separately pinned for CI wiring."
 		},
 		"ci.yml::verification::Test CI contracts": {
-			"reason_hash": "cad90aeae089aaa5",
-			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+			"reason_hash": "37787e4cd65d4c91",
+			"reason": "Local mirror just ci-drift exercises the same repository command or lifecycle owned by verification::Test CI contracts; the hosted step remains separately pinned for CI wiring."
 		},
 		"ci.yml::verification::Test CI drift contracts": {
-			"reason_hash": "cad90aeae089aaa5",
-			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+			"reason_hash": "72c864695b400a2a",
+			"reason": "Local mirror just ci-drift exercises the same repository command or lifecycle owned by verification::Test CI drift contracts; the hosted step remains separately pinned for CI wiring."
 		},
 		"ci.yml::verification::Test CI guard fixtures": {
-			"reason_hash": "cad90aeae089aaa5",
-			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+			"reason_hash": "26a888ddd2491496",
+			"reason": "Local mirror just ci-drift exercises the same repository command or lifecycle owned by verification::Test CI guard fixtures; the hosted step remains separately pinned for CI wiring."
 		},
 		"ci.yml::verification::Test CI referenced paths": {
-			"reason_hash": "cad90aeae089aaa5",
-			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+			"reason_hash": "6bab4b83cec7276a",
+			"reason": "Local mirror just ci-drift exercises the same repository command or lifecycle owned by verification::Test CI referenced paths; the hosted step remains separately pinned for CI wiring."
 		},
 		"ci.yml::verification::Test complexity guard": {
-			"reason_hash": "cad90aeae089aaa5",
-			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+			"reason_hash": "6bc56ab9e377eab1",
+			"reason": "Local mirror just ci-drift exercises the same repository command or lifecycle owned by verification::Test complexity guard; the hosted step remains separately pinned for CI wiring."
 		},
 		"ci.yml::verification::Test doc-links guard": {
-			"reason_hash": "cad90aeae089aaa5",
-			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+			"reason_hash": "5a61aca7498ee0b7",
+			"reason": "Local mirror just ci-doc-links exercises the same repository command or lifecycle owned by verification::Test doc-links guard; the hosted step remains separately pinned for CI wiring."
 		},
 		"ci.yml::verification::Test docs prune guard": {
-			"reason_hash": "cad90aeae089aaa5",
-			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+			"reason_hash": "4ef3f9ff646ac88e",
+			"reason": "Local mirror just ci-doc-links exercises the same repository command or lifecycle owned by verification::Test docs prune guard; the hosted step remains separately pinned for CI wiring."
 		},
 		"ci.yml::verification::Test front (non-vitest report-all)": {
-			"reason_hash": "cad90aeae089aaa5",
-			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+			"reason_hash": "176aa5de4b55e95d",
+			"reason": "Local mirror just ci-front exercises the same repository command or lifecycle owned by verification::Test front (non-vitest report-all); the hosted step remains separately pinned for CI wiring."
 		},
 		"ci.yml::verification::Test front lint guard": {
-			"reason_hash": "cad90aeae089aaa5",
-			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+			"reason_hash": "abccb44c26098397",
+			"reason": "Local mirror just ci-lint exercises the same repository command or lifecycle owned by verification::Test front lint guard; the hosted step remains separately pinned for CI wiring."
 		},
 		"ci.yml::verification::Test lint plugin": {
-			"reason_hash": "cad90aeae089aaa5",
-			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+			"reason_hash": "5a1714b02c5d0573",
+			"reason": "Local mirror just ci-lint exercises the same repository command or lifecycle owned by verification::Test lint plugin; the hosted step remains separately pinned for CI wiring."
 		},
 		"ci.yml::verification::Test npm audit runner": {
-			"reason_hash": "cad90aeae089aaa5",
-			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+			"reason_hash": "f57fe79d4953c473",
+			"reason": "Local mirror just ci-drift exercises the same repository command or lifecycle owned by verification::Test npm audit runner; the hosted step remains separately pinned for CI wiring."
 		},
 		"ci.yml::verification::Test production audit threshold": {
-			"reason_hash": "cad90aeae089aaa5",
-			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+			"reason_hash": "657fc931f749ab9b",
+			"reason": "Local mirror just ci-drift exercises the same repository command or lifecycle owned by verification::Test production audit threshold; the hosted step remains separately pinned for CI wiring."
 		},
 		"ci.yml::verification::Test project closure adapter": {
-			"reason_hash": "cad90aeae089aaa5",
-			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+			"reason_hash": "99e5b1fb40cd7511",
+			"reason": "Local mirror just ci-project-closure-adapter exercises the same repository command or lifecycle owned by verification::Test project closure adapter; the hosted step remains separately pinned for CI wiring."
 		},
 		"ci.yml::verification::Test shared TypeScript": {
-			"reason_hash": "cad90aeae089aaa5",
-			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+			"reason_hash": "f9876e75a4ce5f3e",
+			"reason": "Local mirror just ci-shared-ts exercises the same repository command or lifecycle owned by verification::Test shared TypeScript; the hosted step remains separately pinned for CI wiring."
 		},
 		"ci.yml::verification::Typecheck front": {
-			"reason_hash": "cad90aeae089aaa5",
-			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+			"reason_hash": "953ff1a9168856b1",
+			"reason": "Local mirror just ci-front exercises the same repository command or lifecycle owned by verification::Typecheck front; the hosted step remains separately pinned for CI wiring."
 		},
 		"ci.yml::verification::Typecheck generated client": {
-			"reason_hash": "cad90aeae089aaa5",
-			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+			"reason_hash": "5d25b3b495f16c46",
+			"reason": "Local mirror just ci-lint-ts exercises the same repository command or lifecycle owned by verification::Typecheck generated client; the hosted step remains separately pinned for CI wiring."
 		},
 		"ci.yml::verification::Typecheck lint plugin": {
-			"reason_hash": "cad90aeae089aaa5",
-			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+			"reason_hash": "4f872160ab0c223e",
+			"reason": "Local mirror just ci-lint-ts exercises the same repository command or lifecycle owned by verification::Typecheck lint plugin; the hosted step remains separately pinned for CI wiring."
 		},
 		"ci.yml::verification::Typecheck shared TypeScript": {
-			"reason_hash": "cad90aeae089aaa5",
-			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+			"reason_hash": "caf309f7dfbb18a5",
+			"reason": "Local mirror just ci-shared-ts exercises the same repository command or lifecycle owned by verification::Typecheck shared TypeScript; the hosted step remains separately pinned for CI wiring."
 		},
 		"ci.yml::verification::Upload ci-lane-result": {
-			"reason_hash": "55ea1441881589c8",
-			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
+			"reason_hash": "67ea41f066603b98",
+			"reason": "GitHub-only evidence transport for verification::Upload ci-lane-result: it preserves hosted artifacts, lane provenance, or classifier sentinel state consumed by the central reducer and has no local equivalent."
 		},
 		"ci.yml::verification::Verify API path-filter coverage": {
-			"reason_hash": "55ea1441881589c8",
-			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
+			"reason_hash": "cb27e9a9069e36b5",
+			"reason": "Local mirror just ci-drift exercises the same repository command or lifecycle owned by verification::Verify API path-filter coverage; the hosted step remains separately pinned for CI wiring."
 		},
 		"ci.yml::verification::Verify front CSS asset": {
-			"reason_hash": "cad90aeae089aaa5",
-			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+			"reason_hash": "a4f9b489eb3e98b5",
+			"reason": "Local mirror just ci-front exercises the same repository command or lifecycle owned by verification::Verify front CSS asset; the hosted step remains separately pinned for CI wiring."
 		},
 		"ci.yml::verification::Verify front font bundle": {
-			"reason_hash": "cad90aeae089aaa5",
-			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+			"reason_hash": "38f8c854afe73129",
+			"reason": "Local mirror just ci-front exercises the same repository command or lifecycle owned by verification::Verify front font bundle; the hosted step remains separately pinned for CI wiring."
 		},
 		"ci.yml::verification::Verify paired red proofs": {
-			"reason_hash": "cad90aeae089aaa5",
-			"reason": "This hosted workflow step is reconciled by the central CI gate inventory and its focused structural/runtime tests; it has no separate local execution surface."
+			"reason_hash": "cc6fdf9222ddd8a5",
+			"reason": "Local mirror just ci-front exercises the same repository command or lifecycle owned by verification::Verify paired red proofs; the hosted step remains separately pinned for CI wiring."
 		},
 		"deploy-images.yml::publish::Build and push API migrate image": {
 			"reason_hash": "83411d8a82349d27",

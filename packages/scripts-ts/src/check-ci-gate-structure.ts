@@ -1840,6 +1840,31 @@ export const findRequiredContextCollisionProblems = async ({
 			});
 		}
 	}
+	// PR A is additive: the new central workflow is not one of the four
+	// predecessor workflows in GATE_WORKFLOWS, but its required and push-only
+	// names are still reserved globally when that workflow exists. Fixture
+	// repositories that intentionally model only the predecessor table must
+	// not acquire central producers they do not contain.
+	const centralWorkflowPath = path.join(rootDir, workflowsDirectory, 'ci.yml');
+	let hasCentralWorkflow = false;
+	try {
+		await access(centralWorkflowPath);
+		hasCentralWorkflow = true;
+	} catch {
+		// The predecessor-only fixture has no central workflow by design.
+	}
+	if (hasCentralWorkflow) {
+		for (const [name, kind] of [
+			['ci-final-gate', 'externally required context'],
+			['ci-push-check', 'non-required push check'],
+		] as const) {
+			reservedNames.set(name, {
+				file: 'ci.yml',
+				jobId: 'gate',
+				kind,
+			});
+		}
+	}
 
 	// The only jobs in the repository allowed to carry an expression in
 	// `name:`, and the exact expression each must carry — both derived from
@@ -1881,7 +1906,7 @@ export const findRequiredContextCollisionProblems = async ({
 			workflow,
 		]),
 	);
-	const producersByName = new Map(
+	const producersByName = new Map<string, string[]>(
 		[...reservedNames.keys()].map((name) => [name, []]),
 	);
 	// Reserved names whose authorized job exists but carries the wrong
@@ -1928,6 +1953,14 @@ export const findRequiredContextCollisionProblems = async ({
 			if (name === authorizedExpressionNames.get(key)) {
 				// front-e2e's sharded `test` job: an authorized expression that
 				// claims no reserved name.
+				if (key === 'ci.yml::gate') {
+					const centralRequired = producersByName.get('ci-final-gate');
+					const centralPush = producersByName.get('ci-push-check');
+					if (centralRequired !== undefined && centralPush !== undefined) {
+						centralRequired.push(key);
+						centralPush.push(key);
+					}
+				}
 				continue;
 			}
 
@@ -2051,11 +2084,7 @@ type CentralJobs = Record<string, CentralJob>;
 
 type CentralDocument = {
 	permissions?: unknown;
-	on?: {
-		pull_request?: { types?: unknown };
-		merge_group?: unknown;
-		push?: { branches?: unknown; paths?: unknown };
-	};
+	on?: Record<string, unknown>;
 	jobs?: CentralJobs;
 };
 
@@ -2120,8 +2149,25 @@ const checkCentralHeaderInvariants = (
 			'ci.yml: triggers must be exactly pull_request, merge_group, push',
 		);
 	}
+	const pullRequest = trigger?.pull_request;
+	const pullRequestKeys =
+		pullRequest !== null &&
+		typeof pullRequest === 'object' &&
+		!Array.isArray(pullRequest)
+			? Object.keys(pullRequest)
+			: [];
+	const pullRequestTypes =
+		pullRequest !== null &&
+		typeof pullRequest === 'object' &&
+		!Array.isArray(pullRequest)
+			? (pullRequest as Record<string, unknown>).types
+			: undefined;
 	if (
-		!deepEqualJson(trigger?.pull_request?.types, [
+		pullRequest === undefined ||
+		typeof pullRequest !== 'object' ||
+		pullRequest === null ||
+		!deepEqualJson(pullRequestKeys, ['types']) ||
+		!deepEqualJson(pullRequestTypes, [
 			'opened',
 			'edited',
 			'reopened',
@@ -2130,14 +2176,40 @@ const checkCentralHeaderInvariants = (
 		])
 	) {
 		findings.push(
-			'ci.yml: pull_request activity types are not the pinned allowlist',
+			'ci.yml: pull_request trigger keys/types are not the pinned allowlist',
 		);
 	}
+	const mergeGroup = trigger?.merge_group;
 	if (
-		!deepEqualJson(trigger?.push?.branches, ['develop']) ||
-		trigger?.push?.paths !== undefined
+		mergeGroup !== null &&
+		!(
+			typeof mergeGroup === 'object' &&
+			mergeGroup !== null &&
+			!Array.isArray(mergeGroup) &&
+			Object.keys(mergeGroup).length === 0
+		)
 	) {
-		findings.push('ci.yml: push must be unfiltered and limited to develop');
+		findings.push('ci.yml: merge_group must be empty and unrestricted');
+	}
+	const push = trigger?.push;
+	const pushKeys =
+		push !== null && typeof push === 'object' && !Array.isArray(push)
+			? Object.keys(push)
+			: [];
+	const pushBranches =
+		push !== null && typeof push === 'object' && !Array.isArray(push)
+			? (push as Record<string, unknown>).branches
+			: undefined;
+	if (
+		push === undefined ||
+		typeof push !== 'object' ||
+		push === null ||
+		!deepEqualJson(pushKeys, ['branches']) ||
+		!deepEqualJson(pushBranches, ['develop'])
+	) {
+		findings.push(
+			'ci.yml: push trigger keys/values must be exactly branches: [develop] with no filters',
+		);
 	}
 };
 
@@ -2216,6 +2288,14 @@ const checkCentralTopologyInvariants = (
 			findings.push(`${jobId}: matrix include/exclude is not allowed`);
 		}
 	}
+	if (jobs['front-vitest']?.needs !== 'classify') {
+		findings.push('front-vitest.needs must be exactly classify');
+	}
+	if (!deepEqualJson(jobs['e2e-test']?.needs, ['classify', 'e2e-build'])) {
+		findings.push(
+			'e2e-test.needs must be exactly [classify, e2e-build] for every matrix shard',
+		);
+	}
 
 	const expectedNeeds = [
 		'classify',
@@ -2245,6 +2325,16 @@ const checkCentralLaneEvidence = (
 	const upstreamJobs = Object.values(jobs).filter((job) => job !== jobs.gate);
 	for (const job of upstreamJobs) {
 		const steps = Array.isArray(job.steps) ? job.steps : [];
+		for (const step of steps) {
+			if (
+				step['continue-on-error'] === true &&
+				!String(step.if).startsWith('always()')
+			) {
+				findings.push(
+					`${String(job.name)}: tolerated step ${String(step.name)} must retain an always() condition`,
+				);
+			}
+		}
 		if (
 			!steps.some(
 				(step) =>
@@ -2505,11 +2595,11 @@ const checkCentralProvenance = (
 		);
 		if (
 			collector?.env?.CI_WORKFLOW_PATH !== '.github/workflows/ci.yml' ||
-			collector?.env?.CI_WORKFLOW_ID !== 'central ci' ||
+			collector?.env?.CI_WORKFLOW_REF !== '${{ github.workflow_ref }}' ||
 			collector?.env?.CI_WORKFLOW_EVENT !== '${{ github.event_name }}'
 		) {
 			findings.push(
-				`${String(job.name)}: collector workflow provenance is not pinned`,
+				`${String(job.name)}: collector workflow provenance must use github.workflow_ref`,
 			);
 		}
 		for (const step of Array.isArray(job.steps) ? job.steps : []) {
@@ -2554,6 +2644,42 @@ const checkCentralArtifacts = (jobs: CentralJobs, findings: string[]): void => {
 		) {
 			findings.push(
 				`${jobId}: result artifact name/path/always contract is not exact`,
+			);
+		}
+	}
+	const gateDownload = (jobs.gate?.steps ?? []).find((step) =>
+		String(step.name).includes('Download exact upstream result artifacts'),
+	);
+	if (
+		!String(gateDownload?.uses).startsWith('actions/download-artifact@') ||
+		gateDownload?.with?.['merge-multiple'] !== undefined ||
+		gateDownload?.with?.path !== 'ci-results' ||
+		typeof gateDownload?.with?.pattern !== 'string'
+	) {
+		findings.push(
+			'gate: result downloads must preserve each artifact container under ci-results without merge-multiple',
+		);
+	}
+};
+
+const checkCentralDiagnosticUploads = (
+	jobs: CentralJobs,
+	findings: string[],
+): void => {
+	const expected = [
+		['api', 'Upload API test results', 'suite'],
+		['front-vitest', 'Upload Vitest report', 'vitest'],
+		['e2e-test', 'Upload Playwright report', 'playwright'],
+	] as const;
+	for (const [jobId, stepName, stepId] of expected) {
+		const step = (jobs[jobId]?.steps ?? []).find(
+			(candidate) => candidate.name === stepName,
+		);
+		const condition = String(step?.if ?? '');
+		const expectedCondition = `always() && (steps.${stepId}.outcome == 'failure' || steps.${stepId}.outcome == 'cancelled')`;
+		if (condition !== expectedCondition) {
+			findings.push(
+				`${jobId}: ${stepName} must use always() and the tolerated ${stepId}.outcome failure/cancellation condition`,
 			);
 		}
 	}
@@ -2662,6 +2788,7 @@ export const findCentralCiStructureProblems = async ({
 	checkCentralVerificationSpecifics(document, jobs, findings);
 	checkCentralProvenance(jobs, findings);
 	checkCentralArtifacts(jobs, findings);
+	checkCentralDiagnosticUploads(jobs, findings);
 	checkCentralLivePrAndE2e(jobs, findings);
 	return findings;
 };

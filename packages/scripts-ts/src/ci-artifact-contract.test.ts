@@ -3,9 +3,12 @@ import assert from 'node:assert/strict';
 import { test } from 'vitest';
 
 import {
+	EXPECTED_UPSTREAM_JOB_KEYS,
 	aggregateCiGate,
+	getExpectedJobLanes,
 	validateCiLaneResult,
 } from './check-ci-gate-aggregation.ts';
+import type { AggregateInput } from './check-ci-gate-aggregation.ts';
 import { createCiLaneResult } from './ci-lane-result.ts';
 import { NON_VITEST_COMMANDS } from './ci-non-vitest-manifest.ts';
 
@@ -15,7 +18,7 @@ const context = {
 	eventSha: 'event-sha',
 	eventName: 'pull_request',
 	workflowPath: '.github/workflows/ci.yml',
-	workflowId: 'central ci',
+	workflowRef: 'PublyApp/publyapp/.github/workflows/ci.yml@refs/pull/42/merge',
 	workflowEvent: 'pull_request',
 };
 
@@ -37,7 +40,7 @@ const makeRecord = () =>
 		runAttempt: context.runAttempt,
 		eventSha: context.eventSha,
 		workflowPath: context.workflowPath,
-		workflowId: context.workflowId,
+		workflowRef: context.workflowRef,
 		workflowEvent: context.workflowEvent,
 		stepResults: {
 			'api.checkout': { outcome: 'success' },
@@ -45,6 +48,104 @@ const makeRecord = () =>
 			'api.not-applicable': { outcome: 'skipped' },
 		},
 	});
+
+const makeCompleteRecords = () =>
+	EXPECTED_UPSTREAM_JOB_KEYS.map((jobKey) => {
+		const contracts = getExpectedJobLanes(jobKey);
+		assert.ok(contracts);
+		const makeLane = (lane: (typeof contracts)[number]) =>
+			createCiLaneResult({
+				jobKey,
+				lane: lane.lane,
+				expectedSteps: lane.expectedSteps,
+				mode: 'relevant',
+				runId: context.runId,
+				runAttempt: context.runAttempt,
+				eventSha: context.eventSha,
+				workflowPath: context.workflowPath,
+				workflowRef: context.workflowRef,
+				workflowEvent: context.workflowEvent,
+				stepResults: Object.fromEntries(
+					lane.expectedSteps.map((step) => [
+						step,
+						{
+							outcome: step.endsWith('.not-applicable') ? 'skipped' : 'success',
+						},
+					]),
+				),
+				report:
+					jobKey === 'verification' && lane.lane === 'front'
+						? {
+								front: {
+									non_vitest: {
+										commands: NON_VITEST_COMMANDS.map(({ id, argv }) => ({
+											id,
+											argv,
+											execution: 'executed',
+											outcome: 'success',
+										})),
+										ok: true,
+									},
+								},
+							}
+						: undefined,
+			});
+		const result = makeLane(contracts[0]);
+		for (const lane of contracts.slice(1)) {
+			result.job.lanes[lane.lane] = makeLane(lane).job.lanes[lane.lane];
+		}
+		if (jobKey === 'verification') {
+			result.job.report = {
+				front: {
+					non_vitest: {
+						commands: NON_VITEST_COMMANDS.map(({ id, argv }) => ({
+							id,
+							argv,
+							execution: 'executed',
+							outcome: 'success',
+						})),
+						ok: true,
+					},
+				},
+			};
+		}
+		return result;
+	});
+
+const completeAggregateInput = () => {
+	const records = makeCompleteRecords();
+	return {
+		run_id: context.runId,
+		run_attempt: context.runAttempt,
+		event_sha: context.eventSha,
+		event_name: context.eventName,
+		workflow_path: context.workflowPath,
+		workflow_ref: context.workflowRef,
+		classifier: {
+			result: 'success',
+			outputs: Object.fromEntries(
+				['quality', 'front', 'api', 'e2e', 'docs', 'react'].map((lane) => [
+					lane,
+					'true',
+				]),
+			),
+		},
+		records,
+		artifact_filenames: records.map((record) => record.artifact_filename),
+		central_results: Object.fromEntries(
+			[
+				'verification',
+				'audit-development',
+				'audit-production',
+				'api',
+				'front-vitest',
+				'e2e-build',
+				'e2e-test',
+				'e2e-cleanup',
+			].map((job) => [job, 'success']),
+		),
+	};
+};
 
 const assertRejected = (mutate: (record: unknown) => void, message: RegExp) => {
 	const record = makeRecord();
@@ -87,8 +188,8 @@ test.each([
 	],
 	[
 		'wrong workflow identity',
-		(record: unknown) => (mutableObject(record).workflow_id = 'other'),
-		/workflow id/,
+		(record: unknown) => (mutableObject(record).workflow_ref = 'other'),
+		/workflow ref/,
 	],
 	[
 		'wrong event',
@@ -153,7 +254,7 @@ test('omitted front nested report is rejected when the front lane is relevant', 
 		runAttempt: context.runAttempt,
 		eventSha: context.eventSha,
 		workflowPath: context.workflowPath,
-		workflowId: context.workflowId,
+		workflowRef: context.workflowRef,
 		workflowEvent: context.workflowEvent,
 		stepResults: {
 			'verification.front': { outcome: 'success' },
@@ -176,7 +277,7 @@ test('irrelevant front lane rejects an unexpected nested report', () => {
 		runAttempt: context.runAttempt,
 		eventSha: context.eventSha,
 		workflowPath: context.workflowPath,
-		workflowId: context.workflowId,
+		workflowRef: context.workflowRef,
 		workflowEvent: context.workflowEvent,
 		stepResults: {
 			'verification.front': { outcome: 'skipped' },
@@ -200,7 +301,7 @@ test('front nested report requires the exact ordered non-Vitest command ABI', ()
 		runAttempt: context.runAttempt,
 		eventSha: context.eventSha,
 		workflowPath: context.workflowPath,
-		workflowId: context.workflowId,
+		workflowRef: context.workflowRef,
 		workflowEvent: context.workflowEvent,
 		stepResults: {
 			'verification.front': { outcome: 'success' },
@@ -240,7 +341,7 @@ test('aggregation rejects duplicate upstream records and duplicate artifact file
 		event_sha: context.eventSha,
 		event_name: context.eventName,
 		workflow_path: context.workflowPath,
-		workflow_id: context.workflowId,
+		workflow_ref: context.workflowRef,
 		classifier: {
 			result: 'success',
 			outputs: {
@@ -259,4 +360,121 @@ test('aggregation rejects duplicate upstream records and duplicate artifact file
 	assert.equal(aggregate.ok, false);
 	assert.match(aggregate.failures.join('\n'), /duplicate/);
 	assert.match(aggregate.failures.join('\n'), /artifact filename set/);
+});
+
+test('aggregation rejects valid api and verification contents swapped between observed artifacts', () => {
+	const input = completeAggregateInput();
+	const api = input.records.find((record) => record.job.key === 'api');
+	const verification = input.records.find(
+		(record) => record.job.key === 'verification',
+	);
+	assert.ok(api);
+	assert.ok(verification);
+	const observedArtifacts = input.records.map((record) => {
+		let observedRecord = record;
+		if (record === api) {
+			observedRecord = verification;
+		} else if (record === verification) {
+			observedRecord = api;
+		}
+		return {
+			container: record.artifact_name,
+			filename: record.artifact_filename,
+			file_path: `${record.artifact_name}/${record.artifact_filename}`,
+			record: observedRecord,
+		};
+	});
+
+	const result = aggregateCiGate({
+		...input,
+		observed_artifacts: observedArtifacts,
+	} satisfies AggregateInput);
+
+	assert.equal(result.ok, false);
+	assert.match(result.failures.join('\n'), /observed|container|filename|path/i);
+});
+
+const observedArtifactsFor = (
+	input: ReturnType<typeof completeAggregateInput>,
+) =>
+	input.records.map((record) => ({
+		container: record.artifact_name,
+		filename: record.artifact_filename,
+		file_path: `${record.artifact_name}/${record.artifact_filename}`,
+		record,
+	}));
+
+test('aggregation accepts a complete positive observed-artifact set', () => {
+	const input = completeAggregateInput();
+	const result = aggregateCiGate({
+		...input,
+		observed_artifacts: observedArtifactsFor(input),
+	} satisfies AggregateInput);
+
+	assert.equal(result.ok, true, result.failures.join('\n'));
+});
+
+test('aggregation rejects an observed record from the wrong container', () => {
+	const input = completeAggregateInput();
+	const observedArtifacts = observedArtifactsFor(input);
+	observedArtifacts[0].container = 'unrelated-container';
+	observedArtifacts[0].file_path = 'unrelated-container/api.json';
+
+	const result = aggregateCiGate({
+		...input,
+		observed_artifacts: observedArtifacts,
+	} satisfies AggregateInput);
+
+	assert.equal(result.ok, false);
+	assert.match(
+		result.failures.join('\n'),
+		/observed.*container|artifact name/i,
+	);
+});
+
+test('aggregation rejects duplicate observed artifact containers', () => {
+	const input = completeAggregateInput();
+	const observedArtifacts = observedArtifactsFor(input);
+	observedArtifacts[1].container = observedArtifacts[0].container;
+	observedArtifacts[1].file_path = `${observedArtifacts[0].container}/${observedArtifacts[1].filename}`;
+
+	const result = aggregateCiGate({
+		...input,
+		observed_artifacts: observedArtifacts,
+	} satisfies AggregateInput);
+
+	assert.equal(result.ok, false);
+	assert.match(result.failures.join('\n'), /duplicate.*container/i);
+});
+
+test('relevant front report requires non-Vitest ok true even when failed commands explain false', () => {
+	const record = makeCompleteRecords().find(
+		(candidate) => candidate.job.key === 'verification',
+	);
+	assert.ok(record);
+	const report = mutableObject(record.job).report as MutableObject;
+	const nonVitest = mutableObject(mutableObject(report).front).non_vitest;
+	mutableObject(nonVitest).ok = false;
+	const commands = mutableObject(nonVitest).commands as MutableObject[];
+	commands[0].outcome = 'failure';
+	const failures: string[] = [];
+
+	assert.equal(validateCiLaneResult(record, context, failures), false);
+	assert.match(failures.join('\n'), /ok.*true|non-Vitest.*ok/i);
+});
+
+test('nested non-Vitest diagnostics reject invalid optional types', () => {
+	const record = makeCompleteRecords().find(
+		(candidate) => candidate.job.key === 'verification',
+	);
+	assert.ok(record);
+	const report = mutableObject(record.job).report as MutableObject;
+	const nonVitest = mutableObject(mutableObject(report).front).non_vitest;
+	const commands = mutableObject(nonVitest).commands as MutableObject[];
+	commands[0].exit_code = 'not-an-integer';
+	commands[0].signal = 42;
+	const failures: string[] = [];
+
+	assert.equal(validateCiLaneResult(record, context, failures), false);
+	assert.match(failures.join('\n'), /exit_code|signal/i);
 });
