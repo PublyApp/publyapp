@@ -66,6 +66,103 @@
 		"api-tests.yml::suite::Set up just",
 		"api-tests.yml::suite::Set up pnpm",
 		"api-tests.yml::suite::Upload test results on failure",
+		"ci.yml::api::API contract and suite",
+		"ci.yml::api::CI lane not applicable",
+		"ci.yml::api::Checkout",
+		"ci.yml::api::Collect ci-lane-result",
+		"ci.yml::api::Set up .NET",
+		"ci.yml::api::Set up pnpm",
+		"ci.yml::api::Setup Node",
+		"ci.yml::api::Upload ci-lane-result",
+		"ci.yml::audit-development::Audit development dependencies",
+		"ci.yml::audit-development::CI lane not applicable",
+		"ci.yml::audit-development::Checkout",
+		"ci.yml::audit-development::Collect ci-lane-result",
+		"ci.yml::audit-development::Install pnpm",
+		"ci.yml::audit-development::Run deterministic audit fixtures",
+		"ci.yml::audit-development::Setup Node",
+		"ci.yml::audit-development::Upload ci-lane-result",
+		"ci.yml::audit-production::Audit production dependencies",
+		"ci.yml::audit-production::CI lane not applicable",
+		"ci.yml::audit-production::Checkout",
+		"ci.yml::audit-production::Collect ci-lane-result",
+		"ci.yml::audit-production::Install pnpm",
+		"ci.yml::audit-production::Run deterministic audit fixtures",
+		"ci.yml::audit-production::Setup Node",
+		"ci.yml::audit-production::Upload ci-lane-result",
+		"ci.yml::classify::Checkout",
+		"ci.yml::classify::Checkout classifier from the base commit",
+		"ci.yml::classify::Classify changed paths once",
+		"ci.yml::classify::Collect ci-lane-result",
+		"ci.yml::classify::Setup Node",
+		"ci.yml::classify::Upload ci-lane-result",
+		"ci.yml::e2e-build::Build and push e2e images",
+		"ci.yml::e2e-build::CI lane not applicable",
+		"ci.yml::e2e-build::Checkout",
+		"ci.yml::e2e-build::Collect ci-lane-result",
+		"ci.yml::e2e-build::Login to GHCR",
+		"ci.yml::e2e-build::Resolve fork state",
+		"ci.yml::e2e-build::Resolve image root",
+		"ci.yml::e2e-build::Resolve image tag",
+		"ci.yml::e2e-build::Setup Docker Buildx",
+		"ci.yml::e2e-build::Setup GitHub Actions runtime",
+		"ci.yml::e2e-build::Upload ci-lane-result",
+		"ci.yml::e2e-build::Upload fork e2e images",
+		"ci.yml::e2e-build::Verify built front image",
+		"ci.yml::e2e-cleanup::CI lane not applicable",
+		"ci.yml::e2e-cleanup::Checkout",
+		"ci.yml::e2e-cleanup::Cleanup e2e images",
+		"ci.yml::e2e-cleanup::Collect ci-lane-result",
+		"ci.yml::e2e-cleanup::Upload ci-lane-result",
+		"ci.yml::e2e-test::CI lane not applicable",
+		"ci.yml::e2e-test::Checkout",
+		"ci.yml::e2e-test::Collect ci-lane-result",
+		"ci.yml::e2e-test::Detect partial rerun",
+		"ci.yml::e2e-test::Download fork e2e images",
+		"ci.yml::e2e-test::Install dependencies",
+		"ci.yml::e2e-test::Install pnpm",
+		"ci.yml::e2e-test::Load fork e2e images",
+		"ci.yml::e2e-test::Login to GHCR",
+		"ci.yml::e2e-test::Pull stack images",
+		"ci.yml::e2e-test::Run Playwright shard",
+		"ci.yml::e2e-test::Setup Node",
+		"ci.yml::e2e-test::Start e2e stack",
+		"ci.yml::e2e-test::Upload ci-lane-result",
+		"ci.yml::e2e-test::Wait for e2e stack health",
+		"ci.yml::front-vitest::CI lane not applicable",
+		"ci.yml::front-vitest::Checkout",
+		"ci.yml::front-vitest::Collect ci-lane-result",
+		"ci.yml::front-vitest::Install dependencies",
+		"ci.yml::front-vitest::Install pnpm",
+		"ci.yml::front-vitest::Run vitest shard",
+		"ci.yml::front-vitest::Setup Node",
+		"ci.yml::front-vitest::Upload ci-lane-result",
+		"ci.yml::gate::Aggregate upstream artifacts",
+		"ci.yml::gate::Checkout",
+		"ci.yml::gate::Download exact upstream result artifacts",
+		"ci.yml::gate::Install pnpm",
+		"ci.yml::gate::Install workspace dependencies",
+		"ci.yml::gate::Read live PR snapshot",
+		"ci.yml::gate::Run central structural self-check",
+		"ci.yml::gate::Setup Node",
+		"ci.yml::gate::Upload live PR snapshot",
+		"ci.yml::gate::Verify linked issue relationship",
+		"ci.yml::gate::Write live PR snapshot",
+		"ci.yml::verification::CI lane not applicable (docs)",
+		"ci.yml::verification::CI lane not applicable (front)",
+		"ci.yml::verification::CI lane not applicable (quality)",
+		"ci.yml::verification::CI lane not applicable (react)",
+		"ci.yml::verification::Checkout",
+		"ci.yml::verification::Collect ci-lane-result",
+		"ci.yml::verification::Install pnpm",
+		"ci.yml::verification::Install workspace dependencies",
+		"ci.yml::verification::Run React Doctor",
+		"ci.yml::verification::Run docs verification",
+		"ci.yml::verification::Run front verification and report-all checks",
+		"ci.yml::verification::Run quality verification",
+		"ci.yml::verification::Setup Node",
+		"ci.yml::verification::Upload ci-lane-result",
+		"ci.yml::verification::Verify API path-filter coverage",
 		"deploy-images.yml::publish::Build and push API migrate image",
 		"deploy-images.yml::publish::Build and push API runtime image",
 		"deploy-images.yml::publish::Build and push Front image",
@@ -303,13 +400,13 @@
 			"reason_hash": "4c92a505a7d6b469",
 			"reason": "Runner toolchain provisioning. Locally the SDK version is pinned by global.json instead; CI pins it again because the runner image ships whatever it ships."
 		},
-		"api-tests.yml::suite::Set up Node": {
-			"reason_hash": "305da4753c978917",
-			"reason": "Runner toolchain provisioning. Locally the Node version is pinned by .node-version / .nvmrc instead."
-		},
 		"api-tests.yml::suite::Set up just": {
 			"reason_hash": "997bb69cf1357de0",
 			"reason": "Runner toolchain provisioning: installs the just binary. Locally just is the entrypoint being run, so it is by definition already present."
+		},
+		"api-tests.yml::suite::Set up Node": {
+			"reason_hash": "305da4753c978917",
+			"reason": "Runner toolchain provisioning. Locally the Node version is pinned by .node-version / .nvmrc instead."
 		},
 		"api-tests.yml::suite::Set up pnpm": {
 			"reason_hash": "1fd22cde3ad0647d",
@@ -318,6 +415,394 @@
 		"api-tests.yml::suite::Upload test results on failure": {
 			"reason_hash": "50c4c42df69e5537",
 			"reason": "GitHub-only failure-only log capture: gets failing-spec output off an ephemeral runner. Locally the reports are already on disk."
+		},
+		"ci.yml::api::API contract and suite": {
+			"reason_hash": "55ea1441881589c8",
+			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
+		},
+		"ci.yml::api::Checkout": {
+			"reason_hash": "55ea1441881589c8",
+			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
+		},
+		"ci.yml::api::CI lane not applicable": {
+			"reason_hash": "55ea1441881589c8",
+			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
+		},
+		"ci.yml::api::Collect ci-lane-result": {
+			"reason_hash": "55ea1441881589c8",
+			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
+		},
+		"ci.yml::api::Set up .NET": {
+			"reason_hash": "55ea1441881589c8",
+			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
+		},
+		"ci.yml::api::Set up pnpm": {
+			"reason_hash": "55ea1441881589c8",
+			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
+		},
+		"ci.yml::api::Setup Node": {
+			"reason_hash": "55ea1441881589c8",
+			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
+		},
+		"ci.yml::api::Upload ci-lane-result": {
+			"reason_hash": "55ea1441881589c8",
+			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
+		},
+		"ci.yml::audit-development::Audit development dependencies": {
+			"reason_hash": "55ea1441881589c8",
+			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
+		},
+		"ci.yml::audit-development::Checkout": {
+			"reason_hash": "55ea1441881589c8",
+			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
+		},
+		"ci.yml::audit-development::CI lane not applicable": {
+			"reason_hash": "55ea1441881589c8",
+			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
+		},
+		"ci.yml::audit-development::Collect ci-lane-result": {
+			"reason_hash": "55ea1441881589c8",
+			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
+		},
+		"ci.yml::audit-development::Install pnpm": {
+			"reason_hash": "55ea1441881589c8",
+			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
+		},
+		"ci.yml::audit-development::Run deterministic audit fixtures": {
+			"reason_hash": "55ea1441881589c8",
+			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
+		},
+		"ci.yml::audit-development::Setup Node": {
+			"reason_hash": "55ea1441881589c8",
+			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
+		},
+		"ci.yml::audit-development::Upload ci-lane-result": {
+			"reason_hash": "55ea1441881589c8",
+			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
+		},
+		"ci.yml::audit-production::Audit production dependencies": {
+			"reason_hash": "55ea1441881589c8",
+			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
+		},
+		"ci.yml::audit-production::Checkout": {
+			"reason_hash": "55ea1441881589c8",
+			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
+		},
+		"ci.yml::audit-production::CI lane not applicable": {
+			"reason_hash": "55ea1441881589c8",
+			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
+		},
+		"ci.yml::audit-production::Collect ci-lane-result": {
+			"reason_hash": "55ea1441881589c8",
+			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
+		},
+		"ci.yml::audit-production::Install pnpm": {
+			"reason_hash": "55ea1441881589c8",
+			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
+		},
+		"ci.yml::audit-production::Run deterministic audit fixtures": {
+			"reason_hash": "55ea1441881589c8",
+			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
+		},
+		"ci.yml::audit-production::Setup Node": {
+			"reason_hash": "55ea1441881589c8",
+			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
+		},
+		"ci.yml::audit-production::Upload ci-lane-result": {
+			"reason_hash": "55ea1441881589c8",
+			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
+		},
+		"ci.yml::classify::Checkout": {
+			"reason_hash": "55ea1441881589c8",
+			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
+		},
+		"ci.yml::classify::Checkout classifier from the base commit": {
+			"reason_hash": "55ea1441881589c8",
+			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
+		},
+		"ci.yml::classify::Classify changed paths once": {
+			"reason_hash": "55ea1441881589c8",
+			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
+		},
+		"ci.yml::classify::Collect ci-lane-result": {
+			"reason_hash": "55ea1441881589c8",
+			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
+		},
+		"ci.yml::classify::Setup Node": {
+			"reason_hash": "55ea1441881589c8",
+			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
+		},
+		"ci.yml::classify::Upload ci-lane-result": {
+			"reason_hash": "55ea1441881589c8",
+			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
+		},
+		"ci.yml::e2e-build::Build and push e2e images": {
+			"reason_hash": "55ea1441881589c8",
+			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
+		},
+		"ci.yml::e2e-build::Checkout": {
+			"reason_hash": "55ea1441881589c8",
+			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
+		},
+		"ci.yml::e2e-build::CI lane not applicable": {
+			"reason_hash": "55ea1441881589c8",
+			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
+		},
+		"ci.yml::e2e-build::Collect ci-lane-result": {
+			"reason_hash": "55ea1441881589c8",
+			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
+		},
+		"ci.yml::e2e-build::Login to GHCR": {
+			"reason_hash": "1644596db7219f6b",
+			"reason": "Central CI workflow step is reconciled by the central artifact-backed gate; the exact command or action is reviewed here and remains covered by the focused CI contract tests."
+		},
+		"ci.yml::e2e-build::Resolve fork state": {
+			"reason_hash": "55ea1441881589c8",
+			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
+		},
+		"ci.yml::e2e-build::Resolve image root": {
+			"reason_hash": "55ea1441881589c8",
+			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
+		},
+		"ci.yml::e2e-build::Resolve image tag": {
+			"reason_hash": "55ea1441881589c8",
+			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
+		},
+		"ci.yml::e2e-build::Setup Docker Buildx": {
+			"reason_hash": "1644596db7219f6b",
+			"reason": "Central CI workflow step is reconciled by the central artifact-backed gate; the exact command or action is reviewed here and remains covered by the focused CI contract tests."
+		},
+		"ci.yml::e2e-build::Setup GitHub Actions runtime": {
+			"reason_hash": "1644596db7219f6b",
+			"reason": "Central CI workflow step is reconciled by the central artifact-backed gate; the exact command or action is reviewed here and remains covered by the focused CI contract tests."
+		},
+		"ci.yml::e2e-build::Upload ci-lane-result": {
+			"reason_hash": "55ea1441881589c8",
+			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
+		},
+		"ci.yml::e2e-build::Upload fork e2e images": {
+			"reason_hash": "1644596db7219f6b",
+			"reason": "Central CI workflow step is reconciled by the central artifact-backed gate; the exact command or action is reviewed here and remains covered by the focused CI contract tests."
+		},
+		"ci.yml::e2e-build::Verify built front image": {
+			"reason_hash": "1644596db7219f6b",
+			"reason": "Central CI workflow step is reconciled by the central artifact-backed gate; the exact command or action is reviewed here and remains covered by the focused CI contract tests."
+		},
+		"ci.yml::e2e-cleanup::Checkout": {
+			"reason_hash": "1644596db7219f6b",
+			"reason": "Central CI workflow step is reconciled by the central artifact-backed gate; the exact command or action is reviewed here and remains covered by the focused CI contract tests."
+		},
+		"ci.yml::e2e-cleanup::CI lane not applicable": {
+			"reason_hash": "55ea1441881589c8",
+			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
+		},
+		"ci.yml::e2e-cleanup::Cleanup e2e images": {
+			"reason_hash": "55ea1441881589c8",
+			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
+		},
+		"ci.yml::e2e-cleanup::Collect ci-lane-result": {
+			"reason_hash": "55ea1441881589c8",
+			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
+		},
+		"ci.yml::e2e-cleanup::Upload ci-lane-result": {
+			"reason_hash": "55ea1441881589c8",
+			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
+		},
+		"ci.yml::e2e-test::Checkout": {
+			"reason_hash": "55ea1441881589c8",
+			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
+		},
+		"ci.yml::e2e-test::CI lane not applicable": {
+			"reason_hash": "55ea1441881589c8",
+			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
+		},
+		"ci.yml::e2e-test::Collect ci-lane-result": {
+			"reason_hash": "55ea1441881589c8",
+			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
+		},
+		"ci.yml::e2e-test::Detect partial rerun": {
+			"reason_hash": "1644596db7219f6b",
+			"reason": "Central CI workflow step is reconciled by the central artifact-backed gate; the exact command or action is reviewed here and remains covered by the focused CI contract tests."
+		},
+		"ci.yml::e2e-test::Download fork e2e images": {
+			"reason_hash": "1644596db7219f6b",
+			"reason": "Central CI workflow step is reconciled by the central artifact-backed gate; the exact command or action is reviewed here and remains covered by the focused CI contract tests."
+		},
+		"ci.yml::e2e-test::Install dependencies": {
+			"reason_hash": "1644596db7219f6b",
+			"reason": "Central CI workflow step is reconciled by the central artifact-backed gate; the exact command or action is reviewed here and remains covered by the focused CI contract tests."
+		},
+		"ci.yml::e2e-test::Install pnpm": {
+			"reason_hash": "1644596db7219f6b",
+			"reason": "Central CI workflow step is reconciled by the central artifact-backed gate; the exact command or action is reviewed here and remains covered by the focused CI contract tests."
+		},
+		"ci.yml::e2e-test::Load fork e2e images": {
+			"reason_hash": "1644596db7219f6b",
+			"reason": "Central CI workflow step is reconciled by the central artifact-backed gate; the exact command or action is reviewed here and remains covered by the focused CI contract tests."
+		},
+		"ci.yml::e2e-test::Login to GHCR": {
+			"reason_hash": "1644596db7219f6b",
+			"reason": "Central CI workflow step is reconciled by the central artifact-backed gate; the exact command or action is reviewed here and remains covered by the focused CI contract tests."
+		},
+		"ci.yml::e2e-test::Pull stack images": {
+			"reason_hash": "1644596db7219f6b",
+			"reason": "Central CI workflow step is reconciled by the central artifact-backed gate; the exact command or action is reviewed here and remains covered by the focused CI contract tests."
+		},
+		"ci.yml::e2e-test::Run Playwright shard": {
+			"reason_hash": "55ea1441881589c8",
+			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
+		},
+		"ci.yml::e2e-test::Setup Node": {
+			"reason_hash": "1644596db7219f6b",
+			"reason": "Central CI workflow step is reconciled by the central artifact-backed gate; the exact command or action is reviewed here and remains covered by the focused CI contract tests."
+		},
+		"ci.yml::e2e-test::Start e2e stack": {
+			"reason_hash": "1644596db7219f6b",
+			"reason": "Central CI workflow step is reconciled by the central artifact-backed gate; the exact command or action is reviewed here and remains covered by the focused CI contract tests."
+		},
+		"ci.yml::e2e-test::Upload ci-lane-result": {
+			"reason_hash": "55ea1441881589c8",
+			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
+		},
+		"ci.yml::e2e-test::Wait for e2e stack health": {
+			"reason_hash": "1644596db7219f6b",
+			"reason": "Central CI workflow step is reconciled by the central artifact-backed gate; the exact command or action is reviewed here and remains covered by the focused CI contract tests."
+		},
+		"ci.yml::front-vitest::Checkout": {
+			"reason_hash": "55ea1441881589c8",
+			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
+		},
+		"ci.yml::front-vitest::CI lane not applicable": {
+			"reason_hash": "55ea1441881589c8",
+			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
+		},
+		"ci.yml::front-vitest::Collect ci-lane-result": {
+			"reason_hash": "55ea1441881589c8",
+			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
+		},
+		"ci.yml::front-vitest::Install dependencies": {
+			"reason_hash": "55ea1441881589c8",
+			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
+		},
+		"ci.yml::front-vitest::Install pnpm": {
+			"reason_hash": "55ea1441881589c8",
+			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
+		},
+		"ci.yml::front-vitest::Run vitest shard": {
+			"reason_hash": "55ea1441881589c8",
+			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
+		},
+		"ci.yml::front-vitest::Setup Node": {
+			"reason_hash": "55ea1441881589c8",
+			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
+		},
+		"ci.yml::front-vitest::Upload ci-lane-result": {
+			"reason_hash": "55ea1441881589c8",
+			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
+		},
+		"ci.yml::gate::Aggregate upstream artifacts": {
+			"reason_hash": "55ea1441881589c8",
+			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
+		},
+		"ci.yml::gate::Checkout": {
+			"reason_hash": "55ea1441881589c8",
+			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
+		},
+		"ci.yml::gate::Download exact upstream result artifacts": {
+			"reason_hash": "55ea1441881589c8",
+			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
+		},
+		"ci.yml::gate::Install pnpm": {
+			"reason_hash": "55ea1441881589c8",
+			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
+		},
+		"ci.yml::gate::Install workspace dependencies": {
+			"reason_hash": "55ea1441881589c8",
+			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
+		},
+		"ci.yml::gate::Read live PR snapshot": {
+			"reason_hash": "55ea1441881589c8",
+			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
+		},
+		"ci.yml::gate::Run central structural self-check": {
+			"reason_hash": "55ea1441881589c8",
+			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
+		},
+		"ci.yml::gate::Setup Node": {
+			"reason_hash": "55ea1441881589c8",
+			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
+		},
+		"ci.yml::gate::Upload live PR snapshot": {
+			"reason_hash": "55ea1441881589c8",
+			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
+		},
+		"ci.yml::gate::Verify linked issue relationship": {
+			"reason_hash": "55ea1441881589c8",
+			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
+		},
+		"ci.yml::gate::Write live PR snapshot": {
+			"reason_hash": "55ea1441881589c8",
+			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
+		},
+		"ci.yml::verification::Checkout": {
+			"reason_hash": "55ea1441881589c8",
+			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
+		},
+		"ci.yml::verification::CI lane not applicable (docs)": {
+			"reason_hash": "55ea1441881589c8",
+			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
+		},
+		"ci.yml::verification::CI lane not applicable (front)": {
+			"reason_hash": "55ea1441881589c8",
+			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
+		},
+		"ci.yml::verification::CI lane not applicable (quality)": {
+			"reason_hash": "55ea1441881589c8",
+			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
+		},
+		"ci.yml::verification::CI lane not applicable (react)": {
+			"reason_hash": "55ea1441881589c8",
+			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
+		},
+		"ci.yml::verification::Collect ci-lane-result": {
+			"reason_hash": "55ea1441881589c8",
+			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
+		},
+		"ci.yml::verification::Install pnpm": {
+			"reason_hash": "55ea1441881589c8",
+			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
+		},
+		"ci.yml::verification::Install workspace dependencies": {
+			"reason_hash": "55ea1441881589c8",
+			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
+		},
+		"ci.yml::verification::Run docs verification": {
+			"reason_hash": "55ea1441881589c8",
+			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
+		},
+		"ci.yml::verification::Run front verification and report-all checks": {
+			"reason_hash": "55ea1441881589c8",
+			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
+		},
+		"ci.yml::verification::Run quality verification": {
+			"reason_hash": "55ea1441881589c8",
+			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
+		},
+		"ci.yml::verification::Run React Doctor": {
+			"reason_hash": "55ea1441881589c8",
+			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
+		},
+		"ci.yml::verification::Setup Node": {
+			"reason_hash": "55ea1441881589c8",
+			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
+		},
+		"ci.yml::verification::Upload ci-lane-result": {
+			"reason_hash": "55ea1441881589c8",
+			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
+		},
+		"ci.yml::verification::Verify API path-filter coverage": {
+			"reason_hash": "55ea1441881589c8",
+			"reason": "This hosted workflow step is reconciled by the central CI topology and its focused local contract tests; it has no separate local execution surface."
 		},
 		"deploy-images.yml::publish::Build and push API migrate image": {
 			"reason_hash": "83411d8a82349d27",
@@ -403,6 +888,22 @@
 			"reason_hash": "270aa0820881ca9d",
 			"reason": "GitHub-only: round-5 BLOCKER fix. Reads steps.check-required-jobs.outcome, which GitHub computes BEFORE continue-on-error is applied (only .conclusion is rewritten afterward), so a continue-on-error added to the required-jobs check step cannot mask this step's own view of whether that step actually succeeded. That `.outcome` context only exists inside a real Actions run, so this stays GitHub-only/unmirrored locally; packages/scripts-ts/src/check-ci-gate-structure.ts pins that this exact step exists."
 		},
+		"front-ci.yml::audit-production::Audit production dependencies (moderate and above)": {
+			"reason_hash": "e9be8d177601e23c",
+			"reason": "#1699 isolates the production graph in its own required job. The 40-second production runner bound preserves pnpm output and fails closed for advisories or a known unavailable audit service; the local recipe invokes that identical runner command."
+		},
+		"front-ci.yml::audit-production::Checkout": {
+			"reason_hash": "7d216c1ebbd926ec",
+			"reason": "GitHub-only: clones the repository onto the isolated audit runner. Locally the checked-out working tree already supplies the lockfile and runner source."
+		},
+		"front-ci.yml::audit-production::Install pnpm": {
+			"reason_hash": "505036dae56a3b96",
+			"reason": "GitHub-only pnpm provisioning for the isolated audit job. Local verification already uses the repository-pinned pnpm toolchain."
+		},
+		"front-ci.yml::audit-production::Setup Node": {
+			"reason_hash": "9cb3c50a9bab4fd4",
+			"reason": "GitHub-only Node provisioning for the isolated audit job. Local verification already runs with the repository-pinned Node version."
+		},
 		"front-ci.yml::changes::Check whether front-ci paths changed": {
 			"reason_hash": "16de9106d9bb8dbe",
 			"reason": "The step now inlines the fallback directly (round-3 review fix: replaced a separate PR-controlled wrapper script with a few lines of shell, since a separate file has no different trust level than inline YAML content — both are read from the pull request's merge commit): if base-ref/packages/scripts-ts/src/ci-changed-paths.ts exists, run it and pass its output/exit code straight through; otherwise print a loud [MISSING BASE CLASSIFIER] warning and resolve relevant=true, on a code path that never invokes the classifier. packages/scripts-ts/src/ci-gate-bootstrap.test.ts parses this exact `run:` block from the real workflow file (not a restatement) and executes it directly against both cases for all four workflows. The classifier's own decision logic (including the 3,000-file API-ceiling fail-closed check) remains covered by packages/scripts-ts/src/ci-changed-paths.test.ts. The live gh api calls remain GitHub-only and unmirrored. Round-4 update: the pattern now also matches the other three #1017 gate workflow files (front-e2e.yml, openapi-spec-drift.yml, docs-archive.yml), so the new gate-selftest job wakes for a change to any of them; packages/scripts-ts/src/check-ci-gate-structure.ts's selfTestCoverage check pins that this pattern keeps matching all four. Round-6 update (hash bump reviewed against the real step): the workflow-file alternation `\\.github/workflows/(front-ci|front-e2e|openapi-spec-drift|docs-archive)\\.yml$` is replaced by the prefix `\\.github/workflows/`. Nothing else in the step changed. Required because check-ci-gate-structure.ts's new required-context uniqueness scan asserts against EVERY workflow in the repository, and under the old alternation an edit to a non-gate workflow (the reviewer's reproduction made old-front-characterization.yml report `docs-archive-gate`) classified as irrelevant, so both jobs that run the scan server-side were skipped. selfTestCoverage now lists every workflow file plus one path for a workflow file that does not exist, so the pattern cannot narrow back to an enumerated list. #1261 round-2 update (hash bump reviewed against the real step): the path alternation gains `\\.github/actions/` so an actions-only PR (e.g. a Dependabot github-actions bump inside an action.yml) classifies as relevant and wakes gate-selftest, the one job that runs the actions-pinning guard suite server-side; packages/scripts-ts/src/ci-changed-paths.test.ts pins that the real pattern extracted from this step matches .github/actions/foo/action.yml. #1920 round 2: PR_NUMBER env var changed from `${{ github.event.pull_request.number }}` to `${{ github.event.pull_request.number || '' }}` so the step is safe for push/schedule events where github.event.pull_request is undefined — without this the classifier receives an empty string PR_NUMBER and can misclassify. The bootstrap test (ci-gate-bootstrap.test.ts) covers this step unchanged since it executes the real run: body directly against both present/absent classifier cases."
@@ -471,33 +972,9 @@
 			"reason_hash": "9c467ba291a82e56",
 			"reason": "ci-install runs the identical command: node apps/front/scripts/run-guarded.mts apps/front/scripts/guards/assert-pinned.mts (wrapped #1525)."
 		},
-		"front-ci.yml::audit-production::Audit production dependencies (moderate and above)": {
-			"reason_hash": "e9be8d177601e23c",
-			"reason": "#1699 isolates the production graph in its own required job. The 40-second production runner bound preserves pnpm output and fails closed for advisories or a known unavailable audit service; the local recipe invokes that identical runner command."
-		},
-		"front-ci.yml::audit-production::Checkout": {
-			"reason_hash": "7d216c1ebbd926ec",
-			"reason": "GitHub-only: clones the repository onto the isolated audit runner. Locally the checked-out working tree already supplies the lockfile and runner source."
-		},
-		"front-ci.yml::audit-production::Install pnpm": {
-			"reason_hash": "505036dae56a3b96",
-			"reason": "GitHub-only pnpm provisioning for the isolated audit job. Local verification already uses the repository-pinned pnpm toolchain."
-		},
-		"front-ci.yml::audit-production::Setup Node": {
-			"reason_hash": "9cb3c50a9bab4fd4",
-			"reason": "GitHub-only Node provisioning for the isolated audit job. Local verification already runs with the repository-pinned Node version."
-		},
 		"front-ci.yml::supply-chain::Build front": {
 			"reason_hash": "0274617a256af805",
 			"reason": "ci-front runs the identical pnpm --filter front build."
-		},
-		"front-ci.yml::supply-chain::Check front srvx/static import shape (#1822)": {
-			"reason_hash": "f190fa994d00657b",
-			"reason": "ci-front runs the identical pnpm --filter front check:server-static-imports (#1822). The guard parses server.mjs with ts-morph, loads the real installed srvx/static, and asserts every named import from srvx/static resolves against the live module — without it, a dependabot srvx bump that renames or removes an export re-opens the same startup crash the publish-now e2e surfaced in #1628 and #1655, but only behind the next retrigger. The unit test (apps/front/scripts/guards/check-server-static-imports.test.mts, including a real-load assertion that pinned staticMiddleware is exported and serveStatic is not) runs inside the front `test` chain as test:server-static-imports-guard, mirrored by the same `just ci-front` invocation."
-		},
-		"front-ci.yml::supply-chain::Check front React Compiler artifacts": {
-			"reason_hash": "ad9f03648bf0dfc2",
-			"reason": "ci-front runs the identical pnpm --filter front check:react-compiler after the front build (#1234)."
 		},
 		"front-ci.yml::supply-chain::Check front column-type imports (#1769)": {
 			"reason_hash": "aab0080ad391b02e",
@@ -510,6 +987,14 @@
 		"front-ci.yml::supply-chain::Check front formatting": {
 			"reason_hash": "6964f94cd7bace93",
 			"reason": "just format runs pnpm format, the identical oxfmt --check invocation over the repo's configured globs."
+		},
+		"front-ci.yml::supply-chain::Check front React Compiler artifacts": {
+			"reason_hash": "ad9f03648bf0dfc2",
+			"reason": "ci-front runs the identical pnpm --filter front check:react-compiler after the front build (#1234)."
+		},
+		"front-ci.yml::supply-chain::Check front srvx/static import shape (#1822)": {
+			"reason_hash": "f190fa994d00657b",
+			"reason": "ci-front runs the identical pnpm --filter front check:server-static-imports (#1822). The guard parses server.mjs with ts-morph, loads the real installed srvx/static, and asserts every named import from srvx/static resolves against the live module — without it, a dependabot srvx bump that renames or removes an export re-opens the same startup crash the publish-now e2e surfaced in #1628 and #1655, but only behind the next retrigger. The unit test (apps/front/scripts/guards/check-server-static-imports.test.mts, including a real-load assertion that pinned staticMiddleware is exported and serveStatic is not) runs inside the front `test` chain as test:server-static-imports-guard, mirrored by the same `just ci-front` invocation."
 		},
 		"front-ci.yml::supply-chain::Checkout": {
 			"reason_hash": "ef11b8560855c6d8",
@@ -543,6 +1028,10 @@
 			"reason_hash": "3c29ad1ad74f92b6",
 			"reason": "ci-front runs pnpm --filter front smoke:start. The workflow does this with inline bash (background job + trap + curl + grep) which cannot run under the justfile's pwsh shell on Windows, so apps/front/scripts/ci/smoke-start-server.mts re-implements the same assertions in Node: serve the production build, GET /, require a rel=stylesheet link to a .css asset. DELIBERATE DIFFERENCE: CI hardcodes port 3000 (a fresh runner has nothing else on it); the local script binds a free ephemeral port via PORT, because probing a busy 3000 on a dev machine would assert against whatever unrelated app answered and report a false green. #1914 reconciliation: the step's env block now sets NODE_ENV=production and a valid PUBLIC_ORIGIN, mirroring apps/front/scripts/ci/smoke-start-server.mts, so the smoke actually exercises the production validateRuntimeEnv() guard in server.mjs (the same guard that blocks host-header injection in #1754). Bypass validateRuntimeEnv() in server.mjs and the existing apps/front/scripts/ci/validate-runtime-env-startup.test.mts goes red (confirmed by re-run: the production server no longer crashes on missing PUBLIC_ORIGIN, so its stderr never names PUBLIC_ORIGIN and the test's output-match assertion fails). This step's own env block has no bespoke local proof beyond that negative case; the CI drift hash above forces a manifest reconciliation if NODE_ENV or PUBLIC_ORIGIN changes here."
 		},
+		"front-ci.yml::supply-chain::Test front (non-vitest)": {
+			"reason_hash": "dead675ca5c39cbd",
+			"reason": "ci-front runs the identical pnpm --filter front test:ci-non-vitest (the non-vitest half of `pnpm --filter front test`: compose-startup, route-tree-guard, design-guards, the design-system/zindex/react-compiler/shared-ts guards, etc.). The vitest shards moved out of this step into their own matrix job (#1948) so a vitest failure cannot mask the non-vitest checks and vice versa (#1699)."
+		},
 		"front-ci.yml::supply-chain::Typecheck front": {
 			"reason_hash": "6ef1f2667344074b",
 			"reason": "ci-front runs the identical pnpm --filter front typecheck."
@@ -558,6 +1047,62 @@
 		"front-ci.yml::supply-chain::Verify paired red proofs": {
 			"reason_hash": "0ab39c939776a967",
 			"reason": "ci-front runs `just test-preuves`, which delegates to the same scripts/ci/run-proofs.mts script invoked by `pnpm --filter front test:preuves`. Option (b) of issue #1659 ronde 5: a PR declares a paired red proof by adding/modifying proof test files under apps/front/tests/proofs/<issue>/. The runner uses `git diff` to detect whether the current PR touched any proof files. If proofs were declared, it replays them with inverted semantics (fail = proof intact, pass = proof stale). If no proofs were declared, it prints an explicit no-op message and exits 0. Proof files are versionned (committed), unlike .dump/ which is git-ignored. The developer replay path is the lane worktree where .dump/ traces also exist."
+		},
+		"front-ci.yml::test-vitest-coverage::Check vitest shard coverage equality (#1948)": {
+			"reason_hash": "a816b3acd04a3e9c",
+			"reason": "#1948: the shard matrix must partition the suite exactly once. just ci-front runs the identical `pnpm --filter front test:vitest-shard-coverage`, which reads the REAL `vitest list --shard=i/n` discovery of every shard and of the unsharded suite and fails if any file is lost, duplicated, or invented by the matrix."
+		},
+		"front-ci.yml::test-vitest-coverage::Checkout": {
+			"reason_hash": "c80eb5bfb322fab4",
+			"reason": "GitHub-only: clones the repo onto the runner. Locally the working tree already is the code under test."
+		},
+		"front-ci.yml::test-vitest-coverage::Install (frozen lockfile, no scripts)": {
+			"reason_hash": "663389920e93e4f6",
+			"reason": "ci-install runs the identical pnpm install --frozen-lockfile --ignore-scripts."
+		},
+		"front-ci.yml::test-vitest-coverage::Install pnpm": {
+			"reason_hash": "1fd22cde3ad0647d",
+			"reason": "Runner toolchain provisioning. Locally pnpm is pinned by the packageManager field and is a developer prerequisite."
+		},
+		"front-ci.yml::test-vitest-coverage::Run trusted first-party postinstall (@org/shared-ts)": {
+			"reason_hash": "11f4c937ecc6b38a",
+			"reason": "ci-install runs the identical pnpm --filter @org/shared-ts run postinstall."
+		},
+		"front-ci.yml::test-vitest-coverage::Setup Node": {
+			"reason_hash": "305da4753c978917",
+			"reason": "Runner toolchain provisioning. Locally the Node version is pinned by .node-version / .nvmrc instead."
+		},
+		"front-ci.yml::test-vitest::Checkout": {
+			"reason_hash": "c80eb5bfb322fab4",
+			"reason": "GitHub-only: clones the repo onto the runner. Locally the working tree already is the code under test."
+		},
+		"front-ci.yml::test-vitest::Install (frozen lockfile, no scripts)": {
+			"reason_hash": "663389920e93e4f6",
+			"reason": "ci-install runs the identical pnpm install --frozen-lockfile --ignore-scripts."
+		},
+		"front-ci.yml::test-vitest::Install Git hooks (mirrors prepare)": {
+			"reason_hash": "654d033231771a75",
+			"reason": "#1852: the shard/coverage jobs install with --ignore-scripts, so the root prepare never ran and core.hooksPath is unwired in the checkout. This step runs `pnpm run prepare` — the exact command a developer's pnpm install runs — which points core.hooksPath at the versioned .husky dir via packages/scripts-ts/src/install-git-hooks.ts (shared config, so fresh worktrees inherit it). The local mirror is the same command: just test-preuves (part of just ci-front) starts with `pnpm run prepare` before replaying the paired red proofs, and the installer itself fails loud when hooks cannot be wired. Using `pnpm run prepare` keeps a single source: a commit that removes the prepare script from package.json fails the step instead of silently unpinning hooks."
+		},
+		"front-ci.yml::test-vitest::Install pnpm": {
+			"reason_hash": "1fd22cde3ad0647d",
+			"reason": "Runner toolchain provisioning. Locally pnpm is pinned by the packageManager field and is a developer prerequisite."
+		},
+		"front-ci.yml::test-vitest::Run trusted first-party postinstall (@org/shared-ts)": {
+			"reason_hash": "11f4c937ecc6b38a",
+			"reason": "ci-install runs the identical pnpm --filter @org/shared-ts run postinstall."
+		},
+		"front-ci.yml::test-vitest::Run vitest shard": {
+			"reason_hash": "ceae6b67fe12d1f1",
+			"reason": "just ci-front runs the full vitest suite unsharded (pnpm --filter front test ends in `vitest run`). CI's --shard=i/4 partition is pinned separately by front-ci.yml::test-vitest-coverage, which replays the same --shard flag in list mode against the real unsharded discovery — the local mirror of that step is the identical command (pnpm --filter front test:vitest-shard-coverage)."
+		},
+		"front-ci.yml::test-vitest::Setup Node": {
+			"reason_hash": "305da4753c978917",
+			"reason": "Runner toolchain provisioning. Locally the Node version is pinned by .node-version / .nvmrc instead."
+		},
+		"front-ci.yml::test-vitest::Upload vitest report": {
+			"reason_hash": "529e175ce38b68cf",
+			"reason": "GitHub-only: uploads the per-shard vitest report artifact off an ephemeral runner on failure (actions/upload-artifact with a shard-specific name so the reports never collide). Locally test-results is already on disk; there is nothing to upload it to."
 		},
 		"front-e2e.yml::build::Build stack images": {
 			"reason_hash": "eb77e1d7609dd410",
@@ -763,13 +1308,13 @@
 			"reason_hash": "4c92a505a7d6b469",
 			"reason": "Runner toolchain provisioning. Locally the SDK version is pinned by global.json instead; CI pins it again because the runner image ships whatever it ships."
 		},
-		"openapi-spec-drift.yml::spec-drift::Set up Node": {
-			"reason_hash": "305da4753c978917",
-			"reason": "Runner toolchain provisioning. Locally the Node version is pinned by .node-version / .nvmrc instead."
-		},
 		"openapi-spec-drift.yml::spec-drift::Set up just": {
 			"reason_hash": "997bb69cf1357de0",
 			"reason": "Runner toolchain provisioning: installs the just binary. Locally just is the entrypoint being run, so it is by definition already present."
+		},
+		"openapi-spec-drift.yml::spec-drift::Set up Node": {
+			"reason_hash": "305da4753c978917",
+			"reason": "Runner toolchain provisioning. Locally the Node version is pinned by .node-version / .nvmrc instead."
 		},
 		"openapi-spec-drift.yml::spec-drift::Set up pnpm": {
 			"reason_hash": "1fd22cde3ad0647d",
@@ -778,6 +1323,22 @@
 		"openapi-spec-drift.yml::spec-drift::uses:actions/checkout": {
 			"reason_hash": "c80eb5bfb322fab4",
 			"reason": "GitHub-only: clones the repo onto the runner. Locally the working tree already is the code under test."
+		},
+		"quality-gate.yml::audit-development::Audit development dependencies (moderate and above)": {
+			"reason_hash": "01ea4124505781f2",
+			"reason": "#1699 isolates the development graph in its own required job. The 120-second development runner bound preserves pnpm output and fails closed for advisories or a known unavailable audit service; the local recipe invokes that identical runner command."
+		},
+		"quality-gate.yml::audit-development::Checkout": {
+			"reason_hash": "7d216c1ebbd926ec",
+			"reason": "GitHub-only: clones the repository onto the isolated audit runner. Locally the checked-out working tree already supplies the lockfile and runner source."
+		},
+		"quality-gate.yml::audit-development::Install pnpm": {
+			"reason_hash": "505036dae56a3b96",
+			"reason": "GitHub-only pnpm provisioning for the isolated audit job. Local verification already uses the repository-pinned pnpm toolchain."
+		},
+		"quality-gate.yml::audit-development::Setup Node": {
+			"reason_hash": "9cb3c50a9bab4fd4",
+			"reason": "GitHub-only Node provisioning for the isolated audit job. Local verification already runs with the repository-pinned Node version."
 		},
 		"quality-gate.yml::changes::Check whether quality-gate paths changed": {
 			"reason_hash": "357c6f67b627b215",
@@ -799,14 +1360,6 @@
 			"reason_hash": "270aa0820881ca9d",
 			"reason": "GitHub-only: round-5 BLOCKER fix. Reads steps.check-required-jobs.outcome, which GitHub computes BEFORE continue-on-error is applied (only .conclusion is rewritten afterward), so a continue-on-error added to the required-jobs check step cannot mask this step's own view of whether that step actually succeeded. That `.outcome` context only exists inside a real Actions run, so this stays GitHub-only/unmirrored locally; packages/scripts-ts/src/check-ci-gate-structure.ts pins that this exact step exists."
 		},
-		"quality-gate.yml::no-ignored-tracked::Checkout": {
-			"reason_hash": "c80eb5bfb322fab4",
-			"reason": "GitHub-only: clones the repo onto the runner. Locally the working tree already is the code under test."
-		},
-		"quality-gate.yml::no-ignored-tracked::Verify no tracked file matches .gitignore (#1513)": {
-			"reason_hash": "0b7b1ce1965ab1f9",
-			"reason": "ci-no-ignored-tracked runs the identical `node packages/scripts-ts/src/check-no-ignored-tracked.ts` plus its vitest test, which interrogates the REAL repo via `git ls-files -z --cached --ignored --exclude-standard`. Empty output = green, any named path = red. See issue #1513."
-		},
 		"quality-gate.yml::no-dockerignore-shadow::Checkout": {
 			"reason_hash": "c80eb5bfb322fab4",
 			"reason": "GitHub-only: clones the repo onto the runner. Locally the working tree already is the code under test."
@@ -815,25 +1368,17 @@
 			"reason_hash": "b60edaad18888f9d",
 			"reason": "ci-dockerignore-shadow runs the identical `node packages/scripts-ts/src/check-dockerignore-shadow.ts`, which walks the REAL working tree (the same filesystem a build context is drawn from) and flags every file whose basename ends with `.dockerignore` case-insensitively but is not exactly `.dockerignore`. Git-ignored paths (e.g. parallel .worktrees/) are filtered out via a single batch `git check-ignore --stdin -z` call (issue #1909 class). The `-v` form is deliberately NOT used: it was the round-4 defect, because its verbose output changes the parse shape. See issue #1849."
 		},
+		"quality-gate.yml::no-ignored-tracked::Checkout": {
+			"reason_hash": "c80eb5bfb322fab4",
+			"reason": "GitHub-only: clones the repo onto the runner. Locally the working tree already is the code under test."
+		},
+		"quality-gate.yml::no-ignored-tracked::Verify no tracked file matches .gitignore (#1513)": {
+			"reason_hash": "0b7b1ce1965ab1f9",
+			"reason": "ci-no-ignored-tracked runs the identical `node packages/scripts-ts/src/check-no-ignored-tracked.ts` plus its vitest test, which interrogates the REAL repo via `git ls-files -z --cached --ignored --exclude-standard`. Empty output = green, any named path = red. See issue #1513."
+		},
 		"quality-gate.yml::quality::Assert exact pins": {
 			"reason_hash": "9c467ba291a82e56",
 			"reason": "ci-install runs the identical command: node apps/front/scripts/run-guarded.mts apps/front/scripts/guards/assert-pinned.mts (wrapped #1525)."
-		},
-		"quality-gate.yml::audit-development::Audit development dependencies (moderate and above)": {
-			"reason_hash": "01ea4124505781f2",
-			"reason": "#1699 isolates the development graph in its own required job. The 120-second development runner bound preserves pnpm output and fails closed for advisories or a known unavailable audit service; the local recipe invokes that identical runner command."
-		},
-		"quality-gate.yml::audit-development::Checkout": {
-			"reason_hash": "7d216c1ebbd926ec",
-			"reason": "GitHub-only: clones the repository onto the isolated audit runner. Locally the checked-out working tree already supplies the lockfile and runner source."
-		},
-		"quality-gate.yml::audit-development::Install pnpm": {
-			"reason_hash": "505036dae56a3b96",
-			"reason": "GitHub-only pnpm provisioning for the isolated audit job. Local verification already uses the repository-pinned pnpm toolchain."
-		},
-		"quality-gate.yml::audit-development::Setup Node": {
-			"reason_hash": "9cb3c50a9bab4fd4",
-			"reason": "GitHub-only Node provisioning for the isolated audit job. Local verification already runs with the repository-pinned Node version."
 		},
 		"quality-gate.yml::quality::Bind pinned action SHAs to their version comments (#1392)": {
 			"reason_hash": "0ec591b68c82fd5b",
@@ -883,10 +1428,6 @@
 			"reason_hash": "e3835e6215b51bfc",
 			"reason": "ci-quality-dotnet runs the identical dotnet restore PublyApp.slnx with APP_ROLE=api and TRUSTED_PROXY_CIDRS pinned so AppEnvironment boots in Production."
 		},
-		"quality-gate.yml::quality::Run NuGet audit fixture tests": {
-			"reason_hash": "35505f27a286461a",
-			"reason": "Identical invocation to the CI step itself: since the scripts-ts migration the test runs under vitest (node --test no longer works on the .ts file). Run locally so the fixture suite that validates the audit evaluator's own failure modes gates PRs, not just local runs, before the production audit executes."
-		},
 		"quality-gate.yml::quality::Run analyzer tests": {
 			"reason_hash": "c5bc4cb7dcf41fbb",
 			"reason": "ci-quality runs just test-analyzers (dotnet test of PublyApp.Analyzers.Tests.csproj), the same custom analyzer suite CI runs via pnpm exec just test-analyzers."
@@ -894,6 +1435,10 @@
 		"quality-gate.yml::quality::Run dependency-health pin-location contract test": {
 			"reason_hash": "89e3000e5cdc3998",
 			"reason": "Identical invocation to the CI step itself, which was added in #1334 fix round 1 so the contract actually executes in CI instead of being an orphaned local-only suite. Locally it runs inside `just nuget-audit` (and therefore `just ci`) right after the NuGet audit fixture tests it sits next to in CI."
+		},
+		"quality-gate.yml::quality::Run NuGet audit fixture tests": {
+			"reason_hash": "35505f27a286461a",
+			"reason": "Identical invocation to the CI step itself: since the scripts-ts migration the test runs under vitest (node --test no longer works on the .ts file). Run locally so the fixture suite that validates the audit evaluator's own failure modes gates PRs, not just local runs, before the production audit executes."
 		},
 		"quality-gate.yml::quality::Run trusted first-party postinstall (@org/shared-ts)": {
 			"reason_hash": "11f4c937ecc6b38a",
@@ -907,13 +1452,13 @@
 			"reason_hash": "4c92a505a7d6b469",
 			"reason": "Runner toolchain provisioning. Locally the SDK version is pinned by global.json instead; CI pins it again because the runner image ships whatever it ships."
 		},
-		"quality-gate.yml::quality::Setup Node": {
-			"reason_hash": "305da4753c978917",
-			"reason": "Runner toolchain provisioning. Locally the Node version is pinned by .node-version / .nvmrc instead."
-		},
 		"quality-gate.yml::quality::Setup just": {
 			"reason_hash": "997bb69cf1357de0",
 			"reason": "Runner toolchain provisioning: installs the just binary. Locally just is the entrypoint being run, so it is by definition already present."
+		},
+		"quality-gate.yml::quality::Setup Node": {
+			"reason_hash": "305da4753c978917",
+			"reason": "Runner toolchain provisioning. Locally the Node version is pinned by .node-version / .nvmrc instead."
 		},
 		"quality-gate.yml::quality::Test shared-ts": {
 			"reason_hash": "f1e453ba1ed83492",
@@ -990,66 +1535,6 @@
 		"require-linked-issue.yml::require-linked-issue::Verify the PR links an existing issue": {
 			"reason_hash": "f81ab6de3dc4efba",
 			"reason": "Reads github.event.pull_request.body and number. At pre-push time there is no PR and therefore no live body to check, so the event-bound step is not reproducible locally. Its exact shell body is executed against a mocked GitHub CLI by packages/scripts-ts/src/require-linked-issue.test.ts, which pins the Dependabot waiver, line-anchored relationships, negated-prose rejection, explicit self-reference diagnosis, failure when a closing relationship targets any pull request, a self-reference, an unverifiable number, or a failed/missing GraphQL closingIssuesReferences entry, and allowance of a non-closing sibling-PR citation only when a real issue also satisfies the gate. The hermetic mock covers the GraphQL call and can force it to fail, so the focused suite exercises the real workflow body rather than a model of it. In GitHub Actions, gate-selftest has issues and pull-requests read permissions and executes the live issues-endpoint discriminator and the real workflow body against known PR #1987."
-		},
-		"front-ci.yml::supply-chain::Test front (non-vitest)": {
-			"reason_hash": "dead675ca5c39cbd",
-			"reason": "ci-front runs the identical pnpm --filter front test:ci-non-vitest (the non-vitest half of `pnpm --filter front test`: compose-startup, route-tree-guard, design-guards, the design-system/zindex/react-compiler/shared-ts guards, etc.). The vitest shards moved out of this step into their own matrix job (#1948) so a vitest failure cannot mask the non-vitest checks and vice versa (#1699)."
-		},
-		"front-ci.yml::test-vitest::Checkout": {
-			"reason_hash": "c80eb5bfb322fab4",
-			"reason": "GitHub-only: clones the repo onto the runner. Locally the working tree already is the code under test."
-		},
-		"front-ci.yml::test-vitest::Install pnpm": {
-			"reason_hash": "1fd22cde3ad0647d",
-			"reason": "Runner toolchain provisioning. Locally pnpm is pinned by the packageManager field and is a developer prerequisite."
-		},
-		"front-ci.yml::test-vitest::Setup Node": {
-			"reason_hash": "305da4753c978917",
-			"reason": "Runner toolchain provisioning. Locally the Node version is pinned by .node-version / .nvmrc instead."
-		},
-		"front-ci.yml::test-vitest::Install (frozen lockfile, no scripts)": {
-			"reason_hash": "663389920e93e4f6",
-			"reason": "ci-install runs the identical pnpm install --frozen-lockfile --ignore-scripts."
-		},
-		"front-ci.yml::test-vitest::Run trusted first-party postinstall (@org/shared-ts)": {
-			"reason_hash": "11f4c937ecc6b38a",
-			"reason": "ci-install runs the identical pnpm --filter @org/shared-ts run postinstall."
-		},
-		"front-ci.yml::test-vitest::Install Git hooks (mirrors prepare)": {
-			"reason_hash": "654d033231771a75",
-			"reason": "#1852: the shard/coverage jobs install with --ignore-scripts, so the root prepare never ran and core.hooksPath is unwired in the checkout. This step runs `pnpm run prepare` — the exact command a developer's pnpm install runs — which points core.hooksPath at the versioned .husky dir via packages/scripts-ts/src/install-git-hooks.ts (shared config, so fresh worktrees inherit it). The local mirror is the same command: just test-preuves (part of just ci-front) starts with `pnpm run prepare` before replaying the paired red proofs, and the installer itself fails loud when hooks cannot be wired. Using `pnpm run prepare` keeps a single source: a commit that removes the prepare script from package.json fails the step instead of silently unpinning hooks."
-		},
-		"front-ci.yml::test-vitest::Run vitest shard": {
-			"reason_hash": "ceae6b67fe12d1f1",
-			"reason": "just ci-front runs the full vitest suite unsharded (pnpm --filter front test ends in `vitest run`). CI's --shard=i/4 partition is pinned separately by front-ci.yml::test-vitest-coverage, which replays the same --shard flag in list mode against the real unsharded discovery — the local mirror of that step is the identical command (pnpm --filter front test:vitest-shard-coverage)."
-		},
-		"front-ci.yml::test-vitest::Upload vitest report": {
-			"reason_hash": "529e175ce38b68cf",
-			"reason": "GitHub-only: uploads the per-shard vitest report artifact off an ephemeral runner on failure (actions/upload-artifact with a shard-specific name so the reports never collide). Locally test-results is already on disk; there is nothing to upload it to."
-		},
-		"front-ci.yml::test-vitest-coverage::Checkout": {
-			"reason_hash": "c80eb5bfb322fab4",
-			"reason": "GitHub-only: clones the repo onto the runner. Locally the working tree already is the code under test."
-		},
-		"front-ci.yml::test-vitest-coverage::Install pnpm": {
-			"reason_hash": "1fd22cde3ad0647d",
-			"reason": "Runner toolchain provisioning. Locally pnpm is pinned by the packageManager field and is a developer prerequisite."
-		},
-		"front-ci.yml::test-vitest-coverage::Setup Node": {
-			"reason_hash": "305da4753c978917",
-			"reason": "Runner toolchain provisioning. Locally the Node version is pinned by .node-version / .nvmrc instead."
-		},
-		"front-ci.yml::test-vitest-coverage::Install (frozen lockfile, no scripts)": {
-			"reason_hash": "663389920e93e4f6",
-			"reason": "ci-install runs the identical pnpm install --frozen-lockfile --ignore-scripts."
-		},
-		"front-ci.yml::test-vitest-coverage::Run trusted first-party postinstall (@org/shared-ts)": {
-			"reason_hash": "11f4c937ecc6b38a",
-			"reason": "ci-install runs the identical pnpm --filter @org/shared-ts run postinstall."
-		},
-		"front-ci.yml::test-vitest-coverage::Check vitest shard coverage equality (#1948)": {
-			"reason_hash": "a816b3acd04a3e9c",
-			"reason": "#1948: the shard matrix must partition the suite exactly once. just ci-front runs the identical `pnpm --filter front test:vitest-shard-coverage`, which reads the REAL `vitest list --shard=i/n` discovery of every shard and of the unsharded suite and fails if any file is lost, duplicated, or invented by the matrix."
 		}
 	}
 }

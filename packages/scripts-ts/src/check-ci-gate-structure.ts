@@ -4,6 +4,11 @@ import process from 'node:process';
 
 import { parse } from 'yaml';
 
+import {
+	EXPECTED_JOB_LANES,
+	EXPECTED_UPSTREAM_JOB_KEYS,
+} from './check-ci-gate-aggregation.ts';
+
 // Structural guard for the #1017 aggregate CI gates.
 //
 // scripts/check-ci-drift.mjs hashes a step's `env`, step-level `if`, `run`,
@@ -1854,6 +1859,21 @@ export const findRequiredContextCollisionProblems = async ({
 			);
 		}
 	}
+	// PR A keeps the old producers, but the additive central workflow owns its
+	// own dynamic display names and must be allowed through the legacy collision
+	// scanner until PR B removes the old table entries.
+	authorizedExpressionNames.set(
+		'ci.yml::front-vitest',
+		'front-ci (${{ matrix.shard }}/4)',
+	);
+	authorizedExpressionNames.set(
+		'ci.yml::e2e-test',
+		'front-e2e (${{ matrix.shard }}/4)',
+	);
+	authorizedExpressionNames.set(
+		'ci.yml::gate',
+		"${{ (github.event_name == 'pull_request' || github.event_name == 'merge_group') && 'ci-final-gate' || 'ci-push-check' }}",
+	);
 
 	const gateJobByKey = new Map(
 		workflows.map((workflow) => [
@@ -1944,6 +1964,408 @@ export const findRequiredContextCollisionProblems = async ({
 	return findings;
 };
 
+export const CENTRAL_VISIBLE_CHECKS = [
+	'CI classifier',
+	'CI verification',
+	'Audit development dependencies',
+	'Audit production dependencies',
+	'API contract and suite',
+	'front-ci (1/4)',
+	'front-ci (2/4)',
+	'front-ci (3/4)',
+	'front-ci (4/4)',
+	'Build e2e images',
+	'front-e2e (1/4)',
+	'front-e2e (2/4)',
+	'front-e2e (3/4)',
+	'front-e2e (4/4)',
+	'Clean up e2e images',
+	'ci-final-gate',
+] as const;
+
+const CENTRAL_JOB_IDS = [
+	'classify',
+	'verification',
+	'audit-development',
+	'audit-production',
+	'api',
+	'front-vitest',
+	'e2e-build',
+	'e2e-test',
+	'e2e-cleanup',
+	'gate',
+] as const;
+
+const CENTRAL_PERMISSIONS = {
+	classify: { contents: 'read', 'pull-requests': 'read' },
+	verification: { contents: 'read' },
+	'audit-development': { contents: 'read' },
+	'audit-production': { contents: 'read' },
+	api: { contents: 'read' },
+	frontVitest: { contents: 'read' },
+	e2eBuild: { contents: 'read', packages: 'write' },
+	e2eTest: { contents: 'read', packages: 'read' },
+	e2eCleanup: { contents: 'read', packages: 'write' },
+	gate: {
+		actions: 'read',
+		contents: 'read',
+		issues: 'read',
+		'pull-requests': 'read',
+	},
+} as const;
+
+const deepEqualJson = (left: unknown, right: unknown): boolean =>
+	JSON.stringify(left) === JSON.stringify(right);
+
+type CentralStep = {
+	[key: string]: unknown;
+	name?: unknown;
+	id?: unknown;
+	if?: unknown;
+	uses?: unknown;
+	env?: Record<string, unknown>;
+	with?: Record<string, unknown>;
+	'continue-on-error'?: unknown;
+};
+
+type CentralJob = {
+	name?: unknown;
+	permissions?: unknown;
+	if?: unknown;
+	needs?: unknown;
+	strategy?: {
+		'fail-fast'?: unknown;
+		include?: unknown;
+		exclude?: unknown;
+		matrix?: {
+			shard?: unknown;
+			include?: unknown;
+			exclude?: unknown;
+		};
+	};
+	steps?: CentralStep[];
+};
+
+type CentralJobs = Record<string, CentralJob>;
+
+type CentralDocument = {
+	permissions?: unknown;
+	on?: {
+		pull_request?: { types?: unknown };
+		merge_group?: unknown;
+		push?: { branches?: unknown; paths?: unknown };
+	};
+	jobs?: CentralJobs;
+};
+
+const expandedCentralNames = (jobs: CentralJobs): string[] => {
+	const labels: string[] = [];
+	for (const job of Object.values(jobs)) {
+		const shards = job.strategy?.matrix?.shard;
+		if (Array.isArray(shards)) {
+			for (const shard of shards) {
+				labels.push(
+					String(job.name).replace('${{ matrix.shard }}', String(shard)),
+				);
+			}
+			continue;
+		}
+		const name = String(job.name);
+		labels.push(name.includes('ci-final-gate') ? 'ci-final-gate' : name);
+	}
+	return labels;
+};
+
+const centralJobKey = (jobId: string): string => {
+	if (jobId === 'front-vitest' || jobId === 'e2e-test') {
+		return `${jobId}/1`;
+	}
+	return jobId;
+};
+
+const readLaneSpecs = (
+	job: CentralJob,
+): Record<string, string[]> | undefined => {
+	const collector = (Array.isArray(job?.steps) ? job.steps : []).find((step) =>
+		String(step.name).includes('Collect ci-lane-result'),
+	);
+	const raw = collector?.env?.CI_LANE_SPECS;
+	if (typeof raw !== 'string') {
+		return undefined;
+	}
+	try {
+		const specs = JSON.parse(raw) as unknown;
+		if (specs === null || typeof specs !== 'object' || Array.isArray(specs)) {
+			return undefined;
+		}
+		return specs as Record<string, string[]>;
+	} catch {
+		return undefined;
+	}
+};
+
+export const findCentralCiStructureProblems = async ({
+	rootDir,
+}: {
+	rootDir: string;
+}): Promise<string[]> => {
+	const file = path.join(rootDir, '.github/workflows/ci.yml');
+	const findings: string[] = [];
+	let document: CentralDocument;
+	try {
+		document = parse(await readFile(file, 'utf8')) as CentralDocument;
+	} catch (error) {
+		return [`${file}: unable to parse central workflow: ${String(error)}`];
+	}
+
+	if (!deepEqualJson(document.permissions, {})) {
+		findings.push('ci.yml: workflow permissions must be exactly {}');
+	}
+	const trigger = document.on;
+	const triggerKeys =
+		trigger && typeof trigger === 'object' ? Object.keys(trigger) : [];
+	if (!deepEqualJson(triggerKeys, ['pull_request', 'merge_group', 'push'])) {
+		findings.push(
+			'ci.yml: triggers must be exactly pull_request, merge_group, push',
+		);
+	}
+	if (
+		!deepEqualJson(trigger?.pull_request?.types, [
+			'opened',
+			'edited',
+			'reopened',
+			'synchronize',
+			'ready_for_review',
+		])
+	) {
+		findings.push(
+			'ci.yml: pull_request activity types are not the pinned allowlist',
+		);
+	}
+	if (
+		!deepEqualJson(trigger?.push?.branches, ['develop']) ||
+		trigger?.push?.paths !== undefined
+	) {
+		findings.push('ci.yml: push must be unfiltered and limited to develop');
+	}
+
+	const jobs = document.jobs;
+	if (!jobs || typeof jobs !== 'object') {
+		return [...findings, 'ci.yml: jobs is missing'];
+	}
+	const jobIds = Object.keys(jobs);
+	if (!deepEqualJson(jobIds, CENTRAL_JOB_IDS)) {
+		findings.push(
+			`ci.yml: job ids must be exactly ${JSON.stringify(CENTRAL_JOB_IDS)}`,
+		);
+	}
+	if (!deepEqualJson(expandedCentralNames(jobs), CENTRAL_VISIBLE_CHECKS)) {
+		findings.push(
+			'ci.yml: expanded display-name set is not exactly the pinned 16 labels',
+		);
+	}
+
+	const expectedPermissionsByJob = {
+		classify: CENTRAL_PERMISSIONS.classify,
+		verification: CENTRAL_PERMISSIONS.verification,
+		'audit-development': CENTRAL_PERMISSIONS['audit-development'],
+		'audit-production': CENTRAL_PERMISSIONS['audit-production'],
+		api: CENTRAL_PERMISSIONS.api,
+		'front-vitest': CENTRAL_PERMISSIONS.frontVitest,
+		'e2e-build': CENTRAL_PERMISSIONS.e2eBuild,
+		'e2e-test': CENTRAL_PERMISSIONS.e2eTest,
+		'e2e-cleanup': CENTRAL_PERMISSIONS.e2eCleanup,
+		gate: CENTRAL_PERMISSIONS.gate,
+	} satisfies Record<string, unknown>;
+	for (const [jobId, expected] of Object.entries(expectedPermissionsByJob)) {
+		if (!deepEqualJson(jobs[jobId]?.permissions, expected)) {
+			findings.push(
+				`${jobId}: exact job permissions do not match the allowlist`,
+			);
+		}
+	}
+
+	for (const jobId of CENTRAL_JOB_IDS) {
+		const job = jobs[jobId];
+		if (job === undefined) {
+			continue;
+		}
+		if (jobId !== 'classify' && jobId !== 'gate' && job.if !== 'always()') {
+			findings.push(`${jobId}: dependent central jobs must use if: always()`);
+		}
+		if (
+			typeof job.if === 'string' &&
+			job.if.includes('needs.classify.outputs')
+		) {
+			findings.push(
+				`${jobId}: relevance must be a step condition, not a job condition`,
+			);
+		}
+		if (jobId === 'gate' && job.if !== 'always()') {
+			findings.push('gate: final gate must use if: always()');
+		}
+	}
+
+	for (const jobId of ['front-vitest', 'e2e-test']) {
+		const strategy = jobs[jobId]?.strategy;
+		if (strategy?.['fail-fast'] !== false) {
+			findings.push(`${jobId}: fail-fast must be false`);
+		}
+		if (!deepEqualJson(strategy?.matrix?.shard, [1, 2, 3, 4])) {
+			findings.push(`${jobId}: matrix shard axis must be exactly [1, 2, 3, 4]`);
+		}
+		if (
+			strategy?.include !== undefined ||
+			strategy?.exclude !== undefined ||
+			strategy?.matrix?.include !== undefined ||
+			strategy?.matrix?.exclude !== undefined
+		) {
+			findings.push(`${jobId}: matrix include/exclude is not allowed`);
+		}
+	}
+
+	const expectedNeeds = [
+		'classify',
+		'verification',
+		'audit-development',
+		'audit-production',
+		'api',
+		'front-vitest',
+		'e2e-build',
+		'e2e-test',
+		'e2e-cleanup',
+	];
+	if (!deepEqualJson(jobs.gate?.needs, expectedNeeds)) {
+		findings.push('gate.needs must equal the complete central upstream graph');
+	}
+	if (JSON.stringify(document).includes('toJSON(needs)')) {
+		findings.push(
+			'ci.yml must aggregate downloaded artifacts, not toJSON(needs) matrix members',
+		);
+	}
+
+	const allJobs = Object.values(jobs);
+	const upstreamJobs = allJobs.filter((job) => job !== jobs.gate);
+	for (const job of upstreamJobs) {
+		const steps = Array.isArray(job.steps) ? job.steps : [];
+		if (
+			!steps.some(
+				(step) =>
+					step.if === 'always()' &&
+					String(step.name).includes('Collect ci-lane-result'),
+			)
+		) {
+			findings.push(
+				`${String(job.name)}: missing if: always() ci-lane-result collector`,
+			);
+		}
+		if (
+			job !== jobs.classify &&
+			!steps.some((step) =>
+				String(step.name).includes('CI lane not applicable'),
+			)
+		) {
+			findings.push(
+				`${String(job.name)}: missing CI lane not applicable sentinel`,
+			);
+		}
+		if (
+			!steps.some((step) =>
+				String(step.uses).includes('actions/upload-artifact@'),
+			)
+		) {
+			findings.push(`${String(job.name)}: missing result artifact upload`);
+		}
+		if (
+			!steps.some(
+				(step) =>
+					String(step.name).includes('Collect ci-lane-result') &&
+					step.env?.CI_STEP_RESULTS,
+			)
+		) {
+			findings.push(
+				`${String(job.name)}: collector must record actual CI step outcomes`,
+			);
+		}
+		const jobId = CENTRAL_JOB_IDS.find((id) => jobs[id] === job);
+		if (jobId !== undefined) {
+			const key = centralJobKey(jobId);
+			if (
+				EXPECTED_UPSTREAM_JOB_KEYS.includes(
+					key as (typeof EXPECTED_UPSTREAM_JOB_KEYS)[number],
+				)
+			) {
+				const actual = readLaneSpecs(job);
+				const expected = Object.fromEntries(
+					EXPECTED_JOB_LANES[key].map((lane) => [
+						lane.lane,
+						lane.expectedSteps,
+					]),
+				);
+				if (JSON.stringify(actual) !== JSON.stringify(expected)) {
+					findings.push(
+						`${jobId}: CI_LANE_SPECS do not match the exact artifact contract`,
+					);
+				}
+			}
+		}
+	}
+	if (
+		upstreamJobs.some((job) =>
+			(Array.isArray(job.steps) ? job.steps : []).some(
+				(step) =>
+					step['continue-on-error'] === true &&
+					String(step.name).includes('Collect'),
+			),
+		)
+	) {
+		findings.push(
+			'ci.yml: ci-lane-result collectors may not use continue-on-error',
+		);
+	}
+	if (JSON.stringify(jobs.gate ?? {}).includes('continue-on-error')) {
+		findings.push('gate: final reducer may not use continue-on-error');
+	}
+	if (!JSON.stringify(document).includes('run-non-vitest-report-all.mts')) {
+		findings.push(
+			'ci.yml: verification must invoke the durable report-all runner',
+		);
+	}
+	if (JSON.stringify(document).includes('CI_EXPECTED_STEPS')) {
+		findings.push(
+			'ci.yml: legacy CI_EXPECTED_STEPS artifact contract is not allowed',
+		);
+	}
+	const frontReportStep = (jobs.verification?.steps ?? []).find((step) =>
+		String(step.name).includes('front verification'),
+	);
+	if (frontReportStep?.['working-directory'] !== 'apps/front') {
+		findings.push(
+			'verification: report-all runner must execute with apps/front as its working directory',
+		);
+	}
+	const classifyCheckout = (jobs.classify?.steps ?? []).find(
+		(step) => step.id === 'checkout',
+	);
+	if (
+		classifyCheckout?.uses === undefined ||
+		classifyCheckout.with?.path !== undefined
+	) {
+		findings.push(
+			'classify: a full current-revision checkout is required for collector execution',
+		);
+	}
+	if (
+		!JSON.stringify(jobs.gate ?? {}).includes('closingIssuesReferences') &&
+		!JSON.stringify(jobs.gate ?? {}).includes('gh issue view')
+	) {
+		findings.push(
+			'gate: linked-issue verification must use the live GitHub relationship policy',
+		);
+	}
+	return findings;
+};
+
 const isDirectRun =
 	process.argv[1] &&
 	toPosixPath(process.argv[1]).endsWith(
@@ -1952,6 +2374,7 @@ const isDirectRun =
 
 if (isDirectRun) {
 	const findings = [
+		...(await findCentralCiStructureProblems({ rootDir: process.cwd() })),
 		...(await findCiGateStructureProblems({ rootDir: process.cwd() })),
 		// Round 6 BLOCKER: run the whole-repository required-context
 		// uniqueness scan from the SAME CLI, so it is enforced by exactly the

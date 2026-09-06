@@ -446,6 +446,30 @@ export const readApiTestsGateSurfaces = (
 	return { pushPaths, classifierCommand, classifierPattern, compiled };
 };
 
+export const readCentralApiCoverageSurface = (
+	fileText = read('.github/workflows/ci.yml'),
+) => {
+	const verificationBlock = fileText.match(
+		/\n  verification:\n([\s\S]*?)(?=\n  [a-z][a-z-]+:\n|\s*$)/,
+	)?.[1];
+	const apiBlock = fileText.match(
+		/\n  api:\n([\s\S]*?)(?=\n  [a-z][a-z-]+:\n|\s*$)/,
+	)?.[1];
+	if (verificationBlock === undefined || apiBlock === undefined) {
+		throw new Error('ci.yml must declare verification and api jobs');
+	}
+	const classifierInvocation = 'check-api-tests-path-coverage.ts';
+	return {
+		hasClassifierInvocation: fileText.includes('ci-changed-paths.ts'),
+		hasVerificationInvocation: verificationBlock.includes(classifierInvocation),
+		hasApiInvocation: apiBlock.includes('just test-api'),
+		hasUnconditionalVerificationStep:
+			/\n      - name: Verify API path-filter coverage[\s\S]*?\n        if: always\(\)/.test(
+				verificationBlock,
+			),
+	};
+};
+
 /** Recursively lists files under a repo-relative dir that match a suffix. */
 const walkFiles = (dir, suffix, acc = []) => {
 	const entries = readdirSync(path.join(repoRoot, dir), {

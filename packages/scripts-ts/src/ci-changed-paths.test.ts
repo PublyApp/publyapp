@@ -15,6 +15,9 @@ import { test } from 'vitest';
 import { parse } from 'yaml';
 
 import {
+	LANE_OUTPUTS,
+	LANE_PATTERNS,
+	classifyLanes,
 	classifyRelevance,
 	parseChangedFilesTotal,
 } from './ci-changed-paths.ts';
@@ -24,6 +27,58 @@ import {
 // than silently certifying an incomplete list as "not relevant". See #1017.
 
 const pattern = '^(apps/front/|packages/shared-ts/)';
+
+test('central classifier emits the exact six literal lane outputs', () => {
+	const files = [
+		'apps/front/src/routes.ts',
+		'apps/api/Program.cs',
+		'apps/front/e2e/home.spec.ts',
+		'docs/guides/ci.md',
+		'packages/scripts-ts/src/ci-changed-paths.ts',
+	];
+	const result = classifyLanes({
+		eventName: 'pull_request',
+		files,
+		changedFilesTotal: files.length,
+	});
+
+	assert.deepEqual(Object.keys(result.outputs), LANE_OUTPUTS);
+	for (const lane of LANE_OUTPUTS) {
+		assert.equal(result.outputs[lane], 'true');
+	}
+});
+
+test('central classifier fails closed for malformed or count-mismatched evidence', () => {
+	for (const input of [
+		{ files: null, changedFilesTotal: 0 },
+		{ files: ['README.md'], changedFilesTotal: 2 },
+		{ files: ['README.md'], changedFilesTotal: undefined },
+	]) {
+		const result = classifyLanes({ eventName: 'pull_request', ...input });
+		for (const lane of LANE_OUTPUTS) {
+			assert.equal(result.outputs[lane], 'true');
+		}
+		assert.match(result.reason, /incomplete|malformed|missing|valid/i);
+	}
+});
+
+test('merge-group and push classify every lane as relevant', () => {
+	for (const eventName of ['merge_group', 'push']) {
+		const result = classifyLanes({
+			eventName,
+			files: [],
+			changedFilesTotal: 0,
+		});
+		assert.deepEqual(
+			Object.values(result.outputs),
+			LANE_OUTPUTS.map(() => 'true'),
+		);
+	}
+});
+
+test('lane patterns expose the single classifier source of truth', () => {
+	assert.deepEqual(Object.keys(LANE_PATTERNS), LANE_OUTPUTS);
+});
 
 test('push runs are relevant by construction, without needing file evidence', () => {
 	const result = classifyRelevance({

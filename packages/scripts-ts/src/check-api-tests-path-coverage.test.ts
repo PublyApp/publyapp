@@ -12,6 +12,7 @@ import {
 	extractPushPaths,
 	findPathCoverageProblems,
 	findSpecReferencedProjectDirs,
+	readCentralApiCoverageSurface,
 	readApiTestsGateSurfaces,
 } from './check-api-tests-path-coverage.ts';
 
@@ -49,6 +50,14 @@ const repoRoot = path.resolve(
 
 const read = (relativePath) =>
 	readFileSync(path.join(repoRoot, relativePath), 'utf8');
+
+test('central workflow keeps API path coverage reachable in verification and API lane', () => {
+	const surface = readCentralApiCoverageSurface();
+	assert.equal(surface.hasClassifierInvocation, true);
+	assert.equal(surface.hasVerificationInvocation, true);
+	assert.equal(surface.hasApiInvocation, true);
+	assert.equal(surface.hasUnconditionalVerificationStep, true);
+});
 
 /** Recursively lists files under a repo-relative dir that match a suffix. */
 const walkFiles = (dir, suffix, acc = []) => {

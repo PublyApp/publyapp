@@ -247,18 +247,20 @@ const assertLocalConfigContents = (config) => {
 		'verification_command_timeout_seconds',
 	];
 	const expectedCiRequiredChecks = [
-		'require-linked-issue',
+		'front-e2e-gate',
+		'front-ci-gate',
 		'openapi-spec-drift-gate',
 		'docs-archive-gate',
-		'front-ci-gate',
-		'front-e2e-gate',
+		'quality-gate',
+		'react-doctor-gate',
+		'ci-final-gate',
 	];
 	assert.equal(config.schema_version, 1);
 	assert.equal(config.project, 'publyapp');
 	assert.equal(config.tracking_projection, 'trello:publyapp');
 	assert.equal(config.default_branch, 'develop');
 	assert.equal(config.repository, 'PublyApp/publyapp');
-	assert.deepEqual(Object.keys(config).sort(), expectedConfigKeys);
+	assert.deepEqual(Object.keys(config).sort(), expectedConfigKeys.sort());
 	for (const pathKey of ['repo_path', 'closure_state_dir']) {
 		assert.equal(typeof config[pathKey], 'string');
 		assert.match(config[pathKey], /^\/(?!tmp(?:\/|$))/);
@@ -286,6 +288,16 @@ const assertLocalConfigContents = (config) => {
 	}
 	assert.equal(config.heavy_job_limit, 1);
 	assert.ok(Array.isArray(config.ci_required_checks));
+	assert.deepEqual(config.ci_live_pr_checks, ['ci-final-gate']);
+	assert.deepEqual(config.ci_required_checks_source, {
+		pull_request: 'candidate_tip',
+		merge_group: 'event_tip',
+		push: 'event_tip',
+	});
+	assert.deepEqual(config.ci_live_pr_workflow, {
+		path: '.github/workflows/ci.yml',
+		action: 'pull_request',
+	});
 	assert.equal(
 		JSON.stringify(
 			[...config.ci_required_checks].sort((left, right) =>

@@ -1,0 +1,816 @@
+name: central ci
+
+on:
+  pull_request:
+    types: [opened, edited, reopened, synchronize, ready_for_review]
+  merge_group:
+  push:
+    branches: [develop]
+
+permissions: {}
+
+env:
+  CI_RESULT_DIR: ci-results
+
+jobs:
+  classify:
+    name: CI classifier
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      quality: ${{ steps.classifier.outputs.quality }}
+      front: ${{ steps.classifier.outputs.front }}
+      api: ${{ steps.classifier.outputs.api }}
+      e2e: ${{ steps.classifier.outputs.e2e }}
+      docs: ${{ steps.classifier.outputs.docs }}
+      react: ${{ steps.classifier.outputs.react }}
+    steps:
+      - name: Checkout
+        id: checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: Checkout classifier from the base commit
+        id: base_checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.event.pull_request.base.sha || github.sha }}
+          path: base-ref
+          sparse-checkout: packages/scripts-ts/src/ci-changed-paths.ts
+          sparse-checkout-cone-mode: false
+      - name: Setup Node
+        id: setup_node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: 24
+      - name: Classify changed paths once
+        id: classifier
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          GITHUB_EVENT_NAME: ${{ github.event_name }}
+        run: |
+          set -euo pipefail
+          if [ -f base-ref/packages/scripts-ts/src/ci-changed-paths.ts ]; then
+            node base-ref/packages/scripts-ts/src/ci-changed-paths.ts
+          else
+            echo '::warning::base classifier is unavailable; failing closed to every lane'
+            for lane in quality front api e2e docs react; do
+              echo "${lane}=true" >> "$GITHUB_OUTPUT"
+            done
+          fi
+      - name: Collect ci-lane-result
+        if: always()
+        env:
+          CI_JOB_KEY: classify
+          CI_LANE_SPECS: '{"classifier":["classify.checkout","classify.base_checkout","classify.setup_node","classify.run"]}'
+          CI_LANE_MODES: '{"classifier":"relevant"}'
+          CI_STEP_RESULTS: '{"classify.checkout":{"outcome":"${{ steps.checkout.outcome }}"},"classify.base_checkout":{"outcome":"${{ steps.base_checkout.outcome }}"},"classify.setup_node":{"outcome":"${{ steps.setup_node.outcome }}"},"classify.run":{"outcome":"${{ steps.classifier.outcome }}"}}'
+        run: node packages/scripts-ts/src/ci-lane-result.ts
+      - name: Upload ci-lane-result
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ci-lane-result-${{ github.run_id }}-${{ github.run_attempt }}-classify
+          path: ci-results/classify.json
+          if-no-files-found: error
+
+  verification:
+    name: CI verification
+    needs: classify
+    if: always()
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        id: checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: Install pnpm
+        id: install_pnpm
+        uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+        with:
+          version: 10.13.1
+      - name: Setup Node
+        id: setup_node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: 24
+      - name: Install workspace dependencies
+        id: install_workspace
+        if: always()
+        continue-on-error: true
+        run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Run quality verification
+        id: quality
+        if: always() && needs.classify.result == 'success' && needs.classify.outputs.quality == 'true'
+        continue-on-error: true
+        run: |
+          pnpm lint
+          pnpm format
+          pnpm --filter scripts-ts exec vitest run src/check-ci-gate-structure.test.ts src/check-ci-gate-aggregation.test.ts src/ci-gate-bootstrap.test.ts
+          pnpm --filter scripts-ts exec vitest run src/check-ci-drift.test.ts src/artifact-version-compat.test.ts
+          node packages/scripts-ts/src/check-no-ignored-tracked.ts
+          node packages/scripts-ts/src/check-dockerignore-shadow.ts
+      - name: Run front verification and report-all checks
+        id: front
+        if: always() && needs.classify.result == 'success' && needs.classify.outputs.front == 'true'
+        continue-on-error: true
+        working-directory: apps/front
+        run: node scripts/run-guarded.mts scripts/ci/run-non-vitest-report-all.mts
+      - name: Run docs verification
+        id: docs
+        if: always() && needs.classify.result == 'success' && needs.classify.outputs.docs == 'true'
+        continue-on-error: true
+        run: |
+          pnpm --filter scripts-ts exec vitest run src/check-doc-links.test.ts src/audit-docs-prune.test.ts
+          node packages/scripts-ts/src/check-doc-links.ts
+          node packages/scripts-ts/src/audit-docs-prune.ts --check
+      - name: Run React Doctor
+        id: react
+        if: always() && needs.classify.result == 'success' && needs.classify.outputs.react == 'true'
+        continue-on-error: true
+        run: pnpm dlx react-doctor@0.9.12 --scope files --base origin/${{ github.base_ref }} --blocking warning --no-telemetry --verbose
+      - name: Verify API path-filter coverage
+        id: api-paths
+        if: always()
+        continue-on-error: true
+        run: node packages/scripts-ts/src/check-api-tests-path-coverage.ts
+      - name: CI lane not applicable (quality)
+        id: quality-sentinel
+        if: always() && needs.classify.result == 'success' && needs.classify.outputs.quality == 'false'
+        run: echo 'quality verification is not applicable'
+      - name: CI lane not applicable (front)
+        id: front-sentinel
+        if: always() && needs.classify.result == 'success' && needs.classify.outputs.front == 'false'
+        run: echo 'front verification is not applicable'
+      - name: CI lane not applicable (docs)
+        id: docs-sentinel
+        if: always() && needs.classify.result == 'success' && needs.classify.outputs.docs == 'false'
+        run: echo 'docs verification is not applicable'
+      - name: CI lane not applicable (react)
+        id: react-sentinel
+        if: always() && needs.classify.result == 'success' && needs.classify.outputs.react == 'false'
+        run: echo 'React Doctor is not applicable'
+      - name: Collect ci-lane-result
+        if: always()
+        env:
+          CI_JOB_KEY: verification
+          CI_LANE_SPECS: '{"setup":["verification.checkout","verification.install_pnpm","verification.setup_node","verification.install_workspace"],"quality":["verification.quality","verification.quality.not-applicable"],"front":["verification.front","verification.front.not-applicable"],"docs":["verification.docs","verification.docs.not-applicable"],"react":["verification.react","verification.react.not-applicable"],"api-paths":["verification.api-paths"]}'
+          CI_CLASSIFIER_OUTPUTS: '{"quality":"${{ needs.classify.outputs.quality }}","front":"${{ needs.classify.outputs.front }}","docs":"${{ needs.classify.outputs.docs }}","react":"${{ needs.classify.outputs.react }}"}'
+          CI_LANE_MODES: '{"setup":"relevant","api-paths":"relevant"}'
+          CI_NESTED_REPORT_PATH: apps/front/test-results/non-vitest-report.json
+          CI_STEP_RESULTS: '{"verification.checkout":{"outcome":"${{ steps.checkout.outcome }}"},"verification.install_pnpm":{"outcome":"${{ steps.install_pnpm.outcome }}"},"verification.setup_node":{"outcome":"${{ steps.setup_node.outcome }}"},"verification.install_workspace":{"outcome":"${{ steps.install_workspace.outcome }}"},"verification.quality":{"outcome":"${{ steps.quality.outcome }}"},"verification.quality.not-applicable":{"outcome":"${{ steps.quality-sentinel.outcome }}"},"verification.front":{"outcome":"${{ steps.front.outcome }}"},"verification.front.not-applicable":{"outcome":"${{ steps.front-sentinel.outcome }}"},"verification.docs":{"outcome":"${{ steps.docs.outcome }}"},"verification.docs.not-applicable":{"outcome":"${{ steps.docs-sentinel.outcome }}"},"verification.react":{"outcome":"${{ steps.react.outcome }}"},"verification.react.not-applicable":{"outcome":"${{ steps.react-sentinel.outcome }}"},"verification.api-paths":{"outcome":"${{ steps.api-paths.outcome }}"}}'
+        run: node packages/scripts-ts/src/ci-lane-result.ts
+      - name: Upload ci-lane-result
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ci-lane-result-${{ github.run_id }}-${{ github.run_attempt }}-verification
+          path: ci-results/verification.json
+          if-no-files-found: error
+
+  audit-development:
+    name: Audit development dependencies
+    needs: classify
+    if: always()
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        id: checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: Install pnpm
+        id: install_pnpm
+        uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+        with:
+          version: 10.13.1
+      - name: Setup Node
+        id: setup_node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: 24
+      - name: Audit development dependencies
+        id: audit
+        if: always() && needs.classify.result == 'success' && needs.classify.outputs.quality == 'true'
+        continue-on-error: true
+        run: node packages/scripts-ts/src/npm-audit-runner.ts dev moderate
+      - name: Run deterministic audit fixtures
+        id: fixtures
+        if: always() && needs.classify.result == 'success' && needs.classify.outputs.quality == 'true'
+        continue-on-error: true
+        run: pnpm --filter scripts-ts exec vitest run src/npm-audit-runner.test.ts
+      - name: CI lane not applicable
+        id: sentinel
+        if: always() && needs.classify.result == 'success' && needs.classify.outputs.quality == 'false'
+        run: echo 'development audit is not applicable'
+      - name: Collect ci-lane-result
+        if: always()
+        env:
+          CI_JOB_KEY: audit-development
+          CI_LANE_SPECS: '{"audit":["audit-development.checkout","audit-development.install_pnpm","audit-development.setup_node","audit-development.audit","audit-development.fixtures","audit-development.not-applicable"]}'
+          CI_CLASSIFIER_OUTPUTS: '{"audit":"${{ needs.classify.outputs.quality }}"}'
+          CI_STEP_RESULTS: '{"audit-development.checkout":{"outcome":"${{ steps.checkout.outcome }}"},"audit-development.install_pnpm":{"outcome":"${{ steps.install_pnpm.outcome }}"},"audit-development.setup_node":{"outcome":"${{ steps.setup_node.outcome }}"},"audit-development.audit":{"outcome":"${{ steps.audit.outcome }}"},"audit-development.fixtures":{"outcome":"${{ steps.fixtures.outcome }}"},"audit-development.not-applicable":{"outcome":"${{ steps.sentinel.outcome }}"}}'
+        run: node packages/scripts-ts/src/ci-lane-result.ts
+      - name: Upload ci-lane-result
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ci-lane-result-${{ github.run_id }}-${{ github.run_attempt }}-audit-development
+          path: ci-results/audit-development.json
+          if-no-files-found: error
+
+  audit-production:
+    name: Audit production dependencies
+    needs: classify
+    if: always()
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        id: checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: Install pnpm
+        id: install_pnpm
+        uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+        with:
+          version: 10.13.1
+      - name: Setup Node
+        id: setup_node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: 24
+      - name: Audit production dependencies
+        id: audit
+        if: always() && needs.classify.result == 'success' && needs.classify.outputs.quality == 'true'
+        continue-on-error: true
+        run: node packages/scripts-ts/src/npm-audit-runner.ts prod moderate
+      - name: Run deterministic audit fixtures
+        id: fixtures
+        if: always() && needs.classify.result == 'success' && needs.classify.outputs.quality == 'true'
+        continue-on-error: true
+        run: pnpm --filter scripts-ts exec vitest run src/npm-audit-runner.test.ts
+      - name: CI lane not applicable
+        id: sentinel
+        if: always() && needs.classify.result == 'success' && needs.classify.outputs.quality == 'false'
+        run: echo 'production audit is not applicable'
+      - name: Collect ci-lane-result
+        if: always()
+        env:
+          CI_JOB_KEY: audit-production
+          CI_LANE_SPECS: '{"audit":["audit-production.checkout","audit-production.install_pnpm","audit-production.setup_node","audit-production.audit","audit-production.fixtures","audit-production.not-applicable"]}'
+          CI_CLASSIFIER_OUTPUTS: '{"audit":"${{ needs.classify.outputs.quality }}"}'
+          CI_STEP_RESULTS: '{"audit-production.checkout":{"outcome":"${{ steps.checkout.outcome }}"},"audit-production.install_pnpm":{"outcome":"${{ steps.install_pnpm.outcome }}"},"audit-production.setup_node":{"outcome":"${{ steps.setup_node.outcome }}"},"audit-production.audit":{"outcome":"${{ steps.audit.outcome }}"},"audit-production.fixtures":{"outcome":"${{ steps.fixtures.outcome }}"},"audit-production.not-applicable":{"outcome":"${{ steps.sentinel.outcome }}"}}'
+        run: node packages/scripts-ts/src/ci-lane-result.ts
+      - name: Upload ci-lane-result
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ci-lane-result-${{ github.run_id }}-${{ github.run_attempt }}-audit-production
+          path: ci-results/audit-production.json
+          if-no-files-found: error
+
+  api:
+    name: API contract and suite
+    needs: classify
+    if: always()
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        id: checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: Set up .NET
+        id: setup_dotnet
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+      - name: Set up pnpm
+        id: install_pnpm
+        uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+        with:
+          version: 10.13.1
+      - name: Setup Node
+        id: setup_node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: 24
+      - name: API contract and suite
+        id: suite
+        if: always() && needs.classify.result == 'success' && needs.classify.outputs.api == 'true'
+        continue-on-error: true
+        run: |
+          pnpm install --frozen-lockfile
+          cp .env.example .env.development
+          just test-api
+      - name: CI lane not applicable
+        id: sentinel
+        if: always() && needs.classify.result == 'success' && needs.classify.outputs.api == 'false'
+        run: echo 'API lane is not applicable'
+      - name: Collect ci-lane-result
+        if: always()
+        env:
+          CI_JOB_KEY: api
+          CI_LANE_SPECS: '{"api":["api.checkout","api.setup_dotnet","api.install_pnpm","api.setup_node","api.suite","api.not-applicable"]}'
+          CI_CLASSIFIER_OUTPUTS: '{"api":"${{ needs.classify.outputs.api }}"}'
+          CI_STEP_RESULTS: '{"api.checkout":{"outcome":"${{ steps.checkout.outcome }}"},"api.setup_dotnet":{"outcome":"${{ steps.setup_dotnet.outcome }}"},"api.install_pnpm":{"outcome":"${{ steps.install_pnpm.outcome }}"},"api.setup_node":{"outcome":"${{ steps.setup_node.outcome }}"},"api.suite":{"outcome":"${{ steps.suite.outcome }}"},"api.not-applicable":{"outcome":"${{ steps.sentinel.outcome }}"}}'
+        run: node packages/scripts-ts/src/ci-lane-result.ts
+      - name: Upload ci-lane-result
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ci-lane-result-${{ github.run_id }}-${{ github.run_attempt }}-api
+          path: ci-results/api.json
+          if-no-files-found: error
+
+  front-vitest:
+    name: front-ci (${{ matrix.shard }}/4)
+    needs: classify
+    if: always()
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        id: checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: Install pnpm
+        id: install_pnpm
+        uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+        with:
+          version: 10.13.1
+      - name: Setup Node
+        id: setup_node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: 24
+      - name: Install dependencies
+        id: install_dependencies
+        if: always() && needs.classify.result == 'success' && needs.classify.outputs.front == 'true'
+        continue-on-error: true
+        run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Run vitest shard
+        id: vitest
+        if: always() && needs.classify.result == 'success' && needs.classify.outputs.front == 'true'
+        continue-on-error: true
+        run: pnpm --filter front exec vitest run --shard=${{ matrix.shard }}/4
+      - name: CI lane not applicable
+        id: sentinel
+        if: always() && needs.classify.result == 'success' && needs.classify.outputs.front == 'false'
+        run: echo 'front Vitest shard is not applicable'
+      - name: Collect ci-lane-result
+        if: always()
+        env:
+          CI_JOB_KEY: front-vitest/${{ matrix.shard }}
+          CI_LANE_SPECS: '{"front":["front-vitest.checkout","front-vitest.install_pnpm","front-vitest.setup_node","front-vitest.install_dependencies","front-vitest.vitest","front-vitest.not-applicable"]}'
+          CI_CLASSIFIER_OUTPUTS: '{"front":"${{ needs.classify.outputs.front }}"}'
+          CI_STEP_RESULTS: '{"front-vitest.checkout":{"outcome":"${{ steps.checkout.outcome }}"},"front-vitest.install_pnpm":{"outcome":"${{ steps.install_pnpm.outcome }}"},"front-vitest.setup_node":{"outcome":"${{ steps.setup_node.outcome }}"},"front-vitest.install_dependencies":{"outcome":"${{ steps.install_dependencies.outcome }}"},"front-vitest.vitest":{"outcome":"${{ steps.vitest.outcome }}"},"front-vitest.not-applicable":{"outcome":"${{ steps.sentinel.outcome }}"}}'
+        run: node packages/scripts-ts/src/ci-lane-result.ts
+      - name: Upload ci-lane-result
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ci-lane-result-${{ github.run_id }}-${{ github.run_attempt }}-front-vitest-${{ matrix.shard }}
+          path: ci-results/front-vitest-${{ matrix.shard }}.json
+          if-no-files-found: error
+
+  e2e-build:
+    name: Build e2e images
+    needs: classify
+    if: always()
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      tag: ${{ steps.image-tag.outputs.tag }}
+      root: ${{ steps.image-root.outputs.root }}
+      fork: ${{ steps.image-fork.outputs.fork }}
+    steps:
+      - name: Checkout
+        id: checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: Resolve image tag
+        id: image-tag
+        if: always() && needs.classify.result == 'success' && needs.classify.outputs.e2e == 'true'
+        run: echo "tag=${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" >> "$GITHUB_OUTPUT"
+      - name: Resolve image root
+        id: image-root
+        if: always() && needs.classify.result == 'success' && needs.classify.outputs.e2e == 'true'
+        run: echo "root=ghcr.io/$(printf '%s' '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')/publyapp-e2e" >> "$GITHUB_OUTPUT"
+      - name: Resolve fork state
+        id: image-fork
+        if: always() && needs.classify.result == 'success' && needs.classify.outputs.e2e == 'true'
+        run: echo "fork=${{ github.event.pull_request.head.repo.fork || 'false' }}" >> "$GITHUB_OUTPUT"
+      - name: Setup Docker Buildx
+        id: setup-buildx
+        if: always() && needs.classify.result == 'success' && needs.classify.outputs.e2e == 'true'
+        uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4.3.0
+      - name: Setup GitHub Actions runtime
+        id: setup-runtime
+        if: always() && needs.classify.result == 'success' && needs.classify.outputs.e2e == 'true'
+        uses: crazy-max/ghaction-github-runtime@04d248b84655b509d8c44dc1d6f990c879747487 # v4.0.0
+      - name: Login to GHCR
+        id: login
+        if: always() && needs.classify.result == 'success' && needs.classify.outputs.e2e == 'true' && steps.image-fork.outputs.fork != 'true'
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+      - name: Build and push e2e images
+        id: images
+        if: always() && needs.classify.result == 'success' && needs.classify.outputs.e2e == 'true'
+        continue-on-error: true
+        env:
+          COMPOSE_BAKE: 'true'
+          E2E_IMAGE_NS: ${{ steps.image-root.outputs.root }}
+          E2E_IMAGE_TAG: ${{ steps.image-tag.outputs.tag }}
+        run: |
+          set -euo pipefail
+          compose_files=(-f apps/front/docker-compose.test.yml)
+          if [ "${{ steps.image-fork.outputs.fork }}" = "true" ]; then
+            compose_files+=(-f apps/front/docker-compose.fork-overlay.yml)
+          fi
+          docker compose "${compose_files[@]}" build
+          if [ "${{ steps.image-fork.outputs.fork }}" != "true" ]; then
+            docker compose -f apps/front/docker-compose.test.yml push migrate api request-counter front
+          else
+            mkdir -p /tmp/e2e-images
+            for service in migrate api request-counter front; do
+              docker save "${E2E_IMAGE_NS}-${service}:${E2E_IMAGE_TAG}" | gzip > "/tmp/e2e-images/${service}.tar.gz"
+            done
+          fi
+      - name: Verify built front image
+        id: runtime-guard
+        if: always() && needs.classify.result == 'success' && needs.classify.outputs.e2e == 'true' && steps.images.outcome == 'success'
+        continue-on-error: true
+        env:
+          E2E_IMAGE_NS: ${{ steps.image-root.outputs.root }}
+          E2E_IMAGE_TAG: ${{ steps.image-tag.outputs.tag }}
+        run: node apps/front/scripts/run-guarded.mts apps/front/scripts/ci/check-front-runtime-image.mts --image "${E2E_IMAGE_NS}-front:${E2E_IMAGE_TAG}"
+      - name: Upload fork e2e images
+        id: upload-images
+        if: always() && needs.classify.result == 'success' && needs.classify.outputs.e2e == 'true' && steps.image-fork.outputs.fork == 'true' && steps.images.outcome == 'success'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: e2e-stack-images-${{ steps.image-tag.outputs.tag }}
+          path: /tmp/e2e-images/*.tar.gz
+          retention-days: 1
+          compression-level: 0
+          if-no-files-found: error
+      - name: CI lane not applicable
+        id: sentinel
+        if: always() && needs.classify.result == 'success' && needs.classify.outputs.e2e == 'false'
+        run: echo 'E2E image build is not applicable'
+      - name: Collect ci-lane-result
+        if: always()
+        env:
+          CI_JOB_KEY: e2e-build
+          CI_LANE_SPECS: '{"e2e":["e2e-build.checkout","e2e-build.image_tag","e2e-build.image_root","e2e-build.image_fork","e2e-build.setup_buildx","e2e-build.setup_runtime","e2e-build.login","e2e-build.images","e2e-build.runtime_guard","e2e-build.upload_images","e2e-build.not-applicable"]}'
+          CI_CLASSIFIER_OUTPUTS: '{"e2e":"${{ needs.classify.outputs.e2e }}"}'
+          CI_STEP_RESULTS: '{"e2e-build.checkout":{"outcome":"${{ steps.checkout.outcome }}"},"e2e-build.image_tag":{"outcome":"${{ steps.image-tag.outcome }}"},"e2e-build.image_root":{"outcome":"${{ steps.image-root.outcome }}"},"e2e-build.image_fork":{"outcome":"${{ steps.image-fork.outcome }}"},"e2e-build.setup_buildx":{"outcome":"${{ steps.setup-buildx.outcome }}"},"e2e-build.setup_runtime":{"outcome":"${{ steps.setup-runtime.outcome }}"},"e2e-build.login":{"outcome":"${{ steps.login.outcome }}"},"e2e-build.images":{"outcome":"${{ steps.images.outcome }}"},"e2e-build.runtime_guard":{"outcome":"${{ steps.runtime-guard.outcome }}"},"e2e-build.upload_images":{"outcome":"${{ steps.upload-images.outcome }}"},"e2e-build.not-applicable":{"outcome":"${{ steps.sentinel.outcome }}"}}'
+        run: node packages/scripts-ts/src/ci-lane-result.ts
+      - name: Upload ci-lane-result
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ci-lane-result-${{ github.run_id }}-${{ github.run_attempt }}-e2e-build
+          path: ci-results/e2e-build.json
+          if-no-files-found: error
+
+  e2e-test:
+    name: front-e2e (${{ matrix.shard }}/4)
+    needs: [classify, e2e-build]
+    if: always()
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
+    permissions:
+      contents: read
+      packages: read
+    steps:
+      - name: Checkout
+        id: checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: Install pnpm
+        id: install-pnpm
+        if: always() && needs.classify.result == 'success' && needs.classify.outputs.e2e == 'true' && needs.e2e-build.result == 'success'
+        uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+        with:
+          version: 10.13.1
+      - name: Setup Node
+        id: setup-node
+        if: always() && needs.classify.result == 'success' && needs.classify.outputs.e2e == 'true' && needs.e2e-build.result == 'success'
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: 24
+      - name: Install dependencies
+        id: install-dependencies
+        if: always() && needs.classify.result == 'success' && needs.classify.outputs.e2e == 'true' && needs.e2e-build.result == 'success'
+        continue-on-error: true
+        run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Login to GHCR
+        id: login
+        if: always() && needs.classify.result == 'success' && needs.classify.outputs.e2e == 'true' && needs.e2e-build.result == 'success' && needs.e2e-build.outputs.fork != 'true'
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+      - name: Detect partial rerun
+        id: rerun-guard
+        if: always() && needs.classify.result == 'success' && needs.classify.outputs.e2e == 'true' && needs.e2e-build.result == 'success'
+        continue-on-error: true
+        env:
+          E2E_IMAGE_TAG: ${{ needs.e2e-build.outputs.tag }}
+        run: |
+          set -euo pipefail
+          expected_tag="${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          [ "$E2E_IMAGE_TAG" = "$expected_tag" ] || {
+            echo "::error::e2e build tag $E2E_IMAGE_TAG does not match this attempt $expected_tag; rerun all jobs"
+            exit 1
+          }
+      - name: Pull stack images
+        id: pull-stack
+        if: always() && needs.classify.result == 'success' && needs.classify.outputs.e2e == 'true' && needs.e2e-build.result == 'success' && needs.e2e-build.outputs.fork != 'true' && steps.rerun-guard.outcome == 'success'
+        continue-on-error: true
+        env:
+          E2E_IMAGE_NS: ${{ needs.e2e-build.outputs.root }}
+          E2E_IMAGE_TAG: ${{ needs.e2e-build.outputs.tag }}
+        run: docker compose -f apps/front/docker-compose.test.yml pull
+      - name: Download fork e2e images
+        id: download-images
+        if: always() && needs.classify.result == 'success' && needs.classify.outputs.e2e == 'true' && needs.e2e-build.result == 'success' && needs.e2e-build.outputs.fork == 'true' && steps.rerun-guard.outcome == 'success'
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: e2e-stack-images-${{ needs.e2e-build.outputs.tag }}
+          path: /tmp/e2e-images
+      - name: Load fork e2e images
+        id: load-images
+        if: always() && needs.classify.result == 'success' && needs.classify.outputs.e2e == 'true' && needs.e2e-build.result == 'success' && needs.e2e-build.outputs.fork == 'true' && steps.rerun-guard.outcome == 'success'
+        continue-on-error: true
+        run: for tarball in /tmp/e2e-images/*.tar.gz; do gunzip -c "$tarball" | docker load; done
+      - name: Start e2e stack
+        id: up-stack
+        if: always() && needs.classify.result == 'success' && needs.classify.outputs.e2e == 'true' && needs.e2e-build.result == 'success' && steps.rerun-guard.outcome == 'success'
+        continue-on-error: true
+        run: docker compose -f apps/front/docker-compose.test.yml up -d --no-build
+      - name: Wait for e2e stack health
+        id: wait-health
+        if: always() && needs.classify.result == 'success' && needs.classify.outputs.e2e == 'true' && needs.e2e-build.result == 'success' && steps.up-stack.outcome == 'success'
+        continue-on-error: true
+        run: timeout 180 bash -c 'until docker compose -f apps/front/docker-compose.test.yml ps --status running | grep -q front; do sleep 2; done'
+      - name: Run Playwright shard
+        id: playwright
+        if: always() && needs.classify.result == 'success' && needs.classify.outputs.e2e == 'true' && needs.e2e-build.result == 'success' && steps.wait-health.outcome == 'success'
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          pnpm --filter front exec playwright install chromium --with-deps
+          pnpm --filter front exec playwright test --project=chromium --project=chromium-faults --shard=${{ matrix.shard }}/4
+          if [ "${{ matrix.shard }}" = "4" ]; then
+            pnpm --filter front exec playwright test --project=setup --no-deps
+            pnpm --filter front exec playwright test --project=chromium-hermetic-counter --no-deps
+          fi
+      - name: CI lane not applicable
+        id: sentinel
+        if: always() && (needs.classify.result != 'success' || needs.classify.outputs.e2e == 'false')
+        run: echo 'E2E shard is not applicable'
+      - name: Collect ci-lane-result
+        if: always()
+        env:
+          CI_JOB_KEY: e2e-test/${{ matrix.shard }}
+          CI_LANE_SPECS: '{"e2e":["e2e-test.checkout","e2e-test.install_pnpm","e2e-test.setup_node","e2e-test.install_dependencies","e2e-test.login","e2e-test.rerun_guard","e2e-test.pull_stack","e2e-test.download_images","e2e-test.load_images","e2e-test.up_stack","e2e-test.wait_health","e2e-test.playwright","e2e-test.not-applicable"]}'
+          CI_LANE_MODES: >-
+            {"e2e":"${{ needs.classify.outputs.e2e == 'true' && needs.e2e-build.result == 'success' && 'relevant' || 'not_applicable' }}"}
+          CI_STEP_RESULTS: '{"e2e-test.checkout":{"outcome":"${{ steps.checkout.outcome }}"},"e2e-test.install_pnpm":{"outcome":"${{ steps.install-pnpm.outcome }}"},"e2e-test.setup_node":{"outcome":"${{ steps.setup-node.outcome }}"},"e2e-test.install_dependencies":{"outcome":"${{ steps.install-dependencies.outcome }}"},"e2e-test.login":{"outcome":"${{ steps.login.outcome }}"},"e2e-test.rerun_guard":{"outcome":"${{ steps.rerun-guard.outcome }}"},"e2e-test.pull_stack":{"outcome":"${{ steps.pull-stack.outcome }}"},"e2e-test.download_images":{"outcome":"${{ steps.download-images.outcome }}"},"e2e-test.load_images":{"outcome":"${{ steps.load-images.outcome }}"},"e2e-test.up_stack":{"outcome":"${{ steps.up-stack.outcome }}"},"e2e-test.wait_health":{"outcome":"${{ steps.wait-health.outcome }}"},"e2e-test.playwright":{"outcome":"${{ steps.playwright.outcome }}"},"e2e-test.not-applicable":{"outcome":"${{ steps.sentinel.outcome }}"}}'
+        run: node packages/scripts-ts/src/ci-lane-result.ts
+      - name: Upload ci-lane-result
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ci-lane-result-${{ github.run_id }}-${{ github.run_attempt }}-e2e-test-${{ matrix.shard }}
+          path: ci-results/e2e-test-${{ matrix.shard }}.json
+          if-no-files-found: error
+
+  e2e-cleanup:
+    name: Clean up e2e images
+    needs: [classify, e2e-build, e2e-test]
+    if: always()
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout
+        id: checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: Cleanup e2e images
+        id: cleanup
+        if: always() && needs.classify.result == 'success' && needs.classify.outputs.e2e == 'true'
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          E2E_IMAGE_TAG: ${{ needs.e2e-build.outputs.tag }}
+          FORK_RUN: ${{ needs.e2e-build.outputs.fork }}
+        run: node packages/scripts-ts/src/ci-e2e-cleanup.ts
+      - name: CI lane not applicable
+        id: sentinel
+        if: always() && (needs.classify.result != 'success' || needs.classify.outputs.e2e == 'false')
+        run: echo 'E2E cleanup is not applicable'
+      - name: Collect ci-lane-result
+        if: always()
+        env:
+          CI_JOB_KEY: e2e-cleanup
+          CI_LANE_SPECS: '{"e2e":["e2e-cleanup.checkout","e2e-cleanup.cleanup","e2e-cleanup.not-applicable"]}'
+          CI_CLASSIFIER_OUTPUTS: '{"e2e":"${{ needs.classify.outputs.e2e }}"}'
+          CI_STEP_RESULTS: '{"e2e-cleanup.checkout":{"outcome":"${{ steps.checkout.outcome }}"},"e2e-cleanup.cleanup":{"outcome":"${{ steps.cleanup.outcome }}"},"e2e-cleanup.not-applicable":{"outcome":"${{ steps.sentinel.outcome }}"}}'
+        run: node packages/scripts-ts/src/ci-lane-result.ts
+      - name: Upload ci-lane-result
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ci-lane-result-${{ github.run_id }}-${{ github.run_attempt }}-e2e-cleanup
+          path: ci-results/e2e-cleanup.json
+          if-no-files-found: error
+
+  gate:
+    name: ${{ (github.event_name == 'pull_request' || github.event_name == 'merge_group') && 'ci-final-gate' || 'ci-push-check' }}
+    needs: [classify, verification, audit-development, audit-production, api, front-vitest, e2e-build, e2e-test, e2e-cleanup]
+    if: always()
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      issues: read
+      pull-requests: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: Setup Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: 24
+      - name: Install pnpm
+        uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+        with:
+          version: 10.13.1
+      - name: Install workspace dependencies
+        run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Download exact upstream result artifacts
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          pattern: ci-lane-result-${{ github.run_id }}-${{ github.run_attempt }}-*
+          path: ci-results
+          merge-multiple: true
+      - name: Read live PR snapshot
+        if: github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh pr view '${{ github.event.pull_request.number }}' --json headRefOid,baseRefName,potentialMergeCommit,body,isDraft
+          gh api "repos/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+      - name: Verify linked issue relationship
+        if: github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          PR_NUMBER="$PR_NUMBER" PR_AUTHOR="$PR_AUTHOR" PR_BODY="$PR_BODY" GH_REPO="$GH_REPO" bash <<'LINKED_ISSUE_SCRIPT'
+          set -euo pipefail
+
+          if [ "$PR_AUTHOR" = "dependabot[bot]" ]; then
+            echo "dependabot PR — linked-issue requirement waived by policy #1240"
+            exit 0
+          fi
+
+          if [ -z "${PR_BODY//[[:space:]]/}" ]; then
+            echo "::error::PR body is empty — it must link an issue (e.g. \"Closes #123\" or \"Part of #123\")."
+            exit 1
+          fi
+
+          relationships=$(printf '%s' "$PR_BODY" \
+            | grep -ioE '^[[:space:]]*(-[[:space:]]*)?(close[sd]?|fix(e[sd])?|resolve[sd]?|part[[:space:]]+of|refs?|references?)[[:space:]:]+#[0-9]+' \
+            | sort -u)
+
+          if [ -z "$relationships" ]; then
+            echo "::error::This PR has no explicit issue relationship on its own line. Add \"Closes #123\" for complete work or \"Part of #123\"/\"Refs #123\" for a partial slice."
+            exit 1
+          fi
+
+          closing_issue_numbers=''
+          closing_issues_verified=false
+          verify_closing_issue() {
+            if [ "$closing_issues_verified" = "false" ]; then
+              repo_owner="${GH_REPO%%/*}"
+              repo_name="${GH_REPO#*/}"
+              if ! closing_issue_numbers=$(gh api graphql \
+                -f query='query($owner:String!,$name:String!,$number:Int!){repository(owner:$owner,name:$name){pullRequest(number:$number){closingIssuesReferences(first:100){nodes{number}}}}}' \
+                -F owner="$repo_owner" \
+                -F name="$repo_name" \
+                -F number="$PR_NUMBER" \
+                --jq '.data.repository.pullRequest.closingIssuesReferences.nodes[].number' \
+                2>/dev/null
+              ); then
+                echo "  could not verify GitHub closingIssuesReferences for PR #$PR_NUMBER — rejecting the closing declaration."
+                return 1
+              fi
+              closing_issues_verified=true
+            fi
+
+            if ! printf '%s\n' "$closing_issue_numbers" | grep -Fxq "$1"; then
+              echo "  #$1 is not present in GitHub closingIssuesReferences — rejecting the closing declaration."
+              return 1
+            fi
+          }
+
+          invalid_relationship=false
+          linked_issue=false
+          while IFS= read -r relationship; do
+            n=$(printf '%s' "$relationship" | grep -oE '[0-9]+$')
+            is_closing=false
+            if printf '%s' "$relationship" | grep -qiE '^[[:space:]]*(-[[:space:]]*)?(close[sd]?|fix(e[sd])?|resolve[sd]?)[[:space:]:]+'; then
+              is_closing=true
+            fi
+
+            if [ "$n" = "$PR_NUMBER" ]; then
+              echo "  #$n references itself — a pull request cannot satisfy its own issue-link requirement."
+              invalid_relationship=true
+              continue
+            fi
+
+            if ! is_pr=$(gh api "repos/${GH_REPO}/issues/${n}" --jq '.pull_request != null' 2>/dev/null); then
+              echo "  #$n could not be verified as an existing issue — rejecting the declaration."
+              invalid_relationship=true
+              continue
+            fi
+            if [ "$is_pr" = "true" ]; then
+              if [ "$is_closing" = "true" ]; then
+                echo "  #$n is a pull request, not an issue — rejecting the closing declaration (#2003)."
+                invalid_relationship=true
+              else
+                echo "  #$n is a non-closing pull-request reference — it does not satisfy the issue requirement."
+              fi
+              continue
+            fi
+
+            if [ "$is_closing" = "true" ] && ! verify_closing_issue "$n"; then
+              invalid_relationship=true
+              continue
+            fi
+
+            if state=$(gh issue view "$n" --json state --jq '.state' 2>/dev/null); then
+              echo "✓ PR links issue #$n (state: $state)."
+              linked_issue=true
+              continue
+            fi
+            echo "  #$n is not an existing issue — rejecting the declaration."
+            invalid_relationship=true
+          done <<< "$relationships"
+
+          if [ "$invalid_relationship" = "true" ]; then
+            echo "::error::A closing relationship to a PR, a self-reference, an unverifiable number, or a failed closing-reference lookup invalidates the declaration."
+            exit 1
+          fi
+
+          if [ "$linked_issue" = "true" ]; then
+            exit 0
+          fi
+
+          echo "::error::The relationship keyword(s) reference no existing issue. Link a real issue with \"Closes #N\" or \"Part of #N\"."
+          exit 1
+          LINKED_ISSUE_SCRIPT
+      - name: Run central structural self-check
+        run: node packages/scripts-ts/src/check-ci-gate-structure.ts
+      - name: Aggregate upstream artifacts
+        env:
+          CI_CLASSIFIER_RESULT: ${{ needs.classify.result }}
+          CI_CLASSIFIER_OUTPUTS: '{"quality":"${{ needs.classify.outputs.quality }}","front":"${{ needs.classify.outputs.front }}","api":"${{ needs.classify.outputs.api }}","e2e":"${{ needs.classify.outputs.e2e }}","docs":"${{ needs.classify.outputs.docs }}","react":"${{ needs.classify.outputs.react }}"}'
+          CI_CENTRAL_RESULTS: '{"verification":"${{ needs.verification.result }}","audit-development":"${{ needs.audit-development.result }}","audit-production":"${{ needs.audit-production.result }}","api":"${{ needs.api.result }}","front-vitest":"${{ needs.front-vitest.result }}","e2e-build":"${{ needs.e2e-build.result }}","e2e-test":"${{ needs.e2e-test.result }}","e2e-cleanup":"${{ needs.e2e-cleanup.result }}"}'
+        run: node packages/scripts-ts/src/check-ci-gate-aggregation.ts ci-results
+      - name: Write live PR snapshot
+        if: github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: node packages/scripts-ts/src/ci-pr-snapshot.ts
+      - name: Upload live PR snapshot
+        if: github.event_name == 'pull_request'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ci-pr-snapshot-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ci-results/ci-pr-snapshot.json
+          if-no-files-found: error

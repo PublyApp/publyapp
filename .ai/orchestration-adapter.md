@@ -31,7 +31,7 @@ Fielded adapter for `/home/radan/ai-orchestration-playbook/PLAYBOOK.md`.
 | `closure_config` | `/home/radan/Projects/PublyApp/publyapp/.ai/project-closure-v1.json` |
 | `closure_gate` | `/home/radan/ai-orchestration-playbook/tools/pr-closure` (shared dependency; PublyApp does not reimplement the state machine) |
 | `review_schema` | `1`; schema file: `/home/radan/ai-orchestration-playbook/tools/schemas/review-record-v1.json` |
-| `ci_status_cmd` | `gh pr view <pr-number> --repo PublyApp/publyapp --json headRefOid,statusCheckRollup,baseRefName,headRefName,state,isDraft,mergeable,mergeStateStatus,url` |
+| `ci_status_cmd` | `gh pr view <pr-number> --repo PublyApp/publyapp --json headRefOid,statusCheckRollup,baseRefName,headRefName,potentialMergeCommit,body,state,isDraft,mergeable,mergeStateStatus,url`; PR closure resolves `ci_required_checks` from the exact candidate tip (`headRefOid`) for pull requests and from the event tip for merge groups/pushes, with live `.github/workflows/ci.yml` `pull_request` provenance and `ci-final-gate` snapshot evidence. |
 | `ci_rerun_cmd` | `gh run rerun <run-id> --failed --repo PublyApp/publyapp` (only for a proven infrastructure failure; bounded by `closure_config.infra_retry_budget`) |
 | `local_review_ready_commands` | `closure_config.local_review_ready_commands` (all commands must pass at the exact pushed tip) |
 | `closure_acceptance_commands` | `closure_config.closure_acceptance_commands` (run one heavy command at a time) |
