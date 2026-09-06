@@ -111,8 +111,8 @@ public sealed class GetRedirectCode {
 			}
 		}
 
-		// No tenants at all (not even suspended) - unauthorized
-		if (tenantsResult.TotalCount == 0) {
+		// No accessible tenants and no deleted tenant membership - unauthorized
+		if (tenantsResult.TotalCount == 0 && !tenantsResult.HasDeletedTenants) {
 			if (logger.IsEnabled(LogLevel.Warning)) {
 				logger.LogWarning(
 					"User {UserId} has no tenants (including suspended), returning unauthorized",

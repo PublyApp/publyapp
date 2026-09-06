@@ -20,22 +20,22 @@ import {
  * KEPT RED PROOF — issue #1611.
  *
  * The proof creates an isolated temporary worktree, mutates the production
- * picker source there, and runs exactly one bounded real Docker/Playwright
- * journey against that worktree. The checked-out worktree is never mutated, so
+ * picker source there, and runs exactly one bounded real product-render test
+ * against that worktree. The checked-out worktree is never mutated, so
  * an outer watchdog SIGKILL cannot leave the branch source half-mutated. The
  * temporary worktree is removed after the child exits; the child itself is in
  * a detached process group with a finite timeout and receives TERM then KILL.
  *
  * The green replay is deliberately a separate invocation: the captain runs the
- * ordinary unmutated E2E journey after this kept-red replay. Two complete
- * Docker stacks are never launched synchronously inside one Vitest test.
+ * ordinary unmutated Docker E2E journey after this kept-red replay.
  *
  * No response, component, i18n module, browser page, or proof route is
- * injected. The child is the real `run-e2e-front.mts` runner, selecting
- * `e2e/tenant-portal-picker.spec.ts --grep @1611 --project chromium`.
+ * injected. The child is the existing focused Vitest test in
+ * `src/routes/authed/tenant.test.tsx`, selecting the real #258 all-deleted
+ * route assertion.
  *
- * Replay directly (Docker required; the final assertion intentionally stays
- * red when the corrected production source is used):
+ * Replay directly (the final assertion intentionally stays red when the
+ * corrected production source is used):
  *
  *   cd apps/front && pnpm exec vitest run --config vitest.proofs.config.ts \
  *     tests/proofs/1611/red-1611-deleted-picker-message-collapsed.test.ts
@@ -46,13 +46,13 @@ const REPO_ROOT = resolve(FRONT_ROOT, '..', '..');
 const PICKER_STATES_RELATIVE_PATH =
 	'apps/front/src/routes/authed/tenant/_tenant-picker-states.tsx';
 const PICKER_STATES_PATH = resolve(REPO_ROOT, PICKER_STATES_RELATIVE_PATH);
-const E2E_RUNNER_RELATIVE_PATH = 'apps/front/scripts/run-e2e-front.mts';
 const MUTATION_FROM = 'if (hasDeletedTenants) {';
 const MUTATION_TO = 'if (false) {';
-const PLAYWRIGHT_SPEC = 'e2e/tenant-portal-picker.spec.ts';
-const PLAYWRIGHT_GREP = '@1611';
-const PLAYWRIGHT_PROJECT = 'chromium';
-const CHILD_TIMEOUT_MS = 240_000;
+const PRODUCT_TEST_FILE = 'src/routes/authed/tenant.test.tsx';
+const PRODUCT_TEST_GREP =
+	'#258: renders the deletion notice when every tenant was soft-deleted';
+const ALL_DELETED_TITLE = 'Your organizations are no longer available';
+const CHILD_TIMEOUT_MS = 120_000;
 const CHILD_TERM_GRACE_MS = 5_000;
 
 type GitResult = {
@@ -138,23 +138,33 @@ const createTemporaryWorktree = (): TemporaryWorktree => {
 	return { parentPath, worktreePath };
 };
 
-const runBoundedE2E = (worktreePath: string): Promise<BoundedProcessResult> =>
+const runBoundedProductTest = (
+	worktreePath: string,
+): Promise<BoundedProcessResult> =>
 	runBoundedProcessTree({
-		file: process.execPath,
-		args: [join(worktreePath, E2E_RUNNER_RELATIVE_PATH)],
-		cwd: worktreePath,
+		file: process.platform === 'win32' ? 'pnpm.cmd' : 'pnpm',
+		args: [
+			'exec',
+			'vitest',
+			'run',
+			'--config',
+			'vitest.config.ts',
+			'--no-color',
+			'--reporter=verbose',
+			PRODUCT_TEST_FILE,
+			'--testNamePattern',
+			PRODUCT_TEST_GREP,
+		],
+		cwd: join(worktreePath, 'apps/front'),
 		env: {
 			...process.env,
-			E2E_PLAYWRIGHT_SPEC: PLAYWRIGHT_SPEC,
-			E2E_PLAYWRIGHT_GREP: PLAYWRIGHT_GREP,
-			E2E_PLAYWRIGHT_PROJECT: PLAYWRIGHT_PROJECT,
 		},
 		timeoutMs: CHILD_TIMEOUT_MS,
 		termGraceMs: CHILD_TERM_GRACE_MS,
 		maxOutputLength: 16 * 1024 * 1024,
 	});
 
-const runMutatedJourneyInIsolation = async (
+const runMutatedProductTestInIsolation = async (
 	originalSource: string,
 ): Promise<BoundedProcessResult> => {
 	const mutationCount = originalSource.split(MUTATION_FROM).length - 1;
@@ -172,7 +182,7 @@ const runMutatedJourneyInIsolation = async (
 			PICKER_STATES_RELATIVE_PATH,
 		);
 		writeFileSync(isolatedSourcePath, mutatedSource, 'utf8');
-		return await runBoundedE2E(isolated.worktreePath);
+		return await runBoundedProductTest(isolated.worktreePath);
 	} finally {
 		removeTemporaryWorktree(isolated.worktreePath);
 		try {
@@ -184,11 +194,12 @@ const runMutatedJourneyInIsolation = async (
 };
 
 test(
-	'the real @1611 Playwright journey rejects collapsed all-deleted copy',
-	{ timeout: 270_000 },
+	'the real #258 product test rejects collapsed all-deleted copy',
+	{ timeout: 150_000 },
 	async () => {
 		const originalSource = readFileSync(PICKER_STATES_PATH, 'utf8');
-		const mutatedResult = await runMutatedJourneyInIsolation(originalSource);
+		const mutatedResult =
+			await runMutatedProductTestInIsolation(originalSource);
 
 		if (readFileSync(PICKER_STATES_PATH, 'utf8') !== originalSource) {
 			throw new Error(
@@ -197,27 +208,28 @@ test(
 		}
 		if (mutatedResult.error) {
 			throw new Error(
-				`MESURE IMPOSSIBLE: the real @1611 Playwright journey could not start (${errorText(mutatedResult.error)})`,
+				`MESURE IMPOSSIBLE: the real #258 product test could not start (${errorText(mutatedResult.error)})`,
 			);
 		}
 		if (mutatedResult.status === null || mutatedResult.status === 124) {
 			throw new Error(
-				'MESURE IMPOSSIBLE: the bounded real @1611 Playwright journey did not return a measured test status',
+				'MESURE IMPOSSIBLE: the bounded real #258 product test did not return a measured test status',
 			);
 		}
 
 		const output = `${mutatedResult.stdout}\n${mutatedResult.stderr}`;
 		if (
-			!output.includes('Your organizations are no longer available') ||
-			!output.includes(PLAYWRIGHT_SPEC)
+			!output.includes(PRODUCT_TEST_FILE) ||
+			!output.includes(PRODUCT_TEST_GREP) ||
+			!output.includes(ALL_DELETED_TITLE)
 		) {
 			throw new Error(
-				'MESURE IMPOSSIBLE: the mutated failure did not reach the real all-deleted journey assertion',
+				'MESURE IMPOSSIBLE: the mutated failure did not reach the real #258 all-deleted product assertion',
 			);
 		}
 
 		// Kept-red assertion: with the temporary production mutation, the real
-		// journey must fail. A pass means the journey no longer distinguishes
+		// product test must fail. A pass means the route no longer distinguishes
 		// all-deleted organizations from a generic empty state.
 		expect(mutatedResult.status).toBe(0);
 	},
