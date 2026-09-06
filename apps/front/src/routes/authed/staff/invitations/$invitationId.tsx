@@ -32,6 +32,7 @@ import {
 	useStaffInvitationDetailsQuery,
 	useStaffInvitationLinkMutation,
 } from '~/lib/query/staff-invitations';
+import { copyToClipboard } from '~/utils/clipboard';
 
 import type { StaffInvitationDetails } from '@org/client-ts/models/index';
 import { toApiFailure } from '@org/shared-ts/lib/api-failure/to-api-failure';
@@ -199,18 +200,27 @@ const InvitationDetailsCard = ({
 		try {
 			const result = await copyLink.mutateAsync({ invitationId });
 			const nextLink = result.link?.trim();
-			if (nextLink) {
+			if (!nextLink) {
+				linkValidationError = t('invite-link-response-empty');
+			} else {
 				setInviteLink(nextLink);
 
-				if (navigator.clipboard?.writeText) {
-					await navigator.clipboard.writeText(nextLink);
+				const copyResult = await copyToClipboard(nextLink);
+				if (copyResult.ok) {
 					toastLocalMutationResult.success(t('copy-link-success'));
 					return;
 				}
 
-				toastLocalMutationResult.info(t('copy-link-ready'));
-			} else {
-				linkValidationError = t('invite-link-response-empty');
+				if (copyResult.reason === 'unavailable') {
+					toastLocalMutationResult.info(t('copy-link-ready'));
+					return;
+				}
+
+				await displayLocalMutationFailure(
+					copyResult.error,
+					t('unable-to-copy-invite-link'),
+				);
+				return;
 			}
 		} catch (error) {
 			if (shouldLogoutForFailure(error)) {

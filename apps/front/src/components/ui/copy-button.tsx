@@ -7,6 +7,7 @@ import {
 	TooltipContent,
 	TooltipTrigger,
 } from '~/components/ui/tooltip';
+import { copyToClipboard, isClipboardAvailable } from '~/utils/clipboard';
 
 import { logger } from '@org/shared-ts/lib/logger/iso-logger';
 
@@ -41,26 +42,26 @@ export const CopyButton = ({
 		setFailed(false);
 		setCopied(false);
 		const requestId = ++copyRequestRef.current;
-
-		if (!navigator.clipboard?.writeText) {
+		if (!isClipboardAvailable()) {
 			setFailed(true);
 			return;
 		}
 
-		try {
-			await navigator.clipboard.writeText(value);
-			if (requestId !== copyRequestRef.current) {
-				return;
+		const result = await copyToClipboard(value);
+		if (requestId !== copyRequestRef.current) {
+			return;
+		}
+		if (!result.ok) {
+			if (result.reason === 'failed') {
+				logger.warn('Failed to copy value to clipboard', {
+					error: result.error,
+				});
 			}
-			setCopied(true);
-		} catch (error) {
-			if (requestId !== copyRequestRef.current) {
-				return;
-			}
-			logger.warn('Failed to copy value to clipboard', { error });
 			setFailed(true);
 			return;
 		}
+
+		setCopied(true);
 
 		clearTimeout(resetTimeoutRef.current);
 		resetTimeoutRef.current = setTimeout(() => {
