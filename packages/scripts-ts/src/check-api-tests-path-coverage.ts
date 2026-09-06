@@ -70,6 +70,9 @@ const repoRoot = path.resolve(
 const read = (relativePath) =>
 	readFileSync(path.join(repoRoot, relativePath), 'utf8');
 
+const readFromRoot = (rootDir: string, relativePath: string): string =>
+	readFileSync(path.join(rootDir, relativePath), 'utf8');
+
 // --- Minimal YAML-subset reader (push.paths only) ---
 //
 // The coverage check reads each gate workflow's `on.push.paths` list (a YAML
@@ -446,39 +449,15 @@ export const readApiTestsGateSurfaces = (
 	return { pushPaths, classifierCommand, classifierPattern, compiled };
 };
 
-export const readCentralApiCoverageSurface = (
-	fileText = read('.github/workflows/ci.yml'),
-) => {
-	const verificationBlock = fileText.match(
-		/\n  verification:\n([\s\S]*?)(?=\n  [a-z][a-z-]+:\n|\s*$)/,
-	)?.[1];
-	const apiBlock = fileText.match(
-		/\n  api:\n([\s\S]*?)(?=\n  [a-z][a-z-]+:\n|\s*$)/,
-	)?.[1];
-	if (verificationBlock === undefined || apiBlock === undefined) {
-		throw new Error('ci.yml must declare verification and api jobs');
-	}
-	const classifierInvocation = 'check-api-tests-path-coverage.ts';
-	return {
-		hasClassifierInvocation: fileText.includes('ci-changed-paths.ts'),
-		hasVerificationInvocation: verificationBlock.includes(classifierInvocation),
-		hasApiInvocation: apiBlock.includes('just test-api'),
-		hasUnconditionalVerificationStep:
-			/\n      - name: Verify API path-filter coverage[\s\S]*?\n        if: always\(\)/.test(
-				verificationBlock,
-			),
-	};
-};
-
 /** Recursively lists files under a repo-relative dir that match a suffix. */
-const walkFiles = (dir, suffix, acc = []) => {
-	const entries = readdirSync(path.join(repoRoot, dir), {
+const walkFiles = (dir, suffix, acc = [], rootDir = repoRoot) => {
+	const entries = readdirSync(path.join(rootDir, dir), {
 		withFileTypes: true,
 	});
 	for (const entry of entries) {
 		const full = path.posix.join(dir, entry.name);
 		if (entry.isDirectory()) {
-			walkFiles(full, suffix, acc);
+			walkFiles(full, suffix, acc, rootDir);
 		} else if (entry.name.endsWith(suffix)) {
 			acc.push(full);
 		}
@@ -487,8 +466,8 @@ const walkFiles = (dir, suffix, acc = []) => {
 };
 
 /** Project dirs referenced by real API-test specs via build/run argv forms. */
-export const findSpecReferencedProjectDirs = (): string[] => {
-	const specFiles = walkFiles('apps/api', '.Spec.cs');
+export const findSpecReferencedProjectDirs = (rootDir = repoRoot): string[] => {
+	const specFiles = walkFiles('apps/api', '.Spec.cs', [], rootDir);
 	if (specFiles.length === 0) {
 		throw new Error(
 			"No *.Spec.cs files found under apps/api. The spec tree is the barrier's evidence — an empty tree must fail loud, not pass vacuously.",
@@ -504,7 +483,7 @@ export const findSpecReferencedProjectDirs = (): string[] => {
 		/--project[",\s]+apps\/([A-Za-z0-9._-]+)|"build",\s*"apps\/([A-Za-z0-9._-]+)"/g;
 	const dirs = new Set();
 	for (const file of specFiles) {
-		const contents = read(file);
+		const contents = readFromRoot(rootDir, file);
 		for (const match of contents.matchAll(argvProjectRef)) {
 			dirs.add(`apps/${match[1] ?? match[2]}`);
 		}
@@ -520,8 +499,8 @@ export const findSpecReferencedProjectDirs = (): string[] => {
 };
 
 /** csproj-owning dirs from the real PublyApp.slnx. */
-export const readSlnxProjectDirs = (): string[] => {
-	const slnx = read('PublyApp.slnx');
+export const readSlnxProjectDirs = (rootDir = repoRoot): string[] => {
+	const slnx = readFromRoot(rootDir, 'PublyApp.slnx');
 	const projectPaths = [
 		...slnx.matchAll(/<Project\s+Path="([^"]+\.csproj)"/g),
 	].map((match) => match[1]);
@@ -538,8 +517,8 @@ export const readSlnxProjectDirs = (): string[] => {
 		.sort(compareStrings);
 };
 
-const pushPathsFromWorkflow = (workflowFile) => {
-	const paths = extractPushPaths(read(workflowFile));
+const pushPathsFromWorkflow = (rootDir: string, workflowFile: string) => {
+	const paths = extractPushPaths(readFromRoot(rootDir, workflowFile));
 	if (paths.length === 0) {
 		throw new Error(
 			`${workflowFile} has an empty on.push.paths list for the .NET barrier coverage check.`,
@@ -548,11 +527,14 @@ const pushPathsFromWorkflow = (workflowFile) => {
 	return paths;
 };
 
-const barrierPushPathSurfaces = () => ({
+const barrierPushPathSurfaces = (rootDir: string) => ({
 	qualityGatePushPaths: pushPathsFromWorkflow(
+		rootDir,
 		'.github/workflows/quality-gate.yml',
 	),
-	apiTestsPushPaths: readApiTestsGateSurfaces().pushPaths,
+	apiTestsPushPaths: readApiTestsGateSurfaces(
+		readFromRoot(rootDir, '.github/workflows/api-tests.yml'),
+	).pushPaths,
 });
 
 const compareStrings = (a: string, b: string): number => {
@@ -575,12 +557,14 @@ const setsEqual = (a, b) =>
  * than returning partial findings, so a violation of the fail-loud contract
  * surfaces as an exception, not a false green.
  */
-export const findPathCoverageProblems = (): string[] => {
+export const findPathCoverageProblems = (rootDir = repoRoot): string[] => {
 	const problems = [];
 
 	// 1. Spec-referenced projects must be covered by BOTH api-tests surfaces.
-	const { pushPaths, classifierPattern, compiled } = readApiTestsGateSurfaces();
-	const referencedDirs = findSpecReferencedProjectDirs();
+	const { pushPaths, classifierPattern, compiled } = readApiTestsGateSurfaces(
+		readFromRoot(rootDir, '.github/workflows/api-tests.yml'),
+	);
+	const referencedDirs = findSpecReferencedProjectDirs(rootDir);
 
 	const missingFromPushPaths = referencedDirs.filter(
 		(dir) => !coveredByAnyEntry(dir, pushPaths),
@@ -617,8 +601,9 @@ export const findPathCoverageProblems = (): string[] => {
 	}
 
 	// 2. Every slnx project must be covered by a .NET barrier path filter.
-	const { qualityGatePushPaths, apiTestsPushPaths } = barrierPushPathSurfaces();
-	const slnxDirs = readSlnxProjectDirs();
+	const { qualityGatePushPaths, apiTestsPushPaths } =
+		barrierPushPathSurfaces(rootDir);
+	const slnxDirs = readSlnxProjectDirs(rootDir);
 
 	const uncovered = slnxDirs.filter(
 		(dir) =>

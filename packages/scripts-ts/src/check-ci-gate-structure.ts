@@ -2064,6 +2064,7 @@ type CentralStep = {
 
 type CentralJob = {
 	name?: unknown;
+	outputs?: Record<string, unknown>;
 	permissions?: unknown;
 	if?: unknown;
 	needs?: unknown;
@@ -2072,6 +2073,7 @@ type CentralJob = {
 		include?: unknown;
 		exclude?: unknown;
 		matrix?: {
+			[key: string]: unknown;
 			shard?: unknown;
 			include?: unknown;
 			exclude?: unknown;
@@ -2079,6 +2081,55 @@ type CentralJob = {
 	};
 	steps?: CentralStep[];
 };
+
+const EXPECTED_CENTRAL_CLASSIFIER_OUTPUTS = {
+	quality: '${{ steps.classifier.outputs.quality }}',
+	front: '${{ steps.classifier.outputs.front }}',
+	api: '${{ steps.classifier.outputs.api }}',
+	e2e: '${{ steps.classifier.outputs.e2e }}',
+	docs: '${{ steps.classifier.outputs.docs }}',
+	react: '${{ steps.classifier.outputs.react }}',
+} as const;
+
+const EXPECTED_CENTRAL_COLLECTOR_CLASSIFIER_OUTPUTS = {
+	verification: {
+		quality: '${{ needs.classify.outputs.quality }}',
+		front: '${{ needs.classify.outputs.front }}',
+		docs: '${{ needs.classify.outputs.docs }}',
+		react: '${{ needs.classify.outputs.react }}',
+	},
+	'audit-development': {
+		audit: '${{ needs.classify.outputs.quality }}',
+	},
+	'audit-production': {
+		audit: '${{ needs.classify.outputs.quality }}',
+	},
+	api: { api: '${{ needs.classify.outputs.api }}' },
+	'front-vitest': { front: '${{ needs.classify.outputs.front }}' },
+	'e2e-build': { e2e: '${{ needs.classify.outputs.e2e }}' },
+	'e2e-test': { e2e: '${{ needs.classify.outputs.e2e }}' },
+	'e2e-cleanup': { e2e: '${{ needs.classify.outputs.e2e }}' },
+} as const;
+
+const EXPECTED_CENTRAL_GATE_CLASSIFIER_OUTPUTS = {
+	quality: '${{ needs.classify.outputs.quality }}',
+	front: '${{ needs.classify.outputs.front }}',
+	api: '${{ needs.classify.outputs.api }}',
+	e2e: '${{ needs.classify.outputs.e2e }}',
+	docs: '${{ needs.classify.outputs.docs }}',
+	react: '${{ needs.classify.outputs.react }}',
+} as const;
+
+const EXPECTED_CENTRAL_PARENT_RESULTS = {
+	verification: '${{ needs.verification.result }}',
+	'audit-development': '${{ needs.audit-development.result }}',
+	'audit-production': '${{ needs.audit-production.result }}',
+	api: '${{ needs.api.result }}',
+	'front-vitest': '${{ needs.front-vitest.result }}',
+	'e2e-build': '${{ needs.e2e-build.result }}',
+	'e2e-test': '${{ needs.e2e-test.result }}',
+	'e2e-cleanup': '${{ needs.e2e-cleanup.result }}',
+} as const;
 
 type CentralJobs = Record<string, CentralJob>;
 
@@ -2276,6 +2327,16 @@ const checkCentralTopologyInvariants = (
 		if (strategy?.['fail-fast'] !== false) {
 			findings.push(`${jobId}: fail-fast must be false`);
 		}
+		if (
+			!deepEqualJson(
+				strategy?.matrix === undefined
+					? undefined
+					: Object.keys(strategy.matrix),
+				['shard'],
+			)
+		) {
+			findings.push(`${jobId}: matrix must contain exactly the shard axis`);
+		}
 		if (!deepEqualJson(strategy?.matrix?.shard, [1, 2, 3, 4])) {
 			findings.push(`${jobId}: matrix shard axis must be exactly [1, 2, 3, 4]`);
 		}
@@ -2315,6 +2376,151 @@ const checkCentralTopologyInvariants = (
 		findings.push(
 			'ci.yml must aggregate downloaded artifacts, not toJSON(needs) matrix members',
 		);
+	}
+	if (
+		!deepEqualJson(jobs.classify?.outputs, EXPECTED_CENTRAL_CLASSIFIER_OUTPUTS)
+	) {
+		findings.push(
+			`classify.outputs must bind every lane to the same-named classifier output: ${JSON.stringify(EXPECTED_CENTRAL_CLASSIFIER_OUTPUTS)}`,
+		);
+	}
+
+	const gateAggregate = (jobs.gate?.steps ?? []).find((step) =>
+		String(step.name).includes('Aggregate upstream artifacts'),
+	);
+	let parentResults: unknown;
+	try {
+		parentResults = JSON.parse(String(gateAggregate?.env?.CI_CENTRAL_RESULTS));
+	} catch {
+		parentResults = undefined;
+	}
+	if (!deepEqualJson(parentResults, EXPECTED_CENTRAL_PARENT_RESULTS)) {
+		findings.push(
+			`gate CI_CENTRAL_RESULTS must bind each parent to its own needs result: ${JSON.stringify(EXPECTED_CENTRAL_PARENT_RESULTS)}`,
+		);
+	}
+};
+
+const expectedStepIdCandidates = (expectedStepId: string): string[] => {
+	const separator = expectedStepId.indexOf('.');
+	const suffix = expectedStepId.slice(separator + 1);
+	return [
+		suffix,
+		suffix.replaceAll('_', '-'),
+		...(expectedStepId === 'classify.run' ? ['classifier'] : []),
+	];
+};
+
+const findWorkflowStepId = (
+	expectedStepId: string,
+	steps: CentralStep[],
+): string | undefined => {
+	const ids = new Set(
+		steps
+			.map((step) => (typeof step.id === 'string' ? step.id : ''))
+			.filter((id) => id.length > 0),
+	);
+	const direct = expectedStepIdCandidates(expectedStepId).find((id) =>
+		ids.has(id),
+	);
+	if (direct !== undefined) {
+		return direct;
+	}
+	if (expectedStepId.endsWith('.not-applicable')) {
+		const lane = expectedStepId.split('.')[1];
+		const laneSentinel = lane === undefined ? undefined : `${lane}-sentinel`;
+		if (laneSentinel !== undefined && ids.has(laneSentinel)) {
+			return laneSentinel;
+		}
+		if (ids.has('sentinel')) {
+			return 'sentinel';
+		}
+	}
+	return undefined;
+};
+
+const checkCentralClassifierEdges = (
+	jobs: CentralJobs,
+	findings: string[],
+): void => {
+	const gateAggregate = (jobs.gate?.steps ?? []).find((step) =>
+		String(step.name).includes('Aggregate upstream artifacts'),
+	);
+	let gateClassifierOutputs: unknown;
+	try {
+		gateClassifierOutputs = JSON.parse(
+			String(gateAggregate?.env?.CI_CLASSIFIER_OUTPUTS),
+		);
+	} catch {
+		gateClassifierOutputs = undefined;
+	}
+	if (
+		!deepEqualJson(
+			gateClassifierOutputs,
+			EXPECTED_CENTRAL_GATE_CLASSIFIER_OUTPUTS,
+		)
+	) {
+		findings.push(
+			`gate CI_CLASSIFIER_OUTPUTS must bind every parent classifier consumer to the exact upstream output ${JSON.stringify(EXPECTED_CENTRAL_GATE_CLASSIFIER_OUTPUTS)}`,
+		);
+	}
+	for (const [jobId, expected] of Object.entries(
+		EXPECTED_CENTRAL_COLLECTOR_CLASSIFIER_OUTPUTS,
+	)) {
+		const collector = (jobs[jobId]?.steps ?? []).find((step) =>
+			String(step.name).includes('Collect ci-lane-result'),
+		);
+		let actual: unknown;
+		try {
+			actual = JSON.parse(String(collector?.env?.CI_CLASSIFIER_OUTPUTS));
+		} catch {
+			actual = undefined;
+		}
+		if (!deepEqualJson(actual, expected)) {
+			findings.push(
+				`${jobId}: CI_CLASSIFIER_OUTPUTS must bind each classifier consumer to the exact upstream output ${JSON.stringify(expected)}`,
+			);
+		}
+	}
+
+	for (const [jobId, contracts] of Object.entries(EXPECTED_JOB_LANES)) {
+		const actualJobId = jobId.includes('/') ? jobId.split('/')[0] : jobId;
+		const steps = jobs[actualJobId]?.steps ?? [];
+		for (const lane of contracts) {
+			if (lane.classifierLane === undefined) {
+				continue;
+			}
+			const trueCondition = `needs.classify.result == 'success' && needs.classify.outputs.${lane.classifierLane} == 'true'`;
+			const falseCondition = `needs.classify.result == 'success' && needs.classify.outputs.${lane.classifierLane} == 'false'`;
+			for (const expectedStepId of lane.expectedSteps) {
+				const step = steps.find(
+					(candidate) =>
+						findWorkflowStepId(expectedStepId, [candidate]) !== undefined,
+				);
+				if (step === undefined) {
+					continue;
+				}
+				const condition = String(step.if ?? '');
+				if (condition.length === 0) {
+					continue;
+				}
+				if (expectedStepId.endsWith('.not-applicable')) {
+					if (condition !== `always() && ${falseCondition}`) {
+						findings.push(
+							`${actualJobId}: sentinel ${expectedStepId} must consume ${falseCondition}`,
+						);
+					}
+				} else if (
+					!expectedStepId.endsWith('.report_upload') &&
+					!expectedStepId.endsWith('.test_results') &&
+					!condition.includes(trueCondition)
+				) {
+					findings.push(
+						`${actualJobId}: ${expectedStepId} must consume ${trueCondition}`,
+					);
+				}
+			}
+		}
 	}
 };
 
@@ -2424,25 +2630,23 @@ const checkCentralLaneEvidence = (
 				`${jobId}: CI_STEP_RESULTS must equal the ordered lane step set`,
 			);
 		}
-		const actualStepIds = new Set(
-			steps
-				.map((step) => (typeof step.id === 'string' ? step.id : ''))
-				.filter((id) => id.length > 0),
-		);
 		for (const expectedStepId of expectedStepIds) {
-			if (expectedStepId.endsWith('.not-applicable')) {
-				continue;
-			}
-			const separator = expectedStepId.indexOf('.');
-			const suffix = expectedStepId.slice(separator + 1);
-			const stepCandidates = [
-				suffix,
-				suffix.replaceAll('_', '-'),
-				...(expectedStepId === 'classify.run' ? ['classifier'] : []),
-			];
-			if (!stepCandidates.some((candidate) => actualStepIds.has(candidate))) {
+			const actualStepId = findWorkflowStepId(expectedStepId, steps);
+			if (actualStepId === undefined) {
 				findings.push(
 					`${jobId}: workflow step for ${expectedStepId} is not bound to the collector`,
+				);
+				continue;
+			}
+			const observed = stepResults?.[expectedStepId];
+			const observedOutcome =
+				observed !== null && typeof observed === 'object'
+					? (observed as Record<string, unknown>).outcome
+					: undefined;
+			const expectedOutcome = `\${{ steps.${actualStepId}.outcome }}`;
+			if (observedOutcome !== expectedOutcome) {
+				findings.push(
+					`${jobId}: CI_STEP_RESULTS.${expectedStepId}.outcome must be exactly ${JSON.stringify(expectedOutcome)}`,
 				);
 			}
 		}
@@ -2630,17 +2834,24 @@ const checkCentralArtifacts = (jobs: CentralJobs, findings: string[]): void => {
 	};
 	for (const jobId of CENTRAL_JOB_IDS.filter((id) => id !== 'gate')) {
 		const job = jobs[jobId];
-		const artifact = (job?.steps ?? []).find(
+		const artifacts = (job?.steps ?? []).filter(
 			(step) =>
 				String(step.uses).startsWith('actions/upload-artifact@') &&
 				String(step.with?.name).startsWith('ci-lane-result-'),
 		);
+		const artifact = artifacts[0];
 		const expected = expectedArtifactFor(jobId);
+		if (artifacts.length !== 1) {
+			findings.push(
+				`${jobId}: exactly one ci-lane-result upload producer is required, found ${artifacts.length}`,
+			);
+		}
 		if (
 			artifact?.if !== 'always()' ||
 			artifact?.with?.name !== expected.name ||
 			artifact?.with?.path !== expected.path ||
-			artifact?.with?.['if-no-files-found'] !== 'error'
+			artifact?.with?.['if-no-files-found'] !== 'error' ||
+			artifact?.with?.overwrite !== undefined
 		) {
 			findings.push(
 				`${jobId}: result artifact name/path/always contract is not exact`,
@@ -2780,6 +2991,7 @@ export const findCentralCiStructureProblems = async ({
 	checkCentralTopologyInvariants(document, jobs, findings);
 
 	checkCentralLaneEvidence(jobs, findings);
+	checkCentralClassifierEdges(jobs, findings);
 	/*
 		The lane evidence helper owns the collector, sentinel, and step-result
 		dataflow checks for every upstream job.

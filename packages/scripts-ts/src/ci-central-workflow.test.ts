@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { execFileSync } from 'node:child_process';
 import { cp, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
@@ -11,6 +12,10 @@ import {
 	findCentralCiStructureProblems,
 	findRequiredContextCollisionProblems,
 } from './check-ci-gate-structure.ts';
+import {
+	CI_CONTRACT_TEST_FILES,
+	validateCiContractTestFiles,
+} from './ci-contract-test-files.ts';
 
 const repoRoot = path.resolve(new URL('../../..', import.meta.url).pathname);
 const workflowPath = path.join(repoRoot, '.github/workflows/ci.yml');
@@ -34,6 +39,356 @@ test('central workflow exposes exactly the stable 16 display labels', async () =
 	});
 
 	assert.deepEqual(labels, CENTRAL_VISIBLE_CHECKS);
+});
+
+test('central workflow contract command names the real complete contract suite', async () => {
+	const workflow = await readFile(workflowPath, 'utf8');
+	assert.match(workflow, /run: pnpm test:ci-contracts/);
+	assert.doesNotMatch(workflow, /check-ci-gate-aggregation\.test\.ts/);
+	assert.ok(CI_CONTRACT_TEST_FILES.includes('src/ci-central-workflow.test.ts'));
+	assert.ok(CI_CONTRACT_TEST_FILES.includes('src/ci-gate-aggregation.test.ts'));
+	assert.deepEqual(validateCiContractTestFiles(repoRoot), []);
+	assert.deepEqual(
+		validateCiContractTestFiles(path.join(repoRoot, 'missing')),
+		[...CI_CONTRACT_TEST_FILES],
+	);
+
+	const manifest = JSON.parse(
+		await readFile(
+			path.join(repoRoot, 'packages/scripts-ts/src/ci-gate-manifest.json'),
+			'utf8',
+		),
+	) as { steps: Record<string, { mirror: string | null }> };
+	assert.equal(
+		manifest.steps['ci.yml::verification::Test CI contracts']?.mirror,
+		'pnpm test:ci-contracts',
+	);
+});
+
+test('central workflow rejects every CI_STEP_RESULTS outcome edge mutation and duplicate result producer', async () => {
+	const rootDir = await mkdtemp(path.join(os.tmpdir(), 'publyapp-ci-outcome-'));
+	await cp(path.join(repoRoot, '.github'), path.join(rootDir, '.github'), {
+		recursive: true,
+	});
+	const workflowFile = path.join(rootDir, '.github/workflows/ci.yml');
+	const original = await readFile(workflowFile, 'utf8');
+	const mutations = [
+		[
+			'api suite outcome points at checkout',
+			original.replace(
+				'"api.suite":{"outcome":"${{ steps.suite.outcome }}"}',
+				'"api.suite":{"outcome":"${{ steps.checkout.outcome }}"}',
+			),
+		],
+		[
+			'verification lint outcome points at format',
+			original.replace(
+				'"verification.lint":{"outcome":"${{ steps.lint.outcome }}"}',
+				'"verification.lint":{"outcome":"${{ steps.format.outcome }}"}',
+			),
+		],
+		[
+			'every result uploader has exactly one producer',
+			original.replace(
+				'          if-no-files-found: error\n\n  verification:',
+				'          if-no-files-found: error\n      - name: Duplicate result upload\n        if: always()\n        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0\n        with:\n          name: ci-lane-result-${{ github.run_id }}-${{ github.run_attempt }}-classify\n          path: ci-results/classify.json\n          if-no-files-found: error\n\n  verification:',
+			),
+		],
+		[
+			'result uploader overwrite contract changes',
+			original.replace(
+				'          if-no-files-found: error\n\n  verification:',
+				'          if-no-files-found: error\n          overwrite: true\n\n  verification:',
+			),
+		],
+	] as const;
+	try {
+		for (const [label, mutation] of mutations) {
+			await writeFile(workflowFile, mutation);
+			const findings = await findCentralCiStructureProblems({ rootDir });
+			assert.ok(
+				findings.some((finding) =>
+					/outcome|producer|upload|overwrite|artifact/i.test(finding),
+				),
+				`${label} should fail: ${findings.join('; ')}`,
+			);
+		}
+
+		const outcomeBindings = [
+			...original.matchAll(
+				/"([^"]+)":\{"outcome":"\$\{\{ steps\.([^}]+)\.outcome \}\}"\}/g,
+			),
+		];
+		assert.ok(
+			outcomeBindings.length > 0,
+			'CI_STEP_RESULTS must expose outcomes',
+		);
+		for (const [, key, stepId] of outcomeBindings) {
+			const wrongStepId = stepId === 'checkout' ? 'classifier' : 'checkout';
+			const originalBinding = `"${key}":{"outcome":"\${{ steps.${stepId}.outcome }}"}`;
+			const mutation = original.replace(
+				originalBinding,
+				`"${key}":{"outcome":"\${{ steps.${wrongStepId}.outcome }}"}`,
+			);
+			assert.notEqual(
+				mutation,
+				original,
+				`${key} mutation must change the fixture`,
+			);
+			await writeFile(workflowFile, mutation);
+			const findings = await findCentralCiStructureProblems({ rootDir });
+			assert.ok(
+				findings.some((finding) =>
+					/outcome|CI_STEP_RESULTS|collector/i.test(finding),
+				),
+				`${key} outcome edge should fail: ${findings.join('; ')}`,
+			);
+		}
+	} finally {
+		await rm(rootDir, { recursive: true, force: true });
+	}
+});
+
+test('central workflow rejects every classifier producer, consumer, relevance, sentinel, and parent-result edge swap', async () => {
+	const rootDir = await mkdtemp(path.join(os.tmpdir(), 'publyapp-ci-edges-'));
+	await cp(path.join(repoRoot, '.github'), path.join(rootDir, '.github'), {
+		recursive: true,
+	});
+	const workflowFile = path.join(rootDir, '.github/workflows/ci.yml');
+	const original = await readFile(workflowFile, 'utf8');
+	const swaps = [
+		[
+			'quality',
+			'${{ steps.classifier.outputs.front }}',
+			'${{ steps.classifier.outputs.quality }}',
+		],
+		[
+			'front',
+			'${{ steps.classifier.outputs.quality }}',
+			'${{ steps.classifier.outputs.front }}',
+		],
+		[
+			'api',
+			'${{ steps.classifier.outputs.front }}',
+			'${{ steps.classifier.outputs.api }}',
+		],
+		[
+			'e2e',
+			'${{ steps.classifier.outputs.api }}',
+			'${{ steps.classifier.outputs.e2e }}',
+		],
+		[
+			'docs',
+			'${{ steps.classifier.outputs.e2e }}',
+			'${{ steps.classifier.outputs.docs }}',
+		],
+		[
+			'react',
+			'${{ steps.classifier.outputs.docs }}',
+			'${{ steps.classifier.outputs.react }}',
+		],
+	] as const;
+	try {
+		for (const [name, wrong, right] of swaps) {
+			const mutation = original.replace(
+				`${name}: ${right}`,
+				`${name}: ${wrong}`,
+			);
+			await writeFile(workflowFile, mutation);
+			const findings = await findCentralCiStructureProblems({ rootDir });
+			assert.ok(
+				findings.some((finding) =>
+					/classifier|output|edge|binding/i.test(finding),
+				),
+				`${name} producer edge should fail: ${findings.join('; ')}`,
+			);
+		}
+
+		const collectorSwap = original.replace(
+			'CI_CLASSIFIER_OUTPUTS: \'{"api":"${{ needs.classify.outputs.api }}"}\'',
+			'CI_CLASSIFIER_OUTPUTS: \'{"api":"${{ needs.classify.outputs.front }}"}\'',
+		);
+		await writeFile(workflowFile, collectorSwap);
+		assert.ok(
+			(await findCentralCiStructureProblems({ rootDir })).some((finding) =>
+				/classifier|output|binding/i.test(finding),
+			),
+		);
+
+		const parentSwap = original.replace(
+			'"api":"${{ needs.api.result }}"',
+			'"api":"${{ needs.front-vitest.result }}"',
+		);
+		await writeFile(workflowFile, parentSwap);
+		assert.ok(
+			(await findCentralCiStructureProblems({ rootDir })).some((finding) =>
+				/parent|central|result|binding/i.test(finding),
+			),
+		);
+
+		const relevanceSwap = original.replace(
+			"needs.classify.outputs.api == 'true'",
+			"needs.classify.outputs.front == 'true'",
+		);
+		await writeFile(workflowFile, relevanceSwap);
+		assert.ok(
+			(await findCentralCiStructureProblems({ rootDir })).some((finding) =>
+				/relevance|classifier|consumer|consume|binding|needs\.classify/i.test(
+					finding,
+				),
+			),
+		);
+
+		const classifierLines = original
+			.split('\n')
+			.filter((line) => line.includes('CI_CLASSIFIER_OUTPUTS:'));
+		assert.ok(
+			classifierLines.length > 0,
+			'classifier consumers must be present',
+		);
+		for (const line of classifierLines) {
+			const json = line.match(/CI_CLASSIFIER_OUTPUTS: '([^']+)'/)?.[1];
+			assert.ok(json, `classifier line must contain JSON: ${line}`);
+			const values = Object.entries(JSON.parse(json) as Record<string, string>);
+			for (const [key, value] of values) {
+				const replacementValue = [
+					...values.map(([, candidateValue]) => candidateValue),
+					'${{ needs.classify.outputs.quality }}',
+					'${{ needs.classify.outputs.front }}',
+					'${{ needs.classify.outputs.api }}',
+					'${{ needs.classify.outputs.e2e }}',
+					'${{ needs.classify.outputs.docs }}',
+					'${{ needs.classify.outputs.react }}',
+				].find((candidateValue) => candidateValue !== value);
+				assert.ok(
+					replacementValue,
+					`classifier input ${key} needs a swap target`,
+				);
+				const mutationLine = line.replace(
+					`"${key}":"${value}"`,
+					`"${key}":"${replacementValue}"`,
+				);
+				const mutation = original.replace(line, mutationLine);
+				assert.notEqual(
+					mutation,
+					original,
+					`${key} classifier input mutation must change the fixture`,
+				);
+				await writeFile(workflowFile, mutation);
+				const findings = await findCentralCiStructureProblems({ rootDir });
+				assert.ok(
+					findings.some((finding) =>
+						/classifier|output|binding|CI_CLASSIFIER_OUTPUTS/i.test(finding),
+					),
+					`${key} classifier input should fail: ${findings.join('; ')}`,
+				);
+			}
+		}
+
+		const parentLine = original
+			.split('\n')
+			.find((line) => line.includes('CI_CENTRAL_RESULTS:'));
+		assert.ok(parentLine, 'parent result mapping must be present');
+		const parentJson = parentLine.match(/CI_CENTRAL_RESULTS: '([^']+)'/)?.[1];
+		assert.ok(parentJson, 'parent result mapping must contain JSON');
+		const parentEntries = Object.entries(
+			JSON.parse(parentJson) as Record<string, string>,
+		);
+		for (const [key, value] of parentEntries) {
+			const replacementValue = parentEntries.find(
+				([candidate]) => candidate !== key,
+			)?.[1];
+			assert.ok(replacementValue, `parent result ${key} needs a swap target`);
+			const mutation = original.replace(
+				`"${key}":"${value}"`,
+				`"${key}":"${replacementValue}"`,
+			);
+			assert.notEqual(
+				mutation,
+				original,
+				`${key} parent result mutation must change the fixture`,
+			);
+			await writeFile(workflowFile, mutation);
+			const findings = await findCentralCiStructureProblems({ rootDir });
+			assert.ok(
+				findings.some((finding) =>
+					/parent|central|result|binding/i.test(finding),
+				),
+				`${key} parent result should fail: ${findings.join('; ')}`,
+			);
+		}
+
+		const classifierLanes = ['quality', 'front', 'api', 'e2e', 'docs', 'react'];
+		for (const lane of classifierLanes) {
+			for (const value of ['true', 'false']) {
+				const expected = `needs.classify.outputs.${lane} == '${value}'`;
+				const replacementLane = classifierLanes.find(
+					(candidate) => candidate !== lane,
+				);
+				assert.ok(replacementLane);
+				const mutation = original.replace(
+					expected,
+					`needs.classify.outputs.${replacementLane} == '${value}'`,
+				);
+				assert.notEqual(
+					mutation,
+					original,
+					`${lane} ${value} relevance mutation must change the fixture`,
+				);
+				await writeFile(workflowFile, mutation);
+				const findings = await findCentralCiStructureProblems({ rootDir });
+				assert.ok(
+					findings.some((finding) =>
+						/relevance|classifier|consumer|consume|binding|needs\.classify/i.test(
+							finding,
+						),
+					),
+					`${lane} ${value} classifier edge should fail: ${findings.join('; ')}`,
+				);
+			}
+		}
+	} finally {
+		await rm(rootDir, { recursive: true, force: true });
+	}
+});
+
+test('central workflow rejects scalar and list extra matrix axes on both matrix jobs', async () => {
+	const rootDir = await mkdtemp(path.join(os.tmpdir(), 'publyapp-ci-matrix-'));
+	await cp(path.join(repoRoot, '.github'), path.join(rootDir, '.github'), {
+		recursive: true,
+	});
+	const workflowFile = path.join(rootDir, '.github/workflows/ci.yml');
+	const original = await readFile(workflowFile, 'utf8');
+	try {
+		for (const jobId of ['front-vitest', 'e2e-test']) {
+			const start = original.indexOf(`  ${jobId}:\n`);
+			assert.notEqual(start, -1, `${jobId} fixture job missing`);
+			let end = original.indexOf('\n  ', start + 3);
+			while (end !== -1 && original[end + 3] === ' ') {
+				end = original.indexOf('\n  ', end + 1);
+			}
+			const block = original.slice(start, end === -1 ? original.length : end);
+			for (const axis of [
+				'os: [ubuntu-latest, macos-latest]',
+				'os: ubuntu-latest',
+			]) {
+				await writeFile(
+					workflowFile,
+					`${original.slice(0, start)}${block.replace(
+						'matrix:\n        shard:',
+						`matrix:\n        ${axis}\n        shard:`,
+					)}${original.slice(end === -1 ? original.length : end)}`,
+				);
+				const findings = await findCentralCiStructureProblems({ rootDir });
+				assert.ok(
+					findings.some((finding) => /matrix|axis|exact/i.test(finding)),
+					`${jobId} ${axis} should fail: ${findings.join('; ')}`,
+				);
+			}
+		}
+	} finally {
+		await rm(rootDir, { recursive: true, force: true });
+	}
 });
 
 test('central workflow structure rejects topology mutations', async () => {
@@ -66,8 +421,8 @@ test('central workflow structure rejects topology mutations', async () => {
 			'gate disconnected',
 			(value: string) =>
 				value.replace(
-					'needs: [classify, verification',
-					'needs: [verification, verification',
+					'        classify,\n        verification,',
+					'        verification,\n        verification,',
 				),
 			/needs/i,
 		],
@@ -679,6 +1034,10 @@ test('central manifest does not describe locally mirrored commands as GitHub-onl
 			'ci.yml::e2e-cleanup::Cleanup e2e images',
 			'pnpm --filter scripts-ts exec vitest run src/ci-e2e-cleanup.test.ts',
 		],
+		[
+			'ci.yml::verification::Check dependency health contract',
+			'just nuget-audit',
+		],
 	]);
 
 	for (const [id, mirror] of expectedMirrors) {
@@ -694,5 +1053,109 @@ test('central manifest does not describe locally mirrored commands as GitHub-onl
 			/central CI (?:topology|gate inventory).*no separate local execution surface/i,
 			`${id} generic reason`,
 		);
+	}
+});
+
+test('central manifest semantically reconciles every one of its 169 entries', async () => {
+	const manifest = JSON.parse(
+		await readFile(
+			path.join(repoRoot, 'packages/scripts-ts/src/ci-gate-manifest.json'),
+			'utf8',
+		),
+	) as { steps: Record<string, { mirror: string | null; reason: string }> };
+	const central = Object.entries(manifest.steps).filter(([id]) =>
+		id.startsWith('ci.yml::'),
+	);
+	assert.equal(central.length, 169);
+	const justfile = await readFile(path.join(repoRoot, 'justfile'), 'utf8');
+	const packageJson = JSON.parse(
+		await readFile(path.join(repoRoot, 'package.json'), 'utf8'),
+	) as {
+		scripts?: Record<string, string>;
+	};
+	const justRecipes = new Set(
+		[...justfile.matchAll(/^([A-Za-z0-9_-]+)(?:\s+[^:\n]+)?\s*:/gm)].map(
+			(match) => match[1],
+		),
+	);
+	const justDump = JSON.parse(
+		execFileSync('just', ['--dump', '--dump-format', 'json'], {
+			cwd: repoRoot,
+			encoding: 'utf8',
+		}),
+	) as { recipes: Record<string, unknown> };
+	const dumpedRecipes = new Set(Object.keys(justDump.recipes));
+	const localMirrorEntries = central.filter(
+		([, entry]) => entry.mirror !== null,
+	);
+	assert.equal(localMirrorEntries.length, 81);
+	const expectedMirrors = {
+		'ci.yml::audit-development::Run deterministic audit fixtures':
+			'just ci-drift',
+		'ci.yml::audit-production::Run deterministic audit fixtures':
+			'just ci-drift',
+		'ci.yml::e2e-test::Assert exact pins': 'just ci-install',
+		'ci.yml::e2e-test::Install dependencies': 'just ci-install',
+		'ci.yml::front-vitest::Install dependencies': 'just ci-install',
+		'ci.yml::front-vitest::Run trusted first-party postinstall':
+			'just ci-install',
+		'ci.yml::gate::Install workspace dependencies': 'just ci-install',
+		'ci.yml::gate::Run central structural self-check': 'just ci-drift',
+		'ci.yml::verification::Assert exact pins': 'just ci-install',
+		'ci.yml::verification::Check action versions': 'just ci-drift',
+		'ci.yml::verification::Check complexity bounds': 'just ci-drift',
+		'ci.yml::verification::Check dependency health contract':
+			'just nuget-audit',
+		'ci.yml::verification::Check front column-type imports': 'just ci-front',
+		'ci.yml::verification::Check front design system': 'just ci-front',
+		'ci.yml::verification::Check front React Compiler artifacts':
+			'just ci-front',
+		'ci.yml::verification::Check front static imports': 'just ci-front',
+		'ci.yml::verification::Install pnpm': 'just ci-install',
+		'ci.yml::verification::Run trusted first-party postinstall':
+			'just ci-install',
+		'ci.yml::verification::Test CI contracts': 'pnpm test:ci-contracts',
+	} satisfies Record<string, string>;
+	for (const [id, entry] of central) {
+		const expected = expectedMirrors[id];
+		if (expected === undefined) {
+			if (entry.mirror === null) {
+				assert.ok(
+					entry.reason.includes(id.split('::').at(-1) ?? ''),
+					`${id} reason must name its step`,
+				);
+				assert.match(
+					entry.reason,
+					/GitHub-only|hosted|artifact|provenance|credential|runner|orchestration|sentinel|required-check/i,
+					`${id} reason must identify the hosted-only boundary`,
+				);
+			}
+			continue;
+		} else {
+			assert.equal(entry.mirror, expected, `${id} local mirror`);
+			assert.ok(
+				entry.reason.includes(expected),
+				`${id} reason must name ${expected}`,
+			);
+		}
+		if (entry.mirror?.startsWith('just ')) {
+			const recipe = entry.mirror.slice('just '.length).split(/\s/, 1)[0];
+			assert.ok(
+				justRecipes.has(recipe),
+				`${id} names a missing just recipe ${recipe}`,
+			);
+			assert.ok(
+				dumpedRecipes.has(recipe),
+				`${id} names a recipe absent from just's call graph`,
+			);
+		} else if (entry.mirror?.startsWith('pnpm ')) {
+			const packageScript = Object.values(packageJson.scripts ?? {}).some(
+				(script) => script.includes(entry.mirror),
+			);
+			assert.ok(
+				justfile.includes(entry.mirror) || packageScript,
+				`${id} mirror ${entry.mirror} is absent from the local call graph`,
+			);
+		}
 	}
 });

@@ -581,8 +581,8 @@
 			"reason": "GitHub-only setup for audit-development::Install pnpm: the hosted runner provisions its checkout/toolchain or hook state before the lane command, while local setup is composed by the selected just recipe."
 		},
 		"ci.yml::audit-development::Run deterministic audit fixtures": {
-			"reason_hash": "6e17642b8bd19fc3",
-			"reason": "Central-workflow-only control for audit-development::Run deterministic audit fixtures: its value is the hosted dependency, permission, provenance, or required-check wiring around the lane rather than an independently runnable repository command."
+			"reason_hash": "3a37faf3881ea524",
+			"reason": "just ci-drift runs the identical npm-audit-runner fixture suite for the development audit step."
 		},
 		"ci.yml::audit-development::Setup Node": {
 			"reason_hash": "5b40661a1e90a379",
@@ -613,8 +613,8 @@
 			"reason": "GitHub-only setup for audit-production::Install pnpm: the hosted runner provisions its checkout/toolchain or hook state before the lane command, while local setup is composed by the selected just recipe."
 		},
 		"ci.yml::audit-production::Run deterministic audit fixtures": {
-			"reason_hash": "92551abc6e41d77c",
-			"reason": "Central-workflow-only control for audit-production::Run deterministic audit fixtures: its value is the hosted dependency, permission, provenance, or required-check wiring around the lane rather than an independently runnable repository command."
+			"reason_hash": "e76be0d332597cd6",
+			"reason": "just ci-drift runs the identical npm-audit-runner fixture suite for the production audit step."
 		},
 		"ci.yml::audit-production::Setup Node": {
 			"reason_hash": "8df107fa132b4827",
@@ -721,8 +721,8 @@
 			"reason": "GitHub-only evidence transport for e2e-cleanup::Upload ci-lane-result: it preserves hosted artifacts, lane provenance, or classifier sentinel state consumed by the central reducer and has no local equivalent."
 		},
 		"ci.yml::e2e-test::Assert exact pins": {
-			"reason_hash": "1c508877ee2c2e8f",
-			"reason": "GitHub-only orchestration for e2e-test::Assert exact pins: it uses hosted credentials, fork/image metadata, live pull-request state, or artifact-backed gate context unavailable to the local command surface."
+			"reason_hash": "3ef6842cd83f34a0",
+			"reason": "just ci-install runs the identical repository pin assertion before installing dependencies."
 		},
 		"ci.yml::e2e-test::Cache Playwright browsers": {
 			"reason_hash": "66618c00c3fd104d",
@@ -749,8 +749,8 @@
 			"reason": "GitHub-only evidence transport for e2e-test::Download fork e2e images: it preserves hosted artifacts, lane provenance, or classifier sentinel state consumed by the central reducer and has no local equivalent."
 		},
 		"ci.yml::e2e-test::Install dependencies": {
-			"reason_hash": "2654f3463987c980",
-			"reason": "GitHub-only setup for e2e-test::Install dependencies: the hosted runner provisions its checkout/toolchain or hook state before the lane command, while local setup is composed by the selected just recipe."
+			"reason_hash": "f09dd9d4ce57819a",
+			"reason": "just ci-install runs the identical frozen dependency installation without lifecycle scripts."
 		},
 		"ci.yml::e2e-test::Install pnpm": {
 			"reason_hash": "df92304ec2b27adb",
@@ -809,8 +809,8 @@
 			"reason": "GitHub-only evidence transport for front-vitest::Collect ci-lane-result: it preserves hosted artifacts, lane provenance, or classifier sentinel state consumed by the central reducer and has no local equivalent."
 		},
 		"ci.yml::front-vitest::Install dependencies": {
-			"reason_hash": "bd792292ae9b6a99",
-			"reason": "GitHub-only setup for front-vitest::Install dependencies: the hosted runner provisions its checkout/toolchain or hook state before the lane command, while local setup is composed by the selected just recipe."
+			"reason_hash": "91ec0481dd6a3976",
+			"reason": "just ci-install runs the identical frozen workspace installation without lifecycle scripts."
 		},
 		"ci.yml::front-vitest::Install Git hooks": {
 			"reason_hash": "517660e8dfe4e6e6",
@@ -821,8 +821,8 @@
 			"reason": "GitHub-only setup for front-vitest::Install pnpm: the hosted runner provisions its checkout/toolchain or hook state before the lane command, while local setup is composed by the selected just recipe."
 		},
 		"ci.yml::front-vitest::Run trusted first-party postinstall": {
-			"reason_hash": "5e29abf340210c69",
-			"reason": "GitHub-only setup for front-vitest::Run trusted first-party postinstall: the hosted runner provisions its checkout/toolchain or hook state before the lane command, while local setup is composed by the selected just recipe."
+			"reason_hash": "bea690c34b9c650c",
+			"reason": "just ci-install runs the identical trusted shared-ts postinstall command."
 		},
 		"ci.yml::front-vitest::Run vitest shard": {
 			"reason_hash": "a159293d9754f505",
@@ -857,16 +857,16 @@
 			"reason": "GitHub-only setup for gate::Install pnpm: the hosted runner provisions its checkout/toolchain or hook state before the lane command, while local setup is composed by the selected just recipe."
 		},
 		"ci.yml::gate::Install workspace dependencies": {
-			"reason_hash": "8357948c994b7348",
-			"reason": "GitHub-only setup for gate::Install workspace dependencies: the hosted runner provisions its checkout/toolchain or hook state before the lane command, while local setup is composed by the selected just recipe."
+			"reason_hash": "91ec0481dd6a3976",
+			"reason": "just ci-install runs the identical frozen workspace installation without lifecycle scripts."
 		},
 		"ci.yml::gate::Read live PR snapshot": {
 			"reason_hash": "be2236e19e90568e",
 			"reason": "GitHub-only orchestration for gate::Read live PR snapshot: it uses hosted credentials, fork/image metadata, live pull-request state, or artifact-backed gate context unavailable to the local command surface."
 		},
 		"ci.yml::gate::Run central structural self-check": {
-			"reason_hash": "21624092ae4e110f",
-			"reason": "GitHub-only orchestration for gate::Run central structural self-check: it uses hosted credentials, fork/image metadata, live pull-request state, or artifact-backed gate context unavailable to the local command surface."
+			"reason_hash": "7826a17b547947e8",
+			"reason": "just ci-drift runs the identical central structural self-check CLI."
 		},
 		"ci.yml::gate::Setup Node": {
 			"reason_hash": "f5924414e1129457",
@@ -885,8 +885,8 @@
 			"reason": "GitHub-only orchestration for gate::Write live PR snapshot: it uses hosted credentials, fork/image metadata, live pull-request state, or artifact-backed gate context unavailable to the local command surface."
 		},
 		"ci.yml::verification::Assert exact pins": {
-			"reason_hash": "a50033e0200a162e",
-			"reason": "GitHub-only orchestration for verification::Assert exact pins: it uses hosted credentials, fork/image metadata, live pull-request state, or artifact-backed gate context unavailable to the local command surface."
+			"reason_hash": "3ef6842cd83f34a0",
+			"reason": "just ci-install runs the identical repository pin assertion before installing dependencies."
 		},
 		"ci.yml::verification::Audit .NET packages": {
 			"reason_hash": "131c09aecce939ee",
@@ -905,20 +905,20 @@
 			"reason": "Local mirror just ci-actions-pins exercises the same repository command or lifecycle owned by verification::Check action SHA bindings; the hosted step remains separately pinned for CI wiring."
 		},
 		"ci.yml::verification::Check action versions": {
-			"reason_hash": "b1ca502423385814",
-			"reason": "Central-workflow-only control for verification::Check action versions: its value is the hosted dependency, permission, provenance, or required-check wiring around the lane rather than an independently runnable repository command."
+			"reason_hash": "ed72bc8ecbb96834",
+			"reason": "just ci-drift runs the identical action-version checker CLI."
 		},
 		"ci.yml::verification::Check CI drift": {
 			"reason_hash": "6c2e002efa9c1273",
 			"reason": "Local mirror just ci-drift exercises the same repository command or lifecycle owned by verification::Check CI drift; the hosted step remains separately pinned for CI wiring."
 		},
 		"ci.yml::verification::Check complexity bounds": {
-			"reason_hash": "e1f2c226acc776cd",
-			"reason": "Central-workflow-only control for verification::Check complexity bounds: its value is the hosted dependency, permission, provenance, or required-check wiring around the lane rather than an independently runnable repository command."
+			"reason_hash": "368e96390cde61da",
+			"reason": "just ci-drift runs the identical cyclomatic-bound checker CLI."
 		},
 		"ci.yml::verification::Check dependency health contract": {
-			"reason_hash": "9f09f34827cd549c",
-			"reason": "Local mirror just ci-drift exercises the same repository command or lifecycle owned by verification::Check dependency health contract; the hosted step remains separately pinned for CI wiring."
+			"reason_hash": "d8941122bb1e6538",
+			"reason": "just nuget-audit runs the same dependency-health pin-location contract test."
 		},
 		"ci.yml::verification::Check deploy environment documentation": {
 			"reason_hash": "770d5d7754be3151",
@@ -941,20 +941,20 @@
 			"reason": "Local mirror just format exercises the same repository command or lifecycle owned by verification::Check formatting; the hosted step remains separately pinned for CI wiring."
 		},
 		"ci.yml::verification::Check front column-type imports": {
-			"reason_hash": "a45f202f36606165",
-			"reason": "Central-workflow-only control for verification::Check front column-type imports: its value is the hosted dependency, permission, provenance, or required-check wiring around the lane rather than an independently runnable repository command."
+			"reason_hash": "5ddaf4948483a140",
+			"reason": "just ci-front runs the identical front column-type import guard."
 		},
 		"ci.yml::verification::Check front design system": {
-			"reason_hash": "f846632140f07366",
-			"reason": "Central-workflow-only control for verification::Check front design system: its value is the hosted dependency, permission, provenance, or required-check wiring around the lane rather than an independently runnable repository command."
+			"reason_hash": "0c26c7ae6849a991",
+			"reason": "just ci-front runs the identical front design-system guard."
 		},
 		"ci.yml::verification::Check front React Compiler artifacts": {
-			"reason_hash": "585c03676c614955",
-			"reason": "Central-workflow-only control for verification::Check front React Compiler artifacts: its value is the hosted dependency, permission, provenance, or required-check wiring around the lane rather than an independently runnable repository command."
+			"reason_hash": "4b63e5c0fcb1de6f",
+			"reason": "just ci-front runs the identical front React Compiler artifact guard."
 		},
 		"ci.yml::verification::Check front static imports": {
-			"reason_hash": "1d0ccb4464906677",
-			"reason": "Central-workflow-only control for verification::Check front static imports: its value is the hosted dependency, permission, provenance, or required-check wiring around the lane rather than an independently runnable repository command."
+			"reason_hash": "13f329838ab4ce51",
+			"reason": "just ci-front runs the identical front server-static import guard."
 		},
 		"ci.yml::verification::Check no dockerignore shadow files": {
 			"reason_hash": "1cc72c30f66cb313",
@@ -1001,8 +1001,8 @@
 			"reason": "GitHub-only setup for verification::Install Git hooks: the hosted runner provisions its checkout/toolchain or hook state before the lane command, while local setup is composed by the selected just recipe."
 		},
 		"ci.yml::verification::Install pnpm": {
-			"reason_hash": "04407766847cad03",
-			"reason": "GitHub-only setup for verification::Install pnpm: the hosted runner provisions its checkout/toolchain or hook state before the lane command, while local setup is composed by the selected just recipe."
+			"reason_hash": "f8805cab247d9ae3",
+			"reason": "just ci-install is the local recipe for the same frozen workspace setup."
 		},
 		"ci.yml::verification::Install workspace dependencies": {
 			"reason_hash": "40cc942045efced1",
@@ -1037,8 +1037,8 @@
 			"reason": "Local mirror just react-doctor exercises the same repository command or lifecycle owned by verification::Run React Doctor; the hosted step remains separately pinned for CI wiring."
 		},
 		"ci.yml::verification::Run trusted first-party postinstall": {
-			"reason_hash": "f585fa40aa7771b2",
-			"reason": "GitHub-only setup for verification::Run trusted first-party postinstall: the hosted runner provisions its checkout/toolchain or hook state before the lane command, while local setup is composed by the selected just recipe."
+			"reason_hash": "bea690c34b9c650c",
+			"reason": "just ci-install runs the identical trusted shared-ts postinstall command."
 		},
 		"ci.yml::verification::Setup .NET": {
 			"reason_hash": "a72f8508c78b0eec",
@@ -1073,8 +1073,8 @@
 			"reason": "Local mirror just ci-drift exercises the same repository command or lifecycle owned by verification::Test CI changed-path classifier; the hosted step remains separately pinned for CI wiring."
 		},
 		"ci.yml::verification::Test CI contracts": {
-			"reason_hash": "37787e4cd65d4c91",
-			"reason": "Local mirror just ci-drift exercises the same repository command or lifecycle owned by verification::Test CI contracts; the hosted step remains separately pinned for CI wiring."
+			"reason_hash": "5ed451796612f115",
+			"reason": "The hosted and local gates run the same pnpm test:ci-contracts shared complete CI-contract test-file authority."
 		},
 		"ci.yml::verification::Test CI drift contracts": {
 			"reason_hash": "72c864695b400a2a",

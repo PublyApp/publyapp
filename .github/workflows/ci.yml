@@ -251,7 +251,7 @@ jobs:
         id: ci_contract_tests
         if: always() && needs.classify.result == 'success' && needs.classify.outputs.quality == 'true'
         continue-on-error: true
-        run: pnpm --filter scripts-ts exec vitest run src/check-ci-gate-structure.test.ts src/check-ci-gate-aggregation.test.ts src/ci-gate-bootstrap.test.ts src/ci-artifact-contract.test.ts src/ci-lane-result.test.ts src/ci-pr-snapshot.test.ts
+        run: pnpm test:ci-contracts
       - name: Test CI drift contracts
         id: ci_drift_tests
         if: always() && needs.classify.result == 'success' && needs.classify.outputs.quality == 'true'
@@ -1124,7 +1124,18 @@ jobs:
 
   gate:
     name: ${{ (github.event_name == 'pull_request' || github.event_name == 'merge_group') && 'ci-final-gate' || 'ci-push-check' }}
-    needs: [classify, verification, audit-development, audit-production, api, front-vitest, e2e-build, e2e-test, e2e-cleanup]
+    needs:
+      [
+        classify,
+        verification,
+        audit-development,
+        audit-production,
+        api,
+        front-vitest,
+        e2e-build,
+        e2e-test,
+        e2e-cleanup,
+      ]
     if: always()
     runs-on: ubuntu-latest
     permissions:

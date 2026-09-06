@@ -218,8 +218,8 @@
 		},
 		"ci.yml::audit-development::Run deterministic audit fixtures": {
 			"hash": "4b4f843e55fc03c6",
-			"mirror": null,
-			"reason": "Central-workflow-only control for audit-development::Run deterministic audit fixtures: its value is the hosted dependency, permission, provenance, or required-check wiring around the lane rather than an independently runnable repository command."
+			"mirror": "just ci-drift",
+			"reason": "just ci-drift runs the identical npm-audit-runner fixture suite for the development audit step."
 		},
 		"ci.yml::audit-development::Setup Node": {
 			"hash": "6c699edc403fc068",
@@ -258,8 +258,8 @@
 		},
 		"ci.yml::audit-production::Run deterministic audit fixtures": {
 			"hash": "4b4f843e55fc03c6",
-			"mirror": null,
-			"reason": "Central-workflow-only control for audit-production::Run deterministic audit fixtures: its value is the hosted dependency, permission, provenance, or required-check wiring around the lane rather than an independently runnable repository command."
+			"mirror": "just ci-drift",
+			"reason": "just ci-drift runs the identical npm-audit-runner fixture suite for the production audit step."
 		},
 		"ci.yml::audit-production::Setup Node": {
 			"hash": "6c699edc403fc068",
@@ -393,8 +393,8 @@
 		},
 		"ci.yml::e2e-test::Assert exact pins": {
 			"hash": "0a06539db489c0d2",
-			"mirror": null,
-			"reason": "GitHub-only orchestration for e2e-test::Assert exact pins: it uses hosted credentials, fork/image metadata, live pull-request state, or artifact-backed gate context unavailable to the local command surface."
+			"mirror": "just ci-install",
+			"reason": "just ci-install runs the identical repository pin assertion before installing dependencies."
 		},
 		"ci.yml::e2e-test::Cache Playwright browsers": {
 			"hash": "f9f488c926adb3c3",
@@ -428,8 +428,8 @@
 		},
 		"ci.yml::e2e-test::Install dependencies": {
 			"hash": "9419f3ebca3a365d",
-			"mirror": null,
-			"reason": "GitHub-only setup for e2e-test::Install dependencies: the hosted runner provisions its checkout/toolchain or hook state before the lane command, while local setup is composed by the selected just recipe."
+			"mirror": "just ci-install",
+			"reason": "just ci-install runs the identical frozen dependency installation without lifecycle scripts."
 		},
 		"ci.yml::e2e-test::Install pnpm": {
 			"hash": "8f4ffe2c447e6f89",
@@ -503,8 +503,8 @@
 		},
 		"ci.yml::front-vitest::Install dependencies": {
 			"hash": "96d77e2ed9f95733",
-			"mirror": null,
-			"reason": "GitHub-only setup for front-vitest::Install dependencies: the hosted runner provisions its checkout/toolchain or hook state before the lane command, while local setup is composed by the selected just recipe."
+			"mirror": "just ci-install",
+			"reason": "just ci-install runs the identical frozen workspace installation without lifecycle scripts."
 		},
 		"ci.yml::front-vitest::Install Git hooks": {
 			"hash": "310a8e360507854c",
@@ -518,8 +518,8 @@
 		},
 		"ci.yml::front-vitest::Run trusted first-party postinstall": {
 			"hash": "6923850a26324a40",
-			"mirror": null,
-			"reason": "GitHub-only setup for front-vitest::Run trusted first-party postinstall: the hosted runner provisions its checkout/toolchain or hook state before the lane command, while local setup is composed by the selected just recipe."
+			"mirror": "just ci-install",
+			"reason": "just ci-install runs the identical trusted shared-ts postinstall command."
 		},
 		"ci.yml::front-vitest::Run vitest shard": {
 			"hash": "9a4161b5f7e318d8",
@@ -563,8 +563,8 @@
 		},
 		"ci.yml::gate::Install workspace dependencies": {
 			"hash": "2fd5cf518bdeb323",
-			"mirror": null,
-			"reason": "GitHub-only setup for gate::Install workspace dependencies: the hosted runner provisions its checkout/toolchain or hook state before the lane command, while local setup is composed by the selected just recipe."
+			"mirror": "just ci-install",
+			"reason": "just ci-install runs the identical frozen workspace installation without lifecycle scripts."
 		},
 		"ci.yml::gate::Read live PR snapshot": {
 			"hash": "1aa318d772bab607",
@@ -573,8 +573,8 @@
 		},
 		"ci.yml::gate::Run central structural self-check": {
 			"hash": "baecd924f86d71fc",
-			"mirror": null,
-			"reason": "GitHub-only orchestration for gate::Run central structural self-check: it uses hosted credentials, fork/image metadata, live pull-request state, or artifact-backed gate context unavailable to the local command surface."
+			"mirror": "just ci-drift",
+			"reason": "just ci-drift runs the identical central structural self-check CLI."
 		},
 		"ci.yml::gate::Setup Node": {
 			"hash": "6c699edc403fc068",
@@ -598,8 +598,8 @@
 		},
 		"ci.yml::verification::Assert exact pins": {
 			"hash": "183deb18d0de2176",
-			"mirror": null,
-			"reason": "GitHub-only orchestration for verification::Assert exact pins: it uses hosted credentials, fork/image metadata, live pull-request state, or artifact-backed gate context unavailable to the local command surface."
+			"mirror": "just ci-install",
+			"reason": "just ci-install runs the identical repository pin assertion before installing dependencies."
 		},
 		"ci.yml::verification::Audit .NET packages": {
 			"hash": "b6c510e5934bad14",
@@ -623,8 +623,8 @@
 		},
 		"ci.yml::verification::Check action versions": {
 			"hash": "5c6d586ce9b1d03e",
-			"mirror": null,
-			"reason": "Central-workflow-only control for verification::Check action versions: its value is the hosted dependency, permission, provenance, or required-check wiring around the lane rather than an independently runnable repository command."
+			"mirror": "just ci-drift",
+			"reason": "just ci-drift runs the identical action-version checker CLI."
 		},
 		"ci.yml::verification::Check CI drift": {
 			"hash": "d08ef5e6dbeda008",
@@ -633,13 +633,13 @@
 		},
 		"ci.yml::verification::Check complexity bounds": {
 			"hash": "fa7ba7a25fd2fb88",
-			"mirror": null,
-			"reason": "Central-workflow-only control for verification::Check complexity bounds: its value is the hosted dependency, permission, provenance, or required-check wiring around the lane rather than an independently runnable repository command."
+			"mirror": "just ci-drift",
+			"reason": "just ci-drift runs the identical cyclomatic-bound checker CLI."
 		},
 		"ci.yml::verification::Check dependency health contract": {
 			"hash": "ae523a953f522ad9",
-			"mirror": "just ci-drift",
-			"reason": "Local mirror just ci-drift exercises the same repository command or lifecycle owned by verification::Check dependency health contract; the hosted step remains separately pinned for CI wiring."
+			"mirror": "just nuget-audit",
+			"reason": "just nuget-audit runs the same dependency-health pin-location contract test."
 		},
 		"ci.yml::verification::Check deploy environment documentation": {
 			"hash": "7a939f735e6c0008",
@@ -668,23 +668,23 @@
 		},
 		"ci.yml::verification::Check front column-type imports": {
 			"hash": "3b868ea1d3970b82",
-			"mirror": null,
-			"reason": "Central-workflow-only control for verification::Check front column-type imports: its value is the hosted dependency, permission, provenance, or required-check wiring around the lane rather than an independently runnable repository command."
+			"mirror": "just ci-front",
+			"reason": "just ci-front runs the identical front column-type import guard."
 		},
 		"ci.yml::verification::Check front design system": {
 			"hash": "e99b5c46facfd210",
-			"mirror": null,
-			"reason": "Central-workflow-only control for verification::Check front design system: its value is the hosted dependency, permission, provenance, or required-check wiring around the lane rather than an independently runnable repository command."
+			"mirror": "just ci-front",
+			"reason": "just ci-front runs the identical front design-system guard."
 		},
 		"ci.yml::verification::Check front React Compiler artifacts": {
 			"hash": "ee9148bdedd9e05e",
-			"mirror": null,
-			"reason": "Central-workflow-only control for verification::Check front React Compiler artifacts: its value is the hosted dependency, permission, provenance, or required-check wiring around the lane rather than an independently runnable repository command."
+			"mirror": "just ci-front",
+			"reason": "just ci-front runs the identical front React Compiler artifact guard."
 		},
 		"ci.yml::verification::Check front static imports": {
 			"hash": "606f4c9010b655e6",
-			"mirror": null,
-			"reason": "Central-workflow-only control for verification::Check front static imports: its value is the hosted dependency, permission, provenance, or required-check wiring around the lane rather than an independently runnable repository command."
+			"mirror": "just ci-front",
+			"reason": "just ci-front runs the identical front server-static import guard."
 		},
 		"ci.yml::verification::Check no dockerignore shadow files": {
 			"hash": "3a0b622c125bc416",
@@ -743,8 +743,8 @@
 		},
 		"ci.yml::verification::Install pnpm": {
 			"hash": "8985553731d304dc",
-			"mirror": null,
-			"reason": "GitHub-only setup for verification::Install pnpm: the hosted runner provisions its checkout/toolchain or hook state before the lane command, while local setup is composed by the selected just recipe."
+			"mirror": "just ci-install",
+			"reason": "just ci-install is the local recipe for the same frozen workspace setup."
 		},
 		"ci.yml::verification::Install workspace dependencies": {
 			"hash": "0f6bb0ee355abb6a",
@@ -788,8 +788,8 @@
 		},
 		"ci.yml::verification::Run trusted first-party postinstall": {
 			"hash": "0ff3f6744ab67c09",
-			"mirror": null,
-			"reason": "GitHub-only setup for verification::Run trusted first-party postinstall: the hosted runner provisions its checkout/toolchain or hook state before the lane command, while local setup is composed by the selected just recipe."
+			"mirror": "just ci-install",
+			"reason": "just ci-install runs the identical trusted shared-ts postinstall command."
 		},
 		"ci.yml::verification::Setup .NET": {
 			"hash": "5475ce7713504202",
@@ -832,9 +832,9 @@
 			"reason": "Local mirror just ci-drift exercises the same repository command or lifecycle owned by verification::Test CI changed-path classifier; the hosted step remains separately pinned for CI wiring."
 		},
 		"ci.yml::verification::Test CI contracts": {
-			"hash": "85f0e2af2313db09",
-			"mirror": "just ci-drift",
-			"reason": "Local mirror just ci-drift exercises the same repository command or lifecycle owned by verification::Test CI contracts; the hosted step remains separately pinned for CI wiring."
+			"hash": "da8bdaa1921e5b96",
+			"mirror": "pnpm test:ci-contracts",
+			"reason": "The hosted and local gates run the same pnpm test:ci-contracts shared complete CI-contract test-file authority."
 		},
 		"ci.yml::verification::Test CI drift contracts": {
 			"hash": "c675f002939278ea",

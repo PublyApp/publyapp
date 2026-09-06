@@ -22,7 +22,7 @@ job/matrix member and rejects missing, duplicate, stale, skipped, failed, or
 malformed evidence. Focused central checks are available with:
 
 ```bash
-pnpm --filter scripts-ts exec vitest run src/ci-central-workflow.test.ts src/ci-gate-aggregation.test.ts src/ci-pr-snapshot.test.ts
+pnpm test:ci-contracts
 node packages/scripts-ts/src/check-ci-gate-structure.ts
 ```
 

@@ -13,6 +13,7 @@
 		"lint:fix": "oxlint --fix --quiet . && pnpm check:frontend-barrels",
 		"prepare": "node packages/scripts-ts/src/install-git-hooks.ts",
 		"test:ci-drift": "pnpm --filter scripts-ts exec vitest run src/check-ci-drift.test.ts",
+		"test:ci-contracts": "node packages/scripts-ts/src/run-ci-contract-tests.ts",
 		"test:review-worktree-resolution": "pnpm --filter scripts-ts exec vitest run src/review-worktree.resolve.test.ts",
 		"test:review-api": "pnpm --filter scripts-ts exec vitest run src/review-api.test.ts",
 		"test:review-api-migration-guard": "pnpm --filter scripts-ts exec vitest run src/review-api.migration-guard.integration.test.ts",
