@@ -387,6 +387,34 @@ public sealed class GetRedirectCodeSpec
 
 	[Fact]
 	public async Task
+	ItShouldReturnUnauthorizedForActiveUserWithoutTenantMemberships() {
+		var seeded = await SeedUserWithoutMembershipsAsync();
+		try {
+			var token = await _authClient.LoginAsync(
+				seeded.Email,
+				TestConstants.SeedPassword
+			);
+
+			using var request = new HttpRequestMessage(
+				HttpMethod.Get,
+				Routes.Auth.GetRedirectCode
+			).WithSessionToken(token);
+			using var response = await _http.SendAsync(request);
+
+			response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+			var result = await response.Content
+				.ReadFromJsonAsync<RedirectCodeResponse>();
+			result.Should().NotBeNull();
+			Assert.NotNull(result);
+			result.RedirectCode.Should().Be("unauthorized");
+		} finally {
+			await DeleteSeededRedirectCodeUserAsync(seeded);
+		}
+	}
+
+	[Fact]
+	public async Task
 	ItShouldReturnTenantPickerWhenAllTenantsAreDeleted() {
 		var staffToken =
 			await _authClient.LoginAsStaffAdminAsync();
@@ -547,8 +575,51 @@ public sealed class GetRedirectCodeSpec
 		};
 	}
 
+	private async Task<SeededRedirectCodeUserWithoutMemberships>
+	SeedUserWithoutMembershipsAsync() {
+		await using var scope =
+			_fixture.Factory.Services.CreateAsyncScope();
+		var dbContext = scope.ServiceProvider
+			.GetRequiredService<AppDbContext>();
+
+		var email = $"redirect-code-never-invited-{Guid.NewGuid():N}@example.com";
+		var user = new User {
+			Email = email,
+			Password = PasswordUtils.HashPassword(
+				TestConstants.SeedPassword
+			),
+			FirstName = "RedirectCode",
+			LastName = "NeverInvited",
+			Status = UserStatus.Active,
+			IsVerified = true,
+		};
+		await dbContext.User.AddAsync(user);
+		await dbContext.SaveChangesAsync();
+
+		return new SeededRedirectCodeUserWithoutMemberships {
+			Email = email,
+			UserId = user.GetRequiredId(),
+		};
+	}
+
 	private async Task DeleteSeededRedirectCodeUserAsync(
 		SeededRedirectCodeUser seeded
+	) {
+		await DeleteSeededRedirectCodeUserAsync(
+			seeded.UserId,
+			seeded.TenantId
+		);
+	}
+
+	private async Task DeleteSeededRedirectCodeUserAsync(
+		SeededRedirectCodeUserWithoutMemberships seeded
+	) {
+		await DeleteSeededRedirectCodeUserAsync(seeded.UserId, null);
+	}
+
+	private async Task DeleteSeededRedirectCodeUserAsync(
+		Guid userId,
+		Guid? tenantId
 	) {
 		await using var scope =
 			_fixture.Factory.Services.CreateAsyncScope();
@@ -556,16 +627,18 @@ public sealed class GetRedirectCodeSpec
 			.GetRequiredService<AppDbContext>();
 
 		await dbContext.Session
-			.Where(s => s.UserId == seeded.UserId)
+			.Where(s => s.UserId == userId)
 			.ExecuteDeleteAsync();
 		await dbContext.UserAccount
-			.Where(ua => ua.UserId == seeded.UserId)
+			.Where(ua => ua.UserId == userId)
 			.ExecuteDeleteAsync();
-		await dbContext.Tenant
-			.Where(t => t.Id == seeded.TenantId)
-			.ExecuteDeleteAsync();
+		if (tenantId is Guid tenantIdValue) {
+			await dbContext.Tenant
+				.Where(t => t.Id == tenantIdValue)
+				.ExecuteDeleteAsync();
+		}
 		await dbContext.User
-			.Where(u => u.Id == seeded.UserId)
+			.Where(u => u.Id == userId)
 			.ExecuteDeleteAsync();
 	}
 
@@ -573,6 +646,11 @@ public sealed class GetRedirectCodeSpec
 		public required string Email { get; init; }
 		public required Guid UserId { get; init; }
 		public required Guid TenantId { get; init; }
+	}
+
+	private sealed record SeededRedirectCodeUserWithoutMemberships {
+		public required string Email { get; init; }
+		public required Guid UserId { get; init; }
 	}
 
 	private record PickerResponse {
