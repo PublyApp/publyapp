@@ -54,6 +54,37 @@ void test('the real apps/front/package.json has zero findings (real artifact)', 
 	);
 });
 
+void test('the real aggregate must retain both utility-boundary invocations', () => {
+	const scripts = loadScripts(realPackageJson);
+	const aggregate = scripts['test:ci-non-vitest'];
+	assert.ok(aggregate, 'expected the front aggregate script to exist');
+
+	const mutated = {
+		...scripts,
+		'test:ci-non-vitest': aggregate
+			.replace(' && pnpm test:utility-boundaries', '')
+			.replace(' && pnpm check:utility-boundaries', ''),
+	};
+	const findings = analyzeScripts(mutated, {
+		requireUtilityBoundaryAggregate: true,
+	});
+
+	const aggregateFindings = findings.filter(
+		(finding) => finding.script === 'test:ci-non-vitest',
+	);
+	assert.equal(aggregateFindings.length, 2);
+	assert.ok(
+		aggregateFindings.some((finding) =>
+			finding.detail.includes('test:utility-boundaries'),
+		),
+	);
+	assert.ok(
+		aggregateFindings.some((finding) =>
+			finding.detail.includes('check:utility-boundaries'),
+		),
+	);
+});
+
 void test('a bare `node --test` in a family script is a finding naming the script', () => {
 	const findings = analyzeScripts({
 		'test:typecheck-coverage-guard':

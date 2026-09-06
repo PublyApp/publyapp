@@ -1,9 +1,7 @@
 export type CsvValue = string | number | null | undefined;
 
 const neutralizeFormula = (value: string): string => {
-	const firstVisibleCharacter = value.search(/\S/);
-	const prefix =
-		firstVisibleCharacter === -1 ? undefined : value[firstVisibleCharacter];
+	const prefix = value.replace(/^[\u0000-\u001f\s]+/g, '')[0];
 	if (prefix === '=' || prefix === '+' || prefix === '-' || prefix === '@') {
 		return `'${value}`;
 	}

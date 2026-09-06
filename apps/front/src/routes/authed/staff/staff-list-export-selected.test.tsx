@@ -113,4 +113,36 @@ describe('StaffListExportSelectedAction', () => {
 			mimeType: 'text/csv;charset=utf-8',
 		});
 	});
+
+	test('neutralizes formulas after non-whitespace C0 controls in live exports', () => {
+		const controlRows = [
+			{ id: 'row-nul', value: '\u0000=1+1' },
+			{ id: 'row-bel', value: '\u0007+SUM(A1:A2)' },
+			{ id: 'row-esc', value: '\u001b@cmd' },
+		];
+		const ControlHarness = () => {
+			const selection = useRowSelection(controlRows.map((row) => row.id));
+			if (selection.selectedCount === 0) {
+				selection.onSelectionChange(new Set(controlRows.map((row) => row.id)));
+			}
+
+			return (
+				<StaffListExportSelectedAction
+					rows={controlRows}
+					selection={selection}
+					fileNamePrefix="staff-test"
+					columns={[{ header: 'Value', getValue: (row) => row.value }]}
+				/>
+			);
+		};
+
+		render(<ControlHarness />);
+		fireEvent.click(screen.getByText('export-selected'));
+
+		expect(mocks.downloadFile).toHaveBeenCalledWith({
+			data: "Value\r\n'\u0000=1+1\r\n'\u0007+SUM(A1:A2)\r\n'\u001b@cmd",
+			fileName: 'staff-test-2026-07-14.csv',
+			mimeType: 'text/csv;charset=utf-8',
+		});
+	});
 });

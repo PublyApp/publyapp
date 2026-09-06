@@ -1,5 +1,11 @@
 import assert from 'node:assert/strict';
-import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import {
+	mkdtempSync,
+	mkdirSync,
+	rmSync,
+	symlinkSync,
+	writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { after, test } from 'node:test';
@@ -67,4 +73,102 @@ void test('allows canonical utilities and test files', () => {
 	);
 
 	assert.deepEqual(scanUtilityBoundaries(path.join(root, 'src')), []);
+});
+
+void test('detects aliases, destructuring, computed members, wrappers, globals, and optional calls', () => {
+	const root = makeSandbox();
+	writeFileSync(
+		path.join(root, 'src/routes.tsx'),
+		`const Formatter = (Intl as typeof Intl).DateTimeFormat;
+const { DateTimeFormat: DestructuredFormatter } = globalThis['Intl'];
+const intl = window.Intl;
+const clipboard = globalThis.navigator.clipboard;
+const writeText = clipboard['writeText'].bind(clipboard);
+new Formatter('en');
+new DestructuredFormatter('en');
+intl?.DateTimeFormat?.('en');
+writeText('secret');
+window.navigator.clipboard?.writeText?.('secret');
+`,
+	);
+
+	const findings = scanUtilityBoundaries(path.join(root, 'src'));
+
+	assert.equal(
+		findings.filter((finding) => finding.kind === 'date-time').length,
+		3,
+	);
+	assert.equal(
+		findings.filter((finding) => finding.kind === 'clipboard').length,
+		3,
+	);
+});
+
+void test('resolves statically resolvable re-exports and imported wrappers', () => {
+	const root = makeSandbox();
+	writeFileSync(
+		path.join(root, 'src/lib/format.ts'),
+		`const Formatter = Intl.DateTimeFormat;
+export { Formatter };
+const writeText = navigator.clipboard.writeText;
+export { writeText };
+`,
+	);
+	writeFileSync(
+		path.join(root, 'src/routes.tsx'),
+		`import { Formatter, writeText } from './lib/format';
+new Formatter('en');
+writeText('secret');
+`,
+	);
+
+	const findings = scanUtilityBoundaries(path.join(root, 'src'));
+
+	assert.deepEqual(
+		findings.map((finding) => finding.kind),
+		['date-time', 'clipboard'],
+	);
+});
+
+void test('does not exclude a production file merely because its name says test-helper', () => {
+	const root = makeSandbox();
+	mkdirSync(path.join(root, 'src/routes'), { recursive: true });
+	writeFileSync(
+		path.join(root, 'src/routes/production.test-helper.ts'),
+		`new Intl.DateTimeFormat('en');\n`,
+	);
+
+	assert.equal(scanUtilityBoundaries(path.join(root, 'src')).length, 1);
+});
+
+void test('fails loudly on empty, invalid, escaped, and symlinked source trees', () => {
+	const root = makeSandbox();
+	rmSync(path.join(root, 'src'), { recursive: true, force: true });
+	const empty = path.join(root, 'src');
+	mkdirSync(empty);
+	assert.throws(
+		() => scanUtilityBoundaries(empty),
+		/no TypeScript source files found/,
+	);
+
+	writeFileSync(path.join(root, 'src/invalid.ts'), 'const = ;\n');
+	assert.throws(
+		() => scanUtilityBoundaries(path.join(root, 'src')),
+		/unparseable production source/,
+	);
+
+	const outside = path.join(root, 'outside.ts');
+	writeFileSync(outside, `new Intl.DateTimeFormat('en');\n`);
+	assert.throws(
+		() => scanUtilityBoundaries(path.join(root, 'outside')),
+		/source root must be the canonical src directory/,
+	);
+
+	mkdirSync(path.join(root, 'src/lib'), { recursive: true });
+	const linked = path.join(root, 'src/lib/linked.ts');
+	symlinkSync(outside, linked);
+	assert.throws(
+		() => scanUtilityBoundaries(path.join(root, 'src')),
+		/symlink.*not allowed/,
+	);
 });

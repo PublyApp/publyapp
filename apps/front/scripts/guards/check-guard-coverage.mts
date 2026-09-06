@@ -55,6 +55,16 @@ export type GuardCoverageFinding = {
 	detail: string;
 };
 
+export type GuardCoverageOptions = {
+	requireUtilityBoundaryAggregate?: boolean;
+};
+
+const UTILITY_BOUNDARY_AGGREGATE = 'test:ci-non-vitest';
+const REQUIRED_UTILITY_BOUNDARY_COMMANDS = [
+	'pnpm test:utility-boundaries',
+	'pnpm check:utility-boundaries',
+] as const;
+
 /**
  * Scripts that run for the life of a session and MUST NOT be wrapped in a
  * timeout (the wrapper would SIGKILL them mid-session). Each entry names its
@@ -83,6 +93,7 @@ const WRAPPER_INVOCATION = /^node\s+scripts\/run-guarded\.mts(?:\s|$)/;
  */
 export const analyzeScripts = (
 	scripts: Record<string, string>,
+	options: GuardCoverageOptions = {},
 ): GuardCoverageFinding[] => {
 	const familyCount = Object.keys(scripts).filter(isGuardFamilyScript).length;
 	if (familyCount === 0) {
@@ -93,6 +104,22 @@ export const analyzeScripts = (
 	}
 
 	const findings: GuardCoverageFinding[] = [];
+	if (options.requireUtilityBoundaryAggregate) {
+		const aggregate = scripts[UTILITY_BOUNDARY_AGGREGATE];
+		if (typeof aggregate !== 'string') {
+			throw new Error(
+				`check-guard-coverage: missing ${UTILITY_BOUNDARY_AGGREGATE}; utility-boundary checks have no aggregate reachability.`,
+			);
+		}
+		for (const requiredCommand of REQUIRED_UTILITY_BOUNDARY_COMMANDS) {
+			if (!aggregate.includes(requiredCommand)) {
+				findings.push({
+					script: UTILITY_BOUNDARY_AGGREGATE,
+					detail: `required utility-boundary invocation is missing from ${UTILITY_BOUNDARY_AGGREGATE}: "${requiredCommand}"`,
+				});
+			}
+		}
+	}
 	for (const [name, script] of Object.entries(scripts)) {
 		// Rule 1: every `node` invocation must route through the wrapper.
 		for (const command of splitCommands(script)) {
@@ -176,7 +203,9 @@ export const loadScripts = (
 export const main = (): void => {
 	const scripts = loadScripts(PACKAGE_JSON_PATH);
 	try {
-		const findings = analyzeScripts(scripts);
+		const findings = analyzeScripts(scripts, {
+			requireUtilityBoundaryAggregate: true,
+		});
 		if (findings.length > 0) {
 			console.error('check-guard-coverage: GUARD COVERAGE VIOLATIONS:');
 			for (const finding of findings) {
