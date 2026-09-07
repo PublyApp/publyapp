@@ -263,6 +263,43 @@ writeText('secret');
 	);
 });
 
+void test('distinguishes real global roots through typed lookalikes, nested bindings, and root aliases', () => {
+	const root = makeSandbox();
+	writeFileSync(
+		path.join(root, 'src/routes.tsx'),
+		`const typedIntlLookalike = {} as typeof Intl;
+const typedNavigatorLookalike = {} as typeof navigator;
+new typedIntlLookalike.DateTimeFormat('en');
+typedNavigatorLookalike.clipboard.writeText('secret');
+const { Intl: { DateTimeFormat } } = globalThis;
+new DateTimeFormat('en');
+const { navigator: { clipboard: { writeText } } } = window;
+writeText('secret');
+const intlAlias = globalThis.Intl;
+const { DateTimeFormat: AliasedDateTimeFormat } = intlAlias;
+new AliasedDateTimeFormat('en');
+const clipboardAlias = window.navigator.clipboard;
+const { writeText: aliasedWriteText } = clipboardAlias;
+aliasedWriteText('secret');
+`,
+	);
+
+	const findings = scanUtilityBoundaries(path.join(root, 'src'));
+
+	assert.equal(
+		findings.filter((finding) => finding.kind === 'date-time').length,
+		2,
+	);
+	assert.equal(
+		findings.filter((finding) => finding.kind === 'clipboard').length,
+		2,
+	);
+	assert.deepEqual(
+		findings.map((finding) => finding.line),
+		[5, 7, 10, 13],
+	);
+});
+
 void test('does not exclude a production file merely because its name says test-helper', () => {
 	const root = makeSandbox();
 	mkdirSync(path.join(root, 'src/routes'), { recursive: true });

@@ -24,9 +24,6 @@ type GlobalSymbols = {
 	navigator: ts.Symbol;
 	globalThis: ts.Symbol;
 	window: ts.Symbol;
-	dateTimeFormat: ts.Symbol;
-	clipboard: ts.Symbol;
-	writeText: ts.Symbol;
 };
 
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
@@ -109,26 +106,6 @@ const propertyParts = (
 	return name === null ? null : { object: unwrapped.expression, name };
 };
 
-const symbolAtExpression = (
-	expression: ts.Expression,
-	checker: ts.TypeChecker,
-): ts.Symbol | undefined => {
-	const unwrapped = unwrap(expression);
-	if (ts.isPropertyAccessExpression(unwrapped)) {
-		return checker.getSymbolAtLocation(unwrapped.name);
-	}
-	if (ts.isElementAccessExpression(unwrapped)) {
-		const name = staticPropertyName(unwrapped);
-		if (name !== null) {
-			return checker.getPropertyOfType(
-				checker.getTypeAtLocation(unwrapped.expression),
-				name,
-			);
-		}
-	}
-	return checker.getSymbolAtLocation(unwrapped);
-};
-
 const resolveGlobal = (
 	checker: ts.TypeChecker,
 	sourceFile: ts.SourceFile,
@@ -154,54 +131,75 @@ const globalSymbolsFor = (
 	const navigator = resolveGlobal(checker, sourceFile, 'navigator');
 	const globalThis = resolveGlobal(checker, sourceFile, 'globalThis');
 	const window = resolveGlobal(checker, sourceFile, 'window');
-	const dateTimeFormat = checker.getPropertyOfType(
-		checker.getTypeOfSymbolAtLocation(Intl, sourceFile),
-		'DateTimeFormat',
-	);
-	const clipboard = checker.getPropertyOfType(
-		checker.getTypeOfSymbolAtLocation(navigator, sourceFile),
-		'clipboard',
-	);
-	if (!clipboard) {
-		throw new Error('TypeScript protected utility symbols are unavailable');
-	}
-	const writeText = checker.getPropertyOfType(
-		checker.getTypeOfSymbolAtLocation(clipboard, sourceFile),
-		'writeText',
-	);
-	if (!dateTimeFormat || !writeText) {
-		throw new Error('TypeScript protected utility symbols are unavailable');
-	}
-	return {
-		Intl,
-		navigator,
-		globalThis,
-		window,
-		dateTimeFormat,
-		clipboard,
-		writeText,
-	};
+	return { Intl, navigator, globalThis, window };
 };
 
-const isGlobalRoot = (
+type StaticGlobalPath = string[];
+
+const normalizeGlobalPath = (path: StaticGlobalPath): StaticGlobalPath =>
+	(path[0] === 'globalThis' || path[0] === 'window') && path.length > 1
+		? path.slice(1)
+		: path;
+
+const staticGlobalPath = (
 	expression: ts.Expression,
-	name: 'Intl' | 'navigator',
-	expected: ts.Symbol,
 	globals: GlobalSymbols,
 	checker: ts.TypeChecker,
-): boolean => {
+	seenSymbols: Set<ts.Symbol> = new Set(),
+): StaticGlobalPath | null => {
+	const unwrapped = unwrap(expression);
+	if (ts.isIdentifier(unwrapped)) {
+		const symbol = checker.getSymbolAtLocation(unwrapped);
+		if (symbol === globals.Intl) {
+			return ['Intl'];
+		}
+		if (symbol === globals.navigator) {
+			return ['navigator'];
+		}
+		if (symbol === globals.globalThis) {
+			return ['globalThis'];
+		}
+		if (symbol === globals.window) {
+			return ['window'];
+		}
+		if (!symbol || seenSymbols.has(symbol)) {
+			return null;
+		}
+		seenSymbols.add(symbol);
+		const declarations = symbol.declarations ?? [];
+		if (declarations.length !== 1) {
+			return null;
+		}
+		const declaration = declarations[0];
+		if (
+			!ts.isVariableDeclaration(declaration) ||
+			!declaration.initializer ||
+			!ts.isVariableDeclarationList(declaration.parent) ||
+			(declaration.parent.flags & ts.NodeFlags.Const) === 0
+		) {
+			return null;
+		}
+		return staticGlobalPath(
+			declaration.initializer,
+			globals,
+			checker,
+			seenSymbols,
+		);
+	}
 	const parts = propertyParts(expression);
 	if (!parts) {
-		return symbolAtExpression(expression, checker) === expected;
+		return null;
 	}
-	if (parts.name !== name) {
-		return false;
+	const objectPath = staticGlobalPath(
+		parts.object,
+		globals,
+		checker,
+		seenSymbols,
+	);
+	if (!objectPath) {
+		return null;
 	}
-	const objectSymbol = symbolAtExpression(parts.object, checker);
-	if (objectSymbol === globals.globalThis || objectSymbol === globals.window) {
-		return symbolAtExpression(expression, checker) !== undefined;
-	}
-	return symbolAtExpression(expression, checker) === expected;
+	return normalizeGlobalPath([...objectPath, parts.name]);
 };
 
 const isDateTimeOrigin = (
@@ -209,10 +207,9 @@ const isDateTimeOrigin = (
 	globals: GlobalSymbols,
 	checker: ts.TypeChecker,
 ): boolean => {
-	const parts = propertyParts(expression);
 	return (
-		parts?.name === 'DateTimeFormat' &&
-		symbolAtExpression(expression, checker) === globals.dateTimeFormat
+		staticGlobalPath(expression, globals, checker)?.join('.') ===
+		'Intl.DateTimeFormat'
 	);
 };
 
@@ -221,14 +218,10 @@ const isClipboardWriteOrigin = (
 	globals: GlobalSymbols,
 	checker: ts.TypeChecker,
 ): boolean => {
-	const parts = propertyParts(expression);
-	if (
-		parts?.name !== 'writeText' ||
-		symbolAtExpression(expression, checker) !== globals.writeText
-	) {
-		return false;
-	}
-	return true;
+	return (
+		staticGlobalPath(expression, globals, checker)?.join('.') ===
+		'navigator.clipboard.writeText'
+	);
 };
 
 const bindingName = (binding: ts.BindingElement): string | null => {
@@ -239,37 +232,56 @@ const bindingName = (binding: ts.BindingElement): string | null => {
 	return propertyName.text;
 };
 
+const bindingPath = (
+	node: ts.BindingElement,
+): { initializer: ts.Expression; path: string[] } | null => {
+	const path: string[] = [];
+	let current = node;
+	while (true) {
+		const name = bindingName(current);
+		if (name === null) {
+			return null;
+		}
+		path.unshift(name);
+		const pattern = current.parent;
+		if (
+			!ts.isObjectBindingPattern(pattern) &&
+			!ts.isArrayBindingPattern(pattern)
+		) {
+			return null;
+		}
+		if (ts.isBindingElement(pattern.parent)) {
+			current = pattern.parent;
+			continue;
+		}
+		const declaration = pattern.parent;
+		if (!ts.isVariableDeclaration(declaration) || !declaration.initializer) {
+			return null;
+		}
+		return { initializer: declaration.initializer, path };
+	}
+};
+
 const isProtectedBinding = (
 	node: ts.BindingElement,
 	globals: GlobalSymbols,
 	checker: ts.TypeChecker,
 ): 'date-time' | 'clipboard' | null => {
-	const parent = node.parent.parent;
-	if (!ts.isVariableDeclaration(parent) || !parent.initializer) {
+	const binding = bindingPath(node);
+	if (!binding) {
 		return null;
 	}
-	const name = bindingName(node);
-	if (
-		name === 'DateTimeFormat' &&
-		isGlobalRoot(parent.initializer, 'Intl', globals.Intl, globals, checker)
-	) {
+	const rootPath = staticGlobalPath(binding.initializer, globals, checker);
+	if (!rootPath) {
+		return null;
+	}
+	const fullPath = normalizeGlobalPath([...rootPath, ...binding.path]).join(
+		'.',
+	);
+	if (fullPath === 'Intl.DateTimeFormat') {
 		return 'date-time';
 	}
-	if (name !== 'writeText') {
-		return null;
-	}
-	const clipboard = propertyParts(parent.initializer);
-	if (
-		clipboard?.name === 'clipboard' &&
-		symbolAtExpression(parent.initializer, checker) === globals.clipboard &&
-		isGlobalRoot(
-			clipboard.object,
-			'navigator',
-			globals.navigator,
-			globals,
-			checker,
-		)
-	) {
+	if (fullPath === 'navigator.clipboard.writeText') {
 		return 'clipboard';
 	}
 	return null;
