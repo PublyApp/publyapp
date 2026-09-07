@@ -263,7 +263,7 @@ writeText('secret');
 	);
 });
 
-void test('distinguishes real global roots through typed lookalikes, nested bindings, and root aliases', () => {
+void test('distinguishes real global roots through bindings and excludes object-rest aliases', () => {
 	const root = makeSandbox();
 	writeFileSync(
 		path.join(root, 'src/routes.tsx'),
@@ -281,6 +281,16 @@ new AliasedDateTimeFormat('en');
 const clipboardAlias = window.navigator.clipboard;
 const { writeText: aliasedWriteText } = clipboardAlias;
 aliasedWriteText('secret');
+const { Intl: I } = globalThis;
+new I.DateTimeFormat('en');
+const { navigator: n } = window;
+n.clipboard.writeText('secret');
+const { clipboard: c } = navigator;
+c.writeText('secret');
+const { ...restIntl } = Intl;
+new restIntl.DateTimeFormat('en');
+const { ...restNavigator } = navigator;
+restNavigator.clipboard.writeText('secret');
 `,
 	);
 
@@ -288,15 +298,15 @@ aliasedWriteText('secret');
 
 	assert.equal(
 		findings.filter((finding) => finding.kind === 'date-time').length,
-		2,
+		3,
 	);
 	assert.equal(
 		findings.filter((finding) => finding.kind === 'clipboard').length,
-		2,
+		4,
 	);
 	assert.deepEqual(
 		findings.map((finding) => finding.line),
-		[5, 7, 10, 13],
+		[5, 7, 10, 13, 16, 18, 20],
 	);
 });
 

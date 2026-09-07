@@ -1,8 +1,8 @@
 /**
  * Keeps browser-sensitive date/time and clipboard capabilities behind the
  * canonical utilities. The guard owns source access, not downstream value
- * flow: every static access to the real global capability symbols is rejected
- * outside the two canonical files.
+ * flow: every admitted static access to the real global capability symbols is
+ * rejected outside the two canonical files.
  */
 
 import { lstatSync, readdirSync, realpathSync } from 'node:fs';
@@ -171,6 +171,22 @@ const staticGlobalPath = (
 			return null;
 		}
 		const declaration = declarations[0];
+		if (ts.isBindingElement(declaration)) {
+			const binding = bindingPath(declaration);
+			if (!binding) {
+				return null;
+			}
+			const rootPath = staticGlobalPath(
+				binding.initializer,
+				globals,
+				checker,
+				seenSymbols,
+			);
+			if (!rootPath) {
+				return null;
+			}
+			return normalizeGlobalPath([...rootPath, ...binding.path]);
+		}
 		if (
 			!ts.isVariableDeclaration(declaration) ||
 			!declaration.initializer ||
