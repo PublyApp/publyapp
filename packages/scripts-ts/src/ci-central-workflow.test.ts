@@ -20,6 +20,29 @@ import {
 const repoRoot = path.resolve(new URL('../../..', import.meta.url).pathname);
 const workflowPath = path.join(repoRoot, '.github/workflows/ci.yml');
 
+const removeStepIf = (workflow: string, stepId: string): string => {
+	const escapedStepId = stepId.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+	const pattern = new RegExp(
+		`(^\\s+- name:[^\\n]*\\n\\s+id: ${escapedStepId}\\n)\\s+if: [^\\n]*\\n`,
+		'm',
+	);
+	return workflow.replace(pattern, '$1');
+};
+
+const e2eConditionDeletionCases = [
+	['e2e-build', 'image-tag'],
+	['e2e-build', 'image-root'],
+	['e2e-build', 'image-fork'],
+	['e2e-build', 'setup-buildx'],
+	['e2e-build', 'setup-runtime'],
+	['e2e-build', 'login'],
+	['e2e-test', 'install-pnpm'],
+	['e2e-test', 'setup-node'],
+	['e2e-test', 'login'],
+	['e2e-test', 'download-images'],
+	['e2e-test', 'cache-playwright'],
+] as const;
+
 test('central workflow exposes exactly the stable 16 display labels', async () => {
 	const workflow = parse(await readFile(workflowPath, 'utf8'));
 	const labels = Object.values(
@@ -435,6 +458,90 @@ test('central workflow rejects every classifier producer, consumer, relevance, s
 				);
 			}
 		}
+	} finally {
+		await rm(rootDir, { recursive: true, force: true });
+	}
+});
+
+test('central workflow rejects deletion of every one of its 92 classifier conditions', async () => {
+	const rootDir = await mkdtemp(
+		path.join(os.tmpdir(), 'publyapp-ci-condition-delete-'),
+	);
+	await cp(path.join(repoRoot, '.github'), path.join(rootDir, '.github'), {
+		recursive: true,
+	});
+	const workflowFile = path.join(rootDir, '.github/workflows/ci.yml');
+	const original = await readFile(workflowFile, 'utf8');
+	const workflow = parse(original) as {
+		jobs: Record<string, { steps?: Array<Record<string, unknown>> }>;
+	};
+	const classifierTrueSteps = Object.entries(workflow.jobs).flatMap(
+		([jobId, job]) =>
+			(job.steps ?? [])
+				.filter(
+					(step) =>
+						typeof step.if === 'string' &&
+						/needs\.classify\.outputs\.\w+ == 'true'/.test(step.if),
+				)
+				.map((step) => ({ jobId, stepId: String(step.id) })),
+	);
+	assert.equal(classifierTrueSteps.length, 92);
+
+	try {
+		let rejected = 0;
+		for (const { jobId, stepId } of classifierTrueSteps) {
+			const mutation = removeStepIf(original, stepId);
+			assert.notEqual(
+				mutation,
+				original,
+				`${jobId}/${stepId} mutation must change the fixture`,
+			);
+			await writeFile(workflowFile, mutation);
+			const findings = await findCentralCiStructureProblems({ rootDir });
+			assert.ok(
+				findings.some((finding) =>
+					/condition|classifier|edge|binding/i.test(finding),
+				),
+				`${jobId}/${stepId} condition deletion should fail: ${findings.join('; ')}`,
+			);
+			rejected += 1;
+		}
+		assert.equal(rejected, 92);
+	} finally {
+		await rm(rootDir, { recursive: true, force: true });
+	}
+});
+
+test('central workflow rejects deletion of each exact E2E classifier condition', async () => {
+	const rootDir = await mkdtemp(
+		path.join(os.tmpdir(), 'publyapp-e2e-condition-delete-'),
+	);
+	await cp(path.join(repoRoot, '.github'), path.join(rootDir, '.github'), {
+		recursive: true,
+	});
+	const workflowFile = path.join(rootDir, '.github/workflows/ci.yml');
+	const original = await readFile(workflowFile, 'utf8');
+
+	try {
+		let rejected = 0;
+		for (const [jobId, stepId] of e2eConditionDeletionCases) {
+			const mutation = removeStepIf(original, stepId);
+			assert.notEqual(
+				mutation,
+				original,
+				`${jobId}/${stepId} mutation must change the fixture`,
+			);
+			await writeFile(workflowFile, mutation);
+			const findings = await findCentralCiStructureProblems({ rootDir });
+			assert.ok(
+				findings.some((finding) =>
+					/condition|classifier|edge|binding/i.test(finding),
+				),
+				`${jobId}/${stepId} condition deletion should fail: ${findings.join('; ')}`,
+			);
+			rejected += 1;
+		}
+		assert.equal(rejected, 11);
 	} finally {
 		await rm(rootDir, { recursive: true, force: true });
 	}
@@ -1105,6 +1212,7 @@ test('central trigger filters are rejected in every filtered form', async () => 
 type JustRecipeDump = {
 	body?: unknown[];
 	dependencies?: Array<{ recipe?: string }>;
+	parameters?: Array<{ default?: unknown }>;
 };
 
 type ManifestEvidence = { mirror: string | null; reason: string };
@@ -1138,6 +1246,16 @@ const buildExpandedJustCommands = (
 	dump: Record<string, JustRecipeDump>,
 ): Map<string, Set<string>> => {
 	const commands = new Map<string, Set<string>>();
+	const addCommand = (command: string, recipeName: string): void => {
+		const recipes = commands.get(command) ?? new Set<string>();
+		recipes.add(recipeName);
+		commands.set(command, recipes);
+	};
+	const canInvokeWithoutArguments = (recipe: JustRecipeDump): boolean =>
+		(recipe.parameters ?? []).every(
+			(parameter) =>
+				parameter.default !== undefined && parameter.default !== null,
+		);
 	const visited = new Set<string>();
 	const visit = (recipeName: string): void => {
 		if (visited.has(recipeName)) {
@@ -1147,6 +1265,10 @@ const buildExpandedJustCommands = (
 		const recipe = dump[recipeName];
 		if (recipe === undefined) {
 			return;
+		}
+		if (canInvokeWithoutArguments(recipe)) {
+			addCommand(`just ${recipeName}`, recipeName);
+			addCommand(`pnpm exec just ${recipeName}`, recipeName);
 		}
 		for (const dependency of recipe.dependencies ?? []) {
 			if (typeof dependency.recipe === 'string') {
@@ -1158,15 +1280,30 @@ const buildExpandedJustCommands = (
 			if (command.length === 0 || command.startsWith('#')) {
 				continue;
 			}
-			const recipes = commands.get(command) ?? new Set<string>();
-			recipes.add(recipeName);
-			commands.set(command, recipes);
+			addCommand(command, recipeName);
 		}
 	};
 	visit('ci');
 	visit('ci-full');
 	return commands;
 };
+
+test('just manifest evidence recognizes reachable recipe invocations without claiming unreachable recipes', async () => {
+	const justDump = JSON.parse(
+		execFileSync('just', ['--dump', '--dump-format', 'json'], {
+			cwd: repoRoot,
+			encoding: 'utf8',
+		}),
+	) as { recipes: Record<string, JustRecipeDump> };
+	const commands = buildExpandedJustCommands(justDump.recipes);
+
+	assert.equal(selectLocalRecipe(['just test-api'], commands), 'test-api');
+	assert.equal(
+		selectLocalRecipe(['pnpm exec just test-analyzers'], commands),
+		'test-analyzers',
+	);
+	assert.equal(selectLocalRecipe(['just check'], commands), null);
+});
 
 const selectLocalRecipe = (
 	lines: string[],

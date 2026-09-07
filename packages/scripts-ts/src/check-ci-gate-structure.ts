@@ -2443,6 +2443,25 @@ const checkCentralClassifierEdges = (
 	jobs: CentralJobs,
 	findings: string[],
 ): void => {
+	const intentionallyUnconditionalClassifierSteps = new Set([
+		'audit-development.checkout',
+		'audit-development.install_pnpm',
+		'audit-development.setup_node',
+		'audit-production.checkout',
+		'audit-production.install_pnpm',
+		'audit-production.setup_node',
+		'api.checkout',
+		'api.setup_dotnet',
+		'api.install_pnpm',
+		'api.setup_node',
+		'api.setup_just',
+		'front-vitest.checkout',
+		'front-vitest.install_pnpm',
+		'front-vitest.setup_node',
+		'e2e-build.checkout',
+		'e2e-test.checkout',
+		'e2e-cleanup.checkout',
+	]);
 	const normalizeCondition = (condition: string): string =>
 		condition.replace(/\s+/g, ' ').trim();
 	const classifierCondition = (lane: string, terms: string[] = []): string =>
@@ -2463,58 +2482,82 @@ const checkCentralClassifierEdges = (
 			]);
 		}
 		if (jobId === 'e2e-build') {
-			const terms: Record<string, string[]> = {
-				login: ["steps.image-fork.outputs.fork != 'true'"],
-				'runtime-guard': ["steps.images.outcome == 'success'"],
-				'upload-images': [
-					"steps.image-fork.outputs.fork == 'true'",
-					"steps.images.outcome == 'success'",
+			const terms = new Map([
+				['login', ["steps.image-fork.outputs.fork != 'true'"]],
+				['runtime-guard', ["steps.images.outcome == 'success'"]],
+				[
+					'upload-images',
+					[
+						"steps.image-fork.outputs.fork == 'true'",
+						"steps.images.outcome == 'success'",
+					],
 				],
-			};
-			return classifierCondition(lane, terms[stepId] ?? []);
+			]);
+			return classifierCondition(lane, terms.get(stepId) ?? []);
 		}
 		if (jobId === 'e2e-test') {
-			const terms: Record<string, string[]> = {
-				'install-pnpm': ["needs.e2e-build.result == 'success'"],
-				'setup-node': ["needs.e2e-build.result == 'success'"],
-				'assert-pins': ["needs.e2e-build.result == 'success'"],
-				'install-dependencies': ["needs.e2e-build.result == 'success'"],
-				login: [
-					"needs.e2e-build.result == 'success'",
-					"needs.e2e-build.outputs.fork != 'true'",
+			const terms = new Map([
+				['install-pnpm', ["needs.e2e-build.result == 'success'"]],
+				['setup-node', ["needs.e2e-build.result == 'success'"]],
+				['assert-pins', ["needs.e2e-build.result == 'success'"]],
+				['install-dependencies', ["needs.e2e-build.result == 'success'"]],
+				[
+					'login',
+					[
+						"needs.e2e-build.result == 'success'",
+						"needs.e2e-build.outputs.fork != 'true'",
+					],
 				],
-				'rerun-guard': ["needs.e2e-build.result == 'success'"],
-				'pull-stack': [
-					"needs.e2e-build.result == 'success'",
-					"needs.e2e-build.outputs.fork != 'true'",
-					"steps.rerun-guard.outcome == 'success'",
+				['rerun-guard', ["needs.e2e-build.result == 'success'"]],
+				[
+					'pull-stack',
+					[
+						"needs.e2e-build.result == 'success'",
+						"needs.e2e-build.outputs.fork != 'true'",
+						"steps.rerun-guard.outcome == 'success'",
+					],
 				],
-				'download-images': [
-					"needs.e2e-build.result == 'success'",
-					"needs.e2e-build.outputs.fork == 'true'",
-					"steps.rerun-guard.outcome == 'success'",
+				[
+					'download-images',
+					[
+						"needs.e2e-build.result == 'success'",
+						"needs.e2e-build.outputs.fork == 'true'",
+						"steps.rerun-guard.outcome == 'success'",
+					],
 				],
-				'load-images': [
-					"needs.e2e-build.result == 'success'",
-					"needs.e2e-build.outputs.fork == 'true'",
-					"steps.rerun-guard.outcome == 'success'",
+				[
+					'load-images',
+					[
+						"needs.e2e-build.result == 'success'",
+						"needs.e2e-build.outputs.fork == 'true'",
+						"steps.rerun-guard.outcome == 'success'",
+					],
 				],
-				'cache-playwright': ["needs.e2e-build.result == 'success'"],
-				'up-stack': [
-					"needs.e2e-build.result == 'success'",
-					"steps.rerun-guard.outcome == 'success'",
+				['cache-playwright', ["needs.e2e-build.result == 'success'"]],
+				[
+					'up-stack',
+					[
+						"needs.e2e-build.result == 'success'",
+						"steps.rerun-guard.outcome == 'success'",
+					],
 				],
-				'wait-health': [
-					"needs.e2e-build.result == 'success'",
-					"steps.up-stack.outcome == 'success'",
+				[
+					'wait-health',
+					[
+						"needs.e2e-build.result == 'success'",
+						"steps.up-stack.outcome == 'success'",
+					],
 				],
-				playwright: [
-					"needs.e2e-build.result == 'success'",
-					"steps.wait-health.outcome == 'success'",
+				[
+					'playwright',
+					[
+						"needs.e2e-build.result == 'success'",
+						"steps.wait-health.outcome == 'success'",
+					],
 				],
-				teardown: [],
-			};
-			return classifierCondition(lane, terms[stepId] ?? []);
+				['teardown', []],
+			]);
+			return classifierCondition(lane, terms.get(stepId) ?? []);
 		}
 		return classifierCondition(lane);
 	};
@@ -2576,10 +2619,27 @@ const checkCentralClassifierEdges = (
 				}
 				const actualStepId = String(step.id ?? '');
 				const condition = String(step.if ?? '');
+				const isSentinel = expectedStepId.endsWith('.not-applicable');
+				const isFailureOnly =
+					expectedStepId.endsWith('.report_upload') ||
+					expectedStepId.endsWith('.test_results');
+				const isIntentionallyUnconditional =
+					intentionallyUnconditionalClassifierSteps.has(expectedStepId);
 				if (condition.length === 0) {
+					if (!isIntentionallyUnconditional && !isFailureOnly) {
+						if (isSentinel) {
+							findings.push(
+								`${actualJobId}: sentinel ${expectedStepId} must consume ${falseCondition}`,
+							);
+						} else {
+							findings.push(
+								`${actualJobId}: ${expectedStepId} must use its exact classifier condition (expected ${expectedClassifierCondition(actualJobId, actualStepId, lane.classifierLane)}, found <missing>)`,
+							);
+						}
+					}
 					continue;
 				}
-				if (expectedStepId.endsWith('.not-applicable')) {
+				if (isSentinel) {
 					if (
 						normalizeCondition(condition) !== `always() && ${falseCondition}`
 					) {
@@ -2588,8 +2648,7 @@ const checkCentralClassifierEdges = (
 						);
 					}
 				} else if (
-					!expectedStepId.endsWith('.report_upload') &&
-					!expectedStepId.endsWith('.test_results') &&
+					!isFailureOnly &&
 					normalizeCondition(condition) !==
 						normalizeCondition(
 							expectedClassifierCondition(

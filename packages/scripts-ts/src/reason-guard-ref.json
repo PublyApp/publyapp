@@ -529,8 +529,8 @@
 			"reason": "Local mirror just ci-spec-drift is derived from exact normalized workflow command match(es): [\"dotnet tool restore\"]."
 		},
 		"ci.yml::api::Run full API test suite": {
-			"reason_hash": "e9aadc0a1e92c050",
-			"reason": "No exact local command match for run step \"Run full API test suite\"; normalized workflow command(s): [\"just test-api\"]. The recursive just call graph was checked without inferring a broader local boundary."
+			"reason_hash": "58903d0127e3dcc4",
+			"reason": "Local mirror just test-api is derived from exact normalized workflow command match(es): [\"just test-api\"]."
 		},
 		"ci.yml::api::Run OpenAPI contract spec": {
 			"reason_hash": "3b119872fd7b11aa",
@@ -1029,8 +1029,8 @@
 			"reason": "Local mirror just ci-quality-dotnet is derived from exact normalized workflow command match(es): [\"dotnet restore PublyApp.slnx\"]."
 		},
 		"ci.yml::verification::Run analyzer tests": {
-			"reason_hash": "5d12275108d9b6c5",
-			"reason": "No exact local command match for run step \"Run analyzer tests\"; normalized workflow command(s): [\"pnpm exec just test-analyzers\"]. The recursive just call graph was checked without inferring a broader local boundary."
+			"reason_hash": "6613aa9e2613728e",
+			"reason": "Local mirror just test-analyzers is derived from exact normalized workflow command match(es): [\"pnpm exec just test-analyzers\"]."
 		},
 		"ci.yml::verification::Run React Doctor": {
 			"reason_hash": "974af2c0cda3345f",
