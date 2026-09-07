@@ -72,17 +72,55 @@ void test('the real aggregate must retain both utility-boundary invocations', ()
 	const aggregateFindings = findings.filter(
 		(finding) => finding.script === 'test:ci-non-vitest',
 	);
-	assert.equal(aggregateFindings.length, 2);
-	assert.ok(
-		aggregateFindings.some((finding) =>
-			finding.detail.includes('test:utility-boundaries'),
-		),
+	assert.equal(aggregateFindings.length, 1);
+	assert.match(
+		aggregateFindings[0]!.detail,
+		/exact declared utility-boundary command chain/,
 	);
-	assert.ok(
-		aggregateFindings.some((finding) =>
-			finding.detail.includes('check:utility-boundaries'),
+});
+
+void test('the real aggregate must match the closed executable command chain', () => {
+	const scripts = loadScripts(realPackageJson);
+	const aggregate = scripts['test:ci-non-vitest'];
+	assert.ok(aggregate, 'expected the front aggregate script to exist');
+
+	const decoys = [
+		aggregate.replace(
+			'pnpm test:utility-boundaries',
+			'echo pnpm test:utility-boundaries',
 		),
-	);
+		aggregate.replace(
+			'pnpm test:utility-boundaries',
+			'pnpm test:utility-boundaries-suffix',
+		),
+		aggregate.replace(
+			'pnpm test:utility-boundaries',
+			'false && pnpm test:utility-boundaries',
+		),
+		aggregate.replace(
+			'pnpm test:utility-boundaries && pnpm check:utility-boundaries',
+			'pnpm check:utility-boundaries && pnpm test:utility-boundaries',
+		),
+		aggregate.replace(
+			'pnpm test:utility-boundaries',
+			'pnpm test:utility-boundaries && pnpm test:utility-boundaries',
+		),
+		aggregate.replace(
+			'pnpm test:utility-boundaries',
+			'pnpm run test:utility-boundaries',
+		),
+	];
+
+	for (const decoy of decoys) {
+		const findings = analyzeScripts(
+			{ ...scripts, 'test:ci-non-vitest': decoy },
+			{ requireUtilityBoundaryAggregate: true },
+		);
+		assert.ok(
+			findings.some((finding) => finding.script === 'test:ci-non-vitest'),
+			`expected aggregate decoy to be rejected: ${decoy}`,
+		);
+	}
 });
 
 void test('a bare `node --test` in a family script is a finding naming the script', () => {

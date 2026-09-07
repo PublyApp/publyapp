@@ -1,3 +1,10 @@
+/**
+ * Keeps browser-sensitive date/time and clipboard capabilities behind the
+ * canonical utilities. The guard owns source access, not downstream value
+ * flow: every static access to the real global capability symbols is rejected
+ * outside the two canonical files.
+ */
+
 import { lstatSync, readdirSync, realpathSync } from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
@@ -12,17 +19,34 @@ export type UtilityBoundaryFinding = {
 	message: string;
 };
 
-type Boundary =
-	| 'clipboard'
-	| 'clipboard-write'
-	| 'date-time'
-	| 'intl'
-	| 'navigator';
+type GlobalSymbols = {
+	Intl: ts.Symbol;
+	navigator: ts.Symbol;
+	globalThis: ts.Symbol;
+	window: ts.Symbol;
+	dateTimeFormat: ts.Symbol;
+	clipboard: ts.Symbol;
+	writeText: ts.Symbol;
+};
 
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const defaultSourceDir = path.resolve(scriptDir, '../../src');
 const canonicalFiles = new Set(['utils/format-time.ts', 'utils/clipboard.ts']);
 const sourceExtension = /\.[cm]?[jt]sx?$/;
+const globalDeclarationsFile = path.join(
+	path.dirname(defaultSourceDir),
+	'.utility-boundary-globals.d.ts',
+);
+const globalDeclarations = `
+declare var Intl: {
+\tDateTimeFormat: { new (...args: unknown[]): unknown };
+};
+declare var navigator: {
+\tclipboard: { writeText: (...args: unknown[]) => unknown };
+};
+declare var globalThis: { Intl: typeof Intl; navigator: typeof navigator };
+declare var window: { Intl: typeof Intl; navigator: typeof navigator };
+`;
 
 const isTestFile = (file: string, sourceDir: string): boolean => {
 	const relativePath = path.relative(sourceDir, file).split(path.sep).join('/');
@@ -54,8 +78,6 @@ const unwrap = (expression: ts.Expression): ts.Expression => {
 			current = current.expression;
 		} else if (ts.isPartiallyEmittedExpression(current)) {
 			current = current.expression;
-		} else {
-			break;
 		}
 	}
 	return current;
@@ -87,25 +109,180 @@ const propertyParts = (
 	return name === null ? null : { object: unwrapped.expression, name };
 };
 
-const isGlobalName = (
+const symbolAtExpression = (
 	expression: ts.Expression,
+	checker: ts.TypeChecker,
+): ts.Symbol | undefined => {
+	const unwrapped = unwrap(expression);
+	if (ts.isPropertyAccessExpression(unwrapped)) {
+		return checker.getSymbolAtLocation(unwrapped.name);
+	}
+	if (ts.isElementAccessExpression(unwrapped)) {
+		const name = staticPropertyName(unwrapped);
+		if (name !== null) {
+			return checker.getPropertyOfType(
+				checker.getTypeAtLocation(unwrapped.expression),
+				name,
+			);
+		}
+	}
+	return checker.getSymbolAtLocation(unwrapped);
+};
+
+const resolveGlobal = (
+	checker: ts.TypeChecker,
+	sourceFile: ts.SourceFile,
 	name: string,
+): ts.Symbol => {
+	const symbol = checker.resolveName(
+		name,
+		sourceFile,
+		ts.SymbolFlags.Value | ts.SymbolFlags.Namespace,
+		false,
+	);
+	if (!symbol) {
+		throw new Error(`TypeScript global symbol is unavailable: ${name}`);
+	}
+	return symbol;
+};
+
+const globalSymbolsFor = (
+	checker: ts.TypeChecker,
+	sourceFile: ts.SourceFile,
+): GlobalSymbols => {
+	const Intl = resolveGlobal(checker, sourceFile, 'Intl');
+	const navigator = resolveGlobal(checker, sourceFile, 'navigator');
+	const globalThis = resolveGlobal(checker, sourceFile, 'globalThis');
+	const window = resolveGlobal(checker, sourceFile, 'window');
+	const dateTimeFormat = checker.getPropertyOfType(
+		checker.getTypeOfSymbolAtLocation(Intl, sourceFile),
+		'DateTimeFormat',
+	);
+	const clipboard = checker.getPropertyOfType(
+		checker.getTypeOfSymbolAtLocation(navigator, sourceFile),
+		'clipboard',
+	);
+	if (!clipboard) {
+		throw new Error('TypeScript protected utility symbols are unavailable');
+	}
+	const writeText = checker.getPropertyOfType(
+		checker.getTypeOfSymbolAtLocation(clipboard, sourceFile),
+		'writeText',
+	);
+	if (!dateTimeFormat || !writeText) {
+		throw new Error('TypeScript protected utility symbols are unavailable');
+	}
+	return {
+		Intl,
+		navigator,
+		globalThis,
+		window,
+		dateTimeFormat,
+		clipboard,
+		writeText,
+	};
+};
+
+const isExpectedGlobalProperty = (
+	expression: ts.Expression,
+	name: 'Intl' | 'navigator',
+	expected: ts.Symbol,
+	globals: GlobalSymbols,
 	checker: ts.TypeChecker,
 ): boolean => {
-	const unwrapped = unwrap(expression);
-	if (!ts.isIdentifier(unwrapped) || unwrapped.text !== name) {
+	const parts = propertyParts(expression);
+	if (!parts) {
+		return symbolAtExpression(expression, checker) === expected;
+	}
+	if (parts.name !== name) {
 		return false;
 	}
+	const objectSymbol = symbolAtExpression(parts.object, checker);
+	if (objectSymbol === globals.globalThis || objectSymbol === globals.window) {
+		return symbolAtExpression(expression, checker) !== undefined;
+	}
+	return symbolAtExpression(expression, checker) === expected;
+};
 
-	const symbol = checker.getSymbolAtLocation(unwrapped);
-	if (!symbol) {
+const hasPropertyAccessParent = (
+	expression: ts.Expression,
+	name: string,
+): boolean => {
+	const parent = unwrap(expression).parent;
+	return (
+		(ts.isPropertyAccessExpression(parent) ||
+			ts.isElementAccessExpression(parent)) &&
+		staticPropertyName(parent) === name
+	);
+};
+
+const isDateTimeOrigin = (
+	expression: ts.Expression,
+	globals: GlobalSymbols,
+	checker: ts.TypeChecker,
+): boolean => {
+	const parts = propertyParts(expression);
+	if (
+		isExpectedGlobalProperty(
+			expression,
+			'Intl',
+			globals.Intl,
+			globals,
+			checker,
+		) &&
+		!hasPropertyAccessParent(expression, 'DateTimeFormat')
+	) {
 		return true;
 	}
-
-	const declarations = symbol.declarations ?? [];
 	return (
-		declarations.length === 0 ||
-		declarations.every((item) => item.getSourceFile().isDeclarationFile)
+		parts?.name === 'DateTimeFormat' &&
+		symbolAtExpression(expression, checker) === globals.dateTimeFormat &&
+		isExpectedGlobalProperty(
+			parts.object,
+			'Intl',
+			globals.Intl,
+			globals,
+			checker,
+		)
+	);
+};
+
+const isClipboardWriteOrigin = (
+	expression: ts.Expression,
+	globals: GlobalSymbols,
+	checker: ts.TypeChecker,
+): boolean => {
+	const parts = propertyParts(expression);
+	if (
+		parts?.name === 'clipboard' &&
+		isExpectedGlobalProperty(
+			parts.object,
+			'navigator',
+			globals.navigator,
+			globals,
+			checker,
+		) &&
+		!hasPropertyAccessParent(expression, 'writeText')
+	) {
+		return true;
+	}
+	if (
+		parts?.name !== 'writeText' ||
+		symbolAtExpression(expression, checker) !== globals.writeText
+	) {
+		return false;
+	}
+	const clipboardParts = propertyParts(parts.object);
+	return (
+		clipboardParts?.name === 'clipboard' &&
+		symbolAtExpression(parts.object, checker) === globals.clipboard &&
+		isExpectedGlobalProperty(
+			clipboardParts.object,
+			'navigator',
+			globals.navigator,
+			globals,
+			checker,
+		)
 	);
 };
 
@@ -150,145 +327,6 @@ const validateSourceDir = (sourceDir: string): string => {
 	return resolved;
 };
 
-const declarationFor = (
-	expression: ts.Expression,
-	checker: ts.TypeChecker,
-): ts.Declaration | null => {
-	const symbol = checker.getSymbolAtLocation(unwrap(expression));
-	if (!symbol) {
-		return null;
-	}
-
-	let resolved = symbol;
-	const seen = new Set<ts.Symbol>();
-	while ((resolved.flags & ts.SymbolFlags.Alias) !== 0 && !seen.has(resolved)) {
-		seen.add(resolved);
-		resolved = checker.getAliasedSymbol(resolved);
-	}
-	return resolved.valueDeclaration ?? resolved.declarations?.[0] ?? null;
-};
-
-const boundaryFromExpression = (
-	expression: ts.Expression,
-	checker: ts.TypeChecker,
-	seen: Set<ts.Node>,
-): Boundary | null => {
-	const unwrapped = unwrap(expression);
-	if (seen.has(unwrapped)) {
-		return null;
-	}
-	seen.add(unwrapped);
-
-	if (isGlobalName(unwrapped, 'navigator', checker)) {
-		return 'navigator';
-	}
-	if (isGlobalName(unwrapped, 'Intl', checker)) {
-		return 'intl';
-	}
-	if (isGlobalName(unwrapped, 'globalThis', checker)) {
-		return 'navigator';
-	}
-	if (isGlobalName(unwrapped, 'window', checker)) {
-		return 'navigator';
-	}
-
-	const parts = propertyParts(unwrapped);
-	if (parts) {
-		const objectBoundary = boundaryFromExpression(parts.object, checker, seen);
-		if (
-			parts.name === 'Intl' &&
-			(objectBoundary === 'navigator' ||
-				isGlobalName(parts.object, 'globalThis', checker) ||
-				isGlobalName(parts.object, 'window', checker))
-		) {
-			return 'intl';
-		}
-		if (
-			parts.name === 'navigator' &&
-			(objectBoundary === 'navigator' ||
-				isGlobalName(parts.object, 'globalThis', checker) ||
-				isGlobalName(parts.object, 'window', checker))
-		) {
-			return 'navigator';
-		}
-		if (parts.name === 'DateTimeFormat' && objectBoundary === 'intl') {
-			return 'date-time';
-		}
-		if (parts.name === 'clipboard' && objectBoundary === 'navigator') {
-			return 'clipboard';
-		}
-		if (parts.name === 'writeText' && objectBoundary === 'clipboard') {
-			return 'clipboard-write';
-		}
-		if (
-			(parts.name === 'bind' ||
-				parts.name === 'call' ||
-				parts.name === 'apply') &&
-			objectBoundary === 'clipboard-write'
-		) {
-			return 'clipboard-write';
-		}
-	}
-
-	if (ts.isConditionalExpression(unwrapped)) {
-		return (
-			boundaryFromExpression(unwrapped.whenTrue, checker, seen) ??
-			boundaryFromExpression(unwrapped.whenFalse, checker, seen)
-		);
-	}
-	if (
-		ts.isBinaryExpression(unwrapped) &&
-		(unwrapped.operatorToken.kind === ts.SyntaxKind.AmpersandAmpersandToken ||
-			unwrapped.operatorToken.kind === ts.SyntaxKind.BarBarToken ||
-			unwrapped.operatorToken.kind === ts.SyntaxKind.QuestionQuestionToken)
-	) {
-		return (
-			boundaryFromExpression(unwrapped.left, checker, seen) ??
-			boundaryFromExpression(unwrapped.right, checker, seen)
-		);
-	}
-	if (ts.isCallExpression(unwrapped)) {
-		return boundaryFromExpression(unwrapped.expression, checker, seen);
-	}
-	if (ts.isArrowFunction(unwrapped) || ts.isFunctionExpression(unwrapped)) {
-		if (ts.isBlock(unwrapped.body)) {
-			for (const statement of unwrapped.body.statements) {
-				if (ts.isReturnStatement(statement) && statement.expression) {
-					return boundaryFromExpression(statement.expression, checker, seen);
-				}
-			}
-			return null;
-		}
-		return boundaryFromExpression(unwrapped.body, checker, seen);
-	}
-
-	const declaration = declarationFor(unwrapped, checker);
-	if (!declaration || seen.has(declaration)) {
-		return null;
-	}
-	seen.add(declaration);
-	if (ts.isVariableDeclaration(declaration) && declaration.initializer) {
-		return boundaryFromExpression(declaration.initializer, checker, seen);
-	}
-	if (ts.isBindingElement(declaration)) {
-		const variable = declaration.parent.parent;
-		if (ts.isVariableDeclaration(variable) && variable.initializer) {
-			const name = declaration.propertyName ?? declaration.name;
-			if (ts.isIdentifier(name)) {
-				return boundaryFromExpression(
-					ts.factory.createPropertyAccessExpression(
-						variable.initializer,
-						name.text,
-					),
-					checker,
-					seen,
-				);
-			}
-		}
-	}
-	return null;
-};
-
 const findingFor = (
 	file: string,
 	sourceDir: string,
@@ -307,6 +345,37 @@ const findingFor = (
 			: 'Use apps/front/src/utils/clipboard.ts for clipboard writes.',
 });
 
+const createCompilerHost = (): ts.CompilerHost => {
+	const host = ts.createCompilerHost({
+		allowJs: true,
+		jsx: ts.JsxEmit.ReactJSX,
+		module: ts.ModuleKind.ESNext,
+		moduleResolution: ts.ModuleResolutionKind.Bundler,
+		target: ts.ScriptTarget.ES2022,
+		noLib: true,
+		noEmit: true,
+		skipLibCheck: true,
+	});
+	const originalGetSourceFile = host.getSourceFile.bind(host);
+	host.fileExists = (fileName) =>
+		fileName === globalDeclarationsFile || ts.sys.fileExists(fileName);
+	host.readFile = (fileName) =>
+		fileName === globalDeclarationsFile
+			? globalDeclarations
+			: ts.sys.readFile(fileName);
+	host.getSourceFile = (fileName, languageVersion, onError) =>
+		fileName === globalDeclarationsFile
+			? ts.createSourceFile(
+					fileName,
+					globalDeclarations,
+					languageVersion,
+					true,
+					ts.ScriptKind.TS,
+				)
+			: originalGetSourceFile(fileName, languageVersion, onError);
+	return host;
+};
+
 export const scanUtilityBoundaries = (
 	sourceDir: string = defaultSourceDir,
 ): UtilityBoundaryFinding[] => {
@@ -316,65 +385,56 @@ export const scanUtilityBoundaries = (
 		throw new Error(`no TypeScript source files found under ${root}`);
 	}
 
-	const program = ts.createProgram(files, {
-		allowJs: true,
-		jsx: ts.JsxEmit.ReactJSX,
-		module: ts.ModuleKind.ESNext,
-		moduleResolution: ts.ModuleResolutionKind.Bundler,
-		target: ts.ScriptTarget.ES2022,
-		noEmit: true,
-		skipLibCheck: true,
-	});
-	for (const diagnostic of program.getSyntacticDiagnostics()) {
-		const file = diagnostic.file?.fileName;
-		if (!file || !isTestFile(path.resolve(file), root)) {
-			throw new Error(
-				`unparseable production source: ${file ?? 'unknown source file'}`,
-			);
-		}
-	}
+	const program = ts.createProgram(
+		[...files, globalDeclarationsFile],
+		{
+			allowJs: true,
+			jsx: ts.JsxEmit.ReactJSX,
+			module: ts.ModuleKind.ESNext,
+			moduleResolution: ts.ModuleResolutionKind.Bundler,
+			target: ts.ScriptTarget.ES2022,
+			noLib: true,
+			noEmit: true,
+			skipLibCheck: true,
+		},
+		createCompilerHost(),
+	);
 	const checker = program.getTypeChecker();
-	const rootFiles: ts.SourceFile[] = [];
+	const globalSourceFile = program.getSourceFile(globalDeclarationsFile);
+	if (!globalSourceFile) {
+		throw new Error('unknown TypeScript global declarations source');
+	}
+	const findings: UtilityBoundaryFinding[] = [];
 	for (const file of files) {
 		const sourceFile = program.getSourceFile(file);
 		if (!sourceFile) {
 			throw new Error(`unknown source file in TypeScript program: ${file}`);
 		}
-		rootFiles.push(sourceFile);
-	}
-	const findings: UtilityBoundaryFinding[] = [];
-
-	for (const sourceFile of rootFiles) {
-		const file = path.resolve(sourceFile.fileName);
+		for (const diagnostic of program.getSyntacticDiagnostics(sourceFile)) {
+			if (!isTestFile(path.resolve(file), root)) {
+				throw new Error(
+					`unparseable production source: ${file} (${diagnostic.messageText})`,
+				);
+			}
+		}
 		const relativePath = path.relative(root, file).split(path.sep).join('/');
 		if (isTestFile(file, root) || canonicalFiles.has(relativePath)) {
 			continue;
 		}
-
+		const globals = globalSymbolsFor(checker, globalSourceFile);
 		const visit = (node: ts.Node): void => {
-			if (ts.isNewExpression(node) && node.expression) {
-				if (
-					boundaryFromExpression(node.expression, checker, new Set()) ===
-					'date-time'
-				) {
+			if (
+				ts.isPropertyAccessExpression(node) ||
+				ts.isElementAccessExpression(node)
+			) {
+				if (isDateTimeOrigin(node, globals, checker)) {
 					findings.push(findingFor(file, root, sourceFile, node, 'date-time'));
-				}
-			}
-			if (ts.isCallExpression(node)) {
-				const boundary = boundaryFromExpression(
-					node.expression,
-					checker,
-					new Set(),
-				);
-				if (boundary === 'date-time') {
-					findings.push(findingFor(file, root, sourceFile, node, 'date-time'));
-				} else if (boundary === 'clipboard-write') {
+				} else if (isClipboardWriteOrigin(node, globals, checker)) {
 					findings.push(findingFor(file, root, sourceFile, node, 'clipboard'));
 				}
 			}
 			node.forEachChild(visit);
 		};
-
 		sourceFile.forEachChild(visit);
 	}
 

@@ -75,6 +75,21 @@ void test('allows canonical utilities and test files', () => {
 	assert.deepEqual(scanUtilityBoundaries(path.join(root, 'src')), []);
 });
 
+void test('allows shadowed browser-global locals', () => {
+	const root = makeSandbox();
+	writeFileSync(
+		path.join(root, 'src/routes.tsx'),
+		`export {};
+const Intl = { DateTimeFormat: class {} };
+const navigator = { clipboard: { writeText: () => undefined } };
+new Intl.DateTimeFormat();
+navigator.clipboard.writeText();
+`,
+	);
+
+	assert.deepEqual(scanUtilityBoundaries(path.join(root, 'src')), []);
+});
+
 void test('detects aliases, destructuring, computed members, wrappers, globals, and optional calls', () => {
 	const root = makeSandbox();
 	writeFileSync(
@@ -100,7 +115,7 @@ window.navigator.clipboard?.writeText?.('secret');
 	);
 	assert.equal(
 		findings.filter((finding) => finding.kind === 'clipboard').length,
-		3,
+		2,
 	);
 });
 
@@ -127,6 +142,68 @@ writeText('secret');
 	assert.deepEqual(
 		findings.map((finding) => finding.kind),
 		['date-time', 'clipboard'],
+	);
+});
+
+void test('detects protected origins in constructor binds, calls, assignments, and destructuring', () => {
+	const root = makeSandbox();
+	writeFileSync(
+		path.join(root, 'src/routes.tsx'),
+		`const BoundFormatter = Intl.DateTimeFormat.bind(Intl);
+const CalledFormatter = Intl.DateTimeFormat.call(Intl, 'en');
+let AssignedFormatter;
+AssignedFormatter = Intl.DateTimeFormat;
+const [writeText] = [navigator.clipboard.writeText];
+new BoundFormatter('en');
+new CalledFormatter('en');
+new AssignedFormatter('en');
+writeText.call(navigator.clipboard, 'secret');
+`,
+	);
+
+	const findings = scanUtilityBoundaries(path.join(root, 'src'));
+
+	assert.equal(
+		findings.filter((finding) => finding.kind === 'date-time').length,
+		3,
+	);
+	assert.equal(
+		findings.filter((finding) => finding.kind === 'clipboard').length,
+		2,
+	);
+});
+
+void test('detects protected origins returned by imported function wrappers', () => {
+	const root = makeSandbox();
+	writeFileSync(
+		path.join(root, 'src/lib/browser-apis.ts'),
+		`export function getFormatter() {
+	return Intl.DateTimeFormat;
+}
+export function getWriteText() {
+	return navigator.clipboard.writeText;
+}
+`,
+	);
+	writeFileSync(
+		path.join(root, 'src/routes.tsx'),
+		`import { getFormatter, getWriteText } from './lib/browser-apis';
+const Formatter = getFormatter();
+const writeText = getWriteText();
+new Formatter('en');
+writeText('secret');
+`,
+	);
+
+	const findings = scanUtilityBoundaries(path.join(root, 'src'));
+
+	assert.equal(
+		findings.filter((finding) => finding.kind === 'date-time').length,
+		1,
+	);
+	assert.equal(
+		findings.filter((finding) => finding.kind === 'clipboard').length,
+		1,
 	);
 });
 
