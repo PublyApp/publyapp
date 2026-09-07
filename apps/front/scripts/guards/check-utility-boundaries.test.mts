@@ -175,6 +175,54 @@ window.navigator.clipboard?.writeText?.('secret');
 	);
 });
 
+void test('detects statically computed root, intermediate, and terminal bindings', () => {
+	const root = makeSandbox();
+	writeFileSync(
+		path.join(root, 'src/routes.tsx'),
+		`const { ['Intl']: I } = globalThis;
+new I.DateTimeFormat('en');
+const { ['DateTimeFormat']: F } = Intl;
+new F('en');
+const { ['DateTimeFormat']: G } = globalThis.Intl;
+new G('en');
+const { ['navigator']: n } = window;
+n.clipboard.writeText('secret');
+const { ['clipboard']: c } = navigator;
+c.writeText('secret');
+const { ['writeText']: w } = navigator.clipboard;
+w('secret');
+`,
+	);
+
+	const findings = scanUtilityBoundaries(path.join(root, 'src'));
+
+	assert.equal(
+		findings.filter((finding) => finding.kind === 'date-time').length,
+		3,
+	);
+	assert.equal(
+		findings.filter((finding) => finding.kind === 'clipboard').length,
+		3,
+	);
+});
+
+void test('does not follow mutable let or var destructured aliases after reassignment', () => {
+	const root = makeSandbox();
+	writeFileSync(
+		path.join(root, 'src/routes.tsx'),
+		`export {};
+let { Intl: I } = globalThis;
+I = { DateTimeFormat: class {} };
+new I.DateTimeFormat('en');
+var { navigator: n } = window;
+n = { clipboard: { writeText: () => undefined } };
+n.clipboard.writeText('secret');
+`,
+	);
+
+	assert.deepEqual(scanUtilityBoundaries(path.join(root, 'src')), []);
+});
+
 void test('resolves statically resolvable re-exports and imported wrappers', () => {
 	const root = makeSandbox();
 	writeFileSync(

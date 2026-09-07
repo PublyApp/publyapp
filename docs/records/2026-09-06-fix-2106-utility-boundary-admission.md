@@ -44,20 +44,30 @@ it contains no aggregate reachability assertion or guard-of-guard.
    the five newer source-origin forms, the six exact second-reset probes
    (typed lookalikes, nested real-global bindings, and statically initialized
    root aliases), the three intermediate `BindingElement` alias positives, two
-   object-rest out-of-scope negatives, unrelated NumberFormat/readText controls,
-   legitimate shadowed locals, and fail-closed source-tree/parse cases.
-4. The admitted static scope is direct, computed-static, parenthesized/cast,
+   object-rest out-of-scope negatives, the six exact statically computed binding
+   probes (including the four Sol probes), reassigned `let`/`var` destructured
+   alias negatives, unrelated NumberFormat/readText controls, legitimate
+   shadowed locals, and fail-closed source-tree/parse cases.
+4. The admitted static scope is direct, statically literal computed binding
+   names, parenthesized/cast,
    `globalThis`/`window`-prefixed, statically initialized `const` alias,
    ordinary intermediate `BindingElement` alias, recursively nested
    object-binding, assignment-origin, bind/call-origin, source-wrapper,
    re-export, and import-origin forms where the protected source expression is
-   statically present. Object-rest aliases are outside scope. The guard does not
-   claim arbitrary function return flow, dynamic property names, `eval`, dynamic
-   module loading, reflection, or opaque runtime values.
+   statically present. Statically literal computed binding names and stable
+   `const` destructuring are supported. Mutable `let`/`var` destructured aliases
+   and object-rest aliases are outside source-ownership scope; the guard does not
+   implement write-aware flow. It also does not claim arbitrary function return
+   flow, dynamic property names, `eval`, dynamic module loading, reflection, or
+   opaque runtime values.
 5. The audit parser uses the installed TypeScript checker graph for direct,
    aliased, namespace, default, `export *`, and `export type *` semantics.
    Parse diagnostics remain fatal. Same-name raw occurrences are retained only
-   as `sameNameOccurrences`; no such row is caller evidence.
+   as `sameNameOccurrences`; no such row is caller evidence. This audit-parser
+   evidence is separate from the scanner's source-ownership ceiling: stable
+   `const` destructuring and statically literal computed binding names are
+   supported by the scanner proof, while mutable `let`/`var` destructured aliases
+   and object-rest aliases remain outside source-ownership scope.
 6. Classification decisions derive from immutable old-front/current analysis
    plus explicit reviewed overrides in this source. The previous classification
    artifact is not an input. The parser self-test mutates a prior-artifact
@@ -66,8 +76,9 @@ it contains no aggregate reachability assertion or guard-of-guard.
 ## Exact guard reproduction
 
 Pre-fix, pinned to the reviewed baseline. This disposable command overlays the
-current probe file onto the old scanner, so it must report **12 passed / 1
-failed**:
+current probe file—including the six computed-binding positives, the four exact
+Sol probes, and the reassigned `let`/`var` negatives—onto the old scanner, so it
+reports **12 passed / 3 failed**:
 
 ```bash
 repo="$PWD"
@@ -98,6 +109,13 @@ pnpm --filter front check:utility-boundaries
 python3 /home/radan/.hermes/orchestration/runs/publyapp-2026-09-06-captain/audit-old-front-utilities.py --parser-self-test
 python3 /home/radan/.hermes/orchestration/runs/publyapp-2026-09-06-captain/audit-old-front-utilities.py --self-check
 ```
+
+The final GREEN scanner run reports **15/15 tests passed** and the live source
+check passes. The exact computed-binding probes and reassigned mutable-alias
+negatives are part of that same final test file; object-rest remains covered by
+its explicit out-of-scope negatives. A scanner-disabled mutation of the same
+focused suite reports **4 passed / 11 failed** and exits 1, proving the suite is
+non-vacuous.
 
 ## Static-analysis ceiling
 

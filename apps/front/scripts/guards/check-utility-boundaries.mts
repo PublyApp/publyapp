@@ -242,10 +242,13 @@ const isClipboardWriteOrigin = (
 
 const bindingName = (binding: ts.BindingElement): string | null => {
 	const propertyName = binding.propertyName ?? binding.name;
-	if (!ts.isIdentifier(propertyName) && !ts.isStringLiteralLike(propertyName)) {
+	const expression = ts.isComputedPropertyName(propertyName)
+		? unwrap(propertyName.expression)
+		: propertyName;
+	if (!ts.isIdentifier(expression) && !ts.isStringLiteralLike(expression)) {
 		return null;
 	}
-	return propertyName.text;
+	return expression.text;
 };
 
 const bindingPath = (
@@ -271,7 +274,12 @@ const bindingPath = (
 			continue;
 		}
 		const declaration = pattern.parent;
-		if (!ts.isVariableDeclaration(declaration) || !declaration.initializer) {
+		if (
+			!ts.isVariableDeclaration(declaration) ||
+			!declaration.initializer ||
+			!ts.isVariableDeclarationList(declaration.parent) ||
+			(declaration.parent.flags & ts.NodeFlags.Const) === 0
+		) {
 			return null;
 		}
 		return { initializer: declaration.initializer, path };
