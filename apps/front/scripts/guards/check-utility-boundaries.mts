@@ -242,13 +242,14 @@ const isClipboardWriteOrigin = (
 
 const bindingName = (binding: ts.BindingElement): string | null => {
 	const propertyName = binding.propertyName ?? binding.name;
-	const expression = ts.isComputedPropertyName(propertyName)
-		? unwrap(propertyName.expression)
-		: propertyName;
-	if (!ts.isIdentifier(expression) && !ts.isStringLiteralLike(expression)) {
+	if (ts.isComputedPropertyName(propertyName)) {
+		const expression = unwrap(propertyName.expression);
+		return ts.isStringLiteralLike(expression) ? expression.text : null;
+	}
+	if (!ts.isIdentifier(propertyName) && !ts.isStringLiteralLike(propertyName)) {
 		return null;
 	}
-	return expression.text;
+	return propertyName.text;
 };
 
 const bindingPath = (

@@ -47,7 +47,8 @@ it contains no aggregate reachability assertion or guard-of-guard.
    object-rest out-of-scope negatives, the six exact statically computed binding
    probes (including the four Sol probes), reassigned `let`/`var` destructured
    alias negatives, unrelated NumberFormat/readText controls, legitimate
-   shadowed locals, and fail-closed source-tree/parse cases.
+   shadowed locals, computed identifier keys resolving to unrelated members,
+   and fail-closed source-tree/parse cases.
 4. The admitted static scope is direct, statically literal computed binding
    names, parenthesized/cast,
    `globalThis`/`window`-prefixed, statically initialized `const` alias,
@@ -75,10 +76,12 @@ it contains no aggregate reachability assertion or guard-of-guard.
 
 ## Exact guard reproduction
 
-Pre-fix, pinned to the reviewed baseline. This disposable command overlays the
-current probe file—including the six computed-binding positives, the four exact
-Sol probes, and the reassigned `let`/`var` negatives—onto the old scanner, so it
-reports **12 passed / 3 failed**:
+Pre-fix, pinned to committed parent `d479da8df780472f13005d09b1b3fe6ad7578fe2`.
+This disposable command overlays the current probe file—including the six
+computed-binding positives, the four exact Sol probes, the reassigned `let`/`var`
+negatives, and the computed-identifier negative—onto the parent scanner, so it
+reports **15 passed / 1 failed**. The single failure contains the two false
+positives produced by the parent scanner:
 
 ```bash
 repo="$PWD"
@@ -89,7 +92,7 @@ cleanup() {
   rmdir "$tmp" 2>/dev/null || true
 }
 trap cleanup EXIT
-git worktree add --detach "$pre" 0ca6f07ce4aadd407f35471065ded4a33daf5d13 >/dev/null
+git worktree add --detach "$pre" d479da8df780472f13005d09b1b3fe6ad7578fe2 >/dev/null
 mkdir -p "$pre/apps/front"
 ln -s "$repo/apps/front/node_modules" "$pre/apps/front/node_modules"
 cp "$repo/apps/front/scripts/guards/check-utility-boundaries.test.mts" \
@@ -110,11 +113,12 @@ python3 /home/radan/.hermes/orchestration/runs/publyapp-2026-09-06-captain/audit
 python3 /home/radan/.hermes/orchestration/runs/publyapp-2026-09-06-captain/audit-old-front-utilities.py --self-check
 ```
 
-The final GREEN scanner run reports **15/15 tests passed** and the live source
+The final GREEN scanner run reports **16/16 tests passed** and the live source
 check passes. The exact computed-binding probes and reassigned mutable-alias
-negatives are part of that same final test file; object-rest remains covered by
-its explicit out-of-scope negatives. A scanner-disabled mutation of the same
-focused suite reports **4 passed / 11 failed** and exits 1, proving the suite is
+negatives are part of that same final test file; the computed-identifier
+negative pins the literal-only boundary, and object-rest remains covered by its
+explicit out-of-scope negatives. A scanner-disabled mutation of the same
+focused suite reports **6 passed / 10 failed** and exits 1, proving the suite is
 non-vacuous.
 
 ## Static-analysis ceiling

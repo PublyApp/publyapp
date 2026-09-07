@@ -131,6 +131,31 @@ navigator.clipboard.writeText();
 	assert.deepEqual(scanUtilityBoundaries(path.join(root, 'src')), []);
 });
 
+void test('allows computed identifier keys that resolve to unrelated members', () => {
+	const root = makeSandbox();
+	writeFileSync(
+		path.join(root, 'src/routes.tsx'),
+		`export {};
+declare global {
+  var fakeIntl: { DateTimeFormat: new () => object };
+  interface Navigator {
+    fakeClipboard: { writeText: (value: string) => void };
+  }
+}
+globalThis.fakeIntl = { DateTimeFormat: class {} };
+navigator.fakeClipboard = { writeText: () => undefined };
+const Intl = 'fakeIntl' as const;
+const { [Intl]: I } = globalThis;
+new I.DateTimeFormat();
+const clipboard = 'fakeClipboard' as const;
+const { [clipboard]: c } = navigator;
+c.writeText('x');
+`,
+	);
+
+	assert.deepEqual(scanUtilityBoundaries(path.join(root, 'src')), []);
+});
+
 void test('allows shadowed browser-global locals', () => {
 	const root = makeSandbox();
 	writeFileSync(
