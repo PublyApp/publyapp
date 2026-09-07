@@ -2443,6 +2443,81 @@ const checkCentralClassifierEdges = (
 	jobs: CentralJobs,
 	findings: string[],
 ): void => {
+	const normalizeCondition = (condition: string): string =>
+		condition.replace(/\s+/g, ' ').trim();
+	const classifierCondition = (lane: string, terms: string[] = []): string =>
+		[
+			'always()',
+			`needs.classify.result == 'success'`,
+			`needs.classify.outputs.${lane} == 'true'`,
+			...terms,
+		].join(' && ');
+	const expectedClassifierCondition = (
+		jobId: string,
+		stepId: string,
+		lane: string,
+	): string => {
+		if (stepId === 'react_doctor') {
+			return classifierCondition(lane, [
+				"steps.resolve_react_base.outcome == 'success'",
+			]);
+		}
+		if (jobId === 'e2e-build') {
+			const terms: Record<string, string[]> = {
+				login: ["steps.image-fork.outputs.fork != 'true'"],
+				'runtime-guard': ["steps.images.outcome == 'success'"],
+				'upload-images': [
+					"steps.image-fork.outputs.fork == 'true'",
+					"steps.images.outcome == 'success'",
+				],
+			};
+			return classifierCondition(lane, terms[stepId] ?? []);
+		}
+		if (jobId === 'e2e-test') {
+			const terms: Record<string, string[]> = {
+				'install-pnpm': ["needs.e2e-build.result == 'success'"],
+				'setup-node': ["needs.e2e-build.result == 'success'"],
+				'assert-pins': ["needs.e2e-build.result == 'success'"],
+				'install-dependencies': ["needs.e2e-build.result == 'success'"],
+				login: [
+					"needs.e2e-build.result == 'success'",
+					"needs.e2e-build.outputs.fork != 'true'",
+				],
+				'rerun-guard': ["needs.e2e-build.result == 'success'"],
+				'pull-stack': [
+					"needs.e2e-build.result == 'success'",
+					"needs.e2e-build.outputs.fork != 'true'",
+					"steps.rerun-guard.outcome == 'success'",
+				],
+				'download-images': [
+					"needs.e2e-build.result == 'success'",
+					"needs.e2e-build.outputs.fork == 'true'",
+					"steps.rerun-guard.outcome == 'success'",
+				],
+				'load-images': [
+					"needs.e2e-build.result == 'success'",
+					"needs.e2e-build.outputs.fork == 'true'",
+					"steps.rerun-guard.outcome == 'success'",
+				],
+				'cache-playwright': ["needs.e2e-build.result == 'success'"],
+				'up-stack': [
+					"needs.e2e-build.result == 'success'",
+					"steps.rerun-guard.outcome == 'success'",
+				],
+				'wait-health': [
+					"needs.e2e-build.result == 'success'",
+					"steps.up-stack.outcome == 'success'",
+				],
+				playwright: [
+					"needs.e2e-build.result == 'success'",
+					"steps.wait-health.outcome == 'success'",
+				],
+				teardown: [],
+			};
+			return classifierCondition(lane, terms[stepId] ?? []);
+		}
+		return classifierCondition(lane);
+	};
 	const gateAggregate = (jobs.gate?.steps ?? []).find((step) =>
 		String(step.name).includes('Aggregate upstream artifacts'),
 	);
@@ -2490,7 +2565,6 @@ const checkCentralClassifierEdges = (
 			if (lane.classifierLane === undefined) {
 				continue;
 			}
-			const trueCondition = `needs.classify.result == 'success' && needs.classify.outputs.${lane.classifierLane} == 'true'`;
 			const falseCondition = `needs.classify.result == 'success' && needs.classify.outputs.${lane.classifierLane} == 'false'`;
 			for (const expectedStepId of lane.expectedSteps) {
 				const step = steps.find(
@@ -2500,12 +2574,15 @@ const checkCentralClassifierEdges = (
 				if (step === undefined) {
 					continue;
 				}
+				const actualStepId = String(step.id ?? '');
 				const condition = String(step.if ?? '');
 				if (condition.length === 0) {
 					continue;
 				}
 				if (expectedStepId.endsWith('.not-applicable')) {
-					if (condition !== `always() && ${falseCondition}`) {
+					if (
+						normalizeCondition(condition) !== `always() && ${falseCondition}`
+					) {
 						findings.push(
 							`${actualJobId}: sentinel ${expectedStepId} must consume ${falseCondition}`,
 						);
@@ -2513,10 +2590,17 @@ const checkCentralClassifierEdges = (
 				} else if (
 					!expectedStepId.endsWith('.report_upload') &&
 					!expectedStepId.endsWith('.test_results') &&
-					!condition.includes(trueCondition)
+					normalizeCondition(condition) !==
+						normalizeCondition(
+							expectedClassifierCondition(
+								actualJobId,
+								actualStepId,
+								lane.classifierLane,
+							),
+						)
 				) {
 					findings.push(
-						`${actualJobId}: ${expectedStepId} must consume ${trueCondition}`,
+						`${actualJobId}: ${expectedStepId} must use its exact classifier condition (expected ${expectedClassifierCondition(actualJobId, actualStepId, lane.classifierLane)}, found ${condition || '<missing>'})`,
 					);
 				}
 			}
@@ -2821,40 +2905,153 @@ const checkCentralProvenance = (
 };
 
 const checkCentralArtifacts = (jobs: CentralJobs, findings: string[]): void => {
-	type ArtifactContract = { name: string; path: string };
-	const expectedArtifactFor = (jobId: string): ArtifactContract => {
-		const suffix =
-			jobId === 'front-vitest' || jobId === 'e2e-test'
-				? `${jobId}-\${{ matrix.shard }}`
-				: jobId;
-		return {
+	const uploadAction =
+		'actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a';
+	type UploadContract = {
+		jobId: string;
+		stepName: string;
+		stepId?: string;
+		condition: string;
+		with: Record<string, unknown>;
+	};
+	const laneUpload = (jobId: string, suffix: string): UploadContract => ({
+		jobId,
+		stepName: 'Upload ci-lane-result',
+		condition: 'always()',
+		with: {
 			name: `ci-lane-result-\${{ github.run_id }}-\${{ github.run_attempt }}-${suffix}`,
 			path: `ci-results/${suffix}.json`,
-		};
-	};
-	for (const jobId of CENTRAL_JOB_IDS.filter((id) => id !== 'gate')) {
-		const job = jobs[jobId];
-		const artifacts = (job?.steps ?? []).filter(
-			(step) =>
-				String(step.uses).startsWith('actions/upload-artifact@') &&
-				String(step.with?.name).startsWith('ci-lane-result-'),
-		);
-		const artifact = artifacts[0];
-		const expected = expectedArtifactFor(jobId);
-		if (artifacts.length !== 1) {
+			'if-no-files-found': 'error',
+		},
+	});
+	const expected: UploadContract[] = [
+		laneUpload('classify', 'classify'),
+		laneUpload('verification', 'verification'),
+		laneUpload('audit-development', 'audit-development'),
+		laneUpload('audit-production', 'audit-production'),
+		laneUpload('api', 'api'),
+		{
+			...laneUpload('front-vitest', 'front-vitest-\${{ matrix.shard }}'),
+		},
+		laneUpload('e2e-build', 'e2e-build'),
+		{
+			...laneUpload('e2e-test', 'e2e-test-\${{ matrix.shard }}'),
+		},
+		laneUpload('e2e-cleanup', 'e2e-cleanup'),
+		{
+			jobId: 'api',
+			stepName: 'Upload API test results',
+			stepId: 'test-results',
+			condition:
+				"always() && (steps.suite.outcome == 'failure' || steps.suite.outcome == 'cancelled')",
+			with: {
+				name: 'api-test-results-\${{ github.run_id }}',
+				path: 'apps/api/Tests/TestResults/\napps/api/.artifacts/logs/\n',
+				'if-no-files-found': 'ignore',
+				'retention-days': 5,
+			},
+		},
+		{
+			jobId: 'front-vitest',
+			stepName: 'Upload Vitest report',
+			stepId: 'report-upload',
+			condition:
+				"always() && (steps.vitest.outcome == 'failure' || steps.vitest.outcome == 'cancelled')",
+			with: {
+				name: 'front-ci-vitest-report-\${{ matrix.shard }}-of-4',
+				path: 'apps/front/test-results',
+				'if-no-files-found': 'ignore',
+			},
+		},
+		{
+			jobId: 'e2e-build',
+			stepName: 'Upload fork e2e images',
+			stepId: 'upload-images',
+			condition:
+				"always() && needs.classify.result == 'success' && needs.classify.outputs.e2e == 'true' && steps.image-fork.outputs.fork == 'true' && steps.images.outcome == 'success'",
+			with: {
+				name: 'e2e-stack-images-\${{ steps.image-tag.outputs.tag }}',
+				path: '/tmp/e2e-images/*.tar.gz',
+				'retention-days': 1,
+				'compression-level': 0,
+				'if-no-files-found': 'error',
+			},
+		},
+		{
+			jobId: 'e2e-test',
+			stepName: 'Upload Playwright report',
+			stepId: 'report-upload',
+			condition:
+				"always() && (steps.playwright.outcome == 'failure' || steps.playwright.outcome == 'cancelled')",
+			with: {
+				name: 'front-e2e-playwright-report-\${{ matrix.shard }}-of-4',
+				path: 'apps/front/playwright-report\napps/front/test-results\n',
+				'if-no-files-found': 'ignore',
+			},
+		},
+		{
+			jobId: 'gate',
+			stepName: 'Upload live PR snapshot',
+			condition: "github.event_name == 'pull_request'",
+			with: {
+				name: 'ci-pr-snapshot-\${{ github.run_id }}-\${{ github.run_attempt }}',
+				path: 'ci-results/ci-pr-snapshot.json',
+				'if-no-files-found': 'error',
+			},
+		},
+	];
+	const expectedByKey = new Map(
+		expected.map((contract) => [
+			`${contract.jobId}::${contract.stepName}`,
+			contract,
+		]),
+	);
+	const actualUploads: Array<{
+		jobId: string;
+		step: CentralStep;
+	}> = [];
+	for (const [jobId, job] of Object.entries(jobs)) {
+		for (const step of job.steps ?? []) {
+			if (String(step.uses).startsWith('actions/upload-artifact@')) {
+				actualUploads.push({ jobId, step });
+			}
+		}
+	}
+	const actualCounts = new Map<string, number>();
+	for (const { jobId, step } of actualUploads) {
+		const key = `${jobId}::${String(step.name)}`;
+		actualCounts.set(key, (actualCounts.get(key) ?? 0) + 1);
+		const contract = expectedByKey.get(key);
+		if (contract === undefined) {
 			findings.push(
-				`${jobId}: exactly one ci-lane-result upload producer is required, found ${artifacts.length}`,
+				`${jobId}::${String(step.name)}: unexpected upload-artifact producer; every upload must match the closed producer allowlist exactly`,
+			);
+			continue;
+		}
+		const actualIdentity = {
+			stepId: step.id,
+			condition: step.if,
+			uses: step.uses,
+			with: step.with,
+		};
+		const expectedIdentity = {
+			stepId: contract.stepId,
+			condition: contract.condition,
+			uses: uploadAction,
+			with: contract.with,
+		};
+		if (!deepEqualJson(actualIdentity, expectedIdentity)) {
+			findings.push(
+				`${key}: upload-artifact producer must match its exact action, step id, condition, name, path, overwrite, and option contract; found ${JSON.stringify(actualIdentity)}`,
 			);
 		}
-		if (
-			artifact?.if !== 'always()' ||
-			artifact?.with?.name !== expected.name ||
-			artifact?.with?.path !== expected.path ||
-			artifact?.with?.['if-no-files-found'] !== 'error' ||
-			artifact?.with?.overwrite !== undefined
-		) {
+	}
+	for (const contract of expected) {
+		const key = `${contract.jobId}::${contract.stepName}`;
+		const count = actualCounts.get(key) ?? 0;
+		if (count !== 1) {
 			findings.push(
-				`${jobId}: result artifact name/path/always contract is not exact`,
+				`${key}: expected exactly one upload-artifact producer, found ${count}`,
 			);
 		}
 	}

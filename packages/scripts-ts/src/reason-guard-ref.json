@@ -489,680 +489,680 @@
 			"reason": "GitHub-only failure-only log capture: gets failing-spec output off an ephemeral runner. Locally the reports are already on disk."
 		},
 		"ci.yml::api::Build API and OpenAPI document": {
-			"reason_hash": "bdaa2d28f21b64fe",
-			"reason": "Local mirror just ci-spec-drift exercises the same repository command or lifecycle owned by api::Build API and OpenAPI document; the hosted step remains separately pinned for CI wiring."
+			"reason_hash": "6f87f08d5cfbf091",
+			"reason": "Local mirror just ci-spec-drift is derived from exact normalized workflow command match(es): [\"just build-api-full\"]."
 		},
 		"ci.yml::api::Check generated client drift": {
-			"reason_hash": "7eb479f336e39314",
-			"reason": "Local mirror just ci-spec-drift exercises the same repository command or lifecycle owned by api::Check generated client drift; the hosted step remains separately pinned for CI wiring."
+			"reason_hash": "463bfa5d67b445dc",
+			"reason": "No exact local command match for run step \"Check generated client drift\"; normalized workflow command(s): [\"git diff --exit-code -- packages/client-ts\",\"test -z \\\"$(git status --porcelain -- packages/client-ts)\\\"\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
 		"ci.yml::api::Check OpenAPI drift": {
-			"reason_hash": "f813e99ebd629735",
-			"reason": "Local mirror just ci-spec-drift exercises the same repository command or lifecycle owned by api::Check OpenAPI drift; the hosted step remains separately pinned for CI wiring."
+			"reason_hash": "4adc4248a8e9e598",
+			"reason": "No exact local command match for run step \"Check OpenAPI drift\"; normalized workflow command(s): [\"git diff --exit-code -- apps/api/openapi.json\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
 		"ci.yml::api::Checkout": {
-			"reason_hash": "384a54657da6f15b",
-			"reason": "GitHub-only setup for api::Checkout: the hosted runner provisions its checkout/toolchain or hook state before the lane command, while local setup is composed by the selected just recipe."
+			"reason_hash": "78cf6713208e8581",
+			"reason": "Hosted-only action step \"Checkout\" uses actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1; exact hosted fields: {\"if\":null,\"with\":null,\"env\":null}."
 		},
 		"ci.yml::api::CI lane not applicable": {
-			"reason_hash": "5ccfebf526cfd946",
-			"reason": "GitHub-only evidence transport for api::CI lane not applicable: it preserves hosted artifacts, lane provenance, or classifier sentinel state consumed by the central reducer and has no local equivalent."
+			"reason_hash": "8c5030f747022fe0",
+			"reason": "No exact local command match for run step \"CI lane not applicable\"; normalized workflow command(s): [\"echo 'API lane is not applicable'\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
 		"ci.yml::api::Collect ci-lane-result": {
-			"reason_hash": "5c9778f0ccd3351f",
-			"reason": "GitHub-only evidence transport for api::Collect ci-lane-result: it preserves hosted artifacts, lane provenance, or classifier sentinel state consumed by the central reducer and has no local equivalent."
+			"reason_hash": "baa09120079054a3",
+			"reason": "No exact local command match for run step \"Collect ci-lane-result\"; normalized workflow command(s): [\"node packages/scripts-ts/src/ci-lane-result.ts\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
 		"ci.yml::api::Install workspace dependencies": {
-			"reason_hash": "0d05c2a087a51576",
-			"reason": "Local mirror just ci-install exercises the same repository command or lifecycle owned by api::Install workspace dependencies; the hosted step remains separately pinned for CI wiring."
+			"reason_hash": "3906e6f62acdba6d",
+			"reason": "No exact local command match for run step \"Install workspace dependencies\"; normalized workflow command(s): [\"pnpm install --frozen-lockfile\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
 		"ci.yml::api::Materialize .env.development": {
-			"reason_hash": "11ae04b8ff6a8917",
-			"reason": "GitHub-only orchestration for api::Materialize .env.development: it uses hosted credentials, fork/image metadata, live pull-request state, or artifact-backed gate context unavailable to the local command surface."
+			"reason_hash": "eb9b245eb69d579d",
+			"reason": "No exact local command match for run step \"Materialize .env.development\"; normalized workflow command(s): [\"cp .env.example .env.development\",\"sed -i 's/^APP_ROLE=.*/APP_ROLE=\\\"api\\\"/' .env.development\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
 		"ci.yml::api::Regenerate TypeScript client": {
-			"reason_hash": "28dbc2b98e1d95ea",
-			"reason": "Local mirror just ci-spec-drift exercises the same repository command or lifecycle owned by api::Regenerate TypeScript client; the hosted step remains separately pinned for CI wiring."
+			"reason_hash": "cee415c16d092b43",
+			"reason": "Local mirror just ci-spec-drift is derived from exact normalized workflow command match(es): [\"just generate-client\"]."
 		},
 		"ci.yml::api::Restore .NET tools": {
-			"reason_hash": "b5f84b0247ae8c5b",
-			"reason": "Local mirror just ci-spec-drift exercises the same repository command or lifecycle owned by api::Restore .NET tools; the hosted step remains separately pinned for CI wiring."
+			"reason_hash": "5afc9234f360a4d7",
+			"reason": "Local mirror just ci-spec-drift is derived from exact normalized workflow command match(es): [\"dotnet tool restore\"]."
 		},
 		"ci.yml::api::Run full API test suite": {
-			"reason_hash": "48c7f80a06a92459",
-			"reason": "Local mirror just test-api exercises the same repository command or lifecycle owned by api::Run full API test suite; the hosted step remains separately pinned for CI wiring."
+			"reason_hash": "e9aadc0a1e92c050",
+			"reason": "No exact local command match for run step \"Run full API test suite\"; normalized workflow command(s): [\"just test-api\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
 		"ci.yml::api::Run OpenAPI contract spec": {
-			"reason_hash": "450dfbbf9940681b",
-			"reason": "Local mirror just ci-spec-drift exercises the same repository command or lifecycle owned by api::Run OpenAPI contract spec; the hosted step remains separately pinned for CI wiring."
+			"reason_hash": "3b119872fd7b11aa",
+			"reason": "No exact local command match for run step \"Run OpenAPI contract spec\"; normalized workflow command(s): [\"cd apps/api && dotnet test Tests/PublyApp.Api.Tests.csproj -c Test --filter \\\"FullyQualifiedName~OpenApiContractSpec\\\"\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
 		"ci.yml::api::Set up .NET": {
-			"reason_hash": "505aa4329a06f21e",
-			"reason": "GitHub-only setup for api::Set up .NET: the hosted runner provisions its checkout/toolchain or hook state before the lane command, while local setup is composed by the selected just recipe."
+			"reason_hash": "521d202fa69013d9",
+			"reason": "Hosted-only action step \"Set up .NET\" uses actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68; exact hosted fields: {\"if\":null,\"with\":{\"dotnet-version\":\"10.0.102\"},\"env\":null}."
 		},
 		"ci.yml::api::Set up pnpm": {
-			"reason_hash": "858fc9c6ccf77589",
-			"reason": "GitHub-only setup for api::Set up pnpm: the hosted runner provisions its checkout/toolchain or hook state before the lane command, while local setup is composed by the selected just recipe."
+			"reason_hash": "7700fa844b6ceec0",
+			"reason": "Hosted-only action step \"Set up pnpm\" uses pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86; exact hosted fields: {\"if\":null,\"with\":{\"version\":\"10.13.1\"},\"env\":null}."
 		},
 		"ci.yml::api::Setup just": {
-			"reason_hash": "9d34bf091dcef408",
-			"reason": "GitHub-only setup for api::Setup just: the hosted runner provisions its checkout/toolchain or hook state before the lane command, while local setup is composed by the selected just recipe."
+			"reason_hash": "b7ce43bd981167fc",
+			"reason": "Hosted-only action step \"Setup just\" uses extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3; exact hosted fields: {\"if\":null,\"with\":null,\"env\":null}."
 		},
 		"ci.yml::api::Setup Node": {
-			"reason_hash": "5d25de396ba2eb4e",
-			"reason": "GitHub-only setup for api::Setup Node: the hosted runner provisions its checkout/toolchain or hook state before the lane command, while local setup is composed by the selected just recipe."
+			"reason_hash": "88b5f2d85a00a158",
+			"reason": "Hosted-only action step \"Setup Node\" uses actions/setup-node@820762786026740c76f36085b0efc47a31fe5020; exact hosted fields: {\"if\":null,\"with\":{\"node-version\":24},\"env\":null}."
 		},
 		"ci.yml::api::Upload API test results": {
-			"reason_hash": "ec07195ad1888b12",
-			"reason": "GitHub-only evidence transport for api::Upload API test results: it preserves hosted artifacts, lane provenance, or classifier sentinel state consumed by the central reducer and has no local equivalent."
+			"reason_hash": "1392dba00a2ce55c",
+			"reason": "Hosted-only action step \"Upload API test results\" uses actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a; exact hosted fields: {\"if\":\"always() && (steps.suite.outcome == 'failure' || steps.suite.outcome == 'cancelled')\",\"with\":{\"name\":\"api-test-results-${{ github.run_id }}\",\"path\":\"apps/api/Tests/TestResults/\\napps/api/.artifacts/logs/\\n\",\"if-no-files-found\":\"ignore\",\"retention-days\":5},\"env\":null}."
 		},
 		"ci.yml::api::Upload ci-lane-result": {
-			"reason_hash": "75322a46627a3df2",
-			"reason": "GitHub-only evidence transport for api::Upload ci-lane-result: it preserves hosted artifacts, lane provenance, or classifier sentinel state consumed by the central reducer and has no local equivalent."
+			"reason_hash": "7b60a04790347b2a",
+			"reason": "Hosted-only action step \"Upload ci-lane-result\" uses actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a; exact hosted fields: {\"if\":\"always()\",\"with\":{\"name\":\"ci-lane-result-${{ github.run_id }}-${{ github.run_attempt }}-api\",\"path\":\"ci-results/api.json\",\"if-no-files-found\":\"error\"},\"env\":null}."
 		},
 		"ci.yml::audit-development::Audit development dependencies": {
-			"reason_hash": "4a9a4dce8cb1aa9f",
-			"reason": "Local mirror just ci-npm-audit-development exercises the same repository command or lifecycle owned by audit-development::Audit development dependencies; the hosted step remains separately pinned for CI wiring."
+			"reason_hash": "1077651c05a2fec7",
+			"reason": "Local mirror just ci-npm-audit-development is derived from exact normalized workflow command match(es): [\"node packages/scripts-ts/src/npm-audit-runner.ts dev moderate\"]."
 		},
 		"ci.yml::audit-development::Checkout": {
-			"reason_hash": "0acd4b929e09933d",
-			"reason": "GitHub-only setup for audit-development::Checkout: the hosted runner provisions its checkout/toolchain or hook state before the lane command, while local setup is composed by the selected just recipe."
+			"reason_hash": "78cf6713208e8581",
+			"reason": "Hosted-only action step \"Checkout\" uses actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1; exact hosted fields: {\"if\":null,\"with\":null,\"env\":null}."
 		},
 		"ci.yml::audit-development::CI lane not applicable": {
-			"reason_hash": "dd8cee356836200a",
-			"reason": "GitHub-only evidence transport for audit-development::CI lane not applicable: it preserves hosted artifacts, lane provenance, or classifier sentinel state consumed by the central reducer and has no local equivalent."
+			"reason_hash": "939a204f229d0c11",
+			"reason": "No exact local command match for run step \"CI lane not applicable\"; normalized workflow command(s): [\"echo 'development audit is not applicable'\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
 		"ci.yml::audit-development::Collect ci-lane-result": {
-			"reason_hash": "28ee13de211e875d",
-			"reason": "GitHub-only evidence transport for audit-development::Collect ci-lane-result: it preserves hosted artifacts, lane provenance, or classifier sentinel state consumed by the central reducer and has no local equivalent."
+			"reason_hash": "baa09120079054a3",
+			"reason": "No exact local command match for run step \"Collect ci-lane-result\"; normalized workflow command(s): [\"node packages/scripts-ts/src/ci-lane-result.ts\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
 		"ci.yml::audit-development::Install pnpm": {
-			"reason_hash": "7bcf1fc61af49e74",
-			"reason": "GitHub-only setup for audit-development::Install pnpm: the hosted runner provisions its checkout/toolchain or hook state before the lane command, while local setup is composed by the selected just recipe."
+			"reason_hash": "44db22d3703f8493",
+			"reason": "Hosted-only action step \"Install pnpm\" uses pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86; exact hosted fields: {\"if\":null,\"with\":{\"version\":\"10.13.1\"},\"env\":null}."
 		},
 		"ci.yml::audit-development::Run deterministic audit fixtures": {
-			"reason_hash": "3a37faf3881ea524",
-			"reason": "just ci-drift runs the identical npm-audit-runner fixture suite for the development audit step."
+			"reason_hash": "b2739ccd2a13c5a4",
+			"reason": "Local mirror just ci-drift is derived from exact normalized workflow command match(es): [\"pnpm --filter scripts-ts exec vitest run src/npm-audit-runner.test.ts\"]."
 		},
 		"ci.yml::audit-development::Setup Node": {
-			"reason_hash": "5b40661a1e90a379",
-			"reason": "GitHub-only setup for audit-development::Setup Node: the hosted runner provisions its checkout/toolchain or hook state before the lane command, while local setup is composed by the selected just recipe."
+			"reason_hash": "88b5f2d85a00a158",
+			"reason": "Hosted-only action step \"Setup Node\" uses actions/setup-node@820762786026740c76f36085b0efc47a31fe5020; exact hosted fields: {\"if\":null,\"with\":{\"node-version\":24},\"env\":null}."
 		},
 		"ci.yml::audit-development::Upload ci-lane-result": {
-			"reason_hash": "697af89194f1fb81",
-			"reason": "GitHub-only evidence transport for audit-development::Upload ci-lane-result: it preserves hosted artifacts, lane provenance, or classifier sentinel state consumed by the central reducer and has no local equivalent."
+			"reason_hash": "d8419cf25e99557e",
+			"reason": "Hosted-only action step \"Upload ci-lane-result\" uses actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a; exact hosted fields: {\"if\":\"always()\",\"with\":{\"name\":\"ci-lane-result-${{ github.run_id }}-${{ github.run_attempt }}-audit-development\",\"path\":\"ci-results/audit-development.json\",\"if-no-files-found\":\"error\"},\"env\":null}."
 		},
 		"ci.yml::audit-production::Audit production dependencies": {
-			"reason_hash": "00f24086b2f8f92d",
-			"reason": "Local mirror just ci-npm-audit-production exercises the same repository command or lifecycle owned by audit-production::Audit production dependencies; the hosted step remains separately pinned for CI wiring."
+			"reason_hash": "0695b795af21c671",
+			"reason": "Local mirror just ci-npm-audit-production is derived from exact normalized workflow command match(es): [\"node packages/scripts-ts/src/npm-audit-runner.ts prod moderate\"]."
 		},
 		"ci.yml::audit-production::Checkout": {
-			"reason_hash": "a800a73b6c1ee5ef",
-			"reason": "GitHub-only setup for audit-production::Checkout: the hosted runner provisions its checkout/toolchain or hook state before the lane command, while local setup is composed by the selected just recipe."
+			"reason_hash": "78cf6713208e8581",
+			"reason": "Hosted-only action step \"Checkout\" uses actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1; exact hosted fields: {\"if\":null,\"with\":null,\"env\":null}."
 		},
 		"ci.yml::audit-production::CI lane not applicable": {
-			"reason_hash": "917314695fb85c58",
-			"reason": "GitHub-only evidence transport for audit-production::CI lane not applicable: it preserves hosted artifacts, lane provenance, or classifier sentinel state consumed by the central reducer and has no local equivalent."
+			"reason_hash": "87d338e3c9d5a135",
+			"reason": "No exact local command match for run step \"CI lane not applicable\"; normalized workflow command(s): [\"echo 'production audit is not applicable'\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
 		"ci.yml::audit-production::Collect ci-lane-result": {
-			"reason_hash": "d297ff077bce6523",
-			"reason": "GitHub-only evidence transport for audit-production::Collect ci-lane-result: it preserves hosted artifacts, lane provenance, or classifier sentinel state consumed by the central reducer and has no local equivalent."
+			"reason_hash": "baa09120079054a3",
+			"reason": "No exact local command match for run step \"Collect ci-lane-result\"; normalized workflow command(s): [\"node packages/scripts-ts/src/ci-lane-result.ts\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
 		"ci.yml::audit-production::Install pnpm": {
-			"reason_hash": "a3b97d079bd2f781",
-			"reason": "GitHub-only setup for audit-production::Install pnpm: the hosted runner provisions its checkout/toolchain or hook state before the lane command, while local setup is composed by the selected just recipe."
+			"reason_hash": "44db22d3703f8493",
+			"reason": "Hosted-only action step \"Install pnpm\" uses pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86; exact hosted fields: {\"if\":null,\"with\":{\"version\":\"10.13.1\"},\"env\":null}."
 		},
 		"ci.yml::audit-production::Run deterministic audit fixtures": {
-			"reason_hash": "e76be0d332597cd6",
-			"reason": "just ci-drift runs the identical npm-audit-runner fixture suite for the production audit step."
+			"reason_hash": "b2739ccd2a13c5a4",
+			"reason": "Local mirror just ci-drift is derived from exact normalized workflow command match(es): [\"pnpm --filter scripts-ts exec vitest run src/npm-audit-runner.test.ts\"]."
 		},
 		"ci.yml::audit-production::Setup Node": {
-			"reason_hash": "8df107fa132b4827",
-			"reason": "GitHub-only setup for audit-production::Setup Node: the hosted runner provisions its checkout/toolchain or hook state before the lane command, while local setup is composed by the selected just recipe."
+			"reason_hash": "88b5f2d85a00a158",
+			"reason": "Hosted-only action step \"Setup Node\" uses actions/setup-node@820762786026740c76f36085b0efc47a31fe5020; exact hosted fields: {\"if\":null,\"with\":{\"node-version\":24},\"env\":null}."
 		},
 		"ci.yml::audit-production::Upload ci-lane-result": {
-			"reason_hash": "fffb514672546728",
-			"reason": "GitHub-only evidence transport for audit-production::Upload ci-lane-result: it preserves hosted artifacts, lane provenance, or classifier sentinel state consumed by the central reducer and has no local equivalent."
+			"reason_hash": "bc3beb4296e82ce0",
+			"reason": "Hosted-only action step \"Upload ci-lane-result\" uses actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a; exact hosted fields: {\"if\":\"always()\",\"with\":{\"name\":\"ci-lane-result-${{ github.run_id }}-${{ github.run_attempt }}-audit-production\",\"path\":\"ci-results/audit-production.json\",\"if-no-files-found\":\"error\"},\"env\":null}."
 		},
 		"ci.yml::classify::Checkout": {
-			"reason_hash": "9507d4c3a8a3de9d",
-			"reason": "GitHub-only setup for classify::Checkout: the hosted runner provisions its checkout/toolchain or hook state before the lane command, while local setup is composed by the selected just recipe."
+			"reason_hash": "51be5bfa577c7732",
+			"reason": "Hosted-only action step \"Checkout\" uses actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1; exact hosted fields: {\"if\":null,\"with\":{\"fetch-depth\":0},\"env\":null}."
 		},
 		"ci.yml::classify::Checkout classifier from the base commit": {
-			"reason_hash": "dd7a3ea96da6dc71",
-			"reason": "GitHub-only setup for classify::Checkout classifier from the base commit: the hosted runner provisions its checkout/toolchain or hook state before the lane command, while local setup is composed by the selected just recipe."
+			"reason_hash": "a7dbfdccd4582490",
+			"reason": "Hosted-only action step \"Checkout classifier from the base commit\" uses actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1; exact hosted fields: {\"if\":null,\"with\":{\"ref\":\"${{ github.event.pull_request.base.sha || github.sha }}\",\"path\":\"base-ref\",\"sparse-checkout\":\"packages/scripts-ts/src/ci-changed-paths.ts\",\"sparse-checkout-cone-mode\":false},\"env\":null}."
 		},
 		"ci.yml::classify::Classify changed paths once": {
-			"reason_hash": "bbdcb86eff47cb1e",
-			"reason": "Central-workflow-only control for classify::Classify changed paths once: its value is the hosted dependency, permission, provenance, or required-check wiring around the lane rather than an independently runnable repository command."
+			"reason_hash": "d2c0ca5a4d1d2fec",
+			"reason": "No exact local command match for run step \"Classify changed paths once\"; normalized workflow command(s): [\"classifier='base-ref/packages/scripts-ts/src/ci-changed-paths.ts'\",\"if [ -f \\\"$classifier\\\" ] && grep -Fq 'CI_CLASSIFIER_ABI_VERSION = 2' \\\"$classifier\\\"; then\",\"node \\\"$classifier\\\" --lanes\",\"echo '::warning::base classifier ABI is unavailable; failing closed to every lane'\",\"for lane in quality front api e2e docs react; do\",\"echo \\\"${lane}=true\\\" >> \\\"$GITHUB_OUTPUT\\\"\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
 		"ci.yml::classify::Collect ci-lane-result": {
-			"reason_hash": "a4cdd9b86f696c81",
-			"reason": "GitHub-only evidence transport for classify::Collect ci-lane-result: it preserves hosted artifacts, lane provenance, or classifier sentinel state consumed by the central reducer and has no local equivalent."
+			"reason_hash": "baa09120079054a3",
+			"reason": "No exact local command match for run step \"Collect ci-lane-result\"; normalized workflow command(s): [\"node packages/scripts-ts/src/ci-lane-result.ts\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
 		"ci.yml::classify::Setup Node": {
-			"reason_hash": "777303574483f1f9",
-			"reason": "GitHub-only setup for classify::Setup Node: the hosted runner provisions its checkout/toolchain or hook state before the lane command, while local setup is composed by the selected just recipe."
+			"reason_hash": "88b5f2d85a00a158",
+			"reason": "Hosted-only action step \"Setup Node\" uses actions/setup-node@820762786026740c76f36085b0efc47a31fe5020; exact hosted fields: {\"if\":null,\"with\":{\"node-version\":24},\"env\":null}."
 		},
 		"ci.yml::classify::Upload ci-lane-result": {
-			"reason_hash": "3bba2bcde06189cc",
-			"reason": "GitHub-only evidence transport for classify::Upload ci-lane-result: it preserves hosted artifacts, lane provenance, or classifier sentinel state consumed by the central reducer and has no local equivalent."
+			"reason_hash": "628f1e4ebea25243",
+			"reason": "Hosted-only action step \"Upload ci-lane-result\" uses actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a; exact hosted fields: {\"if\":\"always()\",\"with\":{\"name\":\"ci-lane-result-${{ github.run_id }}-${{ github.run_attempt }}-classify\",\"path\":\"ci-results/classify.json\",\"if-no-files-found\":\"error\"},\"env\":null}."
 		},
 		"ci.yml::e2e-build::Build and push e2e images": {
-			"reason_hash": "42175d407f151d6f",
-			"reason": "GitHub-only orchestration for e2e-build::Build and push e2e images: it uses hosted credentials, fork/image metadata, live pull-request state, or artifact-backed gate context unavailable to the local command surface."
+			"reason_hash": "3a1c021b35a23a23",
+			"reason": "No exact local command match for run step \"Build and push e2e images\"; normalized workflow command(s): [\"compose_files=(-f apps/front/docker-compose.test.yml)\",\"if [ \\\"${{ steps.image-fork.outputs.fork }}\\\" = \\\"true\\\" ]; then\",\"compose_files+=(-f apps/front/docker-compose.fork-overlay.yml)\",\"docker compose \\\"${compose_files[@]}\\\" build\",\"if [ \\\"${{ steps.image-fork.outputs.fork }}\\\" != \\\"true\\\" ]; then\",\"docker compose -f apps/front/docker-compose.test.yml push migrate api request-counter front\",\"mkdir -p /tmp/e2e-images\",\"for service in migrate api request-counter front; do\",\"docker save \\\"${E2E_IMAGE_NS}-${service}:${E2E_IMAGE_TAG}\\\" | gzip > \\\"/tmp/e2e-images/${service}.tar.gz\\\"\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
 		"ci.yml::e2e-build::Checkout": {
-			"reason_hash": "4448a739babd81cd",
-			"reason": "GitHub-only setup for e2e-build::Checkout: the hosted runner provisions its checkout/toolchain or hook state before the lane command, while local setup is composed by the selected just recipe."
+			"reason_hash": "78cf6713208e8581",
+			"reason": "Hosted-only action step \"Checkout\" uses actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1; exact hosted fields: {\"if\":null,\"with\":null,\"env\":null}."
 		},
 		"ci.yml::e2e-build::CI lane not applicable": {
-			"reason_hash": "6fbe5531ba554d72",
-			"reason": "GitHub-only evidence transport for e2e-build::CI lane not applicable: it preserves hosted artifacts, lane provenance, or classifier sentinel state consumed by the central reducer and has no local equivalent."
+			"reason_hash": "2fd504ec08a5189a",
+			"reason": "No exact local command match for run step \"CI lane not applicable\"; normalized workflow command(s): [\"echo 'E2E image build is not applicable'\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
 		"ci.yml::e2e-build::Collect ci-lane-result": {
-			"reason_hash": "6aef6bdf273fd6c7",
-			"reason": "GitHub-only evidence transport for e2e-build::Collect ci-lane-result: it preserves hosted artifacts, lane provenance, or classifier sentinel state consumed by the central reducer and has no local equivalent."
+			"reason_hash": "baa09120079054a3",
+			"reason": "No exact local command match for run step \"Collect ci-lane-result\"; normalized workflow command(s): [\"node packages/scripts-ts/src/ci-lane-result.ts\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
 		"ci.yml::e2e-build::Login to GHCR": {
-			"reason_hash": "1a37bead9e1d1392",
-			"reason": "GitHub-only orchestration for e2e-build::Login to GHCR: it uses hosted credentials, fork/image metadata, live pull-request state, or artifact-backed gate context unavailable to the local command surface."
+			"reason_hash": "6bb273c2677d38db",
+			"reason": "Hosted-only action step \"Login to GHCR\" uses docker/login-action@dbcb813823bdd20940b903addbd779551569679f; exact hosted fields: {\"if\":\"always() && needs.classify.result == 'success' && needs.classify.outputs.e2e == 'true' && steps.image-fork.outputs.fork != 'true'\",\"with\":{\"registry\":\"ghcr.io\",\"username\":\"${{ github.actor }}\",\"password\":\"${{ github.token }}\"},\"env\":null}."
 		},
 		"ci.yml::e2e-build::Resolve fork state": {
-			"reason_hash": "c936e174c80959f0",
-			"reason": "GitHub-only orchestration for e2e-build::Resolve fork state: it uses hosted credentials, fork/image metadata, live pull-request state, or artifact-backed gate context unavailable to the local command surface."
+			"reason_hash": "5857a97733549f3d",
+			"reason": "No exact local command match for run step \"Resolve fork state\"; normalized workflow command(s): [\"echo \\\"fork=${{ github.event.pull_request.head.repo.fork || 'false' }}\\\" >> \\\"$GITHUB_OUTPUT\\\"\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
 		"ci.yml::e2e-build::Resolve image root": {
-			"reason_hash": "8d2501cb4bf740bb",
-			"reason": "GitHub-only orchestration for e2e-build::Resolve image root: it uses hosted credentials, fork/image metadata, live pull-request state, or artifact-backed gate context unavailable to the local command surface."
+			"reason_hash": "a10b66988b1cce89",
+			"reason": "No exact local command match for run step \"Resolve image root\"; normalized workflow command(s): [\"echo \\\"root=ghcr.io/$(printf '%s' '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')/publyapp-e2e\\\" >> \\\"$GITHUB_OUTPUT\\\"\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
 		"ci.yml::e2e-build::Resolve image tag": {
-			"reason_hash": "0ca1999633b4a596",
-			"reason": "GitHub-only orchestration for e2e-build::Resolve image tag: it uses hosted credentials, fork/image metadata, live pull-request state, or artifact-backed gate context unavailable to the local command surface."
+			"reason_hash": "2ed385f0b463161c",
+			"reason": "No exact local command match for run step \"Resolve image tag\"; normalized workflow command(s): [\"echo \\\"tag=${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}\\\" >> \\\"$GITHUB_OUTPUT\\\"\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
 		"ci.yml::e2e-build::Setup Docker Buildx": {
-			"reason_hash": "a47e6df9645395c4",
-			"reason": "GitHub-only setup for e2e-build::Setup Docker Buildx: the hosted runner provisions its checkout/toolchain or hook state before the lane command, while local setup is composed by the selected just recipe."
+			"reason_hash": "9130a417f9944609",
+			"reason": "Hosted-only action step \"Setup Docker Buildx\" uses docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e; exact hosted fields: {\"if\":\"always() && needs.classify.result == 'success' && needs.classify.outputs.e2e == 'true'\",\"with\":null,\"env\":null}."
 		},
 		"ci.yml::e2e-build::Setup GitHub Actions runtime": {
-			"reason_hash": "283c6cb2f11640a3",
-			"reason": "GitHub-only setup for e2e-build::Setup GitHub Actions runtime: the hosted runner provisions its checkout/toolchain or hook state before the lane command, while local setup is composed by the selected just recipe."
+			"reason_hash": "3cf8750581433e35",
+			"reason": "Hosted-only action step \"Setup GitHub Actions runtime\" uses crazy-max/ghaction-github-runtime@04d248b84655b509d8c44dc1d6f990c879747487; exact hosted fields: {\"if\":\"always() && needs.classify.result == 'success' && needs.classify.outputs.e2e == 'true'\",\"with\":null,\"env\":null}."
 		},
 		"ci.yml::e2e-build::Upload ci-lane-result": {
-			"reason_hash": "dd1c3570c35674b3",
-			"reason": "GitHub-only evidence transport for e2e-build::Upload ci-lane-result: it preserves hosted artifacts, lane provenance, or classifier sentinel state consumed by the central reducer and has no local equivalent."
+			"reason_hash": "521c9ae826a76546",
+			"reason": "Hosted-only action step \"Upload ci-lane-result\" uses actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a; exact hosted fields: {\"if\":\"always()\",\"with\":{\"name\":\"ci-lane-result-${{ github.run_id }}-${{ github.run_attempt }}-e2e-build\",\"path\":\"ci-results/e2e-build.json\",\"if-no-files-found\":\"error\"},\"env\":null}."
 		},
 		"ci.yml::e2e-build::Upload fork e2e images": {
-			"reason_hash": "97d2f3cf54c0bdb5",
-			"reason": "GitHub-only evidence transport for e2e-build::Upload fork e2e images: it preserves hosted artifacts, lane provenance, or classifier sentinel state consumed by the central reducer and has no local equivalent."
+			"reason_hash": "44a62f6cf6d077b2",
+			"reason": "Hosted-only action step \"Upload fork e2e images\" uses actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a; exact hosted fields: {\"if\":\"always() && needs.classify.result == 'success' && needs.classify.outputs.e2e == 'true' && steps.image-fork.outputs.fork == 'true' && steps.images.outcome == 'success'\",\"with\":{\"name\":\"e2e-stack-images-${{ steps.image-tag.outputs.tag }}\",\"path\":\"/tmp/e2e-images/*.tar.gz\",\"retention-days\":1,\"compression-level\":0,\"if-no-files-found\":\"error\"},\"env\":null}."
 		},
 		"ci.yml::e2e-build::Verify built front image": {
-			"reason_hash": "141f3815576d4f8a",
-			"reason": "GitHub-only orchestration for e2e-build::Verify built front image: it uses hosted credentials, fork/image metadata, live pull-request state, or artifact-backed gate context unavailable to the local command surface."
+			"reason_hash": "f01939beaed8688b",
+			"reason": "No exact local command match for run step \"Verify built front image\"; normalized workflow command(s): [\"node apps/front/scripts/run-guarded.mts apps/front/scripts/ci/check-front-runtime-image.mts --image \\\"${E2E_IMAGE_NS}-front:${E2E_IMAGE_TAG}\\\"\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
 		"ci.yml::e2e-cleanup::Checkout": {
-			"reason_hash": "f4303bbeda1fcdcb",
-			"reason": "GitHub-only setup for e2e-cleanup::Checkout: the hosted runner provisions its checkout/toolchain or hook state before the lane command, while local setup is composed by the selected just recipe."
+			"reason_hash": "78cf6713208e8581",
+			"reason": "Hosted-only action step \"Checkout\" uses actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1; exact hosted fields: {\"if\":null,\"with\":null,\"env\":null}."
 		},
 		"ci.yml::e2e-cleanup::CI lane not applicable": {
-			"reason_hash": "12732565d71a9e6c",
-			"reason": "GitHub-only evidence transport for e2e-cleanup::CI lane not applicable: it preserves hosted artifacts, lane provenance, or classifier sentinel state consumed by the central reducer and has no local equivalent."
+			"reason_hash": "e26f93c7068b870b",
+			"reason": "No exact local command match for run step \"CI lane not applicable\"; normalized workflow command(s): [\"echo 'E2E cleanup is not applicable'\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
 		"ci.yml::e2e-cleanup::Cleanup e2e images": {
-			"reason_hash": "822ca979612048c6",
-			"reason": "Local mirror pnpm --filter scripts-ts exec vitest run src/ci-e2e-cleanup.test.ts exercises the same repository command or lifecycle owned by e2e-cleanup::Cleanup e2e images; the hosted step remains separately pinned for CI wiring."
+			"reason_hash": "0a3ad87a548de7b7",
+			"reason": "No exact local command match for run step \"Cleanup e2e images\"; normalized workflow command(s): [\"node packages/scripts-ts/src/ci-e2e-cleanup.ts\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
 		"ci.yml::e2e-cleanup::Collect ci-lane-result": {
-			"reason_hash": "fae2c913c8af679a",
-			"reason": "GitHub-only evidence transport for e2e-cleanup::Collect ci-lane-result: it preserves hosted artifacts, lane provenance, or classifier sentinel state consumed by the central reducer and has no local equivalent."
+			"reason_hash": "baa09120079054a3",
+			"reason": "No exact local command match for run step \"Collect ci-lane-result\"; normalized workflow command(s): [\"node packages/scripts-ts/src/ci-lane-result.ts\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
 		"ci.yml::e2e-cleanup::Upload ci-lane-result": {
-			"reason_hash": "3357c473db16a7c8",
-			"reason": "GitHub-only evidence transport for e2e-cleanup::Upload ci-lane-result: it preserves hosted artifacts, lane provenance, or classifier sentinel state consumed by the central reducer and has no local equivalent."
+			"reason_hash": "3c97e25404ec3c1d",
+			"reason": "Hosted-only action step \"Upload ci-lane-result\" uses actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a; exact hosted fields: {\"if\":\"always()\",\"with\":{\"name\":\"ci-lane-result-${{ github.run_id }}-${{ github.run_attempt }}-e2e-cleanup\",\"path\":\"ci-results/e2e-cleanup.json\",\"if-no-files-found\":\"error\"},\"env\":null}."
 		},
 		"ci.yml::e2e-test::Assert exact pins": {
-			"reason_hash": "3ef6842cd83f34a0",
-			"reason": "just ci-install runs the identical repository pin assertion before installing dependencies."
+			"reason_hash": "712ef234877f676b",
+			"reason": "Local mirror just ci-install is derived from exact normalized workflow command match(es): [\"node apps/front/scripts/run-guarded.mts apps/front/scripts/guards/assert-pinned.mts\"]."
 		},
 		"ci.yml::e2e-test::Cache Playwright browsers": {
-			"reason_hash": "66618c00c3fd104d",
-			"reason": "GitHub-only orchestration for e2e-test::Cache Playwright browsers: it uses hosted credentials, fork/image metadata, live pull-request state, or artifact-backed gate context unavailable to the local command surface."
+			"reason_hash": "c468ea4d00b233b4",
+			"reason": "Hosted-only action step \"Cache Playwright browsers\" uses actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9; exact hosted fields: {\"if\":\"always() && needs.classify.result == 'success' && needs.classify.outputs.e2e == 'true' && needs.e2e-build.result == 'success'\",\"with\":{\"path\":\"~/.cache/ms-playwright\",\"key\":\"${{ runner.os }}-playwright-${{ hashFiles('pnpm-lock.yaml') }}\"},\"env\":null}."
 		},
 		"ci.yml::e2e-test::Checkout": {
-			"reason_hash": "701885f853307ce0",
-			"reason": "GitHub-only setup for e2e-test::Checkout: the hosted runner provisions its checkout/toolchain or hook state before the lane command, while local setup is composed by the selected just recipe."
+			"reason_hash": "78cf6713208e8581",
+			"reason": "Hosted-only action step \"Checkout\" uses actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1; exact hosted fields: {\"if\":null,\"with\":null,\"env\":null}."
 		},
 		"ci.yml::e2e-test::CI lane not applicable": {
-			"reason_hash": "746294d1796b6881",
-			"reason": "GitHub-only evidence transport for e2e-test::CI lane not applicable: it preserves hosted artifacts, lane provenance, or classifier sentinel state consumed by the central reducer and has no local equivalent."
+			"reason_hash": "a2c89fbe8e8f0f3d",
+			"reason": "No exact local command match for run step \"CI lane not applicable\"; normalized workflow command(s): [\"echo 'E2E shard is not applicable'\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
 		"ci.yml::e2e-test::Collect ci-lane-result": {
-			"reason_hash": "81d91fe91db9c22e",
-			"reason": "GitHub-only evidence transport for e2e-test::Collect ci-lane-result: it preserves hosted artifacts, lane provenance, or classifier sentinel state consumed by the central reducer and has no local equivalent."
+			"reason_hash": "baa09120079054a3",
+			"reason": "No exact local command match for run step \"Collect ci-lane-result\"; normalized workflow command(s): [\"node packages/scripts-ts/src/ci-lane-result.ts\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
 		"ci.yml::e2e-test::Detect partial rerun": {
-			"reason_hash": "875715a248950da8",
-			"reason": "Local mirror just ci-drift exercises the same repository command or lifecycle owned by e2e-test::Detect partial rerun; the hosted step remains separately pinned for CI wiring."
+			"reason_hash": "db08bf716cc1e69a",
+			"reason": "No exact local command match for run step \"Detect partial rerun\"; normalized workflow command(s): [\"expected_tag=\\\"${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}\\\"\",\"[ \\\"$E2E_IMAGE_TAG\\\" = \\\"$expected_tag\\\" ] || {\",\"echo \\\"::error::e2e build tag $E2E_IMAGE_TAG does not match this attempt $expected_tag; rerun all jobs\\\"\",\"exit 1\",\"}\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
 		"ci.yml::e2e-test::Download fork e2e images": {
-			"reason_hash": "86469e3787a6cb06",
-			"reason": "GitHub-only evidence transport for e2e-test::Download fork e2e images: it preserves hosted artifacts, lane provenance, or classifier sentinel state consumed by the central reducer and has no local equivalent."
+			"reason_hash": "6c741816b0336e87",
+			"reason": "Hosted-only action step \"Download fork e2e images\" uses actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c; exact hosted fields: {\"if\":\"always() && needs.classify.result == 'success' && needs.classify.outputs.e2e == 'true' && needs.e2e-build.result == 'success' && needs.e2e-build.outputs.fork == 'true' && steps.rerun-guard.outcome == 'success'\",\"with\":{\"name\":\"e2e-stack-images-${{ needs.e2e-build.outputs.tag }}\",\"path\":\"/tmp/e2e-images\"},\"env\":null}."
 		},
 		"ci.yml::e2e-test::Install dependencies": {
-			"reason_hash": "f09dd9d4ce57819a",
-			"reason": "just ci-install runs the identical frozen dependency installation without lifecycle scripts."
+			"reason_hash": "e1ece79f66c50373",
+			"reason": "Local mirror just ci-install is derived from exact normalized workflow command match(es): [\"pnpm install --frozen-lockfile --ignore-scripts\"]."
 		},
 		"ci.yml::e2e-test::Install pnpm": {
-			"reason_hash": "df92304ec2b27adb",
-			"reason": "GitHub-only setup for e2e-test::Install pnpm: the hosted runner provisions its checkout/toolchain or hook state before the lane command, while local setup is composed by the selected just recipe."
+			"reason_hash": "2336f7122f965dca",
+			"reason": "Hosted-only action step \"Install pnpm\" uses pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86; exact hosted fields: {\"if\":\"always() && needs.classify.result == 'success' && needs.classify.outputs.e2e == 'true' && needs.e2e-build.result == 'success'\",\"with\":{\"version\":\"10.13.1\"},\"env\":null}."
 		},
 		"ci.yml::e2e-test::Load fork e2e images": {
-			"reason_hash": "4b4d2b218897cec1",
-			"reason": "GitHub-only orchestration for e2e-test::Load fork e2e images: it uses hosted credentials, fork/image metadata, live pull-request state, or artifact-backed gate context unavailable to the local command surface."
+			"reason_hash": "add76ae6875ee451",
+			"reason": "No exact local command match for run step \"Load fork e2e images\"; normalized workflow command(s): [\"for tarball in /tmp/e2e-images/*.tar.gz; do gunzip -c \\\"$tarball\\\" | docker load; done\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
 		"ci.yml::e2e-test::Login to GHCR": {
-			"reason_hash": "8563fe13c37d3620",
-			"reason": "GitHub-only orchestration for e2e-test::Login to GHCR: it uses hosted credentials, fork/image metadata, live pull-request state, or artifact-backed gate context unavailable to the local command surface."
+			"reason_hash": "a7e93c1ccc00c244",
+			"reason": "Hosted-only action step \"Login to GHCR\" uses docker/login-action@dbcb813823bdd20940b903addbd779551569679f; exact hosted fields: {\"if\":\"always() && needs.classify.result == 'success' && needs.classify.outputs.e2e == 'true' && needs.e2e-build.result == 'success' && needs.e2e-build.outputs.fork != 'true'\",\"with\":{\"registry\":\"ghcr.io\",\"username\":\"${{ github.actor }}\",\"password\":\"${{ github.token }}\"},\"env\":null}."
 		},
 		"ci.yml::e2e-test::Pull stack images": {
-			"reason_hash": "762fcf67d769a3f5",
-			"reason": "Local mirror just ci-e2e-front exercises the same repository command or lifecycle owned by e2e-test::Pull stack images; the hosted step remains separately pinned for CI wiring."
+			"reason_hash": "7eaebe4c5505c219",
+			"reason": "No exact local command match for run step \"Pull stack images\"; normalized workflow command(s): [\"docker compose -f apps/front/docker-compose.test.yml pull\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
 		"ci.yml::e2e-test::Run Playwright shard": {
-			"reason_hash": "dbafff94c44f5144",
-			"reason": "Local mirror just ci-e2e-front exercises the same repository command or lifecycle owned by e2e-test::Run Playwright shard; the hosted step remains separately pinned for CI wiring."
+			"reason_hash": "405a8e94b2f3e27c",
+			"reason": "No exact local command match for run step \"Run Playwright shard\"; normalized workflow command(s): [\"pnpm --filter front exec playwright install chromium --with-deps\",\"pnpm --filter front exec playwright test --project=chromium --project=chromium-faults --shard=${{ matrix.shard }}/4\",\"if [ \\\"${{ matrix.shard }}\\\" = \\\"4\\\" ]; then\",\"pnpm --filter front exec playwright test --project=setup --no-deps\",\"pnpm --filter front exec playwright test --project=chromium-hermetic-counter --no-deps\",\"pnpm --filter front exec playwright test --project=chromium-hermetic-source --no-deps\",\"pnpm --filter front test:drawer-contrast\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
 		"ci.yml::e2e-test::Setup Node": {
-			"reason_hash": "d00c435e55e7704e",
-			"reason": "GitHub-only setup for e2e-test::Setup Node: the hosted runner provisions its checkout/toolchain or hook state before the lane command, while local setup is composed by the selected just recipe."
+			"reason_hash": "5edbebba64a6b821",
+			"reason": "Hosted-only action step \"Setup Node\" uses actions/setup-node@820762786026740c76f36085b0efc47a31fe5020; exact hosted fields: {\"if\":\"always() && needs.classify.result == 'success' && needs.classify.outputs.e2e == 'true' && needs.e2e-build.result == 'success'\",\"with\":{\"node-version\":24},\"env\":null}."
 		},
 		"ci.yml::e2e-test::Start e2e stack": {
-			"reason_hash": "a1a9ae00fa4d090a",
-			"reason": "Local mirror just ci-e2e-front exercises the same repository command or lifecycle owned by e2e-test::Start e2e stack; the hosted step remains separately pinned for CI wiring."
+			"reason_hash": "8288a3b7530fa095",
+			"reason": "No exact local command match for run step \"Start e2e stack\"; normalized workflow command(s): [\"docker compose -f apps/front/docker-compose.test.yml up -d --no-build\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
 		"ci.yml::e2e-test::Tear down e2e stack": {
-			"reason_hash": "687ea2617485e529",
-			"reason": "Local mirror just ci-e2e-front exercises the same repository command or lifecycle owned by e2e-test::Tear down e2e stack; the hosted step remains separately pinned for CI wiring."
+			"reason_hash": "9a559788d5758045",
+			"reason": "No exact local command match for run step \"Tear down e2e stack\"; normalized workflow command(s): [\"docker compose -f apps/front/docker-compose.test.yml down -v\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
 		"ci.yml::e2e-test::Upload ci-lane-result": {
-			"reason_hash": "6f130b9d70b065c6",
-			"reason": "GitHub-only evidence transport for e2e-test::Upload ci-lane-result: it preserves hosted artifacts, lane provenance, or classifier sentinel state consumed by the central reducer and has no local equivalent."
+			"reason_hash": "7c142500b257131a",
+			"reason": "Hosted-only action step \"Upload ci-lane-result\" uses actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a; exact hosted fields: {\"if\":\"always()\",\"with\":{\"name\":\"ci-lane-result-${{ github.run_id }}-${{ github.run_attempt }}-e2e-test-${{ matrix.shard }}\",\"path\":\"ci-results/e2e-test-${{ matrix.shard }}.json\",\"if-no-files-found\":\"error\"},\"env\":null}."
 		},
 		"ci.yml::e2e-test::Upload Playwright report": {
-			"reason_hash": "8fb8e2ecda4be7f5",
-			"reason": "GitHub-only evidence transport for e2e-test::Upload Playwright report: it preserves hosted artifacts, lane provenance, or classifier sentinel state consumed by the central reducer and has no local equivalent."
+			"reason_hash": "a7cc672ccec1ea1e",
+			"reason": "Hosted-only action step \"Upload Playwright report\" uses actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a; exact hosted fields: {\"if\":\"always() && (steps.playwright.outcome == 'failure' || steps.playwright.outcome == 'cancelled')\",\"with\":{\"name\":\"front-e2e-playwright-report-${{ matrix.shard }}-of-4\",\"path\":\"apps/front/playwright-report\\napps/front/test-results\\n\",\"if-no-files-found\":\"ignore\"},\"env\":null}."
 		},
 		"ci.yml::e2e-test::Wait for e2e stack health": {
-			"reason_hash": "2e60fee270faa01f",
-			"reason": "Local mirror just ci-e2e-front exercises the same repository command or lifecycle owned by e2e-test::Wait for e2e stack health; the hosted step remains separately pinned for CI wiring."
+			"reason_hash": "2fc1467a75d26a69",
+			"reason": "No exact local command match for run step \"Wait for e2e stack health\"; normalized workflow command(s): [\"timeout 180 bash -lc '\",\"services=\\\"front api request-counter traefik toxiproxy postgres\\\"\",\"for attempt in $(seq 1 90); do\",\"all_running=true\",\"for service in $services; do\",\"container_id=\\\"$(docker compose -f apps/front/docker-compose.test.yml ps -q \\\"$service\\\")\\\"\",\"[ -n \\\"$container_id\\\" ] || { all_running=false; break; }\",\"state=\\\"$(docker inspect --format \\\"{{.State.Status}}\\\" \\\"$container_id\\\")\\\"\",\"health=\\\"$(docker inspect --format \\\"{{if .State.Health}}{{.State.Health.Status}}{{else}}no-healthcheck{{end}}\\\" \\\"$container_id\\\")\\\"\",\"[ \\\"$state\\\" = running ] || { all_running=false; break; }\",\"[ \\\"$health\\\" = healthy ] || [ \\\"$health\\\" = no-healthcheck ] || { all_running=false; break; }\",\"[ \\\"$all_running\\\" = true ] && exit 0\",\"sleep 2\",\"exit 1\",\"'\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
 		"ci.yml::front-vitest::Checkout": {
-			"reason_hash": "1161f235420a6b1b",
-			"reason": "GitHub-only setup for front-vitest::Checkout: the hosted runner provisions its checkout/toolchain or hook state before the lane command, while local setup is composed by the selected just recipe."
+			"reason_hash": "78cf6713208e8581",
+			"reason": "Hosted-only action step \"Checkout\" uses actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1; exact hosted fields: {\"if\":null,\"with\":null,\"env\":null}."
 		},
 		"ci.yml::front-vitest::CI lane not applicable": {
-			"reason_hash": "ece7e7ae2ab8cdc9",
-			"reason": "GitHub-only evidence transport for front-vitest::CI lane not applicable: it preserves hosted artifacts, lane provenance, or classifier sentinel state consumed by the central reducer and has no local equivalent."
+			"reason_hash": "3cf703c3be85f601",
+			"reason": "No exact local command match for run step \"CI lane not applicable\"; normalized workflow command(s): [\"echo 'front Vitest shard is not applicable'\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
 		"ci.yml::front-vitest::Collect ci-lane-result": {
-			"reason_hash": "d5de0be0325c4f9a",
-			"reason": "GitHub-only evidence transport for front-vitest::Collect ci-lane-result: it preserves hosted artifacts, lane provenance, or classifier sentinel state consumed by the central reducer and has no local equivalent."
+			"reason_hash": "baa09120079054a3",
+			"reason": "No exact local command match for run step \"Collect ci-lane-result\"; normalized workflow command(s): [\"node packages/scripts-ts/src/ci-lane-result.ts\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
 		"ci.yml::front-vitest::Install dependencies": {
-			"reason_hash": "91ec0481dd6a3976",
-			"reason": "just ci-install runs the identical frozen workspace installation without lifecycle scripts."
+			"reason_hash": "e1ece79f66c50373",
+			"reason": "Local mirror just ci-install is derived from exact normalized workflow command match(es): [\"pnpm install --frozen-lockfile --ignore-scripts\"]."
 		},
 		"ci.yml::front-vitest::Install Git hooks": {
-			"reason_hash": "517660e8dfe4e6e6",
-			"reason": "GitHub-only setup for front-vitest::Install Git hooks: the hosted runner provisions its checkout/toolchain or hook state before the lane command, while local setup is composed by the selected just recipe."
+			"reason_hash": "175a36a5d6789b0a",
+			"reason": "No exact local command match for run step \"Install Git hooks\"; normalized workflow command(s): [\"pnpm run prepare\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
 		"ci.yml::front-vitest::Install pnpm": {
-			"reason_hash": "fd94f43d7a481ae7",
-			"reason": "GitHub-only setup for front-vitest::Install pnpm: the hosted runner provisions its checkout/toolchain or hook state before the lane command, while local setup is composed by the selected just recipe."
+			"reason_hash": "44db22d3703f8493",
+			"reason": "Hosted-only action step \"Install pnpm\" uses pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86; exact hosted fields: {\"if\":null,\"with\":{\"version\":\"10.13.1\"},\"env\":null}."
 		},
 		"ci.yml::front-vitest::Run trusted first-party postinstall": {
-			"reason_hash": "bea690c34b9c650c",
-			"reason": "just ci-install runs the identical trusted shared-ts postinstall command."
+			"reason_hash": "fd102e8eec848d3e",
+			"reason": "Local mirror just ci-install is derived from exact normalized workflow command match(es): [\"pnpm --filter @org/shared-ts run postinstall\"]."
 		},
 		"ci.yml::front-vitest::Run vitest shard": {
-			"reason_hash": "a159293d9754f505",
-			"reason": "Local mirror just ci-front exercises the same repository command or lifecycle owned by front-vitest::Run vitest shard; the hosted step remains separately pinned for CI wiring."
+			"reason_hash": "16600477ecb034d6",
+			"reason": "No exact local command match for run step \"Run vitest shard\"; normalized workflow command(s): [\"pnpm --filter front exec vitest run --shard=${{ matrix.shard }}/4\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
 		"ci.yml::front-vitest::Setup Node": {
-			"reason_hash": "1de3294f351419ba",
-			"reason": "GitHub-only setup for front-vitest::Setup Node: the hosted runner provisions its checkout/toolchain or hook state before the lane command, while local setup is composed by the selected just recipe."
+			"reason_hash": "88b5f2d85a00a158",
+			"reason": "Hosted-only action step \"Setup Node\" uses actions/setup-node@820762786026740c76f36085b0efc47a31fe5020; exact hosted fields: {\"if\":null,\"with\":{\"node-version\":24},\"env\":null}."
 		},
 		"ci.yml::front-vitest::Upload ci-lane-result": {
-			"reason_hash": "eebcb66e1bf40378",
-			"reason": "GitHub-only evidence transport for front-vitest::Upload ci-lane-result: it preserves hosted artifacts, lane provenance, or classifier sentinel state consumed by the central reducer and has no local equivalent."
+			"reason_hash": "d155438e361fe56e",
+			"reason": "Hosted-only action step \"Upload ci-lane-result\" uses actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a; exact hosted fields: {\"if\":\"always()\",\"with\":{\"name\":\"ci-lane-result-${{ github.run_id }}-${{ github.run_attempt }}-front-vitest-${{ matrix.shard }}\",\"path\":\"ci-results/front-vitest-${{ matrix.shard }}.json\",\"if-no-files-found\":\"error\"},\"env\":null}."
 		},
 		"ci.yml::front-vitest::Upload Vitest report": {
-			"reason_hash": "85620bd19c0a2a67",
-			"reason": "GitHub-only evidence transport for front-vitest::Upload Vitest report: it preserves hosted artifacts, lane provenance, or classifier sentinel state consumed by the central reducer and has no local equivalent."
+			"reason_hash": "3e2bf1f0de269c87",
+			"reason": "Hosted-only action step \"Upload Vitest report\" uses actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a; exact hosted fields: {\"if\":\"always() && (steps.vitest.outcome == 'failure' || steps.vitest.outcome == 'cancelled')\",\"with\":{\"name\":\"front-ci-vitest-report-${{ matrix.shard }}-of-4\",\"path\":\"apps/front/test-results\",\"if-no-files-found\":\"ignore\"},\"env\":null}."
 		},
 		"ci.yml::gate::Aggregate upstream artifacts": {
-			"reason_hash": "efd6e7efb17cfc4f",
-			"reason": "GitHub-only orchestration for gate::Aggregate upstream artifacts: it uses hosted credentials, fork/image metadata, live pull-request state, or artifact-backed gate context unavailable to the local command surface."
+			"reason_hash": "bf1729d2d73421e9",
+			"reason": "No exact local command match for run step \"Aggregate upstream artifacts\"; normalized workflow command(s): [\"node packages/scripts-ts/src/check-ci-gate-aggregation.ts ci-results\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
 		"ci.yml::gate::Checkout": {
-			"reason_hash": "45c29d4713c64053",
-			"reason": "GitHub-only setup for gate::Checkout: the hosted runner provisions its checkout/toolchain or hook state before the lane command, while local setup is composed by the selected just recipe."
+			"reason_hash": "51be5bfa577c7732",
+			"reason": "Hosted-only action step \"Checkout\" uses actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1; exact hosted fields: {\"if\":null,\"with\":{\"fetch-depth\":0},\"env\":null}."
 		},
 		"ci.yml::gate::Download exact upstream result artifacts": {
-			"reason_hash": "c8c09c1aedc14451",
-			"reason": "GitHub-only evidence transport for gate::Download exact upstream result artifacts: it preserves hosted artifacts, lane provenance, or classifier sentinel state consumed by the central reducer and has no local equivalent."
+			"reason_hash": "2a5378d116dad6a5",
+			"reason": "Hosted-only action step \"Download exact upstream result artifacts\" uses actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c; exact hosted fields: {\"if\":null,\"with\":{\"pattern\":\"ci-lane-result-${{ github.run_id }}-${{ github.run_attempt }}-*\",\"path\":\"ci-results\"},\"env\":null}."
 		},
 		"ci.yml::gate::Install pnpm": {
-			"reason_hash": "b411a83d2904d9ab",
-			"reason": "GitHub-only setup for gate::Install pnpm: the hosted runner provisions its checkout/toolchain or hook state before the lane command, while local setup is composed by the selected just recipe."
+			"reason_hash": "44db22d3703f8493",
+			"reason": "Hosted-only action step \"Install pnpm\" uses pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86; exact hosted fields: {\"if\":null,\"with\":{\"version\":\"10.13.1\"},\"env\":null}."
 		},
 		"ci.yml::gate::Install workspace dependencies": {
-			"reason_hash": "91ec0481dd6a3976",
-			"reason": "just ci-install runs the identical frozen workspace installation without lifecycle scripts."
+			"reason_hash": "e1ece79f66c50373",
+			"reason": "Local mirror just ci-install is derived from exact normalized workflow command match(es): [\"pnpm install --frozen-lockfile --ignore-scripts\"]."
 		},
 		"ci.yml::gate::Read live PR snapshot": {
-			"reason_hash": "be2236e19e90568e",
-			"reason": "GitHub-only orchestration for gate::Read live PR snapshot: it uses hosted credentials, fork/image metadata, live pull-request state, or artifact-backed gate context unavailable to the local command surface."
+			"reason_hash": "c2d5362809024c9f",
+			"reason": "No exact local command match for run step \"Read live PR snapshot\"; normalized workflow command(s): [\"node packages/scripts-ts/src/ci-pr-snapshot.ts\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
 		"ci.yml::gate::Run central structural self-check": {
-			"reason_hash": "7826a17b547947e8",
-			"reason": "just ci-drift runs the identical central structural self-check CLI."
+			"reason_hash": "81529c83bc151601",
+			"reason": "No exact local command match for run step \"Run central structural self-check\"; normalized workflow command(s): [\"node packages/scripts-ts/src/check-ci-gate-structure.ts\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
 		"ci.yml::gate::Setup Node": {
-			"reason_hash": "f5924414e1129457",
-			"reason": "GitHub-only setup for gate::Setup Node: the hosted runner provisions its checkout/toolchain or hook state before the lane command, while local setup is composed by the selected just recipe."
+			"reason_hash": "88b5f2d85a00a158",
+			"reason": "Hosted-only action step \"Setup Node\" uses actions/setup-node@820762786026740c76f36085b0efc47a31fe5020; exact hosted fields: {\"if\":null,\"with\":{\"node-version\":24},\"env\":null}."
 		},
 		"ci.yml::gate::Upload live PR snapshot": {
-			"reason_hash": "d0e8dd268cf8dbc5",
-			"reason": "GitHub-only evidence transport for gate::Upload live PR snapshot: it preserves hosted artifacts, lane provenance, or classifier sentinel state consumed by the central reducer and has no local equivalent."
+			"reason_hash": "037584f8f7eefb56",
+			"reason": "Hosted-only action step \"Upload live PR snapshot\" uses actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a; exact hosted fields: {\"if\":\"github.event_name == 'pull_request'\",\"with\":{\"name\":\"ci-pr-snapshot-${{ github.run_id }}-${{ github.run_attempt }}\",\"path\":\"ci-results/ci-pr-snapshot.json\",\"if-no-files-found\":\"error\"},\"env\":null}."
 		},
 		"ci.yml::gate::Verify linked issue relationship": {
-			"reason_hash": "5df9183af42230d1",
-			"reason": "GitHub-only orchestration for gate::Verify linked issue relationship: it uses hosted credentials, fork/image metadata, live pull-request state, or artifact-backed gate context unavailable to the local command surface."
+			"reason_hash": "51c8c42cac718586",
+			"reason": "No exact local command match for run step \"Verify linked issue relationship\"; normalized workflow command(s): [\"PR_NUMBER=\\\"$(jq -r '.pr_number' \\\"$CI_LIVE_PR_RECORD_PATH\\\")\\\"\",\"PR_AUTHOR=\\\"$(jq -r '.pr.author_login' \\\"$CI_LIVE_PR_RECORD_PATH\\\")\\\"\",\"PR_BODY=\\\"$(jq -r '.pr.body' \\\"$CI_LIVE_PR_RECORD_PATH\\\")\\\"\",\"export PR_NUMBER PR_AUTHOR PR_BODY GH_REPO\",\"PR_NUMBER=\\\"$PR_NUMBER\\\" PR_AUTHOR=\\\"$PR_AUTHOR\\\" PR_BODY=\\\"$PR_BODY\\\" GH_REPO=\\\"$GH_REPO\\\" bash <<'LINKED_ISSUE_SCRIPT'\",\"if [ \\\"$PR_AUTHOR\\\" = \\\"dependabot[bot]\\\" ]; then\",\"echo \\\"dependabot PR — linked-issue requirement waived by policy #1240\\\"\",\"exit 0\",\"if [ -z \\\"${PR_BODY//[[:space:]]/}\\\" ]; then\",\"echo \\\"::error::PR body is empty — it must link an issue (e.g. \\\\\\\"Closes #123\\\\\\\" or \\\\\\\"Part of #123\\\\\\\").\\\"\",\"exit 1\",\"relationships=$(printf '%s' \\\"$PR_BODY\\\" \\\\\",\"| grep -ioE '^[[:space:]]*(-[[:space:]]*)?(close[sd]?|fix(e[sd])?|resolve[sd]?|part[[:space:]]+of|refs?|references?)[[:space:]:]+#[0-9]+' \\\\\",\"| sort -u)\",\"if [ -z \\\"$relationships\\\" ]; then\",\"echo \\\"::error::This PR has no explicit issue relationship on its own line. Add \\\\\\\"Closes #123\\\\\\\" for complete work or \\\\\\\"Part of #123\\\\\\\"/\\\\\\\"Refs #123\\\\\\\" for a partial slice.\\\"\",\"exit 1\",\"closing_issue_numbers=''\",\"closing_issues_verified=false\",\"verify_closing_issue() {\",\"if [ \\\"$closing_issues_verified\\\" = \\\"false\\\" ]; then\",\"repo_owner=\\\"${GH_REPO%%/*}\\\"\",\"repo_name=\\\"${GH_REPO#*/}\\\"\",\"if ! closing_issue_numbers=$(gh api graphql \\\\\",\"-f query='query($owner:String!,$name:String!,$number:Int!){repository(owner:$owner,name:$name){pullRequest(number:$number){closingIssuesReferences(first:100){nodes{number}}}}}' \\\\\",\"-F owner=\\\"$repo_owner\\\" \\\\\",\"-F name=\\\"$repo_name\\\" \\\\\",\"-F number=\\\"$PR_NUMBER\\\" \\\\\",\"--jq '.data.repository.pullRequest.closingIssuesReferences.nodes[].number' \\\\\",\"2>/dev/null\",\"); then\",\"echo \\\" could not verify GitHub closingIssuesReferences for PR #$PR_NUMBER — rejecting the closing declaration.\\\"\",\"return 1\",\"closing_issues_verified=true\",\"if ! printf '%s\\\\n' \\\"$closing_issue_numbers\\\" | grep -Fxq \\\"$1\\\"; then\",\"echo \\\" #$1 is not present in GitHub closingIssuesReferences — rejecting the closing declaration.\\\"\",\"return 1\",\"}\",\"invalid_relationship=false\",\"linked_issue=false\",\"while IFS= read -r relationship; do\",\"n=$(printf '%s' \\\"$relationship\\\" | grep -oE '[0-9]+$')\",\"is_closing=false\",\"if printf '%s' \\\"$relationship\\\" | grep -qiE '^[[:space:]]*(-[[:space:]]*)?(close[sd]?|fix(e[sd])?|resolve[sd]?)[[:space:]:]+'; then\",\"is_closing=true\",\"if [ \\\"$n\\\" = \\\"$PR_NUMBER\\\" ]; then\",\"echo \\\" #$n references itself — a pull request cannot satisfy its own issue-link requirement.\\\"\",\"invalid_relationship=true\",\"continue\",\"if ! is_pr=$(gh api \\\"repos/${GH_REPO}/issues/${n}\\\" --jq '.pull_request != null' 2>/dev/null); then\",\"echo \\\" #$n could not be verified as an existing issue — rejecting the declaration.\\\"\",\"invalid_relationship=true\",\"continue\",\"if [ \\\"$is_pr\\\" = \\\"true\\\" ]; then\",\"if [ \\\"$is_closing\\\" = \\\"true\\\" ]; then\",\"echo \\\" #$n is a pull request, not an issue — rejecting the closing declaration (#2003).\\\"\",\"invalid_relationship=true\",\"echo \\\" #$n is a non-closing pull-request reference — it does not satisfy the issue requirement.\\\"\",\"continue\",\"if [ \\\"$is_closing\\\" = \\\"true\\\" ] && ! verify_closing_issue \\\"$n\\\"; then\",\"invalid_relationship=true\",\"continue\",\"if state=$(gh issue view \\\"$n\\\" --json state --jq '.state' 2>/dev/null); then\",\"echo \\\"✓ PR links issue #$n (state: $state).\\\"\",\"linked_issue=true\",\"continue\",\"echo \\\" #$n is not an existing issue — rejecting the declaration.\\\"\",\"invalid_relationship=true\",\"done <<< \\\"$relationships\\\"\",\"if [ \\\"$invalid_relationship\\\" = \\\"true\\\" ]; then\",\"echo \\\"::error::A closing relationship to a PR, a self-reference, an unverifiable number, or a failed closing-reference lookup invalidates the declaration.\\\"\",\"exit 1\",\"if [ \\\"$linked_issue\\\" = \\\"true\\\" ]; then\",\"exit 0\",\"echo \\\"::error::The relationship keyword(s) reference no existing issue. Link a real issue with \\\\\\\"Closes #N\\\\\\\" or \\\\\\\"Part of #N\\\\\\\".\\\"\",\"exit 1\",\"LINKED_ISSUE_SCRIPT\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
 		"ci.yml::gate::Write live PR snapshot": {
-			"reason_hash": "b5856d40a0a354a3",
-			"reason": "GitHub-only orchestration for gate::Write live PR snapshot: it uses hosted credentials, fork/image metadata, live pull-request state, or artifact-backed gate context unavailable to the local command surface."
+			"reason_hash": "83509ea47d7e687d",
+			"reason": "No exact local command match for run step \"Write live PR snapshot\"; normalized workflow command(s): [\"node packages/scripts-ts/src/ci-pr-snapshot.ts\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
 		"ci.yml::verification::Assert exact pins": {
-			"reason_hash": "3ef6842cd83f34a0",
-			"reason": "just ci-install runs the identical repository pin assertion before installing dependencies."
+			"reason_hash": "712ef234877f676b",
+			"reason": "Local mirror just ci-install is derived from exact normalized workflow command match(es): [\"node apps/front/scripts/run-guarded.mts apps/front/scripts/guards/assert-pinned.mts\"]."
 		},
 		"ci.yml::verification::Audit .NET packages": {
-			"reason_hash": "131c09aecce939ee",
-			"reason": "Local mirror just nuget-audit exercises the same repository command or lifecycle owned by verification::Audit .NET packages; the hosted step remains separately pinned for CI wiring."
+			"reason_hash": "5a13f38df2622c17",
+			"reason": "Local mirror just nuget-audit is derived from exact normalized workflow command match(es): [\"node packages/scripts-ts/src/nuget-audit.ts\"]."
 		},
 		"ci.yml::verification::Build .NET solution": {
-			"reason_hash": "fce5caa50b6fc12c",
-			"reason": "Local mirror just ci-quality-dotnet exercises the same repository command or lifecycle owned by verification::Build .NET solution; the hosted step remains separately pinned for CI wiring."
+			"reason_hash": "3ecfe7a4c196abe0",
+			"reason": "Local mirror just ci-quality-dotnet is derived from exact normalized workflow command match(es): [\"dotnet build PublyApp.slnx --no-restore\"]."
 		},
 		"ci.yml::verification::Build front": {
-			"reason_hash": "13f2f27e77f00b67",
-			"reason": "Local mirror just ci-front exercises the same repository command or lifecycle owned by verification::Build front; the hosted step remains separately pinned for CI wiring."
+			"reason_hash": "b75e2ada180bfe05",
+			"reason": "Local mirror just ci-front is derived from exact normalized workflow command match(es): [\"pnpm --filter front build\"]."
 		},
 		"ci.yml::verification::Check action SHA bindings": {
-			"reason_hash": "1c58161cba51996e",
-			"reason": "Local mirror just ci-actions-pins exercises the same repository command or lifecycle owned by verification::Check action SHA bindings; the hosted step remains separately pinned for CI wiring."
+			"reason_hash": "864b8cd9eadf6458",
+			"reason": "Local mirror just ci-drift is derived from exact normalized workflow command match(es): [\"pnpm --filter scripts-ts exec vitest run src/check-actions-pins.test.ts\",\"node ./packages/scripts-ts/src/check-actions-pins.ts\"]."
 		},
 		"ci.yml::verification::Check action versions": {
-			"reason_hash": "ed72bc8ecbb96834",
-			"reason": "just ci-drift runs the identical action-version checker CLI."
+			"reason_hash": "d163580067248ae0",
+			"reason": "No exact local command match for run step \"Check action versions\"; normalized workflow command(s): [\"node packages/scripts-ts/src/check-actions-pinned.ts\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
 		"ci.yml::verification::Check CI drift": {
-			"reason_hash": "6c2e002efa9c1273",
-			"reason": "Local mirror just ci-drift exercises the same repository command or lifecycle owned by verification::Check CI drift; the hosted step remains separately pinned for CI wiring."
+			"reason_hash": "19c6916d273877dc",
+			"reason": "No exact local command match for run step \"Check CI drift\"; normalized workflow command(s): [\"node packages/scripts-ts/src/check-ci-drift.ts\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
 		"ci.yml::verification::Check complexity bounds": {
-			"reason_hash": "368e96390cde61da",
-			"reason": "just ci-drift runs the identical cyclomatic-bound checker CLI."
+			"reason_hash": "e1d5df7d16c33a3c",
+			"reason": "No exact local command match for run step \"Check complexity bounds\"; normalized workflow command(s): [\"node packages/scripts-ts/src/check-cyclomatic-bound.ts\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
 		"ci.yml::verification::Check dependency health contract": {
-			"reason_hash": "d8941122bb1e6538",
-			"reason": "just nuget-audit runs the same dependency-health pin-location contract test."
+			"reason_hash": "006d3028a49a2f4d",
+			"reason": "Local mirror just nuget-audit is derived from exact normalized workflow command match(es): [\"pnpm --filter scripts-ts exec vitest run src/dependency-health-pin-location.test.ts\"]."
 		},
 		"ci.yml::verification::Check deploy environment documentation": {
-			"reason_hash": "770d5d7754be3151",
-			"reason": "Local mirror just ci-deploy-env-docs exercises the same repository command or lifecycle owned by verification::Check deploy environment documentation; the hosted step remains separately pinned for CI wiring."
+			"reason_hash": "9170736b4193038e",
+			"reason": "Local mirror just ci-deploy-env-docs is derived from exact normalized workflow command match(es): [\"pnpm --filter scripts-ts exec vitest run src/check-deploy-env-docs.test.ts\",\"node ./packages/scripts-ts/src/check-deploy-env-docs.ts\"]."
 		},
 		"ci.yml::verification::Check doc links": {
-			"reason_hash": "eefccd7c88f0191e",
-			"reason": "Local mirror just ci-doc-links exercises the same repository command or lifecycle owned by verification::Check doc links; the hosted step remains separately pinned for CI wiring."
+			"reason_hash": "0dbbe4aba7324efa",
+			"reason": "No exact local command match for run step \"Check doc links\"; normalized workflow command(s): [\"node packages/scripts-ts/src/check-doc-links.ts\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
 		"ci.yml::verification::Check docs prune inventory": {
-			"reason_hash": "b88fdd77ffcc1425",
-			"reason": "Local mirror just ci-doc-links exercises the same repository command or lifecycle owned by verification::Check docs prune inventory; the hosted step remains separately pinned for CI wiring."
+			"reason_hash": "b265f599e3455523",
+			"reason": "No exact local command match for run step \"Check docs prune inventory\"; normalized workflow command(s): [\"node packages/scripts-ts/src/audit-docs-prune.ts --check\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
 		"ci.yml::verification::Check formatter scope": {
-			"reason_hash": "1a097be8a480dec9",
-			"reason": "Local mirror just ci-format exercises the same repository command or lifecycle owned by verification::Check formatter scope; the hosted step remains separately pinned for CI wiring."
+			"reason_hash": "e5302eb932aa0dd7",
+			"reason": "Local mirror just ci-format is derived from exact normalized workflow command match(es): [\"pnpm --filter scripts-ts exec vitest run src/check-formatter-scope.test.ts\"]."
 		},
 		"ci.yml::verification::Check formatting": {
-			"reason_hash": "03283f7ca6e91230",
-			"reason": "Local mirror just format exercises the same repository command or lifecycle owned by verification::Check formatting; the hosted step remains separately pinned for CI wiring."
+			"reason_hash": "917c37da3f3b4901",
+			"reason": "Local mirror just format is derived from exact normalized workflow command match(es): [\"pnpm format\"]."
 		},
 		"ci.yml::verification::Check front column-type imports": {
-			"reason_hash": "5ddaf4948483a140",
-			"reason": "just ci-front runs the identical front column-type import guard."
+			"reason_hash": "c75d9d733ca99e78",
+			"reason": "Local mirror just ci-front is derived from exact normalized workflow command match(es): [\"pnpm --filter front check:column-type-imports\"]."
 		},
 		"ci.yml::verification::Check front design system": {
-			"reason_hash": "0c26c7ae6849a991",
-			"reason": "just ci-front runs the identical front design-system guard."
+			"reason_hash": "d8821d3438865dd6",
+			"reason": "Local mirror just ci-front is derived from exact normalized workflow command match(es): [\"pnpm --filter front check:design-system\"]."
 		},
 		"ci.yml::verification::Check front React Compiler artifacts": {
-			"reason_hash": "4b63e5c0fcb1de6f",
-			"reason": "just ci-front runs the identical front React Compiler artifact guard."
+			"reason_hash": "c08c79cb8a7e7f03",
+			"reason": "Local mirror just ci-front is derived from exact normalized workflow command match(es): [\"pnpm --filter front check:react-compiler\"]."
 		},
 		"ci.yml::verification::Check front static imports": {
-			"reason_hash": "13f329838ab4ce51",
-			"reason": "just ci-front runs the identical front server-static import guard."
+			"reason_hash": "8f68bdcc699161d7",
+			"reason": "Local mirror just ci-front is derived from exact normalized workflow command match(es): [\"pnpm --filter front check:server-static-imports\"]."
 		},
 		"ci.yml::verification::Check no dockerignore shadow files": {
-			"reason_hash": "1cc72c30f66cb313",
-			"reason": "Local mirror just ci-dockerignore-shadow exercises the same repository command or lifecycle owned by verification::Check no dockerignore shadow files; the hosted step remains separately pinned for CI wiring."
+			"reason_hash": "4680345f7d2b4619",
+			"reason": "No exact local command match for run step \"Check no dockerignore shadow files\"; normalized workflow command(s): [\"node packages/scripts-ts/src/check-dockerignore-shadow.ts\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
 		"ci.yml::verification::Check no ignored tracked files": {
-			"reason_hash": "e84756c28102c28e",
-			"reason": "Local mirror just ci-no-ignored-tracked exercises the same repository command or lifecycle owned by verification::Check no ignored tracked files; the hosted step remains separately pinned for CI wiring."
+			"reason_hash": "5f0b5c4ff18663d6",
+			"reason": "No exact local command match for run step \"Check no ignored tracked files\"; normalized workflow command(s): [\"node packages/scripts-ts/src/check-no-ignored-tracked.ts\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
 		"ci.yml::verification::Check unused exports and dependencies": {
-			"reason_hash": "1a6bf345e7ea0fd5",
-			"reason": "Local mirror just ci-knip exercises the same repository command or lifecycle owned by verification::Check unused exports and dependencies; the hosted step remains separately pinned for CI wiring."
+			"reason_hash": "cb1d0cd877b052ad",
+			"reason": "Local mirror just ci-knip is derived from exact normalized workflow command match(es): [\"pnpm exec knip\"]."
 		},
 		"ci.yml::verification::Check Vitest shard coverage": {
-			"reason_hash": "d148e47087b925e2",
-			"reason": "Local mirror just ci-front exercises the same repository command or lifecycle owned by verification::Check Vitest shard coverage; the hosted step remains separately pinned for CI wiring."
+			"reason_hash": "24a10a8c7bd7c5f2",
+			"reason": "Local mirror just ci-front is derived from exact normalized workflow command match(es): [\"pnpm --filter front test:vitest-shard-coverage\"]."
 		},
 		"ci.yml::verification::Checkout": {
-			"reason_hash": "c0c20010cc45f7c6",
-			"reason": "GitHub-only setup for verification::Checkout: the hosted runner provisions its checkout/toolchain or hook state before the lane command, while local setup is composed by the selected just recipe."
+			"reason_hash": "51be5bfa577c7732",
+			"reason": "Hosted-only action step \"Checkout\" uses actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1; exact hosted fields: {\"if\":null,\"with\":{\"fetch-depth\":0},\"env\":null}."
 		},
 		"ci.yml::verification::CI lane not applicable (docs)": {
-			"reason_hash": "48faeb8bb893f8a1",
-			"reason": "GitHub-only evidence transport for verification::CI lane not applicable (docs): it preserves hosted artifacts, lane provenance, or classifier sentinel state consumed by the central reducer and has no local equivalent."
+			"reason_hash": "87474b219aef7695",
+			"reason": "No exact local command match for run step \"CI lane not applicable (docs)\"; normalized workflow command(s): [\"echo 'docs verification is not applicable'\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
 		"ci.yml::verification::CI lane not applicable (front)": {
-			"reason_hash": "5598b76d89378b1c",
-			"reason": "GitHub-only evidence transport for verification::CI lane not applicable (front): it preserves hosted artifacts, lane provenance, or classifier sentinel state consumed by the central reducer and has no local equivalent."
+			"reason_hash": "f514562cd60a8904",
+			"reason": "No exact local command match for run step \"CI lane not applicable (front)\"; normalized workflow command(s): [\"echo 'front verification is not applicable'\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
 		"ci.yml::verification::CI lane not applicable (quality)": {
-			"reason_hash": "27e423ed5692132a",
-			"reason": "GitHub-only evidence transport for verification::CI lane not applicable (quality): it preserves hosted artifacts, lane provenance, or classifier sentinel state consumed by the central reducer and has no local equivalent."
+			"reason_hash": "650c1d84406760a0",
+			"reason": "No exact local command match for run step \"CI lane not applicable (quality)\"; normalized workflow command(s): [\"echo 'quality verification is not applicable'\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
 		"ci.yml::verification::CI lane not applicable (react)": {
-			"reason_hash": "faec122befb4076c",
-			"reason": "GitHub-only evidence transport for verification::CI lane not applicable (react): it preserves hosted artifacts, lane provenance, or classifier sentinel state consumed by the central reducer and has no local equivalent."
+			"reason_hash": "9931100ee8b79ac9",
+			"reason": "No exact local command match for run step \"CI lane not applicable (react)\"; normalized workflow command(s): [\"echo 'React Doctor is not applicable'\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
 		"ci.yml::verification::Collect ci-lane-result": {
-			"reason_hash": "fa62fbbec4ac3224",
-			"reason": "GitHub-only evidence transport for verification::Collect ci-lane-result: it preserves hosted artifacts, lane provenance, or classifier sentinel state consumed by the central reducer and has no local equivalent."
+			"reason_hash": "baa09120079054a3",
+			"reason": "No exact local command match for run step \"Collect ci-lane-result\"; normalized workflow command(s): [\"node packages/scripts-ts/src/ci-lane-result.ts\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
 		"ci.yml::verification::Install Git hooks": {
-			"reason_hash": "b58458ba4adaf761",
-			"reason": "GitHub-only setup for verification::Install Git hooks: the hosted runner provisions its checkout/toolchain or hook state before the lane command, while local setup is composed by the selected just recipe."
+			"reason_hash": "175a36a5d6789b0a",
+			"reason": "No exact local command match for run step \"Install Git hooks\"; normalized workflow command(s): [\"pnpm run prepare\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
 		"ci.yml::verification::Install pnpm": {
-			"reason_hash": "f8805cab247d9ae3",
-			"reason": "just ci-install is the local recipe for the same frozen workspace setup."
+			"reason_hash": "44db22d3703f8493",
+			"reason": "Hosted-only action step \"Install pnpm\" uses pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86; exact hosted fields: {\"if\":null,\"with\":{\"version\":\"10.13.1\"},\"env\":null}."
 		},
 		"ci.yml::verification::Install workspace dependencies": {
-			"reason_hash": "40cc942045efced1",
-			"reason": "GitHub-only setup for verification::Install workspace dependencies: the hosted runner provisions its checkout/toolchain or hook state before the lane command, while local setup is composed by the selected just recipe."
+			"reason_hash": "e1ece79f66c50373",
+			"reason": "Local mirror just ci-install is derived from exact normalized workflow command match(es): [\"pnpm install --frozen-lockfile --ignore-scripts\"]."
 		},
 		"ci.yml::verification::Lint front": {
-			"reason_hash": "537ff0864aa8fda4",
-			"reason": "Local mirror just ci-lint exercises the same repository command or lifecycle owned by verification::Lint front; the hosted step remains separately pinned for CI wiring."
+			"reason_hash": "4b02047f1495f1c0",
+			"reason": "Local mirror just ci-lint is derived from exact normalized workflow command match(es): [\"node packages/scripts-ts/src/lint-front.ts --quiet\",\"node packages/scripts-ts/src/check-no-floating-promises.ts\",\"pnpm lint:disables\",\"pnpm check:frontend-barrels\"]."
 		},
 		"ci.yml::verification::Lint repository": {
-			"reason_hash": "55c7b39f2f3de8c7",
-			"reason": "Local mirror just lint exercises the same repository command or lifecycle owned by verification::Lint repository; the hosted step remains separately pinned for CI wiring."
+			"reason_hash": "9aaa099451472035",
+			"reason": "Local mirror just ci-quality is derived from exact normalized workflow command match(es): [\"pnpm lint\"]."
 		},
 		"ci.yml::verification::Materialize .env.development": {
-			"reason_hash": "dadbcf8a6d00b526",
-			"reason": "GitHub-only orchestration for verification::Materialize .env.development: it uses hosted credentials, fork/image metadata, live pull-request state, or artifact-backed gate context unavailable to the local command surface."
+			"reason_hash": "eb9b245eb69d579d",
+			"reason": "No exact local command match for run step \"Materialize .env.development\"; normalized workflow command(s): [\"cp .env.example .env.development\",\"sed -i 's/^APP_ROLE=.*/APP_ROLE=\\\"api\\\"/' .env.development\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
 		"ci.yml::verification::Resolve React Doctor base": {
-			"reason_hash": "8b996ecb14d7daef",
-			"reason": "Central-workflow-only control for verification::Resolve React Doctor base: its value is the hosted dependency, permission, provenance, or required-check wiring around the lane rather than an independently runnable repository command."
+			"reason_hash": "25eb5404269c04aa",
+			"reason": "No exact local command match for run step \"Resolve React Doctor base\"; normalized workflow command(s): [\"case \\\"$CI_EVENT_NAME\\\" in\",\"pull_request) diff_base=\\\"$CI_PR_BASE_SHA\\\" ;;\",\"merge_group) diff_base=\\\"$CI_MERGE_GROUP_BASE_SHA\\\" ;;\",\"push)\",\"if [ -n \\\"$CI_PUSH_BEFORE\\\" ] && [ \\\"$CI_PUSH_BEFORE\\\" != \\\"0000000000000000000000000000000000000000\\\" ]; then\",\"diff_base=\\\"$CI_PUSH_BEFORE\\\"\",\"diff_base='HEAD~1'\",\"*) echo \\\"unsupported event $CI_EVENT_NAME\\\" >&2; exit 1 ;;\",\"git rev-parse --verify \\\"$diff_base^{commit}\\\" >/dev/null\",\"printf 'base=%s\\\\n' \\\"$diff_base\\\" >> \\\"$GITHUB_OUTPUT\\\"\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
 		"ci.yml::verification::Restore .NET solution": {
-			"reason_hash": "02cce260fc7a1aeb",
-			"reason": "Local mirror just ci-quality-dotnet exercises the same repository command or lifecycle owned by verification::Restore .NET solution; the hosted step remains separately pinned for CI wiring."
+			"reason_hash": "7646752159c9c6f0",
+			"reason": "Local mirror just ci-quality-dotnet is derived from exact normalized workflow command match(es): [\"dotnet restore PublyApp.slnx\"]."
 		},
 		"ci.yml::verification::Run analyzer tests": {
-			"reason_hash": "cba82429b835b114",
-			"reason": "Local mirror just test-analyzers exercises the same repository command or lifecycle owned by verification::Run analyzer tests; the hosted step remains separately pinned for CI wiring."
+			"reason_hash": "5d12275108d9b6c5",
+			"reason": "No exact local command match for run step \"Run analyzer tests\"; normalized workflow command(s): [\"pnpm exec just test-analyzers\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
 		"ci.yml::verification::Run React Doctor": {
-			"reason_hash": "3f9d01d1686e5698",
-			"reason": "Local mirror just react-doctor exercises the same repository command or lifecycle owned by verification::Run React Doctor; the hosted step remains separately pinned for CI wiring."
+			"reason_hash": "974af2c0cda3345f",
+			"reason": "No exact local command match for run step \"Run React Doctor\"; normalized workflow command(s): [\"pnpm dlx react-doctor@0.9.12 --scope files --base \\\"$CI_REACT_DOCTOR_BASE\\\" --blocking warning --no-telemetry --verbose\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
 		"ci.yml::verification::Run trusted first-party postinstall": {
-			"reason_hash": "bea690c34b9c650c",
-			"reason": "just ci-install runs the identical trusted shared-ts postinstall command."
+			"reason_hash": "fd102e8eec848d3e",
+			"reason": "Local mirror just ci-install is derived from exact normalized workflow command match(es): [\"pnpm --filter @org/shared-ts run postinstall\"]."
 		},
 		"ci.yml::verification::Setup .NET": {
-			"reason_hash": "a72f8508c78b0eec",
-			"reason": "GitHub-only setup for verification::Setup .NET: the hosted runner provisions its checkout/toolchain or hook state before the lane command, while local setup is composed by the selected just recipe."
+			"reason_hash": "8eaffbdfc92ae552",
+			"reason": "Hosted-only action step \"Setup .NET\" uses actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68; exact hosted fields: {\"if\":null,\"with\":{\"dotnet-version\":\"10.0.102\"},\"env\":null}."
 		},
 		"ci.yml::verification::Setup just": {
-			"reason_hash": "f163d72ffc20e500",
-			"reason": "GitHub-only setup for verification::Setup just: the hosted runner provisions its checkout/toolchain or hook state before the lane command, while local setup is composed by the selected just recipe."
+			"reason_hash": "b7ce43bd981167fc",
+			"reason": "Hosted-only action step \"Setup just\" uses extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3; exact hosted fields: {\"if\":null,\"with\":null,\"env\":null}."
 		},
 		"ci.yml::verification::Setup Node": {
-			"reason_hash": "7743c4018b1ce00d",
-			"reason": "GitHub-only setup for verification::Setup Node: the hosted runner provisions its checkout/toolchain or hook state before the lane command, while local setup is composed by the selected just recipe."
+			"reason_hash": "88b5f2d85a00a158",
+			"reason": "Hosted-only action step \"Setup Node\" uses actions/setup-node@820762786026740c76f36085b0efc47a31fe5020; exact hosted fields: {\"if\":null,\"with\":{\"node-version\":24},\"env\":null}."
 		},
 		"ci.yml::verification::Smoke front production server": {
-			"reason_hash": "9ac19b7f61dcf13a",
-			"reason": "Central-workflow-only control for verification::Smoke front production server: its value is the hosted dependency, permission, provenance, or required-check wiring around the lane rather than an independently runnable repository command."
+			"reason_hash": "8f4135c0dc0e7176",
+			"reason": "No exact local command match for run step \"Smoke front production server\"; normalized workflow command(s): [\"pnpm --filter front start > /tmp/front-ci-server.log 2>&1 &\",\"front_server_pid=$!\",\"trap 'kill \\\"$front_server_pid\\\" || true' EXIT\",\"for attempt in $(seq 1 20); do\",\"curl -fsS http://127.0.0.1:3000/ >/tmp/front-home.html && break\",\"sleep 1\",\"curl -fsS http://127.0.0.1:3000/ >/tmp/front-home.html\",\"grep -aEq 'rel=\\\"stylesheet\\\"[^>]*href=\\\"[^\\\"]+\\\\.css\\\"' /tmp/front-home.html\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
 		"ci.yml::verification::Test .NET audit fixtures": {
-			"reason_hash": "96000df7845e7401",
-			"reason": "Local mirror just nuget-audit exercises the same repository command or lifecycle owned by verification::Test .NET audit fixtures; the hosted step remains separately pinned for CI wiring."
+			"reason_hash": "f1ca31bf3738f4af",
+			"reason": "Local mirror just nuget-audit is derived from exact normalized workflow command match(es): [\"pnpm --filter scripts-ts exec vitest run src/nuget-audit.test.ts\"]."
 		},
 		"ci.yml::verification::Test action version guard": {
-			"reason_hash": "925b7f6e9b6e598c",
-			"reason": "Local mirror just ci-actions-pins exercises the same repository command or lifecycle owned by verification::Test action version guard; the hosted step remains separately pinned for CI wiring."
+			"reason_hash": "67626ff26e8405d1",
+			"reason": "Local mirror just ci-drift is derived from exact normalized workflow command match(es): [\"pnpm --filter scripts-ts exec vitest run src/check-actions-pinned.test.ts\"]."
 		},
 		"ci.yml::verification::Test API path-filter coverage": {
-			"reason_hash": "37552bfe93b00d3b",
-			"reason": "Local mirror just ci-drift exercises the same repository command or lifecycle owned by verification::Test API path-filter coverage; the hosted step remains separately pinned for CI wiring."
+			"reason_hash": "c179b1d67b6442c6",
+			"reason": "Local mirror just ci-drift is derived from exact normalized workflow command match(es): [\"pnpm --filter scripts-ts exec vitest run src/check-api-tests-path-coverage.test.ts\"]."
 		},
 		"ci.yml::verification::Test CI changed-path classifier": {
-			"reason_hash": "6942e2e78719fcc7",
-			"reason": "Local mirror just ci-drift exercises the same repository command or lifecycle owned by verification::Test CI changed-path classifier; the hosted step remains separately pinned for CI wiring."
+			"reason_hash": "bee340a09aa26af0",
+			"reason": "Local mirror just ci-drift is derived from exact normalized workflow command match(es): [\"pnpm --filter scripts-ts exec vitest run src/ci-changed-paths.test.ts\"]."
 		},
 		"ci.yml::verification::Test CI contracts": {
-			"reason_hash": "5ed451796612f115",
-			"reason": "The hosted and local gates run the same pnpm test:ci-contracts shared complete CI-contract test-file authority."
+			"reason_hash": "4b694c549565e49a",
+			"reason": "Local mirror just ci-drift is derived from exact normalized workflow command match(es): [\"node packages/scripts-ts/src/run-ci-contract-tests.ts\"]."
 		},
 		"ci.yml::verification::Test CI drift contracts": {
-			"reason_hash": "72c864695b400a2a",
-			"reason": "Local mirror just ci-drift exercises the same repository command or lifecycle owned by verification::Test CI drift contracts; the hosted step remains separately pinned for CI wiring."
+			"reason_hash": "f2ed5584cba35c09",
+			"reason": "No exact local command match for run step \"Test CI drift contracts\"; normalized workflow command(s): [\"pnpm --filter scripts-ts exec vitest run src/check-ci-drift.test.ts src/artifact-version-compat.test.ts\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
 		"ci.yml::verification::Test CI guard fixtures": {
-			"reason_hash": "26a888ddd2491496",
-			"reason": "Local mirror just ci-drift exercises the same repository command or lifecycle owned by verification::Test CI guard fixtures; the hosted step remains separately pinned for CI wiring."
+			"reason_hash": "91dff1532f3ae20c",
+			"reason": "No exact local command match for run step \"Test CI guard fixtures\"; normalized workflow command(s): [\"pnpm --filter scripts-ts exec vitest run src/ci-e2e-rerun-guard.test.ts src/check-api-tests-path-coverage.test.ts src/require-linked-issue.test.ts src/codeowners-contract.test.ts src/gen-reason-ref.test.ts src/check-no-floating-promises.test.ts\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
 		"ci.yml::verification::Test CI referenced paths": {
-			"reason_hash": "6bab4b83cec7276a",
-			"reason": "Local mirror just ci-drift exercises the same repository command or lifecycle owned by verification::Test CI referenced paths; the hosted step remains separately pinned for CI wiring."
+			"reason_hash": "e0fd421fdabee61d",
+			"reason": "Local mirror just ci-drift is derived from exact normalized workflow command match(es): [\"pnpm --filter scripts-ts exec vitest run src/ci-referenced-paths.test.ts\"]."
 		},
 		"ci.yml::verification::Test complexity guard": {
-			"reason_hash": "6bc56ab9e377eab1",
-			"reason": "Local mirror just ci-drift exercises the same repository command or lifecycle owned by verification::Test complexity guard; the hosted step remains separately pinned for CI wiring."
+			"reason_hash": "e989bf80ef2eef8e",
+			"reason": "Local mirror just ci-drift is derived from exact normalized workflow command match(es): [\"pnpm --filter scripts-ts exec vitest run src/check-cyclomatic-bound.test.ts\"]."
 		},
 		"ci.yml::verification::Test doc-links guard": {
-			"reason_hash": "5a61aca7498ee0b7",
-			"reason": "Local mirror just ci-doc-links exercises the same repository command or lifecycle owned by verification::Test doc-links guard; the hosted step remains separately pinned for CI wiring."
+			"reason_hash": "3e6a9bc511e131b1",
+			"reason": "Local mirror just ci-doc-links is derived from exact normalized workflow command match(es): [\"pnpm --filter scripts-ts exec vitest run src/check-doc-links.test.ts\"]."
 		},
 		"ci.yml::verification::Test docs prune guard": {
-			"reason_hash": "4ef3f9ff646ac88e",
-			"reason": "Local mirror just ci-doc-links exercises the same repository command or lifecycle owned by verification::Test docs prune guard; the hosted step remains separately pinned for CI wiring."
+			"reason_hash": "4d4d24bbfcb965cf",
+			"reason": "Local mirror just ci-doc-links is derived from exact normalized workflow command match(es): [\"pnpm --filter scripts-ts exec vitest run src/audit-docs-prune.test.ts\"]."
 		},
 		"ci.yml::verification::Test front (non-vitest report-all)": {
-			"reason_hash": "176aa5de4b55e95d",
-			"reason": "Local mirror just ci-front exercises the same repository command or lifecycle owned by verification::Test front (non-vitest report-all); the hosted step remains separately pinned for CI wiring."
+			"reason_hash": "ed33de86e4956f2f",
+			"reason": "No exact local command match for run step \"Test front (non-vitest report-all)\"; normalized workflow command(s): [\"node scripts/run-guarded.mts scripts/ci/run-non-vitest-report-all.mts\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
 		"ci.yml::verification::Test front lint guard": {
-			"reason_hash": "abccb44c26098397",
-			"reason": "Local mirror just ci-lint exercises the same repository command or lifecycle owned by verification::Test front lint guard; the hosted step remains separately pinned for CI wiring."
+			"reason_hash": "11dcf153e367a219",
+			"reason": "Local mirror just ci-drift is derived from exact normalized workflow command match(es): [\"pnpm --filter scripts-ts exec vitest run src/lint-front.test.ts\"]."
 		},
 		"ci.yml::verification::Test lint plugin": {
-			"reason_hash": "5a1714b02c5d0573",
-			"reason": "Local mirror just ci-lint exercises the same repository command or lifecycle owned by verification::Test lint plugin; the hosted step remains separately pinned for CI wiring."
+			"reason_hash": "56bbbe497f28f32e",
+			"reason": "Local mirror just ci-lint is derived from exact normalized workflow command match(es): [\"pnpm --filter @org/lint-ts test\"]."
 		},
 		"ci.yml::verification::Test npm audit runner": {
-			"reason_hash": "f57fe79d4953c473",
-			"reason": "Local mirror just ci-drift exercises the same repository command or lifecycle owned by verification::Test npm audit runner; the hosted step remains separately pinned for CI wiring."
+			"reason_hash": "b2739ccd2a13c5a4",
+			"reason": "Local mirror just ci-drift is derived from exact normalized workflow command match(es): [\"pnpm --filter scripts-ts exec vitest run src/npm-audit-runner.test.ts\"]."
 		},
 		"ci.yml::verification::Test production audit threshold": {
-			"reason_hash": "657fc931f749ab9b",
-			"reason": "Local mirror just ci-drift exercises the same repository command or lifecycle owned by verification::Test production audit threshold; the hosted step remains separately pinned for CI wiring."
+			"reason_hash": "f36c39d713069162",
+			"reason": "Local mirror just ci-drift is derived from exact normalized workflow command match(es): [\"pnpm --filter scripts-ts exec vitest run src/prod-audit-bites.test.ts\"]."
 		},
 		"ci.yml::verification::Test project closure adapter": {
-			"reason_hash": "99e5b1fb40cd7511",
-			"reason": "Local mirror just ci-project-closure-adapter exercises the same repository command or lifecycle owned by verification::Test project closure adapter; the hosted step remains separately pinned for CI wiring."
+			"reason_hash": "6c89f9959e70e503",
+			"reason": "Local mirror just ci-project-closure-adapter is derived from exact normalized workflow command match(es): [\"pnpm test:project-closure-adapter\"]."
 		},
 		"ci.yml::verification::Test shared TypeScript": {
-			"reason_hash": "f9876e75a4ce5f3e",
-			"reason": "Local mirror just ci-shared-ts exercises the same repository command or lifecycle owned by verification::Test shared TypeScript; the hosted step remains separately pinned for CI wiring."
+			"reason_hash": "97df2f38620ddaa4",
+			"reason": "Local mirror just ci-shared-ts is derived from exact normalized workflow command match(es): [\"pnpm --filter @org/shared-ts test\"]."
 		},
 		"ci.yml::verification::Typecheck front": {
-			"reason_hash": "953ff1a9168856b1",
-			"reason": "Local mirror just ci-front exercises the same repository command or lifecycle owned by verification::Typecheck front; the hosted step remains separately pinned for CI wiring."
+			"reason_hash": "af3c4b9dbfddb95e",
+			"reason": "Local mirror just ci-front is derived from exact normalized workflow command match(es): [\"pnpm --filter front typecheck\"]."
 		},
 		"ci.yml::verification::Typecheck generated client": {
-			"reason_hash": "5d25b3b495f16c46",
-			"reason": "Local mirror just ci-lint-ts exercises the same repository command or lifecycle owned by verification::Typecheck generated client; the hosted step remains separately pinned for CI wiring."
+			"reason_hash": "1c4b36250bdaebb7",
+			"reason": "Local mirror just ci-lint-ts is derived from exact normalized workflow command match(es): [\"pnpm --filter @org/client-ts typecheck\"]."
 		},
 		"ci.yml::verification::Typecheck lint plugin": {
-			"reason_hash": "4f872160ab0c223e",
-			"reason": "Local mirror just ci-lint-ts exercises the same repository command or lifecycle owned by verification::Typecheck lint plugin; the hosted step remains separately pinned for CI wiring."
+			"reason_hash": "b84876d240a8580c",
+			"reason": "Local mirror just ci-lint-ts is derived from exact normalized workflow command match(es): [\"pnpm --filter @org/lint-ts typecheck\"]."
 		},
 		"ci.yml::verification::Typecheck shared TypeScript": {
-			"reason_hash": "caf309f7dfbb18a5",
-			"reason": "Local mirror just ci-shared-ts exercises the same repository command or lifecycle owned by verification::Typecheck shared TypeScript; the hosted step remains separately pinned for CI wiring."
+			"reason_hash": "e90e6e244c2148fb",
+			"reason": "Local mirror just ci-shared-ts is derived from exact normalized workflow command match(es): [\"pnpm --filter @org/shared-ts typecheck\"]."
 		},
 		"ci.yml::verification::Upload ci-lane-result": {
-			"reason_hash": "67ea41f066603b98",
-			"reason": "GitHub-only evidence transport for verification::Upload ci-lane-result: it preserves hosted artifacts, lane provenance, or classifier sentinel state consumed by the central reducer and has no local equivalent."
+			"reason_hash": "cf5ebb5706a37bfd",
+			"reason": "Hosted-only action step \"Upload ci-lane-result\" uses actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a; exact hosted fields: {\"if\":\"always()\",\"with\":{\"name\":\"ci-lane-result-${{ github.run_id }}-${{ github.run_attempt }}-verification\",\"path\":\"ci-results/verification.json\",\"if-no-files-found\":\"error\"},\"env\":null}."
 		},
 		"ci.yml::verification::Verify API path-filter coverage": {
-			"reason_hash": "cb27e9a9069e36b5",
-			"reason": "Local mirror just ci-drift exercises the same repository command or lifecycle owned by verification::Verify API path-filter coverage; the hosted step remains separately pinned for CI wiring."
+			"reason_hash": "f6eae4a0e137c59f",
+			"reason": "No exact local command match for run step \"Verify API path-filter coverage\"; normalized workflow command(s): [\"node packages/scripts-ts/src/check-api-tests-path-coverage.ts\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
 		"ci.yml::verification::Verify front CSS asset": {
-			"reason_hash": "a4f9b489eb3e98b5",
-			"reason": "Local mirror just ci-front exercises the same repository command or lifecycle owned by verification::Verify front CSS asset; the hosted step remains separately pinned for CI wiring."
+			"reason_hash": "31eb281766a5c7ac",
+			"reason": "No exact local command match for run step \"Verify front CSS asset\"; normalized workflow command(s): [\"node apps/front/scripts/run-guarded.mts apps/front/scripts/guards/verify-build-css-link.mts\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
 		"ci.yml::verification::Verify front font bundle": {
-			"reason_hash": "38f8c854afe73129",
-			"reason": "Local mirror just ci-front exercises the same repository command or lifecycle owned by verification::Verify front font bundle; the hosted step remains separately pinned for CI wiring."
+			"reason_hash": "8f27e3bc9c0ba61e",
+			"reason": "No exact local command match for run step \"Verify front font bundle\"; normalized workflow command(s): [\"node apps/front/scripts/run-guarded.mts apps/front/scripts/guards/verify-font-bundle.mts --dist apps/front/dist --locales-dir apps/front/src/i18n/locales\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
 		"ci.yml::verification::Verify paired red proofs": {
-			"reason_hash": "cc6fdf9222ddd8a5",
-			"reason": "Local mirror just ci-front exercises the same repository command or lifecycle owned by verification::Verify paired red proofs; the hosted step remains separately pinned for CI wiring."
+			"reason_hash": "55e95c65a036fbde",
+			"reason": "No exact local command match for run step \"Verify paired red proofs\"; normalized workflow command(s): [\"pnpm --filter front test:preuves\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
 		"deploy-images.yml::publish::Build and push API migrate image": {
 			"reason_hash": "83411d8a82349d27",

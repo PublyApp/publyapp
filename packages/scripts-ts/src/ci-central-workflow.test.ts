@@ -43,7 +43,11 @@ test('central workflow exposes exactly the stable 16 display labels', async () =
 
 test('central workflow contract command names the real complete contract suite', async () => {
 	const workflow = await readFile(workflowPath, 'utf8');
-	assert.match(workflow, /run: pnpm test:ci-contracts/);
+	const directRunner = 'node packages/scripts-ts/src/run-ci-contract-tests.ts';
+	assert.match(
+		workflow,
+		new RegExp(`run: ${directRunner.replaceAll('/', '\\/')}`),
+	);
 	assert.doesNotMatch(workflow, /check-ci-gate-aggregation\.test\.ts/);
 	assert.ok(CI_CONTRACT_TEST_FILES.includes('src/ci-central-workflow.test.ts'));
 	assert.ok(CI_CONTRACT_TEST_FILES.includes('src/ci-gate-aggregation.test.ts'));
@@ -52,6 +56,9 @@ test('central workflow contract command names the real complete contract suite',
 		validateCiContractTestFiles(path.join(repoRoot, 'missing')),
 		[...CI_CONTRACT_TEST_FILES],
 	);
+	const justfile = await readFile(path.join(repoRoot, 'justfile'), 'utf8');
+	assert.match(justfile, new RegExp(directRunner.replaceAll('/', '\\/')));
+	assert.doesNotMatch(justfile, /ci-drift:[\s\S]*pnpm test:ci-contracts/);
 
 	const manifest = JSON.parse(
 		await readFile(
@@ -61,8 +68,24 @@ test('central workflow contract command names the real complete contract suite',
 	) as { steps: Record<string, { mirror: string | null }> };
 	assert.equal(
 		manifest.steps['ci.yml::verification::Test CI contracts']?.mirror,
-		'pnpm test:ci-contracts',
+		'just ci-drift',
 	);
+});
+
+test('hosted and local contract authorities survive a zero-test package-script decoy', async () => {
+	const workflow = await readFile(workflowPath, 'utf8');
+	const justfile = await readFile(path.join(repoRoot, 'justfile'), 'utf8');
+	const packageJson = JSON.parse(
+		await readFile(path.join(repoRoot, 'package.json'), 'utf8'),
+	) as { scripts: Record<string, string> };
+	packageJson.scripts['test:ci-contracts'] =
+		`node -e "console.log('decoy contract pass')"`;
+	const directRunner = 'node packages/scripts-ts/src/run-ci-contract-tests.ts';
+	assert.equal(validateCiContractTestFiles(repoRoot).length, 0);
+	assert.match(workflow, new RegExp(directRunner.replaceAll('/', '\\/')));
+	assert.match(justfile, new RegExp(directRunner.replaceAll('/', '\\/')));
+	assert.doesNotMatch(workflow, /pnpm test:ci-contracts/);
+	assert.doesNotMatch(justfile, /pnpm test:ci-contracts/);
 });
 
 test('central workflow rejects every CI_STEP_RESULTS outcome edge mutation and duplicate result producer', async () => {
@@ -99,6 +122,23 @@ test('central workflow rejects every CI_STEP_RESULTS outcome edge mutation and d
 			original.replace(
 				'          if-no-files-found: error\n\n  verification:',
 				'          if-no-files-found: error\n          overwrite: true\n\n  verification:',
+			),
+		],
+		[
+			'dynamically equivalent forged result producer is rejected',
+			original.replace(
+				'          if-no-files-found: error\n\n  verification:',
+				`          if-no-files-found: error
+	      - name: Forge result producer
+	        if: always()
+	        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0
+	        with:
+	          name: \${{ format('ci-lane-result-{0}-{1}-classify', github.run_id, github.run_attempt) }}
+	          path: ci-results/classify.json
+	          if-no-files-found: error
+	          overwrite: true
+
+  verification:`,
 			),
 		],
 	] as const;
@@ -201,6 +241,54 @@ test('central workflow rejects every classifier producer, consumer, relevance, s
 					/classifier|output|edge|binding/i.test(finding),
 				),
 				`${name} producer edge should fail: ${findings.join('; ')}`,
+			);
+		}
+		const falseConditionMutation = original.replace(
+			"always() && needs.classify.result == 'success' && needs.classify.outputs.api == 'true'",
+			"always() && needs.classify.result == 'success' && needs.classify.outputs.api == 'true' && false",
+		);
+		await writeFile(workflowFile, falseConditionMutation);
+		const falseConditionFindings = await findCentralCiStructureProblems({
+			rootDir,
+		});
+		assert.ok(
+			falseConditionFindings.some((finding) =>
+				/condition|classifier|output|edge|binding/i.test(finding),
+			),
+			`API condition appends false should fail: ${falseConditionFindings.join('; ')}`,
+		);
+		const apiCondition =
+			"always() && needs.classify.result == 'success' && needs.classify.outputs.api == 'true'";
+		const conditionMutations = [
+			[
+				'API condition prepends false',
+				`always() && false && needs.classify.result == 'success' && needs.classify.outputs.api == 'true'`,
+			],
+			['API condition appends true', `${apiCondition} || true`],
+			[
+				'API condition duplicates classifier result',
+				`${apiCondition} && needs.classify.result == 'success'`,
+			],
+			[
+				'API condition reorders semantic sources',
+				"always() && needs.classify.outputs.api == 'true' && needs.classify.result == 'success'",
+			],
+			[
+				'API condition uses dynamic expression',
+				"always() && needs.classify.result == 'success' && needs.classify.outputs.api == '${{ matrix.api }}'",
+			],
+		] as const;
+		for (const [label, replacement] of conditionMutations) {
+			await writeFile(
+				workflowFile,
+				original.replace(apiCondition, replacement),
+			);
+			const findings = await findCentralCiStructureProblems({ rootDir });
+			assert.ok(
+				findings.some((finding) =>
+					/condition|classifier|output|edge|binding/i.test(finding),
+				),
+				`${label} should fail: ${findings.join('; ')}`,
 			);
 		}
 
@@ -1014,148 +1102,282 @@ test('central trigger filters are rejected in every filtered form', async () => 
 	}
 });
 
-test('central manifest does not describe locally mirrored commands as GitHub-only', async () => {
-	const manifest = JSON.parse(
-		await readFile(
-			path.join(repoRoot, 'packages/scripts-ts/src/ci-gate-manifest.json'),
-			'utf8',
-		),
-	) as { steps: Record<string, { mirror: string | null; reason: string }> };
-	const expectedMirrors = new Map([
-		['ci.yml::api::Run full API test suite', 'just test-api'],
-		['ci.yml::verification::Check formatting', 'just format'],
-		['ci.yml::verification::Build front', 'just ci-front'],
-		[
-			'ci.yml::verification::Test front (non-vitest report-all)',
-			'just ci-front',
-		],
-		['ci.yml::e2e-test::Run Playwright shard', 'just ci-e2e-front'],
-		[
-			'ci.yml::e2e-cleanup::Cleanup e2e images',
-			'pnpm --filter scripts-ts exec vitest run src/ci-e2e-cleanup.test.ts',
-		],
-		[
-			'ci.yml::verification::Check dependency health contract',
-			'just nuget-audit',
-		],
-	]);
+type JustRecipeDump = {
+	body?: unknown[];
+	dependencies?: Array<{ recipe?: string }>;
+};
 
-	for (const [id, mirror] of expectedMirrors) {
-		assert.equal(manifest.steps[id]?.mirror, mirror, `${id} mirror`);
+type ManifestEvidence = { mirror: string | null; reason: string };
+
+const normalizeManifestCommand = (value: string): string =>
+	value.replace(/\s+/g, ' ').trim().replace(/^@/, '');
+
+const flattenJustNode = (node: unknown): string => {
+	if (typeof node === 'string') {
+		return node;
 	}
-	for (const [id, entry] of Object.entries(manifest.steps)) {
-		if (!id.startsWith('ci.yml::')) {
+	if (Array.isArray(node)) {
+		return node.map(flattenJustNode).join('');
+	}
+	return '';
+};
+
+const executableWorkflowLines = (run: string): string[] =>
+	run
+		.split('\n')
+		.map(normalizeManifestCommand)
+		.filter(
+			(line) =>
+				line.length > 0 &&
+				!line.startsWith('#') &&
+				!/^set -e/.test(line) &&
+				!['then', 'else', 'fi', 'done', 'esac', ';;', 'do'].includes(line),
+		);
+
+const buildExpandedJustCommands = (
+	dump: Record<string, JustRecipeDump>,
+): Map<string, Set<string>> => {
+	const commands = new Map<string, Set<string>>();
+	const visited = new Set<string>();
+	const visit = (recipeName: string): void => {
+		if (visited.has(recipeName)) {
+			return;
+		}
+		visited.add(recipeName);
+		const recipe = dump[recipeName];
+		if (recipe === undefined) {
+			return;
+		}
+		for (const dependency of recipe.dependencies ?? []) {
+			if (typeof dependency.recipe === 'string') {
+				visit(dependency.recipe);
+			}
+		}
+		for (const bodyLine of recipe.body ?? []) {
+			const command = normalizeManifestCommand(flattenJustNode(bodyLine));
+			if (command.length === 0 || command.startsWith('#')) {
+				continue;
+			}
+			const recipes = commands.get(command) ?? new Set<string>();
+			recipes.add(recipeName);
+			commands.set(command, recipes);
+		}
+	};
+	visit('ci');
+	visit('ci-full');
+	return commands;
+};
+
+const selectLocalRecipe = (
+	lines: string[],
+	commands: Map<string, Set<string>>,
+): string | null => {
+	if (lines.length === 0) {
+		return null;
+	}
+	let candidates: Set<string> | undefined;
+	for (const line of lines) {
+		const matching = commands.get(line);
+		if (matching === undefined) {
+			return null;
+		}
+		if (candidates === undefined) {
+			candidates = new Set(matching);
 			continue;
 		}
-		assert.ok(entry.reason.length >= 24, `${id} reason length`);
-		assert.doesNotMatch(
-			entry.reason,
-			/central CI (?:topology|gate inventory).*no separate local execution surface/i,
-			`${id} generic reason`,
+		candidates = new Set(
+			[...candidates].filter((recipe) => matching.has(recipe)),
 		);
 	}
-});
+	if (candidates === undefined || candidates.size === 0) {
+		return null;
+	}
+	return (
+		[...candidates].sort((left, right) => {
+			const leftCi = left.startsWith('ci-') ? 0 : 1;
+			const rightCi = right.startsWith('ci-') ? 0 : 1;
+			return (
+				leftCi - rightCi ||
+				left.length - right.length ||
+				left.localeCompare(right)
+			);
+		})[0] ?? null
+	);
+};
 
-test('central manifest semantically reconciles every one of its 169 entries', async () => {
+const deriveManifestEvidence = (
+	jobId: string,
+	step: Record<string, unknown>,
+	commands: Map<string, Set<string>>,
+): ManifestEvidence => {
+	const name = String(step.name ?? '<unnamed step>');
+	if (typeof step.uses === 'string') {
+		return {
+			mirror: null,
+			reason: `Hosted-only action step "${name}" uses ${step.uses}; exact hosted fields: ${JSON.stringify({ if: step.if ?? null, with: step.with ?? null, env: step.env ?? null })}.`,
+		};
+	}
+	const run = typeof step.run === 'string' ? step.run : '';
+	const lines = executableWorkflowLines(run);
+	const recipe = selectLocalRecipe(lines, commands);
+	if (recipe !== null) {
+		return {
+			mirror: `just ${recipe}`,
+			reason: `Local mirror just ${recipe} is derived from exact normalized workflow command match(es): ${JSON.stringify(lines)}.`,
+		};
+	}
+	return {
+		mirror: null,
+		reason: `No exact local command match for run step "${name}"; normalized workflow command(s): ${JSON.stringify(lines)}. The recursive just call graph was checked without inferring a broader local boundary.`,
+	};
+};
+
+test('central manifest derives honest evidence for every one of its 169 entries', async () => {
 	const manifest = JSON.parse(
 		await readFile(
 			path.join(repoRoot, 'packages/scripts-ts/src/ci-gate-manifest.json'),
 			'utf8',
 		),
 	) as { steps: Record<string, { mirror: string | null; reason: string }> };
+	const workflow = parse(await readFile(workflowPath, 'utf8')) as {
+		jobs: Record<string, { steps?: Array<Record<string, unknown>> }>;
+	};
 	const central = Object.entries(manifest.steps).filter(([id]) =>
 		id.startsWith('ci.yml::'),
 	);
 	assert.equal(central.length, 169);
-	const justfile = await readFile(path.join(repoRoot, 'justfile'), 'utf8');
-	const packageJson = JSON.parse(
-		await readFile(path.join(repoRoot, 'package.json'), 'utf8'),
-	) as {
-		scripts?: Record<string, string>;
-	};
-	const justRecipes = new Set(
-		[...justfile.matchAll(/^([A-Za-z0-9_-]+)(?:\s+[^:\n]+)?\s*:/gm)].map(
-			(match) => match[1],
-		),
-	);
 	const justDump = JSON.parse(
 		execFileSync('just', ['--dump', '--dump-format', 'json'], {
 			cwd: repoRoot,
 			encoding: 'utf8',
 		}),
-	) as { recipes: Record<string, unknown> };
-	const dumpedRecipes = new Set(Object.keys(justDump.recipes));
-	const localMirrorEntries = central.filter(
-		([, entry]) => entry.mirror !== null,
-	);
-	assert.equal(localMirrorEntries.length, 81);
-	const expectedMirrors = {
-		'ci.yml::audit-development::Run deterministic audit fixtures':
-			'just ci-drift',
-		'ci.yml::audit-production::Run deterministic audit fixtures':
-			'just ci-drift',
-		'ci.yml::e2e-test::Assert exact pins': 'just ci-install',
-		'ci.yml::e2e-test::Install dependencies': 'just ci-install',
-		'ci.yml::front-vitest::Install dependencies': 'just ci-install',
-		'ci.yml::front-vitest::Run trusted first-party postinstall':
-			'just ci-install',
-		'ci.yml::gate::Install workspace dependencies': 'just ci-install',
-		'ci.yml::gate::Run central structural self-check': 'just ci-drift',
-		'ci.yml::verification::Assert exact pins': 'just ci-install',
-		'ci.yml::verification::Check action versions': 'just ci-drift',
-		'ci.yml::verification::Check complexity bounds': 'just ci-drift',
-		'ci.yml::verification::Check dependency health contract':
-			'just nuget-audit',
-		'ci.yml::verification::Check front column-type imports': 'just ci-front',
-		'ci.yml::verification::Check front design system': 'just ci-front',
-		'ci.yml::verification::Check front React Compiler artifacts':
-			'just ci-front',
-		'ci.yml::verification::Check front static imports': 'just ci-front',
-		'ci.yml::verification::Install pnpm': 'just ci-install',
-		'ci.yml::verification::Run trusted first-party postinstall':
-			'just ci-install',
-		'ci.yml::verification::Test CI contracts': 'pnpm test:ci-contracts',
-	} satisfies Record<string, string>;
+	) as { recipes: Record<string, JustRecipeDump> };
+	const commands = buildExpandedJustCommands(justDump.recipes);
+	const decisions = new Set<string>();
 	for (const [id, entry] of central) {
-		const expected = expectedMirrors[id];
-		if (expected === undefined) {
-			if (entry.mirror === null) {
-				assert.ok(
-					entry.reason.includes(id.split('::').at(-1) ?? ''),
-					`${id} reason must name its step`,
-				);
-				assert.match(
-					entry.reason,
-					/GitHub-only|hosted|artifact|provenance|credential|runner|orchestration|sentinel|required-check/i,
-					`${id} reason must identify the hosted-only boundary`,
-				);
-			}
-			continue;
-		} else {
-			assert.equal(entry.mirror, expected, `${id} local mirror`);
-			assert.ok(
-				entry.reason.includes(expected),
-				`${id} reason must name ${expected}`,
+		const parts = id.split('::');
+		const jobId = parts[1];
+		const stepName = parts.slice(2).join('::');
+		assert.ok(jobId !== undefined && stepName.length > 0, `${id} shape`);
+		const step = workflow.jobs[jobId!]?.steps?.find(
+			(candidate) => candidate.name === stepName,
+		);
+		assert.ok(step !== undefined, `${id} must bind to a parsed workflow step`);
+		const evidence = deriveManifestEvidence(jobId!, step!, commands);
+		decisions.add(id);
+		assert.deepEqual(
+			{ mirror: entry.mirror, reason: entry.reason },
+			evidence,
+			`${id} evidence must be derived from its exact step kind and command graph`,
+		);
+	}
+	assert.equal(decisions.size, 169);
+	assert.equal(
+		manifest.steps['ci.yml::verification::Install pnpm']?.mirror,
+		null,
+	);
+	assert.equal(
+		manifest.steps['ci.yml::verification::Install workspace dependencies']
+			?.mirror,
+		'just ci-install',
+	);
+	assert.equal(
+		manifest.steps['ci.yml::verification::Smoke front production server']
+			?.mirror,
+		null,
+	);
+	assert.match(
+		manifest.steps['ci.yml::verification::Materialize .env.development']
+			?.reason ?? '',
+		/No exact local command match/,
+	);
+});
+
+test('central manifest evidence mutations are RED for all Sol examples and generic hosted reasons', async () => {
+	const rootDir = await mkdtemp(
+		path.join(os.tmpdir(), 'publyapp-central-manifest-'),
+	);
+	await cp(path.join(repoRoot, '.github'), path.join(rootDir, '.github'), {
+		recursive: true,
+	});
+	await cp(
+		path.join(repoRoot, 'packages/scripts-ts/src/ci-gate-manifest.json'),
+		path.join(rootDir, 'ci-gate-manifest.json'),
+	);
+	const manifestPath = path.join(rootDir, 'ci-gate-manifest.json');
+	const original = JSON.parse(await readFile(manifestPath, 'utf8')) as {
+		steps: Record<string, { mirror: string | null; reason: string }>;
+	};
+	const workflow = parse(
+		await readFile(path.join(rootDir, '.github/workflows/ci.yml'), 'utf8'),
+	) as { jobs: Record<string, { steps?: Array<Record<string, unknown>> }> };
+	const justDump = JSON.parse(
+		execFileSync('just', ['--dump', '--dump-format', 'json'], {
+			cwd: repoRoot,
+			encoding: 'utf8',
+		}),
+	) as { recipes: Record<string, JustRecipeDump> };
+	const commands = buildExpandedJustCommands(justDump.recipes);
+	const mutations: Array<
+		[string, string, (entry: { mirror: string | null; reason: string }) => void]
+	> = [
+		[
+			'Install pnpm falsely claims a local mirror',
+			'ci.yml::verification::Install pnpm',
+			(entry) => {
+				entry.mirror = 'just ci-install';
+			},
+		],
+		[
+			'workspace dependencies falsely claim hosted-only',
+			'ci.yml::verification::Install workspace dependencies',
+			(entry) => {
+				entry.mirror = null;
+			},
+		],
+		[
+			'smoke production server falsely claims ci-front',
+			'ci.yml::verification::Smoke front production server',
+			(entry) => {
+				entry.mirror = 'just ci-front';
+			},
+		],
+		[
+			'Materialize env uses an unrelated generic boundary',
+			'ci.yml::verification::Materialize .env.development',
+			(entry) => {
+				entry.reason = 'GitHub-only setup for a hosted runner boundary.';
+			},
+		],
+		[
+			'generic action reason omits actual hosted fields',
+			'ci.yml::verification::Setup Node',
+			(entry) => {
+				entry.reason = 'GitHub-only setup for a hosted runner boundary.';
+			},
+		],
+	];
+	try {
+		for (const [label, id, mutate] of mutations) {
+			const mutated = structuredClone(original);
+			const entry = mutated.steps[id];
+			assert.ok(entry, `${id} fixture entry must exist`);
+			mutate(entry);
+			await writeFile(manifestPath, JSON.stringify(mutated, null, '\t'));
+			const [, jobId, ...nameParts] = id.split('::');
+			const stepName = nameParts.join('::');
+			const step = workflow.jobs[jobId!]?.steps?.find(
+				(candidate) => candidate.name === stepName,
+			);
+			assert.ok(step, `${id} fixture step must exist`);
+			const expected = deriveManifestEvidence(jobId!, step!, commands);
+			assert.notDeepEqual(
+				{ mirror: entry.mirror, reason: entry.reason },
+				expected,
+				`${label} must be rejected by the all-entry derivation`,
 			);
 		}
-		if (entry.mirror?.startsWith('just ')) {
-			const recipe = entry.mirror.slice('just '.length).split(/\s/, 1)[0];
-			assert.ok(
-				justRecipes.has(recipe),
-				`${id} names a missing just recipe ${recipe}`,
-			);
-			assert.ok(
-				dumpedRecipes.has(recipe),
-				`${id} names a recipe absent from just's call graph`,
-			);
-		} else if (entry.mirror?.startsWith('pnpm ')) {
-			const packageScript = Object.values(packageJson.scripts ?? {}).some(
-				(script) => script.includes(entry.mirror),
-			);
-			assert.ok(
-				justfile.includes(entry.mirror) || packageScript,
-				`${id} mirror ${entry.mirror} is absent from the local call graph`,
-			);
-		}
+	} finally {
+		await rm(rootDir, { recursive: true, force: true });
 	}
 });

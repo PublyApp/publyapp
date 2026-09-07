@@ -33,9 +33,9 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 // a guard that scans a repository for something arriving on ANY path cannot be
 // gated on a classifier that only enumerates the paths known today. The vitest
 // file (check-api-tests-path-coverage.test.ts) imports the same functions here
-// and adds the reachability test that pins the unconditioned job's shape, so
-// running the coverage guard and proving it is reachable both share ONE
-// implementation -- a second vitest-only copy would drift the way #2005 proved.
+// and exercises the ordinary behavior against the real tree and representative
+// workflow/path fixtures. Hosted reachability remains owned by the workflow
+// and required-context mechanism.
 //
 // WHAT THIS PROVES
 // ----------------

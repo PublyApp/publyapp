@@ -319,7 +319,7 @@ ci-drift:
   pnpm --filter scripts-ts exec vitest run src/ci-changed-paths.test.ts
   pnpm --filter scripts-ts exec vitest run src/artifact-version-compat.test.ts
   node ./packages/scripts-ts/src/artifact-version-compat.ts
-  pnpm test:ci-contracts
+  node packages/scripts-ts/src/run-ci-contract-tests.ts
   pnpm --filter scripts-ts exec vitest run src/ci-e2e-rerun-guard.test.ts
   # #1975 round 2: live-tree coverage guard — every project the API suite
   # compiles (slnx projects + spec-referenced projects) must be reached by a
