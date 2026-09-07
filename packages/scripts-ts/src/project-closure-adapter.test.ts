@@ -226,16 +226,21 @@ const adapterArgs = (cardMap, state = 'REVIEW_READY', mode = 'dry-run') => {
 // @ts-expect-error rung-0: add proper type in later rung
 const assertLocalConfigContents = (config) => {
 	const expectedConfigKeys = [
+		'ci_live_pr_checks',
+		'ci_live_pr_workflow',
 		'ci_required_checks',
+		'ci_required_checks_source',
 		'closure_acceptance_commands',
 		'closure_state_dir',
 		'default_branch',
 		'heavy_job_limit',
 		'infra_retry_budget',
 		'local_review_ready_commands',
+		'model_routes',
 		'project',
 		'repo_path',
 		'repository',
+		'review_policy',
 		'schema_version',
 		'stagnation_budget_minutes',
 		'tracking_projection',
