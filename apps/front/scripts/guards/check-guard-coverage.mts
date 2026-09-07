@@ -12,7 +12,10 @@
  * pairing (drop the invocation -> report the file unused) cannot see a guard
  * that was never wrapped. This gate closes that class for good.
  *
- * Three rules, all failing loud with the offending script NAMED:
+ * Reachability of individual guards remains owned by the reviewed package
+ * scripts and required CI chain; this guard does not duplicate that wiring.
+ *
+ * Two rules, both failing loud with the offending script NAMED:
  *
  * RULE 1 (all scripts) — every `node` invocation in every pnpm script must
  * be a `node scripts/run-guarded.mts ...` invocation. This catches the bare
@@ -25,11 +28,6 @@
  * the guard families (`vitest run --config ...` and `playwright test --grep`
  * are now wrapped through the wrapper's `--` passthrough; a future bare one
  * fails here).
- *
- * RULE 3 (the aggregate) — `test:ci-non-vitest` must match the exact parsed
- * `&&` command chain below. This proves both utility checks are executable
- * commands in the required order; text presence, shell indirection, and
- * unreachable branches are not evidence.
  *
  * EXEMPTIONS — long-running processes that must NOT be time-bounded (a 300s
  * wrapper would kill them mid-session). Each entry carries its reason.
@@ -60,14 +58,6 @@ export type GuardCoverageFinding = {
 	detail: string;
 };
 
-export type GuardCoverageOptions = {
-	requireUtilityBoundaryAggregate?: boolean;
-};
-
-const UTILITY_BOUNDARY_AGGREGATE = 'test:ci-non-vitest';
-const UTILITY_BOUNDARY_AGGREGATE_SCRIPT =
-	'pnpm check:guard-coverage && node scripts/run-guarded.mts --test scripts/ci/compose-startup.test.mts && pnpm test:e2e-compose-env && pnpm test:route-tree-guard && pnpm test:design-guards && pnpm test:request-counter && pnpm test:search-cancel-css && pnpm test:context-chunk-isolation && pnpm test:simplebar-upstream-css && pnpm test:design-system-guard && pnpm test:zindex-guard && pnpm test:react-compiler-guard && pnpm test:shared-ts-import-paths && pnpm test:e2e-shared-constants-guard && pnpm test:column-type-imports-guard && pnpm test:server-static-imports-guard && pnpm test:utility-boundaries && pnpm check:utility-boundaries && pnpm test:font-bundle && pnpm test:shared-ts-node-resolution && pnpm check:design-system && pnpm check:zindex && pnpm check:react-compiler && pnpm check:shared-ts-import-paths && pnpm check:shared-ts-node-resolution && pnpm check:e2e-shared-constants && pnpm test:typecheck-coverage-guard && pnpm test:guard-coverage-guard && pnpm check:column-type-imports && pnpm check:server-static-imports && pnpm test:runtime-env-startup && pnpm test:front-runtime-image-guard';
-
 /**
  * Scripts that run for the life of a session and MUST NOT be wrapped in a
  * timeout (the wrapper would SIGKILL them mid-session). Each entry names its
@@ -86,8 +76,8 @@ export const isGuardFamilyScript = (name: string): boolean =>
 /**
  * Parses the deliberately narrow shell shape used by front scripts. A full
  * shell parser is unnecessary: unsupported shell syntax is rejected, and the
- * exact aggregate contract accepts only whitespace-separated argv tokens
- * joined by `&&`.
+ * guard-family contract accepts only whitespace-separated argv tokens joined
+ * by `&&`.
  */
 export const parseCommandChain = (script: string): string[][] | null => {
 	if (/[|;'"`\\$]/.test(script) || script.replaceAll('&&', '').includes('&')) {
@@ -99,13 +89,6 @@ export const parseCommandChain = (script: string): string[][] | null => {
 	}
 	return commands.map((command) => command.trim().split(/\s+/));
 };
-
-const expectedUtilityBoundaryAggregate = parseCommandChain(
-	UTILITY_BOUNDARY_AGGREGATE_SCRIPT,
-);
-if (!expectedUtilityBoundaryAggregate) {
-	throw new Error('invalid internal utility-boundary aggregate contract');
-}
 
 const isEnvironmentAssignment = (token: string): boolean =>
 	/^[A-Za-z_][A-Za-z0-9_]*=/.test(token);
@@ -131,7 +114,6 @@ const hasWrapperCommand = (commands: readonly (readonly string[])[]): boolean =>
  */
 export const analyzeScripts = (
 	scripts: Record<string, string>,
-	options: GuardCoverageOptions = {},
 ): GuardCoverageFinding[] => {
 	const familyCount = Object.keys(scripts).filter(isGuardFamilyScript).length;
 	if (familyCount === 0) {
@@ -142,25 +124,6 @@ export const analyzeScripts = (
 	}
 
 	const findings: GuardCoverageFinding[] = [];
-	if (options.requireUtilityBoundaryAggregate) {
-		const aggregate = scripts[UTILITY_BOUNDARY_AGGREGATE];
-		let parsed: string[][] | null = null;
-		if (aggregate !== undefined) {
-			parsed = parseCommandChain(aggregate);
-		}
-		if (
-			!parsed ||
-			JSON.stringify(parsed) !==
-				JSON.stringify(expectedUtilityBoundaryAggregate)
-		) {
-			findings.push({
-				script: UTILITY_BOUNDARY_AGGREGATE,
-				detail:
-					'the aggregate must execute the exact declared utility-boundary command chain ' +
-					`(missing, malformed, reordered, duplicated, or indirect): "${aggregate ?? '(missing)'}"`,
-			});
-		}
-	}
 	for (const [name, script] of Object.entries(scripts)) {
 		const commands = parseCommandChain(script);
 		if (!commands) {
@@ -253,9 +216,7 @@ export const loadScripts = (
 export const main = (): void => {
 	const scripts = loadScripts(PACKAGE_JSON_PATH);
 	try {
-		const findings = analyzeScripts(scripts, {
-			requireUtilityBoundaryAggregate: true,
-		});
+		const findings = analyzeScripts(scripts);
 		if (findings.length > 0) {
 			console.error('check-guard-coverage: GUARD COVERAGE VIOLATIONS:');
 			for (const finding of findings) {

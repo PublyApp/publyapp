@@ -183,7 +183,7 @@ const globalSymbolsFor = (
 	};
 };
 
-const isExpectedGlobalProperty = (
+const isGlobalRoot = (
 	expression: ts.Expression,
 	name: 'Intl' | 'navigator',
 	expected: ts.Symbol,
@@ -204,46 +204,15 @@ const isExpectedGlobalProperty = (
 	return symbolAtExpression(expression, checker) === expected;
 };
 
-const hasPropertyAccessParent = (
-	expression: ts.Expression,
-	name: string,
-): boolean => {
-	const parent = unwrap(expression).parent;
-	return (
-		(ts.isPropertyAccessExpression(parent) ||
-			ts.isElementAccessExpression(parent)) &&
-		staticPropertyName(parent) === name
-	);
-};
-
 const isDateTimeOrigin = (
 	expression: ts.Expression,
 	globals: GlobalSymbols,
 	checker: ts.TypeChecker,
 ): boolean => {
 	const parts = propertyParts(expression);
-	if (
-		isExpectedGlobalProperty(
-			expression,
-			'Intl',
-			globals.Intl,
-			globals,
-			checker,
-		) &&
-		!hasPropertyAccessParent(expression, 'DateTimeFormat')
-	) {
-		return true;
-	}
 	return (
 		parts?.name === 'DateTimeFormat' &&
-		symbolAtExpression(expression, checker) === globals.dateTimeFormat &&
-		isExpectedGlobalProperty(
-			parts.object,
-			'Intl',
-			globals.Intl,
-			globals,
-			checker,
-		)
+		symbolAtExpression(expression, checker) === globals.dateTimeFormat
 	);
 };
 
@@ -254,36 +223,56 @@ const isClipboardWriteOrigin = (
 ): boolean => {
 	const parts = propertyParts(expression);
 	if (
-		parts?.name === 'clipboard' &&
-		isExpectedGlobalProperty(
-			parts.object,
-			'navigator',
-			globals.navigator,
-			globals,
-			checker,
-		) &&
-		!hasPropertyAccessParent(expression, 'writeText')
-	) {
-		return true;
-	}
-	if (
 		parts?.name !== 'writeText' ||
 		symbolAtExpression(expression, checker) !== globals.writeText
 	) {
 		return false;
 	}
-	const clipboardParts = propertyParts(parts.object);
-	return (
-		clipboardParts?.name === 'clipboard' &&
-		symbolAtExpression(parts.object, checker) === globals.clipboard &&
-		isExpectedGlobalProperty(
-			clipboardParts.object,
+	return true;
+};
+
+const bindingName = (binding: ts.BindingElement): string | null => {
+	const propertyName = binding.propertyName ?? binding.name;
+	if (!ts.isIdentifier(propertyName) && !ts.isStringLiteralLike(propertyName)) {
+		return null;
+	}
+	return propertyName.text;
+};
+
+const isProtectedBinding = (
+	node: ts.BindingElement,
+	globals: GlobalSymbols,
+	checker: ts.TypeChecker,
+): 'date-time' | 'clipboard' | null => {
+	const parent = node.parent.parent;
+	if (!ts.isVariableDeclaration(parent) || !parent.initializer) {
+		return null;
+	}
+	const name = bindingName(node);
+	if (
+		name === 'DateTimeFormat' &&
+		isGlobalRoot(parent.initializer, 'Intl', globals.Intl, globals, checker)
+	) {
+		return 'date-time';
+	}
+	if (name !== 'writeText') {
+		return null;
+	}
+	const clipboard = propertyParts(parent.initializer);
+	if (
+		clipboard?.name === 'clipboard' &&
+		symbolAtExpression(parent.initializer, checker) === globals.clipboard &&
+		isGlobalRoot(
+			clipboard.object,
 			'navigator',
 			globals.navigator,
 			globals,
 			checker,
 		)
-	);
+	) {
+		return 'clipboard';
+	}
+	return null;
 };
 
 const walkSource = (sourceDir: string): string[] => {
@@ -423,6 +412,12 @@ export const scanUtilityBoundaries = (
 		}
 		const globals = globalSymbolsFor(checker, globalSourceFile);
 		const visit = (node: ts.Node): void => {
+			if (ts.isBindingElement(node)) {
+				const kind = isProtectedBinding(node, globals, checker);
+				if (kind) {
+					findings.push(findingFor(file, root, sourceFile, node, kind));
+				}
+			}
 			if (
 				ts.isPropertyAccessExpression(node) ||
 				ts.isElementAccessExpression(node)

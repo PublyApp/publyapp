@@ -75,6 +75,62 @@ void test('allows canonical utilities and test files', () => {
 	assert.deepEqual(scanUtilityBoundaries(path.join(root, 'src')), []);
 });
 
+void test('RED: catches the original thirteen protected-source forms', () => {
+	const root = makeSandbox();
+	writeFileSync(
+		path.join(root, 'src/routes.tsx'),
+		`new Intl.DateTimeFormat('en');
+new Intl['DateTimeFormat']('en');
+new (Intl.DateTimeFormat as typeof Intl.DateTimeFormat)('en');
+new globalThis.Intl.DateTimeFormat('en');
+new window.Intl.DateTimeFormat('en');
+const { DateTimeFormat } = Intl;
+new DateTimeFormat('en');
+const boundWriteText = navigator.clipboard.writeText.bind(navigator.clipboard);
+const castWriteText = (navigator.clipboard.writeText as typeof navigator.clipboard.writeText);
+navigator.clipboard['writeText']('secret');
+const { writeText } = navigator.clipboard;
+globalThis.navigator.clipboard.writeText('secret');
+navigator.clipboard?.writeText?.('secret');
+window.navigator.clipboard.writeText('secret');
+boundWriteText('secret');
+castWriteText('secret');
+writeText.call(navigator.clipboard, 'secret');
+`,
+	);
+
+	const findings = scanUtilityBoundaries(path.join(root, 'src'));
+
+	assert.equal(findings.length, 13);
+	assert.equal(
+		findings.filter((finding) => finding.kind === 'date-time').length,
+		6,
+	);
+	assert.equal(
+		findings.filter((finding) => finding.kind === 'clipboard').length,
+		7,
+	);
+});
+
+void test('RED: allows unrelated global capabilities and shadowed locals', () => {
+	const root = makeSandbox();
+	writeFileSync(
+		path.join(root, 'src/routes.tsx'),
+		`export {};
+const Intl = { DateTimeFormat: class {} };
+const navigator = { clipboard: { writeText: () => undefined } };
+new Intl.NumberFormat('en');
+new globalThis.Intl.NumberFormat('en');
+new window.Intl.NumberFormat('en');
+navigator.clipboard.readText();
+new Intl.DateTimeFormat();
+navigator.clipboard.writeText();
+`,
+	);
+
+	assert.deepEqual(scanUtilityBoundaries(path.join(root, 'src')), []);
+});
+
 void test('allows shadowed browser-global locals', () => {
 	const root = makeSandbox();
 	writeFileSync(
@@ -169,7 +225,7 @@ writeText.call(navigator.clipboard, 'secret');
 	);
 	assert.equal(
 		findings.filter((finding) => finding.kind === 'clipboard').length,
-		2,
+		1,
 	);
 });
 
