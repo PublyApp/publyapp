@@ -2,6 +2,11 @@ import { readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
 
+import {
+	hasE2eBuildTransportPair,
+	isE2eBuildTransportStep,
+	isValidE2eBuildTransportPair,
+} from './ci-lane-result.ts';
 import { NON_VITEST_COMMANDS } from './ci-non-vitest-manifest.ts';
 
 export const CLASSIFIER_LANES = [
@@ -938,9 +943,19 @@ const validateLaneMode = (
 		}
 		return;
 	}
+	const hasTransportPair = hasE2eBuildTransportPair(lane.expected_steps);
+	if (!isValidE2eBuildTransportPair(lane.expected_steps, lane.steps)) {
+		push(
+			failures,
+			`${jobKey}/${laneName}: e2e-build transport pair must contain exactly one successful executed transport and one skipped transport`,
+		);
+	}
 
 	for (const step of lane.steps) {
 		if (!expected.has(step.id)) {
+			continue;
+		}
+		if (hasTransportPair && isE2eBuildTransportStep(step.id)) {
 			continue;
 		}
 		if (step.id === contractForLane.sentinel) {

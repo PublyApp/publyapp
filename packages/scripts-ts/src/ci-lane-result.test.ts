@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url';
 
 import { test } from 'vitest';
 
-import { createCiLaneResult } from './ci-lane-result.ts';
+import { createCiLaneResult, type StepResult } from './ci-lane-result.ts';
 
 const repoRoot = path.resolve(
 	path.dirname(fileURLToPath(import.meta.url)),
@@ -117,4 +117,154 @@ test('relevant E2E lane accepts skipped failure-only upload and sentinel steps',
 	});
 
 	assert.equal(result.job.conclusion, 'success');
+});
+
+const e2eBuildExpectedSteps = [
+	'e2e-build.checkout',
+	'e2e-build.image_tag',
+	'e2e-build.image_root',
+	'e2e-build.image_fork',
+	'e2e-build.setup_buildx',
+	'e2e-build.setup_runtime',
+	'e2e-build.login',
+	'e2e-build.images',
+	'e2e-build.runtime_guard',
+	'e2e-build.upload_images',
+	'e2e-build.not-applicable',
+];
+
+const e2eBuildOutcome = (
+	id: string,
+	login: StepResult['outcome'],
+	uploadImages: StepResult['outcome'],
+	otherOutcome: StepResult['outcome'],
+	sentinelOutcome: StepResult['outcome'],
+): StepResult['outcome'] => {
+	if (id === 'e2e-build.login') {
+		return login;
+	}
+	if (id === 'e2e-build.upload_images') {
+		return uploadImages;
+	}
+	if (id === 'e2e-build.not-applicable') {
+		return sentinelOutcome;
+	}
+	return otherOutcome;
+};
+
+const e2eBuildResults = (
+	login: StepResult['outcome'],
+	uploadImages: StepResult['outcome'],
+	otherOutcome: StepResult['outcome'] = 'success',
+	sentinelOutcome: StepResult['outcome'] = 'skipped',
+) =>
+	Object.fromEntries(
+		e2eBuildExpectedSteps.map((id) => [
+			id,
+			{
+				outcome: e2eBuildOutcome(
+					id,
+					login,
+					uploadImages,
+					otherOutcome,
+					sentinelOutcome,
+				),
+			},
+		]),
+	) as Record<string, StepResult>;
+
+const createE2eBuildResult = (
+	login: StepResult['outcome'],
+	uploadImages: StepResult['outcome'],
+	otherOutcome: StepResult['outcome'] = 'success',
+	sentinelOutcome: StepResult['outcome'] = 'skipped',
+) =>
+	createCiLaneResult({
+		jobKey: 'e2e-build',
+		lane: 'e2e',
+		expectedSteps: e2eBuildExpectedSteps,
+		mode: 'relevant',
+		runId: 42,
+		runAttempt: 3,
+		eventSha: 'event-sha',
+		stepResults: e2eBuildResults(
+			login,
+			uploadImages,
+			otherOutcome,
+			sentinelOutcome,
+		),
+	});
+
+test.each([
+	['internal GHCR transport', 'success', 'skipped'],
+	['fork artifact transport', 'skipped', 'success'],
+] as const)('relevant e2e-build accepts %s', (_name, login, uploadImages) => {
+	const result = createE2eBuildResult(login, uploadImages);
+
+	assert.equal(result.job.conclusion, 'success');
+});
+
+test.each([
+	['both transports skipped', 'skipped', 'skipped'],
+	['both transports succeeded', 'success', 'success'],
+	['login failed', 'failure', 'skipped'],
+	['login cancelled', 'cancelled', 'skipped'],
+	['upload failed', 'skipped', 'failure'],
+	['upload cancelled', 'skipped', 'cancelled'],
+] as const)('relevant e2e-build rejects %s', (_name, login, uploadImages) => {
+	const result = createE2eBuildResult(login, uploadImages);
+
+	assert.equal(result.job.conclusion, 'failure');
+});
+
+test('relevant e2e-build keeps every non-transport step mandatory', () => {
+	const result = createE2eBuildResult('success', 'skipped', 'failure');
+
+	assert.equal(result.job.conclusion, 'failure');
+});
+
+test('irrelevant e2e-build accepts skipped work and a successful sentinel', () => {
+	const result = createCiLaneResult({
+		jobKey: 'e2e-build',
+		lane: 'e2e',
+		expectedSteps: e2eBuildExpectedSteps,
+		mode: 'not_applicable',
+		runId: 42,
+		runAttempt: 3,
+		eventSha: 'event-sha',
+		stepResults: e2eBuildResults('skipped', 'skipped', 'skipped', 'success'),
+	});
+
+	assert.equal(result.job.conclusion, 'success');
+});
+
+test('irrelevant e2e-build rejects executed work even with a successful sentinel', () => {
+	const result = createE2eBuildResult(
+		'success',
+		'skipped',
+		'success',
+		'success',
+	);
+
+	assert.equal(result.job.conclusion, 'failure');
+});
+
+test('e2e-build missing transport outcome throws before evaluation', () => {
+	const stepResults = e2eBuildResults('success', 'skipped');
+	delete stepResults['e2e-build.upload_images'];
+
+	assert.throws(
+		() =>
+			createCiLaneResult({
+				jobKey: 'e2e-build',
+				lane: 'e2e',
+				expectedSteps: e2eBuildExpectedSteps,
+				mode: 'relevant',
+				runId: 42,
+				runAttempt: 3,
+				eventSha: 'event-sha',
+				stepResults,
+			}),
+		/missing workflow outcome for e2e-build\.upload_images/,
+	);
 });

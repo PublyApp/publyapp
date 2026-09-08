@@ -38,15 +38,61 @@ export type StepEvidence = StepResult & {
 	execution: 'executed' | 'skipped';
 };
 
+export const E2E_BUILD_TRANSPORT_STEPS = [
+	'e2e-build.login',
+	'e2e-build.upload_images',
+] as const;
+
+export const hasE2eBuildTransportPair = (
+	expectedSteps: readonly string[],
+): boolean =>
+	E2E_BUILD_TRANSPORT_STEPS.every((id) => expectedSteps.includes(id));
+
+export const isE2eBuildTransportStep = (id: string): boolean =>
+	E2E_BUILD_TRANSPORT_STEPS.includes(
+		id as (typeof E2E_BUILD_TRANSPORT_STEPS)[number],
+	);
+
+export const isValidE2eBuildTransportPair = (
+	expectedSteps: readonly string[],
+	steps: readonly Pick<StepEvidence, 'id' | 'execution' | 'outcome'>[],
+): boolean => {
+	if (!hasE2eBuildTransportPair(expectedSteps)) {
+		return true;
+	}
+
+	const byId = new Map(steps.map((step) => [step.id, step]));
+	const login = byId.get('e2e-build.login');
+	const uploadImages = byId.get('e2e-build.upload_images');
+	return (
+		(login?.execution === 'executed' &&
+			login.outcome === 'success' &&
+			uploadImages?.execution === 'skipped' &&
+			uploadImages.outcome === 'skipped') ||
+		(login?.execution === 'skipped' &&
+			login.outcome === 'skipped' &&
+			uploadImages?.execution === 'executed' &&
+			uploadImages.outcome === 'success')
+	);
+};
+
 const isPrerequisiteStep = (id: string): boolean =>
 	/\.(checkout|install_pnpm|setup_node|setup_dotnet|setup_just)$/.test(id);
 
 const laneSucceeded = (
 	mode: LaneResultMode,
+	expectedSteps: readonly string[],
 	steps: StepEvidence[],
 ): boolean => {
 	if (mode === 'relevant') {
+		if (!isValidE2eBuildTransportPair(expectedSteps, steps)) {
+			return false;
+		}
+		const hasTransportPair = hasE2eBuildTransportPair(expectedSteps);
 		for (const step of steps) {
+			if (hasTransportPair && isE2eBuildTransportStep(step.id)) {
+				continue;
+			}
 			if (step.id.endsWith('.not-applicable')) {
 				if (step.execution !== 'skipped' || step.outcome !== 'skipped') {
 					return false;
@@ -131,7 +177,9 @@ export const createCiLaneResult = ({
 			...result,
 		};
 	});
-	const conclusion = laneSucceeded(mode, steps) ? 'success' : 'failure';
+	const conclusion = laneSucceeded(mode, expectedSteps, steps)
+		? 'success'
+		: 'failure';
 	const job = {
 		schema_version: 1 as const,
 		run_id: runId,
@@ -259,7 +307,7 @@ if (isDirectRun) {
 		result.job.lanes[laneName] = laneResult.job.lanes[laneName];
 	}
 	result.job.conclusion = Object.values(result.job.lanes).every((lane) =>
-		laneSucceeded(lane.mode, lane.steps),
+		laneSucceeded(lane.mode, lane.expected_steps, lane.steps),
 	)
 		? 'success'
 		: 'failure';

@@ -30,6 +30,13 @@ const mutableObject = (value: unknown): MutableObject => {
 	return value as MutableObject;
 };
 
+const completeStepOutcome = (step: string): 'success' | 'skipped' => {
+	if (step.endsWith('.not-applicable') || step === 'e2e-build.upload_images') {
+		return 'skipped';
+	}
+	return 'success';
+};
+
 const makeRecord = () =>
 	createCiLaneResult({
 		jobKey: 'api',
@@ -68,9 +75,7 @@ const makeCompleteRecords = () =>
 				stepResults: Object.fromEntries(
 					lane.expectedSteps.map((step) => [
 						step,
-						{
-							outcome: step.endsWith('.not-applicable') ? 'skipped' : 'success',
-						},
+						{ outcome: completeStepOutcome(step) },
 					]),
 				),
 				report:
@@ -412,6 +417,29 @@ test('aggregation accepts a complete positive observed-artifact set', () => {
 	} satisfies AggregateInput);
 
 	assert.equal(result.ok, true, result.failures.join('\n'));
+});
+
+test('aggregation rejects an e2e-build record with both transports executed', () => {
+	const input = completeAggregateInput();
+	const record = input.records.find(
+		(candidate) => candidate.job.key === 'e2e-build',
+	);
+	assert.ok(record);
+	const lane = record.job.lanes.e2e;
+	for (const id of ['e2e-build.login', 'e2e-build.upload_images']) {
+		const step = lane.steps.find((candidate) => candidate.id === id);
+		assert.ok(step);
+		step.execution = 'executed';
+		step.outcome = 'success';
+	}
+
+	const result = aggregateCiGate({
+		...input,
+		observed_artifacts: observedArtifactsFor(input),
+	} satisfies AggregateInput);
+
+	assert.equal(result.ok, false);
+	assert.match(result.failures.join('\n'), /transport pair/);
 });
 
 test('aggregation rejects an observed record from the wrong container', () => {

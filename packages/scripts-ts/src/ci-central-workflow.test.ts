@@ -68,6 +68,7 @@ const e2eConditionDeletionCases = [
 	['e2e-build', 'setup-buildx'],
 	['e2e-build', 'setup-runtime'],
 	['e2e-build', 'login'],
+	['e2e-build', 'upload-images'],
 	['e2e-test', 'install-pnpm'],
 	['e2e-test', 'setup-node'],
 	['e2e-test', 'login'],
@@ -157,6 +158,88 @@ test('central audit jobs install workspace dependencies before fixtures', async 
 		]);
 		assert.deepEqual(Object.keys(stepResults), laneSpecs.audit);
 		assert.ok(expectedInstallId in stepResults);
+	}
+});
+
+test('e2e image transports are represented as exclusive lane evidence', async () => {
+	const workflow = parse(await readFile(workflowPath, 'utf8')) as {
+		jobs: Record<
+			string,
+			{
+				steps: Array<{
+					id?: unknown;
+					name?: unknown;
+					env?: Record<string, unknown>;
+					if?: unknown;
+				}>;
+			}
+		>;
+	};
+	const job = workflow.jobs['e2e-build'];
+	assert.ok(job);
+	const collector = job.steps.find((step) =>
+		String(step.name).includes('Collect ci-lane-result'),
+	);
+	assert.ok(collector?.env);
+
+	const laneSpecs = JSON.parse(String(collector.env.CI_LANE_SPECS));
+	const stepResults = JSON.parse(String(collector.env.CI_STEP_RESULTS));
+	assert.ok(laneSpecs.e2e.includes('e2e-build.login'));
+	assert.ok(laneSpecs.e2e.includes('e2e-build.upload_images'));
+	assert.equal(
+		stepResults['e2e-build.login'].outcome,
+		'${{ steps.login.outcome }}',
+	);
+	assert.equal(
+		stepResults['e2e-build.upload_images'].outcome,
+		'${{ steps.upload-images.outcome }}',
+	);
+
+	const login = job.steps.find((step) => step.id === 'login');
+	const uploadImages = job.steps.find((step) => step.id === 'upload-images');
+	assert.equal(
+		login?.if,
+		"always() && needs.classify.result == 'success' && needs.classify.outputs.e2e == 'true' && steps.image-fork.outputs.fork != 'true'",
+	);
+	assert.equal(
+		uploadImages?.if,
+		"always() && needs.classify.result == 'success' && needs.classify.outputs.e2e == 'true' && steps.image-fork.outputs.fork == 'true' && steps.images.outcome == 'success'",
+	);
+});
+
+test('central workflow rejects mutations of exclusive transport result IDs', async () => {
+	const rootDir = await mkdtemp(
+		path.join(os.tmpdir(), 'publyapp-ci-e2e-transport-ids-'),
+	);
+	await cp(path.join(repoRoot, '.github'), path.join(rootDir, '.github'), {
+		recursive: true,
+	});
+	const workflowFile = path.join(rootDir, '.github/workflows/ci.yml');
+	const original = await readFile(workflowFile, 'utf8');
+	const mutations = [
+		original.replace('"e2e-build.login"', '"e2e-build.logn"'),
+		original.replace(
+			'"e2e-build.upload_images":{"outcome":"${{ steps.upload-images.outcome }}"}',
+			'"e2e-build.upload_image":{"outcome":"${{ steps.upload-images.outcome }}"}',
+		),
+	];
+
+	try {
+		for (const mutation of mutations) {
+			assert.notEqual(mutation, original);
+			await writeFile(workflowFile, mutation);
+			const findings = await findCentralCiStructureProblems({ rootDir });
+			assert.ok(
+				findings.some((finding) =>
+					/CI_LANE_SPECS|CI_STEP_RESULTS|artifact contract|binding/i.test(
+						finding,
+					),
+				),
+				`exclusive transport ID mutation should fail: ${findings.join('; ')}`,
+			);
+		}
+	} finally {
+		await rm(rootDir, { recursive: true, force: true });
 	}
 });
 
@@ -698,7 +781,7 @@ test('central workflow rejects deletion of each exact E2E classifier condition',
 			);
 			rejected += 1;
 		}
-		assert.equal(rejected, 11);
+		assert.equal(rejected, 12);
 	} finally {
 		await rm(rootDir, { recursive: true, force: true });
 	}
