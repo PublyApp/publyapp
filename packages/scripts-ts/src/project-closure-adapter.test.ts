@@ -1321,6 +1321,40 @@ json.dump(payload, sys.stdout)
 			assert.match(result.stdout, /state=/);
 			// @ts-expect-error rung-0: TS18046
 			assert.match(result.stdout, /projection dry-run: changes=/);
+			const statusResult = await runSharedGate(
+				['status', '--config', configFixture, '--pr', sharedPr, '--json'],
+				{
+					env: {
+						PATH: `${fakeBin}:${process.env.PATH}`,
+						PUBLYAPP_TRELLO_CARD_MAP: cardMap,
+					},
+				},
+			);
+			// @ts-expect-error rung-0: TS18046
+			assert.equal(
+				statusResult.code,
+				0,
+				`${statusResult.stderr}\n${statusResult.stdout}`,
+			);
+			const status = JSON.parse(statusResult.stdout);
+			const expectedLiveEvidence = {
+				ci_state: 'PASSING',
+				ci_workflow_path: '.github/workflows/ci.yml',
+				ci_workflow_id: workflowId,
+				ci_workflow_action: 'pull_request',
+				ci_workflow_run_id: workflowRunId,
+				ci_run_attempt: 1,
+				ci_check_suite_id: checkSuiteId,
+				ci_check_run_id: 10107,
+				commit: branchInfo.headOid,
+				ci_potential_merge_commit_oid: potentialMergeCommitOid,
+				ci_snapshot_body_sha256: createHash('sha256')
+					.update(completeDescription, 'utf8')
+					.digest('hex'),
+			};
+			for (const [key, expected] of Object.entries(expectedLiveEvidence)) {
+				assert.equal(status[key], expected, key);
+			}
 		});
 	},
 );
