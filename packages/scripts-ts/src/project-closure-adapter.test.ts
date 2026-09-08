@@ -255,6 +255,49 @@ const assertLocalConfigContents = (config) => {
 		'react-doctor-gate',
 		'ci-final-gate',
 	];
+	const expectedModelRoutes = [
+		{
+			id: 'publyapp-luna-to-sol-v1',
+			registry_version: 'models-v1',
+			launcher_registry_version: 'launchers-v1',
+			implementer_model: 'gpt-5.6-luna',
+			implementer_runner: 'codex',
+			implementer_invocation_model: 'gpt-5.6-luna',
+			reviewer_model: 'gpt-5.6-sol',
+			reviewer_runner: 'codex',
+			reviewer_invocation_model: 'gpt-5.6-sol',
+			same_family_policy_id: 'publyapp-gpt-implementation-sol-review-v1',
+		},
+		{
+			id: 'publyapp-deepseek-to-sol-v1',
+			registry_version: 'models-v1',
+			launcher_registry_version: 'launchers-v1',
+			implementer_model: 'deepseek-v4-flash',
+			implementer_runner: 'opencode',
+			implementer_invocation_model: 'cline-pass/cline-pass/deepseek-v4-flash',
+			reviewer_model: 'gpt-5.6-sol',
+			reviewer_runner: 'codex',
+			reviewer_invocation_model: 'gpt-5.6-sol',
+			same_family_policy_id: null,
+		},
+	];
+	const expectedReviewPolicy = {
+		mode: 'enforced',
+		owner_authorization: 'Radan; owner instruction 2026-09-05',
+		forbidden_reviewer_families: ['anthropic'],
+		same_family_exceptions: [
+			{
+				id: 'publyapp-gpt-implementation-sol-review-v1',
+				registry_version: 'models-v1',
+				implementer_family: 'openai',
+				reviewer_model: 'gpt-5.6-sol',
+				required_for_authorized_family: true,
+				owner_authorization: 'Radan; owner instruction 2026-09-05',
+				rationale:
+					'GPT implementation is reviewed by gpt-5.6-sol; Claude is forbidden.',
+			},
+		],
+	};
 	assert.equal(config.schema_version, 1);
 	assert.equal(config.project, 'publyapp');
 	assert.equal(config.tracking_projection, 'trello:publyapp');
@@ -298,18 +341,9 @@ const assertLocalConfigContents = (config) => {
 		path: '.github/workflows/ci.yml',
 		action: 'pull_request',
 	});
-	assert.equal(
-		JSON.stringify(
-			[...config.ci_required_checks].sort((left, right) =>
-				left.localeCompare(right),
-			),
-		),
-		JSON.stringify(
-			expectedCiRequiredChecks
-				.slice()
-				.sort((left, right) => left.localeCompare(right)),
-		),
-	);
+	assert.deepEqual(config.model_routes, expectedModelRoutes);
+	assert.deepEqual(config.review_policy, expectedReviewPolicy);
+	assert.deepEqual(config.ci_required_checks, expectedCiRequiredChecks);
 };
 
 // @ts-expect-error rung-0: add proper type in later rung
@@ -389,7 +423,7 @@ test('project closure config validates and malformed config fails closed', async
 	});
 });
 
-test('portable closure contract rejects unsafe config and renamed adapter fields', async () => {
+test('portable closure contract rejects unsafe config, mutations, and renamed adapter fields', async () => {
 	const config = JSON.parse(await readFile(configPath, 'utf8'));
 	assert.throws(() =>
 		assertLocalConfigContents({ ...config, repo_path: '/tmp/publyapp' }),
@@ -397,6 +431,36 @@ test('portable closure contract rejects unsafe config and renamed adapter fields
 	const missingBudget = { ...config };
 	delete missingBudget.infra_retry_budget;
 	assert.throws(() => assertLocalConfigContents(missingBudget));
+	assert.throws(() =>
+		assertLocalConfigContents({ ...config, ci_live_pr_checks: [] }),
+	);
+	assert.throws(() =>
+		assertLocalConfigContents({
+			...config,
+			ci_required_checks_source: {
+				...config.ci_required_checks_source,
+				pull_request: 'event_tip',
+			},
+		}),
+	);
+	assert.throws(() =>
+		assertLocalConfigContents({
+			...config,
+			ci_live_pr_workflow: {
+				...config.ci_live_pr_workflow,
+				path: '.github/workflows/other.yml',
+			},
+		}),
+	);
+	assert.throws(() =>
+		assertLocalConfigContents({
+			...config,
+			model_routes: config.model_routes.slice(0, 1),
+		}),
+	);
+	const missingPolicy = { ...config };
+	delete missingPolicy.review_policy;
+	assert.throws(() => assertLocalConfigContents(missingPolicy));
 	const adapter = await readFile(
 		join(repo, '.ai/orchestration-adapter.md'),
 		'utf8',

@@ -55,13 +55,18 @@ changes authoritative evidence. The projection adapter verifies the delivery-car
 `Objective`, `Current state`, `Scope`, `Links`, and `How to test` before it can plan or apply a
 list move, and it has no operation that can create approval evidence.
 
-## Deferred CI closure prerequisite
+## Candidate-tip/live-PR closure contract
 
-TODO for the follow-up shared playbook change: the active `pr-closure` schema and reader do not
-yet accept candidate-tip/live-PR check provenance. PR-A therefore keeps the local closure config
-limited to its currently accepted fields and required-check list. Re-enable the candidate-tip
-source, live-PR workflow/check claims, and ruleset cutover only after the shared reader validates
-the canonical candidate tip and its bound workflow evidence.
+The shared `pr-closure` schema and reader now validate candidate-tip/live-PR provenance. The
+local closure config keeps all seven PR-A required checks authoritative, with only `ci-final-gate`
+in `ci_live_pr_checks`; `pull_request` reads the config and required checks from the candidate tip,
+while `merge_group` and `push` use the event tip. Live PR evidence is bound to
+`.github/workflows/ci.yml` with action `pull_request`.
+
+PR-A remains additive: predecessor workflows and the existing ruleset remain in place. PR-B is a
+separate, authorized cutover that may reduce `ci_required_checks` to `ci-final-gate` and remove
+the predecessor workflows only after the candidate-tip/live-gate evidence is green and the
+ruleset change is explicitly approved. No workflow deletion or ruleset mutation belongs in PR-A.
 
 ## M1 Run Binding
 
