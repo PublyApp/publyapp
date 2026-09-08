@@ -43,10 +43,108 @@ export const E2E_BUILD_TRANSPORT_STEPS = [
 	'e2e-build.upload_images',
 ] as const;
 
+const E2E_TEST_TRANSPORT_STEPS = [
+	'e2e-test.login',
+	'e2e-test.pull_stack',
+	'e2e-test.download_images',
+	'e2e-test.load_images',
+] as const;
+
+type E2eTransportProfile = {
+	successful: readonly string[];
+	skipped: readonly string[];
+};
+
+type E2eTransportContract = {
+	jobId: 'e2e-build' | 'e2e-test';
+	expectedSteps: readonly string[];
+	profiles: readonly E2eTransportProfile[];
+};
+
+const E2E_TRANSPORT_CONTRACTS: readonly E2eTransportContract[] = [
+	{
+		jobId: 'e2e-build',
+		expectedSteps: E2E_BUILD_TRANSPORT_STEPS,
+		profiles: [
+			{
+				successful: ['e2e-build.login'],
+				skipped: ['e2e-build.upload_images'],
+			},
+			{
+				successful: ['e2e-build.upload_images'],
+				skipped: ['e2e-build.login'],
+			},
+		],
+	},
+	{
+		jobId: 'e2e-test',
+		expectedSteps: E2E_TEST_TRANSPORT_STEPS,
+		profiles: [
+			{
+				successful: ['e2e-test.login', 'e2e-test.pull_stack'],
+				skipped: ['e2e-test.download_images', 'e2e-test.load_images'],
+			},
+			{
+				successful: ['e2e-test.download_images', 'e2e-test.load_images'],
+				skipped: ['e2e-test.login', 'e2e-test.pull_stack'],
+			},
+		],
+	},
+];
+
+const getE2eTransportContract = (
+	jobKey: string,
+	expectedSteps: readonly string[],
+): E2eTransportContract | undefined => {
+	const jobId = jobKey.split('/')[0];
+	return E2E_TRANSPORT_CONTRACTS.find(
+		(contract) =>
+			contract.jobId === jobId &&
+			contract.expectedSteps.every((id) => expectedSteps.includes(id)),
+	);
+};
+
+export const hasE2eTransportContract = (
+	jobKey: string,
+	expectedSteps: readonly string[],
+): boolean => getE2eTransportContract(jobKey, expectedSteps) !== undefined;
+
+export const isE2eTransportStep = (
+	jobKey: string,
+	expectedSteps: readonly string[],
+	id: string,
+): boolean => {
+	const contract = getE2eTransportContract(jobKey, expectedSteps);
+	return contract?.expectedSteps.includes(id) ?? false;
+};
+
+export const isValidE2eTransportProfile = (
+	jobKey: string,
+	expectedSteps: readonly string[],
+	steps: readonly Pick<StepEvidence, 'id' | 'execution' | 'outcome'>[],
+): boolean => {
+	const contract = getE2eTransportContract(jobKey, expectedSteps);
+	if (contract === undefined) {
+		return true;
+	}
+
+	const byId = new Map(steps.map((step) => [step.id, step]));
+	return contract.profiles.some((profile) => {
+		const successful = profile.successful.every((id) => {
+			const step = byId.get(id);
+			return step?.execution === 'executed' && step.outcome === 'success';
+		});
+		const skipped = profile.skipped.every((id) => {
+			const step = byId.get(id);
+			return step?.execution === 'skipped' && step.outcome === 'skipped';
+		});
+		return successful && skipped;
+	});
+};
+
 export const hasE2eBuildTransportPair = (
 	expectedSteps: readonly string[],
-): boolean =>
-	E2E_BUILD_TRANSPORT_STEPS.every((id) => expectedSteps.includes(id));
+): boolean => hasE2eTransportContract('e2e-build', expectedSteps);
 
 export const isE2eBuildTransportStep = (id: string): boolean =>
 	E2E_BUILD_TRANSPORT_STEPS.includes(
@@ -56,41 +154,27 @@ export const isE2eBuildTransportStep = (id: string): boolean =>
 export const isValidE2eBuildTransportPair = (
 	expectedSteps: readonly string[],
 	steps: readonly Pick<StepEvidence, 'id' | 'execution' | 'outcome'>[],
-): boolean => {
-	if (!hasE2eBuildTransportPair(expectedSteps)) {
-		return true;
-	}
-
-	const byId = new Map(steps.map((step) => [step.id, step]));
-	const login = byId.get('e2e-build.login');
-	const uploadImages = byId.get('e2e-build.upload_images');
-	return (
-		(login?.execution === 'executed' &&
-			login.outcome === 'success' &&
-			uploadImages?.execution === 'skipped' &&
-			uploadImages.outcome === 'skipped') ||
-		(login?.execution === 'skipped' &&
-			login.outcome === 'skipped' &&
-			uploadImages?.execution === 'executed' &&
-			uploadImages.outcome === 'success')
-	);
-};
+): boolean => isValidE2eTransportProfile('e2e-build', expectedSteps, steps);
 
 const isPrerequisiteStep = (id: string): boolean =>
 	/\.(checkout|install_pnpm|setup_node|setup_dotnet|setup_just)$/.test(id);
 
 const laneSucceeded = (
+	jobKey: string,
 	mode: LaneResultMode,
 	expectedSteps: readonly string[],
 	steps: StepEvidence[],
 ): boolean => {
 	if (mode === 'relevant') {
-		if (!isValidE2eBuildTransportPair(expectedSteps, steps)) {
+		if (!isValidE2eTransportProfile(jobKey, expectedSteps, steps)) {
 			return false;
 		}
-		const hasTransportPair = hasE2eBuildTransportPair(expectedSteps);
+		const hasTransportContract = hasE2eTransportContract(jobKey, expectedSteps);
 		for (const step of steps) {
-			if (hasTransportPair && isE2eBuildTransportStep(step.id)) {
+			if (
+				hasTransportContract &&
+				isE2eTransportStep(jobKey, expectedSteps, step.id)
+			) {
 				continue;
 			}
 			if (step.id.endsWith('.not-applicable')) {
@@ -177,7 +261,7 @@ export const createCiLaneResult = ({
 			...result,
 		};
 	});
-	const conclusion = laneSucceeded(mode, expectedSteps, steps)
+	const conclusion = laneSucceeded(jobKey, mode, expectedSteps, steps)
 		? 'success'
 		: 'failure';
 	const job = {
@@ -307,7 +391,7 @@ if (isDirectRun) {
 		result.job.lanes[laneName] = laneResult.job.lanes[laneName];
 	}
 	result.job.conclusion = Object.values(result.job.lanes).every((lane) =>
-		laneSucceeded(lane.mode, lane.expected_steps, lane.steps),
+		laneSucceeded(jobKey, lane.mode, lane.expected_steps, lane.steps),
 	)
 		? 'success'
 		: 'failure';

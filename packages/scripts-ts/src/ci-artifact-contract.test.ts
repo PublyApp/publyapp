@@ -31,7 +31,12 @@ const mutableObject = (value: unknown): MutableObject => {
 };
 
 const completeStepOutcome = (step: string): 'success' | 'skipped' => {
-	if (step.endsWith('.not-applicable') || step === 'e2e-build.upload_images') {
+	if (
+		step.endsWith('.not-applicable') ||
+		step === 'e2e-build.upload_images' ||
+		step === 'e2e-test.download_images' ||
+		step === 'e2e-test.load_images'
+	) {
 		return 'skipped';
 	}
 	return 'success';
@@ -439,7 +444,35 @@ test('aggregation rejects an e2e-build record with both transports executed', ()
 	} satisfies AggregateInput);
 
 	assert.equal(result.ok, false);
-	assert.match(result.failures.join('\n'), /transport pair/);
+	assert.match(result.failures.join('\n'), /transport (pair|profile)/);
+});
+
+test('aggregation rejects an e2e-test record with an invalid transport profile', () => {
+	const input = completeAggregateInput();
+	const record = input.records.find(
+		(candidate) => candidate.job.key === 'e2e-test/1',
+	);
+	assert.ok(record);
+	const lane = record.job.lanes.e2e;
+	for (const id of [
+		'e2e-test.login',
+		'e2e-test.pull_stack',
+		'e2e-test.download_images',
+		'e2e-test.load_images',
+	]) {
+		const step = lane.steps.find((candidate) => candidate.id === id);
+		assert.ok(step);
+		step.execution = 'executed';
+		step.outcome = 'success';
+	}
+
+	const result = aggregateCiGate({
+		...input,
+		observed_artifacts: observedArtifactsFor(input),
+	} satisfies AggregateInput);
+
+	assert.equal(result.ok, false);
+	assert.match(result.failures.join('\n'), /transport profile/);
 });
 
 test('aggregation rejects an observed record from the wrong container', () => {

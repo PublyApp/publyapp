@@ -173,6 +173,104 @@ const e2eBuildResults = (
 		]),
 	) as Record<string, StepResult>;
 
+const e2eTestExpectedSteps = [
+	'e2e-test.checkout',
+	'e2e-test.install_pnpm',
+	'e2e-test.setup_node',
+	'e2e-test.assert_pins',
+	'e2e-test.install_dependencies',
+	'e2e-test.login',
+	'e2e-test.rerun_guard',
+	'e2e-test.pull_stack',
+	'e2e-test.download_images',
+	'e2e-test.load_images',
+	'e2e-test.cache_playwright',
+	'e2e-test.up_stack',
+	'e2e-test.wait_health',
+	'e2e-test.playwright',
+	'e2e-test.report_upload',
+	'e2e-test.teardown',
+	'e2e-test.not-applicable',
+];
+
+const e2eTestOutcome = (
+	id: string,
+	login: StepResult['outcome'],
+	pullStack: StepResult['outcome'],
+	downloadImages: StepResult['outcome'],
+	loadImages: StepResult['outcome'],
+	otherOutcome: StepResult['outcome'],
+	sentinelOutcome: StepResult['outcome'],
+): StepResult['outcome'] => {
+	if (id === 'e2e-test.login') {
+		return login;
+	}
+	if (id === 'e2e-test.pull_stack') {
+		return pullStack;
+	}
+	if (id === 'e2e-test.download_images') {
+		return downloadImages;
+	}
+	if (id === 'e2e-test.load_images') {
+		return loadImages;
+	}
+	if (id === 'e2e-test.not-applicable') {
+		return sentinelOutcome;
+	}
+	return otherOutcome;
+};
+
+const e2eTestResults = (
+	login: StepResult['outcome'],
+	pullStack: StepResult['outcome'],
+	downloadImages: StepResult['outcome'],
+	loadImages: StepResult['outcome'],
+	otherOutcome: StepResult['outcome'] = 'success',
+	sentinelOutcome: StepResult['outcome'] = 'skipped',
+) =>
+	Object.fromEntries(
+		e2eTestExpectedSteps.map((id) => [
+			id,
+			{
+				outcome: e2eTestOutcome(
+					id,
+					login,
+					pullStack,
+					downloadImages,
+					loadImages,
+					otherOutcome,
+					sentinelOutcome,
+				),
+			},
+		]),
+	) as Record<string, StepResult>;
+
+const createE2eTestResult = (
+	login: StepResult['outcome'],
+	pullStack: StepResult['outcome'],
+	downloadImages: StepResult['outcome'],
+	loadImages: StepResult['outcome'],
+	otherOutcome: StepResult['outcome'] = 'success',
+	sentinelOutcome: StepResult['outcome'] = 'skipped',
+) =>
+	createCiLaneResult({
+		jobKey: 'e2e-test/1',
+		lane: 'e2e',
+		expectedSteps: e2eTestExpectedSteps,
+		mode: 'relevant',
+		runId: 42,
+		runAttempt: 3,
+		eventSha: 'event-sha',
+		stepResults: e2eTestResults(
+			login,
+			pullStack,
+			downloadImages,
+			loadImages,
+			otherOutcome,
+			sentinelOutcome,
+		),
+	});
+
 const createE2eBuildResult = (
 	login: StepResult['outcome'],
 	uploadImages: StepResult['outcome'],
@@ -277,5 +375,268 @@ test('e2e-build missing transport outcome throws before evaluation', () => {
 				stepResults,
 			}),
 		/missing workflow outcome for e2e-build\.upload_images/,
+	);
+});
+
+test.each([
+	[
+		'all transports succeeded',
+		'success',
+		'success',
+		'success',
+		'success',
+		false,
+	],
+	[
+		'internal succeeded and download succeeded',
+		'success',
+		'success',
+		'success',
+		'skipped',
+		false,
+	],
+	[
+		'internal succeeded and load succeeded',
+		'success',
+		'success',
+		'skipped',
+		'success',
+		false,
+	],
+	['internal GHCR transport', 'success', 'success', 'skipped', 'skipped', true],
+	[
+		'login succeeded and both fork steps succeeded',
+		'success',
+		'skipped',
+		'success',
+		'success',
+		false,
+	],
+	[
+		'login succeeded and pull skipped',
+		'success',
+		'skipped',
+		'skipped',
+		'success',
+		false,
+	],
+	['login only succeeded', 'success', 'skipped', 'skipped', 'skipped', false],
+	[
+		'pull succeeded and both fork steps succeeded',
+		'skipped',
+		'success',
+		'success',
+		'success',
+		false,
+	],
+	[
+		'pull and download succeeded',
+		'skipped',
+		'success',
+		'success',
+		'skipped',
+		false,
+	],
+	[
+		'crossed partial transport B',
+		'skipped',
+		'success',
+		'skipped',
+		'success',
+		false,
+	],
+	['pull only succeeded', 'skipped', 'success', 'skipped', 'skipped', false],
+	[
+		'both internal steps skipped and download succeeded',
+		'skipped',
+		'skipped',
+		'success',
+		'skipped',
+		false,
+	],
+	['fork artifact transport', 'skipped', 'skipped', 'success', 'success', true],
+	[
+		'both internal steps skipped and load succeeded',
+		'skipped',
+		'skipped',
+		'skipped',
+		'success',
+		false,
+	],
+	['all transports skipped', 'skipped', 'skipped', 'skipped', 'skipped', false],
+	[
+		'crossed partial transport A',
+		'success',
+		'skipped',
+		'success',
+		'skipped',
+		false,
+	],
+] as const)(
+	'relevant e2e-test profile %s',
+	(_name, login, pullStack, downloadImages, loadImages, expectSuccess) => {
+		const result = createE2eTestResult(
+			login,
+			pullStack,
+			downloadImages,
+			loadImages,
+		);
+
+		assert.equal(result.job.conclusion === 'success', expectSuccess);
+	},
+);
+
+test.each([
+	['login failed', 'failure', 'success', 'skipped', 'skipped'],
+	['login cancelled', 'cancelled', 'success', 'skipped', 'skipped'],
+	['pull failed', 'success', 'failure', 'skipped', 'skipped'],
+	['pull cancelled', 'success', 'cancelled', 'skipped', 'skipped'],
+	['download failed', 'skipped', 'skipped', 'failure', 'success'],
+	['download cancelled', 'skipped', 'skipped', 'cancelled', 'success'],
+	['load failed', 'skipped', 'skipped', 'success', 'failure'],
+	['load cancelled', 'skipped', 'skipped', 'success', 'cancelled'],
+] as const)(
+	'relevant e2e-test rejects %s',
+	(_name, login, pullStack, downloadImages, loadImages) => {
+		const result = createE2eTestResult(
+			login,
+			pullStack,
+			downloadImages,
+			loadImages,
+		);
+
+		assert.equal(result.job.conclusion, 'failure');
+	},
+);
+
+test('relevant e2e-test keeps every non-transport step mandatory', () => {
+	const result = createE2eTestResult(
+		'success',
+		'success',
+		'skipped',
+		'skipped',
+		'failure',
+	);
+
+	assert.equal(result.job.conclusion, 'failure');
+});
+
+test('irrelevant e2e-test accepts skipped work and a successful sentinel', () => {
+	const result = createCiLaneResult({
+		jobKey: 'e2e-test/1',
+		lane: 'e2e',
+		expectedSteps: e2eTestExpectedSteps,
+		mode: 'not_applicable',
+		runId: 42,
+		runAttempt: 3,
+		eventSha: 'event-sha',
+		stepResults: e2eTestResults(
+			'skipped',
+			'skipped',
+			'skipped',
+			'skipped',
+			'skipped',
+			'success',
+		),
+	});
+
+	assert.equal(result.job.conclusion, 'success');
+});
+
+test('irrelevant e2e-test rejects executed work even with a successful sentinel', () => {
+	const result = createCiLaneResult({
+		jobKey: 'e2e-test/1',
+		lane: 'e2e',
+		expectedSteps: e2eTestExpectedSteps,
+		mode: 'not_applicable',
+		runId: 42,
+		runAttempt: 3,
+		eventSha: 'event-sha',
+		stepResults: e2eTestResults(
+			'success',
+			'skipped',
+			'skipped',
+			'skipped',
+			'skipped',
+			'success',
+		),
+	});
+
+	assert.equal(result.job.conclusion, 'failure');
+});
+
+test('e2e-test transport requires the complete exact expected-ID set', () => {
+	const expectedSteps = [
+		'e2e-test.login',
+		'e2e-test.pull_stack',
+		'e2e-test.not-applicable',
+	];
+	const result = createCiLaneResult({
+		jobKey: 'e2e-test/1',
+		lane: 'e2e',
+		expectedSteps,
+		mode: 'relevant',
+		runId: 42,
+		runAttempt: 3,
+		eventSha: 'event-sha',
+		stepResults: {
+			'e2e-test.login': { outcome: 'success' },
+			'e2e-test.pull_stack': { outcome: 'skipped' },
+			'e2e-test.not-applicable': { outcome: 'skipped' },
+		},
+	});
+
+	assert.equal(result.job.conclusion, 'failure');
+});
+
+test('lookalike transport IDs do not inherit e2e-test optionality', () => {
+	const expectedSteps = [
+		'other-e2e-test.login',
+		'other-e2e-test.pull_stack',
+		'other-e2e-test.download_images',
+		'other-e2e-test.load_images',
+		'other-e2e-test.not-applicable',
+	];
+	const result = createCiLaneResult({
+		jobKey: 'other-e2e-test',
+		lane: 'e2e',
+		expectedSteps,
+		mode: 'relevant',
+		runId: 42,
+		runAttempt: 3,
+		eventSha: 'event-sha',
+		stepResults: Object.fromEntries(
+			expectedSteps.map((id) => [
+				id,
+				{ outcome: id.endsWith('.not-applicable') ? 'skipped' : 'success' },
+			]),
+		) as Record<string, StepResult>,
+	});
+
+	assert.equal(result.job.conclusion, 'success');
+});
+
+test('e2e-test missing transport outcome throws before evaluation', () => {
+	const stepResults = e2eTestResults(
+		'success',
+		'success',
+		'skipped',
+		'skipped',
+	);
+	delete stepResults['e2e-test.load_images'];
+
+	assert.throws(
+		() =>
+			createCiLaneResult({
+				jobKey: 'e2e-test/1',
+				lane: 'e2e',
+				expectedSteps: e2eTestExpectedSteps,
+				mode: 'relevant',
+				runId: 42,
+				runAttempt: 3,
+				eventSha: 'event-sha',
+				stepResults,
+			}),
+		/missing workflow outcome for e2e-test\.load_images/,
 	);
 });
