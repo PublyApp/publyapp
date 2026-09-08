@@ -852,7 +852,7 @@
 			"reason": "No exact local command match for run step \"Test CI drift contracts\"; normalized workflow command(s): [\"pnpm --filter scripts-ts exec vitest run src/check-ci-drift.test.ts src/artifact-version-compat.test.ts\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
 		"ci.yml::verification::Test CI guard fixtures": {
-			"hash": "8a972db39c7de967",
+			"hash": "3aee5f12cc79b1bc",
 			"mirror": null,
 			"reason": "No exact local command match for run step \"Test CI guard fixtures\"; normalized workflow command(s): [\"pnpm --filter scripts-ts exec vitest run src/ci-e2e-rerun-guard.test.ts src/check-api-tests-path-coverage.test.ts src/require-linked-issue.test.ts src/codeowners-contract.test.ts src/gen-reason-ref.test.ts src/check-no-floating-promises.test.ts\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
@@ -877,7 +877,7 @@
 			"reason": "Local mirror just ci-doc-links is derived from exact normalized workflow command match(es): [\"pnpm --filter scripts-ts exec vitest run src/audit-docs-prune.test.ts\"]."
 		},
 		"ci.yml::verification::Test front (non-vitest report-all)": {
-			"hash": "9ec31c000751294b",
+			"hash": "b098e15ba6eae7bb",
 			"mirror": null,
 			"reason": "No exact local command match for run step \"Test front (non-vitest report-all)\"; normalized workflow command(s): [\"node scripts/run-guarded.mts scripts/ci/run-non-vitest-report-all.mts\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},

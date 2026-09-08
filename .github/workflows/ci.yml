@@ -276,6 +276,8 @@ jobs:
         id: ci_guard_tests
         if: always() && needs.classify.result == 'success' && needs.classify.outputs.quality == 'true'
         continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: pnpm --filter scripts-ts exec vitest run src/ci-e2e-rerun-guard.test.ts src/check-api-tests-path-coverage.test.ts src/require-linked-issue.test.ts src/codeowners-contract.test.ts src/gen-reason-ref.test.ts src/check-no-floating-promises.test.ts
       - name: Test front lint guard
         id: front_lint_test
@@ -402,6 +404,8 @@ jobs:
         if: always() && needs.classify.result == 'success' && needs.classify.outputs.front == 'true'
         continue-on-error: true
         working-directory: apps/front
+        env:
+          GUARD_TIMEOUT_SECONDS: '600'
         run: node scripts/run-guarded.mts scripts/ci/run-non-vitest-report-all.mts
       - name: Verify paired red proofs
         id: front_proofs
