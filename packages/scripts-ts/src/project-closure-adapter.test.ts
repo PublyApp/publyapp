@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import {
 	chmod,
 	lstat,
@@ -171,7 +172,12 @@ const fixtureCardMap = (directory) => {
 };
 
 // @ts-expect-error rung-0: add proper type in later rung
-const writeCardMap = async (directory, description, extra = {}) => {
+const writeCardMap = async (
+	directory,
+	description,
+	extra = {},
+	prNumber = PR_NUMBER,
+) => {
 	const path = fixtureCardMap(directory);
 	await writeFile(
 		path,
@@ -181,7 +187,7 @@ const writeCardMap = async (directory, description, extra = {}) => {
 				project: 'publyapp',
 				board_id: '6a766eaa8fc59bfbeb18ce9b',
 				cards: {
-					[PR_NUMBER]: {
+					[prNumber]: {
 						id: 'card-fixture-1105',
 						name: 'PR #1105 — closure gate',
 						list: 'EN COURS',
@@ -1067,6 +1073,12 @@ test(
 		await withTempDirectory(async (directory) => {
 			const fakeBin = join(directory, 'bin');
 			await mkdir(fakeBin);
+			const cardMap = await writeCardMap(
+				directory,
+				completeDescription,
+				{},
+				Number(sharedPr),
+			);
 			const configFixture = join(directory, 'config.json');
 			await writeFile(
 				configFixture,
@@ -1087,25 +1099,205 @@ exec /usr/bin/git "$@"
 `,
 			);
 			await chmod(fakeGit, 0o755);
+			const potentialMergeCommitOid = 'b'.repeat(40);
+			const candidateConfigSha = 'a'.repeat(40);
+			const workflowId = 9701;
+			const workflowRunId = 9801;
+			const checkSuiteId = 9901;
+			const snapshotArtifactId = 10001;
+			const requiredChecks = [
+				'front-e2e-gate',
+				'front-ci-gate',
+				'openapi-spec-drift-gate',
+				'docs-archive-gate',
+				'quality-gate',
+				'react-doctor-gate',
+				'ci-final-gate',
+			];
+			const prJson = {
+				number: Number(sharedPr),
+				// @ts-expect-error rung-0: TS18047
+				headRefName: branchInfo.branch,
+				// @ts-expect-error rung-0: TS18047
+				headRefOid: branchInfo.headOid,
+				isDraft: false,
+				state: 'OPEN',
+				mergeStateStatus: 'CLEAN',
+				mergeable: 'MERGEABLE',
+				statusCheckRollup: [],
+				url: `https://github.com/PublyApp/publyapp/pull/${sharedPr}`,
+				baseRefName: config.default_branch,
+				body: completeDescription,
+				potentialMergeCommit: { oid: potentialMergeCommitOid },
+			};
+			const candidateConfigContent = Buffer.from(
+				JSON.stringify(config),
+			).toString('base64');
+			const encodeJson = (value) =>
+				Buffer.from(JSON.stringify(value)).toString('base64');
+			const checkRuns = requiredChecks.map((name, index) => ({
+				id: 10101 + index,
+				name,
+				head_sha: branchInfo.headOid,
+				status: 'completed',
+				conclusion: 'success',
+				started_at: '2026-09-08T05:00:00Z',
+				completed_at: '2026-09-08T05:10:00Z',
+				details_url: `https://github.com/PublyApp/publyapp/actions/runs/${workflowRunId}/job/${10201 + index}`,
+				app: { slug: 'github-actions' },
+				check_suite: { id: checkSuiteId },
+			}));
+			const workflow = {
+				id: workflowId,
+				path: '.github/workflows/ci.yml',
+			};
+			const workflowRun = {
+				id: workflowRunId,
+				run_attempt: 1,
+				workflow_id: workflowId,
+				path: '.github/workflows/ci.yml',
+				event: 'pull_request',
+				head_sha: branchInfo.headOid,
+				check_suite_id: checkSuiteId,
+			};
+			const snapshotRecord = {
+				pr_number: Number(sharedPr),
+				head_sha: branchInfo.headOid,
+				base_ref_name: config.default_branch,
+				potential_merge_commit_oid: potentialMergeCommitOid,
+				body_sha256: createHash('sha256')
+					.update(completeDescription, 'utf8')
+					.digest('hex'),
+				is_draft: false,
+				event_name: 'pull_request',
+				event_sha: potentialMergeCommitOid,
+				workflow_path: '.github/workflows/ci.yml',
+				workflow_id: workflowId,
+				workflow_action: 'pull_request',
+				run_id: workflowRunId,
+				run_attempt: 1,
+			};
+			const snapshotRecordPath = join(directory, 'snapshot.json');
+			const snapshotArchivePath = join(directory, 'snapshot.zip');
+			await writeFile(snapshotRecordPath, JSON.stringify(snapshotRecord));
+			const archiveResult = await run('python3', [
+				'-c',
+				'import sys, zipfile\nwith zipfile.ZipFile(sys.argv[1], "w", zipfile.ZIP_DEFLATED) as archive:\n    archive.write(sys.argv[2], "snapshot.json")',
+				snapshotArchivePath,
+				snapshotRecordPath,
+			]);
+			// @ts-expect-error rung-0: TS18046
+			assert.equal(archiveResult.code, 0, archiveResult.stderr);
+			const snapshotArchive = await readFile(snapshotArchivePath);
+			const candidateTipContent = {
+				path: '.ai/project-closure-v1.json',
+				sha: candidateConfigSha,
+				encoding: 'base64',
+				content: candidateConfigContent,
+			};
+			const candidateTipTree = {
+				truncated: false,
+				tree: [
+					{
+						path: '.ai/project-closure-v1.json',
+						type: 'blob',
+						sha: candidateConfigSha,
+					},
+				],
+			};
+			const checkRunsResponse = {
+				total_count: checkRuns.length,
+				check_runs: checkRuns,
+			};
+			const artifactsResponse = {
+				total_count: 1,
+				artifacts: [
+					{
+						id: snapshotArtifactId,
+						name: `ci-pr-snapshot-${workflowRunId}-1`,
+						expired: false,
+						size_in_bytes: snapshotArchive.length,
+						digest: `sha256:${createHash('sha256').update(snapshotArchive).digest('hex')}`,
+					},
+				],
+			};
 			const fakeGh = join(fakeBin, 'gh');
 			await writeFile(
 				fakeGh,
-				`#!/bin/sh\nprintf '%s\\n' '${JSON.stringify({
-					number: Number(sharedPr),
-					// @ts-expect-error rung-0: TS18047
-					headRefName: branchInfo.branch,
-					// @ts-expect-error rung-0: TS18047
-					headRefOid: branchInfo.headOid,
-					isDraft: false,
-					state: 'OPEN',
-					mergeStateStatus: 'CLEAN',
-					mergeable: 'MERGEABLE',
-					statusCheckRollup: [],
-					url: `https://github.com/PublyApp/publyapp/pull/${sharedPr}`,
-					baseRefName: config.default_branch,
-				})}'\n`,
+				`#!/bin/sh
+if [ "$#" -eq 7 ] && [ "$1" = "pr" ] && [ "$2" = "view" ] && [ "$3" = "${sharedPr}" ] && [ "$4" = "--repo" ] && [ "$5" = "PublyApp/publyapp" ] && [ "$6" = "--json" ] && [ "$7" = "number,headRefName,headRefOid,isDraft,state,mergeStateStatus,mergeable,statusCheckRollup,url,baseRefName,body,potentialMergeCommit" ]; then
+  printf '%s' '${encodeJson(prJson)}' | base64 -d
+  printf '\\n'
+  exit 0
+fi
+if [ "$#" -eq 2 ] && [ "$1" = "api" ] && [ "$2" = "repos/PublyApp/publyapp/contents/.ai/project-closure-v1.json?ref=${branchInfo.headOid}" ]; then
+  printf '%s' '${encodeJson(candidateTipContent)}' | base64 -d
+  printf '\\n'
+  exit 0
+fi
+if [ "$#" -eq 2 ] && [ "$1" = "api" ] && [ "$2" = "repos/PublyApp/publyapp/git/trees/${branchInfo.headOid}?recursive=1" ]; then
+  printf '%s' '${encodeJson(candidateTipTree)}' | base64 -d
+  printf '\\n'
+  exit 0
+fi
+if [ "$#" -eq 2 ] && [ "$1" = "api" ] && [ "$2" = "repos/PublyApp/publyapp/actions/workflows/ci.yml" ]; then
+  printf '%s' '${encodeJson(workflow)}' | base64 -d
+  printf '\\n'
+  exit 0
+fi
+if [ "$#" -eq 2 ] && [ "$1" = "api" ] && [ "$2" = "repos/PublyApp/publyapp/commits/${branchInfo.headOid}/check-runs?filter=all&page=1&per_page=100" ]; then
+  printf '%s' '${encodeJson(checkRunsResponse)}' | base64 -d
+  printf '\\n'
+  exit 0
+fi
+if [ "$#" -eq 2 ] && [ "$1" = "api" ] && [ "$2" = "repos/PublyApp/publyapp/actions/runs/${workflowRunId}" ]; then
+  printf '%s' '${encodeJson(workflowRun)}' | base64 -d
+  printf '\\n'
+  exit 0
+fi
+if [ "$#" -eq 2 ] && [ "$1" = "api" ] && [ "$2" = "repos/PublyApp/publyapp/actions/runs/${workflowRunId}/attempts/1" ]; then
+  printf '%s' '${encodeJson(workflowRun)}' | base64 -d
+  printf '\\n'
+  exit 0
+fi
+if [ "$#" -eq 2 ] && [ "$1" = "api" ] && [ "$2" = "repos/PublyApp/publyapp/actions/runs/${workflowRunId}/artifacts?page=1&per_page=100" ]; then
+  printf '%s' '${encodeJson(artifactsResponse)}' | base64 -d
+  printf '\\n'
+  exit 0
+fi
+			if [ "$#" -eq 2 ] && [ "$1" = "api" ] && [ "$2" = "repos/PublyApp/publyapp/actions/artifacts/${snapshotArtifactId}/zip" ]; then
+			  cat '${snapshotArchivePath}'
+			  exit 0
+			fi
+printf 'unexpected gh argv:' >&2
+printf ' %s' "$@" >&2
+printf '\\n' >&2
+exit 97
+`,
 			);
 			await chmod(fakeGh, 0o755);
+			const projectionAdapter = join(fakeBin, 'projection-adapter');
+			await writeFile(
+				projectionAdapter,
+				`#!/usr/bin/env python3
+import json
+import subprocess
+import sys
+
+result = subprocess.run(
+    [${JSON.stringify(adapterPath)}, *sys.argv[1:]],
+    capture_output=True,
+    text=True,
+)
+sys.stderr.write(result.stderr)
+if result.returncode != 0:
+    raise SystemExit(result.returncode)
+payload = json.loads(result.stdout)
+payload["delivery_cards_complete"] = True
+json.dump(payload, sys.stdout)
+`,
+			);
+			await chmod(projectionAdapter, 0o755);
 			const result = await runSharedGate(
 				[
 					'sync',
@@ -1114,11 +1306,12 @@ exec /usr/bin/git "$@"
 					'--pr',
 					sharedPr,
 					'--projection-adapter',
-					adapterPath,
+					projectionAdapter,
 				],
 				{
 					env: {
 						PATH: `${fakeBin}:${process.env.PATH}`,
+						PUBLYAPP_TRELLO_CARD_MAP: cardMap,
 					},
 				},
 			);
