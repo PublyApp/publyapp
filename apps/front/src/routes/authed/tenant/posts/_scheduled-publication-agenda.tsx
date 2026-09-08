@@ -2,6 +2,7 @@ import { Link } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
 import { Card, CardContent, CardHeader, CardTitle } from '~/components/ui/card';
 import type { ScheduledPublicationRow } from '~/lib/query/tenant-scheduled-publications';
+import { formatCalendarDay } from '~/utils/format-time';
 
 import {
 	ScheduledPublicationCause,
@@ -47,6 +48,8 @@ export const ScheduledPublicationAgenda = ({
 }: {
 	rows: ScheduledPublicationRow[];
 }) => {
+	const { i18n } = useTranslation('posts');
+	const language = i18n.resolvedLanguage ?? i18n.language;
 	const groups = groupScheduledPublicationsByViewerDate(rows);
 
 	return (
@@ -59,7 +62,9 @@ export const ScheduledPublicationAgenda = ({
 				>
 					<CardHeader>
 						<CardTitle>
-							<time dateTime={group.date}>{group.date}</time>
+							<time dateTime={group.date}>
+								{formatCalendarDay(group.date, language)}
+							</time>
 						</CardTitle>
 					</CardHeader>
 					<CardContent className="divide-y divide-border">

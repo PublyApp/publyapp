@@ -15,6 +15,7 @@ const mocks = vi.hoisted(() => ({
 	// Client time of the last successful fetch; 0 = no data yet (the poll
 	// window stays off until a fetch lands).
 	dataUpdatedAt: 0,
+	language: 'en',
 	invalidateTenantPublications: vi.fn(),
 }));
 
@@ -93,14 +94,15 @@ const EN_LABELS: TestLabelMap = {
 	'common:updated-at': 'Updated at',
 };
 
+const translate = (key: string, options?: { cause?: string }) => {
+	const value = EN_LABELS[key] ?? EN_LABELS[key.replace(/^posts:/, '')] ?? key;
+	return options?.cause ? value.replace('{{cause}}', options.cause) : value;
+};
+
 vi.mock('react-i18next', () => ({
 	useTranslation: () => ({
-		t: (key: string, options?: { cause?: string }) => {
-			const value =
-				EN_LABELS[key] ?? EN_LABELS[key.replace(/^posts:/, '')] ?? key;
-			return options?.cause ? value.replace('{{cause}}', options.cause) : value;
-		},
-		i18n: { resolvedLanguage: 'en', language: 'en' },
+		t: translate,
+		i18n: { resolvedLanguage: mocks.language, language: mocks.language },
 	}),
 }));
 
@@ -131,6 +133,7 @@ afterEach(() => {
 	mocks.queryError = null;
 	mocks.shouldLogout = false;
 	mocks.dataUpdatedAt = 0;
+	mocks.language = 'en';
 });
 
 describe('TenantPostsHistoryPage', () => {
@@ -139,6 +142,64 @@ describe('TenantPostsHistoryPage', () => {
 
 		expect(screen.getByTestId('tenant-posts-history-page')).toBeTruthy();
 		expect(screen.queryByTestId('account-read-only-badge')).toBeNull();
+	});
+
+	test('renders history timestamps with French weekday and month names', () => {
+		mocks.language = 'fr';
+		const originalTz = process.env.TZ;
+		process.env.TZ = 'Europe/Paris';
+		try {
+			mocks.rows = [row({})];
+			render(<TenantPostsHistoryPage />);
+
+			expect(screen.getByText('mar. 25 août 2026, 12:00')).toBeTruthy();
+		} finally {
+			if (originalTz === undefined) {
+				delete process.env.TZ;
+			} else {
+				process.env.TZ = originalTz;
+			}
+		}
+	});
+
+	test('renders history timestamps with English weekday and month names', () => {
+		const originalTz = process.env.TZ;
+		process.env.TZ = 'Europe/Paris';
+		try {
+			mocks.rows = [row({})];
+			render(<TenantPostsHistoryPage />);
+
+			expect(screen.getByText('Tue, Aug 25, 2026, 12:00 PM')).toBeTruthy();
+		} finally {
+			if (originalTz === undefined) {
+				delete process.env.TZ;
+			} else {
+				process.env.TZ = originalTz;
+			}
+		}
+	});
+
+	test('updates an already-mounted history timestamp when the language changes', () => {
+		const originalTz = process.env.TZ;
+		process.env.TZ = 'Europe/Paris';
+		try {
+			mocks.rows = [row({})];
+			const { rerender } = render(<TenantPostsHistoryPage />);
+
+			expect(screen.getByText('Tue, Aug 25, 2026, 12:00 PM')).toBeTruthy();
+
+			mocks.language = 'fr';
+			rerender(<TenantPostsHistoryPage />);
+
+			expect(screen.queryByText('Tue, Aug 25, 2026, 12:00 PM')).toBeNull();
+			expect(screen.getByText('mar. 25 août 2026, 12:00')).toBeTruthy();
+		} finally {
+			if (originalTz === undefined) {
+				delete process.env.TZ;
+			} else {
+				process.env.TZ = originalTz;
+			}
+		}
 	});
 
 	test('published row links to the external post in a new tab', () => {

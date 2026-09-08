@@ -3,8 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { StatusPill } from '~/components/ui/product-page';
 import { publicationStatusPresentation } from '~/lib/publication-status';
 import type { ScheduledPublicationRow } from '~/lib/query/tenant-scheduled-publications';
-
-import { formatScheduledLocalDateTime } from './_scheduled-publication-helpers';
+import { formatInZone } from '~/utils/format-time';
 
 export const ScheduledPublicationStatus = ({
 	status,
@@ -79,13 +78,18 @@ export const ScheduledPublicationTime = ({
 	row,
 }: {
 	row: ScheduledPublicationRow;
-}) => (
-	<div className="min-w-0">
-		<time dateTime={row.scheduledAtUtc.toISOString()} className="block">
-			{formatScheduledLocalDateTime(row.scheduledAtLocal)}
-		</time>
-		<span className="block truncate text-xs text-muted-foreground">
-			{row.timeZone ?? '—'}
-		</span>
-	</div>
-);
+}) => {
+	const { i18n } = useTranslation('posts');
+	const language = i18n.resolvedLanguage ?? i18n.language;
+
+	return (
+		<div className="min-w-0">
+			<time dateTime={row.scheduledAtUtc.toISOString()} className="block">
+				{formatInZone(row.scheduledAtUtc, row.timeZone, language)}
+			</time>
+			<span className="block truncate text-xs text-muted-foreground">
+				{row.timeZone ?? '—'}
+			</span>
+		</div>
+	);
+};

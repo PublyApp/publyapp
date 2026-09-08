@@ -4,6 +4,7 @@
 import { describe, expect, test } from 'vitest';
 
 import {
+	formatCalendarDay,
 	formatDateTime,
 	formatInZone,
 	formatMonthYear,
@@ -64,6 +65,10 @@ describe('format-time', () => {
 		expect(
 			formatInZone(new Date('2026-08-31T18:30:00.000Z'), 'Europe/Paris', 'en'),
 		).toBe('Mon, Aug 31, 2026, 8:30 PM');
+	});
+
+	test('formats a calendar day with a weekday in the requested locale', () => {
+		expect(formatCalendarDay('2026-08-01', 'fr')).toBe('sam. 1 août 2026');
 	});
 
 	test('keeps viewer-local undefined distinct from unavailable null zone', () => {

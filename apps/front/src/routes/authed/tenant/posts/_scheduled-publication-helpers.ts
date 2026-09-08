@@ -1,7 +1,4 @@
-import {
-	scheduledLocalCivilDate,
-	type ScheduledPublicationRow,
-} from '~/lib/query/tenant-scheduled-publications';
+import type { ScheduledPublicationRow } from '~/lib/query/tenant-scheduled-publications';
 
 export type PublicationWindow = {
 	from: Date;
@@ -42,16 +39,6 @@ export const buildVisibleMonthWindow = (now: Date): PublicationWindow => {
 		from: new Date(year, month, 1),
 		to: new Date(year, month + 1, 1, 0, 0, 0, -1),
 	};
-};
-
-export const formatScheduledLocalDateTime = (
-	scheduledAtLocal: string,
-): string => {
-	if (!scheduledLocalCivilDate(scheduledAtLocal)) {
-		return '—';
-	}
-
-	return `${scheduledAtLocal.slice(0, 10)} ${scheduledAtLocal.slice(11, 16)}`;
 };
 
 const formatViewerCivilDate = (instant: Date): string => {

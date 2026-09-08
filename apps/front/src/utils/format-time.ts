@@ -61,6 +61,13 @@ const WEEKDAY_DATE_TIME_OPTIONS: Intl.DateTimeFormatOptions = {
 	minute: '2-digit',
 };
 
+const CALENDAR_DAY_OPTIONS: Intl.DateTimeFormatOptions = {
+	weekday: 'short',
+	year: 'numeric',
+	month: 'short',
+	day: 'numeric',
+};
+
 const SHORT_DATE_OPTIONS: Intl.DateTimeFormatOptions = {
 	dateStyle: 'medium',
 };
@@ -144,3 +151,7 @@ export const formatInZone = (
 	const date = toDate(value);
 	return formatDate(date, language, WEEKDAY_DATE_TIME_OPTIONS, timeZone);
 };
+
+/** Formats a calendar day in UTC using the UI locale. */
+export const formatCalendarDay = (value: DateInput, language: string): string =>
+	formatDate(toDate(value), language, CALENDAR_DAY_OPTIONS, 'UTC');
