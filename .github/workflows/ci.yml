@@ -934,6 +934,9 @@ jobs:
     permissions:
       contents: read
       packages: read
+    env:
+      E2E_IMAGE_NS: ${{ needs.e2e-build.outputs.root }}
+      E2E_IMAGE_TAG: ${{ needs.e2e-build.outputs.tag }}
     steps:
       - name: Checkout
         id: checkout

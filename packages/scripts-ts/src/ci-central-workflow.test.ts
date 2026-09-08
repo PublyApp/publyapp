@@ -207,6 +207,78 @@ test('e2e image transports are represented as exclusive lane evidence', async ()
 	);
 });
 
+type E2eLifecycleStep = {
+	id?: unknown;
+	run?: unknown;
+	env?: Record<string, unknown>;
+};
+
+type E2eTestJob = {
+	env?: Record<string, unknown>;
+	steps: E2eLifecycleStep[];
+};
+
+const assertE2eImageEnvPropagation = (job: E2eTestJob): void => {
+	const expectedEnv = {
+		E2E_IMAGE_NS: '${{ needs.e2e-build.outputs.root }}',
+		E2E_IMAGE_TAG: '${{ needs.e2e-build.outputs.tag }}',
+	};
+	assert.deepEqual(
+		job.env,
+		expectedEnv,
+		'e2e-test must expose canonical image env',
+	);
+
+	for (const stepId of ['pull-stack', 'up-stack', 'wait-health', 'teardown']) {
+		const step = job.steps.find((candidate) => candidate.id === stepId);
+		assert.ok(step, `${stepId} must exist`);
+		assert.match(
+			String(step.run),
+			/docker compose -f apps\/front\/docker-compose\.test\.yml/,
+			`${stepId} must use the test compose file`,
+		);
+		for (const envName of Object.keys(expectedEnv)) {
+			const localValue = step.env?.[envName];
+			assert.ok(
+				localValue === undefined || localValue === expectedEnv[envName],
+				`${stepId} must not override ${envName} with a literal or different output`,
+			);
+		}
+	}
+};
+
+test('e2e test propagates canonical image env through the compose lifecycle', async () => {
+	const workflow = parse(await readFile(workflowPath, 'utf8')) as {
+		jobs: Record<string, E2eTestJob>;
+	};
+
+	assertE2eImageEnvPropagation(workflow.jobs['e2e-test']);
+});
+
+test('e2e image env contract rejects missing or wrong job output bindings', async () => {
+	const expectedEnv = {
+		E2E_IMAGE_NS: '${{ needs.e2e-build.outputs.root }}',
+		E2E_IMAGE_TAG: '${{ needs.e2e-build.outputs.tag }}',
+	};
+	const workflow = parse(await readFile(workflowPath, 'utf8')) as {
+		jobs: Record<string, E2eTestJob>;
+	};
+	const job = workflow.jobs['e2e-test'];
+
+	for (const [label, env] of [
+		['missing namespace', { E2E_IMAGE_TAG: expectedEnv.E2E_IMAGE_TAG }],
+		['wrong namespace output', { ...expectedEnv, E2E_IMAGE_NS: 'test' }],
+		['missing tag', { E2E_IMAGE_NS: expectedEnv.E2E_IMAGE_NS }],
+		['wrong tag output', { ...expectedEnv, E2E_IMAGE_TAG: 'test' }],
+	] as const) {
+		assert.throws(
+			() => assertE2eImageEnvPropagation({ ...job, env }),
+			/assert|canonical|image env/i,
+			`${label} must be rejected`,
+		);
+	}
+});
+
 test('central workflow rejects mutations of exclusive transport result IDs', async () => {
 	const rootDir = await mkdtemp(
 		path.join(os.tmpdir(), 'publyapp-ci-e2e-transport-ids-'),
