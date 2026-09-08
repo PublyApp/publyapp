@@ -13,20 +13,10 @@
 		"runtime set against the pinned baseline and fails on any divergence.",
 		"",
 		"R11 (#2033): the production guard derives its reference from the",
-		"anchored merge-base tree with `git merge-base` and `git ls-tree -r`. A",
-		"grow is silent; a shrink below the merge-base count fails loudly.",
-		"There are no authored per-extension floors and no slack to maintain.",
-		"",
-		"A legitimate code-file deletion is the only exception: declare every",
-		"deleted file by its exact repo-relative path in intentionalDeletions.",
-		"The guard verifies that each declaration is a merge-base file actually",
-		"absent from the live tree and still present in the integration reference.",
-		"It rejects stale or duplicate paths and never accepts a count, directory,",
-		"glob, or other form of slack.",
-		"",
-		"The declaration is normally empty. It is temporary review evidence for a",
-		"feature-branch deletion and self-expires once the integration branch",
-		"contains that deletion."
+		"exact committed HEAD tree with `git ls-tree -r`. Every committed code",
+		"path must appear in the live scan; additional live paths are accepted",
+		"and scanned. A committed deletion is naturally absent from HEAD, so it",
+		"needs no authored declaration, count, directory, glob, or other slack."
 	],
 	"scannedExtensions": [".ts", ".tsx", ".mts", ".cts", ".ctsx", ".mjs", ".cjs"],
 	"nonCodeExtensions": {
@@ -34,6 +24,5 @@
 		".css": "style declarations, never imports code",
 		".svg": "vector graphics, never imports code"
 	},
-	"exemptFiles": ["components/table/column-type.ts"],
-	"intentionalDeletions": []
+	"exemptFiles": ["components/table/column-type.ts"]
 }

@@ -5,33 +5,28 @@ Issue: #2033
 
 ## Decision
 
-Admit the #2033 shrink-only extension to guard #1769. The extension compares the
-live `apps/front/src` scan surface with the common ancestor of `HEAD` and
-`origin/develop`. It accepts additions, rejects unexplained removals, and allows
-only exact, temporary declarations for code files intentionally deleted by the
-feature branch.
+Admit the narrower #2033 extension to guard #1769. The exact committed `HEAD`
+tree is the reference surface. The live filesystem walk must contain every
+committed code path, while additional live files are accepted and scanned.
+A committed deletion needs no exception because the deleted path is naturally
+absent from `HEAD`.
 
-The committed baseline is one source of truth for scan policy and active
-intentional-deletion declarations. It does not contain authored per-extension
-counts or slack. Counts come from the anchored Git tree through `git merge-base`
-and `git ls-tree -r -z --name-only`.
+The committed baseline pins scan policy only: scanned extensions, non-code
+extensions, and exemptions. It contains no per-extension counts, deletion
+declarations, or slack. The reference paths come from one command:
+`git ls-tree -r -z --name-only HEAD -- apps/front/src`.
 
 ## Admission evidence
 
-The prior authored-count contract had a reproducible concurrent-branch failure:
-a branch that had not removed any files could become red after another branch
-added files and updated the shared count. It also made an authored count a
-potentially stale proxy for the actual scan surface. The focused proof covers
-both the concurrent-branch scenarios and the defect class:
+The prior authored-count contract could make an unchanged branch red after a
+different branch added files. The replacement compares paths rather than
+counts, so unrelated additions cannot create shared-baseline conflicts.
 
-- `#2033 SCENARIO 1` proves that a branch remains green when the integration
-  branch advances first.
-- `#2033 SCENARIO 2` proves that independent additions need no baseline edit.
-- `#2033 RED: assertNoShrinkVsMergeBase fails when live shrinks below the
-  merge-base count` proves an unexplained removal is caught.
-- The Git integration tests prove that the reference is anchored to the
-  repository and that an exact deletion declaration is accepted only while the
-  integration branch still contains the file.
+The focused proof checks that a missing committed path is named, extra live
+paths pass, empty or unreadable references fail closed, and a real temporary
+Git repository turns red when a committed file is removed only from the
+worktree. The same suite preserves the extension, exemption, and AST-import
+tests.
 
 The exact focused command is:
 
@@ -49,34 +44,28 @@ pnpm --filter front check:column-type-imports
 
 The protected invariant is build and release integrity: every code file under
 the guarded source root must remain in the AST scan perimeter, so a direct
-banned import cannot disappear from analysis when a file is moved or removed.
-A normal fixture test can prove that a known file is scanned, but it cannot
-compare two independently changing Git trees or distinguish an intentional
-feature-branch deletion from an unexplained shrink. The merge-base tree and
-exact-path declaration are therefore indispensable to this extension.
+banned import cannot disappear from analysis when a scanner path is lost.
+A normal AST fixture can prove that a known import is caught, but it cannot
+prove that the production filesystem walker visited every committed path.
+Comparing the live walk with the exact `HEAD` path set closes that gap without
+reasoning about branch history.
 
 ## Explicit maintenance cost
 
-This extension carries the following recurring cost:
-
-1. Every production invocation performs one `git merge-base` and two anchored
-   `git ls-tree` reads, and therefore requires the configured integration ref
-   (`origin/develop` in CI) to be fetched and reachable.
-2. The implementation must keep the live tree walk, merge-base tree walk,
-   path normalization, extension counting, and exact-deletion validation in
-   sync. Git failures must remain actionable because a missing reference must
-   fail closed rather than pass vacuously.
-3. A deliberate code-file deletion temporarily requires its exact
-   repo-relative path in `intentionalDeletions`. The entry must be removed or
-   allowed to expire after the integration branch contains the deletion.
-   Stale, duplicate, directory, glob, and count-based declarations are rejected.
-4. Changes to the scanned-extension, non-code-extension, or exemption policy
+1. Every production invocation performs one anchored `git ls-tree` read of
+   `HEAD`; Git must therefore be available and the checked-out commit readable.
+2. The implementation keeps only path normalization and one set-difference
+   assertion aligned with the live walk. A missing reference still fails
+   closed with actionable Git stderr.
+3. A deliberate code-file deletion must be committed before the live scan can
+   pass; no authored exception or cleanup state exists.
+4. Changes to scanned-extension, non-code-extension, or exemption policy
    require synchronized edits to the guard and its pinned JSON baseline.
-5. The focused suite maintains temporary Git repositories for the concurrent
-   branch, empty-reference, and deletion-lifecycle cases.
+5. The focused suite maintains one temporary Git repository for fail-closed
+   reference and missing-worktree-file cases.
 
 This cost is accepted because it prevents a silent build/release guard gap and
-because the baseline no longer requires recurring authored count maintenance.
+because no recurring authored count or deletion bookkeeping remains.
 
 ## Concrete retirement or replacement condition
 
@@ -84,15 +73,12 @@ Retire the #2033 extension together with guard #1769 when the underlying
 TanStack table policy is removed: the supported table API accepts the current
 imports, `column-type.ts` is deleted after all consumers migrate, and the
 required front typecheck and production guard no longer need to forbid the
-banned specifiers. The retirement change must delete the Git comparison,
-`intentionalDeletions`, and this guard's baseline rather than leaving an
-unreferenced policy artifact.
+banned specifiers. The retirement change must delete the Git comparison and
+this guard's baseline rather than leaving an unreferenced policy artifact.
 
-Replace the custom Git comparison earlier if a stable off-the-shelf tool used by
-required CI can enforce all of the same conditions: compare the checked-out
-source surface with the merge base, fail on unexplained code-file shrinkage,
-and support exact path-scoped temporary deletion evidence without authored
-counts or slack. Before replacement, the tool must pass the existing focused
-violating/conforming and concurrent-branch proofs in the required front gate.
-Until one of those conditions is met, the custom extension remains the narrowest
-available mechanism for the invariant.
+Replace the custom Git comparison earlier if a stable off-the-shelf tool used
+by required CI can prove that every committed source path was visited by the
+live scan without authored counts or allowlists. Before replacement, the tool
+must pass the existing focused missing-path and conforming proofs in the
+required front gate. Until one of those conditions is met, the `HEAD`-tree
+comparison is the narrowest mechanism for the invariant.
