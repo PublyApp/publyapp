@@ -20,14 +20,46 @@ import {
 const repoRoot = path.resolve(new URL('../../..', import.meta.url).pathname);
 const workflowPath = path.join(repoRoot, '.github/workflows/ci.yml');
 
-const removeStepIf = (workflow: string, stepId: string): string => {
-	const escapedStepId = stepId.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-	const pattern = new RegExp(
-		`(^\\s+- name:[^\\n]*\\n\\s+id: ${escapedStepId}\\n)\\s+if: [^\\n]*\\n`,
-		'm',
-	);
-	return workflow.replace(pattern, '$1');
+const mutateStepIf = (
+	workflow: string,
+	jobId: string,
+	stepId: string,
+	mutate: (condition: string) => string | null,
+): string => {
+	const jobStart = workflow.indexOf(`  ${jobId}:\n`);
+	if (jobStart === -1) {
+		return workflow;
+	}
+	const jobTail = workflow.slice(jobStart);
+	const nextJobOffset = jobTail.search(/\n  \S/);
+	const jobEnd =
+		nextJobOffset === -1 ? workflow.length : jobStart + nextJobOffset + 1;
+	const job = workflow.slice(jobStart, jobEnd);
+	const stepMarker = `\n        id: ${stepId}\n`;
+	const stepIdStart = job.indexOf(stepMarker);
+	if (stepIdStart === -1) {
+		return workflow;
+	}
+	const ifStart = job.indexOf('\n        if: ', stepIdStart);
+	if (ifStart === -1) {
+		return workflow;
+	}
+	const conditionStart = ifStart + '\n        if: '.length;
+	const lineEnd = job.indexOf('\n', conditionStart);
+	const conditionEnd = lineEnd === -1 ? job.length : lineEnd;
+	const replacement = mutate(job.slice(conditionStart, conditionEnd));
+	const mutatedJob =
+		replacement === null
+			? `${job.slice(0, ifStart)}${job.slice(conditionEnd)}`
+			: `${job.slice(0, conditionStart)}${replacement}${job.slice(conditionEnd)}`;
+	return `${workflow.slice(0, jobStart)}${mutatedJob}${workflow.slice(jobEnd)}`;
 };
+
+const removeStepIf = (
+	workflow: string,
+	jobId: string,
+	stepId: string,
+): string => mutateStepIf(workflow, jobId, stepId, () => null);
 
 const e2eConditionDeletionCases = [
 	['e2e-build', 'image-tag'],
@@ -463,7 +495,7 @@ test('central workflow rejects every classifier producer, consumer, relevance, s
 	}
 });
 
-test('central workflow rejects deletion of every one of its 92 classifier conditions', async () => {
+test('central workflow rejects six mutations for every one of its 92 classifier conditions', async () => {
 	const rootDir = await mkdtemp(
 		path.join(os.tmpdir(), 'publyapp-ci-condition-delete-'),
 	);
@@ -486,31 +518,86 @@ test('central workflow rejects deletion of every one of its 92 classifier condit
 				.map((step) => ({ jobId, stepId: String(step.id) })),
 	);
 	assert.equal(classifierTrueSteps.length, 92);
+	assert.equal(
+		new Set(
+			classifierTrueSteps.map(({ jobId, stepId }) => `${jobId}/${stepId}`),
+		).size,
+		92,
+	);
+	assert.deepEqual(
+		classifierTrueSteps
+			.filter(({ stepId }) => ['audit', 'fixtures', 'login'].includes(stepId))
+			.map(({ jobId, stepId }) => `${jobId}/${stepId}`),
+		[
+			'audit-development/audit',
+			'audit-development/fixtures',
+			'audit-production/audit',
+			'audit-production/fixtures',
+			'e2e-build/login',
+			'e2e-test/login',
+		],
+	);
+
+	const conditionMutationFamilies = [
+		['delete condition', () => null],
+		['append false', (condition: string) => `${condition} && false`],
+		['append true', (condition: string) => `${condition} || true`],
+		[
+			'duplicate classifier result',
+			(condition: string) =>
+				`${condition} && needs.classify.result == 'success'`,
+		],
+		[
+			'swap classifier lane',
+			(condition: string) => {
+				const lane = condition.match(
+					/needs\.classify\.outputs\.(\w+) == 'true'/,
+				)?.[1];
+				const replacement = lane === 'quality' ? 'front' : 'quality';
+				return condition.replace(
+					/needs\.classify\.outputs\.\w+ == 'true'/,
+					`needs.classify.outputs.${replacement} == 'true'`,
+				);
+			},
+		],
+		[
+			'change classifier truth',
+			(condition: string) => condition.replace(" == 'true'", " == 'false'"),
+		],
+	] as const;
 
 	try {
+		const mutatedWorkflows = new Set<string>();
 		let rejected = 0;
-		for (const { jobId, stepId } of classifierTrueSteps) {
-			const mutation = removeStepIf(original, stepId);
-			assert.notEqual(
-				mutation,
-				original,
-				`${jobId}/${stepId} mutation must change the fixture`,
-			);
-			await writeFile(workflowFile, mutation);
-			const findings = await findCentralCiStructureProblems({ rootDir });
-			assert.ok(
-				findings.some((finding) =>
-					/condition|classifier|edge|binding/i.test(finding),
-				),
-				`${jobId}/${stepId} condition deletion should fail: ${findings.join('; ')}`,
-			);
-			rejected += 1;
+		for (const [family, mutate] of conditionMutationFamilies) {
+			for (const { jobId, stepId } of classifierTrueSteps) {
+				const mutation =
+					family === 'delete condition'
+						? removeStepIf(original, jobId, stepId)
+						: mutateStepIf(original, jobId, stepId, mutate);
+				assert.notEqual(
+					mutation,
+					original,
+					`${family} ${jobId}/${stepId} mutation must change the fixture`,
+				);
+				mutatedWorkflows.add(mutation);
+				await writeFile(workflowFile, mutation);
+				const findings = await findCentralCiStructureProblems({ rootDir });
+				assert.ok(
+					findings.some((finding) =>
+						/condition|classifier|edge|binding/i.test(finding),
+					),
+					`${family} ${jobId}/${stepId} condition mutation should fail: ${findings.join('; ')}`,
+				);
+				rejected += 1;
+			}
 		}
-		assert.equal(rejected, 92);
+		assert.equal(mutatedWorkflows.size, 552);
+		assert.equal(rejected, 552);
 	} finally {
 		await rm(rootDir, { recursive: true, force: true });
 	}
-});
+}, 30_000);
 
 test('central workflow rejects deletion of each exact E2E classifier condition', async () => {
 	const rootDir = await mkdtemp(
@@ -525,7 +612,7 @@ test('central workflow rejects deletion of each exact E2E classifier condition',
 	try {
 		let rejected = 0;
 		for (const [jobId, stepId] of e2eConditionDeletionCases) {
-			const mutation = removeStepIf(original, stepId);
+			const mutation = removeStepIf(original, jobId, stepId);
 			assert.notEqual(
 				mutation,
 				original,
@@ -1212,7 +1299,11 @@ test('central trigger filters are rejected in every filtered form', async () => 
 type JustRecipeDump = {
 	body?: unknown[];
 	dependencies?: Array<{ recipe?: string }>;
-	parameters?: Array<{ default?: unknown }>;
+	parameters?: Array<{
+		default?: unknown;
+		kind?: unknown;
+		pattern?: unknown;
+	}>;
 };
 
 type ManifestEvidence = { mirror: string | null; reason: string };
@@ -1254,7 +1345,8 @@ const buildExpandedJustCommands = (
 	const canInvokeWithoutArguments = (recipe: JustRecipeDump): boolean =>
 		(recipe.parameters ?? []).every(
 			(parameter) =>
-				parameter.default !== undefined && parameter.default !== null,
+				(parameter.kind === 'variadic' && parameter.default === null) ||
+				(parameter.default !== undefined && parameter.default !== null),
 		);
 	const visited = new Set<string>();
 	const visit = (recipeName: string): void => {
@@ -1287,6 +1379,23 @@ const buildExpandedJustCommands = (
 	visit('ci-full');
 	return commands;
 };
+
+test('just manifest evidence recognizes variadic defaults but not required singular parameters', () => {
+	const commands = buildExpandedJustCommands({
+		ci: {
+			dependencies: [{ recipe: 'variadic' }, { recipe: 'singular' }],
+		},
+		variadic: {
+			parameters: [{ kind: 'variadic', pattern: null, default: null }],
+		},
+		singular: {
+			parameters: [{ kind: 'singular', pattern: null, default: null }],
+		},
+	});
+
+	assert.equal(selectLocalRecipe(['just variadic'], commands), 'variadic');
+	assert.equal(selectLocalRecipe(['just singular'], commands), null);
+});
 
 test('just manifest evidence recognizes reachable recipe invocations without claiming unreachable recipes', async () => {
 	const justDump = JSON.parse(

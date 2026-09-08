@@ -585,7 +585,10 @@ const validateFrontReport = (
 		return;
 	}
 	if (nonVitest.commands.length !== NON_VITEST_COMMANDS.length) {
-		push(failures, `${jobKey}: front report must contain exactly 30 commands`);
+		push(
+			failures,
+			`${jobKey}: front report must contain exactly ${NON_VITEST_COMMANDS.length} commands`,
+		);
 	}
 	let allSucceeded = true;
 	for (const [index, rawCommand] of nonVitest.commands.entries()) {

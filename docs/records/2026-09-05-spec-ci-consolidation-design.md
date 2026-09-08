@@ -92,7 +92,7 @@ The first failing command does not erase later evidence: every independent workf
 
 ### Front non-Vitest report-all contract (#1699)
 
-The current `apps/front/package.json` `test:ci-non-vitest` value is a 30-command `&&` chain. Its first failure prevents commands 2–30 from running, so merely moving that string into `verification` would violate the artifact contract above. PR A therefore changes the script to the exact wrapper `node scripts/run-guarded.mts scripts/ci/run-non-vitest-report-all.mts`, preserving the script name while replacing the fail-fast implementation with `apps/front/scripts/ci/run-non-vitest-report-all.mts`, and adds `run-non-vitest-report-all.test.mts`.
+The pre-PR-A `apps/front/package.json` `test:ci-non-vitest` value was a 32-command `&&` chain. Its first failure prevents commands 2–32 from running, so merely moving that string into `verification` would violate the artifact contract above. PR A therefore changes the script to the exact wrapper `node scripts/run-guarded.mts scripts/ci/run-non-vitest-report-all.mts`, preserving the script name while replacing the fail-fast implementation with `apps/front/scripts/ci/run-non-vitest-report-all.mts`, and adds `run-non-vitest-report-all.test.mts`.
 
 The durable runner owns one ordered, explicit command manifest equal to the current chain, in this exact order:
 
@@ -113,23 +113,25 @@ The durable runner owns one ordered, explicit command manifest equal to the curr
 14 pnpm test:e2e-shared-constants-guard
 15 pnpm test:column-type-imports-guard
 16 pnpm test:server-static-imports-guard
-17 pnpm test:font-bundle
-18 pnpm test:shared-ts-node-resolution
-19 pnpm check:design-system
-20 pnpm check:zindex
-21 pnpm check:react-compiler
-22 pnpm check:shared-ts-import-paths
-23 pnpm check:shared-ts-node-resolution
-24 pnpm check:e2e-shared-constants
-25 pnpm test:typecheck-coverage-guard
-26 pnpm test:guard-coverage-guard
-27 pnpm check:column-type-imports
-28 pnpm check:server-static-imports
-29 pnpm test:runtime-env-startup
-30 pnpm test:front-runtime-image-guard
+17 pnpm test:utility-boundaries
+18 pnpm check:utility-boundaries
+19 pnpm test:font-bundle
+20 pnpm test:shared-ts-node-resolution
+21 pnpm check:design-system
+22 pnpm check:zindex
+23 pnpm check:react-compiler
+24 pnpm check:shared-ts-import-paths
+25 pnpm check:shared-ts-node-resolution
+26 pnpm check:e2e-shared-constants
+27 pnpm test:typecheck-coverage-guard
+28 pnpm test:guard-coverage-guard
+29 pnpm check:column-type-imports
+30 pnpm check:server-static-imports
+31 pnpm test:runtime-env-startup
+32 pnpm test:front-runtime-image-guard
 ```
 
-The runner invokes each command without a shell, records `{id, argv, execution, outcome, exit_code, signal}` in order, continues after every non-zero result, writes the nested `front.non-vitest` lane report consumed by `ci-lane-result`, and exits non-zero after the complete report if any command failed. This is one step bundle inside the existing `verification` check; the nested command records are artifacts and do not add visible check-runs. `pnpm` resolution is platform-aware (`pnpm.cmd` on Windows). Its test uses a fake command runner with command 1 failing and commands 2–30 succeeding/failing in known positions, then asserts all 30 records, exact order, preserved exit diagnostics, and non-zero final status. A second mutation test removes one command from the manifest and fails on expected-set inequality. This is the selected durable report-all solution; the issue's alternative prefix-only option is not used.
+The runner invokes each command without a shell, records `{id, argv, execution, outcome, exit_code, signal}` in order, continues after every non-zero result, writes the nested `front.non-vitest` lane report consumed by `ci-lane-result`, and exits non-zero after the complete report if any command failed. This is one step bundle inside the existing `verification` check; the nested command records are artifacts and do not add visible check-runs. `pnpm` resolution is platform-aware (`pnpm.cmd` on Windows). Its test uses a fake command runner with command 1 failing and commands 2–32 succeeding/failing in known positions, then asserts all 32 records, exact order, preserved exit diagnostics, and non-zero final status. A second mutation test removes one command from the manifest and fails on expected-set inequality. This is the selected durable report-all solution; the issue's alternative prefix-only option is not used.
 
 This option is clearest because one matrix declaration is the source of truth for shard count and the step conditions make the stable-check contract visible beside the expensive commands. Eight explicit jobs would also work, but would duplicate shard wiring and create eight independent drift points without reducing the visible count.
 
@@ -319,18 +321,18 @@ The API suite remains one visible job in this 16-check topology. A four-way API 
 
 ### Bespoke assertion admission analysis
 
-This is a clarification of the already owner-ratified full CI consolidation design, not a new topology decision. The existing design names the exact 16-check topology, permissions, trigger contract, artifact contract, fail-closed reducer, and ordered 30-command front inventory. The central structural/artifact/manifest assertions make those already-approved invariants executable. No fresh owner signature is inferred from this clarification.
+This is a clarification of the already owner-ratified full CI consolidation design, not a new topology decision. The existing design names the exact 16-check topology, permissions, trigger contract, artifact contract, fail-closed reducer, and ordered 32-command front inventory. The central structural/artifact/manifest assertions make those already-approved invariants executable. No fresh owner signature is inferred from this clarification.
 
 The six admission conditions for retaining that existing assertion set are:
 
 1. **Exact prohibited defect:** drift may remove a central job or matrix member, add a second producer, widen permissions, filter a stable trigger, merge artifact containers, detach an observed filename from its record, weaken the reducer or tolerated diagnostics, or omit/reorder one of the 30 front report-all commands while ordinary tests still pass.
 2. **Why standard tools and ordinary behavior tests are insufficient:** YAML/schema validation accepts valid but unsafe topology, permissions, trigger filters, matrices, and step conditions. Ordinary command tests do not observe GitHub job instantiation, required-check reporting, hosted artifact container boundaries, producer identity, or whether an unrelated workflow can claim the same context. A local command runner also cannot prove the workflow's hosted provenance and event wiring.
-3. **Meaningful failure demonstrated:** the reviewed counterexamples include 41 visible checks instead of 16, 3 of 39 topology mutations escaping the earlier guard, swapped valid API/verification artifact contents passing, flat `ci-e2e-*` inputs missing from classification, failure-only diagnostics becoming unreachable after tolerated failures, filtered triggers suppressing a stable gate, and the 30-command inventory losing coverage without an ordinary test failure.
+3. **Meaningful failure demonstrated:** the reviewed counterexamples include 41 visible checks instead of 16, 3 of 39 topology mutations escaping the earlier guard, swapped valid API/verification artifact contents passing, flat `ci-e2e-*` inputs missing from classification, failure-only diagnostics becoming unreachable after tolerated failures, filtered triggers suppressing a stable gate, and the 32-command inventory losing coverage without an ordinary test failure.
 4. **Smallest scope:** keep the assertions in the existing `check-ci-gate-structure.ts`, the existing artifact/reducer/classifier/drift/report tests, and the existing central workflow manifest. They inspect only the central workflow, its owned contracts, and the already-required local mirrors; no new workflow job or unrelated repository-wide policy is introduced.
 
 The API path-coverage correction is ordinary behavior evidence: `findPathCoverageProblems(rootDir)` runs against the real tree and representative workflow/path fixtures. The removed `readCentralApiCoverageSurface()` reachability helper and its guard-policing test are not part of the admission case. Hosted reachability remains owned by the existing workflow and required-context mechanism; no decoy-sensitive string reachability assertion is retained.
 
-5. **Maintenance cost and owner:** the CI consolidation/local-gate maintainers own the guard and its pinned tables. A workflow topology, permission, trigger, artifact, reducer, diagnostic, classifier, or front-command change must update the corresponding expectation, fixture, manifest mirror/reason, and focused mutation test in the same review. This is an explicit review cost, bounded by the 16 jobs, 15 upstream artifact records, and 30-command manifest.
+5. **Maintenance cost and owner:** the CI consolidation/local-gate maintainers own the guard and its pinned tables. A workflow topology, permission, trigger, artifact, reducer, diagnostic, classifier, or front-command change must update the corresponding expectation, fixture, manifest mirror/reason, and focused mutation test in the same review. This is an explicit review cost, bounded by the 16 jobs, 15 upstream artifact records, and 32-command manifest.
 6. **Retirement/replacement condition:** do not retire these assertions in PR A. They may be removed or narrowed only after PR B completes the old-producer removal and ruleset cutover, and an owner-authorized replacement proves the same stable required-context, producer-identity, permission, trigger, artifact-boundary, fail-closed reducer, diagnostic, and command-inventory invariants with equivalent hosted and local evidence. A future replacement must be recorded as a new design decision rather than silently weakening this one.
 
 The manifest's per-step mirror/reason reconciliation is part of the existing drift-manifest contract, not a second bespoke policy assertion: local commands are named when they actually cover the hosted execution, and GitHub-only orchestration receives a specific reason for its exemption.
@@ -367,7 +369,7 @@ The PR A file set includes these concrete groups:
 - **Classifier:** `packages/scripts-ts/src/ci-changed-paths.ts` and `packages/scripts-ts/src/ci-changed-paths.test.ts` for one file fetch and lane outputs.
 - **Structure:** `packages/scripts-ts/src/check-ci-gate-structure.ts` and `packages/scripts-ts/src/check-ci-gate-structure.test.ts` from a seven-workflow gate table to one central graph, retaining whole-repository collision scanning, trigger allowlisting, direct self-check, matrix pins, pinned test files, and gate self-test pins.
 - **Aggregation/bootstrap:** add `packages/scripts-ts/src/check-ci-gate-aggregation.ts`; update `packages/scripts-ts/src/ci-gate-aggregation.test.ts` and `packages/scripts-ts/src/ci-gate-bootstrap.test.ts` to parse `ci.yml`, exercise every lane output, download/validate exact upstream result artifacts, and reject missing/failed/skipped/unknown shapes.
-- **Front report-all:** add `apps/front/scripts/ci/run-non-vitest-report-all.mts` and `apps/front/scripts/ci/run-non-vitest-report-all.test.mts`; change `apps/front/package.json` `test:ci-non-vitest` to invoke the runner while preserving the exact 30-command ordered manifest and nested step report.
+- **Front report-all:** add `apps/front/scripts/ci/run-non-vitest-report-all.mts` and `apps/front/scripts/ci/run-non-vitest-report-all.test.mts`; change `apps/front/package.json` `test:ci-non-vitest` to invoke the runner while preserving the exact 32-command ordered manifest and nested step report.
 - **API path coverage behavior:** `packages/scripts-ts/src/check-api-tests-path-coverage.ts` and its test inspect the API barrier workflow path filters and representative fixtures; hosted reachability is owned by the workflow and required-context mechanism.
 - **Shard/artifact contracts:** `apps/front/scripts/ci/vitest-shard-coverage.test.mts`, `packages/scripts-ts/src/artifact-version-compat.test.ts`, `packages/scripts-ts/src/ci-e2e-cleanup.ts`, and the new exact job→lanes→expected-steps `ci-lane-result`/`ci-pr-snapshot` artifact contracts where workflow paths are executable contracts.
 - **Closure target:** `.ai/project-closure-v1.json`, `.ai/orchestration-adapter.md`, and `packages/scripts-ts/src/project-closure-adapter.test.ts` use the six old contexts plus `ci-final-gate` in PR A, with `ci_live_pr_checks: ["ci-final-gate"]`, explicit candidate-tip/event-tip source mapping, and live base/merge/workflow provenance; PR B changes required checks to the single central gate only in the candidate-tip config.
@@ -398,7 +400,7 @@ The implementation must add or update focused tests before changing the workflow
 - Vitest shard-coverage tests against the central workflow's actual matrix and command;
 - API path-coverage tests against the API barrier workflow path filters and representative fixtures;
 - deterministic audit fixture tests that never call the npm registry;
-- front report-all tests in `apps/front/scripts/ci/run-non-vitest-report-all.test.mts` for the exact 30-command order, first-command failure with all following records present, preserved exit/signal diagnostics, and manifest set equality;
+- front report-all tests in `apps/front/scripts/ci/run-non-vitest-report-all.test.mts` for the exact 32-command order, first-command failure with all following records present, preserved exit/signal diagnostics, and manifest set equality;
 - shared closure-source tests in `/home/radan/ai-orchestration-playbook/tools/tests/test_sources.py` for candidate-tip config fetch/ref binding, `filter=all` pagination, exact-head check-run reads, base/merge/event/workflow provenance parsing, homonymous app/provenance rejection, old/new same-name selection, and live snapshot validation;
 - shared closure-CLI tests in `/home/radan/ai-orchestration-playbook/tools/tests/test_cli.py` for candidate-tip-vs-develop config resolution, live PR body/head/base/merge/draft reads, event `GITHUB_SHA`, workflow path/ID/action checks, comment/label non-triggering changes, stale-payload reruns, base advance/ref change, and the invalid→edited→valid, valid→edited→invalid, `ready_for_review`, and head-change sequences;
 - shared schema tests in `/home/radan/ai-orchestration-playbook/tools/tests/test_schema_agreement.py` for `ci_live_pr_checks` subset validation, explicit candidate-tip/event-tip source mapping, fixed central workflow identity, and rejection of default-branch-only overrides;
@@ -437,7 +439,7 @@ No rollback path uses a direct push, a forced branch update, or a merge without 
 | A comment or label changes without triggering CI | The fingerprint intentionally excludes comments/labels because current policy does not inspect them; no generic PR timestamp is used as a false freshness barrier. |
 | A same-name check is green but comes from another app or lacks provenance | `filter=all` candidate validation fails closed for the required name; fixtures cover green-plus-homonym and green-plus-missing-provenance. |
 | A matrix member fails early | `fail-fast: false`, `if: always()` collectors, and exact result artifacts let all shards/teardown finish; the final reducer remains red. |
-| A packed front check stops at the first red command | The durable report-all runner executes the exact ordered 30-command manifest, records every outcome, and returns non-zero only after reporting the complete set; runner tests pin first-red/following-command evidence. |
+| A packed front check stops at the first red command | The durable report-all runner executes the exact ordered 32-command manifest, records every outcome, and returns non-zero only after reporting the complete set; runner tests pin first-red/following-command evidence. |
 | A stale PR run survives a base or merge-ref change | Live `baseRefName`, `potentialMergeCommit.oid`, the job-provided `$GITHUB_SHA`, and workflow path/ID/action are recorded and compared; `run.head_sha` is bound only to `headRefOid`; base-advance/ref-change/stale-rerun fixtures fail closed. |
 | PR B's one-gate config is read from canonical `develop` | Explicit `ci_required_checks_source.pull_request: candidate_tip` forces a Contents API read at live `headRefOid`; adapter/schema tests reject default-branch fallback and hidden overrides. |
 | A step disappears from an artifact or runs after a failed predecessor without evidence | Exact job→lanes→expected-steps set equality and `if: always()` mutation tests reject missing/unknown step records; first-red/later-recorded fixtures keep the aggregate red. |
@@ -459,7 +461,7 @@ No rollback path uses a direct push, a forced branch update, or a merge without 
 - [x] PR A closure config is the six old contexts plus the new gate; PR B changes it to the new gate only after atomic ruleset cutover.
 - [x] Closure uses `filter=all`, provenance validation, live PR snapshot fingerprints, and explicit comment/label/rerun behavior.
 - [x] Closure binds PR config to the candidate tip and rejects base/merge/event/workflow provenance mismatches; `$GITHUB_SHA` is artifact-only event evidence, `run.head_sha` binds to `headRefOid`, and canonical `develop` cannot approve producer removal.
-- [x] Front `test:ci-non-vitest` has a durable report-all runner/test with the exact ordered 30-command manifest.
+- [x] Front `test:ci-non-vitest` has a durable report-all runner/test with the exact ordered 32-command manifest.
 - [x] Matrix failure continuation uses `fail-fast: false`, `if: always()` collectors, exact job→lanes→expected-steps artifact equality, and a real artifact-backed aggregator rather than `toJSON(needs)` member inspection.
 - [x] Rollout, external ruleset migration, and rollback are explicit and reversible.
 - [x] No unresolved placeholder or contradictory requirement remains.

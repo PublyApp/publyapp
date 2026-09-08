@@ -34,7 +34,7 @@ executes API/OpenAPI/client generation and drift checks, the OpenAPI contract sp
 and `just test-api`; the four `front-ci` shards execute install/postinstall/hooks and
 Vitest; and the E2E build/test/cleanup jobs execute the run-scoped image, all-service
 health, Playwright, shard-4 hermetic/drawer guards, failure-report, teardown, and
-cleanup steps. The nested front report records the complete ordered 30-command
+cleanup steps. The nested front report records the complete ordered 32-command
 non-Vitest chain. The unchanged predecessor workflows still execute their existing
 checks during PR A for the external ruleset's dual-authority interval; no check is
 claimed here unless it is run by either that predecessor or the named central owner.
