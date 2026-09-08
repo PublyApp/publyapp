@@ -12,6 +12,9 @@
  * pairing (drop the invocation -> report the file unused) cannot see a guard
  * that was never wrapped. This gate closes that class for good.
  *
+ * Reachability of individual guards remains owned by the reviewed package
+ * scripts and required CI chain; this guard does not duplicate that wiring.
+ *
  * Two rules, both failing loud with the offending script NAMED:
  *
  * RULE 1 (all scripts) — every `node` invocation in every pnpm script must
@@ -70,11 +73,39 @@ const FAMILY_PREFIXES = ['test:', 'check:', 'verify:'] as const;
 export const isGuardFamilyScript = (name: string): boolean =>
 	FAMILY_PREFIXES.some((prefix) => name.startsWith(prefix));
 
-/** Splits a pnpm script value into its `&&` / `||` / `|` / `;` commands. */
-const splitCommands = (script: string): string[] =>
-	script.split(/\s+(?:&&|\|\||[|;])\s+/).map((command) => command.trim());
+/**
+ * Parses the deliberately narrow shell shape used by front scripts. A full
+ * shell parser is unnecessary: unsupported shell syntax is rejected, and the
+ * guard-family contract accepts only whitespace-separated argv tokens joined
+ * by `&&`.
+ */
+export const parseCommandChain = (script: string): string[][] | null => {
+	if (/[|;'"`\\$]/.test(script) || script.replaceAll('&&', '').includes('&')) {
+		return null;
+	}
+	const commands = script.split('&&');
+	if (commands.some((command) => command.trim().length === 0)) {
+		return null;
+	}
+	return commands.map((command) => command.trim().split(/\s+/));
+};
 
-const WRAPPER_INVOCATION = /^node\s+scripts\/run-guarded\.mts(?:\s|$)/;
+const isEnvironmentAssignment = (token: string): boolean =>
+	/^[A-Za-z_][A-Za-z0-9_]*=/.test(token);
+
+const nodeCommandIndex = (command: readonly string[]): number => {
+	const index = command.findIndex((token) => token === 'node');
+	if (index < 0 || !command.slice(0, index).every(isEnvironmentAssignment)) {
+		return -1;
+	}
+	return index;
+};
+
+const hasWrapperCommand = (commands: readonly (readonly string[])[]): boolean =>
+	commands.some((command) => {
+		const index = nodeCommandIndex(command);
+		return index >= 0 && command[index + 1] === 'scripts/run-guarded.mts';
+	});
 
 /**
  * Analyzes the given pnpm scripts against the two rules above.
@@ -94,10 +125,19 @@ export const analyzeScripts = (
 
 	const findings: GuardCoverageFinding[] = [];
 	for (const [name, script] of Object.entries(scripts)) {
+		const commands = parseCommandChain(script);
+		if (!commands) {
+			findings.push({
+				script: name,
+				detail: `unsupported shell command chain; expected whitespace-separated commands joined by &&: "${script}"`,
+			});
+			continue;
+		}
 		// Rule 1: every `node` invocation must route through the wrapper.
-		for (const command of splitCommands(script)) {
-			if (command.startsWith('node ')) {
-				if (WRAPPER_INVOCATION.test(command)) {
+		for (const command of commands) {
+			const nodeIndex = nodeCommandIndex(command);
+			if (nodeIndex >= 0) {
+				if (command[nodeIndex + 1] === 'scripts/run-guarded.mts') {
 					continue;
 				}
 				if (Object.hasOwn(LONG_RUNNING_EXEMPTIONS, name)) {
@@ -105,16 +145,16 @@ export const analyzeScripts = (
 				}
 				findings.push({
 					script: name,
-					detail: `bare node invocation not routed through run-guarded.mts: "${command}"`,
+					detail: `bare node invocation not routed through run-guarded.mts: "${command.join(' ')}"`,
 				});
 			}
 		}
 
 		// Rule 2: guard-family scripts must be wrapped, whatever the runner.
-		if (isGuardFamilyScript(name) && !script.includes('run-guarded.mts')) {
+		if (isGuardFamilyScript(name) && !hasWrapperCommand(commands)) {
 			findings.push({
 				script: name,
-				detail: `guard-family script (test:*/check:*/verify:*) does not invoke run-guarded.mts: "${script}"`,
+				detail: `guard-family script (test:*/check:*/verify:*) does not invoke run-guarded.mts as a command: "${script}"`,
 			});
 		}
 	}

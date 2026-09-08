@@ -1,0 +1,427 @@
+import assert from 'node:assert/strict';
+import {
+	mkdtempSync,
+	mkdirSync,
+	rmSync,
+	symlinkSync,
+	writeFileSync,
+} from 'node:fs';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
+import { after, test } from 'node:test';
+
+import { scanUtilityBoundaries } from './check-utility-boundaries.mts';
+
+const sandboxes: string[] = [];
+
+after(() => {
+	for (const directory of sandboxes) {
+		rmSync(directory, { recursive: true, force: true });
+	}
+});
+
+const makeSandbox = () => {
+	const directory = mkdtempSync(path.join(tmpdir(), 'utility-boundaries-'));
+	sandboxes.push(directory);
+	mkdirSync(path.join(directory, 'src/utils'), { recursive: true });
+	mkdirSync(path.join(directory, 'src/lib/format'), { recursive: true });
+	return directory;
+};
+
+void test('detects direct date/time and clipboard browser APIs outside canonical utilities', () => {
+	const root = makeSandbox();
+	writeFileSync(
+		path.join(root, 'src/routes.tsx'),
+		`new Intl.DateTimeFormat('en');\nnavigator.clipboard.writeText('secret');\n`,
+	);
+
+	const findings = scanUtilityBoundaries(path.join(root, 'src'));
+
+	assert.equal(findings.length, 2);
+	assert.deepEqual(
+		findings.map((finding) => finding.kind),
+		['date-time', 'clipboard'],
+	);
+});
+
+void test('catches the held #2104 second utility shape', () => {
+	const root = makeSandbox();
+	writeFileSync(
+		path.join(root, 'src/lib/format/zone-date-time.ts'),
+		`export const formatInZone = () => new Intl.DateTimeFormat('en');\n`,
+	);
+
+	const findings = scanUtilityBoundaries(path.join(root, 'src'));
+
+	assert.equal(findings.length, 1);
+	assert.equal(findings[0]?.kind, 'date-time');
+});
+
+void test('allows canonical utilities and test files', () => {
+	const root = makeSandbox();
+	writeFileSync(
+		path.join(root, 'src/utils/format-time.ts'),
+		`new Intl.DateTimeFormat('en');\n`,
+	);
+	writeFileSync(
+		path.join(root, 'src/utils/clipboard.ts'),
+		`navigator.clipboard.writeText('secret');\n`,
+	);
+	writeFileSync(
+		path.join(root, 'src/routes.test.tsx'),
+		`new Intl.DateTimeFormat('en');\nnavigator.clipboard.writeText('secret');\n`,
+	);
+
+	assert.deepEqual(scanUtilityBoundaries(path.join(root, 'src')), []);
+});
+
+void test('RED: catches the original thirteen protected-source forms', () => {
+	const root = makeSandbox();
+	writeFileSync(
+		path.join(root, 'src/routes.tsx'),
+		`new Intl.DateTimeFormat('en');
+new Intl['DateTimeFormat']('en');
+new (Intl.DateTimeFormat as typeof Intl.DateTimeFormat)('en');
+new globalThis.Intl.DateTimeFormat('en');
+new window.Intl.DateTimeFormat('en');
+const { DateTimeFormat } = Intl;
+new DateTimeFormat('en');
+const boundWriteText = navigator.clipboard.writeText.bind(navigator.clipboard);
+const castWriteText = (navigator.clipboard.writeText as typeof navigator.clipboard.writeText);
+navigator.clipboard['writeText']('secret');
+const { writeText } = navigator.clipboard;
+globalThis.navigator.clipboard.writeText('secret');
+navigator.clipboard?.writeText?.('secret');
+window.navigator.clipboard.writeText('secret');
+boundWriteText('secret');
+castWriteText('secret');
+writeText.call(navigator.clipboard, 'secret');
+`,
+	);
+
+	const findings = scanUtilityBoundaries(path.join(root, 'src'));
+
+	assert.equal(findings.length, 13);
+	assert.equal(
+		findings.filter((finding) => finding.kind === 'date-time').length,
+		6,
+	);
+	assert.equal(
+		findings.filter((finding) => finding.kind === 'clipboard').length,
+		7,
+	);
+});
+
+void test('RED: allows unrelated global capabilities and shadowed locals', () => {
+	const root = makeSandbox();
+	writeFileSync(
+		path.join(root, 'src/routes.tsx'),
+		`export {};
+const Intl = { DateTimeFormat: class {} };
+const navigator = { clipboard: { writeText: () => undefined } };
+new Intl.NumberFormat('en');
+new globalThis.Intl.NumberFormat('en');
+new window.Intl.NumberFormat('en');
+navigator.clipboard.readText();
+new Intl.DateTimeFormat();
+navigator.clipboard.writeText();
+`,
+	);
+
+	assert.deepEqual(scanUtilityBoundaries(path.join(root, 'src')), []);
+});
+
+void test('allows computed identifier keys that resolve to unrelated members', () => {
+	const root = makeSandbox();
+	writeFileSync(
+		path.join(root, 'src/routes.tsx'),
+		`export {};
+declare global {
+  var fakeIntl: { DateTimeFormat: new () => object };
+  interface Navigator {
+    fakeClipboard: { writeText: (value: string) => void };
+  }
+}
+globalThis.fakeIntl = { DateTimeFormat: class {} };
+navigator.fakeClipboard = { writeText: () => undefined };
+const Intl = 'fakeIntl' as const;
+const { [Intl]: I } = globalThis;
+new I.DateTimeFormat();
+const clipboard = 'fakeClipboard' as const;
+const { [clipboard]: c } = navigator;
+c.writeText('x');
+`,
+	);
+
+	assert.deepEqual(scanUtilityBoundaries(path.join(root, 'src')), []);
+});
+
+void test('allows shadowed browser-global locals', () => {
+	const root = makeSandbox();
+	writeFileSync(
+		path.join(root, 'src/routes.tsx'),
+		`export {};
+const Intl = { DateTimeFormat: class {} };
+const navigator = { clipboard: { writeText: () => undefined } };
+new Intl.DateTimeFormat();
+navigator.clipboard.writeText();
+`,
+	);
+
+	assert.deepEqual(scanUtilityBoundaries(path.join(root, 'src')), []);
+});
+
+void test('detects aliases, destructuring, computed members, wrappers, globals, and optional calls', () => {
+	const root = makeSandbox();
+	writeFileSync(
+		path.join(root, 'src/routes.tsx'),
+		`const Formatter = (Intl as typeof Intl).DateTimeFormat;
+const { DateTimeFormat: DestructuredFormatter } = globalThis['Intl'];
+const intl = window.Intl;
+const clipboard = globalThis.navigator.clipboard;
+const writeText = clipboard['writeText'].bind(clipboard);
+new Formatter('en');
+new DestructuredFormatter('en');
+intl?.DateTimeFormat?.('en');
+writeText('secret');
+window.navigator.clipboard?.writeText?.('secret');
+`,
+	);
+
+	const findings = scanUtilityBoundaries(path.join(root, 'src'));
+
+	assert.equal(
+		findings.filter((finding) => finding.kind === 'date-time').length,
+		3,
+	);
+	assert.equal(
+		findings.filter((finding) => finding.kind === 'clipboard').length,
+		2,
+	);
+});
+
+void test('detects statically computed root, intermediate, and terminal bindings', () => {
+	const root = makeSandbox();
+	writeFileSync(
+		path.join(root, 'src/routes.tsx'),
+		`const { ['Intl']: I } = globalThis;
+new I.DateTimeFormat('en');
+const { ['DateTimeFormat']: F } = Intl;
+new F('en');
+const { ['DateTimeFormat']: G } = globalThis.Intl;
+new G('en');
+const { ['navigator']: n } = window;
+n.clipboard.writeText('secret');
+const { ['clipboard']: c } = navigator;
+c.writeText('secret');
+const { ['writeText']: w } = navigator.clipboard;
+w('secret');
+`,
+	);
+
+	const findings = scanUtilityBoundaries(path.join(root, 'src'));
+
+	assert.equal(
+		findings.filter((finding) => finding.kind === 'date-time').length,
+		3,
+	);
+	assert.equal(
+		findings.filter((finding) => finding.kind === 'clipboard').length,
+		3,
+	);
+});
+
+void test('does not follow mutable let or var destructured aliases after reassignment', () => {
+	const root = makeSandbox();
+	writeFileSync(
+		path.join(root, 'src/routes.tsx'),
+		`export {};
+let { Intl: I } = globalThis;
+I = { DateTimeFormat: class {} };
+new I.DateTimeFormat('en');
+var { navigator: n } = window;
+n = { clipboard: { writeText: () => undefined } };
+n.clipboard.writeText('secret');
+`,
+	);
+
+	assert.deepEqual(scanUtilityBoundaries(path.join(root, 'src')), []);
+});
+
+void test('resolves statically resolvable re-exports and imported wrappers', () => {
+	const root = makeSandbox();
+	writeFileSync(
+		path.join(root, 'src/lib/format.ts'),
+		`const Formatter = Intl.DateTimeFormat;
+export { Formatter };
+const writeText = navigator.clipboard.writeText;
+export { writeText };
+`,
+	);
+	writeFileSync(
+		path.join(root, 'src/routes.tsx'),
+		`import { Formatter, writeText } from './lib/format';
+new Formatter('en');
+writeText('secret');
+`,
+	);
+
+	const findings = scanUtilityBoundaries(path.join(root, 'src'));
+
+	assert.deepEqual(
+		findings.map((finding) => finding.kind),
+		['date-time', 'clipboard'],
+	);
+});
+
+void test('detects protected origins in constructor binds, calls, assignments, and destructuring', () => {
+	const root = makeSandbox();
+	writeFileSync(
+		path.join(root, 'src/routes.tsx'),
+		`const BoundFormatter = Intl.DateTimeFormat.bind(Intl);
+const CalledFormatter = Intl.DateTimeFormat.call(Intl, 'en');
+let AssignedFormatter;
+AssignedFormatter = Intl.DateTimeFormat;
+const [writeText] = [navigator.clipboard.writeText];
+new BoundFormatter('en');
+new CalledFormatter('en');
+new AssignedFormatter('en');
+writeText.call(navigator.clipboard, 'secret');
+`,
+	);
+
+	const findings = scanUtilityBoundaries(path.join(root, 'src'));
+
+	assert.equal(
+		findings.filter((finding) => finding.kind === 'date-time').length,
+		3,
+	);
+	assert.equal(
+		findings.filter((finding) => finding.kind === 'clipboard').length,
+		1,
+	);
+});
+
+void test('detects protected origins returned by imported function wrappers', () => {
+	const root = makeSandbox();
+	writeFileSync(
+		path.join(root, 'src/lib/browser-apis.ts'),
+		`export function getFormatter() {
+	return Intl.DateTimeFormat;
+}
+export function getWriteText() {
+	return navigator.clipboard.writeText;
+}
+`,
+	);
+	writeFileSync(
+		path.join(root, 'src/routes.tsx'),
+		`import { getFormatter, getWriteText } from './lib/browser-apis';
+const Formatter = getFormatter();
+const writeText = getWriteText();
+new Formatter('en');
+writeText('secret');
+`,
+	);
+
+	const findings = scanUtilityBoundaries(path.join(root, 'src'));
+
+	assert.equal(
+		findings.filter((finding) => finding.kind === 'date-time').length,
+		1,
+	);
+	assert.equal(
+		findings.filter((finding) => finding.kind === 'clipboard').length,
+		1,
+	);
+});
+
+void test('distinguishes real global roots through bindings and excludes object-rest aliases', () => {
+	const root = makeSandbox();
+	writeFileSync(
+		path.join(root, 'src/routes.tsx'),
+		`const typedIntlLookalike = {} as typeof Intl;
+const typedNavigatorLookalike = {} as typeof navigator;
+new typedIntlLookalike.DateTimeFormat('en');
+typedNavigatorLookalike.clipboard.writeText('secret');
+const { Intl: { DateTimeFormat } } = globalThis;
+new DateTimeFormat('en');
+const { navigator: { clipboard: { writeText } } } = window;
+writeText('secret');
+const intlAlias = globalThis.Intl;
+const { DateTimeFormat: AliasedDateTimeFormat } = intlAlias;
+new AliasedDateTimeFormat('en');
+const clipboardAlias = window.navigator.clipboard;
+const { writeText: aliasedWriteText } = clipboardAlias;
+aliasedWriteText('secret');
+const { Intl: I } = globalThis;
+new I.DateTimeFormat('en');
+const { navigator: n } = window;
+n.clipboard.writeText('secret');
+const { clipboard: c } = navigator;
+c.writeText('secret');
+const { ...restIntl } = Intl;
+new restIntl.DateTimeFormat('en');
+const { ...restNavigator } = navigator;
+restNavigator.clipboard.writeText('secret');
+`,
+	);
+
+	const findings = scanUtilityBoundaries(path.join(root, 'src'));
+
+	assert.equal(
+		findings.filter((finding) => finding.kind === 'date-time').length,
+		3,
+	);
+	assert.equal(
+		findings.filter((finding) => finding.kind === 'clipboard').length,
+		4,
+	);
+	assert.deepEqual(
+		findings.map((finding) => finding.line),
+		[5, 7, 10, 13, 16, 18, 20],
+	);
+});
+
+void test('does not exclude a production file merely because its name says test-helper', () => {
+	const root = makeSandbox();
+	mkdirSync(path.join(root, 'src/routes'), { recursive: true });
+	writeFileSync(
+		path.join(root, 'src/routes/production.test-helper.ts'),
+		`new Intl.DateTimeFormat('en');\n`,
+	);
+
+	assert.equal(scanUtilityBoundaries(path.join(root, 'src')).length, 1);
+});
+
+void test('fails loudly on empty, invalid, escaped, and symlinked source trees', () => {
+	const root = makeSandbox();
+	rmSync(path.join(root, 'src'), { recursive: true, force: true });
+	const empty = path.join(root, 'src');
+	mkdirSync(empty);
+	assert.throws(
+		() => scanUtilityBoundaries(empty),
+		/no TypeScript source files found/,
+	);
+
+	writeFileSync(path.join(root, 'src/invalid.ts'), 'const = ;\n');
+	assert.throws(
+		() => scanUtilityBoundaries(path.join(root, 'src')),
+		/unparseable production source/,
+	);
+
+	const outside = path.join(root, 'outside.ts');
+	writeFileSync(outside, `new Intl.DateTimeFormat('en');\n`);
+	assert.throws(
+		() => scanUtilityBoundaries(path.join(root, 'outside')),
+		/source root must be the canonical src directory/,
+	);
+
+	mkdirSync(path.join(root, 'src/lib'), { recursive: true });
+	const linked = path.join(root, 'src/lib/linked.ts');
+	symlinkSync(outside, linked);
+	assert.throws(
+		() => scanUtilityBoundaries(path.join(root, 'src')),
+		/symlink.*not allowed/,
+	);
+});

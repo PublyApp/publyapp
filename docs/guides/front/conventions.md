@@ -116,6 +116,24 @@ specific components.
 
 Prefix a route-local file that must not become a route with `_` (e.g. `_tenant-details-shell.tsx`, `$userId/_overview-context.tsx`) — this is a human convention only (routing here is driven by the virtual route config in `src/routes.ts`, not file-based discovery), so pick `_` consistently rather than mixing it with `-`.
 
+## Browser and date/time utility boundaries
+
+Use the canonical standard-library utilities in `apps/front/src/utils/` for browser
+platform capabilities that need SSR-safe handling or shared correctness rules:
+
+- `utils/format-time.ts` owns locale-aware date/time formatting, including
+  `formatInZone(value, timeZone, language)`. An undefined time zone means the
+  browser's local zone; `null` means unavailable and renders an em dash.
+- `utils/csv.ts` owns CSV escaping and spreadsheet-formula neutralization. Route
+  code supplies rows and delegates encoding before calling the existing
+  `lib/download-file.ts` download primitive.
+- `utils/clipboard.ts` owns Clipboard API access and returns an explicit success,
+  unavailable, or failed result. It has no manual-copy prompt fallback.
+
+Route and component code must not instantiate `Intl.DateTimeFormat` or call
+`navigator.clipboard.writeText` directly. The `utility-boundaries` front guard
+enforces this boundary while allowing focused utility tests.
+
 ## Component Files Export Components Only (#1417)
 
 A component file must not export anything that is not a component: the react-doctor

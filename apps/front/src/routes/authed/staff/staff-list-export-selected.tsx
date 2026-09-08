@@ -7,37 +7,12 @@ import {
 import type { UseRowSelectionResult } from '~/components/table/use-row-selection';
 import { Button } from '~/components/ui/button';
 import { downloadFile, formatExportDateStamp } from '~/lib/download-file';
+import { buildCsv } from '~/utils/csv';
 
 export type CsvExportColumn<TRow> = {
 	header: string;
 	getValue: (row: TRow) => string;
 };
-
-const normalizeLeadingFormulaPrefix = (value: string): string => {
-	const beginsWithFormula = /^[=+\-@]/.test(
-		value.replace(/^[\u0000-\u001f\s]+/g, ''),
-	);
-
-	if (!beginsWithFormula) {
-		return value;
-	}
-
-	return `'${value}`;
-};
-
-const escapeCsvField = (value: string): string => {
-	const safeValue = normalizeLeadingFormulaPrefix(value);
-
-	if (/[",\r\n]/.test(safeValue)) {
-		return `"${safeValue.replaceAll('"', '""')}"`;
-	}
-	return safeValue;
-};
-
-const buildCsvContent = (headers: string[], rows: string[][]): string =>
-	[headers, ...rows]
-		.map((row) => row.map(escapeCsvField).join(','))
-		.join('\r\n');
 
 export type StaffListExportSelectedActionProps<TRow extends { id: string }> = {
 	rows: TRow[];
@@ -70,10 +45,12 @@ export const StaffListExportSelectedButton = <TRow extends { id: string }>({
 			return;
 		}
 
-		const csv = buildCsvContent(
+		const csv = buildCsv([
 			columns.map((column) => column.header),
-			selectedRows.map((row) => columns.map((column) => column.getValue(row))),
-		);
+			...selectedRows.map((row) =>
+				columns.map((column) => column.getValue(row)),
+			),
+		]);
 
 		downloadFile({
 			data: csv,

@@ -32,9 +32,9 @@ Each rule is exposed under the `publy/*` namespace and registered in `.oxlintrc.
 - **Severity:** `error`
 - **Source:** `packages/lint-ts/src/publy/no-direct-dayjs-in-components.ts`
 - **Spec:** `packages/lint-ts/src/publy/no-direct-dayjs-in-components.test.ts`
-- **AGENTS.md:** "Day.js via `format-time.ts` utilities — never import dayjs directly in components."
+- **AGENTS.md:** "Use the standard-library `format-time.ts` utilities for date/time formatting; never instantiate `Intl.DateTimeFormat` directly in route or component code."
 - **Autofix:** no
-- **Allowed surface:** date/time utility modules such as `apps/front/src/utils/format-time.ts`
+- **Allowed surface:** `apps/front/src/utils/format-time.ts` (standard-library `Intl.DateTimeFormat`; no Day.js dependency)
 - **Shipped in:** #508
 - **Enforced in:** #517
 

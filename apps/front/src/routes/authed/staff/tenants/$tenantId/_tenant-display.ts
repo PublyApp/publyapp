@@ -67,89 +67,9 @@ export const formatTenantUserLevelLabel = (
 	return level ?? '—';
 };
 
-const DATE_TIME_FORMAT_OPTIONS = {
-	dateStyle: 'medium',
-	timeStyle: 'short',
-} as const;
-
-const SHORT_DATE_FORMAT_OPTIONS = {
-	dateStyle: 'medium',
-} as const;
-
-const MONTH_YEAR_FORMAT_OPTIONS = {
-	month: 'short',
-	year: 'numeric',
-} as const;
-
-export const formatDateTime = (
-	value: Date | null | undefined,
-	locale: string,
-): string => {
-	if (!(value instanceof Date) || Number.isNaN(value.valueOf())) {
-		return '—';
-	}
-
-	return value.toLocaleString(locale, DATE_TIME_FORMAT_OPTIONS);
-};
-
-export const formatShortDate = (
-	value: Date | null | undefined,
-	locale: string,
-): string => {
-	if (!(value instanceof Date) || Number.isNaN(value.valueOf())) {
-		return '—';
-	}
-
-	return value.toLocaleString(locale, SHORT_DATE_FORMAT_OPTIONS);
-};
-
-export const formatMonthYear = (
-	value: Date | null | undefined,
-	locale: string,
-): string => {
-	if (!(value instanceof Date) || Number.isNaN(value.valueOf())) {
-		return '—';
-	}
-
-	return value.toLocaleString(locale, MONTH_YEAR_FORMAT_OPTIONS);
-};
-
-export type RelativeTimeParts = {
-	key: 'minutes-ago' | 'hours-ago' | 'days-ago' | 'months-ago' | 'years-ago';
-	count: number;
-};
-
-/** Coarse "x ago" magnitude for stat-card secondary rows — a helper caption,
- * not a billing-precision calculation, so 30-day months are fine. */
-export const getRelativeTimeParts = (
-	value: Date | null | undefined,
-	now: Date = new Date(),
-): RelativeTimeParts | null => {
-	if (!(value instanceof Date) || Number.isNaN(value.valueOf())) {
-		return null;
-	}
-
-	const diffMs = Math.max(now.getTime() - value.getTime(), 0);
-	const minutes = Math.floor(diffMs / 60_000);
-	if (minutes < 60) {
-		return { key: 'minutes-ago', count: Math.max(minutes, 1) };
-	}
-
-	const hours = Math.floor(minutes / 60);
-	if (hours < 24) {
-		return { key: 'hours-ago', count: hours };
-	}
-
-	const days = Math.floor(hours / 24);
-	if (days < 30) {
-		return { key: 'days-ago', count: days };
-	}
-
-	const months = Math.floor(days / 30);
-	if (months < 12) {
-		return { key: 'months-ago', count: months };
-	}
-
-	const years = Math.floor(months / 12);
-	return { key: 'years-ago', count: years };
-};
+export {
+	formatDateTime,
+	formatMonthYear,
+	formatShortDate,
+	getRelativeTimeParts,
+} from '~/utils/format-time';
