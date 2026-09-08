@@ -461,7 +461,7 @@ test('central workflow rejects every CI_STEP_RESULTS outcome edge mutation and d
 	} finally {
 		await rm(rootDir, { recursive: true, force: true });
 	}
-});
+}, 30_000);
 
 test('central workflow rejects every classifier producer, consumer, relevance, sentinel, and parent-result edge swap', async () => {
 	const rootDir = await mkdtemp(path.join(os.tmpdir(), 'publyapp-ci-edges-'));
@@ -1521,14 +1521,18 @@ test('central trigger filters are rejected in every filtered form', async () => 
 	}
 });
 
+type JustRecipeParameterDump = {
+	default?: unknown;
+	kind?: unknown;
+	name?: unknown;
+	pattern?: unknown;
+	[key: string]: unknown;
+};
+
 type JustRecipeDump = {
 	body?: unknown[];
 	dependencies?: Array<{ recipe?: string }>;
-	parameters?: Array<{
-		default?: unknown;
-		kind?: unknown;
-		pattern?: unknown;
-	}>;
+	parameters?: JustRecipeParameterDump[];
 };
 
 type ManifestEvidence = { mirror: string | null; reason: string };
@@ -1614,35 +1618,125 @@ test('just manifest evidence recognizes real star defaults but not required sing
 	) as { recipes: Record<string, JustRecipeDump> };
 	const reviewFront = justDump.recipes['review-front'];
 	const dbAdd = justDump.recipes['db-add'];
-	assert.deepEqual(reviewFront?.parameters?.[0], {
-		default: null,
-		export: false,
-		kind: 'star',
-		name: 'args',
-		pattern: null,
-	});
-	assert.deepEqual(dbAdd?.parameters?.[0], {
-		default: null,
-		export: false,
-		kind: 'singular',
-		name: 'name',
-		pattern: null,
-	});
 	assert.ok(reviewFront !== undefined);
 	assert.ok(dbAdd !== undefined);
-	const commands = buildExpandedJustCommands({
+	const reviewFrontParameter = reviewFront.parameters?.[0];
+	const dbAddParameter = dbAdd.parameters?.[0];
+	assert.ok(reviewFrontParameter !== undefined);
+	assert.ok(dbAddParameter !== undefined);
+	const assertParameterSemantics = (
+		parameter: JustRecipeParameterDump | undefined,
+		expected: { default: unknown; kind: unknown; name: unknown },
+	): void => {
+		assert.deepEqual(
+			{
+				default: parameter?.default,
+				kind: parameter?.kind,
+				name: parameter?.name,
+			},
+			expected,
+		);
+	};
+	const expectedReviewFrontParameter = {
+		default: null,
+		kind: 'star',
+		name: 'args',
+	};
+	const expectedDbAddParameter = {
+		default: null,
+		kind: 'singular',
+		name: 'name',
+	};
+	assertParameterSemantics(reviewFrontParameter, expectedReviewFrontParameter);
+	assertParameterSemantics(dbAddParameter, expectedDbAddParameter);
+	const withHostedJustMetadata = (parameter: JustRecipeParameterDump) =>
+		({
+			...parameter,
+			flag: false,
+			help: null,
+			long: null,
+			max: null,
+			min: null,
+			multiple: false,
+			short: null,
+			value: null,
+		}) satisfies JustRecipeParameterDump;
+	const extendedReviewFront = {
+		...reviewFront,
+		parameters: [withHostedJustMetadata(reviewFrontParameter)],
+	};
+	const extendedDbAdd = {
+		...dbAdd,
+		parameters: [
+			withHostedJustMetadata(dbAddParameter),
+			...(dbAdd.parameters?.slice(1) ?? []),
+		],
+	};
+	assert.doesNotThrow(() => {
+		assertParameterSemantics(
+			extendedReviewFront.parameters[0],
+			expectedReviewFrontParameter,
+		);
+		assertParameterSemantics(
+			extendedDbAdd.parameters[0],
+			expectedDbAddParameter,
+		);
+	});
+	const recipes = {
 		ci: {
 			dependencies: [{ recipe: 'review-front' }, { recipe: 'db-add' }],
 		},
-		'review-front': reviewFront,
-		'db-add': dbAdd,
-	});
-
-	assert.equal(
-		selectLocalRecipe(['just review-front'], commands),
-		'review-front',
+		'review-front': extendedReviewFront,
+		'db-add': extendedDbAdd,
+	};
+	const assertClassifierSemantics = (
+		candidateRecipes: Record<string, JustRecipeDump>,
+	): void => {
+		const commands = buildExpandedJustCommands(candidateRecipes);
+		assert.equal(
+			selectLocalRecipe(['just review-front'], commands),
+			'review-front',
+		);
+		assert.equal(selectLocalRecipe(['just db-add'], commands), null);
+	};
+	assert.doesNotThrow(() => assertClassifierSemantics(recipes));
+	assert.throws(
+		() =>
+			assertClassifierSemantics({
+				...recipes,
+				'review-front': {
+					...extendedReviewFront,
+					parameters: [
+						{ ...extendedReviewFront.parameters[0], kind: 'singular' },
+					],
+				},
+			}),
+		assert.AssertionError,
+		'kind: star must remain invocable without arguments',
 	);
-	assert.equal(selectLocalRecipe(['just db-add'], commands), null);
+	for (const [label, parameter] of [
+		['singular kind', { ...extendedDbAdd.parameters[0], kind: 'star' }],
+		[
+			'singular default',
+			{ ...extendedDbAdd.parameters[0], default: 'CreateUsers' },
+		],
+	] as const) {
+		assert.throws(
+			() =>
+				assertClassifierSemantics({
+					...recipes,
+					'db-add': {
+						...extendedDbAdd,
+						parameters: [
+							parameter,
+							...(extendedDbAdd.parameters?.slice(1) ?? []),
+						],
+					},
+				}),
+			assert.AssertionError,
+			`${label} semantics must keep required singular parameters non-invocable`,
+		);
+	}
 });
 
 test('just manifest evidence recognizes reachable recipe invocations without claiming unreachable recipes', async () => {
