@@ -78,6 +78,6 @@
 				"rationale": "GPT implementation is reviewed by gpt-5.6-sol; Claude is forbidden."
 			}
 		]
-		},
+	},
 	"tracking_projection": "trello:publyapp"
 }
