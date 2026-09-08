@@ -1,0 +1,10 @@
+{
+	"$schema": "../expected-red.schema.json",
+	"_comment": "The declared proof must fail with an AssertionError after the exact mutation in an isolated worktree collapses the all-deleted branch into the generic empty branch. The unmutated green replay is separate Docker integration evidence, never part of this Vitest proof.",
+	"expectedRed": [
+		{
+			"testName": "the real #258 product test rejects collapsed all-deleted copy",
+			"why": "The proof changes the production source from `if (hasDeletedTenants) {` to `if (false) {` in an isolated worktree, then runs the existing focused `src/routes/authed/tenant.test.tsx` assertion for #258. The child must report the missing visible 'Your organizations are no longer available' title before the kept-red assertion. The source worktree stays untouched; the unmutated Docker E2E replay is separate integration evidence run by the captain."
+		}
+	]
+}

@@ -4,11 +4,18 @@ using System.Net.Http.Json;
 
 using FluentAssertions;
 
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+
+using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Data.Seeding;
 using PublyApp.Api.Lib.ProblemResults;
 using PublyApp.Api.Lib.Routes;
 using PublyApp.Api.Lib.Testing.Fixtures;
 using PublyApp.Api.Lib.Testing.Helpers;
+using PublyApp.Api.Modules.Auth.Utils;
+using PublyApp.Api.Modules.Tenants.Entities;
+using PublyApp.Api.Modules.Users.Entities;
 
 using Xunit;
 
@@ -16,12 +23,14 @@ namespace PublyApp.Api.Modules.Auth.Handlers;
 
 public sealed class GetRedirectCodeSpec
 	: IClassFixture<ApiFixture> {
+	private readonly ApiFixture _fixture;
 	private readonly HttpClient _http;
 	private readonly TestAuthClient _authClient;
 
 	public GetRedirectCodeSpec(
 		ApiFixture fixture
 	) {
+		_fixture = fixture;
 		_http = fixture.HttpClient;
 		_authClient = new TestAuthClient(_http);
 	}
@@ -378,6 +387,90 @@ public sealed class GetRedirectCodeSpec
 
 	[Fact]
 	public async Task
+	ItShouldReturnUnauthorizedForActiveUserWithoutTenantMemberships() {
+		var seeded = await SeedUserWithoutMembershipsAsync();
+		try {
+			var token = await _authClient.LoginAsync(
+				seeded.Email,
+				TestConstants.SeedPassword
+			);
+
+			using var request = new HttpRequestMessage(
+				HttpMethod.Get,
+				Routes.Auth.GetRedirectCode
+			).WithSessionToken(token);
+			using var response = await _http.SendAsync(request);
+
+			response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+			var result = await response.Content
+				.ReadFromJsonAsync<RedirectCodeResponse>();
+			result.Should().NotBeNull();
+			Assert.NotNull(result);
+			result.RedirectCode.Should().Be("unauthorized");
+		} finally {
+			await DeleteSeededRedirectCodeUserAsync(seeded);
+		}
+	}
+
+	[Fact]
+	public async Task
+	ItShouldReturnTenantPickerWhenAllTenantsAreDeleted() {
+		var staffToken =
+			await _authClient.LoginAsStaffAdminAsync();
+		var seeded = await SeedUserWithTenantAsync();
+		try {
+			using var suspend =
+				await TenantTestHelper.SuspendTenantAsync(
+					_http, staffToken, seeded.TenantId
+				);
+			suspend.StatusCode.Should().Be(HttpStatusCode.OK);
+			using var delete =
+				await TenantTestHelper.DeleteTenantAsync(
+					_http, staffToken, seeded.TenantId
+				);
+			delete.StatusCode.Should().Be(HttpStatusCode.OK);
+
+			var token = await _authClient.LoginAsync(
+				seeded.Email,
+				TestConstants.SeedPassword
+			);
+
+			var pickerRequest = new HttpRequestMessage(
+				HttpMethod.Get,
+				Routes.Auth.GetUserTenantsForPicker
+			).WithSessionToken(token);
+			using var pickerResponse =
+				await _http.SendAsync(pickerRequest);
+
+			pickerResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+			var pickerResult = await pickerResponse.Content
+				.ReadFromJsonAsync<PickerResponse>();
+			pickerResult.Should().NotBeNull();
+			Assert.NotNull(pickerResult);
+			pickerResult.TotalCount.Should().Be(0);
+			pickerResult.HasDeletedTenants.Should().BeTrue();
+
+			var redirectRequest = new HttpRequestMessage(
+				HttpMethod.Get,
+				Routes.Auth.GetRedirectCode
+			).WithSessionToken(token);
+			using var redirectResponse =
+				await _http.SendAsync(redirectRequest);
+
+			redirectResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+			var redirectResult = await redirectResponse.Content
+				.ReadFromJsonAsync<RedirectCodeResponse>();
+			redirectResult.Should().NotBeNull();
+			Assert.NotNull(redirectResult);
+			redirectResult.RedirectCode.Should().Be("tenant-picker");
+		} finally {
+			await DeleteSeededRedirectCodeUserAsync(seeded);
+		}
+	}
+
+	[Fact]
+	public async Task
 	ItShouldReturnStaffForStaffUser() {
 		var staffToken =
 			await _authClient.LoginAsStaffAdminAsync();
@@ -434,6 +527,135 @@ public sealed class GetRedirectCodeSpec
 		result.RedirectCode.Should()
 					.Be(acmeId.ToString());
 		result.HasSuspendedTenants.Should().BeFalse();
+	}
+
+	private async Task<SeededRedirectCodeUser>
+	SeedUserWithTenantAsync() {
+		await using var scope =
+			_fixture.Factory.Services.CreateAsyncScope();
+		var dbContext = scope.ServiceProvider
+			.GetRequiredService<AppDbContext>();
+
+		var email = $"redirect-code-deleted-{Guid.NewGuid():N}@example.com";
+		var user = new User {
+			Email = email,
+			Password = PasswordUtils.HashPassword(
+				TestConstants.SeedPassword
+			),
+			FirstName = "RedirectCode",
+			LastName = "Deleted",
+			Status = UserStatus.Active,
+			IsVerified = true,
+		};
+		await dbContext.User.AddAsync(user);
+		await dbContext.SaveChangesAsync();
+
+		var tenant = new Tenant {
+			Name = $"Redirect Code Deleted {Guid.NewGuid():N}",
+			Code = Guid.NewGuid().ToString("N")[..10],
+			Status = TenantStatus.Active,
+			MaxUsers = 10,
+		};
+		await dbContext.Tenant.AddAsync(tenant);
+		await dbContext.SaveChangesAsync();
+
+		await dbContext.UserAccount.AddAsync(
+			UserAccount.CreateTenantAccount(
+				user.GetRequiredId(),
+				tenant.GetRequiredId(),
+				AccountLevel.User
+			)
+		);
+		await dbContext.SaveChangesAsync();
+
+		return new SeededRedirectCodeUser {
+			Email = email,
+			UserId = user.GetRequiredId(),
+			TenantId = tenant.GetRequiredId(),
+		};
+	}
+
+	private async Task<SeededRedirectCodeUserWithoutMemberships>
+	SeedUserWithoutMembershipsAsync() {
+		await using var scope =
+			_fixture.Factory.Services.CreateAsyncScope();
+		var dbContext = scope.ServiceProvider
+			.GetRequiredService<AppDbContext>();
+
+		var email = $"redirect-code-never-invited-{Guid.NewGuid():N}@example.com";
+		var user = new User {
+			Email = email,
+			Password = PasswordUtils.HashPassword(
+				TestConstants.SeedPassword
+			),
+			FirstName = "RedirectCode",
+			LastName = "NeverInvited",
+			Status = UserStatus.Active,
+			IsVerified = true,
+		};
+		await dbContext.User.AddAsync(user);
+		await dbContext.SaveChangesAsync();
+
+		return new SeededRedirectCodeUserWithoutMemberships {
+			Email = email,
+			UserId = user.GetRequiredId(),
+		};
+	}
+
+	private async Task DeleteSeededRedirectCodeUserAsync(
+		SeededRedirectCodeUser seeded
+	) {
+		await DeleteSeededRedirectCodeUserAsync(
+			seeded.UserId,
+			seeded.TenantId
+		);
+	}
+
+	private async Task DeleteSeededRedirectCodeUserAsync(
+		SeededRedirectCodeUserWithoutMemberships seeded
+	) {
+		await DeleteSeededRedirectCodeUserAsync(seeded.UserId, null);
+	}
+
+	private async Task DeleteSeededRedirectCodeUserAsync(
+		Guid userId,
+		Guid? tenantId
+	) {
+		await using var scope =
+			_fixture.Factory.Services.CreateAsyncScope();
+		var dbContext = scope.ServiceProvider
+			.GetRequiredService<AppDbContext>();
+
+		await dbContext.Session
+			.Where(s => s.UserId == userId)
+			.ExecuteDeleteAsync();
+		await dbContext.UserAccount
+			.Where(ua => ua.UserId == userId)
+			.ExecuteDeleteAsync();
+		if (tenantId is Guid tenantIdValue) {
+			await dbContext.Tenant
+				.Where(t => t.Id == tenantIdValue)
+				.ExecuteDeleteAsync();
+		}
+		await dbContext.User
+			.Where(u => u.Id == userId)
+			.ExecuteDeleteAsync();
+	}
+
+	private sealed record SeededRedirectCodeUser {
+		public required string Email { get; init; }
+		public required Guid UserId { get; init; }
+		public required Guid TenantId { get; init; }
+	}
+
+	private sealed record SeededRedirectCodeUserWithoutMemberships {
+		public required string Email { get; init; }
+		public required Guid UserId { get; init; }
+	}
+
+	private record PickerResponse {
+		public int TotalCount { get; init; }
+		public bool HasDeletedTenants { get; init; }
 	}
 
 	private record RedirectCodeResponse {

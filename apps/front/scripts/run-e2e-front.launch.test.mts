@@ -14,6 +14,8 @@ import { describe, it } from 'node:test';
 
 import {
 	planWindowsTaskkill,
+	processGroupStillExists,
+	resolvePlaywrightTestArgs,
 	resolveSpawnLaunch,
 	signalChildTree,
 } from './run-e2e-front.mts';
@@ -110,12 +112,71 @@ void describe('run-e2e-front command processor resolution', () => {
 	});
 });
 
+void describe('run-e2e-front Playwright selection', () => {
+	void it('can replay one tagged real journey in one browser project', () => {
+		assert.deepEqual(
+			resolvePlaywrightTestArgs({
+				spec: 'e2e/tenant-portal-picker.spec.ts',
+				grep: '@1611',
+				project: 'chromium',
+			}),
+			[
+				'exec',
+				'playwright',
+				'test',
+				'e2e/tenant-portal-picker.spec.ts',
+				'--grep',
+				'@1611',
+				'--project',
+				'chromium',
+			],
+		);
+	});
+
+	void it('keeps the default full Playwright selection unchanged', () => {
+		assert.deepEqual(resolvePlaywrightTestArgs({}), [
+			'exec',
+			'playwright',
+			'test',
+		]);
+	});
+});
+
 /*
  * Windows has no process groups, so ending only the child handle would leave
  * pnpm/playwright/browser descendants orphaned. These specs pin the
  * `taskkill /T` plan and its call sequence without needing a Windows host.
  */
-void describe('run-e2e-front Windows process-tree termination', () => {
+void describe('run-e2e-front process-tree termination', () => {
+	void it('keeps escalation armed after the leader exits with a resistant descendant', () => {
+		let descendantStillAlive = true;
+		const groupProbes: number[] = [];
+		const probe = (groupPid: number): void => {
+			groupProbes.push(groupPid);
+			if (!descendantStillAlive) {
+				throw Object.assign(new Error('process group is gone'), {
+					code: 'ESRCH',
+				});
+			}
+		};
+
+		// The leader has already exited, but the descendant keeps the detached
+		// group alive, so a wrapper must not clear its SIGKILL escalation yet.
+		assert.equal(processGroupStillExists(77, 'linux', probe), true);
+		assert.deepEqual(groupProbes, [77]);
+
+		const forcedSignals: Array<[number, NodeJS.Signals]> = [];
+		signalChildTree({ pid: 77, kill: () => true }, 'SIGKILL', {
+			platform: 'linux',
+			killProcessGroup: (pid, signal) => {
+				forcedSignals.push([pid, signal]);
+				descendantStillAlive = false;
+			},
+		});
+		assert.deepEqual(forcedSignals, [[77, 'SIGKILL']]);
+		assert.equal(processGroupStillExists(77, 'linux', probe), false);
+	});
+
 	void it('plans a graceful tree kill then a forced one for a normal signal', () => {
 		const plan = planWindowsTaskkill(4321, 'SIGTERM');
 		assert.deepEqual(plan.graceful, ['/PID', '4321', '/T']);
