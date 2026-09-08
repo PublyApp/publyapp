@@ -1,9 +1,9 @@
 import { Link } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
 import { StatusPill } from '~/components/ui/product-page';
-import { formatInZone } from '~/lib/format/zone-date-time';
 import { publicationStatusPresentation } from '~/lib/publication-status';
 import type { ScheduledPublicationRow } from '~/lib/query/tenant-scheduled-publications';
+import { formatInZone } from '~/utils/format-time';
 
 export const ScheduledPublicationStatus = ({
 	status,

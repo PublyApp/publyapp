@@ -2,16 +2,14 @@ import { Link } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
 import { Card, CardContent, CardHeader, CardTitle } from '~/components/ui/card';
 import type { ScheduledPublicationRow } from '~/lib/query/tenant-scheduled-publications';
+import { formatCalendarDay } from '~/utils/format-time';
 
 import {
 	ScheduledPublicationCause,
 	ScheduledPublicationStatus,
 	ScheduledPublicationTime,
 } from './_scheduled-publication-display';
-import {
-	formatCalendarDay,
-	groupScheduledPublicationsByViewerDate,
-} from './_scheduled-publication-helpers';
+import { groupScheduledPublicationsByViewerDate } from './_scheduled-publication-helpers';
 
 const ScheduledPublicationIdentity = ({
 	row,

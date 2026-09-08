@@ -7,7 +7,6 @@ import type { ColumnDef } from '~/components/table/column-type';
 import { DataTable } from '~/components/table/data-table';
 import { Button } from '~/components/ui/button';
 import { PageHeader, StatusPill } from '~/components/ui/product-page';
-import { formatInZone } from '~/lib/format/zone-date-time';
 import { publicationStatusPresentation } from '~/lib/publication-status';
 import {
 	invalidateTenantPublications,
@@ -16,6 +15,7 @@ import {
 	type TenantPublicationRow,
 } from '~/lib/query/tenant-publications';
 import type { TableSearchParamInput } from '~/lib/url-state/table-search-params';
+import { formatInZone } from '~/utils/format-time';
 
 import { shouldLogoutForFailure } from '@org/shared-ts/lib/should-logout-for-failure';
 

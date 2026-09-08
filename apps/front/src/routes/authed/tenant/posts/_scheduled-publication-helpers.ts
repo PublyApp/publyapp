@@ -41,21 +41,6 @@ export const buildVisibleMonthWindow = (now: Date): PublicationWindow => {
 	};
 };
 
-export const formatCalendarDay = (date: string, language: string): string => {
-	const value = new Date(`${date}T00:00:00.000Z`);
-	if (Number.isNaN(value.valueOf())) {
-		return '—';
-	}
-
-	return new Intl.DateTimeFormat(language, {
-		weekday: 'short',
-		year: 'numeric',
-		month: 'short',
-		day: 'numeric',
-		timeZone: 'UTC',
-	}).format(value);
-};
-
 const formatViewerCivilDate = (instant: Date): string => {
 	const year = instant.getFullYear();
 	const month = String(instant.getMonth() + 1).padStart(2, '0');
