@@ -239,12 +239,23 @@ test('irrelevant e2e-build accepts skipped work and a successful sentinel', () =
 });
 
 test('irrelevant e2e-build rejects executed work even with a successful sentinel', () => {
-	const result = createE2eBuildResult(
-		'success',
+	const stepResults = e2eBuildResults(
+		'skipped',
+		'skipped',
 		'skipped',
 		'success',
-		'success',
 	);
+	stepResults['e2e-build.images'] = { outcome: 'success' };
+	const result = createCiLaneResult({
+		jobKey: 'e2e-build',
+		lane: 'e2e',
+		expectedSteps: e2eBuildExpectedSteps,
+		mode: 'not_applicable',
+		runId: 42,
+		runAttempt: 3,
+		eventSha: 'event-sha',
+		stepResults,
+	});
 
 	assert.equal(result.job.conclusion, 'failure');
 });
