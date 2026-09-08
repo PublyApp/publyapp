@@ -1345,7 +1345,7 @@ const buildExpandedJustCommands = (
 	const canInvokeWithoutArguments = (recipe: JustRecipeDump): boolean =>
 		(recipe.parameters ?? []).every(
 			(parameter) =>
-				(parameter.kind === 'variadic' && parameter.default === null) ||
+				(parameter.kind === 'star' && parameter.default === null) ||
 				(parameter.default !== undefined && parameter.default !== null),
 		);
 	const visited = new Set<string>();
@@ -1380,21 +1380,44 @@ const buildExpandedJustCommands = (
 	return commands;
 };
 
-test('just manifest evidence recognizes variadic defaults but not required singular parameters', () => {
+test('just manifest evidence recognizes real star defaults but not required singular parameters', () => {
+	const justDump = JSON.parse(
+		execFileSync('just', ['--dump', '--dump-format', 'json'], {
+			cwd: repoRoot,
+			encoding: 'utf8',
+		}),
+	) as { recipes: Record<string, JustRecipeDump> };
+	const reviewFront = justDump.recipes['review-front'];
+	const dbAdd = justDump.recipes['db-add'];
+	assert.deepEqual(reviewFront?.parameters?.[0], {
+		default: null,
+		export: false,
+		kind: 'star',
+		name: 'args',
+		pattern: null,
+	});
+	assert.deepEqual(dbAdd?.parameters?.[0], {
+		default: null,
+		export: false,
+		kind: 'singular',
+		name: 'name',
+		pattern: null,
+	});
+	assert.ok(reviewFront !== undefined);
+	assert.ok(dbAdd !== undefined);
 	const commands = buildExpandedJustCommands({
 		ci: {
-			dependencies: [{ recipe: 'variadic' }, { recipe: 'singular' }],
+			dependencies: [{ recipe: 'review-front' }, { recipe: 'db-add' }],
 		},
-		variadic: {
-			parameters: [{ kind: 'variadic', pattern: null, default: null }],
-		},
-		singular: {
-			parameters: [{ kind: 'singular', pattern: null, default: null }],
-		},
+		'review-front': reviewFront,
+		'db-add': dbAdd,
 	});
 
-	assert.equal(selectLocalRecipe(['just variadic'], commands), 'variadic');
-	assert.equal(selectLocalRecipe(['just singular'], commands), null);
+	assert.equal(
+		selectLocalRecipe(['just review-front'], commands),
+		'review-front',
+	);
+	assert.equal(selectLocalRecipe(['just db-add'], commands), null);
 });
 
 test('just manifest evidence recognizes reachable recipe invocations without claiming unreachable recipes', async () => {

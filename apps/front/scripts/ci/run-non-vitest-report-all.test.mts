@@ -1,5 +1,4 @@
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
 
 import { test } from 'vitest';
 
@@ -11,13 +10,45 @@ import {
 
 test('keeps the exact ordered 32-command manifest', () => {
 	const pnpm = process.platform === 'win32' ? 'pnpm.cmd' : 'pnpm';
-	const packageJson = JSON.parse(
-		readFileSync(new URL('../../package.json', import.meta.url), 'utf8'),
-	) as { ciNonVitestCommandInventory: string[][] };
-	const expected = packageJson.ciNonVitestCommandInventory.map((argv) => [
-		argv[0] === 'pnpm' ? pnpm : argv[0],
-		...argv.slice(1),
-	]);
+	const expected = [
+		['pnpm', 'check:guard-coverage'],
+		[
+			'node',
+			'scripts/run-guarded.mts',
+			'--test',
+			'scripts/ci/compose-startup.test.mts',
+		],
+		['pnpm', 'test:e2e-compose-env'],
+		['pnpm', 'test:route-tree-guard'],
+		['pnpm', 'test:design-guards'],
+		['pnpm', 'test:request-counter'],
+		['pnpm', 'test:search-cancel-css'],
+		['pnpm', 'test:context-chunk-isolation'],
+		['pnpm', 'test:simplebar-upstream-css'],
+		['pnpm', 'test:design-system-guard'],
+		['pnpm', 'test:zindex-guard'],
+		['pnpm', 'test:react-compiler-guard'],
+		['pnpm', 'test:shared-ts-import-paths'],
+		['pnpm', 'test:e2e-shared-constants-guard'],
+		['pnpm', 'test:column-type-imports-guard'],
+		['pnpm', 'test:server-static-imports-guard'],
+		['pnpm', 'test:utility-boundaries'],
+		['pnpm', 'check:utility-boundaries'],
+		['pnpm', 'test:font-bundle'],
+		['pnpm', 'test:shared-ts-node-resolution'],
+		['pnpm', 'check:design-system'],
+		['pnpm', 'check:zindex'],
+		['pnpm', 'check:react-compiler'],
+		['pnpm', 'check:shared-ts-import-paths'],
+		['pnpm', 'check:shared-ts-node-resolution'],
+		['pnpm', 'check:e2e-shared-constants'],
+		['pnpm', 'test:typecheck-coverage-guard'],
+		['pnpm', 'test:guard-coverage-guard'],
+		['pnpm', 'check:column-type-imports'],
+		['pnpm', 'check:server-static-imports'],
+		['pnpm', 'test:runtime-env-startup'],
+		['pnpm', 'test:front-runtime-image-guard'],
+	].map(([file, ...args]) => [file === 'pnpm' ? pnpm : file, ...args]);
 	assert.deepEqual(
 		NON_VITEST_COMMANDS.map((command) => command.argv),
 		expected,

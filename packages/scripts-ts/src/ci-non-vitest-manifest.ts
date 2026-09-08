@@ -69,5 +69,3 @@ export const validateNonVitestManifest = (
 		}
 	}
 };
-
-validateNonVitestManifest(NON_VITEST_COMMANDS);
