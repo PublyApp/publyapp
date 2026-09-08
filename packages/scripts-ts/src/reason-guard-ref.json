@@ -89,6 +89,7 @@
 		"ci.yml::audit-development::Checkout",
 		"ci.yml::audit-development::Collect ci-lane-result",
 		"ci.yml::audit-development::Install pnpm",
+		"ci.yml::audit-development::Install workspace dependencies",
 		"ci.yml::audit-development::Run deterministic audit fixtures",
 		"ci.yml::audit-development::Setup Node",
 		"ci.yml::audit-development::Upload ci-lane-result",
@@ -97,6 +98,7 @@
 		"ci.yml::audit-production::Checkout",
 		"ci.yml::audit-production::Collect ci-lane-result",
 		"ci.yml::audit-production::Install pnpm",
+		"ci.yml::audit-production::Install workspace dependencies",
 		"ci.yml::audit-production::Run deterministic audit fixtures",
 		"ci.yml::audit-production::Setup Node",
 		"ci.yml::audit-production::Upload ci-lane-result",
@@ -580,6 +582,10 @@
 			"reason_hash": "44db22d3703f8493",
 			"reason": "Hosted-only action step \"Install pnpm\" uses pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86; exact hosted fields: {\"if\":null,\"with\":{\"version\":\"10.13.1\"},\"env\":null}."
 		},
+		"ci.yml::audit-development::Install workspace dependencies": {
+			"reason_hash": "e1ece79f66c50373",
+			"reason": "Local mirror just ci-install is derived from exact normalized workflow command match(es): [\"pnpm install --frozen-lockfile --ignore-scripts\"]."
+		},
 		"ci.yml::audit-development::Run deterministic audit fixtures": {
 			"reason_hash": "b2739ccd2a13c5a4",
 			"reason": "Local mirror just ci-drift is derived from exact normalized workflow command match(es): [\"pnpm --filter scripts-ts exec vitest run src/npm-audit-runner.test.ts\"]."
@@ -611,6 +617,10 @@
 		"ci.yml::audit-production::Install pnpm": {
 			"reason_hash": "44db22d3703f8493",
 			"reason": "Hosted-only action step \"Install pnpm\" uses pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86; exact hosted fields: {\"if\":null,\"with\":{\"version\":\"10.13.1\"},\"env\":null}."
+		},
+		"ci.yml::audit-production::Install workspace dependencies": {
+			"reason_hash": "e1ece79f66c50373",
+			"reason": "Local mirror just ci-install is derived from exact normalized workflow command match(es): [\"pnpm install --frozen-lockfile --ignore-scripts\"]."
 		},
 		"ci.yml::audit-production::Run deterministic audit fixtures": {
 			"reason_hash": "b2739ccd2a13c5a4",

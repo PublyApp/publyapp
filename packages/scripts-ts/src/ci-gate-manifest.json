@@ -207,7 +207,7 @@
 			"reason": "No exact local command match for run step \"CI lane not applicable\"; normalized workflow command(s): [\"echo 'development audit is not applicable'\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
 		"ci.yml::audit-development::Collect ci-lane-result": {
-			"hash": "3daaebb1c88a4ac0",
+			"hash": "16ce2d24e3592e24",
 			"mirror": null,
 			"reason": "No exact local command match for run step \"Collect ci-lane-result\"; normalized workflow command(s): [\"node packages/scripts-ts/src/ci-lane-result.ts\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
@@ -215,6 +215,11 @@
 			"hash": "8985553731d304dc",
 			"mirror": null,
 			"reason": "Hosted-only action step \"Install pnpm\" uses pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86; exact hosted fields: {\"if\":null,\"with\":{\"version\":\"10.13.1\"},\"env\":null}."
+		},
+		"ci.yml::audit-development::Install workspace dependencies": {
+			"hash": "e3c8d434f159eafd",
+			"mirror": "just ci-install",
+			"reason": "Local mirror just ci-install is derived from exact normalized workflow command match(es): [\"pnpm install --frozen-lockfile --ignore-scripts\"]."
 		},
 		"ci.yml::audit-development::Run deterministic audit fixtures": {
 			"hash": "4b4f843e55fc03c6",
@@ -247,7 +252,7 @@
 			"reason": "No exact local command match for run step \"CI lane not applicable\"; normalized workflow command(s): [\"echo 'production audit is not applicable'\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
 		"ci.yml::audit-production::Collect ci-lane-result": {
-			"hash": "be67c8d8727abe1d",
+			"hash": "d5637c85bf4a6f22",
 			"mirror": null,
 			"reason": "No exact local command match for run step \"Collect ci-lane-result\"; normalized workflow command(s): [\"node packages/scripts-ts/src/ci-lane-result.ts\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
@@ -255,6 +260,11 @@
 			"hash": "8985553731d304dc",
 			"mirror": null,
 			"reason": "Hosted-only action step \"Install pnpm\" uses pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86; exact hosted fields: {\"if\":null,\"with\":{\"version\":\"10.13.1\"},\"env\":null}."
+		},
+		"ci.yml::audit-production::Install workspace dependencies": {
+			"hash": "e3c8d434f159eafd",
+			"mirror": "just ci-install",
+			"reason": "Local mirror just ci-install is derived from exact normalized workflow command match(es): [\"pnpm install --frozen-lockfile --ignore-scripts\"]."
 		},
 		"ci.yml::audit-production::Run deterministic audit fixtures": {
 			"hash": "4b4f843e55fc03c6",

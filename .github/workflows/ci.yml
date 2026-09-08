@@ -533,6 +533,11 @@ jobs:
         if: always() && needs.classify.result == 'success' && needs.classify.outputs.quality == 'true'
         continue-on-error: true
         run: node packages/scripts-ts/src/npm-audit-runner.ts dev moderate
+      - name: Install workspace dependencies
+        id: install_workspace
+        if: always() && needs.classify.result == 'success' && needs.classify.outputs.quality == 'true'
+        continue-on-error: true
+        run: pnpm install --frozen-lockfile --ignore-scripts
       - name: Run deterministic audit fixtures
         id: fixtures
         if: always() && needs.classify.result == 'success' && needs.classify.outputs.quality == 'true'
@@ -549,9 +554,9 @@ jobs:
           CI_WORKFLOW_PATH: .github/workflows/ci.yml
           CI_WORKFLOW_REF: ${{ github.workflow_ref }}
           CI_WORKFLOW_EVENT: ${{ github.event_name }}
-          CI_LANE_SPECS: '{"audit":["audit-development.checkout","audit-development.install_pnpm","audit-development.setup_node","audit-development.audit","audit-development.fixtures","audit-development.not-applicable"]}'
+          CI_LANE_SPECS: '{"audit":["audit-development.checkout","audit-development.install_pnpm","audit-development.setup_node","audit-development.install_workspace","audit-development.audit","audit-development.fixtures","audit-development.not-applicable"]}'
           CI_CLASSIFIER_OUTPUTS: '{"audit":"${{ needs.classify.outputs.quality }}"}'
-          CI_STEP_RESULTS: '{"audit-development.checkout":{"outcome":"${{ steps.checkout.outcome }}"},"audit-development.install_pnpm":{"outcome":"${{ steps.install_pnpm.outcome }}"},"audit-development.setup_node":{"outcome":"${{ steps.setup_node.outcome }}"},"audit-development.audit":{"outcome":"${{ steps.audit.outcome }}"},"audit-development.fixtures":{"outcome":"${{ steps.fixtures.outcome }}"},"audit-development.not-applicable":{"outcome":"${{ steps.sentinel.outcome }}"}}'
+          CI_STEP_RESULTS: '{"audit-development.checkout":{"outcome":"${{ steps.checkout.outcome }}"},"audit-development.install_pnpm":{"outcome":"${{ steps.install_pnpm.outcome }}"},"audit-development.setup_node":{"outcome":"${{ steps.setup_node.outcome }}"},"audit-development.install_workspace":{"outcome":"${{ steps.install_workspace.outcome }}"},"audit-development.audit":{"outcome":"${{ steps.audit.outcome }}"},"audit-development.fixtures":{"outcome":"${{ steps.fixtures.outcome }}"},"audit-development.not-applicable":{"outcome":"${{ steps.sentinel.outcome }}"}}'
         run: node packages/scripts-ts/src/ci-lane-result.ts
       - name: Upload ci-lane-result
         if: always()
@@ -587,6 +592,11 @@ jobs:
         if: always() && needs.classify.result == 'success' && needs.classify.outputs.quality == 'true'
         continue-on-error: true
         run: node packages/scripts-ts/src/npm-audit-runner.ts prod moderate
+      - name: Install workspace dependencies
+        id: install_workspace
+        if: always() && needs.classify.result == 'success' && needs.classify.outputs.quality == 'true'
+        continue-on-error: true
+        run: pnpm install --frozen-lockfile --ignore-scripts
       - name: Run deterministic audit fixtures
         id: fixtures
         if: always() && needs.classify.result == 'success' && needs.classify.outputs.quality == 'true'
@@ -603,9 +613,9 @@ jobs:
           CI_WORKFLOW_PATH: .github/workflows/ci.yml
           CI_WORKFLOW_REF: ${{ github.workflow_ref }}
           CI_WORKFLOW_EVENT: ${{ github.event_name }}
-          CI_LANE_SPECS: '{"audit":["audit-production.checkout","audit-production.install_pnpm","audit-production.setup_node","audit-production.audit","audit-production.fixtures","audit-production.not-applicable"]}'
+          CI_LANE_SPECS: '{"audit":["audit-production.checkout","audit-production.install_pnpm","audit-production.setup_node","audit-production.install_workspace","audit-production.audit","audit-production.fixtures","audit-production.not-applicable"]}'
           CI_CLASSIFIER_OUTPUTS: '{"audit":"${{ needs.classify.outputs.quality }}"}'
-          CI_STEP_RESULTS: '{"audit-production.checkout":{"outcome":"${{ steps.checkout.outcome }}"},"audit-production.install_pnpm":{"outcome":"${{ steps.install_pnpm.outcome }}"},"audit-production.setup_node":{"outcome":"${{ steps.setup_node.outcome }}"},"audit-production.audit":{"outcome":"${{ steps.audit.outcome }}"},"audit-production.fixtures":{"outcome":"${{ steps.fixtures.outcome }}"},"audit-production.not-applicable":{"outcome":"${{ steps.sentinel.outcome }}"}}'
+          CI_STEP_RESULTS: '{"audit-production.checkout":{"outcome":"${{ steps.checkout.outcome }}"},"audit-production.install_pnpm":{"outcome":"${{ steps.install_pnpm.outcome }}"},"audit-production.setup_node":{"outcome":"${{ steps.setup_node.outcome }}"},"audit-production.install_workspace":{"outcome":"${{ steps.install_workspace.outcome }}"},"audit-production.audit":{"outcome":"${{ steps.audit.outcome }}"},"audit-production.fixtures":{"outcome":"${{ steps.fixtures.outcome }}"},"audit-production.not-applicable":{"outcome":"${{ steps.sentinel.outcome }}"}}'
         run: node packages/scripts-ts/src/ci-lane-result.ts
       - name: Upload ci-lane-result
         if: always()

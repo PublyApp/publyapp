@@ -96,6 +96,70 @@ test('central workflow exposes exactly the stable 16 display labels', async () =
 	assert.deepEqual(labels, CENTRAL_VISIBLE_CHECKS);
 });
 
+test('central audit jobs install workspace dependencies before fixtures', async () => {
+	const workflow = parse(await readFile(workflowPath, 'utf8')) as {
+		jobs: Record<
+			string,
+			{
+				steps: Array<{
+					id?: unknown;
+					name?: unknown;
+					if?: unknown;
+					'continue-on-error'?: unknown;
+					run?: unknown;
+					env?: Record<string, unknown>;
+				}>;
+			}
+		>;
+	};
+	const expectedCondition =
+		"always() && needs.classify.result == 'success' && needs.classify.outputs.quality == 'true'";
+
+	for (const jobId of ['audit-development', 'audit-production']) {
+		const job = workflow.jobs[jobId];
+		assert.ok(job, `${jobId} must exist`);
+		const install = job.steps.find((step) => step.id === 'install_workspace');
+		const auditIndex = job.steps.findIndex((step) => step.id === 'audit');
+		const installIndex = job.steps.findIndex(
+			(step) => step.id === 'install_workspace',
+		);
+		const fixturesIndex = job.steps.findIndex((step) => step.id === 'fixtures');
+
+		assert.ok(install, `${jobId} must install workspace dependencies`);
+		assert.equal(install.name, 'Install workspace dependencies');
+		assert.equal(
+			install.run,
+			'pnpm install --frozen-lockfile --ignore-scripts',
+		);
+		assert.equal(install.if, expectedCondition);
+		assert.equal(install['continue-on-error'], true);
+		assert.ok(auditIndex < installIndex, `${jobId} must audit before install`);
+		assert.ok(
+			installIndex < fixturesIndex,
+			`${jobId} must install before fixtures`,
+		);
+
+		const collector = job.steps.find((step) =>
+			String(step.name).includes('Collect ci-lane-result'),
+		);
+		assert.ok(collector?.env, `${jobId} must collect lane evidence`);
+		const laneSpecs = JSON.parse(String(collector.env.CI_LANE_SPECS));
+		const stepResults = JSON.parse(String(collector.env.CI_STEP_RESULTS));
+		const expectedInstallId = `${jobId}.install_workspace`;
+		assert.deepEqual(laneSpecs.audit, [
+			`${jobId}.checkout`,
+			`${jobId}.install_pnpm`,
+			`${jobId}.setup_node`,
+			expectedInstallId,
+			`${jobId}.audit`,
+			`${jobId}.fixtures`,
+			`${jobId}.not-applicable`,
+		]);
+		assert.deepEqual(Object.keys(stepResults), laneSpecs.audit);
+		assert.ok(expectedInstallId in stepResults);
+	}
+});
+
 test('central workflow contract command names the real complete contract suite', async () => {
 	const workflow = await readFile(workflowPath, 'utf8');
 	const directRunner = 'node packages/scripts-ts/src/run-ci-contract-tests.ts';
@@ -495,7 +559,7 @@ test('central workflow rejects every classifier producer, consumer, relevance, s
 	}
 });
 
-test('central workflow rejects six mutations for every one of its 92 classifier conditions', async () => {
+test('central workflow rejects six mutations for every one of its 94 classifier conditions', async () => {
 	const rootDir = await mkdtemp(
 		path.join(os.tmpdir(), 'publyapp-ci-condition-delete-'),
 	);
@@ -517,21 +581,27 @@ test('central workflow rejects six mutations for every one of its 92 classifier 
 				)
 				.map((step) => ({ jobId, stepId: String(step.id) })),
 	);
-	assert.equal(classifierTrueSteps.length, 92);
+	assert.equal(classifierTrueSteps.length, 94);
 	assert.equal(
 		new Set(
 			classifierTrueSteps.map(({ jobId, stepId }) => `${jobId}/${stepId}`),
 		).size,
-		92,
+		94,
 	);
 	assert.deepEqual(
 		classifierTrueSteps
-			.filter(({ stepId }) => ['audit', 'fixtures', 'login'].includes(stepId))
+			.filter(
+				({ jobId, stepId }) =>
+					['audit', 'fixtures', 'login'].includes(stepId) ||
+					(stepId === 'install_workspace' && jobId.startsWith('audit-')),
+			)
 			.map(({ jobId, stepId }) => `${jobId}/${stepId}`),
 		[
 			'audit-development/audit',
+			'audit-development/install_workspace',
 			'audit-development/fixtures',
 			'audit-production/audit',
+			'audit-production/install_workspace',
 			'audit-production/fixtures',
 			'e2e-build/login',
 			'e2e-test/login',
@@ -592,8 +662,8 @@ test('central workflow rejects six mutations for every one of its 92 classifier 
 				rejected += 1;
 			}
 		}
-		assert.equal(mutatedWorkflows.size, 552);
-		assert.equal(rejected, 552);
+		assert.equal(mutatedWorkflows.size, 564);
+		assert.equal(rejected, 564);
 	} finally {
 		await rm(rootDir, { recursive: true, force: true });
 	}
@@ -1501,7 +1571,7 @@ const deriveManifestEvidence = (
 	};
 };
 
-test('central manifest derives honest evidence for every one of its 169 entries', async () => {
+test('central manifest derives honest evidence for every one of its 171 entries', async () => {
 	const manifest = JSON.parse(
 		await readFile(
 			path.join(repoRoot, 'packages/scripts-ts/src/ci-gate-manifest.json'),
@@ -1514,7 +1584,7 @@ test('central manifest derives honest evidence for every one of its 169 entries'
 	const central = Object.entries(manifest.steps).filter(([id]) =>
 		id.startsWith('ci.yml::'),
 	);
-	assert.equal(central.length, 169);
+	assert.equal(central.length, 171);
 	const justDump = JSON.parse(
 		execFileSync('just', ['--dump', '--dump-format', 'json'], {
 			cwd: repoRoot,
@@ -1540,7 +1610,7 @@ test('central manifest derives honest evidence for every one of its 169 entries'
 			`${id} evidence must be derived from its exact step kind and command graph`,
 		);
 	}
-	assert.equal(decisions.size, 169);
+	assert.equal(decisions.size, 171);
 	assert.equal(
 		manifest.steps['ci.yml::verification::Install pnpm']?.mirror,
 		null,
