@@ -1,5 +1,7 @@
 name: central ci
 
+# Sentinel #2116: temporary topology probe; close without merging.
+
 on:
   pull_request:
     types: [opened, edited, reopened, synchronize, ready_for_review]
