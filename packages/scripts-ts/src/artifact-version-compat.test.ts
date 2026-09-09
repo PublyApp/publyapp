@@ -306,7 +306,7 @@ test("reads each step's own version comment when two steps pin the same repo@sha
 	assert.match(findings[0], /v8\+/);
 });
 
-test('repo workflows pass — real front-e2e.yml and api-tests.yml are compatible', async () => {
+test('repo workflows pass — central CI artifact producers and consumers are compatible', async () => {
 	const rootDir = path.resolve(
 		path.dirname(new URL(import.meta.url).pathname),
 		'../../..',

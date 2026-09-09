@@ -351,8 +351,8 @@ describe('SearchInput', () => {
 	//
 	// Both authorities run in `pnpm --filter front build` (via
 	// scripts/guards/verify-build-css-link.mts) and again in the standalone
-	// "Verify front production build emits a CSS asset" step of the
-	// `supply-chain` job, which the required `front-ci-gate` context needs.
+	// "Verify front CSS asset" step of the `verification` job, which the
+	// required `ci-final-gate` context needs.
 	//
 	// THE SECONDARY NET — the source scan
 	//    (`assertShippedSourceSearchCancelCss`, run by `pnpm --filter front

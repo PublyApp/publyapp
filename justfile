@@ -182,8 +182,8 @@ react-doctor base="origin/develop":
   cd {{front_dir}} && pnpm dlx react-doctor@0.9.12 --scope files --base {{base}} --blocking warning --no-telemetry --verbose
 
 # NuGet vulnerability audit (issue #1187 rung 3). Mirrors
-# .github/workflows/quality-gate.yml::quality::Scan .NET packages for known
-# vulnerabilities. Uses the machine-readable `--format json` output (not the
+# .github/workflows/ci.yml::verification::Audit .NET packages. Uses the
+# machine-readable `--format json` output (not the
 # text format that TreatWarningsAsErrors breaks by converting NU1903 into an
 # error before the grep pattern can match). Scans EVERY .csproj (via
 # `git ls-files`), since PublyApp.slnx omits packages/lint-cs/* but the audit
@@ -191,7 +191,7 @@ react-doctor base="origin/develop":
 nuget-audit $APP_ROLE="api" $TRUSTED_PROXY_CIDRS="127.0.0.1/32":
   node packages/scripts-ts/src/nuget-audit.ts
   pnpm --filter scripts-ts exec vitest run src/nuget-audit.test.ts
-  # Mirrors quality-gate.yml::quality::Run dependency-health pin-location
+  # Mirrors .github/workflows/ci.yml::verification::Check dependency health contract
   # contract test (#1334 fix round 1).
   pnpm --filter scripts-ts exec vitest run src/dependency-health-pin-location.test.ts
 
@@ -279,11 +279,9 @@ test-api-debug $APP_ROLE="all" $ASPNETCORE_ENVIRONMENT="Testing":
 #                  the two browser/e2e suites, PLUS the full API test suite.
 # `just ci-full` - `just ci` + both e2e suites.
 #
-# The API suite ran local-only until #1462 added .github/workflows/api-tests.yml.
-# PR A also runs `just test-api` in the central `.github/workflows/ci.yml` API
-# lane; the predecessor workflow remains unchanged until the separately
-# authorized PR B removal. `just ci` still runs the same suite locally before
-# every push, so backend failures are caught before they reach CI.
+# The API suite ran local-only until #1462 added it to the central
+# `.github/workflows/ci.yml` API lane. `just ci` still runs the same suite
+# locally before every push, so backend failures are caught before they reach CI.
 #
 # These recipes deliberately compose existing targets rather than restating
 # their commands. `just ci-drift` fails the gate if a workflow gains or changes
@@ -304,14 +302,13 @@ ci-drift:
   # #1709: the ratchet-floor generator's own suite. Without this line the
   # ratchet guarding against silent step erasure is itself unverified —
   # exactly the #1709 finding that file-by-file enumeration left a 463-line
-  # test suite with no CI consumer. Mirrored by the gate-selftest step in
-  # front-ci.yml, and pinned structurally by
-  # packages/scripts-ts/src/check-ci-gate-structure.ts (gateSelftestTests +
-  # EXPECTED_GATE_SELFTEST_TESTS) so this line cannot silently drop.
+  # test suite with no CI consumer. Mirrored by the
+  # ci.yml::verification::Test CI guard fixtures step so this line cannot
+  # silently drop.
   pnpm --filter scripts-ts exec vitest run src/gen-reason-ref.test.ts
   pnpm --filter scripts-ts exec vitest run src/lint-front.test.ts
-  # #1679: the no-floating-promises ratchet's own suite. front-ci.yml's
-  # gate-selftest step runs it; without this line the local mirror would be
+  # #1679: the no-floating-promises ratchet's own suite. ci.yml's
+  # verification::Test CI guard fixtures step runs it; without this line the local mirror would be
   # missing a command CI actually runs — exactly the drift this recipe exists
   # to make impossible.
   pnpm --filter scripts-ts exec vitest run src/check-no-floating-promises.test.ts
@@ -323,7 +320,7 @@ ci-drift:
   pnpm --filter scripts-ts exec vitest run src/ci-e2e-rerun-guard.test.ts
   # #1975 round 2: live-tree coverage guard — every project the API suite
   # compiles (slnx projects + spec-referenced projects) must be reached by a
-  # workflow path filter. Mirrors the gate-selftest step in front-ci.yml.
+  # workflow path filter. Mirrors the ci.yml::verification::Test CI guard fixtures step.
   pnpm --filter scripts-ts exec vitest run src/check-api-tests-path-coverage.test.ts
   node ./packages/scripts-ts/src/check-ci-gate-structure.ts
   pnpm --filter scripts-ts exec vitest run src/require-linked-issue.test.ts
@@ -394,7 +391,7 @@ ci-project-closure-adapter:
 
 # #1513: fail if any tracked file matches a .gitignore rule. Interrogates the
 # real repo via `git ls-files --cached --ignored --exclude-standard` — empty
-# output is green, any named path is red. Mirrors quality-gate.yml::quality.
+# output is green, any named path is red. Mirrors .github/workflows/ci.yml::verification.
 ci-no-ignored-tracked:
   @echo "=== [gate] no tracked file matches .gitignore (#1513) ==="
   pnpm --filter scripts-ts exec vitest run src/check-no-ignored-tracked.test.ts
@@ -411,7 +408,7 @@ ci-no-ignored-tracked:
 # .worktrees in that build context (see #1832/#1836). Walks the real working
 # tree — git tracked/untracked status is irrelevant to what a Docker build
 # context sees, and `.dockerignore` contents are never parsed — and names
-# every offending path. Mirrors quality-gate.yml::no-dockerignore-shadow
+# every offending path. Mirrors .github/workflows/ci.yml::verification::Check no dockerignore shadow files
 # (unconditioned job, same binary).
 ci-dockerignore-shadow:
   @echo "=== [gate] no .dockerignore shadow files (#1849) ==="
@@ -430,7 +427,7 @@ ci-install:
 # which files each package.json format glob would process against the real
 # .oxfmtrc.json, so an ignorePatterns entry that silently swallows a directory
 # the globs enumerate fails the gate naming the directory. Mirrors
-# quality-gate.yml::quality::Check formatter scope (#1875).
+# .github/workflows/ci.yml::verification::Check formatter scope (#1875).
 ci-format: format
   pnpm --filter scripts-ts exec vitest run src/check-formatter-scope.test.ts
   @echo "=== [gate] format (done) ==="
@@ -453,7 +450,7 @@ ci-lint:
 
 # Knip (issue #455): unused files/deps/devDeps/binary invocations, unlisted
 # deps, unused exports/types, and duplicate exports. Mirrors the
-# quality-gate.yml::quality::Knip step (same `pnpm exec knip`, same root
+# `.github/workflows/ci.yml::verification::Check unused exports and dependencies` step (same `pnpm exec knip`, same root
 # knip.ts). Exit 0 is the contract; every exception must be a scoped entry
 # with a reason in knip.ts, never a blanket ignore.
 ci-knip:
@@ -464,7 +461,7 @@ ci-knip:
 # repo-wide logger, i18n, query-factory and ApiFailure contracts consumed by
 # every front surface, but nothing standing verified it after its i18next
 # range moved two majors (#1262) — no typecheck script and no gate ran its 82
-# vitest tests. Both now run here and in quality-gate.yml::quality, exactly
+# vitest tests. Both now run here and in `.github/workflows/ci.yml::verification`, exactly
 # as CI runs them.
 ci-shared-ts:
   @echo "=== [gate] @org/shared-ts typecheck + tests ==="
@@ -474,12 +471,12 @@ ci-shared-ts:
 # @org/lint-ts: typecheck (issue #1600). The package ships the repo's custom
 # publy/* oxlint rules that guard every front surface, but nothing verified
 # its own types — only its vitest tests ran (via ci-lint). The typecheck script
-# now runs here and in quality-gate.yml::quality, exactly as CI runs it.
+# now runs here and in `.github/workflows/ci.yml::verification`, exactly as CI runs it.
 #
 # Since #1692, also typechecks @org/client-ts (the Kiota-generated TypeScript
 # API client). Its typecheck script was added to packages/client-ts/package.json
 # but was never wired into any CI step or local gate — trompe-l'oeil coverage.
-# Now runs here and in quality-gate.yml::quality, exactly as CI runs it.
+# Now runs here and in `.github/workflows/ci.yml::verification`, exactly as CI runs it.
 ci-lint-ts:
   @echo "=== [gate] @org/lint-ts + @org/client-ts typecheck ==="
   pnpm --filter @org/lint-ts typecheck
@@ -514,13 +511,13 @@ ci-front:
   # Built-artifact guard (#1234): proves the React Compiler actually ran on
   # the dist produced above (runtime chunk present, compiled-module count
   # >= floor). Same pattern as check:design-system: a step of `pnpm --filter
-  # front test` AND an explicit front-ci.yml::supply-chain step.
+  # front test` AND an explicit ci.yml::verification::Test front (non-vitest report-all) step.
   pnpm --filter front check:react-compiler
   pnpm --filter front test
   # #1948: the 4-way vitest shard matrix must partition the suite exactly
   # once. Reads the REAL discovery of every shard (`vitest list --shard=i/n`)
   # and the unsharded suite, and fails if any file is lost, duplicated, or
-  # invented by the matrix. Mirrors front-ci.yml::test-vitest-coverage.
+  # invented by the matrix. Mirrors ci.yml::verification::Check Vitest shard coverage.
   pnpm --filter front test:vitest-shard-coverage
   just test-preuves
 
@@ -553,14 +550,14 @@ ci-npm-audit-development:
 # `pnpm run prepare` runs first: it wires core.hooksPath to the versioned
 # .husky dir (packages/scripts-ts/src/install-git-hooks.ts), so the replay
 # exercises the real pre-commit pipeline on real worktrees — mirroring the
-# front-ci.yml::supply-chain "Install Git hooks (mirrors prepare)" step.
+# ci.yml::verification::Install Git hooks step.
 test-preuves:
   @echo "=== [gate] paired red proofs (expected to fail) ==="
   pnpm run prepare
   pnpm --filter front test:preuves
 
 # Quality gate (issue #803): repo-wide oxlint + oxfmt check + .NET warnings-as-errors + analyzer tests.
-# Mirrors .github/workflows/quality-gate.yml::quality — fails PRs on any oxlint diagnostic
+# Mirrors .github/workflows/ci.yml::verification — fails PRs on any oxlint diagnostic
 # (pnpm lint is repo-wide oxlint --quiet + lint:disables + frontend-barrels, pnpm format is
 # oxfmt --check) and on any .NET analyzer / code-style warning (Directory.Build.props sets
 # TreatWarningsAsErrors + EnforceCodeStyleInBuild, so a restore+build of PublyApp.slnx is the gate).

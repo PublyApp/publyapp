@@ -3,32 +3,31 @@ import path from 'node:path';
 import process from 'node:process';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
-// Guard for the API-test barrier's path-filter coverage (PR #1975 round 2,
-// reachability fix #2005).
+// Guard for the central CI API lane's path coverage (PR #1975 round 2,
+// reachability fix #2005, centralized by #2113).
 //
 // WHY THIS EXISTS
 // ---------------
-// Round 2 of #1975 removed apps/apphost from PublyApp.slnx so the quality
-// gate's `dotnet build PublyApp.slnx` no longer resolves Aspire.Hosting.* on
+// Round 2 of #1975 removed apps/apphost from PublyApp.slnx so the central
+// API job's `Build API and OpenAPI document` step no longer resolves Aspire.Hosting.* on
 // every PR. That left `apps/apphost/Program.cs`, which is only COMPILED by
 // AppHostOrchestrationGuardSpec inside the API test suite, covered by no
-// workflow path filter: a PR touching ONLY apps/apphost/ triggered api-tests
+// workflow path filter: a PR touching ONLY apps/apphost/ skipped the API lane
 // (its classifier had no apps/apphost/ group) and the slnx build no longer
 // compiled the AppHost, so a broken AppHost passed the whole barrier. Round-2
 // proof (measured on real CI): an apphost-only PR with an uncompilable
-// Program.cs kept api-tests-gate green while the suite was skipped.
+// Program.cs kept the central gate green while the suite was skipped.
 //
 // #2005 is the REACHABILITY half of the same defect class. This guard shipped
 // (via #1975) only as a vitest file executed by front-ci.yml's `gate-selftest`
-// job, which is gated on front-ci's own relevance classifier. A PR that added
+// job, which was gated on front-ci's own relevance classifier. A PR that added
 // a project to PublyApp.slnx -- without a matching path filter -- classified as
 // irrelevant to front-ci, so gate-selftest (and therefore this guard) was
 // SKIPPED: the exact change that breaks the guard's invariant never ran it.
 //
 // THE FIX: the coverage logic lives here, in a PURE-NODE runnable script with
-// no runtime dependency on `yaml` or any npm package, so a small UNCONDITIONED
-// api-tests.yml job (api-tests.yml::path-coverage, #2005) runs it on every PR
-// with zero install. That mirrors the repository's existing unconditioned
+// no runtime dependency on `yaml` or any npm package. The central workflow's
+// API lane now owns this contract. That mirrors the repository's existing
 // guards `no-ignored-tracked` (#1513) and `no-dockerignore-shadow` (#1849):
 // a guard that scans a repository for something arriving on ANY path cannot be
 // gated on a classifier that only enumerates the paths known today. The vitest
@@ -40,14 +39,9 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 // WHAT THIS PROVES
 // ----------------
 //  1. Every project dir that an API-test spec builds or runs (`--project
-//     apps/<d>` or `"build", "apps/<d>"` argv forms) is covered by BOTH
-//     api-tests.yml path-filter surfaces: the `push.paths` list AND the
-//     changed-paths classifier regex. Losing either surface for a compiled
-//     project goes RED naming the project.
-//  2. The two api-tests.yml surfaces carry the SAME `apps/<seg>` groups.
-//  3. Every project in the real PublyApp.slnx is covered by at least one
-//     path filter of the .NET barrier workflows (quality-gate.yml or
-//     api-tests.yml).
+//     apps/<d>` or `"build", "apps/<d>"` argv forms) is covered by the central
+//     changed-paths classifier's API lane.
+//  2. Every project in the real PublyApp.slnx is covered by that same API lane.
 //
 // FAIL-LOUD CONTRACT
 // ------------------
@@ -73,11 +67,12 @@ const read = (relativePath) =>
 const readFromRoot = (rootDir: string, relativePath: string): string =>
 	readFileSync(path.join(rootDir, relativePath), 'utf8');
 
-// --- Minimal YAML-subset reader (push.paths only) ---
+// --- Minimal YAML-subset reader (retained for fixture-level glob tests) ---
 //
-// The coverage check reads each gate workflow's `on.push.paths` list (a YAML
-// sequence of scalars) and the classifier regex inline in the changes job's
-// filter step. The regex is extracted by scanning the raw text (the same
+// The legacy fixture reader reads an `on.push.paths` list and the classifier
+// command from a changes job. The production check reads the central
+// classifier command and its API lane below. The regex is extracted by scanning
+// the raw text (the same
 // documented `node "$CLASSIFIER" '...'` invocation shape the vitest test
 // reads). The paths list is read by an indentation-aware walker over the
 // file's lines -- deliberately MINIMAL, covering only the constructs the two
@@ -266,30 +261,6 @@ const globToRegExp = (pattern) => {
 export const entryCoversDir = (entry, dir) =>
 	globToRegExp(entry).test(`${dir}/Program.cs`);
 
-const coveredByAnyEntry = (dir, entries) =>
-	entries.some((entry) => entryCoversDir(entry, dir));
-
-/** Extracts the `apps/<seg>` groups from a classifier regex's alternation text. */
-const appsGroupsFromRegex = (regexText) => {
-	const groups = new Set();
-	for (const match of regexText.matchAll(/apps\/[A-Za-z0-9._-]+\//g)) {
-		groups.add(match[0].slice(0, -1));
-	}
-	return groups;
-};
-
-/** Extracts the `apps/<seg>` groups from a `push.paths` entry list. */
-const appsGroupsFromPathEntries = (entries) => {
-	const groups = new Set();
-	for (const entry of entries) {
-		const match = entry.match(/^apps\/([A-Za-z0-9._-]+)(?:\/|\*\*|$)/);
-		if (match !== null) {
-			groups.add(`apps/${match[1]}`);
-		}
-	}
-	return groups;
-};
-
 const yamlLines = (fileText: string) =>
 	fileText
 		.split(/\r?\n/)
@@ -310,21 +281,25 @@ const extractChangesFilterRunBlock = (fileText: string): string => {
 	);
 	if (jobsIdx === -1) {
 		throw new Error(
-			'api-tests.yml has no top-level `jobs:` mapping — cannot locate the executable changes filter step.',
+			'ci.yml has no top-level `jobs:` mapping — cannot locate the executable changes filter step.',
 		);
 	}
 
+	const classifierIdx = findChildKeyIndex(lines, jobsIdx, 'classify:');
 	const changesIdx = findChildKeyIndex(lines, jobsIdx, 'changes:');
-	if (changesIdx === -1) {
+	const filterJobIdx = classifierIdx === -1 ? changesIdx : classifierIdx;
+	const filterJobName = classifierIdx === -1 ? 'changes' : 'classify';
+	const filterStepId = classifierIdx === -1 ? 'filter' : 'classifier';
+	if (filterJobIdx === -1) {
 		throw new Error(
-			'api-tests.yml has no `jobs.changes` job — cannot locate the executable changes filter step.',
+			`ci.yml has no classifier job — cannot locate the executable classifier step.`,
 		);
 	}
 
-	const stepsIdx = findChildKeyIndex(lines, changesIdx, 'steps:');
+	const stepsIdx = findChildKeyIndex(lines, filterJobIdx, 'steps:');
 	if (stepsIdx === -1) {
 		throw new Error(
-			'api-tests.yml `jobs.changes` has no `steps:` list — cannot locate the executable filter step.',
+			`ci.yml \`jobs.${filterJobName}\` has no \`steps:\` list — cannot locate the executable classifier step.`,
 		);
 	}
 
@@ -352,7 +327,9 @@ const extractChangesFilterRunBlock = (fileText: string): string => {
 			.slice(start, end)
 			.filter((line, index) => index > 0 && line.indent === directChildIndent);
 		if (
-			directChildren.some((line) => /^id:\s*['"]?filter['"]?$/.test(line.text))
+			directChildren.some((line) =>
+				new RegExp(`^id:\\s*['"]?${filterStepId}['"]?$`).test(line.text),
+			)
 		) {
 			filterSteps.push({ start, end, directChildren });
 		}
@@ -360,7 +337,7 @@ const extractChangesFilterRunBlock = (fileText: string): string => {
 
 	if (filterSteps.length !== 1) {
 		throw new Error(
-			`api-tests.yml must have exactly one executable \`jobs.changes.steps[id=filter]\` step; found ${filterSteps.length}. The guard refuses to certify an ambiguous or missing filter step.`,
+			`ci.yml must have exactly one executable classifier step; found ${filterSteps.length}. The guard refuses to certify an ambiguous or missing filter step.`,
 		);
 	}
 
@@ -370,7 +347,7 @@ const extractChangesFilterRunBlock = (fileText: string): string => {
 	);
 	if (unsafeField !== undefined) {
 		throw new Error(
-			`api-tests.yml \`jobs.changes.steps[id=filter]\` must execute without \`${unsafeField.text.split(':', 1)[0]}\`; found \`${unsafeField.text}\`. The guard refuses to certify a conditionally skipped or tolerated filter step.`,
+			`ci.yml classifier step must execute without \`${unsafeField.text.split(':', 1)[0]}\`; found \`${unsafeField.text}\`. The guard refuses to certify a conditionally skipped or tolerated filter step.`,
 		);
 	}
 
@@ -379,7 +356,7 @@ const extractChangesFilterRunBlock = (fileText: string): string => {
 	);
 	if (runLine === undefined) {
 		throw new Error(
-			'api-tests.yml `jobs.changes.steps[id=filter]` has no `run:` block. The guard refuses to certify a non-executable filter step.',
+			'ci.yml classifier step has no `run:` block. The guard refuses to certify a non-executable filter step.',
 		);
 	}
 
@@ -399,7 +376,8 @@ const extractChangesFilterRunBlock = (fileText: string): string => {
 	return blockLines.join('\n');
 };
 
-const classifierCommandPattern = /^node "\$CLASSIFIER" '([^']+)'$/;
+const classifierCommandPattern =
+	/^node "\$(?:CLASSIFIER|classifier)" (?:--lanes|'([^']+)')$/;
 
 export const extractClassifierCommand = (fileText: string) => {
 	const runBlock = extractChangesFilterRunBlock(fileText);
@@ -411,13 +389,13 @@ export const extractClassifierCommand = (fileText: string) => {
 		}
 		const match = executable.match(classifierCommandPattern);
 		if (match !== null) {
-			matches.push({ command: executable, pattern: match[1] });
+			matches.push({ command: executable, pattern: match[1] ?? null });
 		}
 	}
 
 	if (matches.length !== 1) {
 		throw new Error(
-			`api-tests.yml \`jobs.changes.steps[id=filter].run\` must contain exactly one effective command matching \`node "$CLASSIFIER" '<regex>'\`; found ${matches.length}. Comments, echo/no-op commands, conditional forms, and tolerated steps are not executable classifier commands.`,
+			`ci.yml classifier step must contain exactly one effective classifier command; found ${matches.length}. Comments, echo/no-op commands, conditional forms, and tolerated steps are not executable classifier commands.`,
 		);
 	}
 
@@ -425,28 +403,66 @@ export const extractClassifierCommand = (fileText: string) => {
 };
 
 /**
- * Parses the real api-tests.yml into the two path-filter surfaces: the
+ * Parses the real ci.yml into the two path-filter surfaces: the
  * `push.paths` list and the classifier regex from the `changes` job's filter
  * step. Both must exist and be analyzable; any absence throws and fails the
  * run loudly (never a silent pass).
  */
 export const readApiTestsGateSurfaces = (
-	fileText = read('.github/workflows/api-tests.yml'),
+	fileText = read('.github/workflows/ci.yml'),
+	rootDir = repoRoot,
 ) => {
-	const pushPaths = extractPushPaths(fileText);
-
 	const { command: classifierCommand, pattern: classifierPattern } =
 		extractClassifierCommand(fileText);
+	if (classifierPattern === null) {
+		if (classifierCommand !== 'node "$classifier" --lanes') {
+			throw new Error(
+				'ci.yml classifier command must be exactly `node "$CLASSIFIER" --lanes`.',
+			);
+		}
+		const classifierSource = readFromRoot(
+			rootDir,
+			'packages/scripts-ts/src/ci-changed-paths.ts',
+		);
+		const lanePatternsStart = classifierSource.indexOf(
+			'export const LANE_PATTERNS',
+		);
+		const lanePatternsSource = classifierSource.slice(lanePatternsStart);
+		const apiPatternMatch = lanePatternsSource.match(/^\s*api:\s*'([^']+)'/m);
+		const qualityPatternMatch = lanePatternsSource.match(
+			/^\s*quality:\s*'([^']+)'/m,
+		);
+		if (apiPatternMatch === null || qualityPatternMatch === null) {
+			throw new Error(
+				'ci-changed-paths.ts has no analyzable API/quality lane pattern — fail closed.',
+			);
+		}
+		return {
+			pushPaths: [],
+			classifierCommand,
+			classifierPattern: apiPatternMatch[1],
+			compiled: new RegExp(apiPatternMatch[1]),
+			qualityPattern: qualityPatternMatch[1],
+			qualityCompiled: new RegExp(qualityPatternMatch[1]),
+		};
+	}
 	let compiled;
 	try {
 		compiled = new RegExp(classifierPattern);
 	} catch (error) {
 		throw new Error(
-			`api-tests.yml classifier regex does not compile: ${String(error)}`,
+			`ci.yml classifier regex does not compile: ${String(error)}`,
 		);
 	}
 
-	return { pushPaths, classifierCommand, classifierPattern, compiled };
+	return {
+		pushPaths: [],
+		classifierCommand,
+		classifierPattern,
+		compiled,
+		qualityPattern: classifierPattern,
+		qualityCompiled: compiled,
+	};
 };
 
 /** Recursively lists files under a repo-relative dir that match a suffix. */
@@ -517,26 +533,6 @@ export const readSlnxProjectDirs = (rootDir = repoRoot): string[] => {
 		.sort(compareStrings);
 };
 
-const pushPathsFromWorkflow = (rootDir: string, workflowFile: string) => {
-	const paths = extractPushPaths(readFromRoot(rootDir, workflowFile));
-	if (paths.length === 0) {
-		throw new Error(
-			`${workflowFile} has an empty on.push.paths list for the .NET barrier coverage check.`,
-		);
-	}
-	return paths;
-};
-
-const barrierPushPathSurfaces = (rootDir: string) => ({
-	qualityGatePushPaths: pushPathsFromWorkflow(
-		rootDir,
-		'.github/workflows/quality-gate.yml',
-	),
-	apiTestsPushPaths: readApiTestsGateSurfaces(
-		readFromRoot(rootDir, '.github/workflows/api-tests.yml'),
-	).pushPaths,
-});
-
 const compareStrings = (a: string, b: string): number => {
 	if (a < b) {
 		return -1;
@@ -546,9 +542,6 @@ const compareStrings = (a: string, b: string): number => {
 	}
 	return 0;
 };
-
-const setsEqual = (a, b) =>
-	a.size === b.size && [...a].every((value) => b.has(value));
 
 /**
  * The coverage findings against the REAL tree, as human-readable problem
@@ -560,60 +553,37 @@ const setsEqual = (a, b) =>
 export const findPathCoverageProblems = (rootDir = repoRoot): string[] => {
 	const problems = [];
 
-	// 1. Spec-referenced projects must be covered by BOTH api-tests surfaces.
-	const { pushPaths, classifierPattern, compiled } = readApiTestsGateSurfaces(
-		readFromRoot(rootDir, '.github/workflows/api-tests.yml'),
+	// 1. Spec-referenced projects must be covered by the central API lane.
+	const { compiled, qualityCompiled } = readApiTestsGateSurfaces(
+		readFromRoot(rootDir, '.github/workflows/ci.yml'),
+		rootDir,
 	);
 	const referencedDirs = findSpecReferencedProjectDirs(rootDir);
 
-	const missingFromPushPaths = referencedDirs.filter(
-		(dir) => !coveredByAnyEntry(dir, pushPaths),
-	);
 	const missingFromClassifier = referencedDirs.filter(
 		(dir) => !compiled.test(`${dir}/Program.cs`),
 	);
 
-	if (missingFromPushPaths.length > 0) {
-		problems.push(
-			'The API suite compiles these projects, but api-tests.yml `push.paths` covers none of them: ' +
-				`${missingFromPushPaths.join(', ')}. An apphost-style gap: changes to ONLY that project ` +
-				'would never wake the workflow that compiles it. Add an `apps/<dir>/**` entry covering ' +
-				'each, in BOTH api-tests.yml surfaces.',
-		);
-	}
 	if (missingFromClassifier.length > 0) {
 		problems.push(
-			'The API suite compiles these projects, but the api-tests.yml changed-paths classifier ' +
+			'The API suite compiles these projects, but the central CI API-lane classifier ' +
 				`regex matches none of them: ${missingFromClassifier.join(', ')}. A PR touching ONLY ` +
 				'their files would skip the suite. Add an `apps/<dir>/` group to the classifier regex.',
 		);
 	}
 
-	// The classifier surfaces may not silently gain or lose an `apps/<seg>`
-	// group relative to the push.paths list — the workflow's own comment
-	// promises the two groups are deliberately identical.
-	const pushPathAppsGroups = appsGroupsFromPathEntries(pushPaths);
-	const classifierAppsGroups = appsGroupsFromRegex(classifierPattern);
-	if (!setsEqual(pushPathAppsGroups, classifierAppsGroups)) {
-		problems.push(
-			'The api-tests.yml `push.paths` list and its classifier regex carry different `apps/<seg>` groups. The file states they are deliberately identical — a mutation touching only one surface recreates a half-closed gate. Keep them in lock-step.',
-		);
-	}
-
-	// 2. Every slnx project must be covered by a .NET barrier path filter.
-	const { qualityGatePushPaths, apiTestsPushPaths } =
-		barrierPushPathSurfaces(rootDir);
+	// 2. Every slnx project must be covered by the same central API lane.
 	const slnxDirs = readSlnxProjectDirs(rootDir);
 
 	const uncovered = slnxDirs.filter(
 		(dir) =>
-			!coveredByAnyEntry(dir, qualityGatePushPaths) &&
-			!coveredByAnyEntry(dir, apiTestsPushPaths),
+			!compiled.test(`${dir}/Program.cs`) &&
+			!qualityCompiled.test(`${dir}/Program.cs`),
 	);
 	if (uncovered.length > 0) {
 		problems.push(
-			'These projects are compiled by the quality gate (they are in PublyApp.slnx) but no .NET ' +
-				`barrier workflow's push.paths covers them: ${uncovered.join(', ')}. A change touching ` +
+			'These projects are compiled by the central API barrier (they are in PublyApp.slnx) but the ' +
+				`central API-lane classifier does not cover them: ${uncovered.join(', ')}. A change touching ` +
 				'only such a project would never trigger the workflow that compiles it.',
 		);
 	}

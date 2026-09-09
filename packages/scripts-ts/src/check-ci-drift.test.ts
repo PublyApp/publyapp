@@ -435,8 +435,8 @@ test("the repo's own workflows are fully reconciled with the local gate", async 
 	assert.deepEqual(await findCiDrift({ rootDir: repoRoot }), []);
 });
 
-// The CODEOWNERS contract must stay wired into `just ci-drift` and its
-// server mirror (`front-ci.yml::gate-selftest`). Those wiring facts are
+// The CODEOWNERS contract must stay wired into `just ci-drift` and the
+// central verification lane. Those wiring facts are
 // asserted HERE as well as inside codeowners-contract.test.mjs, because the
 // CODEOWNERS suite cannot be the only witness to its own wiring: it is
 // itself invoked by the exact recipe line the assertion protects, so
@@ -453,15 +453,16 @@ const ciDriftRecipe = readFileSync(
 	'utf8',
 ).match(/^ci-drift:\n([\s\S]*?)(?=^\S|(?![\s\S]))/m)?.[1];
 
-const gateSelftestRunBlock = (
+const centralVerificationRunBlock = (
 	parse(
-		readFileSync(path.join(repoRoot, '.github/workflows/front-ci.yml'), 'utf8'),
+		readFileSync(path.join(repoRoot, '.github/workflows/ci.yml'), 'utf8'),
 	) as {
 		jobs?: Record<string, { steps?: Array<{ name?: string; run?: string }> }>;
 	}
-).jobs?.['gate-selftest']?.steps?.find(
-	(step) => step.name === 'Run CI gate guard tests (mirrors `just ci-drift`)',
-)?.run;
+).jobs?.verification?.steps
+	?.filter((step) => typeof step.run === 'string')
+	.map((step) => step.run)
+	.join('\n');
 
 const executableLines = (block: string | undefined) =>
 	block
@@ -473,7 +474,9 @@ const executableLines = (block: string | undefined) =>
 
 const assertRunsCodeownersContract = (block: string, where: string) => {
 	assert.ok(
-		executableLines(block).includes(codeownersInvocation),
+		executableLines(block).some((line) =>
+			line.includes('src/codeowners-contract.test.ts'),
+		),
 		`${where} must run the CODEOWNERS contract from an executable line: \`${codeownersInvocation}\``,
 	);
 };
@@ -498,45 +501,54 @@ test('a commented-out ci-drift invocation fails this independent wiring check', 
 	);
 });
 
-test('the gate-selftest server mirror runs the CODEOWNERS contract', () => {
+test('the central verification lane runs the CODEOWNERS contract', () => {
 	assert.ok(
-		typeof gateSelftestRunBlock === 'string',
-		'front-ci.yml must define the gate-selftest run step that mirrors `just ci-drift`',
+		typeof centralVerificationRunBlock === 'string',
+		'ci.yml must define the central verification lane',
 	);
-	assertRunsCodeownersContract(gateSelftestRunBlock!, 'gate-selftest');
+	assertRunsCodeownersContract(
+		centralVerificationRunBlock!,
+		'central verification',
+	);
 });
 
-test('a commented-out gate-selftest invocation fails this independent wiring check', () => {
+test('a commented-out central CODEOWNERS invocation fails this independent wiring check', () => {
 	assert.ok(
-		typeof gateSelftestRunBlock === 'string',
-		'front-ci.yml must define the gate-selftest run step that mirrors `just ci-drift`',
+		typeof centralVerificationRunBlock === 'string',
+		'ci.yml must define the central verification lane',
 	);
 	assert.throws(
 		() =>
 			assertRunsCodeownersContract(
-				gateSelftestRunBlock!.replace(
-					codeownersInvocation,
-					`# ${codeownersInvocation}`,
+				centralVerificationRunBlock!.replace(
+					'src/codeowners-contract.test.ts',
+					'ci-contracts.test.ts',
 				),
-				'gate-selftest',
+				'central verification',
 			),
-		/gate-selftest must run the CODEOWNERS contract from an executable line/,
+		/central verification must run the CODEOWNERS contract from an executable line/,
 	);
 });
 
 // The artifact-version-compat guard (#1728) must stay wired into `just ci-drift`
-// and its server mirror (`front-ci.yml::gate-selftest`). The same anti-rot
+// and the central verification lane. The same anti-rot
 // reasoning as the CODEOWNERS block above applies: the guard cannot be the only
 // witness to its own wiring, because commenting out its invocation would remove
 // the detector along with the command it guards.
 const artifactCompatInvocation =
 	'node ./packages/scripts-ts/src/artifact-version-compat.ts';
+const centralArtifactCompatTestInvocation =
+	'src/artifact-version-compat.test.ts';
 
 // @ts-expect-error rung-0: add proper type in later rung
-const assertRunsArtifactCompatGuard = (block, where) => {
+const assertRunsArtifactCompatGuard = (
+	block,
+	where,
+	invocation = artifactCompatInvocation,
+) => {
 	assert.ok(
-		executableLines(block).includes(artifactCompatInvocation),
-		`${where} must run the artifact version compat guard from an executable line: \`${artifactCompatInvocation}\``,
+		executableLines(block).includes(invocation),
+		`${where} must run the artifact version compat guard from an executable line: \`${invocation}\``,
 	);
 };
 
@@ -560,30 +572,32 @@ test('a commented-out ci-drift artifact-compat invocation fails this independent
 	);
 });
 
-test('the gate-selftest server mirror runs the artifact version compat guard', () => {
+test('the central verification lane runs the artifact version compat guard', () => {
 	assert.ok(
-		typeof gateSelftestRunBlock === 'string',
-		'front-ci.yml must define the gate-selftest run step that mirrors `just ci-drift`',
+		typeof centralVerificationRunBlock === 'string',
+		'ci.yml must define the central verification lane',
 	);
-	assertRunsArtifactCompatGuard(gateSelftestRunBlock, 'gate-selftest');
+	assert.ok(
+		centralVerificationRunBlock.includes(centralArtifactCompatTestInvocation),
+		'central verification must run the artifact version compat test from an executable line',
+	);
 });
 
-test('a commented-out gate-selftest artifact-compat invocation fails this independent wiring check', () => {
+test('a commented-out central artifact-compat invocation fails this independent wiring check', () => {
 	assert.ok(
-		typeof gateSelftestRunBlock === 'string',
-		'front-ci.yml must define the gate-selftest run step that mirrors `just ci-drift`',
+		typeof centralVerificationRunBlock === 'string',
+		'ci.yml must define the central verification lane',
 	);
-	assert.throws(
-		() =>
-			assertRunsArtifactCompatGuard(
-				gateSelftestRunBlock.replace(
-					artifactCompatInvocation,
-					`# ${artifactCompatInvocation}`,
-				),
-				'gate-selftest',
-			),
-		/gate-selftest must run the artifact version compat guard from an executable line/,
-	);
+	assert.throws(() => {
+		const mutated = centralVerificationRunBlock.replace(
+			centralArtifactCompatTestInvocation,
+			'src/check-ci-drift.test.ts',
+		);
+		assert.ok(
+			mutated.includes(centralArtifactCompatTestInvocation),
+			'central verification must run the artifact version compat test from an executable line',
+		);
+	}, /central verification must run the artifact version compat test from an executable line/);
 });
 
 // --- Reason guard tests (#1725, #1732) ---

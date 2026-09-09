@@ -25,8 +25,8 @@ Rule of thumb: green-and-boring (minor/patch, no generated code, no CI config) â
 
 ## What CI audits
 
-Dedicated required jobs run each npm graph once: `front-ci.yml::audit-production`
-audits production dependencies and `quality-gate.yml::audit-development` audits
+Dedicated required jobs run each npm graph once: `ci.yml::audit-production`
+audits production dependencies and `ci.yml::audit-development` audits
 development dependencies. Both use `packages/scripts-ts/src/npm-audit-runner.ts`:
 it keeps pnpm's output, fails closed for findings and service errors, and bounds
 an unavailable audit service at 40 seconds for production or 120 seconds for
@@ -45,8 +45,8 @@ graph and **passes** otherwise. The development job runs the same runner with
 open on `develop`, so the jobs are green from the day they land; an unreachable
 registry fails loud rather than passing silently.
 
-The .NET side is audited by **Scan .NET packages for known vulnerabilities**
-(`quality-gate.yml::quality`, mirrored locally by `just nuget-audit`, script
+The .NET side is audited by **Audit .NET packages**
+(`ci.yml::verification`, mirrored locally by `just nuget-audit`, script
 `packages/scripts-ts/src/nuget-audit.ts`). It scans every tracked `.csproj`
 (`git ls-files '*.csproj'` â€” five projects, including the `lint-cs` pair that
 `PublyApp.slnx` omits) with `dotnet list package --vulnerable

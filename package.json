@@ -18,7 +18,7 @@
 		"test:review-api": "pnpm --filter scripts-ts exec vitest run src/review-api.test.ts",
 		"test:review-api-migration-guard": "pnpm --filter scripts-ts exec vitest run src/review-api.migration-guard.integration.test.ts",
 		"test:frontend-barrels": "pnpm --filter scripts-ts exec vitest run src/check-frontend-barrels.test.ts",
-		"test:project-closure-adapter": "pnpm --filter scripts-ts exec vitest run src/project-closure-adapter.test.ts",
+		"test:project-closure-adapter": "node packages/scripts-ts/src/run-project-closure-adapter.ts",
 		"test:require-linked-issue": "pnpm --filter scripts-ts exec vitest run src/require-linked-issue.test.ts",
 		"test:nuget-audit": "pnpm --filter scripts-ts exec vitest run src/nuget-audit.test.ts"
 	},

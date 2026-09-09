@@ -97,8 +97,8 @@ purely performance-driven memoisation.
   inventory lives in [`docs/guides/front/react-compiler.md`](react-compiler.md).
 - React Doctor (issue [#1182](https://github.com/PublyApp/publyapp/issues/1182)) checks
   Rules-of-React compliance. It does **not** run inside `pnpm --filter front test`: it is a
-  separate oxlint-based analyzer enforced by its own required workflow
-  ([`.github/workflows/react-doctor.yml`](../../../.github/workflows/react-doctor.yml),
+  separate oxlint-based analyzer enforced by the central workflow's `verification` job
+  ([`.github/workflows/ci.yml`](../../../.github/workflows/ci.yml),
   `pnpm dlx react-doctor@0.9.12 --scope files --base <base> --blocking warning`). Run
   `just react-doctor` locally before pushing — see
   [`docs/guides/react-doctor.md`](../react-doctor.md).
@@ -320,7 +320,7 @@ reverse. The guard walks the real modules under `src/routes/`, resolves one impo
 `lib/query/*` for hook-wrapped queries, and fails loudly — naming the route — on any loader it
 cannot statically resolve (a dynamic loader value, an unresolvable `queryKey` expression, or an
 opaque helper call in a loader that has `queryClient` access). It runs in CI via the
-`front-ci.yml` job `supply-chain`, step "Test front" (`pnpm --filter front test` →
+`ci.yml` job `verification`, step "Test front (non-vitest report-all)" (`pnpm --filter front test` →
 `pnpm test:design-guards`). A lane that wants to warm the cache for a new surface must satisfy
 this guard — the sanctioning decision is explicit and findable, not emergent.
 

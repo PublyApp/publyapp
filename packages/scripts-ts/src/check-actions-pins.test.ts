@@ -463,7 +463,7 @@ test('a dangling local reference fails loud instead of being skipped', async () 
 //
 // Deliberately NOT a vitest test: unit tests here must be network-free
 // (injected resolver only), and CI already runs this exact scan live via the
-// quality-gate step `node packages/scripts-ts/src/check-actions-pins.ts`
+// central CI step `node packages/scripts-ts/src/check-actions-pins.ts`
 // against the real repository tree. The CLI hard-fails on zero files scanned,
 // so it cannot rot into an always-green check.
 

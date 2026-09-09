@@ -3,7 +3,7 @@
 `just ci` is the pre-push gate. It mirrors what `.github/workflows` actually runs, so
 a green run locally is a strong prediction that CI would be green too.
 
-## Central PR CI (PR A)
+## Central PR CI
 
 `.github/workflows/ci.yml` is the additive central workflow for pull requests,
 merge groups, and pushes to `develop`. It creates the stable 16 visible checks:
@@ -12,10 +12,9 @@ E2E shards, cleanup, and one artifact-backed `ci-final-gate` (or `ci-push-check`
 `develop`). The classifier emits the six lane decisions once; irrelevant lanes run
 named success sentinels rather than becoming skipped jobs.
 
-The eight predecessor PR workflows remain unchanged during PR A because the
-external ruleset still requires their existing contexts. They are intentionally
-not removed or renamed here; that is the separately authorized PR B migration.
-`deploy-images.yml` remains an independent push-only release workflow.
+The eight predecessor PR workflows were removed in PR B. The external ruleset
+now requires only `ci-final-gate`; `deploy-images.yml` remains an independent
+push-only release workflow.
 
 The central reducer consumes one run-scoped `ci-lane-result` artifact per upstream
 job/matrix member and rejects missing, duplicate, stale, skipped, failed, or
@@ -35,9 +34,7 @@ and `just test-api`; the four `front-ci` shards execute install/postinstall/hook
 Vitest; and the E2E build/test/cleanup jobs execute the run-scoped image, all-service
 health, Playwright, shard-4 hermetic/drawer guards, failure-report, teardown, and
 cleanup steps. The nested front report records the complete ordered 32-command
-non-Vitest chain. The unchanged predecessor workflows still execute their existing
-checks during PR A for the external ruleset's dual-authority interval; no check is
-claimed here unless it is run by either that predecessor or the named central owner.
+non-Vitest chain. The central workflow is the sole PR validation owner.
 
 This matters more than it normally would: the repo is on a Free plan with a private
 repo (2,000 Actions minutes/month), and July 2026 burned 2,202. Until the allowance
@@ -45,7 +42,7 @@ resets and stays under budget, **this gate is the pre-merge net** — see issue 
 
 ## Quality gate (issue #803)
 
-`quality-gate.yml` fails PRs on (a) any `oxlint` diagnostic repo-wide (via `pnpm lint` —
+`.github/workflows/ci.yml` fails PRs on (a) any `oxlint` diagnostic repo-wide (via `pnpm lint` —
 `oxlint --quiet .` plus `lint:disables` and `check:frontend-barrels` — and the format
 check `pnpm format` which runs `oxfmt --check`) and (b) any .NET analyzer or code-style
 warning, because `Directory.Build.props` sets `TreatWarningsAsErrors` +
@@ -65,7 +62,7 @@ just ci-quality-dotnet   # dotnet restore + build (warnings as errors)
 just test-analyzers      # Roslyn analyzer unit suite
 ```
 
-`quality-gate.yml::quality::Knip (unused exports & dependencies)` runs
+`.github/workflows/ci.yml::verification::Check unused exports and dependencies` runs
 `pnpm exec knip` against the root `knip.ts`; `just ci-knip` is the identical
 invocation. Exit 0 is the contract on both sides: every knip exception must be
 a scoped entry with an inline reason in `knip.ts`, never a blanket ignore.
@@ -74,7 +71,7 @@ classifier regex, so config edits always re-run the step.
 
 CI needs `APP_ROLE=api` + `TRUSTED_PROXY_CIDRS` for the build step (the build boots the
 app to emit `openapi.json`; without the pin it fails fast in Production). The recipes
-pin both (`just ci-quality-dotnet` and `quality-gate.yml::quality::{Restore,Build} .NET solution`
+pin both (`just ci-quality-dotnet` and `.github/workflows/ci.yml::verification::{Restore,Build} .NET solution`
 both export `APP_ROLE=api`, `TRUSTED_PROXY_CIDRS=127.0.0.1/32`). Path filter mirrors the
 other gates' `Determine changed paths` pattern and covers: the workflow itself,
 `.oxlintrc.json`, `.oxfmtrc.json`, `package.json`, `pnpm-lock.yaml`, `pnpm-workspace.yaml`,
@@ -108,7 +105,7 @@ Local `./…` and `docker://` references are the only allowlisted non-pinned for
 
 Run it with `just ci-actions-pins` (unit suite + live scan). It is
 network-dependent, so the recipe accepts `ARGS="--offline"` to skip the live
-half for air-gapped local work; CI (`quality-gate.yml`) never passes it and
+half for air-gapped local work; CI (`.github/workflows/ci.yml`) never passes it and
 authenticates with the workflow token. Per-run caching keeps a full scan at
 ~16 distinct tag lookups. Paired proof convention: change one workflow SHA in a
 scratch commit → the guard fails naming file:line with expected vs actual;
@@ -139,12 +136,15 @@ revert → green. Changing only the comment version must equally fail.
 frontend behaviour, since that is where the e2e suites earn their runtime.
 
 `pnpm test:project-closure-adapter` remains a permanent local subgate and is
-covered by the central verification contract during PR A. The predecessor
-`front-ci.yml::gate-selftest` remains unchanged for the dual-authority interval
-and is mirrored by
-`ci-project-closure-adapter` in `just ci` and required during PR closure in
-`.ai/project-closure-v1.json` (`local_review_ready_commands` and
-`closure_acceptance_commands`).
+covered by the central verification contract. The central
+`ci.yml::verification::Test project closure adapter` step is the server-side
+contract check and is mirrored by `ci-project-closure-adapter` in `just ci`.
+It is required during PR closure in `.ai/project-closure-v1.json`
+(`local_review_ready_commands` and `closure_acceptance_commands`).
+
+The historical `docs-archive` all-branch push trigger is intentionally retired in PR-B. Work
+branches are validated on pull requests, while `develop` is validated on push; the central docs
+verification remains required on both paths. This cutover does not broaden `ci.yml` triggers.
 
 Sub-gates are ordinary recipes (`just ci-drift`, `just ci-front`, …), so you can run one
 in isolation while iterating. `just` stops at the first failing recipe and names it:
@@ -155,23 +155,24 @@ error: Recipe `ci-lint` failed on line 251 with exit code 1
 
 ## The API-suite asymmetry (read this once)
 
-**Since #1462, a workflow runs the API test suite.** `.github/workflows/api-tests.yml`
-runs `just test-api` (~2,000 specs on real Postgres via Testcontainers) as the
-required `api-tests-gate` check on PRs, with the same #1017 aggregate-gate shape
-(changes classifier -> heavy job -> gate) as every other gate. The only remaining
-`dotnet test` asymmetry is `openapi-spec-drift.yml`'s contract-only filter.
+**Since #1462, a workflow runs the API test suite.** `.github/workflows/ci.yml`
+runs `just test-api` (~2,000 specs on real Postgres via Testcontainers) in the
+central API lane, with the same #1017 aggregate-gate shape (changes classifier ->
+heavy job -> final gate) as every other lane. The only remaining `dotnet test`
+asymmetry is `ci.yml`'s contract-only filter.
 
 `just ci` still runs the full suite locally via its final recipe, so it remains the
 fastest pre-push signal; CI now independently enforces what used to be local-only.
 The suite is relevance-classified in CI: doc-only changes skip the heavy job while
-the required `api-tests-gate` context still reports (passing on verified-irrelevant
+the required `ci-final-gate` still reports (passing on verified-irrelevant
 changes, per the aggregate-gate contract).
 
 ## What CI has that the local gate cannot
 
 These are exempt in the drift manifest, each with a recorded reason:
 
-- **`require-linked-issue.yml`** — reads `github.event.pull_request.body`. At pre-push time
+- **`.github/workflows/ci.yml::gate::Verify linked issue relationship`** — reads
+  `github.event.pull_request.body`. At pre-push time
   there is no PR, so it is unreproducible locally by construction. It stays a GitHub check.
 - **`actions/upload-artifact`** and the failure-only log capture that feeds it — they exist
   to get files off an ephemeral runner. Locally the reports are already on disk.
@@ -187,12 +188,12 @@ A hand-mirrored gate rots. Someone adds a step to a workflow, nobody adds it her
 
 ### Mechanism
 
-It parses every `.github/workflows/*.yml` and content-addresses each step — the `run:` or
+It parses every regular file under `.github/workflows/` and content-addresses each workflow step — the `run:` or
 `uses:`, plus its `with:`, `env:`, `if:`, and `continue-on-error:` — then compares it against
 `packages/scripts-ts/src/ci-gate-manifest.json`, which holds one entry per step:
 
 ```json
-"front-ci.yml::supply-chain::Typecheck front": {
+"ci.yml::verification::Typecheck front": {
   "hash": "780f674ec757c52e",
   "mirror": "just ci-front",
   "reason": "ci-front runs the identical pnpm --filter front typecheck."
@@ -279,6 +280,9 @@ When a pinned step is missing from the manifest, the guard produces a
 **removals confession** in `packages/scripts-ts/src/ci-gate-removals.json`
 that names the step ID and says what was lost and why:
 
+The example uses a removed historical step ID intentionally; current ownership is described by
+the central workflow entries above.
+
 ```json
 {
   "steps": [
@@ -311,8 +315,8 @@ The ratchet used to enforce only `pinned ⊆ steps ⊆ manifest`: it forbade
 pinning anything, but never required every covered step to be pinned. A step
 reconciled in the manifest could therefore sit unpinned — protected in name
 only, with no pin whose disappearance would trip the ratchet. That is the
-round-13 defect: `docs-archive.yml::docs-archive::Run prune-inventory guard
-fixture tests` was covered by the manifest yet absent from `pinned_step_ids`,
+round-13 defect: the retired docs archive workflow's prune-inventory guard
+fixture tests were covered by the manifest yet absent from `pinned_step_ids`,
 so its justification could have vanished without the floor moving.
 
 The invariant is now **complete**: every step in `ci-gate-manifest.json`
@@ -365,19 +369,19 @@ reported by two independently-timed jobs is therefore a false-green risk: if the
 first and the second reporter succeeds later, the required context ends green over failed required
 work. Measured on this PR's head, a second reporter finished four minutes after the real gate.
 
-Two rules keep each of the four required contexts to exactly one producer, both enforced by
-`packages/scripts-ts/src/check-ci-gate-structure.ts` (which the required `front-ci-gate` job runs as one of its
+Two rules keep the required context to exactly one producer, both enforced by
+`packages/scripts-ts/src/check-ci-gate-structure.ts` (which the required `ci-final-gate` job runs as one of its
 own steps):
 
-- Each gate job's `name:` is an **allowlist** expression — it resolves to the externally required
-  name only for `pull_request` and `merge_group`, and to a non-required `<workflow>-push-check`
+- The gate job's `name:` is an **allowlist** expression — it resolves to the externally required
+  name only for `pull_request` and `merge_group`, and to the non-required `ci-push-check`
   name for any other event. A gate workflow's `on:` may additionally declare only `push`; any other
   event is rejected outright. Both halves matter: an earlier `github.event_name == 'push' && … || …`
   form resolved to the _required_ name for every non-push event, so simply adding
   `workflow_dispatch:` produced a second reporter (a manual run takes a branch/tag ref and uses its
   last commit as `GITHUB_SHA`).
-- The guard scans **every job in every workflow in the repository** and requires each of the eight
-  reserved names (four required contexts plus four push checks) to have exactly one producer: the
+- The guard scans **every job in every workflow in the repository** and requires both reserved
+  names (`ci-final-gate` and `ci-push-check`) to have exactly one producer: the
   authorized gate job, carrying its exact pinned expression. GitHub reports a job under its `name:`
   when it has one and its job ID otherwise, so both are checked. No other job may carry a `${{ }}`
   expression in its `name:` at all — an expression can resolve to a reserved name without containing
@@ -389,20 +393,19 @@ own steps):
 unrelated job leaves every one of its manifest keys and hashes untouched. That is the drift guard's
 correct contract; required-context uniqueness is the structure guard's job.
 
-Because that scan asserts against every workflow in the repository, `front-ci.yml`'s changed-path
+Because that scan asserts against every workflow in the repository, `ci.yml`'s changed-path
 classifier matches the whole `.github/workflows/` prefix — not a list of the four gate files.
 Otherwise an edit to a non-gate workflow classifies as irrelevant and skips the only two jobs that
 run the guard server-side.
 
 ## Required-check limitations (accepted)
 
-PR #1029 (closing #1017) made `front-e2e-gate`, `front-ci-gate`, `openapi-spec-drift-gate`, and
-`docs-archive-gate` report on every pull request, closing the deadlock where a required check that
-never runs never reports and blocks the PR forever. Three platform limitations remain once the
-repository ruleset requires those four contexts. All three were reviewed and all three are accepted
+The central workflow makes `ci-final-gate` report on every pull request, closing the deadlock
+where a required check that never runs never reports and blocks the PR forever. Three platform
+limitations remain while the repository ruleset requires this context. All three were reviewed and accepted
 rather than fixed in code — recorded here rather than hidden, so they can be judged:
 
-- **A head commit skip instruction suppresses all four required checks.** GitHub does not run a
+- **A head commit skip instruction suppresses the required check.** GitHub does not run a
   workflow at all when its triggering commit's message contains `[skip ci]`, `[ci skip]`,
   `[no ci]`, `[skip actions]`, `[actions skip]`, or carries a `skip-checks: true` trailer, and
   anyone with push access can set one. The associated required checks then never report — they sit
@@ -421,13 +424,13 @@ rather than fixed in code — recorded here rather than hidden, so they can be j
 - **A YAML-valid but semantically-invalid expression can prevent a required job from ever being
   created.** GitHub validates a workflow's expressions (e.g. `${{ ... }}` syntax, undefined
   functions) when the run starts, separately from YAML syntax. A mutation such as setting
-  `concurrency.group: ${{ definitely_not_a_function() }}` at the top of `front-ci.yml` parses as
+  `concurrency.group: ${{ definitely_not_a_function() }}` at the top of `ci.yml` parses as
   valid YAML, passes every guard and all 239 guard tests (none of them run inside GitHub Actions'
   own expression evaluator, and `actionlint` — the closest local equivalent — is not installed or
   run anywhere in this repository), and only fails once GitHub actually tries to start the run. When
   that happens, the workflow fails at startup **before any job is created** — including
-  `front-ci-gate` itself, and including `gate-selftest` and the round-5 self-check step added to
-  `front-ci-gate` (see above), both of which live inside the same invalid file and therefore never
+  `ci-final-gate` itself, and including its `gate::Run central structural self-check` step
+  (see above), which lives inside the same invalid file and therefore never
   run either. No script in this repository, local or server-side, can observe or react to a failure
   that happens before its own job exists. This is accepted, not fixed, for one load-bearing reason:
   a required context that is **never created** behaves the same way GitHub already documents for a
@@ -440,7 +443,7 @@ rather than fixed in code — recorded here rather than hidden, so they can be j
   over something that had actually failed.
 
   The strongest available mitigation considered and NOT implemented here: a separate
-  `workflow_run`-triggered watchdog workflow that inspects each of the four gate workflows'
+  `workflow_run`-triggered watchdog workflow that inspects each of the four historical predecessor gate workflows'
   completed runs (via the Actions API) and, when a run's conclusion indicates a startup/validation
   failure with zero jobs created, posts a synthetic `failure` commit status for that same required
   context name via the Statuses API — turning "never reported" into an explicit red, one workflow
@@ -457,18 +460,18 @@ rather than fixed in code — recorded here rather than hidden, so they can be j
 
 ## Fork pull requests (#1021)
 
-`front-e2e-gate` is required on every pull request, and this repository is public — so pull
+`ci-final-gate` is required on every pull request, and this repository is public — so pull
 requests can come from forks, where GitHub downgrades `GITHUB_TOKEN` to read-only
 (`packages: write` is stripped regardless of contributor approval). The workflow's original
-design pushed four per-run images to GHCR from the `build` job and pulled them in each shard,
+design pushed four per-run images to GHCR from the `e2e-build` job and pulled them in each shard,
 which a fork token can never do: a fork PR that touched frontend code went red — correctly,
 never falsely green — and was unmergeable without moving its branch into the base repository.
 That behaviour is recorded as an accepted limitation above; #1021 replaced it.
 
 The fix deliberately does **not** use `pull_request_target`: that trigger runs fork-authored
 code with a base-repository write-capable token, handing untrusted input the registry
-credentials. Instead, `front-e2e.yml` runs **the same four-shard matrix** on both paths,
-switched by the build job's `fork` output (`github.event.pull_request.head.repo.fork`):
+credentials. Instead, `ci.yml` runs **the same four-shard matrix** on both paths,
+switched by the `e2e-build` job's `fork` output (`github.event.pull_request.head.repo.fork`):
 
 - **Same-repo path (unchanged):** login to GHCR, build with Compose Bake + gha cache export,
   push the four images, shards pull them, cleanup deletes this run's versions.
@@ -480,35 +483,36 @@ switched by the build job's `fork` output (`github.event.pull_request.head.repo.
   artifact (`retention-days: 1`); each shard `docker load`s them locally so
   `up --no-build` resolves the same `${E2E_IMAGE_NS}-${service}:${E2E_IMAGE_TAG}` tags. The
   images never leave GitHub's infrastructure, and nothing is written to any registry.
-- The `cleanup` job short-circuits to success on fork runs (`::notice::`, nothing pushed →
+- The `e2e-cleanup` job short-circuits to success on fork runs (`::notice::`, nothing pushed →
   nothing to delete) but keeps its `if: always()` aggregation role for the gate.
 
-The gate aggregation (`front-e2e-gate`) is untouched: `needs.build.outputs.fork` only routes
+The gate aggregation (`ci-final-gate`) is untouched: `needs.e2e-build.outputs.fork` only routes
 steps inside jobs; job results, the matrix (`shard: [1, 2, 3, 4]`), and the required-check
 name are identical on both paths, which is what makes a green fork run proof of the same work
 a same-repo run performs.
 
-## Partial re-run of failed `front-e2e` jobs (accepted, guarded)
+## Partial re-run of failed `e2e-test` jobs (accepted, guarded)
 
-Re-running only the **failed jobs** of a `front-e2e` run ("Re-run failed jobs") can **never**
+Re-running only the **failed jobs** of an `e2e-test` run ("Re-run failed jobs") can **never**
 succeed, no matter what caused the original failure — see issue #1063. The e2e images are
-per-run scratch, tagged `${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}`, and the workflow's `cleanup`
+per-run scratch, tagged `${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}`, and the workflow's `e2e-cleanup`
 job runs with `if: always()`, so it deletes them even when the shards failed (correct: nothing
 should retain scratch images, and a partial re-run must not silently test the previous attempt's
-build). A partial re-run does not re-run the `build` job, so the shards would pull the previous
+build). A partial re-run does not re-run the `e2e-build` job, so the shards would pull the previous
 attempt's tag, which no longer exists — the pull fails with `manifest unknown`, which looks like a
 registry problem and sends you diagnosing the wrong thing (observed on PR #1056).
 
-The `test` job's **"Detect partial re-run before pull"** step detects this *before* pulling: the
-per-run tag always embeds the current attempt number, so comparing `needs.build.outputs.tag`
-against `${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}` identifies a partial re-run (the build job was
+The `e2e-test` job's **"Detect partial rerun"** step detects this *before* pulling: the
+per-run tag always embeds the current attempt number, so comparing `needs.e2e-build.outputs.tag`
+against `${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}` identifies a partial re-run (the `e2e-build` job was
 not re-run, the tag is stale) and fails the job with an explicit "a full workflow re-run is
-required" message. The only working retry is **"Re-run all jobs"**, which re-runs `build` and
+required" message. The only working retry is **"Re-run all jobs"**, which re-runs `e2e-build` and
 pushes a fresh image set.
 
 The guard's behavior is proven by `packages/scripts-ts/src/ci-e2e-rerun-guard.test.ts` (executes the real
 `run:` body from the workflow against the fresh-run, full-rerun, and partial-rerun scenarios),
-which runs in `just ci-drift` and server-side in `front-ci.yml::gate-selftest`.
+which runs in `just ci-drift` and server-side in
+`ci.yml::verification::Test CI guard fixtures`.
 
 ## Runtime
 

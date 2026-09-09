@@ -30,20 +30,30 @@ const repoRoot = path.resolve(
 	'..',
 );
 
-const workflowFile = '.github/workflows/require-linked-issue.yml';
+const workflowFile = '.github/workflows/ci.yml';
 
 /** Extracts the single `run:` shell body of the verify step. */
 const readRunBody = async () => {
 	const raw = await readFile(path.join(repoRoot, workflowFile), 'utf8');
 	const document = parse(raw);
-	const steps = document?.jobs?.['require-linked-issue']?.steps ?? [];
-	const step = steps.find((s) => typeof s?.run === 'string');
+	const steps = document?.jobs?.gate?.steps ?? [];
+	const step = steps.find(
+		(s) => s?.name === 'Verify linked issue relationship',
+	);
 
 	if (step === undefined) {
 		throw new Error(`${workflowFile}: expected a step with a \`run:\` block.`);
 	}
 
-	return step.run as string;
+	const heredocStart = "bash <<'LINKED_ISSUE_SCRIPT'\n";
+	const scriptStart = step.run.indexOf(heredocStart);
+	const scriptEnd = step.run.indexOf('\nLINKED_ISSUE_SCRIPT', scriptStart);
+	if (scriptStart === -1 || scriptEnd === -1) {
+		throw new Error(
+			`${workflowFile}: linked-issue step must contain the executable LINKED_ISSUE_SCRIPT heredoc.`,
+		);
+	}
+	return step.run.slice(scriptStart + heredocStart.length, scriptEnd);
 };
 
 /**
@@ -52,17 +62,6 @@ const readRunBody = async () => {
  */
 // @ts-expect-error rung-0: add proper type in later rung
 const assertExactlyDependabotBot = (runBody) => {
-	// The author must come from the PR's author login, never the runner actor.
-	if (
-		!/PR_AUTHOR="\$\{\{ github\.event\.pull_request\.user\.login \}\}"/.test(
-			runBody,
-		)
-	) {
-		throw new Error(
-			'the waiver must read the PR author from github.event.pull_request.user.login, not github.actor',
-		);
-	}
-
 	// The waiver condition must be an EXACT equality against the single literal
 	// `dependabot[bot]`. A glob/wildcard (e.g. `*"[bot]"*`) is a widening and
 	// must NOT satisfy this assertion.
@@ -247,6 +246,7 @@ const runStep = (
 		...process.env,
 		PR_AUTHOR: author,
 		PR_BODY: body,
+		PR_NUMBER: prNumber,
 		GH_REPO: 'PublyApp/publyapp',
 		MOCK_GRAPHQL_FAILURE: graphqlFailure ? 'true' : 'false',
 		PATH: commandPath,
@@ -390,14 +390,11 @@ test('mutation: widening to any *[bot]* author wrongly waives renovate[bot] (ste
 test('removing the waiver condition entirely is rejected (static shape)', async () => {
 	const runBody = await readRunBody();
 
-	// Drop the whole waiver branch precisely: the PR_AUTHOR assignment plus the
-	// if/echo/exit 0/fi block (nothing beyond the waiver's own `fi`).
-	const withoutWaiver = runBody
-		.replace(/^PR_AUTHOR="[^"]*"\n/m, '')
-		.replace(
-			/if \[ "\$PR_AUTHOR" = "dependabot\[bot\]" \]; then\n  echo[^\n]*\n  exit 0\n  fi\n/,
-			'',
-		);
+	// Drop the whole waiver branch (nothing beyond the waiver's own `fi`).
+	const withoutWaiver = runBody.replace(
+		/if \[ "\$PR_AUTHOR" = "dependabot\[bot\]" \]; then\n  echo[^\n]*\n  exit 0\nfi\n\n/,
+		'',
+	);
 
 	assert.notEqual(
 		withoutWaiver,
@@ -645,7 +642,10 @@ test('mutation: removing the PR discriminator lets a PR hide beside a real issue
 	// Remove the entire PR discriminator block: the comment, the is_pr check,
 	// and the if/continue/fi block. The match runs from the #2003 comment
 	// through the fi of the is_pr block (including trailing blank line).
-	const mutated = runBody.replace(/# #2003:[\s\S]+?fi\n\s*\n?/, '');
+	const mutated = runBody.replace(
+		/  if ! is_pr=\$\(gh api[\s\S]+?  fi\n\n  if \[ "\$is_closing"/,
+		'  if [ "$is_closing"',
+	);
 
 	assert.notEqual(
 		mutated,

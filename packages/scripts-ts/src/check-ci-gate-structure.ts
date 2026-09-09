@@ -9,166 +9,10 @@ import {
 	EXPECTED_UPSTREAM_JOB_KEYS,
 } from './check-ci-gate-aggregation.ts';
 
-// Structural guard for the #1017 aggregate CI gates.
-//
-// scripts/check-ci-drift.mjs hashes a step's `env`, step-level `if`, `run`,
-// `uses`, and `with` — deliberately NOT the workflow trigger, job-level
-// `permissions`, `outputs`, `needs`, job-level `if`, matrix, or shell
-// defaults. That is correct for its own job (pinning step content), but it
-// means the drift guard cannot notice if someone quietly drops a job from
-// an aggregate gate's `needs`, changes `gate.if` away from `always()`, or
-// breaks a `changes` job's output/permissions — the exact metadata that
-// carries this whole feature's safety property. This guard pins that
-// metadata directly by parsing the real workflow YAML.
-//
-// It intentionally does NOT try to verify the gate's shell logic (that is
-// scripts/check-ci-drift.mjs's job, via the step-content hash) — only the
-// job graph: who depends on whom, under what condition, with what output
-// wiring. A job dropped from `gate.needs` while its
-// `${{ needs.job.result }}` interpolation stays in the shell body is exactly
-// the failure mode this closes: `gate.needs` is required to be the full set
-// of every other job in the file, not a hand-maintained list, so removing a
-// job from `needs` is a structural mismatch even if nothing else changes.
-//
-// Round 2 added four more checks, each a distinct false-green wiring a
-// reviewer found this guard missed:
-//   - the classifier step's `id` (renaming it away from `filter` makes
-//     `outputs.relevant`'s literal `steps.filter...` reference resolve
-//     empty at runtime, even though the output expression string itself is
-//     untouched and still matches EXPECTED_CHANGES_OUTPUT);
-//   - the gate job's `name` (the externally required check string — a
-//     silent rename produces a missing required context, not a red gate);
-//   - the `pull_request` trigger regaining a `paths:` filter (recreates the
-//     exact pending-check deadlock #1017 exists to fix);
-//   - the gate step's result-aggregation no longer being a hand-maintained
-//     Bash map at all: the gate steps now read `${{ toJSON(needs) }}`
-//     directly (see the workflow YAML), so there is no second list to drift
-//     out of sync with `gate.needs` in the first place. This guard pins
-//     that the gate step still wires `NEEDS_JSON` to that exact expression.
-//
-// Round 3 found the trigger check itself too weak: it only asked whether
-// `pull_request.paths` existed, so removing the `pull_request` key entirely,
-// swapping to `workflow_dispatch`, or restricting with `paths-ignore`/
-// `types`/anything else all passed silently. The trigger check now requires
-// `on.pull_request` to exist AND carry no restricting key at all.
-//
-// Round 4 found two more behavioral fields outside every guard, proven by
-// two mutations that changed what CI actually verifies while all tests and
-// scripts/check-ci-drift.mjs's step-content hash stayed green:
-//   - adding `continue-on-error: true` to a real verification step (or job)
-//     makes it report success after it actually fails. This guard now
-//     hard-rejects `continue-on-error` on every relevance-gated verification
-//     job and on every step inside one — not just forces a hash
-//     reconciliation the way check-ci-drift.mjs does for every other step in
-//     the repo.
-//   - narrowing front-e2e's `shard: [1, 2, 3, 4]` matrix to `[1]` runs a
-//     quarter of the suite while nothing else notices. This guard pins the
-//     matrix's exact values AND every place that separately hardcodes its
-//     denominator (the job name, the `--shard=N/4` flag, the "last shard
-//     runs the hermetic counter" check, and the uploaded artifact name) —
-//     the matrix and a hardcoded `/4` elsewhere can drift independently.
-//
-// Round 5 found a nondeterminism bug independently reported by the PR owner:
-// a `push` trigger on a gate workflow made the required context reportable by
-// TWO separate runs for the same commit (a `pull_request` run and a `push`
-// run), and GitHub keeps only the LATEST reported status for a context — so
-// a slower, unrelated push-triggered run could overwrite a passing
-// pull_request run. Confirmed live: `docs-archive.yml`'s unrestricted `push`
-// trigger produced two runs reporting `docs-archive-gate` for the same
-// commit. `front-e2e.yml` and `openapi-spec-drift.yml` scope their `push`
-// trigger to `branches: [develop]`, which narrows the window but does not
-// close the same underlying risk class.
-//
-// A first fix attempt scoped the gate job's `if:` to `pull_request`/
-// `merge_group` only. That was insufficient and was caught live on this same
-// PR: GitHub still creates and reports a check run under the SAME name for a
-// job that is merely SKIPPED (not absent) — the push-triggered run still
-// produced a second `docs-archive-gate` check run, just with conclusion
-// `skipped` instead of a real verdict. The exact same "one required context,
-// two reports, last one wins" nondeterminism remained; only what the second
-// report said had changed. No documented GitHub behavior establishes that a
-// `skipped` conclusion on a required context can never later be treated as
-// authoritative over an earlier `success` — two independent doc lookups on
-// this exact question came back empty, so that could not be proven and was
-// not relied on.
-//
-// Fixed instead by renaming: the required `gate` job's `if:` reverts to
-// unconditional `always()` (so a push-triggered run still aggregates real
-// upstream results, useful for direct-push/post-merge validation), but its
-// `name:` is now conditional on the event — `github.event_name == 'push'`
-// reports under a DIFFERENT, non-required context (e.g.
-// `docs-archive-push-check`) that can never collide with the required name.
-// Applied uniformly to all four workflows (including `front-ci.yml`, which
-// has no `push` trigger today, so one added later inherits the same
-// protection automatically).
-//
-// Round 5 also found that `gate-selftest` (the job that runs this very
-// script, and every other #1017 guard test, server-side) could be dropped
-// from `front-ci-gate`'s `needs` — the decisive "gate.needs must equal every
-// other job" check below still caught the drop (gate-selftest exists in the
-// file but is no longer in gate.needs), but only when THIS SCRIPT is invoked
-// from a job that is itself part of `front-ci-gate`'s needs. Dropping
-// gate-selftest disconnects the only job that ran this check server-side, so
-// the one required context never re-derived its own needs independently.
-// Fixed not in this file but in where it runs: front-ci.yml's `gate` job now
-// also runs this exact script as one of ITS OWN steps (see that file), so the
-// check cannot be silently disconnected the way a whole job can — only a
-// direct edit to the required job's own steps could remove it, which is the
-// accepted #1022 malicious-author gap, not the accidental-disconnection gap
-// this closes. `requiresSelfCheck: true` below pins that this exact step
-// exists.
-//
-// Round 5 also found two more behavioral fields the round-4 matrix/
-// continue-on-error hard-rejects did not cover:
-//   - `matrix.exclude` (or `include`, or any other `strategy.matrix` key
-//     beyond the pinned axis) can remove or redefine shard combinations
-//     while `shard: [1, 2, 3, 4]` itself stays untouched — proven:
-//     `exclude: [{shard: 2}, {shard: 3}, {shard: 4}]` left only shard 1/4
-//     running while every other guard stayed green. `strategy.matrix` is now
-//     required to declare EXACTLY the one pinned key, nothing else.
-//   - a job/workflow-level `defaults: run: shell: bash {0}` silently drops
-//     bash's implicit `-e` (GitHub's documented unspecified-shell default is
-//     `bash -e {0}`), letting a failed verification command inside a
-//     multi-line `run:` block be followed — and its failure erased — by a
-//     later command's exit code. Proven against front-e2e.yml's real
-//     Playwright step. This guard now hard-rejects any `defaults:` on a
-//     relevance-gated job, an always-run job, or the workflow itself, AND
-//     the Playwright step's own `run:` now starts with `set -euo pipefail`
-//     so fail-fast is a property of the script itself, independent of
-//     whatever shell default is (or later becomes) in effect around it.
-//   - `continue-on-error: true` on the required gate job's own "Check
-//     required jobs" step masks a correctly-detected aggregation failure the
-//     exact same way it masks a verification step's failure — the round-4
-//     hard-reject was scoped only to `relevanceGatedJobs`, not the gate job
-//     itself. This guard now also hard-rejects `continue-on-error` anywhere
-//     in the gate job, AND requires a subsequent step that reads that step's
-//     `outcome` (not `conclusion` — GitHub computes `outcome` BEFORE
-//     `continue-on-error` is applied, so it cannot be rewritten by it) and
-//     fails when that outcome was not `success`. That is the actual
-//     enforcement; the hard-reject above is a second, independent layer.
-//
-// Round 6 found the round-5 rename fix load-bearing but under-enforced: the
-// gate job's `name:` was pinned as
-// `github.event_name == 'push' && '<push-check>' || '<required>'`, an
-// EXCLUSION list. Every event other than `push` — including one added to the
-// workflow's `on:` later — resolved to the required name. Adding
-// `workflow_dispatch:` to a gate workflow's triggers therefore recreated a
-// second reporter of the required context (GitHub documents that a manual
-// run takes a branch/tag `ref` and uses its last commit as GITHUB_SHA, so a
-// maintainer can dispatch it against a pull-request branch), and both
-// enforced guards stayed green. Two independent layers close that now:
-//   - the name expression is an ALLOWLIST: only `pull_request` and
-//     `merge_group` — the two events a required check must report for —
-//     resolve to the required name; every other event resolves to the
-//     non-required push-check name. Adding an event can no longer produce a
-//     second report of the required context, whatever the event is.
-//   - a gate workflow's `on:` may declare only `pull_request`,
-//     `merge_group`, and `push`. Anything else is rejected outright, which
-//     also keeps the `<workflow>-push-check` name honest: the only non-PR
-//     event that can reach it is `push`.
-// Round 6 also found that nothing stopped a job in ANY OTHER workflow from
-// reporting one of the four required names — see
-// findRequiredContextCollisionProblems below.
+// Structural guard for workflow contracts that are not covered by the
+// central workflow's byte-level CI drift hash. The central workflow has its
+// own explicit topology guard below; this generic checker remains available
+// for fixture-based tests and for future reviewed workflow contracts.
 
 const workflowsDirectory = '.github/workflows';
 
@@ -263,9 +107,8 @@ const REQUIRED_CONTEXT_EVENTS = ['pull_request', 'merge_group'];
 /**
  * Round 6 BLOCKER, second layer: the complete set of events a gate workflow
  * may subscribe to. `pull_request` and `merge_group` are separately required
- * to be present and unconditional; `push` is optional (three of the four
- * declare it, for direct-push/post-merge validation). Any other event is
- * rejected outright.
+ * to be present and unconditional; `push` is optional for direct-push/post-merge
+ * validation. Any other event is rejected outright.
  */
 const ALLOWED_GATE_TRIGGER_EVENTS = new Set([
 	...REQUIRED_CONTEXT_EVENTS,
@@ -283,319 +126,15 @@ const gateNameExpression = ({ gateName, pushCheckName }) =>
 		(event) => `github.event_name == '${event}'`,
 	).join(' || ')}) && '${gateName}' || '${pushCheckName}' }}`;
 
-/** The exact `name:` expression front-e2e.yml's sharded `test` job must carry. */
+/** The exact `name:` expression used by a generic sharded fixture job. */
 // @ts-expect-error rung-0: add proper type in later rung
 const matrixJobNameExpression = ({ key, expected, file }) =>
-	file === 'front-ci.yml'
+	file === 'ci.yml'
 		? `front-ci (\${{ matrix.${key} }}/${expected.length})`
 		: `front-e2e (\${{ matrix.${key} }}/${expected.length})`;
 
-/**
- * The four #1017 aggregate-gate workflows and the job graph each one must
- * have. `relevanceGatedJobs` are jobs that only run when `changes` says the
- * workflow's paths are relevant; `alwaysJobs` are jobs (like front-e2e's
- * GHCR `cleanup`) that intentionally run regardless via their own
- * `if: always()`. `gate.needs` is not listed here — it is required to equal
- * every other job in the file, computed from the parsed document itself.
- * `gateName` is the externally required check string. `pushCheckName` is the
- * DIFFERENT name the same job must report under for a `push`-triggered run,
- * so that run can never collide with `gateName` as a duplicate report for
- * the same commit — see the file-level comment.
- */
-// Exported so the structure test can pin the table's own pinnedTestFiles
-// contents against EXPECTED_PINNED_TEST_FILES (PR #1312 round 2).
-export const GATE_WORKFLOWS = [
-	{
-		file: 'front-e2e.yml',
-		changesJob: 'changes',
-		gateJob: 'gate',
-		gateName: 'front-e2e-gate',
-		pushCheckName: 'front-e2e-push-check',
-		relevanceGatedJobs: [
-			{ id: 'build', needs: ['changes'] },
-			{ id: 'test', needs: ['changes', 'build'] },
-		],
-		alwaysJobs: [{ id: 'cleanup', needs: ['build', 'test'] }],
-		// Round 4: pins the sharded e2e matrix itself AND every place that
-		// separately hardcodes its denominator, so a matrix narrowed to
-		// `[1]` (running a quarter of the suite) cannot pass silently, and
-		// so the job name / shard flag / last-shard check / artifact name
-		// cannot drift out of sync with the matrix length independently.
-		matrix: { jobId: 'test', key: 'shard', expected: [1, 2, 3, 4] },
-	},
-	{
-		file: 'front-ci.yml',
-		changesJob: 'changes',
-		gateJob: 'gate',
-		gateName: 'front-ci-gate',
-		pushCheckName: 'front-ci-push-check',
-		relevanceGatedJobs: [
-			{ id: 'supply-chain', needs: ['changes'] },
-			{ id: 'audit-production', needs: ['changes'] },
-			{ id: 'gate-selftest', needs: ['changes'] },
-			// #1948: the shard matrix and its coverage proof are both
-			// gated on the changes classifier like their siblings. Being in
-			// this list gives them the same hard protections as the other
-			// verification jobs: required `if:`, required `needs`,
-			// no job- or step-level `continue-on-error`, and no
-			// `defaults:` shell override (which could drop `-e` and mask a
-			// shard failure).
-			{ id: 'test-vitest', needs: ['changes'] },
-			{ id: 'test-vitest-coverage', needs: ['changes'] },
-		],
-		alwaysJobs: [],
-		// #1948: pins the 4-way vitest shard matrix for front-ci.yml, same
-		// pattern as front-e2e.yml's matrix pin above. The matrix must
-		// declare exactly [1, 2, 3, 4] — narrowing it silently runs a
-		// fraction of the suite while every other guard stays green.
-		matrix: { jobId: 'test-vitest', key: 'shard', expected: [1, 2, 3, 4] },
-		// IMPORTANT fix: the four #1017 gate test suites and this very CLI
-		// were reachable only through local `just ci-drift` — no workflow ran
-		// them. `gate-selftest` above runs them server-side, but that is only
-		// real enforcement if it actually wakes up for a change to any of the
-		// four workflow files it asserts against (not just front-ci.yml) and
-		// to the guard scripts themselves. This asserts the classifier
-		// pattern extracted from the REAL `changes` job actually matches
-		// every one of these paths, so the pattern narrowing back to
-		// front-ci.yml-only (or dropping guard-script coverage) is caught
-		// here rather than silently reintroducing the "unenforced on the
-		// server" gap this fix closes.
-		//
-		// Round 6 BLOCKER: widened from the four gate files to EVERY workflow
-		// file. findRequiredContextCollisionProblems below scans every job in
-		// every workflow in the repository, because any one of them can claim
-		// a required check name — the reviewer's reproduction made
-		// a now-deleted workflow report `docs-archive-gate`, which
-		// the four-file classifier pattern classified as irrelevant, so the
-		// only job that runs the scan server-side never woke up. The last
-		// entry deliberately names a workflow file that does not exist: the
-		// pattern must classify an ARBITRARY workflow file as relevant, so it
-		// cannot narrow back to an enumerated list of today's files while
-		// still satisfying every other entry here.
-		selfTestCoverage: [
-			'.github/workflows/front-ci.yml',
-			'.github/workflows/front-e2e.yml',
-			'.github/workflows/openapi-spec-drift.yml',
-			'.github/workflows/docs-archive.yml',
-			'.github/workflows/deploy-images.yml',
-			'.github/workflows/require-linked-issue.yml',
-			'.github/workflows/a-workflow-file-that-does-not-exist-yet.yml',
-			'packages/scripts-ts/src/ci-changed-paths.ts',
-			'packages/scripts-ts/src/check-ci-drift.ts',
-			'packages/scripts-ts/src/check-ci-gate-structure.ts',
-		],
-		// Round 5 BLOCKER fix: front-ci-gate must independently re-derive its
-		// own job graph's correctness rather than relying solely on
-		// gate-selftest (see the file-level comment).
-		requiresSelfCheck: true,
-		// PR #1312 round 1 (review MAJOR/BLOCKS_PR): the real-`<Trans>` render
-		// guard is the ONLY front-suite file that mounts react-i18next's
-		// `<Trans>` unmocked over the real route components (85 of 213 front
-		// test files mock react-i18next — that is the suite-wide blindness it
-		// offsets). Its entire value therefore depends on this exact file
-		// staying at this exact path AND still being discovered by the vitest
-		// config: renamed, moved, deleted, or quietly excluded from the glob,
-		// `pnpm --filter front test` stays green while the unmocked coverage
-		// is gone and no other guard notices. Pinning the path here makes all
-		// four moves fail this guard (and therefore `just ci-drift`,
-		// gate-selftest, and the required front-ci-gate) until the pin is
-		// consciously re-made. This is a strengthening pin, not an allowlist:
-		// nothing is exempted from anything.
-		//
-		// PR #1312 round 2 (review MAJOR/BLOCKS_PR): THIS ARRAY is itself the
-		// attack surface — the reviewer deleted the entry and every check
-		// stayed green, because an ABSENT pin is a compliant default (no pin
-		// => no enforcement => no findings). The exact contents are therefore
-		// pinned by EXPECTED_PINNED_TEST_FILES + findPinnedTestFilesProblems
-		// below, asserted inside findCiGateStructureProblems itself, so the
-		// real-tree self-test, this script's CLI, gate-selftest, and
-		// `just ci-drift` all enforce it: deleting the entry, renaming its
-		// path, swapping its runnerConfig, or quietly adding an undeclared
-		// pin goes RED naming the difference.
-		pinnedTestFiles: [
-			{
-				path: 'apps/front/src/lib/i18n/trans-render.guard.test.tsx',
-				runnerConfig: 'apps/front/vitest.config.ts',
-				reason:
-					'the real-<Trans> render guard: the only suite file exercising react-i18next unmocked over the production route files, so losing it silently would reintroduce the exact #1269/#1285 blindness this guard offsets',
-			},
-		],
-		// #1709 round 6: the ratchet floor guard's own test file
-		// (gen-reason-ref.test.ts) shipped with 463 lines of tests that NO
-		// workflow step ran — the literal "guard that nothing runs" failure
-		// mode. The step's `run:` block is file-by-file enumeration
-		// (intentional: running every `*.test.ts` under
-		// packages/scripts-ts/src/ would pull in audit-docs-prune.test.ts,
-		// which is currently red on a pre-existing fixture bug and is out of
-		// scope for this fix). To keep that enumeration from quietly losing
-		// the next test file the same way, this array lists the files the
-		// `Run CI gate guard tests (mirrors \`just ci-drift\`)` step's
-		// `run:` block is EXPECTED to invoke, and findGateSelftestTestsProblems
-		// below parses the REAL `run:` text to assert it covers exactly
-		// these files. Mirrored by EXPECTED_GATE_SELFTEST_TESTS so the
-		// expectation cannot quietly outlive the workflow step (symmetric
-		// pin, the same shape as pinnedTestFiles above).
-		//
-		// What this catches: any edit to the workflow's `run:` block that
-		// drops or renames a vitest invocation, any edit to the
-		// GATE_WORKFLOWS entry's `gateSelftestTests` array, and any edit
-		// to EXPECTED_GATE_SELFTEST_TESTS that is not re-made on BOTH sides
-		// at once. What it does NOT catch: a contributor adding a brand-new
-		// `*.test.ts` file under packages/scripts-ts/src/ and forgetting to
-		// add a matching line in three places (the workflow step, the
-		// gateSelftestTests array, AND the EXPECTED_GATE_SELFTEST_TESTS
-		// array). That three-place wiring is the load-bearing cost of
-		// running the suite selectively rather than the whole thing; the
-		// review's job is to keep them in lock-step, and the structural
-		// check below makes any one-side edit fail the gate immediately so
-		// the drift cannot be silent.
-		gateSelftestTests: [
-			'packages/scripts-ts/src/artifact-version-compat.test.ts',
-			'packages/scripts-ts/src/check-actions-pinned.test.ts',
-			'packages/scripts-ts/src/check-actions-pins.test.ts',
-			'packages/scripts-ts/src/check-api-tests-path-coverage.test.ts',
-			'packages/scripts-ts/src/check-ci-drift.test.ts',
-			'packages/scripts-ts/src/check-ci-gate-structure.test.ts',
-			'packages/scripts-ts/src/check-cyclomatic-bound.test.ts',
-			'packages/scripts-ts/src/check-no-floating-promises.test.ts',
-			'packages/scripts-ts/src/ci-changed-paths.test.ts',
-			'packages/scripts-ts/src/ci-e2e-rerun-guard.test.ts',
-			'packages/scripts-ts/src/ci-gate-aggregation.test.ts',
-			'packages/scripts-ts/src/ci-gate-bootstrap.test.ts',
-			'packages/scripts-ts/src/ci-referenced-paths.test.ts',
-			'packages/scripts-ts/src/codeowners-contract.test.ts',
-			// #1709: ratchet floor generator's own suite. This is the
-			// line that closes the round-6 finding: 463 lines of tests
-			// that were never run on the server.
-			'packages/scripts-ts/src/gen-reason-ref.test.ts',
-			'packages/scripts-ts/src/lint-front.test.ts',
-			'packages/scripts-ts/src/npm-audit-runner.test.ts',
-			'packages/scripts-ts/src/prod-audit-bites.test.ts',
-			'packages/scripts-ts/src/require-linked-issue.test.ts',
-		],
-	},
-	{
-		file: 'openapi-spec-drift.yml',
-		changesJob: 'changes',
-		gateJob: 'gate',
-		gateName: 'openapi-spec-drift-gate',
-		pushCheckName: 'openapi-spec-drift-push-check',
-		relevanceGatedJobs: [{ id: 'spec-drift', needs: ['changes'] }],
-		alwaysJobs: [],
-	},
-	{
-		file: 'docs-archive.yml',
-		changesJob: 'changes',
-		gateJob: 'gate',
-		gateName: 'docs-archive-gate',
-		pushCheckName: 'docs-archive-push-check',
-		relevanceGatedJobs: [{ id: 'docs-archive', needs: ['changes'] }],
-		alwaysJobs: [],
-	},
-	{
-		file: 'quality-gate.yml',
-		changesJob: 'changes',
-		gateJob: 'gate',
-		gateName: 'quality-gate',
-		pushCheckName: 'quality-gate-push-check',
-		relevanceGatedJobs: [
-			{ id: 'quality', needs: ['changes'] },
-			{ id: 'audit-development', needs: ['changes'] },
-		],
-		alwaysJobs: [],
-	},
-	{
-		// #1462: CI finally runs the full API test suite (`just test-api`,
-		// ~2,000 specs on real Postgres via Testcontainers) as a required PR
-		// check. The heavy job is deliberately named `suite`, NOT `api-tests`:
-		// the reserved-name rule below rejects any job whose reported name
-		// CONTAINS a reserved name, so the required context `api-tests-gate`
-		// may be reported by this workflow's gate job only.
-		file: 'api-tests.yml',
-		changesJob: 'changes',
-		gateJob: 'gate',
-		gateName: 'api-tests-gate',
-		pushCheckName: 'api-tests-push-check',
-		relevanceGatedJobs: [{ id: 'suite', needs: ['changes'] }],
-		alwaysJobs: [],
-	},
-	{
-		file: 'react-doctor.yml',
-		changesJob: 'changes',
-		gateJob: 'gate',
-		gateName: 'react-doctor-gate',
-		pushCheckName: 'react-doctor-push-check',
-		relevanceGatedJobs: [{ id: 'react-doctor', needs: ['changes'] }],
-		alwaysJobs: [],
-	},
-];
-
-// PR #1312 round 2 (review MAJOR/BLOCKS_PR): the pin-of-the-pin. GATE_WORKFLOWS
-// above is code, so deleting the front-ci entry's `pinnedTestFiles` array (or a
-// member of it) is itself an unguarded "compliant default": the round-1
-// enforcement loop only runs over entries that EXIST, and no test asserted that
-// any does — the reviewer's mutation left every check green while the
-// trans-render guard lost its CI enforcement silently. This declared
-// expectation pins the exact multiset of `pinnedTestFiles` across the real
-// table; findPinnedTestFilesProblems below asserts
-// expectation == workflow-derived == on-disk existence, symmetrically: removing
-// an entry goes RED naming it, adding an undeclared one goes RED naming it.
-//
-// This list MUST stay in lock-step with the `pinnedTestFiles` arrays in
-// GATE_WORKFLOWS — which is exactly the point: any change to either side is a
-// conscious, reviewed edit to both.
-// Exported for the structure test's symmetric RED assertions (see above).
-export const EXPECTED_PINNED_TEST_FILES = [
-	{
-		file: 'front-ci.yml',
-		path: 'apps/front/src/lib/i18n/trans-render.guard.test.tsx',
-		runnerConfig: 'apps/front/vitest.config.ts',
-		reason:
-			'the real-<Trans> render guard: the only suite file exercising react-i18next unmocked over the production route files, so losing it silently would reintroduce the exact #1269/#1285 blindness this guard offsets',
-	},
-];
-
-// #1709 round 6: the pin-of-the-pin for the `gate-selftest` step's vitest
-// invocations. The `gateSelftestTests` array on front-ci.yml's GATE_WORKFLOWS
-// entry is the source of truth for the structural check below; this list is
-// the declared expectation that must stay in lock-step with it, exactly like
-// EXPECTED_PINNED_TEST_FILES above. Removing an entry here is RED naming it;
-// adding an undeclared entry to GATE_WORKFLOWS is RED naming it. This
-// eliminates the round-6 failure mode: 463 lines of ratchet-floor tests
-// shipped in a file the workflow never ran, because no structural check
-// linked the workflow's `run:` block to the existence of the test file.
-//
-// This list MUST stay in lock-step with the `gateSelftestTests` arrays in
-// GATE_WORKFLOWS — which is exactly the point: any change to either side
-// must be a conscious, reviewed edit to both.
-// Exported for the structure test's symmetric RED assertions (see above).
-export const EXPECTED_GATE_SELFTEST_TESTS = [
-	'packages/scripts-ts/src/artifact-version-compat.test.ts',
-	'packages/scripts-ts/src/check-actions-pinned.test.ts',
-	'packages/scripts-ts/src/check-actions-pins.test.ts',
-	'packages/scripts-ts/src/check-api-tests-path-coverage.test.ts',
-	'packages/scripts-ts/src/check-ci-drift.test.ts',
-	'packages/scripts-ts/src/check-ci-gate-structure.test.ts',
-	'packages/scripts-ts/src/check-cyclomatic-bound.test.ts',
-	'packages/scripts-ts/src/check-no-floating-promises.test.ts',
-	'packages/scripts-ts/src/ci-changed-paths.test.ts',
-	'packages/scripts-ts/src/ci-e2e-rerun-guard.test.ts',
-	'packages/scripts-ts/src/ci-gate-aggregation.test.ts',
-	'packages/scripts-ts/src/ci-gate-bootstrap.test.ts',
-	'packages/scripts-ts/src/ci-referenced-paths.test.ts',
-	'packages/scripts-ts/src/codeowners-contract.test.ts',
-	// #1709: ratchet floor generator's own suite. The round-6 finding
-	// was that 463 lines of ratchet tests shipped with no CI consumer
-	// because the file-by-file enumeration in the `gate-selftest`
-	// step's `run:` block quietly missed it. This entry is the
-	// structural pin that ensures the line cannot be dropped again
-	// without also updating the expectation here.
-	'packages/scripts-ts/src/gen-reason-ref.test.ts',
-	'packages/scripts-ts/src/lint-front.test.ts',
-	'packages/scripts-ts/src/npm-audit-runner.test.ts',
-	'packages/scripts-ts/src/prod-audit-bites.test.ts',
-	'packages/scripts-ts/src/require-linked-issue.test.ts',
-];
+/** No predecessor workflow contracts remain after the central CI cutover. */
+export const GATE_WORKFLOWS = [] as const;
 
 // @ts-expect-error rung-0: add proper type in later rung
 const toPosixPath = (value) => value.split(path.sep).join('/');
@@ -615,314 +154,6 @@ const normalizeNeeds = (needs) => {
 
 // @ts-expect-error rung-0: add proper type in later rung
 const asSet = (values) => new Set(values);
-
-const PINNED_TEST_FILES_EXPECTATION_HEADER =
-	'PR #1312 round 2: the declared pinnedTestFiles expectation';
-
-/**
- * PR #1312 round 2 (review MAJOR/BLOCKS_PR): pins the EXACT multiset of
- * `pinnedTestFiles` entries across the real GATE_WORKFLOWS against
- * EXPECTED_PINNED_TEST_FILES, symmetrically — removing a declared entry is
- * RED naming it; adding an undeclared one is RED naming it; changing an
- * entry's runnerConfig or reason without re-making the expectation is RED
- * naming it — AND requires every pinned file to exist on disk, so the
- * expectation can never quietly outlive its target.
- *
- * This closes the round-1 gap where deleting the front-ci entry's
- * `pinnedTestFiles` array itself left every check green: the enforcement loop
- * above only iterates over pins that exist, so an ABSENT pin was a compliant
- * default and the trans-render guard's CI enforcement could be switched off
- * silently. Deliberately asserted inside findCiGateStructureProblems (not only
- * in a test): the real-tree self-test, this script's CLI, gate-selftest, and
- * `just ci-drift` then all carry it with no new wiring to drop.
- */
-export const findPinnedTestFilesProblems = async ({
-	rootDir,
-	// Test seam ONLY: lets the structure test derive from a mutated copy of
-	// the table to prove the comparison flips RED symmetrically. Every
-	// production caller omits it, so the check always runs against the real
-	// GATE_WORKFLOWS.
-	workflows = GATE_WORKFLOWS,
-}) => {
-	const findings = [];
-
-	/** file → path → {runnerConfig, reason}; derived from the given table. */
-	const derived = [];
-	for (const workflow of workflows) {
-		for (const pin of workflow.pinnedTestFiles ?? []) {
-			derived.push({
-				file: workflow.file,
-				path: pin.path,
-				runnerConfig: pin.runnerConfig,
-				reason: pin.reason,
-			});
-		}
-	}
-
-	// Multiset comparison over stable string keys, so duplicate entries are
-	// caught too (one removed while a twin remains would otherwise pass).
-	const entryKey = (pin) =>
-		JSON.stringify([pin.file, pin.path, pin.runnerConfig, pin.reason]);
-	const derivedByKey = new Map();
-	for (const pin of derived) {
-		derivedByKey.set(entryKey(pin), [
-			...(derivedByKey.get(entryKey(pin)) ?? []),
-			pin,
-		]);
-	}
-	const expectedByKey = new Map();
-	for (const pin of EXPECTED_PINNED_TEST_FILES) {
-		expectedByKey.set(entryKey(pin), [
-			...(expectedByKey.get(entryKey(pin)) ?? []),
-			pin,
-		]);
-	}
-
-	for (const [key, expected] of expectedByKey) {
-		if (derivedByKey.has(key)) {
-			continue;
-		}
-		findings.push(
-			`${PINNED_TEST_FILES_EXPECTATION_HEADER}: GATE_WORKFLOWS no longer carries ${expected.length > 1 ? 'any of' : 'the'} ${expected.length > 1 ? 'entries' : 'entry'} for \`${expected[0].file}\` -> \`${expected[0].path}\`. Removing or editing a pinned-test-file entry switches that coverage's CI enforcement off silently — restore the entry in check-ci-gate-structure.ts exactly as declared by EXPECTED_PINNED_TEST_FILES, or consciously re-make BOTH lists together.`,
-		);
-	}
-
-	for (const [key, actual] of derivedByKey) {
-		if (expectedByKey.has(key)) {
-			continue;
-		}
-		findings.push(
-			`${PINNED_TEST_FILES_EXPECTATION_HEADER}: GATE_WORKFLOWS carries an undeclared pinnedTestFiles entry for \`${actual[0].file}\` -> \`${actual[0].path}\`. Every pin must be declared in EXPECTED_PINNED_TEST_FILES (check-ci-gate-structure.ts) — add it there consciously, or remove the undeclared entry.`,
-		);
-	}
-
-	// A matching declaration whose file has vanished fails closed here too:
-	// the expectation must never describe coverage that no longer exists.
-	for (const pin of EXPECTED_PINNED_TEST_FILES) {
-		try {
-			await access(path.join(rootDir, pin.path));
-		} catch {
-			findings.push(
-				`${PINNED_TEST_FILES_EXPECTATION_HEADER}: the declared pin \`${pin.file}\` -> \`${pin.path}\` points at a file that does not exist on disk. Re-point both lists at the file's reviewed new path.`,
-			);
-		}
-	}
-
-	return findings;
-};
-
-const GATE_SELFTEST_TESTS_EXPECTATION_HEADER =
-	'#1709 round 6: the declared gateSelftestTests expectation';
-
-// Matches the vitest invocation line shape the `gate-selftest` step's `run:`
-// block uses. Deliberately tight: `pnpm --filter scripts-ts exec vitest run
-// <path>`, anchored on the leading `pnpm --filter scripts-ts` so unrelated
-// shell text (e.g. a future step that runs the same test via a different
-// command) is not double-counted. Captures the test file path as group 1.
-const GATE_SELFTEST_VITEST_LINE =
-	/^\s*pnpm --filter scripts-ts exec vitest run (\S+\.test\.tsx?)\s*$/;
-
-/**
- * Extracts every `pnpm --filter scripts-ts exec vitest run src/X.test.ts`
- * invocation from a multiline `run:` block, as a Set of POSIX-normalized
- * paths. Lines that don't match the exact shape are ignored — the structural
- * check below is intentionally narrow so a future comment line, an
- * environment variable expansion, or a piped command does not get parsed as
- * a test invocation.
- */
-// @ts-expect-error rung-0: add proper type in later rung
-const extractGateSelftestTestPaths = (runBlock) => {
-	if (typeof runBlock !== 'string') {
-		return new Set();
-	}
-	const paths = new Set();
-	for (const line of runBlock.split('\n')) {
-		const match = line.match(GATE_SELFTEST_VITEST_LINE);
-		if (match === null) {
-			continue;
-		}
-		// The workflow uses `src/X.test.ts` (relative to the package
-		// root); the structural expectation and on-disk check use the
-		// full `packages/scripts-ts/src/X.test.ts` form. Normalize so
-		// the comparison is path-form agnostic — a future switch to
-		// either form is a no-op for the structural check.
-		const captured = match[1];
-		const normalized = captured.startsWith('packages/')
-			? toPosixPath(captured)
-			: toPosixPath(`packages/scripts-ts/${captured}`);
-		paths.add(normalized);
-	}
-	return paths;
-};
-
-/**
- * PR #1709 round 6 (review MAJOR/BLOCKS_PR): the ratchet floor guard's own
- * test file (`packages/scripts-ts/src/gen-reason-ref.test.ts`) shipped with
- * 463 lines of tests that no workflow step ran — the "guard that nothing
- * runs" failure mode. The gate-selftest step's `run:` block is a deliberate
- * file-by-file enumeration (a bare `pnpm --filter scripts-ts exec vitest run`
- * would pull in `audit-docs-prune.test.ts`, currently red on a pre-existing
- * fixture bug out of scope here, and other suites the gate does not own).
- * Without a structural pin, the next omitted file is silent.
- *
- * This function pins the test-file list three ways, symmetrically, exactly
- * the shape used by `findPinnedTestFilesProblems` above for pinnedTestFiles:
- *   1. The REAL `gate-selftest` step's `run:` block in front-ci.yml is parsed
- *      for `pnpm --filter scripts-ts exec vitest run src/X.test.ts` lines.
- *      That derived set is compared against the `gateSelftestTests` array
- *      declared on the front-ci GATE_WORKFLOWS entry — any drift between the
- *      workflow and the structural expectation goes RED.
- *   2. The `gateSelftestTests` array is compared against
- *      EXPECTED_GATE_SELFTEST_TESTS, the declared pin-of-the-pin — removing
- *      an entry from either side is RED naming it; adding an undeclared
- *      entry is RED naming it.
- *   3. Every entry in EXPECTED_GATE_SELFTEST_TESTS is required to exist on
- *      disk, so the expectation cannot quietly outlive the file.
- *
- * Deliberately asserted inside findCiGateStructureProblems (not only in a
- * test): the real-tree self-test, this script's CLI, gate-selftest, and
- * `just ci-drift` then all carry it with no new wiring to drop — exactly
- * the false-negative shape this closes.
- */
-export const findGateSelftestTestsProblems = async ({
-	// @ts-expect-error rung-0: add proper type in later rung
-	rootDir,
-	// Test seam ONLY: lets the structure test derive from a mutated copy of
-	// the table to prove the comparison flips RED symmetrically. Every
-	// production caller omits it, so the check always runs against the real
-	// GATE_WORKFLOWS.
-	workflows = GATE_WORKFLOWS,
-}) => {
-	const findings = [];
-
-	// The step name the gate-selftest job's vitest step carries today. The
-	// structural check anchors on this name so a renamed step is RED rather
-	// than silently un-pinned.
-	const EXPECTED_GATE_SELFTEST_STEP_NAME =
-		'Run CI gate guard tests (mirrors `just ci-drift`)';
-
-	/** file → Set<path>; derived from the given table's `gateSelftestTests`. */
-	const derivedByFile = new Map();
-	for (const workflow of workflows) {
-		if (workflow.gateSelftestTests === undefined) {
-			continue;
-		}
-		derivedByFile.set(workflow.file, new Set());
-		for (const testPath of workflow.gateSelftestTests) {
-			derivedByFile.get(workflow.file).add(toPosixPath(testPath));
-		}
-	}
-
-	// (1) For every workflow that declares gateSelftestTests, read its real
-	// `gate-selftest` job's expected step's `run:` block and compare the
-	// parsed test paths to the declared set.
-	for (const workflow of workflows) {
-		if (workflow.gateSelftestTests === undefined) {
-			continue;
-		}
-
-		const declared = derivedByFile.get(workflow.file);
-		const filePath = path.join(rootDir, workflowsDirectory, workflow.file);
-
-		let document;
-		try {
-			const raw = await readFile(filePath, 'utf8');
-			document = parse(raw);
-		} catch {
-			findings.push(
-				`${GATE_SELFTEST_TESTS_EXPECTATION_HEADER}: cannot read ${workflow.file} to verify the \`gate-selftest\` step's \`run:\` block against \`gateSelftestTests\` — file is missing or unreadable.`,
-			);
-			continue;
-		}
-
-		const jobs = document?.jobs ?? {};
-		const selftestJob = jobs['gate-selftest'];
-		if (selftestJob === undefined) {
-			findings.push(
-				`${GATE_SELFTEST_TESTS_EXPECTATION_HEADER}: ${workflow.file} declares a \`gateSelftestTests\` list but the workflow has no \`gate-selftest\` job to anchor it against. Either add the job or remove the list.`,
-			);
-			continue;
-		}
-
-		const steps = Array.isArray(selftestJob.steps) ? selftestJob.steps : [];
-		const selftestStep = steps.find(
-			// @ts-expect-error rung-0: TS2345
-			(step) => step?.name === EXPECTED_GATE_SELFTEST_STEP_NAME,
-		);
-
-		if (selftestStep === undefined) {
-			findings.push(
-				`${GATE_SELFTEST_TESTS_EXPECTATION_HEADER}: ${workflow.file}::gate-selftest is expected to carry a step named "${EXPECTED_GATE_SELFTEST_STEP_NAME}" so its \`run:\` block can be pinned against \`gateSelftestTests\`, but the step is missing. Rename the step or update the check's expected name.`,
-			);
-			continue;
-		}
-
-		const runBlock =
-			typeof selftestStep.run === 'string' ? selftestStep.run : '';
-		const parsed = extractGateSelftestTestPaths(runBlock);
-
-		// Files in the declared set but missing from the real `run:` block.
-		for (const testPath of declared) {
-			if (!parsed.has(testPath)) {
-				findings.push(
-					`${GATE_SELFTEST_TESTS_EXPECTATION_HEADER}: ${workflow.file}::gate-selftest's "${EXPECTED_GATE_SELFTEST_STEP_NAME}" step's \`run:\` block does NOT invoke \`pnpm --filter scripts-ts exec vitest run ${testPath}\` (declared in GATE_WORKFLOWS.front-ci.gateSelftestTests). Adding a structural pin without the matching shell line silences the guard exactly like the round-6 finding: a contributor edits the expectation, the guard's own tests stop running. Re-add the line to the step's \`run:\` block (mirror the addition in \`just ci-drift\` too), or remove the entry from the structural list.`,
-				);
-			}
-		}
-
-		// Files in the real `run:` block but missing from the declared set.
-		for (const testPath of parsed) {
-			if (!declared.has(testPath)) {
-				findings.push(
-					`${GATE_SELFTEST_TESTS_EXPECTATION_HEADER}: ${workflow.file}::gate-selftest's "${EXPECTED_GATE_SELFTEST_STEP_NAME}" step's \`run:\` block invokes \`pnpm --filter scripts-ts exec vitest run ${testPath}\` but the file is NOT declared in GATE_WORKFLOWS.front-ci.gateSelftestTests. Adding a vitest line without the matching structural pin re-introduces the round-6 silent-drop mode the next time someone touches the structural list — declare it there (and in EXPECTED_GATE_SELFTEST_TESTS) at the same time.`,
-				);
-			}
-		}
-	}
-
-	// (2) Symmetric pin: GATE_WORKFLOWS.gateSelftestTests ↔ EXPECTED_GATE_SELFTEST_TESTS.
-	const expectedSet = new Set(
-		EXPECTED_GATE_SELFTEST_TESTS.map((value) => toPosixPath(value)),
-	);
-	const flatDerived = new Set();
-	for (const value of derivedByFile.values()) {
-		for (const testPath of value) {
-			flatDerived.add(testPath);
-		}
-	}
-
-	for (const testPath of expectedSet) {
-		if (flatDerived.has(testPath)) {
-			continue;
-		}
-		findings.push(
-			`${GATE_SELFTEST_TESTS_EXPECTATION_HEADER}: EXPECTED_GATE_SELFTEST_TESTS declares \`${testPath}\` but no GATE_WORKFLOWS entry carries it in \`gateSelftestTests\`. The expectation must never describe coverage that the structural table has dropped — restore the entry, or consciously re-make BOTH lists together.`,
-		);
-	}
-
-	for (const testPath of flatDerived) {
-		if (expectedSet.has(testPath)) {
-			continue;
-		}
-		findings.push(
-			`${GATE_SELFTEST_TESTS_EXPECTATION_HEADER}: GATE_WORKFLOWS carries an undeclared \`gateSelftestTests\` entry for \`${testPath}\`. Every entry must be declared in EXPECTED_GATE_SELFTEST_TESTS (check-ci-gate-structure.ts) — add it there consciously, or remove the undeclared entry.`,
-		);
-	}
-
-	// (3) Every declared file must exist on disk, so the expectation can
-	// never describe a coverage that has been deleted.
-	for (const testPath of expectedSet) {
-		try {
-			await access(path.join(rootDir, testPath));
-		} catch {
-			findings.push(
-				`${GATE_SELFTEST_TESTS_EXPECTATION_HEADER}: the declared entry \`${testPath}\` points at a file that does not exist on disk. Re-point the structural table and EXPECTED_GATE_SELFTEST_TESTS at the file's reviewed new path, or remove the coverage if it was deliberately deleted.`,
-			);
-		}
-	}
-
-	return findings;
-};
 
 /**
  * Checks whether `onSection` (a parsed workflow's `on:` value) declares
@@ -1062,10 +293,10 @@ const checkMatrixJob = (matrix, matrixJob, file, findings) => {
 		);
 	} else {
 		// Any step that gates on `if [ "${{ matrix.<key> }}" = "<n>" ]`
-		// (front-e2e.yml's hermetic-counter + drawer contrast runs)
+		// (the central e2e-test job's hermetic-counter + drawer contrast runs)
 		// must pin <n> to the matrix denominator — detect the pattern
 		// rather than the file name, so the guard fires for any file
-		// that carries such a check (and stays silent on front-ci.yml,
+		// that carries such a check (and stays silent on ci.yml,
 		// whose vitest shard has none).
 		const hasAnyShardCheck = testStep.run.includes(
 			`if [ "\${{ matrix.${key} }}" = "`,
@@ -1091,11 +322,11 @@ const checkMatrixJob = (matrix, matrixJob, file, findings) => {
 		}
 	}
 
-	// front-e2e.yml uploads Playwright reports on failure; front-ci.yml
+	// ci.yml uploads Playwright reports on failure; ci.yml
 	// uploads vitest reports. Both must carry a per-shard artifact name
 	// pinned to the matrix denominator.
 	const expectedUploadName =
-		file === 'front-ci.yml'
+		file === 'ci.yml'
 			? `front-ci-vitest-report-\${{ matrix.${key} }}-of-${denominator}`
 			: `front-e2e-playwright-report-\${{ matrix.${key} }}-of-${denominator}`;
 	const uploadStep = matrixSteps.find(
@@ -1103,7 +334,7 @@ const checkMatrixJob = (matrix, matrixJob, file, findings) => {
 		(step) =>
 			typeof step?.with?.name === 'string' &&
 			step.with.name.includes(
-				file === 'front-ci.yml' ? 'vitest-report' : 'playwright-report',
+				file === 'ci.yml' ? 'vitest-report' : 'playwright-report',
 			),
 	);
 
@@ -1154,7 +385,7 @@ const checkWorkflow = async (
 	// Round 5 BLOCKER: a workflow-level `defaults: run: shell: ...` silently
 	// changes every job's shell invocation, which can drop bash's implicit
 	// `-e` (see the job-level check below for the concrete exploit). There is
-	// no legitimate reason for any of the four #1017 gate workflows to
+	// no legitimate reason for a historical #1017 gate-workflow fixture to
 	// override the default shell at the workflow level.
 	if (document?.defaults !== undefined) {
 		findings.push(
@@ -1236,7 +467,7 @@ const checkWorkflow = async (
 	// resolves to the literal `origin/` and abort with
 	// `Diff base branch "origin/" does not exist`, taking down the whole
 	// push-triggered run. develop went red on exactly this after #1193 (#1227).
-	// The diff base must be resolved per event instead (the react-doctor.yml
+	// The diff base must be resolved per event instead (the ci.yml
 	// fix does so via a derived `DIFF_BASE` env var). Reject the raw
 	// `origin/${{ github.base_ref }}` token anywhere in a workflow that also
 	// declares a `push` trigger — the only place the empty-expansion bug can
@@ -1370,7 +601,7 @@ const checkWorkflow = async (
 		// is `bash -e {0}`), so a failed command inside a multi-line `run:`
 		// block no longer stops the step — a later command's exit code (e.g.
 		// a shard-selection `if`) is reported instead. Proven against
-		// front-e2e.yml's real Playwright step: with this override, a failed
+		// ci.yml's real Playwright step: with this override, a failed
 		// test command followed by the last-shard `if` reports success.
 		if (job.defaults !== undefined) {
 			findings.push(
@@ -1616,7 +847,7 @@ const checkWorkflow = async (
 		}
 	}
 
-	// IMPORTANT fix: the #1017 gate guard's own tests were reachable only
+	// IMPORTANT fix: the historical #1017 gate guard's own tests were reachable only
 	// through local `just ci-drift` — no workflow ran them, so every guard
 	// added was unenforced on the server. A `gate-selftest`-style job fixes
 	// that only if it actually wakes up for a change to any file it asserts
@@ -1720,8 +951,8 @@ const checkWorkflow = async (
 };
 
 /**
- * Checks every configured gate workflow. Pass `workflows` to point this at a
- * fixture set instead of the real GATE_WORKFLOWS table (tests only).
+ * Checks every explicitly configured fixture workflow. The production
+ * workflow topology is checked by findCentralCiStructureProblems below.
  */
 export const findCiGateStructureProblems = async ({
 	// @ts-expect-error rung-0: add proper type in later rung
@@ -1737,25 +968,6 @@ export const findCiGateStructureProblems = async ({
 
 		// @ts-expect-error rung-0: TS2345
 		findings.push(...(await checkWorkflow(workflow, document, rootDir)));
-	}
-
-	// PR #1312 round 2 (review MAJOR/BLOCKS_PR): the pin-of-the-pin. Asserted
-	// here so EVERY caller of this function — the real-tree self-test below,
-	// gate-selftest, front-ci-gate's own step, and `just ci-drift` via this
-	// script's CLI — enforces that the pinnedTestFiles entries actually exist,
-	// without any new wiring that could itself be silently dropped (the exact
-	// false-negative shape this closes). Fixture-based callers are unaffected:
-	// the expectation is checked against the REAL table only.
-	if (workflows === GATE_WORKFLOWS) {
-		findings.push(...(await findPinnedTestFilesProblems({ rootDir })));
-		// #1709 round 6 (review MAJOR/BLOCKS_PR): same shape, applied to
-		// the `gate-selftest` step's vitest invocations. The 463-line
-		// gen-reason-ref test file shipped without a CI consumer because
-		// no structural check linked the workflow's `run:` block to the
-		// existence of the test file. Asserted HERE (not only in a test)
-		// so the real-tree self-test, this script's CLI, gate-selftest,
-		// and `just ci-drift` carry it with no new wiring to drop.
-		findings.push(...(await findGateSelftestTestsProblems({ rootDir })));
 	}
 
 	return findings;
@@ -1775,35 +987,28 @@ const reportedCheckName = (jobId, job) =>
 	typeof job?.name === 'string' ? job.name : jobId;
 
 /**
- * Round 6 BLOCKER: required-context uniqueness, scanned across EVERY workflow
- * in the repository rather than just the four gate files.
+ * Required-context uniqueness, scanned across EVERY workflow in the
+ * repository. The central workflow is the sole authorized producer of the
+ * required context; `workflows` remains a fixture-only seam for generic tests.
  *
  * The structure check above pins each gate job's own `name:`, but nothing
- * stopped a job in an unrelated workflow from reporting one of the four
- * required names. The reviewer proved this is not cosmetic: with
- * a deleted workflow's e2e job reporting `docs-archive-gate`,
- * the two runs on the same head commit finished four minutes apart
- * (`docs-archive-gate` at 05:29:23Z, `old-front-e2e` at 05:33:39Z — deleted workflow). Under
- * the empirically established "latest report for a context wins" behavior
- * that motivated the round-5 rename, a real gate FAILURE followed by the
- * unrelated job's later SUCCESS leaves the required context green over
- * failed required work.
+ * stopped a job in an unrelated workflow from reporting the required name.
+ * Two independently timed reports for the same commit would let a later
+ * unrelated success overwrite a real gate failure.
  *
  * The rule, applied to every job in every `.github/workflows/*.y{a,}ml`:
- *   - the eight reserved names (four required contexts + four push checks)
- *     may be reported by exactly one job each, the authorized gate job, and
- *     only while it carries its exact pinned `name:` expression;
+ *   - the required and non-required central names may be reported by exactly
+ *     one job each, the authorized central gate job, and only while it carries
+ *     its exact pinned `name:` expression;
  *   - no other job's reported name may so much as CONTAIN a reserved name;
  *   - no other job may carry a `${{ ... }}` expression in its `name:` at
  *     all. That last rule is deliberately blunt: an expression can resolve
  *     to a reserved name without containing it literally (`${{
- *     format('{0}-gate', 'docs-archive') }}`, `${{ vars.SOMETHING }}`), and
+ *     format('{0}-gate', 'central') }}`, `${{ vars.SOMETHING }}`), and
  *     this guard cannot evaluate GitHub expressions. A new dynamic job name
  *     is therefore a reviewed decision — add it to the authorized set below
- *     — rather than something that can arrive silently. The two that exist
- *     today (the gate jobs' event-conditional name and front-e2e's sharded
- *     `test` job) are derived from the GATE_WORKFLOWS table, not
- *     hand-listed, so they cannot drift from what is pinned above.
+ *     — rather than something that can arrive silently. The central gate and
+ *     its two sharded verification jobs are listed explicitly below.
  *
  * Pass `workflows` to point this at a fixture set (tests only).
  */
@@ -1840,18 +1045,15 @@ export const findRequiredContextCollisionProblems = async ({
 			});
 		}
 	}
-	// PR A is additive: the new central workflow is not one of the four
-	// predecessor workflows in GATE_WORKFLOWS, but its required and push-only
-	// names are still reserved globally when that workflow exists. Fixture
-	// repositories that intentionally model only the predecessor table must
-	// not acquire central producers they do not contain.
+	// Fixture repositories that intentionally model only the generic workflow
+	// table must not acquire central producers they do not contain.
 	const centralWorkflowPath = path.join(rootDir, workflowsDirectory, 'ci.yml');
 	let hasCentralWorkflow = false;
 	try {
 		await access(centralWorkflowPath);
 		hasCentralWorkflow = true;
 	} catch {
-		// The predecessor-only fixture has no central workflow by design.
+		// The fixture has no central workflow by design.
 	}
 	if (hasCentralWorkflow) {
 		for (const [name, kind] of [
@@ -1866,9 +1068,9 @@ export const findRequiredContextCollisionProblems = async ({
 		}
 	}
 
-	// The only jobs in the repository allowed to carry an expression in
-	// `name:`, and the exact expression each must carry — both derived from
-	// the same table the structure check pins against.
+	// The only central jobs allowed to carry an expression in `name:` and their
+	// exact expressions. Generic fixture expressions are derived from the
+	// fixture-only table above.
 	const authorizedExpressionNames = new Map();
 
 	for (const workflow of workflows) {
@@ -1884,9 +1086,8 @@ export const findRequiredContextCollisionProblems = async ({
 			);
 		}
 	}
-	// PR A keeps the old producers, but the additive central workflow owns its
-	// own dynamic display names and must be allowed through the legacy collision
-	// scanner until PR B removes the old table entries.
+	// Central verification jobs have dynamic display names that must remain
+	// authorized explicitly.
 	authorizedExpressionNames.set(
 		'ci.yml::front-vitest',
 		'front-ci (${{ matrix.shard }}/4)',
@@ -3297,10 +2498,9 @@ if (isDirectRun) {
 		...(await findCiGateStructureProblems({ rootDir: process.cwd() })),
 		// Round 6 BLOCKER: run the whole-repository required-context
 		// uniqueness scan from the SAME CLI, so it is enforced by exactly the
-		// paths that already enforce the structure check — `front-ci-gate`'s
-		// own "Verify the aggregate-gate job graph" step, `gate-selftest`, and
-		// `just ci-drift` — rather than needing a new server-side runner of
-		// its own.
+		// paths that already enforce the structure check — the current gate's
+		// `Run central structural self-check` step and `just ci-drift` — rather
+		// than needing a new server-side runner of its own.
 		...(await findRequiredContextCollisionProblems({
 			rootDir: process.cwd(),
 		})),

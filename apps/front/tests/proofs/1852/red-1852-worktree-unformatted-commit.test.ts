@@ -26,7 +26,7 @@
  * `core.hooksPath` at the versioned `.husky` dir in the shared git config —
  * which every worktree of that clone inherits — and the installer fails loud
  * when the hooks cannot be wired. CI wires the hooks explicitly
- * (front-ci.yml::supply-chain::"Install Git hooks (mirrors prepare)").
+ * (ci.yml::verification::"Install Git hooks").
  *
  * ## What the proof asserts
  *
@@ -84,7 +84,7 @@
  *   hook resolves pnpm from PATH exactly like a developer's environment.
  * - The test itself does not run the installer; it observes the environment
  *   the repo/CI set up. A mutation that silently drops `prepare` from
- *   package.json while the CI step "Install Git hooks (mirrors prepare)"
+ *   package.json while the CI step "Install Git hooks"
  *   remains would keep this proof green — that CI step runs
  *   `pnpm run prepare`, which fails when the script is gone (single source).
  */

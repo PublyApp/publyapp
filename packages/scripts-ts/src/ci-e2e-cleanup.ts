@@ -2,7 +2,7 @@ import { execFileSync } from 'node:child_process';
 import path from 'node:path';
 import process from 'node:process';
 
-// GHCR cleanup decision logic for front-e2e.yml's `cleanup` job ("Delete run
+// GHCR cleanup decision logic for ci.yml's `e2e-cleanup` job ("Delete run
 // image versions" step).
 //
 // WHY THIS EXISTS (round-1 fix for PR #1396 / #1362)

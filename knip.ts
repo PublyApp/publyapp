@@ -45,7 +45,7 @@ const config: KnipConfig = {
 	workspaces: {
 		'.': {
 			// `just` is a system binary (extractions/setup-just in CI, brew/pkg
-			// locally), not an npm package: quality-gate.yml's
+			// locally), not an npm package: ci.yml's
 			// `pnpm exec just test-analyzers` legitimately resolves it from PATH.
 			ignoreBinaries: ['just'],
 			// `winston-transport-browserconsole` is declared in
@@ -116,7 +116,7 @@ const config: KnipConfig = {
 				// for kept red tests under apps/front/tests/proofs/ (issue #1659).
 				// Knip cannot trace CLI-argument usage. Now wired: `just test-preuves`
 				// (recipe in justfile) and the `Verify paired red proofs` step in
-				// front-ci.yml::supply-chain both invoke it through
+				// ci.yml::verification both invoke it through
 				// `pnpm --filter front test:preuves` → scripts/ci/run-proofs.mts.
 				// When no PRs declare proofs (no files added/modified under tests/proofs/),
 				// the runner prints an explicit no-op message and exits 0.

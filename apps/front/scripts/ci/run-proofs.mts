@@ -156,7 +156,7 @@ const REPLAYABLE_EXTENSIONS = ['.test.ts', '.test.tsx'] as const;
  * the guard works on a clean CI checkout. The fetch is scoped to the single
  * base ref and is fast (a few hundred KB at most).
  *
- * The workflow that runs this script (front-ci.yml) uses `fetch-depth: 0`
+ * The workflow that runs this script (ci.yml) uses `fetch-depth: 0`
  * so the checkout is never shallow. But this script is also run locally and
  * from other contexts — if the repository is ALREADY shallow at entry
  * (graft left by another workflow, a developer's shallow clone, etc.), the

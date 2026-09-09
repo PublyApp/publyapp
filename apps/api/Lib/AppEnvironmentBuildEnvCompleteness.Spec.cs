@@ -300,7 +300,7 @@ public sealed partial class AppEnvironmentBuildEnvCompletenessSpec {
 
 		// The build-time value must satisfy ParseMasterKey (base64, exactly 32 bytes)
 		// while being recognizably NOT a real key: the all-zero 32-byte key is the
-		// repo's documented build placeholder (quality-gate.yml, justfile, .env.example).
+		// repo's documented build placeholder (.github/workflows/ci.yml, justfile, .env.example).
 		// Pinning the exact constant keeps both build stages aligned with the rest of
 		// the tooling and prevents a genuine secret from being pasted into a committed
 		// file. It protects nothing: the witness skips its canary check in the doc-gen
@@ -308,7 +308,7 @@ public sealed partial class AppEnvironmentBuildEnvCompletenessSpec {
 		dockerfile.Should().Contain(
 			PlaceholderMasterKey,
 			"because the committed all-zero build placeholder is deliberately "
-				+ "non-secret and shared by quality-gate.yml and the just recipes"
+				+ "non-secret and shared by .github/workflows/ci.yml and the just recipes"
 		);
 	}
 }

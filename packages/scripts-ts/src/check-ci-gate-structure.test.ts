@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { mkdir, mkdtemp, readFile, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -7,11 +7,9 @@ import { fileURLToPath } from 'node:url';
 import { test } from 'vitest';
 
 import {
-	EXPECTED_PINNED_TEST_FILES,
 	findCiGateStructureProblems,
-	findPinnedTestFilesProblems,
+	findCentralCiStructureProblems,
 	findRequiredContextCollisionProblems,
-	GATE_WORKFLOWS,
 } from './check-ci-gate-structure.ts';
 
 // These tests are the standing proof that the #1017 aggregate-gate job graph
@@ -545,7 +543,7 @@ test('ROUND 6 BLOCKER (mutation A, layer 2): the round-5 `!= push` name expressi
 	assert.match(findings[0], /found "\$\{\{ github\.event_name == 'push'/);
 });
 
-test('ROUND 6: `push` remains an allowed gate-workflow trigger (three of the four real gate workflows declare it)', async () => {
+test('ROUND 6: `push` remains an allowed trigger for a gate-workflow fixture', async () => {
 	const withPush = goodWorkflow.replace(
 		'on:\n  pull_request:\n  merge_group:\n',
 		'on:\n  pull_request:\n  merge_group:\n  push:\n',
@@ -559,11 +557,10 @@ test('ROUND 6: `push` remains an allowed gate-workflow trigger (three of the fou
 });
 
 // ---------------------------------------------------------------------------
-// IMPORTANT: `selfTestCoverage` — pins that front-ci.yml's classifier
-// pattern (the thing that decides whether the new `gate-selftest` job wakes
-// up) actually matches every workflow/script path the guard's own tests
+// IMPORTANT: `selfTestCoverage` — pins that a gate-workflow fixture's
+// classifier pattern matches every workflow/script path the fixture's tests
 // parse/assert against, so narrowing it back to just one workflow file
-// silently reintroduces the "unenforced on the server" gap.
+// silently reintroduces the historical "unenforced on the server" gap.
 // ---------------------------------------------------------------------------
 
 /** A fixture workflow using the REAL `node "$CLASSIFIER" '<pattern>'` shape. */
@@ -651,7 +648,7 @@ test('IMPORTANT: a classifier pattern covering every required path passes', asyn
 
 test('IMPORTANT BLOCKER: a classifier pattern narrowed back to a single workflow file is caught', async () => {
 	// Exactly the round-4 regression this guards against: the pattern only
-	// covers "a.yml" (as if front-ci.yml's classifier had been narrowed back
+	// covers "a.yml" (as if the fixture's classifier had been narrowed back
 	// to matching only itself), so a change to the guarded "b.yml" would
 	// never wake the self-test job even though check-ci-gate-structure.mjs
 	// still asserts against it.
@@ -681,9 +678,8 @@ test('IMPORTANT BLOCKER: a classifier pattern narrowed back to a single workflow
 });
 
 test('IMPORTANT: a workflow with no selfTestCoverage configured is skipped by this check entirely', async () => {
-	// front-e2e.yml, openapi-spec-drift.yml, and docs-archive.yml do not
-	// declare selfTestCoverage (only front-ci.yml hosts gate-selftest), so
-	// this must be a no-op for them regardless of their classifier pattern.
+	// A workflow without selfTestCoverage must be a no-op regardless of its
+	// classifier pattern.
 	const rootDir = await buildFixture(
 		selfTestCoverageWorkflow('^this-matches-nothing-relevant$'),
 	);
@@ -897,9 +893,9 @@ test('ROUND 5 BLOCKER: removing the outcome-verification step is caught (this is
 });
 
 // ---------------------------------------------------------------------------
-// ROUND 4: matrix + denominator pinning (front-e2e.yml's sharded `test` job).
-// A fixture separate from goodWorkflow/fixtureConfig above, since only
-// front-e2e.yml declares a `matrix` config entry.
+// ROUND 4: matrix + denominator pinning for the sharded e2e-test fixture job.
+// A fixture separate from goodWorkflow/fixtureConfig above because it declares
+// a `matrix` config entry.
 // ---------------------------------------------------------------------------
 
 const matrixDenominator = 4;
@@ -1118,73 +1114,11 @@ test('ROUND 5 BLOCKER: the Playwright step missing `set -euo pipefail` is caught
 });
 
 // ---------------------------------------------------------------------------
-// #1948: the REAL front-ci.yml matrix missing a shard must make the front
-// gate go red. The matrix pin lives in the same checkMatrixJob code path the
-// e2e fixtures above exercise, but the brief demands proof against the real
-// artifact: this test mutates the ACTUAL front-ci.yml (shard 4 removed from
-// the matrix), points the REAL front-ci GATE_WORKFLOWS entry at the mutated
-// file, and asserts the structure guard — which runs as a step INSIDE the
-// outer front-ci-gate job itself — reports the narrowing. The front gate
-// therefore cannot stay green while a shard is absent.
-// ---------------------------------------------------------------------------
-
-test('#1948: the REAL front-ci matrix with one shard missing is a finding (the front gate goes red)', async () => {
-	const realFrontCi = await readFile(
-		path.join(repoRoot, '.github/workflows/front-ci.yml'),
-		'utf8',
-	);
-	const mutated = realFrontCi.replace(
-		'shard: [1, 2, 3, 4]',
-		'shard: [1, 2, 3]',
-	);
-	const rootDir = await mkdtemp(
-		path.join(os.tmpdir(), 'publyapp-front-ci-matrix-'),
-	);
-
-	await mkdir(path.join(rootDir, '.github/workflows'), { recursive: true });
-	await writeFile(
-		path.join(rootDir, '.github/workflows/front-ci.yml'),
-		mutated,
-	);
-	// The front-ci entry pins the trans-render guard's vitest discovery;
-	// give the fixture the config file AND the pinned file so the matrix
-	// finding is isolated (the fixture tree has no real src files).
-	await mkdir(path.join(rootDir, 'apps/front/src/lib/i18n'), {
-		recursive: true,
-	});
-	await writeFile(
-		path.join(rootDir, 'apps/front/vitest.config.ts'),
-		"export default { test: { include: ['src/**/*.test.tsx'] } };\n",
-	);
-	await writeFile(
-		path.join(rootDir, 'apps/front/src/lib/i18n/trans-render.guard.test.tsx'),
-		'// fixture stand-in for the pinned file\n',
-	);
-
-	const frontCiEntry = GATE_WORKFLOWS.find(
-		(workflow) => workflow.file === 'front-ci.yml',
-	);
-	assert.ok(frontCiEntry, 'GATE_WORKFLOWS must contain the front-ci entry');
-
-	const findings = await findCiGateStructureProblems({
-		rootDir,
-		// @ts-expect-error rung-0: add proper type in later rung
-		workflows: [frontCiEntry],
-	});
-
-	assert.equal(findings.length, 1);
-	assert.match(
-		findings[0],
-		/front-ci\.yml::test-vitest: expected `strategy\.matrix\.shard` to be exactly \[1,2,3,4\]/,
-	);
-});
-
-// ---------------------------------------------------------------------------
-// ROUND 5 BLOCKER: `requiresSelfCheck` — front-ci-gate must independently
+// ROUND 5 BLOCKER: `requiresSelfCheck` — the required gate must independently
 // re-run this very script as one of ITS OWN steps, so the decisive
 // "gate.needs must equal every other job" check cannot be silently
-// disconnected the way dropping gate-selftest from front-ci-gate's `needs`
-// did (see check-ci-gate-structure.mjs's file-level comment).
+// disconnected the way dropping `gate-selftest` from `front-ci-gate`'s
+// `needs` did (see the structure checker comment).
 // ---------------------------------------------------------------------------
 
 const requiresSelfCheckConfig = [
@@ -1499,10 +1433,14 @@ test('ROUND 6 BLOCKER: two gate workflows configured with the same reserved name
 	);
 });
 
-test("the repo's own aggregate-gate workflows have the required job graph", async () => {
-	assert.deepEqual(
-		await findCiGateStructureProblems({ rootDir: repoRoot }),
-		[],
+test('the central structure assertion is non-empty and fails closed for a missing root', async () => {
+	const findings = await findCentralCiStructureProblems({
+		rootDir: '/definitely/missing/publyapp-2113',
+	});
+
+	assert.ok(
+		findings.length > 0,
+		'a missing repository root must not make the central structure assertion vacuously green',
 	);
 });
 
@@ -1512,7 +1450,7 @@ test("the repo's own aggregate-gate workflows have the required job graph", asyn
 // with "Diff base branch \"origin/\" does not exist". The real run
 // https://github.com/PublyApp/publyapp/actions/runs/32585167025 died on
 // exactly this. The base must instead be resolved per event (see the
-// react-doctor.yml fix). This guard catches the raw pattern reappearing in any
+// ci.yml fix). This guard catches the raw pattern reappearing in any
 // workflow that also declares a `push` trigger — including the one we are
 // fixing it in.
 //
@@ -1610,289 +1548,5 @@ test('#1227: a non-push workflow using `origin/${{ github.base_ref }}` is NOT fl
 			/origin\/\$\{\{ github\.base_ref \}\}/.test(finding),
 		),
 		`expected no origin/\${{ github.base_ref }} finding for a non-push workflow, got:\n${findings.join('\n')}`,
-	);
-});
-
-// ---------------------------------------------------------------------------
-// PR #1312 round 1: `pinnedTestFiles` — explicit CI enforcement for the
-// real-<Trans> render guard. Renaming, moving, deleting, or quietly excluding
-// that file keeps `pnpm --filter front test` green (the file simply stops
-// running), so this structural check is what fails the gate instead.
-// ---------------------------------------------------------------------------
-
-// The pin fixture carries `pinnedTestFiles`, which only exists on the real
-// front-ci entry of GATE_WORKFLOWS — and that entry additionally REQUIRES
-// `selfTestCoverage`/`requiresSelfCheck`, fields a minimal fixture cannot
-// fake (their checks inspect the changes job's real classifier patterns),
-// while every other union member pins `pinnedTestFiles` to undefined. Each
-// use site below therefore carries the file's standing rung-0 escape hatch.
-const pinnedConfig = [
-	{
-		file: 'fixture.yml',
-		changesJob: 'changes',
-		gateJob: 'gate',
-		gateName: 'fixture-gate',
-		pushCheckName: 'fixture-push-check',
-		relevanceGatedJobs: [{ id: 'heavy', needs: ['changes'] }],
-		alwaysJobs: [],
-		pinnedTestFiles: [
-			{
-				path: 'apps/front/src/lib/i18n/trans-render.guard.test.tsx',
-				runnerConfig: 'apps/front/vitest.config.ts',
-				reason: 'the real-<Trans> render guard',
-			},
-		],
-	},
-];
-
-test('pinnedTestFiles: the real tree still pins the trans-render guard and its vitest discovery', async () => {
-	assert.deepEqual(
-		await findCiGateStructureProblems({ rootDir: repoRoot }),
-		[],
-	);
-});
-
-test('pinnedTestFiles: a renamed/moved/deleted pinned file is a finding', async () => {
-	// The renamed/moved/deleted shape: the runner config still exists, but
-	// no file sits at the path the pin expects.
-	const rootDir = await buildFixture(goodWorkflow);
-
-	await mkdir(path.join(rootDir, 'apps/front'), { recursive: true });
-	await writeFile(
-		path.join(rootDir, 'apps/front/vitest.config.ts'),
-		"export default { test: { include: ['src/**/*.test.tsx'] } };\n",
-	);
-
-	const findings = await findCiGateStructureProblems({
-		rootDir,
-		// @ts-expect-error rung-0: TS2322 — minimal pin fixture omits selfTestCoverage/requiresSelfCheck
-		workflows: pinnedConfig,
-	});
-
-	assert.ok(
-		findings.some((finding) =>
-			/trans-render\.guard\.test\.tsx` is missing/.test(finding),
-		),
-		`expected a missing-pinned-file finding, got:\n${findings.join('\n')}`,
-	);
-});
-
-test('pinnedTestFiles: a present file no vitest include glob discovers is a finding', async () => {
-	const rootDir = await buildFixture(goodWorkflow);
-
-	await mkdir(path.join(rootDir, 'apps/front/src/lib/i18n'), {
-		recursive: true,
-	});
-	await writeFile(
-		path.join(rootDir, 'apps/front/src/lib/i18n/trans-render.guard.test.tsx'),
-		'export {};\n',
-	);
-	await writeFile(
-		path.join(rootDir, 'apps/front/vitest.config.ts'),
-		"export default { test: { include: ['src/**/*.nope.test.tsx'] } };\n",
-	);
-
-	const findings = await findCiGateStructureProblems({
-		rootDir,
-		// @ts-expect-error rung-0: TS2322 — minimal pin fixture omits selfTestCoverage/requiresSelfCheck
-		workflows: pinnedConfig,
-	});
-
-	assert.ok(
-		findings.some((finding) =>
-			/no `include` pattern in `apps\/front\/vitest\.config\.ts` discovers/.test(
-				finding,
-			),
-		),
-		`expected a not-discovered-by-runner finding, got:\n${findings.join('\n')}`,
-	);
-});
-
-test('pinnedTestFiles: a file matched by the runner exclude list is a finding', async () => {
-	const rootDir = await buildFixture(goodWorkflow);
-
-	await mkdir(path.join(rootDir, 'apps/front/src/lib/i18n'), {
-		recursive: true,
-	});
-	await writeFile(
-		path.join(rootDir, 'apps/front/src/lib/i18n/trans-render.guard.test.tsx'),
-		'export {};\n',
-	);
-	await writeFile(
-		path.join(rootDir, 'apps/front/vitest.config.ts'),
-		"export default { test: { include: ['src/**/*.test.tsx'], exclude: ['src/**/trans-render.guard.test.tsx'] } };\n",
-	);
-
-	const findings = await findCiGateStructureProblems({
-		rootDir,
-		// @ts-expect-error rung-0: TS2322 — minimal pin fixture omits selfTestCoverage/requiresSelfCheck
-		workflows: pinnedConfig,
-	});
-
-	assert.ok(
-		findings.some((finding) =>
-			/matched by the `exclude` pattern\(s\)/.test(finding),
-		),
-		`expected an excluded-from-runner finding, got:\n${findings.join('\n')}`,
-	);
-});
-
-// ---------------------------------------------------------------------------
-// PR #1312 round 2 (review MAJOR/BLOCKS_PR): the pin-of-the-pin. Round 1
-// proved the enforcement loop fires on a moved/renamed/excluded FILE — but the
-// reviewer's actual mutation deleted the `pinnedTestFiles` ENTRY itself from
-// GATE_WORKFLOWS, and every check stayed green: an absent pin is a compliant
-// default, so the guard's own switch had no switch-guard. These tests pin the
-// table's exact contents against EXPECTED_PINNED_TEST_FILES, symmetrically.
-// ---------------------------------------------------------------------------
-
-const frontCiWorkflow = GATE_WORKFLOWS.find(
-	(workflow) => workflow.file === 'front-ci.yml',
-);
-
-test('round 2: GATE_WORKFLOWS.front-ci declares a pinnedTestFiles list containing exactly the trans-render guard pin', () => {
-	assert.ok(
-		frontCiWorkflow,
-		'the front-ci.yml entry must exist in GATE_WORKFLOWS',
-	);
-
-	const pins = frontCiWorkflow.pinnedTestFiles ?? [];
-	assert.deepEqual(
-		pins.map(({ path }) => path),
-		['apps/front/src/lib/i18n/trans-render.guard.test.tsx'],
-		'front-ci pinnedTestFiles must be EXACTLY [the trans-render guard] — removing the entry silently switches the round-1 enforcement off; adding anything else must be a conscious, reviewed change to this assertion too',
-	);
-
-	const expectation = EXPECTED_PINNED_TEST_FILES.filter(
-		(pin) =>
-			pin.file === 'front-ci.yml' &&
-			pin.path === 'apps/front/src/lib/i18n/trans-render.guard.test.tsx',
-	);
-	assert.equal(
-		expectation.length,
-		1,
-		'EXPECTED_PINNED_TEST_FILES must declare exactly one trans-render guard pin for front-ci.yml',
-	);
-});
-
-test('round 2: findPinnedTestFilesProblems is green on the real tree', async () => {
-	assert.deepEqual(
-		await findPinnedTestFilesProblems({ rootDir: repoRoot }),
-		[],
-	);
-});
-
-test('round 2: REMOVING the pinnedTestFiles entry goes RED naming it (the exact review mutation, via the test seam)', async () => {
-	// Reproduce the reviewer's mutation against a mutated COPY of the real
-	// table: the front-ci entry loses its `pinnedTestFiles` array entirely.
-	// The production check runs against the REAL table (see the real-tree
-	// green above); this proves the comparison flips symmetrically. The full
-	// source-level reproduction — entry deleted from check-ci-gate-structure.ts
-	// itself, whole suite RED — lives in .dump/fix-r2-proof.md.
-	const mutatedTable = GATE_WORKFLOWS.map((workflow) =>
-		workflow.file === 'front-ci.yml'
-			? { ...workflow, pinnedTestFiles: undefined }
-			: workflow,
-	);
-
-	const findings = await findPinnedTestFilesProblems({
-		rootDir: repoRoot,
-		workflows: mutatedTable,
-	});
-
-	assert.ok(
-		findings.length > 0,
-		'expected a finding when the pinnedTestFiles entry is deleted',
-	);
-	assert.ok(
-		findings.every((finding) => /pinnedTestFiles/.test(finding)),
-		`every finding must name pinnedTestFiles, got:\n${findings.join('\n')}`,
-	);
-	assert.ok(
-		findings.some((finding) =>
-			/front-ci\.yml.*trans-render\.guard\.test\.tsx|trans-render\.guard\.test\.tsx.*front-ci\.yml/s.test(
-				finding,
-			),
-		),
-		`the finding must name the removed entry (front-ci.yml + the trans-render guard), got:\n${findings.join('\n')}`,
-	);
-});
-
-test('round 2: ADDING an undeclared pin goes RED naming it', async () => {
-	const mutatedTable = GATE_WORKFLOWS.map((workflow) =>
-		workflow.file === 'front-ci.yml'
-			? {
-					...workflow,
-					pinnedTestFiles: [
-						...(workflow.pinnedTestFiles ?? []),
-						{
-							path: 'apps/front/src/lib/i18n/some-undeclared.guard.test.tsx',
-							runnerConfig: 'apps/front/vitest.config.ts',
-							reason: 'an undeclared extra pin',
-						},
-					],
-				}
-			: workflow,
-	);
-
-	const findings = await findPinnedTestFilesProblems({
-		rootDir: repoRoot,
-		workflows: mutatedTable,
-	});
-
-	assert.ok(
-		findings.some((finding) =>
-			/undeclared pinnedTestFiles entry.*some-undeclared\.guard\.test\.tsx/.test(
-				finding,
-			),
-		),
-		`expected an undeclared-entry finding naming the added pin, got:\n${findings.join('\n')}`,
-	);
-});
-
-test('round 2: EDITING an existing pin (runnerConfig swap) goes RED naming both spellings', async () => {
-	const mutatedTable = GATE_WORKFLOWS.map((workflow) =>
-		workflow.file === 'front-ci.yml'
-			? {
-					...workflow,
-					pinnedTestFiles: [
-						{
-							path: 'apps/front/src/lib/i18n/trans-render.guard.test.tsx',
-							runnerConfig: 'apps/front/vitest.config.other.ts',
-							reason: 'swapped runner config',
-						},
-					],
-				}
-			: workflow,
-	);
-
-	const findings = await findPinnedTestFilesProblems({
-		rootDir: repoRoot,
-		workflows: mutatedTable,
-	});
-
-	assert.ok(
-		findings.some((finding) => /no longer carries/.test(finding)) &&
-			findings.some((finding) =>
-				/undeclared pinnedTestFiles entry/.test(finding),
-			),
-		`an edited pin must produce BOTH the missing-declared-entry and undeclared-entry findings, got:\n${findings.join('\n')}`,
-	);
-});
-
-test('round 2: the declared expectation fails closed when its file is missing on disk', async () => {
-	// The expectation must never quietly describe coverage that no longer
-	// exists: point the comparison at a rootDir where the guard file is gone.
-	const rootDir = await buildFixture(goodWorkflow);
-
-	const findings = await findPinnedTestFilesProblems({ rootDir });
-
-	assert.ok(
-		findings.some(
-			(finding) =>
-				/points at a file that does not exist on disk/.test(finding) &&
-				/trans-render\.guard\.test\.tsx/.test(finding),
-		),
-		`expected a fail-closed finding naming the vanished pinned file, got:\n${findings.join('\n')}`,
 	);
 });

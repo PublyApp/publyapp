@@ -22,7 +22,7 @@
  *   present, the proof is intact.
  * - Against the FIXED code (three-case body): the guard raises, so the
  *   "defect present" expectation fails. That failure IS the proof; the
- *   `Verify paired red proofs` CI step (front-ci.yml, `pnpm --filter front
+ *   `Verify paired red proofs` CI step (ci.yml, `pnpm --filter front
  *   test:preuves`) replays this file with inverted semantics.
  *
  * The third test pins the context so a stale proof is diagnosable: the
