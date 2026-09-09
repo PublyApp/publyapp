@@ -16,7 +16,7 @@
     <PackageVersion Include="Bogus" Version="35.6.5" />
     <PackageVersion Include="DotNetEnv" Version="3.2.0" />
     <PackageVersion Include="FluentValidation.AspNetCore" Version="11.3.1" />
-    <PackageVersion Include="Microsoft.EntityFrameworkCore" Version="10.0.11" />
+    <PackageVersion Include="Microsoft.EntityFrameworkCore" Version="10.0.12" />
     <PackageVersion Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.11" />
     <!-- Transitive-pinned so every project resolves the same patch level:
          Npgsql.EFCore.PostgreSQL otherwise drags Tests back below 10.0.11 (CS1705).
