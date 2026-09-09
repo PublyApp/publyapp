@@ -28,3 +28,4 @@ PUBLY0008 | PublyApp.Nullability | Disabled | Prefer is-null pattern checks over
 PUBLY0009 | PublyApp.ErrorHandling | Disabled | Avoid TypedResults.Forbid() — use TypedProblems.* (RFC 7807)
 PUBLY0010 | PublyApp.Security | Disabled | Do not log session-token values (X-Session-Token / SessionToken)
 PUBLY0011 | PublyApp.Security | Disabled | Require an explicit endpoint rate-limit disposition
+PUBLY0012 | PublyApp.Style | Disabled | Use explicit member access

@@ -11,6 +11,10 @@
 		     (analyzers/dotnet/cs/) and suppresses the warning about netstandard2.0 projects
 		     being unusual in a net10.0 repo. -->
 		<IsRoslynComponent>true</IsRoslynComponent>
+		<!-- This assembly also hosts the code-fix provider. Roslyn's RS1038 guidance assumes
+		     analyzers and fixes are split, but this repository intentionally ships one provider
+		     assembly and validates it through the dedicated test runner. -->
+		<NoWarn>$(NoWarn);RS1038</NoWarn>
 		<!-- EnforceExtendedAnalyzerRules enables additional Roslyn-analyzer-specific diagnostics
 		     (RS* rules) that catch common mistakes like registering actions after Initialize returns
 		     or calling non-thread-safe APIs when concurrent execution is enabled. -->
@@ -32,6 +36,7 @@
 		<!-- PrivateAssets="all" keeps the Roslyn and analyzer SDK packages out of the consuming
 		     project's dependency graph — they are compile-time tools, not runtime dependencies. -->
 		<PackageReference Include="Microsoft.CodeAnalysis.CSharp" PrivateAssets="all" />
+		<PackageReference Include="Microsoft.CodeAnalysis.CSharp.Workspaces" PrivateAssets="all" />
 		<PackageReference Include="Microsoft.CodeAnalysis.Analyzers" PrivateAssets="all" />
 	</ItemGroup>
 

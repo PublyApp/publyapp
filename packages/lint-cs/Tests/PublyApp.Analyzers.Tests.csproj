@@ -14,11 +14,14 @@
 		<PackageReference Include="xunit" />
 		<PackageReference Include="xunit.runner.visualstudio" />
 		<PackageReference Include="Microsoft.CodeAnalysis.CSharp.Analyzer.Testing.XUnit" />
+		<PackageReference Include="Microsoft.CodeAnalysis.CSharp.CodeFix.Testing.XUnit" />
 		<PackageReference Include="Microsoft.CodeAnalysis.CSharp.Workspaces" />
 	</ItemGroup>
 
 	<ItemGroup>
-		<ProjectReference Include="..\PublyApp.Analyzers.csproj" />
+		<ProjectReference Include="..\PublyApp.Analyzers.csproj"
+						  OutputItemType="Analyzer"
+						  ReferenceOutputAssembly="true" />
 	</ItemGroup>
 
 	<!-- Keep analyzer specs physically next to the source they exercise (the same co-located model
