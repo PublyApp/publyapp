@@ -53,7 +53,7 @@ import { describe, expect, test } from 'vitest';
 // `.../$profileId/**`). The breadcrumb shell and other routes are exactly the
 // places a warmed key must NOT be hiding.
 
-const srcDir = path.resolve(fileURLToPath(new URL('..', import.meta.url)));
+const srcDir = path.resolve(fileURLToPath(new URL('../..', import.meta.url)));
 const routesDir = path.join(srcDir, 'routes');
 const repoRoot = path.resolve(srcDir, '..', '..', '..');
 const sharedTsSrc = path.join(repoRoot, 'packages', 'shared-ts', 'src');

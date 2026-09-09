@@ -31,7 +31,7 @@ import {
 	readProofReport,
 	type ExpectedRedManifest,
 	type ProofReport,
-} from '../../scripts/ci/classify-proof.mts';
+} from '../../../../scripts/ci/classify-proof.mts';
 
 // --- Helpers ---
 
@@ -558,7 +558,7 @@ describe('readExpectedRedManifest — measuredAgainst is removed (#1963)', () =>
 test('no committed expected-red manifest carries the measuredAgainst field (#1963 real-tree)', () => {
 	const proofsRoot = resolve(
 		dirname(fileURLToPath(import.meta.url)),
-		'../../tests/proofs',
+		'../../../../tests/proofs',
 	);
 	const offenders: string[] = [];
 
