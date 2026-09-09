@@ -3,6 +3,42 @@
 `just ci` is the pre-push gate. It mirrors what `.github/workflows` actually runs, so
 a green run locally is a strong prediction that CI would be green too.
 
+## Central PR CI (PR A)
+
+`.github/workflows/ci.yml` is the additive central workflow for pull requests,
+merge groups, and pushes to `develop`. It creates the stable 16 visible checks:
+one classifier, packed verification/audit/API jobs, four front Vitest shards, four
+E2E shards, cleanup, and one artifact-backed `ci-final-gate` (or `ci-push-check` on
+`develop`). The classifier emits the six lane decisions once; irrelevant lanes run
+named success sentinels rather than becoming skipped jobs.
+
+The eight predecessor PR workflows remain unchanged during PR A because the
+external ruleset still requires their existing contexts. They are intentionally
+not removed or renamed here; that is the separately authorized PR B migration.
+`deploy-images.yml` remains an independent push-only release workflow.
+
+The central reducer consumes one run-scoped `ci-lane-result` artifact per upstream
+job/matrix member and rejects missing, duplicate, stale, skipped, failed, or
+malformed evidence. Focused central checks are available with:
+
+```bash
+pnpm test:ci-contracts
+node packages/scripts-ts/src/check-ci-gate-structure.ts
+```
+
+Central ownership is explicit: `CI verification` executes the repository quality,
+front build/CSS/font/smoke/typecheck/lint/design/static-import/compiler/proof,
+docs, React Doctor, API path-coverage, analyzer, dependency, action-pin, deploy-env,
+CI-contract, project-closure, and unconditional tracked-file checks; the `api` lane
+executes API/OpenAPI/client generation and drift checks, the OpenAPI contract spec,
+and `just test-api`; the four `front-ci` shards execute install/postinstall/hooks and
+Vitest; and the E2E build/test/cleanup jobs execute the run-scoped image, all-service
+health, Playwright, shard-4 hermetic/drawer guards, failure-report, teardown, and
+cleanup steps. The nested front report records the complete ordered 32-command
+non-Vitest chain. The unchanged predecessor workflows still execute their existing
+checks during PR A for the external ruleset's dual-authority interval; no check is
+claimed here unless it is run by either that predecessor or the named central owner.
+
 This matters more than it normally would: the repo is on a Free plan with a private
 repo (2,000 Actions minutes/month), and July 2026 burned 2,202. Until the allowance
 resets and stays under budget, **this gate is the pre-merge net** — see issue #869.
@@ -102,8 +138,10 @@ revert → green. Changing only the comment version must equally fail.
 `just ci` is the everyday loop. Run `just ci-full` before merging anything that touches
 frontend behaviour, since that is where the e2e suites earn their runtime.
 
-`pnpm test:project-closure-adapter` is now a permanent subgate of `front-ci`.
-It runs in `front-ci.yml::gate-selftest` and is mirrored by
+`pnpm test:project-closure-adapter` remains a permanent local subgate and is
+covered by the central verification contract during PR A. The predecessor
+`front-ci.yml::gate-selftest` remains unchanged for the dual-authority interval
+and is mirrored by
 `ci-project-closure-adapter` in `just ci` and required during PR closure in
 `.ai/project-closure-v1.json` (`local_review_ready_commands` and
 `closure_acceptance_commands`).

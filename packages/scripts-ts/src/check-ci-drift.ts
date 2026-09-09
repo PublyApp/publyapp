@@ -640,7 +640,7 @@ const getStepLabel = (step: YamlStep, index: number): string => {
  * scanning action), and the gate must be forced to account for it rather than
  * ignore it by category.
  */
-const collectWorkflowSteps = async (rootDir: string) => {
+export const collectWorkflowSteps = async (rootDir: string) => {
 	const directory = path.join(rootDir, workflowsDirectory);
 	const entries = await readdir(directory, { withFileTypes: true });
 	const steps: { hash: string; id: string; kind: 'run' | 'uses' }[] = [];

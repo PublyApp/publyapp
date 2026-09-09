@@ -279,10 +279,11 @@ test-api-debug $APP_ROLE="all" $ASPNETCORE_ENVIRONMENT="Testing":
 #                  the two browser/e2e suites, PLUS the full API test suite.
 # `just ci-full` - `just ci` + both e2e suites.
 #
-# The API suite ran local-only until #1462 added .github/workflows/api-tests.yml,
-# which runs `just test-api` as the required api-tests-gate PR check. `just ci`
-# still runs the same suite locally before every push, so backend failures are
-# caught before they reach CI.
+# The API suite ran local-only until #1462 added .github/workflows/api-tests.yml.
+# PR A also runs `just test-api` in the central `.github/workflows/ci.yml` API
+# lane; the predecessor workflow remains unchanged until the separately
+# authorized PR B removal. `just ci` still runs the same suite locally before
+# every push, so backend failures are caught before they reach CI.
 #
 # These recipes deliberately compose existing targets rather than restating
 # their commands. `just ci-drift` fails the gate if a workflow gains or changes
@@ -318,14 +319,12 @@ ci-drift:
   pnpm --filter scripts-ts exec vitest run src/ci-changed-paths.test.ts
   pnpm --filter scripts-ts exec vitest run src/artifact-version-compat.test.ts
   node ./packages/scripts-ts/src/artifact-version-compat.ts
-  pnpm --filter scripts-ts exec vitest run src/ci-gate-bootstrap.test.ts
-  pnpm --filter scripts-ts exec vitest run src/ci-gate-aggregation.test.ts
+  node packages/scripts-ts/src/run-ci-contract-tests.ts
   pnpm --filter scripts-ts exec vitest run src/ci-e2e-rerun-guard.test.ts
   # #1975 round 2: live-tree coverage guard — every project the API suite
   # compiles (slnx projects + spec-referenced projects) must be reached by a
   # workflow path filter. Mirrors the gate-selftest step in front-ci.yml.
   pnpm --filter scripts-ts exec vitest run src/check-api-tests-path-coverage.test.ts
-  pnpm --filter scripts-ts exec vitest run src/check-ci-gate-structure.test.ts
   node ./packages/scripts-ts/src/check-ci-gate-structure.ts
   pnpm --filter scripts-ts exec vitest run src/require-linked-issue.test.ts
   pnpm --filter scripts-ts exec vitest run src/check-actions-pinned.test.ts
@@ -343,6 +342,7 @@ ci-drift:
   # or removes the step is caught locally as well as in CI.
   pnpm --filter scripts-ts exec vitest run src/prod-audit-bites.test.ts
   pnpm --filter scripts-ts exec vitest run src/npm-audit-runner.test.ts
+  pnpm --filter scripts-ts exec vitest run src/ci-e2e-cleanup.test.ts
 
 # Bind every pinned action SHA to the version its "# vX.Y.Z" comment claims
 # (#1392): resolves each tag through `gh api` (annotated tags peeled to their

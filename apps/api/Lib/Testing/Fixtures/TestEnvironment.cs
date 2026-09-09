@@ -6,20 +6,20 @@ namespace PublyApp.Api.Lib.Testing.Fixtures {
 	/// Strategy:
 	///   1. Set ASPNETCORE_ENVIRONMENT=Testing (prevents
 	///      AppEnvironment from loading .env.development itself)
-	///      and pin APP_ROLE=all (2B/G9: belt-and-suspenders — Testing
-	///      already defaults an unset APP_ROLE to All, but the test
-	///      bootstrap pins it explicitly so the role is never implicit)
-	///   2. Load .env.development via DotNetEnv (provides all
+	///   2. Pin APP_ROLE=all before loading the baseline.
+	///   3. Load .env.development via DotNetEnv (provides all
 	///      default config values — app name, headers, token
 	///      lengths, etc.)
-	///   3. Override only the vars that differ from development:
+	///   4. Re-pin APP_ROLE=all after the baseline load (2B/G9: the
+	///      test role must not be overridden by the file), then
+	///   5. Override only the vars that differ from development:
 	///      - POSTGRES_CONNECTION_STRING (Testcontainer, or the
 	///        deterministic placeholder used by Bootstrap() below)
 	///      - FRONT_URL (no port)
 	///      - RESEND_API_KEY (fake)
 	///      - STAFF_OWNER_EMAIL (test value)
 	///      - STAFF_OWNER_BOOTSTRAP_CODE (test value)
-	///   4. Call AppEnvironment.Initialize()
+	///   6. Call AppEnvironment.Initialize()
 	///
 	/// Uses CompareExchange for thread-safe one-time init with
 	/// rollback on failure.
@@ -115,19 +115,17 @@ namespace PublyApp.Api.Lib.Testing.Fixtures {
 					EnvironmentNames.Testing
 				);
 
-				// 1b. Pin a deterministic test APP_ROLE (2B/G9). Testing
-				//     already defaults an unset APP_ROLE to AppRole.All (see
-				//     AppEnvironment.GetOptionalAppRole), so this is
-				//     belt-and-suspenders determinism, not a behavior change:
-				//     it makes the test role explicit rather than relying on
-				//     the environment-gated default, mirroring the `just
-				//     test-api` recipes' own APP_ROLE export (justfile).
+				// 2. Pin a deterministic test APP_ROLE (2B/G9) before the
+				//     baseline load. Testing already defaults an unset APP_ROLE
+				//     to AppRole.All (see AppEnvironment.GetOptionalAppRole),
+				//     but the bootstrap pins it explicitly so the role is never
+				//     implicit.
 				Environment.SetEnvironmentVariable(
 					"APP_ROLE",
 					"all"
 				);
 
-				// 2. Load .env.development as baseline config.
+				// 3. Load .env.development as baseline config.
 				//    This provides ~12 settings (APP_NAME, headers,
 				//    token lengths, etc.) so we don't duplicate them.
 				string? dotEnvPath = AppEnvironment.FindDotEnvPath(
@@ -142,7 +140,15 @@ namespace PublyApp.Api.Lib.Testing.Fixtures {
 				}
 				_ = DotNetEnv.Env.Load(dotEnvPath);
 
-				// 3. Override only the vars that differ from dev
+				// 4. Re-pin the test role after loading the baseline. DotNetEnv
+				//     loads file values over existing process values, and the
+				//     integration host must always compose as api + worker.
+				Environment.SetEnvironmentVariable(
+					"APP_ROLE",
+					"all"
+				);
+
+				// 5. Override only the vars that differ from dev
 				Environment.SetEnvironmentVariable(
 					"POSTGRES_CONNECTION_STRING",
 					postgresConnectionString
@@ -202,7 +208,7 @@ namespace PublyApp.Api.Lib.Testing.Fixtures {
 					);
 				}
 
-				// 4. Initialize AppEnvironment singleton BEFORE any
+				// 6. Initialize AppEnvironment singleton BEFORE any
 				//    AppDbContext is created (OnModelCreating
 				//    accesses AppEnvironment.Instance).
 				_ = AppEnvironment.Initialize();

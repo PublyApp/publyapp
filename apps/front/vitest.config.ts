@@ -57,6 +57,7 @@ export default defineConfig({
 			'e2e/helpers/**/*.test.ts',
 			'e2e/__tests__/**/*.test.ts',
 			'scripts/ci/**/*.test.ts',
+			'scripts/ci/run-non-vitest-report-all.test.mts',
 		],
 		// Round 19 I3: the drawer-description contrast guard is the ONLY
 		// browser-launching test in the suite. It now runs in the e2e lane

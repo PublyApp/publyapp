@@ -19,13 +19,15 @@
 	"heavy_job_limit": 1,
 	"verification_command_timeout_seconds": 2700,
 	"ci_required_checks": [
-		"require-linked-issue",
+		"front-e2e-gate",
+		"front-ci-gate",
 		"openapi-spec-drift-gate",
 		"docs-archive-gate",
-		"front-ci-gate",
-		"front-e2e-gate"
+		"quality-gate",
+		"react-doctor-gate",
+		"ci-final-gate"
 	],
-	"ci_live_pr_checks": [],
+	"ci_live_pr_checks": ["ci-final-gate"],
 	"ci_required_checks_source": {
 		"pull_request": "candidate_tip",
 		"merge_group": "event_tip",

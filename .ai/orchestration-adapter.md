@@ -31,7 +31,7 @@ Fielded adapter for `/home/radan/ai-orchestration-playbook/PLAYBOOK.md`.
 | `closure_config` | `/home/radan/Projects/PublyApp/publyapp/.ai/project-closure-v1.json` |
 | `closure_gate` | `/home/radan/ai-orchestration-playbook/tools/pr-closure` (shared dependency; PublyApp does not reimplement the state machine) |
 | `review_schema` | `1`; schema file: `/home/radan/ai-orchestration-playbook/tools/schemas/review-record-v1.json` |
-| `ci_status_cmd` | `gh pr view <pr-number> --repo PublyApp/publyapp --json headRefOid,statusCheckRollup,baseRefName,headRefName,state,isDraft,mergeable,mergeStateStatus,url` |
+| `ci_status_cmd` | `gh pr view <pr-number> --repo PublyApp/publyapp --json headRefOid,statusCheckRollup,baseRefName,headRefName,potentialMergeCommit,body,state,isDraft,mergeable,mergeStateStatus,url` |
 | `ci_rerun_cmd` | `gh run rerun <run-id> --failed --repo PublyApp/publyapp` (only for a proven infrastructure failure; bounded by `closure_config.infra_retry_budget`) |
 | `local_review_ready_commands` | `closure_config.local_review_ready_commands` (all commands must pass at the exact pushed tip) |
 | `closure_acceptance_commands` | `closure_config.closure_acceptance_commands` (run one heavy command at a time) |
@@ -54,6 +54,19 @@ must first pass `check-transition` against the same pushed commit; projection fa
 changes authoritative evidence. The projection adapter verifies the delivery-card sections
 `Objective`, `Current state`, `Scope`, `Links`, and `How to test` before it can plan or apply a
 list move, and it has no operation that can create approval evidence.
+
+## Candidate-tip/live-PR closure contract
+
+The shared `pr-closure` schema and reader now validate candidate-tip/live-PR provenance. The
+local closure config keeps all seven PR-A required checks authoritative, with only `ci-final-gate`
+in `ci_live_pr_checks`; `pull_request` reads the config and required checks from the candidate tip,
+while `merge_group` and `push` use the event tip. Live PR evidence is bound to
+`.github/workflows/ci.yml` with action `pull_request`.
+
+PR-A remains additive: predecessor workflows and the existing ruleset remain in place. PR-B is a
+separate, authorized cutover that may reduce `ci_required_checks` to `ci-final-gate` and remove
+the predecessor workflows only after the candidate-tip/live-gate evidence is green and the
+ruleset change is explicitly approved. No workflow deletion or ruleset mutation belongs in PR-A.
 
 ## M1 Run Binding
 

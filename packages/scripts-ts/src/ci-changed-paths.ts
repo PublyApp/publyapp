@@ -3,6 +3,45 @@ import { appendFileSync } from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
 
+export const CI_CLASSIFIER_ABI_VERSION = 2;
+
+export const LANE_OUTPUTS = [
+	'quality',
+	'front',
+	'api',
+	'e2e',
+	'docs',
+	'react',
+] as const;
+
+export type LaneOutput = (typeof LANE_OUTPUTS)[number];
+
+export type LaneOutputMap = {
+	quality: 'true' | 'false';
+	front: 'true' | 'false';
+	api: 'true' | 'false';
+	e2e: 'true' | 'false';
+	docs: 'true' | 'false';
+	react: 'true' | 'false';
+};
+
+export type ClassifyLanesResult = {
+	outputs: LaneOutputMap;
+	reason: string;
+};
+
+export const LANE_PATTERNS = {
+	quality:
+		'^(\\.github/workflows/|\\.github/actions/|\\.oxlintrc\\.json$|\\.oxfmtrc\\.json$|\\.gitignore$|knip\\.ts$|packages/scripts-ts/|packages/lint-ts/|packages/shared-ts/|packages/client-ts/|packages/_tsconfig/|apps/front/|apps/api/|apps/apphost/|packages/lint-cs/|packages/scripts-cs/|turbo\\.json$|pnpm-lock\\.yaml$|pnpm-workspace\\.yaml$|package\\.json$|\\.npmrc$|justfile$|PublyApp\\.slnx$|Directory\\.Build\\.(props|targets)$|Directory\\.Packages\\.props$|global\\.json$|docker-compose.*\\.ya?ml$|compose.*\\.ya?ml$|dokploy\\.yml$|\\.env\\.example$|docs/guides/dependency-health\\.md$|docs/deployment/first-deploy-runbook\\.md$)',
+	front:
+		'^(apps/front/|packages/shared-ts/|packages/client-ts/|packages/_tsconfig/|packages/scripts-ts/|turbo\\.json$|\\.github/workflows/|\\.github/actions/|pnpm-lock\\.yaml$|pnpm-workspace\\.yaml$|package\\.json$|\\.npmrc$)',
+	api: '^(apps/api/|apps/apphost/|packages/client-ts/|packages/shared-ts/|packages/lint-cs/|\\.config/dotnet-tools\\.json$|Directory\\.Build\\.props$|Directory\\.Build\\.targets$|Directory\\.Packages\\.props$|global\\.json$|justfile$|PublyApp\\.slnx$|\\.gitattributes$|\\.github/workflows/)',
+	e2e: '^(apps/front/|apps/api/|apps/apphost/|packages/client-ts/|packages/shared-ts/|packages/_tsconfig/|packages/scripts-ts/src/ci/|packages/scripts-ts/src/ci-e2e-[^/]+\\.ts$|apps/front/Dockerfile$|apps/api/Dockerfile$|apps/front/docker-compose\\.test\\.yml$|apps/front/docker-compose\\.fork-overlay\\.yml$|apps/front/compose.*\\.ya?ml$|docker-compose.*\\.ya?ml$|compose.*\\.ya?ml$|dokploy\\.yml$|\\.env\\.example$|traefik/|toxiproxy/|\\.github/workflows/)',
+	docs: '^(docs/|CONTRIBUTING\\.md$|CLAUDE\\.md$|AGENTS\\.md$|DESIGN\\.md$|CLA\\.md$|CLA-SIGNATURES\\.md$|README\\.md$|packages/scripts-ts/src/(check-doc-links|audit-docs-prune)\\.(ts|test\\.ts)$|\\.github/workflows/)',
+	react:
+		'^(apps/front/|packages/shared-ts/|packages/client-ts/|packages/_tsconfig/|packages/scripts-ts/|\\.github/workflows/|turbo\\.json$|pnpm-lock\\.yaml$|pnpm-workspace\\.yaml$|package\\.json$|\\.npmrc$)',
+} satisfies Record<LaneOutput, string>;
+
 // Changed-path classifier for the #1017 aggregate CI gates (front-e2e.yml,
 // front-ci.yml, openapi-spec-drift.yml, docs-archive.yml). Each workflow's
 // cheap `changes` job shells out to this script instead of inlining the
@@ -111,6 +150,37 @@ export const classifyRelevance = ({
 	};
 };
 
+export const classifyLanes = ({
+	eventName,
+	files,
+	changedFilesTotal,
+}: {
+	eventName: string;
+	files: unknown;
+	changedFilesTotal: unknown;
+}): ClassifyLanesResult => {
+	const outputs: LaneOutputMap = {
+		quality: 'false',
+		front: 'false',
+		api: 'false',
+		e2e: 'false',
+		docs: 'false',
+		react: 'false',
+	};
+	const reasons: string[] = [];
+	for (const lane of LANE_OUTPUTS) {
+		const result = classifyRelevance({
+			eventName,
+			files,
+			changedFilesTotal,
+			pattern: LANE_PATTERNS[lane],
+		});
+		outputs[lane] = result.relevant ? 'true' : 'false';
+		reasons.push(`${lane}=${outputs[lane]}: ${result.reason}`);
+	}
+	return { outputs, reason: reasons.join('; ') };
+};
+
 /**
  * Strictly parses `gh api ... --jq '.changed_files'` raw stdout into a
  * non-negative integer, or `undefined` when the value cannot be trusted.
@@ -153,20 +223,20 @@ const isDirectRun =
 	);
 
 if (isDirectRun) {
-	const pattern = process.argv[2];
+	const args = process.argv.slice(2);
+	const laneMode = args[0] === '--lanes';
+	const pattern = laneMode ? undefined : args[0];
 
-	if (!pattern) {
+	if (!pattern && !laneMode) {
 		console.error(
-			'Usage: node scripts/ci-changed-paths.mjs <regex-pattern>\n' +
-				'(Reads GITHUB_EVENT_NAME, GH_REPO, PR_NUMBER, GH_TOKEN from the environment.)',
+			'Usage: node packages/scripts-ts/src/ci-changed-paths.ts <regex-pattern> | --lanes',
 		);
 		process.exit(1);
 	}
 
 	const eventName = process.env.GITHUB_EVENT_NAME ?? '';
 
-	// @ts-expect-error rung-0: TS7034
-	let files = [];
+	let files: string[] = [];
 	// undefined (not 0) by default: absent evidence must read as "unverified",
 	// never as a fabricated zero. classifyRelevance() already fails closed on
 	// a non-number changedFilesTotal.
@@ -215,19 +285,31 @@ if (isDirectRun) {
 			.filter((line) => line.length > 0);
 	}
 
-	const { relevant, reason } = classifyRelevance({
-		eventName,
-		// @ts-expect-error rung-0: TS7005
-		files,
-		changedFilesTotal,
-		pattern,
-	});
-
-	console.log(`relevant=${relevant} (${reason})`);
-
 	const githubOutput = process.env.GITHUB_OUTPUT;
 
+	if (pattern !== undefined) {
+		const { relevant, reason } = classifyRelevance({
+			eventName,
+			files,
+			changedFilesTotal,
+			pattern,
+		});
+		console.log(`relevant=${relevant} (${reason})`);
+		if (githubOutput) {
+			appendFileSync(githubOutput, `relevant=${relevant}\n`);
+		}
+		process.exit(0);
+	}
+
+	const { outputs, reason } = classifyLanes({
+		eventName,
+		files,
+		changedFilesTotal,
+	});
+	console.log(JSON.stringify({ outputs, reason }));
 	if (githubOutput) {
-		appendFileSync(githubOutput, `relevant=${relevant}\n`);
+		for (const lane of LANE_OUTPUTS) {
+			appendFileSync(githubOutput, `${lane}=${outputs[lane]}\n`);
+		}
 	}
 }

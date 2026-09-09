@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import {
 	chmod,
 	lstat,
@@ -171,7 +172,12 @@ const fixtureCardMap = (directory) => {
 };
 
 // @ts-expect-error rung-0: add proper type in later rung
-const writeCardMap = async (directory, description, extra = {}) => {
+const writeCardMap = async (
+	directory,
+	description,
+	extra = {},
+	prNumber = PR_NUMBER,
+) => {
 	const path = fixtureCardMap(directory);
 	await writeFile(
 		path,
@@ -181,7 +187,7 @@ const writeCardMap = async (directory, description, extra = {}) => {
 				project: 'publyapp',
 				board_id: '6a766eaa8fc59bfbeb18ce9b',
 				cards: {
-					[PR_NUMBER]: {
+					[prNumber]: {
 						id: 'card-fixture-1105',
 						name: 'PR #1105 — closure gate',
 						list: 'EN COURS',
@@ -247,18 +253,63 @@ const assertLocalConfigContents = (config) => {
 		'verification_command_timeout_seconds',
 	];
 	const expectedCiRequiredChecks = [
-		'require-linked-issue',
+		'front-e2e-gate',
+		'front-ci-gate',
 		'openapi-spec-drift-gate',
 		'docs-archive-gate',
-		'front-ci-gate',
-		'front-e2e-gate',
+		'quality-gate',
+		'react-doctor-gate',
+		'ci-final-gate',
 	];
+	const expectedModelRoutes = [
+		{
+			id: 'publyapp-luna-to-sol-v1',
+			registry_version: 'models-v1',
+			launcher_registry_version: 'launchers-v1',
+			implementer_model: 'gpt-5.6-luna',
+			implementer_runner: 'codex',
+			implementer_invocation_model: 'gpt-5.6-luna',
+			reviewer_model: 'gpt-5.6-sol',
+			reviewer_runner: 'codex',
+			reviewer_invocation_model: 'gpt-5.6-sol',
+			same_family_policy_id: 'publyapp-gpt-implementation-sol-review-v1',
+		},
+		{
+			id: 'publyapp-deepseek-to-sol-v1',
+			registry_version: 'models-v1',
+			launcher_registry_version: 'launchers-v1',
+			implementer_model: 'deepseek-v4-flash',
+			implementer_runner: 'opencode',
+			implementer_invocation_model: 'cline-pass/cline-pass/deepseek-v4-flash',
+			reviewer_model: 'gpt-5.6-sol',
+			reviewer_runner: 'codex',
+			reviewer_invocation_model: 'gpt-5.6-sol',
+			same_family_policy_id: null,
+		},
+	];
+	const expectedReviewPolicy = {
+		mode: 'enforced',
+		owner_authorization: 'Radan; owner instruction 2026-09-05',
+		forbidden_reviewer_families: ['anthropic'],
+		same_family_exceptions: [
+			{
+				id: 'publyapp-gpt-implementation-sol-review-v1',
+				registry_version: 'models-v1',
+				implementer_family: 'openai',
+				reviewer_model: 'gpt-5.6-sol',
+				required_for_authorized_family: true,
+				owner_authorization: 'Radan; owner instruction 2026-09-05',
+				rationale:
+					'GPT implementation is reviewed by gpt-5.6-sol; Claude is forbidden.',
+			},
+		],
+	};
 	assert.equal(config.schema_version, 1);
 	assert.equal(config.project, 'publyapp');
 	assert.equal(config.tracking_projection, 'trello:publyapp');
 	assert.equal(config.default_branch, 'develop');
 	assert.equal(config.repository, 'PublyApp/publyapp');
-	assert.deepEqual(Object.keys(config).sort(), expectedConfigKeys);
+	assert.deepEqual(Object.keys(config).sort(), expectedConfigKeys.sort());
 	for (const pathKey of ['repo_path', 'closure_state_dir']) {
 		assert.equal(typeof config[pathKey], 'string');
 		assert.match(config[pathKey], /^\/(?!tmp(?:\/|$))/);
@@ -286,18 +337,19 @@ const assertLocalConfigContents = (config) => {
 	}
 	assert.equal(config.heavy_job_limit, 1);
 	assert.ok(Array.isArray(config.ci_required_checks));
-	assert.equal(
-		JSON.stringify(
-			[...config.ci_required_checks].sort((left, right) =>
-				left.localeCompare(right),
-			),
-		),
-		JSON.stringify(
-			expectedCiRequiredChecks
-				.slice()
-				.sort((left, right) => left.localeCompare(right)),
-		),
-	);
+	assert.deepEqual(config.ci_live_pr_checks, ['ci-final-gate']);
+	assert.deepEqual(config.ci_required_checks_source, {
+		pull_request: 'candidate_tip',
+		merge_group: 'event_tip',
+		push: 'event_tip',
+	});
+	assert.deepEqual(config.ci_live_pr_workflow, {
+		path: '.github/workflows/ci.yml',
+		action: 'pull_request',
+	});
+	assert.deepEqual(config.model_routes, expectedModelRoutes);
+	assert.deepEqual(config.review_policy, expectedReviewPolicy);
+	assert.deepEqual(config.ci_required_checks, expectedCiRequiredChecks);
 };
 
 // @ts-expect-error rung-0: add proper type in later rung
@@ -314,16 +366,11 @@ const localBranchAndHead = async () => {
 	// @ts-expect-error rung-0: TS18046
 	const branch = branchResult.stdout.trim();
 	// @ts-expect-error rung-0: TS18046
-	if (branchResult.code !== 0 || !branch) {
-		return null;
-	}
-	const remoteResult = await run('git', ['rev-parse', `origin/${branch}`]);
-	// @ts-expect-error rung-0: TS18046
-	if (remoteResult.code !== 0) {
+	if (branchResult.code !== 0 || commitResult.code !== 0) {
 		return null;
 	}
 	return {
-		branch,
+		branch: branch || 'detached-head',
 		// @ts-expect-error rung-0: TS18046
 		headOid: commitResult.stdout.trim(),
 	};
@@ -382,7 +429,7 @@ test('project closure config validates and malformed config fails closed', async
 	});
 });
 
-test('portable closure contract rejects unsafe config and renamed adapter fields', async () => {
+test('portable closure contract rejects unsafe config, mutations, and renamed adapter fields', async () => {
 	const config = JSON.parse(await readFile(configPath, 'utf8'));
 	assert.throws(() =>
 		assertLocalConfigContents({ ...config, repo_path: '/tmp/publyapp' }),
@@ -390,6 +437,36 @@ test('portable closure contract rejects unsafe config and renamed adapter fields
 	const missingBudget = { ...config };
 	delete missingBudget.infra_retry_budget;
 	assert.throws(() => assertLocalConfigContents(missingBudget));
+	assert.throws(() =>
+		assertLocalConfigContents({ ...config, ci_live_pr_checks: [] }),
+	);
+	assert.throws(() =>
+		assertLocalConfigContents({
+			...config,
+			ci_required_checks_source: {
+				...config.ci_required_checks_source,
+				pull_request: 'event_tip',
+			},
+		}),
+	);
+	assert.throws(() =>
+		assertLocalConfigContents({
+			...config,
+			ci_live_pr_workflow: {
+				...config.ci_live_pr_workflow,
+				path: '.github/workflows/other.yml',
+			},
+		}),
+	);
+	assert.throws(() =>
+		assertLocalConfigContents({
+			...config,
+			model_routes: config.model_routes.slice(0, 1),
+		}),
+	);
+	const missingPolicy = { ...config };
+	delete missingPolicy.review_policy;
+	assert.throws(() => assertLocalConfigContents(missingPolicy));
 	const adapter = await readFile(
 		join(repo, '.ai/orchestration-adapter.md'),
 		'utf8',
@@ -991,56 +1068,293 @@ test(
 		const config = JSON.parse(await readFile(configPath, 'utf8'));
 		const sharedPr = process.env.PR_CLOSURE_TEST_PR ?? '1106';
 		const branchInfo = await localBranchAndHead();
-		if (branchInfo === null) {
-			test.skip(
-				'detached HEAD or missing remote branch prevents sync protocol test',
-			);
-		}
+		assert.ok(branchInfo, 'git HEAD is required for the shared sync fixture');
 		// @ts-expect-error rung-0: add proper type in later rung
 		await withTempDirectory(async (directory) => {
 			const fakeBin = join(directory, 'bin');
 			await mkdir(fakeBin);
+			const cardMap = await writeCardMap(
+				directory,
+				completeDescription,
+				{},
+				Number(sharedPr),
+			);
+			const configFixture = join(directory, 'config.json');
+			await writeFile(
+				configFixture,
+				JSON.stringify({
+					...config,
+					closure_state_dir: join(repo, '.ci-project-closure-test-state'),
+				}),
+			);
+			const fakeGit = join(fakeBin, 'git');
+			await writeFile(
+				fakeGit,
+				`#!/bin/sh
+if [ "$1" = "-C" ] && [ "$3" = "rev-parse" ] && [ "$4" = "origin/${branchInfo.branch}" ]; then
+  printf '%s\\n' '${branchInfo.headOid}'
+  exit 0
+fi
+exec /usr/bin/git "$@"
+`,
+			);
+			await chmod(fakeGit, 0o755);
+			const potentialMergeCommitOid = 'b'.repeat(40);
+			const candidateConfigSha = 'a'.repeat(40);
+			const workflowId = 9701;
+			const workflowRunId = 9801;
+			const checkSuiteId = 9901;
+			const snapshotArtifactId = 10001;
+			const requiredChecks = [
+				'front-e2e-gate',
+				'front-ci-gate',
+				'openapi-spec-drift-gate',
+				'docs-archive-gate',
+				'quality-gate',
+				'react-doctor-gate',
+				'ci-final-gate',
+			];
+			const prJson = {
+				number: Number(sharedPr),
+				// @ts-expect-error rung-0: TS18047
+				headRefName: branchInfo.branch,
+				// @ts-expect-error rung-0: TS18047
+				headRefOid: branchInfo.headOid,
+				isDraft: false,
+				state: 'OPEN',
+				mergeStateStatus: 'CLEAN',
+				mergeable: 'MERGEABLE',
+				statusCheckRollup: [],
+				url: `https://github.com/PublyApp/publyapp/pull/${sharedPr}`,
+				baseRefName: config.default_branch,
+				body: completeDescription,
+				potentialMergeCommit: { oid: potentialMergeCommitOid },
+			};
+			const candidateConfigContent = Buffer.from(
+				JSON.stringify(config),
+			).toString('base64');
+			const encodeJson = (value) =>
+				Buffer.from(JSON.stringify(value)).toString('base64');
+			const checkRuns = requiredChecks.map((name, index) => ({
+				id: 10101 + index,
+				name,
+				head_sha: branchInfo.headOid,
+				status: 'completed',
+				conclusion: 'success',
+				started_at: '2026-09-08T05:00:00Z',
+				completed_at: '2026-09-08T05:10:00Z',
+				details_url: `https://github.com/PublyApp/publyapp/actions/runs/${workflowRunId}/job/${10201 + index}`,
+				app: { slug: 'github-actions' },
+				check_suite: { id: checkSuiteId },
+			}));
+			const workflow = {
+				id: workflowId,
+				path: '.github/workflows/ci.yml',
+			};
+			const workflowRun = {
+				id: workflowRunId,
+				run_attempt: 1,
+				workflow_id: workflowId,
+				path: '.github/workflows/ci.yml',
+				event: 'pull_request',
+				head_sha: branchInfo.headOid,
+				check_suite_id: checkSuiteId,
+			};
+			const snapshotRecord = {
+				pr_number: Number(sharedPr),
+				head_sha: branchInfo.headOid,
+				base_ref_name: config.default_branch,
+				potential_merge_commit_oid: potentialMergeCommitOid,
+				body_sha256: createHash('sha256')
+					.update(completeDescription, 'utf8')
+					.digest('hex'),
+				is_draft: false,
+				event_name: 'pull_request',
+				event_sha: potentialMergeCommitOid,
+				workflow_path: '.github/workflows/ci.yml',
+				workflow_id: workflowId,
+				workflow_action: 'pull_request',
+				run_id: workflowRunId,
+				run_attempt: 1,
+			};
+			const snapshotRecordPath = join(directory, 'snapshot.json');
+			const snapshotArchivePath = join(directory, 'snapshot.zip');
+			await writeFile(snapshotRecordPath, JSON.stringify(snapshotRecord));
+			const archiveResult = await run('python3', [
+				'-c',
+				'import sys, zipfile\nwith zipfile.ZipFile(sys.argv[1], "w", zipfile.ZIP_DEFLATED) as archive:\n    archive.write(sys.argv[2], "snapshot.json")',
+				snapshotArchivePath,
+				snapshotRecordPath,
+			]);
+			// @ts-expect-error rung-0: TS18046
+			assert.equal(archiveResult.code, 0, archiveResult.stderr);
+			const snapshotArchive = await readFile(snapshotArchivePath);
+			const candidateTipContent = {
+				path: '.ai/project-closure-v1.json',
+				sha: candidateConfigSha,
+				encoding: 'base64',
+				content: candidateConfigContent,
+			};
+			const candidateTipTree = {
+				truncated: false,
+				tree: [
+					{
+						path: '.ai/project-closure-v1.json',
+						type: 'blob',
+						sha: candidateConfigSha,
+					},
+				],
+			};
+			const checkRunsResponse = {
+				total_count: checkRuns.length,
+				check_runs: checkRuns,
+			};
+			const artifactsResponse = {
+				total_count: 1,
+				artifacts: [
+					{
+						id: snapshotArtifactId,
+						name: `ci-pr-snapshot-${workflowRunId}-1`,
+						expired: false,
+						size_in_bytes: snapshotArchive.length,
+						digest: `sha256:${createHash('sha256').update(snapshotArchive).digest('hex')}`,
+					},
+				],
+			};
 			const fakeGh = join(fakeBin, 'gh');
 			await writeFile(
 				fakeGh,
-				`#!/bin/sh\nprintf '%s\\n' '${JSON.stringify({
-					number: Number(sharedPr),
-					// @ts-expect-error rung-0: TS18047
-					headRefName: branchInfo.branch,
-					// @ts-expect-error rung-0: TS18047
-					headRefOid: branchInfo.headOid,
-					isDraft: false,
-					state: 'OPEN',
-					mergeStateStatus: 'CLEAN',
-					mergeable: 'MERGEABLE',
-					statusCheckRollup: [],
-					url: `https://github.com/PublyApp/publyapp/pull/${sharedPr}`,
-					baseRefName: config.default_branch,
-				})}'\n`,
+				`#!/bin/sh
+if [ "$#" -eq 7 ] && [ "$1" = "pr" ] && [ "$2" = "view" ] && [ "$3" = "${sharedPr}" ] && [ "$4" = "--repo" ] && [ "$5" = "PublyApp/publyapp" ] && [ "$6" = "--json" ] && [ "$7" = "number,headRefName,headRefOid,isDraft,state,mergeStateStatus,mergeable,statusCheckRollup,url,baseRefName,body,potentialMergeCommit" ]; then
+  printf '%s' '${encodeJson(prJson)}' | base64 -d
+  printf '\\n'
+  exit 0
+fi
+if [ "$#" -eq 2 ] && [ "$1" = "api" ] && [ "$2" = "repos/PublyApp/publyapp/contents/.ai/project-closure-v1.json?ref=${branchInfo.headOid}" ]; then
+  printf '%s' '${encodeJson(candidateTipContent)}' | base64 -d
+  printf '\\n'
+  exit 0
+fi
+if [ "$#" -eq 2 ] && [ "$1" = "api" ] && [ "$2" = "repos/PublyApp/publyapp/git/trees/${branchInfo.headOid}?recursive=1" ]; then
+  printf '%s' '${encodeJson(candidateTipTree)}' | base64 -d
+  printf '\\n'
+  exit 0
+fi
+if [ "$#" -eq 2 ] && [ "$1" = "api" ] && [ "$2" = "repos/PublyApp/publyapp/actions/workflows/ci.yml" ]; then
+  printf '%s' '${encodeJson(workflow)}' | base64 -d
+  printf '\\n'
+  exit 0
+fi
+if [ "$#" -eq 2 ] && [ "$1" = "api" ] && [ "$2" = "repos/PublyApp/publyapp/commits/${branchInfo.headOid}/check-runs?filter=all&page=1&per_page=100" ]; then
+  printf '%s' '${encodeJson(checkRunsResponse)}' | base64 -d
+  printf '\\n'
+  exit 0
+fi
+if [ "$#" -eq 2 ] && [ "$1" = "api" ] && [ "$2" = "repos/PublyApp/publyapp/actions/runs/${workflowRunId}" ]; then
+  printf '%s' '${encodeJson(workflowRun)}' | base64 -d
+  printf '\\n'
+  exit 0
+fi
+if [ "$#" -eq 2 ] && [ "$1" = "api" ] && [ "$2" = "repos/PublyApp/publyapp/actions/runs/${workflowRunId}/attempts/1" ]; then
+  printf '%s' '${encodeJson(workflowRun)}' | base64 -d
+  printf '\\n'
+  exit 0
+fi
+if [ "$#" -eq 2 ] && [ "$1" = "api" ] && [ "$2" = "repos/PublyApp/publyapp/actions/runs/${workflowRunId}/artifacts?page=1&per_page=100" ]; then
+  printf '%s' '${encodeJson(artifactsResponse)}' | base64 -d
+  printf '\\n'
+  exit 0
+fi
+			if [ "$#" -eq 2 ] && [ "$1" = "api" ] && [ "$2" = "repos/PublyApp/publyapp/actions/artifacts/${snapshotArtifactId}/zip" ]; then
+			  cat '${snapshotArchivePath}'
+			  exit 0
+			fi
+printf 'unexpected gh argv:' >&2
+printf ' %s' "$@" >&2
+printf '\\n' >&2
+exit 97
+`,
 			);
 			await chmod(fakeGh, 0o755);
+			const projectionAdapter = join(fakeBin, 'projection-adapter');
+			await writeFile(
+				projectionAdapter,
+				`#!/usr/bin/env python3
+import json
+import subprocess
+import sys
+
+result = subprocess.run(
+    [${JSON.stringify(adapterPath)}, *sys.argv[1:]],
+    capture_output=True,
+    text=True,
+)
+sys.stderr.write(result.stderr)
+if result.returncode != 0:
+    raise SystemExit(result.returncode)
+payload = json.loads(result.stdout)
+payload["delivery_cards_complete"] = True
+json.dump(payload, sys.stdout)
+`,
+			);
+			await chmod(projectionAdapter, 0o755);
 			const result = await runSharedGate(
 				[
 					'sync',
 					'--config',
-					configPath,
+					configFixture,
 					'--pr',
 					sharedPr,
 					'--projection-adapter',
-					adapterPath,
+					projectionAdapter,
 				],
 				{
 					env: {
 						PATH: `${fakeBin}:${process.env.PATH}`,
+						PUBLYAPP_TRELLO_CARD_MAP: cardMap,
 					},
 				},
 			);
 			// @ts-expect-error rung-0: TS18046
-			assert.equal(result.code, 0, result.stderr);
+			assert.equal(result.code, 0, `${result.stderr}\n${result.stdout}`);
 			// @ts-expect-error rung-0: TS18046
 			assert.match(result.stdout, /state=/);
 			// @ts-expect-error rung-0: TS18046
 			assert.match(result.stdout, /projection dry-run: changes=/);
+			const statusResult = await runSharedGate(
+				['status', '--config', configFixture, '--pr', sharedPr, '--json'],
+				{
+					env: {
+						PATH: `${fakeBin}:${process.env.PATH}`,
+						PUBLYAPP_TRELLO_CARD_MAP: cardMap,
+					},
+				},
+			);
+			// @ts-expect-error rung-0: TS18046
+			assert.equal(
+				statusResult.code,
+				0,
+				`${statusResult.stderr}\n${statusResult.stdout}`,
+			);
+			const status = JSON.parse(statusResult.stdout);
+			const expectedLiveEvidence = {
+				ci_state: 'PASSING',
+				ci_workflow_path: '.github/workflows/ci.yml',
+				ci_workflow_id: workflowId,
+				ci_workflow_action: 'pull_request',
+				ci_workflow_run_id: workflowRunId,
+				ci_run_attempt: 1,
+				ci_check_suite_id: checkSuiteId,
+				ci_check_run_id: 10107,
+				commit: branchInfo.headOid,
+				ci_potential_merge_commit_oid: potentialMergeCommitOid,
+				ci_snapshot_body_sha256: createHash('sha256')
+					.update(completeDescription, 'utf8')
+					.digest('hex'),
+			};
+			for (const [key, expected] of Object.entries(expectedLiveEvidence)) {
+				assert.equal(status[key], expected, key);
+			}
 		});
 	},
 );

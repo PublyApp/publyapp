@@ -12,7 +12,7 @@ const execFileAsync = promisify(execFile);
 
 /**
  * #1948 equality guard: every vitest test file must run exactly once across
- * the front-ci shard matrix.
+ * the central ci shard matrix.
  *
  * The front gate shards the vitest suite with `vitest run --shard=i/n`, so
  * a shard configuration that loses a file is a PERMANENT false negative: the
@@ -28,7 +28,7 @@ const execFileAsync = promisify(execFile);
  *   - the shard file counts sum to the unsharded count (the PR-body number).
  *
  * The shard count itself is read from the REAL workflow file
- * (.github/workflows/front-ci.yml): the matrix is the artifact being pinned,
+ * (.github/workflows/ci.yml): the matrix is the artifact being pinned,
  * so the guard follows it instead of restating it. An unparseable workflow,
  * a missing vitest install, a non-zero `vitest list` exit, or an output line
  * that cannot be attributed to a file all fail loudly — absent or
@@ -38,11 +38,11 @@ const execFileAsync = promisify(execFile);
 const scriptsDirectory = path.dirname(fileURLToPath(import.meta.url));
 const repositoryRoot = path.resolve(scriptsDirectory, '..', '..', '..', '..');
 const frontDirectory = path.join(repositoryRoot, 'apps', 'front');
-const frontCiPath = path.join(
+const centralCiPath = path.join(
 	repositoryRoot,
 	'.github',
 	'workflows',
-	'front-ci.yml',
+	'ci.yml',
 );
 
 const vitestBin = path.join(frontDirectory, 'node_modules', '.bin', 'vitest');
@@ -55,22 +55,22 @@ const listTimeoutMs = 10 * 60 * 1000;
 
 interface FrontCiWorkflow {
 	jobs?: {
-		'test-vitest'?: {
+		'front-vitest'?: {
 			strategy?: { matrix?: { shard?: unknown } };
 			steps?: Array<{ run?: unknown }>;
 		};
 	};
 }
 
-/** Reads the shard count from the real front-ci.yml matrix (the artifact). */
+/** Reads the shard count from the real central workflow matrix (the artifact). */
 const readShardCount = (): number => {
-	const raw = readFileSync(frontCiPath, 'utf8');
+	const raw = readFileSync(centralCiPath, 'utf8');
 	const workflow = parse(raw) as FrontCiWorkflow;
-	const shard = workflow.jobs?.['test-vitest']?.strategy?.matrix?.shard;
+	const shard = workflow.jobs?.['front-vitest']?.strategy?.matrix?.shard;
 
 	if (!Array.isArray(shard) || shard.length === 0) {
 		throw new Error(
-			'Cannot read the vitest shard matrix: expected .github/workflows/front-ci.yml job "test-vitest" to declare strategy.matrix.shard as a non-empty array (unanalyzable input must fail loud, never pass).',
+			'Cannot read the vitest shard matrix: expected .github/workflows/ci.yml job "front-vitest" to declare strategy.matrix.shard as a non-empty array (unanalyzable input must fail loud, never pass).',
 		);
 	}
 
@@ -90,9 +90,9 @@ const readShardCount = (): number => {
  * guard going red.
  */
 const assertVitestRunArgs = (shardCount: number): void => {
-	const raw = readFileSync(frontCiPath, 'utf8');
+	const raw = readFileSync(centralCiPath, 'utf8');
 	const workflow = parse(raw) as FrontCiWorkflow;
-	const steps = workflow.jobs?.['test-vitest']?.steps ?? [];
+	const steps = workflow.jobs?.['front-vitest']?.steps ?? [];
 	const runBlock = steps
 		.map((step) => (typeof step?.run === 'string' ? step.run : null))
 		.filter((run): run is string => run !== null)
@@ -100,7 +100,7 @@ const assertVitestRunArgs = (shardCount: number): void => {
 
 	if (runBlock === undefined) {
 		throw new Error(
-			'Cannot find a `vitest run` invocation in .github/workflows/front-ci.yml job "test-vitest" (unanalyzable input must fail loud, never pass).',
+			'Cannot find a `vitest run` invocation in .github/workflows/ci.yml job "front-vitest" (unanalyzable input must fail loud, never pass).',
 		);
 	}
 
@@ -108,11 +108,11 @@ const assertVitestRunArgs = (shardCount: number): void => {
 
 	if (invocation === null || invocation[1] === undefined) {
 		throw new Error(
-			`Cannot parse the vitest invocation in job "test-vitest" (unanalyzable input must fail loud, never pass): ${JSON.stringify(runBlock)}`,
+			`Cannot parse the vitest invocation in job "front-vitest" (unanalyzable input must fail loud, never pass): ${JSON.stringify(runBlock)}`,
 		);
 	}
 
-	const expected = `--shard=\$\{{ matrix.shard }}/${shardCount}`;
+	const expected = '--shard=${{ matrix.shard }}/' + shardCount;
 	const actual = invocation[1].trim();
 
 	if (actual !== expected) {
@@ -156,21 +156,31 @@ const listFiles = async (args: string[]): Promise<string[]> => {
 		);
 	}
 
-	const { stdout, stderr } = await execFileAsync(vitestBin, args, {
-		cwd: frontDirectory,
-		env: {
-			...process.env,
-			CI: '1',
-			// force-disable colour: the list output is parsed by string, so
-			// ANSI codes would corrupt the file names. FORCE_COLOR=0 wins
-			// over an inherited FORCE_COLOR=3; NO_COLOR is ignored when
-			// FORCE_COLOR is set.
-			FORCE_COLOR: '0',
-			NO_COLOR: '1',
+	const childEnv = { ...process.env };
+	// Node's test runner exports its binary reporter protocol markers to this
+	// guard process. Do not leak them into Vitest: its child workers otherwise
+	// emit `test:enqueue` frames into stdout and corrupt discovery parsing.
+	delete childEnv.NODE_TEST_CONTEXT;
+	delete childEnv.NODE_TEST_WORKER_ID;
+	const { stdout, stderr } = await execFileAsync(
+		vitestBin,
+		[...args, '--reporter=verbose'],
+		{
+			cwd: frontDirectory,
+			env: {
+				...childEnv,
+				CI: '1',
+				// force-disable colour: the list output is parsed by string, so
+				// ANSI codes would corrupt the file names. FORCE_COLOR=0 wins
+				// over an inherited FORCE_COLOR=3; NO_COLOR is ignored when
+				// FORCE_COLOR is set.
+				FORCE_COLOR: '0',
+				NO_COLOR: '1',
+			},
+			maxBuffer: 64 * 1024 * 1024,
+			timeout: listTimeoutMs,
 		},
-		maxBuffer: 64 * 1024 * 1024,
-		timeout: listTimeoutMs,
-	});
+	);
 
 	// Fail on a non-zero exit with the captured stderr for diagnosis — never
 	// on stderr alone: vitest writes harmless warnings there under load (a

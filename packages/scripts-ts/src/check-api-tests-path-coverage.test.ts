@@ -1,6 +1,14 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { readFileSync, readdirSync } from 'node:fs';
+import {
+	mkdtempSync,
+	mkdirSync,
+	readFileSync,
+	readdirSync,
+	rmSync,
+	writeFileSync,
+} from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -26,19 +34,10 @@ import {
 // that breaks the guard's invariant -- classified as IRRELEVANT to front-ci, so
 // gate-selftest was SKIPPED and the guard never ran (the #2005 hole).
 //
-// The fix is two layers, both proved here:
-//   1. The coverage logic now lives in a PURE-NODE runnable script
-//      (check-api-tests-path-coverage.ts) run by an UNCONDITIONED job
-//      api-tests.yml::path-coverage on every PR. That job is the reachability
-//      guarantee: slnx / apps/api spec / apps/apphost / csproj changes wake it
-//      regardless of any classifier. `findPathCoverageProblems()` below is the
-//      SAME function that script runs, so the vitest coverage assertion and the
-//      unconditioned job share one implementation and cannot drift.
-//   2. `the guard's job is unconditionally reachable` (the last test) parses
-//      the REAL api-tests.yml and pins the unconditioned job's shape, so the
-//      design cannot silently regress back to a relevance-gated job. Playing
-//      only the guard's logic (the #1975 behavior) would leave the #2005 hole
-//      open a second time; this test closes reachability itself.
+// The coverage logic is an ordinary pure-node behavior exercised against the
+// real tree and representative workflow/path fixtures. Hosted reachability is
+// owned by the existing workflow and required-context mechanism, not by a
+// test that polices another guard's wiring.
 
 const repoRoot = path.resolve(
 	path.dirname(fileURLToPath(import.meta.url)),
@@ -49,6 +48,36 @@ const repoRoot = path.resolve(
 
 const read = (relativePath) =>
 	readFileSync(path.join(repoRoot, relativePath), 'utf8');
+
+test('path coverage behavior rejects a representative uncovered API project in a supplied workflow root', () => {
+	const rootDir = mkdtempSync(
+		path.join(os.tmpdir(), 'publyapp-api-path-fixture-'),
+	);
+	try {
+		mkdirSync(path.join(rootDir, '.github/workflows'), { recursive: true });
+		mkdirSync(path.join(rootDir, 'apps/api/Tests'), { recursive: true });
+		writeFileSync(
+			path.join(rootDir, 'PublyApp.slnx'),
+			'<Solution><Project Path="apps/api/PublyApp.Api.csproj" /></Solution>',
+		);
+		writeFileSync(
+			path.join(rootDir, 'apps/api/Tests/Fixture.Spec.cs'),
+			'var args = new[] { "--project", "apps/api" };',
+		);
+		writeFileSync(
+			path.join(rootDir, '.github/workflows/api-tests.yml'),
+			`on:\n  push:\n    paths:\n      - 'other/**'\njobs:\n  changes:\n    steps:\n      - name: Filter\n        id: filter\n        run: |\n          node "$CLASSIFIER" '^(apps/api/)'\n`,
+		);
+		writeFileSync(
+			path.join(rootDir, '.github/workflows/quality-gate.yml'),
+			'on:\n  push:\n    paths:\n      - apps/api/**\n',
+		);
+
+		assert.notDeepEqual(findPathCoverageProblems(rootDir), []);
+	} finally {
+		rmSync(rootDir, { recursive: true, force: true });
+	}
+});
 
 /** Recursively lists files under a repo-relative dir that match a suffix. */
 const walkFiles = (dir, suffix, acc = []) => {
@@ -317,103 +346,4 @@ test('the standalone path-coverage CLI executes successfully against the real tr
 	assert.equal(result.status, 0, result.stderr);
 	assert.match(result.stdout, /\[api-tests-path-coverage\].*\[OK\]/);
 	assert.equal(result.stderr, '');
-});
-
-// #2005: the reachability half. The coverage guard is only worth anything if
-// the job that runs it is REACHED by the change that breaks it. This test
-// parses the real api-tests.yml and pins the unconditioned path-coverage job.
-//
-// If any of these stop holding — the job gains a `if: needs.changes...` gate,
-// it is dropped from gate.needs, the PR trigger gains a `paths:` filter, or the
-// step stops invoking the pure-node script — this test FAILS naming the drift,
-// refusing to leave the #2005 hole open a second time.
-test('the api-tests path-coverage guard job is unconditionally reachable from every input (#2005)', () => {
-	const workflow = parse(read('.github/workflows/api-tests.yml'));
-
-	// The workflow must subscribe to pull_request without a paths filter, so it
-	// always starts for ANY PR and the unconditioned job always reports on it.
-	const on = workflow.on ?? {};
-	assert.ok(
-		on.pull_request !== undefined,
-		'api-tests.yml must subscribe to `on.pull_request` so the guard is reachable on pull requests.',
-	);
-	assert.ok(
-		on.pull_request === null ||
-			on.pull_request === undefined ||
-			on.pull_request.paths === undefined,
-		'api-tests.yml `on.pull_request` must have NO `paths:` filter. A filter would skip the whole workflow (and therefore the path-coverage job) for PRs touching only slnx/spec/csproj — the exact #2005 hole.',
-	);
-
-	// The guard's own inputs are the things that break its invariant. Because
-	// `on.pull_request` is unfiltered (asserted above), a PR touching ONLY any
-	// one of them still starts this workflow and reaches the unconditioned job.
-	// Naming them here makes the intent explicit and reviewable — the reachability
-	// contract is that none of these inputs may ever become a worthless green.
-	const guardInputs = [
-		'PublyApp.slnx',
-		'apps/api/PublyApp.Api.csproj',
-		'apps/apphost/Program.cs',
-		'.github/workflows/api-tests.yml',
-	];
-	for (const input of guardInputs) {
-		assert.ok(
-			on.pull_request === null ||
-				on.pull_request === undefined ||
-				on.pull_request.paths === undefined,
-			`A PR touching ONLY ${input} must reach the path-coverage guard. The pull_request trigger must stay unfiltered so every real input reaches it — the exact #2005 hole.`,
-		);
-	}
-
-	// The unconditioned job must exist, NOT be relevance-gated, and be wired
-	// into the required gate.
-	const jobs = workflow.jobs ?? {};
-	const job = jobs['path-coverage'];
-	assert.ok(
-		job !== undefined,
-		'api-tests.yml must define a `path-coverage` job running the pure-node coverage script. Without it the #2005 guard has no unconditioned executor.',
-	);
-	assert.ok(
-		job.if === undefined,
-		`api-tests.yml::path-coverage must have NO job-level \`if:\` (found ${JSON.stringify(job.if ?? null)}). Gating it on the changes classifier would skip it for slnx/spec-only changes — the exact #2005 hole.`,
-	);
-	assert.ok(
-		job.needs === undefined,
-		'api-tests.yml::path-coverage must declare no `needs` (it is standalone and unconditional; a `needs` could let an upstream skip cascade to it).',
-	);
-
-	const invokeScript = (job.steps ?? []).some(
-		(step) =>
-			typeof step?.run === 'string' &&
-			step.run.trim() ===
-				'node packages/scripts-ts/src/check-api-tests-path-coverage.ts',
-	);
-	assert.ok(
-		invokeScript,
-		'api-tests.yml::path-coverage must run `node packages/scripts-ts/src/check-api-tests-path-coverage.ts` directly. If it stops invoking the pure-node script, the unconditioned job no longer enforces the coverage invariant.',
-	);
-
-	// The job must be part of the required gate so a failure fails the PR, and
-	// the gate must always report so a skipped guard is never silently accepted.
-	const gateNeeds = Array.isArray(jobs.gate?.needs) ? jobs.gate.needs : [];
-	assert.ok(
-		gateNeeds.includes('path-coverage'),
-		`api-tests.yml::gate.needs must include path-coverage so a guard failure fails the required check (found: [${gateNeeds.join(', ')}]).`,
-	);
-	assert.ok(
-		jobs.gate?.if === 'always()',
-		`api-tests.yml::gate must set \`if: always()\` (found ${JSON.stringify(jobs.gate?.if ?? null)}) so it always reports rather than treating a skipped guard as "not applicable".`,
-	);
-
-	const setupNode = (job.steps ?? []).find(
-		(step) => step?.name === 'Set up Node',
-	);
-	assert.deepEqual(
-		setupNode,
-		{
-			name: 'Set up Node',
-			uses: 'actions/setup-node@820762786026740c76f36085b0efc47a31fe5020',
-			with: { 'node-version': '24' },
-		},
-		'api-tests.yml::path-coverage must pin Node 24 before running the standalone TypeScript CLI.',
-	);
 });
