@@ -3,7 +3,7 @@
 **Level: Guidance** — a strong default. Skip it only with a stated reason in the PR description.
 
 Playwright specs live in `apps/front/e2e/`. They run in CI as four required shards
-(`front-e2e.yml`), so this guide decides **what to add**, not whether to run. A suite
+(`ci.yml`), so this guide decides **what to add**, not whether to run. A suite
 that tries to cover everything becomes slow and flaky, and a flaky suite is ignored —
 which is the same as having no suite. A suite that covers nothing is honest but useless.
 

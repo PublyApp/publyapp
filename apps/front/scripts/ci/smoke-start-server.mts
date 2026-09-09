@@ -6,7 +6,7 @@ import process from 'node:process';
 import { sleep } from '@org/shared-ts/utils/any.utils';
 
 // Local mirror of the "Smoke start front server and verify stylesheet tag"
-// step in .github/workflows/front-ci.yml.
+// step in .github/workflows/ci.yml.
 //
 // The workflow does this with inline bash (background job + trap + curl + grep).
 // That cannot run from the repo justfile, which uses pwsh on Windows, so the

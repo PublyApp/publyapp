@@ -1281,8 +1281,8 @@ test('central workflow rejects the complete ratified topology mutation matrix', 
 		}
 
 		await writeFile(
-			path.join(rootDir, '.github/workflows/docs-archive.yml'),
-			`${await readFile(path.join(rootDir, '.github/workflows/docs-archive.yml'), 'utf8')}\n  forged:\n    name: ci-final-gate\n    runs-on: ubuntu-latest\n    steps:\n      - run: true\n`,
+			path.join(rootDir, '.github/workflows/forged.yml'),
+			'name: forged\non:\n  pull_request:\njobs:\n  forged:\n    name: ci-final-gate\n    runs-on: ubuntu-latest\n    steps:\n      - run: true\n',
 		);
 		const collisionFindings = await findRequiredContextCollisionProblems({
 			rootDir,

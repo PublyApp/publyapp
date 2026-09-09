@@ -98,7 +98,7 @@ Never disable a rule, raise `--blocking`, or pin a different version solely to m
 ## Updating React Doctor
 
 Bumping the pinned version is a deliberate, isolated PR: change the pinned version in
-`.github/workflows/react-doctor.yml` **and** in this guide, run a full
+`.github/workflows/ci.yml` **and** in this guide, run a full
 `cd apps/front && pnpm dlx react-doctor@<new> --verbose`, and fix (or, with justification, suppress)
 anything the new version surfaces in that same PR. This keeps the version bump and its fallout
 reviewable together, and keeps the gate deterministic between bumps.

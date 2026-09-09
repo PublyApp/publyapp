@@ -1,5 +1,5 @@
 # Fork-run overlay for the e2e stack (#1021), applied by
-# .github/workflows/front-e2e.yml's `build` job ONLY when the run originates
+# .github/workflows/ci.yml's `e2e-build` job ONLY when the run originates
 # from a fork pull request (read-only GITHUB_TOKEN).
 #
 # Why: the base compose file exports build cache with `type=gha`, whose

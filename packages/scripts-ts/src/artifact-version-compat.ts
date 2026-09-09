@@ -11,7 +11,7 @@
 //
 // This guard closes that gap by pairing uploads to their downloads via the
 // artifact `name:` field and asserting version compatibility. It runs as part of
-// `just ci-drift` and is mirrored server-side in front-ci.yml::gate-selftest.
+// `just ci-drift` and is mirrored server-side in the central CI verification lane.
 
 import { readdir, readFile } from 'node:fs/promises';
 import path from 'node:path';

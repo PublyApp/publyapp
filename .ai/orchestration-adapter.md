@@ -57,16 +57,17 @@ list move, and it has no operation that can create approval evidence.
 
 ## Candidate-tip/live-PR closure contract
 
-The shared `pr-closure` schema and reader now validate candidate-tip/live-PR provenance. The
-local closure config keeps all seven PR-A required checks authoritative, with only `ci-final-gate`
-in `ci_live_pr_checks`; `pull_request` reads the config and required checks from the candidate tip,
+The shared `pr-closure` schema and reader validate candidate-tip/live-PR provenance. The local
+closure config requires exactly `ci-final-gate` in both `ci_required_checks` and
+`ci_live_pr_checks`; `pull_request` reads the config and required checks from the candidate tip,
 while `merge_group` and `push` use the event tip. Live PR evidence is bound to
 `.github/workflows/ci.yml` with action `pull_request`.
 
-PR-A remains additive: predecessor workflows and the existing ruleset remain in place. PR-B is a
-separate, authorized cutover that may reduce `ci_required_checks` to `ci-final-gate` and remove
-the predecessor workflows only after the candidate-tip/live-gate evidence is green and the
-ruleset change is explicitly approved. No workflow deletion or ruleset mutation belongs in PR-A.
+PR-B is complete: the eight predecessor workflows are retired, central CI owns the retained
+coverage, and the existing ruleset remains unchanged with its single `ci-final-gate` check. The
+historical all-branch push trigger for docs-archive was intentionally retired; work branches are
+validated on pull requests and `develop` is validated on push. Do not broaden `ci.yml` triggers or
+reintroduce a predecessor workflow.
 
 ## M1 Run Binding
 

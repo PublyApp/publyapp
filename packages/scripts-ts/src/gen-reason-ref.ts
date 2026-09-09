@@ -569,7 +569,7 @@ const output = {
 		'a floor with a hole — its removal needs no confession and trips no',
 		'RATCHET. check-ci-drift.ts emits an UNPINNED finding for any such step,',
 		'and gen-reason-ref.ts asserts the generated floor is complete. This',
-		'closes the r13 defect where docs-archive.yml::docs-archive::Run',
+		"closes the r13 defect where the retired docs archive workflow's",
 		'prune-inventory guard fixture tests sat covered but unpinned.',
 		'',
 		'Regenerate with: node packages/scripts-ts/src/gen-reason-ref.ts',

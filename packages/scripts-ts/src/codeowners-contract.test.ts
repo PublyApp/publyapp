@@ -6,8 +6,8 @@ import { parse } from 'yaml';
 
 const codeownersPath = new URL('../../../.github/CODEOWNERS', import.meta.url);
 const justfilePath = new URL('../../../justfile', import.meta.url);
-const frontCiWorkflowPath = new URL(
-	'../../../.github/workflows/front-ci.yml',
+const centralWorkflowPath = new URL(
+	'../../../.github/workflows/ci.yml',
 	import.meta.url,
 );
 const requiredPatterns = [
@@ -17,7 +17,7 @@ const requiredPatterns = [
 	'/packages/scripts-ts/src/ci-gate-manifest.json',
 ];
 const protectedPaths = [
-	'/.github/workflows/front-ci.yml',
+	'/.github/workflows/ci.yml',
 	'/packages/scripts-ts/src/ci-x.ts',
 	'/packages/scripts-ts/src/check-ci-gate-structure.ts',
 	'/packages/scripts-ts/src/ci-gate-manifest.json',
@@ -96,20 +96,21 @@ const assertCodeownersContract = (contents) => {
 
 const validContents = readFileSync(codeownersPath, 'utf8');
 const justfileContents = readFileSync(justfilePath, 'utf8');
-const frontCiWorkflowContents = readFileSync(frontCiWorkflowPath, 'utf8');
+const centralWorkflowContents = readFileSync(centralWorkflowPath, 'utf8');
 
 const codeownersInvocation =
 	'pnpm --filter scripts-ts exec vitest run src/codeowners-contract.test.ts';
+const codeownersTestPath = 'src/codeowners-contract.test.ts';
 
 const localCiDrift = justfileContents.match(
 	/^ci-drift:\n([\s\S]*?)(?=^\S|(?![\s\S]))/m,
 )?.[1];
 
-const gateSelftestRunBlock = parse(frontCiWorkflowContents).jobs[
-	'gate-selftest'
+const centralGuardRunBlock = parse(centralWorkflowContents).jobs[
+	'verification'
 ]?.steps.find(
 	// @ts-expect-error rung-0: add proper type in later rung
-	(step) => step.name === 'Run CI gate guard tests (mirrors `just ci-drift`)',
+	(step) => step.name === 'Test CI guard fixtures',
 )?.run;
 
 // @ts-expect-error rung-0: add proper type in later rung
@@ -122,10 +123,14 @@ const executableLines = (block) =>
 		.filter((line) => line !== '' && !line.startsWith('#'));
 
 // @ts-expect-error rung-0: add proper type in later rung
-const assertRunsInvocation = (block, where) => {
+const assertRunsInvocation = (
+	block,
+	where,
+	invocation = codeownersInvocation,
+) => {
 	assert.ok(
-		executableLines(block).includes(codeownersInvocation),
-		`${where} must run the CODEOWNERS contract from an executable line: \`${codeownersInvocation}\``,
+		executableLines(block).some((line) => line.includes(invocation)),
+		`${where} must run the CODEOWNERS contract from an executable line: \`${invocation}\``,
 	);
 };
 
@@ -173,28 +178,29 @@ test('a commented-out ci-drift invocation fails the local wiring check', () => {
 	);
 });
 
-test('the required GitHub gate runs the CODEOWNERS contract', () => {
+test('the central GitHub verification lane runs the CODEOWNERS contract', () => {
 	assert.ok(
-		typeof gateSelftestRunBlock === 'string',
-		'front-ci.yml must define the gate-selftest run step that mirrors `just ci-drift`',
+		typeof centralGuardRunBlock === 'string',
+		'ci.yml must define the central CI guard-fixture step',
 	);
-	assertRunsInvocation(gateSelftestRunBlock, 'gate-selftest');
+	assertRunsInvocation(
+		centralGuardRunBlock,
+		'central CI guard fixtures',
+		codeownersTestPath,
+	);
 });
 
-test('a commented-out gate-selftest invocation fails the workflow wiring check', () => {
+test('a commented-out central guard invocation fails the workflow wiring check', () => {
 	assert.ok(
-		typeof gateSelftestRunBlock === 'string',
-		'front-ci.yml must define the gate-selftest run step that mirrors `just ci-drift`',
+		typeof centralGuardRunBlock === 'string',
+		'ci.yml must define the central CI guard-fixture step',
 	);
 	assert.throws(
 		() =>
 			assertRunsInvocation(
-				gateSelftestRunBlock.replace(
-					codeownersInvocation,
-					`# ${codeownersInvocation}`,
-				),
-				'gate-selftest',
+				centralGuardRunBlock.replace(codeownersTestPath, '# removed'),
+				'central CI guard fixtures',
 			),
-		/gate-selftest must run the CODEOWNERS contract from an executable line/,
+		/central CI guard fixtures must run the CODEOWNERS contract from an executable line/,
 	);
 });

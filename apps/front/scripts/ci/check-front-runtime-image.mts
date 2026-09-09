@@ -32,8 +32,9 @@
  *  5. Always clean up the container (and the throwaway image when we
  *     built it) so the next run on this host starts from a clean slate.
  *
- * It runs as a CLI in the e2e lane: `.github/workflows/front-e2e.yml`'s
- * `build` job invokes it after `docker compose ... build` so the gate
+ * It runs as a CLI in the e2e lane: `.github/workflows/ci.yml`'s
+ * `e2e-build` job, "Verify built front image" step, invokes it after
+ * `docker compose ... build` so the gate
  * catches a missing-file regression before any shard pulls a broken
  * image. It also runs locally on the developer machine via plain
  * `node apps/front/scripts/ci/check-front-runtime-image.mts` (or, once

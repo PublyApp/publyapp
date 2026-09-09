@@ -385,8 +385,8 @@ review regardless of this convention.
 ### What the CI guard checks — and what remains review-only
 
 The CI step `Verify paired red proofs` (`apps/front/scripts/ci/run-proofs.mts`) runs in the
-path-gated `supply-chain` job of the front supply-chain CI workflow
-(`.github/workflows/front-ci.yml`), for PRs whose changed paths match that job's front-relevant
+path-gated `verification` job of the central CI workflow
+(`.github/workflows/ci.yml`), for PRs whose changed paths match that job's front-relevant
 filter — which `apps/front/tests/proofs/<issue>/` falls under. When that job runs, the step
 detects, via `git diff` against the merge-base, which `.test.ts`/`.test.tsx` files under
 `apps/front/tests/proofs/<issue>/` the PR added or modified, and replays only those with inverted

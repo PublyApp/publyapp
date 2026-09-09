@@ -3,7 +3,7 @@ import process from 'node:process';
 import { pathToFileURL } from 'node:url';
 
 // Asserts that the given paths are byte-identical to HEAD after a regeneration
-// step, mirroring the drift assertions in .github/workflows/openapi-spec-drift.yml.
+// step, mirroring the drift assertions in .github/workflows/ci.yml.
 //
 // Uses `git status --porcelain`, not `git diff --exit-code`: a plain diff only
 // sees tracked files, so a generator that emits a BRAND NEW file would leave the

@@ -22,7 +22,7 @@
  *   and the file stops compiling.
  *
  * The file is part of the main tsconfig program, so `pnpm --filter front
- * typecheck` (CI: front-ci.yml, job gate, step "Typecheck front") compiles it.
+ * typecheck` (CI: ci.yml, job verification, step "Typecheck front") compiles it.
  * A regression in `Distribute<T>` that drops a member-specific property turns
  * this file into compile errors and the gate red with the property named.
  */

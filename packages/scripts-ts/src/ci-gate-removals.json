@@ -34,6 +34,966 @@
 			"step_id": "quality-gate.yml::quality::Verify production duplication has not increased (#1821)",
 			"removed_at": "2026-09-01",
 			"reason": "The bespoke jscpd production-duplication ratchet (custom parser, committed reference baseline, co-located paired-red-proof tests) caused recurrent maintenance defects across #1895, #1897, and #1969 and is intentionally pruned in this change. Ordinary review, lint, and the existing test suites remain; no equivalent automated duplication coverage is claimed."
+		},
+		{
+			"step_id": "api-tests.yml::changes::Check whether api-tests paths changed",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; the central workflow API contract and suite lane now owns this validation, remains fail-closed, and feeds the single required ci-final-gate status through the central topology.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "api-tests.yml::changes::Checkout classifier from the base commit (not the PR's own copy)",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; the central workflow API contract and suite lane now owns this validation, remains fail-closed, and feeds the single required ci-final-gate status through the central topology.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "api-tests.yml::changes::Setup Node",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; the central workflow API contract and suite lane now owns this validation, remains fail-closed, and feeds the single required ci-final-gate status through the central topology.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "api-tests.yml::gate::Check required jobs",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; the central workflow API contract and suite lane now owns this validation, remains fail-closed, and feeds the single required ci-final-gate status through the central topology.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "api-tests.yml::gate::Verify the required-jobs check truly succeeded (continue-on-error cannot mask this)",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; the central workflow API contract and suite lane now owns this validation, remains fail-closed, and feeds the single required ci-final-gate status through the central topology.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "api-tests.yml::path-coverage::Checkout",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; the central workflow API contract and suite lane now owns this validation, remains fail-closed, and feeds the single required ci-final-gate status through the central topology.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "api-tests.yml::path-coverage::Set up Node",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; the central workflow API contract and suite lane now owns this validation, remains fail-closed, and feeds the single required ci-final-gate status through the central topology.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "api-tests.yml::path-coverage::Verify every API-suite-compiled project is reached by a path filter (#2005)",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; the central workflow API contract and suite lane now owns this validation, remains fail-closed, and feeds the single required ci-final-gate status through the central topology.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "api-tests.yml::suite::Checkout",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; the central workflow API contract and suite lane now owns this validation, remains fail-closed, and feeds the single required ci-final-gate status through the central topology.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "api-tests.yml::suite::Install workspace dependencies",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; the central workflow API contract and suite lane now owns this validation, remains fail-closed, and feeds the single required ci-final-gate status through the central topology.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "api-tests.yml::suite::Materialize .env.development from template (CI has no gitignored env file)",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; the central workflow API contract and suite lane now owns this validation, remains fail-closed, and feeds the single required ci-final-gate status through the central topology.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "api-tests.yml::suite::Run full API test suite",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; the central workflow API contract and suite lane now owns this validation, remains fail-closed, and feeds the single required ci-final-gate status through the central topology.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "api-tests.yml::suite::Set up .NET (pinned for CI determinism)",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; the central workflow API contract and suite lane now owns this validation, remains fail-closed, and feeds the single required ci-final-gate status through the central topology.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "api-tests.yml::suite::Set up just",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; the central workflow API contract and suite lane now owns this validation, remains fail-closed, and feeds the single required ci-final-gate status through the central topology.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "api-tests.yml::suite::Set up Node",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; the central workflow API contract and suite lane now owns this validation, remains fail-closed, and feeds the single required ci-final-gate status through the central topology.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "api-tests.yml::suite::Set up pnpm",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; the central workflow API contract and suite lane now owns this validation, remains fail-closed, and feeds the single required ci-final-gate status through the central topology.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "api-tests.yml::suite::Upload test results on failure",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; the central workflow API contract and suite lane now owns this validation, remains fail-closed, and feeds the single required ci-final-gate status through the central topology.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "docs-archive.yml::changes::Check whether docs-archive paths changed",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; central verification owns docs validation on pull requests and develop pushes, remains fail-closed, and feeds the single required ci-final-gate status. The historical all-branch docs-archive push trigger is intentionally retired.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "docs-archive.yml::changes::Checkout classifier from the base commit (not the PR's own copy)",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; central verification owns docs validation on pull requests and develop pushes, remains fail-closed, and feeds the single required ci-final-gate status. The historical all-branch docs-archive push trigger is intentionally retired.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "docs-archive.yml::changes::Setup Node",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; central verification owns docs validation on pull requests and develop pushes, remains fail-closed, and feeds the single required ci-final-gate status. The historical all-branch docs-archive push trigger is intentionally retired.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "docs-archive.yml::docs-archive::Check doc links",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; central verification owns docs validation on pull requests and develop pushes, remains fail-closed, and feeds the single required ci-final-gate status. The historical all-branch docs-archive push trigger is intentionally retired.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "docs-archive.yml::docs-archive::Check prune inventory freshness (--check)",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; central verification owns docs validation on pull requests and develop pushes, remains fail-closed, and feeds the single required ci-final-gate status. The historical all-branch docs-archive push trigger is intentionally retired.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "docs-archive.yml::docs-archive::Checkout",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; central verification owns docs validation on pull requests and develop pushes, remains fail-closed, and feeds the single required ci-final-gate status. The historical all-branch docs-archive push trigger is intentionally retired.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "docs-archive.yml::docs-archive::Install (frozen lockfile, no scripts)",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; central verification owns docs validation on pull requests and develop pushes, remains fail-closed, and feeds the single required ci-final-gate status. The historical all-branch docs-archive push trigger is intentionally retired.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "docs-archive.yml::docs-archive::Install pnpm",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; central verification owns docs validation on pull requests and develop pushes, remains fail-closed, and feeds the single required ci-final-gate status. The historical all-branch docs-archive push trigger is intentionally retired.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "docs-archive.yml::docs-archive::Run doc-links guard fixture tests",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; central verification owns docs validation on pull requests and develop pushes, remains fail-closed, and feeds the single required ci-final-gate status. The historical all-branch docs-archive push trigger is intentionally retired.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "docs-archive.yml::docs-archive::Run prune-inventory guard fixture tests",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; central verification owns docs validation on pull requests and develop pushes, remains fail-closed, and feeds the single required ci-final-gate status. The historical all-branch docs-archive push trigger is intentionally retired.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "docs-archive.yml::docs-archive::Setup Node",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; central verification owns docs validation on pull requests and develop pushes, remains fail-closed, and feeds the single required ci-final-gate status. The historical all-branch docs-archive push trigger is intentionally retired.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "docs-archive.yml::gate::Check required jobs",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; central verification owns docs validation on pull requests and develop pushes, remains fail-closed, and feeds the single required ci-final-gate status. The historical all-branch docs-archive push trigger is intentionally retired.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "docs-archive.yml::gate::Verify the required-jobs check truly succeeded (continue-on-error cannot mask this)",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; central verification owns docs validation on pull requests and develop pushes, remains fail-closed, and feeds the single required ci-final-gate status. The historical all-branch docs-archive push trigger is intentionally retired.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "front-ci.yml::audit-production::Audit production dependencies (moderate and above)",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; the central workflow front verification and audit lanes now own this validation, remains fail-closed, and feeds the single required ci-final-gate status through the central topology.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "front-ci.yml::audit-production::Checkout",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; the central workflow front verification and audit lanes now own this validation, remains fail-closed, and feeds the single required ci-final-gate status through the central topology.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "front-ci.yml::audit-production::Install pnpm",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; the central workflow front verification and audit lanes now own this validation, remains fail-closed, and feeds the single required ci-final-gate status through the central topology.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "front-ci.yml::audit-production::Setup Node",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; the central workflow front verification and audit lanes now own this validation, remains fail-closed, and feeds the single required ci-final-gate status through the central topology.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "front-ci.yml::changes::Check whether front-ci paths changed",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; the central workflow front verification and audit lanes now own this validation, remains fail-closed, and feeds the single required ci-final-gate status through the central topology.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "front-ci.yml::changes::Checkout classifier from the base commit (not the PR's own copy)",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; the central workflow front verification and audit lanes now own this validation, remains fail-closed, and feeds the single required ci-final-gate status through the central topology.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "front-ci.yml::changes::Setup Node",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; the central workflow front verification and audit lanes now own this validation, remains fail-closed, and feeds the single required ci-final-gate status through the central topology.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "front-ci.yml::gate-selftest::Checkout",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; the central workflow front verification and audit lanes now own this validation, remains fail-closed, and feeds the single required ci-final-gate status through the central topology.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "front-ci.yml::gate-selftest::Install (frozen lockfile, no scripts)",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; the central workflow front verification and audit lanes now own this validation, remains fail-closed, and feeds the single required ci-final-gate status through the central topology.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "front-ci.yml::gate-selftest::Install pnpm",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; the central workflow front verification and audit lanes now own this validation, remains fail-closed, and feeds the single required ci-final-gate status through the central topology.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "front-ci.yml::gate-selftest::Run CI gate guard tests (mirrors `just ci-drift`)",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; the central workflow front verification and audit lanes now own this validation, remains fail-closed, and feeds the single required ci-final-gate status through the central topology.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "front-ci.yml::gate-selftest::Run project closure adapter tests",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; the central workflow front verification and audit lanes now own this validation, remains fail-closed, and feeds the single required ci-final-gate status through the central topology.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "front-ci.yml::gate-selftest::Setup Node",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; the central workflow front verification and audit lanes now own this validation, remains fail-closed, and feeds the single required ci-final-gate status through the central topology.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "front-ci.yml::gate::Check required jobs",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; the central workflow front verification and audit lanes now own this validation, remains fail-closed, and feeds the single required ci-final-gate status through the central topology.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "front-ci.yml::gate::Checkout",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; the central workflow front verification and audit lanes now own this validation, remains fail-closed, and feeds the single required ci-final-gate status through the central topology.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "front-ci.yml::gate::Install (frozen lockfile, no scripts)",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; the central workflow front verification and audit lanes now own this validation, remains fail-closed, and feeds the single required ci-final-gate status through the central topology.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "front-ci.yml::gate::Install pnpm",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; the central workflow front verification and audit lanes now own this validation, remains fail-closed, and feeds the single required ci-final-gate status through the central topology.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "front-ci.yml::gate::Setup Node",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; the central workflow front verification and audit lanes now own this validation, remains fail-closed, and feeds the single required ci-final-gate status through the central topology.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "front-ci.yml::gate::Verify the aggregate-gate job graph from inside the required job itself",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; the central workflow front verification and audit lanes now own this validation, remains fail-closed, and feeds the single required ci-final-gate status through the central topology.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "front-ci.yml::gate::Verify the required-jobs check truly succeeded (continue-on-error cannot mask this)",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; the central workflow front verification and audit lanes now own this validation, remains fail-closed, and feeds the single required ci-final-gate status through the central topology.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "front-ci.yml::supply-chain::Assert exact pins",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; the central workflow front verification and audit lanes now own this validation, remains fail-closed, and feeds the single required ci-final-gate status through the central topology.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "front-ci.yml::supply-chain::Build front",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; the central workflow front verification and audit lanes now own this validation, remains fail-closed, and feeds the single required ci-final-gate status through the central topology.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "front-ci.yml::supply-chain::Check front column-type imports (#1769)",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; the central workflow front verification and audit lanes now own this validation, remains fail-closed, and feeds the single required ci-final-gate status through the central topology.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "front-ci.yml::supply-chain::Check front design system",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; the central workflow front verification and audit lanes now own this validation, remains fail-closed, and feeds the single required ci-final-gate status through the central topology.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "front-ci.yml::supply-chain::Check front formatting",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; the central workflow front verification and audit lanes now own this validation, remains fail-closed, and feeds the single required ci-final-gate status through the central topology.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "front-ci.yml::supply-chain::Check front React Compiler artifacts",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; the central workflow front verification and audit lanes now own this validation, remains fail-closed, and feeds the single required ci-final-gate status through the central topology.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "front-ci.yml::supply-chain::Check front srvx/static import shape (#1822)",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; the central workflow front verification and audit lanes now own this validation, remains fail-closed, and feeds the single required ci-final-gate status through the central topology.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "front-ci.yml::supply-chain::Checkout",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; the central workflow front verification and audit lanes now own this validation, remains fail-closed, and feeds the single required ci-final-gate status through the central topology.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "front-ci.yml::supply-chain::Install (frozen lockfile, no scripts)",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; the central workflow front verification and audit lanes now own this validation, remains fail-closed, and feeds the single required ci-final-gate status through the central topology.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "front-ci.yml::supply-chain::Install Git hooks (mirrors prepare)",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; the central workflow front verification and audit lanes now own this validation, remains fail-closed, and feeds the single required ci-final-gate status through the central topology.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "front-ci.yml::supply-chain::Install pnpm",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; the central workflow front verification and audit lanes now own this validation, remains fail-closed, and feeds the single required ci-final-gate status through the central topology.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "front-ci.yml::supply-chain::Lint front",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; the central workflow front verification and audit lanes now own this validation, remains fail-closed, and feeds the single required ci-final-gate status through the central topology.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "front-ci.yml::supply-chain::Run trusted first-party postinstall (@org/shared-ts)",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; the central workflow front verification and audit lanes now own this validation, remains fail-closed, and feeds the single required ci-final-gate status through the central topology.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "front-ci.yml::supply-chain::Setup Node",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; the central workflow front verification and audit lanes now own this validation, remains fail-closed, and feeds the single required ci-final-gate status through the central topology.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "front-ci.yml::supply-chain::Smoke start front server and verify stylesheet tag",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; the central workflow front verification and audit lanes now own this validation, remains fail-closed, and feeds the single required ci-final-gate status through the central topology.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "front-ci.yml::supply-chain::Test front (non-vitest)",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; the central workflow front verification and audit lanes now own this validation, remains fail-closed, and feeds the single required ci-final-gate status through the central topology.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "front-ci.yml::supply-chain::Typecheck front",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; the central workflow front verification and audit lanes now own this validation, remains fail-closed, and feeds the single required ci-final-gate status through the central topology.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "front-ci.yml::supply-chain::Verify front production build emits a CSS asset",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; the central workflow front verification and audit lanes now own this validation, remains fail-closed, and feeds the single required ci-final-gate status through the central topology.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "front-ci.yml::supply-chain::Verify front production font bundle references and unicode coverage",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; the central workflow front verification and audit lanes now own this validation, remains fail-closed, and feeds the single required ci-final-gate status through the central topology.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "front-ci.yml::supply-chain::Verify paired red proofs",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; the central workflow front verification and audit lanes now own this validation, remains fail-closed, and feeds the single required ci-final-gate status through the central topology.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "front-ci.yml::test-vitest-coverage::Check vitest shard coverage equality (#1948)",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; the central workflow front verification and audit lanes now own this validation, remains fail-closed, and feeds the single required ci-final-gate status through the central topology.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "front-ci.yml::test-vitest-coverage::Checkout",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; the central workflow front verification and audit lanes now own this validation, remains fail-closed, and feeds the single required ci-final-gate status through the central topology.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "front-ci.yml::test-vitest-coverage::Install (frozen lockfile, no scripts)",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; the central workflow front verification and audit lanes now own this validation, remains fail-closed, and feeds the single required ci-final-gate status through the central topology.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "front-ci.yml::test-vitest-coverage::Install pnpm",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; the central workflow front verification and audit lanes now own this validation, remains fail-closed, and feeds the single required ci-final-gate status through the central topology.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "front-ci.yml::test-vitest-coverage::Run trusted first-party postinstall (@org/shared-ts)",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; the central workflow front verification and audit lanes now own this validation, remains fail-closed, and feeds the single required ci-final-gate status through the central topology.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "front-ci.yml::test-vitest-coverage::Setup Node",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; the central workflow front verification and audit lanes now own this validation, remains fail-closed, and feeds the single required ci-final-gate status through the central topology.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "front-ci.yml::test-vitest::Checkout",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; the central workflow front verification and audit lanes now own this validation, remains fail-closed, and feeds the single required ci-final-gate status through the central topology.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "front-ci.yml::test-vitest::Install (frozen lockfile, no scripts)",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; the central workflow front verification and audit lanes now own this validation, remains fail-closed, and feeds the single required ci-final-gate status through the central topology.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "front-ci.yml::test-vitest::Install Git hooks (mirrors prepare)",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; the central workflow front verification and audit lanes now own this validation, remains fail-closed, and feeds the single required ci-final-gate status through the central topology.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "front-ci.yml::test-vitest::Install pnpm",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; the central workflow front verification and audit lanes now own this validation, remains fail-closed, and feeds the single required ci-final-gate status through the central topology.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "front-ci.yml::test-vitest::Run trusted first-party postinstall (@org/shared-ts)",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; the central workflow front verification and audit lanes now own this validation, remains fail-closed, and feeds the single required ci-final-gate status through the central topology.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "front-ci.yml::test-vitest::Run vitest shard",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; the central workflow front verification and audit lanes now own this validation, remains fail-closed, and feeds the single required ci-final-gate status through the central topology.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "front-ci.yml::test-vitest::Setup Node",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; the central workflow front verification and audit lanes now own this validation, remains fail-closed, and feeds the single required ci-final-gate status through the central topology.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "front-ci.yml::test-vitest::Upload vitest report",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; the central workflow front verification and audit lanes now own this validation, remains fail-closed, and feeds the single required ci-final-gate status through the central topology.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "front-e2e.yml::build::Build stack images",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; the central workflow e2e build, test, and cleanup lanes now own this validation, remains fail-closed, and feeds the single required ci-final-gate status through the central topology.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "front-e2e.yml::build::Checkout",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; the central workflow e2e build, test, and cleanup lanes now own this validation, remains fail-closed, and feeds the single required ci-final-gate status through the central topology.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "front-e2e.yml::build::Detect fork pull request",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; the central workflow e2e build, test, and cleanup lanes now own this validation, remains fail-closed, and feeds the single required ci-final-gate status through the central topology.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "front-e2e.yml::build::Login to GHCR",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; the central workflow e2e build, test, and cleanup lanes now own this validation, remains fail-closed, and feeds the single required ci-final-gate status through the central topology.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "front-e2e.yml::build::Push stack images to GHCR (same-repo runs only)",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; the central workflow e2e build, test, and cleanup lanes now own this validation, remains fail-closed, and feeds the single required ci-final-gate status through the central topology.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "front-e2e.yml::build::Resolve lowercase e2e image namespace",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; the central workflow e2e build, test, and cleanup lanes now own this validation, remains fail-closed, and feeds the single required ci-final-gate status through the central topology.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "front-e2e.yml::build::Save stack images tarball (fork runs)",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; the central workflow e2e build, test, and cleanup lanes now own this validation, remains fail-closed, and feeds the single required ci-final-gate status through the central topology.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "front-e2e.yml::build::Set image tag",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; the central workflow e2e build, test, and cleanup lanes now own this validation, remains fail-closed, and feeds the single required ci-final-gate status through the central topology.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "front-e2e.yml::build::Setup Docker Buildx",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; the central workflow e2e build, test, and cleanup lanes now own this validation, remains fail-closed, and feeds the single required ci-final-gate status through the central topology.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "front-e2e.yml::build::Setup GitHub Actions runtime",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; the central workflow e2e build, test, and cleanup lanes now own this validation, remains fail-closed, and feeds the single required ci-final-gate status through the central topology.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "front-e2e.yml::build::Upload stack images artifact (fork runs)",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; the central workflow e2e build, test, and cleanup lanes now own this validation, remains fail-closed, and feeds the single required ci-final-gate status through the central topology.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "front-e2e.yml::build::Verify the built front image starts and serves HTTP",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; the central workflow e2e build, test, and cleanup lanes now own this validation, remains fail-closed, and feeds the single required ci-final-gate status through the central topology.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "front-e2e.yml::changes::Check whether front-e2e paths changed",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; the central workflow e2e build, test, and cleanup lanes now own this validation, remains fail-closed, and feeds the single required ci-final-gate status through the central topology.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "front-e2e.yml::changes::Checkout classifier from the base commit (not the PR's own copy)",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; the central workflow e2e build, test, and cleanup lanes now own this validation, remains fail-closed, and feeds the single required ci-final-gate status through the central topology.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "front-e2e.yml::changes::Setup Node",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; the central workflow e2e build, test, and cleanup lanes now own this validation, remains fail-closed, and feeds the single required ci-final-gate status through the central topology.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "front-e2e.yml::cleanup::Checkout",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; the central workflow e2e build, test, and cleanup lanes now own this validation, remains fail-closed, and feeds the single required ci-final-gate status through the central topology.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "front-e2e.yml::cleanup::Delete run image versions",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; the central workflow e2e build, test, and cleanup lanes now own this validation, remains fail-closed, and feeds the single required ci-final-gate status through the central topology.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "front-e2e.yml::cleanup::Install pnpm",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; the central workflow e2e build, test, and cleanup lanes now own this validation, remains fail-closed, and feeds the single required ci-final-gate status through the central topology.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "front-e2e.yml::cleanup::Setup Node",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; the central workflow e2e build, test, and cleanup lanes now own this validation, remains fail-closed, and feeds the single required ci-final-gate status through the central topology.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "front-e2e.yml::gate::Check required jobs",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; the central workflow e2e build, test, and cleanup lanes now own this validation, remains fail-closed, and feeds the single required ci-final-gate status through the central topology.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "front-e2e.yml::gate::Verify the required-jobs check truly succeeded (continue-on-error cannot mask this)",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; the central workflow e2e build, test, and cleanup lanes now own this validation, remains fail-closed, and feeds the single required ci-final-gate status through the central topology.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "front-e2e.yml::test::Assert exact pins",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; the central workflow e2e build, test, and cleanup lanes now own this validation, remains fail-closed, and feeds the single required ci-final-gate status through the central topology.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "front-e2e.yml::test::Cache Playwright browsers",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; the central workflow e2e build, test, and cleanup lanes now own this validation, remains fail-closed, and feeds the single required ci-final-gate status through the central topology.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "front-e2e.yml::test::Checkout",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; the central workflow e2e build, test, and cleanup lanes now own this validation, remains fail-closed, and feeds the single required ci-final-gate status through the central topology.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "front-e2e.yml::test::Detect partial re-run before pull",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; the central workflow e2e build, test, and cleanup lanes now own this validation, remains fail-closed, and feeds the single required ci-final-gate status through the central topology.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "front-e2e.yml::test::Import stack images into the local daemon (fork runs)",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; the central workflow e2e build, test, and cleanup lanes now own this validation, remains fail-closed, and feeds the single required ci-final-gate status through the central topology.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "front-e2e.yml::test::Install dependencies",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; the central workflow e2e build, test, and cleanup lanes now own this validation, remains fail-closed, and feeds the single required ci-final-gate status through the central topology.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "front-e2e.yml::test::Install pnpm",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; the central workflow e2e build, test, and cleanup lanes now own this validation, remains fail-closed, and feeds the single required ci-final-gate status through the central topology.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "front-e2e.yml::test::Load stack images from artifact (fork runs)",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; the central workflow e2e build, test, and cleanup lanes now own this validation, remains fail-closed, and feeds the single required ci-final-gate status through the central topology.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "front-e2e.yml::test::Login to GHCR",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; the central workflow e2e build, test, and cleanup lanes now own this validation, remains fail-closed, and feeds the single required ci-final-gate status through the central topology.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "front-e2e.yml::test::Pull stack",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; the central workflow e2e build, test, and cleanup lanes now own this validation, remains fail-closed, and feeds the single required ci-final-gate status through the central topology.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "front-e2e.yml::test::Run playwright browser tests",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; the central workflow e2e build, test, and cleanup lanes now own this validation, remains fail-closed, and feeds the single required ci-final-gate status through the central topology.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "front-e2e.yml::test::Setup Node",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; the central workflow e2e build, test, and cleanup lanes now own this validation, remains fail-closed, and feeds the single required ci-final-gate status through the central topology.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "front-e2e.yml::test::Tear down front stack",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; the central workflow e2e build, test, and cleanup lanes now own this validation, remains fail-closed, and feeds the single required ci-final-gate status through the central topology.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "front-e2e.yml::test::Up stack",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; the central workflow e2e build, test, and cleanup lanes now own this validation, remains fail-closed, and feeds the single required ci-final-gate status through the central topology.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "front-e2e.yml::test::Upload playwright report",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; the central workflow e2e build, test, and cleanup lanes now own this validation, remains fail-closed, and feeds the single required ci-final-gate status through the central topology.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "front-e2e.yml::test::Wait for front stack health",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; the central workflow e2e build, test, and cleanup lanes now own this validation, remains fail-closed, and feeds the single required ci-final-gate status through the central topology.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "openapi-spec-drift.yml::changes::Check whether openapi-spec-drift paths changed",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; the central workflow API contract lane now owns this validation, remains fail-closed, and feeds the single required ci-final-gate status through the central topology.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "openapi-spec-drift.yml::changes::Checkout classifier from the base commit (not the PR's own copy)",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; the central workflow API contract lane now owns this validation, remains fail-closed, and feeds the single required ci-final-gate status through the central topology.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "openapi-spec-drift.yml::changes::Setup Node",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; the central workflow API contract lane now owns this validation, remains fail-closed, and feeds the single required ci-final-gate status through the central topology.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "openapi-spec-drift.yml::gate::Check required jobs",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; the central workflow API contract lane now owns this validation, remains fail-closed, and feeds the single required ci-final-gate status through the central topology.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "openapi-spec-drift.yml::gate::Verify the required-jobs check truly succeeded (continue-on-error cannot mask this)",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; the central workflow API contract lane now owns this validation, remains fail-closed, and feeds the single required ci-final-gate status through the central topology.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "openapi-spec-drift.yml::spec-drift::Build API (regenerates openapi.json)",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; the central workflow API contract lane now owns this validation, remains fail-closed, and feeds the single required ci-final-gate status through the central topology.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "openapi-spec-drift.yml::spec-drift::Fail if client drifted",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; the central workflow API contract lane now owns this validation, remains fail-closed, and feeds the single required ci-final-gate status through the central topology.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "openapi-spec-drift.yml::spec-drift::Fail if openapi.json drifted",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; the central workflow API contract lane now owns this validation, remains fail-closed, and feeds the single required ci-final-gate status through the central topology.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "openapi-spec-drift.yml::spec-drift::Install workspace dependencies",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; the central workflow API contract lane now owns this validation, remains fail-closed, and feeds the single required ci-final-gate status through the central topology.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "openapi-spec-drift.yml::spec-drift::Materialize .env.development from template (CI has no gitignored env file)",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; the central workflow API contract lane now owns this validation, remains fail-closed, and feeds the single required ci-final-gate status through the central topology.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "openapi-spec-drift.yml::spec-drift::Regenerate TypeScript client",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; the central workflow API contract lane now owns this validation, remains fail-closed, and feeds the single required ci-final-gate status through the central topology.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "openapi-spec-drift.yml::spec-drift::Restore .NET tools (kiota, dotnet-ef)",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; the central workflow API contract lane now owns this validation, remains fail-closed, and feeds the single required ci-final-gate status through the central topology.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "openapi-spec-drift.yml::spec-drift::Run OpenAPI contract spec",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; the central workflow API contract lane now owns this validation, remains fail-closed, and feeds the single required ci-final-gate status through the central topology.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "openapi-spec-drift.yml::spec-drift::Set up .NET (pinned for CI determinism)",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; the central workflow API contract lane now owns this validation, remains fail-closed, and feeds the single required ci-final-gate status through the central topology.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "openapi-spec-drift.yml::spec-drift::Set up just",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; the central workflow API contract lane now owns this validation, remains fail-closed, and feeds the single required ci-final-gate status through the central topology.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "openapi-spec-drift.yml::spec-drift::Set up Node",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; the central workflow API contract lane now owns this validation, remains fail-closed, and feeds the single required ci-final-gate status through the central topology.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "openapi-spec-drift.yml::spec-drift::Set up pnpm",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; the central workflow API contract lane now owns this validation, remains fail-closed, and feeds the single required ci-final-gate status through the central topology.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "openapi-spec-drift.yml::spec-drift::uses:actions/checkout",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; the central workflow API contract lane now owns this validation, remains fail-closed, and feeds the single required ci-final-gate status through the central topology.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "quality-gate.yml::audit-development::Audit development dependencies (moderate and above)",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; the central workflow verification and audit lanes now own this validation, remains fail-closed, and feeds the single required ci-final-gate status through the central topology.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "quality-gate.yml::audit-development::Checkout",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; the central workflow verification and audit lanes now own this validation, remains fail-closed, and feeds the single required ci-final-gate status through the central topology.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "quality-gate.yml::audit-development::Install pnpm",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; the central workflow verification and audit lanes now own this validation, remains fail-closed, and feeds the single required ci-final-gate status through the central topology.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "quality-gate.yml::audit-development::Setup Node",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; the central workflow verification and audit lanes now own this validation, remains fail-closed, and feeds the single required ci-final-gate status through the central topology.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "quality-gate.yml::changes::Check whether quality-gate paths changed",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; the central workflow verification and audit lanes now own this validation, remains fail-closed, and feeds the single required ci-final-gate status through the central topology.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "quality-gate.yml::changes::Checkout classifier from the base commit (not the PR's own copy)",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; the central workflow verification and audit lanes now own this validation, remains fail-closed, and feeds the single required ci-final-gate status through the central topology.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "quality-gate.yml::changes::Setup Node",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; the central workflow verification and audit lanes now own this validation, remains fail-closed, and feeds the single required ci-final-gate status through the central topology.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "quality-gate.yml::gate::Check required jobs",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; the central workflow verification and audit lanes now own this validation, remains fail-closed, and feeds the single required ci-final-gate status through the central topology.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "quality-gate.yml::gate::Verify the required-jobs check truly succeeded (continue-on-error cannot mask this)",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; the central workflow verification and audit lanes now own this validation, remains fail-closed, and feeds the single required ci-final-gate status through the central topology.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "quality-gate.yml::no-dockerignore-shadow::Checkout",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; the central workflow verification and audit lanes now own this validation, remains fail-closed, and feeds the single required ci-final-gate status through the central topology.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "quality-gate.yml::no-dockerignore-shadow::Forbid .dockerignore shadow files (#1849)",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; the central workflow verification and audit lanes now own this validation, remains fail-closed, and feeds the single required ci-final-gate status through the central topology.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "quality-gate.yml::no-ignored-tracked::Checkout",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; the central workflow verification and audit lanes now own this validation, remains fail-closed, and feeds the single required ci-final-gate status through the central topology.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "quality-gate.yml::no-ignored-tracked::Verify no tracked file matches .gitignore (#1513)",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; the central workflow verification and audit lanes now own this validation, remains fail-closed, and feeds the single required ci-final-gate status through the central topology.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "quality-gate.yml::quality::Assert exact pins",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; the central workflow verification and audit lanes now own this validation, remains fail-closed, and feeds the single required ci-final-gate status through the central topology.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "quality-gate.yml::quality::Bind pinned action SHAs to their version comments (#1392)",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; the central workflow verification and audit lanes now own this validation, remains fail-closed, and feeds the single required ci-final-gate status through the central topology.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "quality-gate.yml::quality::Build .NET solution (warnings as errors via Directory.Build.props)",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; the central workflow verification and audit lanes now own this validation, remains fail-closed, and feeds the single required ci-final-gate status through the central topology.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "quality-gate.yml::quality::Check formatter scope (#1875)",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; the central workflow verification and audit lanes now own this validation, remains fail-closed, and feeds the single required ci-final-gate status through the central topology.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "quality-gate.yml::quality::Check formatting (oxfmt --check)",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; the central workflow verification and audit lanes now own this validation, remains fail-closed, and feeds the single required ci-final-gate status through the central topology.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "quality-gate.yml::quality::Checkout",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; the central workflow verification and audit lanes now own this validation, remains fail-closed, and feeds the single required ci-final-gate status through the central topology.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "quality-gate.yml::quality::Install (frozen lockfile, no scripts)",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; the central workflow verification and audit lanes now own this validation, remains fail-closed, and feeds the single required ci-final-gate status through the central topology.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "quality-gate.yml::quality::Install pnpm",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; the central workflow verification and audit lanes now own this validation, remains fail-closed, and feeds the single required ci-final-gate status through the central topology.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "quality-gate.yml::quality::Knip (unused exports & dependencies)",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; the central workflow verification and audit lanes now own this validation, remains fail-closed, and feeds the single required ci-final-gate status through the central topology.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "quality-gate.yml::quality::Lint (oxlint repo-wide)",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; the central workflow verification and audit lanes now own this validation, remains fail-closed, and feeds the single required ci-final-gate status through the central topology.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "quality-gate.yml::quality::Lint plugin unit tests (lint-ts)",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; the central workflow verification and audit lanes now own this validation, remains fail-closed, and feeds the single required ci-final-gate status through the central topology.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "quality-gate.yml::quality::Materialize .env.development from template (CI has no gitignored env file)",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; the central workflow verification and audit lanes now own this validation, remains fail-closed, and feeds the single required ci-final-gate status through the central topology.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "quality-gate.yml::quality::Restore .NET solution (PublyApp.slnx)",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; the central workflow verification and audit lanes now own this validation, remains fail-closed, and feeds the single required ci-final-gate status through the central topology.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "quality-gate.yml::quality::Run analyzer tests",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; the central workflow verification and audit lanes now own this validation, remains fail-closed, and feeds the single required ci-final-gate status through the central topology.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "quality-gate.yml::quality::Run dependency-health pin-location contract test",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; the central workflow verification and audit lanes now own this validation, remains fail-closed, and feeds the single required ci-final-gate status through the central topology.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "quality-gate.yml::quality::Run NuGet audit fixture tests",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; the central workflow verification and audit lanes now own this validation, remains fail-closed, and feeds the single required ci-final-gate status through the central topology.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "quality-gate.yml::quality::Run trusted first-party postinstall (@org/shared-ts)",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; the central workflow verification and audit lanes now own this validation, remains fail-closed, and feeds the single required ci-final-gate status through the central topology.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "quality-gate.yml::quality::Scan .NET packages for known vulnerabilities",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; the central workflow verification and audit lanes now own this validation, remains fail-closed, and feeds the single required ci-final-gate status through the central topology.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "quality-gate.yml::quality::Setup .NET (pinned for CI determinism)",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; the central workflow verification and audit lanes now own this validation, remains fail-closed, and feeds the single required ci-final-gate status through the central topology.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "quality-gate.yml::quality::Setup just",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; the central workflow verification and audit lanes now own this validation, remains fail-closed, and feeds the single required ci-final-gate status through the central topology.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "quality-gate.yml::quality::Setup Node",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; the central workflow verification and audit lanes now own this validation, remains fail-closed, and feeds the single required ci-final-gate status through the central topology.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "quality-gate.yml::quality::Test shared-ts",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; the central workflow verification and audit lanes now own this validation, remains fail-closed, and feeds the single required ci-final-gate status through the central topology.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "quality-gate.yml::quality::Typecheck client-ts",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; the central workflow verification and audit lanes now own this validation, remains fail-closed, and feeds the single required ci-final-gate status through the central topology.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "quality-gate.yml::quality::Typecheck lint-ts",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; the central workflow verification and audit lanes now own this validation, remains fail-closed, and feeds the single required ci-final-gate status through the central topology.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "quality-gate.yml::quality::Typecheck shared-ts",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; the central workflow verification and audit lanes now own this validation, remains fail-closed, and feeds the single required ci-final-gate status through the central topology.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "quality-gate.yml::quality::Verify complexity bounds are not drifting (#1661)",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; the central workflow verification and audit lanes now own this validation, remains fail-closed, and feeds the single required ci-final-gate status through the central topology.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "quality-gate.yml::quality::Verify deploy env doc coverage (#1798)",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; the central workflow verification and audit lanes now own this validation, remains fail-closed, and feeds the single required ci-final-gate status through the central topology.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "react-doctor.yml::changes::Check whether react-doctor paths changed",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; the central workflow verification lane now owns this validation, remains fail-closed, and feeds the single required ci-final-gate status through the central topology.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "react-doctor.yml::changes::Checkout classifier from the base commit (not the PR's own copy)",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; the central workflow verification lane now owns this validation, remains fail-closed, and feeds the single required ci-final-gate status through the central topology.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "react-doctor.yml::changes::Setup Node",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; the central workflow verification lane now owns this validation, remains fail-closed, and feeds the single required ci-final-gate status through the central topology.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "react-doctor.yml::gate::Check required jobs",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; the central workflow verification lane now owns this validation, remains fail-closed, and feeds the single required ci-final-gate status through the central topology.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "react-doctor.yml::gate::Verify the required-jobs check truly succeeded (continue-on-error cannot mask this)",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; the central workflow verification lane now owns this validation, remains fail-closed, and feeds the single required ci-final-gate status through the central topology.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "react-doctor.yml::react-doctor::Assert diff base is present",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; the central workflow verification lane now owns this validation, remains fail-closed, and feeds the single required ci-final-gate status through the central topology.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "react-doctor.yml::react-doctor::Checkout PR head (full history for diff)",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; the central workflow verification lane now owns this validation, remains fail-closed, and feeds the single required ci-final-gate status through the central topology.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "react-doctor.yml::react-doctor::Install (frozen lockfile)",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; the central workflow verification lane now owns this validation, remains fail-closed, and feeds the single required ci-final-gate status through the central topology.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "react-doctor.yml::react-doctor::Install pnpm",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; the central workflow verification lane now owns this validation, remains fail-closed, and feeds the single required ci-final-gate status through the central topology.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "react-doctor.yml::react-doctor::React Doctor -- changed files, blocking on warnings",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; the central workflow verification lane now owns this validation, remains fail-closed, and feeds the single required ci-final-gate status through the central topology.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "react-doctor.yml::react-doctor::Resolve diff base",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; the central workflow verification lane now owns this validation, remains fail-closed, and feeds the single required ci-final-gate status through the central topology.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "react-doctor.yml::react-doctor::Setup Node",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; the central workflow verification lane now owns this validation, remains fail-closed, and feeds the single required ci-final-gate status through the central topology.",
+			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "require-linked-issue.yml::require-linked-issue::Verify the PR links an existing issue",
+			"reason": "PR-B #2113 intentionally removes this predecessor step; the central workflow gate now owns this validation, remains fail-closed, and feeds the single required ci-final-gate status through the central topology.",
+			"removed_at": "2026-09-09"
 		}
 	]
 }

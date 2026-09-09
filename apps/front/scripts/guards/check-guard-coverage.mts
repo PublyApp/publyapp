@@ -38,8 +38,9 @@
  * package.json without a `scripts` object, or an EMPTY guard family (every
  * guard deleted) is a loud failure, never a compliant green.
  *
- * CI: runs inside `pnpm --filter front test` (front supply-chain workflow,
- * `supply-chain` job, "Test front" step) as `pnpm check:guard-coverage`; its
+ * CI: runs inside `pnpm --filter front test` from the central workflow's
+ * `verification` job, "Test front (non-vitest report-all)" step, as `pnpm
+ * check:guard-coverage`; its
  * own unit tests run as `test:guard-coverage-guard` in the same chain.
  */
 

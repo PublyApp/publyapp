@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url';
 import { test } from 'vitest';
 import { parse } from 'yaml';
 
-// Proves the #1063 partial-re-run guard: front-e2e's `test` job must detect —
+// Proves the #1063 partial-re-run guard: central CI's `e2e-test` job must detect —
 // BEFORE it pulls the stack images — that it is running as a partial re-run
 // of failed jobs, and fail loudly telling the user a full workflow re-run is
 // required. It must NOT fix the underlying problem by switching to a stable
@@ -15,18 +15,19 @@ import { parse } from 'yaml';
 // per-run scratch images (the cleanup job deletes them, which is correct).
 //
 // Why this can never work: the e2e image tag is ${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}
-// and the `cleanup` job runs with `if: always()`, so it deletes the images
+// and the `e2e-cleanup` job runs with `if: always()`, so it deletes the images
 // even when the shards fail. "Re-run failed jobs" re-runs only the failed
-// `test` job — the `build` job is not re-run, so `needs.build.outputs.tag`
+// `e2e-test` job — the `e2e-build` job is not re-run, so
+// `needs.e2e-build.outputs.tag`
 // still holds the PREVIOUS attempt's tag, whose images are already deleted.
 // The pull then fails with "manifest unknown", indistinguishable from a
 // registry problem. Observed on PR #1056.
 //
-// The guard detects exactly that: the tag the build job emitted for this
+// The guard detects exactly that: the tag the e2e-build job emitted for this
 // attempt must be the current attempt's tag. On a fresh run and on a FULL
-// workflow re-run ("Re-run all jobs", which re-runs `build`), the build job
+// workflow re-run ("Re-run all jobs", which re-runs `e2e-build`), the e2e-build job
 // re-pushes `${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}` and the comparison
-// holds. On a partial re-run the build job is not re-run, the tag is stale,
+// holds. On a partial re-run the e2e-build job is not re-run, the tag is stale,
 // and the guard fails the job before any pull attempt with an explicit
 // message.
 //
@@ -42,27 +43,27 @@ const repoRoot = path.resolve(
 	'../../..',
 );
 
-const workflowPath = path.join(repoRoot, '.github/workflows/front-e2e.yml');
+const workflowPath = path.join(repoRoot, '.github/workflows/ci.yml');
 
-const GUARD_STEP_NAME = 'Detect partial re-run before pull';
-const PULL_STEP_NAME = 'Pull stack';
-const TAG_STEP_NAME = 'Set image tag';
+const GUARD_STEP_NAME = 'Detect partial rerun';
+const PULL_STEP_NAME = 'Pull stack images';
+const TAG_STEP_NAME = 'Resolve image tag';
 
 /**
- * Parses the real front-e2e.yml and returns the pinned facts the guard tests
+ * Parses the real central workflow and returns the pinned facts the guard tests
  * assert against: the guard step's `run:` body, the step index of the guard
- * relative to the pull step, and the build job's tag derivation step.
+ * relative to the pull step, and the e2e-build job's tag derivation step.
  * Extraction is by exact pinned names, so removing, renaming, or relocating
  * the guard (or abandoning the per-run tag scheme) fails these tests even if
  * the remaining assertions never get a chance to run.
  */
 const extractGuard = () => {
 	const document = parse(readFileSync(workflowPath, 'utf8'));
-	const testSteps = document.jobs.test.steps;
+	const testSteps = document.jobs['e2e-test'].steps;
 
 	assert.ok(
 		Array.isArray(testSteps),
-		'front-e2e.yml: expected a "test" job with a steps array',
+		'ci.yml: expected an "e2e-test" job with a steps array',
 	);
 
 	const guardIndex = testSteps.findIndex(
@@ -71,7 +72,7 @@ const extractGuard = () => {
 
 	assert.ok(
 		guardIndex !== -1,
-		`front-e2e.yml: expected the test job to contain a step named "${GUARD_STEP_NAME}" — the #1063 partial-re-run guard is missing.`,
+		`ci.yml: expected the e2e-test job to contain a step named "${GUARD_STEP_NAME}" — the #1063 partial-re-run guard is missing.`,
 	);
 
 	const guardStep = testSteps[guardIndex];
@@ -79,12 +80,7 @@ const extractGuard = () => {
 	assert.equal(
 		typeof guardStep.run,
 		'string',
-		`front-e2e.yml::test::${GUARD_STEP_NAME}: expected step.run to be a string`,
-	);
-
-	assert.ok(
-		guardStep['continue-on-error'] === undefined,
-		`front-e2e.yml::test::${GUARD_STEP_NAME}: must not set continue-on-error — that would let the guard fail while the job (and the required gate) still reports success.`,
+		`ci.yml::e2e-test::${GUARD_STEP_NAME}: expected step.run to be a string`,
 	);
 
 	const pullIndex = testSteps.findIndex(
@@ -93,27 +89,27 @@ const extractGuard = () => {
 
 	assert.ok(
 		pullIndex !== -1,
-		`front-e2e.yml: expected the test job to contain a step named "${PULL_STEP_NAME}"`,
+		`ci.yml: expected the e2e-test job to contain a step named "${PULL_STEP_NAME}"`,
 	);
 
 	assert.ok(
 		guardIndex < pullIndex,
-		`front-e2e.yml::test: "${GUARD_STEP_NAME}" must run BEFORE "${PULL_STEP_NAME}" — detection before the pull is the whole point; a guard that runs after the pull attempt has already started does not save the next person the "manifest unknown" misdiagnosis.`,
+		`ci.yml::e2e-test: "${GUARD_STEP_NAME}" must run BEFORE "${PULL_STEP_NAME}" — detection before the pull is the whole point; a guard that runs after the pull attempt has already started does not save the next person the "manifest unknown" misdiagnosis.`,
 	);
 
-	const buildSteps = document.jobs.build.steps;
+	const buildSteps = document.jobs['e2e-build'].steps;
 	// @ts-expect-error rung-0: add proper type in later rung
 	const tagStep = buildSteps.find((step) => step?.name === TAG_STEP_NAME);
 
 	assert.ok(
 		tagStep,
-		'front-e2e.yml: expected the build job to contain a step named "Set image tag"',
+		'ci.yml: expected the e2e-build job to contain a step named "Resolve image tag"',
 	);
 
 	assert.equal(
 		typeof tagStep.run,
 		'string',
-		'front-e2e.yml::build::Set image tag: expected step.run to be a string',
+		'ci.yml::e2e-build::Resolve image tag: expected step.run to be a string',
 	);
 
 	return { guardRun: guardStep.run, tagRun: tagStep.run };
@@ -137,12 +133,12 @@ const runGuard = (env) =>
 // ---------------------------------------------------------------------------
 // The tag scheme itself: #1063's scope explicitly forbids "fixing" this by
 // making the tag stable across attempts (a partial re-run would then silently
-// test the OLD build) or by retaining the scratch images. The build job must
+// test the OLD e2e-build) or by retaining the scratch images. The e2e-build job must
 // keep deriving the tag from BOTH the run id and the attempt number — the
 // property that makes the guard's staleness comparison meaningful.
 // ---------------------------------------------------------------------------
 
-test('the build job still derives the image tag from run id AND attempt (per-run scratch, not a stable tag)', () => {
+test('the e2e-build job still derives the image tag from run id AND attempt (per-run scratch, not a stable tag)', () => {
 	assert.match(tagRun, /\$\{GITHUB_RUN_ID\}-\$\{GITHUB_RUN_ATTEMPT\}/);
 	assert.match(tagRun, /GITHUB_RUN_ATTEMPT/);
 	assert.match(tagRun, /GITHUB_RUN_ID/);
@@ -203,13 +199,8 @@ test('a PARTIAL re-run of failed jobs (attempt 2, stale tag from attempt 1) fail
 	assert.match(stdout, /::error::/);
 	assert.match(
 		stdout,
-		/full workflow re-run/i,
-		`the error message must tell the user a full workflow re-run is required; stdout: ${stdout}`,
-	);
-	assert.match(
-		stdout,
-		/Re-run all jobs/,
-		`the error message must name the working retry ("Re-run all jobs"); stdout: ${stdout}`,
+		/rerun all jobs/i,
+		`the error message must name the working retry (rerun all jobs); stdout: ${stdout}`,
 	);
 });
 

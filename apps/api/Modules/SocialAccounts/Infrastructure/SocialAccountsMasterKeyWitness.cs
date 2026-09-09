@@ -20,7 +20,7 @@ public static class SocialAccountsMasterKeyWitness {
 		System.Text.Encoding.UTF8.GetBytes("__social_accounts_master_key_sentinel__");
 
 	// The committed all-zero base64 string shared by apps/api/Dockerfile (both build-time
-	// Production blocks), quality-gate.yml, the just recipes and the front-e2e history:
+	// Production blocks), .github/workflows/ci.yml, the just recipes and the e2e history:
 	// the repo's DOCUMENTED, publicly known build placeholder. Kept byte-exact in sync
 	// with AppEnvironmentBuildEnvCompletenessSpec.PlaceholderMasterKey.
 	private static readonly byte[] DocumentedBuildPlaceholder =

@@ -29,7 +29,7 @@ import { loginAsStaffAdmin } from './helpers/login';
  * permission-catalog API responses are mocked. Because this now needs a real
  * login + a real backend, it runs as the ordinary `chromium` Playwright
  * project — the one the CI workflow already selects on every shard and
- * already fails the build on (front-e2e.yml) — closing the BLOCKER without
+ * already fails the build on (ci.yml) — closing the BLOCKER without
  * inventing a new, unselected project.
  */
 

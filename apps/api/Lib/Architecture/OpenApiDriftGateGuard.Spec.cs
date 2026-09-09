@@ -7,7 +7,7 @@ namespace PublyApp.Api.Lib.Architecture;
 /// <summary>
 /// Guards the OpenAPI document-generation switch in <c>apps/api/PublyApp.Api.csproj</c>.
 ///
-/// The openapi-spec-drift gate (the <c>openapi-spec-drift.yml</c> workflow AND the local
+/// The openapi-spec-drift gate (the <c>ci.yml</c> workflow AND the local
 /// <c>just ci-spec-drift</c>) works by rebuilding with a PLAIN <c>dotnet build</c>
 /// (<c>build-api-full</c>) and diffing the resulting <c>apps/api/openapi.json</c>. That only
 /// measures drift if a plain build actually regenerates the document. If generation were
