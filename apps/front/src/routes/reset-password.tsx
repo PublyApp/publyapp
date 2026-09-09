@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { InvalidLinkView } from '~/components/auth/invalid-link-view';
 import { PrecheckUnavailableView } from '~/components/auth/precheck-unavailable-view';
-import { redirectAuthenticatedUserAwayFromAuthPage } from '~/lib/auth-route-guard';
+import { redirectAuthenticatedUserAwayFromAuthPage } from '~/lib/auth/auth-route-guard';
 import { checkResetPasswordToken } from '~/lib/server/auth-actions';
 
 import { queryParamKey, queryParamValue } from '@org/shared-ts/lib/constants';

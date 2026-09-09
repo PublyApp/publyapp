@@ -15,7 +15,7 @@
  * treats only 1 as singular — see the Intl.PluralRules assertions below).
  */
 import { describe, expect, test } from 'vitest';
-import { createBackendI18n, loadNamespacesStrict } from '~/lib/i18n.backend';
+import { createBackendI18n, loadNamespacesStrict } from '~/lib/i18n/backend';
 
 describe("Intl.PluralRules disagree between en and fr (the premise this key's plural split depends on)", () => {
 	test('fr treats both 0 and 1 as singular ("one"); en treats only 1 as singular', () => {

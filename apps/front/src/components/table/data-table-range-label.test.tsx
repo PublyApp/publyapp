@@ -33,7 +33,7 @@ import resourceFR from '~/i18n/locales/fr/common.json';
 import {
 	createI18nFromResources,
 	type SupportedLanguage,
-} from '~/lib/i18n.shared';
+} from '~/lib/i18n/shared';
 
 import type { ColumnDef } from './column-type';
 import { DataTable, DataTableCursorFooter } from './data-table';

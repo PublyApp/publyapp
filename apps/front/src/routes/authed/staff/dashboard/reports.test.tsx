@@ -35,12 +35,12 @@ vi.mock('@org/shared-ts/lib/should-logout-for-failure', () => ({
 	shouldLogoutForFailure: mocks.shouldLogoutForFailure,
 }));
 
-vi.mock('~/lib/download-file', () => ({
+vi.mock('~/utils/download-file', () => ({
 	downloadFile: mocks.downloadFile,
 	formatExportDateStamp: (_date: Date) => '2026-08-31',
 }));
 
-vi.mock('~/lib/mutation-toast', () => ({
+vi.mock('~/lib/mutation-feedback/mutation-toast', () => ({
 	displayLocalMutationFailure: vi.fn().mockResolvedValue(undefined),
 	toastLocalMutationResult: {
 		success: vi.fn(),

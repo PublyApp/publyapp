@@ -1,7 +1,7 @@
 import { Link } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
 import { StatusPill } from '~/components/ui/product-page';
-import { publicationStatusPresentation } from '~/lib/publication-status';
+import { publicationStatusPresentation } from '~/lib/publishing/publication-status';
 import type { ScheduledPublicationRow } from '~/lib/query/tenant-scheduled-publications';
 import { formatInZone } from '~/utils/format-time';
 

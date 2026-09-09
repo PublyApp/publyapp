@@ -28,7 +28,7 @@ import {
 	isSupportedLanguage,
 	LOCALE_LABELS,
 	SUPPORTED_LANGUAGES,
-} from '~/lib/i18n.shared';
+} from '~/lib/i18n/shared';
 import { toCurrentUser, useCurrentUserQuery } from '~/lib/query/auth';
 import {
 	useUiStore,

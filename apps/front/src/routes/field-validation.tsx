@@ -21,7 +21,7 @@ import { Textarea } from '~/components/ui/textarea';
 import { toastVariantClassNames } from '~/components/ui/toast-variants';
 import { FEATURES } from '~/lib/flags';
 import { useHydrated } from '~/lib/hooks/use-hydrated';
-import { toastLocalMutationResult } from '~/lib/mutation-toast';
+import { toastLocalMutationResult } from '~/lib/mutation-feedback/mutation-toast';
 
 type FieldValidationValues = {
 	email: string;

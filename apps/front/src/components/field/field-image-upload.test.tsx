@@ -21,7 +21,7 @@ const mocks = vi.hoisted(() => ({
 	API_ORIGIN: 'https://api.test.example',
 }));
 
-vi.mock('~/lib/mutation-toast', () => ({
+vi.mock('~/lib/mutation-feedback/mutation-toast', () => ({
 	toastLocalMutationResult: {
 		success: mocks.toastSuccess,
 	},

@@ -38,14 +38,14 @@ vi.mock('~/server/i18n-locale', () => ({
 	setLocale: vi.fn(),
 }));
 
-vi.mock('~/lib/i18n.client', () => ({
+vi.mock('~/lib/i18n/client', () => ({
 	initI18nOnClient: vi.fn(async () => undefined),
 }));
 
 import enResource from '~/i18n/locales/en';
 import frResource from '~/i18n/locales/fr';
-import { GLOBAL_I18N_NAMESPACES } from '~/lib/i18n.namespaces';
-import type { SupportedLanguage } from '~/lib/i18n.shared';
+import { GLOBAL_I18N_NAMESPACES } from '~/lib/i18n/namespaces';
+import type { SupportedLanguage } from '~/lib/i18n/shared';
 
 import { RootErrorBoundary, Route as RootRoute } from './__root';
 

@@ -1,14 +1,14 @@
 import { createServerFn } from '@tanstack/react-start';
 import { getCookie, setCookie } from '@tanstack/react-start/server';
 import { z } from 'zod';
-import { createBackendI18n, loadI18nContext } from '~/lib/i18n.backend';
-import { I18nNamespaceListSchema } from '~/lib/i18n.namespaces';
+import { createBackendI18n, loadI18nContext } from '~/lib/i18n/backend';
+import { I18nNamespaceListSchema } from '~/lib/i18n/namespaces';
 import {
 	FALLBACK_LANGUAGE,
 	isSupportedLanguage,
 	SUPPORTED_LANGUAGES,
 	type SupportedLanguage,
-} from '~/lib/i18n.shared';
+} from '~/lib/i18n/shared';
 
 import { LOCALE_COOKIE_KEY } from '@org/shared-ts/lib/constants';
 import duration from '@org/shared-ts/utils/duration.utils';

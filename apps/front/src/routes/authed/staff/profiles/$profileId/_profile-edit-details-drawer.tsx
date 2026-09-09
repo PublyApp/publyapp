@@ -22,7 +22,7 @@ import { IconColorPicker } from '~/components/ui/icon-color-picker';
 import {
 	displayLocalMutationFailure,
 	toastLocalMutationResult,
-} from '~/lib/mutation-toast';
+} from '~/lib/mutation-feedback/mutation-toast';
 import { deriveProfileCardStyle } from '~/lib/profiles/profile-card-style';
 import { resolveProfileSaveFailure } from '~/lib/profiles/profile-edit-details-save-failure';
 import {

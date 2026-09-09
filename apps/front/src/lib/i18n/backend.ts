@@ -1,27 +1,26 @@
 import { createInstance, type BackendModule, type i18n } from 'i18next';
 
-import {
-	GLOBAL_I18N_NAMESPACES,
-	type SupportedNamespace,
-} from './i18n.namespaces';
+import { GLOBAL_I18N_NAMESPACES, type SupportedNamespace } from './namespaces';
 import {
 	type I18nLoadResult,
 	type I18nResources,
 	type NamespaceResource,
 	SUPPORTED_LANGUAGES,
 	type SupportedLanguage,
-} from './i18n.shared';
+} from './shared';
 
 type JsonModule = { default: NamespaceResource };
 type ResourceLoader = () => Promise<JsonModule>;
 
-const localLoaders = import.meta.glob<JsonModule>('../i18n/locales/*/*.json');
+const localLoaders = import.meta.glob<JsonModule>(
+	'../../i18n/locales/*/*.json',
+);
 
 // Relative paths into shared-ts's JSON, NOT `@org/shared-ts/...json` (which resolves to a
 // nonexistent `.json.ts` under shared-ts's `./* → ./src/*.ts` export map) and NOT the locale barrel
 // (`@org/shared-ts/lib/i18n/locales/{en,fr}`, which would pull shared `common` into every namespace
 // chunk). A relative dynamic `import()` of the exact file resolves correctly and code-splits each
-// namespace on its own — verified resolving + typechecking from `apps/front/src/lib/`.
+// namespace on its own — verified resolving + typechecking from `apps/front/src/lib/i18n/`.
 /** Known shared loaders, keyed by `${language}/${namespace}`. A Map keeps the
  * dynamic lookup (`${language}/${namespace}`) explicit about unknown keys —
  * `.get()` returns `undefined` for a missing namespace instead of widening the
@@ -30,22 +29,22 @@ const sharedLoaders = new Map<string, ResourceLoader>([
 	[
 		'en/zod',
 		() =>
-			import('../../../../packages/shared-ts/src/lib/i18n/json/zod.en.json'),
+			import('../../../../../packages/shared-ts/src/lib/i18n/json/zod.en.json'),
 	],
 	[
 		'fr/zod',
 		() =>
-			import('../../../../packages/shared-ts/src/lib/i18n/json/zod.fr.json'),
+			import('../../../../../packages/shared-ts/src/lib/i18n/json/zod.fr.json'),
 	],
 	[
 		'en/response-message',
 		() =>
-			import('../../../../packages/shared-ts/src/lib/i18n/json/response-message.en.json'),
+			import('../../../../../packages/shared-ts/src/lib/i18n/json/response-message.en.json'),
 	],
 	[
 		'fr/response-message',
 		() =>
-			import('../../../../packages/shared-ts/src/lib/i18n/json/response-message.fr.json'),
+			import('../../../../../packages/shared-ts/src/lib/i18n/json/response-message.fr.json'),
 	],
 ] as const satisfies readonly (readonly [string, ResourceLoader])[]);
 

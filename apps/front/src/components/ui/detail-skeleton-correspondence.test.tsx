@@ -85,7 +85,7 @@ vi.mock('~/lib/query/tenant-settings-general', async () => {
 	};
 });
 
-vi.mock('~/lib/mutation-toast', () => ({
+vi.mock('~/lib/mutation-feedback/mutation-toast', () => ({
 	displayLocalMutationFailure: vi.fn(),
 	toastLocalMutationResult: { success: vi.fn(), error: vi.fn() },
 }));

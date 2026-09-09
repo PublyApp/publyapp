@@ -5,7 +5,7 @@ import {
 	GLOBAL_I18N_NAMESPACES,
 	I18N_NAMESPACES,
 	I18nNamespaceListSchema,
-} from './i18n.namespaces';
+} from './namespaces';
 
 describe('i18n namespace registry', () => {
 	test('keeps globals first and adds each matched feature once', () => {

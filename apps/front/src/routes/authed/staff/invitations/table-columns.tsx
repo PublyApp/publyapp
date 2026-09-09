@@ -19,7 +19,7 @@ import { DropdownMenuItem } from '~/components/ui/dropdown-menu';
 import { StatusPill } from '~/components/ui/product-page';
 import { statusPillTone } from '~/components/ui/status-tone';
 import { formatDateTime } from '~/lib/format-date-time';
-import { toastLocalMutationResult } from '~/lib/mutation-toast';
+import { toastLocalMutationResult } from '~/lib/mutation-feedback/mutation-toast';
 import {
 	invalidateStaffInvitations,
 	useResendStaffInvitationMutation,

@@ -46,7 +46,7 @@ import { statusPillTone } from '~/components/ui/status-tone';
 import {
 	displayLocalMutationFailure,
 	toastLocalMutationResult,
-} from '~/lib/mutation-toast';
+} from '~/lib/mutation-feedback/mutation-toast';
 import {
 	invalidateStaffTenants,
 	type StaffTenantRow,

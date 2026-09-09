@@ -148,7 +148,7 @@ const TRANSLATIONS: TestLabelMap = {
 	'export-selected': 'Export selected',
 };
 
-vi.mock('~/lib/download-file', () => ({
+vi.mock('~/utils/download-file', () => ({
 	downloadFile: mocks.downloadFile,
 	formatExportDateStamp: () => '2026-07-12',
 }));
@@ -223,7 +223,7 @@ vi.mock('./_invite-user-drawer-host', () => ({
 	},
 }));
 
-vi.mock('~/lib/mutation-toast', () => ({
+vi.mock('~/lib/mutation-feedback/mutation-toast', () => ({
 	displayMutationFeedback: mocks.displayMutationFeedback,
 }));
 

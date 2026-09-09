@@ -14,7 +14,7 @@ import type { ReactNode } from 'react';
 import { I18nextProvider } from 'react-i18next';
 import enResource from '~/i18n/locales/en';
 import frResource from '~/i18n/locales/fr';
-import { createI18nFromResources } from '~/lib/i18n.shared';
+import { createI18nFromResources } from '~/lib/i18n/shared';
 
 /**
  * Test harness for the marketing shell.

@@ -16,7 +16,7 @@ import { ts } from 'ts-morph';
 import { describe, expect, test } from 'vitest';
 import enResource from '~/i18n/locales/en';
 import frResource from '~/i18n/locales/fr';
-import type { SupportedNamespace } from '~/lib/i18n.namespaces';
+import type { SupportedNamespace } from '~/lib/i18n/namespaces';
 import suppressionInventory from '~/lib/suppression-inventory.json';
 import {
 	diffSuppressionInventory,
@@ -29,7 +29,7 @@ import {
 // attribute under apps/front/src and asserts it resolves in both locale
 // bundles — a missing key silently renders the raw key string as UI text
 // (i18next's default missing-key behaviour), and no other check catches that.
-const srcDir = path.resolve(fileURLToPath(new URL('..', import.meta.url)));
+const srcDir = path.resolve(fileURLToPath(new URL('../..', import.meta.url)));
 
 // `SourceFile.parseDiagnostics` has always existed on the classic compiler's
 // concrete SourceFile at runtime, but it is `@internal` and not part of the

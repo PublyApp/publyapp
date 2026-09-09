@@ -10,7 +10,7 @@
  * This suite mounts the REAL route object through a real `createRouter`
  * (same `.update()` wiring as `routeTree.gen.ts`, same harness precedent as
  * `staff-users-bulk-routing.test.tsx`) and the REAL production i18n init
- * helper (`createI18nFromResources` from `~/lib/i18n.shared`) fed the REAL
+ * helper (`createI18nFromResources` from `~/lib/i18n/shared`) fed the REAL
  * shipped `en/common.json` and `fr/common.json` bundles — the same instance
  * shape `__root.tsx` serves in production. `react-i18next` is NEVER mocked
  * here: the FR bundle is genuinely loaded (fallbackLng disabled by the shared
@@ -53,7 +53,7 @@ import {
 	createI18nFromResources,
 	type I18nResources,
 	type SupportedLanguage,
-} from '~/lib/i18n.shared';
+} from '~/lib/i18n/shared';
 
 const mocks = vi.hoisted(() => ({
 	toGlobalTenantUserCompanyRows: vi.fn(),
@@ -110,7 +110,7 @@ vi.mock('~/lib/query/staff-global-tenant-users', () => ({
 	}),
 }));
 
-vi.mock('~/lib/mutation-toast', () => ({
+vi.mock('~/lib/mutation-feedback/mutation-toast', () => ({
 	displayLocalMutationFailure: vi.fn().mockResolvedValue(undefined),
 	toastLocalMutationResult: {
 		success: mocks.toastSuccess,

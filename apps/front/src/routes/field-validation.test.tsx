@@ -31,7 +31,7 @@ vi.mock('react-i18next', () => ({
 	}),
 }));
 
-vi.mock('~/lib/mutation-toast', () => ({
+vi.mock('~/lib/mutation-feedback/mutation-toast', () => ({
 	toastLocalMutationResult: toastMocks,
 }));
 

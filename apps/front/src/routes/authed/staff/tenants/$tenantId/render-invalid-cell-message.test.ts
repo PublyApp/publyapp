@@ -5,7 +5,7 @@ import {
 	createI18nFromResources,
 	type I18nResources,
 	type SupportedLanguage,
-} from '~/lib/i18n.shared';
+} from '~/lib/i18n/shared';
 
 import {
 	renderInvalidCellMessage,

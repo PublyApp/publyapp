@@ -27,7 +27,7 @@ import { View404 } from '~/components/error-views/View404';
 import { Button } from '~/components/ui/button';
 import { buttonVariants } from '~/components/ui/button.variants';
 import { Input } from '~/components/ui/input';
-import { redirectAuthenticatedUserAwayFromAuthPage } from '~/lib/auth-route-guard';
+import { redirectAuthenticatedUserAwayFromAuthPage } from '~/lib/auth/auth-route-guard';
 import { useHydrated } from '~/lib/hooks/use-hydrated';
 import { completeLoginRedirect, login } from '~/lib/server/session-actions';
 import {

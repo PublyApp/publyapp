@@ -28,7 +28,7 @@ frontend is unchanged by the front policy below.
 `apps/front` normalizes failures with `toApiFailure` and resolves feedback
 policy with the pure functions in
 `@org/shared-ts/lib/mutation-feedback/policy`. Presentation stays front-local:
-`router.tsx` owns the global `MutationCache`, `lib/mutation-toast.ts` translates
+`router.tsx` owns the global `MutationCache`, `lib/mutation-feedback/mutation-toast.ts` translates
 and presents the intent, and `components/ui/toaster.tsx` mounts Sonner. Those
 two adapter files are the only front production modules allowed to import
 `sonner`.
@@ -91,7 +91,7 @@ display remain in front. Front factories must never configure
 `handlers.onToast`, because that shared seam also processes query failures.
 
 The executable rules live in
-`apps/front/src/lib/mutation-feedback-architecture.test.ts`. They keep Sonner
+`apps/front/src/lib/mutation-feedback/mutation-feedback-architecture.test.ts`. They keep Sonner
 behind its adapters, direct `useMutation(...)` construction under
 `src/lib/query`, query feedback out of `QueryCache`, mutation feedback in
 `MutationCache`, and `handlers.onToast` out of front query factories.

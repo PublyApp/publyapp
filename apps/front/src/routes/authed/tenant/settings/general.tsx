@@ -11,11 +11,11 @@ import { Button } from '~/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '~/components/ui/card';
 import { FieldRowsSkeleton } from '~/components/ui/detail-skeleton';
 import { ErrorStateSurface } from '~/components/ui/state-surface';
-import { LOCALE_LABELS } from '~/lib/i18n.shared';
+import { LOCALE_LABELS } from '~/lib/i18n/shared';
 import {
 	displayLocalMutationFailure,
 	toastLocalMutationResult,
-} from '~/lib/mutation-toast';
+} from '~/lib/mutation-feedback/mutation-toast';
 import {
 	invalidateTenantSettingsGeneralQuery,
 	toTenantSettingsGeneral,

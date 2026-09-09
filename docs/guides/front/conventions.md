@@ -126,7 +126,7 @@ platform capabilities that need SSR-safe handling or shared correctness rules:
   browser's local zone; `null` means unavailable and renders an em dash.
 - `utils/csv.ts` owns CSV escaping and spreadsheet-formula neutralization. Route
   code supplies rows and delegates encoding before calling the existing
-  `lib/download-file.ts` download primitive.
+  `utils/download-file.ts` download primitive.
 - `utils/clipboard.ts` owns Clipboard API access and returns an explicit success,
   unavailable, or failed result. It has no manual-copy prompt fallback.
 
@@ -400,9 +400,9 @@ not configure front factories with `handlers.onToast`, because that shared
 seam also handles query failures.
 
 Pure mutation-feedback policy stays in `@org/shared-ts`. Sonner presentation
-stays local to `components/ui/toaster.tsx` and `lib/mutation-toast.ts`. The
+stays local to `components/ui/toaster.tsx` and `lib/mutation-feedback/mutation-toast.ts`. The
 executable guard is
-`apps/front/src/lib/mutation-feedback-architecture.test.ts`.
+`apps/front/src/lib/mutation-feedback/mutation-feedback-architecture.test.ts`.
 
 ## Query State Rendering
 

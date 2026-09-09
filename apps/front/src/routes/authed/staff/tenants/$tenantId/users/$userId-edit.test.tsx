@@ -33,7 +33,7 @@ const mocks = vi.hoisted(() => ({
 	capturedShouldBlockFn: undefined as (() => boolean) | undefined,
 }));
 
-vi.mock('~/lib/mutation-toast', () => ({
+vi.mock('~/lib/mutation-feedback/mutation-toast', () => ({
 	displayLocalMutationFailure: mocks.displayLocalMutationFailure,
 	toastLocalMutationResult: { success: mocks.toastSuccess },
 }));

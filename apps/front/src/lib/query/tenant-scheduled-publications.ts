@@ -19,7 +19,7 @@ export const TENANT_SCHEDULED_PUBLICATIONS_QUERY_KEY = [
 import {
 	isPublicationWireStatus,
 	type PublicationWireStatus,
-} from '~/lib/publication-status';
+} from '~/lib/publishing/publication-status';
 
 const LOCAL_DATE_TIME_PATTERN =
 	/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]\d{2}:\d{2})?$/;

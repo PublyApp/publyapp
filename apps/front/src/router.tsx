@@ -1,8 +1,8 @@
 import { MutationCache, QueryCache, QueryClient } from '@tanstack/react-query';
 import { createRouter } from '@tanstack/react-router';
 import { setupRouterSsrQueryIntegration } from '@tanstack/react-router-ssr-query';
-import { displayMutationFeedback } from '~/lib/mutation-toast';
-import { triggerSessionInvalidated } from '~/lib/session-invalidation-channel';
+import { displayMutationFeedback } from '~/lib/mutation-feedback/mutation-toast';
+import { triggerSessionInvalidated } from '~/lib/session/session-invalidation-channel';
 
 import { toApiFailure } from '@org/shared-ts/lib/api-failure/to-api-failure';
 import { logger } from '@org/shared-ts/lib/logger/iso-logger';

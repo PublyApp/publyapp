@@ -3,7 +3,7 @@ import {
 	readSelectedTenantId,
 	SELECTED_TENANT_STORAGE_KEY,
 	writeSelectedTenantId,
-} from '~/lib/selected-tenant-storage';
+} from '~/lib/session/selected-tenant-storage';
 
 // `localStorage` fires `storage` events only in OTHER tabs; selection changes
 // made in this tab go through the setter below, which notifies listeners

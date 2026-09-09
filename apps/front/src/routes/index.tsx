@@ -22,7 +22,7 @@ import { LandingTrial } from '~/components/marketing/landing/landing-trial';
 import { useLandingReveal } from '~/components/marketing/landing/use-landing-reveal';
 import { buttonVariants } from '~/components/ui/button.variants';
 import { FEATURES } from '~/lib/flags';
-import { createI18nFromResources } from '~/lib/i18n.shared';
+import { createI18nFromResources } from '~/lib/i18n/shared';
 import { cn } from '~/lib/utils';
 
 /* §9 — the two flag-gated bands: restyled onto the shared attio-15 hairline

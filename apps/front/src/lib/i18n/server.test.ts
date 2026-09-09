@@ -2,7 +2,7 @@ import { describe, expect, test } from 'vitest';
 
 import { LOCALE_COOKIE_KEY } from '@org/shared-ts/lib/constants';
 
-import { resolveLocaleFromCookie } from './i18n.server';
+import { resolveLocaleFromCookie } from './server';
 
 const makeCookie = (value: string | undefined): string => {
 	if (!value) {

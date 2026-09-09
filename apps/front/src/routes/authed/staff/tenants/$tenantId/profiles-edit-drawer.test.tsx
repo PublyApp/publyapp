@@ -158,7 +158,7 @@ vi.mock('~/lib/query/staff-tenants', () => ({
 	selectStaffTenantCrumbName: () => undefined,
 }));
 
-vi.mock('~/lib/mutation-toast', () => ({
+vi.mock('~/lib/mutation-feedback/mutation-toast', () => ({
 	displayLocalMutationFailure: mocks.displayLocalMutationFailure,
 	toastLocalMutationResult: {
 		success: mocks.toastSuccess,

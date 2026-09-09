@@ -22,8 +22,8 @@ const maxWorkers = Math.max(2, Math.floor(cpus().length / 2));
 // projects still collected the full suite; two sequential lanes give strict
 // after-renders ordering with no merge semantics involved.
 const DESIGN_GUARD_TEST_FILES = [
-	'src/lib/i18n-key-coverage.test.ts',
-	'src/lib/mutation-feedback-architecture.test.ts',
+	'src/lib/i18n/key-coverage.test.ts',
+	'src/lib/mutation-feedback/mutation-feedback-architecture.test.ts',
 	'src/lib/route-loader-query-key-guard.test.ts',
 ];
 

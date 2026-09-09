@@ -10,11 +10,10 @@ import {
 } from '~/components/ui/bulk-actions-trigger';
 import { ConfirmDialog } from '~/components/ui/confirm-dialog';
 import { DropdownMenu } from '~/components/ui/dropdown-menu';
-import { downloadFile, formatExportDateStamp } from '~/lib/download-file';
 import {
 	displayLocalMutationFailure,
 	toastLocalMutationResult,
-} from '~/lib/mutation-toast';
+} from '~/lib/mutation-feedback/mutation-toast';
 import {
 	toStaffTenantUserBulkActionSummary,
 	useBulkRemoveStaffTenantUsersMutation,
@@ -22,6 +21,7 @@ import {
 	type StaffTenantUserRow,
 } from '~/lib/query/staff-tenant-users';
 import { invalidateAllStaffTenantScopes } from '~/lib/query/staff-tenants';
+import { downloadFile, formatExportDateStamp } from '~/utils/download-file';
 
 import { BULK_ACTION_MAX_COUNT } from '@org/shared-ts/lib/constants';
 import { shouldLogoutForFailure } from '@org/shared-ts/lib/should-logout-for-failure';

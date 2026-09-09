@@ -34,7 +34,7 @@ import type { UseRowSelectionResult } from '~/components/table/use-row-selection
 import type { UseTableControllerResult } from '~/components/table/use-table-controller';
 import resourceEN from '~/i18n/locales/en/common.json';
 import resourceFR from '~/i18n/locales/fr/common.json';
-import { createI18nFromResources } from '~/lib/i18n.shared';
+import { createI18nFromResources } from '~/lib/i18n/shared';
 import type { StaffTenantProfileRow } from '~/lib/query/staff-tenant-profiles';
 
 // The cards themselves pull in `<Link>`, which needs a router context this

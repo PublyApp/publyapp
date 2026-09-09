@@ -42,7 +42,7 @@ vi.mock('@tanstack/react-query', () => ({
 	useQuery: () => mocks.query,
 }));
 
-vi.mock('~/lib/selected-tenant-storage', () => ({
+vi.mock('~/lib/session/selected-tenant-storage', () => ({
 	readSelectedTenantId: () => 'tenant-1',
 }));
 

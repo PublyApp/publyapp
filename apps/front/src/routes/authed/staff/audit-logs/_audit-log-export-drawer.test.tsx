@@ -15,12 +15,12 @@ vi.mock('~/lib/query/staff-audit-logs', () => ({
 	}),
 }));
 
-vi.mock('~/lib/download-file', () => ({
+vi.mock('~/utils/download-file', () => ({
 	downloadFile: mocks.downloadFile,
 	formatExportDateStamp: (_date: Date) => '2026-01-02',
 }));
 
-vi.mock('~/lib/mutation-toast', () => ({
+vi.mock('~/lib/mutation-feedback/mutation-toast', () => ({
 	displayLocalMutationFailure: async () => undefined,
 	toastLocalMutationResult: {
 		error: (...args: unknown[]) => mocks.toastError(...args),

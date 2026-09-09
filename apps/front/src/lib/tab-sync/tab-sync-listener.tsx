@@ -1,6 +1,6 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { useLocation, useNavigate, useRouter } from '@tanstack/react-router';
-import { isAuthPath } from '~/lib/auth-paths';
+import { isAuthPath } from '~/lib/auth/auth-paths';
 import { applyLocale, parseLocaleSyncMessage } from '~/lib/i18n/locale-switch';
 import { CURRENT_USER_QUERY_KEY } from '~/lib/query/auth';
 import type { ColorScheme } from '~/lib/store/ui-store';

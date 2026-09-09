@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import {
 	displayLocalMutationFailure,
 	toastLocalMutationResult,
-} from '~/lib/mutation-toast';
+} from '~/lib/mutation-feedback/mutation-toast';
 import {
 	getStaffTenantProfilePermissionKeysCacheSnapshot,
 	useAssignStaffTenantProfilePermissionMutation,

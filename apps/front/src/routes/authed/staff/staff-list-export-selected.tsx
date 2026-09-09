@@ -6,8 +6,8 @@ import {
 } from '~/components/table/floating-selection-bar';
 import type { UseRowSelectionResult } from '~/components/table/use-row-selection';
 import { Button } from '~/components/ui/button';
-import { downloadFile, formatExportDateStamp } from '~/lib/download-file';
 import { buildCsv } from '~/utils/csv';
+import { downloadFile, formatExportDateStamp } from '~/utils/download-file';
 
 export type CsvExportColumn<TRow> = {
 	header: string;

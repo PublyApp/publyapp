@@ -38,7 +38,7 @@ vi.mock('~/lib/server/auth-actions', () => ({
 		mocks.registerAndRequestEmailVerification,
 }));
 
-vi.mock('~/lib/auth-route-guard', () => ({
+vi.mock('~/lib/auth/auth-route-guard', () => ({
 	redirectAuthenticatedUserAwayFromAuthPage: mocks.guard,
 }));
 
@@ -89,7 +89,7 @@ vi.mock('react-i18next', () => ({
 	}),
 }));
 
-import { redirectAuthenticatedUserAwayFromAuthPage } from '~/lib/auth-route-guard';
+import { redirectAuthenticatedUserAwayFromAuthPage } from '~/lib/auth/auth-route-guard';
 
 import { Route } from './signup';
 

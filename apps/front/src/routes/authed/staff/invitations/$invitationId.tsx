@@ -22,7 +22,7 @@ import { formatDateTime } from '~/lib/format-date-time';
 import {
 	displayLocalMutationFailure,
 	toastLocalMutationResult,
-} from '~/lib/mutation-toast';
+} from '~/lib/mutation-feedback/mutation-toast';
 import {
 	invalidateStaffInvitations,
 	selectStaffInvitationCrumbName,

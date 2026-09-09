@@ -23,7 +23,7 @@ import { Input } from '~/components/ui/input';
 import {
 	displayLocalMutationFailure,
 	toastLocalMutationResult,
-} from '~/lib/mutation-toast';
+} from '~/lib/mutation-feedback/mutation-toast';
 import {
 	invalidateGlobalTenantUsers,
 	toGlobalTenantUserBulkUnlinkSummary,

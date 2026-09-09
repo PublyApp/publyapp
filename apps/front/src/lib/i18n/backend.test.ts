@@ -7,7 +7,7 @@ import {
 	loadI18nContext,
 	loadNamespacesStrict,
 	readNamespaceResource,
-} from './i18n.backend';
+} from './backend';
 
 describe('i18n Vite backend', () => {
 	test.each([

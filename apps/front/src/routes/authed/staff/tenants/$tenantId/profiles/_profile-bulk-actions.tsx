@@ -9,7 +9,7 @@ import { ConfirmDialog } from '~/components/ui/confirm-dialog';
 import {
 	displayLocalMutationFailure,
 	toastLocalMutationResult,
-} from '~/lib/mutation-toast';
+} from '~/lib/mutation-feedback/mutation-toast';
 import {
 	toStaffTenantProfileBulkActionSummary,
 	useBulkDeleteStaffTenantProfilesMutation,

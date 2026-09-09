@@ -7,7 +7,7 @@ import {
 	FALLBACK_LANGUAGE,
 	isSupportedLanguage,
 	type SupportedLanguage,
-} from './i18n.shared';
+} from './shared';
 
 type InterZodOptions = ConstructorParameters<typeof InterZod>[0];
 type InterZodI18nLike = InterZodOptions['i18n'];

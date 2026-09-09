@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { I18N_NAMESPACES } from '~/lib/i18n.namespaces';
+import { I18N_NAMESPACES } from '~/lib/i18n/namespaces';
 
 import en from './en';
 import fr from './fr';
