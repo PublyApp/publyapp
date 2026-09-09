@@ -3,13 +3,13 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { describe, expect, test } from 'vitest';
-import suppressionInventory from '~/lib/suppression-inventory.json';
+import suppressionInventory from '~/lib/testing/suppression-inventory.json';
 import {
 	diffSuppressionInventory,
 	findSuppressionSitesInSource,
 	isPreviousLineSuppressed,
 	type SuppressionSite,
-} from '~/lib/suppression-reason';
+} from '~/lib/testing/suppression-reason';
 
 // Guards docs/guides/front/conventions.md's §Content & data honesty rule:
 // "never render fabricated or placeholder admin data".
@@ -94,7 +94,7 @@ const CHECKS: PlaceholderCheck[] = [
 // `isPreviousLineSuppressed`, the single shared parser also used by
 // `findSuppressionSitesInSource`/the inventory diff below, so this guard and
 // the inventory can never again disagree about what counts as a suppression
-// site. See suppression-reason.ts for the full rationale.
+// site. See lib/testing/suppression-reason.ts for the full rationale.
 const isDataHonestySuppressed = (
 	lines: string[],
 	lineNumber: number,
@@ -122,7 +122,7 @@ const collectSourceFiles = async (dir: string): Promise<string[]> => {
 type SourceFile = { file: string; source: string };
 
 // The staff surface tree walk + full-file read is repeated once per CHECK
-// below plus once more for the suppression-inventory diff. Under vitest's
+// below plus once more for the lib/testing/suppression-inventory.json diff. Under vitest's
 // file-level parallelism, redoing that IO 4x per run starves other workers'
 // CPU/IO budget in the full suite — see W6-FLAKE. Cached once per test-file
 // process since the tree doesn't change mid-run.
@@ -284,7 +284,7 @@ describe('data-honesty-ignore suppression sites match the committed inventory', 
 	// W5-HARDEN: reason-quality alone can't stop `aaa` becoming "suppressed
 	// because of reasons" — a plausible-looking sentence clears any regex bar.
 	// This is the structural backstop: every real suppression site in this
-	// directory must be checked into suppression-inventory.json, so a NEW or
+	// directory must be checked into lib/testing/suppression-inventory.json, so a NEW or
 	// REWORDED suppression shows up in the diff, with its reason, for a
 	// reviewer to actually read. An undocumented suppression fails the guard
 	// even if its reason is perfectly substantive.

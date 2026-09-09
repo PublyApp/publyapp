@@ -340,6 +340,10 @@ and `pnpm --filter front test`).
 
 — source: `apps/front/scripts/guards/check-design-system.mts`, `check-zindex-guard.mts`, `apps/front/src/styles/*.test.ts`, `e2e/toast-contrast.spec.ts`
 
+The suppression parser and committed inventory live with the autonomous testing guards at
+`apps/front/src/lib/testing/suppression-reason.ts` and
+`apps/front/src/lib/testing/suppression-inventory.json`.
+
 ---
 
 ## 7. How to change the design
