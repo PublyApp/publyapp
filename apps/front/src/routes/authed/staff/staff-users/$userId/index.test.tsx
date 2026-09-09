@@ -100,7 +100,7 @@ vi.mock('react-i18next', () => ({
 	}),
 }));
 
-vi.mock('~/lib/format-date-time', () => ({
+vi.mock('~/utils/format-time', () => ({
 	formatDateTime: (value: Date | null | undefined, locale: string): string => {
 		if (!(value instanceof Date) || Number.isNaN(value.valueOf())) {
 			return '—';

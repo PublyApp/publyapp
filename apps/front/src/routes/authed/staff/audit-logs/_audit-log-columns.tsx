@@ -11,8 +11,8 @@ import type { ColumnDef } from '~/components/table/column-type';
 import { DataTableRowActions } from '~/components/table/row-actions';
 import { DropdownMenuItem } from '~/components/ui/dropdown-menu';
 import { StatusPill } from '~/components/ui/product-page';
-import { formatDateTime } from '~/lib/format-date-time';
 import type { StaffAuditLogRow } from '~/lib/query/staff-audit-logs';
+import { formatDateTime } from '~/utils/format-time';
 
 import {
 	auditActionKindLabel,

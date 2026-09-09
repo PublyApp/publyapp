@@ -16,9 +16,9 @@ import {
 	DropdownMenuTrigger,
 } from '~/components/ui/dropdown-menu';
 import { PageHeader } from '~/components/ui/product-page';
-import { formatDateTime } from '~/lib/format-date-time';
 import { useStaffInvitationsQuery } from '~/lib/query/staff-invitations';
 import { StaffListExportSelectedButton } from '~/routes/authed/staff/staff-list-export-selected';
+import { formatDateTime } from '~/utils/format-time';
 
 import type { InvitationListItem } from '@org/client-ts/models/index';
 import { shouldLogoutForFailure } from '@org/shared-ts/lib/should-logout-for-failure';

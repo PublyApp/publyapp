@@ -6,8 +6,8 @@ import {
 	IconWorld,
 } from '@tabler/icons-react';
 import type { ColumnDef } from '~/components/table/column-type';
-import { formatDateTime } from '~/lib/format-date-time';
 import type { TenantActivityRow } from '~/lib/query/staff-tenant-activity';
+import { formatDateTime } from '~/utils/format-time';
 
 /** Column definitions for the tenant activity table. Lives outside the route
  * file so `activity.tsx` exports only its route (react-doctor rung 2, #1417). */

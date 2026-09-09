@@ -18,7 +18,6 @@ import { buttonVariants } from '~/components/ui/button.variants';
 import { Card } from '~/components/ui/card';
 import { ConfirmDialog } from '~/components/ui/confirm-dialog';
 import { Input } from '~/components/ui/input';
-import { formatDateTime } from '~/lib/format-date-time';
 import {
 	displayLocalMutationFailure,
 	toastLocalMutationResult,
@@ -33,6 +32,7 @@ import {
 	useStaffInvitationLinkMutation,
 } from '~/lib/query/staff-invitations';
 import { copyToClipboard } from '~/utils/clipboard';
+import { formatDateTime } from '~/utils/format-time';
 
 import type { StaffInvitationDetails } from '@org/client-ts/models/index';
 import { toApiFailure } from '@org/shared-ts/lib/api-failure/to-api-failure';

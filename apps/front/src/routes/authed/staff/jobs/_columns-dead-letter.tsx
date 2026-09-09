@@ -3,8 +3,8 @@ import type { ColumnDef } from '~/components/table/column-type';
 import { DataTableRowActions } from '~/components/table/row-actions';
 import { DropdownMenuItem } from '~/components/ui/dropdown-menu';
 import { StatusPill } from '~/components/ui/product-page';
-import { formatDateTime } from '~/lib/format-date-time';
 import type { StaffDeadLetterRow } from '~/lib/query/staff-jobs';
+import { formatDateTime } from '~/utils/format-time';
 
 import { formatFailureCause } from './_jobs-helpers';
 import {
