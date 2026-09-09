@@ -222,6 +222,8 @@ const assertE2eImageEnvPropagation = (job: E2eTestJob): void => {
 	const expectedEnv = {
 		E2E_IMAGE_NS: '${{ needs.e2e-build.outputs.root }}',
 		E2E_IMAGE_TAG: '${{ needs.e2e-build.outputs.tag }}',
+		COMPOSE_PROJECT_NAME:
+			'publyapp-e2e-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.shard }}',
 	};
 	assert.deepEqual(
 		job.env,
@@ -270,6 +272,20 @@ test('e2e image env contract rejects missing or wrong job output bindings', asyn
 		['wrong namespace output', { ...expectedEnv, E2E_IMAGE_NS: 'test' }],
 		['missing tag', { E2E_IMAGE_NS: expectedEnv.E2E_IMAGE_NS }],
 		['wrong tag output', { ...expectedEnv, E2E_IMAGE_TAG: 'test' }],
+		[
+			'missing compose project name',
+			{
+				E2E_IMAGE_NS: expectedEnv.E2E_IMAGE_NS,
+				E2E_IMAGE_TAG: expectedEnv.E2E_IMAGE_TAG,
+			},
+		],
+		[
+			'wrong compose project name',
+			{
+				...expectedEnv,
+				COMPOSE_PROJECT_NAME: 'publyapp-e2e',
+			},
+		],
 	] as const) {
 		assert.throws(
 			() => assertE2eImageEnvPropagation({ ...job, env }),

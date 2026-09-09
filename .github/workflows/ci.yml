@@ -941,6 +941,7 @@ jobs:
     env:
       E2E_IMAGE_NS: ${{ needs.e2e-build.outputs.root }}
       E2E_IMAGE_TAG: ${{ needs.e2e-build.outputs.tag }}
+      COMPOSE_PROJECT_NAME: publyapp-e2e-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.shard }}
     steps:
       - name: Checkout
         id: checkout
