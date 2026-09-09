@@ -16,11 +16,11 @@ vi.mock('@tanstack/react-router', () => ({
 	redirect: mocks.redirect,
 }));
 
-vi.mock('./api-client/client-manager', () => ({
+vi.mock('../api-client/client-manager', () => ({
 	getSessionTokensFromBrowser: mocks.getSessionTokensFromBrowser,
 }));
 
-vi.mock('./server/session-actions', () => ({
+vi.mock('../server/session-actions', () => ({
 	resolveWorkspacePath: mocks.resolveWorkspacePath,
 }));
 

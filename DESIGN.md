@@ -262,7 +262,7 @@ aggregations. **front has no `<Image>` primitive** — only raw `<img>` for word
   handled 422 validation produces **no duplicate toast**. — source: `conventions.md` (Mutation Feedback Ownership)
 
 ### Toasts
-- Sonner, `unstyled: true`, presentation owned by `components/ui/toaster.tsx` + `lib/mutation-toast.ts`.
+- Sonner, `unstyled: true`, presentation owned by `components/ui/toaster.tsx` + `lib/mutation-feedback/mutation-toast.ts`.
   Variant tints come from the same semantic alert tokens as inline alerts (`.publy-toast-success/error/info/warning/loading/default`).
   — source: `app.css` (`.publy-toast`), `apps/front/src/components/ui/toast-variants.ts`, `conventions.md`
 - Each toast variant's contrast is measured live in the browser (see Guards). `richColors` is off

@@ -37,7 +37,7 @@ vi.mock('@org/shared-ts/lib/logger/iso-logger', () => ({
 	},
 }));
 
-vi.mock('./env', () => ({
+vi.mock('../env', () => ({
 	getPublicEnv: mocks.getPublicEnv,
 	isProductionRuntime: mocks.isProductionRuntime,
 }));
