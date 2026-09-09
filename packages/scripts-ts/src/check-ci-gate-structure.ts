@@ -2064,6 +2064,8 @@ type CentralStep = {
 
 type CentralJob = {
 	name?: unknown;
+	'runs-on'?: unknown;
+	'timeout-minutes'?: unknown;
 	outputs?: Record<string, unknown>;
 	permissions?: unknown;
 	if?: unknown;
@@ -2134,6 +2136,7 @@ const EXPECTED_CENTRAL_PARENT_RESULTS = {
 type CentralJobs = Record<string, CentralJob>;
 
 type CentralDocument = {
+	concurrency?: unknown;
 	permissions?: unknown;
 	on?: Record<string, unknown>;
 	jobs?: CentralJobs;
@@ -2189,6 +2192,15 @@ const checkCentralHeaderInvariants = (
 	document: CentralDocument,
 	findings: string[],
 ): void => {
+	const expectedConcurrency = {
+		group: 'central-ci-${{ github.event.pull_request.number || github.ref }}',
+		'cancel-in-progress': true,
+	};
+	if (!deepEqualJson(document.concurrency, expectedConcurrency)) {
+		findings.push(
+			`ci.yml: concurrency must be exactly ${JSON.stringify(expectedConcurrency)}`,
+		);
+	}
 	if (!deepEqualJson(document.permissions, {})) {
 		findings.push('ci.yml: workflow permissions must be exactly {}');
 	}
@@ -2299,6 +2311,18 @@ const checkCentralTopologyInvariants = (
 				`${jobId}: exact job permissions do not match the allowlist`,
 			);
 		}
+	}
+	const api = jobs.api;
+	const apiKeys = api === undefined ? [] : Object.keys(api);
+	const runsOnIndex = apiKeys.indexOf('runs-on');
+	if (
+		api?.['timeout-minutes'] !== 30 ||
+		runsOnIndex === -1 ||
+		apiKeys[runsOnIndex + 1] !== 'timeout-minutes'
+	) {
+		findings.push(
+			'api: timeout-minutes must be exactly 30 immediately after runs-on',
+		);
 	}
 
 	for (const jobId of CENTRAL_JOB_IDS) {

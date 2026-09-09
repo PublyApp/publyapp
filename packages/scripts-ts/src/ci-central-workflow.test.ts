@@ -19,6 +19,168 @@ import {
 
 const repoRoot = path.resolve(new URL('../../..', import.meta.url).pathname);
 const workflowPath = path.join(repoRoot, '.github/workflows/ci.yml');
+const EXPECTED_CENTRAL_CONCURRENCY_GROUP =
+	'central-ci-${{ github.event.pull_request.number || github.ref }}';
+
+test('central workflow pins concurrency and API timeout contracts', async () => {
+	const workflow = parse(await readFile(workflowPath, 'utf8')) as {
+		concurrency?: Record<string, unknown>;
+		jobs: Record<string, Record<string, unknown>>;
+	};
+
+	assert.deepEqual(workflow.concurrency, {
+		group: EXPECTED_CENTRAL_CONCURRENCY_GROUP,
+		'cancel-in-progress': true,
+	});
+
+	const api = workflow.jobs.api;
+	assert.ok(api, 'api job must exist');
+	assert.equal(api['timeout-minutes'], 30);
+	const apiKeys = Object.keys(api);
+	assert.equal(
+		apiKeys[apiKeys.indexOf('runs-on') + 1],
+		'timeout-minutes',
+		'API timeout must immediately follow runs-on',
+	);
+
+	const groupFor = (context: {
+		prNumber?: number;
+		ref: string;
+		runAttempt: number;
+	}): string => `central-ci-${context.prNumber ?? context.ref}`;
+	assert.equal(
+		groupFor({ prNumber: 2109, ref: 'refs/pull/2109/merge', runAttempt: 1 }),
+		'central-ci-2109',
+	);
+	assert.equal(
+		groupFor({ prNumber: 2110, ref: 'refs/pull/2110/merge', runAttempt: 1 }),
+		'central-ci-2110',
+	);
+	assert.notEqual(
+		groupFor({ prNumber: 2109, ref: 'refs/pull/2109/merge', runAttempt: 1 }),
+		groupFor({ prNumber: 2110, ref: 'refs/pull/2110/merge', runAttempt: 1 }),
+		'PR numbers must isolate pull requests',
+	);
+	assert.equal(
+		groupFor({
+			ref: 'refs/heads/gh-readonly-queue/develop/pr-2109-abc',
+			runAttempt: 1,
+		}),
+		'central-ci-refs/heads/gh-readonly-queue/develop/pr-2109-abc',
+	);
+	assert.equal(
+		groupFor({ ref: 'refs/heads/develop', runAttempt: 1 }),
+		'central-ci-refs/heads/develop',
+	);
+	assert.equal(
+		groupFor({ prNumber: 2109, ref: 'refs/pull/2109/merge', runAttempt: 1 }),
+		groupFor({ prNumber: 2109, ref: 'refs/pull/2109/merge', runAttempt: 2 }),
+		'run_attempt must not alter the concurrency group',
+	);
+});
+
+test('central workflow structure rejects concurrency and API timeout mutations', async () => {
+	const rootDir = await mkdtemp(
+		path.join(os.tmpdir(), 'publyapp-central-policy-mutations-'),
+	);
+	await cp(path.join(repoRoot, '.github'), path.join(rootDir, '.github'), {
+		recursive: true,
+	});
+	const workflowFile = path.join(rootDir, '.github/workflows/ci.yml');
+	const original = await readFile(workflowFile, 'utf8');
+	const mutations: Array<[string, (value: string) => string, RegExp]> = [
+		[
+			'concurrency removed',
+			(value) =>
+				value.replace(
+					`\nconcurrency:\n  group: ${EXPECTED_CENTRAL_CONCURRENCY_GROUP}\n  cancel-in-progress: true\n`,
+					'\n',
+				),
+			/concurrency|group|cancel/i,
+		],
+		[
+			'concurrency group changed to ref-only',
+			(value) =>
+				value.replace(
+					EXPECTED_CENTRAL_CONCURRENCY_GROUP,
+					'central-ci-${{ github.ref }}',
+				),
+			/concurrency|group/i,
+		],
+		[
+			'concurrency group uses head_ref',
+			(value) =>
+				value.replace(
+					EXPECTED_CENTRAL_CONCURRENCY_GROUP,
+					'central-ci-${{ github.head_ref || github.ref }}',
+				),
+			/concurrency|group/i,
+		],
+		[
+			'concurrency group uses run_id',
+			(value) =>
+				value.replace(
+					EXPECTED_CENTRAL_CONCURRENCY_GROUP,
+					'central-ci-${{ github.run_id }}',
+				),
+			/concurrency|group/i,
+		],
+		[
+			'concurrency group uses run_attempt',
+			(value) =>
+				value.replace(
+					EXPECTED_CENTRAL_CONCURRENCY_GROUP,
+					'central-ci-${{ github.run_attempt }}',
+				),
+			/concurrency|group/i,
+		],
+		[
+			'concurrency cancellation disabled',
+			(value) =>
+				value.replace('cancel-in-progress: true', 'cancel-in-progress: false'),
+			/concurrency|cancel/i,
+		],
+		[
+			'API timeout removed',
+			(value) => value.replace('    timeout-minutes: 30\n', ''),
+			/timeout-minutes|api/i,
+		],
+		[
+			'API timeout changed',
+			(value) =>
+				value.replace('    timeout-minutes: 30', '    timeout-minutes: 29'),
+			/timeout-minutes|api/i,
+		],
+		[
+			'API timeout nested under permissions',
+			(value) =>
+				value.replace(
+					'    timeout-minutes: 30\n    permissions:',
+					'    permissions:\n      timeout-minutes: 30',
+				),
+			/timeout-minutes|api/i,
+		],
+	];
+
+	try {
+		for (const [label, mutation, expected] of mutations) {
+			const mutatedWorkflow = mutation(original);
+			assert.notEqual(
+				mutatedWorkflow,
+				original,
+				`${label} must change the fixture`,
+			);
+			await writeFile(workflowFile, mutatedWorkflow);
+			const findings = await findCentralCiStructureProblems({ rootDir });
+			assert.ok(
+				findings.some((finding) => expected.test(finding)),
+				`${label} should fail: ${findings.join('; ')}`,
+			);
+		}
+	} finally {
+		await rm(rootDir, { recursive: true, force: true });
+	}
+});
 
 const mutateStepIf = (
 	workflow: string,

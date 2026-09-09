@@ -125,7 +125,7 @@ namespace PublyApp.Api.Lib.Testing.Fixtures {
 					"all"
 				);
 
-				// 2. Load .env.development as baseline config.
+				// 3. Load .env.development as baseline config.
 				//    This provides ~12 settings (APP_NAME, headers,
 				//    token lengths, etc.) so we don't duplicate them.
 				string? dotEnvPath = AppEnvironment.FindDotEnvPath(
