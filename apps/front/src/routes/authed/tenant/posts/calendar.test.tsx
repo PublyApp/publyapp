@@ -12,6 +12,7 @@ import {
 import type { ComponentType, ReactNode } from 'react';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import type { ScheduledPublicationRow } from '~/lib/query/tenant-scheduled-publications';
+import { ServerFailure } from '~/lib/server/server-failure';
 import type { TestLabelMap } from '~/lib/testing/test-label-map';
 
 const mocks = vi.hoisted(() => ({
@@ -366,5 +367,22 @@ describe('TenantPostsCalendarPage', () => {
 		);
 
 		expect(allPagesMock.restart).toHaveBeenCalledOnce();
+	});
+
+	test('surfaces the calendar failure cause through the shared error slot', async () => {
+		allPagesMock.error = new ServerFailure({
+			responseStatusCode: 500,
+			status: 500,
+			title: 'Internal Server Error',
+			detail: 'Calendar data could not be loaded from the publishing service.',
+			translationKey: 'calendar-load-failed',
+		});
+		renderPage();
+
+		expect(
+			await screen.findByText(
+				'Calendar data could not be loaded from the publishing service.',
+			),
+		).toBeTruthy();
 	});
 });

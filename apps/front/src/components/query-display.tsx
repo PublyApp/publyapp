@@ -1,6 +1,11 @@
 import type { UseQueryResult } from '@tanstack/react-query';
 import { isValidElement, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
+import { ErrorStateSurface } from '~/components/ui/state-surface';
+import {
+	resolveQueryError,
+	type ResolvedQueryError,
+} from '~/lib/server/query-error-resolver';
 
 import { checkIfEmptyQueryData } from '@org/shared-ts/lib/query/query-state';
 
@@ -67,11 +72,25 @@ const LoadingSpinner = ({
 	/>
 );
 
+const renderDefaultError = (resolved: ResolvedQueryError) => {
+	if (resolved.silent) {
+		return null;
+	}
+
+	return (
+		<ErrorStateSurface
+			eyebrow={resolved.code}
+			title={resolved.title}
+			description={resolved.description}
+		/>
+	);
+};
+
 const renderError = <TData, TError>(
 	error: unknown,
 	query: UseQueryResult<TData, TError>,
 	ErrorSlot: Props<TData, TError>['ErrorSlot'],
-	errorMessage: string,
+	t: (key: string) => string,
 ) => {
 	if (typeof ErrorSlot === 'function') {
 		const Slot = ErrorSlot;
@@ -80,7 +99,12 @@ const renderError = <TData, TError>(
 	if (isValidElement(ErrorSlot)) {
 		return ErrorSlot;
 	}
-	return <span>{errorMessage}</span>;
+	// Issue #2043: the default error branch used to discard the real error
+	// and show one generic sentence for every cause (server unreachable, 403,
+	// 404, a malformed payload, the browser offline). Resolve whatever the
+	// caller threw through the shared status→copy matcher; the fallback
+	// branch inside the resolver covers the bare-Error case explicitly.
+	return renderDefaultError(resolveQueryError(error, t));
 };
 
 const renderEmpty = (EmptySlot?: Props['EmptySlot']) => {
@@ -135,7 +159,7 @@ const QueryDisplay = <TData = unknown, TError = Error>({
 					query.error ?? new Error('forced error'),
 					query,
 					ErrorSlot,
-					t('query-display-error-default'),
+					t,
 				);
 			case 'empty':
 				return renderEmpty(EmptySlot);
@@ -156,12 +180,7 @@ const QueryDisplay = <TData = unknown, TError = Error>({
 	}
 
 	if (query.isError) {
-		return renderError(
-			query.error,
-			query,
-			ErrorSlot,
-			t('query-display-error-default'),
-		);
+		return renderError(query.error, query, ErrorSlot, t);
 	}
 
 	if (checkIfEmptyQueryData(query)) {

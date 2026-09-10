@@ -60,6 +60,20 @@ describe('state-surface', () => {
 		);
 	});
 
+	test('announces error surfaces through the shared live-region primitive', () => {
+		render(
+			<ErrorStateSurface
+				title="List unavailable"
+				description="Unable to load."
+				testId="error-surface"
+			/>,
+		);
+
+		const surface = screen.getByTestId('error-surface');
+		expect(surface.getAttribute('role')).toBe('status');
+		expect(surface.getAttribute('aria-live')).toBe('polite');
+	});
+
 	test('ErrorStateSurface and NoMatchStateSurface accept an icon override while keeping their tone', () => {
 		render(
 			<ErrorStateSurface

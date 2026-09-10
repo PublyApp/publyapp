@@ -1030,6 +1030,7 @@
 	"select-all-rows": "Tout sélectionner",
 	"select-row-named": "Sélectionner {{name}}",
 	"query-display-error-default": "Une erreur est survenue lors du chargement des données.",
+	"query-display-error-cause-unknown": "Nous n'avons pas pu identifier la cause. Réessayez dans un instant.",
 	"error-401-code": "401 — Non autorisé",
 	"sign-in-required-description": "Vous n'êtes pas connecté. Veuillez vous reconnecter.",
 	"session-no-longer-valid-description": "Votre session n'est plus valide.",
