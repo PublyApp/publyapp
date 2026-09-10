@@ -4,10 +4,4 @@
 		<OutputType>Exe</OutputType>
 	</PropertyGroup>
 
-	<ItemGroup>
-		<ProjectReference Include="..\lint-cs\PublyApp.Analyzers.csproj"
-						  OutputItemType="Analyzer"
-						  ReferenceOutputAssembly="false" />
-	</ItemGroup>
-
 </Project>

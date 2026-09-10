@@ -443,7 +443,7 @@ The applicable first-party C# projects are:
 | apps/api/PublyApp.Api.csproj | Keep the existing analyzer-only ProjectReference. | Included in PublyApp.slnx, quality-gate build, just build-api, and API builds. |
 | apps/api/Tests/PublyApp.Api.Tests.csproj | Add an explicit analyzer-only reference; do not rely on analyzer transitivity from the API project. | Compiles linked API *.Spec.cs, Lib/Testing, and test sources, so API specs and test infrastructure are checked. |
 | apps/apphost/PublyApp.AppHost.csproj | Add an explicit analyzer-only reference. | AppHost is deliberately omitted from PublyApp.slnx but is compiled by AppHostOrchestrationGuardSpec and covered by the apps/apphost/** API-test path filter. |
-| packages/scripts-cs/PublyApp.Scripts.csproj | Add an explicit analyzer-only reference. | Included in PublyApp.slnx and built both as a solution project and by API translation-key generation. |
+| packages/scripts-cs/PublyApp.Scripts.csproj | Defer analyzer-only wiring until Phase 2. | Its API translation-key invocation uses a private shared restore/output root; referencing the netstandard2.0 analyzer there overwrites that root with a single-target assets file and breaks the real API build. |
 | packages/lint-cs/Tests/PublyApp.Analyzers.Tests.csproj | Use one ProjectReference that retains the normal compile-time reference and also sets OutputItemType="Analyzer"; keep ReferenceOutputAssembly="true". | just test-analyzers and the quality gate run this project; its linked co-located specs are therefore checked by the rule. |
 | packages/lint-cs/PublyApp.Analyzers.csproj | Deliberately do not reference itself as an analyzer. | Its implementation source is the one self-analysis exclusion; behavior is tested through the dedicated runner. |
 
@@ -465,6 +465,25 @@ The analyzer test project must add the standard C# code-fix testing package and
 cover both analyzer diagnostics and exact code-fix output. No production or
 runtime project receives a code-fix dependency; only the analyzer assembly
 needs Workspaces APIs, and Roslyn package references remain private.
+
+## Phase 1 build-path correction
+
+The initial Phase 1 wiring removed the analyzer-only project reference from
+`packages/scripts-cs/PublyApp.Scripts.csproj`. The scripts project is invoked by
+the API's translation-key generation target with a private
+`BaseIntermediateOutputPath`/`BaseOutputPath`. That invocation restores the
+`net10.0` scripts project into the shared codegen root. Adding the
+`netstandard2.0` analyzer project reference made the referenced analyzer build
+consume the same single-target assets file, causing `NETSDK1005` for both
+`net10.0` and `netstandard2.0` depending on which project reached the file.
+
+This does not remove the code-fix dependency: `Microsoft.CodeAnalysis.CSharp.Workspaces`
+remains a private package reference of `PublyApp.Analyzers.csproj`, and the
+dedicated analyzer test runner continues to exercise the code-fix provider.
+The API and AppHost retain their analyzer-only references. Phase 2 must restore
+analyzer enforcement for `scripts-cs` through an isolated, correctly packaged
+or separately restored analyzer path before enabling PUBLY0012 there; do not
+reintroduce the direct project reference into the shared codegen invocation.
 
 ## Migration sequencing
 
