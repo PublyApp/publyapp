@@ -6,16 +6,16 @@ import type { ColumnDef } from '~/components/table/column-type';
 import { DataTableRowActions } from '~/components/table/row-actions';
 import { ConfirmDialog } from '~/components/ui/confirm-dialog';
 import { BrandTile } from '~/components/ui/initials-avatar';
-import { formatDateTime } from '~/lib/format-date-time';
 import {
 	displayLocalMutationFailure,
 	toastLocalMutationResult,
-} from '~/lib/mutation-toast';
+} from '~/lib/mutation-feedback/mutation-toast';
 import {
 	invalidateGlobalTenantUsers,
 	toGlobalTenantUserCompanyRows,
 	useBulkUnlinkGlobalTenantUserCompaniesMutation,
 } from '~/lib/query/staff-global-tenant-users';
+import { formatDateTime } from '~/utils/format-time';
 
 import { shouldLogoutForFailure } from '@org/shared-ts/lib/should-logout-for-failure';
 

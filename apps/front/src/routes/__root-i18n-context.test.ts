@@ -9,7 +9,7 @@ const mocks = vi.hoisted(() => ({
 	loadI18nForRequest: vi.fn(),
 }));
 
-vi.mock('~/lib/i18n.backend', () => ({
+vi.mock('~/lib/i18n/backend', () => ({
 	createBackendI18n: mocks.createBackendI18n,
 	loadI18nContext: mocks.loadI18nContext,
 }));
@@ -19,8 +19,8 @@ vi.mock('~/server/i18n-locale', () => ({
 	setLocale: vi.fn(),
 }));
 
-import type { I18nRouteMatch, SupportedNamespace } from '~/lib/i18n.namespaces';
-import type { I18nResources, SupportedLanguage } from '~/lib/i18n.shared';
+import type { I18nRouteMatch, SupportedNamespace } from '~/lib/i18n/namespaces';
+import type { I18nResources, SupportedLanguage } from '~/lib/i18n/shared';
 
 import { Route as RootRoute } from './__root';
 

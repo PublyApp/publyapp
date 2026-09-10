@@ -52,7 +52,7 @@ lists every React context that ships in the client bundle:
 
 ```js
 export const contextChunkIsolationInventory = [
-	{ name: 'AuthBrandContext', sourceFile: 'src/lib/auth-brand-context.tsx' },
+	{ name: 'AuthBrandContext', sourceFile: 'src/lib/auth/auth-brand-context.tsx' },
 ];
 ```
 

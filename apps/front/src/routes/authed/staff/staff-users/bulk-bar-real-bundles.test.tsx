@@ -10,7 +10,7 @@ import {
 	createI18nFromResources,
 	type I18nResources,
 	type SupportedLanguage,
-} from '~/lib/i18n.shared';
+} from '~/lib/i18n/shared';
 
 /**
  * #1400 — the bulk-actions trigger must speak the app's REAL locale bundles.
@@ -20,7 +20,7 @@ import {
  * synthetic EN-only `t`, so a FR regression in any bulk-bar key is invisible
  * to them; FR coverage relied on the static key-coverage gate alone (issue
  * finding 2). This suite mounts `StaffUsersListBulkActions` through the REAL
- * production init helper (`createI18nFromResources` from `~/lib/i18n.shared`)
+ * production init helper (`createI18nFromResources` from `~/lib/i18n/shared`)
  * fed the REAL shipped `en/common.json` and `fr/common.json` bundles — the
  * same instance shape `__root.tsx` serves in production, no synthetic `t`
  * anywhere — and pins the bar's texts per language. (The tenants bar joins
@@ -50,7 +50,7 @@ const mocks = vi.hoisted(() => ({
 	displayLocalMutationFailure: vi.fn().mockResolvedValue(undefined),
 }));
 
-vi.mock('~/lib/mutation-toast', () => ({
+vi.mock('~/lib/mutation-feedback/mutation-toast', () => ({
 	displayLocalMutationFailure: mocks.displayLocalMutationFailure,
 	toastLocalMutationResult: {
 		success: mocks.toastSuccess,

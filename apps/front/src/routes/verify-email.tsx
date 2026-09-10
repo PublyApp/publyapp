@@ -18,7 +18,7 @@ import { InvalidLinkView } from '~/components/auth/invalid-link-view';
 import { PrecheckUnavailableView } from '~/components/auth/precheck-unavailable-view';
 import { Button } from '~/components/ui/button';
 import { Input } from '~/components/ui/input';
-import { redirectAuthenticatedUserAwayFromAuthPage } from '~/lib/auth-route-guard';
+import { redirectAuthenticatedUserAwayFromAuthPage } from '~/lib/auth/auth-route-guard';
 import { useHydrated } from '~/lib/hooks/use-hydrated';
 import {
 	checkEmailVerificationToken,

@@ -14,12 +14,12 @@ import {
 	DrawerTitle,
 } from '~/components/ui/drawer';
 import { PageHeader, DetailRow } from '~/components/ui/product-page';
-import { formatDateTime } from '~/lib/format-date-time';
 import {
 	toStaffJobQueueRows,
 	useStaffJobQueueQuery,
 	type StaffJobQueueRow,
 } from '~/lib/query/staff-jobs';
+import { formatDateTime } from '~/utils/format-time';
 
 import { shouldLogoutForFailure } from '@org/shared-ts/lib/should-logout-for-failure';
 

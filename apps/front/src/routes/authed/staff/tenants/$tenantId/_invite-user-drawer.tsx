@@ -23,11 +23,10 @@ import {
 	DrawerHeader,
 	DrawerTitle,
 } from '~/components/ui/drawer';
-import { downloadFile } from '~/lib/download-file';
 import {
 	displayLocalMutationFailure,
 	toastLocalMutationResult,
-} from '~/lib/mutation-toast';
+} from '~/lib/mutation-feedback/mutation-toast';
 import {
 	toResolveTenantProfileNameResolutions,
 	useResolveTenantProfileNamesMutation,
@@ -39,6 +38,7 @@ import {
 	useBulkInviteTenantUsersMutation,
 } from '~/lib/query/staff-tenant-users';
 import { invalidateAllStaffTenantScopes } from '~/lib/query/staff-tenants';
+import { downloadFile } from '~/utils/download-file';
 
 import {
 	getFailureMessage,

@@ -6,7 +6,7 @@ import {
 	FALLBACK_LANGUAGE,
 	isSupportedLanguage,
 	type SupportedLanguage,
-} from './i18n.shared';
+} from './shared';
 
 const normalizeLocale = (
 	value: string | null | undefined,

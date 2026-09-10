@@ -106,7 +106,7 @@ vi.mock('~/lib/tab-sync/broadcast-sync', () => ({
 	postBroadcast: mocks.postBroadcast,
 }));
 
-vi.mock('~/lib/auth-route-guard', () => ({
+vi.mock('~/lib/auth/auth-route-guard', () => ({
 	hasBrowserSessionCookie: mocks.hasBrowserSessionCookie,
 }));
 

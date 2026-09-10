@@ -54,7 +54,7 @@ vi.mock('react', async (importOriginal) => {
 	};
 });
 
-vi.mock('~/lib/mutation-toast', () => ({
+vi.mock('~/lib/mutation-feedback/mutation-toast', () => ({
 	displayLocalMutationFailure: mocks.displayLocalMutationFailure,
 	toastLocalMutationResult: {
 		success: mocks.toastSuccess,

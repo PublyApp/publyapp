@@ -2,8 +2,8 @@ import { redirect } from '@tanstack/react-router';
 
 import { selectToken } from '@org/shared-ts/lib/session/parse';
 
-import { getSessionTokensFromBrowser } from './api-client/client-manager';
-import { resolveWorkspacePath } from './server/session-actions';
+import { getSessionTokensFromBrowser } from '../api-client/client-manager';
+import { resolveWorkspacePath } from '../server/session-actions';
 
 export const hasBrowserSessionCookie = (): boolean => {
 	const tokens = getSessionTokensFromBrowser();

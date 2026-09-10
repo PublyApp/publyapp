@@ -4,7 +4,7 @@ import { isIP } from 'node:net';
 import { IsoAnalytics } from '@org/shared-ts/lib/analytics/iso-analytics';
 import { logger } from '@org/shared-ts/lib/logger/iso-logger';
 
-import { getPublicEnv, isProductionRuntime } from './env';
+import { getPublicEnv, isProductionRuntime } from '../env';
 
 type AddressHeader =
 	| 'cf-connecting-ip'

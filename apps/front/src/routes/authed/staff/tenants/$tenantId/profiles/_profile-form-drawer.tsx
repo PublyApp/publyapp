@@ -19,7 +19,7 @@ import { IconColorPicker } from '~/components/ui/icon-color-picker';
 import {
 	displayLocalMutationFailure,
 	toastLocalMutationResult,
-} from '~/lib/mutation-toast';
+} from '~/lib/mutation-feedback/mutation-toast';
 import {
 	buildStaffTenantPermissionCatalogGroups,
 	useCreateStaffTenantProfileMutation,

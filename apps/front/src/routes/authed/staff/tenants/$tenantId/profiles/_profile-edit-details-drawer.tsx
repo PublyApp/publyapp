@@ -22,7 +22,7 @@ import { useLanguageKeyedZodResolver } from '~/lib/hooks/use-language-keyed-zod-
 import {
 	displayLocalMutationFailure,
 	toastLocalMutationResult,
-} from '~/lib/mutation-toast';
+} from '~/lib/mutation-feedback/mutation-toast';
 import { resolveProfileSaveFailure } from '~/lib/profiles/profile-edit-details-save-failure';
 import { useUpdateStaffTenantProfileMutation } from '~/lib/query/staff-tenant-profiles';
 import { invalidateAllStaffTenantScopes } from '~/lib/query/staff-tenants';

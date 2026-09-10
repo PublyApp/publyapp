@@ -6,12 +6,15 @@ import {
 
 import { logger } from '@org/shared-ts/lib/logger/iso-logger';
 
-import { captureBadRequest, classifyBadResponse } from './lib/analytics';
+import {
+	captureBadRequest,
+	classifyBadResponse,
+} from './lib/analytics/analytics';
 import { getPublicEnv, getServerEnv, isDevelopmentRuntime } from './lib/env';
-import { createBackendI18n, loadNamespacesStrict } from './lib/i18n.backend';
-import { GLOBAL_I18N_NAMESPACES } from './lib/i18n.namespaces';
-import { resolveLocaleFromCookie } from './lib/i18n.server';
-import type { SupportedLanguage } from './lib/i18n.shared';
+import { createBackendI18n, loadNamespacesStrict } from './lib/i18n/backend';
+import { GLOBAL_I18N_NAMESPACES } from './lib/i18n/namespaces';
+import { resolveLocaleFromCookie } from './lib/i18n/server';
+import type { SupportedLanguage } from './lib/i18n/shared';
 import { mintCspNonce, applyCspHeaders } from './server/csp';
 import { seo } from './utils/seo';
 

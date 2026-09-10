@@ -126,7 +126,7 @@ platform capabilities that need SSR-safe handling or shared correctness rules:
   browser's local zone; `null` means unavailable and renders an em dash.
 - `utils/csv.ts` owns CSV escaping and spreadsheet-formula neutralization. Route
   code supplies rows and delegates encoding before calling the existing
-  `lib/download-file.ts` download primitive.
+  `utils/download-file.ts` download primitive.
 - `utils/clipboard.ts` owns Clipboard API access and returns an explicit success,
   unavailable, or failed result. It has no manual-copy prompt fallback.
 
@@ -312,7 +312,7 @@ second fetch path with different keys — reuse the page's own query-options fac
 cache dedupes.
 
 **This is a guard, not a description.** The query-key subset rule above is enforced statically
-by `src/lib/route-loader-query-key-guard.test.ts` (test "every route loader preloads only query
+by `src/lib/query/route-loader-query-key-guard.test.ts` (test "every route loader preloads only query
 keys the route's own components pass to useQuery (route-loader query-key subset guard)"): every
 route `loader`'s query keys must be a subset of the query keys that route's own components pass
 to `useQuery`. Inclusion, not equality — a route may query more than it preloads, never the
@@ -400,9 +400,9 @@ not configure front factories with `handlers.onToast`, because that shared
 seam also handles query failures.
 
 Pure mutation-feedback policy stays in `@org/shared-ts`. Sonner presentation
-stays local to `components/ui/toaster.tsx` and `lib/mutation-toast.ts`. The
+stays local to `components/ui/toaster.tsx` and `lib/mutation-feedback/mutation-toast.ts`. The
 executable guard is
-`apps/front/src/lib/mutation-feedback-architecture.test.ts`.
+`apps/front/src/lib/mutation-feedback/mutation-feedback-architecture.test.ts`.
 
 ## Query State Rendering
 

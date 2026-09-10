@@ -4,11 +4,11 @@ export const contextChunkIsolationInventory: readonly ContextInventoryEntry[] =
 	[
 		{
 			name: 'AuthBrandContext',
-			sourceFile: 'src/lib/auth-brand-context.tsx',
+			sourceFile: 'src/lib/auth/auth-brand-context.tsx',
 		},
 		{
 			name: 'SessionSurfaceValidationContext',
-			sourceFile: 'src/lib/session-surface-recovery-context.tsx',
+			sourceFile: 'src/lib/session/session-surface-recovery-context.tsx',
 		},
 		{
 			name: 'StaffUserOverviewContext',

@@ -7,7 +7,7 @@ import type { ColumnDef } from '~/components/table/column-type';
 import { DataTable } from '~/components/table/data-table';
 import { Button } from '~/components/ui/button';
 import { PageHeader, StatusPill } from '~/components/ui/product-page';
-import { publicationStatusPresentation } from '~/lib/publication-status';
+import { publicationStatusPresentation } from '~/lib/publishing/publication-status';
 import {
 	invalidateTenantPublications,
 	toTenantPublicationRows,

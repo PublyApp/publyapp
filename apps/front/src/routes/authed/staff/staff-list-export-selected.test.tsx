@@ -6,7 +6,7 @@ const mocks = vi.hoisted(() => ({
 	downloadFile: vi.fn(),
 }));
 
-vi.mock('~/lib/download-file', () => ({
+vi.mock('~/utils/download-file', () => ({
 	downloadFile: mocks.downloadFile,
 	formatExportDateStamp: () => '2026-07-14',
 }));

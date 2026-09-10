@@ -11,7 +11,7 @@
 // plausible-looking sentence that still isn't an argued reason ("suppressed
 // because of reasons"). The heuristic below catches the mechanical noise
 // shapes (empty, punctuation-only, digits-only, a repeated character/word).
-// The structural fix is `suppression-inventory.json` (see
+// The structural fix is `lib/testing/suppression-inventory.json` (see
 // `diffSuppressionInventory` below): every suppression site — file,
 // convention, and its exact reason text — must be checked in, so a NEW
 // suppression cannot land silently. It has to appear in the diff, reason and

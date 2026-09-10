@@ -5,7 +5,7 @@ import {
 } from 'i18next';
 import { initReactI18next } from 'react-i18next';
 
-import type { SupportedNamespace } from './i18n.namespaces';
+import type { SupportedNamespace } from './namespaces';
 
 export const SUPPORTED_LANGUAGES = ['en', 'fr'] as const;
 export type SupportedLanguage = (typeof SUPPORTED_LANGUAGES)[number];

@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { auditLogExportDownloadDescriptor } from '~/lib/audit-log-export-format';
+import { auditLogExportDownloadDescriptor } from '~/lib/audit-logs/audit-log-export-format';
 
 describe('auditLogExportDownloadDescriptor', () => {
 	test('returns csv extension and text/csv MIME for the CSV format', () => {

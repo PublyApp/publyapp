@@ -5,8 +5,8 @@ import { CopyButton } from '~/components/ui/copy-button';
 import { PersonAvatar } from '~/components/ui/person-avatar';
 import { StatusPill } from '~/components/ui/product-page';
 import { ScrollArea } from '~/components/ui/scroll-area';
-import { formatDateTime } from '~/lib/format-date-time';
 import { cn } from '~/lib/utils';
+import { formatDateTime } from '~/utils/format-time';
 
 import type { AuditLogDetail } from '@org/client-ts/models/index';
 

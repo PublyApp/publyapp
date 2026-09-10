@@ -56,7 +56,7 @@ vi.mock('~/lib/query/staff-invitations', () => ({
 	invalidateStaffInvitations: mocks.invalidateStaffInvitations,
 }));
 
-vi.mock('~/lib/mutation-toast', () => ({
+vi.mock('~/lib/mutation-feedback/mutation-toast', () => ({
 	toastLocalMutationResult: {
 		warning: mocks.toastWarning,
 	},

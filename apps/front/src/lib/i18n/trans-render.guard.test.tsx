@@ -8,7 +8,7 @@
  * This version mounts the REAL exported route components (reset-password,
  * accept-invitation, verify-email — the same objects `Route.component`
  * serves in production) and initialises i18n ONLY through the REAL
- * `createI18nFromResources` from `~/lib/i18n.shared` with the REAL EN and FR
+ * `createI18nFromResources` from `~/lib/i18n/shared` with the REAL EN and FR
  * resource bundles the app ships. Nothing here re-states production init.
  *
  * Mocked at the seam only, never react-i18next: TanStack Router/Start
@@ -97,12 +97,12 @@ import resourceFR from '../../i18n/locales/fr';
 import { Route as AcceptInvitationRoute } from '../../routes/accept-invitation';
 import { Route as ResetPasswordRoute } from '../../routes/reset-password';
 import { Route as VerifyEmailRoute } from '../../routes/verify-email';
-import { AuthBrandProvider } from '../auth-brand-context';
+import { AuthBrandProvider } from '../auth/auth-brand-context';
 import {
 	createI18nFromResources,
 	type I18nResources,
 	type SupportedLanguage,
-} from '../i18n.shared';
+} from './shared';
 
 type ResetPasswordLoaderData =
 	| { view: 'invalid' }
@@ -235,7 +235,7 @@ vi.mock('~/lib/tab-sync/broadcast-sync', () => ({
 	postBroadcast: mocks.postBroadcast,
 }));
 
-vi.mock('~/lib/auth-route-guard', () => ({
+vi.mock('~/lib/auth/auth-route-guard', () => ({
 	redirectAuthenticatedUserAwayFromAuthPage: vi.fn(),
 	hasBrowserSessionCookie: mocks.hasBrowserSessionCookie,
 }));

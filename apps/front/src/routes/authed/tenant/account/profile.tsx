@@ -17,11 +17,11 @@ import {
 } from '~/components/ui/detail-skeleton';
 import { PersonAvatar } from '~/components/ui/person-avatar';
 import { ErrorStateSurface } from '~/components/ui/state-surface';
-import { LOCALE_LABELS, isSupportedLanguage } from '~/lib/i18n.shared';
+import { LOCALE_LABELS, isSupportedLanguage } from '~/lib/i18n/shared';
 import {
 	displayLocalMutationFailure,
 	toastLocalMutationResult,
-} from '~/lib/mutation-toast';
+} from '~/lib/mutation-feedback/mutation-toast';
 import {
 	toAccountProfile,
 	useAccountProfileQuery,

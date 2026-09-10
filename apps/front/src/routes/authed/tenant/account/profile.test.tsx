@@ -65,7 +65,7 @@ vi.mock('~/lib/query/tenant-account-profile', async () => {
 	};
 });
 
-vi.mock('~/lib/mutation-toast', () => ({
+vi.mock('~/lib/mutation-feedback/mutation-toast', () => ({
 	displayLocalMutationFailure: mocks.displayLocalMutationFailure,
 	toastLocalMutationResult: mocks.toastLocalMutationResult,
 }));

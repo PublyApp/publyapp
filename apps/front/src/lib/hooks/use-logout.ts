@@ -2,8 +2,8 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from '@tanstack/react-router';
 import { useServerFn } from '@tanstack/react-start';
 import { useCallback, useState } from 'react';
-import { clearSelectedTenantId } from '~/lib/selected-tenant-storage';
 import { clearSession } from '~/lib/server/session-actions';
+import { clearSelectedTenantId } from '~/lib/session/selected-tenant-storage';
 import {
 	AUTH_SYNC_CHANNEL,
 	postBroadcast,

@@ -63,7 +63,7 @@ const mocks = vi.hoisted(() => ({
 	displayLocalMutationFailure: vi.fn().mockResolvedValue(undefined),
 }));
 
-vi.mock('~/lib/mutation-toast', () => ({
+vi.mock('~/lib/mutation-feedback/mutation-toast', () => ({
 	displayLocalMutationFailure: mocks.displayLocalMutationFailure,
 	toastLocalMutationResult: {
 		success: mocks.toastSuccess,

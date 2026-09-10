@@ -8,9 +8,9 @@ import type { ColumnDef } from '~/components/table/column-type';
 import { DataTable } from '~/components/table/data-table';
 import type { SortState } from '~/components/table/sort-descriptor';
 import type { UseRowSelectionResult } from '~/components/table/use-row-selection';
-import type { SupportedNamespace } from '~/lib/i18n.namespaces';
-import type { I18nResources, SupportedLanguage } from '~/lib/i18n.shared';
-import { createI18nFromResources } from '~/lib/i18n.shared';
+import type { SupportedNamespace } from '~/lib/i18n/namespaces';
+import type { I18nResources, SupportedLanguage } from '~/lib/i18n/shared';
+import { createI18nFromResources } from '~/lib/i18n/shared';
 
 /**
  * Loaded ONLY via `vite.ssrLoadModule()` from
@@ -36,7 +36,7 @@ import { createI18nFromResources } from '~/lib/i18n.shared';
  * — every pluralized form (`range-of-total_one` /
  * `range-of-total_other`, etc.) is the actual production resource.
  * `createI18nFromResources` is the same chokepoint the app uses at
- * SSR time (see `~/lib/i18n.server.ts`), so the rendered HTML is
+ * SSR time (see `~/lib/i18n/server.ts`), so the rendered HTML is
  * what the production server would emit for an English request.
  */
 

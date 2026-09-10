@@ -2,7 +2,7 @@
  * @vitest-environment jsdom
  */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
-import { downloadFile, formatExportDateStamp } from '~/lib/download-file';
+import { downloadFile, formatExportDateStamp } from '~/utils/download-file';
 
 describe('downloadFile', () => {
 	const createObjectURL = vi.fn(() => 'blob:mock-url');

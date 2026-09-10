@@ -8,12 +8,12 @@ import { buttonVariants } from '~/components/ui/button.variants';
 import { Card, CardContent, CardHeader, CardTitle } from '~/components/ui/card';
 import { StatusPill } from '~/components/ui/product-page';
 import { StateSurface } from '~/components/ui/state-surface';
-import { formatDateTime } from '~/lib/format-date-time';
 import {
 	toStaffAuditLogRows,
 	useStaffAuditLogsQuery,
 	type StaffAuditLogRow,
 } from '~/lib/query/staff-audit-logs';
+import { formatDateTime } from '~/utils/format-time';
 
 import { shouldLogoutForFailure } from '@org/shared-ts/lib/should-logout-for-failure';
 

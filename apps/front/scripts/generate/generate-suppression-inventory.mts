@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Regenerates apps/front/src/lib/suppression-inventory.json — the
+// Regenerates apps/front/src/lib/testing/suppression-inventory.json — the
 // committed list of every `data-honesty-ignore`/`i18n-guard-ignore`/
 // `design-system-ignore` suppression site in the repo (file + convention +
 // reason, no line numbers). Run this whenever you add, remove, or reword a
@@ -12,7 +12,7 @@
 // and this file disagree — a suppression that isn't in the inventory, or an
 // inventory entry no longer found in code, both fail the build. This is
 // deliberate: a suppression must show up in a diff, with its reason, for a
-// reviewer to see — see suppression-reason.ts for why a reason-quality
+// reviewer to see — see src/lib/testing/suppression-reason.ts for why a reason-quality
 // heuristic alone can't guarantee that.
 import { readdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
@@ -21,7 +21,7 @@ import { fileURLToPath } from 'node:url';
 import {
 	findSuppressionSitesInSource,
 	type SuppressionSite,
-} from '../../src/lib/suppression-reason.ts';
+} from '../../src/lib/testing/suppression-reason.ts';
 
 const rootDir = path.resolve(fileURLToPath(new URL('../..', import.meta.url)));
 const scanDirs = ['src', 'e2e'];
@@ -30,6 +30,7 @@ const inventoryPath = path.join(
 	rootDir,
 	'src',
 	'lib',
+	'testing',
 	'suppression-inventory.json',
 );
 

@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 import { getClientManager } from '~/lib/api-client/client-manager';
-import { readSelectedTenantId } from '~/lib/selected-tenant-storage';
+import { readSelectedTenantId } from '~/lib/session/selected-tenant-storage';
 
 import type { GetUserTenantsForPickerResponse } from '@org/client-ts/models/index';
 import { TenantStatusObject } from '@org/client-ts/models/index';

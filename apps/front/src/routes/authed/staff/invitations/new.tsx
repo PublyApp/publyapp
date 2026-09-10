@@ -20,7 +20,7 @@ import { Card } from '~/components/ui/card';
 import { ConfirmDialog } from '~/components/ui/confirm-dialog';
 import { Input } from '~/components/ui/input';
 import { LoadingSpinner } from '~/components/ui/loading-spinner';
-import { FALLBACK_LANGUAGE, isSupportedLanguage } from '~/lib/i18n.shared';
+import { FALLBACK_LANGUAGE, isSupportedLanguage } from '~/lib/i18n/shared';
 import {
 	invalidateStaffInvitations,
 	useBulkCreateStaffInvitationsMutation,

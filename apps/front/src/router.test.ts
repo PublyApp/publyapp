@@ -7,11 +7,11 @@ const mocks = vi.hoisted(() => ({
 	triggerSessionInvalidated: vi.fn(),
 }));
 
-vi.mock('~/lib/session-invalidation-channel', () => ({
+vi.mock('~/lib/session/session-invalidation-channel', () => ({
 	triggerSessionInvalidated: mocks.triggerSessionInvalidated,
 }));
 
-vi.mock('~/lib/mutation-toast', () => ({
+vi.mock('~/lib/mutation-feedback/mutation-toast', () => ({
 	displayMutationFeedback: mocks.displayMutationFeedback,
 }));
 

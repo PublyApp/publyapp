@@ -11,7 +11,7 @@ import { AuthFormHeader } from '~/components/auth/auth-form-header';
 import { PasswordField } from '~/components/auth/password-field';
 import { Button } from '~/components/ui/button';
 import { Input } from '~/components/ui/input';
-import { redirectAuthenticatedUserAwayFromAuthPage } from '~/lib/auth-route-guard';
+import { redirectAuthenticatedUserAwayFromAuthPage } from '~/lib/auth/auth-route-guard';
 import { FEATURES } from '~/lib/flags';
 import { useHydrated } from '~/lib/hooks/use-hydrated';
 import { registerAndRequestEmailVerification } from '~/lib/server/auth-actions';

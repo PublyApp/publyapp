@@ -12,13 +12,13 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 // ts-morph's vendored, version-pinned compiler provides that.
 import { ts } from 'ts-morph';
 
-import suppressionInventory from '../../src/lib/suppression-inventory.json' with { type: 'json' };
+import suppressionInventory from '../../src/lib/testing/suppression-inventory.json' with { type: 'json' };
 import {
 	diffSuppressionInventory,
 	findSuppressionSitesInSource,
 	isPreviousLineSuppressed,
 	type SuppressionSite,
-} from '../../src/lib/suppression-reason.ts';
+} from '../../src/lib/testing/suppression-reason.ts';
 
 const rootDir = path.resolve(fileURLToPath(new URL('../..', import.meta.url)));
 
@@ -1543,7 +1543,7 @@ export const createHandoffLedgerProbe = (
 // W5-HARDEN2: this defers entirely to `isPreviousLineSuppressed`, the single
 // shared parser also used by `findSuppressionSitesInSource`/the inventory
 // diff below, so this guard and the inventory can never again disagree about
-// what counts as a suppression site. See suppression-reason.ts for the full
+// what counts as a suppression site. See src/lib/testing/suppression-reason.ts for the full
 // rationale.
 const isInlineSuppressed = (
 	lines: string[],
@@ -2397,7 +2397,7 @@ export const scanFront2DesignSystem = async ({
 	checkTokenGuards = false,
 	// Same opt-in reasoning again: a fixture temp dir's `design-system-ignore`
 	// comments (planted to exercise isInlineSuppressed) have nothing to do
-	// with the real, committed suppression-inventory.json, so comparing a
+	// with the real, committed src/lib/testing/suppression-inventory.json, so comparing a
 	// fixture scan against it would spuriously fail every such test.
 	checkSuppressionInventory = false,
 	// Same opt-in reasoning again (r1-fix): a fixture temp dir rarely carries
@@ -2787,7 +2787,7 @@ export const scanFront2DesignSystem = async ({
 	// W5-HARDEN: reason-quality alone can't stop a suppression reworded to
 	// clear the bar without argument — the structural backstop is this
 	// inventory diff. A `design-system-ignore` comment that exists in code
-	// but not in suppression-inventory.json (added/reworded without
+	// but not in src/lib/testing/suppression-inventory.json (added/reworded without
 	// regenerating it), or an inventory entry no longer found in code, both
 	// fail the guard.
 	if (checkSuppressionInventory) {
@@ -2814,7 +2814,7 @@ export const scanFront2DesignSystem = async ({
 			violations.push({
 				ruleId: 'suppression-inventory-drift',
 				message:
-					'design-system-ignore suppression is not in suppression-inventory.json — ' +
+					'design-system-ignore suppression is not in src/lib/testing/suppression-inventory.json — ' +
 					'run `node scripts/generate/generate-suppression-inventory.mts` and commit the result.',
 				file: site.file,
 				line: 0,
@@ -2825,7 +2825,7 @@ export const scanFront2DesignSystem = async ({
 			violations.push({
 				ruleId: 'suppression-inventory-drift',
 				message:
-					'suppression-inventory.json lists a design-system-ignore site no longer found in ' +
+					'src/lib/testing/suppression-inventory.json lists a design-system-ignore site no longer found in ' +
 					'this scan — run `node scripts/generate/generate-suppression-inventory.mts` and commit the result.',
 				file: site.file,
 				line: 0,

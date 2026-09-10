@@ -29,7 +29,7 @@ import { describe, expect, test } from 'vitest';
 import {
 	classifyProof,
 	readProofReport,
-} from '../../scripts/ci/classify-proof.mts';
+} from '../../../../scripts/ci/classify-proof.mts';
 
 const FIXTURE_PATH =
 	'tests/fixtures/1784/_repro-1784-throws-assertion-error.test.ts';

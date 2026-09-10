@@ -1,8 +1,9 @@
-import { isSupportedLanguage, type SupportedLanguage } from '~/lib/i18n.shared';
 import {
 	LOCALE_SYNC_CHANNEL,
 	postBroadcast,
 } from '~/lib/tab-sync/broadcast-sync';
+
+import { isSupportedLanguage, type SupportedLanguage } from './shared';
 
 type LocaleSwitchedResult = { locale: SupportedLanguage };
 

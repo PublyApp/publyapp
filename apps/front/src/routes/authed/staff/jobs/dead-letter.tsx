@@ -19,7 +19,6 @@ import {
 import { Input } from '~/components/ui/input';
 import { Label } from '~/components/ui/label';
 import { DetailRow, PageHeader } from '~/components/ui/product-page';
-import { formatDateTime } from '~/lib/format-date-time';
 import {
 	invalidateStaffJobsQueries,
 	staffDeadLetterDetailsQueryOptions,
@@ -28,6 +27,7 @@ import {
 	type StaffDeadLetterRow,
 } from '~/lib/query/staff-jobs';
 import { useStaffRequeueDeadLetterMutation } from '~/lib/query/staff-jobs';
+import { formatDateTime } from '~/utils/format-time';
 
 import {
 	getFailureMessage,

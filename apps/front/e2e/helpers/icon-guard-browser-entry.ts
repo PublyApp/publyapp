@@ -20,7 +20,7 @@
  * `en/common.json` resource (the guard's production texts, not a stand-in)
  * before exposing the guard. `initAsync: false` keeps the init synchronous
  * because the resources are inline (the same option the app's
- * `createI18nFromResources` in `src/lib/i18n.shared.ts` uses).
+ * `createI18nFromResources` in `src/lib/i18n/shared.ts` uses).
  */
 import i18next from 'i18next';
 
@@ -28,7 +28,7 @@ import { assertIconIsVisible } from '../../src/components/table/data-table-icon-
 import enCommon from '../../src/i18n/locales/en/common.json';
 
 // `init` returns a `Promise` even with `initAsync: false` (the app's own
-// call in `src/lib/i18n.shared.ts` voids it for the same reason); the
+// call in `src/lib/i18n/shared.ts` voids it for the same reason); the
 // resources are inline, so the init resolves before the next task runs.
 void i18next.init({
 	lng: 'en',

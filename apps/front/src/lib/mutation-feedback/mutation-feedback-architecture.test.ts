@@ -14,11 +14,11 @@ import { describe, expect, test } from 'vitest';
 import enResource from '@org/shared-ts/lib/i18n/locales/en';
 import frResource from '@org/shared-ts/lib/i18n/locales/fr';
 
-const srcDir = path.resolve(fileURLToPath(new URL('..', import.meta.url)));
+const srcDir = path.resolve(fileURLToPath(new URL('../..', import.meta.url)));
 const TEXT_EXTENSIONS = new Set(['.ts', '.tsx']);
 const ALLOWED_SONNER_IMPORTERS = new Set([
 	'components/ui/toaster.tsx',
-	'lib/mutation-toast.ts',
+	'lib/mutation-feedback/mutation-toast.ts',
 ]);
 const QUERY_FACTORY_NAME =
 	/^build(?:Anonymous|Auth|Staff|Tenant)(?:Suspense)?(?:Mutation|Query)Options$/;
@@ -582,7 +582,7 @@ describe('front mutation feedback architecture', () => {
 
 		expect(
 			offenders,
-			`Sonner imports are restricted to components/ui/toaster.tsx and lib/mutation-toast.ts. Offending files: ${offenders.join(', ')}`,
+			`Sonner imports are restricted to components/ui/toaster.tsx and lib/mutation-feedback/mutation-toast.ts. Offending files: ${offenders.join(', ')}`,
 		).toEqual([]);
 	});
 

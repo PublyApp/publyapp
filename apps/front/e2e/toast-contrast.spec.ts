@@ -220,7 +220,7 @@ type ContrastMeasurement = {
  */
 test('every product toast variant is contrast-measured', () => {
 	type RaisableMethod =
-		keyof typeof import('../src/lib/mutation-toast').toastLocalMutationResult;
+		keyof typeof import('../src/lib/mutation-feedback/mutation-toast').toastLocalMutationResult;
 	type MeasuredVariant = Exclude<
 		keyof typeof toastVariantClassNames,
 		'loading'

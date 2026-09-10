@@ -351,7 +351,7 @@ vi.mock('~/components/ui/confirm-dialog', () => ({
 	ConfirmDialog: () => null,
 }));
 
-vi.mock('~/lib/mutation-toast', () => ({
+vi.mock('~/lib/mutation-feedback/mutation-toast', () => ({
 	displayLocalMutationFailure: () => Promise.resolve(),
 	toastLocalMutationResult: { success: () => undefined },
 }));

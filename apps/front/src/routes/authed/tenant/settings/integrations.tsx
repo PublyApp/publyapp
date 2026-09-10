@@ -16,7 +16,6 @@ import { Button } from '~/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '~/components/ui/card';
 import { DropdownMenuItem } from '~/components/ui/dropdown-menu';
 import { StateSurface } from '~/components/ui/state-surface';
-import { formatDateTime } from '~/lib/format-date-time';
 import { useCanManageSocialAccounts } from '~/lib/permissions/use-has-tenant-permission';
 import {
 	toNeedsReconnectAccounts,
@@ -32,6 +31,7 @@ import {
 	useTenantProjectsQuery,
 } from '~/lib/query/tenant-projects';
 import { useResolvedWorkspaceTenantId } from '~/lib/query/tenants-for-picker';
+import { formatDateTime } from '~/utils/format-time';
 
 import { WorkspacePageHeader, ReadOnlyBadge } from '../_workspace-page-parts';
 import { BlueskyConnectDrawer } from './_bluesky-connect-drawer';

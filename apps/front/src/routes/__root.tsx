@@ -24,17 +24,17 @@ import {
 	createClient,
 	getSessionTokensFromBrowser,
 } from '~/lib/api-client/client-manager';
-import { AuthBrandProvider } from '~/lib/auth-brand-context';
-import { isAuthPath } from '~/lib/auth-paths';
+import { AuthBrandProvider } from '~/lib/auth/auth-brand-context';
+import { isAuthPath } from '~/lib/auth/auth-paths';
 import { serializePublicRuntimeEnv } from '~/lib/env';
 import { useHydrated } from '~/lib/hooks/use-hydrated';
 import { useLogout } from '~/lib/hooks/use-logout';
-import { createBackendI18n, loadI18nContext } from '~/lib/i18n.backend';
+import { createBackendI18n, loadI18nContext } from '~/lib/i18n/backend';
 import {
 	collectI18nNamespaces,
 	type I18nRouteMatch,
 	type SupportedNamespace,
-} from '~/lib/i18n.namespaces';
+} from '~/lib/i18n/namespaces';
 import {
 	createI18nFromResources,
 	dirForLocale,
@@ -42,22 +42,22 @@ import {
 	type I18nResources,
 	isSupportedLanguage,
 	type SupportedLanguage,
-} from '~/lib/i18n.shared';
-import { registerMutationToastI18n } from '~/lib/mutation-toast';
+} from '~/lib/i18n/shared';
+import { registerMutationToastI18n } from '~/lib/mutation-feedback/mutation-toast';
 import {
 	hasExactAuthedRouteMatch,
 	isTenantPortalPath,
 } from '~/lib/navigation/route-shell';
 import { ServerFailure } from '~/lib/server/server-failure';
 import { getServerSessionAction } from '~/lib/server/session-actions';
-import { subscribeToSessionInvalidated } from '~/lib/session-invalidation-channel';
-import { SessionSurfaceValidationProvider } from '~/lib/session-surface-recovery-context';
+import { subscribeToSessionInvalidated } from '~/lib/session/session-invalidation-channel';
 import {
 	determineSessionToken,
 	getSessionSurface,
 	getSurfaceRedirectCodeQueryKey,
 	shouldRenderAuthenticatedChrome,
 } from '~/lib/session/session-scope';
+import { SessionSurfaceValidationProvider } from '~/lib/session/session-surface-recovery-context';
 import {
 	COLOR_SCHEME_STORAGE_KEY,
 	SIDEBAR_OPEN_STORAGE_KEY,
@@ -318,7 +318,7 @@ export const RootErrorBoundary = ({
 const RootNotFound = () => <View404 embedded={false} />;
 
 const initI18nOnClient = createClientOnlyFn(async (instance: I18nInstance) => {
-	const mod = await import('~/lib/i18n.client');
+	const mod = await import('~/lib/i18n/client');
 	return mod.initI18nOnClient(instance);
 });
 

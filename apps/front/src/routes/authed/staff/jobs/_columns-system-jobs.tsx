@@ -2,8 +2,8 @@ import { IconPlayerPlay, IconRefresh } from '@tabler/icons-react';
 import type { ColumnDef } from '~/components/table/column-type';
 import { Button } from '~/components/ui/button';
 import { Switch } from '~/components/ui/switch';
-import { formatDateTime } from '~/lib/format-date-time';
 import type { StaffSystemJobDefinitionRow } from '~/lib/query/staff-jobs';
+import { formatDateTime } from '~/utils/format-time';
 
 type Translator = (key: string, options?: Record<string, unknown>) => string;
 

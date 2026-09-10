@@ -15,7 +15,7 @@ import {
 import {
 	displayLocalMutationFailure,
 	toastLocalMutationResult,
-} from '~/lib/mutation-toast';
+} from '~/lib/mutation-feedback/mutation-toast';
 import {
 	type StaffProfileUserRow,
 	useBulkUnassignStaffProfileUsersMutation,

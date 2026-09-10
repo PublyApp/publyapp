@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState } from 'react';
-import { downloadFile } from '~/lib/download-file';
+import { downloadFile } from '~/utils/download-file';
 
 import {
 	buildMemberImportOutcome,

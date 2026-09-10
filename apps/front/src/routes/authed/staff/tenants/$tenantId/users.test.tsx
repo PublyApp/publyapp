@@ -45,7 +45,7 @@ const mocks = vi.hoisted(() => ({
 		| ((isDirty: boolean) => void),
 }));
 
-vi.mock('~/lib/mutation-toast', () => ({
+vi.mock('~/lib/mutation-feedback/mutation-toast', () => ({
 	displayLocalMutationFailure: mocks.displayLocalMutationFailure,
 	toastLocalMutationResult: {
 		success: mocks.toastSuccess,
@@ -226,7 +226,7 @@ vi.mock('~/lib/query/staff-tenants', () => ({
 	useStaffTenantDetailsQuery: mocks.useStaffTenantDetailsQuery,
 }));
 
-vi.mock('~/lib/download-file', () => ({
+vi.mock('~/utils/download-file', () => ({
 	downloadFile: mocks.downloadFile,
 	formatExportDateStamp: () => '2026-07-12',
 }));

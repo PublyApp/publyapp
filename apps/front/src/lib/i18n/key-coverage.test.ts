@@ -16,20 +16,20 @@ import { ts } from 'ts-morph';
 import { describe, expect, test } from 'vitest';
 import enResource from '~/i18n/locales/en';
 import frResource from '~/i18n/locales/fr';
-import type { SupportedNamespace } from '~/lib/i18n.namespaces';
-import suppressionInventory from '~/lib/suppression-inventory.json';
+import type { SupportedNamespace } from '~/lib/i18n/namespaces';
+import suppressionInventory from '~/lib/testing/suppression-inventory.json';
 import {
 	diffSuppressionInventory,
 	findSuppressionSitesInSource,
 	isPreviousLineSuppressed,
 	type SuppressionSite,
-} from '~/lib/suppression-reason';
+} from '~/lib/testing/suppression-reason';
 
 // Extracts every string-literal translation-function call and JSX i18n-key
 // attribute under apps/front/src and asserts it resolves in both locale
 // bundles — a missing key silently renders the raw key string as UI text
 // (i18next's default missing-key behaviour), and no other check catches that.
-const srcDir = path.resolve(fileURLToPath(new URL('..', import.meta.url)));
+const srcDir = path.resolve(fileURLToPath(new URL('../..', import.meta.url)));
 
 // `SourceFile.parseDiagnostics` has always existed on the classic compiler's
 // concrete SourceFile at runtime, but it is `@internal` and not part of the
@@ -724,7 +724,7 @@ const COPY_LIKE_SINGLE_ARG_DOM_CALL_NAMES = new Set([
 // `isPreviousLineSuppressed`, the single shared parser also used by
 // `findSuppressionSitesInSource`/the inventory diff below, so this guard and
 // the inventory can never again disagree about what counts as a suppression
-// site. See suppression-reason.ts for the full rationale.
+// site. See lib/testing/suppression-reason.ts for the full rationale.
 const isI18nGuardSuppressed = (lines: string[], lineNumber: number): boolean =>
 	isPreviousLineSuppressed(lines, lineNumber, 'i18n-guard-ignore');
 
@@ -1850,7 +1850,7 @@ describe('i18n-guard-ignore suppression requires a substantive reason', () => {
 
 	// W5-VERIFY2 planted `{/* i18n-guard-ignore: 123 */}` and it suppressed the
 	// violation. Same shared bar as data-honesty-ignore — see
-	// suppression-reason.ts.
+	// lib/testing/suppression-reason.ts.
 	test('rejects a digit-only noise reason', () => {
 		notSuppressed('{/* i18n-guard-ignore: 123 456 789 */}');
 	});
@@ -1867,7 +1867,7 @@ describe('i18n-guard-ignore suppression requires a substantive reason', () => {
 describe('i18n-guard-ignore suppression sites match the committed inventory', () => {
 	// W5-HARDEN: same structural backstop as the data-honesty-ignore
 	// inventory check — every real suppression site under src/ must be
-	// checked into suppression-inventory.json.
+	// checked into lib/testing/suppression-inventory.json.
 	test('every i18n-guard-ignore site under src is documented, and no inventory entry is stale', async () => {
 		const files = await getSourceFiles(srcDir);
 		const found: SuppressionSite[] = [];

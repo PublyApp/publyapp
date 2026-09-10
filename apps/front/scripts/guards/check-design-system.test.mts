@@ -7,7 +7,7 @@ import path from 'node:path';
 import test, { after } from 'node:test';
 import { fileURLToPath } from 'node:url';
 
-import { findSuppressionSitesInSource } from '../../src/lib/suppression-reason.ts';
+import { findSuppressionSitesInSource } from '../../src/lib/testing/suppression-reason.ts';
 import {
 	cleanupFixtures,
 	getOwnedRootPath,
@@ -4397,7 +4397,7 @@ test('app.css token-layer block ranges are computed once per scan, not per match
 // W5-HARDEN: reason-quality alone can't stop `aaa` becoming a "substantive"
 // reason wordier than the bar requires — the structural backstop is this
 // inventory diff. A design-system-ignore comment that isn't in
-// suppression-inventory.json (planted here, never regenerated) must fail.
+// src/lib/testing/suppression-inventory.json (planted here, never regenerated) must fail.
 test('checkSuppressionInventory: an undocumented design-system-ignore suppression fails the guard', async () => {
 	const root = await makeFixture({
 		'src/components/table/data-table.tsx': [
@@ -4454,7 +4454,7 @@ test('checkSuppressionInventory: the real repo has zero drift against the commit
 });
 
 // W5-HARDEN2: the actual defect W5-VERIFY3B found — the live guard's
-// suppression check and suppression-inventory discovery were two independent
+// suppression check and src/lib/testing/suppression-inventory.json discovery were two independent
 // parsers that could (and did) disagree: a marker embedded on the previous
 // line AFTER real code (`const x = true; // design-system-ignore: rule — reason`)
 // was honoured by the live guard (`previous.indexOf(marker)`, unanchored) but
@@ -4487,7 +4487,7 @@ const DIVERGENCE_CORPUS = [
 	},
 ];
 
-test('the live guard and suppression-inventory discovery never disagree on whether a line is a suppression site', async () => {
+test('the live guard and src/lib/testing/suppression-inventory.json discovery never disagree on whether a line is a suppression site', async () => {
 	for (const { name, previousLine } of DIVERGENCE_CORPUS) {
 		const relativePath = 'src/components/w5-harden2-divergence.tsx';
 		const root = await makeFixture({

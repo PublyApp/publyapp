@@ -18,7 +18,7 @@ vi.mock('@org/shared-ts/lib/logger/iso-logger', () => ({
 	logger: { error: mocks.loggerError },
 }));
 
-import { createI18nFromResources } from './i18n.shared';
+import { createI18nFromResources } from '../i18n/shared';
 
 type MutationToastModule = typeof import('./mutation-toast');
 

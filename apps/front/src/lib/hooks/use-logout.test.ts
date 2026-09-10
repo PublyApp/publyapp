@@ -34,7 +34,7 @@ vi.mock('@org/shared-ts/lib/logger/iso-logger', () => ({
 	logger: { error: vi.fn() },
 }));
 
-import { SELECTED_TENANT_STORAGE_KEY } from '~/lib/selected-tenant-storage';
+import { SELECTED_TENANT_STORAGE_KEY } from '~/lib/session/selected-tenant-storage';
 
 import { __resetLogoutInFlightForTests, useLogout } from './use-logout';
 

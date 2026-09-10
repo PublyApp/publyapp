@@ -457,7 +457,7 @@ vi.mock('@org/shared-ts/lib/should-logout-for-failure', () => ({
 	shouldLogoutForFailure: mocks.shouldLogoutForFailure,
 }));
 
-vi.mock('~/lib/mutation-toast', () => ({
+vi.mock('~/lib/mutation-feedback/mutation-toast', () => ({
 	toastLocalMutationResult: {
 		success: mocks.toastSuccess,
 		error: mocks.toastError,

@@ -89,6 +89,26 @@ describe('format-time', () => {
 		}
 	});
 
+	test('renders the Europe/Paris spring-forward instant across locales', () => {
+		const originalTz = process.env.TZ;
+		process.env.TZ = 'Europe/Paris';
+		try {
+			const springForward = new Date('2026-03-29T01:00:00Z');
+			expect(formatDateTime(springForward, 'en', { timeZone: undefined })).toBe(
+				'Mar 29, 2026, 3:00 AM',
+			);
+			expect(formatDateTime(springForward, 'fr', { timeZone: undefined })).toBe(
+				'29 mars 2026, 03:00',
+			);
+		} finally {
+			if (originalTz === undefined) {
+				delete process.env.TZ;
+			} else {
+				process.env.TZ = originalTz;
+			}
+		}
+	});
+
 	test('returns an em dash for an invalid IANA zone', () => {
 		expect(
 			formatInZone(new Date('2026-08-31T18:30:00.000Z'), 'not/a-zone', 'en'),

@@ -73,7 +73,7 @@ const mocks = vi.hoisted(() => ({
 }));
 
 // #1442: the toast surface is mocked at the seam (sonner), so the REAL
-// `~/lib/mutation-toast` adapter (and its real `displayLocalMutationFailure`
+// `~/lib/mutation-feedback/mutation-toast` adapter (and its real `displayLocalMutationFailure`
 // classification) runs underneath and the assertions below observe exactly
 // what production would raise.
 vi.mock('sonner', () => ({

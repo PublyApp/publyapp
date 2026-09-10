@@ -11,8 +11,8 @@ import { useTranslation } from 'react-i18next';
 import { InvalidLinkView } from '~/components/auth/invalid-link-view';
 import { PrecheckUnavailableView } from '~/components/auth/precheck-unavailable-view';
 import type { AuthBrand } from '~/layouts/auth-layout';
-import { useSetAuthBrand } from '~/lib/auth-brand-context';
-import { hasBrowserSessionCookie } from '~/lib/auth-route-guard';
+import { useSetAuthBrand } from '~/lib/auth/auth-brand-context';
+import { hasBrowserSessionCookie } from '~/lib/auth/auth-route-guard';
 import { useHydrated } from '~/lib/hooks/use-hydrated';
 import { useCurrentUserQuery } from '~/lib/query/auth';
 import {

@@ -10,7 +10,7 @@ import {
 	resolveWorkspaceTenant,
 	useTenantsForPickerQuery,
 } from '~/lib/query/tenants-for-picker';
-import { readSelectedTenantId } from '~/lib/selected-tenant-storage';
+import { readSelectedTenantId } from '~/lib/session/selected-tenant-storage';
 
 import { shouldLogoutForFailure } from '@org/shared-ts/lib/should-logout-for-failure';
 

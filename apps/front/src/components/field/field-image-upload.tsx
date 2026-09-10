@@ -7,7 +7,7 @@ import { Button } from '~/components/ui/button';
 import { BrandTile } from '~/components/ui/initials-avatar';
 import { Label } from '~/components/ui/label';
 import { resolveApiFileUrl } from '~/lib/api-client/resolve-api-file-url';
-import { toastLocalMutationResult } from '~/lib/mutation-toast';
+import { toastLocalMutationResult } from '~/lib/mutation-feedback/mutation-toast';
 import { useUploadStaffImageMutation } from '~/lib/query/staff-uploads';
 
 import {

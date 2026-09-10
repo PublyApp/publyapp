@@ -1,11 +1,11 @@
 import { useTranslation } from 'react-i18next';
 import { StatusPill } from '~/components/ui/product-page';
 import { statusPillTone } from '~/components/ui/status-tone';
-import { formatDateTime } from '~/lib/format-date-time';
 import {
 	formatAccountLevelLabel,
 	formatStaffStatusLabel,
 } from '~/routes/authed/staff/staff-users/status-labels';
+import { formatDateTime } from '~/utils/format-time';
 
 import { DetailMetaItem } from './_detail-meta-item';
 

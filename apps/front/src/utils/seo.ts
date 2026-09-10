@@ -2,7 +2,7 @@ import {
 	FALLBACK_LANGUAGE,
 	SUPPORTED_LANGUAGES,
 	type SupportedLanguage,
-} from '~/lib/i18n.shared';
+} from '~/lib/i18n/shared';
 
 type SeoMetaTag = {
 	name?: string;

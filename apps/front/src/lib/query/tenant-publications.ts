@@ -25,7 +25,7 @@ export const TENANT_PUBLICATIONS_QUERY_KEY = ['tenant-publications'] as const;
 import {
 	isPublicationWireStatus,
 	type PublicationWireStatus,
-} from '~/lib/publication-status';
+} from '~/lib/publishing/publication-status';
 
 export type TenantPublicationsQueryVariables = {
 	/** Raw values (URL state arrives as strings); validated against the

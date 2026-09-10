@@ -16,7 +16,7 @@ import {
 	isSupportedLanguage,
 	LOCALE_LABELS,
 	SUPPORTED_LANGUAGES,
-} from '~/lib/i18n.shared';
+} from '~/lib/i18n/shared';
 import { cn } from '~/lib/utils';
 
 type SimpleLayoutProps = {

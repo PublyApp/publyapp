@@ -22,9 +22,9 @@ import { defineConfig } from 'vitest/config';
 // hooks a route's own components call, so it belongs in the same
 // after-renders lane.
 const DESIGN_GUARD_TEST_FILES = [
-	'src/lib/i18n-key-coverage.test.ts',
-	'src/lib/mutation-feedback-architecture.test.ts',
-	'src/lib/route-loader-query-key-guard.test.ts',
+	'src/lib/i18n/key-coverage.test.ts',
+	'src/lib/mutation-feedback/mutation-feedback-architecture.test.ts',
+	'src/lib/query/route-loader-query-key-guard.test.ts',
 ];
 
 export default defineConfig({

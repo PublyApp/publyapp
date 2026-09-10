@@ -11,7 +11,6 @@ import { Button } from '~/components/ui/button';
 import { ConfirmDialog } from '~/components/ui/confirm-dialog';
 import { DropdownMenuItem } from '~/components/ui/dropdown-menu';
 import { PageHeader } from '~/components/ui/product-page';
-import { formatDateTime } from '~/lib/format-date-time';
 import {
 	invalidateTenantPosts,
 	useDeleteTenantPostMutation,
@@ -20,6 +19,7 @@ import {
 	type TenantPostRow,
 } from '~/lib/query/tenant-posts';
 import type { TableSearchParamInput } from '~/lib/url-state/table-search-params';
+import { formatDateTime } from '~/utils/format-time';
 
 import { shouldLogoutForFailure } from '@org/shared-ts/lib/should-logout-for-failure';
 

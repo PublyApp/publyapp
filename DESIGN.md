@@ -262,7 +262,7 @@ aggregations. **front has no `<Image>` primitive** — only raw `<img>` for word
   handled 422 validation produces **no duplicate toast**. — source: `conventions.md` (Mutation Feedback Ownership)
 
 ### Toasts
-- Sonner, `unstyled: true`, presentation owned by `components/ui/toaster.tsx` + `lib/mutation-toast.ts`.
+- Sonner, `unstyled: true`, presentation owned by `components/ui/toaster.tsx` + `lib/mutation-feedback/mutation-toast.ts`.
   Variant tints come from the same semantic alert tokens as inline alerts (`.publy-toast-success/error/info/warning/loading/default`).
   — source: `app.css` (`.publy-toast`), `apps/front/src/components/ui/toast-variants.ts`, `conventions.md`
 - Each toast variant's contrast is measured live in the browser (see Guards). `richColors` is off
@@ -339,6 +339,10 @@ and `pnpm --filter front test`).
 | `src/styles/marketing-contrast.test.ts` | Marketing shell text pairs meet contrast in both themes. | `pnpm --filter front test` | A pinned pair below its floor. |
 
 — source: `apps/front/scripts/guards/check-design-system.mts`, `check-zindex-guard.mts`, `apps/front/src/styles/*.test.ts`, `e2e/toast-contrast.spec.ts`
+
+The suppression parser and committed inventory live with the autonomous testing guards at
+`apps/front/src/lib/testing/suppression-reason.ts` and
+`apps/front/src/lib/testing/suppression-inventory.json`.
 
 ---
 

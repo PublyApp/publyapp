@@ -12,7 +12,7 @@ import {
 import { useForm } from 'react-hook-form';
 import { afterEach, describe, expect, test } from 'vitest';
 import { z } from 'zod';
-import { createI18nFromResources } from '~/lib/i18n.shared';
+import { createI18nFromResources } from '~/lib/i18n/shared';
 
 import sharedEn from '@org/shared-ts/lib/i18n/locales/en';
 import sharedFr from '@org/shared-ts/lib/i18n/locales/fr';
