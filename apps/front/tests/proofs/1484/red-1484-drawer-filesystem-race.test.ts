@@ -16,17 +16,25 @@
  * catch's `if (isEnoent(error))` to `if (false)`. The post-stat named
  * assertion then passes because ENOENT propagates.
  *
- * Adverse-mutation search — no surviving mutation after both windows were
- * exercised:
+ * Adverse-mutation search — scoped to these two declared drawer race windows;
+ * this proof does not claim an exhaustive mutation search over the whole
+ * scanner:
  * 1. Drawer isEnoent => false: both named drawer tests pass under the
  *    mutation instead of staying red.
  * 2. Change the drawer stat catch from `isEnoent(error)` to `false`: the
  *    pre-stat named test passes instead of staying red.
  * 3. Change the drawer read catch from `isEnoent(error)` to `false`: the
  *    post-stat named test passes instead of staying red.
- * 4. Translation isEnoent => false: the companion
- *    `translation scanner propagates the unfixed ENOENT race` test passes
- *    instead of staying red.
+ *
+ * The other independent drawer ENOENT catches are the recursive
+ * `readDirectoryEntries` catch at drawer-form.test.tsx:5117 and the
+ * `refreshFromFileSystemSync` catch at drawer-form.test.tsx:5302. They are
+ * covered by ordinary green regression tests named:
+ * `skips a fixture directory deleted before recursive readdir (#1484)` and
+ * `ignores an already-tracked fixture deleted before
+ * refreshFromFileSystemSync (#1484)`. No other ENOENT catch was found in
+ * drawer-form.test.tsx. The translation mutation belongs to the companion
+ * translation kept-red proof.
  *
  * Replay:
  *   cd apps/front && pnpm exec vitest run --config vitest.proofs.config.ts \

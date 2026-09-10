@@ -15,14 +15,21 @@
  * classifier always return false. The named assertion then passes because
  * ENOENT propagates.
  *
- * Adverse-mutation search — no surviving mutation:
+ * Adverse-mutation search — scoped to the discoverTransCallSites read path;
+ * this proof does not claim an exhaustive mutation search over the whole
+ * scanner family:
  * 1. Translation isEnoent => false: caught by this exact named test; it
  *    passes under the mutation instead of staying red.
- * 2. Drawer stat classification changed from isEnoent(error) to false:
- *    caught by the companion `drawer scanner propagates the unfixed ENOENT
- *    race` test; it passes under the mutation instead of staying red.
- * 3. Drawer isEnoent => false: caught by that same named drawer test; it
- *    passes under the mutation instead of staying red.
+ *
+ * The other independent drawer ENOENT catches are the recursive
+ * `readDirectoryEntries` catch at drawer-form.test.tsx:5117 and the
+ * `refreshFromFileSystemSync` catch at drawer-form.test.tsx:5302. They are
+ * covered by ordinary green regression tests named:
+ * `skips a fixture directory deleted before recursive readdir (#1484)` and
+ * `ignores an already-tracked fixture deleted before
+ * refreshFromFileSystemSync (#1484)`. The two scanDrawerSurfaces race
+ * windows are covered by the companion drawer kept-red proof. No other
+ * ENOENT catch was found in drawer-form.test.tsx.
  *
  * Replay:
  *   cd apps/front && pnpm exec vitest run --config vitest.proofs.config.ts \
