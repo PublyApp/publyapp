@@ -36,7 +36,7 @@ public sealed partial class CreateStaffUploadSpec : IClassFixture<ApiFixture> {
 		AppRoutes.Uploads.ForStaff.Create
 	);
 
-	// SniffImageType (CreateStaffUpload.cs) only inspects the leading magic-byte
+	// _SniffImageType (CreateStaffUpload.cs) only inspects the leading magic-byte
 	// header, never decodes the image body — these fixtures satisfy exactly that
 	// check plus (for GIF) a non-zero logical-screen width/height, and nothing
 	// more. They are NOT complete, decodable images: do not read "accepted by
@@ -54,7 +54,7 @@ public sealed partial class CreateStaffUploadSpec : IClassFixture<ApiFixture> {
 		(byte)'W', (byte)'E', (byte)'B', (byte)'P'
 	];
 	// Logical screen descriptor width=1, height=1 (little-endian uint16 each) —
-	// SniffImageType now rejects a zero-sized canvas (round-5 API F5).
+	// _SniffImageType now rejects a zero-sized canvas (round-5 API F5).
 	private static readonly byte[] _GifBytes = [
 		(byte)'G', (byte)'I', (byte)'F', (byte)'8', (byte)'9', (byte)'a',
 		0x01, 0x00, 0x01, 0x00, 0x00, 0x00
@@ -327,7 +327,7 @@ public sealed partial class CreateStaffUploadSpec : IClassFixture<ApiFixture> {
 	public async Task ItShouldReturn422WhenFileHasNoImageSignatureAtAll() {
 		// Not a spoofing attempt: this content has no image magic-byte prefix at
 		// all. See ItShouldAccept... below for the actual spoofing case (valid
-		// magic bytes followed by arbitrary data), which SniffImageType does NOT
+		// magic bytes followed by arbitrary data), which _SniffImageType does NOT
 		// currently detect (round-5 API F5).
 		var token = await _AuthClient.LoginAsStaffAdminAsync();
 		var fakeBytes = "this is plain text, not an image at all"u8.ToArray();
@@ -349,7 +349,7 @@ public sealed partial class CreateStaffUploadSpec : IClassFixture<ApiFixture> {
 	[Fact]
 	public async Task ItShouldReturn422WhenPngSignatureIsTruncated() {
 		var token = await _AuthClient.LoginAsStaffAdminAsync();
-		// Only the first 4 of the 8 PNG signature bytes — SniffImageType must not
+		// Only the first 4 of the 8 PNG signature bytes — _SniffImageType must not
 		// misclassify a short read as a valid image (round-5 API F5).
 		var truncatedBytes = _PngBytes[..4];
 
@@ -380,7 +380,7 @@ public sealed partial class CreateStaffUploadSpec : IClassFixture<ApiFixture> {
 	// r5/W5-HARDEN item 4: renamed from ItShouldAcceptValidMagicBytesFollowedBy...
 	// to name the actual contract instead of implying full validation. The
 	// endpoint's documented promise is signature sniffing (leading magic bytes
-	// only), never a full decode — see the SniffImageType doc comment in
+	// only), never a full decode — see the _SniffImageType doc comment in
 	// CreateStaffUpload.cs. If a real security hole is judged to exist here
 	// (undecodable images reaching storage), closing it means adding full
 	// image decode + dimension bounds via a hardened image library, which is
@@ -388,7 +388,7 @@ public sealed partial class CreateStaffUploadSpec : IClassFixture<ApiFixture> {
 	[Fact]
 	public async Task ItShouldAcceptFilesWhoseSignatureIsValidWithoutDecodingThePayload() {
 		// Documents a real, known gap rather than certifying protection that
-		// doesn't exist: SniffImageType only inspects the leading magic-byte
+		// doesn't exist: _SniffImageType only inspects the leading magic-byte
 		// header and never decodes the body, so a valid PNG signature followed
 		// by non-image garbage is still accepted. This is an accepted risk here
 		// because the endpoint rewrites the extension server-side and serves

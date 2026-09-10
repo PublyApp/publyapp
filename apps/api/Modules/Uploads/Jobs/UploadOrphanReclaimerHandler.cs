@@ -212,7 +212,7 @@ public sealed class UploadOrphanReclaimerHandler : IJobHandler {
 				WHERE is_deleted = false
 					AND state = {(int)UploadAssetState.Reserved}
 					AND updated_at < now() - make_interval(mins => {staleTtlMinutes})
-			LIMIT {_BatchSize}
+				LIMIT {_BatchSize}
 				FOR UPDATE SKIP LOCKED
 			), budget_release AS (
 				UPDATE upload_budgets b
