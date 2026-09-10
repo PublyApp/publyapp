@@ -1216,7 +1216,7 @@ jobs:
           PR_NUMBER="$PR_NUMBER" PR_AUTHOR="$PR_AUTHOR" PR_BODY="$PR_BODY" GH_REPO="$GH_REPO" bash <<'LINKED_ISSUE_SCRIPT'
           set -euo pipefail
 
-          if [ "$PR_AUTHOR" = "dependabot[bot]" ]; then
+          if [ "$PR_AUTHOR" = "dependabot[bot]" ] || [ "$PR_AUTHOR" = "app/dependabot" ]; then
             echo "dependabot PR — linked-issue requirement waived by policy #1240"
             exit 0
           fi

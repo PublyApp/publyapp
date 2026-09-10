@@ -9,11 +9,12 @@ import { fileURLToPath } from 'node:url';
 import { test } from 'vitest';
 import { parse } from 'yaml';
 
-// Guard for policy #1240 (owner decision 2026-08-22): dependabot[bot] PRs are
+// Guard for policy #1240 (owner decision 2026-08-22): Dependabot PRs are
 // waived from the require-linked-issue gate, every other author keeps the
-// existing behaviour. The waiver MUST be keyed on exactly the
-// `dependabot[bot]` login — not github.actor, not a label, and not a wider
-// pattern like `endsWith('[bot]')` that would silently cover every other bot.
+// existing behaviour. The waiver MUST be keyed on exactly the two author
+// logins emitted by GitHub integrations: `dependabot[bot]` and
+// `app/dependabot` — not github.actor, not a label, and not a wider pattern
+// like `endsWith('[bot]')` that would silently cover every other bot.
 //
 // This test pins that exact shape both ways AND executes the real shell:
 //  - a green run is evidence, not a claim: we actually run the step's `run:`
@@ -58,13 +59,13 @@ const readRunBody = async () => {
 
 /**
  * The exact policy shape. Throws if the waiver is absent, keyed on the wrong
- * source, wider than `dependabot[bot]` alone, or missing its exit 0.
+ * source, wider than the two Dependabot author forms, or missing its exit 0.
  */
 // @ts-expect-error rung-0: add proper type in later rung
-const assertExactlyDependabotBot = (runBody) => {
-	// The waiver condition must be an EXACT equality against the single literal
-	// `dependabot[bot]`. A glob/wildcard (e.g. `*"[bot]"*`) is a widening and
-	// must NOT satisfy this assertion.
+const assertExactlyDependabotAuthors = (runBody) => {
+	// The waiver condition must be EXACT equality against both allowed literals:
+	// `dependabot[bot]` and `app/dependabot`. A glob/wildcard (e.g. `*"[bot]"*`)
+	// is a widening and must NOT satisfy this assertion.
 	//
 	// The widened-pattern check runs on CODE only, never on the explanatory
 	// comment lines (the policy comment itself mentions `endsWith('[bot]')`,
@@ -75,20 +76,22 @@ const assertExactlyDependabotBot = (runBody) => {
 		.join('\n');
 
 	const exactEquality =
-		/\[\s*"\$PR_AUTHOR"\s*=\s*"dependabot\[bot\]"\s*\]/.test(codeBody);
+		/\[\s*"\$PR_AUTHOR"\s*=\s*"dependabot\[bot\]"\s*\]\s*\|\|\s*\[\s*"\$PR_AUTHOR"\s*=\s*"app\/dependabot"\s*\]/.test(
+			codeBody,
+		);
 	const widenedPattern =
 		/\[\s*"\$PR_AUTHOR"\s*==?\s*\*?"\[bot\]"\*?\s*\]/.test(codeBody) ||
 		/endsWith\(\s*'\[bot\]'\s*\)/.test(codeBody);
 
 	if (!exactEquality) {
 		throw new Error(
-			'the waiver must test PR_AUTHOR with EXACT equality against the literal "dependabot[bot]"',
+			'the waiver must test PR_AUTHOR with EXACT equality against both "dependabot[bot]" and "app/dependabot"',
 		);
 	}
 
 	if (widenedPattern) {
 		throw new Error(
-			'the waiver must match exactly "dependabot[bot]", not a wider *[bot]* pattern',
+			'the waiver must match exactly the two Dependabot forms, not a wider *[bot]* pattern',
 		);
 	}
 
@@ -287,7 +290,7 @@ test('the real workflow waives EXACTLY dependabot[bot] and no other author', asy
 	const runBody = await readRunBody();
 
 	// Must not throw — the real file satisfies the exact shape.
-	assert.doesNotThrow(() => assertExactlyDependabotBot(runBody));
+	assert.doesNotThrow(() => assertExactlyDependabotAuthors(runBody));
 });
 
 test('the real waiver PASSES (exit 0) for dependabot[bot] with an empty body', async () => {
@@ -299,6 +302,22 @@ test('the real waiver PASSES (exit 0) for dependabot[bot] with an empty body', a
 	});
 
 	assert.equal(code, 0, 'the dependabot[bot] waiver must exit 0');
+	assert.match(
+		stdout,
+		/dependabot PR — linked-issue requirement waived by policy #1240/,
+		'the waived branch must emit the exact plain-words log line',
+	);
+});
+
+test('the real waiver PASSES (exit 0) for app/dependabot with an empty body', async () => {
+	const runBody = await readRunBody();
+
+	const { code, stdout } = runStep(runBody, {
+		author: 'app/dependabot',
+		body: '',
+	});
+
+	assert.equal(code, 0, 'the app/dependabot waiver must exit 0');
 	assert.match(
 		stdout,
 		/dependabot PR — linked-issue requirement waived by policy #1240/,
@@ -331,7 +350,7 @@ test('the real workflow does NOT waive renovate[bot] (exit 1) with an empty body
 	assert.equal(
 		code,
 		1,
-		'renovate[bot] must NOT be waived — the waiver is exactly dependabot[bot]',
+		'renovate[bot] must NOT be waived — the waiver is exactly the two Dependabot forms',
 	);
 });
 
@@ -365,7 +384,7 @@ test('mutation: widening to any *[bot]* author wrongly waives renovate[bot] (ste
 
 	// The round-1 widening mutation a reviewer would reach for: match every bot.
 	const widened = runBody.replace(
-		'if [ "$PR_AUTHOR" = "dependabot[bot]" ]; then',
+		'if [ "$PR_AUTHOR" = "dependabot[bot]" ] || [ "$PR_AUTHOR" = "app/dependabot" ]; then',
 		'if [[ "$PR_AUTHOR" == *"[bot]"* ]]; then',
 	);
 
@@ -392,7 +411,7 @@ test('removing the waiver condition entirely is rejected (static shape)', async 
 
 	// Drop the whole waiver branch (nothing beyond the waiver's own `fi`).
 	const withoutWaiver = runBody.replace(
-		/if \[ "\$PR_AUTHOR" = "dependabot\[bot\]" \]; then\n  echo[^\n]*\n  exit 0\nfi\n\n/,
+		/if \[ "\$PR_AUTHOR" = "dependabot\[bot\]" \] \|\| \[ "\$PR_AUTHOR" = "app\/dependabot" \]; then\n  echo[^\n]*\n  exit 0\nfi\n\n/,
 		'',
 	);
 
@@ -410,7 +429,7 @@ test('a non-dependabot author still falls through to the existing linked-issue c
 
 	// The waiver must be a short-circuit BEFORE the existing empty-body / keyword
 	// checks, so a human author is never waived. The existing logic must remain
-	// present and must run only when PR_AUTHOR is not dependabot[bot].
+	// present and must run only when PR_AUTHOR is neither Dependabot form.
 	assert.ok(
 		/if \[ -z "\$\{PR_BODY\/\/\[\[:space:\]\]\/\}" \]; then/.test(runBody),
 		'the existing empty-body check must still be present after the waiver',
