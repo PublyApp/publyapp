@@ -115,22 +115,22 @@ describe('resolveQueryError (#2043)', () => {
 		);
 
 		expect(resolution.title).toBe('t(query-display-error-default)');
-		expect(resolution.description).toBe('t(query-display-error-cause-unknown)');
+		expect(resolution.description).toBe('Bad Request');
 		expect(resolution.supportsRetry).toBe(true);
-		expect(resolution.fallback).toBe(true);
+		expect(resolution.fallback).toBe(false);
 	});
 
-	test('falls back to the generic copy and "cause unknown" when the error carries no status', () => {
+	test('surfaces an unknown failure message when the error carries no status', () => {
 		const resolution = resolveQueryError(new Error('boom'), t);
 
 		expect(resolution.code).toBeUndefined();
 		expect(resolution.title).toBe('t(query-display-error-default)');
-		expect(resolution.description).toBe('t(query-display-error-cause-unknown)');
+		expect(resolution.description).toBe('boom');
 		expect(resolution.supportsRetry).toBe(true);
-		expect(resolution.fallback).toBe(true);
+		expect(resolution.fallback).toBe(false);
 	});
 
-	test('falls back to "cause unknown" when the failure detail is empty even though status is known', () => {
+	test('surfaces a problem title when its detail is empty even though status is known', () => {
 		const resolution = resolveQueryError(
 			new ServerFailure({
 				responseStatusCode: 503,
@@ -143,10 +143,67 @@ describe('resolveQueryError (#2043)', () => {
 		);
 
 		// 503 is a 5xx — generic server-error copy, server detail absent so we
-		// say so explicitly rather than pretending to know.
+		// fall back through getFailureMessage to the server-provided title.
 		expect(resolution.title).toBe('t(error-500-title)');
-		expect(resolution.description).toBe('t(query-display-error-cause-unknown)');
+		expect(resolution.description).toBe('Service Unavailable');
 		expect(resolution.supportsRetry).toBe(true);
+		expect(resolution.fallback).toBe(false);
+	});
+
+	test('surfaces a network failure message through the shared failure seam', () => {
+		const resolution = resolveQueryError(
+			new TypeError('Failed to fetch the calendar.'),
+			t,
+		);
+
+		expect(resolution.description).toBe('Failed to fetch the calendar.');
+		expect(resolution.fallback).toBe(false);
+	});
+
+	test('surfaces an unknown failure message through the shared failure seam', () => {
+		const resolution = resolveQueryError(new Error('The cache is corrupt.'), t);
+
+		expect(resolution.description).toBe('The cache is corrupt.');
+		expect(resolution.fallback).toBe(false);
+	});
+
+	test('surfaces a problem title when detail is absent', () => {
+		const resolution = resolveQueryError(
+			{
+				status: 400,
+				responseStatusCode: 400,
+				title: 'The request was rejected.',
+			},
+			t,
+		);
+
+		expect(resolution.description).toBe('The request was rejected.');
+		expect(resolution.fallback).toBe(false);
+	});
+
+	test('surfaces a validation translation key when detail and title are absent', () => {
+		const resolution = resolveQueryError(
+			{
+				status: 422,
+				responseStatusCode: 422,
+				translationKey: 'calendar-query-invalid',
+				errors: { month: ['Invalid month.'] },
+			},
+			t,
+		);
+
+		expect(resolution.description).toBe('calendar-query-invalid');
+		expect(resolution.fallback).toBe(false);
+	});
+
+	test('silences an intentional abort instead of presenting a scary cause', () => {
+		const abort = new Error('The request was cancelled by navigation.');
+		abort.name = 'AbortError';
+
+		const resolution = resolveQueryError(abort, t);
+
+		expect(resolution.silent).toBe(true);
+		expect(resolution.description).toBe('');
 	});
 
 	test('reads plain problem-like objects (duck-typed ServerFailure) without forcing an Error subclass', () => {

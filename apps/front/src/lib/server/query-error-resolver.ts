@@ -1,4 +1,7 @@
-import { toApiFailure } from '@org/shared-ts/lib/api-failure/to-api-failure';
+import {
+	getFailureMessage,
+	toApiFailure,
+} from '@org/shared-ts/lib/api-failure/to-api-failure';
 
 /**
  * Shared resolver for QueryDisplay / read-only card error branches (issue
@@ -32,9 +35,40 @@ export type ResolvedQueryError = {
 	/** True when we had nothing usable to resolve; the title/description are
 	 * the generic fallback and the UI is expected to make that clear. */
 	fallback: boolean;
+	/** True for intentional request cancellation, which should not paint a failure. */
+	silent: boolean;
 };
 
 type Translator = (key: string) => string;
+
+const getFallbackMessage = (
+	status: number | undefined,
+	t: Translator,
+): string => {
+	if (status === 403) {
+		return t('forbidden-description');
+	}
+
+	if (status === 404) {
+		return t('not-found-sentence');
+	}
+
+	return t('query-display-error-cause-unknown');
+};
+
+const hasFailureCause = (failure: ReturnType<typeof toApiFailure>): boolean => {
+	if (failure.kind === 'problem' || failure.kind === 'validation') {
+		return Boolean(
+			failure.detail?.trim() || failure.title || failure.translationKey,
+		);
+	}
+
+	if (failure.kind === 'network' || failure.kind === 'unknown') {
+		return Boolean(failure.message);
+	}
+
+	return false;
+};
 
 export const resolveQueryError = (
 	error: unknown,
@@ -45,18 +79,35 @@ export const resolveQueryError = (
 		failure.kind === 'problem' || failure.kind === 'validation'
 			? failure.status
 			: undefined;
-	const detail =
+	const normalizedFailure =
 		failure.kind === 'problem' || failure.kind === 'validation'
-			? failure.detail?.trim() || undefined
-			: undefined;
+			? { ...failure, detail: failure.detail?.trim() || undefined }
+			: failure;
+	const fallbackMessage = getFallbackMessage(status, t);
+	const description = getFailureMessage(normalizedFailure, {
+		fallback: fallbackMessage,
+	});
+	const hasCause = hasFailureCause(failure);
+
+	if (failure.kind === 'abort') {
+		return {
+			code: undefined,
+			title: '',
+			description,
+			supportsRetry: false,
+			fallback: false,
+			silent: true,
+		};
+	}
 
 	if (status === 403) {
 		return {
 			code: t('error-403-code'),
 			title: t('no-access-title'),
-			description: detail ?? t('forbidden-description'),
+			description,
 			supportsRetry: false,
-			fallback: false,
+			fallback: !hasCause,
+			silent: false,
 		};
 	}
 
@@ -64,9 +115,10 @@ export const resolveQueryError = (
 		return {
 			code: t('error-404-code'),
 			title: t('page-not-found'),
-			description: detail ?? t('not-found-sentence'),
+			description,
 			supportsRetry: false,
-			fallback: false,
+			fallback: !hasCause,
+			silent: false,
 		};
 	}
 
@@ -74,20 +126,22 @@ export const resolveQueryError = (
 		return {
 			code: t('error-500-code'),
 			title: t('error-500-title'),
-			description: detail ?? t('query-display-error-cause-unknown'),
+			description,
 			supportsRetry: true,
-			fallback: detail === undefined,
+			fallback: !hasCause,
+			silent: false,
 		};
 	}
 
-	// The status is not one of the specialised cases above. Preserve any safe
-	// backend detail instead of discarding the cause, and only call this a
-	// fallback when the server gave us nothing usable to show.
+	// Every remaining failure kind still goes through getFailureMessage: network
+	// and unknown messages, plus problem/validation title or translationKey,
+	// are real causes and must not be replaced with generic copy.
 	return {
 		code: undefined,
 		title: t('query-display-error-default'),
-		description: detail ?? t('query-display-error-cause-unknown'),
+		description,
 		supportsRetry: true,
-		fallback: detail === undefined,
+		fallback: !hasCause,
+		silent: false,
 	};
 };

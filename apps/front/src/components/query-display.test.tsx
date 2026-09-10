@@ -79,9 +79,17 @@ describe('QueryDisplay', () => {
 	test('routes the default error fallback text through t()', () => {
 		render(<QueryDisplay query={errorQuery} />);
 
+		expect(screen.getByText('boom')).toBeTruthy();
+	});
+
+	test('renders the default error through the shared state surface path', () => {
+		render(<QueryDisplay query={errorQuery} />);
+
+		const announcement = screen.getByRole('status');
+		expect(announcement.className).toContain('publy-state-surface');
 		expect(
-			screen.getByText('An error occurred while loading data.'),
-		).toBeTruthy();
+			announcement.querySelector('.publy-state-icon-cluster'),
+		).not.toBeNull();
 	});
 
 	// PR 2: the render-prop children used to be mounted as a component, so an
@@ -271,7 +279,7 @@ describe('QueryDisplay', () => {
 		).toBeNull();
 	});
 
-	test('default error honestly labels an unhandled status without detail as unknown', () => {
+	test('default error surfaces the problem title when detail is absent', () => {
 		const badRequestQuery = errorResultOf(
 			new ServerFailure({
 				responseStatusCode: 400,
@@ -287,11 +295,7 @@ describe('QueryDisplay', () => {
 		expect(
 			screen.getByText('An error occurred while loading data.'),
 		).toBeTruthy();
-		expect(
-			screen.getByText(
-				"We couldn't determine what went wrong. Try again in a moment.",
-			),
-		).toBeTruthy();
+		expect(screen.getByText('Bad Request')).toBeTruthy();
 	});
 
 	// Secondary note in the issue: the loading branch carries `role="status"`
@@ -305,21 +309,13 @@ describe('QueryDisplay', () => {
 		expect(announcement.getAttribute('aria-live')).toBe('polite');
 	});
 
-	// When the error carries nothing usable (a bare `Error('boom')` from a
-	// network blip), the resolver must fall back to the generic sentence
-	// — and say so, rather than pretending to know.
-	test('default error falls back to a safe "cause unknown" summary when the error carries no status', () => {
+	// Unknown failures still carry a useful message. The resolver must surface
+	// it instead of discarding it behind the generic sentence.
+	test('default error surfaces an unknown failure message when the error carries no status', () => {
 		const bareErrorQuery = errorResultOf(new Error('boom'));
 
 		render(<QueryDisplay query={bareErrorQuery} />);
 
-		expect(
-			screen.getByText('An error occurred while loading data.'),
-		).toBeTruthy();
-		expect(
-			screen.getByText(
-				"We couldn't determine what went wrong. Try again in a moment.",
-			),
-		).toBeTruthy();
+		expect(screen.getByText('boom')).toBeTruthy();
 	});
 });

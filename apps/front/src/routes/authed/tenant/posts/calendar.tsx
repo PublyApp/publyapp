@@ -68,14 +68,15 @@ const TenantPostsCalendarPage = () => {
 						LoadingSlot={
 							<TenantReadOnlyCardSkeleton testId="tenant-posts-calendar-loading" />
 						}
-						ErrorSlot={
+						ErrorSlot={({ query: errorQuery }) => (
 							<TenantReadOnlyCardError
-								onRetry={restart}
+								query={errorQuery}
 								titleKey="common:list-unavailable-title"
 								descriptionKey="common:list-error-default-description"
+								error={errorQuery.error}
 								testId="tenant-posts-calendar-error"
 							/>
-						}
+						)}
 						EmptySlot={
 							<StateSurface
 								icon={IconCalendarEvent}

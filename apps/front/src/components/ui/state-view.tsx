@@ -8,6 +8,7 @@ type StateViewProps = {
 	icon: ReactNode;
 	tone?: StateViewTone;
 	scale: StateViewScale;
+	ariaLive?: 'polite' | 'assertive' | 'off';
 	/** Eyebrow line above the title (e.g. an error code). Omitted entirely
 	 * when absent — that is the only structural difference the page and
 	 * inline scales are allowed beyond typography (owner decision R3-4b). */
@@ -35,6 +36,7 @@ export const StateView = ({
 	icon,
 	tone = 'neutral',
 	scale,
+	ariaLive,
 	eyebrow,
 	title,
 	belowTitle,
@@ -62,6 +64,8 @@ export const StateView = ({
 
 	return (
 		<div
+			role={ariaLive ? 'status' : undefined}
+			aria-live={ariaLive}
 			className={cn(
 				isPage
 					? 'flex w-full flex-col items-center text-center'

@@ -10,6 +10,7 @@ import { StateView } from '~/components/ui/state-view';
 type StateSurfaceProps = {
 	icon?: TablerIcon;
 	tone?: 'danger' | 'neutral' | 'primary';
+	ariaLive?: 'polite' | 'assertive' | 'off';
 	/** Eyebrow line above the title (e.g. an error code). Omitted entirely
 	 * when absent — the same omission rule the page-scale AppErrorView uses,
 	 * so the inline and page scales read as the same family. */
@@ -24,6 +25,7 @@ type StateSurfaceProps = {
 export const StateSurface = ({
 	icon: Icon = IconInbox,
 	tone = 'neutral',
+	ariaLive,
 	eyebrow,
 	title,
 	description,
@@ -35,6 +37,7 @@ export const StateSurface = ({
 		icon={<Icon aria-hidden="true" />}
 		tone={tone}
 		scale="inline"
+		ariaLive={ariaLive}
 		eyebrow={eyebrow}
 		title={title}
 		belowTitle={
@@ -50,9 +53,10 @@ export const StateSurface = ({
 
 export const ErrorStateSurface = ({
 	icon: Icon = IconAlertCircle,
+	ariaLive = 'polite',
 	...props
 }: Omit<StateSurfaceProps, 'tone'>) => (
-	<StateSurface {...props} icon={Icon} tone="danger" />
+	<StateSurface {...props} ariaLive={ariaLive} icon={Icon} tone="danger" />
 );
 
 export const NoMatchStateSurface = ({

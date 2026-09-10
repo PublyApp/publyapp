@@ -74,6 +74,10 @@ export const TenantReadOnlyCardError = <TData, TError = Error>({
 
 	if (error !== undefined) {
 		const resolved = resolveQueryError(error, t);
+		if (resolved.silent) {
+			return null;
+		}
+
 		return (
 			<ErrorStateSurface
 				icon={IconAlertCircle}

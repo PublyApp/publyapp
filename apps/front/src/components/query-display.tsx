@@ -1,6 +1,7 @@
 import type { UseQueryResult } from '@tanstack/react-query';
 import { isValidElement, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
+import { ErrorStateSurface } from '~/components/ui/state-surface';
 import {
 	resolveQueryError,
 	type ResolvedQueryError,
@@ -71,28 +72,19 @@ const LoadingSpinner = ({
 	/>
 );
 
-const renderDefaultError = (resolved: ResolvedQueryError) => (
-	// The loading branch already announces itself with `role="status"`
-	// `aria-live="polite"` (see LoadingSpinner above); the error branch used a
-	// bare `<span>`, so a screen reader user heard "Loading…" when the fetch
-	// started and nothing when it failed. Mirror the same live region so the
-	// resolved title/description reaches assistive tech (issue #2043).
-	<span
-		role="status"
-		aria-live="polite"
-		className="inline-flex flex-col gap-1 text-sm"
-	>
-		{resolved.code ? (
-			<span className="text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">
-				{resolved.code}
-			</span>
-		) : null}
-		<span className="font-medium text-foreground">{resolved.title}</span>
-		{resolved.description ? (
-			<span className="text-muted-foreground">{resolved.description}</span>
-		) : null}
-	</span>
-);
+const renderDefaultError = (resolved: ResolvedQueryError) => {
+	if (resolved.silent) {
+		return null;
+	}
+
+	return (
+		<ErrorStateSurface
+			eyebrow={resolved.code}
+			title={resolved.title}
+			description={resolved.description}
+		/>
+	);
+};
 
 const renderError = <TData, TError>(
 	error: unknown,
