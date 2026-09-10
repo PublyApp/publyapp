@@ -20,6 +20,12 @@ enabled-by-root-.editorconfig convention, and is enforced as a warning
 offers the same transformation for one diagnostic and uses the standard batch
 fixer for document, project, and solution Fix All.
 
+Phase 1 is detection-only. The code-fix provider and its Workspaces dependency
+are deferred to Phase 2 and must be implemented in a separate code-fix
+assembly that follows Roslyn's RS1038 analyzer/code-fix separation. The
+removed provider and its 11 code-fix tests last existed at
+`d043eb9d18c6af7c6ed5e3805e6b7230c653ead4`.
+
 This is a style/readability rule only. It must not change overload resolution,
 accessibility, runtime behavior, public API shape, or the meaning of a
 nameof expression.
@@ -34,8 +40,13 @@ the AppHost Roslyn compilation and caused the shared warm AppHost-build guard
 to hang in hosted CI. The API's pre-existing analyzer-only reference remains
 because the API is an existing consumer and its current build still passes.
 
-Phase 2 must revisit AppHost wiring only after the analyzer/code-fix packaging
-boundary is made safe for Aspire builds. Reintroducing the reference requires
+Phase 2 must first move the code-fix provider and Workspaces dependency into a
+separate RS1038-correct code-fix assembly. The detection analyzer assembly
+must remain Workspaces-free; Workspaces may remain a test-harness-only
+dependency in Phase 1 and may be referenced by the separate code-fix assembly
+in Phase 2. The removed provider and its 11 code-fix tests last existed at
+`d043eb9d18c6af7c6ed5e3805e6b7230c653ead4`. Only after that packaging boundary
+is safe may AppHost wiring be revisited. Reintroducing the reference requires
 the AppHost warm-build guard, a clean AppHost build, and the code-fix/Fix All
 tests to pass on the same commit; do not infer that `PrivateAssets="all"`
 alone isolates Workspaces from project-reference build graphs.
@@ -445,7 +456,7 @@ safe fallback. The provider must verify the replacement's symbol before
 returning the document. It must never qualify with the base declaration type
 when the requested current containing type is a derived type.
 
-The code fix is a syntax replacement, not a formatting pass. Existing
+The code fix is a Phase 2 syntax replacement, not a formatting pass. Existing
 .editorconfig formatting remains authoritative and can be run separately after
 the targeted fix. Code-fix tests must assert exact fixed text for comments and
 unusual whitespace.
@@ -477,10 +488,13 @@ API-test/quality-gate entrypoints are the enforcement surface. Do not
 centralize this through a broad Directory.Build.* auto-reference that could
 reintroduce self-reference or change solution topology.
 
-The analyzer test project must add the standard C# code-fix testing package and
-cover both analyzer diagnostics and exact code-fix output. No production or
-runtime project receives a code-fix dependency; only the analyzer assembly
-needs Workspaces APIs, and Roslyn package references remain private.
+The Phase 1 analyzer test project keeps the analyzer-testing package and a
+direct Workspaces reference solely to force the modern test-harness dependency
+version. It does not reference the code-fix testing package. Phase 2 must add
+the standard C# code-fix testing package and cover exact code-fix output in the
+separate code-fix assembly. No API or other runtime project receives a code-fix
+dependency; the detection analyzer assembly must remain Workspaces-free, and
+Roslyn package references remain private.
 
 ## Phase 1 build-path correction
 
@@ -493,13 +507,16 @@ the API's translation-key generation target with a private
 consume the same single-target assets file, causing `NETSDK1005` for both
 `net10.0` and `netstandard2.0` depending on which project reached the file.
 
-This does not remove the code-fix dependency: `Microsoft.CodeAnalysis.CSharp.Workspaces`
-remains a private package reference of `PublyApp.Analyzers.csproj`, and the
-dedicated analyzer test runner continues to exercise the code-fix provider.
-The API and AppHost retain their analyzer-only references. Phase 2 must restore
-analyzer enforcement for `scripts-cs` through an isolated, correctly packaged
-or separately restored analyzer path before enabling PUBLY0012 there; do not
-reintroduce the direct project reference into the shared codegen invocation.
+The strip removes the code-fix dependency from the detection analyzer assembly:
+`Microsoft.CodeAnalysis.CSharp.Workspaces` is pinned centrally and referenced
+only by the dedicated analyzer test runner in Phase 1, where it is a harmless
+test-harness dependency. Phase 2 must move the code-fix provider and its
+Workspaces dependency into a separate RS1038-correct code-fix assembly. The API
+and AppHost retain analyzer-only references, and the analyzer/API runtime graph
+must remain Workspaces-free. Phase 2 must restore analyzer enforcement for
+`scripts-cs` through an isolated, correctly packaged or separately restored
+analyzer path before enabling PUBLY0012 there; do not reintroduce the direct
+project reference into the shared codegen invocation.
 
 ## Migration sequencing
 

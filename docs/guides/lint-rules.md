@@ -360,7 +360,7 @@ Each rule has an ID, descriptor in `DiagnosticCatalog.cs`, and is referenced in 
 - **Category:** `PublyApp.Style`
 - **Source:** `packages/lint-cs/ExplicitMemberAccess.cs`
 - **Spec:** `packages/lint-cs/ExplicitMemberAccessAnalyzer.Spec.cs`
-- **Behavior:** Requires eligible instance members to use `this.Member` and eligible static members to use their containing type.
+- **Behavior:** Detection analyzer (dormant, `isEnabledByDefault: false`) in Phase 1; auto-fix code-fix in Phase 2.
 - **Admission:** The owner-approved bespoke-guard exception is recorded in the explicit member access design spec.
 
 ## How to add a new rule

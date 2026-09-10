@@ -8,6 +8,16 @@
 
 **Tech Stack:** C#/.NET 10, Roslyn analyzers and Workspaces, Microsoft.CodeAnalysis CSharp testing, xUnit, Aspire AppHost MSBuild metadata, Markdown catalog/specification.
 
+### Phase 2 carry-forward TODO
+
+Phase 1 is detection-only. Move the PUBLY0012 code-fix provider and its
+Workspaces dependency to Phase 2 in a separate code-fix assembly that follows
+Roslyn's RS1038 analyzer/code-fix separation. Keep Workspaces out of
+`packages/lint-cs/PublyApp.Analyzers.csproj`; the Phase 1 test-harness-only
+reference is allowed and is pinned centrally at 5.0.0. The removed provider and
+its 11 code-fix tests last existed at
+`d043eb9d18c6af7c6ed5e3805e6b7230c653ead4`.
+
 ---
 
 ### Task 1: Establish RED coverage for semantic regressions
