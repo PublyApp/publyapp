@@ -29,35 +29,35 @@ namespace PublyApp.Api.Modules.Uploads.Services;
 /// paired scratch-revert proof shows these tests going red.
 /// </summary>
 public sealed class UploadAssetReferenceServiceSpec : IClassFixture<ApiFixture> {
-	private const string Purpose = Infrastructure.Storage.UploadAdmissionService.StaffUploadPurpose;
+	private const string _Purpose = Infrastructure.Storage.UploadAdmissionService.StaffUploadPurpose;
 
-	private readonly ApiFixture _fixture;
+	private readonly ApiFixture _Fixture;
 
 	public UploadAssetReferenceServiceSpec(ApiFixture fixture) {
-		_fixture = fixture;
+		_Fixture = fixture;
 	}
 
 	[Fact]
 	public async Task ItShouldMoveAnAssetFromStoredToReferencedAndBackToOrphaned() {
-		var path = UniquePath("lifecycle");
-		await SeedLiveAssetAsync(path, referenceCount: 0);
+		var path = _UniquePath("lifecycle");
+		await _SeedLiveAssetAsync(path, referenceCount: 0);
 
-		var acquired = await CreateService().TryAddReferenceAsync(path);
+		var acquired = await _CreateService().TryAddReferenceAsync(path);
 		acquired.Should().BeTrue("a live Stored asset owns the path");
-		var afterAcquire = await ReadAssetAsync(path);
+		var afterAcquire = await _ReadAssetAsync(path);
 		afterAcquire.State.Should().Be(UploadAssetState.Referenced);
 		afterAcquire.ReferenceCount.Should().Be(1);
 
-		var released = await CreateService().TryReleaseReferenceAsync(path);
+		var released = await _CreateService().TryReleaseReferenceAsync(path);
 		released.Should().BeTrue("the single reference can be released");
-		var afterRelease = await ReadAssetAsync(path);
+		var afterRelease = await _ReadAssetAsync(path);
 		afterRelease.State.Should().Be(UploadAssetState.Orphaned);
 		afterRelease.ReferenceCount.Should().Be(0);
 		afterRelease.DeleteNotBefore.Should().NotBeNull(
 			"the sweeper may only act after the configured grace period"
 		);
 
-		var releasedAgain = await CreateService().TryReleaseReferenceAsync(path);
+		var releasedAgain = await _CreateService().TryReleaseReferenceAsync(path);
 		releasedAgain.Should().BeFalse("an orphaned asset holds no reference to release");
 	}
 
@@ -68,20 +68,20 @@ public sealed class UploadAssetReferenceServiceSpec : IClassFixture<ApiFixture> 
 		// tuple, and after the release commits it must re-evaluate its predicate
 		// against the orphaned row and FAIL — it can never claim success on a path
 		// whose delete-grace window has already opened.
-		var path = UniquePath("race-release-holds");
-		await SeedLiveAssetAsync(path, referenceCount: 1);
+		var path = _UniquePath("race-release-holds");
+		await _SeedLiveAssetAsync(path, referenceCount: 1);
 
-		var holderDb = CreateDbContext();
+		var holderDb = _CreateDbContext();
 		await using var holderTransaction =
 			await holderDb.Database.BeginTransactionAsync();
 		var releaseHeld = await new UploadAssetReferenceService(holderDb)
 			.TryReleaseReferenceAsync(path);
 		releaseHeld.Should().BeTrue();
 
-		var acquireProbe = RunOnSeparateContextAsync(
+		var acquireProbe = _RunOnSeparateContextAsync(
 			service => service.TryAddReferenceAsync(path)
 		);
-		await AssertProbeStillBlockedAsync(acquireProbe);
+		await _AssertProbeStillBlockedAsync(acquireProbe);
 
 		await holderTransaction.CommitAsync();
 
@@ -89,7 +89,7 @@ public sealed class UploadAssetReferenceServiceSpec : IClassFixture<ApiFixture> 
 		acquiredLate.Should().BeFalse(
 			"an acquire that serialised behind a release-to-zero must not resurrect the orphan"
 		);
-		var finalState = await ReadAssetAsync(path);
+		var finalState = await _ReadAssetAsync(path);
 		finalState.State.Should().Be(UploadAssetState.Orphaned);
 		finalState.ReferenceCount.Should().Be(0);
 	}
@@ -100,20 +100,20 @@ public sealed class UploadAssetReferenceServiceSpec : IClassFixture<ApiFixture> 
 		// fires while an UNCOMMITTED acquire sits on the tuple. It must wait, then
 		// apply against the merged result: two references minus one leaves the
 		// asset Referenced — never orphaned on a stale zero-count observation.
-		var path = UniquePath("race-acquire-holds");
-		await SeedLiveAssetAsync(path, referenceCount: 1);
+		var path = _UniquePath("race-acquire-holds");
+		await _SeedLiveAssetAsync(path, referenceCount: 1);
 
-		var holderDb = CreateDbContext();
+		var holderDb = _CreateDbContext();
 		await using var holderTransaction =
 			await holderDb.Database.BeginTransactionAsync();
 		var acquireHeld = await new UploadAssetReferenceService(holderDb)
 			.TryAddReferenceAsync(path);
 		acquireHeld.Should().BeTrue();
 
-		var releaseProbe = RunOnSeparateContextAsync(
+		var releaseProbe = _RunOnSeparateContextAsync(
 			service => service.TryReleaseReferenceAsync(path)
 		);
-		await AssertProbeStillBlockedAsync(releaseProbe);
+		await _AssertProbeStillBlockedAsync(releaseProbe);
 
 		await holderTransaction.CommitAsync();
 
@@ -121,7 +121,7 @@ public sealed class UploadAssetReferenceServiceSpec : IClassFixture<ApiFixture> 
 		releasedLate.Should().BeTrue(
 			"after waiting on the acquire the release sees a positive reference count"
 		);
-		var finalState = await ReadAssetAsync(path);
+		var finalState = await _ReadAssetAsync(path);
 		finalState.State.Should().Be(UploadAssetState.Referenced);
 		finalState.ReferenceCount.Should().Be(1);
 		finalState.DeleteNotBefore.Should().BeNull(
@@ -131,16 +131,16 @@ public sealed class UploadAssetReferenceServiceSpec : IClassFixture<ApiFixture> 
 
 	[Fact]
 	public async Task ItShouldRefuseAnAcquireOnAPathThatWasAlreadyOrphaned() {
-		var path = UniquePath("post-orphan");
-		await SeedLiveAssetAsync(path, referenceCount: 1);
-		(await CreateService().TryReleaseReferenceAsync(path)).Should().BeTrue();
+		var path = _UniquePath("post-orphan");
+		await _SeedLiveAssetAsync(path, referenceCount: 1);
+		(await _CreateService().TryReleaseReferenceAsync(path)).Should().BeTrue();
 
-		var lateAcquire = await CreateService().TryAddReferenceAsync(path);
+		var lateAcquire = await _CreateService().TryAddReferenceAsync(path);
 
 		lateAcquire.Should().BeFalse(
 			"a path inside its deletion grace window must not accept new references"
 		);
-		var untouched = await ReadAssetAsync(path);
+		var untouched = await _ReadAssetAsync(path);
 		untouched.State.Should().Be(UploadAssetState.Orphaned);
 		untouched.ReferenceCount.Should().Be(0);
 	}
@@ -154,23 +154,23 @@ public sealed class UploadAssetReferenceServiceSpec : IClassFixture<ApiFixture> 
 		// reference_count >= 0 check constraint must never trip.
 		const int InitialCount = 5;
 		const int AttemptsPerSide = 12;
-		var path = UniquePath("storm");
-		await SeedLiveAssetAsync(path, referenceCount: InitialCount);
+		var path = _UniquePath("storm");
+		await _SeedLiveAssetAsync(path, referenceCount: InitialCount);
 
 		var acquireTasks = Enumerable.Range(0, AttemptsPerSide)
-			.Select(_ => RunOnSeparateContextAsync(
+			.Select(_ => _RunOnSeparateContextAsync(
 				service => service.TryAddReferenceAsync(path)
 			))
 			.ToArray();
 		var releaseTasks = Enumerable.Range(0, AttemptsPerSide)
-			.Select(_ => RunOnSeparateContextAsync(
+			.Select(_ => _RunOnSeparateContextAsync(
 				service => service.TryReleaseReferenceAsync(path)
 			))
 			.ToArray();
 		var acquires = await Task.WhenAll(acquireTasks);
 		var releases = await Task.WhenAll(releaseTasks);
 
-		var finalState = await ReadAssetAsync(path);
+		var finalState = await _ReadAssetAsync(path);
 		finalState.ReferenceCount
 			.Should().Be(InitialCount + acquires.Count(static acquired => acquired)
 				- releases.Count(static released => released),
@@ -185,13 +185,13 @@ public sealed class UploadAssetReferenceServiceSpec : IClassFixture<ApiFixture> 
 
 	// ── helpers ─────────────────────────────────────────────────────────────
 
-	private static string UniquePath(string label) {
+	private static string _UniquePath(string label) {
 		return $"uploads/spec-reference/{label}/{Guid.NewGuid():N}.png";
 	}
 
 	/// <summary>Assets carry created_by_user_id → a REAL user row is required.</summary>
-	private async Task<Guid> SeedUserAsync() {
-		using var scope = _fixture.Factory.Services.CreateScope();
+	private async Task<Guid> _SeedUserAsync() {
+		using var scope = _Fixture.Factory.Services.CreateScope();
 		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 		var user = new User {
 			Email = $"upload-reference-spec-{Guid.NewGuid():N}@example.com",
@@ -203,25 +203,25 @@ public sealed class UploadAssetReferenceServiceSpec : IClassFixture<ApiFixture> 
 		return user.GetRequiredId();
 	}
 
-	private async Task SeedLiveAssetAsync(string path, int referenceCount) {
-		using var scope = _fixture.Factory.Services.CreateScope();
+	private async Task _SeedLiveAssetAsync(string path, int referenceCount) {
+		using var scope = _Fixture.Factory.Services.CreateScope();
 		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 		db.UploadAsset.Add(new UploadAsset {
 			RelativePath = path,
 			SizeBytes = 1024,
 			ContentType = "image/png",
-			Purpose = Purpose,
+			Purpose = _Purpose,
 			State = referenceCount > 0
 				? UploadAssetState.Referenced
 				: UploadAssetState.Stored,
 			ReferenceCount = referenceCount,
-			CreatedByUserId = await SeedUserAsync(),
+			CreatedByUserId = await _SeedUserAsync(),
 		});
 		await db.SaveChangesAsync();
 	}
 
-	private AppDbContext CreateDbContext() {
-		var connectionString = GetConnectionString();
+	private AppDbContext _CreateDbContext() {
+		var connectionString = _GetConnectionString();
 		var dbContext = new AppDbContext(
 			new DbContextOptionsBuilder<AppDbContext>()
 				.UseNpgsql(connectionString)
@@ -231,20 +231,20 @@ public sealed class UploadAssetReferenceServiceSpec : IClassFixture<ApiFixture> 
 		return dbContext;
 	}
 
-	private UploadAssetReferenceService CreateService() {
-		return new UploadAssetReferenceService(CreateDbContext());
+	private UploadAssetReferenceService _CreateService() {
+		return new UploadAssetReferenceService(_CreateDbContext());
 	}
 
-	private async Task<bool> RunOnSeparateContextAsync(
+	private async Task<bool> _RunOnSeparateContextAsync(
 		Func<UploadAssetReferenceService, Task<bool>> transitionAsync
 	) {
 		return await Task.Run(async () => {
-			await using var dbContext = CreateDbContext();
+			await using var dbContext = _CreateDbContext();
 			return await transitionAsync(new UploadAssetReferenceService(dbContext));
 		});
 	}
 
-	private static async Task AssertProbeStillBlockedAsync(Task<bool> probe) {
+	private static async Task _AssertProbeStillBlockedAsync(Task<bool> probe) {
 		// Generous polling window: completion BEFORE the holder resolves is
 		// impossible under the row lock (Postgres guarantees it), so any observed
 		// completion means the transition skipped serialisation — the regression
@@ -257,16 +257,16 @@ public sealed class UploadAssetReferenceServiceSpec : IClassFixture<ApiFixture> 
 		);
 	}
 
-	private async Task<UploadAsset> ReadAssetAsync(string path) {
-		using var scope = _fixture.Factory.Services.CreateScope();
+	private async Task<UploadAsset> _ReadAssetAsync(string path) {
+		using var scope = _Fixture.Factory.Services.CreateScope();
 		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 		var asset = await db.UploadAsset.AsNoTracking()
 			.SingleAsync(a => a.RelativePath == path);
 		return asset;
 	}
 
-	private string GetConnectionString() {
-		using var scope = _fixture.Factory.Services.CreateScope();
+	private string _GetConnectionString() {
+		using var scope = _Fixture.Factory.Services.CreateScope();
 		var connectionString = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>().Database.GetConnectionString();
 		if (string.IsNullOrEmpty(connectionString)) {

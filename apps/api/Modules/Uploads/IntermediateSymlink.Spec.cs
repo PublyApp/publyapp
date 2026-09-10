@@ -17,17 +17,17 @@ namespace PublyApp.Api.Modules.Uploads;
 /// storage root, files "beneath" it should not be served.
 /// </summary>
 public sealed class IntermediateSymlinkSpec : IClassFixture<ApiFixture> {
-	private readonly HttpClient _http;
-	private readonly ApiFixture _fixture;
+	private readonly HttpClient _Http;
+	private readonly ApiFixture _Fixture;
 
 	public IntermediateSymlinkSpec(ApiFixture fixture) {
-		_http = fixture.HttpClient;
-		_fixture = fixture;
+		_Http = fixture.HttpClient;
+		_Fixture = fixture;
 	}
 
 	[Fact]
 	public async Task ItShouldNotFollowSymlinkedDirectoriesInsideUploads() {
-		var fileStorage = _fixture.Factory.Services.GetRequiredService<IFileStorage>();
+		var fileStorage = _Fixture.Factory.Services.GetRequiredService<IFileStorage>();
 		var uploadsDir = Path.Combine(fileStorage.RootPath, "uploads");
 		Directory.CreateDirectory(uploadsDir);
 
@@ -51,7 +51,7 @@ public sealed class IntermediateSymlinkSpec : IClassFixture<ApiFixture> {
 				var sentinelFile = Path.GetFileName(sentinelPath);
 				var requestUrl = $"/files/uploads/{linkDirName}/{sentinelFile}";
 
-				using var response = await _http.GetAsync(requestUrl);
+				using var response = await _Http.GetAsync(requestUrl);
 
 				response.StatusCode.Should().Be(HttpStatusCode.NotFound);
 			} finally {

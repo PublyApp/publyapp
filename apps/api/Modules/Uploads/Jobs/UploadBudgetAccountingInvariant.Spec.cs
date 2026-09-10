@@ -32,75 +32,75 @@ namespace PublyApp.Api.Modules.Uploads.Jobs;
 /// asset table can never hide inside a shared change tracker or transaction.
 /// </summary>
 public sealed class UploadBudgetAccountingInvariantSpec : IClassFixture<ApiFixture> {
-	private const string Purpose = Infrastructure.Storage.UploadAdmissionService.StaffUploadPurpose;
+	private const string _Purpose = Infrastructure.Storage.UploadAdmissionService.StaffUploadPurpose;
 
-	private readonly ApiFixture _fixture;
+	private readonly ApiFixture _Fixture;
 
 	public UploadBudgetAccountingInvariantSpec(ApiFixture fixture) {
-		_fixture = fixture;
+		_Fixture = fixture;
 	}
 
 	[Fact]
 	public async Task ItShouldKeepCommittedBytesEqualToLiveAssetBytesAcrossReclamation() {
-		var reclaimPath = UniquePath("invariant-reclaimed");
-		var survivorPath = UniquePath("invariant-survivor");
-		var userId = await SeedUserAsync();
+		var reclaimPath = _UniquePath("invariant-reclaimed");
+		var survivorPath = _UniquePath("invariant-survivor");
+		var userId = await _SeedUserAsync();
 		var reclaimedBytes = 3000L;
 		var survivorBytes = 1500L;
 
-		await SeedCommittedAssetAsync(reclaimPath, userId, reclaimedBytes,
+		await _SeedCommittedAssetAsync(reclaimPath, userId, reclaimedBytes,
 			UploadAssetState.Orphaned);
-		await SeedCommittedAssetAsync(survivorPath, userId, survivorBytes,
+		await _SeedCommittedAssetAsync(survivorPath, userId, survivorBytes,
 			UploadAssetState.Stored);
 
-		var expected = await ExpectedGlobalCommittedAsync();
-		ReadGlobalCommitted(await SnapshotFreshAsync())
+		var expected = await _ExpectedGlobalCommittedAsync();
+		_ReadGlobalCommitted(await _SnapshotFreshAsync())
 			.Should().Be(expected,
 				"the seeded fixture must start from an internally consistent state");
 
 		// Age the orphan into its grace window and run the ONLY legitimate
 		// decreaser: the reclamation sweep.
-		await AgeIntoGraceWindowAsync(reclaimPath);
-		await RunReclaimerAsync();
+		await _AgeIntoGraceWindowAsync(reclaimPath);
+		await _RunReclaimerAsync();
 
-		var after = await SnapshotFreshAsync();
-		ReadGlobalCommitted(after).Should().Be(expected - reclaimedBytes,
+		var after = await _SnapshotFreshAsync();
+		_ReadGlobalCommitted(after).Should().Be(expected - reclaimedBytes,
 			"reclamation releases exactly the deleted asset's bytes");
-		GlobalInvariant(after).Should().BeTrue(
+		_GlobalInvariant(after).Should().BeTrue(
 			"committed_bytes must equal Σ size_bytes over live Stored+ rows after reclaiming"
 		);
-		CreatorInvariant(after, userId).Should().BeTrue(
+		_CreatorInvariant(after, userId).Should().BeTrue(
 			"the creator scope must satisfy the same equality after reclaiming"
 		);
 	}
 
 	[Fact]
 	public async Task ItShouldKeepCreatorBudgetEqualPerCreatorAfterReclamation() {
-		var firstUser = await SeedUserAsync();
-		var secondUser = await SeedUserAsync();
-		var firstPath = UniquePath("creator-invariant-1");
-		var secondPath = UniquePath("creator-invariant-2");
+		var firstUser = await _SeedUserAsync();
+		var secondUser = await _SeedUserAsync();
+		var firstPath = _UniquePath("creator-invariant-1");
+		var secondPath = _UniquePath("creator-invariant-2");
 
-		await SeedCommittedAssetAsync(firstPath, firstUser, 1200,
+		await _SeedCommittedAssetAsync(firstPath, firstUser, 1200,
 			UploadAssetState.Orphaned);
-		await SeedCommittedAssetAsync(secondPath, secondUser, 8000,
+		await _SeedCommittedAssetAsync(secondPath, secondUser, 8000,
 			UploadAssetState.Stored);
 
-		await AgeIntoGraceWindowAsync(firstPath);
-		await RunReclaimerAsync();
+		await _AgeIntoGraceWindowAsync(firstPath);
+		await _RunReclaimerAsync();
 
-		var after = await SnapshotFreshAsync();
-		CreatorInvariant(after, firstUser).Should().BeTrue(
+		var after = await _SnapshotFreshAsync();
+		_CreatorInvariant(after, firstUser).Should().BeTrue(
 			"each creator's committed_bytes must equal that creator's live Stored+ bytes"
 		);
-		CreatorInvariant(after, secondUser).Should().BeTrue(
+		_CreatorInvariant(after, secondUser).Should().BeTrue(
 			"a creator whose assets were untouched must keep exact accounting too"
 		);
 	}
 
 	// ── helpers ─────────────────────────────────────────────────────────────
 
-	private static string UniquePath(string label) {
+	private static string _UniquePath(string label) {
 		return $"uploads/spec-budget-invariant/{label}/{Guid.NewGuid():N}.png";
 	}
 
@@ -110,28 +110,28 @@ public sealed class UploadBudgetAccountingInvariantSpec : IClassFixture<ApiFixtu
 		IReadOnlyList<(string Path, Guid Creator, long Size)> LiveStoredAssets
 	);
 
-	private static long ReadGlobalCommitted(BudgetSnapshot snapshot) {
+	private static long _ReadGlobalCommitted(BudgetSnapshot snapshot) {
 		return snapshot.GlobalCommitted;
 	}
 
 	// THE check query: global committed_bytes == Σ size_bytes over live assets in
 	// Stored/Referenced/Orphaned. Reserved rows account in reserved_bytes; Deleted
 	// rows are out of accounting entirely.
-	private static bool GlobalInvariant(BudgetSnapshot snapshot) {
+	private static bool _GlobalInvariant(BudgetSnapshot snapshot) {
 		var expected = snapshot.LiveStoredAssets.Sum(asset => asset.Size);
 		return snapshot.GlobalCommitted == expected;
 	}
 
-	private static bool CreatorInvariant(BudgetSnapshot snapshot, Guid creatorUserId) {
+	private static bool _CreatorInvariant(BudgetSnapshot snapshot, Guid creatorUserId) {
 		var expected = snapshot.LiveStoredAssets
 			.Where(asset => asset.Creator == creatorUserId)
 			.Sum(asset => asset.Size);
 		return snapshot.CreatorCommitted.GetValueOrDefault(creatorUserId) == expected;
 	}
 
-	private static BudgetSnapshot Snapshot(AppDbContext dbContext) {
-		var budgets = ReadBudgetRows(dbContext);
-		var assets = ReadLiveStoredAssets(dbContext);
+	private static BudgetSnapshot _Snapshot(AppDbContext dbContext) {
+		var budgets = _ReadBudgetRows(dbContext);
+		var assets = _ReadLiveStoredAssets(dbContext);
 		return new BudgetSnapshot(
 			budgets.GlobalCommitted,
 			budgets.Creators,
@@ -142,7 +142,7 @@ public sealed class UploadBudgetAccountingInvariantSpec : IClassFixture<ApiFixtu
 	// Reads every budget row's accounting into memory; fresh contexts only, so the
 	// numbers can never come from a stale change tracker.
 	private static (long GlobalCommitted, IReadOnlyDictionary<Guid, long> Creators)
-		ReadBudgetRows(AppDbContext dbContext) {
+		_ReadBudgetRows(AppDbContext dbContext) {
 		var global = dbContext.Database
 			.SqlQuery<long?>($"""
 				SELECT committed_bytes AS "Value"
@@ -170,7 +170,7 @@ public sealed class UploadBudgetAccountingInvariantSpec : IClassFixture<ApiFixtu
 	}
 
 	private static IReadOnlyList<(string Path, Guid Creator, long Size)>
-		ReadLiveStoredAssets(AppDbContext dbContext) {
+		_ReadLiveStoredAssets(AppDbContext dbContext) {
 		var rows = dbContext.Database
 			.SqlQuery<LiveAssetRow>($"""
 				SELECT relative_path AS "RelativePath",
@@ -203,8 +203,8 @@ public sealed class UploadBudgetAccountingInvariantSpec : IClassFixture<ApiFixtu
 		public long SizeBytes { get; set; }
 	}
 
-	private async Task<long> ExpectedGlobalCommittedAsync() {
-		await using var dbContext = await CreateDbContextAsync();
+	private async Task<long> _ExpectedGlobalCommittedAsync() {
+		await using var dbContext = await _CreateDbContextAsync();
 		var total = await dbContext.Database
 			.SqlQuery<long?>($"""
 				SELECT COALESCE(SUM(size_bytes), 0)::bigint AS "Value"
@@ -220,26 +220,26 @@ public sealed class UploadBudgetAccountingInvariantSpec : IClassFixture<ApiFixtu
 		return total ?? 0;
 	}
 
-	private async Task<BudgetSnapshot> SnapshotFreshAsync() {
-		await using var dbContext = await CreateDbContextAsync();
-		return Snapshot(dbContext);
+	private async Task<BudgetSnapshot> _SnapshotFreshAsync() {
+		await using var dbContext = await _CreateDbContextAsync();
+		return _Snapshot(dbContext);
 	}
 
-	private async Task RunReclaimerAsync() {
-		await using var dbContext = await CreateDbContextAsync();
-		using var scope = _fixture.Factory.Services.CreateScope();
+	private async Task _RunReclaimerAsync() {
+		await using var dbContext = await _CreateDbContextAsync();
+		using var scope = _Fixture.Factory.Services.CreateScope();
 		var handler = new UploadOrphanReclaimerHandler(
 			dbContext,
 			scope.ServiceProvider.GetRequiredService<IFileStorage>(),
 			scope.ServiceProvider.GetRequiredService<IAuditLogService>(),
 			NullLogger<UploadOrphanReclaimerHandler>.Instance
 		);
-		var outcome = await handler.HandleAsync(FakeContext(handler.JobType),
+		var outcome = await handler.HandleAsync(_FakeContext(handler.JobType),
 			CancellationToken.None);
 		outcome.Should().BeOfType<JobOutcome.Success>();
 	}
 
-	private static JobContext FakeContext(string jobType) {
+	private static JobContext _FakeContext(string jobType) {
 		return new JobContext {
 			JobId = Guid.NewGuid(),
 			JobType = jobType,
@@ -249,8 +249,8 @@ public sealed class UploadBudgetAccountingInvariantSpec : IClassFixture<ApiFixtu
 		};
 	}
 
-	private async Task<Guid> SeedUserAsync() {
-		using var scope = _fixture.Factory.Services.CreateScope();
+	private async Task<Guid> _SeedUserAsync() {
+		using var scope = _Fixture.Factory.Services.CreateScope();
 		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 		var user = new User {
 			Email = $"upload-invariant-spec-{Guid.NewGuid():N}@example.com",
@@ -262,19 +262,19 @@ public sealed class UploadBudgetAccountingInvariantSpec : IClassFixture<ApiFixtu
 		return user.GetRequiredId();
 	}
 
-	private async Task SeedCommittedAssetAsync(
+	private async Task _SeedCommittedAssetAsync(
 		string path,
 		Guid userId,
 		long sizeBytes,
 		UploadAssetState state
 	) {
-		using var scope = _fixture.Factory.Services.CreateScope();
+		using var scope = _Fixture.Factory.Services.CreateScope();
 		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 		db.UploadAsset.Add(new UploadAsset {
 			RelativePath = path,
 			SizeBytes = sizeBytes,
 			ContentType = "image/png",
-			Purpose = Purpose,
+			Purpose = _Purpose,
 			State = state,
 			ReferenceCount = 0,
 			DeleteNotBefore = state == UploadAssetState.Orphaned
@@ -306,8 +306,8 @@ public sealed class UploadBudgetAccountingInvariantSpec : IClassFixture<ApiFixtu
 			""");
 	}
 
-	private async Task AgeIntoGraceWindowAsync(string path) {
-		await using var dbContext = await CreateDbContextAsync();
+	private async Task _AgeIntoGraceWindowAsync(string path) {
+		await using var dbContext = await _CreateDbContextAsync();
 		await dbContext.Database.ExecuteSqlAsync($"""
 			UPDATE upload_assets
 			SET updated_at = NOW() - interval '8 days',
@@ -316,8 +316,8 @@ public sealed class UploadBudgetAccountingInvariantSpec : IClassFixture<ApiFixtu
 			""");
 	}
 
-	private async Task<AppDbContext> CreateDbContextAsync() {
-		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+	private async Task<AppDbContext> _CreateDbContextAsync() {
+		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
 		var connectionString = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>()
 			.Database.GetConnectionString();

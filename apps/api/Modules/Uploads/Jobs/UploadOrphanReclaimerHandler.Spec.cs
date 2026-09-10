@@ -24,53 +24,53 @@ namespace PublyApp.Api.Modules.Uploads.Jobs;
 // read only those rows/budget DELTAS (before → after around HandleAsync), and each
 // test removes its own rows in finally.
 public sealed class UploadOrphanReclaimerHandlerSpec : IClassFixture<ApiFixture> {
-	private const string Purpose = Infrastructure.Storage.UploadAdmissionService.StaffUploadPurpose;
+	private const string _Purpose = Infrastructure.Storage.UploadAdmissionService.StaffUploadPurpose;
 
-	private readonly ApiFixture _fixture;
+	private readonly ApiFixture _Fixture;
 
 	public UploadOrphanReclaimerHandlerSpec(ApiFixture fixture) {
-		_fixture = fixture;
+		_Fixture = fixture;
 	}
 
 	[Fact]
 	public async Task ItShouldReclaimAnOrphanPastItsGraceWindowAndReleaseBothBudgetScopes() {
-		var path = UniquePath("reclaim");
-		var userId = await SeedUserAsync();
+		var path = _UniquePath("reclaim");
+		var userId = await _SeedUserAsync();
 		var sizeBytes = 4096L;
-		await SeedLiveAssetAsync(path, userId, sizeBytes, UploadAssetState.Orphaned);
-		await MakeOrphanEligibleAsync(path);
-		await SeedBlobFileAsync(path);
-		var globalBefore = await ReadGlobalBudgetAsync();
-		var creatorBefore = await ReadCreatorBudgetAsync(userId);
+		await _SeedLiveAssetAsync(path, userId, sizeBytes, UploadAssetState.Orphaned);
+		await _MakeOrphanEligibleAsync(path);
+		await _SeedBlobFileAsync(path);
+		var globalBefore = await _ReadGlobalBudgetAsync();
+		var creatorBefore = await _ReadCreatorBudgetAsync(userId);
 
-		var outcome = await RunHandlerAsync();
+		var outcome = await _RunHandlerAsync();
 
 		outcome.Should().BeOfType<JobOutcome.Success>();
-		await using var verify = await CreateDbContextAsync();
+		await using var verify = await _CreateDbContextAsync();
 		var asset = await verify.UploadAsset.AsNoTracking()
 			.SingleAsync(a => a.RelativePath == path);
 		asset.State.Should().Be(UploadAssetState.Deleted,
 			"the sweeper performs the documented Orphaned → Deleted transition");
-		BlobExists(path).Should().BeFalse(
+		_BlobExists(path).Should().BeFalse(
 			"the blob must be physically removed before the row is flipped");
-		(await ReadGlobalBudgetAsync()).Should().Be(globalBefore - sizeBytes,
+		(await _ReadGlobalBudgetAsync()).Should().Be(globalBefore - sizeBytes,
 			"committed_bytes must drop by the reclaimed bytes in the same statement");
-		(await ReadCreatorBudgetAsync(userId)).Should().Be(creatorBefore - sizeBytes,
+		(await _ReadCreatorBudgetAsync(userId)).Should().Be(creatorBefore - sizeBytes,
 			"the creator scope must be debited together with the global scope");
 
-		await CleanupAsync(path);
+		await _CleanupAsync(path);
 	}
 
 	[Fact]
 	public async Task ItShouldWriteADurableAuditEntryWithTheCauseOfTheDeletion() {
-		var path = UniquePath("audit");
-		var userId = await SeedUserAsync();
-		await SeedLiveAssetAsync(path, userId, 1024, UploadAssetState.Orphaned);
-		await MakeOrphanEligibleAsync(path);
+		var path = _UniquePath("audit");
+		var userId = await _SeedUserAsync();
+		await _SeedLiveAssetAsync(path, userId, 1024, UploadAssetState.Orphaned);
+		await _MakeOrphanEligibleAsync(path);
 
-		await RunHandlerAsync();
+		await _RunHandlerAsync();
 
-		await using var verify = await CreateDbContextAsync();
+		await using var verify = await _CreateDbContextAsync();
 		var audits = await verify.AuditLog.AsNoTracking()
 			.Where(a => a.Action == AuditActions.UploadAssetDeleted
 				&& a.Details != null && a.Details.Contains(path))
@@ -79,27 +79,27 @@ public sealed class UploadOrphanReclaimerHandlerSpec : IClassFixture<ApiFixture>
 			"the asset row survives as history but the audit trail records the physical deletion");
 		audits[0].UserId.Should().Be(userId);
 
-		await CleanupAsync(path);
+		await _CleanupAsync(path);
 	}
 
 	[Fact]
 	public async Task ItShouldNeverReclaimAnOrphanInsideItsGraceWindow() {
-		var path = UniquePath("inside-window");
-		var userId = await SeedUserAsync();
-		await SeedLiveAssetAsync(path, userId, 1024, UploadAssetState.Orphaned);
-		await SetInsideGraceWindowAsync(path);
-		var globalBefore = await ReadGlobalBudgetAsync();
+		var path = _UniquePath("inside-window");
+		var userId = await _SeedUserAsync();
+		await _SeedLiveAssetAsync(path, userId, 1024, UploadAssetState.Orphaned);
+		await _SetInsideGraceWindowAsync(path);
+		var globalBefore = await _ReadGlobalBudgetAsync();
 
-		await RunHandlerAsync();
+		await _RunHandlerAsync();
 
-		await using var verify = await CreateDbContextAsync();
+		await using var verify = await _CreateDbContextAsync();
 		var asset = await verify.UploadAsset.AsNoTracking()
 			.SingleAsync(a => a.RelativePath == path);
 		asset.State.Should().Be(UploadAssetState.Orphaned,
 			"delete_not_before has not passed; the sweeper must wait");
-		(await ReadGlobalBudgetAsync()).Should().Be(globalBefore);
+		(await _ReadGlobalBudgetAsync()).Should().Be(globalBefore);
 
-		await CleanupAsync(path);
+		await _CleanupAsync(path);
 	}
 
 	[Fact]
@@ -108,92 +108,92 @@ public sealed class UploadOrphanReclaimerHandlerSpec : IClassFixture<ApiFixture>
 		// carries references (or left the Orphaned state) must survive the sweep.
 		// Under the row lock the DELETE-side predicate restates state = Orphaned and
 		// reference_count = 0, so a late acquire can never lose its blob.
-		var path = UniquePath("referenced-guard");
-		var userId = await SeedUserAsync();
-		await SeedLiveAssetAsync(path, userId, 1024, UploadAssetState.Referenced);
-		await ForceStaleTimestampsAsync(path);
-		var globalBefore = await ReadGlobalBudgetAsync();
+		var path = _UniquePath("referenced-guard");
+		var userId = await _SeedUserAsync();
+		await _SeedLiveAssetAsync(path, userId, 1024, UploadAssetState.Referenced);
+		await _ForceStaleTimestampsAsync(path);
+		var globalBefore = await _ReadGlobalBudgetAsync();
 
-		await RunHandlerAsync();
+		await _RunHandlerAsync();
 
-		await using var verify = await CreateDbContextAsync();
+		await using var verify = await _CreateDbContextAsync();
 		var asset = await verify.UploadAsset.AsNoTracking()
 			.SingleAsync(a => a.RelativePath == path);
 		asset.State.Should().Be(UploadAssetState.Referenced,
 			"a referenced asset is never reclaimable, whatever its timestamps say");
 		asset.ReferenceCount.Should().BeGreaterThan(0);
-		(await ReadGlobalBudgetAsync()).Should().Be(globalBefore);
+		(await _ReadGlobalBudgetAsync()).Should().Be(globalBefore);
 
-		await CleanupAsync(path);
+		await _CleanupAsync(path);
 	}
 
 	[Fact]
 	public async Task ItShouldDeleteAStaleReservedRowAndReleaseItsReservedBytes() {
-		var path = UniquePath("stale-reserved");
-		var userId = await SeedUserAsync();
+		var path = _UniquePath("stale-reserved");
+		var userId = await _SeedUserAsync();
 		var sizeBytes = 2048L;
-		await SeedLiveAssetAsync(path, userId, sizeBytes, UploadAssetState.Reserved);
-		await BackdateUpdatedAtAsync(path, minutes: 10_000);
-		var globalReservedBefore = await ReadGlobalReservedAsync();
-		var creatorReservedBefore = await ReadCreatorReservedAsync(userId);
-		var globalCommittedBefore = await ReadGlobalBudgetAsync();
+		await _SeedLiveAssetAsync(path, userId, sizeBytes, UploadAssetState.Reserved);
+		await _BackdateUpdatedAtAsync(path, minutes: 10_000);
+		var globalReservedBefore = await _ReadGlobalReservedAsync();
+		var creatorReservedBefore = await _ReadCreatorReservedAsync(userId);
+		var globalCommittedBefore = await _ReadGlobalBudgetAsync();
 
-		await RunHandlerAsync();
+		await _RunHandlerAsync();
 
-		await using var verify = await CreateDbContextAsync();
+		await using var verify = await _CreateDbContextAsync();
 		(await verify.UploadAsset.AsNoTracking().AnyAsync(a => a.RelativePath == path))
 			.Should().BeFalse(
 				"a stale reservation vanishes entirely, exactly like a rolled-back one");
-		(await ReadGlobalReservedAsync()).Should().Be(globalReservedBefore - sizeBytes,
+		(await _ReadGlobalReservedAsync()).Should().Be(globalReservedBefore - sizeBytes,
 			"the abandoned hold on the global pool must return");
-		(await ReadCreatorReservedAsync(userId)).Should().Be(creatorReservedBefore - sizeBytes,
+		(await _ReadCreatorReservedAsync(userId)).Should().Be(creatorReservedBefore - sizeBytes,
 			"the abandoned hold on the creator pool must return");
-		(await ReadGlobalBudgetAsync()).Should().Be(globalCommittedBefore,
+		(await _ReadGlobalBudgetAsync()).Should().Be(globalCommittedBefore,
 			"releasing a reservation never touches committed bytes");
 
-		await CleanupAsync(path);
+		await _CleanupAsync(path);
 	}
 
 	[Fact]
 	public async Task ItShouldNotTouchAFreshReservedRow() {
-		var path = UniquePath("fresh-reserved");
-		var userId = await SeedUserAsync();
-		await SeedLiveAssetAsync(path, userId, 1024, UploadAssetState.Reserved);
-		var globalBefore = await ReadGlobalBudgetAsync();
+		var path = _UniquePath("fresh-reserved");
+		var userId = await _SeedUserAsync();
+		await _SeedLiveAssetAsync(path, userId, 1024, UploadAssetState.Reserved);
+		var globalBefore = await _ReadGlobalBudgetAsync();
 
-		await RunHandlerAsync();
+		await _RunHandlerAsync();
 
-		await using var verify = await CreateDbContextAsync();
+		await using var verify = await _CreateDbContextAsync();
 		var asset = await verify.UploadAsset.AsNoTracking()
 			.SingleAsync(a => a.RelativePath == path);
 		asset.State.Should().Be(UploadAssetState.Reserved,
 			"an in-flight upload attempt is nobody's garbage");
-		(await ReadGlobalBudgetAsync()).Should().Be(globalBefore);
+		(await _ReadGlobalBudgetAsync()).Should().Be(globalBefore);
 
-		await CleanupAsync(path);
+		await _CleanupAsync(path);
 	}
 
 	[Fact]
 	public async Task ItShouldBeIdempotentWhenRunTwice() {
-		var path = UniquePath("idempotent");
-		var userId = await SeedUserAsync();
-		await SeedLiveAssetAsync(path, userId, 1024, UploadAssetState.Orphaned);
-		await MakeOrphanEligibleAsync(path);
-		var globalBefore = await ReadGlobalBudgetAsync();
+		var path = _UniquePath("idempotent");
+		var userId = await _SeedUserAsync();
+		await _SeedLiveAssetAsync(path, userId, 1024, UploadAssetState.Orphaned);
+		await _MakeOrphanEligibleAsync(path);
+		var globalBefore = await _ReadGlobalBudgetAsync();
 
-		await RunHandlerAsync();
-		await RunHandlerAsync();
+		await _RunHandlerAsync();
+		await _RunHandlerAsync();
 
-		var globalAfterSecondRun = await ReadGlobalBudgetAsync();
+		var globalAfterSecondRun = await _ReadGlobalBudgetAsync();
 		globalAfterSecondRun.Should().Be(globalBefore - 1024,
 			"the second pass must find nothing eligible and debit nothing further");
-		await using var verify = await CreateDbContextAsync();
+		await using var verify = await _CreateDbContextAsync();
 		(await verify.AuditLog.AsNoTracking().CountAsync(a =>
 				a.Action == AuditActions.UploadAssetDeleted && a.Details != null
 				&& a.Details.Contains(path)))
 			.Should().Be(1, "one physical deletion, one audit entry");
 
-		await CleanupAsync(path);
+		await _CleanupAsync(path);
 	}
 
 	[Fact]
@@ -201,27 +201,27 @@ public sealed class UploadOrphanReclaimerHandlerSpec : IClassFixture<ApiFixture>
 		// A storage layer that cannot delete must never cause unaccounted bytes: the
 		// handler skips the row (leaving it Orphaned and fully budgeted) and bumps
 		// updated_at so the retry spaces out instead of starving later candidates.
-		var path = UniquePath("blob-failure");
-		var userId = await SeedUserAsync();
-		await SeedLiveAssetAsync(path, userId, 1024, UploadAssetState.Orphaned);
-		await MakeOrphanEligibleAsync(path);
-		var globalBefore = await ReadGlobalBudgetAsync();
+		var path = _UniquePath("blob-failure");
+		var userId = await _SeedUserAsync();
+		await _SeedLiveAssetAsync(path, userId, 1024, UploadAssetState.Orphaned);
+		await _MakeOrphanEligibleAsync(path);
+		var globalBefore = await _ReadGlobalBudgetAsync();
 
-		var outcome = await RunHandlerAsync(storage: new BlobSurvivesFileStorage());
+		var outcome = await _RunHandlerAsync(storage: new BlobSurvivesFileStorage());
 
 		outcome.Should().BeOfType<JobOutcome.Success>(
 			"one stuck blob is a postponed row, not a failed sweep");
-		await using var verify = await CreateDbContextAsync();
+		await using var verify = await _CreateDbContextAsync();
 		var asset = await verify.UploadAsset.AsNoTracking()
 			.SingleAsync(a => a.RelativePath == path);
 		asset.State.Should().Be(UploadAssetState.Orphaned,
 			"the row must stay in its eligible state for a later pass");
-		(await ReadGlobalBudgetAsync()).Should().Be(globalBefore,
+		(await _ReadGlobalBudgetAsync()).Should().Be(globalBefore,
 			"bytes still on disk stay fully accounted for");
 		asset.UpdatedAt.Should().BeAfter(DateTime.UtcNow.AddMinutes(-1),
 			"the failed candidate's updated_at is bumped as a retry backoff");
 
-		await CleanupAsync(path);
+		await _CleanupAsync(path);
 	}
 
 	[Fact]
@@ -229,47 +229,47 @@ public sealed class UploadOrphanReclaimerHandlerSpec : IClassFixture<ApiFixture>
 		// The fail-soft path keeps bytes accounted as a Stored row nobody
 		// references (a blob MAY exist). Past UPLOAD_STORED_ORPHAN_TTL_MINUTES the
 		// sweeper closes that last unbounded-growth path.
-		var userId = await SeedUserAsync();
-		var relativePath = await WriteCommittedUploadAsync(userId, 1500);
-		BlobExists(relativePath).Should().BeTrue(
+		var userId = await _SeedUserAsync();
+		var relativePath = await _WriteCommittedUploadAsync(userId, 1500);
+		_BlobExists(relativePath).Should().BeTrue(
 			"precondition: this flow wrote a REAL blob that the sweep must remove"
 		);
-		await BackdateUpdatedAtAsync(relativePath, minutes: 10_000);
-		var globalBefore = await ReadGlobalBudgetAsync();
+		await _BackdateUpdatedAtAsync(relativePath, minutes: 10_000);
+		var globalBefore = await _ReadGlobalBudgetAsync();
 
-		await RunHandlerAsync();
+		await _RunHandlerAsync();
 
-		await using var verify = await CreateDbContextAsync();
+		await using var verify = await _CreateDbContextAsync();
 		var asset = await verify.UploadAsset.AsNoTracking()
 			.SingleAsync(a => a.RelativePath == relativePath);
 		asset.State.Should().Be(UploadAssetState.Deleted,
 			"a Stored orphan past its retention TTL is reclaimable");
-		BlobExists(relativePath).Should().BeFalse(
+		_BlobExists(relativePath).Should().BeFalse(
 			"the physical blob must be removed with the row transition"
 		);
-		(await ReadGlobalBudgetAsync()).Should().Be(globalBefore - 1500,
+		(await _ReadGlobalBudgetAsync()).Should().Be(globalBefore - 1500,
 			"its bytes must leave committed_bytes when the row flips to Deleted");
 
-		await CleanupAsync(relativePath);
+		await _CleanupAsync(relativePath);
 	}
 
 	[Fact]
 	public async Task ItShouldReclaimAStoredOrphanOnlyAfterItsRetentionTtl() {
-		var userId = await SeedUserAsync();
-		var relativePath = await WriteCommittedUploadAsync(userId, 1200);
-		var globalBefore = await ReadGlobalBudgetAsync();
+		var userId = await _SeedUserAsync();
+		var relativePath = await _WriteCommittedUploadAsync(userId, 1200);
+		var globalBefore = await _ReadGlobalBudgetAsync();
 
-		await RunHandlerAsync();
+		await _RunHandlerAsync();
 
-		await using var verify = await CreateDbContextAsync();
+		await using var verify = await _CreateDbContextAsync();
 		var asset = await verify.UploadAsset.AsNoTracking()
 			.SingleAsync(a => a.RelativePath == relativePath);
 		asset.State.Should().Be(UploadAssetState.Stored,
 			"a fresh Stored orphan is inside its retention window");
-		(await ReadGlobalBudgetAsync()).Should().Be(globalBefore,
+		(await _ReadGlobalBudgetAsync()).Should().Be(globalBefore,
 			"its bytes stay fully accounted while the window runs");
 
-		await CleanupAsync(relativePath);
+		await _CleanupAsync(relativePath);
 	}
 
 	[Fact]
@@ -277,13 +277,13 @@ public sealed class UploadOrphanReclaimerHandlerSpec : IClassFixture<ApiFixture>
 		// The round-1 review scenario: an operator lowers a budget ceiling below
 		// current committed bytes. Admission must fail closed NOW and recover
 		// AFTER the sweeper releases the orphan's bytes — no permanent stall.
-		var userId = await SeedUserAsync();
+		var userId = await _SeedUserAsync();
 		var claimedBytes = 3000L;
 		var probeBytes = 1000L;
-		var relativePath = await WriteCommittedUploadAsync(userId, claimedBytes);
+		var relativePath = await _WriteCommittedUploadAsync(userId, claimedBytes);
 
 		// Drop THIS creator's ceiling below its (solely-owned) committed bytes.
-		await using (var lower = await CreateDbContextAsync()) {
+		await using (var lower = await _CreateDbContextAsync()) {
 			await lower.Database.ExecuteSqlAsync($"""
 				UPDATE upload_budgets
 				SET max_bytes = {claimedBytes - 100}
@@ -292,11 +292,11 @@ public sealed class UploadOrphanReclaimerHandlerSpec : IClassFixture<ApiFixture>
 				""");
 		}
 
-		using (var refusedScope = _fixture.Factory.Services.CreateScope()) {
+		using (var refusedScope = _Fixture.Factory.Services.CreateScope()) {
 			var admission = refusedScope.ServiceProvider
 				.GetRequiredService<IUploadAdmissionService>();
 			var refused = await admission.BeginReservationAsync(
-				userId, probeBytes, Purpose
+				userId, probeBytes, _Purpose
 			);
 			refused.Admission.Should().BeOfType<UploadAdmissionResult.Rejected>()
 				.Which.ExhaustedScope.Should().Be(UploadBudgetScope.CreatorUser,
@@ -306,14 +306,14 @@ public sealed class UploadOrphanReclaimerHandlerSpec : IClassFixture<ApiFixture>
 
 		// A Stored orphan past its retention TTL holds exactly those bytes; the
 		// sweep must give them back.
-		await BackdateUpdatedAtAsync(relativePath, minutes: 10_000);
-		await RunHandlerAsync();
+		await _BackdateUpdatedAtAsync(relativePath, minutes: 10_000);
+		await _RunHandlerAsync();
 
-		using (var admitScope = _fixture.Factory.Services.CreateScope()) {
+		using (var admitScope = _Fixture.Factory.Services.CreateScope()) {
 			var admission = admitScope.ServiceProvider
 				.GetRequiredService<IUploadAdmissionService>();
 			var admitted = await admission.BeginReservationAsync(
-				userId, probeBytes, Purpose
+				userId, probeBytes, _Purpose
 			);
 			admitted.Admission.Should().BeOfType<UploadAdmissionResult.Accepted>(
 				"reclaimed bytes must make the lowered ceiling admissible again"
@@ -321,7 +321,7 @@ public sealed class UploadOrphanReclaimerHandlerSpec : IClassFixture<ApiFixture>
 			await admitted.DisposeAsync();
 		}
 
-		await CleanupAsync(relativePath);
+		await _CleanupAsync(relativePath);
 	}
 
 	// ── helpers ─────────────────────────────────────────────────────────────
@@ -330,11 +330,11 @@ public sealed class UploadOrphanReclaimerHandlerSpec : IClassFixture<ApiFixture>
 	// budgets, save a real blob through IFileStorage, mark commit pending, commit.
 	// The result is a Stored row nobody references — exactly the shape the
 	// fail-soft "blob MAY exist" path leaves behind — with honest accounting.
-	private async Task<string> WriteCommittedUploadAsync(Guid staffUserId, long sizeBytes) {
-		using var scope = _fixture.Factory.Services.CreateScope();
+	private async Task<string> _WriteCommittedUploadAsync(Guid staffUserId, long sizeBytes) {
+		using var scope = _Fixture.Factory.Services.CreateScope();
 		var admission = scope.ServiceProvider.GetRequiredService<IUploadAdmissionService>();
 		await using var admissionScope = await admission.BeginReservationAsync(
-			staffUserId, sizeBytes, Purpose
+			staffUserId, sizeBytes, _Purpose
 		);
 		var asset = ((UploadAdmissionResult.Accepted)admissionScope.Admission).Asset;
 		var storage = scope.ServiceProvider.GetRequiredService<IFileStorage>();
@@ -348,14 +348,14 @@ public sealed class UploadOrphanReclaimerHandlerSpec : IClassFixture<ApiFixture>
 		return relativePath;
 	}
 
-	private static string UniquePath(string label) {
+	private static string _UniquePath(string label) {
 		return $"uploads/spec-reclaimer/{label}/{Guid.NewGuid():N}.png";
 	}
 
 	// Fresh context per assertion batch: raw SQL reads/writes must never ride a
 	// shared change tracker, and hard DELETEs bypass the soft-delete interceptor.
-	private async Task<AppDbContext> CreateDbContextAsync() {
-		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+	private async Task<AppDbContext> _CreateDbContextAsync() {
+		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
 		var connectionString = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>()
 			.Database.GetConnectionString();
@@ -369,19 +369,19 @@ public sealed class UploadOrphanReclaimerHandlerSpec : IClassFixture<ApiFixture>
 		);
 	}
 
-	private async Task<JobOutcome> RunHandlerAsync(IFileStorage? storage = null) {
-		await using var dbContext = await CreateDbContextAsync();
-		using var scope = _fixture.Factory.Services.CreateScope();
+	private async Task<JobOutcome> _RunHandlerAsync(IFileStorage? storage = null) {
+		await using var dbContext = await _CreateDbContextAsync();
+		using var scope = _Fixture.Factory.Services.CreateScope();
 		var handler = new UploadOrphanReclaimerHandler(
 			dbContext,
 			storage ?? scope.ServiceProvider.GetRequiredService<IFileStorage>(),
 			scope.ServiceProvider.GetRequiredService<IAuditLogService>(),
 			NullLogger<UploadOrphanReclaimerHandler>.Instance
 		);
-		return await handler.HandleAsync(FakeContext(handler.JobType), CancellationToken.None);
+		return await handler.HandleAsync(_FakeContext(handler.JobType), CancellationToken.None);
 	}
 
-	private static JobContext FakeContext(string jobType) {
+	private static JobContext _FakeContext(string jobType) {
 		return new JobContext {
 			JobId = Guid.NewGuid(),
 			JobType = jobType,
@@ -391,8 +391,8 @@ public sealed class UploadOrphanReclaimerHandlerSpec : IClassFixture<ApiFixture>
 		};
 	}
 
-	private async Task<Guid> SeedUserAsync() {
-		using var scope = _fixture.Factory.Services.CreateScope();
+	private async Task<Guid> _SeedUserAsync() {
+		using var scope = _Fixture.Factory.Services.CreateScope();
 		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 		var user = new User {
 			Email = $"upload-reclaimer-spec-{Guid.NewGuid():N}@example.com",
@@ -404,19 +404,19 @@ public sealed class UploadOrphanReclaimerHandlerSpec : IClassFixture<ApiFixture>
 		return user.GetRequiredId();
 	}
 
-	private async Task SeedLiveAssetAsync(
+	private async Task _SeedLiveAssetAsync(
 		string path,
 		Guid userId,
 		long sizeBytes,
 		UploadAssetState state
 	) {
-		using var scope = _fixture.Factory.Services.CreateScope();
+		using var scope = _Fixture.Factory.Services.CreateScope();
 		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 		db.UploadAsset.Add(new UploadAsset {
 			RelativePath = path,
 			SizeBytes = sizeBytes,
 			ContentType = "image/png",
-			Purpose = Purpose,
+			Purpose = _Purpose,
 			State = state,
 			ReferenceCount = state == UploadAssetState.Referenced ? 1 : 0,
 			DeleteNotBefore = state == UploadAssetState.Orphaned
@@ -463,8 +463,8 @@ public sealed class UploadOrphanReclaimerHandlerSpec : IClassFixture<ApiFixture>
 	// Makes an Orphaned row look naturally aged: its timestamps predate its
 	// delete_not_before (the release stamped them together, days ago), so the
 	// candidate scan accepts it the way production rows arrive.
-	private async Task MakeOrphanEligibleAsync(string path) {
-		await using var dbContext = await CreateDbContextAsync();
+	private async Task _MakeOrphanEligibleAsync(string path) {
+		await using var dbContext = await _CreateDbContextAsync();
 		await dbContext.Database.ExecuteSqlAsync($"""
 			UPDATE upload_assets
 			SET updated_at = NOW() - interval '8 days',
@@ -475,8 +475,8 @@ public sealed class UploadOrphanReclaimerHandlerSpec : IClassFixture<ApiFixture>
 
 	// An Orphaned row whose grace window has NOT passed yet: delete_not_before sits
 	// in the future while updated_at is old enough to pass the scan's age filter.
-	private async Task SetInsideGraceWindowAsync(string path) {
-		await using var dbContext = await CreateDbContextAsync();
+	private async Task _SetInsideGraceWindowAsync(string path) {
+		await using var dbContext = await _CreateDbContextAsync();
 		await dbContext.Database.ExecuteSqlAsync($"""
 			UPDATE upload_assets
 			SET delete_not_before = NOW() + interval '1 hour',
@@ -488,8 +488,8 @@ public sealed class UploadOrphanReclaimerHandlerSpec : IClassFixture<ApiFixture>
 	// Timestamps alone must never make a row eligible: this ages an asset that is
 	// NOT Orphaned-with-zero-references so the state/recount predicates (not the
 	// clock) are what protect it.
-	private async Task ForceStaleTimestampsAsync(string path) {
-		await using var dbContext = await CreateDbContextAsync();
+	private async Task _ForceStaleTimestampsAsync(string path) {
+		await using var dbContext = await _CreateDbContextAsync();
 		await dbContext.Database.ExecuteSqlAsync($"""
 			UPDATE upload_assets
 			SET updated_at = NOW() - interval '8 days',
@@ -498,8 +498,8 @@ public sealed class UploadOrphanReclaimerHandlerSpec : IClassFixture<ApiFixture>
 			""");
 	}
 
-	private async Task BackdateUpdatedAtAsync(string path, int minutes) {
-		await using var dbContext = await CreateDbContextAsync();
+	private async Task _BackdateUpdatedAtAsync(string path, int minutes) {
+		await using var dbContext = await _CreateDbContextAsync();
 		await dbContext.Database.ExecuteSqlAsync($"""
 			UPDATE upload_assets
 			SET updated_at = NOW() - make_interval(mins => {minutes})
@@ -509,16 +509,16 @@ public sealed class UploadOrphanReclaimerHandlerSpec : IClassFixture<ApiFixture>
 
 	// Writes a real blob through the app's own storage so the happy-path spec proves
 	// the physical removal end-to-end.
-	private async Task SeedBlobFileAsync(string path) {
-		using var scope = _fixture.Factory.Services.CreateScope();
+	private async Task _SeedBlobFileAsync(string path) {
+		using var scope = _Fixture.Factory.Services.CreateScope();
 		var storage = scope.ServiceProvider.GetRequiredService<IFileStorage>();
 		var fullPath = Path.Combine(storage.RootPath, path.Replace('/', Path.DirectorySeparatorChar));
 		Directory.CreateDirectory(Path.GetDirectoryName(fullPath)!);
 		await File.WriteAllBytesAsync(fullPath, [1, 2, 3, 4]);
 	}
 
-	private bool BlobExists(string path) {
-		using var scope = _fixture.Factory.Services.CreateScope();
+	private bool _BlobExists(string path) {
+		using var scope = _Fixture.Factory.Services.CreateScope();
 		var storage = scope.ServiceProvider.GetRequiredService<IFileStorage>();
 		var fullPath = Path.Combine(storage.RootPath, path.Replace('/', Path.DirectorySeparatorChar));
 		return File.Exists(fullPath);
@@ -526,8 +526,8 @@ public sealed class UploadOrphanReclaimerHandlerSpec : IClassFixture<ApiFixture>
 
 	// Budget numbers move with every concurrent test-host activity, so assertions
 	// consume DELTAS around HandleAsync rather than absolute values.
-	private async Task<long> ReadGlobalBudgetAsync() {
-		await using var dbContext = await CreateDbContextAsync();
+	private async Task<long> _ReadGlobalBudgetAsync() {
+		await using var dbContext = await _CreateDbContextAsync();
 		var value = await dbContext.Database
 			.SqlQuery<long?>($"""
 				SELECT committed_bytes AS "Value"
@@ -539,8 +539,8 @@ public sealed class UploadOrphanReclaimerHandlerSpec : IClassFixture<ApiFixture>
 		return value ?? 0;
 	}
 
-	private async Task<long> ReadCreatorBudgetAsync(Guid userId) {
-		await using var dbContext = await CreateDbContextAsync();
+	private async Task<long> _ReadCreatorBudgetAsync(Guid userId) {
+		await using var dbContext = await _CreateDbContextAsync();
 		var value = await dbContext.Database
 			.SqlQuery<long?>($"""
 				SELECT committed_bytes AS "Value"
@@ -554,8 +554,8 @@ public sealed class UploadOrphanReclaimerHandlerSpec : IClassFixture<ApiFixture>
 	}
 
 	// Reserved rows hold their bytes in reserved_bytes, not committed_bytes.
-	private async Task<long> ReadGlobalReservedAsync() {
-		await using var dbContext = await CreateDbContextAsync();
+	private async Task<long> _ReadGlobalReservedAsync() {
+		await using var dbContext = await _CreateDbContextAsync();
 		var value = await dbContext.Database
 			.SqlQuery<long?>($"""
 				SELECT reserved_bytes AS "Value"
@@ -567,8 +567,8 @@ public sealed class UploadOrphanReclaimerHandlerSpec : IClassFixture<ApiFixture>
 		return value ?? 0;
 	}
 
-	private async Task<long> ReadCreatorReservedAsync(Guid userId) {
-		await using var dbContext = await CreateDbContextAsync();
+	private async Task<long> _ReadCreatorReservedAsync(Guid userId) {
+		await using var dbContext = await _CreateDbContextAsync();
 		var value = await dbContext.Database
 			.SqlQuery<long?>($"""
 				SELECT reserved_bytes AS "Value"
@@ -584,8 +584,8 @@ public sealed class UploadOrphanReclaimerHandlerSpec : IClassFixture<ApiFixture>
 	// Removes exactly the rows this test created: the asset row(s) by unique path,
 	// plus the audit entries the reclaimer wrote about them. Raw SQL because a
 	// Deleted asset row must leave without tripping the soft-delete interceptor.
-	private async Task CleanupAsync(string path) {
-		await using var dbContext = await CreateDbContextAsync();
+	private async Task _CleanupAsync(string path) {
+		await using var dbContext = await _CreateDbContextAsync();
 		var auditAction = AuditActions.UploadAssetDeleted;
 		var auditPattern = $"%{path}%";
 		await dbContext.Database.ExecuteSqlAsync($"""

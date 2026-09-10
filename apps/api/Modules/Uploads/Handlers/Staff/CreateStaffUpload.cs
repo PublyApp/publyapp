@@ -33,7 +33,7 @@ public record StaffUploadCreated {
 /// </summary>
 public sealed class CreateStaffUpload {
 	// Longest magic-byte prefix needed to sniff any supported image type (WEBP: "RIFF"+size(4)+"WEBP").
-	private const int SniffBufferLength = 12;
+	private const int _SniffBufferLength = 12;
 
 	public static async Task<Results<
 		Created<StaffUploadCreated>,
@@ -58,7 +58,7 @@ public sealed class CreateStaffUpload {
 		}
 
 		if (file is null || file.Length == 0) {
-			return ValidationFailure(
+			return _ValidationFailure(
 				"A file is required",
 				ResponseKeys.UploadFileRequired
 			);
@@ -76,9 +76,9 @@ public sealed class CreateStaffUpload {
 		// multipart section to memory or a temp file before the handler runs), so
 		// sniff directly off it and rewind — no intermediate MemoryStream copy.
 		await using var uploadStream = file.OpenReadStream();
-		var sniffed = SniffImageType(uploadStream);
+		var sniffed = _SniffImageType(uploadStream);
 		if (sniffed is null) {
-			return ValidationFailure(
+			return _ValidationFailure(
 				"File must be a PNG, JPEG, WEBP, or GIF image",
 				ResponseKeys.UploadFileUnsupportedType
 			);
@@ -107,8 +107,8 @@ public sealed class CreateStaffUpload {
 					nameof(rejected), rejected.ExhaustedScope, "Unhandled UploadBudgetScope"
 				),
 			};
-			var humanRequested = FormatBytes(rejected.RequestedBytes);
-			var humanAvailable = FormatBytes(Math.Max(0, rejected.AvailableBytes));
+			var humanRequested = _FormatBytes(rejected.RequestedBytes);
+			var humanAvailable = _FormatBytes(Math.Max(0, rejected.AvailableBytes));
 			return TypedProblems.TooManyRequests(
 				$"Upload refused: {scopeName} has {humanAvailable} free, which is less "
 				+ $"than this file's {humanRequested}. Delete unused files or wait for "
@@ -186,7 +186,7 @@ public sealed class CreateStaffUpload {
 		}
 	}
 
-	private static string FormatBytes(long bytes) {
+	private static string _FormatBytes(long bytes) {
 		if (bytes >= 1_000_000_000) {
 			return $"{bytes / 1_000_000_000.0:0.#} GB";
 		}
@@ -199,7 +199,7 @@ public sealed class CreateStaffUpload {
 		return $"{bytes} B";
 	}
 
-	private static AppValidationProblemHttpResult ValidationFailure(
+	private static AppValidationProblemHttpResult _ValidationFailure(
 		string message,
 		TranslationKey translationKey
 	) {
@@ -223,39 +223,39 @@ public sealed class CreateStaffUpload {
 	// but nothing here guarantees the accepted content is a usable/safe image.
 	// Closing that gap needs a hardened image-decode library plus
 	// dimension/pixel-count bounds, not another magic-byte check.
-	private static (string ContentType, string Extension)? SniffImageType(Stream stream) {
+	private static (string ContentType, string Extension)? _SniffImageType(Stream stream) {
 		// Stream.Read is contractually allowed to return fewer bytes than requested
 		// even when more are available; ReadAtLeast loops until the buffer is full
 		// or the stream truly ends, so a short read never misclassifies a valid image.
-		Span<byte> header = stackalloc byte[SniffBufferLength];
-		var read = stream.ReadAtLeast(header, SniffBufferLength, throwOnEndOfStream: false);
+		Span<byte> header = stackalloc byte[_SniffBufferLength];
+		var read = stream.ReadAtLeast(header, _SniffBufferLength, throwOnEndOfStream: false);
 
-		if (read >= 8 && IsPng(header)) {
+		if (read >= 8 && _IsPng(header)) {
 			return ("image/png", ".png");
 		}
-		if (read >= 3 && IsJpeg(header)) {
+		if (read >= 3 && _IsJpeg(header)) {
 			return ("image/jpeg", ".jpg");
 		}
-		if (read >= 10 && IsGif(header)) {
+		if (read >= 10 && _IsGif(header)) {
 			return ("image/gif", ".gif");
 		}
-		if (read >= 12 && IsWebP(header)) {
+		if (read >= 12 && _IsWebP(header)) {
 			return ("image/webp", ".webp");
 		}
 
 		return null;
 	}
 
-	private static bool IsPng(ReadOnlySpan<byte> header) {
+	private static bool _IsPng(ReadOnlySpan<byte> header) {
 		ReadOnlySpan<byte> signature = [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A];
 		return header[..8].SequenceEqual(signature);
 	}
 
-	private static bool IsJpeg(ReadOnlySpan<byte> header) {
+	private static bool _IsJpeg(ReadOnlySpan<byte> header) {
 		return header[0] == 0xFF && header[1] == 0xD8 && header[2] == 0xFF;
 	}
 
-	private static bool IsGif(ReadOnlySpan<byte> header) {
+	private static bool _IsGif(ReadOnlySpan<byte> header) {
 		ReadOnlySpan<byte> gif87A = "GIF87a"u8;
 		ReadOnlySpan<byte> gif89A = "GIF89a"u8;
 		if (!(header[..6].SequenceEqual(gif87A) || header[..6].SequenceEqual(gif89A))) {
@@ -271,7 +271,7 @@ public sealed class CreateStaffUpload {
 		return width > 0 && height > 0;
 	}
 
-	private static bool IsWebP(ReadOnlySpan<byte> header) {
+	private static bool _IsWebP(ReadOnlySpan<byte> header) {
 		ReadOnlySpan<byte> riff = "RIFF"u8;
 		ReadOnlySpan<byte> webP = "WEBP"u8;
 		return header[..4].SequenceEqual(riff) && header[8..12].SequenceEqual(webP);
