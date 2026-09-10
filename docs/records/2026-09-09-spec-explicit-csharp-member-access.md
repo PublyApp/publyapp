@@ -24,6 +24,22 @@ This is a style/readability rule only. It must not change overload resolution,
 accessibility, runtime behavior, public API shape, or the meaning of a
 nameof expression.
 
+### Phase 2 AppHost wiring TODO
+
+Phase 1 deliberately does not wire `PublyApp.Analyzers` directly into the
+Aspire AppHost. PUBLY0012 remains dormant until the Phase 2 migration, so the
+AppHost reference provides no enforcement benefit in this phase. The direct
+AppHost analyzer reference loads the combined analyzer/code-fix assembly into
+the AppHost Roslyn compilation and caused the shared warm AppHost-build guard
+to hang in hosted CI. The API's pre-existing analyzer-only reference remains
+because the API is an existing consumer and its current build still passes.
+
+Phase 2 must revisit AppHost wiring only after the analyzer/code-fix packaging
+boundary is made safe for Aspire builds. Reintroducing the reference requires
+the AppHost warm-build guard, a clean AppHost build, and the code-fix/Fix All
+tests to pass on the same commit; do not infer that `PrivateAssets="all"`
+alone isolates Workspaces from project-reference build graphs.
+
 The access rule is paired with a native .editorconfig naming contract. An
 underscore denotes private visibility, not a field category: every handwritten
 private field, property, event, and ordinary method uses underscore + PascalCase,
