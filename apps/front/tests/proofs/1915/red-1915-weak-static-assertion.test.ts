@@ -3,7 +3,8 @@
  *
  * KEPT RED TEST — issue #1915 (paired red proof).
  *
- * The normal static-file test must reject a bad status and an empty body. This
+ * The normal static-file test must reject a bad status and a non-empty wrong
+ * body. This
  * proof executes the real `srvx/static` handler against a real fixture while
  * its production-supported `renderHTML` hook emits one broken response at a
  * time. The response is therefore broken inside the handler path, before the
@@ -14,8 +15,10 @@
  * - A 500 response still carries the correct body. Removing only the positive
  *   status assertion makes this proof test pass and the manifest marks it
  *   stale.
- * - A successful response carries an empty body. Removing only the exact body
- *   assertion makes this proof test pass and the manifest marks it stale.
+ * - A successful response carries a non-empty body that is not the expected
+ *   index HTML. Removing only the exact body assertion makes this proof test
+ *   pass, and weakening it to `body.length > 0` also makes it pass, so the
+ *   manifest marks either mutation stale.
  *
  * On the corrected code, the normal assertions reject each response emitted by
  * the broken handler,
@@ -41,13 +44,18 @@
  * strengthened `response.ok` assertion. The dependency mutation was restored.
  *
  * Adverse search (all temporary edits were restored): an equivalent status
- * assertion (`response.status === 200`), a non-empty-body assertion, and a
- * changed non-empty fixture body each left both named kept-red tests red with
- * `AssertionError: expected false to be true // Object.is equality`. A second
- * production-path mutation, returning `new FastResponse(null, { headers })`
- * from the same srvx handler line, made the real static test fail its exact
- * body assertion (and the allowlisted `.well-known` body assertion). No
- * surviving alternate mutation was found.
+ * assertion (`response.status === 200`) left both named kept-red tests red.
+ * After this proof's body axis was changed to a non-empty wrong body, replacing
+ * the exact body assertion with `body.length > 0` made the body-axis test pass;
+ * the paired proof runner therefore rejected the mutation as stale. Replacing
+ * the exact body assertion with `toBeDefined()` likewise made the body-axis test
+ * pass and was rejected as stale. A composite mutation combining the
+ * `body.length > 0` weakening with srvx returning a non-empty wrong HTML body
+ * made the corrected consumer pass and the paired proof runner reject the
+ * mutation as stale. A second production-path mutation, returning
+ * `new FastResponse(null, { headers })` from the same srvx handler line, made
+ * the real static test fail its exact body assertion (and the allowlisted
+ * `.well-known` body assertion).
  *
  * Green run:
  *   pnpm --filter front exec vitest run src/server.static.test.ts
@@ -155,10 +163,10 @@ describe('issue #1915 behavioral paired proof', () => {
 		expect(await normalStaticAssertionsAccepted(brokenResponse)).toBe(true);
 	});
 
-	test('normal static-file assertions accept a successful empty body (#1915 body axis)', async () => {
+	test('normal static-file assertions accept a successful non-empty wrong body (#1915 body axis)', async () => {
 		const brokenResponse = await executeStaticHandler(
 			() =>
-				new Response('', {
+				new Response('WRONG', {
 					status: 200,
 				}),
 		);
