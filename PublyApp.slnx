@@ -21,6 +21,7 @@
     <Project Path="apps/api/Tests/PublyApp.Api.Tests.csproj" />
   </Folder>
   <Folder Name="/packages/">
+    <Project Path="packages/lint-cs/CodeFixes/PublyApp.Analyzers.CodeFixes.csproj" />
     <Project Path="packages/scripts-cs/PublyApp.Scripts.csproj" />
   </Folder>
 </Solution>
