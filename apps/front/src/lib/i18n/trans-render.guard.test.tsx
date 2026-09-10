@@ -803,7 +803,9 @@ export type DiscoveredTransSite = {
  */
 type SourceReader = (filePath: string) => string;
 
-const discoverTransCallSites = (
+// Test-only seam for the paired #1484 proof. The proof drives the real
+// enumerate/read scanner with a temporary fixture and deletion hook.
+export const discoverTransCallSites = (
 	options: {
 		additionalRoots?: readonly string[];
 		beforeDirectoryRead?: BeforeDirectoryRead;

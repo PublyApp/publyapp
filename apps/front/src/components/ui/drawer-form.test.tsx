@@ -572,7 +572,16 @@ export const NewDrawerFixture = ({
 		<DrawerFooter />
 	</DrawerForm>
 );
+
 `;
+
+// Test-only seam for the paired #1484 proof. The proof must drive this real
+// scanner, while its fixture remains in the same per-run directory the guard
+// scans rather than in source text or a duplicated scanner implementation.
+export const DRAWER_RACE_PROOF_FIXTURE = {
+	filePath: TEMPORARY_NEW_DRAWER_PATH,
+	source: TEMPORARY_NEW_DRAWER_SOURCE,
+} as const;
 
 const TEMPORARY_ALIASED_DRAWER_FILE =
 	'src/components/ui/_drawer-surface-aliased-fixture.tsx';
@@ -9195,7 +9204,7 @@ const walkTag = (
 	}
 };
 
-const scanDrawerSurfaces = (options: DrawerScanOptions = {}) => {
+export const scanDrawerSurfaces = (options: DrawerScanOptions = {}) => {
 	const project = getScanProject();
 	// The project is loaded once (round 16 — see getScanProject) and the
 	// scan only refreshes files whose CONTENT changed: a fixture rewritten
