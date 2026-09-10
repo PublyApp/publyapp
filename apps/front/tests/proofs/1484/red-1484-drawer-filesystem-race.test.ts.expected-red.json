@@ -1,0 +1,14 @@
+{
+	"$schema": "../expected-red.schema.json",
+	"_comment": "Behavioral kept-red proof for #1484 with a scoped adverse-search record. The declared drawer tests cover exactly these two scanDrawerSurfaces race windows: (1) beforeStat deletion after enumeration and before statSync (pre-stat; catch at drawer-form.test.tsx:5271); (2) beforeReadSourceFile deletion after statSync and before readFileSync (post-stat/read; catch at drawer-form.test.tsx:5286). No fault injection on those covered guards leaves the corresponding kept-red test red: drawer isEnoent => false flips both, the stat catch => false flips the pre-stat test, and the readFileSync catch => false flips the post-stat/read test. This manifest does not claim an exhaustive mutation search over the whole scanner. The other independent drawer ENOENT catches are recursive readDirectoryEntries (catch at drawer-form.test.tsx:5117) and refreshFromFileSystemSync (catch at drawer-form.test.tsx:5302); each is covered by an ordinary green regression test: `skips a fixture directory deleted before recursive readdir (#1484)` and `ignores an already-tracked fixture deleted before refreshFromFileSystemSync (#1484)`. No other ENOENT catch was found in drawer-form.test.tsx.",
+	"expectedRed": [
+		{
+			"testName": "drawer scanner propagates the unfixed pre-stat ENOENT race",
+			"why": "The exact reproducing path is scanDrawerSurfaces → fixture enumeration → beforeStat deletion of DRAWER_RACE_PROOF_FIXTURE.filePath → real stat. The corrected ENOENT recovery makes the assertion fail; changing the drawer isEnoent classifier or the drawer stat catch to false makes this named assertion pass, so the paired runner detects either restored pre-stat bug."
+		},
+		{
+			"testName": "drawer scanner propagates the unfixed post-stat ENOENT race",
+			"why": "The exact reproducing path is scanDrawerSurfaces → fixture enumeration → successful real stat → beforeReadSourceFile deletion of DRAWER_RACE_PROOF_FIXTURE.filePath → real readFileSync. The corrected ENOENT recovery makes the assertion fail; changing the drawer isEnoent classifier or the drawer read catch to false makes this named assertion pass, so the paired runner detects either restored post-stat bug."
+		}
+	]
+}

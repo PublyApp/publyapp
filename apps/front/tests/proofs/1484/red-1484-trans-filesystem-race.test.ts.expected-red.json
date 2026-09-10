@@ -1,0 +1,10 @@
+{
+	"$schema": "../expected-red.schema.json",
+	"_comment": "Behavioral kept-red proof for #1484 with a scoped adverse-search record. The declared translation test covers exactly the discoverTransCallSites read path: temporary routes enumeration, readSourceFile deletion, and the real readFileSync (catch at trans-render.guard.test.tsx:828). No fault injection on that covered guard leaves the corresponding kept-red test red: translation isEnoent => false or removing its read catch flips the test green. This manifest does not claim an exhaustive mutation search over the whole scanner family. The other independent drawer ENOENT catches are recursive readDirectoryEntries (drawer-form.test.tsx:5117) and refreshFromFileSystemSync (drawer-form.test.tsx:5302), covered by the ordinary green regression tests `skips a fixture directory deleted before recursive readdir (#1484)` and `ignores an already-tracked fixture deleted before refreshFromFileSystemSync (#1484)`. The two scanDrawerSurfaces race windows are covered by the companion drawer kept-red manifest. No other ENOENT catch was found in drawer-form.test.tsx.",
+	"expectedRed": [
+		{
+			"testName": "translation scanner propagates the unfixed ENOENT race",
+			"why": "The exact reproducing path is discoverTransCallSites → real temporary routes enumeration → readSourceFile deletion → real read. The corrected ENOENT recovery makes the assertion fail; changing translation isEnoent to false or removing its read catch makes this named assertion pass, so the paired runner detects either restored bug."
+		}
+	]
+}
