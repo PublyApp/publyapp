@@ -30,16 +30,16 @@ namespace PublyApp.Api.Modules.Uploads;
 /// docs for the platform-scope caveat.
 /// </remarks>
 public sealed class SymlinkEscapeSpec : IClassFixture<ApiFixture> {
-	private readonly HttpClient _http;
-	private readonly ApiFixture _fixture;
+	private readonly HttpClient _Http;
+	private readonly ApiFixture _Fixture;
 
 	public SymlinkEscapeSpec(ApiFixture fixture) {
-		_http = fixture.HttpClient;
-		_fixture = fixture;
+		_Http = fixture.HttpClient;
+		_Fixture = fixture;
 	}
 
-	private string GetUploadsDir() {
-		var fileStorage = _fixture.Factory.Services.GetRequiredService<IFileStorage>();
+	private string _GetUploadsDir() {
+		var fileStorage = _Fixture.Factory.Services.GetRequiredService<IFileStorage>();
 		var uploadsDir = Path.Combine(fileStorage.RootPath, "uploads");
 		Directory.CreateDirectory(uploadsDir);
 		return uploadsDir;
@@ -59,7 +59,7 @@ public sealed class SymlinkEscapeSpec : IClassFixture<ApiFixture> {
 	/// </summary>
 	[Fact]
 	public async Task ItShouldNotFollowSymlinksPointingOutsideTheStorageRootAndStillServeGenuineFiles() {
-		var uploadsDir = GetUploadsDir();
+		var uploadsDir = _GetUploadsDir();
 
 		// --- Symlink escape case: must be 404 after the fix ---
 
@@ -80,7 +80,7 @@ public sealed class SymlinkEscapeSpec : IClassFixture<ApiFixture> {
 			// follows it; the patched provider must not.
 			File.CreateSymbolicLink(linkPath, sentinelPath);
 
-			using var symlinkResponse = await _http.GetAsync($"/files/uploads/{linkName}");
+			using var symlinkResponse = await _Http.GetAsync($"/files/uploads/{linkName}");
 			symlinkResponse.StatusCode.Should().Be(HttpStatusCode.NotFound,
 				"the symlink must be masked as 404, not followed to its out-of-tree target");
 		} finally {
@@ -100,7 +100,7 @@ public sealed class SymlinkEscapeSpec : IClassFixture<ApiFixture> {
 			Path.Combine(uploadsDir, genuineFileName), genuineContent
 		);
 
-		using var genuineResponse = await _http.GetAsync($"/files/uploads/{genuineFileName}");
+		using var genuineResponse = await _Http.GetAsync($"/files/uploads/{genuineFileName}");
 		genuineResponse.StatusCode.Should().Be(HttpStatusCode.OK,
 			"a real file inside uploads/ must still be served after the symlink patch");
 		(await genuineResponse.Content.ReadAsStringAsync()).Should().Be(genuineContent);
@@ -115,7 +115,7 @@ public sealed class SymlinkEscapeSpec : IClassFixture<ApiFixture> {
 	/// </summary>
 	[Fact]
 	public async Task ItShouldReturnIndistinguishable404ForMaskedEntryAndMissingFile() {
-		var uploadsDir = GetUploadsDir();
+		var uploadsDir = _GetUploadsDir();
 
 		// --- Masked symlink case: a symlink inside uploads/ pointing outside ---
 		var sentinelContent = $"sentinel-{Guid.NewGuid():N}";
@@ -134,8 +134,8 @@ public sealed class SymlinkEscapeSpec : IClassFixture<ApiFixture> {
 		try {
 			File.CreateSymbolicLink(linkPath, sentinelPath);
 
-			using var maskedResponse = await _http.GetAsync($"/files/uploads/{linkName}");
-			using var missingResponse = await _http.GetAsync($"/files/uploads/{missingName}");
+			using var maskedResponse = await _Http.GetAsync($"/files/uploads/{linkName}");
+			using var missingResponse = await _Http.GetAsync($"/files/uploads/{missingName}");
 
 			// Both must be 404.
 			maskedResponse.StatusCode.Should().Be(HttpStatusCode.NotFound);
@@ -148,8 +148,8 @@ public sealed class SymlinkEscapeSpec : IClassFixture<ApiFixture> {
 				"the body of a masked-symlink 404 must be identical to a genuinely missing-file 404");
 
 			// Headers must be identical (excluding any timing/request-scoped headers).
-			var maskedHeaders = NormalizeHeaders(maskedResponse.Headers);
-			var missingHeaders = NormalizeHeaders(missingResponse.Headers);
+			var maskedHeaders = _NormalizeHeaders(maskedResponse.Headers);
+			var missingHeaders = _NormalizeHeaders(missingResponse.Headers);
 			maskedHeaders.Should().BeEquivalentTo(missingHeaders,
 				"the headers of a masked-symlink 404 must be identical to a genuinely missing-file 404");
 		} finally {
@@ -167,7 +167,7 @@ public sealed class SymlinkEscapeSpec : IClassFixture<ApiFixture> {
 	/// so the comparison focuses on the structural headers that could leak
 	/// information about why the 404 occurred.
 	/// </summary>
-	private static Dictionary<string, string> NormalizeHeaders(System.Net.Http.Headers.HttpResponseHeaders headers) {
+	private static Dictionary<string, string> _NormalizeHeaders(System.Net.Http.Headers.HttpResponseHeaders headers) {
 		var dict = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 		foreach (var header in headers) {
 			// Skip per-request headers that vary by timing.

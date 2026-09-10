@@ -31,33 +31,33 @@ namespace PublyApp.Api.Modules.Uploads.Handlers.Staff;
 /// config, so tests drive them with direct SQL against their private clone.
 /// </summary>
 public sealed class UploadAdmissionEndpointSpec : IClassFixture<ApiFixture> {
-	private const string Purpose = UploadAdmissionService.StaffUploadPurpose;
+	private const string _Purpose = UploadAdmissionService.StaffUploadPurpose;
 
-	private static readonly byte[] PngBytes = [
+	private static readonly byte[] _PngBytes = [
 		0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A,
 		0x00, 0x00, 0x00, 0x0D, 0x00, 0x00
 	];
 
-	private readonly ApiFixture _fixture;
-	private readonly HttpClient _http;
-	private readonly TestAuthClient _authClient;
+	private readonly ApiFixture _Fixture;
+	private readonly HttpClient _Http;
+	private readonly TestAuthClient _AuthClient;
 
 	public UploadAdmissionEndpointSpec(ApiFixture fixture) {
-		_fixture = fixture;
-		_http = fixture.HttpClient;
-		_authClient = new TestAuthClient(_http);
+		_Fixture = fixture;
+		_Http = fixture.HttpClient;
+		_AuthClient = new TestAuthClient(_Http);
 	}
 
 	[Fact]
 	public async Task ItShouldRejectAnOverBudgetUploadBeforeStorageAndAudit() {
-		await FillGlobalBudgetAsync(_fixture);
+		await FillGlobalBudgetAsync(_Fixture);
 
-		var storage = _fixture.Factory.Services.GetRequiredService<IFileStorage>();
-		var filesBefore = GetStoredFiles(storage.RootPath);
-		var auditCountBefore = await CountUploadAuditsAsync();
-		var token = await _authClient.LoginAsStaffAdminAsync();
+		var storage = _Fixture.Factory.Services.GetRequiredService<IFileStorage>();
+		var filesBefore = _GetStoredFiles(storage.RootPath);
+		var auditCountBefore = await _CountUploadAuditsAsync();
+		var token = await _AuthClient.LoginAsStaffAdminAsync();
 
-		using var response = await _http.SendAsync(
+		using var response = await _Http.SendAsync(
 			BuildUploadRequest(token)
 		);
 
@@ -71,8 +71,8 @@ public sealed class UploadAdmissionEndpointSpec : IClassFixture<ApiFixture> {
 		problem.Status.Should().Be(StatusCodes.Status429TooManyRequests);
 		problem.TranslationKey.Should().Be(ResponseKeys.UploadBudgetExhausted);
 
-		GetStoredFiles(storage.RootPath).Should().Equal(filesBefore);
-		(await CountUploadAuditsAsync()).Should().Be(auditCountBefore);
+		_GetStoredFiles(storage.RootPath).Should().Equal(filesBefore);
+		(await _CountUploadAuditsAsync()).Should().Be(auditCountBefore);
 	}
 
 	/// <summary>
@@ -89,7 +89,7 @@ public sealed class UploadAdmissionEndpointSpec : IClassFixture<ApiFixture> {
 			var fillerUserId = await SeedUserAsync(fixture);
 			var service = CreateFreshService(fixture);
 			await using var scope =
-				await service.BeginReservationAsync(fillerUserId, take, Purpose);
+				await service.BeginReservationAsync(fillerUserId, take, _Purpose);
 			scope.Admission.Should().BeOfType<UploadAdmissionResult.Accepted>();
 			var asset = ((UploadAdmissionResult.Accepted)scope.Admission).Asset;
 			asset.RelativePath = $"uploads/spec-filler/{Guid.NewGuid():N}.png";
@@ -129,15 +129,15 @@ public sealed class UploadAdmissionEndpointSpec : IClassFixture<ApiFixture> {
 		));
 	}
 
-	private async Task<int> CountUploadAuditsAsync() {
-		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+	private async Task<int> _CountUploadAuditsAsync() {
+		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 		return await dbContext.AuditLog.CountAsync(
 			log => log.Action == AuditActions.UploadCreated
 		);
 	}
 
-	private static HashSet<string> GetStoredFiles(string rootPath) {
+	private static HashSet<string> _GetStoredFiles(string rootPath) {
 		return Directory.Exists(rootPath)
 			? Directory.EnumerateFiles(rootPath, "*", SearchOption.AllDirectories)
 				.ToHashSet(StringComparer.Ordinal)
@@ -146,7 +146,7 @@ public sealed class UploadAdmissionEndpointSpec : IClassFixture<ApiFixture> {
 
 	internal static HttpRequestMessage BuildUploadRequest(string token) {
 		var content = new MultipartFormDataContent();
-		var fileContent = new ByteArrayContent(PngBytes);
+		var fileContent = new ByteArrayContent(_PngBytes);
 		fileContent.Headers.ContentType =
 			new System.Net.Http.Headers.MediaTypeHeaderValue("image/png");
 		content.Add(fileContent, "file", "over-budget.png");
@@ -172,19 +172,19 @@ public sealed class UploadAdmissionEndpointSpec : IClassFixture<ApiFixture> {
 /// cannot touch the other scenario.
 /// </summary>
 public sealed class UploadAdmissionConfiguredBudgetEndpointSpec : IClassFixture<ApiFixture> {
-	private static readonly byte[] PngBytes = [
+	private static readonly byte[] _PngBytes = [
 		0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A,
 		0x00, 0x00, 0x00, 0x0D, 0x00, 0x00
 	];
 
-	private readonly ApiFixture _fixture;
-	private readonly HttpClient _http;
-	private readonly TestAuthClient _authClient;
+	private readonly ApiFixture _Fixture;
+	private readonly HttpClient _Http;
+	private readonly TestAuthClient _AuthClient;
 
 	public UploadAdmissionConfiguredBudgetEndpointSpec(ApiFixture fixture) {
-		_fixture = fixture;
-		_http = fixture.HttpClient;
-		_authClient = new TestAuthClient(_http);
+		_Fixture = fixture;
+		_Http = fixture.HttpClient;
+		_AuthClient = new TestAuthClient(_Http);
 	}
 
 	[Fact]
@@ -193,11 +193,11 @@ public sealed class UploadAdmissionConfiguredBudgetEndpointSpec : IClassFixture<
 		// "config": max fits the warmup's bytes plus EXACTLY two files everywhere.
 		// Operators tune budgets the same way — values in upload_budgets, not
 		// schema or redeploy (#807).
-		var token = await _authClient.LoginAsStaffAdminAsync();
-		var warmupService = UploadAdmissionEndpointSpec.CreateFreshService(_fixture);
+		var token = await _AuthClient.LoginAsStaffAdminAsync();
+		var warmupService = UploadAdmissionEndpointSpec.CreateFreshService(_Fixture);
 		await using var warmup = await warmupService.BeginReservationAsync(
-			await UploadAdmissionEndpointSpec.SeedUserAsync(_fixture),
-			PngBytes.Length,
+			await UploadAdmissionEndpointSpec.SeedUserAsync(_Fixture),
+			_PngBytes.Length,
 			UploadAdmissionService.StaffUploadPurpose
 		);
 		if (warmup.Admission is not UploadAdmissionResult.Accepted warmupAccepted) {
@@ -215,29 +215,29 @@ public sealed class UploadAdmissionConfiguredBudgetEndpointSpec : IClassFixture<
 		await warmup.CommitAsync();
 		// Warmup bytes stay committed against every budget, so the tuned max must
 		// still admit exactly two more full files (and refuse a third).
-		await RetuneAllBudgetsAsync(maxBytes: (PngBytes.Length * 3) + 1);
+		await _RetuneAllBudgetsAsync(maxBytes: (_PngBytes.Length * 3) + 1);
 
-		var storage = _fixture.Factory.Services.GetRequiredService<IFileStorage>();
-		var filesBefore = GetStoredFiles(storage.RootPath);
-		var auditsBefore = await CountUploadAuditsAsync();
+		var storage = _Fixture.Factory.Services.GetRequiredService<IFileStorage>();
+		var filesBefore = _GetStoredFiles(storage.RootPath);
+		var auditsBefore = await _CountUploadAuditsAsync();
 
 		for (var index = 0; index < 2; index += 1) {
-			using var accepted = await _http.SendAsync(BuildUploadRequest(token));
+			using var accepted = await _Http.SendAsync(_BuildUploadRequest(token));
 			accepted.StatusCode.Should().Be(HttpStatusCode.Created);
 		}
 
-		using var rejected = await _http.SendAsync(BuildUploadRequest(token));
+		using var rejected = await _Http.SendAsync(_BuildUploadRequest(token));
 		rejected.StatusCode.Should().Be(HttpStatusCode.TooManyRequests);
-		GetStoredFiles(storage.RootPath).Count.Should().Be(filesBefore.Count + 2);
-		(await CountUploadAuditsAsync()).Should().Be(auditsBefore + 2);
+		_GetStoredFiles(storage.RootPath).Count.Should().Be(filesBefore.Count + 2);
+		(await _CountUploadAuditsAsync()).Should().Be(auditsBefore + 2);
 	}
 
-	private static HttpRequestMessage BuildUploadRequest(string token) {
+	private static HttpRequestMessage _BuildUploadRequest(string token) {
 		return UploadAdmissionEndpointSpec.BuildUploadRequest(token);
 	}
 
-	private async Task RetuneAllBudgetsAsync(long maxBytes) {
-		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+	private async Task _RetuneAllBudgetsAsync(long maxBytes) {
+		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 		await dbContext.Database.ExecuteSqlAsync(
 			$"UPDATE upload_budgets SET max_bytes = {maxBytes}",
@@ -245,15 +245,15 @@ public sealed class UploadAdmissionConfiguredBudgetEndpointSpec : IClassFixture<
 		);
 	}
 
-	private async Task<int> CountUploadAuditsAsync() {
-		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+	private async Task<int> _CountUploadAuditsAsync() {
+		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 		return await dbContext.AuditLog.CountAsync(
 			log => log.Action == AuditActions.UploadCreated
 		);
 	}
 
-	private static HashSet<string> GetStoredFiles(string rootPath) {
+	private static HashSet<string> _GetStoredFiles(string rootPath) {
 		return Directory.Exists(rootPath)
 			? Directory.EnumerateFiles(rootPath, "*", SearchOption.AllDirectories)
 				.ToHashSet(StringComparer.Ordinal)

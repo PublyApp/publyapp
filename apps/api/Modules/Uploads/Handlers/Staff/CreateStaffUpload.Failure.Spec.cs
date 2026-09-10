@@ -24,28 +24,28 @@ namespace PublyApp.Api.Modules.Uploads.Handlers.Staff;
 /// point is that accounting survives process-level failure paths.
 /// </summary>
 public sealed class CreateStaffUploadFailureSpec : IClassFixture<ApiFixture> {
-	private static readonly byte[] PngBytes = [
+	private static readonly byte[] _PngBytes = [
 		0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A,
 		0x00, 0x00, 0x00, 0x0D, 0x00, 0x00
 	];
 
-	private readonly ApiFixture _fixture;
+	private readonly ApiFixture _Fixture;
 
 	public CreateStaffUploadFailureSpec(ApiFixture fixture) {
-		_fixture = fixture;
+		_Fixture = fixture;
 	}
 
 	[Fact]
 	public async Task ItShouldReleaseReservationWhenAuditFailsAndCleanupSucceeds() {
-		var userId = await SeedUserAsync();
-		await SeedCommittedBudgetRowForAsync(userId);
+		var userId = await _SeedUserAsync();
+		await _SeedCommittedBudgetRowForAsync(userId);
 		var storage = new FakeStorage { DeleteResult = true };
 
-		await InvokeAndExpectAuditFailure(
-			userId, storage, new ThrowingAuditLogService(), CreateAdmissionService()
+		await _InvokeAndExpectAuditFailure(
+			userId, storage, new ThrowingAuditLogService(), _CreateAdmissionService()
 		);
 
-		await AssertBudgetFullyReleasedAsync(userId);
+		await _AssertBudgetFullyReleasedAsync(userId);
 		storage.DeleteCalls.Should().Be(1);
 		storage.DeletedPaths.Should().ContainSingle().Which.Should().Be(storage.SavedPath);
 	}
@@ -56,31 +56,31 @@ public sealed class CreateStaffUploadFailureSpec : IClassFixture<ApiFixture> {
 	public async Task ItShouldRetainBytesWhenAuditFailureCleanupCannotBeConfirmed(
 		bool throwOnDelete
 	) {
-		var userId = await SeedUserAsync();
-		await SeedCommittedBudgetRowForAsync(userId);
+		var userId = await _SeedUserAsync();
+		await _SeedCommittedBudgetRowForAsync(userId);
 		var storage = new FakeStorage {
 			DeleteResult = false,
 			ThrowOnDelete = throwOnDelete
 		};
 
-		await InvokeAndExpectAuditFailure(
+		await _InvokeAndExpectAuditFailure(
 			userId,
 			storage,
 			new ThrowingAuditLogService(),
-			CreateAdmissionService()
+			_CreateAdmissionService()
 		);
 
 		// A blob may still exist: the bytes stay accounted (Stored orphan) instead
 		// of being released back to budgets. Fail-closed admission.
-		await AssertOrphanBytesRetainedAsync(userId, storage.SavedPath);
+		await _AssertOrphanBytesRetainedAsync(userId, storage.SavedPath);
 		storage.DeleteCalls.Should().Be(1);
 		storage.DeletedPaths.Should().ContainSingle().Which.Should().Be(storage.SavedPath);
 	}
 
 	[Fact]
 	public async Task ItShouldRetainBytesForAStorageFailureWithUnconfirmedCleanup() {
-		var userId = await SeedUserAsync();
-		await SeedCommittedBudgetRowForAsync(userId);
+		var userId = await _SeedUserAsync();
+		await _SeedCommittedBudgetRowForAsync(userId);
 		var storage = new FakeStorage {
 			SaveException = new StorageWriteException(
 				relativePath: "uploads/failure-spec/failed-write.png",
@@ -90,26 +90,26 @@ public sealed class CreateStaffUploadFailureSpec : IClassFixture<ApiFixture> {
 			DeleteResult = false
 		};
 
-		var act = () => InvokeHandlerAsync(
+		var act = () => _InvokeHandlerAsync(
 			userId,
 			storage,
 			new ThrowingAuditLogService(),
-			CreateAdmissionService()
+			_CreateAdmissionService()
 		);
 
 		await act.Should().ThrowAsync<Exception>();
 		storage.DeleteCalls.Should().Be(1);
 		// The handler stamps the attempted destination path carried by the
 		// StorageWriteException onto the asset before cleanup runs.
-		await AssertOrphanBytesRetainedAsync(
+		await _AssertOrphanBytesRetainedAsync(
 			userId, "uploads/failure-spec/failed-write.png"
 		);
 	}
 
 	[Fact]
 	public async Task ItShouldReleaseReservationWhenStorageFailureCleanupSucceeds() {
-		var userId = await SeedUserAsync();
-		await SeedCommittedBudgetRowForAsync(userId);
+		var userId = await _SeedUserAsync();
+		await _SeedCommittedBudgetRowForAsync(userId);
 		var storage = new FakeStorage {
 			SaveException = new StorageWriteException(
 				relativePath: "uploads/failure-spec/failed-write.png",
@@ -119,21 +119,21 @@ public sealed class CreateStaffUploadFailureSpec : IClassFixture<ApiFixture> {
 			DeleteResult = true
 		};
 
-		var act = () => InvokeHandlerAsync(
+		var act = () => _InvokeHandlerAsync(
 			userId,
 			storage,
 			new ThrowingAuditLogService(),
-			CreateAdmissionService()
+			_CreateAdmissionService()
 		);
 
 		await act.Should().ThrowAsync<Exception>();
-		await AssertBudgetFullyReleasedAsync(userId);
+		await _AssertBudgetFullyReleasedAsync(userId);
 	}
 
 	// ── assertions ──────────────────────────────────────────────────────────
 
-	private async Task AssertBudgetFullyReleasedAsync(Guid userId) {
-		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+	private async Task _AssertBudgetFullyReleasedAsync(Guid userId) {
+		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 		var budgets = await dbContext.UploadBudget.Where(b =>
 				b.ScopeKind == UploadBudgetScope.CreatorUser
@@ -143,22 +143,22 @@ public sealed class CreateStaffUploadFailureSpec : IClassFixture<ApiFixture> {
 		budgets[0].ReservedBytes.Should().Be(0, "cleanup was confirmed");
 		// Only the warmup's own stored bytes remain; the failed attempt
 		// released everything it had reserved.
-		budgets[0].CommittedBytes.Should().Be(PngBytes.Length);
+		budgets[0].CommittedBytes.Should().Be(_PngBytes.Length);
 		dbContext.UploadAsset.IgnoreQueryFilters()
 			.CountAsync(a => a.CreatedByUserId == userId
 				&& !a.RelativePath.StartsWith("uploads/failure-spec/warmup-"))
 			.Result.Should().Be(0, "the rollback removed the Reserved row");
 	}
 
-	private async Task AssertOrphanBytesRetainedAsync(Guid userId, string expectedPath) {
-		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+	private async Task _AssertOrphanBytesRetainedAsync(Guid userId, string expectedPath) {
+		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 		var budget = await dbContext.UploadBudget.Where(b =>
 				b.ScopeKind == UploadBudgetScope.CreatorUser
 				&& b.ScopeKey == userId.ToString()
 			).SingleAsync();
 		// Warmup bytes + the possibly-existing blob's bytes stay accounted.
-		budget.CommittedBytes.Should().Be(PngBytes.Length * 2,
+		budget.CommittedBytes.Should().Be(_PngBytes.Length * 2,
 			"a possibly-existing blob must keep its bytes accounted for as an orphan");
 		budget.ReservedBytes.Should().Be(0);
 		var orphan = await dbContext.UploadAsset.IgnoreQueryFilters()
@@ -170,8 +170,8 @@ public sealed class CreateStaffUploadFailureSpec : IClassFixture<ApiFixture> {
 
 	// ── helpers ─────────────────────────────────────────────────────────────
 
-	private UploadAdmissionService CreateAdmissionService() {
-		using var scope = _fixture.Factory.Services.CreateScope();
+	private UploadAdmissionService _CreateAdmissionService() {
+		using var scope = _Fixture.Factory.Services.CreateScope();
 		var connectionString = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>().Database.GetConnectionString();
 		if (string.IsNullOrEmpty(connectionString)) {
@@ -190,8 +190,8 @@ public sealed class CreateStaffUploadFailureSpec : IClassFixture<ApiFixture> {
 
 	// Admission writes upload_assets rows FK-bound to users; every spec user
 	// must exist for real (23503 otherwise).
-	private async Task<Guid> SeedUserAsync() {
-		using var scope = _fixture.Factory.Services.CreateScope();
+	private async Task<Guid> _SeedUserAsync() {
+		using var scope = _Fixture.Factory.Services.CreateScope();
 		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 		var user = new User {
 			Email = $"upload-failure-spec-{Guid.NewGuid():N}@example.com",
@@ -207,11 +207,11 @@ public sealed class CreateStaffUploadFailureSpec : IClassFixture<ApiFixture> {
 	// transaction; a failed attempt rolls that back, so assertions against
 	// committed rows need the rows to pre-exist (a tiny committed warmup
 	// reservation seeds them exactly like production traffic would).
-	private async Task SeedCommittedBudgetRowForAsync(Guid userId) {
-		var admission = CreateAdmissionService();
+	private async Task _SeedCommittedBudgetRowForAsync(Guid userId) {
+		var admission = _CreateAdmissionService();
 		await using var scope =
 			await admission.BeginReservationAsync(
-				userId, PngBytes.Length, UploadAdmissionService.StaffUploadPurpose
+				userId, _PngBytes.Length, UploadAdmissionService.StaffUploadPurpose
 			);
 		scope.Admission.Should().BeOfType<UploadAdmissionResult.Accepted>();
 		scope.MarkCommitPending();
@@ -220,27 +220,27 @@ public sealed class CreateStaffUploadFailureSpec : IClassFixture<ApiFixture> {
 		await scope.CommitAsync();
 	}
 
-	private static async Task InvokeAndExpectAuditFailure(
+	private static async Task _InvokeAndExpectAuditFailure(
 		Guid userId,
 		FakeStorage storage,
 		IAuditLogService audit,
 		UploadAdmissionService admission
 	) {
-		var act = () => InvokeHandlerAsync(userId, storage, audit, admission);
+		var act = () => _InvokeHandlerAsync(userId, storage, audit, admission);
 
 		await act.Should().ThrowAsync<InvalidOperationException>();
 	}
 
-	private static async Task InvokeHandlerAsync(
+	private static async Task _InvokeHandlerAsync(
 		Guid userId,
 		IFileStorage storage,
 		IAuditLogService audit,
 		UploadAdmissionService admission
 	) {
 		var formFile = new FormFile(
-			new MemoryStream(PngBytes),
+			new MemoryStream(_PngBytes),
 			0,
-			PngBytes.Length,
+			_PngBytes.Length,
 			"file",
 			"upload.png"
 		) {

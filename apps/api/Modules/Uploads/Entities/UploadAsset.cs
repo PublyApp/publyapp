@@ -49,10 +49,10 @@ public class UploadAsset : BaseAttributes, INoTenantEntity {
 
 	[JsonIgnore]
 	public Users.Entities.User CreatedByUser {
-		get { return RequiredNavigation.Get(_createdByUser, nameof(UploadAsset), nameof(CreatedByUser)); }
-		set { _createdByUser = value; }
+		get { return RequiredNavigation.Get(_CreatedByUser, nameof(UploadAsset), nameof(CreatedByUser)); }
+		set { _CreatedByUser = value; }
 	}
-	private Users.Entities.User? _createdByUser;
+	private Users.Entities.User? _CreatedByUser;
 
 	[Column("state")]
 	public UploadAssetState State { get; set; } = UploadAssetState.Reserved;
