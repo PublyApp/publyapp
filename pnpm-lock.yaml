@@ -252,8 +252,8 @@ importers:
         specifier: 1.0.0-preview.103
         version: 1.0.0-preview.103
       '@microsoft/kiota-serialization-text':
-        specifier: 1.0.0-preview.103
-        version: 1.0.0-preview.103
+        specifier: 1.0.0-preview.107
+        version: 1.0.0-preview.107
 
   packages/lint-ts:
     devDependencies:
@@ -917,8 +917,8 @@ packages:
   '@microsoft/kiota-serialization-multipart@1.0.0-preview.103':
     resolution: {integrity: sha512-b3ePXYgFv/2TQtbzFQ8ZY+hzMtCRkz4Cx5y/Pf8vtoQu56KU0/9rYq5kA9wySDdCx/oZxfubQQRV/8QSTxmejw==}
 
-  '@microsoft/kiota-serialization-text@1.0.0-preview.103':
-    resolution: {integrity: sha512-FkiboqpNtT2F40xUC9LETHK9ckHd+WuocLJE70ljI4EYvD59MQDsrTERYAwbmkfPIJ6JRE4OfLXFVh510LG1/Q==}
+  '@microsoft/kiota-serialization-text@1.0.0-preview.107':
+    resolution: {integrity: sha512-es56XD6UxprJ+61ZYcU8k/5VxyC2wL3Z+4zzH2Lw14rjojEpuE33zPT3+ixpq86ARynBWYKicn1Ym5KlnzdJCw==}
 
   '@modelcontextprotocol/sdk@1.29.0':
     resolution: {integrity: sha512-zo37mZA9hJWpULgkRpowewez1y6ML5GsXJPY8FI0tBBCd77HEvza4jDqRKOXgHNn867PVGCyTdzqpz0izu5ZjQ==}
@@ -4948,7 +4948,7 @@ snapshots:
       '@microsoft/kiota-abstractions': 1.0.0-preview.107
       tslib: 2.8.1
 
-  '@microsoft/kiota-serialization-text@1.0.0-preview.103':
+  '@microsoft/kiota-serialization-text@1.0.0-preview.107':
     dependencies:
       '@microsoft/kiota-abstractions': 1.0.0-preview.107
       tslib: 2.8.1
