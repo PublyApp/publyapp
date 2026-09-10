@@ -201,4 +201,20 @@ public static class DiagnosticCatalog {
 			+ "rate-limit policy or explicitly marked as global-only. "
 			+ "Infrastructure opt-outs require a non-empty reason."
 	);
+
+	/// <summary>
+	/// PUBLY0012 — requires eligible references to members of the nearest containing type to use
+	/// an explicit instance or containing-type receiver. The rule remains disabled by default so
+	/// existing source can be migrated before repository-wide enforcement is enabled.
+	/// </summary>
+	public static readonly DiagnosticDescriptor ExplicitMemberAccess = new(
+		DiagnosticIds.PUBLY0012,
+		"Use explicit member access",
+		"Qualify member access '{0}' with 'this.' or its containing type",
+		"PublyApp.Style",
+		DiagnosticSeverity.Hidden,
+		isEnabledByDefault: false,
+		description: "Eligible instance members should use this.Member and eligible static members "
+			+ "should use the nearest containing type as an explicit receiver."
+	);
 }
