@@ -28,8 +28,9 @@ import { cleanup, render, waitFor } from '@testing-library/react';
  * what `ensureQueryData` used to buy before the #851 migration.
  *
  * Deleting those two fire-and-forget `query()` calls must turn this test RED:
- * at least 2 fetch calls disappear (the background revalidation fetches). The
- * RED/GREEN proof is captured in `.dump/preuve-r3-loader.md`.
+ * at least 2 fetch calls disappear (the background revalidation fetches).
+ * This test itself is the durable proof; no separate `.dump/` artifact is
+ * needed.
  *
  * What is real: the production route's `loader`, `pendingComponent`,
  * `errorComponent`, `staticData`, and page component. What is mocked: only the
