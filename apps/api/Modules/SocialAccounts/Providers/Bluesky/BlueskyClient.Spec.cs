@@ -164,6 +164,10 @@ public sealed class BlueskyClientSpec {
 		Assert.NotNull(handler.CapturedRequestBody);
 		handler.CapturedRequestBody.Should().Contain(_TestIdentifier);
 		handler.CapturedRequestBody.Should().Contain(_TestAppPassword);
+		// The atproto createSession contract requires the lowercase wire field
+		// names; pin them so a property rename cannot silently break login.
+		handler.CapturedRequestBody.Should().Contain("\"identifier\"");
+		handler.CapturedRequestBody.Should().Contain("\"password\"");
 	}
 
 	[Theory]

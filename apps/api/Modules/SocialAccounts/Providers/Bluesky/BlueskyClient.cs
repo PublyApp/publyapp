@@ -1,5 +1,6 @@
 using System.Net;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace PublyApp.Api.Modules.SocialAccounts.Providers.Bluesky;
 
@@ -140,7 +141,10 @@ public sealed class BlueskyClient : IBlueskyClient {
 			Password = password;
 		}
 
+		[JsonPropertyName("identifier")]
 		public string Identifier { get; }
+
+		[JsonPropertyName("password")]
 		public string Password { get; }
 	}
 
