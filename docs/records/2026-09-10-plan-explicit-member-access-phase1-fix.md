@@ -50,7 +50,7 @@
 ### Task 5: Ratify Phase 1 governance and catalog documentation
 
 **Files:**
-- Modify: `docs/superpowers/specs/2026-09-09-explicit-csharp-member-access-design.md`
+- Modify: `docs/records/2026-09-09-spec-explicit-csharp-member-access.md`
 - Modify: `docs/guides/lint-rules.md`
 
 - [ ] Change the design status to ratified/approved and add the dated 2026-09-10 owner-approved bespoke-guard admission exception, dormant-until-Phase-2 statement, and retirement/rollback condition.

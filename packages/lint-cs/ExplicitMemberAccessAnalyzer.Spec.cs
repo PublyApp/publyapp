@@ -460,6 +460,161 @@ public sealed class ExplicitMemberAccessAnalyzerSpec {
 	}
 
 	[Fact]
+	public async Task ItShouldReportContextResolvedOverloadedMemberUses() {
+		const string source = """
+			using System;
+
+			namespace Sample;
+
+			public sealed class Handler {
+				public Handler(Action<int> action) {
+				}
+
+				public static void Consume(Action<int> action) {
+				}
+			}
+
+			public sealed class Example {
+				public void Run(int value) {
+				}
+
+				public void Run(string value) {
+				}
+
+				public static void Build<T>(T value) {
+				}
+
+				public static void Build<T>(string value) {
+				}
+
+				public void Use() {
+					Action<int> first = {|#0:Run|};
+					Action<string> second = {|#1:Run|};
+					Action<int> generic = {|#2:Build|}<int>;
+					Handler.Consume({|#3:Run|});
+					_ = new Handler({|#4:Run|});
+			        {|#5:Run|}(1);
+				}
+			}
+
+			public sealed class MixedStaticness {
+				private static void Mixed(int value) {
+				}
+
+				private void Mixed(string value) {
+				}
+
+				public string Read() => nameof(Mixed);
+			}
+			""";
+
+		await VerifyEnabledAsync(
+			source,
+			ExpectedAt(0, "Run"),
+			ExpectedAt(1, "Run"),
+			ExpectedAt(2, "Build"),
+			ExpectedAt(3, "Run"),
+			ExpectedAt(4, "Run"),
+			ExpectedAt(5, "Run")
+		);
+	}
+
+	[Fact]
+	public async Task ItShouldFixContextResolvedOverloadedMemberUses() {
+		const string source = """
+			using System;
+
+			namespace Sample;
+
+			public sealed class Handler {
+				public Handler(Action<int> action) {
+				}
+
+				public static void Consume(Action<int> action) {
+				}
+			}
+
+			public sealed class Example {
+				public void Run(int value) {
+				}
+
+				public void Run(string value) {
+				}
+
+				public static void Build<T>(T value) {
+				}
+
+				public static void Build<T>(string value) {
+				}
+
+				public void Use() {
+					Action<int> first = {|#0:Run|};
+					Action<string> second = {|#1:Run|};
+					Action<int> generic = {|#2:Build|}<int>;
+					Handler.Consume({|#3:Run|});
+					_ = new Handler({|#4:Run|});
+			        {|#5:Run|}(1);
+				}
+			}
+			""";
+		const string fixedSource = """
+			using System;
+
+			namespace Sample;
+
+			public sealed class Handler {
+				public Handler(Action<int> action) {
+				}
+
+				public static void Consume(Action<int> action) {
+				}
+			}
+
+			public sealed class Example {
+				public void Run(int value) {
+				}
+
+				public void Run(string value) {
+				}
+
+				public static void Build<T>(T value) {
+				}
+
+				public static void Build<T>(string value) {
+				}
+
+				public void Use() {
+					Action<int> first = this.Run;
+					Action<string> second = this.Run;
+					Action<int> generic = Example.Build<int>;
+					Handler.Consume(this.Run);
+					_ = new Handler(this.Run);
+			        this.Run(1);
+				}
+			}
+			""";
+
+		var test = new CodeFixTest {
+			TestCode = source,
+			FixedCode = fixedSource,
+			BatchFixedCode = fixedSource,
+		};
+		test.TestState.AnalyzerConfigFiles.Add(("/.editorconfig", EnableConfig));
+		test.ExpectedDiagnostics.AddRange(
+		[
+			ExpectedAt(0, "Run"),
+			ExpectedAt(1, "Run"),
+			ExpectedAt(2, "Build"),
+			ExpectedAt(3, "Run"),
+			ExpectedAt(4, "Run"),
+			ExpectedAt(5, "Run"),
+		]
+		);
+
+		await test.RunAsync();
+	}
+
+	[Fact]
 	public async Task ItShouldReportStaticMembersInNameofAndConditionalAccess() {
 		const string source = """
 			namespace Sample;
@@ -1014,6 +1169,26 @@ public sealed class ExplicitMemberAccessAnalyzerSpec {
 			"Run"
 		);
 		Assert.Empty(ambiguousActions);
+
+		const string mixedStaticnessSource = """
+			namespace Sample;
+
+			public sealed class Example {
+				private static void Mixed(int value) {
+				}
+
+				private void Mixed(string value) {
+				}
+
+				public string Read() => nameof(Mixed);
+			}
+			""";
+		var mixedStaticnessActions = await GetCodeActionsAsync(
+			"MixedStaticness.cs",
+			mixedStaticnessSource,
+			"Mixed"
+		);
+		Assert.Empty(mixedStaticnessActions);
 	}
 
 	[Fact]
@@ -1284,4 +1459,5 @@ public sealed class ExplicitMemberAccessAnalyzerSpec {
 		public sealed class IsExternalInit {
 		}
 		""";
+
 }

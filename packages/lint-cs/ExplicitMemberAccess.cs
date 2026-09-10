@@ -161,12 +161,106 @@ internal static class ExplicitMemberAccessHelper {
 		SemanticModel semanticModel,
 		ImmutableArray<ISymbol> expectedSymbols
 	) {
+		var contextualNode = GetContextualNode(original);
+		if (contextualNode is not null
+			&& TryGetContextualSymbolInfo(
+				contextualNode,
+				replacement,
+				original,
+				semanticModel,
+				out var contextualSymbolInfo
+			)) {
+			return SameSymbols(
+				expectedSymbols,
+				GetCandidateSymbols(contextualSymbolInfo)
+			);
+		}
+
 		var replacementInfo = semanticModel.GetSpeculativeSymbolInfo(
 			original.SpanStart,
 			replacement,
 			SpeculativeBindingOption.BindAsExpression
 		);
 		return SameSymbols(expectedSymbols, GetCandidateSymbols(replacementInfo));
+	}
+
+	private static SyntaxNode? GetContextualNode(SyntaxNode original) {
+		foreach (var ancestor in original.Ancestors()) {
+			if (ancestor is ArrowExpressionClauseSyntax
+				or StatementSyntax
+				or ConstructorInitializerSyntax
+				or AttributeSyntax) {
+				return ancestor;
+			}
+		}
+
+		return original.Ancestors().FirstOrDefault(
+			ancestor => ancestor is EqualsValueClauseSyntax
+		);
+	}
+
+	private static bool TryGetContextualSymbolInfo(
+		SyntaxNode contextualNode,
+		ExpressionSyntax replacement,
+		SyntaxNode original,
+		SemanticModel semanticModel,
+		out SymbolInfo symbolInfo
+	) {
+		var replacementAnnotation = new SyntaxAnnotation();
+		var annotatedReplacement = replacement.WithAdditionalAnnotations(
+			replacementAnnotation
+		);
+		var replacedContext = contextualNode.ReplaceNode(
+			original,
+			annotatedReplacement
+		);
+		SemanticModel? speculativeModel = null;
+		var position = original.SpanStart;
+		var created = replacedContext switch {
+			EqualsValueClauseSyntax initializer =>
+				semanticModel.TryGetSpeculativeSemanticModel(
+					position,
+					initializer,
+					out speculativeModel
+				),
+			ArrowExpressionClauseSyntax expressionBody =>
+				semanticModel.TryGetSpeculativeSemanticModel(
+					position,
+					expressionBody,
+					out speculativeModel
+				),
+			StatementSyntax statement =>
+				semanticModel.TryGetSpeculativeSemanticModel(
+					position,
+					statement,
+					out speculativeModel
+				),
+			ConstructorInitializerSyntax constructorInitializer =>
+				semanticModel.TryGetSpeculativeSemanticModel(
+					position,
+					constructorInitializer,
+					out speculativeModel
+				),
+			AttributeSyntax attribute =>
+				semanticModel.TryGetSpeculativeSemanticModel(
+					position,
+					attribute,
+					out speculativeModel
+				),
+			_ => false,
+		};
+
+		if (!created || speculativeModel is null) {
+			symbolInfo = default;
+			return false;
+		}
+
+		var speculativeReplacement = replacedContext
+			.GetAnnotatedNodes(replacementAnnotation)
+			.OfType<ExpressionSyntax>()
+			.Single();
+		symbolInfo = speculativeModel.GetSymbolInfo(speculativeReplacement);
+		return true;
 	}
 
 	private static ExpressionSyntax CreateMemberAccess(
