@@ -2,7 +2,7 @@
 
 **Date:** 2026-09-09
 **Issue:** #2111
-**Status:** Draft; awaiting owner review; implementation intentionally out of scope for this document
+**Status:** Ratified/approved on 2026-09-10; Phase 1 implementation and verification are in scope
 
 ## Decision summary
 
@@ -32,6 +32,17 @@ Public, protected, and internal members in those same four categories remain
 PascalCase without an underscore. Naming and access qualification are orthogonal;
 for example, the resulting forms are this._CurrentUser,
 this._ValidateRequest(), and ContainingType._SharedCache.
+
+### Bespoke-guard admission exception
+
+On 2026-09-10, the owner granted an explicit bespoke-guard admission exception
+for PUBLY0012 (`PublyApp.Style`) under the hard rule in
+`docs/guides/test-conventions.md`. The exception covers this semantic analyzer,
+its code fix, and the required regression/contract tests. PUBLY0012 remains
+dormant (`isEnabledByDefault: false`, with no root `.editorconfig` entry) until
+the Phase 2 migration is complete. Retire or roll back the exception if the
+Phase 2 migration is abandoned, or if PUBLY0012 is withdrawn or materially
+re-scoped.
 
 ## Native naming contract
 

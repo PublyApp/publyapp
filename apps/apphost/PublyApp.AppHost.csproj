@@ -25,9 +25,10 @@
     <PackageReference Include="Aspire.Hosting.PostgreSQL" />
     <PackageReference Include="Aspire.Hosting.JavaScript" />
     <ProjectReference Include="..\api\PublyApp.Api.csproj" />
-    <ProjectReference Include="..\..\packages\lint-cs\PublyApp.Analyzers.csproj"
-                      OutputItemType="Analyzer"
-                      ReferenceOutputAssembly="false" />
+	<ProjectReference Include="..\..\packages\lint-cs\PublyApp.Analyzers.csproj"
+					  OutputItemType="Analyzer"
+					  ReferenceOutputAssembly="false"
+					  IsAspireProjectResource="false" />
   </ItemGroup>
 
 </Project>

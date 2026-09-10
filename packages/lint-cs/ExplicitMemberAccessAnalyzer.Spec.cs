@@ -2,11 +2,14 @@ using System.Collections.Immutable;
 using System.Globalization;
 
 using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CodeActions;
 using Microsoft.CodeAnalysis.CodeFixes;
 using Microsoft.CodeAnalysis.CSharp;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.CSharp.Testing;
 using Microsoft.CodeAnalysis.Diagnostics;
 using Microsoft.CodeAnalysis.Testing;
+using Microsoft.CodeAnalysis.Text;
 
 using Xunit;
 
@@ -41,7 +44,7 @@ public sealed class ExplicitMemberAccessAnalyzerSpec {
 				private static int Default => 1;
 
 				public int Read() {
-					return {|#0:value|} + {|#1:Default|};
+				return {|#0:value|} + {|#1:Default|};
 				}
 			}
 			""";
@@ -365,6 +368,98 @@ public sealed class ExplicitMemberAccessAnalyzerSpec {
 	}
 
 	[Fact]
+	public async Task ItShouldReportValidOverloadedMethodGroups() {
+		const string source = """
+			namespace Sample;
+
+			public sealed class Example {
+				public void Run(int value) {
+				}
+
+				public void Run(string value) {
+				}
+
+				public static void Build<T>(T value) {
+				}
+
+				public static void Build<T>(string value) {
+				}
+
+				public string Read() {
+					return nameof({|#0:Run|}) + nameof({|#1:Build|});
+				}
+			}
+			""";
+
+		await VerifyEnabledAsync(
+			source,
+			ExpectedAt(0, "Run"),
+			ExpectedAt(1, "Build")
+		);
+	}
+
+	[Fact]
+	public async Task ItShouldFixValidOverloadedMethodGroups() {
+		const string source = """
+			namespace Sample;
+
+			public sealed class Example {
+				public void Run(int value) {
+				}
+
+				public void Run(string value) {
+				}
+
+				public static void Build<T>(T value) {
+				}
+
+				public static void Build<T>(string value) {
+				}
+
+				public string Read() {
+					return nameof({|#0:Run|}) + nameof({|#1:Build|});
+				}
+			}
+			""";
+		const string fixedSource = """
+			namespace Sample;
+
+			public sealed class Example {
+				public void Run(int value) {
+				}
+
+				public void Run(string value) {
+				}
+
+				public static void Build<T>(T value) {
+				}
+
+				public static void Build<T>(string value) {
+				}
+
+				public string Read() {
+					return nameof(this.Run) + nameof(Example.Build);
+				}
+			}
+			""";
+
+		var test = new CodeFixTest {
+			TestCode = source,
+			FixedCode = fixedSource,
+			BatchFixedCode = fixedSource,
+		};
+		test.TestState.AnalyzerConfigFiles.Add(("/.editorconfig", EnableConfig));
+		test.ExpectedDiagnostics.AddRange(
+		[
+			ExpectedAt(0, "Run"),
+			ExpectedAt(1, "Build"),
+		]
+		);
+
+		await test.RunAsync();
+	}
+
+	[Fact]
 	public async Task ItShouldReportStaticMembersInNameofAndConditionalAccess() {
 		const string source = """
 			namespace Sample;
@@ -460,7 +555,8 @@ public sealed class ExplicitMemberAccessAnalyzerSpec {
 		await VerifyEnabledAsync(
 			source,
 			ExpectedAt(0, "Default"),
-			ExpectedAt(1, "Default")
+			ExpectedAt(1, "Default"),
+			ExpectedAt(2, "Default")
 		);
 	}
 
@@ -484,6 +580,95 @@ public sealed class ExplicitMemberAccessAnalyzerSpec {
 		test.TestState.Sources.Add(("IsExternalInit.cs", IsExternalInitPolyfill));
 		test.TestState.AnalyzerConfigFiles.Add(("/.editorconfig", EnableConfig));
 		test.ExpectedDiagnostics.Add(ExpectedAt(0, "Default"));
+
+		await test.RunAsync();
+	}
+
+	[Fact]
+	public async Task ItShouldAnalyzeInitializerAndPropertyPatternValueExpressions() {
+		const string source = """
+			namespace Sample;
+
+			public sealed class Holder {
+				public int Value { get; set; }
+			}
+
+			public sealed class Example {
+				public int Current;
+				public const int Default = 1;
+
+				public Holder Create() {
+					return new Holder { Value = ({|#0:Current|} = 1) };
+				}
+
+				public int Match(Holder candidate) {
+					return candidate is { Value: {|#1:Default|} } ? 1 : 0;
+				}
+			}
+			""";
+
+		await VerifyEnabledAsync(
+			source,
+			ExpectedAt(0, "Current"),
+			ExpectedAt(1, "Default")
+		);
+	}
+
+	[Fact]
+	public async Task ItShouldFixInitializerAndPropertyPatternValueExpressions() {
+		const string source = """
+			namespace Sample;
+
+			public sealed class Holder {
+				public int Value { get; set; }
+			}
+
+			public sealed class Example {
+				public int Current;
+				public const int Default = 1;
+
+				public Holder Create() {
+					return new Holder { Value = ({|#0:Current|} = 1) };
+				}
+
+				public int Match(Holder candidate) {
+					return candidate is { Value: {|#1:Default|} } ? 1 : 0;
+				}
+			}
+			""";
+		const string fixedSource = """
+			namespace Sample;
+
+			public sealed class Holder {
+				public int Value { get; set; }
+			}
+
+			public sealed class Example {
+				public int Current;
+				public const int Default = 1;
+
+				public Holder Create() {
+					return new Holder { Value = (this.Current = 1) };
+				}
+
+				public int Match(Holder candidate) {
+					return candidate is { Value: Example.Default } ? 1 : 0;
+				}
+			}
+			""";
+
+		var test = new CodeFixTest {
+			TestCode = source,
+			FixedCode = fixedSource,
+			BatchFixedCode = fixedSource,
+		};
+		test.TestState.AnalyzerConfigFiles.Add(("/.editorconfig", EnableConfig));
+		test.ExpectedDiagnostics.AddRange(
+		[
+			ExpectedAt(0, "Current"),
+			ExpectedAt(1, "Default"),
+		]
+		);
 
 		await test.RunAsync();
 	}
@@ -770,6 +955,183 @@ public sealed class ExplicitMemberAccessAnalyzerSpec {
 	}
 
 	[Fact]
+	public async Task ItShouldRevalidateGeneratedAndMigrationBoundariesInTheProvider() {
+		const string source = """
+			namespace Sample;
+
+			public sealed class Example {
+				public static int Default;
+
+				public int Read() => Default;
+			}
+			""";
+		const string generatedAttributeSource = """
+			using System.CodeDom.Compiler;
+
+			namespace Sample;
+
+			[GeneratedCode("tool", "1")]
+			public sealed class Example {
+				public static int Default;
+
+				public int Read() => Default;
+			}
+			""";
+
+		var noActionCases = new[] {
+			("apps/api/Migrations/Generated.cs", source),
+			("Generated.g.cs", source),
+			("Designer.designer.cs", source),
+			("Generated.generated.cs", source),
+			("AutoGenerated.cs", "// <auto-generated />\n" + source),
+			("GeneratedAttribute.cs", generatedAttributeSource),
+		};
+
+		foreach (var (fileName, caseSource) in noActionCases) {
+			var actions = await GetCodeActionsAsync(fileName, caseSource);
+			Assert.Empty(actions);
+		}
+
+		var migrationSpecActions = await GetCodeActionsAsync(
+			"apps/api/Migrations/Generated.Spec.cs",
+			source
+		);
+		Assert.Single(migrationSpecActions);
+
+		const string ambiguousSource = """
+			namespace Sample;
+
+			public sealed class Example {
+				private static int Run(System.IComparable value) => 1;
+				private static int Run(System.IFormattable value) => 2;
+
+				public int Read() => Run(null);
+			}
+			""";
+		var ambiguousActions = await GetCodeActionsAsync(
+			"Ambiguous.cs",
+			ambiguousSource,
+			"Run"
+		);
+		Assert.Empty(ambiguousActions);
+	}
+
+	[Fact]
+	public async Task ItShouldFixAllAcrossDocumentsAndProjectsWithoutTouchingUnsafeCode() {
+		const string firstSource = """
+			namespace Sample;
+
+			public sealed class First {
+				public int Value;
+
+				public int Read() => /* first-before */ {|#0:Value|} /* first-after */;
+			}
+			""";
+		const string firstFixedSource = """
+			namespace Sample;
+
+			public sealed class First {
+				public int Value;
+
+				public int Read() => /* first-before */ this.Value /* first-after */;
+			}
+			""";
+		const string secondSource = """
+			namespace Sample;
+
+			public sealed class Second {
+				public static int Default;
+
+				public int Read() => /* second-before */ {|#1:Default|} /* second-after */;
+			}
+			""";
+		const string secondFixedSource = """
+			namespace Sample;
+
+			public sealed class Second {
+				public static int Default;
+
+				public int Read() => /* second-before */ Second.Default /* second-after */;
+			}
+			""";
+		const string unsafeSource = """
+			namespace Sample;
+
+			public sealed class Unsafe {
+				private static int Run(System.IComparable value) => 1;
+				private static int Run(System.IFormattable value) => 2;
+
+				public int Read() => {|#2:Run|}(null);
+			}
+			""";
+
+		var test = new CodeFixTest {
+			TestCode = firstSource,
+			FixedCode = firstFixedSource,
+			BatchFixedCode = firstFixedSource,
+		};
+		test.TestState.Sources.Add(("Second.cs", secondSource));
+		test.TestState.Sources.Add(("Unsafe.cs", unsafeSource));
+		test.FixedState.Sources.Add(("Second.cs", secondFixedSource));
+		test.FixedState.Sources.Add(("Unsafe.cs", unsafeSource));
+		test.BatchFixedState.Sources.Add(("Second.cs", secondFixedSource));
+		test.BatchFixedState.Sources.Add(("Unsafe.cs", unsafeSource));
+
+		const string otherSource = """
+			namespace Other;
+
+			public sealed class Other {
+				public int Value;
+
+				public int Read() => {|#3:Value|};
+			}
+			""";
+		const string otherFixedSource = """
+			namespace Other;
+
+			public sealed class Other {
+				public int Value;
+
+				public int Read() => this.Value;
+			}
+			""";
+		test.TestState.AdditionalProjects["OtherProject"].Sources.Add(
+			("/OtherProject/Test/Other.cs", otherSource)
+		);
+		test.TestState.AdditionalProjects["OtherProject"].AnalyzerConfigFiles.Add(
+			("/OtherProject/.editorconfig", EnableConfig)
+		);
+		test.TestState.AdditionalProjectReferences.Add("OtherProject");
+		test.FixedState.AdditionalProjects["OtherProject"].Sources.Add(
+			("/OtherProject/Test/Other.cs", otherFixedSource)
+		);
+		test.FixedState.AdditionalProjects["OtherProject"].AnalyzerConfigFiles.Add(
+			("/OtherProject/.editorconfig", EnableConfig)
+		);
+		test.BatchFixedState.AdditionalProjects["OtherProject"].Sources.Add(
+			("/OtherProject/Test/Other.cs", otherFixedSource)
+		);
+		test.BatchFixedState.AdditionalProjects["OtherProject"].AnalyzerConfigFiles.Add(
+			("/OtherProject/.editorconfig", EnableConfig)
+		);
+
+		test.TestState.AnalyzerConfigFiles.Add(("/.editorconfig", EnableConfig));
+		test.ExpectedDiagnostics.AddRange(
+		[
+			ExpectedAt(0, "Value"),
+			Verifier.Diagnostic(DiagnosticIds.PUBLY0012)
+				.WithSpan("/OtherProject/Test/Other.cs", 6, 23, 6, 28)
+				.WithSeverity(DiagnosticSeverity.Warning)
+				.WithArguments("Value"),
+			ExpectedAt(1, "Default"),
+			DiagnosticResult.CompilerError("CS0121").WithLocation(2),
+		]
+		);
+
+		await test.RunAsync();
+	}
+
+	[Fact]
 	public async Task ItShouldRemainDisabledWithoutEditorConfig() {
 		const string source = """
 			namespace Sample;
@@ -849,6 +1211,71 @@ public sealed class ExplicitMemberAccessAnalyzerSpec {
 		test.ExpectedDiagnostics.AddRange(expected);
 
 		await test.RunAsync();
+	}
+
+	private static async Task<IReadOnlyList<CodeAction>> GetCodeActionsAsync(
+		string fileName,
+		string source,
+		string memberName = "Default"
+	) {
+		using var workspace = new AdhocWorkspace();
+		var projectId = ProjectId.CreateNewId();
+		var project = ProjectInfo.Create(
+			projectId,
+			VersionStamp.Create(),
+			"ProviderTest",
+			"ProviderTest",
+			LanguageNames.CSharp
+		).WithMetadataReferences(
+			[
+				MetadataReference.CreateFromFile(typeof(object).Assembly.Location),
+				MetadataReference.CreateFromFile(typeof(Enumerable).Assembly.Location),
+				MetadataReference.CreateFromFile(
+					typeof(System.CodeDom.Compiler.GeneratedCodeAttribute).Assembly.Location
+				),
+			]
+		);
+		var documentId = DocumentId.CreateNewId(projectId);
+		var solution = workspace.CurrentSolution
+			.AddProject(project)
+			.AddDocument(
+				DocumentInfo.Create(
+					documentId,
+					fileName,
+					filePath: fileName,
+					loader: TextLoader.From(
+						TextAndVersion.Create(SourceText.From(source), VersionStamp.Create())
+					)
+				)
+			);
+		var document = solution.GetDocument(documentId);
+		if (document is null) {
+			throw new InvalidOperationException("The provider test document was not created.");
+		}
+
+		var root = await document.GetSyntaxRootAsync();
+		if (root is null) {
+			throw new InvalidOperationException("The provider test root was not created.");
+		}
+
+		var name = root.DescendantNodes()
+			.OfType<IdentifierNameSyntax>()
+			.Single(candidate => candidate.Identifier.ValueText == memberName);
+		var diagnostic = Diagnostic.Create(
+			DiagnosticCatalog.ExplicitMemberAccess,
+			name.Identifier.GetLocation(),
+			name.Identifier.ValueText
+		);
+		var actions = new List<CodeAction>();
+		var context = new CodeFixContext(
+			document,
+			diagnostic,
+			(action, _) => actions.Add(action),
+			CancellationToken.None
+		);
+
+		await new ExplicitMemberAccessCodeFixProvider().RegisterCodeFixesAsync(context);
+		return actions;
 	}
 
 	private const string IsExternalInitPolyfill = """

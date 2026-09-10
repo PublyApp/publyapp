@@ -354,6 +354,15 @@ Each rule has an ID, descriptor in `DiagnosticCatalog.cs`, and is referenced in 
 - **Shipped in:** #952
 - **Enforced in:** #952
 
+### `PUBLY0012` — explicit member access
+
+- **Severity in `.editorconfig`:** dormant / Phase 1 (no root entry)
+- **Category:** `PublyApp.Style`
+- **Source:** `packages/lint-cs/ExplicitMemberAccess.cs`
+- **Spec:** `packages/lint-cs/ExplicitMemberAccessAnalyzer.Spec.cs`
+- **Behavior:** Requires eligible instance members to use `this.Member` and eligible static members to use their containing type.
+- **Admission:** The owner-approved bespoke-guard exception is recorded in the explicit member access design spec.
+
 ## How to add a new rule
 
 See the Phase-2 PRs (#463 for the JS scaffold pattern, #464 for the Roslyn scaffold pattern). The short version:
