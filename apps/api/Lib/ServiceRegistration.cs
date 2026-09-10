@@ -133,14 +133,15 @@ public static class ServiceRegistration {
 		builder.Services.AddHttpContextAccessor();
 
 		builder.Services.AddSingleton<IDatabaseMigrationReadiness, DatabaseMigrationReadiness>();
+		builder.Services.AddSingleton<HealthCheckLogGate>();
 		builder.Services.AddHealthChecks()
 			.AddCheck<DatabaseMigrationHealthCheck>(
-				"database_migrations",
+				HealthCheckMessages.DatabaseMigrationRegistrationName,
 				failureStatus: Microsoft.Extensions.Diagnostics.HealthChecks.HealthStatus.Unhealthy,
 				tags: ["ready"]
 			)
 			.AddCheck<JobQueueDrainHealthCheck>(
-				"job_queue_drain",
+				HealthCheckMessages.JobQueueDrainRegistrationName,
 				// Deliberately NOT on the "ready" tag. Readiness gates ROUTING
 				// (dokploy.yml probes /health/ready for the api service), and a
 				// stalled job queue lives in the WORKER process — the api can
