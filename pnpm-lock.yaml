@@ -243,8 +243,8 @@ importers:
         specifier: 1.0.0-preview.107
         version: 1.0.0-preview.107
       '@microsoft/kiota-serialization-form':
-        specifier: 1.0.0-preview.103
-        version: 1.0.0-preview.103
+        specifier: 1.0.0-preview.107
+        version: 1.0.0-preview.107
       '@microsoft/kiota-serialization-json':
         specifier: 1.0.0-preview.103
         version: 1.0.0-preview.103
@@ -908,8 +908,8 @@ packages:
   '@microsoft/kiota-http-fetchlibrary@1.0.0-preview.103':
     resolution: {integrity: sha512-DbhGL+pdVjtv2AVvxB4fxvNC/GMzKbYyeQsknaXJXwqnPR/oIClWjaXlIxWL5SBK72DOmrZ18leaWMB2vfWvpw==}
 
-  '@microsoft/kiota-serialization-form@1.0.0-preview.103':
-    resolution: {integrity: sha512-AD5Q59Qu61DfhaLLN7Mvgx4Zw0Zmftqx04XAbrRreC+r9hwT1BqTf0EReCraMzEoC4sdrp/8haI2Arm8dWUWuQ==}
+  '@microsoft/kiota-serialization-form@1.0.0-preview.107':
+    resolution: {integrity: sha512-uiXDRmk0OBy4kA42AElA3GkAuuYXfjau/a/NN0SU+XX1AEDKPMdwMr/WpenT7kiUcpqvPQTPFKYnlaepgfvmsg==}
 
   '@microsoft/kiota-serialization-json@1.0.0-preview.103':
     resolution: {integrity: sha512-dTr8q6H42TSe+HaCPBXU4Pv6ypo7MjMGRo/r9GRbnCuy8VCWfe+Vh38rnAZJx4r8cmvOUD7Yw74IJ6q4Hjv3mg==}
@@ -4933,7 +4933,7 @@ snapshots:
       '@opentelemetry/api': 1.9.0
       tslib: 2.8.1
 
-  '@microsoft/kiota-serialization-form@1.0.0-preview.103':
+  '@microsoft/kiota-serialization-form@1.0.0-preview.107':
     dependencies:
       '@microsoft/kiota-abstractions': 1.0.0-preview.107
       tslib: 2.8.1
