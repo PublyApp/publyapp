@@ -7,10 +7,13 @@ public sealed record CapturedLog(
 	string Category,
 	string Message,
 	IReadOnlyList<KeyValuePair<string, object?>> State,
+	IReadOnlyList<object?> Scopes,
 	Exception? Exception
 );
 
 public sealed class CapturingLogger<T> : ILogger<T> {
+	private readonly CapturingLoggerScopes _scopes = new();
+
 	public List<CapturedLog> Entries { get; } = [];
 
 	public IReadOnlyList<CapturedLog> Warnings {
@@ -20,7 +23,7 @@ public sealed class CapturingLogger<T> : ILogger<T> {
 	}
 
 	public IDisposable BeginScope<TState>(TState state) where TState : notnull {
-		return NullScope.Instance;
+		return _scopes.Begin(state);
 	}
 
 	public bool IsEnabled(LogLevel logLevel) {
@@ -39,15 +42,9 @@ public sealed class CapturingLogger<T> : ILogger<T> {
 			typeof(T).FullName ?? typeof(T).Name,
 			formatter(state, exception),
 			CapturingLoggerState.Capture(state),
+			_scopes.Current,
 			exception
 		));
-	}
-
-	private sealed class NullScope : IDisposable {
-		public static readonly NullScope Instance = new();
-
-		public void Dispose() {
-		}
 	}
 }
 
@@ -71,8 +68,10 @@ public sealed class CapturingLoggerProvider : ILoggerProvider {
 		CapturingLoggerProvider provider,
 		string categoryName
 	) : ILogger {
+		private readonly CapturingLoggerScopes _scopes = new();
+
 		public IDisposable BeginScope<TState>(TState state) where TState : notnull {
-			return NullScope.Instance;
+			return _scopes.Begin(state);
 		}
 
 		public bool IsEnabled(LogLevel logLevel) {
@@ -91,15 +90,39 @@ public sealed class CapturingLoggerProvider : ILoggerProvider {
 				categoryName,
 				formatter(state, exception),
 				CapturingLoggerState.Capture(state),
+				_scopes.Current,
 				exception
 			));
 		}
 	}
+}
 
-	private sealed class NullScope : IDisposable {
-		public static readonly NullScope Instance = new();
+internal sealed class CapturingLoggerScopes {
+	private readonly AsyncLocal<IReadOnlyList<object?>> _current = new();
+
+	public IReadOnlyList<object?> Current {
+		get { return _current.Value ?? []; }
+	}
+
+	public IDisposable Begin(object state) {
+		var previous = _current.Value ?? [];
+		_current.Value = previous.Append(state).ToArray();
+		return new Scope(this, previous);
+	}
+
+	private sealed class Scope(
+		CapturingLoggerScopes owner,
+		IReadOnlyList<object?> previous
+	) : IDisposable {
+		private bool _disposed;
 
 		public void Dispose() {
+			if (_disposed) {
+				return;
+			}
+
+			_disposed = true;
+			owner._current.Value = previous;
 		}
 	}
 }

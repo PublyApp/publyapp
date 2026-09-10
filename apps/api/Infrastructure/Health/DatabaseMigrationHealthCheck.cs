@@ -8,8 +8,8 @@ namespace PublyApp.Api.Infrastructure.Health;
 /// <para>
 /// Issue #2037: the description this check writes to the health response is the
 /// PUBLIC surface — anyone can read it, unauthenticated and rate-limit exempt.
-/// The wording therefore states the product consequence ("the application is
-/// not ready to serve traffic yet") instead of advertising the implementation
+/// The wording therefore states the safe product cause ("the application is
+/// still completing startup and setup") instead of advertising the implementation
 /// detail that an EF migration is pending. Operators read the protected log
 /// for the structured probe state, failure reason, and bounded migration context.
 /// </para>
@@ -69,12 +69,14 @@ public sealed class DatabaseMigrationHealthCheck : IHealthCheck {
 					"Health check {HealthCheck} is unhealthy: {FailureReason}. "
 						+ "{PendingMigrationCount} pending database migration(s). "
 						+ "Sample names: {PendingMigrationNames}. "
-						+ "Names truncated: {PendingMigrationNamesTruncated}.",
+						+ "Names truncated: {PendingMigrationNamesTruncated}. "
+						+ "Next action: {PendingMigrationNextAction}",
 					HealthCheckMessages.ApplicationReadinessName,
 					"pending_migrations",
 					readiness.PendingMigrationCount,
 					pendingMigrationNames,
-					readiness.PendingMigrationNamesTruncated
+					readiness.PendingMigrationNamesTruncated,
+					HealthCheckMessages.PendingMigrationNextAction
 				);
 			}
 
@@ -91,7 +93,6 @@ public sealed class DatabaseMigrationHealthCheck : IHealthCheck {
 				)
 			) {
 				_logger.LogWarning(
-					ex,
 					"Health check {HealthCheck} is unhealthy: {FailureReason}.",
 					HealthCheckMessages.ApplicationReadinessName,
 					"database_unreachable"

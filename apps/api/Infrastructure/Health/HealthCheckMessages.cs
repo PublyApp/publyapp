@@ -47,7 +47,10 @@ public static class HealthCheckMessages {
 		"The application cannot read or write the database right now.";
 
 	public const string ApplicationNotReady =
-		"The application is not ready to serve traffic yet.";
+		"The application is still completing startup and setup.";
+
+	public const string PendingMigrationNextAction =
+		"Run the pending migrations or wait for the migration job to complete.";
 
 	/// <summary>
 	/// Converts an internal registration and its health-check description to a

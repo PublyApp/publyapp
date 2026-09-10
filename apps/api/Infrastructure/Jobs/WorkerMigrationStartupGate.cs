@@ -80,9 +80,8 @@ public sealed class WorkerMigrationStartupGate : IHostedService {
 				}
 			} catch (OperationCanceledException) when (waitToken.IsCancellationRequested) {
 				break;
-			} catch (Exception ex) {
+			} catch (Exception) {
 				_logger.LogWarning(
-					ex,
 					"Waiting for database migrations... liveness or database probe attempt "
 						+ "{Attempt} failed",
 					attempt

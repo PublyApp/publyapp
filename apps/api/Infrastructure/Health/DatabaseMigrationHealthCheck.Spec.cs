@@ -70,6 +70,16 @@ public sealed class DatabaseMigrationHealthCheckSpec {
 		warning.State.Should().Contain(pair =>
 			pair.Key == "PendingMigrationNamesTruncated" && Equals(pair.Value, false)
 		);
+		warning.State.Should().Contain(pair =>
+			pair.Key == "PendingMigrationNextAction"
+			&& Equals(
+				pair.Value,
+				"Run the pending migrations or wait for the migration job to complete."
+			)
+		);
+		warning.Message.Should().Contain(
+			"Run the pending migrations or wait for the migration job to complete."
+		);
 
 		var context = new DefaultHttpContext();
 		context.Response.Body = new MemoryStream();

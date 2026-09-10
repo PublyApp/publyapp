@@ -153,7 +153,6 @@ public sealed class JobQueueDrainHealthCheck : IHealthCheck {
 				)
 			) {
 				_logger.LogWarning(
-					ex,
 					"Health check {HealthCheck} is unhealthy: {FailureReason}.",
 					HealthCheckMessages.PublicationDeliveryName,
 					"database_unreachable"

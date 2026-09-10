@@ -148,12 +148,10 @@ public sealed class HealthEndpointPublicSurfaceSpec : IClassFixture<ApiFixture> 
 				check.Name == "application readiness");
 			Assert.NotNull(readyMigrationCheck);
 			Assert.NotNull(aggregateMigrationCheck);
-			readyMigrationCheck.Description.Should().Be(
-				"The application is not ready to serve traffic yet."
-			);
-			aggregateMigrationCheck.Description.Should().Be(
-				"The application is not ready to serve traffic yet."
-			);
+			readyMigrationCheck.Description.Should().Contain("completing startup");
+			aggregateMigrationCheck.Description.Should().Contain("completing startup");
+			readyMigrationCheck.Description.Should().NotContain("migration");
+			aggregateMigrationCheck.Description.Should().NotContain("migration");
 		} finally {
 			await migrator.MigrateAsync(latestMigration);
 		}
