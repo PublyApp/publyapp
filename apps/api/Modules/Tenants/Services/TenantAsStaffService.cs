@@ -734,7 +734,7 @@ public class TenantAsStaffService : ITenantAsStaffService {
 		CancellationToken cancellationToken = default
 	) {
 		// Excludes soft-deleted users for parity with every list/export query
-		// over the same membership rows (e.g. TenantUserQueryService.BuildExportBaseQuery) —
+		// over the same membership rows (e.g. TenantUserQueryService._BuildExportBaseQuery) —
 		// otherwise a staff-deleted user's still-present account row inflates this count
 		// past what the tenant users list actually shows.
 		var count =
@@ -755,7 +755,7 @@ public class TenantAsStaffService : ITenantAsStaffService {
 		// Excludes soft-deleted users (same parity rationale as CountTenantUsersAsync).
 		// Suspended admins still count as owners here — this counts *assigned*
 		// Admin-level accounts, not the *active* admins tracked by the last-admin
-		// invariant in TenantUserMembershipOperations.BuildActiveTenantAdminAccountsQuery.
+		// invariant in TenantUserMembershipOperations._BuildActiveTenantAdminAccountsQuery.
 		var count =
 			from ua in _DbContext.UserAccount
 			where ua.TenantId == tenantId

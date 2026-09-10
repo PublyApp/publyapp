@@ -646,7 +646,7 @@ public sealed class JobQueueProcessor : BackgroundService {
 	}
 
 	// --- fencing-conditioned transitions (F1) ------------------------------------
-	// All raw SQL: they bypass UpdateAuditFields and app clocks entirely, and each
+	// All raw SQL: they bypass _UpdateAuditFields and app clocks entirely, and each
 	// checks the affected-row count — zero rows = the lease was lost.
 
 	/// <summary>Success/Cancelled path: conditioned hard delete.</summary>

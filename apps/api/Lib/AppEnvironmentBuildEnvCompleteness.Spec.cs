@@ -16,7 +16,7 @@ namespace PublyApp.Api.Lib;
 /// push, and nothing caught it locally.
 ///
 /// This spec enumerates the REQUIRED variable set from the real
-/// <c>AppEnvironment.cs</c> source (every <c>GetRequiredString</c>/<c>GetRequiredInt</c>
+/// <c>AppEnvironment.cs</c> source (every <c>_GetRequiredString</c>/<c>_GetRequiredInt</c>
 /// argument, plus the Production-gated <c>TRUSTED_PROXY_CIDRS</c>) instead of a
 /// hand-copied list, so adding a required variable without teaching the build surfaces
 /// about it fails here first. It asserts each required variable appears in:
@@ -156,8 +156,8 @@ public sealed partial class AppEnvironmentBuildEnvCompletenessSpec {
 	private static IReadOnlyList<string> _CollectRequiredSurfaceVariables() {
 		var source = _FindRepoFileText("apps", "api", "Lib", "AppEnvironment.cs");
 
-		// Matches GetRequiredString(nameof(X)) / GetRequiredString("LITERAL") and the
-		// GetRequiredInt pair — the fail-fast readers whose variables every process
+		// Matches _GetRequiredString(nameof(X)) / _GetRequiredString("LITERAL") and the
+		// _GetRequiredInt pair — the fail-fast readers whose variables every process
 		// that boots the app must supply. The helper DEFINITIONS do not match (their
 		// argument is a parameter, not nameof/a literal), so only real read sites do.
 		var matches = _RequiredReaderRegex().Matches(source);
@@ -298,7 +298,7 @@ public sealed partial class AppEnvironmentBuildEnvCompletenessSpec {
 	public void ItShouldKeepTheDockerfilePlaceholderObviouslyNonSecret() {
 		var dockerfile = _FindRepoFileText("apps", "api", "Dockerfile");
 
-		// The build-time value must satisfy ParseMasterKey (base64, exactly 32 bytes)
+		// The build-time value must satisfy _ParseMasterKey (base64, exactly 32 bytes)
 		// while being recognizably NOT a real key: the all-zero 32-byte key is the
 		// repo's documented build placeholder (.github/workflows/ci.yml, justfile, .env.example).
 		// Pinning the exact constant keeps both build stages aligned with the rest of

@@ -269,7 +269,7 @@ public class SystemJobDefinitionQueryService(
 		UpdateSystemJobEnabledArgs args,
 		CancellationToken cancellationToken = default
 	) {
-		// K-3 pre-check: the sync's RestoreProtectedDefinitionsAsync would revert
+		// K-3 pre-check: the sync's _RestoreProtectedDefinitionsAsync would revert
 		// the write anyway within 60s; refusing here makes the refusal immediate
 		// and honest instead of silently undone.
 		var jobKey = await (

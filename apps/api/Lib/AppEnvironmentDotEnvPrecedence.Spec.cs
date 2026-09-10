@@ -10,7 +10,7 @@ namespace PublyApp.Api.Lib;
 
 /// <summary>
 /// Pins #1019: <c>DotNetEnv.LoadOptions.NoClobber()</c> (AppEnvironment.cs,
-/// <c>LoadDotEnvIfDevelopment</c>) must make an explicit process environment variable win
+/// <c>_LoadDotEnvIfDevelopment</c>) must make an explicit process environment variable win
 /// over the checked-in <c>.env.development</c> file's value for it, while a variable the
 /// process never sets must still fall back to the file — for ANY dotenv-backed variable,
 /// not only APP_ROLE.
@@ -248,7 +248,7 @@ public sealed class AppEnvironmentDotEnvPrecedenceSpec : IDisposable {
 	// IsAppRoleDefaultAllowed). That meant a mutation which silently applied the language
 	// default instead of ever reading the file produced the identical observed graph, and the
 	// test could not tell the difference. Verified directly: mutating
-	// LoadDotEnvIfDevelopment() to delete APP_ROLE whenever the process had not set it (so the
+	// _LoadDotEnvIfDevelopment() to delete APP_ROLE whenever the process had not set it (so the
 	// file is genuinely never consulted for that key) still passed the original assertion.
 	//
 	// Fixed by using file APP_ROLE="api" — a value Development's default NEVER produces on its
@@ -312,7 +312,7 @@ public sealed class AppEnvironmentDotEnvPrecedenceSpec : IDisposable {
 	// APP_ROLE=api export actually takes effect during a doc-generation run, not by reading
 	// the recipe. Every case above forces ASPNETCORE_ENVIRONMENT=Development, which is NOT
 	// that path: build-time OpenAPI generation runs with BOTH host-environment variables
-	// unset (AppEnvironment.cs's own LoadDotEnvIfDevelopment comment; AGENTS.md). This case
+	// unset (AppEnvironment.cs's own _LoadDotEnvIfDevelopment comment; AGENTS.md). This case
 	// reproduces that classification exactly — genuinely unset, not forced to any value — with
 	// the same APP_ROLE=api export `just build-api` uses and file APP_ROLE="all".
 	//
@@ -591,12 +591,12 @@ public sealed class AppEnvironmentDotEnvPrecedenceSpec : IDisposable {
 		}
 	}
 
-	// Testing/Staging/Production must never reach LoadDotEnvIfDevelopment's DotNetEnv.Env.Load
+	// Testing/Staging/Production must never reach _LoadDotEnvIfDevelopment's DotNetEnv.Env.Load
 	// call at all — confirmed here by observation, not by reading the early-return. The
 	// synthetic .env.development supplies every required variable (including
 	// POSTGRES_CONNECTION_STRING); the process supplies NONE of them. If the file were
 	// consulted, Initialize() would succeed. If it is genuinely skipped, the very first
-	// GetRequiredString call (POSTGRES_CONNECTION_STRING) throws before Program.Main ever
+	// _GetRequiredString call (POSTGRES_CONNECTION_STRING) throws before Program.Main ever
 	// reaches the --print-hosted-services dispatch, so the process exits non-zero and the
 	// exception naming that variable appears on stderr.
 	[Theory]

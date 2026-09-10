@@ -506,7 +506,7 @@ public sealed class PublicationService : IPublicationService {
 	/// Adds the audit entry to the current change tracker so it is flushed by the
 	/// same SaveChanges — and therefore the same transaction — as the publication
 	/// inserts. Deliberately not IAuditLogService (same-transaction precedent,
-	/// TenantProfileAsStaffService.AddAuditEntry).
+	/// TenantProfileAsStaffService._AddAuditEntry).
 	/// </summary>
 	private void _AddAuditEntry(
 		SchedulePublicationArgs args,

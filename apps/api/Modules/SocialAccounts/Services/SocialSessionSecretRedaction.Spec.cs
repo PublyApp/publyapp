@@ -67,7 +67,7 @@ public sealed class SocialSessionSecretRedactionSpec {
 
 	[Fact]
 	public void ItShouldRedactSecretsInPrintMembersForBothRecords() {
-		// PrintMembers feeds derived-record ToString composition; exercise it
+		// _PrintMembers feeds derived-record ToString composition; exercise it
 		// directly (it is protected) so the redaction cannot regress silently.
 		_PrintViaPrintMembers(typeof(BlueskyCredentials), _AppPassword)
 			.Should().NotContain(_AppPassword);

@@ -198,7 +198,7 @@ public sealed class SocialAccountsMasterKeyWitnessSpec {
 
 	[Fact]
 	public void ItShouldKeepTheRealBootPlaceholderGateWiredBetweenDocGenAndCanary() {
-		// Paired proof / mutation guard: deleting the RejectKnownNonSecretOrDegenerateValue
+		// Paired proof / mutation guard: deleting the _RejectKnownNonSecretOrDegenerateValue
 		// call would silently turn every behavioural refusal above green again. Pin the
 		// REAL artifact instead — the witness source must invoke the rejection AFTER the
 		// canaryStore-null early return (doc-gen keeps the placeholder) and BEFORE the
@@ -209,7 +209,7 @@ public sealed class SocialAccountsMasterKeyWitnessSpec {
 			"public static void EnsureMasterKeyUsable", StringComparison.Ordinal);
 		var earlyReturn = source.IndexOf("if (canaryStore is null)", StringComparison.Ordinal);
 		var rejection = source.IndexOf(
-			"RejectKnownNonSecretOrDegenerateValue(key);", StringComparison.Ordinal);
+			"_RejectKnownNonSecretOrDegenerateValue(key);", StringComparison.Ordinal);
 		var canaryRead = source.IndexOf(
 			"var stored = canaryStore.Read();", StringComparison.Ordinal);
 
@@ -221,7 +221,7 @@ public sealed class SocialAccountsMasterKeyWitnessSpec {
 		canaryRead.Should().BeGreaterThan(rejection,
 			"degenerate values are refused BEFORE any canary round-trip");
 
-		_CountOccurrences(source, "RejectKnownNonSecretOrDegenerateValue(key);")
+		_CountOccurrences(source, "_RejectKnownNonSecretOrDegenerateValue(key);")
 			.Should().Be(1,
 				"exactly one invocation: removing it must fail this guard, not pass silently");
 	}

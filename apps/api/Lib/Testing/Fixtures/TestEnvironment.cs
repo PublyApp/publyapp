@@ -33,7 +33,7 @@ namespace PublyApp.Api.Lib.Testing.Fixtures {
 	/// fixture at all. Under xUnit's parallel class scheduling, if one of
 	/// those classes was scheduled before any fixture-backed class, it raced
 	/// AppEnvironment.Initialize() (idempotent, first-caller-wins) against an
-	/// unset host environment: GetHostEnvironmentName() fell back to
+	/// unset host environment: _GetHostEnvironmentName() fell back to
 	/// "Production", where G9 requires APP_ROLE and fails fast — "APP_ROLE is
 	/// not set" — even though this is a test run. Bootstrap() below closes
 	/// that race by construction rather than by hoping a fixture wins: the
@@ -108,7 +108,7 @@ namespace PublyApp.Api.Lib.Testing.Fixtures {
 			}
 
 			try {
-				// 1. Prevent AppEnvironment.LoadDotEnvIfDevelopment()
+				// 1. Prevent AppEnvironment._LoadDotEnvIfDevelopment()
 				//    from loading .env.development a second time
 				Environment.SetEnvironmentVariable(
 					"ASPNETCORE_ENVIRONMENT",
@@ -117,7 +117,7 @@ namespace PublyApp.Api.Lib.Testing.Fixtures {
 
 				// 2. Pin a deterministic test APP_ROLE (2B/G9) before the
 				//     baseline load. Testing already defaults an unset APP_ROLE
-				//     to AppRole.All (see AppEnvironment.GetOptionalAppRole),
+				//     to AppRole.All (see AppEnvironment._GetOptionalAppRole),
 				//     but the bootstrap pins it explicitly so the role is never
 				//     implicit.
 				Environment.SetEnvironmentVariable(

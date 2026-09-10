@@ -24,7 +24,7 @@ namespace PublyApp.Api.Modules.SocialAccounts.Seeders;
 /// permissions by design, so without this seeder the block is hidden and the
 /// scenario cannot run. Admins are deliberately NOT touched: the admin bypass is
 /// already pinned elsewhere, and granting extra keys to admins would prove nothing.
-/// Production excludes every IsDemo seeder (AppDbContext.CreateSeeders), so these
+/// Production excludes every IsDemo seeder (AppDbContext._CreateSeeders), so these
 /// rows never exist in a real deployment.
 ///
 /// Idempotent: profiles are found by their pinned names scoped to the tenant, and

@@ -104,7 +104,7 @@ public static class JobsServiceRegistration {
 		// wt-641's AddAppServices registers BlueskySessionProvider AFTER this block,
 		// its real implementation silently replaces the placeholder — no code change
 		// needed at the convergence rebase. The placeholder must stay RESOLVABLE:
-		// JobHandlerRegistry.ValidateRegistrationConsistency composes every handler
+		// JobHandlerRegistry._ValidateRegistrationConsistency composes every handler
 		// once at startup, so throwing from resolution would brick the whole worker.
 		// Instead it throws on first USE — a publish job that actually runs without
 		// a real seam dies loudly instead of publishing with a fake session.

@@ -206,7 +206,7 @@ public sealed class ApiFactory
 
 	/// <summary>
 	/// Extracts tenant ID from request header.
-	/// Mirrors ServiceRegistration.GetCurrentTenantId().
+	/// Mirrors ServiceRegistration._GetCurrentTenantId().
 	/// </summary>
 	private static Guid? _GetCurrentTenantId(
 		IHttpContextAccessor httpContextAccessor
