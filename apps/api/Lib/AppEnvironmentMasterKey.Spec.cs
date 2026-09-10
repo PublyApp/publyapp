@@ -1,4 +1,5 @@
 using FluentAssertions;
+
 using Xunit;
 
 namespace PublyApp.Api.Lib;
@@ -19,7 +20,7 @@ public sealed class AppEnvironmentMasterKeySpec {
 
 	[Fact]
 	public void ItShouldThrowWhenTheVariableIsMissing() {
-		var act = WrapParseMasterKey("SOCIAL_ACCOUNTS_MASTER_KEY", string.Empty);
+		var act = _WrapParseMasterKey("SOCIAL_ACCOUNTS_MASTER_KEY", string.Empty);
 		act.Should().Throw<InvalidOperationException>()
 			.WithMessage("*required*");
 	}
@@ -28,14 +29,14 @@ public sealed class AppEnvironmentMasterKeySpec {
 	public void ItShouldThrowWhenTheKeyIsTooShort() {
 		// 16 bytes instead of 32
 		var shortKey = Convert.ToBase64String(new byte[16]);
-		var act = WrapParseMasterKey("SOCIAL_ACCOUNTS_MASTER_KEY", shortKey);
+		var act = _WrapParseMasterKey("SOCIAL_ACCOUNTS_MASTER_KEY", shortKey);
 		act.Should().Throw<InvalidOperationException>()
 			.WithMessage("*32 bytes*");
 	}
 
 	[Fact]
 	public void ItShouldThrowWhenTheKeyIsNotValidBase64() {
-		var act = WrapParseMasterKey(
+		var act = _WrapParseMasterKey(
 			"SOCIAL_ACCOUNTS_MASTER_KEY",
 			"not-valid-base64!!!"
 		);
@@ -43,11 +44,11 @@ public sealed class AppEnvironmentMasterKeySpec {
 			.WithMessage("*base64*");
 	}
 
-	private static byte[] InvokeParseMasterKey(
+	private static byte[] _InvokeParseMasterKey(
 		string name, string value
 	) {
 		var method = typeof(AppEnvironment).GetMethod(
-			"ParseMasterKey",
+			"_ParseMasterKey",
 			System.Reflection.BindingFlags.NonPublic
 				| System.Reflection.BindingFlags.Static
 		)!;
@@ -55,13 +56,13 @@ public sealed class AppEnvironmentMasterKeySpec {
 	}
 
 	/// <summary>
-	/// Invokes ParseMasterKey and unwraps TargetInvocationException so
+	/// Invokes _ParseMasterKey and unwraps TargetInvocationException so
 	/// FluentAssertions .Throw&lt;T&gt; matches the real inner exception.
 	/// </summary>
-	private static Action WrapParseMasterKey(string name, string value) {
+	private static Action _WrapParseMasterKey(string name, string value) {
 		return () => {
 			try {
-				InvokeParseMasterKey(name, value);
+				_InvokeParseMasterKey(name, value);
 			} catch (System.Reflection.TargetInvocationException ex)
 				when (ex.InnerException is not null) {
 				throw ex.InnerException;

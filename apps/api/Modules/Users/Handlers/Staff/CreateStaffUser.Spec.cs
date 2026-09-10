@@ -13,21 +13,21 @@ using Xunit;
 namespace PublyApp.Api.Modules.Users.Handlers.Staff;
 
 public sealed class CreateStaffUserSpec : IClassFixture<ApiFixture> {
-	private readonly HttpClient _http;
-	private readonly TestAuthClient _authClient;
+	private readonly HttpClient _Http;
+	private readonly TestAuthClient _AuthClient;
 
 	public CreateStaffUserSpec(ApiFixture fixture) {
-		_http = fixture.HttpClient;
-		_authClient = new TestAuthClient(_http);
+		_Http = fixture.HttpClient;
+		_AuthClient = new TestAuthClient(_Http);
 	}
 
 	[Fact]
 	public async Task ItShouldReturnNotFoundWhenDirectStaffUserCreationIsRequested() {
-		var staffToken = await _authClient.LoginAsStaffAdminAsync();
+		var staffToken = await _AuthClient.LoginAsStaffAdminAsync();
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Post,
-			GetCreateUrl()
+			_GetCreateUrl()
 		).WithSessionToken(staffToken);
 
 		request.Content = JsonContent.Create(
@@ -39,12 +39,12 @@ public sealed class CreateStaffUserSpec : IClassFixture<ApiFixture> {
 			}
 		);
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 
 		response.StatusCode.Should().Be(HttpStatusCode.NotFound);
 	}
 
-	private static string GetCreateUrl() {
+	private static string _GetCreateUrl() {
 		return PathUtils.Join(
 			Routes.Staff.Root,
 			Routes.Users.ForStaff.Root,

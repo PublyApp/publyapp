@@ -23,7 +23,7 @@ namespace PublyApp.Api.Infrastructure.Health;
 /// </para>
 /// </summary>
 public static class HealthResponseWriter {
-	private static readonly JsonSerializerOptions SerializerOptions = new() {
+	private static readonly JsonSerializerOptions _SerializerOptions = new() {
 		PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
 		WriteIndented = false,
 		DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
@@ -61,7 +61,7 @@ public static class HealthResponseWriter {
 		await JsonSerializer.SerializeAsync(
 			httpContext.Response.Body,
 			payload,
-			SerializerOptions,
+			_SerializerOptions,
 			httpContext.RequestAborted
 		);
 	}

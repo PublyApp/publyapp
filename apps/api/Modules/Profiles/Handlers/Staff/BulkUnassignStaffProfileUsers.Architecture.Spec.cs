@@ -27,21 +27,21 @@ namespace PublyApp.Api.Modules.Profiles.Handlers.Staff;
 /// </summary>
 public sealed class BulkUnassignStaffProfileUsersArchitectureSpec
 	: IClassFixture<ApiFixture> {
-	private readonly ApiFixture _fixture;
+	private readonly ApiFixture _Fixture;
 
 	public BulkUnassignStaffProfileUsersArchitectureSpec(ApiFixture fixture) {
-		_fixture = fixture;
+		_Fixture = fixture;
 	}
 
-	private IReadOnlyList<RouteEndpoint> GetRouteEndpoints() {
-		return _fixture.Factory.Services
+	private IReadOnlyList<RouteEndpoint> _GetRouteEndpoints() {
+		return _Fixture.Factory.Services
 			.GetRequiredService<EndpointDataSource>()
 			.Endpoints
 			.OfType<RouteEndpoint>()
 			.ToList();
 	}
 
-	private static string BuildEndpointKey(RouteEndpoint endpoint) {
+	private static string _BuildEndpointKey(RouteEndpoint endpoint) {
 		var httpMethodMetadata = endpoint.Metadata
 			.OfType<HttpMethodMetadata>()
 			.FirstOrDefault();
@@ -58,7 +58,7 @@ public sealed class BulkUnassignStaffProfileUsersArchitectureSpec
 			Routes.Profiles.ForStaff.Users.Unassign
 		);
 
-		var matches = GetRouteEndpoints()
+		var matches = _GetRouteEndpoints()
 			.Where(endpoint =>
 				endpoint.RoutePattern.RawText?.EndsWith(
 					"/{profileId}/users/unassign",
@@ -82,7 +82,7 @@ public sealed class BulkUnassignStaffProfileUsersArchitectureSpec
 			Routes.Profiles.ForStaff.Users.Unassign
 		);
 
-		var methods = GetRouteEndpoints()
+		var methods = _GetRouteEndpoints()
 			.Where(endpoint => endpoint.RoutePattern.RawText == expectedPath)
 			.SelectMany(endpoint =>
 				endpoint.Metadata
@@ -104,7 +104,7 @@ public sealed class BulkUnassignStaffProfileUsersArchitectureSpec
 			Routes.Profiles.ForStaff.Users.Unassign
 		);
 
-		var endpoint = GetRouteEndpoints()
+		var endpoint = _GetRouteEndpoints()
 			.Single(candidate =>
 				candidate.RoutePattern.RawText == expectedPath
 				&& candidate.Metadata.OfType<HttpMethodMetadata>()
@@ -120,7 +120,7 @@ public sealed class BulkUnassignStaffProfileUsersArchitectureSpec
 			.NotBeEmpty(
 				"{0} must declare .WithPermission(…) — an unprotected staff "
 				+ "bulk mutation would fail the EndpointPermissionMetadataGuard",
-				BuildEndpointKey(endpoint)
+				_BuildEndpointKey(endpoint)
 			);
 	}
 
@@ -132,7 +132,7 @@ public sealed class BulkUnassignStaffProfileUsersArchitectureSpec
 			Routes.Profiles.ForStaff.Users.Unassign
 		);
 
-		var endpoint = GetRouteEndpoints()
+		var endpoint = _GetRouteEndpoints()
 			.Single(candidate =>
 				candidate.RoutePattern.RawText == expectedPath
 				&& candidate.Metadata.OfType<HttpMethodMetadata>()

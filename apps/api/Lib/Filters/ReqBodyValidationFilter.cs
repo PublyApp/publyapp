@@ -7,10 +7,10 @@ using PublyApp.Api.Localization;
 namespace PublyApp.Api.Lib.Filters;
 
 public class ReqBodyValidationFilter<TRequest> : IEndpointFilter {
-	private readonly IValidator<TRequest> _validator;
+	private readonly IValidator<TRequest> _Validator;
 
 	public ReqBodyValidationFilter(IValidator<TRequest> validator) {
-		_validator = validator;
+		_Validator = validator;
 	}
 
 	public async ValueTask<object?> InvokeAsync(
@@ -34,7 +34,7 @@ public class ReqBodyValidationFilter<TRequest> : IEndpointFilter {
 		}
 
 		var request = context.GetArgument<TRequest>(idx);
-		var result = await _validator.ValidateAsync(
+		var result = await _Validator.ValidateAsync(
 			request,
 			context.HttpContext.RequestAborted
 		);

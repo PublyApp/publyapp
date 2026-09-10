@@ -39,17 +39,17 @@ namespace PublyApp.Api.Modules.Jobs.Jobs;
 public sealed class DeadLetterRetentionHandler : IJobHandler {
 	public const string JobKey = "job-dead-letter-retention";
 
-	private const int BatchSize = 500;
+	private const int _BatchSize = 500;
 
-	private readonly AppDbContext _dbContext;
-	private readonly ILogger<DeadLetterRetentionHandler> _logger;
+	private readonly AppDbContext _DbContext;
+	private readonly ILogger<DeadLetterRetentionHandler> _Logger;
 
 	public DeadLetterRetentionHandler(
 		AppDbContext dbContext,
 		ILogger<DeadLetterRetentionHandler> logger
 	) {
-		_dbContext = dbContext;
-		_logger = logger;
+		_DbContext = dbContext;
+		_Logger = logger;
 	}
 
 	public string JobType {
@@ -71,7 +71,7 @@ public sealed class DeadLetterRetentionHandler : IJobHandler {
 			// reserved missing-anomaly job_type prefix is invisible to the age sweep, however
 			// old it is. Triaged missing rows (triaged_at IS NOT NULL) delete like any other;
 			// so does everything whose job_type is not a missing-anomaly marker at all.
-			deleted = await _dbContext.Database.ExecuteSqlAsync(
+			deleted = await _DbContext.Database.ExecuteSqlAsync(
 				$"""
 				DELETE FROM job_dead_letter
 				WHERE id IN (
@@ -84,7 +84,7 @@ public sealed class DeadLetterRetentionHandler : IJobHandler {
 						{(int)ExternalStateStatus.Unclassified}
 					)
 					ORDER BY failed_at, id
-					LIMIT {BatchSize}
+					LIMIT {_BatchSize}
 					FOR UPDATE SKIP LOCKED
 				)
 				""",
@@ -92,18 +92,18 @@ public sealed class DeadLetterRetentionHandler : IJobHandler {
 			);
 
 			totalDeleted += deleted;
-		} while (deleted == BatchSize);
+		} while (deleted == _BatchSize);
 
 		// Always report the held-back classes: how many untriaged missing-anomaly rows
 		// (#864) and how many external-state exempt rows (K-1/#863) the sweep is
 		// deliberately keeping past the window. These counts are the durable answer to
 		// "retention skipped something" — alerting reads the same predicates every sample.
 		var heldUntriagedMissing = await CountUntriagedMissingRowsAsync(cancellationToken);
-		var skippedExempt = await CountSkippedExemptAsync(retentionDays, cancellationToken);
+		var skippedExempt = await _CountSkippedExemptAsync(retentionDays, cancellationToken);
 
-		if (_logger.IsEnabled(LogLevel.Information)) {
+		if (_Logger.IsEnabled(LogLevel.Information)) {
 			if (skippedExempt > 0) {
-				_logger.LogInformation(
+				_Logger.LogInformation(
 					"job-dead-letter-retention deleted {Deleted} row(s) older than {Days} day(s), "
 					+ "held back {Held} untriaged missing-anomaly row(s); "
 					+ "skipped {SkippedCount} exempt row(s) "
@@ -114,7 +114,7 @@ public sealed class DeadLetterRetentionHandler : IJobHandler {
 					skippedExempt
 				);
 			} else if (totalDeleted > 0 || heldUntriagedMissing > 0) {
-				_logger.LogInformation(
+				_Logger.LogInformation(
 					"job-dead-letter-retention deleted {Deleted} row(s) older than {Days} day(s), "
 					+ "held back {Held} untriaged missing-anomaly row(s)",
 					totalDeleted,
@@ -133,7 +133,7 @@ public sealed class DeadLetterRetentionHandler : IJobHandler {
 	/// assert the skip report directly and the monitor samples the identical predicate.
 	/// </summary>
 	public async Task<long> CountUntriagedMissingRowsAsync(CancellationToken cancellationToken) {
-		return await _dbContext.JobDeadLetter.LongCountAsync(
+		return await _DbContext.JobDeadLetter.LongCountAsync(
 			d => d.TriagedAt == null && d.JobType.StartsWith(JobDeadLetter.MissingJobTypePrefix),
 			cancellationToken
 		);
@@ -143,11 +143,11 @@ public sealed class DeadLetterRetentionHandler : IJobHandler {
 	/// Counts age-eligible rows the exemption predicate holds back — the starvation
 	/// gauge for K-1: these need triage/sweeps (#864/#865) to ever leave the DLQ.
 	/// </summary>
-	private async Task<int> CountSkippedExemptAsync(
+	private async Task<int> _CountSkippedExemptAsync(
 		int retentionDays,
 		CancellationToken cancellationToken
 	) {
-		return await _dbContext.Database.SqlQuery<int>(
+		return await _DbContext.Database.SqlQuery<int>(
 			$"""
 			SELECT COUNT(*)::int AS "Value"
 			FROM job_dead_letter

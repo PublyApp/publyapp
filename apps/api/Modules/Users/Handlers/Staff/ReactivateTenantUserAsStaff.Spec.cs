@@ -17,15 +17,15 @@ using Xunit;
 
 namespace PublyApp.Api.Modules.Users.Handlers.Staff {
 	public sealed class ReactivateTenantUserAsStaffSpec : IClassFixture<ApiFixture> {
-		private readonly HttpClient _http;
-		private readonly TestAuthClient _authClient;
+		private readonly HttpClient _Http;
+		private readonly TestAuthClient _AuthClient;
 
 		public ReactivateTenantUserAsStaffSpec(ApiFixture fixture) {
-			_http = fixture.HttpClient;
-			_authClient = new TestAuthClient(_http);
+			_Http = fixture.HttpClient;
+			_AuthClient = new TestAuthClient(_Http);
 		}
 
-		private static string GetReactivateUrl(string tenantId, string userId) {
+		private static string _GetReactivateUrl(string tenantId, string userId) {
 			return PathUtils.Join(
 				Routes.Staff.Root,
 				Routes.Users.ForTenantAsStaff.ReactivateFn(tenantId, userId)
@@ -35,12 +35,12 @@ namespace PublyApp.Api.Modules.Users.Handlers.Staff {
 		[Fact]
 		public async Task ItShouldReactivateSuspendedTenantUser() {
 			// Arrange
-			string staffToken = await _authClient.LoginAsStaffAdminAsync();
+			string staffToken = await _AuthClient.LoginAsStaffAdminAsync();
 			Guid tenantId = await TenantTestHelper.GetTenantIdByNameAsync(
-				_http, staffToken, SeedConstants.Tenants.AcmeName
+				_Http, staffToken, SeedConstants.Tenants.AcmeName
 			);
-			string userId = await GetUserIdByEmailAsync(
-				_http, staffToken, tenantId, TestConstants.AcmeUserEmail
+			string userId = await _GetUserIdByEmailAsync(
+				_Http, staffToken, tenantId, TestConstants.AcmeUserEmail
 			);
 
 			// First suspend the user
@@ -50,15 +50,15 @@ namespace PublyApp.Api.Modules.Users.Handlers.Staff {
 			);
 			using (HttpRequestMessage suspendRequest = new HttpRequestMessage(HttpMethod.Post, suspendUrl)
 				.WithSessionToken(staffToken)) {
-				using HttpResponseMessage suspendResponse = await _http.SendAsync(suspendRequest);
+				using HttpResponseMessage suspendResponse = await _Http.SendAsync(suspendRequest);
 				_ = suspendResponse.StatusCode.Should().Be(HttpStatusCode.OK);
 			}
 
 			// Act - Reactivate the suspended user
-			string reactivateUrl = GetReactivateUrl(tenantId.ToString(), userId);
+			string reactivateUrl = _GetReactivateUrl(tenantId.ToString(), userId);
 			HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Post, reactivateUrl)
 				.WithSessionToken(staffToken);
-			using HttpResponseMessage response = await _http.SendAsync(request);
+			using HttpResponseMessage response = await _Http.SendAsync(request);
 
 			// Assert
 			_ = response.StatusCode.Should().Be(HttpStatusCode.OK);
@@ -71,17 +71,17 @@ namespace PublyApp.Api.Modules.Users.Handlers.Staff {
 		[Fact]
 		public async Task ItShouldReturnNotFoundForNonexistentUser() {
 			// Arrange
-			string staffToken = await _authClient.LoginAsStaffAdminAsync();
+			string staffToken = await _AuthClient.LoginAsStaffAdminAsync();
 			Guid tenantId = await TenantTestHelper.GetTenantIdByNameAsync(
-				_http, staffToken, SeedConstants.Tenants.AcmeName
+				_Http, staffToken, SeedConstants.Tenants.AcmeName
 			);
 			Guid nonexistentUserId = Guid.NewGuid();
 
 			// Act
-			string url = GetReactivateUrl(tenantId.ToString(), nonexistentUserId.ToString());
+			string url = _GetReactivateUrl(tenantId.ToString(), nonexistentUserId.ToString());
 			HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Post, url)
 				.WithSessionToken(staffToken);
-			using HttpResponseMessage response = await _http.SendAsync(request);
+			using HttpResponseMessage response = await _Http.SendAsync(request);
 
 			// Assert
 			_ = response.StatusCode.Should().Be(HttpStatusCode.NotFound);
@@ -90,19 +90,19 @@ namespace PublyApp.Api.Modules.Users.Handlers.Staff {
 		[Fact]
 		public async Task ItShouldReturnConflictWhenUserNotSuspended() {
 			// Arrange
-			string staffToken = await _authClient.LoginAsStaffAdminAsync();
+			string staffToken = await _AuthClient.LoginAsStaffAdminAsync();
 			Guid tenantId = await TenantTestHelper.GetTenantIdByNameAsync(
-				_http, staffToken, SeedConstants.Tenants.AcmeName
+				_Http, staffToken, SeedConstants.Tenants.AcmeName
 			);
-			string userId = await GetUserIdByEmailAsync(
-				_http, staffToken, tenantId, TestConstants.AcmeUserEmail
+			string userId = await _GetUserIdByEmailAsync(
+				_Http, staffToken, tenantId, TestConstants.AcmeUserEmail
 			);
 
 			// Act
-			string url = GetReactivateUrl(tenantId.ToString(), userId);
+			string url = _GetReactivateUrl(tenantId.ToString(), userId);
 			HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Post, url)
 				.WithSessionToken(staffToken);
-			using HttpResponseMessage response = await _http.SendAsync(request);
+			using HttpResponseMessage response = await _Http.SendAsync(request);
 
 			// Assert
 			_ = response.StatusCode.Should().Be(HttpStatusCode.Conflict);
@@ -111,13 +111,13 @@ namespace PublyApp.Api.Modules.Users.Handlers.Staff {
 		[Fact]
 		public async Task ItShouldReturnBadRequestForMalformedTenantId() {
 			// Arrange
-			string staffToken = await _authClient.LoginAsStaffAdminAsync();
+			string staffToken = await _AuthClient.LoginAsStaffAdminAsync();
 
 			// Act
 			string url = PathUtils.Join(Routes.Staff.Root, "/tenants/invalid-uuid/users/abc/reactivate");
 			HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Post, url)
 				.WithSessionToken(staffToken);
-			using HttpResponseMessage response = await _http.SendAsync(request);
+			using HttpResponseMessage response = await _Http.SendAsync(request);
 
 			// Assert
 			_ = response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
@@ -129,9 +129,9 @@ namespace PublyApp.Api.Modules.Users.Handlers.Staff {
 		[Fact]
 		public async Task ItShouldReturnBadRequestForMalformedUserId() {
 			// Arrange
-			string staffToken = await _authClient.LoginAsStaffAdminAsync();
+			string staffToken = await _AuthClient.LoginAsStaffAdminAsync();
 			Guid tenantId = await TenantTestHelper.GetTenantIdByNameAsync(
-				_http, staffToken, SeedConstants.Tenants.AcmeName
+				_Http, staffToken, SeedConstants.Tenants.AcmeName
 			);
 
 			// Act
@@ -141,7 +141,7 @@ namespace PublyApp.Api.Modules.Users.Handlers.Staff {
 			);
 			HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Post, url)
 				.WithSessionToken(staffToken);
-			using HttpResponseMessage response = await _http.SendAsync(request);
+			using HttpResponseMessage response = await _Http.SendAsync(request);
 
 			// Assert
 			_ = response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
@@ -154,15 +154,15 @@ namespace PublyApp.Api.Modules.Users.Handlers.Staff {
 		public async Task ItShouldReturnUnauthorizedWithoutSession() {
 			// Arrange
 			Guid tenantId = await TenantTestHelper.GetTenantIdByNameAsync(
-				_http,
-				await _authClient.LoginAsStaffAdminAsync(),
+				_Http,
+				await _AuthClient.LoginAsStaffAdminAsync(),
 				SeedConstants.Tenants.AcmeName
 			);
 
 			// Act
-			string url = GetReactivateUrl(tenantId.ToString(), Guid.NewGuid().ToString());
+			string url = _GetReactivateUrl(tenantId.ToString(), Guid.NewGuid().ToString());
 			HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Post, url);
-			using HttpResponseMessage response = await _http.SendAsync(request);
+			using HttpResponseMessage response = await _Http.SendAsync(request);
 
 			// Assert
 			_ = response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
@@ -171,28 +171,28 @@ namespace PublyApp.Api.Modules.Users.Handlers.Staff {
 		[Fact]
 		public async Task ItShouldReturnForbiddenForTenantUser() {
 			// Arrange
-			string tenantToken = await _authClient.LoginAsync(
+			string tenantToken = await _AuthClient.LoginAsync(
 				TestConstants.AcmeAdminEmail,
 				TestConstants.SeedPassword
 			);
 			Guid tenantId = await TenantTestHelper.GetTenantIdByNameAsync(
-				_http,
-				await _authClient.LoginAsStaffAdminAsync(),
+				_Http,
+				await _AuthClient.LoginAsStaffAdminAsync(),
 				SeedConstants.Tenants.AcmeName
 			);
 
 			// Act
-			string url = GetReactivateUrl(tenantId.ToString(), Guid.NewGuid().ToString());
+			string url = _GetReactivateUrl(tenantId.ToString(), Guid.NewGuid().ToString());
 			HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Post, url)
 				.WithSessionToken(tenantToken);
-			using HttpResponseMessage response = await _http.SendAsync(request);
+			using HttpResponseMessage response = await _Http.SendAsync(request);
 
 			// Assert
 			_ = response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
 		}
 
 		// Helper methods
-		private static async Task<string> GetUserIdByEmailAsync(
+		private static async Task<string> _GetUserIdByEmailAsync(
 			HttpClient http,
 			string staffToken,
 			Guid tenantId,

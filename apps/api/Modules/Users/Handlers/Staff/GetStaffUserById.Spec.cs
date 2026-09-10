@@ -16,15 +16,15 @@ namespace PublyApp.Api.Modules.Users.Handlers.Staff;
 
 public sealed class GetStaffUserByIdSpec
 	: IClassFixture<ApiFixture> {
-	private readonly HttpClient _http;
-	private readonly TestAuthClient _authClient;
+	private readonly HttpClient _Http;
+	private readonly TestAuthClient _AuthClient;
 
 	public GetStaffUserByIdSpec(ApiFixture fixture) {
-		_http = fixture.HttpClient;
-		_authClient = new TestAuthClient(_http);
+		_Http = fixture.HttpClient;
+		_AuthClient = new TestAuthClient(_Http);
 	}
 
-	private static string GetUrl(string userId) {
+	private static string _GetUrl(string userId) {
 		return PathUtils.Join(
 			Routes.Staff.Root,
 			Routes.Users.ForStaff.Root,
@@ -36,15 +36,15 @@ public sealed class GetStaffUserByIdSpec
 	public async Task
 	ItShouldReturnNotFoundForNonExistentId() {
 		var token =
-			await _authClient.LoginAsStaffAdminAsync();
-		var url = GetUrl(Guid.NewGuid().ToString());
+			await _AuthClient.LoginAsStaffAdminAsync();
+		var url = _GetUrl(Guid.NewGuid().ToString());
 
 		var request = new HttpRequestMessage(
 			HttpMethod.Get, url
 		).WithSessionToken(token);
 
 		using var response =
-			await _http.SendAsync(request);
+			await _Http.SendAsync(request);
 
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.NotFound);
@@ -58,15 +58,15 @@ public sealed class GetStaffUserByIdSpec
 	public async Task
 	ItShouldReturnBadRequestForMalformedId() {
 		var token =
-			await _authClient.LoginAsStaffAdminAsync();
-		var url = GetUrl("not-a-guid");
+			await _AuthClient.LoginAsStaffAdminAsync();
+		var url = _GetUrl("not-a-guid");
 
 		var request = new HttpRequestMessage(
 			HttpMethod.Get, url
 		).WithSessionToken(token);
 
 		using var response =
-			await _http.SendAsync(request);
+			await _Http.SendAsync(request);
 
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.BadRequest);
@@ -79,13 +79,13 @@ public sealed class GetStaffUserByIdSpec
 	[Fact]
 	public async Task
 	ItShouldReturnUnauthorizedWithoutSession() {
-		var url = GetUrl(Guid.NewGuid().ToString());
+		var url = _GetUrl(Guid.NewGuid().ToString());
 		var request = new HttpRequestMessage(
 			HttpMethod.Get, url
 		);
 
 		using var response =
-			await _http.SendAsync(request);
+			await _Http.SendAsync(request);
 
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.Unauthorized);
@@ -95,18 +95,18 @@ public sealed class GetStaffUserByIdSpec
 	public async Task
 	ItShouldReturnForbiddenForNonStaffUser() {
 		var token =
-			await _authClient.LoginAsync(
+			await _AuthClient.LoginAsync(
 				TestConstants.AcmeAdminEmail,
 				TestConstants.SeedPassword
 			);
 
-		var url = GetUrl(Guid.NewGuid().ToString());
+		var url = _GetUrl(Guid.NewGuid().ToString());
 		var request = new HttpRequestMessage(
 			HttpMethod.Get, url
 		).WithSessionToken(token);
 
 		using var response =
-			await _http.SendAsync(request);
+			await _Http.SendAsync(request);
 
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.Forbidden);
@@ -116,18 +116,18 @@ public sealed class GetStaffUserByIdSpec
 	public async Task
 	ItShouldReturnForbiddenForStaffWithoutPermission() {
 		var token =
-			await _authClient.LoginAsync(
+			await _AuthClient.LoginAsync(
 				TestConstants.StaffUserEmail,
 				TestConstants.SeedPassword
 			);
 
-		var url = GetUrl(Guid.NewGuid().ToString());
+		var url = _GetUrl(Guid.NewGuid().ToString());
 		var request = new HttpRequestMessage(
 			HttpMethod.Get, url
 		).WithSessionToken(token);
 
 		using var response =
-			await _http.SendAsync(request);
+			await _Http.SendAsync(request);
 
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.Forbidden);

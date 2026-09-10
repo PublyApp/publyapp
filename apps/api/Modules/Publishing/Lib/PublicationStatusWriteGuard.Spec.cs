@@ -1,6 +1,6 @@
-using FluentAssertions;
-
 using System.Data.Common;
+
+using FluentAssertions;
 
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
@@ -26,14 +26,14 @@ namespace PublyApp.Api.Modules.Publishing.Lib;
 // stamp. Direct-invocation integration spec: real ephemeral Postgres, real
 // DbContext, no HTTP surface.
 public sealed class PublicationStatusWriteGuardSpec : IClassFixture<ApiFixture> {
-	private readonly ApiFixture _fixture;
+	private readonly ApiFixture _Fixture;
 
 	public PublicationStatusWriteGuardSpec(ApiFixture fixture) {
-		_fixture = fixture;
+		_Fixture = fixture;
 	}
 
-	private async Task<AppDbContext> NewDbAsync() {
-		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+	private async Task<AppDbContext> _NewDbAsync() {
+		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
 		var connectionString = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>()
 			.Database.GetConnectionString();
@@ -51,7 +51,7 @@ public sealed class PublicationStatusWriteGuardSpec : IClassFixture<ApiFixture> 
 		);
 	}
 
-	private static async Task<Publication> SeedScheduledPublicationAsync(
+	private static async Task<Publication> _SeedScheduledPublicationAsync(
 		AppDbContext db
 	) {
 		var tenant = new PublyApp.Api.Modules.Tenants.Entities.Tenant {
@@ -100,8 +100,8 @@ public sealed class PublicationStatusWriteGuardSpec : IClassFixture<ApiFixture> 
 
 	[Fact]
 	public async Task ItShouldRejectAReflectionStatusWriteAtSaveTime() {
-		using var db = await NewDbAsync();
-		var seeded = await SeedScheduledPublicationAsync(db);
+		using var db = await _NewDbAsync();
+		var seeded = await _SeedScheduledPublicationAsync(db);
 
 		// The evasion shape the Roslyn scan can never see: the property is
 		// reached by name at runtime, so no symbolic scan attributes this write.
@@ -131,8 +131,8 @@ public sealed class PublicationStatusWriteGuardSpec : IClassFixture<ApiFixture> 
 	public async Task ItShouldRejectAnUnstampedTrackedStatusChangeEvenWithoutReflection() {
 		// A plain property assignment from non-service code is the same crime:
 		// only the transition service's stamp legalises a Status write.
-		using var db = await NewDbAsync();
-		var seeded = await SeedScheduledPublicationAsync(db);
+		using var db = await _NewDbAsync();
+		var seeded = await _SeedScheduledPublicationAsync(db);
 
 		seeded.Status = PublicationStatus.Failed;
 		seeded.LastError = "unstamped direct write";
@@ -145,8 +145,8 @@ public sealed class PublicationStatusWriteGuardSpec : IClassFixture<ApiFixture> 
 
 	[Fact]
 	public async Task ItShouldLetTheTransitionServiceStillSave() {
-		using var db = await NewDbAsync();
-		var seeded = await SeedScheduledPublicationAsync(db);
+		using var db = await _NewDbAsync();
+		var seeded = await _SeedScheduledPublicationAsync(db);
 		var service = new PublicationStatusTransitionService(db);
 
 		var moved = await service.MarkInProgressAsync(
@@ -163,8 +163,8 @@ public sealed class PublicationStatusWriteGuardSpec : IClassFixture<ApiFixture> 
 	public async Task ItShouldLetOtherPropertiesChangeWithoutTheStamp() {
 		// The guard pins ONLY Status: schedule edits and cause writes stay free
 		// for every caller.
-		using var db = await NewDbAsync();
-		var seeded = await SeedScheduledPublicationAsync(db);
+		using var db = await _NewDbAsync();
+		var seeded = await _SeedScheduledPublicationAsync(db);
 
 		seeded.ScheduledAtUtc = DateTime.UtcNow.AddHours(3);
 
@@ -179,8 +179,8 @@ public sealed class PublicationStatusWriteGuardSpec : IClassFixture<ApiFixture> 
 		// SET list literally carries "status"; the guard must keep pinning ONLY
 		// Publication.Status. A regression here locks editors out of unrelated
 		// tables.
-		using var db = await NewDbAsync();
-		var seeded = await SeedScheduledPublicationAsync(db);
+		using var db = await _NewDbAsync();
+		var seeded = await _SeedScheduledPublicationAsync(db);
 		var post = await db.Post.SingleAsync(p => p.Id == seeded.PostId);
 
 		post.Status = PostStatus.Scheduled;
@@ -199,8 +199,8 @@ public sealed class PublicationStatusWriteGuardSpec : IClassFixture<ApiFixture> 
 		// drives the command interceptor end-to-end on the live Npgsql
 		// provider (real raw SQL, not a synthetic string fed to the regex).
 		// Must stay GREEN after the r2 fix.
-		using var db = await NewDbAsync();
-		var seeded = await SeedScheduledPublicationAsync(db);
+		using var db = await _NewDbAsync();
+		var seeded = await _SeedScheduledPublicationAsync(db);
 		var id = seeded.GetRequiredId();
 
 		var act = async () => await db.Database.ExecuteSqlRawAsync(
@@ -222,8 +222,8 @@ public sealed class PublicationStatusWriteGuardSpec : IClassFixture<ApiFixture> 
 		// RED before the r2 fix: the round-1 regex anchored UPDATE at
 		// start-of-text, so a statement led by a WITH clause sailed past
 		// CommandCreated and executed for real against Postgres.
-		using var db = await NewDbAsync();
-		var seeded = await SeedScheduledPublicationAsync(db);
+		using var db = await _NewDbAsync();
+		var seeded = await _SeedScheduledPublicationAsync(db);
 		var id = seeded.GetRequiredId();
 
 		var act = async () => await db.Database.ExecuteSqlRawAsync(
@@ -243,8 +243,8 @@ public sealed class PublicationStatusWriteGuardSpec : IClassFixture<ApiFixture> 
 	public async Task ItShouldRejectALeadingCommentHiddenRawSqlStatusUpdate() {
 		// Second pinned evasion shape from the r1 review: a leading block
 		// comment defeats a start-of-text anchor just as well as a CTE does.
-		using var db = await NewDbAsync();
-		var seeded = await SeedScheduledPublicationAsync(db);
+		using var db = await _NewDbAsync();
+		var seeded = await _SeedScheduledPublicationAsync(db);
 		var id = seeded.GetRequiredId();
 
 		var act = async () => await db.Database.ExecuteSqlRawAsync(
@@ -268,8 +268,8 @@ public sealed class PublicationStatusWriteGuardSpec : IClassFixture<ApiFixture> 
 		// turns this RED) and every keyword is lowercase (so dropping
 		// RegexOptions.IgnoreCase turns this RED too). Pre-fix this executed
 		// for real and flipped every row in the class database.
-		using var db = await NewDbAsync();
-		await SeedScheduledPublicationAsync(db);
+		using var db = await _NewDbAsync();
+		await _SeedScheduledPublicationAsync(db);
 
 		var act = async () => await db.Database.ExecuteSqlRawAsync(
 			"with cte as (select 1) update publications set status = 20"
@@ -289,8 +289,8 @@ public sealed class PublicationStatusWriteGuardSpec : IClassFixture<ApiFixture> 
 		// Mutation-killer: matching the whole text with a single unanchored Match
 		// instead of splitting on ';' stays green on every statement-level case
 		// yet lets the SECOND batched statement commit the crime.
-		using var db = await NewDbAsync();
-		var seeded = await SeedScheduledPublicationAsync(db);
+		using var db = await _NewDbAsync();
+		var seeded = await _SeedScheduledPublicationAsync(db);
 		var id = seeded.GetRequiredId();
 
 		var act = async () => await db.Database.ExecuteSqlRawAsync(
@@ -313,8 +313,8 @@ public sealed class PublicationStatusWriteGuardSpec : IClassFixture<ApiFixture> 
 		// Mutation-killer: dropping RegexOptions.Singleline keeps every one-line
 		// case green but re-opens the shape developers actually write — a
 		// multi-line verbatim CTE whose SET list ends past a newline.
-		using var db = await NewDbAsync();
-		await SeedScheduledPublicationAsync(db);
+		using var db = await _NewDbAsync();
+		await _SeedScheduledPublicationAsync(db);
 
 		var act = async () => await db.Database.ExecuteSqlRawAsync(
 			"""
@@ -338,8 +338,8 @@ public sealed class PublicationStatusWriteGuardSpec : IClassFixture<ApiFixture> 
 		// to an innocent data-modifying CTE over posts, and only its RETURNING
 		// mentions publications. Matching just the first occurrence fails open
 		// here; every UPDATE occurrence must be inspected.
-		using var db = await NewDbAsync();
-		var seeded = await SeedScheduledPublicationAsync(db);
+		using var db = await _NewDbAsync();
+		var seeded = await _SeedScheduledPublicationAsync(db);
 		var id = seeded.GetRequiredId();
 
 		var act = async () => await db.Database.ExecuteSqlRawAsync(
@@ -364,8 +364,8 @@ public sealed class PublicationStatusWriteGuardSpec : IClassFixture<ApiFixture> 
 		// cases already exercise NonQueryExecutingAsync; this drives the sync
 		// ExecuteSqlRaw so CommandCreated+NonQueryExecuting (sync) are hit, not
 		// the async path. A sync raw status flip must be refused identically.
-		using var db = await NewDbAsync();
-		var seeded = await SeedScheduledPublicationAsync(db);
+		using var db = await _NewDbAsync();
+		var seeded = await _SeedScheduledPublicationAsync(db);
 		var id = seeded.GetRequiredId();
 
 		var act = (Action)(() => db.Database.ExecuteSqlRaw(
@@ -385,8 +385,8 @@ public sealed class PublicationStatusWriteGuardSpec : IClassFixture<ApiFixture> 
 		// the SAME raw UPDATE that the unstamped test above rejects must pass
 		// when the transition service stamps the context. Without this the guard
 		// could be shown to refuse, but never to discriminate.
-		using var db = await NewDbAsync();
-		var seeded = await SeedScheduledPublicationAsync(db);
+		using var db = await _NewDbAsync();
+		var seeded = await _SeedScheduledPublicationAsync(db);
 
 		PublicationStatusWriteGuard.StampForStatusWrite(db);
 		db.Database.ExecuteSqlRaw(
@@ -403,7 +403,7 @@ public sealed class PublicationStatusWriteGuardSpec : IClassFixture<ApiFixture> 
 		// an update is not an update. The unanchored matcher alone trips on
 		// the quoted text; stripping comments before matching keeps this
 		// benign command alive. Goes RED if the comment strip regresses.
-		using var db = await NewDbAsync();
+		using var db = await _NewDbAsync();
 
 		var act = async () => await db.Database.ExecuteSqlRawAsync(
 			"/* UPDATE publications SET status = 20 */ SELECT 1"
@@ -420,8 +420,8 @@ public sealed class PublicationStatusWriteGuardSpec : IClassFixture<ApiFixture> 
 		// hidden behind RETURNING would slip past a guard that only checked
 		// NonQuery. FromSqlRaw + ToList exercises that reader path end-to-end on
 		// live Npgsql and the guard refuses the write before it executes.
-		using var db = await NewDbAsync();
-		var seeded = await SeedScheduledPublicationAsync(db);
+		using var db = await _NewDbAsync();
+		var seeded = await _SeedScheduledPublicationAsync(db);
 		var id = seeded.GetRequiredId();
 
 		var act = async () => await db.Publication
@@ -442,8 +442,8 @@ public sealed class PublicationStatusWriteGuardSpec : IClassFixture<ApiFixture> 
 	public async Task ItShouldLetAReaderPipelinedQuerySurviveOnAnUnstampedContext() {
 		// Paired happy path for the reader callbacks: a benign FromSql SELECT must
 		// pass on an unstamped context (the guard pins status writes, not reads).
-		using var db = await NewDbAsync();
-		var seeded = await SeedScheduledPublicationAsync(db);
+		using var db = await _NewDbAsync();
+		var seeded = await _SeedScheduledPublicationAsync(db);
 		var id = seeded.GetRequiredId();
 
 		var rows = await db.Publication
@@ -464,12 +464,12 @@ public sealed class PublicationStatusWriteGuardSpec : IClassFixture<ApiFixture> 
 		// — the only way to prove the scalar branch refuses. Defence-in-depth for
 		// a callback EF may one day route (and the only branch not yet hit by a
 		// live command). See .dump/proof-r4-scalar.md.
-		using var db = NewDetachedContext();
+		using var db = _NewDetachedContext();
 		var cmd = db.Database.GetDbConnection().CreateCommand();
 		cmd.CommandText = "UPDATE publications SET status = 20 "
 			+ "WHERE id = '00000000-0000-0000-0000-000000000000'";
 
-		var evt = MakeEventData(db, cmd, DbCommandMethod.ExecuteScalar, false);
+		var evt = _MakeEventData(db, cmd, DbCommandMethod.ExecuteScalar, false);
 		var guard = new PublicationStatusWriteGuard();
 
 		// Synchronous scalar callback refuses an unstamped status write.
@@ -490,13 +490,13 @@ public sealed class PublicationStatusWriteGuardSpec : IClassFixture<ApiFixture> 
 		// Paired happy path for the scalar branch: with the transition service's
 		// stamp present, the SAME scalar command is not refused. Proves the
 		// branch discriminates on the stamp, not on the callback name.
-		using var db = NewDetachedContext();
+		using var db = _NewDetachedContext();
 		var cmd = db.Database.GetDbConnection().CreateCommand();
 		cmd.CommandText = "UPDATE publications SET status = 20 "
 			+ "WHERE id = '00000000-0000-0000-0000-000000000000'";
 
 		PublicationStatusWriteGuard.StampForStatusWrite(db);
-		var evt = MakeEventData(db, cmd, DbCommandMethod.ExecuteScalar, false);
+		var evt = _MakeEventData(db, cmd, DbCommandMethod.ExecuteScalar, false);
 		var guard = new PublicationStatusWriteGuard();
 
 		var syncAct = () => guard.ScalarExecuting(cmd, evt, new InterceptionResult<object>());
@@ -514,7 +514,7 @@ public sealed class PublicationStatusWriteGuardSpec : IClassFixture<ApiFixture> 
 	/// live one off the context's command diagnostics logger via reflection (the
 	/// concrete logger type is EF-internal and cannot be named in source).
 	/// </summary>
-	private static CommandEventData MakeEventData(
+	private static CommandEventData _MakeEventData(
 		AppDbContext db,
 		DbCommand cmd,
 		DbCommandMethod method,
@@ -542,7 +542,7 @@ public sealed class PublicationStatusWriteGuardSpec : IClassFixture<ApiFixture> 
 	/// needs no live database). Used by the direct-invocation scalar tests, which
 	/// drive the guard with synthetic command/event data rather than real SQL.
 	/// </summary>
-	private static AppDbContext NewDetachedContext() {
+	private static AppDbContext _NewDetachedContext() {
 		return new AppDbContext(
 			new DbContextOptionsBuilder<AppDbContext>()
 				.UseNpgsql("Host=127.0.0.1;Port=1;Database=x;Username=u;Password=p")

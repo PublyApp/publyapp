@@ -14,21 +14,21 @@ namespace PublyApp.Api.Modules.Permissions.Handlers.Staff;
 
 public sealed class FindStaffPermissionsSpec
 	: IClassFixture<ApiFixture> {
-	private static readonly string FindUrl = PathUtils.Join(
+	private static readonly string _FindUrl = PathUtils.Join(
 		Routes.Staff.Root,
 		Routes.Permissions.ForStaff.Root,
 		Routes.Permissions.ForStaff.Scopes.Root,
 		Routes.Permissions.ForStaff.Scopes.Staff
 	);
 
-	private readonly HttpClient _http;
-	private readonly TestAuthClient _authClient;
+	private readonly HttpClient _Http;
+	private readonly TestAuthClient _AuthClient;
 
 	public FindStaffPermissionsSpec(
 		ApiFixture fixture
 	) {
-		_http = fixture.HttpClient;
-		_authClient = new TestAuthClient(_http);
+		_Http = fixture.HttpClient;
+		_AuthClient = new TestAuthClient(_Http);
 	}
 
 	[Fact]
@@ -36,10 +36,10 @@ public sealed class FindStaffPermissionsSpec
 	ItShouldReturnUnauthorizedWithoutToken() {
 		var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			FindUrl
+			_FindUrl
 		);
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.Unauthorized);
@@ -49,14 +49,14 @@ public sealed class FindStaffPermissionsSpec
 	public async Task
 	ItShouldReturnOkWithValidToken() {
 		var sessionToken =
-			await _authClient.LoginAsStaffAdminAsync();
+			await _AuthClient.LoginAsStaffAdminAsync();
 
 		var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			FindUrl
+			_FindUrl
 		).WithSessionToken(sessionToken);
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.OK);
@@ -67,10 +67,10 @@ public sealed class FindStaffPermissionsSpec
 	ItShouldReturnUnauthorizedWithInvalidToken() {
 		var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			FindUrl
+			_FindUrl
 		).WithSessionToken("invalid-token");
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.Unauthorized);

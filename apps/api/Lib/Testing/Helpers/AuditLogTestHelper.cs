@@ -12,21 +12,21 @@ using AppRoutes = PublyApp.Api.Lib.Routes.Routes;
 namespace PublyApp.Api.Lib.Testing.Helpers;
 
 internal static class AuditLogTestHelper {
-	private static readonly string FindUrl =
+	private static readonly string _FindUrl =
 		PathUtils.Join(
 			AppRoutes.Staff.Root,
 			AppRoutes.AuditLogs.ForStaff.Root,
 			AppRoutes.AuditLogs.ForStaff.Find
 		);
 
-	private static readonly string ActionsUrl =
+	private static readonly string _ActionsUrl =
 		PathUtils.Join(
 			AppRoutes.Staff.Root,
 			AppRoutes.AuditLogs.ForStaff.Root,
 			AppRoutes.AuditLogs.ForStaff.Actions
 		);
 
-	private static readonly string ExportUrl =
+	private static readonly string _ExportUrl =
 		PathUtils.Join(
 			AppRoutes.Staff.Root,
 			AppRoutes.AuditLogs.ForStaff.Root,
@@ -148,10 +148,10 @@ internal static class AuditLogTestHelper {
 		}
 
 		if (queryParams.Count == 0) {
-			return FindUrl;
+			return _FindUrl;
 		}
 
-		return FindUrl
+		return _FindUrl
 			+ "?"
 			+ string.Join("&", queryParams);
 	}
@@ -167,7 +167,7 @@ internal static class AuditLogTestHelper {
 	}
 
 	public static string GetActionsUrl() {
-		return ActionsUrl;
+		return _ActionsUrl;
 	}
 
 	public static string GetExportUrl(
@@ -204,7 +204,7 @@ internal static class AuditLogTestHelper {
 			queryParams.Add($"end_date={endDate}");
 		}
 
-		return ExportUrl
+		return _ExportUrl
 			+ "?"
 			+ string.Join("&", queryParams);
 	}

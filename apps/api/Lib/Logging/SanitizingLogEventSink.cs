@@ -41,20 +41,20 @@ public sealed class SanitizingLogEventSink : ILogEventSink, IDisposable {
 	// A caller-supplied property under one of these names would be silently overwritten
 	// by (or collide with) the ones added here, so they are dropped from the replacement
 	// event first. This also stops a log call from spoofing the redacted fields.
-	private static readonly string[] ReservedProperties = [
+	private static readonly string[] _ReservedProperties = [
 		ExceptionTypeProperty,
 		ExceptionMessageProperty,
 		ExceptionStackProperty,
 	];
 
-	private readonly ILogEventSink _wrapped;
+	private readonly ILogEventSink _Wrapped;
 
 	public SanitizingLogEventSink(ILogEventSink wrapped) {
 		if (wrapped is null) {
 			throw new ArgumentNullException(nameof(wrapped));
 		}
 
-		_wrapped = wrapped;
+		_Wrapped = wrapped;
 	}
 
 	public void Emit(LogEvent logEvent) {
@@ -62,10 +62,10 @@ public sealed class SanitizingLogEventSink : ILogEventSink, IDisposable {
 			throw new ArgumentNullException(nameof(logEvent));
 		}
 
-		_wrapped.Emit(Sanitize(logEvent));
+		_Wrapped.Emit(_Sanitize(logEvent));
 	}
 
-	private static LogEvent Sanitize(LogEvent logEvent) {
+	private static LogEvent _Sanitize(LogEvent logEvent) {
 		var exception = logEvent.Exception;
 		var hasException = exception is not null;
 
@@ -80,9 +80,9 @@ public sealed class SanitizingLogEventSink : ILogEventSink, IDisposable {
 		var properties = logEvent.Properties
 			.Where(property =>
 				!(hasException
-					&& ReservedProperties.Contains(property.Key, StringComparer.Ordinal)))
+					&& _ReservedProperties.Contains(property.Key, StringComparer.Ordinal)))
 			.Select(property =>
-				new LogEventProperty(property.Key, SanitizeValue(property.Value)))
+				new LogEventProperty(property.Key, _SanitizeValue(property.Value)))
 			.ToList();
 
 		if (exception is not null) {
@@ -122,9 +122,9 @@ public sealed class SanitizingLogEventSink : ILogEventSink, IDisposable {
 	// clips a legitimately destructured value, yet orders of magnitude below the frame
 	// count that overflows the stack. Beyond it, content is replaced with a safe sentinel.
 	// Cycle detection is unnecessary: the immutable constructors cannot form a self-reference.
-	private const int MaxPropertyDepth = 20;
+	private const int _MaxPropertyDepth = 20;
 
-	private static readonly ScalarValue DepthExceededSentinel =
+	private static readonly ScalarValue _DepthExceededSentinel =
 		new("[redacted-depth-exceeded]");
 
 	// Recursively neutralizes a structured property value:
@@ -135,20 +135,20 @@ public sealed class SanitizingLogEventSink : ILogEventSink, IDisposable {
 	//    control chars), so a raw exception message carried as an ordinary property loses
 	//    its payload even though the sink cannot know it came from an exception;
 	//  • structures, sequences and dictionaries are descended so a nested exception or
-	//    string cannot hide one level down — but only to MaxPropertyDepth (finding F4);
+	//    string cannot hide one level down — but only to _MaxPropertyDepth (finding F4);
 	//  • dictionary KEYS are redacted too, not just values (finding F3): Serilog dictionary
 	//    keys are ScalarValues rendered by durable sinks, so a token/email placed in
 	//    exception.Data as a KEY would otherwise leak verbatim.
-	private static LogEventPropertyValue SanitizeValue(LogEventPropertyValue value) {
-		return SanitizeValue(value, depth: 0);
+	private static LogEventPropertyValue _SanitizeValue(LogEventPropertyValue value) {
+		return _SanitizeValue(value, depth: 0);
 	}
 
-	private static LogEventPropertyValue SanitizeValue(LogEventPropertyValue value, int depth) {
+	private static LogEventPropertyValue _SanitizeValue(LogEventPropertyValue value, int depth) {
 		// Depth-bound the walk BEFORE descending (finding F4): past the limit we stop
 		// recursing and emit a sentinel, so a pathologically deep graph can never overflow
 		// the stack. Scalars are leaves and never recurse, so they are always processed.
-		if (depth >= MaxPropertyDepth && value is not ScalarValue) {
-			return DepthExceededSentinel;
+		if (depth >= _MaxPropertyDepth && value is not ScalarValue) {
+			return _DepthExceededSentinel;
 		}
 
 		switch (value) {
@@ -174,7 +174,7 @@ public sealed class SanitizingLogEventSink : ILogEventSink, IDisposable {
 				// redaction changes nothing — numbers, bools, dates, Guids, enums have no
 				// email/token payload — the original typed scalar is kept so structured fidelity
 				// is preserved; the sanitized string is substituted only when redaction fires.
-				var rendered = RenderScalar(scalar);
+				var rendered = _RenderScalar(scalar);
 				var sanitized = JobErrorSanitizer.Sanitize(rendered) ?? string.Empty;
 
 				return string.Equals(rendered, sanitized, StringComparison.Ordinal)
@@ -185,16 +185,16 @@ public sealed class SanitizingLogEventSink : ILogEventSink, IDisposable {
 				return new StructureValue(
 					structure.Properties
 						.Select(property =>
-							new LogEventProperty(property.Name, SanitizeValue(property.Value, depth + 1))),
+							new LogEventProperty(property.Name, _SanitizeValue(property.Value, depth + 1))),
 					structure.TypeTag
 				);
 
 			case SequenceValue sequence:
 				return new SequenceValue(
-					sequence.Elements.Select(element => SanitizeValue(element, depth + 1)));
+					sequence.Elements.Select(element => _SanitizeValue(element, depth + 1)));
 
 			case DictionaryValue dictionary:
-				return new DictionaryValue(SanitizeDictionaryElements(dictionary, depth + 1));
+				return new DictionaryValue(_SanitizeDictionaryElements(dictionary, depth + 1));
 
 			default:
 				return value;
@@ -212,26 +212,26 @@ public sealed class SanitizingLogEventSink : ILogEventSink, IDisposable {
 	// disambiguated DETERMINISTICALLY (` #2`, ` #3`, …). That keeps every entry (no silent
 	// drop) and never hands the DictionaryValue constructor two equal keys.
 	private static IEnumerable<KeyValuePair<ScalarValue, LogEventPropertyValue>>
-		SanitizeDictionaryElements(DictionaryValue dictionary, int depth) {
+		_SanitizeDictionaryElements(DictionaryValue dictionary, int depth) {
 		var usedKeys = new HashSet<string>(StringComparer.Ordinal);
 		var nextSuffixByBase = new Dictionary<string, int>(StringComparer.Ordinal);
 		var sanitized = new List<KeyValuePair<ScalarValue, LogEventPropertyValue>>();
 
 		foreach (var element in dictionary.Elements) {
 			sanitized.Add(new KeyValuePair<ScalarValue, LogEventPropertyValue>(
-				SanitizeDictionaryKey(element.Key, usedKeys, nextSuffixByBase),
-				SanitizeValue(element.Value, depth)
+				_SanitizeDictionaryKey(element.Key, usedKeys, nextSuffixByBase),
+				_SanitizeValue(element.Value, depth)
 			));
 		}
 
 		return sanitized;
 	}
 
-	private static ScalarValue SanitizeDictionaryKey(
+	private static ScalarValue _SanitizeDictionaryKey(
 		ScalarValue key,
 		HashSet<string> usedKeys,
 		Dictionary<string, int> nextSuffixByBase) {
-		var redacted = JobErrorSanitizer.Sanitize(RenderScalar(key)) ?? string.Empty;
+		var redacted = JobErrorSanitizer.Sanitize(_RenderScalar(key)) ?? string.Empty;
 
 		if (usedKeys.Add(redacted)) {
 			return new ScalarValue(redacted);
@@ -259,7 +259,7 @@ public sealed class SanitizingLogEventSink : ILogEventSink, IDisposable {
 	// as-is; every other scalar — `Uri`, `Guid`, `int`, enums, and even a null value — is
 	// rendered through Serilog's own scalar rendering, which routes non-strings through
 	// `IFormattable`/`ToString()`. Used for both dictionary keys and non-string scalar values.
-	private static string RenderScalar(ScalarValue scalar) {
+	private static string _RenderScalar(ScalarValue scalar) {
 		if (scalar.Value is string text) {
 			return text;
 		}
@@ -273,6 +273,6 @@ public sealed class SanitizingLogEventSink : ILogEventSink, IDisposable {
 	// Serilog disposes the outermost sink only; the wrapped graph (async workers, file
 	// handles) is ours to release.
 	public void Dispose() {
-		(_wrapped as IDisposable)?.Dispose();
+		(_Wrapped as IDisposable)?.Dispose();
 	}
 }

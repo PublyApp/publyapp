@@ -17,7 +17,7 @@ namespace PublyApp.Api.Modules.Permissions.Handlers.Staff;
 
 public sealed class FindTenantPermissionsSpec
 	: IClassFixture<ApiFixture> {
-	private static readonly string[] ExpectedTenantPermissionGroups = [
+	private static readonly string[] _ExpectedTenantPermissionGroups = [
 		"posts",
 		"projects",
 		"media",
@@ -35,7 +35,7 @@ public sealed class FindTenantPermissionsSpec
 		"modules"
 	];
 
-	private static readonly string[] ExpectedTenantPermissionKeys = [
+	private static readonly string[] _ExpectedTenantPermissionKeys = [
 		"tenant.posts.view",
 		"tenant.posts.create",
 		"tenant.posts.edit",
@@ -85,21 +85,21 @@ public sealed class FindTenantPermissionsSpec
 		"tenant.modules.access_users"
 	];
 
-	private static readonly string FindUrl = PathUtils.Join(
+	private static readonly string _FindUrl = PathUtils.Join(
 		Routes.Staff.Root,
 		Routes.Permissions.ForStaff.Root,
 		Routes.Permissions.ForStaff.Scopes.Root,
 		Routes.Permissions.ForStaff.Scopes.Tenant
 	);
 
-	private readonly HttpClient _http;
-	private readonly TestAuthClient _authClient;
+	private readonly HttpClient _Http;
+	private readonly TestAuthClient _AuthClient;
 
 	public FindTenantPermissionsSpec(
 		ApiFixture fixture
 	) {
-		_http = fixture.HttpClient;
-		_authClient = new TestAuthClient(_http);
+		_Http = fixture.HttpClient;
+		_AuthClient = new TestAuthClient(_Http);
 	}
 
 	[Fact]
@@ -107,10 +107,10 @@ public sealed class FindTenantPermissionsSpec
 	ItShouldReturnUnauthorizedWithoutToken() {
 		var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			FindUrl
+			_FindUrl
 		);
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.Unauthorized);
@@ -120,17 +120,17 @@ public sealed class FindTenantPermissionsSpec
 	public async Task
 	ItShouldReturnForbiddenForNonStaffUser() {
 		var sessionToken =
-			await _authClient.LoginAsync(
+			await _AuthClient.LoginAsync(
 				TestConstants.AcmeAdminEmail,
 				TestConstants.SeedPassword
 			);
 
 		var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			FindUrl
+			_FindUrl
 		).WithSessionToken(sessionToken);
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.Forbidden);
@@ -141,10 +141,10 @@ public sealed class FindTenantPermissionsSpec
 	ItShouldReturnUnauthorizedWithInvalidToken() {
 		var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			FindUrl
+			_FindUrl
 		).WithSessionToken("invalid-token");
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.Unauthorized);
@@ -154,14 +154,14 @@ public sealed class FindTenantPermissionsSpec
 	public async Task
 	ItShouldReturnTenantModulePermissionsWithCanonicalKeys() {
 		var sessionToken =
-			await _authClient.LoginAsStaffAdminAsync();
+			await _AuthClient.LoginAsStaffAdminAsync();
 
 		var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			FindUrl
+			_FindUrl
 		).WithSessionToken(sessionToken);
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.OK);
@@ -194,14 +194,14 @@ public sealed class FindTenantPermissionsSpec
 	public async Task
 	ItShouldReturnTranslatedLabelsInFrench() {
 		var sessionToken =
-			await _authClient.LoginAsStaffAdminAsync();
+			await _AuthClient.LoginAsStaffAdminAsync();
 
 		var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			GetFindUrl("fr")
+			_GetFindUrl("fr")
 		).WithSessionToken(sessionToken);
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.OK);
@@ -236,7 +236,7 @@ public sealed class FindTenantPermissionsSpec
 	[Fact]
 	public async Task
 	ItShouldReturnTheCompleteTenantCatalogWithEnglishAndFrenchCopy() {
-		var sessionToken = await _authClient.LoginAsStaffAdminAsync();
+		var sessionToken = await _AuthClient.LoginAsStaffAdminAsync();
 		var catalogsByLanguage = new Dictionary<
 			string,
 			Dictionary<string, Dictionary<string, PermissionAsStaffItem>>
@@ -245,10 +245,10 @@ public sealed class FindTenantPermissionsSpec
 		foreach (var language in SupportedLanguage.All) {
 			var request = new HttpRequestMessage(
 				HttpMethod.Get,
-				GetFindUrl(language)
+				_GetFindUrl(language)
 			).WithSessionToken(sessionToken);
 
-			using var response = await _http.SendAsync(request);
+			using var response = await _Http.SendAsync(request);
 			response.StatusCode.Should().Be(HttpStatusCode.OK);
 
 			var payload = await response.Content.ReadFromJsonAsync<
@@ -260,7 +260,7 @@ public sealed class FindTenantPermissionsSpec
 		}
 
 		foreach (var (language, catalog) in catalogsByLanguage) {
-			catalog.Keys.Should().BeEquivalentTo(ExpectedTenantPermissionGroups);
+			catalog.Keys.Should().BeEquivalentTo(_ExpectedTenantPermissionGroups);
 			catalog.Should().HaveCount(15);
 
 			var permissions = catalog.Values
@@ -270,7 +270,7 @@ public sealed class FindTenantPermissionsSpec
 
 			keys.Should().HaveCount(47);
 			keys.Should().OnlyHaveUniqueItems();
-			keys.Should().BeEquivalentTo(ExpectedTenantPermissionKeys);
+			keys.Should().BeEquivalentTo(_ExpectedTenantPermissionKeys);
 			keys.Should().OnlyContain(key => key.StartsWith(
 				"tenant.",
 				StringComparison.Ordinal
@@ -286,11 +286,11 @@ public sealed class FindTenantPermissionsSpec
 		}
 	}
 
-	private static string GetFindUrl(string? language = null) {
+	private static string _GetFindUrl(string? language = null) {
 		if (string.IsNullOrEmpty(language)) {
-			return FindUrl;
+			return _FindUrl;
 		}
 
-		return FindUrl + "?language=" + language;
+		return _FindUrl + "?language=" + language;
 	}
 }

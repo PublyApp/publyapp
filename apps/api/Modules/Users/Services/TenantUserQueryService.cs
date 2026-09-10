@@ -88,10 +88,10 @@ public interface ITenantUserQueryService {
 
 [Service(ServiceLifetime.Scoped)]
 public class TenantUserQueryService : ITenantUserQueryService {
-	private readonly AppDbContext _dbContext;
+	private readonly AppDbContext _DbContext;
 
 	public TenantUserQueryService(AppDbContext dbContext) {
-		_dbContext = dbContext;
+		_DbContext = dbContext;
 	}
 
 
@@ -106,56 +106,56 @@ public class TenantUserQueryService : ITenantUserQueryService {
 		var effectiveSortOrder = args.SortOrder ?? SortOrder.Desc;
 		var effectiveSortId = args.SortId ?? "id";
 
-				var sortFieldHandlers =
-			new Dictionary<string, CursorSortFieldHandler<UserAccount>>(
-				StringComparer.OrdinalIgnoreCase
-			) {
-			["id"] = CursorSortFieldHandlerFactory.Create<UserAccount, Guid, Guid>(
-				cursorLookupQuery: () => _dbContext.UserAccount
-					.AsNoTracking()
-					.Where(x => x.TenantId == tenantId
-						&& x.Scope == AccountScope.Tenant),
-				keySelector: x => x.UserId,
-				idSelector: x => x.UserId,
-				cancellationToken
-			),
-			["email"] = CursorSortFieldHandlerFactory.Create<UserAccount, string, Guid>(
-				cursorLookupQuery: () => _dbContext.UserAccount
-					.AsNoTracking()
-					.Where(x => x.TenantId == tenantId
-						&& x.Scope == AccountScope.Tenant),
-				keySelector: x => x.User.Email,
-				idSelector: x => x.UserId,
-				cancellationToken
-			),
-			["status"] = CursorSortFieldHandlerFactory.Create<UserAccount, int, Guid>(
-				cursorLookupQuery: () => _dbContext.UserAccount
-					.AsNoTracking()
-					.Where(x => x.TenantId == tenantId
-						&& x.Scope == AccountScope.Tenant),
-				keySelector: x => x.User.Status == UserStatus.Suspended ? 2 : x.Status == AccountStatus.Suspended ? 1 : 0,
-				idSelector: x => x.UserId,
-				cancellationToken
-			),
-			["level"] = CursorSortFieldHandlerFactory.Create<UserAccount, AccountLevel, Guid>(
-				cursorLookupQuery: () => _dbContext.UserAccount
-					.AsNoTracking()
-					.Where(x => x.TenantId == tenantId
-						&& x.Scope == AccountScope.Tenant),
-				keySelector: x => x.Level,
-				idSelector: x => x.UserId,
-				cancellationToken
-			),
-			["created_at"] = CursorSortFieldHandlerFactory.Create<UserAccount, DateTime, Guid>(
-				cursorLookupQuery: () => _dbContext.UserAccount
-					.AsNoTracking()
-					.Where(x => x.TenantId == tenantId
-						&& x.Scope == AccountScope.Tenant),
-				keySelector: x => x.User.CreatedAt,
-				idSelector: x => x.UserId,
-				cancellationToken
-			),
-		};
+		var sortFieldHandlers =
+	new Dictionary<string, CursorSortFieldHandler<UserAccount>>(
+		StringComparer.OrdinalIgnoreCase
+	) {
+		["id"] = CursorSortFieldHandlerFactory.Create<UserAccount, Guid, Guid>(
+		cursorLookupQuery: () => _DbContext.UserAccount
+			.AsNoTracking()
+			.Where(x => x.TenantId == tenantId
+				&& x.Scope == AccountScope.Tenant),
+		keySelector: x => x.UserId,
+		idSelector: x => x.UserId,
+		cancellationToken
+	),
+		["email"] = CursorSortFieldHandlerFactory.Create<UserAccount, string, Guid>(
+		cursorLookupQuery: () => _DbContext.UserAccount
+			.AsNoTracking()
+			.Where(x => x.TenantId == tenantId
+				&& x.Scope == AccountScope.Tenant),
+		keySelector: x => x.User.Email,
+		idSelector: x => x.UserId,
+		cancellationToken
+	),
+		["status"] = CursorSortFieldHandlerFactory.Create<UserAccount, int, Guid>(
+		cursorLookupQuery: () => _DbContext.UserAccount
+			.AsNoTracking()
+			.Where(x => x.TenantId == tenantId
+				&& x.Scope == AccountScope.Tenant),
+		keySelector: x => x.User.Status == UserStatus.Suspended ? 2 : x.Status == AccountStatus.Suspended ? 1 : 0,
+		idSelector: x => x.UserId,
+		cancellationToken
+	),
+		["level"] = CursorSortFieldHandlerFactory.Create<UserAccount, AccountLevel, Guid>(
+		cursorLookupQuery: () => _DbContext.UserAccount
+			.AsNoTracking()
+			.Where(x => x.TenantId == tenantId
+				&& x.Scope == AccountScope.Tenant),
+		keySelector: x => x.Level,
+		idSelector: x => x.UserId,
+		cancellationToken
+	),
+		["created_at"] = CursorSortFieldHandlerFactory.Create<UserAccount, DateTime, Guid>(
+		cursorLookupQuery: () => _DbContext.UserAccount
+			.AsNoTracking()
+			.Where(x => x.TenantId == tenantId
+				&& x.Scope == AccountScope.Tenant),
+		keySelector: x => x.User.CreatedAt,
+		idSelector: x => x.UserId,
+		cancellationToken
+	),
+	};
 
 		if (
 			!sortFieldHandlers.TryGetValue(
@@ -169,7 +169,7 @@ public class TenantUserQueryService : ITenantUserQueryService {
 		}
 
 		var baseQuery =
-			from ua in _dbContext.UserAccount.AsNoTracking()
+			from ua in _DbContext.UserAccount.AsNoTracking()
 			where ua.TenantId == tenantId
 				&& ua.Scope == AccountScope.Tenant
 				&& !ua.IsDeleted
@@ -269,7 +269,7 @@ public class TenantUserQueryService : ITenantUserQueryService {
 		CancellationToken cancellationToken = default
 	) {
 		return await (
-			from ua in _dbContext.UserAccount.AsNoTracking()
+			from ua in _DbContext.UserAccount.AsNoTracking()
 			where ua.TenantId == tenantId
 				&& ua.UserId == userId
 				&& ua.Scope == AccountScope.Tenant
@@ -288,7 +288,7 @@ public class TenantUserQueryService : ITenantUserQueryService {
 		CancellationToken cancellationToken = default
 	) {
 		return await TenantUserDetailsQueries.GetForStaffAsync(
-			_dbContext,
+			_DbContext,
 			userId,
 			cancellationToken
 		);
@@ -299,7 +299,7 @@ public class TenantUserQueryService : ITenantUserQueryService {
 		ExportTenantUsersArgs args,
 		CancellationToken cancellationToken = default
 	) {
-		var query = ApplyExportFilters(BuildExportBaseQuery(tenantId), args);
+		var query = _ApplyExportFilters(_BuildExportBaseQuery(tenantId), args);
 
 		return await (
 			from ua in query
@@ -315,9 +315,9 @@ public class TenantUserQueryService : ITenantUserQueryService {
 		).Take(args.Limit).ToListAsync(cancellationToken);
 	}
 
-	private IQueryable<UserAccount> BuildExportBaseQuery(Guid tenantId) {
+	private IQueryable<UserAccount> _BuildExportBaseQuery(Guid tenantId) {
 		return
-			from ua in _dbContext.UserAccount.AsNoTracking()
+			from ua in _DbContext.UserAccount.AsNoTracking()
 			where ua.TenantId == tenantId
 				&& ua.Scope == AccountScope.Tenant
 				&& !ua.IsDeleted
@@ -325,7 +325,7 @@ public class TenantUserQueryService : ITenantUserQueryService {
 			select ua;
 	}
 
-	private static IQueryable<UserAccount> ApplyExportFilters(
+	private static IQueryable<UserAccount> _ApplyExportFilters(
 		IQueryable<UserAccount> query,
 		ExportTenantUsersArgs args
 	) {

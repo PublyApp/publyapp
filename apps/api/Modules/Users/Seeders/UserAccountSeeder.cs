@@ -15,10 +15,10 @@ namespace PublyApp.Api.Modules.Users.Seeders;
 /// Creates Staff accounts for platform administrators to enable login during development.
 /// </summary>
 public class UserAccountSeeder : IEntitySeeder {
-	private readonly ILogger<UserAccountSeeder> _logger;
+	private readonly ILogger<UserAccountSeeder> _Logger;
 
 	public UserAccountSeeder(ILogger<UserAccountSeeder>? logger = null) {
-		_logger = logger
+		_Logger = logger
 			?? SeederLoggerUtils.CreateDefault<UserAccountSeeder>();
 	}
 
@@ -38,15 +38,15 @@ public class UserAccountSeeder : IEntitySeeder {
 		var newAccounts = new List<UserAccount>();
 
 		// Seed staff accounts
-		var staffAccounts = await SeedStaffAccountsAsync(dbContext, cancellationToken);
+		var staffAccounts = await _SeedStaffAccountsAsync(dbContext, cancellationToken);
 		newAccounts.AddRange(staffAccounts);
 
 		// Seed tenant accounts
-		var tenantAccounts = await SeedTenantAccountsAsync(dbContext, cancellationToken);
+		var tenantAccounts = await _SeedTenantAccountsAsync(dbContext, cancellationToken);
 		newAccounts.AddRange(tenantAccounts);
 
 		if (newAccounts.Count == 0) {
-			_logger.LogInformation("UserAccount seeding skipped; all accounts already exist.");
+			_Logger.LogInformation("UserAccount seeding skipped; all accounts already exist.");
 			return;
 		}
 
@@ -60,12 +60,12 @@ public class UserAccountSeeder : IEntitySeeder {
 				await dbContext.UserAccount.AddRangeAsync(newAccounts, cancellationToken);
 				await dbContext.SaveChangesAsync(cancellationToken);
 				await transaction.CommitAsync(cancellationToken);
-				if (_logger.IsEnabled(LogLevel.Information)) {
-					_logger.LogInformation("Seeded {Count} user accounts.", newAccounts.Count);
+				if (_Logger.IsEnabled(LogLevel.Information)) {
+					_Logger.LogInformation("Seeded {Count} user accounts.", newAccounts.Count);
 				}
 			} catch (DbUpdateException ex) when (ex.InnerException is Npgsql.PostgresException pgEx && pgEx.SqlState == "23505") {
 				await transaction.RollbackAsync(cancellationToken);
-				_logger.LogWarning(ex, "Duplicate accounts detected during seeding; skipping insert.");
+				_Logger.LogWarning(ex, "Duplicate accounts detected during seeding; skipping insert.");
 			} catch (Exception) {
 				await transaction.RollbackAsync(cancellationToken);
 				throw;
@@ -75,16 +75,16 @@ public class UserAccountSeeder : IEntitySeeder {
 			try {
 				await dbContext.UserAccount.AddRangeAsync(newAccounts, cancellationToken);
 				await dbContext.SaveChangesAsync(cancellationToken);
-				if (_logger.IsEnabled(LogLevel.Information)) {
-					_logger.LogInformation("Seeded {Count} user accounts.", newAccounts.Count);
+				if (_Logger.IsEnabled(LogLevel.Information)) {
+					_Logger.LogInformation("Seeded {Count} user accounts.", newAccounts.Count);
 				}
 			} catch (DbUpdateException ex) when (ex.InnerException is Npgsql.PostgresException pgEx && pgEx.SqlState == "23505") {
-				_logger.LogWarning(ex, "Duplicate accounts detected during seeding; skipping insert.");
+				_Logger.LogWarning(ex, "Duplicate accounts detected during seeding; skipping insert.");
 			}
 		}
 	}
 
-	private async Task<List<UserAccount>> SeedStaffAccountsAsync(AppDbContext dbContext, CancellationToken cancellationToken) {
+	private async Task<List<UserAccount>> _SeedStaffAccountsAsync(AppDbContext dbContext, CancellationToken cancellationToken) {
 		var staffAccountsData = new List<(string Email, AccountLevel Level)>();
 
 		staffAccountsData.AddRange([
@@ -100,7 +100,7 @@ public class UserAccountSeeder : IEntitySeeder {
 		).ToListAsync(cancellationToken);
 
 		if (users.Count == 0) {
-			_logger.LogWarning("No staff users found for account creation.");
+			_Logger.LogWarning("No staff users found for account creation.");
 			return [];
 		}
 
@@ -131,7 +131,7 @@ public class UserAccountSeeder : IEntitySeeder {
 		return newStaffAccounts;
 	}
 
-	private async Task<List<UserAccount>> SeedTenantAccountsAsync(AppDbContext dbContext, CancellationToken cancellationToken) {
+	private async Task<List<UserAccount>> _SeedTenantAccountsAsync(AppDbContext dbContext, CancellationToken cancellationToken) {
 		// Define tenant accounts: (UserEmail, TenantCode, Level)
 		var tenantAccountsData = new List<(string Email, string TenantCode, AccountLevel Level)> {
 			// Acme Corporation users
@@ -161,7 +161,7 @@ public class UserAccountSeeder : IEntitySeeder {
 		).ToListAsync(cancellationToken);
 
 		if (users.Count == 0) {
-			_logger.LogWarning("No tenant users found for account creation.");
+			_Logger.LogWarning("No tenant users found for account creation.");
 			return [];
 		}
 
@@ -181,7 +181,7 @@ public class UserAccountSeeder : IEntitySeeder {
 		).ToListAsync(cancellationToken);
 
 		if (tenants.Count == 0) {
-			_logger.LogWarning("No tenants found for account creation.");
+			_Logger.LogWarning("No tenants found for account creation.");
 			return [];
 		}
 

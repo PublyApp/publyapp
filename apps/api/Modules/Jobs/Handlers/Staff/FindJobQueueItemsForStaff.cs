@@ -79,14 +79,14 @@ internal static class JobQueueStatusCsv {
 	public const string AllowedNames = "pending, processing";
 
 	// Case-insensitive by comparer (PUBLY0003: never ToLower() for dispatch).
-	private static readonly Dictionary<string, bool> KnownStatuses =
+	private static readonly Dictionary<string, bool> _KnownStatuses =
 		new(StringComparer.OrdinalIgnoreCase) {
 			[nameof(JobQueueStatus.Pending)] = true,
 			[nameof(JobQueueStatus.Processing)] = true,
 		};
 
 	public static bool IsKnown(string raw) {
-		return KnownStatuses.ContainsKey(raw);
+		return _KnownStatuses.ContainsKey(raw);
 	}
 }
 

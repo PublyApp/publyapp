@@ -21,24 +21,24 @@ using Xunit;
 namespace PublyApp.Api.Modules.Invitations.Handlers.Staff;
 
 public sealed class CreateStaffInvitationSpec : IClassFixture<ApiFixture> {
-	private readonly ApiFixture _fixture;
-	private readonly HttpClient _http;
-	private readonly TestAuthClient _authClient;
+	private readonly ApiFixture _Fixture;
+	private readonly HttpClient _Http;
+	private readonly TestAuthClient _AuthClient;
 
 	public CreateStaffInvitationSpec(ApiFixture fixture) {
-		_fixture = fixture;
-		_http = fixture.HttpClient;
-		_authClient = new TestAuthClient(_http);
+		_Fixture = fixture;
+		_Http = fixture.HttpClient;
+		_AuthClient = new TestAuthClient(_Http);
 	}
 
 	[Fact]
 	public async Task
 	ItShouldAllowPermissionedNonAdminStaffUserToCreateStaffInvitation() {
-		string staffUserToken = await LoginAsStaffUserWithInvitationPermissionAsync(
+		string staffUserToken = await _LoginAsStaffUserWithInvitationPermissionAsync(
 			AppPermissions.Staff.Invitations.CREATE_FOR_STAFF.Key
 		);
 		string email = $"staff-create-permissioned-{Guid.NewGuid():N}@example.com";
-		Guid profileId = await GetAnyStaffProfileIdAsync();
+		Guid profileId = await _GetAnyStaffProfileIdAsync();
 
 		HttpRequestMessage request = new HttpRequestMessage(
 			HttpMethod.Post,
@@ -50,15 +50,15 @@ public sealed class CreateStaffInvitationSpec : IClassFixture<ApiFixture> {
 			profileId = profileId.ToString()
 		});
 
-		using HttpResponseMessage response = await _http.SendAsync(request);
+		using HttpResponseMessage response = await _Http.SendAsync(request);
 
 		response.StatusCode.Should().Be(HttpStatusCode.Created);
 	}
 
-	private async Task<string> LoginAsStaffUserWithInvitationPermissionAsync(
+	private async Task<string> _LoginAsStaffUserWithInvitationPermissionAsync(
 		string permissionKey
 	) {
-		using IServiceScope scope = _fixture.Factory.Services.CreateScope();
+		using IServiceScope scope = _Fixture.Factory.Services.CreateScope();
 		AppDbContext dbContext = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>();
 
@@ -91,14 +91,14 @@ public sealed class CreateStaffInvitationSpec : IClassFixture<ApiFixture> {
 		});
 		await dbContext.SaveChangesAsync();
 
-		return await _authClient.LoginAsync(
+		return await _AuthClient.LoginAsync(
 			TestConstants.StaffUserEmail,
 			TestConstants.SeedPassword
 		);
 	}
 
-	private async Task<Guid> GetAnyStaffProfileIdAsync() {
-		using IServiceScope scope = _fixture.Factory.Services.CreateScope();
+	private async Task<Guid> _GetAnyStaffProfileIdAsync() {
+		using IServiceScope scope = _Fixture.Factory.Services.CreateScope();
 		AppDbContext dbContext = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>();
 

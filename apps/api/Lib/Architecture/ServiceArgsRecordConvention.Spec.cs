@@ -39,7 +39,7 @@ public sealed class ServiceArgsRecordConventionSpec {
 	/// baseline. This is a baseline, not a blessing: each entry is a pre-existing
 	/// case to ratchet toward zero, never a way to weaken the rule for new code.
 	/// </summary>
-	private static readonly HashSet<string> AllowedMultiParamMethods = new(
+	private static readonly HashSet<string> _AllowedMultiParamMethods = new(
 		StringComparer.Ordinal
 	) {
 		// Optional permission-scope discriminators on a hot read path; folding three
@@ -61,7 +61,7 @@ public sealed class ServiceArgsRecordConventionSpec {
 	public void ItShouldDiscoverServiceInterfacesToGuard() {
 		// Vacuity check: an empty discovery would make the convention guard pass
 		// for the wrong reason.
-		_ = EnumerateServiceInterfaces()
+		_ = _EnumerateServiceInterfaces()
 			.Should()
 			.NotBeEmpty(
 				"service-interface discovery must find I*Service interfaces; an "
@@ -71,7 +71,7 @@ public sealed class ServiceArgsRecordConventionSpec {
 
 	[Fact]
 	public void ItShouldUseArgsRecordsForMethodsWithThreeOrMoreParameters() {
-		var serviceInterfaces = EnumerateServiceInterfaces();
+		var serviceInterfaces = _EnumerateServiceInterfaces();
 
 		// Vacuity check inside the guard: an empty scan (e.g. a broken namespace
 		// filter) would make this guard pass for the wrong reason.
@@ -86,14 +86,14 @@ public sealed class ServiceArgsRecordConventionSpec {
 				.Select(method => (
 					Interface: serviceInterface,
 					Method: method,
-					NonTokenCount: CountNonTokenParameters(method)
+					NonTokenCount: _CountNonTokenParameters(method)
 				)))
 			.Where(entry => entry.NonTokenCount >= 3)
 			.Select(entry => (
-				Key: BuildSignatureKey(entry.Interface, entry.Method),
+				Key: _BuildSignatureKey(entry.Interface, entry.Method),
 				Count: entry.NonTokenCount
 			))
-			.Where(entry => !AllowedMultiParamMethods.Contains(entry.Key))
+			.Where(entry => !_AllowedMultiParamMethods.Contains(entry.Key))
 			.Select(entry => $"{entry.Key} ({entry.Count} params)")
 			.OrderBy(name => name, StringComparer.Ordinal)
 			.ToList();
@@ -111,14 +111,14 @@ public sealed class ServiceArgsRecordConventionSpec {
 		// Guards against stale allowlist drift: every allowlisted method must still
 		// exist and still actually have 3+ non-token parameters. If a baseline case
 		// is fixed (or removed), its allowlist entry must go too.
-		var actualMultiParamKeys = EnumerateServiceInterfaces()
+		var actualMultiParamKeys = _EnumerateServiceInterfaces()
 			.SelectMany(serviceInterface => serviceInterface
 				.GetMethods()
-				.Where(method => CountNonTokenParameters(method) >= 3)
-				.Select(method => BuildSignatureKey(serviceInterface, method)))
+				.Where(method => _CountNonTokenParameters(method) >= 3)
+				.Select(method => _BuildSignatureKey(serviceInterface, method)))
 			.ToHashSet(StringComparer.Ordinal);
 
-		List<string> staleEntries = AllowedMultiParamMethods
+		List<string> staleEntries = _AllowedMultiParamMethods
 			.Where(entry => !actualMultiParamKeys.Contains(entry))
 			.OrderBy(name => name, StringComparer.Ordinal)
 			.ToList();
@@ -134,87 +134,87 @@ public sealed class ServiceArgsRecordConventionSpec {
 		// Positive coverage retained from the original issue-specific guard: these
 		// methods already adopt args records, and we assert the exact parameter
 		// shape so a regression away from the record form is caught explicitly.
-		AssertMethodParameterTypeNames<IAccountProfileService>(
+		_AssertMethodParameterTypeNames<IAccountProfileService>(
 			"UpdateAccountProfileAsync",
 			"UpdateAccountProfileArgs",
 			nameof(CancellationToken)
 		);
-		AssertMethodParameterTypeNames<IAuditLogService>(
+		_AssertMethodParameterTypeNames<IAuditLogService>(
 			"LogAsync",
 			"CreateAuditLogArgs",
 			nameof(CancellationToken)
 		);
-		AssertMethodParameterTypeNames<IImpersonationService>(
+		_AssertMethodParameterTypeNames<IImpersonationService>(
 			"CreateImpersonationSessionAsync",
 			"CreateImpersonationSessionArgs",
 			nameof(CancellationToken)
 		);
-		AssertMethodParameterTypeNames<IInvitationService>(
+		_AssertMethodParameterTypeNames<IInvitationService>(
 			"CreateStaffInvitationAsync",
 			"CreateStaffInvitationArgs",
 			nameof(CancellationToken)
 		);
-		AssertMethodParameterTypeNames<IInvitationService>(
+		_AssertMethodParameterTypeNames<IInvitationService>(
 			"CreateTenantInvitationAsync",
 			"CreateTenantInvitationArgs",
 			nameof(CancellationToken)
 		);
-		AssertMethodParameterTypeNames<IInvitationQueryService>(
+		_AssertMethodParameterTypeNames<IInvitationQueryService>(
 			"FindStaffInvitationsAsync",
 			"FindStaffInvitationsArgs",
 			nameof(CancellationToken)
 		);
-		AssertMethodParameterTypeNames<IInvitationAcceptanceService>(
+		_AssertMethodParameterTypeNames<IInvitationAcceptanceService>(
 			"AcceptStaffInvitationAsync",
 			"AcceptStaffInvitationArgs",
 			nameof(CancellationToken)
 		);
-		AssertMethodParameterTypeNames<IInvitationAcceptanceService>(
+		_AssertMethodParameterTypeNames<IInvitationAcceptanceService>(
 			"AcceptTenantInvitationAsync",
 			"AcceptTenantInvitationArgs",
 			nameof(CancellationToken)
 		);
-		AssertMethodParameterTypeNames<IInvitationService>(
+		_AssertMethodParameterTypeNames<IInvitationService>(
 			"BulkCreateStaffInvitationsAsync",
 			"BulkCreateStaffInvitationsArgs",
 			nameof(CancellationToken)
 		);
-		AssertMethodParameterTypeNames<IStaffProfileAsStaffService>(
+		_AssertMethodParameterTypeNames<IStaffProfileAsStaffService>(
 			"CreateStaffProfileAsync",
 			"CreateStaffProfileArgs",
 			nameof(CancellationToken)
 		);
-		AssertMethodParameterTypeNames<ISystemNoticeService>(
+		_AssertMethodParameterTypeNames<ISystemNoticeService>(
 			"FindAsync",
 			"FindSystemNoticesArgs",
 			nameof(CancellationToken)
 		);
-		AssertMethodParameterTypeNames<IPublicationStatusTransitionService>(
+		_AssertMethodParameterTypeNames<IPublicationStatusTransitionService>(
 			"MarkInProgressAsync",
 			"MarkPublicationInProgressArgs",
 			nameof(CancellationToken)
 		);
-		AssertMethodParameterTypeNames<IPublicationStatusTransitionService>(
+		_AssertMethodParameterTypeNames<IPublicationStatusTransitionService>(
 			"MarkPublishedAsync",
 			"MarkPublicationPublishedArgs",
 			nameof(CancellationToken)
 		);
-		AssertMethodParameterTypeNames<IPublicationStatusTransitionService>(
+		_AssertMethodParameterTypeNames<IPublicationStatusTransitionService>(
 			"MarkFailedAsync",
 			"MarkPublicationFailedArgs",
 			nameof(CancellationToken)
 		);
-		AssertMethodParameterTypeNames<IPublicationStatusTransitionService>(
+		_AssertMethodParameterTypeNames<IPublicationStatusTransitionService>(
 			"MarkPausedAsync",
 			"MarkPublicationPausedArgs",
 			nameof(CancellationToken)
 		);
-		AssertMethodParameterTypeNames<IPublicationStatusTransitionService>(
+		_AssertMethodParameterTypeNames<IPublicationStatusTransitionService>(
 			"RescheduleToNowAsync",
 			"ReschedulePublicationToNowArgs",
 			nameof(CancellationToken)
 		);
-		AssertMethodParameterTypeNames<IPublicationStatusTransitionService>(
+		_AssertMethodParameterTypeNames<IPublicationStatusTransitionService>(
 			"MarkScheduledAsync",
 			"MarkPublicationScheduledArgs",
 			nameof(CancellationToken)
@@ -226,14 +226,14 @@ public sealed class ServiceArgsRecordConventionSpec {
 	// Scanning concrete implementations would double-count every method and would
 	// also pick up private/explicit-interface members that are not part of the
 	// public contract callers depend on.
-	private static IReadOnlyList<Type> EnumerateServiceInterfaces() {
+	private static IReadOnlyList<Type> _EnumerateServiceInterfaces() {
 		return ArchitectureDiscovery
 			.EnumerateDomainServices()
 			.Where(type => type.IsInterface)
 			.ToList();
 	}
 
-	private static int CountNonTokenParameters(MethodInfo method) {
+	private static int _CountNonTokenParameters(MethodInfo method) {
 		// Note: optional/defaulted parameters count toward the threshold.
 		return method
 			.GetParameters()
@@ -248,7 +248,7 @@ public sealed class ServiceArgsRecordConventionSpec {
 	/// just <c>Interface.Method</c> — means a NEW 3+-param overload of an
 	/// allowlisted method is NOT suppressed by the existing entry.
 	/// </summary>
-	private static string BuildSignatureKey(
+	private static string _BuildSignatureKey(
 		Type serviceInterface,
 		MethodInfo method
 	) {
@@ -256,7 +256,7 @@ public sealed class ServiceArgsRecordConventionSpec {
 			.GetParameters()
 			.Where(parameter =>
 				parameter.ParameterType != typeof(CancellationToken))
-			.Select(parameter => RenderTypeName(parameter.ParameterType));
+			.Select(parameter => _RenderTypeName(parameter.ParameterType));
 
 		return $"{serviceInterface.Name}.{method.Name}"
 			+ $"({string.Join(", ", parameterTypes)})";
@@ -268,7 +268,7 @@ public sealed class ServiceArgsRecordConventionSpec {
 	/// <see cref="MemberInfo.Name"/> (so <c>Guid</c>, <c>AccountLevel</c>,
 	/// <c>UpdateTenantUserDocument</c>, …).
 	/// </summary>
-	private static string RenderTypeName(Type type) {
+	private static string _RenderTypeName(Type type) {
 		var underlying = Nullable.GetUnderlyingType(type);
 		if (underlying is not null) {
 			return $"{underlying.Name}?";
@@ -277,7 +277,7 @@ public sealed class ServiceArgsRecordConventionSpec {
 		return type.Name;
 	}
 
-	private static void AssertMethodParameterTypeNames<TService>(
+	private static void _AssertMethodParameterTypeNames<TService>(
 		string methodName,
 		params string[] expectedParameterTypeNames
 	) {

@@ -13,7 +13,7 @@ namespace PublyApp.Api.Modules.SystemNotices.Entities;
 [Index(nameof(StartsAt), nameof(ExpiresAt))]
 [Index(nameof(Severity))]
 public class SystemNotice : BaseAttributes, INoTenantEntity {
-	private UserEntity? _createdByStaff;
+	private UserEntity? _CreatedByStaff;
 
 	[Column("severity")]
 	public required NoticeSeverity Severity { get; set; }
@@ -34,8 +34,8 @@ public class SystemNotice : BaseAttributes, INoTenantEntity {
 	public required Guid CreatedByStaffId { get; set; }
 	[JsonIgnore]
 	public UserEntity CreatedByStaff {
-		get { return RequiredNavigation.Get(_createdByStaff, nameof(SystemNotice), nameof(CreatedByStaff)); }
-		set { _createdByStaff = value; }
+		get { return RequiredNavigation.Get(_CreatedByStaff, nameof(SystemNotice), nameof(CreatedByStaff)); }
+		set { _CreatedByStaff = value; }
 	}
 
 	public bool IsActive() {

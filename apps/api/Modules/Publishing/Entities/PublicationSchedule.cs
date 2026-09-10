@@ -15,7 +15,7 @@ public sealed record PublicationSchedule {
 
 	// IANA zone identifier: segments of letters/digits/_/- joined by '/', e.g.
 	// "America/Argentina/Buenos_Aires". Bounded to 64 chars by the column.
-	private static readonly Regex ZonePattern = new(
+	private static readonly Regex _ZonePattern = new(
 		"^[A-Za-z0-9_+\\-]+(/[A-Za-z0-9_+\\-]+){0,4}$",
 		RegexOptions.Compiled,
 		matchTimeout: TimeSpan.FromSeconds(1)
@@ -42,7 +42,7 @@ public sealed record PublicationSchedule {
 		}
 
 		var trimmed = timeZoneId.Trim();
-		if (trimmed.Length > MaxTimeZoneLength || !ZonePattern.IsMatch(trimmed)) {
+		if (trimmed.Length > MaxTimeZoneLength || !_ZonePattern.IsMatch(trimmed)) {
 			throw new ArgumentException(
 				$"'{trimmed}' is not an IANA time zone identifier.",
 				nameof(timeZoneId)

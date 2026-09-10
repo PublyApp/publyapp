@@ -37,8 +37,8 @@ public sealed class PostgresKeyRingCanaryStoreDivergentKeyRaceSpec {
 		var scopeFactory = provider.GetRequiredService<IServiceScopeFactory>();
 
 		// Two honestly generated test-only keys: the divergent api/worker configuration.
-		var keyA = NewTestKey();
-		var keyB = NewTestKey();
+		var keyA = _NewTestKey();
+		var keyB = _NewTestKey();
 
 		// Both boots observe the empty canary before either mints, so the race is
 		// deterministic: both arrive at Write() together and the index decides the winner.
@@ -67,7 +67,7 @@ public sealed class PostgresKeyRingCanaryStoreDivergentKeyRaceSpec {
 			1,
 			"with DIFFERENT keys the loser cannot verify the winner's canary and must "
 				+ "refuse to start; outcomes were: "
-				+ string.Join(" | ", outcomes.Select(Describe)));
+				+ string.Join(" | ", outcomes.Select(_Describe)));
 
 		var loserError = outcomes.Single(outcome => !outcome.Passed).Error;
 		loserError.Should().Contain(
@@ -99,8 +99,8 @@ public sealed class PostgresKeyRingCanaryStoreDivergentKeyRaceSpec {
 		await using var provider = services.BuildServiceProvider();
 		var scopeFactory = provider.GetRequiredService<IServiceScopeFactory>();
 
-		var keyA = NewTestKey();
-		var keyB = NewTestKey();
+		var keyA = _NewTestKey();
+		var keyB = _NewTestKey();
 
 		// Deterministic sequencing of the same race: boot A wins the mint cleanly; boot B
 		// holds the stale empty view (FrozenEmptyCanaryStore), collides on insert (23505
@@ -146,7 +146,7 @@ public sealed class PostgresKeyRingCanaryStoreDivergentKeyRaceSpec {
 		winnerStillBoots.Should().NotThrow("the winner's boot contract is unchanged");
 	}
 
-	private static string Describe(BootOutcome outcome) {
+	private static string _Describe(BootOutcome outcome) {
 		return outcome.Passed ? "PASSED" : "REFUSED: " + outcome.Error;
 	}
 
@@ -158,28 +158,28 @@ public sealed class PostgresKeyRingCanaryStoreDivergentKeyRaceSpec {
 	/// winner's committed row. Same seam as the sibling concurrency spec.
 	/// </summary>
 	private sealed class FrozenEmptyCanaryStore : IKeyRingCanaryStore {
-		private readonly IKeyRingCanaryStore _inner;
-		private bool _emptinessReported;
+		private readonly IKeyRingCanaryStore _Inner;
+		private bool _EmptinessReported;
 
 		public FrozenEmptyCanaryStore(IKeyRingCanaryStore inner) {
-			_inner = inner;
+			_Inner = inner;
 		}
 
 		public string? Read() {
-			if (_emptinessReported) {
-				return _inner.Read();
+			if (_EmptinessReported) {
+				return _Inner.Read();
 			}
 
-			_emptinessReported = true;
+			_EmptinessReported = true;
 			return null;
 		}
 
 		public void Write(string blob) {
-			_inner.Write(blob);
+			_Inner.Write(blob);
 		}
 	}
 
-	private static byte[] NewTestKey() {
+	private static byte[] _NewTestKey() {
 		// Test-only random 32-byte value (never a secret, never committed): satisfies the
 		// witness's entropy floor like an honestly generated openssl rand -base64 32 key.
 		var key = new byte[32];

@@ -36,7 +36,7 @@ public sealed partial class CanaryProbeContainmentSpec {
 	// (CanaryBootLogProbeGuardSpec, MasterKeyWitnessBootIntegrationSpec); THIS table only
 	// closes the SET — any fourth file referencing the probe (a second activator, a
 	// stray exit ramp, a sink attach outside the logger wrapper) turns the spec red.
-	private static readonly Dictionary<string, string[]> SanctionedWiring = new() {
+	private static readonly Dictionary<string, string[]> _SanctionedWiring = new() {
 		["Lib/Diagnostics/CanaryBootLogProbe.cs"] = [
 			"bool ActivateIfRequested(string[] args)",
 			"TryExitAfterBootGate",
@@ -53,7 +53,7 @@ public sealed partial class CanaryProbeContainmentSpec {
 
 	[Fact]
 	public void ItShouldReferenceTheProbeExactlyThroughTheSanctionedWiringSet() {
-		var apiRoot = FindApiRoot();
+		var apiRoot = _FindApiRoot();
 		var wired = new Dictionary<string, List<string>>();
 
 		foreach (
@@ -66,18 +66,18 @@ public sealed partial class CanaryProbeContainmentSpec {
 			var relative = Path.GetRelativePath(apiRoot, file)
 				.Replace('\\', '/');
 
-			if (ShouldSkip(relative)) {
+			if (_ShouldSkip(relative)) {
 				continue;
 			}
 
-			var findings = FindProbeWiring(File.ReadAllText(file));
+			var findings = _FindProbeWiring(File.ReadAllText(file));
 			if (findings.Count > 0) {
 				wired.Add(relative, findings);
 			}
 		}
 
 		wired.Keys.Should().BeEquivalentTo(
-			SanctionedWiring.Keys,
+			_SanctionedWiring.Keys,
 			"the probe arg/flag must stay reachable ONLY through its definition file, "
 				+ "Program.Main's sanctioned activation/exit-ramp calls, and the logger "
 				+ "wrapper's sink attach — any additional site could arm or read the "
@@ -91,11 +91,11 @@ public sealed partial class CanaryProbeContainmentSpec {
 
 	[Fact]
 	public void ItShouldKeepTheExpectedProbeCallsAtEverySanctionedSite() {
-		var apiRoot = FindApiRoot();
+		var apiRoot = _FindApiRoot();
 		var missing = new List<string>();
 
 		foreach (
-			var (relative, expectedSnippets) in SanctionedWiring
+			var (relative, expectedSnippets) in _SanctionedWiring
 		) {
 			var source = File.ReadAllText(
 				Path.Combine(apiRoot, relative)
@@ -118,11 +118,11 @@ public sealed partial class CanaryProbeContainmentSpec {
 
 	[Fact]
 	public void ItShouldNeverPassTheProbeArgOrFlagThroughDeployManifests() {
-		var repoRoot = FindRepoRoot();
+		var repoRoot = _FindRepoRoot();
 		var offenders = new List<string>();
 		var unreadable = new List<string>();
 
-		foreach (var relative in DeployManifests()) {
+		foreach (var relative in _DeployManifests()) {
 			var path = Path.Combine(repoRoot, relative);
 			if (!File.Exists(path)) {
 				// Fail loud, never silently skip: a manifest that vanished or was renamed
@@ -141,8 +141,8 @@ public sealed partial class CanaryProbeContainmentSpec {
 				continue;
 			}
 
-			if (content.Contains(ProbeEmitArgText)
-				|| content.Contains(ProbeFlagNameText)
+			if (content.Contains(_ProbeEmitArgText)
+				|| content.Contains(_ProbeFlagNameText)
 			) {
 				offenders.Add(relative);
 			}
@@ -199,13 +199,13 @@ public sealed partial class CanaryProbeContainmentSpec {
 		];
 
 		foreach (var snippet in knownBad) {
-			FindProbeWiring(snippet).Should().NotBeEmpty(
+			_FindProbeWiring(snippet).Should().NotBeEmpty(
 				$"detector must catch: {snippet}"
 			);
 		}
 
 		foreach (var snippet in knownGood) {
-			FindProbeWiring(snippet).Should().BeEmpty(
+			_FindProbeWiring(snippet).Should().BeEmpty(
 				$"detector must not flag: {snippet}"
 			);
 		}
@@ -213,7 +213,7 @@ public sealed partial class CanaryProbeContainmentSpec {
 
 	// Specs and test-only harnesses may reference the probe (the runtime specs do);
 	// obj/bin/artifacts output is not source.
-	private static bool ShouldSkip(string relativePath) {
+	private static bool _ShouldSkip(string relativePath) {
 		return relativePath.Contains("/obj/")
 			|| relativePath.Contains("/bin/")
 			|| relativePath.Contains(".artifacts/")
@@ -236,7 +236,7 @@ public sealed partial class CanaryProbeContainmentSpec {
 	// has nothing to scan — keeping it listed would silently claim a scan target that
 	// is gone. The AppHost (apps/apphost/Program.cs) takes over the local Postgres
 	// role the file played.
-	private static IEnumerable<string> DeployManifests() {
+	private static IEnumerable<string> _DeployManifests() {
 		return [
 			"apps/api/Dockerfile",
 			"dokploy.yml",
@@ -249,21 +249,21 @@ public sealed partial class CanaryProbeContainmentSpec {
 
 	// Code view: literal TEXT masked, hole expressions visible, comments gone.
 	// Strings view: literal text visible, comments gone. A hit in EITHER view flags.
-	private static List<string> FindProbeWiring(string source) {
-		var (codeOnly, withStrings) = RenderViews(source);
+	private static List<string> _FindProbeWiring(string source) {
+		var (codeOnly, withStrings) = _RenderViews(source);
 		var findings = new List<string>();
 
-		foreach (var (name, pattern) in WiringPatterns) {
+		foreach (var (name, pattern) in _WiringPatterns) {
 			if (pattern.IsMatch(codeOnly)) {
 				findings.Add(name);
 			}
 		}
 
-		if (withStrings.Contains(ProbeEmitArgText, StringComparison.Ordinal)
-			|| withStrings.Contains(ProbeFlagNameText, StringComparison.Ordinal)
+		if (withStrings.Contains(_ProbeEmitArgText, StringComparison.Ordinal)
+			|| withStrings.Contains(_ProbeFlagNameText, StringComparison.Ordinal)
 			// A string naming the probe TYPE covers reflection-style reach
 			// (Activator.CreateInstance(typeof(CanaryBootLogProbe)) ...).
-			|| ProbeTypeName().IsMatch(withStrings)
+			|| _ProbeTypeName().IsMatch(withStrings)
 		) {
 			findings.Add("arg/flag assembled in string literals");
 		}
@@ -271,45 +271,45 @@ public sealed partial class CanaryProbeContainmentSpec {
 		return findings;
 	}
 
-	private static readonly (string Name, Regex Pattern)[] WiringPatterns = [
-		("activates the probe", ActivateCall()),
-		("reads the probe exit ramp", ExitRampCall()),
-		("names the probe type directly", ProbeTypeName()),
-		("constructs the capture sink", SinkConstruction()),
-		("carries the emit arg as code", EmitArgCode()),
-		("carries the flag name as code", FlagCode()),
+	private static readonly (string Name, Regex Pattern)[] _WiringPatterns = [
+		("activates the probe", _ActivateCall()),
+		("reads the probe exit ramp", _ExitRampCall()),
+		("names the probe type directly", _ProbeTypeName()),
+		("constructs the capture sink", _SinkConstruction()),
+		("carries the emit arg as code", _EmitArgCode()),
+		("carries the flag name as code", _FlagCode()),
 	];
 
-	private static readonly string ProbeEmitArgText = "--emit-canary-boot-log";
-	private static readonly string ProbeFlagNameText = "PUBLYAPP_TEST_BOOT_PROBE";
+	private static readonly string _ProbeEmitArgText = "--emit-canary-boot-log";
+	private static readonly string _ProbeFlagNameText = "PUBLYAPP_TEST_BOOT_PROBE";
 
 	[GeneratedRegex(@"\bActivateIfRequested\s*\(", RegexOptions.IgnoreCase)]
-	private static partial Regex ActivateCall();
+	private static partial Regex _ActivateCall();
 
 	[GeneratedRegex(@"\bTryExitAfterBootGate\s*\(", RegexOptions.IgnoreCase)]
-	private static partial Regex ExitRampCall();
+	private static partial Regex _ExitRampCall();
 
 	[GeneratedRegex(@"\bCanaryBootLogProbe\b")]
-	private static partial Regex ProbeTypeName();
+	private static partial Regex _ProbeTypeName();
 
 	[GeneratedRegex(@"new\s+BootLogCaptureSink\s*\(", RegexOptions.IgnoreCase)]
-	private static partial Regex SinkConstruction();
+	private static partial Regex _SinkConstruction();
 
 	[GeneratedRegex(
 		@"--emit\s*-\s*canary\s*-\s*boot\s*-\s*log",
 		RegexOptions.IgnoreCase
 	)]
-	private static partial Regex EmitArgCode();
+	private static partial Regex _EmitArgCode();
 
 	[GeneratedRegex(
 		@"PUBLYAPP\s*_\s*TEST\s*_\s*BOOT\s*_\s*PROBE",
 		RegexOptions.IgnoreCase
 	)]
-	private static partial Regex FlagCode();
+	private static partial Regex _FlagCode();
 
 	// String/char literal TEXT tokens, blanked in the masked view (same token-kind set
 	// as JobEnqueueBoundarySpec).
-	private static readonly HashSet<SyntaxKind> LiteralTextTokenKinds = [
+	private static readonly HashSet<SyntaxKind> _LiteralTextTokenKinds = [
 		SyntaxKind.StringLiteralToken,
 		SyntaxKind.SingleLineRawStringLiteralToken,
 		SyntaxKind.MultiLineRawStringLiteralToken,
@@ -320,7 +320,7 @@ public sealed partial class CanaryProbeContainmentSpec {
 		SyntaxKind.InterpolatedStringTextToken
 	];
 
-	private static (string CodeOnly, string WithStrings) RenderViews(
+	private static (string CodeOnly, string WithStrings) _RenderViews(
 		string source
 	) {
 		var root = CSharpSyntaxTree.ParseText(source).GetRoot();
@@ -330,23 +330,23 @@ public sealed partial class CanaryProbeContainmentSpec {
 		foreach (
 			var token in root.DescendantTokens(descendIntoTrivia: false)
 		) {
-			AppendTrivia(masked, unmasked, token.LeadingTrivia);
+			_AppendTrivia(masked, unmasked, token.LeadingTrivia);
 
 			var text = token.Text;
 			unmasked.Append(text);
 			masked.Append(
-				LiteralTextTokenKinds.Contains(token.Kind())
+				_LiteralTextTokenKinds.Contains(token.Kind())
 					? new string(' ', text.Length)
 					: text
 			);
 
-			AppendTrivia(masked, unmasked, token.TrailingTrivia);
+			_AppendTrivia(masked, unmasked, token.TrailingTrivia);
 		}
 
 		return (masked.ToString(), unmasked.ToString());
 	}
 
-	private static void AppendTrivia(
+	private static void _AppendTrivia(
 		StringBuilder masked,
 		StringBuilder unmasked,
 		SyntaxTriviaList triviaList
@@ -377,7 +377,7 @@ public sealed partial class CanaryProbeContainmentSpec {
 
 	// The test assembly runs from apps/api/.artifacts/bin/...; walk up until the
 	// directory containing PublyApp.Api.csproj (the apps/api root).
-	private static string FindApiRoot() {
+	private static string _FindApiRoot() {
 		var current = new DirectoryInfo(AppContext.BaseDirectory);
 
 		while (current is not null) {
@@ -399,7 +399,7 @@ public sealed partial class CanaryProbeContainmentSpec {
 
 	// Walk further up for the repo root containing justfile (manifest paths are
 	// repo-root-relative).
-	private static string FindRepoRoot() {
+	private static string _FindRepoRoot() {
 		var current = new DirectoryInfo(AppContext.BaseDirectory);
 
 		while (current is not null) {

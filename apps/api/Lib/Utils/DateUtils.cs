@@ -3,7 +3,7 @@ using System.Globalization;
 namespace PublyApp.Api.Lib.Utils;
 
 public static class DateUtils {
-	private static readonly string[] IsoFormats = [
+	private static readonly string[] _IsoFormats = [
 		"yyyy-MM-ddTHH:mm:ss'Z'",
 		"yyyy-MM-ddTHH:mm:ss.FFFFFFF'Z'",
 		"yyyy-MM-ddTHH:mm:sszzz",
@@ -20,7 +20,7 @@ public static class DateUtils {
 
 		var ok = DateTimeOffset.TryParseExact(
 			raw,
-			IsoFormats,
+			_IsoFormats,
 			CultureInfo.InvariantCulture,
 			DateTimeStyles.AssumeUniversal
 				| DateTimeStyles.AdjustToUniversal,

@@ -10,25 +10,25 @@ namespace PublyApp.Api.Lib.RateLimiting;
 
 internal sealed class AnonymousAuthRateLimiterStore
 	: IAsyncDisposable {
-	private readonly AnonymousAuthRateLimitSettings _settings;
-	private readonly IRateLimitCounterStore _counterStore;
+	private readonly AnonymousAuthRateLimitSettings _Settings;
+	private readonly IRateLimitCounterStore _CounterStore;
 
 	public AnonymousAuthRateLimiterStore(
 		AnonymousAuthRateLimitSettings settings,
 		IRateLimitCounterStore counterStore
 	) {
-		_settings = settings;
-		_counterStore = counterStore;
+		_Settings = settings;
+		_CounterStore = counterStore;
 	}
 
 	public RateLimiter CreatePerIp(string clientIp) {
 		return new CounterBackedFixedWindowRateLimiter(
-			_counterStore,
+			_CounterStore,
 			AnonymousAuthRateLimitPolicies.PerIp,
 			clientIp,
-			_settings.PerIp.PermitLimit,
+			_Settings.PerIp.PermitLimit,
 			TimeSpan.FromSeconds(
-				_settings.PerIp.WindowSeconds
+				_Settings.PerIp.WindowSeconds
 			)
 		);
 	}
@@ -42,13 +42,13 @@ internal sealed class AnonymousAuthRateLimiterStore
 			? AnonymousAuthRateLimitPolicies.PasswordResetPerEmail
 			: AnonymousAuthRateLimitPolicies.PerEmail;
 		var emailWindow = isPasswordReset
-			? _settings.PasswordResetPerEmail
-			: _settings.PerEmail;
+			? _Settings.PasswordResetPerEmail
+			: _Settings.PerEmail;
 
 		return RateLimiter.CreateChained(
 			CreatePerIp(clientIp),
 			new CounterBackedFixedWindowRateLimiter(
-				_counterStore,
+				_CounterStore,
 				emailPolicyName,
 				email,
 				emailWindow.PermitLimit,
@@ -60,18 +60,18 @@ internal sealed class AnonymousAuthRateLimiterStore
 	}
 
 	public async ValueTask DisposeAsync() {
-		await _counterStore.DisposeAsync();
+		await _CounterStore.DisposeAsync();
 	}
 }
 
 internal sealed class AnonymousAuthPerIpRateLimitPolicy
 	: IRateLimiterPolicy<string> {
-	private readonly AnonymousAuthRateLimiterStore _store;
+	private readonly AnonymousAuthRateLimiterStore _Store;
 
 	public AnonymousAuthPerIpRateLimitPolicy(
 		AnonymousAuthRateLimiterStore store
 	) {
-		_store = store;
+		_Store = store;
 	}
 
 	public Func<
@@ -96,19 +96,19 @@ internal sealed class AnonymousAuthPerIpRateLimitPolicy
 
 		return RateLimitPartition.Get(
 			clientIp,
-			_ => _store.CreatePerIp(clientIp)
+			_ => _Store.CreatePerIp(clientIp)
 		);
 	}
 }
 
 internal sealed class AnonymousAuthPerEmailRateLimitPolicy
 	: IRateLimiterPolicy<string> {
-	private readonly AnonymousAuthRateLimiterStore _store;
+	private readonly AnonymousAuthRateLimiterStore _Store;
 
 	public AnonymousAuthPerEmailRateLimitPolicy(
 		AnonymousAuthRateLimiterStore store
 	) {
-		_store = store;
+		_Store = store;
 	}
 
 	public Func<
@@ -124,7 +124,7 @@ internal sealed class AnonymousAuthPerEmailRateLimitPolicy
 	) {
 		return EmailRateLimitPartition.Create(
 			httpContext,
-			_store,
+			_Store,
 			AnonymousAuthRateLimitPolicies.PerEmail,
 			isPasswordReset: false
 		);
@@ -133,12 +133,12 @@ internal sealed class AnonymousAuthPerEmailRateLimitPolicy
 
 internal sealed class PasswordResetPerEmailRateLimitPolicy
 	: IRateLimiterPolicy<string> {
-	private readonly AnonymousAuthRateLimiterStore _store;
+	private readonly AnonymousAuthRateLimiterStore _Store;
 
 	public PasswordResetPerEmailRateLimitPolicy(
 		AnonymousAuthRateLimiterStore store
 	) {
-		_store = store;
+		_Store = store;
 	}
 
 	public Func<
@@ -154,7 +154,7 @@ internal sealed class PasswordResetPerEmailRateLimitPolicy
 	) {
 		return EmailRateLimitPartition.Create(
 			httpContext,
-			_store,
+			_Store,
 			AnonymousAuthRateLimitPolicies
 				.PasswordResetPerEmail,
 			isPasswordReset: true
@@ -258,7 +258,7 @@ public static class AnonymousAuthRateLimitExtensions {
 		services.AddRateLimiter(options => {
 			options.RejectionStatusCode =
 				StatusCodes.Status429TooManyRequests;
-			options.OnRejected = WriteRejectedAsync;
+			options.OnRejected = _WriteRejectedAsync;
 			options.AddPolicy<
 				string,
 				AnonymousAuthPerIpRateLimitPolicy
@@ -322,7 +322,7 @@ public static class AnonymousAuthRateLimitExtensions {
 			);
 	}
 
-	private static async ValueTask WriteRejectedAsync(
+	private static async ValueTask _WriteRejectedAsync(
 		OnRejectedContext context,
 		CancellationToken cancellationToken
 	) {

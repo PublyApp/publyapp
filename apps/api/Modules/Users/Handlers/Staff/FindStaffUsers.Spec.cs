@@ -19,77 +19,77 @@ using Xunit;
 namespace PublyApp.Api.Modules.Users.Handlers.Staff;
 
 public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
-	private readonly ApiFixture _fixture;
-	private readonly HttpClient _http;
-	private readonly TestAuthClient _authClient;
+	private readonly ApiFixture _Fixture;
+	private readonly HttpClient _Http;
+	private readonly TestAuthClient _AuthClient;
 
 	public FindStaffUserSpec(ApiFixture fixture) {
-		_fixture = fixture;
-		_http = fixture.HttpClient;
-		_authClient = new TestAuthClient(_http);
+		_Fixture = fixture;
+		_Http = fixture.HttpClient;
+		_AuthClient = new TestAuthClient(_Http);
 	}
 
 	[Fact]
 	public async Task ItShouldReturnUnauthorizedWithoutSession() {
 		var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			GetFindUrl(limit: 20)
+			_GetFindUrl(limit: 20)
 		);
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 
 		response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
 	}
 
 	[Fact]
 	public async Task ItShouldReturnForbiddenForNonStaffUser() {
-		var token = await _authClient.LoginAsync(
+		var token = await _AuthClient.LoginAsync(
 			TestConstants.AcmeAdminEmail,
 			TestConstants.SeedPassword
 		);
 
 		var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			GetFindUrl(limit: 20)
+			_GetFindUrl(limit: 20)
 		).WithSessionToken(token);
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 
 		response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
 	}
 
 	[Fact]
 	public async Task ItShouldReturnForbiddenForStaffWithoutPermission() {
-		var token = await _authClient.LoginAsync(
+		var token = await _AuthClient.LoginAsync(
 			TestConstants.StaffUserEmail,
 			TestConstants.SeedPassword
 		);
 
 		var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			GetFindUrl(limit: 20)
+			_GetFindUrl(limit: 20)
 		).WithSessionToken(token);
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 
 		response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
 	}
 
 	[Fact]
 	public async Task ItShouldFilterStaffUsersBySearchQuery() {
-		var token = await _authClient.LoginAsStaffAdminAsync();
+		var token = await _AuthClient.LoginAsStaffAdminAsync();
 
 		var alphaEmail = $"alpha.staff-{Guid.NewGuid():N}@example.com";
 		var betaEmail = $"beta.staff-{Guid.NewGuid():N}@example.com";
-		_ = await CreateStaffUserAsync(token, alphaEmail);
-		_ = await CreateStaffUserAsync(token, betaEmail);
+		_ = await _CreateStaffUserAsync(token, alphaEmail);
+		_ = await _CreateStaffUserAsync(token, betaEmail);
 
 		var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			GetFindUrl(limit: 20, q: "alpha")
+			_GetFindUrl(limit: 20, q: "alpha")
 		).WithSessionToken(token);
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
 
@@ -106,17 +106,17 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldTreatABarePercentSearchAsALiteralCharacterNotAWildcard() {
-		var token = await _authClient.LoginAsStaffAdminAsync();
+		var token = await _AuthClient.LoginAsStaffAdminAsync();
 		var marker = Guid.NewGuid().ToString("N")[..8];
 
 		var withPercentId = await StaffUserTestHelper.SeedStaffUserAsync(
-			_fixture,
+			_Fixture,
 			$"has-percent-{marker}@example.com",
 			firstName: $"Has%Percent{marker}",
 			lastName: "Staff"
 		);
 		var withoutPercentId = await StaffUserTestHelper.SeedStaffUserAsync(
-			_fixture,
+			_Fixture,
 			$"no-percent-{marker}@example.com",
 			firstName: $"NoPercentAtAll{marker}",
 			lastName: "Staff"
@@ -124,10 +124,10 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			GetFindUrl(limit: 100, q: "%")
+			_GetFindUrl(limit: 100, q: "%")
 		).WithSessionToken(token);
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
 
@@ -144,25 +144,25 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldFilterStaffUsersByStatusQuery() {
-		var token = await _authClient.LoginAsStaffAdminAsync();
-		var activeId = await CreateStaffUserAsync(
+		var token = await _AuthClient.LoginAsStaffAdminAsync();
+		var activeId = await _CreateStaffUserAsync(
 			token,
 			$"active-{Guid.NewGuid():N}@example.com"
 		);
-		var suspendedId = await CreateStaffUserAsync(
+		var suspendedId = await _CreateStaffUserAsync(
 			token,
 			$"suspended-{Guid.NewGuid():N}@example.com"
 		);
 
-		await SetStaffUserStatusAsync(activeId, UserStatus.Active);
-		await SetStaffUserStatusAsync(suspendedId, UserStatus.Suspended);
+		await _SetStaffUserStatusAsync(activeId, UserStatus.Active);
+		await _SetStaffUserStatusAsync(suspendedId, UserStatus.Suspended);
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			GetFindUrl(limit: 50, status: "suspended")
+			_GetFindUrl(limit: 50, status: "suspended")
 		).WithSessionToken(token);
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
 
@@ -175,14 +175,14 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldReturnValidationProblemForPendingStatusFilter() {
-		var token = await _authClient.LoginAsStaffAdminAsync();
+		var token = await _AuthClient.LoginAsStaffAdminAsync();
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			GetFindUrl(status: "pending")
+			_GetFindUrl(status: "pending")
 		).WithSessionToken(token);
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 
 		response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
 
@@ -195,14 +195,14 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldReturnValidationProblemForUnknownStatusFilter() {
-		var token = await _authClient.LoginAsStaffAdminAsync();
+		var token = await _AuthClient.LoginAsStaffAdminAsync();
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			GetFindUrl(status: "banned")
+			_GetFindUrl(status: "banned")
 		).WithSessionToken(token);
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 
 		response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
 
@@ -215,14 +215,14 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldReturnValidationProblemForInactiveStatusFilter() {
-		var token = await _authClient.LoginAsStaffAdminAsync();
+		var token = await _AuthClient.LoginAsStaffAdminAsync();
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			GetFindUrl(status: "inactive")
+			_GetFindUrl(status: "inactive")
 		).WithSessionToken(token);
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 
 		response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
 
@@ -235,14 +235,14 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldReturnValidationProblemForMixedCaseStatusFilter() {
-		var token = await _authClient.LoginAsStaffAdminAsync();
+		var token = await _AuthClient.LoginAsStaffAdminAsync();
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			GetFindUrl(status: "Suspended")
+			_GetFindUrl(status: "Suspended")
 		).WithSessionToken(token);
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 
 		response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
 
@@ -255,10 +255,10 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldReturnNextCursorWhenMoreStaffUsersExist() {
-		var token = await _authClient.LoginAsStaffAdminAsync();
+		var token = await _AuthClient.LoginAsStaffAdminAsync();
 
 		for (var i = 0; i < 3; i++) {
-			_ = await CreateStaffUserAsync(
+			_ = await _CreateStaffUserAsync(
 				token,
 				$"cursor-{i}-{Guid.NewGuid():N}@example.com"
 			);
@@ -267,10 +267,10 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 
 		var firstRequest = new HttpRequestMessage(
 			HttpMethod.Get,
-			GetFindUrl(limit: 1, sortId: "created_at", sortOrder: "desc")
+			_GetFindUrl(limit: 1, sortId: "created_at", sortOrder: "desc")
 		).WithSessionToken(token);
 
-		using var firstResponse = await _http.SendAsync(firstRequest);
+		using var firstResponse = await _Http.SendAsync(firstRequest);
 
 		firstResponse.StatusCode.Should().Be(HttpStatusCode.OK);
 
@@ -282,7 +282,7 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 
 		var secondRequest = new HttpRequestMessage(
 			HttpMethod.Get,
-			GetFindUrl(
+			_GetFindUrl(
 				cursor: firstResult.NextCursor,
 				limit: 1,
 				sortId: "created_at",
@@ -290,7 +290,7 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 			)
 		).WithSessionToken(token);
 
-		using var secondResponse = await _http.SendAsync(secondRequest);
+		using var secondResponse = await _Http.SendAsync(secondRequest);
 
 		secondResponse.StatusCode.Should().Be(HttpStatusCode.OK);
 
@@ -304,18 +304,18 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldReturnBadRequestWhenSortIdIsInvalid() {
-		var token = await _authClient.LoginAsStaffAdminAsync();
+		var token = await _AuthClient.LoginAsStaffAdminAsync();
 
 		var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			GetFindUrl(sortId: "not_real")
+			_GetFindUrl(sortId: "not_real")
 		).WithSessionToken(token);
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 
 		response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
 
-		var problem = await ReadProblemAsync(response);
+		var problem = await _ReadProblemAsync(response);
 		problem.Should().NotBeNull();
 		Assert.NotNull(problem);
 		problem.Status.Should().Be((int)HttpStatusCode.BadRequest);
@@ -324,18 +324,18 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldReturnBadRequestWhenCursorIsMalformed() {
-		var token = await _authClient.LoginAsStaffAdminAsync();
+		var token = await _AuthClient.LoginAsStaffAdminAsync();
 
 		var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			GetFindUrl(cursor: "not-a-guid")
+			_GetFindUrl(cursor: "not-a-guid")
 		).WithSessionToken(token);
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 
 		response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
 
-		var problem = await ReadProblemAsync(response);
+		var problem = await _ReadProblemAsync(response);
 		problem.Should().NotBeNull();
 		Assert.NotNull(problem);
 		problem.Status.Should().Be((int)HttpStatusCode.BadRequest);
@@ -344,18 +344,18 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldReturnBadRequestWhenCursorRecordIsMissing() {
-		var token = await _authClient.LoginAsStaffAdminAsync();
+		var token = await _AuthClient.LoginAsStaffAdminAsync();
 
 		var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			GetFindUrl(cursor: Guid.NewGuid().ToString())
+			_GetFindUrl(cursor: Guid.NewGuid().ToString())
 		).WithSessionToken(token);
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 
 		response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
 
-		var problem = await ReadProblemAsync(response);
+		var problem = await _ReadProblemAsync(response);
 		problem.Should().NotBeNull();
 		Assert.NotNull(problem);
 		problem.Status.Should().Be((int)HttpStatusCode.BadRequest);
@@ -364,18 +364,18 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldKeepSuspendedStaffUsersVisibleInDefaultList() {
-		var token = await _authClient.LoginAsStaffAdminAsync();
+		var token = await _AuthClient.LoginAsStaffAdminAsync();
 		var email = $"suspended-{Guid.NewGuid():N}@example.com";
-		var userId = await CreateStaffUserAsync(token, email);
+		var userId = await _CreateStaffUserAsync(token, email);
 
-		await SetStaffUserStatusAsync(userId, UserStatus.Suspended);
+		await _SetStaffUserStatusAsync(userId, UserStatus.Suspended);
 
 		var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			GetFindUrl(limit: 50)
+			_GetFindUrl(limit: 50)
 		).WithSessionToken(token);
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
 
@@ -390,22 +390,22 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldExcludeDeletedUsersAndAccountsFromDefaultList() {
-		var token = await _authClient.LoginAsStaffAdminAsync();
+		var token = await _AuthClient.LoginAsStaffAdminAsync();
 
 		var deletedUserEmail = $"deleted-user-{Guid.NewGuid():N}@example.com";
 		var deletedAccountEmail = $"deleted-account-{Guid.NewGuid():N}@example.com";
-		var deletedUserId = await CreateStaffUserAsync(token, deletedUserEmail);
-		var deletedAccountId = await CreateStaffUserAsync(token, deletedAccountEmail);
+		var deletedUserId = await _CreateStaffUserAsync(token, deletedUserEmail);
+		var deletedAccountId = await _CreateStaffUserAsync(token, deletedAccountEmail);
 
-		await SetStaffUserDeletedStateAsync(deletedUserId, deleteUser: true);
-		await SetStaffUserDeletedStateAsync(deletedAccountId, deleteAccount: true);
+		await _SetStaffUserDeletedStateAsync(deletedUserId, deleteUser: true);
+		await _SetStaffUserDeletedStateAsync(deletedAccountId, deleteAccount: true);
 
 		var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			GetFindUrl(limit: 50)
+			_GetFindUrl(limit: 50)
 		).WithSessionToken(token);
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
 
@@ -422,14 +422,14 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldReturn422WhenLimitExceedsTheMaximum() {
-		var token = await _authClient.LoginAsStaffAdminAsync();
+		var token = await _AuthClient.LoginAsStaffAdminAsync();
 
 		var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			GetFindUrl(limit: 101)
+			_GetFindUrl(limit: 101)
 		).WithSessionToken(token);
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 
 		response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
 
@@ -443,14 +443,14 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldReturn422WhenLimitIsWellAboveTheMaximum() {
-		var token = await _authClient.LoginAsStaffAdminAsync();
+		var token = await _AuthClient.LoginAsStaffAdminAsync();
 
 		var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			GetFindUrl(limit: 1_000_000)
+			_GetFindUrl(limit: 1_000_000)
 		).WithSessionToken(token);
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 
 		response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
 
@@ -464,21 +464,21 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldReturnOkWhenLimitEqualsTheMaximum() {
-		var token = await _authClient.LoginAsStaffAdminAsync();
+		var token = await _AuthClient.LoginAsStaffAdminAsync();
 
 		var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			GetFindUrl(limit: 100)
+			_GetFindUrl(limit: 100)
 		).WithSessionToken(token);
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
 	}
 
 	[Fact]
 	public async Task ItShouldWalkEveryEmailPageWithoutOverlapOrGap() {
-		var token = await _authClient.LoginAsStaffAdminAsync();
+		var token = await _AuthClient.LoginAsStaffAdminAsync();
 
 		// Deterministic, anti-correlated emails: insertion order is c,b,a while
 		// the lexical (sort) order is a,b,c. The walk must return them in
@@ -488,7 +488,7 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 		var emails = new List<string>();
 		for (var i = 0; i < total; i++) {
 			emails.Add($"email-walk-{(char)('a' + (2 - i))}-{Guid.NewGuid():N}@example.com");
-			_ = await CreateStaffUserAsync(token, emails[^1]);
+			_ = await _CreateStaffUserAsync(token, emails[^1]);
 		}
 		emails.Sort(StringComparer.OrdinalIgnoreCase);
 
@@ -496,7 +496,7 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 		string? cursor = null;
 		var pages = 0;
 		do {
-			var url = GetFindUrl(
+			var url = _GetFindUrl(
 				cursor: cursor,
 				limit: 1,
 				sortId: "email",
@@ -507,7 +507,7 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 				HttpMethod.Get, url
 			).WithSessionToken(token);
 
-			using var response = await _http.SendAsync(request);
+			using var response = await _Http.SendAsync(request);
 			response.StatusCode.Should().Be(HttpStatusCode.OK);
 
 			var page = await response.Content.ReadFromJsonAsync<FindResponse>();
@@ -530,7 +530,7 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldWalkEveryCreatedAtPageWithoutOverlapOrGap() {
-		var token = await _authClient.LoginAsStaffAdminAsync();
+		var token = await _AuthClient.LoginAsStaffAdminAsync();
 
 		// 3 staff users with distinct, deliberately NOT insertion-ordered
 		// CreatedAt (anti-correlated). The walk must visit each once in
@@ -545,25 +545,25 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 			// different value (i=1). The tiebreaker (Id ascending) must
 			// determine the order of the two equal-key rows.
 			var createdAt = i == 1 ? baseDate.AddDays(1) : baseDate;
-			var userId = await CreateStaffUserAsync(token, $"created-at-walk-{i}-{Guid.NewGuid():N}@example.com");
-			await SeedStaffUserCreatedAtAsync(userId, createdAt);
+			var userId = await _CreateStaffUserAsync(token, $"created-at-walk-{i}-{Guid.NewGuid():N}@example.com");
+			await _SeedStaffUserCreatedAtAsync(userId, createdAt);
 			seededIds.Add(userId);
 			seededOrder.Add(createdAt);
 		}
 
-			// Swap the IDs of the two equal-key rows (i=0 and i=2) so the row
-			// inserted at i=2 has the smaller Id. Without this, UUID v7 IDs are
-			// insertion-ordered, so stable OrderBy(CreatedAt) already matches
-			// ThenBy(Id) and removing the production tiebreaker leaves the test
-			// green. After the swap, the tiebreaker is actually exercised.
-			await SwapStaffUserIdsAsync(seededIds[0], seededIds[2]);
-			(seededIds[0], seededIds[2]) = (seededIds[2], seededIds[0]);
+		// Swap the IDs of the two equal-key rows (i=0 and i=2) so the row
+		// inserted at i=2 has the smaller Id. Without this, UUID v7 IDs are
+		// insertion-ordered, so stable OrderBy(CreatedAt) already matches
+		// ThenBy(Id) and removing the production tiebreaker leaves the test
+		// green. After the swap, the tiebreaker is actually exercised.
+		await _SwapStaffUserIdsAsync(seededIds[0], seededIds[2]);
+		(seededIds[0], seededIds[2]) = (seededIds[2], seededIds[0]);
 
 		var visitedIds = new List<Guid>();
 		string? cursor = null;
 		var pages = 0;
 		do {
-			var url = GetFindUrl(
+			var url = _GetFindUrl(
 				cursor: cursor,
 				limit: 1,
 				sortId: "created_at",
@@ -573,7 +573,7 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 				HttpMethod.Get, url
 			).WithSessionToken(token);
 
-			using var response = await _http.SendAsync(request);
+			using var response = await _Http.SendAsync(request);
 			response.StatusCode.Should().Be(HttpStatusCode.OK);
 
 			var page = await response.Content.ReadFromJsonAsync<FindResponse>();
@@ -606,7 +606,7 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 		var visitedSeededUserIds = visitedOrder.ToList();
 		List<DateTime> observedOrder;
 		{
-			await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+			await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
 			var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 			observedOrder = await dbContext.User
 				.Where(u => visitedSeededUserIds.Contains(u.Id!.Value))
@@ -620,7 +620,7 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldWalkEveryUpdatedAtPageWithoutOverlapOrGap() {
-		var token = await _authClient.LoginAsStaffAdminAsync();
+		var token = await _AuthClient.LoginAsStaffAdminAsync();
 
 		// 3 staff users with distinct, deliberately NOT insertion-ordered
 		// UpdatedAt (anti-correlated). The walk must visit each once in
@@ -635,25 +635,25 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 			// different value (i=1). The tiebreaker (Id ascending) must
 			// determine the order of the two equal-key rows.
 			var updatedAt = i == 1 ? baseDate.AddDays(1) : baseDate;
-			var userId = await CreateStaffUserAsync(token, $"updated-at-walk-{i}-{Guid.NewGuid():N}@example.com");
-			await SeedStaffUserUpdatedAtAsync(userId, updatedAt);
+			var userId = await _CreateStaffUserAsync(token, $"updated-at-walk-{i}-{Guid.NewGuid():N}@example.com");
+			await _SeedStaffUserUpdatedAtAsync(userId, updatedAt);
 			seededIds.Add(userId);
 			seededOrder.Add(updatedAt);
 		}
 
 
-			// Swap the IDs of the two equal-key rows (i=0 and i=2) so the row
-			// inserted at i=2 has the smaller Id. Without this, UUID v7 IDs are
-			// insertion-ordered, so stable OrderBy(UpdatedAt) already matches
-			// ThenBy(Id) and removing the production tiebreaker leaves the test
-			// green. After the swap, the tiebreaker is actually exercised.
-			await SwapStaffUserIdsAsync(seededIds[0], seededIds[2]);
-			(seededIds[0], seededIds[2]) = (seededIds[2], seededIds[0]);
+		// Swap the IDs of the two equal-key rows (i=0 and i=2) so the row
+		// inserted at i=2 has the smaller Id. Without this, UUID v7 IDs are
+		// insertion-ordered, so stable OrderBy(UpdatedAt) already matches
+		// ThenBy(Id) and removing the production tiebreaker leaves the test
+		// green. After the swap, the tiebreaker is actually exercised.
+		await _SwapStaffUserIdsAsync(seededIds[0], seededIds[2]);
+		(seededIds[0], seededIds[2]) = (seededIds[2], seededIds[0]);
 		var visitedIds = new List<Guid>();
 		string? cursor = null;
 		var pages = 0;
 		do {
-			var url = GetFindUrl(
+			var url = _GetFindUrl(
 				cursor: cursor,
 				limit: 1,
 				sortId: "updated_at",
@@ -663,7 +663,7 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 				HttpMethod.Get, url
 			).WithSessionToken(token);
 
-			using var response = await _http.SendAsync(request);
+			using var response = await _Http.SendAsync(request);
 			response.StatusCode.Should().Be(HttpStatusCode.OK);
 
 			var page = await response.Content.ReadFromJsonAsync<FindResponse>();
@@ -692,7 +692,7 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 		var visitedSeededUserIds = visitedOrder.ToList();
 		List<DateTime> observedOrder;
 		{
-			await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+			await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
 			var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 			observedOrder = await dbContext.User
 				.Where(u => visitedSeededUserIds.Contains(u.Id!.Value))
@@ -706,7 +706,7 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldWalkEveryFirstNamePageWithoutOverlapOrGap() {
-		var token = await _authClient.LoginAsStaffAdminAsync();
+		var token = await _AuthClient.LoginAsStaffAdminAsync();
 
 		// Deterministic, anti-correlated first names: insertion order is c,b,a while
 		// the lexical (sort) order is a,b,c. The walk must return them in
@@ -719,8 +719,8 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 		// determine the order of the two equal-key rows.
 		var firstNames = new[] { "Alpha", "Bravo", "Alpha" };
 		for (var i = 0; i < 3; i++) {
-			var userId = await CreateStaffUserAsync(token, $"first-name-walk-{i}-{Guid.NewGuid():N}@example.com");
-			await SeedStaffUserFirstNameAsync(userId, firstNames[i]);
+			var userId = await _CreateStaffUserAsync(token, $"first-name-walk-{i}-{Guid.NewGuid():N}@example.com");
+			await _SeedStaffUserFirstNameAsync(userId, firstNames[i]);
 			seededIds.Add(userId);
 			seededFirstNames.Add(firstNames[i]);
 		}
@@ -735,7 +735,7 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 		string? cursor = null;
 		var pages = 0;
 		do {
-			var url = GetFindUrl(
+			var url = _GetFindUrl(
 				cursor: cursor,
 				limit: 1,
 				sortId: "first_name",
@@ -745,7 +745,7 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 				HttpMethod.Get, url
 			).WithSessionToken(token);
 
-			using var response = await _http.SendAsync(request);
+			using var response = await _Http.SendAsync(request);
 			response.StatusCode.Should().Be(HttpStatusCode.OK);
 
 			var page = await response.Content.ReadFromJsonAsync<FindResponse>();
@@ -769,7 +769,7 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldWalkEveryLastNamePageWithoutOverlapOrGap() {
-		var token = await _authClient.LoginAsStaffAdminAsync();
+		var token = await _AuthClient.LoginAsStaffAdminAsync();
 
 		// Deterministic, anti-correlated last names: insertion order is c,b,a while
 		// the lexical (sort) order is a,b,c. The walk must return them in
@@ -782,8 +782,8 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 		// determine the order of the two equal-key rows.
 		var lastNames = new[] { "Alpha", "Bravo", "Alpha" };
 		for (var i = 0; i < 3; i++) {
-			var userId = await CreateStaffUserAsync(token, $"last-name-walk-{i}-{Guid.NewGuid():N}@example.com");
-			await SeedStaffUserLastNameAsync(userId, lastNames[i]);
+			var userId = await _CreateStaffUserAsync(token, $"last-name-walk-{i}-{Guid.NewGuid():N}@example.com");
+			await _SeedStaffUserLastNameAsync(userId, lastNames[i]);
 			seededIds.Add(userId);
 			seededLastNames.Add(lastNames[i]);
 		}
@@ -798,7 +798,7 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 		string? cursor = null;
 		var pages = 0;
 		do {
-			var url = GetFindUrl(
+			var url = _GetFindUrl(
 				cursor: cursor,
 				limit: 1,
 				sortId: "last_name",
@@ -808,7 +808,7 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 				HttpMethod.Get, url
 			).WithSessionToken(token);
 
-			using var response = await _http.SendAsync(request);
+			using var response = await _Http.SendAsync(request);
 			response.StatusCode.Should().Be(HttpStatusCode.OK);
 
 			var page = await response.Content.ReadFromJsonAsync<FindResponse>();
@@ -832,7 +832,7 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldWalkEveryStatusPageWithoutOverlapOrGap() {
-		var token = await _authClient.LoginAsStaffAdminAsync();
+		var token = await _AuthClient.LoginAsStaffAdminAsync();
 
 		// 3 staff users with distinct, deliberately NOT insertion-ordered Status
 		// (anti-correlated with insertion). The walk must visit each once in
@@ -842,8 +842,8 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 		var statuses = new[] { UserStatus.Suspended, UserStatus.Active, UserStatus.Suspended };
 		var seededIds = new List<Guid>();
 		for (var i = 0; i < 3; i++) {
-			var userId = await CreateStaffUserAsync(token, $"status-walk-{i}-{Guid.NewGuid():N}@example.com");
-			await SetStaffUserStatusAsync(userId, statuses[i]);
+			var userId = await _CreateStaffUserAsync(token, $"status-walk-{i}-{Guid.NewGuid():N}@example.com");
+			await _SetStaffUserStatusAsync(userId, statuses[i]);
 			seededIds.Add(userId);
 		}
 
@@ -851,7 +851,7 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 		string? cursor = null;
 		var pages = 0;
 		do {
-			var url = GetFindUrl(
+			var url = _GetFindUrl(
 				cursor: cursor,
 				limit: 1,
 				sortId: "status",
@@ -861,7 +861,7 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 				HttpMethod.Get, url
 			).WithSessionToken(token);
 
-			using var response = await _http.SendAsync(request);
+			using var response = await _Http.SendAsync(request);
 			response.StatusCode.Should().Be(HttpStatusCode.OK);
 
 			var page = await response.Content.ReadFromJsonAsync<FindResponse>();
@@ -891,7 +891,7 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldWalkEveryLevelPageWithoutOverlapOrGap() {
-		var token = await _authClient.LoginAsStaffAdminAsync();
+		var token = await _AuthClient.LoginAsStaffAdminAsync();
 
 		// 3 staff users with distinct, deliberately NOT insertion-ordered Level
 		// (anti-correlated with insertion). The walk must visit each once in
@@ -901,8 +901,8 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 		var levels = new[] { AccountLevel.Admin, AccountLevel.User, AccountLevel.Admin };
 		var seededIds = new List<Guid>();
 		for (var i = 0; i < 3; i++) {
-			var userId = await CreateStaffUserAsync(token, $"level-walk-{i}-{Guid.NewGuid():N}@example.com");
-			await SetStaffUserLevelAsync(userId, levels[i]);
+			var userId = await _CreateStaffUserAsync(token, $"level-walk-{i}-{Guid.NewGuid():N}@example.com");
+			await _SetStaffUserLevelAsync(userId, levels[i]);
 			seededIds.Add(userId);
 		}
 
@@ -910,7 +910,7 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 		string? cursor = null;
 		var pages = 0;
 		do {
-			var url = GetFindUrl(
+			var url = _GetFindUrl(
 				cursor: cursor,
 				limit: 1,
 				sortId: "level",
@@ -920,7 +920,7 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 				HttpMethod.Get, url
 			).WithSessionToken(token);
 
-			using var response = await _http.SendAsync(request);
+			using var response = await _Http.SendAsync(request);
 			response.StatusCode.Should().Be(HttpStatusCode.OK);
 
 			var page = await response.Content.ReadFromJsonAsync<FindResponse>();
@@ -950,21 +950,21 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldAcceptAnUppercaseSortId() {
-		var token = await _authClient.LoginAsStaffAdminAsync();
+		var token = await _AuthClient.LoginAsStaffAdminAsync();
 
 		var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			GetFindUrl(limit: 5, sortId: "CREATED_AT")
+			_GetFindUrl(limit: 5, sortId: "CREATED_AT")
 		).WithSessionToken(token);
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 
 		// The handler dictionary resolves keys case-insensitively; an
 		// ordinal-sensitive lookup would turn this into a 400.
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
 	}
 
-	private static string GetFindUrl(
+	private static string _GetFindUrl(
 		string? cursor = null,
 		int? limit = null,
 		string? sortId = null,
@@ -1004,19 +1004,19 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 			: basePath;
 	}
 
-	private async Task<Guid> CreateStaffUserAsync(string staffToken, string email) {
+	private async Task<Guid> _CreateStaffUserAsync(string staffToken, string email) {
 		_ = staffToken;
 		// Direct create is no longer mapped; seed staff users directly for setup.
 		return await StaffUserTestHelper.SeedStaffUserAsync(
-			_fixture,
+			_Fixture,
 			email,
 			firstName: "Test",
 			lastName: "Staff"
 		);
 	}
 
-	private async Task SetStaffUserStatusAsync(Guid userId, UserStatus status) {
-		using var scope = _fixture.Factory.Services.CreateScope();
+	private async Task _SetStaffUserStatusAsync(Guid userId, UserStatus status) {
+		using var scope = _Fixture.Factory.Services.CreateScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		var user = await dbContext.User.FirstAsync(u => u.Id == userId);
@@ -1025,8 +1025,8 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 		await dbContext.SaveChangesAsync();
 	}
 
-	private async Task SeedStaffUserCreatedAtAsync(Guid userId, DateTime createdAt) {
-		using var scope = _fixture.Factory.Services.CreateScope();
+	private async Task _SeedStaffUserCreatedAtAsync(Guid userId, DateTime createdAt) {
+		using var scope = _Fixture.Factory.Services.CreateScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		var user = await dbContext.User.FirstAsync(u => u.Id == userId);
@@ -1035,12 +1035,12 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 		await dbContext.SaveChangesAsync();
 	}
 
-	private async Task SetStaffUserDeletedStateAsync(
+	private async Task _SetStaffUserDeletedStateAsync(
 		Guid userId,
 		bool deleteUser = false,
 		bool deleteAccount = false
 	) {
-		using var scope = _fixture.Factory.Services.CreateScope();
+		using var scope = _Fixture.Factory.Services.CreateScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		var user = await dbContext.User.FirstAsync(u => u.Id == userId);
@@ -1054,8 +1054,8 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 		await dbContext.SaveChangesAsync();
 	}
 
-	private async Task SeedStaffUserUpdatedAtAsync(Guid userId, DateTime updatedAt) {
-		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+	private async Task _SeedStaffUserUpdatedAtAsync(Guid userId, DateTime updatedAt) {
+		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		// The audit interceptor stamps UpdatedAt = now on every Modified save,
@@ -1067,8 +1067,8 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 		);
 	}
 
-	private async Task SeedStaffUserFirstNameAsync(Guid userId, string firstName) {
-		using var scope = _fixture.Factory.Services.CreateScope();
+	private async Task _SeedStaffUserFirstNameAsync(Guid userId, string firstName) {
+		using var scope = _Fixture.Factory.Services.CreateScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		var user = await dbContext.User.FirstAsync(u => u.Id == userId);
@@ -1077,8 +1077,8 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 		await dbContext.SaveChangesAsync();
 	}
 
-	private async Task SeedStaffUserLastNameAsync(Guid userId, string lastName) {
-		using var scope = _fixture.Factory.Services.CreateScope();
+	private async Task _SeedStaffUserLastNameAsync(Guid userId, string lastName) {
+		using var scope = _Fixture.Factory.Services.CreateScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		var user = await dbContext.User.FirstAsync(u => u.Id == userId);
@@ -1087,8 +1087,8 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 		await dbContext.SaveChangesAsync();
 	}
 
-	private async Task SetStaffUserLevelAsync(Guid userId, AccountLevel level) {
-		using var scope = _fixture.Factory.Services.CreateScope();
+	private async Task _SetStaffUserLevelAsync(Guid userId, AccountLevel level) {
+		using var scope = _Fixture.Factory.Services.CreateScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		var account = await dbContext.UserAccount.FirstAsync(ua =>
@@ -1114,14 +1114,14 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 		public string Level { get; init; } = string.Empty;
 	}
 
-	private static async Task<AppProblemDetails?> ReadProblemAsync(
+	private static async Task<AppProblemDetails?> _ReadProblemAsync(
 		HttpResponseMessage response
 	) {
 		return await response.Content.ReadFromJsonAsync<AppProblemDetails>();
 	}
 
-	private async Task SwapStaffUserIdsAsync(Guid idA, Guid idB) {
-		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+	private async Task _SwapStaffUserIdsAsync(Guid idA, Guid idB) {
+		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 		await using var tx = await dbContext.Database.BeginTransactionAsync();
 		// Disable FK enforcement triggers on both tables so the swap

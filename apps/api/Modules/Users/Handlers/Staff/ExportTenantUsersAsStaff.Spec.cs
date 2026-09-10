@@ -29,7 +29,7 @@ using Xunit;
 
 namespace PublyApp.Api.Modules.Users.Handlers.Staff;
 
-// SetExportMaxRows mutates the global AppEnvironment singleton via reflection.
+// _SetExportMaxRows mutates the global AppEnvironment singleton via reflection.
 // DisableParallelization ensures this class never overlaps with other test
 // classes that might hit the export endpoint or mutate the same field.
 [CollectionDefinition("TenantUserExport", DisableParallelization = true)]
@@ -37,17 +37,17 @@ public class TenantUserExportCollection;
 
 [Collection("TenantUserExport")]
 public sealed class ExportTenantUsersAsStaffSpec : IClassFixture<ApiFixture> {
-	private readonly ApiFixture _fixture;
-	private readonly HttpClient _http;
-	private readonly TestAuthClient _authClient;
+	private readonly ApiFixture _Fixture;
+	private readonly HttpClient _Http;
+	private readonly TestAuthClient _AuthClient;
 
 	public ExportTenantUsersAsStaffSpec(ApiFixture fixture) {
-		_fixture = fixture;
-		_http = fixture.HttpClient;
-		_authClient = new TestAuthClient(_http);
+		_Fixture = fixture;
+		_Http = fixture.HttpClient;
+		_AuthClient = new TestAuthClient(_Http);
 	}
 
-	private static string GetExportUrl(
+	private static string _GetExportUrl(
 		string tenantId,
 		string? search = null,
 		string? status = null,
@@ -80,188 +80,188 @@ public sealed class ExportTenantUsersAsStaffSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldReturnUnauthorizedWithoutSession() {
-		var tenantId = await GetTenantIdAsync();
+		var tenantId = await _GetTenantIdAsync();
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			GetExportUrl(tenantId.ToString())
+			_GetExportUrl(tenantId.ToString())
 		);
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
 	}
 
 	[Fact]
 	public async Task ItShouldReturnForbiddenForTenantUser() {
-		var tenantToken = await _authClient.LoginAsync(
+		var tenantToken = await _AuthClient.LoginAsync(
 			TestConstants.AcmeAdminEmail,
 			TestConstants.SeedPassword
 		);
-		var tenantId = await GetTenantIdAsync();
+		var tenantId = await _GetTenantIdAsync();
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			GetExportUrl(tenantId.ToString())
+			_GetExportUrl(tenantId.ToString())
 		).WithSessionToken(tenantToken);
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
 	}
 
 	[Fact]
 	public async Task ItShouldReturnForbiddenForStaffWithoutPermission() {
-		var staffToken = await _authClient.LoginAsync(
+		var staffToken = await _AuthClient.LoginAsync(
 			TestConstants.StaffUserEmail,
 			TestConstants.SeedPassword
 		);
-		var tenantId = await GetTenantIdAsync();
+		var tenantId = await _GetTenantIdAsync();
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			GetExportUrl(tenantId.ToString())
+			_GetExportUrl(tenantId.ToString())
 		).WithSessionToken(staffToken);
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
 	}
 
 	[Fact]
 	public async Task ItShouldReturnBadRequestForMalformedTenantId() {
-		var token = await _authClient.LoginAsStaffAdminAsync();
+		var token = await _AuthClient.LoginAsStaffAdminAsync();
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			GetExportUrl("not-a-guid")
+			_GetExportUrl("not-a-guid")
 		).WithSessionToken(token);
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
 	}
 
 	[Fact]
 	public async Task ItShouldReturn422ForInvalidStatus() {
-		var token = await _authClient.LoginAsStaffAdminAsync();
-		var tenantId = await GetTenantIdAsync();
+		var token = await _AuthClient.LoginAsStaffAdminAsync();
+		var tenantId = await _GetTenantIdAsync();
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			GetExportUrl(tenantId.ToString(), status: "bogus")
+			_GetExportUrl(tenantId.ToString(), status: "bogus")
 		).WithSessionToken(token);
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
 	}
 
 	[Fact]
 	public async Task ItShouldReturn422ForInvalidIds() {
-		var token = await _authClient.LoginAsStaffAdminAsync();
-		var tenantId = await GetTenantIdAsync();
+		var token = await _AuthClient.LoginAsStaffAdminAsync();
+		var tenantId = await _GetTenantIdAsync();
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			GetExportUrl(tenantId.ToString(), ids: "not-a-guid")
+			_GetExportUrl(tenantId.ToString(), ids: "not-a-guid")
 		).WithSessionToken(token);
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
 	}
 
 	[Fact]
 	public async Task ItShouldReturn422WhenIdsExceedTheMaximumCount() {
-		var token = await _authClient.LoginAsStaffAdminAsync();
-		var tenantId = await GetTenantIdAsync();
+		var token = await _AuthClient.LoginAsStaffAdminAsync();
+		var tenantId = await _GetTenantIdAsync();
 
 		var ids = string.Join(",", Enumerable.Range(0, 101).Select(_ => Guid.NewGuid()));
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			GetExportUrl(tenantId.ToString(), ids: ids)
+			_GetExportUrl(tenantId.ToString(), ids: ids)
 		).WithSessionToken(token);
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
 	}
 
 	[Fact]
 	public async Task ItShouldReturn422WhenSearchExceedsTwoHundredCharacters() {
-		var token = await _authClient.LoginAsStaffAdminAsync();
-		var tenantId = await GetTenantIdAsync();
+		var token = await _AuthClient.LoginAsStaffAdminAsync();
+		var tenantId = await _GetTenantIdAsync();
 
 		var tooLongSearch = new string('a', 201);
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			GetExportUrl(tenantId.ToString(), search: tooLongSearch)
+			_GetExportUrl(tenantId.ToString(), search: tooLongSearch)
 		).WithSessionToken(token);
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
 	}
 
 	[Fact]
 	public async Task ItShouldReturn422ForInvalidLevel() {
-		var token = await _authClient.LoginAsStaffAdminAsync();
-		var tenantId = await GetTenantIdAsync();
+		var token = await _AuthClient.LoginAsStaffAdminAsync();
+		var tenantId = await _GetTenantIdAsync();
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			GetExportUrl(tenantId.ToString(), level: "owner")
+			_GetExportUrl(tenantId.ToString(), level: "owner")
 		).WithSessionToken(token);
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
 	}
 
 	[Fact]
 	public async Task ItShouldReturn200ForWhitespaceStatus() {
-		var token = await _authClient.LoginAsStaffAdminAsync();
-		var tenantId = await GetTenantIdAsync();
+		var token = await _AuthClient.LoginAsStaffAdminAsync();
+		var tenantId = await _GetTenantIdAsync();
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			GetExportUrl(tenantId.ToString(), status: " ")
+			_GetExportUrl(tenantId.ToString(), status: " ")
 		).WithSessionToken(token);
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
 	}
 
 	[Fact]
 	public async Task ItShouldReturn200ForWhitespaceLevel() {
-		var token = await _authClient.LoginAsStaffAdminAsync();
-		var tenantId = await GetTenantIdAsync();
+		var token = await _AuthClient.LoginAsStaffAdminAsync();
+		var tenantId = await _GetTenantIdAsync();
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			GetExportUrl(tenantId.ToString(), level: " ")
+			_GetExportUrl(tenantId.ToString(), level: " ")
 		).WithSessionToken(token);
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
 	}
 
 	[Fact]
 	public async Task ItShouldReturn200ForWhitespaceIds() {
-		var token = await _authClient.LoginAsStaffAdminAsync();
-		var tenantId = await GetTenantIdAsync();
+		var token = await _AuthClient.LoginAsStaffAdminAsync();
+		var tenantId = await _GetTenantIdAsync();
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			GetExportUrl(tenantId.ToString(), ids: " ")
+			_GetExportUrl(tenantId.ToString(), ids: " ")
 		).WithSessionToken(token);
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
 	}
 
 	[Fact]
 	public async Task ItShouldExcludeCrossTenantIdsFromExport() {
-		var token = await _authClient.LoginAsStaffAdminAsync();
-		var (tenantAId, _) = await SeedTenantWithAdminAsync();
-		var (tenantBId, _) = await SeedTenantWithAdminAsync();
+		var token = await _AuthClient.LoginAsStaffAdminAsync();
+		var (tenantAId, _) = await _SeedTenantWithAdminAsync();
+		var (tenantBId, _) = await _SeedTenantWithAdminAsync();
 
-		var (tenantAUserId, tenantAEmail) = await SeedTenantUserWithIdAsync(tenantAId, "idor-tenant-a");
-		var (tenantBUserId, tenantBEmail) = await SeedTenantUserWithIdAsync(tenantBId, "idor-tenant-b");
+		var (tenantAUserId, tenantAEmail) = await _SeedTenantUserWithIdAsync(tenantAId, "idor-tenant-a");
+		var (tenantBUserId, tenantBEmail) = await _SeedTenantUserWithIdAsync(tenantBId, "idor-tenant-b");
 
 		// Ask tenant A's export for both tenant A's and tenant B's user ids: the tenant B
 		// id must never leak into tenant A's CSV, no matter what `ids` claims.
@@ -269,10 +269,10 @@ public sealed class ExportTenantUsersAsStaffSpec : IClassFixture<ApiFixture> {
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			GetExportUrl(tenantAId.ToString(), ids: ids)
+			_GetExportUrl(tenantAId.ToString(), ids: ids)
 		).WithSessionToken(token);
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
 
 		var content = await response.Content.ReadAsStringAsync();
@@ -282,16 +282,16 @@ public sealed class ExportTenantUsersAsStaffSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldReturnCsvWithExpectedHeadersAndContentType() {
-		var token = await _authClient.LoginAsStaffAdminAsync();
-		var tenantId = await GetTenantIdAsync();
-		var (_, email) = await SeedTenantUserWithIdAsync(tenantId, "export-basic");
+		var token = await _AuthClient.LoginAsStaffAdminAsync();
+		var tenantId = await _GetTenantIdAsync();
+		var (_, email) = await _SeedTenantUserWithIdAsync(tenantId, "export-basic");
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			GetExportUrl(tenantId.ToString())
+			_GetExportUrl(tenantId.ToString())
 		).WithSessionToken(token);
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
 
 		Assert.NotNull(response.Content.Headers.ContentType);
@@ -310,17 +310,17 @@ public sealed class ExportTenantUsersAsStaffSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldApplyLevelFilterToExport() {
-		var token = await _authClient.LoginAsStaffAdminAsync();
-		var tenantId = await GetTenantIdAsync();
-		var adminEmail = await SeedTenantUserWithEmailAsync(tenantId, AccountLevel.Admin, "export-admin");
-		var userEmail = await SeedTenantUserWithEmailAsync(tenantId, AccountLevel.User, "export-user");
+		var token = await _AuthClient.LoginAsStaffAdminAsync();
+		var tenantId = await _GetTenantIdAsync();
+		var adminEmail = await _SeedTenantUserWithEmailAsync(tenantId, AccountLevel.Admin, "export-admin");
+		var userEmail = await _SeedTenantUserWithEmailAsync(tenantId, AccountLevel.User, "export-user");
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			GetExportUrl(tenantId.ToString(), level: "admin")
+			_GetExportUrl(tenantId.ToString(), level: "admin")
 		).WithSessionToken(token);
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
 
 		var content = await response.Content.ReadAsStringAsync();
@@ -330,17 +330,17 @@ public sealed class ExportTenantUsersAsStaffSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldHonorIdsSelectionForExport() {
-		var token = await _authClient.LoginAsStaffAdminAsync();
-		var tenantId = await GetTenantIdAsync();
-		var (firstUserId, firstEmail) = await SeedTenantUserWithIdAsync(tenantId, "export-selected");
-		var (_, secondEmail) = await SeedTenantUserWithIdAsync(tenantId, "export-unselected");
+		var token = await _AuthClient.LoginAsStaffAdminAsync();
+		var tenantId = await _GetTenantIdAsync();
+		var (firstUserId, firstEmail) = await _SeedTenantUserWithIdAsync(tenantId, "export-selected");
+		var (_, secondEmail) = await _SeedTenantUserWithIdAsync(tenantId, "export-unselected");
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			GetExportUrl(tenantId.ToString(), ids: firstUserId.ToString())
+			_GetExportUrl(tenantId.ToString(), ids: firstUserId.ToString())
 		).WithSessionToken(token);
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
 
 		var content = await response.Content.ReadAsStringAsync();
@@ -350,21 +350,21 @@ public sealed class ExportTenantUsersAsStaffSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldNeutralizeFormulaTriggerCharsWhenExportingCsv() {
-		var token = await _authClient.LoginAsStaffAdminAsync();
-		var tenantId = await GetTenantIdAsync();
+		var token = await _AuthClient.LoginAsStaffAdminAsync();
+		var tenantId = await _GetTenantIdAsync();
 		var rowMarker = $"row-marker-{Guid.NewGuid().ToString()[..8]}";
 
-		await SeedTenantUserWithNameAsync(tenantId, $"=1+1 {rowMarker}", "Formula");
-		await SeedTenantUserWithNameAsync(tenantId, $"+cmd|'/C calc'!A0 {rowMarker}", "Formula");
-		await SeedTenantUserWithNameAsync(tenantId, $"-1+1 {rowMarker}", "Formula");
-		await SeedTenantUserWithNameAsync(tenantId, $"@SUM(A1:A10) {rowMarker}", "Formula");
+		await _SeedTenantUserWithNameAsync(tenantId, $"=1+1 {rowMarker}", "Formula");
+		await _SeedTenantUserWithNameAsync(tenantId, $"+cmd|'/C calc'!A0 {rowMarker}", "Formula");
+		await _SeedTenantUserWithNameAsync(tenantId, $"-1+1 {rowMarker}", "Formula");
+		await _SeedTenantUserWithNameAsync(tenantId, $"@SUM(A1:A10) {rowMarker}", "Formula");
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			GetExportUrl(tenantId.ToString())
+			_GetExportUrl(tenantId.ToString())
 		).WithSessionToken(token);
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
 
 		var content = await response.Content.ReadAsStringAsync();
@@ -385,24 +385,24 @@ public sealed class ExportTenantUsersAsStaffSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldWriteAnAuditLogBeforeStreamingTheExport() {
-		var token = await _authClient.LoginAsStaffAdminAsync();
-		var tenantId = await GetTenantIdAsync();
-		await SeedTenantUserWithIdAsync(tenantId, "export-audit");
+		var token = await _AuthClient.LoginAsStaffAdminAsync();
+		var tenantId = await _GetTenantIdAsync();
+		await _SeedTenantUserWithIdAsync(tenantId, "export-audit");
 		var startedAt = DateTime.UtcNow;
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			GetExportUrl(tenantId.ToString())
+			_GetExportUrl(tenantId.ToString())
 		).WithSessionToken(token);
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
 
 		var uploaderUserId = await AuditLogTestHelper.GetUserIdByEmailAsync(
-			_fixture.Factory, TestConstants.StaffAdminEmail
+			_Fixture.Factory, TestConstants.StaffAdminEmail
 		);
 
-		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 		var auditLog = await (
 			from log in dbContext.AuditLog
@@ -425,18 +425,18 @@ public sealed class ExportTenantUsersAsStaffSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldTreatABarePercentSearchAsALiteralCharacterNotAWildcardForEveryRow() {
-		var token = await _authClient.LoginAsStaffAdminAsync();
-		var (tenantId, _) = await SeedTenantWithAdminAsync();
+		var token = await _AuthClient.LoginAsStaffAdminAsync();
+		var (tenantId, _) = await _SeedTenantWithAdminAsync();
 		var marker = Guid.NewGuid().ToString("N")[..8];
-		await SeedTenantUserWithNameAsync(tenantId, $"Has%Percent{marker}", "Search");
-		await SeedTenantUserWithNameAsync(tenantId, $"NoPercentAtAll{marker}", "Search");
+		await _SeedTenantUserWithNameAsync(tenantId, $"Has%Percent{marker}", "Search");
+		await _SeedTenantUserWithNameAsync(tenantId, $"NoPercentAtAll{marker}", "Search");
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			GetExportUrl(tenantId.ToString(), search: "%")
+			_GetExportUrl(tenantId.ToString(), search: "%")
 		).WithSessionToken(token);
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
 
 		var content = await response.Content.ReadAsStringAsync();
@@ -465,7 +465,7 @@ public sealed class ExportTenantUsersAsStaffSpec : IClassFixture<ApiFixture> {
 
 		var act = async () => await ExportTenantUsersAsStaff.WriteCsvAsync(
 			httpContext,
-			ThrowingExportItems(),
+			_ThrowingExportItems(),
 			CancellationToken.None
 		);
 
@@ -475,7 +475,7 @@ public sealed class ExportTenantUsersAsStaffSpec : IClassFixture<ApiFixture> {
 		);
 	}
 
-	private static IEnumerable<TenantUserExportItem> ThrowingExportItems() {
+	private static IEnumerable<TenantUserExportItem> _ThrowingExportItems() {
 		yield return new TenantUserExportItem {
 			Email = "first-row@example.com",
 			Level = AccountLevel.User,
@@ -497,40 +497,40 @@ public sealed class ExportTenantUsersAsStaffSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldReturn400WhenExportExceedsLimit() {
-		var token = await _authClient.LoginAsStaffAdminAsync();
-		var (tenantId, _) = await SeedTenantWithAdminAsync();
+		var token = await _AuthClient.LoginAsStaffAdminAsync();
+		var (tenantId, _) = await _SeedTenantWithAdminAsync();
 		for (var i = 0; i < 3; i++) {
-			await SeedTenantUserAsync(tenantId, "export-limit");
+			await _SeedTenantUserAsync(tenantId, "export-limit");
 		}
 
 		var originalLimit = AppEnvironment.Instance.TENANT_USER_EXPORT_MAX_ROWS;
-		SetExportMaxRows(2);
+		_SetExportMaxRows(2);
 
 		try {
 			using var request = new HttpRequestMessage(
 				HttpMethod.Get,
-				GetExportUrl(tenantId.ToString())
+				_GetExportUrl(tenantId.ToString())
 			).WithSessionToken(token);
 
-			using var response = await _http.SendAsync(request);
+			using var response = await _Http.SendAsync(request);
 			response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
 		} finally {
-			SetExportMaxRows(originalLimit);
+			_SetExportMaxRows(originalLimit);
 		}
 	}
 
 	[Fact]
 	public async Task ItShouldExportAConsistentSnapshotWhenAMatchingUserIsInsertedAtTheLimit() {
 		const int exportLimit = 2;
-		var (tenantId, _) = await SeedTenantWithAdminAsync();
+		var (tenantId, _) = await _SeedTenantWithAdminAsync();
 		var oldestCreatedAt = DateTime.UtcNow.AddDays(-1);
-		var (_, oldestEmail) = await SeedTenantUserWithIdAsync(
+		var (_, oldestEmail) = await _SeedTenantUserWithIdAsync(
 			tenantId,
 			"export-race-oldest",
 			oldestCreatedAt
 		);
 
-		var connectionString = await GetConnectionStringAsync();
+		var connectionString = await _GetConnectionStringAsync();
 		var options = new DbContextOptionsBuilder<AppDbContext>()
 			.UseNpgsql(connectionString)
 			.Options;
@@ -542,7 +542,7 @@ public sealed class ExportTenantUsersAsStaffSpec : IClassFixture<ApiFixture> {
 			AccountStaff = UserAccount.CreateStaffAccount(Guid.NewGuid())
 		};
 
-		await using var requestScope = _fixture.Factory.Services.CreateAsyncScope();
+		await using var requestScope = _Fixture.Factory.Services.CreateAsyncScope();
 		var responseBody = new MemoryStream();
 		var httpContext = new DefaultHttpContext {
 			RequestServices = requestScope.ServiceProvider
@@ -550,7 +550,7 @@ public sealed class ExportTenantUsersAsStaffSpec : IClassFixture<ApiFixture> {
 		httpContext.Response.Body = responseBody;
 
 		var originalLimit = AppEnvironment.Instance.TENANT_USER_EXPORT_MAX_ROWS;
-		SetExportMaxRows(exportLimit);
+		_SetExportMaxRows(exportLimit);
 
 		try {
 			var exportTask = ExportTenantUsersAsStaff.Handle(
@@ -567,7 +567,7 @@ public sealed class ExportTenantUsersAsStaffSpec : IClassFixture<ApiFixture> {
 			try {
 				await auditLogService.Reached.Task.WaitAsync(TimeSpan.FromSeconds(10));
 
-				_ = await SeedTenantUserWithIdAsync(
+				_ = await _SeedTenantUserWithIdAsync(
 					tenantId,
 					"export-race-concurrent",
 					DateTime.UtcNow.AddDays(1)
@@ -604,21 +604,21 @@ public sealed class ExportTenantUsersAsStaffSpec : IClassFixture<ApiFixture> {
 			details.GetProperty("RowCount").GetInt32().Should().Be(emittedRowCount);
 		} finally {
 			auditLogService.Release.TrySetResult();
-			SetExportMaxRows(originalLimit);
+			_SetExportMaxRows(originalLimit);
 		}
 	}
 
-	private async Task<Guid> GetTenantIdAsync() {
-		var token = await _authClient.LoginAsStaffAdminAsync();
+	private async Task<Guid> _GetTenantIdAsync() {
+		var token = await _AuthClient.LoginAsStaffAdminAsync();
 		return await TenantTestHelper.GetTenantIdByNameAsync(
-			_http,
+			_Http,
 			token,
 			SeedConstants.Tenants.AcmeName
 		);
 	}
 
-	private async Task<(Guid TenantId, Guid AdminUserId)> SeedTenantWithAdminAsync() {
-		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+	private async Task<(Guid TenantId, Guid AdminUserId)> _SeedTenantWithAdminAsync() {
+		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		var unique = Guid.NewGuid().ToString("N");
@@ -653,17 +653,17 @@ public sealed class ExportTenantUsersAsStaffSpec : IClassFixture<ApiFixture> {
 		return (tenant.GetRequiredId(), admin.GetRequiredId());
 	}
 
-	private async Task<Guid> SeedTenantUserAsync(Guid tenantId, string emailPrefix) {
-		var (userId, _) = await SeedTenantUserWithIdAsync(tenantId, emailPrefix);
+	private async Task<Guid> _SeedTenantUserAsync(Guid tenantId, string emailPrefix) {
+		var (userId, _) = await _SeedTenantUserWithIdAsync(tenantId, emailPrefix);
 		return userId;
 	}
 
-	private async Task<(Guid UserId, string Email)> SeedTenantUserWithIdAsync(
+	private async Task<(Guid UserId, string Email)> _SeedTenantUserWithIdAsync(
 		Guid tenantId,
 		string emailPrefix,
 		DateTime? createdAt = null
 	) {
-		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		var unique = Guid.NewGuid().ToString("N");
@@ -700,12 +700,12 @@ public sealed class ExportTenantUsersAsStaffSpec : IClassFixture<ApiFixture> {
 		return (userId, email);
 	}
 
-	private async Task<string> SeedTenantUserWithEmailAsync(
+	private async Task<string> _SeedTenantUserWithEmailAsync(
 		Guid tenantId,
 		AccountLevel level,
 		string emailPrefix
 	) {
-		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		var unique = Guid.NewGuid().ToString("N");
@@ -730,8 +730,8 @@ public sealed class ExportTenantUsersAsStaffSpec : IClassFixture<ApiFixture> {
 		return email;
 	}
 
-	private async Task SeedTenantUserWithNameAsync(Guid tenantId, string firstName, string lastName) {
-		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+	private async Task _SeedTenantUserWithNameAsync(Guid tenantId, string firstName, string lastName) {
+		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		var unique = Guid.NewGuid().ToString("N");
@@ -753,8 +753,8 @@ public sealed class ExportTenantUsersAsStaffSpec : IClassFixture<ApiFixture> {
 		await dbContext.SaveChangesAsync();
 	}
 
-	private async Task<string> GetConnectionStringAsync() {
-		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+	private async Task<string> _GetConnectionStringAsync() {
+		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 		var connectionString = dbContext.Database.GetConnectionString();
 
@@ -795,7 +795,7 @@ public sealed class ExportTenantUsersAsStaffSpec : IClassFixture<ApiFixture> {
 	// Uses reflection on the auto-property backing field because AppEnvironment
 	// is a singleton with a get-only property. This will break if the property
 	// becomes a non-auto property - update the field name accordingly if that happens.
-	private static void SetExportMaxRows(int value) {
+	private static void _SetExportMaxRows(int value) {
 		var fieldName = $"<{nameof(AppEnvironment.TENANT_USER_EXPORT_MAX_ROWS)}>k__BackingField";
 		var field = typeof(AppEnvironment).GetField(
 			fieldName,

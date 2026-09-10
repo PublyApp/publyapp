@@ -10,20 +10,20 @@ namespace PublyApp.Api.Lib.ProblemResults;
 /// Used specifically for validation errors with field-level details.
 /// </summary>
 public sealed class AppValidationProblemHttpResult : IResult, IEndpointMetadataProvider {
-	private readonly ValidationProblemDetails _problemDetails;
+	private readonly ValidationProblemDetails _ProblemDetails;
 
 	internal AppValidationProblemHttpResult(ValidationProblemDetails problemDetails) {
-		_problemDetails = problemDetails;
+		_ProblemDetails = problemDetails;
 	}
 
 	public async Task ExecuteAsync(HttpContext httpContext) {
-		_problemDetails.Instance ??= httpContext.Request.Path.Value;
-		_problemDetails.Extensions["traceId"] = httpContext.TraceIdentifier;
+		_ProblemDetails.Instance ??= httpContext.Request.Path.Value;
+		_ProblemDetails.Extensions["traceId"] = httpContext.TraceIdentifier;
 
 		httpContext.Response.StatusCode = StatusCodes.Status422UnprocessableEntity;
 		httpContext.Response.ContentType = "application/problem+json";
 		await httpContext.Response.WriteAsJsonAsync(
-			_problemDetails,
+			_ProblemDetails,
 			options: null,
 			contentType: "application/problem+json",
 			cancellationToken: httpContext.RequestAborted

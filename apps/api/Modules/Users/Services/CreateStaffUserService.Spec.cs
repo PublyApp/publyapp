@@ -8,8 +8,8 @@ using Npgsql;
 using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Infrastructure.Jobs;
 using PublyApp.Api.Lib.Testing.Fixtures;
-using PublyApp.Api.Modules.Auth.Utils;
 using PublyApp.Api.Modules.Auth.Jobs;
+using PublyApp.Api.Modules.Auth.Utils;
 using PublyApp.Api.Modules.Tenants.Entities;
 using PublyApp.Api.Modules.Users.Entities;
 
@@ -18,19 +18,19 @@ using Xunit;
 namespace PublyApp.Api.Modules.Users.Services;
 
 public sealed class CreateStaffUserServiceSpec : IClassFixture<ApiFixture> {
-	private readonly ApiFixture _fixture;
+	private readonly ApiFixture _Fixture;
 
 	public CreateStaffUserServiceSpec(ApiFixture fixture) {
-		_fixture = fixture;
+		_Fixture = fixture;
 	}
 
 	[Fact]
 	public async Task ItShouldRejectWhenUserHasTenantOrProjectAccounts() {
 		var email = $"create-staff-f1-{Guid.NewGuid():N}@example.com";
 
-		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-		await SeedUserWithTenantAccountAsync(dbContext, email);
+		await _SeedUserWithTenantAccountAsync(dbContext, email);
 
 		var enqueuer = new RejectingEnqueuer();
 		var service = new CreateStaffUserService(
@@ -53,7 +53,7 @@ public sealed class CreateStaffUserServiceSpec : IClassFixture<ApiFixture> {
 		result.Should().BeOfType<CreateStaffUserServiceResult.UserHasTenantOrProjectAccounts>();
 		enqueuer.Calls.Should().Be(0);
 
-		await using var verify = CreateDbContext();
+		await using var verify = _CreateDbContext();
 		(await verify.User.AnyAsync(u => u.Email == email)).Should().BeTrue(
 			"account conflicts must not create an additional user row"
 		);
@@ -64,7 +64,7 @@ public sealed class CreateStaffUserServiceSpec : IClassFixture<ApiFixture> {
 	public async Task ItShouldRollbackUserAndAccountWhenEnqueueFails() {
 		var email = $"create-staff-rollback-{Guid.NewGuid():N}@example.com";
 
-		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 		var service = new CreateStaffUserService(
 			dbContext,
@@ -85,7 +85,7 @@ public sealed class CreateStaffUserServiceSpec : IClassFixture<ApiFixture> {
 
 		await act.Should().ThrowAsync<InvalidOperationException>();
 
-		await using var verify = CreateDbContext();
+		await using var verify = _CreateDbContext();
 		(await verify.User.CountAsync(u => u.Email == email)).Should().Be(0);
 		(await verify.UserAccount.CountAsync(a => a.User.Email == email)).Should().Be(0);
 	}
@@ -94,7 +94,7 @@ public sealed class CreateStaffUserServiceSpec : IClassFixture<ApiFixture> {
 	public async Task ItShouldCreateUserAccountAndEnqueueVerifyEmailWhenSuccessful() {
 		var email = $"create-staff-success-{Guid.NewGuid():N}@example.com";
 
-		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		var enqueuer = new RecordingEnqueuer();
@@ -124,7 +124,7 @@ public sealed class CreateStaffUserServiceSpec : IClassFixture<ApiFixture> {
 			IsWelcomeEmail = true
 		});
 
-		await using var verify = CreateDbContext();
+		await using var verify = _CreateDbContext();
 		var persistedUser = await verify.User
 			.AsNoTracking()
 			.FirstAsync(u => u.Email == email);
@@ -136,7 +136,7 @@ public sealed class CreateStaffUserServiceSpec : IClassFixture<ApiFixture> {
 		persistedAccount.Scope.Should().Be(AccountScope.Staff);
 	}
 
-	private static async Task SeedUserWithTenantAccountAsync(
+	private static async Task _SeedUserWithTenantAccountAsync(
 		AppDbContext dbContext,
 		string email
 	) {
@@ -169,7 +169,7 @@ public sealed class CreateStaffUserServiceSpec : IClassFixture<ApiFixture> {
 		await dbContext.SaveChangesAsync();
 	}
 
-	private static string BaseConnectionString(ApiFixture fixture) {
+	private static string _BaseConnectionString(ApiFixture fixture) {
 		using var scope = fixture.Factory.Services.CreateScope();
 		var connectionString = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>()
@@ -182,12 +182,12 @@ public sealed class CreateStaffUserServiceSpec : IClassFixture<ApiFixture> {
 		return connectionString;
 	}
 
-	private AppDbContext CreateDbContext() {
-		return CreateDbContext(applicationName: null);
+	private AppDbContext _CreateDbContext() {
+		return _CreateDbContext(applicationName: null);
 	}
 
-	private AppDbContext CreateDbContext(string? applicationName) {
-		var connectionString = BaseConnectionString(_fixture);
+	private AppDbContext _CreateDbContext(string? applicationName) {
+		var connectionString = _BaseConnectionString(_Fixture);
 		if (applicationName is not null) {
 			var builder = new NpgsqlConnectionStringBuilder(connectionString) {
 				ApplicationName = applicationName

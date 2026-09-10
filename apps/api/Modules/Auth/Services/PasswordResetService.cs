@@ -26,23 +26,23 @@ public interface IPasswordResetService {
 
 [Service(ServiceLifetime.Scoped)]
 public sealed class PasswordResetService : IPasswordResetService {
-	private readonly AppDbContext _dbContext;
-	private readonly IJobEnqueuer _jobEnqueuer;
+	private readonly AppDbContext _DbContext;
+	private readonly IJobEnqueuer _JobEnqueuer;
 
 	public PasswordResetService(AppDbContext dbContext, IJobEnqueuer jobEnqueuer) {
-		_dbContext = dbContext;
-		_jobEnqueuer = jobEnqueuer;
+		_DbContext = dbContext;
+		_JobEnqueuer = jobEnqueuer;
 	}
 
 	public async Task RequestAsync(string email, CancellationToken cancellationToken = default) {
 		var canonicalEmail = email.Trim().ToLowerInvariant();
 
 		await using var transaction =
-			await _dbContext.Database.BeginTransactionAsync(cancellationToken);
+			await _DbContext.Database.BeginTransactionAsync(cancellationToken);
 
 		// Serialize the read/decide/write sequence on the identity row. Without this lock,
 		// concurrent requests can both observe no live token and enqueue different links.
-		await _dbContext.Database.ExecuteSqlAsync(
+		await _DbContext.Database.ExecuteSqlAsync(
 			$"""
 			SELECT 1
 			FROM users
@@ -53,7 +53,7 @@ public sealed class PasswordResetService : IPasswordResetService {
 		);
 
 		var userQuery =
-			from candidate in _dbContext.User
+			from candidate in _DbContext.User
 			where candidate.Email == canonicalEmail && !candidate.IsDeleted
 			select candidate;
 		var user = await userQuery.FirstOrDefaultAsync(cancellationToken);
@@ -78,7 +78,7 @@ public sealed class PasswordResetService : IPasswordResetService {
 				DateTime.UtcNow.AddDays(env.PASSWORD_RESET_TOKEN_VALIDITY_DURATION);
 		}
 
-		await _jobEnqueuer.EnqueueAsync(
+		await _JobEnqueuer.EnqueueAsync(
 			AuthEmailJobs.PasswordResetV1,
 			new PasswordResetEmailPayload { UserId = user.GetRequiredId() },
 			cancellationToken: cancellationToken

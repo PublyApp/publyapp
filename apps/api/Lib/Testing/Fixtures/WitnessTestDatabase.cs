@@ -14,12 +14,12 @@ namespace PublyApp.Api.Lib.Testing.Fixtures;
 /// </para>
 /// </summary>
 public sealed class WitnessTestDatabase : IAsyncDisposable {
-	private const string DbName = "witness_boot_canary_test";
+	private const string _DbName = "witness_boot_canary_test";
 
-	private readonly string _adminConnectionString;
+	private readonly string _AdminConnectionString;
 
 	private WitnessTestDatabase(string adminConnectionString) {
-		_adminConnectionString = adminConnectionString;
+		_AdminConnectionString = adminConnectionString;
 	}
 
 	public string ConnectionString { get; private set; } = "";
@@ -33,17 +33,17 @@ public sealed class WitnessTestDatabase : IAsyncDisposable {
 
 		// A previous failed run can leave the clone behind; start from a clean slate so
 		// each test exercises a FIRST boot (the witness mints the canary row itself).
-		await manager.DropDatabaseAsync(DbName);
+		await manager.DropDatabaseAsync(_DbName);
 
 		return new WitnessTestDatabase(container.AdminConnectionString) {
-			ConnectionString = await manager.CreateDatabaseFromTemplateAsync(DbName),
+			ConnectionString = await manager.CreateDatabaseFromTemplateAsync(_DbName),
 		};
 	}
 
 	public async ValueTask DisposeAsync() {
 		try {
-			var manager = new DatabaseTemplateManager(_adminConnectionString, "postgres");
-			await manager.DropDatabaseAsync(DbName);
+			var manager = new DatabaseTemplateManager(_AdminConnectionString, "postgres");
+			await manager.DropDatabaseAsync(_DbName);
 		} catch (PostgresException) {
 			// Best-effort cleanup; the shared container outlives the run either way.
 		}

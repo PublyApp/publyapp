@@ -34,24 +34,24 @@ namespace PublyApp.Api.Modules.Messaging.Jobs;
 public sealed class EmailPreparedSendsRetentionHandler : IJobHandler {
 	public const string JobKey = "email-prepared-sends-retention";
 
-	private const int BatchSize = 500;
+	private const int _BatchSize = 500;
 
-	private readonly AppDbContext _dbContext;
-	private readonly ILogger<EmailPreparedSendsRetentionHandler> _logger;
+	private readonly AppDbContext _DbContext;
+	private readonly ILogger<EmailPreparedSendsRetentionHandler> _Logger;
 
 	// Test seam (the repo's optional-constructor-arg pattern): null in production, so the
 	// floor is read from AppEnvironment per run; a spec passes a non-default so it can prove
 	// the handler actually FOLLOWS the configured floor rather than a hardcoded 7.
-	private readonly int? _retentionDaysOverride;
+	private readonly int? _RetentionDaysOverride;
 
 	public EmailPreparedSendsRetentionHandler(
 		AppDbContext dbContext,
 		ILogger<EmailPreparedSendsRetentionHandler> logger,
 		int? retentionDaysOverride = null
 	) {
-		_dbContext = dbContext;
-		_logger = logger;
-		_retentionDaysOverride = retentionDaysOverride;
+		_DbContext = dbContext;
+		_Logger = logger;
+		_RetentionDaysOverride = retentionDaysOverride;
 	}
 
 	public string JobType {
@@ -66,7 +66,7 @@ public sealed class EmailPreparedSendsRetentionHandler : IJobHandler {
 		// at least this old, a backstop against a race where the anti-join briefly sees a
 		// job gone. Read per run, so an operator's change takes effect on the next pass.
 		var safetyFloorDays =
-			_retentionDaysOverride ?? AppEnvironment.Instance.EMAIL_PREPARED_SEND_RETENTION_DAYS;
+			_RetentionDaysOverride ?? AppEnvironment.Instance.EMAIL_PREPARED_SEND_RETENTION_DAYS;
 		var totalDeleted = 0;
 		int deleted;
 
@@ -76,7 +76,7 @@ public sealed class EmailPreparedSendsRetentionHandler : IJobHandler {
 		do {
 			cancellationToken.ThrowIfCancellationRequested();
 
-			deleted = await _dbContext.Database.ExecuteSqlAsync(
+			deleted = await _DbContext.Database.ExecuteSqlAsync(
 				$"""
 				DELETE FROM email_prepared_sends
 				WHERE job_id IN (
@@ -89,7 +89,7 @@ public sealed class EmailPreparedSendsRetentionHandler : IJobHandler {
 							SELECT 1 FROM job_dead_letter d WHERE d.original_job_id = p.job_id
 						)
 						ORDER BY p.prepared_at, p.job_id
-					LIMIT {BatchSize}
+					LIMIT {_BatchSize}
 					FOR UPDATE OF p SKIP LOCKED
 				)
 				""",
@@ -97,10 +97,10 @@ public sealed class EmailPreparedSendsRetentionHandler : IJobHandler {
 			);
 
 			totalDeleted += deleted;
-		} while (deleted == BatchSize);
+		} while (deleted == _BatchSize);
 
-		if (totalDeleted > 0 && _logger.IsEnabled(LogLevel.Information)) {
-			_logger.LogInformation(
+		if (totalDeleted > 0 && _Logger.IsEnabled(LogLevel.Information)) {
+			_Logger.LogInformation(
 				"email-prepared-sends-retention deleted {Count} orphaned scratch row(s)",
 				totalDeleted
 			);

@@ -30,10 +30,10 @@ namespace PublyApp.Api.Migrations;
 // The spec executes the migration's shared immutable SQL constants against seeded rows;
 // the migration itself ran against an empty outbox during fixture setup.
 public sealed class AddEmailLogAndFoldEmailOutboxSpec : IClassFixture<ApiFixture> {
-	private readonly ApiFixture _fixture;
+	private readonly ApiFixture _Fixture;
 
 	public AddEmailLogAndFoldEmailOutboxSpec(ApiFixture fixture) {
-		_fixture = fixture;
+		_Fixture = fixture;
 	}
 
 	[Fact]
@@ -62,47 +62,47 @@ public sealed class AddEmailLogAndFoldEmailOutboxSpec : IClassFixture<ApiFixture
 	public async Task ItShouldFoldPendingRowsAndBackCopyTerminalHistoryLeavingProcessingUntouched() {
 		// invitation_email_outbox.invitation_id is a real FK → invitations, so a row that
 		// carries an id needs a real invitation; terminal/processing rows use NULL.
-		var pendingInvitationId = await SeedInvitationAsync();
+		var pendingInvitationId = await _SeedInvitationAsync();
 
-		var pending = await SeedOutboxAsync(o => {
+		var pending = await _SeedOutboxAsync(o => {
 			o.Kind = InvitationEmailKind.StaffInvitation;
 			o.Status = InvitationEmailOutboxStatus.Pending;
 			o.InvitationId = pendingInvitationId;
 			o.AttemptCount = 3;
 			o.NextAttemptAt = DateTime.UtcNow.AddMinutes(42);
 		});
-		var sent = await SeedOutboxAsync(o => {
+		var sent = await _SeedOutboxAsync(o => {
 			o.Kind = InvitationEmailKind.TenantInvitation;
 			o.Status = InvitationEmailOutboxStatus.Sent;
 			o.SentAt = DateTime.UtcNow.AddHours(-2);
 		});
-		var failed = await SeedOutboxAsync(o => {
+		var failed = await _SeedOutboxAsync(o => {
 			o.Status = InvitationEmailOutboxStatus.Failed;
 			o.AttemptCount = 8;
 			o.LastError = "boom";
 		});
-		var cancelled = await SeedOutboxAsync(o => {
+		var cancelled = await _SeedOutboxAsync(o => {
 			o.Status = InvitationEmailOutboxStatus.Cancelled;
 		});
-		var processing = await SeedOutboxAsync(o => {
+		var processing = await _SeedOutboxAsync(o => {
 			o.Status = InvitationEmailOutboxStatus.Processing;
 		});
-		var nullInvitationPending = await SeedOutboxAsync(o => {
+		var nullInvitationPending = await _SeedOutboxAsync(o => {
 			o.Status = InvitationEmailOutboxStatus.Pending;
 			o.InvitationId = null;
 		});
 
-		await using (var db = CreateDbContext()) {
-			await RunFoldSqlAsync(db);
+		await using (var db = _CreateDbContext()) {
+			await _RunFoldSqlAsync(db);
 		}
 
-		await using var assert = CreateDbContext();
+		await using var assert = _CreateDbContext();
 
 		// Pending → folded into job_queue with the canonical payload + preserved attempts.
 		var foldedJob = await assert.JobQueue.AsNoTracking()
 			.SingleAsync(j => j.IdempotencyKey == $"fold:{pending}");
 		foldedJob.JobType.Should().Be("email.staff-invitation.v1");
-		PayloadGuid(foldedJob.Payload, "invitationId").Should().Be(pendingInvitationId);
+		_PayloadGuid(foldedJob.Payload, "invitationId").Should().Be(pendingInvitationId);
 		foldedJob.Attempts.Should().Be(3);
 		foldedJob.Priority.Should().Be(100);
 
@@ -113,12 +113,12 @@ public sealed class AddEmailLogAndFoldEmailOutboxSpec : IClassFixture<ApiFixture
 		foldedJob.NextAttemptAt.Should().Be(pendingSource.NextAttemptAt);
 
 		// Folded source row is Cancelled so the old dispatcher can never resend it.
-		(await OutboxStatusAsync(assert, pending)).Should().Be(InvitationEmailOutboxStatus.Cancelled);
+		(await _OutboxStatusAsync(assert, pending)).Should().Be(InvitationEmailOutboxStatus.Cancelled);
 
 		// Processing row is UNTOUCHED — no job, still Processing.
 		(await assert.JobQueue.AsNoTracking().AnyAsync(j => j.IdempotencyKey == $"fold:{processing}"))
 			.Should().BeFalse();
-		(await OutboxStatusAsync(assert, processing)).Should().Be(InvitationEmailOutboxStatus.Processing);
+		(await _OutboxStatusAsync(assert, processing)).Should().Be(InvitationEmailOutboxStatus.Processing);
 
 		// Terminal history back-copied with lineage + correct outcome mapping.
 		//
@@ -149,23 +149,23 @@ public sealed class AddEmailLogAndFoldEmailOutboxSpec : IClassFixture<ApiFixture
 
 	[Fact]
 	public async Task ItShouldBeRerunSafeProducingNoDuplicateJobsOrBackCopies() {
-		var invitationId = await SeedInvitationAsync();
-		var outboxId = await SeedOutboxAsync(o => {
+		var invitationId = await _SeedInvitationAsync();
+		var outboxId = await _SeedOutboxAsync(o => {
 			o.Kind = InvitationEmailKind.StaffInvitation;
 			o.Status = InvitationEmailOutboxStatus.Pending;
 			o.InvitationId = invitationId;
 		});
-		var sentId = await SeedOutboxAsync(o => {
+		var sentId = await _SeedOutboxAsync(o => {
 			o.Status = InvitationEmailOutboxStatus.Sent;
 			o.SentAt = DateTime.UtcNow.AddHours(-1);
 		});
 
-		await using (var db = CreateDbContext()) {
-			await RunFoldSqlAsync(db);
-			await RunFoldSqlAsync(db);
+		await using (var db = _CreateDbContext()) {
+			await _RunFoldSqlAsync(db);
+			await _RunFoldSqlAsync(db);
 		}
 
-		await using var assert = CreateDbContext();
+		await using var assert = _CreateDbContext();
 		(await assert.JobQueue.AsNoTracking().CountAsync(j => j.IdempotencyKey == $"fold:{outboxId}"))
 			.Should().Be(1);
 		(await assert.EmailLog.AsNoTracking().CountAsync(e => e.LegacyOutboxId == sentId))
@@ -174,32 +174,32 @@ public sealed class AddEmailLogAndFoldEmailOutboxSpec : IClassFixture<ApiFixture
 
 	[Fact]
 	public async Task ItShouldRollBackEveryFoldWriteWhenAFailureOccursMidFold() {
-		var invitationId = await SeedInvitationAsync();
-		var pendingId = await SeedOutboxAsync(o => {
+		var invitationId = await _SeedInvitationAsync();
+		var pendingId = await _SeedOutboxAsync(o => {
 			o.Status = InvitationEmailOutboxStatus.Pending;
 			o.InvitationId = invitationId;
 		});
-		var sentId = await SeedOutboxAsync(o => {
+		var sentId = await _SeedOutboxAsync(o => {
 			o.Status = InvitationEmailOutboxStatus.Sent;
 			o.SentAt = DateTime.UtcNow.AddMinutes(-5);
 		});
 
-		await using (var db = CreateDbContext()) {
+		await using (var db = _CreateDbContext()) {
 			// Step 3 is FoldPendingRows (step 1 is the LOCK, step 2 the back-copy): fail
 			// right after the job insert so both the back-copy row AND the fold job have
 			// been written, and assert the rollback undoes both.
-			var act = async () => await RunFoldSqlAsync(db, failAfterStep: 3);
+			var act = async () => await _RunFoldSqlAsync(db, failAfterStep: 3);
 			await act.Should().ThrowAsync<InvalidOperationException>()
 				.WithMessage("forced mid-fold failure");
 		}
 
-		await using var assert = CreateDbContext();
+		await using var assert = _CreateDbContext();
 		(await assert.JobQueue.AsNoTracking()
 			.AnyAsync(j => j.IdempotencyKey == $"fold:{pendingId}"))
 			.Should().BeFalse();
 		(await assert.EmailLog.AsNoTracking().AnyAsync(e => e.LegacyOutboxId == sentId))
 			.Should().BeFalse();
-		(await OutboxStatusAsync(assert, pendingId))
+		(await _OutboxStatusAsync(assert, pendingId))
 			.Should().Be(InvitationEmailOutboxStatus.Pending);
 	}
 
@@ -216,22 +216,22 @@ public sealed class AddEmailLogAndFoldEmailOutboxSpec : IClassFixture<ApiFixture
 		var chatter = string.Join(" ", Enumerable.Repeat("err", 2000));
 		var raw = $"send failed for {email} token={token} {chatter}";
 
-		var failed = await SeedOutboxAsync(o => {
+		var failed = await _SeedOutboxAsync(o => {
 			o.Status = InvitationEmailOutboxStatus.Failed;
 			o.AttemptCount = 4;
 			o.LastError = raw;
 		});
-		var sent = await SeedOutboxAsync(o => {
+		var sent = await _SeedOutboxAsync(o => {
 			o.Status = InvitationEmailOutboxStatus.Sent;
 			o.SentAt = DateTime.UtcNow.AddMinutes(-5);
 			o.LastError = raw;
 		});
 
-		await using (var db = CreateDbContext()) {
-			await RunFoldSqlAsync(db);
+		await using (var db = _CreateDbContext()) {
+			await _RunFoldSqlAsync(db);
 		}
 
-		await using var assert = CreateDbContext();
+		await using var assert = _CreateDbContext();
 
 		// Failed → the fixed literal, exactly. No fragment of the legacy text survives.
 		var failedLog = await assert.EmailLog.AsNoTracking().SingleAsync(e => e.LegacyOutboxId == failed);
@@ -255,20 +255,20 @@ public sealed class AddEmailLogAndFoldEmailOutboxSpec : IClassFixture<ApiFixture
 		// queue is delete-on-success). Because the marker lives on the SOURCE row it
 		// outlives the job; a live `job_queue EXISTS` check would re-admit the row the
 		// instant its job was deleted.
-		var invitationId = await SeedInvitationAsync();
-		var pending = await SeedOutboxAsync(o => {
+		var invitationId = await _SeedInvitationAsync();
+		var pending = await _SeedOutboxAsync(o => {
 			o.Kind = InvitationEmailKind.StaffInvitation;
 			o.Status = InvitationEmailOutboxStatus.Pending;
 			o.InvitationId = invitationId;
 		});
 
 		// Two full passes: the second sees the marker the first committed.
-		await using (var db = CreateDbContext()) {
-			await RunFoldSqlAsync(db);
-			await RunFoldSqlAsync(db);
+		await using (var db = _CreateDbContext()) {
+			await _RunFoldSqlAsync(db);
+			await _RunFoldSqlAsync(db);
 		}
 
-		await using var assert = CreateDbContext();
+		await using var assert = _CreateDbContext();
 
 		// The source row is the fold's, and the fold's only: one job, zero history rows.
 		(await assert.JobQueue.AsNoTracking().CountAsync(j => j.IdempotencyKey == $"fold:{pending}"))
@@ -286,23 +286,23 @@ public sealed class AddEmailLogAndFoldEmailOutboxSpec : IClassFixture<ApiFixture
 		// Simulate the fold job SUCCEEDING: delete-on-success removes the job row, so it is
 		// gone before R2's straggler back-copy runs.
 		var foldKey = $"fold:{pending}";
-		await using (var deleteJob = CreateDbContext()) {
+		await using (var deleteJob = _CreateDbContext()) {
 			await deleteJob.Database.ExecuteSqlAsync(
 				$"DELETE FROM job_queue WHERE idempotency_key = {foldKey}"
 			);
 		}
-		await using (var afterDelete = CreateDbContext()) {
+		await using (var afterDelete = _CreateDbContext()) {
 			(await afterDelete.JobQueue.AsNoTracking().AnyAsync(j => j.IdempotencyKey == foldKey))
 				.Should().BeFalse("precondition: the successful fold job has been deleted");
 		}
 
 		// R2-shaped straggler back-copy, run with the job already deleted: still adds
 		// nothing for this row, because folded_job_id persists on the source row.
-		await using (var straggler = CreateDbContext()) {
-			await ExecRawAsync(straggler, AddEmailLogAndFoldEmailOutboxSql.BackCopyTerminalHistory);
+		await using (var straggler = _CreateDbContext()) {
+			await _ExecRawAsync(straggler, AddEmailLogAndFoldEmailOutboxSql.BackCopyTerminalHistory);
 		}
 
-		await using var afterStraggler = CreateDbContext();
+		await using var afterStraggler = _CreateDbContext();
 		(await afterStraggler.EmailLog.AsNoTracking().CountAsync(e => e.LegacyOutboxId == pending))
 			.Should().Be(0, "the durable fold marker outlives the deleted job");
 	}
@@ -316,14 +316,14 @@ public sealed class AddEmailLogAndFoldEmailOutboxSpec : IClassFixture<ApiFixture
 		// BOTH timestamps — and the COALESCE takes sent_at, making the history claim the
 		// outcome occurred when the send did rather than when the row actually reached its
 		// terminal state.
-		var failed = await SeedOutboxAsync(o => {
+		var failed = await _SeedOutboxAsync(o => {
 			o.Status = InvitationEmailOutboxStatus.Failed;
 			o.LastError = "boom";
 		});
-		var cancelled = await SeedOutboxAsync(o => {
+		var cancelled = await _SeedOutboxAsync(o => {
 			o.Status = InvitationEmailOutboxStatus.Cancelled;
 		});
-		var sent = await SeedOutboxAsync(o => {
+		var sent = await _SeedOutboxAsync(o => {
 			o.Status = InvitationEmailOutboxStatus.Sent;
 		});
 
@@ -331,7 +331,7 @@ public sealed class AddEmailLogAndFoldEmailOutboxSpec : IClassFixture<ApiFixture
 		// row carries a sent_at STRICTLY EARLIER than its updated_at, making "which column
 		// did the copy read" observable rather than a coincidence of equal clocks.
 		foreach (var id in new[] { failed, cancelled, sent }) {
-			await using var seed = CreateDbContext();
+			await using var seed = _CreateDbContext();
 			await seed.Database.ExecuteSqlAsync(
 				$"""
 				UPDATE invitation_email_outbox
@@ -342,11 +342,11 @@ public sealed class AddEmailLogAndFoldEmailOutboxSpec : IClassFixture<ApiFixture
 			);
 		}
 
-		await using (var db = CreateDbContext()) {
-			await RunFoldSqlAsync(db);
+		await using (var db = _CreateDbContext()) {
+			await _RunFoldSqlAsync(db);
 		}
 
-		await using var assert = CreateDbContext();
+		await using var assert = _CreateDbContext();
 
 		// Compare against the source rows' OWN stored values — no precision assumptions
 		// about how the timestamps round-trip.
@@ -387,14 +387,14 @@ public sealed class AddEmailLogAndFoldEmailOutboxSpec : IClassFixture<ApiFixture
 		// red-before for the per-status mapping lives in
 		// ItShouldTakeUpdatedAtForFailedAndCancelledRowsThatAlsoCarryASentAt, which DOES
 		// fail on the old COALESCE.
-		var sent = await SeedOutboxAsync(o => {
+		var sent = await _SeedOutboxAsync(o => {
 			o.Status = InvitationEmailOutboxStatus.Sent;
 			o.SentAt = null;
 		});
 
 		// SaveChanges stamps updated_at to ~now, which would make "not stamped with the
 		// migration's runtime" unfalsifiable. Age the row so the two are distinguishable.
-		await using (var age = CreateDbContext()) {
+		await using (var age = _CreateDbContext()) {
 			await age.Database.ExecuteSqlAsync(
 				$"""
 				UPDATE invitation_email_outbox
@@ -404,11 +404,11 @@ public sealed class AddEmailLogAndFoldEmailOutboxSpec : IClassFixture<ApiFixture
 			);
 		}
 
-		await using (var db = CreateDbContext()) {
-			await RunFoldSqlAsync(db);
+		await using (var db = _CreateDbContext()) {
+			await _RunFoldSqlAsync(db);
 		}
 
-		await using var assert = CreateDbContext();
+		await using var assert = _CreateDbContext();
 		var source = await assert.InvitationEmailOutbox.AsNoTracking().SingleAsync(o => o.Id == sent);
 		source.SentAt.Should().BeNull();
 
@@ -431,25 +431,25 @@ public sealed class AddEmailLogAndFoldEmailOutboxSpec : IClassFixture<ApiFixture
 		// a real cancellation and MUST be back-copied. The previous compound exclusion
 		// (status = 4 AND last_error = sentinel) would have silently erased it from history.
 		// folded_job_id is left NULL on every row here: none was folded.
-		var genuineCancelledNullError = await SeedOutboxAsync(o => {
+		var genuineCancelledNullError = await _SeedOutboxAsync(o => {
 			o.Status = InvitationEmailOutboxStatus.Cancelled;
 			o.LastError = null;
 		});
 		// The exact state R2 flagged: Cancelled, carrying the sentinel TEXT, no fold marker.
-		var genuineCancelledWithSentinelText = await SeedOutboxAsync(o => {
+		var genuineCancelledWithSentinelText = await _SeedOutboxAsync(o => {
 			o.Status = InvitationEmailOutboxStatus.Cancelled;
 			o.LastError = "folded to job_queue";
 		});
-		var lookalikeFailedWithSentinelText = await SeedOutboxAsync(o => {
+		var lookalikeFailedWithSentinelText = await _SeedOutboxAsync(o => {
 			o.Status = InvitationEmailOutboxStatus.Failed;
 			o.LastError = "folded to job_queue";
 		});
 
-		await using (var db = CreateDbContext()) {
-			await RunFoldSqlAsync(db);
+		await using (var db = _CreateDbContext()) {
+			await _RunFoldSqlAsync(db);
 		}
 
-		await using var assert = CreateDbContext();
+		await using var assert = _CreateDbContext();
 		(await assert.EmailLog.AsNoTracking().SingleAsync(e => e.LegacyOutboxId == genuineCancelledNullError))
 			.Outcome.Should().Be(EmailLogOutcome.CancelledIneligible);
 		(await assert.EmailLog.AsNoTracking()
@@ -476,10 +476,10 @@ public sealed class AddEmailLogAndFoldEmailOutboxSpec : IClassFixture<ApiFixture
 		// EXCLUSIVE conflicts with the claim's ROW EXCLUSIVE, so the claim blocks until the
 		// row is Cancelled and then matches nothing. This drives the REAL ClaimBatchAsync on
 		// a second connection, not an imitation.
-		var invitationId = await SeedInvitationAsync();
+		var invitationId = await _SeedInvitationAsync();
 
-		await using var foldDb = CreateDbContext();
-		await using var dispatcherDb = CreateDbContext();
+		await using var foldDb = _CreateDbContext();
+		await using var dispatcherDb = _CreateDbContext();
 
 		// Precondition (NOT the assertion): a committed, DUE, Pending row. The integration
 		// host registers no live InvitationEmailOutboxDispatcher for any spec
@@ -488,7 +488,7 @@ public sealed class AddEmailLogAndFoldEmailOutboxSpec : IClassFixture<ApiFixture
 		// Pending under the fold lock on the first and only attempt, which keeps the
 		// interleave deterministic without a retry loop.
 		var foldTx = await foldDb.Database.BeginTransactionAsync();
-		var outboxId = await SeedOutboxAsync(o => {
+		var outboxId = await _SeedOutboxAsync(o => {
 			o.Kind = InvitationEmailKind.StaffInvitation;
 			o.Status = InvitationEmailOutboxStatus.Pending;
 			o.InvitationId = invitationId;
@@ -496,7 +496,7 @@ public sealed class AddEmailLogAndFoldEmailOutboxSpec : IClassFixture<ApiFixture
 			o.NextAttemptAt = DateTime.UtcNow.AddMinutes(-1);
 		});
 
-		await ExecRawAsync(foldDb, AddEmailLogAndFoldEmailOutboxSql.LockOutboxForFold);
+		await _ExecRawAsync(foldDb, AddEmailLogAndFoldEmailOutboxSql.LockOutboxForFold);
 
 		var statusUnderLock = await foldDb.InvitationEmailOutbox.AsNoTracking()
 			.Where(o => o.Id == outboxId)
@@ -511,8 +511,8 @@ public sealed class AddEmailLogAndFoldEmailOutboxSpec : IClassFixture<ApiFixture
 		try {
 			// Fold up to just before the Cancel: back-copy (a no-op for a Pending row) +
 			// enqueue the fold job. The row is committed-Pending and not row-locked here.
-			await ExecRawAsync(foldDb, AddEmailLogAndFoldEmailOutboxSql.BackCopyTerminalHistory);
-			await ExecRawAsync(foldDb, AddEmailLogAndFoldEmailOutboxSql.FoldPendingRows);
+			await _ExecRawAsync(foldDb, AddEmailLogAndFoldEmailOutboxSql.BackCopyTerminalHistory);
+			await _ExecRawAsync(foldDb, AddEmailLogAndFoldEmailOutboxSql.FoldPendingRows);
 
 			// The dispatcher's real claim on its own connection, concurrent with the open
 			// fold transaction. With the lock held it BLOCKS; without it (red control) it
@@ -525,7 +525,7 @@ public sealed class AddEmailLogAndFoldEmailOutboxSpec : IClassFixture<ApiFixture
 			// below, so this delay simply elapses.
 			await Task.WhenAny(claimTask, Task.Delay(TimeSpan.FromSeconds(3)));
 
-			await ExecRawAsync(foldDb, AddEmailLogAndFoldEmailOutboxSql.CancelFoldedPendingRows);
+			await _ExecRawAsync(foldDb, AddEmailLogAndFoldEmailOutboxSql.CancelFoldedPendingRows);
 			await foldTx.CommitAsync();
 
 			claimed = await claimTask;
@@ -533,11 +533,11 @@ public sealed class AddEmailLogAndFoldEmailOutboxSpec : IClassFixture<ApiFixture
 			await foldTx.DisposeAsync();
 		}
 
-		await using var assert = CreateDbContext();
+		await using var assert = _CreateDbContext();
 		(await assert.JobQueue.AsNoTracking().AnyAsync(j => j.IdempotencyKey == $"fold:{outboxId}"))
 			.Should().BeTrue("the Pending row is folded into a job");
 
-		var sourceStatus = await OutboxStatusAsync(assert, outboxId);
+		var sourceStatus = await _OutboxStatusAsync(assert, outboxId);
 
 		// THE INVARIANT: with a fold job live for this row, the source row must not also be
 		// owned by the legacy path (Processing = claimed and about to send; Sent = sent).
@@ -584,7 +584,7 @@ public sealed class AddEmailLogAndFoldEmailOutboxSpec : IClassFixture<ApiFixture
 		}
 	}
 
-	private static async Task RunFoldSqlAsync(AppDbContext db, int? failAfterStep = null) {
+	private static async Task _RunFoldSqlAsync(AppDbContext db, int? failAfterStep = null) {
 		string[] steps = [
 			AddEmailLogAndFoldEmailOutboxSql.LockOutboxForFold,
 			AddEmailLogAndFoldEmailOutboxSql.BackCopyTerminalHistory,
@@ -596,7 +596,7 @@ public sealed class AddEmailLogAndFoldEmailOutboxSpec : IClassFixture<ApiFixture
 		await using var transaction = await db.Database.BeginTransactionAsync();
 		try {
 			for (var index = 0; index < steps.Length; index++) {
-				await ExecRawAsync(db, steps[index]);
+				await _ExecRawAsync(db, steps[index]);
 				if (failAfterStep == index + 1) {
 					throw new InvalidOperationException("forced mid-fold failure");
 				}
@@ -611,7 +611,7 @@ public sealed class AddEmailLogAndFoldEmailOutboxSpec : IClassFixture<ApiFixture
 
 	// ADO avoids composite-format parsing of regex braces and explicitly enlists every
 	// shared migration statement in the test transaction.
-	private static async Task ExecRawAsync(AppDbContext db, string sql) {
+	private static async Task _ExecRawAsync(AppDbContext db, string sql) {
 		var connection = db.Database.GetDbConnection();
 		if (connection.State != ConnectionState.Open) {
 			await connection.OpenAsync();
@@ -623,7 +623,7 @@ public sealed class AddEmailLogAndFoldEmailOutboxSpec : IClassFixture<ApiFixture
 		await command.ExecuteNonQueryAsync();
 	}
 
-	private static Guid? PayloadGuid(string payload, string property) {
+	private static Guid? _PayloadGuid(string payload, string property) {
 		using var document = JsonDocument.Parse(payload);
 		return document.RootElement.TryGetProperty(property, out var value)
 			&& value.TryGetGuid(out var guid)
@@ -631,7 +631,7 @@ public sealed class AddEmailLogAndFoldEmailOutboxSpec : IClassFixture<ApiFixture
 			: null;
 	}
 
-	private static async Task<InvitationEmailOutboxStatus> OutboxStatusAsync(
+	private static async Task<InvitationEmailOutboxStatus> _OutboxStatusAsync(
 		AppDbContext db,
 		Guid id
 	) {
@@ -639,8 +639,8 @@ public sealed class AddEmailLogAndFoldEmailOutboxSpec : IClassFixture<ApiFixture
 		return row.Status;
 	}
 
-	private async Task<Guid> SeedInvitationAsync() {
-		await using var db = CreateDbContext();
+	private async Task<Guid> _SeedInvitationAsync() {
+		await using var db = _CreateDbContext();
 		var inviter = new User {
 			Email = $"inviter-{Guid.NewGuid():N}@example.com",
 			Password = "unused",
@@ -662,8 +662,8 @@ public sealed class AddEmailLogAndFoldEmailOutboxSpec : IClassFixture<ApiFixture
 		return invitation.GetRequiredId();
 	}
 
-	private async Task<Guid> SeedOutboxAsync(Action<InvitationEmailOutbox> configure) {
-		await using var db = CreateDbContext();
+	private async Task<Guid> _SeedOutboxAsync(Action<InvitationEmailOutbox> configure) {
+		await using var db = _CreateDbContext();
 		var row = new InvitationEmailOutbox {
 			Email = $"folded-{Guid.NewGuid():N}@example.com",
 			Kind = InvitationEmailKind.StaffInvitation,
@@ -676,8 +676,8 @@ public sealed class AddEmailLogAndFoldEmailOutboxSpec : IClassFixture<ApiFixture
 		return row.GetRequiredId();
 	}
 
-	private AppDbContext CreateDbContext() {
-		using var scope = _fixture.Factory.Services.CreateScope();
+	private AppDbContext _CreateDbContext() {
+		using var scope = _Fixture.Factory.Services.CreateScope();
 		var connectionString = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>()
 			.Database.GetConnectionString();

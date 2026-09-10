@@ -24,11 +24,11 @@ public class UserAccount : BaseAttributes, IOptionalTenantEntity {
 	[Column("user_id")]
 	public required Guid UserId { get; set; }
 
-	private User? _user;
+	private User? _User;
 	[JsonIgnore]
 	public User User {
-		get { return RequiredNavigation.Get(_user, nameof(UserAccount), nameof(User)); }
-		set { _user = value; }
+		get { return RequiredNavigation.Get(_User, nameof(UserAccount), nameof(User)); }
+		set { _User = value; }
 	}
 
 	[Column("tenant_id")]

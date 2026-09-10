@@ -73,20 +73,20 @@ public class FindTenantsAsStaffQueryValidator
 	: CursorPaginatedQueryValidator<FindTenantsAsStaffQuery> {
 
 	// Source of truth: nameof() - rename-safe, no hardcoded strings to maintain.
-	private static readonly string[] AllowedStatuses = [
+	private static readonly string[] _AllowedStatuses = [
 		nameof(TenantStatus.Pending),
 		nameof(TenantStatus.Active),
 		nameof(TenantStatus.Suspended),
 	];
 
-	private static readonly HashSet<string> AllowedStatusSet =
-		new(AllowedStatuses, StringComparer.OrdinalIgnoreCase);
+	private static readonly HashSet<string> _AllowedStatusSet =
+		new(_AllowedStatuses, StringComparer.OrdinalIgnoreCase);
 
 	// Lowercased once at type init so the validation message matches the wire
 	// contract (lowercase tokens). Comparison itself stays case-insensitive via
 	// OrdinalIgnoreCase - ToLowerInvariant never runs on the request path.
-	private static readonly string AllowedStatusesDisplay =
-		string.Join(", ", AllowedStatuses.Select(s => s.ToLowerInvariant()).Order());
+	private static readonly string _AllowedStatusesDisplay =
+		string.Join(", ", _AllowedStatuses.Select(s => s.ToLowerInvariant()).Order());
 
 	public FindTenantsAsStaffQueryValidator() {
 		RuleFor(x => x.Search)
@@ -105,9 +105,9 @@ public class FindTenantsAsStaffQueryValidator
 				if (parts.Length == 0) {
 					return false;
 				}
-				return parts.All(p => p.Length > 0 && AllowedStatusSet.Contains(p));
+				return parts.All(p => p.Length > 0 && _AllowedStatusSet.Contains(p));
 			})
-			.WithMessage($"status must be one of: {AllowedStatusesDisplay}");
+			.WithMessage($"status must be one of: {_AllowedStatusesDisplay}");
 	}
 }
 

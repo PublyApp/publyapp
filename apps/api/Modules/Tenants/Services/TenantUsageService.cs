@@ -53,13 +53,13 @@ public interface ITenantUsageService {
 
 [Service(ServiceLifetime.Scoped)]
 public class TenantUsageService : ITenantUsageService {
-	private readonly AppDbContext _dbContext;
+	private readonly AppDbContext _DbContext;
 
 	public TenantUsageService(
 		AppDbContext dbContext,
 		ILogger<TenantUsageService> logger
 	) {
-		_dbContext = dbContext;
+		_DbContext = dbContext;
 		_ = logger;
 	}
 
@@ -70,7 +70,7 @@ public class TenantUsageService : ITenantUsageService {
 		var now = DateTime.UtcNow;
 
 		var exists = await (
-			from tenant in _dbContext.Tenant.AsNoTracking()
+			from tenant in _DbContext.Tenant.AsNoTracking()
 			where tenant.Id == tenantId && !tenant.IsDeleted
 			select tenant.Id
 		).AnyAsync(cancellationToken);
@@ -110,7 +110,7 @@ public class TenantUsageService : ITenantUsageService {
 		Guid tenantId
 	) {
 		return (
-			from tenant in _dbContext.Tenant.AsNoTracking()
+			from tenant in _DbContext.Tenant.AsNoTracking()
 			where tenant.Id == tenantId && !tenant.IsDeleted
 			select tenant.LastActivityAt
 		);
@@ -125,7 +125,7 @@ public class TenantUsageService : ITenantUsageService {
 		Guid tenantId
 	) {
 		return (
-			from ua in _dbContext.UserAccount.AsNoTracking()
+			from ua in _DbContext.UserAccount.AsNoTracking()
 			where ua.TenantId == tenantId
 				&& ua.Scope == AccountScope.Tenant
 				&& !ua.IsDeleted
@@ -143,7 +143,7 @@ public class TenantUsageService : ITenantUsageService {
 		Guid tenantId
 	) {
 		return (
-			from ua in _dbContext.UserAccount.AsNoTracking()
+			from ua in _DbContext.UserAccount.AsNoTracking()
 			where ua.TenantId == tenantId
 				&& ua.Scope == AccountScope.Tenant
 				&& !ua.IsDeleted
@@ -161,7 +161,7 @@ public class TenantUsageService : ITenantUsageService {
 		Guid tenantId
 	) {
 		return (
-			from project in _dbContext.Project.AsNoTracking()
+			from project in _DbContext.Project.AsNoTracking()
 			where project.TenantId == tenantId
 				&& !project.IsDeleted
 			select project
@@ -176,7 +176,7 @@ public class TenantUsageService : ITenantUsageService {
 		Guid tenantId
 	) {
 		return (
-			from publication in _dbContext.Publication.AsNoTracking()
+			from publication in _DbContext.Publication.AsNoTracking()
 			where publication.TenantId == tenantId
 				&& !publication.IsDeleted
 				&& publication.Status == PublicationStatus.Scheduled

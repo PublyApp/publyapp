@@ -21,17 +21,17 @@ using Xunit;
 namespace PublyApp.Api.Modules.Users.Handlers.Staff;
 
 public sealed class BulkSuspendStaffUsersSpec : IClassFixture<ApiFixture> {
-	private readonly ApiFixture _fixture;
-	private readonly HttpClient _http;
-	private readonly TestAuthClient _authClient;
+	private readonly ApiFixture _Fixture;
+	private readonly HttpClient _Http;
+	private readonly TestAuthClient _AuthClient;
 
 	public BulkSuspendStaffUsersSpec(ApiFixture fixture) {
-		_fixture = fixture;
-		_http = fixture.HttpClient;
-		_authClient = new TestAuthClient(_http);
+		_Fixture = fixture;
+		_Http = fixture.HttpClient;
+		_AuthClient = new TestAuthClient(_Http);
 	}
 
-	private static string GetBulkSuspendUrl() {
+	private static string _GetBulkSuspendUrl() {
 		return PathUtils.Join(
 			Routes.Staff.Root,
 			Routes.Users.ForStaff.Root,
@@ -39,7 +39,7 @@ public sealed class BulkSuspendStaffUsersSpec : IClassFixture<ApiFixture> {
 		);
 	}
 
-	private static string GetSuspendUrl(string userId) {
+	private static string _GetSuspendUrl(string userId) {
 		return PathUtils.Join(
 			Routes.Staff.Root,
 			Routes.Users.ForStaff.Root,
@@ -49,13 +49,13 @@ public sealed class BulkSuspendStaffUsersSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldPublishBulkStaffUserBodiesWithRequiredUserIdsInOpenApi() {
-		var openApiDocument = await ReadOpenApiDocumentAsync();
+		var openApiDocument = await _ReadOpenApiDocumentAsync();
 
-		AssertSchemaRequiresUserIds(
+		_AssertSchemaRequiresUserIds(
 			openApiDocument,
 			"BulkSuspendStaffUsersBody"
 		);
-		AssertSchemaRequiresUserIds(
+		_AssertSchemaRequiresUserIds(
 			openApiDocument,
 			"BulkReactivateStaffUsersBody"
 		);
@@ -63,9 +63,9 @@ public sealed class BulkSuspendStaffUsersSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldReturnValidationProblemForMalformedBulkSuspendBody() {
-		var staffToken = await _authClient.LoginAsStaffAdminAsync();
+		var staffToken = await _AuthClient.LoginAsStaffAdminAsync();
 
-		using var response = await BulkSuspendAsync(
+		using var response = await _BulkSuspendAsync(
 			staffToken,
 			["not-a-guid"]
 		);
@@ -84,16 +84,16 @@ public sealed class BulkSuspendStaffUsersSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldReturnValidationProblemWhenBulkSuspendBodyOmitsUserIds() {
-		var staffToken = await _authClient.LoginAsStaffAdminAsync();
+		var staffToken = await _AuthClient.LoginAsStaffAdminAsync();
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Post,
-			GetBulkSuspendUrl()
+			_GetBulkSuspendUrl()
 		).WithSessionToken(staffToken);
 
 		request.Content = JsonContent.Create(new { });
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 
 		response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
 
@@ -109,21 +109,21 @@ public sealed class BulkSuspendStaffUsersSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldReturnOkWhenBulkSuspendingActiveStaffUsers() {
-		var staffToken = await _authClient.LoginAsStaffAdminAsync();
+		var staffToken = await _AuthClient.LoginAsStaffAdminAsync();
 		var firstUserId = Guid.Parse(
-			await CreateStaffUserAsync(
+			await _CreateStaffUserAsync(
 				staffToken,
 				$"bulk-suspend-first-{Guid.NewGuid():N}@example.com"
 			)
 		);
 		var secondUserId = Guid.Parse(
-			await CreateStaffUserAsync(
+			await _CreateStaffUserAsync(
 				staffToken,
 				$"bulk-suspend-second-{Guid.NewGuid():N}@example.com"
 			)
 		);
 
-		using var response = await BulkSuspendAsync(
+		using var response = await _BulkSuspendAsync(
 			staffToken,
 			firstUserId,
 			secondUserId
@@ -138,30 +138,30 @@ public sealed class BulkSuspendStaffUsersSpec : IClassFixture<ApiFixture> {
 		result.FailedCount.Should().Be(0);
 		result.FailedItems.Should().BeEmpty();
 
-		await AssertStaffUserStatusAsync(firstUserId, UserStatus.Suspended);
-		await AssertStaffUserStatusAsync(secondUserId, UserStatus.Suspended);
+		await _AssertStaffUserStatusAsync(firstUserId, UserStatus.Suspended);
+		await _AssertStaffUserStatusAsync(secondUserId, UserStatus.Suspended);
 	}
 
 	[Fact]
 	public async Task ItShouldReturnPartialSuccessWhenBulkSuspendMixesValidAndInvalidTargets() {
-		var staffToken = await _authClient.LoginAsStaffAdminAsync();
+		var staffToken = await _AuthClient.LoginAsStaffAdminAsync();
 		var activeUserId = Guid.Parse(
-			await CreateStaffUserAsync(
+			await _CreateStaffUserAsync(
 				staffToken,
 				$"bulk-active-{Guid.NewGuid():N}@example.com"
 			)
 		);
 		var suspendedUserId = Guid.Parse(
-			await CreateStaffUserAsync(
+			await _CreateStaffUserAsync(
 				staffToken,
 				$"bulk-suspended-{Guid.NewGuid():N}@example.com"
 			)
 		);
 		var missingUserId = Guid.NewGuid();
 
-		await SuspendStaffUserAsync(staffToken, suspendedUserId.ToString());
+		await _SuspendStaffUserAsync(staffToken, suspendedUserId.ToString());
 
-		using var response = await BulkSuspendAsync(
+		using var response = await _BulkSuspendAsync(
 			staffToken,
 			activeUserId,
 			suspendedUserId,
@@ -182,15 +182,15 @@ public sealed class BulkSuspendStaffUsersSpec : IClassFixture<ApiFixture> {
 			item => item.UserId == missingUserId
 		);
 
-		await AssertStaffUserStatusAsync(activeUserId, UserStatus.Suspended);
-		await AssertStaffUserStatusAsync(suspendedUserId, UserStatus.Suspended);
+		await _AssertStaffUserStatusAsync(activeUserId, UserStatus.Suspended);
+		await _AssertStaffUserStatusAsync(suspendedUserId, UserStatus.Suspended);
 	}
 
-	private async Task<string> CreateStaffUserAsync(string staffToken, string email) {
+	private async Task<string> _CreateStaffUserAsync(string staffToken, string email) {
 		_ = staffToken;
 		// Direct create is intentionally unmapped; bulk tests seed setup users directly.
 		var userId = await StaffUserTestHelper.SeedStaffUserAsync(
-			_fixture,
+			_Fixture,
 			email,
 			firstName: "Staff",
 			lastName: "BulkSuspend"
@@ -198,45 +198,45 @@ public sealed class BulkSuspendStaffUsersSpec : IClassFixture<ApiFixture> {
 		return userId.ToString();
 	}
 
-	private async Task SuspendStaffUserAsync(string staffToken, string userId) {
+	private async Task _SuspendStaffUserAsync(string staffToken, string userId) {
 		using var request = new HttpRequestMessage(
 			HttpMethod.Post,
-			GetSuspendUrl(userId)
+			_GetSuspendUrl(userId)
 		).WithSessionToken(staffToken);
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
 	}
 
-	private async Task<HttpResponseMessage> BulkSuspendAsync(
+	private async Task<HttpResponseMessage> _BulkSuspendAsync(
 		string staffToken,
 		params Guid[] userIds
 	) {
-		return await BulkSuspendAsync(
+		return await _BulkSuspendAsync(
 			staffToken,
 			userIds.Select(userId => (object)userId).ToArray()
 		);
 	}
 
-	private async Task<HttpResponseMessage> BulkSuspendAsync(
+	private async Task<HttpResponseMessage> _BulkSuspendAsync(
 		string staffToken,
 		object[] userIds
 	) {
 		var request = new HttpRequestMessage(
 			HttpMethod.Post,
-			GetBulkSuspendUrl()
+			_GetBulkSuspendUrl()
 		).WithSessionToken(staffToken);
 
 		request.Content = JsonContent.Create(new { userIds });
 
-		return await _http.SendAsync(request);
+		return await _Http.SendAsync(request);
 	}
 
-	private async Task AssertStaffUserStatusAsync(
+	private async Task _AssertStaffUserStatusAsync(
 		Guid userId,
 		UserStatus expectedStatus
 	) {
-		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		var user = await (
@@ -250,11 +250,11 @@ public sealed class BulkSuspendStaffUsersSpec : IClassFixture<ApiFixture> {
 		user.Status.Should().Be(expectedStatus);
 	}
 
-	private static async Task<JsonDocument> ReadOpenApiDocumentAsync() {
+	private static async Task<JsonDocument> _ReadOpenApiDocumentAsync() {
 		return await OpenApiDocumentHelper.ReadAsync();
 	}
 
-	private static void AssertSchemaRequiresUserIds(
+	private static void _AssertSchemaRequiresUserIds(
 		JsonDocument openApiDocument,
 		string schemaName
 	) {

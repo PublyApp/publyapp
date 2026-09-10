@@ -175,10 +175,10 @@ public sealed class UpdateAccountProfileForTenant {
 			);
 		}
 
-		return TypedResults.Ok(ToResult(profile));
+		return TypedResults.Ok(_ToResult(profile));
 	}
 
-	private static AccountProfileResult ToResult(AccountProfileData profile) {
+	private static AccountProfileResult _ToResult(AccountProfileData profile) {
 		return new AccountProfileResult {
 			Id = profile.Id,
 			Email = profile.Email,

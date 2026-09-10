@@ -21,17 +21,17 @@ using Xunit;
 namespace PublyApp.Api.Modules.Users.Handlers.Staff;
 
 public sealed class DeleteStaffUserSpec : IClassFixture<ApiFixture> {
-	private readonly ApiFixture _fixture;
-	private readonly HttpClient _http;
-	private readonly TestAuthClient _authClient;
+	private readonly ApiFixture _Fixture;
+	private readonly HttpClient _Http;
+	private readonly TestAuthClient _AuthClient;
 
 	public DeleteStaffUserSpec(ApiFixture fixture) {
-		_fixture = fixture;
-		_http = fixture.HttpClient;
-		_authClient = new TestAuthClient(_http);
+		_Fixture = fixture;
+		_Http = fixture.HttpClient;
+		_AuthClient = new TestAuthClient(_Http);
 	}
 
-	private static string GetDeleteUrl(string userId) {
+	private static string _GetDeleteUrl(string userId) {
 		return PathUtils.Join(
 			Routes.Staff.Root,
 			Routes.Users.ForStaff.Root,
@@ -39,7 +39,7 @@ public sealed class DeleteStaffUserSpec : IClassFixture<ApiFixture> {
 		);
 	}
 
-	private static string GetFindUrl() {
+	private static string _GetFindUrl() {
 		return PathUtils.Join(
 			Routes.Staff.Root,
 			Routes.Users.ForStaff.Root,
@@ -47,7 +47,7 @@ public sealed class DeleteStaffUserSpec : IClassFixture<ApiFixture> {
 		) + "?limit=100";
 	}
 
-	private static string GetByIdUrl(string userId) {
+	private static string _GetByIdUrl(string userId) {
 		return PathUtils.Join(
 			Routes.Staff.Root,
 			Routes.Users.ForStaff.Root,
@@ -55,7 +55,7 @@ public sealed class DeleteStaffUserSpec : IClassFixture<ApiFixture> {
 		);
 	}
 
-	private static string GetProfilesUrl(string userId) {
+	private static string _GetProfilesUrl(string userId) {
 		return PathUtils.Join(
 			Routes.Staff.Root,
 			Routes.Users.ForStaff.Root,
@@ -63,7 +63,7 @@ public sealed class DeleteStaffUserSpec : IClassFixture<ApiFixture> {
 		);
 	}
 
-	private static string GetSuspendUrl(string userId) {
+	private static string _GetSuspendUrl(string userId) {
 		return PathUtils.Join(
 			Routes.Staff.Root,
 			Routes.Users.ForStaff.Root,
@@ -71,7 +71,7 @@ public sealed class DeleteStaffUserSpec : IClassFixture<ApiFixture> {
 		);
 	}
 
-	private static string GetUpdateProfilesUrl(string userId) {
+	private static string _GetUpdateProfilesUrl(string userId) {
 		return PathUtils.Join(
 			Routes.Staff.Root,
 			Routes.Users.ForStaff.Root,
@@ -79,7 +79,7 @@ public sealed class DeleteStaffUserSpec : IClassFixture<ApiFixture> {
 		);
 	}
 
-	private static string GetCreateProfileUrl() {
+	private static string _GetCreateProfileUrl() {
 		return PathUtils.Join(
 			Routes.Staff.Root,
 			Routes.Profiles.ForStaff.Root,
@@ -87,7 +87,7 @@ public sealed class DeleteStaffUserSpec : IClassFixture<ApiFixture> {
 		);
 	}
 
-	private static async Task<T> ReadRequiredJsonAsync<T>(HttpContent content) {
+	private static async Task<T> _ReadRequiredJsonAsync<T>(HttpContent content) {
 		var value = await content.ReadFromJsonAsync<T>();
 		if (value is null) {
 			throw new InvalidOperationException($"Failed to deserialize {typeof(T).Name}.");
@@ -98,79 +98,79 @@ public sealed class DeleteStaffUserSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldSoftDeleteSuspendedStaffUserAndHideThemFromAllStaffSurfaces() {
-		var staffToken = await _authClient.LoginAsStaffAdminAsync();
+		var staffToken = await _AuthClient.LoginAsStaffAdminAsync();
 		var email = $"delete-{Guid.NewGuid():N}@example.com";
-		var userId = await CreateStaffUserAsync(staffToken, email);
-		var firstProfileId = await CreateStaffProfileAsync(staffToken);
-		var secondProfileId = await CreateStaffProfileAsync(staffToken);
+		var userId = await _CreateStaffUserAsync(staffToken, email);
+		var firstProfileId = await _CreateStaffProfileAsync(staffToken);
+		var secondProfileId = await _CreateStaffProfileAsync(staffToken);
 
-		await AssignProfilesAsync(
+		await _AssignProfilesAsync(
 			staffToken,
 			userId,
 			firstProfileId,
 			secondProfileId
 		);
-		await SuspendStaffUserAsync(staffToken, userId);
+		await _SuspendStaffUserAsync(staffToken, userId);
 
-		using var response = await DeleteStaffUserAsync(staffToken, userId);
+		using var response = await _DeleteStaffUserAsync(staffToken, userId);
 
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
-		var body = await ReadRequiredJsonAsync<ApiResponse>(response.Content);
+		var body = await _ReadRequiredJsonAsync<ApiResponse>(response.Content);
 		body.Key.Should().Be(ResponseKeys.StaffUserDeletedSuccess);
 
-		await AssertSoftDeletedRowsAsync(userId, expectedProfileLinkCount: 0);
-		await AssertFindStaffUsersDoesNotContainAsync(staffToken, userId);
-		await AssertGetStaffUserReturnsNotFoundAsync(staffToken, userId);
-		await AssertGetStaffUserProfilesReturnsNotFoundAsync(staffToken, userId);
+		await _AssertSoftDeletedRowsAsync(userId, expectedProfileLinkCount: 0);
+		await _AssertFindStaffUsersDoesNotContainAsync(staffToken, userId);
+		await _AssertGetStaffUserReturnsNotFoundAsync(staffToken, userId);
+		await _AssertGetStaffUserProfilesReturnsNotFoundAsync(staffToken, userId);
 	}
 
 	[Fact]
 	public async Task ItShouldReturnBadRequestWhenDeletingWithMalformedId() {
-		var staffToken = await _authClient.LoginAsStaffAdminAsync();
+		var staffToken = await _AuthClient.LoginAsStaffAdminAsync();
 
-		using var response = await DeleteStaffUserAsync(staffToken, "not-a-guid");
+		using var response = await _DeleteStaffUserAsync(staffToken, "not-a-guid");
 
 		response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
-		var body = await ReadRequiredJsonAsync<AppProblemDetails>(response.Content);
+		var body = await _ReadRequiredJsonAsync<AppProblemDetails>(response.Content);
 		body.TranslationKey.Should().Be(ResponseKeys.MalformedId);
 	}
 
 	[Fact]
 	public async Task ItShouldReturnNotFoundWhenDeletingMissingStaffUser() {
-		var staffToken = await _authClient.LoginAsStaffAdminAsync();
+		var staffToken = await _AuthClient.LoginAsStaffAdminAsync();
 
-		using var response = await DeleteStaffUserAsync(
+		using var response = await _DeleteStaffUserAsync(
 			staffToken,
 			Guid.NewGuid().ToString()
 		);
 
 		response.StatusCode.Should().Be(HttpStatusCode.NotFound);
-		var body = await ReadRequiredJsonAsync<AppProblemDetails>(response.Content);
+		var body = await _ReadRequiredJsonAsync<AppProblemDetails>(response.Content);
 		body.TranslationKey.Should().Be(ResponseKeys.UserNotFound);
 	}
 
 	[Fact]
 	public async Task ItShouldReturnBadRequestWhenDeletingANonSuspendedStaffUser() {
-		var staffToken = await _authClient.LoginAsStaffAdminAsync();
-		var userId = await CreateStaffUserAsync(
+		var staffToken = await _AuthClient.LoginAsStaffAdminAsync();
+		var userId = await _CreateStaffUserAsync(
 			staffToken,
 			$"not-suspended-{Guid.NewGuid():N}@example.com"
 		);
 
-		using var response = await DeleteStaffUserAsync(staffToken, userId);
+		using var response = await _DeleteStaffUserAsync(staffToken, userId);
 
 		response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
-		var body = await ReadRequiredJsonAsync<AppProblemDetails>(response.Content);
+		var body = await _ReadRequiredJsonAsync<AppProblemDetails>(response.Content);
 		body.TranslationKey.Should().Be(ResponseKeys.StaffUserNotSuspendedCannotDelete);
 	}
 
-	private async Task AssertSoftDeletedRowsAsync(
+	private async Task _AssertSoftDeletedRowsAsync(
 		string userId,
 		int expectedProfileLinkCount
 	) {
 		var userIdGuid = Guid.Parse(userId);
 
-		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		var user = await dbContext.User
@@ -201,11 +201,11 @@ public sealed class DeleteStaffUserSpec : IClassFixture<ApiFixture> {
 		userAccountProfiles.Should().HaveCount(expectedProfileLinkCount);
 	}
 
-	private async Task<string> CreateStaffUserAsync(string staffToken, string email) {
+	private async Task<string> _CreateStaffUserAsync(string staffToken, string email) {
 		_ = staffToken;
 		// Direct create is intentionally unmapped; delete tests seed setup users directly.
 		var userId = await StaffUserTestHelper.SeedStaffUserAsync(
-			_fixture,
+			_Fixture,
 			email,
 			firstName: "Staff",
 			lastName: "DeleteTarget"
@@ -213,10 +213,10 @@ public sealed class DeleteStaffUserSpec : IClassFixture<ApiFixture> {
 		return userId.ToString();
 	}
 
-	private async Task<string> CreateStaffProfileAsync(string staffToken) {
+	private async Task<string> _CreateStaffProfileAsync(string staffToken) {
 		using var request = new HttpRequestMessage(
 			HttpMethod.Post,
-			GetCreateProfileUrl()
+			_GetCreateProfileUrl()
 		).WithSessionToken(staffToken);
 
 		request.Content = JsonContent.Create(
@@ -228,7 +228,7 @@ public sealed class DeleteStaffUserSpec : IClassFixture<ApiFixture> {
 			}
 		);
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.Created);
 
 		var created = await response.Content.ReadFromJsonAsync<StaffProfileCreatedResponse>();
@@ -237,48 +237,48 @@ public sealed class DeleteStaffUserSpec : IClassFixture<ApiFixture> {
 		return created.ProfileId.ToString();
 	}
 
-	private async Task AssignProfilesAsync(
+	private async Task _AssignProfilesAsync(
 		string staffToken,
 		string userId,
 		params string[] profileIds
 	) {
 		using var request = new HttpRequestMessage(
 			HttpMethod.Put,
-			GetUpdateProfilesUrl(userId)
+			_GetUpdateProfilesUrl(userId)
 		).WithSessionToken(staffToken);
 
 		request.Content = JsonContent.Create(new { profileIds });
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
 	}
 
-	private async Task SuspendStaffUserAsync(string staffToken, string userId) {
+	private async Task _SuspendStaffUserAsync(string staffToken, string userId) {
 		using var request = new HttpRequestMessage(
 			HttpMethod.Post,
-			GetSuspendUrl(userId)
+			_GetSuspendUrl(userId)
 		).WithSessionToken(staffToken);
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
 	}
 
-	private async Task<HttpResponseMessage> DeleteStaffUserAsync(string staffToken, string userId) {
+	private async Task<HttpResponseMessage> _DeleteStaffUserAsync(string staffToken, string userId) {
 		var request = new HttpRequestMessage(
 			HttpMethod.Delete,
-			GetDeleteUrl(userId)
+			_GetDeleteUrl(userId)
 		).WithSessionToken(staffToken);
 
-		return await _http.SendAsync(request);
+		return await _Http.SendAsync(request);
 	}
 
-	private async Task AssertFindStaffUsersDoesNotContainAsync(string staffToken, string userId) {
+	private async Task _AssertFindStaffUsersDoesNotContainAsync(string staffToken, string userId) {
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			GetFindUrl()
+			_GetFindUrl()
 		).WithSessionToken(staffToken);
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
 
 		var result = await response.Content.ReadFromJsonAsync<FindStaffUsersResponse>();
@@ -287,26 +287,26 @@ public sealed class DeleteStaffUserSpec : IClassFixture<ApiFixture> {
 		result.Data.Should().NotContain(x => x.Id == Guid.Parse(userId));
 	}
 
-	private async Task AssertGetStaffUserReturnsNotFoundAsync(string staffToken, string userId) {
+	private async Task _AssertGetStaffUserReturnsNotFoundAsync(string staffToken, string userId) {
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			GetByIdUrl(userId)
+			_GetByIdUrl(userId)
 		).WithSessionToken(staffToken);
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.NotFound);
 	}
 
-	private async Task AssertGetStaffUserProfilesReturnsNotFoundAsync(
+	private async Task _AssertGetStaffUserProfilesReturnsNotFoundAsync(
 		string staffToken,
 		string userId
 	) {
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			GetProfilesUrl(userId)
+			_GetProfilesUrl(userId)
 		).WithSessionToken(staffToken);
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.NotFound);
 	}
 

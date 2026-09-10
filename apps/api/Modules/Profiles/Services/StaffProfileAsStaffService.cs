@@ -133,20 +133,20 @@ public interface IStaffProfileAsStaffService {
 
 [Service(ServiceLifetime.Scoped)]
 public sealed class StaffProfileAsStaffService : IStaffProfileAsStaffService {
-	private readonly AppDbContext _dbContext;
-	private readonly ILogger<StaffProfileAsStaffService> _logger;
-	private readonly IJobEnqueuer _jobEnqueuer;
-	private readonly IInvitationEmailOutboxSignal _outboxSignal;
+	private readonly AppDbContext _DbContext;
+	private readonly ILogger<StaffProfileAsStaffService> _Logger;
+	private readonly IJobEnqueuer _JobEnqueuer;
+	private readonly IInvitationEmailOutboxSignal _OutboxSignal;
 	public StaffProfileAsStaffService(
 		AppDbContext dbContext,
 		ILogger<StaffProfileAsStaffService> logger,
 		IJobEnqueuer jobEnqueuer,
 		IInvitationEmailOutboxSignal outboxSignal
 	) {
-		_dbContext = dbContext;
-		_logger = logger;
-		_jobEnqueuer = jobEnqueuer;
-		_outboxSignal = outboxSignal;
+		_DbContext = dbContext;
+		_Logger = logger;
+		_JobEnqueuer = jobEnqueuer;
+		_OutboxSignal = outboxSignal;
 	}
 
 	public async Task<UpdateStaffProfileResult> UpdateStaffProfileAsync(
@@ -154,7 +154,7 @@ public sealed class StaffProfileAsStaffService : IStaffProfileAsStaffService {
 		CancellationToken cancellationToken = default
 	) {
 		var profile = await (
-			from p in _dbContext.Profile
+			from p in _DbContext.Profile
 			where p.Id == args.ProfileId
 				&& p.Scope == ProfileScope.Staff
 				&& !p.IsDeleted
@@ -177,7 +177,7 @@ public sealed class StaffProfileAsStaffService : IStaffProfileAsStaffService {
 			}
 
 			var exists = await (
-				from p in _dbContext.Profile
+				from p in _DbContext.Profile
 				where p.Scope == ProfileScope.Staff
 					&& !p.IsDeleted
 					&& p.Id != args.ProfileId
@@ -204,11 +204,11 @@ public sealed class StaffProfileAsStaffService : IStaffProfileAsStaffService {
 			profile.Tone = args.Tone.Value?.Trim();
 		}
 
-		await _dbContext.SaveChangesAsync(cancellationToken);
+		await _DbContext.SaveChangesAsync(cancellationToken);
 
 		// Same response contract as tenant profiles: count active membership rows only.
 		var userAccountCount = await (
-			from uap in _dbContext.UserAccountProfile
+			from uap in _DbContext.UserAccountProfile
 			where uap.ProfileId == args.ProfileId
 			select uap.ProfileId
 		).CountAsync(cancellationToken);
@@ -230,7 +230,7 @@ public sealed class StaffProfileAsStaffService : IStaffProfileAsStaffService {
 		CancellationToken cancellationToken = default
 	) {
 		var profileExists = await (
-			from p in _dbContext.Profile
+			from p in _DbContext.Profile
 			where p.Id == args.ProfileId
 				&& p.Scope == ProfileScope.Staff
 				&& !p.IsDeleted
@@ -242,7 +242,7 @@ public sealed class StaffProfileAsStaffService : IStaffProfileAsStaffService {
 		}
 
 		var permissionExists = await (
-			from p in _dbContext.Permission
+			from p in _DbContext.Permission
 			where p.Key == args.PermissionKey
 				&& !p.IsDeleted
 				&& p.Scope == PermissionScope.Staff
@@ -254,7 +254,7 @@ public sealed class StaffProfileAsStaffService : IStaffProfileAsStaffService {
 		}
 
 		var existing = await (
-			from pp in _dbContext.ProfilePermission
+			from pp in _DbContext.ProfilePermission
 			where pp.ProfileId == args.ProfileId
 				&& pp.PermissionKey == args.PermissionKey
 			select pp
@@ -263,7 +263,7 @@ public sealed class StaffProfileAsStaffService : IStaffProfileAsStaffService {
 		if (existing is null) {
 			if (args.IsAssigned) {
 				// First-time assignment: create the junction row.
-				await _dbContext.ProfilePermission.AddAsync(
+				await _DbContext.ProfilePermission.AddAsync(
 					new ProfilePermission {
 						ProfileId = args.ProfileId,
 						PermissionKey = args.PermissionKey,
@@ -271,7 +271,7 @@ public sealed class StaffProfileAsStaffService : IStaffProfileAsStaffService {
 					cancellationToken
 				);
 
-				await _dbContext.SaveChangesAsync(cancellationToken);
+				await _DbContext.SaveChangesAsync(cancellationToken);
 			}
 
 			// Unassigning a non-existent row is a no-op (idempotent).
@@ -284,8 +284,8 @@ public sealed class StaffProfileAsStaffService : IStaffProfileAsStaffService {
 		}
 
 		// DELETE removes the grant row so future POST can insert a fresh composite-key row.
-		_dbContext.ProfilePermission.Remove(existing);
-		await _dbContext.SaveChangesAsync(cancellationToken);
+		_DbContext.ProfilePermission.Remove(existing);
+		await _DbContext.SaveChangesAsync(cancellationToken);
 
 		return new SetStaffProfilePermissionResult.Success();
 	}
@@ -338,7 +338,7 @@ public sealed class StaffProfileAsStaffService : IStaffProfileAsStaffService {
 
 		// Check if profile name already exists
 		var profileExists = await (
-			from p in _dbContext.Profile
+			from p in _DbContext.Profile
 			where p.Scope == ProfileScope.Staff
 				&& p.Name == normalizedName
 			select p
@@ -350,7 +350,7 @@ public sealed class StaffProfileAsStaffService : IStaffProfileAsStaffService {
 
 		// Validate all permissions exist AND are Staff-scoped
 		var validPermissionKeys = await (
-			from p in _dbContext.Permission
+			from p in _DbContext.Permission
 			where permissions.Contains(p.Key)
 				&& p.Scope == PermissionScope.Staff
 			select p.Key
@@ -365,7 +365,7 @@ public sealed class StaffProfileAsStaffService : IStaffProfileAsStaffService {
 		}
 
 		// Begin transaction
-		await using var transaction = await _dbContext.Database
+		await using var transaction = await _DbContext.Database
 			.BeginTransactionAsync(cancellationToken);
 
 		try {
@@ -377,8 +377,8 @@ public sealed class StaffProfileAsStaffService : IStaffProfileAsStaffService {
 			profile.Icon = icon;
 			profile.Tone = tone;
 
-			await _dbContext.Profile.AddAsync(profile, cancellationToken);
-			await _dbContext.SaveChangesAsync(cancellationToken);
+			await _DbContext.Profile.AddAsync(profile, cancellationToken);
+			await _DbContext.SaveChangesAsync(cancellationToken);
 			// Profile ID is now available
 
 			var profileId = profile.GetRequiredId();
@@ -392,13 +392,13 @@ public sealed class StaffProfileAsStaffService : IStaffProfileAsStaffService {
 				.ToList();
 
 			if (profilePermissions.Count > 0) {
-				await _dbContext.ProfilePermission
+				await _DbContext.ProfilePermission
 					.AddRangeAsync(profilePermissions, cancellationToken);
 			}
 
 			// Batch fetch existing users
 			var existingUsers = await (
-				from u in _dbContext.User
+				from u in _DbContext.User
 				where normalizedEmails.Contains(u.Email)
 					&& !u.IsDeleted
 				select u
@@ -412,7 +412,7 @@ public sealed class StaffProfileAsStaffService : IStaffProfileAsStaffService {
 			// Staff profiles can ONLY be assigned to users without tenant/project accounts
 			var existingUserIds = existingUsers.Select(u => u.GetRequiredId()).ToList();
 			var conflictingAccounts = await (
-				from ua in _dbContext.UserAccount
+				from ua in _DbContext.UserAccount
 				where existingUserIds.Contains(ua.UserId)
 					&& (ua.Scope == AccountScope.Tenant || ua.Scope == AccountScope.Project)
 					&& !ua.IsDeleted && ua.Status != AccountStatus.Suspended
@@ -431,7 +431,7 @@ public sealed class StaffProfileAsStaffService : IStaffProfileAsStaffService {
 			}
 			// Batch fetch existing staff accounts for these users
 			var existingStaffAccounts = await (
-				from ua in _dbContext.UserAccount
+				from ua in _DbContext.UserAccount
 				where existingUserIds.Contains(ua.UserId)
 					&& ua.Scope == AccountScope.Staff
 					&& !ua.IsDeleted && ua.Status != AccountStatus.Suspended
@@ -448,7 +448,7 @@ public sealed class StaffProfileAsStaffService : IStaffProfileAsStaffService {
 				.ToList();
 
 			var existingProfileLinks = await (
-				from uap in _dbContext.UserAccountProfile
+				from uap in _DbContext.UserAccountProfile
 				where existingStaffAccountIds.Contains(uap.UserAccountId)
 					&& uap.ProfileId == profileId
 				select uap.UserAccountId
@@ -483,8 +483,8 @@ public sealed class StaffProfileAsStaffService : IStaffProfileAsStaffService {
 					})
 					.ToList();
 
-				await _dbContext.UserAccount.AddRangeAsync(newUserAccountsToCreate, cancellationToken);
-				await _dbContext.SaveChangesAsync(cancellationToken);
+				await _DbContext.UserAccount.AddRangeAsync(newUserAccountsToCreate, cancellationToken);
+				await _DbContext.SaveChangesAsync(cancellationToken);
 				// All UserAccount IDs are now available
 			}
 
@@ -530,13 +530,13 @@ public sealed class StaffProfileAsStaffService : IStaffProfileAsStaffService {
 
 			// Batch insert all UserAccountProfile links
 			if (newUserAccountProfiles.Count > 0) {
-				await _dbContext.UserAccountProfile
+				await _DbContext.UserAccountProfile
 					.AddRangeAsync(newUserAccountProfiles, cancellationToken);
 			}
 
 			// Check for existing pending invitations
 			var existingInvitations = await (
-				from i in _dbContext.Invitation
+				from i in _DbContext.Invitation
 				where missingEmails.Contains(i.Email)
 					&& i.Scope == InvitationScope.Staff
 					&& i.Status == InvitationStatus.Pending
@@ -584,11 +584,11 @@ public sealed class StaffProfileAsStaffService : IStaffProfileAsStaffService {
 				// (round-6 API F4).
 				var outboxRow = InvitationEmailOutbox.CreateStaffInvitation(email, token);
 				outboxRow.Invitation = invitation;
-				await _dbContext.InvitationEmailOutbox.AddAsync(outboxRow, cancellationToken);
+				await _DbContext.InvitationEmailOutbox.AddAsync(outboxRow, cancellationToken);
 			}
 
 			if (newInvitations.Count > 0) {
-				await _dbContext.Invitation
+				await _DbContext.Invitation
 					.AddRangeAsync(newInvitations, cancellationToken);
 			}
 
@@ -598,7 +598,7 @@ public sealed class StaffProfileAsStaffService : IStaffProfileAsStaffService {
 			// carries durable delivery rows — properties the request-scoped Task.Run
 			// this replaced never had.
 			foreach (var notifyUserId in userIdsToNotify) {
-				await _jobEnqueuer.EnqueueAsync(
+				await _JobEnqueuer.EnqueueAsync(
 					StaffProfileEmailJobs.StaffJoinedNotificationV1,
 					new StaffJoinedNotificationEmailPayload { UserId = notifyUserId },
 					cancellationToken: cancellationToken
@@ -606,12 +606,12 @@ public sealed class StaffProfileAsStaffService : IStaffProfileAsStaffService {
 			}
 
 			// Save all changes
-			await _dbContext.SaveChangesAsync(cancellationToken);
+			await _DbContext.SaveChangesAsync(cancellationToken);
 			await transaction.CommitAsync(cancellationToken);
-			_outboxSignal.Notify();
+			_OutboxSignal.Notify();
 
-			if (_logger.IsEnabled(LogLevel.Information)) {
-				_logger.LogInformation(
+			if (_Logger.IsEnabled(LogLevel.Information)) {
+				_Logger.LogInformation(
 					"Created staff profile {ProfileName} with {PermissionsCount} permissions, " +
 					"{NewLinksCount} new user assignments, {ExistingLinksCount} existing links skipped, " +
 					"{InvitationsCount} invitations sent",
@@ -632,8 +632,8 @@ public sealed class StaffProfileAsStaffService : IStaffProfileAsStaffService {
 			);
 		} catch (Exception ex) {
 			await transaction.RollbackAsync(cancellationToken);
-			if (_logger.IsEnabled(LogLevel.Error)) {
-				_logger.LogError(ex, "Failed to create staff profile {ProfileName}", normalizedName);
+			if (_Logger.IsEnabled(LogLevel.Error)) {
+				_Logger.LogError(ex, "Failed to create staff profile {ProfileName}", normalizedName);
 			}
 			throw;
 		}
@@ -645,7 +645,7 @@ public sealed class StaffProfileAsStaffService : IStaffProfileAsStaffService {
 	) {
 		// This is a staff-only route: treat missing/non-staff profiles as not found.
 		var profile = await (
-			from p in _dbContext.Profile
+			from p in _DbContext.Profile
 			where p.Id == profileId
 				&& p.Scope == ProfileScope.Staff
 				&& !p.IsDeleted
@@ -663,30 +663,30 @@ public sealed class StaffProfileAsStaffService : IStaffProfileAsStaffService {
 		var profileIdValue = profile.GetRequiredId();
 
 		var links = await (
-			from uap in _dbContext.UserAccountProfile
+			from uap in _DbContext.UserAccountProfile
 			where uap.ProfileId == profileIdValue
 			select uap
 		).ToListAsync(cancellationToken);
 
 		if (links.Count > 0) {
-			_dbContext.ForceHardDeleteRange(links);
+			_DbContext.ForceHardDeleteRange(links);
 		}
 
 		var permissions = await (
-			from pp in _dbContext.ProfilePermission
+			from pp in _DbContext.ProfilePermission
 			where pp.ProfileId == profileIdValue
 			select pp
 		).ToListAsync(cancellationToken);
 
 		if (permissions.Count > 0) {
-			_dbContext.ForceHardDeleteRange(permissions);
+			_DbContext.ForceHardDeleteRange(permissions);
 		}
 
 		profile.IsDeleted = true;
 		profile.DeletedAt = DateTime.UtcNow;
 		profile.UpdatedAt = DateTime.UtcNow;
 
-		await _dbContext.SaveChangesAsync(cancellationToken);
+		await _DbContext.SaveChangesAsync(cancellationToken);
 
 		return new DeleteStaffProfileServiceResult.Success(DeletedProfileCount: 1);
 	}
@@ -710,7 +710,7 @@ public sealed class StaffProfileAsStaffService : IStaffProfileAsStaffService {
 		// Load candidate staff profiles once, then evaluate each requested ID without
 		// issuing a per-profile delete request.
 		var profiles = await (
-			from p in _dbContext.Profile
+			from p in _DbContext.Profile
 			where p.Scope == ProfileScope.Staff
 				&& !p.IsDeleted
 				&& p.Id != null
@@ -758,23 +758,23 @@ public sealed class StaffProfileAsStaffService : IStaffProfileAsStaffService {
 		}
 
 		var links = await (
-			from uap in _dbContext.UserAccountProfile
+			from uap in _DbContext.UserAccountProfile
 			where deletableProfileIds.Contains(uap.ProfileId)
 			select uap
 		).ToListAsync(cancellationToken);
 
 		if (links.Count > 0) {
-			_dbContext.ForceHardDeleteRange(links);
+			_DbContext.ForceHardDeleteRange(links);
 		}
 
 		var permissions = await (
-			from pp in _dbContext.ProfilePermission
+			from pp in _DbContext.ProfilePermission
 			where deletableProfileIds.Contains(pp.ProfileId)
 			select pp
 		).ToListAsync(cancellationToken);
 
 		if (permissions.Count > 0) {
-			_dbContext.ForceHardDeleteRange(permissions);
+			_DbContext.ForceHardDeleteRange(permissions);
 		}
 
 		// Soft-delete only non-default profiles in-memory and persist once.
@@ -789,7 +789,7 @@ public sealed class StaffProfileAsStaffService : IStaffProfileAsStaffService {
 			profile.UpdatedAt = DateTime.UtcNow;
 		}
 
-		await _dbContext.SaveChangesAsync(cancellationToken);
+		await _DbContext.SaveChangesAsync(cancellationToken);
 
 		var failedProfileIds = new HashSet<Guid>(failedItems.Select(item => item.ProfileId));
 		var succeededProfileIds = requestedProfileIds

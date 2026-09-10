@@ -18,10 +18,10 @@ namespace PublyApp.Api.Lib.Architecture;
 // because no LIVE InvitationEmailOutboxDispatcher ever runs inside the integration test host.
 // This class proves that invariant on the ACTUAL host, not on a model of it.
 public sealed class ApiFactoryHostedServiceGuardSpec : IClassFixture<ApiFixture> {
-	private readonly ApiFixture _fixture;
+	private readonly ApiFixture _Fixture;
 
 	public ApiFactoryHostedServiceGuardSpec(ApiFixture fixture) {
-		_fixture = fixture;
+		_Fixture = fixture;
 	}
 
 	// THE guard. Resolves the REAL IEnumerable<IHostedService> from the initialized ApiFactory
@@ -36,7 +36,7 @@ public sealed class ApiFactoryHostedServiceGuardSpec : IClassFixture<ApiFixture>
 	// to the api/worker role split.
 	[Fact]
 	public void ItShouldNeverResolveALiveInvitationEmailOutboxDispatcherInTheIntegrationHost() {
-		var resolvedHostedServices = _fixture.Factory.Services
+		var resolvedHostedServices = _Fixture.Factory.Services
 			.GetServices<IHostedService>()
 			.ToList();
 

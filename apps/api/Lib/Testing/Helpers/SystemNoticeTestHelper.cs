@@ -8,7 +8,7 @@ using AppRoutes = PublyApp.Api.Lib.Routes.Routes;
 namespace PublyApp.Api.Lib.Testing.Helpers;
 
 internal static class SystemNoticeTestHelper {
-	private static readonly string CreateUrl = PathUtils.Join(
+	private static readonly string _CreateUrl = PathUtils.Join(
 		AppRoutes.Staff.Root,
 		AppRoutes.SystemNotices.ForStaff.Root,
 		AppRoutes.SystemNotices.ForStaff.Create
@@ -45,7 +45,7 @@ internal static class SystemNoticeTestHelper {
 			};
 
 		var request = new HttpRequestMessage(
-			HttpMethod.Post, CreateUrl
+			HttpMethod.Post, _CreateUrl
 		).WithSessionToken(staffToken);
 		request.Content = JsonContent.Create(body);
 

@@ -24,18 +24,18 @@ namespace PublyApp.Api.Lib;
 /// (<see cref="Tenant.Status"/>), and the always-present DateTime/ Guid audit- and id keys.
 /// </summary>
 public sealed class CursorSortFieldHandlerFactorySqlSpec : IClassFixture<ApiFixture> {
-	private const string CodePrefix = "zzz_cursor_factory_";
+	private const string _CodePrefix = "zzz_cursor_factory_";
 
-	private readonly ApiFixture _fixture;
+	private readonly ApiFixture _Fixture;
 
 	public CursorSortFieldHandlerFactorySqlSpec(ApiFixture fixture) {
-		_fixture = fixture;
+		_Fixture = fixture;
 	}
 
 	[Fact]
 	public async Task ItShouldTranslateAndReadAStringKeyCursorValue() {
-		await using var db = await CreateDbContextAsync();
-		var tenant = await SeedAsync(db, "alpha", TenantStatus.Active, new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc));
+		await using var db = await _CreateDbContextAsync();
+		var tenant = await _SeedAsync(db, "alpha", TenantStatus.Active, new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc));
 
 		var handler = CursorSortFieldHandlerFactory.Create<Tenant, string, Guid?>(
 			cursorLookupQuery: () => db.Tenant.AsQueryable(),
@@ -54,8 +54,8 @@ public sealed class CursorSortFieldHandlerFactorySqlSpec : IClassFixture<ApiFixt
 
 	[Fact]
 	public async Task ItShouldTranslateAndReadAnEnumKeyCursorValue() {
-		await using var db = await CreateDbContextAsync();
-		var tenant = await SeedAsync(db, "enum-key", TenantStatus.Suspended, new DateTime(2026, 2, 2, 0, 0, 0, DateTimeKind.Utc));
+		await using var db = await _CreateDbContextAsync();
+		var tenant = await _SeedAsync(db, "enum-key", TenantStatus.Suspended, new DateTime(2026, 2, 2, 0, 0, 0, DateTimeKind.Utc));
 
 		var handler = CursorSortFieldHandlerFactory.Create<Tenant, TenantStatus, Guid?>(
 			cursorLookupQuery: () => db.Tenant.AsQueryable(),
@@ -74,8 +74,8 @@ public sealed class CursorSortFieldHandlerFactorySqlSpec : IClassFixture<ApiFixt
 
 	[Fact]
 	public async Task ItShouldTranslateAndReadADateTimeKeyCursorValue() {
-		await using var db = await CreateDbContextAsync();
-		var tenant = await SeedAsync(db, "dt-key", TenantStatus.Active, new DateTime(2026, 3, 3, 0, 0, 0, DateTimeKind.Utc));
+		await using var db = await _CreateDbContextAsync();
+		var tenant = await _SeedAsync(db, "dt-key", TenantStatus.Active, new DateTime(2026, 3, 3, 0, 0, 0, DateTimeKind.Utc));
 
 		// BaseAttributes.CreatedAt carries a default and the audit interceptor stamps insert time,
 		// so the persisted value is not necessarily the seed. Read the real stored timestamp back
@@ -102,8 +102,8 @@ public sealed class CursorSortFieldHandlerFactorySqlSpec : IClassFixture<ApiFixt
 
 	[Fact]
 	public async Task ItShouldTranslateTheKeysetFilterToSqlForEveryKeyType() {
-		await using var db = await CreateDbContextAsync();
-		var tenant = await SeedAsync(db, "filter", TenantStatus.Active, new DateTime(2026, 4, 4, 0, 0, 0, DateTimeKind.Utc));
+		await using var db = await _CreateDbContextAsync();
+		var tenant = await _SeedAsync(db, "filter", TenantStatus.Active, new DateTime(2026, 4, 4, 0, 0, 0, DateTimeKind.Utc));
 
 		var stringHandler = CursorSortFieldHandlerFactory.Create<Tenant, string, Guid?>(
 			cursorLookupQuery: () => db.Tenant.AsQueryable(),
@@ -143,8 +143,8 @@ public sealed class CursorSortFieldHandlerFactorySqlSpec : IClassFixture<ApiFixt
 
 	[Fact]
 	public async Task ItShouldReturnNullForAGoneCursorRow() {
-		await using var db = await CreateDbContextAsync();
-		await SeedAsync(db, "gone", TenantStatus.Active, new DateTime(2026, 5, 5, 0, 0, 0, DateTimeKind.Utc));
+		await using var db = await _CreateDbContextAsync();
+		await _SeedAsync(db, "gone", TenantStatus.Active, new DateTime(2026, 5, 5, 0, 0, 0, DateTimeKind.Utc));
 
 		var handler = CursorSortFieldHandlerFactory.Create<Tenant, string, Guid?>(
 			cursorLookupQuery: () => db.Tenant.AsQueryable(),
@@ -158,9 +158,9 @@ public sealed class CursorSortFieldHandlerFactorySqlSpec : IClassFixture<ApiFixt
 		value.Should().BeNull();
 	}
 
-	private static async Task<Tenant> SeedAsync(AppDbContext db, string name, TenantStatus status, DateTime createdAt) {
+	private static async Task<Tenant> _SeedAsync(AppDbContext db, string name, TenantStatus status, DateTime createdAt) {
 		var tenant = new Tenant {
-			Code = CodePrefix + Guid.NewGuid().ToString("N"),
+			Code = _CodePrefix + Guid.NewGuid().ToString("N"),
 			Name = name,
 			Status = status,
 			MaxUsers = 1,
@@ -175,19 +175,19 @@ public sealed class CursorSortFieldHandlerFactorySqlSpec : IClassFixture<ApiFixt
 		return tenant;
 	}
 
-	private async Task<AppDbContext> CreateDbContextAsync() {
-		var connectionString = await GetConnectionStringAsync();
+	private async Task<AppDbContext> _CreateDbContextAsync() {
+		var connectionString = await _GetConnectionStringAsync();
 		var db = new AppDbContext(
 			new DbContextOptionsBuilder<AppDbContext>()
 				.UseNpgsql(connectionString)
 				.Options
 		);
-		await RegisterCleanupAsync(db);
+		await _RegisterCleanupAsync(db);
 		return db;
 	}
 
-	private async Task<string> GetConnectionStringAsync() {
-		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+	private async Task<string> _GetConnectionStringAsync() {
+		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
 		var connectionString = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>()
 			.Database.GetConnectionString();
@@ -199,10 +199,10 @@ public sealed class CursorSortFieldHandlerFactorySqlSpec : IClassFixture<ApiFixt
 		return connectionString;
 	}
 
-	private static async Task RegisterCleanupAsync(AppDbContext db) {
+	private static async Task _RegisterCleanupAsync(AppDbContext db) {
 		// Best-effort cleanup of this class's probe rows; ignore failure in the dispose path.
 		await db.Database.ExecuteSqlAsync(
-			$@"DELETE FROM tenants WHERE code LIKE {CodePrefix + "%"}"
+			$@"DELETE FROM tenants WHERE code LIKE {_CodePrefix + "%"}"
 		);
 	}
 }

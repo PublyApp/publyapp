@@ -20,36 +20,36 @@ public class InvitationProfile : INoTenantEntity {
 	[Column("invitation_id")]
 	public required Guid InvitationId { get; set; }
 
-	private Invitation? _invitation;
+	private Invitation? _Invitation;
 	[JsonIgnore]
 	[ForeignKey(nameof(InvitationId))]
 	public Invitation Invitation {
 		get {
 			return RequiredNavigation.Get(
-				_invitation,
+				_Invitation,
 				nameof(InvitationProfile),
 				nameof(Invitation)
 			);
 		}
-		set { _invitation = value; }
+		set { _Invitation = value; }
 	}
 
 	// Foreign key to profiles.id; second half of the composite primary key.
 	[Column("profile_id")]
 	public required Guid ProfileId { get; set; }
 
-	private ProfileEntity? _profile;
+	private ProfileEntity? _Profile;
 	[JsonIgnore]
 	[ForeignKey(nameof(ProfileId))]
 	public ProfileEntity Profile {
 		get {
 			return RequiredNavigation.Get(
-				_profile,
+				_Profile,
 				nameof(InvitationProfile),
 				nameof(Profile)
 			);
 		}
-		set { _profile = value; }
+		set { _Profile = value; }
 	}
 
 	// Timestamp columns (cannot inherit from BaseAttributes due to composite PK)

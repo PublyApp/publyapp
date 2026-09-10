@@ -55,7 +55,7 @@ public sealed class FakeResendClient : IResendEmailClient {
 	/// (no provider call); a key reused with a DIFFERENT payload is rejected with
 	/// 409 invalid_idempotent_request, matching Resend's documented contract (§4.5).
 	/// </summary>
-	private readonly Dictionary<string, JsonNode> _seenPayloadSignatures = new();
+	private readonly Dictionary<string, JsonNode> _SeenPayloadSignatures = new();
 
 	public async Task<ResendResponse<Guid>> EmailSendAsync(
 		EmailMessage email,
@@ -81,8 +81,8 @@ public sealed class FakeResendClient : IResendEmailClient {
 		CancellationToken cancellationToken = default
 	) {
 		if (!string.IsNullOrEmpty(idempotencyKey)) {
-			var signature = PayloadSignature(email);
-			if (_seenPayloadSignatures.TryGetValue(idempotencyKey, out var previous)) {
+			var signature = _PayloadSignature(email);
+			if (_SeenPayloadSignatures.TryGetValue(idempotencyKey, out var previous)) {
 				if (!JsonNode.DeepEquals(previous, signature)) {
 					// Same key, different payload: the provider rejects the request
 					// (409 invalid_idempotent_request); it never serves the cached
@@ -101,7 +101,7 @@ public sealed class FakeResendClient : IResendEmailClient {
 				return Task.FromResult(EmailSendResponse);
 			}
 
-			_seenPayloadSignatures[idempotencyKey] = signature;
+			_SeenPayloadSignatures[idempotencyKey] = signature;
 		}
 
 		// New key (or no key): make the actual provider call.
@@ -110,7 +110,7 @@ public sealed class FakeResendClient : IResendEmailClient {
 
 	// Canonical JSON signature of the whole payload, so the fake distinguishes payloads
 	// the same way the provider does (the request body must be byte-identical).
-	private static JsonNode PayloadSignature(EmailMessage email) {
+	private static JsonNode _PayloadSignature(EmailMessage email) {
 		var node = JsonSerializer.SerializeToNode(email);
 		if (node is null) {
 			throw new InvalidOperationException("Failed to serialize the email payload.");

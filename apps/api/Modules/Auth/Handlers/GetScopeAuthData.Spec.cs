@@ -23,31 +23,31 @@ namespace PublyApp.Api.Modules.Auth.Handlers;
 
 public sealed class GetScopeAuthDataSpec
 	: IClassFixture<ApiFixture> {
-	private readonly ApiFixture _fixture;
-	private readonly HttpClient _http;
-	private readonly TestAuthClient _authClient;
+	private readonly ApiFixture _Fixture;
+	private readonly HttpClient _Http;
+	private readonly TestAuthClient _AuthClient;
 
 	public GetScopeAuthDataSpec(
 		ApiFixture fixture
 	) {
-		_fixture = fixture;
-		_http = fixture.HttpClient;
-		_authClient = new TestAuthClient(_http);
+		_Fixture = fixture;
+		_Http = fixture.HttpClient;
+		_AuthClient = new TestAuthClient(_Http);
 	}
 
 	[Fact]
 	public async Task
 	ItShouldReturnOkForActiveTenant() {
 		var staffToken =
-			await _authClient.LoginAsStaffAdminAsync();
+			await _AuthClient.LoginAsStaffAdminAsync();
 		var acmeId =
 			await TenantTestHelper.GetTenantIdByNameAsync(
-				_http,
+				_Http,
 				staffToken,
 				SeedConstants.Tenants.AcmeName
 			);
 
-		var acmeAdminToken = await _authClient.LoginAsync(
+		var acmeAdminToken = await _AuthClient.LoginAsync(
 			TestConstants.AcmeAdminEmail,
 			TestConstants.SeedPassword
 		);
@@ -60,7 +60,7 @@ public sealed class GetScopeAuthDataSpec
 		).WithSessionToken(acmeAdminToken);
 
 		using var response =
-			await _http.SendAsync(request);
+			await _Http.SendAsync(request);
 
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
 
@@ -82,10 +82,10 @@ public sealed class GetScopeAuthDataSpec
 	public async Task
 	ItShouldReturnCanonicalTenantModulePermissionKeys() {
 		var staffToken =
-			await _authClient.LoginAsStaffAdminAsync();
+			await _AuthClient.LoginAsStaffAdminAsync();
 		var acmeId =
 			await TenantTestHelper.GetTenantIdByNameAsync(
-				_http,
+				_Http,
 				staffToken,
 				SeedConstants.Tenants.AcmeName
 			);
@@ -105,20 +105,20 @@ public sealed class GetScopeAuthDataSpec
 		try {
 			foreach (var permissions in profilePermissions) {
 				createdProfileIds.Add(
-					await CreateTenantProfileWithPermissionsAsync(
+					await _CreateTenantProfileWithPermissionsAsync(
 						acmeId,
 						permissions
 					)
 				);
 			}
 
-			await AssignProfileToTenantUserAsync(
+			await _AssignProfileToTenantUserAsync(
 				TestConstants.AcmeAdminEmail,
 				acmeId,
 				createdProfileIds
 			);
 
-			var acmeAdminToken = await _authClient.LoginAsync(
+			var acmeAdminToken = await _AuthClient.LoginAsync(
 				TestConstants.AcmeAdminEmail,
 				TestConstants.SeedPassword
 			);
@@ -131,7 +131,7 @@ public sealed class GetScopeAuthDataSpec
 			).WithSessionToken(acmeAdminToken);
 
 			using var response =
-				await _http.SendAsync(request);
+				await _Http.SendAsync(request);
 
 			response.StatusCode.Should().Be(HttpStatusCode.OK);
 
@@ -163,7 +163,7 @@ public sealed class GetScopeAuthDataSpec
 				AppPermissions.Tenant.Modules.ACCESS_USERS.Key
 			);
 		} finally {
-			await CleanupScopeAuthDataTestArtifactsAsync(createdProfileIds);
+			await _CleanupScopeAuthDataTestArtifactsAsync(createdProfileIds);
 		}
 	}
 
@@ -171,10 +171,10 @@ public sealed class GetScopeAuthDataSpec
 	public async Task
 	ItShouldExcludeRevokedDeletedAndWrongScopePermissionsFromTenantScopeAuthData() {
 		var staffToken =
-			await _authClient.LoginAsStaffAdminAsync();
+			await _AuthClient.LoginAsStaffAdminAsync();
 		var acmeId =
 			await TenantTestHelper.GetTenantIdByNameAsync(
-				_http,
+				_Http,
 				staffToken,
 				SeedConstants.Tenants.AcmeName
 			);
@@ -182,19 +182,19 @@ public sealed class GetScopeAuthDataSpec
 		var createdProfileIds = new List<Guid>();
 
 		try {
-			var activeProfileId = await CreateTenantProfileWithPermissionsAsync(
+			var activeProfileId = await _CreateTenantProfileWithPermissionsAsync(
 				acmeId,
 				[AppPermissions.Tenant.Modules.ACCESS_DASHBOARD.Key]
 			);
-			var revokedPermissionProfileId = await CreateTenantProfileWithPermissionsAsync(
+			var revokedPermissionProfileId = await _CreateTenantProfileWithPermissionsAsync(
 				acmeId,
 				[AppPermissions.Tenant.Modules.ACCESS_USERS.Key]
 			);
-			var softDeletedLinkProfileId = await CreateTenantProfileWithPermissionsAsync(
+			var softDeletedLinkProfileId = await _CreateTenantProfileWithPermissionsAsync(
 				acmeId,
 				[AppPermissions.Tenant.Modules.ACCESS_BILLING.Key]
 			);
-			var wrongScopeProfileId = await CreateTenantProfileWithPermissionsAsync(
+			var wrongScopeProfileId = await _CreateTenantProfileWithPermissionsAsync(
 				acmeId,
 				[]
 			);
@@ -208,13 +208,13 @@ public sealed class GetScopeAuthDataSpec
 				]
 			);
 
-			await AssignProfileToTenantUserAsync(
+			await _AssignProfileToTenantUserAsync(
 				TestConstants.AcmeAdminEmail,
 				acmeId,
 				createdProfileIds
 			);
 
-			await ConfigureTenantAuthPermissionLeakScenarioAsync(
+			await _ConfigureTenantAuthPermissionLeakScenarioAsync(
 				tenantId: acmeId,
 				email: TestConstants.AcmeAdminEmail,
 				revokedPermissionProfileId: revokedPermissionProfileId,
@@ -224,7 +224,7 @@ public sealed class GetScopeAuthDataSpec
 				wrongScopePermissionKey: AppPermissions.Staff.Users.LIST_FOR_STAFF.Key
 			);
 
-			var acmeAdminToken = await _authClient.LoginAsync(
+			var acmeAdminToken = await _AuthClient.LoginAsync(
 				TestConstants.AcmeAdminEmail,
 				TestConstants.SeedPassword
 			);
@@ -237,7 +237,7 @@ public sealed class GetScopeAuthDataSpec
 			).WithSessionToken(acmeAdminToken);
 
 			using var response =
-				await _http.SendAsync(request);
+				await _Http.SendAsync(request);
 
 			response.StatusCode.Should().Be(HttpStatusCode.OK);
 
@@ -249,7 +249,7 @@ public sealed class GetScopeAuthDataSpec
 							[AppPermissions.Tenant.Modules.ACCESS_DASHBOARD.Key]
 						);
 		} finally {
-			await CleanupScopeAuthDataTestArtifactsAsync(createdProfileIds);
+			await _CleanupScopeAuthDataTestArtifactsAsync(createdProfileIds);
 		}
 	}
 
@@ -257,10 +257,10 @@ public sealed class GetScopeAuthDataSpec
 	public async Task
 	ItShouldReturnAllAssignedTenantProfilesEvenWhenTheyExceedConfiguredCap() {
 		var staffToken =
-			await _authClient.LoginAsStaffAdminAsync();
+			await _AuthClient.LoginAsStaffAdminAsync();
 		var acmeId =
 			await TenantTestHelper.GetTenantIdByNameAsync(
-				_http,
+				_Http,
 				staffToken,
 				SeedConstants.Tenants.AcmeName
 			);
@@ -271,7 +271,7 @@ public sealed class GetScopeAuthDataSpec
 		try {
 			for (var index = 0; index < requestedProfileCount; index++) {
 				createdProfileIds.Add(
-					await CreateTenantProfileWithPermissionsAsync(
+					await _CreateTenantProfileWithPermissionsAsync(
 						acmeId,
 						[AppPermissions.Tenant.Modules.ACCESS_DASHBOARD.Key]
 					)
@@ -280,13 +280,13 @@ public sealed class GetScopeAuthDataSpec
 
 			// Auth data must expose the full effective profile set even if historical data grows
 			// past the configurable write-time cap.
-			await AssignProfileToTenantUserAsync(
+			await _AssignProfileToTenantUserAsync(
 				TestConstants.AcmeAdminEmail,
 				acmeId,
 				createdProfileIds
 			);
 
-			var acmeAdminToken = await _authClient.LoginAsync(
+			var acmeAdminToken = await _AuthClient.LoginAsync(
 				TestConstants.AcmeAdminEmail,
 				TestConstants.SeedPassword
 			);
@@ -299,7 +299,7 @@ public sealed class GetScopeAuthDataSpec
 			).WithSessionToken(acmeAdminToken);
 
 			using var response =
-				await _http.SendAsync(request);
+				await _Http.SendAsync(request);
 
 			response.StatusCode.Should().Be(HttpStatusCode.OK);
 
@@ -312,7 +312,7 @@ public sealed class GetScopeAuthDataSpec
 				.Should()
 				.BeEquivalentTo(createdProfileIds);
 		} finally {
-			await CleanupScopeAuthDataTestArtifactsAsync(createdProfileIds);
+			await _CleanupScopeAuthDataTestArtifactsAsync(createdProfileIds);
 		}
 	}
 
@@ -320,7 +320,7 @@ public sealed class GetScopeAuthDataSpec
 	public async Task
 	ItShouldReturnStaffDataForStaffScope() {
 		var staffToken =
-			await _authClient.LoginAsStaffAdminAsync();
+			await _AuthClient.LoginAsStaffAdminAsync();
 
 		var url = $"{Routes.Auth.GetScopeAuthData}"
 			+ "?scope=staff";
@@ -330,7 +330,7 @@ public sealed class GetScopeAuthDataSpec
 		).WithSessionToken(staffToken);
 
 		using var response =
-			await _http.SendAsync(request);
+			await _Http.SendAsync(request);
 
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
 
@@ -345,7 +345,7 @@ public sealed class GetScopeAuthDataSpec
 	[Fact]
 	public async Task
 	ItShouldReturnForbiddenWhenNonStaffAccessesStaffScope() {
-		var acmeAdminToken = await _authClient.LoginAsync(
+		var acmeAdminToken = await _AuthClient.LoginAsync(
 			TestConstants.AcmeAdminEmail,
 			TestConstants.SeedPassword
 		);
@@ -358,7 +358,7 @@ public sealed class GetScopeAuthDataSpec
 		).WithSessionToken(acmeAdminToken);
 
 		using var response =
-			await _http.SendAsync(request);
+			await _Http.SendAsync(request);
 
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.Forbidden);
@@ -374,7 +374,7 @@ public sealed class GetScopeAuthDataSpec
 	[Fact]
 	public async Task
 	ItShouldReturnForbiddenForInvalidTenantGuid() {
-		var acmeAdminToken = await _authClient.LoginAsync(
+		var acmeAdminToken = await _AuthClient.LoginAsync(
 			TestConstants.AcmeAdminEmail,
 			TestConstants.SeedPassword
 		);
@@ -387,7 +387,7 @@ public sealed class GetScopeAuthDataSpec
 		).WithSessionToken(acmeAdminToken);
 
 		using var response =
-			await _http.SendAsync(request);
+			await _Http.SendAsync(request);
 
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.Forbidden);
@@ -403,10 +403,10 @@ public sealed class GetScopeAuthDataSpec
 	public async Task
 	ItShouldReturn403WithKeyForSuspendedTenant() {
 		var staffToken =
-			await _authClient.LoginAsStaffAdminAsync();
+			await _AuthClient.LoginAsStaffAdminAsync();
 		var acmeId =
 			await TenantTestHelper.GetTenantIdByNameAsync(
-				_http,
+				_Http,
 				staffToken,
 				SeedConstants.Tenants.AcmeName
 			);
@@ -414,13 +414,13 @@ public sealed class GetScopeAuthDataSpec
 		// Suspend Acme
 		using var suspend =
 			await TenantTestHelper.SuspendTenantAsync(
-				_http, staffToken, acmeId
+				_Http, staffToken, acmeId
 			);
 		suspend.StatusCode.Should().Be(HttpStatusCode.OK);
 
 		try {
 			var acmeAdminToken =
-				await _authClient.LoginAsync(
+				await _AuthClient.LoginAsync(
 					TestConstants.AcmeAdminEmail,
 					TestConstants.SeedPassword
 				);
@@ -433,7 +433,7 @@ public sealed class GetScopeAuthDataSpec
 			).WithSessionToken(acmeAdminToken);
 
 			using var response =
-				await _http.SendAsync(request);
+				await _Http.SendAsync(request);
 
 			response.StatusCode.Should()
 				.Be(HttpStatusCode.Forbidden);
@@ -448,7 +448,7 @@ public sealed class GetScopeAuthDataSpec
 			using var cleanup =
 				await TenantTestHelper
 					.ReactivateTenantAsync(
-						_http, staffToken, acmeId
+						_Http, staffToken, acmeId
 					);
 		}
 	}
@@ -457,16 +457,16 @@ public sealed class GetScopeAuthDataSpec
 	public async Task
 	ItShouldReturn403ForNonMember() {
 		var staffToken =
-			await _authClient.LoginAsStaffAdminAsync();
+			await _AuthClient.LoginAsStaffAdminAsync();
 		var techStartId =
 			await TenantTestHelper.GetTenantIdByNameAsync(
-				_http,
+				_Http,
 				staffToken,
 				SeedConstants.Tenants.TechStartName
 			);
 
 		// Acme admin is NOT a member of TechStart
-		var acmeAdminToken = await _authClient.LoginAsync(
+		var acmeAdminToken = await _AuthClient.LoginAsync(
 			TestConstants.AcmeAdminEmail,
 			TestConstants.SeedPassword
 		);
@@ -479,7 +479,7 @@ public sealed class GetScopeAuthDataSpec
 		).WithSessionToken(acmeAdminToken);
 
 		using var response =
-			await _http.SendAsync(request);
+			await _Http.SendAsync(request);
 
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.Forbidden);
@@ -497,10 +497,10 @@ public sealed class GetScopeAuthDataSpec
 	public async Task
 	ItShouldReturnOkAfterReactivation() {
 		var staffToken =
-			await _authClient.LoginAsStaffAdminAsync();
+			await _AuthClient.LoginAsStaffAdminAsync();
 		var acmeId =
 			await TenantTestHelper.GetTenantIdByNameAsync(
-				_http,
+				_Http,
 				staffToken,
 				SeedConstants.Tenants.AcmeName
 			);
@@ -508,19 +508,19 @@ public sealed class GetScopeAuthDataSpec
 		// Suspend then reactivate
 		using var suspend =
 			await TenantTestHelper.SuspendTenantAsync(
-				_http, staffToken, acmeId
+				_Http, staffToken, acmeId
 			);
 		suspend.StatusCode.Should().Be(HttpStatusCode.OK);
 
 		using var reactivate =
 			await TenantTestHelper.ReactivateTenantAsync(
-				_http, staffToken, acmeId
+				_Http, staffToken, acmeId
 			);
 		reactivate.StatusCode.Should()
 			.Be(HttpStatusCode.OK);
 
 		// Now access should work again
-		var acmeAdminToken = await _authClient.LoginAsync(
+		var acmeAdminToken = await _AuthClient.LoginAsync(
 			TestConstants.AcmeAdminEmail,
 			TestConstants.SeedPassword
 		);
@@ -533,7 +533,7 @@ public sealed class GetScopeAuthDataSpec
 		).WithSessionToken(acmeAdminToken);
 
 		using var response =
-			await _http.SendAsync(request);
+			await _Http.SendAsync(request);
 
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
 	}
@@ -542,20 +542,20 @@ public sealed class GetScopeAuthDataSpec
 	public async Task
 	ItShouldReturnUnauthorizedForGloballySuspendedUser() {
 		var staffToken =
-			await _authClient.LoginAsStaffAdminAsync();
+			await _AuthClient.LoginAsStaffAdminAsync();
 		var acmeId =
 			await TenantTestHelper.GetTenantIdByNameAsync(
-				_http,
+				_Http,
 				staffToken,
 				SeedConstants.Tenants.AcmeName
 			);
 
-		var acmeAdminToken = await _authClient.LoginAsync(
+		var acmeAdminToken = await _AuthClient.LoginAsync(
 			TestConstants.AcmeAdminEmail,
 			TestConstants.SeedPassword
 		);
 
-		await SetUserSuspendedByEmailAsync(
+		await _SetUserSuspendedByEmailAsync(
 			TestConstants.AcmeAdminEmail,
 			isSuspended: true
 		);
@@ -569,26 +569,26 @@ public sealed class GetScopeAuthDataSpec
 			).WithSessionToken(acmeAdminToken);
 
 			using var response =
-				await _http.SendAsync(request);
+				await _Http.SendAsync(request);
 
 			response.StatusCode.Should()
 				.Be(HttpStatusCode.Unauthorized);
 		} finally {
-			await SetUserSuspendedByEmailAsync(
+			await _SetUserSuspendedByEmailAsync(
 				TestConstants.AcmeAdminEmail,
 				isSuspended: false
 			);
 		}
 	}
 
-	private async Task SetUserSuspendedByEmailAsync(
+	private async Task _SetUserSuspendedByEmailAsync(
 		string email,
 		bool isSuspended
 	) {
 		var trimmedEmail = email.Trim();
 
 		await using var scope =
-			_fixture.Factory.Services.CreateAsyncScope();
+			_Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>();
 
@@ -633,12 +633,12 @@ public sealed class GetScopeAuthDataSpec
 		updatedCount.Should().Be(1);
 	}
 
-	private async Task<Guid> CreateTenantProfileWithPermissionsAsync(
+	private async Task<Guid> _CreateTenantProfileWithPermissionsAsync(
 		Guid tenantId,
 		IEnumerable<string> permissionKeys
 	) {
 		await using var scope =
-			_fixture.Factory.Services.CreateAsyncScope();
+			_Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>();
 
@@ -668,7 +668,7 @@ public sealed class GetScopeAuthDataSpec
 		return profileId;
 	}
 
-	private async Task AssignProfileToTenantUserAsync(
+	private async Task _AssignProfileToTenantUserAsync(
 		string email,
 		Guid tenantId,
 		IReadOnlyCollection<Guid> profileIds
@@ -676,7 +676,7 @@ public sealed class GetScopeAuthDataSpec
 		var trimmedEmail = email.Trim();
 
 		await using var scope =
-			_fixture.Factory.Services.CreateAsyncScope();
+			_Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>();
 
@@ -724,7 +724,7 @@ public sealed class GetScopeAuthDataSpec
 		await dbContext.SaveChangesAsync();
 	}
 
-	private async Task ConfigureTenantAuthPermissionLeakScenarioAsync(
+	private async Task _ConfigureTenantAuthPermissionLeakScenarioAsync(
 		Guid tenantId,
 		string email,
 		Guid revokedPermissionProfileId,
@@ -736,7 +736,7 @@ public sealed class GetScopeAuthDataSpec
 		var trimmedEmail = email.Trim();
 
 		await using var scope =
-			_fixture.Factory.Services.CreateAsyncScope();
+			_Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>();
 
@@ -808,7 +808,7 @@ public sealed class GetScopeAuthDataSpec
 		await dbContext.SaveChangesAsync();
 	}
 
-	private async Task CleanupScopeAuthDataTestArtifactsAsync(
+	private async Task _CleanupScopeAuthDataTestArtifactsAsync(
 		IReadOnlyCollection<Guid> profileIds
 	) {
 		if (profileIds.Count == 0) {
@@ -816,7 +816,7 @@ public sealed class GetScopeAuthDataSpec
 		}
 
 		await using var scope =
-			_fixture.Factory.Services.CreateAsyncScope();
+			_Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>();
 

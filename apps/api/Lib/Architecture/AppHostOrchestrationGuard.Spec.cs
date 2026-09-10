@@ -62,63 +62,63 @@ namespace PublyApp.Api.Lib.Architecture;
 /// Declared rather than overclaimed.
 /// </summary>
 public sealed partial class AppHostOrchestrationGuardSpec : IDisposable {
-	private const int HostPort = 5454;
+	private const int _HostPort = 5454;
 
 	// Same pin as the justfile dev-services recipe: the implicit build must not
 	// run OpenAPI document generation, which boots the app with the ambient
 	// .env.development (APP_ROLE=all) while no Postgres is up yet. These tests
 	// exercise the AppHost model and port pre-flight, not doc-gen.
-	private const string OpenApiSkipBuildProperty = "--property:OpenApiGenerateDocuments=false";
+	private const string _OpenApiSkipBuildProperty = "--property:OpenApiGenerateDocuments=false";
 
 	// One shared Debug build so every child run and the residue window
 	// (tcp_fin_timeout, ~60s) is not consumed by compiling the AppHost.
-	private static readonly Lazy<Task> AppHostBuild = new(async () => {
-		var repoRoot = FindRepoRoot();
-		var run = await RunAppHostAsync(
+	private static readonly Lazy<Task> _AppHostBuild = new(async () => {
+		var repoRoot = _FindRepoRoot();
+		var run = await _RunAppHostAsync(
 			repoRoot,
 			TimeSpan.FromMinutes(15),
-			["build", "apps/apphost", "-c", "Debug", "--nologo", OpenApiSkipBuildProperty]
+			["build", "apps/apphost", "-c", "Debug", "--nologo", _OpenApiSkipBuildProperty]
 		);
 
 		run.ExitedOnItsOwn.Should().BeTrue("the warm AppHost build must finish on its own");
 		run.ExitCode.Should().Be(
 			0,
-			$"the warm AppHost build must succeed; console tail: …{ConsoleTail(run.Console)}"
+			$"the warm AppHost build must succeed; console tail: …{_ConsoleTail(run.Console)}"
 		);
 	});
 
 	// The constructed-model dump, produced once per test process by the real
 	// AppHost (--dump-model) and shared by the three artifact assertions.
-	private static readonly Lazy<Task<string>> ModelDump = new(async () => {
-		await AppHostBuild.Value;
+	private static readonly Lazy<Task<string>> _ModelDump = new(async () => {
+		await _AppHostBuild.Value;
 
-		var repoRoot = FindRepoRoot();
-		var run = await RunAppHostAsync(
+		var repoRoot = _FindRepoRoot();
+		var run = await _RunAppHostAsync(
 			repoRoot,
 			TimeSpan.FromMinutes(5),
-			["run", "--project", "apps/apphost", "--no-build", OpenApiSkipBuildProperty, "--dump-model"]
+			["run", "--project", "apps/apphost", "--no-build", _OpenApiSkipBuildProperty, "--dump-model"]
 		);
 
 		run.ExitedOnItsOwn.Should().BeTrue("the --dump-model mode must exit on its own");
 		run.ExitCode.Should().Be(
 			0,
-			$"the --dump-model mode must exit cleanly; console tail: …{ConsoleTail(run.Console)}"
+			$"the --dump-model mode must exit cleanly; console tail: …{_ConsoleTail(run.Console)}"
 		);
 		return run.Console;
 	});
 
-	private TcpListener? _occupier;
+	private TcpListener? _Occupier;
 
 	public void Dispose() {
-		_occupier?.Dispose();
-		_occupier = null;
+		_Occupier?.Dispose();
+		_Occupier = null;
 	}
 
 	[Fact]
 	public async Task ItShouldPersistPostgresDataInANamedVolume() {
-		var dump = await ModelDump.Value;
+		var dump = await _ModelDump.Value;
 
-		NamedPostgresVolumeMount().IsMatch(dump).Should().BeTrue(
+		_NamedPostgresVolumeMount().IsMatch(dump).Should().BeTrue(
 				"the AppHost must declare a NAMED volume mount on the postgres resource — "
 					+ "the dump is printed by the AppHost from the model it actually built. "
 					+ "Round-3 counter-mutation: commenting out .WithDataVolume() removed the "
@@ -132,7 +132,7 @@ public sealed partial class AppHostOrchestrationGuardSpec : IDisposable {
 
 	[Fact]
 	public async Task ItShouldPinThePostgresHostPortTo5454() {
-		var dump = await ModelDump.Value;
+		var dump = await _ModelDump.Value;
 
 		dump.Should().Contain(
 			"endpoint postgres name=tcp protocol=Tcp hostPort=5454",
@@ -149,7 +149,7 @@ public sealed partial class AppHostOrchestrationGuardSpec : IDisposable {
 
 	[Fact]
 	public async Task ItShouldKeepTheWorkerOffTheApiPort() {
-		var dump = await ModelDump.Value;
+		var dump = await _ModelDump.Value;
 
 		dump.Should().Contain(
 			"launchProfile worker excluded",
@@ -178,13 +178,13 @@ public sealed partial class AppHostOrchestrationGuardSpec : IDisposable {
 	// the user toward a phantom container).
 	[Fact]
 	public async Task ItShouldNameNonAddressAlreadyInUseErrorsInsteadOfMisreportingThemAsOccupied() {
-		await AppHostBuild.Value;
+		await _AppHostBuild.Value;
 
-		var repoRoot = FindRepoRoot();
-		var run = await RunAppHostAsync(
+		var repoRoot = _FindRepoRoot();
+		var run = await _RunAppHostAsync(
 			repoRoot,
 			TimeSpan.FromMinutes(5),
-			["run", "--project", "apps/apphost", "--no-build", OpenApiSkipBuildProperty,
+			["run", "--project", "apps/apphost", "--no-build", _OpenApiSkipBuildProperty,
 				"--", "--probe-bind-fault", "AccessDenied"]
 		);
 
@@ -202,7 +202,7 @@ public sealed partial class AppHostOrchestrationGuardSpec : IDisposable {
 		// on 5454" diagnosis is exactly what the round-4 review caught:
 		// it sends the user chasing a phantom listener. The new path MUST NOT
 		// repeat it for a non-AddressAlreadyInUse error.
-		PortGuardMessage().IsMatch(run.Console).Should().BeFalse(
+		_PortGuardMessage().IsMatch(run.Console).Should().BeFalse(
 			"a non-AddressAlreadyInUse SocketError must NOT be misreported as "
 				+ "'port already in use' — that is the round-4 review finding this "
 				+ $"fix removes. Console: {run.Console}"
@@ -221,19 +221,19 @@ public sealed partial class AppHostOrchestrationGuardSpec : IDisposable {
 	// probe still said "occupied", and this guard would never notice).
 	[Fact]
 	public async Task ItShouldKeepReportingAddressAlreadyInUseThroughTheProbeBindFaultHook() {
-		await AppHostBuild.Value;
+		await _AppHostBuild.Value;
 
-		var repoRoot = FindRepoRoot();
-		var run = await RunAppHostAsync(
+		var repoRoot = _FindRepoRoot();
+		var run = await _RunAppHostAsync(
 			repoRoot,
 			TimeSpan.FromMinutes(5),
-			["run", "--project", "apps/apphost", "--no-build", OpenApiSkipBuildProperty,
+			["run", "--project", "apps/apphost", "--no-build", _OpenApiSkipBuildProperty,
 				"--", "--probe-bind-fault", "AddressAlreadyInUse"]
 		);
 
 		run.ExitedOnItsOwn.Should().BeTrue();
 		run.ExitCode.Should().Be(1, $"actual: {run.ExitCode}");
-		PortGuardMessage().IsMatch(run.Console).Should().BeTrue(
+		_PortGuardMessage().IsMatch(run.Console).Should().BeTrue(
 			"synthetic AddressAlreadyInUse must trigger the SAME loud 'occupied' "
 				+ "diagnosis the real bind does, so the guard pins the production "
 				+ $"probe too. Console: {run.Console}"
@@ -268,13 +268,13 @@ public sealed partial class AppHostOrchestrationGuardSpec : IDisposable {
 	// this test green.
 	[Fact]
 	public async Task ItShouldFailLoudlyWhenProbeBindFaultKindIsFree() {
-		await AppHostBuild.Value;
+		await _AppHostBuild.Value;
 
-		var repoRoot = FindRepoRoot();
-		var run = await RunAppHostAsync(
+		var repoRoot = _FindRepoRoot();
+		var run = await _RunAppHostAsync(
 			repoRoot,
 			TimeSpan.FromMinutes(5),
-			["run", "--project", "apps/apphost", "--no-build", OpenApiSkipBuildProperty,
+			["run", "--project", "apps/apphost", "--no-build", _OpenApiSkipBuildProperty,
 				"--", "--probe-bind-fault-kind", "Free"]
 		);
 
@@ -309,13 +309,13 @@ public sealed partial class AppHostOrchestrationGuardSpec : IDisposable {
 	// alphanumeric glued to the address stays RED).
 	[Fact]
 	public async Task ItShouldPrintHostPort5454DetachedFromPrecedingText() {
-		await AppHostBuild.Value;
+		await _AppHostBuild.Value;
 
-		var repoRoot = FindRepoRoot();
-		var run = await RunAppHostAsync(
+		var repoRoot = _FindRepoRoot();
+		var run = await _RunAppHostAsync(
 			repoRoot,
 			TimeSpan.FromMinutes(5),
-			["run", "--project", "apps/apphost", "--no-build", OpenApiSkipBuildProperty,
+			["run", "--project", "apps/apphost", "--no-build", _OpenApiSkipBuildProperty,
 				"--", "--probe-bind-fault", "AccessDenied"]
 		);
 
@@ -328,7 +328,7 @@ public sealed partial class AppHostOrchestrationGuardSpec : IDisposable {
 			"the Other-branch diagnostic must name the address so the user "
 				+ $"can locate the offending listener. Console: {run.Console}"
 		);
-		HostPort5454DetachedFromPrecedingText().IsMatch(run.Console).Should().BeFalse(
+		_HostPort5454DetachedFromPrecedingText().IsMatch(run.Console).Should().BeFalse(
 			"the address must be separated from the preceding word by whitespace "
 				+ "or punctuation; an alphanumeric glued to it ('...whether127.0.0.1:5454', "
 				+ "'...if127.0.0.1:5454', ...) reads as one token at the moment "
@@ -367,19 +367,19 @@ public sealed partial class AppHostOrchestrationGuardSpec : IDisposable {
 		// existing occupier — the AppHost must fail the same way for ANY
 		// occupier, so the test stays valid.
 		try {
-			var listener = new TcpListener(IPAddress.Loopback, HostPort);
+			var listener = new TcpListener(IPAddress.Loopback, _HostPort);
 			listener.Start();
-			_occupier = listener;
+			_Occupier = listener;
 		} catch (SocketException) {
 			// 5454 already occupied by a real process — equally valid evidence.
 		}
 
-		await AppHostBuild.Value;
-		var repoRoot = FindRepoRoot();
-		var run = await RunAppHostAsync(
+		await _AppHostBuild.Value;
+		var repoRoot = _FindRepoRoot();
+		var run = await _RunAppHostAsync(
 			repoRoot,
 			TimeSpan.FromMinutes(2),
-			["run", "--project", "apps/apphost", "--no-build", OpenApiSkipBuildProperty,
+			["run", "--project", "apps/apphost", "--no-build", _OpenApiSkipBuildProperty,
 				"--", "--preflight-only"]
 		);
 
@@ -392,7 +392,7 @@ public sealed partial class AppHostOrchestrationGuardSpec : IDisposable {
 			$"a non-zero exit is the loud half; actual exit code {run.ExitCode}"
 		);
 		var tailStart = Math.Max(0, run.Console.Length - 800);
-		PortGuardMessage().IsMatch(run.Console).Should().BeTrue(
+		_PortGuardMessage().IsMatch(run.Console).Should().BeTrue(
 			"the console must name the cause in plain words: port 5454 is already "
 				+ "in use and what to do about it. The bare DCP "
 				+ "'address already in use' proxy log is internal to DCP and never "
@@ -430,19 +430,19 @@ public sealed partial class AppHostOrchestrationGuardSpec : IDisposable {
 		// ItShouldFailLoudlyWhenHostPort5454IsAlreadyOccupied proves an ACTIVE
 		// listener still fails loudly in both halves: no false negative in
 		// exchange for the fix.
-		await AppHostBuild.Value;
-		await using var residue = await SpawnKill9ResidueAsync();
+		await _AppHostBuild.Value;
+		await using var residue = await _SpawnKill9ResidueAsync();
 
-		var repoRoot = FindRepoRoot();
-		var plainRun = await RunAppHostAsync(
+		var repoRoot = _FindRepoRoot();
+		var plainRun = await _RunAppHostAsync(
 			repoRoot,
 			TimeSpan.FromMinutes(5),
-			["run", "--project", "apps/apphost", "--no-build", OpenApiSkipBuildProperty, "--preflight-only", "--plain-bind-preflight"]
+			["run", "--project", "apps/apphost", "--no-build", _OpenApiSkipBuildProperty, "--preflight-only", "--plain-bind-preflight"]
 		);
-		var shippedRun = await RunAppHostAsync(
+		var shippedRun = await _RunAppHostAsync(
 			repoRoot,
 			TimeSpan.FromMinutes(5),
-			["run", "--project", "apps/apphost", "--no-build", OpenApiSkipBuildProperty, "--preflight-only"]
+			["run", "--project", "apps/apphost", "--no-build", _OpenApiSkipBuildProperty, "--preflight-only"]
 		);
 
 		// RED half: the reviewer's measured kernel hazard, executed through the
@@ -458,7 +458,7 @@ public sealed partial class AppHostOrchestrationGuardSpec : IDisposable {
 				+ $"Actual exit: {plainRun.ExitCode}. Console: {plainRun.Console}"
 		);
 		var plainTailStart = Math.Max(0, plainRun.Console.Length - 800);
-		PortGuardMessage().IsMatch(plainRun.Console).Should().BeTrue(
+		_PortGuardMessage().IsMatch(plainRun.Console).Should().BeTrue(
 			"the false positive must also print the misleading 'occupied' diagnosis "
 				+ "(that is exactly what misleads the user); "
 				+ $"Console tail: …{plainRun.Console[plainTailStart..]}"
@@ -483,8 +483,8 @@ public sealed partial class AppHostOrchestrationGuardSpec : IDisposable {
 		);
 	}
 
-	private static async Task<Kill9Residue> SpawnKill9ResidueAsync() {
-		var repoRoot = FindRepoRoot();
+	private static async Task<Kill9Residue> _SpawnKill9ResidueAsync() {
+		var repoRoot = _FindRepoRoot();
 		var process = new Process {
 			StartInfo = {
 				FileName = "dotnet",
@@ -495,7 +495,7 @@ public sealed partial class AppHostOrchestrationGuardSpec : IDisposable {
 			}
 		};
 		foreach (var argument in new[] {
-			"run", "--project", "apps/apphost", "--no-build", OpenApiSkipBuildProperty, "--", "--hold-port-5454"
+			"run", "--project", "apps/apphost", "--no-build", _OpenApiSkipBuildProperty, "--", "--hold-port-5454"
 		}) {
 			process.StartInfo.ArgumentList.Add(argument);
 		}
@@ -524,7 +524,7 @@ public sealed partial class AppHostOrchestrationGuardSpec : IDisposable {
 
 		TcpClient client = new();
 		try {
-			await ConnectToHoldPortAsync(process, client, console);
+			await _ConnectToHoldPortAsync(process, client, console);
 			// The connect can be served by a THIRD-PARTY occupier's backlog while
 			// our child is exiting on a failed bind (an active listener on a dev
 			// machine). Discriminate by racing the accept marker against the
@@ -538,7 +538,7 @@ public sealed partial class AppHostOrchestrationGuardSpec : IDisposable {
 			if (completed == childExit) {
 				string tail;
 				lock (console) {
-					tail = ConsoleTail(console.ToString());
+					tail = _ConsoleTail(console.ToString());
 				}
 				throw new InvalidOperationException(
 					"the --hold-port-5454 child exited before accepting the connection "
@@ -562,24 +562,24 @@ public sealed partial class AppHostOrchestrationGuardSpec : IDisposable {
 		} catch (TimeoutException) {
 			string tail;
 			lock (console) {
-				tail = ConsoleTail(console.ToString());
+				tail = _ConsoleTail(console.ToString());
 			}
 			client.Dispose();
-			await KillAndReapAsync(process);
+			await _KillAndReapAsync(process);
 			throw new TimeoutException(
 				"the --hold-port-5454 child neither accepted nor exited within 20s — "
 					+ $"unanalysable state, refusing to guess. Console tail: {tail}"
 			);
 		} catch (Exception) {
 			client.Dispose();
-			await KillAndReapAsync(process);
+			await _KillAndReapAsync(process);
 			throw;
 		}
 
 		return new Kill9Residue(process, client);
 	}
 
-	private static async Task ConnectToHoldPortAsync(
+	private static async Task _ConnectToHoldPortAsync(
 		Process process,
 		TcpClient client,
 		StringBuilder console
@@ -589,7 +589,7 @@ public sealed partial class AppHostOrchestrationGuardSpec : IDisposable {
 			if (process.HasExited) {
 				string tail;
 				lock (console) {
-					tail = ConsoleTail(console.ToString());
+					tail = _ConsoleTail(console.ToString());
 				}
 				throw new InvalidOperationException(
 					"the --hold-port-5454 child exited before listening on 127.0.0.1:5454 "
@@ -599,7 +599,7 @@ public sealed partial class AppHostOrchestrationGuardSpec : IDisposable {
 			}
 
 			try {
-				await client.ConnectAsync(IPAddress.Loopback, HostPort, cts.Token);
+				await client.ConnectAsync(IPAddress.Loopback, _HostPort, cts.Token);
 				return;
 			} catch (OperationCanceledException) when (cts.IsCancellationRequested) {
 				// Fall through to the timeout message below.
@@ -613,7 +613,7 @@ public sealed partial class AppHostOrchestrationGuardSpec : IDisposable {
 		);
 	}
 
-	private static async Task KillAndReapAsync(Process process) {
+	private static async Task _KillAndReapAsync(Process process) {
 		try {
 			if (!process.HasExited) {
 				process.Kill(entireProcessTree: true);
@@ -626,7 +626,7 @@ public sealed partial class AppHostOrchestrationGuardSpec : IDisposable {
 		}
 	}
 
-	private static async Task<AppHostRun> RunAppHostAsync(
+	private static async Task<AppHostRun> _RunAppHostAsync(
 		string repoRoot,
 		TimeSpan budget,
 		string[] dotnetArguments
@@ -704,7 +704,7 @@ public sealed partial class AppHostOrchestrationGuardSpec : IDisposable {
 		);
 	}
 
-	private static string ConsoleTail(string console) {
+	private static string _ConsoleTail(string console) {
 		var tailStart = Math.Max(0, console.Length - 800);
 		return console[tailStart..];
 	}
@@ -713,7 +713,7 @@ public sealed partial class AppHostOrchestrationGuardSpec : IDisposable {
 	// NON-EMPTY source (Aspire names the volume; an anonymous mount would print
 	// source= right after the prefix).
 	[GeneratedRegex("^mount postgres type=Volume source=\\S+ ", RegexOptions.Multiline)]
-	private static partial Regex NamedPostgresVolumeMount();
+	private static partial Regex _NamedPostgresVolumeMount();
 
 	// The guard must name the port AND the DCP symptom AND the concrete next
 	// action (stop the occupier / pick another port). The console message is
@@ -721,7 +721,7 @@ public sealed partial class AppHostOrchestrationGuardSpec : IDisposable {
 	[GeneratedRegex(
 		"5454[\\s\\S]{0,1200}address already in use[\\s\\S]{0,1200}dotnet run --project apps/apphost"
 	)]
-	private static partial Regex PortGuardMessage();
+	private static partial Regex _PortGuardMessage();
 
 	// Detects "127.0.0.1:5454" preceded by an alphanumeric — a missing space
 	// between the diagnostic word and the address. The negative assertion is
@@ -731,11 +731,11 @@ public sealed partial class AppHostOrchestrationGuardSpec : IDisposable {
 	// real word break between word text and "1" of the address is exactly
 	// what matters.
 	[GeneratedRegex(@"[A-Za-z0-9]127\.0\.0\.1:5454")]
-	private static partial Regex HostPort5454DetachedFromPrecedingText();
+	private static partial Regex _HostPort5454DetachedFromPrecedingText();
 
 	// Walk further up for the repo root containing justfile (AppHost paths are
 	// repo-root-relative). Same convention as CanaryProbeContainmentSpec.
-	private static string FindRepoRoot() {
+	private static string _FindRepoRoot() {
 		var current = new DirectoryInfo(AppContext.BaseDirectory);
 
 		while (current is not null) {
@@ -758,7 +758,7 @@ public sealed partial class AppHostOrchestrationGuardSpec : IDisposable {
 	private sealed class Kill9Residue(Process process, TcpClient client) : IAsyncDisposable {
 		public async ValueTask DisposeAsync() {
 			client.Dispose();
-			await KillAndReapAsync(process);
+			await _KillAndReapAsync(process);
 		}
 	}
 

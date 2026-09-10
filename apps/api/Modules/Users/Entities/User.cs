@@ -17,13 +17,13 @@ public class User : BaseAttributes, INoTenantEntity {
 	[Column("first_name")]
 	public string? FirstName { get; set; }
 
-	private string _email = string.Empty;
+	private string _Email = string.Empty;
 
 	[Column("email")]
 	[EmailAddress]
 	public required string Email {
-		get { return _email; }
-		set { _email = value.ToLowerInvariant(); }
+		get { return _Email; }
+		set { _Email = value.ToLowerInvariant(); }
 	}
 
 	[Column("password")]

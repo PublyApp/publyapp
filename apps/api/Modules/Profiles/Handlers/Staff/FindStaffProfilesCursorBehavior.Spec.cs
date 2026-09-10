@@ -29,19 +29,19 @@ namespace PublyApp.Api.Modules.Profiles.Handlers.Staff;
 /// </summary>
 public sealed class FindStaffProfilesCursorBehaviorSpec
 	: IClassFixture<ApiFixture> {
-	private readonly ApiFixture _fixture;
-	private readonly HttpClient _http;
-	private readonly TestAuthClient _authClient;
+	private readonly ApiFixture _Fixture;
+	private readonly HttpClient _Http;
+	private readonly TestAuthClient _AuthClient;
 
 	public FindStaffProfilesCursorBehaviorSpec(ApiFixture fixture) {
-		_fixture = fixture;
-		_http = fixture.HttpClient;
-		_authClient = new TestAuthClient(_http);
+		_Fixture = fixture;
+		_Http = fixture.HttpClient;
+		_AuthClient = new TestAuthClient(_Http);
 	}
 
 	[Fact]
 	public async Task ItShouldWalkEveryPageOnANameSortWithoutOverlapOrGap() {
-		var token = await _authClient.LoginAsStaffAdminAsync();
+		var token = await _AuthClient.LoginAsStaffAdminAsync();
 
 		// Deterministic, anti-correlated names: insertion order is c,b,a while
 		// the lexical (sort) order is a,b,c. The walk must return them in
@@ -55,7 +55,7 @@ public sealed class FindStaffProfilesCursorBehaviorSpec
 		// determine the order of the two equal-key rows.
 		for (var i = 0; i < total; i++) {
 			var name = i == 1 ? $"Walk Page Bravo {Guid.NewGuid():N}" : $"Walk Page Alpha {Guid.NewGuid():N}";
-			seededIds.Add(await SeedStaffProfileAsync(name));
+			seededIds.Add(await _SeedStaffProfileAsync(name));
 			seededNames.Add(name);
 		}
 		seededNames.Sort(StringComparer.OrdinalIgnoreCase);
@@ -72,10 +72,10 @@ public sealed class FindStaffProfilesCursorBehaviorSpec
 
 			using var request = new HttpRequestMessage(
 				HttpMethod.Get,
-				GetUrl(query)
+				_GetUrl(query)
 			).WithSessionToken(token);
 
-			using var response = await _http.SendAsync(request);
+			using var response = await _Http.SendAsync(request);
 			response.StatusCode.Should().Be(HttpStatusCode.OK);
 
 			var page = await response.Content.ReadFromJsonAsync<FindStaffProfilesResponse>();
@@ -108,7 +108,7 @@ public sealed class FindStaffProfilesCursorBehaviorSpec
 
 	[Fact]
 	public async Task ItShouldWalkEveryIdPageWithoutOverlapOrGap() {
-		var token = await _authClient.LoginAsStaffAdminAsync();
+		var token = await _AuthClient.LoginAsStaffAdminAsync();
 
 		// 3 profiles with distinct Id; the walk must visit each once in
 		// ascending Id order. A keySelector swap to another same-type field
@@ -116,7 +116,7 @@ public sealed class FindStaffProfilesCursorBehaviorSpec
 		var seededIds = new List<Guid>();
 		for (var i = 0; i < 3; i++) {
 			var name = $"Id Walk {i} {Guid.NewGuid():N}";
-			seededIds.Add(await SeedStaffProfileAsync(name));
+			seededIds.Add(await _SeedStaffProfileAsync(name));
 		}
 
 		var visitedIds = new List<Guid>();
@@ -130,10 +130,10 @@ public sealed class FindStaffProfilesCursorBehaviorSpec
 
 			using var request = new HttpRequestMessage(
 				HttpMethod.Get,
-				GetUrl(query)
+				_GetUrl(query)
 			).WithSessionToken(token);
 
-			using var response = await _http.SendAsync(request);
+			using var response = await _Http.SendAsync(request);
 			response.StatusCode.Should().Be(HttpStatusCode.OK);
 
 			var page = await response.Content.ReadFromJsonAsync<FindStaffProfilesResponse>();
@@ -160,7 +160,7 @@ public sealed class FindStaffProfilesCursorBehaviorSpec
 
 	[Fact]
 	public async Task ItShouldWalkEveryCreatedAtPageWithoutOverlapOrGap() {
-		var token = await _authClient.LoginAsStaffAdminAsync();
+		var token = await _AuthClient.LoginAsStaffAdminAsync();
 
 		// 3 profiles with distinct, deliberately NOT insertion-ordered
 		// CreatedAt (anti-correlated). The walk must visit each once in
@@ -175,18 +175,18 @@ public sealed class FindStaffProfilesCursorBehaviorSpec
 			// different value (i=1). The tiebreaker (Id ascending) must
 			// determine the order of the two equal-key rows.
 			var createdAt = i == 1 ? baseDate.AddDays(1) : baseDate;
-			var id = await SeedStaffProfileAtAsync($"created-at-walk-{i}-{Guid.NewGuid():N}", createdAt);
+			var id = await _SeedStaffProfileAtAsync($"created-at-walk-{i}-{Guid.NewGuid():N}", createdAt);
 			seededIds.Add(id);
 			seededOrder.Add(createdAt);
 		}
 
-			// Swap the IDs of the two equal-key rows (i=0 and i=2) so the row
-			// inserted at i=2 has the smaller Id. Without this, UUID v7 IDs are
-			// insertion-ordered, so stable OrderBy(CreatedAt) already matches
-			// ThenBy(Id) and removing the production tiebreaker leaves the test
-			// green. After the swap, the tiebreaker is actually exercised.
-			await SwapStaffProfileIdsAsync(seededIds[0], seededIds[2]);
-			(seededIds[0], seededIds[2]) = (seededIds[2], seededIds[0]);
+		// Swap the IDs of the two equal-key rows (i=0 and i=2) so the row
+		// inserted at i=2 has the smaller Id. Without this, UUID v7 IDs are
+		// insertion-ordered, so stable OrderBy(CreatedAt) already matches
+		// ThenBy(Id) and removing the production tiebreaker leaves the test
+		// green. After the swap, the tiebreaker is actually exercised.
+		await _SwapStaffProfileIdsAsync(seededIds[0], seededIds[2]);
+		(seededIds[0], seededIds[2]) = (seededIds[2], seededIds[0]);
 
 		var visitedIds = new List<Guid>();
 		string? cursor = null;
@@ -199,10 +199,10 @@ public sealed class FindStaffProfilesCursorBehaviorSpec
 
 			using var request = new HttpRequestMessage(
 				HttpMethod.Get,
-				GetUrl(query)
+				_GetUrl(query)
 			).WithSessionToken(token);
 
-			using var response = await _http.SendAsync(request);
+			using var response = await _Http.SendAsync(request);
 			response.StatusCode.Should().Be(HttpStatusCode.OK);
 
 			var page = await response.Content.ReadFromJsonAsync<FindStaffProfilesResponse>();
@@ -233,7 +233,7 @@ public sealed class FindStaffProfilesCursorBehaviorSpec
 
 	[Fact]
 	public async Task ItShouldWalkEveryUserAccountCountPageWithoutOverlapOrGap() {
-		var token = await _authClient.LoginAsStaffAdminAsync();
+		var token = await _AuthClient.LoginAsStaffAdminAsync();
 
 		// 3 profiles with distinct, deliberately NOT insertion-ordered
 		// UserAccountCount (anti-correlated). The walk must visit each once in
@@ -243,7 +243,7 @@ public sealed class FindStaffProfilesCursorBehaviorSpec
 		var seededCounts = new List<int>();
 		var counts = new[] { 3, 1, 2 };
 		for (var i = 0; i < 3; i++) {
-			var id = await SeedStaffProfileWithUsersAsync($"uac-walk-{i}-{Guid.NewGuid():N}", counts[i]);
+			var id = await _SeedStaffProfileWithUsersAsync($"uac-walk-{i}-{Guid.NewGuid():N}", counts[i]);
 			seededIds.Add(id);
 			seededCounts.Add(counts[i]);
 		}
@@ -259,10 +259,10 @@ public sealed class FindStaffProfilesCursorBehaviorSpec
 
 			using var request = new HttpRequestMessage(
 				HttpMethod.Get,
-				GetUrl(query)
+				_GetUrl(query)
 			).WithSessionToken(token);
 
-			using var response = await _http.SendAsync(request);
+			using var response = await _Http.SendAsync(request);
 			response.StatusCode.Should().Be(HttpStatusCode.OK);
 
 			var page = await response.Content.ReadFromJsonAsync<FindStaffProfilesResponse>();
@@ -292,8 +292,8 @@ public sealed class FindStaffProfilesCursorBehaviorSpec
 		visitedOrder.Should().Equal(expectedOrder);
 	}
 
-	private async Task<Guid> SeedStaffProfileAtAsync(string name, DateTime createdAt) {
-		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+	private async Task<Guid> _SeedStaffProfileAtAsync(string name, DateTime createdAt) {
+		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		var profile = Profile.CreateStaffProfile(name);
@@ -310,8 +310,8 @@ public sealed class FindStaffProfilesCursorBehaviorSpec
 		return id;
 	}
 
-	private async Task<Guid> SeedStaffProfileWithUsersAsync(string name, int userCount) {
-		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+	private async Task<Guid> _SeedStaffProfileWithUsersAsync(string name, int userCount) {
+		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		var profile = Profile.CreateStaffProfile(name);
@@ -348,14 +348,14 @@ public sealed class FindStaffProfilesCursorBehaviorSpec
 
 	[Fact]
 	public async Task ItShouldReturnBadRequestWhenCursorRecordIsMissing() {
-		var token = await _authClient.LoginAsStaffAdminAsync();
+		var token = await _AuthClient.LoginAsStaffAdminAsync();
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			GetUrl($"cursor={Guid.NewGuid()}")
+			_GetUrl($"cursor={Guid.NewGuid()}")
 		).WithSessionToken(token);
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 
 		response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
 
@@ -366,7 +366,7 @@ public sealed class FindStaffProfilesCursorBehaviorSpec
 		problem.Status.Should().Be((int)HttpStatusCode.BadRequest);
 	}
 
-	private static string GetUrl(string query = "") {
+	private static string _GetUrl(string query = "") {
 		var url = PathUtils.Join(
 			Routes.Staff.Root,
 			Routes.Profiles.ForStaff.Root,
@@ -376,8 +376,8 @@ public sealed class FindStaffProfilesCursorBehaviorSpec
 		return query.Length == 0 ? url : $"{url}?{query}";
 	}
 
-	private async Task<Guid> SeedStaffProfileAsync(string name) {
-		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+	private async Task<Guid> _SeedStaffProfileAsync(string name) {
+		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		var profile = Profile.CreateStaffProfile(name);
@@ -397,8 +397,8 @@ public sealed class FindStaffProfilesCursorBehaviorSpec
 		public string Name { get; init; } = string.Empty;
 	}
 
-	private async Task SwapStaffProfileIdsAsync(Guid idA, Guid idB) {
-		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+	private async Task _SwapStaffProfileIdsAsync(Guid idA, Guid idB) {
+		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 		var temp = Guid.NewGuid();
 		await dbContext.Database.ExecuteSqlRawAsync(

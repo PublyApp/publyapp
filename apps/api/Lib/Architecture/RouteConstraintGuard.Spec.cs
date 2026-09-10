@@ -24,7 +24,7 @@ public sealed class RouteConstraintGuardSpec {
 	/// brace, a parameter name, then a colon before the closing brace —
 	/// e.g. <c>{userId:guid}</c>, <c>{id:int}</c>, <c>{slug:minlength(2)}</c>.
 	/// </summary>
-	private static readonly Regex RouteConstraintPattern =
+	private static readonly Regex _RouteConstraintPattern =
 		new(
 			@"\{[A-Za-z_][A-Za-z0-9_]*:",
 			RegexOptions.Compiled,
@@ -36,7 +36,7 @@ public sealed class RouteConstraintGuardSpec {
 		var offenders = ArchitectureDiscovery
 			.EnumerateRouteConstants()
 			.Where(constant =>
-				RouteConstraintPattern.IsMatch(constant.Value))
+				_RouteConstraintPattern.IsMatch(constant.Value))
 			.Select(constant =>
 				$"{constant.Name} = \"{constant.Value}\"")
 			.OrderBy(name => name, StringComparer.Ordinal)

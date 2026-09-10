@@ -11,12 +11,12 @@ namespace PublyApp.Api.Lib.DI;
 public static partial class ServiceValidator {
 	// Regex pattern for allowed namespace: PublyApp.Api.Modules.{Domain}.Services
 	[GeneratedRegex(@"^PublyApp\.Api\.Modules\.[^.]+\.Services(\..*)?$")]
-	private static partial Regex AllowedNamespacePattern();
+	private static partial Regex _AllowedNamespacePattern();
 
 	// Keys must be stable identifiers (no whitespace/control chars), and must be lowercase.
 	// Allowed: a-z, 0-9, underscore, hyphen, dot. Must start with a-z or 0-9.
 	[GeneratedRegex(@"^[a-z0-9][a-z0-9._-]*$")]
-	private static partial Regex KeyPattern();
+	private static partial Regex _KeyPattern();
 
 	/// <summary>
 	/// Validates all discovered services and throws if any rule is violated.
@@ -26,22 +26,22 @@ public static partial class ServiceValidator {
 		var errors = new List<string>();
 
 		// Rule 1: Concrete classes only (no abstract, no open generics)
-		ValidateConcreteClasses(services, errors);
+		_ValidateConcreteClasses(services, errors);
 
 		// Rule 2: Namespace allowlist enforcement
-		ValidateNamespaces(services, errors);
+		_ValidateNamespaces(services, errors);
 
 		// Rule 3: Primary interface existence check
-		ValidatePrimaryInterfaces(services, errors);
+		_ValidatePrimaryInterfaces(services, errors);
 
 		// Rule 4: Key validity (no empty/whitespace, must be lowercase)
-		ValidateKeys(services, errors);
+		_ValidateKeys(services, errors);
 
 		// Rule 5: Duplicate unkeyed implementation detection
-		ValidateNoDuplicateUnkeyed(services, errors);
+		_ValidateNoDuplicateUnkeyed(services, errors);
 
 		// Rule 6: Duplicate key detection per service type
-		ValidateNoDuplicateKeys(services, errors);
+		_ValidateNoDuplicateKeys(services, errors);
 
 		if (errors.Count > 0) {
 			var message = new StringBuilder();
@@ -57,7 +57,7 @@ public static partial class ServiceValidator {
 	/// <summary>
 	/// Validates that all [Service] attributed types are concrete classes (not abstract, not open generics).
 	/// </summary>
-	private static void ValidateConcreteClasses(List<DiscoveredService> services, List<string> errors) {
+	private static void _ValidateConcreteClasses(List<DiscoveredService> services, List<string> errors) {
 		foreach (var service in services) {
 			var type = service.ImplementationType;
 
@@ -95,9 +95,9 @@ public static partial class ServiceValidator {
 	/// <summary>
 	/// Validates that all [Service] attributed classes are in allowed namespaces.
 	/// </summary>
-	private static void ValidateNamespaces(List<DiscoveredService> services, List<string> errors) {
+	private static void _ValidateNamespaces(List<DiscoveredService> services, List<string> errors) {
 		foreach (var service in services) {
-			if (!AllowedNamespacePattern().IsMatch(service.Namespace)) {
+			if (!_AllowedNamespacePattern().IsMatch(service.Namespace)) {
 				errors.Add(
 					$"[Service] attribute on '{service.ImplementationType.FullName}' is invalid: " +
 					$"namespace '{service.Namespace}' is not allowed. " +
@@ -110,7 +110,7 @@ public static partial class ServiceValidator {
 	/// <summary>
 	/// Validates that all [Service] attributed classes have a primary interface I{ClassName}.
 	/// </summary>
-	private static void ValidatePrimaryInterfaces(List<DiscoveredService> services, List<string> errors) {
+	private static void _ValidatePrimaryInterfaces(List<DiscoveredService> services, List<string> errors) {
 		foreach (var service in services) {
 			if (service.ServiceInterface is null) {
 				var expectedInterfaceName = $"I{service.ImplementationType.Name}";
@@ -134,7 +134,7 @@ public static partial class ServiceValidator {
 	/// <summary>
 	/// Validates that keys are valid (not empty/whitespace, lowercase only, identifier-safe).
 	/// </summary>
-	private static void ValidateKeys(List<DiscoveredService> services, List<string> errors) {
+	private static void _ValidateKeys(List<DiscoveredService> services, List<string> errors) {
 		foreach (var service in services) {
 			if (service.Key is null) {
 				continue;
@@ -148,7 +148,7 @@ public static partial class ServiceValidator {
 				continue;
 			}
 
-			if (!IsLowercaseKey(service.Key)) {
+			if (!_IsLowercaseKey(service.Key)) {
 				errors.Add(
 					$"[Service] attribute on '{service.ImplementationType.FullName}' has invalid key: " +
 					$"'{service.Key}' must be lowercase. Keys must be lowercase identifiers."
@@ -163,7 +163,7 @@ public static partial class ServiceValidator {
 				continue;
 			}
 
-			if (!KeyPattern().IsMatch(service.Key)) {
+			if (!_KeyPattern().IsMatch(service.Key)) {
 				errors.Add(
 					$"[Service] attribute on '{service.ImplementationType.FullName}' has invalid key: " +
 					$"'{service.Key}' is not identifier-safe. Allowed chars: [a-z0-9._-] with no spaces."
@@ -175,11 +175,11 @@ public static partial class ServiceValidator {
 	/// <summary>
 	/// Validates that each service type has at most one unkeyed (default) implementation.
 	/// </summary>
-	private static void ValidateNoDuplicateUnkeyed(List<DiscoveredService> services, List<string> errors) {
+	private static void _ValidateNoDuplicateUnkeyed(List<DiscoveredService> services, List<string> errors) {
 		// Filter to only services with valid interfaces (not void) and no key
 		var unkeyedByInterface = services
 			.Where(s => s.ServiceInterface is not null && s.Key is null)
-			.GroupBy(GetRequiredServiceInterface)
+			.GroupBy(_GetRequiredServiceInterface)
 			.Where(g => g.Count() > 1);
 
 		foreach (var group in unkeyedByInterface) {
@@ -192,7 +192,7 @@ public static partial class ServiceValidator {
 		}
 	}
 
-	private static bool IsLowercaseKey(string key) {
+	private static bool _IsLowercaseKey(string key) {
 		foreach (var character in key) {
 			if (char.ToLowerInvariant(character) != character) {
 				return false;
@@ -202,7 +202,7 @@ public static partial class ServiceValidator {
 		return true;
 	}
 
-	private static Type GetRequiredServiceInterface(DiscoveredService service) {
+	private static Type _GetRequiredServiceInterface(DiscoveredService service) {
 		if (service.ServiceInterface is null) {
 			throw new InvalidOperationException(
 				$"Discovered service '{service.ImplementationType.FullName}' has no service interface."
@@ -212,7 +212,7 @@ public static partial class ServiceValidator {
 		return service.ServiceInterface;
 	}
 
-	private static string GetRequiredServiceKey(DiscoveredService service) {
+	private static string _GetRequiredServiceKey(DiscoveredService service) {
 		if (service.Key is null) {
 			throw new InvalidOperationException(
 				$"Discovered service '{service.ImplementationType.FullName}' has no service key."
@@ -225,13 +225,13 @@ public static partial class ServiceValidator {
 	/// <summary>
 	/// Validates that there are no duplicate keys for the same service type.
 	/// </summary>
-	private static void ValidateNoDuplicateKeys(List<DiscoveredService> services, List<string> errors) {
+	private static void _ValidateNoDuplicateKeys(List<DiscoveredService> services, List<string> errors) {
 		// Filter to only services with valid interfaces and a key
 		var keyedByInterfaceAndKey = services
 			.Where(s => s.ServiceInterface is not null && s.Key is not null)
 			.GroupBy(s => (
-				ServiceInterface: GetRequiredServiceInterface(s),
-				Key: GetRequiredServiceKey(s)
+				ServiceInterface: _GetRequiredServiceInterface(s),
+				Key: _GetRequiredServiceKey(s)
 			))
 			.Where(g => g.Count() > 1);
 

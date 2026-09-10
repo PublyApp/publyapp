@@ -95,32 +95,32 @@ public class FindInvitationsForTenantAsStaffQuery : CursorPaginatedQuery {
 
 public class FindInvitationsForTenantAsStaffQueryValidator : CursorPaginatedQueryValidator<FindInvitationsForTenantAsStaffQuery> {
 	// Source of truth: nameof() — rename-safe, no hardcoded strings to maintain.
-	private static readonly string[] AllowedStatuses = [
+	private static readonly string[] _AllowedStatuses = [
 		nameof(InvitationEffectiveStatus.Pending),
 		nameof(InvitationEffectiveStatus.Accepted),
 		nameof(InvitationEffectiveStatus.Expired),
 		nameof(InvitationEffectiveStatus.Revoked),
 	];
 
-	private static readonly HashSet<string> AllowedStatusSet =
-		new(AllowedStatuses, StringComparer.OrdinalIgnoreCase);
+	private static readonly HashSet<string> _AllowedStatusSet =
+		new(_AllowedStatuses, StringComparer.OrdinalIgnoreCase);
 
 	// Lowercased once at type init so the validation message matches the wire
 	// contract (lowercase tokens). Comparison itself stays case-insensitive via
 	// OrdinalIgnoreCase — ToLowerInvariant never runs on the request path.
-	private static readonly string AllowedStatusesDisplay =
-		string.Join(", ", AllowedStatuses.Select(s => s.ToLowerInvariant()).Order());
+	private static readonly string _AllowedStatusesDisplay =
+		string.Join(", ", _AllowedStatuses.Select(s => s.ToLowerInvariant()).Order());
 
-	private static readonly string[] AllowedLevels = [
+	private static readonly string[] _AllowedLevels = [
 		nameof(AccountLevel.Admin),
 		nameof(AccountLevel.User),
 	];
 
-	private static readonly HashSet<string> AllowedLevelSet =
-		new(AllowedLevels, StringComparer.OrdinalIgnoreCase);
+	private static readonly HashSet<string> _AllowedLevelSet =
+		new(_AllowedLevels, StringComparer.OrdinalIgnoreCase);
 
-	private static readonly string AllowedLevelsDisplay =
-		string.Join(", ", AllowedLevels.Select(s => s.ToLowerInvariant()).Order());
+	private static readonly string _AllowedLevelsDisplay =
+		string.Join(", ", _AllowedLevels.Select(s => s.ToLowerInvariant()).Order());
 
 	public FindInvitationsForTenantAsStaffQueryValidator() {
 		RuleFor(x => x.Search).MaximumLength(200);
@@ -136,9 +136,9 @@ public class FindInvitationsForTenantAsStaffQueryValidator : CursorPaginatedQuer
 				if (parts.Length == 0) {
 					return false;
 				}
-				return parts.All(p => p.Length > 0 && AllowedStatusSet.Contains(p));
+				return parts.All(p => p.Length > 0 && _AllowedStatusSet.Contains(p));
 			})
-			.WithMessage($"Status must be one of: {AllowedStatusesDisplay}");
+			.WithMessage($"Status must be one of: {_AllowedStatusesDisplay}");
 		RuleFor(x => x.Level)
 			.Must(raw => {
 				if (string.IsNullOrWhiteSpace(raw)) {
@@ -153,10 +153,10 @@ public class FindInvitationsForTenantAsStaffQueryValidator : CursorPaginatedQuer
 				return parts.All(
 					part =>
 						part.Length > 0
-						&& AllowedLevelSet.Contains(part)
+						&& _AllowedLevelSet.Contains(part)
 				);
 			})
-			.WithMessage($"level must be one of: {AllowedLevelsDisplay}");
+			.WithMessage($"level must be one of: {_AllowedLevelsDisplay}");
 	}
 }
 

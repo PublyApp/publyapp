@@ -7,7 +7,7 @@ using Xunit;
 namespace PublyApp.Api.Modules.Publishing.Lib;
 
 public sealed class PostStatusDerivationSpec {
-	private static Publication WithStatus(PublicationStatus status) {
+	private static Publication _WithStatus(PublicationStatus status) {
 		return new Publication {
 			TenantId = Guid.NewGuid(),
 			PostId = Guid.NewGuid(),
@@ -27,8 +27,8 @@ public sealed class PostStatusDerivationSpec {
 	[Fact]
 	public void ItShouldBeFailedWhenAnyPublicationFailed() {
 		var publications = new[] {
-			WithStatus(PublicationStatus.Published),
-			WithStatus(PublicationStatus.Failed),
+			_WithStatus(PublicationStatus.Published),
+			_WithStatus(PublicationStatus.Failed),
 		};
 
 		PostStatusDerivation.Derive(publications).Should().Be(DerivedPostStatus.Failed);
@@ -37,8 +37,8 @@ public sealed class PostStatusDerivationSpec {
 	[Fact]
 	public void ItShouldBePublishedWhenAllArePublished() {
 		var publications = new[] {
-			WithStatus(PublicationStatus.Published),
-			WithStatus(PublicationStatus.Published),
+			_WithStatus(PublicationStatus.Published),
+			_WithStatus(PublicationStatus.Published),
 		};
 
 		PostStatusDerivation.Derive(publications).Should().Be(DerivedPostStatus.Published);
@@ -47,8 +47,8 @@ public sealed class PostStatusDerivationSpec {
 	[Fact]
 	public void ItShouldBeScheduledWhenAllAreScheduled() {
 		var publications = new[] {
-			WithStatus(PublicationStatus.Scheduled),
-			WithStatus(PublicationStatus.Scheduled),
+			_WithStatus(PublicationStatus.Scheduled),
+			_WithStatus(PublicationStatus.Scheduled),
 		};
 
 		PostStatusDerivation.Derive(publications)
@@ -58,10 +58,10 @@ public sealed class PostStatusDerivationSpec {
 	[Fact]
 	public void ItShouldBePartialForAMixWithoutFailures() {
 		var publications = new[] {
-			WithStatus(PublicationStatus.Scheduled),
-			WithStatus(PublicationStatus.Published),
-			WithStatus(PublicationStatus.InProgress),
-			WithStatus(PublicationStatus.Paused),
+			_WithStatus(PublicationStatus.Scheduled),
+			_WithStatus(PublicationStatus.Published),
+			_WithStatus(PublicationStatus.InProgress),
+			_WithStatus(PublicationStatus.Paused),
 		};
 
 		PostStatusDerivation.Derive(publications).Should().Be(DerivedPostStatus.Partial);

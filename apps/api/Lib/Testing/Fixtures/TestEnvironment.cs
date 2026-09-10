@@ -45,7 +45,7 @@ namespace PublyApp.Api.Lib.Testing.Fixtures {
 	/// race now, deterministically, regardless of xUnit's schedule.
 	/// </summary>
 	internal static class TestEnvironment {
-		private static int _isInitialized;
+		private static int _IsInitialized;
 
 		/// <summary>
 		/// Deterministic placeholder used ONLY by Bootstrap()'s eager,
@@ -61,7 +61,7 @@ namespace PublyApp.Api.Lib.Testing.Fixtures {
 		/// AppEnvironmentValidator.BeValidPostgresConnectionString (a
 		/// well-formed Host/Database/Username/Password), never to connect.
 		/// </summary>
-		private const string PlaceholderConnectionString =
+		private const string _PlaceholderConnectionString =
 			"Host=localhost;Database=publyapp_bootstrap_placeholder;"
 			+ "Username=postgres;Password=postgres";
 
@@ -90,19 +90,19 @@ namespace PublyApp.Api.Lib.Testing.Fixtures {
 		/// PostgresContainerFixture.InitializeAsync(), or an architecture
 		/// spec's own static constructor — finds InitializeOnce() already
 		/// run and Instance already set, so it's a no-op return. See
-		/// PlaceholderConnectionString's doc comment for why the eager
+		/// _PlaceholderConnectionString's doc comment for why the eager
 		/// placeholder is safe.
 		/// </summary>
 		[System.Runtime.CompilerServices.ModuleInitializer]
 		internal static void Bootstrap() {
-			InitializeOnce(PlaceholderConnectionString);
+			InitializeOnce(_PlaceholderConnectionString);
 		}
 
 		public static void InitializeOnce(
 			string postgresConnectionString
 		) {
 			if (Interlocked.CompareExchange(
-				ref _isInitialized, 1, 0
+				ref _IsInitialized, 1, 0
 			) != 0) {
 				return;
 			}
@@ -213,7 +213,7 @@ namespace PublyApp.Api.Lib.Testing.Fixtures {
 				//    accesses AppEnvironment.Instance).
 				_ = AppEnvironment.Initialize();
 			} catch {
-				Volatile.Write(ref _isInitialized, 0);
+				Volatile.Write(ref _IsInitialized, 0);
 				throw;
 			}
 		}

@@ -37,7 +37,7 @@ public sealed class EntityConfigurationConventionSpec {
 		AppEnvironment.Initialize();
 	}
 
-	private static readonly Type EntityConfigurationInterface = typeof(IEntityTypeConfiguration<>);
+	private static readonly Type _EntityConfigurationInterface = typeof(IEntityTypeConfiguration<>);
 
 	/// <summary>
 	/// Entities whose mapping is declared entirely by data annotations on the entity class
@@ -51,12 +51,12 @@ public sealed class EntityConfigurationConventionSpec {
 	/// expectation against the built model — so every exemption is cross-checked, not just
 	/// the ones hand-listed there. Adding an entry here without an explicit table name is a
 	/// compile error; declaring a table the annotations do not produce is a test failure.
-	/// The <see cref="HasMappingAnnotations"/> guard in the coverage test remains as a
+	/// The <see cref="_HasMappingAnnotations"/> guard in the coverage test remains as a
 	/// necessary-condition check that an exempted entity at least declares its mapping via
 	/// annotations (never a convention-only entity), but it is not the assurance: the model
 	/// cross-check is.
 	/// </summary>
-	private static readonly Dictionary<Type, string> AnnotationMappedEntities = new() {
+	private static readonly Dictionary<Type, string> _AnnotationMappedEntities = new() {
 		[typeof(AuditLog)] = "audit_logs",
 		[typeof(InvitationEmailOutbox)] = "invitation_email_outbox",
 		[typeof(SystemNotice)] = "system_notices"
@@ -71,7 +71,7 @@ public sealed class EntityConfigurationConventionSpec {
 		// call scans (typeof(AppDbContext).Assembly) with the same filters EF Core uses.
 		var configurationTypes = typeof(AppDbContext).Assembly
 			.DefinedTypes
-			.Where(type => type.GetInterfaces().Any(IsEntityConfigurationInterface))
+			.Where(type => type.GetInterfaces().Any(_IsEntityConfigurationInterface))
 			.ToList();
 
 		_ = configurationTypes.Should().NotBeEmpty(
@@ -80,8 +80,8 @@ public sealed class EntityConfigurationConventionSpec {
 		);
 
 		var offenders = configurationTypes
-			.Where(type => !CanBeInstantiatedByAssemblyDiscovery(type))
-			.Select(DescribeSkipReason)
+			.Where(type => !_CanBeInstantiatedByAssemblyDiscovery(type))
+			.Select(_DescribeSkipReason)
 			.ToList();
 
 		_ = offenders.Should().BeEmpty(
@@ -95,12 +95,12 @@ public sealed class EntityConfigurationConventionSpec {
 	public void ItShouldCoverEveryDbSetEntityExactlyOnce() {
 		var configurationTypes = typeof(AppDbContext).Assembly
 			.DefinedTypes
-			.Where(type => type.GetInterfaces().Any(IsEntityConfigurationInterface))
+			.Where(type => type.GetInterfaces().Any(_IsEntityConfigurationInterface))
 			.ToList();
 
 		var configuredEntityTypes = configurationTypes
 			.SelectMany(type => type.GetInterfaces()
-				.Where(IsEntityConfigurationInterface)
+				.Where(_IsEntityConfigurationInterface)
 				.Select(configurationInterface => configurationInterface.GenericTypeArguments[0]))
 			.ToList();
 
@@ -135,8 +135,8 @@ public sealed class EntityConfigurationConventionSpec {
 
 		// The annotation-mapped exemption must only ever cover entities that genuinely
 		// declare their mapping via data annotations, never a convention-only entity.
-		var notAnnotated = AnnotationMappedEntities.Keys
-			.Where(entityType => !HasMappingAnnotations(entityType))
+		var notAnnotated = _AnnotationMappedEntities.Keys
+			.Where(entityType => !_HasMappingAnnotations(entityType))
 			.Select(entityType => entityType.Name)
 			.OrderBy(name => name, StringComparer.Ordinal)
 			.ToList();
@@ -165,7 +165,7 @@ public sealed class EntityConfigurationConventionSpec {
 			.Except(configuredEntityTypeSet)
 			.ToHashSet();
 		_ = uncoveredDbSetEntities.Should().BeSubsetOf(
-			AnnotationMappedEntities.Keys,
+			_AnnotationMappedEntities.Keys,
 			"every DbSet entity on AppDbContext must be covered by an "
 			+ "IEntityTypeConfiguration<T>, or be one of the explicitly annotation-mapped "
 			+ "entities that need none. Uncovered entities: "
@@ -200,39 +200,39 @@ public sealed class EntityConfigurationConventionSpec {
 		var model = dbContext.GetService<IDesignTimeModel>().Model;
 
 		var failures = new List<string>();
-		AssertCheckConstraint(model, typeof(Tenant), "CK_Tenant_Status", failures);
-		AssertCheckConstraint(model, typeof(User), "CK_User_Status", failures);
-		AssertCheckConstraint(model, typeof(UserAccount), "CK_UserAccount_Status", failures);
-		AssertCheckConstraint(model, typeof(Project), "CK_Project_Status", failures);
-		AssertCheckConstraint(model, typeof(Profile), "CK_Profile_Tenant_Constraints", failures);
-		AssertCheckConstraint(model, typeof(Permission), "CK_Permission_Staff_Key_Prefix", failures);
-		AssertCheckConstraint(model, typeof(Invitation), "CK_Invitation_Status", failures);
+		_AssertCheckConstraint(model, typeof(Tenant), "CK_Tenant_Status", failures);
+		_AssertCheckConstraint(model, typeof(User), "CK_User_Status", failures);
+		_AssertCheckConstraint(model, typeof(UserAccount), "CK_UserAccount_Status", failures);
+		_AssertCheckConstraint(model, typeof(Project), "CK_Project_Status", failures);
+		_AssertCheckConstraint(model, typeof(Profile), "CK_Profile_Tenant_Constraints", failures);
+		_AssertCheckConstraint(model, typeof(Permission), "CK_Permission_Staff_Key_Prefix", failures);
+		_AssertCheckConstraint(model, typeof(Invitation), "CK_Invitation_Status", failures);
 
-		AssertPrimaryKeyName(model, typeof(JobQueueItem), "pk_job_queue", failures);
-		AssertPrimaryKeyName(model, typeof(JobDeadLetter), "pk_job_dead_letter", failures);
-		AssertPrimaryKeyName(model, typeof(SystemJobDefinition), "pk_system_job_definitions", failures);
-		AssertPrimaryKeyName(model, typeof(EmailLog), "pk_email_log", failures);
-		AssertPrimaryKeyName(model, typeof(EmailPreparedSend), "pk_email_prepared_sends", failures);
+		_AssertPrimaryKeyName(model, typeof(JobQueueItem), "pk_job_queue", failures);
+		_AssertPrimaryKeyName(model, typeof(JobDeadLetter), "pk_job_dead_letter", failures);
+		_AssertPrimaryKeyName(model, typeof(SystemJobDefinition), "pk_system_job_definitions", failures);
+		_AssertPrimaryKeyName(model, typeof(EmailLog), "pk_email_log", failures);
+		_AssertPrimaryKeyName(model, typeof(EmailPreparedSend), "pk_email_prepared_sends", failures);
 
-		AssertCompositePrimaryKey(
+		_AssertCompositePrimaryKey(
 			model, typeof(UserAccountProfile), ["UserAccountId", "ProfileId"], failures
 		);
-		AssertCompositePrimaryKey(
+		_AssertCompositePrimaryKey(
 			model, typeof(ProfilePermission), ["ProfileId", "PermissionKey"], failures
 		);
-		AssertCompositePrimaryKey(
+		_AssertCompositePrimaryKey(
 			model, typeof(InvitationProfile), ["InvitationId", "ProfileId"], failures
 		);
-		AssertCompositePrimaryKey(
+		_AssertCompositePrimaryKey(
 			model, typeof(SystemJobOccurrence), ["JobKey", "ScheduledFireAt"], failures
 		);
 
-		AssertPropertyDefaultSql(model, typeof(Session), "Id", "uuidv7()", failures);
+		_AssertPropertyDefaultSql(model, typeof(Session), "Id", "uuidv7()", failures);
 
 		// Drive the annotation-mapped assertions from the same dictionary the coverage
 		// guard exempts with, so a new exemption entry is never silently uncovered here.
-		foreach (var (entityType, expectedTableName) in AnnotationMappedEntities) {
-			AssertTableName(model, entityType, expectedTableName, failures);
+		foreach (var (entityType, expectedTableName) in _AnnotationMappedEntities) {
+			_AssertTableName(model, entityType, expectedTableName, failures);
 		}
 
 		_ = failures.Should().BeEmpty(
@@ -242,12 +242,12 @@ public sealed class EntityConfigurationConventionSpec {
 		);
 	}
 
-	private static bool IsEntityConfigurationInterface(Type candidate) {
+	private static bool _IsEntityConfigurationInterface(Type candidate) {
 		return candidate.IsGenericType
-			&& candidate.GetGenericTypeDefinition() == EntityConfigurationInterface;
+			&& candidate.GetGenericTypeDefinition() == _EntityConfigurationInterface;
 	}
 
-	private static bool CanBeInstantiatedByAssemblyDiscovery(TypeInfo type) {
+	private static bool _CanBeInstantiatedByAssemblyDiscovery(TypeInfo type) {
 		// Mirrors EF Core's ApplyConfigurationsFromAssembly exactly: GetConstructibleTypes
 		// filters IsAbstract and IsGenericTypeDefinition, and instantiation requires an
 		// instance parameterless constructor (public or non-public — EF uses
@@ -266,7 +266,7 @@ public sealed class EntityConfigurationConventionSpec {
 		) is not null;
 	}
 
-	private static string DescribeSkipReason(TypeInfo type) {
+	private static string _DescribeSkipReason(TypeInfo type) {
 		if (type.IsAbstract) {
 			return $"- {type.FullName}: is abstract, so ApplyConfigurationsFromAssembly will skip it";
 		}
@@ -280,7 +280,7 @@ public sealed class EntityConfigurationConventionSpec {
 			+ "grows a constructor dependency stops being applied)";
 	}
 
-	private static bool HasMappingAnnotations(Type entityType) {
+	private static bool _HasMappingAnnotations(Type entityType) {
 		var hasTypeLevelAnnotation = entityType.GetCustomAttributes()
 			.Any(attribute => attribute is TableAttribute or IndexAttribute);
 
@@ -292,7 +292,7 @@ public sealed class EntityConfigurationConventionSpec {
 		return hasTypeLevelAnnotation || hasMemberLevelAnnotation;
 	}
 
-	private static void AssertCheckConstraint(
+	private static void _AssertCheckConstraint(
 		IModel model,
 		Type entityType,
 		string constraintName,
@@ -307,7 +307,7 @@ public sealed class EntityConfigurationConventionSpec {
 		}
 	}
 
-	private static void AssertPrimaryKeyName(
+	private static void _AssertPrimaryKeyName(
 		IModel model,
 		Type entityType,
 		string keyName,
@@ -319,7 +319,7 @@ public sealed class EntityConfigurationConventionSpec {
 		}
 	}
 
-	private static void AssertCompositePrimaryKey(
+	private static void _AssertCompositePrimaryKey(
 		IModel model,
 		Type entityType,
 		string[] expectedKeyProperties,
@@ -338,7 +338,7 @@ public sealed class EntityConfigurationConventionSpec {
 		}
 	}
 
-	private static void AssertPropertyDefaultSql(
+	private static void _AssertPropertyDefaultSql(
 		IModel model,
 		Type entityType,
 		string propertyName,
@@ -355,7 +355,7 @@ public sealed class EntityConfigurationConventionSpec {
 		}
 	}
 
-	private static void AssertTableName(
+	private static void _AssertTableName(
 		IModel model,
 		Type entityType,
 		string expectedTableName,

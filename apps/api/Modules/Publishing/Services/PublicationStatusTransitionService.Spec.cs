@@ -17,14 +17,14 @@ namespace PublyApp.Api.Modules.Publishing.Services;
 // Direct-invocation integration spec: real ephemeral Postgres, real DbContext,
 // no HTTP surface — D1 owns no endpoint.
 public sealed class PublicationStatusTransitionServiceSpec : IClassFixture<ApiFixture> {
-	private readonly ApiFixture _fixture;
+	private readonly ApiFixture _Fixture;
 
 	public PublicationStatusTransitionServiceSpec(ApiFixture fixture) {
-		_fixture = fixture;
+		_Fixture = fixture;
 	}
 
-	private async Task<AppDbContext> NewDbAsync() {
-		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+	private async Task<AppDbContext> _NewDbAsync() {
+		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
 		var connectionString = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>()
 			.Database.GetConnectionString();
@@ -42,11 +42,11 @@ public sealed class PublicationStatusTransitionServiceSpec : IClassFixture<ApiFi
 		);
 	}
 
-	private static PublicationStatusTransitionService NewService(AppDbContext db) {
+	private static PublicationStatusTransitionService _NewService(AppDbContext db) {
 		return new PublicationStatusTransitionService(db);
 	}
 
-	private static async Task<Publication> SeedAsync(
+	private static async Task<Publication> _SeedAsync(
 		AppDbContext db,
 		PublicationStatus status
 	) {
@@ -99,9 +99,9 @@ public sealed class PublicationStatusTransitionServiceSpec : IClassFixture<ApiFi
 
 	[Fact]
 	public async Task ItShouldMoveScheduledToInProgressAndCountTheAttempt() {
-		using var db = await NewDbAsync();
-		var seeded = await SeedAsync(db, PublicationStatus.Scheduled);
-		var service = NewService(db);
+		using var db = await _NewDbAsync();
+		var seeded = await _SeedAsync(db, PublicationStatus.Scheduled);
+		var service = _NewService(db);
 
 		var moved = await service.MarkInProgressAsync(
 			new MarkPublicationInProgressArgs(seeded.GetRequiredId(), seeded.TenantId),
@@ -116,11 +116,11 @@ public sealed class PublicationStatusTransitionServiceSpec : IClassFixture<ApiFi
 
 	[Fact]
 	public async Task ItShouldClearThePauseCauseWhenResumingToInProgress() {
-		using var db = await NewDbAsync();
-		var seeded = await SeedAsync(db, PublicationStatus.Paused);
+		using var db = await _NewDbAsync();
+		var seeded = await _SeedAsync(db, PublicationStatus.Paused);
 		seeded.LastError = "account disconnected";
 		await db.SaveChangesAsync();
-		var service = NewService(db);
+		var service = _NewService(db);
 
 		var moved = await service.MarkInProgressAsync(
 			new MarkPublicationInProgressArgs(seeded.GetRequiredId(), seeded.TenantId),
@@ -135,11 +135,11 @@ public sealed class PublicationStatusTransitionServiceSpec : IClassFixture<ApiFi
 
 	[Fact]
 	public async Task ItShouldPublishWithRecordIdentityAndClearTheCause() {
-		using var db = await NewDbAsync();
-		var seeded = await SeedAsync(db, PublicationStatus.InProgress);
+		using var db = await _NewDbAsync();
+		var seeded = await _SeedAsync(db, PublicationStatus.InProgress);
 		seeded.LastError = "older transient cause";
 		await db.SaveChangesAsync();
-		var service = NewService(db);
+		var service = _NewService(db);
 
 		var published = await service.MarkPublishedAsync(
 			new MarkPublicationPublishedArgs(
@@ -161,9 +161,9 @@ public sealed class PublicationStatusTransitionServiceSpec : IClassFixture<ApiFi
 
 	[Fact]
 	public async Task ItShouldFailWithASanitisedCause() {
-		using var db = await NewDbAsync();
-		var seeded = await SeedAsync(db, PublicationStatus.InProgress);
-		var service = NewService(db);
+		using var db = await _NewDbAsync();
+		var seeded = await _SeedAsync(db, PublicationStatus.InProgress);
+		var service = _NewService(db);
 		var cause = "Bluesky refused the record: 'super-secret-token-value' is invalid";
 
 		await service.MarkFailedAsync(
@@ -184,9 +184,9 @@ public sealed class PublicationStatusTransitionServiceSpec : IClassFixture<ApiFi
 
 	[Fact]
 	public async Task ItShouldPauseWithACause() {
-		using var db = await NewDbAsync();
-		var seeded = await SeedAsync(db, PublicationStatus.InProgress);
-		var service = NewService(db);
+		using var db = await _NewDbAsync();
+		var seeded = await _SeedAsync(db, PublicationStatus.InProgress);
+		var service = _NewService(db);
 
 		await service.MarkPausedAsync(
 			new MarkPublicationPausedArgs(
@@ -204,12 +204,12 @@ public sealed class PublicationStatusTransitionServiceSpec : IClassFixture<ApiFi
 
 	[Fact]
 	public async Task ItShouldRescheduleKeepingTheKeyStable() {
-		using var db = await NewDbAsync();
-		var seeded = await SeedAsync(db, PublicationStatus.Failed);
+		using var db = await _NewDbAsync();
+		var seeded = await _SeedAsync(db, PublicationStatus.Failed);
 		seeded.ExternalRecordId = "stale-record";
 		await db.SaveChangesAsync();
 		var originalKey = seeded.IdempotencyKey;
-		var service = NewService(db);
+		var service = _NewService(db);
 
 		await service.RescheduleToNowAsync(
 			new ReschedulePublicationToNowArgs(seeded.GetRequiredId(), seeded.TenantId),
@@ -226,9 +226,9 @@ public sealed class PublicationStatusTransitionServiceSpec : IClassFixture<ApiFi
 
 	[Fact]
 	public async Task ItShouldRefuseAnIllegalTransition() {
-		using var db = await NewDbAsync();
-		var seeded = await SeedAsync(db, PublicationStatus.Scheduled);
-		var service = NewService(db);
+		using var db = await _NewDbAsync();
+		var seeded = await _SeedAsync(db, PublicationStatus.Scheduled);
+		var service = _NewService(db);
 
 		var act = async () => await service.MarkPublishedAsync(
 			new MarkPublicationPublishedArgs(
@@ -247,9 +247,9 @@ public sealed class PublicationStatusTransitionServiceSpec : IClassFixture<ApiFi
 
 	[Fact]
 	public async Task ItShouldHideForeignTenantRowsWithoutThrowing() {
-		using var db = await NewDbAsync();
-		var seeded = await SeedAsync(db, PublicationStatus.Scheduled);
-		var service = NewService(db);
+		using var db = await _NewDbAsync();
+		var seeded = await _SeedAsync(db, PublicationStatus.Scheduled);
+		var service = _NewService(db);
 
 		var found = await service.MarkInProgressAsync(
 			new MarkPublicationInProgressArgs(seeded.GetRequiredId(), Guid.NewGuid()),
@@ -263,9 +263,9 @@ public sealed class PublicationStatusTransitionServiceSpec : IClassFixture<ApiFi
 
 	[Fact]
 	public async Task ItShouldTruncateAnOversizedRawCause() {
-		using var db = await NewDbAsync();
-		var seeded = await SeedAsync(db, PublicationStatus.InProgress);
-		var service = NewService(db);
+		using var db = await _NewDbAsync();
+		var seeded = await _SeedAsync(db, PublicationStatus.InProgress);
+		var service = _NewService(db);
 		var oversized = new string('x', 5000);
 
 		await service.MarkFailedAsync(
@@ -284,10 +284,10 @@ public sealed class PublicationStatusTransitionServiceSpec : IClassFixture<ApiFi
 
 	[Fact]
 	public async Task ItShouldKeepAttemptsMonotonicAcrossCycles() {
-		using var db = await NewDbAsync();
-		var seeded = await SeedAsync(db, PublicationStatus.Failed);
+		using var db = await _NewDbAsync();
+		var seeded = await _SeedAsync(db, PublicationStatus.Failed);
 		var firstAttemptCount = seeded.Attempts;
-		var service = NewService(db);
+		var service = _NewService(db);
 
 		// Legal retry cycle: a failed publication is rescheduled first, then claimed.
 		await service.RescheduleToNowAsync(
@@ -306,9 +306,9 @@ public sealed class PublicationStatusTransitionServiceSpec : IClassFixture<ApiFi
 
 	[Fact]
 	public async Task ItShouldPauseAScheduledPublicationAndPreserveItsInstant() {
-		using var db = await NewDbAsync();
-		var seeded = await SeedAsync(db, PublicationStatus.Scheduled);
-		var service = NewService(db);
+		using var db = await _NewDbAsync();
+		var seeded = await _SeedAsync(db, PublicationStatus.Scheduled);
+		var service = _NewService(db);
 
 		var ok = await service.MarkPausedAsync(
 			new MarkPublicationPausedArgs(
@@ -331,9 +331,9 @@ public sealed class PublicationStatusTransitionServiceSpec : IClassFixture<ApiFi
 
 	[Fact]
 	public async Task ItShouldResumeAPausedPublicationKeepingItsOriginalInstant() {
-		using var db = await NewDbAsync();
-		var seeded = await SeedAsync(db, PublicationStatus.Paused);
-		var service = NewService(db);
+		using var db = await _NewDbAsync();
+		var seeded = await _SeedAsync(db, PublicationStatus.Paused);
+		var service = _NewService(db);
 
 		var ok = await service.MarkScheduledAsync(
 			new MarkPublicationScheduledArgs(seeded.GetRequiredId(), seeded.TenantId),
@@ -352,9 +352,9 @@ public sealed class PublicationStatusTransitionServiceSpec : IClassFixture<ApiFi
 
 	[Fact]
 	public async Task ItShouldThrowWhenMarkScheduledIsCalledOnAnAlreadyScheduledRow() {
-		using var db = await NewDbAsync();
-		var seeded = await SeedAsync(db, PublicationStatus.Scheduled);
-		var service = NewService(db);
+		using var db = await _NewDbAsync();
+		var seeded = await _SeedAsync(db, PublicationStatus.Scheduled);
+		var service = _NewService(db);
 
 		var act = async () => await service.MarkScheduledAsync(
 			new MarkPublicationScheduledArgs(seeded.GetRequiredId(), seeded.TenantId),

@@ -31,21 +31,21 @@ public static class BulkSeederSpecSupport {
 }
 
 public sealed class BulkSeederIdempotencySpec : IClassFixture<ApiFixture> {
-	private readonly ApiFixture _fixture;
+	private readonly ApiFixture _Fixture;
 
 	public BulkSeederIdempotencySpec(ApiFixture fixture) {
-		_fixture = fixture;
+		_Fixture = fixture;
 	}
 
 	[Fact]
 	public async Task ItShouldInsertEverythingOnFirstRunAndSkipEverythingOnSecondRun() {
-		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		var firstSeeder = new BulkSeeder(batchSize: 50, generator: BulkSeederSpecSupport.CreateSmallGenerator());
 		await firstSeeder.SeedBulkAsync(dbContext);
 
-		var (tenantsAfterFirst, usersAfterFirst, accountsAfterFirst, projectsAfterFirst) = await CountBulkRowsAsync(dbContext);
+		var (tenantsAfterFirst, usersAfterFirst, accountsAfterFirst, projectsAfterFirst) = await _CountBulkRowsAsync(dbContext);
 
 		tenantsAfterFirst.Should().Be(6);
 		usersAfterFirst.Should().Be(6);
@@ -58,7 +58,7 @@ public sealed class BulkSeederIdempotencySpec : IClassFixture<ApiFixture> {
 		var act = async () => await secondSeeder.SeedBulkAsync(dbContext);
 		await act.Should().NotThrowAsync("a second run must treat already-seeded rows as success, not a duplicate-key failure");
 
-		var (tenantsAfterSecond, usersAfterSecond, accountsAfterSecond, projectsAfterSecond) = await CountBulkRowsAsync(dbContext);
+		var (tenantsAfterSecond, usersAfterSecond, accountsAfterSecond, projectsAfterSecond) = await _CountBulkRowsAsync(dbContext);
 
 		tenantsAfterSecond.Should().Be(tenantsAfterFirst);
 		usersAfterSecond.Should().Be(usersAfterFirst);
@@ -66,7 +66,7 @@ public sealed class BulkSeederIdempotencySpec : IClassFixture<ApiFixture> {
 		projectsAfterSecond.Should().Be(projectsAfterFirst);
 	}
 
-	private static async Task<(int Tenants, int Users, int Accounts, int Projects)> CountBulkRowsAsync(AppDbContext dbContext) {
+	private static async Task<(int Tenants, int Users, int Accounts, int Projects)> _CountBulkRowsAsync(AppDbContext dbContext) {
 		var tenants = await dbContext.Tenant.CountAsync(t => t.Code.StartsWith(BulkSeedConstants.TenantCodePrefix));
 		var users = await dbContext.User.CountAsync(u => u.Email.EndsWith("@" + BulkSeedConstants.UserEmailDomain));
 		var accounts = await dbContext.UserAccount
@@ -78,15 +78,15 @@ public sealed class BulkSeederIdempotencySpec : IClassFixture<ApiFixture> {
 }
 
 public sealed class BulkSeederPartialReseedSpec : IClassFixture<ApiFixture> {
-	private readonly ApiFixture _fixture;
+	private readonly ApiFixture _Fixture;
 
 	public BulkSeederPartialReseedSpec(ApiFixture fixture) {
-		_fixture = fixture;
+		_Fixture = fixture;
 	}
 
 	[Fact]
 	public async Task ItShouldInsertOnlyTheMissingRowsWhenPartiallySeeded() {
-		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		var seeder = new BulkSeeder(batchSize: 50, generator: BulkSeederSpecSupport.CreateSmallGenerator());
@@ -159,15 +159,15 @@ public sealed class BulkSeederPartialReseedSpec : IClassFixture<ApiFixture> {
 }
 
 public sealed class BulkSeederSoftDeleteTrapSpec : IClassFixture<ApiFixture> {
-	private readonly ApiFixture _fixture;
+	private readonly ApiFixture _Fixture;
 
 	public BulkSeederSoftDeleteTrapSpec(ApiFixture fixture) {
-		_fixture = fixture;
+		_Fixture = fixture;
 	}
 
 	[Fact]
 	public async Task ItShouldNotDuplicateASoftDeletedNaturalKeyOnReseed() {
-		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		var seeder = new BulkSeeder(batchSize: 50, generator: BulkSeederSpecSupport.CreateSmallGenerator());
@@ -202,15 +202,15 @@ public sealed class BulkSeederSoftDeleteTrapSpec : IClassFixture<ApiFixture> {
 }
 
 public sealed class BulkSeederSoftDeleteRatioSpec : IClassFixture<ApiFixture> {
-	private readonly ApiFixture _fixture;
+	private readonly ApiFixture _Fixture;
 
 	public BulkSeederSoftDeleteRatioSpec(ApiFixture fixture) {
-		_fixture = fixture;
+		_Fixture = fixture;
 	}
 
 	[Fact]
 	public async Task ItShouldMaterializeSoftDeleteRatiosForBulkSeedRows() {
-		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		// Use a dataset large enough for percentage materialization to be visibly non-zero
@@ -259,10 +259,10 @@ public sealed class BulkSeederSoftDeleteRatioSpec : IClassFixture<ApiFixture> {
 }
 
 public sealed class BulkSeederGenuineFailureSpec : IClassFixture<ApiFixture> {
-	private readonly ApiFixture _fixture;
+	private readonly ApiFixture _Fixture;
 
 	public BulkSeederGenuineFailureSpec(ApiFixture fixture) {
-		_fixture = fixture;
+		_Fixture = fixture;
 	}
 
 	// This used to induce SQLSTATE 23514 (a check violation), which sits entirely outside
@@ -278,7 +278,7 @@ public sealed class BulkSeederGenuineFailureSpec : IClassFixture<ApiFixture> {
 	// check) must recognize that and rethrow rather than report a skip.
 	[Fact]
 	public async Task ItShouldThrowWhenAGenuineNonDuplicateFailureOccurs() {
-		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		var seeder = new BulkSeeder(batchSize: 50);
@@ -305,10 +305,10 @@ public sealed class BulkSeederGenuineFailureSpec : IClassFixture<ApiFixture> {
 }
 
 public sealed class BulkSeederUnrelatedUniqueViolationSpec : IClassFixture<ApiFixture> {
-	private readonly ApiFixture _fixture;
+	private readonly ApiFixture _Fixture;
 
 	public BulkSeederUnrelatedUniqueViolationSpec(ApiFixture fixture) {
-		_fixture = fixture;
+		_Fixture = fixture;
 	}
 
 	// Reproduces the #1012 review BLOCKER directly: SQLSTATE 23505 means "some unique
@@ -319,7 +319,7 @@ public sealed class BulkSeederUnrelatedUniqueViolationSpec : IClassFixture<ApiFi
 	// never inserted.
 	[Fact]
 	public async Task ItShouldThrowWhenAnUnrelatedUniqueIndexCollidesDuringTheProjectPhase() {
-		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		var seeder = new BulkSeeder(batchSize: 50, generator: BulkSeederSpecSupport.CreateSmallGenerator());
@@ -365,10 +365,10 @@ public sealed class BulkSeederUnrelatedUniqueViolationSpec : IClassFixture<ApiFi
 }
 
 public sealed class BulkSeederNaturalKeyIndexContractSpec : IClassFixture<ApiFixture> {
-	private readonly ApiFixture _fixture;
+	private readonly ApiFixture _Fixture;
 
 	public BulkSeederNaturalKeyIndexContractSpec(ApiFixture fixture) {
-		_fixture = fixture;
+		_Fixture = fixture;
 	}
 
 	// #1012 round-2 review MINOR: BulkSeederGenuineFailureSpec induces and asserts only
@@ -390,7 +390,7 @@ public sealed class BulkSeederNaturalKeyIndexContractSpec : IClassFixture<ApiFix
 	// not the EF model).
 	[Fact]
 	public async Task ItShouldHaveALiveMigratedIndexForEveryNaturalKeyConstraintBulkSeederConsumes() {
-		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		var expectedIndexNames = BulkSeeder.TenantNaturalKeyConstraints

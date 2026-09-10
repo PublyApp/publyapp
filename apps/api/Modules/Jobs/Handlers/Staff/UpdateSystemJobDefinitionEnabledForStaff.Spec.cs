@@ -29,17 +29,17 @@ namespace PublyApp.Api.Modules.Jobs.Handlers.Staff;
 // with nothing written; 404 unknown/malformed; 401/403 auth gates.
 public sealed class UpdateSystemJobDefinitionEnabledForStaffSpec
 	: IClassFixture<ApiFixture> {
-	private readonly ApiFixture _fixture;
-	private readonly HttpClient _http;
-	private readonly TestAuthClient _authClient;
+	private readonly ApiFixture _Fixture;
+	private readonly HttpClient _Http;
+	private readonly TestAuthClient _AuthClient;
 
 	public UpdateSystemJobDefinitionEnabledForStaffSpec(ApiFixture fixture) {
-		_fixture = fixture;
-		_http = fixture.HttpClient;
-		_authClient = new TestAuthClient(_http);
+		_Fixture = fixture;
+		_Http = fixture.HttpClient;
+		_AuthClient = new TestAuthClient(_Http);
 	}
 
-	private static string Url(string systemJobId) {
+	private static string _Url(string systemJobId) {
 		return PathUtils.Join(
 			Routes.Staff.Root,
 			Routes.Jobs.ForStaff.JobsRoot,
@@ -51,15 +51,15 @@ public sealed class UpdateSystemJobDefinitionEnabledForStaffSpec
 
 	[Fact]
 	public async Task ItShouldDisableADefinitionAndAuditIt() {
-		var token = await _authClient.LoginAsStaffAdminAsync();
-		var (jobKey, definitionId) = await SeedDefinitionAsync(isEnabled: true);
+		var token = await _AuthClient.LoginAsStaffAdminAsync();
+		var (jobKey, definitionId) = await _SeedDefinitionAsync(isEnabled: true);
 
 		try {
-			var request = new HttpRequestMessage(HttpMethod.Patch, Url(definitionId))
+			var request = new HttpRequestMessage(HttpMethod.Patch, _Url(definitionId))
 				.WithSessionToken(token);
 			request.Content = JsonContent.Create(new { isEnabled = false });
 
-			using var response = await _http.SendAsync(request);
+			using var response = await _Http.SendAsync(request);
 
 			response.StatusCode.Should().Be(HttpStatusCode.OK);
 			var document = await response.Content.ReadFromJsonAsync<JsonDocument>();
@@ -71,7 +71,7 @@ public sealed class UpdateSystemJobDefinitionEnabledForStaffSpec
 			document.RootElement.GetProperty("key").GetString()
 				.Should().Be(ResponseKeys.SystemJobDefinitionUpdateSuccess.Value);
 
-			await using var verify = await CreateDbContextAsync();
+			await using var verify = await _CreateDbContextAsync();
 			var row = await verify.SystemJobDefinition
 				.SingleAsync(d => d.JobKey == jobKey);
 			row.IsEnabled.Should().BeFalse();
@@ -83,21 +83,21 @@ public sealed class UpdateSystemJobDefinitionEnabledForStaffSpec
 				);
 			audit.Should().NotBeNull("the disable is audit-logged");
 		} finally {
-			await CleanupAsync(jobKey);
+			await _CleanupAsync(jobKey);
 		}
 	}
 
 	[Fact]
 	public async Task ItShouldEnableADisabledDefinitionAndAuditIt() {
-		var token = await _authClient.LoginAsStaffAdminAsync();
-		var (jobKey, definitionId) = await SeedDefinitionAsync(isEnabled: false);
+		var token = await _AuthClient.LoginAsStaffAdminAsync();
+		var (jobKey, definitionId) = await _SeedDefinitionAsync(isEnabled: false);
 
 		try {
-			var request = new HttpRequestMessage(HttpMethod.Patch, Url(definitionId))
+			var request = new HttpRequestMessage(HttpMethod.Patch, _Url(definitionId))
 				.WithSessionToken(token);
 			request.Content = JsonContent.Create(new { isEnabled = true });
 
-			using var response = await _http.SendAsync(request);
+			using var response = await _Http.SendAsync(request);
 
 			response.StatusCode.Should().Be(HttpStatusCode.OK);
 			var document = await response.Content.ReadFromJsonAsync<JsonDocument>();
@@ -105,7 +105,7 @@ public sealed class UpdateSystemJobDefinitionEnabledForStaffSpec
 			document.RootElement.GetProperty("isEnabled").GetBoolean()
 				.Should().BeTrue();
 
-			await using var verify = await CreateDbContextAsync();
+			await using var verify = await _CreateDbContextAsync();
 			var audit = await verify.AuditLog
 				.Where(a => a.TargetId == Guid.Parse(definitionId))
 				.SingleOrDefaultAsync(a =>
@@ -113,27 +113,27 @@ public sealed class UpdateSystemJobDefinitionEnabledForStaffSpec
 				);
 			audit.Should().NotBeNull("the enable is audit-logged");
 		} finally {
-			await CleanupAsync(jobKey);
+			await _CleanupAsync(jobKey);
 		}
 	}
 
 	[Fact]
 	public async Task ItShouldRefuseDisablingAProtectedKeyWithConflict() {
-		var token = await _authClient.LoginAsStaffAdminAsync();
+		var token = await _AuthClient.LoginAsStaffAdminAsync();
 		const string protectedJobKey =
 			PublyApp.Api.Modules.Messaging.Jobs.EmailPreparedSendsRetentionHandler
 				.JobKey;
 
 		// The seeder plants this exact row (unique ux_system_job_definitions_job_key),
 		// so the spec reuses it instead of inserting a duplicate.
-		var definitionId = await GetExistingOrSeedAsync(protectedJobKey);
+		var definitionId = await _GetExistingOrSeedAsync(protectedJobKey);
 
 		try {
-			var request = new HttpRequestMessage(HttpMethod.Patch, Url(definitionId))
+			var request = new HttpRequestMessage(HttpMethod.Patch, _Url(definitionId))
 				.WithSessionToken(token);
 			request.Content = JsonContent.Create(new { isEnabled = false });
 
-			using var response = await _http.SendAsync(request);
+			using var response = await _Http.SendAsync(request);
 
 			response.StatusCode.Should().Be(HttpStatusCode.Conflict);
 			var problem = await response.Content.ReadFromJsonAsync<AppProblemDetails>();
@@ -142,7 +142,7 @@ public sealed class UpdateSystemJobDefinitionEnabledForStaffSpec
 				.Be(ResponseKeys.SystemJobDisableProtected.Value);
 
 			// Nothing changed: K-3 keeps the protected key enabled.
-			await using var verify = await CreateDbContextAsync();
+			await using var verify = await _CreateDbContextAsync();
 			(await verify.SystemJobDefinition.SingleAsync(
 				d => d.JobKey == protectedJobKey
 			)).IsEnabled.Should().BeTrue("K-3: the disable must not land");
@@ -159,28 +159,28 @@ public sealed class UpdateSystemJobDefinitionEnabledForStaffSpec
 
 	[Fact]
 	public async Task ItShouldReturnNotFoundForUnknownId() {
-		var token = await _authClient.LoginAsStaffAdminAsync();
+		var token = await _AuthClient.LoginAsStaffAdminAsync();
 
 		var request = new HttpRequestMessage(
 			HttpMethod.Patch,
-			Url(Guid.NewGuid().ToString())
+			_Url(Guid.NewGuid().ToString())
 		).WithSessionToken(token);
 		request.Content = JsonContent.Create(new { isEnabled = true });
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 
 		response.StatusCode.Should().Be(HttpStatusCode.NotFound);
 	}
 
 	[Fact]
 	public async Task ItShouldReturnNotFoundForMalformedIdWithoutRouteConstraint() {
-		var token = await _authClient.LoginAsStaffAdminAsync();
+		var token = await _AuthClient.LoginAsStaffAdminAsync();
 
-		var request = new HttpRequestMessage(HttpMethod.Patch, Url("not-a-guid"))
+		var request = new HttpRequestMessage(HttpMethod.Patch, _Url("not-a-guid"))
 			.WithSessionToken(token);
 		request.Content = JsonContent.Create(new { isEnabled = true });
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 
 		response.StatusCode.Should().Be(HttpStatusCode.NotFound);
 	}
@@ -189,30 +189,30 @@ public sealed class UpdateSystemJobDefinitionEnabledForStaffSpec
 	public async Task ItShouldRequireASession() {
 		var request = new HttpRequestMessage(
 			HttpMethod.Patch,
-			Url(Guid.NewGuid().ToString())
+			_Url(Guid.NewGuid().ToString())
 		);
 		request.Content = JsonContent.Create(new { isEnabled = false });
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 
 		response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
 	}
 
 	[Fact]
 	public async Task ItShouldReturnForbiddenAndChangeNothingWithoutPermission() {
-		var unprivileged = await CreateUnprivilegedStaffUserAsync();
-		var (jobKey, definitionId) = await SeedDefinitionAsync(isEnabled: true);
+		var unprivileged = await _CreateUnprivilegedStaffUserAsync();
+		var (jobKey, definitionId) = await _SeedDefinitionAsync(isEnabled: true);
 
 		try {
-			var request = new HttpRequestMessage(HttpMethod.Patch, Url(definitionId))
+			var request = new HttpRequestMessage(HttpMethod.Patch, _Url(definitionId))
 				.WithSessionToken(unprivileged.Token);
 			request.Content = JsonContent.Create(new { isEnabled = false });
 
-			using var response = await _http.SendAsync(request);
+			using var response = await _Http.SendAsync(request);
 
 			response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
 
-			await using var verify = await CreateDbContextAsync();
+			await using var verify = await _CreateDbContextAsync();
 			(await verify.SystemJobDefinition
 				.SingleAsync(d => d.JobKey == jobKey))
 				.IsEnabled.Should().BeTrue("nothing changes without permission");
@@ -220,18 +220,18 @@ public sealed class UpdateSystemJobDefinitionEnabledForStaffSpec
 				a.TargetId == Guid.Parse(definitionId)
 			)).Should().BeFalse();
 		} finally {
-			await CleanupAsync(jobKey);
+			await _CleanupAsync(jobKey);
 		}
 	}
 
 	// --- helpers ------------------------------------------------------------------------
 
-	private async Task<(string JobKey, string DefinitionId)> SeedDefinitionAsync(
+	private async Task<(string JobKey, string DefinitionId)> _SeedDefinitionAsync(
 		bool isEnabled
 	) {
 		var jobKey = $"spec.a5.sys-enabled.{Guid.NewGuid():N}";
 
-		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		var definition = new SystemJobDefinition {
@@ -252,8 +252,8 @@ public sealed class UpdateSystemJobDefinitionEnabledForStaffSpec
 
 	// The seeder owns the protected key row; reuse it when present so the unique
 	// ux_system_job_definitions_job_key index never trips.
-	private async Task<string> GetExistingOrSeedAsync(string jobKey) {
-		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+	private async Task<string> _GetExistingOrSeedAsync(string jobKey) {
+		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		var existing = await dbContext.SystemJobDefinition
@@ -278,8 +278,8 @@ public sealed class UpdateSystemJobDefinitionEnabledForStaffSpec
 		)).ToString()!;
 	}
 
-	private async Task CleanupAsync(string jobKey) {
-		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+	private async Task _CleanupAsync(string jobKey) {
+		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 		await dbContext.Database.ExecuteSqlAsync(
 			$"""
@@ -297,8 +297,8 @@ public sealed class UpdateSystemJobDefinitionEnabledForStaffSpec
 		);
 	}
 
-	private async Task<AppDbContext> CreateDbContextAsync() {
-		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+	private async Task<AppDbContext> _CreateDbContextAsync() {
+		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
 		var connectionString = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>()
 			.Database.GetConnectionString();
@@ -316,10 +316,10 @@ public sealed class UpdateSystemJobDefinitionEnabledForStaffSpec
 	}
 
 	private async Task<(string Token, Guid UserId)>
-		CreateUnprivilegedStaffUserAsync() {
+		_CreateUnprivilegedStaffUserAsync() {
 		var email = $"no-perms-sys-enabled-{Guid.NewGuid():N}@example.com";
 
-		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		var user = new User {
@@ -340,7 +340,7 @@ public sealed class UpdateSystemJobDefinitionEnabledForStaffSpec
 		_ = dbContext.UserAccount.Add(staffAccount);
 		_ = await dbContext.SaveChangesAsync();
 
-		var token = await _authClient.LoginAsync(email, TestConstants.SeedPassword);
+		var token = await _AuthClient.LoginAsync(email, TestConstants.SeedPassword);
 		return (token, userId);
 	}
 }

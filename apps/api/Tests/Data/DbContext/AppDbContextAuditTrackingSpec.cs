@@ -7,20 +7,21 @@ using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Lib.Testing.Fixtures;
 using PublyApp.Api.Modules.Permissions.Entities;
 using PublyApp.Api.Modules.Tenants.Entities;
+
 using Xunit;
 
 namespace PublyApp.Api.Tests.Data.DbContext;
 
 public sealed class AppDbContextAuditTrackingSpec : IClassFixture<ApiFixture> {
-	private readonly ApiFixture _fixture;
+	private readonly ApiFixture _Fixture;
 
 	public AppDbContextAuditTrackingSpec(ApiFixture fixture) {
-		_fixture = fixture;
+		_Fixture = fixture;
 	}
 
 	[Fact]
 	public async Task ItShouldPreserveSoftDeleteStateForNewBaseAttributesAndPermissionEntities() {
-		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		var tenantDeletedAt = new DateTime(2024, 02, 14, 12, 0, 0, DateTimeKind.Utc);
@@ -55,7 +56,7 @@ public sealed class AppDbContextAuditTrackingSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldNormalizeInconsistentSoftDeletePairValuesOnInsert() {
-		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		var tenant = new Tenant {
@@ -100,7 +101,7 @@ public sealed class AppDbContextAuditTrackingSpec : IClassFixture<ApiFixture> {
 	/// </summary>
 	[Fact]
 	public async Task ItShouldTagAnUnspecifiedDeletedAtAsUtcWithoutShiftingIt() {
-		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		var wallClock = new DateTime(2024, 02, 12, 12, 0, 0, DateTimeKind.Unspecified);

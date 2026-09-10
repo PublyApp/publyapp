@@ -29,17 +29,17 @@ namespace PublyApp.Api.Modules.Settings.Handlers.Tenant;
 [Collection("AcmeTenantMutation")]
 public sealed class GetTenantSettingsForTenantSpec
 	: IClassFixture<ApiFixture> {
-	private readonly ApiFixture _fixture;
-	private readonly HttpClient _http;
-	private readonly TestAuthClient _authClient;
+	private readonly ApiFixture _Fixture;
+	private readonly HttpClient _Http;
+	private readonly TestAuthClient _AuthClient;
 
 	public GetTenantSettingsForTenantSpec(ApiFixture fixture) {
-		_fixture = fixture;
-		_http = fixture.HttpClient;
-		_authClient = new TestAuthClient(_http);
+		_Fixture = fixture;
+		_Http = fixture.HttpClient;
+		_AuthClient = new TestAuthClient(_Http);
 	}
 
-	private static string GetUrl() {
+	private static string _GetUrl() {
 		return PathUtils.Join(
 			Routes.Tenant.Root,
 			Routes.Settings.ForTenant.Root,
@@ -51,16 +51,16 @@ public sealed class GetTenantSettingsForTenantSpec
 	public async Task
 	ItShouldReturnTheGeneralSettingsForAnAdmin() {
 		var (acmeId, acmeAdminToken) =
-			await LoginAsAcmeAdminAsync();
+			await _LoginAsAcmeAdminAsync();
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			GetUrl()
+			_GetUrl()
 		)
 			.WithSessionToken(acmeAdminToken)
 			.WithTenantId(acmeId);
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
 		var result = await response.Content
@@ -68,7 +68,7 @@ public sealed class GetTenantSettingsForTenantSpec
 		result.Should().NotBeNull();
 		Assert.NotNull(result);
 
-		var persisted = await GetTenantRowAsync(acmeId);
+		var persisted = await _GetTenantRowAsync(acmeId);
 		result.Id.Should().Be(acmeId);
 		result.Code.Should().Be(persisted.Code);
 		result.Name.Should().Be(persisted.Name);
@@ -85,22 +85,22 @@ public sealed class GetTenantSettingsForTenantSpec
 	[Fact]
 	public async Task
 	ItShouldReturnForbiddenForANonAdminTenantUserWithoutSettingsView() {
-		var acmeId = await GetAcmeIdAsync();
+		var acmeId = await _GetAcmeIdAsync();
 		// Round 2: the seeded Acme member holds publishing permissions via the demo
 		// profile, but nothing grants settings.* here, so the check must still deny.
-		var acmeUserToken = await _authClient.LoginAsync(
+		var acmeUserToken = await _AuthClient.LoginAsync(
 			TestConstants.AcmeUserEmail,
 			TestConstants.SeedPassword
 		);
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			GetUrl()
+			_GetUrl()
 		)
 			.WithSessionToken(acmeUserToken)
 			.WithTenantId(acmeId);
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 
 		response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
 	}
@@ -108,39 +108,39 @@ public sealed class GetTenantSettingsForTenantSpec
 	[Fact]
 	public async Task
 	ItShouldAllowANonAdminTenantUserWithSettingsView() {
-		var acmeId = await GetAcmeIdAsync();
+		var acmeId = await _GetAcmeIdAsync();
 		var createdProfileIds = new List<Guid>();
 
 		try {
-			var profileId = await CreateTenantProfileWithPermissionsAsync(
+			var profileId = await _CreateTenantProfileWithPermissionsAsync(
 				acmeId,
 				[AppPermissions.Tenant.Settings.VIEW.Key]
 			);
 			createdProfileIds.Add(profileId);
 
-			await AssignProfileToTenantUserAsync(
+			await _AssignProfileToTenantUserAsync(
 				TestConstants.AcmeUserEmail,
 				acmeId,
 				createdProfileIds
 			);
 
-			var acmeUserToken = await _authClient.LoginAsync(
+			var acmeUserToken = await _AuthClient.LoginAsync(
 				TestConstants.AcmeUserEmail,
 				TestConstants.SeedPassword
 			);
 
 			using var request = new HttpRequestMessage(
 				HttpMethod.Get,
-				GetUrl()
+				_GetUrl()
 			)
 				.WithSessionToken(acmeUserToken)
 				.WithTenantId(acmeId);
 
-			using var response = await _http.SendAsync(request);
+			using var response = await _Http.SendAsync(request);
 
 			response.StatusCode.Should().Be(HttpStatusCode.OK);
 		} finally {
-			await CleanupTenantProfileArtifactsAsync(createdProfileIds);
+			await _CleanupTenantProfileArtifactsAsync(createdProfileIds);
 		}
 	}
 
@@ -154,7 +154,7 @@ public sealed class GetTenantSettingsForTenantSpec
 	public async Task
 	ItShouldReturnNullWhenTheTenantIsMissingOrSuspended() {
 		await using var scope =
-			_fixture.Factory.Services.CreateAsyncScope();
+			_Fixture.Factory.Services.CreateAsyncScope();
 		var service = scope.ServiceProvider
 			.GetRequiredService<ITenantService>();
 
@@ -166,9 +166,9 @@ public sealed class GetTenantSettingsForTenantSpec
 	}
 
 	private async Task<(Guid TenantId, string Token)>
-	LoginAsAcmeAdminAsync() {
-		var tenantId = await GetAcmeIdAsync();
-		var token = await _authClient.LoginAsync(
+	_LoginAsAcmeAdminAsync() {
+		var tenantId = await _GetAcmeIdAsync();
+		var token = await _AuthClient.LoginAsync(
 			TestConstants.AcmeAdminEmail,
 			TestConstants.SeedPassword
 		);
@@ -176,19 +176,19 @@ public sealed class GetTenantSettingsForTenantSpec
 		return (tenantId, token);
 	}
 
-	private async Task<Guid> GetAcmeIdAsync() {
+	private async Task<Guid> _GetAcmeIdAsync() {
 		var staffToken =
-			await _authClient.LoginAsStaffAdminAsync();
+			await _AuthClient.LoginAsStaffAdminAsync();
 		return await TenantTestHelper.GetTenantIdByNameAsync(
-			_http,
+			_Http,
 			staffToken,
 			SeedConstants.Tenants.AcmeName
 		);
 	}
 
-	private async Task<TenantRow> GetTenantRowAsync(Guid tenantId) {
+	private async Task<TenantRow> _GetTenantRowAsync(Guid tenantId) {
 		await using var scope =
-			_fixture.Factory.Services.CreateAsyncScope();
+			_Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>();
 
@@ -210,12 +210,12 @@ public sealed class GetTenantSettingsForTenantSpec
 			.SingleAsync();
 	}
 
-	private async Task<Guid> CreateTenantProfileWithPermissionsAsync(
+	private async Task<Guid> _CreateTenantProfileWithPermissionsAsync(
 		Guid tenantId,
 		IEnumerable<string> permissionKeys
 	) {
 		await using var scope =
-			_fixture.Factory.Services.CreateAsyncScope();
+			_Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>();
 
@@ -245,7 +245,7 @@ public sealed class GetTenantSettingsForTenantSpec
 		return profileId;
 	}
 
-	private async Task AssignProfileToTenantUserAsync(
+	private async Task _AssignProfileToTenantUserAsync(
 		string email,
 		Guid tenantId,
 		IReadOnlyCollection<Guid> profileIds
@@ -253,7 +253,7 @@ public sealed class GetTenantSettingsForTenantSpec
 		var trimmedEmail = email.Trim();
 
 		await using var scope =
-			_fixture.Factory.Services.CreateAsyncScope();
+			_Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>();
 
@@ -295,7 +295,7 @@ public sealed class GetTenantSettingsForTenantSpec
 		await dbContext.SaveChangesAsync();
 	}
 
-	private async Task CleanupTenantProfileArtifactsAsync(
+	private async Task _CleanupTenantProfileArtifactsAsync(
 		IReadOnlyCollection<Guid> profileIds
 	) {
 		if (profileIds.Count == 0) {
@@ -303,7 +303,7 @@ public sealed class GetTenantSettingsForTenantSpec
 		}
 
 		await using var scope =
-			_fixture.Factory.Services.CreateAsyncScope();
+			_Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>();
 

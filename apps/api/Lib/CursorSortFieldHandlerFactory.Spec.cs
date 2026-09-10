@@ -43,45 +43,45 @@ public class CursorSortFieldHandlerFactorySpec {
 		public Rank Rank { get; set; }
 	}
 
-	private static readonly DateTime BaseTime = new(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+	private static readonly DateTime _BaseTime = new(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
 
-	private static Guid Id(int n) {
+	private static Guid _Id(int n) {
 		return Guid.Parse($"00000000-0000-0000-0000-00000000000{n}");
 	}
 
 	// Deliberately unsorted: every test must observe ordering produced by ApplyOrdering itself.
-	private static IQueryable<Row> Rows() {
+	private static IQueryable<Row> _Rows() {
 		var rows = new[] {
 			new Row {
-				Id = Id(5), CreatedAt = BaseTime.AddDays(2), Email = "eve@example.com",
+				Id = _Id(5), CreatedAt = _BaseTime.AddDays(2), Email = "eve@example.com",
 				Rank = Rank.High
 			},
 			new Row {
-				Id = Id(1), CreatedAt = BaseTime.AddDays(1), Email = "alice@example.com",
+				Id = _Id(1), CreatedAt = _BaseTime.AddDays(1), Email = "alice@example.com",
 				Rank = Rank.Low
 			},
 			new Row {
-				Id = Id(3), CreatedAt = BaseTime.AddDays(2), Email = "carol@example.com",
+				Id = _Id(3), CreatedAt = _BaseTime.AddDays(2), Email = "carol@example.com",
 				Rank = Rank.Mid
 			},
 			new Row {
-				Id = Id(2), CreatedAt = BaseTime.AddDays(1), Email = "bob@example.com",
+				Id = _Id(2), CreatedAt = _BaseTime.AddDays(1), Email = "bob@example.com",
 				Rank = Rank.Mid
 			},
 			new Row {
-				Id = Id(4), CreatedAt = BaseTime.AddDays(3), Email = "dave@example.com",
+				Id = _Id(4), CreatedAt = _BaseTime.AddDays(3), Email = "dave@example.com",
 				Rank = Rank.High
 			},
 		};
 		return rows.AsQueryable();
 	}
 
-	private static CursorSortFieldHandler<Row> CreateHandler<TKey>(
+	private static CursorSortFieldHandler<Row> _CreateHandler<TKey>(
 		Expression<Func<Row, TKey>> keySelector
 	)
 		where TKey : notnull {
 		return CursorSortFieldHandlerFactory.Create<Row, TKey, Guid?>(
-			cursorLookupQuery: Rows,
+			cursorLookupQuery: _Rows,
 			keySelector: keySelector,
 			idSelector: row => row.Id,
 			cancellationToken: CancellationToken.None
@@ -93,7 +93,7 @@ public class CursorSortFieldHandlerFactorySpec {
 	/// no ordering promise, so a page assertion has to go through ApplyOrdering the way every
 	/// Find* method does.
 	/// </summary>
-	private static List<Guid?> Page(
+	private static List<Guid?> _Page(
 		CursorSortFieldHandler<Row> handler,
 		IQueryable<Row> query,
 		object? cursorValue,
@@ -105,14 +105,14 @@ public class CursorSortFieldHandlerFactorySpec {
 
 	[Fact]
 	public void ItShouldOrderAscendingByKeyThenById() {
-		var handler = CreateHandler(row => row.CreatedAt);
+		var handler = _CreateHandler(row => row.CreatedAt);
 
-		var ordered = handler.ApplyOrdering(Rows(), true).ToList();
+		var ordered = handler.ApplyOrdering(_Rows(), true).ToList();
 
 		ordered.Should().HaveCount(5);
 		// Id(4) sorts last despite the lowest-but-one id: the key dominates, the id only splits the
 		// day+2 tie between Id(3) and Id(5).
-		ordered.Select(r => r.Id).Should().Equal(Id(1), Id(2), Id(3), Id(5), Id(4));
+		ordered.Select(r => r.Id).Should().Equal(_Id(1), _Id(2), _Id(3), _Id(5), _Id(4));
 		ordered.Select(r => r.CreatedAt).Should().BeInAscendingOrder();
 	}
 
@@ -120,56 +120,56 @@ public class CursorSortFieldHandlerFactorySpec {
 	public void ItShouldOrderDescendingByKeyThenByIdWithTieBreakerInSameDirection() {
 		// The created_at ties on day+2 (ids ...03 and ...05) make a missing desc tie-breaker
 		// observable: without ThenByDescending(Id) their relative order is arbitrary.
-		var handler = CreateHandler(row => row.CreatedAt);
+		var handler = _CreateHandler(row => row.CreatedAt);
 
-		var ordered = handler.ApplyOrdering(Rows(), false).ToList();
+		var ordered = handler.ApplyOrdering(_Rows(), false).ToList();
 
 		ordered.Select(r => r.CreatedAt).Should().BeInDescendingOrder();
-		ordered.Select(r => r.Id).Should().Equal(Id(4), Id(5), Id(3), Id(2), Id(1));
+		ordered.Select(r => r.Id).Should().Equal(_Id(4), _Id(5), _Id(3), _Id(2), _Id(1));
 	}
 
 	[Fact]
 	public void ItShouldFilterRowsStrictlyAfterTheCursorWhenAscending() {
-		var handler = CreateHandler(row => row.CreatedAt);
+		var handler = _CreateHandler(row => row.CreatedAt);
 
 		// Cursor sits on the earlier of the two day+2 ties, so the page opens on its tied sibling.
-		var page = Page(handler, Rows(), (BaseTime.AddDays(2), (Guid?)Id(3)), true);
+		var page = _Page(handler, _Rows(), (_BaseTime.AddDays(2), (Guid?)_Id(3)), true);
 
-		page.Should().Equal(Id(5), Id(4));
+		page.Should().Equal(_Id(5), _Id(4));
 	}
 
 	[Fact]
 	public void ItShouldFilterRowsStrictlyBeforeTheCursorWhenDescending() {
-		var handler = CreateHandler(row => row.CreatedAt);
+		var handler = _CreateHandler(row => row.CreatedAt);
 
-		var page = Page(handler, Rows(), (BaseTime.AddDays(2), (Guid?)Id(5)), false);
+		var page = _Page(handler, _Rows(), (_BaseTime.AddDays(2), (Guid?)_Id(5)), false);
 
-		page.Should().Equal(Id(3), Id(2), Id(1));
+		page.Should().Equal(_Id(3), _Id(2), _Id(1));
 	}
 
 	[Fact]
 	public void ItShouldExcludeTheCursorRowItselfOnAnExactKeyTie() {
 		// The `key == ck && id > cid` half of the predicate: rows tied on the key are split by id,
 		// and the cursor row itself must never come back (that would duplicate it across pages).
-		var handler = CreateHandler(row => row.CreatedAt);
+		var handler = _CreateHandler(row => row.CreatedAt);
 
-		var page = Page(handler, Rows(), (BaseTime.AddDays(2), (Guid?)Id(3)), true);
+		var page = _Page(handler, _Rows(), (_BaseTime.AddDays(2), (Guid?)_Id(3)), true);
 
-		page.Should().NotContain(Id(3));
-		page.Should().Equal(Id(5), Id(4));
+		page.Should().NotContain(_Id(3));
+		page.Should().Equal(_Id(5), _Id(4));
 	}
 
 	[Fact]
 	public void ItShouldWalkEveryPageExactlyOnceAcrossKeyTies() {
 		// The property that actually matters for a cursor contract: walking page by page visits all
 		// five rows once, in the ordering's own sequence, with ties split by the id tie-breaker.
-		var handler = CreateHandler(row => row.CreatedAt);
+		var handler = _CreateHandler(row => row.CreatedAt);
 		var visited = new List<Guid?>();
 		object? cursor = null;
 
 		for (var page = 0; page < 5; page++) {
 			var remaining = handler.ApplyOrdering(
-				handler.ApplyFilter(Rows(), cursor, true),
+				handler.ApplyFilter(_Rows(), cursor, true),
 				true
 			).ToList();
 			if (remaining.Count == 0) {
@@ -181,15 +181,15 @@ public class CursorSortFieldHandlerFactorySpec {
 			cursor = (row.CreatedAt, row.Id);
 		}
 
-		visited.Should().Equal(Id(1), Id(2), Id(3), Id(5), Id(4));
+		visited.Should().Equal(_Id(1), _Id(2), _Id(3), _Id(5), _Id(4));
 		visited.Should().OnlyHaveUniqueItems();
 	}
 
 	[Fact]
 	public void ItShouldReturnTheQueryUntouchedWhenCursorValueIsNull() {
-		var handler = CreateHandler(row => row.CreatedAt);
+		var handler = _CreateHandler(row => row.CreatedAt);
 
-		var filtered = handler.ApplyFilter(Rows(), null, true).ToList();
+		var filtered = handler.ApplyFilter(_Rows(), null, true).ToList();
 
 		filtered.Should().HaveCount(5);
 	}
@@ -198,10 +198,10 @@ public class CursorSortFieldHandlerFactorySpec {
 	public void ItShouldUseCompareToSemanticsForStringKeys() {
 		// Mirrors the string handlers: CompareTo(...) > 0 / < 0 against the cursor value.
 		// The factory infers CompareTo semantics from the key type itself.
-		var handler = CreateHandler(row => row.Email);
+		var handler = _CreateHandler(row => row.Email);
 
 		var filtered = handler.ApplyOrdering(
-			handler.ApplyFilter(Rows(), ("bob@example.com", (Guid?)Id(2)), true),
+			handler.ApplyFilter(_Rows(), ("bob@example.com", (Guid?)_Id(2)), true),
 			true
 		).ToList();
 
@@ -211,7 +211,7 @@ public class CursorSortFieldHandlerFactorySpec {
 			"eve@example.com"
 		);
 
-		var ordered = handler.ApplyOrdering(Rows(), true).ToList();
+		var ordered = handler.ApplyOrdering(_Rows(), true).ToList();
 		ordered.Select(r => r.Email).Should().Equal(
 			"alice@example.com",
 			"bob@example.com",
@@ -227,19 +227,19 @@ public class CursorSortFieldHandlerFactorySpec {
 		// be a plain Equal over the string operands. Routing it through CompareTo(...) == 0 (the
 		// first draft's shape) makes Postgres render a CASE expression instead of `=`.
 		var handler = CursorSortFieldHandlerFactory.Create<Row, string, Guid?>(
-			cursorLookupQuery: Rows,
+			cursorLookupQuery: _Rows,
 			keySelector: row => row.Email,
 			idSelector: row => row.Id,
 			cancellationToken: CancellationToken.None
 		);
 
 		var filtered = handler.ApplyFilter(
-			Rows().Where(r => r.Email == "bob@example.com"),
-			("bob@example.com", (Guid?)Id(2)),
+			_Rows().Where(r => r.Email == "bob@example.com"),
+			("bob@example.com", (Guid?)_Id(2)),
 			true
 		);
 
-		var predicate = ExtractWherePredicate(filtered);
+		var predicate = _ExtractWherePredicate(filtered);
 		var keyset = (BinaryExpression)predicate.Body;
 		var equalityHalf = (BinaryExpression)((BinaryExpression)keyset.Right).Left;
 
@@ -260,9 +260,9 @@ public class CursorSortFieldHandlerFactorySpec {
 		// Regression: Expression.GreaterThan is not defined for enum operands, so a naive factory
 		// throws while merely constructing an enum handler. Three services sort by an enum key
 		// (tenant status, user status, account level), so this is not a hypothetical shape.
-		var handler = CreateHandler(row => row.Rank);
+		var handler = _CreateHandler(row => row.Rank);
 
-		var ordered = handler.ApplyOrdering(Rows(), true).ToList();
+		var ordered = handler.ApplyOrdering(_Rows(), true).ToList();
 		ordered.Select(r => r.Rank).Should().Equal(
 			Rank.Low,
 			Rank.Mid,
@@ -270,15 +270,15 @@ public class CursorSortFieldHandlerFactorySpec {
 			Rank.High,
 			Rank.High
 		);
-		ordered.Select(r => r.Id).Should().Equal(Id(1), Id(2), Id(3), Id(4), Id(5));
+		ordered.Select(r => r.Id).Should().Equal(_Id(1), _Id(2), _Id(3), _Id(4), _Id(5));
 
-		Page(handler, Rows(), (Rank.Mid, (Guid?)Id(2)), true)
-			.Should().Equal(Id(3), Id(4), Id(5));
-		Page(handler, Rows(), (Rank.Mid, (Guid?)Id(3)), false)
-			.Should().Equal(Id(2), Id(1));
+		_Page(handler, _Rows(), (Rank.Mid, (Guid?)_Id(2)), true)
+			.Should().Equal(_Id(3), _Id(4), _Id(5));
+		_Page(handler, _Rows(), (Rank.Mid, (Guid?)_Id(3)), false)
+			.Should().Equal(_Id(2), _Id(1));
 	}
 
-	private static Expression<Func<Row, bool>> ExtractWherePredicate(IQueryable<Row> query) {
+	private static Expression<Func<Row, bool>> _ExtractWherePredicate(IQueryable<Row> query) {
 		if (query.Expression is not MethodCallExpression call) {
 			throw new InvalidOperationException("Expected the filtered query to be a Where call.");
 		}

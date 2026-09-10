@@ -24,20 +24,20 @@ namespace PublyApp.Api.Modules.Auth.Handlers;
 
 public sealed class CheckEmailVerificationTokenSpec
 	: IClassFixture<ApiFixture> {
-	private readonly ApiFixture _fixture;
-	private readonly HttpClient _http;
+	private readonly ApiFixture _Fixture;
+	private readonly HttpClient _Http;
 
 	public CheckEmailVerificationTokenSpec(ApiFixture fixture) {
-		_fixture = fixture;
-		_http = fixture.HttpClient;
+		_Fixture = fixture;
+		_Http = fixture.HttpClient;
 	}
 
 	[Fact]
 	public async Task
 	ItShouldReturnExpiredTranslationKeyWhenEmailVerificationTokenExpired() {
-		var user = await CreateUserAsync(DateTime.UtcNow.AddMinutes(-1));
+		var user = await _CreateUserAsync(DateTime.UtcNow.AddMinutes(-1));
 
-		using var response = await CheckAsync(user.Email, user.Token);
+		using var response = await _CheckAsync(user.Email, user.Token);
 
 		response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
 		var problem = await response.Content.ReadFromJsonAsync<AppProblemDetails>();
@@ -49,7 +49,7 @@ public sealed class CheckEmailVerificationTokenSpec
 	[Fact]
 	public async Task
 	ItShouldReturnGenericInvalidTranslationKeyWhenEmailVerificationIdCannotBeDecrypted() {
-		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
 		var services = scope.ServiceProvider;
 		var result = await CheckEmailVerificationToken.Handle(
 			new CheckEmailVerificationTokenQuery {
@@ -62,7 +62,7 @@ public sealed class CheckEmailVerificationTokenSpec
 			CancellationToken.None
 		);
 
-		var problem = await ExecuteProblemAsync(result);
+		var problem = await _ExecuteProblemAsync(result);
 
 		problem.TranslationKey.Should().Be("invalid-email-verification-token");
 	}
@@ -70,7 +70,7 @@ public sealed class CheckEmailVerificationTokenSpec
 	[Fact]
 	public async Task
 	ItShouldReturnGenericInvalidTranslationKeyWhenEmailVerificationTokenNotFound() {
-		using var response = await CheckAsync(
+		using var response = await _CheckAsync(
 			$"unknown-{Guid.NewGuid():N}@example.com",
 			$"missing-{Guid.NewGuid():N}"
 		);
@@ -85,9 +85,9 @@ public sealed class CheckEmailVerificationTokenSpec
 	[Fact]
 	public async Task
 	ItShouldReturnGenericInvalidTranslationKeyWhenEmailVerificationEmailMismatched() {
-		var user = await CreateUserAsync(DateTime.UtcNow.AddMinutes(5));
+		var user = await _CreateUserAsync(DateTime.UtcNow.AddMinutes(5));
 
-		using var response = await CheckAsync(
+		using var response = await _CheckAsync(
 			$"mismatch-{Guid.NewGuid():N}@example.com",
 			user.Token
 		);
@@ -102,9 +102,9 @@ public sealed class CheckEmailVerificationTokenSpec
 	[Fact]
 	public async Task
 	ItShouldReturnOkWithExpectedResultWhenEmailVerificationTokenValid() {
-		var user = await CreateUserAsync(DateTime.UtcNow.AddMinutes(5));
+		var user = await _CreateUserAsync(DateTime.UtcNow.AddMinutes(5));
 
-		using var response = await CheckAsync(user.Email, user.Token);
+		using var response = await _CheckAsync(user.Email, user.Token);
 
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
 		var result = await response.Content
@@ -115,18 +115,18 @@ public sealed class CheckEmailVerificationTokenSpec
 		result.ResetPasswordUrl.Should().NotBeNullOrWhiteSpace();
 	}
 
-	private async Task<HttpResponseMessage> CheckAsync(string email, string token) {
+	private async Task<HttpResponseMessage> _CheckAsync(string email, string token) {
 		var id = Uri.EscapeDataString(CryptoUtils.EncryptString(email));
-		return await _http.GetAsync(
+		return await _Http.GetAsync(
 			$"{Routes.Auth.CheckEmailVerificationToken}?id={id}&token={token}"
 		);
 	}
 
-	private async Task<(string Email, string Token)> CreateUserAsync(DateTime expiresAt) {
+	private async Task<(string Email, string Token)> _CreateUserAsync(DateTime expiresAt) {
 		var email = $"check-verification-{Guid.NewGuid():N}@example.com";
 		var token = $"verify-{Guid.NewGuid():N}";
 
-		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 		_ = dbContext.User.Add(new User {
 			Email = email,
@@ -143,7 +143,7 @@ public sealed class CheckEmailVerificationTokenSpec
 		return (email, token);
 	}
 
-	private static async Task<AppProblemDetails> ExecuteProblemAsync(IResult result) {
+	private static async Task<AppProblemDetails> _ExecuteProblemAsync(IResult result) {
 		var context = new DefaultHttpContext();
 		context.Response.Body = new MemoryStream();
 

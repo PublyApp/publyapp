@@ -28,17 +28,17 @@ public sealed class CleanupExpiredSessionsHandler : IJobHandler {
 
 	// Rows deleted per statement. Bounded so a large backlog never runs one unbounded
 	// DELETE that holds locks / bloats WAL; the loop repeats until a short batch.
-	private const int BatchSize = 500;
+	private const int _BatchSize = 500;
 
-	private readonly AppDbContext _dbContext;
-	private readonly ILogger<CleanupExpiredSessionsHandler> _logger;
+	private readonly AppDbContext _DbContext;
+	private readonly ILogger<CleanupExpiredSessionsHandler> _Logger;
 
 	public CleanupExpiredSessionsHandler(
 		AppDbContext dbContext,
 		ILogger<CleanupExpiredSessionsHandler> logger
 	) {
-		_dbContext = dbContext;
-		_logger = logger;
+		_DbContext = dbContext;
+		_Logger = logger;
 	}
 
 	public string JobType {
@@ -52,20 +52,20 @@ public sealed class CleanupExpiredSessionsHandler : IJobHandler {
 		var totalDeleted = 0;
 		int deleted;
 
-		// Batched hard-delete (#389): each pass removes at most BatchSize expired rows,
+		// Batched hard-delete (#389): each pass removes at most _BatchSize expired rows,
 		// selected and deleted entirely in SQL against database now() (F11). The loop
 		// stops on the first short batch — nothing left to purge.
 		do {
 			cancellationToken.ThrowIfCancellationRequested();
 
-			deleted = await _dbContext.Database.ExecuteSqlAsync(
+			deleted = await _DbContext.Database.ExecuteSqlAsync(
 				$"""
 				DELETE FROM sessions
 				WHERE id IN (
 					SELECT id FROM sessions
 					WHERE expires_at <= now()
 					ORDER BY expires_at, id
-					LIMIT {BatchSize}
+					LIMIT {_BatchSize}
 					FOR UPDATE SKIP LOCKED
 				)
 				""",
@@ -73,10 +73,10 @@ public sealed class CleanupExpiredSessionsHandler : IJobHandler {
 			);
 
 			totalDeleted += deleted;
-		} while (deleted == BatchSize);
+		} while (deleted == _BatchSize);
 
-		if (totalDeleted > 0 && _logger.IsEnabled(LogLevel.Information)) {
-			_logger.LogInformation(
+		if (totalDeleted > 0 && _Logger.IsEnabled(LogLevel.Information)) {
+			_Logger.LogInformation(
 				"session-cleanup deleted {Count} expired session row(s)",
 				totalDeleted
 			);

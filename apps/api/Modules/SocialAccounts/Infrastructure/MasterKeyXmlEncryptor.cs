@@ -7,7 +7,7 @@ using PublyApp.Api.Lib;
 namespace PublyApp.Api.Modules.SocialAccounts.Infrastructure;
 
 public sealed class MasterKeyXmlEncryptor : IXmlEncryptor {
-	private static readonly byte[] Magic = "PAPK"u8.ToArray(); // publyapp protection key
+	private static readonly byte[] _Magic = "PAPK"u8.ToArray(); // publyapp protection key
 
 	public EncryptedXmlInfo Encrypt(XElement plaintextElement) {
 		var key = AppEnvironment.Instance.SocialAccountsMasterKey;
@@ -23,9 +23,9 @@ public sealed class MasterKeyXmlEncryptor : IXmlEncryptor {
 		var tag = new byte[System.Security.Cryptography.AesGcm.TagByteSizes.MaxSize];
 		aes.Encrypt(nonce, plaintext, ciphertext, tag);
 
-		var blob = new byte[Magic.Length + 1 + nonce.Length + ciphertext.Length + tag.Length];
+		var blob = new byte[_Magic.Length + 1 + nonce.Length + ciphertext.Length + tag.Length];
 		var offset = 0;
-		Array.Copy(Magic, 0, blob, offset, Magic.Length); offset += Magic.Length;
+		Array.Copy(_Magic, 0, blob, offset, _Magic.Length); offset += _Magic.Length;
 		blob[offset++] = 1; // version
 		Array.Copy(nonce, 0, blob, offset, nonce.Length); offset += nonce.Length;
 		Array.Copy(ciphertext, 0, blob, offset, ciphertext.Length); offset += ciphertext.Length;

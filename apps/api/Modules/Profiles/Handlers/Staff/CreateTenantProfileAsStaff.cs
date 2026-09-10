@@ -24,8 +24,8 @@ public record CreateTenantProfileAsStaffBody {
 	public JsonElement Tone { get; init; }
 	public JsonElement PermissionKeys { get; init; }
 
-	private bool _parsedPermissionKeys;
-	private List<string> _permissionKeys = [];
+	private bool _ParsedPermissionKeys;
+	private List<string> _PermissionKeys = [];
 
 	public string GetName() {
 		return Name.GetValueAsString();
@@ -44,17 +44,17 @@ public record CreateTenantProfileAsStaffBody {
 	}
 
 	public List<string> GetPermissionKeys() {
-		if (_parsedPermissionKeys) {
-			return _permissionKeys;
+		if (_ParsedPermissionKeys) {
+			return _PermissionKeys;
 		}
 
 		if (
 			PermissionKeys.ValueKind is JsonValueKind.Undefined
 			or JsonValueKind.Null
 		) {
-			_permissionKeys = [];
-			_parsedPermissionKeys = true;
-			return _permissionKeys;
+			_PermissionKeys = [];
+			_ParsedPermissionKeys = true;
+			return _PermissionKeys;
 		}
 
 		if (PermissionKeys.ValueKind != JsonValueKind.Array) {
@@ -63,7 +63,7 @@ public record CreateTenantProfileAsStaffBody {
 			);
 		}
 
-		_permissionKeys = PermissionKeys
+		_PermissionKeys = PermissionKeys
 			.EnumerateArray()
 			.Select(element => {
 				var permissionKey = element.GetString();
@@ -79,8 +79,8 @@ public record CreateTenantProfileAsStaffBody {
 			})
 			.ToList();
 
-		_parsedPermissionKeys = true;
-		return _permissionKeys;
+		_ParsedPermissionKeys = true;
+		return _PermissionKeys;
 	}
 }
 

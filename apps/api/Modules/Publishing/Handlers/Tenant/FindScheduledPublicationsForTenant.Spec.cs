@@ -27,40 +27,40 @@ namespace PublyApp.Api.Modules.Publishing.Handlers.Tenant;
 // the DST-aware zone-local ISO string.
 public sealed class FindScheduledPublicationsForTenantSpec : IClassFixture<
 	ApiFixture> {
-	private const string FindUrl = "/posts/publications";
-	private const string ParisZone = "Europe/Paris";
+	private const string _FindUrl = "/posts/publications";
+	private const string _ParisZone = "Europe/Paris";
 
-	private readonly ApiFixture _fixture;
-	private readonly HttpClient _http;
-	private readonly TestAuthClient _authClient;
+	private readonly ApiFixture _Fixture;
+	private readonly HttpClient _Http;
+	private readonly TestAuthClient _AuthClient;
 
 	public FindScheduledPublicationsForTenantSpec(ApiFixture fixture) {
-		_fixture = fixture;
-		_http = fixture.Factory.CreateClient(
+		_Fixture = fixture;
+		_Http = fixture.Factory.CreateClient(
 			new WebApplicationFactoryClientOptions {
 				HandleCookies = false,
 			}
 		);
-		_authClient = new TestAuthClient(_http);
-		_http.DefaultRequestHeaders.Accept.Clear();
-		_http.DefaultRequestHeaders.Accept.Add(
+		_AuthClient = new TestAuthClient(_Http);
+		_Http.DefaultRequestHeaders.Accept.Clear();
+		_Http.DefaultRequestHeaders.Accept.Add(
 			new MediaTypeWithQualityHeaderValue("application/json")
 		);
 	}
 
-	private async Task<Guid> GetAcmeIdAsync() {
-		var staffToken = await _authClient.LoginAsStaffAdminAsync();
+	private async Task<Guid> _GetAcmeIdAsync() {
+		var staffToken = await _AuthClient.LoginAsStaffAdminAsync();
 		return await TenantTestHelper.GetTenantIdByNameAsync(
-			_http,
+			_Http,
 			staffToken,
 			SeedConstants.Tenants.AcmeName
 		);
 	}
 
-	private async Task<Guid> GetTechStartIdAsync() {
-		var staffToken = await _authClient.LoginAsStaffAdminAsync();
+	private async Task<Guid> _GetTechStartIdAsync() {
+		var staffToken = await _AuthClient.LoginAsStaffAdminAsync();
 		return await TenantTestHelper.GetTenantIdByNameAsync(
-			_http,
+			_Http,
 			staffToken,
 			SeedConstants.Tenants.TechStartName
 		);
@@ -72,14 +72,14 @@ public sealed class FindScheduledPublicationsForTenantSpec : IClassFixture<
 		Guid PublicationId,
 		Guid PostId,
 		Guid AccountId
-	)> CreateScheduledRowAsync(
+	)> _CreateScheduledRowAsync(
 		Guid tenantId,
 		string body,
 		DateTime scheduledAtUtc,
-		string zone = ParisZone,
+		string zone = _ParisZone,
 		PublicationStatus seedStatus = PublicationStatus.Scheduled
 	) {
-		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
 		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		var author = await db.User.AsNoTracking().SingleAsync(
@@ -122,11 +122,11 @@ public sealed class FindScheduledPublicationsForTenantSpec : IClassFixture<
 		);
 	}
 
-	private static string WindowQuery(string from, string to) {
+	private static string _WindowQuery(string from, string to) {
 		return $"?from={from}&to={to}";
 	}
 
-	private static async Task<JsonElement> GetJsonAsync(
+	private static async Task<JsonElement> _GetJsonAsync(
 		HttpResponseMessage response
 	) {
 		var stream = await response.Content.ReadAsStreamAsync();
@@ -136,18 +136,18 @@ public sealed class FindScheduledPublicationsForTenantSpec : IClassFixture<
 
 	[Fact]
 	public async Task ItShouldReturnScheduledRowsInWindowOrderedByInstant() {
-		var tenantId = await GetAcmeIdAsync();
-		var token = await _authClient.LoginAsync(
+		var tenantId = await _GetAcmeIdAsync();
+		var token = await _AuthClient.LoginAsync(
 			TestConstants.AcmeAdminEmail,
 			TestConstants.SeedPassword
 		);
 
-		var first = await CreateScheduledRowAsync(
+		var first = await _CreateScheduledRowAsync(
 			tenantId,
 			"find queue alpha",
 			new DateTime(2099, 6, 1, 10, 0, 0, DateTimeKind.Utc)
 		);
-		var second = await CreateScheduledRowAsync(
+		var second = await _CreateScheduledRowAsync(
 			tenantId,
 			"find queue beta",
 			new DateTime(2099, 6, 2, 9, 0, 0, DateTimeKind.Utc)
@@ -155,15 +155,15 @@ public sealed class FindScheduledPublicationsForTenantSpec : IClassFixture<
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			FindUrl + WindowQuery("2099-05-31T00%3A00%3A00Z",
+			_FindUrl + _WindowQuery("2099-05-31T00%3A00%3A00Z",
 				"2099-07-01T00%3A00%3A00Z")
 		)
 			.WithSessionToken(token)
 			.WithTenantId(tenantId);
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
-		var doc = await GetJsonAsync(response);
+		var doc = await _GetJsonAsync(response);
 		var data = doc.GetProperty("data");
 		data.ValueKind.Should().Be(JsonValueKind.Array);
 
@@ -182,7 +182,7 @@ public sealed class FindScheduledPublicationsForTenantSpec : IClassFixture<
 		firstRow.GetProperty("status").GetString().Should().Be("scheduled");
 		firstRow.GetProperty("postBodyPreview").GetString().Should()
 			.Contain("alpha");
-		firstRow.GetProperty("timeZone").GetString().Should().Be(ParisZone);
+		firstRow.GetProperty("timeZone").GetString().Should().Be(_ParisZone);
 		firstRow.GetProperty("scheduledAtLocal").GetString().Should()
 			.Be("2099-06-01T12:00:00+02:00");
 		firstRow.GetProperty("accountDisplayHandle").GetString().Should()
@@ -194,19 +194,19 @@ public sealed class FindScheduledPublicationsForTenantSpec : IClassFixture<
 
 	[Fact]
 	public async Task ItShouldFilterByStatusCsv() {
-		var tenantId = await GetAcmeIdAsync();
-		var token = await _authClient.LoginAsync(
+		var tenantId = await _GetAcmeIdAsync();
+		var token = await _AuthClient.LoginAsync(
 			TestConstants.AcmeAdminEmail,
 			TestConstants.SeedPassword
 		);
 
-		_ = await CreateScheduledRowAsync(
+		_ = await _CreateScheduledRowAsync(
 			tenantId,
 			"filter csv target",
 			new DateTime(2099, 6, 3, 8, 0, 0, DateTimeKind.Utc)
 		);
 
-		var failing = await CreateScheduledRowAsync(
+		var failing = await _CreateScheduledRowAsync(
 			tenantId,
 			"filter csv failed target",
 			new DateTime(2099, 6, 4, 8, 0, 0, DateTimeKind.Utc),
@@ -216,7 +216,7 @@ public sealed class FindScheduledPublicationsForTenantSpec : IClassFixture<
 		// LastError mirrors the failed-state cause the handler reports. Seeded via
 		// a tracked load + modify (a non-Status property), which the #1446 guard
 		// permits — only raw/unstamped Status writes are rejected.
-		await using var errScope = _fixture.Factory.Services.CreateAsyncScope();
+		await using var errScope = _Fixture.Factory.Services.CreateAsyncScope();
 		var errDb = errScope.ServiceProvider.GetRequiredService<AppDbContext>();
 		var failedPublication = await errDb.Publication.SingleAsync(
 			p => p.Id == failing.PublicationId
@@ -226,15 +226,15 @@ public sealed class FindScheduledPublicationsForTenantSpec : IClassFixture<
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			$"{FindUrl}?from=2099-05-31T00%3A00%3A00Z"
+			$"{_FindUrl}?from=2099-05-31T00%3A00%3A00Z"
 			+ "&to=2099-07-01T00%3A00%3A00Z&status=failed,PUBLISHED"
 		)
 			.WithSessionToken(token)
 			.WithTenantId(tenantId);
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
-		var doc = await GetJsonAsync(response);
+		var doc = await _GetJsonAsync(response);
 		var statuses = doc.GetProperty("data")
 			.EnumerateArray()
 			.Select(row => row.GetProperty("status").GetString())
@@ -255,14 +255,14 @@ public sealed class FindScheduledPublicationsForTenantSpec : IClassFixture<
 
 	[Fact]
 	public async Task ItShouldPaginateByKeysetAcrossPages() {
-		var tenantId = await GetAcmeIdAsync();
-		var token = await _authClient.LoginAsync(
+		var tenantId = await _GetAcmeIdAsync();
+		var token = await _AuthClient.LoginAsync(
 			TestConstants.AcmeAdminEmail,
 			TestConstants.SeedPassword
 		);
 
 		for (var index = 0; index < 3; index++) {
-			_ = await CreateScheduledRowAsync(
+			_ = await _CreateScheduledRowAsync(
 				tenantId,
 				$"pagination row {index}",
 				new DateTime(2099, 6, 10 + index, 6, 0, 0, DateTimeKind.Utc)
@@ -271,31 +271,31 @@ public sealed class FindScheduledPublicationsForTenantSpec : IClassFixture<
 
 		using var pageOneRequest = new HttpRequestMessage(
 			HttpMethod.Get,
-			$"{FindUrl}?from=2099-05-31T00%3A00%3A00Z"
+			$"{_FindUrl}?from=2099-05-31T00%3A00%3A00Z"
 			+ "&to=2099-07-01T00%3A00%3A00Z&limit=2"
 		)
 			.WithSessionToken(token)
 			.WithTenantId(tenantId);
-		using var pageOneResponse = await _http.SendAsync(pageOneRequest);
+		using var pageOneResponse = await _Http.SendAsync(pageOneRequest);
 
 		pageOneResponse.StatusCode.Should().Be(HttpStatusCode.OK);
-		var pageOne = await GetJsonAsync(pageOneResponse);
+		var pageOne = await _GetJsonAsync(pageOneResponse);
 		pageOne.GetProperty("data").GetArrayLength().Should().Be(2);
 		var nextCursor = pageOne.GetProperty("nextCursor").GetString();
 		nextCursor.Should().NotBeNullOrEmpty();
 
 		using var pageTwoRequest = new HttpRequestMessage(
 			HttpMethod.Get,
-			$"{FindUrl}?from=2099-05-31T00%3A00%3A00Z"
+			$"{_FindUrl}?from=2099-05-31T00%3A00%3A00Z"
 			+ $"&to=2099-07-01T00%3A00%3A00Z&limit=2&cursor="
 			+ Uri.EscapeDataString(nextCursor!)
 		)
 			.WithSessionToken(token)
 			.WithTenantId(tenantId);
-		using var pageTwoResponse = await _http.SendAsync(pageTwoRequest);
+		using var pageTwoResponse = await _Http.SendAsync(pageTwoRequest);
 
 		pageTwoResponse.StatusCode.Should().Be(HttpStatusCode.OK);
-		var pageTwo = await GetJsonAsync(pageTwoResponse);
+		var pageTwo = await _GetJsonAsync(pageTwoResponse);
 
 		var pageOneIds = pageOne.GetProperty("data")
 			.EnumerateArray()
@@ -312,20 +312,20 @@ public sealed class FindScheduledPublicationsForTenantSpec : IClassFixture<
 
 	[Fact]
 	public async Task ItShouldReturnInvalidWindowProblemWhenFromAfterTo() {
-		var tenantId = await GetAcmeIdAsync();
-		var token = await _authClient.LoginAsync(
+		var tenantId = await _GetAcmeIdAsync();
+		var token = await _AuthClient.LoginAsync(
 			TestConstants.AcmeAdminEmail,
 			TestConstants.SeedPassword
 		);
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			$"{FindUrl}?from=2099-07-02T00%3A00%3A00Z"
+			$"{_FindUrl}?from=2099-07-02T00%3A00%3A00Z"
 			+ "&to=2099-07-01T00%3A00%3A00Z"
 		)
 			.WithSessionToken(token)
 			.WithTenantId(tenantId);
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 
 		response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
 		var problem = await response.Content
@@ -335,20 +335,20 @@ public sealed class FindScheduledPublicationsForTenantSpec : IClassFixture<
 
 	[Fact]
 	public async Task ItShouldReturnTooWideProblemWhenWindowExceeds32Days() {
-		var tenantId = await GetAcmeIdAsync();
-		var token = await _authClient.LoginAsync(
+		var tenantId = await _GetAcmeIdAsync();
+		var token = await _AuthClient.LoginAsync(
 			TestConstants.AcmeAdminEmail,
 			TestConstants.SeedPassword
 		);
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			$"{FindUrl}?from=2099-06-01T00%3A00%3A00Z"
+			$"{_FindUrl}?from=2099-06-01T00%3A00%3A00Z"
 			+ "&to=2099-08-01T00%3A00%3A00Z"
 		)
 			.WithSessionToken(token)
 			.WithTenantId(tenantId);
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 
 		response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
 		var problem = await response.Content
@@ -358,33 +358,33 @@ public sealed class FindScheduledPublicationsForTenantSpec : IClassFixture<
 
 	[Fact]
 	public async Task ItShouldAllowA31DayMonthAcrossADaylightSavingFallback() {
-		var tenantId = await GetAcmeIdAsync();
-		var token = await _authClient.LoginAsync(
+		var tenantId = await _GetAcmeIdAsync();
+		var token = await _AuthClient.LoginAsync(
 			TestConstants.AcmeAdminEmail,
 			TestConstants.SeedPassword
 		);
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			$"{FindUrl}?from=2099-09-30T22%3A00%3A00Z"
+			$"{_FindUrl}?from=2099-09-30T22%3A00%3A00Z"
 				+ "&to=2099-10-31T22%3A59%3A59Z"
 		)
 			.WithSessionToken(token)
 			.WithTenantId(tenantId);
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
 	}
 
 	[Fact]
 	public async Task ItShouldReturn400WhenCursorIsUnknown() {
-		var tenantId = await GetAcmeIdAsync();
-		var token = await _authClient.LoginAsync(
+		var tenantId = await _GetAcmeIdAsync();
+		var token = await _AuthClient.LoginAsync(
 			TestConstants.AcmeAdminEmail,
 			TestConstants.SeedPassword
 		);
 
-		_ = await CreateScheduledRowAsync(
+		_ = await _CreateScheduledRowAsync(
 			tenantId,
 			"cursor probe",
 			new DateTime(2099, 6, 20, 8, 0, 0, DateTimeKind.Utc)
@@ -397,90 +397,90 @@ public sealed class FindScheduledPublicationsForTenantSpec : IClassFixture<
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			$"{FindUrl}?from=2099-05-31T00%3A00%3A00Z"
+			$"{_FindUrl}?from=2099-05-31T00%3A00%3A00Z"
 			+ $"&to=2099-07-01T00%3A00%3A00Z&cursor={bogusCursor}"
 		)
 			.WithSessionToken(token)
 			.WithTenantId(tenantId);
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 
 		response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
 	}
 
 	[Fact]
 	public async Task ItShouldReturn422WhenStatusCsvIsUnknown() {
-		var tenantId = await GetAcmeIdAsync();
-		var token = await _authClient.LoginAsync(
+		var tenantId = await _GetAcmeIdAsync();
+		var token = await _AuthClient.LoginAsync(
 			TestConstants.AcmeAdminEmail,
 			TestConstants.SeedPassword
 		);
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			$"{FindUrl}?from=2099-05-31T00%3A00%3A00Z"
+			$"{_FindUrl}?from=2099-05-31T00%3A00%3A00Z"
 			+ "&to=2099-07-01T00%3A00%3A00Z&status=bogus_status"
 		)
 			.WithSessionToken(token)
 			.WithTenantId(tenantId);
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 
 		response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
 	}
 
 	[Fact]
 	public async Task ItShouldReturn403WithoutViewPermission() {
-		var tenantId = await GetAcmeIdAsync();
-		var userToken = await _authClient.LoginAsync(
+		var tenantId = await _GetAcmeIdAsync();
+		var userToken = await _AuthClient.LoginAsync(
 			TestConstants.AcmeUserEmail,
 			TestConstants.SeedPassword
 		);
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			$"{FindUrl}?from=2099-05-31T00%3A00%3A00Z"
+			$"{_FindUrl}?from=2099-05-31T00%3A00%3A00Z"
 			+ "&to=2099-07-01T00%3A00%3A00Z"
 		)
 			.WithSessionToken(userToken)
 			.WithTenantId(tenantId);
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 
 		response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
 	}
 
 	[Fact]
 	public async Task ItShouldReturn401WithoutSessionToken() {
-		var tenantId = await GetAcmeIdAsync();
+		var tenantId = await _GetAcmeIdAsync();
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			$"{FindUrl}?from=2099-05-31T00%3A00%3A00Z"
+			$"{_FindUrl}?from=2099-05-31T00%3A00%3A00Z"
 			+ "&to=2099-07-01T00%3A00%3A00Z"
 		)
 			.WithTenantId(tenantId);
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 
 		response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
 	}
 
 	[Fact]
 	public async Task ItShouldReturnOnlyCurrentTenantRows() {
-		var acmeId = await GetAcmeIdAsync();
-		var techStartId = await GetTechStartIdAsync();
-		var acmeToken = await _authClient.LoginAsync(
+		var acmeId = await _GetAcmeIdAsync();
+		var techStartId = await _GetTechStartIdAsync();
+		var acmeToken = await _AuthClient.LoginAsync(
 			TestConstants.AcmeAdminEmail,
 			TestConstants.SeedPassword
 		);
-		var techStartToken = await _authClient.LoginAsync(
+		var techStartToken = await _AuthClient.LoginAsync(
 			TestConstants.TechStartAdminEmail,
 			TestConstants.SeedPassword
 		);
 
-		_ = await CreateScheduledRowAsync(
+		_ = await _CreateScheduledRowAsync(
 			acmeId,
 			"acme only row",
 			new DateTime(2099, 6, 25, 7, 0, 0, DateTimeKind.Utc)
 		);
-		_ = await CreateScheduledRowAsync(
+		_ = await _CreateScheduledRowAsync(
 			techStartId,
 			"techstart private row",
 			new DateTime(2099, 6, 26, 7, 0, 0, DateTimeKind.Utc)
@@ -488,15 +488,15 @@ public sealed class FindScheduledPublicationsForTenantSpec : IClassFixture<
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			$"{FindUrl}?from=2099-05-31T00%3A00%3A00Z"
+			$"{_FindUrl}?from=2099-05-31T00%3A00%3A00Z"
 			+ "&to=2099-07-01T00%3A00%3A00Z"
 		)
 			.WithSessionToken(acmeToken)
 			.WithTenantId(acmeId);
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
-		var doc = await GetJsonAsync(response);
+		var doc = await _GetJsonAsync(response);
 		var previews = doc.GetProperty("data")
 			.EnumerateArray()
 			.Select(row => row.GetProperty("postBodyPreview").GetString())
@@ -506,30 +506,30 @@ public sealed class FindScheduledPublicationsForTenantSpec : IClassFixture<
 
 	[Fact]
 	public async Task ItShouldReturn422WhenFromIsMissingOrToIsMalformed() {
-		var tenantId = await GetAcmeIdAsync();
-		var token = await _authClient.LoginAsync(
+		var tenantId = await _GetAcmeIdAsync();
+		var token = await _AuthClient.LoginAsync(
 			TestConstants.AcmeAdminEmail,
 			TestConstants.SeedPassword
 		);
 
 		using var missingRequest = new HttpRequestMessage(
 			HttpMethod.Get,
-			$"{FindUrl}?to=2099-07-01T00%3A00%3A00Z"
+			$"{_FindUrl}?to=2099-07-01T00%3A00%3A00Z"
 		)
 			.WithSessionToken(token)
 			.WithTenantId(tenantId);
-		using var missingResponse = await _http.SendAsync(missingRequest);
+		using var missingResponse = await _Http.SendAsync(missingRequest);
 
 		missingResponse.StatusCode.Should()
 			.Be(HttpStatusCode.UnprocessableEntity);
 
 		using var malformedRequest = new HttpRequestMessage(
 			HttpMethod.Get,
-			$"{FindUrl}?from=2099-06-01T00%3A00%3A00Z&to=not-a-date"
+			$"{_FindUrl}?from=2099-06-01T00%3A00%3A00Z&to=not-a-date"
 		)
 			.WithSessionToken(token)
 			.WithTenantId(tenantId);
-		using var malformedResponse = await _http.SendAsync(malformedRequest);
+		using var malformedResponse = await _Http.SendAsync(malformedRequest);
 
 		malformedResponse.StatusCode.Should()
 			.Be(HttpStatusCode.UnprocessableEntity);
@@ -537,19 +537,19 @@ public sealed class FindScheduledPublicationsForTenantSpec : IClassFixture<
 
 	[Fact]
 	public async Task ItShouldExcludeDeletedAndCancelledPublications() {
-		var tenantId = await GetAcmeIdAsync();
-		var token = await _authClient.LoginAsync(
+		var tenantId = await _GetAcmeIdAsync();
+		var token = await _AuthClient.LoginAsync(
 			TestConstants.AcmeAdminEmail,
 			TestConstants.SeedPassword
 		);
 
-		var seeded = await CreateScheduledRowAsync(
+		var seeded = await _CreateScheduledRowAsync(
 			tenantId,
 			"deleted row probe",
 			new DateTime(2099, 6, 28, 8, 0, 0, DateTimeKind.Utc)
 		);
 
-		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
 		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 		_ = await db.Publication
 			.Where(p => p.Id == seeded.PublicationId)
@@ -557,7 +557,7 @@ public sealed class FindScheduledPublicationsForTenantSpec : IClassFixture<
 				.SetProperty(p => p.IsDeleted, true)
 				.SetProperty(p => p.DeletedAt, DateTime.UtcNow));
 		await using var verifyScope =
-			_fixture.Factory.Services.CreateAsyncScope();
+			_Fixture.Factory.Services.CreateAsyncScope();
 		var verifyDb =
 			verifyScope.ServiceProvider.GetRequiredService<AppDbContext>();
 		var softDeletedCount = await verifyDb.Publication.IgnoreQueryFilters()
@@ -566,15 +566,15 @@ public sealed class FindScheduledPublicationsForTenantSpec : IClassFixture<
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			$"{FindUrl}?from=2099-05-31T00%3A00%3A00Z"
+			$"{_FindUrl}?from=2099-05-31T00%3A00%3A00Z"
 			+ "&to=2099-07-01T00%3A00%3A00Z"
 		)
 			.WithSessionToken(token)
 			.WithTenantId(tenantId);
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
-		var doc = await GetJsonAsync(response);
+		var doc = await _GetJsonAsync(response);
 		var previews = doc.GetProperty("data")
 			.EnumerateArray()
 			.Select(row => row.GetProperty("postBodyPreview").GetString())
@@ -584,14 +584,14 @@ public sealed class FindScheduledPublicationsForTenantSpec : IClassFixture<
 
 	[Fact]
 	public async Task ItShouldApplyDstAwareZoneOffsetInScheduledAtLocal() {
-		var tenantId = await GetAcmeIdAsync();
-		var token = await _authClient.LoginAsync(
+		var tenantId = await _GetAcmeIdAsync();
+		var token = await _AuthClient.LoginAsync(
 			TestConstants.AcmeAdminEmail,
 			TestConstants.SeedPassword
 		);
 
 		// Winter instant in Europe/Paris: offset +01:00 (vs summer +02:00).
-		_ = await CreateScheduledRowAsync(
+		_ = await _CreateScheduledRowAsync(
 			tenantId,
 			"winter dst probe",
 			new DateTime(2099, 12, 15, 8, 0, 0, DateTimeKind.Utc)
@@ -599,15 +599,15 @@ public sealed class FindScheduledPublicationsForTenantSpec : IClassFixture<
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			$"{FindUrl}?from=2099-12-01T00%3A00%3A00Z"
+			$"{_FindUrl}?from=2099-12-01T00%3A00%3A00Z"
 			+ "&to=2100-01-01T00%3A00%3A00Z"
 		)
 			.WithSessionToken(token)
 			.WithTenantId(tenantId);
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
-		var doc = await GetJsonAsync(response);
+		var doc = await _GetJsonAsync(response);
 		var local = doc.GetProperty("data")
 			.EnumerateArray()
 			.Select(row => (
@@ -621,8 +621,8 @@ public sealed class FindScheduledPublicationsForTenantSpec : IClassFixture<
 
 	[Fact]
 	public async Task ItShouldReturnAnEmptyPageWhenTheWindowMatchesNoRows() {
-		var tenantId = await GetAcmeIdAsync();
-		var token = await _authClient.LoginAsync(
+		var tenantId = await _GetAcmeIdAsync();
+		var token = await _AuthClient.LoginAsync(
 			TestConstants.AcmeAdminEmail,
 			TestConstants.SeedPassword
 		);
@@ -633,15 +633,15 @@ public sealed class FindScheduledPublicationsForTenantSpec : IClassFixture<
 		// 500'd on an empty result set).
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			$"{FindUrl}?from=2100-03-01T00%3A00%3A00Z"
+			$"{_FindUrl}?from=2100-03-01T00%3A00%3A00Z"
 			+ "&to=2100-03-31T00%3A00%3A00Z"
 		)
 			.WithSessionToken(token)
 			.WithTenantId(tenantId);
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
-		var doc = await GetJsonAsync(response);
+		var doc = await _GetJsonAsync(response);
 		doc.GetProperty("data").GetArrayLength().Should().Be(0);
 		doc.GetProperty("nextCursor").ValueKind.Should()
 			.Be(JsonValueKind.Null);
@@ -649,8 +649,8 @@ public sealed class FindScheduledPublicationsForTenantSpec : IClassFixture<
 
 	[Fact]
 	public async Task ItShouldRejectALimitAboveThePaginationMax() {
-		var tenantId = await GetAcmeIdAsync();
-		var token = await _authClient.LoginAsync(
+		var tenantId = await _GetAcmeIdAsync();
+		var token = await _AuthClient.LoginAsync(
 			TestConstants.AcmeAdminEmail,
 			TestConstants.SeedPassword
 		);
@@ -659,12 +659,12 @@ public sealed class FindScheduledPublicationsForTenantSpec : IClassFixture<
 		// interval check, so limit=999 was accepted silently (Take(1000)).
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			$"{FindUrl}?from=2099-05-31T00%3A00%3A00Z"
+			$"{_FindUrl}?from=2099-05-31T00%3A00%3A00Z"
 			+ "&to=2099-07-01T00%3A00%3A00Z&limit=999"
 		)
 			.WithSessionToken(token)
 			.WithTenantId(tenantId);
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 
 		response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
 		var problem = await response.Content
@@ -674,8 +674,8 @@ public sealed class FindScheduledPublicationsForTenantSpec : IClassFixture<
 
 	[Fact]
 	public async Task ItShouldRejectALimitBelowTheMinimum() {
-		var tenantId = await GetAcmeIdAsync();
-		var token = await _authClient.LoginAsync(
+		var tenantId = await _GetAcmeIdAsync();
+		var token = await _AuthClient.LoginAsync(
 			TestConstants.AcmeAdminEmail,
 			TestConstants.SeedPassword
 		);
@@ -685,12 +685,12 @@ public sealed class FindScheduledPublicationsForTenantSpec : IClassFixture<
 		// a 422 naming the cause.
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			$"{FindUrl}?from=2099-05-31T00%3A00%3A00Z"
+			$"{_FindUrl}?from=2099-05-31T00%3A00%3A00Z"
 			+ "&to=2099-07-01T00%3A00%3A00Z&limit=0"
 		)
 			.WithSessionToken(token)
 			.WithTenantId(tenantId);
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 
 		response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
 		var problem = await response.Content
@@ -700,8 +700,8 @@ public sealed class FindScheduledPublicationsForTenantSpec : IClassFixture<
 
 	[Fact]
 	public async Task ItShouldRejectANonNumericLimitWithAReadableCause() {
-		var tenantId = await GetAcmeIdAsync();
-		var token = await _authClient.LoginAsync(
+		var tenantId = await _GetAcmeIdAsync();
+		var token = await _AuthClient.LoginAsync(
 			TestConstants.AcmeAdminEmail,
 			TestConstants.SeedPassword
 		);
@@ -711,12 +711,12 @@ public sealed class FindScheduledPublicationsForTenantSpec : IClassFixture<
 		// generic middleware turns it into a 500 "Internal server error".
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			$"{FindUrl}?from=2099-05-31T00%3A00%3A00Z"
+			$"{_FindUrl}?from=2099-05-31T00%3A00%3A00Z"
 			+ "&to=2099-07-01T00%3A00%3A00Z&limit=abc"
 		)
 			.WithSessionToken(token)
 			.WithTenantId(tenantId);
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 
 		response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
 		var problem = await response.Content
@@ -726,15 +726,15 @@ public sealed class FindScheduledPublicationsForTenantSpec : IClassFixture<
 
 	[Fact]
 	public async Task ItShouldReturn400ForCursorWithForgedTimestamp() {
-		var tenantId = await GetAcmeIdAsync();
-		var token = await _authClient.LoginAsync(
+		var tenantId = await _GetAcmeIdAsync();
+		var token = await _AuthClient.LoginAsync(
 			TestConstants.AcmeAdminEmail,
 			TestConstants.SeedPassword
 		);
 		var storedInstant = new DateTime(
 			2099, 6, 15, 8, 0, 0, DateTimeKind.Utc
 		);
-		var seeded = await CreateScheduledRowAsync(
+		var seeded = await _CreateScheduledRowAsync(
 			tenantId,
 			"forged timestamp cursor target",
 			storedInstant
@@ -748,25 +748,25 @@ public sealed class FindScheduledPublicationsForTenantSpec : IClassFixture<
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			$"{FindUrl}?from=2099-05-31T00%3A00%3A00Z"
+			$"{_FindUrl}?from=2099-05-31T00%3A00%3A00Z"
 			+ $"&to=2099-07-01T00%3A00%3A00Z&cursor={cursor}"
 		)
 			.WithSessionToken(token)
 			.WithTenantId(tenantId);
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 
 		response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
 	}
 
 	[Fact]
 	public async Task ItShouldReturn400ForCursorOutsideWindow() {
-		var tenantId = await GetAcmeIdAsync();
-		var token = await _authClient.LoginAsync(
+		var tenantId = await _GetAcmeIdAsync();
+		var token = await _AuthClient.LoginAsync(
 			TestConstants.AcmeAdminEmail,
 			TestConstants.SeedPassword
 		);
 
-		var seeded = await CreateScheduledRowAsync(
+		var seeded = await _CreateScheduledRowAsync(
 			tenantId,
 			"cross-window cursor target",
 			new DateTime(2099, 6, 15, 8, 0, 0, DateTimeKind.Utc)
@@ -782,20 +782,20 @@ public sealed class FindScheduledPublicationsForTenantSpec : IClassFixture<
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			$"{FindUrl}?from=2099-07-01T00%3A00%3A00Z"
+			$"{_FindUrl}?from=2099-07-01T00%3A00%3A00Z"
 			+ $"&to=2099-08-01T00%3A00%3A00Z&cursor={cursor}"
 		)
 			.WithSessionToken(token)
 			.WithTenantId(tenantId);
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 
 		response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
 	}
 
 	[Fact]
 	public async Task ItShouldKeepACursorUsableWhenTheAnchorMovedToAStatusOutsideTheFilter() {
-		var tenantId = await GetAcmeIdAsync();
-		var token = await _authClient.LoginAsync(
+		var tenantId = await _GetAcmeIdAsync();
+		var token = await _AuthClient.LoginAsync(
 			TestConstants.AcmeAdminEmail,
 			TestConstants.SeedPassword
 		);
@@ -809,7 +809,7 @@ public sealed class FindScheduledPublicationsForTenantSpec : IClassFixture<
 		// anchor here would break the cursor as soon as the worker mutates
 		// the anchor's status out of InProgress/Paused.
 		var anchorInstant = new DateTime(2099, 5, 20, 8, 0, 0, DateTimeKind.Utc);
-		var seeded = await CreateScheduledRowAsync(
+		var seeded = await _CreateScheduledRowAsync(
 			tenantId,
 			"cross-status cursor target",
 			anchorInstant,
@@ -820,7 +820,7 @@ public sealed class FindScheduledPublicationsForTenantSpec : IClassFixture<
 		// returns a non-empty page. The follow-up is at +1 day relative to
 		// the window's FromUtc and would be skipped if the cursor were
 		// misinterpreted as FromUtc.
-		var followUp = await CreateScheduledRowAsync(
+		var followUp = await _CreateScheduledRowAsync(
 			tenantId,
 			"page 1 carryover",
 			new DateTime(2099, 6, 1, 10, 0, 0, DateTimeKind.Utc)
@@ -839,16 +839,16 @@ public sealed class FindScheduledPublicationsForTenantSpec : IClassFixture<
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			$"{FindUrl}?from=2099-05-31T00%3A00%3A00Z"
+			$"{_FindUrl}?from=2099-05-31T00%3A00%3A00Z"
 			+ $"&to=2099-07-01T00%3A00%3A00Z"
 			+ $"&status=scheduled,in_progress&cursor={cursor}"
 		)
 			.WithSessionToken(token)
 			.WithTenantId(tenantId);
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
-		var doc = await GetJsonAsync(response);
+		var doc = await _GetJsonAsync(response);
 		var data = doc.GetProperty("data");
 		data.ValueKind.Should().Be(JsonValueKind.Array);
 
@@ -863,20 +863,20 @@ public sealed class FindScheduledPublicationsForTenantSpec : IClassFixture<
 
 	[Fact]
 	public async Task ItShouldReturn400ForCursorPointingToDeletedPublication() {
-		var tenantId = await GetAcmeIdAsync();
-		var token = await _authClient.LoginAsync(
+		var tenantId = await _GetAcmeIdAsync();
+		var token = await _AuthClient.LoginAsync(
 			TestConstants.AcmeAdminEmail,
 			TestConstants.SeedPassword
 		);
 
-		var seeded = await CreateScheduledRowAsync(
+		var seeded = await _CreateScheduledRowAsync(
 			tenantId,
 			"deleted cursor target",
 			new DateTime(2099, 6, 22, 8, 0, 0, DateTimeKind.Utc)
 		);
 
 		// Soft-delete the seeded publication.
-		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
 		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 		_ = await db.Publication
 			.Where(p => p.Id == seeded.PublicationId)
@@ -893,12 +893,12 @@ public sealed class FindScheduledPublicationsForTenantSpec : IClassFixture<
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			$"{FindUrl}?from=2099-05-31T00%3A00%3A00Z"
+			$"{_FindUrl}?from=2099-05-31T00%3A00%3A00Z"
 			+ $"&to=2099-07-01T00%3A00%3A00Z&cursor={cursor}"
 		)
 			.WithSessionToken(token)
 			.WithTenantId(tenantId);
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 
 		response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
 	}

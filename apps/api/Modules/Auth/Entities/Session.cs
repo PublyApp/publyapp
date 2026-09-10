@@ -14,7 +14,7 @@ namespace PublyApp.Api.Modules.Auth.Entities;
 [Index(nameof(Token), IsUnique = true)]
 [Index(nameof(ExpiresAt), nameof(Id), Name = "ix_sessions_expires_at_id")]
 public class Session : INoTenantEntity {
-	private UserEntity? _user;
+	private UserEntity? _User;
 
 	[Key]
 	[Column("id")]
@@ -31,8 +31,8 @@ public class Session : INoTenantEntity {
 
 	[JsonIgnore]
 	public UserEntity User {
-		get { return RequiredNavigation.Get(_user, nameof(Session), nameof(User)); }
-		set { _user = value; }
+		get { return RequiredNavigation.Get(_User, nameof(Session), nameof(User)); }
+		set { _User = value; }
 	}
 
 	[Column("token")]

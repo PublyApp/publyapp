@@ -73,17 +73,17 @@ namespace PublyApp.Api.Lib.Architecture;
 /// </summary>
 public sealed partial class PublicationArchitectureSpec {
 	// The single legal writer, relative to apps/api/ with forward slashes.
-	private const string TransitionServiceRelativePath =
+	private const string _TransitionServiceRelativePath =
 		"Modules/Publishing/Services/PublicationStatusTransitionService.cs";
 
 	// One status write per Mark*/Reschedule* method (six today). Seeing fewer means
 	// the semantic walk collapsed and failed open — never trust an empty scan.
-	private const int MinimumSanctionedWrites = 6;
+	private const int _MinimumSanctionedWrites = 6;
 
 	// Test fixtures that CONSTRUCT publication rows with an initial status (seeding,
 	// not lifecycle mutation). Explicit paths, never a glob: planting a fourth file
 	// forces reconciliation here, and a file that stops writing leaves the baseline.
-	private static readonly HashSet<string> BaselineTestSeedFiles = new(
+	private static readonly HashSet<string> _BaselineTestSeedFiles = new(
 		StringComparer.Ordinal
 	) {
 		"Modules/Publishing/Services/PublicationQueueService.Spec.cs",
@@ -115,19 +115,19 @@ public sealed partial class PublicationArchitectureSpec {
 	// mutating a lifecycle (every later change MUST go through the transition
 	// service). Exact paths, never a glob; a file here that stops birth-seeding
 	// fails the relevance assertion below so the exemption ratchets down.
-	private static readonly HashSet<string> SanctionedBirthSeedFiles = new(
+	private static readonly HashSet<string> _SanctionedBirthSeedFiles = new(
 		StringComparer.Ordinal
 	) {
 		"Modules/Publishing/Services/PublicationService.cs",
 	};
 
-	private const string PublicationFullNamespace =
+	private const string _PublicationFullNamespace =
 		"PublyApp.Api.Modules.Publishing.Entities";
 
 	// The API project enables ImplicitUsings; parsed files carry their own usings,
 	// but global usings are not inherited from references, so the scan replicates
 	// the API project's generated set (PublyApp.Api.GlobalUsings.g.cs) verbatim.
-	private const string ImplicitUsingsSource = """
+	private const string _ImplicitUsingsSource = """
 		global using Microsoft.AspNetCore.Builder;
 		global using Microsoft.AspNetCore.Hosting;
 		global using Microsoft.AspNetCore.Http;
@@ -146,7 +146,7 @@ public sealed partial class PublicationArchitectureSpec {
 		global using System.Threading.Tasks;
 		""";
 
-	private static readonly CSharpParseOptions ScanParseOptions = new(
+	private static readonly CSharpParseOptions _ScanParseOptions = new(
 		languageVersion: LanguageVersion.Preview,
 		documentationMode: DocumentationMode.Parse
 	);
@@ -157,9 +157,9 @@ public sealed partial class PublicationArchitectureSpec {
 	// Duplicate simple names occur in test hosts (same assembly loaded twice), so
 	// resolution is a deterministic first-wins dictionary keyed by simple name.
 	private static readonly Lazy<IReadOnlyList<PortableExecutableReference>>
-		ScanReferences = new(BuildScanReferences);
+		_ScanReferences = new(_BuildScanReferences);
 
-	private static IReadOnlyList<PortableExecutableReference> BuildScanReferences() {
+	private static IReadOnlyList<PortableExecutableReference> _BuildScanReferences() {
 		var locations = new Dictionary<string, string>(StringComparer.Ordinal);
 
 		// Assemblies already loaded in the test host (packages, framework pieces
@@ -169,20 +169,20 @@ public sealed partial class PublicationArchitectureSpec {
 				continue;
 			}
 
-			AddAssemblyLocation(locations, assembly.GetName().Name, assembly.Location);
+			_AddAssemblyLocation(locations, assembly.GetName().Name, assembly.Location);
 		}
 
 		// A filtered test run may never have touched the ASP.NET Core stack, yet
 		// scanned production code binds against it (HttpContext and friends), so
 		// the shared frameworks are enumerated from disk next to the runtime.
-		foreach (var (name, path) in SharedFrameworkAssemblies()) {
-			AddAssemblyLocation(locations, name, path);
+		foreach (var (name, path) in _SharedFrameworkAssemblies()) {
+			_AddAssemblyLocation(locations, name, path);
 		}
 
 		// A filtered run also misses NuGet dependencies the host never touched
 		// (Quartz, Scalar, ...); the API build output carries them all on disk.
-		foreach (var (name, path) in ApiOutputAssemblies()) {
-			AddAssemblyLocation(locations, name, path);
+		foreach (var (name, path) in _ApiOutputAssemblies()) {
+			_AddAssemblyLocation(locations, name, path);
 		}
 
 		return locations.Values
@@ -190,7 +190,7 @@ public sealed partial class PublicationArchitectureSpec {
 			.ToList();
 	}
 
-	private static void AddAssemblyLocation(
+	private static void _AddAssemblyLocation(
 		Dictionary<string, string> locations,
 		string? name,
 		string location
@@ -211,7 +211,7 @@ public sealed partial class PublicationArchitectureSpec {
 	// AppContext.BaseDirectory ends in .artifacts/bin/PublyApp.Api.Tests/<cfg>/<tfm>;
 	// three levels up is .artifacts/bin, whose PublyApp.Api subtree holds the API
 	// binaries plus every NuGet dependency the filtered run may not have loaded.
-	private static IEnumerable<(string Name, string Path)> ApiOutputAssemblies() {
+	private static IEnumerable<(string Name, string Path)> _ApiOutputAssemblies() {
 		var binRoot = Path.GetFullPath(
 			Path.Combine(AppContext.BaseDirectory, "..", "..", "..")
 		);
@@ -237,7 +237,7 @@ public sealed partial class PublicationArchitectureSpec {
 		}
 	}
 
-	private static IEnumerable<(string Name, string Path)> SharedFrameworkAssemblies() {
+	private static IEnumerable<(string Name, string Path)> _SharedFrameworkAssemblies() {
 		var coreLib = typeof(object).Assembly.Location;
 		var netCoreDir = Path.GetDirectoryName(coreLib);
 		if (netCoreDir is null || !Directory.Exists(netCoreDir)) {
@@ -287,7 +287,7 @@ public sealed partial class PublicationArchitectureSpec {
 		}
 	}
 
-	private static readonly HashSet<SyntaxKind> SqlStringTokenKinds = [
+	private static readonly HashSet<SyntaxKind> _SqlStringTokenKinds = [
 		SyntaxKind.StringLiteralToken,
 		SyntaxKind.Utf8StringLiteralToken,
 		SyntaxKind.SingleLineRawStringLiteralToken,
@@ -388,8 +388,8 @@ public sealed partial class PublicationArchitectureSpec {
 
 	[Fact]
 	public void ItShouldLetOnlyTheTransitionServiceWritePublicationStatus() {
-		var apiRoot = FindApiRoot();
-		var sources = EnumerateApiSourceFiles(apiRoot);
+		var apiRoot = _FindApiRoot();
+		var sources = _EnumerateApiSourceFiles(apiRoot);
 
 		_ = sources.Should().NotBeEmpty(
 			"an empty scan must never pass: a vacuous enumeration would silently "
@@ -397,23 +397,23 @@ public sealed partial class PublicationArchitectureSpec {
 		);
 
 		_ = sources.Should().Contain(
-			source => source.RelativePath == TransitionServiceRelativePath,
+			source => source.RelativePath == _TransitionServiceRelativePath,
 			"the sanctioned single writer {0} must exist; if it moved or was deleted, "
 				+ "reconcile this guard instead of letting the scan pass without it",
-			TransitionServiceRelativePath
+			_TransitionServiceRelativePath
 		);
 
-		var scan = ScanForPublicationStatusWriters(sources);
+		var scan = _ScanForPublicationStatusWriters(sources);
 
 		_ = scan.SanctionedWrites.Should().BeGreaterThanOrEqualTo(
-			MinimumSanctionedWrites,
+			_MinimumSanctionedWrites,
 			"the transition service owns one status write per Mark*/Reschedule* "
 				+ $"method (six today); a smaller count means the semantic walk "
 				+ "collapsed (missing references or usings) and failed open — "
 				+ "reconcile the scan harness instead of trusting an empty result"
 		);
 
-		var staleBaselines = BaselineTestSeedFiles
+		var staleBaselines = _BaselineTestSeedFiles
 			.Where(path => !scan.WritesByFile.ContainsKey(path))
 			.OrderBy(path => path, StringComparer.Ordinal)
 			.ToList();
@@ -424,7 +424,7 @@ public sealed partial class PublicationArchitectureSpec {
 			string.Join("\n", staleBaselines)
 		);
 
-		var staleBirthSeeds = SanctionedBirthSeedFiles
+		var staleBirthSeeds = _SanctionedBirthSeedFiles
 			.Where(path => scan.BirthSeedsByFile.GetValueOrDefault(path) < 1)
 			.OrderBy(path => path, StringComparer.Ordinal)
 			.ToList();
@@ -448,7 +448,7 @@ public sealed partial class PublicationArchitectureSpec {
 	// attribution, and reads / foreign-type writes must stay clean.
 	[Fact]
 	public void ItShouldDiscriminateEveryWriterShapeInTheDetectorItself() {
-		var apiRoot = FindApiRoot();
+		var apiRoot = _FindApiRoot();
 		const string publicationPath = "Modules/Publishing/Entities/Publication.cs";
 		var publicationSource = File.ReadAllText(
 			Path.Combine(apiRoot, "Modules", "Publishing", "Entities", "Publication.cs")
@@ -492,7 +492,7 @@ public sealed partial class PublicationArchitectureSpec {
 				(publicationPath, publicationSource),
 				($"Probe/{shape}.cs", Wrap(body)),
 			};
-			var scan = ScanForPublicationStatusWriters(sources);
+			var scan = _ScanForPublicationStatusWriters(sources);
 			var expectedPrefix = $"Probe/{shape}.cs:";
 			scan.RogueWriters.Should().HaveCount(
 				1,
@@ -520,7 +520,7 @@ public sealed partial class PublicationArchitectureSpec {
 				(publicationPath, publicationSource),
 				($"Probe/{shape}.cs", Wrap(body)),
 			};
-			var scan = ScanForPublicationStatusWriters(sources);
+			var scan = _ScanForPublicationStatusWriters(sources);
 			scan.RogueWriters.Should().BeEmpty(
 				$"detector must not flag the {shape} shape; got: "
 					+ string.Join(" | ", scan.RogueWriters)
@@ -535,10 +535,10 @@ public sealed partial class PublicationArchitectureSpec {
 		IReadOnlyDictionary<string, int> BirthSeedsByFile
 	);
 
-	private static StatusWriterScan ScanForPublicationStatusWriters(
+	private static StatusWriterScan _ScanForPublicationStatusWriters(
 		IReadOnlyList<(string RelativePath, string Source)> sources
 	) {
-		var compilation = BuildScanCompilation(sources);
+		var compilation = _BuildScanCompilation(sources);
 		var rogue = new List<string>();
 		var writesByFile = new Dictionary<string, int>(StringComparer.Ordinal);
 		var birthSeedsByFile = new Dictionary<string, int>(StringComparer.Ordinal);
@@ -556,7 +556,7 @@ public sealed partial class PublicationArchitectureSpec {
 			// how the source is formatted across lines.
 			foreach (var assignment in root.DescendantNodes()
 						.OfType<AssignmentExpressionSyntax>()) {
-				ClassifyAssignment(
+				_ClassifyAssignment(
 					assignment,
 					model,
 					relativePath,
@@ -568,7 +568,7 @@ public sealed partial class PublicationArchitectureSpec {
 
 			foreach (var invocation in root.DescendantNodes()
 						.OfType<InvocationExpressionSyntax>()) {
-				ClassifySetPropertyInvocation(
+				_ClassifySetPropertyInvocation(
 					invocation,
 					model,
 					relativePath,
@@ -593,11 +593,11 @@ public sealed partial class PublicationArchitectureSpec {
 			}
 
 			foreach (var token in root.DescendantTokens()) {
-				if (!SqlStringTokenKinds.Contains(token.Kind())) {
+				if (!_SqlStringTokenKinds.Contains(token.Kind())) {
 					continue;
 				}
 
-				var match = RawSqlPublicationUpdate().Match(token.ValueText);
+				var match = _RawSqlPublicationUpdate().Match(token.ValueText);
 				if (!match.Success) {
 					continue;
 				}
@@ -611,7 +611,7 @@ public sealed partial class PublicationArchitectureSpec {
 		}
 
 		var sanctioned = writesByFile.TryGetValue(
-			TransitionServiceRelativePath,
+			_TransitionServiceRelativePath,
 			out var count
 		)
 			? count
@@ -624,33 +624,33 @@ public sealed partial class PublicationArchitectureSpec {
 		);
 	}
 
-	private static Compilation BuildScanCompilation(
+	private static Compilation _BuildScanCompilation(
 		IReadOnlyList<(string RelativePath, string Source)> sources
 	) {
 		var trees = new List<SyntaxTree>(sources.Count + 1);
 		foreach (var (relativePath, source) in sources) {
 			trees.Add(CSharpSyntaxTree.ParseText(
 				source,
-				ScanParseOptions,
+				_ScanParseOptions,
 				path: relativePath
 			));
 		}
 
 		trees.Add(CSharpSyntaxTree.ParseText(
-			ImplicitUsingsSource,
-			ScanParseOptions,
+			_ImplicitUsingsSource,
+			_ScanParseOptions,
 			path: "<replicated-global-usings>"
 		));
 
 		return CSharpCompilation.Create(
 			"PublicationStatusWriterScan",
 			trees,
-			ScanReferences.Value,
+			_ScanReferences.Value,
 			new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary)
 		);
 	}
 
-	private static void ClassifyAssignment(
+	private static void _ClassifyAssignment(
 		AssignmentExpressionSyntax assignment,
 		SemanticModel model,
 		string relativePath,
@@ -661,7 +661,7 @@ public sealed partial class PublicationArchitectureSpec {
 		var info = model.GetSymbolInfo(assignment.Left);
 
 		if (info.Symbol is IPropertySymbol direct) {
-			ClassifyResolvedTarget(
+			_ClassifyResolvedTarget(
 				direct,
 				assignment,
 				model,
@@ -675,7 +675,7 @@ public sealed partial class PublicationArchitectureSpec {
 
 		foreach (var candidate in info.CandidateSymbols) {
 			if (candidate is IPropertySymbol property) {
-				ClassifyResolvedTarget(
+				_ClassifyResolvedTarget(
 					property,
 					assignment,
 					model,
@@ -698,17 +698,17 @@ public sealed partial class PublicationArchitectureSpec {
 			// A member access that refuses to bind is guilty until explained: a
 			// degraded scan must fail closed, never silently pass.
 			rogue.Add(
-				$"{relativePath}:{LineOf(assignment)}: {SnippetOf(assignment)} "
+				$"{relativePath}:{_LineOf(assignment)}: {_SnippetOf(assignment)} "
 					+ "[unresolved member-access write target — the scan could not "
 					+ "bind this assignment, so it is treated as rogue until explained]"
 			);
 		}
 		// Unresolved simple identifiers are plain local/parameter stores; they
 		// cannot hide a property write, and a wholesale binding collapse is caught
-		// by the MinimumSanctionedWrites floor instead.
+		// by the _MinimumSanctionedWrites floor instead.
 	}
 
-	private static void ClassifyResolvedTarget(
+	private static void _ClassifyResolvedTarget(
 		IPropertySymbol property,
 		SyntaxNode writeSite,
 		SemanticModel model,
@@ -718,23 +718,23 @@ public sealed partial class PublicationArchitectureSpec {
 		List<string> rogue,
 		string suffixNote = ""
 	) {
-		if (!IsPublicationStatusProperty(property)) {
+		if (!_IsPublicationStatusProperty(property)) {
 			return;
 		}
 
-		RecordWrite(
+		_RecordWrite(
 			writeSite,
 			model,
 			relativePath,
-			LineOf(writeSite),
-			SnippetOf(writeSite) + suffixNote,
+			_LineOf(writeSite),
+			_SnippetOf(writeSite) + suffixNote,
 			writesByFile,
 			birthSeedsByFile,
 			rogue
 		);
 	}
 
-	private static void ClassifySetPropertyInvocation(
+	private static void _ClassifySetPropertyInvocation(
 		InvocationExpressionSyntax invocation,
 		SemanticModel model,
 		string relativePath,
@@ -765,14 +765,14 @@ public sealed partial class PublicationArchitectureSpec {
 				continue;
 			}
 
-			if (UnwrapNode(lambda.Body)
+			if (_UnwrapNode(lambda.Body)
 				is not MemberAccessExpressionSyntax memberAccess) {
 				continue;
 			}
 
 			var info = model.GetSymbolInfo(memberAccess);
 			if (info.Symbol is IPropertySymbol seamTarget) {
-				ClassifyResolvedTarget(
+				_ClassifyResolvedTarget(
 					seamTarget,
 					invocation,
 					model,
@@ -785,15 +785,15 @@ public sealed partial class PublicationArchitectureSpec {
 			} else if (info.Symbol is null
 				&& info.CandidateSymbols.Length == 0) {
 				rogue.Add(
-					$"{relativePath}:{LineOf(invocation)}: "
-						+ $"{SnippetOf(invocation)} [unresolved ExecuteUpdate "
+					$"{relativePath}:{_LineOf(invocation)}: "
+						+ $"{_SnippetOf(invocation)} [unresolved ExecuteUpdate "
 						+ "SetProperty seam — treated as rogue until explained]"
 				);
 			}
 		}
 	}
 
-	private static void RecordWrite(
+	private static void _RecordWrite(
 		SyntaxNode writeSite,
 		SemanticModel model,
 		string relativePath,
@@ -807,10 +807,10 @@ public sealed partial class PublicationArchitectureSpec {
 		// birth file is the row's initial INSERT value, not a lifecycle mutation.
 		// The semantic check binds the created type to the real Publication entity,
 		// so a lookalike class cannot borrow the exemption.
-		if (SanctionedBirthSeedFiles.Contains(relativePath)
+		if (_SanctionedBirthSeedFiles.Contains(relativePath)
 			&& writeSite.Ancestors()
 				.OfType<ObjectCreationExpressionSyntax>()
-				.Any(creation => IsPublicationCreation(creation, model))) {
+				.Any(creation => _IsPublicationCreation(creation, model))) {
 			birthSeedsByFile[relativePath] =
 				birthSeedsByFile.GetValueOrDefault(relativePath) + 1;
 			return;
@@ -820,20 +820,20 @@ public sealed partial class PublicationArchitectureSpec {
 
 		if (string.Equals(
 				relativePath,
-				TransitionServiceRelativePath,
+				_TransitionServiceRelativePath,
 				StringComparison.Ordinal
 			)) {
 			return;
 		}
 
-		if (BaselineTestSeedFiles.Contains(relativePath)) {
+		if (_BaselineTestSeedFiles.Contains(relativePath)) {
 			return;
 		}
 
 		rogue.Add($"{relativePath}:{line}: {snippet}");
 	}
 
-	private static bool IsPublicationCreation(
+	private static bool _IsPublicationCreation(
 		ObjectCreationExpressionSyntax creation,
 		SemanticModel model
 	) {
@@ -841,17 +841,17 @@ public sealed partial class PublicationArchitectureSpec {
 		return info.Type is INamedTypeSymbol created
 			&& created.Name == "Publication"
 			&& created.OriginalDefinition.ContainingNamespace.ToDisplayString()
-				== PublicationFullNamespace;
+				== _PublicationFullNamespace;
 	}
 
-	private static bool IsPublicationStatusProperty(IPropertySymbol property) {
+	private static bool _IsPublicationStatusProperty(IPropertySymbol property) {
 		return property.Name == "Status"
 			&& property.ContainingType.Name == "Publication"
 			&& property.ContainingType.OriginalDefinition.ContainingNamespace
-				.ToDisplayString() == PublicationFullNamespace;
+				.ToDisplayString() == _PublicationFullNamespace;
 	}
 
-	private static CSharpSyntaxNode UnwrapNode(CSharpSyntaxNode node) {
+	private static CSharpSyntaxNode _UnwrapNode(CSharpSyntaxNode node) {
 		var current = node;
 		while (current is ParenthesizedExpressionSyntax parenthesised) {
 			current = parenthesised.Expression;
@@ -864,31 +864,31 @@ public sealed partial class PublicationArchitectureSpec {
 		return current;
 	}
 
-	private static int LineOf(SyntaxNode node) {
+	private static int _LineOf(SyntaxNode node) {
 		return node.GetLocation().GetLineSpan().StartLinePosition.Line + 1;
 	}
 
-	private static string SnippetOf(SyntaxNode node) {
-		var flattened = WhitespaceRun().Replace(node.ToString(), " ").Trim();
+	private static string _SnippetOf(SyntaxNode node) {
+		var flattened = _WhitespaceRun().Replace(node.ToString(), " ").Trim();
 		return flattened.Length <= 140 ? flattened : flattened[..140] + "…";
 	}
 
 	private static IReadOnlyList<(string RelativePath, string Source)>
-		EnumerateApiSourceFiles(string apiRoot) {
+		_EnumerateApiSourceFiles(string apiRoot) {
 		var sources = Directory
 			.EnumerateFiles(apiRoot, "*.cs", SearchOption.AllDirectories)
 			.Select(path => (
 				FullPath: path,
 				RelativePath: Path.GetRelativePath(apiRoot, path).Replace('\\', '/')
 			))
-			.Where(entry => !IsGeneratedOutput(entry.RelativePath))
+			.Where(entry => !_IsGeneratedOutput(entry.RelativePath))
 			.OrderBy(entry => entry.RelativePath, StringComparer.Ordinal)
 			.Select(entry => (entry.RelativePath, File.ReadAllText(entry.FullPath)))
 			.ToList();
 		return sources;
 	}
 
-	private static bool IsGeneratedOutput(string relativePath) {
+	private static bool _IsGeneratedOutput(string relativePath) {
 		return relativePath.StartsWith("bin/", StringComparison.Ordinal)
 			|| relativePath.StartsWith("obj/", StringComparison.Ordinal)
 			|| relativePath.StartsWith(".artifacts/", StringComparison.Ordinal)
@@ -899,7 +899,7 @@ public sealed partial class PublicationArchitectureSpec {
 
 	// The test assembly runs from apps/api/.artifacts/bin/...; walk up until the
 	// directory containing PublyApp.Api.csproj (the apps/api root).
-	private static string FindApiRoot() {
+	private static string _FindApiRoot() {
 		var directory = new DirectoryInfo(AppContext.BaseDirectory);
 		while (directory is not null) {
 			if (File.Exists(
@@ -925,7 +925,7 @@ public sealed partial class PublicationArchitectureSpec {
 	// contract readable at the mapping site (plan D2 Task 5 fact a).
 	[Fact]
 	public void ItShouldKeepEveryPublishingEndpointPermissionedAndRateLimited() {
-		var apiRoot = FindApiRoot();
+		var apiRoot = _FindApiRoot();
 		var endpointsRoot = Path.Combine(
 			apiRoot, "Modules", "Publishing", "Endpoints"
 		);
@@ -938,11 +938,11 @@ public sealed partial class PublicationArchitectureSpec {
 		var offenders = new List<string>();
 		var scannedAny = false;
 
-		foreach (var file in EnumerateSourceFiles(endpointsRoot)) {
+		foreach (var file in _EnumerateSourceFiles(endpointsRoot)) {
 			scannedAny = true;
 			var relative = Path.GetRelativePath(apiRoot, file).Replace('\\', '/');
 			var text = File.ReadAllText(file);
-			var segments = SplitIntoMappingSegments(text);
+			var segments = _SplitIntoMappingSegments(text);
 
 			foreach (var (startLine, segment) in segments) {
 				if (!segment.Contains(
@@ -974,7 +974,7 @@ public sealed partial class PublicationArchitectureSpec {
 		// Publishing module that maps a handler from the Publishing namespace must
 		// carry the same on-chain rate-limit + tenant-permission metadata.
 		foreach (var (relative, startLine, segment) in
-			PublishingMappingsOutsideTheModule(apiRoot)) {
+			_PublishingMappingsOutsideTheModule(apiRoot)) {
 			scannedAny = true;
 
 			if (!segment.Contains(
@@ -1016,7 +1016,7 @@ public sealed partial class PublicationArchitectureSpec {
 	// follow the PostTenantCrud.Spec precedent).
 	[Fact]
 	public void ItShouldKeepDbContextOutOfPublishingHandlers() {
-		var apiRoot = FindApiRoot();
+		var apiRoot = _FindApiRoot();
 		var handlersRoot = Path.Combine(
 			apiRoot, "Modules", "Publishing", "Handlers"
 		);
@@ -1026,7 +1026,7 @@ public sealed partial class PublicationArchitectureSpec {
 				+ "this guard"
 		);
 
-		var offenders = EnumerateSourceFiles(handlersRoot)
+		var offenders = _EnumerateSourceFiles(handlersRoot)
 			.Where(file => !file.EndsWith(".Spec.cs", StringComparison.Ordinal))
 			.Select(file => (
 				Relative: Path.GetRelativePath(apiRoot, file).Replace('\\', '/'),
@@ -1051,7 +1051,7 @@ public sealed partial class PublicationArchitectureSpec {
 	// slice forbids (plan D2 Task 5 fact c).
 	[Fact]
 	public void ItShouldKeepPublishNowServiceOnInfrastructureDependenciesOnly() {
-		var apiRoot = FindApiRoot();
+		var apiRoot = _FindApiRoot();
 		var serviceFile = Path.Combine(
 			apiRoot,
 			"Modules",
@@ -1061,7 +1061,7 @@ public sealed partial class PublicationArchitectureSpec {
 		);
 		var text = File.ReadAllText(serviceFile);
 
-		var match = CtorParameterList().Match(text);
+		var match = _CtorParameterList().Match(text);
 		_ = match.Success.Should().BeTrue(
 			"PublishNowService must declare an explicit constructor"
 		);
@@ -1086,9 +1086,9 @@ public sealed partial class PublicationArchitectureSpec {
 	// dependency-free; the segment boundaries come from the same splitter the
 	// in-module walk uses.
 	private static IEnumerable<(string RelativePath, int StartLine, string Segment)>
-		PublishingMappingsOutsideTheModule(string apiRoot) {
+		_PublishingMappingsOutsideTheModule(string apiRoot) {
 		var modulesRoot = Path.Combine(apiRoot, "Modules");
-		foreach (var file in EnumerateSourceFiles(modulesRoot)) {
+		foreach (var file in _EnumerateSourceFiles(modulesRoot)) {
 			var relative = Path.GetRelativePath(apiRoot, file).Replace('\\', '/');
 			if (relative.StartsWith("Modules/Publishing/", StringComparison.Ordinal)) {
 				continue;
@@ -1100,7 +1100,7 @@ public sealed partial class PublicationArchitectureSpec {
 			}
 
 			var text = File.ReadAllText(file);
-			foreach (var (startLine, segment) in SplitIntoMappingSegments(text)) {
+			foreach (var (startLine, segment) in _SplitIntoMappingSegments(text)) {
 				if (segment.Contains(
 						"PublyApp.Api.Modules.Publishing.Handlers",
 						StringComparison.Ordinal
@@ -1111,7 +1111,7 @@ public sealed partial class PublicationArchitectureSpec {
 		}
 	}
 
-	private static IEnumerable<string> EnumerateSourceFiles(string root) {
+	private static IEnumerable<string> _EnumerateSourceFiles(string root) {
 		return Directory
 			.EnumerateFiles(root, "*.cs", SearchOption.AllDirectories)
 			.Where(file => !file.Contains(
@@ -1125,8 +1125,8 @@ public sealed partial class PublicationArchitectureSpec {
 	}
 
 	private static IReadOnlyList<(int StartLine, string Segment)>
-		SplitIntoMappingSegments(string text) {
-		var pattern = EndpointMapping();
+		_SplitIntoMappingSegments(string text) {
+		var pattern = _EndpointMapping();
 		var segments = new List<(int StartLine, string Segment)>();
 		var matches = pattern.Matches(text);
 		for (var index = 0; index < matches.Count; index++) {
@@ -1142,20 +1142,20 @@ public sealed partial class PublicationArchitectureSpec {
 	}
 
 	[GeneratedRegex(@"\bMap(?:Get|Post|Patch|Delete|Put)\s*\(")]
-	private static partial Regex EndpointMapping();
+	private static partial Regex _EndpointMapping();
 
 	[GeneratedRegex(
 		@"public\s+PublishNowService\s*\(([^)]*)\)",
 		RegexOptions.Singleline
 	)]
-	private static partial Regex CtorParameterList();
+	private static partial Regex _CtorParameterList();
 
 	[GeneratedRegex(
 		@"\bUPDATE\s+(?:ONLY\s+)?""?publications""?\b",
 		RegexOptions.IgnoreCase
 	)]
-	private static partial Regex RawSqlPublicationUpdate();
+	private static partial Regex _RawSqlPublicationUpdate();
 
 	[GeneratedRegex(@"\s+")]
-	private static partial Regex WhitespaceRun();
+	private static partial Regex _WhitespaceRun();
 }

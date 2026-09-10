@@ -22,11 +22,11 @@ namespace PublyApp.Api.Lib.Architecture;
 /// regression is caught in the suite instead of only by the gate it would disarm.
 /// </summary>
 public sealed class OpenApiDriftGateGuardSpec {
-	private const string ApiCsprojRelativePath = "apps/api/PublyApp.Api.csproj";
+	private const string _ApiCsprojRelativePath = "apps/api/PublyApp.Api.csproj";
 
 	[Fact]
 	public void ItShouldKeepOpenApiGenerationOnForTheDriftGate() {
-		var csproj = ReadApiCsproj();
+		var csproj = _ReadApiCsproj();
 
 		csproj.Should().Contain(
 			"<OpenApiGenerateDocuments>true</OpenApiGenerateDocuments>",
@@ -45,9 +45,9 @@ public sealed class OpenApiDriftGateGuardSpec {
 		);
 	}
 
-	private static string ReadApiCsproj() {
-		var repoRoot = FindRepoRoot();
-		var path = Path.Combine(repoRoot, ApiCsprojRelativePath);
+	private static string _ReadApiCsproj() {
+		var repoRoot = _FindRepoRoot();
+		var path = Path.Combine(repoRoot, _ApiCsprojRelativePath);
 
 		File.Exists(path).Should().BeTrue(
 			"the API project file moved — reconcile the guard path, do not let the "
@@ -57,7 +57,7 @@ public sealed class OpenApiDriftGateGuardSpec {
 		return File.ReadAllText(path);
 	}
 
-	private static string FindRepoRoot() {
+	private static string _FindRepoRoot() {
 		var current = new DirectoryInfo(AppContext.BaseDirectory);
 
 		while (current is not null) {

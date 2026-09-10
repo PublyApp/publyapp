@@ -19,15 +19,15 @@ namespace PublyApp.Api.Lib.Testing.Fakes {
 	public sealed class FakeEmailSender : IEmailSender {
 		public sealed record SentEmail(EmailRequest Request, string? IdempotencyKey, string MessageId);
 
-		private readonly ConcurrentQueue<SentEmail> _sent = new();
+		private readonly ConcurrentQueue<SentEmail> _Sent = new();
 
 		public IReadOnlyCollection<EmailRequest> SentEmails {
-			get { return _sent.Select(s => s.Request).ToList(); }
+			get { return _Sent.Select(s => s.Request).ToList(); }
 		}
 
 		/// <summary>The full send records (request + idempotency key + returned message id).</summary>
 		public IReadOnlyCollection<SentEmail> Sends {
-			get { return _sent.ToList(); }
+			get { return _Sent.ToList(); }
 		}
 
 		/// <summary>
@@ -50,7 +50,7 @@ namespace PublyApp.Api.Lib.Testing.Fakes {
 			}
 
 			var messageId = Guid.NewGuid().ToString();
-			_sent.Enqueue(new SentEmail(request, idempotencyKey, messageId));
+			_Sent.Enqueue(new SentEmail(request, idempotencyKey, messageId));
 
 			return new EmailSendReceipt(messageId);
 		}
@@ -63,13 +63,13 @@ namespace PublyApp.Api.Lib.Testing.Fakes {
 		/// wants to discard an earlier phase of its own multi-step scenario.
 		/// </summary>
 		public void Clear() {
-			_sent.Clear();
+			_Sent.Clear();
 		}
 
 		/// <summary>Returns all captured emails and clears the queue.</summary>
 		public IReadOnlyList<EmailRequest> DrainAll() {
-			var snapshot = _sent.Select(s => s.Request).ToList();
-			_sent.Clear();
+			var snapshot = _Sent.Select(s => s.Request).ToList();
+			_Sent.Clear();
 			return snapshot;
 		}
 	}

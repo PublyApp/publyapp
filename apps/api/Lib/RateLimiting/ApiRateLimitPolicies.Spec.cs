@@ -11,15 +11,15 @@ using Xunit;
 namespace PublyApp.Api.Lib.RateLimiting;
 
 public sealed class ApiRateLimitPoliciesSpec {
-	private const int LongWindowSeconds = 3_600;
+	private const int _LongWindowSeconds = 3_600;
 
 	[Fact]
 	public void ItShouldIgnoreUnvalidatedSessionTokenHeaders() {
-		var firstContext = CreateContext(
+		var firstContext = _CreateContext(
 			"forged-session-token",
 			"203.0.113.60"
 		);
-		var otherContext = CreateContext(
+		var otherContext = _CreateContext(
 			"other-forged-session-token",
 			"203.0.113.60"
 		);
@@ -41,7 +41,7 @@ public sealed class ApiRateLimitPoliciesSpec {
 	[Fact]
 	public async Task ItShouldKeepAuthenticatedSessionPartitionsIndependent() {
 		await using var store = new ApiRateLimiterStore(
-			CreateSettings(authenticatedPermitLimit: 1),
+			_CreateSettings(authenticatedPermitLimit: 1),
 			new MemoryRateLimitCounterStore()
 		);
 
@@ -66,7 +66,7 @@ public sealed class ApiRateLimitPoliciesSpec {
 	[Fact]
 	public async Task ItShouldReplenishAndBecomeEvictableAfterTheWindow() {
 		await using var store = new ApiRateLimiterStore(
-			CreateSettings(
+			_CreateSettings(
 				authenticatedPermitLimit: 1,
 				authenticatedWindowSeconds: 1
 			),
@@ -96,7 +96,7 @@ public sealed class ApiRateLimitPoliciesSpec {
 	[Fact]
 	public async Task ItShouldShareTheTenantBulkLimitAcrossSessions() {
 		await using var store = new ApiRateLimiterStore(
-			CreateSettings(
+			_CreateSettings(
 				bulkPermitLimit: 10,
 				tenantBulkPermitLimit: 2
 			),
@@ -141,22 +141,22 @@ public sealed class ApiRateLimitPoliciesSpec {
 
 	[Fact]
 	public async Task ItShouldApplyTheGlobalFloorByIpAndExcludeInfrastructurePaths() {
-		var settings = CreateSettings(
+		var settings = _CreateSettings(
 			globalPermitLimit: 1
 		);
 		await using var store = new ApiRateLimiterStore(
 			settings,
 			new MemoryRateLimitCounterStore()
 		);
-		var firstContext = CreateIpContext(
+		var firstContext = _CreateIpContext(
 			"203.0.113.50",
 			"/global-only"
 		);
-		var sameIpContext = CreateIpContext(
+		var sameIpContext = _CreateIpContext(
 			"203.0.113.50",
 			"/global-only"
 		);
-		var otherIpContext = CreateIpContext(
+		var otherIpContext = _CreateIpContext(
 			"203.0.113.51",
 			"/global-only"
 		);
@@ -184,19 +184,19 @@ public sealed class ApiRateLimitPoliciesSpec {
 		rejectedLease.IsAcquired.Should().BeFalse();
 		independentLease.IsAcquired.Should().BeTrue();
 		GlobalRateLimitMiddleware.IsExcluded(
-			CreateIpContext(
+			_CreateIpContext(
 				"203.0.113.50",
 				"/files/logo.png"
 			)
 		).Should().BeTrue();
 		GlobalRateLimitMiddleware.IsExcluded(
-			CreateIpContext(
+			_CreateIpContext(
 				"203.0.113.50",
 				"/health/ready"
 			)
 		).Should().BeTrue();
 		GlobalRateLimitMiddleware.IsExcluded(
-			CreateIpContext(
+			_CreateIpContext(
 				"203.0.113.50",
 				"/health/not-real"
 			)
@@ -296,7 +296,7 @@ public sealed class ApiRateLimitPoliciesSpec {
 		aggregate.RejectionCount.Should().Be(3);
 	}
 
-	private static DefaultHttpContext CreateContext(
+	private static DefaultHttpContext _CreateContext(
 		string sessionToken,
 		string clientIp
 	) {
@@ -309,7 +309,7 @@ public sealed class ApiRateLimitPoliciesSpec {
 		return context;
 	}
 
-	private static DefaultHttpContext CreateIpContext(
+	private static DefaultHttpContext _CreateIpContext(
 		string clientIp,
 		string path
 	) {
@@ -320,22 +320,22 @@ public sealed class ApiRateLimitPoliciesSpec {
 		return context;
 	}
 
-	private static ApiRateLimitSettings CreateSettings(
+	private static ApiRateLimitSettings _CreateSettings(
 		int globalPermitLimit = 100,
 		int authenticatedPermitLimit = 100,
-		int authenticatedWindowSeconds = LongWindowSeconds,
+		int authenticatedWindowSeconds = _LongWindowSeconds,
 		int bulkPermitLimit = 100,
 		int tenantBulkPermitLimit = 100
 	) {
 		var generous = new RateLimitWindowSettings(
 			100,
-			LongWindowSeconds
+			_LongWindowSeconds
 		);
 
 		return new ApiRateLimitSettings(
 			Global: new RateLimitWindowSettings(
 				globalPermitLimit,
-				LongWindowSeconds
+				_LongWindowSeconds
 			),
 			AnonymousOther: generous,
 			Authenticated: new RateLimitWindowSettings(
@@ -345,11 +345,11 @@ public sealed class ApiRateLimitPoliciesSpec {
 			HeavySearch: generous,
 			Bulk: new RateLimitWindowSettings(
 				bulkPermitLimit,
-				LongWindowSeconds
+				_LongWindowSeconds
 			),
 			TenantBulk: new RateLimitWindowSettings(
 				tenantBulkPermitLimit,
-				LongWindowSeconds
+				_LongWindowSeconds
 			),
 			Email: generous,
 			TenantEmail: generous,
@@ -401,7 +401,7 @@ public sealed class ApiRateLimitPoliciesSpec {
 	}
 
 	private sealed class ManualTimeProvider : TimeProvider {
-		private long _timestamp;
+		private long _Timestamp;
 
 		public override long TimestampFrequency {
 			get {
@@ -410,11 +410,11 @@ public sealed class ApiRateLimitPoliciesSpec {
 		}
 
 		public override long GetTimestamp() {
-			return _timestamp;
+			return _Timestamp;
 		}
 
 		public void Advance(TimeSpan duration) {
-			_timestamp += duration.Ticks;
+			_Timestamp += duration.Ticks;
 		}
 	}
 }

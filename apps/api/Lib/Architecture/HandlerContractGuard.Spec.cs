@@ -127,7 +127,7 @@ public sealed class HandlerContractGuardSpec {
 		);
 
 		List<string> offenders = entrypoints
-			.SelectMany(FindDbContextDependencies)
+			.SelectMany(_FindDbContextDependencies)
 			.OrderBy(name => name, StringComparer.Ordinal)
 			.ToList();
 
@@ -164,7 +164,7 @@ public sealed class HandlerContractGuardSpec {
 				// emits a state machine (<Handle>d__N) and lambdas emit display
 				// classes (<>c) as NonPublic nested types. They are not authored
 				// contract/validator types and must not be flagged.
-				.Where(nested => !IsCompilerGenerated(nested))
+				.Where(nested => !_IsCompilerGenerated(nested))
 				.Select(nested => $"{type.FullName}+{nested.Name}"))
 			.OrderBy(name => name, StringComparer.Ordinal)
 			.ToList();
@@ -200,9 +200,9 @@ public sealed class HandlerContractGuardSpec {
 				Validator: validator,
 				Target: ArchitectureDiscovery.GetValidatorTarget(validator)
 			))
-			.Where(pair => !IsValidValidatorTarget(pair.Validator, pair.Target))
+			.Where(pair => !_IsValidValidatorTarget(pair.Validator, pair.Target))
 			.Select(pair =>
-				$"{pair.Validator.Name} -> {DescribeTarget(pair.Target)}")
+				$"{pair.Validator.Name} -> {_DescribeTarget(pair.Target)}")
 			.OrderBy(name => name, StringComparer.Ordinal)
 			.ToList();
 
@@ -222,10 +222,10 @@ public sealed class HandlerContractGuardSpec {
 	// Other public methods are intentionally not scanned — they are not part of the
 	// Minimal-API contract and a non-Handle method that happens to accept a DbContext
 	// parameter would be a separate, unrelated design smell.
-	private static IEnumerable<string> FindDbContextDependencies(Type type) {
+	private static IEnumerable<string> _FindDbContextDependencies(Type type) {
 		foreach (var constructor in type.GetConstructors()) {
 			foreach (var parameter in constructor.GetParameters()) {
-				if (IsDbContext(parameter.ParameterType)) {
+				if (_IsDbContext(parameter.ParameterType)) {
 					yield return $"{type.FullName}.ctor({parameter.Name})";
 				}
 			}
@@ -238,7 +238,7 @@ public sealed class HandlerContractGuardSpec {
 			| BindingFlags.Instance
 			| BindingFlags.Static;
 		foreach (var field in type.GetFields(fieldFlags)) {
-			if (IsDbContext(field.FieldType)) {
+			if (_IsDbContext(field.FieldType)) {
 				yield return $"{type.FullName}.{field.Name} (field)";
 			}
 		}
@@ -249,7 +249,7 @@ public sealed class HandlerContractGuardSpec {
 			| BindingFlags.Instance
 			| BindingFlags.Static;
 		foreach (var property in type.GetProperties(propertyFlags)) {
-			if (IsDbContext(property.PropertyType)) {
+			if (_IsDbContext(property.PropertyType)) {
 				yield return $"{type.FullName}.{property.Name} (property)";
 			}
 		}
@@ -262,28 +262,28 @@ public sealed class HandlerContractGuardSpec {
 		);
 		if (handle is not null) {
 			foreach (var parameter in handle.GetParameters()) {
-				if (IsDbContext(parameter.ParameterType)) {
+				if (_IsDbContext(parameter.ParameterType)) {
 					yield return $"{type.FullName}.Handle({parameter.Name})";
 				}
 			}
 		}
 	}
 
-	private static bool IsCompilerGenerated(Type type) {
+	private static bool _IsCompilerGenerated(Type type) {
 		// Belt-and-suspenders: the attribute is the contract, the angle-bracket name
 		// is the observable convention for state machines/display classes.
 		return type.IsDefined(typeof(CompilerGeneratedAttribute), inherit: false)
 			|| type.Name.Contains('<', StringComparison.Ordinal);
 	}
 
-	private static bool IsDbContext(Type type) {
-		return IsDbContext(type, new HashSet<Type>());
+	private static bool _IsDbContext(Type type) {
+		return _IsDbContext(type, new HashSet<Type>());
 	}
 
 	// Recursive DbContext-access detector. Catches a direct DbContext, any wrapper
 	// that hands one out (IDbContextFactory<...>, Func<...>, Lazy<...>, arrays,
 	// by-ref/out params, …), and the IServiceProvider service-locator escape hatch.
-	private static bool IsDbContext(Type type, HashSet<Type> visited) {
+	private static bool _IsDbContext(Type type, HashSet<Type> visited) {
 		// ANY EF Core DbContext, not just AppDbContext — a handler reaching for
 		// a base/other DbContext is just as much of a violation.
 		if (typeof(DbContext).IsAssignableFrom(type)) {
@@ -301,7 +301,7 @@ public sealed class HandlerContractGuardSpec {
 		// Unwrap by-ref/out (ref/out params), pointers, and arrays.
 		if (type.IsByRef || type.IsPointer || type.IsArray) {
 			Type? elementType = type.GetElementType();
-			return elementType is not null && IsDbContext(elementType, visited);
+			return elementType is not null && _IsDbContext(elementType, visited);
 		}
 
 		// Recurse through generic arguments so wrappers like
@@ -309,7 +309,7 @@ public sealed class HandlerContractGuardSpec {
 		// Lazy<AppDbContext> are all caught.
 		if (type.IsGenericType) {
 			foreach (var argument in type.GetGenericArguments()) {
-				if (visited.Add(argument) && IsDbContext(argument, visited)) {
+				if (visited.Add(argument) && _IsDbContext(argument, visited)) {
 					return true;
 				}
 			}
@@ -318,7 +318,7 @@ public sealed class HandlerContractGuardSpec {
 		return false;
 	}
 
-	private static bool IsValidValidatorTarget(Type validator, Type? target) {
+	private static bool _IsValidValidatorTarget(Type validator, Type? target) {
 		if (target is null || target.IsNested) {
 			return false;
 		}
@@ -335,7 +335,7 @@ public sealed class HandlerContractGuardSpec {
 			|| target.Name.EndsWith("Query", StringComparison.Ordinal);
 	}
 
-	private static string DescribeTarget(Type? target) {
+	private static string _DescribeTarget(Type? target) {
 		if (target is null) {
 			return "<no AbstractValidator<T> base>";
 		}

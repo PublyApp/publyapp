@@ -34,10 +34,10 @@ public static class SeederGateProbeCli {
 			return false;
 		}
 
-		return Run().GetAwaiter().GetResult();
+		return _Run().GetAwaiter().GetResult();
 	}
 
-	private static async Task<bool> Run() {
+	private static async Task<bool> _Run() {
 		if (!AppEnvironment.IsProduction) {
 			Console.Error.WriteLine("Seed gate probe is only valid when ASPNETCORE_ENVIRONMENT=Production.");
 			Environment.ExitCode = 1;

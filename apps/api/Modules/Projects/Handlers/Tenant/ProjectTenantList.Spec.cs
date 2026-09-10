@@ -17,30 +17,30 @@ using Xunit;
 namespace PublyApp.Api.Modules.Projects.Handlers.Tenant;
 
 public sealed class ProjectTenantListSpec : IClassFixture<ApiFixture> {
-	private readonly ApiFixture _fixture;
-	private readonly HttpClient _http;
-	private readonly TestAuthClient _authClient;
+	private readonly ApiFixture _Fixture;
+	private readonly HttpClient _Http;
+	private readonly TestAuthClient _AuthClient;
 
 	public ProjectTenantListSpec(ApiFixture fixture) {
-		_fixture = fixture;
-		_http = fixture.HttpClient;
-		_authClient = new TestAuthClient(_http);
+		_Fixture = fixture;
+		_Http = fixture.HttpClient;
+		_AuthClient = new TestAuthClient(_Http);
 	}
 
 	[Fact]
 	public async Task ItShouldListOnlyActiveNonDeletedProjectsOfTheCurrentTenantOrderedByName() {
-		var (acmeId, token) = await LoginAsAcmeAdminAsync();
+		var (acmeId, token) = await _LoginAsAcmeAdminAsync();
 		var globalId = await TenantTestHelper.GetTenantIdByNameAsync(
-			_http, await _authClient.LoginAsStaffAdminAsync(), SeedConstants.Tenants.GlobalName);
-		var zebra = await CreateProjectAsync(acmeId, "Zebra " + Suffix());
-		var apple = await CreateProjectAsync(acmeId, "Apple " + Suffix());
-		var deleted = await CreateProjectAsync(acmeId, "Deleted " + Suffix(), isDeleted: true);
-		var inactive = await CreateProjectAsync(acmeId, "Inactive " + Suffix(), status: ProjectStatus.Inactive);
-		var foreign = await CreateProjectAsync(globalId, "Foreign " + Suffix());
+			_Http, await _AuthClient.LoginAsStaffAdminAsync(), SeedConstants.Tenants.GlobalName);
+		var zebra = await _CreateProjectAsync(acmeId, "Zebra " + _Suffix());
+		var apple = await _CreateProjectAsync(acmeId, "Apple " + _Suffix());
+		var deleted = await _CreateProjectAsync(acmeId, "Deleted " + _Suffix(), isDeleted: true);
+		var inactive = await _CreateProjectAsync(acmeId, "Inactive " + _Suffix(), status: ProjectStatus.Inactive);
+		var foreign = await _CreateProjectAsync(globalId, "Foreign " + _Suffix());
 
 		using var request = new HttpRequestMessage(HttpMethod.Get, "/projects")
 			.WithSessionToken(token).WithTenantId(acmeId);
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
 		var payload = await response.Content.ReadFromJsonAsync<FindProjectsForTenantResponse>();
@@ -55,27 +55,27 @@ public sealed class ProjectTenantListSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldReturn403WhenTheAccountLacksProjectsViewPermission() {
-		var (acmeId, _) = await LoginAsAcmeAdminAsync();
-		var memberToken = await _authClient.LoginAsync(
+		var (acmeId, _) = await _LoginAsAcmeAdminAsync();
+		var memberToken = await _AuthClient.LoginAsync(
 			TestConstants.AcmeUserEmail,
 			TestConstants.SeedPassword
 		);
 
 		using var request = new HttpRequestMessage(HttpMethod.Get, "/projects")
 			.WithSessionToken(memberToken).WithTenantId(acmeId);
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
 	}
 
-	private static string Suffix() {
+	private static string _Suffix() {
 		return Guid.NewGuid().ToString("N")[..8];
 	}
 
-	private async Task<Guid> CreateProjectAsync(
+	private async Task<Guid> _CreateProjectAsync(
 		Guid tenantId, string name,
 		bool isDeleted = false, ProjectStatus status = ProjectStatus.Active
 	) {
-		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
 		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 		var project = new Project { TenantId = tenantId, Name = name, Status = status, IsDeleted = isDeleted };
 		db.Project.Add(project);
@@ -83,11 +83,11 @@ public sealed class ProjectTenantListSpec : IClassFixture<ApiFixture> {
 		return project.GetRequiredId();
 	}
 
-	private async Task<(Guid TenantId, string Token)> LoginAsAcmeAdminAsync() {
-		var staffToken = await _authClient.LoginAsStaffAdminAsync();
+	private async Task<(Guid TenantId, string Token)> _LoginAsAcmeAdminAsync() {
+		var staffToken = await _AuthClient.LoginAsStaffAdminAsync();
 		var tenantId = await TenantTestHelper.GetTenantIdByNameAsync(
-			_http, staffToken, SeedConstants.Tenants.AcmeName);
-		var token = await _authClient.LoginAsync(TestConstants.AcmeAdminEmail, TestConstants.SeedPassword);
+			_Http, staffToken, SeedConstants.Tenants.AcmeName);
+		var token = await _AuthClient.LoginAsync(TestConstants.AcmeAdminEmail, TestConstants.SeedPassword);
 		return (tenantId, token);
 	}
 }

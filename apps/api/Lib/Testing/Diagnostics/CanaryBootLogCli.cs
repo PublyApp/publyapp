@@ -60,7 +60,7 @@ public static class CanaryBootLogCli {
 					+ $"arg actually wired into Program.Main? Stdout:\n{stdout}");
 		}
 
-		return ExtractLines(stdout);
+		return _ExtractLines(stdout);
 	}
 
 	/// <summary>
@@ -147,7 +147,7 @@ public static class CanaryBootLogCli {
 		);
 	}
 
-	private static IReadOnlyList<string> ExtractLines(string stdout) {
+	private static IReadOnlyList<string> _ExtractLines(string stdout) {
 		return stdout.Split('\n')
 			.Where(line => line.StartsWith(CanaryBootLogProbe.LinePrefix, StringComparison.Ordinal))
 			.Select(line => line[CanaryBootLogProbe.LinePrefix.Length..])

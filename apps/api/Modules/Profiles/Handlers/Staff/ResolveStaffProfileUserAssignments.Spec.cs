@@ -16,15 +16,15 @@ namespace PublyApp.Api.Modules.Profiles.Handlers.Staff;
 
 public sealed class ResolveStaffProfileUserAssignmentsSpec
 	: IClassFixture<ApiFixture> {
-	private readonly HttpClient _http;
-	private readonly TestAuthClient _authClient;
+	private readonly HttpClient _Http;
+	private readonly TestAuthClient _AuthClient;
 
 	public ResolveStaffProfileUserAssignmentsSpec(ApiFixture fixture) {
-		_http = fixture.HttpClient;
-		_authClient = new TestAuthClient(_http);
+		_Http = fixture.HttpClient;
+		_AuthClient = new TestAuthClient(_Http);
 	}
 
-	private static string GetUrl(string profileId) {
+	private static string _GetUrl(string profileId) {
 		return PathUtils.Join(
 			Routes.Staff.Root,
 			Routes.Profiles.ForStaff.Root,
@@ -32,7 +32,7 @@ public sealed class ResolveStaffProfileUserAssignmentsSpec
 		);
 	}
 
-	private static string GetCreateProfileUrl() {
+	private static string _GetCreateProfileUrl() {
 		return PathUtils.Join(
 			Routes.Staff.Root,
 			Routes.Profiles.ForStaff.Root,
@@ -40,7 +40,7 @@ public sealed class ResolveStaffProfileUserAssignmentsSpec
 		);
 	}
 
-	private static string GetFindStaffUsersUrl(string? q = null) {
+	private static string _GetFindStaffUsersUrl(string? q = null) {
 		var url = PathUtils.Join(
 			Routes.Staff.Root,
 			Routes.Users.ForStaff.Root,
@@ -54,7 +54,7 @@ public sealed class ResolveStaffProfileUserAssignmentsSpec
 		return url + $"?q={Uri.EscapeDataString(q)}&limit=50";
 	}
 
-	private static string GetUpdateUserProfilesUrl(string userId) {
+	private static string _GetUpdateUserProfilesUrl(string userId) {
 		return PathUtils.Join(
 			Routes.Staff.Root,
 			Routes.Users.ForStaff.Root,
@@ -64,8 +64,8 @@ public sealed class ResolveStaffProfileUserAssignmentsSpec
 
 	[Fact]
 	public async Task ItShouldReturnUnauthorizedWithoutSession() {
-		using var response = await _http.PostAsJsonAsync(
-			GetUrl(Guid.NewGuid().ToString()),
+		using var response = await _Http.PostAsJsonAsync(
+			_GetUrl(Guid.NewGuid().ToString()),
 			new { userIds = new[] { Guid.NewGuid().ToString() } }
 		);
 
@@ -74,27 +74,27 @@ public sealed class ResolveStaffProfileUserAssignmentsSpec
 
 	[Fact]
 	public async Task ItShouldReturnNotFoundWhenProfileDoesNotExist() {
-		var token = await _authClient.LoginAsStaffAdminAsync();
+		var token = await _AuthClient.LoginAsStaffAdminAsync();
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Post,
-			GetUrl(Guid.NewGuid().ToString())
+			_GetUrl(Guid.NewGuid().ToString())
 		).WithSessionToken(token);
 
 		request.Content = JsonContent.Create(
 			new { userIds = new[] { Guid.NewGuid().ToString() } }
 		);
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.NotFound);
 	}
 
 	[Fact]
 	public async Task ItShouldResolveAssignmentsForRequestedUsers() {
-		var token = await _authClient.LoginAsStaffAdminAsync();
+		var token = await _AuthClient.LoginAsStaffAdminAsync();
 
-		var profileId = await CreateStaffProfileAsync(token);
-		var staffUserId = await GetStaffUserIdByEmailAsync(
+		var profileId = await _CreateStaffProfileAsync(token);
+		var staffUserId = await _GetStaffUserIdByEmailAsync(
 			TestConstants.StaffAdminEmail,
 			token
 		);
@@ -102,26 +102,26 @@ public sealed class ResolveStaffProfileUserAssignmentsSpec
 		// Assign the profile to the staff user so the resolver has something to find.
 		using (var updateRequest = new HttpRequestMessage(
 			HttpMethod.Put,
-			GetUpdateUserProfilesUrl(staffUserId)
+			_GetUpdateUserProfilesUrl(staffUserId)
 		).WithSessionToken(token)) {
 			updateRequest.Content = JsonContent.Create(
 				new { profileIds = new[] { profileId } }
 			);
 
-			using var updateResponse = await _http.SendAsync(updateRequest);
+			using var updateResponse = await _Http.SendAsync(updateRequest);
 			updateResponse.StatusCode.Should().Be(HttpStatusCode.OK);
 		}
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Post,
-			GetUrl(profileId)
+			_GetUrl(profileId)
 		).WithSessionToken(token);
 
 		request.Content = JsonContent.Create(
 			new { userIds = new[] { staffUserId, Guid.NewGuid().ToString() } }
 		);
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
 
 		var result = await response.Content
@@ -135,12 +135,12 @@ public sealed class ResolveStaffProfileUserAssignmentsSpec
 				);
 	}
 
-	private async Task<string> CreateStaffProfileAsync(string staffToken) {
+	private async Task<string> _CreateStaffProfileAsync(string staffToken) {
 		var name = "Test Profile Resolve " + Guid.NewGuid().ToString("N")[..8];
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Post,
-			GetCreateProfileUrl()
+			_GetCreateProfileUrl()
 		).WithSessionToken(staffToken);
 
 		request.Content = JsonContent.Create(
@@ -154,7 +154,7 @@ public sealed class ResolveStaffProfileUserAssignmentsSpec
 			}
 		);
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.Created);
 
 		var created = await response.Content
@@ -164,16 +164,16 @@ public sealed class ResolveStaffProfileUserAssignmentsSpec
 		return created.ProfileId.ToString();
 	}
 
-	private async Task<string> GetStaffUserIdByEmailAsync(
+	private async Task<string> _GetStaffUserIdByEmailAsync(
 		string email,
 		string staffToken
 	) {
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			GetFindStaffUsersUrl(email)
+			_GetFindStaffUsersUrl(email)
 		).WithSessionToken(staffToken);
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
 
 		var result = await response.Content.ReadFromJsonAsync<FindStaffUsersResponse>();

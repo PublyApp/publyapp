@@ -27,34 +27,34 @@ namespace PublyApp.Api.Infrastructure.Jobs.Quartz;
 // removed (not left firing the stale schedule forever), and one invalid row must
 // never stop the remaining definitions from reconciling.
 public sealed class SyncSystemJobsJobSpec : IClassFixture<ApiFixture> {
-	private const string ValidCron = "0 0/5 * * * ?";
-	private const string InvalidCron = "definitely-not-a-cron";
+	private const string _ValidCron = "0 0/5 * * * ?";
+	private const string _InvalidCron = "definitely-not-a-cron";
 
 	// The template-seeded cadence of email-prepared-sends-retention (design §7.3):
 	// every 10 minutes, materially under EMAIL_PREPARED_SWEEP_MAX_LAG_MINUTES.
 	// Read from SystemJobDefinitionSeeder.GetCodeDefinedDefaults() — the single source
 	// of truth the restore reverts to — instead of a hand-copied literal that could
 	// drift silently while every spec here stays green.
-	private static readonly string PreparedSweepCodeCron =
+	private static readonly string _PreparedSweepCodeCron =
 		SystemJobDefinitionSeeder.GetCodeDefinedDefaults()
 			.Single(definition => definition.JobKey == EmailPreparedSendsRetentionHandler.JobKey)
 			.CronExpression;
 
-	private readonly ApiFixture _fixture;
+	private readonly ApiFixture _Fixture;
 
 	public SyncSystemJobsJobSpec(ApiFixture fixture) {
-		_fixture = fixture;
+		_Fixture = fixture;
 	}
 
 	[Fact]
 	public async Task ItShouldRemoveTheScheduledTriggerWhenAValidCronBecomesInvalid() {
-		await using var dbContext = await CreateDbContextAsync();
+		await using var dbContext = await _CreateDbContextAsync();
 		await dbContext.Database.ExecuteSqlRawAsync("DELETE FROM system_job_definitions;");
-		var scheduler = await CreateRamSchedulerAsync();
+		var scheduler = await _CreateRamSchedulerAsync();
 
 		var definition = new SystemJobDefinition {
 			JobKey = "flips-to-invalid",
-			CronExpression = ValidCron,
+			CronExpression = _ValidCron,
 		};
 		await dbContext.SystemJobDefinition.AddAsync(definition);
 		await dbContext.SaveChangesAsync();
@@ -68,7 +68,7 @@ public sealed class SyncSystemJobsJobSpec : IClassFixture<ApiFixture> {
 
 		// The dashboard edit makes the cron invalid: the NEXT reconcile must remove
 		// the previously-scheduled trigger, not keep firing the old schedule.
-		definition.CronExpression = InvalidCron;
+		definition.CronExpression = _InvalidCron;
 		await dbContext.SaveChangesAsync();
 
 		await job.ReconcileAsync(scheduler, CancellationToken.None);
@@ -79,19 +79,19 @@ public sealed class SyncSystemJobsJobSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldStillReconcileValidDefinitionsWhenAnotherRowHasAnInvalidCron() {
-		await using var dbContext = await CreateDbContextAsync();
+		await using var dbContext = await _CreateDbContextAsync();
 		await dbContext.Database.ExecuteSqlRawAsync("DELETE FROM system_job_definitions;");
-		var scheduler = await CreateRamSchedulerAsync();
+		var scheduler = await _CreateRamSchedulerAsync();
 
 		// Seed the invalid row FIRST so a fail-fast regression (returning on the bad
 		// row instead of skipping it) would starve the valid one behind it.
 		await dbContext.SystemJobDefinition.AddAsync(new SystemJobDefinition {
 			JobKey = "broken-job",
-			CronExpression = InvalidCron,
+			CronExpression = _InvalidCron,
 		});
 		await dbContext.SystemJobDefinition.AddAsync(new SystemJobDefinition {
 			JobKey = "healthy-job",
-			CronExpression = ValidCron,
+			CronExpression = _ValidCron,
 		});
 		await dbContext.SaveChangesAsync();
 
@@ -114,13 +114,13 @@ public sealed class SyncSystemJobsJobSpec : IClassFixture<ApiFixture> {
 		var jobKeyName = $"same-cron-{Guid.NewGuid():N}";
 		var epoch = Guid.NewGuid();
 		var scheduledFireAt = DateTime.UtcNow.AddMinutes(1);
-		await using var dbContext = await CreateDbContextAsync();
-		var scheduler = await CreateRamSchedulerAsync();
+		await using var dbContext = await _CreateDbContextAsync();
+		var scheduler = await _CreateRamSchedulerAsync();
 
 		try {
 			await dbContext.SystemJobDefinition.AddAsync(new SystemJobDefinition {
 				JobKey = jobKeyName,
-				CronExpression = ValidCron,
+				CronExpression = _ValidCron,
 				ScheduleEpoch = epoch,
 			});
 			await dbContext.SaveChangesAsync();
@@ -150,7 +150,7 @@ public sealed class SyncSystemJobsJobSpec : IClassFixture<ApiFixture> {
 			(await dbContext.JobQueue.CountAsync(row => row.JobType == jobKeyName))
 				.Should().Be(1);
 		} finally {
-			await CleanupJobAsync(dbContext, jobKeyName);
+			await _CleanupJobAsync(dbContext, jobKeyName);
 			await scheduler.Shutdown(waitForJobsToComplete: false);
 		}
 	}
@@ -159,13 +159,13 @@ public sealed class SyncSystemJobsJobSpec : IClassFixture<ApiFixture> {
 	public async Task ItShouldRotateScheduleEpochWhenTheCronChangesAndStampTheReplacement() {
 		var jobKeyName = $"epoch-change-{Guid.NewGuid():N}";
 		var originalEpoch = Guid.NewGuid();
-		await using var dbContext = await CreateDbContextAsync();
-		var scheduler = await CreateRamSchedulerAsync();
+		await using var dbContext = await _CreateDbContextAsync();
+		var scheduler = await _CreateRamSchedulerAsync();
 
 		try {
 			var definition = new SystemJobDefinition {
 				JobKey = jobKeyName,
-				CronExpression = ValidCron,
+				CronExpression = _ValidCron,
 				ScheduleEpoch = originalEpoch,
 			};
 			await dbContext.SystemJobDefinition.AddAsync(definition);
@@ -187,7 +187,7 @@ public sealed class SyncSystemJobsJobSpec : IClassFixture<ApiFixture> {
 			jobDetail?.JobDataMap.GetString(EnqueueSystemJobJob.ScheduleEpochDataKey)
 				.Should().Be(definition.ScheduleEpoch.ToString());
 		} finally {
-			await CleanupJobAsync(dbContext, jobKeyName);
+			await _CleanupJobAsync(dbContext, jobKeyName);
 			await scheduler.Shutdown(waitForJobsToComplete: false);
 		}
 	}
@@ -201,8 +201,8 @@ public sealed class SyncSystemJobsJobSpec : IClassFixture<ApiFixture> {
 	// scheduled, and leave every OTHER definition free to disable.
 	[Fact]
 	public async Task ItShouldRefuseToDisableThePrivacyLoadBearingPreparedSweepAndReEnableIt() {
-		await using var dbContext = await CreateDbContextAsync();
-		var scheduler = await CreateRamSchedulerAsync();
+		await using var dbContext = await _CreateDbContextAsync();
+		var scheduler = await _CreateRamSchedulerAsync();
 
 		try {
 			var protectedKey = EmailPreparedSendsRetentionHandler.JobKey;
@@ -210,7 +210,7 @@ public sealed class SyncSystemJobsJobSpec : IClassFixture<ApiFixture> {
 
 			// Earlier tests in this class wipe system_job_definitions wholesale; restore
 			// (or create) the seeded row rather than assuming anything about test order.
-			await EnsureDefinitionPresentAsync(dbContext, protectedKey, PreparedSweepCodeCron);
+			await _EnsureDefinitionPresentAsync(dbContext, protectedKey, _PreparedSweepCodeCron);
 			var definition = await dbContext.SystemJobDefinition
 				.AsNoTracking()
 				.SingleAsync(d => d.JobKey == protectedKey && !d.IsDeleted);
@@ -265,13 +265,13 @@ public sealed class SyncSystemJobsJobSpec : IClassFixture<ApiFixture> {
 	// silent-drop trap the restore guard itself documents) — masking the bug instead of
 	// proving it.
 	[Theory]
-	[InlineData(InvalidCron)]
+	[InlineData(_InvalidCron)]
 	[InlineData("")]
 	public async Task ItShouldRestoreTheWholeDefinitionAndTriggerWhenAProtectedSweepCronIsCorrupted(
 		string corruptedCron
 	) {
-		await using var dbContext = await CreateDbContextAsync();
-		var scheduler = await CreateRamSchedulerAsync();
+		await using var dbContext = await _CreateDbContextAsync();
+		var scheduler = await _CreateRamSchedulerAsync();
 
 		try {
 			var protectedKey = EmailPreparedSendsRetentionHandler.JobKey;
@@ -279,10 +279,10 @@ public sealed class SyncSystemJobsJobSpec : IClassFixture<ApiFixture> {
 
 			// Earlier tests in this class wipe system_job_definitions wholesale; restore
 			// (or create) the seeded row rather than assuming anything about test order.
-			await EnsureDefinitionPresentAsync(dbContext, protectedKey, PreparedSweepCodeCron);
+			await _EnsureDefinitionPresentAsync(dbContext, protectedKey, _PreparedSweepCodeCron);
 
 			// Pass 1 under its own context (per-pass discipline, below).
-			await using (var seedScope = await CreateDbContextAsync()) {
+			await using (var seedScope = await _CreateDbContextAsync()) {
 				var seedingJob = new SyncSystemJobsJob(
 					seedScope,
 					NullLogger<SyncSystemJobsJob>.Instance
@@ -299,7 +299,7 @@ public sealed class SyncSystemJobsJobSpec : IClassFixture<ApiFixture> {
 
 			// The NEXT reconcile must refuse the corruption end to end — under its own
 			// per-pass context, never one that already tracked the healthy row.
-			await using (var jobScope = await CreateDbContextAsync()) {
+			await using (var jobScope = await _CreateDbContextAsync()) {
 				var reconcilingJob = new SyncSystemJobsJob(
 					jobScope,
 					NullLogger<SyncSystemJobsJob>.Instance
@@ -315,7 +315,7 @@ public sealed class SyncSystemJobsJobSpec : IClassFixture<ApiFixture> {
 				.AsNoTracking()
 				.FirstAsync(d => d.JobKey == protectedKey && !d.IsDeleted);
 			after.CronExpression.Should().Be(
-				PreparedSweepCodeCron,
+				_PreparedSweepCodeCron,
 				"protection must restore the WHOLE code-defined definition — a rejected cron "
 					+ "cannot survive on a privacy-load-bearing schedule"
 			);
@@ -323,7 +323,7 @@ public sealed class SyncSystemJobsJobSpec : IClassFixture<ApiFixture> {
 			var triggers = await scheduler.GetTriggersOfJob(jobKey, CancellationToken.None);
 			triggers.OfType<ICronTrigger>().Should().ContainSingle().Which
 				.CronExpressionString.Should().Be(
-					PreparedSweepCodeCron,
+					_PreparedSweepCodeCron,
 					"the surviving trigger fires the restored cadence, not the corrupted one"
 				);
 		} finally {
@@ -333,7 +333,7 @@ public sealed class SyncSystemJobsJobSpec : IClassFixture<ApiFixture> {
 				.Where(d => d.JobKey == EmailPreparedSendsRetentionHandler.JobKey)
 				.ExecuteUpdateAsync(s => s
 					.SetProperty(d => d.IsEnabled, true)
-					.SetProperty(d => d.CronExpression, PreparedSweepCodeCron));
+					.SetProperty(d => d.CronExpression, _PreparedSweepCodeCron));
 			await scheduler.Shutdown(waitForJobsToComplete: false);
 		}
 	}
@@ -344,30 +344,30 @@ public sealed class SyncSystemJobsJobSpec : IClassFixture<ApiFixture> {
 	// Own-context discipline as above: the reconcile must SEE the corrupted row.
 	[Fact]
 	public async Task ItShouldNameTheJobAndTheRejectedCronInTheWholeDefinitionRestorationNotice() {
-		await using var dbContext = await CreateDbContextAsync();
-		var scheduler = await CreateRamSchedulerAsync();
+		await using var dbContext = await _CreateDbContextAsync();
+		var scheduler = await _CreateRamSchedulerAsync();
 		var logger = new CapturingLogger();
 
 		try {
 			var protectedKey = EmailPreparedSendsRetentionHandler.JobKey;
 			var jobKey = new JobKey(protectedKey, SyncSystemJobsJob.SystemJobsGroup);
 
-			await EnsureDefinitionPresentAsync(dbContext, protectedKey, PreparedSweepCodeCron);
+			await _EnsureDefinitionPresentAsync(dbContext, protectedKey, _PreparedSweepCodeCron);
 
 			// Pass 1 under its own context (per-pass discipline, as in the theory above);
 			// the logger is cleared so only the refusal pass's notices are asserted.
-			await using (var seedScope = await CreateDbContextAsync()) {
+			await using (var seedScope = await _CreateDbContextAsync()) {
 				var seedingJob = new SyncSystemJobsJob(seedScope, logger);
 				await seedingJob.ReconcileAsync(scheduler, CancellationToken.None);
 			}
 			logger.Clear();
 
-			await using var corruptScope = await CreateDbContextAsync();
+			await using var corruptScope = await _CreateDbContextAsync();
 			await corruptScope.SystemJobDefinition
 				.Where(d => d.JobKey == protectedKey)
-				.ExecuteUpdateAsync(s => s.SetProperty(d => d.CronExpression, InvalidCron));
+				.ExecuteUpdateAsync(s => s.SetProperty(d => d.CronExpression, _InvalidCron));
 
-			await using (var jobScope = await CreateDbContextAsync()) {
+			await using (var jobScope = await _CreateDbContextAsync()) {
 				var reconcilingJob = new SyncSystemJobsJob(jobScope, logger);
 				await reconcilingJob.ReconcileAsync(scheduler, CancellationToken.None);
 			}
@@ -377,17 +377,17 @@ public sealed class SyncSystemJobsJobSpec : IClassFixture<ApiFixture> {
 				"exactly one transparent notice per refused corruption"
 			).Subject;
 			notice.Message.Should().Contain(
-				InvalidCron, "the notice names the rejected cron, not just the job"
+				_InvalidCron, "the notice names the rejected cron, not just the job"
 			);
 			notice.Message.Should().Contain(
-				PreparedSweepCodeCron, "the notice names the restored cron as the next state"
+				_PreparedSweepCodeCron, "the notice names the restored cron as the next state"
 			);
 		} finally {
 			await dbContext.SystemJobDefinition
 				.Where(d => d.JobKey == EmailPreparedSendsRetentionHandler.JobKey)
 				.ExecuteUpdateAsync(s => s
 					.SetProperty(d => d.IsEnabled, true)
-					.SetProperty(d => d.CronExpression, PreparedSweepCodeCron));
+					.SetProperty(d => d.CronExpression, _PreparedSweepCodeCron));
 			await scheduler.Shutdown(waitForJobsToComplete: false);
 		}
 	}
@@ -404,19 +404,19 @@ public sealed class SyncSystemJobsJobSpec : IClassFixture<ApiFixture> {
 	// list and the seeder derive from the same handler constants.
 	[Fact]
 	public async Task ItShouldRefuseToWriteAnInvalidCodeDefinedDefaultCronOntoAProtectedSweep() {
-		await using var dbContext = await CreateDbContextAsync();
-		var scheduler = await CreateRamSchedulerAsync();
+		await using var dbContext = await _CreateDbContextAsync();
+		var scheduler = await _CreateRamSchedulerAsync();
 		var logger = new CapturingLogger();
 
 		try {
 			var protectedKey = EmailPreparedSendsRetentionHandler.JobKey;
 			var jobKey = new JobKey(protectedKey, SyncSystemJobsJob.SystemJobsGroup);
 
-			await EnsureDefinitionPresentAsync(dbContext, protectedKey, PreparedSweepCodeCron);
+			await _EnsureDefinitionPresentAsync(dbContext, protectedKey, _PreparedSweepCodeCron);
 
 			// Pass 1 schedules the healthy trigger the mutation-world regression is proven
 			// against.
-			await using (var seedScope = await CreateDbContextAsync()) {
+			await using (var seedScope = await _CreateDbContextAsync()) {
 				var seedingJob = new SyncSystemJobsJob(
 					seedScope, NullLogger<SyncSystemJobsJob>.Instance
 				);
@@ -436,13 +436,13 @@ public sealed class SyncSystemJobsJobSpec : IClassFixture<ApiFixture> {
 				.Select(definition => definition.JobKey == protectedKey
 					? new SystemJobDefinition {
 						JobKey = definition.JobKey,
-						CronExpression = InvalidCron,
+						CronExpression = _InvalidCron,
 						Description = definition.Description,
 					}
 					: definition)
 				.ToList();
 
-			await using var jobScope = await CreateDbContextAsync();
+			await using var jobScope = await _CreateDbContextAsync();
 			var reconcilingJob = new SyncSystemJobsJob(jobScope, logger, () => corruptedDefaults);
 
 			var reconcile = async () => await reconcilingJob.ReconcileAsync(
@@ -457,7 +457,7 @@ public sealed class SyncSystemJobsJobSpec : IClassFixture<ApiFixture> {
 				protectedKey, "the refusal names the protected job"
 			);
 			refusal.Which.Message.Should().Contain(
-				InvalidCron, "the refusal names the offending cron string"
+				_InvalidCron, "the refusal names the offending cron string"
 			);
 
 			// Nothing downstream ran: the drifted row keeps the operator-visible corruption
@@ -478,7 +478,7 @@ public sealed class SyncSystemJobsJobSpec : IClassFixture<ApiFixture> {
 				.Where(d => d.JobKey == EmailPreparedSendsRetentionHandler.JobKey)
 				.ExecuteUpdateAsync(s => s
 					.SetProperty(d => d.IsEnabled, true)
-					.SetProperty(d => d.CronExpression, PreparedSweepCodeCron));
+					.SetProperty(d => d.CronExpression, _PreparedSweepCodeCron));
 			await scheduler.Shutdown(waitForJobsToComplete: false);
 		}
 	}
@@ -490,15 +490,15 @@ public sealed class SyncSystemJobsJobSpec : IClassFixture<ApiFixture> {
 	// above, for the same unreachability reason.
 	[Fact]
 	public async Task ItShouldLogAndReportADriftedProtectedSweepThatHasNoCodeDefinedDefault() {
-		await using var dbContext = await CreateDbContextAsync();
-		var scheduler = await CreateRamSchedulerAsync();
+		await using var dbContext = await _CreateDbContextAsync();
+		var scheduler = await _CreateRamSchedulerAsync();
 		var logger = new CapturingLogger();
 
 		try {
 			var protectedKey = EmailPreparedSendsRetentionHandler.JobKey;
 			var jobKey = new JobKey(protectedKey, SyncSystemJobsJob.SystemJobsGroup);
 
-			await EnsureDefinitionPresentAsync(dbContext, protectedKey, PreparedSweepCodeCron);
+			await _EnsureDefinitionPresentAsync(dbContext, protectedKey, _PreparedSweepCodeCron);
 
 			// The drift under test: the operator disables the privacy-load-bearing sweep.
 			await dbContext.SystemJobDefinition
@@ -510,7 +510,7 @@ public sealed class SyncSystemJobsJobSpec : IClassFixture<ApiFixture> {
 				.Where(definition => definition.JobKey != protectedKey)
 				.ToList();
 
-			await using var jobScope = await CreateDbContextAsync();
+			await using var jobScope = await _CreateDbContextAsync();
 			var reconcilingJob = new SyncSystemJobsJob(jobScope, logger, () => orphaningDefaults);
 			await reconcilingJob.ReconcileAsync(scheduler, CancellationToken.None);
 
@@ -534,7 +534,7 @@ public sealed class SyncSystemJobsJobSpec : IClassFixture<ApiFixture> {
 				.Where(d => d.JobKey == EmailPreparedSendsRetentionHandler.JobKey)
 				.ExecuteUpdateAsync(s => s
 					.SetProperty(d => d.IsEnabled, true)
-					.SetProperty(d => d.CronExpression, PreparedSweepCodeCron));
+					.SetProperty(d => d.CronExpression, _PreparedSweepCodeCron));
 			await scheduler.Shutdown(waitForJobsToComplete: false);
 		}
 	}
@@ -544,15 +544,15 @@ public sealed class SyncSystemJobsJobSpec : IClassFixture<ApiFixture> {
 	// operator-disableable — a guard that blocks everything would break legitimate ops.
 	[Fact]
 	public async Task ItShouldStillHonorDisablingAHousekeepingSweep() {
-		await using var dbContext = await CreateDbContextAsync();
-		var scheduler = await CreateRamSchedulerAsync();
+		await using var dbContext = await _CreateDbContextAsync();
+		var scheduler = await _CreateRamSchedulerAsync();
 
 		try {
 			var unprotectedKey = CleanupExpiredSessionsHandler.JobKey;
 			var jobKey = new JobKey(unprotectedKey, SyncSystemJobsJob.SystemJobsGroup);
 
 			// Same order-independence discipline as the protected-sweep spec above.
-			await EnsureDefinitionPresentAsync(dbContext, unprotectedKey, ValidCron);
+			await _EnsureDefinitionPresentAsync(dbContext, unprotectedKey, _ValidCron);
 			var job = new SyncSystemJobsJob(dbContext, NullLogger<SyncSystemJobsJob>.Instance);
 			await job.ReconcileAsync(scheduler, CancellationToken.None);
 			(await scheduler.CheckExists(jobKey)).Should().BeTrue(
@@ -579,7 +579,7 @@ public sealed class SyncSystemJobsJobSpec : IClassFixture<ApiFixture> {
 	// Earlier tests in THIS class wipe system_job_definitions wholesale and every test
 	// class shares one cloned database, so the template's seeded rows cannot be assumed
 	// here. Restore (or create) the exact row a test needs instead of ordering tests.
-	private static async Task EnsureDefinitionPresentAsync(
+	private static async Task _EnsureDefinitionPresentAsync(
 		AppDbContext dbContext,
 		string jobKey,
 		string cron
@@ -603,7 +603,7 @@ public sealed class SyncSystemJobsJobSpec : IClassFixture<ApiFixture> {
 
 	// A real RAM-store scheduler; never started, since ScheduleJob/CheckExists/
 	// GetJobKeys all work on a non-started scheduler and no trigger should fire here.
-	private static async Task<IScheduler> CreateRamSchedulerAsync() {
+	private static async Task<IScheduler> _CreateRamSchedulerAsync() {
 		var properties = new NameValueCollection {
 			["quartz.scheduler.instanceName"] = $"sync-spec-{Guid.NewGuid():N}",
 			["quartz.scheduler.instanceId"] = "AUTO",
@@ -615,8 +615,8 @@ public sealed class SyncSystemJobsJobSpec : IClassFixture<ApiFixture> {
 		return await new StdSchedulerFactory(properties).GetScheduler();
 	}
 
-	private async Task<AppDbContext> CreateDbContextAsync() {
-		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+	private async Task<AppDbContext> _CreateDbContextAsync() {
+		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
 		var connectionString = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>()
 			.Database.GetConnectionString();
@@ -632,7 +632,7 @@ public sealed class SyncSystemJobsJobSpec : IClassFixture<ApiFixture> {
 		);
 	}
 
-	private static async Task CleanupJobAsync(AppDbContext dbContext, string jobKey) {
+	private static async Task _CleanupJobAsync(AppDbContext dbContext, string jobKey) {
 		await dbContext.Database.ExecuteSqlAsync(
 			$"DELETE FROM system_job_occurrences WHERE job_key = {jobKey}"
 		);
@@ -649,18 +649,18 @@ public sealed class SyncSystemJobsJobSpec : IClassFixture<ApiFixture> {
 	private sealed class CapturingLogger : ILogger<SyncSystemJobsJob> {
 		public sealed record Entry(LogLevel Level, string Message);
 
-		private readonly List<Entry> _entries = [];
+		private readonly List<Entry> _Entries = [];
 
 		public IEnumerable<Entry> Warnings {
-			get { return _entries.Where(e => e.Level == LogLevel.Warning); }
+			get { return _Entries.Where(e => e.Level == LogLevel.Warning); }
 		}
 
 		public IEnumerable<Entry> Errors {
-			get { return _entries.Where(e => e.Level == LogLevel.Error); }
+			get { return _Entries.Where(e => e.Level == LogLevel.Error); }
 		}
 
 		public void Clear() {
-			_entries.Clear();
+			_Entries.Clear();
 		}
 
 		public IDisposable BeginScope<TState>(TState state) where TState : notnull {
@@ -678,7 +678,7 @@ public sealed class SyncSystemJobsJobSpec : IClassFixture<ApiFixture> {
 			Exception? exception,
 			Func<TState, Exception?, string> formatter
 		) {
-			_entries.Add(new Entry(logLevel, formatter(state, exception)));
+			_Entries.Add(new Entry(logLevel, formatter(state, exception)));
 		}
 
 		private sealed class NullScope : IDisposable {

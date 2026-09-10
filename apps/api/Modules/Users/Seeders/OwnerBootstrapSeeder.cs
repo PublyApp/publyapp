@@ -2,13 +2,14 @@ using System.Data;
 
 using Microsoft.EntityFrameworkCore;
 
+using Npgsql;
+
 using PublyApp.Api.Data;
 using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Lib;
 using PublyApp.Api.Lib.Utils;
 using PublyApp.Api.Modules.Auth.Utils;
 using PublyApp.Api.Modules.Users.Entities;
-using Npgsql;
 
 namespace PublyApp.Api.Modules.Users.Seeders;
 
@@ -17,15 +18,15 @@ namespace PublyApp.Api.Modules.Users.Seeders;
 /// without any demo tenants or fixtures.
 /// </summary>
 public class OwnerBootstrapSeeder : IEntitySeeder {
-	private static readonly Lazy<string> CachedSeedPassword = new(
+	private static readonly Lazy<string> _CachedSeedPassword = new(
 		() => PasswordUtils.HashPassword(AppEnvironment.Instance.STAFF_OWNER_BOOTSTRAP_CODE),
 		LazyThreadSafetyMode.ExecutionAndPublication
 	);
 
-	private readonly ILogger<OwnerBootstrapSeeder> _logger;
+	private readonly ILogger<OwnerBootstrapSeeder> _Logger;
 
 	public OwnerBootstrapSeeder(ILogger<OwnerBootstrapSeeder>? logger = null) {
-		_logger = logger
+		_Logger = logger
 			?? SeederLoggerUtils.CreateDefault<OwnerBootstrapSeeder>();
 	}
 
@@ -44,26 +45,26 @@ public class OwnerBootstrapSeeder : IEntitySeeder {
 	public async Task SeedAsync(AppDbContext dbContext, CancellationToken cancellationToken = default) {
 		var ownerEmail = AppEnvironment.Instance.STAFF_OWNER_EMAIL;
 		if (string.IsNullOrWhiteSpace(ownerEmail)) {
-			_logger.LogWarning(
+			_Logger.LogWarning(
 				"Owner bootstrap skipped; STAFF_OWNER_EMAIL is not configured."
 			);
 			return;
 		}
 
 		var normalizedOwnerEmail = ownerEmail.Trim().ToLowerInvariant();
-		var seedPassword = CachedSeedPassword.Value;
+		var seedPassword = _CachedSeedPassword.Value;
 
-		var ownerUserId = await EnsureOwnerUserAsync(
+		var ownerUserId = await _EnsureOwnerUserAsync(
 			dbContext,
 			normalizedOwnerEmail,
 			seedPassword,
 			cancellationToken
 		);
 
-		await EnsureOwnerStaffAccountAsync(dbContext, ownerUserId, cancellationToken);
+		await _EnsureOwnerStaffAccountAsync(dbContext, ownerUserId, cancellationToken);
 	}
 
-	private async Task<Guid> EnsureOwnerUserAsync(
+	private async Task<Guid> _EnsureOwnerUserAsync(
 		AppDbContext dbContext,
 		string ownerEmail,
 		string seedPassword,
@@ -101,15 +102,15 @@ public class OwnerBootstrapSeeder : IEntitySeeder {
 				await dbContext.User.AddAsync(owner, cancellationToken);
 				await dbContext.SaveChangesAsync(cancellationToken);
 				await transaction.CommitAsync(cancellationToken);
-				if (_logger.IsEnabled(LogLevel.Information)) {
-					_logger.LogInformation("Seeded staff owner user.");
+				if (_Logger.IsEnabled(LogLevel.Information)) {
+					_Logger.LogInformation("Seeded staff owner user.");
 				}
 			} catch (DbUpdateException ex) when (
 				ex.InnerException is PostgresException pgEx
 				&& pgEx.SqlState == "23505"
 			) {
 				await transaction.RollbackAsync(cancellationToken);
-				_logger.LogWarning(ex, "Duplicate owner user detected during seeding; skipping insert.");
+				_Logger.LogWarning(ex, "Duplicate owner user detected during seeding; skipping insert.");
 			} catch (Exception) {
 				await transaction.RollbackAsync(cancellationToken);
 				throw;
@@ -118,14 +119,14 @@ public class OwnerBootstrapSeeder : IEntitySeeder {
 			try {
 				await dbContext.User.AddAsync(owner, cancellationToken);
 				await dbContext.SaveChangesAsync(cancellationToken);
-				if (_logger.IsEnabled(LogLevel.Information)) {
-					_logger.LogInformation("Seeded staff owner user.");
+				if (_Logger.IsEnabled(LogLevel.Information)) {
+					_Logger.LogInformation("Seeded staff owner user.");
 				}
 			} catch (DbUpdateException ex) when (
 				ex.InnerException is PostgresException pgEx
 				&& pgEx.SqlState == "23505"
 			) {
-				_logger.LogWarning(ex, "Duplicate owner user detected during seeding; skipping insert.");
+				_Logger.LogWarning(ex, "Duplicate owner user detected during seeding; skipping insert.");
 			}
 		}
 
@@ -137,7 +138,7 @@ public class OwnerBootstrapSeeder : IEntitySeeder {
 		return reloadedOwner.GetRequiredId();
 	}
 
-	private async Task EnsureOwnerStaffAccountAsync(
+	private async Task _EnsureOwnerStaffAccountAsync(
 		AppDbContext dbContext,
 		Guid ownerUserId,
 		CancellationToken cancellationToken
@@ -169,15 +170,15 @@ public class OwnerBootstrapSeeder : IEntitySeeder {
 				await dbContext.UserAccount.AddAsync(ownerAccount, cancellationToken);
 				await dbContext.SaveChangesAsync(cancellationToken);
 				await transaction.CommitAsync(cancellationToken);
-				if (_logger.IsEnabled(LogLevel.Information)) {
-					_logger.LogInformation("Seeded staff owner account.");
+				if (_Logger.IsEnabled(LogLevel.Information)) {
+					_Logger.LogInformation("Seeded staff owner account.");
 				}
 			} catch (DbUpdateException ex) when (
 				ex.InnerException is PostgresException pgEx
 				&& pgEx.SqlState == "23505"
 			) {
 				await transaction.RollbackAsync(cancellationToken);
-				_logger.LogWarning(ex, "Duplicate owner staff account detected during seeding; skipping insert.");
+				_Logger.LogWarning(ex, "Duplicate owner staff account detected during seeding; skipping insert.");
 			} catch (Exception) {
 				await transaction.RollbackAsync(cancellationToken);
 				throw;
@@ -186,14 +187,14 @@ public class OwnerBootstrapSeeder : IEntitySeeder {
 			try {
 				await dbContext.UserAccount.AddAsync(ownerAccount, cancellationToken);
 				await dbContext.SaveChangesAsync(cancellationToken);
-				if (_logger.IsEnabled(LogLevel.Information)) {
-					_logger.LogInformation("Seeded staff owner account.");
+				if (_Logger.IsEnabled(LogLevel.Information)) {
+					_Logger.LogInformation("Seeded staff owner account.");
 				}
 			} catch (DbUpdateException ex) when (
 				ex.InnerException is PostgresException pgEx
 				&& pgEx.SqlState == "23505"
 			) {
-				_logger.LogWarning(ex, "Duplicate owner staff account detected during seeding; skipping insert.");
+				_Logger.LogWarning(ex, "Duplicate owner staff account detected during seeding; skipping insert.");
 			}
 		}
 	}

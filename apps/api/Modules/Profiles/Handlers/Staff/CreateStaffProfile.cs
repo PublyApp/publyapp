@@ -140,7 +140,7 @@ public partial class CreateStaffProfileBodyValidator
 					);
 					return;
 				}
-				if (!list.All(email => EmailRegex().IsMatch(email))) {
+				if (!list.All(email => _EmailRegex().IsMatch(email))) {
 					context.AddFailure("Emails must be a list of valid email addresses");
 				}
 			} catch {
@@ -162,7 +162,7 @@ public partial class CreateStaffProfileBodyValidator
 	}
 
 	[GeneratedRegex(@"^[^@\s]+@[^@\s]+\.[^@\s]+$")]
-	private static partial Regex EmailRegex();
+	private static partial Regex _EmailRegex();
 }
 
 public sealed class CreateStaffProfile {
@@ -244,7 +244,7 @@ public sealed class CreateStaffProfile {
 		}
 
 		if (result is CreateStaffProfileResult.Success success) {
-			return await HandleSuccessAsync(
+			return await _HandleSuccessAsync(
 				success,
 				auditLogService,
 				currentUserId,
@@ -258,7 +258,7 @@ public sealed class CreateStaffProfile {
 		);
 	}
 
-	private static async Task<Created<StaffProfileCreated>> HandleSuccessAsync(
+	private static async Task<Created<StaffProfileCreated>> _HandleSuccessAsync(
 		CreateStaffProfileResult.Success success,
 		IAuditLogService auditLogService,
 		Guid currentUserId,

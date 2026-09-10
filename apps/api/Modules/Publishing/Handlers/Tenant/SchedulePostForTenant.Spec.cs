@@ -27,12 +27,12 @@ namespace PublyApp.Api.Modules.Publishing.Handlers.Tenant;
 // Postgres via ApiFixture. Scheduling NEVER publishes: the fake IPublishProvider
 // recorder proves the provider seam stays untouched on this path.
 public sealed class SchedulePostForTenantSpec : IClassFixture<ApiFixture> {
-	private readonly ApiFixture _fixture;
-	private readonly HttpClient _http;
-	private readonly TestAuthClient _authClient;
+	private readonly ApiFixture _Fixture;
+	private readonly HttpClient _Http;
+	private readonly TestAuthClient _AuthClient;
 
 	public SchedulePostForTenantSpec(ApiFixture fixture) {
-		_fixture = fixture;
+		_Fixture = fixture;
 
 		// Every request flows through a host whose IPublishProvider is the recording
 		// fake, so any accidental provider contact fails the zero-call assertions.
@@ -46,53 +46,53 @@ public sealed class SchedulePostForTenantSpec : IClassFixture<ApiFixture> {
 				});
 			}
 		);
-		_http = spiedFactory.CreateClient(
+		_Http = spiedFactory.CreateClient(
 			new WebApplicationFactoryClientOptions {
 				HandleCookies = false,
 			}
 		);
-		_authClient = new TestAuthClient(_http);
-		_http.DefaultRequestHeaders.Accept.Clear();
-		_http.DefaultRequestHeaders.Accept.Add(
+		_AuthClient = new TestAuthClient(_Http);
+		_Http.DefaultRequestHeaders.Accept.Clear();
+		_Http.DefaultRequestHeaders.Accept.Add(
 			new MediaTypeWithQualityHeaderValue("application/json")
 		);
 	}
 
-	private static string ScheduleUrl(string postId) {
+	private static string _ScheduleUrl(string postId) {
 		return $"/posts/{postId}/schedule";
 	}
 
 	// 09:00 on 2099-08-26 in Europe/Paris summer time is 07:00Z. The wire field
 	// carries an ISO INSTANT (with Z/offset designator) — not a bare wall clock.
-	private const string FutureInstantJson = "2099-08-26T07:00:00Z";
-	private static readonly DateTimeOffset FutureInstant =
+	private const string _FutureInstantJson = "2099-08-26T07:00:00Z";
+	private static readonly DateTimeOffset _FutureInstant =
 		new(2099, 8, 26, 7, 0, 0, TimeSpan.Zero);
-	private const string FutureZone = "Europe/Paris";
+	private const string _FutureZone = "Europe/Paris";
 
 	[Fact]
 	public async Task ItShouldScheduleOnePublicationPerAccountWithUtcInstantAndZone() {
 		RecordingPublishProvider.Reset();
-		var (tenantId, token, postId) = await CreatePostAsAcmeAdminAsync();
+		var (tenantId, token, postId) = await _CreatePostAsAcmeAdminAsync();
 
-		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
 		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-		var accountId = await SeedActiveAccountAsync(db, tenantId);
+		var accountId = await _SeedActiveAccountAsync(db, tenantId);
 
 		using var request =
-			new HttpRequestMessage(HttpMethod.Post, ScheduleUrl(postId))
+			new HttpRequestMessage(HttpMethod.Post, _ScheduleUrl(postId))
 				.WithSessionToken(token)
 				.WithTenantId(tenantId);
 		request.Content = JsonContent.Create(new {
 			accountIds = new[] { accountId.ToString() },
-			scheduledAtLocal = FutureInstantJson,
-			timeZone = FutureZone,
+			scheduledAtLocal = _FutureInstantJson,
+			timeZone = _FutureZone,
 		});
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.Created);
 
 		await using var verifyScope =
-			_fixture.Factory.Services.CreateAsyncScope();
+			_Fixture.Factory.Services.CreateAsyncScope();
 		var verifyDb =
 			verifyScope.ServiceProvider.GetRequiredService<AppDbContext>();
 		var postIdGuid = Guid.Parse(postId);
@@ -105,8 +105,8 @@ public sealed class SchedulePostForTenantSpec : IClassFixture<ApiFixture> {
 		).SingleAsync();
 
 		publication.Status.Should().Be(PublicationStatus.Scheduled);
-		new DateTimeOffset(publication.ScheduledAtUtc).Should().Be(FutureInstant);
-		publication.ScheduledTimeZone.Should().Be(FutureZone);
+		new DateTimeOffset(publication.ScheduledAtUtc).Should().Be(_FutureInstant);
+		publication.ScheduledTimeZone.Should().Be(_FutureZone);
 		publication.SocialAccountId.Should().Be(accountId);
 		publication.IdempotencyKey.Should().Be(
 			PublicationIdempotencyKey.For(publication.GetRequiredId())
@@ -116,28 +116,28 @@ public sealed class SchedulePostForTenantSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldCreateDistinctPublicationsForMultipleAccounts() {
-		var (tenantId, token, postId) = await CreatePostAsAcmeAdminAsync();
+		var (tenantId, token, postId) = await _CreatePostAsAcmeAdminAsync();
 
-		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
 		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-		var first = await SeedActiveAccountAsync(db, tenantId);
-		var second = await SeedActiveAccountAsync(db, tenantId);
+		var first = await _SeedActiveAccountAsync(db, tenantId);
+		var second = await _SeedActiveAccountAsync(db, tenantId);
 
 		using var request =
-			new HttpRequestMessage(HttpMethod.Post, ScheduleUrl(postId))
+			new HttpRequestMessage(HttpMethod.Post, _ScheduleUrl(postId))
 				.WithSessionToken(token)
 				.WithTenantId(tenantId);
 		request.Content = JsonContent.Create(new {
 			accountIds = new[] { first.ToString(), second.ToString() },
-			scheduledAtLocal = FutureInstantJson,
-			timeZone = FutureZone,
+			scheduledAtLocal = _FutureInstantJson,
+			timeZone = _FutureZone,
 		});
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.Created);
 
 		await using var verifyScope =
-			_fixture.Factory.Services.CreateAsyncScope();
+			_Fixture.Factory.Services.CreateAsyncScope();
 		var verifyDb =
 			verifyScope.ServiceProvider.GetRequiredService<AppDbContext>();
 		var postIdGuid = Guid.Parse(postId);
@@ -155,9 +155,9 @@ public sealed class SchedulePostForTenantSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldReturn422WhenAccountIsNotVisibleInThePostProject() {
-		var (tenantId, token, postId) = await CreatePostAsAcmeAdminAsync();
+		var (tenantId, token, postId) = await _CreatePostAsAcmeAdminAsync();
 
-		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
 		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		// Attach the post to a dedicated project, then seed an account attached to
@@ -176,27 +176,27 @@ public sealed class SchedulePostForTenantSpec : IClassFixture<ApiFixture> {
 				s => s.SetProperty(p => p.ProjectId, project.Id)
 			);
 
-		var accountId = await SeedActiveAccountAsync(db, tenantId, project.Id);
+		var accountId = await _SeedActiveAccountAsync(db, tenantId, project.Id);
 
 		using var request =
-			new HttpRequestMessage(HttpMethod.Post, ScheduleUrl(postId))
+			new HttpRequestMessage(HttpMethod.Post, _ScheduleUrl(postId))
 				.WithSessionToken(token)
 				.WithTenantId(tenantId);
 		request.Content = JsonContent.Create(new {
 			accountIds = new[] { accountId.ToString() },
-			scheduledAtLocal = FutureInstantJson,
-			timeZone = FutureZone,
+			scheduledAtLocal = _FutureInstantJson,
+			timeZone = _FutureZone,
 		});
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.Created);
 	}
 
 	[Fact]
 	public async Task ItShouldReturn422WhenAccountIsAttachedToAnotherProject() {
-		var (tenantId, token, postId) = await CreatePostAsAcmeAdminAsync();
+		var (tenantId, token, postId) = await _CreatePostAsAcmeAdminAsync();
 
-		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
 		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		var postProject = new Modules.Projects.Entities.Project {
@@ -211,7 +211,7 @@ public sealed class SchedulePostForTenantSpec : IClassFixture<ApiFixture> {
 				s => s.SetProperty(p => p.ProjectId, postProject.Id)
 			);
 
-		var accountId = await SeedActiveAccountAsync(db, tenantId);
+		var accountId = await _SeedActiveAccountAsync(db, tenantId);
 
 		// Attach the account to a DIFFERENT project: it is no longer visible in the
 		// post's project, so the whole request must be refused with a stable key.
@@ -230,16 +230,16 @@ public sealed class SchedulePostForTenantSpec : IClassFixture<ApiFixture> {
 		await db.SaveChangesAsync();
 
 		using var request =
-			new HttpRequestMessage(HttpMethod.Post, ScheduleUrl(postId))
+			new HttpRequestMessage(HttpMethod.Post, _ScheduleUrl(postId))
 				.WithSessionToken(token)
 				.WithTenantId(tenantId);
 		request.Content = JsonContent.Create(new {
 			accountIds = new[] { accountId.ToString() },
-			scheduledAtLocal = FutureInstantJson,
-			timeZone = FutureZone,
+			scheduledAtLocal = _FutureInstantJson,
+			timeZone = _FutureZone,
 		});
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
 		var problem =
 			await response.Content.ReadFromJsonAsync<ValidationProblemDetails>();
@@ -265,41 +265,41 @@ public sealed class SchedulePostForTenantSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldReturn422WhenAccountIdsEmpty() {
-		var (tenantId, token, postId) = await CreatePostAsAcmeAdminAsync();
+		var (tenantId, token, postId) = await _CreatePostAsAcmeAdminAsync();
 
 		using var request =
-			new HttpRequestMessage(HttpMethod.Post, ScheduleUrl(postId))
+			new HttpRequestMessage(HttpMethod.Post, _ScheduleUrl(postId))
 				.WithSessionToken(token)
 				.WithTenantId(tenantId);
 		request.Content = JsonContent.Create(new {
 			accountIds = Array.Empty<string>(),
-			scheduledAtLocal = FutureInstantJson,
-			timeZone = FutureZone,
+			scheduledAtLocal = _FutureInstantJson,
+			timeZone = _FutureZone,
 		});
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
 	}
 
 	[Fact]
 	public async Task ItShouldReturn422WhenInstantIsInThePastBeyondDrift() {
-		var (tenantId, token, postId) = await CreatePostAsAcmeAdminAsync();
+		var (tenantId, token, postId) = await _CreatePostAsAcmeAdminAsync();
 
-		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
 		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-		var accountId = await SeedActiveAccountAsync(db, tenantId);
+		var accountId = await _SeedActiveAccountAsync(db, tenantId);
 
 		using var request =
-			new HttpRequestMessage(HttpMethod.Post, ScheduleUrl(postId))
+			new HttpRequestMessage(HttpMethod.Post, _ScheduleUrl(postId))
 				.WithSessionToken(token)
 				.WithTenantId(tenantId);
 		request.Content = JsonContent.Create(new {
 			accountIds = new[] { accountId.ToString() },
 			scheduledAtLocal = "2001-01-01T12:00:00Z",
-			timeZone = FutureZone,
+			timeZone = _FutureZone,
 		});
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
 		var problem =
 			await response.Content.ReadFromJsonAsync<ValidationProblemDetails>();
@@ -309,65 +309,65 @@ public sealed class SchedulePostForTenantSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldReturn400WhenPostIdMalformed() {
-		var (tenantId, token) = await LoginAsAcmeAdminAsync();
+		var (tenantId, token) = await _LoginAsAcmeAdminAsync();
 
 		using var request =
 			new HttpRequestMessage(
 				HttpMethod.Post,
-				ScheduleUrl("not-a-guid")
+				_ScheduleUrl("not-a-guid")
 			)
 				.WithSessionToken(token)
 				.WithTenantId(tenantId);
 		request.Content = JsonContent.Create(new {
 			accountIds = new[] { Guid.NewGuid().ToString() },
-			scheduledAtLocal = FutureInstantJson,
-			timeZone = FutureZone,
+			scheduledAtLocal = _FutureInstantJson,
+			timeZone = _FutureZone,
 		});
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
 	}
 
 	[Fact]
 	public async Task ItShouldReturn403WithoutPostsPublishPermission() {
-		var tenantId = await GetAcmeIdAsync();
-		var adminToken = await _authClient.LoginAsync(
+		var tenantId = await _GetAcmeIdAsync();
+		var adminToken = await _AuthClient.LoginAsync(
 			TestConstants.AcmeAdminEmail,
 			TestConstants.SeedPassword
 		);
-		var postId = await CreatePostAsync(tenantId, adminToken);
+		var postId = await _CreatePostAsync(tenantId, adminToken);
 
 		// AcmeUser has no profiles assigned, so the permission filter refuses.
-		var userToken = await _authClient.LoginAsync(
+		var userToken = await _AuthClient.LoginAsync(
 			TestConstants.AcmeUserEmail,
 			TestConstants.SeedPassword
 		);
 
-		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
 		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-		var accountId = await SeedActiveAccountAsync(db, tenantId);
+		var accountId = await _SeedActiveAccountAsync(db, tenantId);
 
 		using var request =
-			new HttpRequestMessage(HttpMethod.Post, ScheduleUrl(postId))
+			new HttpRequestMessage(HttpMethod.Post, _ScheduleUrl(postId))
 				.WithSessionToken(userToken)
 				.WithTenantId(tenantId);
 		request.Content = JsonContent.Create(new {
 			accountIds = new[] { accountId.ToString() },
-			scheduledAtLocal = FutureInstantJson,
-			timeZone = FutureZone,
+			scheduledAtLocal = _FutureInstantJson,
+			timeZone = _FutureZone,
 		});
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
 	}
 
 	[Fact]
 	public async Task ItShouldReturn404ForUnknownAndCrossTenantPostIds() {
 		var (acmeTenantId, acmeToken, postId) =
-			await CreatePostAsAcmeAdminAsync();
-		var staffToken = await _authClient.LoginAsStaffAdminAsync();
+			await _CreatePostAsAcmeAdminAsync();
+		var staffToken = await _AuthClient.LoginAsStaffAdminAsync();
 		var techStartId = await TenantTestHelper.GetTenantIdByNameAsync(
-			_http,
+			_Http,
 			staffToken,
 			SeedConstants.Tenants.TechStartName
 		);
@@ -376,38 +376,38 @@ public sealed class SchedulePostForTenantSpec : IClassFixture<ApiFixture> {
 		using var unknownRequest =
 			new HttpRequestMessage(
 				HttpMethod.Post,
-				ScheduleUrl(Guid.NewGuid().ToString())
+				_ScheduleUrl(Guid.NewGuid().ToString())
 			)
 				.WithSessionToken(acmeToken)
 				.WithTenantId(acmeTenantId);
 		unknownRequest.Content = JsonContent.Create(new {
 			accountIds = new[] { Guid.NewGuid().ToString() },
-			scheduledAtLocal = FutureInstantJson,
-			timeZone = FutureZone,
+			scheduledAtLocal = _FutureInstantJson,
+			timeZone = _FutureZone,
 		});
-		using var unknownResponse = await _http.SendAsync(unknownRequest);
+		using var unknownResponse = await _Http.SendAsync(unknownRequest);
 		unknownResponse.StatusCode.Should().Be(HttpStatusCode.NotFound);
 		unknownResponse.Headers.Location.Should().BeNull();
 
 		// An EXISTING post addressed from a foreign tenant → also 404.
-		var techStartToken = await _authClient.LoginAsync(
+		var techStartToken = await _AuthClient.LoginAsync(
 			TestConstants.TechStartAdminEmail,
 			TestConstants.SeedPassword
 		);
 		using var foreignRequest =
-			new HttpRequestMessage(HttpMethod.Post, ScheduleUrl(postId))
+			new HttpRequestMessage(HttpMethod.Post, _ScheduleUrl(postId))
 				.WithSessionToken(techStartToken)
 				.WithTenantId(techStartId);
 		foreignRequest.Content = JsonContent.Create(new {
 			accountIds = new[] { Guid.NewGuid().ToString() },
-			scheduledAtLocal = FutureInstantJson,
-			timeZone = FutureZone,
+			scheduledAtLocal = _FutureInstantJson,
+			timeZone = _FutureZone,
 		});
-		using var foreignResponse = await _http.SendAsync(foreignRequest);
+		using var foreignResponse = await _Http.SendAsync(foreignRequest);
 		foreignResponse.StatusCode.Should().Be(HttpStatusCode.NotFound);
 
 		await using var verifyScope =
-			_fixture.Factory.Services.CreateAsyncScope();
+			_Fixture.Factory.Services.CreateAsyncScope();
 		var verifyDb =
 			verifyScope.ServiceProvider.GetRequiredService<AppDbContext>();
 		(await verifyDb.Publication.AsNoTracking().AnyAsync(
@@ -418,23 +418,23 @@ public sealed class SchedulePostForTenantSpec : IClassFixture<ApiFixture> {
 	[Fact]
 	public async Task ItShouldNotCallThePublishProviderOnTheSchedulingPath() {
 		RecordingPublishProvider.Reset();
-		var (tenantId, token, postId) = await CreatePostAsAcmeAdminAsync();
+		var (tenantId, token, postId) = await _CreatePostAsAcmeAdminAsync();
 
-		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
 		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-		var accountId = await SeedActiveAccountAsync(db, tenantId);
+		var accountId = await _SeedActiveAccountAsync(db, tenantId);
 
 		using var request =
-			new HttpRequestMessage(HttpMethod.Post, ScheduleUrl(postId))
+			new HttpRequestMessage(HttpMethod.Post, _ScheduleUrl(postId))
 				.WithSessionToken(token)
 				.WithTenantId(tenantId);
 		request.Content = JsonContent.Create(new {
 			accountIds = new[] { accountId.ToString() },
-			scheduledAtLocal = FutureInstantJson,
-			timeZone = FutureZone,
+			scheduledAtLocal = _FutureInstantJson,
+			timeZone = _FutureZone,
 		});
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 		response.EnsureSuccessStatusCode();
 
 		RecordingPublishProvider.CallCount.Current.Should().Be(
@@ -444,28 +444,28 @@ public sealed class SchedulePostForTenantSpec : IClassFixture<ApiFixture> {
 	}
 
 	private async Task<(Guid TenantId, string Token, string PostId)>
-	CreatePostAsAcmeAdminAsync() {
-		var (tenantId, token) = await LoginAsAcmeAdminAsync();
-		var postId = await CreatePostAsync(tenantId, token);
+	_CreatePostAsAcmeAdminAsync() {
+		var (tenantId, token) = await _LoginAsAcmeAdminAsync();
+		var postId = await _CreatePostAsync(tenantId, token);
 		return (tenantId, token, postId);
 	}
 
 	private async Task<(Guid TenantId, string Token)>
-	LoginAsAcmeAdminAsync() {
-		var staffToken = await _authClient.LoginAsStaffAdminAsync();
+	_LoginAsAcmeAdminAsync() {
+		var staffToken = await _AuthClient.LoginAsStaffAdminAsync();
 		var tenantId = await TenantTestHelper.GetTenantIdByNameAsync(
-			_http,
+			_Http,
 			staffToken,
 			SeedConstants.Tenants.AcmeName
 		);
-		var token = await _authClient.LoginAsync(
+		var token = await _AuthClient.LoginAsync(
 			TestConstants.AcmeAdminEmail,
 			TestConstants.SeedPassword
 		);
 		return (tenantId, token);
 	}
 
-	private async Task<string> CreatePostAsync(
+	private async Task<string> _CreatePostAsync(
 		Guid tenantId,
 		string token
 	) {
@@ -476,7 +476,7 @@ public sealed class SchedulePostForTenantSpec : IClassFixture<ApiFixture> {
 			new { body = "post to schedule " + Guid.NewGuid().ToString("N")[..8] }
 		);
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 		response.EnsureSuccessStatusCode();
 		var payload =
 			await response.Content.ReadFromJsonAsync<ScheduleProbePostCreated>();
@@ -486,10 +486,10 @@ public sealed class SchedulePostForTenantSpec : IClassFixture<ApiFixture> {
 
 	private record ScheduleProbePostCreated(Guid Id);
 
-	private async Task<Guid> GetAcmeIdAsync() {
-		var staffToken = await _authClient.LoginAsStaffAdminAsync();
+	private async Task<Guid> _GetAcmeIdAsync() {
+		var staffToken = await _AuthClient.LoginAsStaffAdminAsync();
 		return await TenantTestHelper.GetTenantIdByNameAsync(
-			_http,
+			_Http,
 			staffToken,
 			SeedConstants.Tenants.AcmeName
 		);
@@ -501,7 +501,7 @@ public sealed class SchedulePostForTenantSpec : IClassFixture<ApiFixture> {
 	/// otherwise it has no project rows and VisibleIn treats it as visible
 	/// everywhere in the tenant.
 	/// </summary>
-	private static async Task<Guid> SeedActiveAccountAsync(
+	private static async Task<Guid> _SeedActiveAccountAsync(
 		AppDbContext db,
 		Guid tenantId,
 		Guid? projectId = null

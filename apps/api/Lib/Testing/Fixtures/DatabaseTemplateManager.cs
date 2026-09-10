@@ -13,9 +13,9 @@ namespace PublyApp.Api.Lib.Testing.Fixtures;
 /// cloning for test isolation.
 /// </summary>
 internal sealed partial class DatabaseTemplateManager {
-	private readonly string _adminConnectionString;
-	private readonly string _templateDbName;
-	private static readonly Regex SafeDbNameRegex = new(
+	private readonly string _AdminConnectionString;
+	private readonly string _TemplateDbName;
+	private static readonly Regex _SafeDbNameRegex = new(
 		"^[a-z0-9_]+$",
 		RegexOptions.Compiled | RegexOptions.CultureInvariant,
 		TimeSpan.FromMilliseconds(100)
@@ -23,8 +23,8 @@ internal sealed partial class DatabaseTemplateManager {
 
 	// Only allow safe DB names:
 	// lowercase alphanumeric + underscores
-	private static string ValidateDbName(string name) {
-		if (!SafeDbNameRegex.IsMatch(name)) {
+	private static string _ValidateDbName(string name) {
+		if (!_SafeDbNameRegex.IsMatch(name)) {
 			throw new ArgumentException(
 				$"Invalid database name: '{name}'. "
 				+ "Only lowercase alphanumeric and "
@@ -38,8 +38,8 @@ internal sealed partial class DatabaseTemplateManager {
 		string adminConnectionString,
 		string templateDbName
 	) {
-		_adminConnectionString = adminConnectionString;
-		_templateDbName = ValidateDbName(templateDbName);
+		_AdminConnectionString = adminConnectionString;
+		_TemplateDbName = _ValidateDbName(templateDbName);
 	}
 
 	/// <summary>
@@ -52,7 +52,7 @@ internal sealed partial class DatabaseTemplateManager {
 	) {
 		try {
 			await using var conn =
-				new NpgsqlConnection(_adminConnectionString);
+				new NpgsqlConnection(_AdminConnectionString);
 			await conn.OpenAsync(ct);
 
 			// Parameterized query for existence check
@@ -62,7 +62,7 @@ internal sealed partial class DatabaseTemplateManager {
 				conn
 			);
 			checkCmd.Parameters.AddWithValue(
-				"name", _templateDbName
+				"name", _TemplateDbName
 			);
 			var exists =
 				await checkCmd.ExecuteScalarAsync(ct) is not null;
@@ -71,7 +71,7 @@ internal sealed partial class DatabaseTemplateManager {
 				// CREATE DATABASE does not support parameters
 				// for identifiers — validated via regex above
 				var createCmd = new NpgsqlCommand(
-					$"CREATE DATABASE {_templateDbName}",
+					$"CREATE DATABASE {_TemplateDbName}",
 					conn
 				);
 				await createCmd.ExecuteNonQueryAsync(ct);
@@ -79,9 +79,9 @@ internal sealed partial class DatabaseTemplateManager {
 
 			var templateConnString =
 				new NpgsqlConnectionStringBuilder(
-					_adminConnectionString
+					_AdminConnectionString
 				) {
-					Database = _templateDbName
+					Database = _TemplateDbName
 				}.ConnectionString;
 
 			var options =
@@ -130,7 +130,7 @@ internal sealed partial class DatabaseTemplateManager {
 		) {
 			throw new InvalidOperationException(
 				"Failed to create/migrate template database "
-				+ $"'{_templateDbName}'. Check that Docker is "
+				+ $"'{_TemplateDbName}'. Check that Docker is "
 				+ "running and migrations are up to date.",
 				ex
 			);
@@ -146,24 +146,24 @@ internal sealed partial class DatabaseTemplateManager {
 		string dbName,
 		CancellationToken ct = default
 	) {
-		ValidateDbName(dbName);
+		_ValidateDbName(dbName);
 
 		try {
 			await using var conn =
-				new NpgsqlConnection(_adminConnectionString);
+				new NpgsqlConnection(_AdminConnectionString);
 			await conn.OpenAsync(ct);
 
 			// CREATE DATABASE does not support parameters for
 			// identifiers — validated via regex above
 			var createCmd = new NpgsqlCommand(
 				$"CREATE DATABASE {dbName} "
-				+ $"TEMPLATE {_templateDbName}",
+				+ $"TEMPLATE {_TemplateDbName}",
 				conn
 			);
 			await createCmd.ExecuteNonQueryAsync(ct);
 		} catch (Exception ex) {
 			throw new InvalidOperationException(
-				$"Failed to clone template '{_templateDbName}' "
+				$"Failed to clone template '{_TemplateDbName}' "
 				+ $"to '{dbName}'.",
 				ex
 			);
@@ -171,7 +171,7 @@ internal sealed partial class DatabaseTemplateManager {
 
 		// Pooling=false to avoid pool issues when dropping
 		var builder = new NpgsqlConnectionStringBuilder(
-			_adminConnectionString
+			_AdminConnectionString
 		) {
 			Database = dbName,
 			Pooling = false
@@ -189,7 +189,7 @@ internal sealed partial class DatabaseTemplateManager {
 		string dbName,
 		CancellationToken ct = default
 	) {
-		ValidateDbName(dbName);
+		_ValidateDbName(dbName);
 
 		// Clear all connection pools to release connections.
 		// Process-wide but acceptable in test context since
@@ -198,7 +198,7 @@ internal sealed partial class DatabaseTemplateManager {
 
 		try {
 			await using var conn =
-				new NpgsqlConnection(_adminConnectionString);
+				new NpgsqlConnection(_AdminConnectionString);
 			await conn.OpenAsync(ct);
 
 			// Terminate connections — parameterized where

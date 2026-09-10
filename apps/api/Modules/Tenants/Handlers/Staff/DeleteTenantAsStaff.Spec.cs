@@ -25,17 +25,17 @@ namespace PublyApp.Api.Modules.Tenants.Handlers.Staff;
 
 public sealed class DeleteTenantAsStaffSpec
 	: IClassFixture<ApiFixture> {
-	private readonly ApiFixture _fixture;
-	private readonly HttpClient _http;
-	private readonly TestAuthClient _authClient;
+	private readonly ApiFixture _Fixture;
+	private readonly HttpClient _Http;
+	private readonly TestAuthClient _AuthClient;
 
 	public DeleteTenantAsStaffSpec(ApiFixture fixture) {
-		_fixture = fixture;
-		_http = fixture.HttpClient;
-		_authClient = new TestAuthClient(_http);
+		_Fixture = fixture;
+		_Http = fixture.HttpClient;
+		_AuthClient = new TestAuthClient(_Http);
 	}
 
-	private static string GetUrl(string tenantId) {
+	private static string _GetUrl(string tenantId) {
 		return PathUtils.Join(
 			Routes.Staff.Root,
 			Routes.Tenants.ForStaff.Root,
@@ -47,10 +47,10 @@ public sealed class DeleteTenantAsStaffSpec
 	public async Task
 	ItShouldSoftDeleteSuspendedTenant() {
 		var staffToken =
-			await _authClient.LoginAsStaffAdminAsync();
+			await _AuthClient.LoginAsStaffAdminAsync();
 		var tenantId =
 			await TenantTestHelper.GetTenantIdByNameAsync(
-				_http,
+				_Http,
 				staffToken,
 				SeedConstants.Tenants.GlobalName
 			);
@@ -58,7 +58,7 @@ public sealed class DeleteTenantAsStaffSpec
 		// Suspend first (precondition for delete)
 		using var suspendResponse =
 			await TenantTestHelper.SuspendTenantAsync(
-				_http, staffToken, tenantId
+				_Http, staffToken, tenantId
 			);
 		suspendResponse.StatusCode.Should()
 			.Be(HttpStatusCode.OK);
@@ -66,7 +66,7 @@ public sealed class DeleteTenantAsStaffSpec
 		// Delete the suspended tenant
 		using var deleteResponse =
 			await TenantTestHelper.DeleteTenantAsync(
-				_http, staffToken, tenantId
+				_Http, staffToken, tenantId
 			);
 
 		deleteResponse.StatusCode.Should()
@@ -92,7 +92,7 @@ public sealed class DeleteTenantAsStaffSpec
 		).WithSessionToken(staffToken);
 
 		using var getResponse =
-			await _http.SendAsync(getRequest);
+			await _Http.SendAsync(getRequest);
 
 		getResponse.StatusCode.Should()
 			.Be(HttpStatusCode.NotFound);
@@ -102,16 +102,16 @@ public sealed class DeleteTenantAsStaffSpec
 	public async Task
 	ItShouldPersistSoftDeleteStateAndWriteAuditLog() {
 		var staffToken =
-			await _authClient.LoginAsStaffAdminAsync();
+			await _AuthClient.LoginAsStaffAdminAsync();
 		var seededTenant =
-			await SeedTenantAsync(
+			await _SeedTenantAsync(
 				"Tenant Delete Audit",
 				TenantStatus.Suspended
 			);
 
 		using var response =
 			await TenantTestHelper.DeleteTenantAsync(
-				_http,
+				_Http,
 				staffToken,
 				seededTenant.TenantId
 			);
@@ -119,7 +119,7 @@ public sealed class DeleteTenantAsStaffSpec
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.OK);
 
-		var deletedTenant = await GetTenantIgnoringFiltersAsync(
+		var deletedTenant = await _GetTenantIgnoringFiltersAsync(
 			seededTenant.TenantId
 		);
 		deletedTenant.Should().NotBeNull();
@@ -133,7 +133,7 @@ public sealed class DeleteTenantAsStaffSpec
 		deletedTenant.Status.Should()
 			.Be(TenantStatus.Suspended);
 
-		var auditLog = await GetLatestAuditLogAsync(
+		var auditLog = await _GetLatestAuditLogAsync(
 			AuditActions.TenantDeleted,
 			seededTenant.TenantId
 		);
@@ -144,7 +144,7 @@ public sealed class DeleteTenantAsStaffSpec
 			);
 		}
 
-		AssertDeleteAuditDetails(
+		_AssertDeleteAuditDetails(
 			auditLog,
 			expectedTenantName: seededTenant.Name
 		);
@@ -154,10 +154,10 @@ public sealed class DeleteTenantAsStaffSpec
 	public async Task
 	ItShouldReturnBadRequestWhenTenantNotSuspended() {
 		var staffToken =
-			await _authClient.LoginAsStaffAdminAsync();
+			await _AuthClient.LoginAsStaffAdminAsync();
 		var tenantId =
 			await TenantTestHelper.GetTenantIdByNameAsync(
-				_http,
+				_Http,
 				staffToken,
 				SeedConstants.Tenants.AcmeName
 			);
@@ -165,7 +165,7 @@ public sealed class DeleteTenantAsStaffSpec
 		// Try to delete an active tenant (not suspended)
 		using var response =
 			await TenantTestHelper.DeleteTenantAsync(
-				_http, staffToken, tenantId
+				_Http, staffToken, tenantId
 			);
 
 		response.StatusCode.Should()
@@ -183,15 +183,15 @@ public sealed class DeleteTenantAsStaffSpec
 	public async Task
 	ItShouldReturnNotFoundForNonExistentId() {
 		var staffToken =
-			await _authClient.LoginAsStaffAdminAsync();
-		var url = GetUrl(Guid.NewGuid().ToString());
+			await _AuthClient.LoginAsStaffAdminAsync();
+		var url = _GetUrl(Guid.NewGuid().ToString());
 
 		var request = new HttpRequestMessage(
 			HttpMethod.Delete, url
 		).WithSessionToken(staffToken);
 
 		using var response =
-			await _http.SendAsync(request);
+			await _Http.SendAsync(request);
 
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.NotFound);
@@ -205,15 +205,15 @@ public sealed class DeleteTenantAsStaffSpec
 	public async Task
 	ItShouldReturnBadRequestForMalformedId() {
 		var staffToken =
-			await _authClient.LoginAsStaffAdminAsync();
-		var url = GetUrl("not-a-guid");
+			await _AuthClient.LoginAsStaffAdminAsync();
+		var url = _GetUrl("not-a-guid");
 
 		var request = new HttpRequestMessage(
 			HttpMethod.Delete, url
 		).WithSessionToken(staffToken);
 
 		using var response =
-			await _http.SendAsync(request);
+			await _Http.SendAsync(request);
 
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.BadRequest);
@@ -230,10 +230,10 @@ public sealed class DeleteTenantAsStaffSpec
 	public async Task
 	ItShouldReturnNotFoundForAlreadyDeletedTenant() {
 		var staffToken =
-			await _authClient.LoginAsStaffAdminAsync();
+			await _AuthClient.LoginAsStaffAdminAsync();
 		var tenantId =
 			await TenantTestHelper.GetTenantIdByNameAsync(
-				_http,
+				_Http,
 				staffToken,
 				SeedConstants.Tenants.TechStartName
 			);
@@ -241,14 +241,14 @@ public sealed class DeleteTenantAsStaffSpec
 		// Multi-step setup: suspend → delete → try delete again
 		using var suspendResponse =
 			await TenantTestHelper.SuspendTenantAsync(
-				_http, staffToken, tenantId
+				_Http, staffToken, tenantId
 			);
 		suspendResponse.StatusCode.Should()
 			.Be(HttpStatusCode.OK);
 
 		using var firstDelete =
 			await TenantTestHelper.DeleteTenantAsync(
-				_http, staffToken, tenantId
+				_Http, staffToken, tenantId
 			);
 		firstDelete.StatusCode.Should()
 			.Be(HttpStatusCode.OK);
@@ -256,7 +256,7 @@ public sealed class DeleteTenantAsStaffSpec
 		// Try to delete again — should be not found
 		using var secondDelete =
 			await TenantTestHelper.DeleteTenantAsync(
-				_http, staffToken, tenantId
+				_Http, staffToken, tenantId
 			);
 
 		secondDelete.StatusCode.Should()
@@ -267,21 +267,21 @@ public sealed class DeleteTenantAsStaffSpec
 	public async Task
 	ItShouldReturnUnauthorizedWithoutSession() {
 		var staffToken =
-			await _authClient.LoginAsStaffAdminAsync();
+			await _AuthClient.LoginAsStaffAdminAsync();
 		var tenantId =
 			await TenantTestHelper.GetTenantIdByNameAsync(
-				_http,
+				_Http,
 				staffToken,
 				SeedConstants.Tenants.AcmeName
 			);
 
-		var url = GetUrl(tenantId.ToString());
+		var url = _GetUrl(tenantId.ToString());
 		var request = new HttpRequestMessage(
 			HttpMethod.Delete, url
 		);
 
 		using var response =
-			await _http.SendAsync(request);
+			await _Http.SendAsync(request);
 
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.Unauthorized);
@@ -291,27 +291,27 @@ public sealed class DeleteTenantAsStaffSpec
 	public async Task
 	ItShouldReturnForbiddenForNonStaffUser() {
 		var staffToken =
-			await _authClient.LoginAsStaffAdminAsync();
+			await _AuthClient.LoginAsStaffAdminAsync();
 		var tenantId =
 			await TenantTestHelper.GetTenantIdByNameAsync(
-				_http,
+				_Http,
 				staffToken,
 				SeedConstants.Tenants.AcmeName
 			);
 
 		// Login as tenant admin (not staff)
-		var tenantToken = await _authClient.LoginAsync(
+		var tenantToken = await _AuthClient.LoginAsync(
 			TestConstants.AcmeAdminEmail,
 			TestConstants.SeedPassword
 		);
 
-		var url = GetUrl(tenantId.ToString());
+		var url = _GetUrl(tenantId.ToString());
 		var request = new HttpRequestMessage(
 			HttpMethod.Delete, url
 		).WithSessionToken(tenantToken);
 
 		using var response =
-			await _http.SendAsync(request);
+			await _Http.SendAsync(request);
 
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.Forbidden);
@@ -321,29 +321,29 @@ public sealed class DeleteTenantAsStaffSpec
 	public async Task
 	ItShouldReturnForbiddenForStaffWithoutPermission() {
 		var token =
-			await _authClient.LoginAsync(
+			await _AuthClient.LoginAsync(
 				TestConstants.StaffUserEmail,
 				TestConstants.SeedPassword
 			);
 
-		var url = GetUrl(Guid.NewGuid().ToString());
+		var url = _GetUrl(Guid.NewGuid().ToString());
 		var request = new HttpRequestMessage(
 			HttpMethod.Delete, url
 		).WithSessionToken(token);
 
 		using var response =
-			await _http.SendAsync(request);
+			await _Http.SendAsync(request);
 
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.Forbidden);
 	}
 
-	private async Task<SeededTenantSnapshot> SeedTenantAsync(
+	private async Task<SeededTenantSnapshot> _SeedTenantAsync(
 		string namePrefix,
 		TenantStatus status
 	) {
 		await using var scope =
-			_fixture.Factory.Services.CreateAsyncScope();
+			_Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>();
 
@@ -363,11 +363,11 @@ public sealed class DeleteTenantAsStaffSpec
 		);
 	}
 
-	private async Task<Tenant?> GetTenantIgnoringFiltersAsync(
+	private async Task<Tenant?> _GetTenantIgnoringFiltersAsync(
 		Guid tenantId
 	) {
 		await using var scope =
-			_fixture.Factory.Services.CreateAsyncScope();
+			_Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>();
 
@@ -379,12 +379,12 @@ public sealed class DeleteTenantAsStaffSpec
 		return await query.FirstOrDefaultAsync();
 	}
 
-	private async Task<AuditLog?> GetLatestAuditLogAsync(
+	private async Task<AuditLog?> _GetLatestAuditLogAsync(
 		string action,
 		Guid targetId
 	) {
 		await using var scope =
-			_fixture.Factory.Services.CreateAsyncScope();
+			_Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>();
 
@@ -398,7 +398,7 @@ public sealed class DeleteTenantAsStaffSpec
 		return await query.FirstOrDefaultAsync();
 	}
 
-	private static void AssertDeleteAuditDetails(
+	private static void _AssertDeleteAuditDetails(
 		AuditLog auditLog,
 		string expectedTenantName
 	) {

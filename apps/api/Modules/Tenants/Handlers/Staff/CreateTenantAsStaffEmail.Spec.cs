@@ -29,27 +29,27 @@ namespace PublyApp.Api.Modules.Tenants.Handlers.Staff;
 // other's sent emails, so there is nothing to Clear() and no dependency on run order. See
 // docs/guides/api-integration-tests.md ("Fixture Lifecycle and Mutable Test State").
 public sealed class CreateTenantAsStaffEmailSpec : IAsyncLifetime {
-	private readonly ApiFixture _fixture = new();
-	private HttpClient _http = null!;
-	private TestAuthClient _authClient = null!;
+	private readonly ApiFixture _Fixture = new();
+	private HttpClient _Http = null!;
+	private TestAuthClient _AuthClient = null!;
 
 	public async Task InitializeAsync() {
-		await _fixture.InitializeAsync();
-		_http = _fixture.HttpClient;
-		_authClient = new TestAuthClient(_http);
+		await _Fixture.InitializeAsync();
+		_Http = _Fixture.HttpClient;
+		_AuthClient = new TestAuthClient(_Http);
 	}
 
 	public Task DisposeAsync() {
-		return _fixture.DisposeAsync();
+		return _Fixture.DisposeAsync();
 	}
 
 	[Fact]
 	public async Task
 	ItShouldCreatePendingTenantDefaultProfileInvitationsAndEmails() {
-		var fakeEmailSender = _fixture.GetFakeEmailSender();
+		var fakeEmailSender = _Fixture.GetFakeEmailSender();
 
 		var token =
-			await _authClient.LoginAsStaffAdminAsync();
+			await _AuthClient.LoginAsStaffAdminAsync();
 		var tenantName =
 			$"Tenant Create Contract {Guid.NewGuid():N}";
 		var adminEmail =
@@ -57,8 +57,8 @@ public sealed class CreateTenantAsStaffEmailSpec : IAsyncLifetime {
 		var userEmail =
 			$"tenant-create-user-{Guid.NewGuid():N}@example.com";
 
-		using var response = await _http.SendAsync(
-			CreateTenantRequest(
+		using var response = await _Http.SendAsync(
+			_CreateTenantRequest(
 				token,
 				new {
 					name = tenantName,
@@ -88,7 +88,7 @@ public sealed class CreateTenantAsStaffEmailSpec : IAsyncLifetime {
 		created.Name.Should().Be(tenantName);
 
 		await using var scope =
-			_fixture.Factory.Services.CreateAsyncScope();
+			_Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>();
 
@@ -174,20 +174,20 @@ public sealed class CreateTenantAsStaffEmailSpec : IAsyncLifetime {
 	[Fact]
 	public async Task
 	ItShouldObserveOnlyItsOwnEmailWithNoResetRegardlessOfExecutionOrder() {
-		var fakeEmailSender = _fixture.GetFakeEmailSender();
+		var fakeEmailSender = _Fixture.GetFakeEmailSender();
 		fakeEmailSender.SentEmails.Should().BeEmpty(
 			"this method owns a fresh FakeEmailSender — nothing else can have written to it"
 		);
 
 		var token =
-			await _authClient.LoginAsStaffAdminAsync();
+			await _AuthClient.LoginAsStaffAdminAsync();
 		var tenantName =
 			$"Tenant Create Probe {Guid.NewGuid():N}";
 		var adminEmail =
 			$"tenant-create-probe-admin-{Guid.NewGuid():N}@example.com";
 
-		using var response = await _http.SendAsync(
-			CreateTenantRequest(
+		using var response = await _Http.SendAsync(
+			_CreateTenantRequest(
 				token,
 				new {
 					name = tenantName,
@@ -211,7 +211,7 @@ public sealed class CreateTenantAsStaffEmailSpec : IAsyncLifetime {
 		Assert.NotNull(created);
 
 		await using var scope =
-			_fixture.Factory.Services.CreateAsyncScope();
+			_Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>();
 
@@ -239,7 +239,7 @@ public sealed class CreateTenantAsStaffEmailSpec : IAsyncLifetime {
 		);
 	}
 
-	private static string GetCreateTenantUrl() {
+	private static string _GetCreateTenantUrl() {
 		return PathUtils.Join(
 			Routes.Staff.Root,
 			Routes.Tenants.ForStaff.Root,
@@ -247,13 +247,13 @@ public sealed class CreateTenantAsStaffEmailSpec : IAsyncLifetime {
 		);
 	}
 
-	private static HttpRequestMessage CreateTenantRequest(
+	private static HttpRequestMessage _CreateTenantRequest(
 		string sessionToken,
 		object body
 	) {
 		var request = new HttpRequestMessage(
 			HttpMethod.Post,
-			GetCreateTenantUrl()
+			_GetCreateTenantUrl()
 		).WithSessionToken(sessionToken);
 		request.Content = JsonContent.Create(body);
 

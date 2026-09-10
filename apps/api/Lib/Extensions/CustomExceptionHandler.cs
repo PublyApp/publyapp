@@ -17,7 +17,7 @@ public static partial class CustomExceptionHandler {
 	);
 
 	[GeneratedRegex(@"Required parameter ""string (\w+)"" was not provided")]
-	private static partial Regex MissingQueryParameterPattern();
+	private static partial Regex _MissingQueryParameterPattern();
 
 	/// <summary>
 	/// Maps an unhandled exception caught by the global handler to the RFC 7807
@@ -67,7 +67,7 @@ public static partial class CustomExceptionHandler {
 				&& validationException.Message.Contains("was not provided from query string")
 			) {
 			// Required parameter "string userId" was not provided from query string.
-			var match = MissingQueryParameterPattern().Match(validationException.Message);
+			var match = _MissingQueryParameterPattern().Match(validationException.Message);
 			var parameterName = match.Success ? match.Groups[1].Value : "unknown";
 
 			return new ExceptionMapping(

@@ -19,18 +19,18 @@ public sealed class EnqueueSystemJobJob : IJob {
 	public const string JobKeyDataKey = "jobKey";
 	public const string ScheduleEpochDataKey = "scheduleEpoch";
 
-	private readonly AppDbContext _dbContext;
-	private readonly ILogger<EnqueueSystemJobJob> _logger;
+	private readonly AppDbContext _DbContext;
+	private readonly ILogger<EnqueueSystemJobJob> _Logger;
 
 	public EnqueueSystemJobJob(AppDbContext dbContext, ILogger<EnqueueSystemJobJob> logger) {
-		_dbContext = dbContext;
-		_logger = logger;
+		_DbContext = dbContext;
+		_Logger = logger;
 	}
 
 	public async Task Execute(IJobExecutionContext context) {
 		var jobKey = context.MergedJobDataMap.GetString(JobKeyDataKey);
 		if (string.IsNullOrWhiteSpace(jobKey)) {
-			_logger.LogWarning(
+			_Logger.LogWarning(
 				"EnqueueSystemJobJob fired without a '{DataKey}' in its JobDataMap; skipping",
 				JobKeyDataKey
 			);
@@ -39,7 +39,7 @@ public sealed class EnqueueSystemJobJob : IJob {
 
 		var scheduledFireTime = context.ScheduledFireTimeUtc;
 		if (scheduledFireTime is null) {
-			_logger.LogWarning(
+			_Logger.LogWarning(
 				"EnqueueSystemJobJob fired without ScheduledFireTimeUtc for {JobKey}; skipping",
 				jobKey
 			);
@@ -48,7 +48,7 @@ public sealed class EnqueueSystemJobJob : IJob {
 
 		var scheduleEpochText = context.MergedJobDataMap.GetString(ScheduleEpochDataKey);
 		if (!Guid.TryParse(scheduleEpochText, out var scheduleEpoch)) {
-			_logger.LogWarning(
+			_Logger.LogWarning(
 				"EnqueueSystemJobJob fired without a valid '{DataKey}' for {JobKey}; skipping",
 				ScheduleEpochDataKey,
 				jobKey
@@ -72,13 +72,13 @@ public sealed class EnqueueSystemJobJob : IJob {
 		Guid scheduleEpoch,
 		CancellationToken cancellationToken
 	) {
-		await using var transaction = await _dbContext.Database.BeginTransactionAsync(
+		await using var transaction = await _DbContext.Database.BeginTransactionAsync(
 			cancellationToken
 		);
 
 		// Lock the current definition so a schedule-epoch rotation cannot interleave with
 		// validation and enqueue. A stale or missing definition is a rejected no-op.
-		var currentScheduleEpochs = await _dbContext.Database.SqlQuery<Guid>(
+		var currentScheduleEpochs = await _DbContext.Database.SqlQuery<Guid>(
 			$"""
 			SELECT schedule_epoch AS "Value"
 			FROM system_job_definitions
@@ -88,7 +88,7 @@ public sealed class EnqueueSystemJobJob : IJob {
 		).ToListAsync(cancellationToken);
 
 		if (currentScheduleEpochs.Count != 1 || currentScheduleEpochs[0] != scheduleEpoch) {
-			_logger.LogWarning(
+			_Logger.LogWarning(
 				"system_job.fire_rejected job_key={JobKey} schedule_epoch={ScheduleEpoch}",
 				jobKey,
 				scheduleEpoch
@@ -97,7 +97,7 @@ public sealed class EnqueueSystemJobJob : IJob {
 			return;
 		}
 
-		var inserted = await _dbContext.Database.ExecuteSqlAsync(
+		var inserted = await _DbContext.Database.ExecuteSqlAsync(
 			$"""
 			INSERT INTO system_job_occurrences (job_key, scheduled_fire_at)
 			VALUES ({jobKey}, {scheduledFireAt})
@@ -115,14 +115,14 @@ public sealed class EnqueueSystemJobJob : IJob {
 		// Database defaults stamp all queue timestamps; the explicit transaction makes
 		// the ledger row, queue row, informational link, and definition stamp atomic.
 		var enqueued = new JobQueueItem { JobType = jobKey };
-		await _dbContext.JobQueue.AddAsync(enqueued, cancellationToken);
-		await _dbContext.SaveChangesAsync(cancellationToken);
+		await _DbContext.JobQueue.AddAsync(enqueued, cancellationToken);
+		await _DbContext.SaveChangesAsync(cancellationToken);
 
 		if (enqueued.Id is null) {
 			throw new InvalidOperationException("The system-job queue insert returned no id.");
 		}
 
-		await _dbContext.Database.ExecuteSqlAsync(
+		await _DbContext.Database.ExecuteSqlAsync(
 			$"""
 			UPDATE system_job_occurrences
 			SET enqueued_job_id = {enqueued.Id.Value}
@@ -130,7 +130,7 @@ public sealed class EnqueueSystemJobJob : IJob {
 			""",
 			cancellationToken
 		);
-		await _dbContext.Database.ExecuteSqlAsync(
+		await _DbContext.Database.ExecuteSqlAsync(
 			$"""
 			UPDATE system_job_definitions
 			SET last_enqueued_at = now()
@@ -141,8 +141,8 @@ public sealed class EnqueueSystemJobJob : IJob {
 
 		await transaction.CommitAsync(cancellationToken);
 
-		if (_logger.IsEnabled(LogLevel.Information)) {
-			_logger.LogInformation("Enqueued system job {JobKey} into job_queue", jobKey);
+		if (_Logger.IsEnabled(LogLevel.Information)) {
+			_Logger.LogInformation("Enqueued system job {JobKey} into job_queue", jobKey);
 		}
 	}
 }

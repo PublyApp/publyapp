@@ -14,21 +14,21 @@ namespace PublyApp.Api.Modules.AuditLogs.Handlers.Staff;
 
 public sealed class GetAuditLogActionsSpec
 	: IClassFixture<ApiFixture> {
-	private readonly HttpClient _http;
-	private readonly TestAuthClient _authClient;
+	private readonly HttpClient _Http;
+	private readonly TestAuthClient _AuthClient;
 
 	public GetAuditLogActionsSpec(
 		ApiFixture fixture
 	) {
-		_http = fixture.HttpClient;
-		_authClient = new TestAuthClient(_http);
+		_Http = fixture.HttpClient;
+		_AuthClient = new TestAuthClient(_Http);
 	}
 
 	[Fact]
 	public async Task
 	ItShouldReturnOkWithActionsList() {
 		var token =
-			await _authClient.LoginAsStaffAdminAsync();
+			await _AuthClient.LoginAsStaffAdminAsync();
 
 		var url =
 			AuditLogTestHelper.GetActionsUrl();
@@ -37,7 +37,7 @@ public sealed class GetAuditLogActionsSpec
 		).WithSessionToken(token);
 
 		using var response =
-			await _http.SendAsync(request);
+			await _Http.SendAsync(request);
 
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.OK);
@@ -69,7 +69,7 @@ public sealed class GetAuditLogActionsSpec
 		);
 
 		using var response =
-			await _http.SendAsync(request);
+			await _Http.SendAsync(request);
 
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.Unauthorized);
@@ -79,7 +79,7 @@ public sealed class GetAuditLogActionsSpec
 	public async Task
 	ItShouldReturnForbiddenForNonStaffUser() {
 		var token =
-			await _authClient.LoginAsync(
+			await _AuthClient.LoginAsync(
 				TestConstants.AcmeAdminEmail,
 				TestConstants.SeedPassword
 			);
@@ -91,7 +91,7 @@ public sealed class GetAuditLogActionsSpec
 		).WithSessionToken(token);
 
 		using var response =
-			await _http.SendAsync(request);
+			await _Http.SendAsync(request);
 
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.Forbidden);
@@ -101,7 +101,7 @@ public sealed class GetAuditLogActionsSpec
 	public async Task
 	ItShouldReturnForbiddenForStaffWithoutPermission() {
 		var token =
-			await _authClient.LoginAsync(
+			await _AuthClient.LoginAsync(
 				TestConstants.StaffUserEmail,
 				TestConstants.SeedPassword
 			);
@@ -113,7 +113,7 @@ public sealed class GetAuditLogActionsSpec
 		).WithSessionToken(token);
 
 		using var response =
-			await _http.SendAsync(request);
+			await _Http.SendAsync(request);
 
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.Forbidden);

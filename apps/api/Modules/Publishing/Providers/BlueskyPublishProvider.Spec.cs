@@ -17,26 +17,26 @@ namespace PublyApp.Api.Modules.Publishing.Providers;
 // HttpMessageHandler captures every request so the spec pins the exact wire shape
 // of com.atproto.repo.createRecord and the four-way failure classification.
 public sealed class BlueskyPublishProviderSpec {
-	private const string PdsHost = "https://pds.example";
-	private static readonly Guid PublicationId = Guid.NewGuid();
-	private static readonly string IdempotencyKey =
-		PublyApp.Api.Modules.Publishing.Lib.PublicationIdempotencyKey.For(PublicationId);
+	private const string _PdsHost = "https://pds.example";
+	private static readonly Guid _PublicationId = Guid.NewGuid();
+	private static readonly string _IdempotencyKey =
+		PublyApp.Api.Modules.Publishing.Lib.PublicationIdempotencyKey.For(_PublicationId);
 
-	private static DateTime ScheduledInstant() {
+	private static DateTime _ScheduledInstant() {
 		return new DateTime(2030, 5, 1, 12, 30, 0, DateTimeKind.Utc);
 	}
 
-	private static PublishRequest NewRequest(SocialSession session) {
+	private static PublishRequest _NewRequest(SocialSession session) {
 		return new PublishRequest {
-			PublicationId = PublicationId,
-			IdempotencyKey = IdempotencyKey,
+			PublicationId = _PublicationId,
+			IdempotencyKey = _IdempotencyKey,
 			PostBody = "hello from the publishing slice",
-			ScheduledAtUtc = ScheduledInstant(),
+			ScheduledAtUtc = _ScheduledInstant(),
 			Session = session,
 		};
 	}
 
-	private static IHttpClientFactory FactoryFromHandler(HttpMessageHandler handler) {
+	private static IHttpClientFactory _FactoryFromHandler(HttpMessageHandler handler) {
 		var services = new ServiceCollection();
 		services.AddHttpClient(BlueskyPublishProvider.HttpClientName)
 			.ConfigurePrimaryHttpMessageHandler(() => handler);
@@ -44,33 +44,33 @@ public sealed class BlueskyPublishProviderSpec {
 			.GetRequiredService<IHttpClientFactory>();
 	}
 
-	private static async Task<(PublishResult Result, RecordingHandler Handler)> PublishOnceAsync(
+	private static async Task<(PublishResult Result, RecordingHandler Handler)> _PublishOnceAsync(
 		SocialSession session,
 		Func<HttpRequestMessage, HttpResponseMessage> responder
 	) {
 		var handler = new RecordingHandler(responder);
-		var provider = new BlueskyPublishProvider(FactoryFromHandler(handler));
-		var result = await provider.PublishAsync(NewRequest(session), CancellationToken.None);
+		var provider = new BlueskyPublishProvider(_FactoryFromHandler(handler));
+		var result = await provider.PublishAsync(_NewRequest(session), CancellationToken.None);
 		return (result, handler);
 	}
 
-	private static SocialSession NewSession(
+	private static SocialSession _NewSession(
 		string did = "did:plc:x",
 		string handle = "@h.test",
 		string accessJwt = "jwt-token",
-		string pdsHost = PdsHost
+		string pdsHost = _PdsHost
 	) {
 		return new SocialSession(did, handle, accessJwt, pdsHost);
 	}
 
-	private static HttpResponseMessage SuccessResponse(string uri) {
-		return JsonResponse(
+	private static HttpResponseMessage _SuccessResponse(string uri) {
+		return _JsonResponse(
 			200,
 			$$"""{"uri":"{{uri}}","cid":"bafy-ci"}"""
 		);
 	}
 
-	private static HttpResponseMessage JsonResponse(int status, string json) {
+	private static HttpResponseMessage _JsonResponse(int status, string json) {
 		return new HttpResponseMessage((System.Net.HttpStatusCode)status) {
 			Content = new StringContent(json, Encoding.UTF8, "application/json"),
 		};
@@ -78,28 +78,28 @@ public sealed class BlueskyPublishProviderSpec {
 
 	[Fact]
 	public async Task ItShouldPostCreateRecordWithRepoCollectionDeterministicRkeyAndText() {
-		var (result, handler) = await PublishOnceAsync(
-			NewSession(),
-			(_) => SuccessResponse($"at://did:plc:x/app.bsky.feed.post/pub-{IdempotencyKey}")
+		var (result, handler) = await _PublishOnceAsync(
+			_NewSession(),
+			(_) => _SuccessResponse($"at://did:plc:x/app.bsky.feed.post/pub-{_IdempotencyKey}")
 		);
 
 		handler.Requests.Should().HaveCount(1);
 		var request = handler.Requests[0];
 		request.Method.Should().Be(HttpMethod.Post);
 		request.RequestUri!.ToString().Should().Be(
-			$"{PdsHost}/xrpc/com.atproto.repo.createRecord"
+			$"{_PdsHost}/xrpc/com.atproto.repo.createRecord"
 		);
 
 		var body = JsonDocument.Parse(handler.Bodies[0]).RootElement;
 		body.GetProperty("repo").GetString().Should().Be("did:plc:x");
 		body.GetProperty("collection").GetString().Should().Be("app.bsky.feed.post");
-		body.GetProperty("rkey").GetString().Should().Be($"pub-{IdempotencyKey}");
+		body.GetProperty("rkey").GetString().Should().Be($"pub-{_IdempotencyKey}");
 
 		var record = body.GetProperty("record");
 		record.GetProperty("$type").GetString().Should().Be("app.bsky.feed.post");
 		record.GetProperty("text").GetString().Should().Be("hello from the publishing slice");
 		record.GetProperty("createdAt").GetString().Should().Be(
-			ScheduledInstant().ToString("o", System.Globalization.CultureInfo.InvariantCulture)
+			_ScheduledInstant().ToString("o", System.Globalization.CultureInfo.InvariantCulture)
 		);
 
 		result.Should().BeOfType<PublishResult.Published>();
@@ -108,9 +108,9 @@ public sealed class BlueskyPublishProviderSpec {
 	[Fact]
 	public async Task ItShouldDeriveTheSameRkeyFromTheSamePublicationEveryTime() {
 		async Task<string> CreateBodyAsync() {
-			var (_, handler) = await PublishOnceAsync(
-				NewSession(),
-				(_) => SuccessResponse("at://did/x")
+			var (_, handler) = await _PublishOnceAsync(
+				_NewSession(),
+				(_) => _SuccessResponse("at://did/x")
 			);
 			return handler.Bodies[0];
 		}
@@ -128,22 +128,22 @@ public sealed class BlueskyPublishProviderSpec {
 
 	[Fact]
 	public async Task ItShouldReturnPublishedWithRecordIdentityAndWebUrlOnSuccess() {
-		var (result, _) = await PublishOnceAsync(
-			NewSession(),
-			(_) => SuccessResponse($"at://did:plc:x/app.bsky.feed.post/pub-{IdempotencyKey}")
+		var (result, _) = await _PublishOnceAsync(
+			_NewSession(),
+			(_) => _SuccessResponse($"at://did:plc:x/app.bsky.feed.post/pub-{_IdempotencyKey}")
 		);
 
 		var published = result.Should().BeOfType<PublishResult.Published>().Subject;
-		published.RecordId.Should().Be($"at://did:plc:x/app.bsky.feed.post/pub-{IdempotencyKey}");
-		published.RecordUrl.Should().Be($"https://bsky.app/profile/did:plc:x/post/pub-{IdempotencyKey}");
+		published.RecordId.Should().Be($"at://did:plc:x/app.bsky.feed.post/pub-{_IdempotencyKey}");
+		published.RecordUrl.Should().Be($"https://bsky.app/profile/did:plc:x/post/pub-{_IdempotencyKey}");
 	}
 
 	[Fact]
 	public async Task ItShouldClassifyInvalidCredentialsAsAccountFailureWithoutLeakingTheToken() {
-		var session = NewSession(accessJwt: "jwt-super-secret-value");
-		var (result, handler) = await PublishOnceAsync(
+		var session = _NewSession(accessJwt: "jwt-super-secret-value");
+		var (result, handler) = await _PublishOnceAsync(
 			session,
-			(_) => JsonResponse(
+			(_) => _JsonResponse(
 				401,
 				"""{"error":"AuthenticationRequired","message":"invalid credentials"}"""
 			)
@@ -158,9 +158,9 @@ public sealed class BlueskyPublishProviderSpec {
 
 	[Fact]
 	public async Task ItShouldClassifyATooLongBodyAsContentFailure() {
-		var (result, _) = await PublishOnceAsync(
-			NewSession(),
-			(_) => JsonResponse(
+		var (result, _) = await _PublishOnceAsync(
+			_NewSession(),
+			(_) => _JsonResponse(
 				400,
 				"""{"error":"InvalidRequest","message":"text is too long (grapheme limit 300)"}"""
 			)
@@ -171,18 +171,18 @@ public sealed class BlueskyPublishProviderSpec {
 
 	[Fact]
 	public async Task ItShouldClassifyServerAndTransportErrorsAsTransient() {
-		var (serverResult, _) = await PublishOnceAsync(
-			NewSession(),
-			(_) => JsonResponse(503, """{"error":"TemporarilyUnavailable"}""")
+		var (serverResult, _) = await _PublishOnceAsync(
+			_NewSession(),
+			(_) => _JsonResponse(503, """{"error":"TemporarilyUnavailable"}""")
 		);
 		serverResult.Should().BeOfType<PublishResult.TransientFailure>();
 
 		var transportHandler = new RecordingHandler(
 			(_) => throw new HttpRequestException("boom")
 		);
-		var transportProvider = new BlueskyPublishProvider(FactoryFromHandler(transportHandler));
+		var transportProvider = new BlueskyPublishProvider(_FactoryFromHandler(transportHandler));
 		var transportResult = await transportProvider.PublishAsync(
-			NewRequest(NewSession()),
+			_NewRequest(_NewSession()),
 			CancellationToken.None
 		);
 		transportResult.Should().BeOfType<PublishResult.TransientFailure>();
@@ -198,19 +198,19 @@ public sealed class BlueskyPublishProviderSpec {
 	public async Task ItShouldNotCreateADuplicateWhenTheRecordAlreadyExistsAfterATimeout() {
 		PublishRequest FreshRequest() {
 			return new PublishRequest {
-				PublicationId = PublicationId,
+				PublicationId = _PublicationId,
 				IdempotencyKey =
 					PublyApp.Api.Modules.Publishing.Lib.PublicationIdempotencyKey.For(
-						PublicationId
+						_PublicationId
 					),
 				PostBody = "hello from the publishing slice",
-				ScheduledAtUtc = ScheduledInstant(),
-				Session = NewSession(),
+				ScheduledAtUtc = _ScheduledInstant(),
+				Session = _NewSession(),
 			};
 		}
 
 		var fakePds = new RkeyStoringFakePds();
-		var provider = new BlueskyPublishProvider(FactoryFromHandler(fakePds));
+		var provider = new BlueskyPublishProvider(_FactoryFromHandler(fakePds));
 
 		var first = await provider.PublishAsync(FreshRequest(), CancellationToken.None);
 		var second = await provider.PublishAsync(FreshRequest(), CancellationToken.None);
@@ -224,8 +224,8 @@ public sealed class BlueskyPublishProviderSpec {
 		second.Should().BeOfType<PublishResult.AlreadyExistsTreatedAsPublished>();
 		var adopted = second.Should()
 			.BeOfType<PublishResult.AlreadyExistsTreatedAsPublished>().Subject;
-		adopted.RecordId.Should().Be($"at://did:plc:x/app.bsky.feed.post/pub-{IdempotencyKey}");
-		adopted.RecordUrl.Should().Be($"https://bsky.app/profile/did:plc:x/post/pub-{IdempotencyKey}");
+		adopted.RecordId.Should().Be($"at://did:plc:x/app.bsky.feed.post/pub-{_IdempotencyKey}");
+		adopted.RecordUrl.Should().Be($"https://bsky.app/profile/did:plc:x/post/pub-{_IdempotencyKey}");
 
 		// The adoption went through the documented read-back: GET getRecord carrying
 		// the freshly derived rkey.
@@ -235,7 +235,7 @@ public sealed class BlueskyPublishProviderSpec {
 		var query = HttpUtility.ParseQueryString(readBack.RequestUri.Query);
 		query["repo"].Should().Be("did:plc:x");
 		query["collection"].Should().Be("app.bsky.feed.post");
-		query["rkey"].Should().Be($"pub-{IdempotencyKey}");
+		query["rkey"].Should().Be($"pub-{_IdempotencyKey}");
 	}
 
 	[Fact]
@@ -247,10 +247,10 @@ public sealed class BlueskyPublishProviderSpec {
 			var opened = await sessionProvider.OpenSessionAsync(Guid.NewGuid(), CancellationToken.None);
 			var session = opened.Should().BeOfType<SocialSessionResult.Opened>().Subject.Session;
 			var handler = new RecordingHandler(
-				(_) => SuccessResponse($"at://did:plc:same/app.bsky.feed.post/pub-{IdempotencyKey}")
+				(_) => _SuccessResponse($"at://did:plc:same/app.bsky.feed.post/pub-{_IdempotencyKey}")
 			);
-			var provider = new BlueskyPublishProvider(FactoryFromHandler(handler));
-			return await provider.PublishAsync(NewRequest(session), CancellationToken.None);
+			var provider = new BlueskyPublishProvider(_FactoryFromHandler(handler));
+			return await provider.PublishAsync(_NewRequest(session), CancellationToken.None);
 		}
 
 		var viaAppPassword = await PublishThroughAsync(new AppPasswordShapedSessionProvider());
@@ -262,10 +262,10 @@ public sealed class BlueskyPublishProviderSpec {
 
 	private sealed class RecordingHandler
 		: HttpMessageHandler {
-		private readonly Func<HttpRequestMessage, HttpResponseMessage> _responder;
+		private readonly Func<HttpRequestMessage, HttpResponseMessage> _Responder;
 
 		public RecordingHandler(Func<HttpRequestMessage, HttpResponseMessage> responder) {
-			_responder = responder;
+			_Responder = responder;
 		}
 
 		public List<HttpRequestMessage> Requests { get; } = [];
@@ -281,7 +281,7 @@ public sealed class BlueskyPublishProviderSpec {
 				: await request.Content.ReadAsStringAsync(cancellationToken);
 			Requests.Add(request);
 			Bodies.Add(body);
-			return _responder(request);
+			return _Responder(request);
 		}
 	}
 
@@ -292,7 +292,7 @@ public sealed class BlueskyPublishProviderSpec {
 	/// non-deterministic key observably produce duplicates.
 	/// </summary>
 	private sealed class RkeyStoringFakePds : HttpMessageHandler {
-		private static readonly string DuplicateBody =
+		private static readonly string _DuplicateBody =
 			"""{"error":"InvalidRequest","message":"record_already_exists: duplicate rkey"}""";
 
 		public List<HttpRequestMessage> Requests { get; } = [];
@@ -313,26 +313,26 @@ public sealed class BlueskyPublishProviderSpec {
 				)) {
 				CreateAttempts += 1;
 				var body = await request.Content!.ReadAsStringAsync(cancellationToken);
-				var rkey = ExtractRkey(body);
+				var rkey = _ExtractRkey(body);
 				if (StoredRkeys.Contains(rkey)) {
-					return JsonResponse(400, DuplicateBody);
+					return _JsonResponse(400, _DuplicateBody);
 				}
 
 				StoredRkeys.Add(rkey);
-				return JsonResponse(
+				return _JsonResponse(
 					200,
 					$$"""{"uri":"at://did:plc:x/app.bsky.feed.post/{{rkey}}","cid":"bafy-{{CreateAttempts}}"}"""
 				);
 			}
 
 			var query = HttpUtility.ParseQueryString(request.RequestUri.Query);
-			return JsonResponse(
+			return _JsonResponse(
 				200,
 				$$"""{"uri":"at://did:plc:x/app.bsky.feed.post/{{query["rkey"]}}","cid":"bafy-existing"}"""
 			);
 		}
 
-		private static string ExtractRkey(string createRecordBody) {
+		private static string _ExtractRkey(string createRecordBody) {
 			using var document = JsonDocument.Parse(createRecordBody);
 			return document.RootElement.GetProperty("rkey").GetString()
 				?? throw new InvalidOperationException("createRecord body carried no rkey.");
@@ -349,7 +349,7 @@ public sealed class BlueskyPublishProviderSpec {
 				"did:plc:same",
 				"@app-password.test",
 				$"jwt-app-password-{socialAccountId:N}",
-				PdsHost
+				_PdsHost
 			);
 			return Task.FromResult<SocialSessionResult>(new SocialSessionResult.Opened(session));
 		}
@@ -365,7 +365,7 @@ public sealed class BlueskyPublishProviderSpec {
 				"did:plc:same",
 				"@oauth.test",
 				$"jwt-oauth-exchange-{socialAccountId:N}",
-				PdsHost
+				_PdsHost
 			);
 			return Task.FromResult<SocialSessionResult>(new SocialSessionResult.Opened(session));
 		}

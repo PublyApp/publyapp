@@ -67,10 +67,10 @@ public class TenantUserCompanyQueryService : ITenantUserCompanyQueryService {
 		public required Guid Id { get; init; }
 	}
 
-	private readonly AppDbContext _dbContext;
+	private readonly AppDbContext _DbContext;
 
 	public TenantUserCompanyQueryService(AppDbContext dbContext) {
-		_dbContext = dbContext;
+		_DbContext = dbContext;
 	}
 
 
@@ -79,11 +79,11 @@ public class TenantUserCompanyQueryService : ITenantUserCompanyQueryService {
 		CancellationToken cancellationToken = default
 	) {
 		return await (
-			from u in _dbContext.User.AsNoTracking()
+			from u in _DbContext.User.AsNoTracking()
 			where u.Id == userId
 				&& !u.IsDeleted
 				&& (
-					from ua in _dbContext.UserAccount.AsNoTracking()
+					from ua in _DbContext.UserAccount.AsNoTracking()
 					where ua.UserId == u.Id
 						&& ua.Scope == AccountScope.Tenant
 					select ua
@@ -103,87 +103,87 @@ public class TenantUserCompanyQueryService : ITenantUserCompanyQueryService {
 		var effectiveSortOrder = args.SortOrder ?? SortOrder.Desc;
 		var effectiveSortId = args.SortId ?? "tenant_name";
 
-				var sortFieldHandlers =
-			new Dictionary<string, CursorSortFieldHandler<TenantUserCompanyQueryRow>>(
-				StringComparer.OrdinalIgnoreCase
-			) {
-			["tenant_name"] = CursorSortFieldHandlerFactory.Create<TenantUserCompanyQueryRow, string, Guid>(
-				cursorLookupQuery: () => _dbContext.UserAccount
-					.AsNoTracking()
-					.Join(_dbContext.Tenant.AsNoTracking(), ua => ua.TenantId, t => t.Id, (ua, t) => new TenantUserCompanyQueryRow {
-						Account = ua,
-						User = ua.User,
-						Tenant = t,
-						TenantId = ua.TenantId ?? Guid.Empty,
-						Id = ua.TenantId ?? Guid.Empty,
-					})
-					.Where(ua => ua.Account.UserId == userId
-						&& ua.Account.Scope == AccountScope.Tenant
-						&& !ua.Account.IsDeleted
-						&& !ua.User.IsDeleted
-						&& !ua.Tenant.IsDeleted),
-				keySelector: ua => ua.Tenant.Name,
-				idSelector: ua => ua.Id,
-				cancellationToken
-			),
-			["status"] = CursorSortFieldHandlerFactory.Create<TenantUserCompanyQueryRow, int, Guid>(
-				cursorLookupQuery: () => _dbContext.UserAccount
-					.AsNoTracking()
-					.Join(_dbContext.Tenant.AsNoTracking(), ua => ua.TenantId, t => t.Id, (ua, t) => new TenantUserCompanyQueryRow {
-						Account = ua,
-						User = ua.User,
-						Tenant = t,
-						TenantId = ua.TenantId ?? Guid.Empty,
-						Id = ua.TenantId ?? Guid.Empty,
-					})
-					.Where(ua => ua.Account.UserId == userId
-						&& ua.Account.Scope == AccountScope.Tenant
-						&& !ua.Account.IsDeleted
-						&& !ua.User.IsDeleted
-						&& !ua.Tenant.IsDeleted),
-				keySelector: ua => ua.User.Status == UserStatus.Suspended ? 2 : ua.Account.Status == AccountStatus.Suspended ? 1 : 0,
-				idSelector: ua => ua.Id,
-				cancellationToken
-			),
-			["level"] = CursorSortFieldHandlerFactory.Create<TenantUserCompanyQueryRow, AccountLevel, Guid>(
-				cursorLookupQuery: () => _dbContext.UserAccount
-					.AsNoTracking()
-					.Join(_dbContext.Tenant.AsNoTracking(), ua => ua.TenantId, t => t.Id, (ua, t) => new TenantUserCompanyQueryRow {
-						Account = ua,
-						User = ua.User,
-						Tenant = t,
-						TenantId = ua.TenantId ?? Guid.Empty,
-						Id = ua.TenantId ?? Guid.Empty,
-					})
-					.Where(ua => ua.Account.UserId == userId
-						&& ua.Account.Scope == AccountScope.Tenant
-						&& !ua.Account.IsDeleted
-						&& !ua.User.IsDeleted
-						&& !ua.Tenant.IsDeleted),
-				keySelector: ua => ua.Account.Level,
-				idSelector: ua => ua.Id,
-				cancellationToken
-			),
-			["created_at"] = CursorSortFieldHandlerFactory.Create<TenantUserCompanyQueryRow, DateTime, Guid>(
-				cursorLookupQuery: () => _dbContext.UserAccount
-					.AsNoTracking()
-					.Join(_dbContext.Tenant.AsNoTracking(), ua => ua.TenantId, t => t.Id, (ua, t) => new TenantUserCompanyQueryRow {
-						Account = ua,
-						User = ua.User,
-						Tenant = t,
-						TenantId = ua.TenantId ?? Guid.Empty,
-						Id = ua.TenantId ?? Guid.Empty,
-					})
-					.Where(ua => ua.Account.UserId == userId
-						&& ua.Account.Scope == AccountScope.Tenant
-						&& !ua.Account.IsDeleted
-						&& !ua.User.IsDeleted
-						&& !ua.Tenant.IsDeleted),
-				keySelector: ua => ua.Account.CreatedAt,
-				idSelector: ua => ua.Id,
-				cancellationToken
-			),
-		};
+		var sortFieldHandlers =
+	new Dictionary<string, CursorSortFieldHandler<TenantUserCompanyQueryRow>>(
+		StringComparer.OrdinalIgnoreCase
+	) {
+		["tenant_name"] = CursorSortFieldHandlerFactory.Create<TenantUserCompanyQueryRow, string, Guid>(
+		cursorLookupQuery: () => _DbContext.UserAccount
+			.AsNoTracking()
+			.Join(_DbContext.Tenant.AsNoTracking(), ua => ua.TenantId, t => t.Id, (ua, t) => new TenantUserCompanyQueryRow {
+				Account = ua,
+				User = ua.User,
+				Tenant = t,
+				TenantId = ua.TenantId ?? Guid.Empty,
+				Id = ua.TenantId ?? Guid.Empty,
+			})
+			.Where(ua => ua.Account.UserId == userId
+				&& ua.Account.Scope == AccountScope.Tenant
+				&& !ua.Account.IsDeleted
+				&& !ua.User.IsDeleted
+				&& !ua.Tenant.IsDeleted),
+		keySelector: ua => ua.Tenant.Name,
+		idSelector: ua => ua.Id,
+		cancellationToken
+	),
+		["status"] = CursorSortFieldHandlerFactory.Create<TenantUserCompanyQueryRow, int, Guid>(
+		cursorLookupQuery: () => _DbContext.UserAccount
+			.AsNoTracking()
+			.Join(_DbContext.Tenant.AsNoTracking(), ua => ua.TenantId, t => t.Id, (ua, t) => new TenantUserCompanyQueryRow {
+				Account = ua,
+				User = ua.User,
+				Tenant = t,
+				TenantId = ua.TenantId ?? Guid.Empty,
+				Id = ua.TenantId ?? Guid.Empty,
+			})
+			.Where(ua => ua.Account.UserId == userId
+				&& ua.Account.Scope == AccountScope.Tenant
+				&& !ua.Account.IsDeleted
+				&& !ua.User.IsDeleted
+				&& !ua.Tenant.IsDeleted),
+		keySelector: ua => ua.User.Status == UserStatus.Suspended ? 2 : ua.Account.Status == AccountStatus.Suspended ? 1 : 0,
+		idSelector: ua => ua.Id,
+		cancellationToken
+	),
+		["level"] = CursorSortFieldHandlerFactory.Create<TenantUserCompanyQueryRow, AccountLevel, Guid>(
+		cursorLookupQuery: () => _DbContext.UserAccount
+			.AsNoTracking()
+			.Join(_DbContext.Tenant.AsNoTracking(), ua => ua.TenantId, t => t.Id, (ua, t) => new TenantUserCompanyQueryRow {
+				Account = ua,
+				User = ua.User,
+				Tenant = t,
+				TenantId = ua.TenantId ?? Guid.Empty,
+				Id = ua.TenantId ?? Guid.Empty,
+			})
+			.Where(ua => ua.Account.UserId == userId
+				&& ua.Account.Scope == AccountScope.Tenant
+				&& !ua.Account.IsDeleted
+				&& !ua.User.IsDeleted
+				&& !ua.Tenant.IsDeleted),
+		keySelector: ua => ua.Account.Level,
+		idSelector: ua => ua.Id,
+		cancellationToken
+	),
+		["created_at"] = CursorSortFieldHandlerFactory.Create<TenantUserCompanyQueryRow, DateTime, Guid>(
+		cursorLookupQuery: () => _DbContext.UserAccount
+			.AsNoTracking()
+			.Join(_DbContext.Tenant.AsNoTracking(), ua => ua.TenantId, t => t.Id, (ua, t) => new TenantUserCompanyQueryRow {
+				Account = ua,
+				User = ua.User,
+				Tenant = t,
+				TenantId = ua.TenantId ?? Guid.Empty,
+				Id = ua.TenantId ?? Guid.Empty,
+			})
+			.Where(ua => ua.Account.UserId == userId
+				&& ua.Account.Scope == AccountScope.Tenant
+				&& !ua.Account.IsDeleted
+				&& !ua.User.IsDeleted
+				&& !ua.Tenant.IsDeleted),
+		keySelector: ua => ua.Account.CreatedAt,
+		idSelector: ua => ua.Id,
+		cancellationToken
+	),
+	};
 
 		if (
 			!sortFieldHandlers.TryGetValue(
@@ -197,10 +197,10 @@ public class TenantUserCompanyQueryService : ITenantUserCompanyQueryService {
 		}
 
 		var baseQuery =
-			from ua in _dbContext.UserAccount.AsNoTracking()
-			join u in _dbContext.User.AsNoTracking()
+			from ua in _DbContext.UserAccount.AsNoTracking()
+			join u in _DbContext.User.AsNoTracking()
 				on ua.UserId equals u.Id
-			join tenant in _dbContext.Tenant.AsNoTracking()
+			join tenant in _DbContext.Tenant.AsNoTracking()
 				on ua.TenantId equals tenant.Id
 			where ua.UserId == userId
 				&& ua.Scope == AccountScope.Tenant
@@ -220,8 +220,8 @@ public class TenantUserCompanyQueryService : ITenantUserCompanyQueryService {
 		// tenant users must remain a 404; bad cursors for existing identities are
 		// reported as 400 below.
 		var hasTenantUserIdentity = await (
-			from ua in _dbContext.UserAccount.IgnoreQueryFilters()
-			join u in _dbContext.User.AsNoTracking()
+			from ua in _DbContext.UserAccount.IgnoreQueryFilters()
+			join u in _DbContext.User.AsNoTracking()
 				on ua.UserId equals u.Id
 			where ua.UserId == userId
 				&& ua.Scope == AccountScope.Tenant

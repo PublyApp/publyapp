@@ -25,14 +25,14 @@ namespace PublyApp.Api.Modules.Publishing.Jobs;
 // exactly-once keyed enqueue, the Scheduled -> InProgress transition, and the
 // untouched rows around it.
 public sealed class DispatchDuePostsSpec : IClassFixture<ApiFixture> {
-	private readonly ApiFixture _fixture;
+	private readonly ApiFixture _Fixture;
 
 	public DispatchDuePostsSpec(ApiFixture fixture) {
-		_fixture = fixture;
+		_Fixture = fixture;
 	}
 
-	private async Task<AppDbContext> NewDbAsync() {
-		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+	private async Task<AppDbContext> _NewDbAsync() {
+		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
 		var connectionString = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>()
 			.Database.GetConnectionString();
@@ -50,7 +50,7 @@ public sealed class DispatchDuePostsSpec : IClassFixture<ApiFixture> {
 		);
 	}
 
-	private static JobContext NewContext() {
+	private static JobContext _NewContext() {
 		return new JobContext {
 			JobId = Guid.NewGuid(),
 			JobType = DispatchDuePostsJob.JobKey,
@@ -90,7 +90,7 @@ public sealed class DispatchDuePostsSpec : IClassFixture<ApiFixture> {
 
 	// Seeds a tenant + post + one account + one publication in the given status
 	// at the given instant. Returns the persisted publication id.
-	private static async Task<Guid> SeedPublicationAsync(
+	private static async Task<Guid> _SeedPublicationAsync(
 		AppDbContext db,
 		PublicationStatus status,
 		DateTime scheduledAtUtc
@@ -133,16 +133,16 @@ public sealed class DispatchDuePostsSpec : IClassFixture<ApiFixture> {
 			Status = status,
 			ScheduledAtUtc = scheduledAtUtc,
 			ScheduledTimeZone = "Etc/UTC",
-			IdempotencyKey = PublicationIdempotencyKeyPlaceholder,
+			IdempotencyKey = _PublicationIdempotencyKeyPlaceholder,
 		};
 		db.Publication.Add(publication);
 		await db.SaveChangesAsync();
 		return publication.GetRequiredId();
 	}
 
-	private const string PublicationIdempotencyKeyPlaceholder = "pending";
+	private const string _PublicationIdempotencyKeyPlaceholder = "pending";
 
-	private static DispatchDuePostsJob NewJob(
+	private static DispatchDuePostsJob _NewJob(
 		AppDbContext db,
 		IJobEnqueuer enqueuer
 	) {
@@ -155,27 +155,27 @@ public sealed class DispatchDuePostsSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldClaimOnlyPastDueScheduledRowsAndTransitionThem() {
-		using var db = await NewDbAsync();
-		var pastDue = await SeedPublicationAsync(
+		using var db = await _NewDbAsync();
+		var pastDue = await _SeedPublicationAsync(
 			db,
 			PublicationStatus.Scheduled,
 			DateTime.UtcNow.AddMinutes(-5)
 		);
-		var future = await SeedPublicationAsync(
+		var future = await _SeedPublicationAsync(
 			db,
 			PublicationStatus.Scheduled,
 			DateTime.UtcNow.AddMinutes(30)
 		);
-		var inProgress = await SeedPublicationAsync(
+		var inProgress = await _SeedPublicationAsync(
 			db,
 			PublicationStatus.InProgress,
 			DateTime.UtcNow.AddMinutes(-10)
 		);
 
 		var enqueuer = new RecordingEnqueuer();
-		var job = NewJob(db, enqueuer);
+		var job = _NewJob(db, enqueuer);
 
-		var outcome = await job.HandleAsync(NewContext(), CancellationToken.None);
+		var outcome = await job.HandleAsync(_NewContext(), CancellationToken.None);
 
 		outcome.Should().Be(JobOutcome.Succeeded);
 
@@ -193,7 +193,7 @@ public sealed class DispatchDuePostsSpec : IClassFixture<ApiFixture> {
 		);
 
 		await using var verifyScope =
-			_fixture.Factory.Services.CreateAsyncScope();
+			_Fixture.Factory.Services.CreateAsyncScope();
 		var verifyDb =
 			verifyScope.ServiceProvider.GetRequiredService<AppDbContext>();
 		await verifyDb.Entry(await verifyDb.Publication.SingleAsync(
@@ -227,17 +227,17 @@ public sealed class DispatchDuePostsSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldSucceedWithoutWorkWhenNoRowIsPastDue() {
-		using var db = await NewDbAsync();
-		_ = await SeedPublicationAsync(
+		using var db = await _NewDbAsync();
+		_ = await _SeedPublicationAsync(
 			db,
 			PublicationStatus.Scheduled,
 			DateTime.UtcNow.AddHours(2)
 		);
 
 		var enqueuer = new RecordingEnqueuer();
-		var job = NewJob(db, enqueuer);
+		var job = _NewJob(db, enqueuer);
 
-		var outcome = await job.HandleAsync(NewContext(), CancellationToken.None);
+		var outcome = await job.HandleAsync(_NewContext(), CancellationToken.None);
 
 		outcome.Should().Be(JobOutcome.Succeeded);
 		enqueuer.Calls.Should().BeEmpty("nothing is due");

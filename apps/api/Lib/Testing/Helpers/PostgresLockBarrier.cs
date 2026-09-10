@@ -55,7 +55,7 @@ internal static class PostgresLockBarrier {
 		var deadline = DateTime.UtcNow.AddSeconds(30);
 
 		while (DateTime.UtcNow < deadline) {
-			if (await CountWaitersAsync(services, barrierPid, cancellationToken)
+			if (await _CountWaitersAsync(services, barrierPid, cancellationToken)
 				>= expectedCount) {
 				return;
 			}
@@ -95,7 +95,7 @@ internal static class PostgresLockBarrier {
 				return;
 			}
 
-			if (await CountWaitersAsync(services, barrierPid, cancellationToken)
+			if (await _CountWaitersAsync(services, barrierPid, cancellationToken)
 				>= expectedWaitersIfBlocked) {
 				return;
 			}
@@ -108,7 +108,7 @@ internal static class PostgresLockBarrier {
 		);
 	}
 
-	private static async Task<int> CountWaitersAsync(
+	private static async Task<int> _CountWaitersAsync(
 		IServiceProvider services,
 		int barrierPid,
 		CancellationToken cancellationToken

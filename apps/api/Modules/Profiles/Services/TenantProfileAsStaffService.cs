@@ -183,9 +183,9 @@ public interface ITenantProfileAsStaffService {
 
 [Service(ServiceLifetime.Scoped)]
 public sealed class TenantProfileAsStaffService : ITenantProfileAsStaffService {
-	private readonly AppDbContext _dbContext;
-	private readonly ILogger<TenantProfileAsStaffService> _logger;
-	private readonly IHttpContextAccessor _httpContextAccessor;
+	private readonly AppDbContext _DbContext;
+	private readonly ILogger<TenantProfileAsStaffService> _Logger;
+	private readonly IHttpContextAccessor _HttpContextAccessor;
 
 	public TenantProfileAsStaffService(
 		AppDbContext dbContext,
@@ -195,9 +195,9 @@ public sealed class TenantProfileAsStaffService : ITenantProfileAsStaffService {
 		// here are shape-identical to the ones it writes.
 		IHttpContextAccessor httpContextAccessor
 	) {
-		_dbContext = dbContext;
-		_logger = logger;
-		_httpContextAccessor = httpContextAccessor;
+		_DbContext = dbContext;
+		_Logger = logger;
+		_HttpContextAccessor = httpContextAccessor;
 	}
 
 	public async Task<Profile> GetOrCreateDefaultTenantProfileAsync(
@@ -205,7 +205,7 @@ public sealed class TenantProfileAsStaffService : ITenantProfileAsStaffService {
 		CancellationToken cancellationToken = default
 	) {
 		var query =
-			from p in _dbContext.Profile
+			from p in _DbContext.Profile
 			where p.Scope == ProfileScope.Tenant
 				&& p.TenantId == tenantId
 				&& p.IsDefault
@@ -224,14 +224,14 @@ public sealed class TenantProfileAsStaffService : ITenantProfileAsStaffService {
 			isDefault: true
 		);
 
-		var savedDefaultProfile = await _dbContext.Profile.AddAsync(
+		var savedDefaultProfile = await _DbContext.Profile.AddAsync(
 			defaultProfile,
 			cancellationToken
 		);
-		await _dbContext.SaveChangesAsync(cancellationToken);
+		await _DbContext.SaveChangesAsync(cancellationToken);
 
-		if (_logger.IsEnabled(LogLevel.Information)) {
-			_logger.LogInformation(
+		if (_Logger.IsEnabled(LogLevel.Information)) {
+			_Logger.LogInformation(
 				"Created missing default tenant profile for tenant {TenantId}",
 				tenantId
 			);
@@ -245,7 +245,7 @@ public sealed class TenantProfileAsStaffService : ITenantProfileAsStaffService {
 		CancellationToken cancellationToken = default
 	) {
 		var tenantExists = await (
-			from t in _dbContext.Tenant
+			from t in _DbContext.Tenant
 			where t.Id == args.TenantId
 				&& !t.IsDeleted
 			select t.Id
@@ -265,7 +265,7 @@ public sealed class TenantProfileAsStaffService : ITenantProfileAsStaffService {
 			.ToList();
 
 		var profileExists = await (
-			from p in _dbContext.Profile
+			from p in _DbContext.Profile
 			where p.TenantId == args.TenantId
 				&& p.Scope == ProfileScope.Tenant
 				&& !p.IsDeleted
@@ -278,7 +278,7 @@ public sealed class TenantProfileAsStaffService : ITenantProfileAsStaffService {
 		}
 
 		var validPermissionKeys = await (
-			from permission in _dbContext.Permission
+			from permission in _DbContext.Permission
 			where normalizedPermissionKeys.Contains(permission.Key)
 				&& permission.Scope == PermissionScope.Tenant
 				&& !permission.IsDeleted
@@ -295,7 +295,7 @@ public sealed class TenantProfileAsStaffService : ITenantProfileAsStaffService {
 			);
 		}
 
-		await using var transaction = await _dbContext.Database
+		await using var transaction = await _DbContext.Database
 			.BeginTransactionAsync(cancellationToken);
 
 		var profile = Profile.CreateTenantProfile(
@@ -307,8 +307,8 @@ public sealed class TenantProfileAsStaffService : ITenantProfileAsStaffService {
 		);
 
 		try {
-			await _dbContext.Profile.AddAsync(profile, cancellationToken);
-			await _dbContext.SaveChangesAsync(cancellationToken);
+			await _DbContext.Profile.AddAsync(profile, cancellationToken);
+			await _DbContext.SaveChangesAsync(cancellationToken);
 
 			var profileId = profile.GetRequiredId();
 			if (validPermissionKeys.Count > 0) {
@@ -321,17 +321,17 @@ public sealed class TenantProfileAsStaffService : ITenantProfileAsStaffService {
 					})
 					.ToList();
 
-				await _dbContext.ProfilePermission
+				await _DbContext.ProfilePermission
 					.AddRangeAsync(profilePermissions, cancellationToken);
-				await _dbContext.SaveChangesAsync(cancellationToken);
+				await _DbContext.SaveChangesAsync(cancellationToken);
 			}
 
 			await transaction.CommitAsync(cancellationToken);
-		} catch (DbUpdateException ex) when (IsTenantProfileNameUniqueViolation(ex)) {
+		} catch (DbUpdateException ex) when (_IsTenantProfileNameUniqueViolation(ex)) {
 			// The pre-check keeps the common path friendly, but the unique index is the real
 			// guard against concurrent creates or renames racing each other.
 			await transaction.RollbackAsync(cancellationToken);
-			_dbContext.Entry(profile).State = EntityState.Detached;
+			_DbContext.Entry(profile).State = EntityState.Detached;
 			return new CreateTenantProfileResult.ProfileNameExists(normalizedName);
 		} catch {
 			await transaction.RollbackAsync(cancellationToken);
@@ -362,7 +362,7 @@ public sealed class TenantProfileAsStaffService : ITenantProfileAsStaffService {
 		CancellationToken cancellationToken = default
 	) {
 		var profile = await (
-			from p in _dbContext.Profile
+			from p in _DbContext.Profile
 			where p.Id == args.ProfileId
 				&& p.Scope == ProfileScope.Tenant
 				&& p.TenantId == args.TenantId
@@ -393,7 +393,7 @@ public sealed class TenantProfileAsStaffService : ITenantProfileAsStaffService {
 			}
 
 			var exists = await (
-				from p in _dbContext.Profile
+				from p in _DbContext.Profile
 				where p.TenantId == args.TenantId
 					&& p.Scope == ProfileScope.Tenant
 					&& !p.IsDeleted
@@ -422,22 +422,22 @@ public sealed class TenantProfileAsStaffService : ITenantProfileAsStaffService {
 		}
 
 		try {
-			await _dbContext.SaveChangesAsync(cancellationToken);
-		} catch (DbUpdateException ex) when (IsTenantProfileNameUniqueViolation(ex)) {
-			_dbContext.Entry(profile).State = EntityState.Detached;
+			await _DbContext.SaveChangesAsync(cancellationToken);
+		} catch (DbUpdateException ex) when (_IsTenantProfileNameUniqueViolation(ex)) {
+			_DbContext.Entry(profile).State = EntityState.Detached;
 			return new UpdateTenantProfileResult.ProfileNameExists(profile.Name);
 		}
 
 		// Profile update does not touch assignments, but the response must reflect the
 		// current membership count after any concurrent assignment cleanup.
 		var userAccountCount = await (
-			from uap in _dbContext.UserAccountProfile
+			from uap in _DbContext.UserAccountProfile
 			where uap.ProfileId == args.ProfileId
 			select uap.ProfileId
 		).CountAsync(cancellationToken);
 
 		var permissionsCount = await (
-			from profilePermission in _dbContext.ProfilePermission
+			from profilePermission in _DbContext.ProfilePermission
 			where profilePermission.ProfileId == args.ProfileId
 			select profilePermission.ProfileId
 		).CountAsync(cancellationToken);
@@ -462,11 +462,11 @@ public sealed class TenantProfileAsStaffService : ITenantProfileAsStaffService {
 		DeleteTenantProfileArgs args,
 		CancellationToken cancellationToken = default
 	) {
-		await using var transaction = await _dbContext.Database
+		await using var transaction = await _DbContext.Database
 			.BeginTransactionAsync(cancellationToken);
 
 		try {
-			var result = await DeleteTenantProfileCoreAsync(args, cancellationToken);
+			var result = await _DeleteTenantProfileCoreAsync(args, cancellationToken);
 
 			if (result is DeleteTenantProfileResult.Success) {
 				await transaction.CommitAsync(cancellationToken);
@@ -481,14 +481,14 @@ public sealed class TenantProfileAsStaffService : ITenantProfileAsStaffService {
 		}
 	}
 
-	private async Task<DeleteTenantProfileResult> DeleteTenantProfileCoreAsync(
+	private async Task<DeleteTenantProfileResult> _DeleteTenantProfileCoreAsync(
 		DeleteTenantProfileArgs args,
 		CancellationToken cancellationToken
 	) {
 		// TenantMembershipLockOrder step 3: pin the profile before enumerating its junction
 		// rows, so a concurrent assign cannot slip a new link in behind this cleanup.
 		var profile = await TenantMembershipLockOrder.LockLiveTenantProfileAsync(
-			_dbContext,
+			_DbContext,
 			args.TenantId,
 			args.ProfileId,
 			cancellationToken
@@ -515,7 +515,7 @@ public sealed class TenantProfileAsStaffService : ITenantProfileAsStaffService {
 		// statement. A concurrent member-removal cleanup targeting the same link hands us only
 		// survivors, so we never issue a tracked delete for a row it already removed.
 		var links = await TenantMembershipLockOrder.LockAndMaterializeLinksForProfilesAsync(
-			_dbContext,
+			_DbContext,
 			[profileIdValue],
 			cancellationToken
 		);
@@ -523,11 +523,11 @@ public sealed class TenantProfileAsStaffService : ITenantProfileAsStaffService {
 		if (links.Count > 0) {
 			// A deleted tenant profile must stop contributing memberships immediately, so we remove
 			// the junction rows instead of leaving stale memberships behind.
-			_dbContext.ForceHardDeleteRange(links);
+			_DbContext.ForceHardDeleteRange(links);
 		}
 
 		var permissions = await (
-			from pp in _dbContext.ProfilePermission
+			from pp in _DbContext.ProfilePermission
 			where pp.ProfileId == profileIdValue
 			select pp
 		).ToListAsync(cancellationToken);
@@ -535,14 +535,14 @@ public sealed class TenantProfileAsStaffService : ITenantProfileAsStaffService {
 		if (permissions.Count > 0) {
 			// Same rationale as the user-account links above: deleting the profile should fully
 			// detach its permission membership rows in the same transaction.
-			_dbContext.ForceHardDeleteRange(permissions);
+			_DbContext.ForceHardDeleteRange(permissions);
 		}
 
 		profile.IsDeleted = true;
 		profile.DeletedAt = DateTime.UtcNow;
 		profile.UpdatedAt = DateTime.UtcNow;
 
-		await _dbContext.SaveChangesAsync(cancellationToken);
+		await _DbContext.SaveChangesAsync(cancellationToken);
 
 		return new DeleteTenantProfileResult.Success(
 			Profile: profileAudit,
@@ -566,11 +566,11 @@ public sealed class TenantProfileAsStaffService : ITenantProfileAsStaffService {
 			);
 		}
 
-		await using var transaction = await _dbContext.Database
+		await using var transaction = await _DbContext.Database
 			.BeginTransactionAsync(cancellationToken);
 
 		try {
-			var result = await BulkDeleteTenantProfilesCoreAsync(
+			var result = await _BulkDeleteTenantProfilesCoreAsync(
 				requestedProfileIds,
 				args.TenantId,
 				cancellationToken
@@ -583,7 +583,7 @@ public sealed class TenantProfileAsStaffService : ITenantProfileAsStaffService {
 		}
 	}
 
-	private async Task<BulkProfileActionResult> BulkDeleteTenantProfilesCoreAsync(
+	private async Task<BulkProfileActionResult> _BulkDeleteTenantProfilesCoreAsync(
 		List<Guid> requestedProfileIds,
 		Guid tenantId,
 		CancellationToken cancellationToken
@@ -595,7 +595,7 @@ public sealed class TenantProfileAsStaffService : ITenantProfileAsStaffService {
 		// assigns cannot re-link a profile this batch is about to purge, and two concurrent
 		// bulk deletes cannot deadlock.
 		await TenantMembershipLockOrder.LockProfileRowsAsync(
-			_dbContext,
+			_DbContext,
 			requestedProfileIds,
 			cancellationToken
 		);
@@ -603,7 +603,7 @@ public sealed class TenantProfileAsStaffService : ITenantProfileAsStaffService {
 		// Resolve all matching tenant profiles in one DB call; this lets us decide
 		// exactly which requested IDs are invalid or protected.
 		var profiles = await (
-			from p in _dbContext.Profile
+			from p in _DbContext.Profile
 			where p.TenantId == args.TenantId
 				&& p.Scope == ProfileScope.Tenant
 				&& !p.IsDeleted
@@ -653,23 +653,23 @@ public sealed class TenantProfileAsStaffService : ITenantProfileAsStaffService {
 
 		// TenantMembershipLockOrder step 5, batched — same rationale as the single-profile path.
 		var links = await TenantMembershipLockOrder.LockAndMaterializeLinksForProfilesAsync(
-			_dbContext,
+			_DbContext,
 			deletableProfileIds,
 			cancellationToken
 		);
 
 		if (links.Count > 0) {
-			_dbContext.ForceHardDeleteRange(links);
+			_DbContext.ForceHardDeleteRange(links);
 		}
 
 		var permissions = await (
-			from pp in _dbContext.ProfilePermission
+			from pp in _DbContext.ProfilePermission
 			where deletableProfileIds.Contains(pp.ProfileId)
 			select pp
 		).ToListAsync(cancellationToken);
 
 		if (permissions.Count > 0) {
-			_dbContext.ForceHardDeleteRange(permissions);
+			_DbContext.ForceHardDeleteRange(permissions);
 		}
 
 		// Keep a single pass over non-default profiles for the actual soft-delete.
@@ -684,7 +684,7 @@ public sealed class TenantProfileAsStaffService : ITenantProfileAsStaffService {
 			profile.UpdatedAt = DateTime.UtcNow;
 		}
 
-		await _dbContext.SaveChangesAsync(cancellationToken);
+		await _DbContext.SaveChangesAsync(cancellationToken);
 
 		var failedItemsById = new HashSet<Guid>(
 			failedItems.Select(item => item.ProfileId)
@@ -707,7 +707,7 @@ public sealed class TenantProfileAsStaffService : ITenantProfileAsStaffService {
 			CancellationToken cancellationToken = default
 		) {
 		var profile = await (
-			from p in _dbContext.Profile
+			from p in _DbContext.Profile
 			where p.Id == args.ProfileId
 				&& p.Scope == ProfileScope.Tenant
 				&& p.TenantId == args.TenantId
@@ -727,7 +727,7 @@ public sealed class TenantProfileAsStaffService : ITenantProfileAsStaffService {
 		);
 
 		var permissionExists = await (
-			from p in _dbContext.Permission
+			from p in _DbContext.Permission
 			where p.Key == args.PermissionKey
 				&& !p.IsDeleted
 				&& p.Scope == PermissionScope.Tenant
@@ -739,7 +739,7 @@ public sealed class TenantProfileAsStaffService : ITenantProfileAsStaffService {
 		}
 
 		var existing = await (
-			from pp in _dbContext.ProfilePermission
+			from pp in _DbContext.ProfilePermission
 			where pp.ProfileId == args.ProfileId
 				&& pp.PermissionKey == args.PermissionKey
 			select pp
@@ -747,7 +747,7 @@ public sealed class TenantProfileAsStaffService : ITenantProfileAsStaffService {
 
 		if (existing is null) {
 			if (args.IsAssigned) {
-				await _dbContext.ProfilePermission.AddAsync(
+				await _DbContext.ProfilePermission.AddAsync(
 					new ProfilePermission {
 						ProfileId = args.ProfileId,
 						PermissionKey = args.PermissionKey,
@@ -755,7 +755,7 @@ public sealed class TenantProfileAsStaffService : ITenantProfileAsStaffService {
 					cancellationToken
 				);
 
-				await _dbContext.SaveChangesAsync(cancellationToken);
+				await _DbContext.SaveChangesAsync(cancellationToken);
 				return new SetTenantProfilePermissionResult.Success(
 					profileAudit,
 					Changed: true
@@ -778,8 +778,8 @@ public sealed class TenantProfileAsStaffService : ITenantProfileAsStaffService {
 
 		// DELETE removes the active grant. There is no inactive row to preserve because audit
 		// logs are the history source for permission-assignment changes.
-		_dbContext.ProfilePermission.Remove(existing);
-		await _dbContext.SaveChangesAsync(cancellationToken);
+		_DbContext.ProfilePermission.Remove(existing);
+		await _DbContext.SaveChangesAsync(cancellationToken);
 
 		return new SetTenantProfilePermissionResult.Success(
 			profileAudit,
@@ -791,11 +791,11 @@ public sealed class TenantProfileAsStaffService : ITenantProfileAsStaffService {
 		SetTenantProfileUserArgs args,
 		CancellationToken cancellationToken = default
 	) {
-		await using var transaction = await _dbContext.Database
+		await using var transaction = await _DbContext.Database
 			.BeginTransactionAsync(cancellationToken);
 
 		try {
-			var (result, shouldCommit) = await SetTenantProfileUserCoreAsync(
+			var (result, shouldCommit) = await _SetTenantProfileUserCoreAsync(
 				args,
 				cancellationToken
 			);
@@ -824,7 +824,7 @@ public sealed class TenantProfileAsStaffService : ITenantProfileAsStaffService {
 	/// because PostgreSQL has already aborted the transaction.
 	/// </summary>
 	private async Task<(SetTenantProfileUserResult Result, bool ShouldCommit)>
-		SetTenantProfileUserCoreAsync(
+		_SetTenantProfileUserCoreAsync(
 			SetTenantProfileUserArgs args,
 			CancellationToken cancellationToken
 		) {
@@ -836,7 +836,7 @@ public sealed class TenantProfileAsStaffService : ITenantProfileAsStaffService {
 		// indistinguishable "not found", mirroring SetTenantProfilePermissionAsync and avoiding
 		// leaks about profiles outside this tenant.
 		var profile = await TenantMembershipLockOrder.LockLiveTenantProfileAsync(
-			_dbContext,
+			_DbContext,
 			args.TenantId,
 			args.ProfileId,
 			cancellationToken
@@ -849,7 +849,7 @@ public sealed class TenantProfileAsStaffService : ITenantProfileAsStaffService {
 		// Lock order step 4. Blocks cross-tenant assignment, and a membership removed while we
 		// waited yields no row instead of a lock on a soft-deleted account.
 		var member = await TenantMembershipLockOrder.LockLiveTenantAccountAsync(
-			_dbContext,
+			_DbContext,
 			args.TenantId,
 			args.UserAccountId,
 			cancellationToken
@@ -875,7 +875,7 @@ public sealed class TenantProfileAsStaffService : ITenantProfileAsStaffService {
 		// Lock order step 5: both parents are pinned, so junction state read from here is
 		// stable for the rest of the transaction.
 		var existing = await (
-			from uap in _dbContext.UserAccountProfile
+			from uap in _DbContext.UserAccountProfile
 			where uap.UserAccountId == args.UserAccountId
 				&& uap.ProfileId == args.ProfileId
 			select uap
@@ -897,14 +897,14 @@ public sealed class TenantProfileAsStaffService : ITenantProfileAsStaffService {
 			// Junction rows carry no soft-delete state; membership history lives in audit logs.
 			// The audit entry is therefore added to this same SaveChanges: the row and its only
 			// record must become durable together or not at all.
-			_dbContext.ForceHardDelete(existing);
-			AddAuditEntry(
+			_DbContext.ForceHardDelete(existing);
+			_AddAuditEntry(
 				args,
 				AuditActions.TenantProfileUserUnassigned,
 				profileAudit,
 				memberAudit
 			);
-			await _dbContext.SaveChangesAsync(cancellationToken);
+			await _DbContext.SaveChangesAsync(cancellationToken);
 
 			return (
 				new SetTenantProfileUserResult.Success(
@@ -936,8 +936,8 @@ public sealed class TenantProfileAsStaffService : ITenantProfileAsStaffService {
 		// Count only live assignments: a junction row pointing at a soft-deleted profile grants
 		// nothing, so it must not consume the member's quota.
 		var liveProfileCount = await (
-			from uap in _dbContext.UserAccountProfile
-			from p in _dbContext.Profile
+			from uap in _DbContext.UserAccountProfile
+			from p in _DbContext.Profile
 			where p.Id == uap.ProfileId
 				&& uap.UserAccountId == args.UserAccountId
 				&& !p.IsDeleted
@@ -958,21 +958,21 @@ public sealed class TenantProfileAsStaffService : ITenantProfileAsStaffService {
 		};
 
 		try {
-			await _dbContext.UserAccountProfile.AddAsync(assignment, cancellationToken);
-			AddAuditEntry(
+			await _DbContext.UserAccountProfile.AddAsync(assignment, cancellationToken);
+			_AddAuditEntry(
 				args,
 				AuditActions.TenantProfileUserAssigned,
 				profileAudit,
 				memberAudit
 			);
-			await _dbContext.SaveChangesAsync(cancellationToken);
-		} catch (DbUpdateException ex) when (IsUserAccountProfileDuplicateViolation(ex)) {
+			await _DbContext.SaveChangesAsync(cancellationToken);
+		} catch (DbUpdateException ex) when (_IsUserAccountProfileDuplicateViolation(ex)) {
 			// Defense in depth behind the row lock: the composite primary key is the final
 			// authority on "assigned at most once", so a lost insert race is still idempotent.
 			// PostgreSQL has aborted the transaction, so the caller must roll back — which also
 			// discards this attempt's audit entry. That is correct: the winning writer recorded
 			// the assignment, and no state change of ours became durable.
-			foreach (var entry in _dbContext.ChangeTracker.Entries()
+			foreach (var entry in _DbContext.ChangeTracker.Entries()
 				.Where(e => e.State == EntityState.Added)
 				.ToList()) {
 				entry.State = EntityState.Detached;
@@ -1005,13 +1005,13 @@ public sealed class TenantProfileAsStaffService : ITenantProfileAsStaffService {
 	/// service-to-service dependency, and its own <c>SaveChanges</c> would make the audit a
 	/// second commit that a cancellation could skip.
 	/// </summary>
-	private void AddAuditEntry(
+	private void _AddAuditEntry(
 		SetTenantProfileUserArgs args,
 		string action,
 		TenantProfileAuditData profileAudit,
 		TenantProfileMemberAuditData memberAudit
 	) {
-		var httpContext = _httpContextAccessor.HttpContext;
+		var httpContext = _HttpContextAccessor.HttpContext;
 
 		var auditLog = AuditLog.CreateEntry(
 			userId: args.ActorUserId,
@@ -1030,14 +1030,14 @@ public sealed class TenantProfileAsStaffService : ITenantProfileAsStaffService {
 			userAgent: httpContext?.Request.Headers.UserAgent.ToString()
 		);
 
-		_ = _dbContext.AuditLog.Add(auditLog);
+		_ = _DbContext.AuditLog.Add(auditLog);
 	}
 
 	/// <summary>
 	/// Detects a duplicate user_account_profiles row (composite primary key violation).
 	/// PostgreSQL error code 23505 = unique_violation.
 	/// </summary>
-	private static bool IsUserAccountProfileDuplicateViolation(DbUpdateException ex) {
+	private static bool _IsUserAccountProfileDuplicateViolation(DbUpdateException ex) {
 		if (ex.InnerException is Npgsql.PostgresException pgEx) {
 			return pgEx.SqlState == "23505"
 				&& pgEx.TableName is not null
@@ -1055,7 +1055,7 @@ public sealed class TenantProfileAsStaffService : ITenantProfileAsStaffService {
 	/// PostgreSQL error code 23505 = unique_violation.
 	/// We only map the active tenant-profile name invariant here.
 	/// </summary>
-	private static bool IsTenantProfileNameUniqueViolation(DbUpdateException ex) {
+	private static bool _IsTenantProfileNameUniqueViolation(DbUpdateException ex) {
 		if (ex.InnerException is Npgsql.PostgresException pgEx) {
 			return pgEx.SqlState == "23505"
 				&& pgEx.TableName is not null

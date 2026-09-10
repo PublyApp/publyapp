@@ -92,16 +92,16 @@ public interface ITenantUserMembershipService {
 [Service(ServiceLifetime.Scoped)]
 public class TenantUserMembershipService : ITenantUserMembershipService {
 
-	private readonly AppDbContext _dbContext;
-	private readonly IUploadAssetReferenceService _uploadReferences;
+	private readonly AppDbContext _DbContext;
+	private readonly IUploadAssetReferenceService _UploadReferences;
 
 	public TenantUserMembershipService(
 		AppDbContext dbContext,
 		IUploadAssetReferenceService uploadReferences,
 		ILogger<TenantUserMembershipService> logger
 	) {
-		_dbContext = dbContext;
-		_uploadReferences = uploadReferences;
+		_DbContext = dbContext;
+		_UploadReferences = uploadReferences;
 		_ = logger;
 	}
 
@@ -111,7 +111,7 @@ public class TenantUserMembershipService : ITenantUserMembershipService {
 		CancellationToken cancellationToken = default
 	) {
 		return await TenantUserMembershipOperations.RemoveUserFromTenantAsync(
-			_dbContext,
+			_DbContext,
 			tenantId,
 			userId,
 			cancellationToken
@@ -123,7 +123,7 @@ public class TenantUserMembershipService : ITenantUserMembershipService {
 		CancellationToken cancellationToken = default
 	) {
 		return await TenantUserMembershipOperations.BulkRemoveUsersFromTenantAsync(
-			_dbContext,
+			_DbContext,
 			args.TenantId,
 			args.UserIds,
 			cancellationToken
@@ -138,8 +138,8 @@ public class TenantUserMembershipService : ITenantUserMembershipService {
 	) {
 		// Find the user and their account for this tenant
 		var userAccount = await (
-			from ua in _dbContext.UserAccount
-			join u in _dbContext.User on ua.UserId equals u.Id
+			from ua in _DbContext.UserAccount
+			join u in _DbContext.User on ua.UserId equals u.Id
 			where ua.TenantId == tenantId
 				&& ua.UserId == userId
 				&& ua.Scope == AccountScope.Tenant
@@ -175,7 +175,7 @@ public class TenantUserMembershipService : ITenantUserMembershipService {
 		// TenantMembershipLockOrder, "a write is a lock". READ COMMITTED so the post-lock
 		// revalidation and demotion guard read a fresh snapshot after the mutex wait.
 		await using var transaction =
-			await _dbContext.Database.BeginTransactionAsync(cancellationToken);
+			await _DbContext.Database.BeginTransactionAsync(cancellationToken);
 
 		try {
 			// TenantMembershipLockOrder step 1 — the identity mutex — taken BEFORE any save so
@@ -185,7 +185,7 @@ public class TenantUserMembershipService : ITenantUserMembershipService {
 			// users(U) first, so no two of them can hold users and user_accounts in opposite
 			// orders.
 			await TenantMembershipLockOrder.LockUserIdentityRowsAsync(
-				_dbContext,
+				_DbContext,
 				[userId],
 				cancellationToken
 			);
@@ -196,8 +196,8 @@ public class TenantUserMembershipService : ITenantUserMembershipService {
 			// The demotion decision below MUST be made from this fresh post-lock state: a
 			// concurrent promotion to Admin would otherwise turn our "set to User" into an
 			// unguarded demotion and could strand the tenant at zero admins.
-			await _dbContext.Entry(account).ReloadAsync(cancellationToken);
-			await _dbContext.Entry(user).ReloadAsync(cancellationToken);
+			await _DbContext.Entry(account).ReloadAsync(cancellationToken);
+			await _DbContext.Entry(user).ReloadAsync(cancellationToken);
 
 			if (account.IsDeleted || user.IsDeleted) {
 				await transaction.RollbackAsync(cancellationToken);
@@ -218,14 +218,14 @@ public class TenantUserMembershipService : ITenantUserMembershipService {
 				// locks, so they are fresh under READ COMMITTED — nothing read before this
 				// point is trusted for the invariant decision.
 				await TenantMembershipLockOrder.LockTenantRowsAsync(
-					_dbContext,
+					_DbContext,
 					[tenantId],
 					cancellationToken
 				);
 
 				var isDemotingActiveAdmin = await TenantUserMembershipOperations
 					.IsActiveTenantAdminAsync(
-					_dbContext,
+					_DbContext,
 					tenantId,
 					userId,
 					cancellationToken
@@ -233,7 +233,7 @@ public class TenantUserMembershipService : ITenantUserMembershipService {
 				var hasAnotherActiveAdmin = isDemotingActiveAdmin
 					&& await TenantUserMembershipOperations
 						.TenantHasAnotherActiveAdminAsync(
-						_dbContext,
+						_DbContext,
 						tenantId,
 						userId,
 						cancellationToken
@@ -264,7 +264,7 @@ public class TenantUserMembershipService : ITenantUserMembershipService {
 				// Acquire the new blob's reference BEFORE the entity write so the URL
 				// can never commit while its asset reads zero references (#807 F5).
 				if (ServedUploadPath.ExtractOrNull(document.AvatarUrl.Value) is { } acquiredPath) {
-					await _uploadReferences.TryAddReferenceAsync(acquiredPath, cancellationToken);
+					await _UploadReferences.TryAddReferenceAsync(acquiredPath, cancellationToken);
 				}
 				user.AvatarUrl = document.AvatarUrl.Value;
 			}
@@ -272,12 +272,12 @@ public class TenantUserMembershipService : ITenantUserMembershipService {
 			account.UpdatedAt = DateTime.UtcNow;
 			user.UpdatedAt = DateTime.UtcNow;
 
-			await _dbContext.SaveChangesAsync(cancellationToken);
+			await _DbContext.SaveChangesAsync(cancellationToken);
 
 			if (document.AvatarUrl.IsPresent && previousAvatarUrl is not null
 				&& ServedUploadPath.ExtractOrNull(previousAvatarUrl) is { } releasedPath
 				&& previousAvatarUrl != user.AvatarUrl) {
-				await _uploadReferences.TryReleaseReferenceAsync(releasedPath, cancellationToken);
+				await _UploadReferences.TryReleaseReferenceAsync(releasedPath, cancellationToken);
 			}
 
 			await transaction.CommitAsync(cancellationToken);
@@ -301,7 +301,7 @@ public class TenantUserMembershipService : ITenantUserMembershipService {
 		CancellationToken cancellationToken = default
 	) {
 		return await TenantUserMembershipOperations.SuspendTenantUserAsync(
-			_dbContext,
+			_DbContext,
 			tenantId,
 			userId,
 			cancellationToken
@@ -314,7 +314,7 @@ public class TenantUserMembershipService : ITenantUserMembershipService {
 		CancellationToken cancellationToken = default
 	) {
 		return await TenantUserMembershipOperations.ReactivateTenantUserAsync(
-			_dbContext,
+			_DbContext,
 			tenantId,
 			userId,
 			cancellationToken

@@ -12,14 +12,14 @@ namespace PublyApp.Api.Modules.Projects.Entities;
 [Table("projects")]
 [Index(nameof(TenantId), nameof(Name), IsUnique = true)]
 public class Project : BaseAttributes, ITenantEntity {
-	private PublyApp.Api.Modules.Tenants.Entities.Tenant? _tenant;
+	private PublyApp.Api.Modules.Tenants.Entities.Tenant? _Tenant;
 
 	[Column("tenant_id")]
 	public required Guid TenantId { get; set; }
 	[JsonIgnore]
 	public PublyApp.Api.Modules.Tenants.Entities.Tenant Tenant {
-		get { return RequiredNavigation.Get(_tenant, nameof(Project), nameof(Tenant)); }
-		set { _tenant = value; }
+		get { return RequiredNavigation.Get(_Tenant, nameof(Project), nameof(Tenant)); }
+		set { _Tenant = value; }
 	}
 
 	[Column("name")]

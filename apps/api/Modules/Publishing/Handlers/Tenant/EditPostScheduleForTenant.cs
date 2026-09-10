@@ -193,7 +193,7 @@ public sealed class EditPostScheduleForTenant {
 						[invalidSchedule.ErrorKey] = [invalidSchedule.Cause],
 					}
 				),
-			EditPostScheduleResult.Success success => await ApplyReschedulesAsync(
+			EditPostScheduleResult.Success success => await _ApplyReschedulesAsync(
 				success.Reschedules,
 				postIdGuid,
 				tenantId,
@@ -218,7 +218,7 @@ public sealed class EditPostScheduleForTenant {
 	/// summary keyed on the POST (same observable surface as before), now
 	/// counting APPLIED moves instead of planned ones.
 	/// </summary>
-	private static async Task<Ok<EditPostScheduleResponse>> ApplyReschedulesAsync(
+	private static async Task<Ok<EditPostScheduleResponse>> _ApplyReschedulesAsync(
 		IReadOnlyList<PendingReschedule> reschedules,
 		Guid postId,
 		Guid tenantId,

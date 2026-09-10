@@ -55,8 +55,8 @@ public abstract record UploadAdmissionResult {
 /// Disposing without committing rolls everything back.
 /// </summary>
 public sealed class UploadAdmissionScope : IAsyncDisposable {
-	private readonly AppDbContext _dbContext;
-	private readonly UploadAdmissionService _owner;
+	private readonly AppDbContext _DbContext;
+	private readonly UploadAdmissionService _Owner;
 
 	internal bool CommitPending;
 
@@ -66,8 +66,8 @@ public sealed class UploadAdmissionScope : IAsyncDisposable {
 		IDbContextTransaction transaction,
 		UploadAdmissionResult admission
 	) {
-		_owner = owner;
-		_dbContext = dbContext;
+		_Owner = owner;
+		_DbContext = dbContext;
 		Transaction = transaction;
 		Admission = admission;
 	}
@@ -103,12 +103,12 @@ public sealed class UploadAdmissionScope : IAsyncDisposable {
 
 		try {
 			accepted.Asset.State = UploadAssetState.Stored;
-			await _dbContext.SaveChangesAsync(cancellationToken);
+			await _DbContext.SaveChangesAsync(cancellationToken);
 			var bytes = accepted.Asset.SizeBytes;
-			await _owner.MoveReservedToCommittedAsync(
+			await _Owner.MoveReservedToCommittedAsync(
 				UploadBudgetScope.Global, null, bytes, cancellationToken
 			);
-			await _owner.MoveReservedToCommittedAsync(
+			await _Owner.MoveReservedToCommittedAsync(
 				UploadBudgetScope.CreatorUser, accepted.Asset.CreatedByUserId, bytes, cancellationToken
 			);
 
@@ -133,14 +133,14 @@ public sealed class UploadAdmissionScope : IAsyncDisposable {
 	/// </summary>
 	public async Task FailAsync(bool releaseBudget, CancellationToken cancellationToken = default) {
 		if (releaseBudget || !CommitPending) {
-			await RollbackQuietlyAsync();
+			await _RollbackQuietlyAsync();
 			return;
 		}
 
 		try {
 			if (Admission is not UploadAdmissionResult.Accepted accepted
 				|| string.IsNullOrEmpty(accepted.Asset.RelativePath)) {
-				await RollbackQuietlyAsync();
+				await _RollbackQuietlyAsync();
 				return;
 			}
 			// The failure that led here may have left half-applied entity
@@ -151,26 +151,26 @@ public sealed class UploadAdmissionScope : IAsyncDisposable {
 			// empty path, so the handler-stamped values must be written
 			// explicitly rather than diffed against the post-Clear snapshot.
 			var retainedBytes = accepted.Asset.SizeBytes;
-			_dbContext.ChangeTracker.Clear();
-			var assetEntry = _dbContext.UploadAsset.Attach(accepted.Asset);
+			_DbContext.ChangeTracker.Clear();
+			var assetEntry = _DbContext.UploadAsset.Attach(accepted.Asset);
 			assetEntry.State = EntityState.Modified;
 			accepted.Asset.State = UploadAssetState.Stored;
-			await _owner.MoveReservedToCommittedAsync(
+			await _Owner.MoveReservedToCommittedAsync(
 				UploadBudgetScope.Global, null, retainedBytes, cancellationToken
 			);
-			await _owner.MoveReservedToCommittedAsync(
+			await _Owner.MoveReservedToCommittedAsync(
 				UploadBudgetScope.CreatorUser, accepted.Asset.CreatedByUserId,
 				retainedBytes,
 				cancellationToken
 			);
-			await _dbContext.SaveChangesAsync(cancellationToken);
+			await _DbContext.SaveChangesAsync(cancellationToken);
 			await Transaction.CommitAsync(cancellationToken);
 		} catch {
-			await RollbackQuietlyAsync();
+			await _RollbackQuietlyAsync();
 		}
 	}
 
-	private async Task RollbackQuietlyAsync() {
+	private async Task _RollbackQuietlyAsync() {
 		try {
 			await Transaction.RollbackAsync();
 		} catch {
@@ -213,18 +213,18 @@ public sealed class UploadAdmissionService(AppDbContext dbContext) : IUploadAdmi
 	// Serializable-retry tuning. Attempts are generous because bursts of
 	// concurrent admissions serialise on the same budget tuple; the randomised
 	// exponential backoff stops the losers from retrying in lockstep.
-	// RetryMaxAttempts must cover the burst size of the widest in-suite race
+	// _RetryMaxAttempts must cover the burst size of the widest in-suite race
 	// spec (16 concurrent admissions, UploadAdmissionServiceSpec): a slower
 	// runner stretches each attempt's commit window, so 8 attempts exhausted
 	// there (#1467 run 32936347299). 12 attempts with an ~800 ms backoff
 	// ceiling keep every loser alive until a winner finishes committing.
 	// Justification: CI run 32936347299 failed with 8 attempts on the
 	// 2-core GitHub runner; 12 is the minimum that passes everywhere.
-	private const int RetryMaxAttempts = 12;
-	private const int RetryBackoffBaseMs = 10;
-	private const int RetryBackoffMaxShift = 6;
-	private const int RetryBackoffJitterMs = 40;
-	private const int RetryBackoffCeilingMs = 800;
+	private const int _RetryMaxAttempts = 12;
+	private const int _RetryBackoffBaseMs = 10;
+	private const int _RetryBackoffMaxShift = 6;
+	private const int _RetryBackoffJitterMs = 40;
+	private const int _RetryBackoffCeilingMs = 800;
 
 	internal AppDbContext DbContext {
 		get { return dbContext; }
@@ -250,15 +250,15 @@ public sealed class UploadAdmissionService(AppDbContext dbContext) : IUploadAdmi
 		// (a serialization failure is a scheduling event, not an admission
 		// verdict). EF wraps provider errors raised by SaveChangesAsync in
 		// DbUpdateException, so unwrap before matching the SQLSTATE.
-		const int MaxAttempts = RetryMaxAttempts;
+		const int MaxAttempts = _RetryMaxAttempts;
 		for (var attempt = 0; ; attempt += 1) {
 			try {
-				return await BeginReservationAttemptAsync(
+				return await _BeginReservationAttemptAsync(
 					staffUserId, bytes, purpose, cancellationToken
 				);
 			} catch (Exception exception)
 				when (attempt < MaxAttempts
-					&& IsRetryableSerializationFailure(exception)) {
+					&& _IsRetryableSerializationFailure(exception)) {
 				// The database aborted the attempt: dispose its (already
 				// rollback-decided) transaction to free the connection, drop
 				// any half-tracked entities, and start the next attempt clean.
@@ -277,16 +277,16 @@ public sealed class UploadAdmissionService(AppDbContext dbContext) : IUploadAdmi
 				// instant and can exhaust every attempt before the winner
 				// finishes its commit.
 				var backoffMs = Math.Min(
-					(RetryBackoffBaseMs << Math.Min(attempt, RetryBackoffMaxShift))
-						+ Random.Shared.Next(RetryBackoffJitterMs),
-					RetryBackoffCeilingMs
+					(_RetryBackoffBaseMs << Math.Min(attempt, _RetryBackoffMaxShift))
+						+ Random.Shared.Next(_RetryBackoffJitterMs),
+					_RetryBackoffCeilingMs
 				);
 				await Task.Delay(backoffMs, cancellationToken);
 			}
 		}
 	}
 
-	private static bool IsRetryableSerializationFailure(Exception exception) {
+	private static bool _IsRetryableSerializationFailure(Exception exception) {
 		var postgres = exception as PostgresException;
 		if (postgres is null && exception is DbUpdateException wrapped) {
 			postgres = wrapped.InnerException as PostgresException;
@@ -299,7 +299,7 @@ public sealed class UploadAdmissionService(AppDbContext dbContext) : IUploadAdmi
 				or PostgresErrorCodes.DeadlockDetected;
 	}
 
-	private async Task<UploadAdmissionScope> BeginReservationAttemptAsync(
+	private async Task<UploadAdmissionScope> _BeginReservationAttemptAsync(
 		Guid staffUserId,
 		long bytes,
 		string purpose,
@@ -309,33 +309,33 @@ public sealed class UploadAdmissionService(AppDbContext dbContext) : IUploadAdmi
 			System.Data.IsolationLevel.Serializable, cancellationToken
 		);
 
-		await EnsureBudgetRowsExistAsync(staffUserId, cancellationToken);
+		await _EnsureBudgetRowsExistAsync(staffUserId, cancellationToken);
 
-		var globalUpdated = await TryAddReservedBytesAsync(
+		var globalUpdated = await _TryAddReservedBytesAsync(
 			UploadBudgetScope.Global, null, bytes, cancellationToken
 		);
 		if (globalUpdated == 0) {
-			await TransactionRollbackAsync(transaction);
+			await _TransactionRollbackAsync(transaction);
 			return new UploadAdmissionScope(
 				this, dbContext, transaction,
-				await BuildRejectionAsync(
+				await _BuildRejectionAsync(
 					UploadBudgetScope.Global, null, bytes, cancellationToken
 				)
 			);
 		}
 
-		var creatorUpdated = await TryAddReservedBytesAsync(
+		var creatorUpdated = await _TryAddReservedBytesAsync(
 			UploadBudgetScope.CreatorUser, staffUserId, bytes, cancellationToken
 		);
 		if (creatorUpdated == 0) {
 			// Give the global reservation back before reporting the creator cap.
-			await SubtractReservedBytesAsync(
+			await _SubtractReservedBytesAsync(
 				UploadBudgetScope.Global, null, bytes, cancellationToken
 			);
-			await TransactionRollbackAsync(transaction);
+			await _TransactionRollbackAsync(transaction);
 			return new UploadAdmissionScope(
 				this, dbContext, transaction,
-				await BuildRejectionAsync(
+				await _BuildRejectionAsync(
 					UploadBudgetScope.CreatorUser, staffUserId, bytes, cancellationToken
 				)
 			);
@@ -360,7 +360,7 @@ public sealed class UploadAdmissionService(AppDbContext dbContext) : IUploadAdmi
 
 	// ── helpers ─────────────────────────────────────────────────────────────
 
-	private static async Task TransactionRollbackAsync(IDbContextTransaction transaction) {
+	private static async Task _TransactionRollbackAsync(IDbContextTransaction transaction) {
 		try {
 			await transaction.RollbackAsync();
 		} catch {
@@ -371,7 +371,7 @@ public sealed class UploadAdmissionService(AppDbContext dbContext) : IUploadAdmi
 	// Reads the refusing scope's numbers AFTER the rollback so the problem details
 	// can name the cause in plain words ("X free, less than this file's Y"). Reads
 	// outside the aborted transaction see the last committed accounting.
-	private async Task<UploadAdmissionResult.Rejected> BuildRejectionAsync(
+	private async Task<UploadAdmissionResult.Rejected> _BuildRejectionAsync(
 		UploadBudgetScope scope,
 		Guid? scopeKeyGuid,
 		long requestedBytes,
@@ -400,11 +400,11 @@ public sealed class UploadAdmissionService(AppDbContext dbContext) : IUploadAdmi
 		);
 	}
 
-	private static int ScopeToInt(UploadBudgetScope scope) {
+	private static int _ScopeToInt(UploadBudgetScope scope) {
 		return (int)scope;
 	}
 
-	private async Task EnsureBudgetRowsExistAsync(
+	private async Task _EnsureBudgetRowsExistAsync(
 			Guid staffUserId,
 			CancellationToken cancellationToken
 		) {
@@ -416,7 +416,7 @@ public sealed class UploadAdmissionService(AppDbContext dbContext) : IUploadAdmi
 		await dbContext.Database.ExecuteSqlAsync(
 			$"""
 			INSERT INTO upload_budgets (id, scope_kind, scope_key, max_bytes, reserved_bytes, committed_bytes)
-			VALUES (uuidv7(), {ScopeToInt(UploadBudgetScope.Global)}, NULL, {env.UPLOAD_GLOBAL_MAX_BYTES}, 0, 0)
+			VALUES (uuidv7(), {_ScopeToInt(UploadBudgetScope.Global)}, NULL, {env.UPLOAD_GLOBAL_MAX_BYTES}, 0, 0)
 			ON CONFLICT (scope_kind, scope_key) DO NOTHING
 			""",
 			cancellationToken
@@ -424,14 +424,14 @@ public sealed class UploadAdmissionService(AppDbContext dbContext) : IUploadAdmi
 		await dbContext.Database.ExecuteSqlAsync(
 			$"""
 			INSERT INTO upload_budgets (id, scope_kind, scope_key, max_bytes, reserved_bytes, committed_bytes)
-			VALUES (uuidv7(), {ScopeToInt(UploadBudgetScope.CreatorUser)}, {staffUserId.ToString()}, {env.UPLOAD_PER_STAFF_MAX_BYTES}, 0, 0)
+			VALUES (uuidv7(), {_ScopeToInt(UploadBudgetScope.CreatorUser)}, {staffUserId.ToString()}, {env.UPLOAD_PER_STAFF_MAX_BYTES}, 0, 0)
 			ON CONFLICT (scope_kind, scope_key) DO NOTHING
 			""",
 			cancellationToken
 		);
 	}
 
-	private async Task<int> TryAddReservedBytesAsync(
+	private async Task<int> _TryAddReservedBytesAsync(
 		UploadBudgetScope scope,
 		Guid? scopeKeyGuid,
 		long bytes,
@@ -445,7 +445,7 @@ public sealed class UploadAdmissionService(AppDbContext dbContext) : IUploadAdmi
 				$"""
 				UPDATE upload_budgets
 				SET reserved_bytes = reserved_bytes + {bytes}
-				WHERE scope_kind = {ScopeToInt(scope)}
+				WHERE scope_kind = {_ScopeToInt(scope)}
 					AND scope_key IS NULL
 					AND max_bytes - reserved_bytes - committed_bytes >= {bytes}
 				""",
@@ -457,7 +457,7 @@ public sealed class UploadAdmissionService(AppDbContext dbContext) : IUploadAdmi
 			$"""
 			UPDATE upload_budgets
 			SET reserved_bytes = reserved_bytes + {bytes}
-			WHERE scope_kind = {ScopeToInt(scope)}
+			WHERE scope_kind = {_ScopeToInt(scope)}
 				AND scope_key = {scopeKeyGuid.ToString()}
 				AND max_bytes - reserved_bytes - committed_bytes >= {bytes}
 			""",
@@ -465,7 +465,7 @@ public sealed class UploadAdmissionService(AppDbContext dbContext) : IUploadAdmi
 		);
 	}
 
-	private async Task SubtractReservedBytesAsync(
+	private async Task _SubtractReservedBytesAsync(
 		UploadBudgetScope scope,
 		Guid? scopeKeyGuid,
 		long bytes,
@@ -476,7 +476,7 @@ public sealed class UploadAdmissionService(AppDbContext dbContext) : IUploadAdmi
 				$"""
 				UPDATE upload_budgets
 				SET reserved_bytes = reserved_bytes - {bytes}
-				WHERE scope_kind = {ScopeToInt(scope)}
+				WHERE scope_kind = {_ScopeToInt(scope)}
 					AND scope_key IS NULL
 				""",
 				cancellationToken
@@ -488,7 +488,7 @@ public sealed class UploadAdmissionService(AppDbContext dbContext) : IUploadAdmi
 			$"""
 			UPDATE upload_budgets
 			SET reserved_bytes = reserved_bytes - {bytes}
-			WHERE scope_kind = {ScopeToInt(scope)}
+			WHERE scope_kind = {_ScopeToInt(scope)}
 				AND scope_key = {scopeKeyGuid.ToString()}
 			""",
 			cancellationToken
@@ -507,7 +507,7 @@ public sealed class UploadAdmissionService(AppDbContext dbContext) : IUploadAdmi
 				UPDATE upload_budgets
 				SET reserved_bytes = reserved_bytes - {bytes},
 					committed_bytes = committed_bytes + {bytes}
-				WHERE scope_kind = {ScopeToInt(scope)}
+				WHERE scope_kind = {_ScopeToInt(scope)}
 					AND scope_key IS NULL
 				""",
 				cancellationToken
@@ -520,7 +520,7 @@ public sealed class UploadAdmissionService(AppDbContext dbContext) : IUploadAdmi
 			UPDATE upload_budgets
 			SET reserved_bytes = reserved_bytes - {bytes},
 				committed_bytes = committed_bytes + {bytes}
-			WHERE scope_kind = {ScopeToInt(scope)}
+			WHERE scope_kind = {_ScopeToInt(scope)}
 				AND scope_key = {scopeKeyGuid.ToString()}
 			""",
 			cancellationToken

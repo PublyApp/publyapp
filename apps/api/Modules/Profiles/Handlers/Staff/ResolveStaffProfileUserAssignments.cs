@@ -14,10 +14,10 @@ namespace PublyApp.Api.Modules.Profiles.Handlers.Staff;
 public sealed class ResolveStaffProfileUserAssignmentsBody {
 	public JsonElement UserIds { get; init; }
 
-	private bool _parsed;
-	private List<Guid> _userIds = [];
+	private bool _Parsed;
+	private List<Guid> _UserIds = [];
 
-	private List<Guid> ParseUserIds() {
+	private List<Guid> _ParseUserIds() {
 		if (UserIds.ValueKind != JsonValueKind.Array) {
 			throw new InvalidOperationException("UserIds must be an array");
 		}
@@ -39,19 +39,19 @@ public sealed class ResolveStaffProfileUserAssignmentsBody {
 	}
 
 	public List<Guid> GetUserIds() {
-		if (_parsed) {
-			return _userIds;
+		if (_Parsed) {
+			return _UserIds;
 		}
 
-		_userIds = ParseUserIds();
-		_parsed = true;
-		return _userIds;
+		_UserIds = _ParseUserIds();
+		_Parsed = true;
+		return _UserIds;
 	}
 }
 
 public sealed class ResolveStaffProfileUserAssignmentsBodyValidator
 	: AbstractValidator<ResolveStaffProfileUserAssignmentsBody> {
-	private const int MaxUserIds = 200;
+	private const int _MaxUserIds = 200;
 
 	public ResolveStaffProfileUserAssignmentsBodyValidator() {
 		RuleFor(x => x.UserIds)
@@ -69,10 +69,10 @@ public sealed class ResolveStaffProfileUserAssignmentsBodyValidator
 				}
 
 				var array = element.EnumerateArray().ToList();
-				if (array.Count > MaxUserIds) {
+				if (array.Count > _MaxUserIds) {
 					context.AddFailure(
 						"userIds",
-						$"At most {MaxUserIds} userIds are supported per request"
+						$"At most {_MaxUserIds} userIds are supported per request"
 					);
 					return;
 				}

@@ -19,19 +19,19 @@ namespace PublyApp.Api.Modules.Users.Handlers.Staff;
 
 public sealed class UpdateTenantUserIdentityForStaffSpec
 	: IClassFixture<ApiFixture> {
-	private static readonly JsonSerializerOptions TenantUserDetailsJsonOptions = new() {
+	private static readonly JsonSerializerOptions _TenantUserDetailsJsonOptions = new() {
 		PropertyNameCaseInsensitive = true,
 	};
 
-	private readonly HttpClient _http;
-	private readonly TestAuthClient _authClient;
+	private readonly HttpClient _Http;
+	private readonly TestAuthClient _AuthClient;
 
 	public UpdateTenantUserIdentityForStaffSpec(ApiFixture fixture) {
-		_http = fixture.HttpClient;
-		_authClient = new TestAuthClient(_http);
+		_Http = fixture.HttpClient;
+		_AuthClient = new TestAuthClient(_Http);
 	}
 
-	private static string GetUrl(string userId) {
+	private static string _GetUrl(string userId) {
 		return PathUtils.Join(
 			Routes.Staff.Root,
 			"/tenant-users",
@@ -39,7 +39,7 @@ public sealed class UpdateTenantUserIdentityForStaffSpec
 		);
 	}
 
-	private static string GetRemoveUrl(
+	private static string _GetRemoveUrl(
 		Guid tenantId,
 		string userId
 	) {
@@ -56,15 +56,15 @@ public sealed class UpdateTenantUserIdentityForStaffSpec
 	public async Task
 	ItShouldUpdateTenantUserIdentityWhenFieldsAreValid() {
 		var staffToken =
-			await _authClient.LoginAsStaffAdminAsync();
+			await _AuthClient.LoginAsStaffAdminAsync();
 		var tenantId =
 			await TenantTestHelper.GetTenantIdByNameAsync(
-				_http,
+				_Http,
 				staffToken,
 				SeedConstants.Tenants.AcmeName
 			);
-		var userId = await GetUserIdByEmailAsync(
-			_http,
+		var userId = await _GetUserIdByEmailAsync(
+			_Http,
 			staffToken,
 			tenantId,
 			TestConstants.AcmeUserEmail
@@ -72,7 +72,7 @@ public sealed class UpdateTenantUserIdentityForStaffSpec
 
 		var request = new HttpRequestMessage(
 			HttpMethod.Patch,
-			GetUrl(userId)
+			_GetUrl(userId)
 		).WithSessionToken(staffToken);
 		request.Content = JsonContent.Create(
 			new {
@@ -81,13 +81,13 @@ public sealed class UpdateTenantUserIdentityForStaffSpec
 			}
 		);
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
 		var json = await response.Content.ReadAsStringAsync();
 		var result = JsonSerializer.Deserialize<TenantUserDetailsResponse>(
 			json,
-			TenantUserDetailsJsonOptions
+			_TenantUserDetailsJsonOptions
 		);
 		result.Should().NotBeNull();
 		Assert.NotNull(result);
@@ -102,39 +102,39 @@ public sealed class UpdateTenantUserIdentityForStaffSpec
 			out _
 		).Should().BeFalse();
 
-		await ResetUserNameAsync(staffToken, userId);
+		await _ResetUserNameAsync(staffToken, userId);
 	}
 
 	[Fact]
 	public async Task
 	ItShouldUpdateTenantUserIdentityWhenNoLiveCompaniesRemain() {
 		var staffToken =
-			await _authClient.LoginAsStaffAdminAsync();
+			await _AuthClient.LoginAsStaffAdminAsync();
 		var techStartTenantId =
 			await TenantTestHelper.GetTenantIdByNameAsync(
-				_http,
+				_Http,
 				staffToken,
 				SeedConstants.Tenants.TechStartName
 			);
 		var globalTenantId =
 			await TenantTestHelper.GetTenantIdByNameAsync(
-				_http,
+				_Http,
 				staffToken,
 				SeedConstants.Tenants.GlobalName
 			);
-		var userId = await GetUserIdByEmailAsync(
-			_http,
+		var userId = await _GetUserIdByEmailAsync(
+			_Http,
 			staffToken,
 			techStartTenantId,
 			SeedConstants.CrossTenant.BobEmail
 		);
 
-		await RemoveTenantMembershipAsync(
+		await _RemoveTenantMembershipAsync(
 			staffToken,
 			techStartTenantId,
 			userId
 		);
-		await RemoveTenantMembershipAsync(
+		await _RemoveTenantMembershipAsync(
 			staffToken,
 			globalTenantId,
 			userId
@@ -142,7 +142,7 @@ public sealed class UpdateTenantUserIdentityForStaffSpec
 
 		var request = new HttpRequestMessage(
 			HttpMethod.Patch,
-			GetUrl(userId)
+			_GetUrl(userId)
 		).WithSessionToken(staffToken);
 		request.Content = JsonContent.Create(
 			new {
@@ -151,7 +151,7 @@ public sealed class UpdateTenantUserIdentityForStaffSpec
 			}
 		);
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
 		var result = await response.Content
@@ -168,15 +168,15 @@ public sealed class UpdateTenantUserIdentityForStaffSpec
 	public async Task
 	ItShouldReturnBadRequestWhenNoFieldsAreProvided() {
 		var staffToken =
-			await _authClient.LoginAsStaffAdminAsync();
+			await _AuthClient.LoginAsStaffAdminAsync();
 		var tenantId =
 			await TenantTestHelper.GetTenantIdByNameAsync(
-				_http,
+				_Http,
 				staffToken,
 				SeedConstants.Tenants.AcmeName
 			);
-		var userId = await GetUserIdByEmailAsync(
-			_http,
+		var userId = await _GetUserIdByEmailAsync(
+			_Http,
 			staffToken,
 			tenantId,
 			TestConstants.AcmeUserEmail
@@ -184,11 +184,11 @@ public sealed class UpdateTenantUserIdentityForStaffSpec
 
 		var request = new HttpRequestMessage(
 			HttpMethod.Patch,
-			GetUrl(userId)
+			_GetUrl(userId)
 		).WithSessionToken(staffToken);
 		request.Content = JsonContent.Create(new { });
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 
 		response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
 		var problem = await response.Content
@@ -202,15 +202,15 @@ public sealed class UpdateTenantUserIdentityForStaffSpec
 	public async Task
 	ItShouldReturnUnprocessableEntityWhenFirstNameExceedsMaxLength() {
 		var staffToken =
-			await _authClient.LoginAsStaffAdminAsync();
+			await _AuthClient.LoginAsStaffAdminAsync();
 		var tenantId =
 			await TenantTestHelper.GetTenantIdByNameAsync(
-				_http,
+				_Http,
 				staffToken,
 				SeedConstants.Tenants.AcmeName
 			);
-		var userId = await GetUserIdByEmailAsync(
-			_http,
+		var userId = await _GetUserIdByEmailAsync(
+			_Http,
 			staffToken,
 			tenantId,
 			TestConstants.AcmeUserEmail
@@ -218,13 +218,13 @@ public sealed class UpdateTenantUserIdentityForStaffSpec
 
 		var request = new HttpRequestMessage(
 			HttpMethod.Patch,
-			GetUrl(userId)
+			_GetUrl(userId)
 		).WithSessionToken(staffToken);
 		request.Content = JsonContent.Create(
 			new { firstName = new string('a', 129) }
 		);
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 
 		response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
 		var problem = await response.Content
@@ -238,15 +238,15 @@ public sealed class UpdateTenantUserIdentityForStaffSpec
 	public async Task
 	ItShouldReturnUnprocessableEntityWhenAvatarUrlExceedsMaxLength() {
 		var staffToken =
-			await _authClient.LoginAsStaffAdminAsync();
+			await _AuthClient.LoginAsStaffAdminAsync();
 		var tenantId =
 			await TenantTestHelper.GetTenantIdByNameAsync(
-				_http,
+				_Http,
 				staffToken,
 				SeedConstants.Tenants.AcmeName
 			);
-		var userId = await GetUserIdByEmailAsync(
-			_http,
+		var userId = await _GetUserIdByEmailAsync(
+			_Http,
 			staffToken,
 			tenantId,
 			TestConstants.AcmeUserEmail
@@ -254,7 +254,7 @@ public sealed class UpdateTenantUserIdentityForStaffSpec
 
 		var request = new HttpRequestMessage(
 			HttpMethod.Patch,
-			GetUrl(userId)
+			_GetUrl(userId)
 		).WithSessionToken(staffToken);
 		request.Content = JsonContent.Create(
 			new {
@@ -263,7 +263,7 @@ public sealed class UpdateTenantUserIdentityForStaffSpec
 			}
 		);
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 
 		response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
 		var problem = await response.Content
@@ -277,17 +277,17 @@ public sealed class UpdateTenantUserIdentityForStaffSpec
 	public async Task
 	ItShouldReturnBadRequestWhenUserIdIsMalformed() {
 		var staffToken =
-			await _authClient.LoginAsStaffAdminAsync();
+			await _AuthClient.LoginAsStaffAdminAsync();
 
 		var request = new HttpRequestMessage(
 			HttpMethod.Patch,
-			GetUrl("not-a-guid")
+			_GetUrl("not-a-guid")
 		).WithSessionToken(staffToken);
 		request.Content = JsonContent.Create(
 			new { firstName = "Test" }
 		);
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 
 		response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
 		var problem = await response.Content
@@ -301,17 +301,17 @@ public sealed class UpdateTenantUserIdentityForStaffSpec
 	public async Task
 	ItShouldReturnNotFoundWhenUserDoesNotExist() {
 		var staffToken =
-			await _authClient.LoginAsStaffAdminAsync();
+			await _AuthClient.LoginAsStaffAdminAsync();
 
 		var request = new HttpRequestMessage(
 			HttpMethod.Patch,
-			GetUrl(Guid.NewGuid().ToString())
+			_GetUrl(Guid.NewGuid().ToString())
 		).WithSessionToken(staffToken);
 		request.Content = JsonContent.Create(
 			new { firstName = "Test" }
 		);
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 
 		response.StatusCode.Should().Be(HttpStatusCode.NotFound);
 		var problem = await response.Content
@@ -321,13 +321,13 @@ public sealed class UpdateTenantUserIdentityForStaffSpec
 		problem.TranslationKey.Should().Be(ResponseKeys.NotFound);
 	}
 
-	private async Task ResetUserNameAsync(
+	private async Task _ResetUserNameAsync(
 		string staffToken,
 		string userId
 	) {
 		var request = new HttpRequestMessage(
 			HttpMethod.Patch,
-			GetUrl(userId)
+			_GetUrl(userId)
 		).WithSessionToken(staffToken);
 		request.Content = JsonContent.Create(
 			new {
@@ -336,25 +336,25 @@ public sealed class UpdateTenantUserIdentityForStaffSpec
 			}
 		);
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 		response.EnsureSuccessStatusCode();
 	}
 
-	private async Task RemoveTenantMembershipAsync(
+	private async Task _RemoveTenantMembershipAsync(
 		string staffToken,
 		Guid tenantId,
 		string userId
 	) {
 		using var request = new HttpRequestMessage(
 			HttpMethod.Delete,
-			GetRemoveUrl(tenantId, userId)
+			_GetRemoveUrl(tenantId, userId)
 		).WithSessionToken(staffToken);
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
 	}
 
-	private static async Task<string> GetUserIdByEmailAsync(
+	private static async Task<string> _GetUserIdByEmailAsync(
 		HttpClient http,
 		string staffToken,
 		Guid tenantId,

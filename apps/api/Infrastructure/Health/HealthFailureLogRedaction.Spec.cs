@@ -12,9 +12,9 @@ using Xunit;
 namespace PublyApp.Api.Infrastructure.Health;
 
 public sealed class HealthFailureLogRedactionSpec {
-	private const string SecretSentinel =
+	private const string _SecretSentinel =
 		"HealthLogSecretSentinelConnectionStringKeyToken";
-	private const string SafeScopeMarker = "health-redaction-test";
+	private const string _SafeScopeMarker = "health-redaction-test";
 
 	[Fact]
 	public async Task ItShouldNotLogDependencyExceptionDetailsFromDatabaseMigrationHealthCheck() {
@@ -24,12 +24,12 @@ public sealed class HealthFailureLogRedactionSpec {
 			logger,
 			new HealthCheckLogGate()
 		);
-		using var logScope = logger.BeginScope(SafeScopeMarker);
+		using var logScope = logger.BeginScope(_SafeScopeMarker);
 
 		var result = await check.CheckHealthAsync(new HealthCheckContext());
 
 		result.Status.Should().Be(HealthStatus.Unhealthy);
-		AssertNoSentinelInLogs(logger.Entries);
+		_AssertNoSentinelInLogs(logger.Entries);
 	}
 
 	[Fact]
@@ -40,12 +40,12 @@ public sealed class HealthFailureLogRedactionSpec {
 			logger,
 			new HealthCheckLogGate()
 		);
-		using var logScope = logger.BeginScope(SafeScopeMarker);
+		using var logScope = logger.BeginScope(_SafeScopeMarker);
 
 		var result = await check.CheckHealthAsync(new HealthCheckContext());
 
 		result.Status.Should().Be(HealthStatus.Unhealthy);
-		AssertNoSentinelInLogs(logger.Entries);
+		_AssertNoSentinelInLogs(logger.Entries);
 	}
 
 	[Fact]
@@ -64,41 +64,41 @@ public sealed class HealthFailureLogRedactionSpec {
 				HeartbeatPath = heartbeatPath,
 			}
 		);
-		using var logScope = logger.BeginScope(SafeScopeMarker);
+		using var logScope = logger.BeginScope(_SafeScopeMarker);
 
 		var act = async () => await gate.StartAsync(CancellationToken.None);
 
 		try {
 			await act.Should().ThrowAsync<TimeoutException>();
-			AssertNoSentinelInLogs(logger.Entries);
+			_AssertNoSentinelInLogs(logger.Entries);
 		} finally {
 			File.Delete(heartbeatPath);
 		}
 	}
 
-	private static void AssertNoSentinelInLogs(IReadOnlyList<CapturedLog> entries) {
+	private static void _AssertNoSentinelInLogs(IReadOnlyList<CapturedLog> entries) {
 		entries.Should().NotBeEmpty();
 		foreach (var entry in entries) {
-			entry.Message.Should().NotContain(SecretSentinel);
+			entry.Message.Should().NotContain(_SecretSentinel);
 			entry.State.Should().NotContain(pair =>
-				ContainsSentinel(pair.Key) || ContainsSentinel(pair.Value)
+				_ContainsSentinel(pair.Key) || _ContainsSentinel(pair.Value)
 			);
-			entry.Scopes.Should().Contain(SafeScopeMarker);
-			entry.Scopes.Should().NotContain(scope => ContainsSentinel(scope));
+			entry.Scopes.Should().Contain(_SafeScopeMarker);
+			entry.Scopes.Should().NotContain(scope => _ContainsSentinel(scope));
 			entry.Exception.Should().BeNull();
 		}
 	}
 
-	private static bool ContainsSentinel(object? value) {
+	private static bool _ContainsSentinel(object? value) {
 		return value?.ToString()?.Contains(
-			SecretSentinel,
+			_SecretSentinel,
 			StringComparison.Ordinal
 		) is true;
 	}
 
-	private static Exception CreateHealthLogSecretSentinelConnectionStringKeyToken() {
+	private static Exception _CreateHealthLogSecretSentinelConnectionStringKeyToken() {
 		try {
-			ThrowHealthLogSecretSentinelConnectionStringKeyToken();
+			_ThrowHealthLogSecretSentinelConnectionStringKeyToken();
 		} catch (Exception exception) {
 			return exception;
 		}
@@ -106,11 +106,11 @@ public sealed class HealthFailureLogRedactionSpec {
 		throw new InvalidOperationException("Sentinel exception creation did not throw.");
 	}
 
-	private static void ThrowHealthLogSecretSentinelConnectionStringKeyToken() {
+	private static void _ThrowHealthLogSecretSentinelConnectionStringKeyToken() {
 		var exception = new InvalidOperationException(
-			$"{SecretSentinel} Host=db.internal Port=5432 Password=secret-value"
+			$"{_SecretSentinel} Host=db.internal Port=5432 Password=secret-value"
 		);
-		exception.Data[SecretSentinel] = $"private-key-{SecretSentinel}";
+		exception.Data[_SecretSentinel] = $"private-key-{_SecretSentinel}";
 		throw exception;
 	}
 
@@ -119,7 +119,7 @@ public sealed class HealthFailureLogRedactionSpec {
 			CancellationToken cancellationToken
 		) {
 			cancellationToken.ThrowIfCancellationRequested();
-			throw CreateHealthLogSecretSentinelConnectionStringKeyToken();
+			throw _CreateHealthLogSecretSentinelConnectionStringKeyToken();
 		}
 	}
 
@@ -128,7 +128,7 @@ public sealed class HealthFailureLogRedactionSpec {
 		}
 
 		public override DbSet<TEntity> Set<TEntity>() {
-			throw CreateHealthLogSecretSentinelConnectionStringKeyToken();
+			throw _CreateHealthLogSecretSentinelConnectionStringKeyToken();
 		}
 	}
 }

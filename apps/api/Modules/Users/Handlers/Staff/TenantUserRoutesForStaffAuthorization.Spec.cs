@@ -21,25 +21,25 @@ namespace PublyApp.Api.Modules.Users.Handlers.Staff;
 
 public sealed class TenantUserRoutesForStaffAuthorizationSpec
 	: IClassFixture<ApiFixture> {
-	private readonly ApiFixture _fixture;
-	private readonly HttpClient _http;
-	private readonly TestAuthClient _authClient;
+	private readonly ApiFixture _Fixture;
+	private readonly HttpClient _Http;
+	private readonly TestAuthClient _AuthClient;
 
 	public TenantUserRoutesForStaffAuthorizationSpec(ApiFixture fixture) {
-		_fixture = fixture;
-		_http = fixture.HttpClient;
-		_authClient = new TestAuthClient(_http);
+		_Fixture = fixture;
+		_Http = fixture.HttpClient;
+		_AuthClient = new TestAuthClient(_Http);
 	}
 
 	[Fact]
 	public async Task
 	ItShouldReturnUnauthorizedWithoutSessionForEveryIntroducedTenantUserRoute() {
-		var routeSet = CreateRouteSet();
+		var routeSet = _CreateRouteSet();
 
 		foreach (var route in routeSet) {
-			using var request = CreateRequest(route, sessionToken: null);
+			using var request = _CreateRequest(route, sessionToken: null);
 
-			using var response = await _http.SendAsync(request);
+			using var response = await _Http.SendAsync(request);
 
 			response.StatusCode.Should().Be(
 				HttpStatusCode.Unauthorized,
@@ -51,16 +51,16 @@ public sealed class TenantUserRoutesForStaffAuthorizationSpec
 	[Fact]
 	public async Task
 	ItShouldReturnForbiddenForTenantUserForEveryIntroducedTenantUserRoute() {
-		var tenantToken = await _authClient.LoginAsync(
+		var tenantToken = await _AuthClient.LoginAsync(
 			TestConstants.AcmeAdminEmail,
 			TestConstants.SeedPassword
 		);
-		var routeSet = CreateRouteSet();
+		var routeSet = _CreateRouteSet();
 
 		foreach (var route in routeSet) {
-			using var request = CreateRequest(route, tenantToken);
+			using var request = _CreateRequest(route, tenantToken);
 
-			using var response = await _http.SendAsync(request);
+			using var response = await _Http.SendAsync(request);
 
 			response.StatusCode.Should().Be(
 				HttpStatusCode.Forbidden,
@@ -72,16 +72,16 @@ public sealed class TenantUserRoutesForStaffAuthorizationSpec
 	[Fact]
 	public async Task
 	ItShouldReturnForbiddenForStaffWithoutPermissionForEveryIntroducedRoute() {
-		var staffToken = await _authClient.LoginAsync(
+		var staffToken = await _AuthClient.LoginAsync(
 			TestConstants.StaffUserEmail,
 			TestConstants.SeedPassword
 		);
-		var routeSet = CreateRouteSet();
+		var routeSet = _CreateRouteSet();
 
 		foreach (var route in routeSet) {
-			using var request = CreateRequest(route, staffToken);
+			using var request = _CreateRequest(route, staffToken);
 
-			using var response = await _http.SendAsync(request);
+			using var response = await _Http.SendAsync(request);
 
 			response.StatusCode.Should().Be(
 				HttpStatusCode.Forbidden,
@@ -93,36 +93,36 @@ public sealed class TenantUserRoutesForStaffAuthorizationSpec
 	[Fact]
 	public async Task
 	ItShouldRequireTheExpectedPermissionForEveryIntroducedTenantUserRoute() {
-		var getToken = await CreateStaffUserTokenWithPermissionAsync(
+		var getToken = await _CreateStaffUserTokenWithPermissionAsync(
 			"tenant-user-auth-get",
 			AppPermissions.Staff.Users.GET_FOR_TENANT.Key
 		);
-		var updateToken = await CreateStaffUserTokenWithPermissionAsync(
+		var updateToken = await _CreateStaffUserTokenWithPermissionAsync(
 			"tenant-user-auth-update",
 			AppPermissions.Staff.Users.UPDATE_FOR_TENANT.Key
 		);
-		var deleteToken = await CreateStaffUserTokenWithPermissionAsync(
+		var deleteToken = await _CreateStaffUserTokenWithPermissionAsync(
 			"tenant-user-auth-delete",
 			AppPermissions.Staff.Users.DELETE_FOR_TENANT.Key
 		);
-		var routeSet = CreateRouteSet();
+		var routeSet = _CreateRouteSet();
 
 		foreach (var route in routeSet) {
-			var allowedToken = GetTokenForPermission(
+			var allowedToken = _GetTokenForPermission(
 				route.RequiredPermissionKey,
 				getToken,
 				updateToken,
 				deleteToken
 			);
-			var rejectedToken = GetTokenForPermission(
+			var rejectedToken = _GetTokenForPermission(
 				route.AlternatePermissionKey,
 				getToken,
 				updateToken,
 				deleteToken
 			);
 
-			using var allowedRequest = CreateRequest(route, allowedToken);
-			using var allowedResponse = await _http.SendAsync(allowedRequest);
+			using var allowedRequest = _CreateRequest(route, allowedToken);
+			using var allowedResponse = await _Http.SendAsync(allowedRequest);
 			allowedResponse.StatusCode.Should().NotBe(
 				HttpStatusCode.Forbidden,
 				route.Name
@@ -132,8 +132,8 @@ public sealed class TenantUserRoutesForStaffAuthorizationSpec
 				route.Name
 			);
 
-			using var rejectedRequest = CreateRequest(route, rejectedToken);
-			using var rejectedResponse = await _http.SendAsync(rejectedRequest);
+			using var rejectedRequest = _CreateRequest(route, rejectedToken);
+			using var rejectedResponse = await _Http.SendAsync(rejectedRequest);
 			rejectedResponse.StatusCode.Should().Be(
 				HttpStatusCode.Forbidden,
 				route.Name
@@ -141,18 +141,18 @@ public sealed class TenantUserRoutesForStaffAuthorizationSpec
 		}
 	}
 
-	private async Task<string> CreateStaffUserTokenWithPermissionAsync(
+	private async Task<string> _CreateStaffUserTokenWithPermissionAsync(
 		string emailPrefix,
 		string permissionKey
 	) {
 		var email = $"{emailPrefix}-{Guid.NewGuid():N}@example.com";
 		var userId = await StaffUserTestHelper.SeedStaffUserAsync(
-			_fixture,
+			_Fixture,
 			email
 		);
 
 		await using var scope =
-			_fixture.Factory.Services.CreateAsyncScope();
+			_Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>();
 
@@ -186,13 +186,13 @@ public sealed class TenantUserRoutesForStaffAuthorizationSpec
 		);
 		await dbContext.SaveChangesAsync();
 
-		return await _authClient.LoginAsync(
+		return await _AuthClient.LoginAsync(
 			email,
 			TestConstants.SeedPassword
 		);
 	}
 
-	private static string GetTokenForPermission(
+	private static string _GetTokenForPermission(
 		string permissionKey,
 		string getToken,
 		string updateToken,
@@ -213,7 +213,7 @@ public sealed class TenantUserRoutesForStaffAuthorizationSpec
 		);
 	}
 
-	private static IReadOnlyList<ProtectedTenantUserRoute> CreateRouteSet() {
+	private static IReadOnlyList<ProtectedTenantUserRoute> _CreateRouteSet() {
 		var tenantId = Guid.NewGuid();
 		var userId = Guid.NewGuid();
 		var companyId = Guid.NewGuid();
@@ -225,7 +225,7 @@ public sealed class TenantUserRoutesForStaffAuthorizationSpec
 			new ProtectedTenantUserRoute(
 				"tenant-scoped-get-by-id",
 				HttpMethod.Get,
-				GetStaffTenantUserUrl(tenantId, userId),
+				_GetStaffTenantUserUrl(tenantId, userId),
 				Body: null,
 				RequiredPermissionKey: getPermission,
 				AlternatePermissionKey: updatePermission
@@ -233,7 +233,7 @@ public sealed class TenantUserRoutesForStaffAuthorizationSpec
 			new ProtectedTenantUserRoute(
 				"first-class-get-by-id",
 				HttpMethod.Get,
-				GetTenantUserUrl(userId),
+				_GetTenantUserUrl(userId),
 				Body: null,
 				RequiredPermissionKey: getPermission,
 				AlternatePermissionKey: updatePermission
@@ -241,7 +241,7 @@ public sealed class TenantUserRoutesForStaffAuthorizationSpec
 			new ProtectedTenantUserRoute(
 				"find-companies",
 				HttpMethod.Get,
-				GetTenantUserCompaniesUrl(userId),
+				_GetTenantUserCompaniesUrl(userId),
 				Body: null,
 				RequiredPermissionKey: getPermission,
 				AlternatePermissionKey: updatePermission
@@ -249,7 +249,7 @@ public sealed class TenantUserRoutesForStaffAuthorizationSpec
 			new ProtectedTenantUserRoute(
 				"assign-companies",
 				HttpMethod.Post,
-				GetTenantUserCompaniesUrl(userId),
+				_GetTenantUserCompaniesUrl(userId),
 				new {
 					tenantIds = new[] { companyId },
 					level = "User",
@@ -260,7 +260,7 @@ public sealed class TenantUserRoutesForStaffAuthorizationSpec
 			new ProtectedTenantUserRoute(
 				"bulk-suspend-companies",
 				HttpMethod.Post,
-				GetTenantUserCompaniesActionUrl(userId, "bulk-suspend"),
+				_GetTenantUserCompaniesActionUrl(userId, "bulk-suspend"),
 				new { tenantIds = new[] { companyId } },
 				RequiredPermissionKey: updatePermission,
 				AlternatePermissionKey: getPermission
@@ -268,7 +268,7 @@ public sealed class TenantUserRoutesForStaffAuthorizationSpec
 			new ProtectedTenantUserRoute(
 				"bulk-reactivate-companies",
 				HttpMethod.Post,
-				GetTenantUserCompaniesActionUrl(userId, "bulk-reactivate"),
+				_GetTenantUserCompaniesActionUrl(userId, "bulk-reactivate"),
 				new { tenantIds = new[] { companyId } },
 				RequiredPermissionKey: updatePermission,
 				AlternatePermissionKey: getPermission
@@ -276,7 +276,7 @@ public sealed class TenantUserRoutesForStaffAuthorizationSpec
 			new ProtectedTenantUserRoute(
 				"bulk-remove-companies",
 				HttpMethod.Post,
-				GetTenantUserCompaniesActionUrl(userId, "bulk-remove"),
+				_GetTenantUserCompaniesActionUrl(userId, "bulk-remove"),
 				new { tenantIds = new[] { companyId } },
 				RequiredPermissionKey: deletePermission,
 				AlternatePermissionKey: updatePermission
@@ -284,7 +284,7 @@ public sealed class TenantUserRoutesForStaffAuthorizationSpec
 			new ProtectedTenantUserRoute(
 				"update-identity",
 				HttpMethod.Patch,
-				GetTenantUserUrl(userId),
+				_GetTenantUserUrl(userId),
 				new { firstName = "Route Auth" },
 				RequiredPermissionKey: updatePermission,
 				AlternatePermissionKey: getPermission
@@ -292,7 +292,7 @@ public sealed class TenantUserRoutesForStaffAuthorizationSpec
 			new ProtectedTenantUserRoute(
 				"update-email",
 				HttpMethod.Patch,
-				PathUtils.Join(GetTenantUserUrl(userId), "/email"),
+				PathUtils.Join(_GetTenantUserUrl(userId), "/email"),
 				new {
 					email = $"route-auth-{Guid.NewGuid():N}@example.com",
 				},
@@ -302,7 +302,7 @@ public sealed class TenantUserRoutesForStaffAuthorizationSpec
 			new ProtectedTenantUserRoute(
 				"suspend-identity",
 				HttpMethod.Post,
-				PathUtils.Join(GetTenantUserUrl(userId), "/suspend"),
+				PathUtils.Join(_GetTenantUserUrl(userId), "/suspend"),
 				Body: null,
 				RequiredPermissionKey: updatePermission,
 				AlternatePermissionKey: getPermission
@@ -310,7 +310,7 @@ public sealed class TenantUserRoutesForStaffAuthorizationSpec
 			new ProtectedTenantUserRoute(
 				"reactivate-identity",
 				HttpMethod.Post,
-				PathUtils.Join(GetTenantUserUrl(userId), "/reactivate"),
+				PathUtils.Join(_GetTenantUserUrl(userId), "/reactivate"),
 				Body: null,
 				RequiredPermissionKey: updatePermission,
 				AlternatePermissionKey: getPermission
@@ -318,7 +318,7 @@ public sealed class TenantUserRoutesForStaffAuthorizationSpec
 		];
 	}
 
-	private static HttpRequestMessage CreateRequest(
+	private static HttpRequestMessage _CreateRequest(
 		ProtectedTenantUserRoute route,
 		string? sessionToken
 	) {
@@ -335,7 +335,7 @@ public sealed class TenantUserRoutesForStaffAuthorizationSpec
 		return request;
 	}
 
-	private static string GetStaffTenantUserUrl(
+	private static string _GetStaffTenantUserUrl(
 		Guid tenantId,
 		Guid userId
 	) {
@@ -348,14 +348,14 @@ public sealed class TenantUserRoutesForStaffAuthorizationSpec
 		);
 	}
 
-	private static string GetTenantUserUrl(Guid userId) {
+	private static string _GetTenantUserUrl(Guid userId) {
 		return PathUtils.Join(
 			Routes.Staff.Root,
 			Routes.Users.ForTenantUsersAsStaff.GetByIdFn(userId.ToString())
 		);
 	}
 
-	private static string GetTenantUserCompaniesUrl(Guid userId) {
+	private static string _GetTenantUserCompaniesUrl(Guid userId) {
 		return PathUtils.Join(
 			Routes.Staff.Root,
 			Routes.Users.ForTenantUsersAsStaff.FindCompaniesFn(
@@ -364,12 +364,12 @@ public sealed class TenantUserRoutesForStaffAuthorizationSpec
 		);
 	}
 
-	private static string GetTenantUserCompaniesActionUrl(
+	private static string _GetTenantUserCompaniesActionUrl(
 		Guid userId,
 		string action
 	) {
 		return PathUtils.Join(
-			GetTenantUserCompaniesUrl(userId),
+			_GetTenantUserCompaniesUrl(userId),
 			$"/{action}"
 		);
 	}

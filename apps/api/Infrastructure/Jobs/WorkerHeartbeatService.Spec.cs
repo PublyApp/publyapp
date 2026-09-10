@@ -18,35 +18,35 @@ namespace PublyApp.Api.Infrastructure.Jobs;
 // path — a second parallel class would race it. Staleness is produced by backdating the
 // file's mtime (File.SetLastWriteTimeUtc), never by sleeping.
 public sealed class WorkerHeartbeatServiceSpec : IClassFixture<ApiFixture> {
-	private readonly ApiFixture _fixture;
-	private readonly string _heartbeatPath = WorkerHeartbeat.ResolvePath();
+	private readonly ApiFixture _Fixture;
+	private readonly string _HeartbeatPath = WorkerHeartbeat.ResolvePath();
 
 	public WorkerHeartbeatServiceSpec(ApiFixture fixture) {
-		_fixture = fixture;
+		_Fixture = fixture;
 	}
 
 	// --- heartbeat writer: DB probe gates the file --------------------------------
 
 	[Fact]
 	public async Task ItShouldWriteAFreshHeartbeatOnlyAfterASuccessfulDatabaseProbe() {
-		DeleteHeartbeatFile();
+		_DeleteHeartbeatFile();
 
 		// Scope factory resolving the REAL (Testcontainers) database → SELECT 1 succeeds.
 		var service = new WorkerHeartbeatService(
-			_fixture.Factory.Services.GetRequiredService<IServiceScopeFactory>(),
+			_Fixture.Factory.Services.GetRequiredService<IServiceScopeFactory>(),
 			NullLogger<WorkerHeartbeatService>.Instance
 		);
 
 		await service.WriteHeartbeatAsync(CancellationToken.None);
 
-		File.Exists(_heartbeatPath).Should().BeTrue("a successful DB probe writes the heartbeat");
-		WorkerHeartbeat.IsFresh(_heartbeatPath, DateTime.UtcNow)
+		File.Exists(_HeartbeatPath).Should().BeTrue("a successful DB probe writes the heartbeat");
+		WorkerHeartbeat.IsFresh(_HeartbeatPath, DateTime.UtcNow)
 			.Should().BeTrue("a just-written heartbeat is inside the freshness window");
 	}
 
 	[Fact]
 	public async Task ItShouldNotWriteAHeartbeatWhenTheDatabaseProbeFails() {
-		DeleteHeartbeatFile();
+		_DeleteHeartbeatFile();
 
 		// Scope factory whose AppDbContext points at a dead endpoint → SELECT 1 fails.
 		var services = new ServiceCollection();
@@ -63,7 +63,7 @@ public sealed class WorkerHeartbeatServiceSpec : IClassFixture<ApiFixture> {
 		var act = async () => await service.WriteHeartbeatAsync(CancellationToken.None);
 
 		await act.Should().ThrowAsync<Exception>("the DB probe cannot reach the endpoint");
-		File.Exists(_heartbeatPath).Should().BeFalse(
+		File.Exists(_HeartbeatPath).Should().BeFalse(
 			"the heartbeat must reflect DB reachability — a failed probe writes nothing, "
 			+ "letting the file go stale so --worker-health reports unhealthy"
 		);
@@ -73,28 +73,28 @@ public sealed class WorkerHeartbeatServiceSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldExitHealthyFromTheWorkerHealthCliWhenTheHeartbeatIsFresh() {
-		await WorkerHeartbeat.TouchAsync(_heartbeatPath, DateTime.UtcNow, CancellationToken.None);
+		await WorkerHeartbeat.TouchAsync(_HeartbeatPath, DateTime.UtcNow, CancellationToken.None);
 
-		RunWorkerHealthCli().Should().Be(WorkerHealthCli.HealthyExitCode);
+		_RunWorkerHealthCli().Should().Be(WorkerHealthCli.HealthyExitCode);
 	}
 
 	[Fact]
 	public async Task ItShouldExitUnhealthyFromTheWorkerHealthCliWhenTheHeartbeatIsStale() {
-		await WorkerHeartbeat.TouchAsync(_heartbeatPath, DateTime.UtcNow, CancellationToken.None);
+		await WorkerHeartbeat.TouchAsync(_HeartbeatPath, DateTime.UtcNow, CancellationToken.None);
 		// Backdate the mtime just past the 60 s freshness window — no sleeping.
 		File.SetLastWriteTimeUtc(
-			_heartbeatPath,
+			_HeartbeatPath,
 			DateTime.UtcNow - WorkerHeartbeat.FreshnessWindow - TimeSpan.FromSeconds(5)
 		);
 
-		RunWorkerHealthCli().Should().Be(WorkerHealthCli.UnhealthyExitCode);
+		_RunWorkerHealthCli().Should().Be(WorkerHealthCli.UnhealthyExitCode);
 	}
 
 	[Fact]
 	public void ItShouldExitUnhealthyFromTheWorkerHealthCliWhenTheHeartbeatFileIsMissing() {
-		DeleteHeartbeatFile();
+		_DeleteHeartbeatFile();
 
-		RunWorkerHealthCli().Should().Be(WorkerHealthCli.UnhealthyExitCode);
+		_RunWorkerHealthCli().Should().Be(WorkerHealthCli.UnhealthyExitCode);
 	}
 
 	[Fact]
@@ -109,7 +109,7 @@ public sealed class WorkerHeartbeatServiceSpec : IClassFixture<ApiFixture> {
 	// Runs the probe exactly as Program.Main dispatches it and returns the exit code it
 	// set, restoring Environment.ExitCode so a probe result never leaks into the test
 	// runner's own exit status.
-	private static int RunWorkerHealthCli() {
+	private static int _RunWorkerHealthCli() {
 		var originalExitCode = Environment.ExitCode;
 		try {
 			WorkerHealthCli.TryRun([WorkerHealthCli.HealthArg])
@@ -120,9 +120,9 @@ public sealed class WorkerHeartbeatServiceSpec : IClassFixture<ApiFixture> {
 		}
 	}
 
-	private void DeleteHeartbeatFile() {
-		if (File.Exists(_heartbeatPath)) {
-			File.Delete(_heartbeatPath);
+	private void _DeleteHeartbeatFile() {
+		if (File.Exists(_HeartbeatPath)) {
+			File.Delete(_HeartbeatPath);
 		}
 	}
 }

@@ -26,14 +26,14 @@ namespace PublyApp.Api.Modules.Publishing.Services;
 // no HTTP surface — the endpoint arrives in D2 Task 2 and orchestrates THIS service.
 // Bluesky is never touched here: the service stops at the trusted enqueue boundary.
 public sealed class PublishNowServiceSpec : IClassFixture<ApiFixture> {
-	private readonly ApiFixture _fixture;
+	private readonly ApiFixture _Fixture;
 
 	public PublishNowServiceSpec(ApiFixture fixture) {
-		_fixture = fixture;
+		_Fixture = fixture;
 	}
 
-	private async Task<AppDbContext> NewDbAsync() {
-		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+	private async Task<AppDbContext> _NewDbAsync() {
+		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
 		var connectionString = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>()
 			.Database.GetConnectionString();
@@ -51,7 +51,7 @@ public sealed class PublishNowServiceSpec : IClassFixture<ApiFixture> {
 		);
 	}
 
-	private static async Task<(Guid TenantId, Guid ActorUserId)> SeedTenantAsync(
+	private static async Task<(Guid TenantId, Guid ActorUserId)> _SeedTenantAsync(
 		AppDbContext db
 	) {
 		var tenant = new PublyApp.Api.Modules.Tenants.Entities.Tenant {
@@ -71,7 +71,7 @@ public sealed class PublishNowServiceSpec : IClassFixture<ApiFixture> {
 		return (tenant.GetRequiredId(), user.GetRequiredId());
 	}
 
-	private static async Task<Guid> SeedPostAsync(
+	private static async Task<Guid> _SeedPostAsync(
 		AppDbContext db,
 		Guid tenantId,
 		Guid createdByUserId
@@ -86,7 +86,7 @@ public sealed class PublishNowServiceSpec : IClassFixture<ApiFixture> {
 		return post.GetRequiredId();
 	}
 
-	private static async Task<Guid> SeedAccountAsync(AppDbContext db, Guid tenantId) {
+	private static async Task<Guid> _SeedAccountAsync(AppDbContext db, Guid tenantId) {
 		var account = new SocialAccount {
 			TenantId = tenantId,
 			ExternalAccountId = $"did:plc:{Guid.NewGuid():N}",
@@ -98,7 +98,7 @@ public sealed class PublishNowServiceSpec : IClassFixture<ApiFixture> {
 		return account.GetRequiredId();
 	}
 
-	private static PublishNowService NewService(
+	private static PublishNowService _NewService(
 		AppDbContext db,
 		Guid tenantId,
 		Guid actorUserId
@@ -114,7 +114,7 @@ public sealed class PublishNowServiceSpec : IClassFixture<ApiFixture> {
 		return new PublishNowService(db, enqueuer);
 	}
 
-	private static async Task<List<JobQueueItem>> JobRowsAsync(
+	private static async Task<List<JobQueueItem>> _JobRowsAsync(
 		AppDbContext db,
 		Guid tenantId
 	) {
@@ -124,7 +124,7 @@ public sealed class PublishNowServiceSpec : IClassFixture<ApiFixture> {
 			.ToListAsync(CancellationToken.None);
 	}
 
-	private static async Task<List<Publication>> RowsForPostAsync(
+	private static async Task<List<Publication>> _RowsForPostAsync(
 		AppDbContext db,
 		Guid tenantId,
 		Guid postId
@@ -134,7 +134,7 @@ public sealed class PublishNowServiceSpec : IClassFixture<ApiFixture> {
 			.ToListAsync();
 	}
 
-	private static async Task<int> TotalPublicationsAsync(AppDbContext db) {
+	private static async Task<int> _TotalPublicationsAsync(AppDbContext db) {
 		return await db.Publication.CountAsync();
 	}
 
@@ -144,11 +144,11 @@ public sealed class PublishNowServiceSpec : IClassFixture<ApiFixture> {
 		// pair forever. The live check and the partial unique index both exclude
 		// terminal Failed rows, so re-issuing publish-now starts a FRESH attempt
 		// while the failed row stays as history.
-		using var db = await NewDbAsync();
-		var (tenantId, actorUserId) = await SeedTenantAsync(db);
-		var postId = await SeedPostAsync(db, tenantId, actorUserId);
-		var accountA = await SeedAccountAsync(db, tenantId);
-		var service = NewService(db, tenantId, actorUserId);
+		using var db = await _NewDbAsync();
+		var (tenantId, actorUserId) = await _SeedTenantAsync(db);
+		var postId = await _SeedPostAsync(db, tenantId, actorUserId);
+		var accountA = await _SeedAccountAsync(db, tenantId);
+		var service = _NewService(db, tenantId, actorUserId);
 
 		var first = await service.PublishNowAsync(
 			new PublishNowArgs(tenantId, postId, actorUserId, [accountA]),
@@ -184,12 +184,12 @@ public sealed class PublishNowServiceSpec : IClassFixture<ApiFixture> {
 		created.PublicationIds.Should().HaveCount(1);
 
 		// The failed row remains as history; the fresh attempt adds exactly one new row.
-		var rows = await RowsForPostAsync(db, tenantId, postId);
+		var rows = await _RowsForPostAsync(db, tenantId, postId);
 		rows.Should().HaveCount(2, "the failed row stays as history beside the new attempt");
 		rows.Count(p => p.Status == PublicationStatus.Failed).Should().Be(1);
 		rows.Count(p => p.Status == PublicationStatus.Scheduled).Should().Be(1);
 
-		var jobs = await JobRowsAsync(db, tenantId);
+		var jobs = await _JobRowsAsync(db, tenantId);
 		jobs.Should().HaveCount(2, "the fresh attempt enqueues its own delivery job");
 	}
 
@@ -197,11 +197,11 @@ public sealed class PublishNowServiceSpec : IClassFixture<ApiFixture> {
 	public async Task ItShouldKeepAPublishedRowOccupyingThePairAgainstReissue() {
 		// Published rows keep occupying the pair: the remote record exists and a
 		// second delivery would double-post on the social network.
-		using var db = await NewDbAsync();
-		var (tenantId, actorUserId) = await SeedTenantAsync(db);
-		var postId = await SeedPostAsync(db, tenantId, actorUserId);
-		var accountA = await SeedAccountAsync(db, tenantId);
-		var service = NewService(db, tenantId, actorUserId);
+		using var db = await _NewDbAsync();
+		var (tenantId, actorUserId) = await _SeedTenantAsync(db);
+		var postId = await _SeedPostAsync(db, tenantId, actorUserId);
+		var accountA = await _SeedAccountAsync(db, tenantId);
+		var service = _NewService(db, tenantId, actorUserId);
 
 		var first = await service.PublishNowAsync(
 			new PublishNowArgs(tenantId, postId, actorUserId, [accountA]),
@@ -243,11 +243,11 @@ public sealed class PublishNowServiceSpec : IClassFixture<ApiFixture> {
 		// ux_publications_post_account is the authority - this spec pins that a lost
 		// race surfaces as the SAME structured outcome as the proactive check
 		// (LivePublicationsExist -> 422), never a raw DbUpdateException / 500.
-		using var db = await NewDbAsync();
-		var (tenantId, actorUserId) = await SeedTenantAsync(db);
-		var postId = await SeedPostAsync(db, tenantId, actorUserId);
-		var accountA = await SeedAccountAsync(db, tenantId);
-		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+		using var db = await _NewDbAsync();
+		var (tenantId, actorUserId) = await _SeedTenantAsync(db);
+		var postId = await _SeedPostAsync(db, tenantId, actorUserId);
+		var accountA = await _SeedAccountAsync(db, tenantId);
+		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
 		var connectionString = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>()
 			.Database.GetConnectionString();
@@ -275,7 +275,7 @@ public sealed class PublishNowServiceSpec : IClassFixture<ApiFixture> {
 			await rivalContext.SaveChangesAsync();
 		}
 
-		var service = NewService(db, tenantId, actorUserId);
+		var service = _NewService(db, tenantId, actorUserId);
 		var racedTask = service.PublishNowAsync(
 			new PublishNowArgs(tenantId, postId, actorUserId, [accountA]),
 			CancellationToken.None
@@ -321,14 +321,14 @@ public sealed class PublishNowServiceSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldCreateScheduledPublicationsWithDeterministicKeysAndOneJobEach() {
-		using var db = await NewDbAsync();
-		var (tenantId, actorUserId) = await SeedTenantAsync(db);
-		var postId = await SeedPostAsync(db, tenantId, actorUserId);
-		var accountA = await SeedAccountAsync(db, tenantId);
-		var accountB = await SeedAccountAsync(db, tenantId);
-		var service = NewService(db, tenantId, actorUserId);
+		using var db = await _NewDbAsync();
+		var (tenantId, actorUserId) = await _SeedTenantAsync(db);
+		var postId = await _SeedPostAsync(db, tenantId, actorUserId);
+		var accountA = await _SeedAccountAsync(db, tenantId);
+		var accountB = await _SeedAccountAsync(db, tenantId);
+		var service = _NewService(db, tenantId, actorUserId);
 
-		var beforeCount = await TotalPublicationsAsync(db);
+		var beforeCount = await _TotalPublicationsAsync(db);
 
 		var result = await service.PublishNowAsync(
 			new PublishNowArgs(tenantId, postId, actorUserId, [accountA, accountB]),
@@ -338,9 +338,9 @@ public sealed class PublishNowServiceSpec : IClassFixture<ApiFixture> {
 		var created = result.Should().BeOfType<PublishNowResult.Created>().Subject;
 		created.PublicationIds.Should().HaveCount(2);
 
-		var publications = await RowsForPostAsync(db, tenantId, postId);
+		var publications = await _RowsForPostAsync(db, tenantId, postId);
 		publications.Should().HaveCount(2);
-		(await TotalPublicationsAsync(db)).Should().Be(beforeCount + 2);
+		(await _TotalPublicationsAsync(db)).Should().Be(beforeCount + 2);
 
 		foreach (var publication in publications) {
 			publication.Status.Should().Be(
@@ -363,7 +363,7 @@ public sealed class PublishNowServiceSpec : IClassFixture<ApiFixture> {
 			publications.Select(p => p.GetRequiredId())
 		);
 
-		var jobs = await JobRowsAsync(db, tenantId);
+		var jobs = await _JobRowsAsync(db, tenantId);
 		jobs.Should().HaveCount(2, "exactly one enqueue per publication");
 		foreach (var job in jobs) {
 			job.IdempotencyKey.Should().NotBeNull();
@@ -390,12 +390,12 @@ public sealed class PublishNowServiceSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldRefuseAnOverlappingLiveAccountButStillCreateTheRest() {
-		using var db = await NewDbAsync();
-		var (tenantId, actorUserId) = await SeedTenantAsync(db);
-		var postId = await SeedPostAsync(db, tenantId, actorUserId);
-		var accountA = await SeedAccountAsync(db, tenantId);
-		var accountB = await SeedAccountAsync(db, tenantId);
-		var service = NewService(db, tenantId, actorUserId);
+		using var db = await _NewDbAsync();
+		var (tenantId, actorUserId) = await _SeedTenantAsync(db);
+		var postId = await _SeedPostAsync(db, tenantId, actorUserId);
+		var accountA = await _SeedAccountAsync(db, tenantId);
+		var accountB = await _SeedAccountAsync(db, tenantId);
+		var service = _NewService(db, tenantId, actorUserId);
 
 		var first = await service.PublishNowAsync(
 			new PublishNowArgs(tenantId, postId, actorUserId, [accountA, accountB]),
@@ -412,21 +412,21 @@ public sealed class PublishNowServiceSpec : IClassFixture<ApiFixture> {
 			.Subject;
 		refused.AccountIds.Should().BeEquivalentTo([accountB]);
 
-		var rows = await RowsForPostAsync(db, tenantId, postId);
+		var rows = await _RowsForPostAsync(db, tenantId, postId);
 		rows.Should().HaveCount(2, "the overlap adds no duplicate pair");
 		rows.Count(p => p.SocialAccountId == accountB).Should().Be(1);
 
-		var jobs = await JobRowsAsync(db, tenantId);
+		var jobs = await _JobRowsAsync(db, tenantId);
 		jobs.Should().HaveCount(2, "no job is enqueued for the refused account");
 	}
 
 	[Fact]
 	public async Task ItShouldTreatAPublishedRowAsLiveForThePair() {
-		using var db = await NewDbAsync();
-		var (tenantId, actorUserId) = await SeedTenantAsync(db);
-		var postId = await SeedPostAsync(db, tenantId, actorUserId);
-		var accountA = await SeedAccountAsync(db, tenantId);
-		var service = NewService(db, tenantId, actorUserId);
+		using var db = await _NewDbAsync();
+		var (tenantId, actorUserId) = await _SeedTenantAsync(db);
+		var postId = await _SeedPostAsync(db, tenantId, actorUserId);
+		var accountA = await _SeedAccountAsync(db, tenantId);
+		var service = _NewService(db, tenantId, actorUserId);
 
 		// Reach Published through the ONLY sanctioned writer chain: the transition
 		// service. This spec never assigns Publication.Status directly.
@@ -458,19 +458,19 @@ public sealed class PublishNowServiceSpec : IClassFixture<ApiFixture> {
 		republish.Should().BeOfType<PublishNowResult.LivePublicationsExist>(
 			"a still-live published row occupies the (post, account) pair"
 		);
-		var rows = await RowsForPostAsync(db, tenantId, postId);
+		var rows = await _RowsForPostAsync(db, tenantId, postId);
 		rows.Should().ContainSingle("republishing a live pair creates nothing");
 	}
 
 	[Fact]
 	public async Task ItShouldReturnPostNotFoundForAForeignTenantAndWriteNothing() {
-		using var db = await NewDbAsync();
-		var (tenantA, _) = await SeedTenantAsync(db);
-		var (_, actorB) = await SeedTenantAsync(db);
-		var foreignPostId = await SeedPostAsync(db, tenantA, actorB);
-		var service = NewService(db, tenantA, actorB);
+		using var db = await _NewDbAsync();
+		var (tenantA, _) = await _SeedTenantAsync(db);
+		var (_, actorB) = await _SeedTenantAsync(db);
+		var foreignPostId = await _SeedPostAsync(db, tenantA, actorB);
+		var service = _NewService(db, tenantA, actorB);
 
-		var beforePublications = await TotalPublicationsAsync(db);
+		var beforePublications = await _TotalPublicationsAsync(db);
 		var beforeJobs = await db.JobQueue.CountAsync();
 
 		var result = await service.PublishNowAsync(
@@ -479,22 +479,22 @@ public sealed class PublishNowServiceSpec : IClassFixture<ApiFixture> {
 		);
 
 		result.Should().BeOfType<PublishNowResult.PostNotFound>();
-		(await TotalPublicationsAsync(db)).Should().Be(beforePublications);
+		(await _TotalPublicationsAsync(db)).Should().Be(beforePublications);
 		(await db.JobQueue.CountAsync()).Should().Be(beforeJobs);
 	}
 
 	[Fact]
 	public async Task ItShouldListForeignAccountsAsNotFoundAndWriteNothing() {
-		using var db = await NewDbAsync();
-		var (tenantId, actorUserId) = await SeedTenantAsync(db);
-		var (foreignTenant, _) = await SeedTenantAsync(db);
-		var postId = await SeedPostAsync(db, tenantId, actorUserId);
-		var known = await SeedAccountAsync(db, tenantId);
-		var foreign = await SeedAccountAsync(db, foreignTenant);
-		var service = NewService(db, tenantId, actorUserId);
+		using var db = await _NewDbAsync();
+		var (tenantId, actorUserId) = await _SeedTenantAsync(db);
+		var (foreignTenant, _) = await _SeedTenantAsync(db);
+		var postId = await _SeedPostAsync(db, tenantId, actorUserId);
+		var known = await _SeedAccountAsync(db, tenantId);
+		var foreign = await _SeedAccountAsync(db, foreignTenant);
+		var service = _NewService(db, tenantId, actorUserId);
 
-		var beforePublications = await TotalPublicationsAsync(db);
-		var beforeJobs = await JobRowsAsync(db, tenantId);
+		var beforePublications = await _TotalPublicationsAsync(db);
+		var beforeJobs = await _JobRowsAsync(db, tenantId);
 
 		var result = await service.PublishNowAsync(
 			new PublishNowArgs(
@@ -512,17 +512,17 @@ public sealed class PublishNowServiceSpec : IClassFixture<ApiFixture> {
 		notFound.AccountIds.Should().Contain(foreign);
 		notFound.AccountIds.Should().NotContain(known);
 
-		(await TotalPublicationsAsync(db)).Should().Be(beforePublications);
-		(await JobRowsAsync(db, tenantId)).Should().BeEquivalentTo(beforeJobs);
+		(await _TotalPublicationsAsync(db)).Should().Be(beforePublications);
+		(await _JobRowsAsync(db, tenantId)).Should().BeEquivalentTo(beforeJobs);
 	}
 
 	[Fact]
 	public async Task ItShouldRollBackTheWholeBatchIncludingEnqueuedJobsOnFailure() {
-		using var db = await NewDbAsync();
-		var (tenantId, actorUserId) = await SeedTenantAsync(db);
-		var postId = await SeedPostAsync(db, tenantId, actorUserId);
-		var accountA = await SeedAccountAsync(db, tenantId);
-		var accountB = await SeedAccountAsync(db, tenantId);
+		using var db = await _NewDbAsync();
+		var (tenantId, actorUserId) = await _SeedTenantAsync(db);
+		var postId = await _SeedPostAsync(db, tenantId, actorUserId);
+		var accountA = await _SeedAccountAsync(db, tenantId);
+		var accountB = await _SeedAccountAsync(db, tenantId);
 
 		var inner = new JobEnqueuer(
 			db,
@@ -534,7 +534,7 @@ public sealed class PublishNowServiceSpec : IClassFixture<ApiFixture> {
 		);
 		var service = new PublishNowService(db, new ThrowOnSecondEnqueue(inner));
 
-		var beforeJobs = await JobRowsAsync(db, tenantId);
+		var beforeJobs = await _JobRowsAsync(db, tenantId);
 
 		var act = async () => await service.PublishNowAsync(
 			new PublishNowArgs(tenantId, postId, actorUserId, [accountA, accountB]),
@@ -545,10 +545,10 @@ public sealed class PublishNowServiceSpec : IClassFixture<ApiFixture> {
 			"the forced mid-batch enqueue failure surfaces instead of being swallowed"
 		);
 
-		var survivingRows = await RowsForPostAsync(db, tenantId, postId);
+		var survivingRows = await _RowsForPostAsync(db, tenantId, postId);
 		survivingRows.Should().BeEmpty("the rolled-back transaction removes the rows");
 
-		var jobsAfter = await JobRowsAsync(db, tenantId);
+		var jobsAfter = await _JobRowsAsync(db, tenantId);
 		jobsAfter.Should().BeEquivalentTo(
 			beforeJobs,
 			"a domain rollback takes its already-enqueued job with it"
@@ -558,11 +558,11 @@ public sealed class PublishNowServiceSpec : IClassFixture<ApiFixture> {
 	// Spec-forced enqueue failure: the FIRST call delegates to the real enqueuer,
 	// every later call throws, simulating a database refusal mid-batch.
 	private sealed class ThrowOnSecondEnqueue : IJobEnqueuer {
-		private readonly IJobEnqueuer _inner;
-		private int _calls;
+		private readonly IJobEnqueuer _Inner;
+		private int _Calls;
 
 		public ThrowOnSecondEnqueue(IJobEnqueuer inner) {
-			_inner = inner;
+			_Inner = inner;
 		}
 
 		public async Task<Guid> EnqueueAsync<TPayload>(
@@ -571,12 +571,12 @@ public sealed class PublishNowServiceSpec : IClassFixture<ApiFixture> {
 			EnqueueOptions? options = null,
 			CancellationToken cancellationToken = default
 		) {
-			_calls++;
-			if (_calls >= 2) {
+			_Calls++;
+			if (_Calls >= 2) {
 				throw new InvalidOperationException("spec-forced enqueue failure");
 			}
 
-			return await _inner.EnqueueAsync(
+			return await _Inner.EnqueueAsync(
 				definition,
 				payload,
 				options,

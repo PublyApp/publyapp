@@ -20,15 +20,15 @@ namespace PublyApp.Api.Migrations;
 //     always named, and there is NO users FK anywhere on the table;
 //   - evidence dies with its subject: FK CASCADE to email_log.
 public sealed class AddEmailLogEvidenceEventsSpec : IClassFixture<ApiFixture> {
-	private readonly ApiFixture _fixture;
+	private readonly ApiFixture _Fixture;
 
 	public AddEmailLogEvidenceEventsSpec(ApiFixture fixture) {
-		_fixture = fixture;
+		_Fixture = fixture;
 	}
 
 	[Fact]
 	public async Task ItShouldCreateTheEvidenceTableWithRequiredActorColumnsAndCascadeToEmailLog() {
-		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		var columnStates = await dbContext.Database.SqlQuery<string>(
@@ -55,7 +55,7 @@ public sealed class AddEmailLogEvidenceEventsSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldCarryNoForeignKeyToUsersAndCascadeToItsEmailLogSubject() {
-		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		var foreignKeys = await dbContext.Database.SqlQuery<string>(
@@ -76,7 +76,7 @@ public sealed class AddEmailLogEvidenceEventsSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldIndexTheEvidenceHistoryByItsSubjectAndTime() {
-		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		var indexDef = await dbContext.Database.SqlQuery<string>(
@@ -97,7 +97,7 @@ public sealed class AddEmailLogEvidenceEventsSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldEnforceTheActorInvariantsWithDatabaseCheckConstraints() {
-		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		var checkConstraints = await dbContext.Database.SqlQuery<string>(
@@ -120,11 +120,11 @@ public sealed class AddEmailLogEvidenceEventsSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldRejectARawInsertWithAnEmptyActorIdNamingTheCheckConstraint() {
-		var jobId = await SeedEmailLogAsync();
+		var jobId = await _SeedEmailLogAsync();
 		try {
-			var emailLogId = await GetEmailLogIdAsync(jobId);
+			var emailLogId = await _GetEmailLogIdAsync(jobId);
 
-			await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+			await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
 			var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 			var connection = dbContext.Database.GetDbConnection();
 			await connection.OpenAsync();
@@ -151,7 +151,7 @@ public sealed class AddEmailLogEvidenceEventsSpec : IClassFixture<ApiFixture> {
 				"the failure shows its cause in plain words: which invariant refused the row"
 			);
 		} finally {
-			await CleanupAsync(jobId);
+			await _CleanupAsync(jobId);
 		}
 	}
 
@@ -159,7 +159,7 @@ public sealed class AddEmailLogEvidenceEventsSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldUniquelyIndexTheProviderEventIdOnTheEvidenceRows() {
-		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		var indexDef = await dbContext.Database.SqlQuery<string>(
@@ -181,11 +181,11 @@ public sealed class AddEmailLogEvidenceEventsSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldRejectARawDuplicateProviderEventIdOnTheEvidenceTable() {
-		var jobId = await SeedEmailLogAsync();
+		var jobId = await _SeedEmailLogAsync();
 		try {
-			var emailLogId = await GetEmailLogIdAsync(jobId);
+			var emailLogId = await _GetEmailLogIdAsync(jobId);
 
-			await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+			await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
 			var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 			var connection = dbContext.Database.GetDbConnection();
 			await connection.OpenAsync();
@@ -224,15 +224,15 @@ public sealed class AddEmailLogEvidenceEventsSpec : IClassFixture<ApiFixture> {
 				"the failure names the index that refused the duplicate"
 			);
 		} finally {
-			await CleanupAsync(jobId);
+			await _CleanupAsync(jobId);
 		}
 	}
 
 	// --- helpers -------------------------------------------------------------------
 
-	private async Task<Guid> SeedEmailLogAsync() {
+	private async Task<Guid> _SeedEmailLogAsync() {
 		var jobId = Guid.NewGuid();
-		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		dbContext.EmailLog.Add(new EmailLog {
@@ -247,8 +247,8 @@ public sealed class AddEmailLogEvidenceEventsSpec : IClassFixture<ApiFixture> {
 		return jobId;
 	}
 
-	private async Task<Guid> GetEmailLogIdAsync(Guid jobId) {
-		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+	private async Task<Guid> _GetEmailLogIdAsync(Guid jobId) {
+		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		var id = await dbContext.EmailLog
@@ -258,8 +258,8 @@ public sealed class AddEmailLogEvidenceEventsSpec : IClassFixture<ApiFixture> {
 		return id.Value;
 	}
 
-	private async Task CleanupAsync(Guid jobId) {
-		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+	private async Task _CleanupAsync(Guid jobId) {
+		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		await dbContext.EmailLog

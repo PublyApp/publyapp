@@ -16,7 +16,7 @@ namespace PublyApp.Api.Infrastructure.Storage;
 /// </summary>
 public sealed class ImageInspectorSpec {
 	// PNG: signature + IHDR length/type + 4-byte width + 4-byte height (big-endian).
-	private static byte[] PngBytes(int width, int height) {
+	private static byte[] _PngBytes(int width, int height) {
 		var bytes = new List<byte> {
 			0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A,
 			0x00, 0x00, 0x00, 0x0D,
@@ -32,7 +32,7 @@ public sealed class ImageInspectorSpec {
 	}
 
 	// GIF: signature + logical screen descriptor width/height (little-endian uint16).
-	private static byte[] GifBytes(int width, int height) {
+	private static byte[] _GifBytes(int width, int height) {
 		return [
 			(byte)'G', (byte)'I', (byte)'F', (byte)'8', (byte)'9', (byte)'a',
 			(byte)(width & 0xFF), (byte)((width >> 8) & 0xFF),
@@ -43,7 +43,7 @@ public sealed class ImageInspectorSpec {
 
 	// WebP VP8X extended format: RIFF header + WEBP + VP8X chunk whose canvas
 	// width-1 / height-1 are 24-bit little-endian values starting at byte 24.
-	private static byte[] WebpVp8xBytes(int width, int height) {
+	private static byte[] _WebpVp8xBytes(int width, int height) {
 		return [
 			(byte)'R', (byte)'I', (byte)'F', (byte)'F',
 			0x1A, 0x00, 0x00, 0x00,
@@ -62,7 +62,7 @@ public sealed class ImageInspectorSpec {
 
 	// JPEG: SOI + APP0(JFIF) then an SOF0 segment carrying height/width
 	// (big-endian uint16 each, height first per the JPEG spec).
-	private static byte[] JpegBytes(int width, int height) {
+	private static byte[] _JpegBytes(int width, int height) {
 		var sof = new List<byte> {
 			0xFF, 0xC0,
 			0x00, 0x11,
@@ -85,7 +85,7 @@ public sealed class ImageInspectorSpec {
 	[InlineData(640, 480)]
 	[InlineData(1920, 1080)]
 	public void ItShouldReadRealDimensionsFromPngHeaders(int width, int height) {
-		var inspected = RunInspector(PngBytes(width, height)).Should()
+		var inspected = _RunInspector(_PngBytes(width, height)).Should()
 			.BeOfType<ImageInspector.Inspected>().Which;
 
 		inspected.ContentType.Should().Be("image/png");
@@ -98,7 +98,7 @@ public sealed class ImageInspectorSpec {
 	[InlineData(1, 1)]
 	[InlineData(800, 600)]
 	public void ItShouldReadRealDimensionsFromGifHeaders(int width, int height) {
-		var inspected = RunInspector(GifBytes(width, height)).Should()
+		var inspected = _RunInspector(_GifBytes(width, height)).Should()
 			.BeOfType<ImageInspector.Inspected>().Which;
 
 		inspected.ContentType.Should().Be("image/gif");
@@ -111,7 +111,7 @@ public sealed class ImageInspectorSpec {
 	[InlineData(1, 1)]
 	[InlineData(1024, 768)]
 	public void ItShouldReadRealDimensionsFromWebpVp8xHeaders(int width, int height) {
-		var inspected = RunInspector(WebpVp8xBytes(width, height)).Should()
+		var inspected = _RunInspector(_WebpVp8xBytes(width, height)).Should()
 			.BeOfType<ImageInspector.Inspected>().Which;
 
 		inspected.ContentType.Should().Be("image/webp");
@@ -122,7 +122,7 @@ public sealed class ImageInspectorSpec {
 
 	[Fact]
 	public void ItShouldReadRealDimensionsFromJpegSofHeaders() {
-		var inspected = RunInspector(JpegBytes(width: 300, height: 200))
+		var inspected = _RunInspector(_JpegBytes(width: 300, height: 200))
 			.Should().BeOfType<ImageInspector.Inspected>().Which;
 
 		inspected.ContentType.Should().Be("image/jpeg");
@@ -134,22 +134,22 @@ public sealed class ImageInspectorSpec {
 	[Fact]
 	public void ItShouldRejectPlainTextWithAnUnknownTypeOutcome() {
 		var bytes = "definitely not an image"u8.ToArray();
-		RunInspector(bytes).Should().BeOfType<ImageInspector.UnknownType>(
+		_RunInspector(bytes).Should().BeOfType<ImageInspector.UnknownType>(
 			"a non-image payload must never pass, whatever its file name"
 		);
 	}
 
 	[Fact]
 	public void ItShouldRejectATruncatedPngHeader() {
-		var full = PngBytes(64, 64);
-		RunInspector(full[..12]).Should().BeOfType<ImageInspector.UnknownType>(
+		var full = _PngBytes(64, 64);
+		_RunInspector(full[..12]).Should().BeOfType<ImageInspector.UnknownType>(
 			"an incomplete header cannot yield trustworthy dimensions"
 		);
 	}
 
 	[Fact]
 	public void ItShouldNameAZeroSizedGifCanvasAsDegenerateDimensions() {
-		RunInspector(GifBytes(0, 0)).Should()
+		_RunInspector(_GifBytes(0, 0)).Should()
 			.BeOfType<ImageInspector.DegenerateDimensions>(
 				"zero-sized canvases were rejected by the upload pipeline "
 				+ "(round-5 F5); the inspector keeps that bar and names the "
@@ -161,7 +161,7 @@ public sealed class ImageInspectorSpec {
 	public void ItShouldLeaveTheStreamPositionUnspecifiedButRewindable() {
 		// Contract with callers: they rewind before saving. The inspector may read
 		// past the header; callers must not assume a position.
-		using var stream = new MemoryStream(PngBytes(32, 16));
+		using var stream = new MemoryStream(_PngBytes(32, 16));
 		_ = ImageInspector.Inspect(stream);
 		stream.Position = 0;
 		var second = ImageInspector.Inspect(stream).Should()
@@ -169,7 +169,7 @@ public sealed class ImageInspectorSpec {
 		second.WidthPx.Should().Be(32);
 	}
 
-	private static ImageInspector.Inspection RunInspector(byte[] bytes) {
+	private static ImageInspector.Inspection _RunInspector(byte[] bytes) {
 		using var stream = new MemoryStream(bytes);
 		return ImageInspector.Inspect(stream);
 	}

@@ -28,14 +28,14 @@ namespace PublyApp.Api.Lib.Diagnostics;
 public sealed class OpenTelemetryActivationGateSpec {
 	// The single activation switch the Aspire AppHost injects. A non-empty, non-whitespace
 	// value is the gate (see OpenTelemetryConfigExtensions remarks).
-	private const string OtlpEndpointVariableName = "OTEL_EXPORTER_OTLP_ENDPOINT";
+	private const string _OtlpEndpointVariableName = "OTEL_EXPORTER_OTLP_ENDPOINT";
 
 	[Fact]
 	public void ItShouldRegisterNoOpenTelemetryComponentsWhenTheOtlpEndpointVariableIsAbsent() {
 		// The gate keys on a non-empty, non-whitespace value. Pin it absent so the measurement is
 		// deterministic regardless of the surrounding shell/CI environment, then restore it.
-		var previous = Environment.GetEnvironmentVariable(OtlpEndpointVariableName);
-		Environment.SetEnvironmentVariable(OtlpEndpointVariableName, null);
+		var previous = Environment.GetEnvironmentVariable(_OtlpEndpointVariableName);
+		Environment.SetEnvironmentVariable(_OtlpEndpointVariableName, null);
 		try {
 			// A bare host builder — no logger, no web server — so the only
 			// OpenTelemetry.* descriptors in the collection can originate from the
@@ -63,7 +63,7 @@ public sealed class OpenTelemetryActivationGateSpec {
 					?? descriptor.ServiceType?.FullName
 					?? "<unknown>")));
 		} finally {
-			Environment.SetEnvironmentVariable(OtlpEndpointVariableName, previous);
+			Environment.SetEnvironmentVariable(_OtlpEndpointVariableName, previous);
 		}
 	}
 
@@ -76,8 +76,8 @@ public sealed class OpenTelemetryActivationGateSpec {
 		// descriptors the SDK attaches. Pin the variable present (presence, not value, is the
 		// gate) and restore it, so the measurement is deterministic regardless of the
 		// surrounding shell/CI environment.
-		var previous = Environment.GetEnvironmentVariable(OtlpEndpointVariableName);
-		Environment.SetEnvironmentVariable(OtlpEndpointVariableName, "http://localhost:4317");
+		var previous = Environment.GetEnvironmentVariable(_OtlpEndpointVariableName);
+		Environment.SetEnvironmentVariable(_OtlpEndpointVariableName, "http://localhost:4317");
 		try {
 			var builder = Host.CreateApplicationBuilder();
 			builder.ConfigureOpenTelemetry();
@@ -100,7 +100,7 @@ public sealed class OpenTelemetryActivationGateSpec {
 				"components. An empty collection here means the gate is broken in the other " +
 				"direction — the early return fires even when the variable is set.");
 		} finally {
-			Environment.SetEnvironmentVariable(OtlpEndpointVariableName, previous);
+			Environment.SetEnvironmentVariable(_OtlpEndpointVariableName, previous);
 		}
 	}
 
@@ -109,8 +109,8 @@ public sealed class OpenTelemetryActivationGateSpec {
 		// The gate keys on a non-empty, non-whitespace value. Pin it blank (spaces) so the
 		// measurement is deterministic; in .NET, an empty string "" is removed by
 		// SetEnvironmentVariable, so the whitespace case is what distinguishes "blank" from "absent".
-		var previous = Environment.GetEnvironmentVariable(OtlpEndpointVariableName);
-		Environment.SetEnvironmentVariable(OtlpEndpointVariableName, "   ");
+		var previous = Environment.GetEnvironmentVariable(_OtlpEndpointVariableName);
+		Environment.SetEnvironmentVariable(_OtlpEndpointVariableName, "   ");
 		try {
 			// A bare host builder — no logger, no web server — so the only
 			// OpenTelemetry.* descriptors in the collection can originate from the
@@ -138,7 +138,7 @@ public sealed class OpenTelemetryActivationGateSpec {
 					?? descriptor.ServiceType?.FullName
 					?? "<unknown>")));
 		} finally {
-			Environment.SetEnvironmentVariable(OtlpEndpointVariableName, previous);
+			Environment.SetEnvironmentVariable(_OtlpEndpointVariableName, previous);
 		}
 	}
 }

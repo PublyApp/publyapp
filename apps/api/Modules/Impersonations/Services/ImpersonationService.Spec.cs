@@ -16,17 +16,17 @@ using Xunit;
 namespace PublyApp.Api.Modules.Impersonations.Services;
 
 public sealed class ImpersonationServiceSpec : IClassFixture<ApiFixture> {
-	private readonly ApiFixture _fixture;
+	private readonly ApiFixture _Fixture;
 
 	public ImpersonationServiceSpec(ApiFixture fixture) {
-		_fixture = fixture;
+		_Fixture = fixture;
 	}
 
 	[Fact]
 	public async Task ItShouldRollbackSessionAndAuditWhenAuditInsertFails() {
-		var (tenantId, sessionUserId) = await SeedTenantUserAsync();
+		var (tenantId, sessionUserId) = await _SeedTenantUserAsync();
 
-		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 		var service = new ImpersonationService(
 			dbContext,
@@ -46,7 +46,7 @@ public sealed class ImpersonationServiceSpec : IClassFixture<ApiFixture> {
 
 		await act.Should().ThrowAsync<DbUpdateException>();
 
-		await using var verify = CreateDbContext();
+		await using var verify = _CreateDbContext();
 		(await verify.Session.AnyAsync(s =>
 			s.UserId == sessionUserId
 			&& s.IsImpersonation
@@ -61,10 +61,10 @@ public sealed class ImpersonationServiceSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldCreateSessionAndAuditOnSuccess() {
-		var (tenantId, sessionUserId) = await SeedTenantUserAsync();
-		var staffUserId = await SeedStaffActorAsync();
+		var (tenantId, sessionUserId) = await _SeedTenantUserAsync();
+		var staffUserId = await _SeedStaffActorAsync();
 
-		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 		var service = new ImpersonationService(
 			dbContext,
@@ -84,7 +84,7 @@ public sealed class ImpersonationServiceSpec : IClassFixture<ApiFixture> {
 		session.UserId.Should().Be(sessionUserId);
 		session.IsImpersonation.Should().BeTrue();
 
-		await using var verify = CreateDbContext();
+		await using var verify = _CreateDbContext();
 		(await verify.Session.AnyAsync(s => s.Id == session.Id)).Should().BeTrue();
 		(await verify.AuditLog.AnyAsync(a =>
 			a.Action == AuditActions.ImpersonationStarted
@@ -93,8 +93,8 @@ public sealed class ImpersonationServiceSpec : IClassFixture<ApiFixture> {
 		)).Should().BeTrue();
 	}
 
-	private async Task<(Guid tenantId, Guid sessionUserId)> SeedTenantUserAsync() {
-		await using var db = CreateDbContext();
+	private async Task<(Guid tenantId, Guid sessionUserId)> _SeedTenantUserAsync() {
+		await using var db = _CreateDbContext();
 		var tenant = new Tenant {
 			Code = $"tenant-{Guid.NewGuid():N}",
 			Name = "Tenant",
@@ -120,8 +120,8 @@ public sealed class ImpersonationServiceSpec : IClassFixture<ApiFixture> {
 		return (tenant.GetRequiredId(), user.GetRequiredId());
 	}
 
-	private async Task<Guid> SeedStaffActorAsync() {
-		await using var db = CreateDbContext();
+	private async Task<Guid> _SeedStaffActorAsync() {
+		await using var db = _CreateDbContext();
 		var staff = new User {
 			Email = $"staff-actor-{Guid.NewGuid():N}@example.com",
 			Password = PasswordUtils.HashPassword("unused-password"),
@@ -136,8 +136,8 @@ public sealed class ImpersonationServiceSpec : IClassFixture<ApiFixture> {
 		return staff.GetRequiredId();
 	}
 
-	private AppDbContext CreateDbContext() {
-		using var scope = _fixture.Factory.Services.CreateScope();
+	private AppDbContext _CreateDbContext() {
+		using var scope = _Fixture.Factory.Services.CreateScope();
 		var connectionString = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>()
 			.Database.GetConnectionString();

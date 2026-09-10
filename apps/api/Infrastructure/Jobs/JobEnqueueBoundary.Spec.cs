@@ -32,7 +32,7 @@ namespace PublyApp.Api.Infrastructure.Jobs;
 public sealed partial class JobEnqueueBoundarySpec {
 	// Paths (relative to apps/api) where touching the queue is legitimate: the
 	// engine itself, the EF model/config layer, migrations, and specs/test infra.
-	private static readonly string[] AllowedPathPrefixes = [
+	private static readonly string[] _AllowedPathPrefixes = [
 		"Infrastructure/Jobs/",
 		"Data/",
 		"Migrations/",
@@ -43,7 +43,7 @@ public sealed partial class JobEnqueueBoundarySpec {
 	// DbSet property mutation, whitespace/newline tolerant: JobQueue . Add…,
 	// JobQueue\n.AddAsync(…), Remove/RemoveRange included.
 	[GeneratedRegex(@"\bJobQueue\s*\.\s*(Add|Remove)", RegexOptions.IgnoreCase)]
-	private static partial Regex DbSetMutation();
+	private static partial Regex _DbSetMutation();
 
 	// Bulk mutation reached through ANY chain of query operators within the same
 	// statement (no ';' between): JobQueue.Where(...).ExecuteDeleteAsync() etc.
@@ -51,34 +51,34 @@ public sealed partial class JobEnqueueBoundarySpec {
 		@"\bJobQueue\b[^;]*?\.\s*Execute(Update|Delete)",
 		RegexOptions.IgnoreCase | RegexOptions.Singleline
 	)]
-	private static partial Regex BulkMutation();
+	private static partial Regex _BulkMutation();
 
 	// Bypassing the DbSet property entirely.
 	[GeneratedRegex(@"\bSet\s*<\s*JobQueueItem\s*>", RegexOptions.IgnoreCase)]
-	private static partial Regex SetOfJobQueueItem();
+	private static partial Regex _SetOfJobQueueItem();
 
 	// Constructing rows for insertion.
 	[GeneratedRegex(@"\bnew\s+JobQueueItem\b", RegexOptions.IgnoreCase)]
-	private static partial Regex EntityConstruction();
+	private static partial Regex _EntityConstruction();
 
 	// Raw SQL DML, whitespace tolerant — matched with string contents VISIBLE.
 	[GeneratedRegex(
 		@"\b(insert\s+into|update|delete\s+from)\s+job_queue\b",
 		RegexOptions.IgnoreCase | RegexOptions.Singleline
 	)]
-	private static partial Regex RawSqlMutation();
+	private static partial Regex _RawSqlMutation();
 
 	// Matched against the literal-masked view (API shapes are code, not text).
-	private static readonly (string Name, Regex Pattern)[] ApiPatterns = [
-		("DbSet Add/Remove", DbSetMutation()),
-		("ExecuteUpdate/ExecuteDelete", BulkMutation()),
-		("Set<JobQueueItem>", SetOfJobQueueItem()),
-		("new JobQueueItem", EntityConstruction())
+	private static readonly (string Name, Regex Pattern)[] _ApiPatterns = [
+		("DbSet Add/Remove", _DbSetMutation()),
+		("ExecuteUpdate/ExecuteDelete", _BulkMutation()),
+		("Set<JobQueueItem>", _SetOfJobQueueItem()),
+		("new JobQueueItem", _EntityConstruction())
 	];
 
 	[Fact]
 	public void ItShouldOnlyWriteJobQueueRowsFromInsideTheEngine() {
-		var apiRoot = FindApiRoot();
+		var apiRoot = _FindApiRoot();
 		var offenders = new List<string>();
 
 		foreach (var file in Directory.EnumerateFiles(apiRoot, "*.cs", SearchOption.AllDirectories)) {
@@ -87,11 +87,11 @@ public sealed partial class JobEnqueueBoundarySpec {
 			if (relative.Contains("/obj/") || relative.Contains("/bin/")
 				|| relative.Contains(".artifacts/")
 				|| relative.EndsWith(".Spec.cs", StringComparison.Ordinal)
-				|| AllowedPathPrefixes.Any(p => relative.StartsWith(p, StringComparison.Ordinal))) {
+				|| _AllowedPathPrefixes.Any(p => relative.StartsWith(p, StringComparison.Ordinal))) {
 				continue;
 			}
 
-			foreach (var finding in FindForbiddenPatterns(File.ReadAllText(file))) {
+			foreach (var finding in _FindForbiddenPatterns(File.ReadAllText(file))) {
 				offenders.Add($"{relative}: {finding}");
 			}
 		}
@@ -185,13 +185,13 @@ public sealed partial class JobEnqueueBoundarySpec {
 		];
 
 		foreach (var snippet in knownBad) {
-			FindForbiddenPatterns(snippet).Should().NotBeEmpty(
+			_FindForbiddenPatterns(snippet).Should().NotBeEmpty(
 				$"detector must catch: {snippet}"
 			);
 		}
 
 		foreach (var snippet in knownGood) {
-			FindForbiddenPatterns(snippet).Should().BeEmpty(
+			_FindForbiddenPatterns(snippet).Should().BeEmpty(
 				$"detector must not flag: {snippet}"
 			);
 		}
@@ -199,17 +199,17 @@ public sealed partial class JobEnqueueBoundarySpec {
 
 	// Shared detector: API-shape patterns see code only (literal text masked, hole
 	// expressions preserved); the raw-SQL pass sees string contents, comments gone.
-	private static List<string> FindForbiddenPatterns(string source) {
-		var (codeOnly, withStrings) = RenderViews(source);
+	private static List<string> _FindForbiddenPatterns(string source) {
+		var (codeOnly, withStrings) = _RenderViews(source);
 		var findings = new List<string>();
 
-		foreach (var (name, pattern) in ApiPatterns) {
+		foreach (var (name, pattern) in _ApiPatterns) {
 			if (pattern.IsMatch(codeOnly)) {
 				findings.Add(name);
 			}
 		}
 
-		if (RawSqlMutation().IsMatch(withStrings)) {
+		if (_RawSqlMutation().IsMatch(withStrings)) {
 			findings.Add("raw job_queue DML");
 		}
 
@@ -220,7 +220,7 @@ public sealed partial class JobEnqueueBoundarySpec {
 	// strings are not single tokens: their literal portions AND format clauses lex
 	// as InterpolatedStringTextToken while hole expressions are ordinary tokens —
 	// so masking these kinds hides exactly the text and keeps the code.
-	private static readonly HashSet<SyntaxKind> LiteralTextTokenKinds = [
+	private static readonly HashSet<SyntaxKind> _LiteralTextTokenKinds = [
 		SyntaxKind.StringLiteralToken,
 		SyntaxKind.SingleLineRawStringLiteralToken,
 		SyntaxKind.MultiLineRawStringLiteralToken,
@@ -236,29 +236,29 @@ public sealed partial class JobEnqueueBoundarySpec {
 	// trivia + token + trivia reproduces the file; comments (incl. doc comments)
 	// become a space in both views, literal-text tokens become spaces in the masked
 	// view only.
-	private static (string CodeOnly, string WithStrings) RenderViews(string source) {
+	private static (string CodeOnly, string WithStrings) _RenderViews(string source) {
 		var root = CSharpSyntaxTree.ParseText(source).GetRoot();
 		var masked = new StringBuilder(source.Length);
 		var unmasked = new StringBuilder(source.Length);
 
 		foreach (var token in root.DescendantTokens(descendIntoTrivia: false)) {
-			AppendTrivia(masked, unmasked, token.LeadingTrivia);
+			_AppendTrivia(masked, unmasked, token.LeadingTrivia);
 
 			var text = token.Text;
 			unmasked.Append(text);
 			masked.Append(
-				LiteralTextTokenKinds.Contains(token.Kind())
+				_LiteralTextTokenKinds.Contains(token.Kind())
 					? new string(' ', text.Length)
 					: text
 			);
 
-			AppendTrivia(masked, unmasked, token.TrailingTrivia);
+			_AppendTrivia(masked, unmasked, token.TrailingTrivia);
 		}
 
 		return (masked.ToString(), unmasked.ToString());
 	}
 
-	private static void AppendTrivia(
+	private static void _AppendTrivia(
 		StringBuilder masked,
 		StringBuilder unmasked,
 		SyntaxTriviaList triviaList
@@ -269,9 +269,9 @@ public sealed partial class JobEnqueueBoundarySpec {
 			// #if false) is covered by the same literal/comment masking rules.
 			if (trivia.IsKind(SyntaxKind.DisabledTextTrivia)) {
 				var disabledText = trivia.ToFullString();
-				var (disabledCodeOnly, disabledWithStrings) = RenderViews(disabledText);
-				AppendRenderedSegment(masked, disabledCodeOnly, trivia.FullSpan.Length);
-				AppendRenderedSegment(unmasked, disabledWithStrings, trivia.FullSpan.Length);
+				var (disabledCodeOnly, disabledWithStrings) = _RenderViews(disabledText);
+				_AppendRenderedSegment(masked, disabledCodeOnly, trivia.FullSpan.Length);
+				_AppendRenderedSegment(unmasked, disabledWithStrings, trivia.FullSpan.Length);
 				continue;
 			}
 
@@ -298,12 +298,12 @@ public sealed partial class JobEnqueueBoundarySpec {
 		}
 	}
 
-	private static void AppendRenderedSegment(
+	private static void _AppendRenderedSegment(
 		StringBuilder builder,
 		string rendered,
 		int originalLength
 	) {
-		// Comment trivia is intentionally contracted to one space by RenderViews.
+		// Comment trivia is intentionally contracted to one space by _RenderViews.
 		// Copy at most the original span and pad any shortfall so recursively
 		// splicing a disabled branch cannot shift the source that follows it. The
 		// detector reports pattern names, not source offsets, so internal offsets
@@ -315,7 +315,7 @@ public sealed partial class JobEnqueueBoundarySpec {
 
 	// The test assembly runs from apps/api/.artifacts/bin/...; walk up until the
 	// directory containing PublyApp.Api.csproj (the apps/api root).
-	private static string FindApiRoot() {
+	private static string _FindApiRoot() {
 		var current = new DirectoryInfo(AppContext.BaseDirectory);
 
 		while (current is not null) {

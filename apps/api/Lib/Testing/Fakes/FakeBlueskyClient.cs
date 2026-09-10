@@ -17,11 +17,11 @@ namespace PublyApp.Api.Lib.Testing.Fakes;
 public sealed class FakeBlueskyClient : IBlueskyClient {
 	public sealed record CreateAttempt(string Identifier);
 
-	private readonly ConcurrentQueue<CreateAttempt> _attempts = new();
+	private readonly ConcurrentQueue<CreateAttempt> _Attempts = new();
 
 	/// <summary>All recorded attempts in arrival order.</summary>
 	public IReadOnlyList<CreateAttempt> Attempts {
-		get { return _attempts.ToList(); }
+		get { return _Attempts.ToList(); }
 	}
 
 	/// <summary>
@@ -34,7 +34,7 @@ public sealed class FakeBlueskyClient : IBlueskyClient {
 		BlueskyCredentials credentials,
 		CancellationToken cancellationToken = default
 	) {
-		_attempts.Enqueue(new CreateAttempt(credentials.Identifier));
+		_Attempts.Enqueue(new CreateAttempt(credentials.Identifier));
 
 		if (NextResult is not null) {
 			return Task.FromResult(NextResult);
@@ -56,6 +56,6 @@ public sealed class FakeBlueskyClient : IBlueskyClient {
 
 	/// <summary>Clears recorded attempts (single-test phase resets only; see class remarks).</summary>
 	public void Clear() {
-		_attempts.Clear();
+		_Attempts.Clear();
 	}
 }

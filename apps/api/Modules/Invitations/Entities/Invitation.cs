@@ -54,11 +54,11 @@ public class Invitation : BaseAttributes, IOptionalTenantEntity {
 	[Column("invited_by_user_id")]
 	public required Guid InvitedByUserId { get; set; }
 
-	private UserEntity? _invitedByUser;
+	private UserEntity? _InvitedByUser;
 	[JsonIgnore]
 	public UserEntity InvitedByUser {
-		get { return RequiredNavigation.Get(_invitedByUser, nameof(Invitation), nameof(InvitedByUser)); }
-		set { _invitedByUser = value; }
+		get { return RequiredNavigation.Get(_InvitedByUser, nameof(Invitation), nameof(InvitedByUser)); }
+		set { _InvitedByUser = value; }
 	}
 
 	[Column("account_level")]

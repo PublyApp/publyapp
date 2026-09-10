@@ -22,20 +22,20 @@ namespace PublyApp.Api.Modules.Auth.Handlers;
 
 public sealed class CheckResetPasswordTokenSpec
 	: IClassFixture<ApiFixture> {
-	private readonly ApiFixture _fixture;
-	private readonly HttpClient _http;
+	private readonly ApiFixture _Fixture;
+	private readonly HttpClient _Http;
 
 	public CheckResetPasswordTokenSpec(ApiFixture fixture) {
-		_fixture = fixture;
-		_http = fixture.HttpClient;
+		_Fixture = fixture;
+		_Http = fixture.HttpClient;
 	}
 
 	[Fact]
 	public async Task
 	ItShouldReturnExpiredTranslationKeyWhenPasswordResetTokenExpired() {
-		var user = await CreateUserAsync(DateTime.UtcNow.AddMinutes(-1));
+		var user = await _CreateUserAsync(DateTime.UtcNow.AddMinutes(-1));
 
-		using var response = await CheckAsync(user.Email, user.Token);
+		using var response = await _CheckAsync(user.Email, user.Token);
 
 		response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
 		var problem = await response.Content.ReadFromJsonAsync<AppProblemDetails>();
@@ -47,7 +47,7 @@ public sealed class CheckResetPasswordTokenSpec
 	[Fact]
 	public async Task
 	ItShouldReturnGenericInvalidTranslationKeyWhenPasswordResetIdCannotBeDecrypted() {
-		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
 		var userService = scope.ServiceProvider.GetRequiredService<IUserService>();
 		var result = await CheckResetPasswordToken.Handle(
 			new CheckResetPasswordTokenQuery {
@@ -58,7 +58,7 @@ public sealed class CheckResetPasswordTokenSpec
 			CancellationToken.None
 		);
 
-		var problem = await ExecuteProblemAsync(result);
+		var problem = await _ExecuteProblemAsync(result);
 
 		problem.TranslationKey.Should().Be("invalid-password-reset-token");
 	}
@@ -66,7 +66,7 @@ public sealed class CheckResetPasswordTokenSpec
 	[Fact]
 	public async Task
 	ItShouldReturnGenericInvalidTranslationKeyWhenPasswordResetTokenNotFound() {
-		using var response = await CheckAsync(
+		using var response = await _CheckAsync(
 			$"unknown-{Guid.NewGuid():N}@example.com",
 			$"missing-{Guid.NewGuid():N}"
 		);
@@ -81,9 +81,9 @@ public sealed class CheckResetPasswordTokenSpec
 	[Fact]
 	public async Task
 	ItShouldReturnGenericInvalidTranslationKeyWhenPasswordResetEmailMismatched() {
-		var user = await CreateUserAsync(DateTime.UtcNow.AddMinutes(5));
+		var user = await _CreateUserAsync(DateTime.UtcNow.AddMinutes(5));
 
-		using var response = await CheckAsync(
+		using var response = await _CheckAsync(
 			$"mismatch-{Guid.NewGuid():N}@example.com",
 			user.Token
 		);
@@ -98,9 +98,9 @@ public sealed class CheckResetPasswordTokenSpec
 	[Fact]
 	public async Task
 	ItShouldReturnOkWithExpectedResultWhenPasswordResetTokenValid() {
-		var user = await CreateUserAsync(DateTime.UtcNow.AddMinutes(5));
+		var user = await _CreateUserAsync(DateTime.UtcNow.AddMinutes(5));
 
-		using var response = await CheckAsync(user.Email, user.Token);
+		using var response = await _CheckAsync(user.Email, user.Token);
 
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
 		var result = await response.Content
@@ -111,18 +111,18 @@ public sealed class CheckResetPasswordTokenSpec
 		result.Email.Should().Be(user.Email);
 	}
 
-	private async Task<HttpResponseMessage> CheckAsync(string email, string token) {
+	private async Task<HttpResponseMessage> _CheckAsync(string email, string token) {
 		var id = Uri.EscapeDataString(CryptoUtils.EncryptString(email));
-		return await _http.GetAsync(
+		return await _Http.GetAsync(
 			$"{Routes.Auth.CheckResetPasswordToken}?id={id}&token={token}"
 		);
 	}
 
-	private async Task<(string Email, string Token)> CreateUserAsync(DateTime expiresAt) {
+	private async Task<(string Email, string Token)> _CreateUserAsync(DateTime expiresAt) {
 		var email = $"check-reset-{Guid.NewGuid():N}@example.com";
 		var token = $"reset-{Guid.NewGuid():N}";
 
-		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 		_ = dbContext.User.Add(new User {
 			Email = email,
@@ -139,7 +139,7 @@ public sealed class CheckResetPasswordTokenSpec
 		return (email, token);
 	}
 
-	private static async Task<AppProblemDetails> ExecuteProblemAsync(IResult result) {
+	private static async Task<AppProblemDetails> _ExecuteProblemAsync(IResult result) {
 		var context = new DefaultHttpContext();
 		context.Response.Body = new MemoryStream();
 

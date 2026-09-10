@@ -19,19 +19,19 @@ namespace PublyApp.Api.Modules.Users.Handlers.Staff;
 
 public sealed class GetTenantUserByIdForStaffSpec
 	: IClassFixture<ApiFixture> {
-	private static readonly JsonSerializerOptions TenantUserDetailsJsonOptions = new() {
+	private static readonly JsonSerializerOptions _TenantUserDetailsJsonOptions = new() {
 		PropertyNameCaseInsensitive = true,
 	};
 
-	private readonly HttpClient _http;
-	private readonly TestAuthClient _authClient;
+	private readonly HttpClient _Http;
+	private readonly TestAuthClient _AuthClient;
 
 	public GetTenantUserByIdForStaffSpec(ApiFixture fixture) {
-		_http = fixture.HttpClient;
-		_authClient = new TestAuthClient(_http);
+		_Http = fixture.HttpClient;
+		_AuthClient = new TestAuthClient(_Http);
 	}
 
-	private static string GetUrl(string userId) {
+	private static string _GetUrl(string userId) {
 		return PathUtils.Join(
 			Routes.Staff.Root,
 			"/tenant-users",
@@ -39,7 +39,7 @@ public sealed class GetTenantUserByIdForStaffSpec
 		);
 	}
 
-	private static string GetRemoveUrl(
+	private static string _GetRemoveUrl(
 		Guid tenantId,
 		string userId
 	) {
@@ -56,15 +56,15 @@ public sealed class GetTenantUserByIdForStaffSpec
 	public async Task
 	ItShouldReturnTenantUserDetailsWithoutEmbeddedCompaniesWhenTenantUserExists() {
 		var staffToken =
-			await _authClient.LoginAsStaffAdminAsync();
+			await _AuthClient.LoginAsStaffAdminAsync();
 		var tenantId =
 			await TenantTestHelper.GetTenantIdByNameAsync(
-				_http,
+				_Http,
 				staffToken,
 				SeedConstants.Tenants.AcmeName
 			);
-		var userId = await GetUserIdByEmailAsync(
-			_http,
+		var userId = await _GetUserIdByEmailAsync(
+			_Http,
 			staffToken,
 			tenantId,
 			TestConstants.AcmeUserEmail
@@ -72,16 +72,16 @@ public sealed class GetTenantUserByIdForStaffSpec
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			GetUrl(userId)
+			_GetUrl(userId)
 		).WithSessionToken(staffToken);
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
 		var json = await response.Content.ReadAsStringAsync();
 		var result = JsonSerializer.Deserialize<TenantUserDetailsResponse>(
 			json,
-			TenantUserDetailsJsonOptions
+			_TenantUserDetailsJsonOptions
 		);
 		result.Should().NotBeNull();
 		Assert.NotNull(result);
@@ -104,21 +104,21 @@ public sealed class GetTenantUserByIdForStaffSpec
 	public async Task
 	ItShouldReturnTenantUserDetailsWhenLastCompanyMembershipWasRemoved() {
 		var staffToken =
-			await _authClient.LoginAsStaffAdminAsync();
+			await _AuthClient.LoginAsStaffAdminAsync();
 		var techStartTenantId =
 			await TenantTestHelper.GetTenantIdByNameAsync(
-				_http,
+				_Http,
 				staffToken,
 				SeedConstants.Tenants.TechStartName
 			);
 		var globalTenantId =
 			await TenantTestHelper.GetTenantIdByNameAsync(
-				_http,
+				_Http,
 				staffToken,
 				SeedConstants.Tenants.GlobalName
 			);
-		var userId = await GetUserIdByEmailAsync(
-			_http,
+		var userId = await _GetUserIdByEmailAsync(
+			_Http,
 			staffToken,
 			techStartTenantId,
 			SeedConstants.CrossTenant.BobEmail
@@ -126,12 +126,12 @@ public sealed class GetTenantUserByIdForStaffSpec
 
 		// Removing every live membership should not be interpreted as deleting
 		// the shared tenant-user identity page.
-		await RemoveTenantMembershipAsync(
+		await _RemoveTenantMembershipAsync(
 			staffToken,
 			techStartTenantId,
 			userId
 		);
-		await RemoveTenantMembershipAsync(
+		await _RemoveTenantMembershipAsync(
 			staffToken,
 			globalTenantId,
 			userId
@@ -139,10 +139,10 @@ public sealed class GetTenantUserByIdForStaffSpec
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			GetUrl(userId)
+			_GetUrl(userId)
 		).WithSessionToken(staffToken);
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
 		var result = await response.Content
@@ -158,14 +158,14 @@ public sealed class GetTenantUserByIdForStaffSpec
 	public async Task
 	ItShouldReturnBadRequestWhenUserIdIsMalformed() {
 		var staffToken =
-			await _authClient.LoginAsStaffAdminAsync();
+			await _AuthClient.LoginAsStaffAdminAsync();
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			GetUrl("not-a-guid")
+			_GetUrl("not-a-guid")
 		).WithSessionToken(staffToken);
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 
 		response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
 		var problem = await response.Content
@@ -179,14 +179,14 @@ public sealed class GetTenantUserByIdForStaffSpec
 	public async Task
 	ItShouldReturnNotFoundWhenUserDoesNotExist() {
 		var staffToken =
-			await _authClient.LoginAsStaffAdminAsync();
+			await _AuthClient.LoginAsStaffAdminAsync();
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			GetUrl(Guid.NewGuid().ToString())
+			_GetUrl(Guid.NewGuid().ToString())
 		).WithSessionToken(staffToken);
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 
 		response.StatusCode.Should().Be(HttpStatusCode.NotFound);
 		var problem = await response.Content
@@ -200,35 +200,35 @@ public sealed class GetTenantUserByIdForStaffSpec
 	public async Task
 	ItShouldReturnForbiddenForTenantUser() {
 		var staffToken =
-			await _authClient.LoginAsStaffAdminAsync();
+			await _AuthClient.LoginAsStaffAdminAsync();
 		var tenantId =
 			await TenantTestHelper.GetTenantIdByNameAsync(
-				_http,
+				_Http,
 				staffToken,
 				SeedConstants.Tenants.AcmeName
 			);
-		var userId = await GetUserIdByEmailAsync(
-			_http,
+		var userId = await _GetUserIdByEmailAsync(
+			_Http,
 			staffToken,
 			tenantId,
 			TestConstants.AcmeUserEmail
 		);
-		var tenantToken = await _authClient.LoginAsync(
+		var tenantToken = await _AuthClient.LoginAsync(
 			TestConstants.AcmeUserEmail,
 			TestConstants.SeedPassword
 		);
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			GetUrl(userId)
+			_GetUrl(userId)
 		).WithSessionToken(tenantToken);
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 
 		response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
 	}
 
-	private static async Task<string> GetUserIdByEmailAsync(
+	private static async Task<string> _GetUserIdByEmailAsync(
 		HttpClient http,
 		string staffToken,
 		Guid tenantId,
@@ -274,17 +274,17 @@ public sealed class GetTenantUserByIdForStaffSpec
 		return user.Id;
 	}
 
-	private async Task RemoveTenantMembershipAsync(
+	private async Task _RemoveTenantMembershipAsync(
 		string staffToken,
 		Guid tenantId,
 		string userId
 	) {
 		using var request = new HttpRequestMessage(
 			HttpMethod.Delete,
-			GetRemoveUrl(tenantId, userId)
+			_GetRemoveUrl(tenantId, userId)
 		).WithSessionToken(staffToken);
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
 	}
 

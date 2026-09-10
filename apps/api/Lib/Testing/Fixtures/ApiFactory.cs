@@ -31,10 +31,10 @@ namespace PublyApp.Api.Lib.Testing.Fixtures;
 /// </summary>
 public sealed class ApiFactory
 	: WebApplicationFactory<Program> {
-	private readonly string _dbConnectionString;
-	private readonly string _storageRoot;
-	private readonly IUploadAdmissionService? _uploadAdmissionService;
-	private readonly ILoggerProvider? _loggerProvider;
+	private readonly string _DbConnectionString;
+	private readonly string _StorageRoot;
+	private readonly IUploadAdmissionService? _UploadAdmissionService;
+	private readonly ILoggerProvider? _LoggerProvider;
 
 	public ApiFactory(
 		string dbConnectionString,
@@ -42,10 +42,10 @@ public sealed class ApiFactory
 		IUploadAdmissionService? uploadAdmissionService = null,
 		ILoggerProvider? loggerProvider = null
 	) {
-		_dbConnectionString = dbConnectionString;
-		_storageRoot = storageRoot;
-		_uploadAdmissionService = uploadAdmissionService;
-		_loggerProvider = loggerProvider;
+		_DbConnectionString = dbConnectionString;
+		_StorageRoot = storageRoot;
+		_UploadAdmissionService = uploadAdmissionService;
+		_LoggerProvider = loggerProvider;
 	}
 
 	protected override void ConfigureWebHost(
@@ -69,11 +69,11 @@ public sealed class ApiFactory
 					var httpContextAccessor = serviceProvider
 						.GetRequiredService<IHttpContextAccessor>();
 					var tenantId =
-						GetCurrentTenantId(httpContextAccessor);
+						_GetCurrentTenantId(httpContextAccessor);
 
 					// Use TEST connection string
 					// instead of AppEnvironment
-					options.UseNpgsql(_dbConnectionString);
+					options.UseNpgsql(_DbConnectionString);
 
 					if (tenantId.HasValue) {
 						options.UseTenantId(tenantId.Value);
@@ -84,11 +84,11 @@ public sealed class ApiFactory
 
 			services.RemoveAll<IFileStorage>();
 			services.AddSingleton<IFileStorage>(
-				_ => new LocalDiskFileStorage(_storageRoot)
+				_ => new LocalDiskFileStorage(_StorageRoot)
 			);
-			if (_uploadAdmissionService is not null) {
+			if (_UploadAdmissionService is not null) {
 				services.RemoveAll<IUploadAdmissionService>();
-				services.AddSingleton(_uploadAdmissionService);
+				services.AddSingleton(_UploadAdmissionService);
 			}
 
 			// 2) Replace email sender with fake
@@ -113,8 +113,8 @@ public sealed class ApiFactory
 			//    (needed because Serilog doesn't register ILogger by default)
 			services.AddSingleton<ILoggerFactory>(_ => {
 				var loggerFactory = new LoggerFactory();
-				if (_loggerProvider is not null) {
-					loggerFactory.AddProvider(_loggerProvider);
+				if (_LoggerProvider is not null) {
+					loggerFactory.AddProvider(_LoggerProvider);
 				}
 
 				return loggerFactory;
@@ -153,7 +153,7 @@ public sealed class ApiFactory
 		var descriptorsToRemove = services
 			.Where(descriptor => descriptor.ServiceType == typeof(IHostedService))
 			.Where(descriptor => {
-				var implementationType = ResolveHostedServiceImplementationType(descriptor);
+				var implementationType = _ResolveHostedServiceImplementationType(descriptor);
 
 				return implementationType is not null
 					&& workerHostedServiceTypes.Contains(implementationType);
@@ -192,7 +192,7 @@ public sealed class ApiFactory
 	/// <see cref="WebApplicationFactory{TEntryPoint}.Services"/> and fails loudly if a live
 	/// dispatcher survives — whatever registration shape let it through.
 	/// </summary>
-	private static Type? ResolveHostedServiceImplementationType(ServiceDescriptor descriptor) {
+	private static Type? _ResolveHostedServiceImplementationType(ServiceDescriptor descriptor) {
 		if (descriptor.ImplementationType is not null) {
 			return descriptor.ImplementationType;
 		}
@@ -208,7 +208,7 @@ public sealed class ApiFactory
 	/// Extracts tenant ID from request header.
 	/// Mirrors ServiceRegistration.GetCurrentTenantId().
 	/// </summary>
-	private static Guid? GetCurrentTenantId(
+	private static Guid? _GetCurrentTenantId(
 		IHttpContextAccessor httpContextAccessor
 	) {
 		var httpContext = httpContextAccessor.HttpContext;

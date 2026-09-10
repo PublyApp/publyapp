@@ -164,14 +164,14 @@ public sealed class WorkerMigrationStartupGateSpec {
 	}
 
 	private sealed class SequencedMigrationReadiness : IDatabaseMigrationReadiness {
-		private readonly Queue<bool> _results;
-		private bool _lastResult;
+		private readonly Queue<bool> _Results;
+		private bool _LastResult;
 
 		public int CallCount { get; private set; }
 
 		public SequencedMigrationReadiness(IEnumerable<bool> results) {
-			_results = new Queue<bool>(results);
-			_lastResult = _results.Last();
+			_Results = new Queue<bool>(results);
+			_LastResult = _Results.Last();
 		}
 
 		public Task<DatabaseMigrationReadinessResult> IsReadyAsync(
@@ -180,12 +180,12 @@ public sealed class WorkerMigrationStartupGateSpec {
 			cancellationToken.ThrowIfCancellationRequested();
 			CallCount++;
 
-			if (_results.TryDequeue(out var result)) {
-				_lastResult = result;
+			if (_Results.TryDequeue(out var result)) {
+				_LastResult = result;
 			}
 
 			return Task.FromResult(
-				_lastResult
+				_LastResult
 					? DatabaseMigrationReadinessResult.FromPendingMigrations([])
 					: DatabaseMigrationReadinessResult.FromPendingMigrations(["pending_migration"])
 			);
@@ -193,12 +193,12 @@ public sealed class WorkerMigrationStartupGateSpec {
 	}
 
 	private sealed class ThrowingThenReadyMigrationReadiness : IDatabaseMigrationReadiness {
-		private readonly int _failureCount;
+		private readonly int _FailureCount;
 
 		public int CallCount { get; private set; }
 
 		public ThrowingThenReadyMigrationReadiness(int failureCount) {
-			_failureCount = failureCount;
+			_FailureCount = failureCount;
 		}
 
 		public Task<DatabaseMigrationReadinessResult> IsReadyAsync(
@@ -207,7 +207,7 @@ public sealed class WorkerMigrationStartupGateSpec {
 			cancellationToken.ThrowIfCancellationRequested();
 			CallCount++;
 
-			if (CallCount <= _failureCount) {
+			if (CallCount <= _FailureCount) {
 				throw new InvalidOperationException("Database is still starting.");
 			}
 
@@ -216,27 +216,27 @@ public sealed class WorkerMigrationStartupGateSpec {
 	}
 
 	private sealed class BlockingMigrationReadiness : IDatabaseMigrationReadiness {
-		private readonly TaskCompletionSource _checked = new(
+		private readonly TaskCompletionSource _Checked = new(
 			TaskCreationOptions.RunContinuationsAsynchronously
 		);
-		private readonly TaskCompletionSource _ready = new(
+		private readonly TaskCompletionSource _Ready = new(
 			TaskCreationOptions.RunContinuationsAsynchronously
 		);
 
 		public async Task<DatabaseMigrationReadinessResult> IsReadyAsync(
 			CancellationToken cancellationToken
 		) {
-			_checked.TrySetResult();
-			await _ready.Task.WaitAsync(cancellationToken);
+			_Checked.TrySetResult();
+			await _Ready.Task.WaitAsync(cancellationToken);
 			return DatabaseMigrationReadinessResult.FromPendingMigrations([]);
 		}
 
 		public Task WaitUntilCheckedAsync() {
-			return _checked.Task;
+			return _Checked.Task;
 		}
 
 		public void MarkReady() {
-			_ready.TrySetResult();
+			_Ready.TrySetResult();
 		}
 	}
 

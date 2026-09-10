@@ -40,10 +40,10 @@ public record BulkCreateInvitationsForTenantAsStaffItem {
 public record BulkCreateTenantInvitationsForTenantAsStaffBody {
 	public JsonElement Invitations { get; init; }
 
-	private List<BulkCreateInvitationsForTenantAsStaffItem> _invitations = [];
-	private bool _invitationsParsed;
+	private List<BulkCreateInvitationsForTenantAsStaffItem> _Invitations = [];
+	private bool _InvitationsParsed;
 
-	private List<BulkCreateInvitationsForTenantAsStaffItem> ParseInvitations() {
+	private List<BulkCreateInvitationsForTenantAsStaffItem> _ParseInvitations() {
 		var invitations = new List<BulkCreateInvitationsForTenantAsStaffItem>();
 
 		foreach (var invitationItem in Invitations.EnumerateArray()) {
@@ -64,13 +64,13 @@ public record BulkCreateTenantInvitationsForTenantAsStaffBody {
 	}
 
 	public List<BulkCreateInvitationsForTenantAsStaffItem> GetInvitations() {
-		if (_invitationsParsed) {
-			return _invitations;
+		if (_InvitationsParsed) {
+			return _Invitations;
 		}
 
-		_invitations = ParseInvitations();
-		_invitationsParsed = true;
-		return _invitations;
+		_Invitations = _ParseInvitations();
+		_InvitationsParsed = true;
+		return _Invitations;
 	}
 }
 
@@ -82,7 +82,7 @@ public record BulkCreateTenantInvitationsForTenantAsStaffCreated {
 
 public sealed class BulkCreateInvitationsForTenantAsStaffBodyValidator
 	: AbstractValidator<BulkCreateTenantInvitationsForTenantAsStaffBody> {
-	private readonly TenantInvitationProfileIdsValidator _profileIdsValidator = new();
+	private readonly TenantInvitationProfileIdsValidator _ProfileIdsValidator = new();
 
 	public BulkCreateInvitationsForTenantAsStaffBodyValidator() {
 		RuleFor(x => x.Invitations)
@@ -134,7 +134,7 @@ public sealed class BulkCreateInvitationsForTenantAsStaffBodyValidator
 							$"invitations[{index}].email",
 							"Email must be a string"
 						);
-					} else if (!BeValidEmail(emailElement.GetString() ?? string.Empty)) {
+					} else if (!_BeValidEmail(emailElement.GetString() ?? string.Empty)) {
 						context.AddFailure(
 							$"invitations[{index}].email",
 							"Invalid email format"
@@ -173,7 +173,7 @@ public sealed class BulkCreateInvitationsForTenantAsStaffBodyValidator
 					}
 
 					var profileIdsValidation =
-						_profileIdsValidator.Validate(profileIdsElement);
+						_ProfileIdsValidator.Validate(profileIdsElement);
 					foreach (var failure in profileIdsValidation.Errors) {
 						context.AddFailure(
 							$"invitations[{index}].profileIds",
@@ -206,7 +206,7 @@ public sealed class BulkCreateInvitationsForTenantAsStaffBodyValidator
 			});
 	}
 
-	private static bool BeValidEmail(string email) {
+	private static bool _BeValidEmail(string email) {
 		if (string.IsNullOrWhiteSpace(email)) {
 			return false;
 		}

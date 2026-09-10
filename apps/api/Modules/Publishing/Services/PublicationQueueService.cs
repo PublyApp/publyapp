@@ -28,14 +28,14 @@ public interface IPublicationQueueService {
 
 [Service(ServiceLifetime.Scoped)]
 public sealed class PublicationQueueService(AppDbContext db) : IPublicationQueueService {
-	private readonly AppDbContext _db = db;
+	private readonly AppDbContext _Db = db;
 
 	public async Task<IReadOnlyList<(Guid Id, DateTime ScheduledAtUtc, PublicationStatus Status)>>
 		FindNonTerminalForAccountAsync(
 			FindPublicationsOfAccountArgs args,
 			CancellationToken cancellationToken
 		) {
-		var rows = await _db.Publication.AsNoTracking()
+		var rows = await _Db.Publication.AsNoTracking()
 			.Where(p => p.TenantId == args.TenantId
 				&& p.SocialAccountId == args.SocialAccountId
 				&& !p.IsDeleted

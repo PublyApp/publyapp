@@ -112,17 +112,17 @@ public record PostImageReadModel {
 
 [Service(ServiceLifetime.Scoped)]
 public class PostService : IPostService {
-	private const int BodyPreviewLength = 280;
+	private const int _BodyPreviewLength = 280;
 
-	private readonly AppDbContext _dbContext;
-	private readonly ILogger<PostService> _logger;
+	private readonly AppDbContext _DbContext;
+	private readonly ILogger<PostService> _Logger;
 
 	public PostService(
 		AppDbContext dbContext,
 		ILogger<PostService> logger
 	) {
-		_dbContext = dbContext;
-		_logger = logger;
+		_DbContext = dbContext;
+		_Logger = logger;
 	}
 
 	public async Task<Post> CreateAsync(
@@ -137,11 +137,11 @@ public class PostService : IPostService {
 			CreatedByUserId = args.CreatedByUserId
 		};
 
-		await _dbContext.Post.AddAsync(post, cancellationToken);
-		await _dbContext.SaveChangesAsync(cancellationToken);
+		await _DbContext.Post.AddAsync(post, cancellationToken);
+		await _DbContext.SaveChangesAsync(cancellationToken);
 
-		if (_logger.IsEnabled(LogLevel.Information)) {
-			_logger.LogInformation(
+		if (_Logger.IsEnabled(LogLevel.Information)) {
+			_Logger.LogInformation(
 				"Created post {PostId} for tenant {TenantId} "
 				+ "by user {UserId}",
 				post.GetRequiredId(),
@@ -169,7 +169,7 @@ public class PostService : IPostService {
 				StringComparer.OrdinalIgnoreCase
 			) {
 				["created_at"] = CursorSortFieldHandlerFactory.Create<Post, DateTime, Guid?>(
-					cursorLookupQuery: () => _dbContext.Post
+					cursorLookupQuery: () => _DbContext.Post
 						.AsNoTracking()
 						.Where(p => p.TenantId == tenantId && !p.IsDeleted),
 					keySelector: p => p.CreatedAt,
@@ -177,7 +177,7 @@ public class PostService : IPostService {
 					cancellationToken
 				),
 				["updated_at"] = CursorSortFieldHandlerFactory.Create<Post, DateTime, Guid?>(
-					cursorLookupQuery: () => _dbContext.Post
+					cursorLookupQuery: () => _DbContext.Post
 						.AsNoTracking()
 						.Where(p => p.TenantId == tenantId && !p.IsDeleted),
 					keySelector: p => p.UpdatedAt,
@@ -195,7 +195,7 @@ public class PostService : IPostService {
 		}
 
 		IQueryable<Post> query =
-			from p in _dbContext.Post.AsNoTracking()
+			from p in _DbContext.Post.AsNoTracking()
 			where p.TenantId == tenantId && !p.IsDeleted
 			select p;
 
@@ -244,7 +244,7 @@ public class PostService : IPostService {
 			.Select(p => p.GetRequiredId())
 			.ToList();
 		var assetsByPost = await (
-			from a in _dbContext.PostMediaAsset.AsNoTracking()
+			from a in _DbContext.PostMediaAsset.AsNoTracking()
 			where a.TenantId == tenantId
 				&& pagePostIds.Contains(a.PostId)
 				&& !a.IsDeleted
@@ -272,7 +272,7 @@ public class PostService : IPostService {
 		CancellationToken cancellationToken = default
 	) {
 		var postQuery =
-			from p in _dbContext.Post
+			from p in _DbContext.Post
 			where p.Id == id
 				&& p.TenantId == tenantId
 				&& !p.IsDeleted
@@ -303,7 +303,7 @@ public class PostService : IPostService {
 			// Alt text belongs to the attached asset row; a patch without an
 			// image is a named validation refusal, not a silent no-op.
 			var asset = await (
-				from a in _dbContext.PostMediaAsset
+				from a in _DbContext.PostMediaAsset
 				where a.TenantId == tenantId
 					&& a.PostId == id
 					&& !a.IsDeleted
@@ -320,7 +320,7 @@ public class PostService : IPostService {
 			var projectId = args.ProjectId.Value;
 			if (projectId.HasValue) {
 				var projectExists = await (
-					from project in _dbContext.Project.AsNoTracking()
+					from project in _DbContext.Project.AsNoTracking()
 					where project.Id == projectId.Value
 						&& project.TenantId == tenantId
 						&& !project.IsDeleted
@@ -337,10 +337,10 @@ public class PostService : IPostService {
 			post.ProjectId = projectId;
 		}
 
-		await _dbContext.SaveChangesAsync(cancellationToken);
+		await _DbContext.SaveChangesAsync(cancellationToken);
 
-		if (_logger.IsEnabled(LogLevel.Information)) {
-			_logger.LogInformation(
+		if (_Logger.IsEnabled(LogLevel.Information)) {
+			_Logger.LogInformation(
 				"Updated post {PostId} for tenant {TenantId}",
 				id,
 				tenantId
@@ -363,11 +363,11 @@ public class PostService : IPostService {
 			return false;
 		}
 
-		_dbContext.Post.Remove(post);
-		await _dbContext.SaveChangesAsync(cancellationToken);
+		_DbContext.Post.Remove(post);
+		await _DbContext.SaveChangesAsync(cancellationToken);
 
-		if (_logger.IsEnabled(LogLevel.Information)) {
-			_logger.LogInformation(
+		if (_Logger.IsEnabled(LogLevel.Information)) {
+			_Logger.LogInformation(
 				"Deleted post {PostId} for tenant {TenantId}",
 				id,
 				tenantId
@@ -383,7 +383,7 @@ public class PostService : IPostService {
 		CancellationToken cancellationToken = default
 	) {
 		return await (
-			from project in _dbContext.Project.AsNoTracking()
+			from project in _DbContext.Project.AsNoTracking()
 			where project.Id == projectId
 				&& project.TenantId == tenantId
 				&& !project.IsDeleted
@@ -396,9 +396,9 @@ public class PostService : IPostService {
 			Id = post.GetRequiredId(),
 			ProjectId = post.ProjectId,
 			Status = PostWire.FormatStatus(post.Status),
-			BodyPreview = post.Body.Length <= BodyPreviewLength
+			BodyPreview = post.Body.Length <= _BodyPreviewLength
 				? post.Body
-				: post.Body[..BodyPreviewLength],
+				: post.Body[.._BodyPreviewLength],
 			CreatedByUserId = post.CreatedByUserId,
 			CreatedAt = post.CreatedAt,
 			UpdatedAt = post.UpdatedAt,

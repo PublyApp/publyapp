@@ -21,17 +21,17 @@ using Xunit;
 namespace PublyApp.Api.Modules.Users.Handlers.Staff;
 
 public sealed class GetStaffUserProfilesSpec : IClassFixture<ApiFixture> {
-	private readonly ApiFixture _fixture;
-	private readonly HttpClient _http;
-	private readonly TestAuthClient _authClient;
+	private readonly ApiFixture _Fixture;
+	private readonly HttpClient _Http;
+	private readonly TestAuthClient _AuthClient;
 
 	public GetStaffUserProfilesSpec(ApiFixture fixture) {
-		_fixture = fixture;
-		_http = fixture.HttpClient;
-		_authClient = new TestAuthClient(_http);
+		_Fixture = fixture;
+		_Http = fixture.HttpClient;
+		_AuthClient = new TestAuthClient(_Http);
 	}
 
-	private static string GetUrl(string userId) {
+	private static string _GetUrl(string userId) {
 		return PathUtils.Join(
 			Routes.Staff.Root,
 			Routes.Users.ForStaff.Root,
@@ -43,26 +43,26 @@ public sealed class GetStaffUserProfilesSpec : IClassFixture<ApiFixture> {
 	public async Task ItShouldReturnUnauthorizedWithoutSession() {
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			GetUrl(Guid.NewGuid().ToString())
+			_GetUrl(Guid.NewGuid().ToString())
 		);
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
 	}
 
 	[Fact]
 	public async Task ItShouldReturnForbiddenForNonStaffUser() {
-		var token = await _authClient.LoginAsync(
+		var token = await _AuthClient.LoginAsync(
 			TestConstants.AcmeAdminEmail,
 			TestConstants.SeedPassword
 		);
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			GetUrl(Guid.NewGuid().ToString())
+			_GetUrl(Guid.NewGuid().ToString())
 		).WithSessionToken(token);
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
 	}
 
@@ -70,35 +70,35 @@ public sealed class GetStaffUserProfilesSpec : IClassFixture<ApiFixture> {
 	public async Task ItShouldReturnForbiddenForStaffWithoutPermission() {
 		// Use an isolated staff user with no profiles, so permissions are guaranteed empty even if
 		// other integration tests assign profiles to the seeded staff-user@example.com.
-		var token = await CreateUnprivilegedStaffUserTokenAsync();
+		var token = await _CreateUnprivilegedStaffUserTokenAsync();
 
 		// Use an existing user id so the permission failure cannot be masked by a 404.
-		var adminToken = await _authClient.LoginAsStaffAdminAsync();
-		var existingUserId = await GetStaffUserIdByEmailAsync(
-			_http,
+		var adminToken = await _AuthClient.LoginAsStaffAdminAsync();
+		var existingUserId = await _GetStaffUserIdByEmailAsync(
+			_Http,
 			adminToken,
 			TestConstants.StaffAdminEmail
 		);
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			GetUrl(existingUserId)
+			_GetUrl(existingUserId)
 		).WithSessionToken(token);
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
 	}
 
 	[Fact]
 	public async Task ItShouldReturnBadRequestForMalformedId() {
-		var token = await _authClient.LoginAsStaffAdminAsync();
+		var token = await _AuthClient.LoginAsStaffAdminAsync();
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			GetUrl("not-a-guid")
+			_GetUrl("not-a-guid")
 		).WithSessionToken(token);
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
 
 		var problem = await response.Content
@@ -110,14 +110,14 @@ public sealed class GetStaffUserProfilesSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldReturnNotFoundForNonExistentId() {
-		var token = await _authClient.LoginAsStaffAdminAsync();
+		var token = await _AuthClient.LoginAsStaffAdminAsync();
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			GetUrl(Guid.NewGuid().ToString())
+			_GetUrl(Guid.NewGuid().ToString())
 		).WithSessionToken(token);
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.NotFound);
 	}
 
@@ -125,16 +125,16 @@ public sealed class GetStaffUserProfilesSpec : IClassFixture<ApiFixture> {
 	// The more interesting invariants are covered by UpdateStaffUserProfiles.Spec.cs.
 	[Fact]
 	public async Task ItShouldReturnAssignedProfilesAndMaxLimit() {
-		var token = await _authClient.LoginAsStaffAdminAsync();
+		var token = await _AuthClient.LoginAsStaffAdminAsync();
 
-		var userId = await GetStaffUserIdByEmailAsync(
-			_http,
+		var userId = await _GetStaffUserIdByEmailAsync(
+			_Http,
 			token,
 			TestConstants.StaffUserEmail
 		);
 
 		// Create a new staff profile and assign it to the user.
-		var profileId = await CreateStaffProfileAsync(token);
+		var profileId = await _CreateStaffProfileAsync(token);
 
 		using (var updateRequest = new HttpRequestMessage(
 			HttpMethod.Put,
@@ -148,16 +148,16 @@ public sealed class GetStaffUserProfilesSpec : IClassFixture<ApiFixture> {
 				new { profileIds = new[] { profileId } }
 			);
 
-			using var updateResponse = await _http.SendAsync(updateRequest);
+			using var updateResponse = await _Http.SendAsync(updateRequest);
 			updateResponse.StatusCode.Should().Be(HttpStatusCode.OK);
 		}
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			GetUrl(userId)
+			_GetUrl(userId)
 		).WithSessionToken(token);
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
 
 		var result = await response.Content
@@ -170,12 +170,12 @@ public sealed class GetStaffUserProfilesSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldReturnAssignedProfilesForSuspendedStaffUser() {
-		var token = await _authClient.LoginAsStaffAdminAsync();
+		var token = await _AuthClient.LoginAsStaffAdminAsync();
 
 		// Use an isolated staff user to avoid mutating seeded fixtures that other integration tests rely on.
-		var userId = await CreateStaffUserIdAsync();
+		var userId = await _CreateStaffUserIdAsync();
 
-		var profileId = await CreateStaffProfileAsync(token);
+		var profileId = await _CreateStaffProfileAsync(token);
 
 		// Assign profile.
 		using (var updateRequest = new HttpRequestMessage(
@@ -190,7 +190,7 @@ public sealed class GetStaffUserProfilesSpec : IClassFixture<ApiFixture> {
 				new { profileIds = new[] { profileId } }
 			);
 
-			using var updateResponse = await _http.SendAsync(updateRequest);
+			using var updateResponse = await _Http.SendAsync(updateRequest);
 			updateResponse.StatusCode.Should().Be(HttpStatusCode.OK);
 		}
 
@@ -203,16 +203,16 @@ public sealed class GetStaffUserProfilesSpec : IClassFixture<ApiFixture> {
 				Routes.Users.ForStaff.SuspendFn(userId)
 			)
 		).WithSessionToken(token)) {
-			using var suspendResponse = await _http.SendAsync(suspendRequest);
+			using var suspendResponse = await _Http.SendAsync(suspendRequest);
 			suspendResponse.StatusCode.Should().Be(HttpStatusCode.OK);
 		}
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			GetUrl(userId)
+			_GetUrl(userId)
 		).WithSessionToken(token);
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
 
 		var result = await response.Content
@@ -224,7 +224,7 @@ public sealed class GetStaffUserProfilesSpec : IClassFixture<ApiFixture> {
 
 	// -- Helpers --
 
-	private async Task<string> CreateStaffProfileAsync(string staffToken) {
+	private async Task<string> _CreateStaffProfileAsync(string staffToken) {
 		var url = PathUtils.Join(
 			Routes.Staff.Root,
 			Routes.Profiles.ForStaff.Root,
@@ -249,7 +249,7 @@ public sealed class GetStaffUserProfilesSpec : IClassFixture<ApiFixture> {
 			}
 		);
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.Created);
 
 		var created = await response.Content.ReadFromJsonAsync<StaffProfileCreatedResponse>();
@@ -258,7 +258,7 @@ public sealed class GetStaffUserProfilesSpec : IClassFixture<ApiFixture> {
 		return created.ProfileId.ToString();
 	}
 
-	private static async Task<string> GetStaffUserIdByEmailAsync(
+	private static async Task<string> _GetStaffUserIdByEmailAsync(
 		HttpClient http,
 		string staffToken,
 		string email
@@ -301,11 +301,11 @@ public sealed class GetStaffUserProfilesSpec : IClassFixture<ApiFixture> {
 		return user.Id.ToString();
 	}
 
-	private async Task<string> CreateStaffUserIdAsync() {
+	private async Task<string> _CreateStaffUserIdAsync() {
 		var email = $"staff-profiles-suspended-{Guid.NewGuid():N}@example.com";
 
 		await using var scope =
-			_fixture.Factory.Services.CreateAsyncScope();
+			_Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>();
 
@@ -330,11 +330,11 @@ public sealed class GetStaffUserProfilesSpec : IClassFixture<ApiFixture> {
 		return userId.ToString();
 	}
 
-	private async Task<string> CreateUnprivilegedStaffUserTokenAsync() {
+	private async Task<string> _CreateUnprivilegedStaffUserTokenAsync() {
 		var email = $"no-perms-{Guid.NewGuid():N}@example.com";
 
 		await using var scope =
-			_fixture.Factory.Services.CreateAsyncScope();
+			_Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>();
 
@@ -356,7 +356,7 @@ public sealed class GetStaffUserProfilesSpec : IClassFixture<ApiFixture> {
 		_ = dbContext.UserAccount.Add(staffAccount);
 		_ = await dbContext.SaveChangesAsync();
 
-		return await _authClient.LoginAsync(email, TestConstants.SeedPassword);
+		return await _AuthClient.LoginAsync(email, TestConstants.SeedPassword);
 	}
 
 	// -- Response DTOs --

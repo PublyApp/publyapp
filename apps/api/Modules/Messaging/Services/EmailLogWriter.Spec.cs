@@ -22,17 +22,17 @@ namespace PublyApp.Api.Modules.Messaging.Services;
 // way the future webhook packet will resolve it), so the transactional behavior is
 // the production behavior, not a fake.
 public sealed class EmailLogWriterSpec : IClassFixture<ApiFixture> {
-	private readonly ApiFixture _fixture;
+	private readonly ApiFixture _Fixture;
 
 	public EmailLogWriterSpec(ApiFixture fixture) {
-		_fixture = fixture;
+		_Fixture = fixture;
 	}
 
 	[Fact]
 	public async Task ItShouldTransitionLegacyUnverifiedToSubmittedAndRecordOneActorNamedEvidenceRow() {
-		var jobId = await SeedEmailLogAsync(EmailLogOutcome.LegacySubmissionUnverified);
+		var jobId = await _SeedEmailLogAsync(EmailLogOutcome.LegacySubmissionUnverified);
 		try {
-			await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+			await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
 			var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 			var writer = scope.ServiceProvider.GetRequiredService<IEmailLogWriter>();
 
@@ -50,8 +50,8 @@ public sealed class EmailLogWriterSpec : IClassFixture<ApiFixture> {
 
 			result.Should().BeOfType<ApplyProviderEvidenceResult.Applied>();
 
-			await using var verify = await CreateFreshDbContextAsync();
-			var row = await SingleLogAsync(verify, jobId);
+			await using var verify = await _CreateFreshDbContextAsync();
+			var row = await _SingleLogAsync(verify, jobId);
 			row.Outcome.Should().Be(EmailLogOutcome.Submitted);
 			row.EvidenceSource.Should().Be(EmailEvidenceSource.ProviderReconciliation);
 			row.ProviderEventId.Should().Be($"evt-{jobId:N}");
@@ -76,28 +76,28 @@ public sealed class EmailLogWriterSpec : IClassFixture<ApiFixture> {
 
 			// …and NEVER in audit_logs, which cannot carry it (NOT NULL user_id FK; a
 			// webhook has no user). This assertion is the #866 defect stated as a test.
-			await using var countScope = _fixture.Factory.Services.CreateAsyncScope();
+			await using var countScope = _Fixture.Factory.Services.CreateAsyncScope();
 			var countContext = countScope.ServiceProvider.GetRequiredService<AppDbContext>();
-			var auditCountBefore = await CountAuditLogsAsync(countContext);
+			var auditCountBefore = await _CountAuditLogsAsync(countContext);
 			auditCountBefore.Should().BeGreaterOrEqualTo(0,
 				"the suite may legitimately contain unrelated audit rows; what matters "
 				+ "is that THIS transition added none");
 		} finally {
-			await CleanupAsync(jobId);
+			await _CleanupAsync(jobId);
 		}
 	}
 
 	[Fact]
 	public async Task ItShouldNotWriteAnyAuditLogRowForAnAppliedTransition() {
-		var jobId = await SeedEmailLogAsync(EmailLogOutcome.LegacySubmissionUnverified);
+		var jobId = await _SeedEmailLogAsync(EmailLogOutcome.LegacySubmissionUnverified);
 		try {
 			long before;
-			await using (var scope = _fixture.Factory.Services.CreateAsyncScope()) {
+			await using (var scope = _Fixture.Factory.Services.CreateAsyncScope()) {
 				var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 				before = await dbContext.AuditLog.LongCountAsync();
 			}
 
-			await using var applyScope = _fixture.Factory.Services.CreateAsyncScope();
+			await using var applyScope = _Fixture.Factory.Services.CreateAsyncScope();
 			var writer = applyScope.ServiceProvider.GetRequiredService<IEmailLogWriter>();
 			await writer.ApplyProviderEvidenceAsync(new ApplyProviderEvidenceEmailLogArgs {
 				JobId = jobId,
@@ -108,7 +108,7 @@ public sealed class EmailLogWriterSpec : IClassFixture<ApiFixture> {
 				Actor = EmailLogActor.ProviderWebhook($"evt-{jobId:N}"),
 			});
 
-			await using var verifyScope = _fixture.Factory.Services.CreateAsyncScope();
+			await using var verifyScope = _Fixture.Factory.Services.CreateAsyncScope();
 			var verify = verifyScope.ServiceProvider.GetRequiredService<AppDbContext>();
 			var after = await verify.AuditLog.LongCountAsync();
 
@@ -117,15 +117,15 @@ public sealed class EmailLogWriterSpec : IClassFixture<ApiFixture> {
 				+ "FK to users); the evidence table carries this history instead"
 			);
 		} finally {
-			await CleanupAsync(jobId);
+			await _CleanupAsync(jobId);
 		}
 	}
 
 	[Fact]
 	public async Task ItShouldRejectAnEdgeOutsideTheAllowlistWithoutWritingAnything() {
-		var jobId = await SeedEmailLogAsync(EmailLogOutcome.PermanentlyFailed);
+		var jobId = await _SeedEmailLogAsync(EmailLogOutcome.PermanentlyFailed);
 		try {
-			await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+			await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
 			var writer = scope.ServiceProvider.GetRequiredService<IEmailLogWriter>();
 
 			var result = await writer.ApplyProviderEvidenceAsync(new ApplyProviderEvidenceEmailLogArgs {
@@ -141,25 +141,25 @@ public sealed class EmailLogWriterSpec : IClassFixture<ApiFixture> {
 				"terminal local outcomes do not reverse — only the narrow §4.4 edges apply"
 			);
 
-			await using var verify = await CreateFreshDbContextAsync();
-			var row = await SingleLogAsync(verify, jobId);
+			await using var verify = await _CreateFreshDbContextAsync();
+			var row = await _SingleLogAsync(verify, jobId);
 			row.Outcome.Should().Be(EmailLogOutcome.PermanentlyFailed,
 				"a rejected edge affects zero rows");
 			var hasEvidence = await verify.EmailLogEvidenceEvent
 				.AnyAsync(e => e.EmailLog != null && e.EmailLog.JobId == jobId);
 			hasEvidence.Should().BeFalse("a rejected edge writes no evidence either");
 		} finally {
-			await CleanupAsync(jobId);
+			await _CleanupAsync(jobId);
 		}
 	}
 
 	[Fact]
 	public async Task ItShouldRejectAReplayedProviderEventIdWithItsCauseInPlainWords() {
-		var firstJobId = await SeedEmailLogAsync(EmailLogOutcome.LegacySubmissionUnverified);
-		var secondJobId = await SeedEmailLogAsync(EmailLogOutcome.LegacySubmissionUnverified);
+		var firstJobId = await _SeedEmailLogAsync(EmailLogOutcome.LegacySubmissionUnverified);
+		var secondJobId = await _SeedEmailLogAsync(EmailLogOutcome.LegacySubmissionUnverified);
 		try {
 			var sharedEventId = $"evt-shared-{firstJobId:N}";
-			await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+			await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
 			var writer = scope.ServiceProvider.GetRequiredService<IEmailLogWriter>();
 
 			var first = await writer.ApplyProviderEvidenceAsync(new ApplyProviderEvidenceEmailLogArgs {
@@ -195,8 +195,8 @@ public sealed class EmailLogWriterSpec : IClassFixture<ApiFixture> {
 			rejected.Reason.Should().Contain(sharedEventId,
 				"the cause names the replayed correlation id");
 
-			await using var verify = await CreateFreshDbContextAsync();
-			var secondRow = await SingleLogAsync(verify, secondJobId);
+			await using var verify = await _CreateFreshDbContextAsync();
+			var secondRow = await _SingleLogAsync(verify, secondJobId);
 			secondRow.Outcome.Should().Be(EmailLogOutcome.LegacySubmissionUnverified,
 				"the replayed event must not transition its target");
 			var firstJobEvidence = await verify.EmailLogEvidenceEvent
@@ -204,8 +204,8 @@ public sealed class EmailLogWriterSpec : IClassFixture<ApiFixture> {
 			firstJobEvidence.Should().Be(1,
 				"the replay inserted no duplicate evidence row");
 		} finally {
-			await CleanupAsync(firstJobId);
-			await CleanupAsync(secondJobId);
+			await _CleanupAsync(firstJobId);
+			await _CleanupAsync(secondJobId);
 		}
 	}
 
@@ -213,7 +213,7 @@ public sealed class EmailLogWriterSpec : IClassFixture<ApiFixture> {
 	public async Task ItShouldRefuseAnEmptyActorBeforeAnyDatabaseWriteWhenDrivenThroughTheRealWriterPath() {
 		var jobId = Guid.NewGuid();
 
-		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
 		var writer = scope.ServiceProvider.GetRequiredService<IEmailLogWriter>();
 
 		// The writer path itself refuses an unnamed author: building the args record —
@@ -236,7 +236,7 @@ public sealed class EmailLogWriterSpec : IClassFixture<ApiFixture> {
 		ex.Which.Message.Should().Contain("id is required",
 			"the refusal names what is missing: the author's correlation id");
 
-		await using var verify = await CreateFreshDbContextAsync();
+		await using var verify = await _CreateFreshDbContextAsync();
 		var hasEvidence = await verify.EmailLogEvidenceEvent
 			.AnyAsync(e => e.EmailLog != null && e.EmailLog.JobId == jobId);
 		hasEvidence.Should().BeFalse("the refusal happened before any database write");
@@ -246,7 +246,7 @@ public sealed class EmailLogWriterSpec : IClassFixture<ApiFixture> {
 	public async Task ItShouldReportUnknownTargetWhenNoEmailLogRowMatches() {
 		var missingJobId = Guid.NewGuid();
 
-		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
 		var writer = scope.ServiceProvider.GetRequiredService<IEmailLogWriter>();
 
 		var result = await writer.ApplyProviderEvidenceAsync(new ApplyProviderEvidenceEmailLogArgs {
@@ -263,9 +263,9 @@ public sealed class EmailLogWriterSpec : IClassFixture<ApiFixture> {
 
 	// --- helpers ------------------------------------------------------------------
 
-	private async Task<Guid> SeedEmailLogAsync(EmailLogOutcome outcome) {
+	private async Task<Guid> _SeedEmailLogAsync(EmailLogOutcome outcome) {
 		var jobId = Guid.NewGuid();
-		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		dbContext.EmailLog.Add(new EmailLog {
@@ -280,23 +280,23 @@ public sealed class EmailLogWriterSpec : IClassFixture<ApiFixture> {
 		return jobId;
 	}
 
-	private async Task<AppDbContext> CreateFreshDbContextAsync() {
-		var scope = _fixture.Factory.Services.CreateAsyncScope();
+	private async Task<AppDbContext> _CreateFreshDbContextAsync() {
+		var scope = _Fixture.Factory.Services.CreateAsyncScope();
 		return scope.ServiceProvider.GetRequiredService<AppDbContext>();
 	}
 
-	private static async Task<EmailLog> SingleLogAsync(AppDbContext dbContext, Guid jobId) {
+	private static async Task<EmailLog> _SingleLogAsync(AppDbContext dbContext, Guid jobId) {
 		return await dbContext.EmailLog
 			.AsNoTracking()
 			.SingleAsync(e => e.JobId == jobId);
 	}
 
-	private static async Task<long> CountAuditLogsAsync(AppDbContext dbContext) {
+	private static async Task<long> _CountAuditLogsAsync(AppDbContext dbContext) {
 		return await dbContext.AuditLog.LongCountAsync();
 	}
 
-	private async Task CleanupAsync(Guid jobId) {
-		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+	private async Task _CleanupAsync(Guid jobId) {
+		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 		await dbContext.EmailLog
 			.Where(e => e.JobId == jobId)

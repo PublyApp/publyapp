@@ -33,14 +33,14 @@ public sealed class HandlerParameterOrderGuardSpec {
 	}
 
 	/// <summary>
-	/// Allowlist for pre-existing handlers whose parameter order does not yet
+	/// _Allowlist for pre-existing handlers whose parameter order does not yet
 	/// match the canonical shape. This is intentionally EMPTY: the #538 triage
 	/// already fixed the previously known violations
 	/// (<c>CreateStaffInvitation</c> and
 	/// <c>AssignTenantProfilePermissionAsStaff</c>). New violations must never
 	/// be added here; they must be fixed instead.
 	/// </summary>
-	private static readonly HashSet<string> Allowlist = new(
+	private static readonly HashSet<string> _Allowlist = new(
 		StringComparer.Ordinal
 	) {
 		// Zero entries — the guard is strict by design.
@@ -87,10 +87,10 @@ public sealed class HandlerParameterOrderGuardSpec {
 					?? method.DeclaringType?.Name
 					?? "<unknown>"
 			))
-			.Where(entry => !Allowlist.Contains(entry.HandlerName))
+			.Where(entry => !_Allowlist.Contains(entry.HandlerName))
 			.Select(entry => (
 				entry.HandlerName,
-				Violation: FindParameterOrderViolation(entry.Method)
+				Violation: _FindParameterOrderViolation(entry.Method)
 			))
 			.Where(entry => entry.Violation is not null)
 			.Select(entry => $"{entry.HandlerName}: {entry.Violation}")
@@ -112,7 +112,7 @@ public sealed class HandlerParameterOrderGuardSpec {
 		// must be a tracked, justified baseline. This fact asserts the
 		// zero-entry invariant explicitly so a reviewer cannot miss a new
 		// entry that slipped in without discussion.
-		_ = Allowlist.Should().BeEmpty(
+		_ = _Allowlist.Should().BeEmpty(
 			"the parameter-order allowlist must remain empty; all handlers "
 			+ "must conform to the canonical group order. If a pre-existing "
 			+ "violation is found, fix it rather than adding it here."
@@ -135,12 +135,12 @@ public sealed class HandlerParameterOrderGuardSpec {
 	//
 	// A violation occurs when any parameter's group number is less than the
 	// group number of a parameter that appeared earlier in the list.
-	private static string? FindParameterOrderViolation(MethodInfo method) {
+	private static string? _FindParameterOrderViolation(MethodInfo method) {
 		var parameters = method.GetParameters();
 		var classified = parameters
 			.Select(parameter => (
 				Parameter: parameter,
-				Group: ClassifyGroup(parameter)
+				Group: _ClassifyGroup(parameter)
 			))
 			.ToList();
 
@@ -163,9 +163,9 @@ public sealed class HandlerParameterOrderGuardSpec {
 			if (group < maxGroupSeen) {
 				var (prevParam, prevGroup) = classified[index - 1];
 				return $"parameter '{parameter.Name}' (group {group} = "
-					+ $"{GroupName(group)}) appears after "
+					+ $"{_GroupName(group)}) appears after "
 					+ $"'{prevParam.Name}' (group {prevGroup} = "
-					+ $"{GroupName(prevGroup)}); expected order is "
+					+ $"{_GroupName(prevGroup)}); expected order is "
 					+ "[FromRoute] → [AsParameters] → [FromBody] → "
 					+ "[FromServices] → CancellationToken.";
 			}
@@ -179,13 +179,13 @@ public sealed class HandlerParameterOrderGuardSpec {
 	}
 
 	// Assigns a canonical group number to a Handle method parameter.
-	private static int ClassifyGroup(ParameterInfo parameter) {
+	private static int _ClassifyGroup(ParameterInfo parameter) {
 		// CancellationToken is handled separately (must be last).
 		if (parameter.ParameterType == typeof(CancellationToken)) {
 			return 5;
 		}
 
-		if (HasAttribute<FromServicesAttribute>(parameter)) {
+		if (_HasAttribute<FromServicesAttribute>(parameter)) {
 			return 4;
 		}
 
@@ -194,19 +194,19 @@ public sealed class HandlerParameterOrderGuardSpec {
 		// without an explicit [FromServices] attribute. They behave like group-4
 		// parameters and must therefore not be classified as route-level (group 1)
 		// to avoid false positives when they follow [AsParameters] or [FromBody].
-		if (IsSpecialMinimalApiParameter(parameter.ParameterType)) {
+		if (_IsSpecialMinimalApiParameter(parameter.ParameterType)) {
 			return 4;
 		}
 
-		if (HasAttribute<FromBodyAttribute>(parameter)) {
+		if (_HasAttribute<FromBodyAttribute>(parameter)) {
 			return 3;
 		}
 
-		if (HasAttribute<AsParametersAttribute>(parameter)) {
+		if (_HasAttribute<AsParametersAttribute>(parameter)) {
 			return 2;
 		}
 
-		if (HasAttribute<FromRouteAttribute>(parameter)) {
+		if (_HasAttribute<FromRouteAttribute>(parameter)) {
 			return 1;
 		}
 
@@ -218,15 +218,15 @@ public sealed class HandlerParameterOrderGuardSpec {
 		// service-like dependencies (group 4), which avoids false positives for
 		// DI-injected types like ILogger<T> that are intentionally omitted from
 		// [FromServices].
-		return IsUnannotatedScalarBindableType(parameter.ParameterType)
+		return _IsUnannotatedScalarBindableType(parameter.ParameterType)
 			? 1
 			: 4;
 	}
 
-	private static bool IsUnannotatedScalarBindableType(Type type) {
+	private static bool _IsUnannotatedScalarBindableType(Type type) {
 		if (type.IsGenericType
 			&& type.GetGenericTypeDefinition() == typeof(Nullable<>)) {
-			return IsUnannotatedScalarBindableType(
+			return _IsUnannotatedScalarBindableType(
 				type.GetGenericArguments()[0]
 			);
 		}
@@ -248,7 +248,7 @@ public sealed class HandlerParameterOrderGuardSpec {
 	// are automatically resolved by the framework at the HTTP-infrastructure
 	// level without requiring an explicit [FromServices] attribute.
 	// Source: https://learn.microsoft.com/en-us/aspnet/core/fundamentals/minimal-apis/parameter-binding
-	private static bool IsSpecialMinimalApiParameter(Type type) {
+	private static bool _IsSpecialMinimalApiParameter(Type type) {
 		return type == typeof(HttpContext)
 			|| type == typeof(HttpRequest)
 			|| type == typeof(HttpResponse)
@@ -257,7 +257,7 @@ public sealed class HandlerParameterOrderGuardSpec {
 			|| type == typeof(IFormFileCollection);
 	}
 
-	private static string GroupName(int group) {
+	private static string _GroupName(int group) {
 		return group switch {
 			1 => "[FromRoute]",
 			2 => "[AsParameters]",
@@ -268,7 +268,7 @@ public sealed class HandlerParameterOrderGuardSpec {
 		};
 	}
 
-	private static bool HasAttribute<TAttribute>(ParameterInfo parameter)
+	private static bool _HasAttribute<TAttribute>(ParameterInfo parameter)
 		where TAttribute : Attribute {
 		return parameter.IsDefined(typeof(TAttribute), inherit: false);
 	}

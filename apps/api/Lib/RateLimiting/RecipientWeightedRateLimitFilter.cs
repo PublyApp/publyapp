@@ -10,16 +10,16 @@ internal sealed class RecipientWeightedRateLimitFilter<
 	TRequest
 > : IEndpointFilter
 	where TRequest : class {
-	private readonly string _policyName;
+	private readonly string _PolicyName;
 	private readonly Func<TRequest, int>
-		_getRecipientCount;
+		_GetRecipientCount;
 
 	public RecipientWeightedRateLimitFilter(
 		string policyName,
 		Func<TRequest, int> getRecipientCount
 	) {
-		_policyName = policyName;
-		_getRecipientCount = getRecipientCount;
+		_PolicyName = policyName;
+		_GetRecipientCount = getRecipientCount;
 	}
 
 	public async ValueTask<object?> InvokeAsync(
@@ -32,13 +32,13 @@ internal sealed class RecipientWeightedRateLimitFilter<
 		if (request is null) {
 			throw new InvalidOperationException(
 				$"Recipient-weighted policy "
-					+ $"'{_policyName}' could not find "
+					+ $"'{_PolicyName}' could not find "
 					+ $"body {typeof(TRequest).Name}"
 			);
 		}
 
 		var recipientCount =
-			_getRecipientCount(request);
+			_GetRecipientCount(request);
 		if (recipientCount < 0) {
 			throw new InvalidOperationException(
 				"Recipient count cannot be negative"
@@ -56,7 +56,7 @@ internal sealed class RecipientWeightedRateLimitFilter<
 			.GetRequiredService<ApiRateLimiterStore>();
 		using var limiter =
 			store.CreateRecipientWeighted(
-				_policyName,
+				_PolicyName,
 				context.HttpContext
 			);
 		using var lease = await limiter.AcquireAsync(

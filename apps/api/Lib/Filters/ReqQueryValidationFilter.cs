@@ -13,13 +13,13 @@ using PublyApp.Api.Localization;
 namespace PublyApp.Api.Lib.Filters;
 
 public class ReqQueryValidationFilter<TRequest> : IEndpointFilter where TRequest : class {
-	private readonly IValidator<TRequest> _validator;
+	private readonly IValidator<TRequest> _Validator;
 	private static readonly Lazy<IReadOnlyDictionary<string, string>>
-		QueryParameterNames =
-			new(BuildQueryParameterNames);
+		_QueryParameterNames =
+			new(_BuildQueryParameterNames);
 
 	public ReqQueryValidationFilter(IValidator<TRequest> validator) {
-		_validator = validator;
+		_Validator = validator;
 	}
 
 	public async ValueTask<object?> InvokeAsync(
@@ -34,7 +34,7 @@ public class ReqQueryValidationFilter<TRequest> : IEndpointFilter where TRequest
 		// No matching query argument -> fail validation
 		if (found is null) {
 			var empty = (TRequest)RuntimeHelpers.GetUninitializedObject(typeof(TRequest));
-			var resultDefault = await _validator.ValidateAsync(
+			var resultDefault = await _Validator.ValidateAsync(
 				empty,
 				context.HttpContext.RequestAborted
 			);
@@ -43,7 +43,7 @@ public class ReqQueryValidationFilter<TRequest> : IEndpointFilter where TRequest
 				return TypedProblems.ValidationProblem(
 					"Query parameters validation failed",
 					ResponseKeys.QueryParametersValidationFailed,
-					ToQueryErrorDictionary(resultDefault)
+					_ToQueryErrorDictionary(resultDefault)
 				);
 			}
 
@@ -52,20 +52,20 @@ public class ReqQueryValidationFilter<TRequest> : IEndpointFilter where TRequest
 
 		// Get the query parameters and bind them to the request model
 		var request = context.GetArgument<TRequest>(idx);
-		var result = await _validator.ValidateAsync(request, context.HttpContext.RequestAborted);
+		var result = await _Validator.ValidateAsync(request, context.HttpContext.RequestAborted);
 
 		if (!result.IsValid) {
 			return TypedProblems.ValidationProblem(
 				"Query parameters validation failed",
 				ResponseKeys.QueryParametersValidationFailed,
-				ToQueryErrorDictionary(result)
+				_ToQueryErrorDictionary(result)
 			);
 		}
 
 		return await next(context);
 	}
 
-	private static Dictionary<string, string[]> ToQueryErrorDictionary(
+	private static Dictionary<string, string[]> _ToQueryErrorDictionary(
 		ValidationResult result
 	) {
 		var grouped = new Dictionary<string, List<string>>();
@@ -75,7 +75,7 @@ public class ReqQueryValidationFilter<TRequest> : IEndpointFilter where TRequest
 			// while Custom failures may already use wire keys.
 			// Map known FromQuery names to RFC 7807 error keys
 			// and leave explicit keys unchanged.
-			var key = MapPropertyName(error.PropertyName);
+			var key = _MapPropertyName(error.PropertyName);
 			if (!grouped.TryGetValue(key, out var messages)) {
 				messages = [];
 				grouped[key] = messages;
@@ -89,8 +89,8 @@ public class ReqQueryValidationFilter<TRequest> : IEndpointFilter where TRequest
 		);
 	}
 
-	private static string MapPropertyName(string propertyName) {
-		if (QueryParameterNames.Value.TryGetValue(
+	private static string _MapPropertyName(string propertyName) {
+		if (_QueryParameterNames.Value.TryGetValue(
 			propertyName,
 			out var queryName
 		)) {
@@ -101,7 +101,7 @@ public class ReqQueryValidationFilter<TRequest> : IEndpointFilter where TRequest
 	}
 
 	private static IReadOnlyDictionary<string, string>
-		BuildQueryParameterNames() {
+		_BuildQueryParameterNames() {
 		var names = new Dictionary<string, string>();
 
 		foreach (var property in typeof(TRequest)

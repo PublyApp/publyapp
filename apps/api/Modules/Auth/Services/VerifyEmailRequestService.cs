@@ -1,10 +1,11 @@
+using Microsoft.EntityFrameworkCore;
+
 using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Infrastructure.Jobs;
 using PublyApp.Api.Lib;
-using PublyApp.Api.Lib.Utils;
 using PublyApp.Api.Lib.DI;
+using PublyApp.Api.Lib.Utils;
 using PublyApp.Api.Modules.Auth.Jobs;
-using Microsoft.EntityFrameworkCore;
 
 namespace PublyApp.Api.Modules.Auth.Services;
 
@@ -23,27 +24,27 @@ public interface IVerifyEmailRequestService {
 
 [Service(ServiceLifetime.Scoped)]
 public sealed class VerifyEmailRequestService : IVerifyEmailRequestService {
-	private readonly AppDbContext _dbContext;
-	private readonly IJobEnqueuer _jobEnqueuer;
+	private readonly AppDbContext _DbContext;
+	private readonly IJobEnqueuer _JobEnqueuer;
 
 	public VerifyEmailRequestService(
 		AppDbContext dbContext,
 		IJobEnqueuer jobEnqueuer
 	) {
-		_dbContext = dbContext;
-		_jobEnqueuer = jobEnqueuer;
+		_DbContext = dbContext;
+		_JobEnqueuer = jobEnqueuer;
 	}
 
 	public async Task<VerifyEmailRequestServiceResult> RequestAsync(
 		string email,
 		CancellationToken cancellationToken = default
 	) {
-		await using var transaction = await _dbContext.Database.BeginTransactionAsync(cancellationToken);
+		await using var transaction = await _DbContext.Database.BeginTransactionAsync(cancellationToken);
 
 		var normalizedEmail = email.Trim().ToLowerInvariant();
 
 		var user = await (
-			from candidate in _dbContext.User
+			from candidate in _DbContext.User
 			where candidate.Email == normalizedEmail && !candidate.IsDeleted
 			select candidate
 		).FirstOrDefaultAsync(cancellationToken);
@@ -68,10 +69,10 @@ public sealed class VerifyEmailRequestService : IVerifyEmailRequestService {
 		if (!hasLiveToken) {
 			user.EmailVerifyToken = CryptoUtils.RandomString(env.EMAIL_VERIFY_TOKEN_LENGTH);
 			user.EmailVerifyTokenExpiresAt = now.AddDays(env.EMAIL_VERIFY_TOKEN_VALIDITY_DURATION);
-			await _dbContext.SaveChangesAsync(cancellationToken);
+			await _DbContext.SaveChangesAsync(cancellationToken);
 		}
 
-		await _jobEnqueuer.EnqueueAsync(
+		await _JobEnqueuer.EnqueueAsync(
 			AuthEmailJobs.VerifyEmailV1,
 			new VerifyEmailPayload {
 				UserId = user.GetRequiredId(),

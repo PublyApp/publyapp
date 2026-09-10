@@ -21,13 +21,13 @@ namespace PublyApp.Api.Infrastructure.Jobs;
 /// non-pooled so a broken LISTEN socket never poisons the shared pool.
 /// </summary>
 public sealed class JobQueueListener : BackgroundService {
-	private const string Channel = "job_queue";
-	private static readonly TimeSpan ReconnectDelay = TimeSpan.FromSeconds(5);
+	private const string _Channel = "job_queue";
+	private static readonly TimeSpan _ReconnectDelay = TimeSpan.FromSeconds(5);
 
-	private readonly IJobQueueSignal _signal;
-	private readonly JobsMetrics _metrics;
-	private readonly ILogger<JobQueueListener> _logger;
-	private readonly string _connectionString;
+	private readonly IJobQueueSignal _Signal;
+	private readonly JobsMetrics _Metrics;
+	private readonly ILogger<JobQueueListener> _Logger;
+	private readonly string _ConnectionString;
 
 	public JobQueueListener(
 		IJobQueueSignal signal,
@@ -35,16 +35,16 @@ public sealed class JobQueueListener : BackgroundService {
 		SchedulerLeaderOptions options,
 		ILogger<JobQueueListener> logger
 	) {
-		_signal = signal;
-		_metrics = metrics;
-		_logger = logger;
+		_Signal = signal;
+		_Metrics = metrics;
+		_Logger = logger;
 
 		// A dedicated, non-pooled connection: a long-lived LISTEN must never borrow from
 		// (or break) the request/DbContext pool.
 		var builder = new NpgsqlConnectionStringBuilder(options.ConnectionString) {
 			Pooling = false
 		};
-		_connectionString = builder.ConnectionString;
+		_ConnectionString = builder.ConnectionString;
 	}
 
 	protected override async Task ExecuteAsync(CancellationToken stoppingToken) {
@@ -53,20 +53,20 @@ public sealed class JobQueueListener : BackgroundService {
 		while (!stoppingToken.IsCancellationRequested) {
 			// Every (re)connect after the first is counted as a reconnect (§7.1).
 			if (!firstAttempt) {
-				_metrics.ListenerReconnect();
+				_Metrics.ListenerReconnect();
 			}
 
 			firstAttempt = false;
 
 			try {
-				await ListenLoopAsync(stoppingToken);
+				await _ListenLoopAsync(stoppingToken);
 			} catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested) {
 				break;
 			} catch (Exception ex) {
-				_logger.LogWarning(ex, "job_queue listener connection failed; reconnecting");
+				_Logger.LogWarning(ex, "job_queue listener connection failed; reconnecting");
 
 				try {
-					await Task.Delay(ReconnectDelay, stoppingToken);
+					await Task.Delay(_ReconnectDelay, stoppingToken);
 				} catch (OperationCanceledException) {
 					break;
 				}
@@ -76,20 +76,20 @@ public sealed class JobQueueListener : BackgroundService {
 
 	// One connected lifetime: open, LISTEN, fire a catch-up wake, then block on
 	// notifications until the connection drops or shutdown is requested.
-	private async Task ListenLoopAsync(CancellationToken stoppingToken) {
-		await using var connection = new NpgsqlConnection(_connectionString);
+	private async Task _ListenLoopAsync(CancellationToken stoppingToken) {
+		await using var connection = new NpgsqlConnection(_ConnectionString);
 		await connection.OpenAsync(stoppingToken);
 
-		connection.Notification += OnNotification;
+		connection.Notification += _OnNotification;
 
 		try {
-			await using (var command = new NpgsqlCommand($"LISTEN {Channel}", connection)) {
+			await using (var command = new NpgsqlCommand($"LISTEN {_Channel}", connection)) {
 				await command.ExecuteNonQueryAsync(stoppingToken);
 			}
 
 			// Catch-up (§5.5 (b)): anything committed while we were disconnected is
 			// covered by one immediate wake — the processor queries for due rows anyway.
-			_signal.Notify();
+			_Signal.Notify();
 
 			while (!stoppingToken.IsCancellationRequested) {
 				// Blocks until a NOTIFY arrives (raising the Notification event) or the
@@ -97,11 +97,11 @@ public sealed class JobQueueListener : BackgroundService {
 				await connection.WaitAsync(TimeSpan.FromSeconds(30), stoppingToken);
 			}
 		} finally {
-			connection.Notification -= OnNotification;
+			connection.Notification -= _OnNotification;
 		}
 	}
 
-	private void OnNotification(object sender, NpgsqlNotificationEventArgs args) {
-		_signal.Notify();
+	private void _OnNotification(object sender, NpgsqlNotificationEventArgs args) {
+		_Signal.Notify();
 	}
 }

@@ -49,21 +49,21 @@ public class FindStaffInvitationsQuery : CursorPaginatedQuery {
 
 public class FindStaffInvitationsQueryValidator : CursorPaginatedQueryValidator<FindStaffInvitationsQuery> {
 	// Source of truth: nameof() — rename-safe, no hardcoded strings to maintain.
-	private static readonly string[] AllowedStatuses = [
+	private static readonly string[] _AllowedStatuses = [
 		nameof(InvitationEffectiveStatus.Pending),
 		nameof(InvitationEffectiveStatus.Accepted),
 		nameof(InvitationEffectiveStatus.Expired),
 		nameof(InvitationEffectiveStatus.Revoked),
 	];
 
-	private static readonly HashSet<string> AllowedStatusSet =
-		new(AllowedStatuses, StringComparer.OrdinalIgnoreCase);
+	private static readonly HashSet<string> _AllowedStatusSet =
+		new(_AllowedStatuses, StringComparer.OrdinalIgnoreCase);
 
 	// Lowercased once at type init so the validation message matches the wire
 	// contract (lowercase tokens). Comparison itself stays case-insensitive via
 	// OrdinalIgnoreCase — ToLowerInvariant never runs on the request path.
-	private static readonly string AllowedStatusesDisplay =
-		string.Join(", ", AllowedStatuses.Select(s => s.ToLowerInvariant()).Order());
+	private static readonly string _AllowedStatusesDisplay =
+		string.Join(", ", _AllowedStatuses.Select(s => s.ToLowerInvariant()).Order());
 
 	public FindStaffInvitationsQueryValidator() {
 		RuleFor(x => x.Status)
@@ -78,9 +78,9 @@ public class FindStaffInvitationsQueryValidator : CursorPaginatedQueryValidator<
 				if (parts.Length == 0) {
 					return false;
 				}
-				return parts.All(p => p.Length > 0 && AllowedStatusSet.Contains(p));
+				return parts.All(p => p.Length > 0 && _AllowedStatusSet.Contains(p));
 			})
-			.WithMessage($"Status must be one of: {AllowedStatusesDisplay}");
+			.WithMessage($"Status must be one of: {_AllowedStatusesDisplay}");
 	}
 }
 

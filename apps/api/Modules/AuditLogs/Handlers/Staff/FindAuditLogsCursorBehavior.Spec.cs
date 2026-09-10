@@ -29,21 +29,21 @@ namespace PublyApp.Api.Modules.AuditLogs.Handlers.Staff;
 /// </summary>
 public sealed class FindAuditLogsCursorBehaviorSpec
 	: IClassFixture<ApiFixture> {
-	private readonly ApiFixture _fixture;
-	private readonly HttpClient _http;
-	private readonly TestAuthClient _authClient;
+	private readonly ApiFixture _Fixture;
+	private readonly HttpClient _Http;
+	private readonly TestAuthClient _AuthClient;
 
 	public FindAuditLogsCursorBehaviorSpec(ApiFixture fixture) {
-		_fixture = fixture;
-		_http = fixture.HttpClient;
-		_authClient = new TestAuthClient(_http);
+		_Fixture = fixture;
+		_Http = fixture.HttpClient;
+		_AuthClient = new TestAuthClient(_Http);
 	}
 
 	[Fact]
 	public async Task ItShouldWalkEveryCreatedAtPageWithoutOverlapOrGap() {
-		var token = await _authClient.LoginAsStaffAdminAsync();
+		var token = await _AuthClient.LoginAsStaffAdminAsync();
 		var staffUserId = await AuditLogTestHelper.GetUserIdByEmailAsync(
-			_fixture.Factory,
+			_Fixture.Factory,
 			SeedConstants.Staff.AdminEmail
 		);
 
@@ -60,7 +60,7 @@ public sealed class FindAuditLogsCursorBehaviorSpec
 			// different value (i=1). The tiebreaker (Id ascending) must
 			// determine the order of the two equal-key rows.
 			var createdAt = i == 1 ? baseDate.AddDays(1) : baseDate;
-			var id = await SeedAuditLogAtAsync(
+			var id = await _SeedAuditLogAtAsync(
 				staffUserId,
 				$"audit-walk-{i}-{Guid.NewGuid():N}",
 				createdAt
@@ -74,7 +74,7 @@ public sealed class FindAuditLogsCursorBehaviorSpec
 		// insertion-ordered, so stable OrderBy(CreatedAt) already matches
 		// ThenBy(Id) and removing the production tiebreaker leaves the test
 		// green. After the swap, the tiebreaker is actually exercised.
-		await SwapAuditLogIdsAsync(seededIds[0], seededIds[2]);
+		await _SwapAuditLogIdsAsync(seededIds[0], seededIds[2]);
 		(seededIds[0], seededIds[2]) = (seededIds[2], seededIds[0]);
 
 		var visitedIds = new List<Guid>();
@@ -92,7 +92,7 @@ public sealed class FindAuditLogsCursorBehaviorSpec
 				HttpMethod.Get, url
 			).WithSessionToken(token);
 
-			using var response = await _http.SendAsync(request);
+			using var response = await _Http.SendAsync(request);
 			response.StatusCode.Should().Be(HttpStatusCode.OK);
 
 			var page = await response.Content
@@ -139,7 +139,7 @@ public sealed class FindAuditLogsCursorBehaviorSpec
 
 	[Fact]
 	public async Task ItShouldReturnBadRequestWhenCursorRecordIsMissing() {
-		var token = await _authClient.LoginAsStaffAdminAsync();
+		var token = await _AuthClient.LoginAsStaffAdminAsync();
 
 		var url = AuditLogTestHelper.GetFindUrl(
 			cursor: Guid.NewGuid().ToString()
@@ -148,7 +148,7 @@ public sealed class FindAuditLogsCursorBehaviorSpec
 			HttpMethod.Get, url
 		).WithSessionToken(token);
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 
 		response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
 
@@ -161,7 +161,7 @@ public sealed class FindAuditLogsCursorBehaviorSpec
 
 	[Fact]
 	public async Task ItShouldAcceptAnUppercaseSortId() {
-		var token = await _authClient.LoginAsStaffAdminAsync();
+		var token = await _AuthClient.LoginAsStaffAdminAsync();
 
 		var url = AuditLogTestHelper.GetFindUrl(
 			limit: 5,
@@ -171,19 +171,19 @@ public sealed class FindAuditLogsCursorBehaviorSpec
 			HttpMethod.Get, url
 		).WithSessionToken(token);
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 
 		// The handler dictionary resolves keys case-insensitively; an
 		// ordinal-sensitive lookup would turn this into a 400.
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
 	}
 
-	private async Task<Guid> SeedAuditLogAtAsync(
+	private async Task<Guid> _SeedAuditLogAtAsync(
 		Guid userId,
 		string action,
 		DateTime createdAt
 	) {
-		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>();
 
@@ -211,8 +211,8 @@ public sealed class FindAuditLogsCursorBehaviorSpec
 		return id;
 	}
 
-	private async Task SwapAuditLogIdsAsync(Guid idA, Guid idB) {
-		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+	private async Task _SwapAuditLogIdsAsync(Guid idA, Guid idB) {
+		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>();
 		var temp = Guid.NewGuid();

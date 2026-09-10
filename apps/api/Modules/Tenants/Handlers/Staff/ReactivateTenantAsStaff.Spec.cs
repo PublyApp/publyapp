@@ -24,26 +24,26 @@ namespace PublyApp.Api.Modules.Tenants.Handlers.Staff;
 public sealed class
 ReactivateTenantAsStaffSpec
 	: IClassFixture<ApiFixture> {
-	private readonly ApiFixture _fixture;
-	private readonly HttpClient _http;
-	private readonly TestAuthClient _authClient;
+	private readonly ApiFixture _Fixture;
+	private readonly HttpClient _Http;
+	private readonly TestAuthClient _AuthClient;
 
 	public ReactivateTenantAsStaffSpec(
 		ApiFixture fixture
 	) {
-		_fixture = fixture;
-		_http = fixture.HttpClient;
-		_authClient = new TestAuthClient(_http);
+		_Fixture = fixture;
+		_Http = fixture.HttpClient;
+		_AuthClient = new TestAuthClient(_Http);
 	}
 
 	[Fact]
 	public async Task
 	ItShouldReturnOkWithActiveStatusForSuspendedTenant() {
 		var staffToken =
-			await _authClient.LoginAsStaffAdminAsync();
+			await _AuthClient.LoginAsStaffAdminAsync();
 		var tenantId =
 			await TenantTestHelper.GetTenantIdByNameAsync(
-				_http,
+				_Http,
 				staffToken,
 				SeedConstants.Tenants.AcmeName
 			);
@@ -51,7 +51,7 @@ ReactivateTenantAsStaffSpec
 		// Suspend first
 		using var suspendResponse =
 			await TenantTestHelper.SuspendTenantAsync(
-				_http, staffToken, tenantId
+				_Http, staffToken, tenantId
 			);
 		suspendResponse.StatusCode.Should()
 			.Be(HttpStatusCode.OK);
@@ -61,7 +61,7 @@ ReactivateTenantAsStaffSpec
 			using var response =
 				await TenantTestHelper
 					.ReactivateTenantAsync(
-						_http, staffToken, tenantId
+						_Http, staffToken, tenantId
 					);
 
 			response.StatusCode.Should()
@@ -83,7 +83,7 @@ ReactivateTenantAsStaffSpec
 				using var cleanup =
 					await TenantTestHelper
 						.ReactivateTenantAsync(
-							_http, staffToken, tenantId
+							_Http, staffToken, tenantId
 						);
 			} catch {
 				// Ignore — tenant may already be active
@@ -95,16 +95,16 @@ ReactivateTenantAsStaffSpec
 	public async Task
 	ItShouldWriteAuditLogWhenTenantReactivated() {
 		var staffToken =
-			await _authClient.LoginAsStaffAdminAsync();
+			await _AuthClient.LoginAsStaffAdminAsync();
 		var seededTenant =
-			await SeedTenantAsync(
+			await _SeedTenantAsync(
 				"Tenant Reactivate Audit",
 				TenantStatus.Suspended
 			);
 
 		using var response =
 			await TenantTestHelper.ReactivateTenantAsync(
-				_http,
+				_Http,
 				staffToken,
 				seededTenant.TenantId
 			);
@@ -112,7 +112,7 @@ ReactivateTenantAsStaffSpec
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.OK);
 
-		var auditLog = await GetLatestAuditLogAsync(
+		var auditLog = await _GetLatestAuditLogAsync(
 			AuditActions.TenantReactivated,
 			seededTenant.TenantId
 		);
@@ -123,7 +123,7 @@ ReactivateTenantAsStaffSpec
 			);
 		}
 
-		AssertReactivateAuditDetails(
+		_AssertReactivateAuditDetails(
 			auditLog,
 			expectedTenantName: seededTenant.Name
 		);
@@ -133,10 +133,10 @@ ReactivateTenantAsStaffSpec
 	public async Task
 	ItShouldReturnConflictForActiveTenant() {
 		var staffToken =
-			await _authClient.LoginAsStaffAdminAsync();
+			await _AuthClient.LoginAsStaffAdminAsync();
 		var tenantId =
 			await TenantTestHelper.GetTenantIdByNameAsync(
-				_http,
+				_Http,
 				staffToken,
 				SeedConstants.Tenants.TechStartName
 			);
@@ -144,7 +144,7 @@ ReactivateTenantAsStaffSpec
 		// Tenant starts active — reactivate should fail
 		using var response =
 			await TenantTestHelper.ReactivateTenantAsync(
-				_http, staffToken, tenantId
+				_Http, staffToken, tenantId
 			);
 
 		response.StatusCode.Should()
@@ -162,12 +162,12 @@ ReactivateTenantAsStaffSpec
 	public async Task
 	ItShouldReturnNotFoundForNonexistentTenant() {
 		var staffToken =
-			await _authClient.LoginAsStaffAdminAsync();
+			await _AuthClient.LoginAsStaffAdminAsync();
 		var randomId = Guid.NewGuid();
 
 		using var response =
 			await TenantTestHelper.ReactivateTenantAsync(
-				_http, staffToken, randomId
+				_Http, staffToken, randomId
 			);
 
 		response.StatusCode.Should()
@@ -185,10 +185,10 @@ ReactivateTenantAsStaffSpec
 	public async Task
 	ItShouldReturnUnauthorizedWithoutAuth() {
 		var staffToken =
-			await _authClient.LoginAsStaffAdminAsync();
+			await _AuthClient.LoginAsStaffAdminAsync();
 		var tenantId =
 			await TenantTestHelper.GetTenantIdByNameAsync(
-				_http,
+				_Http,
 				staffToken,
 				SeedConstants.Tenants.AcmeName
 			);
@@ -199,7 +199,7 @@ ReactivateTenantAsStaffSpec
 		);
 
 		using var response =
-			await _http.SendAsync(request);
+			await _Http.SendAsync(request);
 
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.Unauthorized);
@@ -209,10 +209,10 @@ ReactivateTenantAsStaffSpec
 	public async Task
 	ItShouldReturnForbiddenForTenantUser() {
 		var staffToken =
-			await _authClient.LoginAsStaffAdminAsync();
+			await _AuthClient.LoginAsStaffAdminAsync();
 		var tenantId =
 			await TenantTestHelper.GetTenantIdByNameAsync(
-				_http,
+				_Http,
 				staffToken,
 				SeedConstants.Tenants.AcmeName
 			);
@@ -220,14 +220,14 @@ ReactivateTenantAsStaffSpec
 		// Suspend first so reactivate is valid
 		using var suspend =
 			await TenantTestHelper.SuspendTenantAsync(
-				_http, staffToken, tenantId
+				_Http, staffToken, tenantId
 			);
 		suspend.StatusCode.Should().Be(HttpStatusCode.OK);
 
 		try {
 			// Login as tenant admin (not staff)
 			var tenantToken =
-				await _authClient.LoginAsync(
+				await _AuthClient.LoginAsync(
 					TestConstants.AcmeAdminEmail,
 					TestConstants.SeedPassword
 				);
@@ -240,7 +240,7 @@ ReactivateTenantAsStaffSpec
 			).WithSessionToken(tenantToken);
 
 			using var response =
-				await _http.SendAsync(request);
+				await _Http.SendAsync(request);
 
 			response.StatusCode.Should()
 				.Be(HttpStatusCode.Forbidden);
@@ -249,7 +249,7 @@ ReactivateTenantAsStaffSpec
 			using var cleanup =
 				await TenantTestHelper
 					.ReactivateTenantAsync(
-						_http, staffToken, tenantId
+						_Http, staffToken, tenantId
 			);
 		}
 	}
@@ -258,12 +258,12 @@ ReactivateTenantAsStaffSpec
 	public async Task
 	ItShouldReturnForbiddenForStaffWithoutPermission() {
 		var token =
-			await _authClient.LoginAsync(
+			await _AuthClient.LoginAsync(
 				TestConstants.StaffUserEmail,
 				TestConstants.SeedPassword
 			);
 		var seededTenant =
-			await SeedTenantAsync(
+			await _SeedTenantAsync(
 				"Tenant Reactivate Forbidden",
 				TenantStatus.Suspended
 			);
@@ -276,7 +276,7 @@ ReactivateTenantAsStaffSpec
 		).WithSessionToken(token);
 
 		using var response =
-			await _http.SendAsync(request);
+			await _Http.SendAsync(request);
 
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.Forbidden);
@@ -286,7 +286,7 @@ ReactivateTenantAsStaffSpec
 	public async Task
 	ItShouldReturnBadRequestForMalformedId() {
 		var staffToken =
-			await _authClient.LoginAsStaffAdminAsync();
+			await _AuthClient.LoginAsStaffAdminAsync();
 		var tempId = Guid.NewGuid();
 		var url = TenantTestHelper
 			.GetReactivateUrl(tempId)
@@ -302,7 +302,7 @@ ReactivateTenantAsStaffSpec
 		).WithSessionToken(staffToken);
 
 		using var response =
-			await _http.SendAsync(request);
+			await _Http.SendAsync(request);
 
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.BadRequest);
@@ -319,10 +319,10 @@ ReactivateTenantAsStaffSpec
 	public async Task
 	ItShouldSucceedFullSuspendReactivateCycle() {
 		var staffToken =
-			await _authClient.LoginAsStaffAdminAsync();
+			await _AuthClient.LoginAsStaffAdminAsync();
 		var tenantId =
 			await TenantTestHelper.GetTenantIdByNameAsync(
-				_http,
+				_Http,
 				staffToken,
 				SeedConstants.Tenants.GlobalName
 			);
@@ -330,7 +330,7 @@ ReactivateTenantAsStaffSpec
 		// Suspend
 		using var suspendResponse =
 			await TenantTestHelper.SuspendTenantAsync(
-				_http, staffToken, tenantId
+				_Http, staffToken, tenantId
 			);
 		suspendResponse.StatusCode.Should()
 			.Be(HttpStatusCode.OK);
@@ -344,7 +344,7 @@ ReactivateTenantAsStaffSpec
 		// Reactivate
 		using var reactivateResponse =
 			await TenantTestHelper.ReactivateTenantAsync(
-				_http, staffToken, tenantId
+				_Http, staffToken, tenantId
 			);
 		reactivateResponse.StatusCode.Should()
 			.Be(HttpStatusCode.OK);
@@ -368,12 +368,12 @@ ReactivateTenantAsStaffSpec
 		public string Status { get; init; } = string.Empty;
 	}
 
-	private async Task<SeededTenantSnapshot> SeedTenantAsync(
+	private async Task<SeededTenantSnapshot> _SeedTenantAsync(
 		string namePrefix,
 		TenantStatus status
 	) {
 		await using var scope =
-			_fixture.Factory.Services.CreateAsyncScope();
+			_Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>();
 
@@ -393,12 +393,12 @@ ReactivateTenantAsStaffSpec
 		);
 	}
 
-	private async Task<AuditLog?> GetLatestAuditLogAsync(
+	private async Task<AuditLog?> _GetLatestAuditLogAsync(
 		string action,
 		Guid targetId
 	) {
 		await using var scope =
-			_fixture.Factory.Services.CreateAsyncScope();
+			_Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>();
 
@@ -412,7 +412,7 @@ ReactivateTenantAsStaffSpec
 		return await query.FirstOrDefaultAsync();
 	}
 
-	private static void AssertReactivateAuditDetails(
+	private static void _AssertReactivateAuditDetails(
 		AuditLog auditLog,
 		string expectedTenantName
 	) {

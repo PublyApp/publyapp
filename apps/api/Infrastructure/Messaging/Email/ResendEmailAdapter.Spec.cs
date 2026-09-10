@@ -24,7 +24,7 @@ public sealed class ResendEmailAdapterSpec {
 		};
 		var adapter = new ResendEmailAdapter(fake);
 
-		var receipt = await adapter.SendAsync(Request(), "idem-key");
+		var receipt = await adapter.SendAsync(_Request(), "idem-key");
 
 		receipt.ProviderMessageId.Should().Be(messageId.ToString());
 	}
@@ -39,7 +39,7 @@ public sealed class ResendEmailAdapterSpec {
 		var fake = new FakeResendClient { ExceptionToThrow = providerError };
 		var adapter = new ResendEmailAdapter(fake);
 
-		var act = async () => await adapter.SendAsync(Request(), "idem-key");
+		var act = async () => await adapter.SendAsync(_Request(), "idem-key");
 
 		var thrown = await act.Should().ThrowAsync<EmailProviderPermanentException>();
 		thrown.Which.Code.Should().Be("provider_rejected:ValidationError:422");
@@ -61,7 +61,7 @@ public sealed class ResendEmailAdapterSpec {
 		};
 		var adapter = new ResendEmailAdapter(fake);
 
-		var act = async () => await adapter.SendAsync(Request(), "idem-key");
+		var act = async () => await adapter.SendAsync(_Request(), "idem-key");
 
 		var thrown = await act.Should().ThrowAsync<EmailProviderPermanentException>();
 		thrown.Which.Code.Should().Be("provider_rejected:ValidationError:422");
@@ -81,7 +81,7 @@ public sealed class ResendEmailAdapterSpec {
 		};
 		var adapter = new ResendEmailAdapter(fake);
 
-		var act = async () => await adapter.SendAsync(Request(), "idem-key");
+		var act = async () => await adapter.SendAsync(_Request(), "idem-key");
 
 		var thrown = await act.Should().ThrowAsync<EmailProviderTransientException>();
 		thrown.Which.Code.Should().Be("provider_rejected:ApplicationError:500");
@@ -107,7 +107,7 @@ public sealed class ResendEmailAdapterSpec {
 		};
 		var adapter = new ResendEmailAdapter(fake);
 
-		var act = async () => await adapter.SendAsync(Request(), "idem-key");
+		var act = async () => await adapter.SendAsync(_Request(), "idem-key");
 
 		var thrown = await act.Should().ThrowAsync<EmailProviderTransientException>();
 		thrown.Which.RetryAfter.Should().Be(TimeSpan.FromSeconds(17));
@@ -132,7 +132,7 @@ public sealed class ResendEmailAdapterSpec {
 		var fake = new FakeResendClient { Delay = TimeSpan.FromSeconds(30) };
 		var adapter = new ResendEmailAdapter(fake, TimeSpan.FromMilliseconds(50));
 
-		var act = async () => await adapter.SendAsync(Request(), "idem-key");
+		var act = async () => await adapter.SendAsync(_Request(), "idem-key");
 
 		var thrown = await act.Should().ThrowAsync<EmailProviderTransientException>();
 		thrown.Which.Code.Should().Be("provider_timeout");
@@ -149,10 +149,10 @@ public sealed class ResendEmailAdapterSpec {
 		};
 		var adapter = new ResendEmailAdapter(fake);
 
-		await adapter.SendAsync(Request(), "same-idem-key");
+		await adapter.SendAsync(_Request(), "same-idem-key");
 		fake.ProviderCallCount.Should().Be(1);
 
-		var act = async () => await adapter.SendAsync(Request(to: "different@example.com"), "same-idem-key");
+		var act = async () => await adapter.SendAsync(_Request(to: "different@example.com"), "same-idem-key");
 
 		var thrown = await act.Should().ThrowAsync<EmailProviderPermanentException>();
 		thrown.Which.Code.Should().Be("provider_rejected:InvalidIdempotentRequest:409");
@@ -173,15 +173,15 @@ public sealed class ResendEmailAdapterSpec {
 		var adapter = new ResendEmailAdapter(fake);
 
 		// First send with idempotency key
-		await adapter.SendAsync(Request(), "same-idem-key");
+		await adapter.SendAsync(_Request(), "same-idem-key");
 		fake.ProviderCallCount.Should().Be(1);
 
 		// Second send with same idempotency key - should be deduplicated
-		await adapter.SendAsync(Request(), "same-idem-key");
+		await adapter.SendAsync(_Request(), "same-idem-key");
 		fake.ProviderCallCount.Should().Be(1); // Still 1, not incremented
 
 		// Third send with a different idempotency key - must reach the provider again
-		await adapter.SendAsync(Request(), "other-idem-key");
+		await adapter.SendAsync(_Request(), "other-idem-key");
 		fake.ProviderCallCount.Should().Be(2);
 	}
 
@@ -197,10 +197,10 @@ public sealed class ResendEmailAdapterSpec {
 		};
 		var adapter = new ResendEmailAdapter(fake);
 
-		await adapter.SendAsync(Request(), "same-idem-key");
+		await adapter.SendAsync(_Request(), "same-idem-key");
 		fake.ProviderCallCount.Should().Be(1);
 
-		var act = async () => await adapter.SendAsync(Request(subject: "different subject"), "same-idem-key");
+		var act = async () => await adapter.SendAsync(_Request(subject: "different subject"), "same-idem-key");
 
 		var thrown = await act.Should().ThrowAsync<EmailProviderPermanentException>(
 			because: "the Subject field differs between the first send and the reuse of this key"
@@ -226,7 +226,7 @@ public sealed class ResendEmailAdapterSpec {
 		};
 		var adapter = new ResendEmailAdapter(fake);
 
-		await adapter.SendAsync(Request(), "idem-key");
+		await adapter.SendAsync(_Request(), "idem-key");
 
 		var message = fake.LastEmailMessage;
 		message.Should().NotBeNull("the adapter must have called EmailSendAsync with a message");
@@ -262,10 +262,10 @@ public sealed class ResendEmailAdapterSpec {
 		};
 		var adapter = new ResendEmailAdapter(fake);
 
-		await adapter.SendAsync(Request(), "same-idem-key");
+		await adapter.SendAsync(_Request(), "same-idem-key");
 		fake.ProviderCallCount.Should().Be(1);
 
-		var act = async () => await adapter.SendAsync(Request(htmlBody: "<p>different body</p>"), "same-idem-key");
+		var act = async () => await adapter.SendAsync(_Request(htmlBody: "<p>different body</p>"), "same-idem-key");
 
 		var thrown = await act.Should().ThrowAsync<EmailProviderPermanentException>(
 			because: "the HtmlBody field differs between the first send and the reuse of this key"
@@ -285,10 +285,10 @@ public sealed class ResendEmailAdapterSpec {
 		};
 		var adapter = new ResendEmailAdapter(fake);
 
-		await adapter.SendAsync(Request(), "same-idem-key");
+		await adapter.SendAsync(_Request(), "same-idem-key");
 		fake.ProviderCallCount.Should().Be(1);
 
-		var act = async () => await adapter.SendAsync(Request(from: "different@example.com"), "same-idem-key");
+		var act = async () => await adapter.SendAsync(_Request(from: "different@example.com"), "same-idem-key");
 
 		var thrown = await act.Should().ThrowAsync<EmailProviderPermanentException>(
 			because: "the From field differs between the first send and the reuse of this key"
@@ -297,7 +297,7 @@ public sealed class ResendEmailAdapterSpec {
 		fake.ProviderCallCount.Should().Be(1);
 	}
 
-	private static EmailRequest Request(
+	private static EmailRequest _Request(
 		string? to = null,
 		string? from = null,
 		string? subject = null,

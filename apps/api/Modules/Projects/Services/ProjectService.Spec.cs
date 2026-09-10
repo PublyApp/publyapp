@@ -15,16 +15,16 @@ namespace PublyApp.Api.Modules.Projects.Services;
 
 public sealed class ProjectServiceSpec
 	: IClassFixture<ApiFixture> {
-	private readonly ApiFixture _fixture;
+	private readonly ApiFixture _Fixture;
 
 	public ProjectServiceSpec(ApiFixture fixture) {
-		_fixture = fixture;
+		_Fixture = fixture;
 	}
 
 	[Fact]
 	public async Task
 	ItShouldSoftDeleteProjectWithoutChangingLifecycleStatusWhenDeleting() {
-		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		var tenantId = await dbContext.Tenant

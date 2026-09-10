@@ -7,7 +7,7 @@ using PublyApp.Api.Modules.Publishing.Jobs;
 namespace PublyApp.Api.Lib.Testing.Helpers;
 
 internal static class HealthTestHelper {
-	private static readonly string[] ForbiddenPublicBodySubstrings = [
+	private static readonly string[] _ForbiddenPublicBodySubstrings = [
 		"database_migrations",
 		"job_queue_drain",
 		"internal_registration_name",
@@ -36,7 +36,7 @@ internal static class HealthTestHelper {
 	};
 
 	public static void AssertPublicHealthBody(string body) {
-		foreach (var forbidden in ForbiddenPublicBodySubstrings) {
+		foreach (var forbidden in _ForbiddenPublicBodySubstrings) {
 			body.Contains(forbidden, StringComparison.OrdinalIgnoreCase).Should().BeFalse(
 				$"the complete public health body must not leak '{forbidden}'"
 			);

@@ -11,10 +11,10 @@ namespace PublyApp.Api.Lib.Filters;
 /// Sets AccountStaff in AuthContext after successful verification.
 /// </summary>
 public class StaffAuthFilter : IEndpointFilter {
-	private readonly ILogger<StaffAuthFilter> _logger;
+	private readonly ILogger<StaffAuthFilter> _Logger;
 
 	public StaffAuthFilter(ILogger<StaffAuthFilter> logger) {
-		_logger = logger;
+		_Logger = logger;
 	}
 
 	public async ValueTask<object?> InvokeAsync(
@@ -26,9 +26,9 @@ public class StaffAuthFilter : IEndpointFilter {
 		var accountService = httpContext.RequestServices.GetRequiredService<IAccountService>();
 
 		if (!authContext.IsAuthenticated) {
-			if (_logger.IsEnabled(LogLevel.Error)) {
-				_logger.LogError("Request userId or sessionToken is missing: {UserId}", authContext.UserId);
-				_logger.LogError(
+			if (_Logger.IsEnabled(LogLevel.Error)) {
+				_Logger.LogError("Request userId or sessionToken is missing: {UserId}", authContext.UserId);
+				_Logger.LogError(
 					"{SessionAuthFilter} must be passed before {StaffAuthFilter}",
 					nameof(SessionAuthFilter),
 					nameof(StaffAuthFilter)
@@ -46,8 +46,8 @@ public class StaffAuthFilter : IEndpointFilter {
 			.GetUserStaffAccountAsync(userId, httpContext.RequestAborted);
 
 		if (accountStaff is null) {
-			if (_logger.IsEnabled(LogLevel.Debug)) {
-				_logger.LogDebug("User is not a staff member: {UserId}", authContext.UserId);
+			if (_Logger.IsEnabled(LogLevel.Debug)) {
+				_Logger.LogDebug("User is not a staff member: {UserId}", authContext.UserId);
 			}
 			return TypedProblems.Forbidden("User is not a staff member", ResponseKeys.NotAStaffUser);
 		}

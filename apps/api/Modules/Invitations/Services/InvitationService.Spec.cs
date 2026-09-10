@@ -20,10 +20,10 @@ namespace PublyApp.Api.Modules.Invitations.Services;
 // one the service used) so the assertion proves real database persistence, not just
 // EF change tracking on the original context.
 public sealed class InvitationServiceJobEnqueueDurabilitySpec : IClassFixture<ApiFixture> {
-	private readonly ApiFixture _fixture;
+	private readonly ApiFixture _Fixture;
 
 	public InvitationServiceJobEnqueueDurabilitySpec(ApiFixture fixture) {
-		_fixture = fixture;
+		_Fixture = fixture;
 	}
 
 	[Fact]
@@ -31,10 +31,10 @@ public sealed class InvitationServiceJobEnqueueDurabilitySpec : IClassFixture<Ap
 		var email = $"staff-outbox-{Guid.NewGuid():N}@example.com";
 		Guid invitationId;
 
-		await using (var scope = _fixture.Factory.Services.CreateAsyncScope()) {
+		await using (var scope = _Fixture.Factory.Services.CreateAsyncScope()) {
 			var invitationService = scope.ServiceProvider.GetRequiredService<IInvitationService>();
-			var profileId = await SeedStaffProfileAsync(scope.ServiceProvider);
-			var inviterId = await SeedStaffUserAsync(scope.ServiceProvider);
+			var profileId = await _SeedStaffProfileAsync(scope.ServiceProvider);
+			var inviterId = await _SeedStaffUserAsync(scope.ServiceProvider);
 
 			var (invitation, _) = await invitationService.CreateStaffInvitationAsync(
 				new CreateStaffInvitationArgs(
@@ -49,8 +49,8 @@ public sealed class InvitationServiceJobEnqueueDurabilitySpec : IClassFixture<Ap
 
 		// Independent context: proves the job row is durably committed, not just
 		// tracked in-memory on the context the service used.
-		await using var verifyContext = await CreateFreshDbContextAsync();
-		var job = await SingleJobAsync(
+		await using var verifyContext = await _CreateFreshDbContextAsync();
+		var job = await _SingleJobAsync(
 			verifyContext,
 			"email.staff-invitation.v1",
 			invitationId
@@ -67,12 +67,12 @@ public sealed class InvitationServiceJobEnqueueDurabilitySpec : IClassFixture<Ap
 		var email = $"tenant-outbox-{Guid.NewGuid():N}@example.com";
 		Guid invitationId;
 
-		await using (var scope = _fixture.Factory.Services.CreateAsyncScope()) {
+		await using (var scope = _Fixture.Factory.Services.CreateAsyncScope()) {
 			var invitationService = scope.ServiceProvider.GetRequiredService<IInvitationService>();
 			var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
-			var tenantId = await SeedTenantAsync(dbContext);
-			var inviterId = await SeedStaffUserAsync(scope.ServiceProvider);
+			var tenantId = await _SeedTenantAsync(dbContext);
+			var inviterId = await _SeedStaffUserAsync(scope.ServiceProvider);
 
 			var result = await invitationService.CreateTenantInvitationAsync(
 				new CreateTenantInvitationArgs(
@@ -91,8 +91,8 @@ public sealed class InvitationServiceJobEnqueueDurabilitySpec : IClassFixture<Ap
 			invitationId = invitation.GetRequiredId();
 		}
 
-		await using var verifyContext = await CreateFreshDbContextAsync();
-		var job = await SingleJobAsync(
+		await using var verifyContext = await _CreateFreshDbContextAsync();
+		var job = await _SingleJobAsync(
 			verifyContext,
 			"email.tenant-invitation.v1",
 			invitationId
@@ -100,7 +100,7 @@ public sealed class InvitationServiceJobEnqueueDurabilitySpec : IClassFixture<Ap
 		job.Should().NotBeNull();
 	}
 
-	private static async Task<JobQueueItem?> SingleJobAsync(
+	private static async Task<JobQueueItem?> _SingleJobAsync(
 		AppDbContext dbContext,
 		string jobType,
 		Guid invitationId
@@ -111,10 +111,10 @@ public sealed class InvitationServiceJobEnqueueDurabilitySpec : IClassFixture<Ap
 			.ToListAsync();
 
 		return jobs
-			.SingleOrDefault(job => PayloadGuid(job.Payload, "invitationId") == invitationId);
+			.SingleOrDefault(job => _PayloadGuid(job.Payload, "invitationId") == invitationId);
 	}
 
-	private static Guid? PayloadGuid(string payload, string property) {
+	private static Guid? _PayloadGuid(string payload, string property) {
 		using var document = JsonDocument.Parse(payload);
 
 		if (document.RootElement.TryGetProperty(property, out var value)
@@ -125,8 +125,8 @@ public sealed class InvitationServiceJobEnqueueDurabilitySpec : IClassFixture<Ap
 		return null;
 	}
 
-	private async Task<AppDbContext> CreateFreshDbContextAsync() {
-		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+	private async Task<AppDbContext> _CreateFreshDbContextAsync() {
+		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
 		var connectionString = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>()
 			.Database.GetConnectionString();
@@ -142,7 +142,7 @@ public sealed class InvitationServiceJobEnqueueDurabilitySpec : IClassFixture<Ap
 		);
 	}
 
-	private static async Task<Guid> SeedStaffProfileAsync(IServiceProvider services) {
+	private static async Task<Guid> _SeedStaffProfileAsync(IServiceProvider services) {
 		var dbContext = services.GetRequiredService<AppDbContext>();
 		var profile = Modules.Profiles.Entities.Profile.CreateStaffProfile(
 			name: $"Outbox test profile {Guid.NewGuid():N}",
@@ -153,7 +153,7 @@ public sealed class InvitationServiceJobEnqueueDurabilitySpec : IClassFixture<Ap
 		return profile.GetRequiredId();
 	}
 
-	private static async Task<Guid> SeedStaffUserAsync(IServiceProvider services) {
+	private static async Task<Guid> _SeedStaffUserAsync(IServiceProvider services) {
 		var dbContext = services.GetRequiredService<AppDbContext>();
 		var user = new User {
 			Email = $"outbox-inviter-{Guid.NewGuid():N}@example.com",
@@ -168,7 +168,7 @@ public sealed class InvitationServiceJobEnqueueDurabilitySpec : IClassFixture<Ap
 		return user.GetRequiredId();
 	}
 
-	private static async Task<Guid> SeedTenantAsync(AppDbContext dbContext) {
+	private static async Task<Guid> _SeedTenantAsync(AppDbContext dbContext) {
 		var tenant = new Modules.Tenants.Entities.Tenant {
 			Name = $"Outbox test tenant {Guid.NewGuid():N}",
 			Code = Guid.NewGuid().ToString("N")[..10],

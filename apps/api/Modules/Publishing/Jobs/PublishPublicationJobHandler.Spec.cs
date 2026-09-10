@@ -27,14 +27,14 @@ namespace PublyApp.Api.Modules.Publishing.Jobs;
 // terminal-hook account flag. Also pins the trusted enqueue path: derived key,
 // in-flight dedup, mismatch rejection.
 public sealed class PublishPublicationJobHandlerSpec : IClassFixture<ApiFixture> {
-	private readonly ApiFixture _fixture;
+	private readonly ApiFixture _Fixture;
 
 	public PublishPublicationJobHandlerSpec(ApiFixture fixture) {
-		_fixture = fixture;
+		_Fixture = fixture;
 	}
 
-	private async Task<AppDbContext> NewDbAsync() {
-		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+	private async Task<AppDbContext> _NewDbAsync() {
+		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
 		var connectionString = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>()
 			.Database.GetConnectionString();
@@ -59,7 +59,7 @@ public sealed class PublishPublicationJobHandlerSpec : IClassFixture<ApiFixture>
 		string IdempotencyKey
 	);
 
-	private static async Task<SeededPublication> SeedAsync(
+	private static async Task<SeededPublication> _SeedAsync(
 		AppDbContext db,
 		PublicationStatus status
 	) {
@@ -121,7 +121,7 @@ public sealed class PublishPublicationJobHandlerSpec : IClassFixture<ApiFixture>
 		);
 	}
 
-	private static JobContext NewContext(
+	private static JobContext _NewContext(
 		PublishPublicationPayload payload,
 		int attempts = 0,
 		int maxAttempts = 3,
@@ -137,7 +137,7 @@ public sealed class PublishPublicationJobHandlerSpec : IClassFixture<ApiFixture>
 		};
 	}
 
-	private static PublishPublicationJobHandler NewHandler(
+	private static PublishPublicationJobHandler _NewHandler(
 		AppDbContext db,
 		IPublishProvider publishProvider,
 		ISocialSessionProvider sessionProvider
@@ -150,8 +150,8 @@ public sealed class PublishPublicationJobHandlerSpec : IClassFixture<ApiFixture>
 		);
 	}
 
-	// Extra publication on an existing account/tenant, mirroring SeedAsync's shape.
-	private static async Task<Guid> SeedSiblingAsync(
+	// Extra publication on an existing account/tenant, mirroring _SeedAsync's shape.
+	private static async Task<Guid> _SeedSiblingAsync(
 		AppDbContext db,
 		Guid tenantId,
 		Guid socialAccountId,
@@ -186,7 +186,7 @@ public sealed class PublishPublicationJobHandlerSpec : IClassFixture<ApiFixture>
 		return publication.GetRequiredId();
 	}
 
-	private static async Task<Guid> SeedSecondAccountAsync(
+	private static async Task<Guid> _SeedSecondAccountAsync(
 		AppDbContext db,
 		Guid tenantId
 	) {
@@ -201,7 +201,7 @@ public sealed class PublishPublicationJobHandlerSpec : IClassFixture<ApiFixture>
 		return account.GetRequiredId();
 	}
 
-	private static async Task<Publication> FreshPublicationAsync(
+	private static async Task<Publication> _FreshPublicationAsync(
 		AppDbContext db,
 		Guid publicationId
 	) {
@@ -212,18 +212,18 @@ public sealed class PublishPublicationJobHandlerSpec : IClassFixture<ApiFixture>
 
 	[Fact]
 	public async Task ItShouldPublishStampTheAccountLastSuccessAtAndStoreTheRecordLink() {
-		using var db = await NewDbAsync();
-		var seeded = await SeedAsync(db, PublicationStatus.Scheduled);
+		using var db = await _NewDbAsync();
+		var seeded = await _SeedAsync(db, PublicationStatus.Scheduled);
 		var recordUri = $"at://did:plc:x/app.bsky.feed.post/pub-{seeded.IdempotencyKey}";
 
 		var sessionProvider = FakeSessions.Opened();
 		var publishProvider = new FakePublishProvider(
 			new PublishResult.Published(recordUri, $"https://bsky.app/profile/x/post/{recordUri}")
 		);
-		var handler = NewHandler(db, publishProvider, sessionProvider);
+		var handler = _NewHandler(db, publishProvider, sessionProvider);
 
 		var outcome = await handler.HandleAsync(
-			NewContext(
+			_NewContext(
 				new PublishPublicationPayload {
 					PublicationId = seeded.PublicationId,
 					IdempotencyKey = seeded.IdempotencyKey,
@@ -247,8 +247,8 @@ public sealed class PublishPublicationJobHandlerSpec : IClassFixture<ApiFixture>
 
 	[Fact]
 	public async Task ItShouldTreatAlreadyExistsAsSuccessWithTheExistingRecordAndNoDuplicate() {
-		using var db = await NewDbAsync();
-		var seeded = await SeedAsync(db, PublicationStatus.Scheduled);
+		using var db = await _NewDbAsync();
+		var seeded = await _SeedAsync(db, PublicationStatus.Scheduled);
 
 		// Crash-after-create simulation: the remote record ALREADY exists under the
 		// deterministic key (previous attempt created it, then timed out). The retry
@@ -259,10 +259,10 @@ public sealed class PublishPublicationJobHandlerSpec : IClassFixture<ApiFixture>
 				"https://bsky.app/profile/x/post/existing"
 			)
 		);
-		var handler = NewHandler(db, publishProvider, FakeSessions.Opened());
+		var handler = _NewHandler(db, publishProvider, FakeSessions.Opened());
 
 		var outcome = await handler.HandleAsync(
-			NewContext(
+			_NewContext(
 				new PublishPublicationPayload {
 					PublicationId = seeded.PublicationId,
 					IdempotencyKey = seeded.IdempotencyKey,
@@ -285,15 +285,15 @@ public sealed class PublishPublicationJobHandlerSpec : IClassFixture<ApiFixture>
 
 	[Fact]
 	public async Task ItShouldFailWithoutRetryWhenBlueskyRefusesTheContent() {
-		using var db = await NewDbAsync();
-		var seeded = await SeedAsync(db, PublicationStatus.InProgress);
+		using var db = await _NewDbAsync();
+		var seeded = await _SeedAsync(db, PublicationStatus.InProgress);
 		var publishProvider = new FakePublishProvider(
 			new PublishResult.ContentFailure("the post body exceeds the 300 grapheme limit")
 		);
-		var handler = NewHandler(db, publishProvider, FakeSessions.Opened());
+		var handler = _NewHandler(db, publishProvider, FakeSessions.Opened());
 
 		var outcome = await handler.HandleAsync(
-			NewContext(
+			_NewContext(
 				new PublishPublicationPayload {
 					PublicationId = seeded.PublicationId,
 					IdempotencyKey = seeded.IdempotencyKey,
@@ -320,16 +320,16 @@ public sealed class PublishPublicationJobHandlerSpec : IClassFixture<ApiFixture>
 
 	[Fact]
 	public async Task ItShouldPauseAndFlagNeedsReconnectWhenTheSessionFailsOnTheAccount() {
-		using var db = await NewDbAsync();
-		var seeded = await SeedAsync(db, PublicationStatus.InProgress);
+		using var db = await _NewDbAsync();
+		var seeded = await _SeedAsync(db, PublicationStatus.InProgress);
 		var sessionProvider = FakeSessions.AccountFailure(
 			"the app password 'correct-horse-battery' was revoked"
 		);
 		var publishProvider = new FakePublishProvider(null);
-		var handler = NewHandler(db, publishProvider, sessionProvider);
+		var handler = _NewHandler(db, publishProvider, sessionProvider);
 
 		var outcome = await handler.HandleAsync(
-			NewContext(
+			_NewContext(
 				new PublishPublicationPayload {
 					PublicationId = seeded.PublicationId,
 					IdempotencyKey = seeded.IdempotencyKey,
@@ -357,15 +357,15 @@ public sealed class PublishPublicationJobHandlerSpec : IClassFixture<ApiFixture>
 
 	[Fact]
 	public async Task ItShouldPauseAndFlagNeedsReconnectWhenTheProviderRefusesTheCredential() {
-		using var db = await NewDbAsync();
-		var seeded = await SeedAsync(db, PublicationStatus.InProgress);
+		using var db = await _NewDbAsync();
+		var seeded = await _SeedAsync(db, PublicationStatus.InProgress);
 		var publishProvider = new FakePublishProvider(
 			new PublishResult.AccountFailure("InvalidToken: the session was revoked")
 		);
-		var handler = NewHandler(db, publishProvider, FakeSessions.Opened());
+		var handler = _NewHandler(db, publishProvider, FakeSessions.Opened());
 
 		var outcome = await handler.HandleAsync(
-			NewContext(
+			_NewContext(
 				new PublishPublicationPayload {
 					PublicationId = seeded.PublicationId,
 					IdempotencyKey = seeded.IdempotencyKey,
@@ -384,15 +384,15 @@ public sealed class PublishPublicationJobHandlerSpec : IClassFixture<ApiFixture>
 
 	[Fact]
 	public async Task ItShouldReturnRetryAndStayInProgressForATransientFailure() {
-		using var db = await NewDbAsync();
-		var seeded = await SeedAsync(db, PublicationStatus.Scheduled);
+		using var db = await _NewDbAsync();
+		var seeded = await _SeedAsync(db, PublicationStatus.Scheduled);
 		var publishProvider = new FakePublishProvider(
 			new PublishResult.TransientFailure("the PDS returned 503 overloaded")
 		);
-		var handler = NewHandler(db, publishProvider, FakeSessions.Opened());
+		var handler = _NewHandler(db, publishProvider, FakeSessions.Opened());
 
 		var outcome = await handler.HandleAsync(
-			NewContext(
+			_NewContext(
 				new PublishPublicationPayload {
 					PublicationId = seeded.PublicationId,
 					IdempotencyKey = seeded.IdempotencyKey,
@@ -413,12 +413,12 @@ public sealed class PublishPublicationJobHandlerSpec : IClassFixture<ApiFixture>
 
 	[Fact]
 	public async Task ItShouldFailThePublicationAndFlagTheAccountAfterTheFinalAttempt() {
-		using var db = await NewDbAsync();
-		var seeded = await SeedAsync(db, PublicationStatus.InProgress);
+		using var db = await _NewDbAsync();
+		var seeded = await _SeedAsync(db, PublicationStatus.InProgress);
 		var publishProvider = new FakePublishProvider(
 			new PublishResult.TransientFailure("connection reset by peer")
 		);
-		var handler = NewHandler(db, publishProvider, FakeSessions.Opened());
+		var handler = _NewHandler(db, publishProvider, FakeSessions.Opened());
 		var payload = new PublishPublicationPayload {
 			PublicationId = seeded.PublicationId,
 			IdempotencyKey = seeded.IdempotencyKey,
@@ -428,15 +428,15 @@ public sealed class PublishPublicationJobHandlerSpec : IClassFixture<ApiFixture>
 		// PRIOR failed runs (ceiling 3) and the transition service bumps the row's
 		// Attempts on every MarkInProgress. Simulate the real chain run by run.
 		var first = await handler.HandleAsync(
-			NewContext(payload, attempts: 0), CancellationToken.None
+			_NewContext(payload, attempts: 0), CancellationToken.None
 		);
 		first.Should().BeOfType<JobOutcome.Retry>("the engine schedules the next run");
 		var second = await handler.HandleAsync(
-			NewContext(payload, attempts: 1), CancellationToken.None
+			_NewContext(payload, attempts: 1), CancellationToken.None
 		);
 		second.Should().BeOfType<JobOutcome.Retry>();
 		var outcome = await handler.HandleAsync(
-			NewContext(payload, attempts: 2), CancellationToken.None
+			_NewContext(payload, attempts: 2), CancellationToken.None
 		);
 
 		outcome.Should().BeOfType<JobOutcome.PermanentFailure>(
@@ -451,7 +451,7 @@ public sealed class PublishPublicationJobHandlerSpec : IClassFixture<ApiFixture>
 		// The engine invokes the terminal hook INSIDE the DLQ transaction; the account
 		// must hear about the exhausted chain while the publication stays Failed.
 		await handler.OnTerminalFailureAsync(
-			NewContext(payload, lastError: "connection reset by peer"), CancellationToken.None
+			_NewContext(payload, lastError: "connection reset by peer"), CancellationToken.None
 		);
 		var account = await db.SocialAccount.SingleAsync(a => a.Id == seeded.SocialAccountId);
 		account.Status.Should().Be(SocialAccountStatus.NeedsReconnect);
@@ -460,14 +460,14 @@ public sealed class PublishPublicationJobHandlerSpec : IClassFixture<ApiFixture>
 
 	[Fact]
 	public async Task ItShouldCancelWhenThePublicationIsMissingOrAlreadyTerminal() {
-		using var db = await NewDbAsync();
-		var missingHandler = NewHandler(
+		using var db = await _NewDbAsync();
+		var missingHandler = _NewHandler(
 			db, new FakePublishProvider(null), FakeSessions.Opened()
 		);
 
 		var missingId = Guid.NewGuid();
 		var missingOutcome = await missingHandler.HandleAsync(
-			NewContext(
+			_NewContext(
 				new PublishPublicationPayload {
 					PublicationId = missingId,
 					IdempotencyKey = PublicationIdempotencyKey.For(missingId),
@@ -479,8 +479,8 @@ public sealed class PublishPublicationJobHandlerSpec : IClassFixture<ApiFixture>
 			.Be("publication_not_found");
 
 		// At-least-once replay: a rerun after success is a harmless no-op.
-		var seeded = await SeedAsync(db, PublicationStatus.Published);
-		var replayHandler = NewHandler(
+		var seeded = await _SeedAsync(db, PublicationStatus.Published);
+		var replayHandler = _NewHandler(
 			db,
 			new FakePublishProvider(
 				new PublishResult.Published("at://did:plc:x/app.bsky.feed.post/rerun", "u")
@@ -488,7 +488,7 @@ public sealed class PublishPublicationJobHandlerSpec : IClassFixture<ApiFixture>
 			FakeSessions.Opened()
 		);
 		var replayOutcome = await replayHandler.HandleAsync(
-			NewContext(
+			_NewContext(
 				new PublishPublicationPayload {
 					PublicationId = seeded.PublicationId,
 					IdempotencyKey = seeded.IdempotencyKey,
@@ -502,8 +502,8 @@ public sealed class PublishPublicationJobHandlerSpec : IClassFixture<ApiFixture>
 
 	[Fact]
 	public async Task ItShouldEnqueueOnlyThroughIJobEnqueuerWithTheDerivedKeyAndDedupInFlight() {
-		using var db = await NewDbAsync();
-		var seeded = await SeedAsync(db, PublicationStatus.Scheduled);
+		using var db = await _NewDbAsync();
+		var seeded = await _SeedAsync(db, PublicationStatus.Scheduled);
 		var enqueuer = new JobEnqueuer(db, new RequestAuthContext());
 		var payload = new PublishPublicationPayload {
 			PublicationId = seeded.PublicationId,
@@ -526,7 +526,7 @@ public sealed class PublishPublicationJobHandlerSpec : IClassFixture<ApiFixture>
 				.Be(3, "three attempts before the engine dead-letters (brief §5)");
 
 			// Same key while the first is in flight → unique violation (F13 dedup).
-			await using var secondContext = await NewDbAsync();
+			await using var secondContext = await _NewDbAsync();
 			var secondEnqueuer = new JobEnqueuer(secondContext, new RequestAuthContext());
 			var act = async () => await secondEnqueuer.EnqueueAsync(
 				PublishingJobs.PublishPublicationV1,
@@ -536,7 +536,7 @@ public sealed class PublishPublicationJobHandlerSpec : IClassFixture<ApiFixture>
 			await act.Should().ThrowAsync<DbUpdateException>();
 
 			// A key that does NOT derive from the publication id is refused at enqueue.
-			await using var thirdContext = await NewDbAsync();
+			await using var thirdContext = await _NewDbAsync();
 			var thirdEnqueuer = new JobEnqueuer(thirdContext, new RequestAuthContext());
 			var forged = async () => await thirdEnqueuer.EnqueueAsync(
 				PublishingJobs.PublishPublicationV1,
@@ -556,20 +556,20 @@ public sealed class PublishPublicationJobHandlerSpec : IClassFixture<ApiFixture>
 
 	[Fact]
 	public async Task ItShouldPauseAllOtherScheduledPublicationsOfTheSameAccountOnCredentialFailure() {
-		using var db = await NewDbAsync();
-		var seeded = await SeedAsync(db, PublicationStatus.Scheduled);
-		var s1 = await SeedSiblingAsync(db, seeded.TenantId, seeded.SocialAccountId, PublicationStatus.Scheduled);
-		var s2 = await SeedSiblingAsync(db, seeded.TenantId, seeded.SocialAccountId, PublicationStatus.Scheduled);
-		var otherAccount = await SeedSecondAccountAsync(db, seeded.TenantId);
-		var s3 = await SeedSiblingAsync(db, seeded.TenantId, otherAccount, PublicationStatus.Scheduled);
+		using var db = await _NewDbAsync();
+		var seeded = await _SeedAsync(db, PublicationStatus.Scheduled);
+		var s1 = await _SeedSiblingAsync(db, seeded.TenantId, seeded.SocialAccountId, PublicationStatus.Scheduled);
+		var s2 = await _SeedSiblingAsync(db, seeded.TenantId, seeded.SocialAccountId, PublicationStatus.Scheduled);
+		var otherAccount = await _SeedSecondAccountAsync(db, seeded.TenantId);
+		var s3 = await _SeedSiblingAsync(db, seeded.TenantId, otherAccount, PublicationStatus.Scheduled);
 
 		var sessionProvider = FakeSessions.AccountFailure(
 			"the app password 'correct-horse-battery' was revoked"
 		);
-		var handler = NewHandler(db, new FakePublishProvider(null), sessionProvider);
+		var handler = _NewHandler(db, new FakePublishProvider(null), sessionProvider);
 
 		var outcome = await handler.HandleAsync(
-			NewContext(
+			_NewContext(
 				new PublishPublicationPayload {
 					PublicationId = seeded.PublicationId,
 					IdempotencyKey = seeded.IdempotencyKey,
@@ -579,11 +579,11 @@ public sealed class PublishPublicationJobHandlerSpec : IClassFixture<ApiFixture>
 		);
 
 		outcome.Should().BeOfType<JobOutcome.Success>();
-		var failing = await FreshPublicationAsync(db, seeded.PublicationId);
+		var failing = await _FreshPublicationAsync(db, seeded.PublicationId);
 		failing.Status.Should().Be(PublicationStatus.Paused);
 
 		foreach (var siblingId in new[] { s1, s2 }) {
-			var sibling = await FreshPublicationAsync(db, siblingId);
+			var sibling = await _FreshPublicationAsync(db, siblingId);
 			sibling.Status.Should().Be(
 				PublicationStatus.Paused,
 				"scheduled siblings of a broken account must not stay queued behind dead credentials"
@@ -592,7 +592,7 @@ public sealed class PublishPublicationJobHandlerSpec : IClassFixture<ApiFixture>
 		}
 
 		// A different account's publication is nobody else's failure.
-		var untouched = await FreshPublicationAsync(db, s3);
+		var untouched = await _FreshPublicationAsync(db, s3);
 		untouched.Status.Should().Be(PublicationStatus.Scheduled);
 		untouched.LastError.Should().BeNull();
 
@@ -602,11 +602,11 @@ public sealed class PublishPublicationJobHandlerSpec : IClassFixture<ApiFixture>
 
 	[Fact]
 	public async Task ItShouldKeepSweepCausesSanitised() {
-		using var db = await NewDbAsync();
-		var seeded = await SeedAsync(db, PublicationStatus.Scheduled);
-		await SeedSiblingAsync(db, seeded.TenantId, seeded.SocialAccountId, PublicationStatus.Scheduled);
+		using var db = await _NewDbAsync();
+		var seeded = await _SeedAsync(db, PublicationStatus.Scheduled);
+		await _SeedSiblingAsync(db, seeded.TenantId, seeded.SocialAccountId, PublicationStatus.Scheduled);
 
-		var handler = NewHandler(
+		var handler = _NewHandler(
 			db,
 			new FakePublishProvider(null),
 			FakeSessions.AccountFailure(
@@ -615,7 +615,7 @@ public sealed class PublishPublicationJobHandlerSpec : IClassFixture<ApiFixture>
 		);
 
 		var outcome = await handler.HandleAsync(
-			NewContext(
+			_NewContext(
 				new PublishPublicationPayload {
 					PublicationId = seeded.PublicationId,
 					IdempotencyKey = seeded.IdempotencyKey,
@@ -655,31 +655,31 @@ public sealed class PublishPublicationJobHandlerSpec : IClassFixture<ApiFixture>
 	}
 
 	private sealed class FakeSocialSessionProvider : ISocialSessionProvider {
-		private readonly SocialSessionResult _result;
+		private readonly SocialSessionResult _Result;
 
 		public FakeSocialSessionProvider(SocialSessionResult result) {
-			_result = result;
+			_Result = result;
 		}
 
 		public Task<SocialSessionResult> OpenSessionAsync(
 			Guid socialAccountId,
 			CancellationToken cancellationToken
 		) {
-			return Task.FromResult(_result);
+			return Task.FromResult(_Result);
 		}
 	}
 
 	private sealed class FakePublishProvider : IPublishProvider {
-		private readonly PublishResult? _result;
-		private readonly List<string> _records = [];
+		private readonly PublishResult? _Result;
+		private readonly List<string> _Records = [];
 
 		public FakePublishProvider(PublishResult? result) {
-			_result = result;
+			_Result = result;
 		}
 
 		public List<PublishRequest> Requests { get; } = [];
 
-		public IReadOnlyList<string> RemoteRecords { get { return _records; } }
+		public IReadOnlyList<string> RemoteRecords { get { return _Records; } }
 
 		public Task<PublishResult> PublishAsync(
 			PublishRequest request,
@@ -687,17 +687,17 @@ public sealed class PublishPublicationJobHandlerSpec : IClassFixture<ApiFixture>
 		) {
 			Requests.Add(request);
 
-			if (_result is null) {
+			if (_Result is null) {
 				throw new InvalidOperationException(
 					"FakePublishProvider reached without a configured outcome."
 				);
 			}
 
-			if (_result is PublishResult.Published or PublishResult.AlreadyExistsTreatedAsPublished) {
-				_records.Add(request.IdempotencyKey);
+			if (_Result is PublishResult.Published or PublishResult.AlreadyExistsTreatedAsPublished) {
+				_Records.Add(request.IdempotencyKey);
 			}
 
-			return Task.FromResult(_result);
+			return Task.FromResult(_Result);
 		}
 	}
 }

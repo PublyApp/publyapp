@@ -23,18 +23,18 @@ namespace PublyApp.Api.Infrastructure.Jobs;
 // and contend the same pg advisory lock. Each test releases both hosts in a finally so the
 // session lock never leaks to the next (methods in a class share one DB and run serially).
 public sealed class SchedulerLeaderServiceSpec : IClassFixture<ApiFixture> {
-	private readonly ApiFixture _fixture;
+	private readonly ApiFixture _Fixture;
 
 	public SchedulerLeaderServiceSpec(ApiFixture fixture) {
-		_fixture = fixture;
+		_Fixture = fixture;
 	}
 
 	// --- leader election: exactly one winner, Quartz only on the leader ----------
 
 	[Fact]
 	public async Task ItShouldElectExactlyOneLeaderWhenTwoHostsContendTheSameLock() {
-		var hostA = CreateLeader();
-		var hostB = CreateLeader();
+		var hostA = _CreateLeader();
+		var hostB = _CreateLeader();
 
 		try {
 			var aAcquired = await hostA.TryBecomeLeaderAsync(CancellationToken.None);
@@ -59,8 +59,8 @@ public sealed class SchedulerLeaderServiceSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldLetAFollowerTakeOverWhenTheLeaderReleasesTheLock() {
-		var hostA = CreateLeader();
-		var hostB = CreateLeader();
+		var hostA = _CreateLeader();
+		var hostB = _CreateLeader();
 
 		try {
 			(await hostA.TryBecomeLeaderAsync(CancellationToken.None)).Should().BeTrue();
@@ -86,8 +86,8 @@ public sealed class SchedulerLeaderServiceSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldKeepLeadershipAcrossRenewalTicksWhileTheLockConnectionIsAlive() {
-		var hostA = CreateLeader();
-		var hostB = CreateLeader();
+		var hostA = _CreateLeader();
+		var hostB = _CreateLeader();
 
 		try {
 			(await hostA.TryBecomeLeaderAsync(CancellationToken.None)).Should().BeTrue();
@@ -115,8 +115,8 @@ public sealed class SchedulerLeaderServiceSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldStandDownAndLetAFollowerTakeOverWhenTheLockConnectionDies() {
-		var hostA = CreateLeader();
-		var hostB = CreateLeader();
+		var hostA = _CreateLeader();
+		var hostB = _CreateLeader();
 
 		try {
 			(await hostA.TryBecomeLeaderAsync(CancellationToken.None)).Should().BeTrue();
@@ -124,7 +124,7 @@ public sealed class SchedulerLeaderServiceSpec : IClassFixture<ApiFixture> {
 
 			// Kill the leader's dedicated advisory-lock session server-side — the
 			// real-world failure the renewal probe exists to detect (design §5.2).
-			await TerminateAdvisoryLockHolderAsync();
+			await _TerminateAdvisoryLockHolderAsync();
 
 			// The next renewal tick must observe the dead connection and stand down:
 			// Quartz stopped, lock connection gone.
@@ -149,12 +149,12 @@ public sealed class SchedulerLeaderServiceSpec : IClassFixture<ApiFixture> {
 		// A scheduler whose Standby/Shutdown throw — its stop can never be confirmed.
 		var unstoppable = new ThrowOnStandbySchedulerFake();
 		var hostA = new SchedulerLeaderService(
-			new SchedulerLeaderOptions { ConnectionString = GetTestConnectionString() },
-			_fixture.Factory.Services.GetRequiredService<IServiceScopeFactory>(),
+			new SchedulerLeaderOptions { ConnectionString = _GetTestConnectionString() },
+			_Fixture.Factory.Services.GetRequiredService<IServiceScopeFactory>(),
 			NullLogger<SchedulerLeaderService>.Instance,
 			_ => Task.FromResult<IScheduler>(unstoppable)
 		);
-		var hostB = CreateLeader();
+		var hostB = _CreateLeader();
 
 		try {
 			(await hostA.TryBecomeLeaderAsync(CancellationToken.None)).Should().BeTrue();
@@ -197,12 +197,12 @@ public sealed class SchedulerLeaderServiceSpec : IClassFixture<ApiFixture> {
 			ShouldThrowOnStop = true,
 		};
 		var hostA = new SchedulerLeaderService(
-			new SchedulerLeaderOptions { ConnectionString = GetTestConnectionString() },
-			_fixture.Factory.Services.GetRequiredService<IServiceScopeFactory>(),
+			new SchedulerLeaderOptions { ConnectionString = _GetTestConnectionString() },
+			_Fixture.Factory.Services.GetRequiredService<IServiceScopeFactory>(),
 			NullLogger<SchedulerLeaderService>.Instance,
 			_ => Task.FromResult<IScheduler>(unstoppable)
 		);
-		var hostB = CreateLeader();
+		var hostB = _CreateLeader();
 
 		try {
 			// Acquisition must fail loudly: startup failed AND the possibly-firing
@@ -240,10 +240,10 @@ public sealed class SchedulerLeaderServiceSpec : IClassFixture<ApiFixture> {
 	// each on its own clone — from terminating each other's leaders). Terminating the
 	// backend drops the session and thus the session-level advisory lock, exactly like
 	// a crashed/partitioned leader replica.
-	private async Task TerminateAdvisoryLockHolderAsync() {
+	private async Task _TerminateAdvisoryLockHolderAsync() {
 		const long key = SchedulerLeaderService.SchedulerLeaderLockKey;
 
-		await using var connection = new NpgsqlConnection(GetTestConnectionString());
+		await using var connection = new NpgsqlConnection(_GetTestConnectionString());
 		await connection.OpenAsync();
 
 		await using var command = new NpgsqlCommand(
@@ -265,16 +265,16 @@ public sealed class SchedulerLeaderServiceSpec : IClassFixture<ApiFixture> {
 		);
 	}
 
-	private SchedulerLeaderService CreateLeader() {
+	private SchedulerLeaderService _CreateLeader() {
 		return new SchedulerLeaderService(
-			new SchedulerLeaderOptions { ConnectionString = GetTestConnectionString() },
-			_fixture.Factory.Services.GetRequiredService<IServiceScopeFactory>(),
+			new SchedulerLeaderOptions { ConnectionString = _GetTestConnectionString() },
+			_Fixture.Factory.Services.GetRequiredService<IServiceScopeFactory>(),
 			NullLogger<SchedulerLeaderService>.Instance
 		);
 	}
 
-	private string GetTestConnectionString() {
-		using var scope = _fixture.Factory.Services.CreateScope();
+	private string _GetTestConnectionString() {
+		using var scope = _Fixture.Factory.Services.CreateScope();
 		var connectionString = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>()
 			.Database.GetConnectionString();

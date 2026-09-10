@@ -36,7 +36,7 @@ namespace PublyApp.Api.Modules.SocialAccounts.Infrastructure;
 /// </summary>
 [Collection("WitnessBootChildProcess")]
 public sealed class PostgresKeyRingCanaryStoreConcurrencySpec {
-	private const int RacerCount = 6;
+	private const int _RacerCount = 6;
 
 	private sealed record BootOutcome(bool Passed, string? Error);
 
@@ -52,11 +52,11 @@ public sealed class PostgresKeyRingCanaryStoreConcurrencySpec {
 		// Production reality: api, worker, and migrate all receive the SAME
 		// SOCIAL_ACCOUNTS_MASTER_KEY value (runbook requirement), so every racer here
 		// shares one honestly generated test-only key.
-		var sharedKey = NewTestKey();
-		var startingGate = new Barrier(RacerCount);
+		var sharedKey = _NewTestKey();
+		var startingGate = new Barrier(_RacerCount);
 		var outcomes = new ConcurrentBag<BootOutcome>();
 
-		var racers = Enumerable.Range(0, RacerCount).Select(_ => Task.Run(() => {
+		var racers = Enumerable.Range(0, _RacerCount).Select(_ => Task.Run(() => {
 			// Hold every boot at the gate until all six are parked past their Read()
 			// decision point, then release them together: under the pre-fix code every
 			// Read() returns null, every Write() inserts, and the duplicate is certain —
@@ -107,11 +107,11 @@ public sealed class PostgresKeyRingCanaryStoreConcurrencySpec {
 		services.AddDbContext<AppDbContext>(options => options.UseNpgsql(db.ConnectionString));
 		await using var provider = services.BuildServiceProvider();
 		var scopeFactory = provider.GetRequiredService<IServiceScopeFactory>();
-		var sharedKey = NewTestKey();
+		var sharedKey = _NewTestKey();
 
 		// Boot 1 wins cleanly: mints the canary.
 		SocialAccountsMasterKeyWitness.EnsureMasterKeyUsable(sharedKey, new PostgresKeyRingCanaryStore(scopeFactory));
-		var winnerBlob = await CanaryBlobOf(scopeFactory);
+		var winnerBlob = await _CanaryBlobOf(scopeFactory);
 		winnerBlob.Should().NotBeNull("boot 1 must have minted exactly one canary row");
 
 		// Boot 2 starts from a deliberately STALE read (empty) even though the row now
@@ -195,7 +195,7 @@ public sealed class PostgresKeyRingCanaryStoreConcurrencySpec {
 				"the failure must carry the cause AND the next action, in plain words");
 	}
 
-	private static async Task<string?> CanaryBlobOf(IServiceScopeFactory scopeFactory) {
+	private static async Task<string?> _CanaryBlobOf(IServiceScopeFactory scopeFactory) {
 		await using var scope = scopeFactory.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 		return await dbContext.DataProtectionKeys.AsNoTracking()
@@ -210,28 +210,28 @@ public sealed class PostgresKeyRingCanaryStoreConcurrencySpec {
 	/// winner's committed row.
 	/// </summary>
 	private sealed class FrozenEmptyCanaryStore : IKeyRingCanaryStore {
-		private readonly IKeyRingCanaryStore _inner;
-		private bool _emptinessReported;
+		private readonly IKeyRingCanaryStore _Inner;
+		private bool _EmptinessReported;
 
 		public FrozenEmptyCanaryStore(IKeyRingCanaryStore inner) {
-			_inner = inner;
+			_Inner = inner;
 		}
 
 		public string? Read() {
-			if (_emptinessReported) {
-				return _inner.Read();
+			if (_EmptinessReported) {
+				return _Inner.Read();
 			}
 
-			_emptinessReported = true;
+			_EmptinessReported = true;
 			return null;
 		}
 
 		public void Write(string blob) {
-			_inner.Write(blob);
+			_Inner.Write(blob);
 		}
 	}
 
-	private static byte[] NewTestKey() {
+	private static byte[] _NewTestKey() {
 		// Test-only random 32-byte value (never a secret, never committed): satisfies the
 		// witness's entropy floor like an honestly generated openssl rand -base64 32 key.
 		var key = new byte[32];

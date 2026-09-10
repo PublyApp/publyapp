@@ -10,14 +10,14 @@ namespace PublyApp.Api.Infrastructure.Jobs.Quartz;
 /// trigger fires and disposed when Quartz returns the job.
 /// </summary>
 public sealed class ScopedJobFactory : IJobFactory {
-	private readonly IServiceScopeFactory _scopeFactory;
+	private readonly IServiceScopeFactory _ScopeFactory;
 
 	public ScopedJobFactory(IServiceScopeFactory scopeFactory) {
-		_scopeFactory = scopeFactory;
+		_ScopeFactory = scopeFactory;
 	}
 
 	public IJob NewJob(TriggerFiredBundle bundle, IScheduler scheduler) {
-		var scope = _scopeFactory.CreateScope();
+		var scope = _ScopeFactory.CreateScope();
 		try {
 			var job = (IJob)scope.ServiceProvider.GetRequiredService(bundle.JobDetail.JobType);
 			return new ScopedJob(scope, job);
@@ -36,20 +36,20 @@ public sealed class ScopedJobFactory : IJobFactory {
 	// Wraps the resolved job with its DI scope so the scope outlives execution and is
 	// disposed in ReturnJob.
 	private sealed class ScopedJob : IJob, IDisposable {
-		private readonly IServiceScope _scope;
-		private readonly IJob _inner;
+		private readonly IServiceScope _Scope;
+		private readonly IJob _Inner;
 
 		public ScopedJob(IServiceScope scope, IJob inner) {
-			_scope = scope;
-			_inner = inner;
+			_Scope = scope;
+			_Inner = inner;
 		}
 
 		public Task Execute(IJobExecutionContext context) {
-			return _inner.Execute(context);
+			return _Inner.Execute(context);
 		}
 
 		public void Dispose() {
-			_scope.Dispose();
+			_Scope.Dispose();
 		}
 	}
 }

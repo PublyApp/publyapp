@@ -9,7 +9,7 @@ public static class AuditActionsRegistry {
 	// filter validation and the staff action-picker endpoint.
 	// Reflection keeps new AuditActions constants from needing
 	// a second manual registration step.
-	private static readonly ImmutableArray<string> CachedAll =
+	private static readonly ImmutableArray<string> _CachedAll =
 		[.. typeof(AuditActions)
 			.GetFields(
 				BindingFlags.Public
@@ -25,12 +25,12 @@ public static class AuditActionsRegistry {
 			.Distinct()
 			.Order()];
 
-	private static readonly ImmutableHashSet<string> CachedKnownSet =
-		[.. CachedAll];
+	private static readonly ImmutableHashSet<string> _CachedKnownSet =
+		[.. _CachedAll];
 
 	public static IReadOnlyList<string> All {
 		get {
-			return CachedAll;
+			return _CachedAll;
 		}
 	}
 
@@ -38,6 +38,6 @@ public static class AuditActionsRegistry {
 	// validation case-sensitive rather than accepting case
 	// variants.
 	public static bool IsKnown(string action) {
-		return CachedKnownSet.Contains(action);
+		return _CachedKnownSet.Contains(action);
 	}
 }

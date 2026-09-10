@@ -14,7 +14,7 @@ namespace PublyApp.Api.Lib.Testing.Fakes;
 /// behave; everything else is deliberately unimplemented.
 /// </summary>
 public sealed class ThrowOnStandbySchedulerFake : IScheduler {
-	private bool _started;
+	private bool _Started;
 
 	// Toggleable so specs can flip it off in cleanup and release the real advisory
 	// lock through the normal path after asserting the retained-leadership contract.
@@ -47,7 +47,7 @@ public sealed class ThrowOnStandbySchedulerFake : IScheduler {
 	}
 
 	public bool IsStarted {
-		get { return _started; }
+		get { return _Started; }
 	}
 
 	public IJobFactory JobFactory {
@@ -60,7 +60,7 @@ public sealed class ThrowOnStandbySchedulerFake : IScheduler {
 
 	public Task Start(CancellationToken cancellationToken = default) {
 		// Deliberately ordered: active FIRST, throw second (see ShouldThrowOnStart).
-		_started = true;
+		_Started = true;
 
 		if (ShouldThrowOnStart) {
 			throw new SchedulerException(

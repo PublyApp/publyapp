@@ -13,7 +13,7 @@ namespace PublyApp.Api.Modules.SystemNotices.Validation;
 /// see docs/guides/validator-conventions.md.
 /// </summary>
 public static class SystemNoticeValidationRules {
-	private const string SeverityMessage =
+	private const string _SeverityMessage =
 		"Severity must be one of: info, warning, critical";
 
 	/// <summary>
@@ -37,7 +37,7 @@ public static class SystemNoticeValidationRules {
 				}
 				return SystemNotice.ParseSeverity(value) is not null;
 			})
-			.WithMessage(SeverityMessage);
+			.WithMessage(_SeverityMessage);
 	}
 
 	/// <summary>
@@ -72,6 +72,6 @@ public static class SystemNoticeValidationRules {
 				}
 				return SystemNotice.ParseSeverity(value) is not null;
 			})
-			.WithMessage(SeverityMessage);
+			.WithMessage(_SeverityMessage);
 	}
 }

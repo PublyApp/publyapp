@@ -1,12 +1,12 @@
 using Microsoft.EntityFrameworkCore;
 
-using Quartz;
-
 using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Infrastructure.Jobs;
 using PublyApp.Api.Lib;
 using PublyApp.Api.Lib.DI;
 using PublyApp.Api.Modules.Jobs.Entities;
+
+using Quartz;
 
 namespace PublyApp.Api.Modules.Jobs.Services;
 
@@ -145,7 +145,7 @@ public class SystemJobDefinitionQueryService(
 	AppDbContext dbContext,
 	IEnqueueSystemJobBoundary enqueueBoundary
 ) : ISystemJobDefinitionQueryService {
-	private const int RecentOccurrenceCount = 10;
+	private const int _RecentOccurrenceCount = 10;
 
 	public async Task<FindSystemJobDefinitionsResult> FindAsync(
 		FindSystemJobDefinitionsArgs args,
@@ -260,7 +260,7 @@ public class SystemJobDefinitionQueryService(
 				ScheduledFireAt = occurrence.ScheduledFireAt,
 				EnqueuedAt = occurrence.EnqueuedAt,
 			}
-		).Take(RecentOccurrenceCount).ToListAsync(cancellationToken);
+		).Take(_RecentOccurrenceCount).ToListAsync(cancellationToken);
 
 		return detail with { RecentOccurrences = occurrences };
 	}

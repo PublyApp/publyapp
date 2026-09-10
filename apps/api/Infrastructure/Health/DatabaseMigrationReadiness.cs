@@ -42,7 +42,7 @@ public sealed class DatabaseMigrationReadinessResult {
 		foreach (var migrationName in pendingMigrations) {
 			pendingMigrationCount++;
 			if (pendingMigrationNames.Count < MaxPendingMigrationNames) {
-				pendingMigrationNames.Add(SanitizeMigrationName(migrationName));
+				pendingMigrationNames.Add(_SanitizeMigrationName(migrationName));
 			}
 		}
 
@@ -52,7 +52,7 @@ public sealed class DatabaseMigrationReadinessResult {
 		);
 	}
 
-	private static string SanitizeMigrationName(string migrationName) {
+	private static string _SanitizeMigrationName(string migrationName) {
 		if (migrationName is null) {
 			return "[unnamed migration]";
 		}
@@ -78,16 +78,16 @@ public sealed class DatabaseMigrationReadinessResult {
 /// as normal application work.
 /// </summary>
 public sealed class DatabaseMigrationReadiness : IDatabaseMigrationReadiness {
-	private readonly IServiceScopeFactory _scopeFactory;
+	private readonly IServiceScopeFactory _ScopeFactory;
 
 	public DatabaseMigrationReadiness(IServiceScopeFactory scopeFactory) {
-		_scopeFactory = scopeFactory;
+		_ScopeFactory = scopeFactory;
 	}
 
 	public async Task<DatabaseMigrationReadinessResult> IsReadyAsync(
 		CancellationToken cancellationToken
 	) {
-		using var scope = _scopeFactory.CreateScope();
+		using var scope = _ScopeFactory.CreateScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 		var pendingMigrations = await dbContext.Database.GetPendingMigrationsAsync(
 			cancellationToken

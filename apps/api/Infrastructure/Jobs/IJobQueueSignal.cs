@@ -25,11 +25,11 @@ public interface IJobQueueSignal {
 /// coalescing (design §5.5 failure analysis (d)).
 /// </summary>
 public sealed class JobQueueSignal : IJobQueueSignal {
-	private readonly SemaphoreSlim _semaphore = new(0, 1);
+	private readonly SemaphoreSlim _Semaphore = new(0, 1);
 
 	public void Notify() {
 		try {
-			_semaphore.Release();
+			_Semaphore.Release();
 		} catch (SemaphoreFullException) {
 			// A wake is already pending; the processor's next drain covers this batch too.
 		}
@@ -37,7 +37,7 @@ public sealed class JobQueueSignal : IJobQueueSignal {
 
 	public async Task WaitAsync(TimeSpan timeout, CancellationToken cancellationToken) {
 		try {
-			await _semaphore.WaitAsync(timeout, cancellationToken);
+			await _Semaphore.WaitAsync(timeout, cancellationToken);
 		} catch (OperationCanceledException) {
 			// Host shutdown; the caller re-checks its own stopping token.
 		}

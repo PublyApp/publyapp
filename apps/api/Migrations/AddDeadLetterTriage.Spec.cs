@@ -16,15 +16,15 @@ namespace PublyApp.Api.Migrations;
 // alert). Expand-only by design — no NOT NULL, no drops — so it is safe under a
 // rolling deploy (ci-migration-expand-contract).
 public sealed class AddDeadLetterTriageSpec : IClassFixture<ApiFixture> {
-	private readonly ApiFixture _fixture;
+	private readonly ApiFixture _Fixture;
 
 	public AddDeadLetterTriageSpec(ApiFixture fixture) {
-		_fixture = fixture;
+		_Fixture = fixture;
 	}
 
 	[Fact]
 	public async Task ItShouldAddNullableTriageColumnsAndTheUntriagedMissingIndex() {
-		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		var columnStates = await dbContext.Database.SqlQuery<string>(

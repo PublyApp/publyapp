@@ -53,13 +53,13 @@ public sealed class SocialAccountsMasterKeyWitnessSpec {
 
 	// ---- Review r3 MAJOR: wrong-VALUE keys must refuse to boot --------------------
 
-	private static byte[] KeyA() {
+	private static byte[] _KeyA() {
 		var key = new byte[32];
 		RandomNumberGenerator.Fill(key);
 		return key;
 	}
 
-	private static byte[] KeyB() {
+	private static byte[] _KeyB() {
 		var key = new byte[32];
 		RandomNumberGenerator.Fill(key);
 		return key;
@@ -68,7 +68,7 @@ public sealed class SocialAccountsMasterKeyWitnessSpec {
 	[Fact]
 	public void ItShouldMintTheCanaryOnFirstBootUnderTheCurrentKey() {
 		var store = new ScriptedCanaryStore();
-		var keyA = KeyA();
+		var keyA = _KeyA();
 
 		SocialAccountsMasterKeyWitness.EnsureMasterKeyUsable(keyA, store);
 
@@ -78,7 +78,7 @@ public sealed class SocialAccountsMasterKeyWitnessSpec {
 	[Fact]
 	public void ItShouldBootCleanlyTwiceUnderTheSameKey() {
 		var store = new ScriptedCanaryStore();
-		var keyA = KeyA();
+		var keyA = _KeyA();
 		SocialAccountsMasterKeyWitness.EnsureMasterKeyUsable(keyA, store);
 
 		var secondBoot = () => SocialAccountsMasterKeyWitness
@@ -89,10 +89,10 @@ public sealed class SocialAccountsMasterKeyWitnessSpec {
 	[Fact]
 	public void ItShouldRefuseToBootWhenTheKeyValueDiffersButSizeMatches() {
 		var store = new ScriptedCanaryStore();
-		var keyA = KeyA();
+		var keyA = _KeyA();
 		SocialAccountsMasterKeyWitness.EnsureMasterKeyUsable(keyA, store); // boot 1: mints canary
 
-		var keyB = KeyB(); // right SIZE, different VALUE
+		var keyB = _KeyB(); // right SIZE, different VALUE
 		var act = () => SocialAccountsMasterKeyWitness.EnsureMasterKeyUsable(keyB, store);
 		act.Should().Throw<InvalidOperationException>()
 			.WithMessage("*does not match the master-key canary*")
@@ -105,11 +105,11 @@ public sealed class SocialAccountsMasterKeyWitnessSpec {
 	[Fact]
 	public void ItShouldBootAgainOnceTheOriginalKeyIsRestored() {
 		var store = new ScriptedCanaryStore();
-		var keyA = KeyA();
+		var keyA = _KeyA();
 		SocialAccountsMasterKeyWitness.EnsureMasterKeyUsable(keyA, store); // A: mint
 
 		Assert.Throws<InvalidOperationException>(
-			() => SocialAccountsMasterKeyWitness.EnsureMasterKeyUsable(KeyB(), store)); // B: refused
+			() => SocialAccountsMasterKeyWitness.EnsureMasterKeyUsable(_KeyB(), store)); // B: refused
 
 		// back to A → OK, against the SAME persisted canary
 		var restored = () => SocialAccountsMasterKeyWitness
@@ -120,7 +120,7 @@ public sealed class SocialAccountsMasterKeyWitnessSpec {
 	[Fact]
 	public void ItShouldRefuseACorruptedCanaryBlob() {
 		var store = new ScriptedCanaryStore();
-		var keyA = KeyA();
+		var keyA = _KeyA();
 		SocialAccountsMasterKeyWitness.EnsureMasterKeyUsable(keyA, store);
 
 		store.Blob = "not-a-canary-blob";
@@ -132,7 +132,7 @@ public sealed class SocialAccountsMasterKeyWitnessSpec {
 
 	// ---- Issue #1294: publicly known placeholder + degenerate values refuse REAL boots
 
-	private static byte[] DocumentedPlaceholder() {
+	private static byte[] _DocumentedPlaceholder() {
 		return Convert.FromBase64String("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=");
 	}
 
@@ -143,7 +143,7 @@ public sealed class SocialAccountsMasterKeyWitnessSpec {
 		// THAT path would break `just build-api`; the rejection must live behind the
 		// canaryStore-null early return.
 		var act = () => SocialAccountsMasterKeyWitness
-			.EnsureMasterKeyUsable(DocumentedPlaceholder(), canaryStore: null);
+			.EnsureMasterKeyUsable(_DocumentedPlaceholder(), canaryStore: null);
 		act.Should().NotThrow(
 			"the db-less doc-gen path must keep accepting the committed placeholder");
 	}
@@ -151,7 +151,7 @@ public sealed class SocialAccountsMasterKeyWitnessSpec {
 	[Fact]
 	public void ItShouldRefuseTheDocumentedPlaceholderAtRealBoot() {
 		var act = () => SocialAccountsMasterKeyWitness.EnsureMasterKeyUsable(
-			DocumentedPlaceholder(),
+			_DocumentedPlaceholder(),
 			new ScriptedCanaryStore()
 		);
 		act.Should().Throw<InvalidOperationException>()
@@ -189,7 +189,7 @@ public sealed class SocialAccountsMasterKeyWitnessSpec {
 	public void ItShouldAcceptAHonestlyGeneratedKeyAtRealBoot() {
 		// Random keys hold ~8 bits/byte; the probability of landing below the 16-distinct
 		// floor is < 10^-15, so this must never flake.
-		var key = KeyA();
+		var key = _KeyA();
 
 		var act = () => SocialAccountsMasterKeyWitness
 			.EnsureMasterKeyUsable(key, new ScriptedCanaryStore());
@@ -203,7 +203,7 @@ public sealed class SocialAccountsMasterKeyWitnessSpec {
 		// REAL artifact instead — the witness source must invoke the rejection AFTER the
 		// canaryStore-null early return (doc-gen keeps the placeholder) and BEFORE the
 		// canary round-trip, with exactly one call site.
-		var source = Normalize(File.ReadAllText(FindWitnessSourcePath()));
+		var source = _Normalize(File.ReadAllText(_FindWitnessSourcePath()));
 
 		var ensureStart = source.IndexOf(
 			"public static void EnsureMasterKeyUsable", StringComparison.Ordinal);
@@ -221,12 +221,12 @@ public sealed class SocialAccountsMasterKeyWitnessSpec {
 		canaryRead.Should().BeGreaterThan(rejection,
 			"degenerate values are refused BEFORE any canary round-trip");
 
-		CountOccurrences(source, "RejectKnownNonSecretOrDegenerateValue(key);")
+		_CountOccurrences(source, "RejectKnownNonSecretOrDegenerateValue(key);")
 			.Should().Be(1,
 				"exactly one invocation: removing it must fail this guard, not pass silently");
 	}
 
-	private static string FindWitnessSourcePath() {
+	private static string _FindWitnessSourcePath() {
 		var dir = new DirectoryInfo(AppContext.BaseDirectory);
 		while (dir is not null) {
 			var candidate = Path.Combine(
@@ -256,7 +256,7 @@ public sealed class SocialAccountsMasterKeyWitnessSpec {
 	/// match the pinned fragments. Hand-rolled instead of Regex: SYSLIB1045 (as error)
 	/// requires compile-time generated regexes, which are overkill here.
 	/// </summary>
-	private static string Normalize(string source) {
+	private static string _Normalize(string source) {
 		var sb = new System.Text.StringBuilder(source.Length);
 		var previousWasSpace = false;
 		foreach (var ch in source) {
@@ -274,7 +274,7 @@ public sealed class SocialAccountsMasterKeyWitnessSpec {
 		return sb.ToString();
 	}
 
-	private static int CountOccurrences(string haystack, string needle) {
+	private static int _CountOccurrences(string haystack, string needle) {
 		var count = 0;
 		var offset = 0;
 		while ((offset = haystack.IndexOf(needle, offset, StringComparison.Ordinal)) >= 0) {

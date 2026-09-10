@@ -22,16 +22,16 @@ namespace PublyApp.Api.Modules.Auth.Handlers;
 
 public sealed class RevokeSessionForTokenSpec
 	: IClassFixture<ApiFixture> {
-	private readonly HttpClient _http;
-	private readonly TestAuthClient _authClient;
-	private readonly ApiFixture _fixture;
+	private readonly HttpClient _Http;
+	private readonly TestAuthClient _AuthClient;
+	private readonly ApiFixture _Fixture;
 
 	public RevokeSessionForTokenSpec(
 		ApiFixture fixture
 	) {
-		_http = fixture.HttpClient;
-		_authClient = new TestAuthClient(_http);
-		_fixture = fixture;
+		_Http = fixture.HttpClient;
+		_AuthClient = new TestAuthClient(_Http);
+		_Fixture = fixture;
 	}
 
 	[Fact]
@@ -39,7 +39,7 @@ public sealed class RevokeSessionForTokenSpec
 	ItShouldRevokeRegularSessionAndInvalidateToken() {
 		// Arrange: log in as a regular (tenant admin) user to obtain
 		// a real, non-impersonation session token.
-		var acmeAdminToken = await _authClient.LoginAsync(
+		var acmeAdminToken = await _AuthClient.LoginAsync(
 			TestConstants.AcmeAdminEmail,
 			TestConstants.SeedPassword
 		);
@@ -51,7 +51,7 @@ public sealed class RevokeSessionForTokenSpec
 		).WithSessionToken(acmeAdminToken);
 
 		using var revokeResponse =
-			await _http.SendAsync(revokeRequest);
+			await _Http.SendAsync(revokeRequest);
 
 		// Assert I: the revoke call itself succeeds with 200.
 		revokeResponse.StatusCode.Should()
@@ -70,7 +70,7 @@ public sealed class RevokeSessionForTokenSpec
 		).WithSessionToken(acmeAdminToken);
 
 		using var authedResponse =
-			await _http.SendAsync(authedRequest);
+			await _Http.SendAsync(authedRequest);
 
 		// Assert II: the token no longer authenticates.
 		authedResponse.StatusCode.Should()
@@ -85,11 +85,11 @@ public sealed class RevokeSessionForTokenSpec
 
 		// Arrange: two independent logins produce two distinct session
 		// tokens for the same tenant admin user.
-		var tokenOne = await _authClient.LoginAsync(
+		var tokenOne = await _AuthClient.LoginAsync(
 			TestConstants.AcmeAdminEmail,
 			TestConstants.SeedPassword
 		);
-		var tokenTwo = await _authClient.LoginAsync(
+		var tokenTwo = await _AuthClient.LoginAsync(
 			TestConstants.AcmeAdminEmail,
 			TestConstants.SeedPassword
 		);
@@ -104,7 +104,7 @@ public sealed class RevokeSessionForTokenSpec
 		).WithSessionToken(tokenOne);
 
 		using var revokeResponse =
-			await _http.SendAsync(revokeRequest);
+			await _Http.SendAsync(revokeRequest);
 
 		revokeResponse.StatusCode.Should().Be(HttpStatusCode.OK);
 
@@ -115,7 +115,7 @@ public sealed class RevokeSessionForTokenSpec
 		).WithSessionToken(tokenOne);
 
 		using var deadResponse =
-			await _http.SendAsync(deadRequest);
+			await _Http.SendAsync(deadRequest);
 
 		deadResponse.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
 
@@ -126,7 +126,7 @@ public sealed class RevokeSessionForTokenSpec
 		).WithSessionToken(tokenTwo);
 
 		using var liveResponse =
-			await _http.SendAsync(liveRequest);
+			await _Http.SendAsync(liveRequest);
 
 		liveResponse.StatusCode.Should().Be(HttpStatusCode.OK);
 	}
@@ -142,7 +142,7 @@ public sealed class RevokeSessionForTokenSpec
 		// Arrange: an impersonation session is created for the Acme
 		// tenant via the IImpersonationService.
 		var (_, impersonationToken) =
-			await CreateImpersonationSessionViaServiceAsync();
+			await _CreateImpersonationSessionViaServiceAsync();
 
 		// Act: call the ordinary-session revoke endpoint with the
 		// impersonation token.
@@ -152,7 +152,7 @@ public sealed class RevokeSessionForTokenSpec
 		).WithSessionToken(impersonationToken);
 
 		using var revokeResponse =
-			await _http.SendAsync(revokeRequest);
+			await _Http.SendAsync(revokeRequest);
 
 		// Assert I: honest non-401 RFC 7807 response — the authenticated
 		// request reached the handler but no ordinary session could be
@@ -171,12 +171,12 @@ public sealed class RevokeSessionForTokenSpec
 		).WithSessionToken(impersonationToken);
 
 		using var authedResponse =
-			await _http.SendAsync(authedRequest);
+			await _Http.SendAsync(authedRequest);
 
 		authedResponse.StatusCode.Should().Be(HttpStatusCode.OK);
 
 		// Assert III: no impersonation.ended audit action was emitted.
-		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		var impersonationEndedCount = await dbContext.AuditLog
@@ -186,10 +186,10 @@ public sealed class RevokeSessionForTokenSpec
 	}
 
 	private async Task<(Guid tenantId, string impersonationToken)>
-		CreateImpersonationSessionViaServiceAsync() {
+		_CreateImpersonationSessionViaServiceAsync() {
 		// Resolve the staff user GUID from the seeded staff admin email.
 		await using var scope =
-			_fixture.Factory.Services.CreateAsyncScope();
+			_Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>();
 

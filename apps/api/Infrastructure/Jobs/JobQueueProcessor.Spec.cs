@@ -25,10 +25,10 @@ namespace PublyApp.Api.Infrastructure.Jobs;
 // depend on — or destroy — each other's state even though the class shares one
 // database.
 public sealed class JobQueueProcessorSpec : IClassFixture<ApiFixture> {
-	private readonly ApiFixture _fixture;
+	private readonly ApiFixture _Fixture;
 
 	public JobQueueProcessorSpec(ApiFixture fixture) {
-		_fixture = fixture;
+		_Fixture = fixture;
 	}
 
 	// --- claim contention (F23: ownership + counts, not "something happened") ----
@@ -39,13 +39,13 @@ public sealed class JobQueueProcessorSpec : IClassFixture<ApiFixture> {
 	// B gets the other 20, union is everything seeded.
 	[Fact]
 	public async Task ItShouldClaimDisjointFullBatchesWhileAnotherClaimTransactionIsStillOpen() {
-		var jobType = UniqueType("contention");
-		await using var seedContext = await CreateDbContextAsync();
-		var seededIds = await SeedDueJobsAsync(seedContext, jobType, count: 40);
+		var jobType = _UniqueType("contention");
+		await using var seedContext = await _CreateDbContextAsync();
+		var seededIds = await _SeedDueJobsAsync(seedContext, jobType, count: 40);
 
 		try {
-			await using var dbContextA = await CreateDbContextAsync();
-			await using var dbContextB = await CreateDbContextAsync();
+			await using var dbContextA = await _CreateDbContextAsync();
+			await using var dbContextB = await _CreateDbContextAsync();
 
 			await using var transactionA =
 				await dbContextA.Database.BeginTransactionAsync();
@@ -77,7 +77,7 @@ public sealed class JobQueueProcessorSpec : IClassFixture<ApiFixture> {
 			var tokenB = claimedByB[0].LockToken;
 			tokenA.Should().NotBe(tokenB);
 
-			await using var verifyContext = await CreateDbContextAsync();
+			await using var verifyContext = await _CreateDbContextAsync();
 			var rows = await verifyContext.JobQueue
 				.Where(j => j.JobType == jobType)
 				.ToListAsync();
@@ -87,7 +87,7 @@ public sealed class JobQueueProcessorSpec : IClassFixture<ApiFixture> {
 			rows.Where(r => idsB.Contains(r.Id.GetValueOrDefault()))
 				.Should().OnlyContain(r => r.LockToken == tokenB && r.LockedBy == "worker-b");
 		} finally {
-			await DeleteJobsByTypeAsync(jobType);
+			await _DeleteJobsByTypeAsync(jobType);
 		}
 	}
 
@@ -95,28 +95,28 @@ public sealed class JobQueueProcessorSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldExecuteAClaimedBatchHighestPriorityFirst() {
-		var jobType = UniqueType("exec-order");
-		await using var seedContext = await CreateDbContextAsync();
+		var jobType = _UniqueType("exec-order");
+		await using var seedContext = await _CreateDbContextAsync();
 		var ids = new Dictionary<int, Guid>();
 
 		try {
 			// Seeded in an order (1, 5, 3) that both ascending-priority and
 			// insertion-order execution would get wrong.
 			foreach (var priority in new[] { 1, 5, 3 }) {
-				var row = NewJob(jobType, priority: priority);
+				var row = _NewJob(jobType, priority: priority);
 				await seedContext.JobQueue.AddAsync(row);
 				await seedContext.SaveChangesAsync();
 				ids[priority] = row.Id.GetValueOrDefault();
 			}
 
 			var handler = new RecordingJobHandler(jobType);
-			var processor = CreateProcessor(handler);
+			var processor = _CreateProcessor(handler);
 
 			await processor.ProcessBatchAsync(CancellationToken.None);
 
 			handler.Handled.Should().Equal(ids[5], ids[3], ids[1]);
 		} finally {
-			await DeleteJobsByTypeAsync(jobType);
+			await _DeleteJobsByTypeAsync(jobType);
 		}
 	}
 
@@ -124,11 +124,11 @@ public sealed class JobQueueProcessorSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldResetAndReclaimAProcessingRowOnlyAfterItsLeaseExpiresWithANewToken() {
-		var jobType = UniqueType("reclaim");
-		await using var dbContext = await CreateDbContextAsync();
+		var jobType = _UniqueType("reclaim");
+		await using var dbContext = await _CreateDbContextAsync();
 
 		try {
-			var claimed = await SeedAndClaimOneAsync(dbContext, jobType, "dead-worker");
+			var claimed = await _SeedAndClaimOneAsync(dbContext, jobType, "dead-worker");
 			var originalToken = claimed.LockToken;
 
 			// Lease still live → the stale reset must not touch it, and the
@@ -139,7 +139,7 @@ public sealed class JobQueueProcessorSpec : IClassFixture<ApiFixture> {
 			);
 			beforeExpiry.Select(c => c.Id).Should().NotContain(claimed.Id);
 
-			await ExpireLeaseAsync(dbContext, claimed.Id);
+			await _ExpireLeaseAsync(dbContext, claimed.Id);
 
 			await JobQueueProcessor.ResetExpiredLeasesAsync(dbContext, CancellationToken.None);
 			var afterExpiry = await JobQueueProcessor.ClaimBatchAsync(
@@ -149,7 +149,7 @@ public sealed class JobQueueProcessorSpec : IClassFixture<ApiFixture> {
 			var reclaimed = afterExpiry.Single(c => c.Id == claimed.Id);
 			reclaimed.LockToken.Should().NotBe(originalToken);
 		} finally {
-			await DeleteJobsByTypeAsync(jobType);
+			await _DeleteJobsByTypeAsync(jobType);
 		}
 	}
 
@@ -157,14 +157,14 @@ public sealed class JobQueueProcessorSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldRejectAStaleOwnersSuccessDeleteAfterAReclaim() {
-		var jobType = UniqueType("stale-success");
-		await using var dbContext = await CreateDbContextAsync();
+		var jobType = _UniqueType("stale-success");
+		await using var dbContext = await _CreateDbContextAsync();
 
 		try {
-			var claimedByA = await SeedAndClaimOneAsync(dbContext, jobType, "worker-a");
+			var claimedByA = await _SeedAndClaimOneAsync(dbContext, jobType, "worker-a");
 
 			// A's lease expires; B reclaims with a fresh token.
-			await ExpireLeaseAsync(dbContext, claimedByA.Id);
+			await _ExpireLeaseAsync(dbContext, claimedByA.Id);
 			await JobQueueProcessor.ResetExpiredLeasesAsync(dbContext, CancellationToken.None);
 			var claimedByB = await JobQueueProcessor.ClaimBatchAsync(
 				dbContext, "worker-b", 300, 20, CancellationToken.None
@@ -178,7 +178,7 @@ public sealed class JobQueueProcessorSpec : IClassFixture<ApiFixture> {
 			);
 			staleDelete.Should().BeFalse();
 
-			await using var verifyContext = await CreateDbContextAsync();
+			await using var verifyContext = await _CreateDbContextAsync();
 			var row = await verifyContext.JobQueue
 				.SingleAsync(j => j.Id == claimedByA.Id);
 			row.LockToken.Should().Be(tokenB);
@@ -190,7 +190,7 @@ public sealed class JobQueueProcessorSpec : IClassFixture<ApiFixture> {
 			);
 			currentDelete.Should().BeTrue();
 		} finally {
-			await DeleteJobsByTypeAsync(jobType);
+			await _DeleteJobsByTypeAsync(jobType);
 		}
 	}
 
@@ -198,13 +198,13 @@ public sealed class JobQueueProcessorSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldRejectAStaleOwnersRetryRequeueAfterAReclaim() {
-		var jobType = UniqueType("stale-retry");
-		await using var dbContext = await CreateDbContextAsync();
+		var jobType = _UniqueType("stale-retry");
+		await using var dbContext = await _CreateDbContextAsync();
 
 		try {
-			var claimedByA = await SeedAndClaimOneAsync(dbContext, jobType, "worker-a");
+			var claimedByA = await _SeedAndClaimOneAsync(dbContext, jobType, "worker-a");
 
-			await ExpireLeaseAsync(dbContext, claimedByA.Id);
+			await _ExpireLeaseAsync(dbContext, claimedByA.Id);
 			await JobQueueProcessor.ResetExpiredLeasesAsync(dbContext, CancellationToken.None);
 			var claimedByB = await JobQueueProcessor.ClaimBatchAsync(
 				dbContext, "worker-b", 300, 20, CancellationToken.None
@@ -219,7 +219,7 @@ public sealed class JobQueueProcessorSpec : IClassFixture<ApiFixture> {
 
 			// B's row is untouched by the stale attempt: still Processing under B's
 			// token, no attempt burned, no error written.
-			await using var verifyContext = await CreateDbContextAsync();
+			await using var verifyContext = await _CreateDbContextAsync();
 			var row = await verifyContext.JobQueue
 				.SingleAsync(j => j.Id == claimedByA.Id);
 			row.Status.Should().Be(JobQueueStatus.Processing);
@@ -227,7 +227,7 @@ public sealed class JobQueueProcessorSpec : IClassFixture<ApiFixture> {
 			row.Attempts.Should().Be(0);
 			row.LastError.Should().BeNull();
 		} finally {
-			await DeleteJobsByTypeAsync(jobType);
+			await _DeleteJobsByTypeAsync(jobType);
 		}
 	}
 
@@ -245,15 +245,15 @@ public sealed class JobQueueProcessorSpec : IClassFixture<ApiFixture> {
 	// proves what its name claims.
 	[Fact]
 	public async Task ItShouldKeepASlowSerialBatchLeasedViaRestampAndRenewal() {
-		var jobType = UniqueType("slow-batch");
-		await using var seedContext = await CreateDbContextAsync();
-		var seededIds = await SeedDueJobsAsync(seedContext, jobType, count: 3);
+		var jobType = _UniqueType("slow-batch");
+		await using var seedContext = await _CreateDbContextAsync();
+		var seededIds = await _SeedDueJobsAsync(seedContext, jobType, count: 3);
 
 		try {
 			var handler = new RecordingJobHandler(jobType) {
 				Delay = TimeSpan.FromSeconds(3.5)
 			};
-			var processor = CreateProcessor(
+			var processor = _CreateProcessor(
 				new JobQueueProcessorOptions { LeaseSeconds = 6, BatchSize = 20 },
 				handler
 			);
@@ -262,12 +262,12 @@ public sealed class JobQueueProcessorSpec : IClassFixture<ApiFixture> {
 
 			handler.Handled.Should().BeEquivalentTo(seededIds);
 
-			await using var verifyContext = await CreateDbContextAsync();
+			await using var verifyContext = await _CreateDbContextAsync();
 			var remaining = await verifyContext.JobQueue
 				.CountAsync(j => j.JobType == jobType);
 			remaining.Should().Be(0, "every slow job completed under a renewed lease");
 		} finally {
-			await DeleteJobsByTypeAsync(jobType);
+			await _DeleteJobsByTypeAsync(jobType);
 		}
 	}
 
@@ -282,9 +282,9 @@ public sealed class JobQueueProcessorSpec : IClassFixture<ApiFixture> {
 	// §5.1's max(2 s, lease/20) margin leaves a 2 s lease no room to renew at all.)
 	[Fact]
 	public async Task ItShouldKeepARunningJobsLeaseAliveAgainstAConcurrentReclaimAdversary() {
-		var jobType = UniqueType("adversary");
-		await using var seedContext = await CreateDbContextAsync();
-		var seededIds = await SeedDueJobsAsync(seedContext, jobType, count: 1);
+		var jobType = _UniqueType("adversary");
+		await using var seedContext = await _CreateDbContextAsync();
+		var seededIds = await _SeedDueJobsAsync(seedContext, jobType, count: 1);
 		var jobId = seededIds.Single();
 
 		try {
@@ -298,7 +298,7 @@ public sealed class JobQueueProcessorSpec : IClassFixture<ApiFixture> {
 					await Task.Delay(TimeSpan.FromSeconds(8));
 				}
 			};
-			var processor = CreateProcessor(
+			var processor = _CreateProcessor(
 				new JobQueueProcessorOptions { LeaseSeconds = 6 },
 				handler
 			);
@@ -312,7 +312,7 @@ public sealed class JobQueueProcessorSpec : IClassFixture<ApiFixture> {
 			using var adversaryStop = new CancellationTokenSource();
 			var stolen = new List<Guid>();
 			var adversary = Task.Run(async () => {
-				await using var adversaryContext = await CreateDbContextAsync();
+				await using var adversaryContext = await _CreateDbContextAsync();
 
 				while (!adversaryStop.IsCancellationRequested) {
 					await JobQueueProcessor.ResetExpiredLeasesAsync(
@@ -338,14 +338,14 @@ public sealed class JobQueueProcessorSpec : IClassFixture<ApiFixture> {
 			stolen.Should().BeEmpty("renewal must keep the running job's lease alive");
 			handler.Handled.Should().Equal(jobId);
 
-			await using var verifyContext = await CreateDbContextAsync();
+			await using var verifyContext = await _CreateDbContextAsync();
 			var remaining = await verifyContext.JobQueue
 				.CountAsync(j => j.JobType == jobType);
 			remaining.Should().Be(
 				0, "the owner's Success outcome was applied, not fenced out"
 			);
 		} finally {
-			await DeleteJobsByTypeAsync(jobType);
+			await _DeleteJobsByTypeAsync(jobType);
 		}
 	}
 
@@ -356,9 +356,9 @@ public sealed class JobQueueProcessorSpec : IClassFixture<ApiFixture> {
 	// outcome must affect nothing.
 	[Fact]
 	public async Task ItShouldDiscardTheOriginalOwnersOutcomeWhenItsLeaseExpiredMidRun() {
-		var jobType = UniqueType("fence");
-		await using var seedContext = await CreateDbContextAsync();
-		var seededIds = await SeedDueJobsAsync(seedContext, jobType, count: 1);
+		var jobType = _UniqueType("fence");
+		await using var seedContext = await _CreateDbContextAsync();
+		var seededIds = await _SeedDueJobsAsync(seedContext, jobType, count: 1);
 		var jobId = seededIds.Single();
 
 		try {
@@ -375,7 +375,7 @@ public sealed class JobQueueProcessorSpec : IClassFixture<ApiFixture> {
 				}
 			};
 
-			var processor = CreateProcessor(
+			var processor = _CreateProcessor(
 				new JobQueueProcessorOptions {
 					LeaseSeconds = 1,
 					EnableLeaseRenewal = false
@@ -394,7 +394,7 @@ public sealed class JobQueueProcessorSpec : IClassFixture<ApiFixture> {
 				}
 			};
 			listener.SetMeasurementEventCallback<long>((instrument, value, tags, _) => {
-				if (instrument.Name == "jobs.lease_lost" && HasTag(tags, "job_type", jobType)) {
+				if (instrument.Name == "jobs.lease_lost" && _HasTag(tags, "job_type", jobType)) {
 					Interlocked.Add(ref leaseLostCount, value);
 				}
 			});
@@ -405,8 +405,8 @@ public sealed class JobQueueProcessorSpec : IClassFixture<ApiFixture> {
 
 			// While the original owner is paused inside the handler, its lease
 			// expires and a second worker reclaims AND completes the job.
-			await using var thiefContext = await CreateDbContextAsync();
-			await ExpireLeaseAsync(thiefContext, jobId);
+			await using var thiefContext = await _CreateDbContextAsync();
+			await _ExpireLeaseAsync(thiefContext, jobId);
 			await JobQueueProcessor.ResetExpiredLeasesAsync(
 				thiefContext, CancellationToken.None
 			);
@@ -433,7 +433,7 @@ public sealed class JobQueueProcessorSpec : IClassFixture<ApiFixture> {
 			);
 			Interlocked.Read(ref leaseLostCount).Should().BeGreaterThan(0);
 
-			await using var verifyContext = await CreateDbContextAsync();
+			await using var verifyContext = await _CreateDbContextAsync();
 			var queueCount = await verifyContext.JobQueue
 				.CountAsync(j => j.JobType == jobType);
 			var dlqCount = await verifyContext.JobDeadLetter
@@ -441,7 +441,7 @@ public sealed class JobQueueProcessorSpec : IClassFixture<ApiFixture> {
 			queueCount.Should().Be(0, "the thief completed it");
 			dlqCount.Should().Be(0, "a discarded outcome must not dead-letter");
 		} finally {
-			await DeleteJobsByTypeAsync(jobType);
+			await _DeleteJobsByTypeAsync(jobType);
 		}
 	}
 
@@ -449,22 +449,22 @@ public sealed class JobQueueProcessorSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldRequeueAsPendingWithSqlComputedBackoffWhenAHandlerFails() {
-		var jobType = UniqueType("backoff");
-		await using var dbContext = await CreateDbContextAsync();
+		var jobType = _UniqueType("backoff");
+		await using var dbContext = await _CreateDbContextAsync();
 
 		try {
-			var claimed = await SeedAndClaimOneAsync(dbContext, jobType, "worker-a");
+			var claimed = await _SeedAndClaimOneAsync(dbContext, jobType, "worker-a");
 			var item = await dbContext.JobQueue.SingleAsync(j => j.Id == claimed.Id);
 
 			var handler = new RecordingJobHandler(jobType) {
 				Outcome = new JobOutcome.Retry(Error: "simulated transient failure")
 			};
-			var processor = CreateProcessor(handler);
+			var processor = _CreateProcessor(handler);
 			var beforeAttempt = DateTime.UtcNow;
 
 			await processor.ProcessOneAsync(item, claimed.LockToken, CancellationToken.None);
 
-			await using var verifyContext = await CreateDbContextAsync();
+			await using var verifyContext = await _CreateDbContextAsync();
 			var row = await verifyContext.JobQueue.SingleAsync(j => j.Id == claimed.Id);
 
 			// The #810-class contract: Pending again, fence + lease cleared, error
@@ -487,13 +487,13 @@ public sealed class JobQueueProcessorSpec : IClassFixture<ApiFixture> {
 			whileBackingOff.Select(c => c.Id).Should().NotContain(claimed.Id);
 
 			// Claimable once next_attempt_at passes — no lease wait involved.
-			await MakeDueNowAsync(dbContext, claimed.Id);
+			await _MakeDueNowAsync(dbContext, claimed.Id);
 			var afterBackoff = await JobQueueProcessor.ClaimBatchAsync(
 				dbContext, "worker-a", 300, 20, CancellationToken.None
 			);
 			afterBackoff.Select(c => c.Id).Should().Contain(claimed.Id);
 		} finally {
-			await DeleteJobsByTypeAsync(jobType);
+			await _DeleteJobsByTypeAsync(jobType);
 		}
 	}
 
@@ -504,14 +504,14 @@ public sealed class JobQueueProcessorSpec : IClassFixture<ApiFixture> {
 	// burned, and its successful batchmate still runs — the batch is not abandoned.
 	[Fact]
 	public async Task ItShouldRetryAForeignCancellationAndStillProcessItsBatchmate() {
-		var jobType = UniqueType("foreign-oce");
-		await using var seedContext = await CreateDbContextAsync();
+		var jobType = _UniqueType("foreign-oce");
+		await using var seedContext = await _CreateDbContextAsync();
 
 		try {
 			// Higher priority → the throwing job runs first, proving the loop
 			// survives it and reaches the batchmate.
-			var cancellingJob = NewJob(jobType, priority: 10);
-			var batchmate = NewJob(jobType, priority: 1);
+			var cancellingJob = _NewJob(jobType, priority: 10);
+			var batchmate = _NewJob(jobType, priority: 1);
 			await seedContext.JobQueue.AddRangeAsync(cancellingJob, batchmate);
 			await seedContext.SaveChangesAsync();
 			var cancellingId = cancellingJob.Id.GetValueOrDefault();
@@ -526,7 +526,7 @@ public sealed class JobQueueProcessorSpec : IClassFixture<ApiFixture> {
 					return Task.CompletedTask;
 				}
 			};
-			var processor = CreateProcessor(handler);
+			var processor = _CreateProcessor(handler);
 
 			var result = await processor.ProcessBatchAsync(CancellationToken.None);
 
@@ -535,7 +535,7 @@ public sealed class JobQueueProcessorSpec : IClassFixture<ApiFixture> {
 			result.Completed.Should().Be(2, "a retry IS an applied outcome");
 			handler.Handled.Should().Equal(cancellingId, batchmateId);
 
-			await using var verifyContext = await CreateDbContextAsync();
+			await using var verifyContext = await _CreateDbContextAsync();
 			var requeued = await verifyContext.JobQueue
 				.SingleAsync(j => j.Id == cancellingId);
 			requeued.Status.Should().Be(JobQueueStatus.Pending);
@@ -550,7 +550,7 @@ public sealed class JobQueueProcessorSpec : IClassFixture<ApiFixture> {
 				.CountAsync(d => d.JobType == jobType);
 			dlqCount.Should().Be(0);
 		} finally {
-			await DeleteJobsByTypeAsync(jobType);
+			await _DeleteJobsByTypeAsync(jobType);
 		}
 	}
 
@@ -561,12 +561,12 @@ public sealed class JobQueueProcessorSpec : IClassFixture<ApiFixture> {
 	// ownership cleanup rather than left to wait out their leases (§3.6).
 	[Fact]
 	public async Task ItShouldReleaseInFlightAndRemainingJobsOnHostCancellationMidBatch() {
-		var jobType = UniqueType("host-cancel");
-		await using var seedContext = await CreateDbContextAsync();
+		var jobType = _UniqueType("host-cancel");
+		await using var seedContext = await _CreateDbContextAsync();
 
 		try {
-			var first = NewJob(jobType, priority: 10);
-			var second = NewJob(jobType, priority: 1);
+			var first = _NewJob(jobType, priority: 10);
+			var second = _NewJob(jobType, priority: 1);
 			await seedContext.JobQueue.AddRangeAsync(first, second);
 			await seedContext.SaveChangesAsync();
 			var firstId = first.Id.GetValueOrDefault();
@@ -582,7 +582,7 @@ public sealed class JobQueueProcessorSpec : IClassFixture<ApiFixture> {
 					}
 				}
 			};
-			var processor = CreateProcessor(handler);
+			var processor = _CreateProcessor(handler);
 
 			var result = await processor.ProcessBatchAsync(hostSource.Token);
 
@@ -591,7 +591,7 @@ public sealed class JobQueueProcessorSpec : IClassFixture<ApiFixture> {
 			result.Completed.Should().Be(0, "an abandoned run applies no outcome");
 			handler.Handled.Should().Equal(firstId);
 
-			await using var verifyContext = await CreateDbContextAsync();
+			await using var verifyContext = await _CreateDbContextAsync();
 			var rows = await verifyContext.JobQueue
 				.Where(j => j.JobType == jobType)
 				.ToListAsync();
@@ -608,7 +608,7 @@ public sealed class JobQueueProcessorSpec : IClassFixture<ApiFixture> {
 				.CountAsync(d => d.JobType == jobType);
 			dlqCount.Should().Be(0);
 		} finally {
-			await DeleteJobsByTypeAsync(jobType);
+			await _DeleteJobsByTypeAsync(jobType);
 		}
 	}
 
@@ -617,12 +617,12 @@ public sealed class JobQueueProcessorSpec : IClassFixture<ApiFixture> {
 	// undispatched batchmate is released to Pending (§3.6, review finding 2).
 	[Fact]
 	public async Task ItShouldApplyACompletedHandlersOutcomeWhenTheHostCancelsAfterItReturns() {
-		var jobType = UniqueType("cancel-after-return");
-		await using var seedContext = await CreateDbContextAsync();
+		var jobType = _UniqueType("cancel-after-return");
+		await using var seedContext = await _CreateDbContextAsync();
 
 		try {
-			var first = NewJob(jobType, priority: 10);
-			var second = NewJob(jobType, priority: 1);
+			var first = _NewJob(jobType, priority: 10);
+			var second = _NewJob(jobType, priority: 1);
 			await seedContext.JobQueue.AddRangeAsync(first, second);
 			await seedContext.SaveChangesAsync();
 			var firstId = first.Id.GetValueOrDefault();
@@ -638,14 +638,14 @@ public sealed class JobQueueProcessorSpec : IClassFixture<ApiFixture> {
 					}
 				}
 			};
-			var processor = CreateProcessor(handler);
+			var processor = _CreateProcessor(handler);
 
 			var result = await processor.ProcessBatchAsync(hostSource.Token);
 
 			result.Dispatched.Should().Be(1);
 			result.Completed.Should().Be(1, "the returned outcome is applied despite shutdown");
 
-			await using var verifyContext = await CreateDbContextAsync();
+			await using var verifyContext = await _CreateDbContextAsync();
 			var firstRow = await verifyContext.JobQueue
 				.SingleOrDefaultAsync(j => j.Id == firstId);
 			firstRow.Should().BeNull("the completed job's Success outcome was applied");
@@ -656,7 +656,7 @@ public sealed class JobQueueProcessorSpec : IClassFixture<ApiFixture> {
 			secondRow.LockToken.Should().BeNull("the undispatched batchmate was released");
 			secondRow.Attempts.Should().Be(0);
 		} finally {
-			await DeleteJobsByTypeAsync(jobType);
+			await _DeleteJobsByTypeAsync(jobType);
 		}
 	}
 
@@ -664,21 +664,21 @@ public sealed class JobQueueProcessorSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldDeadLetterImmediatelyOnPermanentFailureRegardlessOfRemainingAttempts() {
-		var jobType = UniqueType("permanent");
-		await using var dbContext = await CreateDbContextAsync();
+		var jobType = _UniqueType("permanent");
+		await using var dbContext = await _CreateDbContextAsync();
 
 		try {
-			var claimed = await SeedAndClaimOneAsync(dbContext, jobType, "worker-a");
+			var claimed = await _SeedAndClaimOneAsync(dbContext, jobType, "worker-a");
 			var item = await dbContext.JobQueue.SingleAsync(j => j.Id == claimed.Id);
 
 			var handler = new RecordingJobHandler(jobType) {
 				Outcome = new JobOutcome.PermanentFailure("payload references a deleted entity")
 			};
-			var processor = CreateProcessor(handler);
+			var processor = _CreateProcessor(handler);
 
 			await processor.ProcessOneAsync(item, claimed.LockToken, CancellationToken.None);
 
-			await using var verifyContext = await CreateDbContextAsync();
+			await using var verifyContext = await _CreateDbContextAsync();
 			var queueRow = await verifyContext.JobQueue
 				.SingleOrDefaultAsync(j => j.Id == claimed.Id);
 			queueRow.Should().BeNull("PermanentFailure skips retries entirely");
@@ -688,7 +688,7 @@ public sealed class JobQueueProcessorSpec : IClassFixture<ApiFixture> {
 			deadLetter.LastError.Should().Be("payload references a deleted entity");
 			deadLetter.Attempts.Should().Be(1);
 		} finally {
-			await DeleteJobsByTypeAsync(jobType);
+			await _DeleteJobsByTypeAsync(jobType);
 		}
 	}
 
@@ -696,19 +696,19 @@ public sealed class JobQueueProcessorSpec : IClassFixture<ApiFixture> {
 	// a job nothing can ever execute (design §5.1 dispatch).
 	[Fact]
 	public async Task ItShouldDeadLetterImmediatelyForAnUnknownJobType() {
-		var jobType = UniqueType("unknown");
-		await using var dbContext = await CreateDbContextAsync();
+		var jobType = _UniqueType("unknown");
+		await using var dbContext = await _CreateDbContextAsync();
 
 		try {
-			var claimed = await SeedAndClaimOneAsync(dbContext, jobType, "worker-a");
+			var claimed = await _SeedAndClaimOneAsync(dbContext, jobType, "worker-a");
 			var item = await dbContext.JobQueue.SingleAsync(j => j.Id == claimed.Id);
 
 			// No handler registered at all.
-			var processor = CreateProcessor();
+			var processor = _CreateProcessor();
 
 			await processor.ProcessOneAsync(item, claimed.LockToken, CancellationToken.None);
 
-			await using var verifyContext = await CreateDbContextAsync();
+			await using var verifyContext = await _CreateDbContextAsync();
 			var queueRow = await verifyContext.JobQueue
 				.SingleOrDefaultAsync(j => j.Id == claimed.Id);
 			queueRow.Should().BeNull();
@@ -717,7 +717,7 @@ public sealed class JobQueueProcessorSpec : IClassFixture<ApiFixture> {
 				.SingleAsync(d => d.OriginalJobId == claimed.Id);
 			deadLetter.LastError.Should().Contain("No job handler registered");
 		} finally {
-			await DeleteJobsByTypeAsync(jobType);
+			await _DeleteJobsByTypeAsync(jobType);
 		}
 	}
 
@@ -727,22 +727,22 @@ public sealed class JobQueueProcessorSpec : IClassFixture<ApiFixture> {
 	// JobHandlerRegistrySpec); this covers the runtime defense-in-depth path.
 	[Fact]
 	public async Task ItShouldDeadLetterImmediatelyOnRegistrationJobTypeDrift() {
-		var jobType = UniqueType("drift");
-		await using var dbContext = await CreateDbContextAsync();
+		var jobType = _UniqueType("drift");
+		await using var dbContext = await _CreateDbContextAsync();
 
 		try {
-			var claimed = await SeedAndClaimOneAsync(dbContext, jobType, "worker-a");
+			var claimed = await _SeedAndClaimOneAsync(dbContext, jobType, "worker-a");
 			var item = await dbContext.JobQueue.SingleAsync(j => j.Id == claimed.Id);
 
 			// Handler declares a different type than it was registered under; built
 			// without a scope factory so the eager guard is bypassed on purpose.
-			var driftedHandler = new RecordingJobHandler(UniqueType("other"));
+			var driftedHandler = new RecordingJobHandler(_UniqueType("other"));
 			var registry = new JobHandlerRegistry([
 				new JobHandlerRegistration(jobType, _ => driftedHandler)
 			]);
 			var instance = new JobWorkerInstance();
 			var processor = new JobQueueProcessor(
-				_fixture.Factory.Services.GetRequiredService<IServiceScopeFactory>(),
+				_Fixture.Factory.Services.GetRequiredService<IServiceScopeFactory>(),
 				registry,
 				new JobsMetrics(instance, NullLogger<JobsMetrics>.Instance),
 				instance,
@@ -759,7 +759,7 @@ public sealed class JobQueueProcessorSpec : IClassFixture<ApiFixture> {
 				"nor should its terminal hook run for a job that was never its own"
 			);
 
-			await using var verifyContext = await CreateDbContextAsync();
+			await using var verifyContext = await _CreateDbContextAsync();
 			var queueRow = await verifyContext.JobQueue
 				.SingleOrDefaultAsync(j => j.Id == claimed.Id);
 			queueRow.Should().BeNull("configuration drift skips retries entirely");
@@ -769,22 +769,22 @@ public sealed class JobQueueProcessorSpec : IClassFixture<ApiFixture> {
 			deadLetter.LastError.Should().Contain("configuration drift");
 			deadLetter.Attempts.Should().Be(1);
 		} finally {
-			await DeleteJobsByTypeAsync(jobType);
+			await _DeleteJobsByTypeAsync(jobType);
 		}
 	}
 
 	[Fact]
 	public async Task ItShouldDeadLetterImmediatelyWhenThePayloadIsMalformed() {
-		var jobType = UniqueType("malformed");
-		await using var dbContext = await CreateDbContextAsync();
+		var jobType = _UniqueType("malformed");
+		await using var dbContext = await _CreateDbContextAsync();
 
 		try {
-			var row = NewJob(jobType);
+			var row = _NewJob(jobType);
 			row.Payload = """{"unexpected": "shape"}""";
 			await dbContext.JobQueue.AddAsync(row);
 			await dbContext.SaveChangesAsync();
 
-			var claimed = await ClaimSingleAsync(dbContext, row);
+			var claimed = await _ClaimSingleAsync(dbContext, row);
 			var handler = new RecordingJobHandler(jobType) {
 				OnHandle = context => {
 					// Handler reads its payload through the canonical contract; the
@@ -793,11 +793,11 @@ public sealed class JobQueueProcessorSpec : IClassFixture<ApiFixture> {
 					return Task.CompletedTask;
 				}
 			};
-			var processor = CreateProcessor(handler);
+			var processor = _CreateProcessor(handler);
 
 			await processor.ProcessOneAsync(row, claimed.LockToken, CancellationToken.None);
 
-			await using var verifyContext = await CreateDbContextAsync();
+			await using var verifyContext = await _CreateDbContextAsync();
 			var queueRow = await verifyContext.JobQueue
 				.SingleOrDefaultAsync(j => j.Id == row.Id);
 			queueRow.Should().BeNull(
@@ -808,7 +808,7 @@ public sealed class JobQueueProcessorSpec : IClassFixture<ApiFixture> {
 				.SingleAsync(d => d.OriginalJobId == row.Id);
 			deadLetter.LastError.Should().StartWith("JsonException");
 		} finally {
-			await DeleteJobsByTypeAsync(jobType);
+			await _DeleteJobsByTypeAsync(jobType);
 		}
 	}
 
@@ -826,16 +826,16 @@ public sealed class JobQueueProcessorSpec : IClassFixture<ApiFixture> {
 	// must instead go straight to the DLQ, hook untouched.
 	[Fact]
 	public async Task ItShouldSkipTheTerminalHookAndDeadLetterWhenThePayloadCannotParse() {
-		var jobType = UniqueType("invalid-payload-hook");
-		await using var dbContext = await CreateDbContextAsync();
+		var jobType = _UniqueType("invalid-payload-hook");
+		await using var dbContext = await _CreateDbContextAsync();
 
 		try {
-			var row = NewJob(jobType);
+			var row = _NewJob(jobType);
 			row.Payload = """{"unexpected": "shape"}""";
 			await dbContext.JobQueue.AddAsync(row);
 			await dbContext.SaveChangesAsync();
 
-			var claimed = await ClaimSingleAsync(dbContext, row);
+			var claimed = await _ClaimSingleAsync(dbContext, row);
 			var handler = new RecordingJobHandler(jobType) {
 				OnHandle = context => {
 					// The missing required member throws JsonException from inside a
@@ -845,7 +845,7 @@ public sealed class JobQueueProcessorSpec : IClassFixture<ApiFixture> {
 				},
 				ThrowOnTerminal = true
 			};
-			var processor = CreateProcessor(handler);
+			var processor = _CreateProcessor(handler);
 
 			var result = await processor.ProcessOneAsync(
 				row, claimed.LockToken, CancellationToken.None
@@ -860,7 +860,7 @@ public sealed class JobQueueProcessorSpec : IClassFixture<ApiFixture> {
 				"no handler was legitimately reached, so step 3 never fires"
 			);
 
-			await using var verifyContext = await CreateDbContextAsync();
+			await using var verifyContext = await _CreateDbContextAsync();
 			var queueRow = await verifyContext.JobQueue
 				.SingleOrDefaultAsync(j => j.Id == row.Id);
 			queueRow.Should().BeNull(
@@ -871,27 +871,27 @@ public sealed class JobQueueProcessorSpec : IClassFixture<ApiFixture> {
 				.SingleAsync(d => d.OriginalJobId == row.Id);
 			deadLetter.LastError.Should().StartWith("JsonException");
 		} finally {
-			await DeleteJobsByTypeAsync(jobType);
+			await _DeleteJobsByTypeAsync(jobType);
 		}
 	}
 
 	[Fact]
 	public async Task ItShouldDeleteWithoutDeadLetterWhenAHandlerReportsCancelled() {
-		var jobType = UniqueType("cancelled");
-		await using var dbContext = await CreateDbContextAsync();
+		var jobType = _UniqueType("cancelled");
+		await using var dbContext = await _CreateDbContextAsync();
 
 		try {
-			var claimed = await SeedAndClaimOneAsync(dbContext, jobType, "worker-a");
+			var claimed = await _SeedAndClaimOneAsync(dbContext, jobType, "worker-a");
 			var item = await dbContext.JobQueue.SingleAsync(j => j.Id == claimed.Id);
 
 			var handler = new RecordingJobHandler(jobType) {
 				Outcome = new JobOutcome.Cancelled("invitation revoked before send")
 			};
-			var processor = CreateProcessor(handler);
+			var processor = _CreateProcessor(handler);
 
 			await processor.ProcessOneAsync(item, claimed.LockToken, CancellationToken.None);
 
-			await using var verifyContext = await CreateDbContextAsync();
+			await using var verifyContext = await _CreateDbContextAsync();
 			var queueRow = await verifyContext.JobQueue
 				.SingleOrDefaultAsync(j => j.Id == claimed.Id);
 			queueRow.Should().BeNull();
@@ -900,7 +900,7 @@ public sealed class JobQueueProcessorSpec : IClassFixture<ApiFixture> {
 				.CountAsync(d => d.JobType == jobType);
 			dlqCount.Should().Be(0, "a domain no-op is not a failure");
 		} finally {
-			await DeleteJobsByTypeAsync(jobType);
+			await _DeleteJobsByTypeAsync(jobType);
 		}
 	}
 
@@ -908,13 +908,13 @@ public sealed class JobQueueProcessorSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldRunTheTerminalHookAndPreserveTheFullEnvelopeInTheDeadLetter() {
-		var jobType = UniqueType("terminal");
-		await using var dbContext = await CreateDbContextAsync();
+		var jobType = _UniqueType("terminal");
+		await using var dbContext = await _CreateDbContextAsync();
 
 		try {
 			var tenantId = Guid.NewGuid();
 			var actorId = Guid.NewGuid();
-			var row = NewJob(jobType, priority: 7);
+			var row = _NewJob(jobType, priority: 7);
 			row.MaxAttempts = 1;
 			row.IdempotencyKey = "envelope-key";
 			row.TenantId = tenantId;
@@ -924,11 +924,11 @@ public sealed class JobQueueProcessorSpec : IClassFixture<ApiFixture> {
 			await dbContext.SaveChangesAsync();
 			var enqueuedAt = row.CreatedAt;
 
-			var claimed = await ClaimSingleAsync(dbContext, row);
+			var claimed = await _ClaimSingleAsync(dbContext, row);
 			var handler = new RecordingJobHandler(jobType) {
 				Outcome = new JobOutcome.Retry(Error: "still failing")
 			};
-			var processor = CreateProcessor(handler);
+			var processor = _CreateProcessor(handler);
 
 			await processor.ProcessOneAsync(row, claimed.LockToken, CancellationToken.None);
 
@@ -936,7 +936,7 @@ public sealed class JobQueueProcessorSpec : IClassFixture<ApiFixture> {
 				c => c.JobId == row.Id && c.LastError == "still failing"
 			);
 
-			await using var verifyContext = await CreateDbContextAsync();
+			await using var verifyContext = await _CreateDbContextAsync();
 			var queueRow = await verifyContext.JobQueue
 				.SingleOrDefaultAsync(j => j.Id == row.Id);
 			queueRow.Should().BeNull();
@@ -956,27 +956,27 @@ public sealed class JobQueueProcessorSpec : IClassFixture<ApiFixture> {
 			deadLetter.LockedBy.Should().NotBeNullOrWhiteSpace();
 			deadLetter.FailedAt.Should().NotBe(default);
 		} finally {
-			await DeleteJobsByTypeAsync(jobType);
+			await _DeleteJobsByTypeAsync(jobType);
 		}
 	}
 
 	[Fact]
 	public async Task ItShouldRollBackTheWholeTerminalStepWhenTheHookThrows() {
-		var jobType = UniqueType("hook-throw");
-		await using var dbContext = await CreateDbContextAsync();
+		var jobType = _UniqueType("hook-throw");
+		await using var dbContext = await _CreateDbContextAsync();
 
 		try {
-			var row = NewJob(jobType);
+			var row = _NewJob(jobType);
 			row.MaxAttempts = 1;
 			await dbContext.JobQueue.AddAsync(row);
 			await dbContext.SaveChangesAsync();
 
-			var claimed = await ClaimSingleAsync(dbContext, row);
+			var claimed = await _ClaimSingleAsync(dbContext, row);
 			var handler = new RecordingJobHandler(jobType) {
 				Outcome = new JobOutcome.Retry(Error: "will exhaust"),
 				ThrowOnTerminal = true
 			};
-			var processor = CreateProcessor(handler);
+			var processor = _CreateProcessor(handler);
 
 			var result = await processor.ProcessOneAsync(
 				row, claimed.LockToken, CancellationToken.None
@@ -986,7 +986,7 @@ public sealed class JobQueueProcessorSpec : IClassFixture<ApiFixture> {
 			// Faulted, never Completed.
 			result.Should().Be(JobQueueProcessor.JobExecutionResult.Faulted);
 
-			await using var verifyContext = await CreateDbContextAsync();
+			await using var verifyContext = await _CreateDbContextAsync();
 			var queueRow = await verifyContext.JobQueue
 				.SingleAsync(j => j.Id == row.Id);
 			queueRow.Status.Should().Be(
@@ -1002,7 +1002,7 @@ public sealed class JobQueueProcessorSpec : IClassFixture<ApiFixture> {
 			// Batch-level accounting of the same path: a second row through
 			// ProcessBatchAsync (the first is still leased, so unclaimable)
 			// dispatches but confirms nothing.
-			var secondRow = NewJob(jobType);
+			var secondRow = _NewJob(jobType);
 			secondRow.MaxAttempts = 1;
 			await dbContext.JobQueue.AddAsync(secondRow);
 			await dbContext.SaveChangesAsync();
@@ -1013,7 +1013,7 @@ public sealed class JobQueueProcessorSpec : IClassFixture<ApiFixture> {
 				0, "a Faulted terminal step must never count as Completed"
 			);
 		} finally {
-			await DeleteJobsByTypeAsync(jobType);
+			await _DeleteJobsByTypeAsync(jobType);
 		}
 	}
 
@@ -1021,15 +1021,15 @@ public sealed class JobQueueProcessorSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldHardDeleteTheRowWhenTheHandlerSucceeds() {
-		var jobType = UniqueType("success");
-		await using var dbContext = await CreateDbContextAsync();
+		var jobType = _UniqueType("success");
+		await using var dbContext = await _CreateDbContextAsync();
 
 		try {
-			var claimed = await SeedAndClaimOneAsync(dbContext, jobType, "worker-a");
+			var claimed = await _SeedAndClaimOneAsync(dbContext, jobType, "worker-a");
 			var item = await dbContext.JobQueue.SingleAsync(j => j.Id == claimed.Id);
 
 			var handler = new RecordingJobHandler(jobType);
-			var processor = CreateProcessor(handler);
+			var processor = _CreateProcessor(handler);
 
 			var result = await processor.ProcessOneAsync(
 				item, claimed.LockToken, CancellationToken.None
@@ -1038,7 +1038,7 @@ public sealed class JobQueueProcessorSpec : IClassFixture<ApiFixture> {
 			result.Should().Be(JobQueueProcessor.JobExecutionResult.Completed);
 			handler.Handled.Should().Contain(claimed.Id);
 
-			await using var verifyContext = await CreateDbContextAsync();
+			await using var verifyContext = await _CreateDbContextAsync();
 			var queueRow = await verifyContext.JobQueue
 				.SingleOrDefaultAsync(j => j.Id == claimed.Id);
 			queueRow.Should().BeNull("success is a hard delete, never a soft delete");
@@ -1047,7 +1047,7 @@ public sealed class JobQueueProcessorSpec : IClassFixture<ApiFixture> {
 				.CountAsync(d => d.OriginalJobId == claimed.Id);
 			dlqCount.Should().Be(0);
 		} finally {
-			await DeleteJobsByTypeAsync(jobType);
+			await _DeleteJobsByTypeAsync(jobType);
 		}
 	}
 
@@ -1058,12 +1058,12 @@ public sealed class JobQueueProcessorSpec : IClassFixture<ApiFixture> {
 	// here one Success and one Retry.
 	[Fact]
 	public async Task ItShouldEmitClaimCountsAndPerOutcomeHandlerDurations() {
-		var jobType = UniqueType("metrics");
-		await using var seedContext = await CreateDbContextAsync();
+		var jobType = _UniqueType("metrics");
+		await using var seedContext = await _CreateDbContextAsync();
 
 		try {
-			var succeeding = NewJob(jobType, priority: 10);
-			var failing = NewJob(jobType, priority: 1);
+			var succeeding = _NewJob(jobType, priority: 10);
+			var failing = _NewJob(jobType, priority: 1);
 			await seedContext.JobQueue.AddRangeAsync(succeeding, failing);
 			await seedContext.SaveChangesAsync();
 			var failingId = failing.Id.GetValueOrDefault();
@@ -1076,7 +1076,7 @@ public sealed class JobQueueProcessorSpec : IClassFixture<ApiFixture> {
 					return Task.CompletedTask;
 				}
 			};
-			var processor = CreateProcessor(handler);
+			var processor = _CreateProcessor(handler);
 
 			long claimedCount = 0;
 			var durationOutcomes = new List<string>();
@@ -1088,14 +1088,14 @@ public sealed class JobQueueProcessorSpec : IClassFixture<ApiFixture> {
 				}
 			};
 			listener.SetMeasurementEventCallback<long>((instrument, value, tags, _) => {
-				if (instrument.Name == "jobs.claimed" && HasTag(tags, "job_type", jobType)) {
+				if (instrument.Name == "jobs.claimed" && _HasTag(tags, "job_type", jobType)) {
 					Interlocked.Add(ref claimedCount, value);
 				}
 			});
 			listener.SetMeasurementEventCallback<double>((instrument, _, tags, _) => {
 				if (instrument.Name == "jobs.handler_duration"
-					&& HasTag(tags, "job_type", jobType)) {
-					var outcome = TagValue(tags, "outcome");
+					&& _HasTag(tags, "job_type", jobType)) {
+					var outcome = _TagValue(tags, "outcome");
 					if (outcome is not null) {
 						lock (durationOutcomes) {
 							durationOutcomes.Add(outcome);
@@ -1117,7 +1117,7 @@ public sealed class JobQueueProcessorSpec : IClassFixture<ApiFixture> {
 				"every started handler records a duration tagged with its outcome"
 			);
 		} finally {
-			await DeleteJobsByTypeAsync(jobType);
+			await _DeleteJobsByTypeAsync(jobType);
 		}
 	}
 
@@ -1129,11 +1129,11 @@ public sealed class JobQueueProcessorSpec : IClassFixture<ApiFixture> {
 	// reclaimable (F11). A bool return forces the caller to guess it.
 	[Fact]
 	public async Task ItShouldReturnTheDatabaseComputedDeadlineAndClockFromALeaseRenewal() {
-		var jobType = UniqueType("renew-stamp");
-		await using var dbContext = await CreateDbContextAsync();
+		var jobType = _UniqueType("renew-stamp");
+		await using var dbContext = await _CreateDbContextAsync();
 
 		try {
-			var claimed = await SeedAndClaimOneAsync(dbContext, jobType, "worker-a");
+			var claimed = await _SeedAndClaimOneAsync(dbContext, jobType, "worker-a");
 
 			var stamp = await JobQueueProcessor.TryRenewLeaseAsync(
 				dbContext, claimed.Id, claimed.LockToken, 120, CancellationToken.None
@@ -1147,7 +1147,7 @@ public sealed class JobQueueProcessorSpec : IClassFixture<ApiFixture> {
 				+ "window is exactly the lease — measured entirely in database time"
 			);
 
-			await using var verifyContext = await CreateDbContextAsync();
+			await using var verifyContext = await _CreateDbContextAsync();
 			var row = await verifyContext.JobQueue.SingleAsync(j => j.Id == claimed.Id);
 			row.LockedUntil.Should().Be(
 				stamp.LockedUntil, "the returned deadline is the one the row carries"
@@ -1159,7 +1159,7 @@ public sealed class JobQueueProcessorSpec : IClassFixture<ApiFixture> {
 			);
 			fenced.Should().BeNull();
 		} finally {
-			await DeleteJobsByTypeAsync(jobType);
+			await _DeleteJobsByTypeAsync(jobType);
 		}
 	}
 
@@ -1175,18 +1175,18 @@ public sealed class JobQueueProcessorSpec : IClassFixture<ApiFixture> {
 	// meant the deadline was never evaluated and the handler ran on forever.
 	[Fact]
 	public async Task ItShouldCancelTheHandlerBeforeTheRowIsReclaimableWhenTheLeaseLeavesNoSafetyMargin() {
-		var jobType = UniqueType("no-margin");
-		await using var dbContext = await CreateDbContextAsync();
+		var jobType = _UniqueType("no-margin");
+		await using var dbContext = await _CreateDbContextAsync();
 
 		try {
-			var claimed = await SeedAndClaimOneAsync(dbContext, jobType, "worker-a");
+			var claimed = await _SeedAndClaimOneAsync(dbContext, jobType, "worker-a");
 			var item = await dbContext.JobQueue.SingleAsync(j => j.Id == claimed.Id);
 
 			// Would outlive any lease; only the deadline timer stops it.
 			var handler = new RecordingJobHandler(jobType) {
 				Delay = TimeSpan.FromSeconds(30)
 			};
-			var processor = CreateProcessor(
+			var processor = _CreateProcessor(
 				new JobQueueProcessorOptions { LeaseSeconds = 2 },
 				handler
 			);
@@ -1200,8 +1200,8 @@ public sealed class JobQueueProcessorSpec : IClassFixture<ApiFixture> {
 				"a lease with no safe interval left is abandoned, not assumed"
 			);
 
-			await using var verifyContext = await CreateDbContextAsync();
-			(await IsStillLeasedAsync(verifyContext, claimed.Id)).Should().BeTrue(
+			await using var verifyContext = await _CreateDbContextAsync();
+			(await _IsStillLeasedAsync(verifyContext, claimed.Id)).Should().BeTrue(
 				"the handler must be cancelled while the row is still ours — a margin "
 				+ "that expires after the row is reclaimable is not a margin"
 			);
@@ -1210,7 +1210,7 @@ public sealed class JobQueueProcessorSpec : IClassFixture<ApiFixture> {
 				.CountAsync(d => d.JobType == jobType);
 			dlqCount.Should().Be(0, "a discarded outcome must not dead-letter");
 		} finally {
-			await DeleteJobsByTypeAsync(jobType);
+			await _DeleteJobsByTypeAsync(jobType);
 		}
 	}
 
@@ -1242,11 +1242,11 @@ public sealed class JobQueueProcessorSpec : IClassFixture<ApiFixture> {
 	// locked_until back to now(), so it can never advance past the abandoned lease.
 	[Fact]
 	public async Task ItShouldNotReExtendAnAbandonedLeaseWhenARenewalCompletesAfterTheDeadline() {
-		var jobType = UniqueType("late-renewal");
-		await using var dbContext = await CreateDbContextAsync();
+		var jobType = _UniqueType("late-renewal");
+		await using var dbContext = await _CreateDbContextAsync();
 
 		try {
-			var claimed = await SeedAndClaimOneAsync(dbContext, jobType, "worker-a");
+			var claimed = await _SeedAndClaimOneAsync(dbContext, jobType, "worker-a");
 			var item = await dbContext.JobQueue.SingleAsync(j => j.Id == claimed.Id);
 
 			var started = new TaskCompletionSource(
@@ -1264,7 +1264,7 @@ public sealed class JobQueueProcessorSpec : IClassFixture<ApiFixture> {
 					await release.Task;
 				}
 			};
-			var processor = CreateProcessor(
+			var processor = _CreateProcessor(
 				new JobQueueProcessorOptions { LeaseSeconds = 6 },
 				handler
 			);
@@ -1290,7 +1290,7 @@ public sealed class JobQueueProcessorSpec : IClassFixture<ApiFixture> {
 			// The lease the row legitimately carries BEFORE the abandoned renewal, read on
 			// its own connection. Nothing may push locked_until beyond this once the lease
 			// is abandoned.
-			var deadlineLease = await ReadLockedUntilAsync(claimed.Id);
+			var deadlineLease = await _ReadLockedUntilAsync(claimed.Id);
 
 			// The first renewal (lease/2 ≈ 3 s) commits the later stamp, then the seam
 			// forces the deadline win and the ambiguous cancellation.
@@ -1305,7 +1305,7 @@ public sealed class JobQueueProcessorSpec : IClassFixture<ApiFixture> {
 				"the deadline won, so the abandoned run's outcome is discarded"
 			);
 
-			var finalLease = await ReadLockedUntilAsync(claimed.Id);
+			var finalLease = await _ReadLockedUntilAsync(claimed.Id);
 			finalLease.Should().BeOnOrBefore(
 				deadlineLease,
 				"an ambiguous renewal that committed a later locked_until after the safe "
@@ -1314,7 +1314,7 @@ public sealed class JobQueueProcessorSpec : IClassFixture<ApiFixture> {
 				+ "row is stranded Processing for another whole window"
 			);
 		} finally {
-			await DeleteJobsByTypeAsync(jobType);
+			await _DeleteJobsByTypeAsync(jobType);
 		}
 	}
 
@@ -1327,26 +1327,26 @@ public sealed class JobQueueProcessorSpec : IClassFixture<ApiFixture> {
 	// failure happened to be last.
 	[Fact]
 	public async Task ItShouldCarryRequeueLineageForwardWhenARequeuedJobDeadLettersAgain() {
-		var jobType = UniqueType("lineage");
-		await using var dbContext = await CreateDbContextAsync();
+		var jobType = _UniqueType("lineage");
+		await using var dbContext = await _CreateDbContextAsync();
 
 		try {
 			var ancestorDeadLetterId = Guid.NewGuid();
-			var row = NewJob(jobType);
+			var row = _NewJob(jobType);
 			row.MaxAttempts = 1;
 			row.RequeuedFromDeadLetterId = ancestorDeadLetterId;
 			await dbContext.JobQueue.AddAsync(row);
 			await dbContext.SaveChangesAsync();
 
-			var claimed = await ClaimSingleAsync(dbContext, row);
+			var claimed = await _ClaimSingleAsync(dbContext, row);
 			var handler = new RecordingJobHandler(jobType) {
 				Outcome = new JobOutcome.Retry(Error: "still failing")
 			};
-			var processor = CreateProcessor(handler);
+			var processor = _CreateProcessor(handler);
 
 			await processor.ProcessOneAsync(row, claimed.LockToken, CancellationToken.None);
 
-			await using var verifyContext = await CreateDbContextAsync();
+			await using var verifyContext = await _CreateDbContextAsync();
 			var deadLetter = await verifyContext.JobDeadLetter
 				.SingleAsync(d => d.OriginalJobId == row.Id);
 
@@ -1356,7 +1356,7 @@ public sealed class JobQueueProcessorSpec : IClassFixture<ApiFixture> {
 			deadLetter.RequeuedAsJobId.Should().BeNull("the requeue OUT pair is Phase 4's");
 			deadLetter.RequeuedAt.Should().BeNull();
 		} finally {
-			await DeleteJobsByTypeAsync(jobType);
+			await _DeleteJobsByTypeAsync(jobType);
 		}
 	}
 
@@ -1371,9 +1371,9 @@ public sealed class JobQueueProcessorSpec : IClassFixture<ApiFixture> {
 	// job type detectable as an ageing timestamp rather than as silence.
 	[Fact]
 	public async Task ItShouldTagEveryInstrumentWithTheSameInstanceIdItWritesToLockedBy() {
-		var jobType = UniqueType("instance-tag");
-		await using var seedContext = await CreateDbContextAsync();
-		var seededIds = await SeedDueJobsAsync(seedContext, jobType, count: 1);
+		var jobType = _UniqueType("instance-tag");
+		await using var seedContext = await _CreateDbContextAsync();
+		var seededIds = await _SeedDueJobsAsync(seedContext, jobType, count: 1);
 		var jobId = seededIds.Single();
 
 		try {
@@ -1382,7 +1382,7 @@ public sealed class JobQueueProcessorSpec : IClassFixture<ApiFixture> {
 				OnHandle = async context => {
 					// Read the claim's own locked_by while the lease is still held —
 					// success hard-deletes the row moments later.
-					await using var probe = await CreateDbContextAsync();
+					await using var probe = await _CreateDbContextAsync();
 					lockedByDuringRun = await probe.JobQueue
 						.Where(j => j.Id == context.JobId)
 						.Select(j => j.LockedBy)
@@ -1391,7 +1391,7 @@ public sealed class JobQueueProcessorSpec : IClassFixture<ApiFixture> {
 			};
 
 			var instance = new JobWorkerInstance();
-			var processor = CreateProcessor(instance, new JobQueueProcessorOptions(), handler);
+			var processor = _CreateProcessor(instance, new JobQueueProcessorOptions(), handler);
 
 			var instanceTags = new List<string>();
 			long lastSuccessAt = 0;
@@ -1403,11 +1403,11 @@ public sealed class JobQueueProcessorSpec : IClassFixture<ApiFixture> {
 				}
 			};
 			listener.SetMeasurementEventCallback<long>((instrument, value, tags, _) => {
-				if (!HasTag(tags, "job_type", jobType)) {
+				if (!_HasTag(tags, "job_type", jobType)) {
 					return;
 				}
 
-				var instanceTag = TagValue(tags, "instance");
+				var instanceTag = _TagValue(tags, "instance");
 				if (instanceTag is not null) {
 					lock (instanceTags) {
 						instanceTags.Add(instanceTag);
@@ -1419,11 +1419,11 @@ public sealed class JobQueueProcessorSpec : IClassFixture<ApiFixture> {
 				}
 			});
 			listener.SetMeasurementEventCallback<double>((_, _, tags, _) => {
-				if (!HasTag(tags, "job_type", jobType)) {
+				if (!_HasTag(tags, "job_type", jobType)) {
 					return;
 				}
 
-				var instanceTag = TagValue(tags, "instance");
+				var instanceTag = _TagValue(tags, "instance");
 				if (instanceTag is not null) {
 					lock (instanceTags) {
 						instanceTags.Add(instanceTag);
@@ -1454,7 +1454,7 @@ public sealed class JobQueueProcessorSpec : IClassFixture<ApiFixture> {
 				"jobs.last_success_at is a unix-timestamp gauge recorded on success"
 			);
 		} finally {
-			await DeleteJobsByTypeAsync(jobType);
+			await _DeleteJobsByTypeAsync(jobType);
 		}
 	}
 
@@ -1462,13 +1462,13 @@ public sealed class JobQueueProcessorSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldDrainABacklogLargerThanOneBatchInASingleWake() {
-		var jobType = UniqueType("drain");
-		await using var seedContext = await CreateDbContextAsync();
-		var seededIds = await SeedDueJobsAsync(seedContext, jobType, count: 15);
+		var jobType = _UniqueType("drain");
+		await using var seedContext = await _CreateDbContextAsync();
+		var seededIds = await _SeedDueJobsAsync(seedContext, jobType, count: 15);
 
 		try {
 			var handler = new RecordingJobHandler(jobType);
-			var processor = CreateProcessor(
+			var processor = _CreateProcessor(
 				new JobQueueProcessorOptions { BatchSize = 5 },
 				handler
 			);
@@ -1482,12 +1482,12 @@ public sealed class JobQueueProcessorSpec : IClassFixture<ApiFixture> {
 			result.Reason.Should().Be(JobQueueProcessor.DrainExitReason.Drained);
 			handler.Handled.Should().BeEquivalentTo(seededIds);
 
-			await using var verifyContext = await CreateDbContextAsync();
+			await using var verifyContext = await _CreateDbContextAsync();
 			var remaining = await verifyContext.JobQueue
 				.CountAsync(j => j.JobType == jobType);
 			remaining.Should().Be(0);
 		} finally {
-			await DeleteJobsByTypeAsync(jobType);
+			await _DeleteJobsByTypeAsync(jobType);
 		}
 	}
 
@@ -1497,13 +1497,13 @@ public sealed class JobQueueProcessorSpec : IClassFixture<ApiFixture> {
 	// backlog without any signal/poll wait in between.
 	[Fact]
 	public async Task ItShouldReportBudgetExpiryWhileBacklogRemainsAndFinishOnResume() {
-		var jobType = UniqueType("budget-plumbing");
-		await using var seedContext = await CreateDbContextAsync();
-		var seededIds = await SeedDueJobsAsync(seedContext, jobType, count: 15);
+		var jobType = _UniqueType("budget-plumbing");
+		await using var seedContext = await _CreateDbContextAsync();
+		var seededIds = await _SeedDueJobsAsync(seedContext, jobType, count: 15);
 
 		try {
 			var handler = new RecordingJobHandler(jobType);
-			var processor = CreateProcessor(
+			var processor = _CreateProcessor(
 				new JobQueueProcessorOptions { BatchSize = 5, DrainBudgetSeconds = 0 },
 				handler
 			);
@@ -1530,7 +1530,7 @@ public sealed class JobQueueProcessorSpec : IClassFixture<ApiFixture> {
 
 			handler.Handled.Should().BeEquivalentTo(seededIds);
 		} finally {
-			await DeleteJobsByTypeAsync(jobType);
+			await _DeleteJobsByTypeAsync(jobType);
 		}
 	}
 
@@ -1540,13 +1540,13 @@ public sealed class JobQueueProcessorSpec : IClassFixture<ApiFixture> {
 	// poll. Under the old behavior this would process exactly one batch and stall.
 	[Fact]
 	public async Task ItShouldResumeDrainingImmediatelyAfterBudgetExpiryWithoutWaitingForThePoll() {
-		var jobType = UniqueType("budget-resume");
-		await using var seedContext = await CreateDbContextAsync();
-		var seededIds = await SeedDueJobsAsync(seedContext, jobType, count: 15);
+		var jobType = _UniqueType("budget-resume");
+		await using var seedContext = await _CreateDbContextAsync();
+		var seededIds = await _SeedDueJobsAsync(seedContext, jobType, count: 15);
 
 		try {
 			var handler = new RecordingJobHandler(jobType);
-			var processor = CreateProcessor(
+			var processor = _CreateProcessor(
 				new JobQueueProcessorOptions {
 					BatchSize = 5,
 					DrainBudgetSeconds = 0,
@@ -1570,7 +1570,7 @@ public sealed class JobQueueProcessorSpec : IClassFixture<ApiFixture> {
 				"budget expiry must yield and resume, never strand due work on the poll"
 			);
 		} finally {
-			await DeleteJobsByTypeAsync(jobType);
+			await _DeleteJobsByTypeAsync(jobType);
 		}
 	}
 
@@ -1584,15 +1584,15 @@ public sealed class JobQueueProcessorSpec : IClassFixture<ApiFixture> {
 	// this class. Handler-reached terminal rows keep mapping to 0 None.
 	[Fact]
 	public async Task ItShouldClassifyAnUnknownTypeDeadLetterAsUnclassified() {
-		var jobType = UniqueType("unclassified-producer");
-		await using var dbContext = await CreateDbContextAsync();
+		var jobType = _UniqueType("unclassified-producer");
+		await using var dbContext = await _CreateDbContextAsync();
 
 		try {
-			var claimed = await SeedAndClaimOneAsync(dbContext, jobType, "worker-a");
+			var claimed = await _SeedAndClaimOneAsync(dbContext, jobType, "worker-a");
 			var item = await dbContext.JobQueue.SingleAsync(j => j.Id == claimed.Id);
 
 			// No handler registered at all → NoHandlerReached → unmappable external state.
-			var processor = CreateProcessor();
+			var processor = _CreateProcessor();
 
 			var result = await processor.ProcessOneAsync(
 				item, claimed.LockToken, CancellationToken.None
@@ -1600,7 +1600,7 @@ public sealed class JobQueueProcessorSpec : IClassFixture<ApiFixture> {
 
 			result.Should().Be(JobQueueProcessor.JobExecutionResult.Completed);
 
-			await using var verifyContext = await CreateDbContextAsync();
+			await using var verifyContext = await _CreateDbContextAsync();
 			var deadLetter = await verifyContext.JobDeadLetter
 				.SingleAsync(d => d.OriginalJobId == claimed.Id);
 			deadLetter.ExternalStateStatus.Should().Be(
@@ -1614,7 +1614,7 @@ public sealed class JobQueueProcessorSpec : IClassFixture<ApiFixture> {
 				"expired_at belongs to status 2 Expired only"
 			);
 		} finally {
-			await DeleteJobsByTypeAsync(jobType);
+			await _DeleteJobsByTypeAsync(jobType);
 		}
 	}
 
@@ -1624,21 +1624,21 @@ public sealed class JobQueueProcessorSpec : IClassFixture<ApiFixture> {
 	// stays 0 None, plain age-retention eligible as today.
 	[Fact]
 	public async Task ItShouldLeaveAHandlerReachedDeadLetterAtStatusNone() {
-		var jobType = UniqueType("handler-reached-none");
-		await using var dbContext = await CreateDbContextAsync();
+		var jobType = _UniqueType("handler-reached-none");
+		await using var dbContext = await _CreateDbContextAsync();
 
 		try {
-			var claimed = await SeedAndClaimOneAsync(dbContext, jobType, "worker-a");
+			var claimed = await _SeedAndClaimOneAsync(dbContext, jobType, "worker-a");
 			var item = await dbContext.JobQueue.SingleAsync(j => j.Id == claimed.Id);
 
 			var handler = new RecordingJobHandler(jobType) {
 				Outcome = new JobOutcome.PermanentFailure("payload references a deleted entity")
 			};
-			var processor = CreateProcessor(handler);
+			var processor = _CreateProcessor(handler);
 
 			await processor.ProcessOneAsync(item, claimed.LockToken, CancellationToken.None);
 
-			await using var verifyContext = await CreateDbContextAsync();
+			await using var verifyContext = await _CreateDbContextAsync();
 			var deadLetter = await verifyContext.JobDeadLetter
 				.SingleAsync(d => d.OriginalJobId == claimed.Id);
 			deadLetter.ExternalStateStatus.Should().Be(
@@ -1648,7 +1648,7 @@ public sealed class JobQueueProcessorSpec : IClassFixture<ApiFixture> {
 			deadLetter.ExternalStatePreparedAt.Should().BeNull();
 			deadLetter.ExternalStateExpiresAt.Should().BeNull();
 		} finally {
-			await DeleteJobsByTypeAsync(jobType);
+			await _DeleteJobsByTypeAsync(jobType);
 		}
 	}
 
@@ -1658,15 +1658,15 @@ public sealed class JobQueueProcessorSpec : IClassFixture<ApiFixture> {
 		public required Guid EntityId { get; init; }
 	}
 
-	private static bool HasTag(
+	private static bool _HasTag(
 		ReadOnlySpan<KeyValuePair<string, object?>> tags,
 		string key,
 		string expected
 	) {
-		return string.Equals(TagValue(tags, key), expected, StringComparison.Ordinal);
+		return string.Equals(_TagValue(tags, key), expected, StringComparison.Ordinal);
 	}
 
-	private static string? TagValue(
+	private static string? _TagValue(
 		ReadOnlySpan<KeyValuePair<string, object?>> tags,
 		string key
 	) {
@@ -1679,15 +1679,15 @@ public sealed class JobQueueProcessorSpec : IClassFixture<ApiFixture> {
 		return null;
 	}
 
-	private static string UniqueType(string prefix) {
+	private static string _UniqueType(string prefix) {
 		return $"spec.{prefix}.{Guid.NewGuid():N}";
 	}
 
-	private static JobQueueItem NewJob(string jobType, int priority = 0) {
+	private static JobQueueItem _NewJob(string jobType, int priority = 0) {
 		return new JobQueueItem { JobType = jobType, Priority = priority };
 	}
 
-	private static async Task<List<Guid>> SeedDueJobsAsync(
+	private static async Task<List<Guid>> _SeedDueJobsAsync(
 		AppDbContext dbContext,
 		string jobType,
 		int count
@@ -1695,7 +1695,7 @@ public sealed class JobQueueProcessorSpec : IClassFixture<ApiFixture> {
 		var ids = new List<Guid>();
 
 		for (var i = 0; i < count; i++) {
-			var row = NewJob(jobType);
+			var row = _NewJob(jobType);
 			await dbContext.JobQueue.AddAsync(row);
 			await dbContext.SaveChangesAsync();
 			ids.Add(row.Id.GetValueOrDefault());
@@ -1704,22 +1704,22 @@ public sealed class JobQueueProcessorSpec : IClassFixture<ApiFixture> {
 		return ids;
 	}
 
-	private static async Task<JobQueueProcessor.ClaimedJob> SeedAndClaimOneAsync(
+	private static async Task<JobQueueProcessor.ClaimedJob> _SeedAndClaimOneAsync(
 		AppDbContext dbContext,
 		string jobType,
 		string workerId
 	) {
-		var row = NewJob(jobType);
+		var row = _NewJob(jobType);
 		await dbContext.JobQueue.AddAsync(row);
 		await dbContext.SaveChangesAsync();
 
-		return await ClaimSingleAsync(dbContext, row, workerId);
+		return await _ClaimSingleAsync(dbContext, row, workerId);
 	}
 
 	// Claims the given persisted row and reloads the tracked entity so it carries
 	// the post-claim column values (locked_by, lock_token, …) exactly as the real
 	// batch flow loads entities after claiming.
-	private static async Task<JobQueueProcessor.ClaimedJob> ClaimSingleAsync(
+	private static async Task<JobQueueProcessor.ClaimedJob> _ClaimSingleAsync(
 		AppDbContext dbContext,
 		JobQueueItem row,
 		string workerId = "spec-worker"
@@ -1735,7 +1735,7 @@ public sealed class JobQueueProcessorSpec : IClassFixture<ApiFixture> {
 
 	// Asked of the database, not of an app clock: "still leased" means exactly what
 	// ResetExpiredLeasesAsync means by it (F11).
-	private static async Task<bool> IsStillLeasedAsync(AppDbContext dbContext, Guid jobId) {
+	private static async Task<bool> _IsStillLeasedAsync(AppDbContext dbContext, Guid jobId) {
 		var leased = await dbContext.Database.SqlQuery<bool>(
 			$"""
 			SELECT (locked_until > now()) AS "Value" FROM job_queue WHERE id = {jobId}
@@ -1748,8 +1748,8 @@ public sealed class JobQueueProcessorSpec : IClassFixture<ApiFixture> {
 	// The row's locked_until as the database holds it, read on its own fresh connection
 	// so it never blocks on a concurrent FOR UPDATE (F11): a plain SELECT is an MVCC
 	// reader and sees the last committed value.
-	private async Task<DateTime> ReadLockedUntilAsync(Guid jobId) {
-		await using var dbContext = await CreateDbContextAsync();
+	private async Task<DateTime> _ReadLockedUntilAsync(Guid jobId) {
+		await using var dbContext = await _CreateDbContextAsync();
 		var values = await dbContext.Database.SqlQuery<DateTime>(
 			$"""SELECT locked_until AS "Value" FROM job_queue WHERE id = {jobId}"""
 		).ToListAsync();
@@ -1757,7 +1757,7 @@ public sealed class JobQueueProcessorSpec : IClassFixture<ApiFixture> {
 		return values.Single();
 	}
 
-	private static async Task ExpireLeaseAsync(AppDbContext dbContext, Guid jobId) {
+	private static async Task _ExpireLeaseAsync(AppDbContext dbContext, Guid jobId) {
 		await dbContext.Database.ExecuteSqlAsync(
 			$"""
 			UPDATE job_queue SET locked_until = now() - interval '1 second'
@@ -1766,7 +1766,7 @@ public sealed class JobQueueProcessorSpec : IClassFixture<ApiFixture> {
 		);
 	}
 
-	private static async Task MakeDueNowAsync(AppDbContext dbContext, Guid jobId) {
+	private static async Task _MakeDueNowAsync(AppDbContext dbContext, Guid jobId) {
 		await dbContext.Database.ExecuteSqlAsync(
 			$"""
 			UPDATE job_queue SET next_attempt_at = now() - interval '1 second'
@@ -1776,8 +1776,8 @@ public sealed class JobQueueProcessorSpec : IClassFixture<ApiFixture> {
 	}
 
 	// Targeted cleanup: only this test's unique job type, both tables.
-	private async Task DeleteJobsByTypeAsync(string jobType) {
-		await using var dbContext = await CreateDbContextAsync();
+	private async Task _DeleteJobsByTypeAsync(string jobType) {
+		await using var dbContext = await _CreateDbContextAsync();
 		await dbContext.Database.ExecuteSqlAsync(
 			$"DELETE FROM job_queue WHERE job_type = {jobType}"
 		);
@@ -1786,21 +1786,21 @@ public sealed class JobQueueProcessorSpec : IClassFixture<ApiFixture> {
 		);
 	}
 
-	private JobQueueProcessor CreateProcessor(params IJobHandler[] handlers) {
-		return CreateProcessor(new JobQueueProcessorOptions(), handlers);
+	private JobQueueProcessor _CreateProcessor(params IJobHandler[] handlers) {
+		return _CreateProcessor(new JobQueueProcessorOptions(), handlers);
 	}
 
-	private JobQueueProcessor CreateProcessor(
+	private JobQueueProcessor _CreateProcessor(
 		JobQueueProcessorOptions options,
 		params IJobHandler[] handlers
 	) {
-		return CreateProcessor(new JobWorkerInstance(), options, handlers);
+		return _CreateProcessor(new JobWorkerInstance(), options, handlers);
 	}
 
 	// The instance id is threaded in rather than minted inside, so a spec can assert
 	// the value the engine tags its instruments with IS the value it claims rows under
 	// (§7.1).
-	private JobQueueProcessor CreateProcessor(
+	private JobQueueProcessor _CreateProcessor(
 		JobWorkerInstance instance,
 		JobQueueProcessorOptions options,
 		params IJobHandler[] handlers
@@ -1810,7 +1810,7 @@ public sealed class JobQueueProcessorSpec : IClassFixture<ApiFixture> {
 			.ToList();
 
 		return new JobQueueProcessor(
-			_fixture.Factory.Services.GetRequiredService<IServiceScopeFactory>(),
+			_Fixture.Factory.Services.GetRequiredService<IServiceScopeFactory>(),
 			new JobHandlerRegistry(registrations),
 			new JobsMetrics(instance, NullLogger<JobsMetrics>.Instance),
 			instance,
@@ -1820,8 +1820,8 @@ public sealed class JobQueueProcessorSpec : IClassFixture<ApiFixture> {
 		);
 	}
 
-	private async Task<AppDbContext> CreateDbContextAsync() {
-		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+	private async Task<AppDbContext> _CreateDbContextAsync() {
+		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
 		var connectionString = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>()
 			.Database.GetConnectionString();
@@ -1910,20 +1910,20 @@ public sealed class LeaseDeadlineArbiterSpec {
 	// callback can still run).
 	private sealed class ManualDeadlineScheduler
 		: JobQueueProcessor.LeaseDeadlineArbiter.ILeaseDeadlineScheduler {
-		private readonly object _lock = new();
-		private readonly List<Action> _callbacks = new();
+		private readonly object _Lock = new();
+		private readonly List<Action> _Callbacks = new();
 
 		public int ArmedCount {
 			get {
-				lock (_lock) {
-					return _callbacks.Count;
+				lock (_Lock) {
+					return _Callbacks.Count;
 				}
 			}
 		}
 
 		public IDisposable Schedule(TimeSpan delay, Action callback) {
-			lock (_lock) {
-				_callbacks.Add(callback);
+			lock (_Lock) {
+				_Callbacks.Add(callback);
 			}
 
 			return new NoOpHandle();
@@ -1933,8 +1933,8 @@ public sealed class LeaseDeadlineArbiterSpec {
 		// handle does not remove it, so a stale-generation callback stays fireable.
 		public void Fire(int generationIndex) {
 			Action callback;
-			lock (_lock) {
-				callback = _callbacks[generationIndex];
+			lock (_Lock) {
+				callback = _Callbacks[generationIndex];
 			}
 
 			callback();

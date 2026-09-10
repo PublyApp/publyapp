@@ -15,10 +15,10 @@ namespace PublyApp.Api.Modules.Profiles.Handlers.Staff;
 public sealed class ResolveTenantProfileUserAssignmentsAsStaffBody {
 	public JsonElement UserAccountIds { get; init; }
 
-	private bool _parsed;
-	private List<Guid> _userAccountIds = [];
+	private bool _Parsed;
+	private List<Guid> _UserAccountIds = [];
 
-	private List<Guid> ParseUserAccountIds() {
+	private List<Guid> _ParseUserAccountIds() {
 		if (UserAccountIds.ValueKind != JsonValueKind.Array) {
 			throw new InvalidOperationException("UserAccountIds must be an array");
 		}
@@ -40,26 +40,26 @@ public sealed class ResolveTenantProfileUserAssignmentsAsStaffBody {
 	}
 
 	public List<Guid> GetUserAccountIds() {
-		if (_parsed) {
-			return _userAccountIds;
+		if (_Parsed) {
+			return _UserAccountIds;
 		}
 
-		_userAccountIds = ParseUserAccountIds();
-		_parsed = true;
-		return _userAccountIds;
+		_UserAccountIds = _ParseUserAccountIds();
+		_Parsed = true;
+		return _UserAccountIds;
 	}
 }
 
 public sealed class ResolveTenantProfileUserAssignmentsAsStaffBodyValidator
 	: AbstractValidator<ResolveTenantProfileUserAssignmentsAsStaffBody> {
-	private const int MaxUserAccountIds = 200;
+	private const int _MaxUserAccountIds = 200;
 
 	public ResolveTenantProfileUserAssignmentsAsStaffBodyValidator() {
 		RuleFor(x => x.UserAccountIds)
 			.MustBeRequiredGuidArrayAllowingEmpty(
 				"UserAccountIds",
 				"userAccountId",
-				MaxUserAccountIds
+				_MaxUserAccountIds
 			);
 	}
 }

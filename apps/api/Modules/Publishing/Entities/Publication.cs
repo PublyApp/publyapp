@@ -14,14 +14,14 @@ namespace PublyApp.Api.Modules.Publishing.Entities;
 /// </summary>
 [Table("publications")]
 public class Publication : BaseAttributes, ITenantEntity {
-	private PublyApp.Api.Modules.Tenants.Entities.Tenant? _tenant;
+	private PublyApp.Api.Modules.Tenants.Entities.Tenant? _Tenant;
 
 	[Column("tenant_id")]
 	public required Guid TenantId { get; set; }
 	[JsonIgnore]
 	public PublyApp.Api.Modules.Tenants.Entities.Tenant Tenant {
-		get { return RequiredNavigation.Get(_tenant, nameof(Publication), nameof(Tenant)); }
-		set { _tenant = value; }
+		get { return RequiredNavigation.Get(_Tenant, nameof(Publication), nameof(Tenant)); }
+		set { _Tenant = value; }
 	}
 
 	[Column("post_id")]
@@ -64,21 +64,21 @@ public class Publication : BaseAttributes, ITenantEntity {
 
 	[JsonIgnore]
 	public Post Post {
-		get { return RequiredNavigation.Get(_post, nameof(Publication), nameof(Post)); }
-		set { _post = value; }
+		get { return RequiredNavigation.Get(_Post, nameof(Publication), nameof(Post)); }
+		set { _Post = value; }
 	}
-	private Post? _post;
+	private Post? _Post;
 
 	[JsonIgnore]
 	public Modules.SocialAccounts.Entities.SocialAccount SocialAccount {
 		get {
 			return RequiredNavigation.Get(
-				_socialAccount, nameof(Publication), nameof(SocialAccount)
+				_SocialAccount, nameof(Publication), nameof(SocialAccount)
 			);
 		}
-		set { _socialAccount = value; }
+		set { _SocialAccount = value; }
 	}
-	private Modules.SocialAccounts.Entities.SocialAccount? _socialAccount;
+	private Modules.SocialAccounts.Entities.SocialAccount? _SocialAccount;
 }
 
 /// <summary>

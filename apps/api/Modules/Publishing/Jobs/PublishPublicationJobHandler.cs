@@ -22,10 +22,10 @@ namespace PublyApp.Api.Modules.Publishing.Jobs;
 /// publication is failed and the account is flagged while the engine dead-letters.
 /// </summary>
 public sealed class PublishPublicationJobHandler : IJobHandler {
-	private readonly AppDbContext _db;
-	private readonly IPublishProvider _publishProvider;
-	private readonly ISocialSessionProvider _socialSessionProvider;
-	private readonly IPublicationStatusTransitionService _transitions;
+	private readonly AppDbContext _Db;
+	private readonly IPublishProvider _PublishProvider;
+	private readonly ISocialSessionProvider _SocialSessionProvider;
+	private readonly IPublicationStatusTransitionService _Transitions;
 
 	public PublishPublicationJobHandler(
 		AppDbContext db,
@@ -33,10 +33,10 @@ public sealed class PublishPublicationJobHandler : IJobHandler {
 		ISocialSessionProvider socialSessionProvider,
 		IPublicationStatusTransitionService transitions
 	) {
-		_db = db;
-		_publishProvider = publishProvider;
-		_socialSessionProvider = socialSessionProvider;
-		_transitions = transitions;
+		_Db = db;
+		_PublishProvider = publishProvider;
+		_SocialSessionProvider = socialSessionProvider;
+		_Transitions = transitions;
 	}
 
 	public string JobType {
@@ -49,7 +49,7 @@ public sealed class PublishPublicationJobHandler : IJobHandler {
 	) {
 		var payload = context.DeserializePayload<PublishPublicationPayload>();
 
-		var publication = await _db.Publication.SingleOrDefaultAsync(
+		var publication = await _Db.Publication.SingleOrDefaultAsync(
 			candidate => candidate.Id == payload.PublicationId && !candidate.IsDeleted,
 			cancellationToken
 		);
@@ -62,23 +62,23 @@ public sealed class PublishPublicationJobHandler : IJobHandler {
 		}
 
 		var publicationId = publication.GetRequiredId();
-		if (!await _transitions.MarkInProgressAsync(
+		if (!await _Transitions.MarkInProgressAsync(
 				new MarkPublicationInProgressArgs(publicationId, publication.TenantId),
 				cancellationToken
 			)) {
 			return new JobOutcome.Cancelled("publication_not_found");
 		}
 
-		var sessionResult = await _socialSessionProvider.OpenSessionAsync(
+		var sessionResult = await _SocialSessionProvider.OpenSessionAsync(
 			publication.SocialAccountId, cancellationToken
 		);
 		if (sessionResult is SocialSessionResult.AccountFailure sessionAccount) {
-			await PauseForAccountAsync(publication, sessionAccount.Cause, cancellationToken);
+			await _PauseForAccountAsync(publication, sessionAccount.Cause, cancellationToken);
 			return JobOutcome.Succeeded;
 		}
 
 		if (sessionResult is SocialSessionResult.Transient sessionTransient) {
-			return await FailTransientAsync(
+			return await _FailTransientAsync(
 				publication, sessionTransient.Cause, context, cancellationToken
 			);
 		}
@@ -89,12 +89,12 @@ public sealed class PublishPublicationJobHandler : IJobHandler {
 			);
 		}
 
-		var post = await _db.Post.SingleOrDefaultAsync(
+		var post = await _Db.Post.SingleOrDefaultAsync(
 			candidate => candidate.Id == publication.PostId && !candidate.IsDeleted,
 			cancellationToken
 		);
 		if (post is null) {
-			await _transitions.MarkFailedAsync(
+			await _Transitions.MarkFailedAsync(
 				new MarkPublicationFailedArgs(
 					publicationId,
 					publication.TenantId,
@@ -105,7 +105,7 @@ public sealed class PublishPublicationJobHandler : IJobHandler {
 			return JobOutcome.Succeeded;
 		}
 
-		var result = await _publishProvider.PublishAsync(
+		var result = await _PublishProvider.PublishAsync(
 			new PublishRequest {
 				PublicationId = publicationId,
 				IdempotencyKey = publication.IdempotencyKey,
@@ -118,11 +118,11 @@ public sealed class PublishPublicationJobHandler : IJobHandler {
 
 		switch (result) {
 			case PublishResult.Published published:
-				return await SucceedAsync(publication, published.RecordId, published.RecordUrl, cancellationToken);
+				return await _SucceedAsync(publication, published.RecordId, published.RecordUrl, cancellationToken);
 			case PublishResult.AlreadyExistsTreatedAsPublished alreadyExists:
-				return await SucceedAsync(publication, alreadyExists.RecordId, alreadyExists.RecordUrl, cancellationToken);
+				return await _SucceedAsync(publication, alreadyExists.RecordId, alreadyExists.RecordUrl, cancellationToken);
 			case PublishResult.ContentFailure content:
-				await _transitions.MarkFailedAsync(
+				await _Transitions.MarkFailedAsync(
 					new MarkPublicationFailedArgs(
 						publicationId,
 						publication.TenantId,
@@ -132,10 +132,10 @@ public sealed class PublishPublicationJobHandler : IJobHandler {
 				);
 				return JobOutcome.Succeeded;
 			case PublishResult.AccountFailure account:
-				await PauseForAccountAsync(publication, account.Cause, cancellationToken);
+				await _PauseForAccountAsync(publication, account.Cause, cancellationToken);
 				return JobOutcome.Succeeded;
 			case PublishResult.TransientFailure transient:
-				return await FailTransientAsync(publication, transient.Cause, context, cancellationToken);
+				return await _FailTransientAsync(publication, transient.Cause, context, cancellationToken);
 			default:
 				throw new InvalidOperationException(
 					$"Unhandled PublishResult kind '{result.GetType().Name}'."
@@ -154,7 +154,7 @@ public sealed class PublishPublicationJobHandler : IJobHandler {
 		CancellationToken cancellationToken
 	) {
 		var payload = context.DeserializePayload<PublishPublicationPayload>();
-		var publication = await _db.Publication.SingleOrDefaultAsync(
+		var publication = await _Db.Publication.SingleOrDefaultAsync(
 			candidate => candidate.Id == payload.PublicationId && !candidate.IsDeleted,
 			cancellationToken
 		);
@@ -165,16 +165,16 @@ public sealed class PublishPublicationJobHandler : IJobHandler {
 		var cause =
 			$"publishing kept failing; reconnect the account. Last cause: "
 				+ $"{LastErrorSanitiser.Sanitize(context.LastError ?? "unknown error")}";
-		await FlagAccountNeedsReconnectAsync(publication.SocialAccountId, cause, cancellationToken);
+		await _FlagAccountNeedsReconnectAsync(publication.SocialAccountId, cause, cancellationToken);
 	}
 
-	private async Task<JobOutcome> SucceedAsync(
+	private async Task<JobOutcome> _SucceedAsync(
 		Publication publication,
 		string recordId,
 		string recordUrl,
 		CancellationToken cancellationToken
 	) {
-		await _transitions.MarkPublishedAsync(
+		await _Transitions.MarkPublishedAsync(
 			new MarkPublicationPublishedArgs(
 				publication.GetRequiredId(),
 				publication.TenantId,
@@ -183,11 +183,11 @@ public sealed class PublishPublicationJobHandler : IJobHandler {
 			),
 			cancellationToken
 		);
-		await StampAccountLastSuccessAsync(publication.SocialAccountId, cancellationToken);
+		await _StampAccountLastSuccessAsync(publication.SocialAccountId, cancellationToken);
 		return JobOutcome.Succeeded;
 	}
 
-	private async Task PauseForAccountAsync(
+	private async Task _PauseForAccountAsync(
 		Publication publication,
 		string rawCause,
 		CancellationToken cancellationToken
@@ -195,7 +195,7 @@ public sealed class PublishPublicationJobHandler : IJobHandler {
 		var cause =
 			$"the social account needs reconnecting: "
 				+ $"{LastErrorSanitiser.Sanitize(rawCause) ?? rawCause}";
-		await _transitions.MarkPausedAsync(
+		await _Transitions.MarkPausedAsync(
 			new MarkPublicationPausedArgs(
 				publication.GetRequiredId(),
 				publication.TenantId,
@@ -203,18 +203,18 @@ public sealed class PublishPublicationJobHandler : IJobHandler {
 			),
 			cancellationToken
 		);
-		await FlagAccountNeedsReconnectAsync(publication.SocialAccountId, cause, cancellationToken);
+		await _FlagAccountNeedsReconnectAsync(publication.SocialAccountId, cause, cancellationToken);
 
 		// C4: sibling-pause sweep — the account's other scheduled rows must not sit
 		// queued behind broken credentials. Same sanitised cause everywhere. All moves
 		// go through the transition service, so the architecture writer-scan stays green.
-		var siblings = await _db.Publication
+		var siblings = await _Db.Publication
 			.Where(p => p.SocialAccountId == publication.SocialAccountId
 				&& p.TenantId == publication.TenantId
 				&& p.Status == PublicationStatus.Scheduled)
 			.ToListAsync(cancellationToken);
 		foreach (var sibling in siblings) {
-			await _transitions.MarkPausedAsync(
+			await _Transitions.MarkPausedAsync(
 				new MarkPublicationPausedArgs(
 					sibling.GetRequiredId(),
 					publication.TenantId,
@@ -225,7 +225,7 @@ public sealed class PublishPublicationJobHandler : IJobHandler {
 		}
 	}
 
-	private async Task<JobOutcome> FailTransientAsync(
+	private async Task<JobOutcome> _FailTransientAsync(
 		Publication publication,
 		string rawCause,
 		JobContext context,
@@ -233,7 +233,7 @@ public sealed class PublishPublicationJobHandler : IJobHandler {
 	) {
 		var cause = LastErrorSanitiser.Sanitize(rawCause) ?? rawCause;
 		if (context.Attempts + 1 >= context.MaxAttempts) {
-			await _transitions.MarkFailedAsync(
+			await _Transitions.MarkFailedAsync(
 				new MarkPublicationFailedArgs(
 					publication.GetRequiredId(),
 					publication.TenantId,
@@ -249,11 +249,11 @@ public sealed class PublishPublicationJobHandler : IJobHandler {
 		return new JobOutcome.Retry(Error: cause);
 	}
 
-	private async Task StampAccountLastSuccessAsync(
+	private async Task _StampAccountLastSuccessAsync(
 		Guid socialAccountId,
 		CancellationToken cancellationToken
 	) {
-		var account = await _db.SocialAccount.SingleOrDefaultAsync(
+		var account = await _Db.SocialAccount.SingleOrDefaultAsync(
 			candidate => candidate.Id == socialAccountId && !candidate.IsDeleted,
 			cancellationToken
 		);
@@ -262,15 +262,15 @@ public sealed class PublishPublicationJobHandler : IJobHandler {
 		}
 
 		account.LastSuccessAt = DateTime.UtcNow;
-		await _db.SaveChangesAsync(cancellationToken);
+		await _Db.SaveChangesAsync(cancellationToken);
 	}
 
-	private async Task FlagAccountNeedsReconnectAsync(
+	private async Task _FlagAccountNeedsReconnectAsync(
 		Guid socialAccountId,
 		string sanitisedCause,
 		CancellationToken cancellationToken
 	) {
-		var account = await _db.SocialAccount.SingleOrDefaultAsync(
+		var account = await _Db.SocialAccount.SingleOrDefaultAsync(
 			candidate => candidate.Id == socialAccountId && !candidate.IsDeleted,
 			cancellationToken
 		);
@@ -280,6 +280,6 @@ public sealed class PublishPublicationJobHandler : IJobHandler {
 
 		account.Status = SocialAccountStatus.NeedsReconnect;
 		account.LastError = sanitisedCause;
-		await _db.SaveChangesAsync(cancellationToken);
+		await _Db.SaveChangesAsync(cancellationToken);
 	}
 }
