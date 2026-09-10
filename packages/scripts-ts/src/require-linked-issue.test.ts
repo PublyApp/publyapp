@@ -286,7 +286,7 @@ test.runIf(process.env.GITHUB_ACTIONS === 'true')(
 	},
 );
 
-test('the real workflow waives EXACTLY dependabot[bot] and no other author', async () => {
+test('the real workflow waives EXACTLY the two Dependabot author forms and no other author', async () => {
 	const runBody = await readRunBody();
 
 	// Must not throw — the real file satisfies the exact shape.
@@ -421,7 +421,10 @@ test('removing the waiver condition entirely is rejected (static shape)', async 
 		'test setup: the removal mutation must actually change the run body',
 	);
 
-	assert.throws(() => assertExactlyDependabotBot(withoutWaiver));
+	assert.throws(
+		() => assertExactlyDependabotAuthors(withoutWaiver),
+		/EXACT equality/,
+	);
 });
 
 test('a non-dependabot author still falls through to the existing linked-issue check', async () => {
