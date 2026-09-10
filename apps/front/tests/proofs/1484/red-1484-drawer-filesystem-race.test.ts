@@ -3,25 +3,30 @@
  *
  * KEPT RED PROOF — issue #1484, drawer scanner victim.
  *
- * This proof deliberately asserts the unfixed behavior: the real
- * scanDrawerSurfaces enumerates its fixture directory, the beforeStat seam
- * deletes the target file, and the real stat must propagate ENOENT. The
- * corrected scanner recovers from that race, so this assertion fails on the
- * corrected code and the paired-proof runner accepts that assertion failure.
+ * This proof deliberately asserts the unfixed behavior across both real
+ * scanner race windows. The pre-stat case uses beforeStat to delete the
+ * enumerated fixture before the real stat; the post-stat case uses
+ * beforeReadSourceFile to delete it after stat succeeds and before the real
+ * readFileSync. The corrected scanner recovers from both races, so both
+ * assertions fail on corrected code and the paired-proof runner accepts those
+ * assertion failures.
  *
  * Primary mutation: in
- * apps/front/src/components/ui/drawer-form.test.tsx, change its isEnoent
- * classifier to `const isEnoent = (_error: unknown): boolean => false;`.
- * The named assertion then passes because ENOENT propagates.
+ * apps/front/src/components/ui/drawer-form.test.tsx, change the readFileSync
+ * catch's `if (isEnoent(error))` to `if (false)`. The post-stat named
+ * assertion then passes because ENOENT propagates.
  *
- * Adverse-mutation search — no surviving mutation:
- * 1. Drawer isEnoent => false: caught by this exact named test; it passes
- *    under the mutation instead of staying red.
- * 2. Change the drawer stat catch from `isEnoent(error)` to `false`: caught
- *    by this same named test on the same enumerate-delete-stat path.
- * 3. Translation isEnoent => false: caught by the companion
- *    `translation scanner propagates the unfixed ENOENT race` test; it passes
- *    under the mutation instead of staying red.
+ * Adverse-mutation search — no surviving mutation after both windows were
+ * exercised:
+ * 1. Drawer isEnoent => false: both named drawer tests pass under the
+ *    mutation instead of staying red.
+ * 2. Change the drawer stat catch from `isEnoent(error)` to `false`: the
+ *    pre-stat named test passes instead of staying red.
+ * 3. Change the drawer read catch from `isEnoent(error)` to `false`: the
+ *    post-stat named test passes instead of staying red.
+ * 4. Translation isEnoent => false: the companion
+ *    `translation scanner propagates the unfixed ENOENT race` test passes
+ *    instead of staying red.
  *
  * Replay:
  *   cd apps/front && pnpm exec vitest run --config vitest.proofs.config.ts \
@@ -40,7 +45,7 @@ const isEnoent = (error: unknown): boolean =>
 	error instanceof Error && 'code' in error && error.code === 'ENOENT';
 
 describe('drawer filesystem race kept-red proof (#1484)', () => {
-	it('drawer scanner propagates the unfixed ENOENT race', () => {
+	it('drawer scanner propagates the unfixed pre-stat ENOENT race', () => {
 		writeFileSync(
 			DRAWER_RACE_PROOF_FIXTURE.filePath,
 			DRAWER_RACE_PROOF_FIXTURE.source,
@@ -52,6 +57,38 @@ describe('drawer filesystem race kept-red proof (#1484)', () => {
 			try {
 				scanDrawerSurfaces({
 					beforeStat: (filePath) => {
+						if (filePath !== DRAWER_RACE_PROOF_FIXTURE.filePath) {
+							return;
+						}
+						unlinkSync(filePath);
+						deletedDuringScan = true;
+					},
+				});
+			} catch (error) {
+				thrown = error;
+			}
+
+			expect(deletedDuringScan).toBe(true);
+			expect(isEnoent(thrown)).toBe(true);
+		} finally {
+			if (existsSync(DRAWER_RACE_PROOF_FIXTURE.filePath)) {
+				unlinkSync(DRAWER_RACE_PROOF_FIXTURE.filePath);
+			}
+		}
+	});
+
+	it('drawer scanner propagates the unfixed post-stat ENOENT race', () => {
+		writeFileSync(
+			DRAWER_RACE_PROOF_FIXTURE.filePath,
+			DRAWER_RACE_PROOF_FIXTURE.source,
+		);
+		let deletedDuringScan = false;
+		let thrown: unknown;
+
+		try {
+			try {
+				scanDrawerSurfaces({
+					beforeReadSourceFile: (filePath) => {
 						if (filePath !== DRAWER_RACE_PROOF_FIXTURE.filePath) {
 							return;
 						}

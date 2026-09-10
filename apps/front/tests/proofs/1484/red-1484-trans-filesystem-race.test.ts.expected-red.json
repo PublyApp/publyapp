@@ -1,6 +1,6 @@
 {
 	"$schema": "../expected-red.schema.json",
-	"_comment": "Behavioral kept-red proof for #1484. The real discoverTransCallSites enumerates a temporary routes fixture, readSourceFile deletes the target before the real read, and the named assertion requires the unfixed ENOENT to propagate. Corrected code fails this assertion with AssertionError. No surviving mutation was found: (1) translation isEnoent => false makes the named translation test pass; (2) drawer stat-catch classification changed from isEnoent(error) to false makes the companion named drawer test pass; (3) drawer isEnoent => false makes that same named drawer test pass.",
+	"_comment": "Behavioral kept-red proof for #1484. The real discoverTransCallSites enumerates a temporary routes fixture, readSourceFile deletes the target before the real read, and the named assertion requires the unfixed ENOENT to propagate. Corrected code fails this assertion with AssertionError. After auditing both drawer race windows and the translation race, no surviving mutation was found: (1) translation isEnoent => false makes the named translation test pass; (2) drawer stat-catch classification changed from isEnoent(error) to false makes the companion named drawer pre-stat test pass; (3) drawer read-catch classification changed from isEnoent(error) to false makes the companion named drawer post-stat test pass; (4) drawer isEnoent => false makes both companion named drawer tests pass.",
 	"expectedRed": [
 		{
 			"testName": "translation scanner propagates the unfixed ENOENT race",
