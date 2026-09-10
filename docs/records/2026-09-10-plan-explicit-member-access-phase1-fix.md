@@ -1,5 +1,7 @@
 # Explicit C# Member Access Phase 1 Fix Implementation Plan
 
+> **PARTIALLY SUPERSEDED (2026-09-10).** Phase 1 ultimately shipped the DETECTION analyzer only. The code-fix provider, its `Microsoft.CodeAnalysis.CSharp.Workspaces` dependency, the direct-provider/Fix All tests, and the AppHost analyzer-only wiring described in the Goal, Architecture, and Tasks below were DEFERRED to Phase 2 (see "Phase 2 carry-forward TODO"). Those items remain here as the historical plan of record; where a task below concerns the code-fix provider, Fix All, or AppHost wiring, read it as a Phase 2 task, not Phase 1.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Correct PUBLY0012 semantic eligibility, provider revalidation, and AppHost analyzer-only wiring while recording the approved Phase 1 bespoke-guard exception and proving document/project/solution Fix All behavior.

@@ -511,9 +511,15 @@ The strip removes the code-fix dependency from the detection analyzer assembly:
 `Microsoft.CodeAnalysis.CSharp.Workspaces` is pinned centrally and referenced
 only by the dedicated analyzer test runner in Phase 1, where it is a harmless
 test-harness dependency. Phase 2 must move the code-fix provider and its
-Workspaces dependency into a separate RS1038-correct code-fix assembly. The API
-and AppHost retain analyzer-only references, and the analyzer/API runtime graph
-must remain Workspaces-free. Phase 2 must restore analyzer enforcement for
+Workspaces dependency into a separate RS1038-correct code-fix assembly. In
+Phase 1 the API retains its analyzer-only reference; the AppHost analyzer
+reference is deferred to Phase 2 and is not present in Phase 1. The invariant is
+that the analyzer assembly (`PublyApp.Analyzers.csproj`) is Workspaces-free and
+adds no new dependency to consumers — not that the whole API graph is
+Workspaces-free: `Microsoft.EntityFrameworkCore.Design` already brings
+`Microsoft.CodeAnalysis.CSharp.Workspaces` into the API restore/runtime graph
+independently, so a Workspaces-free API graph is neither required nor achievable
+here. Phase 2 must restore analyzer enforcement for
 `scripts-cs` through an isolated, correctly packaged or separately restored
 analyzer path before enabling PUBLY0012 there; do not reintroduce the direct
 project reference into the shared codegen invocation.
